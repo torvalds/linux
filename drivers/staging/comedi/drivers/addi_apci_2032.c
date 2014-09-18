@@ -178,7 +178,6 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct apci2032_int_private *subpriv;
 	unsigned int val;
-	bool do_event = false;
 
 	if (!dev->attached)
 		return IRQ_NONE;
@@ -220,19 +219,16 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 				if (subpriv->stop_count == 0) {
 					/* end of acquisition */
 					s->async->events |= COMEDI_CB_EOA;
-					apci2032_int_stop(dev, s);
 				}
 			}
 		} else {
-			apci2032_int_stop(dev, s);
 			s->async->events |= COMEDI_CB_OVERFLOW;
 		}
-		do_event = true;
 	}
 
 	spin_unlock(&subpriv->spinlock);
-	if (do_event)
-		comedi_event(dev, s);
+
+	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
