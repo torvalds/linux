@@ -434,6 +434,30 @@ static void isp_video_buffer_queue(struct vb2_buffer *buf)
 	}
 }
 
+/*
+ * omap3isp_video_return_buffers - Return all queued buffers to videobuf2
+ * @video: ISP video object
+ * @state: new state for the returned buffers
+ *
+ * Return all buffers queued on the video node to videobuf2 in the given state.
+ * The buffer state should be VB2_BUF_STATE_QUEUED if called due to an error
+ * when starting the stream, or VB2_BUF_STATE_ERROR otherwise.
+ *
+ * The function must be called with the video irqlock held.
+ */
+static void omap3isp_video_return_buffers(struct isp_video *video,
+					  enum vb2_buffer_state state)
+{
+	while (!list_empty(&video->dmaqueue)) {
+		struct isp_buffer *buf;
+
+		buf = list_first_entry(&video->dmaqueue,
+				       struct isp_buffer, irqlist);
+		list_del(&buf->irqlist);
+		vb2_buffer_done(&buf->vb.vb2_buf, state);
+	}
+}
+
 static int isp_video_start_streaming(struct vb2_queue *queue,
 				     unsigned int count)
 {
@@ -452,8 +476,12 @@ static int isp_video_start_streaming(struct vb2_queue *queue,
 
 	ret = omap3isp_pipeline_set_stream(pipe,
 					   ISP_PIPELINE_STREAM_CONTINUOUS);
-	if (ret < 0)
+	if (ret < 0) {
+		spin_lock_irqsave(&video->irqlock, flags);
+		omap3isp_video_return_buffers(video, VB2_BUF_STATE_QUEUED);
+		spin_unlock_irqrestore(&video->irqlock, flags);
 		return ret;
+	}
 
 	spin_lock_irqsave(&video->irqlock, flags);
 	if (list_empty(&video->dmaqueue))
@@ -571,26 +599,16 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
  * omap3isp_video_cancel_stream - Cancel stream on a video node
  * @video: ISP video object
  *
- * Cancelling a stream mark all buffers on the video node as erroneous and makes
- * sure no new buffer can be queued.
+ * Cancelling a stream returns all buffers queued on the video node to videobuf2
+ * in the erroneous state and makes sure no new buffer can be queued.
  */
 void omap3isp_video_cancel_stream(struct isp_video *video)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&video->irqlock, flags);
-
-	while (!list_empty(&video->dmaqueue)) {
-		struct isp_buffer *buf;
-
-		buf = list_first_entry(&video->dmaqueue,
-				       struct isp_buffer, irqlist);
-		list_del(&buf->irqlist);
-		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-	}
-
+	omap3isp_video_return_buffers(video, VB2_BUF_STATE_ERROR);
 	video->error = true;
-
 	spin_unlock_irqrestore(&video->irqlock, flags);
 }
 
