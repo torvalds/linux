@@ -881,8 +881,10 @@ static bool check_cmd(const struct intel_engine_cs *ring,
 		 * OACONTROL writes to only MI_LOAD_REGISTER_IMM commands.
 		 */
 		if (reg_addr == OACONTROL) {
-			if (desc->cmd.value == MI_LOAD_REGISTER_MEM)
+			if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
+				DRM_DEBUG_DRIVER("CMD: Rejected LRM to OACONTROL\n");
 				return false;
+			}
 
 			if (desc->cmd.value == MI_LOAD_REGISTER_IMM(1))
 				*oacontrol_set = (cmd[2] != 0);
