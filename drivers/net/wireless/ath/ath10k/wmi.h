@@ -2294,94 +2294,25 @@ struct wmi_mgmt_rx_event_v2 {
 #define PHY_ERROR_FALSE_RADAR_EXT		0x24
 #define PHY_ERROR_RADAR				0x05
 
-struct wmi_single_phyerr_rx_hdr {
-	/* TSF timestamp */
+struct wmi_phyerr {
 	__le32 tsf_timestamp;
-
-	/*
-	 * Current freq1, freq2
-	 *
-	 * [7:0]:    freq1[lo]
-	 * [15:8] :   freq1[hi]
-	 * [23:16]:   freq2[lo]
-	 * [31:24]:   freq2[hi]
-	 */
 	__le16 freq1;
 	__le16 freq2;
-
-	/*
-	 * Combined RSSI over all chains and channel width for this PHY error
-	 *
-	 * [7:0]: RSSI combined
-	 * [15:8]: Channel width (MHz)
-	 * [23:16]: PHY error code
-	 * [24:16]: reserved (future use)
-	 */
 	u8 rssi_combined;
 	u8 chan_width_mhz;
 	u8 phy_err_code;
 	u8 rsvd0;
-
-	/*
-	 * RSSI on chain 0 through 3
-	 *
-	 * This is formatted the same as the PPDU_START RX descriptor
-	 * field:
-	 *
-	 * [7:0]:   pri20
-	 * [15:8]:  sec20
-	 * [23:16]: sec40
-	 * [31:24]: sec80
-	 */
-
-	__le32 rssi_chain0;
-	__le32 rssi_chain1;
-	__le32 rssi_chain2;
-	__le32 rssi_chain3;
-
-	/*
-	 * Last calibrated NF value for chain 0 through 3
-	 *
-	 * nf_list_1:
-	 *
-	 * + [15:0] - chain 0
-	 * + [31:16] - chain 1
-	 *
-	 * nf_list_2:
-	 *
-	 * + [15:0] - chain 2
-	 * + [31:16] - chain 3
-	 */
-	__le32 nf_list_1;
-	__le32 nf_list_2;
-
-	/* Length of the frame */
+	__le32 rssi_chains[4];
+	__le16 nf_chains[4];
 	__le32 buf_len;
+	u8 buf[0];
 } __packed;
 
-struct wmi_single_phyerr_rx_event {
-	/* Phy error event header */
-	struct wmi_single_phyerr_rx_hdr hdr;
-	/* frame buffer */
-	u8 bufp[0];
-} __packed;
-
-struct wmi_comb_phyerr_rx_hdr {
-	/* Phy error phy error count */
-	__le32 num_phyerr_events;
+struct wmi_phyerr_event {
+	__le32 num_phyerrs;
 	__le32 tsf_l32;
 	__le32 tsf_u32;
-} __packed;
-
-struct wmi_comb_phyerr_rx_event {
-	/* Phy error phy error count */
-	struct wmi_comb_phyerr_rx_hdr hdr;
-	/*
-	 * frame buffer - contains multiple payloads in the order:
-	 *                    header - payload, header - payload...
-	 *  (The header is of type: wmi_single_phyerr_rx_hdr)
-	 */
-	u8 bufp[0];
+	struct wmi_phyerr phyerrs[0];
 } __packed;
 
 #define PHYERR_TLV_SIG				0xBB
