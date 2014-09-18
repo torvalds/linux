@@ -1272,7 +1272,7 @@ EXPORT_SYMBOL_GPL(usb_hcd_unlink_urb_from_ep);
  * The usb core itself is however optimized for host controllers that can dma
  * using regular system memory - like pci devices doing bus mastering.
  *
- * To support host controllers with limited dma capabilites we provide dma
+ * To support host controllers with limited dma capabilities we provide dma
  * bounce buffers. This feature can be enabled using the HCD_LOCAL_MEM flag.
  * For this to work properly the host controller code must first use the
  * function dma_declare_coherent_memory() to point out which memory area
