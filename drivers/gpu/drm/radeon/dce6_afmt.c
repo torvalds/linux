@@ -289,7 +289,7 @@ void dce6_audio_enable(struct radeon_device *rdev,
 	if (!pin)
 		return;
 
-	WREG32_ENDPOINT(pin->offset, AZ_F0_CODEC_PIN_CONTROL_HOTPLUG_CONTROL,
+	WREG32_ENDPOINT(pin->offset, AZ_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
 			enable ? AUDIO_ENABLED : 0);
 }
 
