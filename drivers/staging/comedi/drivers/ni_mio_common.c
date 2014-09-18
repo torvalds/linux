@@ -1462,7 +1462,7 @@ static void handle_gpct_interrupt(struct comedi_device *dev,
 
 	ni_tio_handle_interrupt(&devpriv->counter_dev->counters[counter_index],
 				s);
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 #endif
 }
 
@@ -1518,7 +1518,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			if (comedi_is_subdevice_running(s)) {
 				s->async->events |=
 				    COMEDI_CB_ERROR | COMEDI_CB_EOA;
-				cfc_handle_events(dev, s);
+				comedi_handle_events(dev, s);
 			}
 			return;
 		}
@@ -1533,7 +1533,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			if (status & (AI_Overrun_St | AI_Overflow_St))
 				s->async->events |= COMEDI_CB_OVERFLOW;
 
-			cfc_handle_events(dev, s);
+			comedi_handle_events(dev, s);
 			return;
 		}
 		if (status & AI_SC_TC_St) {
@@ -1559,7 +1559,7 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 	if ((status & AI_STOP_St))
 		ni_handle_eos(dev, s);
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static void ack_b_interrupt(struct comedi_device *dev, unsigned short b_status)
@@ -1635,7 +1635,7 @@ static void handle_b_interrupt(struct comedi_device *dev,
 	}
 #endif
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -3693,7 +3693,7 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 			  M_Offset_CDIO_Command);
 		/* s->async->events |= COMEDI_CB_EOA; */
 	}
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static int ni_serial_hw_readwrite8(struct comedi_device *dev,
