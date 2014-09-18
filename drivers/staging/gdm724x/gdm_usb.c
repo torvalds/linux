@@ -682,6 +682,10 @@ static void do_tx(struct work_struct *work)
 		}
 
 		t = alloc_tx_struct(TX_BUF_SIZE);
+		if (t == NULL) {
+			spin_unlock_irqrestore(&tx->lock, flags);
+			return;
+		}
 		t->callback = NULL;
 		t->tx = tx;
 		t->is_sdu = 1;
