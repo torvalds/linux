@@ -116,4 +116,44 @@ static inline unsigned long prep_zero_mask(unsigned long a, unsigned long bits, 
 
 #endif
 
+static inline unsigned long load_unaligned_zeropad(const void *addr)
+{
+	unsigned long ret, offset, tmp;
+
+	asm(
+	"1:	" PPC_LL "%[ret], 0(%[addr])\n"
+	"2:\n"
+	".section .fixup,\"ax\"\n"
+	"3:	"
+#ifdef __powerpc64__
+	"clrrdi		%[tmp], %[addr], 3\n\t"
+	"clrlsldi	%[offset], %[addr], 61, 3\n\t"
+	"ld		%[ret], 0(%[tmp])\n\t"
+#ifdef __BIG_ENDIAN__
+	"sld		%[ret], %[ret], %[offset]\n\t"
+#else
+	"srd		%[ret], %[ret], %[offset]\n\t"
+#endif
+#else
+	"clrrwi		%[tmp], %[addr], 2\n\t"
+	"clrlslwi	%[offset], %[addr], 30, 3\n\t"
+	"lwz		%[ret], 0(%[tmp])\n\t"
+#ifdef __BIG_ENDIAN__
+	"slw		%[ret], %[ret], %[offset]\n\t"
+#else
+	"srw		%[ret], %[ret], %[offset]\n\t"
+#endif
+#endif
+	"b	2b\n"
+	".previous\n"
+	".section __ex_table,\"a\"\n\t"
+		PPC_LONG_ALIGN "\n\t"
+		PPC_LONG "1b,3b\n"
+	".previous"
+	: [tmp] "=&b" (tmp), [offset] "=&r" (offset), [ret] "=&r" (ret)
+	: [addr] "b" (addr), "m" (*(unsigned long *)addr));
+
+	return ret;
+}
+
 #endif /* _ASM_WORD_AT_A_TIME_H */
