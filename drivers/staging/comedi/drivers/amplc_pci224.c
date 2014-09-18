@@ -537,7 +537,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		    devpriv->ao_stop_count == 0) {
 			/* FIFO empty at end of counted acquisition. */
 			s->async->events |= COMEDI_CB_EOA;
-			cfc_handle_events(dev, s);
+			comedi_handle_events(dev, s);
 			return;
 		}
 		break;
@@ -618,7 +618,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		outw(devpriv->daccon, dev->iobase + PCI224_DACCON);
 	}
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static int pci224_ao_inttrig_start(struct comedi_device *dev,
