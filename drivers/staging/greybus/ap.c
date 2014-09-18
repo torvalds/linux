@@ -65,7 +65,15 @@ static void svc_handshake(struct svc_function_handshake *handshake,
 {
 	struct svc_msg *svc_msg;
 
-	/* A new SVC communication channel, let's verify it was for us */
+	/* A new SVC communication channel, let's verify a supported version */
+	if ((handshake->version_major != GREYBUS_VERSION_MAJOR) &&
+	    (handshake->version_minor != GREYBUS_VERSION_MINOR)) {
+		dev_dbg(hd->parent, "received invalid greybus version %d:%d\n",
+			handshake->version_major, handshake->version_minor);
+		return;
+	}
+
+	/* Validate that the handshake came from the SVC */
 	if (handshake->handshake_type != SVC_HANDSHAKE_SVC_HELLO) {
 		/* we don't know what to do with this, log it and return */
 		dev_dbg(hd->parent, "received invalid handshake type %d\n",
@@ -161,11 +169,6 @@ static struct svc_msg *convert_ap_message(struct ap_msg *ap_msg)
 	// for now, just cast the pointer and run away...
 
 	svc_msg = (struct svc_msg *)ap_msg->data;
-
-	/* Verify the version is something we can handle with this code */
-	if ((svc_msg->header.version_major != GREYBUS_VERSION_MAJOR) &&
-	    (svc_msg->header.version_minor != GREYBUS_VERSION_MINOR))
-		return NULL;
 
 	return svc_msg;
 }

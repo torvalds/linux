@@ -30,8 +30,6 @@ enum svc_msg_type {
 struct svc_msg_header {
 	__u8	function_id;	/* enum svc_function_id */
 	__u8	message_type;
-	__u8	version_major;
-	__u8	version_minor;
 	__le16	payload_length;
 };
 
@@ -42,6 +40,8 @@ enum svc_function_handshake_type {
 };
 
 struct svc_function_handshake {
+	__u8	version_major;
+	__u8	version_minor;
 	__u8	handshake_type;	/* enum svc_function_handshake_type */
 };
 
