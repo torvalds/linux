@@ -567,15 +567,6 @@
 
 &i2c4 {
 	status = "okay";
-	ts@55 {
-		compatible = "goodix,gt8xx";
-		reg = <0x55>;
-		touch-gpio = <&gpio7 GPIO_A6 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpio = <&gpio7 GPIO_A5 GPIO_ACTIVE_LOW>;
-		//power-gpio = <&gpio0 GPIO_C5 GPIO_ACTIVE_LOW>;
-		max-x = <1280>;
-		max-y = <800>;
-	};
 	
 	ts@01 {
 		compatible = "ct,vtl_ts";
