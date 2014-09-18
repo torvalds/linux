@@ -217,12 +217,10 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 		s->async->events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
 	} else {
 		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-		if (cmd->stop_src == TRIG_COUNT && !(--devpriv->ntrig)) {
-			pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
+		if (cmd->stop_src == TRIG_COUNT && !(--devpriv->ntrig))
 			s->async->events |= COMEDI_CB_EOA;
-		}
 	}
-	comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
