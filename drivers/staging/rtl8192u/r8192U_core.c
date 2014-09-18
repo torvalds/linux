@@ -3190,34 +3190,6 @@ RESET_START:
 	}
 }
 
-void CAM_read_entry(struct net_device *dev, u32 iIndex)
-{
-	u32 target_command = 0;
-	u32 target_content = 0;
-	u8 entry_i = 0;
-	u32 ulStatus;
-	s32 i = 100;
-	for (entry_i = 0; entry_i < CAM_CONTENT_COUNT; entry_i++) {
-		// polling bit, and No Write enable, and address
-		target_command = entry_i+CAM_CONTENT_COUNT*iIndex;
-		target_command = target_command | BIT31;
-
-		//Check polling bit is clear
-		while ((i--) >= 0) {
-			read_nic_dword(dev, RWCAM, &ulStatus);
-			if (ulStatus & BIT31)
-				continue;
-			else
-				break;
-		}
-		write_nic_dword(dev, RWCAM, target_command);
-		RT_TRACE(COMP_SEC, "CAM_read_entry(): WRITE A0: %x \n", target_command);
-		read_nic_dword(dev, RCAMO, &target_content);
-		RT_TRACE(COMP_SEC, "CAM_read_entry(): WRITE A8: %x \n", target_content);
-	}
-	printk("\n");
-}
-
 static void rtl819x_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 			     u32 *TotalRxDataNum)
 {
