@@ -1327,16 +1327,13 @@ static void apci3120_interrupt_dma(int irq, void *d)
 			devpriv->ul_DmaBufferVirtual[devpriv->
 				ui_DmaActualBuffer], samplesinbuf);
 
-		if (!(cmd->flags & CMDF_WAKE_EOS)) {
+		if (!(cmd->flags & CMDF_WAKE_EOS))
 			s->async->events |= COMEDI_CB_EOS;
-			comedi_handle_events(dev, s);
-		}
 	}
 	if (cmd->stop_src == TRIG_COUNT)
 		if (devpriv->ui_AiActualScan >= cmd->stop_arg) {
 			/*  all data sampled */
 			s->async->events |= COMEDI_CB_EOA;
-			comedi_handle_events(dev, s);
 			return;
 		}
 
@@ -1414,8 +1411,6 @@ static int apci3120_interrupt_handle_eos(struct comedi_device *dev)
 
 	if (err == 0)
 		s->async->events |= COMEDI_CB_OVERFLOW;
-
-	comedi_handle_events(dev, s);
 
 	return 0;
 }
@@ -1539,8 +1534,6 @@ static void apci3120_interrupt(int irq, void *d)
 				dev->iobase + APCI3120_WR_ADDRESS);
 
 			s->async->events |= COMEDI_CB_EOA;
-			comedi_handle_events(dev, s);
-
 			break;
 
 		case APCI3120_TIMER:
@@ -1593,6 +1586,7 @@ static void apci3120_interrupt(int irq, void *d)
 		}
 
 	}
+	comedi_handle_events(dev, s);
 }
 
 /*
