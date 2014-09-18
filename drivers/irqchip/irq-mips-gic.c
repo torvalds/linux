@@ -24,7 +24,6 @@
 unsigned int gic_frequency;
 unsigned int gic_present;
 unsigned long _gic_base;
-unsigned int gic_cpu_pin;
 
 struct gic_pcpu_mask {
 	DECLARE_BITMAP(pcpu_mask, GIC_MAX_INTRS);
@@ -45,6 +44,7 @@ static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
 static int gic_shared_intrs;
 static int gic_vpes;
+static unsigned int gic_cpu_pin;
 static struct irq_chip gic_level_irq_controller, gic_edge_irq_controller;
 
 static void __gic_irq_dispatch(void);
@@ -129,7 +129,7 @@ unsigned int gic_get_timer_pending(void)
 	return vpe_pending & GIC_VPE_PEND_TIMER_MSK;
 }
 
-void gic_bind_eic_interrupt(int irq, int set)
+static void gic_bind_eic_interrupt(int irq, int set)
 {
 	/* Convert irq vector # to hw int # */
 	irq -= GIC_PIN_TO_VEC_OFFSET;
@@ -141,17 +141,6 @@ void gic_bind_eic_interrupt(int irq, int set)
 void gic_send_ipi(unsigned int intr)
 {
 	GICWRITE(GIC_REG(SHARED, GIC_SH_WEDGE), 0x80000000 | intr);
-}
-
-unsigned int gic_compare_int(void)
-{
-	unsigned int pending;
-
-	GICREAD(GIC_REG(VPE_LOCAL, GIC_VPE_PEND), pending);
-	if (pending & GIC_VPE_PEND_CMP_MSK)
-		return 1;
-	else
-		return 0;
 }
 
 int gic_get_c0_compare_int(void)
@@ -174,7 +163,7 @@ int gic_get_c0_perfcount_int(void)
 				  GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_PERFCTR));
 }
 
-void gic_get_int_mask(unsigned long *dst, const unsigned long *src)
+static unsigned int gic_get_int(void)
 {
 	unsigned int i;
 	unsigned long *pending, *intrmask, *pcpu_mask;
@@ -199,17 +188,8 @@ void gic_get_int_mask(unsigned long *dst, const unsigned long *src)
 
 	bitmap_and(pending, pending, intrmask, gic_shared_intrs);
 	bitmap_and(pending, pending, pcpu_mask, gic_shared_intrs);
-	bitmap_and(dst, src, pending, gic_shared_intrs);
-}
 
-unsigned int gic_get_int(void)
-{
-	DECLARE_BITMAP(interrupts, GIC_MAX_INTRS);
-
-	bitmap_fill(interrupts, gic_shared_intrs);
-	gic_get_int_mask(interrupts, interrupts);
-
-	return find_first_bit(interrupts, gic_shared_intrs);
+	return find_first_bit(pending, gic_shared_intrs);
 }
 
 static void gic_mask_irq(struct irq_data *d)
