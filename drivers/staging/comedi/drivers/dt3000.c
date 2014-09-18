@@ -363,7 +363,7 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 	if (debug_n_ints >= 10)
 		s->async->events |= COMEDI_CB_EOA;
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
