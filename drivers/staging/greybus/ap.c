@@ -29,7 +29,7 @@ struct ap_msg {
 
 static struct workqueue_struct *ap_workqueue;
 
-static struct svc_msg *svc_msg_alloc(enum svc_function_type type)
+static struct svc_msg *svc_msg_alloc(enum svc_function_id id)
 {
 	struct svc_msg *svc_msg;
 
@@ -37,8 +37,8 @@ static struct svc_msg *svc_msg_alloc(enum svc_function_type type)
 	if (!svc_msg)
 		return NULL;
 
-	// FIXME - verify we are only sending message types we should be
-	svc_msg->header.type = type;
+	// FIXME - verify we are only sending function IDs we should be
+	svc_msg->header.function_id = id;
 	return svc_msg;
 }
 
@@ -187,7 +187,7 @@ static void ap_process_event(struct work_struct *work)
 	}
 
 	/* Look at the message to figure out what to do with it */
-	switch (svc_msg->header.type) {
+	switch (svc_msg->header.function_id) {
 	case SVC_FUNCTION_HANDSHAKE:
 		svc_handshake(&svc_msg->handshake, hd);
 		break;
@@ -210,8 +210,8 @@ static void ap_process_event(struct work_struct *work)
 		svc_suspend(&svc_msg->suspend, hd);
 		break;
 	default:
-		dev_err(hd->parent, "received invalid SVC message type %d\n",
-			svc_msg->header.type);
+		dev_err(hd->parent, "received invalid SVC function ID %d\n",
+			svc_msg->header.function_id);
 	}
 
 	/* clean the message up */

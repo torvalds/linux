@@ -12,7 +12,7 @@
 
 #pragma pack(push, 1)
 
-enum svc_function_type {
+enum svc_function_id {
 	SVC_FUNCTION_HANDSHAKE			= 0x00,
 	SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT	= 0x01,
 	SVC_FUNCTION_HOTPLUG			= 0x02,
@@ -22,9 +22,14 @@ enum svc_function_type {
 	SVC_FUNCTION_SUSPEND			= 0x06,
 };
 
+enum svc_msg_type {
+	SVC_MSG_DATA				= 0x00,
+	SVC_MSG_ERROR				= 0xff,
+};
+
 struct svc_msg_header {
-	__u8	function;
-	__u8	type;		/* enum svc_function_type */
+	__u8	function_id;	/* enum svc_function_id */
+	__u8	message_type;
 	__u8	version_major;
 	__u8	version_minor;
 	__le16	payload_length;
