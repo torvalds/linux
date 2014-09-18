@@ -60,12 +60,6 @@ cfc_read_array_from_buffer(struct comedi_subdevice *s, void *data,
 	return comedi_read_array_from_buffer(s, data, num_bytes);
 }
 
-static inline unsigned int cfc_handle_events(struct comedi_device *dev,
-					     struct comedi_subdevice *s)
-{
-	return comedi_handle_events(dev, s);
-}
-
 /**
  * cfc_check_trigger_src() - trivially validate a comedi_cmd trigger source
  * @src: pointer to the trigger source to validate
