@@ -656,7 +656,7 @@ static void das1800_ai_handler(struct comedi_device *dev)
 		outb(CLEAR_INTR_MASK & ~OVF, dev->iobase + DAS1800_STATUS);
 		dev_err(dev->class_dev, "FIFO overflow\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
+		comedi_handle_events(dev, s);
 		return;
 	}
 	/*  stop taking data if appropriate */
@@ -674,7 +674,7 @@ static void das1800_ai_handler(struct comedi_device *dev)
 		async->events |= COMEDI_CB_EOA;
 	}
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static int das1800_ai_poll(struct comedi_device *dev,
