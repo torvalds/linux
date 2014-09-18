@@ -2879,42 +2879,6 @@ int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
 							 ctl2g, ctl5g);
 }
 
-int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
-				const struct wmi_channel_arg *arg)
-{
-	struct wmi_set_channel_cmd *cmd;
-	struct sk_buff *skb;
-	u32 ch_flags = 0;
-
-	if (arg->passive)
-		return -EINVAL;
-
-	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
-	if (!skb)
-		return -ENOMEM;
-
-	if (arg->chan_radar)
-		ch_flags |= WMI_CHAN_FLAG_DFS;
-
-	cmd = (struct wmi_set_channel_cmd *)skb->data;
-	cmd->chan.mhz               = __cpu_to_le32(arg->freq);
-	cmd->chan.band_center_freq1 = __cpu_to_le32(arg->freq);
-	cmd->chan.mode              = arg->mode;
-	cmd->chan.flags		   |= __cpu_to_le32(ch_flags);
-	cmd->chan.min_power         = arg->min_power;
-	cmd->chan.max_power         = arg->max_power;
-	cmd->chan.reg_power         = arg->max_reg_power;
-	cmd->chan.reg_classid       = arg->reg_class_id;
-	cmd->chan.antenna_max       = arg->max_antenna_gain;
-
-	ath10k_dbg(ar, ATH10K_DBG_WMI,
-		   "wmi set channel mode %d freq %d\n",
-		   arg->mode, arg->freq);
-
-	return ath10k_wmi_cmd_send(ar, skb,
-				   ar->wmi.cmd->pdev_set_channel_cmdid);
-}
-
 int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt)
 {
 	struct wmi_pdev_suspend_cmd *cmd;

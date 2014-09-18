@@ -2908,11 +2908,6 @@ enum wmi_tp_scale {
 	WMI_TP_SCALE_SIZE   = 5,	/* max num of enum     */
 };
 
-struct wmi_set_channel_cmd {
-	/* channel (only frequency and mode info are used) */
-	struct wmi_channel chan;
-} __packed;
-
 struct wmi_pdev_chanlist_update_event {
 	/* number of channels */
 	__le32 num_chan;
@@ -4732,8 +4727,6 @@ int ath10k_wmi_connect(struct ath10k *ar);
 struct sk_buff *ath10k_wmi_alloc_skb(struct ath10k *ar, u32 len);
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
 
-int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
-				const struct wmi_channel_arg *);
 int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt);
 int ath10k_wmi_pdev_resume_target(struct ath10k *ar);
 int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
