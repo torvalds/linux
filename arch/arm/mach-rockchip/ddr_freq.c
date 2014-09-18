@@ -28,6 +28,7 @@
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
 #include <linux/clk-private.h>
+#include <linux/rockchip/cpu.h>
 #include "../../../drivers/clk/rockchip/clk-pd.h"
 #include "cpu_axi.h"
 
@@ -912,8 +913,13 @@ static int ddrfreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate)
 	real_rate *= MHZ;
 	if (!real_rate)
 		return -EAGAIN;
-
-	clk->parent->rate = clk->rate = real_rate;
+	if (cpu_is_rk312x()) {
+		clk->parent->rate = 2 * real_rate;
+		clk->rate = real_rate;
+	} else {
+		clk->rate = real_rate;
+		clk->parent->rate = real_rate;
+	}
 
 	return 0;
 }

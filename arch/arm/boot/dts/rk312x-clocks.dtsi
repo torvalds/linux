@@ -1206,7 +1206,7 @@
 						#clock-cells = <0>;
 						rockchip,flags = <(CLK_GET_RATE_NOCACHE |
 									CLK_SET_RATE_NO_REPARENT)>;
-						rockchip,clkops-idx = <CLKOPS_RATE_DDR>;
+						rockchip,clkops-idx = <CLKOPS_RATE_DDR_DIV2>;
 					};
 
 					/* reg[7:2]: reserved */

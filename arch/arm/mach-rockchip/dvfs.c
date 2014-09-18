@@ -1028,9 +1028,10 @@ int dvfs_clk_enable_limit(struct dvfs_node *clk_dvfs_node, unsigned int min_rate
 
 	}
 
-	DVFS_DBG("%s:clk(%s) last_set_rate=%u; [min_rate, max_rate]=[%u, %u]\n",
-			__func__, __clk_get_name(clk_dvfs_node->clk), clk_dvfs_node->last_set_rate, 
-			clk_dvfs_node->min_rate, clk_dvfs_node->max_rate);
+	DVFS_DBG("%s:clk(%s) last_set_rate=%lu; [min_rate, max_rate]=[%u, %u]\n",
+		 __func__, __clk_get_name(clk_dvfs_node->clk),
+		 clk_dvfs_node->last_set_rate,
+		 clk_dvfs_node->min_rate, clk_dvfs_node->max_rate);
 
 	return 0;
 }
@@ -1054,8 +1055,11 @@ int dvfs_clk_disable_limit(struct dvfs_node *clk_dvfs_node)
 		mutex_unlock(&clk_dvfs_node->vd->mutex);
 	}
 
-	DVFS_DBG("%s: clk(%s) last_set_rate=%u; [min_rate, max_rate]=[%u, %u]\n",
-			__func__, __clk_get_name(clk_dvfs_node->clk), clk_dvfs_node->last_set_rate, clk_dvfs_node->min_rate, clk_dvfs_node->max_rate);
+	DVFS_DBG("%s: clk(%s) last_set_rate=%lu; [min_rate, max_rate]=[%u, %u]\n",
+		 __func__, __clk_get_name(clk_dvfs_node->clk),
+		 clk_dvfs_node->last_set_rate,
+		 clk_dvfs_node->min_rate, clk_dvfs_node->max_rate);
+
 	return 0;
 }
 EXPORT_SYMBOL(dvfs_clk_disable_limit);
@@ -1329,11 +1333,8 @@ static int dvfs_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 	if (!clk)
 		return -EINVAL;
 
-	if (!clk_dvfs_node->enable_count){
-		DVFS_WARNING("%s:dvfs(%s) is disable\n", 
-			__func__, clk_dvfs_node->name);
+	if (!clk_dvfs_node->enable_count)
 		return 0;
-	}
 	
 	if (clk_dvfs_node->vd->volt_set_flag == DVFS_SET_VOLT_FAILURE) {
 		/* It means the last time set voltage error */
