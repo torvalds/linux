@@ -97,7 +97,7 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 			       & 0xffff;
 		comedi_buf_put(s, s->state);
 		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 
 		/* enable the interrupt */
 		outl(status, devpriv->amcc_iobase + APCI1564_DI_IRQ_REG);
