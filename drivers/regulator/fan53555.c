@@ -267,8 +267,7 @@ static int fan53555_device_setup(struct fan53555_device_info *di,
 		ret = fan53555_voltages_setup_silergy(di);
 		break;
 	default:
-		dev_err(di->dev,
-			"vendor %d not supported!\n", di->chip_id);
+		dev_err(di->dev, "vendor %d not supported!\n", di->vendor);
 		return -EINVAL;
 	}
 
