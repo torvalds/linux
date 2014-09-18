@@ -328,7 +328,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		 * This adds param.pe_data to the template,
 		 * and thus param.pe_data will be destroyed
 		 * when the template expires */
-		ct = ip_vs_conn_new(&param, &dest->addr, dport,
+		ct = ip_vs_conn_new(&param, dest->af, &dest->addr, dport,
 				    IP_VS_CONN_F_TEMPLATE, dest, skb->mark);
 		if (ct == NULL) {
 			kfree(param.pe_data);
@@ -357,7 +357,8 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	ip_vs_conn_fill_param(svc->net, svc->af, iph->protocol, &iph->saddr,
 			      src_port, &iph->daddr, dst_port, &param);
 
-	cp = ip_vs_conn_new(&param, &dest->addr, dport, flags, dest, skb->mark);
+	cp = ip_vs_conn_new(&param, dest->af, &dest->addr, dport, flags, dest,
+			    skb->mark);
 	if (cp == NULL) {
 		ip_vs_conn_put(ct);
 		*ignored = -1;
@@ -479,7 +480,7 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 		ip_vs_conn_fill_param(svc->net, svc->af, iph->protocol,
 				      &iph->saddr, pptr[0], &iph->daddr,
 				      pptr[1], &p);
-		cp = ip_vs_conn_new(&p, &dest->addr,
+		cp = ip_vs_conn_new(&p, dest->af, &dest->addr,
 				    dest->port ? dest->port : pptr[1],
 				    flags, dest, skb->mark);
 		if (!cp) {
@@ -491,9 +492,9 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	IP_VS_DBG_BUF(6, "Schedule fwd:%c c:%s:%u v:%s:%u "
 		      "d:%s:%u conn->flags:%X conn->refcnt:%d\n",
 		      ip_vs_fwd_tag(cp),
-		      IP_VS_DBG_ADDR(svc->af, &cp->caddr), ntohs(cp->cport),
-		      IP_VS_DBG_ADDR(svc->af, &cp->vaddr), ntohs(cp->vport),
-		      IP_VS_DBG_ADDR(svc->af, &cp->daddr), ntohs(cp->dport),
+		      IP_VS_DBG_ADDR(cp->af, &cp->caddr), ntohs(cp->cport),
+		      IP_VS_DBG_ADDR(cp->af, &cp->vaddr), ntohs(cp->vport),
+		      IP_VS_DBG_ADDR(cp->daf, &cp->daddr), ntohs(cp->dport),
 		      cp->flags, atomic_read(&cp->refcnt));
 
 	ip_vs_conn_stats(cp, svc);
@@ -550,7 +551,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 			ip_vs_conn_fill_param(svc->net, svc->af, iph->protocol,
 					      &iph->saddr, pptr[0],
 					      &iph->daddr, pptr[1], &p);
-			cp = ip_vs_conn_new(&p, &daddr, 0,
+			cp = ip_vs_conn_new(&p, svc->af, &daddr, 0,
 					    IP_VS_CONN_F_BYPASS | flags,
 					    NULL, skb->mark);
 			if (!cp)

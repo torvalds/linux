@@ -535,6 +535,7 @@ struct ip_vs_conn {
 	union nf_inet_addr      daddr;          /* destination address */
 	volatile __u32          flags;          /* status flags */
 	__u16                   protocol;       /* Which protocol (TCP/UDP) */
+	__u16			daf;		/* Address family of the dest */
 #ifdef CONFIG_NET_NS
 	struct net              *net;           /* Name space */
 #endif
@@ -648,6 +649,9 @@ struct ip_vs_dest_user_kern {
 	/* thresholds for active connections */
 	u32			u_threshold;	/* upper threshold */
 	u32			l_threshold;	/* lower threshold */
+
+	/* Address family of addr */
+	u16			af;
 };
 
 
@@ -986,6 +990,10 @@ struct netns_ipvs {
 	char			backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
 	/* net name space ptr */
 	struct net		*net;            /* Needed by timer routines */
+	/* Number of heterogeneous destinations, needed because
+	 * heterogeneous are not supported when synchronization is
+	 * enabled */
+	unsigned int		mixed_address_family_dests;
 };
 
 #define DEFAULT_SYNC_THRESHOLD	3
@@ -1210,7 +1218,7 @@ static inline void __ip_vs_conn_put(struct ip_vs_conn *cp)
 void ip_vs_conn_put(struct ip_vs_conn *cp);
 void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport);
 
-struct ip_vs_conn *ip_vs_conn_new(const struct ip_vs_conn_param *p,
+struct ip_vs_conn *ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 				  const union nf_inet_addr *daddr,
 				  __be16 dport, unsigned int flags,
 				  struct ip_vs_dest *dest, __u32 fwmark);
@@ -1396,8 +1404,9 @@ void ip_vs_unregister_nl_ioctl(void);
 int ip_vs_control_init(void);
 void ip_vs_control_cleanup(void);
 struct ip_vs_dest *
-ip_vs_find_dest(struct net *net, int af, const union nf_inet_addr *daddr,
-		__be16 dport, const union nf_inet_addr *vaddr, __be16 vport,
+ip_vs_find_dest(struct net *net, int svc_af, int dest_af,
+		const union nf_inet_addr *daddr, __be16 dport,
+		const union nf_inet_addr *vaddr, __be16 vport,
 		__u16 protocol, __u32 fwmark, __u32 flags);
 void ip_vs_try_bind_dest(struct ip_vs_conn *cp);
 
