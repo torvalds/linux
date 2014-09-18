@@ -23,11 +23,6 @@
 
 #include "../comedidev.h"
 
-static inline unsigned int cfc_bytes_per_scan(struct comedi_subdevice *s)
-{
-	return comedi_bytes_per_scan(s);
-}
-
 static inline void cfc_inc_scan_progress(struct comedi_subdevice *s,
 					 unsigned int num_bytes)
 {
