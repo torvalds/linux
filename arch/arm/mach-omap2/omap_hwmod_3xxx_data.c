@@ -1730,8 +1730,8 @@ static struct omap_hwmod omap3xxx_usbhsotg_hwmod = {
 	 * Note that musb has OTG_FORCESTDBY register that controls MSTANDBY
 	 * signal when MIDLEMODE is set to force-idle.
 	 */
-	.flags		= HWMOD_NO_OCP_AUTOIDLE | HWMOD_SWSUP_SIDLE
-				| HWMOD_FORCE_MSTANDBY,
+	.flags		= HWMOD_NO_OCP_AUTOIDLE | HWMOD_SWSUP_SIDLE |
+			  HWMOD_FORCE_MSTANDBY | HWMOD_RECONFIG_IO_CHAIN,
 };
 
 /* usb_otg_hs */
