@@ -463,6 +463,8 @@ unsigned long btrfs_full_stripe_len(struct btrfs_root *root,
 int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 				struct btrfs_root *extent_root,
 				u64 chunk_offset, u64 chunk_size);
+int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root, u64 chunk_offset);
 
 static inline int btrfs_dev_stats_dirty(struct btrfs_device *dev)
 {

@@ -5433,6 +5433,20 @@ static int update_block_group(struct btrfs_root *root,
 			spin_unlock(&cache->space_info->lock);
 		} else {
 			old_val -= num_bytes;
+
+			/*
+			 * No longer have used bytes in this block group, queue
+			 * it for deletion.
+			 */
+			if (old_val == 0) {
+				spin_lock(&info->unused_bgs_lock);
+				if (list_empty(&cache->bg_list)) {
+					btrfs_get_block_group(cache);
+					list_add_tail(&cache->bg_list,
+						      &info->unused_bgs);
+				}
+				spin_unlock(&info->unused_bgs_lock);
+			}
 			btrfs_set_block_group_used(&cache->item, old_val);
 			cache->pinned += num_bytes;
 			cache->space_info->bytes_pinned += num_bytes;
@@ -8855,6 +8869,16 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 	}
 	up_write(&info->commit_root_sem);
 
+	spin_lock(&info->unused_bgs_lock);
+	while (!list_empty(&info->unused_bgs)) {
+		block_group = list_first_entry(&info->unused_bgs,
+					       struct btrfs_block_group_cache,
+					       bg_list);
+		list_del_init(&block_group->bg_list);
+		btrfs_put_block_group(block_group);
+	}
+	spin_unlock(&info->unused_bgs_lock);
+
 	spin_lock(&info->block_group_cache_lock);
 	while ((n = rb_last(&info->block_group_cache_tree)) != NULL) {
 		block_group = rb_entry(n, struct btrfs_block_group_cache,
@@ -8989,7 +9013,7 @@ btrfs_create_block_group_cache(struct btrfs_root *root, u64 start, u64 size)
 	init_rwsem(&cache->data_rwsem);
 	INIT_LIST_HEAD(&cache->list);
 	INIT_LIST_HEAD(&cache->cluster_list);
-	INIT_LIST_HEAD(&cache->new_bg_list);
+	INIT_LIST_HEAD(&cache->bg_list);
 	btrfs_init_free_space_ctl(cache);
 
 	return cache;
@@ -9130,8 +9154,18 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		__link_block_group(space_info, cache);
 
 		set_avail_alloc_bits(root->fs_info, cache->flags);
-		if (btrfs_chunk_readonly(root, cache->key.objectid))
+		if (btrfs_chunk_readonly(root, cache->key.objectid)) {
 			set_block_group_ro(cache, 1);
+		} else if (btrfs_block_group_used(&cache->item) == 0) {
+			spin_lock(&info->unused_bgs_lock);
+			/* Should always be true but just in case. */
+			if (list_empty(&cache->bg_list)) {
+				btrfs_get_block_group(cache);
+				list_add_tail(&cache->bg_list,
+					      &info->unused_bgs);
+			}
+			spin_unlock(&info->unused_bgs_lock);
+		}
 	}
 
 	list_for_each_entry_rcu(space_info, &root->fs_info->space_info, list) {
@@ -9172,10 +9206,8 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	int ret = 0;
 
-	list_for_each_entry_safe(block_group, tmp, &trans->new_bgs,
-				 new_bg_list) {
-		list_del_init(&block_group->new_bg_list);
-
+	list_for_each_entry_safe(block_group, tmp, &trans->new_bgs, bg_list) {
+		list_del_init(&block_group->bg_list);
 		if (ret)
 			continue;
 
@@ -9261,7 +9293,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 
 	__link_block_group(cache->space_info, cache);
 
-	list_add_tail(&cache->new_bg_list, &trans->new_bgs);
+	list_add_tail(&cache->bg_list, &trans->new_bgs);
 
 	set_avail_alloc_bits(extent_root->fs_info, type);
 
@@ -9428,6 +9460,101 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 out:
 	btrfs_free_path(path);
 	return ret;
+}
+
+/*
+ * Process the unused_bgs list and remove any that don't have any allocated
+ * space inside of them.
+ */
+void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_block_group_cache *block_group;
+	struct btrfs_space_info *space_info;
+	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_trans_handle *trans;
+	int ret = 0;
+
+	if (!fs_info->open)
+		return;
+
+	spin_lock(&fs_info->unused_bgs_lock);
+	while (!list_empty(&fs_info->unused_bgs)) {
+		u64 start, end;
+
+		block_group = list_first_entry(&fs_info->unused_bgs,
+					       struct btrfs_block_group_cache,
+					       bg_list);
+		space_info = block_group->space_info;
+		list_del_init(&block_group->bg_list);
+		if (ret || btrfs_mixed_space_info(space_info)) {
+			btrfs_put_block_group(block_group);
+			continue;
+		}
+		spin_unlock(&fs_info->unused_bgs_lock);
+
+		/* Don't want to race with allocators so take the groups_sem */
+		down_write(&space_info->groups_sem);
+		spin_lock(&block_group->lock);
+		if (block_group->reserved ||
+		    btrfs_block_group_used(&block_group->item) ||
+		    block_group->ro) {
+			/*
+			 * We want to bail if we made new allocations or have
+			 * outstanding allocations in this block group.  We do
+			 * the ro check in case balance is currently acting on
+			 * this block group.
+			 */
+			spin_unlock(&block_group->lock);
+			up_write(&space_info->groups_sem);
+			goto next;
+		}
+		spin_unlock(&block_group->lock);
+
+		/* We don't want to force the issue, only flip if it's ok. */
+		ret = set_block_group_ro(block_group, 0);
+		up_write(&space_info->groups_sem);
+		if (ret < 0) {
+			ret = 0;
+			goto next;
+		}
+
+		/*
+		 * Want to do this before we do anything else so we can recover
+		 * properly if we fail to join the transaction.
+		 */
+		trans = btrfs_join_transaction(root);
+		if (IS_ERR(trans)) {
+			btrfs_set_block_group_rw(root, block_group);
+			ret = PTR_ERR(trans);
+			goto next;
+		}
+
+		/*
+		 * We could have pending pinned extents for this block group,
+		 * just delete them, we don't care about them anymore.
+		 */
+		start = block_group->key.objectid;
+		end = start + block_group->key.offset - 1;
+		clear_extent_bits(&fs_info->freed_extents[0], start, end,
+				  EXTENT_DIRTY, GFP_NOFS);
+		clear_extent_bits(&fs_info->freed_extents[1], start, end,
+				  EXTENT_DIRTY, GFP_NOFS);
+
+		/* Reset pinned so btrfs_put_block_group doesn't complain */
+		block_group->pinned = 0;
+
+		/*
+		 * Btrfs_remove_chunk will abort the transaction if things go
+		 * horribly wrong.
+		 */
+		ret = btrfs_remove_chunk(trans, root,
+					 block_group->key.objectid);
+		btrfs_end_transaction(trans, root);
+next:
+		btrfs_put_block_group(block_group);
+		spin_lock(&fs_info->unused_bgs_lock);
+	}
+	spin_unlock(&fs_info->unused_bgs_lock);
 }
 
 int btrfs_init_space_info(struct btrfs_fs_info *fs_info)

@@ -45,7 +45,7 @@ static struct btrfs_block_group_cache *init_test_block_group(void)
 	spin_lock_init(&cache->lock);
 	INIT_LIST_HEAD(&cache->list);
 	INIT_LIST_HEAD(&cache->cluster_list);
-	INIT_LIST_HEAD(&cache->new_bg_list);
+	INIT_LIST_HEAD(&cache->bg_list);
 
 	btrfs_init_free_space_ctl(cache);
 

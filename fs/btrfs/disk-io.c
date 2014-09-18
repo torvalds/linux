@@ -1769,6 +1769,7 @@ static int cleaner_kthread(void *arg)
 		}
 
 		btrfs_run_delayed_iputs(root);
+		btrfs_delete_unused_bgs(root->fs_info);
 		again = btrfs_clean_one_deleted_snapshot(root);
 		mutex_unlock(&root->fs_info->cleaner_mutex);
 
@@ -2230,6 +2231,7 @@ int open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->super_lock);
 	spin_lock_init(&fs_info->qgroup_op_lock);
 	spin_lock_init(&fs_info->buffer_lock);
+	spin_lock_init(&fs_info->unused_bgs_lock);
 	rwlock_init(&fs_info->tree_mod_log_lock);
 	mutex_init(&fs_info->reloc_mutex);
 	mutex_init(&fs_info->delalloc_root_mutex);
@@ -2239,6 +2241,7 @@ int open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->dirty_cowonly_roots);
 	INIT_LIST_HEAD(&fs_info->space_info);
 	INIT_LIST_HEAD(&fs_info->tree_mod_seq_list);
+	INIT_LIST_HEAD(&fs_info->unused_bgs);
 	btrfs_mapping_init(&fs_info->mapping_tree);
 	btrfs_init_block_rsv(&fs_info->global_block_rsv,
 			     BTRFS_BLOCK_RSV_GLOBAL);
@@ -2977,6 +2980,8 @@ retry_root_backup:
 		fs_info->update_uuid_tree_gen = 1;
 	}
 
+	fs_info->open = 1;
+
 	return 0;
 
 fail_qgroup:
@@ -3688,6 +3693,7 @@ void close_ctree(struct btrfs_root *root)
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	btrfs_stop_all_workers(fs_info);
 
+	fs_info->open = 0;
 	free_root_pointers(fs_info, 1);
 
 	iput(fs_info->btree_inode);

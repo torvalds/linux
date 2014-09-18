@@ -1298,8 +1298,8 @@ struct btrfs_block_group_cache {
 	 */
 	struct list_head cluster_list;
 
-	/* For delayed block group creation */
-	struct list_head new_bg_list;
+	/* For delayed block group creation or deletion of empty block groups */
+	struct list_head bg_list;
 };
 
 /* delayed seq elem */
@@ -1568,6 +1568,7 @@ struct btrfs_fs_info {
 	int do_barriers;
 	int closing;
 	int log_root_recovering;
+	int open;
 
 	u64 total_pinned;
 
@@ -1717,6 +1718,9 @@ struct btrfs_fs_info {
 
 	/* Used to reclaim the metadata space in the background. */
 	struct work_struct async_reclaim_work;
+
+	spinlock_t unused_bgs_lock;
+	struct list_head unused_bgs;
 };
 
 struct btrfs_subvolume_writers {
@@ -3344,6 +3348,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 			   u64 size);
 int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root, u64 group_start);
+void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info);
 void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root);
 u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data);
