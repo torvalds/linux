@@ -126,9 +126,9 @@ int get_c0_perfcount_int(void)
 	if (cpu_has_veic) {
 		set_vi_handler(MSC01E_INT_PERFCTR, mips_perf_dispatch);
 		mips_cpu_perf_irq = MSC01E_INT_BASE + MSC01E_INT_PERFCTR;
+	} else if (gic_present) {
+		mips_cpu_perf_irq = gic_get_c0_perfcount_int();
 	} else if (cp0_perfcount_irq >= 0) {
-		if (cpu_has_vint)
-			set_vi_handler(cp0_perfcount_irq, mips_perf_dispatch);
 		mips_cpu_perf_irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
 	} else {
 		mips_cpu_perf_irq = -1;
@@ -139,15 +139,12 @@ int get_c0_perfcount_int(void)
 
 unsigned int get_c0_compare_int(void)
 {
-#ifdef MSC01E_INT_BASE
 	if (cpu_has_veic) {
 		set_vi_handler(MSC01E_INT_CPUCTR, mips_timer_dispatch);
 		mips_cpu_timer_irq = MSC01E_INT_BASE + MSC01E_INT_CPUCTR;
-	} else
-#endif
-	{
-		if (cpu_has_vint)
-			set_vi_handler(cp0_compare_irq, mips_timer_dispatch);
+	} else if (gic_present) {
+		mips_cpu_timer_irq = gic_get_c0_compare_int();
+	} else {
 		mips_cpu_timer_irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
 	}
 

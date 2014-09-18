@@ -209,6 +209,7 @@
 #define GIC_VPE_WD_MAP_OFS		0x0040
 #define GIC_VPE_COMPARE_MAP_OFS		0x0044
 #define GIC_VPE_TIMER_MAP_OFS		0x0048
+#define GIC_VPE_FDC_MAP_OFS		0x004c
 #define GIC_VPE_PERFCTR_MAP_OFS		0x0050
 #define GIC_VPE_SWINT0_MAP_OFS		0x0054
 #define GIC_VPE_SWINT1_MAP_OFS		0x0058
@@ -262,6 +263,10 @@
 #define GIC_MAP_MSK			(MSK(6) << GIC_MAP_SHF)
 
 /* GIC_VPE_CTL Masks */
+#define GIC_VPE_CTL_FDC_RTBL_SHF	4
+#define GIC_VPE_CTL_FDC_RTBL_MSK	(MSK(1) << GIC_VPE_CTL_FDC_RTBL_SHF)
+#define GIC_VPE_CTL_SWINT_RTBL_SHF	3
+#define GIC_VPE_CTL_SWINT_RTBL_MSK	(MSK(1) << GIC_VPE_CTL_SWINT_RTBL_SHF)
 #define GIC_VPE_CTL_PERFCNT_RTBL_SHF	2
 #define GIC_VPE_CTL_PERFCNT_RTBL_MSK	(MSK(1) << GIC_VPE_CTL_PERFCNT_RTBL_SHF)
 #define GIC_VPE_CTL_TIMER_RTBL_SHF	1
@@ -329,15 +334,29 @@
 /* Add 2 to convert GIC CPU pin to core interrupt */
 #define GIC_CPU_PIN_OFFSET	2
 
-/* Local GIC interrupts. */
-#define GIC_INT_TMR		(GIC_CPU_INT5)
-#define GIC_INT_PERFCTR		(GIC_CPU_INT5)
-
 /* Add 2 to convert non-EIC hardware interrupt to EIC vector number. */
 #define GIC_CPU_TO_VEC_OFFSET	(2)
 
 /* Mapped interrupt to pin X, then GIC will generate the vector (X+1). */
 #define GIC_PIN_TO_VEC_OFFSET	(1)
+
+/* Local GIC interrupts. */
+#define GIC_LOCAL_INT_WD	0 /* GIC watchdog */
+#define GIC_LOCAL_INT_COMPARE	1 /* GIC count and compare timer */
+#define GIC_LOCAL_INT_TIMER	2 /* CPU timer interrupt */
+#define GIC_LOCAL_INT_PERFCTR	3 /* CPU performance counter */
+#define GIC_LOCAL_INT_SWINT0	4 /* CPU software interrupt 0 */
+#define GIC_LOCAL_INT_SWINT1	5 /* CPU software interrupt 1 */
+#define GIC_LOCAL_INT_FDC	6 /* CPU fast debug channel */
+#define GIC_NUM_LOCAL_INTRS	7
+
+/* Convert between local/shared IRQ number and GIC HW IRQ number. */
+#define GIC_LOCAL_HWIRQ_BASE	0
+#define GIC_LOCAL_TO_HWIRQ(x)	(GIC_LOCAL_HWIRQ_BASE + (x))
+#define GIC_HWIRQ_TO_LOCAL(x)	((x) - GIC_LOCAL_HWIRQ_BASE)
+#define GIC_SHARED_HWIRQ_BASE	GIC_NUM_LOCAL_INTRS
+#define GIC_SHARED_TO_HWIRQ(x)	(GIC_SHARED_HWIRQ_BASE + (x))
+#define GIC_HWIRQ_TO_SHARED(x)	((x) - GIC_SHARED_HWIRQ_BASE)
 
 #include <linux/clocksource.h>
 #include <linux/irq.h>
@@ -363,4 +382,6 @@ extern void gic_bind_eic_interrupt(int irq, int set);
 extern unsigned int gic_get_timer_pending(void);
 extern void gic_get_int_mask(unsigned long *dst, const unsigned long *src);
 extern unsigned int gic_get_int(void);
+extern int gic_get_c0_compare_int(void);
+extern int gic_get_c0_perfcount_int(void);
 #endif /* _ASM_GICREGS_H */

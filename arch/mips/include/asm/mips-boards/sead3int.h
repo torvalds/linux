@@ -10,6 +10,8 @@
 #ifndef _MIPS_SEAD3INT_H
 #define _MIPS_SEAD3INT_H
 
+#include <asm/gic.h>
+
 /* SEAD-3 GIC address space definitions. */
 #define GIC_BASE_ADDR		0x1b1c0000
 #define GIC_ADDRSPACE_SZ	(128 * 1024)
@@ -22,9 +24,9 @@
 #define CPU_INT_NET		6
 
 /* GIC interrupt offsets */
-#define GIC_INT_NET		0
-#define GIC_INT_UART1		2
-#define GIC_INT_UART0		3
-#define GIC_INT_EHCI		5
+#define GIC_INT_NET		GIC_SHARED_TO_HWIRQ(0)
+#define GIC_INT_UART1		GIC_SHARED_TO_HWIRQ(2)
+#define GIC_INT_UART0		GIC_SHARED_TO_HWIRQ(3)
+#define GIC_INT_EHCI		GIC_SHARED_TO_HWIRQ(5)
 
 #endif /* !(_MIPS_SEAD3INT_H) */

@@ -273,11 +273,7 @@ asmlinkage void plat_irq_dispatch(void)
 
 	irq = irq_ffs(pending);
 
-	/* HACK: GIC doesn't properly dispatch local interrupts yet */
-	if (gic_present && irq == MIPSCPU_INT_GIC && gic_compare_int())
-		do_IRQ(MIPS_GIC_IRQ_BASE);
-	else
-		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
+	do_IRQ(MIPS_CPU_IRQ_BASE + irq);
 }
 
 #ifdef CONFIG_MIPS_MT_SMP

@@ -8,23 +8,11 @@
 #include <linux/init.h>
 
 #include <asm/cpu.h>
+#include <asm/gic.h>
 #include <asm/setup.h>
 #include <asm/time.h>
 #include <asm/irq.h>
 #include <asm/mips-boards/generic.h>
-
-static int mips_cpu_timer_irq;
-static int mips_cpu_perf_irq;
-
-static void mips_timer_dispatch(void)
-{
-	do_IRQ(mips_cpu_timer_irq);
-}
-
-static void mips_perf_dispatch(void)
-{
-	do_IRQ(mips_cpu_perf_irq);
-}
 
 static void __iomem *status_reg = (void __iomem *)0xbf000410;
 
@@ -83,22 +71,18 @@ void read_persistent_clock(struct timespec *ts)
 
 int get_c0_perfcount_int(void)
 {
-	if (cp0_perfcount_irq >= 0) {
-		if (cpu_has_vint)
-			set_vi_handler(cp0_perfcount_irq, mips_perf_dispatch);
-		mips_cpu_perf_irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
-	} else {
-		mips_cpu_perf_irq = -1;
-	}
-	return mips_cpu_perf_irq;
+	if (gic_present)
+		return gic_get_c0_compare_int();
+	if (cp0_perfcount_irq >= 0)
+		return MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
+	return -1;
 }
 
 unsigned int get_c0_compare_int(void)
 {
-	if (cpu_has_vint)
-		set_vi_handler(cp0_compare_irq, mips_timer_dispatch);
-	mips_cpu_timer_irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
-	return mips_cpu_timer_irq;
+	if (gic_present)
+		return gic_get_c0_compare_int();
+	return MIPS_CPU_IRQ_BASE + cp0_compare_irq;
 }
 
 void __init plat_time_init(void)
