@@ -173,9 +173,8 @@ static void sreset_start_adapter(struct rtw_adapter *padapter)
 
 	DBG_8723A("%s(%s)\n", __func__, padapter->pnetdev->name);
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
+	if (check_fwstate(pmlmepriv, _FW_LINKED))
 		sreset_restore_network_status(padapter);
-	}
 
 	/* TODO: OS and HCI independent */
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
