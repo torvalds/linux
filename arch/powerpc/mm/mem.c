@@ -259,6 +259,12 @@ static int __init mark_nonram_nosave(void)
 	}
 	return 0;
 }
+#else /* CONFIG_NEED_MULTIPLE_NODES */
+static int __init mark_nonram_nosave(void)
+{
+	return 0;
+}
+#endif
 
 static bool zone_limits_final;
 
@@ -351,7 +357,6 @@ void __init paging_init(void)
 
 	mark_nonram_nosave();
 }
-#endif /* ! CONFIG_NEED_MULTIPLE_NODES */
 
 static void __init register_page_bootmem_info(void)
 {
