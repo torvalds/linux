@@ -579,8 +579,8 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		handled = 1;
 	}
 #endif
-	cfc_handle_events(dev, s);
-	cfc_handle_events(dev, s_ao);
+	comedi_handle_events(dev, s);
+	comedi_handle_events(dev, s_ao);
 
 	return IRQ_RETVAL(handled);
 }
