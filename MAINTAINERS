@@ -7385,9 +7385,9 @@ S:	Supported
 F:	drivers/net/ethernet/qlogic/qlcnic/
 
 QLOGIC QLGE 10Gb ETHERNET DRIVER
-M:	Shahed Shaikh <shahed.shaikh@qlogic.com>
-M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
-M:	Ron Mercer <ron.mercer@qlogic.com>
+M:	Harish Patil <harish.patil@qlogic.com>
+M:	Sudarsana Kalluru <sudarsana.kalluru@qlogic.com>
+M:	Dept-GELinuxNICDev@qlogic.com
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
