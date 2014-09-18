@@ -2045,31 +2045,22 @@ static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 	return rc;
 }
 
-static int em_grp45(struct x86_emulate_ctxt *ctxt)
+static int em_jmp_abs(struct x86_emulate_ctxt *ctxt)
 {
-	int rc = X86EMUL_CONTINUE;
+	return assign_eip_near(ctxt, ctxt->src.val);
+}
 
-	switch (ctxt->modrm_reg) {
-	case 2: /* call near abs */ {
-		long int old_eip;
-		old_eip = ctxt->_eip;
-		rc = assign_eip_near(ctxt, ctxt->src.val);
-		if (rc != X86EMUL_CONTINUE)
-			break;
-		ctxt->src.val = old_eip;
-		rc = em_push(ctxt);
-		break;
-	}
-	case 4: /* jmp abs */
-		rc = assign_eip_near(ctxt, ctxt->src.val);
-		break;
-	case 5: /* jmp far */
-		rc = em_jmp_far(ctxt);
-		break;
-	case 6:	/* push */
-		rc = em_push(ctxt);
-		break;
-	}
+static int em_call_near_abs(struct x86_emulate_ctxt *ctxt)
+{
+	int rc;
+	long int old_eip;
+
+	old_eip = ctxt->_eip;
+	rc = assign_eip_near(ctxt, ctxt->src.val);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+	ctxt->src.val = old_eip;
+	rc = em_push(ctxt);
 	return rc;
 }
 
@@ -3780,11 +3771,11 @@ static const struct opcode group4[] = {
 static const struct opcode group5[] = {
 	F(DstMem | SrcNone | Lock,		em_inc),
 	F(DstMem | SrcNone | Lock,		em_dec),
-	I(SrcMem | Stack,			em_grp45),
+	I(SrcMem | Stack,			em_call_near_abs),
 	I(SrcMemFAddr | ImplicitOps | Stack,	em_call_far),
-	I(SrcMem | Stack,			em_grp45),
-	I(SrcMemFAddr | ImplicitOps,		em_grp45),
-	I(SrcMem | Stack,			em_grp45), D(Undefined),
+	I(SrcMem | Stack,			em_jmp_abs),
+	I(SrcMemFAddr | ImplicitOps,		em_jmp_far),
+	I(SrcMem | Stack,			em_push), D(Undefined),
 };
 
 static const struct opcode group6[] = {
