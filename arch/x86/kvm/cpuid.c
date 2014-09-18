@@ -774,6 +774,12 @@ void kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 	if (!best)
 		best = check_cpuid_limit(vcpu, function, index);
 
+	/*
+	 * Perfmon not yet supported for L2 guest.
+	 */
+	if (is_guest_mode(vcpu) && function == 0xa)
+		best = NULL;
+
 	if (best) {
 		*eax = best->eax;
 		*ebx = best->ebx;
