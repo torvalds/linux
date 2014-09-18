@@ -93,8 +93,7 @@ static struct digi_t dgnc_digi_init = {
  * This defines a raw port at 9600 baud, 8 data bits, no parity,
  * 1 stop bit.
  */
-static struct ktermios DgncDefaultTermios =
-{
+static struct ktermios DgncDefaultTermios = {
 	.c_iflag =	(DEFAULT_IFLAGS),	/* iflags */
 	.c_oflag =	(DEFAULT_OFLAGS),	/* oflags */
 	.c_cflag =	(DEFAULT_CFLAGS),	/* cflags */
@@ -868,8 +867,7 @@ void dgnc_carrier(struct channel_t *ch)
 	 *  "make pretend that carrier is there".
 	 */
 	if ((virt_carrier == 0) && ((ch->ch_flags & CH_CD) != 0) &&
-	    (phys_carrier == 0))
-	{
+	    (phys_carrier == 0)) {
 
 		/*
 		 *   When carrier drops:
@@ -1075,8 +1073,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 
 	if (ch->ch_tun.un_flags & UN_ISOPEN) {
 		if ((ch->ch_tun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-			ch->ch_tun.un_tty->ldisc->ops->write_wakeup)
-		{
+			ch->ch_tun.un_tty->ldisc->ops->write_wakeup) {
 			DGNC_UNLOCK(ch->ch_lock, lock_flags);
 			(ch->ch_tun.un_tty->ldisc->ops->write_wakeup)(ch->ch_tun.un_tty);
 			DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -1117,8 +1114,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 
 	if (ch->ch_pun.un_flags & UN_ISOPEN) {
 		if ((ch->ch_pun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-			ch->ch_pun.un_tty->ldisc->ops->write_wakeup)
-		{
+			ch->ch_pun.un_tty->ldisc->ops->write_wakeup) {
 			DGNC_UNLOCK(ch->ch_lock, lock_flags);
 			(ch->ch_pun.un_tty->ldisc->ops->write_wakeup)(ch->ch_pun.un_tty);
 			DGNC_LOCK(ch->ch_lock, lock_flags);
