@@ -316,31 +316,6 @@
 	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe)), \
 		 GIC_SH_MAP_TO_VPE_REG_BIT(vpe))
 
-/*
- * Interrupt Meta-data specification. The ipiflag helps
- * in building ipi_map.
- */
-struct gic_intr_map {
-	unsigned int cpunum;	/* Directed to this CPU */
-#define GIC_UNUSED		0xdead			/* Dummy data */
-	unsigned int pin;	/* Directed to this Pin */
-	unsigned int polarity;	/* Polarity : +/-	*/
-	unsigned int trigtype;	/* Trigger  : Edge/Levl */
-	unsigned int flags;	/* Misc flags	*/
-#define GIC_FLAG_TRANSPARENT   0x01
-};
-
-/*
- * This is only used in EIC mode. This helps to figure out which
- * shared interrupts we need to process when we get a vector interrupt.
- */
-#define GIC_MAX_SHARED_INTR  0x5
-struct gic_shared_intr_map {
-	unsigned int num_shared_intr;
-	unsigned int intr_list[GIC_MAX_SHARED_INTR];
-	unsigned int local_intr_mask;
-};
-
 /* GIC nomenclature for Core Interrupt Pins. */
 #define GIC_CPU_INT0		0 /* Core Interrupt 2 */
 #define GIC_CPU_INT1		1 /* .		      */
@@ -348,6 +323,9 @@ struct gic_shared_intr_map {
 #define GIC_CPU_INT3		3 /* .		      */
 #define GIC_CPU_INT4		4 /* .		      */
 #define GIC_CPU_INT5		5 /* Core Interrupt 7 */
+
+/* Add 2 to convert GIC CPU pin to core interrupt */
+#define GIC_CPU_PIN_OFFSET	2
 
 /* Local GIC interrupts. */
 #define GIC_INT_TMR		(GIC_CPU_INT5)
@@ -365,13 +343,12 @@ struct gic_shared_intr_map {
 extern unsigned int gic_present;
 extern unsigned int gic_frequency;
 extern unsigned long _gic_base;
-extern unsigned int gic_irq_base;
 extern unsigned int gic_irq_flags[];
-extern struct gic_shared_intr_map gic_shared_intr_map[];
+extern unsigned int gic_cpu_pin;
 
 extern void gic_init(unsigned long gic_base_addr,
-	unsigned long gic_addrspace_size, struct gic_intr_map *intrmap,
-	unsigned int intrmap_size, unsigned int irqbase);
+	unsigned long gic_addrspace_size, unsigned int cpu_vec,
+	unsigned int irqbase);
 extern void gic_clocksource_init(unsigned int);
 extern unsigned int gic_compare_int (void);
 extern cycle_t gic_read_count(void);

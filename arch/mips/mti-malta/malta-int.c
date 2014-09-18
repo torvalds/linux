@@ -38,13 +38,8 @@
 #include <asm/rtlx.h>
 
 static unsigned long _msc01_biu_base;
-static unsigned int ipi_map[NR_CPUS];
 
 static DEFINE_RAW_SPINLOCK(mips_irq_lock);
-
-#ifdef CONFIG_MIPS_GIC_IPI
-DECLARE_BITMAP(ipi_ints, GIC_NUM_INTRS);
-#endif
 
 static inline int mips_pcibios_iack(void)
 {
@@ -127,24 +122,10 @@ static void malta_hw0_irqdispatch(void)
 #endif
 }
 
-static void malta_ipi_irqdispatch(void)
+static irqreturn_t i8259_handler(int irq, void *dev_id)
 {
-#ifdef CONFIG_MIPS_GIC_IPI
-	unsigned long irq;
-	DECLARE_BITMAP(pending, GIC_NUM_INTRS);
-
-	gic_get_int_mask(pending, ipi_ints);
-
-	irq = find_first_bit(pending, GIC_NUM_INTRS);
-
-	while (irq < GIC_NUM_INTRS) {
-		do_IRQ(MIPS_GIC_IRQ_BASE + irq);
-
-		irq = find_next_bit(pending, GIC_NUM_INTRS, irq + 1);
-	}
-#endif
-	if (gic_compare_int())
-		do_IRQ(MIPS_GIC_IRQ_BASE);
+	malta_hw0_irqdispatch();
+	return IRQ_HANDLED;
 }
 
 static void corehi_irqdispatch(void)
@@ -201,6 +182,12 @@ static void corehi_irqdispatch(void)
 	}
 
 	die("CoreHi interrupt", regs);
+}
+
+static irqreturn_t corehi_handler(int irq, void *dev_id)
+{
+	corehi_irqdispatch();
+	return IRQ_HANDLED;
 }
 
 static inline int clz(unsigned long x)
@@ -286,10 +273,9 @@ asmlinkage void plat_irq_dispatch(void)
 
 	irq = irq_ffs(pending);
 
-	if (irq == MIPSCPU_INT_I8259A)
-		malta_hw0_irqdispatch();
-	else if (gic_present && ((1 << irq) & ipi_map[smp_processor_id()]))
-		malta_ipi_irqdispatch();
+	/* HACK: GIC doesn't properly dispatch local interrupts yet */
+	if (gic_present && irq == MIPSCPU_INT_GIC && gic_compare_int())
+		do_IRQ(MIPS_GIC_IRQ_BASE);
 	else
 		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
 }
@@ -311,13 +297,6 @@ static void ipi_call_dispatch(void)
 {
 	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ);
 }
-
-#endif /* CONFIG_MIPS_MT_SMP */
-
-#ifdef CONFIG_MIPS_GIC_IPI
-
-#define GIC_MIPS_CPU_IPI_RESCHED_IRQ	3
-#define GIC_MIPS_CPU_IPI_CALL_IRQ	4
 
 static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
 {
@@ -349,31 +328,16 @@ static struct irqaction irq_call = {
 	.flags		= IRQF_PERCPU,
 	.name		= "IPI_call"
 };
-#endif /* CONFIG_MIPS_GIC_IPI */
-
-static int gic_resched_int_base;
-static int gic_call_int_base;
-#define GIC_RESCHED_INT(cpu) (gic_resched_int_base+(cpu))
-#define GIC_CALL_INT(cpu) (gic_call_int_base+(cpu))
-
-unsigned int plat_ipi_call_int_xlate(unsigned int cpu)
-{
-	return GIC_CALL_INT(cpu);
-}
-
-unsigned int plat_ipi_resched_int_xlate(unsigned int cpu)
-{
-	return GIC_RESCHED_INT(cpu);
-}
+#endif /* CONFIG_MIPS_MT_SMP */
 
 static struct irqaction i8259irq = {
-	.handler = no_action,
+	.handler = i8259_handler,
 	.name = "XT-PIC cascade",
 	.flags = IRQF_NO_THREAD,
 };
 
 static struct irqaction corehi_irqaction = {
-	.handler = no_action,
+	.handler = corehi_handler,
 	.name = "CoreHi",
 	.flags = IRQF_NO_THREAD,
 };
@@ -399,60 +363,6 @@ static msc_irqmap_t msc_eicirqmap[] __initdata = {
 
 static int msc_nr_eicirqs __initdata = ARRAY_SIZE(msc_eicirqmap);
 
-/*
- * This GIC specific tabular array defines the association between External
- * Interrupts and CPUs/Core Interrupts. The nature of the External
- * Interrupts is also defined here - polarity/trigger.
- */
-
-#define GIC_CPU_NMI GIC_MAP_TO_NMI_MSK
-#define X GIC_UNUSED
-
-static struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
-	{ X, X,		   X,		X,		0 },
-	{ X, X,		   X,		X,		0 },
-	{ X, X,		   X,		X,		0 },
-	{ 0, GIC_CPU_INT0, GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
-	{ 0, GIC_CPU_INT1, GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
-	{ 0, GIC_CPU_INT2, GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
-	{ 0, GIC_CPU_INT3, GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
-	{ 0, GIC_CPU_INT4, GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
-	{ 0, GIC_CPU_INT3, GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
-	{ 0, GIC_CPU_INT3, GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
-	{ X, X,		   X,		X,		0 },
-	{ X, X,		   X,		X,		0 },
-	{ 0, GIC_CPU_INT3, GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
-	{ 0, GIC_CPU_NMI,  GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
-	{ 0, GIC_CPU_NMI,  GIC_POL_POS, GIC_TRIG_LEVEL, GIC_FLAG_TRANSPARENT },
-	{ X, X,		   X,		X,		0 },
-	/* The remainder of this table is initialised by fill_ipi_map */
-};
-#undef X
-
-#ifdef CONFIG_MIPS_GIC_IPI
-static void __init fill_ipi_map1(int baseintr, int cpu, int cpupin)
-{
-	int intr = baseintr + cpu;
-	gic_intr_map[intr].cpunum = cpu;
-	gic_intr_map[intr].pin = cpupin;
-	gic_intr_map[intr].polarity = GIC_POL_POS;
-	gic_intr_map[intr].trigtype = GIC_TRIG_EDGE;
-	gic_intr_map[intr].flags = 0;
-	ipi_map[cpu] |= (1 << (cpupin + 2));
-	bitmap_set(ipi_ints, intr, 1);
-}
-
-static void __init fill_ipi_map(void)
-{
-	int cpu;
-
-	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
-		fill_ipi_map1(gic_resched_int_base, cpu, GIC_CPU_INT1);
-		fill_ipi_map1(gic_call_int_base, cpu, GIC_CPU_INT2);
-	}
-}
-#endif
-
 void __init arch_init_ipiirq(int irq, struct irqaction *action)
 {
 	setup_irq(irq, action);
@@ -461,6 +371,8 @@ void __init arch_init_ipiirq(int irq, struct irqaction *action)
 
 void __init arch_init_irq(void)
 {
+	int corehi_irq, i8259_irq;
+
 	init_i8259_irqs();
 
 	if (!cpu_has_veic)
@@ -507,34 +419,11 @@ void __init arch_init_irq(void)
 					msc_nr_irqs);
 	}
 
-	if (cpu_has_veic) {
-		set_vi_handler(MSC01E_INT_I8259A, malta_hw0_irqdispatch);
-		set_vi_handler(MSC01E_INT_COREHI, corehi_irqdispatch);
-		setup_irq(MSC01E_INT_BASE+MSC01E_INT_I8259A, &i8259irq);
-		setup_irq(MSC01E_INT_BASE+MSC01E_INT_COREHI, &corehi_irqaction);
-	} else if (cpu_has_vint) {
-		set_vi_handler(MIPSCPU_INT_I8259A, malta_hw0_irqdispatch);
-		set_vi_handler(MIPSCPU_INT_COREHI, corehi_irqdispatch);
-		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq);
-		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI,
-						&corehi_irqaction);
-	} else {
-		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq);
-		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI,
-						&corehi_irqaction);
-	}
-
 	if (gic_present) {
-		/* FIXME */
 		int i;
-#if defined(CONFIG_MIPS_GIC_IPI)
-		gic_call_int_base = GIC_NUM_INTRS -
-			(NR_CPUS - nr_cpu_ids) * 2 - nr_cpu_ids;
-		gic_resched_int_base = gic_call_int_base - nr_cpu_ids;
-		fill_ipi_map();
-#endif
-		gic_init(GIC_BASE_ADDR, GIC_ADDRSPACE_SZ, gic_intr_map,
-				ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
+
+		gic_init(GIC_BASE_ADDR, GIC_ADDRSPACE_SZ, MIPSCPU_INT_GIC,
+			 MIPS_GIC_IRQ_BASE);
 		if (!mips_cm_present()) {
 			/* Enable the GIC */
 			i = REG(_msc01_biu_base, MSC01_SC_CFG);
@@ -542,28 +431,8 @@ void __init arch_init_irq(void)
 				(i | (0x1 << MSC01_SC_CFG_GICENA_SHF));
 			pr_debug("GIC Enabled\n");
 		}
-#if defined(CONFIG_MIPS_GIC_IPI)
-		/* set up ipi interrupts */
-		if (cpu_has_vint) {
-			set_vi_handler(MIPSCPU_INT_IPI0, malta_ipi_irqdispatch);
-			set_vi_handler(MIPSCPU_INT_IPI1, malta_ipi_irqdispatch);
-		}
-		/* Argh.. this really needs sorting out.. */
-		pr_info("CPU%d: status register was %08x\n",
-			smp_processor_id(), read_c0_status());
-		write_c0_status(read_c0_status() | STATUSF_IP3 | STATUSF_IP4);
-		pr_info("CPU%d: status register now %08x\n",
-			smp_processor_id(), read_c0_status());
-		write_c0_status(0x1100dc00);
-		pr_info("CPU%d: status register frc %08x\n",
-			smp_processor_id(), read_c0_status());
-		for (i = 0; i < nr_cpu_ids; i++) {
-			arch_init_ipiirq(MIPS_GIC_IRQ_BASE +
-					 GIC_RESCHED_INT(i), &irq_resched);
-			arch_init_ipiirq(MIPS_GIC_IRQ_BASE +
-					 GIC_CALL_INT(i), &irq_call);
-		}
-#endif
+		i8259_irq = MIPS_GIC_IRQ_BASE + GIC_INT_I8259A;
+		corehi_irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_COREHI;
 	} else {
 #if defined(CONFIG_MIPS_MT_SMP)
 		/* set up ipi interrupts */
@@ -587,7 +456,21 @@ void __init arch_init_irq(void)
 		arch_init_ipiirq(cpu_ipi_resched_irq, &irq_resched);
 		arch_init_ipiirq(cpu_ipi_call_irq, &irq_call);
 #endif
+		if (cpu_has_veic) {
+			set_vi_handler(MSC01E_INT_I8259A,
+				       malta_hw0_irqdispatch);
+			set_vi_handler(MSC01E_INT_COREHI,
+				       corehi_irqdispatch);
+			i8259_irq = MSC01E_INT_BASE + MSC01E_INT_I8259A;
+			corehi_irq = MSC01E_INT_BASE + MSC01E_INT_COREHI;
+		} else {
+			i8259_irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_I8259A;
+			corehi_irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_COREHI;
+		}
 	}
+
+	setup_irq(i8259_irq, &i8259irq);
+	setup_irq(corehi_irq, &corehi_irqaction);
 }
 
 void malta_be_init(void)

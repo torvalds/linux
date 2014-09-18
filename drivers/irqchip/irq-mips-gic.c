@@ -8,6 +8,8 @@
  */
 #include <linux/bitmap.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/irq.h>
 #include <linux/clocksource.h>
@@ -22,11 +24,8 @@
 unsigned int gic_frequency;
 unsigned int gic_present;
 unsigned long _gic_base;
-unsigned int gic_irq_base;
 unsigned int gic_irq_flags[GIC_NUM_INTRS];
-
-/* The index into this array is the vector # of the interrupt. */
-struct gic_shared_intr_map gic_shared_intr_map[GIC_NUM_INTRS];
+unsigned int gic_cpu_pin;
 
 struct gic_pcpu_mask {
 	DECLARE_BITMAP(pcpu_mask, GIC_NUM_INTRS);
@@ -45,6 +44,8 @@ static struct gic_pending_regs pending_regs[NR_CPUS];
 static struct gic_intrmask_regs intrmask_regs[NR_CPUS];
 static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
+
+static void __gic_irq_dispatch(void);
 
 #if defined(CONFIG_CSRC_GIC) || defined(CONFIG_CEVT_GIC)
 cycle_t gic_read_count(void)
@@ -117,21 +118,6 @@ void gic_send_ipi(unsigned int intr)
 	GICWRITE(GIC_REG(SHARED, GIC_SH_WEDGE), 0x80000000 | intr);
 }
 
-static void gic_eic_irq_dispatch(void)
-{
-	unsigned int cause = read_c0_cause();
-	int irq;
-
-	irq = (cause & ST0_IM) >> STATUSB_IP2;
-	if (irq == 0)
-		irq = -1;
-
-	if (irq >= 0)
-		do_IRQ(gic_irq_base + irq);
-	else
-		spurious_interrupt();
-}
-
 static void __init vpe_local_setup(unsigned int numvpes)
 {
 	unsigned long timer_intr = GIC_INT_TMR;
@@ -166,16 +152,15 @@ static void __init vpe_local_setup(unsigned int numvpes)
 				 GIC_MAP_TO_PIN_MSK | timer_intr);
 		if (cpu_has_veic) {
 			set_vi_handler(timer_intr + GIC_PIN_TO_VEC_OFFSET,
-				gic_eic_irq_dispatch);
-			gic_shared_intr_map[timer_intr + GIC_PIN_TO_VEC_OFFSET].local_intr_mask |= GIC_VPE_RMASK_TIMER_MSK;
+				       __gic_irq_dispatch);
 		}
 
 		if (vpe_ctl & GIC_VPE_CTL_PERFCNT_RTBL_MSK)
 			GICWRITE(GIC_REG(VPE_OTHER, GIC_VPE_PERFCTR_MAP),
 				 GIC_MAP_TO_PIN_MSK | perf_intr);
 		if (cpu_has_veic) {
-			set_vi_handler(perf_intr + GIC_PIN_TO_VEC_OFFSET, gic_eic_irq_dispatch);
-			gic_shared_intr_map[perf_intr + GIC_PIN_TO_VEC_OFFSET].local_intr_mask |= GIC_VPE_RMASK_PERFCNT_MSK;
+			set_vi_handler(perf_intr + GIC_PIN_TO_VEC_OFFSET,
+				       __gic_irq_dispatch);
 		}
 	}
 }
@@ -343,64 +328,100 @@ static struct irq_chip gic_irq_controller = {
 #endif
 };
 
-static void __init gic_setup_intr(unsigned int intr, unsigned int cpu,
-	unsigned int pin, unsigned int polarity, unsigned int trigtype,
-	unsigned int flags)
+static void __gic_irq_dispatch(void)
 {
-	struct gic_shared_intr_map *map_ptr;
+	unsigned int intr, virq;
+
+	while ((intr = gic_get_int()) != GIC_NUM_INTRS) {
+		virq = irq_linear_revmap(gic_irq_domain, intr);
+		do_IRQ(virq);
+	}
+}
+
+static void gic_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+{
+	__gic_irq_dispatch();
+}
+
+#ifdef CONFIG_MIPS_GIC_IPI
+static int gic_resched_int_base;
+static int gic_call_int_base;
+
+unsigned int plat_ipi_resched_int_xlate(unsigned int cpu)
+{
+	return gic_resched_int_base + cpu;
+}
+
+unsigned int plat_ipi_call_int_xlate(unsigned int cpu)
+{
+	return gic_call_int_base + cpu;
+}
+
+static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
+{
+	scheduler_ipi();
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
+{
+	smp_call_function_interrupt();
+
+	return IRQ_HANDLED;
+}
+
+static struct irqaction irq_resched = {
+	.handler	= ipi_resched_interrupt,
+	.flags		= IRQF_PERCPU,
+	.name		= "IPI resched"
+};
+
+static struct irqaction irq_call = {
+	.handler	= ipi_call_interrupt,
+	.flags		= IRQF_PERCPU,
+	.name		= "IPI call"
+};
+
+static __init void gic_ipi_init_one(unsigned int intr, int cpu,
+				    struct irqaction *action)
+{
+	int virq = irq_create_mapping(gic_irq_domain, intr);
 	int i;
 
-	/* Setup Intr to Pin mapping */
-	if (pin & GIC_MAP_TO_NMI_MSK) {
-		int i;
-
-		GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_MAP_TO_PIN(intr)), pin);
-		/* FIXME: hack to route NMI to all cpu's */
-		for (i = 0; i < NR_CPUS; i += 32) {
-			GICWRITE(GIC_REG_ADDR(SHARED,
-					  GIC_SH_MAP_TO_VPE_REG_OFF(intr, i)),
-				 0xffffffff);
-		}
-	} else {
-		GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_MAP_TO_PIN(intr)),
-			 GIC_MAP_TO_PIN_MSK | pin);
-		/* Setup Intr to CPU mapping */
-		GIC_SH_MAP_TO_VPE_SMASK(intr, cpu);
-		if (cpu_has_veic) {
-			set_vi_handler(pin + GIC_PIN_TO_VEC_OFFSET,
-				gic_eic_irq_dispatch);
-			map_ptr = &gic_shared_intr_map[pin + GIC_PIN_TO_VEC_OFFSET];
-			if (map_ptr->num_shared_intr >= GIC_MAX_SHARED_INTR)
-				BUG();
-			map_ptr->intr_list[map_ptr->num_shared_intr++] = intr;
-		}
-	}
-
-	/* Setup Intr Polarity */
-	GIC_SET_POLARITY(intr, polarity);
-
-	/* Setup Intr Trigger Type */
-	GIC_SET_TRIGGER(intr, trigtype);
-
-	/* Init Intr Masks */
-	GIC_CLR_INTR_MASK(intr);
-
-	/* Initialise per-cpu Interrupt software masks */
+	GIC_SH_MAP_TO_VPE_SMASK(intr, cpu);
 	for (i = 0; i < NR_CPUS; i++)
 		clear_bit(intr, pcpu_masks[i].pcpu_mask);
 	set_bit(intr, pcpu_masks[cpu].pcpu_mask);
 
-	if ((flags & GIC_FLAG_TRANSPARENT) && (cpu_has_veic == 0))
-		GIC_SET_INTR_MASK(intr);
-	if (trigtype == GIC_TRIG_EDGE)
-		gic_irq_flags[intr] |= GIC_TRIG_EDGE;
+	irq_set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
+
+	irq_set_handler(virq, handle_percpu_irq);
+	setup_irq(virq, action);
 }
 
-static void __init gic_basic_init(int numintrs, int numvpes,
-			struct gic_intr_map *intrmap, int mapsize)
+static __init void gic_ipi_init(void)
 {
-	unsigned int i, cpu;
-	unsigned int pin_offset = 0;
+	int i;
+
+	/* Use last 2 * NR_CPUS interrupts as IPIs */
+	gic_resched_int_base = GIC_NUM_INTRS - nr_cpu_ids;
+	gic_call_int_base = gic_resched_int_base - nr_cpu_ids;
+
+	for (i = 0; i < nr_cpu_ids; i++) {
+		gic_ipi_init_one(gic_call_int_base + i, i, &irq_call);
+		gic_ipi_init_one(gic_resched_int_base + i, i, &irq_resched);
+	}
+}
+#else
+static inline void gic_ipi_init(void)
+{
+}
+#endif
+
+static void __init gic_basic_init(int numintrs, int numvpes)
+{
+	unsigned int i;
 
 	board_bind_eic_interrupt = &gic_bind_eic_interrupt;
 
@@ -409,31 +430,8 @@ static void __init gic_basic_init(int numintrs, int numvpes,
 		GIC_SET_POLARITY(i, GIC_POL_POS);
 		GIC_SET_TRIGGER(i, GIC_TRIG_LEVEL);
 		GIC_CLR_INTR_MASK(i);
-		if (i < GIC_NUM_INTRS) {
+		if (i < GIC_NUM_INTRS)
 			gic_irq_flags[i] = 0;
-			gic_shared_intr_map[i].num_shared_intr = 0;
-			gic_shared_intr_map[i].local_intr_mask = 0;
-		}
-	}
-
-	/*
-	 * In EIC mode, the HW_INT# is offset by (2-1). Need to subtract
-	 * one because the GIC will add one (since 0=no intr).
-	 */
-	if (cpu_has_veic)
-		pin_offset = (GIC_CPU_TO_VEC_OFFSET - GIC_PIN_TO_VEC_OFFSET);
-
-	/* Setup specifics */
-	for (i = 0; i < mapsize; i++) {
-		cpu = intrmap[i].cpunum;
-		if (cpu == GIC_UNUSED)
-			continue;
-		gic_setup_intr(i,
-			intrmap[i].cpunum,
-			intrmap[i].pin + pin_offset,
-			intrmap[i].polarity,
-			intrmap[i].trigtype,
-			intrmap[i].flags);
 	}
 
 	vpe_local_setup(numvpes);
@@ -448,7 +446,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 
 	spin_lock_irqsave(&gic_lock, flags);
 	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_MAP_TO_PIN(hw)),
-		 GIC_MAP_TO_PIN_MSK | 0);
+		 GIC_MAP_TO_PIN_MSK | gic_cpu_pin);
 	/* Map to VPE 0 by default */
 	GIC_SH_MAP_TO_VPE_SMASK(hw, 0);
 	set_bit(hw, pcpu_masks[0].pcpu_mask);
@@ -463,8 +461,7 @@ static struct irq_domain_ops gic_irq_domain_ops = {
 };
 
 void __init gic_init(unsigned long gic_base_addr,
-		     unsigned long gic_addrspace_size,
-		     struct gic_intr_map *intr_map, unsigned int intr_map_size,
+		     unsigned long gic_addrspace_size, unsigned int cpu_vec,
 		     unsigned int irqbase)
 {
 	unsigned int gicconfig;
@@ -472,7 +469,6 @@ void __init gic_init(unsigned long gic_base_addr,
 
 	_gic_base = (unsigned long) ioremap_nocache(gic_base_addr,
 						    gic_addrspace_size);
-	gic_irq_base = irqbase;
 
 	GICREAD(GIC_REG(SHARED, GIC_SH_CONFIG), gicconfig);
 	numintrs = (gicconfig & GIC_SH_CONFIG_NUMINTRS_MSK) >>
@@ -483,10 +479,23 @@ void __init gic_init(unsigned long gic_base_addr,
 		  GIC_SH_CONFIG_NUMVPES_SHF;
 	numvpes = numvpes + 1;
 
+	if (cpu_has_veic) {
+		/* Always use vector 1 in EIC mode */
+		gic_cpu_pin = 0;
+		set_vi_handler(gic_cpu_pin + GIC_PIN_TO_VEC_OFFSET,
+			       __gic_irq_dispatch);
+	} else {
+		gic_cpu_pin = cpu_vec - GIC_CPU_PIN_OFFSET;
+		irq_set_chained_handler(MIPS_CPU_IRQ_BASE + cpu_vec,
+					gic_irq_dispatch);
+	}
+
 	gic_irq_domain = irq_domain_add_simple(NULL, GIC_NUM_INTRS, irqbase,
 					       &gic_irq_domain_ops, NULL);
 	if (!gic_irq_domain)
 		panic("Failed to add GIC IRQ domain");
 
-	gic_basic_init(numintrs, numvpes, intr_map, intr_map_size);
+	gic_basic_init(numintrs, numvpes);
+
+	gic_ipi_init();
 }

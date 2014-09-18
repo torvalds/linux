@@ -91,7 +91,8 @@ int gic_clockevent_init(void)
 
 	clockevents_register_device(cd);
 
-	GICWRITE(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_MAP), 0x80000002);
+	GICWRITE(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_MAP),
+		 GIC_MAP_TO_PIN_MSK | gic_cpu_pin);
 	GICWRITE(GIC_REG(VPE_LOCAL, GIC_VPE_SMASK), GIC_VPE_SMASK_CMP_MSK);
 
 	if (gic_timer_irq_installed)
