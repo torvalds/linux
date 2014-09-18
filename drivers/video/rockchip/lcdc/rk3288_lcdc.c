@@ -282,6 +282,10 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 {
 	int reg = 0;
 	u32 val = 0;
+	struct rk_screen *screen = lcdc_dev->driver.cur_screen;
+	u32 h_pw_bp = screen->mode.hsync_len + screen->mode.left_margin;
+	u32 v_pw_bp = screen->mode.vsync_len + screen->mode.upper_margin;
+	u32 st_x, st_y;
 	struct rk_lcdc_win *win0 = lcdc_dev->driver.win[0];
 
 	spin_lock(&lcdc_dev->reg_lock);
@@ -291,6 +295,23 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 			case WIN0_ACT_INFO:
 				win0->area[0].xact = (val & m_WIN0_ACT_WIDTH)+1;
 				win0->area[0].yact = ((val & m_WIN0_ACT_HEIGHT)>>16)+1;
+				break;
+			case WIN0_DSP_INFO:
+				win0->area[0].xsize = (val & m_WIN0_DSP_WIDTH) + 1;
+				win0->area[0].ysize = ((val & m_WIN0_DSP_HEIGHT) >> 16) + 1;
+				break;
+			case WIN0_DSP_ST:
+				st_x = val & m_WIN0_DSP_XST;
+				st_y = (val & m_WIN0_DSP_YST) >> 16;
+				win0->area[0].xpos = st_x - h_pw_bp;
+				win0->area[0].ypos = st_y - v_pw_bp;
+				break;
+			case WIN0_CTRL0:
+				win0->state = val & m_WIN0_EN;
+				win0->fmt_cfg = (val & m_WIN0_DATA_FMT) >> 1;
+				win0->fmt_10 = (val & m_WIN0_FMT_10) >> 4;
+				win0->format = win0->fmt_cfg;
+				break;
 			default:
 				break;
 		}
