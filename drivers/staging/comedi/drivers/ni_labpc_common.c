@@ -876,7 +876,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		/* clear error interrupt */
 		devpriv->write_byte(dev, 0x1, ADC_FIFO_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
+		comedi_handle_events(dev, s);
 		dev_err(dev->class_dev, "overrun\n");
 		return IRQ_HANDLED;
 	}
@@ -896,7 +896,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		/*  clear error interrupt */
 		devpriv->write_byte(dev, 0x1, ADC_FIFO_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
+		comedi_handle_events(dev, s);
 		dev_err(dev->class_dev, "overflow\n");
 		return IRQ_HANDLED;
 	}
@@ -914,7 +914,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 			async->events |= COMEDI_CB_EOA;
 	}
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
