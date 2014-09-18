@@ -70,7 +70,7 @@ static void __init estimate_frequencies(void)
 {
 	unsigned long flags;
 	unsigned int count, start;
-#ifdef CONFIG_IRQ_GIC
+#ifdef CONFIG_MIPS_GIC
 	unsigned int giccount = 0, gicstart = 0;
 #endif
 
@@ -87,7 +87,7 @@ static void __init estimate_frequencies(void)
 
 	/* Initialize counters. */
 	start = read_c0_count();
-#ifdef CONFIG_IRQ_GIC
+#ifdef CONFIG_MIPS_GIC
 	if (gic_present)
 		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_31_00), gicstart);
 #endif
@@ -97,7 +97,7 @@ static void __init estimate_frequencies(void)
 	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
 
 	count = read_c0_count();
-#ifdef CONFIG_IRQ_GIC
+#ifdef CONFIG_MIPS_GIC
 	if (gic_present)
 		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_31_00), giccount);
 #endif
@@ -107,7 +107,7 @@ static void __init estimate_frequencies(void)
 	count -= start;
 	mips_hpt_frequency = count;
 
-#ifdef CONFIG_IRQ_GIC
+#ifdef CONFIG_MIPS_GIC
 	if (gic_present) {
 		giccount -= gicstart;
 		gic_frequency = giccount;
@@ -189,7 +189,7 @@ void __init plat_time_init(void)
 	setup_pit_timer();
 #endif
 
-#ifdef CONFIG_IRQ_GIC
+#ifdef CONFIG_MIPS_GIC
 	if (gic_present) {
 		freq = freqround(gic_frequency, 5000);
 		printk("GIC frequency %d.%02d MHz\n", freq/1000000,
