@@ -52,7 +52,7 @@ static inline void rtllib_monitor_rx(struct rtllib_device *ieee,
 	skb_reset_mac_header(skb);
 	skb_pull(skb, hdr_length);
 	skb->pkt_type = PACKET_OTHERHOST;
-	skb->protocol = __constant_htons(ETH_P_80211_RAW);
+	skb->protocol = htons(ETH_P_80211_RAW);
 	memset(skb->cb, 0, sizeof(skb->cb));
 	netif_rx(skb);
 }
