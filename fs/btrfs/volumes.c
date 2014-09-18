@@ -529,12 +529,12 @@ static noinline int device_list_add(const char *path,
 		 */
 
 		/*
-		 * As of now don't allow update to btrfs_fs_device through
-		 * the btrfs dev scan cli, after FS has been mounted.
+		 * For now, we do allow update to btrfs_fs_device through the
+		 * btrfs dev scan cli after FS has been mounted.  We're still
+		 * tracking a problem where systems fail mount by subvolume id
+		 * when we reject replacement on a mounted FS.
 		 */
-		if (fs_devices->opened) {
-			return -EBUSY;
-		} else {
+		if (!fs_devices->opened && found_transid < device->generation) {
 			/*
 			 * That is if the FS is _not_ mounted and if you
 			 * are here, that means there is more than one
@@ -542,8 +542,7 @@ static noinline int device_list_add(const char *path,
 			 * with larger generation number or the last-in if
 			 * generation are equal.
 			 */
-			if (found_transid < device->generation)
-				return -EEXIST;
+			return -EEXIST;
 		}
 
 		name = rcu_string_strdup(path, GFP_NOFS);
