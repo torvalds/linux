@@ -766,7 +766,7 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 		interrupt_pci9118_ai_onesample(dev, s);
 
 interrupt_exit:
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
