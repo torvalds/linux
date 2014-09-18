@@ -374,7 +374,7 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 		comedi_buf_put(s, val);
 
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 
 		return IRQ_HANDLED;
 	}
