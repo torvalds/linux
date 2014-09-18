@@ -1319,7 +1319,7 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 	}
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
@@ -1419,7 +1419,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
