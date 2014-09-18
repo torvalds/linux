@@ -916,7 +916,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 		break;
 	case rf_sleep:
 	case rf_off:
-		value8 = rtl8723au_read8(Adapter, REG_SPS0_CTRL) ;
+		value8 = rtl8723au_read8(Adapter, REG_SPS0_CTRL);
 		if (IS_81xxC_VENDOR_UMC_B_CUT(pHalData->VersionID))
 			value8 &= ~BIT(0);
 		else
@@ -989,7 +989,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 				mdelay(10);
 
 				/*  Set BB reset at first */
-				value8 = 0 ;
+				value8 = 0;
 				value8 |= (FEN_USBD | FEN_USBA |
 					   FEN_BB_GLB_RSTn);
 				/* 0x16 */
