@@ -715,16 +715,6 @@ int malta_be_handler(struct pt_regs *regs, int is_fixup)
 	return retval;
 }
 
-void gic_enable_interrupt(int irq_vec)
-{
-	GIC_SET_INTR_MASK(irq_vec);
-}
-
-void gic_disable_interrupt(int irq_vec)
-{
-	GIC_CLR_INTR_MASK(irq_vec);
-}
-
 void gic_irq_ack(struct irq_data *d)
 {
 	int irq = (d->irq - gic_irq_base);

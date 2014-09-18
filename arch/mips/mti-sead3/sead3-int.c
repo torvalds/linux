@@ -85,40 +85,6 @@ void __init arch_init_irq(void)
 			ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
 }
 
-void gic_enable_interrupt(int irq_vec)
-{
-	unsigned int i, irq_source;
-
-	/* enable all the interrupts associated with this vector */
-	for (i = 0; i < gic_shared_intr_map[irq_vec].num_shared_intr; i++) {
-		irq_source = gic_shared_intr_map[irq_vec].intr_list[i];
-		GIC_SET_INTR_MASK(irq_source);
-	}
-	/* enable all local interrupts associated with this vector */
-	if (gic_shared_intr_map[irq_vec].local_intr_mask) {
-		GICWRITE(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), 0);
-		GICWRITE(GIC_REG(VPE_OTHER, GIC_VPE_SMASK),
-			gic_shared_intr_map[irq_vec].local_intr_mask);
-	}
-}
-
-void gic_disable_interrupt(int irq_vec)
-{
-	unsigned int i, irq_source;
-
-	/* disable all the interrupts associated with this vector */
-	for (i = 0; i < gic_shared_intr_map[irq_vec].num_shared_intr; i++) {
-		irq_source = gic_shared_intr_map[irq_vec].intr_list[i];
-		GIC_CLR_INTR_MASK(irq_source);
-	}
-	/* disable all local interrupts associated with this vector */
-	if (gic_shared_intr_map[irq_vec].local_intr_mask) {
-		GICWRITE(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), 0);
-		GICWRITE(GIC_REG(VPE_OTHER, GIC_VPE_RMASK),
-			gic_shared_intr_map[irq_vec].local_intr_mask);
-	}
-}
-
 void gic_irq_ack(struct irq_data *d)
 {
 	GIC_CLR_INTR_MASK(d->irq - gic_irq_base);
