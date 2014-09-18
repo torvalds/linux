@@ -1083,6 +1083,7 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_count = 0;	/* stop and don't transfer any more */
 	status = readw(dev->mmio + LAS0_IT);
 	overrun = readl(dev->mmio + LAS0_OVERRUN) & 0xffff;
+	writel(0, dev->mmio + LAS0_ADC_FIFO_CLEAR);
 	return 0;
 }
 
