@@ -203,7 +203,6 @@ __blk_mq_alloc_request(struct blk_mq_alloc_data *data, int rw)
 	if (tag != BLK_MQ_TAG_FAIL) {
 		rq = data->hctx->tags->rqs[tag];
 
-		rq->cmd_flags = 0;
 		if (blk_mq_tag_busy(data->hctx)) {
 			rq->cmd_flags = REQ_MQ_INFLIGHT;
 			atomic_inc(&data->hctx->nr_active);
@@ -258,6 +257,7 @@ static void __blk_mq_free_request(struct blk_mq_hw_ctx *hctx,
 
 	if (rq->cmd_flags & REQ_MQ_INFLIGHT)
 		atomic_dec(&hctx->nr_active);
+	rq->cmd_flags = 0;
 
 	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
 	blk_mq_put_tag(hctx, tag, &ctx->last_tag);
@@ -1410,6 +1410,8 @@ static struct blk_mq_tags *blk_mq_init_rq_map(struct blk_mq_tag_set *set,
 		left -= to_do * rq_size;
 		for (j = 0; j < to_do; j++) {
 			tags->rqs[i] = p;
+			tags->rqs[i]->atomic_flags = 0;
+			tags->rqs[i]->cmd_flags = 0;
 			if (set->ops->init_request) {
 				if (set->ops->init_request(set->driver_data,
 						tags->rqs[i], hctx_idx, i,
