@@ -1656,6 +1656,8 @@ void cpufreq_suspend(void)
 	if (!cpufreq_driver)
 		return;
 
+	cpufreq_suspended = true;
+
 	if (!has_target())
 		return;
 
@@ -1670,8 +1672,6 @@ void cpufreq_suspend(void)
 			pr_err("%s: Failed to suspend driver: %p\n", __func__,
 				policy);
 	}
-
-	cpufreq_suspended = true;
 }
 
 /**
@@ -1687,12 +1687,12 @@ void cpufreq_resume(void)
 	if (!cpufreq_driver)
 		return;
 
+	cpufreq_suspended = false;
+
 	if (!has_target())
 		return;
 
 	pr_debug("%s: Resuming Governors\n", __func__);
-
-	cpufreq_suspended = false;
 
 	list_for_each_entry(policy, &cpufreq_policy_list, policy_list) {
 		if (cpufreq_driver->resume && cpufreq_driver->resume(policy))
