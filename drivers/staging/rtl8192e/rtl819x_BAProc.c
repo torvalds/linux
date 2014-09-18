@@ -376,7 +376,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pAdmittedBA = &pTS->TxAdmittedBARecord;
 
 
-	if ((pAdmittedBA->bValid == true)) {
+	if (pAdmittedBA->bValid == true) {
 		RTLLIB_DEBUG(RTLLIB_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp."
 			     " Drop because already admit it!\n");
 		return -1;
