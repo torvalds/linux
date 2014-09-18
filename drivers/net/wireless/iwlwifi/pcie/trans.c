@@ -133,7 +133,7 @@ static void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans)
 		break;
 	}
 
-	if (!page)
+	if (WARN_ON_ONCE(!page))
 		return;
 
 	trans_pcie->fw_mon_page = page;
