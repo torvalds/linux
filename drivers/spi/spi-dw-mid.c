@@ -89,7 +89,11 @@ static void mid_spi_dma_exit(struct dw_spi *dws)
 {
 	if (!dws->dma_inited)
 		return;
+
+	dmaengine_terminate_all(dws->txchan);
 	dma_release_channel(dws->txchan);
+
+	dmaengine_terminate_all(dws->rxchan);
 	dma_release_channel(dws->rxchan);
 }
 
