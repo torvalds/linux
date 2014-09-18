@@ -533,11 +533,10 @@ static int tpm_startup(struct tpm_chip *chip, __be16 startup_type)
 int tpm_get_timeouts(struct tpm_chip *chip)
 {
 	struct tpm_cmd_t tpm_cmd;
-	struct timeout_t *timeout_cap;
+	unsigned long new_timeout[4];
+	unsigned long old_timeout[4];
 	struct duration_t *duration_cap;
 	ssize_t rc;
-	u32 timeout;
-	unsigned int scale = 1;
 
 	tpm_cmd.header.in = tpm_getcap_header;
 	tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;
@@ -571,25 +570,46 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 	    != sizeof(tpm_cmd.header.out) + sizeof(u32) + 4 * sizeof(u32))
 		return -EINVAL;
 
-	timeout_cap = &tpm_cmd.params.getcap_out.cap.timeout;
-	/* Don't overwrite default if value is 0 */
-	timeout = be32_to_cpu(timeout_cap->a);
-	if (timeout && timeout < 1000) {
-		/* timeouts in msec rather usec */
-		scale = 1000;
-		chip->vendor.timeout_adjusted = true;
+	old_timeout[0] = be32_to_cpu(tpm_cmd.params.getcap_out.cap.timeout.a);
+	old_timeout[1] = be32_to_cpu(tpm_cmd.params.getcap_out.cap.timeout.b);
+	old_timeout[2] = be32_to_cpu(tpm_cmd.params.getcap_out.cap.timeout.c);
+	old_timeout[3] = be32_to_cpu(tpm_cmd.params.getcap_out.cap.timeout.d);
+	memcpy(new_timeout, old_timeout, sizeof(new_timeout));
+
+	/*
+	 * Provide ability for vendor overrides of timeout values in case
+	 * of misreporting.
+	 */
+	if (chip->vendor.update_timeouts != NULL)
+		chip->vendor.timeout_adjusted =
+			chip->vendor.update_timeouts(chip, new_timeout);
+
+	if (!chip->vendor.timeout_adjusted) {
+		/* Don't overwrite default if value is 0 */
+		if (new_timeout[0] != 0 && new_timeout[0] < 1000) {
+			int i;
+
+			/* timeouts in msec rather usec */
+			for (i = 0; i != ARRAY_SIZE(new_timeout); i++)
+				new_timeout[i] *= 1000;
+			chip->vendor.timeout_adjusted = true;
+		}
 	}
-	if (timeout)
-		chip->vendor.timeout_a = usecs_to_jiffies(timeout * scale);
-	timeout = be32_to_cpu(timeout_cap->b);
-	if (timeout)
-		chip->vendor.timeout_b = usecs_to_jiffies(timeout * scale);
-	timeout = be32_to_cpu(timeout_cap->c);
-	if (timeout)
-		chip->vendor.timeout_c = usecs_to_jiffies(timeout * scale);
-	timeout = be32_to_cpu(timeout_cap->d);
-	if (timeout)
-		chip->vendor.timeout_d = usecs_to_jiffies(timeout * scale);
+
+	/* Report adjusted timeouts */
+	if (chip->vendor.timeout_adjusted) {
+		dev_info(chip->dev,
+			 HW_ERR "Adjusting reported timeouts: A %lu->%luus B %lu->%luus C %lu->%luus D %lu->%luus\n",
+			 old_timeout[0], new_timeout[0],
+			 old_timeout[1], new_timeout[1],
+			 old_timeout[2], new_timeout[2],
+			 old_timeout[3], new_timeout[3]);
+	}
+
+	chip->vendor.timeout_a = usecs_to_jiffies(new_timeout[0]);
+	chip->vendor.timeout_b = usecs_to_jiffies(new_timeout[1]);
+	chip->vendor.timeout_c = usecs_to_jiffies(new_timeout[2]);
+	chip->vendor.timeout_d = usecs_to_jiffies(new_timeout[3]);
 
 duration:
 	tpm_cmd.header.in = tpm_getcap_header;
@@ -1423,12 +1443,12 @@ int tpm_get_random(u32 chip_num, u8 *out, size_t max)
 	int err, total = 0, retries = 5;
 	u8 *dest = out;
 
+	if (!out || !num_bytes || max > TPM_MAX_RNG_DATA)
+		return -EINVAL;
+
 	chip = tpm_chip_find_get(chip_num);
 	if (chip == NULL)
 		return -ENODEV;
-
-	if (!out || !num_bytes || max > TPM_MAX_RNG_DATA)
-		return -EINVAL;
 
 	do {
 		tpm_cmd.header.in = tpm_getrandom_header;
@@ -1448,6 +1468,7 @@ int tpm_get_random(u32 chip_num, u8 *out, size_t max)
 		num_bytes -= recd;
 	} while (retries-- && total < max);
 
+	tpm_chip_put(chip);
 	return total ? total : -EIO;
 }
 EXPORT_SYMBOL_GPL(tpm_get_random);
