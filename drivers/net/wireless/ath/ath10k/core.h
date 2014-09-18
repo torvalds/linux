@@ -234,6 +234,8 @@ struct ath10k_vif {
 	struct sk_buff *beacon;
 	/* protected by data_lock */
 	bool beacon_sent;
+	void *beacon_buf;
+	dma_addr_t beacon_paddr;
 
 	struct ath10k *ar;
 	struct ieee80211_vif *vif;

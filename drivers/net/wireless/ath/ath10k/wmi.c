@@ -1579,6 +1579,7 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 	struct wmi_bcn_info *bcn_info;
 	struct ath10k_vif *arvif;
 	struct sk_buff *bcn;
+	dma_addr_t paddr;
 	int ret, vdev_id = 0;
 
 	ev = (struct wmi_host_swba_event *)skb->data;
@@ -1647,22 +1648,29 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 				ath10k_warn(ar, "SWBA overrun on vdev %d\n",
 					    arvif->vdev_id);
 
-			dma_unmap_single(arvif->ar->dev,
-					 ATH10K_SKB_CB(arvif->beacon)->paddr,
-					 arvif->beacon->len, DMA_TO_DEVICE);
-			dev_kfree_skb_any(arvif->beacon);
-			arvif->beacon = NULL;
+			ath10k_mac_vif_beacon_free(arvif);
 		}
 
-		ATH10K_SKB_CB(bcn)->paddr = dma_map_single(arvif->ar->dev,
-							   bcn->data, bcn->len,
-							   DMA_TO_DEVICE);
-		ret = dma_mapping_error(arvif->ar->dev,
-					ATH10K_SKB_CB(bcn)->paddr);
-		if (ret) {
-			ath10k_warn(ar, "failed to map beacon: %d\n", ret);
-			dev_kfree_skb_any(bcn);
-			goto skip;
+		if (!arvif->beacon_buf) {
+			paddr = dma_map_single(arvif->ar->dev, bcn->data,
+					       bcn->len, DMA_TO_DEVICE);
+			ret = dma_mapping_error(arvif->ar->dev, paddr);
+			if (ret) {
+				ath10k_warn(ar, "failed to map beacon: %d\n",
+					    ret);
+				dev_kfree_skb_any(bcn);
+				goto skip;
+			}
+
+			ATH10K_SKB_CB(bcn)->paddr = paddr;
+		} else {
+			if (bcn->len > IEEE80211_MAX_FRAME_LEN) {
+				ath10k_warn(ar, "trimming beacon %d -> %d bytes!\n",
+					    bcn->len, IEEE80211_MAX_FRAME_LEN);
+				skb_trim(bcn, IEEE80211_MAX_FRAME_LEN);
+			}
+			memcpy(arvif->beacon_buf, bcn->data, bcn->len);
+			ATH10K_SKB_CB(bcn)->paddr = arvif->beacon_paddr;
 		}
 
 		arvif->beacon = bcn;

@@ -479,6 +479,40 @@ static void ath10k_peer_cleanup_all(struct ath10k *ar)
 /* Interface management */
 /************************/
 
+void ath10k_mac_vif_beacon_free(struct ath10k_vif *arvif)
+{
+	struct ath10k *ar = arvif->ar;
+
+	lockdep_assert_held(&ar->data_lock);
+
+	if (!arvif->beacon)
+		return;
+
+	if (!arvif->beacon_buf)
+		dma_unmap_single(ar->dev, ATH10K_SKB_CB(arvif->beacon)->paddr,
+				 arvif->beacon->len, DMA_TO_DEVICE);
+
+	dev_kfree_skb_any(arvif->beacon);
+
+	arvif->beacon = NULL;
+	arvif->beacon_sent = false;
+}
+
+static void ath10k_mac_vif_beacon_cleanup(struct ath10k_vif *arvif)
+{
+	struct ath10k *ar = arvif->ar;
+
+	lockdep_assert_held(&ar->data_lock);
+
+	ath10k_mac_vif_beacon_free(arvif);
+
+	if (arvif->beacon_buf) {
+		dma_free_coherent(ar->dev, IEEE80211_MAX_FRAME_LEN,
+				  arvif->beacon_buf, arvif->beacon_paddr);
+		arvif->beacon_buf = NULL;
+	}
+}
+
 static inline int ath10k_vdev_setup_sync(struct ath10k *ar)
 {
 	int ret;
@@ -909,15 +943,7 @@ static void ath10k_control_beaconing(struct ath10k_vif *arvif,
 		arvif->is_up = false;
 
 		spin_lock_bh(&arvif->ar->data_lock);
-		if (arvif->beacon) {
-			dma_unmap_single(arvif->ar->dev,
-					 ATH10K_SKB_CB(arvif->beacon)->paddr,
-					 arvif->beacon->len, DMA_TO_DEVICE);
-			dev_kfree_skb_any(arvif->beacon);
-
-			arvif->beacon = NULL;
-			arvif->beacon_sent = false;
-		}
+		ath10k_mac_vif_beacon_free(arvif);
 		spin_unlock_bh(&arvif->ar->data_lock);
 
 		return;
@@ -2376,16 +2402,8 @@ void ath10k_halt(struct ath10k *ar)
 	ath10k_hif_power_down(ar);
 
 	spin_lock_bh(&ar->data_lock);
-	list_for_each_entry(arvif, &ar->arvifs, list) {
-		if (!arvif->beacon)
-			continue;
-
-		dma_unmap_single(arvif->ar->dev,
-				 ATH10K_SKB_CB(arvif->beacon)->paddr,
-				 arvif->beacon->len, DMA_TO_DEVICE);
-		dev_kfree_skb_any(arvif->beacon);
-		arvif->beacon = NULL;
-	}
+	list_for_each_entry(arvif, &ar->arvifs, list)
+		ath10k_mac_vif_beacon_cleanup(arvif);
 	spin_unlock_bh(&ar->data_lock);
 }
 
@@ -2804,8 +2822,39 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		break;
 	}
 
-	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vdev create %d (add interface) type %d subtype %d\n",
-		   arvif->vdev_id, arvif->vdev_type, arvif->vdev_subtype);
+	/* Some firmware revisions don't wait for beacon tx completion before
+	 * sending another SWBA event. This could lead to hardware using old
+	 * (freed) beacon data in some cases, e.g. tx credit starvation
+	 * combined with missed TBTT. This is very very rare.
+	 *
+	 * On non-IOMMU-enabled hosts this could be a possible security issue
+	 * because hw could beacon some random data on the air.  On
+	 * IOMMU-enabled hosts DMAR faults would occur in most cases and target
+	 * device would crash.
+	 *
+	 * Since there are no beacon tx completions (implicit nor explicit)
+	 * propagated to host the only workaround for this is to allocate a
+	 * DMA-coherent buffer for a lifetime of a vif and use it for all
+	 * beacon tx commands. Worst case for this approach is some beacons may
+	 * become corrupted, e.g. have garbled IEs or out-of-date TIM bitmap.
+	 */
+	if (vif->type == NL80211_IFTYPE_ADHOC ||
+	    vif->type == NL80211_IFTYPE_AP) {
+		arvif->beacon_buf = dma_zalloc_coherent(ar->dev,
+							IEEE80211_MAX_FRAME_LEN,
+							&arvif->beacon_paddr,
+							GFP_KERNEL);
+		if (!arvif->beacon_buf) {
+			ret = -ENOMEM;
+			ath10k_warn(ar, "failed to allocate beacon buffer: %d\n",
+				    ret);
+			goto err;
+		}
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vdev create %d (add interface) type %d subtype %d bcnmode %s\n",
+		   arvif->vdev_id, arvif->vdev_type, arvif->vdev_subtype,
+		   arvif->beacon_buf ? "single-buf" : "per-skb");
 
 	ret = ath10k_wmi_vdev_create(ar, arvif->vdev_id, arvif->vdev_type,
 				     arvif->vdev_subtype, vif->addr);
@@ -2912,6 +2961,12 @@ err_vdev_delete:
 	list_del(&arvif->list);
 
 err:
+	if (arvif->beacon_buf) {
+		dma_free_coherent(ar->dev, IEEE80211_MAX_FRAME_LEN,
+				  arvif->beacon_buf, arvif->beacon_paddr);
+		arvif->beacon_buf = NULL;
+	}
+
 	mutex_unlock(&ar->conf_mutex);
 
 	return ret;
@@ -2929,14 +2984,7 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 	cancel_work_sync(&arvif->wep_key_work);
 
 	spin_lock_bh(&ar->data_lock);
-	if (arvif->beacon) {
-		dma_unmap_single(arvif->ar->dev,
-				 ATH10K_SKB_CB(arvif->beacon)->paddr,
-				 arvif->beacon->len, DMA_TO_DEVICE);
-		dev_kfree_skb_any(arvif->beacon);
-		arvif->beacon = NULL;
-	}
-
+	ath10k_mac_vif_beacon_cleanup(arvif);
 	spin_unlock_bh(&ar->data_lock);
 
 	ret = ath10k_spectral_vif_stop(arvif);
