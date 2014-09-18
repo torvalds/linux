@@ -2963,13 +2963,34 @@ int ath10k_wmi_pdev_set_param(struct ath10k *ar, u32 id, u32 value)
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->pdev_set_param_cmdid);
 }
 
+static void ath10k_wmi_put_host_mem_chunks(struct ath10k *ar,
+					   struct wmi_host_mem_chunks *chunks)
+{
+	struct host_memory_chunk *chunk;
+	int i;
+
+	chunks->count = __cpu_to_le32(ar->wmi.num_mem_chunks);
+
+	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {
+		chunk = &chunks->items[i];
+		chunk->ptr = __cpu_to_le32(ar->wmi.mem_chunks[i].paddr);
+		chunk->size = __cpu_to_le32(ar->wmi.mem_chunks[i].len);
+		chunk->req_id = __cpu_to_le32(ar->wmi.mem_chunks[i].req_id);
+
+		ath10k_dbg(ar, ATH10K_DBG_WMI,
+			   "wmi chunk %d len %d requested, addr 0x%llx\n",
+			   i,
+			   ar->wmi.mem_chunks[i].len,
+			   (unsigned long long)ar->wmi.mem_chunks[i].paddr);
+	}
+}
+
 static int ath10k_wmi_main_cmd_init(struct ath10k *ar)
 {
 	struct wmi_init_cmd *cmd;
 	struct sk_buff *buf;
 	struct wmi_resource_config config = {};
 	u32 len, val;
-	int i;
 
 	config.num_vdevs = __cpu_to_le32(TARGET_NUM_VDEVS);
 	config.num_peers = __cpu_to_le32(TARGET_NUM_PEERS + TARGET_NUM_VDEVS);
@@ -3031,32 +3052,8 @@ static int ath10k_wmi_main_cmd_init(struct ath10k *ar)
 
 	cmd = (struct wmi_init_cmd *)buf->data;
 
-	if (ar->wmi.num_mem_chunks == 0) {
-		cmd->num_host_mem_chunks = 0;
-		goto out;
-	}
-
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi sending %d memory chunks info.\n",
-		   ar->wmi.num_mem_chunks);
-
-	cmd->num_host_mem_chunks = __cpu_to_le32(ar->wmi.num_mem_chunks);
-
-	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {
-		cmd->host_mem_chunks[i].ptr =
-			__cpu_to_le32(ar->wmi.mem_chunks[i].paddr);
-		cmd->host_mem_chunks[i].size =
-			__cpu_to_le32(ar->wmi.mem_chunks[i].len);
-		cmd->host_mem_chunks[i].req_id =
-			__cpu_to_le32(ar->wmi.mem_chunks[i].req_id);
-
-		ath10k_dbg(ar, ATH10K_DBG_WMI,
-			   "wmi chunk %d len %d requested, addr 0x%llx\n",
-			   i,
-			   ar->wmi.mem_chunks[i].len,
-			   (unsigned long long)ar->wmi.mem_chunks[i].paddr);
-	}
-out:
 	memcpy(&cmd->resource_config, &config, sizeof(config));
+	ath10k_wmi_put_host_mem_chunks(ar, &cmd->mem_chunks);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi init\n");
 	return ath10k_wmi_cmd_send(ar, buf, ar->wmi.cmd->init_cmdid);
@@ -3068,7 +3065,6 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 	struct sk_buff *buf;
 	struct wmi_resource_config_10x config = {};
 	u32 len, val;
-	int i;
 
 	config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS);
 	config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS);
@@ -3122,32 +3118,8 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 
 	cmd = (struct wmi_init_cmd_10x *)buf->data;
 
-	if (ar->wmi.num_mem_chunks == 0) {
-		cmd->num_host_mem_chunks = 0;
-		goto out;
-	}
-
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi sending %d memory chunks info.\n",
-		   ar->wmi.num_mem_chunks);
-
-	cmd->num_host_mem_chunks = __cpu_to_le32(ar->wmi.num_mem_chunks);
-
-	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {
-		cmd->host_mem_chunks[i].ptr =
-			__cpu_to_le32(ar->wmi.mem_chunks[i].paddr);
-		cmd->host_mem_chunks[i].size =
-			__cpu_to_le32(ar->wmi.mem_chunks[i].len);
-		cmd->host_mem_chunks[i].req_id =
-			__cpu_to_le32(ar->wmi.mem_chunks[i].req_id);
-
-		ath10k_dbg(ar, ATH10K_DBG_WMI,
-			   "wmi chunk %d len %d requested, addr 0x%llx\n",
-			   i,
-			   ar->wmi.mem_chunks[i].len,
-			   (unsigned long long)ar->wmi.mem_chunks[i].paddr);
-	}
-out:
 	memcpy(&cmd->resource_config, &config, sizeof(config));
+	ath10k_wmi_put_host_mem_chunks(ar, &cmd->mem_chunks);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi init 10x\n");
 	return ath10k_wmi_cmd_send(ar, buf, ar->wmi.cmd->init_cmdid);
@@ -3159,7 +3131,6 @@ static int ath10k_wmi_10_2_cmd_init(struct ath10k *ar)
 	struct sk_buff *buf;
 	struct wmi_resource_config_10x config = {};
 	u32 len, val;
-	int i;
 
 	config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS);
 	config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS);
@@ -3213,32 +3184,8 @@ static int ath10k_wmi_10_2_cmd_init(struct ath10k *ar)
 
 	cmd = (struct wmi_init_cmd_10_2 *)buf->data;
 
-	if (ar->wmi.num_mem_chunks == 0) {
-		cmd->num_host_mem_chunks = 0;
-		goto out;
-	}
-
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi sending %d memory chunks info.\n",
-		   ar->wmi.num_mem_chunks);
-
-	cmd->num_host_mem_chunks = __cpu_to_le32(ar->wmi.num_mem_chunks);
-
-	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {
-		cmd->host_mem_chunks[i].ptr =
-			__cpu_to_le32(ar->wmi.mem_chunks[i].paddr);
-		cmd->host_mem_chunks[i].size =
-			__cpu_to_le32(ar->wmi.mem_chunks[i].len);
-		cmd->host_mem_chunks[i].req_id =
-			__cpu_to_le32(ar->wmi.mem_chunks[i].req_id);
-
-		ath10k_dbg(ar, ATH10K_DBG_WMI,
-			   "wmi chunk %d len %d requested, addr 0x%llx\n",
-			   i,
-			   ar->wmi.mem_chunks[i].len,
-			   (unsigned long long)ar->wmi.mem_chunks[i].paddr);
-	}
-out:
 	memcpy(&cmd->resource_config.common, &config, sizeof(config));
+	ath10k_wmi_put_host_mem_chunks(ar, &cmd->mem_chunks);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi init 10.2\n");
 	return ath10k_wmi_cmd_send(ar, buf, ar->wmi.cmd->init_cmdid);

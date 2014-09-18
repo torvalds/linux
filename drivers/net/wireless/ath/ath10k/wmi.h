@@ -1883,38 +1883,26 @@ struct host_memory_chunk {
 	__le32 size;
 } __packed;
 
+struct wmi_host_mem_chunks {
+	__le32 count;
+	/* some fw revisions require at least 1 chunk regardless of count */
+	struct host_memory_chunk items[1];
+} __packed;
+
 struct wmi_init_cmd {
 	struct wmi_resource_config resource_config;
-	__le32 num_host_mem_chunks;
-
-	/*
-	 * variable number of host memory chunks.
-	 * This should be the last element in the structure
-	 */
-	struct host_memory_chunk host_mem_chunks[1];
+	struct wmi_host_mem_chunks mem_chunks;
 } __packed;
 
 /* _10x stucture is from 10.X FW API */
 struct wmi_init_cmd_10x {
 	struct wmi_resource_config_10x resource_config;
-	__le32 num_host_mem_chunks;
-
-	/*
-	 * variable number of host memory chunks.
-	 * This should be the last element in the structure
-	 */
-	struct host_memory_chunk host_mem_chunks[1];
+	struct wmi_host_mem_chunks mem_chunks;
 } __packed;
 
 struct wmi_init_cmd_10_2 {
 	struct wmi_resource_config_10_2 resource_config;
-	__le32 num_host_mem_chunks;
-
-	/*
-	 * variable number of host memory chunks.
-	 * This should be the last element in the structure
-	 */
-	struct host_memory_chunk host_mem_chunks[1];
+	struct wmi_host_mem_chunks mem_chunks;
 } __packed;
 
 struct wmi_chan_list_entry {
