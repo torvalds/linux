@@ -22,31 +22,10 @@
 
 static unsigned long sead3_config_reg;
 
-asmlinkage void plat_irq_dispatch(void)
-{
-	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
-	int irq;
-
-	irq = (fls(pending) - CAUSEB_IP - 1);
-	if (irq >= 0)
-		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
-	else
-		spurious_interrupt();
-}
-
 void __init arch_init_irq(void)
 {
-	int i;
-
-	if (!cpu_has_veic) {
+	if (!cpu_has_veic)
 		mips_cpu_irq_init();
-
-		if (cpu_has_vint) {
-			/* install generic handler */
-			for (i = 0; i < 8; i++)
-				set_vi_handler(i, plat_irq_dispatch);
-		}
-	}
 
 	sead3_config_reg = (unsigned long)ioremap_nocache(SEAD_CONFIG_BASE,
 		SEAD_CONFIG_SIZE);
