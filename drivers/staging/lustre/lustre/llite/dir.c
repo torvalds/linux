@@ -163,8 +163,8 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 
 	LASSERT(max_pages > 0 && max_pages <= MD_MAX_BRW_PAGES);
 
-	OBD_ALLOC(page_pool, sizeof(page) * max_pages);
-	if (page_pool != NULL) {
+	page_pool = kzalloc(sizeof(page) * max_pages, GFP_NOFS);
+	if (page_pool) {
 		page_pool[0] = page0;
 	} else {
 		page_pool = &page0;
@@ -638,7 +638,7 @@ static int ll_send_mgc_param(struct obd_export *mgc, char *string)
 	struct mgs_send_param *msp;
 	int rc = 0;
 
-	OBD_ALLOC_PTR(msp);
+	msp = kzalloc(sizeof(*msp), GFP_NOFS);
 	if (!msp)
 		return -ENOMEM;
 
@@ -751,8 +751,8 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 		char *param = NULL;
 		char *buf;
 
-		OBD_ALLOC(param, MGS_PARAM_MAXLEN);
-		if (param == NULL) {
+		param = kzalloc(MGS_PARAM_MAXLEN, GFP_NOFS);
+		if (!param) {
 			rc = -ENOMEM;
 			goto end;
 		}
@@ -1061,8 +1061,8 @@ static int copy_and_ioctl(int cmd, struct obd_export *exp,
 	void *copy;
 	int rc;
 
-	OBD_ALLOC(copy, size);
-	if (copy == NULL)
+	copy = kzalloc(size, GFP_NOFS);
+	if (!copy)
 		return -ENOMEM;
 
 	if (copy_from_user(copy, data, size)) {
@@ -1152,8 +1152,8 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	} else {
 		struct obd_quotactl *oqctl;
 
-		OBD_ALLOC_PTR(oqctl);
-		if (oqctl == NULL)
+		oqctl = kzalloc(sizeof(*oqctl), GFP_NOFS);
+		if (!oqctl)
 			return -ENOMEM;
 
 		QCTL_COPY(oqctl, qctl);
@@ -1173,8 +1173,8 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 		    !oqctl->qc_dqblk.dqb_curspace) {
 			struct obd_quotactl *oqctl_tmp;
 
-			OBD_ALLOC_PTR(oqctl_tmp);
-			if (oqctl_tmp == NULL) {
+			oqctl_tmp = kzalloc(sizeof(*oqctl_tmp), GFP_NOFS);
+			if (!oqctl_tmp) {
 				rc = -ENOMEM;
 				goto out;
 			}
@@ -1412,8 +1412,8 @@ lmv_out_free:
 			return -EINVAL;
 
 		lum_size = lmv_user_md_size(1, LMV_MAGIC_V1);
-		OBD_ALLOC(tmp, lum_size);
-		if (tmp == NULL) {
+		tmp = kzalloc(lum_size, GFP_NOFS);
+		if (!tmp) {
 			rc = -ENOMEM;
 			goto free_lmv;
 		}
@@ -1643,7 +1643,7 @@ free_lmm:
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 
-		OBD_ALLOC_PTR(oqctl);
+		oqctl = kzalloc(sizeof(*oqctl), GFP_NOFS);
 		if (!oqctl)
 			return -ENOMEM;
 		oqctl->qc_type = arg;
@@ -1667,7 +1667,7 @@ free_lmm:
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 
-		OBD_ALLOC_PTR(check);
+		check = kzalloc(sizeof(*check), GFP_NOFS);
 		if (!check)
 			return -ENOMEM;
 
@@ -1701,11 +1701,11 @@ out_poll:
 		struct if_quotactl_18 *qctl_18;
 		struct if_quotactl *qctl_20;
 
-		OBD_ALLOC_PTR(qctl_18);
+		qctl_18 = kzalloc(sizeof(*qctl_18), GFP_NOFS);
 		if (!qctl_18)
 			return -ENOMEM;
 
-		OBD_ALLOC_PTR(qctl_20);
+		qctl_20 = kzalloc(sizeof(*qctl_20), GFP_NOFS);
 		if (!qctl_20) {
 			rc = -ENOMEM;
 			goto out_quotactl_18;
@@ -1755,7 +1755,7 @@ out_quotactl_18:
 	case LL_IOC_QUOTACTL: {
 		struct if_quotactl *qctl;
 
-		OBD_ALLOC_PTR(qctl);
+		qctl = kzalloc(sizeof(*qctl), GFP_NOFS);
 		if (!qctl)
 			return -ENOMEM;
 
@@ -1834,8 +1834,8 @@ out_quotactl:
 		struct hsm_user_request	*hur;
 		ssize_t			 totalsize;
 
-		OBD_ALLOC_PTR(hur);
-		if (hur == NULL)
+		hur = kzalloc(sizeof(*hur), GFP_NOFS);
+		if (!hur)
 			return -ENOMEM;
 
 		/* We don't know the true size yet; copy the fixed-size part */
@@ -1920,8 +1920,8 @@ out_quotactl:
 		struct hsm_copy	*copy;
 		int		 rc;
 
-		OBD_ALLOC_PTR(copy);
-		if (copy == NULL)
+		copy = kzalloc(sizeof(*copy), GFP_NOFS);
+		if (!copy)
 			return -ENOMEM;
 		if (copy_from_user(copy, (char *)arg, sizeof(*copy))) {
 			OBD_FREE_PTR(copy);
@@ -1939,8 +1939,8 @@ out_quotactl:
 		struct hsm_copy	*copy;
 		int		 rc;
 
-		OBD_ALLOC_PTR(copy);
-		if (copy == NULL)
+		copy = kzalloc(sizeof(*copy), GFP_NOFS);
+		if (!copy)
 			return -ENOMEM;
 		if (copy_from_user(copy, (char *)arg, sizeof(*copy))) {
 			OBD_FREE_PTR(copy);

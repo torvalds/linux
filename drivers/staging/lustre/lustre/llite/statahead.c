@@ -202,8 +202,8 @@ ll_sa_entry_alloc(struct ll_statahead_info *sai, __u64 index,
 	char		 *dname;
 
 	entry_size = sizeof(struct ll_sa_entry) + (len & ~3) + 4;
-	OBD_ALLOC(entry, entry_size);
-	if (unlikely(entry == NULL))
+	entry = kzalloc(entry_size, GFP_NOFS);
+	if (unlikely(!entry))
 		return ERR_PTR(-ENOMEM);
 
 	CDEBUG(D_READA, "alloc sa entry %.*s(%p) index %llu\n",
@@ -465,7 +465,7 @@ static struct ll_statahead_info *ll_sai_alloc(void)
 	struct ll_statahead_info *sai;
 	int		       i;
 
-	OBD_ALLOC_PTR(sai);
+	sai = kzalloc(sizeof(*sai), GFP_NOFS);
 	if (!sai)
 		return NULL;
 
@@ -802,12 +802,12 @@ static int sa_args_init(struct inode *dir, struct inode *child,
 	struct ldlm_enqueue_info *einfo;
 	struct md_op_data	*op_data;
 
-	OBD_ALLOC_PTR(einfo);
-	if (einfo == NULL)
+	einfo = kzalloc(sizeof(*einfo), GFP_NOFS);
+	if (!einfo)
 		return -ENOMEM;
 
-	OBD_ALLOC_PTR(minfo);
-	if (minfo == NULL) {
+	minfo = kzalloc(sizeof(*minfo), GFP_NOFS);
+	if (!minfo) {
 		OBD_FREE_PTR(einfo);
 		return -ENOMEM;
 	}

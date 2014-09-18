@@ -146,8 +146,8 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		goto out;
 	}
 
-	OBD_ALLOC_PTR(op_data);
-	if (op_data == NULL) {
+	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+	if (!op_data) {
 		/* XXX We leak openhandle and request here. */
 		rc = -ENOMEM;
 		goto out;
@@ -659,7 +659,7 @@ restart:
 
 			goto restart;
 		}
-		OBD_ALLOC(*och_p, sizeof (struct obd_client_handle));
+		*och_p = kzalloc(sizeof(struct obd_client_handle), GFP_NOFS);
 		if (!*och_p) {
 			rc = -ENOMEM;
 			goto out_och_free;
@@ -811,8 +811,8 @@ ll_lease_open(struct inode *inode, struct file *file, fmode_t fmode,
 		old_handle = fd->fd_och->och_fh;
 	}
 
-	OBD_ALLOC_PTR(och);
-	if (och == NULL)
+	och = kzalloc(sizeof(*och), GFP_NOFS);
+	if (!och)
 		return ERR_PTR(-ENOMEM);
 
 	op_data = ll_prep_md_op_data(NULL, inode, inode, NULL, 0, 0,
@@ -1655,7 +1655,7 @@ int ll_release_openhandle(struct dentry *dentry, struct lookup_intent *it)
 
 	LASSERT(it_open_error(DISP_OPEN_OPEN, it) == 0);
 
-	OBD_ALLOC(och, sizeof(*och));
+	och = kzalloc(sizeof(*och), GFP_NOFS);
 	if (!och) {
 		rc = -ENOMEM;
 		goto out;
@@ -1759,8 +1759,8 @@ int ll_fid2path(struct inode *inode, void __user *arg)
 
 	outsize = sizeof(*gfout) + pathlen;
 
-	OBD_ALLOC(gfout, outsize);
-	if (gfout == NULL)
+	gfout = kzalloc(outsize, GFP_NOFS);
+	if (!gfout)
 		return -ENOMEM;
 
 	if (copy_from_user(gfout, arg, sizeof(*gfout))) {
@@ -1867,8 +1867,8 @@ int ll_data_version(struct inode *inode, __u64 *data_version,
 		goto out;
 	}
 
-	OBD_ALLOC_PTR(obdo);
-	if (obdo == NULL) {
+	obdo = kzalloc(sizeof(*obdo), GFP_NOFS);
+	if (!obdo) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -1955,8 +1955,8 @@ static int ll_swap_layouts(struct file *file1, struct file *file2,
 	struct ll_swap_stack	*llss = NULL;
 	int			 rc;
 
-	OBD_ALLOC_PTR(llss);
-	if (llss == NULL)
+	llss = kzalloc(sizeof(*llss), GFP_NOFS);
+	if (!llss)
 		return -ENOMEM;
 
 	llss->inode1 = file1->f_dentry->d_inode;
@@ -2149,8 +2149,8 @@ static int ll_hsm_import(struct inode *inode, struct file *file,
 		return -EINVAL;
 
 	/* set HSM flags */
-	OBD_ALLOC_PTR(hss);
-	if (hss == NULL) {
+	hss = kzalloc(sizeof(*hss), GFP_NOFS);
+	if (!hss) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -2162,8 +2162,8 @@ static int ll_hsm_import(struct inode *inode, struct file *file,
 	if (rc != 0)
 		goto out;
 
-	OBD_ALLOC_PTR(attr);
-	if (attr == NULL) {
+	attr = kzalloc(sizeof(*attr), GFP_NOFS);
+	if (!attr) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -2341,8 +2341,8 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct hsm_user_state	*hus;
 		int			 rc;
 
-		OBD_ALLOC_PTR(hus);
-		if (hus == NULL)
+		hus = kzalloc(sizeof(*hus), GFP_NOFS);
+		if (!hus)
 			return -ENOMEM;
 
 		op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
@@ -2366,8 +2366,8 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct hsm_state_set	*hss;
 		int			 rc;
 
-		OBD_ALLOC_PTR(hss);
-		if (hss == NULL)
+		hss = kzalloc(sizeof(*hss), GFP_NOFS);
+		if (!hss)
 			return -ENOMEM;
 
 		if (copy_from_user(hss, (char *)arg, sizeof(*hss))) {
@@ -2385,8 +2385,8 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct hsm_current_action	*hca;
 		int				 rc;
 
-		OBD_ALLOC_PTR(hca);
-		if (hca == NULL)
+		hca = kzalloc(sizeof(*hca), GFP_NOFS);
+		if (!hca)
 			return -ENOMEM;
 
 		op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
@@ -2493,8 +2493,8 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LL_IOC_HSM_IMPORT: {
 		struct hsm_user_import *hui;
 
-		OBD_ALLOC_PTR(hui);
-		if (hui == NULL)
+		hui = kzalloc(sizeof(*hui), GFP_NOFS);
+		if (!hui)
 			return -ENOMEM;
 
 		if (copy_from_user(hui, (void *)arg, sizeof(*hui))) {
@@ -3229,8 +3229,8 @@ void *ll_iocontrol_register(llioc_callback_t cb, int count, unsigned int *cmd)
 		return NULL;
 
 	size = sizeof(*in_data) + count * sizeof(unsigned int);
-	OBD_ALLOC(in_data, size);
-	if (in_data == NULL)
+	in_data = kzalloc(size, GFP_NOFS);
+	if (!in_data)
 		return NULL;
 
 	memset(in_data, 0, sizeof(*in_data));
@@ -3618,8 +3618,8 @@ int ll_layout_restore(struct inode *inode)
 
 	len = sizeof(struct hsm_user_request) +
 	      sizeof(struct hsm_user_item);
-	OBD_ALLOC(hur, len);
-	if (hur == NULL)
+	hur = kzalloc(len, GFP_NOFS);
+	if (!hur)
 		return -ENOMEM;
 
 	hur->hur_request.hr_action = HUA_RESTORE;

@@ -624,7 +624,7 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 	       dentry->d_name.len, dentry->d_name.name, dir->i_ino,
 	       dir->i_generation, dir, file, open_flags, mode, *opened);
 
-	OBD_ALLOC(it, sizeof(*it));
+	it = kzalloc(sizeof(*it), GFP_NOFS);
 	if (!it)
 		return -ENOMEM;
 

@@ -106,7 +106,7 @@ static int ll_readlink_internal(struct inode *inode,
 		goto failed;
 	}
 
-	OBD_ALLOC(lli->lli_symlink_name, symlen);
+	lli->lli_symlink_name = kzalloc(symlen, GFP_NOFS);
 	/* do not return an error if we cannot cache the symlink locally */
 	if (lli->lli_symlink_name) {
 		memcpy(lli->lli_symlink_name, *symname, symlen);

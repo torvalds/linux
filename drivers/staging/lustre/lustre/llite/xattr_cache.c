@@ -128,13 +128,13 @@ static int ll_xattr_cache_add(struct list_head *cache,
 
 	xattr->xe_namelen = strlen(xattr_name) + 1;
 
-	OBD_ALLOC(xattr->xe_name, xattr->xe_namelen);
+	xattr->xe_name = kzalloc(xattr->xe_namelen, GFP_NOFS);
 	if (!xattr->xe_name) {
 		CDEBUG(D_CACHE, "failed to alloc xattr name %u\n",
 		       xattr->xe_namelen);
 		goto err_name;
 	}
-	OBD_ALLOC(xattr->xe_value, xattr_val_len);
+	xattr->xe_value = kzalloc(xattr_val_len, GFP_NOFS);
 	if (!xattr->xe_value) {
 		CDEBUG(D_CACHE, "failed to alloc xattr value %d\n",
 		       xattr_val_len);

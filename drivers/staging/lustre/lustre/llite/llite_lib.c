@@ -75,7 +75,7 @@ static struct ll_sb_info *ll_init_sbi(void)
 	class_uuid_t uuid;
 	int i;
 
-	OBD_ALLOC(sbi, sizeof(*sbi));
+	sbi = kzalloc(sizeof(*sbi), GFP_NOFS);
 	if (!sbi)
 		return NULL;
 
@@ -172,12 +172,12 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		return -EINVAL;
 	}
 
-	OBD_ALLOC_PTR(data);
-	if (data == NULL)
+	data = kzalloc(sizeof(*data), GFP_NOFS);
+	if (!data)
 		return -ENOMEM;
 
-	OBD_ALLOC_PTR(osfs);
-	if (osfs == NULL) {
+	osfs = kzalloc(sizeof(*osfs), GFP_NOFS);
+	if (!osfs) {
 		OBD_FREE_PTR(data);
 		return -ENOMEM;
 	}
@@ -293,7 +293,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	    valid != CLIENT_CONNECT_MDT_REQD) {
 		char *buf;
 
-		OBD_ALLOC_WAIT(buf, PAGE_CACHE_SIZE);
+		buf = kzalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
 		obd_connect_flags2str(buf, PAGE_CACHE_SIZE,
 				      valid ^ CLIENT_CONNECT_MDT_REQD, ",");
 		LCONSOLE_ERROR_MSG(0x170, "Server %s does not support "
@@ -496,8 +496,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	else if (sbi->ll_flags & LL_SBI_ACL)
 		valid |= OBD_MD_FLACL;
 
-	OBD_ALLOC_PTR(op_data);
-	if (op_data == NULL) {
+	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+	if (!op_data) {
 		err = -ENOMEM;
 		goto out_lock_cn_cb;
 	}
@@ -993,8 +993,8 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 
 	CDEBUG(D_VFSTRACE, "VFS Op: sb %p\n", sb);
 
-	OBD_ALLOC_PTR(cfg);
-	if (cfg == NULL)
+	cfg = kzalloc(sizeof(*cfg), GFP_NOFS);
+	if (!cfg)
 		return -ENOMEM;
 
 	try_module_get(THIS_MODULE);
@@ -1049,14 +1049,14 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	CDEBUG(D_CONFIG, "Found profile %s: mdc=%s osc=%s\n", profilenm,
 	       lprof->lp_md, lprof->lp_dt);
 
-	OBD_ALLOC(dt, strlen(lprof->lp_dt) + instlen + 2);
+	dt = kzalloc(strlen(lprof->lp_dt) + instlen + 2, GFP_NOFS);
 	if (!dt) {
 		err = -ENOMEM;
 		goto out_free;
 	}
 	sprintf(dt, "%s-%p", lprof->lp_dt, cfg->cfg_instance);
 
-	OBD_ALLOC(md, strlen(lprof->lp_md) + instlen + 2);
+	md = kzalloc(strlen(lprof->lp_md) + instlen + 2, GFP_NOFS);
 	if (!md) {
 		err = -ENOMEM;
 		goto out_free;
@@ -1437,8 +1437,8 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	/* We always do an MDS RPC, even if we're only changing the size;
 	 * only the MDS knows whether truncate() should fail with -ETXTBUSY */
 
-	OBD_ALLOC_PTR(op_data);
-	if (op_data == NULL)
+	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+	if (!op_data)
 		return -ENOMEM;
 
 	if (!S_ISDIR(inode->i_mode)) {
@@ -2029,7 +2029,7 @@ void ll_umount_begin(struct super_block *sb)
 	}
 	obd->obd_force = 1;
 
-	OBD_ALLOC_PTR(ioc_data);
+	ioc_data = kzalloc(sizeof(*ioc_data), GFP_NOFS);
 	if (ioc_data) {
 		obd_iocontrol(IOC_OSC_SET_ACTIVE, sbi->ll_md_exp,
 			      sizeof(*ioc_data), ioc_data, NULL);
@@ -2251,7 +2251,7 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 		return ERR_PTR(-ENAMETOOLONG);
 
 	if (op_data == NULL)
-		OBD_ALLOC_PTR(op_data);
+		op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
 
 	if (op_data == NULL)
 		return ERR_PTR(-ENOMEM);
