@@ -541,6 +541,7 @@ static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -65625, 375, 0);
 static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -17625, 375, 0);
 static const DECLARE_TLV_DB_SCALE(adc_bst_tlv, 0, 1200, 0);
+static const DECLARE_TLV_DB_SCALE(st_vol_tlv, -4650, 150, 0);
 
 /* {0, +20, +24, +30, +35, +40, +44, +50, +52} dB */
 static unsigned int bst_tlv[] = {
@@ -604,6 +605,10 @@ static const struct snd_kcontrol_new rt5677_snd_controls[] = {
 	SOC_DOUBLE_TLV("Mono ADC Capture Volume", RT5677_MONO_ADC_DIG_VOL,
 		RT5677_MONO_ADC_L_VOL_SFT, RT5677_MONO_ADC_R_VOL_SFT, 127, 0,
 		adc_vol_tlv),
+
+	/* Sidetone Control */
+	SOC_SINGLE_TLV("Sidetone Volume", RT5677_SIDETONE_CTRL,
+		RT5677_ST_VOL_SFT, 31, 0, st_vol_tlv),
 
 	/* ADC Boost Volume Control */
 	SOC_DOUBLE_TLV("STO1 ADC Boost Volume", RT5677_STO1_2_ADC_BST,
@@ -1993,6 +1998,9 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 	/* Sidetone Mux */
 	SND_SOC_DAPM_MUX("Sidetone Mux", SND_SOC_NOPM, 0, 0,
 			&rt5677_sidetone_mux),
+	SND_SOC_DAPM_SUPPLY("Sidetone Power", RT5677_SIDETONE_CTRL,
+		RT5677_ST_EN_SFT, 0, NULL, 0),
+
 	/* VAD Mux*/
 	SND_SOC_DAPM_MUX("VAD ADC Mux", SND_SOC_NOPM, 0, 0,
 			&rt5677_vad_src_mux),
@@ -2704,6 +2712,7 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "Sidetone Mux", "DMIC4 L", "DMIC L4" },
 	{ "Sidetone Mux", "ADC1", "ADC 1" },
 	{ "Sidetone Mux", "ADC2", "ADC 2" },
+	{ "Sidetone Mux", NULL, "Sidetone Power" },
 
 	{ "Stereo DAC MIXL", "ST L Switch", "Sidetone Mux" },
 	{ "Stereo DAC MIXL", "DAC1 L Switch", "DAC1 MIXL" },
