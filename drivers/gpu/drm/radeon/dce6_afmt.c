@@ -284,13 +284,13 @@ static int dce6_audio_chipset_supported(struct radeon_device *rdev)
 
 void dce6_audio_enable(struct radeon_device *rdev,
 		       struct r600_audio_pin *pin,
-		       bool enable)
+		       u8 enable_mask)
 {
 	if (!pin)
 		return;
 
 	WREG32_ENDPOINT(pin->offset, AZ_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
-			enable ? AUDIO_ENABLED : 0);
+			enable_mask ? AUDIO_ENABLED : 0);
 }
 
 static const u32 pin_offsets[7] =

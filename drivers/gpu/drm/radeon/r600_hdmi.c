@@ -163,23 +163,32 @@ void r600_audio_update_hdmi(struct work_struct *work)
 /* enable the audio stream */
 void r600_audio_enable(struct radeon_device *rdev,
 		       struct r600_audio_pin *pin,
-		       bool enable)
+		       u8 enable_mask)
 {
-	u32 value = 0;
+	u32 tmp = RREG32(AZ_HOT_PLUG_CONTROL);
 
 	if (!pin)
 		return;
 
-	if (ASIC_IS_DCE4(rdev)) {
-		if (enable) {
-			value |= 0x81000000; /* Required to enable audio */
-			value |= 0x0e1000f0; /* fglrx sets that too */
-		}
-		WREG32(EVERGREEN_AUDIO_ENABLE, value);
+	if (enable_mask) {
+		tmp |= AUDIO_ENABLED;
+		if (enable_mask & 1)
+			tmp |= PIN0_AUDIO_ENABLED;
+		if (enable_mask & 2)
+			tmp |= PIN1_AUDIO_ENABLED;
+		if (enable_mask & 4)
+			tmp |= PIN2_AUDIO_ENABLED;
+		if (enable_mask & 8)
+			tmp |= PIN3_AUDIO_ENABLED;
 	} else {
-		WREG32_P(R600_AUDIO_ENABLE,
-			 enable ? 0x81000000 : 0x0, ~0x81000000);
+		tmp &= ~(AUDIO_ENABLED |
+			 PIN0_AUDIO_ENABLED |
+			 PIN1_AUDIO_ENABLED |
+			 PIN2_AUDIO_ENABLED |
+			 PIN3_AUDIO_ENABLED);
 	}
+
+	WREG32(AZ_HOT_PLUG_CONTROL, tmp);
 }
 
 /*
@@ -200,7 +209,7 @@ int r600_audio_init(struct radeon_device *rdev)
 	rdev->audio.pin[0].category_code = 0;
 	rdev->audio.pin[0].id = 0;
 	/* disable audio.  it will be set up later */
-	r600_audio_enable(rdev, &rdev->audio.pin[0], false);
+	r600_audio_enable(rdev, &rdev->audio.pin[0], 0);
 
 	return 0;
 }
@@ -214,7 +223,7 @@ void r600_audio_fini(struct radeon_device *rdev)
 	if (!rdev->audio.enabled)
 		return;
 
-	r600_audio_enable(rdev, &rdev->audio.pin[0], false);
+	r600_audio_enable(rdev, &rdev->audio.pin[0], 0);
 
 	rdev->audio.enabled = false;
 }
@@ -511,7 +520,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 
 	/* disable audio prior to setting up hw */
 	dig->afmt->pin = r600_audio_get_pin(rdev);
-	r600_audio_enable(rdev, dig->afmt->pin, false);
+	r600_audio_enable(rdev, dig->afmt->pin, 0xf);
 
 	r600_audio_set_dto(encoder, mode->clock);
 
@@ -597,7 +606,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	WREG32(HDMI0_RAMP_CONTROL3 + offset, 0x00000001);
 
 	/* enable audio after to setting up hw */
-	r600_audio_enable(rdev, dig->afmt->pin, true);
+	r600_audio_enable(rdev, dig->afmt->pin, 0xf);
 }
 
 /**

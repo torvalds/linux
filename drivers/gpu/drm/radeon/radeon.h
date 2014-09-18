@@ -2977,10 +2977,10 @@ struct r600_audio_pin *r600_audio_get_pin(struct radeon_device *rdev);
 struct r600_audio_pin *dce6_audio_get_pin(struct radeon_device *rdev);
 void r600_audio_enable(struct radeon_device *rdev,
 		       struct r600_audio_pin *pin,
-		       bool enable);
+		       u8 enable_mask);
 void dce6_audio_enable(struct radeon_device *rdev,
 		       struct r600_audio_pin *pin,
-		       bool enable);
+		       u8 enable_mask);
 
 /*
  * R600 vram scratch functions
