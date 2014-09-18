@@ -434,10 +434,40 @@ static void isp_video_buffer_queue(struct vb2_buffer *buf)
 	}
 }
 
+static int isp_video_start_streaming(struct vb2_queue *queue,
+				     unsigned int count)
+{
+	struct isp_video_fh *vfh = vb2_get_drv_priv(queue);
+	struct isp_video *video = vfh->video;
+	struct isp_pipeline *pipe = to_isp_pipeline(&video->video.entity);
+	unsigned long flags;
+	int ret;
+
+	/* In sensor-to-memory mode, the stream can be started synchronously
+	 * to the stream on command. In memory-to-memory mode, it will be
+	 * started when buffers are queued on both the input and output.
+	 */
+	if (pipe->input)
+		return 0;
+
+	ret = omap3isp_pipeline_set_stream(pipe,
+					   ISP_PIPELINE_STREAM_CONTINUOUS);
+	if (ret < 0)
+		return ret;
+
+	spin_lock_irqsave(&video->irqlock, flags);
+	if (list_empty(&video->dmaqueue))
+		video->dmaqueue_flags |= ISP_VIDEO_DMAQUEUE_UNDERRUN;
+	spin_unlock_irqrestore(&video->irqlock, flags);
+
+	return 0;
+}
+
 static const struct vb2_ops isp_video_queue_ops = {
 	.queue_setup = isp_video_queue_setup,
 	.buf_prepare = isp_video_buffer_prepare,
 	.buf_queue = isp_video_buffer_queue,
+	.start_streaming = isp_video_start_streaming,
 };
 
 /*
@@ -1087,29 +1117,10 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	if (ret < 0)
 		goto err_check_format;
 
-	/* In sensor-to-memory mode, the stream can be started synchronously
-	 * to the stream on command. In memory-to-memory mode, it will be
-	 * started when buffers are queued on both the input and output.
-	 */
-	if (pipe->input == NULL) {
-		ret = omap3isp_pipeline_set_stream(pipe,
-					      ISP_PIPELINE_STREAM_CONTINUOUS);
-		if (ret < 0)
-			goto err_set_stream;
-		spin_lock_irqsave(&video->irqlock, flags);
-		if (list_empty(&video->dmaqueue))
-			video->dmaqueue_flags |= ISP_VIDEO_DMAQUEUE_UNDERRUN;
-		spin_unlock_irqrestore(&video->irqlock, flags);
-	}
-
 	mutex_unlock(&video->stream_lock);
 
 	return 0;
 
-err_set_stream:
-	mutex_lock(&video->queue_lock);
-	vb2_streamoff(&vfh->queue, type);
-	mutex_unlock(&video->queue_lock);
 err_check_format:
 	media_entity_pipeline_stop(&video->video.entity);
 err_pipeline_start:
