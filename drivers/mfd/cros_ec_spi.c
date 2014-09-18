@@ -65,6 +65,12 @@
   */
 #define EC_SPI_RECOVERY_TIME_NS	(200 * 1000)
 
+/*
+ * The EC is unresponsive for a time after a reboot command.  Add a
+ * simple delay to make sure that the bus stays locked.
+ */
+#define EC_REBOOT_DELAY_MS	50
+
 /**
  * struct cros_ec_spi - information about a SPI-connected EC
  *
@@ -318,6 +324,9 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 
 	ret = len;
 exit:
+	if (ec_msg->command == EC_CMD_REBOOT_EC)
+		msleep(EC_REBOOT_DELAY_MS);
+
 	mutex_unlock(&ec_spi->lock);
 	return ret;
 }
