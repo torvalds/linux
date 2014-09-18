@@ -460,7 +460,7 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 		dev_err(dev->class_dev, "fifo overflow\n");
 	}
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)
