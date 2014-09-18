@@ -845,12 +845,7 @@ bool i915_needs_cmd_parser(struct intel_engine_cs *ring)
 	if (!ring->needs_cmd_parser)
 		return false;
 
-	/*
-	 * XXX: VLV is Gen7 and therefore has cmd_tables, but has PPGTT
-	 * disabled. That will cause all of the parser's PPGTT checks to
-	 * fail. For now, disable parsing when PPGTT is off.
-	 */
-	if (USES_PPGTT(ring->dev))
+	if (!USES_PPGTT(ring->dev))
 		return false;
 
 	return (i915.enable_cmd_parser == 1);
