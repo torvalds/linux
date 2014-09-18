@@ -81,7 +81,7 @@
 #define IWL8000_NVM_VERSION		0x0a1d
 #define IWL8000_TX_POWER_VERSION	0xffff /* meaningless */
 
-#define IWL8000_FW_PRE "iwlwifi-8000-"
+#define IWL8000_FW_PRE "iwlwifi-8000"
 #define IWL8000_MODULE_FIRMWARE(api) IWL8000_FW_PRE __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_8000		10
