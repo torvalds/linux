@@ -2100,6 +2100,10 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->vendor = id->data;
 	pl022->chipselects = devm_kzalloc(dev, num_cs * sizeof(int),
 					  GFP_KERNEL);
+	if (!pl022->chipselects) {
+		status = -ENOMEM;
+		goto err_no_mem;
+	}
 
 	/*
 	 * Bus Number Which has been Assigned to this SSP controller
@@ -2241,6 +2245,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	amba_release_regions(adev);
  err_no_ioregion:
  err_no_gpio:
+ err_no_mem:
 	spi_master_put(master);
 	return status;
 }
