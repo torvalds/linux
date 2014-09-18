@@ -148,6 +148,7 @@ int iio_simple_dummy_write_event_value(struct iio_dev *indio_dev,
 static irqreturn_t iio_simple_dummy_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
+
 	iio_push_event(indio_dev,
 		       IIO_EVENT_CODE(IIO_VOLTAGE, 0, 0,
 				      IIO_EV_DIR_RISING,
