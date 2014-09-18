@@ -164,7 +164,8 @@ static void waveform_ai_interrupt(unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *)arg;
 	struct waveform_private *devpriv = dev->private;
-	struct comedi_async *async = dev->read_subdev->async;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int i, j;
 	/* all times in microsec */
@@ -203,7 +204,7 @@ static void waveform_ai_interrupt(unsigned long arg)
 					       devpriv->usec_current +
 						   i * devpriv->scan_period +
 						   j * devpriv->convert_period);
-			cfc_write_to_buffer(dev->read_subdev, sample);
+			cfc_write_to_buffer(s, sample);
 		}
 	}
 
@@ -216,7 +217,7 @@ static void waveform_ai_interrupt(unsigned long arg)
 	else
 		mod_timer(&devpriv->timer, jiffies + 1);
 
-	comedi_event(dev, dev->read_subdev);
+	comedi_handle_events(dev, s);
 }
 
 static int waveform_ai_cmdtest(struct comedi_device *dev,
