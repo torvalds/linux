@@ -413,6 +413,7 @@ struct mwifiex_roc_cfg {
 #define FW_DUMP_MAX_NAME_LEN		8
 #define FW_DUMP_HOST_READY		0xEE
 #define FW_DUMP_DONE			0xFF
+#define FW_DUMP_READ_DONE		0xFE
 
 struct memory_type_mapping {
 	u8 mem_name[FW_DUMP_MAX_NAME_LEN];

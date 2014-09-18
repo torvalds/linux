@@ -42,6 +42,10 @@ static struct memory_type_mapping mem_type_mapping_tbl[] = {
 	{"DTCM", NULL, 0, 0xF1},
 	{"SQRAM", NULL, 0, 0xF2},
 	{"IRAM", NULL, 0, 0xF3},
+	{"APU", NULL, 0, 0xF4},
+	{"CIU", NULL, 0, 0xF5},
+	{"ICU", NULL, 0, 0xF6},
+	{"MAC", NULL, 0, 0xF7},
 };
 
 static int
@@ -2310,6 +2314,12 @@ static void mwifiex_pcie_fw_dump_work(struct mwifiex_adapter *adapter)
 
 		if (memory_size == 0) {
 			dev_info(adapter->dev, "Firmware dump Finished!\n");
+			ret = mwifiex_write_reg(adapter, creg->fw_dump_ctrl,
+						FW_DUMP_READ_DONE);
+			if (ret) {
+				dev_err(adapter->dev, "PCIE write err\n");
+				goto done;
+			}
 			break;
 		}
 
