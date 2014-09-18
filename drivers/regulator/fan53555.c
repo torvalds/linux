@@ -361,6 +361,7 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 	if (!di)
 		return -ENOMEM;
 
+	di->regulator = pdata->regulator;
 	if (client->dev.of_node) {
 		const struct of_device_id *match;
 
@@ -389,7 +390,6 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 		return PTR_ERR(di->regmap);
 	}
 	di->dev = &client->dev;
-	di->regulator = pdata->regulator;
 	i2c_set_clientdata(client, di);
 	/* Get chip ID */
 	ret = regmap_read(di->regmap, FAN53555_ID1, &val);
