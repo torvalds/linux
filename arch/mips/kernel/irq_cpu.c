@@ -36,6 +36,7 @@
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
+#include <asm/setup.h>
 
 static inline void unmask_mips_irq(struct irq_data *d)
 {
@@ -123,6 +124,9 @@ static int mips_cpu_intc_map(struct irq_domain *d, unsigned int irq,
 	} else {
 		chip = &mips_cpu_irq_controller;
 	}
+
+	if (cpu_has_vint)
+		set_vi_handler(hw, plat_irq_dispatch);
 
 	irq_set_chip_and_handler(irq, chip, handle_percpu_irq);
 
