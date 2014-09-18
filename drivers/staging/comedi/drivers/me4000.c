@@ -1178,8 +1178,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 	}
 
-	if (s->async->events)
-		comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
