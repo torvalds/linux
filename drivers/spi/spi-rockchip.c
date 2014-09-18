@@ -228,7 +228,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sdd);
 
-	printk("%s:num_cs=%d,irq=%d,freq=%d ok\n",__func__, info->num_cs, irq, dws->max_freq);
+	printk("%s:num_cs=%d,bus_num=%d,irq=%d,freq=%d ok\n",__func__, info->num_cs, info->bus_num, irq, dws->max_freq);
 	
 	return 0;
 err_release_mem:

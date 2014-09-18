@@ -579,7 +579,12 @@ static void pump_transfers(unsigned long data)
 	spi = message->spi;
 
 	if (unlikely(!chip->clk_div))
+	{
 		chip->clk_div = dws->max_freq / chip->speed_hz;
+		chip->clk_div = (chip->clk_div + 1) & 0xfffe;
+		chip->speed_hz = dws->max_freq / chip->clk_div;
+	}
+
 
 	if (message->state == ERROR_STATE) {
 		message->status = -EIO;
@@ -619,7 +624,6 @@ static void pump_transfers(unsigned long data)
 	cr0 = chip->cr0;
 
 	
-	DBG_SPI("%s:len=%d\n",__func__,dws->len);
 
 	/* Handle per transfer options for bpw and speed */
 	if (transfer->speed_hz) {
@@ -638,10 +642,11 @@ static void pump_transfers(unsigned long data)
 			clk_div = dws->max_freq / speed;
 			clk_div = (clk_div + 1) & 0xfffe;
 
-			chip->speed_hz = speed;
+			chip->speed_hz = dws->max_freq / clk_div;
 			chip->clk_div = clk_div;
 		}
 	}
+	DBG_SPI("%s:len=%d,clk_div=%d,speed_hz=%d\n",__func__,dws->len,chip->clk_div,chip->speed_hz);
 	if (transfer->bits_per_word) {
 		bits = transfer->bits_per_word;
 
