@@ -28,15 +28,15 @@ unsigned int gic_irq_flags[GIC_NUM_INTRS];
 unsigned int gic_cpu_pin;
 
 struct gic_pcpu_mask {
-	DECLARE_BITMAP(pcpu_mask, GIC_NUM_INTRS);
+	DECLARE_BITMAP(pcpu_mask, GIC_MAX_INTRS);
 };
 
 struct gic_pending_regs {
-	DECLARE_BITMAP(pending, GIC_NUM_INTRS);
+	DECLARE_BITMAP(pending, GIC_MAX_INTRS);
 };
 
 struct gic_intrmask_regs {
-	DECLARE_BITMAP(intrmask, GIC_NUM_INTRS);
+	DECLARE_BITMAP(intrmask, GIC_MAX_INTRS);
 };
 
 static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
@@ -44,6 +44,7 @@ static struct gic_pending_regs pending_regs[NR_CPUS];
 static struct gic_intrmask_regs intrmask_regs[NR_CPUS];
 static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
+static int gic_shared_intrs;
 
 static void __gic_irq_dispatch(void);
 
@@ -192,26 +193,26 @@ void gic_get_int_mask(unsigned long *dst, const unsigned long *src)
 	intrmask_abs = (unsigned long *) GIC_REG_ABS_ADDR(SHARED,
 							  GIC_SH_MASK_31_0_OFS);
 
-	for (i = 0; i < BITS_TO_LONGS(GIC_NUM_INTRS); i++) {
+	for (i = 0; i < BITS_TO_LONGS(gic_shared_intrs); i++) {
 		GICREAD(*pending_abs, pending[i]);
 		GICREAD(*intrmask_abs, intrmask[i]);
 		pending_abs++;
 		intrmask_abs++;
 	}
 
-	bitmap_and(pending, pending, intrmask, GIC_NUM_INTRS);
-	bitmap_and(pending, pending, pcpu_mask, GIC_NUM_INTRS);
-	bitmap_and(dst, src, pending, GIC_NUM_INTRS);
+	bitmap_and(pending, pending, intrmask, gic_shared_intrs);
+	bitmap_and(pending, pending, pcpu_mask, gic_shared_intrs);
+	bitmap_and(dst, src, pending, gic_shared_intrs);
 }
 
 unsigned int gic_get_int(void)
 {
-	DECLARE_BITMAP(interrupts, GIC_NUM_INTRS);
+	DECLARE_BITMAP(interrupts, GIC_MAX_INTRS);
 
-	bitmap_fill(interrupts, GIC_NUM_INTRS);
+	bitmap_fill(interrupts, gic_shared_intrs);
 	gic_get_int_mask(interrupts, interrupts);
 
-	return find_first_bit(interrupts, GIC_NUM_INTRS);
+	return find_first_bit(interrupts, gic_shared_intrs);
 }
 
 static void gic_mask_irq(struct irq_data *d)
@@ -332,7 +333,7 @@ static void __gic_irq_dispatch(void)
 {
 	unsigned int intr, virq;
 
-	while ((intr = gic_get_int()) != GIC_NUM_INTRS) {
+	while ((intr = gic_get_int()) != gic_shared_intrs) {
 		virq = irq_linear_revmap(gic_irq_domain, intr);
 		do_IRQ(virq);
 	}
@@ -405,7 +406,7 @@ static __init void gic_ipi_init(void)
 	int i;
 
 	/* Use last 2 * NR_CPUS interrupts as IPIs */
-	gic_resched_int_base = GIC_NUM_INTRS - nr_cpu_ids;
+	gic_resched_int_base = gic_shared_intrs - nr_cpu_ids;
 	gic_call_int_base = gic_resched_int_base - nr_cpu_ids;
 
 	for (i = 0; i < nr_cpu_ids; i++) {
@@ -419,19 +420,18 @@ static inline void gic_ipi_init(void)
 }
 #endif
 
-static void __init gic_basic_init(int numintrs, int numvpes)
+static void __init gic_basic_init(int numvpes)
 {
 	unsigned int i;
 
 	board_bind_eic_interrupt = &gic_bind_eic_interrupt;
 
 	/* Setup defaults */
-	for (i = 0; i < numintrs; i++) {
+	for (i = 0; i < gic_shared_intrs; i++) {
 		GIC_SET_POLARITY(i, GIC_POL_POS);
 		GIC_SET_TRIGGER(i, GIC_TRIG_LEVEL);
 		GIC_CLR_INTR_MASK(i);
-		if (i < GIC_NUM_INTRS)
-			gic_irq_flags[i] = 0;
+		gic_irq_flags[i] = 0;
 	}
 
 	vpe_local_setup(numvpes);
@@ -471,9 +471,9 @@ void __init gic_init(unsigned long gic_base_addr,
 						    gic_addrspace_size);
 
 	GICREAD(GIC_REG(SHARED, GIC_SH_CONFIG), gicconfig);
-	numintrs = (gicconfig & GIC_SH_CONFIG_NUMINTRS_MSK) >>
+	gic_shared_intrs = (gicconfig & GIC_SH_CONFIG_NUMINTRS_MSK) >>
 		   GIC_SH_CONFIG_NUMINTRS_SHF;
-	numintrs = ((numintrs + 1) * 8);
+	gic_shared_intrs = ((gic_shared_intrs + 1) * 8);
 
 	numvpes = (gicconfig & GIC_SH_CONFIG_NUMVPES_MSK) >>
 		  GIC_SH_CONFIG_NUMVPES_SHF;
@@ -490,12 +490,12 @@ void __init gic_init(unsigned long gic_base_addr,
 					gic_irq_dispatch);
 	}
 
-	gic_irq_domain = irq_domain_add_simple(NULL, GIC_NUM_INTRS, irqbase,
+	gic_irq_domain = irq_domain_add_simple(NULL, gic_shared_intrs, irqbase,
 					       &gic_irq_domain_ops, NULL);
 	if (!gic_irq_domain)
 		panic("Failed to add GIC IRQ domain");
 
-	gic_basic_init(numintrs, numvpes);
+	gic_basic_init(numvpes);
 
 	gic_ipi_init();
 }

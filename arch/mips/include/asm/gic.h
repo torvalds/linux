@@ -18,6 +18,8 @@
 
 #undef	GICISBYTELITTLEENDIAN
 
+#define GIC_MAX_INTRS			256
+
 /* Constants */
 #define GIC_POL_POS			1
 #define GIC_POL_NEG			0
