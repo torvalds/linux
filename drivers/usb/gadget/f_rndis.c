@@ -477,6 +477,8 @@ static void rndis_command_complete(struct usb_ep *ep, struct usb_request *req)
 				__func__, buf->MaxTransferSize,
 				rndis->port.multi_pkt_xfer ? "enabled" :
 							    "disabled");
+		if (rndis_multipacket_dl_disable)
+			rndis->port.multi_pkt_xfer = 0;
 	}
 //	spin_unlock(&dev->lock);
 }

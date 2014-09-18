@@ -292,6 +292,10 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 				status = dev->unwrap(dev->port_usb,
 							skb,
 							&dev->rx_frames);
+				if (status == -EINVAL)
+					dev->net->stats.rx_errors++;
+				else if (status == -EOVERFLOW)
+					dev->net->stats.rx_over_errors++;
 			} else {
 				dev_kfree_skb_any(skb);
 				status = -ENOTCONN;
