@@ -3165,52 +3165,50 @@ int ath10k_wmi_cmd_init(struct ath10k *ar)
 	return ret;
 }
 
-static int ath10k_wmi_start_scan_calc_len(struct ath10k *ar,
-					  const struct wmi_start_scan_arg *arg)
+static int ath10k_wmi_start_scan_verify(const struct wmi_start_scan_arg *arg)
 {
-	int len;
+	if (arg->ie_len && !arg->ie)
+		return -EINVAL;
+	if (arg->n_channels && !arg->channels)
+		return -EINVAL;
+	if (arg->n_ssids && !arg->ssids)
+		return -EINVAL;
+	if (arg->n_bssids && !arg->bssids)
+		return -EINVAL;
 
-	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
-		len = sizeof(struct wmi_start_scan_cmd_10x);
-	else
-		len = sizeof(struct wmi_start_scan_cmd);
+	if (arg->ie_len > WLAN_SCAN_PARAMS_MAX_IE_LEN)
+		return -EINVAL;
+	if (arg->n_channels > ARRAY_SIZE(arg->channels))
+		return -EINVAL;
+	if (arg->n_ssids > WLAN_SCAN_PARAMS_MAX_SSID)
+		return -EINVAL;
+	if (arg->n_bssids > WLAN_SCAN_PARAMS_MAX_BSSID)
+		return -EINVAL;
+
+	return 0;
+}
+
+static size_t
+ath10k_wmi_start_scan_tlvs_len(const struct wmi_start_scan_arg *arg)
+{
+	int len = 0;
 
 	if (arg->ie_len) {
-		if (!arg->ie)
-			return -EINVAL;
-		if (arg->ie_len > WLAN_SCAN_PARAMS_MAX_IE_LEN)
-			return -EINVAL;
-
 		len += sizeof(struct wmi_ie_data);
 		len += roundup(arg->ie_len, 4);
 	}
 
 	if (arg->n_channels) {
-		if (!arg->channels)
-			return -EINVAL;
-		if (arg->n_channels > ARRAY_SIZE(arg->channels))
-			return -EINVAL;
-
 		len += sizeof(struct wmi_chan_list);
 		len += sizeof(__le32) * arg->n_channels;
 	}
 
 	if (arg->n_ssids) {
-		if (!arg->ssids)
-			return -EINVAL;
-		if (arg->n_ssids > WLAN_SCAN_PARAMS_MAX_SSID)
-			return -EINVAL;
-
 		len += sizeof(struct wmi_ssid_list);
 		len += sizeof(struct wmi_ssid) * arg->n_ssids;
 	}
 
 	if (arg->n_bssids) {
-		if (!arg->bssids)
-			return -EINVAL;
-		if (arg->n_bssids > WLAN_SCAN_PARAMS_MAX_BSSID)
-			return -EINVAL;
-
 		len += sizeof(struct wmi_bssid_list);
 		len += sizeof(struct wmi_mac_addr) * arg->n_bssids;
 	}
@@ -3218,28 +3216,12 @@ static int ath10k_wmi_start_scan_calc_len(struct ath10k *ar,
 	return len;
 }
 
-int ath10k_wmi_start_scan(struct ath10k *ar,
-			  const struct wmi_start_scan_arg *arg)
+static void
+ath10k_wmi_put_start_scan_common(struct wmi_start_scan_common *cmn,
+				 const struct wmi_start_scan_arg *arg)
 {
-	struct wmi_start_scan_cmd *cmd;
-	struct sk_buff *skb;
-	struct wmi_ie_data *ie;
-	struct wmi_chan_list *channels;
-	struct wmi_ssid_list *ssids;
-	struct wmi_bssid_list *bssids;
 	u32 scan_id;
 	u32 scan_req_id;
-	int off;
-	int len = 0;
-	int i;
-
-	len = ath10k_wmi_start_scan_calc_len(ar, arg);
-	if (len < 0)
-		return len; /* len contains error code here */
-
-	skb = ath10k_wmi_alloc_skb(ar, len);
-	if (!skb)
-		return -ENOMEM;
 
 	scan_id  = WMI_HOST_SCAN_REQ_ID_PREFIX;
 	scan_id |= arg->scan_id;
@@ -3247,35 +3229,36 @@ int ath10k_wmi_start_scan(struct ath10k *ar,
 	scan_req_id  = WMI_HOST_SCAN_REQUESTOR_ID_PREFIX;
 	scan_req_id |= arg->scan_req_id;
 
-	cmd = (struct wmi_start_scan_cmd *)skb->data;
-	cmd->scan_id            = __cpu_to_le32(scan_id);
-	cmd->scan_req_id        = __cpu_to_le32(scan_req_id);
-	cmd->vdev_id            = __cpu_to_le32(arg->vdev_id);
-	cmd->scan_priority      = __cpu_to_le32(arg->scan_priority);
-	cmd->notify_scan_events = __cpu_to_le32(arg->notify_scan_events);
-	cmd->dwell_time_active  = __cpu_to_le32(arg->dwell_time_active);
-	cmd->dwell_time_passive = __cpu_to_le32(arg->dwell_time_passive);
-	cmd->min_rest_time      = __cpu_to_le32(arg->min_rest_time);
-	cmd->max_rest_time      = __cpu_to_le32(arg->max_rest_time);
-	cmd->repeat_probe_time  = __cpu_to_le32(arg->repeat_probe_time);
-	cmd->probe_spacing_time = __cpu_to_le32(arg->probe_spacing_time);
-	cmd->idle_time          = __cpu_to_le32(arg->idle_time);
-	cmd->max_scan_time      = __cpu_to_le32(arg->max_scan_time);
-	cmd->probe_delay        = __cpu_to_le32(arg->probe_delay);
-	cmd->scan_ctrl_flags    = __cpu_to_le32(arg->scan_ctrl_flags);
+	cmn->scan_id            = __cpu_to_le32(scan_id);
+	cmn->scan_req_id        = __cpu_to_le32(scan_req_id);
+	cmn->vdev_id            = __cpu_to_le32(arg->vdev_id);
+	cmn->scan_priority      = __cpu_to_le32(arg->scan_priority);
+	cmn->notify_scan_events = __cpu_to_le32(arg->notify_scan_events);
+	cmn->dwell_time_active  = __cpu_to_le32(arg->dwell_time_active);
+	cmn->dwell_time_passive = __cpu_to_le32(arg->dwell_time_passive);
+	cmn->min_rest_time      = __cpu_to_le32(arg->min_rest_time);
+	cmn->max_rest_time      = __cpu_to_le32(arg->max_rest_time);
+	cmn->repeat_probe_time  = __cpu_to_le32(arg->repeat_probe_time);
+	cmn->probe_spacing_time = __cpu_to_le32(arg->probe_spacing_time);
+	cmn->idle_time          = __cpu_to_le32(arg->idle_time);
+	cmn->max_scan_time      = __cpu_to_le32(arg->max_scan_time);
+	cmn->probe_delay        = __cpu_to_le32(arg->probe_delay);
+	cmn->scan_ctrl_flags    = __cpu_to_le32(arg->scan_ctrl_flags);
+}
 
-	/* TLV list starts after fields included in the struct */
-	/* There's just one filed that differes the two start_scan
-	 * structures - burst_duration, which we are not using btw,
-	   no point to make the split here, just shift the buffer to fit with
-	   given FW */
-	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
-		off = sizeof(struct wmi_start_scan_cmd_10x);
-	else
-		off = sizeof(struct wmi_start_scan_cmd);
+static void
+ath10k_wmi_put_start_scan_tlvs(struct wmi_start_scan_tlvs *tlvs,
+			       const struct wmi_start_scan_arg *arg)
+{
+	struct wmi_ie_data *ie;
+	struct wmi_chan_list *channels;
+	struct wmi_ssid_list *ssids;
+	struct wmi_bssid_list *bssids;
+	void *ptr = tlvs->tlvs;
+	int i;
 
 	if (arg->n_channels) {
-		channels = (void *)skb->data + off;
+		channels = ptr;
 		channels->tag = __cpu_to_le32(WMI_CHAN_LIST_TAG);
 		channels->num_chan = __cpu_to_le32(arg->n_channels);
 
@@ -3283,12 +3266,12 @@ int ath10k_wmi_start_scan(struct ath10k *ar,
 			channels->channel_list[i].freq =
 				__cpu_to_le16(arg->channels[i]);
 
-		off += sizeof(*channels);
-		off += sizeof(__le32) * arg->n_channels;
+		ptr += sizeof(*channels);
+		ptr += sizeof(__le32) * arg->n_channels;
 	}
 
 	if (arg->n_ssids) {
-		ssids = (void *)skb->data + off;
+		ssids = ptr;
 		ssids->tag = __cpu_to_le32(WMI_SSID_LIST_TAG);
 		ssids->num_ssids = __cpu_to_le32(arg->n_ssids);
 
@@ -3300,12 +3283,12 @@ int ath10k_wmi_start_scan(struct ath10k *ar,
 			       arg->ssids[i].len);
 		}
 
-		off += sizeof(*ssids);
-		off += sizeof(struct wmi_ssid) * arg->n_ssids;
+		ptr += sizeof(*ssids);
+		ptr += sizeof(struct wmi_ssid) * arg->n_ssids;
 	}
 
 	if (arg->n_bssids) {
-		bssids = (void *)skb->data + off;
+		bssids = ptr;
 		bssids->tag = __cpu_to_le32(WMI_BSSID_LIST_TAG);
 		bssids->num_bssid = __cpu_to_le32(arg->n_bssids);
 
@@ -3314,23 +3297,57 @@ int ath10k_wmi_start_scan(struct ath10k *ar,
 			       arg->bssids[i].bssid,
 			       ETH_ALEN);
 
-		off += sizeof(*bssids);
-		off += sizeof(struct wmi_mac_addr) * arg->n_bssids;
+		ptr += sizeof(*bssids);
+		ptr += sizeof(struct wmi_mac_addr) * arg->n_bssids;
 	}
 
 	if (arg->ie_len) {
-		ie = (void *)skb->data + off;
+		ie = ptr;
 		ie->tag = __cpu_to_le32(WMI_IE_TAG);
 		ie->ie_len = __cpu_to_le32(arg->ie_len);
 		memcpy(ie->ie_data, arg->ie, arg->ie_len);
 
-		off += sizeof(*ie);
-		off += roundup(arg->ie_len, 4);
+		ptr += sizeof(*ie);
+		ptr += roundup(arg->ie_len, 4);
 	}
+}
 
-	if (off != skb->len) {
-		dev_kfree_skb(skb);
-		return -EINVAL;
+int ath10k_wmi_start_scan(struct ath10k *ar,
+			  const struct wmi_start_scan_arg *arg)
+{
+	struct sk_buff *skb;
+	size_t len;
+	int ret;
+
+	ret = ath10k_wmi_start_scan_verify(arg);
+	if (ret)
+		return ret;
+
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
+		len = sizeof(struct wmi_start_scan_cmd) +
+		      ath10k_wmi_start_scan_tlvs_len(arg);
+	else
+		len = sizeof(struct wmi_10x_start_scan_cmd) +
+		      ath10k_wmi_start_scan_tlvs_len(arg);
+
+	skb = ath10k_wmi_alloc_skb(ar, len);
+	if (!skb)
+		return -ENOMEM;
+
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
+		struct wmi_10x_start_scan_cmd *cmd;
+
+		cmd = (struct wmi_10x_start_scan_cmd *)skb->data;
+		ath10k_wmi_put_start_scan_common(&cmd->common, arg);
+		ath10k_wmi_put_start_scan_tlvs(&cmd->tlvs, arg);
+	} else {
+		struct wmi_start_scan_cmd *cmd;
+
+		cmd = (struct wmi_start_scan_cmd *)skb->data;
+		cmd->burst_duration_ms = __cpu_to_le32(0);
+
+		ath10k_wmi_put_start_scan_common(&cmd->common, arg);
+		ath10k_wmi_put_start_scan_tlvs(&cmd->tlvs, arg);
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi start scan\n");
