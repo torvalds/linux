@@ -2206,6 +2206,9 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 		ar->num_rf_chains = WMI_MAX_SPATIAL_STREAM;
 	}
 
+	ar->supp_tx_chainmask = (1 << ar->num_rf_chains) - 1;
+	ar->supp_rx_chainmask = (1 << ar->num_rf_chains) - 1;
+
 	ar->ath_common.regulatory.current_rd =
 		__le32_to_cpu(ev->hal_reg_capabilities.eeprom_rd);
 
@@ -2275,6 +2278,9 @@ static void ath10k_wmi_10x_service_ready_event_rx(struct ath10k *ar,
 			    ar->num_rf_chains, WMI_MAX_SPATIAL_STREAM);
 		ar->num_rf_chains = WMI_MAX_SPATIAL_STREAM;
 	}
+
+	ar->supp_tx_chainmask = (1 << ar->num_rf_chains) - 1;
+	ar->supp_rx_chainmask = (1 << ar->num_rf_chains) - 1;
 
 	ar->ath_common.regulatory.current_rd =
 		__le32_to_cpu(ev->hal_reg_capabilities.eeprom_rd);

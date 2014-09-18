@@ -4848,15 +4848,6 @@ int ath10k_mac_register(struct ath10k *ar)
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_AP);
 
-	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
-		/* TODO:  Have to deal with 2x2 chips if/when the come out. */
-		ar->supp_tx_chainmask = TARGET_10X_TX_CHAIN_MASK;
-		ar->supp_rx_chainmask = TARGET_10X_RX_CHAIN_MASK;
-	} else {
-		ar->supp_tx_chainmask = TARGET_TX_CHAIN_MASK;
-		ar->supp_rx_chainmask = TARGET_RX_CHAIN_MASK;
-	}
-
 	ar->hw->wiphy->available_antennas_rx = ar->supp_rx_chainmask;
 	ar->hw->wiphy->available_antennas_tx = ar->supp_tx_chainmask;
 
