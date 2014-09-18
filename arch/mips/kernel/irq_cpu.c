@@ -135,8 +135,8 @@ void __init mips_cpu_irq_init(void)
 	__mips_cpu_irq_init(NULL);
 }
 
-int __init mips_cpu_intc_init(struct device_node *of_node,
-			      struct device_node *parent)
+int __init mips_cpu_irq_of_init(struct device_node *of_node,
+				struct device_node *parent)
 {
 	__mips_cpu_irq_init(of_node);
 	return 0;
