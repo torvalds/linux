@@ -296,11 +296,19 @@ void smp_store_cpu_info(int id)
 }
 
 static bool
+topology_same_node(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+{
+	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
+
+	return (cpu_to_node(cpu1) == cpu_to_node(cpu2));
+}
+
+static bool
 topology_sane(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o, const char *name)
 {
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
-	return !WARN_ONCE(cpu_to_node(cpu1) != cpu_to_node(cpu2),
+	return !WARN_ONCE(!topology_same_node(c, o),
 		"sched: CPU #%d's %s-sibling CPU #%d is not on the same node! "
 		"[node: %d != %d]. Ignoring dependency.\n",
 		cpu1, name, cpu2, cpu_to_node(cpu1), cpu_to_node(cpu2));
@@ -341,15 +349,42 @@ static bool match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	return false;
 }
 
-static bool match_mc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+/*
+ * Unlike the other levels, we do not enforce keeping a
+ * multicore group inside a NUMA node.  If this happens, we will
+ * discard the MC level of the topology later.
+ */
+static bool match_die(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
-	if (c->phys_proc_id == o->phys_proc_id) {
-		if (cpu_has(c, X86_FEATURE_AMD_DCM))
-			return true;
-
-		return topology_sane(c, o, "mc");
-	}
+	if (c->phys_proc_id == o->phys_proc_id)
+		return true;
 	return false;
+}
+
+static struct sched_domain_topology_level numa_inside_package_topology[] = {
+#ifdef CONFIG_SCHED_SMT
+	{ cpu_smt_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
+#endif
+#ifdef CONFIG_SCHED_MC
+	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
+#endif
+	{ NULL, },
+};
+/*
+ * set_sched_topology() sets the topology internal to a CPU.  The
+ * NUMA topologies are layered on top of it to build the full
+ * system topology.
+ *
+ * If NUMA nodes are observed to occur within a CPU package, this
+ * function should be called.  It forces the sched domain code to
+ * only use the SMT level for the CPU portion of the topology.
+ * This essentially falls back to relying on NUMA information
+ * from the SRAT table to describe the entire system topology
+ * (except for hyperthreads).
+ */
+static void primarily_use_numa_for_topology(void)
+{
+	set_sched_topology(numa_inside_package_topology);
 }
 
 void set_cpu_sibling_map(int cpu)
@@ -388,7 +423,7 @@ void set_cpu_sibling_map(int cpu)
 	for_each_cpu(i, cpu_sibling_setup_mask) {
 		o = &cpu_data(i);
 
-		if ((i == cpu) || (has_mp && match_mc(c, o))) {
+		if ((i == cpu) || (has_mp && match_die(c, o))) {
 			link_mask(core, cpu, i);
 
 			/*
@@ -410,6 +445,8 @@ void set_cpu_sibling_map(int cpu)
 			} else if (i != cpu && !c->booted_cores)
 				c->booted_cores = cpu_data(i).booted_cores;
 		}
+		if (match_die(c, o) == !topology_same_node(c, o))
+			primarily_use_numa_for_topology();
 	}
 }
 
