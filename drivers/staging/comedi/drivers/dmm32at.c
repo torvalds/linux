@@ -514,8 +514,7 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 			}
 
 		}
-		/* flush the buffer */
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 	}
 
 	/* reset the interrupt */
