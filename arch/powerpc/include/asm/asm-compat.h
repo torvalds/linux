@@ -29,16 +29,20 @@
 #define PPC_LLARX(t, a, b, eh)	PPC_LDARX(t, a, b, eh)
 #define PPC_STLCX	stringify_in_c(stdcx.)
 #define PPC_CNTLZL	stringify_in_c(cntlzd)
+#define PPC_MTOCRF(FXM, RS) MTOCRF((FXM), RS)
 #define PPC_LR_STKOFF	16
 #define PPC_MIN_STKFRM	112
 
-/* Move to CR, single-entry optimized version. Only available
- * on POWER4 and later.
- */
-#ifdef CONFIG_POWER4_ONLY
-#define PPC_MTOCRF	stringify_in_c(mtocrf)
+#ifdef __BIG_ENDIAN__
+#define LWZX_BE	stringify_in_c(lwzx)
+#define LDX_BE	stringify_in_c(ldx)
+#define STWX_BE	stringify_in_c(stwx)
+#define STDX_BE	stringify_in_c(stdx)
 #else
-#define PPC_MTOCRF	stringify_in_c(mtcrf)
+#define LWZX_BE	stringify_in_c(lwbrx)
+#define LDX_BE	stringify_in_c(ldbrx)
+#define STWX_BE	stringify_in_c(stwbrx)
+#define STDX_BE	stringify_in_c(stdbrx)
 #endif
 
 #else /* 32-bit */

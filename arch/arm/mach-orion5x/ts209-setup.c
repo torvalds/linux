@@ -106,7 +106,7 @@ static struct platform_device qnap_ts209_nor_flash = {
 #define QNAP_TS209_PCI_SLOT0_IRQ_PIN	6
 #define QNAP_TS209_PCI_SLOT1_IRQ_PIN	7
 
-void __init qnap_ts209_pci_preinit(void)
+static void __init qnap_ts209_pci_preinit(void)
 {
 	int pin;
 
@@ -170,7 +170,6 @@ static int __init qnap_ts209_pci_map_irq(const struct pci_dev *dev, u8 slot,
 static struct hw_pci qnap_ts209_pci __initdata = {
 	.nr_controllers	= 2,
 	.preinit	= qnap_ts209_pci_preinit,
-	.swizzle	= pci_std_swizzle,
 	.setup		= orion5x_pci_sys_setup,
 	.scan		= orion5x_pci_sys_scan_bus,
 	.map_irq	= qnap_ts209_pci_map_irq,
@@ -287,8 +286,10 @@ static void __init qnap_ts209_init(void)
 	/*
 	 * Configure peripherals.
 	 */
-	orion5x_setup_dev_boot_win(QNAP_TS209_NOR_BOOT_BASE,
-				   QNAP_TS209_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    QNAP_TS209_NOR_BOOT_BASE,
+				    QNAP_TS209_NOR_BOOT_SIZE);
 	platform_device_register(&qnap_ts209_nor_flash);
 
 	orion5x_ehci0_init();
@@ -327,7 +328,7 @@ MACHINE_START(TS209, "QNAP TS-109/TS-209")
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
-	.timer		= &orion5x_timer,
+	.init_time	= orion5x_timer_init,
 	.fixup		= tag_fixup_mem32,
 	.restart	= orion5x_restart,
 MACHINE_END

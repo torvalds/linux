@@ -9,28 +9,24 @@
 #include <asm/siginfo.h>
 #include <asm/signal.h>
 #include <asm/unistd.h>
-#include "frame_kern.h"
-#include "kern_util.h"
+#include <frame_kern.h>
+#include <kern_util.h>
 
 EXPORT_SYMBOL(block_signals);
 EXPORT_SYMBOL(unblock_signals);
 
-#define _S(nr) (1<<((nr)-1))
-
-#define _BLOCKABLE (~(_S(SIGKILL) | _S(SIGSTOP)))
-
 /*
  * OK, we're invoking a handler
  */
-static int handle_signal(struct pt_regs *regs, unsigned long signr,
-			 struct k_sigaction *ka, siginfo_t *info,
-			 sigset_t *oldset)
+static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
+	sigset_t *oldset = sigmask_to_save();
+	int singlestep = 0;
 	unsigned long sp;
 	int err;
 
-	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	if ((current->ptrace & PT_DTRACE) && (current->ptrace & PT_PTRACED))
+		singlestep = 1;
 
 	/* Did we come from a system call? */
 	if (PT_REGS_SYSCALL_NR(regs) >= 0) {
@@ -42,7 +38,7 @@ static int handle_signal(struct pt_regs *regs, unsigned long signr,
 			break;
 
 		case -ERESTARTSYS:
-			if (!(ka->sa.sa_flags & SA_RESTART)) {
+			if (!(ksig->ka.sa.sa_flags & SA_RESTART)) {
 				PT_REGS_SYSCALL_RET(regs) = -EINTR;
 				break;
 			}
@@ -55,50 +51,28 @@ static int handle_signal(struct pt_regs *regs, unsigned long signr,
 	}
 
 	sp = PT_REGS_SP(regs);
-	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags(sp) == 0))
+	if ((ksig->ka.sa.sa_flags & SA_ONSTACK) && (sas_ss_flags(sp) == 0))
 		sp = current->sas_ss_sp + current->sas_ss_size;
 
 #ifdef CONFIG_ARCH_HAS_SC_SIGNALS
-	if (!(ka->sa.sa_flags & SA_SIGINFO))
-		err = setup_signal_stack_sc(sp, signr, ka, regs, oldset);
+	if (!(ksig->ka.sa.sa_flags & SA_SIGINFO))
+		err = setup_signal_stack_sc(sp, ksig, regs, oldset);
 	else
 #endif
-		err = setup_signal_stack_si(sp, signr, ka, regs, info, oldset);
+		err = setup_signal_stack_si(sp, ksig, regs, oldset);
 
-	if (err)
-		force_sigsegv(signr, current);
-	else
-		block_sigmask(ka, signr);
-
-	return err;
+	signal_setup_done(err, ksig, singlestep);
 }
 
 static int kern_do_signal(struct pt_regs *regs)
 {
-	struct k_sigaction ka_copy;
-	siginfo_t info;
-	sigset_t *oldset;
-	int sig, handled_sig = 0;
+	struct ksignal ksig;
+	int handled_sig = 0;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
-	while ((sig = get_signal_to_deliver(&info, &ka_copy, regs, NULL)) > 0) {
+	while (get_signal(&ksig)) {
 		handled_sig = 1;
 		/* Whee!  Actually deliver the signal.  */
-		if (!handle_signal(regs, sig, &ka_copy, &info, oldset)) {
-			/*
-			 * a signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag
-			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-			break;
-		}
+		handle_signal(&ksig, regs);
 	}
 
 	/* Did we come from a system call? */
@@ -134,36 +108,12 @@ static int kern_do_signal(struct pt_regs *regs)
 	 * if there's no signal to deliver, we just put the saved sigmask
 	 * back
 	 */
-	if (!handled_sig && test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	if (!handled_sig)
+		restore_saved_sigmask();
 	return handled_sig;
 }
 
 int do_signal(void)
 {
 	return kern_do_signal(&current->thread.regs);
-}
-
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-long sys_sigsuspend(int history0, int history1, old_sigset_t mask)
-{
-	sigset_t blocked;
-
-	mask &= _BLOCKABLE;
-	siginitset(&blocked, mask);
-	set_current_blocked(&blocked);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-	return -ERESTARTNOHAND;
-}
-
-long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
-{
-	return do_sigaltstack(uss, uoss, PT_REGS_SP(&current->thread.regs));
 }

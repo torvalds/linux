@@ -118,7 +118,7 @@ void diva_os_set_controller_struct(struct capi_ctr *ctrl)
 /*
  * module init
  */
-static int DIVA_INIT_FUNCTION divacapi_init(void)
+static int __init divacapi_init(void)
 {
 	char tmprev[32];
 	int ret = 0;
@@ -144,7 +144,7 @@ static int DIVA_INIT_FUNCTION divacapi_init(void)
 /*
  * module exit
  */
-static void DIVA_EXIT_FUNCTION divacapi_exit(void)
+static void __exit divacapi_exit(void)
 {
 	finit_capifunc();
 	printk(KERN_INFO "%s: module unloaded.\n", DRIVERLNAME);

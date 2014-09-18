@@ -28,11 +28,10 @@ struct gfs2_glock;
 
 /* reserve either the number of blocks to be allocated plus the rg header
  * block, or all of the blocks in the rg, whichever is smaller */
-static inline unsigned int gfs2_rg_blocks(const struct gfs2_inode *ip)
+static inline unsigned int gfs2_rg_blocks(const struct gfs2_inode *ip, unsigned requested)
 {
-	const struct gfs2_blkreserv *rs = ip->i_res;
-	if (rs->rs_requested < ip->i_rgd->rd_length)
-		return rs->rs_requested + 1;
+	if (requested < ip->i_rgd->rd_length)
+		return requested + 1;
 	return ip->i_rgd->rd_length;
 }
 
@@ -40,7 +39,8 @@ extern int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 			    unsigned int revokes);
 
 extern void gfs2_trans_end(struct gfs2_sbd *sdp);
-extern void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta);
+extern void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh);
+extern void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh);
 extern void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
 extern void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len);
 

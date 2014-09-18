@@ -8,20 +8,21 @@
 
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/clk/at91_pmc.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/at91sam9x5.h>
-#include <mach/at91_pmc.h>
 #include <mach/cpu.h>
-#include <mach/board.h>
 
+#include "board.h"
 #include "soc.h"
 #include "generic.h"
-#include "clock.h"
 #include "sam9_smc.h"
 
+#if defined(CONFIG_OLD_CLK_AT91)
+#include "clock.h"
 /* --------------------------------------------------------------------
  *  Clocks
  * -------------------------------------------------------------------- */
@@ -120,6 +121,11 @@ static struct clk adc_clk = {
 	.pmc_mask	= 1 << AT91SAM9X5_ID_ADC,
 	.type	= CLK_TYPE_PERIPHERAL,
 };
+static struct clk adc_op_clk = {
+	.name		= "adc_op_clk",
+	.type		= CLK_TYPE_PERIPHERAL,
+	.rate_hz	= 5000000,
+};
 static struct clk dma0_clk = {
 	.name		= "dma0_clk",
 	.pmc_mask	= 1 << AT91SAM9X5_ID_DMA0,
@@ -205,6 +211,7 @@ static struct clk *periph_clocks[] __initdata = {
 	&tcb0_clk,
 	&pwm_clk,
 	&adc_clk,
+	&adc_op_clk,
 	&dma0_clk,
 	&dma1_clk,
 	&uhphs_clk,
@@ -221,20 +228,33 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("usart", "f8020000.serial", &usart1_clk),
 	CLKDEV_CON_DEV_ID("usart", "f8024000.serial", &usart2_clk),
 	CLKDEV_CON_DEV_ID("usart", "f8028000.serial", &usart3_clk),
+	CLKDEV_CON_DEV_ID("usart", "f8040000.serial", &uart0_clk),
+	CLKDEV_CON_DEV_ID("usart", "f8044000.serial", &uart1_clk),
 	CLKDEV_CON_DEV_ID("t0_clk", "f8008000.timer", &tcb0_clk),
 	CLKDEV_CON_DEV_ID("t0_clk", "f800c000.timer", &tcb0_clk),
+	CLKDEV_CON_DEV_ID("mci_clk", "f0008000.mmc", &mmc0_clk),
+	CLKDEV_CON_DEV_ID("mci_clk", "f000c000.mmc", &mmc1_clk),
 	CLKDEV_CON_DEV_ID("dma_clk", "ffffec00.dma-controller", &dma0_clk),
 	CLKDEV_CON_DEV_ID("dma_clk", "ffffee00.dma-controller", &dma1_clk),
-	CLKDEV_CON_ID("pioA", &pioAB_clk),
-	CLKDEV_CON_ID("pioB", &pioAB_clk),
-	CLKDEV_CON_ID("pioC", &pioCD_clk),
-	CLKDEV_CON_ID("pioD", &pioCD_clk),
+	CLKDEV_CON_DEV_ID("pclk", "f0010000.ssc", &ssc_clk),
+	CLKDEV_CON_DEV_ID(NULL, "f8010000.i2c", &twi0_clk),
+	CLKDEV_CON_DEV_ID(NULL, "f8014000.i2c", &twi1_clk),
+	CLKDEV_CON_DEV_ID(NULL, "f8018000.i2c", &twi2_clk),
+	CLKDEV_CON_DEV_ID("spi_clk", "f0000000.spi", &spi0_clk),
+	CLKDEV_CON_DEV_ID("spi_clk", "f0004000.spi", &spi1_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff400.gpio", &pioAB_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff600.gpio", &pioAB_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffff800.gpio", &pioCD_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffffa00.gpio", &pioCD_clk),
 	/* additional fake clock for macb_hclk */
 	CLKDEV_CON_DEV_ID("hclk", "f802c000.ethernet", &macb0_clk),
 	CLKDEV_CON_DEV_ID("hclk", "f8030000.ethernet", &macb1_clk),
 	CLKDEV_CON_DEV_ID("hclk", "600000.ohci", &uhphs_clk),
 	CLKDEV_CON_DEV_ID("ohci_clk", "600000.ohci", &uhphs_clk),
 	CLKDEV_CON_DEV_ID("ehci_clk", "700000.ehci", &uhphs_clk),
+	CLKDEV_CON_DEV_ID("hclk", "500000.gadget", &utmi_clk),
+	CLKDEV_CON_DEV_ID("pclk", "500000.gadget", &udphs_clk),
+	CLKDEV_CON_DEV_ID(NULL, "f8034000.pwm", &pwm_clk),
 };
 
 /*
@@ -294,6 +314,9 @@ static void __init at91sam9x5_register_clocks(void)
 	clk_register(&pck0);
 	clk_register(&pck1);
 }
+#else
+#define at91sam9x5_register_clocks	NULL
+#endif
 
 /* --------------------------------------------------------------------
  *  AT91SAM9x5 processor initialization
@@ -304,58 +327,17 @@ static void __init at91sam9x5_map_io(void)
 	at91_init_sram(0, AT91SAM9X5_SRAM_BASE, AT91SAM9X5_SRAM_SIZE);
 }
 
-void __init at91sam9x5_initialize(void)
+static void __init at91sam9x5_initialize(void)
 {
-	at91_extern_irq = (1 << AT91SAM9X5_ID_IRQ0);
-
-	/* Register GPIO subsystem (using DT) */
-	at91_gpio_init(NULL, 0);
+	at91_sysirq_mask_rtc(AT91SAM9X5_BASE_RTC);
 }
 
 /* --------------------------------------------------------------------
  *  Interrupt initialization
  * -------------------------------------------------------------------- */
-/*
- * The default interrupt priority levels (0 = lowest, 7 = highest).
- */
-static unsigned int at91sam9x5_default_irq_priority[NR_AIC_IRQS] __initdata = {
-	7,	/* Advanced Interrupt Controller (FIQ) */
-	7,	/* System Peripherals */
-	1,	/* Parallel IO Controller A and B */
-	1,	/* Parallel IO Controller C and D */
-	4,	/* Soft Modem */
-	5,	/* USART 0 */
-	5,	/* USART 1 */
-	5,	/* USART 2 */
-	5,	/* USART 3 */
-	6,	/* Two-Wire Interface 0 */
-	6,	/* Two-Wire Interface 1 */
-	6,	/* Two-Wire Interface 2 */
-	0,	/* Multimedia Card Interface 0 */
-	5,	/* Serial Peripheral Interface 0 */
-	5,	/* Serial Peripheral Interface 1 */
-	5,	/* UART 0 */
-	5,	/* UART 1 */
-	0,	/* Timer Counter 0, 1, 2, 3, 4 and 5 */
-	0,	/* Pulse Width Modulation Controller */
-	0,	/* ADC Controller */
-	0,	/* DMA Controller 0 */
-	0,	/* DMA Controller 1 */
-	2,	/* USB Host High Speed port */
-	2,	/* USB Device High speed port */
-	3,	/* Ethernet MAC 0 */
-	3,	/* LDC Controller or Image Sensor Interface */
-	0,	/* Multimedia Card Interface 1 */
-	3,	/* Ethernet MAC 1 */
-	4,	/* Synchronous Serial Interface */
-	4,	/* CAN Controller 0 */
-	4,	/* CAN Controller 1 */
-	0,	/* Advanced Interrupt Controller (IRQ0) */
-};
 
-struct at91_init_soc __initdata at91sam9x5_soc = {
+AT91_SOC_START(at91sam9x5)
 	.map_io = at91sam9x5_map_io,
-	.default_irq_priority = at91sam9x5_default_irq_priority,
 	.register_clocks = at91sam9x5_register_clocks,
 	.init = at91sam9x5_initialize,
-};
+AT91_SOC_END

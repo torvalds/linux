@@ -16,6 +16,7 @@
 #define __ASM_GENERIC_ATOMIC_H
 
 #include <asm/cmpxchg.h>
+#include <asm/barrier.h>
 
 #ifdef CONFIG_SMP
 /* Force people to define core atomics */
@@ -136,12 +137,6 @@ static inline void atomic_dec(atomic_t *v)
 #define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
 #define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
 
-#define cmpxchg_local(ptr, o, n)				  	       \
-	((__typeof__(*(ptr)))__cmpxchg_local_generic((ptr), (unsigned long)(o),\
-			(unsigned long)(n), sizeof(*(ptr))))
-
-#define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
-
 static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 {
   int c, old;
@@ -187,12 +182,6 @@ static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 	raw_local_irq_restore(flags);
 }
 #endif
-
-/* Assume that atomic operations are already serializing */
-#define smp_mb__before_atomic_dec()	barrier()
-#define smp_mb__after_atomic_dec()	barrier()
-#define smp_mb__before_atomic_inc()	barrier()
-#define smp_mb__after_atomic_inc()	barrier()
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_GENERIC_ATOMIC_H */

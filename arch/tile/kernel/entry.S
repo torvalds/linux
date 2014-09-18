@@ -27,33 +27,6 @@ STD_ENTRY(current_text_addr)
 	{ move r0, lr; jrp lr }
 	STD_ENDPROC(current_text_addr)
 
-/*
- * Implement execve().  The i386 code has a note that forking from kernel
- * space results in no copy on write until the execve, so we should be
- * careful not to write to the stack here.
- */
-STD_ENTRY(kernel_execve)
-	moveli TREG_SYSCALL_NR_NAME, __NR_execve
-	swint1
-	jrp lr
-	STD_ENDPROC(kernel_execve)
-
-/*
- * We don't run this function directly, but instead copy it to a page
- * we map into every user process.  See vdso_setup().
- *
- * Note that libc has a copy of this function that it uses to compare
- * against the PC when a stack backtrace ends, so if this code is
- * changed, the libc implementation(s) should also be updated.
- */
-	.pushsection .data
-ENTRY(__rt_sigreturn)
-	moveli TREG_SYSCALL_NR_NAME,__NR_rt_sigreturn
-	swint1
-	ENDPROC(__rt_sigreturn)
-	ENTRY(__rt_sigreturn_end)
-	.popsection
-
 STD_ENTRY(dump_stack)
 	{ move r2, lr; lnk r1 }
 	{ move r4, r52; addli r1, r1, dump_stack - . }
@@ -67,20 +40,6 @@ STD_ENTRY(KBacktraceIterator_init_current)
 	{ move r3, sp; j _KBacktraceIterator_init_current }
 	jrp lr   /* keep backtracer happy */
 	STD_ENDPROC(KBacktraceIterator_init_current)
-
-/*
- * Reset our stack to r1/r2 (sp and ksp0+cpu respectively), then
- * free the old stack (passed in r0) and re-invoke cpu_idle().
- * We update sp and ksp0 simultaneously to avoid backtracer warnings.
- */
-STD_ENTRY(cpu_idle_on_new_stack)
-	{
-	 move sp, r1
-	 mtspr SPR_SYSTEM_SAVE_K_0, r2
-	}
-	jal free_thread_info
-	j cpu_idle
-	STD_ENDPROC(cpu_idle_on_new_stack)
 
 /* Loop forever on a nap during SMP boot. */
 STD_ENTRY(smp_nap)
@@ -100,8 +59,9 @@ STD_ENTRY(smp_nap)
  */
 STD_ENTRY(_cpu_idle)
 	movei r1, 1
+	IRQ_ENABLE_LOAD(r2, r3)
 	mtspr INTERRUPT_CRITICAL_SECTION, r1
-	IRQ_ENABLE(r2, r3)             /* unmask, but still with ICS set */
+	IRQ_ENABLE_APPLY(r2, r3)       /* unmask, but still with ICS set */
 	mtspr INTERRUPT_CRITICAL_SECTION, zero
 	.global _cpu_idle_nap
 _cpu_idle_nap:

@@ -1,7 +1,7 @@
 /*
  * ALSA SoC WM9090 driver
  *
- * Copyright 2009, 2010 Wolfson Microelectronics
+ * Copyright 2009-12 Wolfson Microelectronics
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
@@ -522,16 +522,6 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 
 static int wm9090_probe(struct snd_soc_codec *codec)
 {
-	struct wm9090_priv *wm9090 = dev_get_drvdata(codec->dev);
-	int ret;
-
-	codec->control_data = wm9090->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	/* Configure some defaults; they will be written out when we
 	 * bring the bias up.
 	 */
@@ -623,12 +613,10 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 	int ret;
 
 	wm9090 = devm_kzalloc(&i2c->dev, sizeof(*wm9090), GFP_KERNEL);
-	if (wm9090 == NULL) {
-		dev_err(&i2c->dev, "Can not allocate memory\n");
+	if (!wm9090)
 		return -ENOMEM;
-	}
 
-	wm9090->regmap = regmap_init_i2c(i2c, &wm9090_regmap);
+	wm9090->regmap = devm_regmap_init_i2c(i2c, &wm9090_regmap);
 	if (IS_ERR(wm9090->regmap)) {
 		ret = PTR_ERR(wm9090->regmap);
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
@@ -637,16 +625,16 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 
 	ret = regmap_read(wm9090->regmap, WM9090_SOFTWARE_RESET, &reg);
 	if (ret < 0)
-		goto err;
+		return ret;
+
 	if (reg != 0x9093) {
 		dev_err(&i2c->dev, "Device is not a WM9090, ID=%x\n", reg);
-		ret = -ENODEV;
-		goto err;
+		return -ENODEV;
 	}
 
 	ret = regmap_write(wm9090->regmap, WM9090_SOFTWARE_RESET, 0);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	if (i2c->dev.platform_data)
 		memcpy(&wm9090->pdata, i2c->dev.platform_data,
@@ -658,23 +646,15 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 			&soc_codec_dev_wm9090,  NULL, 0);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	return 0;
-
-err:
-	regmap_exit(wm9090->regmap);
-	return ret;
 }
 
-static int __devexit wm9090_i2c_remove(struct i2c_client *i2c)
+static int wm9090_i2c_remove(struct i2c_client *i2c)
 {
-	struct wm9090_priv *wm9090 = i2c_get_clientdata(i2c);
-
 	snd_soc_unregister_codec(&i2c->dev);
-	regmap_exit(wm9090->regmap);
-
 	return 0;
 }
 
@@ -691,21 +671,11 @@ static struct i2c_driver wm9090_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = wm9090_i2c_probe,
-	.remove = __devexit_p(wm9090_i2c_remove),
+	.remove = wm9090_i2c_remove,
 	.id_table = wm9090_id,
 };
 
-static int __init wm9090_init(void)
-{
-	return i2c_add_driver(&wm9090_i2c_driver);
-}
-module_init(wm9090_init);
-
-static void __exit wm9090_exit(void)
-{
-	i2c_del_driver(&wm9090_i2c_driver);
-}
-module_exit(wm9090_exit);
+module_i2c_driver(wm9090_i2c_driver);
 
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_DESCRIPTION("WM9090 ASoC driver");

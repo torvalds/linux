@@ -40,7 +40,7 @@
 #define ATL1E_PARAM_INIT { [0 ... ATL1E_MAX_NIC] = OPTION_UNSET }
 
 #define ATL1E_PARAM(x, desc) \
-	static int __devinitdata x[ATL1E_MAX_NIC + 1] = ATL1E_PARAM_INIT; \
+	static int x[ATL1E_MAX_NIC + 1] = ATL1E_PARAM_INIT; \
 	static unsigned int num_##x; \
 	module_param_array_named(x, x, int, &num_##x, 0); \
 	MODULE_PARM_DESC(x, desc);
@@ -116,7 +116,8 @@ struct atl1e_option {
 	} arg;
 };
 
-static int __devinit atl1e_validate_option(int *value, struct atl1e_option *opt, struct atl1e_adapter *adapter)
+static int atl1e_validate_option(int *value, struct atl1e_option *opt,
+				 struct atl1e_adapter *adapter)
 {
 	if (*value == OPTION_UNSET) {
 		*value = opt->def;
@@ -168,7 +169,7 @@ static int __devinit atl1e_validate_option(int *value, struct atl1e_option *opt,
 	return -1;
 }
 
-/*
+/**
  * atl1e_check_options - Range Checking for Command Line Parameters
  * @adapter: board private structure
  *
@@ -177,7 +178,7 @@ static int __devinit atl1e_validate_option(int *value, struct atl1e_option *opt,
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  */
-void __devinit atl1e_check_options(struct atl1e_adapter *adapter)
+void atl1e_check_options(struct atl1e_adapter *adapter)
 {
 	int bd = adapter->bd_number;
 

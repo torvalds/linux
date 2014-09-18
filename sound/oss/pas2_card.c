@@ -74,8 +74,6 @@ static char    *pas_model_names[] = {
  * to support other than the default base address
  */
 
-extern void     mix_write(unsigned char data, int ioaddr);
-
 unsigned char pas_read(int ioaddr)
 {
 	return inb(ioaddr + pas_translate_code);
@@ -333,6 +331,11 @@ static void __init attach_pas_card(struct address_info *hw_config)
 		{
 			char            temp[100];
 
+			if (pas_model < 0 ||
+			    pas_model >= ARRAY_SIZE(pas_model_names)) {
+				printk(KERN_ERR "pas2 unrecognized model.\n");
+				return;
+			}
 			sprintf(temp,
 			    "%s rev %d", pas_model_names[(int) pas_model],
 				    pas_read(0x2789));

@@ -1,0 +1,33 @@
+#
+# Xillybus devices
+#
+
+config XILLYBUS
+	tristate "Xillybus generic FPGA interface"
+	depends on PCI || (OF_ADDRESS && OF_IRQ)
+	select CRC32
+	help
+	  Xillybus is a generic interface for peripherals designed on
+	  programmable logic (FPGA). The driver probes the hardware for
+	  its capabilities, and creates device files accordingly.
+
+	  If unsure, say N.
+
+if XILLYBUS
+
+config XILLYBUS_PCIE
+	tristate "Xillybus over PCIe"
+	depends on PCI_MSI
+	help
+	  Set to M if you want Xillybus to use PCI Express for communicating
+	  with the FPGA.
+
+config XILLYBUS_OF
+	tristate "Xillybus over Device Tree"
+	depends on OF_ADDRESS && OF_IRQ
+	help
+	  Set to M if you want Xillybus to find its resources from the
+	  Open Firmware Flattened Device Tree. If the target is an embedded
+	  system, say M.
+
+endif # if XILLYBUS

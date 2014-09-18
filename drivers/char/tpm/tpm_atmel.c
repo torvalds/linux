@@ -116,40 +116,19 @@ static u8 tpm_atml_status(struct tpm_chip *chip)
 	return ioread8(chip->vendor.iobase + 1);
 }
 
-static const struct file_operations atmel_ops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = tpm_open,
-	.read = tpm_read,
-	.write = tpm_write,
-	.release = tpm_release,
-};
+static bool tpm_atml_req_canceled(struct tpm_chip *chip, u8 status)
+{
+	return (status == ATML_STATUS_READY);
+}
 
-static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
-static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
-static DEVICE_ATTR(cancel, S_IWUSR |S_IWGRP, NULL, tpm_store_cancel);
-
-static struct attribute* atmel_attrs[] = {
-	&dev_attr_pubek.attr,
-	&dev_attr_pcrs.attr,
-	&dev_attr_caps.attr,
-	&dev_attr_cancel.attr,
-	NULL,
-};
-
-static struct attribute_group atmel_attr_grp = { .attrs = atmel_attrs };
-
-static const struct tpm_vendor_specific tpm_atmel = {
+static const struct tpm_class_ops tpm_atmel = {
 	.recv = tpm_atml_recv,
 	.send = tpm_atml_send,
 	.cancel = tpm_atml_cancel,
 	.status = tpm_atml_status,
 	.req_complete_mask = ATML_STATUS_BUSY | ATML_STATUS_DATA_AVAIL,
 	.req_complete_val = ATML_STATUS_DATA_AVAIL,
-	.req_canceled = ATML_STATUS_READY,
-	.attr_group = &atmel_attr_grp,
-	.miscdev = { .fops = &atmel_ops, },
+	.req_canceled = tpm_atml_req_canceled,
 };
 
 static struct platform_device *pdev;
@@ -168,22 +147,14 @@ static void atml_plat_remove(void)
 	}
 }
 
-static int tpm_atml_suspend(struct platform_device *dev, pm_message_t msg)
-{
-	return tpm_pm_suspend(&dev->dev, msg);
-}
+static SIMPLE_DEV_PM_OPS(tpm_atml_pm, tpm_pm_suspend, tpm_pm_resume);
 
-static int tpm_atml_resume(struct platform_device *dev)
-{
-	return tpm_pm_resume(&dev->dev);
-}
 static struct platform_driver atml_drv = {
 	.driver = {
 		.name = "tpm_atmel",
 		.owner		= THIS_MODULE,
+		.pm		= &tpm_atml_pm,
 	},
-	.suspend = tpm_atml_suspend,
-	.resume = tpm_atml_resume,
 };
 
 static int __init init_atmel(void)
@@ -205,7 +176,7 @@ static int __init init_atmel(void)
 
 	have_region =
 	    (atmel_request_region
-	     (tpm_atmel.base, region_size, "tpm_atmel0") == NULL) ? 0 : 1;
+	     (base, region_size, "tpm_atmel0") == NULL) ? 0 : 1;
 
 	pdev = platform_device_register_simple("tpm_atmel", -1, NULL, 0);
 	if (IS_ERR(pdev)) {

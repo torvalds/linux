@@ -216,7 +216,6 @@ struct super_operations {
         void (*drop_inode) (struct inode *);
         void (*delete_inode) (struct inode *);
         void (*put_super) (struct super_block *);
-        void (*write_super) (struct super_block *);
         int (*sync_fs)(struct super_block *sb, int wait);
         int (*freeze_fs) (struct super_block *);
         int (*unfreeze_fs) (struct super_block *);
@@ -272,9 +271,6 @@ or bottom half).
 
   put_super: called when the VFS wishes to free the superblock
 	(i.e. unmount). This is called with the superblock lock held
-
-  write_super: called when the VFS superblock needs to be written to
-	disc. This method is optional
 
   sync_fs: called when VFS is writing out all dirty data associated with
   	a superblock. The second parameter indicates whether the method
@@ -341,8 +337,8 @@ This describes how the VFS can manipulate an inode in your
 filesystem. As of kernel 2.6.22, the following members are defined:
 
 struct inode_operations {
-	int (*create) (struct inode *,struct dentry *, umode_t, struct nameidata *);
-	struct dentry * (*lookup) (struct inode *,struct dentry *, struct nameidata *);
+	int (*create) (struct inode *,struct dentry *, umode_t, bool);
+	struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 	int (*link) (struct dentry *,struct inode *,struct dentry *);
 	int (*unlink) (struct inode *,struct dentry *);
 	int (*symlink) (struct inode *,struct dentry *,const char *);
@@ -351,10 +347,11 @@ struct inode_operations {
 	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
 	int (*rename) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *);
+	int (*rename2) (struct inode *, struct dentry *,
+			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
         void * (*follow_link) (struct dentry *, struct nameidata *);
         void (*put_link) (struct dentry *, struct nameidata *, void *);
-	void (*truncate) (struct inode *);
 	int (*permission) (struct inode *, int);
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
@@ -363,7 +360,10 @@ struct inode_operations {
 	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*removexattr) (struct dentry *, const char *);
-	void (*truncate_range)(struct inode *, loff_t, loff_t);
+	void (*update_time)(struct inode *, struct timespec *, int);
+	int (*atomic_open)(struct inode *, struct dentry *, struct file *,
+			unsigned open_flag, umode_t create_mode, int *opened);
+	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -416,6 +416,20 @@ otherwise noted.
   rename: called by the rename(2) system call to rename the object to
 	have the parent and name given by the second inode and dentry.
 
+  rename2: this has an additional flags argument compared to rename.
+	If no flags are supported by the filesystem then this method
+	need not be implemented.  If some flags are supported then the
+	filesystem must return -EINVAL for any unsupported or unknown
+	flags.  Currently the following flags are implemented:
+	(1) RENAME_NOREPLACE: this flag indicates that if the target
+	of the rename exists the rename should fail with -EEXIST
+	instead of replacing the target.  The VFS already checks for
+	existence, so for local filesystems the RENAME_NOREPLACE
+	implementation is equivalent to plain rename.
+	(2) RENAME_EXCHANGE: exchange source and target.  Both must
+	exist; this is checked by the VFS.  Unlike plain rename,
+	source and target may be of different type.
+
   readlink: called by the readlink(2) system call. Only required if
 	you want to support reading symbolic links
 
@@ -431,16 +445,6 @@ otherwise noted.
   	(i.e. page that was installed when the symbolic link walk
   	started might not be in the page cache at the end of the
   	walk).
-
-  truncate: Deprecated. This will not be called if ->setsize is defined.
-	Called by the VFS to change the size of a file.  The
- 	i_size field of the inode is set to the desired size by the
- 	VFS before this method is called.  This method is called by
- 	the truncate(2) system call and related functionality.
-
-	Note: ->truncate and vmtruncate are deprecated. Do not add new
-	instances/calls of these. Filesystems should be converted to do their
-	truncate sequence via ->setattr().
 
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.
@@ -472,9 +476,22 @@ otherwise noted.
   removexattr: called by the VFS to remove an extended attribute from
   	a file. This method is called by removexattr(2) system call.
 
-  truncate_range: a method provided by the underlying filesystem to truncate a
-  	range of blocks , i.e. punch a hole somewhere in a file.
+  update_time: called by the VFS to update a specific time or the i_version of
+  	an inode.  If this is not defined the VFS will update the inode itself
+  	and call mark_inode_dirty_sync.
 
+  atomic_open: called on the last component of an open.  Using this optional
+  	method the filesystem can look up, possibly create and open the file in
+  	one atomic operation.  If it cannot perform this (e.g. the file type
+  	turned out to be wrong) it may signal this by returning 1 instead of
+	usual 0 or -ve .  This method is only called if the last component is
+	negative or needs lookup.  Cached positive dentries are still handled by
+	f_op->open().  If the file was created, the FILE_CREATED flag should be
+	set in "opened".  In case of O_EXCL the method must only succeed if the
+	file didn't exist and hence FILE_CREATED shall always be set on success.
+
+  tmpfile: called in the end of O_TMPFILE open().  Optional, equivalent to
+	atomically creating, opening and unlinking a file in given directory.
 
 The Address Space Object
 ========================
@@ -553,12 +570,11 @@ struct address_space_operations
 -------------------------------
 
 This describes how the VFS can manipulate mapping of a file to page cache in
-your filesystem. As of kernel 2.6.22, the following members are defined:
+your filesystem. The following members are defined:
 
 struct address_space_operations {
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
 	int (*readpage)(struct file *, struct page *);
-	int (*sync_page)(struct page *);
 	int (*writepages)(struct address_space *, struct writeback_control *);
 	int (*set_page_dirty)(struct page *page);
 	int (*readpages)(struct file *filp, struct address_space *mapping,
@@ -570,17 +586,21 @@ struct address_space_operations {
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
-	int (*invalidatepage) (struct page *, unsigned long);
+	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
-	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
-			loff_t offset, unsigned long nr_segs);
+	ssize_t (*direct_IO)(int, struct kiocb *, struct iov_iter *iter, loff_t offset);
 	struct page* (*get_xip_page)(struct address_space *, sector_t,
 			int);
 	/* migrate the contents of a page to the specified target */
 	int (*migratepage) (struct page *, struct page *);
 	int (*launder_page) (struct page *);
+	int (*is_partially_uptodate) (struct page *, unsigned long,
+					unsigned long);
+	void (*is_dirty_writeback) (struct page *, bool *, bool *);
 	int (*error_remove_page) (struct mapping *mapping, struct page *page);
+	int (*swap_activate)(struct file *);
+	int (*swap_deactivate)(struct file *);
 };
 
   writepage: called by the VM to write a dirty page to backing store.
@@ -608,13 +628,6 @@ struct address_space_operations {
        some reason, it can do so, and then return AOP_TRUNCATED_PAGE.
        In this case, the page will be relocated, relocked and if
        that all succeeds, ->readpage will be called again.
-
-  sync_page: called by the VM to notify the backing store to perform all
-  	queued I/O operations for a page. I/O operations for other pages
-	associated with this address_space object may also be performed.
-
-	This function is optional and is called only for pages with
-  	PG_Writeback set while waiting for the writeback to complete.
 
   writepages: called by the VM to write out pages associated with the
   	address_space object.  If wbc->sync_mode is WBC_SYNC_ALL, then
@@ -687,14 +700,14 @@ struct address_space_operations {
   invalidatepage: If a page has PagePrivate set, then invalidatepage
         will be called when part or all of the page is to be removed
 	from the address space.  This generally corresponds to either a
-	truncation or a complete invalidation of the address space
-	(in the latter case 'offset' will always be 0).
-	Any private data associated with the page should be updated
-	to reflect this truncation.  If offset is 0, then
-	the private data should be released, because the page
-	must be able to be completely discarded.  This may be done by
-        calling the ->releasepage function, but in this case the
-        release MUST succeed.
+	truncation, punch hole  or a complete invalidation of the address
+	space (in the latter case 'offset' will always be 0 and 'length'
+	will be PAGE_CACHE_SIZE). Any private data associated with the page
+	should be updated to reflect this truncation.  If offset is 0 and
+	length is PAGE_CACHE_SIZE, then the private data should be released,
+	because the page must be able to be completely discarded.  This may
+	be done by calling the ->releasepage function, but in this case the
+	release MUST succeed.
 
   releasepage: releasepage is called on PagePrivate pages to indicate
         that the page should be freed if possible.  ->releasepage
@@ -744,10 +757,34 @@ struct address_space_operations {
   	prevent redirtying the page, it is kept locked during the whole
 	operation.
 
+  is_partially_uptodate: Called by the VM when reading a file through the
+	pagecache when the underlying blocksize != pagesize. If the required
+	block is up to date then the read can complete without needing the IO
+	to bring the whole page up to date.
+
+  is_dirty_writeback: Called by the VM when attempting to reclaim a page.
+	The VM uses dirty and writeback information to determine if it needs
+	to stall to allow flushers a chance to complete some IO. Ordinarily
+	it can use PageDirty and PageWriteback but some filesystems have
+	more complex state (unstable pages in NFS prevent reclaim) or
+	do not set those flags due to locking problems (jbd). This callback
+	allows a filesystem to indicate to the VM if a page should be
+	treated as dirty or writeback for the purposes of stalling.
+
   error_remove_page: normally set to generic_error_remove_page if truncation
 	is ok for this address space. Used for memory failure handling.
 	Setting this implies you deal with pages going away under you,
 	unless you have them locked or reference counts increased.
+
+  swap_activate: Called when swapon is used on a file to allocate
+	space if necessary and pin the block lookup information in
+	memory. A return value of zero indicates success,
+	in which case this file can be used to back swapspace. The
+	swapspace operations will be proxied to this address space's
+	->swap_{out,in} methods.
+
+  swap_deactivate: Called during swapoff on files where swap_activate
+	was successful.
 
 
 The File Object
@@ -760,7 +797,7 @@ struct file_operations
 ----------------------
 
 This describes how the VFS can manipulate an open file. As of kernel
-2.6.22, the following members are defined:
+3.12, the following members are defined:
 
 struct file_operations {
 	struct module *owner;
@@ -769,7 +806,9 @@ struct file_operations {
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
 	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
-	int (*readdir) (struct file *, void *, filldir_t);
+	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
+	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
+	int (*iterate) (struct file *, struct dir_context *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
@@ -781,15 +820,15 @@ struct file_operations {
 	int (*aio_fsync) (struct kiocb *, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);
-	ssize_t (*readv) (struct file *, const struct iovec *, unsigned long, loff_t *);
-	ssize_t (*writev) (struct file *, const struct iovec *, unsigned long, loff_t *);
-	ssize_t (*sendfile) (struct file *, loff_t *, size_t, read_actor_t, void *);
 	ssize_t (*sendpage) (struct file *, struct page *, int, size_t, loff_t *, int);
 	unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
 	int (*check_flags)(int);
 	int (*flock) (struct file *, int, struct file_lock *);
 	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, size_t, unsigned int);
 	ssize_t (*splice_read)(struct file *, struct pipe_inode_info *, size_t, unsigned int);
+	int (*setlease)(struct file *, long arg, struct file_lock **);
+	long (*fallocate)(struct file *, int mode, loff_t offset, loff_t len);
+	int (*show_fdinfo)(struct seq_file *m, struct file *f);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -799,13 +838,17 @@ otherwise noted.
 
   read: called by read(2) and related system calls
 
-  aio_read: called by io_submit(2) and other asynchronous I/O operations
+  aio_read: vectored, possibly asynchronous read
+
+  read_iter: possibly asynchronous read with iov_iter as destination
 
   write: called by write(2) and related system calls
 
-  aio_write: called by io_submit(2) and other asynchronous I/O operations
+  aio_write: vectored, possibly asynchronous write
 
-  readdir: called when the VFS needs to read the directory contents
+  write_iter: possibly asynchronous write with iov_iter as source
+
+  iterate: called when the VFS needs to read the directory contents
 
   poll: called by the VFS when a process wants to check if there is
 	activity on this file and (optionally) go to sleep until there
@@ -840,12 +883,6 @@ otherwise noted.
   lock: called by the fcntl(2) system call for F_GETLK, F_SETLK, and F_SETLKW
   	commands
 
-  readv: called by the readv(2) system call
-
-  writev: called by the writev(2) system call
-
-  sendfile: called by the sendfile(2) system call
-
   get_unmapped_area: called by the mmap(2) system call
 
   check_flags: called by the fcntl(2) system call for F_SETFL command
@@ -857,6 +894,11 @@ otherwise noted.
 
   splice_read: called by the VFS to splice data from file to a pipe. This
 	       method is used by the splice(2) system call
+
+  setlease: called by the VFS to set or release a file lock lease.
+	    setlease has the file_lock_lock held and must not sleep.
+
+  fallocate: called by the VFS to preallocate blocks or punch a hole.
 
 Note that the file operations are implemented by the specific
 filesystem in which the inode resides. When opening a device node
@@ -884,11 +926,10 @@ the VFS uses a default. As of kernel 2.6.22, the following members are
 defined:
 
 struct dentry_operations {
-	int (*d_revalidate)(struct dentry *, struct nameidata *);
-	int (*d_hash)(const struct dentry *, const struct inode *,
-			struct qstr *);
-	int (*d_compare)(const struct dentry *, const struct inode *,
-			const struct dentry *, const struct inode *,
+	int (*d_revalidate)(struct dentry *, unsigned int);
+	int (*d_weak_revalidate)(struct dentry *, unsigned int);
+	int (*d_hash)(const struct dentry *, struct qstr *);
+	int (*d_compare)(const struct dentry *, const struct dentry *,
 			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(const struct dentry *);
 	void (*d_release)(struct dentry *);
@@ -900,39 +941,57 @@ struct dentry_operations {
 
   d_revalidate: called when the VFS needs to revalidate a dentry. This
 	is called whenever a name look-up finds a dentry in the
-	dcache. Most filesystems leave this as NULL, because all their
-	dentries in the dcache are valid
+	dcache. Most local filesystems leave this as NULL, because all their
+	dentries in the dcache are valid. Network filesystems are different
+	since things can change on the server without the client necessarily
+	being aware of it.
 
-	d_revalidate may be called in rcu-walk mode (nd->flags & LOOKUP_RCU).
+	This function should return a positive value if the dentry is still
+	valid, and zero or a negative error code if it isn't.
+
+	d_revalidate may be called in rcu-walk mode (flags & LOOKUP_RCU).
 	If in rcu-walk mode, the filesystem must revalidate the dentry without
 	blocking or storing to the dentry, d_parent and d_inode should not be
-	used without care (because they can go NULL), instead nd->inode should
-	be used.
+	used without care (because they can change and, in d_inode case, even
+	become NULL under us).
 
 	If a situation is encountered that rcu-walk cannot handle, return
 	-ECHILD and it will be called again in ref-walk mode.
 
+ d_weak_revalidate: called when the VFS needs to revalidate a "jumped" dentry.
+	This is called when a path-walk ends at dentry that was not acquired by
+	doing a lookup in the parent directory. This includes "/", "." and "..",
+	as well as procfs-style symlinks and mountpoint traversal.
+
+	In this case, we are less concerned with whether the dentry is still
+	fully correct, but rather that the inode is still valid. As with
+	d_revalidate, most local filesystems will set this to NULL since their
+	dcache entries are always valid.
+
+	This function has the same return code semantics as d_revalidate.
+
+	d_weak_revalidate is only called after leaving rcu-walk mode.
+
   d_hash: called when the VFS adds a dentry to the hash table. The first
 	dentry passed to d_hash is the parent directory that the name is
-	to be hashed into. The inode is the dentry's inode.
+	to be hashed into.
 
 	Same locking and synchronisation rules as d_compare regarding
 	what is safe to dereference etc.
 
   d_compare: called to compare a dentry name with a given name. The first
 	dentry is the parent of the dentry to be compared, the second is
-	the parent's inode, then the dentry and inode (may be NULL) of the
-	child dentry. len and name string are properties of the dentry to be
-	compared. qstr is the name to compare it with.
+	the child dentry. len and name string are properties of the dentry
+	to be compared. qstr is the name to compare it with.
 
 	Must be constant and idempotent, and should not take locks if
-	possible, and should not or store into the dentry or inodes.
-	Should not dereference pointers outside the dentry or inodes without
+	possible, and should not or store into the dentry.
+	Should not dereference pointers outside the dentry without
 	lots of care (eg.  d_parent, d_inode, d_name should not be used).
 
 	However, our vfsmount is pinned, and RCU held, so the dentries and
 	inodes won't disappear, neither will our sb or filesystem module.
-	->i_sb and ->d_sb may be used.
+	->d_sb may be used.
 
 	It is a tricky calling convention because it needs to be called under
 	"rcu-walk", ie. without any locks or references on things.
@@ -994,7 +1053,8 @@ struct dentry_operations {
 	If the 'rcu_walk' parameter is true, then the caller is doing a
 	pathwalk in RCU-walk mode.  Sleeping is not permitted in this mode,
 	and the caller can be asked to leave it and call again by returning
-	-ECHILD.
+	-ECHILD.  -EISDIR may also be returned to tell pathwalk to
+	ignore d_automount or any mounts.
 
 	This function is only used if DCACHE_MANAGE_TRANSIT is set on the
 	dentry being transited from.

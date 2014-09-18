@@ -57,14 +57,15 @@ int		pcie_max_read_reqsz;
 int		bfa_debugfs_enable = 1;
 int		msix_disable_cb = 0, msix_disable_ct = 0;
 int		max_xfer_size = BFAD_MAX_SECTORS >> 1;
+int		max_rport_logins = BFA_FCS_MAX_RPORT_LOGINS;
 
 /* Firmware releated */
 u32	bfi_image_cb_size, bfi_image_ct_size, bfi_image_ct2_size;
 u32	*bfi_image_cb, *bfi_image_ct, *bfi_image_ct2;
 
-#define BFAD_FW_FILE_CB		"cbfw.bin"
-#define BFAD_FW_FILE_CT		"ctfw.bin"
-#define BFAD_FW_FILE_CT2	"ct2fw.bin"
+#define BFAD_FW_FILE_CB		"cbfw-3.2.3.0.bin"
+#define BFAD_FW_FILE_CT		"ctfw-3.2.3.0.bin"
+#define BFAD_FW_FILE_CT2	"ct2fw-3.2.3.0.bin"
 
 static u32 *bfad_load_fwimg(struct pci_dev *pdev);
 static void bfad_free_fwimg(void);
@@ -148,6 +149,8 @@ MODULE_PARM_DESC(bfa_debugfs_enable, "Enables debugfs feature, default=1,"
 module_param(max_xfer_size, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_xfer_size, "default=32MB,"
 		" Range[64k|128k|256k|512k|1024k|2048k]");
+module_param(max_rport_logins, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(max_rport_logins, "Max number of logins to initiator and target rports on a port (physical/logical), default=1024");
 
 static void
 bfad_sm_uninit(struct bfad_s *bfad, enum bfad_sm_event event);
@@ -201,6 +204,7 @@ static void
 bfad_sm_created(struct bfad_s *bfad, enum bfad_sm_event event)
 {
 	unsigned long flags;
+	bfa_status_t ret;
 
 	bfa_trc(bfad, event);
 
@@ -214,7 +218,7 @@ bfad_sm_created(struct bfad_s *bfad, enum bfad_sm_event event)
 		if (bfad_setup_intr(bfad)) {
 			printk(KERN_WARNING "bfad%d: bfad_setup_intr failed\n",
 					bfad->inst_no);
-			bfa_sm_send_event(bfad, BFAD_E_INTR_INIT_FAILED);
+			bfa_sm_send_event(bfad, BFAD_E_INIT_FAILED);
 			break;
 		}
 
@@ -239,8 +243,26 @@ bfad_sm_created(struct bfad_s *bfad, enum bfad_sm_event event)
 			printk(KERN_WARNING
 				"bfa %s: bfa init failed\n",
 				bfad->pci_name);
+			spin_lock_irqsave(&bfad->bfad_lock, flags);
+			bfa_fcs_init(&bfad->bfa_fcs);
+			spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+			ret = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
+			if (ret != BFA_STATUS_OK) {
+				init_completion(&bfad->comp);
+
+				spin_lock_irqsave(&bfad->bfad_lock, flags);
+				bfad->pport.flags |= BFAD_PORT_DELETE;
+				bfa_fcs_exit(&bfad->bfa_fcs);
+				spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+				wait_for_completion(&bfad->comp);
+
+				bfa_sm_send_event(bfad, BFAD_E_INIT_FAILED);
+				break;
+			}
 			bfad->bfad_flags |= BFAD_HAL_INIT_FAIL;
-			bfa_sm_send_event(bfad, BFAD_E_INIT_FAILED);
+			bfa_sm_send_event(bfad, BFAD_E_HAL_INIT_FAILED);
 		}
 
 		break;
@@ -270,12 +292,14 @@ bfad_sm_initializing(struct bfad_s *bfad, enum bfad_sm_event event)
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 		retval = bfad_start_ops(bfad);
-		if (retval != BFA_STATUS_OK)
+		if (retval != BFA_STATUS_OK) {
+			bfa_sm_set_state(bfad, bfad_sm_failed);
 			break;
+		}
 		bfa_sm_set_state(bfad, bfad_sm_operational);
 		break;
 
-	case BFAD_E_INTR_INIT_FAILED:
+	case BFAD_E_INIT_FAILED:
 		bfa_sm_set_state(bfad, bfad_sm_uninit);
 		kthread_stop(bfad->bfad_tsk);
 		spin_lock_irqsave(&bfad->bfad_lock, flags);
@@ -283,7 +307,7 @@ bfad_sm_initializing(struct bfad_s *bfad, enum bfad_sm_event event)
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		break;
 
-	case BFAD_E_INIT_FAILED:
+	case BFAD_E_HAL_INIT_FAILED:
 		bfa_sm_set_state(bfad, bfad_sm_failed);
 		break;
 	default:
@@ -307,13 +331,8 @@ bfad_sm_failed(struct bfad_s *bfad, enum bfad_sm_event event)
 		break;
 
 	case BFAD_E_STOP:
-		if (bfad->bfad_flags & BFAD_CFG_PPORT_DONE)
-			bfad_uncfg_pport(bfad);
-		if (bfad->bfad_flags & BFAD_FC4_PROBE_DONE) {
-			bfad_im_probe_undo(bfad);
-			bfad->bfad_flags &= ~BFAD_FC4_PROBE_DONE;
-		}
-		bfad_stop(bfad);
+		bfa_sm_set_state(bfad, bfad_sm_fcs_exit);
+		bfa_sm_send_event(bfad, BFAD_E_FCS_EXIT_COMP);
 		break;
 
 	case BFAD_E_EXIT_COMP:
@@ -456,23 +475,6 @@ bfa_fcb_lport_new(struct bfad_s *bfad, struct bfa_fcs_lport_s *port,
 	return port_drv;
 }
 
-void
-bfa_fcb_lport_delete(struct bfad_s *bfad, enum bfa_lport_role roles,
-		    struct bfad_vf_s *vf_drv, struct bfad_vport_s *vp_drv)
-{
-	struct bfad_port_s    *port_drv;
-
-	/* this will be only called from rmmod context */
-	if (vp_drv && !vp_drv->comp_del) {
-		port_drv = (vp_drv) ? (&(vp_drv)->drv_port) :
-				((vf_drv) ? (&(vf_drv)->base_port) :
-				(&(bfad)->pport));
-		bfa_trc(bfad, roles);
-		if (roles & BFA_LPORT_ROLE_FCP_IM)
-			bfad_im_port_delete(bfad, port_drv);
-	}
-}
-
 /*
  * FCS RPORT alloc callback, after successful PLOGI by FCS
  */
@@ -505,7 +507,7 @@ bfa_fcb_pbc_vport_create(struct bfad_s *bfad, struct bfi_pbc_vport_s pbc_vport)
 	struct bfad_vport_s   *vport;
 	int rc;
 
-	vport = kzalloc(sizeof(struct bfad_vport_s), GFP_KERNEL);
+	vport = kzalloc(sizeof(struct bfad_vport_s), GFP_ATOMIC);
 	if (!vport) {
 		bfa_trc(bfad, 0);
 		return;
@@ -753,6 +755,9 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 		}
 	}
 
+	/* Enable PCIE Advanced Error Recovery (AER) if kernel supports */
+	pci_enable_pcie_error_reporting(pdev);
+
 	bfad->pci_bar0_kva = pci_iomap(pdev, 0, pci_resource_len(pdev, 0));
 	bfad->pci_bar2_kva = pci_iomap(pdev, 2, pci_resource_len(pdev, 2));
 
@@ -777,51 +782,24 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 	bfad->pcidev = pdev;
 
 	/* Adjust PCIe Maximum Read Request Size */
-	if (pcie_max_read_reqsz > 0) {
-		int pcie_cap_reg;
-		u16 pcie_dev_ctl;
-		u16 mask = 0xffff;
-
-		switch (pcie_max_read_reqsz) {
-		case 128:
-			mask = 0x0;
-			break;
-		case 256:
-			mask = 0x1000;
-			break;
-		case 512:
-			mask = 0x2000;
-			break;
-		case 1024:
-			mask = 0x3000;
-			break;
-		case 2048:
-			mask = 0x4000;
-			break;
-		case 4096:
-			mask = 0x5000;
-			break;
-		default:
-			break;
-		}
-
-		pcie_cap_reg = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-		if (mask != 0xffff && pcie_cap_reg) {
-			pcie_cap_reg += 0x08;
-			pci_read_config_word(pdev, pcie_cap_reg, &pcie_dev_ctl);
-			if ((pcie_dev_ctl & 0x7000) != mask) {
-				printk(KERN_WARNING "BFA[%s]: "
+	if (pci_is_pcie(pdev) && pcie_max_read_reqsz) {
+		if (pcie_max_read_reqsz >= 128 &&
+		    pcie_max_read_reqsz <= 4096 &&
+		    is_power_of_2(pcie_max_read_reqsz)) {
+			int max_rq = pcie_get_readrq(pdev);
+			printk(KERN_WARNING "BFA[%s]: "
 				"pcie_max_read_request_size is %d, "
-				"reset to %d\n", bfad->pci_name,
-				(1 << ((pcie_dev_ctl & 0x7000) >> 12)) << 7,
+				"reset to %d\n", bfad->pci_name, max_rq,
 				pcie_max_read_reqsz);
-
-				pcie_dev_ctl &= ~0x7000;
-				pci_write_config_word(pdev, pcie_cap_reg,
-						pcie_dev_ctl | mask);
-			}
+			pcie_set_readrq(pdev, pcie_max_read_reqsz);
+		} else {
+			printk(KERN_WARNING "BFA[%s]: invalid "
+			       "pcie_max_read_request_size %d ignored\n",
+			       bfad->pci_name, pcie_max_read_reqsz);
 		}
 	}
+
+	pci_save_state(pdev);
 
 	return 0;
 
@@ -839,8 +817,9 @@ bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad)
 	pci_iounmap(pdev, bfad->pci_bar0_kva);
 	pci_iounmap(pdev, bfad->pci_bar2_kva);
 	pci_release_regions(pdev);
+	/* Disable PCIE Advanced Error Recovery (AER) */
+	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 bfa_status_t
@@ -861,7 +840,7 @@ bfad_drv_init(struct bfad_s *bfad)
 		printk(KERN_WARNING
 			"Not enough memory to attach all Brocade HBA ports, %s",
 			"System may need more memory.\n");
-		goto out_hal_mem_alloc_failure;
+		return BFA_STATUS_FAILED;
 	}
 
 	bfad->bfa.trcmod = bfad->trcmod;
@@ -878,31 +857,11 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfad->bfa_fcs.trcmod = bfad->trcmod;
 	bfa_fcs_attach(&bfad->bfa_fcs, &bfad->bfa, bfad, BFA_FALSE);
 	bfad->bfa_fcs.fdmi_enabled = fdmi_enable;
-	bfa_fcs_init(&bfad->bfa_fcs);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	bfad->bfad_flags |= BFAD_DRV_INIT_DONE;
 
-	/* configure base port */
-	rc = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
-	if (rc != BFA_STATUS_OK)
-		goto out_cfg_pport_fail;
-
 	return BFA_STATUS_OK;
-
-out_cfg_pport_fail:
-	/* fcs exit - on cfg pport failure */
-	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	init_completion(&bfad->comp);
-	bfad->pport.flags |= BFAD_PORT_DELETE;
-	bfa_fcs_exit(&bfad->bfa_fcs);
-	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-	wait_for_completion(&bfad->comp);
-	/* bfa detach - free hal memory */
-	bfa_detach(&bfad->bfa);
-	bfad_hal_mem_release(bfad);
-out_hal_mem_alloc_failure:
-	return BFA_STATUS_FAILED;
 }
 
 void
@@ -1041,18 +1000,24 @@ bfad_start_ops(struct bfad_s *bfad) {
 			sizeof(driver_info.host_os_patch) - 1);
 
 	strncpy(driver_info.os_device_name, bfad->pci_name,
-		sizeof(driver_info.os_device_name - 1));
+		sizeof(driver_info.os_device_name) - 1);
 
 	/* FCS driver info init */
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	bfa_fcs_driver_info_init(&bfad->bfa_fcs, &driver_info);
+
+	if (bfad->bfad_flags & BFAD_CFG_PPORT_DONE)
+		bfa_fcs_update_cfg(&bfad->bfa_fcs);
+	else
+		bfa_fcs_init(&bfad->bfa_fcs);
+
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	/*
-	 * FCS update cfg - reset the pwwn/nwwn of fabric base logical port
-	 * with values learned during bfa_init firmware GETATTR REQ.
-	 */
-	bfa_fcs_update_cfg(&bfad->bfa_fcs);
+	if (!(bfad->bfad_flags & BFAD_CFG_PPORT_DONE)) {
+		retval = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
+		if (retval != BFA_STATUS_OK)
+			return BFA_STATUS_FAILED;
+	}
 
 	/* Setup fc host fixed attribute if the lk supports */
 	bfad_fc_host_init(bfad->pport.im_port);
@@ -1063,10 +1028,6 @@ bfad_start_ops(struct bfad_s *bfad) {
 		printk(KERN_WARNING "bfad_im_probe failed\n");
 		if (bfa_sm_cmp_state(bfad, bfad_sm_initializing))
 			bfa_sm_set_state(bfad, bfad_sm_failed);
-		bfad_im_probe_undo(bfad);
-		bfad->bfad_flags &= ~BFAD_FC4_PROBE_DONE;
-		bfad_uncfg_pport(bfad);
-		bfad_stop(bfad);
 		return BFA_STATUS_FAILED;
 	} else
 		bfad->bfad_flags |= BFAD_FC4_PROBE_DONE;
@@ -1258,7 +1219,7 @@ bfad_install_msix_handler(struct bfad_s *bfad)
 int
 bfad_setup_intr(struct bfad_s *bfad)
 {
-	int error = 0;
+	int error;
 	u32 mask = 0, i, num_bit = 0, max_bit = 0;
 	struct msix_entry msix_entries[MAX_MSIX_ENTRY];
 	struct pci_dev *pdev = bfad->pcidev;
@@ -1273,22 +1234,23 @@ bfad_setup_intr(struct bfad_s *bfad)
 	if ((bfa_asic_id_ctc(pdev->device) && !msix_disable_ct) ||
 	   (bfa_asic_id_cb(pdev->device) && !msix_disable_cb)) {
 
-		error = pci_enable_msix(bfad->pcidev, msix_entries, bfad->nvec);
+		error = pci_enable_msix_exact(bfad->pcidev,
+					      msix_entries, bfad->nvec);
+		/* In CT1 & CT2, try to allocate just one vector */
+		if (error == -ENOSPC && bfa_asic_id_ctc(pdev->device)) {
+			printk(KERN_WARNING "bfa %s: trying one msix "
+			       "vector failed to allocate %d[%d]\n",
+			       bfad->pci_name, bfad->nvec, error);
+			bfad->nvec = 1;
+			error = pci_enable_msix_exact(bfad->pcidev,
+						      msix_entries, 1);
+		}
+
 		if (error) {
-			/*
-			 * Only error number of vector is available.
-			 * We don't have a mechanism to map multiple
-			 * interrupts into one vector, so even if we
-			 * can try to request less vectors, we don't
-			 * know how to associate interrupt events to
-			 *  vectors. Linux doesn't duplicate vectors
-			 * in the MSIX table for this case.
-			 */
-
 			printk(KERN_WARNING "bfad%d: "
-				"pci_enable_msix failed (%d),"
-				" use line based.\n", bfad->inst_no, error);
-
+			       "pci_enable_msix_exact failed (%d), "
+			       "use line based.\n",
+				bfad->inst_no, error);
 			goto line_based;
 		}
 
@@ -1309,20 +1271,18 @@ bfad_setup_intr(struct bfad_s *bfad)
 
 		bfad->bfad_flags |= BFAD_MSIX_ON;
 
-		return error;
+		return 0;
 	}
 
 line_based:
-	error = 0;
-	if (request_irq
-	    (bfad->pcidev->irq, (irq_handler_t) bfad_intx, BFAD_IRQ_FLAGS,
-	     BFAD_DRIVER_NAME, bfad) != 0) {
-		/* Enable interrupt handler failed */
-		return 1;
-	}
+	error = request_irq(bfad->pcidev->irq, (irq_handler_t)bfad_intx,
+			    BFAD_IRQ_FLAGS, BFAD_DRIVER_NAME, bfad);
+	if (error)
+		return error;
+
 	bfad->bfad_flags |= BFAD_INTX_ON;
 
-	return error;
+	return 0;
 }
 
 void
@@ -1400,6 +1360,8 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	bfa_sm_set_state(bfad, bfad_sm_uninit);
 
 	spin_lock_init(&bfad->bfad_lock);
+	spin_lock_init(&bfad->bfad_aen_spinlock);
+
 	pci_set_drvdata(pdev, bfad);
 
 	bfad->ref_count = 0;
@@ -1423,7 +1385,6 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	return 0;
 
 out_bfad_sm_failure:
-	bfa_detach(&bfad->bfa);
 	bfad_hal_mem_release(bfad);
 out_drv_init_failure:
 	/* Remove the debugfs node for this bfad */
@@ -1485,6 +1446,197 @@ bfad_pci_remove(struct pci_dev *pdev)
 	kfree(bfad);
 }
 
+/*
+ * PCI Error Recovery entry, error detected.
+ */
+static pci_ers_result_t
+bfad_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
+{
+	struct bfad_s *bfad = pci_get_drvdata(pdev);
+	unsigned long	flags;
+	pci_ers_result_t ret = PCI_ERS_RESULT_NONE;
+
+	dev_printk(KERN_ERR, &pdev->dev,
+		   "error detected state: %d - flags: 0x%x\n",
+		   state, bfad->bfad_flags);
+
+	switch (state) {
+	case pci_channel_io_normal: /* non-fatal error */
+		spin_lock_irqsave(&bfad->bfad_lock, flags);
+		bfad->bfad_flags &= ~BFAD_EEH_BUSY;
+		/* Suspend/fail all bfa operations */
+		bfa_ioc_suspend(&bfad->bfa.ioc);
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		del_timer_sync(&bfad->hal_tmo);
+		ret = PCI_ERS_RESULT_CAN_RECOVER;
+		break;
+	case pci_channel_io_frozen: /* fatal error */
+		init_completion(&bfad->comp);
+		spin_lock_irqsave(&bfad->bfad_lock, flags);
+		bfad->bfad_flags |= BFAD_EEH_BUSY;
+		/* Suspend/fail all bfa operations */
+		bfa_ioc_suspend(&bfad->bfa.ioc);
+		bfa_fcs_stop(&bfad->bfa_fcs);
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		wait_for_completion(&bfad->comp);
+
+		bfad_remove_intr(bfad);
+		del_timer_sync(&bfad->hal_tmo);
+		pci_disable_device(pdev);
+		ret = PCI_ERS_RESULT_NEED_RESET;
+		break;
+	case pci_channel_io_perm_failure: /* PCI Card is DEAD */
+		spin_lock_irqsave(&bfad->bfad_lock, flags);
+		bfad->bfad_flags |= BFAD_EEH_BUSY |
+				    BFAD_EEH_PCI_CHANNEL_IO_PERM_FAILURE;
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+		/* If the error_detected handler is called with the reason
+		 * pci_channel_io_perm_failure - it will subsequently call
+		 * pci_remove() entry point to remove the pci device from the
+		 * system - So defer the cleanup to pci_remove(); cleaning up
+		 * here causes inconsistent state during pci_remove().
+		 */
+		ret = PCI_ERS_RESULT_DISCONNECT;
+		break;
+	default:
+		WARN_ON(1);
+	}
+
+	return ret;
+}
+
+int
+restart_bfa(struct bfad_s *bfad)
+{
+	unsigned long flags;
+	struct pci_dev *pdev = bfad->pcidev;
+
+	bfa_attach(&bfad->bfa, bfad, &bfad->ioc_cfg,
+		   &bfad->meminfo, &bfad->hal_pcidev);
+
+	/* Enable Interrupt and wait bfa_init completion */
+	if (bfad_setup_intr(bfad)) {
+		dev_printk(KERN_WARNING, &pdev->dev,
+			   "%s: bfad_setup_intr failed\n", bfad->pci_name);
+		bfa_sm_send_event(bfad, BFAD_E_INIT_FAILED);
+		return -1;
+	}
+
+	init_completion(&bfad->comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	bfa_iocfc_init(&bfad->bfa);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	/* Set up interrupt handler for each vectors */
+	if ((bfad->bfad_flags & BFAD_MSIX_ON) &&
+	    bfad_install_msix_handler(bfad))
+		dev_printk(KERN_WARNING, &pdev->dev,
+			   "%s: install_msix failed.\n", bfad->pci_name);
+
+	bfad_init_timer(bfad);
+	wait_for_completion(&bfad->comp);
+	bfad_drv_start(bfad);
+
+	return 0;
+}
+
+/*
+ * PCI Error Recovery entry, re-initialize the chip.
+ */
+static pci_ers_result_t
+bfad_pci_slot_reset(struct pci_dev *pdev)
+{
+	struct bfad_s *bfad = pci_get_drvdata(pdev);
+	u8 byte;
+
+	dev_printk(KERN_ERR, &pdev->dev,
+		   "bfad_pci_slot_reset flags: 0x%x\n", bfad->bfad_flags);
+
+	if (pci_enable_device(pdev)) {
+		dev_printk(KERN_ERR, &pdev->dev, "Cannot re-enable "
+			   "PCI device after reset.\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	pci_restore_state(pdev);
+
+	/*
+	 * Read some byte (e.g. DMA max. payload size which can't
+	 * be 0xff any time) to make sure - we did not hit another PCI error
+	 * in the middle of recovery. If we did, then declare permanent failure.
+	 */
+	pci_read_config_byte(pdev, 0x68, &byte);
+	if (byte == 0xff) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "slot_reset failed ... got another PCI error !\n");
+		goto out_disable_device;
+	}
+
+	pci_save_state(pdev);
+	pci_set_master(pdev);
+
+	if (pci_set_dma_mask(bfad->pcidev, DMA_BIT_MASK(64)) != 0)
+		if (pci_set_dma_mask(bfad->pcidev, DMA_BIT_MASK(32)) != 0)
+			goto out_disable_device;
+
+	pci_cleanup_aer_uncorrect_error_status(pdev);
+
+	if (restart_bfa(bfad) == -1)
+		goto out_disable_device;
+
+	pci_enable_pcie_error_reporting(pdev);
+	dev_printk(KERN_WARNING, &pdev->dev,
+		   "slot_reset completed  flags: 0x%x!\n", bfad->bfad_flags);
+
+	return PCI_ERS_RESULT_RECOVERED;
+
+out_disable_device:
+	pci_disable_device(pdev);
+	return PCI_ERS_RESULT_DISCONNECT;
+}
+
+static pci_ers_result_t
+bfad_pci_mmio_enabled(struct pci_dev *pdev)
+{
+	unsigned long	flags;
+	struct bfad_s *bfad = pci_get_drvdata(pdev);
+
+	dev_printk(KERN_INFO, &pdev->dev, "mmio_enabled\n");
+
+	/* Fetch FW diagnostic information */
+	bfa_ioc_debug_save_ftrc(&bfad->bfa.ioc);
+
+	/* Cancel all pending IOs */
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	init_completion(&bfad->comp);
+	bfa_fcs_stop(&bfad->bfa_fcs);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	wait_for_completion(&bfad->comp);
+
+	bfad_remove_intr(bfad);
+	del_timer_sync(&bfad->hal_tmo);
+	pci_disable_device(pdev);
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static void
+bfad_pci_resume(struct pci_dev *pdev)
+{
+	unsigned long	flags;
+	struct bfad_s *bfad = pci_get_drvdata(pdev);
+
+	dev_printk(KERN_WARNING, &pdev->dev, "resume\n");
+
+	/* wait until the link is online */
+	bfad_rport_online_wait(bfad);
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	bfad->bfad_flags &= ~BFAD_EEH_BUSY;
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+}
+
 struct pci_device_id bfad_id_table[] = {
 	{
 		.vendor = BFA_PCI_VENDOR_ID_BROCADE,
@@ -1523,16 +1675,35 @@ struct pci_device_id bfad_id_table[] = {
 		.class_mask = ~0,
 	},
 
+	{
+		.vendor = BFA_PCI_VENDOR_ID_BROCADE,
+		.device = BFA_PCI_DEVICE_ID_CT2_QUAD,
+		.subvendor = PCI_ANY_ID,
+		.subdevice = PCI_ANY_ID,
+		.class = (PCI_CLASS_SERIAL_FIBER << 8),
+		.class_mask = ~0,
+	},
 	{0, 0},
 };
 
 MODULE_DEVICE_TABLE(pci, bfad_id_table);
 
+/*
+ * PCI error recovery handlers.
+ */
+static struct pci_error_handlers bfad_err_handler = {
+	.error_detected = bfad_pci_error_detected,
+	.slot_reset = bfad_pci_slot_reset,
+	.mmio_enabled = bfad_pci_mmio_enabled,
+	.resume = bfad_pci_resume,
+};
+
 static struct pci_driver bfad_pci_driver = {
 	.name = BFAD_DRIVER_NAME,
 	.id_table = bfad_id_table,
 	.probe = bfad_pci_probe,
-	.remove = __devexit_p(bfad_pci_remove),
+	.remove = bfad_pci_remove,
+	.err_handler = &bfad_err_handler,
 };
 
 /*
@@ -1561,6 +1732,7 @@ bfad_init(void)
 
 	bfa_auto_recover = ioc_auto_recover;
 	bfa_fcs_rport_set_del_timeout(rport_del_timeout);
+	bfa_fcs_rport_set_max_logins(max_rport_logins);
 
 	error = pci_register_driver(&bfad_pci_driver);
 	if (error) {
@@ -1615,7 +1787,7 @@ out:
 static u32 *
 bfad_load_fwimg(struct pci_dev *pdev)
 {
-	if (pdev->device == BFA_PCI_DEVICE_ID_CT2) {
+	if (bfa_asic_id_ct2(pdev->device)) {
 		if (bfi_image_ct2_size == 0)
 			bfad_read_firmware(pdev, &bfi_image_ct2,
 				&bfi_image_ct2_size, BFAD_FW_FILE_CT2);
@@ -1625,12 +1797,14 @@ bfad_load_fwimg(struct pci_dev *pdev)
 			bfad_read_firmware(pdev, &bfi_image_ct,
 				&bfi_image_ct_size, BFAD_FW_FILE_CT);
 		return bfi_image_ct;
-	} else {
+	} else if (bfa_asic_id_cb(pdev->device)) {
 		if (bfi_image_cb_size == 0)
 			bfad_read_firmware(pdev, &bfi_image_cb,
 				&bfi_image_cb_size, BFAD_FW_FILE_CB);
 		return bfi_image_cb;
 	}
+
+	return NULL;
 }
 
 static void

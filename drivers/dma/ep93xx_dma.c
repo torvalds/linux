@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <mach/dma.h>
+#include <linux/platform_data/dma-ep93xx.h>
 
 #include "dmaengine.h"
 
@@ -71,6 +71,7 @@
 #define M2M_CONTROL_TM_SHIFT		13
 #define M2M_CONTROL_TM_TX		(1 << M2M_CONTROL_TM_SHIFT)
 #define M2M_CONTROL_TM_RX		(2 << M2M_CONTROL_TM_SHIFT)
+#define M2M_CONTROL_NFBINT		BIT(21)
 #define M2M_CONTROL_RSS_SHIFT		22
 #define M2M_CONTROL_RSS_SSPRX		(1 << M2M_CONTROL_RSS_SHIFT)
 #define M2M_CONTROL_RSS_SSPTX		(2 << M2M_CONTROL_RSS_SHIFT)
@@ -79,7 +80,22 @@
 #define M2M_CONTROL_PWSC_SHIFT		25
 
 #define M2M_INTERRUPT			0x0004
-#define M2M_INTERRUPT_DONEINT		BIT(1)
+#define M2M_INTERRUPT_MASK		6
+
+#define M2M_STATUS			0x000c
+#define M2M_STATUS_CTL_SHIFT		1
+#define M2M_STATUS_CTL_IDLE		(0 << M2M_STATUS_CTL_SHIFT)
+#define M2M_STATUS_CTL_STALL		(1 << M2M_STATUS_CTL_SHIFT)
+#define M2M_STATUS_CTL_MEMRD		(2 << M2M_STATUS_CTL_SHIFT)
+#define M2M_STATUS_CTL_MEMWR		(3 << M2M_STATUS_CTL_SHIFT)
+#define M2M_STATUS_CTL_BWCWAIT		(4 << M2M_STATUS_CTL_SHIFT)
+#define M2M_STATUS_CTL_MASK		(7 << M2M_STATUS_CTL_SHIFT)
+#define M2M_STATUS_BUF_SHIFT		4
+#define M2M_STATUS_BUF_NO		(0 << M2M_STATUS_BUF_SHIFT)
+#define M2M_STATUS_BUF_ON		(1 << M2M_STATUS_BUF_SHIFT)
+#define M2M_STATUS_BUF_NEXT		(2 << M2M_STATUS_BUF_SHIFT)
+#define M2M_STATUS_BUF_MASK		(3 << M2M_STATUS_BUF_SHIFT)
+#define M2M_STATUS_DONE			BIT(6)
 
 #define M2M_BCR0			0x0010
 #define M2M_BCR1			0x0014
@@ -426,15 +442,6 @@ static int m2p_hw_interrupt(struct ep93xx_dma_chan *edmac)
 
 /*
  * M2M DMA implementation
- *
- * For the M2M transfers we don't use NFB at all. This is because it simply
- * doesn't work well with memcpy transfers. When you submit both buffers it is
- * extremely unlikely that you get an NFB interrupt, but it instead reports
- * DONE interrupt and both buffers are already transferred which means that we
- * weren't able to update the next buffer.
- *
- * So for now we "simulate" NFB by just submitting buffer after buffer
- * without double buffering.
  */
 
 static int m2m_hw_setup(struct ep93xx_dma_chan *edmac)
@@ -543,6 +550,11 @@ static void m2m_hw_submit(struct ep93xx_dma_chan *edmac)
 	m2m_fill_desc(edmac);
 	control |= M2M_CONTROL_DONEINT;
 
+	if (ep93xx_dma_advance_active(edmac)) {
+		m2m_fill_desc(edmac);
+		control |= M2M_CONTROL_NFBINT;
+	}
+
 	/*
 	 * Now we can finally enable the channel. For M2M channel this must be
 	 * done _after_ the BCRx registers are programmed.
@@ -560,32 +572,89 @@ static void m2m_hw_submit(struct ep93xx_dma_chan *edmac)
 	}
 }
 
+/*
+ * According to EP93xx User's Guide, we should receive DONE interrupt when all
+ * M2M DMA controller transactions complete normally. This is not always the
+ * case - sometimes EP93xx M2M DMA asserts DONE interrupt when the DMA channel
+ * is still running (channel Buffer FSM in DMA_BUF_ON state, and channel
+ * Control FSM in DMA_MEM_RD state, observed at least in IDE-DMA operation).
+ * In effect, disabling the channel when only DONE bit is set could stop
+ * currently running DMA transfer. To avoid this, we use Buffer FSM and
+ * Control FSM to check current state of DMA channel.
+ */
 static int m2m_hw_interrupt(struct ep93xx_dma_chan *edmac)
 {
+	u32 status = readl(edmac->regs + M2M_STATUS);
+	u32 ctl_fsm = status & M2M_STATUS_CTL_MASK;
+	u32 buf_fsm = status & M2M_STATUS_BUF_MASK;
+	bool done = status & M2M_STATUS_DONE;
+	bool last_done;
 	u32 control;
+	struct ep93xx_dma_desc *desc;
 
-	if (!(readl(edmac->regs + M2M_INTERRUPT) & M2M_INTERRUPT_DONEINT))
+	/* Accept only DONE and NFB interrupts */
+	if (!(readl(edmac->regs + M2M_INTERRUPT) & M2M_INTERRUPT_MASK))
 		return INTERRUPT_UNKNOWN;
 
-	/* Clear the DONE bit */
-	writel(0, edmac->regs + M2M_INTERRUPT);
-
-	/* Disable interrupts and the channel */
-	control = readl(edmac->regs + M2M_CONTROL);
-	control &= ~(M2M_CONTROL_DONEINT | M2M_CONTROL_ENABLE);
-	writel(control, edmac->regs + M2M_CONTROL);
-
-	/*
-	 * Since we only get DONE interrupt we have to find out ourselves
-	 * whether there still is something to process. So we try to advance
-	 * the chain an see whether it succeeds.
-	 */
-	if (ep93xx_dma_advance_active(edmac)) {
-		edmac->edma->hw_submit(edmac);
-		return INTERRUPT_NEXT_BUFFER;
+	if (done) {
+		/* Clear the DONE bit */
+		writel(0, edmac->regs + M2M_INTERRUPT);
 	}
 
-	return INTERRUPT_DONE;
+	/*
+	 * Check whether we are done with descriptors or not. This, together
+	 * with DMA channel state, determines action to take in interrupt.
+	 */
+	desc = ep93xx_dma_get_active(edmac);
+	last_done = !desc || desc->txd.cookie;
+
+	/*
+	 * Use M2M DMA Buffer FSM and Control FSM to check current state of
+	 * DMA channel. Using DONE and NFB bits from channel status register
+	 * or bits from channel interrupt register is not reliable.
+	 */
+	if (!last_done &&
+	    (buf_fsm == M2M_STATUS_BUF_NO ||
+	     buf_fsm == M2M_STATUS_BUF_ON)) {
+		/*
+		 * Two buffers are ready for update when Buffer FSM is in
+		 * DMA_NO_BUF state. Only one buffer can be prepared without
+		 * disabling the channel or polling the DONE bit.
+		 * To simplify things, always prepare only one buffer.
+		 */
+		if (ep93xx_dma_advance_active(edmac)) {
+			m2m_fill_desc(edmac);
+			if (done && !edmac->chan.private) {
+				/* Software trigger for memcpy channel */
+				control = readl(edmac->regs + M2M_CONTROL);
+				control |= M2M_CONTROL_START;
+				writel(control, edmac->regs + M2M_CONTROL);
+			}
+			return INTERRUPT_NEXT_BUFFER;
+		} else {
+			last_done = true;
+		}
+	}
+
+	/*
+	 * Disable the channel only when Buffer FSM is in DMA_NO_BUF state
+	 * and Control FSM is in DMA_STALL state.
+	 */
+	if (last_done &&
+	    buf_fsm == M2M_STATUS_BUF_NO &&
+	    ctl_fsm == M2M_STATUS_CTL_STALL) {
+		/* Disable interrupts and the channel */
+		control = readl(edmac->regs + M2M_CONTROL);
+		control &= ~(M2M_CONTROL_DONEINT | M2M_CONTROL_NFBINT
+			    | M2M_CONTROL_ENABLE);
+		writel(control, edmac->regs + M2M_CONTROL);
+		return INTERRUPT_DONE;
+	}
+
+	/*
+	 * Nothing to do this time.
+	 */
+	return INTERRUPT_NEXT_BUFFER;
 }
 
 /*
@@ -664,28 +733,6 @@ static void ep93xx_dma_advance_work(struct ep93xx_dma_chan *edmac)
 	spin_unlock_irqrestore(&edmac->lock, flags);
 }
 
-static void ep93xx_dma_unmap_buffers(struct ep93xx_dma_desc *desc)
-{
-	struct device *dev = desc->txd.chan->device->dev;
-
-	if (!(desc->txd.flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-		if (desc->txd.flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-			dma_unmap_single(dev, desc->src_addr, desc->size,
-					 DMA_TO_DEVICE);
-		else
-			dma_unmap_page(dev, desc->src_addr, desc->size,
-				       DMA_TO_DEVICE);
-	}
-	if (!(desc->txd.flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-		if (desc->txd.flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-			dma_unmap_single(dev, desc->dst_addr, desc->size,
-					 DMA_FROM_DEVICE);
-		else
-			dma_unmap_page(dev, desc->dst_addr, desc->size,
-				       DMA_FROM_DEVICE);
-	}
-}
-
 static void ep93xx_dma_tasklet(unsigned long data)
 {
 	struct ep93xx_dma_chan *edmac = (struct ep93xx_dma_chan *)data;
@@ -703,7 +750,9 @@ static void ep93xx_dma_tasklet(unsigned long data)
 	desc = ep93xx_dma_get_active(edmac);
 	if (desc) {
 		if (desc->complete) {
-			dma_cookie_complete(&desc->txd);
+			/* mark descriptor complete for non cyclic case only */
+			if (!test_bit(EP93XX_DMA_IS_CYCLIC, &edmac->flags))
+				dma_cookie_complete(&desc->txd);
 			list_splice_init(&edmac->active, &list);
 		}
 		callback = desc->txd.callback;
@@ -716,13 +765,7 @@ static void ep93xx_dma_tasklet(unsigned long data)
 
 	/* Now we can release all the chained descriptors */
 	list_for_each_entry_safe(desc, d, &list, node) {
-		/*
-		 * For the memcpy channels the API requires us to unmap the
-		 * buffers unless requested otherwise.
-		 */
-		if (!edmac->chan.private)
-			ep93xx_dma_unmap_buffers(desc);
-
+		dma_descriptor_unmap(&desc->txd);
 		ep93xx_dma_desc_put(edmac, desc);
 	}
 
@@ -832,8 +875,7 @@ static int ep93xx_dma_alloc_chan_resources(struct dma_chan *chan)
 			switch (data->port) {
 			case EP93XX_DMA_SSP:
 			case EP93XX_DMA_IDE:
-				if (data->direction != DMA_MEM_TO_DEV &&
-				    data->direction != DMA_DEV_TO_MEM)
+				if (!is_slave_direction(data->direction))
 					return -EINVAL;
 				break;
 			default:
@@ -1047,9 +1089,9 @@ fail:
  * @chan: channel
  * @dma_addr: DMA mapped address of the buffer
  * @buf_len: length of the buffer (in bytes)
- * @period_len: lenght of a single period
+ * @period_len: length of a single period
  * @dir: direction of the operation
- * @context: operation context (ignored)
+ * @flags: tx descriptor status flags
  *
  * Prepares a descriptor for cyclic DMA operation. This means that once the
  * descriptor is submitted, we will be submitting in a @period_len sized
@@ -1062,7 +1104,7 @@ fail:
 static struct dma_async_tx_descriptor *
 ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 			   size_t buf_len, size_t period_len,
-			   enum dma_transfer_direction dir, void *context)
+			   enum dma_transfer_direction dir, unsigned long flags)
 {
 	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
 	struct ep93xx_dma_desc *desc, *first;
@@ -1241,15 +1283,7 @@ static enum dma_status ep93xx_dma_tx_status(struct dma_chan *chan,
 					    dma_cookie_t cookie,
 					    struct dma_tx_state *state)
 {
-	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
-	enum dma_status ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&edmac->lock, flags);
-	ret = dma_cookie_status(chan, cookie, state);
-	spin_unlock_irqrestore(&edmac->lock, flags);
-
-	return ret;
+	return dma_cookie_status(chan, cookie, state);
 }
 
 /**

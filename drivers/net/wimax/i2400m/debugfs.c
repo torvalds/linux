@@ -209,6 +209,7 @@ int debugfs_i2400m_reset_set(void *data, u64 val)
 		result = i2400m_reset(i2400m, rt);
 		if (result >= 0)
 			result = 0;
+		break;
 	default:
 		result = -EINVAL;
 	}

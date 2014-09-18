@@ -14,30 +14,32 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/cpu_pm.h>
 #include <linux/init.h>
-#include <linux/io.h>
 #include <linux/suspend.h>
 
-#include <asm/proc-fns.h>
-#include <asm/smp_scu.h>
 #include <asm/suspend.h>
-
-#include "core.h"
-#include "sysregs.h"
+#include <asm/psci.h>
 
 static int highbank_suspend_finish(unsigned long val)
 {
-	cpu_do_idle();
-	return 0;
+	const struct psci_power_state ps = {
+		.type = PSCI_POWER_STATE_TYPE_POWER_DOWN,
+		.affinity_level = 1,
+	};
+
+	return psci_ops.cpu_suspend(ps, __pa(cpu_resume));
 }
 
 static int highbank_pm_enter(suspend_state_t state)
 {
-	hignbank_set_pwr_suspend();
-	highbank_set_cpu_jump(0, cpu_resume);
+	cpu_pm_enter();
+	cpu_cluster_pm_enter();
 
-	scu_power_mode(scu_base_addr, SCU_PM_POWEROFF);
 	cpu_suspend(0, highbank_suspend_finish);
+
+	cpu_cluster_pm_exit();
+	cpu_pm_exit();
 
 	return 0;
 }
@@ -47,9 +49,10 @@ static const struct platform_suspend_ops highbank_pm_ops = {
 	.valid = suspend_valid_only_mem,
 };
 
-static int __init highbank_pm_init(void)
+void __init highbank_pm_init(void)
 {
+	if (!psci_ops.cpu_suspend)
+		return;
+
 	suspend_set_ops(&highbank_pm_ops);
-	return 0;
 }
-module_init(highbank_pm_init);

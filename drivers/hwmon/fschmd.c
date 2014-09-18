@@ -379,7 +379,7 @@ static ssize_t store_temp_max(struct device *dev, struct device_attribute
 	if (err)
 		return err;
 
-	v = SENSORS_LIMIT(v / 1000, -128, 127) + 128;
+	v = clamp_val(v / 1000, -128, 127) + 128;
 
 	mutex_lock(&data->update_lock);
 	i2c_smbus_write_byte_data(to_i2c_client(dev),
@@ -463,8 +463,9 @@ static ssize_t store_fan_div(struct device *dev, struct device_attribute
 		v = 3;
 		break;
 	default:
-		dev_err(dev, "fan_div value %lu not supported. "
-			"Choose one of 2, 4 or 8!\n", v);
+		dev_err(dev,
+			"fan_div value %lu not supported. Choose one of 2, 4 or 8!\n",
+			v);
 		return -EINVAL;
 	}
 
@@ -540,7 +541,7 @@ static ssize_t store_pwm_auto_point1_pwm(struct device *dev,
 
 	/* reg: 0 = allow turning off (except on the syl), 1-255 = 50-100% */
 	if (v || data->kind == fscsyl) {
-		v = SENSORS_LIMIT(v, 128, 255);
+		v = clamp_val(v, 128, 255);
 		v = (v - 128) * 2 + 1;
 	}
 
@@ -1249,8 +1250,8 @@ static int fschmd_probe(struct i2c_client *client,
 	}
 	if (i == ARRAY_SIZE(watchdog_minors)) {
 		data->watchdog_miscdev.minor = 0;
-		dev_warn(&client->dev, "Couldn't register watchdog chardev "
-			"(due to no free minor)\n");
+		dev_warn(&client->dev,
+			 "Couldn't register watchdog chardev (due to no free minor)\n");
 	}
 	mutex_unlock(&watchdog_data_mutex);
 

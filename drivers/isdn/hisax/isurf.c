@@ -194,11 +194,10 @@ isurf_auxcmd(struct IsdnCardState *cs, isdn_ctrl *ic) {
 }
 
 #ifdef __ISAPNP__
-static struct pnp_card *pnp_c __devinitdata = NULL;
+static struct pnp_card *pnp_c = NULL;
 #endif
 
-int __devinit
-setup_isurf(struct IsdnCard *card)
+int setup_isurf(struct IsdnCard *card)
 {
 	int ver;
 	struct IsdnCardState *cs = card->cs;
@@ -231,6 +230,11 @@ setup_isurf(struct IsdnCard *card)
 				}
 				pnp_disable_dev(pnp_d);
 				err = pnp_activate_dev(pnp_d);
+				if (err < 0) {
+					pr_warn("%s: pnp_activate_dev ret=%d\n",
+						__func__, err);
+					return 0;
+				}
 				cs->hw.isurf.reset = pnp_port_start(pnp_d, 0);
 				cs->hw.isurf.phymem = pnp_mem_start(pnp_d, 1);
 				cs->irq = pnp_irq(pnp_d, 0);

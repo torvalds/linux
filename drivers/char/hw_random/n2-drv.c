@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/preempt.h>
@@ -25,7 +24,7 @@
 #define DRV_MODULE_VERSION	"0.2"
 #define DRV_MODULE_RELDATE	"July 27, 2011"
 
-static char version[] __devinitdata =
+static char version[] =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
@@ -611,7 +610,7 @@ static void n2rng_work(struct work_struct *work)
 		schedule_delayed_work(&np->work, HZ * 2);
 }
 
-static void __devinit n2rng_driver_version(void)
+static void n2rng_driver_version(void)
 {
 	static int n2rng_version_printed;
 
@@ -620,7 +619,7 @@ static void __devinit n2rng_driver_version(void)
 }
 
 static const struct of_device_id n2rng_match[];
-static int __devinit n2rng_probe(struct platform_device *op)
+static int n2rng_probe(struct platform_device *op)
 {
 	const struct of_device_id *match;
 	int multi_capable;
@@ -633,7 +632,7 @@ static int __devinit n2rng_probe(struct platform_device *op)
 	multi_capable = (match->data != NULL);
 
 	n2rng_driver_version();
-	np = kzalloc(sizeof(*np), GFP_KERNEL);
+	np = devm_kzalloc(&op->dev, sizeof(*np), GFP_KERNEL);
 	if (!np)
 		goto out;
 	np->op = op;
@@ -654,7 +653,7 @@ static int __devinit n2rng_probe(struct platform_device *op)
 					 &np->hvapi_minor)) {
 			dev_err(&op->dev, "Cannot register suitable "
 				"HVAPI version.\n");
-			goto out_free;
+			goto out;
 		}
 	}
 
@@ -677,15 +676,16 @@ static int __devinit n2rng_probe(struct platform_device *op)
 	dev_info(&op->dev, "Registered RNG HVAPI major %lu minor %lu\n",
 		 np->hvapi_major, np->hvapi_minor);
 
-	np->units = kzalloc(sizeof(struct n2rng_unit) * np->num_units,
-			    GFP_KERNEL);
+	np->units = devm_kzalloc(&op->dev,
+				 sizeof(struct n2rng_unit) * np->num_units,
+				 GFP_KERNEL);
 	err = -ENOMEM;
 	if (!np->units)
 		goto out_hvapi_unregister;
 
 	err = n2rng_init_control(np);
 	if (err)
-		goto out_free_units;
+		goto out_hvapi_unregister;
 
 	dev_info(&op->dev, "Found %s RNG, units: %d\n",
 		 ((np->flags & N2RNG_FLAG_MULTI) ?
@@ -698,30 +698,24 @@ static int __devinit n2rng_probe(struct platform_device *op)
 
 	err = hwrng_register(&np->hwrng);
 	if (err)
-		goto out_free_units;
+		goto out_hvapi_unregister;
 
-	dev_set_drvdata(&op->dev, np);
+	platform_set_drvdata(op, np);
 
 	schedule_delayed_work(&np->work, 0);
 
 	return 0;
 
-out_free_units:
-	kfree(np->units);
-	np->units = NULL;
-
 out_hvapi_unregister:
 	sun4v_hvapi_unregister(HV_GRP_RNG);
 
-out_free:
-	kfree(np);
 out:
 	return err;
 }
 
-static int __devexit n2rng_remove(struct platform_device *op)
+static int n2rng_remove(struct platform_device *op)
 {
-	struct n2rng *np = dev_get_drvdata(&op->dev);
+	struct n2rng *np = platform_get_drvdata(op);
 
 	np->flags |= N2RNG_FLAG_SHUTDOWN;
 
@@ -730,13 +724,6 @@ static int __devexit n2rng_remove(struct platform_device *op)
 	hwrng_unregister(&np->hwrng);
 
 	sun4v_hvapi_unregister(HV_GRP_RNG);
-
-	kfree(np->units);
-	np->units = NULL;
-
-	kfree(np);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }
@@ -767,7 +754,7 @@ static struct platform_driver n2rng_driver = {
 		.of_match_table = n2rng_match,
 	},
 	.probe		= n2rng_probe,
-	.remove		= __devexit_p(n2rng_remove),
+	.remove		= n2rng_remove,
 };
 
 module_platform_driver(n2rng_driver);

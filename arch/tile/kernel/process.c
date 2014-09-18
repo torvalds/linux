@@ -33,6 +33,7 @@
 #include <asm/syscalls.h>
 #include <asm/traps.h>
 #include <asm/setup.h>
+#include <asm/uaccess.h>
 #ifdef CONFIG_HARDWALL
 #include <asm/hardwall.h>
 #endif
@@ -40,13 +41,11 @@
 #include <arch/abi.h>
 #include <arch/sim_def.h>
 
-
 /*
  * Use the (x86) "idle=poll" option to prefer low latency when leaving the
  * idle loop over low power while in the idle loop, e.g. if we have
  * one thread per core and we want to get threads out of futex waits fast.
  */
-static int no_idle_nap;
 static int __init idle_setup(char *str)
 {
 	if (!str)
@@ -54,102 +53,27 @@ static int __init idle_setup(char *str)
 
 	if (!strcmp(str, "poll")) {
 		pr_info("using polling idle threads.\n");
-		no_idle_nap = 1;
-	} else if (!strcmp(str, "halt"))
-		no_idle_nap = 0;
-	else
-		return -1;
-
-	return 0;
+		cpu_idle_poll_ctrl(true);
+		return 0;
+	} else if (!strcmp(str, "halt")) {
+		return 0;
+	}
+	return -1;
 }
 early_param("idle", idle_setup);
 
-/*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
- */
-void cpu_idle(void)
+void arch_cpu_idle(void)
 {
-	int cpu = smp_processor_id();
-
-
-	current_thread_info()->status |= TS_POLLING;
-
-	if (no_idle_nap) {
-		while (1) {
-			while (!need_resched())
-				cpu_relax();
-			schedule();
-		}
-	}
-
-	/* endless idle loop with no priority at all */
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		while (!need_resched()) {
-			if (cpu_is_offline(cpu))
-				BUG();  /* no HOTPLUG_CPU */
-
-			local_irq_disable();
-			__get_cpu_var(irq_stat).idle_timestamp = jiffies;
-			current_thread_info()->status &= ~TS_POLLING;
-			/*
-			 * TS_POLLING-cleared state must be visible before we
-			 * test NEED_RESCHED:
-			 */
-			smp_mb();
-
-			if (!need_resched())
-				_cpu_idle();
-			else
-				local_irq_enable();
-			current_thread_info()->status |= TS_POLLING;
-		}
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-		schedule_preempt_disabled();
-	}
-}
-
-struct thread_info *alloc_thread_info_node(struct task_struct *task, int node)
-{
-	struct page *page;
-	gfp_t flags = GFP_KERNEL;
-
-#ifdef CONFIG_DEBUG_STACK_USAGE
-	flags |= __GFP_ZERO;
-#endif
-
-	page = alloc_pages_node(node, flags, THREAD_SIZE_ORDER);
-	if (!page)
-		return NULL;
-
-	return (struct thread_info *)page_address(page);
+	__get_cpu_var(irq_stat).idle_timestamp = jiffies;
+	_cpu_idle();
 }
 
 /*
- * Free a thread_info node, and all of its derivative
- * data structures.
+ * Release a thread_info structure
  */
-void free_thread_info(struct thread_info *info)
+void arch_release_thread_info(struct thread_info *info)
 {
 	struct single_step_state *step_state = info->step_state;
-
-#ifdef CONFIG_HARDWALL
-	/*
-	 * We free a thread_info from the context of the task that has
-	 * been scheduled next, so the original task is already dead.
-	 * Calling deactivate here just frees up the data structures.
-	 * If the task we're freeing held the last reference to a
-	 * hardwall fd, it would have been released prior to this point
-	 * anyway via exit_files(), and "hardwall" would be NULL by now.
-	 */
-	if (info->task->thread.hardwall)
-		hardwall_deactivate(info->task);
-#endif
 
 	if (step_state) {
 
@@ -169,31 +93,48 @@ void free_thread_info(struct thread_info *info)
 		 */
 		kfree(step_state);
 	}
-
-	free_pages((unsigned long)info, THREAD_SIZE_ORDER);
 }
 
 static void save_arch_state(struct thread_struct *t);
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long stack_size,
-		struct task_struct *p, struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
-	struct pt_regs *childregs;
+	struct pt_regs *childregs = task_pt_regs(p);
 	unsigned long ksp;
+	unsigned long *callee_regs;
 
 	/*
-	 * When creating a new kernel thread we pass sp as zero.
-	 * Assign it to a reasonable value now that we have the stack.
+	 * Set up the stack and stack pointer appropriately for the
+	 * new child to find itself woken up in __switch_to().
+	 * The callee-saved registers must be on the stack to be read;
+	 * the new task will then jump to assembly support to handle
+	 * calling schedule_tail(), etc., and (for userspace tasks)
+	 * returning to the context set up in the pt_regs.
 	 */
-	if (sp == 0 && regs->ex1 == PL_ICS_EX1(KERNEL_PL, 0))
-		sp = KSTK_TOP(p);
+	ksp = (unsigned long) childregs;
+	ksp -= C_ABI_SAVE_AREA_SIZE;   /* interrupt-entry save area */
+	((long *)ksp)[0] = ((long *)ksp)[1] = 0;
+	ksp -= CALLEE_SAVED_REGS_COUNT * sizeof(unsigned long);
+	callee_regs = (unsigned long *)ksp;
+	ksp -= C_ABI_SAVE_AREA_SIZE;   /* __switch_to() save area */
+	((long *)ksp)[0] = ((long *)ksp)[1] = 0;
+	p->thread.ksp = ksp;
 
-	/*
-	 * Do not clone step state from the parent; each thread
-	 * must make its own lazily.
-	 */
-	task_thread_info(p)->step_state = NULL;
+	/* Record the pid of the task that created this one. */
+	p->thread.creator_pid = current->pid;
+
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		/* kernel thread */
+		memset(childregs, 0, sizeof(struct pt_regs));
+		memset(&callee_regs[2], 0,
+		       (CALLEE_SAVED_REGS_COUNT - 2) * sizeof(unsigned long));
+		callee_regs[0] = sp;   /* r30 = function */
+		callee_regs[1] = arg;  /* r31 = arg */
+		childregs->ex1 = PL_ICS_EX1(KERNEL_PL, 0);
+		p->thread.pc = (unsigned long) ret_from_kernel_thread;
+		return 0;
+	}
 
 	/*
 	 * Start new thread in ret_from_fork so it schedules properly
@@ -201,46 +142,41 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	 */
 	p->thread.pc = (unsigned long) ret_from_fork;
 
-	/* Save user stack top pointer so we can ID the stack vm area later. */
-	p->thread.usp0 = sp;
+	/*
+	 * Do not clone step state from the parent; each thread
+	 * must make its own lazily.
+	 */
+	task_thread_info(p)->step_state = NULL;
 
-	/* Record the pid of the process that created this one. */
-	p->thread.creator_pid = current->pid;
+#ifdef __tilegx__
+	/*
+	 * Do not clone unalign jit fixup from the parent; each thread
+	 * must allocate its own on demand.
+	 */
+	task_thread_info(p)->unalign_jit_base = NULL;
+#endif
 
 	/*
 	 * Copy the registers onto the kernel stack so the
 	 * return-from-interrupt code will reload it into registers.
 	 */
-	childregs = task_pt_regs(p);
-	*childregs = *regs;
+	*childregs = *current_pt_regs();
 	childregs->regs[0] = 0;         /* return value is zero */
-	childregs->sp = sp;  /* override with new user stack pointer */
+	if (sp)
+		childregs->sp = sp;  /* override with new user stack pointer */
+	memcpy(callee_regs, &childregs->regs[CALLEE_SAVED_FIRST_REG],
+	       CALLEE_SAVED_REGS_COUNT * sizeof(unsigned long));
+
+	/* Save user stack top pointer so we can ID the stack vm area later. */
+	p->thread.usp0 = childregs->sp;
 
 	/*
 	 * If CLONE_SETTLS is set, set "tp" in the new task to "r4",
 	 * which is passed in as arg #5 to sys_clone().
 	 */
 	if (clone_flags & CLONE_SETTLS)
-		childregs->tp = regs->regs[4];
+		childregs->tp = childregs->regs[4];
 
-	/*
-	 * Copy the callee-saved registers from the passed pt_regs struct
-	 * into the context-switch callee-saved registers area.
-	 * This way when we start the interrupt-return sequence, the
-	 * callee-save registers will be correctly in registers, which
-	 * is how we assume the compiler leaves them as we start doing
-	 * the normal return-from-interrupt path after calling C code.
-	 * Zero out the C ABI save area to mark the top of the stack.
-	 */
-	ksp = (unsigned long) childregs;
-	ksp -= C_ABI_SAVE_AREA_SIZE;   /* interrupt-entry save area */
-	((long *)ksp)[0] = ((long *)ksp)[1] = 0;
-	ksp -= CALLEE_SAVED_REGS_COUNT * sizeof(unsigned long);
-	memcpy((void *)ksp, &regs->regs[CALLEE_SAVED_FIRST_REG],
-	       CALLEE_SAVED_REGS_COUNT * sizeof(unsigned long));
-	ksp -= C_ABI_SAVE_AREA_SIZE;   /* __switch_to() save area */
-	((long *)ksp)[0] = ((long *)ksp)[1] = 0;
-	p->thread.ksp = ksp;
 
 #if CHIP_HAS_TILE_DMA()
 	/*
@@ -251,20 +187,13 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	memset(&p->thread.dma_async_tlb, 0, sizeof(struct async_tlb));
 #endif
 
-#if CHIP_HAS_SN_PROC()
-	/* Likewise, the new thread is not running static processor code. */
-	p->thread.sn_proc_running = 0;
-	memset(&p->thread.sn_async_tlb, 0, sizeof(struct async_tlb));
-#endif
-
-#if CHIP_HAS_PROC_STATUS_SPR()
 	/* New thread has its miscellaneous processor state bits clear. */
 	p->thread.proc_status = 0;
-#endif
 
 #ifdef CONFIG_HARDWALL
 	/* New thread does not own any networks. */
-	p->thread.hardwall = NULL;
+	memset(&p->thread.hardwall[0], 0,
+	       sizeof(struct hardwall_task) * HARDWALL_TYPES);
 #endif
 
 
@@ -277,19 +206,32 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	return 0;
 }
 
+int set_unalign_ctl(struct task_struct *tsk, unsigned int val)
+{
+	task_thread_info(tsk)->align_ctl = val;
+	return 0;
+}
+
+int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
+{
+	return put_user(task_thread_info(tsk)->align_ctl,
+			(unsigned int __user *)adr);
+}
+
+static struct task_struct corrupt_current = { .comm = "<corrupt>" };
+
 /*
  * Return "current" if it looks plausible, or else a pointer to a dummy.
  * This can be helpful if we are just trying to emit a clean panic.
  */
 struct task_struct *validate_current(void)
 {
-	static struct task_struct corrupt = { .comm = "<corrupt>" };
 	struct task_struct *tsk = current;
 	if (unlikely((unsigned long)tsk < PAGE_OFFSET ||
 		     (high_memory && (void *)tsk > high_memory) ||
 		     ((unsigned long)tsk & (__alignof__(*tsk) - 1)) != 0)) {
 		pr_err("Corrupt 'current' %p (sp %#lx)\n", tsk, stack_pointer);
-		tsk = &corrupt;
+		tsk = &corrupt_current;
 	}
 	return tsk;
 }
@@ -428,15 +370,11 @@ static void save_arch_state(struct thread_struct *t)
 	t->system_save[2] = __insn_mfspr(SPR_SYSTEM_SAVE_0_2);
 	t->system_save[3] = __insn_mfspr(SPR_SYSTEM_SAVE_0_3);
 	t->intctrl_0 = __insn_mfspr(SPR_INTCTRL_0_STATUS);
-#if CHIP_HAS_PROC_STATUS_SPR()
 	t->proc_status = __insn_mfspr(SPR_PROC_STATUS);
-#endif
 #if !CHIP_HAS_FIXED_INTVEC_BASE()
 	t->interrupt_vector_base = __insn_mfspr(SPR_INTERRUPT_VECTOR_BASE_0);
 #endif
-#if CHIP_HAS_TILE_RTF_HWM()
 	t->tile_rtf_hwm = __insn_mfspr(SPR_TILE_RTF_HWM);
-#endif
 #if CHIP_HAS_DSTREAM_PF()
 	t->dstream_pf = __insn_mfspr(SPR_DSTREAM_PF);
 #endif
@@ -457,15 +395,11 @@ static void restore_arch_state(const struct thread_struct *t)
 	__insn_mtspr(SPR_SYSTEM_SAVE_0_2, t->system_save[2]);
 	__insn_mtspr(SPR_SYSTEM_SAVE_0_3, t->system_save[3]);
 	__insn_mtspr(SPR_INTCTRL_0_STATUS, t->intctrl_0);
-#if CHIP_HAS_PROC_STATUS_SPR()
 	__insn_mtspr(SPR_PROC_STATUS, t->proc_status);
-#endif
 #if !CHIP_HAS_FIXED_INTVEC_BASE()
 	__insn_mtspr(SPR_INTERRUPT_VECTOR_BASE_0, t->interrupt_vector_base);
 #endif
-#if CHIP_HAS_TILE_RTF_HWM()
 	__insn_mtspr(SPR_TILE_RTF_HWM, t->tile_rtf_hwm);
-#endif
 #if CHIP_HAS_DSTREAM_PF()
 	__insn_mtspr(SPR_DSTREAM_PF, t->dstream_pf);
 #endif
@@ -474,25 +408,10 @@ static void restore_arch_state(const struct thread_struct *t)
 
 void _prepare_arch_switch(struct task_struct *next)
 {
-#if CHIP_HAS_SN_PROC()
-	int snctl;
-#endif
 #if CHIP_HAS_TILE_DMA()
 	struct tile_dma_state *dma = &current->thread.tile_dma_state;
 	if (dma->enabled)
 		save_tile_dma_state(dma);
-#endif
-#if CHIP_HAS_SN_PROC()
-	/*
-	 * Suspend the static network processor if it was running.
-	 * We do not suspend the fabric itself, just like we don't
-	 * try to suspend the UDN.
-	 */
-	snctl = __insn_mfspr(SPR_SNCTL);
-	current->thread.sn_proc_running =
-		(snctl & SPR_SNCTL__FRZPROC_MASK) == 0;
-	if (current->thread.sn_proc_running)
-		__insn_mtspr(SPR_SNCTL, snctl | SPR_SNCTL__FRZPROC_MASK);
 #endif
 }
 
@@ -521,25 +440,9 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 	/* Restore other arch state. */
 	restore_arch_state(&next->thread);
 
-#if CHIP_HAS_SN_PROC()
-	/*
-	 * Restart static network processor in the new process
-	 * if it was running before.
-	 */
-	if (next->thread.sn_proc_running) {
-		int snctl = __insn_mfspr(SPR_SNCTL);
-		__insn_mtspr(SPR_SNCTL, snctl & ~SPR_SNCTL__FRZPROC_MASK);
-	}
-#endif
-
 #ifdef CONFIG_HARDWALL
 	/* Enable or disable access to the network registers appropriately. */
-	if (prev->thread.hardwall != NULL) {
-		if (next->thread.hardwall == NULL)
-			restrict_network_mpls();
-	} else if (next->thread.hardwall != NULL) {
-		grant_network_mpls();
-	}
+	hardwall_switch_tasks(prev, next);
 #endif
 
 	/*
@@ -567,11 +470,18 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
  */
 int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 {
+	/* If we enter in kernel mode, do nothing and exit the caller loop. */
+	if (!user_mode(regs))
+		return 0;
+
+	/* Enable interrupts; they are disabled again on return to caller. */
+	local_irq_enable();
+
 	if (thread_info_flags & _TIF_NEED_RESCHED) {
 		schedule();
 		return 1;
 	}
-#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
+#if CHIP_HAS_TILE_DMA()
 	if (thread_info_flags & _TIF_ASYNC_TLB) {
 		do_async_page_fault(regs);
 		return 1;
@@ -584,73 +494,14 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
-		if (current->replacement_session_keyring)
-			key_replace_session_keyring();
 		return 1;
 	}
 	if (thread_info_flags & _TIF_SINGLESTEP) {
-		if ((regs->ex1 & SPR_EX_CONTEXT_1_1__PL_MASK) == 0)
-			single_step_once(regs);
+		single_step_once(regs);
 		return 0;
 	}
 	panic("work_pending: bad flags %#x\n", thread_info_flags);
 }
-
-/* Note there is an implicit fifth argument if (clone_flags & CLONE_SETTLS). */
-SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
-		void __user *, parent_tidptr, void __user *, child_tidptr,
-		struct pt_regs *, regs)
-{
-	if (!newsp)
-		newsp = regs->sp;
-	return do_fork(clone_flags, newsp, regs, 0,
-		       parent_tidptr, child_tidptr);
-}
-
-/*
- * sys_execve() executes a new program.
- */
-SYSCALL_DEFINE4(execve, const char __user *, path,
-		const char __user *const __user *, argv,
-		const char __user *const __user *, envp,
-		struct pt_regs *, regs)
-{
-	long error;
-	char *filename;
-
-	filename = getname(path);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename, argv, envp, regs);
-	putname(filename);
-	if (error == 0)
-		single_step_execve();
-out:
-	return error;
-}
-
-#ifdef CONFIG_COMPAT
-long compat_sys_execve(const char __user *path,
-		       compat_uptr_t __user *argv,
-		       compat_uptr_t __user *envp,
-		       struct pt_regs *regs)
-{
-	long error;
-	char *filename;
-
-	filename = getname(path);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = compat_do_execve(filename, argv, envp, regs);
-	putname(filename);
-	if (error == 0)
-		single_step_execve();
-out:
-	return error;
-}
-#endif
 
 unsigned long get_wchan(struct task_struct *p)
 {
@@ -669,37 +520,6 @@ unsigned long get_wchan(struct task_struct *p)
 	return 0;
 }
 
-/*
- * We pass in lr as zero (cleared in kernel_thread) and the caller
- * part of the backtrace ABI on the stack also zeroed (in copy_thread)
- * so that backtraces will stop with this function.
- * Note that we don't use r0, since copy_thread() clears it.
- */
-static void start_kernel_thread(int dummy, int (*fn)(int), int arg)
-{
-	do_exit(fn(arg));
-}
-
-/*
- * Create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-	regs.ex1 = PL_ICS_EX1(KERNEL_PL, 0);  /* run at kernel PL, no ICS */
-	regs.pc = (long) start_kernel_thread;
-	regs.flags = PT_FLAGS_CALLER_SAVES;   /* need to restore r1 and r2 */
-	regs.regs[1] = (long) fn;             /* function pointer */
-	regs.regs[2] = (long) arg;            /* parameter register */
-
-	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs,
-		       0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
-
 /* Flush thread state. */
 void flush_thread(void)
 {
@@ -711,7 +531,15 @@ void flush_thread(void)
  */
 void exit_thread(void)
 {
-	/* Nothing */
+#ifdef CONFIG_HARDWALL
+	/*
+	 * Remove the task from the list of tasks that are associated
+	 * with any live hardwalls.  (If the task that is exiting held
+	 * the last reference to a hardwall fd, it would already have
+	 * been released and deactivated at this point.)
+	 */
+	hardwall_deactivate_all(current);
+#endif
 }
 
 void show_regs(struct pt_regs *regs)
@@ -720,24 +548,24 @@ void show_regs(struct pt_regs *regs)
 	int i;
 
 	pr_err("\n");
-	pr_err(" Pid: %d, comm: %20s, CPU: %d\n",
-	       tsk->pid, tsk->comm, smp_processor_id());
+	if (tsk != &corrupt_current)
+		show_regs_print_info(KERN_ERR);
 #ifdef __tilegx__
-	for (i = 0; i < 51; i += 3)
+	for (i = 0; i < 17; i++)
 		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
-		       i, regs->regs[i], i+1, regs->regs[i+1],
-		       i+2, regs->regs[i+2]);
-	pr_err(" r51: "REGFMT" r52: "REGFMT" tp : "REGFMT"\n",
-	       regs->regs[51], regs->regs[52], regs->tp);
+		       i, regs->regs[i], i+18, regs->regs[i+18],
+		       i+36, regs->regs[i+36]);
+	pr_err(" r17: "REGFMT" r35: "REGFMT" tp : "REGFMT"\n",
+	       regs->regs[17], regs->regs[35], regs->tp);
 	pr_err(" sp : "REGFMT" lr : "REGFMT"\n", regs->sp, regs->lr);
 #else
-	for (i = 0; i < 52; i += 4)
+	for (i = 0; i < 13; i++)
 		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT
 		       " r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
-		       i, regs->regs[i], i+1, regs->regs[i+1],
-		       i+2, regs->regs[i+2], i+3, regs->regs[i+3]);
-	pr_err(" r52: "REGFMT" tp : "REGFMT" sp : "REGFMT" lr : "REGFMT"\n",
-	       regs->regs[52], regs->tp, regs->sp, regs->lr);
+		       i, regs->regs[i], i+14, regs->regs[i+14],
+		       i+27, regs->regs[i+27], i+40, regs->regs[i+40]);
+	pr_err(" r13: "REGFMT" tp : "REGFMT" sp : "REGFMT" lr : "REGFMT"\n",
+	       regs->regs[13], regs->tp, regs->sp, regs->lr);
 #endif
 	pr_err(" pc : "REGFMT" ex1: %ld     faultnum: %ld\n",
 	       regs->pc, regs->ex1, regs->faultnum);

@@ -13,12 +13,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
 
@@ -478,7 +476,7 @@ static void softing_card_shutdown(struct softing *card)
 	mutex_unlock(&card->fw.lock);
 }
 
-static __devinit int softing_card_boot(struct softing *card)
+static int softing_card_boot(struct softing *card)
 {
 	int ret, j;
 	static const uint8_t stream[] = {
@@ -558,15 +556,6 @@ failed:
 /*
  * netdev sysfs
  */
-static ssize_t show_channel(struct device *dev, struct device_attribute *attr,
-		char *buf)
-{
-	struct net_device *ndev = to_net_dev(dev);
-	struct softing_priv *priv = netdev2softing(ndev);
-
-	return sprintf(buf, "%i\n", priv->index);
-}
-
 static ssize_t show_chip(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -594,7 +583,7 @@ static ssize_t store_output(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	int ret;
 
-	ret = strict_strtoul(buf, 0, &val);
+	ret = kstrtoul(buf, 0, &val);
 	if (ret < 0)
 		return ret;
 	val &= 0xFF;
@@ -611,12 +600,10 @@ static ssize_t store_output(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static const DEVICE_ATTR(channel, S_IRUGO, show_channel, NULL);
 static const DEVICE_ATTR(chip, S_IRUGO, show_chip, NULL);
 static const DEVICE_ATTR(output, S_IRUGO | S_IWUSR, show_output, store_output);
 
 static const struct attribute *const netdev_sysfs_attrs[] = {
-	&dev_attr_channel.attr,
 	&dev_attr_chip.attr,
 	&dev_attr_output.attr,
 	NULL,
@@ -630,6 +617,7 @@ static const struct net_device_ops softing_netdev_ops = {
 	.ndo_open = softing_netdev_open,
 	.ndo_stop = softing_netdev_stop,
 	.ndo_start_xmit	= softing_netdev_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct can_bittiming_const softing_btr_const = {
@@ -645,8 +633,8 @@ static const struct can_bittiming_const softing_btr_const = {
 };
 
 
-static __devinit struct net_device *softing_netdev_create(struct softing *card,
-		uint16_t chip_id)
+static struct net_device *softing_netdev_create(struct softing *card,
+						uint16_t chip_id)
 {
 	struct net_device *netdev;
 	struct softing_priv *priv;
@@ -676,21 +664,24 @@ static __devinit struct net_device *softing_netdev_create(struct softing *card,
 	return netdev;
 }
 
-static __devinit int softing_netdev_register(struct net_device *netdev)
+static int softing_netdev_register(struct net_device *netdev)
 {
 	int ret;
 
-	netdev->sysfs_groups[0] = &netdev_sysfs_group;
 	ret = register_candev(netdev);
 	if (ret) {
 		dev_alert(&netdev->dev, "register failed\n");
 		return ret;
 	}
+	if (sysfs_create_group(&netdev->dev.kobj, &netdev_sysfs_group) < 0)
+		netdev_alert(netdev, "sysfs group failed\n");
+
 	return 0;
 }
 
 static void softing_netdev_cleanup(struct net_device *netdev)
 {
+	sysfs_remove_group(&netdev->dev.kobj, &netdev_sysfs_group);
 	unregister_candev(netdev);
 	free_candev(netdev);
 }
@@ -722,8 +713,6 @@ DEV_ATTR_RO(firmware_version, id.fw_version);
 DEV_ATTR_RO_STR(hardware, pdat->name);
 DEV_ATTR_RO(hardware_version, id.hw_version);
 DEV_ATTR_RO(license, id.license);
-DEV_ATTR_RO(frequency, id.freq);
-DEV_ATTR_RO(txpending, tx.pending);
 
 static struct attribute *softing_pdev_attrs[] = {
 	&dev_attr_serial.attr,
@@ -732,8 +721,6 @@ static struct attribute *softing_pdev_attrs[] = {
 	&dev_attr_hardware.attr,
 	&dev_attr_hardware_version.attr,
 	&dev_attr_license.attr,
-	&dev_attr_frequency.attr,
-	&dev_attr_txpending.attr,
 	NULL,
 };
 
@@ -745,7 +732,7 @@ static const struct attribute_group softing_pdev_group = {
 /*
  * platform driver
  */
-static __devexit int softing_pdev_remove(struct platform_device *pdev)
+static int softing_pdev_remove(struct platform_device *pdev)
 {
 	struct softing *card = platform_get_drvdata(pdev);
 	int j;
@@ -766,9 +753,9 @@ static __devexit int softing_pdev_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static __devinit int softing_pdev_probe(struct platform_device *pdev)
+static int softing_pdev_probe(struct platform_device *pdev)
 {
-	const struct softing_platform_data *pdat = pdev->dev.platform_data;
+	const struct softing_platform_data *pdat = dev_get_platdata(&pdev->dev);
 	struct softing *card;
 	struct net_device *netdev;
 	struct softing_priv *priv;
@@ -826,14 +813,15 @@ static __devinit int softing_pdev_probe(struct platform_device *pdev)
 		goto sysfs_failed;
 	}
 
-	ret = -ENOMEM;
 	for (j = 0; j < ARRAY_SIZE(card->net); ++j) {
 		card->net[j] = netdev =
 			softing_netdev_create(card, card->id.chip[j]);
 		if (!netdev) {
 			dev_alert(&pdev->dev, "failed to make can[%i]", j);
+			ret = -ENOMEM;
 			goto netdev_failed;
 		}
+		netdev->dev_id = j;
 		priv = netdev_priv(card->net[j]);
 		priv->index = j;
 		ret = softing_netdev_register(netdev);
@@ -871,7 +859,7 @@ static struct platform_driver softing_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = softing_pdev_probe,
-	.remove = __devexit_p(softing_pdev_remove),
+	.remove = softing_pdev_remove,
 };
 
 module_platform_driver(softing_driver);

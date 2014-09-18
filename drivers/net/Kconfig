@@ -25,6 +25,9 @@ menuconfig NETDEVICES
 # that for each of the symbols.
 if NETDEVICES
 
+config MII
+	tristate
+
 config NET_CORE
 	default y
 	bool "Network core driver support"
@@ -66,10 +69,7 @@ config DUMMY
 	  <http://www.tldp.org/docs.html#guide>.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called dummy.  If you want to use more than one dummy
-	  device at a time, you need to compile this driver as a module.
-	  Instead of 'dummy', the devices will then be called 'dummy0',
-	  'dummy1' etc.
+	  will be called dummy.
 
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
@@ -103,15 +103,6 @@ config NET_FC
 	  adaptor below. You also should have said Y to "SCSI support" and
 	  "SCSI generic support".
 
-config MII
-	tristate "Generic Media Independent Interface device support"
-	help
-	  Most ethernet controllers have MII transceiver either as an external
-	  or internal device.  It is safe to say Y or M here even if your
-	  ethernet card lacks MII.
-
-source "drivers/ieee802154/Kconfig"
-
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
@@ -128,8 +119,7 @@ config IFB
 source "drivers/net/team/Kconfig"
 
 config MACVLAN
-	tristate "MAC-VLAN support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "MAC-VLAN support"
 	---help---
 	  This allows one to create virtual interfaces that map packets to
 	  or from specific MAC addresses to a particular interface.
@@ -143,16 +133,31 @@ config MACVLAN
 	  will be called macvlan.
 
 config MACVTAP
-	tristate "MAC-VLAN based tap driver (EXPERIMENTAL)"
+	tristate "MAC-VLAN based tap driver"
 	depends on MACVLAN
 	help
 	  This adds a specialized tap character device driver that is based
 	  on the MAC-VLAN network interface, called macvtap. A macvtap device
 	  can be added in the same way as a macvlan device, using 'type
-	  macvlan', and then be accessed through the tap user space interface.
+	  macvtap', and then be accessed through the tap user space interface.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvtap.
+
+config VXLAN
+       tristate "Virtual eXtensible Local Area Network (VXLAN)"
+       depends on INET
+       select NET_IP_TUNNEL
+       select NET_UDP_TUNNEL
+       ---help---
+	  This allows one to create vxlan virtual interfaces that provide
+	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
+	  to tunnel virtual network infrastructure in virtualized environments.
+	  For more information see:
+	    http://tools.ietf.org/html/draft-mahalingam-dutt-dcops-vxlan-02
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called vxlan.
 
 config NETCONSOLE
 	tristate "Network console logging support"
@@ -173,13 +178,12 @@ config NETCONSOLE_DYNAMIC
 config NETPOLL
 	def_bool NETCONSOLE
 
-config NETPOLL_TRAP
-	bool "Netpoll traffic trapping"
-	default n
-	depends on NETPOLL
-
 config NET_POLL_CONTROLLER
 	def_bool NETPOLL
+
+config NTB_NETDEV
+	tristate "Virtual Ethernet over NTB"
+	depends on NTB
 
 config RIONET
 	tristate "RapidIO Ethernet over messaging driver support"
@@ -226,11 +230,22 @@ config VETH
 	  versa.
 
 config VIRTIO_NET
-	tristate "Virtio network driver (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && VIRTIO
+	tristate "Virtio network driver"
+	depends on VIRTIO
+	select AVERAGE
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
 	  lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
+
+config NLMON
+	tristate "Virtual netlink monitoring device"
+	---help---
+	  This option enables a monitoring net device for netlink skbs. The
+	  purpose of this is to analyze netlink messages with packet sockets.
+	  Thus applications like tcpdump will be able to see local netlink
+	  messages if they tap into the netlink device, record pcaps for further
+	  diagnostics, etc. This is mostly intended for developers or support
+	  to debug netlink issues. If unsure, say N.
 
 endif # NET_CORE
 
@@ -285,8 +300,6 @@ source "drivers/net/slip/Kconfig"
 
 source "drivers/s390/net/Kconfig"
 
-source "drivers/net/tokenring/Kconfig"
-
 source "drivers/net/usb/Kconfig"
 
 source "drivers/net/wireless/Kconfig"
@@ -294,6 +307,8 @@ source "drivers/net/wireless/Kconfig"
 source "drivers/net/wimax/Kconfig"
 
 source "drivers/net/wan/Kconfig"
+
+source "drivers/net/ieee802154/Kconfig"
 
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"

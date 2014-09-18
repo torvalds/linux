@@ -74,12 +74,11 @@ struct dma_pub {
 	uint txnobuf;		/* tx out of dma descriptors */
 };
 
-extern struct dma_pub *dma_attach(char *name, struct si_pub *sih,
-				  struct bcma_device *d11core,
+extern struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 				  uint txregbase, uint rxregbase,
 				  uint ntxd, uint nrxd,
 				  uint rxbufsize, int rxextheadroom,
-				  uint nrxpost, uint rxoffset, uint *msg_level);
+				  uint nrxpost, uint rxoffset);
 
 void dma_rxinit(struct dma_pub *pub);
 int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list);
@@ -87,7 +86,11 @@ bool dma_rxfill(struct dma_pub *pub);
 bool dma_rxreset(struct dma_pub *pub);
 bool dma_txreset(struct dma_pub *pub);
 void dma_txinit(struct dma_pub *pub);
-int dma_txfast(struct dma_pub *pub, struct sk_buff *p0, bool commit);
+int dma_txfast(struct brcms_c_info *wlc, struct dma_pub *pub,
+	       struct sk_buff *p0);
+void dma_txflush(struct dma_pub *pub);
+int dma_txpending(struct dma_pub *pub);
+void dma_kick_tx(struct dma_pub *pub);
 void dma_txsuspend(struct dma_pub *pub);
 bool dma_txsuspended(struct dma_pub *pub);
 void dma_txresume(struct dma_pub *pub);

@@ -7,14 +7,27 @@
  */
 
 #include <linux/module.h>
-#include "drm_usb.h"
-#include "drm_crtc_helper.h"
+#include <drm/drm_usb.h>
+#include <drm/drm_crtc_helper.h>
 #include "udl_drv.h"
 
 static struct drm_driver driver;
 
+/*
+ * There are many DisplayLink-based graphics products, all with unique PIDs.
+ * So we match on DisplayLink's VID + Vendor-Defined Interface Class (0xff)
+ * We also require a match on SubClass (0x00) and Protocol (0x00),
+ * which is compatible with all known USB 2.0 era graphics chips and firmware,
+ * but allows DisplayLink to increment those for any future incompatible chips
+ */
 static struct usb_device_id id_table[] = {
-	{.idVendor = 0x17e9, .match_flags = USB_DEVICE_ID_MATCH_VENDOR,},
+	{.idVendor = 0x17e9, .bInterfaceClass = 0xff,
+	 .bInterfaceSubClass = 0x00,
+	 .bInterfaceProtocol = 0x00,
+	 .match_flags = USB_DEVICE_ID_MATCH_VENDOR |
+			USB_DEVICE_ID_MATCH_INT_CLASS |
+			USB_DEVICE_ID_MATCH_INT_SUBCLASS |
+			USB_DEVICE_ID_MATCH_INT_PROTOCOL,},
 	{},
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -38,7 +51,7 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 	drm_unplug_dev(dev);
 }
 
-static struct vm_operations_struct udl_gem_vm_ops = {
+static const struct vm_operations_struct udl_gem_vm_ops = {
 	.fault = udl_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
@@ -52,24 +65,29 @@ static const struct file_operations udl_driver_fops = {
 	.read = drm_read,
 	.unlocked_ioctl	= drm_ioctl,
 	.release = drm_release,
-	.fasync = drm_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 	.llseek = noop_llseek,
 };
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 	.load = udl_driver_load,
 	.unload = udl_driver_unload,
 
 	/* gem hooks */
-	.gem_init_object = udl_gem_init_object,
 	.gem_free_object = udl_gem_free_object,
 	.gem_vm_ops = &udl_gem_vm_ops,
 
 	.dumb_create = udl_dumb_create,
 	.dumb_map_offset = udl_gem_mmap,
-	.dumb_destroy = udl_dumb_destroy,
+	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &udl_driver_fops,
+
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_import = udl_gem_prime_import,
+
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,

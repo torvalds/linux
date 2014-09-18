@@ -21,7 +21,7 @@
 static void kdb_show_stack(struct task_struct *p, void *addr)
 {
 	int old_lvl = console_loglevel;
-	console_loglevel = 15;
+	console_loglevel = CONSOLE_LOGLEVEL_MOTORMOUTH;
 	kdb_trap_printk++;
 	kdb_set_current_task(p);
 	if (addr) {
@@ -129,6 +129,8 @@ kdb_bt(int argc, const char **argv)
 		}
 		/* Now the inactive tasks */
 		kdb_do_each_thread(g, p) {
+			if (KDB_FLAG(CMD_INTERRUPT))
+				return 0;
 			if (task_curr(p))
 				continue;
 			if (kdb_bt1(p, mask, argcount, btaprompt))

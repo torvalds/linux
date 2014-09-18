@@ -22,6 +22,7 @@
 #include <linux/proc_fs.h>
 #include <linux/sysctl.h>
 #include <linux/hardirq.h>
+#include <linux/hugetlb.h>
 #include <linux/mman.h>
 #include <asm/unaligned.h>
 #include <asm/pgtable.h>
@@ -112,8 +113,7 @@ arch_initcall(proc_tile_init);
  * Support /proc/sys/tile directory
  */
 
-#ifndef __tilegx__  /* FIXME: GX: no support for unaligned access yet */
-static ctl_table unaligned_subtable[] = {
+static struct ctl_table unaligned_subtable[] = {
 	{
 		.procname	= "enabled",
 		.data		= &unaligned_fixup,
@@ -138,7 +138,7 @@ static ctl_table unaligned_subtable[] = {
 	{}
 };
 
-static ctl_table unaligned_table[] = {
+static struct ctl_table unaligned_table[] = {
 	{
 		.procname	= "unaligned_fixup",
 		.mode		= 0555,
@@ -159,4 +159,3 @@ static int __init proc_sys_tile_init(void)
 }
 
 arch_initcall(proc_sys_tile_init);
-#endif

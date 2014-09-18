@@ -33,13 +33,13 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/dmi.h>
 #include <linux/fb.h>
-#include <acpi/acpi_bus.h>
+#include <linux/acpi.h>
 
 #include "asus-wmi.h"
 
 #define	EEEPC_WMI_FILE	"eeepc-wmi"
 
-MODULE_AUTHOR("Corentin Chary <corentincj@iksaif.net>");
+MODULE_AUTHOR("Corentin Chary <corentin.chary@gmail.com>");
 MODULE_DESCRIPTION("Eee PC WMI Hotkey Driver");
 MODULE_LICENSE("GPL");
 
@@ -63,6 +63,8 @@ MODULE_PARM_DESC(hotplug_wireless,
 #define HOME_RELEASE	0xe5
 
 static const struct key_entry eeepc_wmi_keymap[] = {
+	{ KE_KEY, ASUS_WMI_BRN_DOWN, { KEY_BRIGHTNESSDOWN } },
+	{ KE_KEY, ASUS_WMI_BRN_UP, { KEY_BRIGHTNESSUP } },
 	/* Sleep already handled via generic ACPI code */
 	{ KE_KEY, 0x30, { KEY_VOLUMEUP } },
 	{ KE_KEY, 0x31, { KEY_VOLUMEDOWN } },
@@ -79,7 +81,7 @@ static const struct key_entry eeepc_wmi_keymap[] = {
 	{ KE_KEY, 0xe1, { KEY_F14 } }, /* Change Resolution */
 	{ KE_KEY, HOME_PRESS, { KEY_CONFIG } }, /* Home/Express gate key */
 	{ KE_KEY, 0xe8, { KEY_SCREENLOCK } },
-	{ KE_KEY, 0xe9, { KEY_BRIGHTNESS_ZERO } },
+	{ KE_KEY, 0xe9, { KEY_DISPLAYTOGGLE } },
 	{ KE_KEY, 0xeb, { KEY_CAMERA_ZOOMOUT } },
 	{ KE_KEY, 0xec, { KEY_CAMERA_UP } },
 	{ KE_KEY, 0xed, { KEY_CAMERA_DOWN } },
@@ -105,6 +107,11 @@ static struct quirk_entry quirk_asus_et2012_type1 = {
 static struct quirk_entry quirk_asus_et2012_type3 = {
 	.scalar_panel_brightness = true,
 	.store_backlight_power = true,
+};
+
+static struct quirk_entry quirk_asus_x101ch = {
+	/* We need this when ACPI function doesn't do this well */
+	.wmi_backlight_power = true,
 };
 
 static struct quirk_entry *quirks;
@@ -138,7 +145,7 @@ static int dmi_matched(const struct dmi_system_id *dmi)
 	return 1;
 }
 
-static struct dmi_system_id asus_quirks[] = {
+static const struct dmi_system_id asus_quirks[] = {
 	{
 		.callback = dmi_matched,
 		.ident = "ASUSTeK Computer INC. 1000H",
@@ -156,6 +163,24 @@ static struct dmi_system_id asus_quirks[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ET2012"),
 		},
 		.driver_data = &quirk_asus_unknown,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "ASUSTeK Computer INC. X101CH",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X101CH"),
+		},
+		.driver_data = &quirk_asus_x101ch,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "ASUSTeK Computer INC. 1015CX",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "1015CX"),
+		},
+		.driver_data = &quirk_asus_x101ch,
 	},
 	{},
 };

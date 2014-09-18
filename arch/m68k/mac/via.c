@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 
-#include <asm/bootinfo.h>
 #include <asm/macintosh.h>
 #include <asm/macints.h>
 #include <asm/mac_via.h>
@@ -327,7 +326,7 @@ void via_debug_dump(void)
  * TBI: get time offset between scheduling timer ticks
  */
 
-unsigned long mac_gettimeoffset (void)
+u32 mac_gettimeoffset(void)
 {
 	unsigned long ticks, offset = 0;
 
@@ -341,7 +340,7 @@ unsigned long mac_gettimeoffset (void)
 	ticks = MAC_CLOCK_TICK - ticks;
 	ticks = ticks * 10000L / MAC_CLOCK_TICK;
 
-	return ticks + offset;
+	return (ticks + offset) * 1000;
 }
 
 /*

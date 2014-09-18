@@ -23,7 +23,6 @@
 
 #define GET_SHADOW_VCPU(reg)    \
 	mr	reg, r13
-#define MTMSR_EERI(reg)		mtmsrd	(reg),1
 
 #elif defined(CONFIG_PPC_BOOK3S_32)
 
@@ -31,7 +30,6 @@
 	tophys(reg, r2);       			\
 	lwz     reg, (THREAD + THREAD_KVM_SVCPU)(reg);	\
 	tophys(reg, reg)
-#define MTMSR_EERI(reg)		mtmsr	(reg)
 
 #endif
 
@@ -92,6 +90,15 @@ kvmppc_handler_trampoline_enter:
 	LOAD_GUEST_SEGMENTS
 
 #ifdef CONFIG_PPC_BOOK3S_64
+BEGIN_FTR_SECTION
+	/* Save host FSCR */
+	mfspr	r8, SPRN_FSCR
+	std	r8, HSTATE_HOST_FSCR(r13)
+	/* Set FSCR during guest execution */
+	ld	r9, SVCPU_SHADOW_FSCR(r13)
+	mtspr	SPRN_FSCR, r9
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+
 	/* Some guests may need to have dcbz set to 32 byte length.
 	 *
 	 * Usually we ensure that by patching the guest's instructions
@@ -128,24 +135,25 @@ no_dcbz32_on:
 	/* First clear RI in our current MSR value */
 	li	r0, MSR_RI
 	andc	r6, r6, r0
-	MTMSR_EERI(r6)
-	mtsrr0	r9
-	mtsrr1	r4
 
 	PPC_LL	r0, SVCPU_R0(r3)
 	PPC_LL	r1, SVCPU_R1(r3)
 	PPC_LL	r2, SVCPU_R2(r3)
-	PPC_LL	r4, SVCPU_R4(r3)
 	PPC_LL	r5, SVCPU_R5(r3)
-	PPC_LL	r6, SVCPU_R6(r3)
 	PPC_LL	r7, SVCPU_R7(r3)
 	PPC_LL	r8, SVCPU_R8(r3)
-	PPC_LL	r9, SVCPU_R9(r3)
 	PPC_LL	r10, SVCPU_R10(r3)
 	PPC_LL	r11, SVCPU_R11(r3)
 	PPC_LL	r12, SVCPU_R12(r3)
 	PPC_LL	r13, SVCPU_R13(r3)
 
+	MTMSR_EERI(r6)
+	mtsrr0	r9
+	mtsrr1	r4
+
+	PPC_LL	r4, SVCPU_R4(r3)
+	PPC_LL	r6, SVCPU_R6(r3)
+	PPC_LL	r9, SVCPU_R9(r3)
 	PPC_LL	r3, (SVCPU_R3)(r3)
 
 	RFI
@@ -162,8 +170,8 @@ kvmppc_handler_trampoline_enter_end:
 .global kvmppc_handler_trampoline_exit
 kvmppc_handler_trampoline_exit:
 
-.global kvmppc_interrupt
-kvmppc_interrupt:
+.global kvmppc_interrupt_pr
+kvmppc_interrupt_pr:
 
 	/* Register usage at this point:
 	 *
@@ -197,7 +205,8 @@ kvmppc_interrupt:
 	/* Save guest PC and MSR */
 #ifdef CONFIG_PPC64
 BEGIN_FTR_SECTION
-	andi.	r0,r12,0x2
+	andi.	r0, r12, 0x2
+	cmpwi	cr1, r0, 0
 	beq	1f
 	mfspr	r3,SPRN_HSRR0
 	mfspr	r4,SPRN_HSRR1
@@ -250,6 +259,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	beq	ld_last_prev_inst
 	cmpwi	r12, BOOK3S_INTERRUPT_ALIGNMENT
 	beq-	ld_last_inst
+#ifdef CONFIG_PPC64
+BEGIN_FTR_SECTION
+	cmpwi	r12, BOOK3S_INTERRUPT_H_EMUL_ASSIST
+	beq-	ld_last_inst
+END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
+BEGIN_FTR_SECTION
+	cmpwi	r12, BOOK3S_INTERRUPT_FAC_UNAVAIL
+	beq-	ld_last_inst
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+#endif
 
 	b	no_ld_last_inst
 
@@ -305,6 +324,18 @@ no_ld_last_inst:
 
 no_dcbz32_off:
 
+BEGIN_FTR_SECTION
+	/* Save guest FSCR on a FAC_UNAVAIL interrupt */
+	cmpwi	r12, BOOK3S_INTERRUPT_FAC_UNAVAIL
+	bne+	no_fscr_save
+	mfspr	r7, SPRN_FSCR
+	std	r7, SVCPU_SHADOW_FSCR(r13)
+no_fscr_save:
+	/* Restore host FSCR */
+	ld	r8, HSTATE_HOST_FSCR(r13)
+	mtspr	SPRN_FSCR, r8
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 	/*
@@ -316,23 +347,17 @@ no_dcbz32_off:
 	 * Having set up SRR0/1 with the address where we want
 	 * to continue with relocation on (potentially in module
 	 * space), we either just go straight there with rfi[d],
-	 * or we jump to an interrupt handler with bctr if there
-	 * is an interrupt to be handled first.  In the latter
-	 * case, the rfi[d] at the end of the interrupt handler
-	 * will get us back to where we want to continue.
+	 * or we jump to an interrupt handler if there is an
+	 * interrupt to be handled first.  In the latter case,
+	 * the rfi[d] at the end of the interrupt handler will
+	 * get us back to where we want to continue.
 	 */
-
-	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
-	beq	1f
-	cmpwi	r12, BOOK3S_INTERRUPT_DECREMENTER
-	beq	1f
-	cmpwi	r12, BOOK3S_INTERRUPT_PERFMON
-1:	mtctr	r12
 
 	/* Register usage at this point:
 	 *
 	 * R1       = host R1
 	 * R2       = host R2
+	 * R10      = raw exit handler id
 	 * R12      = exit handler id
 	 * R13      = shadow vcpu (32-bit) or PACA (64-bit)
 	 * SVCPU.*  = guest *
@@ -342,12 +367,27 @@ no_dcbz32_off:
 	PPC_LL	r6, HSTATE_HOST_MSR(r13)
 	PPC_LL	r8, HSTATE_VMHANDLER(r13)
 
-	/* Restore host msr -> SRR1 */
+#ifdef CONFIG_PPC64
+BEGIN_FTR_SECTION
+	beq	cr1, 1f
+	mtspr	SPRN_HSRR1, r6
+	mtspr	SPRN_HSRR0, r8
+END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
+#endif
+1:	/* Restore host msr -> SRR1 */
 	mtsrr1	r6
 	/* Load highmem handler address */
 	mtsrr0	r8
 
 	/* RFI into the highmem handler, or jump to interrupt handler */
-	beqctr
+	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
+	beqa	BOOK3S_INTERRUPT_EXTERNAL
+	cmpwi	r12, BOOK3S_INTERRUPT_DECREMENTER
+	beqa	BOOK3S_INTERRUPT_DECREMENTER
+	cmpwi	r12, BOOK3S_INTERRUPT_PERFMON
+	beqa	BOOK3S_INTERRUPT_PERFMON
+	cmpwi	r12, BOOK3S_INTERRUPT_DOORBELL
+	beqa	BOOK3S_INTERRUPT_DOORBELL
+
 	RFI
 kvmppc_handler_trampoline_exit_end:

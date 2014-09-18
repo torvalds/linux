@@ -3,12 +3,12 @@
  * Licensed under the GPL
  */
 
-#include "linux/init.h"
-#include "linux/bootmem.h"
-#include "linux/initrd.h"
-#include "asm/types.h"
-#include "init.h"
-#include "os.h"
+#include <linux/init.h>
+#include <linux/bootmem.h>
+#include <linux/initrd.h>
+#include <asm/types.h>
+#include <init.h>
+#include <os.h>
 
 /* Changed by uml_initrd_setup, which is a setup */
 static char *initrd __initdata = NULL;

@@ -54,13 +54,6 @@ _GLOBAL(add_reloc_offset)
 	.align	3
 2:	PPC_LONG 1b
 
-_GLOBAL(kernel_execve)
-	li	r0,__NR_execve
-	sc
-	bnslr
-	neg	r3,r3
-	blr
-
 _GLOBAL(setjmp)
 	mflr	r0
 	PPC_STL	r0,0(r3)

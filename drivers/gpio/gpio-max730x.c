@@ -160,17 +160,13 @@ static void max7301_set(struct gpio_chip *chip, unsigned offset, int value)
 	mutex_unlock(&ts->lock);
 }
 
-int __devinit __max730x_probe(struct max7301 *ts)
+int __max730x_probe(struct max7301 *ts)
 {
 	struct device *dev = ts->dev;
 	struct max7301_platform_data *pdata;
 	int i, ret;
 
-	pdata = dev->platform_data;
-	if (!pdata || !pdata->base) {
-		dev_err(dev, "incorrect or missing platform data\n");
-		return -EINVAL;
-	}
+	pdata = dev_get_platdata(dev);
 
 	mutex_init(&ts->lock);
 	dev_set_drvdata(dev, ts);
@@ -178,7 +174,12 @@ int __devinit __max730x_probe(struct max7301 *ts)
 	/* Power up the chip and disable IRQ output */
 	ts->write(dev, 0x04, 0x01);
 
-	ts->input_pullup_active = pdata->input_pullup_active;
+	if (pdata) {
+		ts->input_pullup_active = pdata->input_pullup_active;
+		ts->chip.base = pdata->base;
+	} else {
+		ts->chip.base = -1;
+	}
 	ts->chip.label = dev->driver->name;
 
 	ts->chip.direction_input = max7301_direction_input;
@@ -186,9 +187,8 @@ int __devinit __max730x_probe(struct max7301 *ts)
 	ts->chip.direction_output = max7301_direction_output;
 	ts->chip.set = max7301_set;
 
-	ts->chip.base = pdata->base;
 	ts->chip.ngpio = PIN_NUMBER;
-	ts->chip.can_sleep = 1;
+	ts->chip.can_sleep = true;
 	ts->chip.dev = dev;
 	ts->chip.owner = THIS_MODULE;
 
@@ -220,33 +220,24 @@ int __devinit __max730x_probe(struct max7301 *ts)
 	return ret;
 
 exit_destroy:
-	dev_set_drvdata(dev, NULL);
 	mutex_destroy(&ts->lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__max730x_probe);
 
-int __devexit __max730x_remove(struct device *dev)
+int __max730x_remove(struct device *dev)
 {
 	struct max7301 *ts = dev_get_drvdata(dev);
-	int ret;
 
 	if (ts == NULL)
 		return -ENODEV;
 
-	dev_set_drvdata(dev, NULL);
-
 	/* Power down the chip and disable IRQ output */
 	ts->write(dev, 0x04, 0x00);
-
-	ret = gpiochip_remove(&ts->chip);
-	if (!ret) {
-		mutex_destroy(&ts->lock);
-		kfree(ts);
-	} else
-		dev_err(dev, "Failed to remove GPIO controller: %d\n", ret);
-
-	return ret;
+	gpiochip_remove(&ts->chip);
+	mutex_destroy(&ts->lock);
+	kfree(ts);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(__max730x_remove);
 

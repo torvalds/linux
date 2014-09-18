@@ -41,7 +41,6 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/time.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -904,7 +903,7 @@ static int stir_net_open(struct net_device *netdev)
 	sprintf(hwname, "usb#%d", stir->usbdev->devnum);
 	stir->irlap = irlap_open(netdev, &stir->qos, hwname);
 	if (!stir->irlap) {
-		err("stir4200: irlap_open failed");
+		dev_err(&stir->usbdev->dev, "irlap_open failed\n");
 		goto err_out5;
 	}
 
@@ -913,7 +912,7 @@ static int stir_net_open(struct net_device *netdev)
 				   "%s", stir->netdev->name);
         if (IS_ERR(stir->thread)) {
                 err = PTR_ERR(stir->thread);
-		err("stir4200: unable to start kernel thread");
+		dev_err(&stir->usbdev->dev, "unable to start kernel thread\n");
 		goto err_out6;
 	}
 
@@ -1042,7 +1041,7 @@ static int stir_probe(struct usb_interface *intf,
 
 	ret = usb_reset_configuration(dev);
 	if (ret != 0) {
-		err("stir4200: usb reset configuration failed");
+		dev_err(&intf->dev, "usb reset configuration failed\n");
 		goto err_out2;
 	}
 

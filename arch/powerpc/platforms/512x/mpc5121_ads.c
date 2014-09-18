@@ -42,7 +42,8 @@ static void __init mpc5121_ads_setup_arch(void)
 	for_each_compatible_node(np, "pci", "fsl,mpc5121-pci")
 		mpc83xx_add_bridge(np);
 #endif
-	mpc512x_setup_diu();
+
+	mpc512x_setup_arch();
 }
 
 static void __init mpc5121_ads_init_IRQ(void)
@@ -66,7 +67,7 @@ define_machine(mpc5121_ads) {
 	.probe			= mpc5121_ads_probe,
 	.setup_arch		= mpc5121_ads_setup_arch,
 	.init			= mpc512x_init,
-	.init_early		= mpc512x_init_diu,
+	.init_early		= mpc512x_init_early,
 	.init_IRQ		= mpc5121_ads_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.calibrate_decr		= generic_calibrate_decr,

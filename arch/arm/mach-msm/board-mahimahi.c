@@ -22,19 +22,19 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/memblock.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/setup.h>
 
-#include <mach/board.h>
 #include <mach/hardware.h>
-#include <mach/system.h>
 
 #include "board-mahimahi.h"
 #include "devices.h"
 #include "proc_comm.h"
+#include "common.h"
 
 static uint debug_uart;
 
@@ -53,16 +53,10 @@ static void __init mahimahi_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
-static void __init mahimahi_fixup(struct tag *tags, char **cmdline,
-				  struct meminfo *mi)
+static void __init mahimahi_fixup(struct tag *tags, char **cmdline)
 {
-	mi->nr_banks = 2;
-	mi->bank[0].start = PHYS_OFFSET;
-	mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
-	mi->bank[0].size = (219*1024*1024);
-	mi->bank[1].start = MSM_HIGHMEM_BASE;
-	mi->bank[1].node = PHYS_TO_NID(MSM_HIGHMEM_BASE);
-	mi->bank[1].size = MSM_HIGHMEM_SIZE;
+	memblock_add(PHYS_OFFSET, 219*SZ_1M);
+	memblock_add(MSM_HIGHMEM_BASE, MSM_HIGHMEM_SIZE);
 }
 
 static void __init mahimahi_map_io(void)
@@ -71,7 +65,12 @@ static void __init mahimahi_map_io(void)
 	msm_clock_init();
 }
 
-extern struct sys_timer msm_timer;
+static void __init mahimahi_init_late(void)
+{
+	smd_debugfs_init();
+}
+
+void msm_timer_init(void);
 
 MACHINE_START(MAHIMAHI, "mahimahi")
 	.atag_offset	= 0x100,
@@ -79,5 +78,6 @@ MACHINE_START(MAHIMAHI, "mahimahi")
 	.map_io		= mahimahi_map_io,
 	.init_irq	= msm_init_irq,
 	.init_machine	= mahimahi_init,
-	.timer		= &msm_timer,
+	.init_late	= mahimahi_init_late,
+	.init_time	= msm_timer_init,
 MACHINE_END

@@ -101,7 +101,7 @@ static int lbs_mesh_config(struct lbs_private *priv, uint16_t action,
 
 	switch (action) {
 	case CMD_ACT_MESH_CONFIG_START:
-		ie->id = WLAN_EID_GENERIC;
+		ie->id = WLAN_EID_VENDOR_SPECIFIC;
 		ie->val.oui[0] = 0x00;
 		ie->val.oui[1] = 0x50;
 		ie->val.oui[2] = 0x43;
@@ -131,16 +131,13 @@ static int lbs_mesh_config(struct lbs_private *priv, uint16_t action,
 
 int lbs_mesh_set_channel(struct lbs_private *priv, u8 channel)
 {
+	priv->mesh_channel = channel;
 	return lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START, channel);
 }
 
 static uint16_t lbs_mesh_get_channel(struct lbs_private *priv)
 {
-	struct wireless_dev *mesh_wdev = priv->mesh_dev->ieee80211_ptr;
-	if (mesh_wdev->channel)
-		return mesh_wdev->channel->hw_value;
-	else
-		return 1;
+	return priv->mesh_channel ?: 1;
 }
 
 /***************************************************************************
@@ -243,7 +240,7 @@ static ssize_t lbs_prb_rsp_limit_set(struct device *dev,
 	memset(&mesh_access, 0, sizeof(mesh_access));
 	mesh_access.data[0] = cpu_to_le32(CMD_ACT_SET);
 
-	if (!strict_strtoul(buf, 10, &retry_limit))
+	if (!kstrtoul(buf, 10, &retry_limit))
 		return -ENOTSUPP;
 	if (retry_limit > 15)
 		return -ENOTSUPP;
@@ -1003,7 +1000,7 @@ static int lbs_add_mesh(struct lbs_private *priv)
 		goto done;
 	}
 
-	mesh_dev = alloc_netdev(0, "msh%d", ether_setup);
+	mesh_dev = alloc_netdev(0, "msh%d", NET_NAME_UNKNOWN, ether_setup);
 	if (!mesh_dev) {
 		lbs_deb_mesh("init mshX device failed\n");
 		ret = -ENOMEM;
@@ -1020,7 +1017,7 @@ static int lbs_add_mesh(struct lbs_private *priv)
 
 	mesh_dev->netdev_ops = &mesh_netdev_ops;
 	mesh_dev->ethtool_ops = &lbs_ethtool_ops;
-	memcpy(mesh_dev->dev_addr, priv->dev->dev_addr, ETH_ALEN);
+	eth_hw_addr_inherit(mesh_dev, priv->dev);
 
 	SET_NETDEV_DEV(priv->mesh_dev, priv->dev->dev.parent);
 

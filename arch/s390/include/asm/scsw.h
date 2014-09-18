@@ -1,7 +1,7 @@
 /*
  *  Helper functions for scsw access.
  *
- *    Copyright IBM Corp. 2008,2009
+ *    Copyright IBM Corp. 2008, 2012
  *    Author(s): Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
 
@@ -9,7 +9,7 @@
 #define _ASM_S390_SCSW_H_
 
 #include <linux/types.h>
-#include <asm/chsc.h>
+#include <asm/css_chars.h>
 #include <asm/cio.h>
 
 /**
@@ -100,14 +100,46 @@ struct tm_scsw {
 } __attribute__ ((packed));
 
 /**
+ * struct eadm_scsw - subchannel status word for eadm subchannels
+ * @key: subchannel key
+ * @eswf: esw format
+ * @cc: deferred condition code
+ * @ectl: extended control
+ * @fctl: function control
+ * @actl: activity control
+ * @stctl: status control
+ * @aob: AOB address
+ * @dstat: device status
+ * @cstat: subchannel status
+ */
+struct eadm_scsw {
+	u32 key:4;
+	u32:1;
+	u32 eswf:1;
+	u32 cc:2;
+	u32:6;
+	u32 ectl:1;
+	u32:2;
+	u32 fctl:3;
+	u32 actl:7;
+	u32 stctl:5;
+	u32 aob;
+	u32 dstat:8;
+	u32 cstat:8;
+	u32:16;
+} __packed;
+
+/**
  * union scsw - subchannel status word
  * @cmd: command-mode SCSW
  * @tm: transport-mode SCSW
+ * @eadm: eadm SCSW
  */
 union scsw {
 	struct cmd_scsw cmd;
 	struct tm_scsw tm;
-} __attribute__ ((packed));
+	struct eadm_scsw eadm;
+} __packed;
 
 #define SCSW_FCTL_CLEAR_FUNC	 0x1
 #define SCSW_FCTL_HALT_FUNC	 0x2

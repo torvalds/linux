@@ -1,0 +1,140 @@
+What:		/sys/devices/system/edac/mc/mc*/reset_counters
+Date:		January 2006
+Contact:	linux-edac@vger.kernel.org
+Description:	This write-only control file will zero all the statistical
+		counters for UE and CE errors on the given memory controller.
+		Zeroing the counters will also reset the timer indicating how
+		long since the last counter were reset. This is useful for
+		computing errors/time.  Since the counters are always reset
+		at driver initialization time, no module/kernel parameter
+		is available.
+
+What:		/sys/devices/system/edac/mc/mc*/seconds_since_reset
+Date:		January 2006
+Contact:	linux-edac@vger.kernel.org
+Description:	This attribute file displays how many seconds have elapsed
+		since the last counter reset. This can be used with the error
+		counters to measure error rates.
+
+What:		/sys/devices/system/edac/mc/mc*/mc_name
+Date:		January 2006
+Contact:	linux-edac@vger.kernel.org
+Description:	This attribute file displays the type of memory controller
+		that is being utilized.
+
+What:		/sys/devices/system/edac/mc/mc*/size_mb
+Date:		January 2006
+Contact:	linux-edac@vger.kernel.org
+Description:	This attribute file displays, in count of megabytes, of memory
+		that this memory controller manages.
+
+What:		/sys/devices/system/edac/mc/mc*/ue_count
+Date:		January 2006
+Contact:	linux-edac@vger.kernel.org
+Description:	This attribute file displays the total count of uncorrectable
+		errors that have occurred on this memory controller. If
+		panic_on_ue is set, this counter will not have a chance to
+		increment, since EDAC will panic the system
+
+What:		/sys/devices/system/edac/mc/mc*/ue_noinfo_count
+Date:		January 2006
+Contact:	linux-edac@vger.kernel.org
+Description:	This attribute file displays the number of UEs that have
+		occurred on this memory controller with no information as to
+		which DIMM slot is having errors.
+
+What:		/sys/devices/system/edac/mc/mc*/ce_count
+Date:		January 2006
+Contact:	linux-edac@vger.kernel.org
+Description:	This attribute file displays the total count of correctable
+		errors that have occurred on this memory controller. This
+		count is very important to examine. CEs provide early
+		indications that a DIMM is beginning to fail. This count
+		field should be monitored for non-zero values and report
+		such information to the system administrator.
+
+What:		/sys/devices/system/edac/mc/mc*/ce_noinfo_count
+Date:		January 2006
+Contact:	linux-edac@vger.kernel.org
+Description:	This attribute file displays the number of CEs that
+		have occurred on this memory controller wherewith no
+		information as to which DIMM slot is having errors. Memory is
+		handicapped, but operational, yet no information is available
+		to indicate which slot the failing memory is in. This count
+		field should be also be monitored for non-zero values.
+
+What:		/sys/devices/system/edac/mc/mc*/sdram_scrub_rate
+Date:		February 2007
+Contact:	linux-edac@vger.kernel.org
+Description:	Read/Write attribute file that controls memory scrubbing.
+		The scrubbing rate used by the memory controller is set by
+		writing a minimum bandwidth in bytes/sec to the attribute file.
+		The rate will be translated to an internal value that gives at
+		least the specified rate.
+		Reading the file will return the actual scrubbing rate employed.
+		If configuration fails or memory scrubbing is not implemented,
+		the value of the attribute file will be -1.
+
+What:		/sys/devices/system/edac/mc/mc*/max_location
+Date:		April 2012
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+		linux-edac@vger.kernel.org
+Description:	This attribute file displays the information about the last
+		available memory slot in this memory controller. It is used by
+		userspace tools in order to display the memory filling layout.
+
+What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/size
+Date:		April 2012
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+		linux-edac@vger.kernel.org
+Description:	This attribute file will display the size of dimm or rank.
+		For dimm*/size, this is the size, in MB of the DIMM memory
+		stick. For rank*/size, this is the size, in MB for one rank
+		of the DIMM memory stick. On single rank memories (1R), this
+		is also the total size of the dimm. On dual rank (2R) memories,
+		this is half the size of the total DIMM memories.
+
+What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_dev_type
+Date:		April 2012
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+		linux-edac@vger.kernel.org
+Description:	This attribute file will display what type of DRAM device is
+		being utilized on this DIMM (x1, x2, x4, x8, ...).
+
+What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_edac_mode
+Date:		April 2012
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+		linux-edac@vger.kernel.org
+Description:	This attribute file will display what type of Error detection
+		and correction is being utilized. For example: S4ECD4ED would
+		mean a Chipkill with x4 DRAM.
+
+What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_label
+Date:		April 2012
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+		linux-edac@vger.kernel.org
+Description:	This control file allows this DIMM to have a label assigned
+		to it. With this label in the module, when errors occur
+		the output can provide the DIMM label in the system log.
+		This becomes vital for panic events to isolate the
+		cause of the UE event.
+		DIMM Labels must be assigned after booting, with information
+		that correctly identifies the physical slot with its
+		silk screen label. This information is currently very
+		motherboard specific and determination of this information
+		must occur in userland at this time.
+
+What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_location
+Date:		April 2012
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+		linux-edac@vger.kernel.org
+Description:	This attribute file will display the location (csrow/channel,
+		branch/channel/slot or channel/slot) of the dimm or rank.
+
+What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_mem_type
+Date:		April 2012
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+		linux-edac@vger.kernel.org
+Description:	This attribute file will display what type of memory is
+		currently on this csrow. Normally, either buffered or
+		unbuffered memory (for example, Unbuffered-DDR3).

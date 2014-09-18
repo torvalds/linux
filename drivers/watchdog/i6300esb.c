@@ -36,7 +36,6 @@
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/uaccess.h>
@@ -334,7 +333,7 @@ static struct miscdevice esb_miscdev = {
 /*
  * Data for PCI driver interface
  */
-static DEFINE_PCI_DEVICE_TABLE(esb_pci_tbl) = {
+static const struct pci_device_id esb_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB_9), },
 	{ 0, },                 /* End of list */
 };
@@ -344,7 +343,7 @@ MODULE_DEVICE_TABLE(pci, esb_pci_tbl);
  *      Init & exit routines
  */
 
-static unsigned char __devinit esb_getdevice(struct pci_dev *pdev)
+static unsigned char esb_getdevice(struct pci_dev *pdev)
 {
 	if (pci_enable_device(pdev)) {
 		pr_err("failed to enable device\n");
@@ -375,7 +374,7 @@ err_devput:
 	return 0;
 }
 
-static void __devinit esb_initdevice(void)
+static void esb_initdevice(void)
 {
 	u8 val1;
 	u16 val2;
@@ -416,7 +415,7 @@ static void __devinit esb_initdevice(void)
 	esb_timer_set_heartbeat(heartbeat);
 }
 
-static int __devinit esb_probe(struct pci_dev *pdev,
+static int esb_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	int ret;
@@ -465,7 +464,7 @@ err_unmap:
 	return ret;
 }
 
-static void __devexit esb_remove(struct pci_dev *pdev)
+static void esb_remove(struct pci_dev *pdev)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -488,25 +487,12 @@ static struct pci_driver esb_driver = {
 	.name		= ESB_MODULE_NAME,
 	.id_table	= esb_pci_tbl,
 	.probe          = esb_probe,
-	.remove         = __devexit_p(esb_remove),
+	.remove         = esb_remove,
 	.shutdown       = esb_shutdown,
 };
 
-static int __init watchdog_init(void)
-{
-	return pci_register_driver(&esb_driver);
-}
-
-static void __exit watchdog_cleanup(void)
-{
-	pci_unregister_driver(&esb_driver);
-	pr_info("Watchdog Module Unloaded\n");
-}
-
-module_init(watchdog_init);
-module_exit(watchdog_cleanup);
+module_pci_driver(esb_driver);
 
 MODULE_AUTHOR("Ross Biro and David Härdeman");
 MODULE_DESCRIPTION("Watchdog driver for Intel 6300ESB chipsets");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

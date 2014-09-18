@@ -19,8 +19,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *   along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -38,7 +37,7 @@ MODULE_DESCRIPTION("DNS Resolver");
 MODULE_AUTHOR("Wang Lei");
 MODULE_LICENSE("GPL");
 
-unsigned dns_resolver_debug;
+unsigned int dns_resolver_debug;
 module_param_named(debug, dns_resolver_debug, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(debug, "DNS Resolver debugging mask");
 
@@ -47,7 +46,7 @@ const struct cred *dns_resolver_cache;
 #define	DNS_ERRORNO_OPTION	"dnserror"
 
 /*
- * Instantiate a user defined key for dns_resolver.
+ * Preparse instantiation data for a dns_resolver key.
  *
  * The data must be a NUL-terminated string, with the NUL char accounted in
  * datalen.
@@ -59,17 +58,15 @@ const struct cred *dns_resolver_cache;
  *        "ip1,ip2,...#foo=bar"
  */
 static int
-dns_resolver_instantiate(struct key *key, const void *_data, size_t datalen)
+dns_resolver_preparse(struct key_preparsed_payload *prep)
 {
 	struct user_key_payload *upayload;
 	unsigned long derrno;
 	int ret;
-	size_t result_len = 0;
-	const char *data = _data, *end, *opt;
+	int datalen = prep->datalen, result_len = 0;
+	const char *data = prep->data, *end, *opt;
 
-	kenter("%%%d,%s,'%*.*s',%zu",
-	       key->serial, key->description,
-	       (int)datalen, (int)datalen, data, datalen);
+	kenter("'%*.*s',%u", datalen, datalen, data, datalen);
 
 	if (datalen <= 1 || !data || data[datalen - 1] != '\0')
 		return -EINVAL;
@@ -96,8 +93,7 @@ dns_resolver_instantiate(struct key *key, const void *_data, size_t datalen)
 			opt_len = next_opt - opt;
 			if (!opt_len) {
 				printk(KERN_WARNING
-				       "Empty option to dns_resolver key %d\n",
-				       key->serial);
+				       "Empty option to dns_resolver key\n");
 				return -EINVAL;
 			}
 
@@ -118,7 +114,7 @@ dns_resolver_instantiate(struct key *key, const void *_data, size_t datalen)
 				if (opt_vlen <= 0)
 					goto bad_option_value;
 
-				ret = strict_strtoul(eq, 10, &derrno);
+				ret = kstrtoul(eq, 10, &derrno);
 				if (ret < 0)
 					goto bad_option_value;
 
@@ -126,30 +122,28 @@ dns_resolver_instantiate(struct key *key, const void *_data, size_t datalen)
 					goto bad_option_value;
 
 				kdebug("dns error no. = %lu", derrno);
-				key->type_data.x[0] = -derrno;
+				prep->type_data[0] = ERR_PTR(-derrno);
 				continue;
 			}
 
 		bad_option_value:
 			printk(KERN_WARNING
-			       "Option '%*.*s' to dns_resolver key %d:"
+			       "Option '%*.*s' to dns_resolver key:"
 			       " bad/missing value\n",
-			       opt_nlen, opt_nlen, opt, key->serial);
+			       opt_nlen, opt_nlen, opt);
 			return -EINVAL;
 		} while (opt = next_opt + 1, opt < end);
 	}
 
 	/* don't cache the result if we're caching an error saying there's no
 	 * result */
-	if (key->type_data.x[0]) {
-		kleave(" = 0 [h_error %ld]", key->type_data.x[0]);
+	if (prep->type_data[0]) {
+		kleave(" = 0 [h_error %ld]", PTR_ERR(prep->type_data[0]));
 		return 0;
 	}
 
 	kdebug("store result");
-	ret = key_payload_reserve(key, result_len);
-	if (ret < 0)
-		return -EINVAL;
+	prep->quotalen = result_len;
 
 	upayload = kmalloc(sizeof(*upayload) + result_len + 1, GFP_KERNEL);
 	if (!upayload) {
@@ -160,10 +154,20 @@ dns_resolver_instantiate(struct key *key, const void *_data, size_t datalen)
 	upayload->datalen = result_len;
 	memcpy(upayload->data, data, result_len);
 	upayload->data[result_len] = '\0';
-	rcu_assign_pointer(key->payload.data, upayload);
 
+	prep->payload[0] = upayload;
 	kleave(" = 0");
 	return 0;
+}
+
+/*
+ * Clean up the preparse data
+ */
+static void dns_resolver_free_preparse(struct key_preparsed_payload *prep)
+{
+	pr_devel("==>%s()\n", __func__);
+
+	kfree(prep->payload[0]);
 }
 
 /*
@@ -235,7 +239,9 @@ static long dns_resolver_read(const struct key *key,
 
 struct key_type key_type_dns_resolver = {
 	.name		= "dns_resolver",
-	.instantiate	= dns_resolver_instantiate,
+	.preparse	= dns_resolver_preparse,
+	.free_preparse	= dns_resolver_free_preparse,
+	.instantiate	= generic_key_instantiate,
 	.match		= dns_resolver_match,
 	.revoke		= user_revoke,
 	.destroy	= user_destroy,
@@ -249,9 +255,6 @@ static int __init init_dns_resolver(void)
 	struct key *keyring;
 	int ret;
 
-	printk(KERN_NOTICE "Registering the %s key type\n",
-	       key_type_dns_resolver.name);
-
 	/* create an override credential set with a special thread keyring in
 	 * which DNS requests are cached
 	 *
@@ -262,18 +265,15 @@ static int __init init_dns_resolver(void)
 	if (!cred)
 		return -ENOMEM;
 
-	keyring = key_alloc(&key_type_keyring, ".dns_resolver", 0, 0, cred,
-			    (KEY_POS_ALL & ~KEY_POS_SETATTR) |
-			    KEY_USR_VIEW | KEY_USR_READ,
-			    KEY_ALLOC_NOT_IN_QUOTA);
+	keyring = keyring_alloc(".dns_resolver",
+				GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred,
+				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
+				KEY_USR_VIEW | KEY_USR_READ,
+				KEY_ALLOC_NOT_IN_QUOTA, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto failed_put_cred;
 	}
-
-	ret = key_instantiate_and_link(keyring, NULL, 0, NULL, NULL);
-	if (ret < 0)
-		goto failed_put_key;
 
 	ret = register_key_type(&key_type_dns_resolver);
 	if (ret < 0)
@@ -301,10 +301,9 @@ static void __exit exit_dns_resolver(void)
 	key_revoke(dns_resolver_cache->thread_keyring);
 	unregister_key_type(&key_type_dns_resolver);
 	put_cred(dns_resolver_cache);
-	printk(KERN_NOTICE "Unregistered %s key type\n",
-	       key_type_dns_resolver.name);
 }
 
 module_init(init_dns_resolver)
 module_exit(exit_dns_resolver)
 MODULE_LICENSE("GPL");
+

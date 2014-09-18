@@ -6,6 +6,8 @@
 # for more details.
 #
 
+KBUILD_DEFCONFIG := dsk6455_defconfig
+
 cflags-y += -mno-dsbt -msdata=none
 
 cflags-$(CONFIG_C6X_BIG_KERNEL) += -mlong-calls
@@ -39,7 +41,7 @@ DTB:=$(subst dtbImage.,,$(filter dtbImage.%, $(MAKECMDGOALS)))
 export DTB
 
 ifneq ($(DTB),)
-core-y	+= $(boot)/
+core-y	+= $(boot)/dts/
 endif
 
 # With make 3.82 we cannot mix normal and wildcard targets

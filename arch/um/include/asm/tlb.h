@@ -45,10 +45,12 @@ static inline void init_tlb_gather(struct mmu_gather *tlb)
 }
 
 static inline void
-tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int full_mm_flush)
+tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end)
 {
 	tlb->mm = mm;
-	tlb->fullmm = full_mm_flush;
+	tlb->start = start;
+	tlb->end = end;
+	tlb->fullmm = !(start | (end+1));
 
 	init_tlb_gather(tlb);
 }
@@ -57,13 +59,25 @@ extern void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 			       unsigned long end);
 
 static inline void
+tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
+{
+	flush_tlb_mm_range(tlb->mm, tlb->start, tlb->end);
+}
+
+static inline void
+tlb_flush_mmu_free(struct mmu_gather *tlb)
+{
+	init_tlb_gather(tlb);
+}
+
+static inline void
 tlb_flush_mmu(struct mmu_gather *tlb)
 {
 	if (!tlb->need_flush)
 		return;
 
-	flush_tlb_mm_range(tlb->mm, tlb->start, tlb->end);
-	init_tlb_gather(tlb);
+	tlb_flush_mmu_tlbonly(tlb);
+	tlb_flush_mmu_free(tlb);
 }
 
 /* tlb_finish_mmu

@@ -193,7 +193,7 @@ static void ps2_close(struct serio *io)
 /*
  * Clear the input buffer.
  */
-static void __devinit ps2_clear_input(struct ps2if *ps2if)
+static void ps2_clear_input(struct ps2if *ps2if)
 {
 	int maxread = 100;
 
@@ -203,7 +203,7 @@ static void __devinit ps2_clear_input(struct ps2if *ps2if)
 	}
 }
 
-static unsigned int __devinit ps2_test_one(struct ps2if *ps2if,
+static unsigned int ps2_test_one(struct ps2if *ps2if,
 					   unsigned int mask)
 {
 	unsigned int val;
@@ -220,7 +220,7 @@ static unsigned int __devinit ps2_test_one(struct ps2if *ps2if,
  * Test the keyboard interface.  We basically check to make sure that
  * we can drive each line to the keyboard independently of each other.
  */
-static int __devinit ps2_test(struct ps2if *ps2if)
+static int ps2_test(struct ps2if *ps2if)
 {
 	unsigned int stat;
 	int ret = 0;
@@ -251,7 +251,7 @@ static int __devinit ps2_test(struct ps2if *ps2if)
 /*
  * Add one device to this driver.
  */
-static int __devinit ps2_probe(struct sa1111_dev *dev)
+static int ps2_probe(struct sa1111_dev *dev)
 {
 	struct ps2if *ps2if;
 	struct serio *serio;
@@ -334,7 +334,7 @@ static int __devinit ps2_probe(struct sa1111_dev *dev)
 /*
  * Remove one device from this driver.
  */
-static int __devexit ps2_remove(struct sa1111_dev *dev)
+static int ps2_remove(struct sa1111_dev *dev)
 {
 	struct ps2if *ps2if = sa1111_get_drvdata(dev);
 
@@ -357,7 +357,7 @@ static struct sa1111_driver ps2_driver = {
 	},
 	.devid		= SA1111_DEVID_PS2,
 	.probe		= ps2_probe,
-	.remove		= __devexit_p(ps2_remove),
+	.remove		= ps2_remove,
 };
 
 static int __init ps2_init(void)

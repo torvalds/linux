@@ -15,52 +15,12 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-
 #ifndef __ASM_OPENRISC_ELF_H
 #define __ASM_OPENRISC_ELF_H
 
-/*
- * ELF register definitions..
- */
+
 #include <linux/types.h>
-#include <linux/ptrace.h>
-
-
-/* The OR1K relocation types... not all relevant for module loader */
-#define R_OR32_NONE	0
-#define R_OR32_32	1
-#define R_OR32_16	2
-#define R_OR32_8	3
-#define R_OR32_CONST	4
-#define R_OR32_CONSTH	5
-#define R_OR32_JUMPTARG	6
-#define R_OR32_VTINHERIT 7
-#define R_OR32_VTENTRY	8
-
-typedef unsigned long elf_greg_t;
-
-/*
- * Note that NGREG is defined to ELF_NGREG in include/linux/elfcore.h, and is
- * thus exposed to user-space.
- */
-#define ELF_NGREG (sizeof(struct user_regs_struct) / sizeof(elf_greg_t))
-typedef elf_greg_t elf_gregset_t[ELF_NGREG];
-
-/* A placeholder; OR32 does not have fp support yes, so no fp regs for now.  */
-typedef unsigned long elf_fpregset_t;
-
-/* This should be moved to include/linux/elf.h */
-#define EM_OR32         0x8472
-#define EM_OPENRISC     92     /* OpenRISC 32-bit embedded processor */
-
-/*
- * These are used to set parameters in the core dumps.
- */
-#define ELF_ARCH	EM_OR32
-#define ELF_CLASS	ELFCLASS32
-#define ELF_DATA	ELFDATA2MSB
-
-#ifdef __KERNEL__
+#include <uapi/asm/elf.h>
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -102,7 +62,4 @@ extern void dump_elf_thread(elf_greg_t *dest, struct pt_regs *pt);
 
 #define ELF_PLATFORM	(NULL)
 
-#define SET_PERSONALITY(ex) set_personality(PER_LINUX)
-
-#endif /* __KERNEL__ */
 #endif

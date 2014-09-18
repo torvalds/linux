@@ -7,16 +7,10 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/file.h>
-#include <linux/skbuff.h>
 #include <linux/uio.h>
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
 #include <linux/atomic.h>
-
-/* This is for zerocopy, used buffer len is set to 1 when lower device DMA
- * done */
-#define VHOST_DMA_DONE_LEN	1
-#define VHOST_DMA_CLEAR_LEN	0
 
 struct vhost_device;
 
@@ -43,12 +37,17 @@ struct vhost_poll {
 	struct vhost_dev	 *dev;
 };
 
+void vhost_work_init(struct vhost_work *work, vhost_work_fn_t fn);
+void vhost_work_queue(struct vhost_dev *dev, struct vhost_work *work);
+
 void vhost_poll_init(struct vhost_poll *poll, vhost_work_fn_t fn,
 		     unsigned long mask, struct vhost_dev *dev);
-void vhost_poll_start(struct vhost_poll *poll, struct file *file);
+int vhost_poll_start(struct vhost_poll *poll, struct file *file);
 void vhost_poll_stop(struct vhost_poll *poll);
 void vhost_poll_flush(struct vhost_poll *poll);
 void vhost_poll_queue(struct vhost_poll *poll);
+void vhost_work_flush(struct vhost_dev *dev, struct vhost_work *work);
+long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp);
 
 struct vhost_log {
 	u64 addr;
@@ -56,16 +55,6 @@ struct vhost_log {
 };
 
 struct vhost_virtqueue;
-
-struct vhost_ubuf_ref {
-	struct kref kref;
-	wait_queue_head_t wait;
-	struct vhost_virtqueue *vq;
-};
-
-struct vhost_ubuf_ref *vhost_ubuf_alloc(struct vhost_virtqueue *, bool zcopy);
-void vhost_ubuf_put(struct vhost_ubuf_ref *);
-void vhost_ubuf_put_and_wait(struct vhost_ubuf_ref *);
 
 /* The virtqueue structure describes a queue attached to a device. */
 struct vhost_virtqueue {
@@ -112,46 +101,22 @@ struct vhost_virtqueue {
 	u64 log_addr;
 
 	struct iovec iov[UIO_MAXIOV];
-	/* hdr is used to store the virtio header.
-	 * Since each iovec has >= 1 byte length, we never need more than
-	 * header length entries to store the header. */
-	struct iovec hdr[sizeof(struct virtio_net_hdr_mrg_rxbuf)];
 	struct iovec *indirect;
-	size_t vhost_hlen;
-	size_t sock_hlen;
 	struct vring_used_elem *heads;
-	/* We use a kind of RCU to access private pointer.
-	 * All readers access it from worker, which makes it possible to
-	 * flush the vhost_work instead of synchronize_rcu. Therefore readers do
-	 * not need to call rcu_read_lock/rcu_read_unlock: the beginning of
-	 * vhost_work execution acts instead of rcu_read_lock() and the end of
-	 * vhost_work execution acts instead of rcu_read_unlock().
-	 * Writers use virtqueue mutex. */
-	void __rcu *private_data;
+	/* Protected by virtqueue mutex. */
+	struct vhost_memory *memory;
+	void *private_data;
+	unsigned acked_features;
 	/* Log write descriptors */
 	void __user *log_base;
 	struct vhost_log *log;
-	/* vhost zerocopy support fields below: */
-	/* last used idx for outstanding DMA zerocopy buffers */
-	int upend_idx;
-	/* first used idx for DMA done zerocopy buffers */
-	int done_idx;
-	/* an array of userspace buffers info */
-	struct ubuf_info *ubuf_info;
-	/* Reference counting for outstanding ubufs.
-	 * Protected by vq mutex. Writers must also take device mutex. */
-	struct vhost_ubuf_ref *ubufs;
 };
 
 struct vhost_dev {
-	/* Readers use RCU to access memory table pointer
-	 * log base pointer and features.
-	 * Writers use mutex below.*/
-	struct vhost_memory __rcu *memory;
+	struct vhost_memory *memory;
 	struct mm_struct *mm;
 	struct mutex mutex;
-	unsigned acked_features;
-	struct vhost_virtqueue *vqs;
+	struct vhost_virtqueue **vqs;
 	int nvqs;
 	struct file *log_file;
 	struct eventfd_ctx *log_ctx;
@@ -160,15 +125,20 @@ struct vhost_dev {
 	struct task_struct *worker;
 };
 
-long vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue *vqs, int nvqs);
+void vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue **vqs, int nvqs);
+long vhost_dev_set_owner(struct vhost_dev *dev);
+bool vhost_dev_has_owner(struct vhost_dev *dev);
 long vhost_dev_check_owner(struct vhost_dev *);
-long vhost_dev_reset_owner(struct vhost_dev *);
+struct vhost_memory *vhost_dev_reset_owner_prepare(void);
+void vhost_dev_reset_owner(struct vhost_dev *, struct vhost_memory *);
 void vhost_dev_cleanup(struct vhost_dev *, bool locked);
-long vhost_dev_ioctl(struct vhost_dev *, unsigned int ioctl, unsigned long arg);
+void vhost_dev_stop(struct vhost_dev *);
+long vhost_dev_ioctl(struct vhost_dev *, unsigned int ioctl, void __user *argp);
+long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp);
 int vhost_vq_access_ok(struct vhost_virtqueue *vq);
 int vhost_log_access_ok(struct vhost_dev *);
 
-int vhost_get_vq_desc(struct vhost_dev *, struct vhost_virtqueue *,
+int vhost_get_vq_desc(struct vhost_virtqueue *,
 		      struct iovec iov[], unsigned int iov_count,
 		      unsigned int *out_num, unsigned int *in_num,
 		      struct vhost_log *log, unsigned int *log_num);
@@ -188,8 +158,6 @@ bool vhost_enable_notify(struct vhost_dev *, struct vhost_virtqueue *);
 
 int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 		    unsigned int log_num, u64 len);
-void vhost_zerocopy_callback(struct ubuf_info *);
-int vhost_zerocopy_signal_used(struct vhost_virtqueue *vq);
 
 #define vq_err(vq, fmt, ...) do {                                  \
 		pr_debug(pr_fmt(fmt), ##__VA_ARGS__);       \
@@ -201,21 +169,11 @@ enum {
 	VHOST_FEATURES = (1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) |
 			 (1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
 			 (1ULL << VIRTIO_RING_F_EVENT_IDX) |
-			 (1ULL << VHOST_F_LOG_ALL) |
-			 (1ULL << VHOST_NET_F_VIRTIO_NET_HDR) |
-			 (1ULL << VIRTIO_NET_F_MRG_RXBUF),
+			 (1ULL << VHOST_F_LOG_ALL),
 };
 
-static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
+static inline int vhost_has_feature(struct vhost_virtqueue *vq, int bit)
 {
-	unsigned acked_features;
-
-	/* TODO: check that we are running from vhost_worker or dev mutex is
-	 * held? */
-	acked_features = rcu_dereference_index_check(dev->acked_features, 1);
-	return acked_features & (1 << bit);
+	return vq->acked_features & (1 << bit);
 }
-
-void vhost_enable_zcopy(int vq);
-
 #endif

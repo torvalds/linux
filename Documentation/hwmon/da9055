@@ -1,0 +1,47 @@
+Supported chips:
+  * Dialog Semiconductors DA9055 PMIC
+    Prefix: 'da9055'
+    Datasheet: Datasheet is not publicly available.
+
+Authors: David Dajun Chen <dchen@diasemi.com>
+
+Description
+-----------
+
+The DA9055 provides an Analogue to Digital Converter (ADC) with 10 bits
+resolution and track and hold circuitry combined with an analogue input
+multiplexer. The analogue input multiplexer will allow conversion of up to 5
+different inputs. The track and hold circuit ensures stable input voltages at
+the input of the ADC during the conversion.
+
+The ADC is used to measure the following inputs:
+Channel 0: VDDOUT - measurement of the system voltage
+Channel 1: ADC_IN1 - high impedance input (0 - 2.5V)
+Channel 2: ADC_IN2 - high impedance input (0 - 2.5V)
+Channel 3: ADC_IN3 - high impedance input (0 - 2.5V)
+Channel 4: Internal Tjunc. - sense (internal temp. sensor)
+
+By using sysfs attributes we can measure the system voltage VDDOUT,
+chip junction temperature and auxiliary channels voltages.
+
+Voltage Monitoring
+------------------
+
+Voltages are sampled in a AUTO mode it can be manually sampled too and results
+are stored in a 10 bit ADC.
+
+The system voltage is calculated as:
+	Milli volt = ((ADC value * 1000) / 85) + 2500
+
+The voltages on ADC channels 1, 2 and 3 are calculated as:
+	Milli volt = (ADC value * 1000) / 102
+
+Temperature Monitoring
+----------------------
+
+Temperatures are sampled by a 10 bit ADC.  Junction temperatures
+are monitored by the ADC channels.
+
+The junction temperature is calculated:
+	Degrees celsius = -0.4084 * (ADC_RES - T_OFFSET) + 307.6332
+The junction temperature attribute is supported by the driver.

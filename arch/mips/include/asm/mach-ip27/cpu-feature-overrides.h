@@ -8,6 +8,8 @@
 #ifndef __ASM_MACH_IP27_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_IP27_CPU_FEATURE_OVERRIDES_H
 
+#include <asm/cpu.h>
+
 /*
  * IP27 only comes with R10000 family processors all using the same config
  */
@@ -26,6 +28,7 @@
 #define cpu_has_dc_aliases	0
 #define cpu_has_ic_fills_f_dc	0
 #define cpu_has_dsp		0
+#define cpu_has_dsp2		0
 #define cpu_icache_snoops_remote_store	1
 #define cpu_has_mipsmt		0
 #define cpu_has_userlocal	0

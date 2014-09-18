@@ -5,23 +5,31 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1996, 97, 98, 99, 2000, 01, 03, 04, 05 by Ralf Baechle
+ * Copyright (C) 1996, 97, 98, 99, 2000, 01, 03, 04, 05, 12 by Ralf Baechle
  * Copyright (C) 1999, 2000, 01 Silicon Graphics, Inc.
  */
 #include <linux/interrupt.h>
 #include <linux/export.h>
 #include <asm/checksum.h>
-#include <asm/pgtable.h>
+#include <linux/mm.h>
 #include <asm/uaccess.h>
 #include <asm/ftrace.h>
 
 extern void *__bzero(void *__s, size_t __count);
+extern long __strncpy_from_kernel_nocheck_asm(char *__to,
+					      const char *__from, long __len);
+extern long __strncpy_from_kernel_asm(char *__to, const char *__from,
+				      long __len);
 extern long __strncpy_from_user_nocheck_asm(char *__to,
-                                            const char *__from, long __len);
+					    const char *__from, long __len);
 extern long __strncpy_from_user_asm(char *__to, const char *__from,
-                                    long __len);
+				    long __len);
+extern long __strlen_kernel_nocheck_asm(const char *s);
+extern long __strlen_kernel_asm(const char *s);
 extern long __strlen_user_nocheck_asm(const char *s);
 extern long __strlen_user_asm(const char *s);
+extern long __strnlen_kernel_nocheck_asm(const char *s);
+extern long __strnlen_kernel_asm(const char *s);
 extern long __strnlen_user_nocheck_asm(const char *s);
 extern long __strnlen_user_asm(const char *s);
 
@@ -32,24 +40,42 @@ EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
 
-EXPORT_SYMBOL(kernel_thread);
+/*
+ * Functions that operate on entire pages.  Mostly used by memory management.
+ */
+EXPORT_SYMBOL(clear_page);
+EXPORT_SYMBOL(copy_page);
 
 /*
  * Userspace access stuff.
  */
 EXPORT_SYMBOL(__copy_user);
 EXPORT_SYMBOL(__copy_user_inatomic);
+#ifdef CONFIG_EVA
+EXPORT_SYMBOL(__copy_from_user_eva);
+EXPORT_SYMBOL(__copy_in_user_eva);
+EXPORT_SYMBOL(__copy_to_user_eva);
+EXPORT_SYMBOL(__copy_user_inatomic_eva);
+#endif
 EXPORT_SYMBOL(__bzero);
+EXPORT_SYMBOL(__strncpy_from_kernel_nocheck_asm);
+EXPORT_SYMBOL(__strncpy_from_kernel_asm);
 EXPORT_SYMBOL(__strncpy_from_user_nocheck_asm);
 EXPORT_SYMBOL(__strncpy_from_user_asm);
+EXPORT_SYMBOL(__strlen_kernel_nocheck_asm);
+EXPORT_SYMBOL(__strlen_kernel_asm);
 EXPORT_SYMBOL(__strlen_user_nocheck_asm);
 EXPORT_SYMBOL(__strlen_user_asm);
+EXPORT_SYMBOL(__strnlen_kernel_nocheck_asm);
+EXPORT_SYMBOL(__strnlen_kernel_asm);
 EXPORT_SYMBOL(__strnlen_user_nocheck_asm);
 EXPORT_SYMBOL(__strnlen_user_asm);
 
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_nocheck);
-EXPORT_SYMBOL(__csum_partial_copy_user);
+EXPORT_SYMBOL(__csum_partial_copy_kernel);
+EXPORT_SYMBOL(__csum_partial_copy_to_user);
+EXPORT_SYMBOL(__csum_partial_copy_from_user);
 
 EXPORT_SYMBOL(invalid_pte_table);
 #ifdef CONFIG_FUNCTION_TRACER

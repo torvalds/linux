@@ -18,6 +18,7 @@
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/sh_eth.h>
+#include <linux/sh_intc.h>
 #include <mach/sh7763rdp.h>
 #include <asm/sh7760fb.h>
 
@@ -67,7 +68,7 @@ static struct platform_device sh7763rdp_nor_flash_device = {
  * SH-Ether
  *
  * SH Ether of SH7763 has multi IRQ handling.
- * (57,58,59 -> 57)
+ * (0x920,0x940,0x960 -> 0x920)
  */
 static struct resource sh_eth_resources[] = {
 	{
@@ -79,7 +80,7 @@ static struct resource sh_eth_resources[] = {
 		.end    = 0xFEE01FFF,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = 57,   /* irq number */
+		.start  = evt2irq(0x920),   /* irq number */
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -87,12 +88,11 @@ static struct resource sh_eth_resources[] = {
 static struct sh_eth_plat_data sh7763_eth_pdata = {
 	.phy = 1,
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
-	.register_type = SH_ETH_REG_GIGABIT,
 	.phy_interface = PHY_INTERFACE_MODE_MII,
 };
 
 static struct platform_device sh7763rdp_eth_device = {
-	.name       = "sh-eth",
+	.name       = "sh7763-gether",
 	.resource   = sh_eth_resources,
 	.num_resources  = ARRAY_SIZE(sh_eth_resources),
 	.dev        = {
@@ -213,6 +213,5 @@ static void __init sh7763rdp_setup(char **cmdline_p)
 static struct sh_machine_vector mv_sh7763rdp __initmv = {
 	.mv_name = "sh7763drp",
 	.mv_setup = sh7763rdp_setup,
-	.mv_nr_irqs = 112,
 	.mv_init_irq = init_sh7763rdp_IRQ,
 };

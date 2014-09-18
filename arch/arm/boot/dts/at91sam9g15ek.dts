@@ -1,0 +1,16 @@
+/*
+ * at91sam9g15ek.dts - Device Tree file for AT91SAM9G15-EK board
+ *
+ *  Copyright (C) 2012 Atmel,
+ *                2012 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+/dts-v1/;
+#include "at91sam9g15.dtsi"
+#include "at91sam9x5ek.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9G15-EK";
+	compatible = "atmel,at91sam9g15ek", "atmel,at91sam9x5ek", "atmel,at91sam9x5", "atmel,at91sam9";
+};

@@ -18,6 +18,7 @@
 	} while (0)
 
 extern pte_t *pkmap_page_table;
+extern pte_t *fixmap_page_table;
 
 extern void *kmap_high(struct page *page);
 extern void kunmap_high(struct page *page);
@@ -39,6 +40,13 @@ extern void kunmap_high(struct page *page);
 #if defined(CONFIG_HIGHMEM) && defined(CONFIG_CPU_CACHE_VIVT)
 #error "The sum of features in your kernel config cannot be supported together"
 #endif
+#endif
+
+/*
+ * Needed to be able to broadcast the TLB invalidation for kmap.
+ */
+#ifdef CONFIG_ARM_ERRATA_798181
+#undef ARCH_NEEDS_KMAP_HIGH_GET
 #endif
 
 #ifdef ARCH_NEEDS_KMAP_HIGH_GET

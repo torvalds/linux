@@ -309,7 +309,7 @@ static struct snd_pcm_ops atmel_abdac_ops = {
 	.pointer	= atmel_abdac_pointer,
 };
 
-static int __devinit atmel_abdac_pcm_new(struct atmel_abdac *dac)
+static int atmel_abdac_pcm_new(struct atmel_abdac *dac)
 {
 	struct snd_pcm_hardware hw = atmel_abdac_hw;
 	struct snd_pcm *pcm;
@@ -354,10 +354,11 @@ static int set_sample_rates(struct atmel_abdac *dac)
 	/* we start at 192 kHz and work our way down to 5112 Hz */
 	while (new_rate >= RATE_MIN && index < (MAX_NUM_RATES + 1)) {
 		new_rate = clk_round_rate(dac->sample_clk, 256 * new_rate);
-		if (new_rate < 0)
+		if (new_rate <= 0)
 			break;
 		/* make sure we are below the ABDAC clock */
-		if (new_rate <= clk_get_rate(dac->pclk)) {
+		if (index < MAX_NUM_RATES &&
+		    new_rate <= clk_get_rate(dac->pclk)) {
 			dac->rates[index] = new_rate / 256;
 			index++;
 		}
@@ -386,7 +387,7 @@ static int set_sample_rates(struct atmel_abdac *dac)
 	return retval;
 }
 
-static int __devinit atmel_abdac_probe(struct platform_device *pdev)
+static int atmel_abdac_probe(struct platform_device *pdev)
 {
 	struct snd_card		*card;
 	struct atmel_abdac	*dac;
@@ -428,8 +429,9 @@ static int __devinit atmel_abdac_probe(struct platform_device *pdev)
 	}
 	clk_enable(pclk);
 
-	retval = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			THIS_MODULE, sizeof(struct atmel_abdac), &card);
+	retval = snd_card_new(&pdev->dev, SNDRV_DEFAULT_IDX1,
+			      SNDRV_DEFAULT_STR1, THIS_MODULE,
+			      sizeof(struct atmel_abdac), &card);
 	if (retval) {
 		dev_dbg(&pdev->dev, "could not create sound card device\n");
 		goto out_put_sample_clk;
@@ -452,6 +454,7 @@ static int __devinit atmel_abdac_probe(struct platform_device *pdev)
 	dac->regs = ioremap(regs->start, resource_size(regs));
 	if (!dac->regs) {
 		dev_dbg(&pdev->dev, "could not remap register memory\n");
+		retval = -ENOMEM;
 		goto out_free_card;
 	}
 
@@ -464,8 +467,6 @@ static int __devinit atmel_abdac_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "could not request irq\n");
 		goto out_unmap_regs;
 	}
-
-	snd_card_set_dev(card, &pdev->dev);
 
 	if (pdata->dws.dma_dev) {
 		dma_cap_mask_t mask;
@@ -490,7 +491,7 @@ static int __devinit atmel_abdac_probe(struct platform_device *pdev)
 	if (!pdata->dws.dma_dev || !dac->dma.chan) {
 		dev_dbg(&pdev->dev, "DMA not available\n");
 		retval = -ENODEV;
-		goto out_unset_card_dev;
+		goto out_unmap_regs;
 	}
 
 	strcpy(card->driver, "Atmel ABDAC");
@@ -519,9 +520,6 @@ static int __devinit atmel_abdac_probe(struct platform_device *pdev)
 out_release_dma:
 	dma_release_channel(dac->dma.chan);
 	dac->dma.chan = NULL;
-out_unset_card_dev:
-	snd_card_set_dev(card, NULL);
-	free_irq(irq, dac);
 out_unmap_regs:
 	iounmap(dac->regs);
 out_free_card:
@@ -534,10 +532,10 @@ out_put_pclk:
 	return retval;
 }
 
-#ifdef CONFIG_PM
-static int atmel_abdac_suspend(struct platform_device *pdev, pm_message_t msg)
+#ifdef CONFIG_PM_SLEEP
+static int atmel_abdac_suspend(struct device *pdev)
 {
-	struct snd_card *card = platform_get_drvdata(pdev);
+	struct snd_card *card = dev_get_drvdata(pdev);
 	struct atmel_abdac *dac = card->private_data;
 
 	dw_dma_cyclic_stop(dac->dma.chan);
@@ -547,9 +545,9 @@ static int atmel_abdac_suspend(struct platform_device *pdev, pm_message_t msg)
 	return 0;
 }
 
-static int atmel_abdac_resume(struct platform_device *pdev)
+static int atmel_abdac_resume(struct device *pdev)
 {
-	struct snd_card *card = platform_get_drvdata(pdev);
+	struct snd_card *card = dev_get_drvdata(pdev);
 	struct atmel_abdac *dac = card->private_data;
 
 	clk_enable(dac->pclk);
@@ -559,12 +557,14 @@ static int atmel_abdac_resume(struct platform_device *pdev)
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(atmel_abdac_pm, atmel_abdac_suspend, atmel_abdac_resume);
+#define ATMEL_ABDAC_PM_OPS	&atmel_abdac_pm
 #else
-#define atmel_abdac_suspend NULL
-#define atmel_abdac_resume NULL
+#define ATMEL_ABDAC_PM_OPS	NULL
 #endif
 
-static int __devexit atmel_abdac_remove(struct platform_device *pdev)
+static int atmel_abdac_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 	struct atmel_abdac *dac = get_dac(card);
@@ -575,23 +575,20 @@ static int __devexit atmel_abdac_remove(struct platform_device *pdev)
 
 	dma_release_channel(dac->dma.chan);
 	dac->dma.chan = NULL;
-	snd_card_set_dev(card, NULL);
 	iounmap(dac->regs);
 	free_irq(dac->irq, dac);
 	snd_card_free(card);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
 static struct platform_driver atmel_abdac_driver = {
-	.remove		= __devexit_p(atmel_abdac_remove),
+	.remove		= atmel_abdac_remove,
 	.driver		= {
 		.name	= "atmel_abdac",
+		.owner	= THIS_MODULE,
+		.pm	= ATMEL_ABDAC_PM_OPS,
 	},
-	.suspend	= atmel_abdac_suspend,
-	.resume		= atmel_abdac_resume,
 };
 
 static int __init atmel_abdac_init(void)

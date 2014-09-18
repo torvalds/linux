@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010, 2014 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,20 +8,11 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
-#include <linux/console.h>
-#include <linux/delay.h>
-#include <linux/err.h>
 #include <linux/init.h>
-#include <linux/moduleparam.h>
-#include <linux/types.h>
 
+#include <asm/dcc.h>
 #include <asm/processor.h>
 
 #include "hvc_console.h"
@@ -29,35 +20,6 @@
 /* DCC Status Bits */
 #define DCC_STATUS_RX		(1 << 30)
 #define DCC_STATUS_TX		(1 << 29)
-
-static inline u32 __dcc_getstatus(void)
-{
-	u32 __ret;
-	asm volatile("mrc p14, 0, %0, c0, c1, 0	@ read comms ctrl reg"
-		: "=r" (__ret) : : "cc");
-
-	return __ret;
-}
-
-
-static inline char __dcc_getchar(void)
-{
-	char __c;
-
-	asm volatile("mrc p14, 0, %0, c0, c5, 0	@ read comms data reg"
-		: "=r" (__c));
-	isb();
-
-	return __c;
-}
-
-static inline void __dcc_putchar(char c)
-{
-	asm volatile("mcr p14, 0, %0, c0, c5, 0	@ write a char"
-		: /* no output register */
-		: "r" (c));
-	isb();
-}
 
 static int hvc_dcc_put_chars(uint32_t vt, const char *buf, int count)
 {
@@ -86,6 +48,21 @@ static int hvc_dcc_get_chars(uint32_t vt, char *buf, int count)
 	return i;
 }
 
+static bool hvc_dcc_check(void)
+{
+	unsigned long time = jiffies + (HZ / 10);
+
+	/* Write a test character to check if it is handled */
+	__dcc_putchar('\n');
+
+	while (time_is_after_jiffies(time)) {
+		if (!(__dcc_getstatus() & DCC_STATUS_TX))
+			return true;
+	}
+
+	return false;
+}
+
 static const struct hv_ops hvc_dcc_get_put_ops = {
 	.get_chars = hvc_dcc_get_chars,
 	.put_chars = hvc_dcc_put_chars,
@@ -93,6 +70,9 @@ static const struct hv_ops hvc_dcc_get_put_ops = {
 
 static int __init hvc_dcc_console_init(void)
 {
+	if (!hvc_dcc_check())
+		return -ENODEV;
+
 	hvc_instantiate(0, 0, &hvc_dcc_get_put_ops);
 	return 0;
 }
@@ -100,6 +80,9 @@ console_initcall(hvc_dcc_console_init);
 
 static int __init hvc_dcc_init(void)
 {
+	if (!hvc_dcc_check())
+		return -ENODEV;
+
 	hvc_alloc(0, 0, &hvc_dcc_get_put_ops, 128);
 	return 0;
 }

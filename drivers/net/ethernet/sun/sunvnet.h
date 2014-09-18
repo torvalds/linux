@@ -1,6 +1,8 @@
 #ifndef _SUNVNET_H
 #define _SUNVNET_H
 
+#include <linux/interrupt.h>
+
 #define DESC_NCOOKIES(entry_size)	\
 	((entry_size) - sizeof(struct vio_net_desc))
 
@@ -78,6 +80,8 @@ struct vnet {
 
 	struct list_head	list;
 	u64			local_mac;
+
+	struct tasklet_struct	vnet_tx_wakeup;
 };
 
 #endif /* _SUNVNET_H */

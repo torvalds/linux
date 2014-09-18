@@ -80,7 +80,6 @@ static char lancestr[] = "LANCE";
 #include <linux/in.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/crc32.h>
 #include <linux/errno.h>
 #include <linux/socket.h> /* Used for the temporal inet entries and routing */
@@ -536,8 +535,6 @@ static void lance_rx_dvma(struct net_device *dev)
 			skb = netdev_alloc_skb(dev, len + 2);
 
 			if (skb == NULL) {
-				printk(KERN_INFO "%s: Memory squeeze, deferring packet.\n",
-				       dev->name);
 				dev->stats.rx_dropped++;
 				rd->mblength = 0;
 				rd->rmd1_bits = LE_R1_OWN;
@@ -708,8 +705,6 @@ static void lance_rx_pio(struct net_device *dev)
 			skb = netdev_alloc_skb(dev, len + 2);
 
 			if (skb == NULL) {
-				printk(KERN_INFO "%s: Memory squeeze, deferring packet.\n",
-				       dev->name);
 				dev->stats.rx_dropped++;
 				sbus_writew(0, &rd->mblength);
 				sbus_writeb(LE_R1_OWN, &rd->rmd1_bits);
@@ -1284,8 +1279,8 @@ static void lance_free_hwresources(struct lance_private *lp)
 /* Ethtool support... */
 static void sparc_lance_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, "sunlance");
-	strcpy(info->version, "2.02");
+	strlcpy(info->driver, "sunlance", sizeof(info->driver));
+	strlcpy(info->version, "2.02", sizeof(info->version));
 }
 
 static const struct ethtool_ops sparc_lance_ethtool_ops = {
@@ -1304,9 +1299,9 @@ static const struct net_device_ops sparc_lance_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit sparc_lance_probe_one(struct platform_device *op,
-					   struct platform_device *ledma,
-					   struct platform_device *lebuffer)
+static int sparc_lance_probe_one(struct platform_device *op,
+				 struct platform_device *ledma,
+				 struct platform_device *lebuffer)
 {
 	struct device_node *dp = op->dev.of_node;
 	static unsigned version_printed;
@@ -1377,10 +1372,9 @@ static int __devinit sparc_lance_probe_one(struct platform_device *op,
 			dma_alloc_coherent(&op->dev,
 					   sizeof(struct lance_init_block),
 					   &lp->init_block_dvma, GFP_ATOMIC);
-		if (!lp->init_block_mem) {
-			printk(KERN_ERR "SunLance: Cannot allocate consistent DMA memory.\n");
+		if (!lp->init_block_mem)
 			goto fail;
-		}
+
 		lp->pio_buffer = 0;
 		lp->init_ring = lance_init_ring_dvma;
 		lp->rx = lance_rx_dvma;
@@ -1475,7 +1469,7 @@ no_link_test:
 		goto fail;
 	}
 
-	dev_set_drvdata(&op->dev, lp);
+	platform_set_drvdata(op, lp);
 
 	printk(KERN_INFO "%s: LANCE %pM\n",
 	       dev->name, dev->dev_addr);
@@ -1488,7 +1482,7 @@ fail:
 	return -ENODEV;
 }
 
-static int __devinit sunlance_sbus_probe(struct platform_device *op)
+static int sunlance_sbus_probe(struct platform_device *op)
 {
 	struct platform_device *parent = to_platform_device(op->dev.parent);
 	struct device_node *parent_dp = parent->dev.of_node;
@@ -1504,9 +1498,9 @@ static int __devinit sunlance_sbus_probe(struct platform_device *op)
 	return err;
 }
 
-static int __devexit sunlance_sbus_remove(struct platform_device *op)
+static int sunlance_sbus_remove(struct platform_device *op)
 {
-	struct lance_private *lp = dev_get_drvdata(&op->dev);
+	struct lance_private *lp = platform_get_drvdata(op);
 	struct net_device *net_dev = lp->dev;
 
 	unregister_netdev(net_dev);
@@ -1514,8 +1508,6 @@ static int __devexit sunlance_sbus_remove(struct platform_device *op)
 	lance_free_hwresources(lp);
 
 	free_netdev(net_dev);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }
@@ -1536,7 +1528,7 @@ static struct platform_driver sunlance_sbus_driver = {
 		.of_match_table = sunlance_sbus_match,
 	},
 	.probe		= sunlance_sbus_probe,
-	.remove		= __devexit_p(sunlance_sbus_remove),
+	.remove		= sunlance_sbus_remove,
 };
 
 module_platform_driver(sunlance_sbus_driver);

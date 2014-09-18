@@ -260,7 +260,6 @@ static void pci200_pci_remove_one(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	if (card->ports[0].netdev)
 		free_netdev(card->ports[0].netdev);
 	if (card->ports[1].netdev)
@@ -276,8 +275,8 @@ static const struct net_device_ops pci200_ops = {
 	.ndo_do_ioctl   = pci200_ioctl,
 };
 
-static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
-					 const struct pci_device_id *ent)
+static int pci200_pci_init_one(struct pci_dev *pdev,
+			       const struct pci_device_id *ent)
 {
 	card_t *card;
 	u32 __iomem *p;
@@ -415,7 +414,7 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 
 
 
-static DEFINE_PCI_DEVICE_TABLE(pci200_pci_tbl) = {
+static const struct pci_device_id pci200_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050, PCI_VENDOR_ID_PLX,
 	  PCI_DEVICE_ID_PLX_PCI200SYN, 0, 0, 0 },
 	{ 0, }

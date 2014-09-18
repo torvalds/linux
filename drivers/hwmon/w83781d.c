@@ -4,7 +4,7 @@
  * Copyright (c) 1998 - 2001  Frodo Looijaard <frodol@dds.nl>,
  *			      Philip Edelbrock <phil@netroedge.com>,
  *			      and Mark Studebaker <mdsxyz123@yahoo.com>
- * Copyright (c) 2007 - 2008  Jean Delvare <khali@linux-fr.org>
+ * Copyright (c) 2007 - 2008  Jean Delvare <jdelvare@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 /*
  * Supports following chips:
  *
- * Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
+ * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
  * as99127f	7	3	0	3	0x31	0x12c3	yes	no
  * as99127f rev.2 (type_name = as99127f)	0x31	0x5ca3	yes	no
  * w83781d	7	3	0	3	0x10-1	0x5ca3	yes	yes
@@ -64,8 +64,8 @@ enum chips { w83781d, w83782d, w83783s, as99127f };
 /* Insmod parameters */
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
-MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
-		    "{bus, clientaddr, subclientaddr1, subclientaddr2}");
+MODULE_PARM_DESC(force_subclients,
+		 "List of subclient addresses: {bus, clientaddr, subclientaddr1, subclientaddr2}");
 
 static bool reset;
 module_param(reset, bool, 0);
@@ -159,7 +159,7 @@ static const u8 BIT_SCFG2[] = { 0x10, 0x20, 0x40 };
 #define W83781D_DEFAULT_BETA		3435
 
 /* Conversions */
-#define IN_TO_REG(val)			SENSORS_LIMIT(((val) + 8) / 16, 0, 255)
+#define IN_TO_REG(val)			clamp_val(((val) + 8) / 16, 0, 255)
 #define IN_FROM_REG(val)		((val) * 16)
 
 static inline u8
@@ -167,8 +167,8 @@ FAN_TO_REG(long rpm, int div)
 {
 	if (rpm == 0)
 		return 255;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
+	rpm = clamp_val(rpm, 1, 1000000);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 static inline long
@@ -181,7 +181,7 @@ FAN_FROM_REG(u8 val, int div)
 	return 1350000 / (val * div);
 }
 
-#define TEMP_TO_REG(val)		SENSORS_LIMIT((val) / 1000, -127, 128)
+#define TEMP_TO_REG(val)		clamp_val((val) / 1000, -127, 128)
 #define TEMP_FROM_REG(val)		((val) * 1000)
 
 #define BEEP_MASK_FROM_REG(val, type)	((type) == as99127f ? \
@@ -195,9 +195,8 @@ static inline u8
 DIV_TO_REG(long val, enum chips type)
 {
 	int i;
-	val = SENSORS_LIMIT(val, 1,
-			    ((type == w83781d
-			      || type == as99127f) ? 8 : 128)) >> 1;
+	val = clamp_val(val, 1,
+			((type == w83781d || type == as99127f) ? 8 : 128)) >> 1;
 	for (i = 0; i < 7; i++) {
 		if (val == 0)
 			break;
@@ -443,7 +442,7 @@ store_vrm_reg(struct device *dev, struct device_attribute *attr,
 	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
-	data->vrm = SENSORS_LIMIT(val, 0, 255);
+	data->vrm = clamp_val(val, 0, 255);
 
 	return count;
 }
@@ -730,7 +729,7 @@ store_pwm(struct device *dev, struct device_attribute *da, const char *buf,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->pwm[nr] = SENSORS_LIMIT(val, 0, 255);
+	data->pwm[nr] = clamp_val(val, 0, 255);
 	w83781d_write_value(data, W83781D_REG_PWM[nr], data->pwm[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -827,8 +826,9 @@ store_sensor(struct device *dev, struct device_attribute *da,
 		data->sens[nr] = val;
 		break;
 	case W83781D_DEFAULT_BETA:
-		dev_warn(dev, "Sensor type %d is deprecated, please use 4 "
-			 "instead\n", W83781D_DEFAULT_BETA);
+		dev_warn(dev,
+			 "Sensor type %d is deprecated, please use 4 instead\n",
+			 W83781D_DEFAULT_BETA);
 		/* fall through */
 	case 4:		/* thermistor */
 		tmp = w83781d_read_value(data, W83781D_REG_SCFG1);
@@ -867,6 +867,7 @@ w83781d_detect_subclients(struct i2c_client *new_client)
 	struct i2c_adapter *adapter = new_client->adapter;
 	struct w83781d_data *data = i2c_get_clientdata(new_client);
 	enum chips kind = data->type;
+	int num_sc = 1;
 
 	id = i2c_adapter_id(adapter);
 
@@ -874,8 +875,8 @@ w83781d_detect_subclients(struct i2c_client *new_client)
 		for (i = 2; i <= 3; i++) {
 			if (force_subclients[i] < 0x48 ||
 			    force_subclients[i] > 0x4f) {
-				dev_err(&new_client->dev, "Invalid subclient "
-					"address %d; must be 0x48-0x4f\n",
+				dev_err(&new_client->dev,
+					"Invalid subclient address %d; must be 0x48-0x4f\n",
 					force_subclients[i]);
 				err = -EINVAL;
 				goto ERROR_SC_1;
@@ -891,6 +892,7 @@ w83781d_detect_subclients(struct i2c_client *new_client)
 	}
 
 	if (kind != w83783s) {
+		num_sc = 2;
 		if (force_subclients[0] == id &&
 		    force_subclients[1] == address) {
 			sc_addr[1] = force_subclients[3];
@@ -906,19 +908,17 @@ w83781d_detect_subclients(struct i2c_client *new_client)
 		}
 	}
 
-	for (i = 0; i <= 1; i++) {
+	for (i = 0; i < num_sc; i++) {
 		data->lm75[i] = i2c_new_dummy(adapter, sc_addr[i]);
 		if (!data->lm75[i]) {
-			dev_err(&new_client->dev, "Subclient %d "
-				"registration at address 0x%x "
-				"failed.\n", i, sc_addr[i]);
+			dev_err(&new_client->dev,
+				"Subclient %d registration at address 0x%x failed.\n",
+				i, sc_addr[i]);
 			err = -ENOMEM;
 			if (i == 1)
 				goto ERROR_SC_3;
 			goto ERROR_SC_2;
 		}
-		if (kind == w83783s)
-			break;
 	}
 
 	return 0;
@@ -1177,8 +1177,9 @@ w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 		goto err_nodev;
 
 	if (val1 <= 0x30 && w83781d_alias_detect(client, val1)) {
-		dev_dbg(&adapter->dev, "Device at 0x%02x appears to "
-			"be the same as ISA device\n", address);
+		dev_dbg(&adapter->dev,
+			"Device at 0x%02x appears to be the same as ISA device\n",
+			address);
 		goto err_nodev;
 	}
 
@@ -1213,11 +1214,9 @@ w83781d_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct w83781d_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct w83781d_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto ERROR1;
-	}
+	data = devm_kzalloc(dev, sizeof(struct w83781d_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->lock);
@@ -1229,7 +1228,7 @@ w83781d_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* attach secondary i2c lm75-like clients */
 	err = w83781d_detect_subclients(client);
 	if (err)
-		goto ERROR3;
+		return err;
 
 	/* Initialize the chip */
 	w83781d_init_device(dev);
@@ -1237,25 +1236,22 @@ w83781d_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Register sysfs hooks */
 	err = w83781d_create_files(dev, data->type, 0);
 	if (err)
-		goto ERROR4;
+		goto exit_remove_files;
 
 	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
-		goto ERROR4;
+		goto exit_remove_files;
 	}
 
 	return 0;
 
-ERROR4:
+ exit_remove_files:
 	w83781d_remove_files(dev);
 	if (data->lm75[0])
 		i2c_unregister_device(data->lm75[0]);
 	if (data->lm75[1])
 		i2c_unregister_device(data->lm75[1]);
-ERROR3:
-	kfree(data);
-ERROR1:
 	return err;
 }
 
@@ -1272,8 +1268,6 @@ w83781d_remove(struct i2c_client *client)
 		i2c_unregister_device(data->lm75[0]);
 	if (data->lm75[1])
 		i2c_unregister_device(data->lm75[1]);
-
-	kfree(data);
 
 	return 0;
 }
@@ -1375,8 +1369,8 @@ w83781d_init_device(struct device *dev)
 		 * as I see very little reason why this would be needed at
 		 * all.
 		 */
-		dev_info(dev, "If reset=1 solved a problem you were "
-			 "having, please report!\n");
+		dev_info(dev,
+			 "If reset=1 solved a problem you were having, please report!\n");
 
 		/* save these registers */
 		i = w83781d_read_value(data, W83781D_REG_BEEP_CONFIG);
@@ -1433,8 +1427,8 @@ w83781d_init_device(struct device *dev)
 		/* Enable temp2 */
 		tmp = w83781d_read_value(data, W83781D_REG_TEMP2_CONFIG);
 		if (tmp & 0x01) {
-			dev_warn(dev, "Enabling temp2, readings "
-				 "might not make sense\n");
+			dev_warn(dev,
+				 "Enabling temp2, readings might not make sense\n");
 			w83781d_write_value(data, W83781D_REG_TEMP2_CONFIG,
 				tmp & 0xfe);
 		}
@@ -1444,8 +1438,8 @@ w83781d_init_device(struct device *dev)
 			tmp = w83781d_read_value(data,
 				W83781D_REG_TEMP3_CONFIG);
 			if (tmp & 0x01) {
-				dev_warn(dev, "Enabling temp3, "
-					 "readings might not make sense\n");
+				dev_warn(dev,
+					 "Enabling temp3, readings might not make sense\n");
 				w83781d_write_value(data,
 					W83781D_REG_TEMP3_CONFIG, tmp & 0xfe);
 			}
@@ -1771,7 +1765,7 @@ w83781d_write_value(struct w83781d_data *data, u16 reg, u16 value)
 	return 0;
 }
 
-static int __devinit
+static int
 w83781d_isa_probe(struct platform_device *pdev)
 {
 	int err, reg;
@@ -1780,17 +1774,16 @@ w83781d_isa_probe(struct platform_device *pdev)
 
 	/* Reserve the ISA region */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!request_region(res->start + W83781D_ADDR_REG_OFFSET, 2,
-			    "w83781d")) {
-		err = -EBUSY;
-		goto exit;
-	}
+	if (!devm_request_region(&pdev->dev,
+				 res->start + W83781D_ADDR_REG_OFFSET, 2,
+				 "w83781d"))
+		return -EBUSY;
 
-	data = kzalloc(sizeof(struct w83781d_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit_release_region;
-	}
+	data = devm_kzalloc(&pdev->dev, sizeof(struct w83781d_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	mutex_init(&data->lock);
 	data->isa_addr = res->start;
 	platform_set_drvdata(pdev, data);
@@ -1829,14 +1822,10 @@ w83781d_isa_probe(struct platform_device *pdev)
  exit_remove_files:
 	w83781d_remove_files(&pdev->dev);
 	device_remove_file(&pdev->dev, &dev_attr_name);
-	kfree(data);
- exit_release_region:
-	release_region(res->start + W83781D_ADDR_REG_OFFSET, 2);
- exit:
 	return err;
 }
 
-static int __devexit
+static int
 w83781d_isa_remove(struct platform_device *pdev)
 {
 	struct w83781d_data *data = platform_get_drvdata(pdev);
@@ -1844,8 +1833,6 @@ w83781d_isa_remove(struct platform_device *pdev)
 	hwmon_device_unregister(data->hwmon_dev);
 	w83781d_remove_files(&pdev->dev);
 	device_remove_file(&pdev->dev, &dev_attr_name);
-	release_region(data->isa_addr + W83781D_ADDR_REG_OFFSET, 2);
-	kfree(data);
 
 	return 0;
 }
@@ -1856,7 +1843,7 @@ static struct platform_driver w83781d_isa_driver = {
 		.name = "w83781d",
 	},
 	.probe = w83781d_isa_probe,
-	.remove = __devexit_p(w83781d_isa_remove),
+	.remove = w83781d_isa_remove,
 };
 
 /* return 1 if a supported chip is found, 0 otherwise */

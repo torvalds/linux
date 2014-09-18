@@ -33,6 +33,7 @@ struct sh_csi2_client_config {
 	unsigned char lanes;		/* bitmask[3:0] */
 	unsigned char channel;		/* 0..3 */
 	struct platform_device *pdev;	/* client platform device */
+	const char *name;		/* async matching: client name */
 };
 
 struct v4l2_device;
@@ -42,7 +43,6 @@ struct sh_csi2_pdata {
 	unsigned int flags;
 	struct sh_csi2_client_config *clients;
 	int num_clients;
-	struct v4l2_device *v4l2_dev;
 };
 
 #endif

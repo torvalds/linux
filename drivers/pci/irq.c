@@ -14,18 +14,18 @@ static void pci_note_irq_problem(struct pci_dev *pdev, const char *reason)
 {
 	struct pci_dev *parent = to_pci_dev(pdev->dev.parent);
 
-	dev_printk(KERN_ERR, &pdev->dev,
-		   "Potentially misrouted IRQ (Bridge %s %04x:%04x)\n",
-		   dev_name(&parent->dev), parent->vendor, parent->device);
-	dev_printk(KERN_ERR, &pdev->dev, "%s\n", reason);
-	dev_printk(KERN_ERR, &pdev->dev, "Please report to linux-kernel@vger.kernel.org\n");
+	dev_err(&pdev->dev,
+		"Potentially misrouted IRQ (Bridge %s %04x:%04x)\n",
+		dev_name(&parent->dev), parent->vendor, parent->device);
+	dev_err(&pdev->dev, "%s\n", reason);
+	dev_err(&pdev->dev, "Please report to linux-kernel@vger.kernel.org\n");
 	WARN_ON(1);
 }
 
 /**
  * pci_lost_interrupt - reports a lost PCI interrupt
  * @pdev:	device whose interrupt is lost
- * 
+ *
  * The primary function of this routine is to report a lost interrupt
  * in a standard way which users can recognise (instead of blaming the
  * driver).

@@ -16,8 +16,8 @@
  */
 #include <linux/interrupt.h>
 
-#include "./common.h"
-#include "./mod.h"
+#include "common.h"
+#include "mod.h"
 
 #define usbhs_priv_to_modinfo(priv) (&priv->mod_info)
 #define usbhs_mod_info_call(priv, func, param...)	\
@@ -151,7 +151,7 @@ int usbhs_mod_probe(struct usbhs_priv *priv)
 		goto mod_init_host_err;
 
 	/* irq settings */
-	ret = request_irq(priv->irq, usbhs_interrupt,
+	ret = devm_request_irq(dev, priv->irq, usbhs_interrupt,
 			  priv->irqflags, dev_name(dev), priv);
 	if (ret) {
 		dev_err(dev, "irq request err\n");
@@ -172,7 +172,6 @@ void usbhs_mod_remove(struct usbhs_priv *priv)
 {
 	usbhs_mod_host_remove(priv);
 	usbhs_mod_gadget_remove(priv);
-	free_irq(priv->irq, priv);
 }
 
 /*
@@ -209,13 +208,20 @@ int usbhs_status_get_ctrl_stage(struct usbhs_irq_state *irq_state)
 	return (int)irq_state->intsts0 & CTSQ_MASK;
 }
 
-static void usbhs_status_get_each_irq(struct usbhs_priv *priv,
-				      struct usbhs_irq_state *state)
+static int usbhs_status_get_each_irq(struct usbhs_priv *priv,
+				     struct usbhs_irq_state *state)
 {
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
+	u16 intenb0, intenb1;
+	unsigned long flags;
 
+	/********************  spin lock ********************/
+	usbhs_lock(priv, flags);
 	state->intsts0 = usbhs_read(priv, INTSTS0);
 	state->intsts1 = usbhs_read(priv, INTSTS1);
+
+	intenb0 = usbhs_read(priv, INTENB0);
+	intenb1 = usbhs_read(priv, INTENB1);
 
 	/* mask */
 	if (mod) {
@@ -226,6 +232,22 @@ static void usbhs_status_get_each_irq(struct usbhs_priv *priv,
 		state->bempsts &= mod->irq_bempsts;
 		state->brdysts &= mod->irq_brdysts;
 	}
+	usbhs_unlock(priv, flags);
+	/********************  spin unlock ******************/
+
+	/*
+	 * Check whether the irq enable registers and the irq status are set
+	 * when IRQF_SHARED is set.
+	 */
+	if (priv->irqflags & IRQF_SHARED) {
+		if (!(intenb0 & state->intsts0) &&
+		    !(intenb1 & state->intsts1) &&
+		    !(state->bempsts) &&
+		    !(state->brdysts))
+			return -EIO;
+	}
+
+	return 0;
 }
 
 /*
@@ -238,7 +260,8 @@ static irqreturn_t usbhs_interrupt(int irq, void *data)
 	struct usbhs_priv *priv = data;
 	struct usbhs_irq_state irq_state;
 
-	usbhs_status_get_each_irq(priv, &irq_state);
+	if (usbhs_status_get_each_irq(priv, &irq_state) < 0)
+		return IRQ_NONE;
 
 	/*
 	 * clear interrupt
@@ -254,9 +277,9 @@ static irqreturn_t usbhs_interrupt(int irq, void *data)
 	usbhs_write(priv, INTSTS0, ~irq_state.intsts0 & INTSTS0_MAGIC);
 	usbhs_write(priv, INTSTS1, ~irq_state.intsts1 & INTSTS1_MAGIC);
 
-	usbhs_write(priv, BRDYSTS, 0);
-	usbhs_write(priv, NRDYSTS, 0);
-	usbhs_write(priv, BEMPSTS, 0);
+	usbhs_write(priv, BRDYSTS, ~irq_state.brdysts);
+	usbhs_write(priv, NRDYSTS, ~irq_state.nrdysts);
+	usbhs_write(priv, BEMPSTS, ~irq_state.bempsts);
 
 	/*
 	 * call irq callback functions

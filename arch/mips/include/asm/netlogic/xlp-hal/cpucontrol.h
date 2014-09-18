@@ -46,8 +46,12 @@
 #define CPU_BLOCKID_FPU		9
 #define CPU_BLOCKID_MAP		10
 
+#define ICU_DEFEATURE		0x100
+
 #define LSU_DEFEATURE		0x304
-#define LSU_CERRLOG_REGID	0x09
+#define LSU_DEBUG_ADDR		0x305
+#define LSU_DEBUG_DATA0		0x306
+#define LSU_CERRLOG_REGID	0x309
 #define SCHED_DEFEATURE		0x700
 
 /* Offsets of interest from the 'MAP' Block */

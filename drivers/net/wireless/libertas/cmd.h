@@ -96,6 +96,7 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv);
 int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on);
 
 void lbs_set_mac_control(struct lbs_private *priv);
+int lbs_set_mac_control_sync(struct lbs_private *priv);
 
 int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
 		     s16 *maxlevel);
@@ -128,9 +129,7 @@ int lbs_set_monitor_mode(struct lbs_private *priv, int enable);
 
 int lbs_get_rssi(struct lbs_private *priv, s8 *snr, s8 *nf);
 
-int lbs_set_11d_domain_info(struct lbs_private *priv,
-			    struct regulatory_request *request,
-			    struct ieee80211_supported_band **bands);
+int lbs_set_11d_domain_info(struct lbs_private *priv);
 
 int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value);
 

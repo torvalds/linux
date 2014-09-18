@@ -15,7 +15,7 @@
 #include <linux/fb.h>
 #include <linux/prefetch.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "udl_drv.h"
 
 #define MAX_CMD_PIXELS		255
@@ -75,15 +75,19 @@ static int udl_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes)
 }
 #endif
 
-static inline u16 pixel32_to_be16p(const uint8_t *pixel)
+static inline u16 pixel32_to_be16(const uint32_t pixel)
 {
-	uint32_t pix = *(uint32_t *)pixel;
-	u16 retval;
+	return (((pixel >> 3) & 0x001f) |
+		((pixel >> 5) & 0x07e0) |
+		((pixel >> 8) & 0xf800));
+}
 
-	retval =  (((pix >> 3) & 0x001f) |
-		   ((pix >> 5) & 0x07e0) |
-		   ((pix >> 8) & 0xf800));
-	return retval;
+static bool pixel_repeats(const void *pixel, const uint32_t repeat, int bpp)
+{
+	if (bpp == 2)
+		return *(const uint16_t *)pixel == repeat;
+	else
+		return *(const uint32_t *)pixel == repeat;
 }
 
 /*
@@ -126,10 +130,10 @@ static void udl_compress_hline16(
 
 	while ((pixel_end > pixel) &&
 	       (cmd_buffer_end - MIN_RLX_CMD_BYTES > cmd)) {
-		uint8_t *raw_pixels_count_byte = 0;
-		uint8_t *cmd_pixels_count_byte = 0;
-		const u8 *raw_pixel_start = 0;
-		const u8 *cmd_pixel_start, *cmd_pixel_end = 0;
+		uint8_t *raw_pixels_count_byte = NULL;
+		uint8_t *cmd_pixels_count_byte = NULL;
+		const u8 *raw_pixel_start = NULL;
+		const u8 *cmd_pixel_start, *cmd_pixel_end = NULL;
 
 		prefetchw((void *) cmd); /* pull in one cache line at least */
 
@@ -152,29 +156,33 @@ static void udl_compress_hline16(
 		prefetch_range((void *) pixel, (cmd_pixel_end - pixel) * bpp);
 
 		while (pixel < cmd_pixel_end) {
-			const u8 * const repeating_pixel = pixel;
+			const u8 *const start = pixel;
+			u32 repeating_pixel;
 
-			if (bpp == 2)
-				*(uint16_t *)cmd = cpu_to_be16p((uint16_t *)pixel);
-			else if (bpp == 4)
-				*(uint16_t *)cmd = cpu_to_be16(pixel32_to_be16p(pixel));
+			if (bpp == 2) {
+				repeating_pixel = *(uint16_t *)pixel;
+				*(uint16_t *)cmd = cpu_to_be16(repeating_pixel);
+			} else {
+				repeating_pixel = *(uint32_t *)pixel;
+				*(uint16_t *)cmd = cpu_to_be16(pixel32_to_be16(repeating_pixel));
+			}
 
 			cmd += 2;
 			pixel += bpp;
 
 			if (unlikely((pixel < cmd_pixel_end) &&
-				     (!memcmp(pixel, repeating_pixel, bpp)))) {
+				     (pixel_repeats(pixel, repeating_pixel, bpp)))) {
 				/* go back and fill in raw pixel count */
-				*raw_pixels_count_byte = (((repeating_pixel -
+				*raw_pixels_count_byte = (((start -
 						raw_pixel_start) / bpp) + 1) & 0xFF;
 
-				while ((pixel < cmd_pixel_end)
-				       && (!memcmp(pixel, repeating_pixel, bpp))) {
+				while ((pixel < cmd_pixel_end) &&
+				       (pixel_repeats(pixel, repeating_pixel, bpp))) {
 					pixel += bpp;
 				}
 
 				/* immediately after raw data is repeat byte */
-				*cmd++ = (((pixel - repeating_pixel) / bpp) - 1) & 0xFF;
+				*cmd++ = (((pixel - start) / bpp) - 1) & 0xFF;
 
 				/* Then start another raw pixel span */
 				raw_pixel_start = pixel;
@@ -213,14 +221,17 @@ static void udl_compress_hline16(
  */
 int udl_render_hline(struct drm_device *dev, int bpp, struct urb **urb_ptr,
 		     const char *front, char **urb_buf_ptr,
-		     u32 byte_offset, u32 byte_width,
+		     u32 byte_offset, u32 device_byte_offset,
+		     u32 byte_width,
 		     int *ident_ptr, int *sent_ptr)
 {
 	const u8 *line_start, *line_end, *next_pixel;
-	u32 base16 = 0 + (byte_offset / bpp) * 2;
+	u32 base16 = 0 + (device_byte_offset / bpp) * 2;
 	struct urb *urb = *urb_ptr;
 	u8 *cmd = *urb_buf_ptr;
 	u8 *cmd_end = (u8 *) urb->transfer_buffer + urb->transfer_buffer_length;
+
+	BUG_ON(!(bpp == 2 || bpp == 4));
 
 	line_start = (u8 *) (front + byte_offset);
 	next_pixel = line_start;

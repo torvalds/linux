@@ -226,8 +226,6 @@ int sb_dsp_reset(sb_devc * devc)
 {
 	int loopc;
 
-	DEB(printk("Entered sb_dsp_reset()\n"));
-
 	if (devc->model == MDL_ESS) return ess_dsp_reset (devc);
 
 	/* This is only for non-ESS chips */
@@ -245,8 +243,6 @@ int sb_dsp_reset(sb_devc * devc)
 		DDB(printk("sb: No response to RESET\n"));
 		return 0;	/* Sorry */
 	}
-
-	DEB(printk("sb_dsp_reset() OK\n"));
 
 	return 1;
 }
@@ -626,13 +622,12 @@ int sb_dsp_detect(struct address_info *hw_config, int pci, int pciio, struct sb_
 	 */
 
 
-	detected_devc = kmalloc(sizeof(sb_devc), GFP_KERNEL);
+	detected_devc = kmemdup(devc, sizeof(sb_devc), GFP_KERNEL);
 	if (detected_devc == NULL)
 	{
 		printk(KERN_ERR "sb: Can't allocate memory for device information\n");
 		return 0;
 	}
-	memcpy(detected_devc, devc, sizeof(sb_devc));
 	MDB(printk(KERN_INFO "SB %d.%02d detected OK (%x)\n", devc->major, devc->minor, hw_config->io_base));
 	return 1;
 }

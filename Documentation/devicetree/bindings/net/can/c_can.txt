@@ -1,0 +1,49 @@
+Bosch C_CAN/D_CAN controller Device Tree Bindings
+-------------------------------------------------
+
+Required properties:
+- compatible		: Should be "bosch,c_can" for C_CAN controllers and
+			  "bosch,d_can" for D_CAN controllers.
+- reg			: physical base address and size of the C_CAN/D_CAN
+			  registers map
+- interrupts		: property with a value describing the interrupt
+			  number
+
+Optional properties:
+- ti,hwmods		: Must be "d_can<n>" or "c_can<n>", n being the
+			  instance number
+
+Note: "ti,hwmods" field is used to fetch the base address and irq
+resources from TI, omap hwmod data base during device registration.
+Future plan is to migrate hwmod data base contents into device tree
+blob so that, all the required data will be used from device tree dts
+file.
+
+Example:
+
+Step1: SoC common .dtsi file
+
+	dcan1: d_can@481d0000 {
+		compatible = "bosch,d_can";
+		reg = <0x481d0000 0x2000>;
+		interrupts = <55>;
+		interrupt-parent = <&intc>;
+		status = "disabled";
+	};
+
+(or)
+
+	dcan1: d_can@481d0000 {
+		compatible = "bosch,d_can";
+		ti,hwmods = "d_can1";
+		reg = <0x481d0000 0x2000>;
+		interrupts = <55>;
+		interrupt-parent = <&intc>;
+		status = "disabled";
+	};
+
+Step 2: board specific .dts file
+
+	&dcan1 {
+		status = "okay";
+	};

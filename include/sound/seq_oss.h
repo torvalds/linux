@@ -21,8 +21,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include "asequencer.h"
-#include "seq_kernel.h"
+#include <sound/asequencer.h>
+#include <sound/seq_kernel.h>
 
 /*
  * argument structure for synthesizer operations

@@ -117,7 +117,7 @@ static int ehca_mmap_fw(struct vm_area_struct *vma, struct h_galpas *galpas,
 	physical = galpas->user.fw_handle;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	ehca_gen_dbg("vsize=%llx physical=%llx", vsize, physical);
-	/* VM_IO | VM_RESERVED are set by remap_pfn_range() */
+	/* VM_IO | VM_DONTEXPAND | VM_DONTDUMP are set by remap_pfn_range() */
 	ret = remap_4k_pfn(vma, vma->vm_start, physical >> EHCA_PAGESHIFT,
 			   vma->vm_page_prot);
 	if (unlikely(ret)) {
@@ -139,7 +139,7 @@ static int ehca_mmap_queue(struct vm_area_struct *vma, struct ipz_queue *queue,
 	u64 start, ofs;
 	struct page *page;
 
-	vma->vm_flags |= VM_RESERVED;
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	start = vma->vm_start;
 	for (ofs = 0; ofs < queue->queue_length; ofs += PAGE_SIZE) {
 		u64 virt_addr = (u64)ipz_qeit_calc(queue, ofs);

@@ -1,5 +1,8 @@
 #! /bin/sh
 # collate and present sysfs information about AoE storage
+#
+# A more complete version of this script is aoe-stat, in the
+# aoetools.
 
 set -e
 format="%8s\t%8s\t%8s\n"

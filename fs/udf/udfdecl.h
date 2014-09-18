@@ -113,11 +113,6 @@ struct ustr {
 	uint8_t u_len;
 };
 
-struct extent_position {
-	struct buffer_head *bh;
-	uint32_t offset;
-	struct kernel_lb_addr block;
-};
 
 /* super.c */
 
@@ -129,7 +124,6 @@ static inline void udf_updated_lvid(struct super_block *sb)
 	WARN_ON_ONCE(((struct logicalVolIntegrityDesc *)
 		     bh->b_data)->integrityType !=
 		     cpu_to_le32(LVID_INTEGRITY_TYPE_OPEN));
-	sb->s_dirt = 1;
 	UDF_SB(sb)->s_lvid_dirty = 1;
 }
 extern u64 lvid_get_unique_id(struct super_block *sb);
@@ -149,7 +143,6 @@ extern int udf_expand_file_adinicb(struct inode *);
 extern struct buffer_head *udf_expand_dir_adinicb(struct inode *, int *, int *);
 extern struct buffer_head *udf_bread(struct inode *, int, int, int *);
 extern int udf_setsize(struct inode *, loff_t);
-extern void udf_read_inode(struct inode *);
 extern void udf_evict_inode(struct inode *);
 extern int udf_write_inode(struct inode *, struct writeback_control *wbc);
 extern long udf_block_map(struct inode *, sector_t);
@@ -215,7 +208,7 @@ extern int udf_CS0toUTF8(struct ustr *, const struct ustr *);
 
 /* ialloc.c */
 extern void udf_free_inode(struct inode *);
-extern struct inode *udf_new_inode(struct inode *, umode_t, int *);
+extern struct inode *udf_new_inode(struct inode *, umode_t);
 
 /* truncate.c */
 extern void udf_truncate_tail_extent(struct inode *);

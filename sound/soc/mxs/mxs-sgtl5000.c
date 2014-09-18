@@ -18,12 +18,13 @@
 
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
 #include <sound/soc-dapm.h>
-#include <asm/mach-types.h>
 
 #include "../codecs/sgtl5000.h"
 #include "mxs-saif.h"
@@ -49,18 +50,27 @@ static int mxs_sgtl5000_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Sgtl5000 sysclk should be >= 8MHz and <= 27M */
-	if (mclk < 8000000 || mclk > 27000000)
+	if (mclk < 8000000 || mclk > 27000000) {
+		dev_err(codec_dai->dev, "Invalid mclk frequency: %u.%03uMHz\n",
+			mclk / 1000000, mclk / 1000 % 1000);
 		return -EINVAL;
+	}
 
 	/* Set SGTL5000's SYSCLK (provided by SAIF MCLK) */
 	ret = snd_soc_dai_set_sysclk(codec_dai, SGTL5000_SYSCLK, mclk, 0);
-	if (ret)
+	if (ret) {
+		dev_err(codec_dai->dev, "Failed to set sysclk to %u.%03uMHz\n",
+			mclk / 1000000, mclk / 1000 % 1000);
 		return ret;
+	}
 
 	/* The SAIF MCLK should be the same as SGTL5000_SYSCLK */
 	ret = snd_soc_dai_set_sysclk(cpu_dai, MXS_SAIF_MCLK, mclk, 0);
-	if (ret)
+	if (ret) {
+		dev_err(cpu_dai->dev, "Failed to set sysclk to %u.%03uMHz\n",
+			mclk / 1000000, mclk / 1000 % 1000);
 		return ret;
+	}
 
 	/* set codec to slave mode */
 	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
@@ -68,13 +78,19 @@ static int mxs_sgtl5000_hw_params(struct snd_pcm_substream *substream,
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_format);
-	if (ret)
+	if (ret) {
+		dev_err(codec_dai->dev, "Failed to set dai format to %08x\n",
+			dai_format);
 		return ret;
+	}
 
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, dai_format);
-	if (ret)
+	if (ret) {
+		dev_err(cpu_dai->dev, "Failed to set dai format to %08x\n",
+			dai_format);
 		return ret;
+	}
 
 	return 0;
 }
@@ -88,18 +104,14 @@ static struct snd_soc_dai_link mxs_sgtl5000_dai[] = {
 		.name		= "HiFi Tx",
 		.stream_name	= "HiFi Playback",
 		.codec_dai_name	= "sgtl5000",
-		.codec_name	= "sgtl5000.0-000a",
-		.cpu_dai_name	= "mxs-saif.0",
-		.platform_name	= "mxs-pcm-audio.0",
 		.ops		= &mxs_sgtl5000_hifi_ops,
+		.playback_only	= true,
 	}, {
 		.name		= "HiFi Rx",
 		.stream_name	= "HiFi Capture",
 		.codec_dai_name	= "sgtl5000",
-		.codec_name	= "sgtl5000.0-000a",
-		.cpu_dai_name	= "mxs-saif.1",
-		.platform_name	= "mxs-pcm-audio.1",
 		.ops		= &mxs_sgtl5000_hifi_ops,
+		.capture_only	= true,
 	},
 };
 
@@ -110,10 +122,33 @@ static struct snd_soc_card mxs_sgtl5000 = {
 	.num_links	= ARRAY_SIZE(mxs_sgtl5000_dai),
 };
 
-static int __devinit mxs_sgtl5000_probe(struct platform_device *pdev)
+static int mxs_sgtl5000_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mxs_sgtl5000;
-	int ret;
+	int ret, i;
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *saif_np[2], *codec_np;
+
+	saif_np[0] = of_parse_phandle(np, "saif-controllers", 0);
+	saif_np[1] = of_parse_phandle(np, "saif-controllers", 1);
+	codec_np = of_parse_phandle(np, "audio-codec", 0);
+	if (!saif_np[0] || !saif_np[1] || !codec_np) {
+		dev_err(&pdev->dev, "phandle missing or invalid\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < 2; i++) {
+		mxs_sgtl5000_dai[i].codec_name = NULL;
+		mxs_sgtl5000_dai[i].codec_of_node = codec_np;
+		mxs_sgtl5000_dai[i].cpu_dai_name = NULL;
+		mxs_sgtl5000_dai[i].cpu_of_node = saif_np[i];
+		mxs_sgtl5000_dai[i].platform_name = NULL;
+		mxs_sgtl5000_dai[i].platform_of_node = saif_np[i];
+	}
+
+	of_node_put(codec_np);
+	of_node_put(saif_np[0]);
+	of_node_put(saif_np[1]);
 
 	/*
 	 * Set an init clock(11.28Mhz) for sgtl5000 initialization(i2c r/w).
@@ -121,8 +156,10 @@ static int __devinit mxs_sgtl5000_probe(struct platform_device *pdev)
 	 * should be >= 8MHz and <= 27M.
 	 */
 	ret = mxs_saif_get_mclk(0, 44100 * 256, 44100);
-	if (ret)
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get mclk\n");
 		return ret;
+	}
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
@@ -137,7 +174,7 @@ static int __devinit mxs_sgtl5000_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit mxs_sgtl5000_remove(struct platform_device *pdev)
+static int mxs_sgtl5000_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -148,13 +185,20 @@ static int __devexit mxs_sgtl5000_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id mxs_sgtl5000_dt_ids[] = {
+	{ .compatible = "fsl,mxs-audio-sgtl5000", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_sgtl5000_dt_ids);
+
 static struct platform_driver mxs_sgtl5000_audio_driver = {
 	.driver = {
 		.name = "mxs-sgtl5000",
 		.owner = THIS_MODULE,
+		.of_match_table = mxs_sgtl5000_dt_ids,
 	},
 	.probe = mxs_sgtl5000_probe,
-	.remove = __devexit_p(mxs_sgtl5000_remove),
+	.remove = mxs_sgtl5000_remove,
 };
 
 module_platform_driver(mxs_sgtl5000_audio_driver);

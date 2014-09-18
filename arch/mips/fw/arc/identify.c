@@ -100,7 +100,7 @@ void __init prom_identify_arch(void)
 	if (p == NULL) {
 #ifdef CONFIG_SGI_IP27
 		/* IP27 PROM misbehaves, seems to not implement ARC
-		   GetChild().  So we just assume it's an IP27.  */
+		   GetChild().	So we just assume it's an IP27.	 */
 		iname = "SGI-IP27";
 #else
 		iname = "Unknown";

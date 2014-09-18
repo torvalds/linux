@@ -19,6 +19,7 @@
 #include <linux/mfd/core.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
+#include <linux/regmap.h>
 
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/pdata.h>
@@ -89,8 +90,11 @@ static int wm8994_gpio_direction_out(struct gpio_chip *chip,
 	struct wm8994_gpio *wm8994_gpio = to_wm8994_gpio(chip);
 	struct wm8994 *wm8994 = wm8994_gpio->wm8994;
 
+	if (value)
+		value = WM8994_GPN_LVL;
+
 	return wm8994_set_bits(wm8994, WM8994_GPIO_1 + offset,
-			       WM8994_GPN_DIR, 0);
+			       WM8994_GPN_DIR | WM8994_GPN_LVL, value);
 }
 
 static void wm8994_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -109,10 +113,7 @@ static int wm8994_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct wm8994_gpio *wm8994_gpio = to_wm8994_gpio(chip);
 	struct wm8994 *wm8994 = wm8994_gpio->wm8994;
 
-	if (!wm8994->irq_base)
-		return -EINVAL;
-
-	return wm8994->irq_base + offset;
+	return regmap_irq_get_virq(wm8994->irq_data, offset);
 }
 
 
@@ -241,17 +242,18 @@ static struct gpio_chip template_chip = {
 	.set			= wm8994_gpio_set,
 	.to_irq			= wm8994_gpio_to_irq,
 	.dbg_show		= wm8994_gpio_dbg_show,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
-static int __devinit wm8994_gpio_probe(struct platform_device *pdev)
+static int wm8994_gpio_probe(struct platform_device *pdev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(pdev->dev.parent);
-	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
+	struct wm8994_pdata *pdata = dev_get_platdata(wm8994->dev);
 	struct wm8994_gpio *wm8994_gpio;
 	int ret;
 
-	wm8994_gpio = kzalloc(sizeof(*wm8994_gpio), GFP_KERNEL);
+	wm8994_gpio = devm_kzalloc(&pdev->dev, sizeof(*wm8994_gpio),
+				   GFP_KERNEL);
 	if (wm8994_gpio == NULL)
 		return -ENOMEM;
 
@@ -276,27 +278,22 @@ static int __devinit wm8994_gpio_probe(struct platform_device *pdev)
 	return ret;
 
 err:
-	kfree(wm8994_gpio);
 	return ret;
 }
 
-static int __devexit wm8994_gpio_remove(struct platform_device *pdev)
+static int wm8994_gpio_remove(struct platform_device *pdev)
 {
 	struct wm8994_gpio *wm8994_gpio = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&wm8994_gpio->gpio_chip);
-	if (ret == 0)
-		kfree(wm8994_gpio);
-
-	return ret;
+	gpiochip_remove(&wm8994_gpio->gpio_chip);
+	return 0;
 }
 
 static struct platform_driver wm8994_gpio_driver = {
 	.driver.name	= "wm8994-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= wm8994_gpio_probe,
-	.remove		= __devexit_p(wm8994_gpio_remove),
+	.remove		= wm8994_gpio_remove,
 };
 
 static int __init wm8994_gpio_init(void)

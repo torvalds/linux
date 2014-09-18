@@ -53,17 +53,13 @@ extern void ctrl_alt_del(void);
 
 #define KBD_DEFMODE ((1 << VC_REPEAT) | (1 << VC_META))
 
-/*
- * Some laptops take the 789uiojklm,. keys as number pad when NumLock is on.
- * This seems a good reason to start with NumLock off. On HIL keyboards
- * of PARISC machines however there is no NumLock key and everyone expects the
- * keypad to be used for numbers.
- */
-
-#if defined(CONFIG_PARISC) && (defined(CONFIG_KEYBOARD_HIL) || defined(CONFIG_KEYBOARD_HIL_OLD))
-#define KBD_DEFLEDS (1 << VC_NUMLOCK)
+#if defined(CONFIG_X86) || defined(CONFIG_PARISC)
+#include <asm/kbdleds.h>
 #else
-#define KBD_DEFLEDS 0
+static inline int kbd_defleds(void)
+{
+	return 0;
+}
 #endif
 
 #define KBD_DEFLOCK 0
@@ -123,6 +119,7 @@ static const int NR_TYPES = ARRAY_SIZE(max_vals);
 
 static struct input_handler kbd_handler;
 static DEFINE_SPINLOCK(kbd_event_lock);
+static DEFINE_SPINLOCK(led_lock);
 static unsigned long key_down[BITS_TO_LONGS(KEY_CNT)];	/* keyboard key bitmap */
 static unsigned char shift_down[NR_SHIFT];		/* shift state counters.. */
 static bool dead_key_next;
@@ -134,12 +131,6 @@ static int shift_state = 0;
 
 static unsigned char ledstate = 0xff;			/* undefined */
 static unsigned char ledioctl;
-
-static struct ledptr {
-	unsigned int *addr;
-	unsigned int mask;
-	unsigned char valid:1;
-} ledptrs[3];
 
 /*
  * Notifier list for console keyboard events
@@ -310,26 +301,17 @@ int kbd_rate(struct kbd_repeat *rep)
  */
 static void put_queue(struct vc_data *vc, int ch)
 {
-	struct tty_struct *tty = vc->port.tty;
-
-	if (tty) {
-		tty_insert_flip_char(tty, ch, 0);
-		con_schedule_flip(tty);
-	}
+	tty_insert_flip_char(&vc->port, ch, 0);
+	tty_schedule_flip(&vc->port);
 }
 
 static void puts_queue(struct vc_data *vc, char *cp)
 {
-	struct tty_struct *tty = vc->port.tty;
-
-	if (!tty)
-		return;
-
 	while (*cp) {
-		tty_insert_flip_char(tty, *cp, 0);
+		tty_insert_flip_char(&vc->port, *cp, 0);
 		cp++;
 	}
-	con_schedule_flip(tty);
+	tty_schedule_flip(&vc->port);
 }
 
 static void applkey(struct vc_data *vc, int key, char mode)
@@ -585,12 +567,8 @@ static void fn_inc_console(struct vc_data *vc)
 
 static void fn_send_intr(struct vc_data *vc)
 {
-	struct tty_struct *tty = vc->port.tty;
-
-	if (!tty)
-		return;
-	tty_insert_flip_char(tty, 0, TTY_BREAK);
-	con_schedule_flip(tty);
+	tty_insert_flip_char(&vc->port, 0, TTY_BREAK);
+	tty_schedule_flip(&vc->port);
 }
 
 static void fn_scroll_forw(struct vc_data *vc)
@@ -988,7 +966,7 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag)
  * or (ii) whatever pattern of lights people want to show using KDSETLED,
  * or (iii) specified bits of specified words in kernel memory.
  */
-unsigned char getledstate(void)
+static unsigned char getledstate(void)
 {
 	return ledstate;
 }
@@ -996,7 +974,7 @@ unsigned char getledstate(void)
 void setledstate(struct kbd_struct *kbd, unsigned int led)
 {
         unsigned long flags;
-        spin_lock_irqsave(&kbd_event_lock, flags);
+        spin_lock_irqsave(&led_lock, flags);
 	if (!(led & ~7)) {
 		ledioctl = led;
 		kbd->ledmode = LED_SHOW_IOCTL;
@@ -1004,30 +982,17 @@ void setledstate(struct kbd_struct *kbd, unsigned int led)
 		kbd->ledmode = LED_SHOW_FLAGS;
 
 	set_leds();
-	spin_unlock_irqrestore(&kbd_event_lock, flags);
+	spin_unlock_irqrestore(&led_lock, flags);
 }
 
 static inline unsigned char getleds(void)
 {
 	struct kbd_struct *kbd = kbd_table + fg_console;
-	unsigned char leds;
-	int i;
 
 	if (kbd->ledmode == LED_SHOW_IOCTL)
 		return ledioctl;
 
-	leds = kbd->ledflagstate;
-
-	if (kbd->ledmode == LED_SHOW_MEM) {
-		for (i = 0; i < 3; i++)
-			if (ledptrs[i].valid) {
-				if (*ledptrs[i].addr & ledptrs[i].mask)
-					leds |= (1 << i);
-				else
-					leds &= ~(1 << i);
-			}
-	}
-	return leds;
+	return kbd->ledflagstate;
 }
 
 static int kbd_update_leds_helper(struct input_handle *handle, void *data)
@@ -1053,13 +1018,13 @@ static int kbd_update_leds_helper(struct input_handle *handle, void *data)
  */
 int vt_get_leds(int console, int flag)
 {
-	unsigned long flags;
 	struct kbd_struct * kbd = kbd_table + console;
 	int ret;
+	unsigned long flags;
 
-	spin_lock_irqsave(&kbd_event_lock, flags);
+	spin_lock_irqsave(&led_lock, flags);
 	ret = vc_kbd_led(kbd, flag);
-	spin_unlock_irqrestore(&kbd_event_lock, flags);
+	spin_unlock_irqrestore(&led_lock, flags);
 
 	return ret;
 }
@@ -1085,15 +1050,21 @@ void vt_set_led_state(int console, int leds)
  *
  *	Handle console start. This is a wrapper for the VT layer
  *	so that we can keep kbd knowledge internal
+ *
+ *	FIXME: We eventually need to hold the kbd lock here to protect
+ *	the LED updating. We can't do it yet because fn_hold calls stop_tty
+ *	and start_tty under the kbd_event_lock, while normal tty paths
+ *	don't hold the lock. We probably need to split out an LED lock
+ *	but not during an -rc release!
  */
 void vt_kbd_con_start(int console)
 {
 	struct kbd_struct * kbd = kbd_table + console;
 	unsigned long flags;
-	spin_lock_irqsave(&kbd_event_lock, flags);
+	spin_lock_irqsave(&led_lock, flags);
 	clr_vc_kbd_led(kbd, VC_SCROLLOCK);
 	set_leds();
-	spin_unlock_irqrestore(&kbd_event_lock, flags);
+	spin_unlock_irqrestore(&led_lock, flags);
 }
 
 /**
@@ -1107,22 +1078,27 @@ void vt_kbd_con_stop(int console)
 {
 	struct kbd_struct * kbd = kbd_table + console;
 	unsigned long flags;
-	spin_lock_irqsave(&kbd_event_lock, flags);
+	spin_lock_irqsave(&led_lock, flags);
 	set_vc_kbd_led(kbd, VC_SCROLLOCK);
 	set_leds();
-	spin_unlock_irqrestore(&kbd_event_lock, flags);
+	spin_unlock_irqrestore(&led_lock, flags);
 }
 
 /*
  * This is the tasklet that updates LED state on all keyboards
  * attached to the box. The reason we use tasklet is that we
  * need to handle the scenario when keyboard handler is not
- * registered yet but we already getting updates form VT to
+ * registered yet but we already getting updates from the VT to
  * update led state.
  */
 static void kbd_bh(unsigned long dummy)
 {
-	unsigned char leds = getleds();
+	unsigned char leds;
+	unsigned long flags;
+	
+	spin_lock_irqsave(&led_lock, flags);
+	leds = getleds();
+	spin_unlock_irqrestore(&led_lock, flags);
 
 	if (leds != ledstate) {
 		input_handler_for_each_handle(&kbd_handler, &leds,
@@ -1512,8 +1488,8 @@ int __init kbd_init(void)
 	int error;
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
-		kbd_table[i].ledflagstate = KBD_DEFLEDS;
-		kbd_table[i].default_ledflagstate = KBD_DEFLEDS;
+		kbd_table[i].ledflagstate = kbd_defleds();
+		kbd_table[i].default_ledflagstate = kbd_defleds();
 		kbd_table[i].ledmode = LED_SHOW_FLAGS;
 		kbd_table[i].lockstate = KBD_DEFLOCK;
 		kbd_table[i].slockstate = 0;
@@ -2027,12 +2003,12 @@ int vt_do_kdskled(int console, int cmd, unsigned long arg, int perm)
 			return -EPERM;
 		if (arg & ~0x77)
 			return -EINVAL;
-                spin_lock_irqsave(&kbd_event_lock, flags);
+                spin_lock_irqsave(&led_lock, flags);
 		kbd->ledflagstate = (arg & 7);
 		kbd->default_ledflagstate = ((arg >> 4) & 7);
 		set_leds();
-                spin_unlock_irqrestore(&kbd_event_lock, flags);
-		break;
+                spin_unlock_irqrestore(&led_lock, flags);
+		return 0;
 
 	/* the ioctls below only set the lights, not the functions */
 	/* for those, see KDGKBLED and KDSKBLED above */
@@ -2126,8 +2102,10 @@ void vt_reset_keyboard(int console)
 	clr_vc_kbd_mode(kbd, VC_CRLF);
 	kbd->lockstate = 0;
 	kbd->slockstate = 0;
+	spin_lock(&led_lock);
 	kbd->ledmode = LED_SHOW_FLAGS;
 	kbd->ledflagstate = kbd->default_ledflagstate;
+	spin_unlock(&led_lock);
 	/* do not do set_leds here because this causes an endless tasklet loop
 	   when the keyboard hasn't been initialized yet */
 	spin_unlock_irqrestore(&kbd_event_lock, flags);

@@ -6,7 +6,7 @@
  * This file may be distributed under the terms of the GNU General Public
  * License version 2.
  *
- * Copyright (c) 2010:  Borislav Petkov <borislav.petkov@amd.com>
+ * Copyright (c) 2010:  Borislav Petkov <bp@alien8.de>
  *			Advanced Micro Devices Inc.
  */
 
@@ -43,7 +43,7 @@ static ssize_t edac_inject_##reg##_store(struct kobject *kobj,		\
 	int ret = 0;							\
 	unsigned long value;						\
 									\
-	ret = strict_strtoul(data, 16, &value);				\
+	ret = kstrtoul(data, 16, &value);				\
 	if (ret < 0)							\
 		printk(KERN_ERR "Error writing MCE " #reg " field.\n");	\
 									\
@@ -83,7 +83,7 @@ static ssize_t edac_inject_bank_store(struct kobject *kobj,
 	int ret = 0;
 	unsigned long value;
 
-	ret = strict_strtoul(data, 10, &value);
+	ret = kstrtoul(data, 10, &value);
 	if (ret < 0) {
 		printk(KERN_ERR "Invalid bank value!\n");
 		return -EINVAL;
@@ -168,6 +168,6 @@ module_init(edac_init_mce_inject);
 module_exit(edac_exit_mce_inject);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Borislav Petkov <borislav.petkov@amd.com>");
+MODULE_AUTHOR("Borislav Petkov <bp@alien8.de>");
 MODULE_AUTHOR("AMD Inc.");
 MODULE_DESCRIPTION("MCE injection facility for testing MCE decoding");

@@ -1,7 +1,7 @@
 	How to Get Your Patch Accepted Into the Hwmon Subsystem
 	-------------------------------------------------------
 
-This text is is a collection of suggestions for people writing patches or
+This text is a collection of suggestions for people writing patches or
 drivers for the hwmon subsystem. Following these suggestions will greatly
 increase the chances of your change being accepted.
 
@@ -27,8 +27,7 @@ increase the chances of your change being accepted.
   explicitly below the patch header.
 
 * If your patch (or the driver) is affected by configuration options such as
-  CONFIG_SMP or CONFIG_HOTPLUG, make sure it compiles for all configuration
-  variants.
+  CONFIG_SMP, make sure it compiles for all configuration variants.
 
 
 2. Adding functionality to existing drivers
@@ -60,8 +59,7 @@ increase the chances of your change being accepted.
 
 * Add the driver to Kconfig and Makefile in alphabetical order.
 
-* Make sure that all dependencies are listed in Kconfig. For new drivers, it
-  is most likely prudent to add a dependency on EXPERIMENTAL.
+* Make sure that all dependencies are listed in Kconfig.
 
 * Avoid forward declarations if you can. Rearrange the code if necessary.
 
@@ -69,6 +67,9 @@ increase the chances of your change being accepted.
   may save a line or so in the source, it obfuscates the code and makes code
   review more difficult. It may also result in code which is more complicated
   than necessary. Use inline functions or just regular functions instead.
+
+* Use devres functions whenever possible to allocate resources. For rationale
+  and supported functions, please see Documentation/driver-model/devres.txt.
 
 * If the driver has a detect function, make sure it is silent. Debug messages
   and messages printed after a successful detection are acceptable, but it

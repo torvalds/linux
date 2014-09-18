@@ -8,7 +8,6 @@
  */
 
 #include <linux/device.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -158,7 +157,7 @@
 
 /* ORIENT ADXL346 only */
 #define ADXL346_2D_VALID		(1 << 6)
-#define ADXL346_2D_ORIENT(x)		(((x) & 0x3) >> 4)
+#define ADXL346_2D_ORIENT(x)		(((x) & 0x30) >> 4)
 #define ADXL346_3D_VALID		(1 << 3)
 #define ADXL346_3D_ORIENT(x)		((x) & 0x7)
 #define ADXL346_2D_PORTRAIT_POS		0	/* +X */
@@ -232,7 +231,7 @@ static const struct adxl34x_platform_data adxl34x_default_init = {
 
 	.ev_code_tap = {BTN_TOUCH, BTN_TOUCH, BTN_TOUCH}, /* EV_KEY {x,y,z} */
 	.power_mode = ADXL_AUTO_SLEEP | ADXL_LINK,
-	.fifo_mode = FIFO_STREAM,
+	.fifo_mode = ADXL_FIFO_STREAM,
 	.watermark = 0,
 };
 
@@ -714,7 +713,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 
 	ac->fifo_delay = fifo_delay_default;
 
-	pdata = dev->platform_data;
+	pdata = dev_get_platdata(dev);
 	if (!pdata) {
 		dev_dbg(dev,
 			"No platform data: Using default initialization\n");
@@ -732,7 +731,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	mutex_init(&ac->mutex);
 
 	input_dev->name = "ADXL34x accelerometer";
-	revid = ac->bops->read(dev, DEVID);
+	revid = AC_READ(ac, DEVID);
 
 	switch (revid) {
 	case ID_ADXL345:
@@ -809,7 +808,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	if (FIFO_MODE(pdata->fifo_mode) == FIFO_BYPASS)
 		ac->fifo_delay = false;
 
-	ac->bops->write(dev, POWER_CTL, 0);
+	AC_WRITE(ac, POWER_CTL, 0);
 
 	err = request_threaded_irq(ac->irq, NULL, adxl34x_irq,
 				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
@@ -827,7 +826,6 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	if (err)
 		goto err_remove_attr;
 
-	AC_WRITE(ac, THRESH_TAP, pdata->tap_threshold);
 	AC_WRITE(ac, OFSX, pdata->x_axis_offset);
 	ac->hwcal.x = pdata->x_axis_offset;
 	AC_WRITE(ac, OFSY, pdata->y_axis_offset);

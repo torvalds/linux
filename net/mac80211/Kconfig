@@ -4,6 +4,7 @@ config MAC80211
 	select CRYPTO
 	select CRYPTO_ARC4
 	select CRYPTO_AES
+	select CRYPTO_CCM
 	select CRC32
 	select AVERAGE
 	---help---
@@ -17,14 +18,6 @@ if MAC80211 != n
 
 config MAC80211_HAS_RC
 	bool
-
-config MAC80211_RC_PID
-	bool "PID controller based rate control algorithm" if EXPERT
-	select MAC80211_HAS_RC
-	---help---
-	  This option enables a TX rate control algorithm for
-	  mac80211 that uses a PID controller to select the TX
-	  rate.
 
 config MAC80211_RC_MINSTREL
 	bool "Minstrel" if EXPERT
@@ -50,14 +43,6 @@ choice
 	  overridden through the ieee80211_default_rc_algo module
 	  parameter if different algorithms are available.
 
-config MAC80211_RC_DEFAULT_PID
-	bool "PID controller based rate control algorithm"
-	depends on MAC80211_RC_PID
-	---help---
-	  Select the PID controller based rate control as the
-	  default rate control algorithm. You should choose
-	  this unless you know what you are doing.
-
 config MAC80211_RC_DEFAULT_MINSTREL
 	bool "Minstrel"
 	depends on MAC80211_RC_MINSTREL
@@ -71,7 +56,6 @@ config MAC80211_RC_DEFAULT
 	string
 	default "minstrel_ht" if MAC80211_RC_DEFAULT_MINSTREL && MAC80211_RC_MINSTREL_HT
 	default "minstrel" if MAC80211_RC_DEFAULT_MINSTREL
-	default "pid" if MAC80211_RC_DEFAULT_PID
 	default ""
 
 endif
@@ -81,7 +65,7 @@ comment "Some wireless drivers require a rate control algorithm"
 
 config MAC80211_MESH
 	bool "Enable mac80211 mesh networking (pre-802.11s) support"
-	depends on MAC80211 && EXPERIMENTAL
+	depends on MAC80211
 	---help---
 	 This options enables support of Draft 802.11s mesh networking.
 	 The implementation is based on Draft 2.08 of the Mesh Networking
@@ -106,6 +90,19 @@ config MAC80211_DEBUGFS
 	  the internal state of mac80211 in debugfs.
 
 	  Say N unless you know you need this.
+
+config MAC80211_MESSAGE_TRACING
+	bool "Trace all mac80211 debug messages"
+	depends on MAC80211
+	---help---
+	  Select this option to have mac80211 register the
+	  mac80211_msg trace subsystem with tracepoints to
+	  collect all debugging messages, independent of
+	  printing them into the kernel log.
+
+	  The overhead in this option is that all the messages
+	  need to be present in the binary and formatted at
+	  runtime for tracing.
 
 menuconfig MAC80211_DEBUG_MENU
 	bool "Select mac80211 debugging features"
@@ -140,6 +137,26 @@ config MAC80211_VERBOSE_DEBUG
 
 	  Do not select this option.
 
+config MAC80211_MLME_DEBUG
+	bool "Verbose managed MLME output"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out
+	  debugging messages for the managed-mode MLME. It
+	  should not be selected on production systems as some
+	  of the messages are remotely triggerable.
+
+	  Do not select this option.
+
+config MAC80211_STA_DEBUG
+	bool "Verbose station debugging"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out
+	  debugging messages for station addition/removal.
+
+	  Do not select this option.
+
 config MAC80211_HT_DEBUG
 	bool "Verbose HT debugging"
 	depends on MAC80211_DEBUG_MENU
@@ -149,17 +166,6 @@ config MAC80211_HT_DEBUG
 
 	  It should not be selected on production systems as some
 	  of the messages are remotely triggerable.
-
-	  Do not select this option.
-
-config MAC80211_TKIP_DEBUG
-	bool "Verbose TKIP debugging"
-	depends on MAC80211_DEBUG_MENU
-	---help---
-	  Selecting this option causes mac80211 to print out
-	  very verbose TKIP debugging messages. It should not
-	  be selected on production systems as those messages
-	  are remotely triggerable.
 
 	  Do not select this option.
 
@@ -174,7 +180,7 @@ config MAC80211_IBSS_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_PS_DEBUG
+config MAC80211_PS_DEBUG
 	bool "Verbose powersave mode debugging"
 	depends on MAC80211_DEBUG_MENU
 	---help---
@@ -186,7 +192,7 @@ config MAC80211_VERBOSE_PS_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_MPL_DEBUG
+config MAC80211_MPL_DEBUG
 	bool "Verbose mesh peer link debugging"
 	depends on MAC80211_DEBUG_MENU
 	depends on MAC80211_MESH
@@ -199,7 +205,7 @@ config MAC80211_VERBOSE_MPL_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_MPATH_DEBUG
+config MAC80211_MPATH_DEBUG
 	bool "Verbose mesh path debugging"
 	depends on MAC80211_DEBUG_MENU
 	depends on MAC80211_MESH
@@ -212,7 +218,7 @@ config MAC80211_VERBOSE_MPATH_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_MHWMP_DEBUG
+config MAC80211_MHWMP_DEBUG
 	bool "Verbose mesh HWMP routing debugging"
 	depends on MAC80211_DEBUG_MENU
 	depends on MAC80211_MESH
@@ -225,7 +231,40 @@ config MAC80211_VERBOSE_MHWMP_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_TDLS_DEBUG
+config MAC80211_MESH_SYNC_DEBUG
+	bool "Verbose mesh synchronization debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very verbose mesh
+	  synchronization debugging messages (when mac80211 is taking part in a
+	  mesh network).
+
+	  Do not select this option.
+
+config MAC80211_MESH_CSA_DEBUG
+	bool "Verbose mesh channel switch debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very verbose mesh
+	  channel switch debugging messages (when mac80211 is taking part in a
+	  mesh network).
+
+	  Do not select this option.
+
+config MAC80211_MESH_PS_DEBUG
+	bool "Verbose mesh powersave debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very verbose mesh
+	  powersave debugging messages (when mac80211 is taking part in a
+	  mesh network).
+
+	  Do not select this option.
+
+config MAC80211_TDLS_DEBUG
 	bool "Verbose TDLS debugging"
 	depends on MAC80211_DEBUG_MENU
 	---help---

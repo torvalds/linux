@@ -25,7 +25,8 @@
 obj-$(CONFIG_ATH6KL) += ath6kl_core.o
 ath6kl_core-y += debug.o
 ath6kl_core-y += hif.o
-ath6kl_core-y += htc.o
+ath6kl_core-y += htc_mbox.o
+ath6kl_core-y += htc_pipe.o
 ath6kl_core-y += bmi.o
 ath6kl_core-y += cfg80211.o
 ath6kl_core-y += init.o
@@ -33,10 +34,16 @@ ath6kl_core-y += main.o
 ath6kl_core-y += txrx.o
 ath6kl_core-y += wmi.o
 ath6kl_core-y += core.o
+ath6kl_core-y += recovery.o
+
 ath6kl_core-$(CONFIG_NL80211_TESTMODE) += testmode.o
+ath6kl_core-$(CONFIG_ATH6KL_TRACING) += trace.o
 
 obj-$(CONFIG_ATH6KL_SDIO) += ath6kl_sdio.o
 ath6kl_sdio-y += sdio.o
 
 obj-$(CONFIG_ATH6KL_USB) += ath6kl_usb.o
 ath6kl_usb-y += usb.o
+
+# for tracing framework to find trace.h
+CFLAGS_trace.o := -I$(src)

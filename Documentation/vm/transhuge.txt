@@ -116,6 +116,13 @@ echo always >/sys/kernel/mm/transparent_hugepage/defrag
 echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
 echo never >/sys/kernel/mm/transparent_hugepage/defrag
 
+By default kernel tries to use huge zero page on read page fault.
+It's possible to disable huge zero page by writing 0 or enable it
+back by writing 1:
+
+echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+
 khugepaged will be automatically started when
 transparent_hugepage/enabled is set to "always" or "madvise, and it'll
 be automatically shutdown if it's set to "never".
@@ -166,6 +173,76 @@ behavior. So to make them effective you need to restart any
 application that could have been using hugepages. This also applies to
 the regions registered in khugepaged.
 
+== Monitoring usage ==
+
+The number of transparent huge pages currently used by the system is
+available by reading the AnonHugePages field in /proc/meminfo. To
+identify what applications are using transparent huge pages, it is
+necessary to read /proc/PID/smaps and count the AnonHugePages fields
+for each mapping. Note that reading the smaps file is expensive and
+reading it frequently will incur overhead.
+
+There are a number of counters in /proc/vmstat that may be used to
+monitor how successfully the system is providing huge pages for use.
+
+thp_fault_alloc is incremented every time a huge page is successfully
+	allocated to handle a page fault. This applies to both the
+	first time a page is faulted and for COW faults.
+
+thp_collapse_alloc is incremented by khugepaged when it has found
+	a range of pages to collapse into one huge page and has
+	successfully allocated a new huge page to store the data.
+
+thp_fault_fallback is incremented if a page fault fails to allocate
+	a huge page and instead falls back to using small pages.
+
+thp_collapse_alloc_failed is incremented if khugepaged found a range
+	of pages that should be collapsed into one huge page but failed
+	the allocation.
+
+thp_split is incremented every time a huge page is split into base
+	pages. This can happen for a variety of reasons but a common
+	reason is that a huge page is old and is being reclaimed.
+
+thp_zero_page_alloc is incremented every time a huge zero page is
+	successfully allocated. It includes allocations which where
+	dropped due race with other allocation. Note, it doesn't count
+	every map of the huge zero page, only its allocation.
+
+thp_zero_page_alloc_failed is incremented if kernel fails to allocate
+	huge zero page and falls back to using small pages.
+
+As the system ages, allocating huge pages may be expensive as the
+system uses memory compaction to copy data around memory to free a
+huge page for use. There are some counters in /proc/vmstat to help
+monitor this overhead.
+
+compact_stall is incremented every time a process stalls to run
+	memory compaction so that a huge page is free for use.
+
+compact_success is incremented if the system compacted memory and
+	freed a huge page for use.
+
+compact_fail is incremented if the system tries to compact memory
+	but failed.
+
+compact_pages_moved is incremented each time a page is moved. If
+	this value is increasing rapidly, it implies that the system
+	is copying a lot of data to satisfy the huge page allocation.
+	It is possible that the cost of copying exceeds any savings
+	from reduced TLB misses.
+
+compact_pagemigrate_failed is incremented when the underlying mechanism
+	for moving a page failed.
+
+compact_blocks_moved is incremented each time memory compaction examines
+	a huge page aligned range of pages.
+
+It is possible to establish how long the stalls were using the function
+tracer to record how long was spent in __alloc_pages_nodemask and
+using the mm_page_alloc tracepoint to identify which allocations were
+for huge pages.
+
 == get_user_pages and follow_page ==
 
 get_user_pages and follow_page if run on a hugepage, will return the
@@ -214,7 +291,7 @@ unaffected. libhugetlbfs will also work fine as usual.
 == Graceful fallback ==
 
 Code walking pagetables but unware about huge pmds can simply call
-split_huge_page_pmd(mm, pmd) where the pmd is the one returned by
+split_huge_page_pmd(vma, addr, pmd) where the pmd is the one returned by
 pmd_offset. It's trivial to make the code transparent hugepage aware
 by just grepping for "pmd_offset" and adding split_huge_page_pmd where
 missing after pmd_offset returns the pmd. Thanks to the graceful
@@ -237,7 +314,7 @@ diff --git a/mm/mremap.c b/mm/mremap.c
 		return NULL;
 
 	pmd = pmd_offset(pud, addr);
-+	split_huge_page_pmd(mm, pmd);
++	split_huge_page_pmd(vma, addr, pmd);
 	if (pmd_none_or_clear_bad(pmd))
 		return NULL;
 
@@ -283,13 +360,13 @@ on any tail page, would mean having to split all hugepages upfront in
 get_user_pages which is unacceptable as too many gup users are
 performance critical and they must work natively on hugepages like
 they work natively on hugetlbfs already (hugetlbfs is simpler because
-hugetlbfs pages cannot be splitted so there wouldn't be requirement of
+hugetlbfs pages cannot be split so there wouldn't be requirement of
 accounting the pins on the tail pages for hugetlbfs). If we wouldn't
 account the gup refcounts on the tail pages during gup, we won't know
 anymore which tail page is pinned by gup and which is not while we run
 split_huge_page. But we still have to add the gup pin to the head page
 too, to know when we can free the compound page in case it's never
-splitted during its lifetime. That requires changing not just
+split during its lifetime. That requires changing not just
 get_page, but put_page as well so that when put_page runs on a tail
 page (and only on a tail page) it will find its respective head page,
 and then it will decrease the head page refcount in addition to the

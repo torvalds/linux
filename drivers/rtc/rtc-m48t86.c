@@ -46,7 +46,7 @@ static int m48t86_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned char reg;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct m48t86_ops *ops = pdev->dev.platform_data;
+	struct m48t86_ops *ops = dev_get_platdata(&pdev->dev);
 
 	reg = ops->readbyte(M48T86_REG_B);
 
@@ -84,7 +84,7 @@ static int m48t86_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned char reg;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct m48t86_ops *ops = pdev->dev.platform_data;
+	struct m48t86_ops *ops = dev_get_platdata(&pdev->dev);
 
 	reg = ops->readbyte(M48T86_REG_B);
 
@@ -123,7 +123,7 @@ static int m48t86_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	unsigned char reg;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct m48t86_ops *ops = pdev->dev.platform_data;
+	struct m48t86_ops *ops = dev_get_platdata(&pdev->dev);
 
 	reg = ops->readbyte(M48T86_REG_B);
 
@@ -144,12 +144,14 @@ static const struct rtc_class_ops m48t86_rtc_ops = {
 	.proc		= m48t86_rtc_proc,
 };
 
-static int __devinit m48t86_rtc_probe(struct platform_device *dev)
+static int m48t86_rtc_probe(struct platform_device *dev)
 {
 	unsigned char reg;
-	struct m48t86_ops *ops = dev->dev.platform_data;
-	struct rtc_device *rtc = rtc_device_register("m48t86",
-				&dev->dev, &m48t86_rtc_ops, THIS_MODULE);
+	struct m48t86_ops *ops = dev_get_platdata(&dev->dev);
+	struct rtc_device *rtc;
+
+	rtc = devm_rtc_device_register(&dev->dev, "m48t86",
+				&m48t86_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
@@ -164,25 +166,12 @@ static int __devinit m48t86_rtc_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit m48t86_rtc_remove(struct platform_device *dev)
-{
-	struct rtc_device *rtc = platform_get_drvdata(dev);
-
- 	if (rtc)
-		rtc_device_unregister(rtc);
-
-	platform_set_drvdata(dev, NULL);
-
-	return 0;
-}
-
 static struct platform_driver m48t86_rtc_platform_driver = {
 	.driver		= {
 		.name	= "rtc-m48t86",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= m48t86_rtc_probe,
-	.remove		= __devexit_p(m48t86_rtc_remove),
 };
 
 module_platform_driver(m48t86_rtc_platform_driver);

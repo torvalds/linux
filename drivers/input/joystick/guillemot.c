@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/gameport.h>
 #include <linux/input.h>
 #include <linux/jiffies.h>
@@ -281,15 +280,4 @@ static struct gameport_driver guillemot_drv = {
 	.disconnect	= guillemot_disconnect,
 };
 
-static int __init guillemot_init(void)
-{
-	return gameport_register_driver(&guillemot_drv);
-}
-
-static void __exit guillemot_exit(void)
-{
-	gameport_unregister_driver(&guillemot_drv);
-}
-
-module_init(guillemot_init);
-module_exit(guillemot_exit);
+module_gameport_driver(guillemot_drv);

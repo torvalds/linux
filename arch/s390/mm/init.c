@@ -1,8 +1,6 @@
 /*
- *  arch/s390/mm/init.c
- *
  *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999
  *    Author(s): Hartmut Penner (hp@de.ibm.com)
  *
  *  Derived from "arch/i386/mm/init.c"
@@ -23,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
+#include <linux/memory.h>
 #include <linux/pfn.h>
 #include <linux/poison.h>
 #include <linux/initrd.h>
@@ -38,17 +37,17 @@
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
 #include <asm/ctl_reg.h>
+#include <asm/sclp.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
 
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
 
-static unsigned long setup_zero_pages(void)
+static void __init setup_zero_pages(void)
 {
 	struct cpuid cpu_id;
 	unsigned int order;
-	unsigned long size;
 	struct page *page;
 	int i;
 
@@ -65,10 +64,19 @@ static unsigned long setup_zero_pages(void)
 		break;
 	case 0x2097:	/* z10 */
 	case 0x2098:	/* z10 */
-	default:
+	case 0x2817:	/* z196 */
+	case 0x2818:	/* z196 */
 		order = 2;
 		break;
+	case 0x2827:	/* zEC12 */
+	case 0x2828:	/* zEC12 */
+	default:
+		order = 5;
+		break;
 	}
+	/* Limit number of empty zero pages for small memory sizes */
+	if (order > 2 && totalram_pages <= 16384)
+		order = 2;
 
 	empty_zero_page = __get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
 	if (!empty_zero_page)
@@ -77,14 +85,11 @@ static unsigned long setup_zero_pages(void)
 	page = virt_to_page((void *) empty_zero_page);
 	split_page(page, order);
 	for (i = 1 << order; i > 0; i--) {
-		SetPageReserved(page);
+		mark_page_reserved(page);
 		page++;
 	}
 
-	size = PAGE_SIZE << order;
-	zero_page_mask = (size - 1) & PAGE_MASK;
-
-	return 1UL << order;
+	zero_page_mask = ((PAGE_SIZE << order) - 1) & PAGE_MASK;
 }
 
 /*
@@ -119,104 +124,47 @@ void __init paging_init(void)
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
 	arch_local_irq_restore(4UL << (BITS_PER_LONG - 8));
 
-	atomic_set(&init_mm.context.attach_count, 1);
-
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_DMA] = PFN_DOWN(MAX_DMA_ADDRESS);
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 	free_area_init_nodes(max_zone_pfns);
-	fault_init();
 }
 
 void __init mem_init(void)
 {
-	unsigned long codesize, reservedpages, datasize, initsize;
+	if (MACHINE_HAS_TLB_LC)
+		cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
+	cpumask_set_cpu(0, mm_cpumask(&init_mm));
+	atomic_set(&init_mm.context.attach_count, 1);
 
-        max_mapnr = num_physpages = max_low_pfn;
+        max_mapnr = max_low_pfn;
         high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 
 	/* Setup guest page hinting */
 	cmma_init();
 
 	/* this will put all low memory onto the freelists */
-	totalram_pages += free_all_bootmem();
-	totalram_pages -= setup_zero_pages();	/* Setup zeroed pages. */
+	free_all_bootmem();
+	setup_zero_pages();	/* Setup zeroed pages. */
 
-	reservedpages = 0;
-
-	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
-	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
-	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
-        printk("Memory: %luk/%luk available (%ldk kernel code, %ldk reserved, %ldk data, %ldk init)\n",
-		nr_free_pages() << (PAGE_SHIFT-10),
-                max_mapnr << (PAGE_SHIFT-10),
-                codesize >> 10,
-                reservedpages << (PAGE_SHIFT-10),
-                datasize >>10,
-                initsize >> 10);
+	mem_init_print_info(NULL);
 	printk("Write protected kernel read-only data: %#lx - %#lx\n",
 	       (unsigned long)&_stext,
 	       PFN_ALIGN((unsigned long)&_eshared) - 1);
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-void kernel_map_pages(struct page *page, int numpages, int enable)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	unsigned long address;
-	int i;
-
-	for (i = 0; i < numpages; i++) {
-		address = page_to_phys(page + i);
-		pgd = pgd_offset_k(address);
-		pud = pud_offset(pgd, address);
-		pmd = pmd_offset(pud, address);
-		pte = pte_offset_kernel(pmd, address);
-		if (!enable) {
-			__ptep_ipte(address, pte);
-			pte_val(*pte) = _PAGE_TYPE_EMPTY;
-			continue;
-		}
-		*pte = mk_pte_phys(address, __pgprot(_PAGE_TYPE_RW));
-		/* Flush cpu write queue. */
-		mb();
-	}
-}
-#endif
-
-void free_init_pages(char *what, unsigned long begin, unsigned long end)
-{
-	unsigned long addr = begin;
-
-	if (begin >= end)
-		return;
-	for (; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
-		memset((void *)(addr & PAGE_MASK), POISON_FREE_INITMEM,
-		       PAGE_SIZE);
-		free_page(addr);
-		totalram_pages++;
-	}
-	printk(KERN_INFO "Freeing %s: %luk freed\n", what, (end - begin) >> 10);
-}
-
 void free_initmem(void)
 {
-	free_init_pages("unused kernel memory",
-			(unsigned long)&__init_begin,
-			(unsigned long)&__init_end);
+	free_initmem_default(POISON_FREE_INITMEM);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
+void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
-	free_init_pages("initrd memory", start, end);
+	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
+			   "initrd");
 }
 #endif
 
@@ -259,4 +207,25 @@ int arch_add_memory(int nid, u64 start, u64 size)
 		vmem_remove_mapping(start, size);
 	return rc;
 }
+
+unsigned long memory_block_size_bytes(void)
+{
+	/*
+	 * Make sure the memory block size is always greater
+	 * or equal than the memory increment size.
+	 */
+	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp_get_rzm());
+}
+
+#ifdef CONFIG_MEMORY_HOTREMOVE
+int arch_remove_memory(u64 start, u64 size)
+{
+	/*
+	 * There is no hardware or firmware interface which could trigger a
+	 * hot memory remove on s390. So there is nothing that needs to be
+	 * implemented.
+	 */
+	return -EBUSY;
+}
+#endif
 #endif /* CONFIG_MEMORY_HOTPLUG */

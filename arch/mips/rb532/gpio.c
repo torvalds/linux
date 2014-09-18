@@ -44,10 +44,10 @@ struct rb532_gpio_chip {
 
 static struct resource rb532_gpio_reg0_res[] = {
 	{
-		.name 	= "gpio_reg0",
-		.start 	= REGBASE + GPIOBASE,
-		.end 	= REGBASE + GPIOBASE + sizeof(struct rb532_gpio_reg) - 1,
-		.flags 	= IORESOURCE_MEM,
+		.name	= "gpio_reg0",
+		.start	= REGBASE + GPIOBASE,
+		.end	= REGBASE + GPIOBASE + sizeof(struct rb532_gpio_reg) - 1,
+		.flags	= IORESOURCE_MEM,
 	}
 };
 

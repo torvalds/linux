@@ -1,0 +1,71 @@
+==============================================================================
+Linux Driver Source for Xilinx FPGA firmware download
+==============================================================================
+
+
+TABLE OF CONTENTS.
+
+1.  SUMMARY
+2.  BACKGROUND
+3.  DESIGN
+4.  HOW TO USE
+5.  REFERENCE
+
+1. SUMMARY
+
+	- Download Xilinx FPGA firmware
+	- This module downloads Xilinx FPGA firmware using gpio pins.
+
+2. BACKGROUND
+
+	An FPGA (Field Programmable Gate Array) is a programmable hardware that is
+	used in various applications. Hardware design needs to programmed through
+	a dedicated device or CPU assisted way (serial or parallel).
+	This driver provides a way to download FPGA firmware.
+
+3. DESIGN
+
+	- load Xilinx FPGA bitstream format[1] firmware image file using 
+	  kernel firmware framework, request_firmware()
+	- program the Xilinx FPGA using SelectMAP (parallel) mode [2]
+	- FPGA prgram is done by gpio based bit-banging, as an example
+	- platform independent file: gs_fpgaboot.c
+	- platform dependent file: io.c
+	
+
+4. HOW TO USE
+
+	$ insmod gs_fpga.ko file="xlinx_fpga_top_bitstream.bit"
+	$ rmmod gs_fpga
+
+5. USE CASE (from a mailing list discussion with Greg)
+
+	a. As a FPGA development support tool,
+	During FPGA firmware development, you need to download a new FPGA
+	image frequently.
+	You would do that with a dedicated JTAG, which usually a limited
+	resource in the lab.
+	However, if you use my driver, you don't have to have a dedicated JTAG.
+	This is a real gain :)
+
+	b. For the FPGA that runs without config after the download, which
+	doesn't talk to any of Linux interfaces (such as PCIE).
+
+	We download FPGA firmware from user triggered or some other way, and that's it.
+	Since that FPGA runs on its own, it doesn't require a linux driver
+	after the download.
+
+	c. For the FPGA that requires config after the download, which talk to
+	any of linux interfaces (such as PCIE)
+
+	Then, this type of FPGA config can be put into device tree and have a
+	separate driver (pcie or others), then THAT driver calls my driver to
+	download FPGA firmware during the Linux boot, the take over the device
+	through the interface.
+
+6. REFERENCE
+
+	1. Xilinx APP NOTE XAPP583:
+	  http://www.xilinx.com/support/documentation/application_notes/xapp583-fpga-configuration.pdf
+	2. bitstream file info:
+	  http://home.earthlink.net/~davesullins/software/bitinfo.html

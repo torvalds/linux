@@ -21,7 +21,7 @@
 #include <asm/cmpxchg.h>
 #include <asm/war.h>
 
-#define ATOMIC_INIT(i)    { (i) }
+#define ATOMIC_INIT(i)	  { (i) }
 
 /*
  * atomic_read - read atomic variable
@@ -53,26 +53,26 @@ static __inline__ void atomic_add(int i, atomic_t * v)
 		int temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	ll	%0, %1		# atomic_add		\n"
 		"	addu	%0, %2					\n"
 		"	sc	%0, %1					\n"
 		"	beqzl	%0, 1b					\n"
 		"	.set	mips0					\n"
-		: "=&r" (temp), "=m" (v->counter)
-		: "Ir" (i), "m" (v->counter));
+		: "=&r" (temp), "+m" (v->counter)
+		: "Ir" (i));
 	} else if (kernel_uses_llsc) {
 		int temp;
 
 		do {
 			__asm__ __volatile__(
-			"	.set	mips3				\n"
+			"	.set	arch=r4000			\n"
 			"	ll	%0, %1		# atomic_add	\n"
 			"	addu	%0, %2				\n"
 			"	sc	%0, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (temp), "=m" (v->counter)
-			: "Ir" (i), "m" (v->counter));
+			: "=&r" (temp), "+m" (v->counter)
+			: "Ir" (i));
 		} while (unlikely(!temp));
 	} else {
 		unsigned long flags;
@@ -96,26 +96,26 @@ static __inline__ void atomic_sub(int i, atomic_t * v)
 		int temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	ll	%0, %1		# atomic_sub		\n"
 		"	subu	%0, %2					\n"
 		"	sc	%0, %1					\n"
 		"	beqzl	%0, 1b					\n"
 		"	.set	mips0					\n"
-		: "=&r" (temp), "=m" (v->counter)
-		: "Ir" (i), "m" (v->counter));
+		: "=&r" (temp), "+m" (v->counter)
+		: "Ir" (i));
 	} else if (kernel_uses_llsc) {
 		int temp;
 
 		do {
 			__asm__ __volatile__(
-			"	.set	mips3				\n"
+			"	.set	arch=r4000			\n"
 			"	ll	%0, %1		# atomic_sub	\n"
 			"	subu	%0, %2				\n"
 			"	sc	%0, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (temp), "=m" (v->counter)
-			: "Ir" (i), "m" (v->counter));
+			: "=&r" (temp), "+m" (v->counter)
+			: "Ir" (i));
 		} while (unlikely(!temp));
 	} else {
 		unsigned long flags;
@@ -139,29 +139,27 @@ static __inline__ int atomic_add_return(int i, atomic_t * v)
 		int temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	ll	%1, %2		# atomic_add_return	\n"
 		"	addu	%0, %1, %3				\n"
 		"	sc	%0, %2					\n"
 		"	beqzl	%0, 1b					\n"
 		"	addu	%0, %1, %3				\n"
 		"	.set	mips0					\n"
-		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
-		: "Ir" (i), "m" (v->counter)
-		: "memory");
+		: "=&r" (result), "=&r" (temp), "+m" (v->counter)
+		: "Ir" (i));
 	} else if (kernel_uses_llsc) {
 		int temp;
 
 		do {
 			__asm__ __volatile__(
-			"	.set	mips3				\n"
+			"	.set	arch=r4000			\n"
 			"	ll	%1, %2	# atomic_add_return	\n"
 			"	addu	%0, %1, %3			\n"
 			"	sc	%0, %2				\n"
 			"	.set	mips0				\n"
-			: "=&r" (result), "=&r" (temp), "=m" (v->counter)
-			: "Ir" (i), "m" (v->counter)
-			: "memory");
+			: "=&r" (result), "=&r" (temp), "+m" (v->counter)
+			: "Ir" (i));
 		} while (unlikely(!result));
 
 		result = temp + i;
@@ -190,7 +188,7 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 		int temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	ll	%1, %2		# atomic_sub_return	\n"
 		"	subu	%0, %1, %3				\n"
 		"	sc	%0, %2					\n"
@@ -207,14 +205,13 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 
 		do {
 			__asm__ __volatile__(
-			"	.set	mips3				\n"
+			"	.set	arch=r4000			\n"
 			"	ll	%1, %2	# atomic_sub_return	\n"
 			"	subu	%0, %1, %3			\n"
 			"	sc	%0, %2				\n"
 			"	.set	mips0				\n"
-			: "=&r" (result), "=&r" (temp), "=m" (v->counter)
-			: "Ir" (i), "m" (v->counter)
-			: "memory");
+			: "=&r" (result), "=&r" (temp), "+m" (v->counter)
+			: "Ir" (i));
 		} while (unlikely(!result));
 
 		result = temp - i;
@@ -251,7 +248,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		int temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	ll	%1, %2		# atomic_sub_if_positive\n"
 		"	subu	%0, %1, %3				\n"
 		"	bltz	%0, 1f					\n"
@@ -262,14 +259,14 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		"	.set	reorder					\n"
 		"1:							\n"
 		"	.set	mips0					\n"
-		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
+		: "=&r" (result), "=&r" (temp), "+m" (v->counter)
 		: "Ir" (i), "m" (v->counter)
 		: "memory");
 	} else if (kernel_uses_llsc) {
 		int temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	ll	%1, %2		# atomic_sub_if_positive\n"
 		"	subu	%0, %1, %3				\n"
 		"	bltz	%0, 1f					\n"
@@ -280,9 +277,8 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		"	.set	reorder					\n"
 		"1:							\n"
 		"	.set	mips0					\n"
-		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
-		: "Ir" (i), "m" (v->counter)
-		: "memory");
+		: "=&r" (result), "=&r" (temp), "+m" (v->counter)
+		: "Ir" (i));
 	} else {
 		unsigned long flags;
 
@@ -424,26 +420,26 @@ static __inline__ void atomic64_add(long i, atomic64_t * v)
 		long temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	lld	%0, %1		# atomic64_add		\n"
 		"	daddu	%0, %2					\n"
 		"	scd	%0, %1					\n"
 		"	beqzl	%0, 1b					\n"
 		"	.set	mips0					\n"
-		: "=&r" (temp), "=m" (v->counter)
-		: "Ir" (i), "m" (v->counter));
+		: "=&r" (temp), "+m" (v->counter)
+		: "Ir" (i));
 	} else if (kernel_uses_llsc) {
 		long temp;
 
 		do {
 			__asm__ __volatile__(
-			"	.set	mips3				\n"
+			"	.set	arch=r4000			\n"
 			"	lld	%0, %1		# atomic64_add	\n"
 			"	daddu	%0, %2				\n"
 			"	scd	%0, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (temp), "=m" (v->counter)
-			: "Ir" (i), "m" (v->counter));
+			: "=&r" (temp), "+m" (v->counter)
+			: "Ir" (i));
 		} while (unlikely(!temp));
 	} else {
 		unsigned long flags;
@@ -467,26 +463,26 @@ static __inline__ void atomic64_sub(long i, atomic64_t * v)
 		long temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	lld	%0, %1		# atomic64_sub		\n"
 		"	dsubu	%0, %2					\n"
 		"	scd	%0, %1					\n"
 		"	beqzl	%0, 1b					\n"
 		"	.set	mips0					\n"
-		: "=&r" (temp), "=m" (v->counter)
-		: "Ir" (i), "m" (v->counter));
+		: "=&r" (temp), "+m" (v->counter)
+		: "Ir" (i));
 	} else if (kernel_uses_llsc) {
 		long temp;
 
 		do {
 			__asm__ __volatile__(
-			"	.set	mips3				\n"
+			"	.set	arch=r4000			\n"
 			"	lld	%0, %1		# atomic64_sub	\n"
 			"	dsubu	%0, %2				\n"
 			"	scd	%0, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (temp), "=m" (v->counter)
-			: "Ir" (i), "m" (v->counter));
+			: "=&r" (temp), "+m" (v->counter)
+			: "Ir" (i));
 		} while (unlikely(!temp));
 	} else {
 		unsigned long flags;
@@ -510,22 +506,21 @@ static __inline__ long atomic64_add_return(long i, atomic64_t * v)
 		long temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	lld	%1, %2		# atomic64_add_return	\n"
 		"	daddu	%0, %1, %3				\n"
 		"	scd	%0, %2					\n"
 		"	beqzl	%0, 1b					\n"
 		"	daddu	%0, %1, %3				\n"
 		"	.set	mips0					\n"
-		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
-		: "Ir" (i), "m" (v->counter)
-		: "memory");
+		: "=&r" (result), "=&r" (temp), "+m" (v->counter)
+		: "Ir" (i));
 	} else if (kernel_uses_llsc) {
 		long temp;
 
 		do {
 			__asm__ __volatile__(
-			"	.set	mips3				\n"
+			"	.set	arch=r4000			\n"
 			"	lld	%1, %2	# atomic64_add_return	\n"
 			"	daddu	%0, %1, %3			\n"
 			"	scd	%0, %2				\n"
@@ -561,7 +556,7 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 		long temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	lld	%1, %2		# atomic64_sub_return	\n"
 		"	dsubu	%0, %1, %3				\n"
 		"	scd	%0, %2					\n"
@@ -576,7 +571,7 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 
 		do {
 			__asm__ __volatile__(
-			"	.set	mips3				\n"
+			"	.set	arch=r4000			\n"
 			"	lld	%1, %2	# atomic64_sub_return	\n"
 			"	dsubu	%0, %1, %3			\n"
 			"	scd	%0, %2				\n"
@@ -620,7 +615,7 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 		long temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	lld	%1, %2		# atomic64_sub_if_positive\n"
 		"	dsubu	%0, %1, %3				\n"
 		"	bltz	%0, 1f					\n"
@@ -638,7 +633,7 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 		long temp;
 
 		__asm__ __volatile__(
-		"	.set	mips3					\n"
+		"	.set	arch=r4000				\n"
 		"1:	lld	%1, %2		# atomic64_sub_if_positive\n"
 		"	dsubu	%0, %1, %3				\n"
 		"	bltz	%0, 1f					\n"
@@ -649,9 +644,8 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 		"	.set	reorder					\n"
 		"1:							\n"
 		"	.set	mips0					\n"
-		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
-		: "Ir" (i), "m" (v->counter)
-		: "memory");
+		: "=&r" (result), "=&r" (temp), "+m" (v->counter)
+		: "Ir" (i));
 	} else {
 		unsigned long flags;
 
@@ -766,14 +760,5 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 #define atomic64_add_negative(i, v) (atomic64_add_return(i, (v)) < 0)
 
 #endif /* CONFIG_64BIT */
-
-/*
- * atomic*_return operations are serializing but not the non-*_return
- * versions.
- */
-#define smp_mb__before_atomic_dec()	smp_mb__before_llsc()
-#define smp_mb__after_atomic_dec()	smp_llsc_mb()
-#define smp_mb__before_atomic_inc()	smp_mb__before_llsc()
-#define smp_mb__after_atomic_inc()	smp_llsc_mb()
 
 #endif /* _ASM_ATOMIC_H */

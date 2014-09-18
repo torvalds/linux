@@ -24,16 +24,6 @@
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
 
-/* Hypercall entry point. Will be patched with device tree instructions. */
-
-.global kvm_hypercall_start
-kvm_hypercall_start:
-	li	r3, -1
-	nop
-	nop
-	nop
-	blr
-
 #define KVM_MAGIC_PAGE		(-4096)
 
 #ifdef CONFIG_64BIT
@@ -132,7 +122,7 @@ kvm_emulate_mtmsrd_len:
 	.long (kvm_emulate_mtmsrd_end - kvm_emulate_mtmsrd) / 4
 
 
-#define MSR_SAFE_BITS (MSR_EE | MSR_CE | MSR_ME | MSR_RI)
+#define MSR_SAFE_BITS (MSR_EE | MSR_RI)
 #define MSR_CRITICAL_BITS ~MSR_SAFE_BITS
 
 .global kvm_emulate_mtmsr

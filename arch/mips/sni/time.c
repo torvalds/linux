@@ -10,12 +10,12 @@
 #include <asm/time.h>
 #include <asm-generic/rtc.h>
 
-#define SNI_CLOCK_TICK_RATE     3686400
-#define SNI_COUNTER2_DIV        64
-#define SNI_COUNTER0_DIV        ((SNI_CLOCK_TICK_RATE / SNI_COUNTER2_DIV) / HZ)
+#define SNI_CLOCK_TICK_RATE	3686400
+#define SNI_COUNTER2_DIV	64
+#define SNI_COUNTER0_DIV	((SNI_CLOCK_TICK_RATE / SNI_COUNTER2_DIV) / HZ)
 
 static void a20r_set_mode(enum clock_event_mode mode,
-                          struct clock_event_device *evt)
+			  struct clock_event_device *evt)
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
@@ -33,14 +33,14 @@ static void a20r_set_mode(enum clock_event_mode mode,
 		*(volatile u8 *)(A20R_PT_CLOCK_BASE +  8) = SNI_COUNTER2_DIV >> 8;
 		wmb();
 
-                break;
-        case CLOCK_EVT_MODE_ONESHOT:
-        case CLOCK_EVT_MODE_UNUSED:
-        case CLOCK_EVT_MODE_SHUTDOWN:
-                break;
-        case CLOCK_EVT_MODE_RESUME:
-                break;
-        }
+		break;
+	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+		break;
+	case CLOCK_EVT_MODE_RESUME:
+		break;
+	}
 }
 
 static struct clock_event_device a20r_clockevent_device = {
@@ -82,15 +82,15 @@ static void __init sni_a20r_timer_setup(void)
 	struct irqaction *action = &a20r_irqaction;
 	unsigned int cpu = smp_processor_id();
 
-	cd->cpumask             = cpumask_of(cpu);
+	cd->cpumask		= cpumask_of(cpu);
 	clockevents_register_device(cd);
 	action->dev_id = cd;
 	setup_irq(SNI_A20R_IRQ_TIMER, &a20r_irqaction);
 }
 
-#define SNI_8254_TICK_RATE        1193182UL
+#define SNI_8254_TICK_RATE	  1193182UL
 
-#define SNI_8254_TCSAMP_COUNTER   ((SNI_8254_TICK_RATE / HZ) + 255)
+#define SNI_8254_TCSAMP_COUNTER	  ((SNI_8254_TICK_RATE / HZ) + 255)
 
 static __init unsigned long dosample(void)
 {

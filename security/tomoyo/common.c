@@ -850,14 +850,9 @@ static int tomoyo_update_manager_entry(const char *manager,
 		policy_list[TOMOYO_ID_MANAGER],
 	};
 	int error = is_delete ? -ENOENT : -ENOMEM;
-	if (tomoyo_domain_def(manager)) {
-		if (!tomoyo_correct_domain(manager))
-			return -EINVAL;
-		e.is_domain = true;
-	} else {
-		if (!tomoyo_correct_path(manager))
-			return -EINVAL;
-	}
+	if (!tomoyo_correct_domain(manager) &&
+	    !tomoyo_correct_word(manager))
+		return -EINVAL;
 	e.manager = tomoyo_get_name(manager);
 	if (e.manager) {
 		error = tomoyo_update_policy(&e.head, sizeof(e), &param,
@@ -930,25 +925,18 @@ static bool tomoyo_manager(void)
 
 	if (!tomoyo_policy_loaded)
 		return true;
-	if (!tomoyo_manage_by_non_root && (task->cred->uid || task->cred->euid))
+	if (!tomoyo_manage_by_non_root &&
+	    (!uid_eq(task->cred->uid,  GLOBAL_ROOT_UID) ||
+	     !uid_eq(task->cred->euid, GLOBAL_ROOT_UID)))
 		return false;
-	list_for_each_entry_rcu(ptr, &tomoyo_kernel_namespace.
-				policy_list[TOMOYO_ID_MANAGER], head.list) {
-		if (!ptr->head.is_deleted && ptr->is_domain
-		    && !tomoyo_pathcmp(domainname, ptr->manager)) {
-			found = true;
-			break;
-		}
-	}
-	if (found)
-		return true;
 	exe = tomoyo_get_exe();
 	if (!exe)
 		return false;
 	list_for_each_entry_rcu(ptr, &tomoyo_kernel_namespace.
 				policy_list[TOMOYO_ID_MANAGER], head.list) {
-		if (!ptr->head.is_deleted && !ptr->is_domain
-		    && !strcmp(exe, ptr->manager->name)) {
+		if (!ptr->head.is_deleted &&
+		    (!tomoyo_pathcmp(domainname, ptr->manager) ||
+		     !strcmp(exe, ptr->manager->name))) {
 			found = true;
 			break;
 		}
@@ -2279,13 +2267,11 @@ static unsigned int tomoyo_stat_modified[TOMOYO_MAX_POLICY_STAT];
  */
 void tomoyo_update_stat(const u8 index)
 {
-	struct timeval tv;
-	do_gettimeofday(&tv);
 	/*
 	 * I don't use atomic operations because race condition is not fatal.
 	 */
 	tomoyo_stat_updated[index]++;
-	tomoyo_stat_modified[index] = tv.tv_sec;
+	tomoyo_stat_modified[index] = get_seconds();
 }
 
 /**
@@ -2693,10 +2679,8 @@ out:
  * tomoyo_close_control - close() for /sys/kernel/security/tomoyo/ interface.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns 0.
  */
-int tomoyo_close_control(struct tomoyo_io_buffer *head)
+void tomoyo_close_control(struct tomoyo_io_buffer *head)
 {
 	/*
 	 * If the file is /sys/kernel/security/tomoyo/query , decrement the
@@ -2706,7 +2690,6 @@ int tomoyo_close_control(struct tomoyo_io_buffer *head)
 	    atomic_dec_and_test(&tomoyo_query_observers))
 		wake_up_all(&tomoyo_answer_wait);
 	tomoyo_notify_gc(head, false);
-	return 0;
 }
 
 /**

@@ -604,15 +604,13 @@ static int c2_up(struct net_device *netdev)
 	tx_size = c2_port->tx_ring.count * sizeof(struct c2_tx_desc);
 
 	c2_port->mem_size = tx_size + rx_size;
-	c2_port->mem = pci_alloc_consistent(c2dev->pcidev, c2_port->mem_size,
-					    &c2_port->dma);
+	c2_port->mem = pci_zalloc_consistent(c2dev->pcidev, c2_port->mem_size,
+					     &c2_port->dma);
 	if (c2_port->mem == NULL) {
 		pr_debug("Unable to allocate memory for "
 			"host descriptor rings\n");
 		return -ENOMEM;
 	}
-
-	memset(c2_port->mem, 0, c2_port->mem_size);
 
 	/* Create the Rx host descriptor ring */
 	if ((ret =
@@ -920,8 +918,7 @@ static struct net_device *c2_devinit(struct c2_dev *c2dev,
 	return netdev;
 }
 
-static int __devinit c2_probe(struct pci_dev *pcidev,
-			      const struct pci_device_id *ent)
+static int c2_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 {
 	int ret = 0, i;
 	unsigned long reg0_start, reg0_flags, reg0_len;
@@ -1083,6 +1080,7 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 
 	/* Initialize network device */
 	if ((netdev = c2_devinit(c2dev, mmio_regs)) == NULL) {
+		ret = -ENOMEM;
 		iounmap(mmio_regs);
 		goto bail4;
 	}
@@ -1152,7 +1150,8 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 		goto bail10;
 	}
 
-	if (c2_register_device(c2dev))
+	ret = c2_register_device(c2dev);
+	if (ret)
 		goto bail10;
 
 	return 0;
@@ -1191,7 +1190,7 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 	return ret;
 }
 
-static void __devexit c2_remove(struct pci_dev *pcidev)
+static void c2_remove(struct pci_dev *pcidev)
 {
 	struct c2_dev *c2dev = pci_get_drvdata(pcidev);
 	struct net_device *netdev = c2dev->netdev;
@@ -1236,18 +1235,7 @@ static struct pci_driver c2_pci_driver = {
 	.name = DRV_NAME,
 	.id_table = c2_pci_table,
 	.probe = c2_probe,
-	.remove = __devexit_p(c2_remove),
+	.remove = c2_remove,
 };
 
-static int __init c2_init_module(void)
-{
-	return pci_register_driver(&c2_pci_driver);
-}
-
-static void __exit c2_exit_module(void)
-{
-	pci_unregister_driver(&c2_pci_driver);
-}
-
-module_init(c2_init_module);
-module_exit(c2_exit_module);
+module_pci_driver(c2_pci_driver);

@@ -48,7 +48,7 @@ void __init paging_init(void)
 
 	unsigned long zones_size[MAX_NR_ZONES] = {
 		[0] = 0,
-		[ZONE_DMA] = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT,
+		[ZONE_DMA] = (end_mem - CONFIG_PHY_RAM_BASE_ADDRESS) >> PAGE_SHIFT,
 		[ZONE_NORMAL] = 0,
 #ifdef CONFIG_HIGHMEM
 		[ZONE_HIGHMEM] = 0,
@@ -60,7 +60,8 @@ void __init paging_init(void)
 
 	pr_debug("free_area_init -> start_mem is %#lx virtual_end is %#lx\n",
 	        PAGE_ALIGN(memory_start), end_mem);
-	free_area_init(zones_size);
+	free_area_init_node(0, zones_size,
+		CONFIG_PHY_RAM_BASE_ADDRESS >> PAGE_SHIFT, NULL);
 }
 
 asmlinkage void __init init_pda(void)
@@ -74,9 +75,6 @@ asmlinkage void __init init_pda(void)
 	   undefined at the time of the call, we are only setting up
 	   valid pointers to it. */
 	memset(&cpu_pda[cpu], 0, sizeof(cpu_pda[cpu]));
-
-	cpu_pda[0].next = &cpu_pda[1];
-	cpu_pda[1].next = &cpu_pda[0];
 
 #ifdef CONFIG_EXCEPTION_L1_SCRATCH
 	cpu_pda[cpu].ex_stack = (unsigned long *)(L1_SCRATCH_START + \
@@ -92,63 +90,24 @@ asmlinkage void __init init_pda(void)
 
 void __init mem_init(void)
 {
-	unsigned int codek = 0, datak = 0, initk = 0;
-	unsigned int reservedpages = 0, freepages = 0;
-	unsigned long tmp;
-	unsigned long start_mem = memory_start;
-	unsigned long end_mem = memory_end;
+	char buf[64];
 
-	end_mem &= PAGE_MASK;
-	high_memory = (void *)end_mem;
+	high_memory = (void *)(memory_end & PAGE_MASK);
+	max_mapnr = MAP_NR(high_memory);
+	printk(KERN_DEBUG "Kernel managed physical pages: %lu\n", max_mapnr);
 
-	start_mem = PAGE_ALIGN(start_mem);
-	max_mapnr = num_physpages = MAP_NR(high_memory);
-	printk(KERN_DEBUG "Kernel managed physical pages: %lu\n", num_physpages);
+	/* This will put all low memory onto the freelists. */
+	free_all_bootmem();
 
-	/* This will put all memory onto the freelists. */
-	totalram_pages = free_all_bootmem();
-
-	reservedpages = 0;
-	for (tmp = 0; tmp < max_mapnr; tmp++)
-		if (PageReserved(pfn_to_page(tmp)))
-			reservedpages++;
-	freepages =  max_mapnr - reservedpages;
-
-	/* do not count in kernel image between _rambase and _ramstart */
-	reservedpages -= (_ramstart - _rambase) >> PAGE_SHIFT;
-#if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
-	reservedpages += (_ramend - memory_end - DMA_UNCACHED_REGION) >> PAGE_SHIFT;
-#endif
-
-	codek = (_etext - _stext) >> 10;
-	initk = (__init_end - __init_begin) >> 10;
-	datak = ((_ramstart - _rambase) >> 10) - codek - initk;
-
-	printk(KERN_INFO
-	     "Memory available: %luk/%luk RAM, "
-		"(%uk init code, %uk kernel code, %uk data, %uk dma, %uk reserved)\n",
-		(unsigned long) freepages << (PAGE_SHIFT-10), _ramend >> 10,
-		initk, codek, datak, DMA_UNCACHED_REGION >> 10, (reservedpages << (PAGE_SHIFT-10)));
-}
-
-static void __init free_init_pages(const char *what, unsigned long begin, unsigned long end)
-{
-	unsigned long addr;
-	/* next to check that the page we free is not a partial page */
-	for (addr = begin; addr + PAGE_SIZE <= end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
-		free_page(addr);
-		totalram_pages++;
-	}
-	printk(KERN_INFO "Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
+	snprintf(buf, sizeof(buf) - 1, "%uK DMA", DMA_UNCACHED_REGION >> 10);
+	mem_init_print_info(buf);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
 #ifndef CONFIG_MPU
-	free_init_pages("initrd memory", start, end);
+	free_reserved_area((void *)start, (void *)end, -1, "initrd");
 #endif
 }
 #endif
@@ -156,10 +115,7 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
 void __init_refok free_initmem(void)
 {
 #if defined CONFIG_RAMKERNEL && !defined CONFIG_MPU
-	free_init_pages("unused kernel memory",
-			(unsigned long)(&__init_begin),
-			(unsigned long)(&__init_end));
-
+	free_initmem_default(-1);
 	if (memory_start == (unsigned long)(&__init_end))
 		memory_start = (unsigned long)(&__init_begin);
 #endif

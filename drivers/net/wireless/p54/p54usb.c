@@ -12,7 +12,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -42,11 +41,12 @@ MODULE_FIRMWARE("isl3887usb");
  * whenever you add a new device.
  */
 
-static struct usb_device_id p54u_table[] __devinitdata = {
+static struct usb_device_id p54u_table[] = {
 	/* Version 1 devices (pci chip + net2280) */
 	{USB_DEVICE(0x0411, 0x0050)},	/* Buffalo WLI2-USB2-G54 */
 	{USB_DEVICE(0x045e, 0x00c2)},	/* Microsoft MN-710 */
 	{USB_DEVICE(0x0506, 0x0a11)},	/* 3COM 3CRWE254G72 */
+	{USB_DEVICE(0x0675, 0x0530)},	/* DrayTek Vigor 530 */
 	{USB_DEVICE(0x06b9, 0x0120)},	/* Thomson SpeedTouch 120g */
 	{USB_DEVICE(0x0707, 0xee06)},	/* SMC 2862W-G */
 	{USB_DEVICE(0x07aa, 0x001c)},	/* Corega CG-WLUSB2GT */
@@ -82,7 +82,10 @@ static struct usb_device_id p54u_table[] __devinitdata = {
 	{USB_DEVICE(0x06a9, 0x000e)},	/* Westell 802.11g USB (A90-211WG-01) */
 	{USB_DEVICE(0x06b9, 0x0121)},	/* Thomson SpeedTouch 121g */
 	{USB_DEVICE(0x0707, 0xee13)},   /* SMC 2862W-G version 2 */
+	{USB_DEVICE(0x07aa, 0x0020)},	/* Corega WLUSB2GTST USB */
+	{USB_DEVICE(0x0803, 0x4310)},	/* Zoom 4410a */
 	{USB_DEVICE(0x083a, 0x4521)},   /* Siemens Gigaset USB Adapter 54 version 2 */
+	{USB_DEVICE(0x083a, 0x4531)},	/* T-Com Sinus 154 data II */
 	{USB_DEVICE(0x083a, 0xc501)},	/* Zoom Wireless-G 4410 */
 	{USB_DEVICE(0x083a, 0xf503)},	/* Accton FD7050E ver 1010ec  */
 	{USB_DEVICE(0x0846, 0x4240)},	/* Netgear WG111 (v2) */
@@ -101,6 +104,7 @@ static struct usb_device_id p54u_table[] __devinitdata = {
 	{USB_DEVICE(0x13B1, 0x000C)},	/* Linksys WUSB54AG */
 	{USB_DEVICE(0x1413, 0x5400)},   /* Telsey 802.11g USB2.0 Adapter */
 	{USB_DEVICE(0x1435, 0x0427)},	/* Inventel UR054G */
+	/* {USB_DEVICE(0x15a9, 0x0002)}, * Also SparkLAN WL-682 with 3887 */
 	{USB_DEVICE(0x1668, 0x1050)},	/* Actiontec 802UIG-1 */
 	{USB_DEVICE(0x1740, 0x1000)},	/* Senao NUB-350 */
 	{USB_DEVICE(0x2001, 0x3704)},	/* DLink DWL-G122 rev A2 */
@@ -117,21 +121,18 @@ static const struct {
 	u32 intf;
 	enum p54u_hw_type type;
 	const char *fw;
-	const char *fw_legacy;
 	char hw[20];
 } p54u_fwlist[__NUM_P54U_HWTYPES] = {
 	{
 		.type = P54U_NET2280,
 		.intf = FW_LM86,
 		.fw = "isl3886usb",
-		.fw_legacy = "isl3890usb",
 		.hw = "ISL3886 + net2280",
 	},
 	{
 		.type = P54U_3887,
 		.intf = FW_LM87,
 		.fw = "isl3887usb",
-		.fw_legacy = "isl3887usb_bare",
 		.hw = "ISL3887",
 	},
 };
@@ -208,6 +209,16 @@ static void p54u_free_urbs(struct ieee80211_hw *dev)
 	usb_kill_anchored_urbs(&priv->submitted);
 }
 
+static void p54u_stop(struct ieee80211_hw *dev)
+{
+	/*
+	 * TODO: figure out how to reliably stop the 3887 and net2280 so
+	 * the hardware is still usable next time we want to start it.
+	 * until then, we just stop listening to the hardware..
+	 */
+	p54u_free_urbs(dev);
+}
+
 static int p54u_init_urbs(struct ieee80211_hw *dev)
 {
 	struct p54u_priv *priv = dev->priv;
@@ -255,6 +266,16 @@ static int p54u_init_urbs(struct ieee80211_hw *dev)
 	kfree_skb(skb);
 	p54u_free_urbs(dev);
 	return ret;
+}
+
+static int p54u_open(struct ieee80211_hw *dev)
+{
+	/*
+	 * TODO: Because we don't know how to reliably stop the 3887 and
+	 * the isl3886+net2280, other than brutally cut off all
+	 * communications. We have to reinitialize the urbs on every start.
+	 */
+	return p54u_init_urbs(dev);
 }
 
 static __le32 p54u_lm87_chksum(const __le32 *data, size_t length)
@@ -489,13 +510,10 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 		return err;
 
 	tmp = buf = kmalloc(P54U_FW_BLOCK, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&priv->udev->dev, "(p54usb) cannot allocate firmware"
-					  "upload buffer!\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
-	left = block_size = min((size_t)P54U_FW_BLOCK, priv->fw->size);
+	left = block_size = min_t(size_t, P54U_FW_BLOCK, priv->fw->size);
 	strcpy(buf, p54u_firmware_upload_3887);
 	left -= strlen(p54u_firmware_upload_3887);
 	tmp += strlen(p54u_firmware_upload_3887);
@@ -616,11 +634,8 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 	const u8 *data;
 
 	buf = kmalloc(512, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&priv->udev->dev, "(p54usb) firmware buffer "
-					  "alloc failed!\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 #define P54U_WRITE(type, addr, data) \
 	do {\
@@ -836,73 +851,141 @@ fail:
 	return err;
 }
 
-static int p54u_load_firmware(struct ieee80211_hw *dev)
+static int p54_find_type(struct p54u_priv *priv)
 {
-	struct p54u_priv *priv = dev->priv;
-	int err, i;
-
-	BUILD_BUG_ON(ARRAY_SIZE(p54u_fwlist) != __NUM_P54U_HWTYPES);
+	int i;
 
 	for (i = 0; i < __NUM_P54U_HWTYPES; i++)
 		if (p54u_fwlist[i].type == priv->hw_type)
 			break;
-
 	if (i == __NUM_P54U_HWTYPES)
 		return -EOPNOTSUPP;
 
-	err = request_firmware(&priv->fw, p54u_fwlist[i].fw, &priv->udev->dev);
+	return i;
+}
+
+static int p54u_start_ops(struct p54u_priv *priv)
+{
+	struct ieee80211_hw *dev = priv->common.hw;
+	int ret;
+
+	ret = p54_parse_firmware(dev, priv->fw);
+	if (ret)
+		goto err_out;
+
+	ret = p54_find_type(priv);
+	if (ret < 0)
+		goto err_out;
+
+	if (priv->common.fw_interface != p54u_fwlist[ret].intf) {
+		dev_err(&priv->udev->dev, "wrong firmware, please get "
+			"a firmware for \"%s\" and try again.\n",
+			p54u_fwlist[ret].hw);
+		ret = -ENODEV;
+		goto err_out;
+	}
+
+	ret = priv->upload_fw(dev);
+	if (ret)
+		goto err_out;
+
+	ret = p54u_open(dev);
+	if (ret)
+		goto err_out;
+
+	ret = p54_read_eeprom(dev);
+	if (ret)
+		goto err_stop;
+
+	p54u_stop(dev);
+
+	ret = p54_register_common(dev, &priv->udev->dev);
+	if (ret)
+		goto err_stop;
+
+	return 0;
+
+err_stop:
+	p54u_stop(dev);
+
+err_out:
+	/*
+	 * p54u_disconnect will do the rest of the
+	 * cleanup
+	 */
+	return ret;
+}
+
+static void p54u_load_firmware_cb(const struct firmware *firmware,
+				  void *context)
+{
+	struct p54u_priv *priv = context;
+	struct usb_device *udev = priv->udev;
+	int err;
+
+	complete(&priv->fw_wait_load);
+	if (firmware) {
+		priv->fw = firmware;
+		err = p54u_start_ops(priv);
+	} else {
+		err = -ENOENT;
+		dev_err(&udev->dev, "Firmware not found.\n");
+	}
+
+	if (err) {
+		struct device *parent = priv->udev->dev.parent;
+
+		dev_err(&udev->dev, "failed to initialize device (%d)\n", err);
+
+		if (parent)
+			device_lock(parent);
+
+		device_release_driver(&udev->dev);
+		/*
+		 * At this point p54u_disconnect has already freed
+		 * the "priv" context. Do not use it anymore!
+		 */
+		priv = NULL;
+
+		if (parent)
+			device_unlock(parent);
+	}
+
+	usb_put_dev(udev);
+}
+
+static int p54u_load_firmware(struct ieee80211_hw *dev,
+			      struct usb_interface *intf)
+{
+	struct usb_device *udev = interface_to_usbdev(intf);
+	struct p54u_priv *priv = dev->priv;
+	struct device *device = &udev->dev;
+	int err, i;
+
+	BUILD_BUG_ON(ARRAY_SIZE(p54u_fwlist) != __NUM_P54U_HWTYPES);
+
+	init_completion(&priv->fw_wait_load);
+	i = p54_find_type(priv);
+	if (i < 0)
+		return i;
+
+	dev_info(&priv->udev->dev, "Loading firmware file %s\n",
+	       p54u_fwlist[i].fw);
+
+	usb_get_dev(udev);
+	err = request_firmware_nowait(THIS_MODULE, 1, p54u_fwlist[i].fw,
+				      device, GFP_KERNEL, priv,
+				      p54u_load_firmware_cb);
 	if (err) {
 		dev_err(&priv->udev->dev, "(p54usb) cannot load firmware %s "
 					  "(%d)!\n", p54u_fwlist[i].fw, err);
-
-		err = request_firmware(&priv->fw, p54u_fwlist[i].fw_legacy,
-				       &priv->udev->dev);
-		if (err)
-			return err;
+		usb_put_dev(udev);
 	}
-
-	err = p54_parse_firmware(dev, priv->fw);
-	if (err)
-		goto out;
-
-	if (priv->common.fw_interface != p54u_fwlist[i].intf) {
-		dev_err(&priv->udev->dev, "wrong firmware, please get "
-			"a firmware for \"%s\" and try again.\n",
-			p54u_fwlist[i].hw);
-		err = -EINVAL;
-	}
-
-out:
-	if (err)
-		release_firmware(priv->fw);
 
 	return err;
 }
 
-static int p54u_open(struct ieee80211_hw *dev)
-{
-	struct p54u_priv *priv = dev->priv;
-	int err;
-
-	err = p54u_init_urbs(dev);
-	if (err) {
-		return err;
-	}
-
-	priv->common.open = p54u_init_urbs;
-
-	return 0;
-}
-
-static void p54u_stop(struct ieee80211_hw *dev)
-{
-	/* TODO: figure out how to reliably stop the 3887 and net2280 so
-	   the hardware is still usable next time we want to start it.
-	   until then, we just stop listening to the hardware.. */
-	p54u_free_urbs(dev);
-}
-
-static int __devinit p54u_probe(struct usb_interface *intf,
+static int p54u_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -969,37 +1052,15 @@ static int __devinit p54u_probe(struct usb_interface *intf,
 		priv->common.tx = p54u_tx_net2280;
 		priv->upload_fw = p54u_upload_firmware_net2280;
 	}
-	err = p54u_load_firmware(dev);
-	if (err)
-		goto err_free_dev;
-
-	err = priv->upload_fw(dev);
-	if (err)
-		goto err_free_fw;
-
-	p54u_open(dev);
-	err = p54_read_eeprom(dev);
-	p54u_stop(dev);
-	if (err)
-		goto err_free_fw;
-
-	err = p54_register_common(dev, &udev->dev);
-	if (err)
-		goto err_free_fw;
-
-	return 0;
-
-err_free_fw:
-	release_firmware(priv->fw);
-
-err_free_dev:
-	p54_free_common(dev);
-	usb_set_intfdata(intf, NULL);
-	usb_put_dev(udev);
+	err = p54u_load_firmware(dev, intf);
+	if (err) {
+		usb_put_dev(udev);
+		p54_free_common(dev);
+	}
 	return err;
 }
 
-static void __devexit p54u_disconnect(struct usb_interface *intf)
+static void p54u_disconnect(struct usb_interface *intf)
 {
 	struct ieee80211_hw *dev = usb_get_intfdata(intf);
 	struct p54u_priv *priv;
@@ -1007,9 +1068,10 @@ static void __devexit p54u_disconnect(struct usb_interface *intf)
 	if (!dev)
 		return;
 
+	priv = dev->priv;
+	wait_for_completion(&priv->fw_wait_load);
 	p54_unregister_common(dev);
 
-	priv = dev->priv;
 	usb_put_dev(interface_to_usbdev(intf));
 	release_firmware(priv->fw);
 	p54_free_common(dev);
@@ -1081,6 +1143,7 @@ static struct usb_driver p54u_driver = {
 	.reset_resume = p54u_resume,
 #endif /* CONFIG_PM */
 	.soft_unbind = 1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(p54u_driver);

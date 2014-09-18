@@ -23,6 +23,8 @@ config BLUESTONE
 	default n
 	select PPC44x_SIMPLE
 	select APM821xx
+	select PCI_MSI
+	select PPC4xx_MSI
 	select PPC4xx_PCI_EXPRESS
 	select IBM_EMAC_RGMII
 	help
@@ -197,6 +199,34 @@ config CURRITUCK
 	help
 	  This option enables support for the IBM Currituck (476fpe) evaluation board
 
+config AKEBONO
+	bool "IBM Akebono (476gtr) Support"
+	depends on PPC_47x
+	default n
+	select SWIOTLB
+	select 476FPE
+	select PPC4xx_PCI_EXPRESS
+	select PCI_MSI
+	select PPC4xx_HSTA_MSI
+	select I2C
+	select I2C_IBM_IIC
+	select NETDEVICES
+	select ETHERNET
+	select NET_VENDOR_IBM
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_RGMII_WOL
+	select USB
+	select USB_OHCI_HCD_PLATFORM
+	select USB_EHCI_HCD_PLATFORM
+	select MMC_SDHCI
+	select MMC_SDHCI_PLTFM
+	select MMC_SDHCI_OF_476GTR
+	select ATA
+	select SATA_AHCI_PLATFORM
+	help
+	  This option enables support for the IBM Akebono (476gtr) evaluation board
+
+
 config ICON
 	bool "Icon"
 	depends on 44x
@@ -246,9 +276,16 @@ config PPC4xx_GPIO
 	bool "PPC4xx GPIO support"
 	depends on 44x
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_GPIO
 	help
 	  Enable gpiolib support for ppc440 based boards
+
+config PPC4xx_OCM
+	bool "PPC4xx On Chip Memory (OCM) support"
+	depends on 4xx
+	select PPC_LIB_RHEAP
+	help
+	  Enable OCM support for PowerPC 4xx platforms with on chip memory,
+	  OCM provides the fast place for memory access to improve performance.
 
 # 44x specific CPU modules, selected based on the board above.
 config 440EP
@@ -256,7 +293,6 @@ config 440EP
 	select PPC_FPU
 	select IBM440EP_ERR42
 	select IBM_EMAC_ZMII
-	select USB_ARCH_HAS_OHCI
 
 config 440EPX
 	bool
@@ -264,6 +300,8 @@ config 440EPX
 	select IBM_EMAC_EMAC4
 	select IBM_EMAC_RGMII
 	select IBM_EMAC_ZMII
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_DESC
 
 config 440GRX
 	bool
@@ -312,6 +350,20 @@ config APM821xx
 	select PPC_FPU
 	select IBM_EMAC_EMAC4
 	select IBM_EMAC_TAH
+
+config 476FPE_ERR46
+	depends on 476FPE
+	bool "Enable linker work around for PPC476FPE errata #46"
+	help
+	  This option enables a work around for an icache bug on 476
+	  that can cause execution of stale instructions when falling
+	  through pages (IBM errata #46). It requires a recent version
+	  of binutils which supports the --ppc476-workaround option.
+
+	  The work around enables the appropriate linker options and
+	  ensures that all module output sections are aligned to 4K
+	  page boundaries. The work around is only required when
+	  building modules.
 
 # 44x errata/workaround config symbols, selected by the CPU models above
 config IBM440EP_ERR42

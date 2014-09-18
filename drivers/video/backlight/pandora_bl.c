@@ -71,8 +71,7 @@ static int pandora_backlight_update_status(struct backlight_device *bl)
 		 * set PWM duty cycle to max. TPS61161 seems to use this
 		 * to calibrate it's PWM sensitivity when it starts.
 		 */
-		twl_i2c_write_u8(TWL4030_MODULE_PWM0, MAX_VALUE,
-					TWL_PWM0_OFF);
+		twl_i2c_write_u8(TWL_MODULE_PWM, MAX_VALUE, TWL_PWM0_OFF);
 
 		/* first enable clock, then PWM0 out */
 		twl_i2c_read_u8(TWL4030_MODULE_INTBR, &r, TWL_INTBR_GPBR1);
@@ -90,8 +89,7 @@ static int pandora_backlight_update_status(struct backlight_device *bl)
 		usleep_range(2000, 10000);
 	}
 
-	twl_i2c_write_u8(TWL4030_MODULE_PWM0, MIN_VALUE + brightness,
-				TWL_PWM0_OFF);
+	twl_i2c_write_u8(TWL_MODULE_PWM, MIN_VALUE + brightness, TWL_PWM0_OFF);
 
 done:
 	if (brightness != 0)
@@ -102,15 +100,9 @@ done:
 	return 0;
 }
 
-static int pandora_backlight_get_brightness(struct backlight_device *bl)
-{
-	return bl->props.brightness;
-}
-
 static const struct backlight_ops pandora_backlight_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 	.update_status	= pandora_backlight_update_status,
-	.get_brightness	= pandora_backlight_get_brightness,
 };
 
 static int pandora_backlight_probe(struct platform_device *pdev)
@@ -122,8 +114,8 @@ static int pandora_backlight_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(props));
 	props.max_brightness = MAX_USER_VALUE;
 	props.type = BACKLIGHT_RAW;
-	bl = backlight_device_register(pdev->name, &pdev->dev,
-			NULL, &pandora_backlight_ops, &props);
+	bl = devm_backlight_device_register(&pdev->dev, pdev->name, &pdev->dev,
+					NULL, &pandora_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		return PTR_ERR(bl);
@@ -132,7 +124,7 @@ static int pandora_backlight_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, bl);
 
 	/* 64 cycle period, ON position 0 */
-	twl_i2c_write_u8(TWL4030_MODULE_PWM0, 0x80, TWL_PWM0_ON);
+	twl_i2c_write_u8(TWL_MODULE_PWM, 0x80, TWL_PWM0_ON);
 
 	bl->props.state |= PANDORABL_WAS_OFF;
 	bl->props.brightness = MAX_USER_VALUE;
@@ -147,20 +139,12 @@ static int pandora_backlight_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pandora_backlight_remove(struct platform_device *pdev)
-{
-	struct backlight_device *bl = platform_get_drvdata(pdev);
-	backlight_device_unregister(bl);
-	return 0;
-}
-
 static struct platform_driver pandora_backlight_driver = {
 	.driver		= {
 		.name	= "pandora-backlight",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pandora_backlight_probe,
-	.remove		= pandora_backlight_remove,
 };
 
 module_platform_driver(pandora_backlight_driver);

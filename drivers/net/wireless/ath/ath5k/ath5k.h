@@ -29,6 +29,7 @@
 #include <linux/average.h>
 #include <linux/leds.h>
 #include <net/mac80211.h>
+#include <net/cfg80211.h>
 
 /* RX/TX descriptor hw structs
  * TODO: Driver part should only see sw structs */
@@ -76,26 +77,29 @@
   GENERIC DRIVER DEFINITIONS
 \****************************/
 
-#define ATH5K_PRINTF(fmt, ...) \
-	printk(KERN_WARNING "%s: " fmt, __func__, ##__VA_ARGS__)
+#define ATH5K_PRINTF(fmt, ...)						\
+	pr_warn("%s: " fmt, __func__, ##__VA_ARGS__)
 
-#define ATH5K_PRINTK(_sc, _level, _fmt, ...) \
-	printk(_level "ath5k %s: " _fmt, \
-		((_sc) && (_sc)->hw) ? wiphy_name((_sc)->hw->wiphy) : "", \
-		##__VA_ARGS__)
+void __printf(3, 4)
+_ath5k_printk(const struct ath5k_hw *ah, const char *level,
+	      const char *fmt, ...);
 
-#define ATH5K_PRINTK_LIMIT(_sc, _level, _fmt, ...) do { \
-	if (net_ratelimit()) \
-		ATH5K_PRINTK(_sc, _level, _fmt, ##__VA_ARGS__); \
-	} while (0)
+#define ATH5K_PRINTK(_sc, _level, _fmt, ...)				\
+	_ath5k_printk(_sc, _level, _fmt, ##__VA_ARGS__)
 
-#define ATH5K_INFO(_sc, _fmt, ...) \
+#define ATH5K_PRINTK_LIMIT(_sc, _level, _fmt, ...)			\
+do {									\
+	if (net_ratelimit())						\
+		ATH5K_PRINTK(_sc, _level, _fmt, ##__VA_ARGS__); 	\
+} while (0)
+
+#define ATH5K_INFO(_sc, _fmt, ...)					\
 	ATH5K_PRINTK(_sc, KERN_INFO, _fmt, ##__VA_ARGS__)
 
-#define ATH5K_WARN(_sc, _fmt, ...) \
+#define ATH5K_WARN(_sc, _fmt, ...)					\
 	ATH5K_PRINTK_LIMIT(_sc, KERN_WARNING, _fmt, ##__VA_ARGS__)
 
-#define ATH5K_ERR(_sc, _fmt, ...) \
+#define ATH5K_ERR(_sc, _fmt, ...)					\
 	ATH5K_PRINTK_LIMIT(_sc, KERN_ERR, _fmt, ##__VA_ARGS__)
 
 /*
@@ -1281,6 +1285,7 @@ struct ath5k_hw {
 #define ATH_STAT_STARTED	3		/* opened & irqs enabled */
 
 	unsigned int		filter_flags;	/* HW flags, AR5K_RX_FILTER_* */
+	unsigned int		fif_filter_flags; /* Current FIF_* filter flags */
 	struct ieee80211_channel *curchan;	/* current h/w channel */
 
 	u16			nvifs;
@@ -1328,7 +1333,6 @@ struct ath5k_hw {
 	unsigned int		nexttbtt;	/* next beacon time in TU */
 	struct ath5k_txq	*cabq;		/* content after beacon */
 
-	int			power_level;	/* Requested tx power in dBm */
 	bool			assoc;		/* associate state */
 	bool			enable_beacon;	/* true if beacons are on */
 
@@ -1422,6 +1426,7 @@ struct ath5k_hw {
 		/* Value in dB units */
 		s16		txp_cck_ofdm_pwr_delta;
 		bool		txp_setup;
+		int		txp_requested;	/* Requested tx power in dBm */
 	} ah_txpower;
 
 	struct ath5k_nfcal_hist ah_nfcal_hist;
@@ -1520,11 +1525,12 @@ int ath5k_hw_dma_stop(struct ath5k_hw *ah);
 /* EEPROM access functions */
 int ath5k_eeprom_init(struct ath5k_hw *ah);
 void ath5k_eeprom_detach(struct ath5k_hw *ah);
-
+int ath5k_eeprom_mode_from_channel(struct ath5k_hw *ah,
+		struct ieee80211_channel *channel);
 
 /* Protocol Control Unit Functions */
 /* Helpers */
-int ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
+int ath5k_hw_get_frame_duration(struct ath5k_hw *ah, enum ieee80211_band band,
 		int len, struct ieee80211_rate *rate, bool shortpre);
 unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah);
 unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah);

@@ -23,6 +23,7 @@ enum {
 	PSM_CONFIG_REG3  = 0x164,
 	PSM_CONFIG_REG4  = 0x168,
 
+	PCI_LDO_CTRL    = 0xbc,
 };
 
 /* Yukon-2 */
@@ -586,6 +587,10 @@ enum yukon_supr_rev {
 	CHIP_REV_YU_SU_B1    = 3,
 };
 
+enum yukon_prm_rev {
+	CHIP_REV_YU_PRM_Z1   = 1,
+	CHIP_REV_YU_PRM_A0   = 2,
+};
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
 enum {
@@ -2069,7 +2074,7 @@ enum {
 	GM_IS_RX_FF_OR	= 1<<1,	/* Receive FIFO Overrun */
 	GM_IS_RX_COMPL	= 1<<0,	/* Frame Reception Complete */
 
-#define GMAC_DEF_MSK     GM_IS_TX_FF_UR
+#define GMAC_DEF_MSK     (GM_IS_TX_FF_UR | GM_IS_RX_FF_OR)
 };
 
 /*	GMAC_LINK_CTRL	16 bit	GMAC Link Control Reg (YUKON only) */
@@ -2241,7 +2246,6 @@ struct sky2_port {
 	u16		     rx_pending;
 	u16		     rx_data_size;
 	u16		     rx_nfrags;
-	u16		     rx_tag;
 
 	struct {
 		unsigned long last;

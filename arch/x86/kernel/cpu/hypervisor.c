@@ -25,11 +25,6 @@
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
 
-/*
- * Hypervisor detect order.  This is specified explicitly here because
- * some hypervisors might implement compatibility modes for other
- * hypervisors and therefore need to be detected in specific sequence.
- */
 static const __initconst struct hypervisor_x86 * const hypervisors[] =
 {
 #ifdef CONFIG_XEN_PVHVM
@@ -37,6 +32,9 @@ static const __initconst struct hypervisor_x86 * const hypervisors[] =
 #endif
 	&x86_hyper_vmware,
 	&x86_hyper_ms_hyperv,
+#ifdef CONFIG_KVM_GUEST
+	&x86_hyper_kvm,
+#endif
 };
 
 const struct hypervisor_x86 *x86_hyper;
@@ -46,18 +44,22 @@ static inline void __init
 detect_hypervisor_vendor(void)
 {
 	const struct hypervisor_x86 *h, * const *p;
+	uint32_t pri, max_pri = 0;
 
 	for (p = hypervisors; p < hypervisors + ARRAY_SIZE(hypervisors); p++) {
 		h = *p;
-		if (h->detect()) {
+		pri = h->detect();
+		if (pri != 0 && pri > max_pri) {
+			max_pri = pri;
 			x86_hyper = h;
-			printk(KERN_INFO "Hypervisor detected: %s\n", h->name);
-			break;
 		}
 	}
+
+	if (max_pri)
+		printk(KERN_INFO "Hypervisor detected: %s\n", x86_hyper->name);
 }
 
-void __cpuinit init_hypervisor(struct cpuinfo_x86 *c)
+void init_hypervisor(struct cpuinfo_x86 *c)
 {
 	if (x86_hyper && x86_hyper->set_cpu_features)
 		x86_hyper->set_cpu_features(c);
@@ -75,4 +77,11 @@ void __init init_hypervisor_platform(void)
 
 	if (x86_hyper->init_platform)
 		x86_hyper->init_platform();
+}
+
+bool __init hypervisor_x2apic_available(void)
+{
+	return x86_hyper                   &&
+	       x86_hyper->x2apic_available &&
+	       x86_hyper->x2apic_available();
 }

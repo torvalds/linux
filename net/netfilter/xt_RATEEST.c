@@ -43,12 +43,11 @@ static void xt_rateest_hash_insert(struct xt_rateest *est)
 struct xt_rateest *xt_rateest_lookup(const char *name)
 {
 	struct xt_rateest *est;
-	struct hlist_node *n;
 	unsigned int h;
 
 	h = xt_rateest_hash(name);
 	mutex_lock(&xt_rateest_mutex);
-	hlist_for_each_entry(est, n, &rateest_hash[h], list) {
+	hlist_for_each_entry(est, &rateest_hash[h], list) {
 		if (strcmp(est->name, name) == 0) {
 			est->refcnt++;
 			mutex_unlock(&xt_rateest_mutex);

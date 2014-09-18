@@ -605,6 +605,9 @@ static void __init genclk_init_parent(struct clk *clk)
 
 static struct dw_dma_platform_data dw_dmac0_data = {
 	.nr_channels	= 3,
+	.block_size	= 4095U,
+	.nr_masters	= 2,
+	.data_width	= { 2, 2, 0, 0 },
 };
 
 static struct resource dw_dmac0_resource[] = {
@@ -1057,7 +1060,9 @@ struct platform_device *__init at32_add_device_usart(unsigned int id)
 
 void __init at32_setup_serial_console(unsigned int usart_id)
 {
+#ifdef CONFIG_SERIAL_ATMEL
 	atmel_default_console_device = at32_usarts[usart_id];
+#endif
 }
 
 /* --------------------------------------------------------------------
@@ -1434,7 +1439,7 @@ fail:
  *  LCDC
  * -------------------------------------------------------------------- */
 #if defined(CONFIG_CPU_AT32AP7000) || defined(CONFIG_CPU_AT32AP7002)
-static struct atmel_lcdfb_info atmel_lcdfb0_data;
+static struct atmel_lcdfb_pdata atmel_lcdfb0_data;
 static struct resource atmel_lcdfb0_resource[] = {
 	{
 		.start		= 0xff000000,
@@ -1450,7 +1455,7 @@ static struct resource atmel_lcdfb0_resource[] = {
 	},
 };
 DEFINE_DEV_DATA(atmel_lcdfb, 0);
-DEV_CLK(hck1, atmel_lcdfb0, hsb, 7);
+DEV_CLK(hclk, atmel_lcdfb0, hsb, 7);
 static struct clk atmel_lcdfb0_pixclk = {
 	.name		= "lcdc_clk",
 	.dev		= &atmel_lcdfb0_device.dev,
@@ -1462,12 +1467,12 @@ static struct clk atmel_lcdfb0_pixclk = {
 };
 
 struct platform_device *__init
-at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
+at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_pdata *data,
 		     unsigned long fbmem_start, unsigned long fbmem_len,
 		     u64 pin_mask)
 {
 	struct platform_device *pdev;
-	struct atmel_lcdfb_info *info;
+	struct atmel_lcdfb_pdata *info;
 	struct fb_monspecs *monspecs;
 	struct fb_videomode *modedb;
 	unsigned int modedb_size;
@@ -1524,8 +1529,10 @@ at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 	}
 
 	info = pdev->dev.platform_data;
-	memcpy(info, data, sizeof(struct atmel_lcdfb_info));
+	memcpy(info, data, sizeof(struct atmel_lcdfb_pdata));
 	info->default_monspecs = monspecs;
+
+	pdev->name = "at32ap-lcdfb";
 
 	platform_device_register(pdev);
 	return pdev;
@@ -1546,7 +1553,7 @@ static struct resource atmel_pwm0_resource[] __initdata = {
 	IRQ(24),
 };
 static struct clk atmel_pwm0_mck = {
-	.name		= "pwm_clk",
+	.name		= "at91sam9rl-pwm",
 	.parent		= &pbb_clk,
 	.mode		= pbb_clk_mode,
 	.get_rate	= pbb_clk_get_rate,
@@ -1561,15 +1568,12 @@ struct platform_device *__init at32_add_device_pwm(u32 mask)
 	if (!mask)
 		return NULL;
 
-	pdev = platform_device_alloc("atmel_pwm", 0);
+	pdev = platform_device_alloc("at91sam9rl-pwm", 0);
 	if (!pdev)
 		return NULL;
 
 	if (platform_device_add_resources(pdev, atmel_pwm0_resource,
 				ARRAY_SIZE(atmel_pwm0_resource)))
-		goto out_free_pdev;
-
-	if (platform_device_add_data(pdev, &mask, sizeof(mask)))
 		goto out_free_pdev;
 
 	pin_mask = 0;
@@ -1976,6 +1980,9 @@ at32_add_device_nand(unsigned int id, struct atmel_nand_data *data)
 				ARRAY_SIZE(smc_cs3_resource)))
 		goto fail;
 
+	/* For at32ap7000, we use the reset workaround for nand driver */
+	data->need_reset_workaround = true;
+
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct atmel_nand_data)))
 		goto fail;
@@ -2243,7 +2250,7 @@ static __initdata struct clk *init_clocks[] = {
 	&atmel_twi0_pclk,
 	&atmel_mci0_pclk,
 #if defined(CONFIG_CPU_AT32AP7000) || defined(CONFIG_CPU_AT32AP7002)
-	&atmel_lcdfb0_hck1,
+	&atmel_lcdfb0_hclk,
 	&atmel_lcdfb0_pixclk,
 #endif
 	&ssc0_pclk,

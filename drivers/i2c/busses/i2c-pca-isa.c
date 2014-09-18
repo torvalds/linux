@@ -119,7 +119,7 @@ static struct i2c_adapter pca_isa_ops = {
 	.timeout	= HZ,
 };
 
-static int __devinit pca_isa_match(struct device *dev, unsigned int id)
+static int pca_isa_match(struct device *dev, unsigned int id)
 {
 	int match = base != 0;
 
@@ -132,7 +132,7 @@ static int __devinit pca_isa_match(struct device *dev, unsigned int id)
 	return match;
 }
 
-static int __devinit pca_isa_probe(struct device *dev, unsigned int id)
+static int pca_isa_probe(struct device *dev, unsigned int id)
 {
 	init_waitqueue_head(&pca_wait);
 
@@ -174,7 +174,7 @@ static int __devinit pca_isa_probe(struct device *dev, unsigned int id)
 	return -ENODEV;
 }
 
-static int __devexit pca_isa_remove(struct device *dev, unsigned int id)
+static int pca_isa_remove(struct device *dev, unsigned int id)
 {
 	i2c_del_adapter(&pca_isa_ops);
 
@@ -190,7 +190,7 @@ static int __devexit pca_isa_remove(struct device *dev, unsigned int id)
 static struct isa_driver pca_isa_driver = {
 	.match		= pca_isa_match,
 	.probe		= pca_isa_probe,
-	.remove		= __devexit_p(pca_isa_remove),
+	.remove		= pca_isa_remove,
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= DRIVER,

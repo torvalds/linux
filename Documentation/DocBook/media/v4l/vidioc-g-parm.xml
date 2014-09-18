@@ -75,11 +75,12 @@ devices.</para>
 	&cs-ustr;
 	<tbody valign="top">
 	  <row>
-	    <entry>&v4l2-buf-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry></entry>
 	    <entry>The buffer (stream) type, same as &v4l2-format;
-<structfield>type</structfield>, set by the application.</entry>
+<structfield>type</structfield>, set by the application. See <xref
+	    linkend="v4l2-buf-type" /></entry>
 	  </row>
 	  <row>
 	    <entry>union</entry>
@@ -107,9 +108,7 @@ devices.</para>
 	    <entry></entry>
 	    <entry>__u8</entry>
 	    <entry><structfield>raw_data</structfield>[200]</entry>
-	    <entry>A place holder for future extensions and custom
-(driver defined) buffer types <constant>V4L2_BUF_TYPE_PRIVATE</constant> and
-higher.</entry>
+	    <entry>A place holder for future extensions.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -133,7 +132,7 @@ higher.</entry>
 	  <row>
 	    <entry>&v4l2-fract;</entry>
 	    <entry><structfield>timeperframe</structfield></entry>
-	    <entry><para>This is is the desired period between
+	    <entry><para>This is the desired period between
 successive frames captured by the driver, in seconds. The
 field is intended to skip frames on the driver side, saving I/O
 bandwidth.</para><para>Applications store here the desired frame
@@ -194,7 +193,7 @@ applications must set the array to zero.</entry>
 	  <row>
 	    <entry>&v4l2-fract;</entry>
 	    <entry><structfield>timeperframe</structfield></entry>
-	    <entry>This is is the desired period between
+	    <entry>This is the desired period between
 successive frames output by the driver, in seconds.</entry>
 	  </row>
 	  <row>

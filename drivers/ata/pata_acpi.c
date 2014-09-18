@@ -7,16 +7,14 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gfp.h>
-#include <scsi/scsi_host.h>
-#include <acpi/acpi_bus.h>
-
+#include <linux/acpi.h>
 #include <linux/libata.h>
 #include <linux/ata.h>
+#include <scsi/scsi_host.h>
 
 #define DRV_NAME	"pata_acpi"
 #define DRV_VERSION	"0.2.3"
@@ -39,7 +37,7 @@ static int pacpi_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	struct pata_acpi *acpi = ap->private_data;
-	if (ap->acpi_handle == NULL || ata_acpi_gtm(ap, &acpi->gtm) < 0)
+	if (ACPI_HANDLE(&ap->tdev) == NULL || ata_acpi_gtm(ap, &acpi->gtm) < 0)
 		return -ENODEV;
 
 	return ata_sff_prereset(link, deadline);
@@ -195,7 +193,7 @@ static int pacpi_port_start(struct ata_port *ap)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct pata_acpi *acpi;
 
-	if (ap->acpi_handle == NULL)
+	if (ACPI_HANDLE(&ap->tdev) == NULL)
 		return -ENODEV;
 
 	acpi = ap->private_data = devm_kzalloc(&pdev->dev, sizeof(struct pata_acpi), GFP_KERNEL);
@@ -267,28 +265,16 @@ static struct pci_driver pacpi_pci_driver = {
 	.id_table		= pacpi_pci_tbl,
 	.probe			= pacpi_init_one,
 	.remove			= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend		= ata_pci_device_suspend,
 	.resume			= ata_pci_device_resume,
 #endif
 };
 
-static int __init pacpi_init(void)
-{
-	return pci_register_driver(&pacpi_pci_driver);
-}
-
-static void __exit pacpi_exit(void)
-{
-	pci_unregister_driver(&pacpi_pci_driver);
-}
-
-module_init(pacpi_init);
-module_exit(pacpi_exit);
+module_pci_driver(pacpi_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("SCSI low-level driver for ATA in ACPI mode");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, pacpi_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-

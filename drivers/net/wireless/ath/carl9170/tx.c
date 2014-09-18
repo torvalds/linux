@@ -37,7 +37,6 @@
  *    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
@@ -277,11 +276,11 @@ static void carl9170_tx_release(struct kref *ref)
 		return;
 
 	BUILD_BUG_ON(
-	    offsetof(struct ieee80211_tx_info, status.ampdu_ack_len) != 23);
+	    offsetof(struct ieee80211_tx_info, status.ack_signal) != 20);
 
-	memset(&txinfo->status.ampdu_ack_len, 0,
+	memset(&txinfo->status.ack_signal, 0,
 	       sizeof(struct ieee80211_tx_info) -
-	       offsetof(struct ieee80211_tx_info, status.ampdu_ack_len));
+	       offsetof(struct ieee80211_tx_info, status.ack_signal));
 
 	if (atomic_read(&ar->tx_total_queued))
 		ar->tx_schedule = true;
@@ -387,8 +386,7 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 	u8 tid;
 
 	if (!(txinfo->flags & IEEE80211_TX_CTL_AMPDU) ||
-	    txinfo->flags & IEEE80211_TX_CTL_INJECTED ||
-	   (!(super->f.mac_control & cpu_to_le16(AR9170_TX_MAC_AGGR))))
+	    txinfo->flags & IEEE80211_TX_CTL_INJECTED)
 		return;
 
 	rcu_read_lock();
@@ -436,6 +434,45 @@ out_rcu:
 	rcu_read_unlock();
 }
 
+static void carl9170_tx_bar_status(struct ar9170 *ar, struct sk_buff *skb,
+	struct ieee80211_tx_info *tx_info)
+{
+	struct _carl9170_tx_superframe *super = (void *) skb->data;
+	struct ieee80211_bar *bar = (void *) super->frame_data;
+
+	/*
+	 * Unlike all other frames, the status report for BARs does
+	 * not directly come from the hardware as it is incapable of
+	 * matching a BA to a previously send BAR.
+	 * Instead the RX-path will scan for incoming BAs and set the
+	 * IEEE80211_TX_STAT_ACK if it sees one that was likely
+	 * caused by a BAR from us.
+	 */
+
+	if (unlikely(ieee80211_is_back_req(bar->frame_control)) &&
+	   !(tx_info->flags & IEEE80211_TX_STAT_ACK)) {
+		struct carl9170_bar_list_entry *entry;
+		int queue = skb_get_queue_mapping(skb);
+
+		rcu_read_lock();
+		list_for_each_entry_rcu(entry, &ar->bar_list[queue], list) {
+			if (entry->skb == skb) {
+				spin_lock_bh(&ar->bar_list_lock[queue]);
+				list_del_rcu(&entry->list);
+				spin_unlock_bh(&ar->bar_list_lock[queue]);
+				kfree_rcu(entry, head);
+				goto out;
+			}
+		}
+
+		WARN(1, "bar not found in %d - ra:%pM ta:%pM c:%x ssn:%x\n",
+		       queue, bar->ra, bar->ta, bar->control,
+			bar->start_seq_num);
+out:
+		rcu_read_unlock();
+	}
+}
+
 void carl9170_tx_status(struct ar9170 *ar, struct sk_buff *skb,
 			const bool success)
 {
@@ -444,6 +481,8 @@ void carl9170_tx_status(struct ar9170 *ar, struct sk_buff *skb,
 	carl9170_tx_accounting_free(ar, skb);
 
 	txinfo = IEEE80211_SKB_CB(skb);
+
+	carl9170_tx_bar_status(ar, skb, txinfo);
 
 	if (success)
 		txinfo->flags |= IEEE80211_TX_STAT_ACK;
@@ -585,7 +624,7 @@ static void carl9170_tx_ampdu_timeout(struct ar9170 *ar)
 		    msecs_to_jiffies(CARL9170_QUEUE_TIMEOUT)))
 			goto unlock;
 
-		sta = __carl9170_get_tx_sta(ar, skb);
+		sta = iter->sta;
 		if (WARN_ON(!sta))
 			goto unlock;
 
@@ -826,20 +865,105 @@ static bool carl9170_tx_cts_check(struct ar9170 *ar,
 	return false;
 }
 
-static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
+static void carl9170_tx_get_rates(struct ar9170 *ar,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_sta *sta,
+				  struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info;
+
+	BUILD_BUG_ON(IEEE80211_TX_MAX_RATES < CARL9170_TX_MAX_RATES);
+	BUILD_BUG_ON(IEEE80211_TX_MAX_RATES > IEEE80211_TX_RATE_TABLE_SIZE);
+
+	info = IEEE80211_SKB_CB(skb);
+
+	ieee80211_get_tx_rates(vif, sta, skb,
+			       info->control.rates,
+			       IEEE80211_TX_MAX_RATES);
+}
+
+static void carl9170_tx_apply_rateset(struct ar9170 *ar,
+				      struct ieee80211_tx_info *sinfo,
+				      struct sk_buff *skb)
+{
+	struct ieee80211_tx_rate *txrate;
+	struct ieee80211_tx_info *info;
+	struct _carl9170_tx_superframe *txc = (void *) skb->data;
+	int i;
+	bool ampdu;
+	bool no_ack;
+
+	info = IEEE80211_SKB_CB(skb);
+	ampdu = !!(info->flags & IEEE80211_TX_CTL_AMPDU);
+	no_ack = !!(info->flags & IEEE80211_TX_CTL_NO_ACK);
+
+	/* Set the rate control probe flag for all (sub-) frames.
+	 * This is because the TX_STATS_AMPDU flag is only set on
+	 * the last frame, so it has to be inherited.
+	 */
+	info->flags |= (sinfo->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
+
+	/* NOTE: For the first rate, the ERP & AMPDU flags are directly
+	 * taken from mac_control. For all fallback rate, the firmware
+	 * updates the mac_control flags from the rate info field.
+	 */
+	for (i = 0; i < CARL9170_TX_MAX_RATES; i++) {
+		__le32 phy_set;
+
+		txrate = &sinfo->control.rates[i];
+		if (txrate->idx < 0)
+			break;
+
+		phy_set = carl9170_tx_physet(ar, info, txrate);
+		if (i == 0) {
+			__le16 mac_tmp = cpu_to_le16(0);
+
+			/* first rate - part of the hw's frame header */
+			txc->f.phy_control = phy_set;
+
+			if (ampdu && txrate->flags & IEEE80211_TX_RC_MCS)
+				mac_tmp |= cpu_to_le16(AR9170_TX_MAC_AGGR);
+
+			if (carl9170_tx_rts_check(ar, txrate, ampdu, no_ack))
+				mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_RTS);
+			else if (carl9170_tx_cts_check(ar, txrate))
+				mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_CTS);
+
+			txc->f.mac_control |= mac_tmp;
+		} else {
+			/* fallback rates are stored in the firmware's
+			 * retry rate set array.
+			 */
+			txc->s.rr[i - 1] = phy_set;
+		}
+
+		SET_VAL(CARL9170_TX_SUPER_RI_TRIES, txc->s.ri[i],
+			txrate->count);
+
+		if (carl9170_tx_rts_check(ar, txrate, ampdu, no_ack))
+			txc->s.ri[i] |= (AR9170_TX_MAC_PROT_RTS <<
+				CARL9170_TX_SUPER_RI_ERP_PROT_S);
+		else if (carl9170_tx_cts_check(ar, txrate))
+			txc->s.ri[i] |= (AR9170_TX_MAC_PROT_CTS <<
+				CARL9170_TX_SUPER_RI_ERP_PROT_S);
+
+		if (ampdu && (txrate->flags & IEEE80211_TX_RC_MCS))
+			txc->s.ri[i] |= CARL9170_TX_SUPER_RI_AMPDU;
+	}
+}
+
+static int carl9170_tx_prepare(struct ar9170 *ar,
+			       struct ieee80211_sta *sta,
+			       struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 	struct _carl9170_tx_superframe *txc;
 	struct carl9170_vif_info *cvif;
 	struct ieee80211_tx_info *info;
-	struct ieee80211_tx_rate *txrate;
-	struct ieee80211_sta *sta;
 	struct carl9170_tx_info *arinfo;
 	unsigned int hw_queue;
-	int i;
 	__le16 mac_tmp;
 	u16 len;
-	bool ampdu, no_ack;
 
 	BUILD_BUG_ON(sizeof(*arinfo) > sizeof(info->rate_driver_data));
 	BUILD_BUG_ON(sizeof(struct _carl9170_tx_superdesc) !=
@@ -847,8 +971,6 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 
 	BUILD_BUG_ON(sizeof(struct _ar9170_tx_hwdesc) !=
 		     AR9170_TX_HWDESC_LEN);
-
-	BUILD_BUG_ON(IEEE80211_TX_MAX_RATES < CARL9170_TX_MAX_RATES);
 
 	BUILD_BUG_ON(AR9170_MAX_VIRTUAL_MAC >
 		((CARL9170_TX_SUPER_MISC_VIF_ID >>
@@ -868,8 +990,6 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 		cvif = (void *) info->control.vif->drv_priv;
 	else
 		cvif = NULL;
-
-	sta = info->control.sta;
 
 	txc = (void *)skb_push(skb, sizeof(*txc));
 	memset(txc, 0, sizeof(*txc));
@@ -893,8 +1013,7 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 	mac_tmp |= cpu_to_le16((hw_queue << AR9170_TX_MAC_QOS_S) &
 			       AR9170_TX_MAC_QOS);
 
-	no_ack = !!(info->flags & IEEE80211_TX_CTL_NO_ACK);
-	if (unlikely(no_ack))
+	if (unlikely(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_NO_ACK);
 
 	if (info->control.hw_key) {
@@ -915,8 +1034,7 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 		}
 	}
 
-	ampdu = !!(info->flags & IEEE80211_TX_CTL_AMPDU);
-	if (ampdu) {
+	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
 		unsigned int density, factor;
 
 		if (unlikely(!sta || !cvif))
@@ -941,67 +1059,11 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 
 		SET_VAL(CARL9170_TX_SUPER_AMPDU_FACTOR,
 			txc->s.ampdu_settings, factor);
-
-		for (i = 0; i < CARL9170_TX_MAX_RATES; i++) {
-			txrate = &info->control.rates[i];
-			if (txrate->idx >= 0) {
-				txc->s.ri[i] =
-					CARL9170_TX_SUPER_RI_AMPDU;
-
-				if (WARN_ON(!(txrate->flags &
-					      IEEE80211_TX_RC_MCS))) {
-					/*
-					 * Not sure if it's even possible
-					 * to aggregate non-ht rates with
-					 * this HW.
-					 */
-					goto err_out;
-				}
-				continue;
-			}
-
-			txrate->idx = 0;
-			txrate->count = ar->hw->max_rate_tries;
-		}
-
-		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_AGGR);
 	}
-
-	/*
-	 * NOTE: For the first rate, the ERP & AMPDU flags are directly
-	 * taken from mac_control. For all fallback rate, the firmware
-	 * updates the mac_control flags from the rate info field.
-	 */
-	for (i = 1; i < CARL9170_TX_MAX_RATES; i++) {
-		txrate = &info->control.rates[i];
-		if (txrate->idx < 0)
-			break;
-
-		SET_VAL(CARL9170_TX_SUPER_RI_TRIES, txc->s.ri[i],
-			txrate->count);
-
-		if (carl9170_tx_rts_check(ar, txrate, ampdu, no_ack))
-			txc->s.ri[i] |= (AR9170_TX_MAC_PROT_RTS <<
-				CARL9170_TX_SUPER_RI_ERP_PROT_S);
-		else if (carl9170_tx_cts_check(ar, txrate))
-			txc->s.ri[i] |= (AR9170_TX_MAC_PROT_CTS <<
-				CARL9170_TX_SUPER_RI_ERP_PROT_S);
-
-		txc->s.rr[i - 1] = carl9170_tx_physet(ar, info, txrate);
-	}
-
-	txrate = &info->control.rates[0];
-	SET_VAL(CARL9170_TX_SUPER_RI_TRIES, txc->s.ri[0], txrate->count);
-
-	if (carl9170_tx_rts_check(ar, txrate, ampdu, no_ack))
-		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_RTS);
-	else if (carl9170_tx_cts_check(ar, txrate))
-		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_CTS);
 
 	txc->s.len = cpu_to_le16(skb->len);
 	txc->f.length = cpu_to_le16(len + FCS_LEN);
 	txc->f.mac_control = mac_tmp;
-	txc->f.phy_control = carl9170_tx_physet(ar, info, txrate);
 
 	arinfo = (void *)info->rate_driver_data;
 	arinfo->timeout = jiffies;
@@ -1059,31 +1121,12 @@ static void carl9170_set_ampdu_params(struct ar9170 *ar, struct sk_buff *skb)
 	}
 }
 
-static bool carl9170_tx_rate_check(struct ar9170 *ar, struct sk_buff *_dest,
-				   struct sk_buff *_src)
-{
-	struct _carl9170_tx_superframe *dest, *src;
-
-	dest = (void *) _dest->data;
-	src = (void *) _src->data;
-
-	/*
-	 * The mac80211 rate control algorithm expects that all MPDUs in
-	 * an AMPDU share the same tx vectors.
-	 * This is not really obvious right now, because the hardware
-	 * does the AMPDU setup according to its own rulebook.
-	 * Our nicely assembled, strictly monotonic increasing mpdu
-	 * chains will be broken up, mashed back together...
-	 */
-
-	return (dest->f.phy_control == src->f.phy_control);
-}
-
 static void carl9170_tx_ampdu(struct ar9170 *ar)
 {
 	struct sk_buff_head agg;
 	struct carl9170_sta_tid *tid_info;
 	struct sk_buff *skb, *first;
+	struct ieee80211_tx_info *tx_info_first;
 	unsigned int i = 0, done_ampdus = 0;
 	u16 seq, queue, tmpssn;
 
@@ -1129,6 +1172,7 @@ retry:
 			goto processed;
 		}
 
+		tx_info_first = NULL;
 		while ((skb = skb_peek(&tid_info->queue))) {
 			/* strict 0, 1, ..., n - 1, n frame sequence order */
 			if (unlikely(carl9170_get_seq(skb) != seq))
@@ -1139,8 +1183,13 @@ retry:
 			    (tid_info->max - 1)))
 				break;
 
-			if (!carl9170_tx_rate_check(ar, skb, first))
-				break;
+			if (!tx_info_first) {
+				carl9170_tx_get_rates(ar, tid_info->vif,
+						      tid_info->sta, first);
+				tx_info_first = IEEE80211_SKB_CB(first);
+			}
+
+			carl9170_tx_apply_rateset(ar, tx_info_first, skb);
 
 			atomic_inc(&ar->tx_ampdu_upload);
 			tid_info->snx = seq = SEQ_NEXT(seq);
@@ -1155,8 +1204,7 @@ retry:
 		if (skb_queue_empty(&tid_info->queue) ||
 		    carl9170_get_seq(skb_peek(&tid_info->queue)) !=
 		    tid_info->snx) {
-			/*
-			 * stop TID, if A-MPDU frames are still missing,
+			/* stop TID, if A-MPDU frames are still missing,
 			 * or whenever the queue is empty.
 			 */
 
@@ -1265,6 +1313,26 @@ out_rcu:
 	return false;
 }
 
+static void carl9170_bar_check(struct ar9170 *ar, struct sk_buff *skb)
+{
+	struct _carl9170_tx_superframe *super = (void *) skb->data;
+	struct ieee80211_bar *bar = (void *) super->frame_data;
+
+	if (unlikely(ieee80211_is_back_req(bar->frame_control)) &&
+	    skb->len >= sizeof(struct ieee80211_bar)) {
+		struct carl9170_bar_list_entry *entry;
+		unsigned int queue = skb_get_queue_mapping(skb);
+
+		entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+		if (!WARN_ON_ONCE(!entry)) {
+			entry->skb = skb;
+			spin_lock_bh(&ar->bar_list_lock[queue]);
+			list_add_tail_rcu(&entry->list, &ar->bar_list[queue]);
+			spin_unlock_bh(&ar->bar_list_lock[queue]);
+		}
+	}
+}
+
 static void carl9170_tx(struct ar9170 *ar)
 {
 	struct sk_buff *skb;
@@ -1286,6 +1354,8 @@ static void carl9170_tx(struct ar9170 *ar)
 
 			if (unlikely(carl9170_tx_ps_drop(ar, skb)))
 				continue;
+
+			carl9170_bar_check(ar, skb);
 
 			atomic_inc(&ar->tx_total_pending);
 
@@ -1319,9 +1389,9 @@ static void carl9170_tx(struct ar9170 *ar)
 }
 
 static bool carl9170_tx_ampdu_queue(struct ar9170 *ar,
-	struct ieee80211_sta *sta, struct sk_buff *skb)
+	struct ieee80211_sta *sta, struct sk_buff *skb,
+	struct ieee80211_tx_info *txinfo)
 {
-	struct _carl9170_tx_superframe *super = (void *) skb->data;
 	struct carl9170_sta_info *sta_info;
 	struct carl9170_sta_tid *agg;
 	struct sk_buff *iter;
@@ -1388,26 +1458,29 @@ err_unlock:
 
 err_unlock_rcu:
 	rcu_read_unlock();
-	super->f.mac_control &= ~cpu_to_le16(AR9170_TX_MAC_AGGR);
+	txinfo->flags &= ~IEEE80211_TX_CTL_AMPDU;
 	carl9170_tx_status(ar, skb, false);
 	ar->tx_dropped++;
 	return false;
 }
 
-void carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+void carl9170_op_tx(struct ieee80211_hw *hw,
+		    struct ieee80211_tx_control *control,
+		    struct sk_buff *skb)
 {
 	struct ar9170 *ar = hw->priv;
 	struct ieee80211_tx_info *info;
-	struct ieee80211_sta *sta;
+	struct ieee80211_sta *sta = control->sta;
+	struct ieee80211_vif *vif;
 	bool run;
 
 	if (unlikely(!IS_STARTED(ar)))
 		goto err_free;
 
 	info = IEEE80211_SKB_CB(skb);
-	sta = info->control.sta;
+	vif = info->control.vif;
 
-	if (unlikely(carl9170_tx_prepare(ar, skb)))
+	if (unlikely(carl9170_tx_prepare(ar, sta, skb)))
 		goto err_free;
 
 	carl9170_tx_accounting(ar, skb);
@@ -1422,13 +1495,22 @@ void carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-		run = carl9170_tx_ampdu_queue(ar, sta, skb);
+		/* to static code analyzers and reviewers:
+		 * mac80211 guarantees that a valid "sta"
+		 * reference is present, if a frame is to
+		 * be part of an ampdu. Hence any extra
+		 * sta == NULL checks are redundant in this
+		 * special case.
+		 */
+		run = carl9170_tx_ampdu_queue(ar, sta, skb, info);
 		if (run)
 			carl9170_tx_ampdu(ar);
 
 	} else {
 		unsigned int queue = skb_get_queue_mapping(skb);
 
+		carl9170_tx_get_rates(ar, vif, sta, skb);
+		carl9170_tx_apply_rateset(ar, info, skb);
 		skb_queue_tail(&ar->tx_pending[queue], skb);
 	}
 
@@ -1450,35 +1532,92 @@ void carl9170_tx_scheduler(struct ar9170 *ar)
 		carl9170_tx(ar);
 }
 
+/* caller has to take rcu_read_lock */
+static struct carl9170_vif_info *carl9170_pick_beaconing_vif(struct ar9170 *ar)
+{
+	struct carl9170_vif_info *cvif;
+	int i = 1;
+
+	/* The AR9170 hardware has no fancy beacon queue or some
+	 * other scheduling mechanism. So, the driver has to make
+	 * due by setting the two beacon timers (pretbtt and tbtt)
+	 * once and then swapping the beacon address in the HW's
+	 * register file each time the pretbtt fires.
+	 */
+
+	cvif = rcu_dereference(ar->beacon_iter);
+	if (ar->vifs > 0 && cvif) {
+		do {
+			list_for_each_entry_continue_rcu(cvif, &ar->vif_list,
+							 list) {
+				if (cvif->active && cvif->enable_beacon)
+					goto out;
+			}
+		} while (ar->beacon_enabled && i--);
+	}
+
+out:
+	rcu_assign_pointer(ar->beacon_iter, cvif);
+	return cvif;
+}
+
+static bool carl9170_tx_beacon_physet(struct ar9170 *ar, struct sk_buff *skb,
+				      u32 *ht1, u32 *plcp)
+{
+	struct ieee80211_tx_info *txinfo;
+	struct ieee80211_tx_rate *rate;
+	unsigned int power, chains;
+	bool ht_rate;
+
+	txinfo = IEEE80211_SKB_CB(skb);
+	rate = &txinfo->control.rates[0];
+	ht_rate = !!(txinfo->control.rates[0].flags & IEEE80211_TX_RC_MCS);
+	carl9170_tx_rate_tpc_chains(ar, txinfo, rate, plcp, &power, &chains);
+
+	*ht1 = AR9170_MAC_BCN_HT1_TX_ANT0;
+	if (chains == AR9170_TX_PHY_TXCHAIN_2)
+		*ht1 |= AR9170_MAC_BCN_HT1_TX_ANT1;
+	SET_VAL(AR9170_MAC_BCN_HT1_PWR_CTRL, *ht1, 7);
+	SET_VAL(AR9170_MAC_BCN_HT1_TPC, *ht1, power);
+	SET_VAL(AR9170_MAC_BCN_HT1_CHAIN_MASK, *ht1, chains);
+
+	if (ht_rate) {
+		*ht1 |= AR9170_MAC_BCN_HT1_HT_EN;
+		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+			*plcp |= AR9170_MAC_BCN_HT2_SGI;
+
+		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH) {
+			*ht1 |= AR9170_MAC_BCN_HT1_BWC_40M_SHARED;
+			*plcp |= AR9170_MAC_BCN_HT2_BW40;
+		} else if (rate->flags & IEEE80211_TX_RC_DUP_DATA) {
+			*ht1 |= AR9170_MAC_BCN_HT1_BWC_40M_DUP;
+			*plcp |= AR9170_MAC_BCN_HT2_BW40;
+		}
+
+		SET_VAL(AR9170_MAC_BCN_HT2_LEN, *plcp, skb->len + FCS_LEN);
+	} else {
+		if (*plcp <= AR9170_TX_PHY_RATE_CCK_11M)
+			*plcp |= ((skb->len + FCS_LEN) << (3 + 16)) + 0x0400;
+		else
+			*plcp |= ((skb->len + FCS_LEN) << 16) + 0x0010;
+	}
+
+	return ht_rate;
+}
+
 int carl9170_update_beacon(struct ar9170 *ar, const bool submit)
 {
 	struct sk_buff *skb = NULL;
 	struct carl9170_vif_info *cvif;
-	struct ieee80211_tx_info *txinfo;
-	struct ieee80211_tx_rate *rate;
 	__le32 *data, *old = NULL;
-	unsigned int plcp, power, chains;
-	u32 word, ht1, off, addr, len;
+	u32 word, ht1, plcp, off, addr, len;
 	int i = 0, err = 0;
+	bool ht_rate;
 
 	rcu_read_lock();
-	cvif = rcu_dereference(ar->beacon_iter);
-retry:
-	if (ar->vifs == 0 || !cvif)
+	cvif = carl9170_pick_beaconing_vif(ar);
+	if (!cvif)
 		goto out_unlock;
-
-	list_for_each_entry_continue_rcu(cvif, &ar->vif_list, list) {
-		if (cvif->active && cvif->enable_beacon)
-			goto found;
-	}
-
-	if (!ar->beacon_enabled || i++)
-		goto out_unlock;
-
-	goto retry;
-
-found:
-	rcu_assign_pointer(ar->beacon_iter, cvif);
 
 	skb = ieee80211_beacon_get_tim(ar->hw, carl9170_get_vif(cvif),
 		NULL, NULL);
@@ -1488,7 +1627,6 @@ found:
 		goto err_free;
 	}
 
-	txinfo = IEEE80211_SKB_CB(skb);
 	spin_lock_bh(&ar->beacon_lock);
 	data = (__le32 *)skb->data;
 	if (cvif->beacon)
@@ -1518,43 +1656,14 @@ found:
 		goto err_unlock;
 	}
 
-	ht1 = AR9170_MAC_BCN_HT1_TX_ANT0;
-	rate = &txinfo->control.rates[0];
-	carl9170_tx_rate_tpc_chains(ar, txinfo, rate, &plcp, &power, &chains);
-	if (!(txinfo->control.rates[0].flags & IEEE80211_TX_RC_MCS)) {
-		if (plcp <= AR9170_TX_PHY_RATE_CCK_11M)
-			plcp |= ((skb->len + FCS_LEN) << (3 + 16)) + 0x0400;
-		else
-			plcp |= ((skb->len + FCS_LEN) << 16) + 0x0010;
-	} else {
-		ht1 |= AR9170_MAC_BCN_HT1_HT_EN;
-		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-			plcp |= AR9170_MAC_BCN_HT2_SGI;
-
-		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH) {
-			ht1 |= AR9170_MAC_BCN_HT1_BWC_40M_SHARED;
-			plcp |= AR9170_MAC_BCN_HT2_BW40;
-		}
-		if (rate->flags & IEEE80211_TX_RC_DUP_DATA) {
-			ht1 |= AR9170_MAC_BCN_HT1_BWC_40M_DUP;
-			plcp |= AR9170_MAC_BCN_HT2_BW40;
-		}
-
-		SET_VAL(AR9170_MAC_BCN_HT2_LEN, plcp, skb->len + FCS_LEN);
-	}
-
-	SET_VAL(AR9170_MAC_BCN_HT1_PWR_CTRL, ht1, 7);
-	SET_VAL(AR9170_MAC_BCN_HT1_TPC, ht1, power);
-	SET_VAL(AR9170_MAC_BCN_HT1_CHAIN_MASK, ht1, chains);
-	if (chains == AR9170_TX_PHY_TXCHAIN_2)
-		ht1 |= AR9170_MAC_BCN_HT1_TX_ANT1;
+	ht_rate = carl9170_tx_beacon_physet(ar, skb, &ht1, &plcp);
 
 	carl9170_async_regwrite_begin(ar);
 	carl9170_async_regwrite(AR9170_MAC_REG_BCN_HT1, ht1);
-	if (!(txinfo->control.rates[0].flags & IEEE80211_TX_RC_MCS))
-		carl9170_async_regwrite(AR9170_MAC_REG_BCN_PLCP, plcp);
-	else
+	if (ht_rate)
 		carl9170_async_regwrite(AR9170_MAC_REG_BCN_HT2, plcp);
+	else
+		carl9170_async_regwrite(AR9170_MAC_REG_BCN_PLCP, plcp);
 
 	for (i = 0; i < DIV_ROUND_UP(skb->len, 4); i++) {
 		/*

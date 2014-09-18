@@ -4,11 +4,11 @@
  */
 
 #include <linux/if_arp.h>
-#include "linux/init.h"
+#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/string.h>
-#include "net_kern.h"
-#include "net_user.h"
+#include <net_kern.h>
+#include <net_user.h>
 #include "slirp.h"
 
 struct slirp_init {

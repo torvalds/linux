@@ -19,12 +19,10 @@
 #  define DEBUGP(fmt, args...)
 #endif
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /*
  * Determine which stack to use..
  */
-extern void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+extern void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 				 size_t frame_size);
 /* Check and clear pending FPU exceptions in saved CSR */
 extern int fpcsr_pending(unsigned int __user *fpcsr);

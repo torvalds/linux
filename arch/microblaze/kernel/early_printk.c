@@ -21,7 +21,6 @@
 #include <asm/setup.h>
 #include <asm/prom.h>
 
-static u32 early_console_initialized;
 static u32 base_addr;
 
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
@@ -109,27 +108,11 @@ static struct console early_serial_uart16550_console = {
 };
 #endif /* CONFIG_SERIAL_8250_CONSOLE */
 
-static struct console *early_console;
-
-void early_printk(const char *fmt, ...)
-{
-	char buf[512];
-	int n;
-	va_list ap;
-
-	if (early_console_initialized) {
-		va_start(ap, fmt);
-		n = vscnprintf(buf, 512, fmt, ap);
-		early_console->write(early_console, buf, n);
-		va_end(ap);
-	}
-}
-
 int __init setup_early_printk(char *opt)
 {
 	int version = 0;
 
-	if (early_console_initialized)
+	if (early_console)
 		return 1;
 
 	base_addr = of_early_console(&version);
@@ -140,26 +123,25 @@ int __init setup_early_printk(char *opt)
 		switch (version) {
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
 		case UARTLITE:
-			printk(KERN_INFO "Early console on uartlite "
-						"at 0x%08x\n", base_addr);
+			pr_info("Early console on uartlite at 0x%08x\n",
+								base_addr);
 			early_console = &early_serial_uartlite_console;
 			break;
 #endif
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 		case UART16550:
-			printk(KERN_INFO "Early console on uart16650 "
-						"at 0x%08x\n", base_addr);
+			pr_info("Early console on uart16650 at 0x%08x\n",
+								base_addr);
 			early_console = &early_serial_uart16550_console;
 			break;
 #endif
 		default:
-			printk(KERN_INFO  "Unsupported early console %d\n",
+			pr_info("Unsupported early console %d\n",
 								version);
 			return 1;
 		}
 
 		register_console(early_console);
-		early_console_initialized = 1;
 		return 0;
 	}
 	return 1;
@@ -169,12 +151,11 @@ int __init setup_early_printk(char *opt)
  * only for early console because of performance degression */
 void __init remap_early_printk(void)
 {
-	if (!early_console_initialized || !early_console)
+	if (!early_console)
 		return;
-	printk(KERN_INFO "early_printk_console remapping from 0x%x to ",
-								base_addr);
+	pr_info("early_printk_console remapping from 0x%x to ", base_addr);
 	base_addr = (u32) ioremap(base_addr, PAGE_SIZE);
-	printk(KERN_CONT "0x%x\n", base_addr);
+	pr_cont("0x%x\n", base_addr);
 
 #ifdef CONFIG_MMU
 	/*
@@ -195,9 +176,9 @@ void __init remap_early_printk(void)
 
 void __init disable_early_printk(void)
 {
-	if (!early_console_initialized || !early_console)
+	if (!early_console)
 		return;
-	printk(KERN_WARNING "disabling early console\n");
+	pr_warn("disabling early console\n");
 	unregister_console(early_console);
-	early_console_initialized = 0;
+	early_console = NULL;
 }

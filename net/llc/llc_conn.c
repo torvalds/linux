@@ -478,8 +478,8 @@ static inline bool llc_estab_match(const struct llc_sap *sap,
 
 	return llc->laddr.lsap == laddr->lsap &&
 		llc->daddr.lsap == daddr->lsap &&
-		llc_mac_match(llc->laddr.mac, laddr->mac) &&
-		llc_mac_match(llc->daddr.mac, daddr->mac);
+		ether_addr_equal(llc->laddr.mac, laddr->mac) &&
+		ether_addr_equal(llc->daddr.mac, daddr->mac);
 }
 
 /**
@@ -550,7 +550,7 @@ static inline bool llc_listener_match(const struct llc_sap *sap,
 
 	return sk->sk_type == SOCK_STREAM && sk->sk_state == TCP_LISTEN &&
 		llc->laddr.lsap == laddr->lsap &&
-		llc_mac_match(llc->laddr.mac, laddr->mac);
+		ether_addr_equal(llc->laddr.mac, laddr->mac);
 }
 
 static struct sock *__llc_lookup_listener(struct llc_sap *sap,
@@ -753,7 +753,7 @@ void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk)
  *
  *	Sends received pdus to the connection state machine.
  */
-static int llc_conn_rcv(struct sock* sk, struct sk_buff *skb)
+static int llc_conn_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct llc_conn_state_ev *ev = llc_conn_ev(skb);
 
@@ -828,7 +828,7 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 	else {
 		dprintk("%s: adding to backlog...\n", __func__);
 		llc_set_backlog_type(skb, LLC_PACKET);
-		if (sk_add_backlog(sk, skb))
+		if (sk_add_backlog(sk, skb, sk->sk_rcvbuf))
 			goto drop_unlock;
 	}
 out:
@@ -891,7 +891,7 @@ out_kfree_skb:
  *
  *     Initializes a socket with default llc values.
  */
-static void llc_sk_init(struct sock* sk)
+static void llc_sk_init(struct sock *sk)
 {
 	struct llc_sock *llc = llc_sk(sk);
 

@@ -12,18 +12,17 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
-#include "../iio.h"
-#include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/kfifo_buf.h>
+#include <linux/iio/trigger_consumer.h>
 #include "ade7758.h"
 
 /**
  * ade7758_spi_read_burst() - read data registers
- * @dev: device associated with child of actual device (iio_dev or iio_trig)
+ * @indio_dev: the IIO device
  **/
-static int ade7758_spi_read_burst(struct device *dev)
+static int ade7758_spi_read_burst(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret;
 
@@ -55,27 +54,22 @@ out:
 	return ret;
 }
 
-/* Whilst this makes a lot of calls to iio_sw_ring functions - it is to device
+/* Whilst this makes a lot of calls to iio_sw_ring functions - it is too device
  * specific to be rolled into the core.
  */
 static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
-	struct iio_buffer *ring = indio_dev->buffer;
 	struct ade7758_state *st = iio_priv(indio_dev);
 	s64 dat64[2];
 	u32 *dat32 = (u32 *)dat64;
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
-		if (ade7758_spi_read_burst(&indio_dev->dev) >= 0)
+		if (ade7758_spi_read_burst(indio_dev) >= 0)
 			*dat32 = get_unaligned_be32(&st->rx_buf[5]) & 0xFFFFFF;
 
-	/* Guaranteed to be aligned with 8 byte boundary */
-	if (ring->scan_timestamp)
-		dat64[1] = pf->timestamp;
-
-	ring->access->store_to(ring, (u8 *)dat64, pf->timestamp);
+	iio_push_to_buffers_with_timestamp(indio_dev, dat64, pf->timestamp);
 
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -92,8 +86,6 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ade7758_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
-	size_t d_size;
 	unsigned channel;
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
@@ -101,19 +93,6 @@ static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 
 	channel = find_first_bit(indio_dev->active_scan_mask,
 				 indio_dev->masklength);
-
-	d_size = st->ade7758_ring_channels[channel].scan_type.storagebits / 8;
-
-	if (ring->scan_timestamp) {
-		d_size += sizeof(s64);
-
-		if (d_size % sizeof(s64))
-			d_size += sizeof(s64) - (d_size % sizeof(s64));
-	}
-
-	if (indio_dev->buffer->access->set_bytes_per_datum)
-		indio_dev->buffer->access->
-			set_bytes_per_datum(indio_dev->buffer, d_size);
 
 	ade7758_write_waveform_type(&indio_dev->dev,
 		st->ade7758_ring_channels[channel].address);
@@ -125,24 +104,28 @@ static const struct iio_buffer_setup_ops ade7758_ring_setup_ops = {
 	.preenable = &ade7758_ring_preenable,
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
+	.validate_scan_mask = &iio_validate_scan_mask_onehot,
 };
 
 void ade7758_unconfigure_ring(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 }
 
 int ade7758_configure_ring(struct iio_dev *indio_dev)
 {
 	struct ade7758_state *st = iio_priv(indio_dev);
+	struct iio_buffer *buffer;
 	int ret = 0;
 
-	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->buffer) {
+	buffer = iio_kfifo_allocate(indio_dev);
+	if (!buffer) {
 		ret = -ENOMEM;
 		return ret;
 	}
+
+	iio_device_attach_buffer(indio_dev, buffer);
 
 	indio_dev->setup_ops = &ade7758_ring_setup_ops;
 
@@ -154,7 +137,7 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 						 indio_dev->id);
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
-		goto error_iio_sw_rb_free;
+		goto error_iio_kfifo_free;
 	}
 
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
@@ -194,8 +177,8 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 
 	return 0;
 
-error_iio_sw_rb_free:
-	iio_sw_rb_free(indio_dev->buffer);
+error_iio_kfifo_free:
+	iio_kfifo_free(indio_dev->buffer);
 	return ret;
 }
 

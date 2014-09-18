@@ -24,14 +24,14 @@
 
 #include <linux/usb/otg.h>
 
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx3.h>
-#include <mach/ulpi.h>
-
 #include <media/soc_camera.h>
 
+#include "common.h"
 #include "devices-imx31.h"
+#include "ehci.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
+#include "ulpi.h"
 
 static unsigned int marxbot_pins[] = {
 	/* SDHC2 */
@@ -328,10 +328,8 @@ static int __init marxbot_usbh1_init(void)
 	usbh1_pdata.otg = phy;
 
 	pdev = imx31_add_mxc_ehci_hs(1, &usbh1_pdata);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(pdev);
 }
 
 static const struct fsl_usb2_platform_data usb_pdata __initconst = {

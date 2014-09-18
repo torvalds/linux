@@ -30,7 +30,7 @@ the motherboard (or both). Some aic7xxx based HBAs are dual controllers
 and thus represent two hosts. Like most modern HBAs, each aic7xxx host
 has its own PCI device address. [The one-to-one correspondence between
 a SCSI host and a PCI device is common but not required (e.g. with
-ISA or MCA adapters).]
+ISA adapters).]
 
 The SCSI mid level isolates an LLD from other layers such as the SCSI
 upper layer drivers and the block layer.
@@ -882,8 +882,11 @@ Details:
  *
  *      Calling context: kernel thread
  *
- *      Notes: Invoked from scsi_eh thread. No other commands will be
- *      queued on current host during eh.
+ *      Notes: If 'no_async_abort' is defined this callback
+ *  	will be invoked from scsi_eh thread. No other commands
+ *	will then be queued on current host during eh.
+ *	Otherwise it will be called whenever scsi_times_out()
+ *      is called due to a command timeout.
  *
  *      Optionally defined in: LLD
  **/
@@ -1257,6 +1260,8 @@ of interest:
                    address space
     use_clustering - 1=>SCSI commands in mid level's queue can be merged,
                      0=>disallow SCSI command merging
+    no_async_abort - 1=>Asynchronous aborts are not supported
+                     0=>Timed-out commands will be aborted asynchronously
     hostt        - pointer to driver's struct scsi_host_template from which
                    this struct Scsi_Host instance was spawned
     hostt->proc_name  - name of LLD. This is the driver name that sysfs uses

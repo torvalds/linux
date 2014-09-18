@@ -1,7 +1,7 @@
 /*
  *  w83627ehf - Driver for the hardware monitoring functionality of
  *		the Winbond W83627EHF Super-I/O chip
- *  Copyright (C) 2005-2011  Jean Delvare <khali@linux-fr.org>
+ *  Copyright (C) 2005-2012  Jean Delvare <jdelvare@suse.de>
  *  Copyright (C) 2006  Yuan Mu (Winbond),
  *			Rudolf Marek <r.marek@assembler.cz>
  *			David Hubbard <david.c.hubbard@gmail.com>
@@ -354,8 +354,8 @@ static inline unsigned int step_time_from_reg(u8 reg, u8 mode)
 
 static inline u8 step_time_to_reg(unsigned int msec, u8 mode)
 {
-	return SENSORS_LIMIT((mode ? (msec + 50) / 100 :
-						(msec + 200) / 400), 1, 255);
+	return clamp_val((mode ? (msec + 50) / 100 : (msec + 200) / 400),
+			 1, 255);
 }
 
 static unsigned int fan_from_reg8(u16 reg, unsigned int divreg)
@@ -414,8 +414,7 @@ static inline long in_from_reg(u8 reg, u8 nr, const u16 *scale_in)
 
 static inline u8 in_to_reg(u32 val, u8 nr, const u16 *scale_in)
 {
-	return SENSORS_LIMIT(DIV_ROUND_CLOSEST(val * 100, scale_in[nr]), 0,
-			     255);
+	return clamp_val(DIV_ROUND_CLOSEST(val * 100, scale_in[nr]), 0, 255);
 }
 
 /*
@@ -502,6 +501,13 @@ struct w83627ehf_data {
 	u16 have_temp_offset;
 	u8 in6_skip:1;
 	u8 temp3_val_only:1;
+
+#ifdef CONFIG_PM
+	/* Remember extra register values over suspend/resume */
+	u8 vbat;
+	u8 fandiv1;
+	u8 fandiv2;
+#endif
 };
 
 struct w83627ehf_sio_data {
@@ -599,6 +605,7 @@ static void nct6775_write_fan_div(struct w83627ehf_data *data, int nr)
 		reg = (w83627ehf_read_value(data, NCT6775_REG_FANDIV1) & 0x7)
 		    | ((data->fan_div[1] << 4) & 0x70);
 		w83627ehf_write_value(data, NCT6775_REG_FANDIV1, reg);
+		break;
 	case 2:
 		reg = (w83627ehf_read_value(data, NCT6775_REG_FANDIV2) & 0x70)
 		    | (data->fan_div[2] & 0x7);
@@ -666,7 +673,7 @@ static void w83627ehf_write_fan_div(struct w83627ehf_data *data, int nr)
 static void w83627ehf_write_fan_div_common(struct device *dev,
 					   struct w83627ehf_data *data, int nr)
 {
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	if (sio_data->kind == nct6776)
 		; /* no dividers, do nothing */
@@ -717,7 +724,7 @@ static void w83627ehf_update_fan_div(struct w83627ehf_data *data)
 static void w83627ehf_update_fan_div_common(struct device *dev,
 					    struct w83627ehf_data *data)
 {
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	if (sio_data->kind == nct6776)
 		; /* no dividers, do nothing */
@@ -774,7 +781,7 @@ static void w83627ehf_update_pwm(struct w83627ehf_data *data)
 static void w83627ehf_update_pwm_common(struct device *dev,
 					struct w83627ehf_data *data)
 {
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	if (sio_data->kind == nct6775 || sio_data->kind == nct6776)
 		nct6775_update_pwm(data);
@@ -785,7 +792,7 @@ static void w83627ehf_update_pwm_common(struct device *dev,
 static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 
 	int i;
 
@@ -833,8 +840,8 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 			    && (reg >= 0xff || (sio_data->kind == nct6775
 						&& reg == 0x00))
 			    && data->fan_div[i] < 0x07) {
-				dev_dbg(dev, "Increasing fan%d "
-					"clock divider from %u to %u\n",
+				dev_dbg(dev,
+					"Increasing fan%d clock divider from %u to %u\n",
 					i + 1, div_from_reg(data->fan_div[i]),
 					div_from_reg(data->fan_div[i] + 1));
 				data->fan_div[i]++;
@@ -897,6 +904,8 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 				data->temp_max_hyst[i]
 				  = w83627ehf_read_temp(data,
 						data->reg_temp_hyst[i]);
+			if (i > 2)
+				continue;
 			if (data->have_temp_offset & (1 << i))
 				data->temp_offset[i]
 				  = w83627ehf_read_value(data,
@@ -1101,9 +1110,9 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 		 */
 		data->fan_min[nr] = 254;
 		new_div = 7; /* 128 == (1 << 7) */
-		dev_warn(dev, "fan%u low limit %lu below minimum %u, set to "
-			 "minimum\n", nr + 1, val,
-			 data->fan_from_reg_min(254, 7));
+		dev_warn(dev,
+			 "fan%u low limit %lu below minimum %u, set to minimum\n",
+			 nr + 1, val, data->fan_from_reg_min(254, 7));
 	} else if (!reg) {
 		/*
 		 * Speed above this value cannot possibly be represented,
@@ -1111,9 +1120,9 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 		 */
 		data->fan_min[nr] = 1;
 		new_div = 0; /* 1 == (1 << 0) */
-		dev_warn(dev, "fan%u low limit %lu above maximum %u, set to "
-			 "maximum\n", nr + 1, val,
-			 data->fan_from_reg_min(1, 0));
+		dev_warn(dev,
+			 "fan%u low limit %lu above maximum %u, set to maximum\n",
+			 nr + 1, val, data->fan_from_reg_min(1, 0));
 	} else {
 		/*
 		 * Automatically pick the best divider, i.e. the one such
@@ -1257,7 +1266,7 @@ store_temp_offset(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(DIV_ROUND_CLOSEST(val, 1000), -128, 127);
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), -128, 127);
 
 	mutex_lock(&data->update_lock);
 	data->temp_offset[nr] = val;
@@ -1383,7 +1392,7 @@ store_pwm_mode(struct device *dev, struct device_attribute *attr,
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	int nr = sensor_attr->index;
 	unsigned long val;
 	int err;
@@ -1425,7 +1434,7 @@ store_pwm(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->pwm[nr] = val;
@@ -1439,7 +1448,7 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 	unsigned long val;
@@ -1504,7 +1513,7 @@ store_target_temp(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(DIV_ROUND_CLOSEST(val, 1000), 0, 127);
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), 0, 127);
 
 	mutex_lock(&data->update_lock);
 	data->target_temp[nr] = val;
@@ -1518,7 +1527,7 @@ store_tolerance(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 	u16 reg;
@@ -1530,7 +1539,7 @@ store_tolerance(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	/* Limit the temp to 0C - 15C */
-	val = SENSORS_LIMIT(DIV_ROUND_CLOSEST(val, 1000), 0, 15);
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), 0, 15);
 
 	mutex_lock(&data->update_lock);
 	if (sio_data->kind == nct6775 || sio_data->kind == nct6776) {
@@ -1629,7 +1638,7 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 	err = kstrtoul(buf, 10, &val); \
 	if (err < 0) \
 		return err; \
-	val = SENSORS_LIMIT(val, 1, 255); \
+	val = clamp_val(val, 1, 255); \
 	mutex_lock(&data->update_lock); \
 	data->reg[nr] = val; \
 	w83627ehf_write_value(data, data->REG_##REG[nr], val); \
@@ -1865,7 +1874,7 @@ static void w83627ehf_device_remove_files(struct device *dev)
 }
 
 /* Get the monitoring functions started */
-static inline void __devinit w83627ehf_init_device(struct w83627ehf_data *data,
+static inline void w83627ehf_init_device(struct w83627ehf_data *data,
 						   enum kinds kind)
 {
 	int i;
@@ -1951,7 +1960,7 @@ static void w82627ehf_swap_tempreg(struct w83627ehf_data *data,
 	data->reg_temp_config[r2] = tmp;
 }
 
-static void __devinit
+static void
 w83627ehf_set_temp_reg_ehf(struct w83627ehf_data *data, int n_temp)
 {
 	int i;
@@ -1964,7 +1973,7 @@ w83627ehf_set_temp_reg_ehf(struct w83627ehf_data *data, int n_temp)
 	}
 }
 
-static void __devinit
+static void
 w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 			   struct w83627ehf_data *data)
 {
@@ -2053,10 +2062,10 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 	}
 }
 
-static int __devinit w83627ehf_probe(struct platform_device *pdev)
+static int w83627ehf_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
 	struct w83627ehf_data *data;
 	struct resource *res;
 	u8 en_vrm10;
@@ -2082,6 +2091,7 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 	mutex_init(&data->lock);
 	mutex_init(&data->update_lock);
 	data->name = w83627ehf_device_names[sio_data->kind];
+	data->bank = 0xff;		/* Force initial bank selection */
 	platform_set_drvdata(pdev, data);
 
 	/* 627EHG and 627EHF have 10 voltage inputs; 627DHG and 667HG have 9 */
@@ -2386,15 +2396,15 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 				en_vrm10 = superio_inb(sio_data->sioreg,
 						       SIO_REG_EN_VRM10);
 				if ((en_vrm10 & 0x08) && data->vrm == 90) {
-					dev_warn(dev, "Setting VID input "
-						 "voltage to TTL\n");
+					dev_warn(dev,
+						 "Setting VID input voltage to TTL\n");
 					superio_outb(sio_data->sioreg,
 						     SIO_REG_EN_VRM10,
 						     en_vrm10 & ~0x08);
 				} else if (!(en_vrm10 & 0x08)
 					   && data->vrm == 100) {
-					dev_warn(dev, "Setting VID input "
-						 "voltage to VRM10\n");
+					dev_warn(dev,
+						 "Setting VID input voltage to VRM10\n");
 					superio_outb(sio_data->sioreg,
 						     SIO_REG_EN_VRM10,
 						     en_vrm10 | 0x08);
@@ -2410,8 +2420,8 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 			if (err)
 				goto exit_release;
 		} else {
-			dev_info(dev, "VID pins in output mode, CPU VID not "
-				 "available\n");
+			dev_info(dev,
+				 "VID pins in output mode, CPU VID not available\n");
 		}
 	}
 
@@ -2588,31 +2598,119 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 exit_remove:
 	w83627ehf_device_remove_files(dev);
 exit_release:
-	platform_set_drvdata(pdev, NULL);
 	release_region(res->start, IOREGION_LENGTH);
 exit:
 	return err;
 }
 
-static int __devexit w83627ehf_remove(struct platform_device *pdev)
+static int w83627ehf_remove(struct platform_device *pdev)
 {
 	struct w83627ehf_data *data = platform_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	w83627ehf_device_remove_files(&pdev->dev);
 	release_region(data->addr, IOREGION_LENGTH);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int w83627ehf_suspend(struct device *dev)
+{
+	struct w83627ehf_data *data = w83627ehf_update_device(dev);
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
+
+	mutex_lock(&data->update_lock);
+	data->vbat = w83627ehf_read_value(data, W83627EHF_REG_VBAT);
+	if (sio_data->kind == nct6775) {
+		data->fandiv1 = w83627ehf_read_value(data, NCT6775_REG_FANDIV1);
+		data->fandiv2 = w83627ehf_read_value(data, NCT6775_REG_FANDIV2);
+	}
+	mutex_unlock(&data->update_lock);
+
+	return 0;
+}
+
+static int w83627ehf_resume(struct device *dev)
+{
+	struct w83627ehf_data *data = dev_get_drvdata(dev);
+	struct w83627ehf_sio_data *sio_data = dev_get_platdata(dev);
+	int i;
+
+	mutex_lock(&data->update_lock);
+	data->bank = 0xff;		/* Force initial bank selection */
+
+	/* Restore limits */
+	for (i = 0; i < data->in_num; i++) {
+		if ((i == 6) && data->in6_skip)
+			continue;
+
+		w83627ehf_write_value(data, W83627EHF_REG_IN_MIN(i),
+				      data->in_min[i]);
+		w83627ehf_write_value(data, W83627EHF_REG_IN_MAX(i),
+				      data->in_max[i]);
+	}
+
+	for (i = 0; i < 5; i++) {
+		if (!(data->has_fan_min & (1 << i)))
+			continue;
+
+		w83627ehf_write_value(data, data->REG_FAN_MIN[i],
+				      data->fan_min[i]);
+	}
+
+	for (i = 0; i < NUM_REG_TEMP; i++) {
+		if (!(data->have_temp & (1 << i)))
+			continue;
+
+		if (data->reg_temp_over[i])
+			w83627ehf_write_temp(data, data->reg_temp_over[i],
+					     data->temp_max[i]);
+		if (data->reg_temp_hyst[i])
+			w83627ehf_write_temp(data, data->reg_temp_hyst[i],
+					     data->temp_max_hyst[i]);
+		if (i > 2)
+			continue;
+		if (data->have_temp_offset & (1 << i))
+			w83627ehf_write_value(data,
+					      W83627EHF_REG_TEMP_OFFSET[i],
+					      data->temp_offset[i]);
+	}
+
+	/* Restore other settings */
+	w83627ehf_write_value(data, W83627EHF_REG_VBAT, data->vbat);
+	if (sio_data->kind == nct6775) {
+		w83627ehf_write_value(data, NCT6775_REG_FANDIV1, data->fandiv1);
+		w83627ehf_write_value(data, NCT6775_REG_FANDIV2, data->fandiv2);
+	}
+
+	/* Force re-reading all values */
+	data->valid = 0;
+	mutex_unlock(&data->update_lock);
+
+	return 0;
+}
+
+static const struct dev_pm_ops w83627ehf_dev_pm_ops = {
+	.suspend = w83627ehf_suspend,
+	.resume = w83627ehf_resume,
+	.freeze = w83627ehf_suspend,
+	.restore = w83627ehf_resume,
+};
+
+#define W83627EHF_DEV_PM_OPS	(&w83627ehf_dev_pm_ops)
+#else
+#define W83627EHF_DEV_PM_OPS	NULL
+#endif /* CONFIG_PM */
 
 static struct platform_driver w83627ehf_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
+		.pm	= W83627EHF_DEV_PM_OPS,
 	},
 	.probe		= w83627ehf_probe,
-	.remove		= __devexit_p(w83627ehf_remove),
+	.remove		= w83627ehf_remove,
 };
 
 /* w83627ehf_find() looks for a '627 in the Super-I/O config space */
@@ -2697,8 +2795,7 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 	/* Activate logical device if needed */
 	val = superio_inb(sioaddr, SIO_REG_ENABLE);
 	if (!(val & 0x01)) {
-		pr_warn("Forcibly enabling Super-I/O. "
-			"Sensor is probably unusable.\n");
+		pr_warn("Forcibly enabling Super-I/O. Sensor is probably unusable.\n");
 		superio_outb(sioaddr, SIO_REG_ENABLE, val | 0x01);
 	}
 
@@ -2792,7 +2889,7 @@ static void __exit sensors_w83627ehf_exit(void)
 	platform_driver_unregister(&w83627ehf_driver);
 }
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("W83627EHF driver");
 MODULE_LICENSE("GPL");
 

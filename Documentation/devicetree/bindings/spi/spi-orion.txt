@@ -1,0 +1,19 @@
+Marvell Orion SPI device
+
+Required properties:
+- compatible : should be "marvell,orion-spi".
+- reg : offset and length of the register set for the device
+- cell-index : Which of multiple SPI controllers is this.
+Optional properties:
+- interrupts : Is currently not used.
+
+Example:
+       spi@10600 {
+	       compatible = "marvell,orion-spi";
+	       #address-cells = <1>;
+	       #size-cells = <0>;
+	       cell-index = <0>;
+	       reg = <0x10600 0x28>;
+	       interrupts = <23>;
+	       status = "disabled";
+       };

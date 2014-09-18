@@ -13,13 +13,15 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <mach/hardware.h>
-#include <plat/orion_nand.h>
+#include <linux/platform_data/mtd-orion_nand.h>
 
 static void orion_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
@@ -74,15 +76,17 @@ static void orion_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 static int __init orion_nand_probe(struct platform_device *pdev)
 {
 	struct mtd_info *mtd;
+	struct mtd_part_parser_data ppdata = {};
 	struct nand_chip *nc;
 	struct orion_nand_data *board;
 	struct resource *res;
+	struct clk *clk;
 	void __iomem *io_base;
 	int ret = 0;
+	u32 val = 0;
 
 	nc = kzalloc(sizeof(struct nand_chip) + sizeof(struct mtd_info), GFP_KERNEL);
 	if (!nc) {
-		printk(KERN_ERR "orion_nand: failed to allocate device structure.\n");
 		ret = -ENOMEM;
 		goto no_res;
 	}
@@ -96,12 +100,37 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	io_base = ioremap(res->start, resource_size(res));
 	if (!io_base) {
-		printk(KERN_ERR "orion_nand: ioremap failed\n");
+		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -EIO;
 		goto no_res;
 	}
 
-	board = pdev->dev.platform_data;
+	if (pdev->dev.of_node) {
+		board = devm_kzalloc(&pdev->dev, sizeof(struct orion_nand_data),
+					GFP_KERNEL);
+		if (!board) {
+			ret = -ENOMEM;
+			goto no_res;
+		}
+		if (!of_property_read_u32(pdev->dev.of_node, "cle", &val))
+			board->cle = (u8)val;
+		else
+			board->cle = 0;
+		if (!of_property_read_u32(pdev->dev.of_node, "ale", &val))
+			board->ale = (u8)val;
+		else
+			board->ale = 1;
+		if (!of_property_read_u32(pdev->dev.of_node,
+						"bank-width", &val))
+			board->width = (u8)val * 8;
+		else
+			board->width = 8;
+		if (!of_property_read_u32(pdev->dev.of_node,
+						"chip-delay", &val))
+			board->chip_delay = (u8)val;
+	} else {
+		board = dev_get_platdata(&pdev->dev);
+	}
 
 	mtd->priv = nc;
 	mtd->owner = THIS_MODULE;
@@ -115,6 +144,10 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	if (board->chip_delay)
 		nc->chip_delay = board->chip_delay;
 
+	WARN(board->width > 16,
+		"%d bit bus width out of range",
+		board->width);
+
 	if (board->width == 16)
 		nc->options |= NAND_BUSWIDTH_16;
 
@@ -123,14 +156,23 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mtd);
 
+	/* Not all platforms can gate the clock, so it is not
+	   an error if the clock does not exists. */
+	clk = clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk)) {
+		clk_prepare_enable(clk);
+		clk_put(clk);
+	}
+
 	if (nand_scan(mtd, 1)) {
 		ret = -ENXIO;
 		goto no_dev;
 	}
 
 	mtd->name = "orion_nand";
-	ret = mtd_device_parse_register(mtd, NULL, NULL, board->parts,
-					board->nr_parts);
+	ppdata.of_node = pdev->dev.of_node;
+	ret = mtd_device_parse_register(mtd, NULL, &ppdata,
+			board->parts, board->nr_parts);
 	if (ret) {
 		nand_release(mtd);
 		goto no_dev;
@@ -139,7 +181,10 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	return 0;
 
 no_dev:
-	platform_set_drvdata(pdev, NULL);
+	if (!IS_ERR(clk)) {
+		clk_disable_unprepare(clk);
+		clk_put(clk);
+	}
 	iounmap(io_base);
 no_res:
 	kfree(nc);
@@ -147,10 +192,11 @@ no_res:
 	return ret;
 }
 
-static int __devexit orion_nand_remove(struct platform_device *pdev)
+static int orion_nand_remove(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct nand_chip *nc = mtd->priv;
+	struct clk *clk;
 
 	nand_release(mtd);
 
@@ -158,29 +204,32 @@ static int __devexit orion_nand_remove(struct platform_device *pdev)
 
 	kfree(nc);
 
+	clk = clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk)) {
+		clk_disable_unprepare(clk);
+		clk_put(clk);
+	}
+
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id orion_nand_of_match_table[] = {
+	{ .compatible = "marvell,orion-nand", },
+	{},
+};
+#endif
+
 static struct platform_driver orion_nand_driver = {
-	.remove		= __devexit_p(orion_nand_remove),
+	.remove		= orion_nand_remove,
 	.driver		= {
 		.name	= "orion_nand",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(orion_nand_of_match_table),
 	},
 };
 
-static int __init orion_nand_init(void)
-{
-	return platform_driver_probe(&orion_nand_driver, orion_nand_probe);
-}
-
-static void __exit orion_nand_exit(void)
-{
-	platform_driver_unregister(&orion_nand_driver);
-}
-
-module_init(orion_nand_init);
-module_exit(orion_nand_exit);
+module_platform_driver_probe(orion_nand_driver, orion_nand_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tzachi Perelstein");

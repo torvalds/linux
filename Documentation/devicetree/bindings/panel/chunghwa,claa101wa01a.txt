@@ -1,0 +1,7 @@
+Chunghwa Picture Tubes Ltd. 10.1" WXGA TFT LCD panel
+
+Required properties:
+- compatible: should be "chunghwa,claa101wa01a"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

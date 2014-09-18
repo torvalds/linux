@@ -3,11 +3,12 @@
  * Licensed under the GPL
  */
 
-#include "linux/audit.h"
-#include "linux/ptrace.h"
-#include "linux/sched.h"
-#include "asm/uaccess.h"
-#include "skas_ptrace.h"
+#include <linux/audit.h>
+#include <linux/ptrace.h>
+#include <linux/sched.h>
+#include <linux/tracehook.h>
+#include <asm/uaccess.h>
+#include <skas_ptrace.h>
 
 
 
@@ -162,48 +163,36 @@ static void send_sigtrap(struct task_struct *tsk, struct uml_pt_regs *regs,
  * XXX Check PT_DTRACE vs TIF_SINGLESTEP for singlestepping check and
  * PT_PTRACED vs TIF_SYSCALL_TRACE for syscall tracing check
  */
-void syscall_trace(struct uml_pt_regs *regs, int entryexit)
+void syscall_trace_enter(struct pt_regs *regs)
 {
-	int is_singlestep = (current->ptrace & PT_DTRACE) && entryexit;
-	int tracesysgood;
-
-	if (!entryexit)
-		audit_syscall_entry(HOST_AUDIT_ARCH,
-				    UPT_SYSCALL_NR(regs),
-				    UPT_SYSCALL_ARG1(regs),
-				    UPT_SYSCALL_ARG2(regs),
-				    UPT_SYSCALL_ARG3(regs),
-				    UPT_SYSCALL_ARG4(regs));
-	else
-		audit_syscall_exit(regs);
-
-	/* Fake a debug trap */
-	if (is_singlestep)
-		send_sigtrap(current, regs, 0);
+	audit_syscall_entry(HOST_AUDIT_ARCH,
+			    UPT_SYSCALL_NR(&regs->regs),
+			    UPT_SYSCALL_ARG1(&regs->regs),
+			    UPT_SYSCALL_ARG2(&regs->regs),
+			    UPT_SYSCALL_ARG3(&regs->regs),
+			    UPT_SYSCALL_ARG4(&regs->regs));
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
 
-	if (!(current->ptrace & PT_PTRACED))
+	tracehook_report_syscall_entry(regs);
+}
+
+void syscall_trace_leave(struct pt_regs *regs)
+{
+	int ptraced = current->ptrace;
+
+	audit_syscall_exit(regs);
+
+	/* Fake a debug trap */
+	if (ptraced & PT_DTRACE)
+		send_sigtrap(current, &regs->regs, 0);
+
+	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
 
-	/*
-	 * the 0x80 provides a way for the tracing parent to distinguish
-	 * between a syscall stop and SIGTRAP delivery
-	 */
-	tracesysgood = (current->ptrace & PT_TRACESYSGOOD);
-	ptrace_notify(SIGTRAP | (tracesysgood ? 0x80 : 0));
-
-	if (entryexit) /* force do_signal() --> is_syscall() */
+	tracehook_report_syscall_exit(regs, 0);
+	/* force do_signal() --> is_syscall() */
+	if (ptraced & PT_PTRACED)
 		set_thread_flag(TIF_SIGPENDING);
-
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
 }

@@ -71,7 +71,7 @@ int sun3x_hwclk(int set, struct rtc_time *t)
 	return 0;
 }
 /* Not much we can do here */
-unsigned long sun3x_gettimeoffset (void)
+u32 sun3x_gettimeoffset(void)
 {
     return 0L;
 }

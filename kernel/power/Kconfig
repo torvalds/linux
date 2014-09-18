@@ -100,8 +100,34 @@ config PM_SLEEP_SMP
 	depends on SMP
 	depends on ARCH_SUSPEND_POSSIBLE || ARCH_HIBERNATION_POSSIBLE
 	depends on PM_SLEEP
-	select HOTPLUG
 	select HOTPLUG_CPU
+
+config PM_AUTOSLEEP
+	bool "Opportunistic sleep"
+	depends on PM_SLEEP
+	default n
+	---help---
+	Allow the kernel to trigger a system transition into a global sleep
+	state automatically whenever there are no active wakeup sources.
+
+config PM_WAKELOCKS
+	bool "User space wakeup sources interface"
+	depends on PM_SLEEP
+	default n
+	---help---
+	Allow user space to create, activate and deactivate wakeup source
+	objects with the help of a sysfs-based interface.
+
+config PM_WAKELOCKS_LIMIT
+	int "Maximum number of user space wakeup sources (0 = no limit)"
+	range 0 100000
+	default 100
+	depends on PM_WAKELOCKS
+
+config PM_WAKELOCKS_GC
+	bool "Garbage collector for user space wakeup sources"
+	depends on PM_WAKELOCKS
+	default y
 
 config PM_RUNTIME
 	bool "Run-time PM core functionality"
@@ -148,9 +174,25 @@ config PM_TEST_SUSPEND
 	You probably want to have your system's RTC driver statically
 	linked, ensuring that it's available when this test runs.
 
-config CAN_PM_TRACE
+config PM_SLEEP_DEBUG
 	def_bool y
 	depends on PM_DEBUG && PM_SLEEP
+
+config DPM_WATCHDOG
+	bool "Device suspend/resume watchdog"
+	depends on PM_DEBUG && PSTORE
+	---help---
+	  Sets up a watchdog timer to capture drivers that are
+	  locked up attempting to suspend/resume a device.
+	  A detected lockup causes system panic with message
+	  captured in pstore device for inspection in subsequent
+	  boot session.
+
+config DPM_WATCHDOG_TIMEOUT
+	int "Watchdog timeout in seconds"
+	range 1 120
+	default 12
+	depends on DPM_WATCHDOG
 
 config PM_TRACE
 	bool
@@ -169,7 +211,7 @@ config PM_TRACE
 
 config PM_TRACE_RTC
 	bool "Suspend/resume event tracing"
-	depends on CAN_PM_TRACE
+	depends on PM_SLEEP_DEBUG
 	depends on X86
 	select PM_TRACE
 	---help---
@@ -211,12 +253,8 @@ config APM_EMULATION
 	  anything, try disabling/enabling this option (or disabling/enabling
 	  APM in your BIOS).
 
-config ARCH_HAS_OPP
-	bool
-
 config PM_OPP
-	bool "Operating Performance Point (OPP) Layer library"
-	depends on ARCH_HAS_OPP
+	bool
 	---help---
 	  SOCs have a standard set of tuples consisting of frequency and
 	  voltage pairs that the device will support per voltage domain. This
@@ -235,6 +273,30 @@ config PM_CLK
 config PM_GENERIC_DOMAINS
 	bool
 	depends on PM
+
+config WQ_POWER_EFFICIENT_DEFAULT
+	bool "Enable workqueue power-efficient mode by default"
+	depends on PM
+	default n
+	help
+	  Per-cpu workqueues are generally preferred because they show
+	  better performance thanks to cache locality; unfortunately,
+	  per-cpu workqueues tend to be more power hungry than unbound
+	  workqueues.
+
+	  Enabling workqueue.power_efficient kernel parameter makes the
+	  per-cpu workqueues which were observed to contribute
+	  significantly to power consumption unbound, leading to measurably
+	  lower power usage at the cost of small performance overhead.
+
+	  This config option determines whether workqueue.power_efficient
+	  is enabled by default.
+
+	  If in doubt, say N.
+
+config PM_GENERIC_DOMAINS_SLEEP
+	def_bool y
+	depends on PM_SLEEP && PM_GENERIC_DOMAINS
 
 config PM_GENERIC_DOMAINS_RUNTIME
 	def_bool y

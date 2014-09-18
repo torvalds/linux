@@ -32,6 +32,7 @@ struct regulator;
  *           board/machine.
  * STATUS:   Regulator can be enabled and disabled.
  * DRMS:     Dynamic Regulator Mode Switching is enabled for this regulator.
+ * BYPASS:   Regulator can be put into bypass mode
  */
 
 #define REGULATOR_CHANGE_VOLTAGE	0x1
@@ -39,6 +40,7 @@ struct regulator;
 #define REGULATOR_CHANGE_MODE		0x4
 #define REGULATOR_CHANGE_STATUS		0x8
 #define REGULATOR_CHANGE_DRMS		0x10
+#define REGULATOR_CHANGE_BYPASS		0x20
 
 /**
  * struct regulator_state - regulator state during low power system states
@@ -83,6 +85,7 @@ struct regulator_state {
  *           bootloader then it will be enabled when the constraints are
  *           applied.
  * @apply_uV: Apply the voltage constraint when initialising.
+ * @ramp_disable: Disable ramp delay when initialising or when setting voltage.
  *
  * @input_uV: Input voltage for regulator when supplied by another regulator.
  *
@@ -92,6 +95,8 @@ struct regulator_state {
  *                 mode.
  * @initial_state: Suspend state to set by default.
  * @initial_mode: Mode to set at startup.
+ * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
+ * @enable_time: Turn-on time of the rails (unit: microseconds)
  */
 struct regulation_constraints {
 
@@ -125,10 +130,14 @@ struct regulation_constraints {
 	/* mode to set on startup */
 	unsigned int initial_mode;
 
+	unsigned int ramp_delay;
+	unsigned int enable_time;
+
 	/* constraint flags */
 	unsigned always_on:1;	/* regulator never off when system is on */
 	unsigned boot_on:1;	/* bootloader/firmware enabled regulator */
 	unsigned apply_uV:1;	/* apply uV constraint if min == max */
+	unsigned ramp_disable:1; /* disable ramp delay */
 };
 
 /**
@@ -187,13 +196,8 @@ int regulator_suspend_finish(void);
 
 #ifdef CONFIG_REGULATOR
 void regulator_has_full_constraints(void);
-void regulator_use_dummy_regulator(void);
 #else
 static inline void regulator_has_full_constraints(void)
-{
-}
-
-static inline void regulator_use_dummy_regulator(void)
 {
 }
 #endif

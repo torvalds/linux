@@ -30,26 +30,7 @@
 #include "drv_types.h"
 
 
-#define FW_PWR0	0
-#define FW_PWR1		1
-#define FW_PWR2		2
-#define FW_PWR3		3
-
-
-#define HW_PWR0	7
-#define HW_PWR1		6
-#define HW_PWR2		2
-#define HW_PWR3	0
-#define HW_PWR4	8
-
-#define FW_PWRMSK	0x7
-
-
-#define XMIT_ALIVE	BIT(0)
-#define RECV_ALIVE	BIT(1)
 #define CMD_ALIVE	BIT(2)
-#define EVT_ALIVE	BIT(3)
-
 
 enum Power_Mgnt {
 	PS_MODE_ACTIVE	= 0	,
@@ -65,7 +46,6 @@ enum Power_Mgnt {
 	PM_Card_Disable		,
 	PS_MODE_NUM
 };
-
 
 /*
 	BIT[2:0] = HW state
@@ -127,8 +107,8 @@ struct	pwrctrl_priv {
 	uint ImrContent;	/* used to store original imr. */
 	uint bSleep; /* sleep -> active is different from active -> sleep. */
 
-	_workitem SetPSModeWorkItem;
-	_workitem rpwm_workitem;
+	struct work_struct SetPSModeWorkItem;
+	struct work_struct rpwm_workitem;
 	struct timer_list rpwm_check_timer;
 	u8	rpwm_retry;
 	uint	bSetPSModeWorkItemInProgress;

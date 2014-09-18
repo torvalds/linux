@@ -1,0 +1,35 @@
+config VIDEO_V4L2_INT_DEVICE
+       tristate
+
+config VIDEO_OMAP2
+	tristate "OMAP2 Camera Capture Interface driver (DEPRECATED)"
+	depends on VIDEO_DEV && ARCH_OMAP2
+	select VIDEOBUF_DMA_SG
+	select VIDEO_V4L2_INT_DEVICE
+	---help---
+	  This is a v4l2 driver for the TI OMAP2 camera capture interface
+
+	  It uses the deprecated int-device API. Since this driver is no
+	  longer actively maintained and nobody is interested in converting
+	  it to the subdev API, this driver will be removed soon.
+
+	  If you do want to keep this driver in the kernel, and are willing
+	  to convert it to the subdev API, then please contact the linux-media
+	  mailinglist.
+
+config VIDEO_TCM825X
+	tristate "TCM825x camera sensor support (DEPRECATED)"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	select VIDEO_V4L2_INT_DEVICE
+	---help---
+	  This is a driver for the Toshiba TCM825x VGA camera sensor.
+	  It is used for example in Nokia N800.
+
+	  It uses the deprecated int-device API. Since this driver is no
+	  longer actively maintained and nobody is interested in converting
+	  it to the subdev API, this driver will be removed soon.
+
+	  If you do want to keep this driver in the kernel, and are willing
+	  to convert it to the subdev API, then please contact the linux-media
+	  mailinglist.

@@ -263,6 +263,7 @@ static int __exit coh901327_remove(struct platform_device *pdev)
 	watchdog_unregister_device(&coh901327_wdt);
 	coh901327_disable();
 	free_irq(irq, pdev);
+	clk_unprepare(clk);
 	clk_put(clk);
 	iounmap(virtbase);
 	release_mem_region(phybase, physize);
@@ -300,9 +301,9 @@ static int __init coh901327_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not get clock\n");
 		goto out_no_clk;
 	}
-	ret = clk_enable(clk);
+	ret = clk_prepare_enable(clk);
 	if (ret) {
-		dev_err(&pdev->dev, "could not enable clock\n");
+		dev_err(&pdev->dev, "could not prepare and enable clock\n");
 		goto out_no_clk_enable;
 	}
 
@@ -353,9 +354,9 @@ static int __init coh901327_probe(struct platform_device *pdev)
 
 	clk_disable(clk);
 
-	if (margin < 1 || margin > 327)
-		margin = 60;
-	coh901327_wdt.timeout = margin;
+	ret = watchdog_init_timeout(&coh901327_wdt, margin, &pdev->dev);
+	if (ret < 0)
+		coh901327_wdt.timeout = 60;
 
 	ret = watchdog_register_device(&coh901327_wdt);
 	if (ret == 0)
@@ -369,7 +370,7 @@ static int __init coh901327_probe(struct platform_device *pdev)
 out_no_wdog:
 	free_irq(irq, pdev);
 out_no_irq:
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 out_no_clk_enable:
 	clk_put(clk);
 out_no_clk:
@@ -440,27 +441,23 @@ void coh901327_watchdog_reset(void)
 	/* Return and await doom */
 }
 
+static const struct of_device_id coh901327_dt_match[] = {
+	{ .compatible = "stericsson,coh901327" },
+	{},
+};
+
 static struct platform_driver coh901327_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= "coh901327_wdog",
+		.of_match_table = coh901327_dt_match,
 	},
 	.remove		= __exit_p(coh901327_remove),
 	.suspend	= coh901327_suspend,
 	.resume		= coh901327_resume,
 };
 
-static int __init coh901327_init(void)
-{
-	return platform_driver_probe(&coh901327_driver, coh901327_probe);
-}
-module_init(coh901327_init);
-
-static void __exit coh901327_exit(void)
-{
-	platform_driver_unregister(&coh901327_driver);
-}
-module_exit(coh901327_exit);
+module_platform_driver_probe(coh901327_driver, coh901327_probe);
 
 MODULE_AUTHOR("Linus Walleij <linus.walleij@stericsson.com>");
 MODULE_DESCRIPTION("COH 901 327 Watchdog");

@@ -8,6 +8,8 @@
  *
  * Converted to the radio-isa framework by Hans Verkuil <hans.verkuil@cisco.com>
  * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
+ *
+ * Fully tested with actual hardware and the v4l2-compliance tool.
  */
 
 #include <linux/module.h>	/* Modules 			*/
@@ -17,6 +19,7 @@
 #include <linux/videodev2.h>	/* kernel radio structs		*/
 #include <linux/mutex.h>
 #include <linux/io.h>		/* outb, outb_p			*/
+#include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include "radio-isa.h"
@@ -80,8 +83,7 @@ static int rtrack2_s_frequency(struct radio_isa_card *isa, u32 freq)
 			zero(isa);
 
 	outb_p(0xc8, isa->io);
-	if (!v4l2_ctrl_g_ctrl(isa->mute))
-		outb_p(0, isa->io);
+	outb_p(v4l2_ctrl_g_ctrl(isa->mute), isa->io);
 	return 0;
 }
 

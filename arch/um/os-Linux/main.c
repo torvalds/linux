@@ -10,11 +10,11 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/resource.h>
-#include "as-layout.h"
-#include "init.h"
-#include "kern_util.h"
-#include "os.h"
-#include "um_malloc.h"
+#include <as-layout.h>
+#include <init.h>
+#include <kern_util.h>
+#include <os.h>
+#include <um_malloc.h>
 
 #define PGD_BOUND (4 * 1024 * 1024)
 #define STACKSIZE (8 * 1024 * 1024)
@@ -123,6 +123,8 @@ int __init main(int argc, char **argv, char **envp)
 
 	setup_env_path();
 
+	setsid();
+
 	new_argv = malloc((argc + 1) * sizeof(char *));
 	if (new_argv == NULL) {
 		perror("Mallocing argv");
@@ -149,6 +151,7 @@ int __init main(int argc, char **argv, char **envp)
 #endif
 
 	do_uml_initcalls();
+	change_sig(SIGPIPE, 0);
 	ret = linux_main(argc, argv);
 
 	/*

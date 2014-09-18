@@ -20,6 +20,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/bitmap.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <media/media-entity.h>
@@ -121,7 +122,6 @@ static struct media_entity *stack_pop(struct media_entity_graph *graph)
 	return entity;
 }
 
-#define stack_peek(en)	((en)->stack[(en)->top - 1].entity)
 #define link_top(en)	((en)->stack[(en)->top].link)
 #define stack_top(en)	((en)->stack[(en)->top].entity)
 
@@ -140,6 +140,12 @@ void media_entity_graph_walk_start(struct media_entity_graph *graph,
 {
 	graph->top = 0;
 	graph->stack[graph->top].entity = NULL;
+	bitmap_zero(graph->entities, MEDIA_ENTITY_ENUM_MAX_ID);
+
+	if (WARN_ON(entity->id >= MEDIA_ENTITY_ENUM_MAX_ID))
+		return;
+
+	__set_bit(entity->id, graph->entities);
 	stack_push(graph, entity);
 }
 EXPORT_SYMBOL_GPL(media_entity_graph_walk_start);
@@ -180,9 +186,11 @@ media_entity_graph_walk_next(struct media_entity_graph *graph)
 
 		/* Get the entity in the other end of the link . */
 		next = media_entity_other(entity, link);
+		if (WARN_ON(next->id >= MEDIA_ENTITY_ENUM_MAX_ID))
+			return NULL;
 
-		/* Was it the entity we came here from? */
-		if (next == stack_peek(graph)) {
+		/* Has the entity already been visited? */
+		if (__test_and_set_bit(next->id, graph->entities)) {
 			link_top(graph)++;
 			continue;
 		}
@@ -214,23 +222,103 @@ EXPORT_SYMBOL_GPL(media_entity_graph_walk_next);
  * pipeline pointer must be identical for all nested calls to
  * media_entity_pipeline_start().
  */
-void media_entity_pipeline_start(struct media_entity *entity,
-				 struct media_pipeline *pipe)
+__must_check int media_entity_pipeline_start(struct media_entity *entity,
+					     struct media_pipeline *pipe)
 {
 	struct media_device *mdev = entity->parent;
 	struct media_entity_graph graph;
+	struct media_entity *entity_err = entity;
+	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
 
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
+		DECLARE_BITMAP(active, entity->num_pads);
+		DECLARE_BITMAP(has_no_links, entity->num_pads);
+		unsigned int i;
+
 		entity->stream_count++;
 		WARN_ON(entity->pipe && entity->pipe != pipe);
 		entity->pipe = pipe;
+
+		/* Already streaming --- no need to check. */
+		if (entity->stream_count > 1)
+			continue;
+
+		if (!entity->ops || !entity->ops->link_validate)
+			continue;
+
+		bitmap_zero(active, entity->num_pads);
+		bitmap_fill(has_no_links, entity->num_pads);
+
+		for (i = 0; i < entity->num_links; i++) {
+			struct media_link *link = &entity->links[i];
+			struct media_pad *pad = link->sink->entity == entity
+						? link->sink : link->source;
+
+			/* Mark that a pad is connected by a link. */
+			bitmap_clear(has_no_links, pad->index, 1);
+
+			/*
+			 * Pads that either do not need to connect or
+			 * are connected through an enabled link are
+			 * fine.
+			 */
+			if (!(pad->flags & MEDIA_PAD_FL_MUST_CONNECT) ||
+			    link->flags & MEDIA_LNK_FL_ENABLED)
+				bitmap_set(active, pad->index, 1);
+
+			/*
+			 * Link validation will only take place for
+			 * sink ends of the link that are enabled.
+			 */
+			if (link->sink != pad ||
+			    !(link->flags & MEDIA_LNK_FL_ENABLED))
+				continue;
+
+			ret = entity->ops->link_validate(link);
+			if (ret < 0 && ret != -ENOIOCTLCMD)
+				goto error;
+		}
+
+		/* Either no links or validated links are fine. */
+		bitmap_or(active, active, has_no_links, entity->num_pads);
+
+		if (!bitmap_full(active, entity->num_pads)) {
+			ret = -EPIPE;
+			goto error;
+		}
 	}
 
 	mutex_unlock(&mdev->graph_mutex);
+
+	return 0;
+
+error:
+	/*
+	 * Link validation on graph failed. We revert what we did and
+	 * return the error.
+	 */
+	media_entity_graph_walk_start(&graph, entity_err);
+
+	while ((entity_err = media_entity_graph_walk_next(&graph))) {
+		entity_err->stream_count--;
+		if (entity_err->stream_count == 0)
+			entity_err->pipe = NULL;
+
+		/*
+		 * We haven't increased stream_count further than this
+		 * so we quit here.
+		 */
+		if (entity_err == entity)
+			break;
+	}
+
+	mutex_unlock(&mdev->graph_mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(media_entity_pipeline_start);
 
@@ -376,6 +464,56 @@ media_entity_create_link(struct media_entity *source, u16 source_pad,
 }
 EXPORT_SYMBOL_GPL(media_entity_create_link);
 
+void __media_entity_remove_links(struct media_entity *entity)
+{
+	unsigned int i;
+
+	for (i = 0; i < entity->num_links; i++) {
+		struct media_link *link = &entity->links[i];
+		struct media_entity *remote;
+		unsigned int r = 0;
+
+		if (link->source->entity == entity)
+			remote = link->sink->entity;
+		else
+			remote = link->source->entity;
+
+		while (r < remote->num_links) {
+			struct media_link *rlink = &remote->links[r];
+
+			if (rlink != link->reverse) {
+				r++;
+				continue;
+			}
+
+			if (link->source->entity == entity)
+				remote->num_backlinks--;
+
+			if (--remote->num_links == 0)
+				break;
+
+			/* Insert last entry in place of the dropped link. */
+			*rlink = remote->links[remote->num_links];
+		}
+	}
+
+	entity->num_links = 0;
+	entity->num_backlinks = 0;
+}
+EXPORT_SYMBOL_GPL(__media_entity_remove_links);
+
+void media_entity_remove_links(struct media_entity *entity)
+{
+	/* Do nothing if the entity is not registered. */
+	if (entity->parent == NULL)
+		return;
+
+	mutex_lock(&entity->parent->graph_mutex);
+	__media_entity_remove_links(entity);
+	mutex_unlock(&entity->parent->graph_mutex);
+}
+EXPORT_SYMBOL_GPL(media_entity_remove_links);
+
 static int __media_entity_setup_link_notify(struct media_link *link, u32 flags)
 {
 	int ret;
@@ -443,25 +581,17 @@ int __media_entity_setup_link(struct media_link *link, u32 flags)
 
 	mdev = source->parent;
 
-	if ((flags & MEDIA_LNK_FL_ENABLED) && mdev->link_notify) {
-		ret = mdev->link_notify(link->source, link->sink,
-					MEDIA_LNK_FL_ENABLED);
+	if (mdev->link_notify) {
+		ret = mdev->link_notify(link, flags,
+					MEDIA_DEV_NOTIFY_PRE_LINK_CH);
 		if (ret < 0)
 			return ret;
 	}
 
 	ret = __media_entity_setup_link_notify(link, flags);
-	if (ret < 0)
-		goto err;
 
-	if (!(flags & MEDIA_LNK_FL_ENABLED) && mdev->link_notify)
-		mdev->link_notify(link->source, link->sink, 0);
-
-	return 0;
-
-err:
-	if ((flags & MEDIA_LNK_FL_ENABLED) && mdev->link_notify)
-		mdev->link_notify(link->source, link->sink, 0);
+	if (mdev->link_notify)
+		mdev->link_notify(link, flags, MEDIA_DEV_NOTIFY_POST_LINK_CH);
 
 	return ret;
 }
@@ -507,17 +637,16 @@ media_entity_find_link(struct media_pad *source, struct media_pad *sink)
 EXPORT_SYMBOL_GPL(media_entity_find_link);
 
 /**
- * media_entity_remote_source - Find the source pad at the remote end of a link
- * @pad: Sink pad at the local end of the link
+ * media_entity_remote_pad - Find the pad at the remote end of a link
+ * @pad: Pad at the local end of the link
  *
- * Search for a remote source pad connected to the given sink pad by iterating
- * over all links originating or terminating at that pad until an enabled link
- * is found.
+ * Search for a remote pad connected to the given pad by iterating over all
+ * links originating or terminating at that pad until an enabled link is found.
  *
  * Return a pointer to the pad at the remote end of the first found enabled
  * link, or NULL if no enabled link has been found.
  */
-struct media_pad *media_entity_remote_source(struct media_pad *pad)
+struct media_pad *media_entity_remote_pad(struct media_pad *pad)
 {
 	unsigned int i;
 
@@ -537,4 +666,4 @@ struct media_pad *media_entity_remote_source(struct media_pad *pad)
 	return NULL;
 
 }
-EXPORT_SYMBOL_GPL(media_entity_remote_source);
+EXPORT_SYMBOL_GPL(media_entity_remote_pad);

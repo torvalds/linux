@@ -19,380 +19,160 @@
  * published by the Free Software Foundation.
 */
 
-/include/ "skeleton.dtsi"
+#include "exynos4.dtsi"
+#include "exynos4210-pinctrl.dtsi"
 
 / {
-	compatible = "samsung,exynos4210";
-	interrupt-parent = <&gic>;
+	compatible = "samsung,exynos4210", "samsung,exynos4";
 
-	gic:interrupt-controller@10490000 {
-		compatible = "arm,cortex-a9-gic";
-		#interrupt-cells = <3>;
-		interrupt-controller;
+	aliases {
+		pinctrl0 = &pinctrl_0;
+		pinctrl1 = &pinctrl_1;
+		pinctrl2 = &pinctrl_2;
+	};
+
+	pmu_system_controller: system-controller@10020000 {
+		clock-names = "clkout0", "clkout1", "clkout2", "clkout3",
+				"clkout4", "clkout8", "clkout9";
+		clocks = <&clock CLK_OUT_DMC>, <&clock CLK_OUT_TOP>,
+			<&clock CLK_OUT_LEFTBUS>, <&clock CLK_OUT_RIGHTBUS>,
+			<&clock CLK_OUT_CPU>, <&clock CLK_XXTI>,
+			<&clock CLK_XUSBXTI>;
+		#clock-cells = <1>;
+	};
+
+	sysram@02020000 {
+		compatible = "mmio-sram";
+		reg = <0x02020000 0x20000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x02020000 0x20000>;
+
+		smp-sysram@0 {
+			compatible = "samsung,exynos4210-sysram";
+			reg = <0x0 0x1000>;
+		};
+
+		smp-sysram@1f000 {
+			compatible = "samsung,exynos4210-sysram-ns";
+			reg = <0x1f000 0x1000>;
+		};
+	};
+
+	pd_lcd1: lcd1-power-domain@10023CA0 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10023CA0 0x20>;
+	};
+
+	gic: interrupt-controller@10490000 {
 		cpu-offset = <0x8000>;
-		reg = <0x10490000 0x1000>, <0x10480000 0x100>;
 	};
 
-	watchdog@10060000 {
-		compatible = "samsung,s3c2410-wdt";
-		reg = <0x10060000 0x100>;
-		interrupts = <0 43 0>;
+	combiner: interrupt-controller@10440000 {
+		samsung,combiner-nr = <16>;
+		interrupts = <0 0 0>, <0 1 0>, <0 2 0>, <0 3 0>,
+			     <0 4 0>, <0 5 0>, <0 6 0>, <0 7 0>,
+			     <0 8 0>, <0 9 0>, <0 10 0>, <0 11 0>,
+			     <0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>;
 	};
 
-	rtc@10070000 {
-		compatible = "samsung,s3c6410-rtc";
-		reg = <0x10070000 0x100>;
-		interrupts = <0 44 0>, <0 45 0>;
-	};
+	mct@10050000 {
+		compatible = "samsung,exynos4210-mct";
+		reg = <0x10050000 0x800>;
+		interrupt-parent = <&mct_map>;
+		interrupts = <0>, <1>, <2>, <3>, <4>, <5>;
+		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
+		clock-names = "fin_pll", "mct";
 
-	keypad@100A0000 {
-		compatible = "samsung,s5pv210-keypad";
-		reg = <0x100A0000 0x100>;
-		interrupts = <0 109 0>;
-	};
-
-	sdhci@12510000 {
-		compatible = "samsung,exynos4210-sdhci";
-		reg = <0x12510000 0x100>;
-		interrupts = <0 73 0>;
-	};
-
-	sdhci@12520000 {
-		compatible = "samsung,exynos4210-sdhci";
-		reg = <0x12520000 0x100>;
-		interrupts = <0 74 0>;
-	};
-
-	sdhci@12530000 {
-		compatible = "samsung,exynos4210-sdhci";
-		reg = <0x12530000 0x100>;
-		interrupts = <0 75 0>;
-	};
-
-	sdhci@12540000 {
-		compatible = "samsung,exynos4210-sdhci";
-		reg = <0x12540000 0x100>;
-		interrupts = <0 76 0>;
-	};
-
-	serial@13800000 {
-		compatible = "samsung,exynos4210-uart";
-		reg = <0x13800000 0x100>;
-		interrupts = <0 52 0>;
-	};
-
-	serial@13810000 {
-		compatible = "samsung,exynos4210-uart";
-		reg = <0x13810000 0x100>;
-		interrupts = <0 53 0>;
-	};
-
-	serial@13820000 {
-		compatible = "samsung,exynos4210-uart";
-		reg = <0x13820000 0x100>;
-		interrupts = <0 54 0>;
-	};
-
-	serial@13830000 {
-		compatible = "samsung,exynos4210-uart";
-		reg = <0x13830000 0x100>;
-		interrupts = <0 55 0>;
-	};
-
-	i2c@13860000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x13860000 0x100>;
-		interrupts = <0 58 0>;
-	};
-
-	i2c@13870000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x13870000 0x100>;
-		interrupts = <0 59 0>;
-	};
-
-	i2c@13880000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x13880000 0x100>;
-		interrupts = <0 60 0>;
-	};
-
-	i2c@13890000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x13890000 0x100>;
-		interrupts = <0 61 0>;
-	};
-
-	i2c@138A0000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x138A0000 0x100>;
-		interrupts = <0 62 0>;
-	};
-
-	i2c@138B0000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x138B0000 0x100>;
-		interrupts = <0 63 0>;
-	};
-
-	i2c@138C0000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x138C0000 0x100>;
-		interrupts = <0 64 0>;
-	};
-
-	i2c@138D0000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x138D0000 0x100>;
-		interrupts = <0 65 0>;
-	};
-
-	amba {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "arm,amba-bus";
-		interrupt-parent = <&gic>;
-		ranges;
-
-		pdma0: pdma@12680000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x12680000 0x1000>;
-			interrupts = <0 35 0>;
-		};
-
-		pdma1: pdma@12690000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x12690000 0x1000>;
-			interrupts = <0 36 0>;
+		mct_map: mct-map {
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-map = <0 &gic 0 57 0>,
+					<1 &gic 0 69 0>,
+					<2 &combiner 12 6>,
+					<3 &combiner 12 7>,
+					<4 &gic 0 42 0>,
+					<5 &gic 0 48 0>;
 		};
 	};
 
-	gpio-controllers {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		gpio-controller;
-		ranges;
+	clock: clock-controller@10030000 {
+		compatible = "samsung,exynos4210-clock";
+		reg = <0x10030000 0x20000>;
+		#clock-cells = <1>;
+	};
 
-		gpa0: gpio-controller@11400000 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11400000 0x20>;
-			#gpio-cells = <4>;
+	pinctrl_0: pinctrl@11400000 {
+		compatible = "samsung,exynos4210-pinctrl";
+		reg = <0x11400000 0x1000>;
+		interrupts = <0 47 0>;
+	};
+
+	pinctrl_1: pinctrl@11000000 {
+		compatible = "samsung,exynos4210-pinctrl";
+		reg = <0x11000000 0x1000>;
+		interrupts = <0 46 0>;
+
+		wakup_eint: wakeup-interrupt-controller {
+			compatible = "samsung,exynos4210-wakeup-eint";
+			interrupt-parent = <&gic>;
+			interrupts = <0 32 0>;
+		};
+	};
+
+	pinctrl_2: pinctrl@03860000 {
+		compatible = "samsung,exynos4210-pinctrl";
+		reg = <0x03860000 0x1000>;
+	};
+
+	tmu@100C0000 {
+		compatible = "samsung,exynos4210-tmu";
+		interrupt-parent = <&combiner>;
+		reg = <0x100C0000 0x100>;
+		interrupts = <2 4>;
+		clocks = <&clock CLK_TMU_APBIF>;
+		clock-names = "tmu_apbif";
+		status = "disabled";
+	};
+
+	g2d@12800000 {
+		compatible = "samsung,s5pv210-g2d";
+		reg = <0x12800000 0x1000>;
+		interrupts = <0 89 0>;
+		clocks = <&clock CLK_SCLK_FIMG2D>, <&clock CLK_G2D>;
+		clock-names = "sclk_fimg2d", "fimg2d";
+		status = "disabled";
+	};
+
+	camera {
+		clocks = <&clock CLK_SCLK_CAM0>, <&clock CLK_SCLK_CAM1>,
+			 <&clock CLK_PIXELASYNCM0>, <&clock CLK_PIXELASYNCM1>;
+		clock-names = "sclk_cam0", "sclk_cam1", "pxl_async0", "pxl_async1";
+
+		fimc_0: fimc@11800000 {
+			samsung,pix-limits = <4224 8192 1920 4224>;
+			samsung,mainscaler-ext;
+			samsung,cam-if;
 		};
 
-		gpa1: gpio-controller@11400020 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11400020 0x20>;
-			#gpio-cells = <4>;
+		fimc_1: fimc@11810000 {
+			samsung,pix-limits = <4224 8192 1920 4224>;
+			samsung,mainscaler-ext;
+			samsung,cam-if;
 		};
 
-		gpb: gpio-controller@11400040 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11400040 0x20>;
-			#gpio-cells = <4>;
+		fimc_2: fimc@11820000 {
+			samsung,pix-limits = <4224 8192 1920 4224>;
+			samsung,mainscaler-ext;
+			samsung,lcd-wb;
 		};
 
-		gpc0: gpio-controller@11400060 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11400060 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpc1: gpio-controller@11400080 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11400080 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpd0: gpio-controller@114000A0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x114000A0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpd1: gpio-controller@114000C0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x114000C0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpe0: gpio-controller@114000E0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x114000E0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpe1: gpio-controller@11400100 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11400100 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpe2: gpio-controller@11400120 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11400120 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpe3: gpio-controller@11400140 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11400140 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpe4: gpio-controller@11400160 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11400160 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpf0: gpio-controller@11400180 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11400180 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpf1: gpio-controller@114001A0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x114001A0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpf2: gpio-controller@114001C0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x114001C0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpf3: gpio-controller@114001E0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x114001E0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpj0: gpio-controller@11000000 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000000 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpj1: gpio-controller@11000020 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000020 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpk0: gpio-controller@11000040 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000040 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpk1: gpio-controller@11000060 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000060 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpk2: gpio-controller@11000080 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000080 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpk3: gpio-controller@110000A0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x110000A0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpl0: gpio-controller@110000C0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x110000C0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpl1: gpio-controller@110000E0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x110000E0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpl2: gpio-controller@11000100 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000100 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpy0: gpio-controller@11000120 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000120 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpy1: gpio-controller@11000140 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000140 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpy2: gpio-controller@11000160 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000160 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpy3: gpio-controller@11000180 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000180 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpy4: gpio-controller@110001A0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x110001A0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpy5: gpio-controller@110001C0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x110001C0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpy6: gpio-controller@110001E0 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x110001E0 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpx0: gpio-controller@11000C00 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000C00 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpx1: gpio-controller@11000C20 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000C20 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpx2: gpio-controller@11000C40 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000C40 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpx3: gpio-controller@11000C60 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x11000C60 0x20>;
-			#gpio-cells = <4>;
-		};
-
-		gpz: gpio-controller@03860000 {
-			compatible = "samsung,exynos4-gpio";
-			reg = <0x03860000 0x20>;
-			#gpio-cells = <4>;
+		fimc_3: fimc@11830000 {
+			samsung,pix-limits = <1920 8192 1366 1920>;
+			samsung,rotators = <0>;
+			samsung,mainscaler-ext;
+			samsung,lcd-wb;
 		};
 	};
 };

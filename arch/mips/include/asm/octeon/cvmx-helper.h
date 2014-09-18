@@ -34,9 +34,9 @@
 #ifndef __CVMX_HELPER_H__
 #define __CVMX_HELPER_H__
 
-#include "cvmx-config.h"
-#include "cvmx-fpa.h"
-#include "cvmx-wqe.h"
+#include <asm/octeon/cvmx-config.h>
+#include <asm/octeon/cvmx-fpa.h>
+#include <asm/octeon/cvmx-wqe.h>
 
 typedef enum {
 	CVMX_HELPER_INTERFACE_MODE_DISABLED,
@@ -61,16 +61,14 @@ typedef union {
 	} s;
 } cvmx_helper_link_info_t;
 
-#include "cvmx-helper-fpa.h"
-
 #include <asm/octeon/cvmx-helper-errata.h>
-#include "cvmx-helper-loop.h"
-#include "cvmx-helper-npi.h"
-#include "cvmx-helper-rgmii.h"
-#include "cvmx-helper-sgmii.h"
-#include "cvmx-helper-spi.h"
-#include "cvmx-helper-util.h"
-#include "cvmx-helper-xaui.h"
+#include <asm/octeon/cvmx-helper-loop.h>
+#include <asm/octeon/cvmx-helper-npi.h>
+#include <asm/octeon/cvmx-helper-rgmii.h>
+#include <asm/octeon/cvmx-helper-sgmii.h>
+#include <asm/octeon/cvmx-helper-spi.h>
+#include <asm/octeon/cvmx-helper-util.h>
+#include <asm/octeon/cvmx-helper-xaui.h>
 
 /**
  * cvmx_override_pko_queue_priority(int ipd_port, uint64_t
@@ -95,12 +93,12 @@ extern void (*cvmx_override_ipd_port_setup) (int ipd_port);
 /**
  * This function enables the IPD and also enables the packet interfaces.
  * The packet interfaces (RGMII and SPI) must be enabled after the
- * IPD.  This should be called by the user program after any additional
+ * IPD.	 This should be called by the user program after any additional
  * IPD configuration changes are made if CVMX_HELPER_ENABLE_IPD
  * is not set in the executive-config.h file.
  *
  * Returns 0 on success
- *         -1 on failure
+ *	   -1 on failure
  */
 extern int cvmx_helper_ipd_and_packet_input_enable(void);
 
@@ -130,7 +128,7 @@ extern int cvmx_helper_initialize_packet_io_local(void);
  * @interface: Which interface to return port count for.
  *
  * Returns Port count for interface
- *         -1 for uninitialized interface
+ *	   -1 for uninitialized interface
  */
 extern int cvmx_helper_ports_on_interface(int interface);
 
@@ -152,7 +150,7 @@ extern int cvmx_helper_get_number_of_interfaces(void);
  * @interface: Interface to probe
  *
  * Returns Mode of the interface. Unknown or unsupported interfaces return
- *         DISABLED.
+ *	   DISABLED.
  */
 extern cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int
 								   interface);
@@ -216,9 +214,9 @@ extern int cvmx_helper_interface_enumerate(int interface);
  *
  * @ipd_port: IPD/PKO port to loopback.
  * @enable_internal:
- *                 Non zero if you want internal loopback
+ *		   Non zero if you want internal loopback
  * @enable_external:
- *                 Non zero if you want external loopback
+ *		   Non zero if you want external loopback
  *
  * Returns Zero on success, negative on failure.
  */

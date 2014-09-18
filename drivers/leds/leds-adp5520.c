@@ -5,17 +5,16 @@
  *
  * Loosely derived from leds-da903x:
  * Copyright (C) 2008 Compulab, Ltd.
- * 	Mike Rapoport <mike@compulab.co.il>
+ *	Mike Rapoport <mike@compulab.co.il>
  *
  * Copyright (C) 2006-2008 Marvell International Ltd.
- * 	Eric Miao <eric.miao@marvell.com>
+ *	Eric Miao <eric.miao@marvell.com>
  *
  * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/workqueue.h>
@@ -85,9 +84,9 @@ static int adp5520_led_setup(struct adp5520_led *led)
 	return ret;
 }
 
-static int __devinit adp5520_led_prepare(struct platform_device *pdev)
+static int adp5520_led_prepare(struct platform_device *pdev)
 {
-	struct adp5520_leds_platform_data *pdata = pdev->dev.platform_data;
+	struct adp5520_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device *dev = pdev->dev.parent;
 	int ret = 0;
 
@@ -101,9 +100,9 @@ static int __devinit adp5520_led_prepare(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devinit adp5520_led_probe(struct platform_device *pdev)
+static int adp5520_led_probe(struct platform_device *pdev)
 {
-	struct adp5520_leds_platform_data *pdata = pdev->dev.platform_data;
+	struct adp5520_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct adp5520_led *led, *led_dat;
 	struct led_info *cur_led;
 	int ret, i;
@@ -119,17 +118,15 @@ static int __devinit adp5520_led_probe(struct platform_device *pdev)
 		return -EFAULT;
 	}
 
-	led = kzalloc(sizeof(*led) * pdata->num_leds, GFP_KERNEL);
-	if (led == NULL) {
-		dev_err(&pdev->dev, "failed to alloc memory\n");
+	led = devm_kzalloc(&pdev->dev, sizeof(*led) * pdata->num_leds,
+				GFP_KERNEL);
+	if (!led)
 		return -ENOMEM;
-	}
 
 	ret = adp5520_led_prepare(pdev);
-
 	if (ret) {
 		dev_err(&pdev->dev, "failed to write\n");
-		goto err_free;
+		return ret;
 	}
 
 	for (i = 0; i < pdata->num_leds; ++i) {
@@ -179,14 +176,12 @@ err:
 		}
 	}
 
-err_free:
-	kfree(led);
 	return ret;
 }
 
-static int __devexit adp5520_led_remove(struct platform_device *pdev)
+static int adp5520_led_remove(struct platform_device *pdev)
 {
-	struct adp5520_leds_platform_data *pdata = pdev->dev.platform_data;
+	struct adp5520_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct adp5520_led *led;
 	int i;
 
@@ -200,7 +195,6 @@ static int __devexit adp5520_led_remove(struct platform_device *pdev)
 		cancel_work_sync(&led[i].work);
 	}
 
-	kfree(led);
 	return 0;
 }
 
@@ -210,7 +204,7 @@ static struct platform_driver adp5520_led_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= adp5520_led_probe,
-	.remove		= __devexit_p(adp5520_led_remove),
+	.remove		= adp5520_led_remove,
 };
 
 module_platform_driver(adp5520_led_driver);

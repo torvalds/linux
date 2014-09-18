@@ -121,7 +121,4 @@ void __init sh_mv_setup(void)
 	mv_set(irq_demux);
 	mv_set(mode_pins);
 	mv_set(mem_init);
-
-	if (!sh_mv.mv_nr_irqs)
-		sh_mv.mv_nr_irqs = NR_IRQS;
 }

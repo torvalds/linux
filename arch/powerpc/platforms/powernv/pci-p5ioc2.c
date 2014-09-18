@@ -26,11 +26,11 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
+#include <asm/msi_bitmap.h>
 #include <asm/ppc-pci.h>
 #include <asm/opal.h>
 #include <asm/iommu.h>
 #include <asm/tce.h>
-#include <asm/abs_addr.h>
 
 #include "powernv.h"
 #include "pci.h"
@@ -42,8 +42,8 @@
 
 #ifdef CONFIG_PCI_MSI
 static int pnv_pci_p5ioc2_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
-				    unsigned int hwirq, unsigned int is_64,
-				    struct msi_msg *msg)
+				    unsigned int hwirq, unsigned int virq,
+				    unsigned int is_64, struct msi_msg *msg)
 {
 	if (WARN_ON(!is_64))
 		return -ENXIO;
@@ -56,7 +56,7 @@ static int pnv_pci_p5ioc2_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 
 static void pnv_pci_init_p5ioc2_msis(struct pnv_phb *phb)
 {
-	unsigned int bmap_size;
+	unsigned int count;
 	const __be32 *prop = of_get_property(phb->hose->dn,
 					     "ibm,opal-msi-ranges", NULL);
 	if (!prop)
@@ -68,10 +68,8 @@ static void pnv_pci_init_p5ioc2_msis(struct pnv_phb *phb)
 	if (of_device_is_compatible(phb->hose->dn, "ibm,p5ioc2-pcix"))
 		return;
 	phb->msi_base = be32_to_cpup(prop);
-	phb->msi_count = be32_to_cpup(prop + 1);
-	bmap_size = BITS_TO_LONGS(phb->msi_count) * sizeof(unsigned long);
-	phb->msi_map = zalloc_maybe_bootmem(bmap_size, GFP_KERNEL);
-	if (!phb->msi_map) {
+	count = be32_to_cpup(prop + 1);
+	if (msi_bitmap_alloc(&phb->msi_bmp, count, phb->hose->dn)) {
 		pr_err("PCI %d: Failed to allocate MSI bitmap !\n",
 		       phb->hose->global_number);
 		return;
@@ -79,26 +77,29 @@ static void pnv_pci_init_p5ioc2_msis(struct pnv_phb *phb)
 	phb->msi_setup = pnv_pci_p5ioc2_msi_setup;
 	phb->msi32_support = 0;
 	pr_info(" Allocated bitmap for %d MSIs (base IRQ 0x%x)\n",
-		phb->msi_count, phb->msi_base);
+		count, phb->msi_base);
 }
 #else
 static void pnv_pci_init_p5ioc2_msis(struct pnv_phb *phb) { }
 #endif /* CONFIG_PCI_MSI */
 
-static void __devinit pnv_pci_p5ioc2_dma_dev_setup(struct pnv_phb *phb,
-						   struct pci_dev *pdev)
+static void pnv_pci_p5ioc2_dma_dev_setup(struct pnv_phb *phb,
+					 struct pci_dev *pdev)
 {
-	if (phb->p5ioc2.iommu_table.it_map == NULL)
+	if (phb->p5ioc2.iommu_table.it_map == NULL) {
 		iommu_init_table(&phb->p5ioc2.iommu_table, phb->hose->node);
+		iommu_register_group(&phb->p5ioc2.iommu_table,
+				pci_domain_nr(phb->hose->bus), phb->opal_id);
+	}
 
-	set_iommu_table_base(&pdev->dev, &phb->p5ioc2.iommu_table);
+	set_iommu_table_base_and_group(&pdev->dev, &phb->p5ioc2.iommu_table);
 }
 
-static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np,
+static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 hub_id,
 					   void *tce_mem, u64 tce_size)
 {
 	struct pnv_phb *phb;
-	const u64 *prop64;
+	const __be64 *prop64;
 	u64 phb_id;
 	int64_t rc;
 	static int primary = 1;
@@ -135,6 +136,7 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np,
 	phb->hose->first_busno = 0;
 	phb->hose->last_busno = 0xff;
 	phb->hose->private_data = phb;
+	phb->hub_id = hub_id;
 	phb->opal_id = phb_id;
 	phb->type = PNV_PHB_P5IOC2;
 	phb->model = PNV_PHB_MODEL_P5IOC2;
@@ -170,13 +172,14 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np,
 	/* Setup TCEs */
 	phb->dma_dev_setup = pnv_pci_p5ioc2_dma_dev_setup;
 	pnv_pci_setup_iommu_table(&phb->p5ioc2.iommu_table,
-				  tce_mem, tce_size, 0);
+				  tce_mem, tce_size, 0,
+				  IOMMU_PAGE_SHIFT_4K);
 }
 
 void __init pnv_pci_init_p5ioc2_hub(struct device_node *np)
 {
 	struct device_node *phbn;
-	const u64 *prop64;
+	const __be64 *prop64;
 	u64 hub_id;
 	void *tce_mem;
 	uint64_t tce_per_phb;
@@ -228,7 +231,8 @@ void __init pnv_pci_init_p5ioc2_hub(struct device_node *np)
 	for_each_child_of_node(np, phbn) {
 		if (of_device_is_compatible(phbn, "ibm,p5ioc2-pcix") ||
 		    of_device_is_compatible(phbn, "ibm,p5ioc2-pciex")) {
-			pnv_pci_init_p5ioc2_phb(phbn, tce_mem, tce_per_phb);
+			pnv_pci_init_p5ioc2_phb(phbn, hub_id,
+					tce_mem, tce_per_phb);
 			tce_mem += tce_per_phb;
 		}
 	}

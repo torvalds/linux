@@ -13,8 +13,8 @@
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
 #include <asm/uaccess.h>
-#include "irq_kern.h"
-#include "os.h"
+#include <irq_kern.h>
+#include <os.h>
 
 /*
  * core module and version information
@@ -131,8 +131,7 @@ static int __init rng_init (void)
 	random_fd = err;
 
 	err = um_request_irq(RANDOM_IRQ, random_fd, IRQ_READ, random_interrupt,
-			     IRQF_SAMPLE_RANDOM, "random",
-			     NULL);
+			     0, "random", NULL);
 	if (err)
 		goto err_out_cleanup_hw;
 

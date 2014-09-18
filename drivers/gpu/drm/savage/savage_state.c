@@ -22,8 +22,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "drmP.h"
-#include "savage_drm.h"
+#include <drm/drmP.h>
+#include <drm/savage_drm.h>
 #include "savage_drv.h"
 
 void savage_emit_clip_rect_s3d(drm_savage_private_t * dev_priv,
@@ -992,7 +992,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 		if (kcmd_addr == NULL)
 			return -ENOMEM;
 
-		if (DRM_COPY_FROM_USER(kcmd_addr, cmdbuf->cmd_addr,
+		if (copy_from_user(kcmd_addr, cmdbuf->cmd_addr,
 				       cmdbuf->size * 8))
 		{
 			kfree(kcmd_addr);
@@ -1007,7 +1007,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 			goto done;
 		}
 
-		if (DRM_COPY_FROM_USER(kvb_addr, cmdbuf->vb_addr,
+		if (copy_from_user(kvb_addr, cmdbuf->vb_addr,
 				       cmdbuf->vb_size)) {
 			ret = -EFAULT;
 			goto done;
@@ -1022,7 +1022,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 			goto done;
 		}
 
-		if (DRM_COPY_FROM_USER(kbox_addr, cmdbuf->box_addr,
+		if (copy_from_user(kbox_addr, cmdbuf->box_addr,
 				       cmdbuf->nbox * sizeof(struct drm_clip_rect))) {
 			ret = -EFAULT;
 			goto done;
@@ -1032,7 +1032,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 
 	/* Make sure writes to DMA buffers are finished before sending
 	 * DMA commands to the graphics hardware. */
-	DRM_MEMORYBARRIER();
+	mb();
 
 	/* Coming from user space. Don't know if the Xserver has
 	 * emitted wait commands. Assuming the worst. */

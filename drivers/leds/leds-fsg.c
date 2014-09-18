@@ -16,12 +16,11 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 #define FSG_LED_WLAN_BIT	0
 #define FSG_LED_WAN_BIT		1
@@ -149,11 +148,10 @@ static int fsg_led_probe(struct platform_device *pdev)
 	int ret;
 
 	/* Map the LED chip select address space */
-	latch_address = (unsigned short *) ioremap(IXP4XX_EXP_BUS_BASE(2), 512);
-	if (!latch_address) {
-		ret = -ENOMEM;
-		goto failremap;
-	}
+	latch_address = (unsigned short *) devm_ioremap(&pdev->dev,
+						IXP4XX_EXP_BUS_BASE(2), 512);
+	if (!latch_address)
+		return -ENOMEM;
 
 	latch_value = 0xffff;
 	*latch_address = latch_value;
@@ -195,8 +193,6 @@ static int fsg_led_probe(struct platform_device *pdev)
  failwan:
 	led_classdev_unregister(&fsg_wlan_led);
  failwlan:
-	iounmap(latch_address);
- failremap:
 
 	return ret;
 }
@@ -209,8 +205,6 @@ static int fsg_led_remove(struct platform_device *pdev)
 	led_classdev_unregister(&fsg_usb_led);
 	led_classdev_unregister(&fsg_sync_led);
 	led_classdev_unregister(&fsg_ring_led);
-
-	iounmap(latch_address);
 
 	return 0;
 }

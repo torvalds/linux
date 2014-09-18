@@ -155,6 +155,9 @@ If the kernel gets fooled in this way, it's almost certain to cause
 data corruption and to crash your system.  You'll have no one to blame
 but yourself.
 
+For those devices with avoid_reset_quirk attribute being set, persist
+maybe fail because they may morph after reset.
+
 YOU HAVE BEEN WARNED!  USE AT YOUR OWN RISK!
 
 That having been said, most of the time there shouldn't be any trouble

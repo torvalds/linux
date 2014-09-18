@@ -35,7 +35,6 @@ static struct crypto_alg krng_alg = {
 	.cra_ctxsize		= 0,
 	.cra_type		= &crypto_rng_type,
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(krng_alg.cra_list),
 	.cra_u			= {
 		.rng = {
 			.rng_make_random	= krng_get_random,

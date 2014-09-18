@@ -146,8 +146,7 @@ extern int msnd_pinnacle_init(void);
  * devices only the standard chrdev aliases are requested.
  *
  * All these clutters are scheduled to be removed along with
- * sound-slot/service-* module aliases.  Please take a look at
- * feature-removal-schedule.txt for details.
+ * sound-slot/service-* module aliases.
  */
 #ifdef CONFIG_SOUND_OSS_CORE_PRECLAIM
 static int preclaim_oss = 1;
@@ -293,7 +292,7 @@ retry:
 	}
 
 	device_create(sound_class, dev, MKDEV(SOUND_MAJOR, s->unit_minor),
-		      NULL, s->name+6);
+		      NULL, "%s", s->name+6);
 	return s->unit_minor;
 
 fail:
@@ -353,7 +352,9 @@ static struct sound_unit *chains[SOUND_STEP];
  *      @dev: device pointer
  *
  *	Allocate a special sound device by minor number from the sound
- *	subsystem. The allocated number is returned on success. On failure
+ *	subsystem.
+ *
+ *	Return: The allocated number is returned on success. On failure,
  *	a negative error code is returned.
  */
  
@@ -361,7 +362,7 @@ int register_sound_special_device(const struct file_operations *fops, int unit,
 				  struct device *dev)
 {
 	const int chain = unit % SOUND_STEP;
-	int max_unit = 128 + chain;
+	int max_unit = 256;
 	const char *name;
 	char _name[16];
 
@@ -437,8 +438,10 @@ EXPORT_SYMBOL(register_sound_special);
  *	@dev: Unit number to allocate
  *
  *	Allocate a mixer device. Unit is the number of the mixer requested.
- *	Pass -1 to request the next free mixer unit. On success the allocated
- *	number is returned, on failure a negative error code is returned.
+ *	Pass -1 to request the next free mixer unit.
+ *
+ *	Return: On success, the allocated number is returned. On failure,
+ *	a negative error code is returned.
  */
 
 int register_sound_mixer(const struct file_operations *fops, int dev)
@@ -455,8 +458,10 @@ EXPORT_SYMBOL(register_sound_mixer);
  *	@dev: Unit number to allocate
  *
  *	Allocate a midi device. Unit is the number of the midi device requested.
- *	Pass -1 to request the next free midi unit. On success the allocated
- *	number is returned, on failure a negative error code is returned.
+ *	Pass -1 to request the next free midi unit.
+ *
+ *	Return: On success, the allocated number is returned. On failure,
+ *	a negative error code is returned.
  */
 
 int register_sound_midi(const struct file_operations *fops, int dev)
@@ -478,11 +483,13 @@ EXPORT_SYMBOL(register_sound_midi);
  *	@dev: Unit number to allocate
  *
  *	Allocate a DSP device. Unit is the number of the DSP requested.
- *	Pass -1 to request the next free DSP unit. On success the allocated
- *	number is returned, on failure a negative error code is returned.
+ *	Pass -1 to request the next free DSP unit.
  *
  *	This function allocates both the audio and dsp device entries together
  *	and will always allocate them as a matching pair - eg dsp3/audio3
+ *
+ *	Return: On success, the allocated number is returned. On failure,
+ *	a negative error code is returned.
  */
 
 int register_sound_dsp(const struct file_operations *fops, int dev)
@@ -619,31 +626,20 @@ static int soundcore_open(struct inode *inode, struct file *file)
 		if (s)
 			new_fops = fops_get(s->unit_fops);
 	}
+	spin_unlock(&sound_loader_lock);
 	if (new_fops) {
 		/*
 		 * We rely upon the fact that we can't be unloaded while the
-		 * subdriver is there, so if ->open() is successful we can
-		 * safely drop the reference counter and if it is not we can
-		 * revert to old ->f_op. Ugly, indeed, but that's the cost of
-		 * switching ->f_op in the first place.
+		 * subdriver is there.
 		 */
 		int err = 0;
-		const struct file_operations *old_fops = file->f_op;
-		file->f_op = new_fops;
-		spin_unlock(&sound_loader_lock);
+		replace_fops(file, new_fops);
 
 		if (file->f_op->open)
 			err = file->f_op->open(inode,file);
 
-		if (err) {
-			fops_put(file->f_op);
-			file->f_op = fops_get(old_fops);
-		}
-
-		fops_put(old_fops);
 		return err;
 	}
-	spin_unlock(&sound_loader_lock);
 	return -ENODEV;
 }
 

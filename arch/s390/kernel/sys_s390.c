@@ -1,8 +1,6 @@
 /*
- *  arch/s390/kernel/sys_s390.c
- *
  *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999, 2000
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *               Thomas Spatzier (tspat@de.ibm.com)
  *
@@ -83,11 +81,12 @@ SYSCALL_DEFINE1(s390_personality, unsigned int, personality)
 {
 	unsigned int ret;
 
-	if (current->personality == PER_LINUX32 && personality == PER_LINUX)
-		personality = PER_LINUX32;
+	if (personality(current->personality) == PER_LINUX32 &&
+	    personality(personality) == PER_LINUX)
+		personality |= PER_LINUX32;
 	ret = sys_personality(personality);
-	if (ret == PER_LINUX32)
-		ret = PER_LINUX;
+	if (personality(ret) == PER_LINUX32)
+		ret &= ~PER_LINUX32;
 
 	return ret;
 }
@@ -133,19 +132,9 @@ SYSCALL_DEFINE1(s390_fadvise64_64, struct fadvise64_64_args __user *, args)
  * to
  *   %r2: fd, %r3: mode, %r4/%r5: offset, 96(%r15)-103(%r15): len
  */
-SYSCALL_DEFINE(s390_fallocate)(int fd, int mode, loff_t offset,
-			       u32 len_high, u32 len_low)
+SYSCALL_DEFINE5(s390_fallocate, int, fd, int, mode, loff_t, offset,
+			       u32, len_high, u32, len_low)
 {
 	return sys_fallocate(fd, mode, offset, ((u64)len_high << 32) | len_low);
 }
-#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
-asmlinkage long SyS_s390_fallocate(long fd, long mode, loff_t offset,
-				   long len_high, long len_low)
-{
-	return SYSC_s390_fallocate((int) fd, (int) mode, offset,
-				   (u32) len_high, (u32) len_low);
-}
-SYSCALL_ALIAS(sys_s390_fallocate, SyS_s390_fallocate);
-#endif
-
 #endif

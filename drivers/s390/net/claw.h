@@ -114,15 +114,9 @@ do { \
 	debug_event(claw_dbf_##name,level,(void*)(addr),len); \
 } while (0)
 
-/* Allow to sort out low debug levels early to avoid wasted sprints */
-static inline int claw_dbf_passes(debug_info_t *dbf_grp, int level)
-{
-	return (level <= dbf_grp->level);
-}
-
 #define CLAW_DBF_TEXT_(level,name,text...) \
 	do { \
-		if (claw_dbf_passes(claw_dbf_##name, level)) { \
+		if (debug_level_enabled(claw_dbf_##name, level)) { \
 			sprintf(debug_buffer, text); \
 			debug_text_event(claw_dbf_##name, level, \
 						debug_buffer); \

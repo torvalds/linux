@@ -1,6 +1,6 @@
 /*
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
+ * This program is free software; you can redistribute	it and/or modify it
+ * under  the terms of	the GNU General	 Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  *
@@ -12,9 +12,11 @@
 #include <linux/init.h>
 #include <linux/pm.h>
 
+#include <asm/idle.h>
 #include <asm/reboot.h>
 
 #include <loongson.h>
+#include <boot_param.h>
 
 static inline void loongson_reboot(void)
 {
@@ -26,9 +28,9 @@ static inline void loongson_reboot(void)
 	func = (void *)ioremap_nocache(LOONGSON_BOOT_BASE, 4);
 
 	__asm__ __volatile__(
-	"       .set    noat                                            \n"
-	"       jr      %[func]                                         \n"
-	"       .set    at                                              \n"
+	"	.set	noat						\n"
+	"	jr	%[func]						\n"
+	"	.set	at						\n"
 	: /* No outputs */
 	: [func] "r" (func));
 #endif
@@ -36,17 +38,37 @@ static inline void loongson_reboot(void)
 
 static void loongson_restart(char *command)
 {
+#ifndef CONFIG_LEFI_FIRMWARE_INTERFACE
 	/* do preparation for reboot */
 	mach_prepare_reboot();
 
 	/* reboot via jumping to boot base address */
 	loongson_reboot();
+#else
+	void (*fw_restart)(void) = (void *)loongson_sysconf.restart_addr;
+
+	fw_restart();
+	while (1) {
+		if (cpu_wait)
+			cpu_wait();
+	}
+#endif
 }
 
 static void loongson_poweroff(void)
 {
+#ifndef CONFIG_LEFI_FIRMWARE_INTERFACE
 	mach_prepare_shutdown();
 	unreachable();
+#else
+	void (*fw_poweroff)(void) = (void *)loongson_sysconf.poweroff_addr;
+
+	fw_poweroff();
+	while (1) {
+		if (cpu_wait)
+			cpu_wait();
+	}
+#endif
 }
 
 static void loongson_halt(void)

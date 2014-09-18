@@ -17,32 +17,29 @@
 # Mike Shaver, Helge Deller and Martin K. Petersen
 #
 
+KBUILD_IMAGE := vmlinuz
+
 KBUILD_DEFCONFIG := default_defconfig
 
 NM		= sh $(srctree)/arch/parisc/nm
 CHECKFLAGS	+= -D__hppa__=1
-
-MACHINE		:= $(shell uname -m)
-ifeq ($(MACHINE),parisc*)
-NATIVE		:= 1
-endif
+LIBGCC		= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 ifdef CONFIG_64BIT
 UTS_MACHINE	:= parisc64
 CHECKFLAGS	+= -D__LP64__=1 -m64
-WIDTH		:= 64
-
-# FIXME: if no default set, should really try to locate dynamically
-ifeq ($(CROSS_COMPILE),)
-CROSS_COMPILE	:= hppa64-linux-gnu-
-endif
+CC_ARCHES	= hppa64
 else # 32-bit
-WIDTH		:=
+CC_ARCHES	= hppa hppa2.0 hppa1.1
 endif
 
-# attempt to help out folks who are cross-compiling
-ifeq ($(NATIVE),1)
-CROSS_COMPILE	:= hppa$(WIDTH)-linux-
+ifneq ($(SUBARCH),$(UTS_MACHINE))
+	ifeq ($(CROSS_COMPILE),)
+		CC_SUFFIXES = linux linux-gnu unknown-linux-gnu
+		CROSS_COMPILE := $(call cc-cross-prefix, \
+			$(foreach a,$(CC_ARCHES), \
+			$(foreach s,$(CC_SUFFIXES),$(a)-$(s)-)))
+	endif
 endif
 
 OBJCOPY_FLAGS =-O binary -R .note -R .comment -S
@@ -64,8 +61,14 @@ ifndef CONFIG_FUNCTION_TRACER
   cflags-y	+= -ffunction-sections
 endif
 
+# Use long jumps instead of long branches (needed if your linker fails to
+# link a too big vmlinux executable). Not enabled for building modules.
+ifdef CONFIG_MLONGCALLS
+KBUILD_CFLAGS_KERNEL += -mlong-calls
+endif
+
 # select which processor to optimise for
-cflags-$(CONFIG_PA7100)		+= -march=1.1 -mschedule=7100
+cflags-$(CONFIG_PA7000)		+= -march=1.1 -mschedule=7100
 cflags-$(CONFIG_PA7200)		+= -march=1.1 -mschedule=7200
 cflags-$(CONFIG_PA7100LC)	+= -march=1.1 -mschedule=7100LC
 cflags-$(CONFIG_PA7300LC)	+= -march=1.1 -mschedule=7300
@@ -75,11 +78,11 @@ head-y			:= arch/parisc/kernel/head.o
 
 KBUILD_CFLAGS	+= $(cflags-y)
 
-kernel-y			:= mm/ kernel/ math-emu/ kernel/init_task.o
+kernel-y			:= mm/ kernel/ math-emu/
 kernel-$(CONFIG_HPUX)		+= hpux/
 
 core-y	+= $(addprefix arch/parisc/, $(kernel-y))
-libs-y	+= arch/parisc/lib/ `$(CC) -print-libgcc-file-name`
+libs-y	+= arch/parisc/lib/ $(LIBGCC)
 
 drivers-$(CONFIG_OPROFILE)		+= arch/parisc/oprofile/
 
@@ -91,7 +94,7 @@ PALOCONF := $(shell if [ -f $(src)/palo.conf ]; then echo $(src)/palo.conf; \
 	else echo $(obj)/palo.conf; \
 	fi)
 
-palo: vmlinux
+palo lifimage: vmlinuz
 	@if test ! -x "$(PALO)"; then \
 		echo 'ERROR: Please install palo first (apt-get install palo)';\
 		echo 'or build it from source and install it somewhere in your $$PATH';\
@@ -106,25 +109,36 @@ palo: vmlinux
 	fi
 	$(PALO) -f $(PALOCONF)
 
-# Shorthands for known targets not supported by parisc, use vmlinux as default
-Image zImage bzImage: vmlinux
+BOOT_TARGETS    = zImage Image palo lifimage
+INSTALL_TARGETS = zinstall install
 
-kernel_install: vmlinux
-	sh $(src)/arch/parisc/install.sh \
-			$(KERNELRELEASE) $< System.map "$(INSTALL_PATH)"
+PHONY += bzImage $(BOOT_TARGETS) $(INSTALL_TARGETS)
 
-install: kernel_install modules_install
+bzImage zImage: vmlinuz
+Image: vmlinux
+
+vmlinuz: vmlinux
+	@gzip -cf -9 $< > $@
+
+install:
+	$(CONFIG_SHELL) $(src)/arch/parisc/install.sh \
+			$(KERNELRELEASE) vmlinux System.map "$(INSTALL_PATH)"
+zinstall:
+	$(CONFIG_SHELL) $(src)/arch/parisc/install.sh \
+			$(KERNELRELEASE) vmlinuz System.map "$(INSTALL_PATH)"
 
 CLEAN_FILES	+= lifimage
 MRPROPER_FILES	+= palo.conf
 
 define archhelp
 	@echo  '* vmlinux	- Uncompressed kernel image (./vmlinux)'
+	@echo  '  vmlinuz	- Compressed kernel image (./vmlinuz)'
 	@echo  '  palo		- Bootable image (./lifimage)'
-	@echo  '  install	- Install kernel using'
+	@echo  '  install	- Install uncompressed vmlinux kernel using'
 	@echo  '		  (your) ~/bin/$(INSTALLKERNEL) or'
 	@echo  '		  (distribution) /sbin/$(INSTALLKERNEL) or'
 	@echo  '		  copy to $$(INSTALL_PATH)'
+	@echo  '  zinstall	- Install compressed vmlinuz kernel'
 endef
 
 # we require gcc 3.3 or above to compile the kernel

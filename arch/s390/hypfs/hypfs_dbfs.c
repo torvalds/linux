@@ -1,7 +1,7 @@
 /*
  * Hypervisor filesystem for Linux on s390 - debugfs interface
  *
- * Copyright (C) IBM Corp. 2010
+ * Copyright IBM Corp. 2010
  * Author(s): Michael Holzheu <holzheu@linux.vnet.ibm.com>
  */
 
@@ -54,7 +54,7 @@ static ssize_t dbfs_read(struct file *file, char __user *buf,
 	if (*ppos != 0)
 		return 0;
 
-	df = file->f_path.dentry->d_inode->i_private;
+	df = file_inode(file)->i_private;
 	mutex_lock(&df->lock);
 	if (!df->data) {
 		data = hypfs_dbfs_data_alloc(df);
@@ -81,9 +81,25 @@ static ssize_t dbfs_read(struct file *file, char __user *buf,
 	return rc;
 }
 
+static long dbfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct hypfs_dbfs_file *df;
+	long rc;
+
+	df = file->f_path.dentry->d_inode->i_private;
+	mutex_lock(&df->lock);
+	if (df->unlocked_ioctl)
+		rc = df->unlocked_ioctl(file, cmd, arg);
+	else
+		rc = -ENOTTY;
+	mutex_unlock(&df->lock);
+	return rc;
+}
+
 static const struct file_operations dbfs_ops = {
 	.read		= dbfs_read,
 	.llseek		= no_llseek,
+	.unlocked_ioctl = dbfs_ioctl,
 };
 
 int hypfs_dbfs_create_file(struct hypfs_dbfs_file *df)
@@ -105,9 +121,7 @@ void hypfs_dbfs_remove_file(struct hypfs_dbfs_file *df)
 int hypfs_dbfs_init(void)
 {
 	dbfs_dir = debugfs_create_dir("s390_hypfs", NULL);
-	if (IS_ERR(dbfs_dir))
-		return PTR_ERR(dbfs_dir);
-	return 0;
+	return PTR_ERR_OR_ZERO(dbfs_dir);
 }
 
 void hypfs_dbfs_exit(void)

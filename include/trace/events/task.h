@@ -15,7 +15,7 @@ TRACE_EVENT(task_newtask,
 		__field(	pid_t,	pid)
 		__array(	char,	comm, TASK_COMM_LEN)
 		__field( unsigned long, clone_flags)
-		__field(	int,    oom_score_adj)
+		__field(	short,	oom_score_adj)
 	),
 
 	TP_fast_assign(
@@ -25,14 +25,14 @@ TRACE_EVENT(task_newtask,
 		__entry->oom_score_adj = task->signal->oom_score_adj;
 	),
 
-	TP_printk("pid=%d comm=%s clone_flags=%lx oom_score_adj=%d",
+	TP_printk("pid=%d comm=%s clone_flags=%lx oom_score_adj=%hd",
 		__entry->pid, __entry->comm,
 		__entry->clone_flags, __entry->oom_score_adj)
 );
 
 TRACE_EVENT(task_rename,
 
-	TP_PROTO(struct task_struct *task, char *comm),
+	TP_PROTO(struct task_struct *task, const char *comm),
 
 	TP_ARGS(task, comm),
 
@@ -40,7 +40,7 @@ TRACE_EVENT(task_rename,
 		__field(	pid_t,	pid)
 		__array(	char, oldcomm,  TASK_COMM_LEN)
 		__array(	char, newcomm,  TASK_COMM_LEN)
-		__field(	int, oom_score_adj)
+		__field(	short,	oom_score_adj)
 	),
 
 	TP_fast_assign(
@@ -50,7 +50,7 @@ TRACE_EVENT(task_rename,
 		__entry->oom_score_adj = task->signal->oom_score_adj;
 	),
 
-	TP_printk("pid=%d oldcomm=%s newcomm=%s oom_score_adj=%d",
+	TP_printk("pid=%d oldcomm=%s newcomm=%s oom_score_adj=%hd",
 		__entry->pid, __entry->oldcomm,
 		__entry->newcomm, __entry->oom_score_adj)
 );

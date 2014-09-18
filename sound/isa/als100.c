@@ -7,7 +7,7 @@
     Thanks to Pierfrancesco 'qM2' Passerini.
 
     Generalised for soundcards based on DT-0196 and ALS-007 chips
-    by Jonathan Woithe <jwoithe@physics.adelaide.edu.au>: June 2002.
+    by Jonathan Woithe <jwoithe@just42.net>: June 2002.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -117,9 +117,9 @@ static struct pnp_card_device_id snd_als100_pnpids[] = {
 
 MODULE_DEVICE_TABLE(pnp_card, snd_als100_pnpids);
 
-static int __devinit snd_card_als100_pnp(int dev, struct snd_card_als100 *acard,
-					 struct pnp_card_link *card,
-					 const struct pnp_card_device_id *id)
+static int snd_card_als100_pnp(int dev, struct snd_card_als100 *acard,
+			       struct pnp_card_link *card,
+			       const struct pnp_card_device_id *id)
 {
 	struct pnp_dev *pdev;
 	int err;
@@ -183,9 +183,9 @@ static int __devinit snd_card_als100_pnp(int dev, struct snd_card_als100 *acard,
 	return 0;
 }
 
-static int __devinit snd_card_als100_probe(int dev,
-					struct pnp_card_link *pcard,
-					const struct pnp_card_device_id *pid)
+static int snd_card_als100_probe(int dev,
+				 struct pnp_card_link *pcard,
+				 const struct pnp_card_device_id *pid)
 {
 	int error;
 	struct snd_sb *chip;
@@ -193,8 +193,9 @@ static int __devinit snd_card_als100_probe(int dev,
 	struct snd_card_als100 *acard;
 	struct snd_opl3 *opl3;
 
-	error = snd_card_create(index[dev], id[dev], THIS_MODULE,
-				sizeof(struct snd_card_als100), &card);
+	error = snd_card_new(&pcard->card->dev,
+			     index[dev], id[dev], THIS_MODULE,
+			     sizeof(struct snd_card_als100), &card);
 	if (error < 0)
 		return error;
 	acard = card->private_data;
@@ -203,7 +204,6 @@ static int __devinit snd_card_als100_probe(int dev,
 		snd_card_free(card);
 		return error;
 	}
-	snd_card_set_dev(card, &pcard->card->dev);
 
 	if (pid->driver_data == SB_HW_DT019X)
 		dma16[dev] = -1;
@@ -233,7 +233,7 @@ static int __devinit snd_card_als100_probe(int dev,
 			irq[dev], dma8[dev], dma16[dev]);
 	}
 
-	if ((error = snd_sb16dsp_pcm(chip, 0, NULL)) < 0) {
+	if ((error = snd_sb16dsp_pcm(chip, 0, &chip->pcm)) < 0) {
 		snd_card_free(card);
 		return error;
 	}
@@ -286,10 +286,10 @@ static int __devinit snd_card_als100_probe(int dev,
 	return 0;
 }
 
-static unsigned int __devinitdata als100_devices;
+static unsigned int als100_devices;
 
-static int __devinit snd_als100_pnp_detect(struct pnp_card_link *card,
-					   const struct pnp_card_device_id *id)
+static int snd_als100_pnp_detect(struct pnp_card_link *card,
+				 const struct pnp_card_device_id *id)
 {
 	static int dev;
 	int res;
@@ -307,7 +307,7 @@ static int __devinit snd_als100_pnp_detect(struct pnp_card_link *card,
 	return -ENODEV;
 }
 
-static void __devexit snd_als100_pnp_remove(struct pnp_card_link * pcard)
+static void snd_als100_pnp_remove(struct pnp_card_link *pcard)
 {
 	snd_card_free(pnp_get_card_drvdata(pcard));
 	pnp_set_card_drvdata(pcard, NULL);
@@ -344,7 +344,7 @@ static struct pnp_card_driver als100_pnpc_driver = {
 	.name		= "als100",
         .id_table       = snd_als100_pnpids,
         .probe          = snd_als100_pnp_detect,
-        .remove         = __devexit_p(snd_als100_pnp_remove),
+	.remove		= snd_als100_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_als100_pnp_suspend,
 	.resume		= snd_als100_pnp_resume,

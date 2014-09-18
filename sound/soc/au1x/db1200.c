@@ -73,12 +73,14 @@ static struct snd_soc_dai_link db1300_ac97_dai = {
 
 static struct snd_soc_card db1300_ac97_machine = {
 	.name		= "DB1300_AC97",
+	.owner		= THIS_MODULE,
 	.dai_link	= &db1300_ac97_dai,
 	.num_links	= 1,
 };
 
 static struct snd_soc_card db1550_ac97_machine = {
 	.name		= "DB1550_AC97",
+	.owner		= THIS_MODULE,
 	.dai_link	= &db1200_ac97_dai,
 	.num_links	= 1,
 };
@@ -145,6 +147,7 @@ static struct snd_soc_dai_link db1300_i2s_dai = {
 
 static struct snd_soc_card db1300_i2s_machine = {
 	.name		= "DB1300_I2S",
+	.owner		= THIS_MODULE,
 	.dai_link	= &db1300_i2s_dai,
 	.num_links	= 1,
 };
@@ -161,13 +164,14 @@ static struct snd_soc_dai_link db1550_i2s_dai = {
 
 static struct snd_soc_card db1550_i2s_machine = {
 	.name		= "DB1550_I2S",
+	.owner		= THIS_MODULE,
 	.dai_link	= &db1550_i2s_dai,
 	.num_links	= 1,
 };
 
 /*-------------------------  COMMON PART  ---------------------------*/
 
-static struct snd_soc_card *db1200_cards[] __devinitdata = {
+static struct snd_soc_card *db1200_cards[] = {
 	&db1200_ac97_machine,
 	&db1200_i2s_machine,
 	&db1300_ac97_machine,
@@ -176,7 +180,7 @@ static struct snd_soc_card *db1200_cards[] __devinitdata = {
 	&db1550_i2s_machine,
 };
 
-static int __devinit db1200_audio_probe(struct platform_device *pdev)
+static int db1200_audio_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *pid = platform_get_device_id(pdev);
 	struct snd_soc_card *card;
@@ -186,7 +190,7 @@ static int __devinit db1200_audio_probe(struct platform_device *pdev)
 	return snd_soc_register_card(card);
 }
 
-static int __devexit db1200_audio_remove(struct platform_device *pdev)
+static int db1200_audio_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	snd_soc_unregister_card(card);
@@ -201,7 +205,7 @@ static struct platform_driver db1200_audio_driver = {
 	},
 	.id_table	= db1200_pids,
 	.probe		= db1200_audio_probe,
-	.remove		= __devexit_p(db1200_audio_remove),
+	.remove		= db1200_audio_remove,
 };
 
 module_platform_driver(db1200_audio_driver);

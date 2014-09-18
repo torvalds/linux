@@ -31,144 +31,114 @@
  *
  */
 
+#include <linux/compiler.h>
 #include "firmware.h"
-#include "control.h"
-#include "rndis.h"
-
-/*---------------------  Static Definitions -------------------------*/
-
-static int          msglevel                =MSG_LEVEL_INFO;
-//static int          msglevel                =MSG_LEVEL_DEBUG;
+#include "usbpipe.h"
 
 #define FIRMWARE_VERSION	0x133		/* version 1.51 */
 #define FIRMWARE_NAME		"vntwusb.fw"
 
 #define FIRMWARE_CHUNK_SIZE	0x400
 
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
-
-/*---------------------  Static Functions  --------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
-
-BOOL
-FIRMWAREbDownload(
-     PSDevice pDevice
-    )
+int vnt_download_firmware(struct vnt_private *priv)
 {
+	struct device *dev = &priv->usb->dev;
 	const struct firmware *fw;
-	int NdisStatus;
-	void *pBuffer = NULL;
-	BOOL result = FALSE;
-	u16 wLength;
-	int ii;
+	int status;
+	void *buffer = NULL;
+	bool result = false;
+	u16 length;
+	int ii, rc;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Download firmware\n");
-	spin_unlock_irq(&pDevice->lock);
+	dev_dbg(dev, "---->Download firmware\n");
 
-	if (!pDevice->firmware) {
-		struct device *dev = &pDevice->usb->dev;
-		int rc;
-
-		rc = request_firmware(&pDevice->firmware, FIRMWARE_NAME, dev);
-		if (rc) {
-			dev_err(dev, "firmware file %s request failed (%d)\n",
-				FIRMWARE_NAME, rc);
+	rc = request_firmware(&fw, FIRMWARE_NAME, dev);
+	if (rc) {
+		dev_err(dev, "firmware file %s request failed (%d)\n",
+			FIRMWARE_NAME, rc);
 			goto out;
-		}
 	}
-	fw = pDevice->firmware;
 
-	pBuffer = kmalloc(FIRMWARE_CHUNK_SIZE, GFP_KERNEL);
-	if (!pBuffer)
+	buffer = kmalloc(FIRMWARE_CHUNK_SIZE, GFP_KERNEL);
+	if (!buffer)
 		goto out;
 
 	for (ii = 0; ii < fw->size; ii += FIRMWARE_CHUNK_SIZE) {
-		wLength = min_t(int, fw->size - ii, FIRMWARE_CHUNK_SIZE);
-		memcpy(pBuffer, fw->data + ii, wLength);
+		length = min_t(int, fw->size - ii, FIRMWARE_CHUNK_SIZE);
+		memcpy(buffer, fw->data + ii, length);
 
-		NdisStatus = CONTROLnsRequestOutAsyn(pDevice,
-                                            0,
-                                            0x1200+ii,
-                                            0x0000,
-                                            wLength,
-                                            pBuffer
-                                            );
+		status = vnt_control_out(priv,
+						0,
+						0x1200+ii,
+						0x0000,
+						length,
+						buffer);
 
-		DBG_PRT(MSG_LEVEL_DEBUG,
-			KERN_INFO"Download firmware...%d %zu\n", ii, fw->size);
-		if (NdisStatus != STATUS_SUCCESS)
-			goto out;
-        }
+		dev_dbg(dev, "Download firmware...%d %zu\n", ii, fw->size);
 
-	result = TRUE;
+		if (status != STATUS_SUCCESS)
+			goto free_fw;
+	}
+
+	result = true;
+free_fw:
+	release_firmware(fw);
 
 out:
-	kfree(pBuffer);
+	kfree(buffer);
 
-	spin_lock_irq(&pDevice->lock);
 	return result;
 }
 MODULE_FIRMWARE(FIRMWARE_NAME);
 
-BOOL
-FIRMWAREbBrach2Sram(
-     PSDevice pDevice
-    )
+int vnt_firmware_branch_to_sram(struct vnt_private *priv)
 {
-    int NdisStatus;
+	int status;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Branch to Sram\n");
+	dev_dbg(&priv->usb->dev, "---->Branch to Sram\n");
 
-    NdisStatus = CONTROLnsRequestOut(pDevice,
-                                    1,
-                                    0x1200,
-                                    0x0000,
-                                    0,
-                                    NULL
-                                    );
-
-    if (NdisStatus != STATUS_SUCCESS) {
-        return (FALSE);
-    } else {
-        return (TRUE);
-    }
+	status = vnt_control_out(priv,
+					1,
+					0x1200,
+					0x0000,
+					0,
+					NULL);
+	if (status != STATUS_SUCCESS)
+		return false;
+	else
+		return true;
 }
 
-
-BOOL
-FIRMWAREbCheckVersion(
-     PSDevice pDevice
-    )
+int vnt_check_firmware_version(struct vnt_private *priv)
 {
-	int ntStatus;
+	int status;
 
-    ntStatus = CONTROLnsRequestIn(pDevice,
-                                    MESSAGE_TYPE_READ,
-                                    0,
-                                    MESSAGE_REQUEST_VERSION,
-                                    2,
-                                    (PBYTE) &(pDevice->wFirmwareVersion));
+	status = vnt_control_in(priv,
+					MESSAGE_TYPE_READ,
+					0,
+					MESSAGE_REQUEST_VERSION,
+					2,
+					(u8 *)&priv->firmware_version);
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n", pDevice->wFirmwareVersion);
-    if (ntStatus != STATUS_SUCCESS) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Invalid.\n");
-        return FALSE;
-    }
-    if (pDevice->wFirmwareVersion == 0xFFFF) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"In Loader.\n");
-        return FALSE;
-    }
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n", pDevice->wFirmwareVersion);
-    if (pDevice->wFirmwareVersion < FIRMWARE_VERSION) {
-        // branch to loader for download new firmware
-        FIRMWAREbBrach2Sram(pDevice);
-        return FALSE;
-    }
-    return TRUE;
+	dev_dbg(&priv->usb->dev, "Firmware Version [%04x]\n",
+						priv->firmware_version);
+
+	if (status != STATUS_SUCCESS) {
+		dev_dbg(&priv->usb->dev, "Firmware Invalid.\n");
+		return false;
+	}
+	if (priv->firmware_version == 0xFFFF) {
+		dev_dbg(&priv->usb->dev, "In Loader.\n");
+		return false;
+	}
+
+	dev_dbg(&priv->usb->dev, "Firmware Version [%04x]\n",
+						priv->firmware_version);
+
+	if (priv->firmware_version < FIRMWARE_VERSION) {
+		/* branch to loader for download new firmware */
+		vnt_firmware_branch_to_sram(priv);
+		return false;
+	}
+	return true;
 }

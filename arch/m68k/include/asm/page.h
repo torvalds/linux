@@ -43,10 +43,13 @@ extern unsigned long _ramend;
 #endif /* !__ASSEMBLY__ */
 
 #ifdef CONFIG_MMU
-#include "page_mm.h"
+#include <asm/page_mm.h>
 #else
-#include "page_no.h"
+#include <asm/page_no.h>
 #endif
+
+#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
+				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/getorder.h>
 

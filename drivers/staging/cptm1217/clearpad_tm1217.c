@@ -147,12 +147,11 @@ static int cp_tm1217_read(struct cp_tm1217_device *ts,
 	msleep(WAIT_FOR_RESPONSE);
 	for (i = 0; i < MAX_RETRIES; i++) {
 		retval = i2c_master_recv(ts->client, &req[1], size);
-		if (retval == size) {
+		if (retval == size)
 			break;
-		} else {
-			msleep(INCREMENTAL_DELAY);
-			dev_dbg(ts->dev, "cp_tm1217: Retry count is %d\n", i);
-		}
+
+		msleep(INCREMENTAL_DELAY);
+		dev_dbg(ts->dev, "cp_tm1217: Retry count is %d\n", i);
 	}
 	if (retval != size)
 		dev_err(ts->dev, "cp_tm1217: Read from device failed\n");
@@ -288,10 +287,10 @@ static irqreturn_t cp_tm1217_sample_thread(int irq, void *handle)
 	if (ts->thread_running == 1) {
 		mutex_unlock(&ts->thread_mutex);
 		return IRQ_HANDLED;
-	} else {
-		ts->thread_running = 1;
-		mutex_unlock(&ts->thread_mutex);
 	}
+
+	ts->thread_running = 1;
+	mutex_unlock(&ts->thread_mutex);
 
 	/* Mask the interrupts */
 	retval = cp_tm1217_mask_interrupt(ts);
@@ -396,8 +395,8 @@ static int cp_tm1217_setup_gpio_irq(struct cp_tm1217_device *ts)
 
 	retval = gpio_to_irq(ts->gpio);
 	if (retval < 0) {
-		dev_err(ts->dev, "cp_tm1217: GPIO to IRQ failedi,"
-		" error %d\n", retval);
+		dev_err(ts->dev,
+			"cp_tm1217: GPIO to IRQ failed, error %d\n", retval);
 		gpio_free(ts->gpio);
 	}
 	dev_dbg(ts->dev,
@@ -421,11 +420,8 @@ static int cp_tm1217_probe(struct i2c_client *client,
 	pdata = client->dev.platform_data;
 
 	ts = kzalloc(sizeof(struct cp_tm1217_device), GFP_KERNEL);
-	if (!ts) {
-		dev_err(&client->dev,
-			"cp_tm1217: Private Device Struct alloc failed\n");
+	if (!ts)
 		return -ENOMEM;
-	}
 
 	ts->client = client;
 	ts->dev = &client->dev;
@@ -460,8 +456,6 @@ static int cp_tm1217_probe(struct i2c_client *client,
 	for (i = 0; i < TOUCH_SUPPORTED; i++) {
 		input_dev = input_allocate_device();
 		if (input_dev == NULL) {
-			dev_err(ts->dev,
-				"cp_tm1217:Input Device Struct alloc failed\n");
 			retval = -ENOMEM;
 			goto fail;
 		}
@@ -550,22 +544,23 @@ fail_gpio:
 fail:
 	/* Clean up before returning failure */
 	for (i = 0; i < TOUCH_SUPPORTED; i++) {
-		if (ts->cp_input_info[i].input) {
+		if (ts->cp_input_info[i].input)
 			input_unregister_device(ts->cp_input_info[i].input);
-			input_free_device(ts->cp_input_info[i].input);
-		}
 	}
 	kfree(ts);
 	return retval;
 
 }
 
+#ifdef CONFIG_PM_SLEEP
+
 /*
  * cp_tm1217 suspend
  *
  */
-static int cp_tm1217_suspend(struct i2c_client *client, pm_message_t mesg)
+static int cp_tm1217_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct cp_tm1217_device *ts = i2c_get_clientdata(client);
 	u8 req[2];
 	int retval;
@@ -586,8 +581,9 @@ static int cp_tm1217_suspend(struct i2c_client *client, pm_message_t mesg)
  * cp_tm1217_resume
  *
  */
-static int cp_tm1217_resume(struct i2c_client *client)
+static int cp_tm1217_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct cp_tm1217_device *ts = i2c_get_clientdata(client);
 	u8 req[2];
 	int retval;
@@ -621,6 +617,11 @@ static int cp_tm1217_resume(struct i2c_client *client)
 	return 0;
 }
 
+#endif
+
+static SIMPLE_DEV_PM_OPS(cp_tm1217_pm_ops, cp_tm1217_suspend,
+	cp_tm1217_resume);
+
 /*
  * cp_tm1217_remove
  *
@@ -650,26 +651,14 @@ static struct i2c_driver cp_tm1217_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= CPTM1217_DRIVER_NAME,
+		.pm	= &cp_tm1217_pm_ops,
 	},
 	.id_table	= cp_tm1217_idtable,
 	.probe		= cp_tm1217_probe,
 	.remove		= cp_tm1217_remove,
-	.suspend    = cp_tm1217_suspend,
-	.resume     = cp_tm1217_resume,
 };
 
-static int __init clearpad_tm1217_init(void)
-{
-	return i2c_add_driver(&cp_tm1217_driver);
-}
-
-static void __exit clearpad_tm1217_exit(void)
-{
-	i2c_del_driver(&cp_tm1217_driver);
-}
-
-module_init(clearpad_tm1217_init);
-module_exit(clearpad_tm1217_exit);
+module_i2c_driver(cp_tm1217_driver);
 
 MODULE_AUTHOR("Ramesh Agarwal <ramesh.agarwal@intel.com>");
 MODULE_DESCRIPTION("Synaptics TM1217 TouchScreen Driver");

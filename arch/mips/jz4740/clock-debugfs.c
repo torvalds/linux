@@ -3,7 +3,7 @@
  *  JZ4740 SoC clock support debugfs entries
  *
  *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
+ *  under  the terms of the GNU General	 Public License as published by the
  *  Free Software Foundation;  either version 2 of the License, or (at your
  *  option) any later version.
  *
@@ -87,8 +87,7 @@ void jz4740_clock_debugfs_add_clk(struct clk *clk)
 /* TODO: Locking */
 void jz4740_clock_debugfs_update_parent(struct clk *clk)
 {
-	if (clk->debugfs_parent_entry)
-		debugfs_remove(clk->debugfs_parent_entry);
+	debugfs_remove(clk->debugfs_parent_entry);
 
 	if (clk->parent) {
 		char parent_path[100];

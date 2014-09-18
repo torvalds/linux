@@ -139,7 +139,10 @@ struct mnt_fhstatus {
  * nfs_mount - Obtain an NFS file handle for the given host and path
  * @info: pointer to mount request arguments
  *
- * Uses default timeout parameters specified by underlying transport.
+ * Uses default timeout parameters specified by underlying transport. On
+ * successful return, the auth_flavs list and auth_flav_len will be populated
+ * with the list from the server or a faked-up list if the server didn't
+ * provide one.
  */
 int nfs_mount(struct nfs_mount_request *info)
 {
@@ -169,6 +172,9 @@ int nfs_mount(struct nfs_mount_request *info)
 		(info->hostname ? info->hostname : "server"),
 			info->dirpath);
 
+	if (strlen(info->dirpath) > MNTPATHLEN)
+		return -ENAMETOOLONG;
+
 	if (info->noresvport)
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
@@ -181,7 +187,7 @@ int nfs_mount(struct nfs_mount_request *info)
 	else
 		msg.rpc_proc = &mnt_clnt->cl_procinfo[MOUNTPROC_MNT];
 
-	status = rpc_call_sync(mnt_clnt, &msg, 0);
+	status = rpc_call_sync(mnt_clnt, &msg, RPC_TASK_SOFT|RPC_TASK_TIMEOUT);
 	rpc_shutdown_client(mnt_clnt);
 
 	if (status < 0)
@@ -192,6 +198,15 @@ int nfs_mount(struct nfs_mount_request *info)
 	dprintk("NFS: MNT request succeeded\n");
 	status = 0;
 
+	/*
+	 * If the server didn't provide a flavor list, allow the
+	 * client to try any flavor.
+	 */
+	if (info->version != NFS_MNT3_VERSION || *info->auth_flav_len == 0) {
+		dprintk("NFS: Faking up auth_flavs list\n");
+		info->auth_flavs[0] = RPC_AUTH_NULL;
+		*info->auth_flav_len = 1;
+	}
 out:
 	return status;
 
@@ -242,6 +257,9 @@ void nfs_umount(const struct nfs_mount_request *info)
 	struct rpc_clnt *clnt;
 	int status;
 
+	if (strlen(info->dirpath) > MNTPATHLEN)
+		return;
+
 	if (info->noresvport)
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
@@ -283,7 +301,6 @@ static void encode_mntdirpath(struct xdr_stream *xdr, const char *pathname)
 	const u32 pathname_len = strlen(pathname);
 	__be32 *p;
 
-	BUG_ON(pathname_len > MNTPATHLEN);
 	p = xdr_reserve_space(xdr, 4 + pathname_len);
 	xdr_encode_opaque(p, pathname, pathname_len);
 }

@@ -27,10 +27,13 @@
 #ifndef __NOUVEAU_CRTC_H__
 #define __NOUVEAU_CRTC_H__
 
+#include <nvif/notify.h>
+
 struct nouveau_crtc {
 	struct drm_crtc base;
 
 	int index;
+	struct nvif_notify vblank;
 
 	uint32_t dpms_saved_fp_control;
 	uint32_t fp_users;
@@ -46,7 +49,7 @@ struct nouveau_crtc {
 		int cpp;
 		bool blanked;
 		uint32_t offset;
-		uint32_t tile_flags;
+		uint32_t handle;
 	} fb;
 
 	struct {
@@ -74,7 +77,7 @@ struct nouveau_crtc {
 
 static inline struct nouveau_crtc *nouveau_crtc(struct drm_crtc *crtc)
 {
-	return container_of(crtc, struct nouveau_crtc, base);
+	return crtc ? container_of(crtc, struct nouveau_crtc, base) : NULL;
 }
 
 static inline struct drm_crtc *to_drm_crtc(struct nouveau_crtc *crtc)
@@ -82,16 +85,6 @@ static inline struct drm_crtc *to_drm_crtc(struct nouveau_crtc *crtc)
 	return &crtc->base;
 }
 
-int nv50_crtc_create(struct drm_device *dev, int index);
-int nv50_crtc_cursor_set(struct drm_crtc *drm_crtc, struct drm_file *file_priv,
-			 uint32_t buffer_handle, uint32_t width,
-			 uint32_t height);
-int nv50_crtc_cursor_move(struct drm_crtc *drm_crtc, int x, int y);
-
 int nv04_cursor_init(struct nouveau_crtc *);
-int nv50_cursor_init(struct nouveau_crtc *);
-
-struct nouveau_connector *
-nouveau_crtc_connector_get(struct nouveau_crtc *crtc);
 
 #endif /* __NOUVEAU_CRTC_H__ */

@@ -33,13 +33,6 @@
 #include "debug-levels.h"
 
 
-static const struct nla_policy wimax_gnl_state_get_policy[WIMAX_GNL_ATTR_MAX + 1] = {
-	[WIMAX_GNL_STGET_IFIDX] = {
-		.type = NLA_U32,
-	},
-};
-
-
 /*
  * Exporting to user space over generic netlink
  *
@@ -48,7 +41,6 @@ static const struct nla_policy wimax_gnl_state_get_policy[WIMAX_GNL_ATTR_MAX + 1
  *
  * No attributes.
  */
-static
 int wimax_gnl_doit_state_get(struct sk_buff *skb, struct genl_info *info)
 {
 	int result, ifindex;
@@ -72,12 +64,3 @@ error_no_wimax_dev:
 	d_fnend(3, NULL, "(skb %p info %p) = %d\n", skb, info, result);
 	return result;
 }
-
-
-struct genl_ops wimax_gnl_state_get = {
-	.cmd = WIMAX_GNL_OP_STATE_GET,
-	.flags = GENL_ADMIN_PERM,
-	.policy = wimax_gnl_state_get_policy,
-	.doit = wimax_gnl_doit_state_get,
-	.dumpit = NULL,
-};

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2012 Intel Corporation. All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -449,8 +450,9 @@ int qib_twsi_blk_wr(struct qib_devdata *dd, int dev, int addr,
 				goto failed_write;
 			ret = qib_twsi_wr(dd, addr, 0);
 			if (ret) {
-				qib_dev_err(dd, "Failed to write interface"
-					    " write addr %02X\n", addr);
+				qib_dev_err(dd,
+					"Failed to write interface write addr %02X\n",
+					addr);
 				goto failed_write;
 			}
 		}

@@ -36,3 +36,22 @@ Description:
 
                 Refer to [ECMA-368] section 10.3.1.1 for the value to
                 use.
+
+What:           /sys/class/uwb_rc/uwbN/wusbhc/wusb_dnts
+Date:           June 2013
+KernelVersion:  3.11
+Contact:        Thomas Pugliese <thomas.pugliese@gmail.com>
+Description:
+                The device notification time slot (DNTS) count and inverval in
+                milliseconds that the WUSB host should use.  This controls how
+                often the devices will have the opportunity to send
+                notifications to the host.
+
+What:           /sys/class/uwb_rc/uwbN/wusbhc/wusb_retry_count
+Date:           June 2013
+KernelVersion:  3.11
+Contact:        Thomas Pugliese <thomas.pugliese@gmail.com>
+Description:
+                The number of retries that the WUSB host should attempt
+                before reporting an error for a bus transaction.  The range of
+                valid values is [0..15], where 0 indicates infinite retries.

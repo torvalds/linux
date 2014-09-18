@@ -27,7 +27,6 @@ struct dlm_config_info {
 	int ci_tcp_port;
 	int ci_buffer_size;
 	int ci_rsbtbl_size;
-	int ci_dirtbl_size;
 	int ci_recover_timer;
 	int ci_toss_secs;
 	int ci_scan_secs;
@@ -47,8 +46,6 @@ void dlm_config_exit(void);
 int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
 		     int *count_out);
 int dlm_comm_seq(int nodeid, uint32_t *seq);
-int dlm_nodeid_to_addr(int nodeid, struct sockaddr_storage *addr);
-int dlm_addr_to_nodeid(struct sockaddr_storage *addr, int *nodeid);
 int dlm_our_nodeid(void);
 int dlm_our_addr(struct sockaddr_storage *addr, int num);
 

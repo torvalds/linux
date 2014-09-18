@@ -502,7 +502,8 @@ wd33c93_execute(struct Scsi_Host *instance)
 	cmd = (struct scsi_cmnd *) hostdata->input_Q;
 	prev = NULL;
 	while (cmd) {
-		if (!(hostdata->busy[cmd->device->id] & (1 << cmd->device->lun)))
+		if (!(hostdata->busy[cmd->device->id] &
+		      (1 << (cmd->device->lun & 0xff))))
 			break;
 		prev = cmd;
 		cmd = (struct scsi_cmnd *) cmd->host_scribble;
@@ -593,10 +594,10 @@ wd33c93_execute(struct Scsi_Host *instance)
 
 	write_wd33c93(regs, WD_SOURCE_ID, ((cmd->SCp.phase) ? SRCID_ER : 0));
 
-	write_wd33c93(regs, WD_TARGET_LUN, cmd->device->lun);
+	write_wd33c93(regs, WD_TARGET_LUN, (u8)cmd->device->lun);
 	write_wd33c93(regs, WD_SYNCHRONOUS_TRANSFER,
 		      hostdata->sync_xfer[cmd->device->id]);
-	hostdata->busy[cmd->device->id] |= (1 << cmd->device->lun);
+	hostdata->busy[cmd->device->id] |= (1 << (cmd->device->lun & 0xFF));
 
 	if ((hostdata->level2 == L2_NONE) ||
 	    (hostdata->sync_stat[cmd->device->id] == SS_UNSET)) {
@@ -862,7 +863,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		}
 
 		cmd->result = DID_NO_CONNECT << 16;
-		hostdata->busy[cmd->device->id] &= ~(1 << cmd->device->lun);
+		hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 		hostdata->state = S_UNCONNECTED;
 		cmd->scsi_done(cmd);
 
@@ -895,7 +896,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 
 		/* construct an IDENTIFY message with correct disconnect bit */
 
-		hostdata->outgoing_msg[0] = (0x80 | 0x00 | cmd->device->lun);
+		hostdata->outgoing_msg[0] = IDENTIFY(0, cmd->device->lun);
 		if (cmd->SCp.phase)
 			hostdata->outgoing_msg[0] |= 0x40;
 
@@ -1179,7 +1180,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 			lun = read_wd33c93(regs, WD_TARGET_LUN);
 			DB(DB_INTR, printk(":%d.%d", cmd->SCp.Status, lun))
 			    hostdata->connected = NULL;
-			hostdata->busy[cmd->device->id] &= ~(1 << cmd->device->lun);
+			hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 			hostdata->state = S_UNCONNECTED;
 			if (cmd->SCp.Status == ILLEGAL_STATUS_BYTE)
 				cmd->SCp.Status = lun;
@@ -1268,7 +1269,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		}
 		DB(DB_INTR, printk("UNEXP_DISC"))
 		    hostdata->connected = NULL;
-		hostdata->busy[cmd->device->id] &= ~(1 << cmd->device->lun);
+		hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 		hostdata->state = S_UNCONNECTED;
 		if (cmd->cmnd[0] == REQUEST_SENSE && cmd->SCp.Status != GOOD)
 			cmd->result =
@@ -1300,7 +1301,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		switch (hostdata->state) {
 		case S_PRE_CMP_DISC:
 			hostdata->connected = NULL;
-			hostdata->busy[cmd->device->id] &= ~(1 << cmd->device->lun);
+			hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 			hostdata->state = S_UNCONNECTED;
 			DB(DB_INTR, printk(":%d", cmd->SCp.Status))
 			    if (cmd->cmnd[0] == REQUEST_SENSE
@@ -1353,7 +1354,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 			if (hostdata->selecting) {
 				cmd = (struct scsi_cmnd *) hostdata->selecting;
 				hostdata->selecting = NULL;
-				hostdata->busy[cmd->device->id] &= ~(1 << cmd->device->lun);
+				hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 				cmd->host_scribble =
 				    (uchar *) hostdata->input_Q;
 				hostdata->input_Q = cmd;
@@ -1365,7 +1366,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 			if (cmd) {
 				if (phs == 0x00) {
 					hostdata->busy[cmd->device->id] &=
-					    ~(1 << cmd->device->lun);
+						~(1 << (cmd->device->lun & 0xff));
 					cmd->host_scribble =
 					    (uchar *) hostdata->input_Q;
 					hostdata->input_Q = cmd;
@@ -1448,7 +1449,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		cmd = (struct scsi_cmnd *) hostdata->disconnected_Q;
 		patch = NULL;
 		while (cmd) {
-			if (id == cmd->device->id && lun == cmd->device->lun)
+			if (id == cmd->device->id && lun == (u8)cmd->device->lun)
 				break;
 			patch = cmd;
 			cmd = (struct scsi_cmnd *) cmd->host_scribble;
@@ -1459,7 +1460,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		if (!cmd) {
 			printk
 			    ("---TROUBLE: target %d.%d not in disconnect queue---",
-			     id, lun);
+			     id, (u8)lun);
 			spin_unlock_irqrestore(&hostdata->lock, flags);
 			return;
 		}
@@ -1705,7 +1706,7 @@ wd33c93_abort(struct scsi_cmnd * cmd)
 		sr = read_wd33c93(regs, WD_SCSI_STATUS);
 		printk("asr=%02x, sr=%02x.", asr, sr);
 
-		hostdata->busy[cmd->device->id] &= ~(1 << cmd->device->lun);
+		hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xff));
 		hostdata->connected = NULL;
 		hostdata->state = S_UNCONNECTED;
 		cmd->result = DID_ABORT << 16;
@@ -2054,22 +2055,16 @@ wd33c93_init(struct Scsi_Host *instance, const wd33c93_regs regs,
 	printk("           Version %s - %s\n", WD33C93_VERSION, WD33C93_DATE);
 }
 
-int
-wd33c93_proc_info(struct Scsi_Host *instance, char *buf, char **start, off_t off, int len, int in)
+int wd33c93_write_info(struct Scsi_Host *instance, char *buf, int len)
 {
-
 #ifdef PROC_INTERFACE
-
 	char *bp;
-	char tbuf[128];
 	struct WD33C93_hostdata *hd;
-	struct scsi_cmnd *cmd;
 	int x;
-	static int stop = 0;
 
 	hd = (struct WD33C93_hostdata *) instance->hostdata;
 
-/* If 'in' is TRUE we need to _read_ the proc file. We accept the following
+/* We accept the following
  * keywords (same format as command-line, but arguments are not optional):
  *    debug
  *    disconnect
@@ -2083,145 +2078,124 @@ wd33c93_proc_info(struct Scsi_Host *instance, char *buf, char **start, off_t off
  *    nosync
  */
 
-	if (in) {
-		buf[len] = '\0';
-		for (bp = buf; *bp; ) {
-			while (',' == *bp || ' ' == *bp)
-				++bp;
-		if (!strncmp(bp, "debug:", 6)) {
-				hd->args = simple_strtoul(bp+6, &bp, 0) & DB_MASK;
-		} else if (!strncmp(bp, "disconnect:", 11)) {
-				x = simple_strtoul(bp+11, &bp, 0);
-			if (x < DIS_NEVER || x > DIS_ALWAYS)
-				x = DIS_ADAPTIVE;
-			hd->disconnect = x;
-		} else if (!strncmp(bp, "period:", 7)) {
+	buf[len] = '\0';
+	for (bp = buf; *bp; ) {
+		while (',' == *bp || ' ' == *bp)
+			++bp;
+	if (!strncmp(bp, "debug:", 6)) {
+			hd->args = simple_strtoul(bp+6, &bp, 0) & DB_MASK;
+	} else if (!strncmp(bp, "disconnect:", 11)) {
+			x = simple_strtoul(bp+11, &bp, 0);
+		if (x < DIS_NEVER || x > DIS_ALWAYS)
+			x = DIS_ADAPTIVE;
+		hd->disconnect = x;
+	} else if (!strncmp(bp, "period:", 7)) {
+		x = simple_strtoul(bp+7, &bp, 0);
+		hd->default_sx_per =
+			hd->sx_table[round_period((unsigned int) x,
+						  hd->sx_table)].period_ns;
+	} else if (!strncmp(bp, "resync:", 7)) {
+			set_resync(hd, (int)simple_strtoul(bp+7, &bp, 0));
+	} else if (!strncmp(bp, "proc:", 5)) {
+			hd->proc = simple_strtoul(bp+5, &bp, 0);
+	} else if (!strncmp(bp, "nodma:", 6)) {
+			hd->no_dma = simple_strtoul(bp+6, &bp, 0);
+	} else if (!strncmp(bp, "level2:", 7)) {
+			hd->level2 = simple_strtoul(bp+7, &bp, 0);
+		} else if (!strncmp(bp, "burst:", 6)) {
+			hd->dma_mode =
+				simple_strtol(bp+6, &bp, 0) ? CTRL_BURST:CTRL_DMA;
+		} else if (!strncmp(bp, "fast:", 5)) {
+			x = !!simple_strtol(bp+5, &bp, 0);
+			if (x != hd->fast)
+				set_resync(hd, 0xff);
+			hd->fast = x;
+		} else if (!strncmp(bp, "nosync:", 7)) {
 			x = simple_strtoul(bp+7, &bp, 0);
-			hd->default_sx_per =
-				hd->sx_table[round_period((unsigned int) x,
-							  hd->sx_table)].period_ns;
-		} else if (!strncmp(bp, "resync:", 7)) {
-				set_resync(hd, (int)simple_strtoul(bp+7, &bp, 0));
-		} else if (!strncmp(bp, "proc:", 5)) {
-				hd->proc = simple_strtoul(bp+5, &bp, 0);
-		} else if (!strncmp(bp, "nodma:", 6)) {
-				hd->no_dma = simple_strtoul(bp+6, &bp, 0);
-		} else if (!strncmp(bp, "level2:", 7)) {
-				hd->level2 = simple_strtoul(bp+7, &bp, 0);
-			} else if (!strncmp(bp, "burst:", 6)) {
-				hd->dma_mode =
-					simple_strtol(bp+6, &bp, 0) ? CTRL_BURST:CTRL_DMA;
-			} else if (!strncmp(bp, "fast:", 5)) {
-				x = !!simple_strtol(bp+5, &bp, 0);
-				if (x != hd->fast)
-					set_resync(hd, 0xff);
-				hd->fast = x;
-			} else if (!strncmp(bp, "nosync:", 7)) {
-				x = simple_strtoul(bp+7, &bp, 0);
-				set_resync(hd, x ^ hd->no_sync);
-				hd->no_sync = x;
-			} else {
-				break; /* unknown keyword,syntax-error,... */
-			}
+			set_resync(hd, x ^ hd->no_sync);
+			hd->no_sync = x;
+		} else {
+			break; /* unknown keyword,syntax-error,... */
 		}
-		return len;
 	}
+	return len;
+#else
+	return 0;
+#endif
+}
+
+int
+wd33c93_show_info(struct seq_file *m, struct Scsi_Host *instance)
+{
+#ifdef PROC_INTERFACE
+	struct WD33C93_hostdata *hd;
+	struct scsi_cmnd *cmd;
+	int x;
+
+	hd = (struct WD33C93_hostdata *) instance->hostdata;
 
 	spin_lock_irq(&hd->lock);
-	bp = buf;
-	*bp = '\0';
-	if (hd->proc & PR_VERSION) {
-		sprintf(tbuf, "\nVersion %s - %s.",
+	if (hd->proc & PR_VERSION)
+		seq_printf(m, "\nVersion %s - %s.",
 			WD33C93_VERSION, WD33C93_DATE);
-		strcat(bp, tbuf);
-	}
+
 	if (hd->proc & PR_INFO) {
-		sprintf(tbuf, "\nclock_freq=%02x no_sync=%02x no_dma=%d"
+		seq_printf(m, "\nclock_freq=%02x no_sync=%02x no_dma=%d"
 			" dma_mode=%02x fast=%d",
 			hd->clock_freq, hd->no_sync, hd->no_dma, hd->dma_mode, hd->fast);
-		strcat(bp, tbuf);
-		strcat(bp, "\nsync_xfer[] =       ");
-		for (x = 0; x < 7; x++) {
-			sprintf(tbuf, "\t%02x", hd->sync_xfer[x]);
-			strcat(bp, tbuf);
-		}
-		strcat(bp, "\nsync_stat[] =       ");
-		for (x = 0; x < 7; x++) {
-			sprintf(tbuf, "\t%02x", hd->sync_stat[x]);
-			strcat(bp, tbuf);
-		}
+		seq_printf(m, "\nsync_xfer[] =       ");
+		for (x = 0; x < 7; x++)
+			seq_printf(m, "\t%02x", hd->sync_xfer[x]);
+		seq_printf(m, "\nsync_stat[] =       ");
+		for (x = 0; x < 7; x++)
+			seq_printf(m, "\t%02x", hd->sync_stat[x]);
 	}
 #ifdef PROC_STATISTICS
 	if (hd->proc & PR_STATISTICS) {
-		strcat(bp, "\ncommands issued:    ");
-		for (x = 0; x < 7; x++) {
-			sprintf(tbuf, "\t%ld", hd->cmd_cnt[x]);
-			strcat(bp, tbuf);
-		}
-		strcat(bp, "\ndisconnects allowed:");
-		for (x = 0; x < 7; x++) {
-			sprintf(tbuf, "\t%ld", hd->disc_allowed_cnt[x]);
-			strcat(bp, tbuf);
-		}
-		strcat(bp, "\ndisconnects done:   ");
-		for (x = 0; x < 7; x++) {
-			sprintf(tbuf, "\t%ld", hd->disc_done_cnt[x]);
-			strcat(bp, tbuf);
-		}
-		sprintf(tbuf,
+		seq_printf(m, "\ncommands issued:    ");
+		for (x = 0; x < 7; x++)
+			seq_printf(m, "\t%ld", hd->cmd_cnt[x]);
+		seq_printf(m, "\ndisconnects allowed:");
+		for (x = 0; x < 7; x++)
+			seq_printf(m, "\t%ld", hd->disc_allowed_cnt[x]);
+		seq_printf(m, "\ndisconnects done:   ");
+		for (x = 0; x < 7; x++)
+			seq_printf(m, "\t%ld", hd->disc_done_cnt[x]);
+		seq_printf(m,
 			"\ninterrupts: %ld, DATA_PHASE ints: %ld DMA, %ld PIO",
 			hd->int_cnt, hd->dma_cnt, hd->pio_cnt);
-		strcat(bp, tbuf);
 	}
 #endif
 	if (hd->proc & PR_CONNECTED) {
-		strcat(bp, "\nconnected:     ");
+		seq_printf(m, "\nconnected:     ");
 		if (hd->connected) {
 			cmd = (struct scsi_cmnd *) hd->connected;
-			sprintf(tbuf, " %d:%d(%02x)",
+			seq_printf(m, " %d:%llu(%02x)",
 				cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
-			strcat(bp, tbuf);
 		}
 	}
 	if (hd->proc & PR_INPUTQ) {
-		strcat(bp, "\ninput_Q:       ");
+		seq_printf(m, "\ninput_Q:       ");
 		cmd = (struct scsi_cmnd *) hd->input_Q;
 		while (cmd) {
-			sprintf(tbuf, " %d:%d(%02x)",
+			seq_printf(m, " %d:%llu(%02x)",
 				cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
-			strcat(bp, tbuf);
 			cmd = (struct scsi_cmnd *) cmd->host_scribble;
 		}
 	}
 	if (hd->proc & PR_DISCQ) {
-		strcat(bp, "\ndisconnected_Q:");
+		seq_printf(m, "\ndisconnected_Q:");
 		cmd = (struct scsi_cmnd *) hd->disconnected_Q;
 		while (cmd) {
-			sprintf(tbuf, " %d:%d(%02x)",
+			seq_printf(m, " %d:%llu(%02x)",
 				cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
-			strcat(bp, tbuf);
 			cmd = (struct scsi_cmnd *) cmd->host_scribble;
 		}
 	}
-	strcat(bp, "\n");
+	seq_printf(m, "\n");
 	spin_unlock_irq(&hd->lock);
-	*start = buf;
-	if (stop) {
-		stop = 0;
-		return 0;
-	}
-	if (off > 0x40000)	/* ALWAYS stop after 256k bytes have been read */
-		stop = 1;
-	if (hd->proc & PR_STOP)	/* stop every other time */
-		stop = 1;
-	return strlen(bp);
-
-#else				/* PROC_INTERFACE */
-
-	return 0;
-
 #endif				/* PROC_INTERFACE */
-
+	return 0;
 }
 
 EXPORT_SYMBOL(wd33c93_host_reset);
@@ -2229,4 +2203,5 @@ EXPORT_SYMBOL(wd33c93_init);
 EXPORT_SYMBOL(wd33c93_abort);
 EXPORT_SYMBOL(wd33c93_queuecommand);
 EXPORT_SYMBOL(wd33c93_intr);
-EXPORT_SYMBOL(wd33c93_proc_info);
+EXPORT_SYMBOL(wd33c93_show_info);
+EXPORT_SYMBOL(wd33c93_write_info);

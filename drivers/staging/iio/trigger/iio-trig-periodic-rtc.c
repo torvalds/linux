@@ -16,8 +16,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/rtc.h>
-#include "../iio.h"
-#include "../trigger.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
 
 static LIST_HEAD(iio_prtc_trigger_list);
 static DEFINE_MUTEX(iio_prtc_trigger_list_lock);
@@ -26,23 +26,30 @@ struct iio_prtc_trigger_info {
 	struct rtc_device *rtc;
 	int frequency;
 	struct rtc_task task;
+	bool state;
 };
 
 static int iio_trig_periodic_rtc_set_state(struct iio_trigger *trig, bool state)
 {
-	struct iio_prtc_trigger_info *trig_info = trig->private_data;
-	if (trig_info->frequency == 0)
+	struct iio_prtc_trigger_info *trig_info = iio_trigger_get_drvdata(trig);
+	int ret;
+	if (trig_info->frequency == 0 && state)
 		return -EINVAL;
-	printk(KERN_INFO "trigger frequency is %d\n", trig_info->frequency);
-	return rtc_irq_set_state(trig_info->rtc, &trig_info->task, state);
+	dev_dbg(&trig_info->rtc->dev, "trigger frequency is %d\n",
+			trig_info->frequency);
+	ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, state);
+	if (ret == 0)
+		trig_info->state = state;
+
+	return ret;
 }
 
 static ssize_t iio_trig_periodic_read_freq(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	struct iio_trigger *trig = dev_get_drvdata(dev);
-	struct iio_prtc_trigger_info *trig_info = trig->private_data;
+	struct iio_trigger *trig = to_iio_trigger(dev);
+	struct iio_prtc_trigger_info *trig_info = iio_trigger_get_drvdata(trig);
 	return sprintf(buf, "%u\n", trig_info->frequency);
 }
 
@@ -51,16 +58,23 @@ static ssize_t iio_trig_periodic_write_freq(struct device *dev,
 					    const char *buf,
 					    size_t len)
 {
-	struct iio_trigger *trig = dev_get_drvdata(dev);
-	struct iio_prtc_trigger_info *trig_info = trig->private_data;
-	unsigned long val;
+	struct iio_trigger *trig = to_iio_trigger(dev);
+	struct iio_prtc_trigger_info *trig_info = iio_trigger_get_drvdata(trig);
+	int val;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoint(buf, 10, &val);
 	if (ret)
 		goto error_ret;
 
-	ret = rtc_irq_set_freq(trig_info->rtc, &trig_info->task, val);
+	if (val > 0) {
+		ret = rtc_irq_set_freq(trig_info->rtc, &trig_info->task, val);
+		if (ret == 0 && trig_info->state && trig_info->frequency == 0)
+			ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, 1);
+	} else if (val == 0) {
+		ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, 0);
+	} else
+		ret = -EINVAL;
 	if (ret)
 		goto error_ret;
 
@@ -92,8 +106,7 @@ static const struct attribute_group *iio_trig_prtc_attr_groups[] = {
 
 static void iio_prtc_trigger_poll(void *private_data)
 {
-	/* Timestamp is not provided currently */
-	iio_trigger_poll(private_data, 0);
+	iio_trigger_poll(private_data);
 }
 
 static const struct iio_trigger_ops iio_prtc_trigger_ops = {
@@ -112,7 +125,7 @@ static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
 	for (i = 0;; i++) {
 		if (pdata[i] == NULL)
 			break;
-		trig = iio_allocate_trigger("periodic%s", pdata[i]);
+		trig = iio_trigger_alloc("periodic%s", pdata[i]);
 		if (!trig) {
 			ret = -ENOMEM;
 			goto error_free_completed_registrations;
@@ -124,11 +137,10 @@ static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
 			ret = -ENOMEM;
 			goto error_put_trigger_and_remove_from_list;
 		}
-		trig->private_data = trig_info;
+		iio_trigger_set_drvdata(trig, trig_info);
 		trig->ops = &iio_prtc_trigger_ops;
 		/* RTC access */
-		trig_info->rtc
-			= rtc_class_open(pdata[i]);
+		trig_info->rtc = rtc_class_open(pdata[i]);
 		if (trig_info->rtc == NULL) {
 			ret = -EINVAL;
 			goto error_free_trig_info;
@@ -152,13 +164,13 @@ error_free_trig_info:
 	kfree(trig_info);
 error_put_trigger_and_remove_from_list:
 	list_del(&trig->alloc_list);
-	iio_put_trigger(trig);
+	iio_trigger_put(trig);
 error_free_completed_registrations:
 	list_for_each_entry_safe(trig,
 				 trig2,
 				 &iio_prtc_trigger_list,
 				 alloc_list) {
-		trig_info = trig->private_data;
+		trig_info = iio_trigger_get_drvdata(trig);
 		rtc_irq_unregister(trig_info->rtc, &trig_info->task);
 		rtc_class_close(trig_info->rtc);
 		kfree(trig_info);
@@ -176,7 +188,7 @@ static int iio_trig_periodic_rtc_remove(struct platform_device *dev)
 				 trig2,
 				 &iio_prtc_trigger_list,
 				 alloc_list) {
-		trig_info = trig->private_data;
+		trig_info = iio_trigger_get_drvdata(trig);
 		rtc_irq_unregister(trig_info->rtc, &trig_info->task);
 		rtc_class_close(trig_info->rtc);
 		kfree(trig_info);
@@ -197,6 +209,6 @@ static struct platform_driver iio_trig_periodic_rtc_driver = {
 
 module_platform_driver(iio_trig_periodic_rtc_driver);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
-MODULE_DESCRIPTION("Periodic realtime clock  trigger for the iio subsystem");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
+MODULE_DESCRIPTION("Periodic realtime clock trigger for the iio subsystem");
 MODULE_LICENSE("GPL v2");

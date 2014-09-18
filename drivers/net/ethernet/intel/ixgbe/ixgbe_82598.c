@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -40,11 +41,10 @@
 #define IXGBE_82598_RX_PB_SIZE	 512
 
 static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
-                                         ixgbe_link_speed speed,
-                                         bool autoneg,
-                                         bool autoneg_wait_to_complete);
+					 ixgbe_link_speed speed,
+					 bool autoneg_wait_to_complete);
 static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
-                                       u8 *eeprom_data);
+				       u8 *eeprom_data);
 
 /**
  *  ixgbe_set_pcie_completion_timeout - set pci-e completion timeout
@@ -58,9 +58,11 @@ static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
  **/
 static void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw)
 {
-	struct ixgbe_adapter *adapter = hw->back;
 	u32 gcr = IXGBE_READ_REG(hw, IXGBE_GCR);
 	u16 pcie_devctl2;
+
+	if (ixgbe_removed(hw->hw_addr))
+		return;
 
 	/* only take action if timeout value is defaulted to 0 */
 	if (gcr & IXGBE_GCR_CMPL_TMOUT_MASK)
@@ -80,40 +82,15 @@ static void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw)
 	 * directly in order to set the completion timeout value for
 	 * 16ms to 55ms
 	 */
-	pci_read_config_word(adapter->pdev,
-	                     IXGBE_PCI_DEVICE_CONTROL2, &pcie_devctl2);
+	pcie_devctl2 = ixgbe_read_pci_cfg_word(hw, IXGBE_PCI_DEVICE_CONTROL2);
 	pcie_devctl2 |= IXGBE_PCI_DEVICE_CONTROL2_16ms;
-	pci_write_config_word(adapter->pdev,
-	                      IXGBE_PCI_DEVICE_CONTROL2, pcie_devctl2);
+	ixgbe_write_pci_cfg_word(hw, IXGBE_PCI_DEVICE_CONTROL2, pcie_devctl2);
 out:
 	/* disable completion timeout resend */
 	gcr &= ~IXGBE_GCR_CMPL_TMOUT_RESEND;
 	IXGBE_WRITE_REG(hw, IXGBE_GCR, gcr);
 }
 
-/**
- *  ixgbe_get_pcie_msix_count_82598 - Gets MSI-X vector count
- *  @hw: pointer to hardware structure
- *
- *  Read PCIe configuration space, and get the MSI-X vector count from
- *  the capabilities table.
- **/
-static u16 ixgbe_get_pcie_msix_count_82598(struct ixgbe_hw *hw)
-{
-	struct ixgbe_adapter *adapter = hw->back;
-	u16 msix_count;
-	pci_read_config_word(adapter->pdev, IXGBE_PCIE_MSIX_82598_CAPS,
-	                     &msix_count);
-	msix_count &= IXGBE_PCIE_MSIX_TBL_SZ_MASK;
-
-	/* MSI-X count is zero-based in HW, so increment to give proper value */
-	msix_count++;
-
-	return msix_count;
-}
-
-/**
- */
 static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
@@ -124,9 +101,10 @@ static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
 	mac->mcft_size = IXGBE_82598_MC_TBL_SIZE;
 	mac->vft_size = IXGBE_82598_VFT_TBL_SIZE;
 	mac->num_rar_entries = IXGBE_82598_RAR_ENTRIES;
+	mac->rx_pb_size = IXGBE_82598_RX_PB_SIZE;
 	mac->max_rx_queues = IXGBE_82598_MAX_RX_QUEUES;
 	mac->max_tx_queues = IXGBE_82598_MAX_TX_QUEUES;
-	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_82598(hw);
+	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_generic(hw);
 
 	return 0;
 }
@@ -144,7 +122,7 @@ static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
 	struct ixgbe_phy_info *phy = &hw->phy;
-	s32 ret_val = 0;
+	s32 ret_val;
 	u16 list_offset, data_offset;
 
 	/* Identify the PHY */
@@ -162,35 +140,30 @@ static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
 		phy->ops.setup_link = &ixgbe_setup_phy_link_tnx;
 		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
 		phy->ops.get_firmware_version =
-		             &ixgbe_get_phy_firmware_version_tnx;
+			     &ixgbe_get_phy_firmware_version_tnx;
 		break;
 	case ixgbe_phy_nl:
 		phy->ops.reset = &ixgbe_reset_phy_nl;
 
 		/* Call SFP+ identify routine to get the SFP+ module type */
 		ret_val = phy->ops.identify_sfp(hw);
-		if (ret_val != 0)
-			goto out;
-		else if (hw->phy.sfp_type == ixgbe_sfp_type_unknown) {
-			ret_val = IXGBE_ERR_SFP_NOT_SUPPORTED;
-			goto out;
-		}
+		if (ret_val)
+			return ret_val;
+		if (hw->phy.sfp_type == ixgbe_sfp_type_unknown)
+			return IXGBE_ERR_SFP_NOT_SUPPORTED;
 
 		/* Check to see if SFP+ module is supported */
 		ret_val = ixgbe_get_sfp_init_sequence_offsets(hw,
-		                                            &list_offset,
-		                                            &data_offset);
-		if (ret_val != 0) {
-			ret_val = IXGBE_ERR_SFP_NOT_SUPPORTED;
-			goto out;
-		}
+							    &list_offset,
+							    &data_offset);
+		if (ret_val)
+			return IXGBE_ERR_SFP_NOT_SUPPORTED;
 		break;
 	default:
 		break;
 	}
 
-out:
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -205,7 +178,7 @@ static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 {
 	u32 regval;
 	u32 i;
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	ret_val = ixgbe_start_hw_generic(hw);
 
@@ -225,13 +198,13 @@ static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
 
-	hw->mac.rx_pb_size = IXGBE_82598_RX_PB_SIZE;
+	if (ret_val)
+		return ret_val;
 
 	/* set the completion timeout for interface */
-	if (ret_val == 0)
-		ixgbe_set_pcie_completion_timeout(hw);
+	ixgbe_set_pcie_completion_timeout(hw);
 
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -243,10 +216,9 @@ static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
  *  Determines the link capabilities by reading the AUTOC register.
  **/
 static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
-                                             ixgbe_link_speed *speed,
-                                             bool *autoneg)
+					     ixgbe_link_speed *speed,
+					     bool *autoneg)
 {
-	s32 status = 0;
 	u32 autoc = 0;
 
 	/*
@@ -286,11 +258,10 @@ static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
 		break;
 
 	default:
-		status = IXGBE_ERR_LINK_SETUP;
-		break;
+		return IXGBE_ERR_LINK_SETUP;
 	}
 
-	return status;
+	return 0;
 }
 
 /**
@@ -301,14 +272,12 @@ static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
  **/
 static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
 {
-	enum ixgbe_media_type media_type;
-
 	/* Detect if there is a copper PHY attached. */
 	switch (hw->phy.type) {
 	case ixgbe_phy_cu_unknown:
 	case ixgbe_phy_tn:
-		media_type = ixgbe_media_type_copper;
-		goto out;
+		return ixgbe_media_type_copper;
+
 	default:
 		break;
 	}
@@ -318,53 +287,61 @@ static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_82598:
 	case IXGBE_DEV_ID_82598_BX:
 		/* Default device ID is mezzanine card KX/KX4 */
-		media_type = ixgbe_media_type_backplane;
-		break;
+		return ixgbe_media_type_backplane;
+
 	case IXGBE_DEV_ID_82598AF_DUAL_PORT:
 	case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
 	case IXGBE_DEV_ID_82598_DA_DUAL_PORT:
 	case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
 	case IXGBE_DEV_ID_82598EB_XF_LR:
 	case IXGBE_DEV_ID_82598EB_SFP_LOM:
-		media_type = ixgbe_media_type_fiber;
-		break;
+		return ixgbe_media_type_fiber;
+
 	case IXGBE_DEV_ID_82598EB_CX4:
 	case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
-		media_type = ixgbe_media_type_cx4;
-		break;
+		return ixgbe_media_type_cx4;
+
 	case IXGBE_DEV_ID_82598AT:
 	case IXGBE_DEV_ID_82598AT2:
-		media_type = ixgbe_media_type_copper;
-		break;
+		return ixgbe_media_type_copper;
+
 	default:
-		media_type = ixgbe_media_type_unknown;
-		break;
+		return ixgbe_media_type_unknown;
 	}
-out:
-	return media_type;
 }
 
 /**
  *  ixgbe_fc_enable_82598 - Enable flow control
  *  @hw: pointer to hardware structure
- *  @packetbuf_num: packet buffer number (0-7)
  *
  *  Enable flow control according to the current settings.
  **/
-static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
+static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 {
-	s32 ret_val = 0;
 	u32 fctrl_reg;
 	u32 rmcs_reg;
 	u32 reg;
+	u32 fcrtl, fcrth;
 	u32 link_speed = 0;
+	int i;
 	bool link_up;
 
-#ifdef CONFIG_DCB
-	if (hw->fc.requested_mode == ixgbe_fc_pfc)
-		goto out;
+	/* Validate the water mark configuration */
+	if (!hw->fc.pause_time)
+		return IXGBE_ERR_INVALID_LINK_SETTINGS;
 
-#endif /* CONFIG_DCB */
+	/* Low water mark of zero causes XOFF floods */
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		if ((hw->fc.current_mode & ixgbe_fc_tx_pause) &&
+		    hw->fc.high_water[i]) {
+			if (!hw->fc.low_water[i] ||
+			    hw->fc.low_water[i] >= hw->fc.high_water[i]) {
+				hw_dbg(hw, "Invalid water mark configuration\n");
+				return IXGBE_ERR_INVALID_LINK_SETTINGS;
+			}
+		}
+	}
+
 	/*
 	 * On 82598 having Rx FC on causes resets while doing 1G
 	 * so if it's on turn it off once we know link_speed. For
@@ -386,9 +363,7 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 	}
 
 	/* Negotiate the fc mode to use */
-	ret_val = ixgbe_fc_autoneg(hw);
-	if (ret_val == IXGBE_ERR_FLOW_CONTROL)
-		goto out;
+	ixgbe_fc_autoneg(hw);
 
 	/* Disable any previous flow control settings */
 	fctrl_reg = IXGBE_READ_REG(hw, IXGBE_FCTRL);
@@ -405,9 +380,6 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 	 * 2: Tx flow control is enabled (we can send pause frames but
 	 *     we do not support receiving pause frames).
 	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
-#ifdef CONFIG_DCB
-	 * 4: Priority Flow Control is enabled.
-#endif
 	 * other: Invalid.
 	 */
 	switch (hw->fc.current_mode) {
@@ -440,16 +412,9 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 		fctrl_reg |= IXGBE_FCTRL_RFCE;
 		rmcs_reg |= IXGBE_RMCS_TFCE_802_3X;
 		break;
-#ifdef CONFIG_DCB
-	case ixgbe_fc_pfc:
-		goto out;
-		break;
-#endif /* CONFIG_DCB */
 	default:
 		hw_dbg(hw, "Flow control param set incorrectly\n");
-		ret_val = IXGBE_ERR_CONFIG;
-		goto out;
-		break;
+		return IXGBE_ERR_CONFIG;
 	}
 
 	/* Set 802.3x based flow control settings. */
@@ -458,31 +423,29 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 	IXGBE_WRITE_REG(hw, IXGBE_RMCS, rmcs_reg);
 
 	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
-	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
-		reg = hw->fc.low_water << 6;
-		if (hw->fc.send_xon)
-			reg |= IXGBE_FCRTL_XONE;
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		if ((hw->fc.current_mode & ixgbe_fc_tx_pause) &&
+		    hw->fc.high_water[i]) {
+			fcrtl = (hw->fc.low_water[i] << 10) | IXGBE_FCRTL_XONE;
+			fcrth = (hw->fc.high_water[i] << 10) | IXGBE_FCRTH_FCEN;
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL(i), fcrtl);
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTH(i), fcrth);
+		} else {
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL(i), 0);
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTH(i), 0);
+		}
 
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTL(packetbuf_num), reg);
-
-		reg = hw->fc.high_water[packetbuf_num] << 6;
-		reg |= IXGBE_FCRTH_FCEN;
-
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTH(packetbuf_num), reg);
 	}
 
 	/* Configure pause time (2 TCs per register) */
-	reg = IXGBE_READ_REG(hw, IXGBE_FCTTV(packetbuf_num / 2));
-	if ((packetbuf_num & 1) == 0)
-		reg = (reg & 0xFFFF0000) | hw->fc.pause_time;
-	else
-		reg = (reg & 0x0000FFFF) | (hw->fc.pause_time << 16);
-	IXGBE_WRITE_REG(hw, IXGBE_FCTTV(packetbuf_num / 2), reg);
+	reg = hw->fc.pause_time * 0x00010001;
+	for (i = 0; i < (MAX_TRAFFIC_CLASS / 2); i++)
+		IXGBE_WRITE_REG(hw, IXGBE_FCTTV(i), reg);
 
-	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, (hw->fc.pause_time >> 1));
+	/* Configure flow control refresh threshold value */
+	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, hw->fc.pause_time / 2);
 
-out:
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -493,7 +456,7 @@ out:
  *  Restarts the link.  Performs autonegotiation if needed.
  **/
 static s32 ixgbe_start_mac_link_82598(struct ixgbe_hw *hw,
-                                      bool autoneg_wait_to_complete)
+				      bool autoneg_wait_to_complete)
 {
 	u32 autoc_reg;
 	u32 links_reg;
@@ -575,8 +538,8 @@ static s32 ixgbe_validate_link_ready(struct ixgbe_hw *hw)
  *  Reads the links register to determine if link is up and the current speed
  **/
 static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
-                                      ixgbe_link_speed *speed, bool *link_up,
-                                      bool link_up_wait_to_complete)
+				      ixgbe_link_speed *speed, bool *link_up,
+				      bool link_up_wait_to_complete)
 {
 	u32 links_reg;
 	u32 i;
@@ -592,7 +555,7 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 		hw->phy.ops.read_reg(hw, 0xC79F, MDIO_MMD_PMAPMD, &link_reg);
 		hw->phy.ops.read_reg(hw, 0xC79F, MDIO_MMD_PMAPMD, &link_reg);
 		hw->phy.ops.read_reg(hw, 0xC00C, MDIO_MMD_PMAPMD,
-		                     &adapt_comp_reg);
+				     &adapt_comp_reg);
 		if (link_up_wait_to_complete) {
 			for (i = 0; i < IXGBE_LINK_UP_TIME; i++) {
 				if ((link_reg & 1) &&
@@ -604,11 +567,11 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 				}
 				msleep(100);
 				hw->phy.ops.read_reg(hw, 0xC79F,
-				                     MDIO_MMD_PMAPMD,
-				                     &link_reg);
+						     MDIO_MMD_PMAPMD,
+						     &link_reg);
 				hw->phy.ops.read_reg(hw, 0xC00C,
-				                     MDIO_MMD_PMAPMD,
-				                     &adapt_comp_reg);
+						     MDIO_MMD_PMAPMD,
+						     &adapt_comp_reg);
 			}
 		} else {
 			if ((link_reg & 1) && ((adapt_comp_reg & 1) == 0))
@@ -618,7 +581,7 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 		}
 
 		if (!*link_up)
-			goto out;
+			return 0;
 	}
 
 	links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
@@ -649,7 +612,6 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 	    (ixgbe_validate_link_ready(hw) != 0))
 		*link_up = false;
 
-out:
 	return 0;
 }
 
@@ -657,16 +619,15 @@ out:
  *  ixgbe_setup_mac_link_82598 - Set MAC link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: true if auto-negotiation enabled
  *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
 static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw,
-                                           ixgbe_link_speed speed, bool autoneg,
-                                           bool autoneg_wait_to_complete)
+				      ixgbe_link_speed speed,
+				      bool autoneg_wait_to_complete)
 {
-	s32              status            = 0;
+	bool		 autoneg	   = false;
 	ixgbe_link_speed link_capabilities = IXGBE_LINK_SPEED_UNKNOWN;
 	u32              curr_autoc        = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	u32              autoc             = curr_autoc;
@@ -677,11 +638,11 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw,
 	speed &= link_capabilities;
 
 	if (speed == IXGBE_LINK_SPEED_UNKNOWN)
-		status = IXGBE_ERR_LINK_SETUP;
+		return IXGBE_ERR_LINK_SETUP;
 
 	/* Set KX4/KX support according to speed requested */
 	else if (link_mode == IXGBE_AUTOC_LMS_KX4_AN ||
-	         link_mode == IXGBE_AUTOC_LMS_KX4_AN_1G_AN) {
+		 link_mode == IXGBE_AUTOC_LMS_KX4_AN_1G_AN) {
 		autoc &= ~IXGBE_AUTOC_KX4_KX_SUPP_MASK;
 		if (speed & IXGBE_LINK_SPEED_10GB_FULL)
 			autoc |= IXGBE_AUTOC_KX4_SUPP;
@@ -691,17 +652,11 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw,
 			IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc);
 	}
 
-	if (status == 0) {
-		/*
-		 * Setup and restart the link based on the new values in
-		 * ixgbe_hw This will write the AUTOC register based on the new
-		 * stored values
-		 */
-		status = ixgbe_start_mac_link_82598(hw,
-						    autoneg_wait_to_complete);
-	}
-
-	return status;
+	/* Setup and restart the link based on the new values in
+	 * ixgbe_hw This will write the AUTOC register based on the new
+	 * stored values
+	 */
+	return ixgbe_start_mac_link_82598(hw, autoneg_wait_to_complete);
 }
 
 
@@ -709,21 +664,19 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw,
  *  ixgbe_setup_copper_link_82598 - Set the PHY autoneg advertised field
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: true if autonegotiation enabled
  *  @autoneg_wait_to_complete: true if waiting is needed to complete
  *
  *  Sets the link speed in the AUTOC register in the MAC and restarts link.
  **/
 static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
-                                               ixgbe_link_speed speed,
-                                               bool autoneg,
-                                               bool autoneg_wait_to_complete)
+					       ixgbe_link_speed speed,
+					       bool autoneg_wait_to_complete)
 {
 	s32 status;
 
 	/* Setup the PHY according to input speed */
-	status = hw->phy.ops.setup_link_speed(hw, speed, autoneg,
-	                                      autoneg_wait_to_complete);
+	status = hw->phy.ops.setup_link_speed(hw, speed,
+					      autoneg_wait_to_complete);
 	/* Set up MAC */
 	ixgbe_start_mac_link_82598(hw, autoneg_wait_to_complete);
 
@@ -740,7 +693,7 @@ static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
  **/
 static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 {
-	s32 status = 0;
+	s32 status;
 	s32 phy_status = 0;
 	u32 ctrl;
 	u32 gheccr;
@@ -750,8 +703,8 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	status = hw->mac.ops.stop_adapter(hw);
-	if (status != 0)
-		goto reset_hw_out;
+	if (status)
+		return status;
 
 	/*
 	 * Power up the Atlas Tx lanes if they are currently powered down.
@@ -762,28 +715,28 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 	if (analog_val & IXGBE_ATLAS_PDN_TX_REG_EN) {
 		/* Enable Tx Atlas so packets can be transmitted again */
 		hw->mac.ops.read_analog_reg8(hw, IXGBE_ATLAS_PDN_LPBK,
-		                             &analog_val);
+					     &analog_val);
 		analog_val &= ~IXGBE_ATLAS_PDN_TX_REG_EN;
 		hw->mac.ops.write_analog_reg8(hw, IXGBE_ATLAS_PDN_LPBK,
-		                              analog_val);
+					      analog_val);
 
 		hw->mac.ops.read_analog_reg8(hw, IXGBE_ATLAS_PDN_10G,
-		                             &analog_val);
+					     &analog_val);
 		analog_val &= ~IXGBE_ATLAS_PDN_TX_10G_QL_ALL;
 		hw->mac.ops.write_analog_reg8(hw, IXGBE_ATLAS_PDN_10G,
-		                              analog_val);
+					      analog_val);
 
 		hw->mac.ops.read_analog_reg8(hw, IXGBE_ATLAS_PDN_1G,
-		                             &analog_val);
+					     &analog_val);
 		analog_val &= ~IXGBE_ATLAS_PDN_TX_1G_QL_ALL;
 		hw->mac.ops.write_analog_reg8(hw, IXGBE_ATLAS_PDN_1G,
-		                              analog_val);
+					      analog_val);
 
 		hw->mac.ops.read_analog_reg8(hw, IXGBE_ATLAS_PDN_AN,
-		                             &analog_val);
+					     &analog_val);
 		analog_val &= ~IXGBE_ATLAS_PDN_TX_AN_QL_ALL;
 		hw->mac.ops.write_analog_reg8(hw, IXGBE_ATLAS_PDN_AN,
-		                              analog_val);
+					      analog_val);
 	}
 
 	/* Reset PHY */
@@ -793,7 +746,7 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 		/* Init PHY and function pointers, perform SFP setup */
 		phy_status = hw->phy.ops.init(hw);
 		if (phy_status == IXGBE_ERR_SFP_NOT_SUPPORTED)
-			goto reset_hw_out;
+			return phy_status;
 		if (phy_status == IXGBE_ERR_SFP_NOT_PRESENT)
 			goto mac_reset_top;
 
@@ -859,7 +812,6 @@ mac_reset_top:
 	 */
 	hw->mac.ops.init_rx_addrs(hw);
 
-reset_hw_out:
 	if (phy_status)
 		status = phy_status;
 
@@ -982,7 +934,7 @@ static s32 ixgbe_clear_vfta_82598(struct ixgbe_hw *hw)
 	for (vlanbyte = 0; vlanbyte < 4; vlanbyte++)
 		for (offset = 0; offset < hw->mac.vft_size; offset++)
 			IXGBE_WRITE_REG(hw, IXGBE_VFTAVIND(vlanbyte, offset),
-			                0);
+					0);
 
 	return 0;
 }
@@ -1000,7 +952,7 @@ static s32 ixgbe_read_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 *val)
 	u32  atlas_ctl;
 
 	IXGBE_WRITE_REG(hw, IXGBE_ATLASCTL,
-	                IXGBE_ATLASCTL_WRITE_CMD | (reg << 8));
+			IXGBE_ATLASCTL_WRITE_CMD | (reg << 8));
 	IXGBE_WRITE_FLUSH(hw);
 	udelay(10);
 	atlas_ctl = IXGBE_READ_REG(hw, IXGBE_ATLASCTL);
@@ -1030,21 +982,31 @@ static s32 ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val)
 }
 
 /**
- *  ixgbe_read_i2c_eeprom_82598 - Reads 8 bit word over I2C interface.
+ *  ixgbe_read_i2c_phy_82598 - Reads 8 bit word over I2C interface.
  *  @hw: pointer to hardware structure
- *  @byte_offset: EEPROM byte offset to read
+ *  @dev_addr: address to read from
+ *  @byte_offset: byte offset to read from dev_addr
  *  @eeprom_data: value read
  *
- *  Performs 8 byte read operation to SFP module's EEPROM over I2C interface.
+ *  Performs 8 byte read operation to SFP module's data over I2C interface.
  **/
-static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
-				       u8 *eeprom_data)
+static s32 ixgbe_read_i2c_phy_82598(struct ixgbe_hw *hw, u8 dev_addr,
+				    u8 byte_offset, u8 *eeprom_data)
 {
 	s32 status = 0;
 	u16 sfp_addr = 0;
 	u16 sfp_data = 0;
 	u16 sfp_stat = 0;
+	u16 gssr;
 	u32 i;
+
+	if (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)
+		gssr = IXGBE_GSSR_PHY1_SM;
+	else
+		gssr = IXGBE_GSSR_PHY0_SM;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, gssr) != 0)
+		return IXGBE_ERR_SWFW_SYNC;
 
 	if (hw->phy.type == ixgbe_phy_nl) {
 		/*
@@ -1052,19 +1014,19 @@ static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
 		 * 0xC30D.  These registers are used to talk to the SFP+
 		 * module's EEPROM through the SDA/SCL (I2C) interface.
 		 */
-		sfp_addr = (IXGBE_I2C_EEPROM_DEV_ADDR << 8) + byte_offset;
+		sfp_addr = (dev_addr << 8) + byte_offset;
 		sfp_addr = (sfp_addr | IXGBE_I2C_EEPROM_READ_MASK);
-		hw->phy.ops.write_reg(hw,
-		                      IXGBE_MDIO_PMA_PMD_SDA_SCL_ADDR,
-		                      MDIO_MMD_PMAPMD,
-		                      sfp_addr);
+		hw->phy.ops.write_reg_mdi(hw,
+					  IXGBE_MDIO_PMA_PMD_SDA_SCL_ADDR,
+					  MDIO_MMD_PMAPMD,
+					  sfp_addr);
 
 		/* Poll status */
 		for (i = 0; i < 100; i++) {
-			hw->phy.ops.read_reg(hw,
-			                     IXGBE_MDIO_PMA_PMD_SDA_SCL_STAT,
-			                     MDIO_MMD_PMAPMD,
-			                     &sfp_stat);
+			hw->phy.ops.read_reg_mdi(hw,
+						IXGBE_MDIO_PMA_PMD_SDA_SCL_STAT,
+						MDIO_MMD_PMAPMD,
+						&sfp_stat);
 			sfp_stat = sfp_stat & IXGBE_I2C_EEPROM_STATUS_MASK;
 			if (sfp_stat != IXGBE_I2C_EEPROM_STATUS_IN_PROGRESS)
 				break;
@@ -1078,117 +1040,47 @@ static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
 		}
 
 		/* Read data */
-		hw->phy.ops.read_reg(hw, IXGBE_MDIO_PMA_PMD_SDA_SCL_DATA,
-		                     MDIO_MMD_PMAPMD, &sfp_data);
+		hw->phy.ops.read_reg_mdi(hw, IXGBE_MDIO_PMA_PMD_SDA_SCL_DATA,
+					MDIO_MMD_PMAPMD, &sfp_data);
 
 		*eeprom_data = (u8)(sfp_data >> 8);
 	} else {
 		status = IXGBE_ERR_PHY;
-		goto out;
 	}
 
 out:
+	hw->mac.ops.release_swfw_sync(hw, gssr);
 	return status;
 }
 
 /**
- *  ixgbe_get_supported_physical_layer_82598 - Returns physical layer type
+ *  ixgbe_read_i2c_eeprom_82598 - Reads 8 bit word over I2C interface.
  *  @hw: pointer to hardware structure
+ *  @byte_offset: EEPROM byte offset to read
+ *  @eeprom_data: value read
  *
- *  Determines physical layer capabilities of the current configuration.
+ *  Performs 8 byte read operation to SFP module's EEPROM over I2C interface.
  **/
-static u32 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw)
+static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
+				       u8 *eeprom_data)
 {
-	u32 physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
-	u32 autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
-	u32 pma_pmd_10g = autoc & IXGBE_AUTOC_10G_PMA_PMD_MASK;
-	u32 pma_pmd_1g = autoc & IXGBE_AUTOC_1G_PMA_PMD_MASK;
-	u16 ext_ability = 0;
+	return ixgbe_read_i2c_phy_82598(hw, IXGBE_I2C_EEPROM_DEV_ADDR,
+					byte_offset, eeprom_data);
+}
 
-	hw->phy.ops.identify(hw);
-
-	/* Copper PHY must be checked before AUTOC LMS to determine correct
-	 * physical layer because 10GBase-T PHYs use LMS = KX4/KX */
-	switch (hw->phy.type) {
-	case ixgbe_phy_tn:
-	case ixgbe_phy_cu_unknown:
-		hw->phy.ops.read_reg(hw, MDIO_PMA_EXTABLE,
-		MDIO_MMD_PMAPMD, &ext_ability);
-		if (ext_ability & MDIO_PMA_EXTABLE_10GBT)
-			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_T;
-		if (ext_ability & MDIO_PMA_EXTABLE_1000BT)
-			physical_layer |= IXGBE_PHYSICAL_LAYER_1000BASE_T;
-		if (ext_ability & MDIO_PMA_EXTABLE_100BTX)
-			physical_layer |= IXGBE_PHYSICAL_LAYER_100BASE_TX;
-		goto out;
-	default:
-		break;
-	}
-
-	switch (autoc & IXGBE_AUTOC_LMS_MASK) {
-	case IXGBE_AUTOC_LMS_1G_AN:
-	case IXGBE_AUTOC_LMS_1G_LINK_NO_AN:
-		if (pma_pmd_1g == IXGBE_AUTOC_1G_KX)
-			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_KX;
-		else
-			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_BX;
-		break;
-	case IXGBE_AUTOC_LMS_10G_LINK_NO_AN:
-		if (pma_pmd_10g == IXGBE_AUTOC_10G_CX4)
-			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_CX4;
-		else if (pma_pmd_10g == IXGBE_AUTOC_10G_KX4)
-			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_KX4;
-		else /* XAUI */
-			physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
-		break;
-	case IXGBE_AUTOC_LMS_KX4_AN:
-	case IXGBE_AUTOC_LMS_KX4_AN_1G_AN:
-		if (autoc & IXGBE_AUTOC_KX_SUPP)
-			physical_layer |= IXGBE_PHYSICAL_LAYER_1000BASE_KX;
-		if (autoc & IXGBE_AUTOC_KX4_SUPP)
-			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_KX4;
-		break;
-	default:
-		break;
-	}
-
-	if (hw->phy.type == ixgbe_phy_nl) {
-		hw->phy.ops.identify_sfp(hw);
-
-		switch (hw->phy.sfp_type) {
-		case ixgbe_sfp_type_da_cu:
-			physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
-			break;
-		case ixgbe_sfp_type_sr:
-			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_SR;
-			break;
-		case ixgbe_sfp_type_lr:
-			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
-			break;
-		default:
-			physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
-			break;
-		}
-	}
-
-	switch (hw->device_id) {
-	case IXGBE_DEV_ID_82598_DA_DUAL_PORT:
-		physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
-		break;
-	case IXGBE_DEV_ID_82598AF_DUAL_PORT:
-	case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
-	case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
-		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_SR;
-		break;
-	case IXGBE_DEV_ID_82598EB_XF_LR:
-		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
-		break;
-	default:
-		break;
-	}
-
-out:
-	return physical_layer;
+/**
+ *  ixgbe_read_i2c_sff8472_82598 - Reads 8 bit word over I2C interface.
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: byte offset at address 0xA2
+ *  @eeprom_data: value read
+ *
+ *  Performs 8 byte read operation to SFP module's SFF-8472 data over I2C
+ **/
+static s32 ixgbe_read_i2c_sff8472_82598(struct ixgbe_hw *hw, u8 byte_offset,
+				       u8 *sff8472_data)
+{
+	return ixgbe_read_i2c_phy_82598(hw, IXGBE_I2C_EEPROM_DEV_ADDR2,
+					byte_offset, sff8472_data);
 }
 
 /**
@@ -1224,14 +1116,14 @@ static void ixgbe_set_lan_id_multi_port_pcie_82598(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_set_rxpba_82598 - Configure packet buffers
+ * ixgbe_set_rxpba_82598 - Initialize RX packet buffer
  * @hw: pointer to hardware structure
- * @dcb_config: pointer to ixgbe_dcb_config structure
- *
- * Configure packet buffers.
- */
-static void ixgbe_set_rxpba_82598(struct ixgbe_hw *hw, int num_pb, u32 headroom,
-				  int strategy)
+ * @num_pb: number of packet buffers to allocate
+ * @headroom: reserve n KB of headroom
+ * @strategy: packet buffer allocation strategy
+ **/
+static void ixgbe_set_rxpba_82598(struct ixgbe_hw *hw, int num_pb,
+				  u32 headroom, int strategy)
 {
 	u32 rxpktsize = IXGBE_RXPBSIZE_64KB;
 	u8  i = 0;
@@ -1260,8 +1152,6 @@ static void ixgbe_set_rxpba_82598(struct ixgbe_hw *hw, int num_pb, u32 headroom,
 	/* Setup Tx packet buffer sizes */
 	for (i = 0; i < IXGBE_MAX_PACKET_BUFFERS; i++)
 		IXGBE_WRITE_REG(hw, IXGBE_TXPBSIZE(i), IXGBE_TXPBSIZE_40KB);
-
-	return;
 }
 
 static struct ixgbe_mac_operations mac_ops_82598 = {
@@ -1270,7 +1160,6 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.start_hw		= &ixgbe_start_hw_82598,
 	.clear_hw_cntrs		= &ixgbe_clear_hw_cntrs_generic,
 	.get_media_type		= &ixgbe_get_media_type_82598,
-	.get_supported_physical_layer = &ixgbe_get_supported_physical_layer_82598,
 	.enable_rx_dma          = &ixgbe_enable_rx_dma_generic,
 	.get_mac_addr		= &ixgbe_get_mac_addr_generic,
 	.stop_adapter		= &ixgbe_stop_adapter_generic,
@@ -1300,6 +1189,10 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.set_fw_drv_ver         = NULL,
 	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync,
 	.release_swfw_sync      = &ixgbe_release_swfw_sync,
+	.get_thermal_sensor_data = NULL,
+	.init_thermal_sensor_thresh = NULL,
+	.prot_autoc_read	= &prot_autoc_read_generic,
+	.prot_autoc_write	= &prot_autoc_write_generic,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82598 = {
@@ -1315,13 +1208,16 @@ static struct ixgbe_eeprom_operations eeprom_ops_82598 = {
 
 static struct ixgbe_phy_operations phy_ops_82598 = {
 	.identify		= &ixgbe_identify_phy_generic,
-	.identify_sfp		= &ixgbe_identify_sfp_module_generic,
+	.identify_sfp		= &ixgbe_identify_module_generic,
 	.init			= &ixgbe_init_phy_ops_82598,
 	.reset			= &ixgbe_reset_phy_generic,
 	.read_reg		= &ixgbe_read_phy_reg_generic,
 	.write_reg		= &ixgbe_write_phy_reg_generic,
+	.read_reg_mdi		= &ixgbe_read_phy_reg_mdi,
+	.write_reg_mdi		= &ixgbe_write_phy_reg_mdi,
 	.setup_link		= &ixgbe_setup_phy_link_generic,
 	.setup_link_speed	= &ixgbe_setup_phy_link_speed_generic,
+	.read_i2c_sff8472	= &ixgbe_read_i2c_sff8472_82598,
 	.read_i2c_eeprom	= &ixgbe_read_i2c_eeprom_82598,
 	.check_overtemp   = &ixgbe_tn_check_overtemp,
 };
@@ -1333,4 +1229,3 @@ struct ixgbe_info ixgbe_82598_info = {
 	.eeprom_ops		= &eeprom_ops_82598,
 	.phy_ops		= &phy_ops_82598,
 };
-

@@ -26,8 +26,7 @@
 #include <linux/types.h>		/* For standard types (like size_t) */
 #include <linux/errno.h>		/* For the -ENODEV/... values */
 #include <linux/kernel.h>		/* For printk/... */
-#include <linux/miscdevice.h>		/* For MODULE_ALIAS_MISCDEV
-							(WATCHDOG_MINOR) */
+#include <linux/miscdevice.h>		/* For struct miscdevice */
 #include <linux/watchdog.h>		/* For the watchdog specific items */
 #include <linux/init.h>			/* For __init/__exit/... */
 #include <linux/fs.h>			/* For file operations */
@@ -41,7 +40,6 @@
 #define DRV_NAME	"sch311x_wdt"
 
 /* Runtime registers */
-#define RESGEN			0x1d
 #define GP60			0x47
 #define WDT_TIME_OUT		0x65
 #define WDT_VAL			0x66
@@ -68,10 +66,6 @@ static struct {	/* The devices private data */
 static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
-
-static unsigned short therm_trip;
-module_param(therm_trip, ushort, 0);
-MODULE_PARM_DESC(therm_trip, "Should a ThermTrip trigger the reset generator");
 
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
 static int timeout = WATCHDOG_TIMEOUT;	/* in seconds */
@@ -141,6 +135,8 @@ static void sch311x_wdt_set_timeout(int t)
 
 static void sch311x_wdt_start(void)
 {
+	unsigned char t;
+
 	spin_lock(&sch311x_wdt_data.io_lock);
 
 	/* set watchdog's timeout */
@@ -154,7 +150,8 @@ static void sch311x_wdt_start(void)
 	 * Bit 4-6  (Reserved)
 	 * Bit 7,   Output Type: 0 = Push Pull Bit, 1 = Open Drain
 	 */
-	outb(0x0e, sch311x_wdt_data.runtime_reg + GP60);
+	t = inb(sch311x_wdt_data.runtime_reg + GP60);
+	outb((t & ~0x0d) | 0x0c, sch311x_wdt_data.runtime_reg + GP60);
 
 	spin_unlock(&sch311x_wdt_data.io_lock);
 
@@ -162,10 +159,13 @@ static void sch311x_wdt_start(void)
 
 static void sch311x_wdt_stop(void)
 {
+	unsigned char t;
+
 	spin_lock(&sch311x_wdt_data.io_lock);
 
 	/* stop the watchdog */
-	outb(0x01, sch311x_wdt_data.runtime_reg + GP60);
+	t = inb(sch311x_wdt_data.runtime_reg + GP60);
+	outb((t & ~0x0d) | 0x01, sch311x_wdt_data.runtime_reg + GP60);
 	/* disable timeout by setting it to 0 */
 	sch311x_wdt_set_timeout(0);
 
@@ -355,29 +355,19 @@ static struct miscdevice sch311x_wdt_miscdev = {
  *	Init & exit routines
  */
 
-static int __devinit sch311x_wdt_probe(struct platform_device *pdev)
+static int sch311x_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	unsigned char val;
 	int err;
 
 	spin_lock_init(&sch311x_wdt_data.io_lock);
-
-	if (!request_region(sch311x_wdt_data.runtime_reg + RESGEN, 1,
-								DRV_NAME)) {
-		dev_err(dev, "Failed to request region 0x%04x-0x%04x.\n",
-			sch311x_wdt_data.runtime_reg + RESGEN,
-			sch311x_wdt_data.runtime_reg + RESGEN);
-		err = -EBUSY;
-		goto exit;
-	}
 
 	if (!request_region(sch311x_wdt_data.runtime_reg + GP60, 1, DRV_NAME)) {
 		dev_err(dev, "Failed to request region 0x%04x-0x%04x.\n",
 			sch311x_wdt_data.runtime_reg + GP60,
 			sch311x_wdt_data.runtime_reg + GP60);
 		err = -EBUSY;
-		goto exit_release_region;
+		goto exit;
 	}
 
 	if (!request_region(sch311x_wdt_data.runtime_reg + WDT_TIME_OUT, 4,
@@ -386,7 +376,7 @@ static int __devinit sch311x_wdt_probe(struct platform_device *pdev)
 			sch311x_wdt_data.runtime_reg + WDT_TIME_OUT,
 			sch311x_wdt_data.runtime_reg + WDT_CTRL);
 		err = -EBUSY;
-		goto exit_release_region2;
+		goto exit_release_region;
 	}
 
 	/* Make sure that the watchdog is not running */
@@ -414,24 +404,13 @@ static int __devinit sch311x_wdt_probe(struct platform_device *pdev)
 	/* Get status at boot */
 	sch311x_wdt_get_status(&sch311x_wdt_data.boot_status);
 
-	/* enable watchdog */
-	/* -- Reset Generator --
-	 * Bit 0   Enable Watchdog Timer Generation: 0* = Enabled, 1 = Disabled
-	 * Bit 1   Thermtrip Source Select: O* = No Source, 1 = Source
-	 * Bit 2   WDT2_CTL: WDT input bit
-	 * Bit 3-7 Reserved
-	 */
-	outb(0, sch311x_wdt_data.runtime_reg + RESGEN);
-	val = therm_trip ? 0x06 : 0x04;
-	outb(val, sch311x_wdt_data.runtime_reg + RESGEN);
-
 	sch311x_wdt_miscdev.parent = dev;
 
 	err = misc_register(&sch311x_wdt_miscdev);
 	if (err != 0) {
 		dev_err(dev, "cannot register miscdev on minor=%d (err=%d)\n",
 							WATCHDOG_MINOR, err);
-		goto exit_release_region3;
+		goto exit_release_region2;
 	}
 
 	dev_info(dev,
@@ -440,18 +419,16 @@ static int __devinit sch311x_wdt_probe(struct platform_device *pdev)
 
 	return 0;
 
-exit_release_region3:
-	release_region(sch311x_wdt_data.runtime_reg + WDT_TIME_OUT, 4);
 exit_release_region2:
-	release_region(sch311x_wdt_data.runtime_reg + GP60, 1);
+	release_region(sch311x_wdt_data.runtime_reg + WDT_TIME_OUT, 4);
 exit_release_region:
-	release_region(sch311x_wdt_data.runtime_reg + RESGEN, 1);
+	release_region(sch311x_wdt_data.runtime_reg + GP60, 1);
 	sch311x_wdt_data.runtime_reg = 0;
 exit:
 	return err;
 }
 
-static int __devexit sch311x_wdt_remove(struct platform_device *pdev)
+static int sch311x_wdt_remove(struct platform_device *pdev)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -461,7 +438,6 @@ static int __devexit sch311x_wdt_remove(struct platform_device *pdev)
 	misc_deregister(&sch311x_wdt_miscdev);
 	release_region(sch311x_wdt_data.runtime_reg + WDT_TIME_OUT, 4);
 	release_region(sch311x_wdt_data.runtime_reg + GP60, 1);
-	release_region(sch311x_wdt_data.runtime_reg + RESGEN, 1);
 	sch311x_wdt_data.runtime_reg = 0;
 	return 0;
 }
@@ -474,7 +450,7 @@ static void sch311x_wdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver sch311x_wdt_driver = {
 	.probe		= sch311x_wdt_probe,
-	.remove		= __devexit_p(sch311x_wdt_remove),
+	.remove		= sch311x_wdt_remove,
 	.shutdown	= sch311x_wdt_shutdown,
 	.driver		= {
 		.owner = THIS_MODULE,
@@ -568,5 +544,3 @@ module_exit(sch311x_wdt_exit);
 MODULE_AUTHOR("Wim Van Sebroeck <wim@iguana.be>");
 MODULE_DESCRIPTION("SMSC SCH311x WatchDog Timer Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
-

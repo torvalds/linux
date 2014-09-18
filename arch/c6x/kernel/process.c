@@ -25,22 +25,7 @@ void	(*c6x_restart)(void);
 void	(*c6x_halt)(void);
 
 extern asmlinkage void ret_from_fork(void);
-
-static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
-static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
-
-/*
- * Initial thread structure.
- */
-union thread_union init_thread_union __init_task_data =	{
-	INIT_THREAD_INFO(init_task)
-};
-
-/*
- * Initial task structure.
- */
-struct task_struct init_task = INIT_TASK(init_task);
-EXPORT_SYMBOL(init_task);
+extern asmlinkage void ret_from_kernel_thread(void);
 
 /*
  * power off function, if any
@@ -48,7 +33,7 @@ EXPORT_SYMBOL(init_task);
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-static void c6x_idle(void)
+void arch_cpu_idle(void)
 {
 	unsigned long tmp;
 
@@ -62,32 +47,6 @@ static void c6x_idle(void)
 		      "   mvc .s2 %0,CSR\n"
 		      "|| idle\n"
 		      : "=b"(tmp));
-}
-
-/*
- * The idle loop for C64x
- */
-void cpu_idle(void)
-{
-	/* endless idle loop with no priority at all */
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		while (1) {
-			local_irq_disable();
-			if (need_resched()) {
-				local_irq_enable();
-				break;
-			}
-			c6x_idle(); /* enables local irqs */
-		}
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-	}
 }
 
 static void halt_loop(void)
@@ -119,59 +78,12 @@ void machine_power_off(void)
 	halt_loop();
 }
 
-static void kernel_thread_helper(int dummy, void *arg, int (*fn)(void *))
-{
-	do_exit(fn(arg));
-}
-
-/*
- * Create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	/*
-	 * copy_thread sets a4 to zero (child return from fork)
-	 * so we can't just set things up to directly return to
-	 * fn.
-	 */
-	memset(&regs, 0, sizeof(regs));
-	regs.b4 = (unsigned long) arg;
-	regs.a6 = (unsigned long) fn;
-	regs.pc = (unsigned long) kernel_thread_helper;
-	local_save_flags(regs.csr);
-	regs.csr |= 1;
-	regs.tsr = 5; /* Set GEE and GIE in TSR */
-
-	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, -1, &regs,
-		       0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
-
 void flush_thread(void)
 {
 }
 
 void exit_thread(void)
 {
-}
-
-SYSCALL_DEFINE1(c6x_clone, struct pt_regs *, regs)
-{
-	unsigned long clone_flags;
-	unsigned long newsp;
-
-	/* syscall puts clone_flags in A4 and usp in B4 */
-	clone_flags = regs->orig_a4;
-	if (regs->b4)
-		newsp = regs->b4;
-	else
-		newsp = regs->sp;
-
-	return do_fork(clone_flags, newsp, regs, 0, (int __user *)regs->a6,
-		       (int __user *)regs->b6);
 }
 
 /*
@@ -201,28 +113,31 @@ void start_thread(struct pt_regs *regs, unsigned int pc, unsigned long usp)
  */
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long ustk_size,
-		struct task_struct *p, struct pt_regs *regs)
+		struct task_struct *p)
 {
 	struct pt_regs *childregs;
 
 	childregs = task_pt_regs(p);
 
-	*childregs = *regs;
-	childregs->a4 = 0;
-
-	if (usp == -1)
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* case of  __kernel_thread: we return to supervisor space */
+		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->sp = (unsigned long)(childregs + 1);
-	else
+		p->thread.pc = (unsigned long) ret_from_kernel_thread;
+		childregs->a0 = usp;		/* function */
+		childregs->a1 = ustk_size;	/* argument */
+	} else {
 		/* Otherwise use the given stack */
-		childregs->sp = usp;
+		*childregs = *current_pt_regs();
+		if (usp)
+			childregs->sp = usp;
+		p->thread.pc = (unsigned long) ret_from_fork;
+	}
 
 	/* Set usp/ksp */
 	p->thread.usp = childregs->sp;
-	/* switch_to uses stack to save/restore 14 callee-saved regs */
 	thread_saved_ksp(p) = (unsigned long)childregs - 8;
-	p->thread.pc = (unsigned int) ret_from_fork;
-	p->thread.wchan	= (unsigned long) ret_from_fork;
+	p->thread.wchan	= p->thread.pc;
 #ifdef __DSBT__
 	{
 		unsigned long dp;
@@ -235,28 +150,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	}
 #endif
 	return 0;
-}
-
-/*
- * c6x_execve() executes a new program.
- */
-SYSCALL_DEFINE4(c6x_execve, const char __user *, name,
-		const char __user *const __user *, argv,
-		const char __user *const __user *, envp,
-		struct pt_regs *, regs)
-{
-	int error;
-	char *filename;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename, argv, envp, regs);
-	putname(filename);
-out:
-	return error;
 }
 
 unsigned long get_wchan(struct task_struct *p)

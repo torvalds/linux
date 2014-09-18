@@ -57,15 +57,17 @@ void (*mach_reset)(void);
 void (*mach_halt)(void);
 void (*mach_power_off)(void);
 
-#ifdef CONFIG_M68328
+#ifdef CONFIG_M68000
+#if defined(CONFIG_M68328)
 #define CPU_NAME	"MC68328"
-#endif
-#ifdef CONFIG_M68EZ328
+#elif defined(CONFIG_M68EZ328)
 #define CPU_NAME	"MC68EZ328"
-#endif
-#ifdef CONFIG_M68VZ328
+#elif defined(CONFIG_M68VZ328)
 #define CPU_NAME	"MC68VZ328"
+#else
+#define CPU_NAME	"MC68000"
 #endif
+#endif /* CONFIG_M68000 */
 #ifdef CONFIG_M68360
 #define CPU_NAME	"MC68360"
 #endif
@@ -115,7 +117,7 @@ void (*mach_power_off)(void);
  *
  * Returns:
  */
-void parse_uboot_commandline(char *commandp, int size)
+static void __init parse_uboot_commandline(char *commandp, int size)
 {
 	extern unsigned long _init_sp;
 	unsigned long *sp;
@@ -218,13 +220,10 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Motorola M5235EVB support (C)2005 Syn-tech Systems, Inc. (Jate Sujjavanich)\n");
 #endif
 
-	pr_debug("KERNEL -> TEXT=0x%06x-0x%06x DATA=0x%06x-0x%06x "
-		 "BSS=0x%06x-0x%06x\n", (int) &_stext, (int) &_etext,
-		 (int) &_sdata, (int) &_edata,
-		 (int) &_sbss, (int) &_ebss);
-	pr_debug("MEMORY -> ROMFS=0x%06x-0x%06x MEM=0x%06x-0x%06x\n ",
-		 (int) &_ebss, (int) memory_start,
-		 (int) memory_start, (int) memory_end);
+	pr_debug("KERNEL -> TEXT=0x%p-0x%p DATA=0x%p-0x%p BSS=0x%p-0x%p\n",
+		 _stext, _etext, _sdata, _edata, __bss_start, __bss_stop);
+	pr_debug("MEMORY -> ROMFS=0x%p-0x%06lx MEM=0x%06lx-0x%06lx\n ",
+		 __bss_stop, memory_start, memory_start, memory_end);
 
 	/* Keep a copy of command line */
 	*cmdline_p = &command_line[0];

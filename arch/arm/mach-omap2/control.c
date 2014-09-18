@@ -1,7 +1,7 @@
 /*
  * OMAP2/3 System Control Module register access
  *
- * Copyright (C) 2007 Texas Instruments, Inc.
+ * Copyright (C) 2007, 2012 Texas Instruments, Inc.
  * Copyright (C) 2007 Nokia Corporation
  *
  * Written by Paul Walmsley
@@ -15,15 +15,13 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <plat/hardware.h>
-#include <plat/sdrc.h>
-
+#include "soc.h"
 #include "iomap.h"
 #include "common.h"
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
-#include "prm2xxx_3xxx.h"
-#include "cm2xxx_3xxx.h"
+#include "prm3xxx.h"
+#include "cm3xxx.h"
 #include "sdrc.h"
 #include "pm.h"
 #include "control.h"
@@ -46,19 +44,8 @@ struct omap3_scratchpad {
 };
 
 struct omap3_scratchpad_prcm_block {
-	u32 prm_clksrc_ctrl;
-	u32 prm_clksel;
-	u32 cm_clksel_core;
-	u32 cm_clksel_wkup;
-	u32 cm_clken_pll;
-	u32 cm_autoidle_pll;
-	u32 cm_clksel1_pll;
-	u32 cm_clksel2_pll;
-	u32 cm_clksel3_pll;
-	u32 cm_clken_pll_mpu;
-	u32 cm_autoidle_pll_mpu;
-	u32 cm_clksel1_pll_mpu;
-	u32 cm_clksel2_pll_mpu;
+	u32 prm_contents[2];
+	u32 cm_contents[11];
 	u32 prcm_block_size;
 };
 
@@ -149,13 +136,11 @@ static struct omap3_control_regs control_context;
 #define OMAP_CTRL_REGADDR(reg)		(omap2_ctrl_base + (reg))
 #define OMAP4_CTRL_PAD_REGADDR(reg)	(omap4_ctrl_pad_base + (reg))
 
-void __init omap2_set_globals_control(struct omap_globals *omap2_globals)
+void __init omap2_set_globals_control(void __iomem *ctrl,
+				      void __iomem *ctrl_pad)
 {
-	if (omap2_globals->ctrl)
-		omap2_ctrl_base = omap2_globals->ctrl;
-
-	if (omap2_globals->ctrl_pad)
-		omap4_ctrl_pad_base = omap2_globals->ctrl_pad;
+	omap2_ctrl_base = ctrl;
+	omap4_ctrl_pad_base = ctrl_pad;
 }
 
 void __iomem *omap_ctrl_base_get(void)
@@ -165,32 +150,32 @@ void __iomem *omap_ctrl_base_get(void)
 
 u8 omap_ctrl_readb(u16 offset)
 {
-	return __raw_readb(OMAP_CTRL_REGADDR(offset));
+	return readb_relaxed(OMAP_CTRL_REGADDR(offset));
 }
 
 u16 omap_ctrl_readw(u16 offset)
 {
-	return __raw_readw(OMAP_CTRL_REGADDR(offset));
+	return readw_relaxed(OMAP_CTRL_REGADDR(offset));
 }
 
 u32 omap_ctrl_readl(u16 offset)
 {
-	return __raw_readl(OMAP_CTRL_REGADDR(offset));
+	return readl_relaxed(OMAP_CTRL_REGADDR(offset));
 }
 
 void omap_ctrl_writeb(u8 val, u16 offset)
 {
-	__raw_writeb(val, OMAP_CTRL_REGADDR(offset));
+	writeb_relaxed(val, OMAP_CTRL_REGADDR(offset));
 }
 
 void omap_ctrl_writew(u16 val, u16 offset)
 {
-	__raw_writew(val, OMAP_CTRL_REGADDR(offset));
+	writew_relaxed(val, OMAP_CTRL_REGADDR(offset));
 }
 
 void omap_ctrl_writel(u32 val, u16 offset)
 {
-	__raw_writel(val, OMAP_CTRL_REGADDR(offset));
+	writel_relaxed(val, OMAP_CTRL_REGADDR(offset));
 }
 
 /*
@@ -202,12 +187,12 @@ void omap_ctrl_writel(u32 val, u16 offset)
 
 u32 omap4_ctrl_pad_readl(u16 offset)
 {
-	return __raw_readl(OMAP4_CTRL_PAD_REGADDR(offset));
+	return readl_relaxed(OMAP4_CTRL_PAD_REGADDR(offset));
 }
 
 void omap4_ctrl_pad_writel(u32 val, u16 offset)
 {
-	__raw_writel(val, OMAP4_CTRL_PAD_REGADDR(offset));
+	writel_relaxed(val, OMAP4_CTRL_PAD_REGADDR(offset));
 }
 
 #ifdef CONFIG_ARCH_OMAP3
@@ -236,10 +221,54 @@ void omap3_ctrl_write_boot_mode(u8 bootmode)
 	 *
 	 * XXX This should use some omap_ctrl_writel()-type function
 	 */
-	__raw_writel(l, OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD + 4));
+	writel_relaxed(l, OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD + 4));
 }
 
 #endif
+
+/**
+ * omap_ctrl_write_dsp_boot_addr - set boot address for a remote processor
+ * @bootaddr: physical address of the boot loader
+ *
+ * Set boot address for the boot loader of a supported processor
+ * when a power ON sequence occurs.
+ */
+void omap_ctrl_write_dsp_boot_addr(u32 bootaddr)
+{
+	u32 offset = cpu_is_omap243x() ? OMAP243X_CONTROL_IVA2_BOOTADDR :
+		     cpu_is_omap34xx() ? OMAP343X_CONTROL_IVA2_BOOTADDR :
+		     cpu_is_omap44xx() ? OMAP4_CTRL_MODULE_CORE_DSP_BOOTADDR :
+		     soc_is_omap54xx() ? OMAP4_CTRL_MODULE_CORE_DSP_BOOTADDR :
+		     0;
+
+	if (!offset) {
+		pr_err("%s: unsupported omap type\n", __func__);
+		return;
+	}
+
+	omap_ctrl_writel(bootaddr, offset);
+}
+
+/**
+ * omap_ctrl_write_dsp_boot_mode - set boot mode for a remote processor
+ * @bootmode: 8-bit value to pass to some boot code
+ *
+ * Sets boot mode for the boot loader of a supported processor
+ * when a power ON sequence occurs.
+ */
+void omap_ctrl_write_dsp_boot_mode(u8 bootmode)
+{
+	u32 offset = cpu_is_omap243x() ? OMAP243X_CONTROL_IVA2_BOOTMOD :
+		     cpu_is_omap34xx() ? OMAP343X_CONTROL_IVA2_BOOTMOD :
+		     0;
+
+	if (!offset) {
+		pr_err("%s: unsupported omap type\n", __func__);
+		return;
+	}
+
+	omap_ctrl_writel(bootmode, offset);
+}
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 /*
@@ -251,14 +280,11 @@ void omap3_clear_scratchpad_contents(void)
 	u32 max_offset = OMAP343X_SCRATCHPAD_ROM_OFFSET;
 	void __iomem *v_addr;
 	u32 offset = 0;
+
 	v_addr = OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD_ROM);
-	if (omap2_prm_read_mod_reg(OMAP3430_GR_MOD, OMAP3_PRM_RSTST_OFFSET) &
-	    OMAP3430_GLOBAL_COLD_RST_MASK) {
+	if (omap3xxx_prm_clear_global_cold_reset()) {
 		for ( ; offset <= max_offset; offset += 0x4)
-			__raw_writel(0x0, (v_addr + offset));
-		omap2_prm_set_mod_reg_bits(OMAP3430_GLOBAL_COLD_RST_MASK,
-					   OMAP3430_GR_MOD,
-					   OMAP3_PRM_RSTST_OFFSET);
+			writel_relaxed(0x0, (v_addr + offset));
 	}
 }
 
@@ -284,7 +310,8 @@ void omap3_save_scratchpad_contents(void)
 		scratchpad_contents.public_restore_ptr =
 			virt_to_phys(omap3_restore_3630);
 	else if (omap_rev() != OMAP3430_REV_ES3_0 &&
-					omap_rev() != OMAP3430_REV_ES3_1)
+					omap_rev() != OMAP3430_REV_ES3_1 &&
+					omap_rev() != OMAP3430_REV_ES3_1_2)
 		scratchpad_contents.public_restore_ptr =
 			virt_to_phys(omap3_restore);
 	else
@@ -301,40 +328,9 @@ void omap3_save_scratchpad_contents(void)
 	scratchpad_contents.sdrc_block_offset = 0x64;
 
 	/* Populate the PRCM block contents */
-	prcm_block_contents.prm_clksrc_ctrl =
-		omap2_prm_read_mod_reg(OMAP3430_GR_MOD,
-				       OMAP3_PRM_CLKSRC_CTRL_OFFSET);
-	prcm_block_contents.prm_clksel =
-		omap2_prm_read_mod_reg(OMAP3430_CCR_MOD,
-				       OMAP3_PRM_CLKSEL_OFFSET);
-	prcm_block_contents.cm_clksel_core =
-			omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL);
-	prcm_block_contents.cm_clksel_wkup =
-			omap2_cm_read_mod_reg(WKUP_MOD, CM_CLKSEL);
-	prcm_block_contents.cm_clken_pll =
-			omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
-	/*
-	 * As per erratum i671, ROM code does not respect the PER DPLL
-	 * programming scheme if CM_AUTOIDLE_PLL..AUTO_PERIPH_DPLL == 1.
-	 * Then,  in anycase, clear these bits to avoid extra latencies.
-	 */
-	prcm_block_contents.cm_autoidle_pll =
-			omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE) &
-			~OMAP3430_AUTO_PERIPH_DPLL_MASK;
-	prcm_block_contents.cm_clksel1_pll =
-			omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL1_PLL);
-	prcm_block_contents.cm_clksel2_pll =
-			omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL2_PLL);
-	prcm_block_contents.cm_clksel3_pll =
-			omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL3);
-	prcm_block_contents.cm_clken_pll_mpu =
-			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKEN_PLL);
-	prcm_block_contents.cm_autoidle_pll_mpu =
-			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_AUTOIDLE_PLL);
-	prcm_block_contents.cm_clksel1_pll_mpu =
-			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL1_PLL);
-	prcm_block_contents.cm_clksel2_pll_mpu =
-			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL2_PLL);
+	omap3_prm_save_scratchpad_contents(prcm_block_contents.prm_contents);
+	omap3_cm_save_scratchpad_contents(prcm_block_contents.cm_contents);
+
 	prcm_block_contents.prcm_block_size = 0x0;
 
 	/* Populate the SDRC block contents */
@@ -469,7 +465,6 @@ void omap3_control_save_context(void)
 	control_context.csi = omap_ctrl_readl(OMAP343X_CONTROL_CSI);
 	control_context.padconf_sys_nirq =
 		omap_ctrl_readl(OMAP343X_CONTROL_PADCONF_SYSNIRQ);
-	return;
 }
 
 void omap3_control_restore_context(void)
@@ -527,7 +522,6 @@ void omap3_control_restore_context(void)
 	omap_ctrl_writel(control_context.csi, OMAP343X_CONTROL_CSI);
 	omap_ctrl_writel(control_context.padconf_sys_nirq,
 			 OMAP343X_CONTROL_PADCONF_SYSNIRQ);
-	return;
 }
 
 void omap3630_ctrl_disable_rta(void)
@@ -564,4 +558,56 @@ int omap3_ctrl_save_padconf(void)
 	return 0;
 }
 
+/**
+ * omap3_ctrl_set_iva_bootmode_idle - sets the IVA2 bootmode to idle
+ *
+ * Sets the bootmode for IVA2 to idle. This is needed by the PM code to
+ * force disable IVA2 so that it does not prevent any low-power states.
+ */
+static void __init omap3_ctrl_set_iva_bootmode_idle(void)
+{
+	omap_ctrl_writel(OMAP3_IVA2_BOOTMOD_IDLE,
+			 OMAP343X_CONTROL_IVA2_BOOTMOD);
+}
+
+/**
+ * omap3_ctrl_setup_d2d_padconf - setup stacked modem pads for idle
+ *
+ * Sets up the pads controlling the stacked modem in such way that the
+ * device can enter idle.
+ */
+static void __init omap3_ctrl_setup_d2d_padconf(void)
+{
+	u16 mask, padconf;
+
+	/*
+	 * In a stand alone OMAP3430 where there is not a stacked
+	 * modem for the D2D Idle Ack and D2D MStandby must be pulled
+	 * high. S CONTROL_PADCONF_SAD2D_IDLEACK and
+	 * CONTROL_PADCONF_SAD2D_MSTDBY to have a pull up.
+	 */
+	mask = (1 << 4) | (1 << 3); /* pull-up, enabled */
+	padconf = omap_ctrl_readw(OMAP3_PADCONF_SAD2D_MSTANDBY);
+	padconf |= mask;
+	omap_ctrl_writew(padconf, OMAP3_PADCONF_SAD2D_MSTANDBY);
+
+	padconf = omap_ctrl_readw(OMAP3_PADCONF_SAD2D_IDLEACK);
+	padconf |= mask;
+	omap_ctrl_writew(padconf, OMAP3_PADCONF_SAD2D_IDLEACK);
+}
+
+/**
+ * omap3_ctrl_init - does static initializations for control module
+ *
+ * Initializes system control module. This sets up the sysconfig autoidle,
+ * and sets up modem and iva2 so that they can be idled properly.
+ */
+void __init omap3_ctrl_init(void)
+{
+	omap_ctrl_writel(OMAP3430_AUTOIDLE_MASK, OMAP2_CONTROL_SYSCONFIG);
+
+	omap3_ctrl_set_iva_bootmode_idle();
+
+	omap3_ctrl_setup_d2d_padconf();
+}
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */

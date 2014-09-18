@@ -90,79 +90,11 @@ config RD_LZO
 	  Support loading of a LZO encoded initial ramdisk or cpio buffer
 	  If unsure, say N.
 
-choice
-	prompt "Built-in initramfs compression mode" if INITRAMFS_SOURCE!=""
+config RD_LZ4
+	bool "Support initial ramdisks compressed using LZ4" if EXPERT
+	default !EXPERT
+	depends on BLK_DEV_INITRD
+	select DECOMPRESS_LZ4
 	help
-	  This option decides by which algorithm the builtin initramfs
-	  will be compressed.  Several compression algorithms are
-	  available, which differ in efficiency, compression and
-	  decompression speed.  Compression speed is only relevant
-	  when building a kernel.  Decompression speed is relevant at
-	  each boot.
-
-	  If you have any problems with bzip2 or LZMA compressed
-	  initramfs, mail me (Alain Knaff) <alain@knaff.lu>.
-
-	  High compression options are mostly useful for users who are
-	  low on RAM, since it reduces the memory consumption during
-	  boot.
-
-	  If in doubt, select 'gzip'
-
-config INITRAMFS_COMPRESSION_NONE
-	bool "None"
-	help
-	  Do not compress the built-in initramfs at all. This may
-	  sound wasteful in space, but, you should be aware that the
-	  built-in initramfs will be compressed at a later stage
-	  anyways along with the rest of the kernel, on those
-	  architectures that support this.
-	  However, not compressing the initramfs may lead to slightly
-	  higher memory consumption during a short time at boot, while
-	  both the cpio image and the unpacked filesystem image will
-	  be present in memory simultaneously
-
-config INITRAMFS_COMPRESSION_GZIP
-	bool "Gzip"
-	depends on RD_GZIP
-	help
-	  The old and tried gzip compression. It provides a good balance
-	  between compression ratio and decompression speed.
-
-config INITRAMFS_COMPRESSION_BZIP2
-	bool "Bzip2"
-	depends on RD_BZIP2
-	help
-	  Its compression ratio and speed is intermediate.
-	  Decompression speed is slowest among the four.  The initramfs
-	  size is about 10% smaller with bzip2, in comparison to gzip.
-	  Bzip2 uses a large amount of memory. For modern kernels you
-	  will need at least 8MB RAM or more for booting.
-
-config INITRAMFS_COMPRESSION_LZMA
-	bool "LZMA"
-	depends on RD_LZMA
-	help
-	  The most recent compression algorithm.
-	  Its ratio is best, decompression speed is between the other
-	  three. Compression is slowest. The initramfs size is about 33%
-	  smaller with LZMA in comparison to gzip.
-
-config INITRAMFS_COMPRESSION_XZ
-	bool "XZ"
-	depends on RD_XZ
-	help
-	  XZ uses the LZMA2 algorithm. The initramfs size is about 30%
-	  smaller with XZ in comparison to gzip. Decompression speed
-	  is better than that of bzip2 but worse than gzip and LZO.
-	  Compression is slow.
-
-config INITRAMFS_COMPRESSION_LZO
-	bool "LZO"
-	depends on RD_LZO
-	help
-	  Its compression ratio is the poorest among the four. The kernel
-	  size is about 10% bigger than gzip; however its speed
-	  (both compression and decompression) is the fastest.
-
-endchoice
+	  Support loading of a LZ4 encoded initial ramdisk or cpio buffer
+	  If unsure, say N.

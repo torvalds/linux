@@ -143,7 +143,7 @@ static int get_mixer_levels(void __user * arg)
 
 static ssize_t sound_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	int dev = iminor(file->f_path.dentry->d_inode);
+	int dev = iminor(file_inode(file));
 	int ret = -EINVAL;
 
 	/*
@@ -154,7 +154,6 @@ static ssize_t sound_read(struct file *file, char __user *buf, size_t count, lof
 	 
 	mutex_lock(&soundcard_mutex);
 	
-	DEB(printk("sound_read(dev=%d, count=%d)\n", dev, count));
 	switch (dev & 0x0f) {
 	case SND_DEV_DSP:
 	case SND_DEV_DSP16:
@@ -176,11 +175,10 @@ static ssize_t sound_read(struct file *file, char __user *buf, size_t count, lof
 
 static ssize_t sound_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	int dev = iminor(file->f_path.dentry->d_inode);
+	int dev = iminor(file_inode(file));
 	int ret = -EINVAL;
 	
 	mutex_lock(&soundcard_mutex);
-	DEB(printk("sound_write(dev=%d, count=%d)\n", dev, count));
 	switch (dev & 0x0f) {
 	case SND_DEV_SEQ:
 	case SND_DEV_SEQ2:
@@ -206,7 +204,6 @@ static int sound_open(struct inode *inode, struct file *file)
 	int dev = iminor(inode);
 	int retval;
 
-	DEB(printk("sound_open(dev=%d)\n", dev));
 	if ((dev >= SND_NDEVS) || (dev < 0)) {
 		printk(KERN_ERR "Invalid minor device %d\n", dev);
 		return -ENXIO;
@@ -257,7 +254,6 @@ static int sound_release(struct inode *inode, struct file *file)
 	int dev = iminor(inode);
 
 	mutex_lock(&soundcard_mutex);
-	DEB(printk("sound_release(dev=%d)\n", dev));
 	switch (dev & 0x0f) {
 	case SND_DEV_CTL:
 		module_put(mixer_devs[dev >> 4]->owner);
@@ -333,7 +329,7 @@ static int sound_mixer_ioctl(int mixdev, unsigned int cmd, void __user *arg)
 static long sound_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int len = 0, dtype;
-	int dev = iminor(file->f_dentry->d_inode);
+	int dev = iminor(file_inode(file));
 	long ret = -EINVAL;
 	void __user *p = (void __user *)arg;
 
@@ -351,7 +347,6 @@ static long sound_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (!access_ok(VERIFY_WRITE, p, len))
 				return -EFAULT;
 	}
-	DEB(printk("sound_ioctl(dev=%d, cmd=0x%x, arg=0x%x)\n", dev, cmd, arg));
 	if (cmd == OSS_GETVERSION)
 		return __put_user(SOUND_VERSION, (int __user *)p);
 	
@@ -406,10 +401,9 @@ static long sound_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static unsigned int sound_poll(struct file *file, poll_table * wait)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	int dev = iminor(inode);
 
-	DEB(printk("sound_poll(dev=%d)\n", dev));
 	switch (dev & 0x0f) {
 	case SND_DEV_SEQ:
 	case SND_DEV_SEQ2:
@@ -431,7 +425,7 @@ static int sound_mmap(struct file *file, struct vm_area_struct *vma)
 	int dev_class;
 	unsigned long size;
 	struct dma_buffparms *dmap = NULL;
-	int dev = iminor(file->f_path.dentry->d_inode);
+	int dev = iminor(file_inode(file));
 
 	dev_class = dev & 0x0f;
 	dev >>= 4;

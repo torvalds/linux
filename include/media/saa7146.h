@@ -13,11 +13,10 @@
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 
 #include <linux/vmalloc.h>	/* for vmalloc() */
 #include <linux/mm.h>		/* for vmalloc_to_page() */
-
-#define SAA7146_VERSION_CODE 0x000600	/* 0.6.0 */
 
 #define saa7146_write(sxy,adr,dat)    writel((dat),(sxy->mem+(adr)))
 #define saa7146_read(sxy,adr)         readl(sxy->mem+(adr))
@@ -118,9 +117,8 @@ struct saa7146_dev
 {
 	struct module			*module;
 
-	struct list_head		item;
-
 	struct v4l2_device 		v4l2_dev;
+	struct v4l2_ctrl_handler	ctrl_handler;
 
 	/* different device locks */
 	spinlock_t			slock;
@@ -166,8 +164,6 @@ static inline struct saa7146_dev *to_saa7146_dev(struct v4l2_device *v4l2_dev)
 int saa7146_i2c_adapter_prepare(struct saa7146_dev *dev, struct i2c_adapter *i2c_adapter, u32 bitrate);
 
 /* from saa7146_core.c */
-extern struct list_head saa7146_devices;
-extern struct mutex saa7146_devices_lock;
 int saa7146_register_extension(struct saa7146_extension*);
 int saa7146_unregister_extension(struct saa7146_extension*);
 struct saa7146_format* saa7146_format_by_fourcc(struct saa7146_dev *dev, int fourcc);

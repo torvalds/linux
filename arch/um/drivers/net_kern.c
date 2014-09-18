@@ -18,12 +18,12 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include "init.h"
-#include "irq_kern.h"
-#include "irq_user.h"
+#include <init.h>
+#include <irq_kern.h>
+#include <irq_user.h>
 #include "mconsole_kern.h"
-#include "net_kern.h"
-#include "net_user.h"
+#include <net_kern.h>
+#include <net_user.h>
 
 #define DRIVER_NAME "uml-netdev"
 
@@ -195,7 +195,7 @@ static int uml_net_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	free_irq(dev->irq, dev);
+	um_free_irq(dev->irq, dev);
 	if (lp->close != NULL)
 		(*lp->close)(lp->fd, &lp->user);
 	lp->fd = -1;
@@ -218,6 +218,7 @@ static int uml_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&lp->lock, flags);
 
 	len = (*lp->write)(lp->fd, skb, lp);
+	skb_tx_timestamp(skb);
 
 	if (len == skb->len) {
 		dev->stats.tx_packets++;
@@ -239,7 +240,7 @@ static int uml_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	dev_kfree_skb(skb);
+	dev_consume_skb_any(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -274,13 +275,14 @@ static void uml_net_poll_controller(struct net_device *dev)
 static void uml_net_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRIVER_NAME);
-	strcpy(info->version, "42");
+	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strlcpy(info->version, "42", sizeof(info->version));
 }
 
 static const struct ethtool_ops uml_net_ethtool_ops = {
 	.get_drvinfo	= uml_net_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
+	.get_ts_info	= ethtool_op_get_ts_info,
 };
 
 static void uml_net_user_timer_expire(unsigned long _conn)
@@ -293,8 +295,9 @@ static void uml_net_user_timer_expire(unsigned long _conn)
 #endif
 }
 
-static int setup_etheraddr(char *str, unsigned char *addr, char *name)
+static void setup_etheraddr(struct net_device *dev, char *str)
 {
+	unsigned char *addr = dev->dev_addr;
 	char *end;
 	int i;
 
@@ -334,13 +337,12 @@ static int setup_etheraddr(char *str, unsigned char *addr, char *name)
 		       addr[0] | 0x02, addr[1], addr[2], addr[3], addr[4],
 		       addr[5]);
 	}
-	return 0;
+	return;
 
 random:
 	printk(KERN_INFO
-	       "Choosing a random ethernet address for device %s\n", name);
-	random_ether_addr(addr);
-	return 1;
+	       "Choosing a random ethernet address for device %s\n", dev->name);
+	eth_hw_addr_random(dev);
 }
 
 static DEFINE_SPINLOCK(devices_lock);
@@ -392,7 +394,6 @@ static void eth_configure(int n, void *init, char *mac,
 	struct net_device *dev;
 	struct uml_net_private *lp;
 	int err, size;
-	int random_mac;
 
 	size = transport->private_size + sizeof(struct uml_net_private);
 
@@ -419,9 +420,9 @@ static void eth_configure(int n, void *init, char *mac,
 	 */
 	snprintf(dev->name, sizeof(dev->name), "eth%d", n);
 
-	random_mac = setup_etheraddr(mac, device->mac, dev->name);
+	setup_etheraddr(dev, mac);
 
-	printk(KERN_INFO "Netdevice %d (%pM) : ", n, device->mac);
+	printk(KERN_INFO "Netdevice %d (%pM) : ", n, dev->dev_addr);
 
 	lp = netdev_priv(dev);
 	/* This points to the transport private data. It's still clear, but we
@@ -468,16 +469,11 @@ static void eth_configure(int n, void *init, char *mac,
 	init_timer(&lp->tl);
 	spin_lock_init(&lp->lock);
 	lp->tl.function = uml_net_user_timer_expire;
-	memcpy(lp->mac, device->mac, sizeof(lp->mac));
+	memcpy(lp->mac, dev->dev_addr, sizeof(lp->mac));
 
 	if ((transport->user->init != NULL) &&
 	    ((*transport->user->init)(&lp->user, dev) != 0))
 		goto out_unregister;
-
-	/* don't use eth_mac_addr, it will not work here */
-	memcpy(dev->dev_addr, device->mac, ETH_ALEN);
-	if (random_mac)
-		dev->addr_assign_type |= NET_ADDR_RANDOM;
 
 	dev->mtu = transport->user->mtu;
 	dev->netdev_ops = &uml_netdev_ops;
@@ -835,7 +831,7 @@ static void close_devices(void)
 	spin_lock(&opened_lock);
 	list_for_each(ele, &opened) {
 		lp = list_entry(ele, struct uml_net_private, list);
-		free_irq(lp->dev->irq, lp->dev);
+		um_free_irq(lp->dev->irq, lp->dev);
 		if ((lp->close != NULL) && (lp->fd >= 0))
 			(*lp->close)(lp->fd, &lp->user);
 		if (lp->remove != NULL)

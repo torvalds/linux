@@ -116,6 +116,18 @@ enum max17042_register {
 	MAX17042_VFSOC		= 0xFF,
 };
 
+/* Registers specific to max17047/50 */
+enum max17047_register {
+	MAX17047_QRTbl00	= 0x12,
+	MAX17047_FullSOCThr	= 0x13,
+	MAX17047_QRTbl10	= 0x22,
+	MAX17047_QRTbl20	= 0x32,
+	MAX17047_V_empty	= 0x3A,
+	MAX17047_QRTbl30	= 0x42,
+};
+
+enum max170xx_chip_type {MAX17042, MAX17047};
+
 /*
  * used for setting a register to a desired value
  * addr : address for a register
@@ -144,6 +156,7 @@ struct max17042_config_data {
 	u16	shdntimer;	/* 0x03F */
 
 	/* App data */
+	u16	full_soc_thresh;	/* 0x13 */
 	u16	design_cap;	/* 0x18 */
 	u16	ichgt_term;	/* 0x1E */
 
@@ -162,6 +175,10 @@ struct max17042_config_data {
 	u16	lavg_empty;	/* 0x36 */
 	u16	dqacc;		/* 0x45 */
 	u16	dpacc;		/* 0x46 */
+	u16	qrtbl00;	/* 0x12 */
+	u16	qrtbl10;	/* 0x22 */
+	u16	qrtbl20;	/* 0x32 */
+	u16	qrtbl30;	/* 0x42 */
 
 	/* Cell technology from power_supply.h */
 	u16	cell_technology;

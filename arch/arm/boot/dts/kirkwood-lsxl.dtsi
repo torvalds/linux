@@ -1,0 +1,236 @@
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+
+/ {
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
+	};
+
+	ocp@f1000000 {
+		pinctrl: pin-controller@10000 {
+			pmx_power_hdd: pmx-power-hdd {
+				marvell,pins = "mpp10";
+				marvell,function = "gpo";
+			};
+			pmx_usb_vbus: pmx-usb-vbus {
+				marvell,pins = "mpp11";
+				marvell,function = "gpio";
+			};
+			pmx_fan_high: pmx-fan-high {
+				marvell,pins = "mpp18";
+				marvell,function = "gpo";
+			};
+			pmx_fan_low: pmx-fan-low {
+				marvell,pins = "mpp19";
+				marvell,function = "gpo";
+			};
+			pmx_led_function_blue: pmx-led-function-blue {
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+			pmx_led_alarm: pmx-led-alarm {
+				marvell,pins = "mpp37";
+				marvell,function = "gpio";
+			};
+			pmx_led_info: pmx-led-info {
+				marvell,pins = "mpp38";
+				marvell,function = "gpio";
+			};
+			pmx_led_power: pmx-led-power {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+			pmx_fan_lock: pmx-fan-lock {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
+			pmx_button_function: pmx-button-function {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+			pmx_power_switch: pmx-power-switch {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+			pmx_power_auto_switch: pmx-power-auto-switch {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+			pmx_led_function_red: pmx-led-function_red {
+				marvell,pins = "mpp48";
+				marvell,function = "gpio";
+			};
+
+		};
+		sata@80000 {
+			status = "okay";
+			nr-ports = <1>;
+		};
+
+		spi@10600 {
+			status = "okay";
+
+			m25p40@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "m25p40";
+				reg = <0>;
+				spi-max-frequency = <25000000>;
+				mode = <0>;
+
+				partition@0 {
+					reg = <0x0 0x60000>;
+					label = "uboot";
+					read-only;
+				};
+
+				partition@60000 {
+					reg = <0x60000 0x10000>;
+					label = "dtb";
+					read-only;
+				};
+
+				partition@70000 {
+					reg = <0x70000 0x10000>;
+					label = "uboot_env";
+				};
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_button_function &pmx_power_switch
+			     &pmx_power_auto_switch>;
+		pinctrl-names = "default";
+
+		button@1 {
+			label = "Function Button";
+			linux,code = <KEY_OPTION>;
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+		};
+		button@2 {
+			label = "Power-on Switch";
+			linux,code = <KEY_RESERVED>;
+			linux,input-type = <5>;
+			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+		};
+		button@3 {
+			label = "Power-auto Switch";
+			linux,code = <KEY_ESC>;
+			linux,input-type = <5>;
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio_leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_function_red &pmx_led_alarm
+			     &pmx_led_info &pmx_led_power
+			     &pmx_led_function_blue>;
+		pinctrl-names = "default";
+
+		led@1 {
+			label = "lsxl:blue:func";
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		};
+
+		led@2 {
+			label = "lsxl:red:alarm";
+			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+		};
+
+		led@3 {
+			label = "lsxl:amber:info";
+			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+		};
+
+		led@4 {
+			label = "lsxl:blue:power";
+			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
+		};
+
+		led@5 {
+			label = "lsxl:red:func";
+			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio_fan {
+		compatible = "gpio-fan";
+		pinctrl-0 = <&pmx_fan_low &pmx_fan_high &pmx_fan_lock>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 19 GPIO_ACTIVE_LOW
+		         &gpio0 18 GPIO_ACTIVE_LOW>;
+		gpio-fan,speed-map = <0    3
+		                      1500 2
+		                      3250 1
+		                      5000 0>;
+		alarm-gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+	};
+
+	restart_poweroff {
+		compatible = "restart-poweroff";
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_power_hdd &pmx_usb_vbus>;
+		pinctrl-names = "default";
+
+		usb_power: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "USB Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 11 0>;
+		};
+		hdd_power: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "HDD Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 10 0>;
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@8 {
+		reg = <8>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	ethernet1-port@0 {
+		phy-handle = <&ethphy1>;
+	};
+};

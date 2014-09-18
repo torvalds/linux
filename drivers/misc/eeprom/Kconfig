@@ -1,13 +1,14 @@
 menu "EEPROM support"
 
 config EEPROM_AT24
-	tristate "I2C EEPROMs from most vendors"
+	tristate "I2C EEPROMs / RAMs / ROMs from most vendors"
 	depends on I2C && SYSFS
 	help
-	  Enable this driver to get read/write support to most I2C EEPROMs,
-	  after you configure the driver to know about each EEPROM on
-	  your target board.  Use these generic chip names, instead of
-	  vendor-specific ones like at24c64 or 24lc02:
+	  Enable this driver to get read/write support to most I2C EEPROMs
+	  and compatible devices like FRAMs, SRAMs, ROMs etc. After you
+	  configure the driver to know about each chip on your target
+	  board.  Use these generic chip names, instead of vendor-specific
+	  ones like at24c64, 24lc02 or fm24c04:
 
 	     24c00, 24c01, 24c02, spd (readonly 24c02), 24c04, 24c08,
 	     24c16, 24c32, 24c64, 24c128, 24c256, 24c512, 24c1024
@@ -50,7 +51,7 @@ config EEPROM_LEGACY
 
 config EEPROM_MAX6875
 	tristate "Maxim MAX6874/5 power supply supervisor"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	help
 	  If you say yes here you get read-only support for the user EEPROM of
 	  the Maxim MAX6874/5 EEPROM-programmable, quad power-supply
@@ -94,5 +95,18 @@ config EEPROM_DIGSY_MTC_CFG
 	  erase the whole EEPROM.
 
 	  If unsure, say N.
+
+config EEPROM_SUNXI_SID
+	tristate "Allwinner sunxi security ID support"
+	depends on ARCH_SUNXI && SYSFS
+	help
+	  This is a driver for the 'security ID' available on various Allwinner
+	  devices.
+
+	  Due to the potential risks involved with changing e-fuses,
+	  this driver is read-only.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sunxi_sid.
 
 endmenu

@@ -1,0 +1,19 @@
+ARM Dual Cluster System Configuration Block
+-------------------------------------------
+
+The Dual Cluster System Configuration Block (DCSCB) provides basic
+functionality for controlling clocks, resets and configuration pins in
+the Dual Cluster System implemented by the Real-Time System Model (RTSM).
+
+Required properties:
+
+- compatible : should be "arm,rtsm,dcscb"
+
+- reg : physical base address and the size of the registers window
+
+Example:
+
+	dcscb@60000000 {
+		compatible = "arm,rtsm,dcscb";
+		reg = <0x60000000 0x1000>;
+	};

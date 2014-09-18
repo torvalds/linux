@@ -1,0 +1,31 @@
+/*
+ * at91sam9x5_macb0.dtsi - Device Tree Include file for AT91SAM9x5 SoC with 1
+ * Ethernet interface.
+ *
+ * Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
+ *
+ * Licensed under GPLv2.
+ */
+
+#include <dt-bindings/pinctrl/at91.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	ahb {
+		apb {
+			pmc: pmc@fffffc00 {
+				periphck {
+					can0_clk: can0_clk {
+						#clock-cells = <0>;
+						reg = <29>;
+					};
+
+                                        can1_clk: can1_clk {
+                                                #clock-cells = <0>;
+                                                reg = <30>;
+                                        };
+				};
+			};
+		};
+	};
+};

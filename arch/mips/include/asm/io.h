@@ -7,7 +7,7 @@
  * Copyright (C) 1994 - 2000, 06 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2004, 2005  MIPS Technologies, Inc.  All rights reserved.
- *	Author:	Maciej W. Rozycki <macro@mips.com>
+ *	Author: Maciej W. Rozycki <macro@mips.com>
  */
 #ifndef _ASM_IO_H
 #define _ASM_IO_H
@@ -15,8 +15,10 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/irqflags.h>
 
 #include <asm/addrspace.h>
+#include <asm/bug.h>
 #include <asm/byteorder.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
@@ -116,7 +118,7 @@ static inline void set_io_port_base(unsigned long base)
  */
 static inline unsigned long virt_to_phys(volatile const void *address)
 {
-	return (unsigned long)address - PAGE_OFFSET + PHYS_OFFSET;
+	return __pa(address);
 }
 
 /*
@@ -167,6 +169,11 @@ static inline void * isa_bus_to_virt(unsigned long address)
 
 extern void __iomem * __ioremap(phys_t offset, phys_t size, unsigned long flags);
 extern void __iounmap(const volatile void __iomem *addr);
+
+#ifndef CONFIG_PCI
+struct pci_dev;
+static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
+#endif
 
 static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 	unsigned long flags)
@@ -251,9 +258,9 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 	__ioremap_mode((offset), (size), _CACHE_UNCACHED)
 
 /*
- * ioremap_cachable -   map bus memory into CPU space
- * @offset:         bus address of the memory
- * @size:           size of the resource to map
+ * ioremap_cachable -	map bus memory into CPU space
+ * @offset:	    bus address of the memory
+ * @size:	    size of the resource to map
  *
  * ioremap_nocache performs a platform specific sequence of operations to
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
@@ -262,14 +269,14 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
  * address.
  *
  * This version of ioremap ensures that the memory is marked cachable by
- * the CPU.  Also enables full write-combining.  Useful for some
+ * the CPU.  Also enables full write-combining.	 Useful for some
  * memory-like regions on I/O busses.
  */
 #define ioremap_cachable(offset, size)					\
 	__ioremap_mode((offset), (size), _page_cachable_default)
 
 /*
- * These two are MIPS specific ioremap variant.  ioremap_cacheable_cow
+ * These two are MIPS specific ioremap variant.	 ioremap_cacheable_cow
  * requests a cachable mapping, ioremap_uncached_accelerated requests a
  * mapping using the uncached accelerated mode which isn't supported on
  * all processors.
@@ -296,7 +303,7 @@ static inline void iounmap(const volatile void __iomem *addr)
 }
 
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
-#define war_octeon_io_reorder_wmb()  		wmb()
+#define war_octeon_io_reorder_wmb()		wmb()
 #else
 #define war_octeon_io_reorder_wmb()		do { } while (0)
 #endif
@@ -315,7 +322,7 @@ static inline void pfx##write##bwlq(type val,				\
 									\
 	__val = pfx##ioswab##bwlq(__mem, val);				\
 									\
-	if (sizeof(type) != sizeof(u64) || sizeof(u64) == sizeof(long))	\
+	if (sizeof(type) != sizeof(u64) || sizeof(u64) == sizeof(long)) \
 		*__mem = __val;						\
 	else if (cpu_has_64bits) {					\
 		unsigned long __flags;					\
@@ -324,10 +331,10 @@ static inline void pfx##write##bwlq(type val,				\
 		if (irq)						\
 			local_irq_save(__flags);			\
 		__asm__ __volatile__(					\
-			".set	mips3"		"\t\t# __writeq""\n\t"	\
-			"dsll32	%L0, %L0, 0"			"\n\t"	\
-			"dsrl32	%L0, %L0, 0"			"\n\t"	\
-			"dsll32	%M0, %M0, 0"			"\n\t"	\
+			".set	arch=r4000"	"\t\t# __writeq""\n\t"	\
+			"dsll32 %L0, %L0, 0"			"\n\t"	\
+			"dsrl32 %L0, %L0, 0"			"\n\t"	\
+			"dsll32 %M0, %M0, 0"			"\n\t"	\
 			"or	%L0, %L0, %M0"			"\n\t"	\
 			"sd	%L0, %2"			"\n\t"	\
 			".set	mips0"				"\n"	\
@@ -346,7 +353,7 @@ static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
 									\
 	__mem = (void *)__swizzle_addr_##bwlq((unsigned long)(mem));	\
 									\
-	if (sizeof(type) != sizeof(u64) || sizeof(u64) == sizeof(long))	\
+	if (sizeof(type) != sizeof(u64) || sizeof(u64) == sizeof(long)) \
 		__val = *__mem;						\
 	else if (cpu_has_64bits) {					\
 		unsigned long __flags;					\
@@ -354,9 +361,9 @@ static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
 		if (irq)						\
 			local_irq_save(__flags);			\
 		__asm__ __volatile__(					\
-			".set	mips3"		"\t\t# __readq"	"\n\t"	\
+			".set	arch=r4000"	"\t\t# __readq" "\n\t"	\
 			"ld	%L0, %1"			"\n\t"	\
-			"dsra32	%M0, %L0, 0"			"\n\t"	\
+			"dsra32 %M0, %L0, 0"			"\n\t"	\
 			"sll	%L0, %L0, 0"			"\n\t"	\
 			".set	mips0"				"\n"	\
 			: "=r" (__val)					\
@@ -446,6 +453,11 @@ __BUILDIO(q, u64)
 #define readw_relaxed			readw
 #define readl_relaxed			readl
 #define readq_relaxed			readq
+
+#define writeb_relaxed			writeb
+#define writew_relaxed			writew
+#define writel_relaxed			writel
+#define writeq_relaxed			writeq
 
 #define readb_be(addr)							\
 	__raw_readb((__force unsigned *)(addr))
@@ -572,7 +584,7 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
  *
  * This API used to be exported; it now is for arch code internal use only.
  */
-#ifdef CONFIG_DMA_NONCOHERENT
+#if defined(CONFIG_DMA_NONCOHERENT) || defined(CONFIG_DMA_MAYBE_COHERENT)
 
 extern void (*_dma_cache_wback_inv)(unsigned long start, unsigned long size);
 extern void (*_dma_cache_wback)(unsigned long start, unsigned long size);
@@ -584,14 +596,14 @@ extern void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 
 #else /* Sane hardware */
 
-#define dma_cache_wback_inv(start,size)	\
+#define dma_cache_wback_inv(start,size) \
 	do { (void) (start); (void) (size); } while (0)
 #define dma_cache_wback(start,size)	\
 	do { (void) (start); (void) (size); } while (0)
 #define dma_cache_inv(start,size)	\
 	do { (void) (start); (void) (size); } while (0)
 
-#endif /* CONFIG_DMA_NONCOHERENT */
+#endif /* CONFIG_DMA_NONCOHERENT || CONFIG_DMA_MAYBE_COHERENT */
 
 /*
  * Read a 32-bit register that requires a 64-bit read cycle on the bus.

@@ -17,27 +17,19 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #ifndef _COMEDI_COMPAT32_H
 #define _COMEDI_COMPAT32_H
 
-#include <linux/compat.h>
-#include <linux/fs.h>
-
 #ifdef CONFIG_COMPAT
 
-extern long comedi_compat_ioctl(struct file *file, unsigned int cmd,
-				unsigned long arg);
+struct file;
+long comedi_compat_ioctl(struct file *, unsigned int cmd, unsigned long arg);
 
 #else /* CONFIG_COMPAT */
 
-#define comedi_compat_ioctl 0	/* NULL */
+#define comedi_compat_ioctl	NULL
 
 #endif /* CONFIG_COMPAT */
 

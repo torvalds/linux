@@ -20,8 +20,8 @@ typedef u64 befs_blocknr_t;
  */
 
 typedef struct befs_mount_options {
-	gid_t gid;
-	uid_t uid;
+	kgid_t gid;
+	kuid_t uid;
 	int use_gid;
 	int use_uid;
 	int debug;
@@ -88,8 +88,11 @@ enum befs_err {
 
 /****************************/
 /* debug.c */
+__printf(2, 3)
 void befs_error(const struct super_block *sb, const char *fmt, ...);
+__printf(2, 3)
 void befs_warning(const struct super_block *sb, const char *fmt, ...);
+__printf(2, 3)
 void befs_debug(const struct super_block *sb, const char *fmt, ...);
 
 void befs_dump_super_block(const struct super_block *sb, befs_super_block *);

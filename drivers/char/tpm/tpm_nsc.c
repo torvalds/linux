@@ -227,40 +227,19 @@ static u8 tpm_nsc_status(struct tpm_chip *chip)
 	return inb(chip->vendor.base + NSC_STATUS);
 }
 
-static const struct file_operations nsc_ops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = tpm_open,
-	.read = tpm_read,
-	.write = tpm_write,
-	.release = tpm_release,
-};
+static bool tpm_nsc_req_canceled(struct tpm_chip *chip, u8 status)
+{
+	return (status == NSC_STATUS_RDY);
+}
 
-static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
-static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
-static DEVICE_ATTR(cancel, S_IWUSR|S_IWGRP, NULL, tpm_store_cancel);
-
-static struct attribute * nsc_attrs[] = {
-	&dev_attr_pubek.attr,
-	&dev_attr_pcrs.attr,
-	&dev_attr_caps.attr,
-	&dev_attr_cancel.attr,
-	NULL,
-};
-
-static struct attribute_group nsc_attr_grp = { .attrs = nsc_attrs };
-
-static const struct tpm_vendor_specific tpm_nsc = {
+static const struct tpm_class_ops tpm_nsc = {
 	.recv = tpm_nsc_recv,
 	.send = tpm_nsc_send,
 	.cancel = tpm_nsc_cancel,
 	.status = tpm_nsc_status,
 	.req_complete_mask = NSC_STATUS_OBF,
 	.req_complete_val = NSC_STATUS_OBF,
-	.req_canceled = NSC_STATUS_RDY,
-	.attr_group = &nsc_attr_grp,
-	.miscdev = { .fops = &nsc_ops, },
+	.req_canceled = tpm_nsc_req_canceled,
 };
 
 static struct platform_device *pdev = NULL;
@@ -274,22 +253,13 @@ static void tpm_nsc_remove(struct device *dev)
 	}
 }
 
-static int tpm_nsc_suspend(struct platform_device *dev, pm_message_t msg)
-{
-	return tpm_pm_suspend(&dev->dev, msg);
-}
-
-static int tpm_nsc_resume(struct platform_device *dev)
-{
-	return tpm_pm_resume(&dev->dev);
-}
+static SIMPLE_DEV_PM_OPS(tpm_nsc_pm, tpm_pm_suspend, tpm_pm_resume);
 
 static struct platform_driver nsc_drv = {
-	.suspend         = tpm_nsc_suspend,
-	.resume          = tpm_nsc_resume,
 	.driver          = {
 		.name    = "tpm_nsc",
 		.owner   = THIS_MODULE,
+		.pm      = &tpm_nsc_pm,
 	},
 };
 

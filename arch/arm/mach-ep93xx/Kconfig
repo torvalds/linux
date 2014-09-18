@@ -2,6 +2,12 @@ if ARCH_EP93XX
 
 menu "Cirrus EP93xx Implementation Options"
 
+config EP93XX_SOC_COMMON
+	bool
+	default y
+	select SOC_BUS
+	select LEDS_GPIO_REGISTER
+
 config CRUNCH
 	bool "Support for MaverickCrunch"
 	help
@@ -188,20 +194,6 @@ config MACH_VISION_EP9307
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Vision Engraving Systems EP9307 SoM.
-
-choice
-	prompt "Select a UART for early kernel messages"
-
-config EP93XX_EARLY_UART1
-	bool "UART1"
-
-config EP93XX_EARLY_UART2
-	bool "UART2"
-
-config EP93XX_EARLY_UART3
-	bool "UART3"
-
-endchoice
 
 endmenu
 

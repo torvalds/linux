@@ -1,7 +1,7 @@
 /*
  * Process/processor support for the Hexagon architecture
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -34,7 +34,6 @@
 struct task_struct;
 
 /*  this is defined in arch/process.c  */
-extern pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 extern void start_thread(struct pt_regs *, unsigned long, unsigned long);
@@ -57,13 +56,7 @@ struct thread_struct {
 }
 
 #define cpu_relax() __vmyield()
-
-/*
- * "Unlazying all lazy status" occurs here.
- */
-static inline void prepare_to_copy(struct task_struct *tsk)
-{
-}
+#define cpu_relax_lowlatency() cpu_relax()
 
 /*
  * Decides where the kernel will search for a free chunk of vm space during
@@ -108,12 +101,49 @@ extern unsigned long get_wchan(struct task_struct *p);
  */
 
 struct hexagon_switch_stack {
-	unsigned long long	r1716;
-	unsigned long long	r1918;
-	unsigned long long	r2120;
-	unsigned long long	r2322;
-	unsigned long long	r2524;
-	unsigned long long	r2726;
+	union {
+		struct {
+			unsigned long r16;
+			unsigned long r17;
+		};
+		unsigned long long	r1716;
+	};
+	union {
+		struct {
+			unsigned long r18;
+			unsigned long r19;
+		};
+		unsigned long long	r1918;
+	};
+	union {
+		struct {
+			unsigned long r20;
+			unsigned long r21;
+		};
+		unsigned long long	r2120;
+	};
+	union {
+		struct {
+			unsigned long r22;
+			unsigned long r23;
+		};
+		unsigned long long	r2322;
+	};
+	union {
+		struct {
+			unsigned long r24;
+			unsigned long r25;
+		};
+		unsigned long long	r2524;
+	};
+	union {
+		struct {
+			unsigned long r26;
+			unsigned long r27;
+		};
+		unsigned long long	r2726;
+	};
+
 	unsigned long		fp;
 	unsigned long		lr;
 };

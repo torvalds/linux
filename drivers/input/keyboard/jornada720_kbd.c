@@ -18,7 +18,6 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -94,7 +93,7 @@ static irqreturn_t jornada720_kbd_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 };
 
-static int __devinit jornada720_kbd_probe(struct platform_device *pdev)
+static int jornada720_kbd_probe(struct platform_device *pdev)
 {
 	struct jornadakbd *jornadakbd;
 	struct input_dev *input_dev;
@@ -146,18 +145,16 @@ static int __devinit jornada720_kbd_probe(struct platform_device *pdev)
  fail2:	/* IRQ, DEVICE, MEMORY */
 	free_irq(IRQ_GPIO0, pdev);
  fail1:	/* DEVICE, MEMORY */
-	platform_set_drvdata(pdev, NULL);
 	input_free_device(input_dev);
 	kfree(jornadakbd);
 	return err;
 };
 
-static int __devexit jornada720_kbd_remove(struct platform_device *pdev)
+static int jornada720_kbd_remove(struct platform_device *pdev)
 {
 	struct jornadakbd *jornadakbd = platform_get_drvdata(pdev);
 
 	free_irq(IRQ_GPIO0, pdev);
-	platform_set_drvdata(pdev, NULL);
 	input_unregister_device(jornadakbd->input);
 	kfree(jornadakbd);
 
@@ -173,6 +170,6 @@ static struct platform_driver jornada720_kbd_driver = {
 		.owner	= THIS_MODULE,
 	 },
 	.probe   = jornada720_kbd_probe,
-	.remove  = __devexit_p(jornada720_kbd_remove),
+	.remove  = jornada720_kbd_remove,
 };
 module_platform_driver(jornada720_kbd_driver);

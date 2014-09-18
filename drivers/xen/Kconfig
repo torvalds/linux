@@ -18,11 +18,10 @@ config XEN_SELFBALLOONING
 	  by the current usage of anonymous memory ("committed AS") and
 	  controlled by various sysfs-settable parameters.  Configuring
 	  FRONTSWAP is highly recommended; if it is not configured, self-
-	  ballooning is disabled by default but can be enabled with the
-	  'selfballooning' kernel boot parameter.  If FRONTSWAP is configured,
+	  ballooning is disabled by default. If FRONTSWAP is configured,
 	  frontswap-selfshrinking is enabled by default but can be disabled
-	  with the 'noselfshrink' kernel boot parameter; and self-ballooning
-	  is enabled by default but can be disabled with the 'noselfballooning'
+	  with the 'tmem.selfshrink=0' kernel boot parameter; and self-ballooning
+	  is enabled by default but can be disabled with the 'tmem.selfballooning=0'
 	  kernel boot parameter.  Note that systems without a sufficiently
 	  large swap device should not enable self-ballooning.
 
@@ -71,7 +70,7 @@ config XEN_DEV_EVTCHN
 	tristate "Xen /dev/xen/evtchn device"
 	default y
 	help
-	  The evtchn driver allows a userspace process to triger event
+	  The evtchn driver allows a userspace process to trigger event
 	  channels and to receive notification of an event channel
 	  firing.
 	  If in doubt, say yes.
@@ -140,12 +139,12 @@ config XEN_GRANT_DEV_ALLOC
 
 config SWIOTLB_XEN
 	def_bool y
-	depends on PCI
 	select SWIOTLB
 
 config XEN_TMEM
-	bool
-	default y if (CLEANCACHE || FRONTSWAP)
+	tristate
+	depends on !ARM && !ARM64
+	default m if (CLEANCACHE || FRONTSWAP)
 	help
 	  Shim to interface in-kernel Transcendent Memory hooks
 	  (e.g. cleancache and frontswap) to Xen tmem hypercalls.
@@ -178,20 +177,71 @@ config XEN_PRIVCMD
 	depends on XEN
 	default m
 
+config XEN_STUB
+	bool "Xen stub drivers"
+	depends on XEN && X86_64 && BROKEN
+	default n
+	help
+	  Allow kernel to install stub drivers, to reserve space for Xen drivers,
+	  i.e. memory hotplug and cpu hotplug, and to block native drivers loaded,
+	  so that real Xen drivers can be modular.
+
+	  To enable Xen features like cpu and memory hotplug, select Y here.
+
+config XEN_ACPI_HOTPLUG_MEMORY
+	tristate "Xen ACPI memory hotplug"
+	depends on XEN_DOM0 && XEN_STUB && ACPI
+	default n
+	help
+	  This is Xen ACPI memory hotplug.
+
+	  Currently Xen only support ACPI memory hot-add. If you want
+	  to hot-add memory at runtime (the hot-added memory cannot be
+	  removed until machine stop), select Y/M here, otherwise select N.
+
+config XEN_ACPI_HOTPLUG_CPU
+	tristate "Xen ACPI cpu hotplug"
+	depends on XEN_DOM0 && XEN_STUB && ACPI
+	select ACPI_CONTAINER
+	default n
+	help
+	  Xen ACPI cpu enumerating and hotplugging
+
+	  For hotplugging, currently Xen only support ACPI cpu hotadd.
+	  If you want to hotadd cpu at runtime (the hotadded cpu cannot
+	  be removed until machine stop), select Y/M here.
+
 config XEN_ACPI_PROCESSOR
 	tristate "Xen ACPI processor"
 	depends on XEN && X86 && ACPI_PROCESSOR && CPU_FREQ
 	default m
 	help
-          This ACPI processor uploads Power Management information to the Xen hypervisor.
+          This ACPI processor uploads Power Management information to the Xen
+	  hypervisor.
 
-	  To do that the driver parses the Power Management data and uploads said
-	  information to the Xen hypervisor. Then the Xen hypervisor can select the
-          proper Cx and Pxx states. It also registers itslef as the SMM so that
-          other drivers (such as ACPI cpufreq scaling driver) will not load.
+	  To do that the driver parses the Power Management data and uploads
+	  said information to the Xen hypervisor. Then the Xen hypervisor can
+	  select the proper Cx and Pxx states. It also registers itself as the
+	  SMM so that other drivers (such as ACPI cpufreq scaling driver) will
+	  not load.
 
-          To compile this driver as a module, choose M here: the
-          module will be called xen_acpi_processor  If you do not know what to choose,
-          select M here. If the CPUFREQ drivers are built in, select Y here.
+          To compile this driver as a module, choose M here: the module will be
+	  called xen_acpi_processor  If you do not know what to choose, select
+	  M here. If the CPUFREQ drivers are built in, select Y here.
+
+config XEN_MCE_LOG
+	bool "Xen platform mcelog"
+	depends on XEN_DOM0 && X86_64 && X86_MCE
+	default n
+	help
+	  Allow kernel fetching MCE error from Xen platform and
+	  converting it into Linux mcelog format for mcelog tools
+
+config XEN_HAVE_PVMMU
+       bool
+
+config XEN_EFI
+	def_bool y
+	depends on X86_64 && EFI
 
 endmenu

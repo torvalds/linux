@@ -381,22 +381,8 @@ static int read_register(char regno, unsigned int *valptr);
 /* Serial port, reads one character. ETRAX 100 specific. from debugport.c */
 int getDebugChar(void);
 
-#ifdef CONFIG_ETRAX_VCS_SIM
-int getDebugChar(void)
-{
-  return socketread();
-}
-#endif
-
 /* Serial port, writes one character. ETRAX 100 specific. from debugport.c */
 void putDebugChar(int val);
-
-#ifdef CONFIG_ETRAX_VCS_SIM
-void putDebugChar(int val)
-{
-  socketwrite((char *)&val, 1);
-}
-#endif
 
 /* Returns the integer equivalent of a hexadecimal character. */
 static int hex(char ch);

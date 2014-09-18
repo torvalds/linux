@@ -55,12 +55,12 @@ do {                                                            	\
 
 #define FCOE_DBG(fmt, args...)						\
 	FCOE_CHECK_LOGGING(FCOE_LOGGING,				\
-			   printk(KERN_INFO "fcoe: " fmt, ##args);)
+			   pr_info("fcoe: " fmt, ##args);)
 
 #define FCOE_NETDEV_DBG(netdev, fmt, args...)			\
 	FCOE_CHECK_LOGGING(FCOE_NETDEV_LOGGING,			\
-			   printk(KERN_INFO "fcoe: %s: " fmt,	\
-				  netdev->name, ##args);)
+			   pr_info("fcoe: %s: " fmt,		\
+				   netdev->name, ##args);)
 
 /**
  * struct fcoe_interface - A FCoE interface
@@ -68,10 +68,11 @@ do {                                                            	\
  * @netdev:	      The associated net device
  * @fcoe_packet_type: FCoE packet type
  * @fip_packet_type:  FIP packet type
- * @ctlr:	      The FCoE controller (for FIP)
  * @oem:	      The offload exchange manager for all local port
  *		      instances associated with this port
- * This structure is 1:1 with a net devive.
+ * @removed:	      Indicates fcoe interface removed from net device
+ * @priority:	      Priority for the FCoE packet (DCB)
+ * This structure is 1:1 with a net device.
  */
 struct fcoe_interface {
 	struct list_head   list;
@@ -79,11 +80,16 @@ struct fcoe_interface {
 	struct net_device  *realdev;
 	struct packet_type fcoe_packet_type;
 	struct packet_type fip_packet_type;
-	struct fcoe_ctlr   ctlr;
 	struct fc_exch_mgr *oem;
+	u8	removed;
+	u8	priority;
 };
 
-#define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_interface, ctlr)
+#define fcoe_to_ctlr(x)						\
+	(struct fcoe_ctlr *)(((struct fcoe_ctlr *)(x)) - 1)
+
+#define fcoe_from_ctlr(x)			\
+	((struct fcoe_interface *)((x) + 1))
 
 /**
  * fcoe_netdev() - Return the net device associated with a local port

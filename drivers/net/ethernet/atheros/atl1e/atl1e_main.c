@@ -35,7 +35,7 @@ char atl1e_driver_version[] = DRV_VERSION;
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
  *   Class, Class Mask, private data (not used) }
  */
-static DEFINE_PCI_DEVICE_TABLE(atl1e_pci_tbl) = {
+static const struct pci_device_id atl1e_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L1E)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, 0x1066)},
 	/* required last entry */
@@ -89,7 +89,7 @@ static const u16 atl1e_pay_load_size[] = {
 	128, 256, 512, 1024, 2048, 4096,
 };
 
-/*
+/**
  * atl1e_irq_enable - Enable default interrupt generation settings
  * @adapter: board private structure
  */
@@ -102,7 +102,7 @@ static inline void atl1e_irq_enable(struct atl1e_adapter *adapter)
 	}
 }
 
-/*
+/**
  * atl1e_irq_disable - Mask off interrupt generation on the NIC
  * @adapter: board private structure
  */
@@ -114,7 +114,7 @@ static inline void atl1e_irq_disable(struct atl1e_adapter *adapter)
 	synchronize_irq(adapter->pdev->irq);
 }
 
-/*
+/**
  * atl1e_irq_reset - reset interrupt confiure on the NIC
  * @adapter: board private structure
  */
@@ -126,7 +126,7 @@ static inline void atl1e_irq_reset(struct atl1e_adapter *adapter)
 	AT_WRITE_FLUSH(&adapter->hw);
 }
 
-/*
+/**
  * atl1e_phy_config - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
@@ -210,7 +210,7 @@ static int atl1e_check_link(struct atl1e_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl1e_link_chg_task - deal with link change event Out of interrupt context
  * @netdev: network interface device structure
  */
@@ -259,7 +259,7 @@ static void atl1e_cancel_work(struct atl1e_adapter *adapter)
 	cancel_work_sync(&adapter->link_chg_task);
 }
 
-/*
+/**
  * atl1e_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
@@ -271,7 +271,7 @@ static void atl1e_tx_timeout(struct net_device *netdev)
 	schedule_work(&adapter->reset_task);
 }
 
-/*
+/**
  * atl1e_set_multi - Multicast and Promiscuous mode set
  * @netdev: network interface device structure
  *
@@ -313,9 +313,37 @@ static void atl1e_set_multi(struct net_device *netdev)
 	}
 }
 
+static void __atl1e_rx_mode(netdev_features_t features, u32 *mac_ctrl_data)
+{
+
+	if (features & NETIF_F_RXALL) {
+		/* enable RX of ALL frames */
+		*mac_ctrl_data |= MAC_CTRL_DBG;
+	} else {
+		/* disable RX of ALL frames */
+		*mac_ctrl_data &= ~MAC_CTRL_DBG;
+	}
+}
+
+static void atl1e_rx_mode(struct net_device *netdev,
+	netdev_features_t features)
+{
+	struct atl1e_adapter *adapter = netdev_priv(netdev);
+	u32 mac_ctrl_data = 0;
+
+	netdev_dbg(adapter->netdev, "%s\n", __func__);
+
+	atl1e_irq_disable(adapter);
+	mac_ctrl_data = AT_READ_REG(&adapter->hw, REG_MAC_CTRL);
+	__atl1e_rx_mode(features, &mac_ctrl_data);
+	AT_WRITE_REG(&adapter->hw, REG_MAC_CTRL, mac_ctrl_data);
+	atl1e_irq_enable(adapter);
+}
+
+
 static void __atl1e_vlan_mode(netdev_features_t features, u32 *mac_ctrl_data)
 {
-	if (features & NETIF_F_HW_VLAN_RX) {
+	if (features & NETIF_F_HW_VLAN_CTAG_RX) {
 		/* enable VLAN tag insert/strip */
 		*mac_ctrl_data |= MAC_CTRL_RMV_VLAN;
 	} else {
@@ -345,7 +373,7 @@ static void atl1e_restore_vlan(struct atl1e_adapter *adapter)
 	atl1e_vlan_mode(adapter->netdev, adapter->netdev->features);
 }
 
-/*
+/**
  * atl1e_set_mac - Change the Ethernet Address of the NIC
  * @netdev: network interface device structure
  * @p: pointer to an address structure
@@ -378,10 +406,10 @@ static netdev_features_t atl1e_fix_features(struct net_device *netdev,
 	 * Since there is no support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
-	if (features & NETIF_F_HW_VLAN_RX)
-		features |= NETIF_F_HW_VLAN_TX;
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
 	else
-		features &= ~NETIF_F_HW_VLAN_TX;
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -391,13 +419,17 @@ static int atl1e_set_features(struct net_device *netdev,
 {
 	netdev_features_t changed = netdev->features ^ features;
 
-	if (changed & NETIF_F_HW_VLAN_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		atl1e_vlan_mode(netdev, features);
+
+	if (changed & NETIF_F_RXALL)
+		atl1e_rx_mode(netdev, features);
+
 
 	return 0;
 }
 
-/*
+/**
  * atl1e_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
  * @new_mtu: new value for maximum frame size
@@ -449,12 +481,6 @@ static void atl1e_mdio_write(struct net_device *netdev, int phy_id,
 	atl1e_write_phy_reg(&adapter->hw, reg_num & MDIO_REG_ADDR_MASK, val);
 }
 
-/*
- * atl1e_mii_ioctl -
- * @netdev:
- * @ifreq:
- * @cmd:
- */
 static int atl1e_mii_ioctl(struct net_device *netdev,
 			   struct ifreq *ifr, int cmd)
 {
@@ -505,12 +531,6 @@ out:
 
 }
 
-/*
- * atl1e_ioctl -
- * @netdev:
- * @ifreq:
- * @cmd:
- */
 static int atl1e_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	switch (cmd) {
@@ -541,17 +561,17 @@ static void atl1e_setup_pcicmd(struct pci_dev *pdev)
 	msleep(1);
 }
 
-/*
+/**
  * atl1e_alloc_queues - Allocate memory for all rings
  * @adapter: board private structure to initialize
  *
  */
-static int __devinit atl1e_alloc_queues(struct atl1e_adapter *adapter)
+static int atl1e_alloc_queues(struct atl1e_adapter *adapter)
 {
 	return 0;
 }
 
-/*
+/**
  * atl1e_sw_init - Initialize general software structures (struct atl1e_adapter)
  * @adapter: board private structure to initialize
  *
@@ -559,7 +579,7 @@ static int __devinit atl1e_alloc_queues(struct atl1e_adapter *adapter)
  * Fields are initialized based on PCI device information and
  * OS network device settings (MTU size).
  */
-static int __devinit atl1e_sw_init(struct atl1e_adapter *adapter)
+static int atl1e_sw_init(struct atl1e_adapter *adapter)
 {
 	struct atl1e_hw *hw   = &adapter->hw;
 	struct pci_dev	*pdev = adapter->pdev;
@@ -635,14 +655,13 @@ static int __devinit atl1e_sw_init(struct atl1e_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl1e_clean_tx_ring - Free Tx-skb
  * @adapter: board private structure
  */
 static void atl1e_clean_tx_ring(struct atl1e_adapter *adapter)
 {
-	struct atl1e_tx_ring *tx_ring = (struct atl1e_tx_ring *)
-				&adapter->tx_ring;
+	struct atl1e_tx_ring *tx_ring = &adapter->tx_ring;
 	struct atl1e_tx_buffer *tx_buffer = NULL;
 	struct pci_dev *pdev = adapter->pdev;
 	u16 index, ring_count;
@@ -679,14 +698,14 @@ static void atl1e_clean_tx_ring(struct atl1e_adapter *adapter)
 				ring_count);
 }
 
-/*
+/**
  * atl1e_clean_rx_ring - Free rx-reservation skbs
  * @adapter: board private structure
  */
 static void atl1e_clean_rx_ring(struct atl1e_adapter *adapter)
 {
 	struct atl1e_rx_ring *rx_ring =
-		(struct atl1e_rx_ring *)&adapter->rx_ring;
+		&adapter->rx_ring;
 	struct atl1e_rx_page_desc *rx_page_desc = rx_ring->rx_page_desc;
 	u16 i, j;
 
@@ -762,7 +781,7 @@ static void atl1e_init_ring_ptrs(struct atl1e_adapter *adapter)
 	}
 }
 
-/*
+/**
  * atl1e_free_ring_resources - Free Tx / RX descriptor Resources
  * @adapter: board private structure
  *
@@ -787,7 +806,7 @@ static void atl1e_free_ring_resources(struct atl1e_adapter *adapter)
 	}
 }
 
-/*
+/**
  * atl1e_setup_mem_resources - allocate Tx / RX descriptor resources
  * @adapter: board private structure
  *
@@ -812,16 +831,13 @@ static int atl1e_setup_ring_resources(struct atl1e_adapter *adapter)
 	/* real ring DMA buffer */
 
 	size = adapter->ring_size;
-	adapter->ring_vir_addr = pci_alloc_consistent(pdev,
-			adapter->ring_size, &adapter->ring_dma);
-
+	adapter->ring_vir_addr = pci_zalloc_consistent(pdev, adapter->ring_size,
+						       &adapter->ring_dma);
 	if (adapter->ring_vir_addr == NULL) {
 		netdev_err(adapter->netdev,
 			   "pci_alloc_consistent failed, size = D%d\n", size);
 		return -ENOMEM;
 	}
-
-	memset(adapter->ring_vir_addr, 0, adapter->ring_size);
 
 	rx_page_desc = rx_ring->rx_page_desc;
 
@@ -832,8 +848,6 @@ static int atl1e_setup_ring_resources(struct atl1e_adapter *adapter)
 	size = sizeof(struct atl1e_tx_buffer) * (tx_ring->count);
 	tx_ring->tx_buffer = kzalloc(size, GFP_KERNEL);
 	if (tx_ring->tx_buffer == NULL) {
-		netdev_err(adapter->netdev, "kzalloc failed, size = D%d\n",
-			   size);
 		err = -ENOMEM;
 		goto failed;
 	}
@@ -884,14 +898,12 @@ failed:
 	return err;
 }
 
-static inline void atl1e_configure_des_ring(const struct atl1e_adapter *adapter)
+static inline void atl1e_configure_des_ring(struct atl1e_adapter *adapter)
 {
 
-	struct atl1e_hw *hw = (struct atl1e_hw *)&adapter->hw;
-	struct atl1e_rx_ring *rx_ring =
-			(struct atl1e_rx_ring *)&adapter->rx_ring;
-	struct atl1e_tx_ring *tx_ring =
-			(struct atl1e_tx_ring *)&adapter->tx_ring;
+	struct atl1e_hw *hw = &adapter->hw;
+	struct atl1e_rx_ring *rx_ring = &adapter->rx_ring;
+	struct atl1e_tx_ring *tx_ring = &adapter->tx_ring;
 	struct atl1e_rx_page_desc *rx_page_desc = NULL;
 	int i, j;
 
@@ -932,7 +944,7 @@ static inline void atl1e_configure_des_ring(const struct atl1e_adapter *adapter)
 
 static inline void atl1e_configure_tx(struct atl1e_adapter *adapter)
 {
-	struct atl1e_hw *hw = (struct atl1e_hw *)&adapter->hw;
+	struct atl1e_hw *hw = &adapter->hw;
 	u32 dev_ctrl_data = 0;
 	u32 max_pay_load = 0;
 	u32 jumbo_thresh = 0;
@@ -975,7 +987,7 @@ static inline void atl1e_configure_tx(struct atl1e_adapter *adapter)
 
 static inline void atl1e_configure_rx(struct atl1e_adapter *adapter)
 {
-	struct atl1e_hw *hw = (struct atl1e_hw *)&adapter->hw;
+	struct atl1e_hw *hw = &adapter->hw;
 	u32 rxf_len  = 0;
 	u32 rxf_low  = 0;
 	u32 rxf_high = 0;
@@ -1074,11 +1086,12 @@ static void atl1e_setup_mac_ctrl(struct atl1e_adapter *adapter)
 		value |= MAC_CTRL_PROMIS_EN;
 	if (netdev->flags & IFF_ALLMULTI)
 		value |= MAC_CTRL_MC_ALL_EN;
-
+	if (netdev->features & NETIF_F_RXALL)
+		value |= MAC_CTRL_DBG;
 	AT_WRITE_REG(hw, REG_MAC_CTRL, value);
 }
 
-/*
+/**
  * atl1e_configure - Configure Transmit&Receive Unit after Reset
  * @adapter: board private structure
  *
@@ -1148,7 +1161,7 @@ static int atl1e_configure(struct atl1e_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl1e_get_stats - Get System Network Statistics
  * @netdev: network interface device structure
  *
@@ -1161,31 +1174,39 @@ static struct net_device_stats *atl1e_get_stats(struct net_device *netdev)
 	struct atl1e_hw_stats  *hw_stats = &adapter->hw_stats;
 	struct net_device_stats *net_stats = &netdev->stats;
 
-	net_stats->rx_packets = hw_stats->rx_ok;
-	net_stats->tx_packets = hw_stats->tx_ok;
 	net_stats->rx_bytes   = hw_stats->rx_byte_cnt;
 	net_stats->tx_bytes   = hw_stats->tx_byte_cnt;
 	net_stats->multicast  = hw_stats->rx_mcast;
 	net_stats->collisions = hw_stats->tx_1_col +
-				hw_stats->tx_2_col * 2 +
-				hw_stats->tx_late_col + hw_stats->tx_abort_col;
+				hw_stats->tx_2_col +
+				hw_stats->tx_late_col +
+				hw_stats->tx_abort_col;
 
-	net_stats->rx_errors  = hw_stats->rx_frag + hw_stats->rx_fcs_err +
-				hw_stats->rx_len_err + hw_stats->rx_sz_ov +
-				hw_stats->rx_rrd_ov + hw_stats->rx_align_err;
+	net_stats->rx_errors  = hw_stats->rx_frag +
+				hw_stats->rx_fcs_err +
+				hw_stats->rx_len_err +
+				hw_stats->rx_sz_ov +
+				hw_stats->rx_rrd_ov +
+				hw_stats->rx_align_err +
+				hw_stats->rx_rxf_ov;
+
 	net_stats->rx_fifo_errors   = hw_stats->rx_rxf_ov;
 	net_stats->rx_length_errors = hw_stats->rx_len_err;
 	net_stats->rx_crc_errors    = hw_stats->rx_fcs_err;
 	net_stats->rx_frame_errors  = hw_stats->rx_align_err;
-	net_stats->rx_over_errors   = hw_stats->rx_rrd_ov + hw_stats->rx_rxf_ov;
+	net_stats->rx_dropped       = hw_stats->rx_rrd_ov;
 
-	net_stats->rx_missed_errors = hw_stats->rx_rrd_ov + hw_stats->rx_rxf_ov;
+	net_stats->tx_errors = hw_stats->tx_late_col +
+			       hw_stats->tx_abort_col +
+			       hw_stats->tx_underrun +
+			       hw_stats->tx_trunc;
 
-	net_stats->tx_errors = hw_stats->tx_late_col + hw_stats->tx_abort_col +
-			       hw_stats->tx_underrun + hw_stats->tx_trunc;
 	net_stats->tx_fifo_errors    = hw_stats->tx_underrun;
 	net_stats->tx_aborted_errors = hw_stats->tx_abort_col;
 	net_stats->tx_window_errors  = hw_stats->tx_late_col;
+
+	net_stats->rx_packets = hw_stats->rx_ok + net_stats->rx_errors;
+	net_stats->tx_packets = hw_stats->tx_ok + net_stats->tx_errors;
 
 	return net_stats;
 }
@@ -1224,8 +1245,7 @@ static inline void atl1e_clear_phy_int(struct atl1e_adapter *adapter)
 
 static bool atl1e_clean_tx_irq(struct atl1e_adapter *adapter)
 {
-	struct atl1e_tx_ring *tx_ring = (struct atl1e_tx_ring *)
-					&adapter->tx_ring;
+	struct atl1e_tx_ring *tx_ring = &adapter->tx_ring;
 	struct atl1e_tx_buffer *tx_buffer = NULL;
 	u16 hw_next_to_clean = AT_READ_REGW(&adapter->hw, REG_TPD_CONS_IDX);
 	u16 next_to_clean = atomic_read(&tx_ring->next_to_clean);
@@ -1261,11 +1281,10 @@ static bool atl1e_clean_tx_irq(struct atl1e_adapter *adapter)
 	return true;
 }
 
-/*
+/**
  * atl1e_intr - Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
- * @pt_regs: CPU registers structure
  */
 static irqreturn_t atl1e_intr(int irq, void *data)
 {
@@ -1384,15 +1403,14 @@ static struct atl1e_rx_page *atl1e_get_rx_page(struct atl1e_adapter *adapter,
 		(struct atl1e_rx_page_desc *) adapter->rx_ring.rx_page_desc;
 	u8 rx_using = rx_page_desc[que].rx_using;
 
-	return (struct atl1e_rx_page *)&(rx_page_desc[que].rx_page[rx_using]);
+	return &(rx_page_desc[que].rx_page[rx_using]);
 }
 
 static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 		   int *work_done, int work_to_do)
 {
 	struct net_device *netdev  = adapter->netdev;
-	struct atl1e_rx_ring *rx_ring = (struct atl1e_rx_ring *)
-					 &adapter->rx_ring;
+	struct atl1e_rx_ring *rx_ring = &adapter->rx_ring;
 	struct atl1e_rx_page_desc *rx_page_desc =
 		(struct atl1e_rx_page_desc *) rx_ring->rx_page_desc;
 	struct sk_buff *skb = NULL;
@@ -1425,7 +1443,8 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 			rx_page_desc[que].rx_nxseq++;
 
 			/* error packet */
-			if (prrs->pkt_flag & RRS_IS_ERR_FRAME) {
+			if ((prrs->pkt_flag & RRS_IS_ERR_FRAME) &&
+			    !(netdev->features & NETIF_F_RXALL)) {
 				if (prrs->err_flag & (RRS_ERR_BAD_CRC |
 					RRS_ERR_DRIBBLE | RRS_ERR_CODE |
 					RRS_ERR_TRUNC)) {
@@ -1438,13 +1457,14 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 			}
 
 			packet_size = ((prrs->word1 >> RRS_PKT_SIZE_SHIFT) &
-					RRS_PKT_SIZE_MASK) - 4; /* CRC */
+					RRS_PKT_SIZE_MASK);
+			if (likely(!(netdev->features & NETIF_F_RXFCS)))
+				packet_size -= 4; /* CRC */
+
 			skb = netdev_alloc_skb_ip_align(netdev, packet_size);
-			if (skb == NULL) {
-				netdev_warn(netdev,
-					    "Memory squeeze, deferring packet\n");
+			if (skb == NULL)
 				goto skip_pkt;
-			}
+
 			memcpy(skb->data, (u8 *)(prrs + 1), packet_size);
 			skb_put(skb, packet_size);
 			skb->protocol = eth_type_trans(skb, netdev);
@@ -1457,7 +1477,7 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 				netdev_dbg(netdev,
 					   "RXD VLAN TAG<RRD>=0x%04x\n",
 					   prrs->vtag);
-				__vlan_hwaccel_put_tag(skb, vlan_tag);
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 			}
 			netif_receive_skb(skb);
 
@@ -1494,9 +1514,8 @@ fatal_err:
 		schedule_work(&adapter->reset_task);
 }
 
-/*
+/**
  * atl1e_clean - NAPI Rx polling callback
- * @adapter: board private structure
  */
 static int atl1e_clean(struct napi_struct *napi, int budget)
 {
@@ -1576,7 +1595,7 @@ static struct atl1e_tpd_desc *atl1e_get_tpd(struct atl1e_adapter *adapter)
 		tx_ring->next_to_use = 0;
 
 	memset(&tx_ring->desc[next_to_use], 0, sizeof(struct atl1e_tpd_desc));
-	return (struct atl1e_tpd_desc *)&tx_ring->desc[next_to_use];
+	return &tx_ring->desc[next_to_use];
 }
 
 static struct atl1e_tx_buffer *
@@ -1619,17 +1638,17 @@ static u16 atl1e_cal_tdp_req(const struct sk_buff *skb)
 static int atl1e_tso_csum(struct atl1e_adapter *adapter,
 		       struct sk_buff *skb, struct atl1e_tpd_desc *tpd)
 {
+	unsigned short offload_type;
 	u8 hdr_len;
 	u32 real_len;
-	unsigned short offload_type;
-	int err;
 
 	if (skb_is_gso(skb)) {
-		if (skb_header_cloned(skb)) {
-			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-			if (unlikely(err))
-				return -1;
-		}
+		int err;
+
+		err = skb_cow_head(skb, 0);
+		if (err < 0)
+			return err;
+
 		offload_type = skb_shinfo(skb)->gso_type;
 
 		if (offload_type & SKB_GSO_TCPV4) {
@@ -1688,8 +1707,8 @@ check_sum:
 	return 0;
 }
 
-static void atl1e_tx_map(struct atl1e_adapter *adapter,
-		      struct sk_buff *skb, struct atl1e_tpd_desc *tpd)
+static int atl1e_tx_map(struct atl1e_adapter *adapter,
+			struct sk_buff *skb, struct atl1e_tpd_desc *tpd)
 {
 	struct atl1e_tpd_desc *use_tpd = NULL;
 	struct atl1e_tx_buffer *tx_buffer = NULL;
@@ -1700,6 +1719,8 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 	u16 nr_frags;
 	u16 f;
 	int segment;
+	int ring_start = adapter->tx_ring.next_to_use;
+	int ring_end;
 
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	segment = (tpd->word3 >> TPD_SEGMENT_EN_SHIFT) & TPD_SEGMENT_EN_MASK;
@@ -1712,6 +1733,9 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 		tx_buffer->length = map_len;
 		tx_buffer->dma = pci_map_single(adapter->pdev,
 					skb->data, hdr_len, PCI_DMA_TODEVICE);
+		if (dma_mapping_error(&adapter->pdev->dev, tx_buffer->dma))
+			return -ENOSPC;
+
 		ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_SINGLE);
 		mapped_len += map_len;
 		use_tpd->buffer_addr = cpu_to_le64(tx_buffer->dma);
@@ -1738,6 +1762,22 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 		tx_buffer->dma =
 			pci_map_single(adapter->pdev, skb->data + mapped_len,
 					map_len, PCI_DMA_TODEVICE);
+
+		if (dma_mapping_error(&adapter->pdev->dev, tx_buffer->dma)) {
+			/* We need to unwind the mappings we've done */
+			ring_end = adapter->tx_ring.next_to_use;
+			adapter->tx_ring.next_to_use = ring_start;
+			while (adapter->tx_ring.next_to_use != ring_end) {
+				tpd = atl1e_get_tpd(adapter);
+				tx_buffer = atl1e_get_tx_buffer(adapter, tpd);
+				pci_unmap_single(adapter->pdev, tx_buffer->dma,
+						 tx_buffer->length, PCI_DMA_TODEVICE);
+			}
+			/* Reset the tx rings next pointer */
+			adapter->tx_ring.next_to_use = ring_start;
+			return -ENOSPC;
+		}
+
 		ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_SINGLE);
 		mapped_len  += map_len;
 		use_tpd->buffer_addr = cpu_to_le64(tx_buffer->dma);
@@ -1773,6 +1813,23 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 							  (i * MAX_TX_BUF_LEN),
 							  tx_buffer->length,
 							  DMA_TO_DEVICE);
+
+			if (dma_mapping_error(&adapter->pdev->dev, tx_buffer->dma)) {
+				/* We need to unwind the mappings we've done */
+				ring_end = adapter->tx_ring.next_to_use;
+				adapter->tx_ring.next_to_use = ring_start;
+				while (adapter->tx_ring.next_to_use != ring_end) {
+					tpd = atl1e_get_tpd(adapter);
+					tx_buffer = atl1e_get_tx_buffer(adapter, tpd);
+					dma_unmap_page(&adapter->pdev->dev, tx_buffer->dma,
+						       tx_buffer->length, DMA_TO_DEVICE);
+				}
+
+				/* Reset the ring next to use pointer */
+				adapter->tx_ring.next_to_use = ring_start;
+				return -ENOSPC;
+			}
+
 			ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_PAGE);
 			use_tpd->buffer_addr = cpu_to_le64(tx_buffer->dma);
 			use_tpd->word2 = (use_tpd->word2 & (~TPD_BUFLEN_MASK)) |
@@ -1790,6 +1847,7 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 	/* The last buffer info contain the skb address,
 	   so it will be free after unmap */
 	tx_buffer->skb = skb;
+	return 0;
 }
 
 static void atl1e_tx_queue(struct atl1e_adapter *adapter, u16 count,
@@ -1857,10 +1915,15 @@ static netdev_tx_t atl1e_xmit_frame(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	atl1e_tx_map(adapter, skb, tpd);
+	if (atl1e_tx_map(adapter, skb, tpd)) {
+		dev_kfree_skb_any(skb);
+		goto out;
+	}
+
 	atl1e_tx_queue(adapter, tpd_req, tpd);
 
 	netdev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
+out:
 	spin_unlock_irqrestore(&adapter->tx_lock, flags);
 	return NETDEV_TX_OK;
 }
@@ -1870,40 +1933,22 @@ static void atl1e_free_irq(struct atl1e_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 
 	free_irq(adapter->pdev->irq, netdev);
-
-	if (adapter->have_msi)
-		pci_disable_msi(adapter->pdev);
 }
 
 static int atl1e_request_irq(struct atl1e_adapter *adapter)
 {
 	struct pci_dev    *pdev   = adapter->pdev;
 	struct net_device *netdev = adapter->netdev;
-	int flags = 0;
 	int err = 0;
 
-	adapter->have_msi = true;
-	err = pci_enable_msi(adapter->pdev);
-	if (err) {
-		netdev_dbg(adapter->netdev,
-			   "Unable to allocate MSI interrupt Error: %d\n", err);
-		adapter->have_msi = false;
-	} else
-		netdev->irq = pdev->irq;
-
-
-	if (!adapter->have_msi)
-		flags |= IRQF_SHARED;
-	err = request_irq(adapter->pdev->irq, atl1e_intr, flags,
-			netdev->name, netdev);
+	err = request_irq(pdev->irq, atl1e_intr, IRQF_SHARED, netdev->name,
+			  netdev);
 	if (err) {
 		netdev_dbg(adapter->netdev,
 			   "Unable to allocate interrupt Error: %d\n", err);
-		if (adapter->have_msi)
-			pci_disable_msi(adapter->pdev);
 		return err;
 	}
-	netdev_dbg(adapter->netdev, "atl1e_request_irq OK\n");
+	netdev_dbg(netdev, "atl1e_request_irq OK\n");
 	return err;
 }
 
@@ -1964,7 +2009,7 @@ void atl1e_down(struct atl1e_adapter *adapter)
 	atl1e_clean_rx_ring(adapter);
 }
 
-/*
+/**
  * atl1e_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -2010,7 +2055,7 @@ err_req_irq:
 	return err;
 }
 
-/*
+/**
  * atl1e_close - Disables a network interface
  * @netdev: network interface device structure
  *
@@ -2064,8 +2109,8 @@ static int atl1e_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (wufc) {
 		/* get link status */
-		atl1e_read_phy_reg(hw, MII_BMSR, (u16 *)&mii_bmsr_data);
-		atl1e_read_phy_reg(hw, MII_BMSR, (u16 *)&mii_bmsr_data);
+		atl1e_read_phy_reg(hw, MII_BMSR, &mii_bmsr_data);
+		atl1e_read_phy_reg(hw, MII_BMSR, &mii_bmsr_data);
 
 		mii_advertise_data = ADVERTISE_10HALF;
 
@@ -2089,7 +2134,7 @@ static int atl1e_suspend(struct pci_dev *pdev, pm_message_t state)
 				for (i = 0; i < AT_SUSPEND_LINK_TIMEOUT; i++) {
 					msleep(100);
 					atl1e_read_phy_reg(hw, MII_BMSR,
-							(u16 *)&mii_bmsr_data);
+							&mii_bmsr_data);
 					if (mii_bmsr_data & BMSR_LSTATUS)
 						break;
 				}
@@ -2233,21 +2278,21 @@ static int atl1e_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	pci_set_drvdata(pdev, netdev);
 
-	netdev->irq  = pdev->irq;
 	netdev->netdev_ops = &atl1e_netdev_ops;
 
 	netdev->watchdog_timeo = AT_TX_WATCHDOG;
 	atl1e_set_ethtool_ops(netdev);
 
 	netdev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO |
-			      NETIF_F_HW_VLAN_RX;
+			      NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->features = netdev->hw_features | NETIF_F_LLTX |
-			   NETIF_F_HW_VLAN_TX;
-
+			   NETIF_F_HW_VLAN_CTAG_TX;
+	/* not enabled by default */
+	netdev->hw_features |= NETIF_F_RXALL | NETIF_F_RXFCS;
 	return 0;
 }
 
-/*
+/**
  * atl1e_probe - Device Initialization Routine
  * @pdev: PCI device information struct
  * @ent: entry in atl1e_pci_tbl
@@ -2258,8 +2303,7 @@ static int atl1e_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
  * The OS initialization, configuring of the adapter private structure,
  * and a hardware reset occur.
  */
-static int __devinit atl1e_probe(struct pci_dev *pdev,
-				 const struct pci_device_id *ent)
+static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct atl1e_adapter *adapter = NULL;
@@ -2319,7 +2363,6 @@ static int __devinit atl1e_probe(struct pci_dev *pdev,
 		netdev_err(netdev, "cannot map device registers\n");
 		goto err_ioremap;
 	}
-	netdev->base_addr = (unsigned long)adapter->hw.hw_addr;
 
 	/* init mii data */
 	adapter->mii.dev = netdev;
@@ -2367,11 +2410,11 @@ static int __devinit atl1e_probe(struct pci_dev *pdev,
 	}
 
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, adapter->hw.mac_addr, netdev->addr_len);
 	netdev_dbg(netdev, "mac address : %pM\n", adapter->hw.mac_addr);
 
 	INIT_WORK(&adapter->reset_task, atl1e_reset_task);
 	INIT_WORK(&adapter->link_chg_task, atl1e_link_chg_task);
+	netif_set_gso_max_size(netdev, MAX_TSO_SEG_SIZE);
 	err = register_netdev(netdev);
 	if (err) {
 		netdev_err(netdev, "register netdevice failed\n");
@@ -2390,7 +2433,7 @@ err_reset:
 err_register:
 err_sw_init:
 err_eeprom:
-	iounmap(adapter->hw.hw_addr);
+	pci_iounmap(pdev, adapter->hw.hw_addr);
 err_init_netdev:
 err_ioremap:
 	free_netdev(netdev);
@@ -2402,7 +2445,7 @@ err_dma:
 	return err;
 }
 
-/*
+/**
  * atl1e_remove - Device Removal Routine
  * @pdev: PCI device information struct
  *
@@ -2411,7 +2454,7 @@ err_dma:
  * Hot-Plug event, or because the driver is going to be removed from
  * memory.
  */
-static void __devexit atl1e_remove(struct pci_dev *pdev)
+static void atl1e_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct atl1e_adapter *adapter = netdev_priv(netdev);
@@ -2428,13 +2471,13 @@ static void __devexit atl1e_remove(struct pci_dev *pdev)
 	unregister_netdev(netdev);
 	atl1e_free_ring_resources(adapter);
 	atl1e_force_ps(&adapter->hw);
-	iounmap(adapter->hw.hw_addr);
+	pci_iounmap(pdev, adapter->hw.hw_addr);
 	pci_release_regions(pdev);
 	free_netdev(netdev);
 	pci_disable_device(pdev);
 }
 
-/*
+/**
  * atl1e_io_error_detected - called when PCI error is detected
  * @pdev: Pointer to PCI device
  * @state: The current pci connection state
@@ -2462,7 +2505,7 @@ atl1e_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
-/*
+/**
  * atl1e_io_slot_reset - called after the pci bus has been reset.
  * @pdev: Pointer to PCI device
  *
@@ -2489,7 +2532,7 @@ static pci_ers_result_t atl1e_io_slot_reset(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
-/*
+/**
  * atl1e_io_resume - called when traffic can start flowing again.
  * @pdev: Pointer to PCI device
  *
@@ -2513,7 +2556,7 @@ static void atl1e_io_resume(struct pci_dev *pdev)
 	netif_device_attach(netdev);
 }
 
-static struct pci_error_handlers atl1e_err_handler = {
+static const struct pci_error_handlers atl1e_err_handler = {
 	.error_detected = atl1e_io_error_detected,
 	.slot_reset = atl1e_io_slot_reset,
 	.resume = atl1e_io_resume,
@@ -2523,7 +2566,7 @@ static struct pci_driver atl1e_driver = {
 	.name     = atl1e_driver_name,
 	.id_table = atl1e_pci_tbl,
 	.probe    = atl1e_probe,
-	.remove   = __devexit_p(atl1e_remove),
+	.remove   = atl1e_remove,
 	/* Power Management Hooks */
 #ifdef CONFIG_PM
 	.suspend  = atl1e_suspend,
@@ -2533,27 +2576,4 @@ static struct pci_driver atl1e_driver = {
 	.err_handler = &atl1e_err_handler
 };
 
-/*
- * atl1e_init_module - Driver Registration Routine
- *
- * atl1e_init_module is the first routine called when the driver is
- * loaded. All it does is register with the PCI subsystem.
- */
-static int __init atl1e_init_module(void)
-{
-	return pci_register_driver(&atl1e_driver);
-}
-
-/*
- * atl1e_exit_module - Driver Exit Cleanup Routine
- *
- * atl1e_exit_module is called just before the driver is removed
- * from memory.
- */
-static void __exit atl1e_exit_module(void)
-{
-	pci_unregister_driver(&atl1e_driver);
-}
-
-module_init(atl1e_init_module);
-module_exit(atl1e_exit_module);
+module_pci_driver(atl1e_driver);

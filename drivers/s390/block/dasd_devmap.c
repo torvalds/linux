@@ -1,11 +1,10 @@
 /*
- * File...........: linux/drivers/s390/block/dasd_devmap.c
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
- * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
+ * Copyright IBM Corp. 1999,2001
  *
  * Device mapping and dasd= parameter parsing functions. All devmap
  * functions may not be called from interrupt context. In particular
@@ -78,7 +77,7 @@ EXPORT_SYMBOL_GPL(dasd_nofcx);
  * strings when running as a module.
  */
 static char *dasd[256];
-module_param_array(dasd, charp, NULL, 0);
+module_param_array(dasd, charp, NULL, S_IRUGO);
 
 /*
  * Single spinlock to protect devmap and servermap structures and lists.
@@ -411,8 +410,7 @@ dasd_add_busid(const char *bus_id, int features)
 	struct dasd_devmap *devmap, *new, *tmp;
 	int hash;
 
-	new = (struct dasd_devmap *)
-		kzalloc(sizeof(struct dasd_devmap), GFP_KERNEL);
+	new = kzalloc(sizeof(struct dasd_devmap), GFP_KERNEL);
 	if (!new)
 		return ERR_PTR(-ENOMEM);
 	spin_lock(&dasd_devmap_lock);
@@ -932,7 +930,7 @@ dasd_use_raw_store(struct device *dev, struct device_attribute *attr,
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 
-	if ((strict_strtoul(buf, 10, &val) != 0) || val > 1)
+	if ((kstrtoul(buf, 10, &val) != 0) || val > 1)
 		return -EINVAL;
 
 	spin_lock(&dasd_devmap_lock);
@@ -951,6 +949,39 @@ dasd_use_raw_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(raw_track_access, 0644, dasd_use_raw_show,
 		   dasd_use_raw_store);
+
+static ssize_t
+dasd_safe_offline_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct dasd_device *device;
+	int rc;
+
+	device = dasd_device_from_cdev(cdev);
+	if (IS_ERR(device)) {
+		rc = PTR_ERR(device);
+		goto out;
+	}
+
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags) ||
+	    test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
+		/* Already doing offline processing */
+		dasd_put_device(device);
+		rc = -EBUSY;
+		goto out;
+	}
+
+	set_bit(DASD_FLAG_SAFE_OFFLINE, &device->flags);
+	dasd_put_device(device);
+
+	rc = ccw_device_set_offline(cdev);
+
+out:
+	return rc ? rc : count;
+}
+
+static DEVICE_ATTR(safe_offline, 0200, NULL, dasd_safe_offline_store);
 
 static ssize_t
 dasd_discipline_show(struct device *dev, struct device_attribute *attr,
@@ -1194,7 +1225,7 @@ dasd_expires_store(struct device *dev, struct device_attribute *attr,
 	if (IS_ERR(device))
 		return -ENODEV;
 
-	if ((strict_strtoul(buf, 10, &val) != 0) ||
+	if ((kstrtoul(buf, 10, &val) != 0) ||
 	    (val > DASD_EXPIRES_MAX) || val == 0) {
 		dasd_put_device(device);
 		return -EINVAL;
@@ -1208,6 +1239,101 @@ dasd_expires_store(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(expires, 0644, dasd_expires_show, dasd_expires_store);
+
+static ssize_t
+dasd_retries_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dasd_device *device;
+	int len;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+	len = snprintf(buf, PAGE_SIZE, "%lu\n", device->default_retries);
+	dasd_put_device(device);
+	return len;
+}
+
+static ssize_t
+dasd_retries_store(struct device *dev, struct device_attribute *attr,
+		   const char *buf, size_t count)
+{
+	struct dasd_device *device;
+	unsigned long val;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+
+	if ((kstrtoul(buf, 10, &val) != 0) ||
+	    (val > DASD_RETRIES_MAX)) {
+		dasd_put_device(device);
+		return -EINVAL;
+	}
+
+	if (val)
+		device->default_retries = val;
+
+	dasd_put_device(device);
+	return count;
+}
+
+static DEVICE_ATTR(retries, 0644, dasd_retries_show, dasd_retries_store);
+
+static ssize_t
+dasd_timeout_show(struct device *dev, struct device_attribute *attr,
+		  char *buf)
+{
+	struct dasd_device *device;
+	int len;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+	len = snprintf(buf, PAGE_SIZE, "%lu\n", device->blk_timeout);
+	dasd_put_device(device);
+	return len;
+}
+
+static ssize_t
+dasd_timeout_store(struct device *dev, struct device_attribute *attr,
+		   const char *buf, size_t count)
+{
+	struct dasd_device *device;
+	struct request_queue *q;
+	unsigned long val, flags;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device) || !device->block)
+		return -ENODEV;
+
+	if ((kstrtoul(buf, 10, &val) != 0) ||
+	    val > UINT_MAX / HZ) {
+		dasd_put_device(device);
+		return -EINVAL;
+	}
+	q = device->block->request_queue;
+	if (!q) {
+		dasd_put_device(device);
+		return -ENODEV;
+	}
+	spin_lock_irqsave(&device->block->request_queue_lock, flags);
+	if (!val)
+		blk_queue_rq_timed_out(q, NULL);
+	else
+		blk_queue_rq_timed_out(q, dasd_times_out);
+
+	device->blk_timeout = val;
+
+	blk_queue_rq_timeout(q, device->blk_timeout * HZ);
+	spin_unlock_irqrestore(&device->block->request_queue_lock, flags);
+
+	dasd_put_device(device);
+	return count;
+}
+
+static DEVICE_ATTR(timeout, 0644,
+		   dasd_timeout_show, dasd_timeout_store);
 
 static ssize_t dasd_reservation_policy_show(struct device *dev,
 					    struct device_attribute *attr,
@@ -1319,8 +1445,11 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_erplog.attr,
 	&dev_attr_failfast.attr,
 	&dev_attr_expires.attr,
+	&dev_attr_retries.attr,
+	&dev_attr_timeout.attr,
 	&dev_attr_reservation_policy.attr,
 	&dev_attr_last_known_reservation_state.attr,
+	&dev_attr_safe_offline.attr,
 	NULL,
 };
 
@@ -1345,7 +1474,7 @@ dasd_get_feature(struct ccw_device *cdev, int feature)
 
 /*
  * Set / reset given feature.
- * Flag indicates wether to set (!=0) or the reset (=0) the feature.
+ * Flag indicates whether to set (!=0) or the reset (=0) the feature.
  */
 int
 dasd_set_feature(struct ccw_device *cdev, int feature, int flag)

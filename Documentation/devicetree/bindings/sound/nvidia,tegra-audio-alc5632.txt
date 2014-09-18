@@ -1,0 +1,48 @@
+NVIDIA Tegra audio complex
+
+Required properties:
+- compatible : "nvidia,tegra-audio-alc5632"
+- clocks : Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names : Must include the following entries:
+  - pll_a
+  - pll_a_out0
+  - mclk (The Tegra cdev1/extern1 clock, which feeds the CODEC's mclk)
+- nvidia,model : The user-visible name of this sound complex.
+- nvidia,audio-routing : A list of the connections between audio components.
+  Each entry is a pair of strings, the first being the connection's sink,
+  the second being the connection's source. Valid names for sources and
+  sinks are the ALC5632's pins as documented in the binding for the device
+  and:
+
+  * Headset Stereophone
+  * Int Spk
+  * Headset Mic
+  * Digital Mic
+
+- nvidia,i2s-controller : The phandle of the Tegra I2S controller
+- nvidia,audio-codec : The phandle of the ALC5632 audio codec
+
+Example:
+
+sound {
+	compatible = "nvidia,tegra-audio-alc5632-paz00",
+				 "nvidia,tegra-audio-alc5632";
+
+	nvidia,model = "Compal PAZ00";
+
+	nvidia,audio-routing =
+				"Int Spk", "SPK_OUTP",
+				"Int Spk", "SPK_OUTN",
+				"Headset Mic","MICBIAS1",
+				"MIC1_N", "Headset Mic",
+				"MIC1_P", "Headset Mic",
+				"Headset Stereophone", "HP_OUT_R",
+				"Headset Stereophone", "HP_OUT_L";
+
+	nvidia,i2s-controller = <&tegra_i2s1>;
+	nvidia,audio-codec = <&alc5632>;
+
+	clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 93>;
+	clock-names = "pll_a", "pll_a_out0", "mclk";
+};

@@ -100,8 +100,8 @@
  */
 
 /*
- * Xonar Essence ST (Deluxe)/STX
- * -----------------------------
+ * Xonar Essence ST (Deluxe)/STX (II)
+ * ----------------------------------
  *
  * CMI8788:
  *
@@ -1087,8 +1087,8 @@ static const struct oxygen_model model_xonar_st = {
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
-int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
-				      const struct pci_device_id *id)
+int get_xonar_pcm179x_model(struct oxygen *chip,
+			    const struct pci_device_id *id)
 {
 	switch (id->subdevice) {
 	case 0x8269:
@@ -1134,6 +1134,14 @@ int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
 	case 0x835c:
 		chip->model = model_xonar_st;
 		chip->model.shortname = "Xonar STX";
+		chip->model.init = xonar_stx_init;
+		chip->model.resume = xonar_stx_resume;
+		chip->model.set_dac_params = set_pcm1796_params;
+		break;
+	case 0x85f4:
+		chip->model = model_xonar_st;
+		/* TODO: daughterboard support */
+		chip->model.shortname = "Xonar STX II";
 		chip->model.init = xonar_stx_init;
 		chip->model.resume = xonar_stx_resume;
 		chip->model.set_dac_params = set_pcm1796_params;

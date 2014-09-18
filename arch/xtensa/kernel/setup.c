@@ -21,6 +21,11 @@
 #include <linux/screen_info.h>
 #include <linux/bootmem.h>
 #include <linux/kernel.h>
+#include <linux/percpu.h>
+#include <linux/clk-provider.h>
+#include <linux/cpu.h>
+#include <linux/of_fdt.h>
+#include <linux/of_platform.h>
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 # include <linux/console.h>
@@ -35,6 +40,7 @@
 #endif
 
 #include <asm/bootparam.h>
+#include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/timex.h>
@@ -42,6 +48,9 @@
 #include <asm/page.h>
 #include <asm/setup.h>
 #include <asm/param.h>
+#include <asm/traps.h>
+#include <asm/smp.h>
+#include <asm/sysmem.h>
 
 #include <platform/hardware.h>
 
@@ -58,12 +67,14 @@ extern struct rtc_ops no_rtc_ops;
 struct rtc_ops *rtc_ops;
 
 #ifdef CONFIG_BLK_DEV_INITRD
-extern void *initrd_start;
-extern void *initrd_end;
-extern void *__initrd_start;
-extern void *__initrd_end;
+extern unsigned long initrd_start;
+extern unsigned long initrd_end;
 int initrd_is_mapped = 0;
 extern int initrd_below_start_ok;
+#endif
+
+#ifdef CONFIG_OF
+void *dtb_start = __dtb_start;
 #endif
 
 unsigned char aux_device_present;
@@ -76,20 +87,6 @@ static char __initdata command_line[COMMAND_LINE_SIZE];
 #ifdef CONFIG_CMDLINE_BOOL
 static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
 #endif
-
-sysmem_info_t __initdata sysmem;
-
-#ifdef CONFIG_BLK_DEV_INITRD
-int initrd_is_mapped;
-#endif
-
-#ifdef CONFIG_MMU
-extern void init_mmu(void);
-#else
-static inline void init_mmu(void) { }
-#endif
-
-extern void zones_init(void);
 
 /*
  * Boot parameter parsing.
@@ -106,30 +103,18 @@ typedef struct tagtable {
 } tagtable_t;
 
 #define __tagtable(tag, fn) static tagtable_t __tagtable_##fn 		\
-	__attribute__((unused, __section__(".taglist"))) = { tag, fn }
+	__attribute__((used, section(".taglist"))) = { tag, fn }
 
 /* parse current tag */
 
 static int __init parse_tag_mem(const bp_tag_t *tag)
 {
-	meminfo_t *mi = (meminfo_t*)(tag->data);
+	struct bp_meminfo *mi = (struct bp_meminfo *)(tag->data);
 
 	if (mi->type != MEMORY_TYPE_CONVENTIONAL)
 		return -1;
 
-	if (sysmem.nr_banks >= SYSMEM_BANKS_MAX) {
-		printk(KERN_WARNING
-		       "Ignoring memory bank 0x%08lx size %ldKB\n",
-		       (unsigned long)mi->start,
-		       (unsigned long)mi->end - (unsigned long)mi->start);
-		return -EINVAL;
-	}
-	sysmem.bank[sysmem.nr_banks].type  = mi->type;
-	sysmem.bank[sysmem.nr_banks].start = PAGE_ALIGN(mi->start);
-	sysmem.bank[sysmem.nr_banks].end   = mi->end & PAGE_SIZE;
-	sysmem.nr_banks++;
-
-	return 0;
+	return add_sysmem_bank(mi->start, mi->end);
 }
 
 __tagtable(BP_TAG_MEMORY, parse_tag_mem);
@@ -138,22 +123,33 @@ __tagtable(BP_TAG_MEMORY, parse_tag_mem);
 
 static int __init parse_tag_initrd(const bp_tag_t* tag)
 {
-	meminfo_t* mi;
-	mi = (meminfo_t*)(tag->data);
-	initrd_start = (void*)(mi->start);
-	initrd_end = (void*)(mi->end);
+	struct bp_meminfo *mi = (struct bp_meminfo *)(tag->data);
+
+	initrd_start = (unsigned long)__va(mi->start);
+	initrd_end = (unsigned long)__va(mi->end);
 
 	return 0;
 }
 
 __tagtable(BP_TAG_INITRD, parse_tag_initrd);
 
+#ifdef CONFIG_OF
+
+static int __init parse_tag_fdt(const bp_tag_t *tag)
+{
+	dtb_start = __va(tag->data[0]);
+	return 0;
+}
+
+__tagtable(BP_TAG_FDT, parse_tag_fdt);
+
+#endif /* CONFIG_OF */
+
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 static int __init parse_tag_cmdline(const bp_tag_t* tag)
 {
-	strncpy(command_line, (char*)(tag->data), COMMAND_LINE_SIZE);
-	command_line[COMMAND_LINE_SIZE - 1] = '\0';
+	strlcpy(command_line, (char *)(tag->data), COMMAND_LINE_SIZE);
 	return 0;
 }
 
@@ -191,35 +187,107 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+bool __initdata dt_memory_scan = false;
+
+#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+unsigned long xtensa_kio_paddr = XCHAL_KIO_DEFAULT_PADDR;
+EXPORT_SYMBOL(xtensa_kio_paddr);
+
+static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
+		int depth, void *data)
+{
+	const __be32 *ranges;
+	int len;
+
+	if (depth > 1)
+		return 0;
+
+	if (!of_flat_dt_is_compatible(node, "simple-bus"))
+		return 0;
+
+	ranges = of_get_flat_dt_prop(node, "ranges", &len);
+	if (!ranges)
+		return 1;
+	if (len == 0)
+		return 1;
+
+	xtensa_kio_paddr = of_read_ulong(ranges+1, 1);
+	/* round down to nearest 256MB boundary */
+	xtensa_kio_paddr &= 0xf0000000;
+
+	return 1;
+}
+#else
+static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
+		int depth, void *data)
+{
+	return 1;
+}
+#endif
+
+void __init early_init_dt_add_memory_arch(u64 base, u64 size)
+{
+	if (!dt_memory_scan)
+		return;
+
+	size &= PAGE_MASK;
+	add_sysmem_bank(base, base + size);
+}
+
+void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
+{
+	return __alloc_bootmem(size, align, 0);
+}
+
+void __init early_init_devtree(void *params)
+{
+	if (sysmem.nr_banks == 0)
+		dt_memory_scan = true;
+
+	early_init_dt_scan(params);
+	of_scan_flat_dt(xtensa_dt_io_area, NULL);
+
+	if (!command_line[0])
+		strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
+}
+
+static int __init xtensa_device_probe(void)
+{
+	of_clk_init(NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	return 0;
+}
+
+device_initcall(xtensa_device_probe);
+
+#endif /* CONFIG_OF */
+
 /*
  * Initialize architecture. (Early stage)
  */
 
 void __init init_arch(bp_tag_t *bp_start)
 {
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	initrd_start = &__initrd_start;
-	initrd_end = &__initrd_end;
-#endif
-
-	sysmem.nr_banks = 0;
-
-#ifdef CONFIG_CMDLINE_BOOL
-	strcpy(command_line, default_command_line);
-#endif
-
 	/* Parse boot parameters */
 
-        if (bp_start)
-	  parse_bootparam(bp_start);
+	if (bp_start)
+		parse_bootparam(bp_start);
+
+#ifdef CONFIG_OF
+	early_init_devtree(dtb_start);
+#endif
 
 	if (sysmem.nr_banks == 0) {
-		sysmem.nr_banks = 1;
-		sysmem.bank[0].start = PLATFORM_DEFAULT_MEM_START;
-		sysmem.bank[0].end = PLATFORM_DEFAULT_MEM_START
-				     + PLATFORM_DEFAULT_MEM_SIZE;
+		add_sysmem_bank(PLATFORM_DEFAULT_MEM_START,
+				PLATFORM_DEFAULT_MEM_START +
+				PLATFORM_DEFAULT_MEM_SIZE);
 	}
+
+#ifdef CONFIG_CMDLINE_BOOL
+	if (!command_line[0])
+		strlcpy(command_line, default_command_line, COMMAND_LINE_SIZE);
+#endif
 
 	/* Early hook for platforms */
 
@@ -246,14 +314,146 @@ extern char _UserExceptionVector_literal_start;
 extern char _UserExceptionVector_text_end;
 extern char _DoubleExceptionVector_literal_start;
 extern char _DoubleExceptionVector_text_end;
+#if XCHAL_EXCM_LEVEL >= 2
+extern char _Level2InterruptVector_text_start;
+extern char _Level2InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 3
+extern char _Level3InterruptVector_text_start;
+extern char _Level3InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 4
+extern char _Level4InterruptVector_text_start;
+extern char _Level4InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 5
+extern char _Level5InterruptVector_text_start;
+extern char _Level5InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 6
+extern char _Level6InterruptVector_text_start;
+extern char _Level6InterruptVector_text_end;
+#endif
+
+
+
+#ifdef CONFIG_S32C1I_SELFTEST
+#if XCHAL_HAVE_S32C1I
+
+static int __initdata rcw_word, rcw_probe_pc, rcw_exc;
+
+/*
+ * Basic atomic compare-and-swap, that records PC of S32C1I for probing.
+ *
+ * If *v == cmp, set *v = set.  Return previous *v.
+ */
+static inline int probed_compare_swap(int *v, int cmp, int set)
+{
+	int tmp;
+
+	__asm__ __volatile__(
+			"	movi	%1, 1f\n"
+			"	s32i	%1, %4, 0\n"
+			"	wsr	%2, scompare1\n"
+			"1:	s32c1i	%0, %3, 0\n"
+			: "=a" (set), "=&a" (tmp)
+			: "a" (cmp), "a" (v), "a" (&rcw_probe_pc), "0" (set)
+			: "memory"
+			);
+	return set;
+}
+
+/* Handle probed exception */
+
+static void __init do_probed_exception(struct pt_regs *regs,
+		unsigned long exccause)
+{
+	if (regs->pc == rcw_probe_pc) {	/* exception on s32c1i ? */
+		regs->pc += 3;		/* skip the s32c1i instruction */
+		rcw_exc = exccause;
+	} else {
+		do_unhandled(regs, exccause);
+	}
+}
+
+/* Simple test of S32C1I (soc bringup assist) */
+
+static int __init check_s32c1i(void)
+{
+	int n, cause1, cause2;
+	void *handbus, *handdata, *handaddr; /* temporarily saved handlers */
+
+	rcw_probe_pc = 0;
+	handbus  = trap_set_handler(EXCCAUSE_LOAD_STORE_ERROR,
+			do_probed_exception);
+	handdata = trap_set_handler(EXCCAUSE_LOAD_STORE_DATA_ERROR,
+			do_probed_exception);
+	handaddr = trap_set_handler(EXCCAUSE_LOAD_STORE_ADDR_ERROR,
+			do_probed_exception);
+
+	/* First try an S32C1I that does not store: */
+	rcw_exc = 0;
+	rcw_word = 1;
+	n = probed_compare_swap(&rcw_word, 0, 2);
+	cause1 = rcw_exc;
+
+	/* took exception? */
+	if (cause1 != 0) {
+		/* unclean exception? */
+		if (n != 2 || rcw_word != 1)
+			panic("S32C1I exception error");
+	} else if (rcw_word != 1 || n != 1) {
+		panic("S32C1I compare error");
+	}
+
+	/* Then an S32C1I that stores: */
+	rcw_exc = 0;
+	rcw_word = 0x1234567;
+	n = probed_compare_swap(&rcw_word, 0x1234567, 0xabcde);
+	cause2 = rcw_exc;
+
+	if (cause2 != 0) {
+		/* unclean exception? */
+		if (n != 0xabcde || rcw_word != 0x1234567)
+			panic("S32C1I exception error (b)");
+	} else if (rcw_word != 0xabcde || n != 0x1234567) {
+		panic("S32C1I store error");
+	}
+
+	/* Verify consistency of exceptions: */
+	if (cause1 || cause2) {
+		pr_warn("S32C1I took exception %d, %d\n", cause1, cause2);
+		/* If emulation of S32C1I upon bus error gets implemented,
+		   we can get rid of this panic for single core (not SMP) */
+		panic("S32C1I exceptions not currently supported");
+	}
+	if (cause1 != cause2)
+		panic("inconsistent S32C1I exceptions");
+
+	trap_set_handler(EXCCAUSE_LOAD_STORE_ERROR, handbus);
+	trap_set_handler(EXCCAUSE_LOAD_STORE_DATA_ERROR, handdata);
+	trap_set_handler(EXCCAUSE_LOAD_STORE_ADDR_ERROR, handaddr);
+	return 0;
+}
+
+#else /* XCHAL_HAVE_S32C1I */
+
+/* This condition should not occur with a commercially deployed processor.
+   Display reminder for early engr test or demo chips / FPGA bitstreams */
+static int __init check_s32c1i(void)
+{
+	pr_warn("Processor configuration lacks atomic compare-and-swap support!\n");
+	return 0;
+}
+
+#endif /* XCHAL_HAVE_S32C1I */
+early_initcall(check_s32c1i);
+#endif /* CONFIG_S32C1I_SELFTEST */
+
 
 void __init setup_arch(char **cmdline_p)
 {
-	extern int mem_reserve(unsigned long, unsigned long, int);
-	extern void bootmem_init(void);
-
-	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
-	boot_command_line[COMMAND_LINE_SIZE-1] = '\0';
+	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
 	/* Reserve some memory regions */
@@ -261,9 +461,9 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start < initrd_end) {
 		initrd_is_mapped = mem_reserve(__pa(initrd_start),
-					       __pa(initrd_end), 0);
+					       __pa(initrd_end), 0) == 0;
 		initrd_below_start_ok = 1;
- 	} else {
+	} else {
 		initrd_start = 0;
 	}
 #endif
@@ -285,10 +485,37 @@ void __init setup_arch(char **cmdline_p)
 	mem_reserve(__pa(&_DoubleExceptionVector_literal_start),
 		    __pa(&_DoubleExceptionVector_text_end), 0);
 
+#if XCHAL_EXCM_LEVEL >= 2
+	mem_reserve(__pa(&_Level2InterruptVector_text_start),
+		    __pa(&_Level2InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 3
+	mem_reserve(__pa(&_Level3InterruptVector_text_start),
+		    __pa(&_Level3InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 4
+	mem_reserve(__pa(&_Level4InterruptVector_text_start),
+		    __pa(&_Level4InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 5
+	mem_reserve(__pa(&_Level5InterruptVector_text_start),
+		    __pa(&_Level5InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 6
+	mem_reserve(__pa(&_Level6InterruptVector_text_start),
+		    __pa(&_Level6InterruptVector_text_end), 0);
+#endif
+
+	parse_early_param();
 	bootmem_init();
+
+	unflatten_and_copy_device_tree();
 
 	platform_setup(cmdline_p);
 
+#ifdef CONFIG_SMP
+	smp_init_cpus();
+#endif
 
 	paging_init();
 	zones_init();
@@ -305,6 +532,22 @@ void __init setup_arch(char **cmdline_p)
 	platform_pcibios_init();
 #endif
 }
+
+static DEFINE_PER_CPU(struct cpu, cpu_data);
+
+static int __init topology_init(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct cpu *cpu = &per_cpu(cpu_data, i);
+		cpu->hotpluggable = !!i;
+		register_cpu(cpu, i);
+	}
+
+	return 0;
+}
+subsys_initcall(topology_init);
 
 void machine_restart(char * cmd)
 {
@@ -331,21 +574,27 @@ void machine_power_off(void)
 static int
 c_show(struct seq_file *f, void *slot)
 {
+	char buf[NR_CPUS * 5];
+
+	cpulist_scnprintf(buf, sizeof(buf), cpu_online_mask);
 	/* high-level stuff */
-	seq_printf(f,"processor\t: 0\n"
-		     "vendor_id\t: Tensilica\n"
-		     "model\t\t: Xtensa " XCHAL_HW_VERSION_NAME "\n"
-		     "core ID\t\t: " XCHAL_CORE_ID "\n"
-		     "build ID\t: 0x%x\n"
-		     "byte order\t: %s\n"
- 		     "cpu MHz\t\t: %lu.%02lu\n"
-		     "bogomips\t: %lu.%02lu\n",
-		     XCHAL_BUILD_UNIQUE_ID,
-		     XCHAL_HAVE_BE ?  "big" : "little",
-		     CCOUNT_PER_JIFFY/(1000000/HZ),
-		     (CCOUNT_PER_JIFFY/(10000/HZ)) % 100,
-		     loops_per_jiffy/(500000/HZ),
-		     (loops_per_jiffy/(5000/HZ)) % 100);
+	seq_printf(f, "CPU count\t: %u\n"
+		      "CPU list\t: %s\n"
+		      "vendor_id\t: Tensilica\n"
+		      "model\t\t: Xtensa " XCHAL_HW_VERSION_NAME "\n"
+		      "core ID\t\t: " XCHAL_CORE_ID "\n"
+		      "build ID\t: 0x%x\n"
+		      "byte order\t: %s\n"
+		      "cpu MHz\t\t: %lu.%02lu\n"
+		      "bogomips\t: %lu.%02lu\n",
+		      num_online_cpus(),
+		      buf,
+		      XCHAL_BUILD_UNIQUE_ID,
+		      XCHAL_HAVE_BE ?  "big" : "little",
+		      ccount_freq/1000000,
+		      (ccount_freq/10000) % 100,
+		      loops_per_jiffy/(500000/HZ),
+		      (loops_per_jiffy/(5000/HZ)) % 100);
 
 	seq_printf(f,"flags\t\t: "
 #if XCHAL_HAVE_NMI
@@ -393,6 +642,9 @@ c_show(struct seq_file *f, void *slot)
 #if XCHAL_HAVE_FP
 		     "fpu "
 #endif
+#if XCHAL_HAVE_S32C1I
+		     "s32c1i "
+#endif
 		     "\n");
 
 	/* Registers. */
@@ -424,7 +676,7 @@ c_show(struct seq_file *f, void *slot)
 		     "icache size\t: %d\n"
 		     "icache flags\t: "
 #if XCHAL_ICACHE_LINE_LOCKABLE
-		     "lock"
+		     "lock "
 #endif
 		     "\n"
 		     "dcache line size: %d\n"
@@ -432,10 +684,10 @@ c_show(struct seq_file *f, void *slot)
 		     "dcache size\t: %d\n"
 		     "dcache flags\t: "
 #if XCHAL_DCACHE_IS_WRITEBACK
-		     "writeback"
+		     "writeback "
 #endif
 #if XCHAL_DCACHE_LINE_LOCKABLE
-		     "lock"
+		     "lock "
 #endif
 		     "\n",
 		     XCHAL_ICACHE_LINESIZE,
@@ -454,7 +706,7 @@ c_show(struct seq_file *f, void *slot)
 static void *
 c_start(struct seq_file *f, loff_t *pos)
 {
-	return (void *) ((*pos == 0) ? (void *)1 : NULL);
+	return (*pos == 0) ? (void *)1 : NULL;
 }
 
 static void *
@@ -470,11 +722,10 @@ c_stop(struct seq_file *f, void *v)
 
 const struct seq_operations cpuinfo_op =
 {
-	start:  c_start,
-	next:   c_next,
-	stop:   c_stop,
-	show:   c_show
+	.start	= c_start,
+	.next	= c_next,
+	.stop	= c_stop,
+	.show	= c_show,
 };
 
 #endif /* CONFIG_PROC_FS */
-

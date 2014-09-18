@@ -1,0 +1,51 @@
+* Samsung Multi Format Codec (MFC)
+
+Multi Format Codec (MFC) is the IP present in Samsung SoCs which
+supports high resolution decoding and encoding functionalities.
+The MFC device driver is a v4l2 driver which can encode/decode
+video raw/elementary streams and has support for all popular
+video codecs.
+
+Required properties:
+  - compatible : value should be either one among the following
+	(a) "samsung,mfc-v5" for MFC v5 present in Exynos4 SoCs
+	(b) "samsung,mfc-v6" for MFC v6 present in Exynos5 SoCs
+	(c) "samsung,mfc-v7" for MFC v7 present in Exynos5420 SoC
+	(d) "samsung,mfc-v8" for MFC v8 present in Exynos5800 SoC
+
+  - reg : Physical base address of the IP registers and length of memory
+	  mapped region.
+
+  - interrupts : MFC interrupt number to the CPU.
+  - clocks : from common clock binding: handle to mfc clock.
+  - clock-names : from common clock binding: must contain "mfc",
+		  corresponding to entry in the clocks property.
+
+  - samsung,mfc-r : Base address of the first memory bank used by MFC
+		    for DMA contiguous memory allocation and its size.
+
+  - samsung,mfc-l : Base address of the second memory bank used by MFC
+		    for DMA contiguous memory allocation and its size.
+
+Optional properties:
+  - samsung,power-domain : power-domain property defined with a phandle
+			   to respective power domain.
+
+Example:
+SoC specific DT entry:
+
+mfc: codec@13400000 {
+	compatible = "samsung,mfc-v5";
+	reg = <0x13400000 0x10000>;
+	interrupts = <0 94 0>;
+	samsung,power-domain = <&pd_mfc>;
+	clocks = <&clock 273>;
+	clock-names = "mfc";
+};
+
+Board specific DT entry:
+
+codec@13400000 {
+	samsung,mfc-r = <0x43000000 0x800000>;
+	samsung,mfc-l = <0x51000000 0x800000>;
+};

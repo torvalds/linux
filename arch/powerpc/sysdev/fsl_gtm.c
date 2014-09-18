@@ -1,7 +1,7 @@
 /*
  * Freescale General-purpose Timers Module
  *
- * Copyright (c) Freescale Semicondutor, Inc. 2006.
+ * Copyright (c) Freescale Semiconductor, Inc. 2006.
  *               Shlomi Gridish <gridish@freescale.com>
  *               Jerry Huang <Chang-Ming.Huang@freescale.com>
  * Copyright (c) MontaVista Software, Inc. 2008.
@@ -19,6 +19,8 @@
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
@@ -401,16 +403,15 @@ static int __init fsl_gtm_init(void)
 		gtm->clock = *clock;
 
 		for (i = 0; i < ARRAY_SIZE(gtm->timers); i++) {
-			int ret;
-			struct resource irq;
+			unsigned int irq;
 
-			ret = of_irq_to_resource(np, i, &irq);
-			if (ret == NO_IRQ) {
+			irq = irq_of_parse_and_map(np, i);
+			if (irq == NO_IRQ) {
 				pr_err("%s: not enough interrupts specified\n",
 				       np->full_name);
 				goto err;
 			}
-			gtm->timers[i].irq = irq.start;
+			gtm->timers[i].irq = irq;
 			gtm->timers[i].gtm = gtm;
 		}
 

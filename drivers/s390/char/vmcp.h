@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005 IBM Corporation
+ * Copyright IBM Corp. 2004, 2005
  * Interface implementation for communication with the z/VM control program
  * Version 1.0
  * Author(s): Christian Borntraeger <cborntra@de.ibm.com>

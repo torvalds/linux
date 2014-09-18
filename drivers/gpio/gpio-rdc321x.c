@@ -128,30 +128,28 @@ static int rdc_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 /*
  * Cache the initial value of both GPIO data registers
  */
-static int __devinit rdc321x_gpio_probe(struct platform_device *pdev)
+static int rdc321x_gpio_probe(struct platform_device *pdev)
 {
 	int err;
 	struct resource *r;
 	struct rdc321x_gpio *rdc321x_gpio_dev;
 	struct rdc321x_gpio_pdata *pdata;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "no platform data supplied\n");
 		return -ENODEV;
 	}
 
-	rdc321x_gpio_dev = kzalloc(sizeof(struct rdc321x_gpio), GFP_KERNEL);
-	if (!rdc321x_gpio_dev) {
-		dev_err(&pdev->dev, "failed to allocate private data\n");
+	rdc321x_gpio_dev = devm_kzalloc(&pdev->dev, sizeof(struct rdc321x_gpio),
+					GFP_KERNEL);
+	if (!rdc321x_gpio_dev)
 		return -ENOMEM;
-	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpio-reg1");
 	if (!r) {
 		dev_err(&pdev->dev, "failed to get gpio-reg1 resource\n");
-		err = -ENODEV;
-		goto out_free;
+		return -ENODEV;
 	}
 
 	spin_lock_init(&rdc321x_gpio_dev->lock);
@@ -162,14 +160,14 @@ static int __devinit rdc321x_gpio_probe(struct platform_device *pdev)
 	r = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpio-reg2");
 	if (!r) {
 		dev_err(&pdev->dev, "failed to get gpio-reg2 resource\n");
-		err = -ENODEV;
-		goto out_free;
+		return -ENODEV;
 	}
 
 	rdc321x_gpio_dev->reg2_ctrl_base = r->start;
 	rdc321x_gpio_dev->reg2_data_base = r->start + 0x4;
 
 	rdc321x_gpio_dev->chip.label = "rdc321x-gpio";
+	rdc321x_gpio_dev->chip.owner = THIS_MODULE;
 	rdc321x_gpio_dev->chip.direction_input = rdc_gpio_direction_input;
 	rdc321x_gpio_dev->chip.direction_output = rdc_gpio_config;
 	rdc321x_gpio_dev->chip.get = rdc_gpio_get_value;
@@ -186,45 +184,33 @@ static int __devinit rdc321x_gpio_probe(struct platform_device *pdev)
 					rdc321x_gpio_dev->reg1_data_base,
 					&rdc321x_gpio_dev->data_reg[0]);
 	if (err)
-		goto out_drvdata;
+		return err;
 
 	err = pci_read_config_dword(rdc321x_gpio_dev->sb_pdev,
 					rdc321x_gpio_dev->reg2_data_base,
 					&rdc321x_gpio_dev->data_reg[1]);
 	if (err)
-		goto out_drvdata;
+		return err;
 
 	dev_info(&pdev->dev, "registering %d GPIOs\n",
 					rdc321x_gpio_dev->chip.ngpio);
 	return gpiochip_add(&rdc321x_gpio_dev->chip);
-
-out_drvdata:
-	platform_set_drvdata(pdev, NULL);
-out_free:
-	kfree(rdc321x_gpio_dev);
-	return err;
 }
 
-static int __devexit rdc321x_gpio_remove(struct platform_device *pdev)
+static int rdc321x_gpio_remove(struct platform_device *pdev)
 {
-	int ret;
 	struct rdc321x_gpio *rdc321x_gpio_dev = platform_get_drvdata(pdev);
 
-	ret = gpiochip_remove(&rdc321x_gpio_dev->chip);
-	if (ret)
-		dev_err(&pdev->dev, "failed to unregister chip\n");
+	gpiochip_remove(&rdc321x_gpio_dev->chip);
 
-	kfree(rdc321x_gpio_dev);
-	platform_set_drvdata(pdev, NULL);
-
-	return ret;
+	return 0;
 }
 
 static struct platform_driver rdc321x_gpio_driver = {
 	.driver.name	= "rdc321x-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= rdc321x_gpio_probe,
-	.remove		= __devexit_p(rdc321x_gpio_remove),
+	.remove		= rdc321x_gpio_remove,
 };
 
 module_platform_driver(rdc321x_gpio_driver);

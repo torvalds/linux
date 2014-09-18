@@ -44,6 +44,16 @@ Charger Manager supports the following:
 	Normally, the platform will need to resume and suspend some devices
 	that are used by Charger Manager.
 
+* Support for premature full-battery event handling
+	If the battery voltage drops by "fullbatt_vchkdrop_uV" after
+	"fullbatt_vchkdrop_ms" from the full-battery event, the framework
+	restarts charging. This check is also performed while suspended by
+	setting wakeup time accordingly and using suspend_again.
+
+* Support for uevent-notify
+	With the charger-related events, the device sends
+	notification to users with UEVENT.
+
 2. Global Charger-Manager Data related with suspend_again
 ========================================================
 In order to setup Charger Manager with suspend-again feature
@@ -55,7 +65,7 @@ if there are multiple batteries. If there are multiple batteries, the
 multiple instances of Charger Manager share the same charger_global_desc
 and it will manage in-suspend monitoring for all instances of Charger Manager.
 
-The user needs to provide all the two entries properly in order to activate
+The user needs to provide all the three entries properly in order to activate
 in-suspend monitoring:
 
 struct charger_global_desc {
@@ -74,6 +84,11 @@ bool (*rtc_only_wakeup)(void);
 	same struct. If there is any other wakeup source triggered the
 	wakeup, it should return false. If the "rtc" is the only wakeup
 	reason, it should return true.
+
+bool assume_timer_stops_in_suspend;
+	: if true, Charger Manager assumes that
+	the timer (CM uses jiffies as timer) stops during suspend. Then, CM
+	assumes that the suspend-duration is same as the alarm length.
 };
 
 3. How to setup suspend_again
@@ -111,6 +126,16 @@ enum polling_modes polling_mode;
 	  CM_POLL_CHARGING_ONLY: poll this battery if and only if the
 				 battery is being charged.
 
+unsigned int fullbatt_vchkdrop_ms;
+unsigned int fullbatt_vchkdrop_uV;
+	: If both have non-zero values, Charger Manager will check the
+	battery voltage drop fullbatt_vchkdrop_ms after the battery is fully
+	charged. If the voltage drop is over fullbatt_vchkdrop_uV, Charger
+	Manager will try to recharge the battery by disabling and enabling
+	chargers. Recharge with voltage drop condition only (without delay
+	condition) is needed to be implemented with hardware interrupts from
+	fuel gauges or charger devices/chips.
+
 unsigned int fullbatt_uV;
 	: If specified with a non-zero value, Charger Manager assumes
 	that the battery is full (capacity = 100) if the battery is not being
@@ -122,6 +147,8 @@ unsigned int polling_interval_ms;
 	this battery every polling_interval_ms or more frequently.
 
 enum data_source battery_present;
+	: CM_BATTERY_PRESENT: assume that the battery exists.
+	CM_NO_BATTERY: assume that the battery does not exists.
 	CM_FUEL_GAUGE: get battery presence information from fuel gauge.
 	CM_CHARGER_STAT: get battery presence from chargers.
 
@@ -151,7 +178,17 @@ bool measure_battery_temp;
 	the value of measure_battery_temp.
 };
 
-5. Other Considerations
+5. Notify Charger-Manager of charger events: cm_notify_event()
+=========================================================
+If there is an charger event is required to notify
+Charger Manager, a charger device driver that triggers the event can call
+cm_notify_event(psy, type, msg) to notify the corresponding Charger Manager.
+In the function, psy is the charger driver's power_supply pointer, which is
+associated with Charger-Manager. The parameter "type"
+is the same as irq's type (enum cm_event_types). The event message "msg" is
+optional and is effective only if the event type is "UNDESCRIBED" or "OTHERS".
+
+6. Other Considerations
 =======================
 
 At the charger/battery-related events such as battery-pulled-out,

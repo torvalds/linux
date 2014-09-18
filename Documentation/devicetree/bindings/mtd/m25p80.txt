@@ -1,0 +1,29 @@
+* MTD SPI driver for ST M25Pxx (and similar) serial flash chips
+
+Required properties:
+- #address-cells, #size-cells : Must be present if the device has sub-nodes
+  representing partitions.
+- compatible : Should be the manufacturer and the name of the chip. Bear in mind
+               the DT binding is not Linux-only, but in case of Linux, see the
+               "spi_nor_ids" table in drivers/mtd/spi-nor/spi-nor.c for the list
+               of supported chips.
+- reg : Chip-Select number
+- spi-max-frequency : Maximum frequency of the SPI bus the chip can operate at
+
+Optional properties:
+- m25p,fast-read : Use the "fast read" opcode to read data from the chip instead
+                   of the usual "read" opcode. This opcode is not supported by
+                   all chips and support for it can not be detected at runtime.
+                   Refer to your chips' datasheet to check if this is supported
+                   by your chip.
+
+Example:
+
+	flash: m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "spansion,m25p80";
+		reg = <0>;
+		spi-max-frequency = <40000000>;
+		m25p,fast-read;
+	};

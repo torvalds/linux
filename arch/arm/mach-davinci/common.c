@@ -87,8 +87,6 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 		iotable_init(davinci_soc_info.io_desc,
 				davinci_soc_info.io_desc_num);
 
-	init_consistent_dma_size(14 << 20);
-
 	/*
 	 * Normally devicemaps_init() would flush caches and tlb after
 	 * mdesc->map_io(), but we must also do it here because of the CPU
@@ -116,4 +114,11 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 
 err:
 	panic("davinci_common_init: SoC Initialization failed\n");
+}
+
+void __init davinci_init_late(void)
+{
+	davinci_cpufreq_init();
+	davinci_pm_init();
+	davinci_clk_disable_unused();
 }

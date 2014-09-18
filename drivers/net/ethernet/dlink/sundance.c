@@ -102,7 +102,7 @@ static char *media[MAX_UNITS];
 #include <linux/mii.h>
 
 /* These identify the driver base version and may not be removed. */
-static const char version[] __devinitconst =
+static const char version[] =
 	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE
 	" Written by Donald Becker\n";
 
@@ -199,7 +199,7 @@ IVc. Errata
 #define USE_IO_OPS 1
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(sundance_pci_tbl) = {
+static const struct pci_device_id sundance_pci_tbl[] = {
 	{ 0x1186, 0x1002, 0x1186, 0x1002, 0, 0, 0 },
 	{ 0x1186, 0x1002, 0x1186, 0x1003, 0, 0, 1 },
 	{ 0x1186, 0x1002, 0x1186, 0x1012, 0, 0, 2 },
@@ -218,7 +218,7 @@ enum {
 struct pci_id_info {
         const char *name;
 };
-static const struct pci_id_info pci_id_tbl[] __devinitdata = {
+static const struct pci_id_info pci_id_tbl[] = {
 	{"D-Link DFE-550TX FAST Ethernet Adapter"},
 	{"D-Link DFE-550FX 100Mbps Fiber-optics Adapter"},
 	{"D-Link DFE-580TX 4 port Server Adapter"},
@@ -259,6 +259,7 @@ enum alta_offsets {
 	EECtrl = 0x36,
 	FlashAddr = 0x40,
 	FlashData = 0x44,
+	WakeEvent = 0x45,
 	TxStatus = 0x46,
 	TxFrameId = 0x47,
 	DownCounter = 0x18,
@@ -333,6 +334,14 @@ enum mac_ctrl1_bits {
 	RxEnable=0x0800, RxDisable=0x1000, RxEnabled=0x2000,
 };
 
+/* Bits in WakeEvent register. */
+enum wake_event_bits {
+	WakePktEnable = 0x01,
+	MagicPktEnable = 0x02,
+	LinkEventEnable = 0x04,
+	WolEnable = 0x80,
+};
+
 /* The Rx and Tx buffer descriptors. */
 /* Note that using only 32 bit fields simplifies conversion to big-endian
    architectures. */
@@ -392,6 +401,7 @@ struct netdev_private {
 	unsigned int default_port:4;		/* Last dev->if_port value. */
 	unsigned int an_enable:1;
 	unsigned int speed;
+	unsigned int wol_enabled:1;			/* Wake on LAN enabled */
 	struct tasklet_struct rx_tasklet;
 	struct tasklet_struct tx_tasklet;
 	int budget;
@@ -459,6 +469,17 @@ static void sundance_reset(struct net_device *dev, unsigned long reset_cmd)
 	}
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void sundance_poll_controller(struct net_device *dev)
+{
+	struct netdev_private *np = netdev_priv(dev);
+
+	disable_irq(np->pci_dev->irq);
+	intr_handler(np->pci_dev->irq, dev);
+	enable_irq(np->pci_dev->irq);
+}
+#endif
+
 static const struct net_device_ops netdev_ops = {
 	.ndo_open		= netdev_open,
 	.ndo_stop		= netdev_close,
@@ -470,10 +491,13 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_change_mtu		= change_mtu,
 	.ndo_set_mac_address 	= sundance_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller 	= sundance_poll_controller,
+#endif
 };
 
-static int __devinit sundance_probe1 (struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+static int sundance_probe1(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct netdev_private *np;
@@ -520,10 +544,6 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	for (i = 0; i < 3; i++)
 		((__le16 *)dev->dev_addr)[i] =
 			cpu_to_le16(eeprom_read(ioaddr, i + EEPROM_SA_OFFSET));
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
-
-	dev->base_addr = (unsigned long)ioaddr;
-	dev->irq = irq;
 
 	np = netdev_priv(dev);
 	np->base = ioaddr;
@@ -557,7 +577,7 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 
 	/* The chip-specific entries in the device structure. */
 	dev->netdev_ops = &netdev_ops;
-	SET_ETHTOOL_OPS(dev, &ethtool_ops);
+	dev->ethtool_ops = &ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	pci_set_drvdata(pdev, dev);
@@ -683,7 +703,6 @@ err_out_unmap_tx:
 	dma_free_coherent(&pdev->dev, TX_TOTAL_SIZE,
 		np->tx_ring, np->tx_ring_dma);
 err_out_cleardev:
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ioaddr);
 err_out_res:
 	pci_release_regions(pdev);
@@ -704,7 +723,7 @@ static int change_mtu(struct net_device *dev, int new_mtu)
 
 #define eeprom_delay(ee_addr)	ioread32(ee_addr)
 /* Read the EEPROM and MII Management Data I/O (MDIO) interfaces. */
-static int __devinit eeprom_read(void __iomem *ioaddr, int location)
+static int eeprom_read(void __iomem *ioaddr, int location)
 {
 	int boguscnt = 10000;		/* Typical 1900 ticks. */
 	iowrite16(0x0200 | (location & 0xff), ioaddr + EECtrl);
@@ -828,18 +847,19 @@ static int netdev_open(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
+	const int irq = np->pci_dev->irq;
 	unsigned long flags;
 	int i;
 
-	/* Do we need to reset the chip??? */
+	sundance_reset(dev, 0x00ff << 16);
 
-	i = request_irq(dev->irq, intr_handler, IRQF_SHARED, dev->name, dev);
+	i = request_irq(irq, intr_handler, IRQF_SHARED, dev->name, dev);
 	if (i)
 		return i;
 
 	if (netif_msg_ifup(np))
-		printk(KERN_DEBUG "%s: netdev_open() irq %d.\n",
-			   dev->name, dev->irq);
+		printk(KERN_DEBUG "%s: netdev_open() irq %d\n", dev->name, irq);
+
 	init_ring(dev);
 
 	iowrite32(np->rx_ring_dma, ioaddr + RxListPtr);
@@ -878,6 +898,10 @@ static int netdev_open(struct net_device *dev)
 	spin_unlock_irqrestore(&np->lock, flags);
 
 	iowrite16 (StatsEnable | RxEnable | TxEnable, ioaddr + MACCtrl1);
+
+	/* Disable Wol */
+	iowrite8(ioread8(ioaddr + WakeEvent) | 0x00, ioaddr + WakeEvent);
+	np->wol_enabled = 0;
 
 	if (netif_msg_ifup(np))
 		printk(KERN_DEBUG "%s: Done netdev_open(), status: Rx %x Tx %x "
@@ -1113,7 +1137,7 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 
 drop_frame:
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	np->tx_skbuff[entry] = NULL;
 	dev->stats.tx_dropped++;
 	return NETDEV_TX_OK;
@@ -1717,6 +1741,60 @@ static void get_ethtool_stats(struct net_device *dev,
 	data[i++] = np->xstats.rx_mcasts;
 }
 
+#ifdef CONFIG_PM
+
+static void sundance_get_wol(struct net_device *dev,
+		struct ethtool_wolinfo *wol)
+{
+	struct netdev_private *np = netdev_priv(dev);
+	void __iomem *ioaddr = np->base;
+	u8 wol_bits;
+
+	wol->wolopts = 0;
+
+	wol->supported = (WAKE_PHY | WAKE_MAGIC);
+	if (!np->wol_enabled)
+		return;
+
+	wol_bits = ioread8(ioaddr + WakeEvent);
+	if (wol_bits & MagicPktEnable)
+		wol->wolopts |= WAKE_MAGIC;
+	if (wol_bits & LinkEventEnable)
+		wol->wolopts |= WAKE_PHY;
+}
+
+static int sundance_set_wol(struct net_device *dev,
+	struct ethtool_wolinfo *wol)
+{
+	struct netdev_private *np = netdev_priv(dev);
+	void __iomem *ioaddr = np->base;
+	u8 wol_bits;
+
+	if (!device_can_wakeup(&np->pci_dev->dev))
+		return -EOPNOTSUPP;
+
+	np->wol_enabled = !!(wol->wolopts);
+	wol_bits = ioread8(ioaddr + WakeEvent);
+	wol_bits &= ~(WakePktEnable | MagicPktEnable |
+			LinkEventEnable | WolEnable);
+
+	if (np->wol_enabled) {
+		if (wol->wolopts & WAKE_MAGIC)
+			wol_bits |= (MagicPktEnable | WolEnable);
+		if (wol->wolopts & WAKE_PHY)
+			wol_bits |= (LinkEventEnable | WolEnable);
+	}
+	iowrite8(wol_bits, ioaddr + WakeEvent);
+
+	device_set_wakeup_enable(&np->pci_dev->dev, np->wol_enabled);
+
+	return 0;
+}
+#else
+#define sundance_get_wol NULL
+#define sundance_set_wol NULL
+#endif /* CONFIG_PM */
+
 static const struct ethtool_ops ethtool_ops = {
 	.begin = check_if_running,
 	.get_drvinfo = get_drvinfo,
@@ -1724,6 +1802,8 @@ static const struct ethtool_ops ethtool_ops = {
 	.set_settings = set_settings,
 	.nway_reset = nway_reset,
 	.get_link = get_link,
+	.get_wol = sundance_get_wol,
+	.set_wol = sundance_set_wol,
 	.get_msglevel = get_msglevel,
 	.set_msglevel = set_msglevel,
 	.get_strings = get_strings,
@@ -1814,7 +1894,7 @@ static int netdev_close(struct net_device *dev)
 	}
 #endif /* __i386__ debugging only */
 
-	free_irq(dev->irq, dev);
+	free_irq(np->pci_dev->irq, dev);
 
 	del_timer_sync(&np->timer);
 
@@ -1846,7 +1926,7 @@ static int netdev_close(struct net_device *dev)
 	return 0;
 }
 
-static void __devexit sundance_remove1 (struct pci_dev *pdev)
+static void sundance_remove1(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
@@ -1860,7 +1940,6 @@ static void __devexit sundance_remove1 (struct pci_dev *pdev)
 	    pci_iounmap(pdev, np->base);
 	    pci_release_regions(pdev);
 	    free_netdev(dev);
-	    pci_set_drvdata(pdev, NULL);
 	}
 }
 
@@ -1869,6 +1948,8 @@ static void __devexit sundance_remove1 (struct pci_dev *pdev)
 static int sundance_suspend(struct pci_dev *pci_dev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pci_dev);
+	struct netdev_private *np = netdev_priv(dev);
+	void __iomem *ioaddr = np->base;
 
 	if (!netif_running(dev))
 		return 0;
@@ -1877,6 +1958,12 @@ static int sundance_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	netif_device_detach(dev);
 
 	pci_save_state(pci_dev);
+	if (np->wol_enabled) {
+		iowrite8(AcceptBroadcast | AcceptMyPhys, ioaddr + RxMode);
+		iowrite16(RxEnable, ioaddr + MACCtrl1);
+	}
+	pci_enable_wake(pci_dev, pci_choose_state(pci_dev, state),
+			np->wol_enabled);
 	pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state));
 
 	return 0;
@@ -1892,6 +1979,7 @@ static int sundance_resume(struct pci_dev *pci_dev)
 
 	pci_set_power_state(pci_dev, PCI_D0);
 	pci_restore_state(pci_dev);
+	pci_enable_wake(pci_dev, PCI_D0, 0);
 
 	err = netdev_open(dev);
 	if (err) {
@@ -1912,7 +2000,7 @@ static struct pci_driver sundance_driver = {
 	.name		= DRV_NAME,
 	.id_table	= sundance_pci_tbl,
 	.probe		= sundance_probe1,
-	.remove		= __devexit_p(sundance_remove1),
+	.remove		= sundance_remove1,
 #ifdef CONFIG_PM
 	.suspend	= sundance_suspend,
 	.resume		= sundance_resume,

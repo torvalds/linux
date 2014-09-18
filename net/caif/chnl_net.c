@@ -1,7 +1,7 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Authors:	Sjur Brendeland/sjur.brandeland@stericsson.com
- *		Daniel Martensson / Daniel.Martensson@stericsson.com
+ * Authors:	Sjur Brendeland
+ *		Daniel Martensson
  * License terms: GNU General Public License (GPL) version 2
  */
 
@@ -94,6 +94,10 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 
 	/* check the version of IP */
 	ip_version = skb_header_pointer(skb, 0, 1, &buf);
+	if (!ip_version) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
 
 	switch (*ip_version >> 4) {
 	case 4:
@@ -163,7 +167,7 @@ static void chnl_put(struct cflayer *lyr)
 }
 
 static void chnl_flowctrl_cb(struct cflayer *layr, enum caif_ctrlcmd flow,
-				int phyid)
+			     int phyid)
 {
 	struct chnl_net *priv = container_of(layr, struct chnl_net, chnl);
 	pr_debug("NET flowctrl func called flow: %s\n",
@@ -281,7 +285,7 @@ static int chnl_net_open(struct net_device *dev)
 				goto error;
 		}
 
-		lldev = dev_get_by_index(dev_net(dev), llifindex);
+		lldev = __dev_get_by_index(dev_net(dev), llifindex);
 
 		if (lldev == NULL) {
 			pr_debug("no interface?\n");
@@ -303,7 +307,6 @@ static int chnl_net_open(struct net_device *dev)
 		mtu = min_t(int, dev->mtu, lldev->mtu - (headroom + tailroom));
 		mtu = min_t(int, GPRS_PDP_MTU, mtu);
 		dev_set_mtu(dev, mtu);
-		dev_put(lldev);
 
 		if (mtu < 100) {
 			pr_warn("CAIF Interface MTU too small (%d)\n", mtu);
@@ -424,14 +427,14 @@ static int ipcaif_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	struct chnl_net *priv;
 	u8 loop;
 	priv = netdev_priv(dev);
-	NLA_PUT_U32(skb, IFLA_CAIF_IPV4_CONNID,
-		    priv->conn_req.sockaddr.u.dgm.connection_id);
-	NLA_PUT_U32(skb, IFLA_CAIF_IPV6_CONNID,
-		    priv->conn_req.sockaddr.u.dgm.connection_id);
+	if (nla_put_u32(skb, IFLA_CAIF_IPV4_CONNID,
+			priv->conn_req.sockaddr.u.dgm.connection_id) ||
+	    nla_put_u32(skb, IFLA_CAIF_IPV6_CONNID,
+			priv->conn_req.sockaddr.u.dgm.connection_id))
+		goto nla_put_failure;
 	loop = priv->conn_req.protocol == CAIFPROTO_DATAGRAM_LOOP;
-	NLA_PUT_U8(skb, IFLA_CAIF_LOOPBACK, loop);
-
-
+	if (nla_put_u8(skb, IFLA_CAIF_LOOPBACK, loop))
+		goto nla_put_failure;
 	return 0;
 nla_put_failure:
 	return -EMSGSIZE;
@@ -439,7 +442,7 @@ nla_put_failure:
 }
 
 static void caif_netlink_parms(struct nlattr *data[],
-				struct caif_connect_request *conn_req)
+			       struct caif_connect_request *conn_req)
 {
 	if (!data) {
 		pr_warn("no params data found\n");
@@ -484,7 +487,7 @@ static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
 }
 
 static int ipcaif_changelink(struct net_device *dev, struct nlattr *tb[],
-				struct nlattr *data[])
+			     struct nlattr *data[])
 {
 	struct chnl_net *caifdev;
 	ASSERT_RTNL();

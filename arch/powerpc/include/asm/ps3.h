@@ -21,10 +21,9 @@
 #if !defined(_ASM_POWERPC_PS3_H)
 #define _ASM_POWERPC_PS3_H
 
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
-#include "cell-pmu.h"
+#include <asm/cell-pmu.h>
 
 union ps3_firmware_version {
 	u64 raw;
@@ -245,7 +244,7 @@ enum lv1_result {
 
 static inline const char* ps3_result(int result)
 {
-#if defined(DEBUG)
+#if defined(DEBUG) || defined(PS3_VERBOSE_RESULT)
 	switch (result) {
 	case LV1_SUCCESS:
 		return "LV1_SUCCESS (0)";

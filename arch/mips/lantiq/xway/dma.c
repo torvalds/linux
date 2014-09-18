@@ -19,11 +19,14 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
-#include <linux/export.h>
+#include <linux/module.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 
 #include <lantiq_soc.h>
 #include <xway_dma.h>
 
+#define LTQ_DMA_ID		0x08
 #define LTQ_DMA_CTRL		0x10
 #define LTQ_DMA_CPOLL		0x14
 #define LTQ_DMA_CS		0x18
@@ -47,20 +50,13 @@
 #define DMA_CLK_DIV4		BIT(6)		/* polling clock divider */
 #define DMA_2W_BURST		BIT(1)		/* 2 word burst length */
 #define DMA_MAX_CHANNEL		20		/* the soc has 20 channels */
-#define DMA_ETOP_ENDIANESS	(0xf << 8) /* endianess swap etop channels */
+#define DMA_ETOP_ENDIANNESS	(0xf << 8) /* endianness swap etop channels */
 #define DMA_WEIGHT	(BIT(17) | BIT(16))	/* default channel wheight */
 
 #define ltq_dma_r32(x)			ltq_r32(ltq_dma_membase + (x))
 #define ltq_dma_w32(x, y)		ltq_w32(x, ltq_dma_membase + (y))
 #define ltq_dma_w32_mask(x, y, z)	ltq_w32_mask(x, y, \
 						ltq_dma_membase + (z))
-
-static struct resource ltq_dma_resource = {
-	.name	= "dma",
-	.start	= LTQ_DMA_BASE_ADDR,
-	.end	= LTQ_DMA_BASE_ADDR + LTQ_DMA_SIZE - 1,
-	.flags  = IORESOURCE_MEM,
-};
 
 static void __iomem *ltq_dma_membase;
 
@@ -197,10 +193,10 @@ ltq_dma_init_port(int p)
 	switch (p) {
 	case DMA_PORT_ETOP:
 		/*
-		 * Tell the DMA engine to swap the endianess of data frames and
+		 * Tell the DMA engine to swap the endianness of data frames and
 		 * drop packets if the channel arbitration fails.
 		 */
-		ltq_dma_w32_mask(0, DMA_ETOP_ENDIANESS | DMA_PDEN,
+		ltq_dma_w32_mask(0, DMA_ETOP_ENDIANNESS | DMA_PDEN,
 			LTQ_DMA_PCTRL);
 		break;
 
@@ -215,27 +211,25 @@ ltq_dma_init_port(int p)
 }
 EXPORT_SYMBOL_GPL(ltq_dma_init_port);
 
-int __init
-ltq_dma_init(void)
+static int
+ltq_dma_init(struct platform_device *pdev)
 {
+	struct clk *clk;
+	struct resource *res;
+	unsigned id;
 	int i;
 
-	/* insert and request the memory region */
-	if (insert_resource(&iomem_resource, &ltq_dma_resource) < 0)
-		panic("Failed to insert dma memory");
-
-	if (request_mem_region(ltq_dma_resource.start,
-			resource_size(&ltq_dma_resource), "dma") < 0)
-		panic("Failed to request dma memory");
-
-	/* remap dma register range */
-	ltq_dma_membase = ioremap_nocache(ltq_dma_resource.start,
-				resource_size(&ltq_dma_resource));
-	if (!ltq_dma_membase)
-		panic("Failed to remap dma memory");
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ltq_dma_membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ltq_dma_membase))
+		panic("Failed to remap dma resource");
 
 	/* power up and reset the dma engine */
-	ltq_pmu_enable(PMU_DMA);
+	clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk))
+		panic("Failed to get dma clock");
+
+	clk_enable(clk);
 	ltq_dma_w32_mask(0, DMA_RESET, LTQ_DMA_CTRL);
 
 	/* disable all interrupts */
@@ -248,7 +242,34 @@ ltq_dma_init(void)
 		ltq_dma_w32(DMA_POLL | DMA_CLK_DIV4, LTQ_DMA_CPOLL);
 		ltq_dma_w32_mask(DMA_CHAN_ON, 0, LTQ_DMA_CCTRL);
 	}
+
+	id = ltq_dma_r32(LTQ_DMA_ID);
+	dev_info(&pdev->dev,
+		"Init done - hw rev: %X, ports: %d, channels: %d\n",
+		id & 0x1f, (id >> 16) & 0xf, id >> 20);
+
 	return 0;
 }
 
-postcore_initcall(ltq_dma_init);
+static const struct of_device_id dma_match[] = {
+	{ .compatible = "lantiq,dma-xway" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, dma_match);
+
+static struct platform_driver dma_driver = {
+	.probe = ltq_dma_init,
+	.driver = {
+		.name = "dma-xway",
+		.owner = THIS_MODULE,
+		.of_match_table = dma_match,
+	},
+};
+
+int __init
+dma_init(void)
+{
+	return platform_driver_register(&dma_driver);
+}
+
+postcore_initcall(dma_init);

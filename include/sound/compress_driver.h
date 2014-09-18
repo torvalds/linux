@@ -56,11 +56,10 @@ struct snd_compr_runtime {
 	u64 buffer_size;
 	u32 fragment_size;
 	u32 fragments;
-	u64 hw_pointer;
-	u64 app_pointer;
 	u64 total_bytes_available;
 	u64 total_bytes_transferred;
 	wait_queue_head_t sleep;
+	void *private_data;
 };
 
 /**
@@ -70,6 +69,8 @@ struct snd_compr_runtime {
  * @runtime: pointer to runtime structure
  * @device: device pointer
  * @direction: stream direction, playback/recording
+ * @metadata_set: metadata set flag, true when set
+ * @next_track: has userspace signall next track transistion, true when set
  * @private_data: pointer to DSP private data
  */
 struct snd_compr_stream {
@@ -78,6 +79,8 @@ struct snd_compr_stream {
 	struct snd_compr_runtime *runtime;
 	struct snd_compr *device;
 	enum snd_compr_direction direction;
+	bool metadata_set;
+	bool next_track;
 	void *private_data;
 };
 
@@ -109,10 +112,14 @@ struct snd_compr_ops {
 			struct snd_compr_params *params);
 	int (*get_params)(struct snd_compr_stream *stream,
 			struct snd_codec *params);
+	int (*set_metadata)(struct snd_compr_stream *stream,
+			struct snd_compr_metadata *metadata);
+	int (*get_metadata)(struct snd_compr_stream *stream,
+			struct snd_compr_metadata *metadata);
 	int (*trigger)(struct snd_compr_stream *stream, int cmd);
 	int (*pointer)(struct snd_compr_stream *stream,
 			struct snd_compr_tstamp *tstamp);
-	int (*copy)(struct snd_compr_stream *stream, const char __user *buf,
+	int (*copy)(struct snd_compr_stream *stream, char __user *buf,
 		       size_t count);
 	int (*mmap)(struct snd_compr_stream *stream,
 			struct vm_area_struct *vma);
@@ -161,6 +168,15 @@ int snd_compress_new(struct snd_card *card, int device,
  */
 static inline void snd_compr_fragment_elapsed(struct snd_compr_stream *stream)
 {
+	wake_up(&stream->runtime->sleep);
+}
+
+static inline void snd_compr_drain_notify(struct snd_compr_stream *stream)
+{
+	if (snd_BUG_ON(!stream))
+		return;
+
+	stream->runtime->state = SNDRV_PCM_STATE_SETUP;
 	wake_up(&stream->runtime->sleep);
 }
 

@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/serio.h>
-#include <linux/init.h>
 
 #define DRIVER_DESC	"iNexio serial touchscreen driver"
 
@@ -189,19 +188,4 @@ static struct serio_driver inexio_drv = {
 	.disconnect	= inexio_disconnect,
 };
 
-/*
- * The functions for inserting/removing us as a module.
- */
-
-static int __init inexio_init(void)
-{
-	return serio_register_driver(&inexio_drv);
-}
-
-static void __exit inexio_exit(void)
-{
-	serio_unregister_driver(&inexio_drv);
-}
-
-module_init(inexio_init);
-module_exit(inexio_exit);
+module_serio_driver(inexio_drv);

@@ -1,0 +1,253 @@
+/*
+ * Device Tree file for NETGEAR ReadyNAS Duo v2
+ *
+ * Copyright (C) 2013, Arnaud EBALARD <arno@natisbad.org>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ */
+
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6282.dtsi"
+
+/ {
+	model = "NETGEAR ReadyNAS Duo v2";
+	compatible = "netgear,readynas-duo-v2", "netgear,readynas", "marvell,kirkwood-88f6282", "marvell,kirkwood";
+
+	memory { /* 256 MB */
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
+	};
+
+	mbus {
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
+	};
+
+	ocp@f1000000 {
+		pinctrl: pin-controller@10000 {
+			pmx_button_power: pmx-button-power {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+
+			pmx_button_backup: pmx-button-backup {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+
+			pmx_button_reset: pmx-button-reset {
+				marvell,pins = "mpp13";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_blue_power: pmx-led-blue-power {
+				marvell,pins = "mpp31";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_blue_activity: pmx-led-blue-activity {
+				marvell,pins = "mpp38";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_blue_disk1: pmx-led-blue-disk1 {
+				marvell,pins = "mpp23";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_blue_disk2: pmx-led-blue-disk2 {
+				marvell,pins = "mpp22";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_blue_backup: pmx-led-blue-backup {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+
+			pmx_poweroff: pmx-poweroff {
+				marvell,pins = "mpp30";
+				marvell,function = "gpio";
+			};
+		};
+
+		clocks {
+		       g762_clk: g762-oscillator {
+				 compatible = "fixed-clock";
+				 #clock-cells = <0>;
+				 clock-frequency = <8192>;
+		       };
+		};
+
+		i2c@11000 {
+			status = "okay";
+
+			rs5c372a: rs5c372a@32 {
+				compatible = "ricoh,rs5c372a";
+				reg = <0x32>;
+			};
+
+			g762: g762@3e {
+				compatible = "gmt,g762";
+				reg = <0x3e>;
+				clocks = <&g762_clk>; /* input clock */
+				fan_gear_mode = <0>;
+				fan_startv = <1>;
+				pwm_polarity = <0>;
+			};
+		};
+
+		serial@12000 {
+			status = "okay";
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = < &pmx_led_blue_power &pmx_led_blue_activity
+			      &pmx_led_blue_disk1 &pmx_led_blue_disk2
+			      &pmx_led_blue_backup >;
+		pinctrl-names = "default";
+
+		power_led {
+			label = "status:blue:power_led";
+			gpios = <&gpio0 31 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
+		};
+
+		activity_led {
+			label = "status:blue:activity_led";
+			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+		};
+
+		disk1_led {
+			label = "status:blue:disk1_led";
+			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
+		};
+
+		disk2_led {
+			label = "status:blue:disk2_led";
+			gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		};
+
+		backup_led {
+			label = "status:blue:backup_led";
+			gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&pmx_button_power &pmx_button_backup
+			     &pmx_button_reset>;
+		pinctrl-names = "default";
+
+		power-button {
+			label = "Power Button";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+		};
+
+		reset-button {
+			label = "Reset Button";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
+		};
+
+		backup-button {
+			label = "Backup Button";
+			linux,code = <KEY_COPY>;
+			gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&pmx_poweroff>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 30 GPIO_ACTIVE_LOW>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb3_regulator: usb3-regulator {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "USB 3.0 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x180000>;
+		read-only;
+	};
+
+	partition@180000 {
+		label = "u-boot-env";
+		reg = <0x180000 0x20000>;
+	};
+
+	partition@200000 {
+		label = "uImage";
+		reg = <0x0200000 0x600000>;
+	};
+
+	partition@800000 {
+		label = "minirootfs";
+		reg = <0x0800000 0x1000000>;
+	};
+
+	partition@1800000 {
+		label = "jffs2";
+		reg = <0x1800000 0x6800000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 { /* Marvell 88E1318 */
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};

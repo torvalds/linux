@@ -34,7 +34,7 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 	if (!(inode->i_state & I_NEW))
 		return inode;
 
-	pr_debug("AFFS: affs_iget(%lu)\n", inode->i_ino);
+	pr_debug("affs_iget(%lu)\n", inode->i_ino);
 
 	block = inode->i_ino;
 	bh = affs_bread(sb, block);
@@ -80,17 +80,17 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 	if (id == 0 || sbi->s_flags & SF_SETUID)
 		inode->i_uid = sbi->s_uid;
 	else if (id == 0xFFFF && sbi->s_flags & SF_MUFS)
-		inode->i_uid = 0;
+		i_uid_write(inode, 0);
 	else
-		inode->i_uid = id;
+		i_uid_write(inode, id);
 
 	id = be16_to_cpu(tail->gid);
 	if (id == 0 || sbi->s_flags & SF_SETGID)
 		inode->i_gid = sbi->s_gid;
 	else if (id == 0xFFFF && sbi->s_flags & SF_MUFS)
-		inode->i_gid = 0;
+		i_gid_write(inode, 0);
 	else
-		inode->i_gid = id;
+		i_gid_write(inode, id);
 
 	switch (be32_to_cpu(tail->stype)) {
 	case ST_ROOT:
@@ -175,7 +175,7 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	uid_t			 uid;
 	gid_t			 gid;
 
-	pr_debug("AFFS: write_inode(%lu)\n",inode->i_ino);
+	pr_debug("write_inode(%lu)\n", inode->i_ino);
 
 	if (!inode->i_nlink)
 		// possibly free block
@@ -193,13 +193,13 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 		tail->size = cpu_to_be32(inode->i_size);
 		secs_to_datestamp(inode->i_mtime.tv_sec,&tail->change);
 		if (!(inode->i_ino == AFFS_SB(sb)->s_root_block)) {
-			uid = inode->i_uid;
-			gid = inode->i_gid;
+			uid = i_uid_read(inode);
+			gid = i_gid_read(inode);
 			if (AFFS_SB(sb)->s_flags & SF_MUFS) {
-				if (inode->i_uid == 0 || inode->i_uid == 0xFFFF)
-					uid = inode->i_uid ^ ~0;
-				if (inode->i_gid == 0 || inode->i_gid == 0xFFFF)
-					gid = inode->i_gid ^ ~0;
+				if (uid == 0 || uid == 0xFFFF)
+					uid = uid ^ ~0;
+				if (gid == 0 || gid == 0xFFFF)
+					gid = gid ^ ~0;
 			}
 			if (!(AFFS_SB(sb)->s_flags & SF_SETUID))
 				tail->uid = cpu_to_be16(uid);
@@ -220,7 +220,7 @@ affs_notify_change(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = dentry->d_inode;
 	int error;
 
-	pr_debug("AFFS: notify_change(%lu,0x%x)\n",inode->i_ino,attr->ia_valid);
+	pr_debug("notify_change(%lu,0x%x)\n", inode->i_ino, attr->ia_valid);
 
 	error = inode_change_ok(inode,attr);
 	if (error)
@@ -237,9 +237,12 @@ affs_notify_change(struct dentry *dentry, struct iattr *attr)
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
 	    attr->ia_size != i_size_read(inode)) {
-		error = vmtruncate(inode, attr->ia_size);
+		error = inode_newsize_ok(inode, attr->ia_size);
 		if (error)
 			return error;
+
+		truncate_setsize(inode, attr->ia_size);
+		affs_truncate(inode);
 	}
 
 	setattr_copy(inode, attr);
@@ -255,8 +258,9 @@ void
 affs_evict_inode(struct inode *inode)
 {
 	unsigned long cache_page;
-	pr_debug("AFFS: evict_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
-	truncate_inode_pages(&inode->i_data, 0);
+	pr_debug("evict_inode(ino=%lu, nlink=%u)\n",
+		 inode->i_ino, inode->i_nlink);
+	truncate_inode_pages_final(&inode->i_data);
 
 	if (!inode->i_nlink) {
 		inode->i_size = 0;
@@ -264,11 +268,11 @@ affs_evict_inode(struct inode *inode)
 	}
 
 	invalidate_inode_buffers(inode);
-	end_writeback(inode);
+	clear_inode(inode);
 	affs_free_prealloc(inode);
 	cache_page = (unsigned long)AFFS_I(inode)->i_lc;
 	if (cache_page) {
-		pr_debug("AFFS: freeing ext cache\n");
+		pr_debug("freeing ext cache\n");
 		AFFS_I(inode)->i_lc = NULL;
 		AFFS_I(inode)->i_ac = NULL;
 		free_page(cache_page);
@@ -347,7 +351,8 @@ affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s3
 	u32 block = 0;
 	int retval;
 
-	pr_debug("AFFS: add_entry(dir=%u, inode=%u, \"%*s\", type=%d)\n", (u32)dir->i_ino,
+	pr_debug("%s(dir=%u, inode=%u, \"%*s\", type=%d)\n",
+		 __func__, (u32)dir->i_ino,
 	         (u32)inode->i_ino, (int)dentry->d_name.len, dentry->d_name.name, type);
 
 	retval = -EIO;

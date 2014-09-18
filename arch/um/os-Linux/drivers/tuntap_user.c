@@ -13,8 +13,8 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
-#include "kern_util.h"
-#include "os.h"
+#include <kern_util.h>
+#include <os.h>
 #include "tuntap.h"
 
 static int tuntap_user_init(void *data, void *dev)

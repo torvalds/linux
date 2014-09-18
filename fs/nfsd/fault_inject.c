@@ -8,65 +8,124 @@
 #include <linux/fs.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
+#include <linux/nsproxy.h>
+#include <linux/sunrpc/addr.h>
+#include <asm/uaccess.h>
 
 #include "state.h"
-#include "fault_inject.h"
+#include "netns.h"
 
 struct nfsd_fault_inject_op {
 	char *file;
-	void (*func)(u64);
+	u64 (*get)(void);
+	u64 (*set_val)(u64);
+	u64 (*set_clnt)(struct sockaddr_storage *, size_t);
 };
 
-static struct nfsd_fault_inject_op inject_ops[] = {
-	{
-		.file   = "forget_clients",
-		.func   = nfsd_forget_clients,
-	},
-	{
-		.file   = "forget_locks",
-		.func   = nfsd_forget_locks,
-	},
-	{
-		.file   = "forget_openowners",
-		.func   = nfsd_forget_openowners,
-	},
-	{
-		.file   = "forget_delegations",
-		.func   = nfsd_forget_delegations,
-	},
-	{
-		.file   = "recall_delegations",
-		.func   = nfsd_recall_delegations,
-	},
-};
-
-static long int NUM_INJECT_OPS = sizeof(inject_ops) / sizeof(struct nfsd_fault_inject_op);
 static struct dentry *debug_dir;
 
-static int nfsd_inject_set(void *op_ptr, u64 val)
+static ssize_t fault_inject_read(struct file *file, char __user *buf,
+				 size_t len, loff_t *ppos)
 {
-	struct nfsd_fault_inject_op *op = op_ptr;
+	static u64 val;
+	char read_buf[25];
+	size_t size;
+	loff_t pos = *ppos;
+	struct nfsd_fault_inject_op *op = file_inode(file)->i_private;
 
-	if (val == 0)
-		printk(KERN_INFO "NFSD Fault Injection: %s (all)", op->file);
-	else
-		printk(KERN_INFO "NFSD Fault Injection: %s (n = %llu)", op->file, val);
+	if (!pos)
+		val = op->get();
+	size = scnprintf(read_buf, sizeof(read_buf), "%llu\n", val);
 
-	op->func(val);
-	return 0;
+	return simple_read_from_buffer(buf, len, ppos, read_buf, size);
 }
 
-static int nfsd_inject_get(void *data, u64 *val)
+static ssize_t fault_inject_write(struct file *file, const char __user *buf,
+				  size_t len, loff_t *ppos)
 {
-	return 0;
+	char write_buf[INET6_ADDRSTRLEN];
+	size_t size = min(sizeof(write_buf) - 1, len);
+	struct net *net = current->nsproxy->net_ns;
+	struct sockaddr_storage sa;
+	struct nfsd_fault_inject_op *op = file_inode(file)->i_private;
+	u64 val;
+	char *nl;
+
+	if (copy_from_user(write_buf, buf, size))
+		return -EFAULT;
+	write_buf[size] = '\0';
+
+	/* Deal with any embedded newlines in the string */
+	nl = strchr(write_buf, '\n');
+	if (nl) {
+		size = nl - write_buf;
+		*nl = '\0';
+	}
+
+	size = rpc_pton(net, write_buf, size, (struct sockaddr *)&sa, sizeof(sa));
+	if (size > 0) {
+		val = op->set_clnt(&sa, size);
+		if (val)
+			pr_info("NFSD [%s]: Client %s had %llu state object(s)\n",
+				op->file, write_buf, val);
+	} else {
+		val = simple_strtoll(write_buf, NULL, 0);
+		if (val == 0)
+			pr_info("NFSD Fault Injection: %s (all)", op->file);
+		else
+			pr_info("NFSD Fault Injection: %s (n = %llu)",
+				op->file, val);
+		val = op->set_val(val);
+		pr_info("NFSD: %s: found %llu", op->file, val);
+	}
+	return len; /* on success, claim we got the whole input */
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_nfsd, nfsd_inject_get, nfsd_inject_set, "%llu\n");
+static const struct file_operations fops_nfsd = {
+	.owner   = THIS_MODULE,
+	.read    = fault_inject_read,
+	.write   = fault_inject_write,
+};
 
 void nfsd_fault_inject_cleanup(void)
 {
 	debugfs_remove_recursive(debug_dir);
 }
+
+static struct nfsd_fault_inject_op inject_ops[] = {
+	{
+		.file     = "forget_clients",
+		.get	  = nfsd_inject_print_clients,
+		.set_val  = nfsd_inject_forget_clients,
+		.set_clnt = nfsd_inject_forget_client,
+	},
+	{
+		.file     = "forget_locks",
+		.get	  = nfsd_inject_print_locks,
+		.set_val  = nfsd_inject_forget_locks,
+		.set_clnt = nfsd_inject_forget_client_locks,
+	},
+	{
+		.file     = "forget_openowners",
+		.get	  = nfsd_inject_print_openowners,
+		.set_val  = nfsd_inject_forget_openowners,
+		.set_clnt = nfsd_inject_forget_client_openowners,
+	},
+	{
+		.file     = "forget_delegations",
+		.get	  = nfsd_inject_print_delegations,
+		.set_val  = nfsd_inject_forget_delegations,
+		.set_clnt = nfsd_inject_forget_client_delegations,
+	},
+	{
+		.file     = "recall_delegations",
+		.get	  = nfsd_inject_print_delegations,
+		.set_val  = nfsd_inject_recall_delegations,
+		.set_clnt = nfsd_inject_recall_client_delegations,
+	},
+};
+
+#define NUM_INJECT_OPS (sizeof(inject_ops)/sizeof(struct nfsd_fault_inject_op))
 
 int nfsd_fault_inject_init(void)
 {

@@ -20,11 +20,11 @@
 #ifdef CONFIG_4KSTACKS
 #define THREAD_SIZE		4096
 #define THREAD_SHIFT		12
-#define THREAD_ORDER		0
+#define THREAD_SIZE_ORDER	0
 #else
 #define THREAD_SIZE		8192
 #define THREAD_SHIFT		13
-#define THREAD_ORDER		1
+#define THREAD_SIZE_ORDER	1
 #endif
 
 #define THREAD_START_SP		(THREAD_SIZE - 8)
@@ -80,24 +80,9 @@ struct thread_info *current_thread_info(void)
 	return ti;
 }
 
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-
-/* thread information allocation */
-#ifdef CONFIG_DEBUG_STACK_USAGE
-#define THREAD_FLAGS (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
-#else
-#define THREAD_FLAGS (GFP_KERNEL | __GFP_NOTRACK)
-#endif
-
-#define alloc_thread_info_node(tsk, node)	\
-	((struct thread_info *)__get_free_pages(THREAD_FLAGS, THREAD_ORDER))
-
-#define free_thread_info(ti)	free_pages((unsigned long) (ti), THREAD_ORDER)
 #define get_thread_info(ti)	get_task_struct((ti)->task)
 #define put_thread_info(ti)	put_task_struct((ti)->task)
 #endif /* __ASSEMBLY__ */
-
-#define	PREEMPT_ACTIVE	0x10000000
 
 /*
  * thread information flag bit numbers
@@ -110,7 +95,6 @@ struct thread_info *current_thread_info(void)
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_RESTORE_SIGMASK	4	/* restore signal mask in do_signal() */
 
-#define TIF_POLLING_NRFLAG	16	/* true if polling TIF_NEED_RESCHED */
 #define TIF_MEMDIE		17	/* OOM killer killed process */
 
 #define TIF_WORK_MASK		0x00007FFE /* work on irq/exception return */

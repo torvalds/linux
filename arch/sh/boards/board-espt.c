@@ -1,5 +1,5 @@
 /*
- * Data Technology Inc. ESPT-GIGA board suport
+ * Data Technology Inc. ESPT-GIGA board support
  *
  * Copyright (C) 2008, 2009 Renesas Solutions Corp.
  * Copyright (C) 2008, 2009 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
@@ -14,6 +14,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/io.h>
 #include <linux/sh_eth.h>
+#include <linux/sh_intc.h>
 #include <asm/machvec.h>
 #include <asm/sizes.h>
 
@@ -71,7 +72,7 @@ static struct resource sh_eth_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	}, {
 
-		.start  = 57,   /* irq number */
+		.start  = evt2irq(0x920),   /* irq number */
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -79,12 +80,11 @@ static struct resource sh_eth_resources[] = {
 static struct sh_eth_plat_data sh7763_eth_pdata = {
 	.phy = 0,
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
-	.register_type = SH_ETH_REG_GIGABIT,
 	.phy_interface = PHY_INTERFACE_MODE_MII,
 };
 
 static struct platform_device espt_eth_device = {
-	.name       = "sh-eth",
+	.name       = "sh7763-gether",
 	.resource   = sh_eth_resources,
 	.num_resources  = ARRAY_SIZE(sh_eth_resources),
 	.dev        = {

@@ -1,0 +1,347 @@
+/*
+ * wm8750.dtsi - Device tree file for Wondermedia WM8750 SoC
+ *
+ * Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
+ *
+ * Licensed under GPLv2 or later
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "wm,wm8750";
+
+	cpus {
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
+			device_type = "cpu";
+			compatible = "arm,arm1176ej-s";
+		};
+	};
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		serial4 = &uart4;
+		serial5 = &uart5;
+		i2c0 = &i2c_0;
+		i2c1 = &i2c_1;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		interrupt-parent = <&intc0>;
+
+		intc0: interrupt-controller@d8140000 {
+			compatible = "via,vt8500-intc";
+			interrupt-controller;
+			reg = <0xd8140000 0x10000>;
+			#interrupt-cells = <1>;
+		};
+
+		/* Secondary IC cascaded to intc0 */
+		intc1: interrupt-controller@d8150000 {
+			compatible = "via,vt8500-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0xD8150000 0x10000>;
+			interrupts = <56 57 58 59 60 61 62 63>;
+		};
+
+		pinctrl: pinctrl@d8110000 {
+			compatible = "wm,wm8750-pinctrl";
+			reg = <0xd8110000 0x10000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		pmc@d8130000 {
+			compatible = "via,vt8500-pmc";
+			reg = <0xd8130000 0x1000>;
+
+			clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ref24: ref24M {
+					#clock-cells = <0>;
+					compatible = "fixed-clock";
+					clock-frequency = <24000000>;
+				};
+
+				ref25: ref25M {
+					#clock-cells = <0>;
+					compatible = "fixed-clock";
+					clock-frequency = <25000000>;
+				};
+
+				plla: plla {
+					#clock-cells = <0>;
+					compatible = "wm,wm8750-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x200>;
+				};
+
+				pllb: pllb {
+					#clock-cells = <0>;
+					compatible = "wm,wm8750-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x204>;
+				};
+
+				pllc: pllc {
+					#clock-cells = <0>;
+					compatible = "wm,wm8750-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x208>;
+				};
+
+				plld: plld {
+					#clock-cells = <0>;
+					compatible = "wm,wm8750-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x20C>;
+				};
+
+				plle: plle {
+					#clock-cells = <0>;
+					compatible = "wm,wm8750-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x210>;
+				};
+
+				clkarm: arm {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&plla>;
+					divisor-reg = <0x300>;
+				};
+
+				clkahb: ahb {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&pllb>;
+					divisor-reg = <0x304>;
+				};
+
+				clkapb: apb {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&pllb>;
+					divisor-reg = <0x320>;
+				};
+
+				clkddr: ddr {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&plld>;
+					divisor-reg = <0x310>;
+				};
+
+				clkuart0: uart0 {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&ref24>;
+					enable-reg = <0x254>;
+					enable-bit = <24>;
+				};
+
+				clkuart1: uart1 {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&ref24>;
+					enable-reg = <0x254>;
+					enable-bit = <25>;
+				};
+
+                                clkuart2: uart2 {
+                                        #clock-cells = <0>;
+                                        compatible = "via,vt8500-device-clock";
+                                        clocks = <&ref24>;
+                                        enable-reg = <0x254>;
+                                        enable-bit = <26>;
+                                };
+
+                                clkuart3: uart3 {
+                                        #clock-cells = <0>;
+                                        compatible = "via,vt8500-device-clock";
+                                        clocks = <&ref24>;
+                                        enable-reg = <0x254>;
+                                        enable-bit = <27>;
+                                };
+
+                                clkuart4: uart4 {
+                                        #clock-cells = <0>;
+                                        compatible = "via,vt8500-device-clock";
+                                        clocks = <&ref24>;
+                                        enable-reg = <0x254>;
+                                        enable-bit = <28>;
+                                };
+
+                                clkuart5: uart5 {
+                                        #clock-cells = <0>;
+                                        compatible = "via,vt8500-device-clock";
+                                        clocks = <&ref24>;
+                                        enable-reg = <0x254>;
+                                        enable-bit = <29>;
+                                };
+
+				clkpwm: pwm {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&pllb>;
+					divisor-reg = <0x350>;
+					enable-reg = <0x250>;
+					enable-bit = <17>;
+				};
+
+				clksdhc: sdhc {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&pllb>;
+					divisor-reg = <0x330>;
+					divisor-mask = <0x3f>;
+					enable-reg = <0x250>;
+					enable-bit = <0>;
+				};
+
+				clki2c0: i2c0clk {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&pllb>;
+					divisor-reg = <0x3A0>;
+					enable-reg = <0x250>;
+					enable-bit = <8>;
+				};
+
+				clki2c1: i2c1clk {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&pllb>;
+					divisor-reg = <0x3A4>;
+					enable-reg = <0x250>;
+					enable-bit = <9>;
+				};
+			};
+		};
+
+		pwm: pwm@d8220000 {
+			#pwm-cells = <3>;
+			compatible = "via,vt8500-pwm";
+			reg = <0xd8220000 0x100>;
+			clocks = <&clkpwm>;
+		};
+
+		timer@d8130100 {
+			compatible = "via,vt8500-timer";
+			reg = <0xd8130100 0x28>;
+			interrupts = <36>;
+		};
+
+		ehci@d8007900 {
+			compatible = "via,vt8500-ehci";
+			reg = <0xd8007900 0x200>;
+			interrupts = <26>;
+		};
+
+		uhci@d8007b00 {
+			compatible = "platform-uhci";
+			reg = <0xd8007b00 0x200>;
+			interrupts = <26>;
+		};
+
+		uhci@d8008d00 {
+			compatible = "platform-uhci";
+			reg = <0xd8008d00 0x200>;
+			interrupts = <26>;
+		};
+
+		uart0: serial@d8200000 {
+			compatible = "via,vt8500-uart";
+			reg = <0xd8200000 0x1040>;
+			interrupts = <32>;
+			clocks = <&clkuart0>;
+			status = "disabled";
+		};
+
+		uart1: serial@d82b0000 {
+			compatible = "via,vt8500-uart";
+			reg = <0xd82b0000 0x1040>;
+			interrupts = <33>;
+			clocks = <&clkuart1>;
+			status = "disabled";
+		};
+
+                uart2: serial@d8210000 {
+                        compatible = "via,vt8500-uart";
+                        reg = <0xd8210000 0x1040>;
+                        interrupts = <47>;
+                        clocks = <&clkuart2>;
+			status = "disabled";
+                };
+
+                uart3: serial@d82c0000 {
+                        compatible = "via,vt8500-uart";
+                        reg = <0xd82c0000 0x1040>;
+                        interrupts = <50>;
+                        clocks = <&clkuart3>;
+			status = "disabled";
+                };
+
+                uart4: serial@d8370000 {
+                        compatible = "via,vt8500-uart";
+                        reg = <0xd8370000 0x1040>;
+                        interrupts = <30>;
+                        clocks = <&clkuart4>;
+			status = "disabled";
+                };
+
+                uart5: serial@d8380000 {
+                        compatible = "via,vt8500-uart";
+                        reg = <0xd8380000 0x1040>;
+                        interrupts = <43>;
+                        clocks = <&clkuart5>;
+			status = "disabled";
+                };
+
+		rtc@d8100000 {
+			compatible = "via,vt8500-rtc";
+			reg = <0xd8100000 0x10000>;
+			interrupts = <48>;
+		};
+
+		sdhc@d800a000 {
+			compatible = "wm,wm8505-sdhc";
+			reg = <0xd800a000 0x1000>;
+			interrupts = <20 21>;
+			clocks = <&clksdhc>;
+			bus-width = <4>;
+			sdon-inverted;
+		};
+
+		i2c_0: i2c@d8280000 {
+			compatible = "wm,wm8505-i2c";
+			reg = <0xd8280000 0x1000>;
+			interrupts = <19>;
+			clocks = <&clki2c0>;
+			clock-frequency = <400000>;
+		};
+
+		i2c_1: i2c@d8320000 {
+			compatible = "wm,wm8505-i2c";
+			reg = <0xd8320000 0x1000>;
+			interrupts = <18>;
+			clocks = <&clki2c1>;
+			clock-frequency = <400000>;
+		};
+	};
+};

@@ -6,6 +6,50 @@
  * This module allows virtio devices to be used over a virtual, memory mapped
  * platform device.
  *
+ * The guest device(s) may be instantiated in one of three equivalent ways:
+ *
+ * 1. Static platform device in board's code, eg.:
+ *
+ *	static struct platform_device v2m_virtio_device = {
+ *		.name = "virtio-mmio",
+ *		.id = -1,
+ *		.num_resources = 2,
+ *		.resource = (struct resource []) {
+ *			{
+ *				.start = 0x1001e000,
+ *				.end = 0x1001e0ff,
+ *				.flags = IORESOURCE_MEM,
+ *			}, {
+ *				.start = 42 + 32,
+ *				.end = 42 + 32,
+ *				.flags = IORESOURCE_IRQ,
+ *			},
+ *		}
+ *	};
+ *
+ * 2. Device Tree node, eg.:
+ *
+ *		virtio_block@1e000 {
+ *			compatible = "virtio,mmio";
+ *			reg = <0x1e000 0x100>;
+ *			interrupts = <42>;
+ *		}
+ *
+ * 3. Kernel module (or command line) parameter. Can be used more than once -
+ *    one device will be created for each one. Syntax:
+ *
+ *		[virtio_mmio.]device=<size>@<baseaddr>:<irq>[:<id>]
+ *    where:
+ *		<size>     := size (can use standard suffixes like K, M or G)
+ *		<baseaddr> := physical base address
+ *		<irq>      := interrupt number (as passed to request_irq())
+ *		<id>       := (optional) platform device id
+ *    eg.:
+ *		virtio_mmio.device=0x100@0x100b0000:48 \
+ *				virtio_mmio.device=1K@0x1001e000:74
+ *
+ *
+ *
  * Registers layout (all 32-bit wide):
  *
  * offset d. name             description
@@ -31,7 +75,7 @@
  *
  * 0x050  W  QueueNotify      Queue notifier
  * 0x060  R  InterruptStatus  Interrupt status register
- * 0x060  W  InterruptACK     Interrupt acknowledge register
+ * 0x064  W  InterruptACK     Interrupt acknowledge register
  * 0x070  RW Status           Device status register
  *
  * 0x100+ RW                  Device-specific configuration space
@@ -41,6 +85,8 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
+#define pr_fmt(fmt) "virtio-mmio: " fmt
 
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
@@ -84,9 +130,6 @@ struct virtio_mmio_vq_info {
 
 	/* the number of entries in the queue */
 	unsigned int num;
-
-	/* the index of the queue */
-	int queue_index;
 
 	/* the virtual address of the ring queue */
 	void *queue;
@@ -176,14 +219,14 @@ static void vm_reset(struct virtio_device *vdev)
 /* Transport interface */
 
 /* the notify function used when creating a virt queue */
-static void vm_notify(struct virtqueue *vq)
+static bool vm_notify(struct virtqueue *vq)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vq->vdev);
-	struct virtio_mmio_vq_info *info = vq->priv;
 
 	/* We write the queue's selector into the notification register to
 	 * signal the other end */
-	writel(info->queue_index, vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
+	writel(vq->index, vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
+	return true;
 }
 
 /* Notify all virtqueues on an interrupt. */
@@ -224,6 +267,7 @@ static void vm_del_vq(struct virtqueue *vq)
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vq->vdev);
 	struct virtio_mmio_vq_info *info = vq->priv;
 	unsigned long flags, size;
+	unsigned int index = vq->index;
 
 	spin_lock_irqsave(&vm_dev->lock, flags);
 	list_del(&info->node);
@@ -232,7 +276,7 @@ static void vm_del_vq(struct virtqueue *vq)
 	vring_del_virtqueue(vq);
 
 	/* Select and deactivate the queue */
-	writel(info->queue_index, vm_dev->base + VIRTIO_MMIO_QUEUE_SEL);
+	writel(index, vm_dev->base + VIRTIO_MMIO_QUEUE_SEL);
 	writel(0, vm_dev->base + VIRTIO_MMIO_QUEUE_PFN);
 
 	size = PAGE_ALIGN(vring_size(info->num, VIRTIO_MMIO_VRING_ALIGN));
@@ -263,6 +307,9 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 	unsigned long flags, size;
 	int err;
 
+	if (!name)
+		return NULL;
+
 	/* Select the queue we're interested in */
 	writel(index, vm_dev->base + VIRTIO_MMIO_QUEUE_SEL);
 
@@ -278,7 +325,6 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 		err = -ENOMEM;
 		goto error_kmalloc;
 	}
-	info->queue_index = index;
 
 	/* Allocate pages for the queue - start with a queue as big as
 	 * possible (limited by maximum size allowed by device), drop down
@@ -286,11 +332,21 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 	 * and two rings (which makes it "alignment_size * 2")
 	 */
 	info->num = readl(vm_dev->base + VIRTIO_MMIO_QUEUE_NUM_MAX);
+
+	/* If the device reports a 0 entry queue, we won't be able to
+	 * use it to perform I/O, and vring_new_virtqueue() can't create
+	 * empty queues anyway, so don't bother to set up the device.
+	 */
+	if (info->num == 0) {
+		err = -ENOENT;
+		goto error_alloc_pages;
+	}
+
 	while (1) {
 		size = PAGE_ALIGN(vring_size(info->num,
 				VIRTIO_MMIO_VRING_ALIGN));
-		/* Already smallest possible allocation? */
-		if (size <= VIRTIO_MMIO_VRING_ALIGN * 2) {
+		/* Did the last iter shrink the queue below minimum size? */
+		if (size < VIRTIO_MMIO_VRING_ALIGN * 2) {
 			err = -ENOMEM;
 			goto error_alloc_pages;
 		}
@@ -310,7 +366,7 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 			vm_dev->base + VIRTIO_MMIO_QUEUE_PFN);
 
 	/* Create the vring */
-	vq = vring_new_virtqueue(info->num, VIRTIO_MMIO_VRING_ALIGN, vdev,
+	vq = vring_new_virtqueue(index, info->num, VIRTIO_MMIO_VRING_ALIGN, vdev,
 				 true, info->queue, vm_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
@@ -368,7 +424,7 @@ static const char *vm_bus_name(struct virtio_device *vdev)
 	return vm_dev->pdev->name;
 }
 
-static struct virtio_config_ops virtio_mmio_config_ops = {
+static const struct virtio_config_ops virtio_mmio_config_ops = {
 	.get		= vm_get,
 	.set		= vm_set,
 	.get_status	= vm_get_status,
@@ -385,7 +441,7 @@ static struct virtio_config_ops virtio_mmio_config_ops = {
 
 /* Platform device */
 
-static int __devinit virtio_mmio_probe(struct platform_device *pdev)
+static int virtio_mmio_probe(struct platform_device *pdev)
 {
 	struct virtio_mmio_device *vm_dev;
 	struct resource *mem;
@@ -415,7 +471,7 @@ static int __devinit virtio_mmio_probe(struct platform_device *pdev)
 
 	/* Check magic value */
 	magic = readl(vm_dev->base + VIRTIO_MMIO_MAGIC_VALUE);
-	if (memcmp(&magic, "virt", 4) != 0) {
+	if (magic != ('v' | 'i' << 8 | 'r' << 16 | 't' << 24)) {
 		dev_warn(&pdev->dev, "Wrong magic value 0x%08lx!\n", magic);
 		return -ENODEV;
 	}
@@ -438,7 +494,7 @@ static int __devinit virtio_mmio_probe(struct platform_device *pdev)
 	return register_virtio_device(&vm_dev->vdev);
 }
 
-static int __devexit virtio_mmio_remove(struct platform_device *pdev)
+static int virtio_mmio_remove(struct platform_device *pdev)
 {
 	struct virtio_mmio_device *vm_dev = platform_get_drvdata(pdev);
 
@@ -448,6 +504,130 @@ static int __devexit virtio_mmio_remove(struct platform_device *pdev)
 }
 
 
+
+/* Devices list parameter */
+
+#if defined(CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES)
+
+static struct device vm_cmdline_parent = {
+	.init_name = "virtio-mmio-cmdline",
+};
+
+static int vm_cmdline_parent_registered;
+static int vm_cmdline_id;
+
+static int vm_cmdline_set(const char *device,
+		const struct kernel_param *kp)
+{
+	int err;
+	struct resource resources[2] = {};
+	char *str;
+	long long int base, size;
+	unsigned int irq;
+	int processed, consumed = 0;
+	struct platform_device *pdev;
+
+	/* Consume "size" part of the command line parameter */
+	size = memparse(device, &str);
+
+	/* Get "@<base>:<irq>[:<id>]" chunks */
+	processed = sscanf(str, "@%lli:%u%n:%d%n",
+			&base, &irq, &consumed,
+			&vm_cmdline_id, &consumed);
+
+	/*
+	 * sscanf() must processes at least 2 chunks; also there
+	 * must be no extra characters after the last chunk, so
+	 * str[consumed] must be '\0'
+	 */
+	if (processed < 2 || str[consumed])
+		return -EINVAL;
+
+	resources[0].flags = IORESOURCE_MEM;
+	resources[0].start = base;
+	resources[0].end = base + size - 1;
+
+	resources[1].flags = IORESOURCE_IRQ;
+	resources[1].start = resources[1].end = irq;
+
+	if (!vm_cmdline_parent_registered) {
+		err = device_register(&vm_cmdline_parent);
+		if (err) {
+			pr_err("Failed to register parent device!\n");
+			return err;
+		}
+		vm_cmdline_parent_registered = 1;
+	}
+
+	pr_info("Registering device virtio-mmio.%d at 0x%llx-0x%llx, IRQ %d.\n",
+		       vm_cmdline_id,
+		       (unsigned long long)resources[0].start,
+		       (unsigned long long)resources[0].end,
+		       (int)resources[1].start);
+
+	pdev = platform_device_register_resndata(&vm_cmdline_parent,
+			"virtio-mmio", vm_cmdline_id++,
+			resources, ARRAY_SIZE(resources), NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
+}
+
+static int vm_cmdline_get_device(struct device *dev, void *data)
+{
+	char *buffer = data;
+	unsigned int len = strlen(buffer);
+	struct platform_device *pdev = to_platform_device(dev);
+
+	snprintf(buffer + len, PAGE_SIZE - len, "0x%llx@0x%llx:%llu:%d\n",
+			pdev->resource[0].end - pdev->resource[0].start + 1ULL,
+			(unsigned long long)pdev->resource[0].start,
+			(unsigned long long)pdev->resource[1].start,
+			pdev->id);
+	return 0;
+}
+
+static int vm_cmdline_get(char *buffer, const struct kernel_param *kp)
+{
+	buffer[0] = '\0';
+	device_for_each_child(&vm_cmdline_parent, buffer,
+			vm_cmdline_get_device);
+	return strlen(buffer) + 1;
+}
+
+static struct kernel_param_ops vm_cmdline_param_ops = {
+	.set = vm_cmdline_set,
+	.get = vm_cmdline_get,
+};
+
+device_param_cb(device, &vm_cmdline_param_ops, NULL, S_IRUSR);
+
+static int vm_unregister_cmdline_device(struct device *dev,
+		void *data)
+{
+	platform_device_unregister(to_platform_device(dev));
+
+	return 0;
+}
+
+static void vm_unregister_cmdline_devices(void)
+{
+	if (vm_cmdline_parent_registered) {
+		device_for_each_child(&vm_cmdline_parent, NULL,
+				vm_unregister_cmdline_device);
+		device_unregister(&vm_cmdline_parent);
+		vm_cmdline_parent_registered = 0;
+	}
+}
+
+#else
+
+static void vm_unregister_cmdline_devices(void)
+{
+}
+
+#endif
 
 /* Platform driver */
 
@@ -459,7 +639,7 @@ MODULE_DEVICE_TABLE(of, virtio_mmio_match);
 
 static struct platform_driver virtio_mmio_driver = {
 	.probe		= virtio_mmio_probe,
-	.remove		= __devexit_p(virtio_mmio_remove),
+	.remove		= virtio_mmio_remove,
 	.driver		= {
 		.name	= "virtio-mmio",
 		.owner	= THIS_MODULE,
@@ -475,6 +655,7 @@ static int __init virtio_mmio_init(void)
 static void __exit virtio_mmio_exit(void)
 {
 	platform_driver_unregister(&virtio_mmio_driver);
+	vm_unregister_cmdline_devices();
 }
 
 module_init(virtio_mmio_init);

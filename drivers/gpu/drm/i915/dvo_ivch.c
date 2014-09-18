@@ -195,7 +195,7 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 	if (i2c_transfer(adapter, msgs, 3) == 3) {
 		*data = (in_buf[1] << 8) | in_buf[0];
 		return true;
-	};
+	}
 
 	if (!priv->quiet) {
 		DRM_DEBUG_KMS("Unable to read register 0x%02x from "
@@ -288,7 +288,7 @@ static enum drm_mode_status ivch_mode_valid(struct intel_dvo_device *dvo,
 }
 
 /** Sets the power state of the panel connected to the ivch */
-static void ivch_dpms(struct intel_dvo_device *dvo, int mode)
+static void ivch_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	int i;
 	uint16_t vr01, vr30, backlight;
@@ -297,13 +297,13 @@ static void ivch_dpms(struct intel_dvo_device *dvo, int mode)
 	if (!ivch_read(dvo, VR01, &vr01))
 		return;
 
-	if (mode == DRM_MODE_DPMS_ON)
+	if (enable)
 		backlight = 1;
 	else
 		backlight = 0;
 	ivch_write(dvo, VR80, backlight);
 
-	if (mode == DRM_MODE_DPMS_ON)
+	if (enable)
 		vr01 |= VR01_LCD_ENABLE | VR01_DVO_ENABLE;
 	else
 		vr01 &= ~(VR01_LCD_ENABLE | VR01_DVO_ENABLE);
@@ -315,12 +315,26 @@ static void ivch_dpms(struct intel_dvo_device *dvo, int mode)
 		if (!ivch_read(dvo, VR30, &vr30))
 			break;
 
-		if (((vr30 & VR30_PANEL_ON) != 0) == (mode == DRM_MODE_DPMS_ON))
+		if (((vr30 & VR30_PANEL_ON) != 0) == enable)
 			break;
 		udelay(1000);
 	}
 	/* wait some more; vch may fail to resync sometimes without this */
 	udelay(16 * 1000);
+}
+
+static bool ivch_get_hw_state(struct intel_dvo_device *dvo)
+{
+	uint16_t vr01;
+
+	/* Set the new power state of the panel. */
+	if (!ivch_read(dvo, VR01, &vr01))
+		return false;
+
+	if (vr01 & VR01_LCD_ENABLE)
+		return true;
+	else
+		return false;
 }
 
 static void ivch_mode_set(struct intel_dvo_device *dvo,
@@ -363,41 +377,41 @@ static void ivch_dump_regs(struct intel_dvo_device *dvo)
 	uint16_t val;
 
 	ivch_read(dvo, VR00, &val);
-	DRM_LOG_KMS("VR00: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR00: 0x%04x\n", val);
 	ivch_read(dvo, VR01, &val);
-	DRM_LOG_KMS("VR01: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR01: 0x%04x\n", val);
 	ivch_read(dvo, VR30, &val);
-	DRM_LOG_KMS("VR30: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR30: 0x%04x\n", val);
 	ivch_read(dvo, VR40, &val);
-	DRM_LOG_KMS("VR40: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR40: 0x%04x\n", val);
 
 	/* GPIO registers */
 	ivch_read(dvo, VR80, &val);
-	DRM_LOG_KMS("VR80: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR80: 0x%04x\n", val);
 	ivch_read(dvo, VR81, &val);
-	DRM_LOG_KMS("VR81: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR81: 0x%04x\n", val);
 	ivch_read(dvo, VR82, &val);
-	DRM_LOG_KMS("VR82: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR82: 0x%04x\n", val);
 	ivch_read(dvo, VR83, &val);
-	DRM_LOG_KMS("VR83: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR83: 0x%04x\n", val);
 	ivch_read(dvo, VR84, &val);
-	DRM_LOG_KMS("VR84: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR84: 0x%04x\n", val);
 	ivch_read(dvo, VR85, &val);
-	DRM_LOG_KMS("VR85: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR85: 0x%04x\n", val);
 	ivch_read(dvo, VR86, &val);
-	DRM_LOG_KMS("VR86: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR86: 0x%04x\n", val);
 	ivch_read(dvo, VR87, &val);
-	DRM_LOG_KMS("VR87: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR87: 0x%04x\n", val);
 	ivch_read(dvo, VR88, &val);
-	DRM_LOG_KMS("VR88: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR88: 0x%04x\n", val);
 
 	/* Scratch register 0 - AIM Panel type */
 	ivch_read(dvo, VR8E, &val);
-	DRM_LOG_KMS("VR8E: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR8E: 0x%04x\n", val);
 
 	/* Scratch register 1 - Status register */
 	ivch_read(dvo, VR8F, &val);
-	DRM_LOG_KMS("VR8F: 0x%04x\n", val);
+	DRM_DEBUG_KMS("VR8F: 0x%04x\n", val);
 }
 
 static void ivch_destroy(struct intel_dvo_device *dvo)
@@ -413,6 +427,7 @@ static void ivch_destroy(struct intel_dvo_device *dvo)
 struct intel_dvo_dev_ops ivch_ops = {
 	.init = ivch_init,
 	.dpms = ivch_dpms,
+	.get_hw_state = ivch_get_hw_state,
 	.mode_valid = ivch_mode_valid,
 	.mode_set = ivch_mode_set,
 	.detect = ivch_detect,

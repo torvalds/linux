@@ -20,9 +20,6 @@
 #include <linux/poll.h>
 #include <linux/kref.h>
 
-/* Needs a _much_ better name... */
-#define FIX_SIZE(x) ((((x) - 1) & PAGE_MASK) + PAGE_SIZE)
-
 /*
  * Tracks changes to rchan/rchan_buf structs
  */

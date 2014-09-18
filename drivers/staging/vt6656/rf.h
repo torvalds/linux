@@ -30,13 +30,9 @@
 #ifndef __RF_H__
 #define __RF_H__
 
-#include "ttype.h"
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
-//
-// Baseband RF pair definition in eeprom (Bits 6..0)
-//
+/* Baseband RF pair definition in eeprom (Bits 6..0) */
 #define RF_RFMD2959         0x01
 #define RF_MAXIMAG          0x02
 #define RF_AL2230           0x03
@@ -48,37 +44,20 @@
 #define RF_VT3226           0x09
 #define RF_AIROHA7230       0x0a
 #define RF_UW2453           0x0b
-#define RF_VT3226D0         0x0c //RobertYu:20051114
-#define RF_VT3342A0         0x0d //RobertYu:20060609
+#define RF_VT3226D0         0x0c /* RobertYu:20051114 */
+#define RF_VT3342A0         0x0d /* RobertYu:20060609 */
 #define RF_AL2230S          0x0e
 
 #define RF_EMU              0x80
 #define RF_MASK             0x7F
 
+#define VNT_RF_MAX_POWER    0x3f
+#define	VNT_RF_REG_LEN      0x17 /* 24 bit length */
 
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-extern const BYTE RFaby11aChannelIndex[200];
-/*---------------------  Export Functions  --------------------------*/
-
-BOOL IFRFbWriteEmbeded(PSDevice pDevice, DWORD dwData);
-BOOL RFbSetPower(PSDevice pDevice, unsigned int uRATE, unsigned int uCH);
-
-BOOL RFbRawSetPower(
-      PSDevice  pDevice,
-      BYTE      byPwr,
-      unsigned int      uRATE
-    );
-
-void RFvRSSITodBm(PSDevice pDevice, BYTE byCurrRSSI, long *pldBm);
-void RFbRFTableDownload(PSDevice pDevice);
-
-BOOL s_bVT3226D0_11bLoCurrentAdjust(
-      PSDevice    pDevice,
-      BYTE        byChannel,
-      BOOL        b11bMode
-    );
+int vnt_rf_write_embedded(struct vnt_private *, u32);
+int vnt_rf_setpower(struct vnt_private *, u32, u32);
+int vnt_rf_set_txpower(struct vnt_private *, u8, u32);
+void vnt_rf_rssi_to_dbm(struct vnt_private *, u8, long *);
+void vnt_rf_table_download(struct vnt_private *);
 
 #endif /* __RF_H__ */

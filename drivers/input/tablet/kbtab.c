@@ -1,7 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/usb/input.h>
 #include <asm/unaligned.h>
 
@@ -33,6 +32,7 @@ struct kbtab {
 	dma_addr_t data_dma;
 	struct input_dev *dev;
 	struct usb_device *usbdev;
+	struct usb_interface *intf;
 	struct urb *irq;
 	char phys[32];
 };
@@ -53,10 +53,14 @@ static void kbtab_irq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __func__, urb->status);
+		dev_dbg(&kbtab->intf->dev,
+			"%s - urb shutting down with status: %d\n",
+			__func__, urb->status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __func__, urb->status);
+		dev_dbg(&kbtab->intf->dev,
+			"%s - nonzero urb status received: %d\n",
+			__func__, urb->status);
 		goto exit;
 	}
 
@@ -80,8 +84,9 @@ static void kbtab_irq(struct urb *urb)
  exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err("%s - usb_submit_urb failed with result %d",
-		     __func__, retval);
+		dev_err(&kbtab->intf->dev,
+			"%s - usb_submit_urb failed with result %d\n",
+			__func__, retval);
 }
 
 static struct usb_device_id kbtab_ids[] = {
@@ -131,6 +136,7 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 		goto fail2;
 
 	kbtab->usbdev = dev;
+	kbtab->intf = intf;
 	kbtab->dev = input_dev;
 
 	usb_make_path(dev, kbtab->phys, sizeof(kbtab->phys));

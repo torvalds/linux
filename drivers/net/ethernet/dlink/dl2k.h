@@ -25,7 +25,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
@@ -41,23 +40,6 @@
 #define RX_RING_SIZE 	256
 #define TX_TOTAL_SIZE	TX_RING_SIZE*sizeof(struct netdev_desc)
 #define RX_TOTAL_SIZE	RX_RING_SIZE*sizeof(struct netdev_desc)
-
-/* This driver was written to use PCI memory space, however x86-oriented
-   hardware often uses I/O space accesses. */
-#ifndef MEM_MAPPING
-#undef readb
-#undef readw
-#undef readl
-#undef writeb
-#undef writew
-#undef writel
-#define readb inb
-#define readw inw
-#define readl inl
-#define writeb outb
-#define writew outw
-#define writel outl
-#endif
 
 /* Offsets to the device registers.
    Unlike software-only systems, device drivers interact with complex hardware.
@@ -365,13 +347,6 @@ struct ioctl_data {
 	char *data;
 };
 
-struct mii_data {
-	__u16 reserved;
-	__u16 reg_num;
-	__u16 in_value;
-	__u16 out_value;
-};
-
 /* The Rx and Tx buffer descriptors. */
 struct netdev_desc {
 	__le64 next_desc;
@@ -391,6 +366,8 @@ struct netdev_private {
 	dma_addr_t tx_ring_dma;
 	dma_addr_t rx_ring_dma;
 	struct pci_dev *pdev;
+	void __iomem *ioaddr;
+	void __iomem *eeprom_addr;
 	spinlock_t tx_lock;
 	spinlock_t rx_lock;
 	struct net_device_stats stats;
@@ -431,7 +408,7 @@ struct netdev_private {
         driver_data             Data private to the driver.
 */
 
-static DEFINE_PCI_DEVICE_TABLE(rio_pci_tbl) = {
+static const struct pci_device_id rio_pci_tbl[] = {
 	{0x1186, 0x4000, PCI_ANY_ID, PCI_ANY_ID, },
 	{0x13f0, 0x1021, PCI_ANY_ID, PCI_ANY_ID, },
 	{ }

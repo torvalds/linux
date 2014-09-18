@@ -154,6 +154,7 @@ enum zfcp_dbf_hba_id {
 	ZFCP_DBF_HBA_RES	= 1,
 	ZFCP_DBF_HBA_USS	= 2,
 	ZFCP_DBF_HBA_BIT	= 3,
+	ZFCP_DBF_HBA_BASIC	= 4,
 };
 
 /**
@@ -277,7 +278,7 @@ struct zfcp_dbf {
 static inline
 void zfcp_dbf_hba_fsf_resp(char *tag, int level, struct zfcp_fsf_req *req)
 {
-	if (level <= req->adapter->dbf->hba->level)
+	if (debug_level_enabled(req->adapter->dbf->hba, level))
 		zfcp_dbf_hba_fsf_res(tag, req);
 }
 
@@ -316,7 +317,7 @@ void _zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *scmd,
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *)
 					scmd->device->host->hostdata[0];
 
-	if (level <= adapter->dbf->scsi->level)
+	if (debug_level_enabled(adapter->dbf->scsi, level))
 		zfcp_dbf_scsi(tag, scmd, req);
 }
 

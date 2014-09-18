@@ -1082,7 +1082,7 @@ static void via_init_mmc_host(struct via_crdr_mmc_host *host)
 	msleep(1);
 }
 
-static int __devinit via_sd_probe(struct pci_dev *pcidev,
+static int via_sd_probe(struct pci_dev *pcidev,
 				    const struct pci_device_id *id)
 {
 	struct mmc_host *mmc;
@@ -1176,7 +1176,7 @@ disable:
 	return ret;
 }
 
-static void __devexit via_sd_remove(struct pci_dev *pcidev)
+static void via_sd_remove(struct pci_dev *pcidev)
 {
 	struct via_crdr_mmc_host *sdhost = pci_get_drvdata(pcidev);
 	unsigned long flags;
@@ -1269,21 +1269,18 @@ static void via_init_sdc_pm(struct via_crdr_mmc_host *host)
 static int via_sd_suspend(struct pci_dev *pcidev, pm_message_t state)
 {
 	struct via_crdr_mmc_host *host;
-	int ret = 0;
 
 	host = pci_get_drvdata(pcidev);
 
 	via_save_pcictrlreg(host);
 	via_save_sdcreg(host);
 
-	ret = mmc_suspend_host(host->mmc);
-
 	pci_save_state(pcidev);
 	pci_enable_wake(pcidev, pci_choose_state(pcidev, state), 0);
 	pci_disable_device(pcidev);
 	pci_set_power_state(pcidev, pci_choose_state(pcidev, state));
 
-	return ret;
+	return 0;
 }
 
 static int via_sd_resume(struct pci_dev *pcidev)
@@ -1316,8 +1313,6 @@ static int via_sd_resume(struct pci_dev *pcidev)
 	via_restore_pcictrlreg(sdhost);
 	via_init_sdc_pm(sdhost);
 
-	ret = mmc_resume_host(sdhost->mmc);
-
 	return ret;
 }
 
@@ -1332,26 +1327,12 @@ static struct pci_driver via_sd_driver = {
 	.name = DRV_NAME,
 	.id_table = via_ids,
 	.probe = via_sd_probe,
-	.remove = __devexit_p(via_sd_remove),
+	.remove = via_sd_remove,
 	.suspend = via_sd_suspend,
 	.resume = via_sd_resume,
 };
 
-static int __init via_sd_drv_init(void)
-{
-	pr_info(DRV_NAME ": VIA SD/MMC Card Reader driver "
-		"(C) 2008 VIA Technologies, Inc.\n");
-
-	return pci_register_driver(&via_sd_driver);
-}
-
-static void __exit via_sd_drv_exit(void)
-{
-	pci_unregister_driver(&via_sd_driver);
-}
-
-module_init(via_sd_drv_init);
-module_exit(via_sd_drv_exit);
+module_pci_driver(via_sd_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("VIA Technologies Inc.");

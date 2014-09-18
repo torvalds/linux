@@ -13,4 +13,9 @@ extern int pxa_last_gpio;
 
 extern int pxa_irq_to_gpio(int irq);
 
+struct pxa_gpio_platform_data {
+	int irq_base;
+	int (*gpio_set_wake)(unsigned int gpio, unsigned int on);
+};
+
 #endif /* __GPIO_PXA_H */

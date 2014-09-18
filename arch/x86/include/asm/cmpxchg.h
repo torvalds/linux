@@ -4,6 +4,8 @@
 #include <linux/compiler.h>
 #include <asm/alternative.h> /* Provides LOCK_PREFIX */
 
+#define __HAVE_ARCH_CMPXCHG 1
+
 /*
  * Non-existant functions to indicate usage errors at link time
  * (or compile-time if the compiler implements __compiletime_error().
@@ -35,7 +37,7 @@ extern void __add_wrong_size(void)
 
 /* 
  * An exchange-type operation, which takes a value and a pointer, and
- * returns a the old value.
+ * returns the old value.
  */
 #define __xchg_op(ptr, arg, op, lock)					\
 	({								\
@@ -138,12 +140,11 @@ extern void __add_wrong_size(void)
 	__raw_cmpxchg((ptr), (old), (new), (size), "")
 
 #ifdef CONFIG_X86_32
-# include "cmpxchg_32.h"
+# include <asm/cmpxchg_32.h>
 #else
-# include "cmpxchg_64.h"
+# include <asm/cmpxchg_64.h>
 #endif
 
-#ifdef __HAVE_ARCH_CMPXCHG
 #define cmpxchg(ptr, old, new)						\
 	__cmpxchg(ptr, old, new, sizeof(*(ptr)))
 
@@ -152,7 +153,6 @@ extern void __add_wrong_size(void)
 
 #define cmpxchg_local(ptr, old, new)					\
 	__cmpxchg_local(ptr, old, new, sizeof(*(ptr)))
-#endif
 
 /*
  * xadd() adds "inc" to "*ptr" and atomically returns the previous

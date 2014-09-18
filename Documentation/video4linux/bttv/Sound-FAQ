@@ -82,7 +82,7 @@ card installed, you might to check out if you can read these registers
 values used by the windows driver.  A tool to do this is available
 from ftp://telepresence.dmem.strath.ac.uk/pub/bt848/winutil, but it
 does'nt work with bt878 boards according to some reports I received.
-Another one with bt878 suport is available from
+Another one with bt878 support is available from
 http://btwincap.sourceforge.net/Files/btspy2.00.zip
 
 You might also dig around in the *.ini files of the Windows applications.

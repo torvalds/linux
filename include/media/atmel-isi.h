@@ -56,6 +56,7 @@
 #define		ISI_CFG1_FRATE_DIV_6		(5 << 8)
 #define		ISI_CFG1_FRATE_DIV_7		(6 << 8)
 #define		ISI_CFG1_FRATE_DIV_8		(7 << 8)
+#define		ISI_CFG1_FRATE_DIV_MASK		(7 << 8)
 #define ISI_CFG1_DISCR				(1 << 11)
 #define ISI_CFG1_FULL_MODE			(1 << 12)
 
@@ -66,6 +67,7 @@
 #define		ISI_CFG2_YCC_SWAP_MODE_1	(1 << 28)
 #define		ISI_CFG2_YCC_SWAP_MODE_2	(2 << 28)
 #define		ISI_CFG2_YCC_SWAP_MODE_3	(3 << 28)
+#define		ISI_CFG2_YCC_SWAP_MODE_MASK	(3 << 28)
 #define ISI_CFG2_IM_VSIZE_OFFSET		0
 #define ISI_CFG2_IM_HSIZE_OFFSET		16
 #define ISI_CFG2_IM_VSIZE_MASK		(0x7FF << ISI_CFG2_IM_VSIZE_OFFSET)
@@ -104,6 +106,8 @@
 #define ISI_DATAWIDTH_8				0x01
 #define ISI_DATAWIDTH_10			0x02
 
+struct v4l2_async_subdev;
+
 struct isi_platform_data {
 	u8 has_emb_sync;
 	u8 emb_crc_sync;
@@ -116,6 +120,8 @@ struct isi_platform_data {
 	u32 frate;
 	/* Using for ISI_MCK */
 	u32 mck_hz;
+	struct v4l2_async_subdev **asd;	/* Flat array, arranged in groups */
+	int *asd_sizes;		/* 0-terminated array of asd group sizes */
 };
 
 #endif /* __ATMEL_ISI_H__ */

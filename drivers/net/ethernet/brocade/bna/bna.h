@@ -25,11 +25,7 @@
 
 extern const u32 bna_napi_dim_vector[][BNA_BIAS_T_MAX];
 
-/**
- *
- *  Macros and constants
- *
- */
+/*  Macros and constants  */
 
 #define BNA_IOC_TIMER_FREQ		200
 
@@ -141,6 +137,8 @@ do {								\
 
 #define BNA_QE_INDX_ADD(_qe_idx, _qe_num, _q_depth)			\
 	((_qe_idx) = ((_qe_idx) + (_qe_num)) & ((_q_depth) - 1))
+
+#define BNA_QE_INDX_INC(_idx, _q_depth) BNA_QE_INDX_ADD(_idx, 1, _q_depth)
 
 #define BNA_Q_INDEX_CHANGE(_old_idx, _updated_idx, _q_depth)		\
 	(((_updated_idx) - (_old_idx)) & ((_q_depth) - 1))
@@ -356,11 +354,15 @@ do {									\
 	}								\
 } while (0)
 
-/**
- *
- *  Inline functions
- *
- */
+#define bna_mcam_mod_free_q(_bna) (&(_bna)->mcam_mod.free_q)
+
+#define bna_mcam_mod_del_q(_bna) (&(_bna)->mcam_mod.del_q)
+
+#define bna_ucam_mod_free_q(_bna) (&(_bna)->ucam_mod.free_q)
+
+#define bna_ucam_mod_del_q(_bna) (&(_bna)->ucam_mod.del_q)
+
+/*  Inline functions  */
 
 static inline struct bna_mac *bna_mac_find(struct list_head *q, u8 *addr)
 {
@@ -377,15 +379,9 @@ static inline struct bna_mac *bna_mac_find(struct list_head *q, u8 *addr)
 
 #define bna_attr(_bna) (&(_bna)->ioceth.attr)
 
-/**
- *
- * Function prototypes
- *
- */
+/* Function prototypes */
 
-/**
- * BNA
- */
+/* BNA */
 
 /* FW response handlers */
 void bna_bfi_stats_clr_rsp(struct bna *bna, struct bfi_msgq_mhdr *msghdr);
@@ -403,34 +399,25 @@ int bna_num_rxp_set(struct bna *bna, int num_rxp);
 void bna_hw_stats_get(struct bna *bna);
 
 /* APIs for RxF */
-struct bna_mac *bna_ucam_mod_mac_get(struct bna_ucam_mod *ucam_mod);
-void bna_ucam_mod_mac_put(struct bna_ucam_mod *ucam_mod,
-			  struct bna_mac *mac);
-struct bna_mac *bna_mcam_mod_mac_get(struct bna_mcam_mod *mcam_mod);
-void bna_mcam_mod_mac_put(struct bna_mcam_mod *mcam_mod,
-			  struct bna_mac *mac);
+struct bna_mac *bna_cam_mod_mac_get(struct list_head *head);
+void bna_cam_mod_mac_put(struct list_head *tail, struct bna_mac *mac);
 struct bna_mcam_handle *bna_mcam_mod_handle_get(struct bna_mcam_mod *mod);
 void bna_mcam_mod_handle_put(struct bna_mcam_mod *mcam_mod,
 			  struct bna_mcam_handle *handle);
 
-/**
- * MBOX
- */
+/* MBOX */
 
 /* API for BNAD */
 void bna_mbox_handler(struct bna *bna, u32 intr_status);
 
-/**
- * ETHPORT
- */
+/* ETHPORT */
 
 /* Callbacks for RX */
 void bna_ethport_cb_rx_started(struct bna_ethport *ethport);
 void bna_ethport_cb_rx_stopped(struct bna_ethport *ethport);
 
-/**
- * TX MODULE AND TX
- */
+/* TX MODULE AND TX */
+
 /* FW response handelrs */
 void bna_bfi_tx_enet_start_rsp(struct bna_tx *tx,
 			       struct bfi_msgq_mhdr *msghdr);
@@ -462,9 +449,7 @@ void bna_tx_disable(struct bna_tx *tx, enum bna_cleanup_type type,
 void bna_tx_cleanup_complete(struct bna_tx *tx);
 void bna_tx_coalescing_timeo_set(struct bna_tx *tx, int coalescing_timeo);
 
-/**
- * RX MODULE, RX, RXF
- */
+/* RX MODULE, RX, RXF */
 
 /* FW response handlers */
 void bna_bfi_rx_enet_start_rsp(struct bna_rx *rx,
@@ -473,6 +458,8 @@ void bna_bfi_rx_enet_stop_rsp(struct bna_rx *rx,
 			      struct bfi_msgq_mhdr *msghdr);
 void bna_bfi_rxf_cfg_rsp(struct bna_rxf *rxf, struct bfi_msgq_mhdr *msghdr);
 void bna_bfi_rxf_mcast_add_rsp(struct bna_rxf *rxf,
+			       struct bfi_msgq_mhdr *msghdr);
+void bna_bfi_rxf_ucast_set_rsp(struct bna_rxf *rxf,
 			       struct bfi_msgq_mhdr *msghdr);
 
 /* APIs for BNA */
@@ -510,11 +497,17 @@ enum bna_cb_status
 bna_rx_ucast_del(struct bna_rx *rx, u8 *ucmac,
 		 void (*cbfn)(struct bnad *, struct bna_rx *));
 enum bna_cb_status
+bna_rx_ucast_listset(struct bna_rx *rx, int count, u8 *uclist,
+		     void (*cbfn)(struct bnad *, struct bna_rx *));
+enum bna_cb_status
 bna_rx_mcast_add(struct bna_rx *rx, u8 *mcmac,
 		 void (*cbfn)(struct bnad *, struct bna_rx *));
 enum bna_cb_status
 bna_rx_mcast_listset(struct bna_rx *rx, int count, u8 *mcmac,
 		     void (*cbfn)(struct bnad *, struct bna_rx *));
+void
+bna_rx_mcast_delall(struct bna_rx *rx,
+		    void (*cbfn)(struct bnad *, struct bna_rx *));
 enum bna_cb_status
 bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode rxmode,
 		enum bna_rxmode bitmask,
@@ -522,9 +515,9 @@ bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode rxmode,
 void bna_rx_vlan_add(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlan_del(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlanfilter_enable(struct bna_rx *rx);
-/**
- * ENET
- */
+void bna_rx_vlan_strip_enable(struct bna_rx *rx);
+void bna_rx_vlan_strip_disable(struct bna_rx *rx);
+/* ENET */
 
 /* API for RX */
 int bna_enet_mtu_get(struct bna_enet *enet);
@@ -544,18 +537,14 @@ void bna_enet_mtu_set(struct bna_enet *enet, int mtu,
 		      void (*cbfn)(struct bnad *));
 void bna_enet_perm_mac_get(struct bna_enet *enet, mac_t *mac);
 
-/**
- * IOCETH
- */
+/* IOCETH */
 
 /* APIs for BNAD */
 void bna_ioceth_enable(struct bna_ioceth *ioceth);
 void bna_ioceth_disable(struct bna_ioceth *ioceth,
 			enum bna_cleanup_type type);
 
-/**
- * BNAD
- */
+/* BNAD */
 
 /* Callbacks for ENET */
 void bnad_cb_ethport_link_status(struct bnad *bnad,

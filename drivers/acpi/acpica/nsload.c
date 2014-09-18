@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,7 @@ static acpi_status acpi_ns_delete_subtree(acpi_handle start_handle);
  * FUNCTION:    acpi_ns_load_table
  *
  * PARAMETERS:  table_index     - Index for table to be loaded
- *              Node            - Owning NS node
+ *              node            - Owning NS node
  *
  * RETURN:      Status
  *
@@ -80,8 +80,8 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 
 	/*
 	 * Parse the table and load the namespace with all named
-	 * objects found within.  Control methods are NOT parsed
-	 * at this time.  In fact, the control methods cannot be
+	 * objects found within. Control methods are NOT parsed
+	 * at this time. In fact, the control methods cannot be
 	 * parsed until the entire namespace is loaded, because
 	 * if a control method makes a forward reference (call)
 	 * to another control method, we can't continue parsing
@@ -114,7 +114,7 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 		(void)acpi_tb_release_owner_id(table_index);
 	}
 
-      unlock:
+unlock:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	if (ACPI_FAILURE(status)) {
@@ -122,18 +122,18 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 	}
 
 	/*
-	 * Now we can parse the control methods.  We always parse
+	 * Now we can parse the control methods. We always parse
 	 * them here for a sanity check, and if configured for
 	 * just-in-time parsing, we delete the control method
 	 * parse trees.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "**** Begin Table Method Parsing and Object Initialization\n"));
+			  "**** Begin Table Object Initialization\n"));
 
 	status = acpi_ds_initialize_objects(table_index, node);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "**** Completed Table Method Parsing and Object Initialization\n"));
+			  "**** Completed Table Object Initialization\n"));
 
 	return_ACPI_STATUS(status);
 }
@@ -166,7 +166,7 @@ acpi_status acpi_ns_load_namespace(void)
 	}
 
 	/*
-	 * Load the namespace.  The DSDT is required,
+	 * Load the namespace. The DSDT is required,
 	 * but the SSDT and PSDT tables are optional.
 	 */
 	status = acpi_ns_load_table_by_type(ACPI_TABLE_ID_DSDT);
@@ -278,12 +278,12 @@ static acpi_status acpi_ns_delete_subtree(acpi_handle start_handle)
  *
  *  FUNCTION:       acpi_ns_unload_name_space
  *
- *  PARAMETERS:     Handle          - Root of namespace subtree to be deleted
+ *  PARAMETERS:     handle          - Root of namespace subtree to be deleted
  *
  *  RETURN:         Status
  *
  *  DESCRIPTION:    Shrinks the namespace, typically in response to an undocking
- *                  event.  Deletes an entire subtree starting from (and
+ *                  event. Deletes an entire subtree starting from (and
  *                  including) the given handle.
  *
  ******************************************************************************/

@@ -81,6 +81,7 @@ struct efm32_uart_port {
 	struct uart_port port;
 	unsigned int txirq;
 	struct clk *clk;
+	struct efm32_uart_pdata pdata;
 };
 #define to_efm_port(_port) container_of(_port, struct efm32_uart_port, port)
 #define efm_debug(efm_port, format, arg...)			\
@@ -184,18 +185,12 @@ static void efm32_uart_stop_rx(struct uart_port *port)
 	efm32_uart_write32(efm_port, UARTn_CMD_RXDIS, UARTn_CMD);
 }
 
-static void efm32_uart_enable_ms(struct uart_port *port)
-{
-	/* no handshake lines, no modem status interrupts */
-}
-
 static void efm32_uart_break_ctl(struct uart_port *port, int ctl)
 {
 	/* not possible without fiddling with gpios */
 }
 
-static void efm32_uart_rx_chars(struct efm32_uart_port *efm_port,
-		struct tty_struct *tty)
+static void efm32_uart_rx_chars(struct efm32_uart_port *efm_port)
 {
 	struct uart_port *port = &efm_port->port;
 
@@ -237,8 +232,8 @@ static void efm32_uart_rx_chars(struct efm32_uart_port *efm_port,
 					rxdata & UARTn_RXDATAX_RXDATA__MASK))
 			continue;
 
-		if (tty && (rxdata & port->ignore_status_mask) == 0)
-			tty_insert_flip_char(tty,
+		if ((rxdata & port->ignore_status_mask) == 0)
+			tty_insert_flip_char(&port->state->port,
 					rxdata & UARTn_RXDATAX_RXDATA__MASK, flag);
 	}
 }
@@ -249,15 +244,13 @@ static irqreturn_t efm32_uart_rxirq(int irq, void *data)
 	u32 irqflag = efm32_uart_read32(efm_port, UARTn_IF);
 	int handled = IRQ_NONE;
 	struct uart_port *port = &efm_port->port;
-	struct tty_struct *tty;
+	struct tty_port *tport = &port->state->port;
 
 	spin_lock(&port->lock);
 
-	tty = tty_kref_get(port->state->port.tty);
-
 	if (irqflag & UARTn_IF_RXDATAV) {
 		efm32_uart_write32(efm_port, UARTn_IF_RXDATAV, UARTn_IFC);
-		efm32_uart_rx_chars(efm_port, tty);
+		efm32_uart_rx_chars(efm_port);
 
 		handled = IRQ_HANDLED;
 	}
@@ -265,18 +258,14 @@ static irqreturn_t efm32_uart_rxirq(int irq, void *data)
 	if (irqflag & UARTn_IF_RXOF) {
 		efm32_uart_write32(efm_port, UARTn_IF_RXOF, UARTn_IFC);
 		port->icount.overrun++;
-		if (tty)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 
 		handled = IRQ_HANDLED;
 	}
 
-	if (tty) {
-		tty_flip_buffer_push(tty);
-		tty_kref_put(tty);
-	}
-
 	spin_unlock(&port->lock);
+
+	tty_flip_buffer_push(tport);
 
 	return handled;
 }
@@ -300,12 +289,7 @@ static irqreturn_t efm32_uart_txirq(int irq, void *data)
 static int efm32_uart_startup(struct uart_port *port)
 {
 	struct efm32_uart_port *efm_port = to_efm_port(port);
-	u32 location = 0;
-	struct efm32_uart_pdata *pdata = dev_get_platdata(port->dev);
 	int ret;
-
-	if (pdata)
-		location = UARTn_ROUTE_LOCATION(pdata->location);
 
 	ret = clk_enable(efm_port->clk);
 	if (ret) {
@@ -315,7 +299,9 @@ static int efm32_uart_startup(struct uart_port *port)
 	port->uartclk = clk_get_rate(efm_port->clk);
 
 	/* Enable pins at configured location */
-	efm32_uart_write32(efm_port, location | UARTn_ROUTE_RXPEN | UARTn_ROUTE_TXPEN,
+	efm32_uart_write32(efm_port,
+			UARTn_ROUTE_LOCATION(efm_port->pdata.location) |
+			UARTn_ROUTE_RXPEN | UARTn_ROUTE_TXPEN,
 			UARTn_ROUTE);
 
 	ret = request_irq(port->irq, efm32_uart_rxirq, 0,
@@ -416,7 +402,7 @@ static void efm32_uart_set_termios(struct uart_port *port,
 	if (new->c_iflag & INPCK)
 		port->read_status_mask |=
 			UARTn_RXDATAX_FERR | UARTn_RXDATAX_PERR;
-	if (new->c_iflag & (BRKINT | PARMRK))
+	if (new->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= SW_UARTn_RXDATAX_BERR;
 
 	port->ignore_status_mask = 0;
@@ -508,7 +494,6 @@ static struct uart_ops efm32_uart_pops = {
 	.stop_tx = efm32_uart_stop_tx,
 	.start_tx = efm32_uart_start_tx,
 	.stop_rx = efm32_uart_stop_rx,
-	.enable_ms = efm32_uart_enable_ms,
 	.break_ctl = efm32_uart_break_ctl,
 	.startup = efm32_uart_startup,
 	.shutdown = efm32_uart_shutdown,
@@ -674,10 +659,32 @@ static int efm32_uart_probe_dt(struct platform_device *pdev,
 		struct efm32_uart_port *efm_port)
 {
 	struct device_node *np = pdev->dev.of_node;
+	u32 location;
 	int ret;
 
 	if (!np)
 		return 1;
+
+	ret = of_property_read_u32(np, "energymicro,location", &location);
+
+	if (ret)
+		/* fall back to wrongly namespaced property */
+		ret = of_property_read_u32(np, "efm32,location", &location);
+
+	if (ret)
+		/* fall back to old and (wrongly) generic property "location" */
+		ret = of_property_read_u32(np, "location", &location);
+
+	if (!ret) {
+		if (location > 5) {
+			dev_err(&pdev->dev, "invalid location\n");
+			return -EINVAL;
+		}
+		efm_debug(efm_port, "using location %u\n", location);
+		efm_port->pdata.location = location;
+	} else {
+		efm_debug(efm_port, "fall back to location 0\n");
+	}
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
@@ -690,10 +697,11 @@ static int efm32_uart_probe_dt(struct platform_device *pdev,
 
 }
 
-static int __devinit efm32_uart_probe(struct platform_device *pdev)
+static int efm32_uart_probe(struct platform_device *pdev)
 {
 	struct efm32_uart_port *efm_port;
 	struct resource *res;
+	unsigned int line;
 	int ret;
 
 	efm_port = kzalloc(sizeof(*efm_port), GFP_KERNEL);
@@ -738,20 +746,29 @@ static int __devinit efm32_uart_probe(struct platform_device *pdev)
 	efm_port->port.flags = UPF_BOOT_AUTOCONF;
 
 	ret = efm32_uart_probe_dt(pdev, efm_port);
-	if (ret > 0)
+	if (ret > 0) {
 		/* not created by device tree */
+		const struct efm32_uart_pdata *pdata = dev_get_platdata(&pdev->dev);
+
 		efm_port->port.line = pdev->id;
 
-	if (efm_port->port.line >= 0 &&
-			efm_port->port.line < ARRAY_SIZE(efm32_uart_ports))
-		efm32_uart_ports[efm_port->port.line] = efm_port;
+		if (pdata)
+			efm_port->pdata = *pdata;
+	} else if (ret < 0)
+		goto err_probe_dt;
+
+	line = efm_port->port.line;
+
+	if (line >= 0 && line < ARRAY_SIZE(efm32_uart_ports))
+		efm32_uart_ports[line] = efm_port;
 
 	ret = uart_add_one_port(&efm32_uart_reg, &efm_port->port);
 	if (ret) {
 		dev_dbg(&pdev->dev, "failed to add port: %d\n", ret);
 
-		if (pdev->id >= 0 && pdev->id < ARRAY_SIZE(efm32_uart_ports))
-			efm32_uart_ports[pdev->id] = NULL;
+		if (line >= 0 && line < ARRAY_SIZE(efm32_uart_ports))
+			efm32_uart_ports[line] = NULL;
+err_probe_dt:
 err_get_rxirq:
 err_too_small:
 err_get_base:
@@ -764,24 +781,26 @@ err_get_base:
 	return ret;
 }
 
-static int __devexit efm32_uart_remove(struct platform_device *pdev)
+static int efm32_uart_remove(struct platform_device *pdev)
 {
 	struct efm32_uart_port *efm_port = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
+	unsigned int line = efm_port->port.line;
 
 	uart_remove_one_port(&efm32_uart_reg, &efm_port->port);
 
-	if (pdev->id >= 0 && pdev->id < ARRAY_SIZE(efm32_uart_ports))
-		efm32_uart_ports[pdev->id] = NULL;
+	if (line >= 0 && line < ARRAY_SIZE(efm32_uart_ports))
+		efm32_uart_ports[line] = NULL;
 
 	kfree(efm_port);
 
 	return 0;
 }
 
-static struct of_device_id efm32_uart_dt_ids[] = {
+static const struct of_device_id efm32_uart_dt_ids[] = {
 	{
+		.compatible = "energymicro,efm32-uart",
+	}, {
+		/* doesn't follow the "vendor,device" scheme, don't use */
 		.compatible = "efm32,uart",
 	}, {
 		/* sentinel */
@@ -791,7 +810,7 @@ MODULE_DEVICE_TABLE(of, efm32_uart_dt_ids);
 
 static struct platform_driver efm32_uart_driver = {
 	.probe = efm32_uart_probe,
-	.remove = __devexit_p(efm32_uart_remove),
+	.remove = efm32_uart_remove,
 
 	.driver = {
 		.name = DRIVER_NAME,
@@ -823,6 +842,7 @@ static void __exit efm32_uart_exit(void)
 	platform_driver_unregister(&efm32_uart_driver);
 	uart_unregister_driver(&efm32_uart_reg);
 }
+module_exit(efm32_uart_exit);
 
 MODULE_AUTHOR("Uwe Kleine-Koenig <u.kleine-koenig@pengutronix.de>");
 MODULE_DESCRIPTION("EFM32 UART/USART driver");

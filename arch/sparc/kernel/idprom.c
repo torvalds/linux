@@ -25,22 +25,9 @@ static struct idprom idprom_buffer;
  * of the Sparc CPU and have a meaningful IDPROM machtype value that we
  * know about.  See asm-sparc/machines.h for empirical constants.
  */
-static struct Sun_Machine_Models Sun_Machines[NUM_SUN_MACHINES] = {
-/* First, Sun4's */
-{ .name = "Sun 4/100 Series",        .id_machtype = (SM_SUN4 | SM_4_110) },
-{ .name = "Sun 4/200 Series",        .id_machtype = (SM_SUN4 | SM_4_260) },
-{ .name = "Sun 4/300 Series",        .id_machtype = (SM_SUN4 | SM_4_330) },
-{ .name = "Sun 4/400 Series",        .id_machtype = (SM_SUN4 | SM_4_470) },
-/* Now Leon */
+static struct Sun_Machine_Models Sun_Machines[] = {
+/* First, Leon */
 { .name = "Leon3 System-on-a-Chip",  .id_machtype = (M_LEON | M_LEON3_SOC) },
-/* Now, Sun4c's */
-{ .name = "Sun4c SparcStation 1",    .id_machtype = (SM_SUN4C | SM_4C_SS1) },
-{ .name = "Sun4c SparcStation IPC",  .id_machtype = (SM_SUN4C | SM_4C_IPC) },
-{ .name = "Sun4c SparcStation 1+",   .id_machtype = (SM_SUN4C | SM_4C_SS1PLUS) },
-{ .name = "Sun4c SparcStation SLC",  .id_machtype = (SM_SUN4C | SM_4C_SLC) },
-{ .name = "Sun4c SparcStation 2",    .id_machtype = (SM_SUN4C | SM_4C_SS2) },
-{ .name = "Sun4c SparcStation ELC",  .id_machtype = (SM_SUN4C | SM_4C_ELC) },
-{ .name = "Sun4c SparcStation IPX",  .id_machtype = (SM_SUN4C | SM_4C_IPX) },
 /* Finally, early Sun4m's */
 { .name = "Sun4m SparcSystem600",    .id_machtype = (SM_SUN4M | SM_4M_SS60) },
 { .name = "Sun4m SparcStation10/20", .id_machtype = (SM_SUN4M | SM_4M_SS50) },
@@ -53,7 +40,7 @@ static void __init display_system_type(unsigned char machtype)
 	char sysname[128];
 	register int i;
 
-	for (i = 0; i < NUM_SUN_MACHINES; i++) {
+	for (i = 0; i < ARRAY_SIZE(Sun_Machines); i++) {
 		if (Sun_Machines[i].id_machtype == machtype) {
 			if (machtype != (SM_SUN4M_OBP | 0x00) ||
 			    prom_getproperty(prom_root_node, "banner-name",

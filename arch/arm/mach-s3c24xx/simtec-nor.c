@@ -27,9 +27,8 @@
 #include <asm/mach/irq.h>
 
 #include <mach/map.h>
-#include <mach/bast-map.h>
-#include <mach/bast-cpld.h>
 
+#include "bast.h"
 #include "simtec.h"
 
 static void simtec_nor_vpp(struct platform_device *pdev, int vpp)
@@ -55,11 +54,7 @@ static struct physmap_flash_data simtec_nor_pdata = {
 };
 
 static struct resource simtec_nor_resource[] = {
-	[0] = {
-		.start = S3C2410_CS1 + 0x4000000,
-		.end   = S3C2410_CS1 + 0x4000000 + SZ_8M - 1,
-		.flags = IORESOURCE_MEM,
-	}
+	[0] = DEFINE_RES_MEM(S3C2410_CS1 + 0x4000000, SZ_8M),
 };
 
 static struct platform_device simtec_device_nor = {

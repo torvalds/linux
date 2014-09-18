@@ -1,8 +1,6 @@
 #ifndef __S390_VDSO_H__
 #define __S390_VDSO_H__
 
-#ifdef __KERNEL__
-
 /* Default link addresses for the vDSOs */
 #define VDSO32_LBASE	0
 #define VDSO64_LBASE	0
@@ -28,8 +26,9 @@ struct vdso_data {
 	__u64 wtom_clock_nsec;		/*				0x28 */
 	__u32 tz_minuteswest;		/* Minutes west of Greenwich	0x30 */
 	__u32 tz_dsttime;		/* Type of dst correction	0x34 */
-	__u32 ectg_available;
-	__u32 ntp_mult;			/* NTP adjusted multiplier	0x3C */
+	__u32 ectg_available;		/* ECTG instruction present	0x38 */
+	__u32 tk_mult;			/* Mult. used for xtime_nsec	0x3c */
+	__u32 tk_shift;			/* Shift used for xtime_nsec	0x40 */
 };
 
 struct vdso_per_cpu_data {
@@ -45,7 +44,4 @@ void vdso_free_per_cpu(struct _lowcore *lowcore);
 #endif
 
 #endif /* __ASSEMBLY__ */
-
-#endif /* __KERNEL__ */
-
 #endif /* __S390_VDSO_H__ */

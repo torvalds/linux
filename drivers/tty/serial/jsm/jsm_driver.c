@@ -54,7 +54,7 @@ static pci_ers_result_t jsm_io_error_detected(struct pci_dev *pdev,
 static pci_ers_result_t jsm_io_slot_reset(struct pci_dev *pdev);
 static void jsm_io_resume(struct pci_dev *pdev);
 
-static struct pci_error_handlers jsm_err_handler = {
+static const struct pci_error_handlers jsm_err_handler = {
 	.error_detected = jsm_io_error_detected,
 	.slot_reset = jsm_io_slot_reset,
 	.resume = jsm_io_resume,
@@ -64,7 +64,7 @@ int jsm_debug;
 module_param(jsm_debug, int, 0);
 MODULE_PARM_DESC(jsm_debug, "Driver debugging level");
 
-static int __devinit jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc = 0;
 	struct jsm_board *brd;
@@ -107,8 +107,7 @@ static int __devinit jsm_probe_one(struct pci_dev *pdev, const struct pci_device
 
 	brd->irq = pdev->irq;
 
-	jsm_printk(INIT, INFO, &brd->pci_dev,
-		"jsm_found_board - NEO adapter\n");
+	jsm_dbg(INIT, &brd->pci_dev, "jsm_found_board - NEO adapter\n");
 
 	/* get the PCI Base Address Registers */
 	brd->membase	= pci_resource_start(pdev, 0);
@@ -179,7 +178,7 @@ static int __devinit jsm_probe_one(struct pci_dev *pdev, const struct pci_device
 	return rc;
 }
 
-static void __devexit jsm_remove_one(struct pci_dev *pdev)
+static void jsm_remove_one(struct pci_dev *pdev)
 {
 	struct jsm_board *brd = pci_get_drvdata(pdev);
 	int i = 0;
@@ -218,7 +217,7 @@ static struct pci_driver jsm_driver = {
 	.name		= "jsm",
 	.id_table	= jsm_pci_tbl,
 	.probe		= jsm_probe_one,
-	.remove		= __devexit_p(jsm_remove_one),
+	.remove		= jsm_remove_one,
 	.err_handler    = &jsm_err_handler,
 };
 

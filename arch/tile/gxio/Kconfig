@@ -1,0 +1,33 @@
+# Support direct access to TILE-Gx hardware from user space, via the
+# gxio library, or from kernel space, via kernel IORPC support.
+config TILE_GXIO
+	bool
+	depends on TILEGX
+
+# Support direct access to the common I/O DMA facility within the
+# TILE-Gx mPIPE and Trio hardware from kernel space.
+config TILE_GXIO_DMA
+	bool
+	select TILE_GXIO
+
+# Support direct access to the TILE-Gx mPIPE hardware from kernel space.
+config TILE_GXIO_MPIPE
+	bool
+	select TILE_GXIO
+	select TILE_GXIO_DMA
+
+# Support direct access to the TILE-Gx TRIO hardware from kernel space.
+config TILE_GXIO_TRIO
+	bool
+	select TILE_GXIO
+	select TILE_GXIO_DMA
+
+# Support direct access to the TILE-Gx USB hardware from kernel space.
+config TILE_GXIO_USB_HOST
+	bool
+	select TILE_GXIO
+
+# Support direct access to the TILE-Gx UART hardware from kernel space.
+config TILE_GXIO_UART
+	bool
+	select TILE_GXIO

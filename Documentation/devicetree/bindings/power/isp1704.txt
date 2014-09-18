@@ -1,0 +1,17 @@
+Binding for NXP ISP1704 USB Charger Detection
+
+Required properties:
+- compatible: Should contain one of the following:
+ * "nxp,isp1704"
+- nxp,enable-gpio: Should contain a phandle + gpio-specifier
+  to the GPIO pin connected to the chip's enable pin.
+- usb-phy: Should contain a phandle to the USB PHY
+  the ISP1704 is connected to.
+
+Example:
+
+isp1704 {
+	compatible = "nxp,isp1704";
+	nxp,enable-gpio = <&gpio3 3 GPIO_ACTIVE_LOW>;
+	usb-phy = <&usb2_phy>;
+};

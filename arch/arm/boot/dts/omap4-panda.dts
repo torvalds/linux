@@ -7,14 +7,5 @@
  */
 /dts-v1/;
 
-/include/ "omap4.dtsi"
-
-/ {
-	model = "TI OMAP4 PandaBoard";
-	compatible = "ti,omap4-panda", "ti,omap4430", "ti,omap4";
-
-	memory {
-		device_type = "memory";
-		reg = <0x80000000 0x40000000>; /* 1 GB */
-	};
-};
+#include "omap443x.dtsi"
+#include "omap4-panda-common.dtsi"

@@ -7,16 +7,15 @@
 #include <linux/io.h>
 #include <linux/of.h>
 
-#include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <mach/hardware.h>
-#include <mach/id.h>
 
-static void __iomem *l2x0_base;
+#include "db8500-regs.h"
+#include "id.h"
 
 static int __init ux500_l2x0_unlock(void)
 {
 	int i;
+	void __iomem *l2x0_base = __io_address(U8500_L2CC_BASE);
 
 	/*
 	 * Unlock Data and Instruction Lock if locked. Ux500 U-Boot versions
@@ -34,33 +33,25 @@ static int __init ux500_l2x0_unlock(void)
 	return 0;
 }
 
+static void ux500_l2c310_write_sec(unsigned long val, unsigned reg)
+{
+	/*
+	 * We can't write to secure registers as we are in non-secure
+	 * mode, until we have some SMI service available.
+	 */
+}
+
 static int __init ux500_l2x0_init(void)
 {
-	if (cpu_is_u5500())
-		l2x0_base = __io_address(U5500_L2CC_BASE);
-	else if (cpu_is_u8500())
-		l2x0_base = __io_address(U8500_L2CC_BASE);
-	else
-		ux500_unknown_soc();
+	/* Multiplatform guard */
+	if (!((cpu_is_u8500_family() || cpu_is_ux540_family())))
+		return -ENODEV;
 
 	/* Unlock before init */
 	ux500_l2x0_unlock();
-
-	/* 64KB way size, 8 way associativity, force WA */
-	if (of_have_populated_dt())
-		l2x0_of_init(0x3e060000, 0xc0000fff);
-	else
-		l2x0_init(l2x0_base, 0x3e060000, 0xc0000fff);
-
-	/*
-	 * We can't disable l2 as we are in non secure mode, currently
-	 * this seems be called only during kexec path. So let's
-	 * override outer.disable with nasty assignment until we have
-	 * some SMI service available.
-	 */
-	outer_cache.disable = NULL;
+	outer_cache.write_sec = ux500_l2c310_write_sec;
+	l2x0_of_init(0, ~0);
 
 	return 0;
 }
-
 early_initcall(ux500_l2x0_init);

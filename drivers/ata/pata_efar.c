@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -289,28 +288,16 @@ static struct pci_driver efar_pci_driver = {
 	.id_table		= efar_pci_tbl,
 	.probe			= efar_init_one,
 	.remove			= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend		= ata_pci_device_suspend,
 	.resume			= ata_pci_device_resume,
 #endif
 };
 
-static int __init efar_init(void)
-{
-	return pci_register_driver(&efar_pci_driver);
-}
-
-static void __exit efar_exit(void)
-{
-	pci_unregister_driver(&efar_pci_driver);
-}
-
-module_init(efar_init);
-module_exit(efar_exit);
+module_pci_driver(efar_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("SCSI low-level driver for EFAR PIIX clones");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, efar_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-

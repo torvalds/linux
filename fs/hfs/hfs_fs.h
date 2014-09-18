@@ -9,11 +9,18 @@
 #ifndef _LINUX_HFS_FS_H
 #define _LINUX_HFS_FS_H
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
+#include <linux/workqueue.h>
 
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
@@ -33,8 +40,18 @@
 //#define DBG_MASK	(DBG_CAT_MOD|DBG_BNODE_REFS|DBG_INODE|DBG_EXTENT)
 #define DBG_MASK	(0)
 
-#define dprint(flg, fmt, args...) \
-	if (flg & DBG_MASK) printk(fmt , ## args)
+#define hfs_dbg(flg, fmt, ...)					\
+do {								\
+	if (DBG_##flg & DBG_MASK)				\
+		printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
+} while (0)
+
+#define hfs_dbg_cont(flg, fmt, ...)				\
+do {								\
+	if (DBG_##flg & DBG_MASK)				\
+		pr_cont(fmt, ##__VA_ARGS__);			\
+} while (0)
+
 
 /*
  * struct hfs_inode_info
@@ -133,20 +150,19 @@ struct hfs_sb_info {
 						   permissions on all files */
 	umode_t s_dir_umask;			/* The umask applied to the
 						   permissions on all dirs */
-	uid_t s_uid;				/* The uid of all files */
-	gid_t s_gid;				/* The gid of all files */
+	kuid_t s_uid;				/* The uid of all files */
+	kgid_t s_gid;				/* The gid of all files */
 
 	int session, part;
-
 	struct nls_table *nls_io, *nls_disk;
-
 	struct mutex bitmap_lock;
-
 	unsigned long flags;
-
 	u16 blockoffset;
-
 	int fs_div;
+	struct super_block *sb;
+	int work_queued;		/* non-zero delayed work is queued */
+	struct delayed_work mdb_work;	/* MDB flush delayed work */
+	spinlock_t work_lock;		/* protects mdb_work and work_queued */
 };
 
 #define HFS_FLG_BITMAP_DIRTY	0
@@ -174,7 +190,7 @@ extern const struct inode_operations hfs_dir_inode_operations;
 /* extent.c */
 extern int hfs_ext_keycmp(const btree_key *, const btree_key *);
 extern int hfs_free_fork(struct super_block *, struct hfs_cat_file *, int);
-extern void hfs_ext_write_extent(struct inode *);
+extern int hfs_ext_write_extent(struct inode *);
 extern int hfs_extend_file(struct inode *);
 extern void hfs_file_truncate(struct inode *);
 
@@ -213,18 +229,18 @@ extern int hfs_part_find(struct super_block *, sector_t *, sector_t *);
 /* string.c */
 extern const struct dentry_operations hfs_dentry_operations;
 
-extern int hfs_hash_dentry(const struct dentry *, const struct inode *,
-		struct qstr *);
+extern int hfs_hash_dentry(const struct dentry *, struct qstr *);
 extern int hfs_strcmp(const unsigned char *, unsigned int,
 		      const unsigned char *, unsigned int);
-extern int hfs_compare_dentry(const struct dentry *parent,
-		const struct inode *pinode,
-		const struct dentry *dentry, const struct inode *inode,
+extern int hfs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 
 /* trans.c */
 extern void hfs_asc2mac(struct super_block *, struct hfs_name *, struct qstr *);
 extern int hfs_mac2asc(struct super_block *, char *, const struct hfs_name *);
+
+/* super.c */
+extern void hfs_mark_mdb_dirty(struct super_block *sb);
 
 extern struct timezone sys_tz;
 
@@ -253,7 +269,7 @@ static inline const char *hfs_mdb_name(struct super_block *sb)
 static inline void hfs_bitmap_dirty(struct super_block *sb)
 {
 	set_bit(HFS_FLG_BITMAP_DIRTY, &HFS_SB(sb)->flags);
-	sb->s_dirt = 1;
+	hfs_mark_mdb_dirty(sb);
 }
 
 #define sb_bread512(sb, sec, data) ({			\

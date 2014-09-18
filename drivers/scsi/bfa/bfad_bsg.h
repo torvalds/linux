@@ -34,6 +34,7 @@ enum {
 	IOCMD_IOC_RESET_FWSTATS,
 	IOCMD_IOC_SET_ADAPTER_NAME,
 	IOCMD_IOC_SET_PORT_NAME,
+	IOCMD_IOC_FW_SIG_INV,
 	IOCMD_IOCFC_GET_ATTR,
 	IOCMD_IOCFC_SET_INTR,
 	IOCMD_PORT_ENABLE,
@@ -46,8 +47,9 @@ enum {
 	IOCMD_PORT_CFG_ALPA,
 	IOCMD_PORT_CFG_MAXFRSZ,
 	IOCMD_PORT_CLR_ALPA,
-	IOCMD_PORT_BBSC_ENABLE,
-	IOCMD_PORT_BBSC_DISABLE,
+	IOCMD_PORT_BBCR_ENABLE,
+	IOCMD_PORT_BBCR_DISABLE,
+	IOCMD_PORT_BBCR_GET_ATTR,
 	IOCMD_LPORT_GET_ATTR,
 	IOCMD_LPORT_GET_RPORTS,
 	IOCMD_LPORT_GET_STATS,
@@ -141,6 +143,18 @@ enum {
 	IOCMD_FCPIM_LUNMASK_QUERY,
 	IOCMD_FCPIM_LUNMASK_ADD,
 	IOCMD_FCPIM_LUNMASK_DELETE,
+	IOCMD_DIAG_DPORT_ENABLE,
+	IOCMD_DIAG_DPORT_DISABLE,
+	IOCMD_QOS_SET_BW,
+	IOCMD_FCPIM_THROTTLE_QUERY,
+	IOCMD_FCPIM_THROTTLE_SET,
+	IOCMD_TFRU_READ,
+	IOCMD_TFRU_WRITE,
+	IOCMD_FRUVPD_READ,
+	IOCMD_FRUVPD_UPDATE,
+	IOCMD_FRUVPD_GET_MAX_SIZE,
+	IOCMD_DIAG_DPORT_SHOW,
+	IOCMD_DIAG_DPORT_START,
 };
 
 struct bfa_bsg_gen_s {
@@ -319,6 +333,8 @@ struct bfa_bsg_rport_attr_s {
 	u16		vf_id;
 	wwn_t		pwwn;
 	wwn_t		rpwwn;
+	u32		pid;
+	u32		rsvd;
 	struct bfa_rport_attr_s attr;
 };
 
@@ -461,7 +477,8 @@ struct bfa_bsg_pcifn_s {
 	bfa_status_t		status;
 	u16			bfad_num;
 	u16			pcifn_id;
-	u32			bandwidth;
+	u16			bw_min;
+	u16			bw_max;
 	u8			port;
 	enum bfi_pcifn_class	pcifn_class;
 	u8			rsvd[1];
@@ -479,6 +496,20 @@ struct bfa_bsg_port_cfg_mode_s {
 	u16		bfad_num;
 	u16		instance;
 	struct bfa_port_cfg_mode_s cfg;
+};
+
+struct bfa_bsg_bbcr_enable_s {
+	bfa_status_t    status;
+	u16		bfad_num;
+	u8		bb_scn;
+	u8		rsvd;
+};
+
+struct bfa_bsg_bbcr_attr_s {
+	bfa_status_t    status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_bbcr_attr_s attr;
 };
 
 struct bfa_bsg_faa_attr_s {
@@ -562,6 +593,21 @@ struct bfa_bsg_diag_loopback_s {
 	u32		lpcnt;
 	u32		pat;
 	struct bfa_diag_loopback_result_s result;
+};
+
+struct bfa_bsg_diag_dport_show_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_diag_dport_result_s result;
+};
+
+struct bfa_bsg_dport_enable_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u16		lpcnt;
+	u16		pat;
 };
 
 struct bfa_bsg_diag_fwping_s {
@@ -692,6 +738,13 @@ struct bfa_bsg_qos_vc_attr_s {
 	struct bfa_qos_vc_attr_s attr;
 };
 
+struct bfa_bsg_qos_bw_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_qos_bw_s qos_bw;
+};
+
 struct bfa_bsg_vf_stats_s {
 	bfa_status_t	status;
 	u16		bfad_num;
@@ -720,6 +773,43 @@ struct bfa_bsg_fcpim_lunmask_s {
 	struct scsi_lun	lun;
 };
 
+struct bfa_bsg_fcpim_throttle_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		vf_id;
+	struct bfa_defs_fcpim_throttle_s throttle;
+};
+
+#define BFA_TFRU_DATA_SIZE		64
+#define BFA_MAX_FRUVPD_TRANSFER_SIZE	0x1000
+
+struct bfa_bsg_tfru_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u32		offset;
+	u32		len;
+	u8		data[BFA_TFRU_DATA_SIZE];
+};
+
+struct bfa_bsg_fruvpd_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd1;
+	u32		offset;
+	u32		len;
+	u8		data[BFA_MAX_FRUVPD_TRANSFER_SIZE];
+	u8		trfr_cmpl;
+	u8		rsvd2[3];
+};
+
+struct bfa_bsg_fruvpd_max_size_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u32		max_size;
+};
+
 struct bfa_bsg_fcpt_s {
 	bfa_status_t    status;
 	u16		vf_id;
@@ -732,10 +822,12 @@ struct bfa_bsg_fcpt_s {
 };
 #define bfa_bsg_fcpt_t struct bfa_bsg_fcpt_s
 
+#pragma pack(1)
 struct bfa_bsg_data {
 	int payload_len;
-	void *payload;
+	u64 payload;
 };
+#pragma pack()
 
 #define bfad_chk_iocmd_sz(__payload_len, __hdrsz, __bufsz)	\
 	(((__payload_len) != ((__hdrsz) + (__bufsz))) ?		\

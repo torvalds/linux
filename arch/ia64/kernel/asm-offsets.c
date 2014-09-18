@@ -16,9 +16,6 @@
 #include <asm/sigcontext.h>
 #include <asm/mca.h>
 
-#include <asm/xen/interface.h>
-#include <asm/xen/hypervisor.h>
-
 #include "../kernel/sigframe.h"
 #include "../kernel/fsyscall_gtod_data.h"
 
@@ -41,7 +38,7 @@ void foo(void)
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
 	DEFINE(TI_PRE_COUNT, offsetof(struct thread_info, preempt_count));
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	DEFINE(TI_AC_STAMP, offsetof(struct thread_info, ac_stamp));
 	DEFINE(TI_AC_LEAVE, offsetof(struct thread_info, ac_leave));
 	DEFINE(TI_AC_STIME, offsetof(struct thread_info, ac_stime));
@@ -290,33 +287,4 @@ void foo(void)
 	DEFINE(IA64_ITC_LASTCYCLE_OFFSET,
 		offsetof (struct itc_jitter_data_t, itc_lastcycle));
 
-#ifdef CONFIG_XEN
-	BLANK();
-
-	DEFINE(XEN_NATIVE_ASM, XEN_NATIVE);
-	DEFINE(XEN_PV_DOMAIN_ASM, XEN_PV_DOMAIN);
-
-#define DEFINE_MAPPED_REG_OFS(sym, field) \
-	DEFINE(sym, (XMAPPEDREGS_OFS + offsetof(struct mapped_regs, field)))
-
-	DEFINE_MAPPED_REG_OFS(XSI_PSR_I_ADDR_OFS, interrupt_mask_addr);
-	DEFINE_MAPPED_REG_OFS(XSI_IPSR_OFS, ipsr);
-	DEFINE_MAPPED_REG_OFS(XSI_IIP_OFS, iip);
-	DEFINE_MAPPED_REG_OFS(XSI_IFS_OFS, ifs);
-	DEFINE_MAPPED_REG_OFS(XSI_PRECOVER_IFS_OFS, precover_ifs);
-	DEFINE_MAPPED_REG_OFS(XSI_ISR_OFS, isr);
-	DEFINE_MAPPED_REG_OFS(XSI_IFA_OFS, ifa);
-	DEFINE_MAPPED_REG_OFS(XSI_IIPA_OFS, iipa);
-	DEFINE_MAPPED_REG_OFS(XSI_IIM_OFS, iim);
-	DEFINE_MAPPED_REG_OFS(XSI_IHA_OFS, iha);
-	DEFINE_MAPPED_REG_OFS(XSI_ITIR_OFS, itir);
-	DEFINE_MAPPED_REG_OFS(XSI_PSR_IC_OFS, interrupt_collection_enabled);
-	DEFINE_MAPPED_REG_OFS(XSI_BANKNUM_OFS, banknum);
-	DEFINE_MAPPED_REG_OFS(XSI_BANK0_R16_OFS, bank0_regs[0]);
-	DEFINE_MAPPED_REG_OFS(XSI_BANK1_R16_OFS, bank1_regs[0]);
-	DEFINE_MAPPED_REG_OFS(XSI_B0NATS_OFS, vbnat);
-	DEFINE_MAPPED_REG_OFS(XSI_B1NATS_OFS, vnat);
-	DEFINE_MAPPED_REG_OFS(XSI_ITC_OFFSET_OFS, itc_offset);
-	DEFINE_MAPPED_REG_OFS(XSI_ITC_LAST_OFS, itc_last);
-#endif /* CONFIG_XEN */
 }

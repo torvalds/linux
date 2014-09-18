@@ -171,6 +171,8 @@
 #define MAX_BLACKFIN_GPIOS 160
 
 #define BFIN_GPIO_PINT 1
+#define NR_PINT_SYS_IRQS        4
+#define NR_PINTS                160
 
 #ifndef __ASSEMBLY__
 
@@ -190,14 +192,6 @@ struct gpio_port_t {
 	unsigned short inen;
 	unsigned short dummy7;
 	unsigned int port_mux;
-};
-
-struct gpio_port_s {
-	unsigned short fer;
-	unsigned short data;
-	unsigned short dir;
-	unsigned short inen;
-	unsigned int mux;
 };
 
 #endif

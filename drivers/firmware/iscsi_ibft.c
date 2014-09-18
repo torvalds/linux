@@ -756,6 +756,7 @@ static const struct {
 	 */
 	{ ACPI_SIG_IBFT },
 	{ "iBFT" },
+	{ "BIFT" },	/* Broadcom iSCSI Offload */
 };
 
 static void __init acpi_find_ibft_region(void)

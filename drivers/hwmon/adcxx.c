@@ -141,10 +141,7 @@ static ssize_t adcxx_set_max(struct device *dev,
 static ssize_t adcxx_show_name(struct device *dev, struct device_attribute
 			      *devattr, char *buf)
 {
-	struct spi_device *spi = to_spi_device(dev);
-	struct adcxx *adc = spi_get_drvdata(spi);
-
-	return sprintf(buf, "adcxx%ds\n", adc->channels);
+	return sprintf(buf, "%s\n", to_spi_device(dev)->modalias);
 }
 
 static struct sensor_device_attribute ad_input[] = {
@@ -164,14 +161,14 @@ static struct sensor_device_attribute ad_input[] = {
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit adcxx_probe(struct spi_device *spi)
+static int adcxx_probe(struct spi_device *spi)
 {
 	int channels = spi_get_device_id(spi)->driver_data;
 	struct adcxx *adc;
 	int status;
 	int i;
 
-	adc = kzalloc(sizeof *adc, GFP_KERNEL);
+	adc = devm_kzalloc(&spi->dev, sizeof(*adc), GFP_KERNEL);
 	if (!adc)
 		return -ENOMEM;
 
@@ -206,13 +203,11 @@ out_err:
 	for (i--; i >= 0; i--)
 		device_remove_file(&spi->dev, &ad_input[i].dev_attr);
 
-	spi_set_drvdata(spi, NULL);
 	mutex_unlock(&adc->lock);
-	kfree(adc);
 	return status;
 }
 
-static int __devexit adcxx_remove(struct spi_device *spi)
+static int adcxx_remove(struct spi_device *spi)
 {
 	struct adcxx *adc = spi_get_drvdata(spi);
 	int i;
@@ -222,9 +217,7 @@ static int __devexit adcxx_remove(struct spi_device *spi)
 	for (i = 0; i < 3 + adc->channels; i++)
 		device_remove_file(&spi->dev, &ad_input[i].dev_attr);
 
-	spi_set_drvdata(spi, NULL);
 	mutex_unlock(&adc->lock);
-	kfree(adc);
 
 	return 0;
 }
@@ -245,7 +238,7 @@ static struct spi_driver adcxx_driver = {
 	},
 	.id_table = adcxx_ids,
 	.probe	= adcxx_probe,
-	.remove	= __devexit_p(adcxx_remove),
+	.remove	= adcxx_remove,
 };
 
 module_spi_driver(adcxx_driver);

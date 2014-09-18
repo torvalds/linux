@@ -9,18 +9,23 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/orion_spi.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/clk.h>
+#include <linux/sizes.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_NAME			"orion_spi"
+
+/* Runtime PM autosuspend timeout: PM is fairly light on this driver */
+#define SPI_AUTOSUSPEND_TIMEOUT		200
 
 #define ORION_NUM_CHIPSELECTS		1 /* only one slave is supported*/
 #define ORION_SPI_WAIT_RDY_MAX_LOOP	2000 /* in usec */
@@ -31,24 +36,18 @@
 #define ORION_SPI_DATA_IN_REG		0x0c
 #define ORION_SPI_INT_CAUSE_REG		0x10
 
+#define ORION_SPI_MODE_CPOL		(1 << 11)
+#define ORION_SPI_MODE_CPHA		(1 << 12)
 #define ORION_SPI_IF_8_16_BIT_MODE	(1 << 5)
 #define ORION_SPI_CLK_PRESCALE_MASK	0x1F
+#define ORION_SPI_MODE_MASK		(ORION_SPI_MODE_CPOL | \
+					 ORION_SPI_MODE_CPHA)
 
 struct orion_spi {
-	struct work_struct	work;
-
-	/* Lock access to transfer list.	*/
-	spinlock_t		lock;
-
-	struct list_head	msg_queue;
 	struct spi_master	*master;
 	void __iomem		*base;
-	unsigned int		max_speed;
-	unsigned int		min_speed;
-	struct orion_spi_info	*spi_info;
+	struct clk              *clk;
 };
-
-static struct workqueue_struct *orion_spi_wq;
 
 static inline void __iomem *spi_reg(struct orion_spi *orion_spi, u32 reg)
 {
@@ -77,23 +76,6 @@ orion_spi_clrbits(struct orion_spi *orion_spi, u32 reg, u32 mask)
 	writel(val, reg_addr);
 }
 
-static int orion_spi_set_transfer_size(struct orion_spi *orion_spi, int size)
-{
-	if (size == 16) {
-		orion_spi_setbits(orion_spi, ORION_SPI_IF_CONFIG_REG,
-				  ORION_SPI_IF_8_16_BIT_MODE);
-	} else if (size == 8) {
-		orion_spi_clrbits(orion_spi, ORION_SPI_IF_CONFIG_REG,
-				  ORION_SPI_IF_8_16_BIT_MODE);
-	} else {
-		pr_debug("Bad bits per word value %d (only 8 or 16 are "
-			 "allowed).\n", size);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 {
 	u32 tclk_hz;
@@ -104,7 +86,7 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 
 	orion_spi = spi_master_get_devdata(spi->master);
 
-	tclk_hz = orion_spi->spi_info->tclk;
+	tclk_hz = clk_get_rate(orion_spi->clk);
 
 	/*
 	 * the supported rates are: 4,6,8...30
@@ -130,6 +112,23 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 	return 0;
 }
 
+static void
+orion_spi_mode_set(struct spi_device *spi)
+{
+	u32 reg;
+	struct orion_spi *orion_spi;
+
+	orion_spi = spi_master_get_devdata(spi->master);
+
+	reg = readl(spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
+	reg &= ~ORION_SPI_MODE_MASK;
+	if (spi->mode & SPI_CPOL)
+		reg |= ORION_SPI_MODE_CPOL;
+	if (spi->mode & SPI_CPHA)
+		reg |= ORION_SPI_MODE_CPHA;
+	writel(reg, spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
+}
+
 /*
  * called only when no transfer is active on the bus
  */
@@ -149,11 +148,20 @@ orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	if ((t != NULL) && t->bits_per_word)
 		bits_per_word = t->bits_per_word;
 
+	orion_spi_mode_set(spi);
+
 	rc = orion_spi_baudrate_set(spi, speed);
 	if (rc)
 		return rc;
 
-	return orion_spi_set_transfer_size(orion_spi, bits_per_word);
+	if (bits_per_word == 16)
+		orion_spi_setbits(orion_spi, ORION_SPI_IF_CONFIG_REG,
+				  ORION_SPI_IF_8_16_BIT_MODE);
+	else
+		orion_spi_clrbits(orion_spi, ORION_SPI_IF_CONFIG_REG,
+				  ORION_SPI_IF_8_16_BIT_MODE);
+
+	return 0;
 }
 
 static void orion_spi_set_cs(struct orion_spi *orion_spi, int enable)
@@ -243,11 +251,9 @@ orion_spi_write_read_16bit(struct spi_device *spi,
 static unsigned int
 orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 {
-	struct orion_spi *orion_spi;
 	unsigned int count;
 	int word_len;
 
-	orion_spi = spi_master_get_devdata(spi->master);
 	word_len = spi->bits_per_word;
 	count = xfer->len;
 
@@ -275,77 +281,60 @@ out:
 	return xfer->len - count;
 }
 
-
-static void orion_spi_work(struct work_struct *work)
+static int orion_spi_transfer_one_message(struct spi_master *master,
+					   struct spi_message *m)
 {
-	struct orion_spi *orion_spi =
-		container_of(work, struct orion_spi, work);
+	struct orion_spi *orion_spi = spi_master_get_devdata(master);
+	struct spi_device *spi = m->spi;
+	struct spi_transfer *t = NULL;
+	int par_override = 0;
+	int status = 0;
+	int cs_active = 0;
 
-	spin_lock_irq(&orion_spi->lock);
-	while (!list_empty(&orion_spi->msg_queue)) {
-		struct spi_message *m;
-		struct spi_device *spi;
-		struct spi_transfer *t = NULL;
-		int par_override = 0;
-		int status = 0;
-		int cs_active = 0;
+	/* Load defaults */
+	status = orion_spi_setup_transfer(spi, NULL);
 
-		m = container_of(orion_spi->msg_queue.next, struct spi_message,
-				 queue);
+	if (status < 0)
+		goto msg_done;
 
-		list_del_init(&m->queue);
-		spin_unlock_irq(&orion_spi->lock);
-
-		spi = m->spi;
-
-		/* Load defaults */
-		status = orion_spi_setup_transfer(spi, NULL);
-
-		if (status < 0)
-			goto msg_done;
-
-		list_for_each_entry(t, &m->transfers, transfer_list) {
-			if (par_override || t->speed_hz || t->bits_per_word) {
-				par_override = 1;
-				status = orion_spi_setup_transfer(spi, t);
-				if (status < 0)
-					break;
-				if (!t->speed_hz && !t->bits_per_word)
-					par_override = 0;
-			}
-
-			if (!cs_active) {
-				orion_spi_set_cs(orion_spi, 1);
-				cs_active = 1;
-			}
-
-			if (t->len)
-				m->actual_length +=
-					orion_spi_write_read(spi, t);
-
-			if (t->delay_usecs)
-				udelay(t->delay_usecs);
-
-			if (t->cs_change) {
-				orion_spi_set_cs(orion_spi, 0);
-				cs_active = 0;
-			}
+	list_for_each_entry(t, &m->transfers, transfer_list) {
+		if (par_override || t->speed_hz || t->bits_per_word) {
+			par_override = 1;
+			status = orion_spi_setup_transfer(spi, t);
+			if (status < 0)
+				break;
+			if (!t->speed_hz && !t->bits_per_word)
+				par_override = 0;
 		}
 
-msg_done:
-		if (cs_active)
+		if (!cs_active) {
+			orion_spi_set_cs(orion_spi, 1);
+			cs_active = 1;
+		}
+
+		if (t->len)
+			m->actual_length += orion_spi_write_read(spi, t);
+
+		if (t->delay_usecs)
+			udelay(t->delay_usecs);
+
+		if (t->cs_change) {
 			orion_spi_set_cs(orion_spi, 0);
-
-		m->status = status;
-		m->complete(m->context);
-
-		spin_lock_irq(&orion_spi->lock);
+			cs_active = 0;
+		}
 	}
 
-	spin_unlock_irq(&orion_spi->lock);
+msg_done:
+	if (cs_active)
+		orion_spi_set_cs(orion_spi, 0);
+
+	m->status = status;
+	spi_finalize_current_message(master);
+
+	return 0;
 }
 
-static int __init orion_spi_reset(struct orion_spi *orion_spi)
+static int orion_spi_reset(struct orion_spi *orion_spi)
 {
 	/* Verify that the CS is deasserted */
 	orion_spi_set_cs(orion_spi, 0);
@@ -353,108 +342,15 @@ static int __init orion_spi_reset(struct orion_spi *orion_spi)
 	return 0;
 }
 
-static int orion_spi_setup(struct spi_device *spi)
-{
-	struct orion_spi *orion_spi;
-
-	orion_spi = spi_master_get_devdata(spi->master);
-
-	if ((spi->max_speed_hz == 0)
-			|| (spi->max_speed_hz > orion_spi->max_speed))
-		spi->max_speed_hz = orion_spi->max_speed;
-
-	if (spi->max_speed_hz < orion_spi->min_speed) {
-		dev_err(&spi->dev, "setup: requested speed too low %d Hz\n",
-			spi->max_speed_hz);
-		return -EINVAL;
-	}
-
-	/*
-	 * baudrate & width will be set orion_spi_setup_transfer
-	 */
-	return 0;
-}
-
-static int orion_spi_transfer(struct spi_device *spi, struct spi_message *m)
-{
-	struct orion_spi *orion_spi;
-	struct spi_transfer *t = NULL;
-	unsigned long flags;
-
-	m->actual_length = 0;
-	m->status = 0;
-
-	/* reject invalid messages and transfers */
-	if (list_empty(&m->transfers) || !m->complete)
-		return -EINVAL;
-
-	orion_spi = spi_master_get_devdata(spi->master);
-
-	list_for_each_entry(t, &m->transfers, transfer_list) {
-		unsigned int bits_per_word = spi->bits_per_word;
-
-		if (t->tx_buf == NULL && t->rx_buf == NULL && t->len) {
-			dev_err(&spi->dev,
-				"message rejected : "
-				"invalid transfer data buffers\n");
-			goto msg_rejected;
-		}
-
-		if (t->bits_per_word)
-			bits_per_word = t->bits_per_word;
-
-		if ((bits_per_word != 8) && (bits_per_word != 16)) {
-			dev_err(&spi->dev,
-				"message rejected : "
-				"invalid transfer bits_per_word (%d bits)\n",
-				bits_per_word);
-			goto msg_rejected;
-		}
-		/*make sure buffer length is even when working in 16 bit mode*/
-		if ((t->bits_per_word == 16) && (t->len & 1)) {
-			dev_err(&spi->dev,
-				"message rejected : "
-				"odd data length (%d) while in 16 bit mode\n",
-				t->len);
-			goto msg_rejected;
-		}
-
-		if (t->speed_hz && t->speed_hz < orion_spi->min_speed) {
-			dev_err(&spi->dev,
-				"message rejected : "
-				"device min speed (%d Hz) exceeds "
-				"required transfer speed (%d Hz)\n",
-				orion_spi->min_speed, t->speed_hz);
-			goto msg_rejected;
-		}
-	}
-
-
-	spin_lock_irqsave(&orion_spi->lock, flags);
-	list_add_tail(&m->queue, &orion_spi->msg_queue);
-	queue_work(orion_spi_wq, &orion_spi->work);
-	spin_unlock_irqrestore(&orion_spi->lock, flags);
-
-	return 0;
-msg_rejected:
-	/* Message rejected and not queued */
-	m->status = -EINVAL;
-	if (m->complete)
-		m->complete(m->context);
-	return -EINVAL;
-}
-
-static int __init orion_spi_probe(struct platform_device *pdev)
+static int orion_spi_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct orion_spi *spi;
 	struct resource *r;
-	struct orion_spi_info *spi_info;
+	unsigned long tclk_hz;
 	int status = 0;
 
-	spi_info = pdev->dev.platform_data;
-
-	master = spi_alloc_master(&pdev->dev, sizeof *spi);
+	master = spi_alloc_master(&pdev->dev, sizeof(*spi));
 	if (master == NULL) {
 		dev_dbg(&pdev->dev, "master allocation failed\n");
 		return -ENOMEM;
@@ -462,107 +358,135 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 
 	if (pdev->id != -1)
 		master->bus_num = pdev->id;
+	if (pdev->dev.of_node) {
+		u32 cell_index;
+		if (!of_property_read_u32(pdev->dev.of_node, "cell-index",
+					  &cell_index))
+			master->bus_num = cell_index;
+	}
 
 	/* we support only mode 0, and no options */
-	master->mode_bits = 0;
+	master->mode_bits = SPI_CPHA | SPI_CPOL;
 
-	master->setup = orion_spi_setup;
-	master->transfer = orion_spi_transfer;
+	master->transfer_one_message = orion_spi_transfer_one_message;
 	master->num_chipselect = ORION_NUM_CHIPSELECTS;
+	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
+	master->auto_runtime_pm = true;
 
-	dev_set_drvdata(&pdev->dev, master);
+	platform_set_drvdata(pdev, master);
 
 	spi = spi_master_get_devdata(master);
 	spi->master = master;
-	spi->spi_info = spi_info;
 
-	spi->max_speed = DIV_ROUND_UP(spi_info->tclk, 4);
-	spi->min_speed = DIV_ROUND_UP(spi_info->tclk, 30);
+	spi->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(spi->clk)) {
+		status = PTR_ERR(spi->clk);
+		goto out;
+	}
+
+	status = clk_prepare_enable(spi->clk);
+	if (status)
+		goto out;
+
+	tclk_hz = clk_get_rate(spi->clk);
+	master->max_speed_hz = DIV_ROUND_UP(tclk_hz, 4);
+	master->min_speed_hz = DIV_ROUND_UP(tclk_hz, 30);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
-		status = -ENODEV;
-		goto out;
+	spi->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(spi->base)) {
+		status = PTR_ERR(spi->base);
+		goto out_rel_clk;
 	}
 
-	if (!request_mem_region(r->start, resource_size(r),
-				dev_name(&pdev->dev))) {
-		status = -EBUSY;
-		goto out;
-	}
-	spi->base = ioremap(r->start, SZ_1K);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, SPI_AUTOSUSPEND_TIMEOUT);
+	pm_runtime_enable(&pdev->dev);
 
-	INIT_WORK(&spi->work, orion_spi_work);
+	status = orion_spi_reset(spi);
+	if (status < 0)
+		goto out_rel_pm;
 
-	spin_lock_init(&spi->lock);
-	INIT_LIST_HEAD(&spi->msg_queue);
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
 
-	if (orion_spi_reset(spi) < 0)
-		goto out_rel_mem;
-
+	master->dev.of_node = pdev->dev.of_node;
 	status = spi_register_master(master);
 	if (status < 0)
-		goto out_rel_mem;
+		goto out_rel_pm;
 
 	return status;
 
-out_rel_mem:
-	release_mem_region(r->start, resource_size(r));
-
+out_rel_pm:
+	pm_runtime_disable(&pdev->dev);
+out_rel_clk:
+	clk_disable_unprepare(spi->clk);
 out:
 	spi_master_put(master);
 	return status;
 }
 
 
-static int __exit orion_spi_remove(struct platform_device *pdev)
+static int orion_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master;
-	struct orion_spi *spi;
-	struct resource *r;
+	struct spi_master *master = platform_get_drvdata(pdev);
+	struct orion_spi *spi = spi_master_get_devdata(master);
 
-	master = dev_get_drvdata(&pdev->dev);
-	spi = spi_master_get_devdata(master);
-
-	cancel_work_sync(&spi->work);
-
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(r->start, resource_size(r));
+	pm_runtime_get_sync(&pdev->dev);
+	clk_disable_unprepare(spi->clk);
 
 	spi_unregister_master(master);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
+#ifdef CONFIG_PM_RUNTIME
+static int orion_spi_runtime_suspend(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct orion_spi *spi = spi_master_get_devdata(master);
+
+	clk_disable_unprepare(spi->clk);
+	return 0;
+}
+
+static int orion_spi_runtime_resume(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct orion_spi *spi = spi_master_get_devdata(master);
+
+	return clk_prepare_enable(spi->clk);
+}
+#endif
+
+static const struct dev_pm_ops orion_spi_pm_ops = {
+	SET_RUNTIME_PM_OPS(orion_spi_runtime_suspend,
+			   orion_spi_runtime_resume,
+			   NULL)
+};
+
+static const struct of_device_id orion_spi_of_match_table[] = {
+	{ .compatible = "marvell,orion-spi", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, orion_spi_of_match_table);
+
 static struct platform_driver orion_spi_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.pm	= &orion_spi_pm_ops,
+		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},
-	.remove		= __exit_p(orion_spi_remove),
+	.probe		= orion_spi_probe,
+	.remove		= orion_spi_remove,
 };
 
-static int __init orion_spi_init(void)
-{
-	orion_spi_wq = create_singlethread_workqueue(
-				orion_spi_driver.driver.name);
-	if (orion_spi_wq == NULL)
-		return -ENOMEM;
-
-	return platform_driver_probe(&orion_spi_driver, orion_spi_probe);
-}
-module_init(orion_spi_init);
-
-static void __exit orion_spi_exit(void)
-{
-	flush_workqueue(orion_spi_wq);
-	platform_driver_unregister(&orion_spi_driver);
-
-	destroy_workqueue(orion_spi_wq);
-}
-module_exit(orion_spi_exit);
+module_platform_driver(orion_spi_driver);
 
 MODULE_DESCRIPTION("Orion SPI driver");
 MODULE_AUTHOR("Shadi Ammouri <shadi@marvell.com>");

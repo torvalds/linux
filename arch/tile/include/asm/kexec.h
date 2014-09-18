@@ -19,12 +19,24 @@
 
 #include <asm/page.h>
 
+#ifndef __tilegx__
 /* Maximum physical address we can use pages from. */
 #define KEXEC_SOURCE_MEMORY_LIMIT TASK_SIZE
 /* Maximum address we can reach in physical address mode. */
 #define KEXEC_DESTINATION_MEMORY_LIMIT TASK_SIZE
 /* Maximum address we can use for the control code buffer. */
 #define KEXEC_CONTROL_MEMORY_LIMIT TASK_SIZE
+#else
+/* We need to limit the memory below PGDIR_SIZE since
+ * we only setup page table for [0, PGDIR_SIZE) before final kexec.
+ */
+/* Maximum physical address we can use pages from. */
+#define KEXEC_SOURCE_MEMORY_LIMIT PGDIR_SIZE
+/* Maximum address we can reach in physical address mode. */
+#define KEXEC_DESTINATION_MEMORY_LIMIT PGDIR_SIZE
+/* Maximum address we can use for the control code buffer. */
+#define KEXEC_CONTROL_MEMORY_LIMIT PGDIR_SIZE
+#endif
 
 #define KEXEC_CONTROL_PAGE_SIZE	PAGE_SIZE
 

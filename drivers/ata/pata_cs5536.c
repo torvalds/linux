@@ -33,11 +33,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/libata.h>
 #include <scsi/scsi_host.h>
+#include <linux/dmi.h>
 
 #ifdef CONFIG_X86_32
 #include <asm/msr.h>
@@ -78,6 +78,21 @@ enum {
 	IDE_CAST_CMD_SHIFT	= 24,
 
 	IDE_ETC_UDMA_MASK	= 0xc0,
+};
+
+/* Some Bachmann OT200 devices have a non working UDMA support due a
+ * missing resistor.
+ */
+static const struct dmi_system_id udma_quirk_dmi_table[] = {
+	{
+		.ident = "Bachmann electronic OT200",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Bachmann electronic"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "OT200"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "1")
+		},
+	},
+	{ }
 };
 
 static int cs5536_read(struct pci_dev *pdev, int reg, u32 *val)
@@ -242,8 +257,22 @@ static int cs5536_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &cs5536_port_ops,
 	};
 
-	const struct ata_port_info *ppi[] = { &info, &ata_dummy_port_info };
+	static const struct ata_port_info no_udma_info = {
+		.flags = ATA_FLAG_SLAVE_POSS,
+		.pio_mask = ATA_PIO4,
+		.port_ops = &cs5536_port_ops,
+	};
+
+
+	const struct ata_port_info *ppi[2];
 	u32 cfg;
+
+	if (dmi_check_system(udma_quirk_dmi_table))
+		ppi[0] = &no_udma_info;
+	else
+		ppi[0] = &info;
+
+	ppi[1] = &ata_dummy_port_info;
 
 	if (use_msr)
 		printk(KERN_ERR DRV_NAME ": Using MSR regs instead of PCI\n");
@@ -268,27 +297,16 @@ static struct pci_driver cs5536_pci_driver = {
 	.id_table	= cs5536,
 	.probe		= cs5536_init_one,
 	.remove		= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend	= ata_pci_device_suspend,
 	.resume		= ata_pci_device_resume,
 #endif
 };
 
-static int __init cs5536_init(void)
-{
-	return pci_register_driver(&cs5536_pci_driver);
-}
-
-static void __exit cs5536_exit(void)
-{
-	pci_unregister_driver(&cs5536_pci_driver);
-}
+module_pci_driver(cs5536_pci_driver);
 
 MODULE_AUTHOR("Martin K. Petersen");
 MODULE_DESCRIPTION("low-level driver for the CS5536 IDE controller");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, cs5536);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(cs5536_init);
-module_exit(cs5536_exit);

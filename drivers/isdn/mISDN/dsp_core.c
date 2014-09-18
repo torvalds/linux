@@ -268,6 +268,7 @@ dsp_fill_empty(struct dsp *dsp)
 	}
 	cq.op = MISDN_CTRL_FILL_EMPTY;
 	cq.p1 = 1;
+	cq.p2 = dsp_silence;
 	if (dsp->ch.peer->ctrl(dsp->ch.peer, CONTROL_CHANNEL, &cq)) {
 		printk(KERN_DEBUG "%s: CONTROL_CHANNEL failed\n",
 		       __func__);
@@ -287,8 +288,10 @@ dsp_control_req(struct dsp *dsp, struct mISDNhead *hh, struct sk_buff *skb)
 	u8 *data;
 	int len;
 
-	if (skb->len < sizeof(int))
+	if (skb->len < sizeof(int)) {
 		printk(KERN_ERR "%s: PH_CONTROL message too short\n", __func__);
+		return -EINVAL;
+	}
 	cont = *((int *)skb->data);
 	len = skb->len - sizeof(int);
 	data = skb->data + sizeof(int);
@@ -1216,8 +1219,7 @@ static void __exit dsp_cleanup(void)
 {
 	mISDN_unregister_Bprotocol(&DSP);
 
-	if (timer_pending(&dsp_spl_tl))
-		del_timer(&dsp_spl_tl);
+	del_timer_sync(&dsp_spl_tl);
 
 	if (!list_empty(&dsp_ilist)) {
 		printk(KERN_ERR "mISDN_dsp: Audio DSP object inst list not "

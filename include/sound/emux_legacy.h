@@ -22,7 +22,7 @@
  *
  */
 
-#include "seq_oss_legacy.h"
+#include <sound/seq_oss_legacy.h>
 
 /*
  * awe hardware controls

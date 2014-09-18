@@ -396,3 +396,12 @@
 	call \func;
 #endif
 .endm
+
+#if defined(CONFIG_BFIN_SCRATCH_REG_RETN)
+# define EX_SCRATCH_REG RETN
+#elif defined(CONFIG_BFIN_SCRATCH_REG_RETE)
+# define EX_SCRATCH_REG RETE
+#else
+# define EX_SCRATCH_REG CYCLES
+#endif
+

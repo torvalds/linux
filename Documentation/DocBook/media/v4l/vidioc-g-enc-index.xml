@@ -48,13 +48,6 @@
   <refsect1>
     <title>Description</title>
 
-    <note>
-      <title>Experimental</title>
-
-      <para>This is an <link linkend="experimental">experimental</link>
-interface and may change in the future.</para>
-    </note>
-
     <para>The <constant>VIDIOC_G_ENC_INDEX</constant> ioctl provides
 meta data about a compressed video stream the same or another
 application currently reads from the driver, which is useful for

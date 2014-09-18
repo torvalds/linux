@@ -24,7 +24,10 @@
 
 #include <asm/mach/time.h>
 
-unsigned long ioc_timer_gettimeoffset(void)
+#define RPC_CLOCK_FREQ 2000000
+#define RPC_LATCH DIV_ROUND_CLOSEST(RPC_CLOCK_FREQ, HZ)
+
+static u32 ioc_timer_gettimeoffset(void)
 {
 	unsigned int count1, count2, status;
 	long offset;
@@ -46,23 +49,23 @@ unsigned long ioc_timer_gettimeoffset(void)
 		 * and count2.
 		 */
 		if (status & (1 << 5))
-			offset -= LATCH;
+			offset -= RPC_LATCH;
 	} else if (count2 > count1) {
 		/*
 		 * We have just had another interrupt between reading
 		 * count1 and count2.
 		 */
-		offset -= LATCH;
+		offset -= RPC_LATCH;
 	}
 
-	offset = (LATCH - offset) * (tick_nsec / 1000);
-	return (offset + LATCH/2) / LATCH;
+	offset = (RPC_LATCH - offset) * (tick_nsec / 1000);
+	return DIV_ROUND_CLOSEST(offset, RPC_LATCH) * 1000;
 }
 
 void __init ioctime_init(void)
 {
-	ioc_writeb(LATCH & 255, IOC_T0LTCHL);
-	ioc_writeb(LATCH >> 8, IOC_T0LTCHH);
+	ioc_writeb(RPC_LATCH & 255, IOC_T0LTCHL);
+	ioc_writeb(RPC_LATCH >> 8, IOC_T0LTCHH);
 	ioc_writeb(0, IOC_T0GO);
 }
 
@@ -75,21 +78,15 @@ ioc_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction ioc_timer_irq = {
 	.name		= "timer",
-	.flags		= IRQF_DISABLED,
 	.handler	= ioc_timer_interrupt
 };
 
 /*
  * Set up timer interrupt.
  */
-static void __init ioc_timer_init(void)
+void __init ioc_timer_init(void)
 {
+	arch_gettimeoffset = ioc_timer_gettimeoffset;
 	ioctime_init();
 	setup_irq(IRQ_TIMER0, &ioc_timer_irq);
 }
-
-struct sys_timer ioc_timer = {
-	.init		= ioc_timer_init,
-	.offset		= ioc_timer_gettimeoffset,
-};
-

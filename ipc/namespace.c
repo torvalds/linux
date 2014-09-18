@@ -12,11 +12,11 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/user_namespace.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 
 #include "util.h"
 
-static struct ipc_namespace *create_ipc_ns(struct task_struct *tsk,
+static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 					   struct ipc_namespace *old_ns)
 {
 	struct ipc_namespace *ns;
@@ -26,9 +26,16 @@ static struct ipc_namespace *create_ipc_ns(struct task_struct *tsk,
 	if (ns == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	err = proc_alloc_inum(&ns->proc_inum);
+	if (err) {
+		kfree(ns);
+		return ERR_PTR(err);
+	}
+
 	atomic_set(&ns->count, 1);
 	err = mq_init_ns(ns);
 	if (err) {
+		proc_free_inum(ns->proc_inum);
 		kfree(ns);
 		return ERR_PTR(err);
 	}
@@ -46,19 +53,17 @@ static struct ipc_namespace *create_ipc_ns(struct task_struct *tsk,
 	ipcns_notify(IPCNS_CREATED);
 	register_ipcns_notifier(ns);
 
-	ns->user_ns = get_user_ns(task_cred_xxx(tsk, user)->user_ns);
+	ns->user_ns = get_user_ns(user_ns);
 
 	return ns;
 }
 
 struct ipc_namespace *copy_ipcs(unsigned long flags,
-				struct task_struct *tsk)
+	struct user_namespace *user_ns, struct ipc_namespace *ns)
 {
-	struct ipc_namespace *ns = tsk->nsproxy->ipc_ns;
-
 	if (!(flags & CLONE_NEWIPC))
 		return get_ipc_ns(ns);
-	return create_ipc_ns(tsk, ns);
+	return create_ipc_ns(user_ns, ns);
 }
 
 /*
@@ -76,7 +81,7 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 	int next_id;
 	int total, in_use;
 
-	down_write(&ids->rw_mutex);
+	down_write(&ids->rwsem);
 
 	in_use = ids->in_use;
 
@@ -84,11 +89,12 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 		perm = idr_find(&ids->ipcs_idr, next_id);
 		if (perm == NULL)
 			continue;
-		ipc_lock_by_ptr(perm);
+		rcu_read_lock();
+		ipc_lock_object(perm);
 		free(ns, perm);
 		total++;
 	}
-	up_write(&ids->rw_mutex);
+	up_write(&ids->rwsem);
 }
 
 static void free_ipc_ns(struct ipc_namespace *ns)
@@ -113,6 +119,7 @@ static void free_ipc_ns(struct ipc_namespace *ns)
 	 */
 	ipcns_notify(IPCNS_REMOVED);
 	put_user_ns(ns->user_ns);
+	proc_free_inum(ns->proc_inum);
 	kfree(ns);
 }
 
@@ -147,11 +154,11 @@ static void *ipcns_get(struct task_struct *task)
 	struct ipc_namespace *ns = NULL;
 	struct nsproxy *nsproxy;
 
-	rcu_read_lock();
-	nsproxy = task_nsproxy(task);
+	task_lock(task);
+	nsproxy = task->nsproxy;
 	if (nsproxy)
 		ns = get_ipc_ns(nsproxy->ipc_ns);
-	rcu_read_unlock();
+	task_unlock(task);
 
 	return ns;
 }
@@ -161,13 +168,25 @@ static void ipcns_put(void *ns)
 	return put_ipc_ns(ns);
 }
 
-static int ipcns_install(struct nsproxy *nsproxy, void *ns)
+static int ipcns_install(struct nsproxy *nsproxy, void *new)
 {
+	struct ipc_namespace *ns = new;
+	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN) ||
+	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
+		return -EPERM;
+
 	/* Ditch state from the old ipc namespace */
 	exit_sem(current);
 	put_ipc_ns(nsproxy->ipc_ns);
 	nsproxy->ipc_ns = get_ipc_ns(ns);
 	return 0;
+}
+
+static unsigned int ipcns_inum(void *vp)
+{
+	struct ipc_namespace *ns = vp;
+
+	return ns->proc_inum;
 }
 
 const struct proc_ns_operations ipcns_operations = {
@@ -176,4 +195,5 @@ const struct proc_ns_operations ipcns_operations = {
 	.get		= ipcns_get,
 	.put		= ipcns_put,
 	.install	= ipcns_install,
+	.inum		= ipcns_inum,
 };

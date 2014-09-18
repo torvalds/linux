@@ -137,7 +137,7 @@ don't block on each other (and thus there is no dead-lock wrt interrupts.
 But when you do the write-lock, you have to use the irq-safe version. 
 
 For an example of being clever with rw-locks, see the "waitqueue_lock" 
-handling in kernel/sched.c - nothing ever _changes_ a wait-queue from
+handling in kernel/sched/core.c - nothing ever _changes_ a wait-queue from
 within an interrupt, they only read the queue in order to know whom to
 wake up. So read-locks are safe (which is good: they are very common
 indeed), while write-locks need to protect themselves against interrupts.

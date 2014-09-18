@@ -129,6 +129,8 @@ static void _snd_mpu401_uart_interrupt(struct snd_mpu401 *mpu)
  * @dev_id: mpu401 instance
  *
  * Processes the interrupt for MPU401-UART i/o.
+ *
+ * Return: %IRQ_HANDLED if the interrupt was handled. %IRQ_NONE otherwise.
  */
 irqreturn_t snd_mpu401_uart_interrupt(int irq, void *dev_id)
 {
@@ -148,6 +150,8 @@ EXPORT_SYMBOL(snd_mpu401_uart_interrupt);
  * @dev_id: mpu401 instance
  *
  * Processes the interrupt for MPU401-UART output.
+ *
+ * Return: %IRQ_HANDLED if the interrupt was handled. %IRQ_NONE otherwise.
  */
 irqreturn_t snd_mpu401_uart_interrupt_tx(int irq, void *dev_id)
 {
@@ -519,7 +523,7 @@ static void snd_mpu401_uart_free(struct snd_rawmidi *rmidi)
  * not the mpu401 instance itself.  To access to the mpu401 instance,
  * cast from rawmidi->private_data (with struct snd_mpu401 magic-cast).
  *
- * Returns zero if successful, or a negative error code.
+ * Return: Zero if successful, or a negative error code.
  */
 int snd_mpu401_uart_new(struct snd_card *card, int device,
 			unsigned short hardware,
@@ -554,6 +558,7 @@ int snd_mpu401_uart_new(struct snd_card *card, int device,
 	spin_lock_init(&mpu->output_lock);
 	spin_lock_init(&mpu->timer_lock);
 	mpu->hardware = hardware;
+	mpu->irq = -1;
 	if (! (info_flags & MPU401_INFO_INTEGRATED)) {
 		int res_size = hardware == MPU401_HW_PC98II ? 4 : 2;
 		mpu->res = request_region(port, res_size, "MPU401 UART");

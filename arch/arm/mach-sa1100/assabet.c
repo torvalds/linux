@@ -14,12 +14,16 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/serial_core.h>
+#include <linux/platform_device.h>
 #include <linux/mfd/ucb1x00.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/leds.h>
+#include <linux/slab.h>
 
 #include <video/sa1100fb.h>
 
@@ -35,9 +39,8 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/irda.h>
 #include <asm/mach/map.h>
-#include <asm/mach/serial_sa1100.h>
 #include <mach/assabet.h>
-#include <mach/mcp.h>
+#include <linux/platform_data/mfd-mcp-sa11x0.h>
 #include <mach/irqs.h>
 
 #include "generic.h"
@@ -72,11 +75,142 @@ void ASSABET_BCR_frob(unsigned int mask, unsigned int val)
 
 EXPORT_SYMBOL(ASSABET_BCR_frob);
 
+/*
+ * The codec reset goes to three devices, so we need to release
+ * the rest when any one of these requests it.  However, that
+ * causes the ADV7171 to consume around 100mA - more than half
+ * the LCD-blanked power.
+ *
+ * With the ADV7171, LCD and backlight enabled, we go over
+ * budget on the MAX846 Li-Ion charger, and if no Li-Ion battery
+ * is connected, the Assabet crashes.
+ */
+#define RST_UCB1X00 (1 << 0)
+#define RST_UDA1341 (1 << 1)
+#define RST_ADV7171 (1 << 2)
+
+#define SDA GPIO_GPIO(15)
+#define SCK GPIO_GPIO(18)
+#define MOD GPIO_GPIO(17)
+
+static void adv7171_start(void)
+{
+	GPSR = SCK;
+	udelay(1);
+	GPSR = SDA;
+	udelay(2);
+	GPCR = SDA;
+}
+
+static void adv7171_stop(void)
+{
+	GPSR = SCK;
+	udelay(2);
+	GPSR = SDA;
+	udelay(1);
+}
+
+static void adv7171_send(unsigned byte)
+{
+	unsigned i;
+
+	for (i = 0; i < 8; i++, byte <<= 1) {
+		GPCR = SCK;
+		udelay(1);
+		if (byte & 0x80)
+			GPSR = SDA;
+		else
+			GPCR = SDA;
+		udelay(1);
+		GPSR = SCK;
+		udelay(1);
+	}
+	GPCR = SCK;
+	udelay(1);
+	GPSR = SDA;
+	udelay(1);
+	GPDR &= ~SDA;
+	GPSR = SCK;
+	udelay(1);
+	if (GPLR & SDA)
+		printk(KERN_WARNING "No ACK from ADV7171\n");
+	udelay(1);
+	GPCR = SCK | SDA;
+	udelay(1);
+	GPDR |= SDA;
+	udelay(1);
+}
+
+static void adv7171_write(unsigned reg, unsigned val)
+{
+	unsigned gpdr = GPDR;
+	unsigned gplr = GPLR;
+
+	ASSABET_BCR = BCR_value | ASSABET_BCR_AUDIO_ON;
+	udelay(100);
+
+	GPCR = SDA | SCK | MOD; /* clear L3 mode to ensure UDA1341 doesn't respond */
+	GPDR = (GPDR | SCK | MOD) & ~SDA;
+	udelay(10);
+	if (!(GPLR & SDA))
+		printk(KERN_WARNING "Something dragging SDA down?\n");
+	GPDR |= SDA;
+
+	adv7171_start();
+	adv7171_send(0x54);
+	adv7171_send(reg);
+	adv7171_send(val);
+	adv7171_stop();
+
+	/* Restore GPIO state for L3 bus */
+	GPSR = gplr & (SDA | SCK | MOD);
+	GPCR = (~gplr) & (SDA | SCK | MOD);
+	GPDR = gpdr;
+}
+
+static void adv7171_sleep(void)
+{
+	/* Put the ADV7171 into sleep mode */
+	adv7171_write(0x04, 0x40);
+}
+
+static unsigned codec_nreset;
+
+static void assabet_codec_reset(unsigned mask, int set)
+{
+	unsigned long flags;
+	bool old;
+
+	local_irq_save(flags);
+	old = !codec_nreset;
+	if (set)
+		codec_nreset &= ~mask;
+	else
+		codec_nreset |= mask;
+
+	if (old != !codec_nreset) {
+		if (codec_nreset) {
+			ASSABET_BCR_set(ASSABET_BCR_NCODEC_RST);
+			adv7171_sleep();
+		} else {
+			ASSABET_BCR_clear(ASSABET_BCR_NCODEC_RST);
+		}
+	}
+	local_irq_restore(flags);
+}
+
 static void assabet_ucb1x00_reset(enum ucb1x00_reset state)
 {
-	if (state == UCB_RST_PROBE)
-		ASSABET_BCR_set(ASSABET_BCR_CODEC_RST);
+	int set = state == UCB_RST_REMOVE || state == UCB_RST_SUSPEND ||
+		state == UCB_RST_PROBE_FAIL;
+	assabet_codec_reset(RST_UCB1X00, set);
 }
+
+void assabet_uda1341_reset(int set)
+{
+	assabet_codec_reset(RST_UDA1341, set);
+}
+EXPORT_SYMBOL(assabet_uda1341_reset);
 
 
 /*
@@ -152,12 +286,9 @@ static int assabet_irda_set_power(struct device *dev, unsigned int state)
 		0
 	};
 
-	if (state < 4) {
-		state = bcr_state[state];
-		ASSABET_BCR_clear(state ^ (ASSABET_BCR_IRDA_MD1|
-					   ASSABET_BCR_IRDA_MD0));
-		ASSABET_BCR_set(state);
-	}
+	if (state < 4)
+		ASSABET_BCR_frob(ASSABET_BCR_IRDA_MD1 | ASSABET_BCR_IRDA_MD0,
+				 bcr_state[state]);
 	return 0;
 }
 
@@ -177,6 +308,7 @@ static struct irda_platform_data assabet_irda_data = {
 static struct ucb1x00_plat_data assabet_ucb1x00_data = {
 	.reset		= assabet_ucb1x00_reset,
 	.gpio_base	= -1,
+	.can_wakeup	= 1,
 };
 
 static struct mcp_plat_data assabet_mcp_data = {
@@ -362,7 +494,7 @@ static void __init assabet_init(void)
 static void __init map_sa1100_gpio_regs( void )
 {
 	unsigned long phys = __PREG(GPLR) & PMD_MASK;
-	unsigned long virt = io_p2v(phys);
+	unsigned long virt = (unsigned long)io_p2v(phys);
 	int prot = PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_DOMAIN(DOMAIN_IO);
 	pmd_t *pmd;
 
@@ -386,7 +518,7 @@ static void __init map_sa1100_gpio_regs( void )
  */
 static void __init get_assabet_scr(void)
 {
-	unsigned long scr, i;
+	unsigned long uninitialized_var(scr), i;
 
 	GPDR |= 0x3fc;			/* Configure GPIO 9:2 as outputs */
 	GPSR = 0x3fc;			/* Write 0xFF to GPIO 9:2 */
@@ -399,7 +531,7 @@ static void __init get_assabet_scr(void)
 }
 
 static void __init
-fixup_assabet(struct tag *tags, char **cmdline, struct meminfo *mi)
+fixup_assabet(struct tag *tags, char **cmdline)
 {
 	/* This must be done before any call to machine_has_neponset() */
 	map_sa1100_gpio_regs();
@@ -509,6 +641,9 @@ static void __init assabet_map_io(void)
 	 * Its called GPCLKR0 in my SA1110 manual.
 	 */
 	Ser1SDCR0 |= SDCR0_SUS;
+	MSC1 = (MSC1 & ~0xffff) |
+		MSC_NonBrst | MSC_32BitStMem |
+		MSC_RdAcc(2) | MSC_WrAcc(2) | MSC_Rec(0);
 
 	if (!machine_has_neponset())
 		sa1100_register_uart_fns(&assabet_port_fns);
@@ -529,6 +664,89 @@ static void __init assabet_map_io(void)
 	sa1100_register_uart(2, 3);
 }
 
+/* LEDs */
+#if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)
+struct assabet_led {
+	struct led_classdev cdev;
+	u32 mask;
+};
+
+/*
+ * The triggers lines up below will only be used if the
+ * LED triggers are compiled in.
+ */
+static const struct {
+	const char *name;
+	const char *trigger;
+} assabet_leds[] = {
+	{ "assabet:red", "cpu0",},
+	{ "assabet:green", "heartbeat", },
+};
+
+/*
+ * The LED control in Assabet is reversed:
+ *  - setting bit means turn off LED
+ *  - clearing bit means turn on LED
+ */
+static void assabet_led_set(struct led_classdev *cdev,
+		enum led_brightness b)
+{
+	struct assabet_led *led = container_of(cdev,
+			struct assabet_led, cdev);
+
+	if (b != LED_OFF)
+		ASSABET_BCR_clear(led->mask);
+	else
+		ASSABET_BCR_set(led->mask);
+}
+
+static enum led_brightness assabet_led_get(struct led_classdev *cdev)
+{
+	struct assabet_led *led = container_of(cdev,
+			struct assabet_led, cdev);
+
+	return (ASSABET_BCR & led->mask) ? LED_OFF : LED_FULL;
+}
+
+static int __init assabet_leds_init(void)
+{
+	int i;
+
+	if (!machine_is_assabet())
+		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(assabet_leds); i++) {
+		struct assabet_led *led;
+
+		led = kzalloc(sizeof(*led), GFP_KERNEL);
+		if (!led)
+			break;
+
+		led->cdev.name = assabet_leds[i].name;
+		led->cdev.brightness_set = assabet_led_set;
+		led->cdev.brightness_get = assabet_led_get;
+		led->cdev.default_trigger = assabet_leds[i].trigger;
+
+		if (!i)
+			led->mask = ASSABET_BCR_LED_RED;
+		else
+			led->mask = ASSABET_BCR_LED_GREEN;
+
+		if (led_classdev_register(NULL, &led->cdev) < 0) {
+			kfree(led);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Since we may have triggers on any subsystem, defer registration
+ * until after subsystem_init.
+ */
+fs_initcall(assabet_leds_init);
+#endif
 
 MACHINE_START(ASSABET, "Intel-Assabet")
 	.atag_offset	= 0x100,
@@ -536,8 +754,9 @@ MACHINE_START(ASSABET, "Intel-Assabet")
 	.map_io		= assabet_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.init_machine	= assabet_init,
+	.init_late	= sa11x0_init_late,
 #ifdef CONFIG_SA1111
 	.dma_zone_size	= SZ_1M,
 #endif

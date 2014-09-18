@@ -112,7 +112,8 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 		return -ENODEV; /* disabled explicitly */
 
 	/* ok, create a card instance */
-	err = snd_card_create(index[i], id[i], THIS_MODULE, 0, &card);
+	err = snd_card_new(&link->dev, index[i], id[i], THIS_MODULE,
+			   0, &card);
 	if (err < 0) {
 		snd_printk(KERN_ERR "pdacf: cannot create a card instance\n");
 		return err;
@@ -130,8 +131,6 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 		snd_card_free(card);
 		return err;
 	}
-
-	snd_card_set_dev(card, &link->dev);
 
 	pdacf->index = i;
 	card_list[i] = card;
@@ -251,7 +250,7 @@ static int pdacf_suspend(struct pcmcia_device *link)
 	snd_printdd(KERN_DEBUG "SUSPEND\n");
 	if (chip) {
 		snd_printdd(KERN_DEBUG "snd_pdacf_suspend calling\n");
-		snd_pdacf_suspend(chip, PMSG_SUSPEND);
+		snd_pdacf_suspend(chip);
 	}
 
 	return 0;
@@ -295,18 +294,5 @@ static struct pcmcia_driver pdacf_cs_driver = {
 	.suspend	= pdacf_suspend,
 	.resume		= pdacf_resume,
 #endif
-
 };
-
-static int __init init_pdacf(void)
-{
-	return pcmcia_register_driver(&pdacf_cs_driver);
-}
-
-static void __exit exit_pdacf(void)
-{
-	pcmcia_unregister_driver(&pdacf_cs_driver);
-}
-
-module_init(init_pdacf);
-module_exit(exit_pdacf);
+module_pcmcia_driver(pdacf_cs_driver);

@@ -416,19 +416,20 @@ struct vxge_tx_priv {
 	static int p = val; \
 	module_param(p, int, 0)
 
-#define vxge_os_timer(timer, handle, arg, exp) do { \
-		init_timer(&timer); \
-		timer.function = handle; \
-		timer.data = (unsigned long) arg; \
-		mod_timer(&timer, (jiffies + exp)); \
-	} while (0);
+static inline
+void vxge_os_timer(struct timer_list *timer, void (*func)(unsigned long data),
+		   struct vxgedev *vdev, unsigned long timeout)
+{
+	init_timer(timer);
+	timer->function = func;
+	timer->data = (unsigned long)vdev;
+	mod_timer(timer, jiffies + timeout);
+}
 
 void vxge_initialize_ethtool_ops(struct net_device *ndev);
-enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
 int vxge_fw_upgrade(struct vxgedev *vdev, char *fw_name, int override);
 
-/**
- * #define VXGE_DEBUG_INIT: debug for initialization functions
+/* #define VXGE_DEBUG_INIT: debug for initialization functions
  * #define VXGE_DEBUG_TX	 : debug transmit related functions
  * #define VXGE_DEBUG_RX  : debug recevice related functions
  * #define VXGE_DEBUG_MEM : debug memory module

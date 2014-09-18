@@ -1,7 +1,8 @@
 
-/* cnic.c: Broadcom CNIC core network driver.
+/* cnic.c: QLogic CNIC core network driver.
  *
- * Copyright (c) 2006-2012 Broadcom Corporation
+ * Copyright (c) 2006-2014 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -896,7 +897,7 @@ struct tstorm_tcp_tcp_ag_context_section {
 	u32 snd_nxt;
 	u32 rtt_seq;
 	u32 rtt_time;
-	u32 __reserved66;
+	u32 wnd_right_edge_local;
 	u32 wnd_right_edge;
 	u32 tcp_agg_vars1;
 #define TSTORM_TCP_TCP_AG_CONTEXT_SECTION_FIN_SENT_FLAG (0x1<<0)
@@ -5400,8 +5401,8 @@ struct tstorm_l5cm_tcp_flags {
 	u16 flags;
 #define TSTORM_L5CM_TCP_FLAGS_VLAN_ID (0xFFF<<0)
 #define TSTORM_L5CM_TCP_FLAGS_VLAN_ID_SHIFT 0
-#define TSTORM_L5CM_TCP_FLAGS_RSRV0 (0x1<<12)
-#define TSTORM_L5CM_TCP_FLAGS_RSRV0_SHIFT 12
+#define TSTORM_L5CM_TCP_FLAGS_DELAYED_ACK_EN (0x1<<12)
+#define TSTORM_L5CM_TCP_FLAGS_DELAYED_ACK_SHIFT 12
 #define TSTORM_L5CM_TCP_FLAGS_TS_ENABLED (0x1<<13)
 #define TSTORM_L5CM_TCP_FLAGS_TS_ENABLED_SHIFT 13
 #define TSTORM_L5CM_TCP_FLAGS_RSRV1 (0x3<<14)

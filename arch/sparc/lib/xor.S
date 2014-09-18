@@ -8,6 +8,7 @@
  * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
  */
 
+#include <linux/linkage.h>
 #include <asm/visasm.h>
 #include <asm/asi.h>
 #include <asm/dcu.h>
@@ -19,12 +20,9 @@
  *	!(len & 127) && len >= 256
  */
 	.text
-	.align	32
 
 	/* VIS versions. */
-	.globl	xor_vis_2
-	.type	xor_vis_2,#function
-xor_vis_2:
+ENTRY(xor_vis_2)
 	rd	%fprs, %o5
 	andcc	%o5, FPRS_FEF|FPRS_DU, %g0
 	be,pt	%icc, 0f
@@ -91,11 +89,9 @@ xor_vis_2:
 	wr	%g1, %g0, %asi
 	retl
 	  wr	%g0, 0, %fprs
-	.size	xor_vis_2, .-xor_vis_2
+ENDPROC(xor_vis_2)
 
-	.globl	xor_vis_3
-	.type	xor_vis_3,#function
-xor_vis_3:
+ENTRY(xor_vis_3)
 	rd	%fprs, %o5
 	andcc	%o5, FPRS_FEF|FPRS_DU, %g0
 	be,pt	%icc, 0f
@@ -159,11 +155,9 @@ xor_vis_3:
 	wr	%g1, %g0, %asi
 	retl
 	 wr	%g0, 0, %fprs
-	.size	xor_vis_3, .-xor_vis_3
+ENDPROC(xor_vis_3)
 
-	.globl	xor_vis_4
-	.type	xor_vis_4,#function
-xor_vis_4:
+ENTRY(xor_vis_4)
 	rd	%fprs, %o5
 	andcc	%o5, FPRS_FEF|FPRS_DU, %g0
 	be,pt	%icc, 0f
@@ -246,11 +240,9 @@ xor_vis_4:
 	wr	%g1, %g0, %asi
 	retl
 	 wr	%g0, 0, %fprs
-	.size	xor_vis_4, .-xor_vis_4
+ENDPROC(xor_vis_4)
 
-	.globl	xor_vis_5
-	.type	xor_vis_5,#function
-xor_vis_5:
+ENTRY(xor_vis_5)
 	save	%sp, -192, %sp
 	rd	%fprs, %o5
 	andcc	%o5, FPRS_FEF|FPRS_DU, %g0
@@ -354,12 +346,10 @@ xor_vis_5:
 	wr	%g0, 0, %fprs
 	ret
 	 restore
-	.size	xor_vis_5, .-xor_vis_5
+ENDPROC(xor_vis_5)
 
 	/* Niagara versions. */
-	.globl		xor_niagara_2
-	.type		xor_niagara_2,#function
-xor_niagara_2:		/* %o0=bytes, %o1=dest, %o2=src */
+ENTRY(xor_niagara_2) /* %o0=bytes, %o1=dest, %o2=src */
 	save		%sp, -192, %sp
 	prefetch	[%i1], #n_writes
 	prefetch	[%i2], #one_read
@@ -402,11 +392,9 @@ xor_niagara_2:		/* %o0=bytes, %o1=dest, %o2=src */
 	wr		%g7, 0x0, %asi
 	ret
 	 restore
-	.size		xor_niagara_2, .-xor_niagara_2
+ENDPROC(xor_niagara_2)
 
-	.globl		xor_niagara_3
-	.type		xor_niagara_3,#function
-xor_niagara_3:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2 */
+ENTRY(xor_niagara_3) /* %o0=bytes, %o1=dest, %o2=src1, %o3=src2 */
 	save		%sp, -192, %sp
 	prefetch	[%i1], #n_writes
 	prefetch	[%i2], #one_read
@@ -465,11 +453,9 @@ xor_niagara_3:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2 */
 	wr		%g7, 0x0, %asi
 	ret
 	 restore
-	.size		xor_niagara_3, .-xor_niagara_3
+ENDPROC(xor_niagara_3)
 
-	.globl		xor_niagara_4
-	.type		xor_niagara_4,#function
-xor_niagara_4:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2, %o4=src3 */
+ENTRY(xor_niagara_4) /* %o0=bytes, %o1=dest, %o2=src1, %o3=src2, %o4=src3 */
 	save		%sp, -192, %sp
 	prefetch	[%i1], #n_writes
 	prefetch	[%i2], #one_read
@@ -549,11 +535,9 @@ xor_niagara_4:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2, %o4=src3 */
 	wr		%g7, 0x0, %asi
 	ret
 	 restore
-	.size		xor_niagara_4, .-xor_niagara_4
+ENDPROC(xor_niagara_4)
 
-	.globl		xor_niagara_5
-	.type		xor_niagara_5,#function
-xor_niagara_5:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2, %o4=src3, %o5=src4 */
+ENTRY(xor_niagara_5) /* %o0=bytes, %o1=dest, %o2=src1, %o3=src2, %o4=src3, %o5=src4 */
 	save		%sp, -192, %sp
 	prefetch	[%i1], #n_writes
 	prefetch	[%i2], #one_read
@@ -649,4 +633,4 @@ xor_niagara_5:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2, %o4=src3, %o5=src4 *
 	wr		%g7, 0x0, %asi
 	ret
 	 restore
-	.size		xor_niagara_5, .-xor_niagara_5
+ENDPROC(xor_niagara_5)

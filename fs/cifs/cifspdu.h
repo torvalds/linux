@@ -142,6 +142,11 @@
  */
 #define CIFS_SESS_KEY_SIZE (16)
 
+/*
+ * Size of the smb3 signing key
+ */
+#define SMB3_SIGN_KEY_SIZE (16)
+
 #define CIFS_CLIENT_CHALLENGE_SIZE (8)
 #define CIFS_SERVER_CHALLENGE_SIZE (8)
 #define CIFS_HMAC_MD5_HASH_SIZE (16)
@@ -277,7 +282,6 @@
 #define CIFS_NO_HANDLE        0xFFFF
 
 #define NO_CHANGE_64          0xFFFFFFFFFFFFFFFFULL
-#define NO_CHANGE_32          0xFFFFFFFFUL
 
 /* IPC$ in ASCII */
 #define CIFS_IPC_RESOURCE "\x49\x50\x43\x24"
@@ -424,7 +428,7 @@ struct smb_hdr {
 	__u16 Tid;
 	__le16 Pid;
 	__u16 Uid;
-	__u16 Mid;
+	__le16 Mid;
 	__u8 WordCount;
 } __attribute__((packed));
 
@@ -532,7 +536,7 @@ typedef struct lanman_neg_rsp {
 #define READ_RAW_ENABLE 1
 #define WRITE_RAW_ENABLE 2
 #define RAW_ENABLE (READ_RAW_ENABLE | WRITE_RAW_ENABLE)
-
+#define SMB1_CLIENT_GUID_SIZE (16)
 typedef struct negotiate_rsp {
 	struct smb_hdr hdr;	/* wct = 17 */
 	__le16 DialectIndex; /* 0xFFFF = no dialect acceptable */
@@ -554,7 +558,7 @@ typedef struct negotiate_rsp {
 		/* followed by 16 bytes of server GUID */
 		/* then security blob if cap_extended_security negotiated */
 		struct {
-			unsigned char GUID[16];
+			unsigned char GUID[SMB1_CLIENT_GUID_SIZE];
 			unsigned char SecurityBlob[1];
 		} __attribute__((packed)) extended_response;
 	} __attribute__((packed)) u;
@@ -693,7 +697,13 @@ struct ntlmssp2_name {
 } __attribute__((packed));
 
 struct ntlmv2_resp {
-	char ntlmv2_hash[CIFS_ENCPWD_SIZE];
+	union {
+	    char ntlmv2_hash[CIFS_ENCPWD_SIZE];
+	    struct {
+		__u8 reserved[8];
+		__u8 key[CIFS_SERVER_CHALLENGE_SIZE];
+	    } __attribute__((packed)) challenge;
+	} __attribute__((packed));
 	__le32 blob_signature;
 	__u32  reserved;
 	__le64  time;
@@ -1316,6 +1326,14 @@ typedef struct smb_com_ntransact_rsp {
 	/* parms and data follow */
 } __attribute__((packed)) NTRANSACT_RSP;
 
+/* See MS-SMB 2.2.7.2.1.1 */
+struct srv_copychunk {
+	__le64 SourceOffset;
+	__le64 DestinationOffset;
+	__le32 CopyLength;
+	__u32  Reserved;
+} __packed;
+
 typedef struct smb_com_transaction_ioctl_req {
 	struct smb_hdr hdr;	/* wct = 23 */
 	__u8 MaxSetupCount;
@@ -1339,6 +1357,35 @@ typedef struct smb_com_transaction_ioctl_req {
 	__u8 Pad[3];
 	__u8 Data[1];
 } __attribute__((packed)) TRANSACT_IOCTL_REQ;
+
+typedef struct smb_com_transaction_compr_ioctl_req {
+	struct smb_hdr hdr;	/* wct = 23 */
+	__u8 MaxSetupCount;
+	__u16 Reserved;
+	__le32 TotalParameterCount;
+	__le32 TotalDataCount;
+	__le32 MaxParameterCount;
+	__le32 MaxDataCount;
+	__le32 ParameterCount;
+	__le32 ParameterOffset;
+	__le32 DataCount;
+	__le32 DataOffset;
+	__u8 SetupCount; /* four setup words follow subcommand */
+	/* SNIA spec incorrectly included spurious pad here */
+	__le16 SubCommand; /* 2 = IOCTL/FSCTL */
+	__le32 FunctionCode;
+	__u16 Fid;
+	__u8 IsFsctl;  /* 1 = File System Control 0 = device control (IOCTL) */
+	__u8 IsRootFlag; /* 1 = apply command to root of share (must be DFS) */
+	__le16 ByteCount;
+	__u8 Pad[3];
+	__le16 compression_state;  /* See below for valid flags */
+} __attribute__((packed)) TRANSACT_COMPR_IOCTL_REQ;
+
+/* compression state flags */
+#define COMPRESSION_FORMAT_NONE		0x0000
+#define COMPRESSION_FORMAT_DEFAULT	0x0001
+#define COMPRESSION_FORMAT_LZNT1	0x0002
 
 typedef struct smb_com_transaction_ioctl_rsp {
 	struct smb_hdr hdr;	/* wct = 19 */
@@ -1479,15 +1526,31 @@ struct file_notify_information {
 	__u8  FileName[0];
 } __attribute__((packed));
 
-struct reparse_data {
-	__u32	ReparseTag;
-	__u16	ReparseDataLength;
+/* For IO_REPARSE_TAG_SYMLINK */
+struct reparse_symlink_data {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
 	__u16	Reserved;
-	__u16	AltNameOffset;
-	__u16	AltNameLen;
-	__u16	TargetNameOffset;
-	__u16	TargetNameLen;
-	char	LinkNamesBuf[1];
+	__le16	SubstituteNameOffset;
+	__le16	SubstituteNameLength;
+	__le16	PrintNameOffset;
+	__le16	PrintNameLength;
+	__le32	Flags;
+	char	PathBuffer[0];
+} __attribute__((packed));
+
+/* For IO_REPARSE_TAG_NFS */
+#define NFS_SPECFILE_LNK	0x00000000014B4E4C
+#define NFS_SPECFILE_CHR	0x0000000000524843
+#define NFS_SPECFILE_BLK	0x00000000004B4C42
+#define NFS_SPECFILE_FIFO	0x000000004F464946
+#define NFS_SPECFILE_SOCK	0x000000004B434F53
+struct reparse_posix_data {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__le64	InodeType; /* LNK, FIFO, CHR etc. */
+	char	PathBuffer[0];
 } __attribute__((packed));
 
 struct cifs_quota_data {
@@ -2187,6 +2250,32 @@ typedef struct {
 	__le32 DeviceCharacteristics;
 } __attribute__((packed)) FILE_SYSTEM_DEVICE_INFO; /* device info level 0x104 */
 
+/* minimum includes first three fields, and empty FS Name */
+#define MIN_FS_ATTR_INFO_SIZE 12
+
+
+/* List of FileSystemAttributes - see 2.5.1 of MS-FSCC */
+#define FILE_SUPPORT_INTEGRITY_STREAMS	0x04000000
+#define FILE_SUPPORTS_USN_JOURNAL	0x02000000
+#define FILE_SUPPORTS_OPEN_BY_FILE_ID	0x01000000
+#define FILE_SUPPORTS_EXTENDED_ATTRIBUTES 0x00800000
+#define FILE_SUPPORTS_HARD_LINKS	0x00400000
+#define FILE_SUPPORTS_TRANSACTIONS	0x00200000
+#define FILE_SEQUENTIAL_WRITE_ONCE	0x00100000
+#define FILE_READ_ONLY_VOLUME		0x00080000
+#define FILE_NAMED_STREAMS		0x00040000
+#define FILE_SUPPORTS_ENCRYPTION	0x00020000
+#define FILE_SUPPORTS_OBJECT_IDS	0x00010000
+#define FILE_VOLUME_IS_COMPRESSED	0x00008000
+#define FILE_SUPPORTS_REMOTE_STORAGE	0x00000100
+#define FILE_SUPPORTS_REPARSE_POINTS	0x00000080
+#define FILE_SUPPORTS_SPARSE_FILES	0x00000040
+#define FILE_VOLUME_QUOTAS		0x00000020
+#define FILE_FILE_COMPRESSION		0x00000010
+#define FILE_PERSISTENT_ACLS		0x00000008
+#define FILE_UNICODE_ON_DISK		0x00000004
+#define FILE_CASE_PRESERVED_NAMES	0x00000002
+#define FILE_CASE_SENSITIVE_SEARCH	0x00000001
 typedef struct {
 	__le32 Attributes;
 	__le32 MaxPathNameComponentLength;
@@ -2210,7 +2299,7 @@ typedef struct { /* data block encoding of response to level 263 QPathInfo */
 	__u8 DeletePending;
 	__u8 Directory;
 	__u16 Pad2;
-	__u64 IndexNumber;
+	__le64 IndexNumber;
 	__le32 EASize;
 	__le32 AccessFlags;
 	__u64 IndexNumber1;
@@ -2639,26 +2728,7 @@ typedef struct file_xattr_info {
 } __attribute__((packed)) FILE_XATTR_INFO; /* extended attribute info
 					      level 0x205 */
 
-
-/* flags for chattr command */
-#define EXT_SECURE_DELETE		0x00000001 /* EXT3_SECRM_FL */
-#define EXT_ENABLE_UNDELETE		0x00000002 /* EXT3_UNRM_FL */
-/* Reserved for compress file 0x4 */
-#define EXT_SYNCHRONOUS			0x00000008 /* EXT3_SYNC_FL */
-#define EXT_IMMUTABLE_FL		0x00000010 /* EXT3_IMMUTABLE_FL */
-#define EXT_OPEN_APPEND_ONLY		0x00000020 /* EXT3_APPEND_FL */
-#define EXT_DO_NOT_BACKUP		0x00000040 /* EXT3_NODUMP_FL */
-#define EXT_NO_UPDATE_ATIME		0x00000080 /* EXT3_NOATIME_FL */
-/* 0x100 through 0x800 reserved for compression flags and are GET-ONLY */
-#define EXT_HASH_TREE_INDEXED_DIR	0x00001000 /* GET-ONLY EXT3_INDEX_FL */
-/* 0x2000 reserved for IMAGIC_FL */
-#define EXT_JOURNAL_THIS_FILE	0x00004000 /* GET-ONLY EXT3_JOURNAL_DATA_FL */
-/* 0x8000 reserved for EXT3_NOTAIL_FL */
-#define EXT_SYNCHRONOUS_DIR		0x00010000 /* EXT3_DIRSYNC_FL */
-#define EXT_TOPDIR			0x00020000 /* EXT3_TOPDIR_FL */
-
-#define EXT_SET_MASK			0x000300FF
-#define EXT_GET_MASK			0x0003DFFF
+/* flags for lsattr and chflags commands removed arein uapi/linux/fs.h */
 
 typedef struct file_chattr_info {
 	__le64	mask; /* list of all possible attribute bits */

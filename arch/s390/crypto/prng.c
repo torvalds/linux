@@ -1,5 +1,5 @@
 /*
- * Copyright IBM Corp. 2006,2007
+ * Copyright IBM Corp. 2006, 2007
  * Author(s): Jan Glauber <jan.glauber@de.ibm.com>
  * Driver for the s390 pseudo random number generator
  */

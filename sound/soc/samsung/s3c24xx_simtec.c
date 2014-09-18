@@ -13,7 +13,7 @@
 
 #include <sound/soc.h>
 
-#include <plat/audio-simtec.h>
+#include <linux/platform_data/asoc-s3c24xx_simtec.h>
 
 #include "s3c24xx-i2s.h"
 #include "s3c24xx_simtec.h"
@@ -313,8 +313,8 @@ const struct dev_pm_ops simtec_audio_pmops = {
 EXPORT_SYMBOL_GPL(simtec_audio_pmops);
 #endif
 
-int __devinit simtec_audio_core_probe(struct platform_device *pdev,
-				      struct snd_soc_card *card)
+int simtec_audio_core_probe(struct platform_device *pdev,
+			    struct snd_soc_card *card)
 {
 	struct platform_device *snd_dev;
 	int ret;
@@ -371,7 +371,7 @@ err_clk:
 }
 EXPORT_SYMBOL_GPL(simtec_audio_core_probe);
 
-int __devexit simtec_audio_remove(struct platform_device *pdev)
+int simtec_audio_remove(struct platform_device *pdev)
 {
 	struct platform_device *snd_dev = platform_get_drvdata(pdev);
 

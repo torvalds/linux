@@ -123,14 +123,14 @@ static int irtty_change_speed(struct sir_dev *dev, unsigned speed)
 
 	tty = priv->tty;
 
-	mutex_lock(&tty->termios_mutex);
-	old_termios = *(tty->termios);
-	cflag = tty->termios->c_cflag;
+	down_write(&tty->termios_rwsem);
+	old_termios = tty->termios;
+	cflag = tty->termios.c_cflag;
 	tty_encode_baud_rate(tty, speed, speed);
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old_termios);
 	priv->io.speed = speed;
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 
 	return 0;
 }
@@ -210,7 +210,7 @@ static int irtty_do_write(struct sir_dev *dev, const unsigned char *ptr, size_t 
  *    been received, which can now be decapsulated and delivered for
  *    further processing 
  *
- * calling context depends on underlying driver and tty->low_latency!
+ * calling context depends on underlying driver and tty->port->low_latency!
  * for example (low_latency: 1 / 0):
  * serial.c:	uart-interrupt / softint
  * usbserial:	urb-complete-interrupt / softint
@@ -280,19 +280,19 @@ static inline void irtty_stop_receiver(struct tty_struct *tty, int stop)
 	struct ktermios old_termios;
 	int cflag;
 
-	mutex_lock(&tty->termios_mutex);
-	old_termios = *(tty->termios);
-	cflag = tty->termios->c_cflag;
+	down_write(&tty->termios_rwsem);
+	old_termios = tty->termios;
+	cflag = tty->termios.c_cflag;
 	
 	if (stop)
 		cflag &= ~CREAD;
 	else
 		cflag |= CREAD;
 
-	tty->termios->c_cflag = cflag;
+	tty->termios.c_cflag = cflag;
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old_termios);
-	mutex_unlock(&tty->termios_mutex);
+	up_write(&tty->termios_rwsem);
 }
 
 /*****************************************************************/
@@ -459,8 +459,10 @@ static int irtty_open(struct tty_struct *tty)
 
 	/* allocate private device info block */
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
+	if (!priv) {
+		ret = -ENOMEM;
 		goto out_put;
+	}
 
 	priv->magic = IRTTY_MAGIC;
 	priv->tty = tty;
@@ -520,7 +522,6 @@ static void irtty_close(struct tty_struct *tty)
 	sirdev_put_instance(priv->dev);
 
 	/* Stop tty */
-	irtty_stop_receiver(tty, TRUE);
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 	if (tty->ops->stop)
 		tty->ops->stop(tty);

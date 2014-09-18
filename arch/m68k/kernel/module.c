@@ -47,7 +47,7 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 			*location += sym->st_value;
 			break;
 		case R_68K_PC32:
-			/* Add the value, subtract its postition */
+			/* Add the value, subtract its position */
 			*location += sym->st_value - (uint32_t)location;
 			break;
 		default:
@@ -87,7 +87,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			*location = rel[i].r_addend + sym->st_value;
 			break;
 		case R_68K_PC32:
-			/* Add the value, subtract its postition */
+			/* Add the value, subtract its position */
 			*location = rel[i].r_addend + sym->st_value - (uint32_t)location;
 			break;
 		default:

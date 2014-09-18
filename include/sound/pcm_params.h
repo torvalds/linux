@@ -22,6 +22,8 @@
  *
  */
 
+#include <sound/pcm.h>
+
 int snd_pcm_hw_param_first(struct snd_pcm_substream *pcm, 
 			   struct snd_pcm_hw_params *params,
 			   snd_pcm_hw_param_t var, int *dir);
@@ -350,6 +352,18 @@ params_period_bytes(const struct snd_pcm_hw_params *p)
 	return (params_period_size(p) *
 		snd_pcm_format_physical_width(params_format(p)) *
 		params_channels(p)) / 8;
+}
+
+static inline int
+params_width(const struct snd_pcm_hw_params *p)
+{
+	return snd_pcm_format_width(params_format(p));
+}
+
+static inline int
+params_physical_width(const struct snd_pcm_hw_params *p)
+{
+	return snd_pcm_format_physical_width(params_format(p));
 }
 
 #endif /* __SOUND_PCM_PARAMS_H */

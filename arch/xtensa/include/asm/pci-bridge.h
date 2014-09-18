@@ -35,7 +35,7 @@ struct pci_space {
 struct pci_controller {
 	int index;			/* used for pci_controller_num */
 	struct pci_controller *next;
-        struct pci_bus *bus;
+	struct pci_bus *bus;
 	void *arch_data;
 
 	int first_busno;

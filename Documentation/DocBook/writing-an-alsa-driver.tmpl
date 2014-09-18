@@ -433,9 +433,9 @@
   /* chip-specific constructor
    * (see "Management of Cards and Components")
    */
-  static int __devinit snd_mychip_create(struct snd_card *card,
-                                         struct pci_dev *pci,
-                                         struct mychip **rchip)
+  static int snd_mychip_create(struct snd_card *card,
+                               struct pci_dev *pci,
+                               struct mychip **rchip)
   {
           struct mychip *chip;
           int err;
@@ -468,15 +468,13 @@
                   return err;
           }
 
-          snd_card_set_dev(card, &pci->dev);
-
           *rchip = chip;
           return 0;
   }
 
   /* constructor -- see "Constructor" sub-section */
-  static int __devinit snd_mychip_probe(struct pci_dev *pci,
-                               const struct pci_device_id *pci_id)
+  static int snd_mychip_probe(struct pci_dev *pci,
+                              const struct pci_device_id *pci_id)
   {
           static int dev;
           struct snd_card *card;
@@ -492,7 +490,8 @@
           }
 
           /* (2) */
-          err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+          err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                             0, &card);
           if (err < 0)
                   return err;
 
@@ -526,7 +525,7 @@
   }
 
   /* destructor -- see the "Destructor" sub-section */
-  static void __devexit snd_mychip_remove(struct pci_dev *pci)
+  static void snd_mychip_remove(struct pci_dev *pci)
   {
           snd_card_free(pci_get_drvdata(pci));
           pci_set_drvdata(pci, NULL);
@@ -542,9 +541,8 @@
       <para>
         The real constructor of PCI drivers is the <function>probe</function> callback.
       The <function>probe</function> callback and other component-constructors which are called
-      from the <function>probe</function> callback should be defined with
-      the <parameter>__devinit</parameter> prefix. You 
-      cannot use the <parameter>__init</parameter> prefix for them,
+      from the <function>probe</function> callback cannot be used with
+      the <parameter>__init</parameter> prefix
       because any PCI device could be a hotplug device. 
       </para>
 
@@ -592,7 +590,8 @@
   struct snd_card *card;
   int err;
   ....
-  err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+  err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                     0, &card);
 ]]>
             </programlisting>
           </informalexample>
@@ -728,7 +727,7 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  static void __devexit snd_mychip_remove(struct pci_dev *pci)
+  static void snd_mychip_remove(struct pci_dev *pci)
   {
           snd_card_free(pci_get_drvdata(pci));
           pci_set_drvdata(pci, NULL);
@@ -810,28 +809,34 @@
 
       <para>
         As mentioned above, to create a card instance, call
-      <function>snd_card_create()</function>.
+      <function>snd_card_new()</function>.
 
         <informalexample>
           <programlisting>
 <![CDATA[
   struct snd_card *card;
   int err;
-  err = snd_card_create(index, id, module, extra_size, &card);
+  err = snd_card_new(&pci->dev, index, id, module, extra_size, &card);
 ]]>
           </programlisting>
         </informalexample>
       </para>
 
       <para>
-        The function takes five arguments, the card-index number, the
-        id string, the module pointer (usually
+        The function takes six arguments: the parent device pointer,
+        the card-index number, the id string, the module pointer (usually
         <constant>THIS_MODULE</constant>),
         the size of extra-data space, and the pointer to return the
         card instance.  The extra_size argument is used to
         allocate card-&gt;private_data for the
         chip-specific data.  Note that these data
-        are allocated by <function>snd_card_create()</function>.
+        are allocated by <function>snd_card_new()</function>.
+      </para>
+
+      <para>
+	The first argument, the pointer of struct
+	<structname>device</structname>, specifies the parent device.
+	For PCI devices, typically &amp;pci-&gt; is passed there.
       </para>
     </section>
 
@@ -872,9 +877,8 @@
       <para>
       This function itself doesn't allocate the data space. The data
       must be allocated manually beforehand, and its pointer is passed
-      as the argument. This pointer is used as the
-      (<parameter>chip</parameter> identifier in the above example)
-      for the instance. 
+      as the argument. This pointer (<parameter>chip</parameter> in the
+      above example) is used as the identifier for the instance.
       </para>
 
       <para>
@@ -918,16 +922,16 @@
       </para>
 
       <section id="card-management-chip-specific-snd-card-new">
-        <title>1. Allocating via <function>snd_card_create()</function>.</title>
+        <title>1. Allocating via <function>snd_card_new()</function>.</title>
         <para>
           As mentioned above, you can pass the extra-data-length
-	  to the 4th argument of <function>snd_card_create()</function>, i.e.
+	  to the 5th argument of <function>snd_card_new()</function>, i.e.
 
           <informalexample>
             <programlisting>
 <![CDATA[
-  err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-                        sizeof(struct mychip), &card);
+  err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                     sizeof(struct mychip), &card);
 ]]>
             </programlisting>
           </informalexample>
@@ -956,7 +960,7 @@
 
         <para>
           After allocating a card instance via
-          <function>snd_card_create()</function> (with
+          <function>snd_card_new()</function> (with
           <constant>0</constant> on the 4th arg), call
           <function>kzalloc()</function>. 
 
@@ -965,7 +969,8 @@
 <![CDATA[
   struct snd_card *card;
   struct mychip *chip;
-  err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+  err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                     0, &card);
   .....
   chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 ]]>
@@ -1059,14 +1064,6 @@
       </para>
 
       <para>
-        As further notes, the destructors (both
-      <function>snd_mychip_dev_free</function> and
-      <function>snd_mychip_free</function>) cannot be defined with
-      the <parameter>__devexit</parameter> prefix, because they may be
-      called from the constructor, too, at the false path. 
-      </para>
-
-      <para>
       For a device which allows hotplugging, you can use
       <function>snd_card_free_when_closed</function>.  This one will
       postpone the destruction until all devices are closed.
@@ -1120,9 +1117,9 @@
   }
 
   /* chip-specific constructor */
-  static int __devinit snd_mychip_create(struct snd_card *card,
-                                         struct pci_dev *pci,
-                                         struct mychip **rchip)
+  static int snd_mychip_create(struct snd_card *card,
+                               struct pci_dev *pci,
+                               struct mychip **rchip)
   {
           struct mychip *chip;
           int err;
@@ -1180,8 +1177,6 @@
                   return err;
           }
 
-          snd_card_set_dev(card, &pci->dev);
-
           *rchip = chip;
           return 0;
   }        
@@ -1200,7 +1195,7 @@
           .name = KBUILD_MODNAME,
           .id_table = snd_mychip_ids,
           .probe = snd_mychip_probe,
-          .remove = __devexit_p(snd_mychip_remove),
+          .remove = snd_mychip_remove,
   };
 
   /* module initialization */
@@ -1465,11 +1460,6 @@
       </para>
 
       <para>
-      Again, remember that you cannot
-      use the <parameter>__devexit</parameter> prefix for this destructor. 
-      </para>
-
-      <para>
       We didn't implement the hardware disabling part in the above.
       If you need to do this, please note that the destructor may be
       called even before the initialization of the chip is completed.
@@ -1541,30 +1531,6 @@
 
     </section>
 
-    <section id="pci-resource-device-struct">
-      <title>Registration of Device Struct</title>
-      <para>
-	At some point, typically after calling <function>snd_device_new()</function>,
-	you need to register the struct <structname>device</structname> of the chip
-	you're handling for udev and co.  ALSA provides a macro for compatibility with
-	older kernels.  Simply call like the following:
-        <informalexample>
-          <programlisting>
-<![CDATA[
-  snd_card_set_dev(card, &pci->dev);
-]]>
-          </programlisting>
-        </informalexample>
-	so that it stores the PCI's device pointer to the card.  This will be
-	referred by ALSA core functions later when the devices are registered.
-      </para>
-      <para>
-	In the case of non-PCI, pass the proper device struct pointer of the BUS
-	instead.  (In the case of legacy ISA without PnP, you don't have to do
-	anything.)
-      </para>
-    </section>
-
     <section id="pci-resource-entries">
       <title>PCI Entries</title>
       <para>
@@ -1619,7 +1585,7 @@
           .name = KBUILD_MODNAME,
           .id_table = snd_mychip_ids,
           .probe = snd_mychip_probe,
-          .remove = __devexit_p(snd_mychip_remove),
+          .remove = snd_mychip_remove,
   };
 ]]>
           </programlisting>
@@ -1630,11 +1596,7 @@
         The <structfield>probe</structfield> and
       <structfield>remove</structfield> functions have already
       been defined in the previous sections.
-      The <structfield>remove</structfield> function should
-      be defined with the 
-      <function>__devexit_p()</function> macro, so that it's not
-      defined for built-in (and non-hot-pluggable) case. The
-      <structfield>name</structfield> 
+      The <structfield>name</structfield>
       field is the name string of this device. Note that you must not
       use a slash <quote>/</quote> in this string. 
       </para>
@@ -1665,9 +1627,7 @@
       <para>
         Note that these module entries are tagged with
       <parameter>__init</parameter> and 
-      <parameter>__exit</parameter> prefixes, not
-      <parameter>__devinit</parameter> nor
-      <parameter>__devexit</parameter>.
+      <parameter>__exit</parameter> prefixes.
       </para>
 
       <para>
@@ -1918,7 +1878,7 @@
    */
 
   /* create a pcm device */
-  static int __devinit snd_mychip_new_pcm(struct mychip *chip)
+  static int snd_mychip_new_pcm(struct mychip *chip)
   {
           struct snd_pcm *pcm;
           int err;
@@ -1957,7 +1917,7 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  static int __devinit snd_mychip_new_pcm(struct mychip *chip)
+  static int snd_mychip_new_pcm(struct mychip *chip)
   {
           struct snd_pcm *pcm;
           int err;
@@ -2124,7 +2084,7 @@
           ....
   }
 
-  static int __devinit snd_mychip_new_pcm(struct mychip *chip)
+  static int snd_mychip_new_pcm(struct mychip *chip)
   {
           struct snd_pcm *pcm;
           ....
@@ -2324,7 +2284,7 @@ struct _snd_pcm_runtime {
         <constant>SNDRV_PCM_INFO_XXX</constant>. Here, at least, you
         have to specify whether the mmap is supported and which
         interleaved format is supported.
-        When the is supported, add the
+        When the hardware supports mmap, add the
         <constant>SNDRV_PCM_INFO_MMAP</constant> flag here. When the
         hardware supports the interleaved or the non-interleaved
         formats, <constant>SNDRV_PCM_INFO_INTERLEAVED</constant> or
@@ -2918,7 +2878,7 @@ struct _snd_pcm_runtime {
 
         <para>
           When the pcm supports the pause operation (given in the info
-        field of the hardware table), the <constant>PAUSE_PUSE</constant>
+        field of the hardware table), the <constant>PAUSE_PUSH</constant>
         and <constant>PAUSE_RELEASE</constant> commands must be
         handled here, too. The former is the command to pause the pcm,
         and the latter to restart the pcm again. 
@@ -3105,7 +3065,7 @@ struct _snd_pcm_runtime {
       <section id="pcm-interface-interrupt-handler-timer">
         <title>High frequency timer interrupts</title>
         <para>
-	This happense when the hardware doesn't generate interrupts
+	This happens when the hardware doesn't generate interrupts
         at the period boundary but issues timer interrupts at a fixed
         timer rate (e.g. es1968 or ymfpci drivers). 
         In this case, you need to check the current hardware
@@ -3271,49 +3231,6 @@ struct _snd_pcm_runtime {
 	  <title>Example of Hardware Constraints for Channels</title>
 	  <programlisting>
 <![CDATA[
-  static int hw_rule_format_by_channels(struct snd_pcm_hw_params *params,
-                                        struct snd_pcm_hw_rule *rule)
-  {
-          struct snd_interval *c = hw_param_interval(params,
-                SNDRV_PCM_HW_PARAM_CHANNELS);
-          struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
-          struct snd_mask fmt;
-
-          snd_mask_any(&fmt);    /* Init the struct */
-          if (c->min < 2) {
-                  fmt.bits[0] &= SNDRV_PCM_FMTBIT_S16_LE;
-                  return snd_mask_refine(f, &fmt);
-          }
-          return 0;
-  }
-]]>
-          </programlisting>
-        </example>
-      </para>
- 
-      <para>
-        Then you need to call this function to add your rule:
-
-       <informalexample>
-	 <programlisting>
-<![CDATA[
-  snd_pcm_hw_rule_add(substream->runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-                      hw_rule_channels_by_format, 0, SNDRV_PCM_HW_PARAM_FORMAT,
-                      -1);
-]]>
-          </programlisting>
-        </informalexample>
-      </para>
-
-      <para>
-        The rule function is called when an application sets the number of
-        channels. But an application can set the format before the number of
-        channels. Thus you also need to define the inverse rule:
-
-       <example>
-	 <title>Example of Hardware Constraints for Channels</title>
-	 <programlisting>
-<![CDATA[
   static int hw_rule_channels_by_format(struct snd_pcm_hw_params *params,
                                         struct snd_pcm_hw_rule *rule)
   {
@@ -3334,6 +3251,50 @@ struct _snd_pcm_runtime {
           </programlisting>
         </example>
       </para>
+ 
+      <para>
+        Then you need to call this function to add your rule:
+
+       <informalexample>
+	 <programlisting>
+<![CDATA[
+  snd_pcm_hw_rule_add(substream->runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+                      hw_rule_channels_by_format, NULL,
+                      SNDRV_PCM_HW_PARAM_FORMAT, -1);
+]]>
+          </programlisting>
+        </informalexample>
+      </para>
+
+      <para>
+        The rule function is called when an application sets the PCM
+	format, and it refines the number of channels accordingly.
+        But an application may set the number of channels before
+	setting the format. Thus you also need to define the inverse rule:
+
+       <example>
+	 <title>Example of Hardware Constraints for Formats</title>
+	 <programlisting>
+<![CDATA[
+  static int hw_rule_format_by_channels(struct snd_pcm_hw_params *params,
+                                        struct snd_pcm_hw_rule *rule)
+  {
+          struct snd_interval *c = hw_param_interval(params,
+                SNDRV_PCM_HW_PARAM_CHANNELS);
+          struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+          struct snd_mask fmt;
+
+          snd_mask_any(&fmt);    /* Init the struct */
+          if (c->min < 2) {
+                  fmt.bits[0] &= SNDRV_PCM_FMTBIT_S16_LE;
+                  return snd_mask_refine(f, &fmt);
+          }
+          return 0;
+  }
+]]>
+          </programlisting>
+        </example>
+      </para>
 
       <para>
       ...and in the open callback:
@@ -3341,8 +3302,8 @@ struct _snd_pcm_runtime {
 	 <programlisting>
 <![CDATA[
   snd_pcm_hw_rule_add(substream->runtime, 0, SNDRV_PCM_HW_PARAM_FORMAT,
-                      hw_rule_format_by_channels, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-                      -1);
+                      hw_rule_format_by_channels, NULL,
+                      SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 ]]>
           </programlisting>
         </informalexample>
@@ -3399,7 +3360,7 @@ struct _snd_pcm_runtime {
 	  <title>Definition of a Control</title>
           <programlisting>
 <![CDATA[
-  static struct snd_kcontrol_new my_control __devinitdata = {
+  static struct snd_kcontrol_new my_control = {
           .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
           .name = "PCM Playback Switch",
           .index = 0,
@@ -3412,13 +3373,6 @@ struct _snd_pcm_runtime {
 ]]>
           </programlisting>
         </example>
-      </para>
-
-      <para>
-        Most likely the control is created via
-      <function>snd_ctl_new1()</function>, and in such a case, you can
-      add the <parameter>__devinitdata</parameter> prefix to the
-      definition as above. 
       </para>
 
       <para>
@@ -3847,10 +3801,8 @@ struct _snd_pcm_runtime {
 
       <para>
         <function>snd_ctl_new1()</function> allocates a new
-      <structname>snd_kcontrol</structname> instance (that's why the definition
-      of <parameter>my_control</parameter> can be with
-      the <parameter>__devinitdata</parameter> 
-      prefix), and <function>snd_ctl_add</function> assigns the given
+      <structname>snd_kcontrol</structname> instance,
+      and <function>snd_ctl_add</function> assigns the given
       control component to the card. 
       </para>
     </section>
@@ -3896,7 +3848,7 @@ struct _snd_pcm_runtime {
 <![CDATA[
   static DECLARE_TLV_DB_SCALE(db_scale_my_control, -4050, 150, 0);
 
-  static struct snd_kcontrol_new my_control __devinitdata = {
+  static struct snd_kcontrol_new my_control = {
           ...
           .access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
                     SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -5744,7 +5696,7 @@ struct _snd_pcm_runtime {
 	suspending the PCM operations via
 	<function>snd_pcm_suspend_all()</function> or
 	<function>snd_pcm_suspend()</function>.  It means that the PCM
-	streams are already stoppped when the register snapshot is
+	streams are already stopped when the register snapshot is
 	taken.  But, remember that you don't have to restart the PCM
 	stream in the resume callback. It'll be restarted via 
 	trigger call with <constant>SNDRV_PCM_TRIGGER_RESUME</constant>
@@ -5761,15 +5713,16 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static int __devinit snd_mychip_probe(struct pci_dev *pci,
-                               const struct pci_device_id *pci_id)
+  static int snd_mychip_probe(struct pci_dev *pci,
+                              const struct pci_device_id *pci_id)
   {
           ....
           struct snd_card *card;
           struct mychip *chip;
           int err;
           ....
-          err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+          err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                             0, &card);
           ....
           chip = kzalloc(sizeof(*chip), GFP_KERNEL);
           ....
@@ -5781,22 +5734,22 @@ struct _snd_pcm_runtime {
       </informalexample>
 
 	When you created the chip data with
-	<function>snd_card_create()</function>, it's anyway accessible
+	<function>snd_card_new()</function>, it's anyway accessible
 	via <structfield>private_data</structfield> field.
 
       <informalexample>
         <programlisting>
 <![CDATA[
-  static int __devinit snd_mychip_probe(struct pci_dev *pci,
-                               const struct pci_device_id *pci_id)
+  static int snd_mychip_probe(struct pci_dev *pci,
+                              const struct pci_device_id *pci_id)
   {
           ....
           struct snd_card *card;
           struct mychip *chip;
           int err;
           ....
-          err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-                                sizeof(struct mychip), &card);
+          err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                             sizeof(struct mychip), &card);
           ....
           chip = card->private_data;
           ....
@@ -5825,7 +5778,7 @@ struct _snd_pcm_runtime {
           .name = KBUILD_MODNAME,
           .id_table = snd_my_ids,
           .probe = snd_my_probe,
-          .remove = __devexit_p(snd_my_remove),
+          .remove = snd_my_remove,
   #ifdef CONFIG_PM
           .suspend = snd_my_suspend,
           .resume = snd_my_resume,
@@ -6193,14 +6146,12 @@ struct _snd_pcm_runtime {
 
       <para>
         The macro takes an conditional expression to evaluate.
-	When <constant>CONFIG_SND_DEBUG</constant>, is set, the
-	expression is actually evaluated. If it's non-zero, it shows
-	the warning message such as
+	When <constant>CONFIG_SND_DEBUG</constant>, is set, if the
+	expression is non-zero, it shows the warning message such as
 	<computeroutput>BUG? (xxx)</computeroutput>
-	normally followed by stack trace.  It returns the evaluated
-	value.
-	When no <constant>CONFIG_SND_DEBUG</constant> is set, this
-	macro always returns zero.
+	normally followed by stack trace.
+
+	In both cases it returns the evaluated value.
       </para>
 
     </section>

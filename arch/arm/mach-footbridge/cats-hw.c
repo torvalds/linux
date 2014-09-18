@@ -76,20 +76,22 @@ __initcall(cats_hw_init);
  * hard reboots fail on early boards.
  */
 static void __init
-fixup_cats(struct tag *tags, char **cmdline, struct meminfo *mi)
+fixup_cats(struct tag *tags, char **cmdline)
 {
+#if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 	screen_info.orig_video_lines  = 25;
 	screen_info.orig_video_points = 16;
 	screen_info.orig_y = 24;
+#endif
 }
 
 MACHINE_START(CATS, "Chalice-CATS")
 	/* Maintainer: Philip Blundell */
 	.atag_offset	= 0x100,
-	.restart_mode	= 's',
+	.reboot_mode	= REBOOT_SOFT,
 	.fixup		= fixup_cats,
 	.map_io		= footbridge_map_io,
 	.init_irq	= footbridge_init_irq,
-	.timer		= &isa_timer,
+	.init_time	= isa_timer_init,
 	.restart	= footbridge_restart,
 MACHINE_END

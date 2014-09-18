@@ -57,12 +57,13 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt)
 
 	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
 		dev_queue = netdev_get_tx_queue(dev, ntx);
-		qdisc = qdisc_create_dflt(dev_queue, &pfifo_fast_ops,
+		qdisc = qdisc_create_dflt(dev_queue, default_qdisc_ops,
 					  TC_H_MAKE(TC_H_MAJ(sch->handle),
 						    TC_H_MIN(ntx + 1)));
 		if (qdisc == NULL)
 			goto err;
 		priv->qdiscs[ntx] = qdisc;
+		qdisc->flags |= TCQ_F_ONETXQUEUE;
 	}
 
 	sch->flags |= TCQ_F_MQROOT;
@@ -77,14 +78,19 @@ static void mq_attach(struct Qdisc *sch)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mq_sched *priv = qdisc_priv(sch);
-	struct Qdisc *qdisc;
+	struct Qdisc *qdisc, *old;
 	unsigned int ntx;
 
 	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
 		qdisc = priv->qdiscs[ntx];
-		qdisc = dev_graft_qdisc(qdisc->dev_queue, qdisc);
-		if (qdisc)
-			qdisc_destroy(qdisc);
+		old = dev_graft_qdisc(qdisc->dev_queue, qdisc);
+		if (old)
+			qdisc_destroy(old);
+#ifdef CONFIG_NET_SCHED
+		if (ntx < dev->real_num_tx_queues)
+			qdisc_list_add(qdisc);
+#endif
+
 	}
 	kfree(priv->qdiscs);
 	priv->qdiscs = NULL;
@@ -150,7 +156,8 @@ static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
 		dev_deactivate(dev);
 
 	*old = dev_graft_qdisc(dev_queue, new);
-
+	if (new)
+		new->flags |= TCQ_F_ONETXQUEUE;
 	if (dev->flags & IFF_UP)
 		dev_activate(dev);
 	return 0;

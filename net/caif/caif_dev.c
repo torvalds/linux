@@ -1,11 +1,10 @@
 /*
  * CAIF Interface registration.
  * Copyright (C) ST-Ericsson AB 2010
- * Author:	Sjur Brendeland/sjur.brandeland@stericsson.com
+ * Author:	Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  *
- * Borrowed heavily from file: pn_dev.c. Thanks to
- *  Remi Denis-Courmont <remi.denis-courmont@nokia.com>
+ * Borrowed heavily from file: pn_dev.c. Thanks to Remi Denis-Courmont
  *  and Sakari Ailus <sakari.ailus@nokia.com>
  */
 
@@ -23,6 +22,7 @@
 #include <net/pkt_sched.h>
 #include <net/caif/caif_device.h>
 #include <net/caif/caif_layer.h>
+#include <net/caif/caif_dev.h>
 #include <net/caif/cfpkt.h>
 #include <net/caif/cfcnfg.h>
 #include <net/caif/cfserl.h>
@@ -91,10 +91,7 @@ static int caifd_refcnt_read(struct caif_device_entry *e)
 /* Allocate new CAIF device. */
 static struct caif_device_entry *caif_device_alloc(struct net_device *dev)
 {
-	struct caif_device_entry_list *caifdevs;
 	struct caif_device_entry *caifd;
-
-	caifdevs = caif_device_list(dev_net(dev));
 
 	caifd = kzalloc(sizeof(*caifd), GFP_KERNEL);
 	if (!caifd)
@@ -122,7 +119,7 @@ static struct caif_device_entry *caif_get(struct net_device *dev)
 	return NULL;
 }
 
-void caif_flow_cb(struct sk_buff *skb)
+static void caif_flow_cb(struct sk_buff *skb)
 {
 	struct caif_device_entry *caifd;
 	void (*dtor)(struct sk_buff *skb) = NULL;
@@ -132,6 +129,11 @@ void caif_flow_cb(struct sk_buff *skb)
 
 	rcu_read_lock();
 	caifd = caif_get(skb->dev);
+
+	WARN_ON(caifd == NULL);
+	if (caifd == NULL)
+		return;
+
 	caifd_hold(caifd);
 	rcu_read_unlock();
 
@@ -300,10 +302,11 @@ static void dev_flowctrl(struct net_device *dev, int on)
 }
 
 void caif_enroll_dev(struct net_device *dev, struct caif_dev_common *caifdev,
-			struct cflayer *link_support, int head_room,
-			struct cflayer **layer, int (**rcv_func)(
-				struct sk_buff *, struct net_device *,
-				struct packet_type *, struct net_device *))
+		     struct cflayer *link_support, int head_room,
+		     struct cflayer **layer,
+		     int (**rcv_func)(struct sk_buff *, struct net_device *,
+				      struct packet_type *,
+				      struct net_device *))
 {
 	struct caif_device_entry *caifd;
 	enum cfcnfg_phy_preference pref;
@@ -350,9 +353,9 @@ EXPORT_SYMBOL(caif_enroll_dev);
 
 /* notify Caif of device events */
 static int caif_device_notify(struct notifier_block *me, unsigned long what,
-			      void *arg)
+			      void *ptr)
 {
-	struct net_device *dev = arg;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct caif_device_entry *caifd = NULL;
 	struct caif_dev_common *caifdev;
 	struct cfcnfg *cfg;
@@ -562,9 +565,9 @@ static int __init caif_device_init(void)
 
 static void __exit caif_device_exit(void)
 {
-	unregister_pernet_subsys(&caif_net_ops);
 	unregister_netdevice_notifier(&caif_device_notifier);
 	dev_remove_pack(&caif_packet_type);
+	unregister_pernet_subsys(&caif_net_ops);
 }
 
 module_init(caif_device_init);

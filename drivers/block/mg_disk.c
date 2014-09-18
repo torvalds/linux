@@ -479,7 +479,7 @@ static unsigned int mg_out(struct mg_host *host,
 
 static void mg_read_one(struct mg_host *host, struct request *req)
 {
-	u16 *buff = (u16 *)req->buffer;
+	u16 *buff = (u16 *)bio_data(req->bio);
 	u32 i;
 
 	for (i = 0; i < MG_SECTOR_SIZE >> 1; i++)
@@ -496,7 +496,7 @@ static void mg_read(struct request *req)
 		mg_bad_rw_intr(host);
 
 	MG_DBG("requested %d sects (from %ld), buffer=0x%p\n",
-	       blk_rq_sectors(req), blk_rq_pos(req), req->buffer);
+	       blk_rq_sectors(req), blk_rq_pos(req), bio_data(req->bio));
 
 	do {
 		if (mg_wait(host, ATA_DRQ,
@@ -514,7 +514,7 @@ static void mg_read(struct request *req)
 
 static void mg_write_one(struct mg_host *host, struct request *req)
 {
-	u16 *buff = (u16 *)req->buffer;
+	u16 *buff = (u16 *)bio_data(req->bio);
 	u32 i;
 
 	for (i = 0; i < MG_SECTOR_SIZE >> 1; i++)
@@ -534,7 +534,7 @@ static void mg_write(struct request *req)
 	}
 
 	MG_DBG("requested %d sects (from %ld), buffer=0x%p\n",
-	       rem, blk_rq_pos(req), req->buffer);
+	       rem, blk_rq_pos(req), bio_data(req->bio));
 
 	if (mg_wait(host, ATA_DRQ,
 		    MG_TMAX_WAIT_WR_DRQ) != MG_ERR_NONE) {
@@ -585,7 +585,7 @@ ok_to_read:
 	mg_read_one(host, req);
 
 	MG_DBG("sector %ld, remaining=%ld, buffer=0x%p\n",
-	       blk_rq_pos(req), blk_rq_sectors(req) - 1, req->buffer);
+	       blk_rq_pos(req), blk_rq_sectors(req) - 1, bio_data(req->bio));
 
 	/* send read confirm */
 	outb(MG_CMD_RD_CONF, (unsigned long)host->dev_base + MG_REG_COMMAND);
@@ -624,7 +624,7 @@ ok_to_write:
 		/* write 1 sector and set handler if remains */
 		mg_write_one(host, req);
 		MG_DBG("sector %ld, remaining=%ld, buffer=0x%p\n",
-		       blk_rq_pos(req), blk_rq_sectors(req), req->buffer);
+		       blk_rq_pos(req), blk_rq_sectors(req), bio_data(req->bio));
 		host->mg_do_intr = mg_write_intr;
 		mod_timer(&host->timer, jiffies + 3 * HZ);
 	}
@@ -636,7 +636,7 @@ ok_to_write:
 		mg_request(host->breq);
 }
 
-void mg_times_out(unsigned long data)
+static void mg_times_out(unsigned long data)
 {
 	struct mg_host *host = (struct mg_host *)data;
 	char *name;
@@ -780,9 +780,10 @@ static const struct block_device_operations mg_disk_ops = {
 	.getgeo = mg_getgeo
 };
 
-static int mg_suspend(struct platform_device *plat_dev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int mg_suspend(struct device *dev)
 {
-	struct mg_drv_data *prv_data = plat_dev->dev.platform_data;
+	struct mg_drv_data *prv_data = dev->platform_data;
 	struct mg_host *host = prv_data->host;
 
 	if (mg_wait(host, MG_STAT_READY, MG_TMAX_CONF_TO_CMD))
@@ -804,9 +805,9 @@ static int mg_suspend(struct platform_device *plat_dev, pm_message_t state)
 	return 0;
 }
 
-static int mg_resume(struct platform_device *plat_dev)
+static int mg_resume(struct device *dev)
 {
-	struct mg_drv_data *prv_data = plat_dev->dev.platform_data;
+	struct mg_drv_data *prv_data = dev->platform_data;
 	struct mg_host *host = prv_data->host;
 
 	if (mg_wait(host, MG_STAT_READY, MG_TMAX_CONF_TO_CMD))
@@ -824,6 +825,9 @@ static int mg_resume(struct platform_device *plat_dev)
 
 	return 0;
 }
+#endif
+
+static SIMPLE_DEV_PM_OPS(mg_pm, mg_suspend, mg_resume);
 
 static int mg_probe(struct platform_device *plat_dev)
 {
@@ -888,8 +892,10 @@ static int mg_probe(struct platform_device *plat_dev)
 	gpio_direction_output(host->rst, 1);
 
 	/* reset out pin */
-	if (!(prv_data->dev_attr & MG_DEV_MASK))
+	if (!(prv_data->dev_attr & MG_DEV_MASK)) {
+		err = -EINVAL;
 		goto probe_err_3a;
+	}
 
 	if (prv_data->dev_attr != MG_BOOT_DEV) {
 		rsc = platform_get_resource_byname(plat_dev, IORESOURCE_IO,
@@ -909,7 +915,7 @@ static int mg_probe(struct platform_device *plat_dev)
 
 	/* disk reset */
 	if (prv_data->dev_attr == MG_STORAGE_DEV) {
-		/* If POR seq. not yet finised, wait */
+		/* If POR seq. not yet finished, wait */
 		err = mg_wait_rstout(host->rstout, MG_TMAX_RSTOUT);
 		if (err)
 			goto probe_err_3b;
@@ -930,7 +936,7 @@ static int mg_probe(struct platform_device *plat_dev)
 			goto probe_err_3b;
 		}
 		err = request_irq(host->irq, mg_irq,
-				IRQF_DISABLED | IRQF_TRIGGER_RISING,
+				IRQF_TRIGGER_RISING,
 				MG_DEV_NAME, host);
 		if (err) {
 			printk(KERN_ERR "%s:%d fail (request_irq err=%d)\n",
@@ -1074,11 +1080,10 @@ static int mg_remove(struct platform_device *plat_dev)
 static struct platform_driver mg_disk_driver = {
 	.probe = mg_probe,
 	.remove = mg_remove,
-	.suspend = mg_suspend,
-	.resume = mg_resume,
 	.driver = {
 		.name = MG_DEV_NAME,
 		.owner = THIS_MODULE,
+		.pm = &mg_pm,
 	}
 };
 

@@ -281,7 +281,7 @@ static void t7l66xb_detach_irq(struct platform_device *dev)
 static int t7l66xb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct t7l66xb *t7l66xb = platform_get_drvdata(dev);
-	struct t7l66xb_platform_data *pdata = dev->dev.platform_data;
+	struct t7l66xb_platform_data *pdata = dev_get_platdata(&dev->dev);
 
 	if (pdata && pdata->suspend)
 		pdata->suspend(dev);
@@ -293,7 +293,7 @@ static int t7l66xb_suspend(struct platform_device *dev, pm_message_t state)
 static int t7l66xb_resume(struct platform_device *dev)
 {
 	struct t7l66xb *t7l66xb = platform_get_drvdata(dev);
-	struct t7l66xb_platform_data *pdata = dev->dev.platform_data;
+	struct t7l66xb_platform_data *pdata = dev_get_platdata(&dev->dev);
 
 	clk_enable(t7l66xb->clk48m);
 	if (pdata && pdata->resume)
@@ -313,7 +313,7 @@ static int t7l66xb_resume(struct platform_device *dev)
 
 static int t7l66xb_probe(struct platform_device *dev)
 {
-	struct t7l66xb_platform_data *pdata = dev->dev.platform_data;
+	struct t7l66xb_platform_data *pdata = dev_get_platdata(&dev->dev);
 	struct t7l66xb *t7l66xb;
 	struct resource *iomem, *rscr;
 	int ret;
@@ -388,7 +388,7 @@ static int t7l66xb_probe(struct platform_device *dev)
 
 	ret = mfd_add_devices(&dev->dev, dev->id,
 			      t7l66xb_cells, ARRAY_SIZE(t7l66xb_cells),
-			      iomem, t7l66xb->irq_base);
+			      iomem, t7l66xb->irq_base, NULL);
 
 	if (!ret)
 		return 0;
@@ -409,7 +409,7 @@ err_noirq:
 
 static int t7l66xb_remove(struct platform_device *dev)
 {
-	struct t7l66xb_platform_data *pdata = dev->dev.platform_data;
+	struct t7l66xb_platform_data *pdata = dev_get_platdata(&dev->dev);
 	struct t7l66xb *t7l66xb = platform_get_drvdata(dev);
 	int ret;
 
@@ -422,7 +422,6 @@ static int t7l66xb_remove(struct platform_device *dev)
 	iounmap(t7l66xb->scr);
 	release_resource(&t7l66xb->rscr);
 	mfd_remove_devices(&dev->dev);
-	platform_set_drvdata(dev, NULL);
 	kfree(t7l66xb);
 
 	return ret;

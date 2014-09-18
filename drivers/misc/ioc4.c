@@ -139,13 +139,12 @@ ioc4_unregister_submodule(struct ioc4_submodule *is)
  * even though the following code utilizes external interrupt registers
  * to perform the speed calculation.
  */
-static void __devinit
+static void
 ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 {
 	union ioc4_int_out int_out;
 	union ioc4_gpcr gpcr;
 	unsigned int state, last_state = 1;
-	struct timespec start_ts, end_ts;
 	uint64_t start, end, period;
 	unsigned int count = 0;
 
@@ -174,10 +173,10 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 		if (!last_state && state) {
 			count++;
 			if (count == IOC4_CALIBRATE_END) {
-				ktime_get_ts(&end_ts);
+				end = ktime_get_ns();
 				break;
 			} else if (count == IOC4_CALIBRATE_DISCARD)
-				ktime_get_ts(&start_ts);
+				start = ktime_get_ns();
 		}
 		last_state = state;
 	} while (1);
@@ -192,8 +191,6 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 	 *    by which the IOC4 generates the square wave, to get the
 	 *    period of an IOC4 INT_OUT count.
 	 */
-	end = end_ts.tv_sec * NSEC_PER_SEC + end_ts.tv_nsec;
-	start = start_ts.tv_sec * NSEC_PER_SEC + start_ts.tv_nsec;
 	period = (end - start) /
 		(IOC4_CALIBRATE_CYCLES * 2 * (IOC4_CALIBRATE_COUNT + 1));
 
@@ -231,7 +228,7 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
  * on the same PCI bus at slot number 3 to differentiate IO9 from IO10.
  * If neither is present, it's a PCI-RT.
  */
-static unsigned int __devinit
+static unsigned int
 ioc4_variant(struct ioc4_driver_data *idd)
 {
 	struct pci_dev *pdev = NULL;
@@ -279,7 +276,7 @@ ioc4_load_modules(struct work_struct *work)
 static DECLARE_WORK(ioc4_load_modules_work, ioc4_load_modules);
 
 /* Adds a new instance of an IOC4 card */
-static int __devinit
+static int
 ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 {
 	struct ioc4_driver_data *idd;
@@ -415,7 +412,7 @@ out:
 }
 
 /* Removes a particular instance of an IOC4 card. */
-static void __devexit
+static void
 ioc4_remove(struct pci_dev *pdev)
 {
 	struct ioc4_submodule *is;
@@ -466,7 +463,7 @@ static struct pci_driver ioc4_driver = {
 	.name = "IOC4",
 	.id_table = ioc4_id_table,
 	.probe = ioc4_probe,
-	.remove = __devexit_p(ioc4_remove),
+	.remove = ioc4_remove,
 };
 
 MODULE_DEVICE_TABLE(pci, ioc4_id_table);
@@ -487,7 +484,7 @@ static void __exit
 ioc4_exit(void)
 {
 	/* Ensure ioc4_load_modules() has completed before exiting */
-	flush_work_sync(&ioc4_load_modules_work);
+	flush_work(&ioc4_load_modules_work);
 	pci_unregister_driver(&ioc4_driver);
 }
 

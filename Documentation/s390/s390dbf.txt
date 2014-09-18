@@ -143,7 +143,8 @@ Parameter:     id:   handle for debug log
 
 Return Value:  none 
 
-Description:   frees memory for a debug log     
+Description:   frees memory for a debug log and removes all registered debug
+	       views.
                Must not be called within an interrupt handler 
 
 ---------------------------------------------------------------------------
@@ -156,6 +157,16 @@ Return Value:  none
 
 Description:   Sets new actual debug level if new_level is valid. 
 
+---------------------------------------------------------------------------
+bool debug_level_enabled (debug_info_t * id, int level);
+
+Parameter:    id:	  handle for debug log
+	      level:	  debug level
+
+Return Value: True if level is less or equal to the current debug level.
+
+Description:  Returns true if debug events for the specified level would be
+	      logged. Otherwise returns false.
 ---------------------------------------------------------------------------
 void debug_stop_all(void);
 

@@ -22,19 +22,25 @@
 #include <net/act_api.h>
 #include <net/netlink.h>
 
-#define L2T(p, L)   qdisc_l2t((p)->tcfp_R_tab, L)
-#define L2T_P(p, L) qdisc_l2t((p)->tcfp_P_tab, L)
+struct tcf_police {
+	struct tcf_common	common;
+	int			tcfp_result;
+	u32			tcfp_ewma_rate;
+	s64			tcfp_burst;
+	u32			tcfp_mtu;
+	s64			tcfp_toks;
+	s64			tcfp_ptoks;
+	s64			tcfp_mtu_ptoks;
+	s64			tcfp_t_c;
+	struct psched_ratecfg	rate;
+	bool			rate_present;
+	struct psched_ratecfg	peak;
+	bool			peak_present;
+};
+#define to_police(pc)	\
+	container_of(pc, struct tcf_police, common)
 
 #define POL_TAB_MASK     15
-static struct tcf_common *tcf_police_ht[POL_TAB_MASK + 1];
-static u32 police_idx_gen;
-static DEFINE_RWLOCK(police_lock);
-
-static struct tcf_hashinfo police_hash_info = {
-	.htab	=	tcf_police_ht,
-	.hmask	=	POL_TAB_MASK,
-	.lock	=	&police_lock,
-};
 
 /* old policer structure from before tc actions */
 struct tc_police_compat {
@@ -52,18 +58,20 @@ struct tc_police_compat {
 static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *cb,
 			      int type, struct tc_action *a)
 {
+	struct tcf_hashinfo *hinfo = a->ops->hinfo;
+	struct hlist_head *head;
 	struct tcf_common *p;
 	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
 	struct nlattr *nest;
 
-	read_lock_bh(&police_lock);
+	spin_lock_bh(&hinfo->lock);
 
 	s_i = cb->args[0];
 
 	for (i = 0; i < (POL_TAB_MASK + 1); i++) {
-		p = tcf_police_ht[tcf_hash(i, POL_TAB_MASK)];
+		head = &hinfo->htab[tcf_hash(i, POL_TAB_MASK)];
 
-		for (; p; p = p->tcfc_next) {
+		hlist_for_each_entry_rcu(p, head, tcfc_head) {
 			index++;
 			if (index < s_i)
 				continue;
@@ -86,7 +94,7 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 		}
 	}
 done:
-	read_unlock_bh(&police_lock);
+	spin_unlock_bh(&hinfo->lock);
 	if (n_i)
 		cb->args[0] += n_i;
 	return n_i;
@@ -96,33 +104,6 @@ nla_put_failure:
 	goto done;
 }
 
-static void tcf_police_destroy(struct tcf_police *p)
-{
-	unsigned int h = tcf_hash(p->tcf_index, POL_TAB_MASK);
-	struct tcf_common **p1p;
-
-	for (p1p = &tcf_police_ht[h]; *p1p; p1p = &(*p1p)->tcfc_next) {
-		if (*p1p == &p->common) {
-			write_lock_bh(&police_lock);
-			*p1p = p->tcf_next;
-			write_unlock_bh(&police_lock);
-			gen_kill_estimator(&p->tcf_bstats,
-					   &p->tcf_rate_est);
-			if (p->tcfp_R_tab)
-				qdisc_put_rtab(p->tcfp_R_tab);
-			if (p->tcfp_P_tab)
-				qdisc_put_rtab(p->tcfp_P_tab);
-			/*
-			 * gen_estimator est_timer() might access p->tcf_lock
-			 * or bstats, wait a RCU grace period before freeing p
-			 */
-			kfree_rcu(p, tcf_rcu);
-			return;
-		}
-	}
-	WARN_ON(1);
-}
-
 static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
 	[TCA_POLICE_RATE]	= { .len = TC_RTAB_SIZE },
 	[TCA_POLICE_PEAKRATE]	= { .len = TC_RTAB_SIZE },
@@ -130,8 +111,9 @@ static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
 	[TCA_POLICE_RESULT]	= { .type = NLA_U32 },
 };
 
-static int tcf_act_police_locate(struct nlattr *nla, struct nlattr *est,
-				 struct tc_action *a, int ovr, int bind)
+static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
+				 struct nlattr *est, struct tc_action *a,
+				 int ovr, int bind)
 {
 	unsigned int h;
 	int ret = 0, err;
@@ -139,6 +121,7 @@ static int tcf_act_police_locate(struct nlattr *nla, struct nlattr *est,
 	struct tc_police *parm;
 	struct tcf_police *police;
 	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
+	struct tcf_hashinfo *hinfo = a->ops->hinfo;
 	int size;
 
 	if (nla == NULL)
@@ -156,19 +139,17 @@ static int tcf_act_police_locate(struct nlattr *nla, struct nlattr *est,
 	parm = nla_data(tb[TCA_POLICE_TBF]);
 
 	if (parm->index) {
-		struct tcf_common *pc;
-
-		pc = tcf_hash_lookup(parm->index, &police_hash_info);
-		if (pc != NULL) {
-			a->priv = pc;
-			police = to_police(pc);
+		if (tcf_hash_search(a, parm->index)) {
+			police = to_police(a->priv);
 			if (bind) {
 				police->tcf_bindcnt += 1;
 				police->tcf_refcnt += 1;
+				return 0;
 			}
 			if (ovr)
 				goto override;
-			return ret;
+			/* not replacing */
+			return -EEXIST;
 		}
 	}
 
@@ -211,26 +192,36 @@ override:
 	}
 
 	/* No failure allowed after this point */
-	if (R_tab != NULL) {
-		qdisc_put_rtab(police->tcfp_R_tab);
-		police->tcfp_R_tab = R_tab;
+	police->tcfp_mtu = parm->mtu;
+	if (police->tcfp_mtu == 0) {
+		police->tcfp_mtu = ~0;
+		if (R_tab)
+			police->tcfp_mtu = 255 << R_tab->rate.cell_log;
 	}
-	if (P_tab != NULL) {
-		qdisc_put_rtab(police->tcfp_P_tab);
-		police->tcfp_P_tab = P_tab;
+	if (R_tab) {
+		police->rate_present = true;
+		psched_ratecfg_precompute(&police->rate, &R_tab->rate, 0);
+		qdisc_put_rtab(R_tab);
+	} else {
+		police->rate_present = false;
+	}
+	if (P_tab) {
+		police->peak_present = true;
+		psched_ratecfg_precompute(&police->peak, &P_tab->rate, 0);
+		qdisc_put_rtab(P_tab);
+	} else {
+		police->peak_present = false;
 	}
 
 	if (tb[TCA_POLICE_RESULT])
 		police->tcfp_result = nla_get_u32(tb[TCA_POLICE_RESULT]);
-	police->tcfp_toks = police->tcfp_burst = parm->burst;
-	police->tcfp_mtu = parm->mtu;
-	if (police->tcfp_mtu == 0) {
-		police->tcfp_mtu = ~0;
-		if (police->tcfp_R_tab)
-			police->tcfp_mtu = 255<<police->tcfp_R_tab->rate.cell_log;
+	police->tcfp_burst = PSCHED_TICKS2NS(parm->burst);
+	police->tcfp_toks = police->tcfp_burst;
+	if (police->peak_present) {
+		police->tcfp_mtu_ptoks = (s64) psched_l2t_ns(&police->peak,
+							     police->tcfp_mtu);
+		police->tcfp_ptoks = police->tcfp_mtu_ptoks;
 	}
-	if (police->tcfp_P_tab)
-		police->tcfp_ptoks = L2T_P(police, police->tcfp_mtu);
 	police->tcf_action = parm->action;
 
 	if (tb[TCA_POLICE_AVRATE])
@@ -240,14 +231,13 @@ override:
 	if (ret != ACT_P_CREATED)
 		return ret;
 
-	police->tcfp_t_c = psched_get_time();
+	police->tcfp_t_c = ktime_to_ns(ktime_get());
 	police->tcf_index = parm->index ? parm->index :
-		tcf_hash_new_index(&police_idx_gen, &police_hash_info);
+		tcf_hash_new_index(hinfo);
 	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
-	write_lock_bh(&police_lock);
-	police->tcf_next = tcf_police_ht[h];
-	tcf_police_ht[h] = &police->common;
-	write_unlock_bh(&police_lock);
+	spin_lock_bh(&hinfo->lock);
+	hlist_add_head(&police->tcf_head, &hinfo->htab[h]);
+	spin_unlock_bh(&hinfo->lock);
 
 	a->priv = police;
 	return ret;
@@ -255,40 +245,20 @@ override:
 failure_unlock:
 	spin_unlock_bh(&police->tcf_lock);
 failure:
-	if (P_tab)
-		qdisc_put_rtab(P_tab);
-	if (R_tab)
-		qdisc_put_rtab(R_tab);
+	qdisc_put_rtab(P_tab);
+	qdisc_put_rtab(R_tab);
 	if (ret == ACT_P_CREATED)
 		kfree(police);
 	return err;
-}
-
-static int tcf_act_police_cleanup(struct tc_action *a, int bind)
-{
-	struct tcf_police *p = a->priv;
-	int ret = 0;
-
-	if (p != NULL) {
-		if (bind)
-			p->tcf_bindcnt--;
-
-		p->tcf_refcnt--;
-		if (p->tcf_refcnt <= 0 && !p->tcf_bindcnt) {
-			tcf_police_destroy(p);
-			ret = 1;
-		}
-	}
-	return ret;
 }
 
 static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 			  struct tcf_result *res)
 {
 	struct tcf_police *police = a->priv;
-	psched_time_t now;
-	long toks;
-	long ptoks = 0;
+	s64 now;
+	s64 toks;
+	s64 ptoks = 0;
 
 	spin_lock(&police->tcf_lock);
 
@@ -304,24 +274,25 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 	}
 
 	if (qdisc_pkt_len(skb) <= police->tcfp_mtu) {
-		if (police->tcfp_R_tab == NULL) {
+		if (!police->rate_present) {
 			spin_unlock(&police->tcf_lock);
 			return police->tcfp_result;
 		}
 
-		now = psched_get_time();
-		toks = psched_tdiff_bounded(now, police->tcfp_t_c,
-					    police->tcfp_burst);
-		if (police->tcfp_P_tab) {
+		now = ktime_to_ns(ktime_get());
+		toks = min_t(s64, now - police->tcfp_t_c,
+			     police->tcfp_burst);
+		if (police->peak_present) {
 			ptoks = toks + police->tcfp_ptoks;
-			if (ptoks > (long)L2T_P(police, police->tcfp_mtu))
-				ptoks = (long)L2T_P(police, police->tcfp_mtu);
-			ptoks -= L2T_P(police, qdisc_pkt_len(skb));
+			if (ptoks > police->tcfp_mtu_ptoks)
+				ptoks = police->tcfp_mtu_ptoks;
+			ptoks -= (s64) psched_l2t_ns(&police->peak,
+						     qdisc_pkt_len(skb));
 		}
 		toks += police->tcfp_toks;
-		if (toks > (long)police->tcfp_burst)
+		if (toks > police->tcfp_burst)
 			toks = police->tcfp_burst;
-		toks -= L2T(police, qdisc_pkt_len(skb));
+		toks -= (s64) psched_l2t_ns(&police->rate, qdisc_pkt_len(skb));
 		if ((toks|ptoks) >= 0) {
 			police->tcfp_t_c = now;
 			police->tcfp_toks = toks;
@@ -347,20 +318,23 @@ tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 		.index = police->tcf_index,
 		.action = police->tcf_action,
 		.mtu = police->tcfp_mtu,
-		.burst = police->tcfp_burst,
+		.burst = PSCHED_NS2TICKS(police->tcfp_burst),
 		.refcnt = police->tcf_refcnt - ref,
 		.bindcnt = police->tcf_bindcnt - bind,
 	};
 
-	if (police->tcfp_R_tab)
-		opt.rate = police->tcfp_R_tab->rate;
-	if (police->tcfp_P_tab)
-		opt.peakrate = police->tcfp_P_tab->rate;
-	NLA_PUT(skb, TCA_POLICE_TBF, sizeof(opt), &opt);
-	if (police->tcfp_result)
-		NLA_PUT_U32(skb, TCA_POLICE_RESULT, police->tcfp_result);
-	if (police->tcfp_ewma_rate)
-		NLA_PUT_U32(skb, TCA_POLICE_AVRATE, police->tcfp_ewma_rate);
+	if (police->rate_present)
+		psched_ratecfg_getrate(&opt.rate, &police->rate);
+	if (police->peak_present)
+		psched_ratecfg_getrate(&opt.peakrate, &police->peak);
+	if (nla_put(skb, TCA_POLICE_TBF, sizeof(opt), &opt))
+		goto nla_put_failure;
+	if (police->tcfp_result &&
+	    nla_put_u32(skb, TCA_POLICE_RESULT, police->tcfp_result))
+		goto nla_put_failure;
+	if (police->tcfp_ewma_rate &&
+	    nla_put_u32(skb, TCA_POLICE_AVRATE, police->tcfp_ewma_rate))
+		goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:
@@ -374,14 +348,10 @@ MODULE_LICENSE("GPL");
 
 static struct tc_action_ops act_police_ops = {
 	.kind		=	"police",
-	.hinfo		=	&police_hash_info,
 	.type		=	TCA_ID_POLICE,
-	.capab		=	TCA_CAP_NONE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_act_police,
 	.dump		=	tcf_act_police_dump,
-	.cleanup	=	tcf_act_police_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_act_police_locate,
 	.walk		=	tcf_act_police_walker
 };
@@ -389,7 +359,7 @@ static struct tc_action_ops act_police_ops = {
 static int __init
 police_init_module(void)
 {
-	return tcf_register_action(&act_police_ops);
+	return tcf_register_action(&act_police_ops, POL_TAB_MASK);
 }
 
 static void __exit

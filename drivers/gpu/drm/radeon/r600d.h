@@ -66,6 +66,14 @@
 #define	CC_RB_BACKEND_DISABLE				0x98F4
 #define		BACKEND_DISABLE(x)				((x) << 16)
 
+#define R_028808_CB_COLOR_CONTROL			0x28808
+#define   S_028808_SPECIAL_OP(x)                       (((x) & 0x7) << 4)
+#define   G_028808_SPECIAL_OP(x)                       (((x) >> 4) & 0x7)
+#define   C_028808_SPECIAL_OP                          0xFFFFFF8F
+#define     V_028808_SPECIAL_NORMAL                     0x00
+#define     V_028808_SPECIAL_DISABLE                    0x01
+#define     V_028808_SPECIAL_RESOLVE_BOX                0x07
+
 #define	CB_COLOR0_BASE					0x28040
 #define	CB_COLOR1_BASE					0x28044
 #define	CB_COLOR2_BASE					0x28048
@@ -92,6 +100,20 @@
 #define R_028094_CB_COLOR5_VIEW                      0x028094
 #define R_028098_CB_COLOR6_VIEW                      0x028098
 #define R_02809C_CB_COLOR7_VIEW                      0x02809C
+#define R_028100_CB_COLOR0_MASK                      0x028100
+#define   S_028100_CMASK_BLOCK_MAX(x)                  (((x) & 0xFFF) << 0)
+#define   G_028100_CMASK_BLOCK_MAX(x)                  (((x) >> 0) & 0xFFF)
+#define   C_028100_CMASK_BLOCK_MAX                     0xFFFFF000
+#define   S_028100_FMASK_TILE_MAX(x)                   (((x) & 0xFFFFF) << 12)
+#define   G_028100_FMASK_TILE_MAX(x)                   (((x) >> 12) & 0xFFFFF)
+#define   C_028100_FMASK_TILE_MAX                      0x00000FFF
+#define R_028104_CB_COLOR1_MASK                      0x028104
+#define R_028108_CB_COLOR2_MASK                      0x028108
+#define R_02810C_CB_COLOR3_MASK                      0x02810C
+#define R_028110_CB_COLOR4_MASK                      0x028110
+#define R_028114_CB_COLOR5_MASK                      0x028114
+#define R_028118_CB_COLOR6_MASK                      0x028118
+#define R_02811C_CB_COLOR7_MASK                      0x02811C
 #define CB_COLOR0_INFO                                  0x280a0
 #	define CB_FORMAT(x)				((x) << 2)
 #       define CB_ARRAY_MODE(x)                         ((x) << 8)
@@ -153,10 +175,15 @@
 
 #define	CONFIG_MEMSIZE					0x5428
 #define CONFIG_CNTL					0x5424
+#define	CP_STALLED_STAT1			0x8674
+#define	CP_STALLED_STAT2			0x8678
+#define	CP_BUSY_STAT				0x867C
 #define	CP_STAT						0x8680
 #define	CP_COHER_BASE					0x85F8
 #define	CP_DEBUG					0xC1FC
 #define	R_0086D8_CP_ME_CNTL			0x86D8
+#define		S_0086D8_CP_PFP_HALT(x)			(((x) & 1)<<26)
+#define		C_0086D8_CP_PFP_HALT(x)			((x) & 0xFBFFFFFF)
 #define		S_0086D8_CP_ME_HALT(x)			(((x) & 1)<<28)
 #define		C_0086D8_CP_ME_HALT(x)			((x) & 0xEFFFFFFF)
 #define	CP_ME_RAM_DATA					0xC160
@@ -219,6 +246,8 @@
 #define		BACKEND_MAP(x)					((x) << 16)
 
 #define GB_TILING_CONFIG				0x98F0
+#define     PIPE_TILING__SHIFT              1
+#define     PIPE_TILING__MASK               0x0000000e
 
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954
 #define		INACTIVE_QD_PIPES(x)				((x) << 8)
@@ -273,10 +302,25 @@
 #define	GRBM_SOFT_RESET					0x8020
 #define		SOFT_RESET_CP					(1<<0)
 
+#define	CG_THERMAL_CTRL					0x7F0
+#define		DIG_THERM_DPM(x)			((x) << 12)
+#define		DIG_THERM_DPM_MASK			0x000FF000
+#define		DIG_THERM_DPM_SHIFT			12
 #define	CG_THERMAL_STATUS				0x7F4
 #define		ASIC_T(x)			        ((x) << 0)
 #define		ASIC_T_MASK			        0x1FF
 #define		ASIC_T_SHIFT			        0
+#define	CG_THERMAL_INT					0x7F8
+#define		DIG_THERM_INTH(x)			((x) << 8)
+#define		DIG_THERM_INTH_MASK			0x0000FF00
+#define		DIG_THERM_INTH_SHIFT			8
+#define		DIG_THERM_INTL(x)			((x) << 16)
+#define		DIG_THERM_INTL_MASK			0x00FF0000
+#define		DIG_THERM_INTL_SHIFT			16
+#define 	THERM_INT_MASK_HIGH			(1 << 24)
+#define 	THERM_INT_MASK_LOW			(1 << 25)
+
+#define	RV770_CG_THERMAL_INT				0x734
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
 #define	HDP_NONSURFACE_BASE				0x2C04
@@ -483,6 +527,7 @@
 #define		TC_L2_SIZE(x)					((x)<<5)
 #define		L2_DISABLE_LATE_HIT				(1<<9)
 
+#define	VC_ENHANCE					0x9714
 
 #define	VGT_CACHE_INVALIDATION				0x88C4
 #define		CACHE_INVALIDATION(x)				((x)<<0)
@@ -557,14 +602,65 @@
 #define		L2_BUSY						(1 << 0)
 
 #define	WAIT_UNTIL					0x8040
+#define         WAIT_CP_DMA_IDLE_bit                            (1 << 8)
 #define         WAIT_2D_IDLE_bit                                (1 << 14)
 #define         WAIT_3D_IDLE_bit                                (1 << 15)
 #define         WAIT_2D_IDLECLEAN_bit                           (1 << 16)
 #define         WAIT_3D_IDLECLEAN_bit                           (1 << 17)
 
+/* async DMA */
+#define DMA_TILING_CONFIG                                 0x3ec4
+#define DMA_CONFIG                                        0x3e4c
+
+#define DMA_RB_CNTL                                       0xd000
+#       define DMA_RB_ENABLE                              (1 << 0)
+#       define DMA_RB_SIZE(x)                             ((x) << 1) /* log2 */
+#       define DMA_RB_SWAP_ENABLE                         (1 << 9) /* 8IN32 */
+#       define DMA_RPTR_WRITEBACK_ENABLE                  (1 << 12)
+#       define DMA_RPTR_WRITEBACK_SWAP_ENABLE             (1 << 13)  /* 8IN32 */
+#       define DMA_RPTR_WRITEBACK_TIMER(x)                ((x) << 16) /* log2 */
+#define DMA_RB_BASE                                       0xd004
+#define DMA_RB_RPTR                                       0xd008
+#define DMA_RB_WPTR                                       0xd00c
+
+#define DMA_RB_RPTR_ADDR_HI                               0xd01c
+#define DMA_RB_RPTR_ADDR_LO                               0xd020
+
+#define DMA_IB_CNTL                                       0xd024
+#       define DMA_IB_ENABLE                              (1 << 0)
+#       define DMA_IB_SWAP_ENABLE                         (1 << 4)
+#define DMA_IB_RPTR                                       0xd028
+#define DMA_CNTL                                          0xd02c
+#       define TRAP_ENABLE                                (1 << 0)
+#       define SEM_INCOMPLETE_INT_ENABLE                  (1 << 1)
+#       define SEM_WAIT_INT_ENABLE                        (1 << 2)
+#       define DATA_SWAP_ENABLE                           (1 << 3)
+#       define FENCE_SWAP_ENABLE                          (1 << 4)
+#       define CTXEMPTY_INT_ENABLE                        (1 << 28)
+#define DMA_STATUS_REG                                    0xd034
+#       define DMA_IDLE                                   (1 << 0)
+#define DMA_SEM_INCOMPLETE_TIMER_CNTL                     0xd044
+#define DMA_SEM_WAIT_FAIL_TIMER_CNTL                      0xd048
+#define DMA_MODE                                          0xd0bc
+
+/* async DMA packets */
+#define DMA_PACKET(cmd, t, s, n)	((((cmd) & 0xF) << 28) |	\
+					 (((t) & 0x1) << 23) |		\
+					 (((s) & 0x1) << 22) |		\
+					 (((n) & 0xFFFF) << 0))
+/* async DMA Packet types */
+#define	DMA_PACKET_WRITE				  0x2
+#define	DMA_PACKET_COPY					  0x3
+#define	DMA_PACKET_INDIRECT_BUFFER			  0x4
+#define	DMA_PACKET_SEMAPHORE				  0x5
+#define	DMA_PACKET_FENCE				  0x6
+#define	DMA_PACKET_TRAP					  0x7
+#define	DMA_PACKET_CONSTANT_FILL			  0xd /* 7xx only */
+#define	DMA_PACKET_NOP					  0xf
+
 #define IH_RB_CNTL                                        0x3e00
 #       define IH_RB_ENABLE                               (1 << 0)
-#       define IH_IB_SIZE(x)                              ((x) << 1) /* log2 */
+#       define IH_RB_SIZE(x)                              ((x) << 1) /* log2 */
 #       define IH_RB_FULL_DRAIN_ENABLE                    (1 << 6)
 #       define IH_WPTR_WRITEBACK_ENABLE                   (1 << 8)
 #       define IH_WPTR_WRITEBACK_TIMER(x)                 ((x) << 9) /* log2 */
@@ -596,17 +692,26 @@
 #define RLC_HB_WPTR                                       0x3f1c
 #define RLC_HB_WPTR_LSB_ADDR                              0x3f14
 #define RLC_HB_WPTR_MSB_ADDR                              0x3f18
+#define RLC_GPU_CLOCK_COUNT_LSB				  0x3f38
+#define RLC_GPU_CLOCK_COUNT_MSB				  0x3f3c
+#define RLC_CAPTURE_GPU_CLOCK_COUNT			  0x3f40
 #define RLC_MC_CNTL                                       0x3f44
 #define RLC_UCODE_CNTL                                    0x3f48
 #define RLC_UCODE_ADDR                                    0x3f2c
 #define RLC_UCODE_DATA                                    0x3f30
 
-/* new for TN */
-#define TN_RLC_SAVE_AND_RESTORE_BASE                      0x3f10
-#define TN_RLC_CLEAR_STATE_RESTORE_BASE                   0x3f20
-
 #define SRBM_SOFT_RESET                                   0xe60
+#       define SOFT_RESET_BIF                             (1 << 1)
+#       define SOFT_RESET_DMA                             (1 << 12)
 #       define SOFT_RESET_RLC                             (1 << 13)
+#       define SOFT_RESET_UVD                             (1 << 18)
+#       define RV770_SOFT_RESET_DMA                       (1 << 20)
+
+#define BIF_SCRATCH0                                      0x5438
+
+#define BUS_CNTL                                          0x5420
+#       define BIOS_ROM_DIS                               (1 << 1)
+#       define VGA_COHE_SPEC_TIMER_DIS                    (1 << 9)
 
 #define CP_INT_CNTL                                       0xc124
 #       define CNTX_BUSY_INT_ENABLE                       (1 << 19)
@@ -824,22 +929,612 @@
 #       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
 #       define SELECTABLE_DEEMPHASIS                      (1 << 6)
 
+/* Audio clocks DCE 2.0/3.0 */
+#define AUDIO_DTO                         0x7340
+#       define AUDIO_DTO_PHASE(x)         (((x) & 0xffff) << 0)
+#       define AUDIO_DTO_MODULE(x)        (((x) & 0xffff) << 16)
+
+/* Audio clocks DCE 3.2 */
+#define DCCG_AUDIO_DTO0_PHASE             0x0514
+#define DCCG_AUDIO_DTO0_MODULE            0x0518
+#define DCCG_AUDIO_DTO0_LOAD              0x051c
+#       define DTO_LOAD                   (1 << 31)
+#define DCCG_AUDIO_DTO0_CNTL              0x0520
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO(x) (((x) & 7) << 0)
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK 7
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO_SHIFT 0
+
+#define DCCG_AUDIO_DTO1_PHASE             0x0524
+#define DCCG_AUDIO_DTO1_MODULE            0x0528
+#define DCCG_AUDIO_DTO1_LOAD              0x052c
+#define DCCG_AUDIO_DTO1_CNTL              0x0530
+
+#define DCCG_AUDIO_DTO_SELECT             0x0534
+
+/* digital blocks */
+#define TMDSA_CNTL                       0x7880
+#       define TMDSA_HDMI_EN             (1 << 2)
+#define LVTMA_CNTL                       0x7a80
+#       define LVTMA_HDMI_EN             (1 << 2)
+#define DDIA_CNTL                        0x7200
+#       define DDIA_HDMI_EN              (1 << 2)
+#define DIG0_CNTL                        0x75a0
+#       define DIG_MODE(x)               (((x) & 7) << 8)
+#       define DIG_MODE_DP               0
+#       define DIG_MODE_LVDS             1
+#       define DIG_MODE_TMDS_DVI         2
+#       define DIG_MODE_TMDS_HDMI        3
+#       define DIG_MODE_SDVO             4
+#define DIG1_CNTL                        0x79a0
+
+#define AZ_F0_CODEC_PIN0_CONTROL_CHANNEL_SPEAKER          0x71bc
+#define		SPEAKER_ALLOCATION(x)			(((x) & 0x7f) << 0)
+#define		SPEAKER_ALLOCATION_MASK			(0x7f << 0)
+#define		SPEAKER_ALLOCATION_SHIFT		0
+#define		HDMI_CONNECTION				(1 << 16)
+#define		DP_CONNECTION				(1 << 17)
+
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR0        0x71c8 /* LPCM */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR1        0x71cc /* AC3 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR2        0x71d0 /* MPEG1 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR3        0x71d4 /* MP3 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR4        0x71d8 /* MPEG2 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR5        0x71dc /* AAC */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR6        0x71e0 /* DTS */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR7        0x71e4 /* ATRAC */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR8        0x71e8 /* one bit audio - leave at 0 (default) */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR9        0x71ec /* Dolby Digital */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR10       0x71f0 /* DTS-HD */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR11       0x71f4 /* MAT-MLP */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR12       0x71f8 /* DTS */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR13       0x71fc /* WMA Pro */
+#       define MAX_CHANNELS(x)                            (((x) & 0x7) << 0)
+/* max channels minus one.  7 = 8 channels */
+#       define SUPPORTED_FREQUENCIES(x)                   (((x) & 0xff) << 8)
+#       define DESCRIPTOR_BYTE_2(x)                       (((x) & 0xff) << 16)
+#       define SUPPORTED_FREQUENCIES_STEREO(x)            (((x) & 0xff) << 24) /* LPCM only */
+/* SUPPORTED_FREQUENCIES, SUPPORTED_FREQUENCIES_STEREO
+ * bit0 = 32 kHz
+ * bit1 = 44.1 kHz
+ * bit2 = 48 kHz
+ * bit3 = 88.2 kHz
+ * bit4 = 96 kHz
+ * bit5 = 176.4 kHz
+ * bit6 = 192 kHz
+ */
+
+/* rs6xx/rs740 and r6xx share the same HDMI blocks, however, rs6xx has only one
+ * instance of the blocks while r6xx has 2.  DCE 3.0 cards are slightly
+ * different due to the new DIG blocks, but also have 2 instances.
+ * DCE 3.0 HDMI blocks are part of each DIG encoder.
+ */
+
+/* rs6xx/rs740/r6xx/dce3 */
+#define HDMI0_CONTROL                0x7400
+/* rs6xx/rs740/r6xx */
+#       define HDMI0_ENABLE          (1 << 0)
+#       define HDMI0_STREAM(x)       (((x) & 3) << 2)
+#       define HDMI0_STREAM_TMDSA    0
+#       define HDMI0_STREAM_LVTMA    1
+#       define HDMI0_STREAM_DVOA     2
+#       define HDMI0_STREAM_DDIA     3
+/* rs6xx/r6xx/dce3 */
+#       define HDMI0_ERROR_ACK       (1 << 8)
+#       define HDMI0_ERROR_MASK      (1 << 9)
+#define HDMI0_STATUS                 0x7404
+#       define HDMI0_ACTIVE_AVMUTE   (1 << 0)
+#       define HDMI0_AUDIO_ENABLE    (1 << 4)
+#       define HDMI0_AZ_FORMAT_WTRIG     (1 << 28)
+#       define HDMI0_AZ_FORMAT_WTRIG_INT (1 << 29)
+#define HDMI0_AUDIO_PACKET_CONTROL   0x7408
+#       define HDMI0_AUDIO_SAMPLE_SEND  (1 << 0)
+#       define HDMI0_AUDIO_DELAY_EN(x)  (((x) & 3) << 4)
+#       define HDMI0_AUDIO_DELAY_EN_MASK	(3 << 4)
+#       define HDMI0_AUDIO_SEND_MAX_PACKETS  (1 << 8)
+#       define HDMI0_AUDIO_TEST_EN         (1 << 12)
+#       define HDMI0_AUDIO_PACKETS_PER_LINE(x)  (((x) & 0x1f) << 16)
+#       define HDMI0_AUDIO_PACKETS_PER_LINE_MASK	(0x1f << 16)
+#       define HDMI0_AUDIO_CHANNEL_SWAP    (1 << 24)
+#       define HDMI0_60958_CS_UPDATE       (1 << 26)
+#       define HDMI0_AZ_FORMAT_WTRIG_MASK  (1 << 28)
+#       define HDMI0_AZ_FORMAT_WTRIG_ACK   (1 << 29)
+#define HDMI0_AUDIO_CRC_CONTROL      0x740c
+#       define HDMI0_AUDIO_CRC_EN    (1 << 0)
+#define DCE3_HDMI0_ACR_PACKET_CONTROL	0x740c
+#define HDMI0_VBI_PACKET_CONTROL     0x7410
+#       define HDMI0_NULL_SEND       (1 << 0)
+#       define HDMI0_GC_SEND         (1 << 4)
+#       define HDMI0_GC_CONT         (1 << 5) /* 0 - once; 1 - every frame */
+#define HDMI0_INFOFRAME_CONTROL0     0x7414
+#       define HDMI0_AVI_INFO_SEND   (1 << 0)
+#       define HDMI0_AVI_INFO_CONT   (1 << 1)
+#       define HDMI0_AUDIO_INFO_SEND (1 << 4)
+#       define HDMI0_AUDIO_INFO_CONT (1 << 5)
+#       define HDMI0_AUDIO_INFO_SOURCE (1 << 6) /* 0 - sound block; 1 - hdmi regs */
+#       define HDMI0_AUDIO_INFO_UPDATE (1 << 7)
+#       define HDMI0_MPEG_INFO_SEND  (1 << 8)
+#       define HDMI0_MPEG_INFO_CONT  (1 << 9)
+#       define HDMI0_MPEG_INFO_UPDATE  (1 << 10)
+#define HDMI0_INFOFRAME_CONTROL1     0x7418
+#       define HDMI0_AVI_INFO_LINE(x)  (((x) & 0x3f) << 0)
+#       define HDMI0_AVI_INFO_LINE_MASK		(0x3f << 0)
+#       define HDMI0_AUDIO_INFO_LINE(x)  (((x) & 0x3f) << 8)
+#       define HDMI0_AUDIO_INFO_LINE_MASK	(0x3f << 8)
+#       define HDMI0_MPEG_INFO_LINE(x)  (((x) & 0x3f) << 16)
+#define HDMI0_GENERIC_PACKET_CONTROL 0x741c
+#       define HDMI0_GENERIC0_SEND   (1 << 0)
+#       define HDMI0_GENERIC0_CONT   (1 << 1)
+#       define HDMI0_GENERIC0_UPDATE (1 << 2)
+#       define HDMI0_GENERIC1_SEND   (1 << 4)
+#       define HDMI0_GENERIC1_CONT   (1 << 5)
+#       define HDMI0_GENERIC0_LINE(x)  (((x) & 0x3f) << 16)
+#       define HDMI0_GENERIC0_LINE_MASK		(0x3f << 16)
+#       define HDMI0_GENERIC1_LINE(x)  (((x) & 0x3f) << 24)
+#       define HDMI0_GENERIC1_LINE_MASK		(0x3f << 24)
+#define HDMI0_GC                     0x7428
+#       define HDMI0_GC_AVMUTE       (1 << 0)
+#define HDMI0_AVI_INFO0              0x7454
+#       define HDMI0_AVI_INFO_CHECKSUM(x)  (((x) & 0xff) << 0)
+#       define HDMI0_AVI_INFO_S(x)   (((x) & 3) << 8)
+#       define HDMI0_AVI_INFO_B(x)   (((x) & 3) << 10)
+#       define HDMI0_AVI_INFO_A(x)   (((x) & 1) << 12)
+#       define HDMI0_AVI_INFO_Y(x)   (((x) & 3) << 13)
+#       define HDMI0_AVI_INFO_Y_RGB       0
+#       define HDMI0_AVI_INFO_Y_YCBCR422  1
+#       define HDMI0_AVI_INFO_Y_YCBCR444  2
+#       define HDMI0_AVI_INFO_Y_A_B_S(x)   (((x) & 0xff) << 8)
+#       define HDMI0_AVI_INFO_R(x)   (((x) & 0xf) << 16)
+#       define HDMI0_AVI_INFO_M(x)   (((x) & 0x3) << 20)
+#       define HDMI0_AVI_INFO_C(x)   (((x) & 0x3) << 22)
+#       define HDMI0_AVI_INFO_C_M_R(x)   (((x) & 0xff) << 16)
+#       define HDMI0_AVI_INFO_SC(x)  (((x) & 0x3) << 24)
+#       define HDMI0_AVI_INFO_ITC_EC_Q_SC(x)  (((x) & 0xff) << 24)
+#define HDMI0_AVI_INFO1              0x7458
+#       define HDMI0_AVI_INFO_VIC(x) (((x) & 0x7f) << 0) /* don't use avi infoframe v1 */
+#       define HDMI0_AVI_INFO_PR(x)  (((x) & 0xf) << 8) /* don't use avi infoframe v1 */
+#       define HDMI0_AVI_INFO_TOP(x) (((x) & 0xffff) << 16)
+#define HDMI0_AVI_INFO2              0x745c
+#       define HDMI0_AVI_INFO_BOTTOM(x)  (((x) & 0xffff) << 0)
+#       define HDMI0_AVI_INFO_LEFT(x)    (((x) & 0xffff) << 16)
+#define HDMI0_AVI_INFO3              0x7460
+#       define HDMI0_AVI_INFO_RIGHT(x)    (((x) & 0xffff) << 0)
+#       define HDMI0_AVI_INFO_VERSION(x)  (((x) & 3) << 24)
+#define HDMI0_MPEG_INFO0             0x7464
+#       define HDMI0_MPEG_INFO_CHECKSUM(x)  (((x) & 0xff) << 0)
+#       define HDMI0_MPEG_INFO_MB0(x)  (((x) & 0xff) << 8)
+#       define HDMI0_MPEG_INFO_MB1(x)  (((x) & 0xff) << 16)
+#       define HDMI0_MPEG_INFO_MB2(x)  (((x) & 0xff) << 24)
+#define HDMI0_MPEG_INFO1             0x7468
+#       define HDMI0_MPEG_INFO_MB3(x)  (((x) & 0xff) << 0)
+#       define HDMI0_MPEG_INFO_MF(x)   (((x) & 3) << 8)
+#       define HDMI0_MPEG_INFO_FR(x)   (((x) & 1) << 12)
+#define HDMI0_GENERIC0_HDR           0x746c
+#define HDMI0_GENERIC0_0             0x7470
+#define HDMI0_GENERIC0_1             0x7474
+#define HDMI0_GENERIC0_2             0x7478
+#define HDMI0_GENERIC0_3             0x747c
+#define HDMI0_GENERIC0_4             0x7480
+#define HDMI0_GENERIC0_5             0x7484
+#define HDMI0_GENERIC0_6             0x7488
+#define HDMI0_GENERIC1_HDR           0x748c
+#define HDMI0_GENERIC1_0             0x7490
+#define HDMI0_GENERIC1_1             0x7494
+#define HDMI0_GENERIC1_2             0x7498
+#define HDMI0_GENERIC1_3             0x749c
+#define HDMI0_GENERIC1_4             0x74a0
+#define HDMI0_GENERIC1_5             0x74a4
+#define HDMI0_GENERIC1_6             0x74a8
+#define HDMI0_ACR_32_0               0x74ac
+#       define HDMI0_ACR_CTS_32(x)   (((x) & 0xfffff) << 12)
+#       define HDMI0_ACR_CTS_32_MASK		(0xfffff << 12)
+#define HDMI0_ACR_32_1               0x74b0
+#       define HDMI0_ACR_N_32(x)   (((x) & 0xfffff) << 0)
+#       define HDMI0_ACR_N_32_MASK		(0xfffff << 0)
+#define HDMI0_ACR_44_0               0x74b4
+#       define HDMI0_ACR_CTS_44(x)   (((x) & 0xfffff) << 12)
+#       define HDMI0_ACR_CTS_44_MASK		(0xfffff << 12)
+#define HDMI0_ACR_44_1               0x74b8
+#       define HDMI0_ACR_N_44(x)   (((x) & 0xfffff) << 0)
+#       define HDMI0_ACR_N_44_MASK		(0xfffff << 0)
+#define HDMI0_ACR_48_0               0x74bc
+#       define HDMI0_ACR_CTS_48(x)   (((x) & 0xfffff) << 12)
+#       define HDMI0_ACR_CTS_48_MASK		(0xfffff << 12)
+#define HDMI0_ACR_48_1               0x74c0
+#       define HDMI0_ACR_N_48(x)   (((x) & 0xfffff) << 0)
+#       define HDMI0_ACR_N_48_MASK		(0xfffff << 0)
+#define HDMI0_ACR_STATUS_0           0x74c4
+#define HDMI0_ACR_STATUS_1           0x74c8
+#define HDMI0_AUDIO_INFO0            0x74cc
+#       define HDMI0_AUDIO_INFO_CHECKSUM(x)  (((x) & 0xff) << 0)
+#       define HDMI0_AUDIO_INFO_CC(x)  (((x) & 7) << 8)
+#define HDMI0_AUDIO_INFO1            0x74d0
+#       define HDMI0_AUDIO_INFO_CA(x)  (((x) & 0xff) << 0)
+#       define HDMI0_AUDIO_INFO_LSV(x)  (((x) & 0xf) << 11)
+#       define HDMI0_AUDIO_INFO_DM_INH(x)  (((x) & 1) << 15)
+#       define HDMI0_AUDIO_INFO_DM_INH_LSV(x)  (((x) & 0xff) << 8)
+#define HDMI0_60958_0                0x74d4
+#       define HDMI0_60958_CS_A(x)   (((x) & 1) << 0)
+#       define HDMI0_60958_CS_B(x)   (((x) & 1) << 1)
+#       define HDMI0_60958_CS_C(x)   (((x) & 1) << 2)
+#       define HDMI0_60958_CS_D(x)   (((x) & 3) << 3)
+#       define HDMI0_60958_CS_MODE(x)   (((x) & 3) << 6)
+#       define HDMI0_60958_CS_CATEGORY_CODE(x)      (((x) & 0xff) << 8)
+#       define HDMI0_60958_CS_SOURCE_NUMBER(x)      (((x) & 0xf) << 16)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_L(x)   (((x) & 0xf) << 20)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_L_MASK	(0xf << 20)
+#       define HDMI0_60958_CS_SAMPLING_FREQUENCY(x) (((x) & 0xf) << 24)
+#       define HDMI0_60958_CS_CLOCK_ACCURACY(x)     (((x) & 3) << 28)
+#       define HDMI0_60958_CS_CLOCK_ACCURACY_MASK	(3 << 28)
+#define HDMI0_60958_1                0x74d8
+#       define HDMI0_60958_CS_WORD_LENGTH(x)        (((x) & 0xf) << 0)
+#       define HDMI0_60958_CS_ORIGINAL_SAMPLING_FREQUENCY(x)   (((x) & 0xf) << 4)
+#       define HDMI0_60958_CS_VALID_L(x)   (((x) & 1) << 16)
+#       define HDMI0_60958_CS_VALID_R(x)   (((x) & 1) << 18)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_R(x)   (((x) & 0xf) << 20)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_R_MASK	(0xf << 20)
+#define HDMI0_ACR_PACKET_CONTROL     0x74dc
+#       define HDMI0_ACR_SEND        (1 << 0)
+#       define HDMI0_ACR_CONT        (1 << 1)
+#       define HDMI0_ACR_SELECT(x)   (((x) & 3) << 4)
+#       define HDMI0_ACR_HW          0
+#       define HDMI0_ACR_32          1
+#       define HDMI0_ACR_44          2
+#       define HDMI0_ACR_48          3
+#       define HDMI0_ACR_SOURCE      (1 << 8) /* 0 - hw; 1 - cts value */
+#       define HDMI0_ACR_AUTO_SEND   (1 << 12)
+#define DCE3_HDMI0_AUDIO_CRC_CONTROL	0x74dc
+#define HDMI0_RAMP_CONTROL0          0x74e0
+#       define HDMI0_RAMP_MAX_COUNT(x)   (((x) & 0xffffff) << 0)
+#define HDMI0_RAMP_CONTROL1          0x74e4
+#       define HDMI0_RAMP_MIN_COUNT(x)   (((x) & 0xffffff) << 0)
+#define HDMI0_RAMP_CONTROL2          0x74e8
+#       define HDMI0_RAMP_INC_COUNT(x)   (((x) & 0xffffff) << 0)
+#define HDMI0_RAMP_CONTROL3          0x74ec
+#       define HDMI0_RAMP_DEC_COUNT(x)   (((x) & 0xffffff) << 0)
+/* HDMI0_60958_2 is r7xx only */
+#define HDMI0_60958_2                0x74f0
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_2(x)   (((x) & 0xf) << 0)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_3(x)   (((x) & 0xf) << 4)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_4(x)   (((x) & 0xf) << 8)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_5(x)   (((x) & 0xf) << 12)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_6(x)   (((x) & 0xf) << 16)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_7(x)   (((x) & 0xf) << 20)
+/* r6xx only; second instance starts at 0x7700 */
+#define HDMI1_CONTROL                0x7700
+#define HDMI1_STATUS                 0x7704
+#define HDMI1_AUDIO_PACKET_CONTROL   0x7708
+/* DCE3; second instance starts at 0x7800 NOT 0x7700 */
+#define DCE3_HDMI1_CONTROL                0x7800
+#define DCE3_HDMI1_STATUS                 0x7804
+#define DCE3_HDMI1_AUDIO_PACKET_CONTROL   0x7808
+/* DCE3.2 (for interrupts) */
+#define AFMT_STATUS                          0x7600
+#       define AFMT_AUDIO_ENABLE             (1 << 4)
+#       define AFMT_AZ_FORMAT_WTRIG          (1 << 28)
+#       define AFMT_AZ_FORMAT_WTRIG_INT      (1 << 29)
+#       define AFMT_AZ_AUDIO_ENABLE_CHG      (1 << 30)
+#define AFMT_AUDIO_PACKET_CONTROL            0x7604
+#       define AFMT_AUDIO_SAMPLE_SEND        (1 << 0)
+#       define AFMT_AUDIO_TEST_EN            (1 << 12)
+#       define AFMT_AUDIO_CHANNEL_SWAP       (1 << 24)
+#       define AFMT_60958_CS_UPDATE          (1 << 26)
+#       define AFMT_AZ_AUDIO_ENABLE_CHG_MASK (1 << 27)
+#       define AFMT_AZ_FORMAT_WTRIG_MASK     (1 << 28)
+#       define AFMT_AZ_FORMAT_WTRIG_ACK      (1 << 29)
+#       define AFMT_AZ_AUDIO_ENABLE_CHG_ACK  (1 << 30)
+
+/* DCE3 FMT blocks */
+#define FMT_CONTROL                          0x6700
+#       define FMT_PIXEL_ENCODING            (1 << 16)
+        /* 0 = RGB 4:4:4 or YCbCr 4:4:4, 1 = YCbCr 4:2:2 */
+#define FMT_BIT_DEPTH_CONTROL                0x6710
+#       define FMT_TRUNCATE_EN               (1 << 0)
+#       define FMT_TRUNCATE_DEPTH            (1 << 4)
+#       define FMT_SPATIAL_DITHER_EN         (1 << 8)
+#       define FMT_SPATIAL_DITHER_MODE(x)    ((x) << 9)
+#       define FMT_SPATIAL_DITHER_DEPTH      (1 << 12)
+#       define FMT_FRAME_RANDOM_ENABLE       (1 << 13)
+#       define FMT_RGB_RANDOM_ENABLE         (1 << 14)
+#       define FMT_HIGHPASS_RANDOM_ENABLE    (1 << 15)
+#       define FMT_TEMPORAL_DITHER_EN        (1 << 16)
+#       define FMT_TEMPORAL_DITHER_DEPTH     (1 << 20)
+#       define FMT_TEMPORAL_DITHER_OFFSET(x) ((x) << 21)
+#       define FMT_TEMPORAL_LEVEL            (1 << 24)
+#       define FMT_TEMPORAL_DITHER_RESET     (1 << 25)
+#       define FMT_25FRC_SEL(x)              ((x) << 26)
+#       define FMT_50FRC_SEL(x)              ((x) << 28)
+#       define FMT_75FRC_SEL(x)              ((x) << 30)
+#define FMT_CLAMP_CONTROL                    0x672c
+#       define FMT_CLAMP_DATA_EN             (1 << 0)
+#       define FMT_CLAMP_COLOR_FORMAT(x)     ((x) << 16)
+#       define FMT_CLAMP_6BPC                0
+#       define FMT_CLAMP_8BPC                1
+#       define FMT_CLAMP_10BPC               2
+
+/* Power management */
+#define CG_SPLL_FUNC_CNTL                                 0x600
+#       define SPLL_RESET                                (1 << 0)
+#       define SPLL_SLEEP                                (1 << 1)
+#       define SPLL_REF_DIV(x)                           ((x) << 2)
+#       define SPLL_REF_DIV_MASK                         (7 << 2)
+#       define SPLL_FB_DIV(x)                            ((x) << 5)
+#       define SPLL_FB_DIV_MASK                          (0xff << 5)
+#       define SPLL_PULSEEN                              (1 << 13)
+#       define SPLL_PULSENUM(x)                          ((x) << 14)
+#       define SPLL_PULSENUM_MASK                        (3 << 14)
+#       define SPLL_SW_HILEN(x)                          ((x) << 16)
+#       define SPLL_SW_HILEN_MASK                        (0xf << 16)
+#       define SPLL_SW_LOLEN(x)                          ((x) << 20)
+#       define SPLL_SW_LOLEN_MASK                        (0xf << 20)
+#       define SPLL_DIVEN                                (1 << 24)
+#       define SPLL_BYPASS_EN                            (1 << 25)
+#       define SPLL_CHG_STATUS                           (1 << 29)
+#       define SPLL_CTLREQ                               (1 << 30)
+#       define SPLL_CTLACK                               (1 << 31)
+
+#define GENERAL_PWRMGT                                    0x618
+#       define GLOBAL_PWRMGT_EN                           (1 << 0)
+#       define STATIC_PM_EN                               (1 << 1)
+#       define MOBILE_SU                                  (1 << 2)
+#       define THERMAL_PROTECTION_DIS                     (1 << 3)
+#       define THERMAL_PROTECTION_TYPE                    (1 << 4)
+#       define ENABLE_GEN2PCIE                            (1 << 5)
+#       define SW_GPIO_INDEX(x)                           ((x) << 6)
+#       define SW_GPIO_INDEX_MASK                         (3 << 6)
+#       define LOW_VOLT_D2_ACPI                           (1 << 8)
+#       define LOW_VOLT_D3_ACPI                           (1 << 9)
+#       define VOLT_PWRMGT_EN                             (1 << 10)
+#define CG_TPC                                            0x61c
+#       define TPCC(x)                                    ((x) << 0)
+#       define TPCC_MASK                                  (0x7fffff << 0)
+#       define TPU(x)                                     ((x) << 23)
+#       define TPU_MASK                                   (0x1f << 23)
+#define SCLK_PWRMGT_CNTL                                  0x620
+#       define SCLK_PWRMGT_OFF                            (1 << 0)
+#       define SCLK_TURNOFF                               (1 << 1)
+#       define SPLL_TURNOFF                               (1 << 2)
+#       define SU_SCLK_USE_BCLK                           (1 << 3)
+#       define DYNAMIC_GFX_ISLAND_PWR_DOWN                (1 << 4)
+#       define DYNAMIC_GFX_ISLAND_PWR_LP                  (1 << 5)
+#       define CLK_TURN_ON_STAGGER                        (1 << 6)
+#       define CLK_TURN_OFF_STAGGER                       (1 << 7)
+#       define FIR_FORCE_TREND_SEL                        (1 << 8)
+#       define FIR_TREND_MODE                             (1 << 9)
+#       define DYN_GFX_CLK_OFF_EN                         (1 << 10)
+#       define VDDC3D_TURNOFF_D1                          (1 << 11)
+#       define VDDC3D_TURNOFF_D2                          (1 << 12)
+#       define VDDC3D_TURNOFF_D3                          (1 << 13)
+#       define SPLL_TURNOFF_D2                            (1 << 14)
+#       define SCLK_LOW_D1                                (1 << 15)
+#       define DYN_GFX_CLK_OFF_MC_EN                      (1 << 16)
+#define MCLK_PWRMGT_CNTL                                  0x624
+#       define MPLL_PWRMGT_OFF                            (1 << 0)
+#       define YCLK_TURNOFF                               (1 << 1)
+#       define MPLL_TURNOFF                               (1 << 2)
+#       define SU_MCLK_USE_BCLK                           (1 << 3)
+#       define DLL_READY                                  (1 << 4)
+#       define MC_BUSY                                    (1 << 5)
+#       define MC_INT_CNTL                                (1 << 7)
+#       define MRDCKA_SLEEP                               (1 << 8)
+#       define MRDCKB_SLEEP                               (1 << 9)
+#       define MRDCKC_SLEEP                               (1 << 10)
+#       define MRDCKD_SLEEP                               (1 << 11)
+#       define MRDCKE_SLEEP                               (1 << 12)
+#       define MRDCKF_SLEEP                               (1 << 13)
+#       define MRDCKG_SLEEP                               (1 << 14)
+#       define MRDCKH_SLEEP                               (1 << 15)
+#       define MRDCKA_RESET                               (1 << 16)
+#       define MRDCKB_RESET                               (1 << 17)
+#       define MRDCKC_RESET                               (1 << 18)
+#       define MRDCKD_RESET                               (1 << 19)
+#       define MRDCKE_RESET                               (1 << 20)
+#       define MRDCKF_RESET                               (1 << 21)
+#       define MRDCKG_RESET                               (1 << 22)
+#       define MRDCKH_RESET                               (1 << 23)
+#       define DLL_READY_READ                             (1 << 24)
+#       define USE_DISPLAY_GAP                            (1 << 25)
+#       define USE_DISPLAY_URGENT_NORMAL                  (1 << 26)
+#       define USE_DISPLAY_GAP_CTXSW                      (1 << 27)
+#       define MPLL_TURNOFF_D2                            (1 << 28)
+#       define USE_DISPLAY_URGENT_CTXSW                   (1 << 29)
+
+#define MPLL_TIME                                         0x634
+#       define MPLL_LOCK_TIME(x)                          ((x) << 0)
+#       define MPLL_LOCK_TIME_MASK                        (0xffff << 0)
+#       define MPLL_RESET_TIME(x)                         ((x) << 16)
+#       define MPLL_RESET_TIME_MASK                       (0xffff << 16)
+
+#define SCLK_FREQ_SETTING_STEP_0_PART1                    0x648
+#       define STEP_0_SPLL_POST_DIV(x)                    ((x) << 0)
+#       define STEP_0_SPLL_POST_DIV_MASK                  (0xff << 0)
+#       define STEP_0_SPLL_FB_DIV(x)                      ((x) << 8)
+#       define STEP_0_SPLL_FB_DIV_MASK                    (0xff << 8)
+#       define STEP_0_SPLL_REF_DIV(x)                     ((x) << 16)
+#       define STEP_0_SPLL_REF_DIV_MASK                   (7 << 16)
+#       define STEP_0_SPLL_STEP_TIME(x)                   ((x) << 19)
+#       define STEP_0_SPLL_STEP_TIME_MASK                 (0x1fff << 19)
+#define SCLK_FREQ_SETTING_STEP_0_PART2                    0x64c
+#       define STEP_0_PULSE_HIGH_CNT(x)                   ((x) << 0)
+#       define STEP_0_PULSE_HIGH_CNT_MASK                 (0x1ff << 0)
+#       define STEP_0_POST_DIV_EN                         (1 << 9)
+#       define STEP_0_SPLL_STEP_ENABLE                    (1 << 30)
+#       define STEP_0_SPLL_ENTRY_VALID                    (1 << 31)
+
+#define VID_RT                                            0x6f8
+#       define VID_CRT(x)                                 ((x) << 0)
+#       define VID_CRT_MASK                               (0x1fff << 0)
+#       define VID_CRTU(x)                                ((x) << 13)
+#       define VID_CRTU_MASK                              (7 << 13)
+#       define SSTU(x)                                    ((x) << 16)
+#       define SSTU_MASK                                  (7 << 16)
+#define CTXSW_PROFILE_INDEX                               0x6fc
+#       define CTXSW_FREQ_VIDS_CFG_INDEX(x)               ((x) << 0)
+#       define CTXSW_FREQ_VIDS_CFG_INDEX_MASK             (3 << 0)
+#       define CTXSW_FREQ_VIDS_CFG_INDEX_SHIFT            0
+#       define CTXSW_FREQ_MCLK_CFG_INDEX(x)               ((x) << 2)
+#       define CTXSW_FREQ_MCLK_CFG_INDEX_MASK             (3 << 2)
+#       define CTXSW_FREQ_MCLK_CFG_INDEX_SHIFT            2
+#       define CTXSW_FREQ_SCLK_CFG_INDEX(x)               ((x) << 4)
+#       define CTXSW_FREQ_SCLK_CFG_INDEX_MASK             (0x1f << 4)
+#       define CTXSW_FREQ_SCLK_CFG_INDEX_SHIFT            4
+#       define CTXSW_FREQ_STATE_SPLL_RESET_EN             (1 << 9)
+#       define CTXSW_FREQ_STATE_ENABLE                    (1 << 10)
+#       define CTXSW_FREQ_DISPLAY_WATERMARK               (1 << 11)
+#       define CTXSW_FREQ_GEN2PCIE_VOLT                   (1 << 12)
+
+#define TARGET_AND_CURRENT_PROFILE_INDEX                  0x70c
+#       define TARGET_PROFILE_INDEX_MASK                  (3 << 0)
+#       define TARGET_PROFILE_INDEX_SHIFT                 0
+#       define CURRENT_PROFILE_INDEX_MASK                 (3 << 2)
+#       define CURRENT_PROFILE_INDEX_SHIFT                2
+#       define DYN_PWR_ENTER_INDEX(x)                     ((x) << 4)
+#       define DYN_PWR_ENTER_INDEX_MASK                   (3 << 4)
+#       define DYN_PWR_ENTER_INDEX_SHIFT                  4
+#       define CURR_MCLK_INDEX_MASK                       (3 << 6)
+#       define CURR_MCLK_INDEX_SHIFT                      6
+#       define CURR_SCLK_INDEX_MASK                       (0x1f << 8)
+#       define CURR_SCLK_INDEX_SHIFT                      8
+#       define CURR_VID_INDEX_MASK                        (3 << 13)
+#       define CURR_VID_INDEX_SHIFT                       13
+
+#define LOWER_GPIO_ENABLE                                 0x710
+#define UPPER_GPIO_ENABLE                                 0x714
+#define CTXSW_VID_LOWER_GPIO_CNTL                         0x718
+
+#define VID_UPPER_GPIO_CNTL                               0x740
+#define CG_CTX_CGTT3D_R                                   0x744
+#       define PHC(x)                                     ((x) << 0)
+#       define PHC_MASK                                   (0x1ff << 0)
+#       define SDC(x)                                     ((x) << 9)
+#       define SDC_MASK                                   (0x3fff << 9)
+#define CG_VDDC3D_OOR                                     0x748
+#       define SU(x)                                      ((x) << 23)
+#       define SU_MASK                                    (0xf << 23)
+#define CG_FTV                                            0x74c
+#define CG_FFCT_0                                         0x750
+#       define UTC_0(x)                                   ((x) << 0)
+#       define UTC_0_MASK                                 (0x3ff << 0)
+#       define DTC_0(x)                                   ((x) << 10)
+#       define DTC_0_MASK                                 (0x3ff << 10)
+
+#define CG_BSP                                            0x78c
+#       define BSP(x)                                     ((x) << 0)
+#       define BSP_MASK                                   (0xffff << 0)
+#       define BSU(x)                                     ((x) << 16)
+#       define BSU_MASK                                   (0xf << 16)
+#define CG_RT                                             0x790
+#       define FLS(x)                                     ((x) << 0)
+#       define FLS_MASK                                   (0xffff << 0)
+#       define FMS(x)                                     ((x) << 16)
+#       define FMS_MASK                                   (0xffff << 16)
+#define CG_LT                                             0x794
+#       define FHS(x)                                     ((x) << 0)
+#       define FHS_MASK                                   (0xffff << 0)
+#define CG_GIT                                            0x798
+#       define CG_GICST(x)                                ((x) << 0)
+#       define CG_GICST_MASK                              (0xffff << 0)
+#       define CG_GIPOT(x)                                ((x) << 16)
+#       define CG_GIPOT_MASK                              (0xffff << 16)
+
+#define CG_SSP                                            0x7a8
+#       define CG_SST(x)                                  ((x) << 0)
+#       define CG_SST_MASK                                (0xffff << 0)
+#       define CG_SSTU(x)                                 ((x) << 16)
+#       define CG_SSTU_MASK                               (0xf << 16)
+
+#define CG_RLC_REQ_AND_RSP                                0x7c4
+#       define RLC_CG_REQ_TYPE_MASK                       0xf
+#       define RLC_CG_REQ_TYPE_SHIFT                      0
+#       define CG_RLC_RSP_TYPE_MASK                       0xf0
+#       define CG_RLC_RSP_TYPE_SHIFT                      4
+
+#define CG_FC_T                                           0x7cc
+#       define FC_T(x)                                    ((x) << 0)
+#       define FC_T_MASK                                  (0xffff << 0)
+#       define FC_TU(x)                                   ((x) << 16)
+#       define FC_TU_MASK                                 (0x1f << 16)
+
+#define GPIOPAD_MASK                                      0x1798
+#define GPIOPAD_A                                         0x179c
+#define GPIOPAD_EN                                        0x17a0
+
+#define GRBM_PWR_CNTL                                     0x800c
+#       define REQ_TYPE_MASK                              0xf
+#       define REQ_TYPE_SHIFT                             0
+#       define RSP_TYPE_MASK                              0xf0
+#       define RSP_TYPE_SHIFT                             4
+
+/*
+ * UVD
+ */
+#define UVD_SEMA_ADDR_LOW				0xef00
+#define UVD_SEMA_ADDR_HIGH				0xef04
+#define UVD_SEMA_CMD					0xef08
+
+#define UVD_GPCOM_VCPU_CMD				0xef0c
+#define UVD_GPCOM_VCPU_DATA0				0xef10
+#define UVD_GPCOM_VCPU_DATA1				0xef14
+#define UVD_ENGINE_CNTL					0xef18
+
+#define UVD_SEMA_CNTL					0xf400
+#define UVD_RB_ARB_CTRL					0xf480
+
+#define UVD_LMI_EXT40_ADDR				0xf498
+#define UVD_CGC_GATE					0xf4a8
+#define UVD_LMI_CTRL2					0xf4f4
+#define UVD_MASTINT_EN					0xf500
+#define UVD_LMI_ADDR_EXT				0xf594
+#define UVD_LMI_CTRL					0xf598
+#define UVD_LMI_SWAP_CNTL				0xf5b4
+#define UVD_MP_SWAP_CNTL				0xf5bC
+#define UVD_MPC_CNTL					0xf5dC
+#define UVD_MPC_SET_MUXA0				0xf5e4
+#define UVD_MPC_SET_MUXA1				0xf5e8
+#define UVD_MPC_SET_MUXB0				0xf5eC
+#define UVD_MPC_SET_MUXB1				0xf5f0
+#define UVD_MPC_SET_MUX					0xf5f4
+#define UVD_MPC_SET_ALU					0xf5f8
+
+#define UVD_VCPU_CNTL					0xf660
+#define UVD_SOFT_RESET					0xf680
+#define		RBC_SOFT_RESET					(1<<0)
+#define		LBSI_SOFT_RESET					(1<<1)
+#define		LMI_SOFT_RESET					(1<<2)
+#define		VCPU_SOFT_RESET					(1<<3)
+#define		CSM_SOFT_RESET					(1<<5)
+#define		CXW_SOFT_RESET					(1<<6)
+#define		TAP_SOFT_RESET					(1<<7)
+#define		LMI_UMC_SOFT_RESET				(1<<13)
+#define UVD_RBC_IB_BASE					0xf684
+#define UVD_RBC_IB_SIZE					0xf688
+#define UVD_RBC_RB_BASE					0xf68c
+#define UVD_RBC_RB_RPTR					0xf690
+#define UVD_RBC_RB_WPTR					0xf694
+#define UVD_RBC_RB_WPTR_CNTL				0xf698
+
+#define UVD_STATUS					0xf6bc
+
+#define UVD_SEMA_TIMEOUT_STATUS				0xf6c0
+#define UVD_SEMA_WAIT_INCOMPLETE_TIMEOUT_CNTL		0xf6c4
+#define UVD_SEMA_WAIT_FAULT_TIMEOUT_CNTL		0xf6c8
+#define UVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL		0xf6cc
+
+#define UVD_RBC_RB_CNTL					0xf6a4
+#define UVD_RBC_RB_RPTR_ADDR				0xf6a8
+
+#define UVD_CONTEXT_ID					0xf6f4
+
+#	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_CTLACK_MASK				0x40000000
+#	define UPLL_CTLACK2_MASK			0x80000000
+
 /*
  * PM4
  */
-#define	PACKET_TYPE0	0
-#define	PACKET_TYPE1	1
-#define	PACKET_TYPE2	2
-#define	PACKET_TYPE3	3
-
-#define CP_PACKET_GET_TYPE(h) (((h) >> 30) & 3)
-#define CP_PACKET_GET_COUNT(h) (((h) >> 16) & 0x3FFF)
-#define CP_PACKET0_GET_REG(h) (((h) & 0xFFFF) << 2)
-#define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
-#define PACKET0(reg, n)	((PACKET_TYPE0 << 30) |				\
+#define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
 			 (((reg) >> 2) & 0xFFFF) |			\
 			 ((n) & 0x3FFF) << 16)
-#define PACKET3(op, n)	((PACKET_TYPE3 << 30) |				\
+#define PACKET3(op, n)	((RADEON_PACKET_TYPE3 << 30) |			\
 			 (((op) & 0xFF) << 8) |				\
 			 ((n) & 0x3FFF) << 16)
 
@@ -870,8 +1565,42 @@
 #define	PACKET3_WAIT_REG_MEM				0x3C
 #define	PACKET3_MEM_WRITE				0x3D
 #define	PACKET3_INDIRECT_BUFFER				0x32
+#define	PACKET3_CP_DMA					0x41
+/* 1. header
+ * 2. SRC_ADDR_LO [31:0]
+ * 3. CP_SYNC [31] | SRC_ADDR_HI [7:0]
+ * 4. DST_ADDR_LO [31:0]
+ * 5. DST_ADDR_HI [7:0]
+ * 6. COMMAND [29:22] | BYTE_COUNT [20:0]
+ */
+#              define PACKET3_CP_DMA_CP_SYNC       (1 << 31)
+/* COMMAND */
+#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 22)
+                /* 0 - none
+		 * 1 - 8 in 16
+		 * 2 - 8 in 32
+		 * 3 - 8 in 64
+		 */
+#              define PACKET3_CP_DMA_CMD_DST_SWAP(x) ((x) << 24)
+                /* 0 - none
+		 * 1 - 8 in 16
+		 * 2 - 8 in 32
+		 * 3 - 8 in 64
+		 */
+#              define PACKET3_CP_DMA_CMD_SAS       (1 << 26)
+                /* 0 - memory
+		 * 1 - register
+		 */
+#              define PACKET3_CP_DMA_CMD_DAS       (1 << 27)
+                /* 0 - memory
+		 * 1 - register
+		 */
+#              define PACKET3_CP_DMA_CMD_SAIC      (1 << 28)
+#              define PACKET3_CP_DMA_CMD_DAIC      (1 << 29)
+#define	PACKET3_PFP_SYNC_ME				0x42 /* r7xx+ only */
 #define	PACKET3_SURFACE_SYNC				0x43
 #              define PACKET3_CB0_DEST_BASE_ENA    (1 << 6)
+#              define PACKET3_FULL_CACHE_ENA       (1 << 20) /* r7xx+ only */
 #              define PACKET3_TC_ACTION_ENA        (1 << 23)
 #              define PACKET3_VC_ACTION_ENA        (1 << 24)
 #              define PACKET3_CB_ACTION_ENA        (1 << 25)
@@ -928,8 +1657,17 @@
 #define	PACKET3_SET_CTL_CONST				0x6F
 #define		PACKET3_SET_CTL_CONST_OFFSET			0x0003cff0
 #define		PACKET3_SET_CTL_CONST_END			0x0003e200
+#define	PACKET3_STRMOUT_BASE_UPDATE			0x72 /* r7xx */
 #define	PACKET3_SURFACE_BASE_UPDATE			0x73
 
+#define R_000011_K8_FB_LOCATION                 0x11
+#define R_000012_MC_MISC_UMA_CNTL               0x12
+#define   G_000012_K8_ADDR_EXT(x)               (((x) >> 0) & 0xFF)
+#define R_0028F8_MC_INDEX			0x28F8
+#define   	S_0028F8_MC_IND_ADDR(x)                 (((x) & 0x1FF) << 0)
+#define   	C_0028F8_MC_IND_ADDR                    0xFFFFFE00
+#define   	S_0028F8_MC_IND_WR_EN(x)                (((x) & 0x1) << 9)
+#define R_0028FC_MC_DATA                        0x28FC
 
 #define	R_008020_GRBM_SOFT_RESET		0x8020
 #define		S_008020_SOFT_RESET_CP(x)		(((x) & 1) << 0)
@@ -979,6 +1717,7 @@
 #define		G_008010_VC_BUSY(x)			(((x) >> 11) & 1)
 #define		G_008010_DB03_CLEAN(x)			(((x) >> 12) & 1)
 #define		G_008010_CB03_CLEAN(x)			(((x) >> 13) & 1)
+#define		G_008010_TA_BUSY(x)			(((x) >> 14) & 1)
 #define		G_008010_VGT_BUSY_NO_DMA(x)		(((x) >> 16) & 1)
 #define		G_008010_VGT_BUSY(x)			(((x) >> 17) & 1)
 #define		G_008010_TA03_BUSY(x)			(((x) >> 18) & 1)
@@ -1046,6 +1785,7 @@
 #define		G_000E50_MCDW_BUSY(x)			(((x) >> 13) & 1)
 #define		G_000E50_SEM_BUSY(x)			(((x) >> 14) & 1)
 #define		G_000E50_RLC_BUSY(x)			(((x) >> 15) & 1)
+#define		G_000E50_IH_BUSY(x)			(((x) >> 17) & 1)
 #define		G_000E50_BIF_BUSY(x)			(((x) >> 29) & 1)
 #define	R_000E60_SRBM_SOFT_RESET			0x0E60
 #define		S_000E60_SOFT_RESET_BIF(x)		(((x) & 1) << 1)
@@ -1157,6 +1897,9 @@
 #define   S_0280A0_TILE_MODE(x)                        (((x) & 0x3) << 18)
 #define   G_0280A0_TILE_MODE(x)                        (((x) >> 18) & 0x3)
 #define   C_0280A0_TILE_MODE                           0xFFF3FFFF
+#define     V_0280A0_TILE_DISABLE			0
+#define     V_0280A0_CLEAR_ENABLE			1
+#define     V_0280A0_FRAG_ENABLE			2
 #define   S_0280A0_BLEND_CLAMP(x)                      (((x) & 0x1) << 20)
 #define   G_0280A0_BLEND_CLAMP(x)                      (((x) >> 20) & 0x1)
 #define   C_0280A0_BLEND_CLAMP                         0xFFEFFFFF

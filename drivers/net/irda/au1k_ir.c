@@ -15,11 +15,10 @@
  *  for more details.
  *
  *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
+ *  with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
@@ -27,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/types.h>
+#include <linux/ioport.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irmod.h>
@@ -176,6 +176,7 @@ struct au1k_private {
 
 	struct resource *ioarea;
 	struct au1k_irda_platform_data *platdata;
+	struct clk *irda_clk;
 };
 
 static int qos_mtt_bits = 0x07;  /* 1 ms or more */
@@ -515,8 +516,38 @@ static irqreturn_t au1k_irda_interrupt(int dummy, void *dev_id)
 static int au1k_init(struct net_device *dev)
 {
 	struct au1k_private *aup = netdev_priv(dev);
-	u32 enable, ring_address;
+	u32 enable, ring_address, phyck;
+	struct clk *c;
 	int i;
+
+	c = clk_get(NULL, "irda_clk");
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	i = clk_prepare_enable(c);
+	if (i) {
+		clk_put(c);
+		return i;
+	}
+
+	switch (clk_get_rate(c)) {
+	case 40000000:
+		phyck = IR_PHYCLK_40MHZ;
+		break;
+	case 48000000:
+		phyck = IR_PHYCLK_48MHZ;
+		break;
+	case 56000000:
+		phyck = IR_PHYCLK_56MHZ;
+		break;
+	case 64000000:
+		phyck = IR_PHYCLK_64MHZ;
+		break;
+	default:
+		clk_disable_unprepare(c);
+		clk_put(c);
+		return -EINVAL;
+	}
+	aup->irda_clk = c;
 
 	enable = IR_HC | IR_CE | IR_C;
 #ifndef CONFIG_CPU_LITTLE_ENDIAN
@@ -546,7 +577,7 @@ static int au1k_init(struct net_device *dev)
 	irda_write(aup, IR_RING_SIZE,
 				(RING_SIZE_64 << 8) | (RING_SIZE_64 << 12));
 
-	irda_write(aup, IR_CONFIG_2, IR_PHYCLK_48MHZ | IR_ONE_PIN);
+	irda_write(aup, IR_CONFIG_2, phyck | IR_ONE_PIN);
 	irda_write(aup, IR_RING_ADDR_CMPR, 0);
 
 	au1k_irda_set_speed(dev, 9600);
@@ -619,6 +650,9 @@ static int au1k_irda_stop(struct net_device *dev)
 	/* disable the interrupt */
 	free_irq(aup->irq_tx, dev);
 	free_irq(aup->irq_rx, dev);
+
+	clk_disable_unprepare(aup->irda_clk);
+	clk_put(aup->irda_clk);
 
 	return 0;
 }
@@ -760,7 +794,7 @@ static const struct net_device_ops au1k_irda_netdev_ops = {
 	.ndo_do_ioctl		= au1k_irda_ioctl,
 };
 
-static int __devinit au1k_irda_net_init(struct net_device *dev)
+static int au1k_irda_net_init(struct net_device *dev)
 {
 	struct au1k_private *aup = netdev_priv(dev);
 	struct db_dest *pDB, *pDBfree;
@@ -794,7 +828,7 @@ static int __devinit au1k_irda_net_init(struct net_device *dev)
 
 	/* allocate the data buffers */
 	aup->db[0].vaddr =
-		(void *)dma_alloc(MAX_BUF_SIZE * 2 * NUM_IR_DESC, &temp);
+		dma_alloc(MAX_BUF_SIZE * 2 * NUM_IR_DESC, &temp);
 	if (!aup->db[0].vaddr)
 		goto out3;
 
@@ -849,11 +883,12 @@ out1:
 	return retval;
 }
 
-static int __devinit au1k_irda_probe(struct platform_device *pdev)
+static int au1k_irda_probe(struct platform_device *pdev)
 {
 	struct au1k_private *aup;
 	struct net_device *dev;
 	struct resource *r;
+	struct clk *c;
 	int err;
 
 	dev = alloc_irdadev(sizeof(struct au1k_private));
@@ -882,12 +917,20 @@ static int __devinit au1k_irda_probe(struct platform_device *pdev)
 		goto out;
 
 	err = -EBUSY;
-	aup->ioarea = request_mem_region(r->start, r->end - r->start + 1,
+	aup->ioarea = request_mem_region(r->start, resource_size(r),
 					 pdev->name);
 	if (!aup->ioarea)
 		goto out;
 
-	aup->iobase = ioremap_nocache(r->start, r->end - r->start + 1);
+	/* bail out early if clock doesn't exist */
+	c = clk_get(NULL, "irda_clk");
+	if (IS_ERR(c)) {
+		err = PTR_ERR(c);
+		goto out;
+	}
+	clk_put(c);
+
+	aup->iobase = ioremap_nocache(r->start, resource_size(r));
 	if (!aup->iobase)
 		goto out2;
 
@@ -921,7 +964,7 @@ out:
 	return err;
 }
 
-static int __devexit au1k_irda_remove(struct platform_device *pdev)
+static int au1k_irda_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct au1k_private *aup = netdev_priv(dev);
@@ -949,21 +992,10 @@ static struct platform_driver au1k_irda_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= au1k_irda_probe,
-	.remove		= __devexit_p(au1k_irda_remove),
+	.remove		= au1k_irda_remove,
 };
 
-static int __init au1k_irda_load(void)
-{
-	return platform_driver_register(&au1k_irda_driver);
-}
-
-static void __exit au1k_irda_unload(void)
-{
-	return platform_driver_unregister(&au1k_irda_driver);
-}
+module_platform_driver(au1k_irda_driver);
 
 MODULE_AUTHOR("Pete Popov <ppopov@mvista.com>");
 MODULE_DESCRIPTION("Au1000 IrDA Device Driver");
-
-module_init(au1k_irda_load);
-module_exit(au1k_irda_unload);

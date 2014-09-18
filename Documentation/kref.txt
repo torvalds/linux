@@ -213,3 +213,91 @@ presentation on krefs, which can be found at:
 and:
   http://www.kroah.com/linux/talks/ols_2004_kref_talk/
 
+
+The above example could also be optimized using kref_get_unless_zero() in
+the following way:
+
+static struct my_data *get_entry()
+{
+	struct my_data *entry = NULL;
+	mutex_lock(&mutex);
+	if (!list_empty(&q)) {
+		entry = container_of(q.next, struct my_data, link);
+		if (!kref_get_unless_zero(&entry->refcount))
+			entry = NULL;
+	}
+	mutex_unlock(&mutex);
+	return entry;
+}
+
+static void release_entry(struct kref *ref)
+{
+	struct my_data *entry = container_of(ref, struct my_data, refcount);
+
+	mutex_lock(&mutex);
+	list_del(&entry->link);
+	mutex_unlock(&mutex);
+	kfree(entry);
+}
+
+static void put_entry(struct my_data *entry)
+{
+	kref_put(&entry->refcount, release_entry);
+}
+
+Which is useful to remove the mutex lock around kref_put() in put_entry(), but
+it's important that kref_get_unless_zero is enclosed in the same critical
+section that finds the entry in the lookup table,
+otherwise kref_get_unless_zero may reference already freed memory.
+Note that it is illegal to use kref_get_unless_zero without checking its
+return value. If you are sure (by already having a valid pointer) that
+kref_get_unless_zero() will return true, then use kref_get() instead.
+
+The function kref_get_unless_zero also makes it possible to use rcu
+locking for lookups in the above example:
+
+struct my_data
+{
+	struct rcu_head rhead;
+	.
+	struct kref refcount;
+	.
+	.
+};
+
+static struct my_data *get_entry_rcu()
+{
+	struct my_data *entry = NULL;
+	rcu_read_lock();
+	if (!list_empty(&q)) {
+		entry = container_of(q.next, struct my_data, link);
+		if (!kref_get_unless_zero(&entry->refcount))
+			entry = NULL;
+	}
+	rcu_read_unlock();
+	return entry;
+}
+
+static void release_entry_rcu(struct kref *ref)
+{
+	struct my_data *entry = container_of(ref, struct my_data, refcount);
+
+	mutex_lock(&mutex);
+	list_del_rcu(&entry->link);
+	mutex_unlock(&mutex);
+	kfree_rcu(entry, rhead);
+}
+
+static void put_entry(struct my_data *entry)
+{
+	kref_put(&entry->refcount, release_entry_rcu);
+}
+
+But note that the struct kref member needs to remain in valid memory for a
+rcu grace period after release_entry_rcu was called. That can be accomplished
+by using kfree_rcu(entry, rhead) as done above, or by calling synchronize_rcu()
+before using kfree, but note that synchronize_rcu() may sleep for a
+substantial amount of time.
+
+
+Thomas Hellstrom <thellstrom@vmware.com>

@@ -21,7 +21,7 @@ TRACE_EVENT(drm_vblank_event,
 		    __entry->crtc = crtc;
 		    __entry->seq = seq;
 		    ),
-	    TP_printk("crtc=%d, seq=%d", __entry->crtc, __entry->seq)
+	    TP_printk("crtc=%d, seq=%u", __entry->crtc, __entry->seq)
 );
 
 TRACE_EVENT(drm_vblank_event_queued,
@@ -37,7 +37,7 @@ TRACE_EVENT(drm_vblank_event_queued,
 		    __entry->crtc = crtc;
 		    __entry->seq = seq;
 		    ),
-	    TP_printk("pid=%d, crtc=%d, seq=%d", __entry->pid, __entry->crtc, \
+	    TP_printk("pid=%d, crtc=%d, seq=%u", __entry->pid, __entry->crtc, \
 		      __entry->seq)
 );
 
@@ -54,7 +54,7 @@ TRACE_EVENT(drm_vblank_event_delivered,
 		    __entry->crtc = crtc;
 		    __entry->seq = seq;
 		    ),
-	    TP_printk("pid=%d, crtc=%d, seq=%d", __entry->pid, __entry->crtc, \
+	    TP_printk("pid=%d, crtc=%d, seq=%u", __entry->pid, __entry->crtc, \
 		      __entry->seq)
 );
 

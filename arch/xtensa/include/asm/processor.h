@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2008 Tensilica Inc.
  */
 
 #ifndef _XTENSA_PROCESSOR_H
@@ -68,7 +68,7 @@
 /* LOCKLEVEL defines the interrupt level that masks all
  * general-purpose interrupts.
  */
-#define LOCKLEVEL 1
+#define LOCKLEVEL XCHAL_EXCM_LEVEL
 
 /* WSBITS and WBBITS are the width of the WINDOWSTART and WINDOWBASE
  * registers
@@ -89,7 +89,7 @@
 #define MAKE_PC_FROM_RA(ra,sp)    (((ra) & 0x3fffffff) | ((sp) & 0xc0000000))
 
 typedef struct {
-    unsigned long seg;
+	unsigned long seg;
 } mm_segment_t;
 
 struct thread_struct {
@@ -145,13 +145,14 @@ struct thread_struct {
  *       set_thread_state in signal.c depends on it.
  */
 #define USER_PS_VALUE ((1 << PS_WOE_BIT) |				\
-                       (1 << PS_CALLINC_SHIFT) |			\
-                       (USER_RING << PS_RING_SHIFT) |			\
-                       (1 << PS_UM_BIT) |				\
-                       (1 << PS_EXCM_BIT))
+		       (1 << PS_CALLINC_SHIFT) |			\
+		       (USER_RING << PS_RING_SHIFT) |			\
+		       (1 << PS_UM_BIT) |				\
+		       (1 << PS_EXCM_BIT))
 
 /* Clearing a0 terminates the backtrace. */
 #define start_thread(regs, new_pc, new_sp) \
+	memset(regs, 0, sizeof(*regs)); \
 	regs->pc = new_pc; \
 	regs->ps = USER_PS_VALUE; \
 	regs->areg[1] = new_sp; \
@@ -168,12 +169,6 @@ struct mm_struct;
 /* Free all resources held by a thread. */
 #define release_thread(thread) do { } while(0)
 
-/* Prepare to copy thread state - unlazy all lazy status */
-extern void prepare_to_copy(struct task_struct*);
-
-/* Create a kernel thread without removing it from tasklists */
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
-
 /* Copy and release all segment info associated with a VM */
 #define copy_segments(p, mm)	do { } while(0)
 #define release_segments(mm)	do { } while(0)
@@ -187,6 +182,7 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(tsk)		(task_pt_regs(tsk)->areg[1])
 
 #define cpu_relax()  barrier()
+#define cpu_relax_lowlatency() cpu_relax()
 
 /* Special register access. */
 
@@ -195,6 +191,26 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define set_sr(x,sr) ({unsigned int v=(unsigned int)x; WSR(v,sr);})
 #define get_sr(sr) ({unsigned int v; RSR(v,sr); v; })
+
+#ifndef XCHAL_HAVE_EXTERN_REGS
+#define XCHAL_HAVE_EXTERN_REGS 0
+#endif
+
+#if XCHAL_HAVE_EXTERN_REGS
+
+static inline void set_er(unsigned long value, unsigned long addr)
+{
+	asm volatile ("wer %0, %1" : : "a" (value), "a" (addr) : "memory");
+}
+
+static inline unsigned long get_er(unsigned long addr)
+{
+	register unsigned long value;
+	asm volatile ("rer %0, %1" : "=a" (value) : "a" (addr) : "memory");
+	return value;
+}
+
+#endif /* XCHAL_HAVE_EXTERN_REGS */
 
 #endif	/* __ASSEMBLY__ */
 #endif	/* _XTENSA_PROCESSOR_H */

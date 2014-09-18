@@ -11,7 +11,6 @@
  * option) any later version.
  */
 
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -24,34 +23,36 @@ struct da9052_onkey {
 	struct da9052 *da9052;
 	struct input_dev *input;
 	struct delayed_work work;
-	unsigned int irq;
 };
 
 static void da9052_onkey_query(struct da9052_onkey *onkey)
 {
-	int key_stat;
+	int ret;
 
-	key_stat = da9052_reg_read(onkey->da9052, DA9052_EVENT_B_REG);
-	if (key_stat < 0) {
+	ret = da9052_reg_read(onkey->da9052, DA9052_STATUS_A_REG);
+	if (ret < 0) {
 		dev_err(onkey->da9052->dev,
-			"Failed to read onkey event %d\n", key_stat);
+			"Failed to read onkey event err=%d\n", ret);
 	} else {
 		/*
 		 * Since interrupt for deassertion of ONKEY pin is not
 		 * generated, onkey event state determines the onkey
 		 * button state.
 		 */
-		key_stat &= DA9052_EVENTB_ENONKEY;
-		input_report_key(onkey->input, KEY_POWER, key_stat);
-		input_sync(onkey->input);
-	}
+		bool pressed = !(ret & DA9052_STATUSA_NONKEY);
 
-	/*
-	 * Interrupt is generated only when the ONKEY pin is asserted.
-	 * Hence the deassertion of the pin is simulated through work queue.
-	 */
-	if (key_stat)
-		schedule_delayed_work(&onkey->work, msecs_to_jiffies(50));
+		input_report_key(onkey->input, KEY_POWER, pressed);
+		input_sync(onkey->input);
+
+		/*
+		 * Interrupt is generated only when the ONKEY pin
+		 * is asserted.  Hence the deassertion of the pin
+		 * is simulated through work queue.
+		 */
+		if (pressed)
+			schedule_delayed_work(&onkey->work,
+						msecs_to_jiffies(50));
+	}
 }
 
 static void da9052_onkey_work(struct work_struct *work)
@@ -71,23 +72,15 @@ static irqreturn_t da9052_onkey_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit da9052_onkey_probe(struct platform_device *pdev)
+static int da9052_onkey_probe(struct platform_device *pdev)
 {
 	struct da9052 *da9052 = dev_get_drvdata(pdev->dev.parent);
 	struct da9052_onkey *onkey;
 	struct input_dev *input_dev;
-	int irq;
 	int error;
 
 	if (!da9052) {
 		dev_err(&pdev->dev, "Failed to get the driver's data\n");
-		return -EINVAL;
-	}
-
-	irq = platform_get_irq_byname(pdev, "ONKEY");
-	if (irq < 0) {
-		dev_err(&pdev->dev,
-			"Failed to get an IRQ for input device, %d\n", irq);
 		return -EINVAL;
 	}
 
@@ -101,7 +94,6 @@ static int __devinit da9052_onkey_probe(struct platform_device *pdev)
 
 	onkey->input = input_dev;
 	onkey->da9052 = da9052;
-	onkey->irq = irq;
 	INIT_DELAYED_WORK(&onkey->work, da9052_onkey_work);
 
 	input_dev->name = "da9052-onkey";
@@ -111,13 +103,11 @@ static int __devinit da9052_onkey_probe(struct platform_device *pdev)
 	input_dev->evbit[0] = BIT_MASK(EV_KEY);
 	__set_bit(KEY_POWER, input_dev->keybit);
 
-	error = request_threaded_irq(onkey->irq, NULL, da9052_onkey_irq,
-				     IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				     "ONKEY", onkey);
+	error = da9052_request_irq(onkey->da9052, DA9052_IRQ_NONKEY, "ONKEY",
+			    da9052_onkey_irq, onkey);
 	if (error < 0) {
 		dev_err(onkey->da9052->dev,
-			"Failed to register ONKEY IRQ %d, error = %d\n",
-			onkey->irq, error);
+			"Failed to register ONKEY IRQ: %d\n", error);
 		goto err_free_mem;
 	}
 
@@ -132,7 +122,7 @@ static int __devinit da9052_onkey_probe(struct platform_device *pdev)
 	return 0;
 
 err_free_irq:
-	free_irq(onkey->irq, onkey);
+	da9052_free_irq(onkey->da9052, DA9052_IRQ_NONKEY, onkey);
 	cancel_delayed_work_sync(&onkey->work);
 err_free_mem:
 	input_free_device(input_dev);
@@ -141,11 +131,11 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit da9052_onkey_remove(struct platform_device *pdev)
+static int da9052_onkey_remove(struct platform_device *pdev)
 {
 	struct da9052_onkey *onkey = platform_get_drvdata(pdev);
 
-	free_irq(onkey->irq, onkey);
+	da9052_free_irq(onkey->da9052, DA9052_IRQ_NONKEY, onkey);
 	cancel_delayed_work_sync(&onkey->work);
 
 	input_unregister_device(onkey->input);
@@ -156,7 +146,7 @@ static int __devexit da9052_onkey_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_onkey_driver = {
 	.probe	= da9052_onkey_probe,
-	.remove	= __devexit_p(da9052_onkey_remove),
+	.remove	= da9052_onkey_remove,
 	.driver = {
 		.name	= "da9052-onkey",
 		.owner	= THIS_MODULE,

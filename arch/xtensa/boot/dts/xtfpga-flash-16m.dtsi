@@ -1,0 +1,28 @@
+/ {
+	soc {
+		flash: flash@08000000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x08000000 0x01000000>;
+			bank-width = <2>;
+			device-width = <2>;
+			partition@0x0 {
+				label = "boot loader area";
+				reg = <0x00000000 0x00400000>;
+			};
+			partition@0x400000 {
+				label = "kernel image";
+				reg = <0x00400000 0x00600000>;
+			};
+			partition@0xa00000 {
+				label = "data";
+				reg = <0x00a00000 0x005e0000>;
+			};
+			partition@0xfe0000 {
+				label = "boot environment";
+				reg = <0x00fe0000 0x00020000>;
+			};
+		};
+	};
+};

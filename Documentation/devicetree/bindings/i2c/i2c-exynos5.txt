@@ -1,0 +1,51 @@
+* Samsung's High Speed I2C controller
+
+The Samsung's High Speed I2C controller is used to interface with I2C devices
+at various speeds ranging from 100khz to 3.4Mhz.
+
+Required properties:
+  - compatible: value should be.
+	-> "samsung,exynos5-hsi2c", (DEPRECATED)
+				for i2c compatible with HSI2C available
+				on Exynos5250 and Exynos5420 SoCs.
+	-> "samsung,exynos5250-hsi2c", for i2c compatible with HSI2C available
+				on Exynos5250 and Exynos5420 SoCs.
+	-> "samsung,exynos5260-hsi2c", for i2c compatible with HSI2C available
+				on Exynos5260 SoCs.
+
+  - reg: physical base address of the controller and length of memory mapped
+    region.
+  - interrupts: interrupt number to the cpu.
+  - #address-cells: always 1 (for i2c addresses)
+  - #size-cells: always 0
+
+  - Pinctrl:
+    - pinctrl-0: Pin control group to be used for this controller.
+    - pinctrl-names: Should contain only one value - "default".
+
+Optional properties:
+  - clock-frequency: Desired operating frequency in Hz of the bus.
+    -> If not specified, the bus operates in fast-speed mode at
+       at 100khz.
+    -> If specified, the bus operates in high-speed mode only if the
+       clock-frequency is >= 1Mhz.
+
+Example:
+
+hsi2c@12ca0000 {
+	compatible = "samsung,exynos5250-hsi2c";
+	reg = <0x12ca0000 0x100>;
+	interrupts = <56>;
+	clock-frequency = <100000>;
+
+	pinctrl-0 = <&i2c4_bus>;
+	pinctrl-names = "default";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	s2mps11_pmic@66 {
+		compatible = "samsung,s2mps11-pmic";
+		reg = <0x66>;
+	};
+};

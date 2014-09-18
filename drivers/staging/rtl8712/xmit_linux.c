@@ -29,14 +29,12 @@
 #define _XMIT_OSDEP_C_
 
 #include <linux/usb.h>
+#include <linux/ip.h>
+#include <linux/if_ether.h>
 
 #include "osdep_service.h"
 #include "drv_types.h"
 
-
-#include "if_ether.h"
-#include "ip.h"
-#include "rtl871x_byteorder.h"
 #include "wifi.h"
 #include "mlme_osdep.h"
 #include "xmit_osdep.h"
@@ -53,7 +51,7 @@ void _r8712_open_pktfile(_pkt *pktptr, struct pkt_file *pfile)
 	pfile->pkt = pktptr;
 	pfile->cur_addr = pfile->buf_start = pktptr->data;
 	pfile->pkt_len = pfile->buf_len = pktptr->len;
-	pfile->cur_buffer = pfile->buf_start ;
+	pfile->cur_buffer = pfile->buf_start;
 }
 
 uint _r8712_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
@@ -136,8 +134,7 @@ int r8712_xmit_resource_alloc(struct _adapter *padapter,
 	for (i = 0; i < 8; i++) {
 		pxmitbuf->pxmit_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (pxmitbuf->pxmit_urb[i] == NULL) {
-			printk(KERN_ERR "r8712u: pxmitbuf->pxmit_urb[i]"
-			    " == NULL");
+			netdev_err(padapter->pnetdev, "pxmitbuf->pxmit_urb[i] == NULL\n");
 			return _FAIL;
 		}
 	}

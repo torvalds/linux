@@ -21,110 +21,60 @@
 #include "ar9002_initvals.h"
 #include "ar9002_phy.h"
 
-int modparam_force_new_ani;
-module_param_named(force_new_ani, modparam_force_new_ani, int, 0444);
-MODULE_PARM_DESC(force_new_ani, "Force new ANI for AR5008, AR9001, AR9002");
-
 /* General hardware code for the A5008/AR9001/AR9002 hadware families */
 
-static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
+static int ar9002_hw_init_mode_regs(struct ath_hw *ah)
 {
 	if (AR_SREV_9271(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9271Modes_9271,
-			       ARRAY_SIZE(ar9271Modes_9271), 5);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271,
-			       ARRAY_SIZE(ar9271Common_9271), 2);
-		INIT_INI_ARRAY(&ah->iniModes_9271_ANI_reg, ar9271Modes_9271_ANI_reg,
-			       ARRAY_SIZE(ar9271Modes_9271_ANI_reg), 5);
-		return;
+		INIT_INI_ARRAY(&ah->iniModes, ar9271Modes_9271);
+		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271);
+		INIT_INI_ARRAY(&ah->iniModes_9271_ANI_reg, ar9271Modes_9271_ANI_reg);
+		return 0;
 	}
 
-	if (ah->config.pcie_clock_req)
-		INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			   ar9280PciePhy_clkreq_off_L1_9280,
-			   ARRAY_SIZE(ar9280PciePhy_clkreq_off_L1_9280), 2);
-	else
-		INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			   ar9280PciePhy_clkreq_always_on_L1_9280,
-			   ARRAY_SIZE(ar9280PciePhy_clkreq_always_on_L1_9280), 2);
+	INIT_INI_ARRAY(&ah->iniPcieSerdes,
+		       ar9280PciePhy_clkreq_always_on_L1_9280);
 
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9287Modes_9287_1_1,
-				ARRAY_SIZE(ar9287Modes_9287_1_1), 5);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9287Common_9287_1_1,
-				ARRAY_SIZE(ar9287Common_9287_1_1), 2);
+		INIT_INI_ARRAY(&ah->iniModes, ar9287Modes_9287_1_1);
+		INIT_INI_ARRAY(&ah->iniCommon, ar9287Common_9287_1_1);
 	} else if (AR_SREV_9285_12_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9285Modes_9285_1_2,
-			       ARRAY_SIZE(ar9285Modes_9285_1_2), 5);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9285Common_9285_1_2,
-			       ARRAY_SIZE(ar9285Common_9285_1_2), 2);
+		INIT_INI_ARRAY(&ah->iniModes, ar9285Modes_9285_1_2);
+		INIT_INI_ARRAY(&ah->iniCommon, ar9285Common_9285_1_2);
 	} else if (AR_SREV_9280_20_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9280Modes_9280_2,
-			       ARRAY_SIZE(ar9280Modes_9280_2), 5);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9280Common_9280_2,
-			       ARRAY_SIZE(ar9280Common_9280_2), 2);
+		INIT_INI_ARRAY(&ah->iniModes, ar9280Modes_9280_2);
+		INIT_INI_ARRAY(&ah->iniCommon, ar9280Common_9280_2);
 
 		INIT_INI_ARRAY(&ah->iniModesFastClock,
-			       ar9280Modes_fast_clock_9280_2,
-			       ARRAY_SIZE(ar9280Modes_fast_clock_9280_2), 3);
+			       ar9280Modes_fast_clock_9280_2);
 	} else if (AR_SREV_9160_10_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes_9160,
-			       ARRAY_SIZE(ar5416Modes_9160), 5);
-		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common_9160,
-			       ARRAY_SIZE(ar5416Common_9160), 2);
+		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes_9160);
+		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common_9160);
 		if (AR_SREV_9160_11(ah)) {
 			INIT_INI_ARRAY(&ah->iniAddac,
-				       ar5416Addac_9160_1_1,
-				       ARRAY_SIZE(ar5416Addac_9160_1_1), 2);
+				       ar5416Addac_9160_1_1);
 		} else {
-			INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac_9160,
-				       ARRAY_SIZE(ar5416Addac_9160), 2);
+			INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac_9160);
 		}
 	} else if (AR_SREV_9100_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes_9100,
-			       ARRAY_SIZE(ar5416Modes_9100), 5);
-		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common_9100,
-			       ARRAY_SIZE(ar5416Common_9100), 2);
-		INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6_9100,
-			       ARRAY_SIZE(ar5416Bank6_9100), 3);
-		INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac_9100,
-			       ARRAY_SIZE(ar5416Addac_9100), 2);
+		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes_9100);
+		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common_9100);
+		INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac_9100);
 	} else {
-		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes,
-			       ARRAY_SIZE(ar5416Modes), 5);
-		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common,
-			       ARRAY_SIZE(ar5416Common), 2);
-		INIT_INI_ARRAY(&ah->iniBank6TPC, ar5416Bank6TPC,
-			       ARRAY_SIZE(ar5416Bank6TPC), 3);
-		INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac,
-			       ARRAY_SIZE(ar5416Addac), 2);
+		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes);
+		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common);
+		INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac);
 	}
 
 	if (!AR_SREV_9280_20_OR_LATER(ah)) {
 		/* Common for AR5416, AR913x, AR9160 */
-		INIT_INI_ARRAY(&ah->iniBB_RfGain, ar5416BB_RfGain,
-			       ARRAY_SIZE(ar5416BB_RfGain), 3);
-
-		INIT_INI_ARRAY(&ah->iniBank0, ar5416Bank0,
-			       ARRAY_SIZE(ar5416Bank0), 2);
-		INIT_INI_ARRAY(&ah->iniBank1, ar5416Bank1,
-			       ARRAY_SIZE(ar5416Bank1), 2);
-		INIT_INI_ARRAY(&ah->iniBank2, ar5416Bank2,
-			       ARRAY_SIZE(ar5416Bank2), 2);
-		INIT_INI_ARRAY(&ah->iniBank3, ar5416Bank3,
-			       ARRAY_SIZE(ar5416Bank3), 3);
-		INIT_INI_ARRAY(&ah->iniBank7, ar5416Bank7,
-			       ARRAY_SIZE(ar5416Bank7), 2);
-
-		/* Common for AR5416, AR9160 */
-		if (!AR_SREV_9100(ah))
-			INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6,
-				       ARRAY_SIZE(ar5416Bank6), 3);
+		INIT_INI_ARRAY(&ah->iniBB_RfGain, ar5416BB_RfGain);
 
 		/* Common for AR913x, AR9160 */
 		if (!AR_SREV_5416(ah))
-			INIT_INI_ARRAY(&ah->iniBank6TPC, ar5416Bank6TPC_9100,
-				       ARRAY_SIZE(ar5416Bank6TPC_9100), 3);
+			INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6TPC_9100);
+		else
+			INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6TPC);
 	}
 
 	/* iniAddac needs to be modified for these chips */
@@ -133,9 +83,9 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		u32 size = sizeof(u32) * addac->ia_rows * addac->ia_columns;
 		u32 *data;
 
-		data = kmalloc(size, GFP_KERNEL);
+		data = devm_kzalloc(ah->dev, size, GFP_KERNEL);
 		if (!data)
-			return;
+			return -ENOMEM;
 
 		memcpy(data, addac->ia_array, size);
 		addac->ia_array = data;
@@ -147,14 +97,11 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 	}
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniCckfirNormal,
-		       ar9287Common_normal_cck_fir_coeff_9287_1_1,
-		       ARRAY_SIZE(ar9287Common_normal_cck_fir_coeff_9287_1_1),
-		       2);
+		       ar9287Common_normal_cck_fir_coeff_9287_1_1);
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
-		       ar9287Common_japan_2484_cck_fir_coeff_9287_1_1,
-		       ARRAY_SIZE(ar9287Common_japan_2484_cck_fir_coeff_9287_1_1),
-		       2);
+		       ar9287Common_japan_2484_cck_fir_coeff_9287_1_1);
 	}
+	return 0;
 }
 
 static void ar9280_20_hw_init_rxgain_ini(struct ath_hw *ah)
@@ -167,20 +114,16 @@ static void ar9280_20_hw_init_rxgain_ini(struct ath_hw *ah)
 
 		if (rxgain_type == AR5416_EEP_RXGAIN_13DB_BACKOFF)
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
-			ar9280Modes_backoff_13db_rxgain_9280_2,
-			ARRAY_SIZE(ar9280Modes_backoff_13db_rxgain_9280_2), 5);
+				       ar9280Modes_backoff_13db_rxgain_9280_2);
 		else if (rxgain_type == AR5416_EEP_RXGAIN_23DB_BACKOFF)
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
-			ar9280Modes_backoff_23db_rxgain_9280_2,
-			ARRAY_SIZE(ar9280Modes_backoff_23db_rxgain_9280_2), 5);
+				       ar9280Modes_backoff_23db_rxgain_9280_2);
 		else
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
-			ar9280Modes_original_rxgain_9280_2,
-			ARRAY_SIZE(ar9280Modes_original_rxgain_9280_2), 5);
+				       ar9280Modes_original_rxgain_9280_2);
 	} else {
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
-			ar9280Modes_original_rxgain_9280_2,
-			ARRAY_SIZE(ar9280Modes_original_rxgain_9280_2), 5);
+			       ar9280Modes_original_rxgain_9280_2);
 	}
 }
 
@@ -190,16 +133,13 @@ static void ar9280_20_hw_init_txgain_ini(struct ath_hw *ah, u32 txgain_type)
 	    AR5416_EEP_MINOR_VER_19) {
 		if (txgain_type == AR5416_EEP_TXGAIN_HIGH_POWER)
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
-			ar9280Modes_high_power_tx_gain_9280_2,
-			ARRAY_SIZE(ar9280Modes_high_power_tx_gain_9280_2), 5);
+				       ar9280Modes_high_power_tx_gain_9280_2);
 		else
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
-			ar9280Modes_original_tx_gain_9280_2,
-			ARRAY_SIZE(ar9280Modes_original_tx_gain_9280_2), 5);
+				       ar9280Modes_original_tx_gain_9280_2);
 	} else {
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-		ar9280Modes_original_tx_gain_9280_2,
-		ARRAY_SIZE(ar9280Modes_original_tx_gain_9280_2), 5);
+			       ar9280Modes_original_tx_gain_9280_2);
 	}
 }
 
@@ -207,12 +147,10 @@ static void ar9271_hw_init_txgain_ini(struct ath_hw *ah, u32 txgain_type)
 {
 	if (txgain_type == AR5416_EEP_TXGAIN_HIGH_POWER)
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       ar9271Modes_high_power_tx_gain_9271,
-			       ARRAY_SIZE(ar9271Modes_high_power_tx_gain_9271), 5);
+			       ar9271Modes_high_power_tx_gain_9271);
 	else
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       ar9271Modes_normal_power_tx_gain_9271,
-			       ARRAY_SIZE(ar9271Modes_normal_power_tx_gain_9271), 5);
+			       ar9271Modes_normal_power_tx_gain_9271);
 }
 
 static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
@@ -221,8 +159,7 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 
 	if (AR_SREV_9287_11_OR_LATER(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
-		ar9287Modes_rx_gain_9287_1_1,
-		ARRAY_SIZE(ar9287Modes_rx_gain_9287_1_1), 5);
+			       ar9287Modes_rx_gain_9287_1_1);
 	else if (AR_SREV_9280_20(ah))
 		ar9280_20_hw_init_rxgain_ini(ah);
 
@@ -230,8 +167,7 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 		ar9271_hw_init_txgain_ini(ah, txgain_type);
 	} else if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-		ar9287Modes_tx_gain_9287_1_1,
-		ARRAY_SIZE(ar9287Modes_tx_gain_9287_1_1), 5);
+			       ar9287Modes_tx_gain_9287_1_1);
 	} else if (AR_SREV_9280_20(ah)) {
 		ar9280_20_hw_init_txgain_ini(ah, txgain_type);
 	} else if (AR_SREV_9285_12_OR_LATER(ah)) {
@@ -239,26 +175,18 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 		if (txgain_type == AR5416_EEP_TXGAIN_HIGH_POWER) {
 			if (AR_SREV_9285E_20(ah)) {
 				INIT_INI_ARRAY(&ah->iniModesTxGain,
-				ar9285Modes_XE2_0_high_power,
-				ARRAY_SIZE(
-				  ar9285Modes_XE2_0_high_power), 5);
+					       ar9285Modes_XE2_0_high_power);
 			} else {
 				INIT_INI_ARRAY(&ah->iniModesTxGain,
-				ar9285Modes_high_power_tx_gain_9285_1_2,
-				ARRAY_SIZE(
-				  ar9285Modes_high_power_tx_gain_9285_1_2), 5);
+					ar9285Modes_high_power_tx_gain_9285_1_2);
 			}
 		} else {
 			if (AR_SREV_9285E_20(ah)) {
 				INIT_INI_ARRAY(&ah->iniModesTxGain,
-				ar9285Modes_XE2_0_normal_power,
-				ARRAY_SIZE(
-				  ar9285Modes_XE2_0_normal_power), 5);
+					       ar9285Modes_XE2_0_normal_power);
 			} else {
 				INIT_INI_ARRAY(&ah->iniModesTxGain,
-				ar9285Modes_original_tx_gain_9285_1_2,
-				ARRAY_SIZE(
-				  ar9285Modes_original_tx_gain_9285_1_2), 5);
+					ar9285Modes_original_tx_gain_9285_1_2);
 			}
 		}
 	}
@@ -337,13 +265,12 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 			if (ah->config.pcie_waen & AR_WA_D3_L1_DISABLE)
 				val |= AR_WA_D3_L1_DISABLE;
 		} else {
-			if (((AR_SREV_9285(ah) ||
-			      AR_SREV_9271(ah) ||
-			      AR_SREV_9287(ah)) &&
-			     (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)) ||
-			    (AR_SREV_9280(ah) &&
-			     (AR9280_WA_DEFAULT & AR_WA_D3_L1_DISABLE))) {
-				val |= AR_WA_D3_L1_DISABLE;
+			if (AR_SREV_9285(ah) || AR_SREV_9271(ah) || AR_SREV_9287(ah)) {
+				if (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)
+					val |= AR_WA_D3_L1_DISABLE;
+			} else if (AR_SREV_9280(ah)) {
+				if (AR9280_WA_DEFAULT & AR_WA_D3_L1_DISABLE)
+					val |= AR_WA_D3_L1_DISABLE;
 			}
 		}
 
@@ -365,24 +292,18 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 	} else {
 		if (ah->config.pcie_waen) {
 			val = ah->config.pcie_waen;
-			if (!power_off)
-				val &= (~AR_WA_D3_L1_DISABLE);
+			val &= (~AR_WA_D3_L1_DISABLE);
 		} else {
-			if (AR_SREV_9285(ah) ||
-			    AR_SREV_9271(ah) ||
-			    AR_SREV_9287(ah)) {
+			if (AR_SREV_9285(ah) || AR_SREV_9271(ah) || AR_SREV_9287(ah)) {
 				val = AR9285_WA_DEFAULT;
-				if (!power_off)
-					val &= (~AR_WA_D3_L1_DISABLE);
-			}
-			else if (AR_SREV_9280(ah)) {
+				val &= (~AR_WA_D3_L1_DISABLE);
+			} else if (AR_SREV_9280(ah)) {
 				/*
 				 * For AR9280 chips, bit 22 of 0x4004
 				 * needs to be set.
 				 */
 				val = AR9280_WA_DEFAULT;
-				if (!power_off)
-					val &= (~AR_WA_D3_L1_DISABLE);
+				val &= (~AR_WA_D3_L1_DISABLE);
 			} else {
 				val = AR_WA_DEFAULT;
 			}
@@ -462,23 +383,46 @@ void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
 	}
 }
 
+static void ar9002_hw_init_hang_checks(struct ath_hw *ah)
+{
+	if (AR_SREV_9100(ah) || AR_SREV_9160(ah)) {
+		ah->config.hw_hang_checks |= HW_BB_RIFS_HANG;
+		ah->config.hw_hang_checks |= HW_BB_DFS_HANG;
+	}
+
+	if (AR_SREV_9280(ah))
+		ah->config.hw_hang_checks |= HW_BB_RX_CLEAR_STUCK_HANG;
+
+	if (AR_SREV_5416(ah) || AR_SREV_9100(ah) || AR_SREV_9160(ah))
+		ah->config.hw_hang_checks |= HW_MAC_HANG;
+}
+
 /* Sets up the AR5008/AR9001/AR9002 hardware familiy callbacks */
-void ar9002_hw_attach_ops(struct ath_hw *ah)
+int ar9002_hw_attach_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
+	int ret;
 
-	priv_ops->init_mode_regs = ar9002_hw_init_mode_regs;
+	ret = ar9002_hw_init_mode_regs(ah);
+	if (ret)
+		return ret;
+
 	priv_ops->init_mode_gain_regs = ar9002_hw_init_mode_gain_regs;
+	priv_ops->init_hang_checks = ar9002_hw_init_hang_checks;
 
 	ops->config_pci_powersave = ar9002_hw_configpcipowersave;
 
-	ar5008_hw_attach_phy_ops(ah);
+	ret = ar5008_hw_attach_phy_ops(ah);
+	if (ret)
+		return ret;
+
 	if (AR_SREV_9280_20_OR_LATER(ah))
 		ar9002_hw_attach_phy_ops(ah);
 
 	ar9002_hw_attach_calib_ops(ah);
 	ar9002_hw_attach_mac_ops(ah);
+	return 0;
 }
 
 void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan)
@@ -486,28 +430,10 @@ void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan)
 	u32 modesIndex;
 	int i;
 
-	switch (chan->chanmode) {
-	case CHANNEL_A:
-	case CHANNEL_A_HT20:
-		modesIndex = 1;
-		break;
-	case CHANNEL_A_HT40PLUS:
-	case CHANNEL_A_HT40MINUS:
-		modesIndex = 2;
-		break;
-	case CHANNEL_G:
-	case CHANNEL_G_HT20:
-	case CHANNEL_B:
-		modesIndex = 4;
-		break;
-	case CHANNEL_G_HT40PLUS:
-	case CHANNEL_G_HT40MINUS:
-		modesIndex = 3;
-		break;
-
-	default:
-		return;
-	}
+	if (IS_CHAN_5GHZ(chan))
+		modesIndex = IS_CHAN_HT40(chan) ? 2 : 1;
+	else
+		modesIndex = IS_CHAN_HT40(chan) ? 3 : 4;
 
 	ENABLE_REGWRITE_BUFFER(ah);
 

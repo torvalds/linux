@@ -105,6 +105,7 @@ struct p54p_priv {
 	struct sk_buff *tx_buf_data[32];
 	struct sk_buff *tx_buf_mgmt[4];
 	struct completion boot_comp;
+	struct completion fw_loaded;
 };
 
 #endif /* P54USB_H */

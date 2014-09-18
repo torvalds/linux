@@ -38,8 +38,8 @@
 #include <asm/octeon/cvmx-ipd-defs.h>
 
 enum cvmx_ipd_mode {
-   CVMX_IPD_OPC_MODE_STT = 0LL,   /* All blocks DRAM, not cached in L2 */
-   CVMX_IPD_OPC_MODE_STF = 1LL,   /* All bloccks into  L2 */
+   CVMX_IPD_OPC_MODE_STT = 0LL,	  /* All blocks DRAM, not cached in L2 */
+   CVMX_IPD_OPC_MODE_STF = 1LL,	  /* All bloccks into  L2 */
    CVMX_IPD_OPC_MODE_STF1_STT = 2LL,   /* 1st block L2, rest DRAM */
    CVMX_IPD_OPC_MODE_STF2_STT = 3LL    /* 1st, 2nd blocks L2, rest DRAM */
 };
@@ -60,17 +60,17 @@ typedef cvmx_ipd_first_next_ptr_back_t cvmx_ipd_second_next_ptr_back_t;
  *
  * @mbuff_size: Packets buffer size in 8 byte words
  * @first_mbuff_skip:
- *                   Number of 8 byte words to skip in the first buffer
+ *		     Number of 8 byte words to skip in the first buffer
  * @not_first_mbuff_skip:
- *                   Number of 8 byte words to skip in each following buffer
+ *		     Number of 8 byte words to skip in each following buffer
  * @first_back: Must be same as first_mbuff_skip / 128
  * @second_back:
- *                   Must be same as not_first_mbuff_skip / 128
+ *		     Must be same as not_first_mbuff_skip / 128
  * @wqe_fpa_pool:
- *                   FPA pool to get work entries from
+ *		     FPA pool to get work entries from
  * @cache_mode:
  * @back_pres_enable_flag:
- *                   Enable or disable port back pressure
+ *		     Enable or disable port back pressure
  */
 static inline void cvmx_ipd_config(uint64_t mbuff_size,
 				   uint64_t first_mbuff_skip,

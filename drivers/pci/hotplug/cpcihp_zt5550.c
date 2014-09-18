@@ -13,14 +13,14 @@
  * option) any later version.
  *
  * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
- * AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL 
- * THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, 
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR 
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING 
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ * THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the GNU General Public License along
@@ -48,9 +48,9 @@
 
 #define dbg(format, arg...)					\
 	do {							\
-		if(debug)					\
+		if (debug)					\
 			printk (KERN_DEBUG "%s: " format "\n",	\
-				MY_NAME , ## arg); 		\
+				MY_NAME , ## arg);		\
 	} while(0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME , ## arg)
 #define info(format, arg...) printk(KERN_INFO "%s: " format "\n", MY_NAME , ## arg)
@@ -271,7 +271,7 @@ init_hc_error:
 
 }
 
-static void __devexit zt5550_hc_remove_one(struct pci_dev *pdev)
+static void zt5550_hc_remove_one(struct pci_dev *pdev)
 {
 	cpci_hp_stop();
 	cpci_hp_unregister_bus(bus0);
@@ -285,17 +285,17 @@ static struct pci_device_id zt5550_hc_pci_tbl[] = {
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, zt5550_hc_pci_tbl);
-	
+
 static struct pci_driver zt5550_hc_driver = {
 	.name		= "zt5550_hc",
 	.id_table	= zt5550_hc_pci_tbl,
 	.probe		= zt5550_hc_init_one,
-	.remove		= __devexit_p(zt5550_hc_remove_one),
+	.remove		= zt5550_hc_remove_one,
 };
 
 static int __init zt5550_init(void)
 {
-	struct resource* r;
+	struct resource *r;
 	int rc;
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION);

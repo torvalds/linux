@@ -34,7 +34,6 @@
 #include <linux/dw_dmac.h>
 
 #include <mach/cpu.h>
-#include <mach/gpio.h>
 
 #ifdef CONFIG_ARCH_AT91
 #include <mach/hardware.h>
@@ -182,7 +181,7 @@ static int atmel_ac97c_playback_open(struct snd_pcm_substream *substream)
 		runtime->hw.rate_max = chip->cur_rate;
 	}
 	if (chip->cur_format)
-		runtime->hw.formats = (1ULL << chip->cur_format);
+		runtime->hw.formats = pcm_format_to_bits(chip->cur_format);
 	mutex_unlock(&opened_mutex);
 	chip->playback_substream = substream;
 	return 0;
@@ -201,7 +200,7 @@ static int atmel_ac97c_capture_open(struct snd_pcm_substream *substream)
 		runtime->hw.rate_max = chip->cur_rate;
 	}
 	if (chip->cur_format)
-		runtime->hw.formats = (1ULL << chip->cur_format);
+		runtime->hw.formats = pcm_format_to_bits(chip->cur_format);
 	mutex_unlock(&opened_mutex);
 	chip->capture_substream = substream;
 	return 0;
@@ -278,14 +277,9 @@ static int atmel_ac97c_capture_hw_params(struct snd_pcm_substream *substream,
 	if (retval < 0)
 		return retval;
 	/* snd_pcm_lib_malloc_pages returns 1 if buffer is changed. */
-	if (cpu_is_at32ap7000()) {
-		if (retval < 0)
-			return retval;
-		/* snd_pcm_lib_malloc_pages returns 1 if buffer is changed. */
-		if (retval == 1)
-			if (test_and_clear_bit(DMA_RX_READY, &chip->flags))
-				dw_dma_cyclic_free(chip->dma.rx_chan);
-	}
+	if (cpu_is_at32ap7000() && retval == 1)
+		if (test_and_clear_bit(DMA_RX_READY, &chip->flags))
+			dw_dma_cyclic_free(chip->dma.rx_chan);
 
 	/* Set restrictions to params. */
 	mutex_lock(&opened_mutex);
@@ -733,7 +727,7 @@ static irqreturn_t atmel_ac97c_interrupt(int irq, void *dev)
 	return retval;
 }
 
-static struct ac97_pcm at91_ac97_pcm_defs[] __devinitdata = {
+static struct ac97_pcm at91_ac97_pcm_defs[] = {
 	/* Playback */
 	{
 		.exclusive = 1,
@@ -761,7 +755,7 @@ static struct ac97_pcm at91_ac97_pcm_defs[] __devinitdata = {
 	},
 };
 
-static int __devinit atmel_ac97c_pcm_new(struct atmel_ac97c *chip)
+static int atmel_ac97c_pcm_new(struct atmel_ac97c *chip)
 {
 	struct snd_pcm		*pcm;
 	struct snd_pcm_hardware	hw = atmel_ac97c_hw;
@@ -907,7 +901,7 @@ static void atmel_ac97c_reset(struct atmel_ac97c *chip)
 	}
 }
 
-static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
+static int atmel_ac97c_probe(struct platform_device *pdev)
 {
 	struct snd_card			*card;
 	struct atmel_ac97c		*chip;
@@ -951,8 +945,9 @@ static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
 	}
 	clk_enable(pclk);
 
-	retval = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			THIS_MODULE, sizeof(struct atmel_ac97c), &card);
+	retval = snd_card_new(&pdev->dev, SNDRV_DEFAULT_IDX1,
+			      SNDRV_DEFAULT_STR1, THIS_MODULE,
+			      sizeof(struct atmel_ac97c), &card);
 	if (retval) {
 		dev_dbg(&pdev->dev, "could not create sound card device\n");
 		goto err_snd_card_new;
@@ -980,6 +975,7 @@ static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
 
 	if (!chip->regs) {
 		dev_dbg(&pdev->dev, "could not remap register memory\n");
+		retval = -ENOMEM;
 		goto err_ioremap;
 	}
 
@@ -991,9 +987,9 @@ static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
 			gpio_direction_output(pdata->reset_pin, 1);
 			chip->reset_pin = pdata->reset_pin;
 		}
+	} else {
+		chip->reset_pin = -EINVAL;
 	}
-
-	snd_card_set_dev(card, &pdev->dev);
 
 	atmel_ac97c_reset(chip);
 
@@ -1116,8 +1112,6 @@ err_dma:
 		chip->dma.tx_chan = NULL;
 	}
 err_ac97_bus:
-	snd_card_set_dev(card, NULL);
-
 	if (gpio_is_valid(chip->reset_pin))
 		gpio_free(chip->reset_pin);
 
@@ -1132,10 +1126,10 @@ err_snd_card_new:
 	return retval;
 }
 
-#ifdef CONFIG_PM
-static int atmel_ac97c_suspend(struct platform_device *pdev, pm_message_t msg)
+#ifdef CONFIG_PM_SLEEP
+static int atmel_ac97c_suspend(struct device *pdev)
 {
-	struct snd_card *card = platform_get_drvdata(pdev);
+	struct snd_card *card = dev_get_drvdata(pdev);
 	struct atmel_ac97c *chip = card->private_data;
 
 	if (cpu_is_at32ap7000()) {
@@ -1149,9 +1143,9 @@ static int atmel_ac97c_suspend(struct platform_device *pdev, pm_message_t msg)
 	return 0;
 }
 
-static int atmel_ac97c_resume(struct platform_device *pdev)
+static int atmel_ac97c_resume(struct device *pdev)
 {
-	struct snd_card *card = platform_get_drvdata(pdev);
+	struct snd_card *card = dev_get_drvdata(pdev);
 	struct atmel_ac97c *chip = card->private_data;
 
 	clk_enable(chip->pclk);
@@ -1163,12 +1157,14 @@ static int atmel_ac97c_resume(struct platform_device *pdev)
 	}
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(atmel_ac97c_pm, atmel_ac97c_suspend, atmel_ac97c_resume);
+#define ATMEL_AC97C_PM_OPS	&atmel_ac97c_pm
 #else
-#define atmel_ac97c_suspend NULL
-#define atmel_ac97c_resume NULL
+#define ATMEL_AC97C_PM_OPS	NULL
 #endif
 
-static int __devexit atmel_ac97c_remove(struct platform_device *pdev)
+static int atmel_ac97c_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 	struct atmel_ac97c *chip = get_chip(card);
@@ -1196,35 +1192,21 @@ static int __devexit atmel_ac97c_remove(struct platform_device *pdev)
 		chip->dma.tx_chan = NULL;
 	}
 
-	snd_card_set_dev(card, NULL);
 	snd_card_free(card);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
 static struct platform_driver atmel_ac97c_driver = {
-	.remove		= __devexit_p(atmel_ac97c_remove),
+	.probe		= atmel_ac97c_probe,
+	.remove		= atmel_ac97c_remove,
 	.driver		= {
 		.name	= "atmel_ac97c",
+		.owner	= THIS_MODULE,
+		.pm	= ATMEL_AC97C_PM_OPS,
 	},
-	.suspend	= atmel_ac97c_suspend,
-	.resume		= atmel_ac97c_resume,
 };
-
-static int __init atmel_ac97c_init(void)
-{
-	return platform_driver_probe(&atmel_ac97c_driver,
-			atmel_ac97c_probe);
-}
-module_init(atmel_ac97c_init);
-
-static void __exit atmel_ac97c_exit(void)
-{
-	platform_driver_unregister(&atmel_ac97c_driver);
-}
-module_exit(atmel_ac97c_exit);
+module_platform_driver(atmel_ac97c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for Atmel AC97 controller");

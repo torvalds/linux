@@ -224,8 +224,8 @@ vxfs_iinit(struct inode *ip, struct vxfs_inode_info *vip)
 {
 
 	ip->i_mode = vxfs_transmod(vip);
-	ip->i_uid = (uid_t)vip->vii_uid;
-	ip->i_gid = (gid_t)vip->vii_gid;
+	i_uid_write(ip, (uid_t)vip->vii_uid);
+	i_gid_write(ip, (gid_t)vip->vii_gid);
 
 	set_nlink(ip, vip->vii_nlink);
 	ip->i_size = vip->vii_size;
@@ -354,7 +354,7 @@ static void vxfs_i_callback(struct rcu_head *head)
 void
 vxfs_evict_inode(struct inode *ip)
 {
-	truncate_inode_pages(&ip->i_data, 0);
-	end_writeback(ip);
+	truncate_inode_pages_final(&ip->i_data);
+	clear_inode(ip);
 	call_rcu(&ip->i_rcu, vxfs_i_callback);
 }

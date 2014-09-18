@@ -7,10 +7,7 @@
  * published by the Free Software Foundation.
  */
 
-#include "mux2420.h"
-#include "mux2430.h"
 #include "mux34xx.h"
-#include "mux44xx.h"
 
 #define OMAP_MUX_TERMINATOR	0xffff
 
@@ -29,7 +26,7 @@
 #define OMAP_PULL_UP			(1 << 4)
 #define OMAP_ALTELECTRICALSEL		(1 << 5)
 
-/* 34xx specific mux bit defines */
+/* omap3/4/5 specific mux bit defines */
 #define OMAP_INPUT_EN			(1 << 8)
 #define OMAP_OFF_EN			(1 << 9)
 #define OMAP_OFFOUT_EN			(1 << 10)
@@ -37,8 +34,6 @@
 #define OMAP_OFF_PULL_EN		(1 << 12)
 #define OMAP_OFF_PULL_UP		(1 << 13)
 #define OMAP_WAKEUP_EN			(1 << 14)
-
-/* 44xx specific mux bit defines */
 #define OMAP_WAKEUP_EVENT		(1 << 15)
 
 /* Active pin states */
@@ -58,19 +53,16 @@
 #define OMAP_PIN_OFF_INPUT_PULLDOWN	(OMAP_OFF_EN | OMAP_OFF_PULL_EN)
 #define OMAP_PIN_OFF_WAKEUPENABLE	OMAP_WAKEUP_EN
 
-#define OMAP_MODE_GPIO(x)	(((x) & OMAP_MUX_MODE7) == OMAP_MUX_MODE4)
+#define OMAP_MODE_GPIO(partition, x)	(((x) & OMAP_MUX_MODE7) == \
+					  partition->gpio)
+#define OMAP_MODE_UART(x)	(((x) & OMAP_MUX_MODE7) == OMAP_MUX_MODE0)
 
 /* Flags for omapX_mux_init */
 #define OMAP_PACKAGE_MASK		0xffff
-#define OMAP_PACKAGE_CBS		8		/* 547-pin 0.40 0.40 */
-#define OMAP_PACKAGE_CBL		7		/* 547-pin 0.40 0.40 */
 #define OMAP_PACKAGE_CBP		6		/* 515-pin 0.40 0.50 */
 #define OMAP_PACKAGE_CUS		5		/* 423-pin 0.65 */
 #define OMAP_PACKAGE_CBB		4		/* 515-pin 0.40 0.50 */
 #define OMAP_PACKAGE_CBC		3		/* 515-pin 0.50 0.65 */
-#define OMAP_PACKAGE_ZAC		2		/* 24xx 447-pin POP */
-#define OMAP_PACKAGE_ZAF		1		/* 2420 447-pin SIP */
-
 
 #define OMAP_MUX_NR_MODES		8		/* Available modes */
 #define OMAP_MUX_NR_SIDES		2		/* Bottom & top */
@@ -78,13 +70,20 @@
 /*
  * omap_mux_init flags definition:
  *
+ * OMAP_GPIO_MUX_MODE, bits 0-2: gpio muxing mode, same like pad control
+ *      register which includes values from 0-7.
  * OMAP_MUX_REG_8BIT: Ensure that access to padconf is done in 8 bits.
  * The default value is 16 bits.
- * OMAP_MUX_GPIO_IN_MODE3: The GPIO is selected in mode3.
- * The default is mode4.
  */
-#define OMAP_MUX_REG_8BIT		(1 << 0)
-#define OMAP_MUX_GPIO_IN_MODE3		(1 << 1)
+#define OMAP_MUX_GPIO_IN_MODE0		OMAP_MUX_MODE0
+#define OMAP_MUX_GPIO_IN_MODE1		OMAP_MUX_MODE1
+#define OMAP_MUX_GPIO_IN_MODE2		OMAP_MUX_MODE2
+#define OMAP_MUX_GPIO_IN_MODE3		OMAP_MUX_MODE3
+#define OMAP_MUX_GPIO_IN_MODE4		OMAP_MUX_MODE4
+#define OMAP_MUX_GPIO_IN_MODE5		OMAP_MUX_MODE5
+#define OMAP_MUX_GPIO_IN_MODE6		OMAP_MUX_MODE6
+#define OMAP_MUX_GPIO_IN_MODE7		OMAP_MUX_MODE7
+#define OMAP_MUX_REG_8BIT		(1 << 3)
 
 /**
  * struct omap_board_data - board specific device data
@@ -104,6 +103,7 @@ struct omap_board_data {
  * struct mux_partition - contain partition related information
  * @name: name of the current partition
  * @flags: flags specific to this partition
+ * @gpio: gpio mux mode
  * @phys: physical address
  * @size: partition size
  * @base: virtual address after ioremap
@@ -113,6 +113,7 @@ struct omap_board_data {
 struct omap_mux_partition {
 	const char		*name;
 	u32			flags;
+	u32			gpio;
 	u32			phys;
 	u32			size;
 	void __iomem		*base;
@@ -126,7 +127,6 @@ struct omap_mux_partition {
  * @gpio:	GPIO number
  * @muxnames:	available signal modes for a ball
  * @balls:	available balls on the package
- * @partition:	mux partition
  */
 struct omap_mux {
 	u16	reg_offset;
@@ -225,7 +225,17 @@ omap_hwmod_mux_init(struct omap_device_pad *bpads, int nr_pads);
  */
 void omap_hwmod_mux(struct omap_hwmod_mux_info *hmux, u8 state);
 
+int omap_mux_get_by_name(const char *muxname,
+		struct omap_mux_partition **found_partition,
+		struct omap_mux **found_mux);
 #else
+
+static inline int omap_mux_get_by_name(const char *muxname,
+		struct omap_mux_partition **found_partition,
+		struct omap_mux **found_mux)
+{
+	return 0;
+}
 
 static inline int omap_mux_init_gpio(int gpio, int val)
 {

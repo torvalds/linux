@@ -18,13 +18,13 @@
 
 #define LOONGSON2_CPU_TYPE	"mips/loongson2"
 
-#define LOONGSON2_PERFCNT_OVERFLOW		(1ULL   << 31)
+#define LOONGSON2_PERFCNT_OVERFLOW		(1ULL	<< 31)
 
 #define LOONGSON2_PERFCTRL_EXL			(1UL	<<  0)
-#define LOONGSON2_PERFCTRL_KERNEL		(1UL    <<  1)
-#define LOONGSON2_PERFCTRL_SUPERVISOR		(1UL    <<  2)
-#define LOONGSON2_PERFCTRL_USER			(1UL    <<  3)
-#define LOONGSON2_PERFCTRL_ENABLE		(1UL    <<  4)
+#define LOONGSON2_PERFCTRL_KERNEL		(1UL	<<  1)
+#define LOONGSON2_PERFCTRL_SUPERVISOR		(1UL	<<  2)
+#define LOONGSON2_PERFCTRL_USER			(1UL	<<  3)
+#define LOONGSON2_PERFCTRL_ENABLE		(1UL	<<  4)
 #define LOONGSON2_PERFCTRL_EVENT(idx, event) \
 	(((event) & 0x0f) << ((idx) ? 9 : 5))
 

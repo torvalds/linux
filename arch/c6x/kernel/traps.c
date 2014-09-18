@@ -31,6 +31,7 @@ void __init trap_init(void)
 void show_regs(struct pt_regs *regs)
 {
 	pr_err("\n");
+	show_regs_print_info(KERN_ERR);
 	pr_err("PC: %08lx SP: %08lx\n", regs->pc, regs->sp);
 	pr_err("Status: %08lx ORIG_A4: %08lx\n", regs->csr, regs->orig_a4);
 	pr_err("A0: %08lx  B0: %08lx\n", regs->a0, regs->b0);
@@ -66,15 +67,6 @@ void show_regs(struct pt_regs *regs)
 	pr_err("A30: %08lx  B30: %08lx\n", regs->a30, regs->b30);
 	pr_err("A31: %08lx  B31: %08lx\n", regs->a31, regs->b31);
 }
-
-void dump_stack(void)
-{
-	unsigned long stack;
-
-	show_stack(current, &stack);
-}
-EXPORT_SYMBOL(dump_stack);
-
 
 void die(char *str, struct pt_regs *fp, int nr)
 {

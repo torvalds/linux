@@ -43,7 +43,6 @@ static int of_isp1760_probe(struct platform_device *dev)
 	struct device_node *dp = dev->dev.of_node;
 	struct resource *res;
 	struct resource memory;
-	struct of_irq oirq;
 	int virq;
 	resource_size_t res_len;
 	int ret;
@@ -69,13 +68,11 @@ static int of_isp1760_probe(struct platform_device *dev)
 		goto free_data;
 	}
 
-	if (of_irq_map_one(dp, 0, &oirq)) {
+	virq = irq_of_parse_and_map(dp, 0);
+	if (!virq) {
 		ret = -ENODEV;
 		goto release_reg;
 	}
-
-	virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
-			oirq.size);
 
 	if (of_device_is_compatible(dp, "nxp,usb-isp1761"))
 		devflags |= ISP1760_FLAG_ISP1761;
@@ -121,7 +118,7 @@ static int of_isp1760_probe(struct platform_device *dev)
 		goto free_gpio;
 	}
 
-	dev_set_drvdata(&dev->dev, drvdata);
+	platform_set_drvdata(dev, drvdata);
 	return ret;
 
 free_gpio:
@@ -136,9 +133,7 @@ free_data:
 
 static int of_isp1760_remove(struct platform_device *dev)
 {
-	struct isp1760 *drvdata = dev_get_drvdata(&dev->dev);
-
-	dev_set_drvdata(&dev->dev, NULL);
+	struct isp1760 *drvdata = platform_get_drvdata(dev);
 
 	usb_remove_hcd(drvdata->hcd);
 	iounmap(drvdata->hcd->regs);
@@ -175,7 +170,7 @@ static struct platform_driver isp1760_of_driver = {
 #endif
 
 #ifdef CONFIG_PCI
-static int __devinit isp1761_pci_probe(struct pci_dev *dev,
+static int isp1761_pci_probe(struct pci_dev *dev,
 		const struct pci_device_id *id)
 {
 	u8 latency, limit;
@@ -349,14 +344,14 @@ static struct pci_driver isp1761_pci_driver = {
 };
 #endif
 
-static int __devinit isp1760_plat_probe(struct platform_device *pdev)
+static int isp1760_plat_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct usb_hcd *hcd;
 	struct resource *mem_res;
 	struct resource *irq_res;
 	resource_size_t mem_size;
-	struct isp1760_platform_data *priv = pdev->dev.platform_data;
+	struct isp1760_platform_data *priv = dev_get_platdata(&pdev->dev);
 	unsigned int devflags = 0;
 	unsigned long irqflags = IRQF_SHARED;
 
@@ -376,8 +371,10 @@ static int __devinit isp1760_plat_probe(struct platform_device *pdev)
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
 		pr_warning("isp1760: IRQ resource not available\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto cleanup;
 	}
+
 	irqflags |= irq_res->flags & IRQF_TRIGGER_MASK;
 
 	if (priv) {
@@ -398,6 +395,9 @@ static int __devinit isp1760_plat_probe(struct platform_device *pdev)
 	hcd = isp1760_register(mem_res->start, mem_size, irq_res->start,
 			       irqflags, -ENOENT,
 			       &pdev->dev, dev_name(&pdev->dev), devflags);
+
+	platform_set_drvdata(pdev, hcd);
+
 	if (IS_ERR(hcd)) {
 		pr_warning("isp1760: Failed to register the HCD device\n");
 		ret = -ENODEV;
@@ -413,21 +413,26 @@ out:
 	return ret;
 }
 
-static int __devexit isp1760_plat_remove(struct platform_device *pdev)
+static int isp1760_plat_remove(struct platform_device *pdev)
 {
 	struct resource *mem_res;
 	resource_size_t mem_size;
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+
+	usb_remove_hcd(hcd);
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mem_size = resource_size(mem_res);
 	release_mem_region(mem_res->start, mem_size);
+
+	usb_put_hcd(hcd);
 
 	return 0;
 }
 
 static struct platform_driver isp1760_plat_driver = {
 	.probe	= isp1760_plat_probe,
-	.remove	= __devexit_p(isp1760_plat_remove),
+	.remove	= isp1760_plat_remove,
 	.driver	= {
 		.name	= "isp1760",
 	},

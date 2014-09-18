@@ -33,7 +33,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/gameport.h>
 #include <linux/input.h>
 #include <linux/jiffies.h>
@@ -436,15 +435,4 @@ static struct gameport_driver tmdc_drv = {
 	.disconnect	= tmdc_disconnect,
 };
 
-static int __init tmdc_init(void)
-{
-	return gameport_register_driver(&tmdc_drv);
-}
-
-static void __exit tmdc_exit(void)
-{
-	gameport_unregister_driver(&tmdc_drv);
-}
-
-module_init(tmdc_init);
-module_exit(tmdc_exit);
+module_gameport_driver(tmdc_drv);

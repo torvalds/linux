@@ -68,40 +68,6 @@ struct data data_copy_mem(const char *mem, int len)
 	return d;
 }
 
-static char get_oct_char(const char *s, int *i)
-{
-	char x[4];
-	char *endx;
-	long val;
-
-	x[3] = '\0';
-	strncpy(x, s + *i, 3);
-
-	val = strtol(x, &endx, 8);
-
-	assert(endx > x);
-
-	(*i) += endx - x;
-	return val;
-}
-
-static char get_hex_char(const char *s, int *i)
-{
-	char x[3];
-	char *endx;
-	long val;
-
-	x[2] = '\0';
-	strncpy(x, s + *i, 2);
-
-	val = strtol(x, &endx, 16);
-	if (!(endx  > x))
-		die("\\x used with no following hex digits\n");
-
-	(*i) += endx - x;
-	return val;
-}
-
 struct data data_copy_escape_string(const char *s, int len)
 {
 	int i = 0;
@@ -114,53 +80,10 @@ struct data data_copy_escape_string(const char *s, int len)
 	while (i < len) {
 		char c = s[i++];
 
-		if (c != '\\') {
-			q[d.len++] = c;
-			continue;
-		}
+		if (c == '\\')
+			c = get_escape_char(s, &i);
 
-		c = s[i++];
-		assert(c);
-		switch (c) {
-		case 'a':
-			q[d.len++] = '\a';
-			break;
-		case 'b':
-			q[d.len++] = '\b';
-			break;
-		case 't':
-			q[d.len++] = '\t';
-			break;
-		case 'n':
-			q[d.len++] = '\n';
-			break;
-		case 'v':
-			q[d.len++] = '\v';
-			break;
-		case 'f':
-			q[d.len++] = '\f';
-			break;
-		case 'r':
-			q[d.len++] = '\r';
-			break;
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-			i--; /* need to re-read the first digit as
-			      * part of the octal value */
-			q[d.len++] = get_oct_char(s, &i);
-			break;
-		case 'x':
-			q[d.len++] = get_hex_char(s, &i);
-			break;
-		default:
-			q[d.len++] = c;
-		}
+		q[d.len++] = c;
 	}
 
 	q[d.len++] = '\0';
@@ -245,11 +168,33 @@ struct data data_merge(struct data d1, struct data d2)
 	return d;
 }
 
-struct data data_append_cell(struct data d, cell_t word)
+struct data data_append_integer(struct data d, uint64_t value, int bits)
 {
-	cell_t beword = cpu_to_fdt32(word);
+	uint8_t value_8;
+	uint16_t value_16;
+	uint32_t value_32;
+	uint64_t value_64;
 
-	return data_append_data(d, &beword, sizeof(beword));
+	switch (bits) {
+	case 8:
+		value_8 = value;
+		return data_append_data(d, &value_8, 1);
+
+	case 16:
+		value_16 = cpu_to_fdt16(value);
+		return data_append_data(d, &value_16, 2);
+
+	case 32:
+		value_32 = cpu_to_fdt32(value);
+		return data_append_data(d, &value_32, 4);
+
+	case 64:
+		value_64 = cpu_to_fdt64(value);
+		return data_append_data(d, &value_64, 8);
+
+	default:
+		die("Invalid literal size (%d)\n", bits);
+	}
 }
 
 struct data data_append_re(struct data d, const struct fdt_reserve_entry *re)
@@ -262,11 +207,14 @@ struct data data_append_re(struct data d, const struct fdt_reserve_entry *re)
 	return data_append_data(d, &bere, sizeof(bere));
 }
 
+struct data data_append_cell(struct data d, cell_t word)
+{
+	return data_append_integer(d, word, sizeof(word) * 8);
+}
+
 struct data data_append_addr(struct data d, uint64_t addr)
 {
-	uint64_t beaddr = cpu_to_fdt64(addr);
-
-	return data_append_data(d, &beaddr, sizeof(beaddr));
+	return data_append_integer(d, addr, sizeof(addr) * 8);
 }
 
 struct data data_append_byte(struct data d, uint8_t byte)

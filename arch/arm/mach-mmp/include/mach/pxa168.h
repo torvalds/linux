@@ -1,21 +1,23 @@
 #ifndef __ASM_MACH_PXA168_H
 #define __ASM_MACH_PXA168_H
 
-struct sys_timer;
+#include <linux/reboot.h>
 
-extern struct sys_timer pxa168_timer;
+extern void pxa168_timer_init(void);
+extern void __init icu_init_irq(void);
 extern void __init pxa168_init_irq(void);
-extern void pxa168_restart(char, const char *);
+extern void pxa168_restart(enum reboot_mode, const char *);
 extern void pxa168_clear_keypad_wakeup(void);
 
 #include <linux/i2c.h>
 #include <linux/i2c/pxa-i2c.h>
 #include <mach/devices.h>
-#include <plat/pxa3xx_nand.h>
+#include <linux/platform_data/mtd-nand-pxa3xx.h>
 #include <video/pxa168fb.h>
-#include <plat/pxa27x_keypad.h>
+#include <linux/platform_data/keypad-pxa27x.h>
 #include <mach/cputype.h>
 #include <linux/pxa168_eth.h>
+#include <linux/platform_data/mv_usb.h>
 
 extern struct pxa_device_desc pxa168_device_uart1;
 extern struct pxa_device_desc pxa168_device_uart2;
@@ -36,12 +38,9 @@ extern struct pxa_device_desc pxa168_device_fb;
 extern struct pxa_device_desc pxa168_device_keypad;
 extern struct pxa_device_desc pxa168_device_eth;
 
-struct pxa168_usb_pdata {
-	/* If NULL, default phy init routine for PXA168 would be called */
-	int (*phy_init)(void __iomem *usb_phy_reg_base);
-};
 /* pdata can be NULL */
-int __init pxa168_add_usb_host(struct pxa168_usb_pdata *pdata);
+extern int __init pxa168_add_usb_host(struct mv_usb_platform_data *pdata);
+
 
 extern struct platform_device pxa168_device_gpio;
 

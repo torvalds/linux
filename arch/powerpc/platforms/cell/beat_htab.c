@@ -88,9 +88,9 @@ static inline unsigned int beat_read_mask(unsigned hpte_group)
 }
 
 static long beat_lpar_hpte_insert(unsigned long hpte_group,
-				  unsigned long va, unsigned long pa,
+				  unsigned long vpn, unsigned long pa,
 				  unsigned long rflags, unsigned long vflags,
-				  int psize, int ssize)
+				  int psize, int apsize, int ssize)
 {
 	unsigned long lpar_rc;
 	u64 hpte_v, hpte_r, slot;
@@ -103,15 +103,15 @@ static long beat_lpar_hpte_insert(unsigned long hpte_group,
 			"rflags=%lx, vflags=%lx, psize=%d)\n",
 		hpte_group, va, pa, rflags, vflags, psize);
 
-	hpte_v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M) |
+	hpte_v = hpte_encode_v(vpn, psize, apsize, MMU_SEGSIZE_256M) |
 		vflags | HPTE_V_VALID;
-	hpte_r = hpte_encode_r(pa, psize) | rflags;
+	hpte_r = hpte_encode_r(pa, psize, apsize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED))
 		DBG_LOW(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
 
 	if (rflags & _PAGE_NO_CACHE)
-		hpte_r &= ~_PAGE_COHERENT;
+		hpte_r &= ~HPTE_R_M;
 
 	raw_spin_lock(&beat_htab_lock);
 	lpar_rc = beat_read_mask(hpte_group);
@@ -184,14 +184,15 @@ static void beat_lpar_hptab_clear(void)
  */
 static long beat_lpar_hpte_updatepp(unsigned long slot,
 				    unsigned long newpp,
-				    unsigned long va,
-				    int psize, int ssize, int local)
+				    unsigned long vpn,
+				    int psize, int apsize,
+				    int ssize, int local)
 {
 	unsigned long lpar_rc;
 	u64 dummy0, dummy1;
 	unsigned long want_v;
 
-	want_v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M);
+	want_v = hpte_encode_avpn(vpn, psize, MMU_SEGSIZE_256M);
 
 	DBG_LOW("    update: "
 		"avpnv=%016lx, slot=%016lx, psize: %d, newpp %016lx ... ",
@@ -220,15 +221,15 @@ static long beat_lpar_hpte_updatepp(unsigned long slot,
 	return 0;
 }
 
-static long beat_lpar_hpte_find(unsigned long va, int psize)
+static long beat_lpar_hpte_find(unsigned long vpn, int psize)
 {
 	unsigned long hash;
 	unsigned long i, j;
 	long slot;
 	unsigned long want_v, hpte_v;
 
-	hash = hpt_hash(va, mmu_psize_defs[psize].shift, MMU_SEGSIZE_256M);
-	want_v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M);
+	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, MMU_SEGSIZE_256M);
+	want_v = hpte_encode_avpn(vpn, psize, MMU_SEGSIZE_256M);
 
 	for (j = 0; j < 2; j++) {
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
@@ -255,14 +256,15 @@ static void beat_lpar_hpte_updateboltedpp(unsigned long newpp,
 					  unsigned long ea,
 					  int psize, int ssize)
 {
-	unsigned long lpar_rc, slot, vsid, va;
+	unsigned long vpn;
+	unsigned long lpar_rc, slot, vsid;
 	u64 dummy0, dummy1;
 
 	vsid = get_kernel_vsid(ea, MMU_SEGSIZE_256M);
-	va = (vsid << 28) | (ea & 0x0fffffff);
+	vpn = hpt_vpn(ea, vsid, MMU_SEGSIZE_256M);
 
 	raw_spin_lock(&beat_htab_lock);
-	slot = beat_lpar_hpte_find(va, psize);
+	slot = beat_lpar_hpte_find(vpn, psize);
 	BUG_ON(slot == -1);
 
 	lpar_rc = beat_write_htab_entry(0, slot, 0, newpp, 0, 7,
@@ -272,8 +274,9 @@ static void beat_lpar_hpte_updateboltedpp(unsigned long newpp,
 	BUG_ON(lpar_rc != 0);
 }
 
-static void beat_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
-					 int psize, int ssize, int local)
+static void beat_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
+				      int psize, int apsize,
+				      int ssize, int local)
 {
 	unsigned long want_v;
 	unsigned long lpar_rc;
@@ -282,7 +285,7 @@ static void beat_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 
 	DBG_LOW("    inval : slot=%lx, va=%016lx, psize: %d, local: %d\n",
 		slot, va, psize, local);
-	want_v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M);
+	want_v = hpte_encode_avpn(vpn, psize, MMU_SEGSIZE_256M);
 
 	raw_spin_lock_irqsave(&beat_htab_lock, flags);
 	dummy1 = beat_lpar_hpte_getword0(slot);
@@ -311,9 +314,9 @@ void __init hpte_init_beat(void)
 }
 
 static long beat_lpar_hpte_insert_v3(unsigned long hpte_group,
-				  unsigned long va, unsigned long pa,
+				  unsigned long vpn, unsigned long pa,
 				  unsigned long rflags, unsigned long vflags,
-				  int psize, int ssize)
+				  int psize, int apsize, int ssize)
 {
 	unsigned long lpar_rc;
 	u64 hpte_v, hpte_r, slot;
@@ -322,19 +325,19 @@ static long beat_lpar_hpte_insert_v3(unsigned long hpte_group,
 		return -1;
 
 	if (!(vflags & HPTE_V_BOLTED))
-		DBG_LOW("hpte_insert(group=%lx, va=%016lx, pa=%016lx, "
+		DBG_LOW("hpte_insert(group=%lx, vpn=%016lx, pa=%016lx, "
 			"rflags=%lx, vflags=%lx, psize=%d)\n",
-		hpte_group, va, pa, rflags, vflags, psize);
+		hpte_group, vpn, pa, rflags, vflags, psize);
 
-	hpte_v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M) |
+	hpte_v = hpte_encode_v(vpn, psize, apsize, MMU_SEGSIZE_256M) |
 		vflags | HPTE_V_VALID;
-	hpte_r = hpte_encode_r(pa, psize) | rflags;
+	hpte_r = hpte_encode_r(pa, psize, apsize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED))
 		DBG_LOW(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
 
 	if (rflags & _PAGE_NO_CACHE)
-		hpte_r &= ~_PAGE_COHERENT;
+		hpte_r &= ~HPTE_R_M;
 
 	/* insert into not-volted entry */
 	lpar_rc = beat_insert_htab_entry3(0, hpte_group, hpte_v, hpte_r,
@@ -363,16 +366,17 @@ static long beat_lpar_hpte_insert_v3(unsigned long hpte_group,
  * already zero.  For now I am paranoid.
  */
 static long beat_lpar_hpte_updatepp_v3(unsigned long slot,
-				    unsigned long newpp,
-				    unsigned long va,
-				    int psize, int ssize, int local)
+				       unsigned long newpp,
+				       unsigned long vpn,
+				       int psize, int apsize,
+				       int ssize, int local)
 {
 	unsigned long lpar_rc;
 	unsigned long want_v;
 	unsigned long pss;
 
-	want_v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M);
-	pss = (psize == MMU_PAGE_4K) ? -1UL : mmu_psize_defs[psize].penc;
+	want_v = hpte_encode_avpn(vpn, psize, MMU_SEGSIZE_256M);
+	pss = (psize == MMU_PAGE_4K) ? -1UL : mmu_psize_defs[psize].penc[psize];
 
 	DBG_LOW("    update: "
 		"avpnv=%016lx, slot=%016lx, psize: %d, newpp %016lx ... ",
@@ -392,17 +396,18 @@ static long beat_lpar_hpte_updatepp_v3(unsigned long slot,
 	return 0;
 }
 
-static void beat_lpar_hpte_invalidate_v3(unsigned long slot, unsigned long va,
-					 int psize, int ssize, int local)
+static void beat_lpar_hpte_invalidate_v3(unsigned long slot, unsigned long vpn,
+					 int psize, int apsize,
+					 int ssize, int local)
 {
 	unsigned long want_v;
 	unsigned long lpar_rc;
 	unsigned long pss;
 
-	DBG_LOW("    inval : slot=%lx, va=%016lx, psize: %d, local: %d\n",
-		slot, va, psize, local);
-	want_v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M);
-	pss = (psize == MMU_PAGE_4K) ? -1UL : mmu_psize_defs[psize].penc;
+	DBG_LOW("    inval : slot=%lx, vpn=%016lx, psize: %d, local: %d\n",
+		slot, vpn, psize, local);
+	want_v = hpte_encode_avpn(vpn, psize, MMU_SEGSIZE_256M);
+	pss = (psize == MMU_PAGE_4K) ? -1UL : mmu_psize_defs[psize].penc[psize];
 
 	lpar_rc = beat_invalidate_htab_entry3(0, slot, want_v, pss);
 

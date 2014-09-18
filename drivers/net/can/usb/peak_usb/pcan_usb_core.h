@@ -45,7 +45,7 @@ struct peak_usb_adapter {
 	char *name;
 	u32 device_id;
 	struct can_clock clock;
-	struct can_bittiming_const bittiming_const;
+	const struct can_bittiming_const bittiming_const;
 	unsigned int ctrl_count;
 
 	int (*intf_probe)(struct usb_interface *intf);
@@ -104,7 +104,6 @@ struct peak_usb_device {
 	struct can_priv can;
 	struct peak_usb_adapter *adapter;
 	unsigned int ctrl_idx;
-	int open_time;
 	u32 state;
 
 	struct sk_buff *echo_skb[PCAN_USB_MAX_TX_URBS];
@@ -131,7 +130,7 @@ struct peak_usb_device {
 	struct peak_usb_device *next_siblings;
 };
 
-void dump_mem(char *prompt, void *p, int l);
+void pcan_dump_mem(char *prompt, void *p, int l);
 
 /* common timestamp management */
 void peak_usb_init_time_ref(struct peak_time_ref *time_ref,

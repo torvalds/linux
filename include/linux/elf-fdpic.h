@@ -1,4 +1,4 @@
-/* elf-fdpic.h: FDPIC ELF load map
+/* FDPIC ELF load map
  *
  * Copyright (C) 2003 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -12,24 +12,7 @@
 #ifndef _LINUX_ELF_FDPIC_H
 #define _LINUX_ELF_FDPIC_H
 
-#include <linux/elf.h>
-
-#define PT_GNU_STACK    (PT_LOOS + 0x474e551)
-
-/* segment mappings for ELF FDPIC libraries/executables/interpreters */
-struct elf32_fdpic_loadseg {
-	Elf32_Addr	addr;		/* core address to which mapped */
-	Elf32_Addr	p_vaddr;	/* VMA recorded in file */
-	Elf32_Word	p_memsz;	/* allocation size recorded in file */
-};
-
-struct elf32_fdpic_loadmap {
-	Elf32_Half	version;	/* version of these structures, just in case... */
-	Elf32_Half	nsegs;		/* number of segments */
-	struct elf32_fdpic_loadseg segs[];
-};
-
-#define ELF32_FDPIC_LOADMAP_VERSION	0x0000
+#include <uapi/linux/elf-fdpic.h>
 
 /*
  * binfmt binary parameters structure
@@ -58,13 +41,11 @@ struct elf_fdpic_params {
 #define ELF_FDPIC_FLAG_PRESENT		0x80000000	/* T if this object is present */
 };
 
-#ifdef __KERNEL__
 #ifdef CONFIG_MMU
 extern void elf_fdpic_arch_lay_out_mm(struct elf_fdpic_params *exec_params,
 				      struct elf_fdpic_params *interp_params,
 				      unsigned long *start_stack,
 				      unsigned long *start_brk);
 #endif
-#endif /* __KERNEL__ */
 
 #endif /* _LINUX_ELF_FDPIC_H */

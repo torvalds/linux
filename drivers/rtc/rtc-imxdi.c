@@ -36,7 +36,9 @@
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/sched.h>
+#include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/of.h>
 
 /* DryIce Register Definitions */
 
@@ -367,15 +369,11 @@ static void dryice_work(struct work_struct *work)
 /*
  * probe for dryice rtc device
  */
-static int dryice_rtc_probe(struct platform_device *pdev)
+static int __init dryice_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct imxdi_dev *imxdi;
 	int rc;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
 
 	imxdi = devm_kzalloc(&pdev->dev, sizeof(*imxdi), GFP_KERNEL);
 	if (!imxdi)
@@ -383,14 +381,12 @@ static int dryice_rtc_probe(struct platform_device *pdev)
 
 	imxdi->pdev = pdev;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
-				pdev->name))
-		return -EBUSY;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	imxdi->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(imxdi->ioaddr))
+		return PTR_ERR(imxdi->ioaddr);
 
-	imxdi->ioaddr = devm_ioremap(&pdev->dev, res->start,
-			resource_size(res));
-	if (imxdi->ioaddr == NULL)
-		return -ENOMEM;
+	spin_lock_init(&imxdi->irq_lock);
 
 	imxdi->irq = platform_get_irq(pdev, 0);
 	if (imxdi->irq < 0)
@@ -402,10 +398,12 @@ static int dryice_rtc_probe(struct platform_device *pdev)
 
 	mutex_init(&imxdi->write_mutex);
 
-	imxdi->clk = clk_get(&pdev->dev, NULL);
+	imxdi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(imxdi->clk))
 		return PTR_ERR(imxdi->clk);
-	clk_enable(imxdi->clk);
+	rc = clk_prepare_enable(imxdi->clk);
+	if (rc)
+		return rc;
 
 	/*
 	 * Initialize dryice hardware
@@ -460,7 +458,7 @@ static int dryice_rtc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, imxdi);
-	imxdi->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	imxdi->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				  &dryice_rtc_ops, THIS_MODULE);
 	if (IS_ERR(imxdi->rtc)) {
 		rc = PTR_ERR(imxdi->rtc);
@@ -470,13 +468,12 @@ static int dryice_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 err:
-	clk_disable(imxdi->clk);
-	clk_put(imxdi->clk);
+	clk_disable_unprepare(imxdi->clk);
 
 	return rc;
 }
 
-static int __devexit dryice_rtc_remove(struct platform_device *pdev)
+static int __exit dryice_rtc_remove(struct platform_device *pdev)
 {
 	struct imxdi_dev *imxdi = platform_get_drvdata(pdev);
 
@@ -485,34 +482,30 @@ static int __devexit dryice_rtc_remove(struct platform_device *pdev)
 	/* mask all interrupts */
 	__raw_writel(0, imxdi->ioaddr + DIER);
 
-	rtc_device_unregister(imxdi->rtc);
-
-	clk_disable(imxdi->clk);
-	clk_put(imxdi->clk);
+	clk_disable_unprepare(imxdi->clk);
 
 	return 0;
 }
+
+#ifdef CONFIG_OF
+static const struct of_device_id dryice_dt_ids[] = {
+	{ .compatible = "fsl,imx25-rtc" },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, dryice_dt_ids);
+#endif
 
 static struct platform_driver dryice_rtc_driver = {
 	.driver = {
 		   .name = "imxdi_rtc",
 		   .owner = THIS_MODULE,
+		   .of_match_table = of_match_ptr(dryice_dt_ids),
 		   },
-	.remove = __devexit_p(dryice_rtc_remove),
+	.remove = __exit_p(dryice_rtc_remove),
 };
 
-static int __init dryice_rtc_init(void)
-{
-	return platform_driver_probe(&dryice_rtc_driver, dryice_rtc_probe);
-}
-
-static void __exit dryice_rtc_exit(void)
-{
-	platform_driver_unregister(&dryice_rtc_driver);
-}
-
-module_init(dryice_rtc_init);
-module_exit(dryice_rtc_exit);
+module_platform_driver_probe(dryice_rtc_driver, dryice_rtc_probe);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_AUTHOR("Baruch Siach <baruch@tkos.co.il>");

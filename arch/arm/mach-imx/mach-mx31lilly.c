@@ -42,13 +42,13 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/iomux-mx3.h>
-#include <mach/board-mx31lilly.h>
-#include <mach/ulpi.h>
-
+#include "board-mx31lilly.h"
+#include "common.h"
 #include "devices-imx31.h"
+#include "ehci.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
+#include "ulpi.h"
 
 /*
  * This file contains module-specific initialization routines for LILLY-1131.
@@ -65,8 +65,7 @@ static struct resource smsc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_0),
-		.end	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_0),
+		/* irq number is run-time assigned */
 		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_FALLING,
 	}
 };
@@ -233,7 +232,7 @@ static struct spi_board_info mc13783_dev __initdata = {
 	.bus_num	= 1,
 	.chip_select	= 0,
 	.platform_data	= &mc13783_pdata,
-	.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
+	/* irq number is run-time assigned */
 };
 
 static struct platform_device *devices[] __initdata = {
@@ -285,10 +284,15 @@ static void __init mx31lilly_board_init(void)
 
 	imx31_add_spi_imx0(&spi0_pdata);
 	imx31_add_spi_imx1(&spi1_pdata);
+	mc13783_dev.irq = gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
 	spi_register_board_info(&mc13783_dev, 1);
 
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
+	smsc91x_resources[1].start =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_0));
+	smsc91x_resources[1].end =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_0));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	/* USB */
@@ -300,17 +304,12 @@ static void __init mx31lilly_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer mx31lilly_timer = {
-	.init	= mx31lilly_timer_init,
-};
-
 MACHINE_START(LILLY1131, "INCO startec LILLY-1131")
 	.atag_offset = 0x100,
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.handle_irq = imx31_handle_irq,
-	.timer = &mx31lilly_timer,
+	.init_time	= mx31lilly_timer_init,
 	.init_machine = mx31lilly_board_init,
 	.restart	= mxc_restart,
 MACHINE_END

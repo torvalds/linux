@@ -8,7 +8,7 @@
 
 #ifndef CONFIG_64BIT
 OUTPUT_FORMAT("elf32-s390", "elf32-s390", "elf32-s390")
-OUTPUT_ARCH(s390)
+OUTPUT_ARCH(s390:31-bit)
 ENTRY(startup)
 jiffies = jiffies_64 + 4;
 #else
@@ -45,7 +45,7 @@ SECTIONS
 
 	.dummy : { *(.dummy) } :data
 
-	RODATA
+	RO_DATA_SECTION(PAGE_SIZE)
 
 #ifdef CONFIG_SHARED_KERNEL
 	. = ALIGN(0x100000);	/* VM shared segments are 1MB aligned */
@@ -73,6 +73,10 @@ SECTIONS
 	*/
 	.exit.text : {
 		EXIT_TEXT
+	}
+
+	.exit.data : {
+		EXIT_DATA
 	}
 
 	/* early.c uses stsi, which requires page aligned data. */

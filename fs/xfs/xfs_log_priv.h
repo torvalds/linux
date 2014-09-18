@@ -19,56 +19,19 @@
 #define __XFS_LOG_PRIV_H__
 
 struct xfs_buf;
-struct log;
+struct xlog;
 struct xlog_ticket;
 struct xfs_mount;
+struct xfs_log_callback;
 
 /*
- * Macros, structures, prototypes for internal log manager use.
+ * Flags for log structure
  */
-
-#define XLOG_MIN_ICLOGS		2
-#define XLOG_MAX_ICLOGS		8
-#define XLOG_HEADER_MAGIC_NUM	0xFEEDbabe	/* Invalid cycle number */
-#define XLOG_VERSION_1		1
-#define XLOG_VERSION_2		2		/* Large IClogs, Log sunit */
-#define XLOG_VERSION_OKBITS	(XLOG_VERSION_1 | XLOG_VERSION_2)
-#define XLOG_MIN_RECORD_BSIZE	(16*1024)	/* eventually 32k */
-#define XLOG_BIG_RECORD_BSIZE	(32*1024)	/* 32k buffers */
-#define XLOG_MAX_RECORD_BSIZE	(256*1024)
-#define XLOG_HEADER_CYCLE_SIZE	(32*1024)	/* cycle data in header */
-#define XLOG_MIN_RECORD_BSHIFT	14		/* 16384 == 1 << 14 */
-#define XLOG_BIG_RECORD_BSHIFT	15		/* 32k == 1 << 15 */
-#define XLOG_MAX_RECORD_BSHIFT	18		/* 256k == 1 << 18 */
-#define XLOG_BTOLSUNIT(log, b)  (((b)+(log)->l_mp->m_sb.sb_logsunit-1) / \
-                                 (log)->l_mp->m_sb.sb_logsunit)
-#define XLOG_LSUNITTOB(log, su) ((su) * (log)->l_mp->m_sb.sb_logsunit)
-
-#define XLOG_HEADER_SIZE	512
-
-#define XLOG_REC_SHIFT(log) \
-	BTOBB(1 << (xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? \
-	 XLOG_MAX_RECORD_BSHIFT : XLOG_BIG_RECORD_BSHIFT))
-#define XLOG_TOTAL_REC_SHIFT(log) \
-	BTOBB(XLOG_MAX_ICLOGS << (xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? \
-	 XLOG_MAX_RECORD_BSHIFT : XLOG_BIG_RECORD_BSHIFT))
-
-static inline xfs_lsn_t xlog_assign_lsn(uint cycle, uint block)
-{
-	return ((xfs_lsn_t)cycle << 32) | block;
-}
-
-static inline uint xlog_get_cycle(char *ptr)
-{
-	if (be32_to_cpu(*(__be32 *)ptr) == XLOG_HEADER_MAGIC_NUM)
-		return be32_to_cpu(*((__be32 *)ptr + 1));
-	else
-		return be32_to_cpu(*(__be32 *)ptr);
-}
-
-#define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
-
-#ifdef __KERNEL__
+#define XLOG_ACTIVE_RECOVERY	0x2	/* in the middle of recovery */
+#define	XLOG_RECOVERY_NEEDED	0x4	/* log was recovered */
+#define XLOG_IO_ERROR		0x8	/* log hit an I/O error, and being
+					   shutdown */
+#define XLOG_TAIL_WARN		0x10	/* log tail verify warning issued */
 
 /*
  * get client id from packed copy.
@@ -101,27 +64,7 @@ static inline uint xlog_get_client_id(__be32 i)
 #define XLOG_STATE_IOERROR   0x0080 /* IO error happened in sync'ing log */
 #define XLOG_STATE_ALL	     0x7FFF /* All possible valid flags */
 #define XLOG_STATE_NOTUSED   0x8000 /* This IC log not being used */
-#endif	/* __KERNEL__ */
 
-/*
- * Flags to log operation header
- *
- * The first write of a new transaction will be preceded with a start
- * record, XLOG_START_TRANS.  Once a transaction is committed, a commit
- * record is written, XLOG_COMMIT_TRANS.  If a single region can not fit into
- * the remainder of the current active in-core log, it is split up into
- * multiple regions.  Each partial region will be marked with a
- * XLOG_CONTINUE_TRANS until the last one, which gets marked with XLOG_END_TRANS.
- *
- */
-#define XLOG_START_TRANS	0x01	/* Start a new transaction */
-#define XLOG_COMMIT_TRANS	0x02	/* Commit this transaction */
-#define XLOG_CONTINUE_TRANS	0x04	/* Cont this trans into new region */
-#define XLOG_WAS_CONT_TRANS	0x08	/* Cont this trans into new region */
-#define XLOG_END_TRANS		0x10	/* End a continued transaction */
-#define XLOG_UNMOUNT_TRANS	0x20	/* Unmount a filesystem transaction */
-
-#ifdef __KERNEL__
 /*
  * Flags to log ticket
  */
@@ -132,23 +75,6 @@ static inline uint xlog_get_client_id(__be32 i)
 	{ XLOG_TIC_INITED,	"XLOG_TIC_INITED" }, \
 	{ XLOG_TIC_PERM_RESERV,	"XLOG_TIC_PERM_RESERV" }
 
-#endif	/* __KERNEL__ */
-
-#define XLOG_UNMOUNT_TYPE	0x556e	/* Un for Unmount */
-
-/*
- * Flags for log structure
- */
-#define XLOG_CHKSUM_MISMATCH	0x1	/* used only during recovery */
-#define XLOG_ACTIVE_RECOVERY	0x2	/* in the middle of recovery */
-#define	XLOG_RECOVERY_NEEDED	0x4	/* log was recovered */
-#define XLOG_IO_ERROR		0x8	/* log hit an I/O error, and being
-					   shutdown */
-#define XLOG_TAIL_WARN		0x10	/* log tail verify warning issued */
-
-typedef __uint32_t xlog_tid_t;
-
-#ifdef __KERNEL__
 /*
  * Below are states for covering allocation transactions.
  * By covering, we mean changing the h_tail_lsn in the last on-disk
@@ -224,7 +150,6 @@ typedef __uint32_t xlog_tid_t;
 
 #define XLOG_COVER_OPS		5
 
-
 /* Ticket reservation region accounting */ 
 #define XLOG_TIC_LEN_MAX	15
 
@@ -258,64 +183,6 @@ typedef struct xlog_ticket {
 	uint		   t_res_o_flow;		 /* sum overflow : 4 */
 	xlog_res_t	   t_res_arr[XLOG_TIC_LEN_MAX];  /* array of res : 8 * 15 */ 
 } xlog_ticket_t;
-
-#endif
-
-
-typedef struct xlog_op_header {
-	__be32	   oh_tid;	/* transaction id of operation	:  4 b */
-	__be32	   oh_len;	/* bytes in data region		:  4 b */
-	__u8	   oh_clientid;	/* who sent me this		:  1 b */
-	__u8	   oh_flags;	/*				:  1 b */
-	__u16	   oh_res2;	/* 32 bit align			:  2 b */
-} xlog_op_header_t;
-
-
-/* valid values for h_fmt */
-#define XLOG_FMT_UNKNOWN  0
-#define XLOG_FMT_LINUX_LE 1
-#define XLOG_FMT_LINUX_BE 2
-#define XLOG_FMT_IRIX_BE  3
-
-/* our fmt */
-#ifdef XFS_NATIVE_HOST
-#define XLOG_FMT XLOG_FMT_LINUX_BE
-#else
-#define XLOG_FMT XLOG_FMT_LINUX_LE
-#endif
-
-typedef struct xlog_rec_header {
-	__be32	  h_magicno;	/* log record (LR) identifier		:  4 */
-	__be32	  h_cycle;	/* write cycle of log			:  4 */
-	__be32	  h_version;	/* LR version				:  4 */
-	__be32	  h_len;	/* len in bytes; should be 64-bit aligned: 4 */
-	__be64	  h_lsn;	/* lsn of this LR			:  8 */
-	__be64	  h_tail_lsn;	/* lsn of 1st LR w/ buffers not committed: 8 */
-	__be32	  h_chksum;	/* may not be used; non-zero if used	:  4 */
-	__be32	  h_prev_block; /* block number to previous LR		:  4 */
-	__be32	  h_num_logops;	/* number of log operations in this LR	:  4 */
-	__be32	  h_cycle_data[XLOG_HEADER_CYCLE_SIZE / BBSIZE];
-	/* new fields */
-	__be32    h_fmt;        /* format of log record                 :  4 */
-	uuid_t	  h_fs_uuid;    /* uuid of FS                           : 16 */
-	__be32	  h_size;	/* iclog size				:  4 */
-} xlog_rec_header_t;
-
-typedef struct xlog_rec_ext_header {
-	__be32	  xh_cycle;	/* write cycle of log			: 4 */
-	__be32	  xh_cycle_data[XLOG_HEADER_CYCLE_SIZE / BBSIZE]; /*	: 256 */
-} xlog_rec_ext_header_t;
-
-#ifdef __KERNEL__
-
-/*
- * Quite misnamed, because this union lays out the actual on-disk log buffer.
- */
-typedef union xlog_in_core2 {
-	xlog_rec_header_t	hic_header;
-	xlog_rec_ext_header_t	hic_xheader;
-	char			hic_sector[XLOG_HEADER_SIZE];
-} xlog_in_core_2_t;
 
 /*
  * - A log record header is 512 bytes.  There is plenty of room to grow the
@@ -352,7 +219,7 @@ typedef struct xlog_in_core {
 	struct xlog_in_core	*ic_next;
 	struct xlog_in_core	*ic_prev;
 	struct xfs_buf		*ic_bp;
-	struct log		*ic_log;
+	struct xlog		*ic_log;
 	int			ic_size;
 	int			ic_offset;
 	int			ic_bwritecnt;
@@ -361,8 +228,8 @@ typedef struct xlog_in_core {
 
 	/* Callback structures need their own cacheline */
 	spinlock_t		ic_callback_lock ____cacheline_aligned_in_smp;
-	xfs_log_callback_t	*ic_callback;
-	xfs_log_callback_t	**ic_callback_tail;
+	struct xfs_log_callback	*ic_callback;
+	struct xfs_log_callback	**ic_callback_tail;
 
 	/* reference counts need their own cacheline */
 	atomic_t		ic_refcnt ____cacheline_aligned_in_smp;
@@ -388,7 +255,7 @@ struct xfs_cil_ctx {
 	int			space_used;	/* aggregate size of regions */
 	struct list_head	busy_extents;	/* busy extents in chkpt */
 	struct xfs_log_vec	*lv_chain;	/* logvecs being pushed */
-	xfs_log_callback_t	log_cb;		/* completion callback hook. */
+	struct xfs_log_callback	log_cb;		/* completion callback hook. */
 	struct list_head	committing;	/* ctx committing list */
 };
 
@@ -409,15 +276,20 @@ struct xfs_cil_ctx {
  * operations almost as efficient as the old logging methods.
  */
 struct xfs_cil {
-	struct log		*xc_log;
+	struct xlog		*xc_log;
 	struct list_head	xc_cil;
 	spinlock_t		xc_cil_lock;
+
+	struct rw_semaphore	xc_ctx_lock ____cacheline_aligned_in_smp;
 	struct xfs_cil_ctx	*xc_ctx;
-	struct rw_semaphore	xc_ctx_lock;
+
+	spinlock_t		xc_push_lock ____cacheline_aligned_in_smp;
+	xfs_lsn_t		xc_push_seq;
 	struct list_head	xc_committing;
 	wait_queue_head_t	xc_commit_wait;
 	xfs_lsn_t		xc_current_sequence;
-};
+	struct work_struct	xc_push_work;
+} ____cacheline_aligned_in_smp;
 
 /*
  * The amount of log space we allow the CIL to aggregate is difficult to size.
@@ -467,7 +339,6 @@ struct xfs_cil {
  * threshold, yet give us plenty of space for aggregation on large logs.
  */
 #define XLOG_CIL_SPACE_LIMIT(log)	(log->l_logsize >> 3)
-#define XLOG_CIL_HARD_SPACE_LIMIT(log)	(3 * (log->l_logsize >> 4))
 
 /*
  * ticket grant locks, queues and accounting have their own cachlines
@@ -485,7 +356,7 @@ struct xlog_grant_head {
  * overflow 31 bits worth of byte offset, so using a byte number will mean
  * that round off problems won't occur when releasing partial reservations.
  */
-typedef struct log {
+struct xlog {
 	/* The following fields don't need locking */
 	struct xfs_mount	*l_mp;	        /* mount point */
 	struct xfs_ail		*l_ailp;	/* AIL log is working with */
@@ -493,6 +364,7 @@ typedef struct log {
 	struct xfs_buf		*l_xbuf;        /* extra buffer for log
 						 * wrapping */
 	struct xfs_buftarg	*l_targ;        /* buftarg of log */
+	struct delayed_work	l_work;		/* background flush work */
 	uint			l_flags;
 	uint			l_quotaoffs_flag; /* XFS_DQ_*, for QUOTAOFFs */
 	struct list_head	*l_buf_cancel_table;
@@ -533,12 +405,14 @@ typedef struct log {
 	struct xlog_grant_head	l_reserve_head;
 	struct xlog_grant_head	l_write_head;
 
+	struct xfs_kobj		l_kobj;
+
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG
 	char			*l_iclog_bak[XLOG_MAX_ICLOGS];
 #endif
 
-} xlog_t;
+};
 
 #define XLOG_BUF_CANCEL_BUCKET(log, blkno) \
 	((log)->l_buf_cancel_table + ((__uint64_t)blkno % XLOG_BC_TABLE_SIZE))
@@ -546,14 +420,25 @@ typedef struct log {
 #define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
 
 /* common routines */
-extern int	 xlog_recover(xlog_t *log);
-extern int	 xlog_recover_finish(xlog_t *log);
-extern void	 xlog_pack_data(xlog_t *log, xlog_in_core_t *iclog, int);
+extern int
+xlog_recover(
+	struct xlog		*log);
+extern int
+xlog_recover_finish(
+	struct xlog		*log);
+
+extern __le32	 xlog_cksum(struct xlog *log, struct xlog_rec_header *rhead,
+			    char *dp, int size);
 
 extern kmem_zone_t *xfs_log_ticket_zone;
-struct xlog_ticket *xlog_ticket_alloc(struct log *log, int unit_bytes,
-				int count, char client, bool permanent,
-				int alloc_flags);
+struct xlog_ticket *
+xlog_ticket_alloc(
+	struct xlog	*log,
+	int		unit_bytes,
+	int		count,
+	char		client,
+	bool		permanent,
+	xfs_km_flags_t	alloc_flags);
 
 
 static inline void
@@ -565,9 +450,14 @@ xlog_write_adv_cnt(void **ptr, int *len, int *off, size_t bytes)
 }
 
 void	xlog_print_tic_res(struct xfs_mount *mp, struct xlog_ticket *ticket);
-int	xlog_write(struct log *log, struct xfs_log_vec *log_vector,
-				struct xlog_ticket *tic, xfs_lsn_t *start_lsn,
-				xlog_in_core_t **commit_iclog, uint flags);
+int
+xlog_write(
+	struct xlog		*log,
+	struct xfs_log_vec	*log_vector,
+	struct xlog_ticket	*tic,
+	xfs_lsn_t		*start_lsn,
+	struct xlog_in_core	**commit_iclog,
+	uint			flags);
 
 /*
  * When we crack an atomic LSN, we sample it first so that the value will not
@@ -627,17 +517,21 @@ xlog_assign_grant_head(atomic64_t *head, int cycle, int space)
 /*
  * Committed Item List interfaces
  */
-int	xlog_cil_init(struct log *log);
-void	xlog_cil_init_post_recovery(struct log *log);
-void	xlog_cil_destroy(struct log *log);
+int	xlog_cil_init(struct xlog *log);
+void	xlog_cil_init_post_recovery(struct xlog *log);
+void	xlog_cil_destroy(struct xlog *log);
+bool	xlog_cil_empty(struct xlog *log);
 
 /*
  * CIL force routines
  */
-xfs_lsn_t xlog_cil_force_lsn(struct log *log, xfs_lsn_t sequence);
+xfs_lsn_t
+xlog_cil_force_lsn(
+	struct xlog *log,
+	xfs_lsn_t sequence);
 
 static inline void
-xlog_cil_force(struct log *log)
+xlog_cil_force(struct xlog *log)
 {
 	xlog_cil_force_lsn(log, log->l_cilp->xc_current_sequence);
 }
@@ -663,6 +557,5 @@ static inline void xlog_wait(wait_queue_head_t *wq, spinlock_t *lock)
 	schedule();
 	remove_wait_queue(wq, &wait);
 }
-#endif	/* __KERNEL__ */
 
 #endif	/* __XFS_LOG_PRIV_H__ */

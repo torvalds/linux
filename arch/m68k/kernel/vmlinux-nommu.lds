@@ -78,9 +78,7 @@ SECTIONS {
 		__init_end = .;
 	}
 
-	_sbss = .;
 	BSS_SECTION(0, 0, 0)
-	_ebss = .;
 
 	_end = .;
 

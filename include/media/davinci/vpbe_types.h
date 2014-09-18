@@ -26,15 +26,9 @@ enum vpbe_version {
 /* vpbe_timing_type - Timing types used in vpbe device */
 enum vpbe_enc_timings_type {
 	VPBE_ENC_STD = 0x1,
-	VPBE_ENC_DV_PRESET = 0x2,
-	VPBE_ENC_CUSTOM_TIMINGS = 0x4,
+	VPBE_ENC_DV_TIMINGS = 0x4,
 	/* Used when set timings through FB device interface */
 	VPBE_ENC_TIMINGS_INVALID = 0x8,
-};
-
-union vpbe_timings {
-	v4l2_std_id std_id;
-	unsigned int dv_preset;
 };
 
 /*
@@ -73,7 +67,8 @@ union vpbe_timings {
 struct vpbe_enc_mode_info {
 	unsigned char *name;
 	enum vpbe_enc_timings_type timings_type;
-	union vpbe_timings timings;
+	v4l2_std_id std_id;
+	struct v4l2_dv_timings dv_timings;
 	unsigned int interlaced;
 	unsigned int xres;
 	unsigned int yres;

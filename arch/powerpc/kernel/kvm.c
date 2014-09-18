@@ -31,6 +31,7 @@
 #include <asm/cacheflush.h>
 #include <asm/disassemble.h>
 #include <asm/ppc-opcode.h>
+#include <asm/epapr_hcalls.h>
 
 #define KVM_MAGIC_PAGE		(-4096L)
 #define magic_var(x) KVM_MAGIC_PAGE + offsetof(struct kvm_vcpu_arch_shared, x)
@@ -73,7 +74,7 @@
 #define KVM_INST_MTSRIN		0x7c0001e4
 
 static bool kvm_patching_worked = true;
-static char kvm_tmp[1024 * 1024];
+char kvm_tmp[1024 * 1024];
 static int kvm_tmp_index;
 
 static inline void kvm_patch_ins(u32 *inst, u32 new_inst)
@@ -302,7 +303,7 @@ static void kvm_patch_ins_wrtee(u32 *inst, u32 rt, int imm_one)
 
 	if (imm_one) {
 		p[kvm_emulate_wrtee_reg_offs] =
-			KVM_INST_LI | __PPC_RT(30) | MSR_EE;
+			KVM_INST_LI | __PPC_RT(R30) | MSR_EE;
 	} else {
 		/* Make clobbered registers work too */
 		switch (get_rt(rt)) {
@@ -412,13 +413,13 @@ static void kvm_map_magic_page(void *data)
 {
 	u32 *features = data;
 
-	ulong in[8];
+	ulong in[8] = {0};
 	ulong out[8];
 
 	in[0] = KVM_MAGIC_PAGE;
-	in[1] = KVM_MAGIC_PAGE;
+	in[1] = KVM_MAGIC_PAGE | MAGIC_PAGE_FLAG_NOT_MAPPED_NX;
 
-	kvm_hypercall(in, out, HC_VENDOR_KVM | KVM_HC_PPC_MAP_MAGIC_PAGE);
+	epapr_hypercall(in, out, KVM_HCALL_TOKEN(KVM_HC_PPC_MAP_MAGIC_PAGE));
 
 	*features = out[0];
 }
@@ -710,80 +711,10 @@ static void kvm_use_magic_page(void)
 			 kvm_patching_worked ? "worked" : "failed");
 }
 
-unsigned long kvm_hypercall(unsigned long *in,
-			    unsigned long *out,
-			    unsigned long nr)
-{
-	unsigned long register r0 asm("r0");
-	unsigned long register r3 asm("r3") = in[0];
-	unsigned long register r4 asm("r4") = in[1];
-	unsigned long register r5 asm("r5") = in[2];
-	unsigned long register r6 asm("r6") = in[3];
-	unsigned long register r7 asm("r7") = in[4];
-	unsigned long register r8 asm("r8") = in[5];
-	unsigned long register r9 asm("r9") = in[6];
-	unsigned long register r10 asm("r10") = in[7];
-	unsigned long register r11 asm("r11") = nr;
-	unsigned long register r12 asm("r12");
-
-	asm volatile("bl	kvm_hypercall_start"
-		     : "=r"(r0), "=r"(r3), "=r"(r4), "=r"(r5), "=r"(r6),
-		       "=r"(r7), "=r"(r8), "=r"(r9), "=r"(r10), "=r"(r11),
-		       "=r"(r12)
-		     : "r"(r3), "r"(r4), "r"(r5), "r"(r6), "r"(r7), "r"(r8),
-		       "r"(r9), "r"(r10), "r"(r11)
-		     : "memory", "cc", "xer", "ctr", "lr");
-
-	out[0] = r4;
-	out[1] = r5;
-	out[2] = r6;
-	out[3] = r7;
-	out[4] = r8;
-	out[5] = r9;
-	out[6] = r10;
-	out[7] = r11;
-
-	return r3;
-}
-EXPORT_SYMBOL_GPL(kvm_hypercall);
-
-static int kvm_para_setup(void)
-{
-	extern u32 kvm_hypercall_start;
-	struct device_node *hyper_node;
-	u32 *insts;
-	int len, i;
-
-	hyper_node = of_find_node_by_path("/hypervisor");
-	if (!hyper_node)
-		return -1;
-
-	insts = (u32*)of_get_property(hyper_node, "hcall-instructions", &len);
-	if (len % 4)
-		return -1;
-	if (len > (4 * 4))
-		return -1;
-
-	for (i = 0; i < (len / 4); i++)
-		kvm_patch_ins(&(&kvm_hypercall_start)[i], insts[i]);
-
-	return 0;
-}
-
 static __init void kvm_free_tmp(void)
 {
-	unsigned long start, end;
-
-	start = (ulong)&kvm_tmp[kvm_tmp_index + (PAGE_SIZE - 1)] & PAGE_MASK;
-	end = (ulong)&kvm_tmp[ARRAY_SIZE(kvm_tmp)] & PAGE_MASK;
-
-	/* Free the tmp space we don't need */
-	for (; start < end; start += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(start));
-		init_page_count(virt_to_page(start));
-		free_page(start);
-		totalram_pages++;
-	}
+	free_reserved_area(&kvm_tmp[kvm_tmp_index],
+			   &kvm_tmp[ARRAY_SIZE(kvm_tmp)], -1, NULL);
 }
 
 static int __init kvm_guest_init(void)
@@ -791,7 +722,7 @@ static int __init kvm_guest_init(void)
 	if (!kvm_para_available())
 		goto free_tmp;
 
-	if (kvm_para_setup())
+	if (!epapr_paravirt_enabled)
 		goto free_tmp;
 
 	if (kvm_para_has_feature(KVM_FEATURE_MAGIC_PAGE))

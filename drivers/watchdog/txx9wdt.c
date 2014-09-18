@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -121,9 +120,9 @@ static int __init txx9wdt_probe(struct platform_device *dev)
 	}
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	txx9wdt_reg = devm_request_and_ioremap(&dev->dev, res);
-	if (!txx9wdt_reg) {
-		ret = -EBUSY;
+	txx9wdt_reg = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(txx9wdt_reg)) {
+		ret = PTR_ERR(txx9wdt_reg);
 		goto exit;
 	}
 
@@ -172,20 +171,8 @@ static struct platform_driver txx9wdt_driver = {
 	},
 };
 
-static int __init watchdog_init(void)
-{
-	return platform_driver_probe(&txx9wdt_driver, txx9wdt_probe);
-}
-
-static void __exit watchdog_exit(void)
-{
-	platform_driver_unregister(&txx9wdt_driver);
-}
-
-module_init(watchdog_init);
-module_exit(watchdog_exit);
+module_platform_driver_probe(txx9wdt_driver, txx9wdt_probe);
 
 MODULE_DESCRIPTION("TXx9 Watchdog Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform:txx9wdt");

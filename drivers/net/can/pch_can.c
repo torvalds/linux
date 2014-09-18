@@ -12,8 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/interrupt.h>
@@ -22,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -184,7 +182,7 @@ struct pch_can_priv {
 	int use_msi;
 };
 
-static struct can_bittiming_const pch_can_bittiming_const = {
+static const struct can_bittiming_const pch_can_bittiming_const = {
 	.name = KBUILD_MODNAME,
 	.tseg1_min = 2,
 	.tseg1_max = 16,
@@ -196,7 +194,7 @@ static struct can_bittiming_const pch_can_bittiming_const = {
 	.brp_inc = 1,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pch_pci_tbl) = {
+static const struct pci_device_id pch_pci_tbl[] = {
 	{PCI_VENDOR_ID_INTEL, 0x8818, PCI_ANY_ID, PCI_ANY_ID,},
 	{0,}
 };
@@ -560,7 +558,7 @@ static void pch_can_error(struct net_device *ndev, u32 status)
 		stats->rx_errors++;
 		break;
 	case PCH_CRC_ERR:
-		cf->data[2] |= CAN_ERR_PROT_LOC_CRC_SEQ |
+		cf->data[3] |= CAN_ERR_PROT_LOC_CRC_SEQ |
 			       CAN_ERR_PROT_LOC_CRC_DEL;
 		priv->can.can_stats.bus_error++;
 		stats->rx_errors++;
@@ -952,9 +950,10 @@ static const struct net_device_ops pch_can_netdev_ops = {
 	.ndo_open		= pch_can_open,
 	.ndo_stop		= pch_close,
 	.ndo_start_xmit		= pch_xmit,
+	.ndo_change_mtu		= can_change_mtu,
 };
 
-static void __devexit pch_can_remove(struct pci_dev *pdev)
+static void pch_can_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct pch_can_priv *priv = netdev_priv(ndev);
@@ -964,7 +963,6 @@ static void __devexit pch_can_remove(struct pci_dev *pdev)
 		pci_disable_msi(priv->dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	pch_can_reset(priv);
 	pci_iounmap(pdev, priv->regs);
 	free_candev(priv->ndev);
@@ -1178,7 +1176,7 @@ static int pch_can_get_berr_counter(const struct net_device *dev,
 	return 0;
 }
 
-static int __devinit pch_can_probe(struct pci_dev *pdev,
+static int pch_can_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	struct net_device *ndev;
@@ -1269,22 +1267,12 @@ static struct pci_driver pch_can_pci_driver = {
 	.name = "pch_can",
 	.id_table = pch_pci_tbl,
 	.probe = pch_can_probe,
-	.remove = __devexit_p(pch_can_remove),
+	.remove = pch_can_remove,
 	.suspend = pch_can_suspend,
 	.resume = pch_can_resume,
 };
 
-static int __init pch_can_pci_init(void)
-{
-	return pci_register_driver(&pch_can_pci_driver);
-}
-module_init(pch_can_pci_init);
-
-static void __exit pch_can_pci_exit(void)
-{
-	pci_unregister_driver(&pch_can_pci_driver);
-}
-module_exit(pch_can_pci_exit);
+module_pci_driver(pch_can_pci_driver);
 
 MODULE_DESCRIPTION("Intel EG20T PCH CAN(Controller Area Network) Driver");
 MODULE_LICENSE("GPL v2");

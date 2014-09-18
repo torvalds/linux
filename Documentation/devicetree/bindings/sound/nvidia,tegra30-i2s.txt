@@ -1,0 +1,24 @@
+NVIDIA Tegra30 I2S controller
+
+Required properties:
+- compatible : "nvidia,tegra30-i2s"
+- reg : Should contain I2S registers location and length
+- clocks : Must contain one entry, for the module clock.
+  See ../clocks/clock-bindings.txt for details.
+- resets : Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names : Must include the following entries:
+  - i2s
+- nvidia,ahub-cif-ids : The list of AHUB CIF IDs for this port, rx (playback)
+  first, tx (capture) second. See nvidia,tegra30-ahub.txt for values.
+
+Example:
+
+i2s@70080300 {
+	compatible = "nvidia,tegra30-i2s";
+	reg = <0x70080300 0x100>;
+	nvidia,ahub-cif-ids = <4 4>;
+	clocks = <&tegra_car 11>;
+	resets = <&tegra_car 11>;
+	reset-names = "i2s";
+};

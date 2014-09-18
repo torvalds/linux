@@ -1,0 +1,38 @@
+/* The pxa3xx skeleton simply augments the 2xx version */
+/include/ "pxa2xx.dtsi"
+
+/ {
+	model = "Marvell PXA27x familiy SoC";
+	compatible = "marvell,pxa27x";
+
+	pxabus {
+		pxairq: interrupt-controller@40d00000 {
+			marvell,intc-priority;
+			marvell,intc-nr-irqs = <34>;
+		};
+
+		pwm0: pwm@40b00000 {
+			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
+			reg = <0x40b00000 0x10>;
+			#pwm-cells = <1>;
+		};
+
+		pwm1: pwm@40b00010 {
+			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
+			reg = <0x40b00010 0x10>;
+			#pwm-cells = <1>;
+		};
+
+		pwm2: pwm@40c00000 {
+			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
+			reg = <0x40c00000 0x10>;
+			#pwm-cells = <1>;
+		};
+
+		pwm3: pwm@40c00010 {
+			compatible = "marvell,pxa270-pwm", "marvell,pxa250-pwm";
+			reg = <0x40c00010 0x10>;
+			#pwm-cells = <1>;
+		};
+	};
+};

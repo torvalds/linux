@@ -1,7 +1,7 @@
 /*
  *  pdc_adma.c - Pacific Digital Corporation ADMA
  *
- *  Maintained by:  Mark Lord <mlord@pobox.com>
+ *  Maintained by:  Tejun Heo <tj@kernel.org>
  *
  *  Copyright 2005 Mark Lord
  *
@@ -36,7 +36,6 @@
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -660,21 +659,10 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 				 &adma_ata_sht);
 }
 
-static int __init adma_ata_init(void)
-{
-	return pci_register_driver(&adma_ata_pci_driver);
-}
-
-static void __exit adma_ata_exit(void)
-{
-	pci_unregister_driver(&adma_ata_pci_driver);
-}
+module_pci_driver(adma_ata_pci_driver);
 
 MODULE_AUTHOR("Mark Lord");
 MODULE_DESCRIPTION("Pacific Digital Corporation ADMA low-level driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, adma_ata_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(adma_ata_init);
-module_exit(adma_ata_exit);

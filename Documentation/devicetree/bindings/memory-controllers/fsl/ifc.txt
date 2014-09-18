@@ -1,0 +1,79 @@
+Integrated Flash Controller
+
+Properties:
+- name : Should be ifc
+- compatible : should contain "fsl,ifc". The version of the integrated
+               flash controller can be found in the IFC_REV register at
+               offset zero.
+
+- #address-cells : Should be either two or three.  The first cell is the
+                   chipselect number, and the remaining cells are the
+                   offset into the chipselect.
+- #size-cells : Either one or two, depending on how large each chipselect
+                can be.
+- reg : Offset and length of the register set for the device
+- interrupts: IFC may have one or two interrupts.  If two interrupt
+              specifiers are present, the first is the "common"
+              interrupt (CM_EVTER_STAT), and the second is the NAND
+              interrupt (NAND_EVTER_STAT).  If there is only one,
+              that interrupt reports both types of event.
+
+
+- ranges : Each range corresponds to a single chipselect, and covers
+           the entire access window as configured.
+
+Child device nodes describe the devices connected to IFC such as NOR (e.g.
+cfi-flash) and NAND (fsl,ifc-nand). There might be board specific devices
+like FPGAs, CPLDs, etc.
+
+Example:
+
+	ifc@ffe1e000 {
+		compatible = "fsl,ifc", "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0x0 0xffe1e000 0 0x2000>;
+		interrupts = <16 2 19 2>;
+
+		/* NOR, NAND Flashes and CPLD on board */
+		ranges = <0x0 0x0 0x0 0xee000000 0x02000000
+			  0x1 0x0 0x0 0xffa00000 0x00010000
+			  0x3 0x0 0x0 0xffb00000 0x00020000>;
+
+		flash@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x2000000>;
+			bank-width = <2>;
+			device-width = <1>;
+
+			partition@0 {
+				/* 32MB for user data */
+				reg = <0x0 0x02000000>;
+				label = "NOR Data";
+			};
+		};
+
+		flash@1,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,ifc-nand";
+			reg = <0x1 0x0 0x10000>;
+
+			partition@0 {
+				/* This location must not be altered  */
+				/* 1MB for u-boot Bootloader Image */
+				reg = <0x0 0x00100000>;
+				label = "NAND U-Boot Image";
+				read-only;
+			};
+		};
+
+		cpld@3,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,p1010rdb-cpld";
+			reg = <0x3 0x0 0x000001f>;
+		};
+	};

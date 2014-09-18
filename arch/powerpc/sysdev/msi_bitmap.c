@@ -202,7 +202,7 @@ void __init test_of_node(void)
 
 	/* There should really be a struct device_node allocator */
 	memset(&of_node, 0, sizeof(of_node));
-	kref_init(&of_node.kref);
+	of_node_init(&of_node);
 	of_node.full_name = node_name;
 
 	check(0 == msi_bitmap_alloc(&bmp, size, &of_node));

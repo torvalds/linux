@@ -11,7 +11,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -137,7 +136,7 @@ static void pcap_ts_close(struct input_dev *dev)
 				pcap_ts->read_state << PCAP_ADC_TS_M_SHIFT);
 }
 
-static int __devinit pcap_ts_probe(struct platform_device *pdev)
+static int pcap_ts_probe(struct platform_device *pdev)
 {
 	struct input_dev *input_dev;
 	struct pcap_ts *pcap_ts;
@@ -202,7 +201,7 @@ fail:
 	return err;
 }
 
-static int __devexit pcap_ts_remove(struct platform_device *pdev)
+static int pcap_ts_remove(struct platform_device *pdev)
 {
 	struct pcap_ts *pcap_ts = platform_get_drvdata(pdev);
 
@@ -245,7 +244,7 @@ static const struct dev_pm_ops pcap_ts_pm_ops = {
 
 static struct platform_driver pcap_ts_driver = {
 	.probe		= pcap_ts_probe,
-	.remove		= __devexit_p(pcap_ts_remove),
+	.remove		= pcap_ts_remove,
 	.driver		= {
 		.name	= "pcap-ts",
 		.owner	= THIS_MODULE,

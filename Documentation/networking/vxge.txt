@@ -91,10 +91,3 @@ v)  addr_learn_en
        virtualization environment.
        Valid range: 0,1 (disabled, enabled respectively)
        Default: 0
-
-4) Troubleshooting:
--------------------
-
-To resolve an issue with the source code or X3100 series adapter, please collect
-the statistics, register dumps using ethool, relevant logs and email them to
-support@neterion.com.

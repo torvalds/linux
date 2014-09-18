@@ -39,6 +39,7 @@
 #define r_X		5
 #define r_addr		6
 #define r_scratch1	7
+#define r_scratch2	8
 #define r_D		14
 #define r_HL		15
 #define r_M		16
@@ -48,7 +49,13 @@
 /*
  * Assembly helpers from arch/powerpc/net/bpf_jit.S:
  */
-extern u8 sk_load_word[], sk_load_half[], sk_load_byte[], sk_load_byte_msh[];
+#define DECLARE_LOAD_FUNC(func)	\
+	extern u8 func[], func##_negative_offset[], func##_positive_offset[]
+
+DECLARE_LOAD_FUNC(sk_load_word);
+DECLARE_LOAD_FUNC(sk_load_half);
+DECLARE_LOAD_FUNC(sk_load_byte);
+DECLARE_LOAD_FUNC(sk_load_byte_msh);
 
 #define FUNCTION_DESCR_SIZE	24
 
@@ -69,23 +76,25 @@ extern u8 sk_load_word[], sk_load_half[], sk_load_byte[], sk_load_byte_msh[];
 #define PPC_NOP()		EMIT(PPC_INST_NOP)
 #define PPC_BLR()		EMIT(PPC_INST_BLR)
 #define PPC_BLRL()		EMIT(PPC_INST_BLRL)
-#define PPC_MTLR(r)		EMIT(PPC_INST_MTLR | __PPC_RT(r))
-#define PPC_ADDI(d, a, i)	EMIT(PPC_INST_ADDI | __PPC_RT(d) |	      \
-				     __PPC_RA(a) | IMM_L(i))
+#define PPC_MTLR(r)		EMIT(PPC_INST_MTLR | ___PPC_RT(r))
+#define PPC_ADDI(d, a, i)	EMIT(PPC_INST_ADDI | ___PPC_RT(d) |	      \
+				     ___PPC_RA(a) | IMM_L(i))
 #define PPC_MR(d, a)		PPC_OR(d, a, a)
 #define PPC_LI(r, i)		PPC_ADDI(r, 0, i)
 #define PPC_ADDIS(d, a, i)	EMIT(PPC_INST_ADDIS |			      \
-				     __PPC_RS(d) | __PPC_RA(a) | IMM_L(i))
+				     ___PPC_RS(d) | ___PPC_RA(a) | IMM_L(i))
 #define PPC_LIS(r, i)		PPC_ADDIS(r, 0, i)
-#define PPC_STD(r, base, i)	EMIT(PPC_INST_STD | __PPC_RS(r) |	      \
-				     __PPC_RA(base) | ((i) & 0xfffc))
+#define PPC_STD(r, base, i)	EMIT(PPC_INST_STD | ___PPC_RS(r) |	      \
+				     ___PPC_RA(base) | ((i) & 0xfffc))
 
-#define PPC_LD(r, base, i)	EMIT(PPC_INST_LD | __PPC_RT(r) |	      \
-				     __PPC_RA(base) | IMM_L(i))
-#define PPC_LWZ(r, base, i)	EMIT(PPC_INST_LWZ | __PPC_RT(r) |	      \
-				     __PPC_RA(base) | IMM_L(i))
-#define PPC_LHZ(r, base, i)	EMIT(PPC_INST_LHZ | __PPC_RT(r) |	      \
-				     __PPC_RA(base) | IMM_L(i))
+#define PPC_LD(r, base, i)	EMIT(PPC_INST_LD | ___PPC_RT(r) |	      \
+				     ___PPC_RA(base) | IMM_L(i))
+#define PPC_LWZ(r, base, i)	EMIT(PPC_INST_LWZ | ___PPC_RT(r) |	      \
+				     ___PPC_RA(base) | IMM_L(i))
+#define PPC_LHZ(r, base, i)	EMIT(PPC_INST_LHZ | ___PPC_RT(r) |	      \
+				     ___PPC_RA(base) | IMM_L(i))
+#define PPC_LHBRX(r, base, b)	EMIT(PPC_INST_LHBRX | ___PPC_RT(r) |	      \
+				     ___PPC_RA(base) | ___PPC_RB(b))
 /* Convenience helpers for the above with 'far' offsets: */
 #define PPC_LD_OFFS(r, base, i) do { if ((i) < 32768) PPC_LD(r, base, i);     \
 		else {	PPC_ADDIS(r, base, IMM_HA(i));			      \
@@ -99,52 +108,58 @@ extern u8 sk_load_word[], sk_load_half[], sk_load_byte[], sk_load_byte_msh[];
 		else {	PPC_ADDIS(r, base, IMM_HA(i));			      \
 			PPC_LHZ(r, r, IMM_L(i)); } } while(0)
 
-#define PPC_CMPWI(a, i)		EMIT(PPC_INST_CMPWI | __PPC_RA(a) | IMM_L(i))
-#define PPC_CMPDI(a, i)		EMIT(PPC_INST_CMPDI | __PPC_RA(a) | IMM_L(i))
-#define PPC_CMPLWI(a, i)	EMIT(PPC_INST_CMPLWI | __PPC_RA(a) | IMM_L(i))
-#define PPC_CMPLW(a, b)		EMIT(PPC_INST_CMPLW | __PPC_RA(a) | __PPC_RB(b))
+#define PPC_CMPWI(a, i)		EMIT(PPC_INST_CMPWI | ___PPC_RA(a) | IMM_L(i))
+#define PPC_CMPDI(a, i)		EMIT(PPC_INST_CMPDI | ___PPC_RA(a) | IMM_L(i))
+#define PPC_CMPLWI(a, i)	EMIT(PPC_INST_CMPLWI | ___PPC_RA(a) | IMM_L(i))
+#define PPC_CMPLW(a, b)		EMIT(PPC_INST_CMPLW | ___PPC_RA(a) | ___PPC_RB(b))
 
-#define PPC_SUB(d, a, b)	EMIT(PPC_INST_SUB | __PPC_RT(d) |	      \
-				     __PPC_RB(a) | __PPC_RA(b))
-#define PPC_ADD(d, a, b)	EMIT(PPC_INST_ADD | __PPC_RT(d) |	      \
-				     __PPC_RA(a) | __PPC_RB(b))
-#define PPC_MUL(d, a, b)	EMIT(PPC_INST_MULLW | __PPC_RT(d) |	      \
-				     __PPC_RA(a) | __PPC_RB(b))
-#define PPC_MULHWU(d, a, b)	EMIT(PPC_INST_MULHWU | __PPC_RT(d) |	      \
-				     __PPC_RA(a) | __PPC_RB(b))
-#define PPC_MULI(d, a, i)	EMIT(PPC_INST_MULLI | __PPC_RT(d) |	      \
-				     __PPC_RA(a) | IMM_L(i))
-#define PPC_DIVWU(d, a, b)	EMIT(PPC_INST_DIVWU | __PPC_RT(d) |	      \
-				     __PPC_RA(a) | __PPC_RB(b))
-#define PPC_AND(d, a, b)	EMIT(PPC_INST_AND | __PPC_RA(d) |	      \
-				     __PPC_RS(a) | __PPC_RB(b))
-#define PPC_ANDI(d, a, i)	EMIT(PPC_INST_ANDI | __PPC_RA(d) |	      \
-				     __PPC_RS(a) | IMM_L(i))
-#define PPC_AND_DOT(d, a, b)	EMIT(PPC_INST_ANDDOT | __PPC_RA(d) |	      \
-				     __PPC_RS(a) | __PPC_RB(b))
-#define PPC_OR(d, a, b)		EMIT(PPC_INST_OR | __PPC_RA(d) |	      \
-				     __PPC_RS(a) | __PPC_RB(b))
-#define PPC_ORI(d, a, i)	EMIT(PPC_INST_ORI | __PPC_RA(d) |	      \
-				     __PPC_RS(a) | IMM_L(i))
-#define PPC_ORIS(d, a, i)	EMIT(PPC_INST_ORIS | __PPC_RA(d) |	      \
-				     __PPC_RS(a) | IMM_L(i))
-#define PPC_SLW(d, a, s)	EMIT(PPC_INST_SLW | __PPC_RA(d) |	      \
-				     __PPC_RS(a) | __PPC_RB(s))
-#define PPC_SRW(d, a, s)	EMIT(PPC_INST_SRW | __PPC_RA(d) |	      \
-				     __PPC_RS(a) | __PPC_RB(s))
+#define PPC_SUB(d, a, b)	EMIT(PPC_INST_SUB | ___PPC_RT(d) |	      \
+				     ___PPC_RB(a) | ___PPC_RA(b))
+#define PPC_ADD(d, a, b)	EMIT(PPC_INST_ADD | ___PPC_RT(d) |	      \
+				     ___PPC_RA(a) | ___PPC_RB(b))
+#define PPC_MUL(d, a, b)	EMIT(PPC_INST_MULLW | ___PPC_RT(d) |	      \
+				     ___PPC_RA(a) | ___PPC_RB(b))
+#define PPC_MULHWU(d, a, b)	EMIT(PPC_INST_MULHWU | ___PPC_RT(d) |	      \
+				     ___PPC_RA(a) | ___PPC_RB(b))
+#define PPC_MULI(d, a, i)	EMIT(PPC_INST_MULLI | ___PPC_RT(d) |	      \
+				     ___PPC_RA(a) | IMM_L(i))
+#define PPC_DIVWU(d, a, b)	EMIT(PPC_INST_DIVWU | ___PPC_RT(d) |	      \
+				     ___PPC_RA(a) | ___PPC_RB(b))
+#define PPC_AND(d, a, b)	EMIT(PPC_INST_AND | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | ___PPC_RB(b))
+#define PPC_ANDI(d, a, i)	EMIT(PPC_INST_ANDI | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | IMM_L(i))
+#define PPC_AND_DOT(d, a, b)	EMIT(PPC_INST_ANDDOT | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | ___PPC_RB(b))
+#define PPC_OR(d, a, b)		EMIT(PPC_INST_OR | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | ___PPC_RB(b))
+#define PPC_ORI(d, a, i)	EMIT(PPC_INST_ORI | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | IMM_L(i))
+#define PPC_ORIS(d, a, i)	EMIT(PPC_INST_ORIS | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | IMM_L(i))
+#define PPC_XOR(d, a, b)	EMIT(PPC_INST_XOR | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | ___PPC_RB(b))
+#define PPC_XORI(d, a, i)	EMIT(PPC_INST_XORI | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | IMM_L(i))
+#define PPC_XORIS(d, a, i)	EMIT(PPC_INST_XORIS | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | IMM_L(i))
+#define PPC_SLW(d, a, s)	EMIT(PPC_INST_SLW | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | ___PPC_RB(s))
+#define PPC_SRW(d, a, s)	EMIT(PPC_INST_SRW | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | ___PPC_RB(s))
 /* slwi = rlwinm Rx, Ry, n, 0, 31-n */
-#define PPC_SLWI(d, a, i)	EMIT(PPC_INST_RLWINM | __PPC_RA(d) |	      \
-				     __PPC_RS(a) | __PPC_SH(i) |	      \
+#define PPC_SLWI(d, a, i)	EMIT(PPC_INST_RLWINM | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | __PPC_SH(i) |	      \
 				     __PPC_MB(0) | __PPC_ME(31-(i)))
 /* srwi = rlwinm Rx, Ry, 32-n, n, 31 */
-#define PPC_SRWI(d, a, i)	EMIT(PPC_INST_RLWINM | __PPC_RA(d) |	      \
-				     __PPC_RS(a) | __PPC_SH(32-(i)) |	      \
+#define PPC_SRWI(d, a, i)	EMIT(PPC_INST_RLWINM | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | __PPC_SH(32-(i)) |	      \
 				     __PPC_MB(i) | __PPC_ME(31))
 /* sldi = rldicr Rx, Ry, n, 63-n */
-#define PPC_SLDI(d, a, i)	EMIT(PPC_INST_RLDICR | __PPC_RA(d) |	      \
-				     __PPC_RS(a) | __PPC_SH(i) |	      \
+#define PPC_SLDI(d, a, i)	EMIT(PPC_INST_RLDICR | ___PPC_RA(d) |	      \
+				     ___PPC_RS(a) | __PPC_SH(i) |	      \
 				     __PPC_MB(63-(i)) | (((i) & 0x20) >> 4))
-#define PPC_NEG(d, a)		EMIT(PPC_INST_NEG | __PPC_RT(d) | __PPC_RA(a))
+#define PPC_NEG(d, a)		EMIT(PPC_INST_NEG | ___PPC_RT(d) | ___PPC_RA(a))
 
 /* Long jump; (unconditional 'branch') */
 #define PPC_JMP(dest)		EMIT(PPC_INST_BRANCH |			      \
@@ -173,6 +188,14 @@ extern u8 sk_load_word[], sk_load_half[], sk_load_byte[], sk_load_byte_msh[];
 			if ((uintptr_t)(i) & 0x000000000000ffffULL)	      \
 				PPC_ORI(d, d, (uintptr_t)(i) & 0xffff);	      \
 		} } while (0);
+
+#define PPC_LHBRX_OFFS(r, base, i) \
+		do { PPC_LI32(r, i); PPC_LHBRX(r, r, base); } while(0)
+#ifdef __LITTLE_ENDIAN__
+#define PPC_NTOHS_OFFS(r, base, i)	PPC_LHBRX_OFFS(r, base, i)
+#else
+#define PPC_NTOHS_OFFS(r, base, i)	PPC_LHZ_OFFS(r, base, i)
+#endif
 
 static inline bool is_nearbranch(int offset)
 {

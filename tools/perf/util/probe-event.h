@@ -2,16 +2,18 @@
 #define _PROBE_EVENT_H
 
 #include <stdbool.h>
+#include "intlist.h"
 #include "strlist.h"
 #include "strfilter.h"
 
 extern bool probe_event_dry_run;
 
-/* kprobe-tracer tracing point */
+/* kprobe-tracer and uprobe-tracer tracing point */
 struct probe_trace_point {
 	char		*symbol;	/* Base symbol */
 	char		*module;	/* Module name */
 	unsigned long	offset;		/* Offset from symbol */
+	unsigned long	address;	/* Actual address of the trace point */
 	bool		retprobe;	/* Return probe flag */
 };
 
@@ -21,7 +23,7 @@ struct probe_trace_arg_ref {
 	long				offset;	/* Offset value */
 };
 
-/* kprobe-tracer tracing argument */
+/* kprobe-tracer and uprobe-tracer tracing argument */
 struct probe_trace_arg {
 	char				*name;	/* Argument name */
 	char				*value;	/* Base value */
@@ -29,12 +31,13 @@ struct probe_trace_arg {
 	struct probe_trace_arg_ref	*ref;	/* Referencing offset */
 };
 
-/* kprobe-tracer tracing event (point + arg) */
+/* kprobe-tracer and uprobe-tracer tracing event (point + arg) */
 struct probe_trace_event {
 	char				*event;	/* Event name */
 	char				*group;	/* Group name */
 	struct probe_trace_point	point;	/* Trace point */
 	int				nargs;	/* Number of args */
+	bool				uprobes;	/* uprobes only */
 	struct probe_trace_arg		*args;	/* Arguments */
 };
 
@@ -70,14 +73,8 @@ struct perf_probe_event {
 	char			*group;	/* Group name */
 	struct perf_probe_point	point;	/* Probe point */
 	int			nargs;	/* Number of arguments */
+	bool			uprobes;
 	struct perf_probe_arg	*args;	/* Arguments */
-};
-
-
-/* Line number container */
-struct line_node {
-	struct list_head	list;
-	int			line;
 };
 
 /* Line range */
@@ -89,7 +86,7 @@ struct line_range {
 	int			offset;		/* Start line offset */
 	char			*path;		/* Real path name */
 	char			*comp_dir;	/* Compile directory */
-	struct list_head	line_list;	/* Visible lines */
+	struct intlist		*line_list;	/* Visible lines */
 };
 
 /* List of variables */
@@ -117,6 +114,12 @@ extern void clear_perf_probe_event(struct perf_probe_event *pev);
 /* Command string to line-range */
 extern int parse_line_range_desc(const char *cmd, struct line_range *lr);
 
+/* Release line range members */
+extern void line_range__clear(struct line_range *lr);
+
+/* Initialize line range */
+extern int line_range__init(struct line_range *lr);
+
 /* Internal use: Return kernel/module path */
 extern const char *kernel_get_module_path(const char *module);
 
@@ -129,8 +132,8 @@ extern int show_line_range(struct line_range *lr, const char *module);
 extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
 			       int max_probe_points, const char *module,
 			       struct strfilter *filter, bool externs);
-extern int show_available_funcs(const char *module, struct strfilter *filter);
-
+extern int show_available_funcs(const char *module, struct strfilter *filter,
+				bool user);
 
 /* Maximum index number of event-name postfix */
 #define MAX_EVENT_INDEX	1024

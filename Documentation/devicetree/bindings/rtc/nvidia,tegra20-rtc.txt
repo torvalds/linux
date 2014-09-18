@@ -1,0 +1,22 @@
+NVIDIA Tegra20 real-time clock
+
+The Tegra RTC maintains seconds and milliseconds counters, and five alarm
+registers. The alarms and other interrupts may wake the system from low-power
+state.
+
+Required properties:
+
+- compatible : should be "nvidia,tegra20-rtc".
+- reg : Specifies base physical address and size of the registers.
+- interrupts : A single interrupt specifier.
+- clocks : Must contain one entry, for the module clock.
+  See ../clocks/clock-bindings.txt for details.
+
+Example:
+
+timer {
+	compatible = "nvidia,tegra20-rtc";
+	reg = <0x7000e000 0x100>;
+	interrupts = <0 2 0x04>;
+	clocks = <&tegra_car 4>;
+};

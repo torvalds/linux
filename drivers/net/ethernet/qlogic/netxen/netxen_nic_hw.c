@@ -14,9 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
- * MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution
  * in the file called "COPYING".
@@ -365,7 +363,7 @@ static int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		return 0;
 
-	if (port > NETXEN_NIU_MAX_XG_PORTS)
+	if (port >= NETXEN_NIU_MAX_XG_PORTS)
 		return -EINVAL;
 
 	mac_cfg = 0;
@@ -392,7 +390,7 @@ static int netxen_p2_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 	u32 port = adapter->physical_port;
 	u16 board_type = adapter->ahw.board_type;
 
-	if (port > NETXEN_NIU_MAX_XG_PORTS)
+	if (port >= NETXEN_NIU_MAX_XG_PORTS)
 		return -EINVAL;
 
 	mac_cfg = NXRD32(adapter, NETXEN_NIU_XGE_CONFIG_0 + (0x10000 * port));
@@ -536,10 +534,10 @@ static void netxen_p2_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct netdev_hw_addr *ha;
-	u8 null_addr[6];
+	u8 null_addr[ETH_ALEN];
 	int i;
 
-	memset(null_addr, 0, 6);
+	memset(null_addr, 0, ETH_ALEN);
 
 	if (netdev->flags & IFF_PROMISC) {
 
@@ -648,7 +646,7 @@ nx_p3_sre_macaddr_change(struct netxen_adapter *adapter, u8 *addr, unsigned op)
 
 	mac_req = (nx_mac_req_t *)&req.words[0];
 	mac_req->op = op;
-	memcpy(mac_req->mac_addr, addr, 6);
+	memcpy(mac_req->mac_addr, addr, ETH_ALEN);
 
 	return netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 }
@@ -663,18 +661,16 @@ static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
 	list_for_each(head, del_list) {
 		cur = list_entry(head, nx_mac_list_t, list);
 
-		if (memcmp(addr, cur->mac_addr, ETH_ALEN) == 0) {
+		if (ether_addr_equal(addr, cur->mac_addr)) {
 			list_move_tail(head, &adapter->mac_list);
 			return 0;
 		}
 	}
 
 	cur = kzalloc(sizeof(nx_mac_list_t), GFP_ATOMIC);
-	if (cur == NULL) {
-		printk(KERN_ERR "%s: failed to add mac address filter\n",
-				adapter->netdev->name);
+	if (cur == NULL)
 		return -ENOMEM;
-	}
+
 	memcpy(cur->mac_addr, addr, ETH_ALEN);
 	list_add_tail(&cur->list, &adapter->mac_list);
 	return nx_p3_sre_macaddr_change(adapter,
@@ -2568,16 +2564,10 @@ netxen_dump_fw(struct netxen_adapter *adapter)
 					adapter->mdump.md_capture_size;
 	if (!adapter->mdump.md_capture_buff) {
 		adapter->mdump.md_capture_buff =
-				vmalloc(adapter->mdump.md_dump_size);
-		if (!adapter->mdump.md_capture_buff) {
-			dev_info(&adapter->pdev->dev,
-				"Unable to allocate memory for minidump "
-				"capture_buffer(%d bytes).\n",
-					adapter->mdump.md_dump_size);
+				vzalloc(adapter->mdump.md_dump_size);
+		if (!adapter->mdump.md_capture_buff)
 			return;
-		}
-		memset(adapter->mdump.md_capture_buff, 0,
-				adapter->mdump.md_dump_size);
+
 		if (netxen_collect_minidump(adapter)) {
 			adapter->mdump.has_valid_dump = 0;
 			adapter->mdump.md_dump_size = 0;

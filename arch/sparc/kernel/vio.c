@@ -342,6 +342,7 @@ static void vio_remove(struct mdesc_handle *hp, u64 node)
 		printk(KERN_INFO "VIO: Removing device %s\n", dev_name(dev));
 
 		device_unregister(dev);
+		put_device(dev);
 	}
 }
 
@@ -443,7 +444,7 @@ static int __init vio_init(void)
 	root_vdev = vio_create_one(hp, root, NULL);
 	err = -ENODEV;
 	if (!root_vdev) {
-		printk(KERN_ERR "VIO: Coult not create root device.\n");
+		printk(KERN_ERR "VIO: Could not create root device.\n");
 		goto out_release;
 	}
 

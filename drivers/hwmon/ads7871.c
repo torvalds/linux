@@ -40,25 +40,25 @@
  * the instruction byte
  */
 /*Instruction Bit masks*/
-#define INST_MODE_bm	(1<<7)
-#define INST_READ_bm	(1<<6)
-#define INST_16BIT_bm	(1<<5)
+#define INST_MODE_BM	(1 << 7)
+#define INST_READ_BM	(1 << 6)
+#define INST_16BIT_BM	(1 << 5)
 
 /*From figure 18 in the datasheet*/
 /*bit masks for Rev/Oscillator Control Register*/
-#define MUX_CNV_bv	7
-#define MUX_CNV_bm	(1<<MUX_CNV_bv)
-#define MUX_M3_bm	(1<<3) /*M3 selects single ended*/
-#define MUX_G_bv	4 /*allows for reg = (gain << MUX_G_bv) | ...*/
+#define MUX_CNV_BV	7
+#define MUX_CNV_BM	(1 << MUX_CNV_BV)
+#define MUX_M3_BM	(1 << 3) /*M3 selects single ended*/
+#define MUX_G_BV	4 /*allows for reg = (gain << MUX_G_BV) | ...*/
 
 /*From figure 18 in the datasheet*/
 /*bit masks for Rev/Oscillator Control Register*/
-#define OSC_OSCR_bm	(1<<5)
-#define OSC_OSCE_bm	(1<<4)
-#define OSC_REFE_bm	(1<<3)
-#define OSC_BUFE_bm	(1<<2)
-#define OSC_R2V_bm	(1<<1)
-#define OSC_RBG_bm	(1<<0)
+#define OSC_OSCR_BM	(1 << 5)
+#define OSC_OSCE_BM	(1 << 4)
+#define OSC_REFE_BM	(1 << 3)
+#define OSC_BUFE_BM	(1 << 2)
+#define OSC_R2V_BM	(1 << 1)
+#define OSC_RBG_BM	(1 << 0)
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -79,7 +79,7 @@ struct ads7871_data {
 static int ads7871_read_reg8(struct spi_device *spi, int reg)
 {
 	int ret;
-	reg = reg | INST_READ_bm;
+	reg = reg | INST_READ_BM;
 	ret = spi_w8r8(spi, reg);
 	return ret;
 }
@@ -87,7 +87,7 @@ static int ads7871_read_reg8(struct spi_device *spi, int reg)
 static int ads7871_read_reg16(struct spi_device *spi, int reg)
 {
 	int ret;
-	reg = reg | INST_READ_bm | INST_16BIT_bm;
+	reg = reg | INST_READ_BM | INST_16BIT_BM;
 	ret = spi_w8r16(spi, reg);
 	return ret;
 }
@@ -111,13 +111,13 @@ static ssize_t show_voltage(struct device *dev,
 	 * TODO: add support for conversions
 	 * other than single ended with a gain of 1
 	 */
-	/*MUX_M3_bm forces single ended*/
+	/*MUX_M3_BM forces single ended*/
 	/*This is also where the gain of the PGA would be set*/
 	ads7871_write_reg8(spi, REG_GAIN_MUX,
-		(MUX_CNV_bm | MUX_M3_bm | channel));
+		(MUX_CNV_BM | MUX_M3_BM | channel));
 
 	ret = ads7871_read_reg8(spi, REG_GAIN_MUX);
-	mux_cnv = ((ret & MUX_CNV_bm)>>MUX_CNV_bv);
+	mux_cnv = ((ret & MUX_CNV_BM) >> MUX_CNV_BV);
 	/*
 	 * on 400MHz arm9 platform the conversion
 	 * is already done when we do this test
@@ -125,18 +125,24 @@ static ssize_t show_voltage(struct device *dev,
 	while ((i < 2) && mux_cnv) {
 		i++;
 		ret = ads7871_read_reg8(spi, REG_GAIN_MUX);
-		mux_cnv = ((ret & MUX_CNV_bm)>>MUX_CNV_bv);
+		mux_cnv = ((ret & MUX_CNV_BM) >> MUX_CNV_BV);
 		msleep_interruptible(1);
 	}
 
 	if (mux_cnv == 0) {
 		val = ads7871_read_reg16(spi, REG_LS_BYTE);
 		/*result in volts*10000 = (val/8192)*2.5*10000*/
-		val = ((val>>2) * 25000) / 8192;
+		val = ((val >> 2) * 25000) / 8192;
 		return sprintf(buf, "%d\n", val);
 	} else {
 		return -1;
 	}
+}
+
+static ssize_t ads7871_show_name(struct device *dev,
+				 struct device_attribute *devattr, char *buf)
+{
+	return sprintf(buf, "%s\n", to_spi_device(dev)->modalias);
 }
 
 static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, show_voltage, NULL, 0);
@@ -148,6 +154,8 @@ static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, show_voltage, NULL, 5);
 static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, show_voltage, NULL, 6);
 static SENSOR_DEVICE_ATTR(in7_input, S_IRUGO, show_voltage, NULL, 7);
 
+static DEVICE_ATTR(name, S_IRUGO, ads7871_show_name, NULL);
+
 static struct attribute *ads7871_attributes[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in1_input.dev_attr.attr,
@@ -157,6 +165,7 @@ static struct attribute *ads7871_attributes[] = {
 	&sensor_dev_attr_in5_input.dev_attr.attr,
 	&sensor_dev_attr_in6_input.dev_attr.attr,
 	&sensor_dev_attr_in7_input.dev_attr.attr,
+	&dev_attr_name.attr,
 	NULL
 };
 
@@ -164,7 +173,7 @@ static const struct attribute_group ads7871_group = {
 	.attrs = ads7871_attributes,
 };
 
-static int __devinit ads7871_probe(struct spi_device *spi)
+static int ads7871_probe(struct spi_device *spi)
 {
 	int ret, err;
 	uint8_t val;
@@ -180,7 +189,7 @@ static int __devinit ads7871_probe(struct spi_device *spi)
 	ads7871_write_reg8(spi, REG_SER_CONTROL, 0);
 	ads7871_write_reg8(spi, REG_AD_CONTROL, 0);
 
-	val = (OSC_OSCR_bm | OSC_OSCE_bm | OSC_REFE_bm | OSC_BUFE_bm);
+	val = (OSC_OSCR_BM | OSC_OSCE_BM | OSC_REFE_BM | OSC_BUFE_BM);
 	ads7871_write_reg8(spi, REG_OSC_CONTROL, val);
 	ret = ads7871_read_reg8(spi, REG_OSC_CONTROL);
 
@@ -189,20 +198,17 @@ static int __devinit ads7871_probe(struct spi_device *spi)
 	 * because there is no other error checking on an SPI bus
 	 * we need to make sure we really have a chip
 	 */
-	if (val != ret) {
-		err = -ENODEV;
-		goto exit;
-	}
+	if (val != ret)
+		return -ENODEV;
 
-	pdata = kzalloc(sizeof(struct ads7871_data), GFP_KERNEL);
-	if (!pdata) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	pdata = devm_kzalloc(&spi->dev, sizeof(struct ads7871_data),
+			     GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
 
 	err = sysfs_create_group(&spi->dev.kobj, &ads7871_group);
 	if (err < 0)
-		goto error_free;
+		return err;
 
 	spi_set_drvdata(spi, pdata);
 
@@ -216,19 +222,15 @@ static int __devinit ads7871_probe(struct spi_device *spi)
 
 error_remove:
 	sysfs_remove_group(&spi->dev.kobj, &ads7871_group);
-error_free:
-	kfree(pdata);
-exit:
 	return err;
 }
 
-static int __devexit ads7871_remove(struct spi_device *spi)
+static int ads7871_remove(struct spi_device *spi)
 {
 	struct ads7871_data *pdata = spi_get_drvdata(spi);
 
 	hwmon_device_unregister(pdata->hwmon_dev);
 	sysfs_remove_group(&spi->dev.kobj, &ads7871_group);
-	kfree(pdata);
 	return 0;
 }
 
@@ -239,7 +241,7 @@ static struct spi_driver ads7871_driver = {
 	},
 
 	.probe = ads7871_probe,
-	.remove = __devexit_p(ads7871_remove),
+	.remove = ads7871_remove,
 };
 
 module_spi_driver(ads7871_driver);

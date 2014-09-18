@@ -57,9 +57,9 @@ static int max_real_irqs;
 
 static DEFINE_RAW_SPINLOCK(pmac_pic_lock);
 
-#define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
-static unsigned long ppc_lost_interrupts[NR_MASK_WORDS];
-static unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
+/* The max irq number this driver deals with is 128; see max_irqs */
+static DECLARE_BITMAP(ppc_lost_interrupts, 128);
+static DECLARE_BITMAP(ppc_cached_irq_mask, 128);
 static int pmac_irq_cascade = -1;
 static struct irq_domain *pmac_pic_host;
 
@@ -393,8 +393,8 @@ static void __init pmac_pic_probe_oldstyle(void)
 #endif
 }
 
-int of_irq_map_oldworld(struct device_node *device, int index,
-			struct of_irq *out_irq)
+int of_irq_parse_oldworld(struct device_node *device, int index,
+			struct of_phandle_args *out_irq)
 {
 	const u32 *ints = NULL;
 	int intlen;
@@ -422,9 +422,9 @@ int of_irq_map_oldworld(struct device_node *device, int index,
 	if (index >= intlen)
 		return -EINVAL;
 
-	out_irq->controller = NULL;
-	out_irq->specifier[0] = ints[index];
-	out_irq->size = 1;
+	out_irq->np = NULL;
+	out_irq->args[0] = ints[index];
+	out_irq->args_count = 1;
 
 	return 0;
 }
@@ -529,7 +529,7 @@ static int __init pmac_pic_probe_mpic(void)
 void __init pmac_pic_init(void)
 {
 	/* We configure the OF parsing based on our oldworld vs. newworld
-	 * platform type and wether we were booted by BootX.
+	 * platform type and whether we were booted by BootX.
 	 */
 #ifdef CONFIG_PPC32
 	if (!pmac_newworld)

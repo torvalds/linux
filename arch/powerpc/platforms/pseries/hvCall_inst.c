@@ -27,6 +27,7 @@
 #include <asm/firmware.h>
 #include <asm/cputable.h>
 #include <asm/trace.h>
+#include <asm/machdep.h>
 
 DEFINE_PER_CPU(struct hcall_stats[HCALL_STAT_ARRAY_SIZE], hcall_stats);
 
@@ -86,7 +87,7 @@ static int hcall_inst_seq_open(struct inode *inode, struct file *file)
 
 	rc = seq_open(file, &hcall_inst_seq_ops);
 	seq = file->private_data;
-	seq->private = file->f_path.dentry->d_inode->i_private;
+	seq->private = file_inode(file)->i_private;
 
 	return rc;
 }
@@ -162,4 +163,4 @@ static int __init hcall_inst_init(void)
 
 	return 0;
 }
-__initcall(hcall_inst_init);
+machine_device_initcall(pseries, hcall_inst_init);

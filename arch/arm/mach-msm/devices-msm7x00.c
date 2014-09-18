@@ -27,7 +27,38 @@
 
 #include "clock.h"
 #include "clock-pcom.h"
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-msm_sdcc.h>
+
+static struct resource msm_gpio_resources[] = {
+	{
+		.start	= 32 + 0,
+		.end	= 32 + 0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= 32 + 1,
+		.end	= 32 + 1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= 0xa9200800,
+		.end	= 0xa9200800 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+		.name  = "gpio1"
+	},
+	{
+		.start	= 0xa9300C00,
+		.end	= 0xa9300C00 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+		.name  = "gpio2"
+	},
+};
+
+struct platform_device msm_device_gpio_7201 = {
+	.name	= "gpio-msm-7201",
+	.num_resources	= ARRAY_SIZE(msm_gpio_resources),
+	.resource	= msm_gpio_resources,
+};
 
 static struct resource resources_uart1[] = {
 	{
@@ -394,7 +425,7 @@ struct platform_device msm_device_mdp = {
 	.resource = resources_mdp,
 };
 
-struct clk_lookup msm_clocks_7x01a[] = {
+static struct clk_pcom_desc msm_clocks_7x01a[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),
 	CLK_PCOM("ebi1_clk",	EBI1_CLK,	NULL, 0),
@@ -425,9 +456,9 @@ struct clk_lookup msm_clocks_7x01a[] = {
 	CLK_PCOM("tsif_ref_clk",	TSIF_REF_CLK,	NULL, 0),
 	CLK_PCOM("tv_dac_clk",	TV_DAC_CLK,	NULL, 0),
 	CLK_PCOM("tv_enc_clk",	TV_ENC_CLK,	NULL, 0),
-	CLK_PCOM("uart_clk",	UART1_CLK,	"msm_serial.0", OFF),
-	CLK_PCOM("uart_clk",	UART2_CLK,	"msm_serial.1", 0),
-	CLK_PCOM("uart_clk",	UART3_CLK,	"msm_serial.2", OFF),
+	CLK_PCOM("core",	UART1_CLK,	"msm_serial.0", OFF),
+	CLK_PCOM("core",	UART2_CLK,	"msm_serial.1", 0),
+	CLK_PCOM("core",	UART3_CLK,	"msm_serial.2", OFF),
 	CLK_PCOM("uart1dm_clk",	UART1DM_CLK,	NULL, OFF),
 	CLK_PCOM("uart2dm_clk",	UART2DM_CLK,	NULL, 0),
 	CLK_PCOM("usb_hs_clk",	USB_HS_CLK,	"msm_hsusb", OFF),
@@ -438,4 +469,12 @@ struct clk_lookup msm_clocks_7x01a[] = {
 	CLK_PCOM("vfe_mdc_clk",	VFE_MDC_CLK,	NULL, OFF),
 };
 
-unsigned msm_num_clocks_7x01a = ARRAY_SIZE(msm_clocks_7x01a);
+static struct pcom_clk_pdata msm_clock_7x01a_pdata = {
+	.lookup = msm_clocks_7x01a,
+	.num_lookups = ARRAY_SIZE(msm_clocks_7x01a),
+};
+
+struct platform_device msm_clock_7x01a = {
+	.name = "msm-clock-pcom",
+	.dev.platform_data = &msm_clock_7x01a_pdata,
+};

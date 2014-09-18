@@ -24,13 +24,13 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/of_spi.h>
 #include <linux/of_gpio.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -102,7 +102,7 @@ struct spi_ppc4xx_regs {
 	u8 dummy;
 	/*
 	 * Clock divisor modulus register
-	 * This uses the follwing formula:
+	 * This uses the following formula:
 	 *    SCPClkOut = OPBCLK/(4(CDM + 1))
 	 * or
 	 *    CDM = (OPBCLK/4*SCPClkOut) - 1
@@ -191,18 +191,12 @@ static int spi_ppc4xx_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 			speed = min(t->speed_hz, spi->max_speed_hz);
 	}
 
-	if (bits_per_word != 8) {
-		dev_err(&spi->dev, "invalid bits-per-word (%d)\n",
-				bits_per_word);
-		return -EINVAL;
-	}
-
 	if (!speed || (speed > spi->max_speed_hz)) {
 		dev_err(&spi->dev, "invalid speed_hz (%d)\n", speed);
 		return -EINVAL;
 	}
 
-	/* Write new configration */
+	/* Write new configuration */
 	out_8(&hw->regs->mode, cs->mode);
 
 	/* Set the clock */
@@ -229,12 +223,6 @@ static int spi_ppc4xx_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 static int spi_ppc4xx_setup(struct spi_device *spi)
 {
 	struct spi_ppc4xx_cs *cs = spi->controller_state;
-
-	if (spi->bits_per_word != 8) {
-		dev_err(&spi->dev, "invalid bits-per-word (%d)\n",
-			spi->bits_per_word);
-		return -EINVAL;
-	}
 
 	if (!spi->max_speed_hz) {
 		dev_err(&spi->dev, "invalid max_speed_hz (must be non-zero)\n");
@@ -390,7 +378,7 @@ static void free_gpios(struct ppc4xx_spi *hw)
 /*
  * platform_device layer stuff...
  */
-static int __init spi_ppc4xx_of_probe(struct platform_device *op)
+static int spi_ppc4xx_of_probe(struct platform_device *op)
 {
 	struct ppc4xx_spi *hw;
 	struct spi_master *master;
@@ -407,9 +395,9 @@ static int __init spi_ppc4xx_of_probe(struct platform_device *op)
 	if (master == NULL)
 		return -ENOMEM;
 	master->dev.of_node = np;
-	dev_set_drvdata(dev, master);
+	platform_set_drvdata(op, master);
 	hw = spi_master_get_devdata(master);
-	hw->master = spi_master_get(master);
+	hw->master = master;
 	hw->dev = dev;
 
 	init_completion(&hw->done);
@@ -420,7 +408,7 @@ static int __init spi_ppc4xx_of_probe(struct platform_device *op)
 	 * This includes both "null" gpio's and real ones.
 	 */
 	num_gpios = of_gpio_count(np);
-	if (num_gpios) {
+	if (num_gpios > 0) {
 		int i;
 
 		hw->gpios = kzalloc(sizeof(int) * num_gpios, GFP_KERNEL);
@@ -466,16 +454,14 @@ static int __init spi_ppc4xx_of_probe(struct platform_device *op)
 	bbp->use_dma = 0;
 	bbp->master->setup = spi_ppc4xx_setup;
 	bbp->master->cleanup = spi_ppc4xx_cleanup;
-
-	/* Allocate bus num dynamically. */
-	bbp->master->bus_num = -1;
+	bbp->master->bits_per_word_mask = SPI_BPW_MASK(8);
 
 	/* the spi->mode bits understood by this driver: */
 	bbp->master->mode_bits =
 		SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LSB_FIRST;
 
 	/* this many pins in all GPIO controllers */
-	bbp->master->num_chipselect = num_gpios;
+	bbp->master->num_chipselect = num_gpios > 0 ? num_gpios : 0;
 
 	/* Get the clock for the OPB */
 	opbnp = of_find_compatible_node(NULL, NULL, "ibm,opb");
@@ -557,24 +543,23 @@ request_mem_error:
 free_gpios:
 	free_gpios(hw);
 free_master:
-	dev_set_drvdata(dev, NULL);
 	spi_master_put(master);
 
 	dev_err(dev, "initialization failed\n");
 	return ret;
 }
 
-static int __exit spi_ppc4xx_of_remove(struct platform_device *op)
+static int spi_ppc4xx_of_remove(struct platform_device *op)
 {
-	struct spi_master *master = dev_get_drvdata(&op->dev);
+	struct spi_master *master = platform_get_drvdata(op);
 	struct ppc4xx_spi *hw = spi_master_get_devdata(master);
 
 	spi_bitbang_stop(&hw->bitbang);
-	dev_set_drvdata(&op->dev, NULL);
 	release_mem_region(hw->mapbase, hw->mapsize);
 	free_irq(hw->irqnum, hw);
 	iounmap(hw->regs);
 	free_gpios(hw);
+	spi_master_put(master);
 	return 0;
 }
 
@@ -587,7 +572,7 @@ MODULE_DEVICE_TABLE(of, spi_ppc4xx_of_match);
 
 static struct platform_driver spi_ppc4xx_of_driver = {
 	.probe = spi_ppc4xx_of_probe,
-	.remove = __exit_p(spi_ppc4xx_of_remove),
+	.remove = spi_ppc4xx_of_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,

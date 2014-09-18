@@ -22,7 +22,6 @@
 #include <asm/perf_event.h>
 #include <asm/ptrace.h>
 #include <asm/pcr.h>
-#include <asm/perfctr.h>
 
 #include "kstack.h"
 
@@ -69,27 +68,16 @@ EXPORT_SYMBOL(touch_nmi_watchdog);
 
 static void die_nmi(const char *str, struct pt_regs *regs, int do_panic)
 {
+	int this_cpu = smp_processor_id();
+
 	if (notify_die(DIE_NMIWATCHDOG, str, regs, 0,
 		       pt_regs_trap_type(regs), SIGINT) == NOTIFY_STOP)
 		return;
 
-	console_verbose();
-	bust_spinlocks(1);
-
-	printk(KERN_EMERG "%s", str);
-	printk(" on CPU%d, ip %08lx, registers:\n",
-	       smp_processor_id(), regs->tpc);
-	show_regs(regs);
-	dump_stack();
-
-	bust_spinlocks(0);
-
 	if (do_panic || panic_on_oops)
-		panic("Non maskable interrupt");
-
-	nmi_exit();
-	local_irq_enable();
-	do_exit(SIGBUS);
+		panic("Watchdog detected hard LOCKUP on cpu %d", this_cpu);
+	else
+		WARN(1, "Watchdog detected hard LOCKUP on cpu %d", this_cpu);
 }
 
 notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
@@ -109,7 +97,7 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 		       pt_regs_trap_type(regs), SIGINT) == NOTIFY_STOP)
 		touched = 1;
 	else
-		pcr_ops->write(PCR_PIC_PRIV);
+		pcr_ops->write_pcr(0, pcr_ops->pcr_nmi_disable);
 
 	sum = local_cpu_data().irq0_irqs;
 	if (__get_cpu_var(nmi_touch)) {
@@ -126,8 +114,8 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 		__this_cpu_write(alert_counter, 0);
 	}
 	if (__get_cpu_var(wd_enabled)) {
-		write_pic(picl_value(nmi_hz));
-		pcr_ops->write(pcr_enable);
+		pcr_ops->write_pic(0, pcr_ops->nmi_picl_value(nmi_hz));
+		pcr_ops->write_pcr(0, pcr_ops->pcr_nmi_enable);
 	}
 
 	restore_hardirq_stack(orig_sp);
@@ -142,7 +130,6 @@ static inline unsigned int get_nmi_count(int cpu)
 
 static __init void nmi_cpu_busy(void *data)
 {
-	local_irq_enable_in_hardirq();
 	while (endflag == 0)
 		mb();
 }
@@ -166,7 +153,7 @@ static void report_broken_nmi(int cpu, int *prev_nmi_count)
 
 void stop_nmi_watchdog(void *unused)
 {
-	pcr_ops->write(PCR_PIC_PRIV);
+	pcr_ops->write_pcr(0, pcr_ops->pcr_nmi_disable);
 	__get_cpu_var(wd_enabled) = 0;
 	atomic_dec(&nmi_active);
 }
@@ -223,10 +210,10 @@ void start_nmi_watchdog(void *unused)
 	__get_cpu_var(wd_enabled) = 1;
 	atomic_inc(&nmi_active);
 
-	pcr_ops->write(PCR_PIC_PRIV);
-	write_pic(picl_value(nmi_hz));
+	pcr_ops->write_pcr(0, pcr_ops->pcr_nmi_disable);
+	pcr_ops->write_pic(0, pcr_ops->nmi_picl_value(nmi_hz));
 
-	pcr_ops->write(pcr_enable);
+	pcr_ops->write_pcr(0, pcr_ops->pcr_nmi_enable);
 }
 
 static void nmi_adjust_hz_one(void *unused)
@@ -234,10 +221,10 @@ static void nmi_adjust_hz_one(void *unused)
 	if (!__get_cpu_var(wd_enabled))
 		return;
 
-	pcr_ops->write(PCR_PIC_PRIV);
-	write_pic(picl_value(nmi_hz));
+	pcr_ops->write_pcr(0, pcr_ops->pcr_nmi_disable);
+	pcr_ops->write_pic(0, pcr_ops->nmi_picl_value(nmi_hz));
 
-	pcr_ops->write(pcr_enable);
+	pcr_ops->write_pcr(0, pcr_ops->pcr_nmi_enable);
 }
 
 void nmi_adjust_hz(unsigned int new_hz)

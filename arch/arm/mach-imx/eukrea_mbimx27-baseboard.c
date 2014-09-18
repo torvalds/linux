@@ -29,11 +29,10 @@
 
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/iomux-mx27.h>
-#include <mach/hardware.h>
-
+#include "common.h"
 #include "devices-imx27.h"
+#include "hardware.h"
+#include "iomux-mx27.h"
 
 static const int eukrea_mbimx27_pins[] __initconst = {
 	/* UART2 */
@@ -47,7 +46,7 @@ static const int eukrea_mbimx27_pins[] __initconst = {
 	PE10_PF_UART3_CTS,
 	PE11_PF_UART3_RTS,
 	/* UART4 */
-#if !defined(MACH_EUKREA_CPUIMX27_USEUART4)
+#if !defined(CONFIG_MACH_EUKREA_CPUIMX27_USEUART4)
 	PB26_AF_UART4_RTS,
 	PB28_AF_UART4_TXD,
 	PB29_AF_UART4_CTS,
@@ -243,7 +242,7 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 static void __maybe_unused ads7846_dev_init(void)
 {
 	if (gpio_request(ADS7846_PENDOWN, "ADS7846 pendown") < 0) {
-		printk(KERN_ERR "can't get ads746 pen down GPIO\n");
+		printk(KERN_ERR "can't get ads7846 pen down GPIO\n");
 		return;
 	}
 	gpio_direction_input(ADS7846_PENDOWN);
@@ -266,7 +265,7 @@ static struct spi_board_info __maybe_unused
 		.bus_num	= 0,
 		.chip_select	= 0,
 		.max_speed_hz	= 1500000,
-		.irq		= IRQ_GPIOD(25),
+		/* irq number is run-time assigned */
 		.platform_data	= &ads7846_config,
 		.mode           = SPI_MODE_2,
 	},
@@ -307,7 +306,7 @@ void __init eukrea_mbimx27_baseboard_init(void)
 
 	imx27_add_imx_uart1(&uart_pdata);
 	imx27_add_imx_uart2(&uart_pdata);
-#if !defined(MACH_EUKREA_CPUIMX27_USEUART4)
+#if !defined(CONFIG_MACH_EUKREA_CPUIMX27_USEUART4)
 	imx27_add_imx_uart3(&uart_pdata);
 #endif
 
@@ -329,6 +328,7 @@ void __init eukrea_mbimx27_baseboard_init(void)
 	/* SPI_CS0 init */
 	mxc_gpio_mode(GPIO_PORTD | 28 | GPIO_GPIO | GPIO_OUT);
 	imx27_add_spi_imx0(&eukrea_mbimx27_spi0_data);
+	eukrea_mbimx27_spi_board_info[0].irq = gpio_to_irq(IMX_GPIO_NR(4, 25));
 	spi_register_board_info(eukrea_mbimx27_spi_board_info,
 			ARRAY_SIZE(eukrea_mbimx27_spi_board_info));
 
@@ -347,4 +347,5 @@ void __init eukrea_mbimx27_baseboard_init(void)
 	imx27_add_imx_keypad(&eukrea_mbimx27_keymap_data);
 
 	gpio_led_register_device(-1, &eukrea_mbimx27_gpio_led_info);
+	imx_add_platform_device("eukrea_tlv320", 0, NULL, 0, NULL, 0);
 }

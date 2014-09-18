@@ -673,7 +673,7 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 			sm_pm_get_ls(smc,port_to_mib(smc,port))) ;
 		break ;
 	case SMT_P_REASON :
-		* (u_long *) to = 0 ;
+		*(u32 *)to = 0 ;
 		sp_len = 4 ;
 		goto sp_done ;
 	case SMT_P1033 :			/* time stamp */
@@ -1242,7 +1242,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 			if (len < 8)
 				goto len_error ;
 			if (set)
-				memcpy((char *) to,(char *) from+2,6) ;
+				memcpy(to,from+2,6) ;
 			to += 8 ;
 			from += 8 ;
 			len -= 8 ;
@@ -1251,7 +1251,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 			if (len < 4)
 				goto len_error ;
 			if (set)
-				memcpy((char *) to,(char *) from,4) ;
+				memcpy(to,from,4) ;
 			to += 4 ;
 			from += 4 ;
 			len -= 4 ;
@@ -1260,7 +1260,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 			if (len < 8)
 				goto len_error ;
 			if (set)
-				memcpy((char *) to,(char *) from,8) ;
+				memcpy(to,from,8) ;
 			to += 8 ;
 			from += 8 ;
 			len -= 8 ;
@@ -1269,7 +1269,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 			if (len < 32)
 				goto len_error ;
 			if (set)
-				memcpy((char *) to,(char *) from,32) ;
+				memcpy(to,from,32) ;
 			to += 32 ;
 			from += 32 ;
 			len -= 32 ;

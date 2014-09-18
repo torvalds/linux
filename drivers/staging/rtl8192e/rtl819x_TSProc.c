@@ -79,7 +79,7 @@ static void RxPktPendingTimeout(unsigned long data)
 
 		if (index > REORDER_WIN_SIZE) {
 			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket():"
-				     " Rx Reorer struct buffer full!!\n");
+				     " Rx Reorder struct buffer full!!\n");
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock),
 					       flags);
 			return;
@@ -264,7 +264,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 		psearch_list = &ieee->Rx_TS_Admit_List;
 
 	for (dir = 0; dir <= DIR_BI_DIR; dir++) {
-		if (search_dir[dir] == false)
+		if (!search_dir[dir])
 			continue;
 		list_for_each_entry(pRet, psearch_list, List) {
 			if (memcmp(pRet->Addr, Addr, 6) == 0)
@@ -310,7 +310,7 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	   u8 *Addr, u8 TID, enum tr_select TxRxSelect, bool bAddNewTs)
 {
 	u8	UP = 0;
-	if (is_broadcast_ether_addr(Addr) || is_multicast_ether_addr(Addr)) {
+	if (is_multicast_ether_addr(Addr)) {
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR! get TS for Broadcast or "
 			     "Multicast\n");
 		return false;
@@ -348,7 +348,7 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	if (*ppTS != NULL) {
 		return true;
 	} else {
-		if (bAddNewTs == false) {
+		if (!bAddNewTs) {
 			RTLLIB_DEBUG(RTLLIB_DL_TS, "add new TS failed"
 				     "(tid:%d)\n", UP);
 			return false;

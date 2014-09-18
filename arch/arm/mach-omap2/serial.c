@@ -26,21 +26,21 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <linux/console.h>
+#include <linux/omap-dma.h>
+#include <linux/platform_data/serial-omap.h>
 
-#include <plat/omap-serial.h>
 #include "common.h"
-#include <plat/board.h>
-#include <plat/dma.h>
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
-#include <plat/omap-pm.h>
-
+#include "omap_hwmod.h"
+#include "omap_device.h"
+#include "omap-pm.h"
+#include "soc.h"
 #include "prm2xxx_3xxx.h"
 #include "pm.h"
 #include "cm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
 #include "control.h"
 #include "mux.h"
+#include "serial.h"
 
 /*
  * NOTE: By default the serial auto_suspend timeout is disabled as it causes
@@ -57,12 +57,12 @@ struct omap_uart_state {
 
 	struct list_head node;
 	struct omap_hwmod *oh;
+	struct omap_device_pad default_omap_uart_pads[2];
 };
 
 static LIST_HEAD(uart_list);
 static u8 num_uarts;
 static u8 console_uart_id = -1;
-static u8 no_console_suspend;
 static u8 uart_debug;
 
 #define DEFAULT_RXDMA_POLLRATE		1	/* RX DMA polling rate (us) */
@@ -80,8 +80,9 @@ static struct omap_uart_port_info omap_serial_default_info[] __initdata = {
 };
 
 #ifdef CONFIG_PM
-static void omap_uart_enable_wakeup(struct platform_device *pdev, bool enable)
+static void omap_uart_enable_wakeup(struct device *dev, bool enable)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 
 	if (!od)
@@ -93,47 +94,79 @@ static void omap_uart_enable_wakeup(struct platform_device *pdev, bool enable)
 		omap_hwmod_disable_wakeup(od->hwmods[0]);
 }
 
-/*
- * Errata i291: [UART]:Cannot Acknowledge Idle Requests
- * in Smartidle Mode When Configured for DMA Operations.
- * WA: configure uart in force idle mode.
- */
-static void omap_uart_set_noidle(struct platform_device *pdev)
-{
-	struct omap_device *od = to_omap_device(pdev);
-
-	omap_hwmod_set_slave_idlemode(od->hwmods[0], HWMOD_IDLEMODE_NO);
-}
-
-static void omap_uart_set_smartidle(struct platform_device *pdev)
-{
-	struct omap_device *od = to_omap_device(pdev);
-	u8 idlemode;
-
-	if (od->hwmods[0]->class->sysc->idlemodes & SIDLE_SMART_WKUP)
-		idlemode = HWMOD_IDLEMODE_SMART_WKUP;
-	else
-		idlemode = HWMOD_IDLEMODE_SMART;
-
-	omap_hwmod_set_slave_idlemode(od->hwmods[0], idlemode);
-}
-
 #else
-static void omap_uart_enable_wakeup(struct platform_device *pdev, bool enable)
+static void omap_uart_enable_wakeup(struct device *dev, bool enable)
 {}
-static void omap_uart_set_noidle(struct platform_device *pdev) {}
-static void omap_uart_set_smartidle(struct platform_device *pdev) {}
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_OMAP_MUX
-static void omap_serial_fill_default_pads(struct omap_board_data *bdata)
+
+#define OMAP_UART_DEFAULT_PAD_NAME_LEN	28
+static char rx_pad_name[OMAP_UART_DEFAULT_PAD_NAME_LEN],
+		tx_pad_name[OMAP_UART_DEFAULT_PAD_NAME_LEN] __initdata;
+
+static void  __init
+omap_serial_fill_uart_tx_rx_pads(struct omap_board_data *bdata,
+				struct omap_uart_state *uart)
 {
+	uart->default_omap_uart_pads[0].name = rx_pad_name;
+	uart->default_omap_uart_pads[0].flags = OMAP_DEVICE_PAD_REMUX |
+							OMAP_DEVICE_PAD_WAKEUP;
+	uart->default_omap_uart_pads[0].enable = OMAP_PIN_INPUT |
+							OMAP_MUX_MODE0;
+	uart->default_omap_uart_pads[0].idle = OMAP_PIN_INPUT | OMAP_MUX_MODE0;
+	uart->default_omap_uart_pads[1].name = tx_pad_name;
+	uart->default_omap_uart_pads[1].enable = OMAP_PIN_OUTPUT |
+							OMAP_MUX_MODE0;
+	bdata->pads = uart->default_omap_uart_pads;
+	bdata->pads_cnt = ARRAY_SIZE(uart->default_omap_uart_pads);
+}
+
+static void  __init omap_serial_check_wakeup(struct omap_board_data *bdata,
+						struct omap_uart_state *uart)
+{
+	struct omap_mux_partition *tx_partition = NULL, *rx_partition = NULL;
+	struct omap_mux *rx_mux = NULL, *tx_mux = NULL;
+	char *rx_fmt, *tx_fmt;
+	int uart_nr = bdata->id + 1;
+
+	if (bdata->id != 2) {
+		rx_fmt = "uart%d_rx.uart%d_rx";
+		tx_fmt = "uart%d_tx.uart%d_tx";
+	} else {
+		rx_fmt = "uart%d_rx_irrx.uart%d_rx_irrx";
+		tx_fmt = "uart%d_tx_irtx.uart%d_tx_irtx";
+	}
+
+	snprintf(rx_pad_name, OMAP_UART_DEFAULT_PAD_NAME_LEN, rx_fmt,
+			uart_nr, uart_nr);
+	snprintf(tx_pad_name, OMAP_UART_DEFAULT_PAD_NAME_LEN, tx_fmt,
+			uart_nr, uart_nr);
+
+	if (omap_mux_get_by_name(rx_pad_name, &rx_partition, &rx_mux) >= 0 &&
+			omap_mux_get_by_name
+				(tx_pad_name, &tx_partition, &tx_mux) >= 0) {
+		u16 tx_mode, rx_mode;
+
+		tx_mode = omap_mux_read(tx_partition, tx_mux->reg_offset);
+		rx_mode = omap_mux_read(rx_partition, rx_mux->reg_offset);
+
+		/*
+		 * Check if uart is used in default tx/rx mode i.e. in mux mode0
+		 * if yes then configure rx pin for wake up capability
+		 */
+		if (OMAP_MODE_UART(rx_mode) && OMAP_MODE_UART(tx_mode))
+			omap_serial_fill_uart_tx_rx_pads(bdata, uart);
+	}
 }
 #else
-static void omap_serial_fill_default_pads(struct omap_board_data *bdata) {}
+static void __init omap_serial_check_wakeup(struct omap_board_data *bdata,
+		struct omap_uart_state *uart)
+{
+}
 #endif
 
-char *cmdline_find_option(char *str)
+static char *cmdline_find_option(char *str)
 {
 	extern char *saved_command_line;
 
@@ -142,6 +175,9 @@ char *cmdline_find_option(char *str)
 
 static int __init omap_serial_early_init(void)
 {
+	if (of_have_populated_dt())
+		return -ENODEV;
+
 	do {
 		char oh_name[MAX_UART_HWMOD_NAME_LEN];
 		struct omap_hwmod *oh;
@@ -169,30 +205,15 @@ static int __init omap_serial_early_init(void)
 
 			if (console_loglevel >= 10) {
 				uart_debug = true;
-				pr_info("%s used as console in debug mode"
-						" uart%d clocks will not be"
-						" gated", uart_name, uart->num);
+				pr_info("%s used as console in debug mode: uart%d clocks will not be gated",
+					uart_name, uart->num);
 			}
-
-			if (cmdline_find_option("no_console_suspend"))
-				no_console_suspend = true;
-
-			/*
-			 * omap-uart can be used for earlyprintk logs
-			 * So if omap-uart is used as console then prevent
-			 * uart reset and idle to get logs from omap-uart
-			 * until uart console driver is available to take
-			 * care for console messages.
-			 * Idling or resetting omap-uart while printing logs
-			 * early boot logs can stall the boot-up.
-			 */
-			oh->flags |= HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET;
 		}
 	} while (1);
 
 	return 0;
 }
-core_initcall(omap_serial_early_init);
+omap_core_initcall(omap_serial_early_init);
 
 /**
  * omap_serial_init_port() - initialize single serial port
@@ -237,21 +258,14 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 	omap_up.uartclk = OMAP24XX_BASE_BAUD * 16;
 	omap_up.flags = UPF_BOOT_AUTOCONF;
 	omap_up.get_context_loss_count = omap_pm_get_dev_context_loss_count;
-	omap_up.set_forceidle = omap_uart_set_smartidle;
-	omap_up.set_noidle = omap_uart_set_noidle;
 	omap_up.enable_wakeup = omap_uart_enable_wakeup;
 	omap_up.dma_rx_buf_size = info->dma_rx_buf_size;
 	omap_up.dma_rx_timeout = info->dma_rx_timeout;
 	omap_up.dma_rx_poll_rate = info->dma_rx_poll_rate;
 	omap_up.autosuspend_timeout = info->autosuspend_timeout;
-
-	/* Enable the MDR1 Errata i202 for OMAP2430/3xxx/44xx */
-	if (!cpu_is_omap2420() && !cpu_is_ti816x())
-		omap_up.errata |= UART_ERRATA_i202_MDR1_ACCESS;
-
-	/* Enable DMA Mode Force Idle Errata i291 for omap34xx/3630 */
-	if (cpu_is_omap34xx() || cpu_is_omap3630())
-		omap_up.errata |= UART_ERRATA_i291_DMA_FORCEIDLE;
+	omap_up.DTR_gpio = info->DTR_gpio;
+	omap_up.DTR_inverted = info->DTR_inverted;
+	omap_up.DTR_present = info->DTR_present;
 
 	pdata = &omap_up;
 	pdata_size = sizeof(struct omap_uart_port_info);
@@ -259,15 +273,19 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 	if (WARN_ON(!oh))
 		return;
 
-	pdev = omap_device_build(name, uart->num, oh, pdata, pdata_size,
-				 NULL, 0, false);
-	WARN(IS_ERR(pdev), "Could not build omap_device for %s: %s.\n",
-	     name, oh->name);
-
-	if ((console_uart_id == bdata->id) && no_console_suspend)
-		omap_device_disable_idle_on_suspend(pdev);
+	pdev = omap_device_build(name, uart->num, oh, pdata, pdata_size);
+	if (IS_ERR(pdev)) {
+		WARN(1, "Could not build omap_device for %s: %s.\n", name,
+		     oh->name);
+		return;
+	}
 
 	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
+
+	if (console_uart_id == bdata->id) {
+		omap_device_enable(pdev);
+		pm_runtime_set_active(&pdev->dev);
+	}
 
 	oh->dev_attr = uart;
 
@@ -295,8 +313,7 @@ void __init omap_serial_board_init(struct omap_uart_port_info *info)
 		bdata.pads = NULL;
 		bdata.pads_cnt = 0;
 
-		if (cpu_is_omap44xx() || cpu_is_omap34xx())
-			omap_serial_fill_default_pads(&bdata);
+		omap_serial_check_wakeup(&bdata, uart);
 
 		if (!info)
 			omap_serial_init_port(&bdata, NULL);

@@ -231,6 +231,7 @@ enum ssp_chip_select {
 struct dma_chan;
 /**
  * struct pl022_ssp_master - device.platform_data for SPI controller devices.
+ * @bus_id: identifier for this bus
  * @num_chipselect: chipselects are used to distinguish individual
  *     SPI slaves, and are numbered from zero to num_chipselects - 1.
  *     each slave has a chipselect signal, but it's common that not
@@ -243,6 +244,7 @@ struct dma_chan;
  *     indicates no delay and the device will be suspended immediately.
  * @rt: indicates the controller should run the message pump with realtime
  *     priority to minimise the transfer latency on the bus.
+ * @chipselects: list of <num_chipselects> chip select gpios
  */
 struct pl022_ssp_controller {
 	u16 bus_id;
@@ -253,25 +255,20 @@ struct pl022_ssp_controller {
 	void *dma_tx_param;
 	int autosuspend_delay;
 	bool rt;
+	int *chipselects;
 };
 
 /**
  * struct ssp_config_chip - spi_board_info.controller_data for SPI
  * slave devices, copied to spi_device.controller_data.
  *
- * @lbm: used for test purpose to internally connect RX and TX
  * @iface: Interface type(Motorola, TI, Microwire, Universal)
  * @hierarchy: sets whether interface is master or slave
  * @slave_tx_disable: SSPTXD is disconnected (in slave mode only)
  * @clk_freq: Tune freq parameters of SSP(when in master mode)
- * @endian_rx: Endianess of Data in Rx FIFO
- * @endian_tx: Endianess of Data in Tx FIFO
- * @data_size: Width of data element(4 to 32 bits)
  * @com_mode: communication mode: polling, Interrupt or DMA
  * @rx_lev_trig: Rx FIFO watermark level (for IT & DMA mode)
  * @tx_lev_trig: Tx FIFO watermark level (for IT & DMA mode)
- * @clk_phase: Motorola SPI interface Clock phase
- * @clk_pol: Motorola SPI interface Clock polarity
  * @ctrl_len: Microwire interface: Control length
  * @wait_state: Microwire interface: Wait state
  * @duplex: Microwire interface: Full/Half duplex
@@ -279,8 +276,6 @@ struct pl022_ssp_controller {
  * before sampling the incoming line
  * @cs_control: function pointer to board-specific function to
  * assert/deassert I/O port to control HW generation of devices chip-select.
- * @dma_xfer_type: Type of DMA xfer (Mem-to-periph or Periph-to-Periph)
- * @dma_config: DMA configuration for SSP controller and peripheral
  */
 struct pl022_config_chip {
 	enum ssp_interface iface;

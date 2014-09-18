@@ -596,8 +596,7 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 
 	ipath_format_hwerrors(hwerrs,
 			      ipath_6110_hwerror_msgs,
-			      sizeof(ipath_6110_hwerror_msgs) /
-			      sizeof(ipath_6110_hwerror_msgs[0]),
+			      ARRAY_SIZE(ipath_6110_hwerror_msgs),
 			      msg, msgl);
 
 	if (hwerrs & (_IPATH_HTLINK0_CRCBITS | _IPATH_HTLINK1_CRCBITS))

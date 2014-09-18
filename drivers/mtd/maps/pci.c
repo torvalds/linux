@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 
 #include <linux/mtd/mtd.h>
@@ -43,26 +42,14 @@ static map_word mtd_pci_read8(struct map_info *_map, unsigned long ofs)
 	struct map_pci_info *map = (struct map_pci_info *)_map;
 	map_word val;
 	val.x[0]= readb(map->base + map->translate(map, ofs));
-//	printk("read8 : %08lx => %02x\n", ofs, val.x[0]);
 	return val;
 }
 
-#if 0
-static map_word mtd_pci_read16(struct map_info *_map, unsigned long ofs)
-{
-	struct map_pci_info *map = (struct map_pci_info *)_map;
-	map_word val;
-	val.x[0] = readw(map->base + map->translate(map, ofs));
-//	printk("read16: %08lx => %04x\n", ofs, val.x[0]);
-	return val;
-}
-#endif
 static map_word mtd_pci_read32(struct map_info *_map, unsigned long ofs)
 {
 	struct map_pci_info *map = (struct map_pci_info *)_map;
 	map_word val;
 	val.x[0] = readl(map->base + map->translate(map, ofs));
-//	printk("read32: %08lx => %08x\n", ofs, val.x[0]);
 	return val;
 }
 
@@ -75,22 +62,12 @@ static void mtd_pci_copyfrom(struct map_info *_map, void *to, unsigned long from
 static void mtd_pci_write8(struct map_info *_map, map_word val, unsigned long ofs)
 {
 	struct map_pci_info *map = (struct map_pci_info *)_map;
-//	printk("write8 : %08lx <= %02x\n", ofs, val.x[0]);
 	writeb(val.x[0], map->base + map->translate(map, ofs));
 }
 
-#if 0
-static void mtd_pci_write16(struct map_info *_map, map_word val, unsigned long ofs)
-{
-	struct map_pci_info *map = (struct map_pci_info *)_map;
-//	printk("write16: %08lx <= %04x\n", ofs, val.x[0]);
-	writew(val.x[0], map->base + map->translate(map, ofs));
-}
-#endif
 static void mtd_pci_write32(struct map_info *_map, map_word val, unsigned long ofs)
 {
 	struct map_pci_info *map = (struct map_pci_info *)_map;
-//	printk("write32: %08lx <= %08x\n", ofs, val.x[0]);
 	writel(val.x[0], map->base + map->translate(map, ofs));
 }
 
@@ -275,8 +252,7 @@ static struct pci_device_id mtd_pci_ids[] = {
  * Generic code follows.
  */
 
-static int __devinit
-mtd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int mtd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct mtd_pci_info *info = (struct mtd_pci_info *)id->driver_data;
 	struct map_pci_info *map = NULL;
@@ -306,8 +282,7 @@ mtd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err)
 		goto release;
 
-	/* tsk - do_map_probe should take const char * */
-	mtd = do_map_probe((char *)info->map_name, &map->map);
+	mtd = do_map_probe(info->map_name, &map->map);
 	err = -ENODEV;
 	if (!mtd)
 		goto release;
@@ -330,8 +305,7 @@ out:
 	return err;
 }
 
-static void __devexit
-mtd_pci_remove(struct pci_dev *dev)
+static void mtd_pci_remove(struct pci_dev *dev)
 {
 	struct mtd_info *mtd = pci_get_drvdata(dev);
 	struct map_pci_info *map = mtd->priv;
@@ -341,32 +315,19 @@ mtd_pci_remove(struct pci_dev *dev)
 	map->exit(dev, map);
 	kfree(map);
 
-	pci_set_drvdata(dev, NULL);
 	pci_release_regions(dev);
 }
 
 static struct pci_driver mtd_pci_driver = {
 	.name =		"MTD PCI",
 	.probe =	mtd_pci_probe,
-	.remove =	__devexit_p(mtd_pci_remove),
+	.remove =	mtd_pci_remove,
 	.id_table =	mtd_pci_ids,
 };
 
-static int __init mtd_pci_maps_init(void)
-{
-	return pci_register_driver(&mtd_pci_driver);
-}
-
-static void __exit mtd_pci_maps_exit(void)
-{
-	pci_unregister_driver(&mtd_pci_driver);
-}
-
-module_init(mtd_pci_maps_init);
-module_exit(mtd_pci_maps_exit);
+module_pci_driver(mtd_pci_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");
 MODULE_DESCRIPTION("Generic PCI map driver");
 MODULE_DEVICE_TABLE(pci, mtd_pci_ids);
-

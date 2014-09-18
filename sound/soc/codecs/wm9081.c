@@ -3,7 +3,7 @@
  *
  * Author: Mark Brown
  *
- * Copyright 2009 Wolfson Microelectronics plc
+ * Copyright 2009-12 Wolfson Microelectronics plc
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -268,8 +268,7 @@ static const char *drc_high_text[] = {
 	"0",
 };
 
-static const struct soc_enum drc_high =
-	SOC_ENUM_SINGLE(WM9081_DRC_3, 3, 6, drc_high_text);
+static SOC_ENUM_SINGLE_DECL(drc_high, WM9081_DRC_3, 3, drc_high_text);
 
 static const char *drc_low_text[] = {
 	"1",
@@ -279,8 +278,7 @@ static const char *drc_low_text[] = {
 	"0",
 };
 
-static const struct soc_enum drc_low =
-	SOC_ENUM_SINGLE(WM9081_DRC_3, 0, 5, drc_low_text);
+static SOC_ENUM_SINGLE_DECL(drc_low, WM9081_DRC_3, 0, drc_low_text);
 
 static const char *drc_atk_text[] = {
 	"181us",
@@ -297,8 +295,7 @@ static const char *drc_atk_text[] = {
 	"185.6ms",
 };
 
-static const struct soc_enum drc_atk =
-	SOC_ENUM_SINGLE(WM9081_DRC_2, 12, 12, drc_atk_text);
+static SOC_ENUM_SINGLE_DECL(drc_atk, WM9081_DRC_2, 12, drc_atk_text);
 
 static const char *drc_dcy_text[] = {
 	"186ms",
@@ -312,8 +309,7 @@ static const char *drc_dcy_text[] = {
 	"47.56s",
 };
 
-static const struct soc_enum drc_dcy =
-	SOC_ENUM_SINGLE(WM9081_DRC_2, 8, 9, drc_dcy_text);
+static SOC_ENUM_SINGLE_DECL(drc_dcy, WM9081_DRC_2, 8, drc_dcy_text);
 
 static const char *drc_qr_dcy_text[] = {
 	"0.725ms",
@@ -321,8 +317,7 @@ static const char *drc_qr_dcy_text[] = {
 	"5.8ms",
 };
 
-static const struct soc_enum drc_qr_dcy =
-	SOC_ENUM_SINGLE(WM9081_DRC_2, 4, 3, drc_qr_dcy_text);
+static SOC_ENUM_SINGLE_DECL(drc_qr_dcy, WM9081_DRC_2, 4, drc_qr_dcy_text);
 
 static const char *dac_deemph_text[] = {
 	"None",
@@ -331,21 +326,21 @@ static const char *dac_deemph_text[] = {
 	"48kHz",
 };
 
-static const struct soc_enum dac_deemph =
-	SOC_ENUM_SINGLE(WM9081_DAC_DIGITAL_2, 1, 4, dac_deemph_text);
+static SOC_ENUM_SINGLE_DECL(dac_deemph, WM9081_DAC_DIGITAL_2, 1,
+			    dac_deemph_text);
 
 static const char *speaker_mode_text[] = {
 	"Class D",
 	"Class AB",
 };
 
-static const struct soc_enum speaker_mode =
-	SOC_ENUM_SINGLE(WM9081_ANALOGUE_SPEAKER_2, 6, 2, speaker_mode_text);
+static SOC_ENUM_SINGLE_DECL(speaker_mode, WM9081_ANALOGUE_SPEAKER_2, 6,
+			    speaker_mode_text);
 
 static int speaker_mode_get(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	unsigned int reg;
 
 	reg = snd_soc_read(codec, WM9081_ANALOGUE_SPEAKER_2);
@@ -366,7 +361,7 @@ static int speaker_mode_get(struct snd_kcontrol *kcontrol,
 static int speaker_mode_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	unsigned int reg_pwr = snd_soc_read(codec, WM9081_POWER_MANAGEMENT);
 	unsigned int reg2 = snd_soc_read(codec, WM9081_ANALOGUE_SPEAKER_2);
 
@@ -774,7 +769,7 @@ static const struct snd_soc_dapm_widget wm9081_dapm_widgets[] = {
 SND_SOC_DAPM_INPUT("IN1"),
 SND_SOC_DAPM_INPUT("IN2"),
 
-SND_SOC_DAPM_DAC("DAC", "HiFi Playback", WM9081_POWER_MANAGEMENT, 0, 0),
+SND_SOC_DAPM_DAC("DAC", NULL, WM9081_POWER_MANAGEMENT, 0, 0),
 
 SND_SOC_DAPM_MIXER_NAMED_CTL("Mixer", SND_SOC_NOPM, 0, 0,
 			     mixer, ARRAY_SIZE(mixer)),
@@ -799,6 +794,7 @@ SND_SOC_DAPM_SUPPLY("TSENSE", WM9081_POWER_MANAGEMENT, 7, 0, NULL, 0),
 static const struct snd_soc_dapm_route wm9081_audio_paths[] = {
 	{ "DAC", NULL, "CLK_SYS" },
 	{ "DAC", NULL, "CLK_DSP" },
+	{ "DAC", NULL, "AIF" },
 
 	{ "Mixer", "IN1 Switch", "IN1" },
 	{ "Mixer", "IN2 Switch", "IN2" },
@@ -1033,19 +1029,19 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 		/* Otherwise work out a BCLK from the sample size */
 		wm9081->bclk = 2 * wm9081->fs;
 
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			wm9081->bclk *= 16;
 			break;
-		case SNDRV_PCM_FORMAT_S20_3LE:
+		case 20:
 			wm9081->bclk *= 20;
 			aif2 |= 0x4;
 			break;
-		case SNDRV_PCM_FORMAT_S24_LE:
+		case 24:
 			wm9081->bclk *= 24;
 			aif2 |= 0x8;
 			break;
-		case SNDRV_PCM_FORMAT_S32_LE:
+		case 32:
 			wm9081->bclk *= 32;
 			aif2 |= 0xc;
 			break;
@@ -1252,7 +1248,7 @@ static const struct snd_soc_dai_ops wm9081_dai_ops = {
 static struct snd_soc_dai_driver wm9081_dai = {
 	.name = "wm9081-hifi",
 	.playback = {
-		.stream_name = "HiFi Playback",
+		.stream_name = "AIF",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = WM9081_RATES,
@@ -1264,15 +1260,6 @@ static struct snd_soc_dai_driver wm9081_dai = {
 static int wm9081_probe(struct snd_soc_codec *codec)
 {
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	codec->control_data = wm9081->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	/* Enable zero cross by default */
 	snd_soc_update_bits(codec, WM9081_ANALOGUE_LINEOUT,
@@ -1287,7 +1274,7 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 				     ARRAY_SIZE(wm9081_eq_controls));
 	}
 
-	return ret;
+	return 0;
 }
 
 static int wm9081_remove(struct snd_soc_codec *codec)
@@ -1325,9 +1312,9 @@ static const struct regmap_config wm9081_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+#if IS_ENABLED(CONFIG_I2C)
+static int wm9081_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm9081_priv *wm9081;
 	unsigned int reg;
@@ -1340,28 +1327,27 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm9081);
 
-	wm9081->regmap = regmap_init_i2c(i2c, &wm9081_regmap);
+	wm9081->regmap = devm_regmap_init_i2c(i2c, &wm9081_regmap);
 	if (IS_ERR(wm9081->regmap)) {
 		ret = PTR_ERR(wm9081->regmap);
 		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	ret = regmap_read(wm9081->regmap, WM9081_SOFTWARE_RESET, &reg);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to read chip ID: %d\n", ret);
-		goto err_regmap;
+		return ret;
 	}
 	if (reg != 0x9081) {
 		dev_err(&i2c->dev, "Device is not a WM9081: ID=0x%x\n", reg);
-		ret = -EINVAL;
-		goto err_regmap;
+		return -EINVAL;
 	}
 
 	ret = wm9081_reset(wm9081->regmap);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to issue reset\n");
-		goto err_regmap;
+		return ret;
 	}
 
 	if (dev_get_platdata(&i2c->dev))
@@ -1381,23 +1367,14 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9081, &wm9081_dai, 1);
 	if (ret < 0)
-		goto err_regmap;
+		return ret;
 
 	return 0;
-
-err_regmap:
-	regmap_exit(wm9081->regmap);
-err:
-
-	return ret;
 }
 
-static __devexit int wm9081_i2c_remove(struct i2c_client *client)
+static int wm9081_i2c_remove(struct i2c_client *client)
 {
-	struct wm9081_priv *wm9081 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(wm9081->regmap);
 	return 0;
 }
 
@@ -1413,7 +1390,7 @@ static struct i2c_driver wm9081_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm9081_i2c_probe,
-	.remove =   __devexit_p(wm9081_i2c_remove),
+	.remove =   wm9081_i2c_remove,
 	.id_table = wm9081_i2c_id,
 };
 #endif

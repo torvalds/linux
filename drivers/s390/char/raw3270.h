@@ -91,6 +91,7 @@ struct raw3270_iocb {
 
 struct raw3270;
 struct raw3270_view;
+extern struct class *class3270;
 
 /* 3270 CCW request */
 struct raw3270_request {
@@ -140,6 +141,7 @@ struct raw3270_fn {
 		     struct raw3270_request *, struct irb *);
 	void (*release)(struct raw3270_view *);
 	void (*free)(struct raw3270_view *);
+	void (*resize)(struct raw3270_view *, int, int, int);
 };
 
 /*
@@ -171,6 +173,7 @@ int raw3270_start_locked(struct raw3270_view *, struct raw3270_request *);
 int raw3270_start_irq(struct raw3270_view *, struct raw3270_request *);
 int raw3270_reset(struct raw3270_view *);
 struct raw3270_view *raw3270_view(struct raw3270_view *);
+int raw3270_view_active(struct raw3270_view *);
 
 /* Reference count inliner for view structures. */
 static inline void
@@ -188,12 +191,18 @@ raw3270_put_view(struct raw3270_view *view)
 		wake_up(&raw3270_wait_queue);
 }
 
-struct raw3270 *raw3270_setup_console(struct ccw_device *cdev);
+struct raw3270 *raw3270_setup_console(void);
 void raw3270_wait_cons_dev(struct raw3270 *);
 
 /* Notifier for device addition/removal */
-int raw3270_register_notifier(void (*notifier)(int, int));
-void raw3270_unregister_notifier(void (*notifier)(int, int));
+struct raw3270_notifier {
+	struct list_head list;
+	void (*create)(int minor);
+	void (*destroy)(int minor);
+};
+
+int raw3270_register_notifier(struct raw3270_notifier *);
+void raw3270_unregister_notifier(struct raw3270_notifier *);
 void raw3270_pm_unfreeze(struct raw3270_view *);
 
 /*

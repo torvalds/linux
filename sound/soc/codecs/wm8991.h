@@ -76,7 +76,6 @@
 #define WM8991_PLL1                             0x3C
 #define WM8991_PLL2                             0x3D
 #define WM8991_PLL3                             0x3E
-#define WM8991_INTDRIVBITS			0x3F
 
 #define WM8991_REGISTER_COUNT                   60
 #define WM8991_MAX_REGISTER                     0x3F
@@ -807,14 +806,6 @@
  */
 #define WM8991_PLLK2_MASK                       0x00FF  /* PLLK2 - [7:0] */
 
-/*
- * R63 (0x3F) - Internal Driver Bits
- */
-#define WM8991_INMIXL_PWR_BIT			0
-#define WM8991_AINLMUX_PWR_BIT			1
-#define WM8991_INMIXR_PWR_BIT			2
-#define WM8991_AINRMUX_PWR_BIT			3
-
 #define WM8991_MCLK_DIV 0
 #define WM8991_DACCLK_DIV 1
 #define WM8991_ADCCLK_DIV 2
@@ -822,12 +813,7 @@
 
 #define SOC_WM899X_OUTPGA_SINGLE_R_TLV(xname, reg, shift, max, invert,\
 					 tlv_array) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
-		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
-	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw, \
-	.get = snd_soc_get_volsw, .put = wm899x_outpga_put_volsw_vu, \
-	.private_value = SOC_SINGLE_VALUE(reg, shift, max, invert) }
+	SOC_SINGLE_EXT_TLV(xname, reg, shift, max, invert, \
+		snd_soc_get_volsw, wm899x_outpga_put_volsw_vu, tlv_array)
 
 #endif /* _WM8991_H */

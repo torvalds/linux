@@ -6,7 +6,7 @@ information, on an inaudible audio subcarrier of a radio program. This
 interface is aimed at devices capable of receiving and/or transmitting RDS
 information.</para>
 
-      <para>For more information see the core RDS standard <xref linkend="en50067" />
+      <para>For more information see the core RDS standard <xref linkend="iec62106" />
 and the RBDS standard <xref linkend="nrsc4" />.</para>
 
       <para>Note that the RBDS standard as is used in the USA is almost identical

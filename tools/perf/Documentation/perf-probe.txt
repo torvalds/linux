@@ -77,7 +77,8 @@ OPTIONS
 
 -F::
 --funcs::
-	Show available functions in given module or kernel.
+	Show available functions in given module or kernel. With -x/--exec,
+	can also list functions in a user space executable / shared library.
 
 --filter=FILTER::
 	(Only for --vars and --funcs) Set filter. FILTER is a combination of glob
@@ -97,6 +98,15 @@ OPTIONS
 
 --max-probes::
 	Set the maximum number of probe points for an event. Default is 128.
+
+-x::
+--exec=PATH::
+	Specify path to the executable or shared library file for user
+	space tracing. Can also be used with --funcs option.
+
+In absence of -m/-x options, perf probe checks if the first argument after
+the options is an absolute path name. If its an absolute path, perf probe
+uses it as a target module/target user space binary to probe.
 
 PROBE SYNTAX
 ------------
@@ -125,6 +135,8 @@ Each probe argument follows below syntax.
 
 'NAME' specifies the name of this argument (optional). You can use the name of local variable, local data structure member (e.g. var->field, var.field2), local array with fixed index (e.g. array[1], var->array[0], var->pointer[2]), or kprobe-tracer argument format (e.g. $retval, %ax, etc). Note that the name of this argument will be set as the last member name if you specify a local data structure member (e.g. field2 for 'var->field1.field2'.)
 'TYPE' casts the type of this argument (optional). If omitted, perf probe automatically set the type based on debuginfo. You can specify 'string' type only for the local variable or structure member which is an array of or a pointer to 'char' or 'unsigned char' type.
+
+On x86 systems %REG is always the short form of the register: for example %AX. %RAX or %EAX is not valid.
 
 LINE SYNTAX
 -----------
@@ -182,6 +194,13 @@ Delete all probes on schedule().
 
  ./perf probe --del='schedule*'
 
+Add probes at zfree() function on /bin/zsh
+
+ ./perf probe -x /bin/zsh zfree or ./perf probe /bin/zsh zfree
+
+Add probes at malloc() function on libc
+
+ ./perf probe -x /lib/libc.so.6 malloc or ./perf probe /lib/libc.so.6 malloc
 
 SEE ALSO
 --------

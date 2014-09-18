@@ -1,0 +1,38 @@
+/dts-v1/;
+
+#include "dove.dtsi"
+
+/ {
+	model = "Compulab CM-A510";
+	compatible = "compulab,cm-a510", "marvell,dove";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x40000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+};
+
+&uart0 { status = "okay"; };
+&uart1 { status = "okay"; };
+&sdio0 { status = "okay"; };
+&sdio1 { status = "okay"; };
+&sata0 { status = "okay"; };
+
+&spi0 {
+	status = "okay";
+
+	/* spi0.0: 4M Flash Winbond W25Q32BV */
+	spi-flash@0 {
+		compatible = "st,w25q32";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+	};
+};
+
+&i2c0 {
+	  status = "okay";
+};

@@ -1,7 +1,7 @@
 /*
  *  STLS2F GPIO Support
  *
- *  Copyright (c) 2008 Richard Liu,  STMicroelectronics  <richard.liu@st.com>
+ *  Copyright (c) 2008 Richard Liu,  STMicroelectronics	 <richard.liu@st.com>
  *  Copyright (c) 2008-2010 Arnaud Patard <apatard@mandriva.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -123,13 +123,13 @@ static void ls2f_gpio_set_value(struct gpio_chip *chip,
 }
 
 static struct gpio_chip ls2f_chip = {
-	.label                  = "ls2f",
-	.direction_input        = ls2f_gpio_direction_input,
-	.get                    = ls2f_gpio_get_value,
-	.direction_output       = ls2f_gpio_direction_output,
-	.set                    = ls2f_gpio_set_value,
-	.base                   = 0,
-	.ngpio                  = STLS2F_N_GPIO,
+	.label			= "ls2f",
+	.direction_input	= ls2f_gpio_direction_input,
+	.get			= ls2f_gpio_get_value,
+	.direction_output	= ls2f_gpio_direction_output,
+	.set			= ls2f_gpio_set_value,
+	.base			= 0,
+	.ngpio			= STLS2F_N_GPIO,
 };
 
 static int __init ls2f_gpio_setup(void)

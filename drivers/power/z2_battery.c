@@ -180,7 +180,7 @@ static int z2_batt_ps_init(struct z2_charger *charger, int props)
 	return 0;
 }
 
-static int __devinit z2_batt_probe(struct i2c_client *client,
+static int z2_batt_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	int ret = 0;
@@ -251,7 +251,7 @@ err:
 	return ret;
 }
 
-static int __devexit z2_batt_remove(struct i2c_client *client)
+static int z2_batt_remove(struct i2c_client *client)
 {
 	struct z2_charger *charger = i2c_get_clientdata(client);
 	struct z2_battery_info *info = charger->info;
@@ -276,7 +276,7 @@ static int z2_batt_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct z2_charger *charger = i2c_get_clientdata(client);
 
-	flush_work_sync(&charger->bat_work);
+	flush_work(&charger->bat_work);
 	return 0;
 }
 
@@ -313,7 +313,7 @@ static struct i2c_driver z2_batt_driver = {
 		.pm	= Z2_BATTERY_PM_OPS
 	},
 	.probe		= z2_batt_probe,
-	.remove		= __devexit_p(z2_batt_remove),
+	.remove		= z2_batt_remove,
 	.id_table	= z2_batt_id,
 };
 module_i2c_driver(z2_batt_driver);

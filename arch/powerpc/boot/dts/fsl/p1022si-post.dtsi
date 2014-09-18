@@ -40,12 +40,13 @@
 	 * pin muxing when the DIU is enabled.
 	 */
 	compatible = "fsl,p1022-elbc", "fsl,elbc";
-	interrupts = <19 2 0 0>;
+	interrupts = <19 2 0 0>,
+		     <16 2 0 0>;
 };
 
 /* controller at 0x9000 */
 &pci0 {
-	compatible = "fsl,p1022-pcie";
+	compatible = "fsl,mpc8548-pcie";
 	device_type = "pci";
 	#size-cells = <2>;
 	#address-cells = <3>;
@@ -73,7 +74,7 @@
 
 /* controller at 0xa000 */
 &pci1 {
-	compatible = "fsl,p1022-pcie";
+	compatible = "fsl,mpc8548-pcie";
 	device_type = "pci";
 	#size-cells = <2>;
 	#address-cells = <3>;
@@ -102,7 +103,7 @@
 
 /* controller at 0xb000 */
 &pci2 {
-	compatible = "fsl,p1022-pcie";
+	compatible = "fsl,mpc8548-pcie";
 	device_type = "pci";
 	#size-cells = <2>;
 	#address-cells = <3>;

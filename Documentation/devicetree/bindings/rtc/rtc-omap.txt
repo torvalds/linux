@@ -1,0 +1,21 @@
+TI Real Time Clock
+
+Required properties:
+- compatible:
+	- "ti,da830-rtc"  - for RTC IP used similar to that on DA8xx SoC family.
+	- "ti,am3352-rtc" - for RTC IP used similar to that on AM335x SoC family.
+			    This RTC IP has special WAKE-EN Register to enable
+			    Wakeup generation for event Alarm.
+- reg: Address range of rtc register set
+- interrupts: rtc timer, alarm interrupts in order
+- interrupt-parent: phandle for the interrupt controller
+
+Example:
+
+rtc@1c23000 {
+	compatible = "ti,da830-rtc";
+	reg = <0x23000 0x1000>;
+	interrupts = <19
+		      19>;
+	interrupt-parent = <&intc>;
+};

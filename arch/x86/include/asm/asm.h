@@ -3,23 +3,25 @@
 
 #ifdef __ASSEMBLY__
 # define __ASM_FORM(x)	x
+# define __ASM_FORM_RAW(x)     x
 # define __ASM_FORM_COMMA(x) x,
-# define __ASM_EX_SEC	.section __ex_table, "a"
 #else
 # define __ASM_FORM(x)	" " #x " "
+# define __ASM_FORM_RAW(x)     #x
 # define __ASM_FORM_COMMA(x) " " #x ","
-# define __ASM_EX_SEC	" .section __ex_table,\"a\"\n"
 #endif
 
 #ifdef CONFIG_X86_32
 # define __ASM_SEL(a,b) __ASM_FORM(a)
+# define __ASM_SEL_RAW(a,b) __ASM_FORM_RAW(a)
 #else
 # define __ASM_SEL(a,b) __ASM_FORM(b)
+# define __ASM_SEL_RAW(a,b) __ASM_FORM_RAW(b)
 #endif
 
 #define __ASM_SIZE(inst, ...)	__ASM_SEL(inst##l##__VA_ARGS__, \
 					  inst##q##__VA_ARGS__)
-#define __ASM_REG(reg)		__ASM_SEL(e##reg, r##reg)
+#define __ASM_REG(reg)         __ASM_SEL_RAW(e##reg, r##reg)
 
 #define _ASM_PTR	__ASM_SEL(.long, .quad)
 #define _ASM_ALIGN	__ASM_SEL(.balign 4, .balign 8)
@@ -42,17 +44,40 @@
 
 /* Exception table entry */
 #ifdef __ASSEMBLY__
-# define _ASM_EXTABLE(from,to)	    \
-	__ASM_EX_SEC ;		    \
-	_ASM_ALIGN ;		    \
-	_ASM_PTR from , to ;	    \
-	.previous
+# define _ASM_EXTABLE(from,to)					\
+	.pushsection "__ex_table","a" ;				\
+	.balign 8 ;						\
+	.long (from) - . ;					\
+	.long (to) - . ;					\
+	.popsection
+
+# define _ASM_EXTABLE_EX(from,to)				\
+	.pushsection "__ex_table","a" ;				\
+	.balign 8 ;						\
+	.long (from) - . ;					\
+	.long (to) - . + 0x7ffffff0 ;				\
+	.popsection
+
+# define _ASM_NOKPROBE(entry)					\
+	.pushsection "_kprobe_blacklist","aw" ;			\
+	_ASM_ALIGN ;						\
+	_ASM_PTR (entry);					\
+	.popsection
 #else
-# define _ASM_EXTABLE(from,to) \
-	__ASM_EX_SEC	\
-	_ASM_ALIGN "\n" \
-	_ASM_PTR #from "," #to "\n" \
-	" .previous\n"
+# define _ASM_EXTABLE(from,to)					\
+	" .pushsection \"__ex_table\",\"a\"\n"			\
+	" .balign 8\n"						\
+	" .long (" #from ") - .\n"				\
+	" .long (" #to ") - .\n"				\
+	" .popsection\n"
+
+# define _ASM_EXTABLE_EX(from,to)				\
+	" .pushsection \"__ex_table\",\"a\"\n"			\
+	" .balign 8\n"						\
+	" .long (" #from ") - .\n"				\
+	" .long (" #to ") - . + 0x7ffffff0\n"			\
+	" .popsection\n"
+/* For C file, we already have NOKPROBE_SYMBOL macro */
 #endif
 
 #endif /* _ASM_X86_ASM_H */

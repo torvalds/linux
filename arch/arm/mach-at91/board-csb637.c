@@ -35,21 +35,17 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "generic.h"
+#include "gpio.h"
 
 
 static void __init csb637_init_early(void)
 {
 	/* Initialize processor: 3.6864 MHz crystal */
 	at91_initialize(3686400);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* make console=ttyS0 (ie, DBGU) the default */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata csb637_eth_data = {
@@ -118,6 +114,8 @@ static void __init csb637_board_init(void)
 	/* LED(s) */
 	at91_gpio_leds(csb_leds, ARRAY_SIZE(csb_leds));
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&csb637_eth_data);
@@ -135,8 +133,9 @@ static void __init csb637_board_init(void)
 
 MACHINE_START(CSB637, "Cogent CSB637")
 	/* Maintainer: Bill Gatliff */
-	.timer		= &at91rm9200_timer,
+	.init_time	= at91rm9200_timer_init,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= csb637_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= csb637_board_init,

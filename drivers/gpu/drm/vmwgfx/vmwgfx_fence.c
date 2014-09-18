@@ -25,7 +25,7 @@
  *
  **************************************************************************/
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "vmwgfx_drv.h"
 
 #define VMW_FENCE_WRAP (1 << 31)
@@ -271,7 +271,7 @@ void vmw_fence_obj_unreference(struct vmw_fence_obj **fence_p)
 	spin_unlock_irq(&fman->lock);
 }
 
-void vmw_fences_perform_actions(struct vmw_fence_manager *fman,
+static void vmw_fences_perform_actions(struct vmw_fence_manager *fman,
 				struct list_head *list)
 {
 	struct vmw_fence_action *action, *next_action;
@@ -537,7 +537,7 @@ static void vmw_user_fence_destroy(struct vmw_fence_obj *fence)
 		container_of(fence, struct vmw_user_fence, fence);
 	struct vmw_fence_manager *fman = fence->fman;
 
-	kfree(ufence);
+	ttm_base_object_kfree(ufence, base);
 	/*
 	 * Free kernel space accounting.
 	 */
@@ -897,7 +897,7 @@ static void vmw_event_fence_action_cleanup(struct vmw_fence_action *action)
  * Note that the action callbacks may be executed before this function
  * returns.
  */
-void vmw_fence_obj_add_action(struct vmw_fence_obj *fence,
+static void vmw_fence_obj_add_action(struct vmw_fence_obj *fence,
 			      struct vmw_fence_action *action)
 {
 	struct vmw_fence_manager *fman = fence->fman;
@@ -993,7 +993,7 @@ struct vmw_event_fence_pending {
 	struct drm_vmw_event_fence event;
 };
 
-int vmw_event_fence_action_create(struct drm_file *file_priv,
+static int vmw_event_fence_action_create(struct drm_file *file_priv,
 				  struct vmw_fence_obj *fence,
 				  uint32_t flags,
 				  uint64_t user_data,
@@ -1018,7 +1018,7 @@ int vmw_event_fence_action_create(struct drm_file *file_priv,
 	}
 
 
-	event = kzalloc(sizeof(event->event), GFP_KERNEL);
+	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (unlikely(event == NULL)) {
 		DRM_ERROR("Failed to allocate an event.\n");
 		ret = -ENOMEM;
@@ -1080,7 +1080,8 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 	 */
 	if (arg->handle) {
 		struct ttm_base_object *base =
-			ttm_base_object_lookup(vmw_fp->tfile, arg->handle);
+			ttm_base_object_lookup_for_ref(dev_priv->tdev,
+						       arg->handle);
 
 		if (unlikely(base == NULL)) {
 			DRM_ERROR("Fence event invalid fence object handle "

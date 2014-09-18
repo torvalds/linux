@@ -1,12 +1,12 @@
 /*
- * acpi_container.c  - ACPI Generic Container Driver
- * ($Revision: )
+ * container.c  - ACPI Generic Container Driver
  *
  * Copyright (C) 2004 Anil S Keshavamurthy (anil.s.keshavamurthy@intel.com)
  * Copyright (C) 2004 Keiichiro Tokunaga (tokunaga.keiich@jp.fujitsu.com)
  * Copyright (C) 2004 Motoyuki Ito (motoyuki@soft.fujitsu.com)
- * Copyright (C) 2004 Intel Corp.
  * Copyright (C) 2004 FUJITSU LIMITED
+ * Copyright (C) 2004, 2013 Intel Corp.
+ * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -26,33 +26,13 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/types.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/container.h>
+#include <linux/container.h>
 
-#define PREFIX "ACPI: "
-
-#define ACPI_CONTAINER_DEVICE_NAME	"ACPI container device"
-#define ACPI_CONTAINER_CLASS		"container"
-
-#define INSTALL_NOTIFY_HANDLER		1
-#define UNINSTALL_NOTIFY_HANDLER	2
+#include "internal.h"
 
 #define _COMPONENT			ACPI_CONTAINER_COMPONENT
 ACPI_MODULE_NAME("container");
-
-MODULE_AUTHOR("Anil S Keshavamurthy");
-MODULE_DESCRIPTION("ACPI container driver");
-MODULE_LICENSE("GPL");
-
-static int acpi_container_add(struct acpi_device *device);
-static int acpi_container_remove(struct acpi_device *device, int type);
 
 static const struct acpi_device_id container_device_ids[] = {
 	{"ACPI0004", 0},
@@ -60,224 +40,89 @@ static const struct acpi_device_id container_device_ids[] = {
 	{"PNP0A06", 0},
 	{"", 0},
 };
-MODULE_DEVICE_TABLE(acpi, container_device_ids);
 
-static struct acpi_driver acpi_container_driver = {
-	.name = "container",
-	.class = ACPI_CONTAINER_CLASS,
-	.ids = container_device_ids,
-	.ops = {
-		.add = acpi_container_add,
-		.remove = acpi_container_remove,
-		},
-};
+#ifdef CONFIG_ACPI_CONTAINER
 
-/*******************************************************************/
-
-static int is_device_present(acpi_handle handle)
+static int acpi_container_offline(struct container_dev *cdev)
 {
-	acpi_handle temp;
-	acpi_status status;
-	unsigned long long sta;
+	struct acpi_device *adev = ACPI_COMPANION(&cdev->dev);
+	struct acpi_device *child;
 
-
-	status = acpi_get_handle(handle, "_STA", &temp);
-	if (ACPI_FAILURE(status))
-		return 1;	/* _STA not found, assume device present */
-
-	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
-	if (ACPI_FAILURE(status))
-		return 0;	/* Firmware error */
-
-	return ((sta & ACPI_STA_DEVICE_PRESENT) == ACPI_STA_DEVICE_PRESENT);
-}
-
-/*******************************************************************/
-static int acpi_container_add(struct acpi_device *device)
-{
-	struct acpi_container *container;
-
-
-	if (!device) {
-		printk(KERN_ERR PREFIX "device is NULL\n");
-		return -EINVAL;
-	}
-
-	container = kzalloc(sizeof(struct acpi_container), GFP_KERNEL);
-	if (!container)
-		return -ENOMEM;
-
-	container->handle = device->handle;
-	strcpy(acpi_device_name(device), ACPI_CONTAINER_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_CONTAINER_CLASS);
-	device->driver_data = container;
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device <%s> bid <%s>\n",
-			  acpi_device_name(device), acpi_device_bid(device)));
+	/* Check all of the dependent devices' physical companions. */
+	list_for_each_entry(child, &adev->children, node)
+		if (!acpi_scan_is_offline(child, false))
+			return -EBUSY;
 
 	return 0;
 }
 
-static int acpi_container_remove(struct acpi_device *device, int type)
+static void acpi_container_release(struct device *dev)
 {
-	acpi_status status = AE_OK;
-	struct acpi_container *pc = NULL;
-
-	pc = acpi_driver_data(device);
-	kfree(pc);
-	return status;
+	kfree(to_container_dev(dev));
 }
 
-static int container_device_add(struct acpi_device **device, acpi_handle handle)
+static int container_device_attach(struct acpi_device *adev,
+				   const struct acpi_device_id *not_used)
 {
-	acpi_handle phandle;
-	struct acpi_device *pdev;
-	int result;
+	struct container_dev *cdev;
+	struct device *dev;
+	int ret;
 
+	if (adev->flags.is_dock_station)
+		return 0;
 
-	if (acpi_get_parent(handle, &phandle)) {
-		return -ENODEV;
+	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	if (!cdev)
+		return -ENOMEM;
+
+	cdev->offline = acpi_container_offline;
+	dev = &cdev->dev;
+	dev->bus = &container_subsys;
+	dev_set_name(dev, "%s", dev_name(&adev->dev));
+	ACPI_COMPANION_SET(dev, adev);
+	dev->release = acpi_container_release;
+	ret = device_register(dev);
+	if (ret) {
+		put_device(dev);
+		return ret;
 	}
-
-	if (acpi_bus_get_device(phandle, &pdev)) {
-		return -ENODEV;
-	}
-
-	if (acpi_bus_add(device, pdev, handle, ACPI_BUS_TYPE_DEVICE)) {
-		return -ENODEV;
-	}
-
-	result = acpi_bus_start(*device);
-
-	return result;
+	adev->driver_data = dev;
+	return 1;
 }
 
-static void container_notify_cb(acpi_handle handle, u32 type, void *context)
+static void container_device_detach(struct acpi_device *adev)
 {
-	struct acpi_device *device = NULL;
-	int result;
-	int present;
-	acpi_status status;
+	struct device *dev = acpi_driver_data(adev);
 
-
-	present = is_device_present(handle);
-
-	switch (type) {
-	case ACPI_NOTIFY_BUS_CHECK:
-		/* Fall through */
-	case ACPI_NOTIFY_DEVICE_CHECK:
-		printk(KERN_WARNING "Container driver received %s event\n",
-		       (type == ACPI_NOTIFY_BUS_CHECK) ?
-		       "ACPI_NOTIFY_BUS_CHECK" : "ACPI_NOTIFY_DEVICE_CHECK");
-		status = acpi_bus_get_device(handle, &device);
-		if (present) {
-			if (ACPI_FAILURE(status) || !device) {
-				result = container_device_add(&device, handle);
-				if (!result)
-					kobject_uevent(&device->dev.kobj,
-						       KOBJ_ONLINE);
-				else
-					printk(KERN_WARNING
-					       "Failed to add container\n");
-			}
-		} else {
-			if (ACPI_SUCCESS(status)) {
-				/* device exist and this is a remove request */
-				kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
-			}
-		}
-		break;
-	case ACPI_NOTIFY_EJECT_REQUEST:
-		if (!acpi_bus_get_device(handle, &device) && device) {
-			kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
-		}
-		break;
-	default:
-		break;
-	}
-	return;
+	adev->driver_data = NULL;
+	if (dev)
+		device_unregister(dev);
 }
 
-static acpi_status
-container_walk_namespace_cb(acpi_handle handle,
-			    u32 lvl, void *context, void **rv)
+static struct acpi_scan_handler container_handler = {
+	.ids = container_device_ids,
+	.attach = container_device_attach,
+	.detach = container_device_detach,
+	.hotplug = {
+		.enabled = true,
+		.demand_offline = true,
+	},
+};
+
+void __init acpi_container_init(void)
 {
-	char *hid = NULL;
-	struct acpi_device_info *info;
-	acpi_status status;
-	int *action = context;
-
-	status = acpi_get_object_info(handle, &info);
-	if (ACPI_FAILURE(status)) {
-		return AE_OK;
-	}
-
-	if (info->valid & ACPI_VALID_HID)
-		hid = info->hardware_id.string;
-
-	if (hid == NULL) {
-		goto end;
-	}
-
-	if (strcmp(hid, "ACPI0004") && strcmp(hid, "PNP0A05") &&
-	    strcmp(hid, "PNP0A06")) {
-		goto end;
-	}
-
-	switch (*action) {
-	case INSTALL_NOTIFY_HANDLER:
-		acpi_install_notify_handler(handle,
-					    ACPI_SYSTEM_NOTIFY,
-					    container_notify_cb, NULL);
-		break;
-	case UNINSTALL_NOTIFY_HANDLER:
-		acpi_remove_notify_handler(handle,
-					   ACPI_SYSTEM_NOTIFY,
-					   container_notify_cb);
-		break;
-	default:
-		break;
-	}
-
-      end:
-	kfree(info);
-
-	return AE_OK;
+	acpi_scan_add_handler(&container_handler);
 }
 
-static int __init acpi_container_init(void)
+#else
+
+static struct acpi_scan_handler container_handler = {
+	.ids = container_device_ids,
+};
+
+void __init acpi_container_init(void)
 {
-	int result = 0;
-	int action = INSTALL_NOTIFY_HANDLER;
-
-	result = acpi_bus_register_driver(&acpi_container_driver);
-	if (result < 0) {
-		return (result);
-	}
-
-	/* register notify handler to every container device */
-	acpi_walk_namespace(ACPI_TYPE_DEVICE,
-			    ACPI_ROOT_OBJECT,
-			    ACPI_UINT32_MAX,
-			    container_walk_namespace_cb, NULL, &action, NULL);
-
-	return (0);
+	acpi_scan_add_handler_with_hotplug(&container_handler, "container");
 }
 
-static void __exit acpi_container_exit(void)
-{
-	int action = UNINSTALL_NOTIFY_HANDLER;
-
-
-	acpi_walk_namespace(ACPI_TYPE_DEVICE,
-			    ACPI_ROOT_OBJECT,
-			    ACPI_UINT32_MAX,
-			    container_walk_namespace_cb, NULL, &action, NULL);
-
-	acpi_bus_unregister_driver(&acpi_container_driver);
-
-	return;
-}
-
-module_init(acpi_container_init);
-module_exit(acpi_container_exit);
+#endif /* CONFIG_ACPI_CONTAINER */

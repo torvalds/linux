@@ -21,7 +21,6 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -31,6 +30,7 @@
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 
 #include <asm/pgtable.h>
@@ -95,14 +95,8 @@ static int fs_enet_fec_mii_write(struct mii_bus *bus, int phy_id, int location, 
 
 }
 
-static int fs_enet_fec_mii_reset(struct mii_bus *bus)
-{
-	/* nothing here - for now */
-	return 0;
-}
-
 static struct of_device_id fs_enet_mdio_fec_match[];
-static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev)
+static int fs_enet_mdio_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
 	struct resource res;
@@ -128,7 +122,6 @@ static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev)
 	new_bus->name = "FEC MII Bus";
 	new_bus->read = &fs_enet_fec_mii_read;
 	new_bus->write = &fs_enet_fec_mii_write;
-	new_bus->reset = &fs_enet_fec_mii_reset;
 
 	ret = of_address_to_resource(ofdev->dev.of_node, 0, &res);
 	if (ret)
@@ -137,8 +130,10 @@ static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev)
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
 	fec->fecp = ioremap(res.start, resource_size(&res));
-	if (!fec->fecp)
+	if (!fec->fecp) {
+		ret = -ENOMEM;
 		goto out_fec;
+	}
 
 	if (get_bus_freq) {
 		clock = get_bus_freq(ofdev->dev.of_node);
@@ -172,11 +167,13 @@ static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev)
 
 	new_bus->phy_mask = ~0;
 	new_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!new_bus->irq)
+	if (!new_bus->irq) {
+		ret = -ENOMEM;
 		goto out_unmap_regs;
+	}
 
 	new_bus->parent = &ofdev->dev;
-	dev_set_drvdata(&ofdev->dev, new_bus);
+	platform_set_drvdata(ofdev, new_bus);
 
 	ret = of_mdiobus_register(new_bus, ofdev->dev.of_node);
 	if (ret)
@@ -185,7 +182,6 @@ static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev)
 	return 0;
 
 out_free_irqs:
-	dev_set_drvdata(&ofdev->dev, NULL);
 	kfree(new_bus->irq);
 out_unmap_regs:
 	iounmap(fec->fecp);
@@ -200,11 +196,10 @@ out:
 
 static int fs_enet_mdio_remove(struct platform_device *ofdev)
 {
-	struct mii_bus *bus = dev_get_drvdata(&ofdev->dev);
+	struct mii_bus *bus = platform_get_drvdata(ofdev);
 	struct fec_info *fec = bus->priv;
 
 	mdiobus_unregister(bus);
-	dev_set_drvdata(&ofdev->dev, NULL);
 	kfree(bus->irq);
 	iounmap(fec->fecp);
 	kfree(fec);

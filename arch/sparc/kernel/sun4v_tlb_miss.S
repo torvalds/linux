@@ -176,13 +176,13 @@ sun4v_tsb_miss_common:
 
 	sub	%g2, TRAP_PER_CPU_FAULT_INFO, %g2
 
-#ifdef CONFIG_HUGETLB_PAGE
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 	mov	SCRATCHPAD_UTSBREG2, %g5
 	ldxa	[%g5] ASI_SCRATCHPAD, %g5
 	cmp	%g5, -1
 	be,pt	%xcc, 80f
 	 nop
-	COMPUTE_TSB_PTR(%g5, %g4, HPAGE_SHIFT, %g2, %g7)
+	COMPUTE_TSB_PTR(%g5, %g4, REAL_HPAGE_SHIFT, %g2, %g7)
 
 	/* That clobbered %g2, reload it.  */
 	ldxa	[%g0] ASI_SCRATCHPAD, %g2

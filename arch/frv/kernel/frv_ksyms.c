@@ -30,7 +30,6 @@ EXPORT_SYMBOL(ip_fast_csum);
 EXPORT_SYMBOL(local_irq_count);
 EXPORT_SYMBOL(local_bh_count);
 #endif
-EXPORT_SYMBOL(kernel_thread);
 
 EXPORT_SYMBOL(__res_bus_clock_speed_HZ);
 EXPORT_SYMBOL(__page_offset);

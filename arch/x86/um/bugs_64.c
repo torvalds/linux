@@ -4,7 +4,7 @@
  * Licensed under the GPL
  */
 
-#include "sysdep/ptrace.h"
+#include <sysdep/ptrace.h>
 
 void arch_check_bugs(void)
 {

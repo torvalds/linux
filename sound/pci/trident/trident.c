@@ -26,7 +26,7 @@
 #include <linux/time.h>
 #include <linux/module.h>
 #include <sound/core.h>
-#include <sound/trident.h>
+#include "trident.h"
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, <audio@tridentmicro.com>");
@@ -62,7 +62,7 @@ MODULE_PARM_DESC(pcm_channels, "Number of hardware channels assigned for PCM.");
 module_param_array(wavetable_size, int, NULL, 0444);
 MODULE_PARM_DESC(wavetable_size, "Maximum memory size in kB for wavetable synth.");
 
-static DEFINE_PCI_DEVICE_TABLE(snd_trident_ids) = {
+static const struct pci_device_id snd_trident_ids[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_TRIDENT, PCI_DEVICE_ID_TRIDENT_4DWAVE_DX), 
 		PCI_CLASS_MULTIMEDIA_AUDIO << 8, 0xffff00, 0},
 	{PCI_DEVICE(PCI_VENDOR_ID_TRIDENT, PCI_DEVICE_ID_TRIDENT_4DWAVE_NX), 
@@ -73,8 +73,8 @@ static DEFINE_PCI_DEVICE_TABLE(snd_trident_ids) = {
 
 MODULE_DEVICE_TABLE(pci, snd_trident_ids);
 
-static int __devinit snd_trident_probe(struct pci_dev *pci,
-				       const struct pci_device_id *pci_id)
+static int snd_trident_probe(struct pci_dev *pci,
+			     const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -89,7 +89,8 @@ static int __devinit snd_trident_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
 
@@ -166,32 +167,21 @@ static int __devinit snd_trident_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_trident_remove(struct pci_dev *pci)
+static void snd_trident_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver trident_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_trident_ids,
 	.probe = snd_trident_probe,
-	.remove = __devexit_p(snd_trident_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_trident_suspend,
-	.resume = snd_trident_resume,
+	.remove = snd_trident_remove,
+#ifdef CONFIG_PM_SLEEP
+	.driver = {
+		.pm = &snd_trident_pm,
+	},
 #endif
 };
 
-static int __init alsa_card_trident_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_trident_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_trident_init)
-module_exit(alsa_card_trident_exit)
+module_pci_driver(trident_driver);

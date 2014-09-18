@@ -46,8 +46,35 @@
 
 #include <linux/cpumask.h>
 #include <asm/r4kcache.h>
+#include <asm/smp-ops.h>
 
-extern struct plat_smp_ops bmips_smp_ops;
+extern struct plat_smp_ops bmips43xx_smp_ops;
+extern struct plat_smp_ops bmips5000_smp_ops;
+
+static inline int register_bmips_smp_ops(void)
+{
+#if IS_ENABLED(CONFIG_CPU_BMIPS) && IS_ENABLED(CONFIG_SMP)
+	switch (current_cpu_type()) {
+	case CPU_BMIPS32:
+	case CPU_BMIPS3300:
+		return register_up_smp_ops();
+	case CPU_BMIPS4350:
+	case CPU_BMIPS4380:
+		register_smp_ops(&bmips43xx_smp_ops);
+		break;
+	case CPU_BMIPS5000:
+		register_smp_ops(&bmips5000_smp_ops);
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	return 0;
+#else
+	return -ENODEV;
+#endif
+}
+
 extern char bmips_reset_nmi_vec;
 extern char bmips_reset_nmi_vec_end;
 extern char bmips_smp_movevec;
@@ -65,44 +92,33 @@ static inline unsigned long bmips_read_zscm_reg(unsigned int offset)
 {
 	unsigned long ret;
 
-	__asm__ __volatile__(
-		".set push\n"
-		".set noreorder\n"
-		"cache %1, 0(%2)\n"
-		"sync\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"mfc0 %0, $28, 3\n"
-		"_ssnop\n"
-		".set pop\n"
-		: "=&r" (ret)
-		: "i" (Index_Load_Tag_S), "r" (ZSCM_REG_BASE + offset)
-		: "memory");
+	barrier();
+	cache_op(Index_Load_Tag_S, ZSCM_REG_BASE + offset);
+	__sync();
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	ret = read_c0_ddatalo();
+	_ssnop();
+
 	return ret;
 }
 
 static inline void bmips_write_zscm_reg(unsigned int offset, unsigned long data)
 {
-	__asm__ __volatile__(
-		".set push\n"
-		".set noreorder\n"
-		"mtc0 %0, $28, 3\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"cache %1, 0(%2)\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		: /* no outputs */
-		: "r" (data),
-		  "i" (Index_Store_Tag_S), "r" (ZSCM_REG_BASE + offset)
-		: "memory");
+	write_c0_ddatalo(data);
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	cache_op(Index_Store_Tag_S, ZSCM_REG_BASE + offset);
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	barrier();
 }
 
 #endif /* !defined(__ASSEMBLY__) */

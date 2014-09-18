@@ -201,12 +201,17 @@ EXCEPTION_ENTRY(_bus_fault_handler)
 	 l.nop
 
 /* ---[ 0x300: Data Page Fault exception ]------------------------------- */
+EXCEPTION_ENTRY(_dtlb_miss_page_fault_handler)
+	l.and	r5,r5,r0
+	l.j	1f
+	 l.nop
 
 EXCEPTION_ENTRY(_data_page_fault_handler)
 	/* set up parameters for do_page_fault */
+	l.ori	r5,r0,0x300		   // exception vector
+1:
 	l.addi  r3,r1,0                    // pt_regs
 	/* r4 set be EXCEPTION_HANDLE */   // effective address of fault
-	l.ori   r5,r0,0x300                // exception vector
 
 	/*
 	 * __PHX__: TODO
@@ -276,12 +281,17 @@ EXCEPTION_ENTRY(_data_page_fault_handler)
 	l.nop
 
 /* ---[ 0x400: Insn Page Fault exception ]------------------------------- */
+EXCEPTION_ENTRY(_itlb_miss_page_fault_handler)
+	l.and	r5,r5,r0
+	l.j	1f
+	 l.nop
 
 EXCEPTION_ENTRY(_insn_page_fault_handler)
 	/* set up parameters for do_page_fault */
+	l.ori	r5,r0,0x400		   // exception vector
+1:
 	l.addi  r3,r1,0                    // pt_regs
 	/* r4 set be EXCEPTION_HANDLE */   // effective address of fault
-	l.ori   r5,r0,0x400                // exception vector
 	l.ori	r6,r0,0x0		   // !write access
 
 	/* call fault.c handler in or32/mm/fault.c */
@@ -843,37 +853,44 @@ UNHANDLED_EXCEPTION(_vector_0x1f00,0x1f00)
 
 /* ========================================================[ return ] === */
 
-_work_pending:
-	/*
-	 * if (current_thread_info->flags & _TIF_NEED_RESCHED)
-	 *     schedule();
-	 */
-	l.lwz   r5,TI_FLAGS(r10)
-	l.andi	r3,r5,_TIF_NEED_RESCHED
-	l.sfnei r3,0
-	l.bnf   _work_notifysig
-	 l.nop
-	l.jal   schedule
-	 l.nop
-	l.j	_resume_userspace
-	 l.nop
-
-/* Handle pending signals and notify-resume requests.
- * do_notify_resume must be passed the latest pushed pt_regs, not
- * necessarily the "userspace" ones.  Also, pt_regs->syscallno
- * must be set so that the syscall restart functionality works.
- */
-_work_notifysig:
-	l.jal	do_notify_resume
-	 l.ori	r3,r1,0		  /* pt_regs */
-
 _resume_userspace:
 	DISABLE_INTERRUPTS(r3,r4)
-	l.lwz	r3,TI_FLAGS(r10)
-	l.andi	r3,r3,_TIF_WORK_MASK
-	l.sfnei	r3,0
-	l.bf	_work_pending
+	l.lwz	r4,TI_FLAGS(r10)
+	l.andi	r13,r4,_TIF_WORK_MASK
+	l.sfeqi	r13,0
+	l.bf	_restore_all
 	 l.nop
+
+_work_pending:
+	l.lwz	r5,PT_ORIG_GPR11(r1)
+	l.sfltsi r5,0
+	l.bnf	1f
+	 l.nop
+	l.andi	r5,r5,0
+1:
+	l.jal	do_work_pending
+	 l.ori	r3,r1,0			/* pt_regs */
+
+	l.sfeqi	r11,0
+	l.bf	_restore_all
+	 l.nop
+	l.sfltsi r11,0
+	l.bnf	1f
+	 l.nop
+	l.and	r11,r11,r0
+	l.ori	r11,r11,__NR_restart_syscall
+	l.j	_syscall_check_trace_enter
+	 l.nop
+1:
+	l.lwz	r11,PT_ORIG_GPR11(r1)
+	/* Restore arg registers */
+	l.lwz	r3,PT_GPR3(r1)
+	l.lwz	r4,PT_GPR4(r1)
+	l.lwz	r5,PT_GPR5(r1)
+	l.lwz	r6,PT_GPR6(r1)
+	l.lwz	r7,PT_GPR7(r1)
+	l.j	_syscall_check_trace_enter
+	 l.lwz	r8,PT_GPR8(r1)
 
 _restore_all:
 	RESTORE_ALL
@@ -894,6 +911,16 @@ ENTRY(ret_from_fork)
 	l.jal	schedule_tail
 	 l.nop
 
+	/* Check if we are a kernel thread */
+	l.sfeqi	r20,0
+	l.bf	1f
+	 l.nop
+
+	/* ...we are a kernel thread so invoke the requested callback */
+	l.jalr	r20
+	 l.or	r3,r22,r0
+
+1:
 	/* _syscall_returns expect r11 to contain return value */
 	l.lwz	r11,PT_GPR11(r1)
 
@@ -914,26 +941,6 @@ ENTRY(ret_from_fork)
 
 	l.j	_syscall_return
 	 l.nop
-
-/* Since syscalls don't save call-clobbered registers, the args to
- * kernel_thread_helper will need to be passed through callee-saved
- * registers and copied to the parameter registers when the thread
- * begins running.
- *
- * See arch/openrisc/kernel/process.c:
- * The args are passed as follows:
- *   arg1 (r3) : passed in r20
- *   arg2 (r4) : passed in r22
- */
-
-ENTRY(_kernel_thread_helper)
-	l.or	r3,r20,r0
-	l.or	r4,r22,r0
-	l.movhi	r31,hi(kernel_thread_helper)
-	l.ori	r31,r31,lo(kernel_thread_helper)
-	l.jr	r31
-	 l.nop
-
 
 /* ========================================================[ switch ] === */
 
@@ -1044,8 +1051,13 @@ ENTRY(_switch)
 	/* Unwind stack to pre-switch state */
 	l.addi  r1,r1,(INT_FRAME_SIZE)
 
-	/* Return via the link-register back to where we 'came from', where that can be
-	 * either schedule() or return_from_fork()... */
+	/* Return via the link-register back to where we 'came from', where
+	 * that may be either schedule(), ret_from_fork(), or
+	 * ret_from_kernel_thread().  If we are returning to a new thread,
+	 * we are expected to have set up the arg to schedule_tail already,
+	 * hence we do so here unconditionally:
+	 */
+	l.lwz   r3,TI_TASK(r3)		/* Load 'prev' as schedule_tail arg */
 	l.jr	r9
 	 l.nop
 
@@ -1076,25 +1088,17 @@ _fork_save_extra_regs_and_call:
 	l.jr	r29
 	 l.sw    PT_GPR28(r1),r28
 
-ENTRY(sys_clone)
-	l.movhi	r29,hi(_sys_clone)
-	l.ori	r29,r29,lo(_sys_clone)
+ENTRY(__sys_clone)
+	l.movhi	r29,hi(sys_clone)
+	l.ori	r29,r29,lo(sys_clone)
 	l.j	_fork_save_extra_regs_and_call
 	 l.addi	r7,r1,0
 
-ENTRY(sys_fork)
-	l.movhi	r29,hi(_sys_fork)
-	l.ori	r29,r29,lo(_sys_fork)
+ENTRY(__sys_fork)
+	l.movhi	r29,hi(sys_fork)
+	l.ori	r29,r29,lo(sys_fork)
 	l.j	_fork_save_extra_regs_and_call
 	 l.addi	r3,r1,0
-
-ENTRY(sys_execve)
-	l.j	_sys_execve
-	 l.addi	r6,r1,0
-
-ENTRY(sys_sigaltstack)
-	l.j	_sys_sigaltstack
-	 l.addi	r5,r1,0
 
 ENTRY(sys_rt_sigreturn)
 	l.j	_sys_rt_sigreturn
@@ -1117,10 +1121,10 @@ ENTRY(sys_rt_sigreturn)
 ENTRY(sys_or1k_atomic)
 	/* FIXME: This ignores r3 and always does an XCHG */
 	DISABLE_INTERRUPTS(r17,r19)
-	l.lwz	r30,0(r4)
-	l.lwz	r28,0(r5)
-	l.sw	0(r4),r28
-	l.sw	0(r5),r30
+	l.lwz	r29,0(r4)
+	l.lwz	r27,0(r5)
+	l.sw	0(r4),r27
+	l.sw	0(r5),r29
 	ENABLE_INTERRUPTS(r17)
 	l.jr	r9
 	 l.or	r11,r0,r0

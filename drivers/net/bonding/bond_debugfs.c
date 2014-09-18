@@ -6,7 +6,7 @@
 #include "bonding.h"
 #include "bond_alb.h"
 
-#ifdef CONFIG_DEBUG_FS
+#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_NET_NS)
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -23,7 +23,7 @@ static int bond_debug_rlb_hash_show(struct seq_file *m, void *v)
 	struct rlb_client_info *client_info;
 	u32 hash_index;
 
-	if (bond->params.mode != BOND_MODE_ALB)
+	if (BOND_MODE(bond) != BOND_MODE_ALB)
 		return 0;
 
 	seq_printf(m, "SourceIP        DestinationIP   "
@@ -31,8 +31,9 @@ static int bond_debug_rlb_hash_show(struct seq_file *m, void *v)
 
 	spin_lock_bh(&(BOND_ALB_INFO(bond).rx_hashtbl_lock));
 
-	hash_index = bond_info->rx_hashtbl_head;
-	for (; hash_index != RLB_NULL_INDEX; hash_index = client_info->next) {
+	hash_index = bond_info->rx_hashtbl_used_head;
+	for (; hash_index != RLB_NULL_INDEX;
+	     hash_index = client_info->used_next) {
 		client_info = &(bond_info->rx_hashtbl[hash_index]);
 		seq_printf(m, "%-15pI4 %-15pI4 %-17pM %s\n",
 			&client_info->ip_src,
@@ -68,8 +69,7 @@ void bond_debug_register(struct bonding *bond)
 		debugfs_create_dir(bond->dev->name, bonding_debug_root);
 
 	if (!bond->debug_dir) {
-		pr_warning("%s: Warning: failed to register to debugfs\n",
-			bond->dev->name);
+		netdev_warn(bond->dev, "failed to register to debugfs\n");
 		return;
 	}
 
@@ -97,9 +97,7 @@ void bond_debug_reregister(struct bonding *bond)
 	if (d) {
 		bond->debug_dir = d;
 	} else {
-		pr_warning("%s: Warning: failed to reregister, "
-				"so just unregister old one\n",
-				bond->dev->name);
+		netdev_warn(bond->dev, "failed to reregister, so just unregister old one\n");
 		bond_debug_unregister(bond);
 	}
 }
@@ -109,8 +107,7 @@ void bond_create_debugfs(void)
 	bonding_debug_root = debugfs_create_dir("bonding", NULL);
 
 	if (!bonding_debug_root) {
-		pr_warning("Warning: Cannot create bonding directory"
-				" in debugfs\n");
+		pr_warn("Warning: Cannot create bonding directory in debugfs\n");
 	}
 }
 

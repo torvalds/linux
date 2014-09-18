@@ -146,6 +146,7 @@ struct sbp2_logical_unit {
 	 */
 	int generation;
 	int retries;
+	work_func_t workfn;
 	struct delayed_work work;
 	bool has_sdev;
 	bool blocked;
@@ -207,9 +208,8 @@ static const struct device *lu_dev(const struct sbp2_logical_unit *lu)
 #define SBP2_MAX_CDB_SIZE		16
 
 /*
- * The default maximum s/g segment size of a FireWire controller is
- * usually 0x10000, but SBP-2 only allows 0xffff. Since buffers have to
- * be quadlet-aligned, we set the length limit to 0xffff & ~3.
+ * The maximum SBP-2 data buffer size is 0xffff.  We quadlet-align this
+ * for compatibility with earlier versions of this driver.
  */
 #define SBP2_MAX_SEG_SIZE		0xfffc
 
@@ -865,7 +865,7 @@ static void sbp2_login(struct work_struct *work)
 	/* set appropriate retry limit(s) in BUSY_TIMEOUT register */
 	sbp2_set_busy_timeout(lu);
 
-	PREPARE_DELAYED_WORK(&lu->work, sbp2_reconnect);
+	lu->workfn = sbp2_reconnect;
 	sbp2_agent_reset(lu);
 
 	/* This was a re-login. */
@@ -919,7 +919,7 @@ static void sbp2_login(struct work_struct *work)
 	 * If a bus reset happened, sbp2_update will have requeued
 	 * lu->work already.  Reset the work from reconnect to login.
 	 */
-	PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
+	lu->workfn = sbp2_login;
 }
 
 static void sbp2_reconnect(struct work_struct *work)
@@ -953,7 +953,7 @@ static void sbp2_reconnect(struct work_struct *work)
 		    lu->retries++ >= 5) {
 			dev_err(tgt_dev(tgt), "failed to reconnect\n");
 			lu->retries = 0;
-			PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
+			lu->workfn = sbp2_login;
 		}
 		sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
 
@@ -971,6 +971,13 @@ static void sbp2_reconnect(struct work_struct *work)
 	sbp2_agent_reset(lu);
 	sbp2_cancel_orbs(lu);
 	sbp2_conditionally_unblock(lu);
+}
+
+static void sbp2_lu_workfn(struct work_struct *work)
+{
+	struct sbp2_logical_unit *lu = container_of(to_delayed_work(work),
+						struct sbp2_logical_unit, work);
+	lu->workfn(work);
 }
 
 static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
@@ -999,7 +1006,8 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 	lu->blocked  = false;
 	++tgt->dont_block;
 	INIT_LIST_HEAD(&lu->orb_list);
-	INIT_DELAYED_WORK(&lu->work, sbp2_login);
+	lu->workfn = sbp2_login;
+	INIT_DELAYED_WORK(&lu->work, sbp2_lu_workfn);
 
 	list_add_tail(&lu->link, &tgt->lu_list);
 	return 0;
@@ -1129,11 +1137,10 @@ static void sbp2_init_workarounds(struct sbp2_target *tgt, u32 model,
 }
 
 static struct scsi_host_template scsi_driver_template;
-static int sbp2_remove(struct device *dev);
+static void sbp2_remove(struct fw_unit *unit);
 
-static int sbp2_probe(struct device *dev)
+static int sbp2_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 {
-	struct fw_unit *unit = fw_unit(dev);
 	struct fw_device *device = fw_parent_device(unit);
 	struct sbp2_target *tgt;
 	struct sbp2_logical_unit *lu;
@@ -1145,8 +1152,8 @@ static int sbp2_probe(struct device *dev)
 		return -ENODEV;
 
 	if (dma_get_max_seg_size(device->card->device) > SBP2_MAX_SEG_SIZE)
-		BUG_ON(dma_set_max_seg_size(device->card->device,
-					    SBP2_MAX_SEG_SIZE));
+		WARN_ON(dma_set_max_seg_size(device->card->device,
+					     SBP2_MAX_SEG_SIZE));
 
 	shost = scsi_host_alloc(&scsi_driver_template, sizeof(*tgt));
 	if (shost == NULL)
@@ -1163,7 +1170,8 @@ static int sbp2_probe(struct device *dev)
 
 	shost->max_cmd_len = SBP2_MAX_CDB_SIZE;
 
-	if (scsi_add_host(shost, &unit->device) < 0)
+	if (scsi_add_host_with_dma(shost, &unit->device,
+				   device->card->device) < 0)
 		goto fail_shost_put;
 
 	/* implicit directory ID */
@@ -1196,7 +1204,7 @@ static int sbp2_probe(struct device *dev)
 	return 0;
 
  fail_remove:
-	sbp2_remove(dev);
+	sbp2_remove(unit);
 	return -ENOMEM;
 
  fail_shost_put:
@@ -1222,9 +1230,8 @@ static void sbp2_update(struct fw_unit *unit)
 	}
 }
 
-static int sbp2_remove(struct device *dev)
+static void sbp2_remove(struct fw_unit *unit)
 {
-	struct fw_unit *unit = fw_unit(dev);
 	struct fw_device *device = fw_parent_device(unit);
 	struct sbp2_target *tgt = dev_get_drvdata(&unit->device);
 	struct sbp2_logical_unit *lu, *next;
@@ -1261,10 +1268,9 @@ static int sbp2_remove(struct device *dev)
 		kfree(lu);
 	}
 	scsi_remove_host(shost);
-	dev_notice(dev, "released target %d:0:0\n", shost->host_no);
+	dev_notice(&unit->device, "released target %d:0:0\n", shost->host_no);
 
 	scsi_host_put(shost);
-	return 0;
 }
 
 #define SBP2_UNIT_SPEC_ID_ENTRY	0x0000609e
@@ -1285,20 +1291,17 @@ static struct fw_driver sbp2_driver = {
 		.owner  = THIS_MODULE,
 		.name   = KBUILD_MODNAME,
 		.bus    = &fw_bus_type,
-		.probe  = sbp2_probe,
-		.remove = sbp2_remove,
 	},
+	.probe    = sbp2_probe,
 	.update   = sbp2_update,
+	.remove   = sbp2_remove,
 	.id_table = sbp2_id_table,
 };
 
 static void sbp2_unmap_scatterlist(struct device *card_device,
 				   struct sbp2_command_orb *orb)
 {
-	if (scsi_sg_count(orb->cmd))
-		dma_unmap_sg(card_device, scsi_sglist(orb->cmd),
-			     scsi_sg_count(orb->cmd),
-			     orb->cmd->sc_data_direction);
+	scsi_dma_unmap(orb->cmd);
 
 	if (orb->request.misc & cpu_to_be32(COMMAND_ORB_PAGE_TABLE_PRESENT))
 		dma_unmap_single(card_device, orb->page_table_bus,
@@ -1404,9 +1407,8 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
 	struct scatterlist *sg = scsi_sglist(orb->cmd);
 	int i, n;
 
-	n = dma_map_sg(device->card->device, sg, scsi_sg_count(orb->cmd),
-		       orb->cmd->sc_data_direction);
-	if (n == 0)
+	n = scsi_dma_map(orb->cmd);
+	if (n <= 0)
 		goto fail;
 
 	/*
@@ -1452,8 +1454,7 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
 	return 0;
 
  fail_page_table:
-	dma_unmap_sg(device->card->device, scsi_sglist(orb->cmd),
-		     scsi_sg_count(orb->cmd), orb->cmd->sc_data_direction);
+	scsi_dma_unmap(orb->cmd);
  fail:
 	return -ENOMEM;
 }
@@ -1480,10 +1481,8 @@ static int sbp2_scsi_queuecommand(struct Scsi_Host *shost,
 	}
 
 	orb = kzalloc(sizeof(*orb), GFP_ATOMIC);
-	if (orb == NULL) {
-		dev_notice(lu_dev(lu), "failed to alloc ORB\n");
+	if (orb == NULL)
 		return SCSI_MLQUEUE_HOST_BUSY;
-	}
 
 	/* Initialize rcode to something not RCODE_COMPLETE. */
 	orb->base.rcode = -1;
@@ -1534,7 +1533,10 @@ static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
 
 	sdev->allow_restart = 1;
 
-	/* SBP-2 requires quadlet alignment of the data buffers. */
+	/*
+	 * SBP-2 does not require any alignment, but we set it anyway
+	 * for compatibility with earlier versions of this driver.
+	 */
 	blk_queue_update_dma_alignment(sdev->request_queue, 4 - 1);
 
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_INQUIRY_36)
@@ -1567,8 +1569,6 @@ static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
 		blk_queue_max_hw_sectors(sdev->request_queue, 128 * 1024 / 512);
-
-	blk_queue_max_segment_size(sdev->request_queue, SBP2_MAX_SEG_SIZE);
 
 	return 0;
 }
@@ -1640,9 +1640,7 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(ieee1394, sbp2_id_table);
 
 /* Provide a module alias so root-on-sbp2 initrds don't break. */
-#ifndef CONFIG_IEEE1394_SBP2_MODULE
 MODULE_ALIAS("sbp2");
-#endif
 
 static int __init sbp2_init(void)
 {

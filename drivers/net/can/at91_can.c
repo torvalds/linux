@@ -22,22 +22,22 @@
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/platform_data/atmel.h>
 
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-
-#include <mach/board.h>
+#include <linux/can/led.h>
 
 #define AT91_MB_MASK(i)		((1 << (i)) - 1)
 
@@ -155,22 +155,23 @@ struct at91_priv {
 	canid_t mb0_id;
 };
 
-static const struct at91_devtype_data at91_devtype_data[] __devinitconst = {
-	[AT91_DEVTYPE_SAM9263] = {
-		.rx_first = 1,
-		.rx_split = 8,
-		.rx_last = 11,
-		.tx_shift = 2,
-	},
-	[AT91_DEVTYPE_SAM9X5] = {
-		.rx_first = 0,
-		.rx_split = 4,
-		.rx_last = 5,
-		.tx_shift = 1,
-	},
+static const struct at91_devtype_data at91_at91sam9263_data = {
+	.rx_first = 1,
+	.rx_split = 8,
+	.rx_last = 11,
+	.tx_shift = 2,
+	.type = AT91_DEVTYPE_SAM9263,
 };
 
-static struct can_bittiming_const at91_bittiming_const = {
+static const struct at91_devtype_data at91_at91sam9x5_data = {
+	.rx_first = 0,
+	.rx_split = 4,
+	.rx_last = 5,
+	.tx_shift = 1,
+	.type = AT91_DEVTYPE_SAM9X5,
+};
+
+static const struct can_bittiming_const at91_bittiming_const = {
 	.name		= KBUILD_MODNAME,
 	.tseg1_min	= 4,
 	.tseg1_max	= 16,
@@ -419,7 +420,11 @@ static void at91_chip_start(struct net_device *dev)
 	at91_transceiver_switch(priv, 1);
 
 	/* enable chip */
-	at91_write(priv, AT91_MR, AT91_MR_CANEN);
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+		reg_mr = AT91_MR_CANEN | AT91_MR_ABM;
+	else
+		reg_mr = AT91_MR_CANEN;
+	at91_write(priv, AT91_MR, reg_mr);
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
@@ -642,6 +647,8 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+
+	can_led_event(dev, CAN_LED_EVENT_RX);
 }
 
 /**
@@ -876,6 +883,7 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 			/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
 			can_get_echo_skb(dev, mb - get_mb_tx_first(priv));
 			dev->stats.tx_packets++;
+			can_led_event(dev, CAN_LED_EVENT_TX);
 		}
 	}
 
@@ -1129,6 +1137,8 @@ static int at91_open(struct net_device *dev)
 		goto out_close;
 	}
 
+	can_led_event(dev, CAN_LED_EVENT_OPEN);
+
 	/* start chip and queuing */
 	at91_chip_start(dev);
 	napi_enable(&priv->napi);
@@ -1160,6 +1170,8 @@ static int at91_close(struct net_device *dev)
 
 	close_candev(dev);
 
+	can_led_event(dev, CAN_LED_EVENT_STOP);
+
 	return 0;
 }
 
@@ -1182,6 +1194,7 @@ static const struct net_device_ops at91_netdev_ops = {
 	.ndo_open	= at91_open,
 	.ndo_stop	= at91_close,
 	.ndo_start_xmit	= at91_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static ssize_t at91_sysfs_show_mb0_id(struct device *dev,
@@ -1211,7 +1224,7 @@ static ssize_t at91_sysfs_set_mb0_id(struct device *dev,
 		goto out;
 	}
 
-	err = strict_strtoul(buf, 0, &can_id);
+	err = kstrtoul(buf, 0, &can_id);
 	if (err) {
 		ret = err;
 		goto out;
@@ -1242,10 +1255,40 @@ static struct attribute_group at91_sysfs_attr_group = {
 	.attrs = at91_sysfs_attrs,
 };
 
-static int __devinit at91_can_probe(struct platform_device *pdev)
+#if defined(CONFIG_OF)
+static const struct of_device_id at91_can_dt_ids[] = {
+	{
+		.compatible = "atmel,at91sam9x5-can",
+		.data = &at91_at91sam9x5_data,
+	}, {
+		.compatible = "atmel,at91sam9263-can",
+		.data = &at91_at91sam9263_data,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(of, at91_can_dt_ids);
+#endif
+
+static const struct at91_devtype_data *at91_can_get_driver_data(struct platform_device *pdev)
+{
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+
+		match = of_match_node(at91_can_dt_ids, pdev->dev.of_node);
+		if (!match) {
+			dev_err(&pdev->dev, "no matching node found in dtb\n");
+			return NULL;
+		}
+		return (const struct at91_devtype_data *)match->data;
+	}
+	return (const struct at91_devtype_data *)
+		platform_get_device_id(pdev)->driver_data;
+}
+
+static int at91_can_probe(struct platform_device *pdev)
 {
 	const struct at91_devtype_data *devtype_data;
-	enum at91_devtype devtype;
 	struct net_device *dev;
 	struct at91_priv *priv;
 	struct resource *res;
@@ -1253,8 +1296,12 @@ static int __devinit at91_can_probe(struct platform_device *pdev)
 	void __iomem *addr;
 	int err, irq;
 
-	devtype = pdev->id_entry->driver_data;
-	devtype_data = &at91_devtype_data[devtype];
+	devtype_data = at91_can_get_driver_data(pdev);
+	if (!devtype_data) {
+		dev_err(&pdev->dev, "no driver data\n");
+		err = -ENODEV;
+		goto exit;
+	}
 
 	clk = clk_get(&pdev->dev, "can_clk");
 	if (IS_ERR(clk)) {
@@ -1299,13 +1346,13 @@ static int __devinit at91_can_probe(struct platform_device *pdev)
 	priv->can.bittiming_const = &at91_bittiming_const;
 	priv->can.do_set_mode = at91_set_mode;
 	priv->can.do_get_berr_counter = at91_get_berr_counter;
-	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
+	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
+		CAN_CTRLMODE_LISTENONLY;
 	priv->dev = dev;
 	priv->reg_base = addr;
 	priv->devtype_data = *devtype_data;
-	priv->devtype_data.type = devtype;
 	priv->clk = clk;
-	priv->pdata = pdev->dev.platform_data;
+	priv->pdata = dev_get_platdata(&pdev->dev);
 	priv->mb0_id = 0x7ff;
 
 	netif_napi_add(dev, &priv->napi, at91_poll, get_mb_rx_num(priv));
@@ -1313,7 +1360,7 @@ static int __devinit at91_can_probe(struct platform_device *pdev)
 	if (at91_is_sam9263(priv))
 		dev->sysfs_groups[0] = &at91_sysfs_attr_group;
 
-	dev_set_drvdata(&pdev->dev, dev);
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	err = register_candev(dev);
@@ -1321,6 +1368,8 @@ static int __devinit at91_can_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "registering netdev failed\n");
 		goto exit_free;
 	}
+
+	devm_can_led_init(dev);
 
 	dev_info(&pdev->dev, "device registered (reg_base=%p, irq=%d)\n",
 		 priv->reg_base, dev->irq);
@@ -1339,15 +1388,13 @@ static int __devinit at91_can_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit at91_can_remove(struct platform_device *pdev)
+static int at91_can_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct at91_priv *priv = netdev_priv(dev);
 	struct resource *res;
 
 	unregister_netdev(dev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	iounmap(priv->reg_base);
 
@@ -1363,22 +1410,24 @@ static int __devexit at91_can_remove(struct platform_device *pdev)
 
 static const struct platform_device_id at91_can_id_table[] = {
 	{
-		.name = "at91_can",
-		.driver_data = AT91_DEVTYPE_SAM9263,
-	}, {
 		.name = "at91sam9x5_can",
-		.driver_data = AT91_DEVTYPE_SAM9X5,
+		.driver_data = (kernel_ulong_t)&at91_at91sam9x5_data,
+	}, {
+		.name = "at91_can",
+		.driver_data = (kernel_ulong_t)&at91_at91sam9263_data,
 	}, {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(platform, at91_can_id_table);
 
 static struct platform_driver at91_can_driver = {
 	.probe = at91_can_probe,
-	.remove = __devexit_p(at91_can_remove),
+	.remove = at91_can_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(at91_can_dt_ids),
 	},
 	.id_table = at91_can_id_table,
 };

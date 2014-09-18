@@ -12,7 +12,9 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/gfp.h>
+#include <linux/cpu.h>
 #include <asm/ctl_reg.h>
+#include <asm/io.h>
 
 /*
  * This function writes to kernel memory bypassing DAT and possible
@@ -100,25 +102,33 @@ int memcpy_real(void *dest, void *src, size_t count)
 }
 
 /*
- * Copy memory to absolute zero
+ * Copy memory in absolute mode (kernel to kernel)
  */
-void copy_to_absolute_zero(void *dest, void *src, size_t count)
+void memcpy_absolute(void *dest, void *src, size_t count)
 {
-	unsigned long cr0;
+	unsigned long cr0, flags, prefix;
 
-	BUG_ON((unsigned long) dest + count >= sizeof(struct _lowcore));
-	preempt_disable();
+	flags = arch_local_irq_save();
 	__ctl_store(cr0, 0, 0);
 	__ctl_clear_bit(0, 28); /* disable lowcore protection */
-	memcpy_real(dest + store_prefix(), src, count);
+	prefix = store_prefix();
+	if (prefix) {
+		local_mcck_disable();
+		set_prefix(0);
+		memcpy(dest, src, count);
+		set_prefix(prefix);
+		local_mcck_enable();
+	} else {
+		memcpy(dest, src, count);
+	}
 	__ctl_load(cr0, 0, 0);
-	preempt_enable();
+	arch_local_irq_restore(flags);
 }
 
 /*
  * Copy memory from kernel (real) to user (virtual)
  */
-int copy_to_user_real(void __user *dest, void *src, size_t count)
+int copy_to_user_real(void __user *dest, void *src, unsigned long count)
 {
 	int offs = 0, size, rc;
 	char *buf;
@@ -142,27 +152,53 @@ out:
 }
 
 /*
- * Copy memory from user (virtual) to kernel (real)
+ * Check if physical address is within prefix or zero page
  */
-int copy_from_user_real(void *dest, void __user *src, size_t count)
+static int is_swapped(unsigned long addr)
 {
-	int offs = 0, size, rc;
-	char *buf;
+	unsigned long lc;
+	int cpu;
 
-	buf = (char *) __get_free_page(GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	rc = -EFAULT;
-	while (offs < count) {
-		size = min(PAGE_SIZE, count - offs);
-		if (copy_from_user(buf, src + offs, size))
-			goto out;
-		if (memcpy_real(dest + offs, buf, size))
-			goto out;
-		offs += size;
+	if (addr < sizeof(struct _lowcore))
+		return 1;
+	for_each_online_cpu(cpu) {
+		lc = (unsigned long) lowcore_ptr[cpu];
+		if (addr > lc + sizeof(struct _lowcore) - 1 || addr < lc)
+			continue;
+		return 1;
 	}
-	rc = 0;
-out:
-	free_page((unsigned long) buf);
-	return rc;
+	return 0;
+}
+
+/*
+ * Convert a physical pointer for /dev/mem access
+ *
+ * For swapped prefix pages a new buffer is returned that contains a copy of
+ * the absolute memory. The buffer size is maximum one page large.
+ */
+void *xlate_dev_mem_ptr(unsigned long addr)
+{
+	void *bounce = (void *) addr;
+	unsigned long size;
+
+	get_online_cpus();
+	preempt_disable();
+	if (is_swapped(addr)) {
+		size = PAGE_SIZE - (addr & ~PAGE_MASK);
+		bounce = (void *) __get_free_page(GFP_ATOMIC);
+		if (bounce)
+			memcpy_absolute(bounce, (void *) addr, size);
+	}
+	preempt_enable();
+	put_online_cpus();
+	return bounce;
+}
+
+/*
+ * Free converted buffer for /dev/mem access (if necessary)
+ */
+void unxlate_dev_mem_ptr(unsigned long addr, void *buf)
+{
+	if ((void *) addr != buf)
+		free_page((unsigned long) buf);
 }

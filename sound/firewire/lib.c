@@ -11,33 +11,7 @@
 #include <linux/module.h>
 #include "lib.h"
 
-#define ERROR_RETRY_DELAY_MS	5
-
-/**
- * rcode_string - convert a firewire result code to a string
- * @rcode: the result
- */
-const char *rcode_string(unsigned int rcode)
-{
-	static const char *const names[] = {
-		[RCODE_COMPLETE]	= "complete",
-		[RCODE_CONFLICT_ERROR]	= "conflict error",
-		[RCODE_DATA_ERROR]	= "data error",
-		[RCODE_TYPE_ERROR]	= "type error",
-		[RCODE_ADDRESS_ERROR]	= "address error",
-		[RCODE_SEND_ERROR]	= "send error",
-		[RCODE_CANCELLED]	= "cancelled",
-		[RCODE_BUSY]		= "busy",
-		[RCODE_GENERATION]	= "generation",
-		[RCODE_NO_ACK]		= "no ack",
-	};
-
-	if (rcode < ARRAY_SIZE(names) && names[rcode])
-		return names[rcode];
-	else
-		return "unknown";
-}
-EXPORT_SYMBOL(rcode_string);
+#define ERROR_RETRY_DELAY_MS	20
 
 /**
  * snd_fw_transaction - send a request and wait for its completion
@@ -46,6 +20,9 @@ EXPORT_SYMBOL(rcode_string);
  * @offset: the address in the target's address space
  * @buffer: input/output data
  * @length: length of @buffer
+ * @flags: use %FW_FIXED_GENERATION and add the generation value to attempt the
+ *         request only in that generation; use %FW_QUIET to suppress error
+ *         messages
  *
  * Submits an asynchronous request to the target device, and waits for the
  * response.  The node ID and the current generation are derived from @unit.
@@ -53,14 +30,18 @@ EXPORT_SYMBOL(rcode_string);
  * Returns zero on success, or a negative error code.
  */
 int snd_fw_transaction(struct fw_unit *unit, int tcode,
-		       u64 offset, void *buffer, size_t length)
+		       u64 offset, void *buffer, size_t length,
+		       unsigned int flags)
 {
 	struct fw_device *device = fw_parent_device(unit);
 	int generation, rcode, tries = 0;
 
+	generation = flags & FW_GENERATION_MASK;
 	for (;;) {
-		generation = device->generation;
-		smp_rmb(); /* node_id vs. generation */
+		if (!(flags & FW_FIXED_GENERATION)) {
+			generation = device->generation;
+			smp_rmb(); /* node_id vs. generation */
+		}
 		rcode = fw_run_transaction(device->card, tcode,
 					   device->node_id, generation,
 					   device->max_speed, offset,
@@ -69,9 +50,14 @@ int snd_fw_transaction(struct fw_unit *unit, int tcode,
 		if (rcode == RCODE_COMPLETE)
 			return 0;
 
+		if (rcode == RCODE_GENERATION && (flags & FW_FIXED_GENERATION))
+			return -EAGAIN;
+
 		if (rcode_is_permanent_error(rcode) || ++tries >= 3) {
-			dev_err(&unit->device, "transaction failed: %s\n",
-				rcode_string(rcode));
+			if (!(flags & FW_QUIET))
+				dev_err(&unit->device,
+					"transaction failed: %s\n",
+					fw_rcode_string(rcode));
 			return -EIO;
 		}
 

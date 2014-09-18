@@ -37,7 +37,6 @@
 #include <linux/netdevice.h>
 #include <linux/hippidevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -61,7 +60,7 @@ MODULE_AUTHOR("Jes Sorensen <jes@wildopensource.com>");
 MODULE_DESCRIPTION("Essential RoadRunner HIPPI driver");
 MODULE_LICENSE("GPL");
 
-static char version[] __devinitdata = "rrunner.c: v0.50 11/11/2002  Jes Sorensen (jes@wildopensource.com)\n";
+static char version[] = "rrunner.c: v0.50 11/11/2002  Jes Sorensen (jes@wildopensource.com)\n";
 
 
 static const struct net_device_ops rr_netdev_ops = {
@@ -88,8 +87,7 @@ static const struct net_device_ops rr_netdev_ops = {
  * stack will need to know about I/O vectors or something similar.
  */
 
-static int __devinit rr_init_one(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int rr_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	static int version_disp;
@@ -113,10 +111,9 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	if (pci_request_regions(pdev, "rrunner")) {
-		ret = -EIO;
+	ret = pci_request_regions(pdev, "rrunner");
+	if (ret < 0)
 		goto out;
-	}
 
 	pci_set_drvdata(pdev, dev);
 
@@ -124,10 +121,7 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 
 	spin_lock_init(&rrpriv->lock);
 
-	dev->irq = pdev->irq;
 	dev->netdev_ops = &rr_netdev_ops;
-
-	dev->base_addr = pci_resource_start(pdev, 0);
 
 	/* display version info if adapter is found */
 	if (!version_disp) {
@@ -146,16 +140,15 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	printk(KERN_INFO "%s: Essential RoadRunner serial HIPPI "
-	       "at 0x%08lx, irq %i, PCI latency %i\n", dev->name,
-	       dev->base_addr, dev->irq, pci_latency);
+	       "at 0x%llx, irq %i, PCI latency %i\n", dev->name,
+	       (unsigned long long)pci_resource_start(pdev, 0),
+	       pdev->irq, pci_latency);
 
 	/*
-	 * Remap the regs into kernel space.
+	 * Remap the MMIO regs into kernel space.
 	 */
-
-	rrpriv->regs = ioremap(dev->base_addr, 0x1000);
-
-	if (!rrpriv->regs){
+	rrpriv->regs = pci_iomap(pdev, 0, 0x1000);
+	if (!rrpriv->regs) {
 		printk(KERN_ERR "%s:  Unable to map I/O register, "
 			"RoadRunner will be disabled.\n", dev->name);
 		ret = -EIO;
@@ -202,14 +195,15 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 
 	rr_init(dev);
 
-	dev->base_addr = 0;
-
 	ret = register_netdev(dev);
 	if (ret)
 		goto out;
 	return 0;
 
  out:
+	if (rrpriv->evt_ring)
+		pci_free_consistent(pdev, EVT_RING_SIZE, rrpriv->evt_ring,
+				    rrpriv->evt_ring_dma);
 	if (rrpriv->rx_ring)
 		pci_free_consistent(pdev, RX_TOTAL_SIZE, rrpriv->rx_ring,
 				    rrpriv->rx_ring_dma);
@@ -217,43 +211,37 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 		pci_free_consistent(pdev, TX_TOTAL_SIZE, rrpriv->tx_ring,
 				    rrpriv->tx_ring_dma);
 	if (rrpriv->regs)
-		iounmap(rrpriv->regs);
-	if (pdev) {
+		pci_iounmap(pdev, rrpriv->regs);
+	if (pdev)
 		pci_release_regions(pdev);
-		pci_set_drvdata(pdev, NULL);
-	}
  out2:
 	free_netdev(dev);
  out3:
 	return ret;
 }
 
-static void __devexit rr_remove_one (struct pci_dev *pdev)
+static void rr_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	struct rr_private *rr = netdev_priv(dev);
 
-	if (dev) {
-		struct rr_private *rr = netdev_priv(dev);
-
-		if (!(readl(&rr->regs->HostCtrl) & NIC_HALTED)){
-			printk(KERN_ERR "%s: trying to unload running NIC\n",
-			       dev->name);
-			writel(HALT_NIC, &rr->regs->HostCtrl);
-		}
-
-		pci_free_consistent(pdev, EVT_RING_SIZE, rr->evt_ring,
-				    rr->evt_ring_dma);
-		pci_free_consistent(pdev, RX_TOTAL_SIZE, rr->rx_ring,
-				    rr->rx_ring_dma);
-		pci_free_consistent(pdev, TX_TOTAL_SIZE, rr->tx_ring,
-				    rr->tx_ring_dma);
-		unregister_netdev(dev);
-		iounmap(rr->regs);
-		free_netdev(dev);
-		pci_release_regions(pdev);
-		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
+	if (!(readl(&rr->regs->HostCtrl) & NIC_HALTED)) {
+		printk(KERN_ERR "%s: trying to unload running NIC\n",
+		       dev->name);
+		writel(HALT_NIC, &rr->regs->HostCtrl);
 	}
+
+	unregister_netdev(dev);
+	pci_free_consistent(pdev, EVT_RING_SIZE, rr->evt_ring,
+			    rr->evt_ring_dma);
+	pci_free_consistent(pdev, RX_TOTAL_SIZE, rr->rx_ring,
+			    rr->rx_ring_dma);
+	pci_free_consistent(pdev, TX_TOTAL_SIZE, rr->tx_ring,
+			    rr->tx_ring_dma);
+	pci_iounmap(pdev, rr->regs);
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+	free_netdev(dev);
 }
 
 
@@ -513,7 +501,7 @@ static unsigned int write_eeprom(struct rr_private *rrpriv,
 }
 
 
-static int __devinit rr_init(struct net_device *dev)
+static int rr_init(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
 	struct rr_regs __iomem *regs;
@@ -1229,9 +1217,9 @@ static int rr_open(struct net_device *dev)
 	readl(&regs->HostCtrl);
 	spin_unlock_irqrestore(&rrpriv->lock, flags);
 
-	if (request_irq(dev->irq, rr_interrupt, IRQF_SHARED, dev->name, dev)) {
+	if (request_irq(pdev->irq, rr_interrupt, IRQF_SHARED, dev->name, dev)) {
 		printk(KERN_WARNING "%s: Requested IRQ %d is busy\n",
-		       dev->name, dev->irq);
+		       dev->name, pdev->irq);
 		ecode = -EAGAIN;
 		goto error;
 	}
@@ -1338,16 +1326,15 @@ static void rr_dump(struct net_device *dev)
 
 static int rr_close(struct net_device *dev)
 {
-	struct rr_private *rrpriv;
-	struct rr_regs __iomem *regs;
+	struct rr_private *rrpriv = netdev_priv(dev);
+	struct rr_regs __iomem *regs = rrpriv->regs;
+	struct pci_dev *pdev = rrpriv->pci_dev;
 	unsigned long flags;
 	u32 tmp;
 	short i;
 
 	netif_stop_queue(dev);
 
-	rrpriv = netdev_priv(dev);
-	regs = rrpriv->regs;
 
 	/*
 	 * Lock to make sure we are not cleaning up while another CPU
@@ -1386,15 +1373,15 @@ static int rr_close(struct net_device *dev)
 	rr_raz_tx(rrpriv, dev);
 	rr_raz_rx(rrpriv, dev);
 
-	pci_free_consistent(rrpriv->pci_dev, 256 * sizeof(struct ring_ctrl),
+	pci_free_consistent(pdev, 256 * sizeof(struct ring_ctrl),
 			    rrpriv->rx_ctrl, rrpriv->rx_ctrl_dma);
 	rrpriv->rx_ctrl = NULL;
 
-	pci_free_consistent(rrpriv->pci_dev, sizeof(struct rr_info),
-			    rrpriv->info, rrpriv->info_dma);
+	pci_free_consistent(pdev, sizeof(struct rr_info), rrpriv->info,
+			    rrpriv->info_dma);
 	rrpriv->info = NULL;
 
-	free_irq(dev->irq, dev);
+	free_irq(pdev->irq, dev);
 	spin_unlock_irqrestore(&rrpriv->lock, flags);
 
 	return 0;
@@ -1681,7 +1668,7 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 }
 
-static DEFINE_PCI_DEVICE_TABLE(rr_pci_tbl) = {
+static const struct pci_device_id rr_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ESSENTIAL, PCI_DEVICE_ID_ESSENTIAL_ROADRUNNER,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0,}
@@ -1692,18 +1679,7 @@ static struct pci_driver rr_driver = {
 	.name		= "rrunner",
 	.id_table	= rr_pci_tbl,
 	.probe		= rr_init_one,
-	.remove		= __devexit_p(rr_remove_one),
+	.remove		= rr_remove_one,
 };
 
-static int __init rr_init_module(void)
-{
-	return pci_register_driver(&rr_driver);
-}
-
-static void __exit rr_cleanup_module(void)
-{
-	pci_unregister_driver(&rr_driver);
-}
-
-module_init(rr_init_module);
-module_exit(rr_cleanup_module);
+module_pci_driver(rr_driver);

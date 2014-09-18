@@ -128,7 +128,7 @@ static const struct ide_port_ops umc8672_port_ops = {
 	.set_pio_mode		= umc_set_pio_mode,
 };
 
-static const struct ide_port_info umc8672_port_info __initdata = {
+static const struct ide_port_info umc8672_port_info __initconst = {
 	.name			= DRV_NAME,
 	.chipset		= ide_umc8672,
 	.port_ops		= &umc8672_port_ops,

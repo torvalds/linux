@@ -19,8 +19,6 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/pcieport_if.h>
-#include <linux/acpi.h>
-#include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
 
 #include "../pci.h"
@@ -57,17 +55,12 @@ struct pcie_pme_service_data {
  */
 void pcie_pme_interrupt_enable(struct pci_dev *dev, bool enable)
 {
-	int rtctl_pos;
-	u16 rtctl;
-
-	rtctl_pos = pci_pcie_cap(dev) + PCI_EXP_RTCTL;
-
-	pci_read_config_word(dev, rtctl_pos, &rtctl);
 	if (enable)
-		rtctl |= PCI_EXP_RTCTL_PMEIE;
+		pcie_capability_set_word(dev, PCI_EXP_RTCTL,
+					 PCI_EXP_RTCTL_PMEIE);
 	else
-		rtctl &= ~PCI_EXP_RTCTL_PMEIE;
-	pci_write_config_word(dev, rtctl_pos, rtctl);
+		pcie_capability_clear_word(dev, PCI_EXP_RTCTL,
+					   PCI_EXP_RTCTL_PMEIE);
 }
 
 /**
@@ -120,7 +113,7 @@ static bool pcie_pme_from_pci_bridge(struct pci_bus *bus, u8 devfn)
 	if (!dev)
 		return false;
 
-	if (pci_is_pcie(dev) && dev->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE) {
+	if (pci_is_pcie(dev) && pci_pcie_type(dev) == PCI_EXP_TYPE_PCI_BRIDGE) {
 		down_read(&pci_bus_sem);
 		if (pcie_pme_walk_bus(bus))
 			found = true;
@@ -206,8 +199,7 @@ static void pcie_pme_handle_request(struct pci_dev *port, u16 req_id)
 		 * assuming that the PME was reported by a PCIe-PCI bridge that
 		 * used devfn different from zero.
 		 */
-		dev_dbg(&port->dev, "PME interrupt generated for "
-			"non-existent device %02x:%02x.%d\n",
+		dev_dbg(&port->dev, "PME interrupt generated for non-existent device %02x:%02x.%d\n",
 			busnr, PCI_SLOT(devfn), PCI_FUNC(devfn));
 		found = pcie_pme_from_pci_bridge(bus, 0);
 	}
@@ -226,10 +218,7 @@ static void pcie_pme_work_fn(struct work_struct *work)
 	struct pcie_pme_service_data *data =
 			container_of(work, struct pcie_pme_service_data, work);
 	struct pci_dev *port = data->srv->port;
-	int rtsta_pos;
 	u32 rtsta;
-
-	rtsta_pos = pci_pcie_cap(port) + PCI_EXP_RTSTA;
 
 	spin_lock_irq(&data->lock);
 
@@ -237,7 +226,7 @@ static void pcie_pme_work_fn(struct work_struct *work)
 		if (data->noirq)
 			break;
 
-		pci_read_config_dword(port, rtsta_pos, &rtsta);
+		pcie_capability_read_dword(port, PCI_EXP_RTSTA, &rtsta);
 		if (rtsta & PCI_EXP_RTSTA_PME) {
 			/*
 			 * Clear PME status of the port.  If there are other
@@ -276,17 +265,14 @@ static irqreturn_t pcie_pme_irq(int irq, void *context)
 {
 	struct pci_dev *port;
 	struct pcie_pme_service_data *data;
-	int rtsta_pos;
 	u32 rtsta;
 	unsigned long flags;
 
 	port = ((struct pcie_device *)context)->port;
 	data = get_service_data((struct pcie_device *)context);
 
-	rtsta_pos = pci_pcie_cap(port) + PCI_EXP_RTSTA;
-
 	spin_lock_irqsave(&data->lock, flags);
-	pci_read_config_dword(port, rtsta_pos, &rtsta);
+	pcie_capability_read_dword(port, PCI_EXP_RTSTA, &rtsta);
 
 	if (!(rtsta & PCI_EXP_RTSTA_PME)) {
 		spin_unlock_irqrestore(&data->lock, flags);
@@ -335,13 +321,13 @@ static void pcie_pme_mark_devices(struct pci_dev *port)
 		struct pci_dev *dev;
 
 		/* Check if this is a root port event collector. */
-		if (port->pcie_type != PCI_EXP_TYPE_RC_EC || !bus)
+		if (pci_pcie_type(port) != PCI_EXP_TYPE_RC_EC || !bus)
 			return;
 
 		down_read(&pci_bus_sem);
 		list_for_each_entry(dev, &bus->devices, bus_list)
 			if (pci_is_pcie(dev)
-			    && dev->pcie_type == PCI_EXP_TYPE_RC_END)
+			    && pci_pcie_type(dev) == PCI_EXP_TYPE_RC_END)
 				pcie_pme_set_native(dev, NULL);
 		up_read(&pci_bus_sem);
 	}
@@ -421,7 +407,7 @@ static int pcie_pme_resume(struct pcie_device *srv)
 
 /**
  * pcie_pme_remove - Prepare PCIe PME service device for removal.
- * @srv - PCIe service device to resume.
+ * @srv - PCIe service device to remove.
  */
 static void pcie_pme_remove(struct pcie_device *srv)
 {
@@ -432,8 +418,8 @@ static void pcie_pme_remove(struct pcie_device *srv)
 
 static struct pcie_port_service_driver pcie_pme_driver = {
 	.name		= "pcie_pme",
-	.port_type 	= PCI_EXP_TYPE_ROOT_PORT,
-	.service 	= PCIE_PORT_SERVICE_PME,
+	.port_type	= PCI_EXP_TYPE_ROOT_PORT,
+	.service	= PCIE_PORT_SERVICE_PME,
 
 	.probe		= pcie_pme_probe,
 	.suspend	= pcie_pme_suspend,

@@ -10,13 +10,6 @@ struct scsi_transport_template;
 struct sas_rphy;
 struct request;
 
-enum sas_device_type {
-	SAS_PHY_UNUSED = 0,
-	SAS_END_DEVICE = 1,
-	SAS_EDGE_EXPANDER_DEVICE = 2,
-	SAS_FANOUT_EXPANDER_DEVICE = 3,
-};
-
 static inline int sas_protocol_ata(enum sas_protocol proto)
 {
 	return ((proto & SAS_PROTOCOL_SATA) ||
@@ -36,6 +29,7 @@ enum sas_linkrate {
 	SAS_LINK_RATE_3_0_GBPS = 9,
 	SAS_LINK_RATE_G2 = SAS_LINK_RATE_3_0_GBPS,
 	SAS_LINK_RATE_6_0_GBPS = 10,
+	SAS_LINK_RATE_12_0_GBPS = 11,
 	/* These are virtual to the transport class and may never
 	 * be signalled normally since the standard defined field
 	 * is only 4 bits */

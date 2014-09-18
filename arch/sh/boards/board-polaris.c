@@ -1,5 +1,5 @@
 /*
- * June 2006 steve.glendinning@smsc.com
+ * June 2006 Steve Glendinning <steve.glendinning@shawell.net>
  *
  * Polaris-specific resource declaration
  *
@@ -9,6 +9,8 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/io.h>
 #include <asm/irq.h>
@@ -21,6 +23,12 @@
 #define WCR2		(0xFFFFFF66)
 #define AREA5_WAIT_CTRL	(0x1C00)
 #define WAIT_STATES_10	(0x7)
+
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x.0"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x.0"),
+};
 
 static struct resource smsc911x_resources[] = {
 	[0] = {
@@ -88,6 +96,8 @@ static int __init polaris_initialise(void)
 
 	printk(KERN_INFO "Configuring Polaris external bus\n");
 
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
 	/* Configure area 5 with 2 wait states */
 	wcr = __raw_readw(WCR2);
 	wcr &= (~AREA5_WAIT_CTRL);
@@ -141,6 +151,5 @@ static void __init init_polaris_irq(void)
 
 static struct sh_machine_vector mv_polaris __initmv = {
 	.mv_name		= "Polaris",
-	.mv_nr_irqs		= 61,
 	.mv_init_irq		= init_polaris_irq,
 };

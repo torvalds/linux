@@ -34,7 +34,7 @@
  */
 
 #include <linux/seq_file.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 
 /**
  * Called when "/proc/dri/.../name" is read.
@@ -47,18 +47,16 @@ int drm_name_info(struct seq_file *m, void *data)
 	struct drm_minor *minor = node->minor;
 	struct drm_device *dev = minor->dev;
 	struct drm_master *master = minor->master;
-	const char *bus_name;
 	if (!master)
 		return 0;
 
-	bus_name = dev->driver->bus->get_name(dev);
 	if (master->unique) {
 		seq_printf(m, "%s %s %s\n",
-			   bus_name,
+			   dev->driver->name,
 			   dev_name(dev->dev), master->unique);
 	} else {
 		seq_printf(m, "%s %s\n",
-			   bus_name, dev_name(dev->dev));
+			   dev->driver->name, dev_name(dev->dev));
 	}
 	return 0;
 }
@@ -110,42 +108,6 @@ int drm_vm_info(struct seq_file *m, void *data)
 }
 
 /**
- * Called when "/proc/dri/.../queues" is read.
- */
-int drm_queues_info(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	int i;
-	struct drm_queue *q;
-
-	mutex_lock(&dev->struct_mutex);
-	seq_printf(m, "  ctx/flags   use   fin"
-		   "   blk/rw/rwf  wait    flushed	   queued"
-		   "      locks\n\n");
-	for (i = 0; i < dev->queue_count; i++) {
-		q = dev->queuelist[i];
-		atomic_inc(&q->use_count);
-		seq_printf(m,   "%5d/0x%03x %5d %5d"
-			   " %5d/%c%c/%c%c%c %5Zd\n",
-			   i,
-			   q->flags,
-			   atomic_read(&q->use_count),
-			   atomic_read(&q->finalization),
-			   atomic_read(&q->block_count),
-			   atomic_read(&q->block_read) ? 'r' : '-',
-			   atomic_read(&q->block_write) ? 'w' : '-',
-			   waitqueue_active(&q->read_queue) ? 'r' : '-',
-			   waitqueue_active(&q->write_queue) ? 'w' : '-',
-			   waitqueue_active(&q->flush_queue) ? 'f' : '-',
-			   DRM_BUFCOUNT(&q->waitlist));
-		atomic_dec(&q->use_count);
-	}
-	mutex_unlock(&dev->struct_mutex);
-	return 0;
-}
-
-/**
  * Called when "/proc/dri/.../bufs" is read.
  */
 int drm_bufs_info(struct seq_file *m, void *data)
@@ -170,7 +132,7 @@ int drm_bufs_info(struct seq_file *m, void *data)
 				   i,
 				   dma->bufs[i].buf_size,
 				   dma->bufs[i].buf_count,
-				   atomic_read(&dma->bufs[i].freelist.count),
+				   0,
 				   dma->bufs[i].seg_count,
 				   seg_pages,
 				   seg_pages * PAGE_SIZE / 1024);
@@ -199,13 +161,13 @@ int drm_vblank_info(struct seq_file *m, void *data)
 	mutex_lock(&dev->struct_mutex);
 	for (crtc = 0; crtc < dev->num_crtcs; crtc++) {
 		seq_printf(m, "CRTC %d enable:     %d\n",
-			   crtc, atomic_read(&dev->vblank_refcount[crtc]));
+			   crtc, atomic_read(&dev->vblank[crtc].refcount));
 		seq_printf(m, "CRTC %d counter:    %d\n",
 			   crtc, drm_vblank_count(dev, crtc));
 		seq_printf(m, "CRTC %d last wait:  %d\n",
-			   crtc, dev->last_vblank_wait[crtc]);
+			   crtc, dev->vblank[crtc].last_wait);
 		seq_printf(m, "CRTC %d in modeset: %d\n",
-			   crtc, dev->vblank_inmodeset[crtc]);
+			   crtc, dev->vblank[crtc].inmodeset);
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
@@ -222,29 +184,28 @@ int drm_clients_info(struct seq_file *m, void *data)
 	struct drm_file *priv;
 
 	mutex_lock(&dev->struct_mutex);
-	seq_printf(m, "a dev	pid    uid	magic	  ioctls\n\n");
+	seq_printf(m, "a dev	pid    uid	magic\n\n");
 	list_for_each_entry(priv, &dev->filelist, lhead) {
-		seq_printf(m, "%c %3d %5d %5d %10u %10lu\n",
+		seq_printf(m, "%c %3d %5d %5d %10u\n",
 			   priv->authenticated ? 'y' : 'n',
 			   priv->minor->index,
-			   priv->pid,
-			   priv->uid, priv->magic, priv->ioctl_count);
+			   pid_vnr(priv->pid),
+			   from_kuid_munged(seq_user_ns(m), priv->uid),
+			   priv->magic);
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
 
-int drm_gem_one_name_info(int id, void *ptr, void *data)
+static int drm_gem_one_name_info(int id, void *ptr, void *data)
 {
 	struct drm_gem_object *obj = ptr;
 	struct seq_file *m = data;
 
-	seq_printf(m, "name %d size %zd\n", obj->name, obj->size);
-
 	seq_printf(m, "%6d %8zd %7d %8d\n",
 		   obj->name, obj->size,
-		   atomic_read(&obj->handle_count),
+		   obj->handle_count,
 		   atomic_read(&obj->refcount.refcount));
 	return 0;
 }
@@ -255,7 +216,11 @@ int drm_gem_name_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 
 	seq_printf(m, "  name     size handles refcount\n");
+
+	mutex_lock(&dev->object_name_lock);
 	idr_for_each(&dev->object_name_idr, drm_gem_one_name_info, m);
+	mutex_unlock(&dev->object_name_lock);
+
 	return 0;
 }
 
@@ -267,14 +232,18 @@ int drm_vma_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_vma_entry *pt;
 	struct vm_area_struct *vma;
+	unsigned long vma_count = 0;
 #if defined(__i386__)
 	unsigned int pgprot;
 #endif
 
 	mutex_lock(&dev->struct_mutex);
-	seq_printf(m, "vma use count: %d, high_memory = %pK, 0x%pK\n",
-		   atomic_read(&dev->vma_count),
-		   high_memory, (void *)virt_to_phys(high_memory));
+	list_for_each_entry(pt, &dev->vmalist, head)
+		vma_count++;
+
+	seq_printf(m, "vma use count: %lu, high_memory = %pK, 0x%pK\n",
+		   vma_count, high_memory,
+		   (void *)(unsigned long)virt_to_phys(high_memory));
 
 	list_for_each_entry(pt, &dev->vmalist, head) {
 		vma = pt->vma;

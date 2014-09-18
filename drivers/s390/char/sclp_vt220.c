@@ -34,7 +34,6 @@
 #define SCLP_VT220_DEVICE_NAME		"ttysclp"
 #define SCLP_VT220_CONSOLE_NAME		"ttyS"
 #define SCLP_VT220_CONSOLE_INDEX	1	/* console=ttyS1 */
-#define SCLP_VT220_BUF_SIZE		80
 
 /* Representation of a single write request */
 struct sclp_vt220_request {
@@ -56,8 +55,7 @@ struct sclp_vt220_sccb {
 /* Structures and data needed to register tty driver */
 static struct tty_driver *sclp_vt220_driver;
 
-/* The tty_struct that the kernel associated with us */
-static struct tty_struct *sclp_vt220_tty;
+static struct tty_port sclp_vt220_port;
 
 /* Lock to protect internal data from concurrent access */
 static spinlock_t sclp_vt220_lock;
@@ -99,13 +97,16 @@ static void sclp_vt220_pm_event_fn(struct sclp_register *reg,
 static int __sclp_vt220_emit(struct sclp_vt220_request *request);
 static void sclp_vt220_emit_current(void);
 
-/* Registration structure for our interest in SCLP event buffers */
+/* Registration structure for SCLP output event buffers */
 static struct sclp_register sclp_vt220_register = {
 	.send_mask		= EVTYP_VT220MSG_MASK,
-	.receive_mask		= EVTYP_VT220MSG_MASK,
-	.state_change_fn	= NULL,
-	.receiver_fn		= sclp_vt220_receiver_fn,
 	.pm_event_fn		= sclp_vt220_pm_event_fn,
+};
+
+/* Registration structure for SCLP input event buffers */
+static struct sclp_register sclp_vt220_register_input = {
+	.receive_mask		= EVTYP_VT220MSG_MASK,
+	.receiver_fn		= sclp_vt220_receiver_fn,
 };
 
 
@@ -140,10 +141,7 @@ sclp_vt220_process_queue(struct sclp_vt220_request *request)
 	} while (__sclp_vt220_emit(request));
 	if (request == NULL && sclp_vt220_flush_later)
 		sclp_vt220_emit_current();
-	/* Check if the tty needs a wake up call */
-	if (sclp_vt220_tty != NULL) {
-		tty_wakeup(sclp_vt220_tty);
-	}
+	tty_port_tty_wakeup(&sclp_vt220_port);
 }
 
 #define SCLP_BUFFER_MAX_RETRY		1
@@ -367,6 +365,31 @@ sclp_vt220_timeout(unsigned long data)
 
 #define BUFFER_MAX_DELAY	HZ/20
 
+/*
+ * Drop oldest console buffer if sclp_con_drop is set
+ */
+static int
+sclp_vt220_drop_buffer(void)
+{
+	struct list_head *list;
+	struct sclp_vt220_request *request;
+	void *page;
+
+	if (!sclp_console_drop)
+		return 0;
+	list = sclp_vt220_outqueue.next;
+	if (sclp_vt220_queue_running)
+		/* The first element is in I/O */
+		list = list->next;
+	if (list == &sclp_vt220_outqueue)
+		return 0;
+	list_del(list);
+	request = list_entry(list, struct sclp_vt220_request, list);
+	page = request->sclp_req.sccb;
+	list_add_tail((struct list_head *) page, &sclp_vt220_empty);
+	return 1;
+}
+
 /* 
  * Internal implementation of the write function. Write COUNT bytes of data
  * from memory at BUF
@@ -395,12 +418,16 @@ __sclp_vt220_write(const unsigned char *buf, int count, int do_schedule,
 	do {
 		/* Create an sclp output buffer if none exists yet */
 		if (sclp_vt220_current_request == NULL) {
+			if (list_empty(&sclp_vt220_empty))
+				sclp_console_full++;
 			while (list_empty(&sclp_vt220_empty)) {
-				spin_unlock_irqrestore(&sclp_vt220_lock, flags);
 				if (may_fail || sclp_vt220_suspended)
 					goto out;
-				else
-					sclp_sync_wait();
+				if (sclp_vt220_drop_buffer())
+					break;
+				spin_unlock_irqrestore(&sclp_vt220_lock, flags);
+
+				sclp_sync_wait();
 				spin_lock_irqsave(&sclp_vt220_lock, flags);
 			}
 			page = (void *) sclp_vt220_empty.next;
@@ -433,8 +460,8 @@ __sclp_vt220_write(const unsigned char *buf, int count, int do_schedule,
 		sclp_vt220_timer.expires = jiffies + BUFFER_MAX_DELAY;
 		add_timer(&sclp_vt220_timer);
 	}
-	spin_unlock_irqrestore(&sclp_vt220_lock, flags);
 out:
+	spin_unlock_irqrestore(&sclp_vt220_lock, flags);
 	return overall_written;
 }
 
@@ -463,10 +490,6 @@ sclp_vt220_receiver_fn(struct evbuf_header *evbuf)
 	char *buffer;
 	unsigned int count;
 
-	/* Ignore input if device is not open */
-	if (sclp_vt220_tty == NULL)
-		return;
-
 	buffer = (char *) ((addr_t) evbuf + sizeof(struct evbuf_header));
 	count = evbuf->length - sizeof(struct evbuf_header);
 
@@ -478,8 +501,8 @@ sclp_vt220_receiver_fn(struct evbuf_header *evbuf)
 		/* Send input to line discipline */
 		buffer++;
 		count--;
-		tty_insert_flip_string(sclp_vt220_tty, buffer, count);
-		tty_flip_buffer_push(sclp_vt220_tty);
+		tty_insert_flip_string(&sclp_vt220_port, buffer, count);
+		tty_flip_buffer_push(&sclp_vt220_port);
 		break;
 	}
 }
@@ -491,11 +514,8 @@ static int
 sclp_vt220_open(struct tty_struct *tty, struct file *filp)
 {
 	if (tty->count == 1) {
-		sclp_vt220_tty = tty;
-		tty->driver_data = kmalloc(SCLP_VT220_BUF_SIZE, GFP_KERNEL);
-		if (tty->driver_data == NULL)
-			return -ENOMEM;
-		tty->low_latency = 0;
+		tty_port_tty_set(&sclp_vt220_port, tty);
+		sclp_vt220_port.low_latency = 0;
 		if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
 			tty->winsize.ws_row = 24;
 			tty->winsize.ws_col = 80;
@@ -510,11 +530,8 @@ sclp_vt220_open(struct tty_struct *tty, struct file *filp)
 static void
 sclp_vt220_close(struct tty_struct *tty, struct file *filp)
 {
-	if (tty->count == 1) {
-		sclp_vt220_tty = NULL;
-		kfree(tty->driver_data);
-		tty->driver_data = NULL;
-	}
+	if (tty->count == 1)
+		tty_port_tty_set(&sclp_vt220_port, NULL);
 }
 
 /*
@@ -618,6 +635,7 @@ static void __init __sclp_vt220_cleanup(void)
 		return;
 	sclp_unregister(&sclp_vt220_register);
 	__sclp_vt220_free_pages();
+	tty_port_destroy(&sclp_vt220_port);
 }
 
 /* Allocate buffer pages and register with sclp core. Controlled by init
@@ -635,9 +653,9 @@ static int __init __sclp_vt220_init(int num_pages)
 	INIT_LIST_HEAD(&sclp_vt220_empty);
 	INIT_LIST_HEAD(&sclp_vt220_outqueue);
 	init_timer(&sclp_vt220_timer);
+	tty_port_init(&sclp_vt220_port);
 	sclp_vt220_current_request = NULL;
 	sclp_vt220_buffered_chars = 0;
-	sclp_vt220_tty = NULL;
 	sclp_vt220_flush_later = 0;
 
 	/* Allocate pages for output buffering */
@@ -653,6 +671,7 @@ out:
 	if (rc) {
 		__sclp_vt220_free_pages();
 		sclp_vt220_init_count--;
+		tty_port_destroy(&sclp_vt220_port);
 	}
 	return rc;
 }
@@ -694,13 +713,19 @@ static int __init sclp_vt220_tty_init(void)
 	driver->init_termios = tty_std_termios;
 	driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(driver, &sclp_vt220_ops);
+	tty_port_link_device(&sclp_vt220_port, driver, 0);
 
 	rc = tty_register_driver(driver);
 	if (rc)
 		goto out_init;
+	rc = sclp_register(&sclp_vt220_register_input);
+	if (rc)
+		goto out_reg;
 	sclp_vt220_driver = driver;
 	return 0;
 
+out_reg:
+	tty_unregister_driver(driver);
 out_init:
 	__sclp_vt220_cleanup();
 out_driver:
@@ -813,9 +838,7 @@ sclp_vt220_con_init(void)
 {
 	int rc;
 
-	if (!CONSOLE_IS_SCLP)
-		return 0;
-	rc = __sclp_vt220_init(MAX_CONSOLE_PAGES);
+	rc = __sclp_vt220_init(sclp_console_pages);
 	if (rc)
 		return rc;
 	/* Attach linux console */

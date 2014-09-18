@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
@@ -46,7 +45,6 @@
 MODULE_AUTHOR("Nicolas Thill <nico@openwrt.org>");
 MODULE_DESCRIPTION(LONGNAME);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 static int margin = 60;
 module_param(margin, int, 0);
@@ -274,37 +272,20 @@ static struct miscdevice ar7_wdt_miscdev = {
 	.fops		= &ar7_wdt_fops,
 };
 
-static int __devinit ar7_wdt_probe(struct platform_device *pdev)
+static int ar7_wdt_probe(struct platform_device *pdev)
 {
 	int rc;
 
 	ar7_regs_wdt =
 		platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
-	if (!ar7_regs_wdt) {
-		pr_err("could not get registers resource\n");
-		rc = -ENODEV;
-		goto out;
-	}
-
-	if (!request_mem_region(ar7_regs_wdt->start,
-				resource_size(ar7_regs_wdt), LONGNAME)) {
-		pr_warn("watchdog I/O region busy\n");
-		rc = -EBUSY;
-		goto out;
-	}
-
-	ar7_wdt = ioremap(ar7_regs_wdt->start, resource_size(ar7_regs_wdt));
-	if (!ar7_wdt) {
-		pr_err("could not ioremap registers\n");
-		rc = -ENXIO;
-		goto out_mem_region;
-	}
+	ar7_wdt = devm_ioremap_resource(&pdev->dev, ar7_regs_wdt);
+	if (IS_ERR(ar7_wdt))
+		return PTR_ERR(ar7_wdt);
 
 	vbus_clk = clk_get(NULL, "vbus");
 	if (IS_ERR(vbus_clk)) {
 		pr_err("could not get vbus clock\n");
-		rc = PTR_ERR(vbus_clk);
-		goto out_mem_region;
+		return PTR_ERR(vbus_clk);
 	}
 
 	ar7_wdt_disable_wdt();
@@ -314,24 +295,21 @@ static int __devinit ar7_wdt_probe(struct platform_device *pdev)
 	rc = misc_register(&ar7_wdt_miscdev);
 	if (rc) {
 		pr_err("unable to register misc device\n");
-		goto out_alloc;
+		goto out;
 	}
-	goto out;
+	return 0;
 
-out_alloc:
-	iounmap(ar7_wdt);
-out_mem_region:
-	release_mem_region(ar7_regs_wdt->start, resource_size(ar7_regs_wdt));
 out:
+	clk_put(vbus_clk);
+	vbus_clk = NULL;
 	return rc;
 }
 
-static int __devexit ar7_wdt_remove(struct platform_device *pdev)
+static int ar7_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&ar7_wdt_miscdev);
-	iounmap(ar7_wdt);
-	release_mem_region(ar7_regs_wdt->start, resource_size(ar7_regs_wdt));
-
+	clk_put(vbus_clk);
+	vbus_clk = NULL;
 	return 0;
 }
 
@@ -343,7 +321,7 @@ static void ar7_wdt_shutdown(struct platform_device *pdev)
 
 static struct platform_driver ar7_wdt_driver = {
 	.probe = ar7_wdt_probe,
-	.remove = __devexit_p(ar7_wdt_remove),
+	.remove = ar7_wdt_remove,
 	.shutdown = ar7_wdt_shutdown,
 	.driver = {
 		.owner = THIS_MODULE,

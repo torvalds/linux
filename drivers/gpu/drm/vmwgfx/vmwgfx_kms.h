@@ -28,8 +28,8 @@
 #ifndef VMWGFX_KMS_H_
 #define VMWGFX_KMS_H_
 
-#include "drmP.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 #include "vmwgfx_drv.h"
 
 #define VMWGFX_NUM_DISPLAY_UNITS 8
@@ -123,7 +123,8 @@ struct vmw_display_unit {
 void vmw_display_unit_cleanup(struct vmw_display_unit *du);
 int vmw_du_page_flip(struct drm_crtc *crtc,
 		     struct drm_framebuffer *fb,
-		     struct drm_pending_vblank_event *event);
+		     struct drm_pending_vblank_event *event,
+		     uint32_t page_flip_flags);
 void vmw_du_crtc_save(struct drm_crtc *crtc);
 void vmw_du_crtc_restore(struct drm_crtc *crtc);
 void vmw_du_crtc_gamma_set(struct drm_crtc *crtc,

@@ -22,6 +22,7 @@
 #include <linux/io.h>
 
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/mfd/core.h>
 #include <linux/power_supply.h>
@@ -33,7 +34,6 @@ struct jz_battery {
 	struct jz_battery_platform_data *pdata;
 	struct platform_device *pdev;
 
-	struct resource *mem;
 	void __iomem *base;
 
 	int irq;
@@ -73,7 +73,7 @@ static long jz_battery_read_voltage(struct jz_battery *battery)
 
 	mutex_lock(&battery->lock);
 
-	INIT_COMPLETION(battery->read_completion);
+	reinit_completion(&battery->read_completion);
 
 	enable_irq(battery->irq);
 	battery->cell->enable(battery->pdev);
@@ -173,16 +173,14 @@ static void jz_battery_external_power_changed(struct power_supply *psy)
 {
 	struct jz_battery *jz_battery = psy_to_jz_battery(psy);
 
-	cancel_delayed_work(&jz_battery->work);
-	schedule_delayed_work(&jz_battery->work, 0);
+	mod_delayed_work(system_wq, &jz_battery->work, 0);
 }
 
 static irqreturn_t jz_battery_charge_irq(int irq, void *data)
 {
 	struct jz_battery *jz_battery = data;
 
-	cancel_delayed_work(&jz_battery->work);
-	schedule_delayed_work(&jz_battery->work, 0);
+	mod_delayed_work(system_wq, &jz_battery->work, 0);
 
 	return IRQ_HANDLED;
 }
@@ -240,19 +238,20 @@ static void jz_battery_work(struct work_struct *work)
 	schedule_delayed_work(&jz_battery->work, interval);
 }
 
-static int __devinit jz_battery_probe(struct platform_device *pdev)
+static int jz_battery_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct jz_battery_platform_data *pdata = pdev->dev.parent->platform_data;
 	struct jz_battery *jz_battery;
 	struct power_supply *battery;
+	struct resource *mem;
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "No platform_data supplied\n");
 		return -ENXIO;
 	}
 
-	jz_battery = kzalloc(sizeof(*jz_battery), GFP_KERNEL);
+	jz_battery = devm_kzalloc(&pdev->dev, sizeof(*jz_battery), GFP_KERNEL);
 	if (!jz_battery) {
 		dev_err(&pdev->dev, "Failed to allocate driver structure\n");
 		return -ENOMEM;
@@ -262,33 +261,15 @@ static int __devinit jz_battery_probe(struct platform_device *pdev)
 
 	jz_battery->irq = platform_get_irq(pdev, 0);
 	if (jz_battery->irq < 0) {
-		ret = jz_battery->irq;
 		dev_err(&pdev->dev, "Failed to get platform irq: %d\n", ret);
-		goto err_free;
+		return jz_battery->irq;
 	}
 
-	jz_battery->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!jz_battery->mem) {
-		ret = -ENOENT;
-		dev_err(&pdev->dev, "Failed to get platform mmio resource\n");
-		goto err_free;
-	}
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	jz_battery->mem = request_mem_region(jz_battery->mem->start,
-				resource_size(jz_battery->mem),	pdev->name);
-	if (!jz_battery->mem) {
-		ret = -EBUSY;
-		dev_err(&pdev->dev, "Failed to request mmio memory region\n");
-		goto err_free;
-	}
-
-	jz_battery->base = ioremap_nocache(jz_battery->mem->start,
-				resource_size(jz_battery->mem));
-	if (!jz_battery->base) {
-		ret = -EBUSY;
-		dev_err(&pdev->dev, "Failed to ioremap mmio memory\n");
-		goto err_release_mem_region;
-	}
+	jz_battery->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(jz_battery->base))
+		return PTR_ERR(jz_battery->base);
 
 	battery = &jz_battery->battery;
 	battery->name = pdata->info.name;
@@ -311,7 +292,7 @@ static int __devinit jz_battery_probe(struct platform_device *pdev)
 			jz_battery);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq %d\n", ret);
-		goto err_iounmap;
+		return ret;
 	}
 	disable_irq(jz_battery->irq);
 
@@ -368,17 +349,10 @@ err_free_gpio:
 		gpio_free(jz_battery->pdata->gpio_charge);
 err_free_irq:
 	free_irq(jz_battery->irq, jz_battery);
-err_iounmap:
-	platform_set_drvdata(pdev, NULL);
-	iounmap(jz_battery->base);
-err_release_mem_region:
-	release_mem_region(jz_battery->mem->start, resource_size(jz_battery->mem));
-err_free:
-	kfree(jz_battery);
 	return ret;
 }
 
-static int __devexit jz_battery_remove(struct platform_device *pdev)
+static int jz_battery_remove(struct platform_device *pdev)
 {
 	struct jz_battery *jz_battery = platform_get_drvdata(pdev);
 
@@ -393,10 +367,6 @@ static int __devexit jz_battery_remove(struct platform_device *pdev)
 	power_supply_unregister(&jz_battery->battery);
 
 	free_irq(jz_battery->irq, jz_battery);
-
-	iounmap(jz_battery->base);
-	release_mem_region(jz_battery->mem->start, resource_size(jz_battery->mem));
-	kfree(jz_battery);
 
 	return 0;
 }
@@ -433,7 +403,7 @@ static const struct dev_pm_ops jz_battery_pm_ops = {
 
 static struct platform_driver jz_battery_driver = {
 	.probe		= jz_battery_probe,
-	.remove		= __devexit_p(jz_battery_remove),
+	.remove		= jz_battery_remove,
 	.driver = {
 		.name = "jz4740-battery",
 		.owner = THIS_MODULE,

@@ -35,22 +35,63 @@ static void __clk_enable(struct clk *clk)
 {
 	if (clk->parent)
 		__clk_enable(clk->parent);
-	if (clk->usecount++ == 0 && (clk->flags & CLK_PSC))
-		davinci_psc_config(clk->domain, clk->gpsc, clk->lpsc,
-				true, clk->flags);
+	if (clk->usecount++ == 0) {
+		if (clk->flags & CLK_PSC)
+			davinci_psc_config(clk->domain, clk->gpsc, clk->lpsc,
+					   true, clk->flags);
+		else if (clk->clk_enable)
+			clk->clk_enable(clk);
+	}
 }
 
 static void __clk_disable(struct clk *clk)
 {
 	if (WARN_ON(clk->usecount == 0))
 		return;
-	if (--clk->usecount == 0 && !(clk->flags & CLK_PLL) &&
-	    (clk->flags & CLK_PSC))
-		davinci_psc_config(clk->domain, clk->gpsc, clk->lpsc,
-				false, clk->flags);
+	if (--clk->usecount == 0) {
+		if (!(clk->flags & CLK_PLL) && (clk->flags & CLK_PSC))
+			davinci_psc_config(clk->domain, clk->gpsc, clk->lpsc,
+					   false, clk->flags);
+		else if (clk->clk_disable)
+			clk->clk_disable(clk);
+	}
 	if (clk->parent)
 		__clk_disable(clk->parent);
 }
+
+int davinci_clk_reset(struct clk *clk, bool reset)
+{
+	unsigned long flags;
+
+	if (clk == NULL || IS_ERR(clk))
+		return -EINVAL;
+
+	spin_lock_irqsave(&clockfw_lock, flags);
+	if (clk->flags & CLK_PSC)
+		davinci_psc_reset(clk->gpsc, clk->lpsc, reset);
+	spin_unlock_irqrestore(&clockfw_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(davinci_clk_reset);
+
+int davinci_clk_reset_assert(struct clk *clk)
+{
+	if (clk == NULL || IS_ERR(clk) || !clk->reset)
+		return -EINVAL;
+
+	return clk->reset(clk, true);
+}
+EXPORT_SYMBOL(davinci_clk_reset_assert);
+
+int davinci_clk_reset_deassert(struct clk *clk)
+{
+	if (clk == NULL || IS_ERR(clk) || !clk->reset)
+		return -EINVAL;
+
+	return clk->reset(clk, false);
+}
+EXPORT_SYMBOL(davinci_clk_reset_deassert);
 
 int clk_enable(struct clk *clk)
 {
@@ -92,7 +133,7 @@ EXPORT_SYMBOL(clk_get_rate);
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	if (clk == NULL || IS_ERR(clk))
-		return -EINVAL;
+		return 0;
 
 	if (clk->round_rate)
 		return clk->round_rate(clk, rate);
@@ -213,7 +254,7 @@ EXPORT_SYMBOL(clk_unregister);
 /*
  * Disable any unused clocks left on by the bootloader
  */
-static int __init clk_disable_unused(void)
+int __init davinci_clk_disable_unused(void)
 {
 	struct clk *ck;
 
@@ -237,7 +278,6 @@ static int __init clk_disable_unused(void)
 
 	return 0;
 }
-late_initcall(clk_disable_unused);
 #endif
 
 static unsigned long clk_sysclk_recalc(struct clk *clk)
@@ -536,7 +576,7 @@ int davinci_set_refclk_rate(unsigned long rate)
 }
 
 int __init davinci_clk_init(struct clk_lookup *clocks)
-  {
+{
 	struct clk_lookup *c;
 	struct clk *clk;
 	size_t num_clocks = 0;
@@ -576,6 +616,9 @@ int __init davinci_clk_init(struct clk_lookup *clocks)
 
 		if (clk->lpsc)
 			clk->flags |= CLK_PSC;
+
+		if (clk->flags & PSC_LRST)
+			clk->reset = davinci_clk_reset;
 
 		clk_register(clk);
 		num_clocks++;

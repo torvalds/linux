@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <scsi/scsi_host.h>
@@ -338,10 +337,10 @@ static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id
 	return ata_pci_bmdma_init_one(dev, ppi, &sl82c105_sht, NULL, 0);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sl82c105_reinit_one(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	int rc;
 
 	rc = ata_pci_device_do_resume(pdev);
@@ -366,27 +365,16 @@ static struct pci_driver sl82c105_pci_driver = {
 	.id_table	= sl82c105,
 	.probe 		= sl82c105_init_one,
 	.remove		= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend	= ata_pci_device_suspend,
 	.resume		= sl82c105_reinit_one,
 #endif
 };
 
-static int __init sl82c105_init(void)
-{
-	return pci_register_driver(&sl82c105_pci_driver);
-}
-
-static void __exit sl82c105_exit(void)
-{
-	pci_unregister_driver(&sl82c105_pci_driver);
-}
+module_pci_driver(sl82c105_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Sl82c105");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, sl82c105);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(sl82c105_init);
-module_exit(sl82c105_exit);

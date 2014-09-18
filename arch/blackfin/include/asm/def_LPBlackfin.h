@@ -3,7 +3,7 @@
  *
  * Copyright 2005-2008 Analog Devices Inc.
  *
- * Licensed under the ADI BSD license or GPL-2 (or later).
+ * Licensed under the Clear BSD license or GPL-2 (or later).
  */
 
 #ifndef _DEF_LPBLACKFIN_H
@@ -544,6 +544,7 @@ do { \
 #define DCBS_P			0x04	/* L1 Data Cache Bank Select */
 #define PORT_PREF0_P		0x12	/* DAG0 Port Preference */
 #define PORT_PREF1_P		0x13	/* DAG1 Port Preference */
+#define RDCHK			0x9	/* Enable L1 Parity Check */
 
 /* Masks */
 #define ENDM               0x00000001	/* (doesn't really exist) Enable
@@ -622,6 +623,12 @@ do { \
 #define PAGE_SIZE_4KB      0x00010000	/* 4 KB page size */
 #define PAGE_SIZE_1MB      0x00020000	/* 1 MB page size */
 #define PAGE_SIZE_4MB      0x00030000	/* 4 MB page size */
+#ifdef CONFIG_BF60x
+#define PAGE_SIZE_16KB     0x00040000	/* 16 KB page size */
+#define PAGE_SIZE_64KB     0x00050000	/* 64 KB page size */
+#define PAGE_SIZE_16MB     0x00060000	/* 16 MB page size */
+#define PAGE_SIZE_64MB     0x00070000	/* 64 MB page size */
+#endif
 #define CPLB_L1SRAM        0x00000020	/* 0=SRAM mapped in L1, 0=SRAM not
 					 * mapped to L1
 					 */

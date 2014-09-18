@@ -22,11 +22,13 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#ifndef __MMC_H__
+#define __MMC_H__
+
 /* MMC control register */
 /* When set, all counter are reset */
 #define MMC_CNTRL_COUNTER_RESET		0x1
-/* When set, do not roll over zero
- * after reaching the max value*/
+/* When set, do not roll over zero after reaching the max value*/
 #define MMC_CNTRL_COUNTER_STOP_ROLLOVER	0x2
 #define MMC_CNTRL_RESET_ON_READ		0x4	/* Reset after reading */
 #define MMC_CNTRL_COUNTER_FREEZER	0x8	/* Freeze counter values to the
@@ -66,7 +68,7 @@ struct stmmac_counters {
 	unsigned int mmc_rx_octetcount_g;
 	unsigned int mmc_rx_broadcastframe_g;
 	unsigned int mmc_rx_multicastframe_g;
-	unsigned int mmc_rx_crc_errror;
+	unsigned int mmc_rx_crc_error;
 	unsigned int mmc_rx_align_error;
 	unsigned int mmc_rx_run_error;
 	unsigned int mmc_rx_jabber_error;
@@ -126,6 +128,8 @@ struct stmmac_counters {
 	unsigned int mmc_rx_icmp_err_octets;
 };
 
-extern void dwmac_mmc_ctrl(void __iomem *ioaddr, unsigned int mode);
-extern void dwmac_mmc_intr_all_mask(void __iomem *ioaddr);
-extern void dwmac_mmc_read(void __iomem *ioaddr, struct stmmac_counters *mmc);
+void dwmac_mmc_ctrl(void __iomem *ioaddr, unsigned int mode);
+void dwmac_mmc_intr_all_mask(void __iomem *ioaddr);
+void dwmac_mmc_read(void __iomem *ioaddr, struct stmmac_counters *mmc);
+
+#endif /* __MMC_H__ */

@@ -16,9 +16,9 @@
 
 #include <linux/device.h>
 #include <linux/hid.h>
+#include <linux/input/mt.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 
 #include "hid-ids.h"
 
@@ -36,7 +36,7 @@ MODULE_PARM_DESC(emulate_scroll_wheel, "Emulate a scroll wheel");
 static unsigned int scroll_speed = 32;
 static int param_set_scroll_speed(const char *val, struct kernel_param *kp) {
 	unsigned long speed;
-	if (!val || strict_strtoul(val, 0, &speed) || speed > 63)
+	if (!val || kstrtoul(val, 0, &speed) || speed > 63)
 		return -EINVAL;
 	scroll_speed = speed;
 	return 0;
@@ -47,10 +47,6 @@ MODULE_PARM_DESC(scroll_speed, "Scroll speed, value from 0 (slow) to 63 (fast)")
 static bool scroll_acceleration = false;
 module_param(scroll_acceleration, bool, 0644);
 MODULE_PARM_DESC(scroll_acceleration, "Accelerate sequential scroll events");
-
-static bool report_touches = true;
-module_param(report_touches, bool, 0644);
-MODULE_PARM_DESC(report_touches, "Emit touch records (otherwise, only use them for emulation)");
 
 static bool report_undeciphered;
 module_param(report_undeciphered, bool, 0644);
@@ -71,15 +67,6 @@ MODULE_PARM_DESC(report_undeciphered, "Report undeciphered multi-touch state fie
 #define TOUCH_STATE_DRAG  0x40
 
 #define SCROLL_ACCEL_DEFAULT 7
-
-/* Single touch emulation should only begin when no touches are currently down.
- * This is true when single_touch_id is equal to NO_TOUCHES. If multiple touches
- * are down and the touch providing for single touch emulation is lifted,
- * single_touch_id is equal to SINGLE_TOUCH_UP. While single touch emulation is
- * occurring, single_touch_id corresponds with the tracking id of the touch used.
- */
-#define NO_TOUCHES -1
-#define SINGLE_TOUCH_UP -2
 
 /* Touch surface information. Dimension is in hundredths of a mm, min and max
  * are in units. */
@@ -129,7 +116,6 @@ struct magicmouse_sc {
 		u8 size;
 	} touches[16];
 	int tracking_ids[16];
-	int single_touch_id;
 };
 
 static int magicmouse_firm_touch(struct magicmouse_sc *msc)
@@ -268,16 +254,14 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 		}
 	}
 
-	if (down) {
+	if (down)
 		msc->ntouches++;
-		if (msc->single_touch_id == NO_TOUCHES)
-			msc->single_touch_id = id;
-	} else if (msc->single_touch_id == id)
-		msc->single_touch_id = SINGLE_TOUCH_UP;
+
+	input_mt_slot(input, id);
+	input_mt_report_slot_state(input, MT_TOOL_FINGER, down);
 
 	/* Generate the input events for this touch. */
-	if (report_touches && down) {
-		input_report_abs(input, ABS_MT_TRACKING_ID, id);
+	if (down) {
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, touch_major << 2);
 		input_report_abs(input, ABS_MT_TOUCH_MINOR, touch_minor << 2);
 		input_report_abs(input, ABS_MT_ORIENTATION, -orientation);
@@ -290,8 +274,6 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 			else /* USB_DEVICE_ID_APPLE_MAGICTRACKPAD */
 				input_event(input, EV_MSC, MSC_RAW, tdata[8]);
 		}
-
-		input_mt_sync(input);
 	}
 }
 
@@ -308,15 +290,14 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 		if (size < 4 || ((size - 4) % 9) != 0)
 			return 0;
 		npoints = (size - 4) / 9;
+		if (npoints > 15) {
+			hid_warn(hdev, "invalid size value (%d) for TRACKPAD_REPORT_ID\n",
+					size);
+			return 0;
+		}
 		msc->ntouches = 0;
 		for (ii = 0; ii < npoints; ii++)
 			magicmouse_emit_touch(msc, ii, data + ii * 9 + 4);
-
-		/* We don't need an MT sync here because trackpad emits a
-		 * BTN_TOUCH event in a new frame when all touches are released.
-		 */
-		if (msc->ntouches == 0)
-			msc->single_touch_id = NO_TOUCHES;
 
 		clicks = data[1];
 
@@ -331,12 +312,14 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 		if (size < 6 || ((size - 6) % 8) != 0)
 			return 0;
 		npoints = (size - 6) / 8;
+		if (npoints > 15) {
+			hid_warn(hdev, "invalid size value (%d) for MOUSE_REPORT_ID\n",
+					size);
+			return 0;
+		}
 		msc->ntouches = 0;
 		for (ii = 0; ii < npoints; ii++)
 			magicmouse_emit_touch(msc, ii, data + ii * 8 + 6);
-
-		if (report_touches && msc->ntouches == 0)
-			input_mt_sync(input);
 
 		/* When emulating three-button mode, it is important
 		 * to have the current touch information before
@@ -370,25 +353,17 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 		input_report_rel(input, REL_Y, y);
 	} else { /* USB_DEVICE_ID_APPLE_MAGICTRACKPAD */
 		input_report_key(input, BTN_MOUSE, clicks & 1);
-		input_report_key(input, BTN_TOUCH, msc->ntouches > 0);
-		input_report_key(input, BTN_TOOL_FINGER, msc->ntouches == 1);
-		input_report_key(input, BTN_TOOL_DOUBLETAP, msc->ntouches == 2);
-		input_report_key(input, BTN_TOOL_TRIPLETAP, msc->ntouches == 3);
-		input_report_key(input, BTN_TOOL_QUADTAP, msc->ntouches == 4);
-		if (msc->single_touch_id >= 0) {
-			input_report_abs(input, ABS_X,
-				msc->touches[msc->single_touch_id].x);
-			input_report_abs(input, ABS_Y,
-				msc->touches[msc->single_touch_id].y);
-		}
+		input_mt_report_pointer_emulation(input, true);
 	}
 
 	input_sync(input);
 	return 1;
 }
 
-static void magicmouse_setup_input(struct input_dev *input, struct hid_device *hdev)
+static int magicmouse_setup_input(struct input_dev *input, struct hid_device *hdev)
 {
+	int error;
+
 	__set_bit(EV_KEY, input->evbit);
 
 	if (input->id.product == USB_DEVICE_ID_APPLE_MAGICMOUSE) {
@@ -417,60 +392,66 @@ static void magicmouse_setup_input(struct input_dev *input, struct hid_device *h
 		__set_bit(BTN_TOOL_DOUBLETAP, input->keybit);
 		__set_bit(BTN_TOOL_TRIPLETAP, input->keybit);
 		__set_bit(BTN_TOOL_QUADTAP, input->keybit);
+		__set_bit(BTN_TOOL_QUINTTAP, input->keybit);
 		__set_bit(BTN_TOUCH, input->keybit);
 		__set_bit(INPUT_PROP_POINTER, input->propbit);
 		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
 	}
 
-	if (report_touches) {
-		__set_bit(EV_ABS, input->evbit);
 
-		input_set_abs_params(input, ABS_MT_TRACKING_ID, 0, 15, 0, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 255, 4, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 255, 4, 0);
-		input_set_abs_params(input, ABS_MT_ORIENTATION, -31, 32, 1, 0);
+	__set_bit(EV_ABS, input->evbit);
 
-		/* Note: Touch Y position from the device is inverted relative
-		 * to how pointer motion is reported (and relative to how USB
-		 * HID recommends the coordinates work).  This driver keeps
-		 * the origin at the same position, and just uses the additive
-		 * inverse of the reported Y.
-		 */
-		if (input->id.product == USB_DEVICE_ID_APPLE_MAGICMOUSE) {
-			input_set_abs_params(input, ABS_MT_POSITION_X,
-				MOUSE_MIN_X, MOUSE_MAX_X, 4, 0);
-			input_set_abs_params(input, ABS_MT_POSITION_Y,
-				MOUSE_MIN_Y, MOUSE_MAX_Y, 4, 0);
+	error = input_mt_init_slots(input, 16, 0);
+	if (error)
+		return error;
+	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 255 << 2,
+			     4, 0);
+	input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 255 << 2,
+			     4, 0);
+	input_set_abs_params(input, ABS_MT_ORIENTATION, -31, 32, 1, 0);
 
-			input_abs_set_res(input, ABS_MT_POSITION_X,
-				MOUSE_RES_X);
-			input_abs_set_res(input, ABS_MT_POSITION_Y,
-				MOUSE_RES_Y);
-		} else { /* USB_DEVICE_ID_APPLE_MAGICTRACKPAD */
-			input_set_abs_params(input, ABS_X, TRACKPAD_MIN_X,
-				TRACKPAD_MAX_X, 4, 0);
-			input_set_abs_params(input, ABS_Y, TRACKPAD_MIN_Y,
-				TRACKPAD_MAX_Y, 4, 0);
-			input_set_abs_params(input, ABS_MT_POSITION_X,
-				TRACKPAD_MIN_X, TRACKPAD_MAX_X, 4, 0);
-			input_set_abs_params(input, ABS_MT_POSITION_Y,
-				TRACKPAD_MIN_Y, TRACKPAD_MAX_Y, 4, 0);
+	/* Note: Touch Y position from the device is inverted relative
+	 * to how pointer motion is reported (and relative to how USB
+	 * HID recommends the coordinates work).  This driver keeps
+	 * the origin at the same position, and just uses the additive
+	 * inverse of the reported Y.
+	 */
+	if (input->id.product == USB_DEVICE_ID_APPLE_MAGICMOUSE) {
+		input_set_abs_params(input, ABS_MT_POSITION_X,
+				     MOUSE_MIN_X, MOUSE_MAX_X, 4, 0);
+		input_set_abs_params(input, ABS_MT_POSITION_Y,
+				     MOUSE_MIN_Y, MOUSE_MAX_Y, 4, 0);
 
-			input_abs_set_res(input, ABS_X, TRACKPAD_RES_X);
-			input_abs_set_res(input, ABS_Y, TRACKPAD_RES_Y);
-			input_abs_set_res(input, ABS_MT_POSITION_X,
-				TRACKPAD_RES_X);
-			input_abs_set_res(input, ABS_MT_POSITION_Y,
-				TRACKPAD_RES_Y);
-		}
+		input_abs_set_res(input, ABS_MT_POSITION_X,
+				  MOUSE_RES_X);
+		input_abs_set_res(input, ABS_MT_POSITION_Y,
+				  MOUSE_RES_Y);
+	} else { /* USB_DEVICE_ID_APPLE_MAGICTRACKPAD */
+		input_set_abs_params(input, ABS_X, TRACKPAD_MIN_X,
+				     TRACKPAD_MAX_X, 4, 0);
+		input_set_abs_params(input, ABS_Y, TRACKPAD_MIN_Y,
+				     TRACKPAD_MAX_Y, 4, 0);
+		input_set_abs_params(input, ABS_MT_POSITION_X,
+				     TRACKPAD_MIN_X, TRACKPAD_MAX_X, 4, 0);
+		input_set_abs_params(input, ABS_MT_POSITION_Y,
+				     TRACKPAD_MIN_Y, TRACKPAD_MAX_Y, 4, 0);
 
-		input_set_events_per_packet(input, 60);
+		input_abs_set_res(input, ABS_X, TRACKPAD_RES_X);
+		input_abs_set_res(input, ABS_Y, TRACKPAD_RES_Y);
+		input_abs_set_res(input, ABS_MT_POSITION_X,
+				  TRACKPAD_RES_X);
+		input_abs_set_res(input, ABS_MT_POSITION_Y,
+				  TRACKPAD_RES_Y);
 	}
+
+	input_set_events_per_packet(input, 60);
 
 	if (report_undeciphered) {
 		__set_bit(EV_MSC, input->evbit);
 		__set_bit(MSC_RAW, input->mscbit);
 	}
+
+	return 0;
 }
 
 static int magicmouse_input_mapping(struct hid_device *hdev,
@@ -490,6 +471,21 @@ static int magicmouse_input_mapping(struct hid_device *hdev,
 	return 0;
 }
 
+static void magicmouse_input_configured(struct hid_device *hdev,
+		struct hid_input *hi)
+
+{
+	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
+
+	int ret = magicmouse_setup_input(msc->input, hdev);
+	if (ret) {
+		hid_err(hdev, "magicmouse setup input failed (%d)\n", ret);
+		/* clean msc->input to notify probe() of the failure */
+		msc->input = NULL;
+	}
+}
+
+
 static int magicmouse_probe(struct hid_device *hdev,
 	const struct hid_device_id *id)
 {
@@ -498,7 +494,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	struct hid_report *report;
 	int ret;
 
-	msc = kzalloc(sizeof(*msc), GFP_KERNEL);
+	msc = devm_kzalloc(&hdev->dev, sizeof(*msc), GFP_KERNEL);
 	if (msc == NULL) {
 		hid_err(hdev, "can't alloc magicmouse descriptor\n");
 		return -ENOMEM;
@@ -509,25 +505,23 @@ static int magicmouse_probe(struct hid_device *hdev,
 	msc->quirks = id->driver_data;
 	hid_set_drvdata(hdev, msc);
 
-	msc->single_touch_id = NO_TOUCHES;
-
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "magicmouse hid parse failed\n");
-		goto err_free;
+		return ret;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
 		hid_err(hdev, "magicmouse hw start failed\n");
-		goto err_free;
+		return ret;
 	}
 
-	/* We do this after hid-input is done parsing reports so that
-	 * hid-input uses the most natural button and axis IDs.
-	 */
-	if (msc->input)
-		magicmouse_setup_input(msc->input, hdev);
+	if (!msc->input) {
+		hid_err(hdev, "magicmouse input not registered\n");
+		ret = -ENOMEM;
+		goto err_stop_hw;
+	}
 
 	if (id->product == USB_DEVICE_ID_APPLE_MAGICMOUSE)
 		report = hid_register_report(hdev, HID_INPUT_REPORT,
@@ -554,8 +548,8 @@ static int magicmouse_probe(struct hid_device *hdev,
 	 * but there seems to be no other way of switching the mode.
 	 * Thus the super-ugly hacky success check below.
 	 */
-	ret = hdev->hid_output_raw_report(hdev, feature, sizeof(feature),
-			HID_FEATURE_REPORT);
+	ret = hid_hw_raw_request(hdev, feature[0], feature, sizeof(feature),
+				HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 	if (ret != -EIO && ret != sizeof(feature)) {
 		hid_err(hdev, "unable to request touch data (%d)\n", ret);
 		goto err_stop_hw;
@@ -564,17 +558,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	return 0;
 err_stop_hw:
 	hid_hw_stop(hdev);
-err_free:
-	kfree(msc);
 	return ret;
-}
-
-static void magicmouse_remove(struct hid_device *hdev)
-{
-	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
-
-	hid_hw_stop(hdev);
-	kfree(msc);
 }
 
 static const struct hid_device_id magic_mice[] = {
@@ -590,27 +574,10 @@ static struct hid_driver magicmouse_driver = {
 	.name = "magicmouse",
 	.id_table = magic_mice,
 	.probe = magicmouse_probe,
-	.remove = magicmouse_remove,
 	.raw_event = magicmouse_raw_event,
 	.input_mapping = magicmouse_input_mapping,
+	.input_configured = magicmouse_input_configured,
 };
+module_hid_driver(magicmouse_driver);
 
-static int __init magicmouse_init(void)
-{
-	int ret;
-
-	ret = hid_register_driver(&magicmouse_driver);
-	if (ret)
-		pr_err("can't register magicmouse driver\n");
-
-	return ret;
-}
-
-static void __exit magicmouse_exit(void)
-{
-	hid_unregister_driver(&magicmouse_driver);
-}
-
-module_init(magicmouse_init);
-module_exit(magicmouse_exit);
 MODULE_LICENSE("GPL");

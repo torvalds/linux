@@ -58,7 +58,7 @@ static void tx4938ide_tune_ebusc(unsigned int ebus_ch,
 
 static void tx4938ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	struct tx4938ide_platform_info *pdata = hwif->dev->platform_data;
+	struct tx4938ide_platform_info *pdata = dev_get_platdata(hwif->dev);
 	u8 safe = drive->pio_mode - XFER_PIO_0;
 	ide_drive_t *pair;
 
@@ -117,7 +117,7 @@ static const struct ide_port_ops tx4938ide_port_ops = {
 	.set_pio_mode		= tx4938ide_set_pio_mode,
 };
 
-static const struct ide_port_info tx4938ide_port_info __initdata = {
+static const struct ide_port_info tx4938ide_port_info __initconst = {
 	.port_ops		= &tx4938ide_port_ops,
 #ifdef __BIG_ENDIAN
 	.tp_ops			= &tx4938ide_tp_ops,
@@ -132,7 +132,7 @@ static int __init tx4938ide_probe(struct platform_device *pdev)
 	struct ide_hw hw, *hws[] = { &hw };
 	struct ide_host *host;
 	struct resource *res;
-	struct tx4938ide_platform_info *pdata = pdev->dev.platform_data;
+	struct tx4938ide_platform_info *pdata = dev_get_platdata(&pdev->dev);
 	int irq, ret, i;
 	unsigned long mapbase, mapctl;
 	struct ide_port_info d = tx4938ide_port_info;
@@ -203,18 +203,7 @@ static struct platform_driver tx4938ide_driver = {
 	.remove = __exit_p(tx4938ide_remove),
 };
 
-static int __init tx4938ide_init(void)
-{
-	return platform_driver_probe(&tx4938ide_driver, tx4938ide_probe);
-}
-
-static void __exit tx4938ide_exit(void)
-{
-	platform_driver_unregister(&tx4938ide_driver);
-}
-
-module_init(tx4938ide_init);
-module_exit(tx4938ide_exit);
+module_platform_driver_probe(tx4938ide_driver, tx4938ide_probe);
 
 MODULE_DESCRIPTION("TX4938 internal IDE driver");
 MODULE_LICENSE("GPL");

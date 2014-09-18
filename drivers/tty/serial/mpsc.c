@@ -934,10 +934,10 @@ static int serial_polled;
  ******************************************************************************
  */
 
-static int mpsc_rx_intr(struct mpsc_port_info *pi)
+static int mpsc_rx_intr(struct mpsc_port_info *pi, unsigned long *flags)
 {
 	struct mpsc_rx_desc *rxre;
-	struct tty_struct *tty = pi->port.state->port.tty;
+	struct tty_port *port = &pi->port.state->port;
 	u32	cmdstat, bytes_in, i;
 	int	rc = 0;
 	u8	*bp;
@@ -968,10 +968,12 @@ static int mpsc_rx_intr(struct mpsc_port_info *pi)
 		}
 #endif
 		/* Following use of tty struct directly is deprecated */
-		if (unlikely(tty_buffer_request_room(tty, bytes_in)
-					< bytes_in)) {
-			if (tty->low_latency)
-				tty_flip_buffer_push(tty);
+		if (tty_buffer_request_room(port, bytes_in) < bytes_in) {
+			if (port->low_latency) {
+				spin_unlock_irqrestore(&pi->port.lock, *flags);
+				tty_flip_buffer_push(port);
+				spin_lock_irqsave(&pi->port.lock, *flags);
+			}
 			/*
 			 * If this failed then we will throw away the bytes
 			 * but must do so to clear interrupts.
@@ -1040,10 +1042,10 @@ static int mpsc_rx_intr(struct mpsc_port_info *pi)
 						| SDMA_DESC_CMDSTAT_FR
 						| SDMA_DESC_CMDSTAT_OR)))
 				&& !(cmdstat & pi->port.ignore_status_mask)) {
-			tty_insert_flip_char(tty, *bp, flag);
+			tty_insert_flip_char(port, *bp, flag);
 		} else {
 			for (i=0; i<bytes_in; i++)
-				tty_insert_flip_char(tty, *bp++, TTY_NORMAL);
+				tty_insert_flip_char(port, *bp++, TTY_NORMAL);
 
 			pi->port.icount.rx += bytes_in;
 		}
@@ -1081,7 +1083,9 @@ next_frame:
 	if ((readl(pi->sdma_base + SDMA_SDCM) & SDMA_SDCM_ERD) == 0)
 		mpsc_start_rx(pi);
 
-	tty_flip_buffer_push(tty);
+	spin_unlock_irqrestore(&pi->port.lock, *flags);
+	tty_flip_buffer_push(port);
+	spin_lock_irqsave(&pi->port.lock, *flags);
 	return rc;
 }
 
@@ -1223,7 +1227,7 @@ static irqreturn_t mpsc_sdma_intr(int irq, void *dev_id)
 
 	spin_lock_irqsave(&pi->port.lock, iflags);
 	mpsc_sdma_intr_ack(pi);
-	if (mpsc_rx_intr(pi))
+	if (mpsc_rx_intr(pi, &iflags))
 		rc = IRQ_HANDLED;
 	if (mpsc_tx_intr(pi))
 		rc = IRQ_HANDLED;
@@ -1330,10 +1334,6 @@ static void mpsc_stop_rx(struct uart_port *port)
 	}
 
 	mpsc_sdma_cmd(pi, SDMA_SDCM_AR);
-}
-
-static void mpsc_enable_ms(struct uart_port *port)
-{
 }
 
 static void mpsc_break_ctl(struct uart_port *port, int ctl)
@@ -1454,7 +1454,7 @@ static void mpsc_set_termios(struct uart_port *port, struct ktermios *termios,
 		pi->port.read_status_mask |= SDMA_DESC_CMDSTAT_PE
 			| SDMA_DESC_CMDSTAT_FR;
 
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		pi->port.read_status_mask |= SDMA_DESC_CMDSTAT_BR;
 
 	/* Characters/events to ignore */
@@ -1670,7 +1670,6 @@ static struct uart_ops mpsc_pops = {
 	.stop_tx	= mpsc_stop_tx,
 	.start_tx	= mpsc_start_tx,
 	.stop_rx	= mpsc_stop_rx,
-	.enable_ms	= mpsc_enable_ms,
 	.break_ctl	= mpsc_break_ctl,
 	.startup	= mpsc_startup,
 	.shutdown	= mpsc_shutdown,
@@ -1885,7 +1884,7 @@ static int mpsc_shared_drv_probe(struct platform_device *dev)
 	if (dev->id == 0) {
 		if (!(rc = mpsc_shared_map_regs(dev))) {
 			pdata = (struct mpsc_shared_pdata *)
-				dev->dev.platform_data;
+				dev_get_platdata(&dev->dev);
 
 			mpsc_shared_regs.MPSC_MRR_m = pdata->mrr_val;
 			mpsc_shared_regs.MPSC_RCRR_m= pdata->rcrr_val;
@@ -2026,7 +2025,7 @@ static void mpsc_drv_get_platform_data(struct mpsc_port_info *pi,
 {
 	struct mpsc_pdata	*pdata;
 
-	pdata = (struct mpsc_pdata *)pd->dev.platform_data;
+	pdata = dev_get_platdata(&pd->dev);
 
 	pi->port.uartclk = pdata->brg_clk_freq;
 	pi->port.iotype = UPIO_MEM;

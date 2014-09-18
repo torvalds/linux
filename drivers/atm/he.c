@@ -329,7 +329,6 @@ __find_vcc(struct he_dev *he_dev, unsigned cid)
 {
 	struct hlist_head *head;
 	struct atm_vcc *vcc;
-	struct hlist_node *node;
 	struct sock *s;
 	short vpi;
 	int vci;
@@ -338,7 +337,7 @@ __find_vcc(struct he_dev *he_dev, unsigned cid)
 	vci = cid & ((1 << he_dev->vcibits) - 1);
 	head = &vcc_hash[vci & (VCC_HTABLE_SIZE -1)];
 
-	sk_for_each(s, node, head) {
+	sk_for_each(s, head) {
 		vcc = atm_sk(s);
 		if (vcc->dev == he_dev->atm_dev &&
 		    vcc->vci == vci && vcc->vpi == vpi &&
@@ -349,8 +348,8 @@ __find_vcc(struct he_dev *he_dev, unsigned cid)
 	return NULL;
 }
 
-static int __devinit
-he_init_one(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent)
+static int he_init_one(struct pci_dev *pci_dev,
+		       const struct pci_device_id *pci_ent)
 {
 	struct atm_dev *atm_dev = NULL;
 	struct he_dev *he_dev = NULL;
@@ -406,8 +405,7 @@ init_one_failure:
 	return err;
 }
 
-static void __devexit
-he_remove_one (struct pci_dev *pci_dev)
+static void he_remove_one(struct pci_dev *pci_dev)
 {
 	struct atm_dev *atm_dev;
 	struct he_dev *he_dev;
@@ -421,7 +419,6 @@ he_remove_one (struct pci_dev *pci_dev)
 	atm_dev_deregister(atm_dev);
 	kfree(he_dev);
 
-	pci_set_drvdata(pci_dev, NULL);
 	pci_disable_device(pci_dev);
 }
 
@@ -445,8 +442,7 @@ rate_to_atmf(unsigned rate)		/* cps to atm forum format */
 	return (NONZERO | (exp << 9) | (rate & 0x1ff));
 }
 
-static void __devinit
-he_init_rx_lbfp0(struct he_dev *he_dev)
+static void he_init_rx_lbfp0(struct he_dev *he_dev)
 {
 	unsigned i, lbm_offset, lbufd_index, lbuf_addr, lbuf_count;
 	unsigned lbufs_per_row = he_dev->cells_per_row / he_dev->cells_per_lbuf;
@@ -476,8 +472,7 @@ he_init_rx_lbfp0(struct he_dev *he_dev)
 	he_writel(he_dev, he_dev->r0_numbuffs, RLBF0_C);
 }
 
-static void __devinit
-he_init_rx_lbfp1(struct he_dev *he_dev)
+static void he_init_rx_lbfp1(struct he_dev *he_dev)
 {
 	unsigned i, lbm_offset, lbufd_index, lbuf_addr, lbuf_count;
 	unsigned lbufs_per_row = he_dev->cells_per_row / he_dev->cells_per_lbuf;
@@ -507,8 +502,7 @@ he_init_rx_lbfp1(struct he_dev *he_dev)
 	he_writel(he_dev, he_dev->r1_numbuffs, RLBF1_C);
 }
 
-static void __devinit
-he_init_tx_lbfp(struct he_dev *he_dev)
+static void he_init_tx_lbfp(struct he_dev *he_dev)
 {
 	unsigned i, lbm_offset, lbufd_index, lbuf_addr, lbuf_count;
 	unsigned lbufs_per_row = he_dev->cells_per_row / he_dev->cells_per_lbuf;
@@ -537,17 +531,15 @@ he_init_tx_lbfp(struct he_dev *he_dev)
 	he_writel(he_dev, lbufd_index - 1, TLBF_T);
 }
 
-static int __devinit
-he_init_tpdrq(struct he_dev *he_dev)
+static int he_init_tpdrq(struct he_dev *he_dev)
 {
-	he_dev->tpdrq_base = pci_alloc_consistent(he_dev->pci_dev,
-		CONFIG_TPDRQ_SIZE * sizeof(struct he_tpdrq), &he_dev->tpdrq_phys);
+	he_dev->tpdrq_base = pci_zalloc_consistent(he_dev->pci_dev,
+						   CONFIG_TPDRQ_SIZE * sizeof(struct he_tpdrq),
+						   &he_dev->tpdrq_phys);
 	if (he_dev->tpdrq_base == NULL) {
 		hprintk("failed to alloc tpdrq\n");
 		return -ENOMEM;
 	}
-	memset(he_dev->tpdrq_base, 0,
-				CONFIG_TPDRQ_SIZE * sizeof(struct he_tpdrq));
 
 	he_dev->tpdrq_tail = he_dev->tpdrq_base;
 	he_dev->tpdrq_head = he_dev->tpdrq_base;
@@ -559,8 +551,7 @@ he_init_tpdrq(struct he_dev *he_dev)
 	return 0;
 }
 
-static void __devinit
-he_init_cs_block(struct he_dev *he_dev)
+static void he_init_cs_block(struct he_dev *he_dev)
 {
 	unsigned clock, rate, delta;
 	int reg;
@@ -655,8 +646,7 @@ he_init_cs_block(struct he_dev *he_dev)
 
 }
 
-static int __devinit
-he_init_cs_block_rcm(struct he_dev *he_dev)
+static int he_init_cs_block_rcm(struct he_dev *he_dev)
 {
 	unsigned (*rategrid)[16][16];
 	unsigned rate, delta;
@@ -776,8 +766,7 @@ he_init_cs_block_rcm(struct he_dev *he_dev)
 	return 0;
 }
 
-static int __devinit
-he_init_group(struct he_dev *he_dev, int group)
+static int he_init_group(struct he_dev *he_dev, int group)
 {
 	struct he_buff *heb, *next;
 	dma_addr_t mapping;
@@ -814,13 +803,13 @@ he_init_group(struct he_dev *he_dev, int group)
 		goto out_free_rbpl_virt;
 	}
 
-	he_dev->rbpl_base = pci_alloc_consistent(he_dev->pci_dev,
-		CONFIG_RBPL_SIZE * sizeof(struct he_rbp), &he_dev->rbpl_phys);
+	he_dev->rbpl_base = pci_zalloc_consistent(he_dev->pci_dev,
+						  CONFIG_RBPL_SIZE * sizeof(struct he_rbp),
+						  &he_dev->rbpl_phys);
 	if (he_dev->rbpl_base == NULL) {
 		hprintk("failed to alloc rbpl_base\n");
 		goto out_destroy_rbpl_pool;
 	}
-	memset(he_dev->rbpl_base, 0, CONFIG_RBPL_SIZE * sizeof(struct he_rbp));
 
 	INIT_LIST_HEAD(&he_dev->rbpl_outstanding);
 
@@ -853,13 +842,13 @@ he_init_group(struct he_dev *he_dev, int group)
 
 	/* rx buffer ready queue */
 
-	he_dev->rbrq_base = pci_alloc_consistent(he_dev->pci_dev,
-		CONFIG_RBRQ_SIZE * sizeof(struct he_rbrq), &he_dev->rbrq_phys);
+	he_dev->rbrq_base = pci_zalloc_consistent(he_dev->pci_dev,
+						  CONFIG_RBRQ_SIZE * sizeof(struct he_rbrq),
+						  &he_dev->rbrq_phys);
 	if (he_dev->rbrq_base == NULL) {
 		hprintk("failed to allocate rbrq\n");
 		goto out_free_rbpl;
 	}
-	memset(he_dev->rbrq_base, 0, CONFIG_RBRQ_SIZE * sizeof(struct he_rbrq));
 
 	he_dev->rbrq_head = he_dev->rbrq_base;
 	he_writel(he_dev, he_dev->rbrq_phys, G0_RBRQ_ST + (group * 16));
@@ -877,13 +866,13 @@ he_init_group(struct he_dev *he_dev, int group)
 
 	/* tx buffer ready queue */
 
-	he_dev->tbrq_base = pci_alloc_consistent(he_dev->pci_dev,
-		CONFIG_TBRQ_SIZE * sizeof(struct he_tbrq), &he_dev->tbrq_phys);
+	he_dev->tbrq_base = pci_zalloc_consistent(he_dev->pci_dev,
+						  CONFIG_TBRQ_SIZE * sizeof(struct he_tbrq),
+						  &he_dev->tbrq_phys);
 	if (he_dev->tbrq_base == NULL) {
 		hprintk("failed to allocate tbrq\n");
 		goto out_free_rbpq_base;
 	}
-	memset(he_dev->tbrq_base, 0, CONFIG_TBRQ_SIZE * sizeof(struct he_tbrq));
 
 	he_dev->tbrq_head = he_dev->tbrq_base;
 
@@ -915,8 +904,7 @@ out_free_rbpl_table:
 	return -ENOMEM;
 }
 
-static int __devinit
-he_init_irq(struct he_dev *he_dev)
+static int he_init_irq(struct he_dev *he_dev)
 {
 	int i;
 
@@ -978,8 +966,7 @@ he_init_irq(struct he_dev *he_dev)
 	return 0;
 }
 
-static int __devinit
-he_start(struct atm_dev *dev)
+static int he_start(struct atm_dev *dev)
 {
 	struct he_dev *he_dev;
 	struct pci_dev *pci_dev;
@@ -1066,7 +1053,7 @@ he_start(struct atm_dev *dev)
 	he_writel(he_dev, 0x0, RESET_CNTL);
 	he_writel(he_dev, 0xff, RESET_CNTL);
 
-	udelay(16*1000);	/* 16 ms */
+	msleep(16);	/* 16 ms */
 	status = he_readl(he_dev, RESET_CNTL);
 	if ((status & BOARD_RST_STATUS) == 0) {
 		hprintk("reset failed\n");
@@ -1099,15 +1086,8 @@ he_start(struct atm_dev *dev)
 	for (i = 0; i < 6; ++i)
 		dev->esi[i] = read_prom_byte(he_dev, MAC_ADDR + i);
 
-	hprintk("%s%s, %x:%x:%x:%x:%x:%x\n",
-				he_dev->prod_id,
-					he_dev->media & 0x40 ? "SM" : "MM",
-						dev->esi[0],
-						dev->esi[1],
-						dev->esi[2],
-						dev->esi[3],
-						dev->esi[4],
-						dev->esi[5]);
+	hprintk("%s%s, %pM\n", he_dev->prod_id,
+		he_dev->media & 0x40 ? "SM" : "MM", dev->esi);
 	he_dev->atm_dev->link_rate = he_is622(he_dev) ?
 						ATM_OC12_PCR : ATM_OC3_PCR;
 
@@ -1479,13 +1459,13 @@ he_start(struct atm_dev *dev)
 
 	/* host status page */
 
-	he_dev->hsp = pci_alloc_consistent(he_dev->pci_dev,
-				sizeof(struct he_hsp), &he_dev->hsp_phys);
+	he_dev->hsp = pci_zalloc_consistent(he_dev->pci_dev,
+					    sizeof(struct he_hsp),
+					    &he_dev->hsp_phys);
 	if (he_dev->hsp == NULL) {
 		hprintk("failed to allocate host status page\n");
 		return -ENOMEM;
 	}
-	memset(he_dev->hsp, 0, sizeof(struct he_hsp));
 	he_writel(he_dev, he_dev->hsp_phys, HSP_BA);
 
 	/* initialize framer */
@@ -2879,19 +2859,8 @@ MODULE_DEVICE_TABLE(pci, he_pci_tbl);
 static struct pci_driver he_driver = {
 	.name =		"he",
 	.probe =	he_init_one,
-	.remove =	__devexit_p(he_remove_one),
+	.remove =	he_remove_one,
 	.id_table =	he_pci_tbl,
 };
 
-static int __init he_init(void)
-{
-	return pci_register_driver(&he_driver);
-}
-
-static void __exit he_cleanup(void)
-{
-	pci_unregister_driver(&he_driver);
-}
-
-module_init(he_init);
-module_exit(he_cleanup);
+module_pci_driver(he_driver);

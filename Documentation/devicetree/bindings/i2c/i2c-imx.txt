@@ -1,0 +1,28 @@
+* Freescale Inter IC (I2C) and High Speed Inter IC (HS-I2C) for i.MX
+
+Required properties:
+- compatible :
+  - "fsl,imx1-i2c" for I2C compatible with the one integrated on i.MX1 SoC
+  - "fsl,imx21-i2c" for I2C compatible with the one integrated on i.MX21 SoC
+  - "fsl,vf610-i2c" for I2C compatible with the one integrated on Vybrid vf610 SoC
+- reg : Should contain I2C/HS-I2C registers location and length
+- interrupts : Should contain I2C/HS-I2C interrupt
+
+Optional properties:
+- clock-frequency : Constains desired I2C/HS-I2C bus clock frequency in Hz.
+  The absence of the propoerty indicates the default frequency 100 kHz.
+
+Examples:
+
+i2c@83fc4000 { /* I2C2 on i.MX51 */
+	compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
+	reg = <0x83fc4000 0x4000>;
+	interrupts = <63>;
+};
+
+i2c@70038000 { /* HS-I2C on i.MX51 */
+	compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
+	reg = <0x70038000 0x4000>;
+	interrupts = <64>;
+	clock-frequency = <400000>;
+};

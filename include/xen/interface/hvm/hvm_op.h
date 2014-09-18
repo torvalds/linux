@@ -43,4 +43,23 @@ struct xen_hvm_pagetable_dying {
 typedef struct xen_hvm_pagetable_dying xen_hvm_pagetable_dying_t;
 DEFINE_GUEST_HANDLE_STRUCT(xen_hvm_pagetable_dying_t);
  
+enum hvmmem_type_t {
+    HVMMEM_ram_rw,             /* Normal read/write guest RAM */
+    HVMMEM_ram_ro,             /* Read-only; writes are discarded */
+    HVMMEM_mmio_dm,            /* Reads and write go to the device model */
+};
+
+#define HVMOP_get_mem_type    15
+/* Return hvmmem_type_t for the specified pfn. */
+struct xen_hvm_get_mem_type {
+    /* Domain to be queried. */
+    domid_t domid;
+    /* OUT variable. */
+    uint16_t mem_type;
+    uint16_t pad[2]; /* align next field on 8-byte boundary */
+    /* IN variable. */
+    uint64_t pfn;
+};
+DEFINE_GUEST_HANDLE_STRUCT(xen_hvm_get_mem_type);
+
 #endif /* __XEN_PUBLIC_HVM_HVM_OP_H__ */

@@ -1,0 +1,26 @@
+Tegra SoC PWFM controller
+
+Required properties:
+- compatible: should be one of:
+  - "nvidia,tegra20-pwm"
+  - "nvidia,tegra30-pwm"
+- reg: physical base address and length of the controller's registers
+- #pwm-cells: should be 2. See pwm.txt in this directory for a description of
+  the cells format.
+- clocks: Must contain one entry, for the module clock.
+  See ../clocks/clock-bindings.txt for details.
+- resets: Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names: Must include the following entries:
+  - pwm
+
+Example:
+
+	pwm: pwm@7000a000 {
+		compatible = "nvidia,tegra20-pwm";
+		reg = <0x7000a000 0x100>;
+		#pwm-cells = <2>;
+		clocks = <&tegra_car 17>;
+		resets = <&tegra_car 17>;
+		reset-names = "pwm";
+	};

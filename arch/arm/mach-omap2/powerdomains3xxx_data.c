@@ -15,11 +15,9 @@
 #include <linux/init.h>
 #include <linux/bug.h>
 
-#include <plat/cpu.h>
-
+#include "soc.h"
 #include "powerdomain.h"
 #include "powerdomains2xxx_3xxx_data.h"
-
 #include "prcm-common.h"
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
@@ -52,7 +50,7 @@ static struct powerdomain iva2_pwrdm = {
 		[2] = PWRSTS_OFF_ON,
 		[3] = PWRSTS_ON,
 	},
-	.voltdm           = { .name = "mpu_iva" },
+	.voltdm		  = { .name = "mpu_iva" },
 };
 
 static struct powerdomain mpu_3xxx_pwrdm = {
@@ -68,7 +66,23 @@ static struct powerdomain mpu_3xxx_pwrdm = {
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_OFF_ON,
 	},
-	.voltdm           = { .name = "mpu_iva" },
+	.voltdm		  = { .name = "mpu_iva" },
+};
+
+static struct powerdomain mpu_am35x_pwrdm = {
+	.name		  = "mpu_pwrdm",
+	.prcm_offs	  = MPU_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
+	.flags		  = PWRDM_HAS_MPU_QUIRK,
+	.banks		  = 1,
+	.pwrsts_mem_ret	  = {
+		[0] = PWRSTS_ON,
+	},
+	.pwrsts_mem_on	  = {
+		[0] = PWRSTS_ON,
+	},
+	.voltdm		  = { .name = "mpu_iva" },
 };
 
 /*
@@ -95,7 +109,7 @@ static struct powerdomain core_3xxx_pre_es3_1_pwrdm = {
 		[0] = PWRSTS_OFF_RET_ON, /* MEM1ONSTATE */
 		[1] = PWRSTS_OFF_RET_ON, /* MEM2ONSTATE */
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
 };
 
 static struct powerdomain core_3xxx_es3_1_pwrdm = {
@@ -117,7 +131,24 @@ static struct powerdomain core_3xxx_es3_1_pwrdm = {
 		[0] = PWRSTS_OFF_RET_ON, /* MEM1ONSTATE */
 		[1] = PWRSTS_OFF_RET_ON, /* MEM2ONSTATE */
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain core_am35x_pwrdm = {
+	.name		  = "core_pwrdm",
+	.prcm_offs	  = CORE_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
+	.banks		  = 2,
+	.pwrsts_mem_ret	  = {
+		[0] = PWRSTS_ON,	 /* MEM1RETSTATE */
+		[1] = PWRSTS_ON,	 /* MEM2RETSTATE */
+	},
+	.pwrsts_mem_on	  = {
+		[0] = PWRSTS_ON, /* MEM1ONSTATE */
+		[1] = PWRSTS_ON, /* MEM2ONSTATE */
+	},
+	.voltdm		  = { .name = "core" },
 };
 
 static struct powerdomain dss_pwrdm = {
@@ -132,7 +163,22 @@ static struct powerdomain dss_pwrdm = {
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain dss_am35x_pwrdm = {
+	.name		  = "dss_pwrdm",
+	.prcm_offs	  = OMAP3430_DSS_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
+	.banks		  = 1,
+	.pwrsts_mem_ret	  = {
+		[0] = PWRSTS_ON, /* MEMRETSTATE */
+	},
+	.pwrsts_mem_on	  = {
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
+	},
+	.voltdm		  = { .name = "core" },
 };
 
 /*
@@ -153,7 +199,22 @@ static struct powerdomain sgx_pwrdm = {
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain sgx_am35x_pwrdm = {
+	.name		  = "sgx_pwrdm",
+	.prcm_offs	  = OMAP3430ES2_SGX_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
+	.banks		  = 1,
+	.pwrsts_mem_ret	  = {
+		[0] = PWRSTS_ON, /* MEMRETSTATE */
+	},
+	.pwrsts_mem_on	  = {
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
+	},
+	.voltdm		  = { .name = "core" },
 };
 
 static struct powerdomain cam_pwrdm = {
@@ -168,7 +229,7 @@ static struct powerdomain cam_pwrdm = {
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
 };
 
 static struct powerdomain per_pwrdm = {
@@ -183,13 +244,28 @@ static struct powerdomain per_pwrdm = {
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain per_am35x_pwrdm = {
+	.name		  = "per_pwrdm",
+	.prcm_offs	  = OMAP3430_PER_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
+	.banks		  = 1,
+	.pwrsts_mem_ret	  = {
+		[0] = PWRSTS_ON, /* MEMRETSTATE */
+	},
+	.pwrsts_mem_on	  = {
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
+	},
+	.voltdm		  = { .name = "core" },
 };
 
 static struct powerdomain emu_pwrdm = {
 	.name		= "emu_pwrdm",
 	.prcm_offs	= OMAP3430_EMU_MOD,
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
 };
 
 static struct powerdomain neon_pwrdm = {
@@ -197,7 +273,15 @@ static struct powerdomain neon_pwrdm = {
 	.prcm_offs	  = OMAP3430_NEON_MOD,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_RET,
-	.voltdm           = { .name = "mpu_iva" },
+	.voltdm		  = { .name = "mpu_iva" },
+};
+
+static struct powerdomain neon_am35x_pwrdm = {
+	.name		  = "neon_pwrdm",
+	.prcm_offs	  = OMAP3430_NEON_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
+	.voltdm		  = { .name = "mpu_iva" },
 };
 
 static struct powerdomain usbhost_pwrdm = {
@@ -219,37 +303,92 @@ static struct powerdomain usbhost_pwrdm = {
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
 };
 
 static struct powerdomain dpll1_pwrdm = {
 	.name		= "dpll1_pwrdm",
 	.prcm_offs	= MPU_MOD,
-	.voltdm           = { .name = "mpu_iva" },
+	.voltdm		  = { .name = "mpu_iva" },
 };
 
 static struct powerdomain dpll2_pwrdm = {
 	.name		= "dpll2_pwrdm",
 	.prcm_offs	= OMAP3430_IVA2_MOD,
-	.voltdm           = { .name = "mpu_iva" },
+	.voltdm		  = { .name = "mpu_iva" },
 };
 
 static struct powerdomain dpll3_pwrdm = {
 	.name		= "dpll3_pwrdm",
 	.prcm_offs	= PLL_MOD,
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
 };
 
 static struct powerdomain dpll4_pwrdm = {
 	.name		= "dpll4_pwrdm",
 	.prcm_offs	= PLL_MOD,
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
 };
 
 static struct powerdomain dpll5_pwrdm = {
 	.name		= "dpll5_pwrdm",
 	.prcm_offs	= PLL_MOD,
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain alwon_81xx_pwrdm = {
+	.name		  = "alwon_pwrdm",
+	.prcm_offs	  = TI81XX_PRM_ALWON_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain device_81xx_pwrdm = {
+	.name		  = "device_pwrdm",
+	.prcm_offs	  = TI81XX_PRM_DEVICE_MOD,
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain active_816x_pwrdm = {
+	.name		  = "active_pwrdm",
+	.prcm_offs	  = TI816X_PRM_ACTIVE_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain default_816x_pwrdm = {
+	.name		  = "default_pwrdm",
+	.prcm_offs	  = TI81XX_PRM_DEFAULT_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "core" },
+};
+
+static struct powerdomain ivahd0_816x_pwrdm = {
+	.name		  = "ivahd0_pwrdm",
+	.prcm_offs	  = TI816X_PRM_IVAHD0_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "mpu_iva" },
+};
+
+static struct powerdomain ivahd1_816x_pwrdm = {
+	.name		  = "ivahd1_pwrdm",
+	.prcm_offs	  = TI816X_PRM_IVAHD1_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "mpu_iva" },
+};
+
+static struct powerdomain ivahd2_816x_pwrdm = {
+	.name		  = "ivahd2_pwrdm",
+	.prcm_offs	  = TI816X_PRM_IVAHD2_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "mpu_iva" },
+};
+
+static struct powerdomain sgx_816x_pwrdm = {
+	.name		  = "sgx_pwrdm",
+	.prcm_offs	  = TI816X_PRM_SGX_MOD,
+	.pwrsts		  = PWRSTS_OFF_ON,
+	.voltdm		  = { .name = "core" },
 };
 
 /* As powerdomains are added or removed above, this list must also be changed */
@@ -293,6 +432,34 @@ static struct powerdomain *powerdomains_omap3430es3_1plus[] __initdata = {
 	NULL
 };
 
+static struct powerdomain *powerdomains_am35x[] __initdata = {
+	&wkup_omap2_pwrdm,
+	&mpu_am35x_pwrdm,
+	&neon_am35x_pwrdm,
+	&core_am35x_pwrdm,
+	&sgx_am35x_pwrdm,
+	&dss_am35x_pwrdm,
+	&per_am35x_pwrdm,
+	&emu_pwrdm,
+	&dpll1_pwrdm,
+	&dpll3_pwrdm,
+	&dpll4_pwrdm,
+	&dpll5_pwrdm,
+	NULL
+};
+
+static struct powerdomain *powerdomains_ti81xx[] __initdata = {
+	&alwon_81xx_pwrdm,
+	&device_81xx_pwrdm,
+	&active_816x_pwrdm,
+	&default_816x_pwrdm,
+	&ivahd0_816x_pwrdm,
+	&ivahd1_816x_pwrdm,
+	&ivahd2_816x_pwrdm,
+	&sgx_816x_pwrdm,
+	NULL
+};
+
 void __init omap3xxx_powerdomains_init(void)
 {
 	unsigned int rev;
@@ -301,21 +468,37 @@ void __init omap3xxx_powerdomains_init(void)
 		return;
 
 	pwrdm_register_platform_funcs(&omap3_pwrdm_operations);
-	pwrdm_register_pwrdms(powerdomains_omap3430_common);
 
 	rev = omap_rev();
 
-	if (rev == OMAP3430_REV_ES1_0)
-		pwrdm_register_pwrdms(powerdomains_omap3430es1);
-	else if (rev == OMAP3430_REV_ES2_0 || rev == OMAP3430_REV_ES2_1 ||
-		 rev == OMAP3430_REV_ES3_0 || rev == OMAP3630_REV_ES1_0)
-		pwrdm_register_pwrdms(powerdomains_omap3430es2_es3_0);
-	else if (rev == OMAP3430_REV_ES3_1 || rev == OMAP3430_REV_ES3_1_2 ||
-		 rev == OMAP3517_REV_ES1_0 || rev == OMAP3517_REV_ES1_1 ||
-		 rev == OMAP3630_REV_ES1_1 || rev == OMAP3630_REV_ES1_2)
-		pwrdm_register_pwrdms(powerdomains_omap3430es3_1plus);
-	else
-		WARN(1, "OMAP3 powerdomain init: unknown chip type\n");
+	if (rev == AM35XX_REV_ES1_0 || rev == AM35XX_REV_ES1_1) {
+		pwrdm_register_pwrdms(powerdomains_am35x);
+	} else if (rev == TI8168_REV_ES1_0 || rev == TI8168_REV_ES1_1
+			|| rev == TI8168_REV_ES2_0 || rev == TI8168_REV_ES2_1) {
+		pwrdm_register_pwrdms(powerdomains_ti81xx);
+	} else {
+		pwrdm_register_pwrdms(powerdomains_omap3430_common);
+
+		switch (rev) {
+		case OMAP3430_REV_ES1_0:
+			pwrdm_register_pwrdms(powerdomains_omap3430es1);
+			break;
+		case OMAP3430_REV_ES2_0:
+		case OMAP3430_REV_ES2_1:
+		case OMAP3430_REV_ES3_0:
+		case OMAP3630_REV_ES1_0:
+			pwrdm_register_pwrdms(powerdomains_omap3430es2_es3_0);
+			break;
+		case OMAP3430_REV_ES3_1:
+		case OMAP3430_REV_ES3_1_2:
+		case OMAP3630_REV_ES1_1:
+		case OMAP3630_REV_ES1_2:
+			pwrdm_register_pwrdms(powerdomains_omap3430es3_1plus);
+			break;
+		default:
+			WARN(1, "OMAP3 powerdomain init: unknown chip type\n");
+		}
+	}
 
 	pwrdm_complete_init();
 }

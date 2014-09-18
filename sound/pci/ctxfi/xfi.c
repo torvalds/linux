@@ -44,7 +44,7 @@ MODULE_PARM_DESC(enable, "Enable Creative X-Fi driver");
 module_param_array(subsystem, int, NULL, 0444);
 MODULE_PARM_DESC(subsystem, "Override subsystem ID for Creative X-Fi driver");
 
-static DEFINE_PCI_DEVICE_TABLE(ct_pci_dev_ids) = {
+static const struct pci_device_id ct_pci_dev_ids[] = {
 	/* only X-Fi is supported, so... */
 	{ PCI_DEVICE(PCI_VENDOR_ID_CREATIVE, PCI_DEVICE_ID_CREATIVE_20K1),
 	  .driver_data = ATC20K1,
@@ -56,7 +56,7 @@ static DEFINE_PCI_DEVICE_TABLE(ct_pci_dev_ids) = {
 };
 MODULE_DEVICE_TABLE(pci, ct_pci_dev_ids);
 
-static int __devinit
+static int
 ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
@@ -71,7 +71,8 @@ ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		dev++;
 		return -ENOENT;
 	}
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err)
 		return err;
 	if ((reference_rate != 48000) && (reference_rate != 44100)) {
@@ -119,50 +120,42 @@ error:
 	return err;
 }
 
-static void __devexit ct_card_remove(struct pci_dev *pci)
+static void ct_card_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
-#ifdef CONFIG_PM
-static int ct_card_suspend(struct pci_dev *pci, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int ct_card_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct ct_atc *atc = card->private_data;
 
-	return atc->suspend(atc, state);
+	return atc->suspend(atc);
 }
 
-static int ct_card_resume(struct pci_dev *pci)
+static int ct_card_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct ct_atc *atc = card->private_data;
 
 	return atc->resume(atc);
 }
+
+static SIMPLE_DEV_PM_OPS(ct_card_pm, ct_card_suspend, ct_card_resume);
+#define CT_CARD_PM_OPS	&ct_card_pm
+#else
+#define CT_CARD_PM_OPS	NULL
 #endif
 
 static struct pci_driver ct_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = ct_pci_dev_ids,
 	.probe = ct_card_probe,
-	.remove = __devexit_p(ct_card_remove),
-#ifdef CONFIG_PM
-	.suspend = ct_card_suspend,
-	.resume = ct_card_resume,
-#endif
+	.remove = ct_card_remove,
+	.driver = {
+		.pm = CT_CARD_PM_OPS,
+	},
 };
 
-static int __init ct_card_init(void)
-{
-	return pci_register_driver(&ct_driver);
-}
-
-static void __exit ct_card_exit(void)
-{
-	pci_unregister_driver(&ct_driver);
-}
-
-module_init(ct_card_init)
-module_exit(ct_card_exit)
+module_pci_driver(ct_driver);

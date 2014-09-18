@@ -1,4 +1,6 @@
+#include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include <asm/cputype.h>
 #include <asm/idmap.h>
@@ -7,7 +9,13 @@
 #include <asm/sections.h>
 #include <asm/system_info.h>
 
+/*
+ * Note: accesses outside of the kernel image and the identity map area
+ * are not supported on any CPU using the idmap tables as its current
+ * page tables.
+ */
 pgd_t *idmap_pgd;
+phys_addr_t (*arch_virt_to_idmap) (unsigned long x);
 
 #ifdef CONFIG_ARM_LPAE
 static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
@@ -22,6 +30,13 @@ static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 			pr_warning("Failed to allocate identity pmd.\n");
 			return;
 		}
+		/*
+		 * Copy the original PMD to ensure that the PMD entries for
+		 * the kernel image are preserved.
+		 */
+		if (!pud_none(*pud))
+			memcpy(pmd, pmd_offset(pud, 0),
+			       PTRS_PER_PMD * sizeof(pmd_t));
 		pud_populate(&init_mm, pud, pmd);
 		pmd += pmd_index(addr);
 	} else
@@ -59,11 +74,18 @@ static void idmap_add_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
 	} while (pud++, addr = next, addr != end);
 }
 
-static void identity_mapping_add(pgd_t *pgd, unsigned long addr, unsigned long end)
+static void identity_mapping_add(pgd_t *pgd, const char *text_start,
+				 const char *text_end, unsigned long prot)
 {
-	unsigned long prot, next;
+	unsigned long addr, end;
+	unsigned long next;
 
-	prot = PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AF;
+	addr = virt_to_idmap(text_start);
+	end = virt_to_idmap(text_end);
+	pr_info("Setting up static identity map for 0x%lx - 0x%lx\n", addr, end);
+
+	prot |= PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AF;
+
 	if (cpu_architecture() <= CPU_ARCH_ARMv5TEJ && !cpu_is_xscale())
 		prot |= PMD_BIT4;
 
@@ -78,19 +100,15 @@ extern char  __idmap_text_start[], __idmap_text_end[];
 
 static int __init init_static_idmap(void)
 {
-	phys_addr_t idmap_start, idmap_end;
-
 	idmap_pgd = pgd_alloc(&init_mm);
 	if (!idmap_pgd)
 		return -ENOMEM;
 
-	/* Add an identity mapping for the physical address of the section. */
-	idmap_start = virt_to_phys((void *)__idmap_text_start);
-	idmap_end = virt_to_phys((void *)__idmap_text_end);
+	identity_mapping_add(idmap_pgd, __idmap_text_start,
+			     __idmap_text_end, 0);
 
-	pr_info("Setting up static identity map for 0x%llx - 0x%llx\n",
-		(long long)idmap_start, (long long)idmap_end);
-	identity_mapping_add(idmap_pgd, idmap_start, idmap_end);
+	/* Flush L1 for the hardware to see this page table content */
+	flush_cache_louis();
 
 	return 0;
 }
@@ -103,12 +121,16 @@ early_initcall(init_static_idmap);
  */
 void setup_mm_for_reboot(void)
 {
-	/* Clean and invalidate L1. */
-	flush_cache_all();
-
 	/* Switch to the identity mapping. */
 	cpu_switch_mm(idmap_pgd, &init_mm);
+	local_flush_bp_all();
 
-	/* Flush the TLB. */
+#ifdef CONFIG_CPU_HAS_ASID
+	/*
+	 * We don't have a clean ASID for the identity mapping, which
+	 * may clash with virtual addresses of the previous page tables
+	 * and therefore potentially in the TLB.
+	 */
 	local_flush_tlb_all();
+#endif
 }

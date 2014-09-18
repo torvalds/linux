@@ -7,10 +7,11 @@
  */
 /dts-v1/;
 
-/include/ "omap3.dtsi"
+#include "omap34xx.dtsi"
+#include "omap3-evm-common.dtsi"
 
 / {
-	model = "TI OMAP3 EVM (OMAP3530, AM/DM37x)";
+	model = "TI OMAP35XX EVM (TMDSEVM3530)";
 	compatible = "ti,omap3-evm", "ti,omap3";
 
 	memory {

@@ -5,12 +5,9 @@
  * Licensed under the GPL
  */
 
-#include "linux/linkage.h"
-#include "linux/personality.h"
-#include "linux/utsname.h"
-#include "asm/prctl.h" /* XXX This should get the constants from libc */
-#include "asm/uaccess.h"
-#include "os.h"
+#include <linux/sched.h>
+#include <asm/prctl.h> /* XXX This should get the constants from libc */
+#include <os.h>
 
 long arch_prctl(struct task_struct *task, int code, unsigned long __user *addr)
 {
@@ -77,20 +74,6 @@ long arch_prctl(struct task_struct *task, int code, unsigned long __user *addr)
 long sys_arch_prctl(int code, unsigned long addr)
 {
 	return arch_prctl(current, code, (unsigned long __user *) addr);
-}
-
-long sys_clone(unsigned long clone_flags, unsigned long newsp,
-	       void __user *parent_tid, void __user *child_tid)
-{
-	long ret;
-
-	if (!newsp)
-		newsp = UPT_SP(&current->thread.regs.regs);
-	current->thread.forking = 1;
-	ret = do_fork(clone_flags, newsp, &current->thread.regs, 0, parent_tid,
-		      child_tid);
-	current->thread.forking = 0;
-	return ret;
 }
 
 void arch_switch_to(struct task_struct *to)

@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 
 #include <asm/errno.h>
+#include "of_private.h"
 
 /**
  * of_match_device - Tell if a struct device matches an of_device_id list
@@ -84,6 +85,9 @@ ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len)
 	int cplen, i;
 	ssize_t tsize, csize, repend;
 
+	if ((!dev) || (!dev->of_node))
+		return -ENODEV;
+
 	/* Name & Type */
 	csize = snprintf(str, len, "of:N%sT%s", dev->of_node->name,
 			 dev->of_node->type);
@@ -131,6 +135,7 @@ ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len)
 void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	const char *compat;
+	struct alias_prop *app;
 	int seen = 0, cplen, sl;
 
 	if ((!dev) || (!dev->of_node))
@@ -153,6 +158,17 @@ void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 		seen++;
 	}
 	add_uevent_var(env, "OF_COMPATIBLE_N=%d", seen);
+
+	seen = 0;
+	mutex_lock(&of_mutex);
+	list_for_each_entry(app, &aliases_lookup, link) {
+		if (dev->of_node == app->np) {
+			add_uevent_var(env, "OF_ALIAS_%d=%s", seen,
+				       app->alias);
+			seen++;
+		}
+	}
+	mutex_unlock(&of_mutex);
 }
 
 int of_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env)

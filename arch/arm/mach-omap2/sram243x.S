@@ -32,11 +32,10 @@
 
 #include <asm/assembler.h>
 
-#include <mach/hardware.h>
-
+#include "soc.h"
 #include "iomap.h"
-#include "prm2xxx_3xxx.h"
-#include "cm2xxx_3xxx.h"
+#include "prm2xxx.h"
+#include "cm2xxx.h"
 #include "sdrc.h"
 
 	.text
@@ -102,7 +101,7 @@ i_dll_wait:
 i_dll_delay:
 	subs	r4, r4, #0x1
 	bne	i_dll_delay
-	mov	pc, lr
+	ret	lr
 
 	/*
 	 * shift up or down voltage, use R9 as input to tell level.
@@ -126,7 +125,7 @@ volt_delay:
 	ldr	r7, [r3]		@ get timer value
 	cmp	r5, r7			@ time up?
 	bhi	volt_delay		@ not yet->branch
-	mov	pc, lr			@ back to caller.
+	ret	lr			@ back to caller.
 
 omap243x_sdi_cm_clksel2_pll:
 	.word OMAP2430_CM_REGADDR(PLL_MOD, CM_CLKSEL2)
@@ -221,7 +220,7 @@ volt_delay_c:
 	ldr	r7, [r10]		@ get timer value
 	cmp	r8, r7			@ time up?
 	bhi	volt_delay_c		@ not yet->branch
-	mov	pc, lr			@ back to caller
+	ret	lr			@ back to caller
 
 omap243x_srs_cm_clksel2_pll:
 	.word OMAP2430_CM_REGADDR(PLL_MOD, CM_CLKSEL2)

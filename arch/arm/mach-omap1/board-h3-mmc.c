@@ -16,9 +16,8 @@
 
 #include <linux/i2c/tps65010.h>
 
-#include <plat/mmc.h>
-
 #include "board-h3.h"
+#include "mmc.h"
 
 #if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
 
@@ -36,7 +35,6 @@ static int mmc_set_power(struct device *dev, int slot, int power_on,
  */
 static struct omap_mmc_platform_data mmc1_data = {
 	.nr_slots                       = 1,
-	.dma_mask			= 0xffffffff,
 	.slots[0]       = {
 		.set_power              = mmc_set_power,
 		.ocr_mask               = MMC_VDD_32_33 | MMC_VDD_33_34,

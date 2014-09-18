@@ -99,7 +99,7 @@ extern unsigned long uml_physmem;
 
 #define __va_space (8*1024*1024)
 
-#include "mem.h"
+#include <mem.h>
 
 /* Cast to unsigned long before casting to void * to avoid a warning from
  * mmap_kmem about cutting a long long down to a void *.  Not sure that
@@ -119,4 +119,9 @@ extern unsigned long uml_physmem;
 #include <asm-generic/getorder.h>
 
 #endif	/* __ASSEMBLY__ */
+
+#ifdef CONFIG_X86_32
+#define __HAVE_ARCH_GATE_AREA 1
+#endif
+
 #endif	/* __UM_PAGE_H */

@@ -130,7 +130,7 @@ struct cbq_class {
 	psched_time_t		penalized;
 	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue qstats;
-	struct gnet_stats_rate_est rate_est;
+	struct gnet_stats_rate_est64 rate_est;
 	struct tc_cbq_xstats	xstats;
 
 	struct tcf_proto	*filter_list;
@@ -159,7 +159,6 @@ struct cbq_sched_data {
 	struct cbq_class	*tx_borrowed;
 	int			tx_len;
 	psched_time_t		now;		/* Cached timestamp */
-	psched_time_t		now_rt;		/* Cached real time */
 	unsigned int		pmask;
 
 	struct hrtimer		delay_timer;
@@ -250,10 +249,11 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 			else if ((cl = defmap[res.classid & TC_PRIO_MAX]) == NULL)
 				cl = defmap[TC_PRIO_BESTEFFORT];
 
-			if (cl == NULL || cl->level >= head->level)
+			if (cl == NULL)
 				goto fallback;
 		}
-
+		if (cl->level >= head->level)
+			goto fallback;
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
 		case TC_ACT_QUEUED:
@@ -352,12 +352,7 @@ cbq_mark_toplevel(struct cbq_sched_data *q, struct cbq_class *cl)
 	int toplevel = q->toplevel;
 
 	if (toplevel > cl->level && !(qdisc_is_throttled(cl->q))) {
-		psched_time_t now;
-		psched_tdiff_t incr;
-
-		now = psched_get_time();
-		incr = now - q->now_rt;
-		now = q->now + incr;
+		psched_time_t now = psched_get_time();
 
 		do {
 			if (cl->undertime < now) {
@@ -508,8 +503,7 @@ static void cbq_ovl_delay(struct cbq_class *cl)
 			cl->cpriority = TC_CBQ_MAXPRIO;
 			q->pmask |= (1<<TC_CBQ_MAXPRIO);
 
-			expires = ktime_set(0, 0);
-			expires = ktime_add_ns(expires, PSCHED_TICKS2NS(sched));
+			expires = ns_to_ktime(PSCHED_TICKS2NS(sched));
 			if (hrtimer_try_to_cancel(&q->delay_timer) &&
 			    ktime_to_ns(ktime_sub(
 					hrtimer_get_expires(&q->delay_timer),
@@ -700,8 +694,13 @@ cbq_update(struct cbq_sched_data *q)
 	struct cbq_class *this = q->tx_class;
 	struct cbq_class *cl = this;
 	int len = q->tx_len;
+	psched_time_t now;
 
 	q->tx_class = NULL;
+	/* Time integrator. We calculate EOS time
+	 * by adding expected packet transmission time.
+	 */
+	now = q->now + L2T(&q->link, len);
 
 	for ( ; cl; cl = cl->share) {
 		long avgidle = cl->avgidle;
@@ -717,7 +716,7 @@ cbq_update(struct cbq_sched_data *q)
 		 *	idle = (now - last) - last_pktlen/rate
 		 */
 
-		idle = q->now - cl->last;
+		idle = now - cl->last;
 		if ((unsigned long)idle > 128*1024*1024) {
 			avgidle = cl->maxidle;
 		} else {
@@ -761,7 +760,7 @@ cbq_update(struct cbq_sched_data *q)
 			idle -= L2T(&q->link, len);
 			idle += L2T(cl, len);
 
-			cl->undertime = q->now + idle;
+			cl->undertime = now + idle;
 		} else {
 			/* Underlimit */
 
@@ -771,7 +770,8 @@ cbq_update(struct cbq_sched_data *q)
 			else
 				cl->avgidle = avgidle;
 		}
-		cl->last = q->now;
+		if ((s64)(now - cl->last) > 0)
+			cl->last = now;
 	}
 
 	cbq_update_toplevel(q, this, q->tx_borrowed);
@@ -943,28 +943,13 @@ cbq_dequeue(struct Qdisc *sch)
 	struct sk_buff *skb;
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	psched_time_t now;
-	psched_tdiff_t incr;
 
 	now = psched_get_time();
-	incr = now - q->now_rt;
 
-	if (q->tx_class) {
-		psched_tdiff_t incr2;
-		/* Time integrator. We calculate EOS time
-		 * by adding expected packet transmission time.
-		 * If real time is greater, we warp artificial clock,
-		 * so that:
-		 *
-		 * cbq_time = max(real_time, work);
-		 */
-		incr2 = L2T(&q->link, q->tx_len);
-		q->now += incr2;
+	if (q->tx_class)
 		cbq_update(q);
-		if ((incr -= incr2) < 0)
-			incr = 0;
-	}
-	q->now += incr;
-	q->now_rt = now;
+
+	q->now = now;
 
 	for (;;) {
 		q->wd_expires = 0;
@@ -1041,14 +1026,13 @@ static void cbq_adjust_levels(struct cbq_class *this)
 static void cbq_normalize_quanta(struct cbq_sched_data *q, int prio)
 {
 	struct cbq_class *cl;
-	struct hlist_node *n;
 	unsigned int h;
 
 	if (q->quanta[prio] == 0)
 		return;
 
 	for (h = 0; h < q->clhash.hashsize; h++) {
-		hlist_for_each_entry(cl, n, &q->clhash.hash[h], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
 			/* BUGGGG... Beware! This expression suffer of
 			 * arithmetic overflows!
 			 */
@@ -1056,9 +1040,10 @@ static void cbq_normalize_quanta(struct cbq_sched_data *q, int prio)
 				cl->quantum = (cl->weight*cl->allot*q->nclasses[prio])/
 					q->quanta[prio];
 			}
-			if (cl->quantum <= 0 || cl->quantum>32*qdisc_dev(cl->qdisc)->mtu) {
-				pr_warning("CBQ: class %08x has bad quantum==%ld, repaired.\n",
-					   cl->common.classid, cl->quantum);
+			if (cl->quantum <= 0 ||
+			    cl->quantum > 32*qdisc_dev(cl->qdisc)->mtu) {
+				pr_warn("CBQ: class %08x has bad quantum==%ld, repaired.\n",
+					cl->common.classid, cl->quantum);
 				cl->quantum = qdisc_dev(cl->qdisc)->mtu/2 + 1;
 			}
 		}
@@ -1087,10 +1072,9 @@ static void cbq_sync_defmap(struct cbq_class *cl)
 			continue;
 
 		for (h = 0; h < q->clhash.hashsize; h++) {
-			struct hlist_node *n;
 			struct cbq_class *c;
 
-			hlist_for_each_entry(c, n, &q->clhash.hash[h],
+			hlist_for_each_entry(c, &q->clhash.hash[h],
 					     common.hnode) {
 				if (c->split == split && c->level < level &&
 				    c->defmap & (1<<i)) {
@@ -1210,7 +1194,6 @@ cbq_reset(struct Qdisc *sch)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct cbq_class *cl;
-	struct hlist_node *n;
 	int prio;
 	unsigned int h;
 
@@ -1222,13 +1205,12 @@ cbq_reset(struct Qdisc *sch)
 	hrtimer_cancel(&q->delay_timer);
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	q->now = psched_get_time();
-	q->now_rt = q->now;
 
 	for (prio = 0; prio <= TC_CBQ_MAXPRIO; prio++)
 		q->active[prio] = NULL;
 
 	for (h = 0; h < q->clhash.hashsize; h++) {
-		hlist_for_each_entry(cl, n, &q->clhash.hash[h], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
 			qdisc_reset(cl->q);
 
 			cl->next_alive = NULL;
@@ -1406,7 +1388,6 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->delay_timer.function = cbq_undelay;
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	q->now = psched_get_time();
-	q->now_rt = q->now;
 
 	cbq_link_class(&q->link);
 
@@ -1425,7 +1406,8 @@ static int cbq_dump_rate(struct sk_buff *skb, struct cbq_class *cl)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 
-	NLA_PUT(skb, TCA_CBQ_RATE, sizeof(cl->R_tab->rate), &cl->R_tab->rate);
+	if (nla_put(skb, TCA_CBQ_RATE, sizeof(cl->R_tab->rate), &cl->R_tab->rate))
+		goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:
@@ -1450,7 +1432,8 @@ static int cbq_dump_lss(struct sk_buff *skb, struct cbq_class *cl)
 	opt.minidle = (u32)(-cl->minidle);
 	opt.offtime = cl->offtime;
 	opt.change = ~0;
-	NLA_PUT(skb, TCA_CBQ_LSSOPT, sizeof(opt), &opt);
+	if (nla_put(skb, TCA_CBQ_LSSOPT, sizeof(opt), &opt))
+		goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:
@@ -1463,12 +1446,14 @@ static int cbq_dump_wrr(struct sk_buff *skb, struct cbq_class *cl)
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_cbq_wrropt opt;
 
+	memset(&opt, 0, sizeof(opt));
 	opt.flags = 0;
 	opt.allot = cl->allot;
 	opt.priority = cl->priority + 1;
 	opt.cpriority = cl->cpriority + 1;
 	opt.weight = cl->weight;
-	NLA_PUT(skb, TCA_CBQ_WRROPT, sizeof(opt), &opt);
+	if (nla_put(skb, TCA_CBQ_WRROPT, sizeof(opt), &opt))
+		goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:
@@ -1485,7 +1470,8 @@ static int cbq_dump_ovl(struct sk_buff *skb, struct cbq_class *cl)
 	opt.priority2 = cl->priority2 + 1;
 	opt.pad = 0;
 	opt.penalty = cl->penalty;
-	NLA_PUT(skb, TCA_CBQ_OVL_STRATEGY, sizeof(opt), &opt);
+	if (nla_put(skb, TCA_CBQ_OVL_STRATEGY, sizeof(opt), &opt))
+		goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:
@@ -1502,7 +1488,8 @@ static int cbq_dump_fopt(struct sk_buff *skb, struct cbq_class *cl)
 		opt.split = cl->split ? cl->split->common.classid : 0;
 		opt.defmap = cl->defmap;
 		opt.defchange = ~0;
-		NLA_PUT(skb, TCA_CBQ_FOPT, sizeof(opt), &opt);
+		if (nla_put(skb, TCA_CBQ_FOPT, sizeof(opt), &opt))
+			goto nla_put_failure;
 	}
 	return skb->len;
 
@@ -1521,7 +1508,8 @@ static int cbq_dump_police(struct sk_buff *skb, struct cbq_class *cl)
 		opt.police = cl->police;
 		opt.__res1 = 0;
 		opt.__res2 = 0;
-		NLA_PUT(skb, TCA_CBQ_POLICE, sizeof(opt), &opt);
+		if (nla_put(skb, TCA_CBQ_POLICE, sizeof(opt), &opt))
+			goto nla_put_failure;
 	}
 	return skb->len;
 
@@ -1555,8 +1543,7 @@ static int cbq_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 	if (cbq_dump_attr(skb, &q->link) < 0)
 		goto nla_put_failure;
-	nla_nest_end(skb, nest);
-	return skb->len;
+	return nla_nest_end(skb, nest);
 
 nla_put_failure:
 	nla_nest_cancel(skb, nest);
@@ -1591,8 +1578,7 @@ cbq_dump_class(struct Qdisc *sch, unsigned long arg,
 		goto nla_put_failure;
 	if (cbq_dump_attr(skb, cl) < 0)
 		goto nla_put_failure;
-	nla_nest_end(skb, nest);
-	return skb->len;
+	return nla_nest_end(skb, nest);
 
 nla_put_failure:
 	nla_nest_cancel(skb, nest);
@@ -1691,7 +1677,7 @@ static void cbq_destroy_class(struct Qdisc *sch, struct cbq_class *cl)
 static void cbq_destroy(struct Qdisc *sch)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
-	struct hlist_node *n, *next;
+	struct hlist_node *next;
 	struct cbq_class *cl;
 	unsigned int h;
 
@@ -1704,11 +1690,11 @@ static void cbq_destroy(struct Qdisc *sch)
 	 * be bound to classes which have been destroyed already. --TGR '04
 	 */
 	for (h = 0; h < q->clhash.hashsize; h++) {
-		hlist_for_each_entry(cl, n, &q->clhash.hash[h], common.hnode)
+		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode)
 			tcf_destroy_chain(&cl->filter_list);
 	}
 	for (h = 0; h < q->clhash.hashsize; h++) {
-		hlist_for_each_entry_safe(cl, n, next, &q->clhash.hash[h],
+		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[h],
 					  common.hnode)
 			cbq_destroy_class(sch, cl);
 	}
@@ -1775,8 +1761,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 						    qdisc_root_sleeping_lock(sch),
 						    tca[TCA_RATE]);
 			if (err) {
-				if (rtab)
-					qdisc_put_rtab(rtab);
+				qdisc_put_rtab(rtab);
 				return err;
 			}
 		}
@@ -2007,14 +1992,13 @@ static void cbq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct cbq_class *cl;
-	struct hlist_node *n;
 	unsigned int h;
 
 	if (arg->stop)
 		return;
 
 	for (h = 0; h < q->clhash.hashsize; h++) {
-		hlist_for_each_entry(cl, n, &q->clhash.hash[h], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
 			if (arg->count < arg->skip) {
 				arg->count++;
 				continue;

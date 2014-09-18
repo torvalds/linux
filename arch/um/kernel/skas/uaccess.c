@@ -11,8 +11,8 @@
 #include <asm/current.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include "kern_util.h"
-#include "os.h"
+#include <kern_util.h>
+#include <os.h>
 
 pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr)
 {
@@ -254,6 +254,6 @@ int strnlen_user(const void __user *str, int len)
 	n = buffer_op((unsigned long) str, len, 0, strnlen_chunk, &count);
 	if (n == 0)
 		return count + 1;
-	return -EFAULT;
+	return 0;
 }
 EXPORT_SYMBOL(strnlen_user);

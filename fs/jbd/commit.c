@@ -86,7 +86,12 @@ nope:
 static void release_data_buffer(struct buffer_head *bh)
 {
 	if (buffer_freed(bh)) {
+		WARN_ON_ONCE(buffer_dirty(bh));
 		clear_buffer_freed(bh);
+		clear_buffer_mapped(bh);
+		clear_buffer_new(bh);
+		clear_buffer_req(bh);
+		bh->b_bdev = NULL;
 		release_buffer_page(bh);
 	} else
 		put_bh(bh);
@@ -157,8 +162,17 @@ static void journal_do_submit_data(struct buffer_head **wbuf, int bufs,
 
 	for (i = 0; i < bufs; i++) {
 		wbuf[i]->b_end_io = end_buffer_write_sync;
-		/* We use-up our safety reference in submit_bh() */
-		submit_bh(write_op, wbuf[i]);
+		/*
+		 * Here we write back pagecache data that may be mmaped. Since
+		 * we cannot afford to clean the page and set PageWriteback
+		 * here due to lock ordering (page lock ranks above transaction
+		 * start), the data can change while IO is in flight. Tell the
+		 * block layer it should bounce the bio pages if stable data
+		 * during write is required.
+		 *
+		 * We use up our safety reference in submit_bh().
+		 */
+		_submit_bh(write_op, wbuf[i], 1 << BIO_SNAP_STABLE);
 	}
 }
 
@@ -298,6 +312,7 @@ void journal_commit_transaction(journal_t *journal)
 	int tag_flag;
 	int i;
 	struct blk_plug plug;
+	int write_op = WRITE;
 
 	/*
 	 * First job: lock down the current transaction and wait for
@@ -307,7 +322,16 @@ void journal_commit_transaction(journal_t *journal)
 	/* Do we need to erase the effects of a prior journal_flush? */
 	if (journal->j_flags & JFS_FLUSHED) {
 		jbd_debug(3, "super block updated\n");
-		journal_update_superblock(journal, 1);
+		mutex_lock(&journal->j_checkpoint_mutex);
+		/*
+		 * We hold j_checkpoint_mutex so tail cannot change under us.
+		 * We don't need any special data guarantees for writing sb
+		 * since journal is empty and it is ok for write to be
+		 * flushed only with transaction commit.
+		 */
+		journal_update_sb_log_tail(journal, journal->j_tail_sequence,
+					   journal->j_tail, WRITE_SYNC);
+		mutex_unlock(&journal->j_checkpoint_mutex);
 	} else {
 		jbd_debug(3, "superblock not updated\n");
 	}
@@ -316,13 +340,13 @@ void journal_commit_transaction(journal_t *journal)
 	J_ASSERT(journal->j_committing_transaction == NULL);
 
 	commit_transaction = journal->j_running_transaction;
-	J_ASSERT(commit_transaction->t_state == T_RUNNING);
 
 	trace_jbd_start_commit(journal, commit_transaction);
 	jbd_debug(1, "JBD: starting commit of transaction %d\n",
 			commit_transaction->t_tid);
 
 	spin_lock(&journal->j_state_lock);
+	J_ASSERT(commit_transaction->t_state == T_RUNNING);
 	commit_transaction->t_state = T_LOCKED;
 
 	trace_jbd_commit_locking(journal, commit_transaction);
@@ -413,13 +437,16 @@ void journal_commit_transaction(journal_t *journal)
 
 	jbd_debug (3, "JBD: commit phase 2\n");
 
+	if (tid_geq(journal->j_commit_waited, commit_transaction->t_tid))
+		write_op = WRITE_SYNC;
+
 	/*
 	 * Now start flushing things to disk, in the order they appear
 	 * on the transaction lists.  Data blocks go first.
 	 */
 	blk_start_plug(&plug);
 	err = journal_submit_data_buffers(journal, commit_transaction,
-					  WRITE_SYNC);
+					  write_op);
 	blk_finish_plug(&plug);
 
 	/*
@@ -478,7 +505,7 @@ void journal_commit_transaction(journal_t *journal)
 
 	blk_start_plug(&plug);
 
-	journal_write_revoke_records(journal, commit_transaction, WRITE_SYNC);
+	journal_write_revoke_records(journal, commit_transaction, write_op);
 
 	/*
 	 * If we found any dirty or locked buffers, then we should have
@@ -649,7 +676,17 @@ start_journal_io:
 				clear_buffer_dirty(bh);
 				set_buffer_uptodate(bh);
 				bh->b_end_io = journal_end_buffer_io_sync;
-				submit_bh(WRITE_SYNC, bh);
+				/*
+				 * In data=journal mode, here we can end up
+				 * writing pagecache data that might be
+				 * mmapped. Since we can't afford to clean the
+				 * page and set PageWriteback (see the comment
+				 * near the other use of _submit_bh()), the
+				 * data can change while the write is in
+				 * flight.  Tell the block layer to bounce the
+				 * bio pages if stable pages are required.
+				 */
+				_submit_bh(write_op, bh, 1 << BIO_SNAP_STABLE);
 			}
 			cond_resched();
 
@@ -853,17 +890,35 @@ restart_loop:
 		 * there's no point in keeping a checkpoint record for
 		 * it. */
 
-		/* A buffer which has been freed while still being
-		 * journaled by a previous transaction may end up still
-		 * being dirty here, but we want to avoid writing back
-		 * that buffer in the future after the "add to orphan"
-		 * operation been committed,  That's not only a performance
-		 * gain, it also stops aliasing problems if the buffer is
-		 * left behind for writeback and gets reallocated for another
-		 * use in a different page. */
-		if (buffer_freed(bh) && !jh->b_next_transaction) {
-			clear_buffer_freed(bh);
-			clear_buffer_jbddirty(bh);
+		/*
+		 * A buffer which has been freed while still being journaled by
+		 * a previous transaction.
+		 */
+		if (buffer_freed(bh)) {
+			/*
+			 * If the running transaction is the one containing
+			 * "add to orphan" operation (b_next_transaction !=
+			 * NULL), we have to wait for that transaction to
+			 * commit before we can really get rid of the buffer.
+			 * So just clear b_modified to not confuse transaction
+			 * credit accounting and refile the buffer to
+			 * BJ_Forget of the running transaction. If the just
+			 * committed transaction contains "add to orphan"
+			 * operation, we can completely invalidate the buffer
+			 * now. We are rather throughout in that since the
+			 * buffer may be still accessible when blocksize <
+			 * pagesize and it is attached to the last partial
+			 * page.
+			 */
+			jh->b_modified = 0;
+			if (!jh->b_next_transaction) {
+				clear_buffer_freed(bh);
+				clear_buffer_jbddirty(bh);
+				clear_buffer_mapped(bh);
+				clear_buffer_new(bh);
+				clear_buffer_req(bh);
+				bh->b_bdev = NULL;
+			}
 		}
 
 		if (buffer_jbddirty(bh)) {

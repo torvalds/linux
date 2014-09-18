@@ -2,9 +2,7 @@
  * This file contains error recovery level two functions used by
  * the iSCSI Target driver.
  *
- * \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -36,7 +34,7 @@
  */
 void iscsit_create_conn_recovery_datain_values(
 	struct iscsi_cmd *cmd,
-	u32 exp_data_sn)
+	__be32 exp_data_sn)
 {
 	u32 data_sn = 0;
 	struct iscsi_conn *conn = cmd->conn;
@@ -44,7 +42,7 @@ void iscsit_create_conn_recovery_datain_values(
 	cmd->next_burst_len = 0;
 	cmd->read_data_done = 0;
 
-	while (exp_data_sn > data_sn) {
+	while (be32_to_cpu(exp_data_sn) > data_sn) {
 		if ((cmd->next_burst_len +
 		     conn->conn_ops->MaxRecvDataSegmentLength) <
 		     conn->sess->sess_ops->MaxBurstLength) {
@@ -138,12 +136,12 @@ void iscsit_free_connection_recovery_entires(struct iscsi_session *sess)
 
 		spin_lock(&cr->conn_recovery_cmd_lock);
 		list_for_each_entry_safe(cmd, cmd_tmp,
-				&cr->conn_recovery_cmd_list, i_list) {
+				&cr->conn_recovery_cmd_list, i_conn_node) {
 
-			list_del(&cmd->i_list);
+			list_del_init(&cmd->i_conn_node);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
-			iscsit_free_cmd(cmd);
+			iscsit_free_cmd(cmd, true);
 			spin_lock(&cr->conn_recovery_cmd_lock);
 		}
 		spin_unlock(&cr->conn_recovery_cmd_lock);
@@ -160,12 +158,12 @@ void iscsit_free_connection_recovery_entires(struct iscsi_session *sess)
 
 		spin_lock(&cr->conn_recovery_cmd_lock);
 		list_for_each_entry_safe(cmd, cmd_tmp,
-				&cr->conn_recovery_cmd_list, i_list) {
+				&cr->conn_recovery_cmd_list, i_conn_node) {
 
-			list_del(&cmd->i_list);
+			list_del_init(&cmd->i_conn_node);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
-			iscsit_free_cmd(cmd);
+			iscsit_free_cmd(cmd, true);
 			spin_lock(&cr->conn_recovery_cmd_lock);
 		}
 		spin_unlock(&cr->conn_recovery_cmd_lock);
@@ -193,15 +191,13 @@ int iscsit_remove_active_connection_recovery_entry(
 	return 0;
 }
 
-int iscsit_remove_inactive_connection_recovery_entry(
+static void iscsit_remove_inactive_connection_recovery_entry(
 	struct iscsi_conn_recovery *cr,
 	struct iscsi_session *sess)
 {
 	spin_lock(&sess->cr_i_lock);
 	list_del(&cr->cr_list);
 	spin_unlock(&sess->cr_i_lock);
-
-	return 0;
 }
 
 /*
@@ -220,7 +216,7 @@ int iscsit_remove_cmd_from_connection_recovery(
 	}
 	cr = cmd->cr;
 
-	list_del(&cmd->i_list);
+	list_del_init(&cmd->i_conn_node);
 	return --cr->cmd_count;
 }
 
@@ -234,7 +230,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 
 	spin_lock(&cr->conn_recovery_cmd_lock);
 	list_for_each_entry_safe(cmd, cmd_tmp,
-			&cr->conn_recovery_cmd_list, i_list) {
+			&cr->conn_recovery_cmd_list, i_conn_node) {
 
 		if (((cmd->deferred_i_state != ISTATE_SENT_STATUS) &&
 		     (cmd->deferred_i_state != ISTATE_REMOVE)) ||
@@ -250,7 +246,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 		iscsit_remove_cmd_from_connection_recovery(cmd, sess);
 
 		spin_unlock(&cr->conn_recovery_cmd_lock);
-		iscsit_free_cmd(cmd);
+		iscsit_free_cmd(cmd, true);
 		spin_lock(&cr->conn_recovery_cmd_lock);
 	}
 	spin_unlock(&cr->conn_recovery_cmd_lock);
@@ -297,14 +293,14 @@ int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 	mutex_unlock(&sess->cmdsn_mutex);
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_list) {
+	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_conn_node) {
 		if (!(cmd->cmd_flags & ICF_OOO_CMDSN))
 			continue;
 
-		list_del(&cmd->i_list);
+		list_del_init(&cmd->i_conn_node);
 
 		spin_unlock_bh(&conn->cmd_lock);
-		iscsit_free_cmd(cmd);
+		iscsit_free_cmd(cmd, true);
 		spin_lock_bh(&conn->cmd_lock);
 	}
 	spin_unlock_bh(&conn->cmd_lock);
@@ -339,14 +335,14 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 	/*
 	 * Only perform connection recovery on ISCSI_OP_SCSI_CMD or
 	 * ISCSI_OP_NOOP_OUT opcodes.  For all other opcodes call
-	 * list_del(&cmd->i_list); to release the command to the
+	 * list_del_init(&cmd->i_conn_node); to release the command to the
 	 * session pool and remove it from the connection's list.
 	 *
 	 * Also stop the DataOUT timer, which will be restarted after
 	 * sending the TMR response.
 	 */
 	spin_lock_bh(&conn->cmd_lock);
-	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_list) {
+	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_conn_node) {
 
 		if ((cmd->iscsi_opcode != ISCSI_OP_SCSI_CMD) &&
 		    (cmd->iscsi_opcode != ISCSI_OP_NOOP_OUT)) {
@@ -355,9 +351,9 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 				" CID: %hu\n", cmd->iscsi_opcode,
 				cmd->init_task_tag, cmd->cmd_sn, conn->cid);
 
-			list_del(&cmd->i_list);
+			list_del_init(&cmd->i_conn_node);
 			spin_unlock_bh(&conn->cmd_lock);
-			iscsit_free_cmd(cmd);
+			iscsit_free_cmd(cmd, true);
 			spin_lock_bh(&conn->cmd_lock);
 			continue;
 		}
@@ -374,10 +370,10 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 		 * made generic here.
 		 */
 		if (!(cmd->cmd_flags & ICF_OOO_CMDSN) && !cmd->immediate_cmd &&
-		     (cmd->cmd_sn >= conn->sess->exp_cmd_sn)) {
-			list_del(&cmd->i_list);
+		     iscsi_sna_gte(cmd->cmd_sn, conn->sess->exp_cmd_sn)) {
+			list_del_init(&cmd->i_conn_node);
 			spin_unlock_bh(&conn->cmd_lock);
-			iscsit_free_cmd(cmd);
+			iscsit_free_cmd(cmd, true);
 			spin_lock_bh(&conn->cmd_lock);
 			continue;
 		}
@@ -397,7 +393,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 
 		cmd->sess = conn->sess;
 
-		list_del(&cmd->i_list);
+		list_del_init(&cmd->i_conn_node);
 		spin_unlock_bh(&conn->cmd_lock);
 
 		iscsit_free_all_datain_reqs(cmd);
@@ -407,7 +403,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 		 * Add the struct iscsi_cmd to the connection recovery cmd list
 		 */
 		spin_lock(&cr->conn_recovery_cmd_lock);
-		list_add_tail(&cmd->i_list, &cr->conn_recovery_cmd_list);
+		list_add_tail(&cmd->i_conn_node, &cr->conn_recovery_cmd_list);
 		spin_unlock(&cr->conn_recovery_cmd_lock);
 
 		spin_lock_bh(&conn->cmd_lock);
@@ -421,6 +417,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 	cr->cid = conn->cid;
 	cr->cmd_count = cmd_count;
 	cr->maxrecvdatasegmentlength = conn->conn_ops->MaxRecvDataSegmentLength;
+	cr->maxxmitdatasegmentlength = conn->conn_ops->MaxXmitDataSegmentLength;
 	cr->sess = conn->sess;
 
 	iscsit_attach_inactive_connection_recovery_entry(conn->sess, cr);

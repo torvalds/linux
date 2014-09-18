@@ -100,8 +100,10 @@ static unsigned long __kprobes dform_ea(unsigned int instr, struct pt_regs *regs
 	ea = (signed short) instr;		/* sign-extend */
 	if (ra) {
 		ea += regs->gpr[ra];
-		if (instr & 0x04000000)		/* update forms */
-			regs->gpr[ra] = ea;
+		if (instr & 0x04000000) {		/* update forms */
+			if ((instr>>26) != 47) 		/* stmw is not an update form */
+				regs->gpr[ra] = ea;
+		}
 	}
 
 	return truncate_if_32bit(regs->msr, ea);
@@ -210,11 +212,19 @@ static int __kprobes read_mem_unaligned(unsigned long *dest, unsigned long ea,
 {
 	int err;
 	unsigned long x, b, c;
+#ifdef __LITTLE_ENDIAN__
+	int len = nb; /* save a copy of the length for byte reversal */
+#endif
 
 	/* unaligned, do this in pieces */
 	x = 0;
 	for (; nb > 0; nb -= c) {
+#ifdef __LITTLE_ENDIAN__
+		c = 1;
+#endif
+#ifdef __BIG_ENDIAN__
 		c = max_align(ea);
+#endif
 		if (c > nb)
 			c = max_align(nb);
 		err = read_mem_aligned(&b, ea, c);
@@ -223,7 +233,24 @@ static int __kprobes read_mem_unaligned(unsigned long *dest, unsigned long ea,
 		x = (x << (8 * c)) + b;
 		ea += c;
 	}
+#ifdef __LITTLE_ENDIAN__
+	switch (len) {
+	case 2:
+		*dest = byterev_2(x);
+		break;
+	case 4:
+		*dest = byterev_4(x);
+		break;
+#ifdef __powerpc64__
+	case 8:
+		*dest = byterev_8(x);
+		break;
+#endif
+	}
+#endif
+#ifdef __BIG_ENDIAN__
 	*dest = x;
+#endif
 	return 0;
 }
 
@@ -271,15 +298,35 @@ static int __kprobes write_mem_unaligned(unsigned long val, unsigned long ea,
 	int err;
 	unsigned long c;
 
+#ifdef __LITTLE_ENDIAN__
+	switch (nb) {
+	case 2:
+		val = byterev_2(val);
+		break;
+	case 4:
+		val = byterev_4(val);
+		break;
+#ifdef __powerpc64__
+	case 8:
+		val = byterev_8(val);
+		break;
+#endif
+	}
+#endif
 	/* unaligned or little-endian, do this in pieces */
 	for (; nb > 0; nb -= c) {
+#ifdef __LITTLE_ENDIAN__
+		c = 1;
+#endif
+#ifdef __BIG_ENDIAN__
 		c = max_align(ea);
+#endif
 		if (c > nb)
 			c = max_align(nb);
 		err = write_mem_aligned(val >> (nb - c) * 8, ea, c);
 		if (err)
 			return err;
-		++ea;
+		ea += c;
 	}
 	return 0;
 }
@@ -308,22 +355,36 @@ static int __kprobes do_fp_load(int rn, int (*func)(int, unsigned long),
 				struct pt_regs *regs)
 {
 	int err;
-	unsigned long val[sizeof(double) / sizeof(long)];
+	union {
+		double dbl;
+		unsigned long ul[2];
+		struct {
+#ifdef __BIG_ENDIAN__
+			unsigned _pad_;
+			unsigned word;
+#endif
+#ifdef __LITTLE_ENDIAN__
+			unsigned word;
+			unsigned _pad_;
+#endif
+		} single;
+	} data;
 	unsigned long ptr;
 
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
 	if ((ea & 3) == 0)
 		return (*func)(rn, ea);
-	ptr = (unsigned long) &val[0];
+	ptr = (unsigned long) &data.ul;
 	if (sizeof(unsigned long) == 8 || nb == 4) {
-		err = read_mem_unaligned(&val[0], ea, nb, regs);
-		ptr += sizeof(unsigned long) - nb;
+		err = read_mem_unaligned(&data.ul[0], ea, nb, regs);
+		if (nb == 4)
+			ptr = (unsigned long)&(data.single.word);
 	} else {
 		/* reading a double on 32-bit */
-		err = read_mem_unaligned(&val[0], ea, 4, regs);
+		err = read_mem_unaligned(&data.ul[0], ea, 4, regs);
 		if (!err)
-			err = read_mem_unaligned(&val[1], ea + 4, 4, regs);
+			err = read_mem_unaligned(&data.ul[1], ea + 4, 4, regs);
 	}
 	if (err)
 		return err;
@@ -335,28 +396,42 @@ static int __kprobes do_fp_store(int rn, int (*func)(int, unsigned long),
 				 struct pt_regs *regs)
 {
 	int err;
-	unsigned long val[sizeof(double) / sizeof(long)];
+	union {
+		double dbl;
+		unsigned long ul[2];
+		struct {
+#ifdef __BIG_ENDIAN__
+			unsigned _pad_;
+			unsigned word;
+#endif
+#ifdef __LITTLE_ENDIAN__
+			unsigned word;
+			unsigned _pad_;
+#endif
+		} single;
+	} data;
 	unsigned long ptr;
 
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
 	if ((ea & 3) == 0)
 		return (*func)(rn, ea);
-	ptr = (unsigned long) &val[0];
+	ptr = (unsigned long) &data.ul[0];
 	if (sizeof(unsigned long) == 8 || nb == 4) {
-		ptr += sizeof(unsigned long) - nb;
+		if (nb == 4)
+			ptr = (unsigned long)&(data.single.word);
 		err = (*func)(rn, ptr);
 		if (err)
 			return err;
-		err = write_mem_unaligned(val[0], ea, nb, regs);
+		err = write_mem_unaligned(data.ul[0], ea, nb, regs);
 	} else {
 		/* writing a double on 32-bit */
 		err = (*func)(rn, ptr);
 		if (err)
 			return err;
-		err = write_mem_unaligned(val[0], ea, 4, regs);
+		err = write_mem_unaligned(data.ul[0], ea, 4, regs);
 		if (!err)
-			err = write_mem_unaligned(val[1], ea + 4, 4, regs);
+			err = write_mem_unaligned(data.ul[1], ea + 4, 4, regs);
 	}
 	return err;
 }
@@ -566,7 +641,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 	unsigned long int ea;
 	unsigned int cr, mb, me, sh;
 	int err;
-	unsigned long old_ra;
+	unsigned long old_ra, val3;
 	long ival;
 
 	opcode = instr >> 26;
@@ -580,7 +655,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		if (instr & 1)
 			regs->link = regs->nip;
 		if (branch_taken(instr, regs))
-			regs->nip = imm;
+			regs->nip = truncate_if_32bit(regs->msr, imm);
 		return 1;
 #ifdef CONFIG_PPC64
 	case 17:	/* sc */
@@ -1123,7 +1198,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 			sh = regs->gpr[rb] & 0x3f;
 			ival = (signed int) regs->gpr[rd];
 			regs->gpr[ra] = ival >> (sh < 32 ? sh : 31);
-			if (ival < 0 && (sh >= 32 || (ival & ((1 << sh) - 1)) != 0))
+			if (ival < 0 && (sh >= 32 || (ival & ((1ul << sh) - 1)) != 0))
 				regs->xer |= XER_CA;
 			else
 				regs->xer &= ~XER_CA;
@@ -1133,7 +1208,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 			sh = rb;
 			ival = (signed int) regs->gpr[rd];
 			regs->gpr[ra] = ival >> sh;
-			if (ival < 0 && (ival & ((1 << sh) - 1)) != 0)
+			if (ival < 0 && (ival & ((1ul << sh) - 1)) != 0)
 				regs->xer |= XER_CA;
 			else
 				regs->xer &= ~XER_CA;
@@ -1141,7 +1216,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 
 #ifdef __powerpc64__
 		case 27:	/* sld */
-			sh = regs->gpr[rd] & 0x7f;
+			sh = regs->gpr[rb] & 0x7f;
 			if (sh < 64)
 				regs->gpr[ra] = regs->gpr[rd] << sh;
 			else
@@ -1160,7 +1235,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 			sh = regs->gpr[rb] & 0x7f;
 			ival = (signed long int) regs->gpr[rd];
 			regs->gpr[ra] = ival >> (sh < 64 ? sh : 63);
-			if (ival < 0 && (sh >= 64 || (ival & ((1 << sh) - 1)) != 0))
+			if (ival < 0 && (sh >= 64 || (ival & ((1ul << sh) - 1)) != 0))
 				regs->xer |= XER_CA;
 			else
 				regs->xer &= ~XER_CA;
@@ -1171,7 +1246,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 			sh = rb | ((instr & 2) << 4);
 			ival = (signed long int) regs->gpr[rd];
 			regs->gpr[ra] = ival >> sh;
-			if (ival < 0 && (ival & ((1 << sh) - 1)) != 0)
+			if (ival < 0 && (ival & ((1ul << sh) - 1)) != 0)
 				regs->xer |= XER_CA;
 			else
 				regs->xer &= ~XER_CA;
@@ -1395,7 +1470,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 				regs->gpr[rd] = byterev_4(val);
 			goto ldst_done;
 
-#ifdef CONFIG_PPC_CPU
+#ifdef CONFIG_PPC_FPU
 		case 535:	/* lfsx */
 		case 567:	/* lfsux */
 			if (!(regs->msr & MSR_FP))
@@ -1486,9 +1561,42 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		goto ldst_done;
 
 	case 36:	/* stw */
-	case 37:	/* stwu */
 		val = regs->gpr[rd];
 		err = write_mem(val, dform_ea(instr, regs), 4, regs);
+		goto ldst_done;
+
+	case 37:	/* stwu */
+		val = regs->gpr[rd];
+		val3 = dform_ea(instr, regs);
+		/*
+		 * For PPC32 we always use stwu to change stack point with r1. So
+		 * this emulated store may corrupt the exception frame, now we
+		 * have to provide the exception frame trampoline, which is pushed
+		 * below the kprobed function stack. So we only update gpr[1] but
+		 * don't emulate the real store operation. We will do real store
+		 * operation safely in exception return code by checking this flag.
+		 */
+		if ((ra == 1) && !(regs->msr & MSR_PR) \
+			&& (val3 >= (regs->gpr[1] - STACK_INT_FRAME_SIZE))) {
+#ifdef CONFIG_PPC32
+			/*
+			 * Check if we will touch kernel sack overflow
+			 */
+			if (val3 - STACK_INT_FRAME_SIZE <= current->thread.ksp_limit) {
+				printk(KERN_CRIT "Can't kprobe this since Kernel stack overflow.\n");
+				err = -EINVAL;
+				break;
+			}
+#endif /* CONFIG_PPC32 */
+			/*
+			 * Check if we already set since that means we'll
+			 * lose the previous value.
+			 */
+			WARN_ON(test_thread_flag(TIF_EMULATE_STACK_STORE));
+			set_thread_flag(TIF_EMULATE_STACK_STORE);
+			err = 0;
+		} else
+			err = write_mem(val, val3, 4, regs);
 		goto ldst_done;
 
 	case 38:	/* stb */

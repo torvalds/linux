@@ -1,0 +1,30 @@
+Device Tree Clock bindings for Altera's SoCFPGA platform
+
+This binding uses the common clock binding[1].
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Required properties:
+- compatible : shall be one of the following:
+	"altr,socfpga-pll-clock" - for a PLL clock
+	"altr,socfpga-perip-clock" - The peripheral clock divided from the
+		PLL clock.
+	"altr,socfpga-gate-clk" - Clocks that directly feed peripherals and
+		can get gated.
+
+- reg : shall be the control register offset from CLOCK_MANAGER's base for the clock.
+- clocks : shall be the input parent clock phandle for the clock. This is
+	either an oscillator or a pll output.
+- #clock-cells : from common clock binding, shall be set to 0.
+
+Optional properties:
+- fixed-divider : If clocks have a fixed divider value, use this property.
+- clk-gate : For "socfpga-gate-clk", clk-gate contains the gating register
+        and the bit index.
+- div-reg : For "socfpga-gate-clk" and "socfpga-periph-clock", div-reg contains
+	the divider register, bit shift, and width.
+- clk-phase : For the sdmmc_clk, contains the value of the clock phase that controls
+	the SDMMC CIU clock. The first value is the clk_sample(smpsel), and the second
+	value is the cclk_in_drv(drvsel). The clk-phase is used to enable the correct
+	hold/delay times that is needed for the SD/MMC CIU clock. The values of both
+	can be 0-315 degrees, in 45 degree increments.

@@ -72,6 +72,7 @@ FILELINE * docsection;
 #define FUNCTION      "-function"
 #define NOFUNCTION    "-nofunction"
 #define NODOCSECTIONS "-no-doc-sections"
+#define SHOWNOTFOUND  "-show-not-found"
 
 static char *srctree, *kernsrctree;
 
@@ -153,7 +154,7 @@ int symfilecnt = 0;
 static void add_new_symbol(struct symfile *sym, char * symname)
 {
 	sym->symbollist =
-          realloc(sym->symbollist, (sym->symbolcnt + 1) * sizeof(char *));
+	  realloc(sym->symbollist, (sym->symbolcnt + 1) * sizeof(char *));
 	sym->symbollist[sym->symbolcnt++].name = strdup(symname);
 }
 
@@ -214,7 +215,7 @@ static void find_export_symbols(char * filename)
 			char *p;
 			char *e;
 			if (((p = strstr(line, "EXPORT_SYMBOL_GPL")) != NULL) ||
-                            ((p = strstr(line, "EXPORT_SYMBOL")) != NULL)) {
+			    ((p = strstr(line, "EXPORT_SYMBOL")) != NULL)) {
 				/* Skip EXPORT_SYMBOL{_GPL} */
 				while (isalnum(*p) || *p == '_')
 					p++;
@@ -290,27 +291,28 @@ static void extfunc(char * filename) { docfunctions(filename, FUNCTION);   }
 static void singfunc(char * filename, char * line)
 {
 	char *vec[200]; /* Enough for specific functions */
-        int i, idx = 0;
-        int startofsym = 1;
+	int i, idx = 0;
+	int startofsym = 1;
 	vec[idx++] = KERNELDOC;
 	vec[idx++] = DOCBOOK;
+	vec[idx++] = SHOWNOTFOUND;
 
-        /* Split line up in individual parameters preceded by FUNCTION */
-        for (i=0; line[i]; i++) {
-                if (isspace(line[i])) {
-                        line[i] = '\0';
-                        startofsym = 1;
-                        continue;
-                }
-                if (startofsym) {
-                        startofsym = 0;
-                        vec[idx++] = FUNCTION;
-                        vec[idx++] = &line[i];
-                }
-        }
+	/* Split line up in individual parameters preceded by FUNCTION */
+	for (i=0; line[i]; i++) {
+		if (isspace(line[i])) {
+			line[i] = '\0';
+			startofsym = 1;
+			continue;
+		}
+		if (startofsym) {
+			startofsym = 0;
+			vec[idx++] = FUNCTION;
+			vec[idx++] = &line[i];
+		}
+	}
 	for (i = 0; i < idx; i++) {
-        	if (strcmp(vec[i], FUNCTION))
-        		continue;
+		if (strcmp(vec[i], FUNCTION))
+			continue;
 		consume_symbol(vec[i + 1]);
 	}
 	vec[idx++] = filename;
@@ -325,7 +327,8 @@ static void singfunc(char * filename, char * line)
  */
 static void docsect(char *filename, char *line)
 {
-	char *vec[6]; /* kerneldoc -docbook -function "section" file NULL */
+	/* kerneldoc -docbook -show-not-found -function "section" file NULL */
+	char *vec[7];
 	char *s;
 
 	for (s = line; *s; s++)
@@ -341,10 +344,11 @@ static void docsect(char *filename, char *line)
 
 	vec[0] = KERNELDOC;
 	vec[1] = DOCBOOK;
-	vec[2] = FUNCTION;
-	vec[3] = line;
-	vec[4] = filename;
-	vec[5] = NULL;
+	vec[2] = SHOWNOTFOUND;
+	vec[3] = FUNCTION;
+	vec[4] = line;
+	vec[5] = filename;
+	vec[6] = NULL;
 	exec_kernel_doc(vec);
 }
 
@@ -456,14 +460,14 @@ static void parse_file(FILE *infile)
 					break;
 				case 'D':
 					while (*s && !isspace(*s)) s++;
-                                        *s = '\0';
-                                        symbolsonly(line+2);
-                                        break;
+					*s = '\0';
+					symbolsonly(line+2);
+					break;
 				case 'F':
 					/* filename */
 					while (*s && !isspace(*s)) s++;
 					*s++ = '\0';
-                                        /* function names */
+					/* function names */
 					while (isspace(*s))
 						s++;
 					singlefunctions(line +2, s);
@@ -511,11 +515,11 @@ int main(int argc, char *argv[])
 	}
 	/* Open file, exit on error */
 	infile = fopen(argv[2], "r");
-        if (infile == NULL) {
-                fprintf(stderr, "docproc: ");
-                perror(argv[2]);
-                exit(2);
-        }
+	if (infile == NULL) {
+		fprintf(stderr, "docproc: ");
+		perror(argv[2]);
+		exit(2);
+	}
 
 	if (strcmp("doc", argv[1]) == 0) {
 		/* Need to do this in two passes.

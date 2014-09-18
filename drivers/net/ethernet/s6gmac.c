@@ -1,7 +1,7 @@
 /*
  * Ethernet driver for S6105 on chip network device
  * (c)2008 emlix GmbH http://www.emlix.com
- * Authors:	Oskar Schirmer <os@emlix.com>
+ * Authors:	Oskar Schirmer <oskar@scara.com>
  *		Daniel Gloeckner <dg@emlix.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -795,7 +794,7 @@ static inline int s6gmac_phy_start(struct net_device *dev)
 	struct phy_device *p = NULL;
 	while ((i < PHY_MAX_ADDR) && (!(p = pd->mii.bus->phy_map[i])))
 		i++;
-	p = phy_connect(dev, dev_name(&p->dev), &s6gmac_adjust_link, 0,
+	p = phy_connect(dev, dev_name(&p->dev), &s6gmac_adjust_link,
 			PHY_INTERFACE_MODE_RGMII);
 	if (IS_ERR(p)) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
@@ -937,7 +936,7 @@ static struct net_device_stats *s6gmac_stats(struct net_device *dev)
 	do {
 		unsigned long flags;
 		spin_lock_irqsave(&pd->lock, flags);
-		for (i = 0; i < sizeof(pd->stats) / sizeof(unsigned long); i++)
+		for (i = 0; i < ARRAY_SIZE(pd->stats); i++)
 			pd->stats[i] =
 				pd->carry[i] << (S6_GMAC_STAT_SIZE_MIN - 1);
 		s6gmac_stats_collect(pd, &statinf[0][0]);
@@ -954,7 +953,7 @@ static struct net_device_stats *s6gmac_stats(struct net_device *dev)
 	return st;
 }
 
-static int __devinit s6gmac_probe(struct platform_device *pdev)
+static int s6gmac_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct s6gmac *pd;
@@ -998,6 +997,7 @@ static int __devinit s6gmac_probe(struct platform_device *pdev)
 	mb = mdiobus_alloc();
 	if (!mb) {
 		printk(KERN_ERR DRV_PRMT "error allocating mii bus\n");
+		res = -ENOMEM;
 		goto errmii;
 	}
 	mb->name = "s6gmac_mii";
@@ -1030,7 +1030,7 @@ errirq:
 	return res;
 }
 
-static int __devexit s6gmac_remove(struct platform_device *pdev)
+static int s6gmac_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	if (dev) {
@@ -1039,35 +1039,21 @@ static int __devexit s6gmac_remove(struct platform_device *pdev)
 		unregister_netdev(dev);
 		free_irq(dev->irq, dev);
 		free_netdev(dev);
-		platform_set_drvdata(pdev, NULL);
 	}
 	return 0;
 }
 
 static struct platform_driver s6gmac_driver = {
 	.probe = s6gmac_probe,
-	.remove = __devexit_p(s6gmac_remove),
+	.remove = s6gmac_remove,
 	.driver = {
 		.name = "s6gmac",
 		.owner = THIS_MODULE,
 	},
 };
 
-static int __init s6gmac_init(void)
-{
-	printk(KERN_INFO DRV_PRMT "S6 GMAC ethernet driver\n");
-	return platform_driver_register(&s6gmac_driver);
-}
-
-
-static void __exit s6gmac_exit(void)
-{
-	platform_driver_unregister(&s6gmac_driver);
-}
-
-module_init(s6gmac_init);
-module_exit(s6gmac_exit);
+module_platform_driver(s6gmac_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("S6105 on chip Ethernet driver");
-MODULE_AUTHOR("Oskar Schirmer <os@emlix.com>");
+MODULE_AUTHOR("Oskar Schirmer <oskar@scara.com>");

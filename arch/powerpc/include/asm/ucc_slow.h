@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Freescale Semicondutor, Inc. All rights reserved.
+ * Copyright (C) 2006 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Authors: 	Shlomi Gridish <gridish@freescale.com>
  * 		Li Yang <leoli@freescale.com>
@@ -20,7 +20,7 @@
 #include <asm/immap_qe.h>
 #include <asm/qe.h>
 
-#include "ucc.h"
+#include <asm/ucc.h>
 
 /* transmit BD's status */
 #define T_R	0x80000000	/* ready bit */

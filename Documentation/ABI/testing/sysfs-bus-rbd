@@ -18,6 +18,28 @@ Removal of a device:
 
   $ echo <dev-id> > /sys/bus/rbd/remove
 
+What:		/sys/bus/rbd/add_single_major
+Date:		December 2013
+KernelVersion:	3.14
+Contact:	Sage Weil <sage@inktank.com>
+Description:	Available only if rbd module is inserted with single_major
+		parameter set to true.
+		Usage is the same as for /sys/bus/rbd/add.  If present,
+		should be used instead of the latter: any attempts to use
+		/sys/bus/rbd/add if /sys/bus/rbd/add_single_major is
+		available will fail for backwards compatibility reasons.
+
+What:		/sys/bus/rbd/remove_single_major
+Date:		December 2013
+KernelVersion:	3.14
+Contact:	Sage Weil <sage@inktank.com>
+Description:	Available only if rbd module is inserted with single_major
+		parameter set to true.
+		Usage is the same as for /sys/bus/rbd/remove.  If present,
+		should be used instead of the latter: any attempts to use
+		/sys/bus/rbd/remove if /sys/bus/rbd/remove_single_major is
+		available will fail for backwards compatibility reasons.
+
 Entries under /sys/bus/rbd/devices/<dev-id>/
 --------------------------------------------
 
@@ -25,18 +47,37 @@ client_id
 
 	The ceph unique client id that was assigned for this specific session.
 
+features
+
+	A hexadecimal encoding of the feature bits for this image.
+
 major
 
 	The block device major number.
+
+minor
+
+	The block device minor number.  (December 2013, since 3.14.)
 
 name
 
 	The name of the rbd image.
 
+image_id
+
+	The unique id for the rbd image.  (For rbd image format 1
+	this is empty.)
+
 pool
 
-	The pool where this rbd image resides. The pool-name pair is unique
-	per rados system.
+	The name of the storage pool where this rbd image resides.
+	An rbd image name is unique within its pool.
+
+pool_id
+
+	The unique identifier for the rbd image's pool.  This is
+	a permanent attribute of the pool.  A pool's id will never
+	change.
 
 size
 
@@ -51,26 +92,7 @@ current_snap
 
 	The current snapshot for which the device is mapped.
 
-create_snap
+parent
 
-	Create a snapshot:
-
-	 $ echo <snap-name> > /sys/bus/rbd/devices/<dev-id>/snap_create
-
-snap_*
-
-	A directory per each snapshot
-
-
-Entries under /sys/bus/rbd/devices/<dev-id>/snap_<snap-name>
--------------------------------------------------------------
-
-id
-
-	The rados internal snapshot id assigned for this snapshot
-
-size
-
-	The size of the image when this snapshot was taken.
-
-
+	Information identifying the chain of parent images in a layered rbd
+	image.  Entries are separated by empty lines.

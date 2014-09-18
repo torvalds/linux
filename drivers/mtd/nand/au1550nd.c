@@ -11,7 +11,6 @@
 
 #include <linux/slab.h>
 #include <linux/gpio.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
@@ -42,7 +41,7 @@ static u_char au_read_byte(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
 	u_char ret = readb(this->IO_ADDR_R);
-	au_sync();
+	wmb(); /* drain writebuffer */
 	return ret;
 }
 
@@ -57,7 +56,7 @@ static void au_write_byte(struct mtd_info *mtd, u_char byte)
 {
 	struct nand_chip *this = mtd->priv;
 	writeb(byte, this->IO_ADDR_W);
-	au_sync();
+	wmb(); /* drain writebuffer */
 }
 
 /**
@@ -70,7 +69,7 @@ static u_char au_read_byte16(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
 	u_char ret = (u_char) cpu_to_le16(readw(this->IO_ADDR_R));
-	au_sync();
+	wmb(); /* drain writebuffer */
 	return ret;
 }
 
@@ -85,7 +84,7 @@ static void au_write_byte16(struct mtd_info *mtd, u_char byte)
 {
 	struct nand_chip *this = mtd->priv;
 	writew(le16_to_cpu((u16) byte), this->IO_ADDR_W);
-	au_sync();
+	wmb(); /* drain writebuffer */
 }
 
 /**
@@ -98,7 +97,7 @@ static u16 au_read_word(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
 	u16 ret = readw(this->IO_ADDR_R);
-	au_sync();
+	wmb(); /* drain writebuffer */
 	return ret;
 }
 
@@ -117,7 +116,7 @@ static void au_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 
 	for (i = 0; i < len; i++) {
 		writeb(buf[i], this->IO_ADDR_W);
-		au_sync();
+		wmb(); /* drain writebuffer */
 	}
 }
 
@@ -136,30 +135,8 @@ static void au_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 
 	for (i = 0; i < len; i++) {
 		buf[i] = readb(this->IO_ADDR_R);
-		au_sync();
+		wmb(); /* drain writebuffer */
 	}
-}
-
-/**
- * au_verify_buf -  Verify chip data against buffer
- * @mtd:	MTD device structure
- * @buf:	buffer containing the data to compare
- * @len:	number of bytes to compare
- *
- * verify function for 8bit buswidth
- */
-static int au_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	int i;
-	struct nand_chip *this = mtd->priv;
-
-	for (i = 0; i < len; i++) {
-		if (buf[i] != readb(this->IO_ADDR_R))
-			return -EFAULT;
-		au_sync();
-	}
-
-	return 0;
 }
 
 /**
@@ -179,7 +156,7 @@ static void au_write_buf16(struct mtd_info *mtd, const u_char *buf, int len)
 
 	for (i = 0; i < len; i++) {
 		writew(p[i], this->IO_ADDR_W);
-		au_sync();
+		wmb(); /* drain writebuffer */
 	}
 
 }
@@ -201,31 +178,8 @@ static void au_read_buf16(struct mtd_info *mtd, u_char *buf, int len)
 
 	for (i = 0; i < len; i++) {
 		p[i] = readw(this->IO_ADDR_R);
-		au_sync();
+		wmb(); /* drain writebuffer */
 	}
-}
-
-/**
- * au_verify_buf16 -  Verify chip data against buffer
- * @mtd:	MTD device structure
- * @buf:	buffer containing the data to compare
- * @len:	number of bytes to compare
- *
- * verify function for 16bit buswidth
- */
-static int au_verify_buf16(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	int i;
-	struct nand_chip *this = mtd->priv;
-	u16 *p = (u16 *) buf;
-	len >>= 1;
-
-	for (i = 0; i < len; i++) {
-		if (p[i] != readw(this->IO_ADDR_R))
-			return -EFAULT;
-		au_sync();
-	}
-	return 0;
 }
 
 /* Select the chip by setting nCE to low */
@@ -269,26 +223,23 @@ static void au1550_hwcontrol(struct mtd_info *mtd, int cmd)
 
 	case NAND_CTL_SETNCE:
 		/* assert (force assert) chip enable */
-		au_writel((1 << (4 + ctx->cs)), MEM_STNDCTL);
+		alchemy_wrsmem((1 << (4 + ctx->cs)), AU1000_MEM_STNDCTL);
 		break;
 
 	case NAND_CTL_CLRNCE:
 		/* deassert chip enable */
-		au_writel(0, MEM_STNDCTL);
+		alchemy_wrsmem(0, AU1000_MEM_STNDCTL);
 		break;
 	}
 
 	this->IO_ADDR_R = this->IO_ADDR_W;
 
-	/* Drain the writebuffer */
-	au_sync();
+	wmb(); /* Drain the writebuffer */
 }
 
 int au1550_device_ready(struct mtd_info *mtd)
 {
-	int ret = (au_readl(MEM_STSTAT) & 0x1) ? 1 : 0;
-	au_sync();
-	return ret;
+	return (alchemy_rdsmem(AU1000_MEM_STSTAT) & 0x1) ? 1 : 0;
 }
 
 /**
@@ -353,7 +304,8 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 		/* Serially input address */
 		if (column != -1) {
 			/* Adjust columns for 16 bit buswidth */
-			if (this->options & NAND_BUSWIDTH_16)
+			if (this->options & NAND_BUSWIDTH_16 &&
+					!nand_opcode_8bits(command))
 				column >>= 1;
 			ctx->write_byte(mtd, column);
 		}
@@ -427,7 +379,7 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 	while(!this->dev_ready(mtd));
 }
 
-static int __devinit find_nand_cs(unsigned long nand_base)
+static int find_nand_cs(unsigned long nand_base)
 {
 	void __iomem *base =
 			(void __iomem *)KSEG1ADDR(AU1000_STATIC_MEM_PHYS_ADDR);
@@ -448,7 +400,7 @@ static int __devinit find_nand_cs(unsigned long nand_base)
 	return -ENODEV;
 }
 
-static int __devinit au1550nd_probe(struct platform_device *pdev)
+static int au1550nd_probe(struct platform_device *pdev)
 {
 	struct au1550nd_platdata *pd;
 	struct au1550nd_ctx *ctx;
@@ -456,17 +408,15 @@ static int __devinit au1550nd_probe(struct platform_device *pdev)
 	struct resource *r;
 	int ret, cs;
 
-	pd = pdev->dev.platform_data;
+	pd = dev_get_platdata(&pdev->dev);
 	if (!pd) {
 		dev_err(&pdev->dev, "missing platform data\n");
 		return -ENODEV;
 	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx) {
-		dev_err(&pdev->dev, "no memory for NAND context\n");
+	if (!ctx)
 		return -ENOMEM;
-	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
@@ -508,8 +458,6 @@ static int __devinit au1550nd_probe(struct platform_device *pdev)
 	this->chip_delay = 30;
 	this->ecc.mode = NAND_ECC_SOFT;
 
-	this->options = NAND_NO_AUTOINCR;
-
 	if (pd->devwidth)
 		this->options |= NAND_BUSWIDTH_16;
 
@@ -518,7 +466,6 @@ static int __devinit au1550nd_probe(struct platform_device *pdev)
 	this->read_word = au_read_word;
 	this->write_buf = (pd->devwidth) ? au_write_buf16 : au_write_buf;
 	this->read_buf = (pd->devwidth) ? au_read_buf16 : au_read_buf;
-	this->verify_buf = (pd->devwidth) ? au_verify_buf16 : au_verify_buf;
 
 	ret = nand_scan(&ctx->info, 1);
 	if (ret) {
@@ -527,6 +474,8 @@ static int __devinit au1550nd_probe(struct platform_device *pdev)
 	}
 
 	mtd_device_register(&ctx->info, pd->parts, pd->num_parts);
+
+	platform_set_drvdata(pdev, ctx);
 
 	return 0;
 
@@ -539,7 +488,7 @@ out1:
 	return ret;
 }
 
-static int __devexit au1550nd_remove(struct platform_device *pdev)
+static int au1550nd_remove(struct platform_device *pdev)
 {
 	struct au1550nd_ctx *ctx = platform_get_drvdata(pdev);
 	struct resource *r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -557,7 +506,7 @@ static struct platform_driver au1550nd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= au1550nd_probe,
-	.remove		= __devexit_p(au1550nd_remove),
+	.remove		= au1550nd_remove,
 };
 
 module_platform_driver(au1550nd_driver);

@@ -22,6 +22,7 @@
 #include <linux/kprobes.h>
 #include <linux/cache.h>
 #include <linux/sort.h>
+#include <linux/ioport.h>
 #include <linux/percpu.h>
 #include <linux/memblock.h>
 #include <linux/mmzone.h>
@@ -47,30 +48,49 @@
 #include <asm/prom.h>
 #include <asm/mdesc.h>
 #include <asm/cpudata.h>
+#include <asm/setup.h>
 #include <asm/irq.h>
 
 #include "init_64.h"
 
-unsigned long kern_linear_pte_xor[2] __read_mostly;
+unsigned long kern_linear_pte_xor[4] __read_mostly;
 
-/* A bitmap, one bit for every 256MB of physical memory.  If the bit
- * is clear, we should use a 4MB page (via kern_linear_pte_xor[0]) else
- * if set we should use a 256MB page (via kern_linear_pte_xor[1]).
+/* A bitmap, two bits for every 256MB of physical memory.  These two
+ * bits determine what page size we use for kernel linear
+ * translations.  They form an index into kern_linear_pte_xor[].  The
+ * value in the indexed slot is XOR'd with the TLB miss virtual
+ * address to form the resulting TTE.  The mapping is:
+ *
+ *	0	==>	4MB
+ *	1	==>	256MB
+ *	2	==>	2GB
+ *	3	==>	16GB
+ *
+ * All sun4v chips support 256MB pages.  Only SPARC-T4 and later
+ * support 2GB pages, and hopefully future cpus will support the 16GB
+ * pages as well.  For slots 2 and 3, we encode a 256MB TTE xor there
+ * if these larger page sizes are not supported by the cpu.
+ *
+ * It would be nice to determine this from the machine description
+ * 'cpu' properties, but we need to have this table setup before the
+ * MDESC is initialized.
  */
 unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
 
 #ifndef CONFIG_DEBUG_PAGEALLOC
-/* A special kernel TSB for 4MB and 256MB linear mappings.
- * Space is allocated for this right after the trap table
- * in arch/sparc64/kernel/head.S
+/* A special kernel TSB for 4MB, 256MB, 2GB and 16GB linear mappings.
+ * Space is allocated for this right after the trap table in
+ * arch/sparc64/kernel/head.S
  */
 extern struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
 #endif
 
+static unsigned long cpu_pgsz_mask;
+
 #define MAX_BANKS	32
 
-static struct linux_prom64_registers pavail[MAX_BANKS] __devinitdata;
-static int pavail_ents __devinitdata;
+static struct linux_prom64_registers pavail[MAX_BANKS];
+static int pavail_ents;
 
 static int cmp_p64(const void *a, const void *b)
 {
@@ -101,7 +121,8 @@ static void __init read_obp_memory(const char *property,
 
 	ret = prom_getproperty(node, property, (char *) regs, prop_size);
 	if (ret == -1) {
-		prom_printf("Couldn't get %s property from /memory.\n");
+		prom_printf("Couldn't get %s property from /memory.\n",
+				property);
 		prom_halt();
 	}
 
@@ -257,7 +278,6 @@ static inline void tsb_insert(struct tsb *ent, unsigned long tag, unsigned long 
 }
 
 unsigned long _PAGE_ALL_SZ_BITS __read_mostly;
-unsigned long _PAGE_SZBITS __read_mostly;
 
 static void flush_dcache(unsigned long pfn)
 {
@@ -288,12 +308,39 @@ static void flush_dcache(unsigned long pfn)
 	}
 }
 
+/* mm->context.lock must be held */
+static void __update_mmu_tsb_insert(struct mm_struct *mm, unsigned long tsb_index,
+				    unsigned long tsb_hash_shift, unsigned long address,
+				    unsigned long tte)
+{
+	struct tsb *tsb = mm->context.tsb_block[tsb_index].tsb;
+	unsigned long tag;
+
+	if (unlikely(!tsb))
+		return;
+
+	tsb += ((address >> tsb_hash_shift) &
+		(mm->context.tsb_block[tsb_index].tsb_nentries - 1UL));
+	tag = (address >> 22UL);
+	tsb_insert(tsb, tag, tte);
+}
+
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+static inline bool is_hugetlb_pte(pte_t pte)
+{
+	if ((tlb_type == hypervisor &&
+	     (pte_val(pte) & _PAGE_SZALL_4V) == _PAGE_SZHUGE_4V) ||
+	    (tlb_type != hypervisor &&
+	     (pte_val(pte) & _PAGE_SZALL_4U) == _PAGE_SZHUGE_4U))
+		return true;
+	return false;
+}
+#endif
+
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	struct mm_struct *mm;
-	struct tsb *tsb;
-	unsigned long tag, flags;
-	unsigned long tsb_index, tsb_hash_shift;
+	unsigned long flags;
 	pte_t pte = *ptep;
 
 	if (tlb_type != hypervisor) {
@@ -305,28 +352,20 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *
 
 	mm = vma->vm_mm;
 
-	tsb_index = MM_TSB_BASE;
-	tsb_hash_shift = PAGE_SHIFT;
+	/* Don't insert a non-valid PTE into the TSB, we'll deadlock.  */
+	if (!pte_accessible(mm, pte))
+		return;
 
 	spin_lock_irqsave(&mm->context.lock, flags);
 
-#ifdef CONFIG_HUGETLB_PAGE
-	if (mm->context.tsb_block[MM_TSB_HUGE].tsb != NULL) {
-		if ((tlb_type == hypervisor &&
-		     (pte_val(pte) & _PAGE_SZALL_4V) == _PAGE_SZHUGE_4V) ||
-		    (tlb_type != hypervisor &&
-		     (pte_val(pte) & _PAGE_SZALL_4U) == _PAGE_SZHUGE_4U)) {
-			tsb_index = MM_TSB_HUGE;
-			tsb_hash_shift = HPAGE_SHIFT;
-		}
-	}
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+	if (mm->context.huge_pte_count && is_hugetlb_pte(pte))
+		__update_mmu_tsb_insert(mm, MM_TSB_HUGE, REAL_HPAGE_SHIFT,
+					address, pte_val(pte));
+	else
 #endif
-
-	tsb = mm->context.tsb_block[tsb_index].tsb;
-	tsb += ((address >> tsb_hash_shift) &
-		(mm->context.tsb_block[tsb_index].tsb_nentries - 1UL));
-	tag = (address >> 22UL);
-	tsb_insert(tsb, tag, pte_val(pte));
+		__update_mmu_tsb_insert(mm, MM_TSB_BASE, PAGE_SHIFT,
+					address, pte_val(pte));
 
 	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
@@ -403,6 +442,12 @@ EXPORT_SYMBOL(flush_icache_range);
 
 void mmu_info(struct seq_file *m)
 {
+	static const char *pgsz_strings[] = {
+		"8K", "64K", "512K", "4MB", "32MB",
+		"256MB", "2GB", "16GB",
+	};
+	int i, printed;
+
 	if (tlb_type == cheetah)
 		seq_printf(m, "MMU Type\t: Cheetah\n");
 	else if (tlb_type == cheetah_plus)
@@ -413,6 +458,17 @@ void mmu_info(struct seq_file *m)
 		seq_printf(m, "MMU Type\t: Hypervisor (sun4v)\n");
 	else
 		seq_printf(m, "MMU Type\t: ???\n");
+
+	seq_printf(m, "MMU PGSZs\t: ");
+	printed = 0;
+	for (i = 0; i < ARRAY_SIZE(pgsz_strings); i++) {
+		if (cpu_pgsz_mask & (1UL << i)) {
+			seq_printf(m, "%s%s",
+				   printed ? "," : "", pgsz_strings[i]);
+			printed++;
+		}
+	}
+	seq_putc(m, '\n');
 
 #ifdef CONFIG_DEBUG_DCFLUSH
 	seq_printf(m, "DCPageFlushes\t: %d\n",
@@ -462,7 +518,7 @@ static void __init read_obp_translations(void)
 		prom_halt();
 	}
 	if (unlikely(n > sizeof(prom_trans))) {
-		prom_printf("prom_mappings: Size %Zd is too big.\n", n);
+		prom_printf("prom_mappings: Size %d is too big.\n", n);
 		prom_halt();
 	}
 
@@ -524,7 +580,7 @@ static void __init hypervisor_tlb_lock(unsigned long vaddr,
 	unsigned long ret = sun4v_mmu_map_perm_addr(vaddr, 0, pte, mmu);
 
 	if (ret != 0) {
-		prom_printf("hypervisor_tlb_lock[%lx:%lx:%lx:%lx]: "
+		prom_printf("hypervisor_tlb_lock[%lx:%x:%lx:%lx]: "
 			    "errors with %lx\n", vaddr, 0, pte, mmu, ret);
 		prom_halt();
 	}
@@ -538,7 +594,7 @@ static void __init remap_kernel(void)
 	int i, tlb_ent = sparc64_highest_locked_tlbent();
 
 	tte_vaddr = (unsigned long) KERNBASE;
-	phys_page = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
+	phys_page = (prom_boot_mapping_phys_low >> ILOG2_4MB) << ILOG2_4MB;
 	tte_data = kern_large_tte(phys_page);
 
 	kern_locked_tte_data = tte_data;
@@ -580,7 +636,7 @@ static void __init inherit_prom_mappings(void)
 void prom_world(int enter)
 {
 	if (!enter)
-		set_fs((mm_segment_t) { get_thread_current_ds() });
+		set_fs(get_fs());
 
 	__asm__ __volatile__("flushw");
 }
@@ -631,10 +687,9 @@ void get_new_mmu_context(struct mm_struct *mm)
 {
 	unsigned long ctx, new_ctx;
 	unsigned long orig_pgsz_bits;
-	unsigned long flags;
 	int new_version;
 
-	spin_lock_irqsave(&ctx_alloc_lock, flags);
+	spin_lock(&ctx_alloc_lock);
 	orig_pgsz_bits = (mm->context.sparc64_ctx_val & CTX_PGSZ_MASK);
 	ctx = (tlb_context_cache + 1) & CTX_NR_MASK;
 	new_ctx = find_next_zero_bit(mmu_context_bmap, 1 << CTX_NR_BITS, ctx);
@@ -670,7 +725,7 @@ void get_new_mmu_context(struct mm_struct *mm)
 out:
 	tlb_context_cache = new_ctx;
 	mm->context.sparc64_ctx_val = new_ctx | orig_pgsz_bits;
-	spin_unlock_irqrestore(&ctx_alloc_lock, flags);
+	spin_unlock(&ctx_alloc_lock);
 
 	if (unlikely(new_version))
 		smp_new_mmu_context_version();
@@ -741,15 +796,14 @@ static void __init find_ramdisk(unsigned long phys_base)
 struct node_mem_mask {
 	unsigned long mask;
 	unsigned long val;
-	unsigned long bootmem_paddr;
 };
 static struct node_mem_mask node_masks[MAX_NUMNODES];
 static int num_node_masks;
 
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+
 int numa_cpu_lookup_table[NR_CPUS];
 cpumask_t numa_cpumask_lookup_table[MAX_NUMNODES];
-
-#ifdef CONFIG_NEED_MULTIPLE_NODES
 
 struct mdesc_mblock {
 	u64	base;
@@ -806,12 +860,6 @@ static u64 memblock_nid_range(u64 start, u64 end, int *nid)
 
 	return start;
 }
-#else
-static u64 memblock_nid_range(u64 start, u64 end, int *nid)
-{
-	*nid = 0;
-	return end;
-}
 #endif
 
 /* This must be invoked after performing all of the necessary
@@ -820,10 +868,11 @@ static u64 memblock_nid_range(u64 start, u64 end, int *nid)
  */
 static void __init allocate_node_data(int nid)
 {
-	unsigned long paddr, num_pages, start_pfn, end_pfn;
 	struct pglist_data *p;
-
+	unsigned long start_pfn, end_pfn;
 #ifdef CONFIG_NEED_MULTIPLE_NODES
+	unsigned long paddr;
+
 	paddr = memblock_alloc_try_nid(sizeof(struct pglist_data), SMP_CACHE_BYTES, nid);
 	if (!paddr) {
 		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
@@ -832,7 +881,7 @@ static void __init allocate_node_data(int nid)
 	NODE_DATA(nid) = __va(paddr);
 	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
 
-	NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
+	NODE_DATA(nid)->node_id = nid;
 #endif
 
 	p = NODE_DATA(nid);
@@ -840,33 +889,25 @@ static void __init allocate_node_data(int nid)
 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
 	p->node_start_pfn = start_pfn;
 	p->node_spanned_pages = end_pfn - start_pfn;
-
-	if (p->node_spanned_pages) {
-		num_pages = bootmem_bootmap_pages(p->node_spanned_pages);
-
-		paddr = memblock_alloc_try_nid(num_pages << PAGE_SHIFT, PAGE_SIZE, nid);
-		if (!paddr) {
-			prom_printf("Cannot allocate bootmap for nid[%d]\n",
-				  nid);
-			prom_halt();
-		}
-		node_masks[nid].bootmem_paddr = paddr;
-	}
 }
 
 static void init_node_masks_nonnuma(void)
 {
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 	int i;
+#endif
 
 	numadbg("Initializing tables for non-numa.\n");
 
 	node_masks[0].mask = node_masks[0].val = 0;
 	num_node_masks = 1;
 
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 	for (i = 0; i < NR_CPUS; i++)
 		numa_cpu_lookup_table[i] = 0;
 
 	cpumask_setall(&numa_cpumask_lookup_table[0]);
+#endif
 }
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
@@ -990,7 +1031,8 @@ static void __init add_node_ranges(void)
 				"start[%lx] end[%lx]\n",
 				nid, start, this_end);
 
-			memblock_set_node(start, this_end - start, nid);
+			memblock_set_node(start, this_end - start,
+					  &memblock.memory, nid);
 			start = this_end;
 		}
 	}
@@ -1067,7 +1109,14 @@ static int __init grab_mblocks(struct mdesc_handle *md)
 		m->size = *val;
 		val = mdesc_get_property(md, node,
 					 "address-congruence-offset", NULL);
-		m->offset = *val;
+
+		/* The address-congruence-offset property is optional.
+		 * Explicity zero it be identifty this.
+		 */
+		if (val)
+			m->offset = *val;
+		else
+			m->offset = 0UL;
 
 		numadbg("MBLOCK[%d]: base[%llx] size[%llx] offset[%llx]\n",
 			count - 1, m->base, m->size, m->offset);
@@ -1287,80 +1336,14 @@ static void __init bootmem_init_nonnuma(void)
 	       (top_of_ram - total_ram) >> 20);
 
 	init_node_masks_nonnuma();
-	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, 0);
+	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
 	allocate_node_data(0);
 	node_set_online(0);
-}
-
-static void __init reserve_range_in_node(int nid, unsigned long start,
-					 unsigned long end)
-{
-	numadbg("    reserve_range_in_node(nid[%d],start[%lx],end[%lx]\n",
-		nid, start, end);
-	while (start < end) {
-		unsigned long this_end;
-		int n;
-
-		this_end = memblock_nid_range(start, end, &n);
-		if (n == nid) {
-			numadbg("      MATCH reserving range [%lx:%lx]\n",
-				start, this_end);
-			reserve_bootmem_node(NODE_DATA(nid), start,
-					     (this_end - start), BOOTMEM_DEFAULT);
-		} else
-			numadbg("      NO MATCH, advancing start to %lx\n",
-				this_end);
-
-		start = this_end;
-	}
-}
-
-static void __init trim_reserved_in_node(int nid)
-{
-	struct memblock_region *reg;
-
-	numadbg("  trim_reserved_in_node(%d)\n", nid);
-
-	for_each_memblock(reserved, reg)
-		reserve_range_in_node(nid, reg->base, reg->base + reg->size);
-}
-
-static void __init bootmem_init_one_node(int nid)
-{
-	struct pglist_data *p;
-
-	numadbg("bootmem_init_one_node(%d)\n", nid);
-
-	p = NODE_DATA(nid);
-
-	if (p->node_spanned_pages) {
-		unsigned long paddr = node_masks[nid].bootmem_paddr;
-		unsigned long end_pfn;
-
-		end_pfn = p->node_start_pfn + p->node_spanned_pages;
-
-		numadbg("  init_bootmem_node(%d, %lx, %lx, %lx)\n",
-			nid, paddr >> PAGE_SHIFT, p->node_start_pfn, end_pfn);
-
-		init_bootmem_node(p, paddr >> PAGE_SHIFT,
-				  p->node_start_pfn, end_pfn);
-
-		numadbg("  free_bootmem_with_active_regions(%d, %lx)\n",
-			nid, end_pfn);
-		free_bootmem_with_active_regions(nid, end_pfn);
-
-		trim_reserved_in_node(nid);
-
-		numadbg("  sparse_memory_present_with_active_regions(%d)\n",
-			nid);
-		sparse_memory_present_with_active_regions(nid);
-	}
 }
 
 static unsigned long __init bootmem_init(unsigned long phys_base)
 {
 	unsigned long end_pfn;
-	int nid;
 
 	end_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
 	max_pfn = max_low_pfn = end_pfn;
@@ -1369,11 +1352,12 @@ static unsigned long __init bootmem_init(unsigned long phys_base)
 	if (bootmem_init_numa() < 0)
 		bootmem_init_nonnuma();
 
+	/* Dump memblock with node info. */
+	memblock_dump_all();
+
 	/* XXX cpu notifier XXX */
 
-	for_each_online_node(nid)
-		bootmem_init_one_node(nid);
-
+	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
 
 	return end_pfn;
@@ -1441,32 +1425,75 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 extern unsigned int kvmap_linear_patch[1];
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
+static void __init kpte_set_val(unsigned long index, unsigned long val)
+{
+	unsigned long *ptr = kpte_linear_bitmap;
+
+	val <<= ((index % (BITS_PER_LONG / 2)) * 2);
+	ptr += (index / (BITS_PER_LONG / 2));
+
+	*ptr |= val;
+}
+
+static const unsigned long kpte_shift_min = 28; /* 256MB */
+static const unsigned long kpte_shift_max = 34; /* 16GB */
+static const unsigned long kpte_shift_incr = 3;
+
+static unsigned long kpte_mark_using_shift(unsigned long start, unsigned long end,
+					   unsigned long shift)
+{
+	unsigned long size = (1UL << shift);
+	unsigned long mask = (size - 1UL);
+	unsigned long remains = end - start;
+	unsigned long val;
+
+	if (remains < size || (start & mask))
+		return start;
+
+	/* VAL maps:
+	 *
+	 *	shift 28 --> kern_linear_pte_xor index 1
+	 *	shift 31 --> kern_linear_pte_xor index 2
+	 *	shift 34 --> kern_linear_pte_xor index 3
+	 */
+	val = ((shift - kpte_shift_min) / kpte_shift_incr) + 1;
+
+	remains &= ~mask;
+	if (shift != kpte_shift_max)
+		remains = size;
+
+	while (remains) {
+		unsigned long index = start >> kpte_shift_min;
+
+		kpte_set_val(index, val);
+
+		start += 1UL << kpte_shift_min;
+		remains -= 1UL << kpte_shift_min;
+	}
+
+	return start;
+}
+
 static void __init mark_kpte_bitmap(unsigned long start, unsigned long end)
 {
-	const unsigned long shift_256MB = 28;
-	const unsigned long mask_256MB = ((1UL << shift_256MB) - 1UL);
-	const unsigned long size_256MB = (1UL << shift_256MB);
+	unsigned long smallest_size, smallest_mask;
+	unsigned long s;
+
+	smallest_size = (1UL << kpte_shift_min);
+	smallest_mask = (smallest_size - 1UL);
 
 	while (start < end) {
-		long remains;
+		unsigned long orig_start = start;
 
-		remains = end - start;
-		if (remains < size_256MB)
-			break;
+		for (s = kpte_shift_max; s >= kpte_shift_min; s -= kpte_shift_incr) {
+			start = kpte_mark_using_shift(start, end, s);
 
-		if (start & mask_256MB) {
-			start = (start + size_256MB) & ~mask_256MB;
-			continue;
+			if (start != orig_start)
+				break;
 		}
 
-		while (remains >= size_256MB) {
-			unsigned long index = start >> shift_256MB;
-
-			__set_bit(index, kpte_linear_bitmap);
-
-			start += size_256MB;
-			remains -= size_256MB;
-		}
+		if (start == orig_start)
+			start = (start + smallest_size) & ~smallest_mask;
 	}
 }
 
@@ -1539,6 +1566,96 @@ unsigned long __init find_ecache_flush_span(unsigned long size)
 	}
 
 	return ~0UL;
+}
+
+unsigned long PAGE_OFFSET;
+EXPORT_SYMBOL(PAGE_OFFSET);
+
+static void __init page_offset_shift_patch_one(unsigned int *insn, unsigned long phys_bits)
+{
+	unsigned long final_shift;
+	unsigned int val = *insn;
+	unsigned int cnt;
+
+	/* We are patching in ilog2(max_supported_phys_address), and
+	 * we are doing so in a manner similar to a relocation addend.
+	 * That is, we are adding the shift value to whatever value
+	 * is in the shift instruction count field already.
+	 */
+	cnt = (val & 0x3f);
+	val &= ~0x3f;
+
+	/* If we are trying to shift >= 64 bits, clear the destination
+	 * register.  This can happen when phys_bits ends up being equal
+	 * to MAX_PHYS_ADDRESS_BITS.
+	 */
+	final_shift = (cnt + (64 - phys_bits));
+	if (final_shift >= 64) {
+		unsigned int rd = (val >> 25) & 0x1f;
+
+		val = 0x80100000 | (rd << 25);
+	} else {
+		val |= final_shift;
+	}
+	*insn = val;
+
+	__asm__ __volatile__("flush	%0"
+			     : /* no outputs */
+			     : "r" (insn));
+}
+
+static void __init page_offset_shift_patch(unsigned long phys_bits)
+{
+	extern unsigned int __page_offset_shift_patch;
+	extern unsigned int __page_offset_shift_patch_end;
+	unsigned int *p;
+
+	p = &__page_offset_shift_patch;
+	while (p < &__page_offset_shift_patch_end) {
+		unsigned int *insn = (unsigned int *)(unsigned long)*p;
+
+		page_offset_shift_patch_one(insn, phys_bits);
+
+		p++;
+	}
+}
+
+static void __init setup_page_offset(void)
+{
+	unsigned long max_phys_bits = 40;
+
+	if (tlb_type == cheetah || tlb_type == cheetah_plus) {
+		max_phys_bits = 42;
+	} else if (tlb_type == hypervisor) {
+		switch (sun4v_chip_type) {
+		case SUN4V_CHIP_NIAGARA1:
+		case SUN4V_CHIP_NIAGARA2:
+			max_phys_bits = 39;
+			break;
+		case SUN4V_CHIP_NIAGARA3:
+			max_phys_bits = 43;
+			break;
+		case SUN4V_CHIP_NIAGARA4:
+		case SUN4V_CHIP_NIAGARA5:
+		case SUN4V_CHIP_SPARC64X:
+		default:
+			max_phys_bits = 47;
+			break;
+		}
+	}
+
+	if (max_phys_bits > MAX_PHYS_ADDRESS_BITS) {
+		prom_printf("MAX_PHYS_ADDRESS_BITS is too small, need %lu\n",
+			    max_phys_bits);
+		prom_halt();
+	}
+
+	PAGE_OFFSET = PAGE_OFFSET_BY_BITS(max_phys_bits);
+
+	pr_info("PAGE_OFFSET is 0x%016lx (max_phys_bits == %lu)\n",
+		PAGE_OFFSET, max_phys_bits);
+
+	page_offset_shift_patch(max_phys_bits);
 }
 
 static void __init tsb_phys_patch(void)
@@ -1660,13 +1777,16 @@ static void __init sun4v_ktsb_init(void)
 	ktsb_descr[0].resv = 0;
 
 #ifndef CONFIG_DEBUG_PAGEALLOC
-	/* Second KTSB for 4MB/256MB mappings.  */
+	/* Second KTSB for 4MB/256MB/2GB/16GB mappings.  */
 	ktsb_pa = (kern_base +
 		   ((unsigned long)&swapper_4m_tsb[0] - KERNBASE));
 
 	ktsb_descr[1].pgsz_idx = HV_PGSZ_IDX_4MB;
-	ktsb_descr[1].pgsz_mask = (HV_PGSZ_MASK_4MB |
-				   HV_PGSZ_MASK_256MB);
+	ktsb_descr[1].pgsz_mask = ((HV_PGSZ_MASK_4MB |
+				    HV_PGSZ_MASK_256MB |
+				    HV_PGSZ_MASK_2GB |
+				    HV_PGSZ_MASK_16GB) &
+				   cpu_pgsz_mask);
 	ktsb_descr[1].assoc = 1;
 	ktsb_descr[1].num_ttes = KERNEL_TSB4M_NENTRIES;
 	ktsb_descr[1].ctx_idx = 0;
@@ -1675,7 +1795,7 @@ static void __init sun4v_ktsb_init(void)
 #endif
 }
 
-void __cpuinit sun4v_ktsb_register(void)
+void sun4v_ktsb_register(void)
 {
 	unsigned long pa, ret;
 
@@ -1689,10 +1809,51 @@ void __cpuinit sun4v_ktsb_register(void)
 	}
 }
 
+static void __init sun4u_linear_pte_xor_finalize(void)
+{
+#ifndef CONFIG_DEBUG_PAGEALLOC
+	/* This is where we would add Panther support for
+	 * 32MB and 256MB pages.
+	 */
+#endif
+}
+
+static void __init sun4v_linear_pte_xor_finalize(void)
+{
+#ifndef CONFIG_DEBUG_PAGEALLOC
+	if (cpu_pgsz_mask & HV_PGSZ_MASK_256MB) {
+		kern_linear_pte_xor[1] = (_PAGE_VALID | _PAGE_SZ256MB_4V) ^
+			PAGE_OFFSET;
+		kern_linear_pte_xor[1] |= (_PAGE_CP_4V | _PAGE_CV_4V |
+					   _PAGE_P_4V | _PAGE_W_4V);
+	} else {
+		kern_linear_pte_xor[1] = kern_linear_pte_xor[0];
+	}
+
+	if (cpu_pgsz_mask & HV_PGSZ_MASK_2GB) {
+		kern_linear_pte_xor[2] = (_PAGE_VALID | _PAGE_SZ2GB_4V) ^
+			PAGE_OFFSET;
+		kern_linear_pte_xor[2] |= (_PAGE_CP_4V | _PAGE_CV_4V |
+					   _PAGE_P_4V | _PAGE_W_4V);
+	} else {
+		kern_linear_pte_xor[2] = kern_linear_pte_xor[1];
+	}
+
+	if (cpu_pgsz_mask & HV_PGSZ_MASK_16GB) {
+		kern_linear_pte_xor[3] = (_PAGE_VALID | _PAGE_SZ16GB_4V) ^
+			PAGE_OFFSET;
+		kern_linear_pte_xor[3] |= (_PAGE_CP_4V | _PAGE_CV_4V |
+					   _PAGE_P_4V | _PAGE_W_4V);
+	} else {
+		kern_linear_pte_xor[3] = kern_linear_pte_xor[2];
+	}
+#endif
+}
+
 /* paging_init() sets up the page tables */
 
 static unsigned long last_valid_pfn;
-pgd_t swapper_pg_dir[2048];
+pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 static void sun4u_pgprot_init(void);
 static void sun4v_pgprot_init(void);
@@ -1701,6 +1862,9 @@ void __init paging_init(void)
 {
 	unsigned long end_pfn, shift, phys_base;
 	unsigned long real_end, i;
+	int node;
+
+	setup_page_offset();
 
 	/* These build time checkes make sure that the dcache_dirty_cpu()
 	 * page->flags usage will work.
@@ -1727,7 +1891,7 @@ void __init paging_init(void)
 
 	BUILD_BUG_ON(NR_CPUS > 4096);
 
-	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
+	kern_base = (prom_boot_mapping_phys_low >> ILOG2_4MB) << ILOG2_4MB;
 	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
 	/* Invalidate both kernel TSBs.  */
@@ -1747,10 +1911,8 @@ void __init paging_init(void)
 		ktsb_phys_patch();
 	}
 
-	if (tlb_type == hypervisor) {
+	if (tlb_type == hypervisor)
 		sun4v_patch_tlb_handlers();
-		sun4v_ktsb_init();
-	}
 
 	/* Find available physical memory...
 	 *
@@ -1785,7 +1947,7 @@ void __init paging_init(void)
 	shift = kern_base + PAGE_OFFSET - ((unsigned long)KERNBASE);
 
 	real_end = (unsigned long)_end;
-	num_kernel_image_mappings = DIV_ROUND_UP(real_end - KERNBASE, 1 << 22);
+	num_kernel_image_mappings = DIV_ROUND_UP(real_end - KERNBASE, 1 << ILOG2_4MB);
 	printk("Kernel: Using %d locked TLB entries for main kernel image.\n",
 	       num_kernel_image_mappings);
 
@@ -1809,9 +1971,6 @@ void __init paging_init(void)
 
 	__flush_tlb_all();
 
-	if (tlb_type == hypervisor)
-		sun4v_ktsb_register();
-
 	prom_build_devicetree();
 	of_populate_present_mask();
 #ifndef CONFIG_SMP
@@ -1824,24 +1983,54 @@ void __init paging_init(void)
 #ifndef CONFIG_SMP
 		mdesc_fill_in_cpu_data(cpu_all_mask);
 #endif
+		mdesc_get_page_sizes(cpu_all_mask, &cpu_pgsz_mask);
+
+		sun4v_linear_pte_xor_finalize();
+
+		sun4v_ktsb_init();
+		sun4v_ktsb_register();
+	} else {
+		unsigned long impl, ver;
+
+		cpu_pgsz_mask = (HV_PGSZ_MASK_8K | HV_PGSZ_MASK_64K |
+				 HV_PGSZ_MASK_512K | HV_PGSZ_MASK_4MB);
+
+		__asm__ __volatile__("rdpr %%ver, %0" : "=r" (ver));
+		impl = ((ver >> 32) & 0xffff);
+		if (impl == PANTHER_IMPL)
+			cpu_pgsz_mask |= (HV_PGSZ_MASK_32MB |
+					  HV_PGSZ_MASK_256MB);
+
+		sun4u_linear_pte_xor_finalize();
 	}
+
+	/* Flush the TLBs and the 4M TSB so that the updated linear
+	 * pte XOR settings are realized for all mappings.
+	 */
+	__flush_tlb_all();
+#ifndef CONFIG_DEBUG_PAGEALLOC
+	memset(swapper_4m_tsb, 0x40, sizeof(swapper_4m_tsb));
+#endif
+	__flush_tlb_all();
+
+	/* Setup bootmem... */
+	last_valid_pfn = end_pfn = bootmem_init(phys_base);
 
 	/* Once the OF device tree and MDESC have been setup, we know
 	 * the list of possible cpus.  Therefore we can allocate the
 	 * IRQ stacks.
 	 */
 	for_each_possible_cpu(i) {
-		/* XXX Use node local allocations... XXX */
-		softirq_stack[i] = __va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
-		hardirq_stack[i] = __va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
+		node = cpu_to_node(i);
+
+		softirq_stack[i] = __alloc_bootmem_node(NODE_DATA(node),
+							THREAD_SIZE,
+							THREAD_SIZE, 0);
+		hardirq_stack[i] = __alloc_bootmem_node(NODE_DATA(node),
+							THREAD_SIZE,
+							THREAD_SIZE, 0);
 	}
 
-	/* Setup bootmem... */
-	last_valid_pfn = end_pfn = bootmem_init(phys_base);
-
-#ifndef CONFIG_NEED_MULTIPLE_NODES
-	max_mapnr = last_valid_pfn;
-#endif
 	kernel_physical_mapping_init();
 
 	{
@@ -1857,7 +2046,7 @@ void __init paging_init(void)
 	printk("Booting Linux...\n");
 }
 
-int __devinit page_in_phys_avail(unsigned long paddr)
+int page_in_phys_avail(unsigned long paddr)
 {
 	int i;
 
@@ -1915,7 +2104,7 @@ static void __init setup_valid_addr_bitmap_from_pavail(unsigned long *bitmap)
 
 				if (new_start <= old_start &&
 				    new_end >= (old_start + PAGE_SIZE)) {
-					set_bit(old_start >> 22, bitmap);
+					set_bit(old_start >> ILOG2_4MB, bitmap);
 					goto do_next_page;
 				}
 			}
@@ -1947,15 +2136,24 @@ static void __init patch_tlb_miss_handler_bitmap(void)
 	flushi(&valid_addr_bitmap_insn[0]);
 }
 
+static void __init register_page_bootmem_info(void)
+{
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	int i;
+
+	for_each_online_node(i)
+		if (NODE_DATA(i)->node_spanned_pages)
+			register_page_bootmem_info_node(NODE_DATA(i));
+#endif
+}
 void __init mem_init(void)
 {
-	unsigned long codepages, datapages, initpages;
 	unsigned long addr, last;
 
 	addr = PAGE_OFFSET + kern_base;
 	last = PAGE_ALIGN(kern_size) + addr;
 	while (addr < last) {
-		set_bit(__pa(addr) >> 22, sparc64_valid_addr_bitmap);
+		set_bit(__pa(addr) >> ILOG2_4MB, sparc64_valid_addr_bitmap);
 		addr += PAGE_SIZE;
 	}
 
@@ -1964,25 +2162,8 @@ void __init mem_init(void)
 
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
 
-#ifdef CONFIG_NEED_MULTIPLE_NODES
-	{
-		int i;
-		for_each_online_node(i) {
-			if (NODE_DATA(i)->node_spanned_pages != 0) {
-				totalram_pages +=
-					free_all_bootmem_node(NODE_DATA(i));
-			}
-		}
-	}
-#else
-	totalram_pages = free_all_bootmem();
-#endif
-
-	/* We subtract one to account for the mem_map_zero page
-	 * allocated below.
-	 */
-	totalram_pages -= 1;
-	num_physpages = totalram_pages;
+	register_page_bootmem_info();
+	free_all_bootmem();
 
 	/*
 	 * Set up the zero page, mark it reserved, so that page count
@@ -1993,21 +2174,9 @@ void __init mem_init(void)
 		prom_printf("paging_init: Cannot alloc zero page.\n");
 		prom_halt();
 	}
-	SetPageReserved(mem_map_zero);
+	mark_page_reserved(mem_map_zero);
 
-	codepages = (((unsigned long) _etext) - ((unsigned long) _start));
-	codepages = PAGE_ALIGN(codepages) >> PAGE_SHIFT;
-	datapages = (((unsigned long) _edata) - ((unsigned long) _etext));
-	datapages = PAGE_ALIGN(datapages) >> PAGE_SHIFT;
-	initpages = (((unsigned long) __init_end) - ((unsigned long) __init_begin));
-	initpages = PAGE_ALIGN(initpages) >> PAGE_SHIFT;
-
-	printk("Memory: %luk available (%ldk kernel code, %ldk data, %ldk init) [%016lx,%016lx]\n",
-	       nr_free_pages() << (PAGE_SHIFT-10),
-	       codepages << (PAGE_SHIFT-10),
-	       datapages << (PAGE_SHIFT-10), 
-	       initpages << (PAGE_SHIFT-10), 
-	       PAGE_OFFSET, (last_valid_pfn << PAGE_SHIFT));
+	mem_init_print_info(NULL);
 
 	if (tlb_type == cheetah || tlb_type == cheetah_plus)
 		cheetah_ecache_flush_init();
@@ -2033,39 +2202,22 @@ void free_initmem(void)
 	initend = (unsigned long)(__init_end) & PAGE_MASK;
 	for (; addr < initend; addr += PAGE_SIZE) {
 		unsigned long page;
-		struct page *p;
 
 		page = (addr +
 			((unsigned long) __va(kern_base)) -
 			((unsigned long) KERNBASE));
 		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
 
-		if (do_free) {
-			p = virt_to_page(page);
-
-			ClearPageReserved(p);
-			init_page_count(p);
-			__free_page(p);
-			num_physpages++;
-			totalram_pages++;
-		}
+		if (do_free)
+			free_reserved_page(virt_to_page(page));
 	}
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-	if (start < end)
-		printk ("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
-	for (; start < end; start += PAGE_SIZE) {
-		struct page *p = virt_to_page(start);
-
-		ClearPageReserved(p);
-		init_page_count(p);
-		__free_page(p);
-		num_physpages++;
-		totalram_pages++;
-	}
+	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
+			   "initrd");
 }
 #endif
 
@@ -2099,10 +2251,12 @@ EXPORT_SYMBOL(_PAGE_CACHE);
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 unsigned long vmemmap_table[VMEMMAP_SIZE];
 
-int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
+static long __meminitdata addr_start, addr_end;
+static int __meminitdata node_start;
+
+int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
+			       int node)
 {
-	unsigned long vstart = (unsigned long) start;
-	unsigned long vend = (unsigned long) (start + nr);
 	unsigned long phys_start = (vstart - VMEMMAP_BASE);
 	unsigned long phys_end = (vend - VMEMMAP_BASE);
 	unsigned long addr = phys_start & VMEMMAP_CHUNK_MASK;
@@ -2123,21 +2277,41 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 		void *block;
 
 		if (!(*vmem_pp & _PAGE_VALID)) {
-			block = vmemmap_alloc_block(1UL << 22, node);
+			block = vmemmap_alloc_block(1UL << ILOG2_4MB, node);
 			if (!block)
 				return -ENOMEM;
 
 			*vmem_pp = pte_base | __pa(block);
 
-			printk(KERN_INFO "[%p-%p] page_structs=%lu "
-			       "node=%d entry=%lu/%lu\n", start, block, nr,
-			       node,
-			       addr >> VMEMMAP_CHUNK_SHIFT,
-			       VMEMMAP_SIZE);
+			/* check to see if we have contiguous blocks */
+			if (addr_end != addr || node_start != node) {
+				if (addr_start)
+					printk(KERN_DEBUG " [%lx-%lx] on node %d\n",
+					       addr_start, addr_end-1, node_start);
+				addr_start = addr;
+				node_start = node;
+			}
+			addr_end = addr + VMEMMAP_CHUNK;
 		}
 	}
 	return 0;
 }
+
+void __meminit vmemmap_populate_print_last(void)
+{
+	if (addr_start) {
+		printk(KERN_DEBUG " [%lx-%lx] on node %d\n",
+		       addr_start, addr_end-1, node_start);
+		addr_start = 0;
+		addr_end = 0;
+		node_start = 0;
+	}
+}
+
+void vmemmap_free(unsigned long start, unsigned long end)
+{
+}
+
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
 static void prot_init_common(unsigned long page_none,
@@ -2171,6 +2345,7 @@ static void __init sun4u_pgprot_init(void)
 {
 	unsigned long page_none, page_shared, page_copy, page_readonly;
 	unsigned long page_exec_bit;
+	int i;
 
 	PAGE_KERNEL = __pgprot (_PAGE_PRESENT_4U | _PAGE_VALID |
 				_PAGE_CACHE_4U | _PAGE_P_4U |
@@ -2189,19 +2364,17 @@ static void __init sun4u_pgprot_init(void)
 		     __ACCESS_BITS_4U | _PAGE_E_4U);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZBITS_4U) ^
-		0xfffff80000000000UL;
+	kern_linear_pte_xor[0] = _PAGE_VALID ^ PAGE_OFFSET;
 #else
 	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4U) ^
-		0xfffff80000000000UL;
+		PAGE_OFFSET;
 #endif
 	kern_linear_pte_xor[0] |= (_PAGE_CP_4U | _PAGE_CV_4U |
 				   _PAGE_P_4U | _PAGE_W_4U);
 
-	/* XXX Should use 256MB on Panther. XXX */
-	kern_linear_pte_xor[1] = kern_linear_pte_xor[0];
+	for (i = 1; i < 4; i++)
+		kern_linear_pte_xor[i] = kern_linear_pte_xor[0];
 
-	_PAGE_SZBITS = _PAGE_SZBITS_4U;
 	_PAGE_ALL_SZ_BITS =  (_PAGE_SZ4MB_4U | _PAGE_SZ512K_4U |
 			      _PAGE_SZ64K_4U | _PAGE_SZ8K_4U |
 			      _PAGE_SZ32MB_4U | _PAGE_SZ256MB_4U);
@@ -2225,6 +2398,7 @@ static void __init sun4v_pgprot_init(void)
 {
 	unsigned long page_none, page_shared, page_copy, page_readonly;
 	unsigned long page_exec_bit;
+	int i;
 
 	PAGE_KERNEL = __pgprot (_PAGE_PRESENT_4V | _PAGE_VALID |
 				_PAGE_CACHE_4V | _PAGE_P_4V |
@@ -2237,29 +2411,20 @@ static void __init sun4v_pgprot_init(void)
 	_PAGE_CACHE = _PAGE_CACHE_4V;
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZBITS_4V) ^
-		0xfffff80000000000UL;
+	kern_linear_pte_xor[0] = _PAGE_VALID ^ PAGE_OFFSET;
 #else
 	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4V) ^
-		0xfffff80000000000UL;
+		PAGE_OFFSET;
 #endif
 	kern_linear_pte_xor[0] |= (_PAGE_CP_4V | _PAGE_CV_4V |
 				   _PAGE_P_4V | _PAGE_W_4V);
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	kern_linear_pte_xor[1] = (_PAGE_VALID | _PAGE_SZBITS_4V) ^
-		0xfffff80000000000UL;
-#else
-	kern_linear_pte_xor[1] = (_PAGE_VALID | _PAGE_SZ256MB_4V) ^
-		0xfffff80000000000UL;
-#endif
-	kern_linear_pte_xor[1] |= (_PAGE_CP_4V | _PAGE_CV_4V |
-				   _PAGE_P_4V | _PAGE_W_4V);
+	for (i = 1; i < 4; i++)
+		kern_linear_pte_xor[i] = kern_linear_pte_xor[0];
 
 	pg_iobits = (_PAGE_VALID | _PAGE_PRESENT_4V | __DIRTY_BITS_4V |
 		     __ACCESS_BITS_4V | _PAGE_E_4V);
 
-	_PAGE_SZBITS = _PAGE_SZBITS_4V;
 	_PAGE_ALL_SZ_BITS = (_PAGE_SZ16GB_4V | _PAGE_SZ2GB_4V |
 			     _PAGE_SZ256MB_4V | _PAGE_SZ32MB_4V |
 			     _PAGE_SZ4MB_4V | _PAGE_SZ512K_4V |
@@ -2391,4 +2556,242 @@ void __flush_tlb_all(void)
 	}
 	__asm__ __volatile__("wrpr	%0, 0, %%pstate"
 			     : : "r" (pstate));
+}
+
+pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+			    unsigned long address)
+{
+	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
+				       __GFP_REPEAT | __GFP_ZERO);
+	pte_t *pte = NULL;
+
+	if (page)
+		pte = (pte_t *) page_address(page);
+
+	return pte;
+}
+
+pgtable_t pte_alloc_one(struct mm_struct *mm,
+			unsigned long address)
+{
+	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
+				       __GFP_REPEAT | __GFP_ZERO);
+	if (!page)
+		return NULL;
+	if (!pgtable_page_ctor(page)) {
+		free_hot_cold_page(page, 0);
+		return NULL;
+	}
+	return (pte_t *) page_address(page);
+}
+
+void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+{
+	free_page((unsigned long)pte);
+}
+
+static void __pte_free(pgtable_t pte)
+{
+	struct page *page = virt_to_page(pte);
+
+	pgtable_page_dtor(page);
+	__free_page(page);
+}
+
+void pte_free(struct mm_struct *mm, pgtable_t pte)
+{
+	__pte_free(pte);
+}
+
+void pgtable_free(void *table, bool is_page)
+{
+	if (is_page)
+		__pte_free(table);
+	else
+		kmem_cache_free(pgtable_cache, table);
+}
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
+			  pmd_t *pmd)
+{
+	unsigned long pte, flags;
+	struct mm_struct *mm;
+	pmd_t entry = *pmd;
+
+	if (!pmd_large(entry) || !pmd_young(entry))
+		return;
+
+	pte = pmd_val(entry);
+
+	/* Don't insert a non-valid PMD into the TSB, we'll deadlock.  */
+	if (!(pte & _PAGE_VALID))
+		return;
+
+	/* We are fabricating 8MB pages using 4MB real hw pages.  */
+	pte |= (addr & (1UL << REAL_HPAGE_SHIFT));
+
+	mm = vma->vm_mm;
+
+	spin_lock_irqsave(&mm->context.lock, flags);
+
+	if (mm->context.tsb_block[MM_TSB_HUGE].tsb != NULL)
+		__update_mmu_tsb_insert(mm, MM_TSB_HUGE, REAL_HPAGE_SHIFT,
+					addr, pte);
+
+	spin_unlock_irqrestore(&mm->context.lock, flags);
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+static void context_reload(void *__data)
+{
+	struct mm_struct *mm = __data;
+
+	if (mm == current->mm)
+		load_secondary_context(mm);
+}
+
+void hugetlb_setup(struct pt_regs *regs)
+{
+	struct mm_struct *mm = current->mm;
+	struct tsb_config *tp;
+
+	if (in_atomic() || !mm) {
+		const struct exception_table_entry *entry;
+
+		entry = search_exception_tables(regs->tpc);
+		if (entry) {
+			regs->tpc = entry->fixup;
+			regs->tnpc = regs->tpc + 4;
+			return;
+		}
+		pr_alert("Unexpected HugeTLB setup in atomic context.\n");
+		die_if_kernel("HugeTSB in atomic", regs);
+	}
+
+	tp = &mm->context.tsb_block[MM_TSB_HUGE];
+	if (likely(tp->tsb == NULL))
+		tsb_grow(mm, MM_TSB_HUGE, 0);
+
+	tsb_context_switch(mm);
+	smp_tsb_sync(mm);
+
+	/* On UltraSPARC-III+ and later, configure the second half of
+	 * the Data-TLB for huge pages.
+	 */
+	if (tlb_type == cheetah_plus) {
+		unsigned long ctx;
+
+		spin_lock(&ctx_alloc_lock);
+		ctx = mm->context.sparc64_ctx_val;
+		ctx &= ~CTX_PGSZ_MASK;
+		ctx |= CTX_PGSZ_BASE << CTX_PGSZ0_SHIFT;
+		ctx |= CTX_PGSZ_HUGE << CTX_PGSZ1_SHIFT;
+
+		if (ctx != mm->context.sparc64_ctx_val) {
+			/* When changing the page size fields, we
+			 * must perform a context flush so that no
+			 * stale entries match.  This flush must
+			 * occur with the original context register
+			 * settings.
+			 */
+			do_flush_tlb_mm(mm);
+
+			/* Reload the context register of all processors
+			 * also executing in this address space.
+			 */
+			mm->context.sparc64_ctx_val = ctx;
+			on_each_cpu(context_reload, mm, 0);
+		}
+		spin_unlock(&ctx_alloc_lock);
+	}
+}
+#endif
+
+static struct resource code_resource = {
+	.name	= "Kernel code",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static struct resource data_resource = {
+	.name	= "Kernel data",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static struct resource bss_resource = {
+	.name	= "Kernel bss",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static inline resource_size_t compute_kern_paddr(void *addr)
+{
+	return (resource_size_t) (addr - KERNBASE + kern_base);
+}
+
+static void __init kernel_lds_init(void)
+{
+	code_resource.start = compute_kern_paddr(_text);
+	code_resource.end   = compute_kern_paddr(_etext - 1);
+	data_resource.start = compute_kern_paddr(_etext);
+	data_resource.end   = compute_kern_paddr(_edata - 1);
+	bss_resource.start  = compute_kern_paddr(__bss_start);
+	bss_resource.end    = compute_kern_paddr(_end - 1);
+}
+
+static int __init report_memory(void)
+{
+	int i;
+	struct resource *res;
+
+	kernel_lds_init();
+
+	for (i = 0; i < pavail_ents; i++) {
+		res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+
+		if (!res) {
+			pr_warn("Failed to allocate source.\n");
+			break;
+		}
+
+		res->name = "System RAM";
+		res->start = pavail[i].phys_addr;
+		res->end = pavail[i].phys_addr + pavail[i].reg_size - 1;
+		res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
+
+		if (insert_resource(&iomem_resource, res) < 0) {
+			pr_warn("Resource insertion failed.\n");
+			break;
+		}
+
+		insert_resource(res, &code_resource);
+		insert_resource(res, &data_resource);
+		insert_resource(res, &bss_resource);
+	}
+
+	return 0;
+}
+device_initcall(report_memory);
+
+#ifdef CONFIG_SMP
+#define do_flush_tlb_kernel_range	smp_flush_tlb_kernel_range
+#else
+#define do_flush_tlb_kernel_range	__flush_tlb_kernel_range
+#endif
+
+void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	if (start < HI_OBP_ADDRESS && end > LOW_OBP_ADDRESS) {
+		if (start < LOW_OBP_ADDRESS) {
+			flush_tsb_kernel_range(start, LOW_OBP_ADDRESS);
+			do_flush_tlb_kernel_range(start, LOW_OBP_ADDRESS);
+		}
+		if (end > HI_OBP_ADDRESS) {
+			flush_tsb_kernel_range(end, HI_OBP_ADDRESS);
+			do_flush_tlb_kernel_range(end, HI_OBP_ADDRESS);
+		}
+	} else {
+		flush_tsb_kernel_range(start, end);
+		do_flush_tlb_kernel_range(start, end);
+	}
 }

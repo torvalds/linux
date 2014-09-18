@@ -14,8 +14,8 @@
 #ifndef __OSD_INITIATOR_H__
 #define __OSD_INITIATOR_H__
 
-#include "osd_protocol.h"
-#include "osd_types.h"
+#include <scsi/osd_protocol.h>
+#include <scsi/osd_types.h>
 
 #include <linux/blkdev.h>
 #include <scsi/scsi_device.h>

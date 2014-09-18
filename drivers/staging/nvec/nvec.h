@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
+#include <linux/reset.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
@@ -42,7 +43,7 @@
  * enum nvec_event_size - The size of an event message
  * @NVEC_2BYTES: The message has one command byte and one data byte
  * @NVEC_3BYTES: The message has one command byte and two data bytes
- * @NVEC_VAR_SIZE: The message has one command byte, one count byte, and as
+ * @NVEC_VAR_SIZE: The message has one command byte, one count byte, and has
  *                 up to as many bytes as the number in the count byte. The
  *                 maximum is 32
  *
@@ -71,9 +72,12 @@ enum nvec_event_size {
 enum nvec_msg_type {
 	NVEC_SYS = 1,
 	NVEC_BAT,
-	NVEC_KBD = 5,
+	NVEC_GPIO,
+	NVEC_SLEEP,
+	NVEC_KBD,
 	NVEC_PS2,
 	NVEC_CNTL,
+	NVEC_OEM0 = 0x0d,
 	NVEC_KB_EVT = 0x80,
 	NVEC_PS2_EVT,
 };
@@ -100,38 +104,14 @@ struct nvec_msg {
 };
 
 /**
- * struct nvec_subdev - A subdevice of nvec, such as nvec_kbd
- * @name: The name of the sub device
- * @platform_data: Platform data
- * @id: Identifier of the sub device
- */
-struct nvec_subdev {
-	const char *name;
-	void *platform_data;
-	int id;
-};
-
-/**
- * struct nvec_platform_data - platform data for a tegra slave controller
- * @i2c_addr: number of i2c slave adapter the ec is connected to
- * @gpio: gpio number for the ec request line
- *
- * Platform data, to be used in board definitions. For an example, take a
- * look at the paz00 board in arch/arm/mach-tegra/board-paz00.c
- */
-struct nvec_platform_data {
-	int i2c_addr;
-	int gpio;
-};
-
-/**
  * struct nvec_chip - A single connection to an NVIDIA Embedded controller
  * @dev: The device
  * @gpio: The same as for &struct nvec_platform_data
  * @irq: The IRQ of the I2C device
  * @i2c_addr: The address of the I2C slave
  * @base: The base of the memory mapped region of the I2C device
- * @clk: The clock of the I2C device
+ * @i2c_clk: The clock of the I2C device
+ * @rst: The reset of the I2C device
  * @notifier_list: Notifiers to be called on received messages, see
  *                 nvec_register_notifier()
  * @rx_data: Received messages that have to be processed
@@ -161,6 +141,7 @@ struct nvec_chip {
 	int i2c_addr;
 	void __iomem *base;
 	struct clk *i2c_clk;
+	struct reset_control *rst;
 	struct atomic_notifier_head notifier_list;
 	struct list_head rx_data, tx_data;
 	struct notifier_block nvec_status_notifier;
@@ -194,9 +175,8 @@ extern int nvec_register_notifier(struct nvec_chip *nvec,
 				  struct notifier_block *nb,
 				  unsigned int events);
 
-extern int nvec_unregister_notifier(struct device *dev,
-				    struct notifier_block *nb,
-				    unsigned int events);
+extern int nvec_unregister_notifier(struct nvec_chip *dev,
+				    struct notifier_block *nb);
 
 extern void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg);
 

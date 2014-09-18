@@ -1,0 +1,61 @@
+Supported chips:
+  * Dialog Semiconductors DA9052-BC and DA9053-AA/Bx PMICs
+    Prefix: 'da9052'
+    Datasheet: Datasheet is not publicly available.
+
+Authors: David Dajun Chen <dchen@diasemi.com>
+
+Description
+-----------
+
+The DA9052/53 provides an Analogue to Digital Converter (ADC) with 10 bits
+resolution and track and hold circuitry combined with an analogue input
+multiplexer. The analogue input multiplexer will allow conversion of up to 10
+different inputs. The track and hold circuit ensures stable input voltages at
+the input of the ADC during the conversion.
+
+The ADC is used to measure the following inputs:
+Channel 0: VDDOUT - measurement of the system voltage
+Channel 1: ICH - internal battery charger current measurement
+Channel 2: TBAT - output from the battery NTC
+Channel 3: VBAT - measurement of the battery voltage
+Channel 4: ADC_IN4 - high impedance input (0 - 2.5V)
+Channel 5: ADC_IN5 - high impedance input (0 - 2.5V)
+Channel 6: ADC_IN6 - high impedance input (0 - 2.5V)
+Channel 7: XY - TSI interface to measure the X and Y voltage of the touch
+	   screen resistive potentiometers
+Channel 8: Internal Tjunc. - sense (internal temp. sensor)
+Channel 9: VBBAT - measurement of the backup battery voltage
+
+By using sysfs attributes we can measure the system voltage VDDOUT, the battery
+charging current ICH, battery temperature TBAT, battery junction temperature
+TJUNC, battery voltage VBAT and the back up battery voltage VBBAT.
+
+Voltage Monitoring
+------------------
+
+Voltages are sampled by a 10 bit ADC.
+
+The battery voltage is calculated as:
+	Milli volt = ((ADC value * 1000) / 512) + 2500
+
+The backup battery voltage is calculated as:
+	Milli volt = (ADC value * 2500) / 512;
+
+The voltages on ADC channels 4, 5 and 6 are calculated as:
+	Milli volt = (ADC value * 2500) / 1023
+
+Temperature Monitoring
+----------------------
+
+Temperatures are sampled by a 10 bit ADC.  Junction and battery temperatures
+are monitored by the ADC channels.
+
+The junction temperature is calculated:
+	Degrees celsius = 1.708 * (TJUNC_RES - T_OFFSET) - 108.8
+The junction temperature attribute is supported by the driver.
+
+The battery temperature is calculated:
+	Degree Celsius = 1 / (t1 + 1/298)- 273
+where t1 = (1/B)* ln(( ADCval * 2.5)/(R25*ITBAT*255))
+Default values of R25, B, ITBAT are 10e3, 3380 and 50e-6 respectively.

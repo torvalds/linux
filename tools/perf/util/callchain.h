@@ -7,6 +7,13 @@
 #include "event.h"
 #include "symbol.h"
 
+enum perf_call_graph_mode {
+	CALLCHAIN_NONE,
+	CALLCHAIN_FP,
+	CALLCHAIN_DWARF,
+	CALLCHAIN_MAX
+};
+
 enum chain_mode {
 	CHAIN_NONE,
 	CHAIN_FLAT,
@@ -21,11 +28,11 @@ enum chain_order {
 
 struct callchain_node {
 	struct callchain_node	*parent;
-	struct list_head	siblings;
-	struct list_head	children;
 	struct list_head	val;
-	struct rb_node		rb_node; /* to sort nodes in an rbtree */
-	struct rb_root		rb_root; /* sorted tree of children */
+	struct rb_node		rb_node_in; /* to insert nodes in an rbtree */
+	struct rb_node		rb_node;    /* to sort nodes in an output tree */
+	struct rb_root		rb_root_in; /* input tree of children */
+	struct rb_root		rb_root;    /* sorted output tree of children */
 	unsigned int		val_nr;
 	u64			hit;
 	u64			children_hit;
@@ -41,12 +48,18 @@ struct callchain_param;
 typedef void (*sort_chain_func_t)(struct rb_root *, struct callchain_root *,
 				 u64, struct callchain_param *);
 
+enum chain_key {
+	CCKEY_FUNCTION,
+	CCKEY_ADDRESS
+};
+
 struct callchain_param {
 	enum chain_mode 	mode;
 	u32			print_limit;
 	double			min_percent;
 	sort_chain_func_t	sort;
 	enum chain_order	order;
+	enum chain_key		key;
 };
 
 struct callchain_list {
@@ -58,7 +71,7 @@ struct callchain_list {
 /*
  * A callchain cursor is a single linked list that
  * let one feed a callchain progressively.
- * It keeps persitent allocated entries to minimize
+ * It keeps persistent allocated entries to minimize
  * allocations.
  */
 struct callchain_cursor_node {
@@ -76,15 +89,16 @@ struct callchain_cursor {
 	struct callchain_cursor_node	*curr;
 };
 
+extern __thread struct callchain_cursor callchain_cursor;
+
 static inline void callchain_init(struct callchain_root *root)
 {
-	INIT_LIST_HEAD(&root->node.siblings);
-	INIT_LIST_HEAD(&root->node.children);
 	INIT_LIST_HEAD(&root->node.val);
 
 	root->node.parent = NULL;
 	root->node.hit = 0;
 	root->node.children_hit = 0;
+	root->node.rb_root_in = RB_ROOT;
 	root->max_depth = 0;
 }
 
@@ -101,11 +115,6 @@ int callchain_append(struct callchain_root *root,
 int callchain_merge(struct callchain_cursor *cursor,
 		    struct callchain_root *dst, struct callchain_root *src);
 
-struct ip_callchain;
-union perf_event;
-
-bool ip_callchain__valid(struct ip_callchain *chain,
-			 const union perf_event *event);
 /*
  * Initialize a cursor before adding entries inside, but keep
  * the previously allocated entries as a cache.
@@ -141,4 +150,43 @@ static inline void callchain_cursor_advance(struct callchain_cursor *cursor)
 	cursor->curr = cursor->curr->next;
 	cursor->pos++;
 }
+
+struct option;
+struct hist_entry;
+
+int record_parse_callchain(const char *arg, struct record_opts *opts);
+int record_parse_callchain_opt(const struct option *opt, const char *arg, int unset);
+int record_callchain_opt(const struct option *opt, const char *arg, int unset);
+
+int sample__resolve_callchain(struct perf_sample *sample, struct symbol **parent,
+			      struct perf_evsel *evsel, struct addr_location *al,
+			      int max_stack);
+int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample);
+int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *node,
+			bool hide_unresolved);
+
+extern const char record_callchain_help[];
+int parse_callchain_report_opt(const char *arg);
+
+static inline void callchain_cursor_snapshot(struct callchain_cursor *dest,
+					     struct callchain_cursor *src)
+{
+	*dest = *src;
+
+	dest->first = src->curr;
+	dest->nr -= src->pos;
+}
+
+#ifdef HAVE_SKIP_CALLCHAIN_IDX
+extern int arch_skip_callchain_idx(struct machine *machine,
+			struct thread *thread, struct ip_callchain *chain);
+#else
+static inline int arch_skip_callchain_idx(struct machine *machine __maybe_unused,
+			struct thread *thread __maybe_unused,
+			struct ip_callchain *chain __maybe_unused)
+{
+	return -1;
+}
+#endif
+
 #endif	/* __PERF_CALLCHAIN_H */

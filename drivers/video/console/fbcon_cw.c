@@ -27,7 +27,7 @@ static void cw_update_attr(u8 *dst, u8 *src, int attribute,
 {
 	int i, j, offset = (vc->vc_font.height < 10) ? 1 : 2;
 	int width = (vc->vc_font.height + 7) >> 3;
-	u8 c, t = 0, msk = ~(0xff >> offset);
+	u8 c, msk = ~(0xff >> offset);
 
 	for (i = 0; i < vc->vc_font.width; i++) {
 		for (j = 0; j < width; j++) {
@@ -40,7 +40,6 @@ static void cw_update_attr(u8 *dst, u8 *src, int attribute,
 				c = ~c;
 			src++;
 			*dst++ = c;
-			t = c;
 		}
 	}
 }

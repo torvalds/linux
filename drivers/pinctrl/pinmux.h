@@ -31,12 +31,6 @@ void pinmux_free_setting(struct pinctrl_setting const *setting);
 int pinmux_enable_setting(struct pinctrl_setting const *setting);
 void pinmux_disable_setting(struct pinctrl_setting const *setting);
 
-void pinmux_show_map(struct seq_file *s, struct pinctrl_map const *map);
-void pinmux_show_setting(struct seq_file *s,
-			 struct pinctrl_setting const *setting);
-void pinmux_init_device_debugfs(struct dentry *devroot,
-				struct pinctrl_dev *pctldev);
-
 #else
 
 static inline int pinmux_check_ops(struct pinctrl_dev *pctldev)
@@ -88,6 +82,18 @@ static inline void pinmux_disable_setting(
 			struct pinctrl_setting const *setting)
 {
 }
+
+#endif
+
+#if defined(CONFIG_PINMUX) && defined(CONFIG_DEBUG_FS)
+
+void pinmux_show_map(struct seq_file *s, struct pinctrl_map const *map);
+void pinmux_show_setting(struct seq_file *s,
+			 struct pinctrl_setting const *setting);
+void pinmux_init_device_debugfs(struct dentry *devroot,
+				struct pinctrl_dev *pctldev);
+
+#else
 
 static inline void pinmux_show_map(struct seq_file *s,
 				   struct pinctrl_map const *map)

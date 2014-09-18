@@ -16,7 +16,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
+#include <linux/device.h>
 #include <linux/input.h>
 #include <linux/input-polldev.h>
 #include <linux/interrupt.h>
@@ -179,21 +179,22 @@ static void jornadakbd680_poll(struct input_polled_dev *dev)
 	memcpy(jornadakbd->old_scan, jornadakbd->new_scan, JORNADA_SCAN_SIZE);
 }
 
-static int __devinit jornada680kbd_probe(struct platform_device *pdev)
+static int jornada680kbd_probe(struct platform_device *pdev)
 {
 	struct jornadakbd *jornadakbd;
 	struct input_polled_dev *poll_dev;
 	struct input_dev *input_dev;
 	int i, error;
 
-	jornadakbd = kzalloc(sizeof(struct jornadakbd), GFP_KERNEL);
+	jornadakbd = devm_kzalloc(&pdev->dev, sizeof(struct jornadakbd),
+				  GFP_KERNEL);
 	if (!jornadakbd)
 		return -ENOMEM;
 
-	poll_dev = input_allocate_polled_device();
+	poll_dev = devm_input_allocate_polled_device(&pdev->dev);
 	if (!poll_dev) {
-		error = -ENOMEM;
-		goto failed;
+		dev_err(&pdev->dev, "failed to allocate polled input device\n");
+		return -ENOMEM;
 	}
 
 	platform_set_drvdata(pdev, jornadakbd);
@@ -225,29 +226,10 @@ static int __devinit jornada680kbd_probe(struct platform_device *pdev)
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
 	error = input_register_polled_device(jornadakbd->poll_dev);
-	if (error)
-		goto failed;
-
-	return 0;
-
- failed:
-	printk(KERN_ERR "Jornadakbd: failed to register driver, error: %d\n",
-		error);
-	platform_set_drvdata(pdev, NULL);
-	input_free_polled_device(poll_dev);
-	kfree(jornadakbd);
-	return error;
-
-}
-
-static int __devexit jornada680kbd_remove(struct platform_device *pdev)
-{
-	struct jornadakbd *jornadakbd = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
-	input_unregister_polled_device(jornadakbd->poll_dev);
-	input_free_polled_device(jornadakbd->poll_dev);
-	kfree(jornadakbd);
+	if (error) {
+		dev_err(&pdev->dev, "failed to register polled input device\n");
+		return error;
+	}
 
 	return 0;
 }
@@ -258,7 +240,6 @@ static struct platform_driver jornada680kbd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= jornada680kbd_probe,
-	.remove	= __devexit_p(jornada680kbd_remove),
 };
 module_platform_driver(jornada680kbd_driver);
 

@@ -1,7 +1,7 @@
 /*
  * wm5100.c  --  WM5100 ALSA SoC Audio driver
  *
- * Copyright 2011 Wolfson Microelectronics plc
+ * Copyright 2011-2 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
@@ -14,6 +14,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/pm.h>
 #include <linux/gcd.h>
 #include <linux/gpio.h>
@@ -389,7 +390,7 @@ static int wm5100_mixer_values[] = {
 
 #define WM5100_MUX_CTL_DECL(name) \
 	const struct snd_kcontrol_new name##_mux =	\
-		SOC_DAPM_VALUE_ENUM("Route", name##_enum)
+		SOC_DAPM_ENUM("Route", name##_enum)
 
 #define WM5100_MIXER_ENUMS(name, base_reg) \
 	static WM5100_MUX_ENUM_DECL(name##_in1_enum, base_reg);	     \
@@ -447,7 +448,7 @@ WM5100_MIXER_ENUMS(LHPF3, WM5100_HPLP3MIX_INPUT_1_SOURCE);
 WM5100_MIXER_ENUMS(LHPF4, WM5100_HPLP4MIX_INPUT_1_SOURCE);
 
 #define WM5100_MUX(name, ctrl) \
-	SND_SOC_DAPM_VALUE_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
 
 #define WM5100_MIXER_WIDGETS(name, name_str)	\
 	WM5100_MUX(name_str " Input 1", &name##_in1_mux), \
@@ -505,21 +506,21 @@ static const char *wm5100_lhpf_mode_text[] = {
 	"Low-pass", "High-pass"
 };
 
-static const struct soc_enum wm5100_lhpf1_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF1_1, WM5100_LHPF1_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf1_mode,
+			    WM5100_HPLPF1_1, WM5100_LHPF1_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
-static const struct soc_enum wm5100_lhpf2_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF2_1, WM5100_LHPF2_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf2_mode,
+			    WM5100_HPLPF2_1, WM5100_LHPF2_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
-static const struct soc_enum wm5100_lhpf3_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF3_1, WM5100_LHPF3_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf3_mode,
+			    WM5100_HPLPF3_1, WM5100_LHPF3_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
-static const struct soc_enum wm5100_lhpf4_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF4_1, WM5100_LHPF4_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf4_mode,
+			    WM5100_HPLPF4_1, WM5100_LHPF4_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
 static const struct snd_kcontrol_new wm5100_snd_controls[] = {
 SOC_SINGLE("IN1 High Performance Switch", WM5100_IN1L_CONTROL,
@@ -562,6 +563,19 @@ SOC_DOUBLE_R("IN3 Switch", WM5100_ADC_DIGITAL_VOLUME_3L,
 	     WM5100_ADC_DIGITAL_VOLUME_3R, WM5100_IN3L_MUTE_SHIFT, 1, 1),
 SOC_DOUBLE_R("IN4 Switch", WM5100_ADC_DIGITAL_VOLUME_4L,
 	     WM5100_ADC_DIGITAL_VOLUME_4R, WM5100_IN4L_MUTE_SHIFT, 1, 1),
+
+SND_SOC_BYTES_MASK("EQ1 Coefficients", WM5100_EQ1_1, 20, WM5100_EQ1_ENA),
+SND_SOC_BYTES_MASK("EQ2 Coefficients", WM5100_EQ2_1, 20, WM5100_EQ2_ENA),
+SND_SOC_BYTES_MASK("EQ3 Coefficients", WM5100_EQ3_1, 20, WM5100_EQ3_ENA),
+SND_SOC_BYTES_MASK("EQ4 Coefficients", WM5100_EQ4_1, 20, WM5100_EQ4_ENA),
+
+SND_SOC_BYTES_MASK("DRC Coefficients", WM5100_DRC1_CTRL1, 5,
+		   WM5100_DRCL_ENA | WM5100_DRCR_ENA),
+
+SND_SOC_BYTES("LHPF1 Coefficeints", WM5100_HPLPF1_2, 1),
+SND_SOC_BYTES("LHPF2 Coefficeints", WM5100_HPLPF2_2, 1),
+SND_SOC_BYTES("LHPF3 Coefficeints", WM5100_HPLPF3_2, 1),
+SND_SOC_BYTES("LHPF4 Coefficeints", WM5100_HPLPF4_2, 1),
 
 SOC_SINGLE("HPOUT1 High Performance Switch", WM5100_OUT_VOLUME_1L,
 	   WM5100_OUT1_OSR_SHIFT, 1, 0),
@@ -721,8 +735,7 @@ WM5100_MIXER_CONTROLS("LHPF4", WM5100_HPLP4MIX_INPUT_1_SOURCE),
 static void wm5100_seq_notifier(struct snd_soc_dapm_context *dapm,
 				enum snd_soc_dapm_type event, int subseq)
 {
-	struct snd_soc_codec *codec = container_of(dapm,
-						   struct snd_soc_codec, dapm);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
 	u16 val, expect, i;
 
@@ -848,9 +861,9 @@ SND_SOC_DAPM_SUPPLY("SYSCLK", WM5100_CLOCKING_3, WM5100_SYSCLK_ENA_SHIFT, 0,
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", WM5100_CLOCKING_6, WM5100_ASYNC_CLK_ENA_SHIFT,
 		    0, NULL, 0),
 
-SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20),
-SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD2", 0),
-SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD3", 0),
+SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20, 0),
+SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD2", 0, 0),
+SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD3", 0, 0),
 
 SND_SOC_DAPM_SUPPLY("CP1", WM5100_HP_CHARGE_PUMP_1, WM5100_CP1_ENA_SHIFT, 0,
 		    NULL, 0),
@@ -1233,7 +1246,7 @@ static const struct snd_soc_dapm_route wm5100_dapm_routes[] = {
 	{ "PWM2", NULL, "PWM2 Driver" },
 };
 
-static const __devinitdata struct reg_default wm5100_reva_patches[] = {
+static const struct reg_default wm5100_reva_patches[] = {
 	{ WM5100_AUDIO_IF_1_10, 0 },
 	{ WM5100_AUDIO_IF_1_11, 1 },
 	{ WM5100_AUDIO_IF_1_12, 2 },
@@ -1265,29 +1278,12 @@ static const __devinitdata struct reg_default wm5100_reva_patches[] = {
 	{ WM5100_AUDIO_IF_3_19, 1 },
 };
 
-static int wm5100_dai_to_base(struct snd_soc_dai *dai)
-{
-	switch (dai->id) {
-	case 0:
-		return WM5100_AUDIO_IF_1_1 - 1;
-	case 1:
-		return WM5100_AUDIO_IF_2_1 - 1;
-	case 2:
-		return WM5100_AUDIO_IF_3_1 - 1;
-	default:
-		BUG();
-		return -EINVAL;
-	}
-}
-
 static int wm5100_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	int lrclk, bclk, mask, base;
 
-	base = wm5100_dai_to_base(dai);
-	if (base < 0)
-		return base;
+	base = dai->driver->base;
 
 	lrclk = 0;
 	bclk = 0;
@@ -1296,14 +1292,8 @@ static int wm5100_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		mask = 0;
 		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		mask = 1;
-		break;
 	case SND_SOC_DAIFMT_I2S:
 		mask = 2;
-		break;
-	case SND_SOC_DAIFMT_LEFT_J:
-		mask = 3;
 		break;
 	default:
 		dev_err(codec->dev, "Unsupported DAI format %d\n",
@@ -1414,9 +1404,7 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 	int i, base, bclk, aif_rate, lrclk, wl, fl, sr;
 	int *bclk_rates;
 
-	base = wm5100_dai_to_base(dai);
-	if (base < 0)
-		return base;
+	base = dai->driver->base;
 
 	/* Data sizes if not using TDM */
 	wl = snd_pcm_format_width(params_format(params));
@@ -1897,6 +1885,7 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 static struct snd_soc_dai_driver wm5100_dai[] = {
 	{
 		.name = "wm5100-aif1",
+		.base = WM5100_AUDIO_IF_1_1 - 1,
 		.playback = {
 			.stream_name = "AIF1 Playback",
 			.channels_min = 2,
@@ -1916,6 +1905,7 @@ static struct snd_soc_dai_driver wm5100_dai[] = {
 	{
 		.name = "wm5100-aif2",
 		.id = 1,
+		.base = WM5100_AUDIO_IF_2_1 - 1,
 		.playback = {
 			.stream_name = "AIF2 Playback",
 			.channels_min = 2,
@@ -1935,6 +1925,7 @@ static struct snd_soc_dai_driver wm5100_dai[] = {
 	{
 		.name = "wm5100-aif3",
 		.id = 2,
+		.base = WM5100_AUDIO_IF_3_1 - 1,
 		.playback = {
 			.stream_name = "AIF3 Playback",
 			.channels_min = 2,
@@ -1981,7 +1972,8 @@ static void wm5100_set_detect_mode(struct wm5100_priv *wm5100, int the_mode)
 {
 	struct wm5100_jack_mode *mode = &wm5100->pdata.jack_modes[the_mode];
 
-	BUG_ON(the_mode >= ARRAY_SIZE(wm5100->pdata.jack_modes));
+	if (WARN_ON(the_mode >= ARRAY_SIZE(wm5100->pdata.jack_modes)))
+		return;
 
 	gpio_set_value_cansleep(wm5100->pdata.hp_pol, mode->hp_pol);
 	regmap_update_bits(wm5100->regmap, WM5100_ACCESSORY_DETECT_MODE_1,
@@ -2107,6 +2099,7 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 {
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	if (jack) {
 		wm5100->jack = jack;
@@ -2124,9 +2117,14 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 				    WM5100_ACCDET_RATE_MASK);
 
 		/* We need the charge pump to power MICBIAS */
-		snd_soc_dapm_force_enable_pin(&codec->dapm, "CP2");
-		snd_soc_dapm_force_enable_pin(&codec->dapm, "SYSCLK");
-		snd_soc_dapm_sync(&codec->dapm);
+		snd_soc_dapm_mutex_lock(dapm);
+
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "CP2");
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "SYSCLK");
+
+		snd_soc_dapm_sync_unlocked(dapm);
+
+		snd_soc_dapm_mutex_unlock(dapm);
 
 		/* We start off just enabling microphone detection - even a
 		 * plain headphone will trigger detection.
@@ -2149,6 +2147,7 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wm5100_detect);
 
 static irqreturn_t wm5100_irq(int irq, void *data)
 {
@@ -2343,13 +2342,6 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 	int ret, i;
 
 	wm5100->codec = codec;
-	codec->control_data = wm5100->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(wm5100_dig_vu); i++)
 		snd_soc_update_bits(codec, wm5100_dig_vu[i], WM5100_OUT_VU,
@@ -2394,13 +2386,6 @@ static int wm5100_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int wm5100_soc_volatile(struct snd_soc_codec *codec,
-			       unsigned int reg)
-{
-	return true;
-}
-
-
 static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 	.probe =	wm5100_probe,
 	.remove =	wm5100_remove,
@@ -2408,8 +2393,6 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 	.set_sysclk = wm5100_set_sysclk,
 	.set_pll = wm5100_set_fll,
 	.idle_bias_off = 1,
-	.reg_cache_size = WM5100_MAX_REGISTER,
-	.volatile_register = wm5100_soc_volatile,
 
 	.seq_notifier = wm5100_seq_notifier,
 	.controls = wm5100_snd_controls,
@@ -2439,8 +2422,8 @@ static const unsigned int wm5100_mic_ctrl_reg[] = {
 	WM5100_IN4L_CONTROL,
 };
 
-static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm5100_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm5100_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm5100_priv *wm5100;
@@ -2454,7 +2437,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 
 	wm5100->dev = &i2c->dev;
 
-	wm5100->regmap = regmap_init_i2c(i2c, &wm5100_regmap);
+	wm5100->regmap = devm_regmap_init_i2c(i2c, &wm5100_regmap);
 	if (IS_ERR(wm5100->regmap)) {
 		ret = PTR_ERR(wm5100->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
@@ -2479,7 +2462,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to request core supplies: %d\n",
 			ret);
-		goto err_regmap;
+		goto err;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm5100->core_supplies),
@@ -2487,7 +2470,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to enable core supplies: %d\n",
 			ret);
-		goto err_regmap;
+		goto err;
 	}
 
 	if (wm5100->pdata.ldo_ena) {
@@ -2660,13 +2643,11 @@ err_ldo:
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm5100->core_supplies),
 			       wm5100->core_supplies);
-err_regmap:
-	regmap_exit(wm5100->regmap);
 err:
 	return ret;
 }
 
-static __devexit int wm5100_i2c_remove(struct i2c_client *i2c)
+static int wm5100_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm5100_priv *wm5100 = i2c_get_clientdata(i2c);
 
@@ -2682,7 +2663,6 @@ static __devexit int wm5100_i2c_remove(struct i2c_client *i2c)
 		gpio_set_value_cansleep(wm5100->pdata.ldo_ena, 0);
 		gpio_free(wm5100->pdata.ldo_ena);
 	}
-	regmap_exit(wm5100->regmap);
 
 	return 0;
 }
@@ -2745,21 +2725,11 @@ static struct i2c_driver wm5100_i2c_driver = {
 		.pm = &wm5100_pm,
 	},
 	.probe =    wm5100_i2c_probe,
-	.remove =   __devexit_p(wm5100_i2c_remove),
+	.remove =   wm5100_i2c_remove,
 	.id_table = wm5100_i2c_id,
 };
 
-static int __init wm5100_modinit(void)
-{
-	return i2c_add_driver(&wm5100_i2c_driver);
-}
-module_init(wm5100_modinit);
-
-static void __exit wm5100_exit(void)
-{
-	i2c_del_driver(&wm5100_i2c_driver);
-}
-module_exit(wm5100_exit);
+module_i2c_driver(wm5100_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM5100 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

@@ -33,6 +33,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <mach/time.h>
+#include "gpio-iop32x.h"
 
 /*
  * IQ80321 timer tick configuration.
@@ -42,10 +43,6 @@ static void __init iq80321_timer_init(void)
 	/* 33.333 MHz crystal.  */
 	iop_init_time(200000000);
 }
-
-static struct sys_timer iq80321_timer = {
-	.init		= iq80321_timer_init,
-};
 
 
 /*
@@ -101,11 +98,10 @@ iq80321_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static struct hw_pci iq80321_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.nr_controllers = 1,
+	.ops		= &iop3xx_ops,
 	.setup		= iop3xx_pci_setup,
 	.preinit	= iop3xx_pci_preinit_cond,
-	.scan		= iop3xx_pci_scan_bus,
 	.map_irq	= iq80321_pci_map_irq,
 };
 
@@ -175,6 +171,7 @@ static struct platform_device iq80321_serial_device = {
 
 static void __init iq80321_init_machine(void)
 {
+	register_iop32x_gpio();
 	platform_device_register(&iop3xx_i2c0_device);
 	platform_device_register(&iop3xx_i2c1_device);
 	platform_device_register(&iq80321_flash_device);
@@ -189,7 +186,7 @@ MACHINE_START(IQ80321, "Intel IQ80321")
 	.atag_offset	= 0x100,
 	.map_io		= iq80321_map_io,
 	.init_irq	= iop32x_init_irq,
-	.timer		= &iq80321_timer,
+	.init_time	= iq80321_timer_init,
 	.init_machine	= iq80321_init_machine,
 	.restart	= iop3xx_restart,
 MACHINE_END

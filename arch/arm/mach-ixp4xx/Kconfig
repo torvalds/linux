@@ -1,9 +1,5 @@
 if ARCH_IXP4XX
 
-config ARCH_SUPPORTS_BIG_ENDIAN
-	bool
-	default y
-
 menu "Intel IXP4xx Implementation Options"
 
 comment "IXP4xx Platforms"
@@ -234,7 +230,6 @@ config IXP4XX_QMGR
 
 config IXP4XX_NPE
 	tristate "IXP4xx Network Processor Engine support"
-	select HOTPLUG
 	select FW_LOADER
 	help
 	  This driver supports IXP4xx built-in network coprocessors

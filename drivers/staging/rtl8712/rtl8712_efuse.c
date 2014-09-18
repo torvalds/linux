@@ -231,7 +231,7 @@ u16 r8712_efuse_get_current_size(struct _adapter *padapter)
 			/* read next header */
 			efuse_addr = efuse_addr + (word_cnts * 2) + 1;
 		} else
-			bContinual = false ;
+			bContinual = false;
 	}
 	return efuse_addr;
 }
@@ -417,7 +417,7 @@ u8 r8712_efuse_pg_packet_write(struct _adapter *padapter, const u8 offset,
 		} else { /* write header fail */
 			bResult = false;
 			if (0xFF == efuse_data)
-				return bResult; /* not thing damaged. */
+				return bResult; /* nothing damaged. */
 			/* call rescue procedure */
 			if (fix_header(padapter, efuse_data, efuse_addr) ==
 			    false)

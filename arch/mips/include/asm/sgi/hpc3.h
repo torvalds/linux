@@ -65,39 +65,39 @@ struct hpc3_scsiregs {
 	u32 _unused0[0x1000/4 - 2];	/* padding */
 	volatile u32 bcd;	/* byte count info */
 #define HPC3_SBCD_BCNTMSK 0x00003fff /* bytes to transfer from/to memory */
-#define HPC3_SBCD_XIE     0x00004000 /* Send IRQ when done with cur buf */
-#define HPC3_SBCD_EOX     0x00008000 /* Indicates this is last buf in chain */
+#define HPC3_SBCD_XIE	  0x00004000 /* Send IRQ when done with cur buf */
+#define HPC3_SBCD_EOX	  0x00008000 /* Indicates this is last buf in chain */
 
 	volatile u32 ctrl;    /* control register */
-#define HPC3_SCTRL_IRQ    0x01 /* IRQ asserted, either dma done or parity */
+#define HPC3_SCTRL_IRQ	  0x01 /* IRQ asserted, either dma done or parity */
 #define HPC3_SCTRL_ENDIAN 0x02 /* DMA endian mode, 0=big 1=little */
-#define HPC3_SCTRL_DIR    0x04 /* DMA direction, 1=dev2mem 0=mem2dev */
+#define HPC3_SCTRL_DIR	  0x04 /* DMA direction, 1=dev2mem 0=mem2dev */
 #define HPC3_SCTRL_FLUSH  0x08 /* Tells HPC3 to flush scsi fifos */
 #define HPC3_SCTRL_ACTIVE 0x10 /* SCSI DMA channel is active */
 #define HPC3_SCTRL_AMASK  0x20 /* DMA active inhibits PIO */
 #define HPC3_SCTRL_CRESET 0x40 /* Resets dma channel and external controller */
-#define HPC3_SCTRL_PERR   0x80 /* Bad parity on HPC3 iface to scsi controller */
+#define HPC3_SCTRL_PERR	  0x80 /* Bad parity on HPC3 iface to scsi controller */
 
 	volatile u32 gfptr;	/* current GIO fifo ptr */
 	volatile u32 dfptr;	/* current device fifo ptr */
 	volatile u32 dconfig;	/* DMA configuration register */
 #define HPC3_SDCFG_HCLK 0x00001 /* Enable DMA half clock mode */
-#define HPC3_SDCFG_D1   0x00006 /* Cycles to spend in D1 state */
-#define HPC3_SDCFG_D2   0x00038 /* Cycles to spend in D2 state */
-#define HPC3_SDCFG_D3   0x001c0 /* Cycles to spend in D3 state */
+#define HPC3_SDCFG_D1	0x00006 /* Cycles to spend in D1 state */
+#define HPC3_SDCFG_D2	0x00038 /* Cycles to spend in D2 state */
+#define HPC3_SDCFG_D3	0x001c0 /* Cycles to spend in D3 state */
 #define HPC3_SDCFG_HWAT 0x00e00 /* DMA high water mark */
-#define HPC3_SDCFG_HW   0x01000 /* Enable 16-bit halfword DMA accesses to scsi */
+#define HPC3_SDCFG_HW	0x01000 /* Enable 16-bit halfword DMA accesses to scsi */
 #define HPC3_SDCFG_SWAP 0x02000 /* Byte swap all DMA accesses */
 #define HPC3_SDCFG_EPAR 0x04000 /* Enable parity checking for DMA */
 #define HPC3_SDCFG_POLL 0x08000 /* hd_dreq polarity control */
 #define HPC3_SDCFG_ERLY 0x30000 /* hd_dreq behavior control bits */
 
 	volatile u32 pconfig;	/* PIO configuration register */
-#define HPC3_SPCFG_P3   0x0003 /* Cycles to spend in P3 state */
-#define HPC3_SPCFG_P2W  0x001c /* Cycles to spend in P2 state for writes */
-#define HPC3_SPCFG_P2R  0x01e0 /* Cycles to spend in P2 state for reads */
-#define HPC3_SPCFG_P1   0x0e00 /* Cycles to spend in P1 state */
-#define HPC3_SPCFG_HW   0x1000 /* Enable 16-bit halfword PIO accesses to scsi */
+#define HPC3_SPCFG_P3	0x0003 /* Cycles to spend in P3 state */
+#define HPC3_SPCFG_P2W	0x001c /* Cycles to spend in P2 state for writes */
+#define HPC3_SPCFG_P2R	0x01e0 /* Cycles to spend in P2 state for reads */
+#define HPC3_SPCFG_P1	0x0e00 /* Cycles to spend in P1 state */
+#define HPC3_SPCFG_HW	0x1000 /* Enable 16-bit halfword PIO accesses to scsi */
 #define HPC3_SPCFG_SWAP 0x2000 /* Byte swap all PIO accesses */
 #define HPC3_SPCFG_EPAR 0x4000 /* Enable parity checking for PIO */
 #define HPC3_SPCFG_FUJI 0x8000 /* Fujitsu scsi controller mode for faster dma/pio */
@@ -108,13 +108,13 @@ struct hpc3_scsiregs {
 /* SEEQ ethernet HPC3 registers, only one seeq per HPC3. */
 struct hpc3_ethregs {
 	/* Receiver registers. */
-	volatile u32 rx_cbptr;   /* current dma buffer ptr, diagnostic use only */
-	volatile u32 rx_ndptr;   /* next dma descriptor ptr */
+	volatile u32 rx_cbptr;	 /* current dma buffer ptr, diagnostic use only */
+	volatile u32 rx_ndptr;	 /* next dma descriptor ptr */
 	u32 _unused0[0x1000/4 - 2];	/* padding */
 	volatile u32 rx_bcd;	/* byte count info */
 #define HPC3_ERXBCD_BCNTMSK 0x00003fff /* bytes to be sent to memory */
-#define HPC3_ERXBCD_XIE     0x20000000 /* HPC3 interrupts cpu at end of this buf */
-#define HPC3_ERXBCD_EOX     0x80000000 /* flags this as end of descriptor chain */
+#define HPC3_ERXBCD_XIE	    0x20000000 /* HPC3 interrupts cpu at end of this buf */
+#define HPC3_ERXBCD_EOX	    0x80000000 /* flags this as end of descriptor chain */
 
 	volatile u32 rx_ctrl;	/* control register */
 #define HPC3_ERXCTRL_STAT50 0x0000003f /* Receive status reg bits of Seeq8003 */
@@ -131,23 +131,23 @@ struct hpc3_ethregs {
 	volatile u32 reset;	/* reset register */
 #define HPC3_ERST_CRESET 0x1	/* Reset dma channel and external controller */
 #define HPC3_ERST_CLRIRQ 0x2	/* Clear channel interrupt */
-#define HPC3_ERST_LBACK  0x4	/* Enable diagnostic loopback mode of Seeq8003 */
+#define HPC3_ERST_LBACK	 0x4	/* Enable diagnostic loopback mode of Seeq8003 */
 
-	volatile u32 dconfig;    /* DMA configuration register */
-#define HPC3_EDCFG_D1    0x0000f /* Cycles to spend in D1 state for PIO */
-#define HPC3_EDCFG_D2    0x000f0 /* Cycles to spend in D2 state for PIO */
-#define HPC3_EDCFG_D3    0x00f00 /* Cycles to spend in D3 state for PIO */
+	volatile u32 dconfig;	 /* DMA configuration register */
+#define HPC3_EDCFG_D1	 0x0000f /* Cycles to spend in D1 state for PIO */
+#define HPC3_EDCFG_D2	 0x000f0 /* Cycles to spend in D2 state for PIO */
+#define HPC3_EDCFG_D3	 0x00f00 /* Cycles to spend in D3 state for PIO */
 #define HPC3_EDCFG_WCTRL 0x01000 /* Enable writes of desc into ex ctrl port */
 #define HPC3_EDCFG_FRXDC 0x02000 /* Clear eop stat bits upon rxdc, hw seeq fix */
-#define HPC3_EDCFG_FEOP  0x04000 /* Bad packet marker timeout enable */
-#define HPC3_EDCFG_FIRQ  0x08000 /* Another bad packet timeout enable */
-#define HPC3_EDCFG_PTO   0x30000 /* Programmed timeout value for above two */
+#define HPC3_EDCFG_FEOP	 0x04000 /* Bad packet marker timeout enable */
+#define HPC3_EDCFG_FIRQ	 0x08000 /* Another bad packet timeout enable */
+#define HPC3_EDCFG_PTO	 0x30000 /* Programmed timeout value for above two */
 
-	volatile u32 pconfig;   /* PIO configuration register */
-#define HPC3_EPCFG_P1    0x000f /* Cycles to spend in P1 state for PIO */
-#define HPC3_EPCFG_P2    0x00f0 /* Cycles to spend in P2 state for PIO */
-#define HPC3_EPCFG_P3    0x0f00 /* Cycles to spend in P3 state for PIO */
-#define HPC3_EPCFG_TST   0x1000 /* Diagnistic ram test feature bit */
+	volatile u32 pconfig;	/* PIO configuration register */
+#define HPC3_EPCFG_P1	 0x000f /* Cycles to spend in P1 state for PIO */
+#define HPC3_EPCFG_P2	 0x00f0 /* Cycles to spend in P2 state for PIO */
+#define HPC3_EPCFG_P3	 0x0f00 /* Cycles to spend in P3 state for PIO */
+#define HPC3_EPCFG_TST	 0x1000 /* Diagnistic ram test feature bit */
 
 	u32 _unused2[0x1000/4 - 8];	/* padding */
 
@@ -158,9 +158,9 @@ struct hpc3_ethregs {
 	volatile u32 tx_bcd;		/* byte count info */
 #define HPC3_ETXBCD_BCNTMSK 0x00003fff	/* bytes to be read from memory */
 #define HPC3_ETXBCD_ESAMP   0x10000000	/* if set, too late to add descriptor */
-#define HPC3_ETXBCD_XIE     0x20000000	/* Interrupt cpu at end of cur desc */
-#define HPC3_ETXBCD_EOP     0x40000000	/* Last byte of cur buf is end of packet */
-#define HPC3_ETXBCD_EOX     0x80000000	/* This buf is the end of desc chain */
+#define HPC3_ETXBCD_XIE	    0x20000000	/* Interrupt cpu at end of cur desc */
+#define HPC3_ETXBCD_EOP	    0x40000000	/* Last byte of cur buf is end of packet */
+#define HPC3_ETXBCD_EOX	    0x80000000	/* This buf is the end of desc chain */
 
 	volatile u32 tx_ctrl;		/* control register */
 #define HPC3_ETXCTRL_STAT30 0x0000000f	/* Rdonly copy of seeq tx stat reg */
@@ -215,10 +215,10 @@ struct hpc3_regs {
 
 	volatile u32 istat1;		/* Irq status, only bits <9:5> reliable. */
 	volatile u32 bestat;		/* Bus error interrupt status reg. */
-#define HPC3_BESTAT_BLMASK	0x000ff	/* Bus lane where bad parity occurred */
-#define HPC3_BESTAT_CTYPE	0x00100	/* Bus cycle type, 0=PIO 1=DMA */
+#define HPC3_BESTAT_BLMASK	0x000ff /* Bus lane where bad parity occurred */
+#define HPC3_BESTAT_CTYPE	0x00100 /* Bus cycle type, 0=PIO 1=DMA */
 #define HPC3_BESTAT_PIDSHIFT	9
-#define HPC3_BESTAT_PIDMASK	0x3f700	/* DMA channel parity identifier */
+#define HPC3_BESTAT_PIDMASK	0x3f700 /* DMA channel parity identifier */
 
 	u32 _unused1[0x14000/4 - 5];	/* padding */
 
@@ -259,7 +259,7 @@ struct hpc3_regs {
 #define HPC3_DMACFG_RTIME		0x00200000
 	/* 5 bit burst count for DMA device */
 #define HPC3_DMACFG_BURST_MASK		0x07c00000
-#define HPC3_DMACFG_BURST_SHIFT	22
+#define HPC3_DMACFG_BURST_SHIFT 22
 	/* Use live pbus_dreq unsynchronized signal */
 #define HPC3_DMACFG_DRQLIVE		0x08000000
 	volatile u32 pbus_piocfg[16][64];
@@ -288,20 +288,20 @@ struct hpc3_regs {
 
 	/* PBUS PROM control regs. */
 	volatile u32 pbus_promwe;	/* PROM write enable register */
-#define HPC3_PROM_WENAB	0x1	/* Enable writes to the PROM */
+#define HPC3_PROM_WENAB 0x1	/* Enable writes to the PROM */
 
 	u32 _unused5[0x0800/4 - 1];
 	volatile u32 pbus_promswap;	/* Chip select swap reg */
 #define HPC3_PROM_SWAP	0x1	/* invert GIO addr bit to select prom0 or prom1 */
 
 	u32 _unused6[0x0800/4 - 1];
-	volatile u32 pbus_gout;	/* PROM general purpose output reg */
+	volatile u32 pbus_gout; /* PROM general purpose output reg */
 #define HPC3_PROM_STAT	0x1	/* General purpose status bit in gout */
 
 	u32 _unused7[0x1000/4 - 1];
 	volatile u32 rtcregs[14];	/* Dallas clock registers */
 	u32 _unused8[50];
-	volatile u32 bbram[8192-50-14];	/* Battery backed ram */
+	volatile u32 bbram[8192-50-14]; /* Battery backed ram */
 };
 
 /*

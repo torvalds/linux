@@ -52,13 +52,12 @@ static struct rds_sock *rds_bind_lookup(__be32 addr, __be16 port,
 					struct rds_sock *insert)
 {
 	struct rds_sock *rs;
-	struct hlist_node *node;
 	struct hlist_head *head = hash_to_bucket(addr, port);
 	u64 cmp;
 	u64 needle = ((u64)be32_to_cpu(addr) << 32) | be16_to_cpu(port);
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(rs, node, head, rs_bound_node) {
+	hlist_for_each_entry_rcu(rs, head, rs_bound_node) {
 		cmp = ((u64)be32_to_cpu(rs->rs_bound_addr) << 32) |
 		      be16_to_cpu(rs->rs_bound_port);
 
@@ -118,7 +117,7 @@ static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 		rover = be16_to_cpu(*port);
 		last = rover;
 	} else {
-		rover = max_t(u16, net_random(), 2);
+		rover = max_t(u16, prandom_u32(), 2);
 		last = rover - 1;
 	}
 

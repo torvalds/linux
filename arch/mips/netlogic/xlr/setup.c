@@ -36,6 +36,7 @@
 #include <linux/serial_8250.h>
 #include <linux/pm.h>
 
+#include <asm/idle.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <asm/bootinfo.h>
@@ -49,35 +50,15 @@
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
 #include <asm/netlogic/xlr/gpio.h>
+#include <asm/netlogic/xlr/fmn.h>
 
 uint64_t nlm_io_base = DEFAULT_NETLOGIC_IO_BASE;
-uint64_t nlm_pic_base;
 struct psb_info nlm_prom_info;
 
-unsigned long nlm_common_ebase = 0x0;
-
 /* default to uniprocessor */
-uint32_t nlm_coremask = 1, nlm_cpumask  = 1;
-int  nlm_threads_per_core = 1;
-
-static void __init nlm_early_serial_setup(void)
-{
-	struct uart_port s;
-	unsigned long uart_base;
-
-	uart_base = (unsigned long)nlm_mmio_base(NETLOGIC_IO_UART_0_OFFSET);
-	memset(&s, 0, sizeof(s));
-	s.flags		= ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
-	s.iotype	= UPIO_MEM32;
-	s.regshift	= 2;
-	s.irq		= PIC_UART_0_IRQ;
-	s.uartclk	= PIC_CLKS_PER_SEC;
-	s.serial_in	= nlm_xlr_uart_in;
-	s.serial_out	= nlm_xlr_uart_out;
-	s.mapbase	= uart_base;
-	s.membase	= (unsigned char __iomem *)uart_base;
-	early_serial_setup(&s);
-}
+unsigned int  nlm_threads_per_core = 1;
+struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
+cpumask_t nlm_cpumask = CPU_MASK_CPU0;
 
 static void nlm_linux_exit(void)
 {
@@ -85,14 +66,13 @@ static void nlm_linux_exit(void)
 
 	gpiobase = nlm_mmio_base(NETLOGIC_IO_GPIO_OFFSET);
 	/* trigger a chip reset by writing 1 to GPIO_SWRESET_REG */
-	nlm_write_reg(gpiobase, NETLOGIC_GPIO_SWRESET_REG, 1);
+	nlm_write_reg(gpiobase, GPIO_SWRESET_REG, 1);
 	for ( ; ; )
 		cpu_wait();
 }
 
 void __init plat_mem_setup(void)
 {
-	panic_timeout	= 5;
 	_machine_restart = (void (*)(char *))nlm_linux_exit;
 	_machine_halt	= nlm_linux_exit;
 	pm_power_off	= nlm_linux_exit;
@@ -111,6 +91,12 @@ unsigned int nlm_get_cpu_frequency(void)
 void __init prom_free_prom_memory(void)
 {
 	/* Nothing yet */
+}
+
+void nlm_percpu_init(int hwcpuid)
+{
+	if (hwcpuid % 4 == 0)
+		xlr_percpu_fmn_init();
 }
 
 static void __init build_arcs_cmdline(int *argv)
@@ -158,7 +144,7 @@ static void prom_add_memory(void)
 {
 	struct nlm_boot_mem_map *bootm;
 	u64 start, size;
-	u64 pref_backup = 512;  /* avoid pref walking beyond end */
+	u64 pref_backup = 512;	/* avoid pref walking beyond end */
 	int i;
 
 	bootm = (void *)(long)nlm_prom_info.psb_mem_map;
@@ -176,10 +162,24 @@ static void prom_add_memory(void)
 	}
 }
 
+static void nlm_init_node(void)
+{
+	struct nlm_soc_info *nodep;
+
+	nodep = nlm_current_node();
+	nodep->picbase = nlm_mmio_base(NETLOGIC_IO_PIC_OFFSET);
+	nodep->ebase = read_c0_ebase() & (~((1 << 12) - 1));
+	spin_lock_init(&nodep->piclock);
+}
+
 void __init prom_init(void)
 {
 	int *argv, *envp;		/* passed as 32 bit ptrs */
 	struct psb_info *prom_infop;
+	void *reset_vec;
+#ifdef CONFIG_SMP
+	int i;
+#endif
 
 	/* truncate to 32 bit and sign extend all args */
 	argv = (int *)(long)(int)fw_arg1;
@@ -187,15 +187,24 @@ void __init prom_init(void)
 	prom_infop = (struct psb_info *)(long)(int)fw_arg3;
 
 	nlm_prom_info = *prom_infop;
-	nlm_pic_base = nlm_mmio_base(NETLOGIC_IO_PIC_OFFSET);
+	nlm_init_node();
 
-	nlm_early_serial_setup();
+	/* Update reset entry point with CPU init code */
+	reset_vec = (void *)CKSEG1ADDR(RESET_VEC_PHYS);
+	memset(reset_vec, 0, RESET_VEC_SIZE);
+	memcpy(reset_vec, (void *)nlm_reset_entry,
+			(nlm_reset_entry_end - nlm_reset_entry));
+
 	build_arcs_cmdline(argv);
-	nlm_common_ebase = read_c0_ebase() & (~((1 << 12) - 1));
 	prom_add_memory();
 
 #ifdef CONFIG_SMP
-	nlm_wakeup_secondary_cpus(nlm_prom_info.online_cpu_map);
+	for (i = 0; i < 32; i++)
+		if (nlm_prom_info.online_cpu_map & (1 << i))
+			cpumask_set_cpu(i, &nlm_cpumask);
+	nlm_wakeup_secondary_cpus();
 	register_smp_ops(&nlm_smp_ops);
 #endif
+	xlr_board_info_setup();
+	xlr_percpu_fmn_init();
 }

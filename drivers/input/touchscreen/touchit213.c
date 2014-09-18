@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/serio.h>
-#include <linux/init.h>
 
 #define DRIVER_DESC	"Sahara TouchIT-213 serial touchscreen driver"
 
@@ -216,19 +215,4 @@ static struct serio_driver touchit213_drv = {
 	.disconnect	= touchit213_disconnect,
 };
 
-/*
- * The functions for inserting/removing us as a module.
- */
-
-static int __init touchit213_init(void)
-{
-	return serio_register_driver(&touchit213_drv);
-}
-
-static void __exit touchit213_exit(void)
-{
-	serio_unregister_driver(&touchit213_drv);
-}
-
-module_init(touchit213_init);
-module_exit(touchit213_exit);
+module_serio_driver(touchit213_drv);

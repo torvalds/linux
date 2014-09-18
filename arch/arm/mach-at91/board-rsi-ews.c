@@ -25,36 +25,18 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
 
 #include <linux/gpio.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "generic.h"
+#include "gpio.h"
 
 static void __init rsi_ews_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PB6, AT91_PIN_PB9);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	/* This one is for debugging */
-	at91_register_uart(0, 0, 0);
-
-	/* USART1 on ttyS2. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
-	/* Dialin/-out modem interface */
-	at91_register_uart(AT91RM9200_ID_US1, 2, ATMEL_UART_CTS | ATMEL_UART_RTS
-			   | ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
-			   | ATMEL_UART_RI);
-
-	/* USART3 on ttyS4. (Rx, Tx, RTS) */
-	/* RS485 communication */
-	at91_register_uart(AT91RM9200_ID_US3, 4, ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /*
@@ -77,11 +59,12 @@ static struct at91_usbh_data rsi_ews_usbh_data __initdata = {
 /*
  * SD/MC
  */
-static struct at91_mmc_data rsi_ews_mmc_data __initdata = {
-	.slot_b		= 0,
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PB27,
-	.wp_pin		= AT91_PIN_PB29,
+static struct mci_platform_data __initdata rsi_ews_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PB27,
+		.wp_pin		= AT91_PIN_PB29,
+	},
 };
 
 /*
@@ -205,6 +188,19 @@ static struct platform_device rsiews_nor_flash = {
 static void __init rsi_ews_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	/* This one is for debugging */
+	at91_register_uart(0, 0, 0);
+
+	/* USART1 on ttyS2. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	/* Dialin/-out modem interface */
+	at91_register_uart(AT91RM9200_ID_US1, 2, ATMEL_UART_CTS | ATMEL_UART_RTS
+			   | ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
+			   | ATMEL_UART_RI);
+
+	/* USART3 on ttyS4. (Rx, Tx, RTS) */
+	/* RS485 communication */
+	at91_register_uart(AT91RM9200_ID_US3, 4, ATMEL_UART_RTS);
 	at91_add_device_serial();
 	at91_set_gpio_output(AT91_PIN_PA21, 0);
 	/* Ethernet */
@@ -218,7 +214,7 @@ static void __init rsi_ews_board_init(void)
 	at91_add_device_spi(rsi_ews_spi_devices,
 			ARRAY_SIZE(rsi_ews_spi_devices));
 	/* MMC */
-	at91_add_device_mmc(0, &rsi_ews_mmc_data);
+	at91_add_device_mci(0, &rsi_ews_mci0_data);
 	/* NOR Flash */
 	platform_device_register(&rsiews_nor_flash);
 	/* LEDs */
@@ -227,8 +223,9 @@ static void __init rsi_ews_board_init(void)
 
 MACHINE_START(RSI_EWS, "RSI EWS")
 	/* Maintainer: Josef Holzmayr <holzmayr@rsi-elektrotechnik.de> */
-	.timer		= &at91rm9200_timer,
+	.init_time	= at91rm9200_timer_init,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= rsi_ews_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= rsi_ews_board_init,

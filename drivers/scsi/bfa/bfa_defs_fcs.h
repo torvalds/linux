@@ -93,6 +93,7 @@ struct bfa_lport_cfg_s {
 	wwn_t	       pwwn;       /*  port wwn */
 	wwn_t	       nwwn;       /*  node wwn */
 	struct bfa_lport_symname_s  sym_name;   /*  vm port symbolic name */
+	struct bfa_lport_symname_s node_sym_name; /* Node symbolic name */
 	enum bfa_lport_role roles;      /* FCS port roles */
 	u32     rsvd;
 	bfa_boolean_t   preboot_vp;  /*  vport created from PBC */
@@ -191,6 +192,18 @@ struct bfa_lport_stats_s {
 	u32	ns_gidft_rejects;
 	u32	ns_gidft_unknown_rsp;
 	u32	ns_gidft_alloc_wait;
+
+	u32	ns_rnnid_sent;
+	u32	ns_rnnid_accepts;
+	u32	ns_rnnid_rsp_err;
+	u32	ns_rnnid_rejects;
+	u32	ns_rnnid_alloc_wait;
+
+	u32	ns_rsnn_nn_sent;
+	u32	ns_rsnn_nn_accepts;
+	u32	ns_rsnn_nn_rsp_err;
+	u32	ns_rsnn_nn_rejects;
+	u32	ns_rsnn_nn_alloc_wait;
 
 	/*
 	 * Mgmt Server stats
@@ -410,6 +423,11 @@ struct bfa_rport_remote_link_stats_s {
 	u32 icc; /*  Invalid CRC Count */
 };
 
+struct bfa_rport_qualifier_s {
+	wwn_t	pwwn;	/* Port WWN */
+	u32	pid;	/* port ID */
+	u32	rsvd;
+};
 
 #define BFA_MAX_IO_INDEX 7
 #define BFA_NO_IO_INDEX 9

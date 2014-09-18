@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: hwvalid - I/O request validation
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,7 +57,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width);
  *
  * The table is used to implement the Microsoft port access rules that
  * first appeared in Windows XP. Some ports are always illegal, and some
- * ports are only illegal if the BIOS calls _OSI with a win_xP string or
+ * ports are only illegal if the BIOS calls _OSI with a win_XP string or
  * later (meaning that the BIOS itelf is post-XP.)
  *
  * This provides ACPICA with the desired port protections and
@@ -66,7 +65,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width);
  *
  * Description of port entries:
  *  DMA:   DMA controller
- *  PIC0:  Programmable Interrupt Controller (8259_a)
+ *  PIC0:  Programmable Interrupt Controller (8259A)
  *  PIT1:  System Timer 1
  *  PIT2:  System Timer 2 failsafe
  *  RTC:   Real-time clock
@@ -136,7 +135,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 	if ((bit_width != 8) && (bit_width != 16) && (bit_width != 32)) {
 		ACPI_ERROR((AE_INFO,
 			    "Bad BitWidth parameter: %8.8X", bit_width));
-		return AE_BAD_PARAMETER;
+		return (AE_BAD_PARAMETER);
 	}
 
 	port_info = acpi_protected_ports;
@@ -235,11 +234,11 @@ acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width)
 	status = acpi_hw_validate_io_request(address, width);
 	if (ACPI_SUCCESS(status)) {
 		status = acpi_os_read_port(address, value, width);
-		return status;
+		return (status);
 	}
 
 	if (status != AE_AML_ILLEGAL_ADDRESS) {
-		return status;
+		return (status);
 	}
 
 	/*
@@ -254,7 +253,7 @@ acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width)
 		if (acpi_hw_validate_io_request(address, 8) == AE_OK) {
 			status = acpi_os_read_port(address, &one_byte, 8);
 			if (ACPI_FAILURE(status)) {
-				return status;
+				return (status);
 			}
 
 			*value |= (one_byte << i);
@@ -263,7 +262,7 @@ acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width)
 		address++;
 	}
 
-	return AE_OK;
+	return (AE_OK);
 }
 
 /******************************************************************************
@@ -298,11 +297,11 @@ acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width)
 	status = acpi_hw_validate_io_request(address, width);
 	if (ACPI_SUCCESS(status)) {
 		status = acpi_os_write_port(address, value, width);
-		return status;
+		return (status);
 	}
 
 	if (status != AE_AML_ILLEGAL_ADDRESS) {
-		return status;
+		return (status);
 	}
 
 	/*
@@ -318,12 +317,12 @@ acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width)
 			status =
 			    acpi_os_write_port(address, (value >> i) & 0xFF, 8);
 			if (ACPI_FAILURE(status)) {
-				return status;
+				return (status);
 			}
 		}
 
 		address++;
 	}
 
-	return AE_OK;
+	return (AE_OK);
 }

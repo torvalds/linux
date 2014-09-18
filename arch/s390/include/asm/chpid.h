@@ -1,27 +1,23 @@
 /*
- *  drivers/s390/cio/chpid.h
- *
- *    Copyright IBM Corp. 2007
+ *    Copyright IBM Corp. 2007, 2012
  *    Author(s): Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
-
 #ifndef _ASM_S390_CHPID_H
 #define _ASM_S390_CHPID_H
 
-#include <linux/string.h>
-#include <linux/types.h>
-
-#define __MAX_CHPID 255
-
-struct chp_id {
-	u8 reserved1;
-	u8 cssid;
-	u8 reserved2;
-	u8 id;
-} __attribute__((packed));
-
-#ifdef __KERNEL__
+#include <uapi/asm/chpid.h>
 #include <asm/cio.h>
+
+struct channel_path_desc {
+	u8 flags;
+	u8 lsn;
+	u8 desc;
+	u8 chpid;
+	u8 swla;
+	u8 zeroes;
+	u8 chla;
+	u8 chpp;
+} __packed;
 
 static inline void chp_id_init(struct chp_id *chpid)
 {
@@ -51,6 +47,4 @@ static inline int chp_id_is_valid(struct chp_id *chpid)
 
 #define chp_id_for_each(c) \
 	for (chp_id_init(c); chp_id_is_valid(c); chp_id_next(c))
-#endif /* __KERNEL */
-
 #endif /* _ASM_S390_CHPID_H */

@@ -7,7 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2008 Tensilica Inc.
  *
  * Chris Zankel <chris@zankel.net>
  * Marc Gauthier <marc@tensilica.com, marc@alumni.uwaterloo.ca>
@@ -18,6 +18,8 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/cacheasm.h>
+#include <asm/initialize_mmu.h>
+#include <asm/mxregs.h>
 
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -47,33 +49,64 @@
 	 */
 
 	__HEAD
-	.globl _start
-_start:	_j	2f
-	.align	4
-1:	.word	_startup
-2:	l32r	a0, 1b
-	jx	a0
+	.begin	no-absolute-literals
 
-	.section .init.text, "ax"
-	.align 4
-_startup:
-
-	/* Disable interrupts and exceptions. */
-
-	movi	a0, LOCKLEVEL
-	wsr	a0, PS
+ENTRY(_start)
 
 	/* Preserve the pointer to the boot parameter list in EXCSAVE_1 */
+	wsr     a2, excsave1
+	_j	_SetupOCD
 
-	wsr	a2, EXCSAVE_1
+	.align	4
+	.literal_position
+.Lstartup:
+	.word	_startup
 
-	/* Start with a fresh windowbase and windowstart.  */
-
+	.align	4
+_SetupOCD:
+	/*
+	 * Initialize WB, WS, and clear PS.EXCM (to allow loop instructions).
+	 * Set Interrupt Level just below XCHAL_DEBUGLEVEL to allow
+	 * xt-gdb to single step via DEBUG exceptions received directly
+	 * by ocd.
+	 */
 	movi	a1, 1
 	movi	a0, 0
-	wsr	a1, WINDOWSTART
-	wsr	a0, WINDOWBASE
+	wsr	a1, windowstart
+	wsr	a0, windowbase
 	rsync
+
+	movi	a1, LOCKLEVEL
+	wsr	a1, ps
+	rsync
+
+	.global _SetupMMU
+_SetupMMU:
+	Offset = _SetupMMU - _start
+
+#ifdef CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	initialize_mmu
+#if defined(CONFIG_MMU) && XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+	rsr	a2, excsave1
+	movi	a3, 0x08000000
+	bgeu	a2, a3, 1f
+	movi	a3, 0xd0000000
+	add	a2, a2, a3
+	wsr	a2, excsave1
+1:
+#endif
+#endif
+	.end	no-absolute-literals
+
+	l32r	a0, .Lstartup
+	jx	a0
+
+ENDPROC(_start)
+
+	__REF
+	.literal_position
+
+ENTRY(_startup)
 
 	/* Set a0 to 0 for the remaining initialization. */
 
@@ -82,58 +115,49 @@ _startup:
 	/* Clear debugging registers. */
 
 #if XCHAL_HAVE_DEBUG
-	wsr	a0, IBREAKENABLE
-	wsr	a0, ICOUNT
+#if XCHAL_NUM_IBREAK > 0
+	wsr	a0, ibreakenable
+#endif
+	wsr	a0, icount
 	movi	a1, 15
-	wsr	a0, ICOUNTLEVEL
+	wsr	a0, icountlevel
 
 	.set	_index, 0
 	.rept	XCHAL_NUM_DBREAK - 1
-	wsr	a0, DBREAKC + _index
+	wsr	a0, SREG_DBREAKC + _index
 	.set	_index, _index + 1
 	.endr
 #endif
 
 	/* Clear CCOUNT (not really necessary, but nice) */
 
-	wsr	a0, CCOUNT	# not really necessary, but nice
+	wsr	a0, ccount	# not really necessary, but nice
 
 	/* Disable zero-loops. */
 
 #if XCHAL_HAVE_LOOPS
-	wsr	a0, LCOUNT
+	wsr	a0, lcount
 #endif
 
 	/* Disable all timers. */
 
 	.set	_index, 0
-	.rept	XCHAL_NUM_TIMERS - 1
-	wsr	a0, CCOMPARE + _index
+	.rept	XCHAL_NUM_TIMERS
+	wsr	a0, SREG_CCOMPARE + _index
 	.set	_index, _index + 1
 	.endr
 
 	/* Interrupt initialization. */
 
 	movi	a2, XCHAL_INTTYPE_MASK_SOFTWARE | XCHAL_INTTYPE_MASK_EXTERN_EDGE
-	wsr	a0, INTENABLE
-	wsr	a2, INTCLEAR
+	wsr	a0, intenable
+	wsr	a2, intclear
 
 	/* Disable coprocessors. */
 
-#if XCHAL_CP_NUM > 0
-	wsr	a0, CPENABLE
+#if XCHAL_HAVE_CP
+	wsr	a0, cpenable
 #endif
-
-	/* Set PS.INTLEVEL=1, PS.WOE=0, kernel stack, PS.EXCM=0
-	 *
-	 * Note: PS.EXCM must be cleared before using any loop
-	 *	 instructions; otherwise, they are silently disabled, and
-	 * 	 at most one iteration of the loop is executed.
-	 */
-
-	movi	a1, 1
-	wsr	a1, PS
-	rsync
 
 	/*  Initialize the caches.
 	 *  a2, a3 are just working registers (clobbered).
@@ -151,6 +175,37 @@ _startup:
 	___invalidate_icache_all a2 a3
 
 	isync
+
+#ifdef CONFIG_HAVE_SMP
+	movi	a2, CCON	# MX External Register to Configure Cache
+	movi	a3, 1
+	wer	a3, a2
+#endif
+
+	/* Setup stack and enable window exceptions (keep irqs disabled) */
+
+	movi	a1, start_info
+	l32i	a1, a1, 0
+
+	movi	a2, (1 << PS_WOE_BIT) | LOCKLEVEL
+					# WOE=1, INTLEVEL=LOCKLEVEL, UM=0
+	wsr	a2, ps			# (enable reg-windows; progmode stack)
+	rsync
+
+	/* Set up EXCSAVE[DEBUGLEVEL] to point to the Debug Exception Handler.*/
+
+	movi	a2, debug_exception
+	wsr	a2, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
+
+#ifdef CONFIG_SMP
+	/*
+	 * Notice that we assume with SMP that cores have PRID
+	 * supported by the cores.
+	 */
+	rsr	a2, prid
+	bnez	a2, .Lboot_secondary
+
+#endif  /* CONFIG_SMP */
 
 	/* Unpack data sections
 	 *
@@ -199,25 +254,13 @@ _startup:
 
 	___flush_dcache_all a2 a3
 #endif
+	memw
+	isync
+	___invalidate_icache_all a2 a3
+	isync
 
-	/* Setup stack and enable window exceptions (keep irqs disabled) */
-
-	movi	a1, init_thread_union
-	addi	a1, a1, KERNEL_STACK_SIZE
-
-	movi	a2, 0x00040001		# WOE=1, INTLEVEL=1, UM=0
-	wsr	a2, PS			# (enable reg-windows; progmode stack)
-	rsync
-
-	/* Set up EXCSAVE[DEBUGLEVEL] to point to the Debug Exception Handler.*/
-
-	movi	a2, debug_exception
-	wsr	a2, EXCSAVE + XCHAL_DEBUGLEVEL
-
-	/* Set up EXCSAVE[1] to point to the exc_table. */
-
-	movi	a6, exc_table
-	xsr	a6, EXCSAVE_1
+	movi	a6, 0
+	xsr	a6, excsave1
 
 	/* init_arch kick-starts the linux kernel */
 
@@ -230,6 +273,92 @@ _startup:
 should_never_return:
 	j	should_never_return
 
+#ifdef CONFIG_SMP
+.Lboot_secondary:
+
+	movi	a2, cpu_start_ccount
+1:
+	l32i	a3, a2, 0
+	beqi	a3, 0, 1b
+	movi	a3, 0
+	s32i	a3, a2, 0
+	memw
+1:
+	l32i	a3, a2, 0
+	beqi	a3, 0, 1b
+	wsr	a3, ccount
+	movi	a3, 0
+	s32i	a3, a2, 0
+	memw
+
+	movi	a6, 0
+	wsr	a6, excsave1
+
+	movi	a4, secondary_start_kernel
+	callx4	a4
+	j	should_never_return
+
+#endif  /* CONFIG_SMP */
+
+ENDPROC(_startup)
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+ENTRY(cpu_restart)
+
+#if XCHAL_DCACHE_IS_WRITEBACK
+	___flush_invalidate_dcache_all a2 a3
+#else
+	___invalidate_dcache_all a2 a3
+#endif
+	memw
+	movi	a2, CCON	# MX External Register to Configure Cache
+	movi	a3, 0
+	wer	a3, a2
+	extw
+
+	rsr	a0, prid
+	neg	a2, a0
+	movi	a3, cpu_start_id
+	s32i	a2, a3, 0
+#if XCHAL_DCACHE_IS_WRITEBACK
+	dhwbi	a3, 0
+#endif
+1:
+	l32i	a2, a3, 0
+	dhi	a3, 0
+	bne	a2, a0, 1b
+
+	/*
+	 * Initialize WB, WS, and clear PS.EXCM (to allow loop instructions).
+	 * Set Interrupt Level just below XCHAL_DEBUGLEVEL to allow
+	 * xt-gdb to single step via DEBUG exceptions received directly
+	 * by ocd.
+	 */
+	movi	a1, 1
+	movi	a0, 0
+	wsr	a1, windowstart
+	wsr	a0, windowbase
+	rsync
+
+	movi	a1, LOCKLEVEL
+	wsr	a1, ps
+	rsync
+
+	j	_startup
+
+ENDPROC(cpu_restart)
+
+#endif  /* CONFIG_HOTPLUG_CPU */
+
+/*
+ * DATA section
+ */
+
+        .section ".data.init.refok"
+        .align  4
+ENTRY(start_info)
+        .long   init_thread_union + KERNEL_STACK_SIZE
 
 /*
  * BSS section
@@ -239,6 +368,8 @@ __PAGE_ALIGNED_BSS
 #ifdef CONFIG_MMU
 ENTRY(swapper_pg_dir)
 	.fill	PAGE_SIZE, 1, 0
+END(swapper_pg_dir)
 #endif
 ENTRY(empty_zero_page)
 	.fill	PAGE_SIZE, 1, 0
+END(empty_zero_page)

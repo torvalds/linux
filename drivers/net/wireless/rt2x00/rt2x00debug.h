@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -65,6 +63,7 @@ struct rt2x00debug {
 	RT2X00DEBUGFS_REGISTER_ENTRY(eeprom, u16);
 	RT2X00DEBUGFS_REGISTER_ENTRY(bbp, u8);
 	RT2X00DEBUGFS_REGISTER_ENTRY(rf, u32);
+	RT2X00DEBUGFS_REGISTER_ENTRY(rfcsr, u8);
 };
 
 #endif /* RT2X00DEBUG_H */

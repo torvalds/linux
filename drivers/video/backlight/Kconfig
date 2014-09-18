@@ -29,21 +29,21 @@ if LCD_CLASS_DEVICE
 
 config LCD_CORGI
 	tristate "LCD Panel support for SHARP corgi/spitz model"
-	depends on SPI_MASTER && PXA_SHARPSL
+	depends on SPI_MASTER && PXA_SHARPSL && BACKLIGHT_CLASS_DEVICE
 	help
 	  Say y here to support the LCD panels usually found on SHARP
 	  corgi (C7x0) and spitz (Cxx00) models.
 
 config LCD_L4F00242T03
 	tristate "Epson L4F00242T03 LCD"
-	depends on SPI_MASTER && GENERIC_GPIO
+	depends on SPI_MASTER && GPIOLIB
 	help
 	  SPI driver for Epson L4F00242T03. This provides basic support
 	  for init and powering the LCD up/down through a sysfs interface.
 
 config LCD_LMS283GF05
 	tristate "Samsung LMS283GF05 LCD"
-	depends on SPI_MASTER && GENERIC_GPIO
+	depends on SPI_MASTER && GPIOLIB
 	help
 	  SPI driver for Samsung LMS283GF05. This provides basic support
 	  for powering the LCD up/down through a sysfs interface.
@@ -59,8 +59,16 @@ config LCD_LTV350QV
 
 	  The LTV350QV panel is present on all ATSTK1000 boards.
 
+config LCD_ILI922X
+	tristate "ILI Technology ILI9221/ILI9222 support"
+	depends on SPI
+	help
+	  If you have a panel based on the ILI9221/9222 controller
+	  chip then say y to include a driver for it.
+
 config LCD_ILI9320
-	tristate
+	tristate "ILI Technology ILI9320 controller support"
+	depends on SPI
 	help
 	  If you have a panel based on the ILI9320 controller chip
 	  then say y to include a power driver for it.
@@ -88,7 +96,7 @@ config LCD_PLATFORM
 
 config LCD_TOSA
 	tristate "Sharp SL-6000 LCD Driver"
-	depends on SPI && MACH_TOSA
+	depends on I2C && SPI && MACH_TOSA
 	help
 	  If you have an Sharp SL-6000 Zaurus say Y to enable a driver
 	  for its LCD.
@@ -125,6 +133,21 @@ config LCD_AMS369FG06
 	  If you have an AMS369FG06 AMOLED Panel, say Y to enable its
 	  LCD control driver.
 
+config LCD_LMS501KF03
+	tristate "LMS501KF03 LCD Driver"
+	depends on SPI
+	default n
+	help
+	  If you have an LMS501KF03 LCD Panel, say Y to enable its
+	  LCD control driver.
+
+config LCD_HX8357
+	tristate "Himax HX-8357 LCD Driver"
+	depends on SPI
+	help
+	  If you have a HX-8357 LCD panel, say Y to enable its LCD control
+	  driver.
+
 endif # LCD_CLASS_DEVICE
 
 #
@@ -145,7 +168,7 @@ if BACKLIGHT_CLASS_DEVICE
 config BACKLIGHT_ATMEL_LCDC
 	bool "Atmel LCDC Contrast-as-Backlight control"
 	depends on FB_ATMEL
-	default y if MACH_SAM9261EK || MACH_SAM9G10EK || MACH_SAM9263EK
+	default y if MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK || MACH_AT91SAM9263EK
 	help
 	  This provides a backlight control internal to the Atmel LCDC
 	  driver.  If the LCD "contrast control" on your board is wired
@@ -154,17 +177,6 @@ config BACKLIGHT_ATMEL_LCDC
 
 	  If in doubt, it's safe to enable this option; it doesn't kick
 	  in unless the board's description says it's wired that way.
-
-config BACKLIGHT_ATMEL_PWM
-	tristate "Atmel PWM backlight control"
-	depends on ATMEL_PWM
-	help
-	  Say Y here if you want to use the PWM peripheral in Atmel AT91 and
-	  AVR32 devices. This driver will need additional platform data to know
-	  which PWM instance to use and how to configure it.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called atmel-pwm-bl.
 
 config BACKLIGHT_EP93XX
 	tristate "Cirrus EP93xx Backlight Driver"
@@ -183,6 +195,27 @@ config BACKLIGHT_GENERIC
 	  Say y to enable the generic platform backlight driver previously
 	  known as the Corgi backlight driver. If you have a Sharp Zaurus
 	  SL-C7xx, SL-Cxx00 or SL-6000x say y.
+
+config BACKLIGHT_IPAQ_MICRO
+	tristate "iPAQ microcontroller backlight driver"
+	depends on MFD_IPAQ_MICRO
+	default y
+	help
+	  Say y to enable the backlight driver for Compaq iPAQ handheld
+	  computers. Say yes if you have one of the h3100/h3600/h3700
+	  machines.
+
+config BACKLIGHT_LM3533
+	tristate "Backlight Driver for LM3533"
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on MFD_LM3533
+	help
+	  Say Y to enable the backlight driver for National Semiconductor / TI
+	  LM3533 Lighting Power chips.
+
+	  The backlights can be controlled directly, through PWM input, or by
+	  the ambient-light-sensor interface. The chip supports 256 brightness
+	  levels.
 
 config BACKLIGHT_LOCOMO
 	tristate "Sharp LOCOMO LCD/Backlight Driver"
@@ -217,13 +250,6 @@ config BACKLIGHT_HP700
 	  If you have an HP Jornada 700 series,
 	  say Y to include backlight control driver.
 
-config BACKLIGHT_PROGEAR
-	tristate "Frontpath ProGear Backlight Driver"
-	depends on PCI && X86
-	help
-	  If you have a Frontpath ProGear say Y to enable the
-	  backlight driver.
-
 config BACKLIGHT_CARILLO_RANCH
 	tristate "Intel Carillo Ranch Backlight Driver"
 	depends on LCD_CLASS_DEVICE && PCI && X86 && FB_LE80578
@@ -233,7 +259,7 @@ config BACKLIGHT_CARILLO_RANCH
 
 config BACKLIGHT_PWM
 	tristate "Generic PWM based Backlight Driver"
-	depends on HAVE_PWM
+	depends on PWM
 	help
 	  If you have a LCD backlight adjustable by PWM, say Y to enable
 	  this driver.
@@ -340,12 +366,34 @@ config BACKLIGHT_AAT2870
 	  If you have a AnalogicTech AAT2870 say Y to enable the
 	  backlight driver.
 
+config BACKLIGHT_LM3630A
+	tristate "Backlight Driver for LM3630A"
+	depends on BACKLIGHT_CLASS_DEVICE && I2C && PWM
+	select REGMAP_I2C
+	help
+	  This supports TI LM3630A Backlight Driver
+
+config BACKLIGHT_LM3639
+	tristate "Backlight Driver for LM3639"
+	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	select REGMAP_I2C
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  This supports TI LM3639 Backlight + 1.5A Flash LED Driver
+
 config BACKLIGHT_LP855X
 	tristate "Backlight driver for TI LP855X"
-	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on BACKLIGHT_CLASS_DEVICE && I2C && PWM
 	help
-	  This supports TI LP8550, LP8551, LP8552, LP8553 and LP8556
-	  backlight driver.
+	  This supports TI LP8550, LP8551, LP8552, LP8553, LP8555, LP8556 and
+	  LP8557 backlight driver.
+
+config BACKLIGHT_LP8788
+	tristate "Backlight driver for TI LP8788 MFD"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_LP8788 && PWM
+	help
+	  This supports TI LP8788 backlight driver.
 
 config BACKLIGHT_OT200
 	tristate "Backlight driver for ot200 visualisation device"
@@ -360,6 +408,39 @@ config BACKLIGHT_PANDORA
 	help
 	  If you have a Pandora console, say Y to enable the
 	  backlight driver.
+
+config BACKLIGHT_TPS65217
+	tristate "TPS65217 Backlight"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_TPS65217
+	help
+	  If you have a Texas Instruments TPS65217 say Y to enable the
+	  backlight driver.
+
+config BACKLIGHT_AS3711
+	tristate "AS3711 Backlight"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_AS3711
+	help
+	  If you have an Austrian Microsystems AS3711 say Y to enable the
+	  backlight driver.
+
+config BACKLIGHT_GPIO
+	tristate "Generic GPIO based Backlight Driver"
+	depends on GPIOLIB
+	help
+	  If you have a LCD backlight adjustable by GPIO, say Y to enable
+	  this driver.
+
+config BACKLIGHT_LV5207LP
+	tristate "Sanyo LV5207LP Backlight"
+	depends on I2C
+	help
+	  If you have a Sanyo LV5207LP say Y to enable the backlight driver.
+
+config BACKLIGHT_BD6107
+	tristate "Rohm BD6107 Backlight"
+	depends on I2C
+	help
+	  If you have a Rohm BD6107 say Y to enable the backlight driver.
 
 endif # BACKLIGHT_CLASS_DEVICE
 

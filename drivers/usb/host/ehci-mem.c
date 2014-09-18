@@ -64,10 +64,8 @@ static inline void ehci_qtd_free (struct ehci_hcd *ehci, struct ehci_qtd *qtd)
 }
 
 
-static void qh_destroy(struct ehci_qh *qh)
+static void qh_destroy(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	struct ehci_hcd *ehci = qh->ehci;
-
 	/* clean qtds first, and know this is not linked */
 	if (!list_empty (&qh->qtd_list) || qh->qh_next.ptr) {
 		ehci_dbg (ehci, "unused qh not empty!\n");
@@ -92,11 +90,10 @@ static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
 	if (!qh->hw)
 		goto fail;
 	memset(qh->hw, 0, sizeof *qh->hw);
-	qh->refcount = 1;
-	qh->ehci = ehci;
 	qh->qh_dma = dma;
 	// INIT_LIST_HEAD (&qh->qh_list);
 	INIT_LIST_HEAD (&qh->qtd_list);
+	INIT_LIST_HEAD(&qh->unlink_node);
 
 	/* dummy td enables safe urb queuing */
 	qh->dummy = ehci_qtd_alloc (ehci, flags);
@@ -113,20 +110,6 @@ fail:
 	return NULL;
 }
 
-/* to share a qh (cpu threads, or hc) */
-static inline struct ehci_qh *qh_get (struct ehci_qh *qh)
-{
-	WARN_ON(!qh->refcount);
-	qh->refcount++;
-	return qh;
-}
-
-static inline void qh_put (struct ehci_qh *qh)
-{
-	if (!--qh->refcount)
-		qh_destroy(qh);
-}
-
 /*-------------------------------------------------------------------------*/
 
 /* The queue heads and transfer descriptors are managed from pools tied
@@ -136,13 +119,12 @@ static inline void qh_put (struct ehci_qh *qh)
 
 static void ehci_mem_cleanup (struct ehci_hcd *ehci)
 {
-	free_cached_lists(ehci);
 	if (ehci->async)
-		qh_put (ehci->async);
+		qh_destroy(ehci, ehci->async);
 	ehci->async = NULL;
 
 	if (ehci->dummy)
-		qh_put(ehci->dummy);
+		qh_destroy(ehci, ehci->dummy);
 	ehci->dummy = NULL;
 
 	/* DMA consistent memory and pools */
@@ -227,7 +209,7 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 	ehci->periodic = (__le32 *)
 		dma_alloc_coherent (ehci_to_hcd(ehci)->self.controller,
 			ehci->periodic_size * sizeof(__le32),
-			&ehci->periodic_dma, 0);
+			&ehci->periodic_dma, flags);
 	if (ehci->periodic == NULL) {
 		goto fail;
 	}
@@ -242,11 +224,11 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 		hw->hw_next = EHCI_LIST_END(ehci);
 		hw->hw_qtd_next = EHCI_LIST_END(ehci);
 		hw->hw_alt_next = EHCI_LIST_END(ehci);
-		hw->hw_token &= ~QTD_STS_ACTIVE;
 		ehci->dummy->hw = hw;
 
 		for (i = 0; i < ehci->periodic_size; i++)
-			ehci->periodic[i] = ehci->dummy->qh_dma;
+			ehci->periodic[i] = cpu_to_hc32(ehci,
+					ehci->dummy->qh_dma);
 	} else {
 		for (i = 0; i < ehci->periodic_size; i++)
 			ehci->periodic[i] = EHCI_LIST_END(ehci);

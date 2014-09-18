@@ -1,6 +1,5 @@
 /*
- * (C) Copyright IBM Corp. 2004
- * tape_class.c
+ * Copyright IBM Corp. 2004
  *
  * Tape class device support
  *
@@ -17,7 +16,7 @@
 
 MODULE_AUTHOR("Stefan Bader <shbader@de.ibm.com>");
 MODULE_DESCRIPTION(
-	"(C) Copyright IBM Corp. 2004   All Rights Reserved.\n"
+	"Copyright IBM Corp. 2004   All Rights Reserved.\n"
 	"tape_class.c"
 );
 MODULE_LICENSE("GPL");
@@ -78,7 +77,7 @@ struct tape_class_device *register_tape_dev(
 	tcd->class_device = device_create(tape_class, device,
 					  tcd->char_device->dev, NULL,
 					  "%s", tcd->device_name);
-	rc = IS_ERR(tcd->class_device) ? PTR_ERR(tcd->class_device) : 0;
+	rc = PTR_RET(tcd->class_device);
 	if (rc)
 		goto fail_with_cdev;
 	rc = sysfs_create_link(

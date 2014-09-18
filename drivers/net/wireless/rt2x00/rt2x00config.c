@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -102,7 +100,7 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 
 	/* Update the AID, this is needed for dynamic PS support */
 	rt2x00dev->aid = bss_conf->assoc ? bss_conf->aid : 0;
-	rt2x00dev->last_beacon = bss_conf->last_tsf;
+	rt2x00dev->last_beacon = bss_conf->sync_tsf;
 
 	/* Update global beacon interval time, this is needed for PS support */
 	rt2x00dev->beacon_int = bss_conf->beacon_int;
@@ -184,7 +182,7 @@ static u16 rt2x00ht_center_channel(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Initialize center channel to current channel.
 	 */
-	center_channel = spec->channels[conf->channel->hw_value].channel;
+	center_channel = spec->channels[conf->chandef.chan->hw_value].channel;
 
 	/*
 	 * Adjust center channel to HT40+ and HT40- operation.
@@ -199,7 +197,7 @@ static u16 rt2x00ht_center_channel(struct rt2x00_dev *rt2x00dev,
 			return i;
 
 	WARN_ON(1);
-	return conf->channel->hw_value;
+	return conf->chandef.chan->hw_value;
 }
 
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
@@ -217,12 +215,17 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	libconf.conf = conf;
 
 	if (ieee80211_flags & IEEE80211_CONF_CHANGE_CHANNEL) {
+		if (!conf_is_ht(conf))
+			set_bit(CONFIG_HT_DISABLED, &rt2x00dev->flags);
+		else
+			clear_bit(CONFIG_HT_DISABLED, &rt2x00dev->flags);
+
 		if (conf_is_ht40(conf)) {
 			set_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
 			hw_value = rt2x00ht_center_channel(rt2x00dev, conf);
 		} else {
 			clear_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
-			hw_value = conf->channel->hw_value;
+			hw_value = conf->chandef.chan->hw_value;
 		}
 
 		memcpy(&libconf.rf,
@@ -274,8 +277,8 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	else
 		clear_bit(CONFIG_POWERSAVING, &rt2x00dev->flags);
 
-	rt2x00dev->curr_band = conf->channel->band;
-	rt2x00dev->curr_freq = conf->channel->center_freq;
+	rt2x00dev->curr_band = conf->chandef.chan->band;
+	rt2x00dev->curr_freq = conf->chandef.chan->center_freq;
 	rt2x00dev->tx_power = conf->power_level;
 	rt2x00dev->short_retry = conf->short_frame_max_tx_count;
 	rt2x00dev->long_retry = conf->long_frame_max_tx_count;

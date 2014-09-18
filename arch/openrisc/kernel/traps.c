@@ -105,17 +105,6 @@ void show_trace_task(struct task_struct *tsk)
 	 */
 }
 
-/*
- * The architecture-independent backtrace generator
- */
-void dump_stack(void)
-{
-	unsigned long stack;
-
-	show_stack(current, &stack);
-}
-EXPORT_SYMBOL(dump_stack);
-
 void show_registers(struct pt_regs *regs)
 {
 	int i;

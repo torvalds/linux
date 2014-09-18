@@ -13,8 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -102,7 +101,7 @@ struct ems_pci_card {
 
 #define EMS_PCI_BASE_SIZE  4096 /* size of controller area */
 
-static DEFINE_PCI_DEVICE_TABLE(ems_pci_tbl) = {
+static const struct pci_device_id ems_pci_tbl[] = {
 	/* CPC-PCI v1 */
 	{PCI_VENDOR_ID_SIEMENS, 0x2104, PCI_ANY_ID, PCI_ANY_ID,},
 	/* CPC-PCI v2 */
@@ -168,12 +167,12 @@ static inline int ems_pci_check_chan(const struct sja1000_priv *priv)
 	unsigned char res;
 
 	/* Make sure SJA1000 is in reset mode */
-	priv->write_reg(priv, REG_MOD, 1);
+	priv->write_reg(priv, SJA1000_MOD, 1);
 
-	priv->write_reg(priv, REG_CDR, CDR_PELICAN);
+	priv->write_reg(priv, SJA1000_CDR, CDR_PELICAN);
 
 	/* read reset-values */
-	res = priv->read_reg(priv, REG_CDR);
+	res = priv->read_reg(priv, SJA1000_CDR);
 
 	if (res == CDR_PELICAN)
 		return 1;
@@ -207,7 +206,6 @@ static void ems_pci_del_card(struct pci_dev *pdev)
 	kfree(card);
 
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static void ems_pci_card_reset(struct ems_pci_card *card)
@@ -220,8 +218,8 @@ static void ems_pci_card_reset(struct ems_pci_card *card)
  * Probe PCI device for EMS CAN signature and register each available
  * CAN channel to SJA1000 Socket-CAN subsystem.
  */
-static int __devinit ems_pci_add_card(struct pci_dev *pdev,
-					const struct pci_device_id *ent)
+static int ems_pci_add_card(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	struct sja1000_priv *priv;
 	struct net_device *dev;
@@ -238,7 +236,6 @@ static int __devinit ems_pci_add_card(struct pci_dev *pdev,
 	/* Allocating card structures to hold addresses, ... */
 	card = kzalloc(sizeof(struct ems_pci_card), GFP_KERNEL);
 	if (card == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate memory\n");
 		pci_disable_device(pdev);
 		return -ENOMEM;
 	}
@@ -326,6 +323,7 @@ static int __devinit ems_pci_add_card(struct pci_dev *pdev,
 			priv->cdr = EMS_PCI_CDR;
 
 			SET_NETDEV_DEV(dev, &pdev->dev);
+			dev->dev_id = i;
 
 			if (card->version == 1)
 				/* reset int flag of pita */
@@ -371,16 +369,4 @@ static struct pci_driver ems_pci_driver = {
 	.remove = ems_pci_del_card,
 };
 
-static int __init ems_pci_init(void)
-{
-	return pci_register_driver(&ems_pci_driver);
-}
-
-static void __exit ems_pci_exit(void)
-{
-	pci_unregister_driver(&ems_pci_driver);
-}
-
-module_init(ems_pci_init);
-module_exit(ems_pci_exit);
-
+module_pci_driver(ems_pci_driver);

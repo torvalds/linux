@@ -28,6 +28,8 @@
 #include <linux/pwm_backlight.h>
 #include <linux/smc91x.h>
 #include <linux/i2c/pxa-i2c.h>
+#include <linux/slab.h>
+#include <linux/leds.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -45,11 +47,11 @@
 #include <mach/pxa27x.h>
 #include <mach/mainstone.h>
 #include <mach/audio.h>
-#include <mach/pxafb.h>
-#include <mach/mmc.h>
-#include <mach/irda.h>
-#include <mach/ohci.h>
-#include <plat/pxa27x_keypad.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/irda-pxaficp.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
+#include <linux/platform_data/keypad-pxa27x.h>
 #include <mach/smemc.h>
 
 #include "generic.h"
@@ -336,6 +338,7 @@ static struct platform_pwm_backlight_data mainstone_backlight_data = {
 	.max_brightness	= 1023,
 	.dft_brightness	= 1023,
 	.pwm_period_ns	= 78770,
+	.enable_gpio	= -1,
 };
 
 static struct platform_device mainstone_backlight_device = {
@@ -398,7 +401,7 @@ static int mainstone_mci_init(struct device *dev, irq_handler_t mstone_detect_in
 	 */
 	MST_MSCWR1 &= ~MST_MSCWR1_MS_SEL;
 
-	err = request_irq(MAINSTONE_MMC_IRQ, mstone_detect_int, IRQF_DISABLED,
+	err = request_irq(MAINSTONE_MMC_IRQ, mstone_detect_int, 0,
 			     "MMC card detect", data);
 	if (err)
 		printk(KERN_ERR "mainstone_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
@@ -406,7 +409,7 @@ static int mainstone_mci_init(struct device *dev, irq_handler_t mstone_detect_in
 	return err;
 }
 
-static void mainstone_mci_setpower(struct device *dev, unsigned int vdd)
+static int mainstone_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
@@ -418,6 +421,7 @@ static void mainstone_mci_setpower(struct device *dev, unsigned int vdd)
 		printk(KERN_DEBUG "%s: off\n", __func__);
 		MST_MSCWR1 &= ~MST_MSCWR1_MMC_ON;
 	}
+	return 0;
 }
 
 static void mainstone_mci_exit(struct device *dev, void *data)
@@ -496,7 +500,7 @@ static struct pxaohci_platform_data mainstone_ohci_platform_data = {
 };
 
 #if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
-static unsigned int mainstone_matrix_keys[] = {
+static const unsigned int mainstone_matrix_keys[] = {
 	KEY(0, 0, KEY_A), KEY(1, 0, KEY_B), KEY(2, 0, KEY_C),
 	KEY(3, 0, KEY_D), KEY(4, 0, KEY_E), KEY(5, 0, KEY_F),
 	KEY(0, 1, KEY_G), KEY(1, 1, KEY_H), KEY(2, 1, KEY_I),
@@ -525,11 +529,15 @@ static unsigned int mainstone_matrix_keys[] = {
 	KEY(4, 6, KEY_SELECT),
 };
 
+static struct matrix_keymap_data mainstone_matrix_keymap_data = {
+	.keymap			= mainstone_matrix_keys,
+	.keymap_size		= ARRAY_SIZE(mainstone_matrix_keys),
+};
+
 struct pxa27x_keypad_platform_data mainstone_keypad_info = {
 	.matrix_key_rows	= 6,
 	.matrix_key_cols	= 7,
-	.matrix_key_map		= mainstone_matrix_keys,
-	.matrix_key_map_size	= ARRAY_SIZE(mainstone_matrix_keys),
+	.matrix_keymap_data	= &mainstone_matrix_keymap_data,
 
 	.enable_rotary0		= 1,
 	.rotary0_up_key		= KEY_UP,
@@ -613,6 +621,98 @@ static void __init mainstone_map_io(void)
  	PCFR = 0x66;
 }
 
+/*
+ * Driver for the 8 discrete LEDs available for general use:
+ * Note: bits [15-8] are used to enable/blank the 8 7 segment hex displays
+ * so be sure to not monkey with them here.
+ */
+
+#if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)
+struct mainstone_led {
+	struct led_classdev	cdev;
+	u8			mask;
+};
+
+/*
+ * The triggers lines up below will only be used if the
+ * LED triggers are compiled in.
+ */
+static const struct {
+	const char *name;
+	const char *trigger;
+} mainstone_leds[] = {
+	{ "mainstone:D28", "default-on", },
+	{ "mainstone:D27", "cpu0", },
+	{ "mainstone:D26", "heartbeat" },
+	{ "mainstone:D25", },
+	{ "mainstone:D24", },
+	{ "mainstone:D23", },
+	{ "mainstone:D22", },
+	{ "mainstone:D21", },
+};
+
+static void mainstone_led_set(struct led_classdev *cdev,
+			      enum led_brightness b)
+{
+	struct mainstone_led *led = container_of(cdev,
+					 struct mainstone_led, cdev);
+	u32 reg = MST_LEDCTRL;
+
+	if (b != LED_OFF)
+		reg |= led->mask;
+	else
+		reg &= ~led->mask;
+
+	MST_LEDCTRL = reg;
+}
+
+static enum led_brightness mainstone_led_get(struct led_classdev *cdev)
+{
+	struct mainstone_led *led = container_of(cdev,
+					 struct mainstone_led, cdev);
+	u32 reg = MST_LEDCTRL;
+
+	return (reg & led->mask) ? LED_FULL : LED_OFF;
+}
+
+static int __init mainstone_leds_init(void)
+{
+	int i;
+
+	if (!machine_is_mainstone())
+		return -ENODEV;
+
+	/* All ON */
+	MST_LEDCTRL |= 0xff;
+	for (i = 0; i < ARRAY_SIZE(mainstone_leds); i++) {
+		struct mainstone_led *led;
+
+		led = kzalloc(sizeof(*led), GFP_KERNEL);
+		if (!led)
+			break;
+
+		led->cdev.name = mainstone_leds[i].name;
+		led->cdev.brightness_set = mainstone_led_set;
+		led->cdev.brightness_get = mainstone_led_get;
+		led->cdev.default_trigger = mainstone_leds[i].trigger;
+		led->mask = BIT(i);
+
+		if (led_classdev_register(NULL, &led->cdev) < 0) {
+			kfree(led);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Since we may have triggers on any subsystem, defer registration
+ * until after subsystem_init.
+ */
+fs_initcall(mainstone_leds_init);
+#endif
+
 MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
 	/* Maintainer: MontaVista Software Inc. */
 	.atag_offset	= 0x100,	/* BLOB boot parameter setting */
@@ -620,7 +720,7 @@ MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
 	.nr_irqs	= MAINSTONE_NR_IRQS,
 	.init_irq	= mainstone_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= mainstone_init,
 	.restart	= pxa_restart,
 MACHINE_END

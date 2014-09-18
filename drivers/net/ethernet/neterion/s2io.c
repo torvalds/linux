@@ -80,6 +80,7 @@
 #include <linux/slab.h>
 #include <linux/prefetch.h>
 #include <net/tcp.h>
+#include <net/checksum.h>
 
 #include <asm/div64.h>
 #include <asm/irq.h>
@@ -470,7 +471,7 @@ module_param_array(rts_frm_len, uint, NULL, 0);
  * S2IO device table.
  * This table lists all the devices that this driver supports.
  */
-static DEFINE_PCI_DEVICE_TABLE(s2io_tbl) = {
+static const struct pci_device_id s2io_tbl[] = {
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_S2IO_WIN,
 	 PCI_ANY_ID, PCI_ANY_ID},
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_S2IO_UNI,
@@ -484,7 +485,7 @@ static DEFINE_PCI_DEVICE_TABLE(s2io_tbl) = {
 
 MODULE_DEVICE_TABLE(pci, s2io_tbl);
 
-static struct pci_error_handlers s2io_err_handler = {
+static const struct pci_error_handlers s2io_err_handler = {
 	.error_detected = s2io_io_error_detected,
 	.slot_reset = s2io_io_slot_reset,
 	.resume = s2io_io_resume,
@@ -494,7 +495,7 @@ static struct pci_driver s2io_driver = {
 	.name = "S2IO",
 	.id_table = s2io_tbl,
 	.probe = s2io_init_nic,
-	.remove = __devexit_p(s2io_rem_nic),
+	.remove = s2io_rem_nic,
 	.err_handler = &s2io_err_handler,
 };
 
@@ -530,15 +531,6 @@ static inline void s2io_start_all_tx_queue(struct s2io_nic *sp)
 		for (i = 0; i < sp->config.tx_fifo_num; i++)
 			sp->mac_control.fifos[i].queue_state = FIFO_QUEUE_START;
 	}
-	netif_tx_start_all_queues(sp->dev);
-}
-
-static inline void s2io_start_tx_queue(struct s2io_nic *sp, int fifo_no)
-{
-	if (!sp->config.multiq)
-		sp->mac_control.fifos[fifo_no].queue_state =
-			FIFO_QUEUE_START;
-
 	netif_tx_start_all_queues(sp->dev);
 }
 
@@ -1040,7 +1032,7 @@ static int s2io_verify_pci_mode(struct s2io_nic *nic)
 static int s2io_on_nec_bridge(struct pci_dev *s2io_pdev)
 {
 	struct pci_dev *tdev = NULL;
-	while ((tdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, tdev)) != NULL) {
+	for_each_pci_dev(tdev) {
 		if (tdev->vendor == NEC_VENID && tdev->device == NEC_DEVID) {
 			if (tdev->bus == s2io_pdev->bus->parent) {
 				pci_dev_put(tdev);
@@ -2846,6 +2838,7 @@ static int s2io_poll_inta(struct napi_struct *napi, int budget)
 static void s2io_netpoll(struct net_device *dev)
 {
 	struct s2io_nic *nic = netdev_priv(dev);
+	const int irq = nic->pdev->irq;
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
 	u64 val64 = 0xFFFFFFFFFFFFFFFFULL;
 	int i;
@@ -2855,7 +2848,7 @@ static void s2io_netpoll(struct net_device *dev)
 	if (pci_channel_offline(nic->pdev))
 		return;
 
-	disable_irq(dev->irq);
+	disable_irq(irq);
 
 	writeq(val64, &bar0->rx_traffic_int);
 	writeq(val64, &bar0->tx_traffic_int);
@@ -2884,7 +2877,7 @@ static void s2io_netpoll(struct net_device *dev)
 			break;
 		}
 	}
-	enable_irq(dev->irq);
+	enable_irq(irq);
 }
 #endif
 
@@ -2911,6 +2904,9 @@ static int rx_intr_handler(struct ring_info *ring_data, int budget)
 	int i;
 	struct RxD1 *rxdp1;
 	struct RxD3 *rxdp3;
+
+	if (budget <= 0)
+		return napi_pkts;
 
 	get_info = ring_data->rx_curr_get_info;
 	get_block = get_info.block_index;
@@ -3376,7 +3372,7 @@ static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit,
 	} while (cnt < 20);
 	return ret;
 }
-/*
+/**
  * check_pci_device_id - Checks if the device id is supported
  * @id : device id
  * Description: Function to check if the pci device id is supported by driver.
@@ -3790,9 +3786,10 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	writeq(rx_mat, &bar0->rx_mat);
 	readq(&bar0->rx_mat);
 
-	ret = pci_enable_msix(nic->pdev, nic->entries, nic->num_entries);
+	ret = pci_enable_msix_range(nic->pdev, nic->entries,
+				    nic->num_entries, nic->num_entries);
 	/* We fail init if error or we get less vectors than min required */
-	if (ret) {
+	if (ret < 0) {
 		DBG_PRINT(ERR_DBG, "Enabling MSI-X failed\n");
 		kfree(nic->entries);
 		swstats->mem_freed += nic->num_entries *
@@ -3897,9 +3894,7 @@ static void remove_msix_isr(struct s2io_nic *sp)
 
 static void remove_inta_isr(struct s2io_nic *sp)
 {
-	struct net_device *dev = sp->dev;
-
-	free_irq(sp->pdev->irq, dev);
+	free_irq(sp->pdev->irq, sp->dev);
 }
 
 /* ********************************************************* *
@@ -4045,7 +4040,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!is_s2io_card_up(sp)) {
 		DBG_PRINT(TX_DBG, "%s: Card going down for reset\n",
 			  dev->name);
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -4118,7 +4113,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	    ((put_off+1) == queue_len ? 0 : (put_off+1)) == get_off) {
 		DBG_PRINT(TX_DBG, "Error in xmit, No free TXDs.\n");
 		s2io_stop_tx_queue(sp, fifo->fifo_no);
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		spin_unlock_irqrestore(&fifo->tx_lock, flags);
 		return NETDEV_TX_OK;
 	}
@@ -4240,7 +4235,7 @@ pci_map_failed:
 	swstats->pci_map_fail_cnt++;
 	s2io_stop_tx_queue(sp, fifo->fifo_no);
 	swstats->mem_freed += skb->truesize;
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	spin_unlock_irqrestore(&fifo->tx_lock, flags);
 	return NETDEV_TX_OK;
 }
@@ -5239,7 +5234,7 @@ static u64 do_s2io_read_unicast_mc(struct s2io_nic *sp, int offset)
 }
 
 /**
- * s2io_set_mac_addr driver entry point
+ * s2io_set_mac_addr - driver entry point
  */
 
 static int s2io_set_mac_addr(struct net_device *dev, void *p)
@@ -5365,8 +5360,8 @@ static int s2io_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
 		ethtool_cmd_speed_set(info, SPEED_10000);
 		info->duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(info, -1);
-		info->duplex = -1;
+		ethtool_cmd_speed_set(info, SPEED_UNKNOWN);
+		info->duplex = DUPLEX_UNKNOWN;
 	}
 
 	info->autoneg = AUTONEG_DISABLE;
@@ -6089,7 +6084,7 @@ static int s2io_bist_test(struct s2io_nic *sp, uint64_t *data)
 }
 
 /**
- * s2io-link_test - verifies the link state of the nic
+ * s2io_link_test - verifies the link state of the nic
  * @sp ; private member of the device structure, which is a pointer to the
  * s2io_nic structure.
  * @data: variable that returns the result of each of the test conducted by
@@ -6117,9 +6112,9 @@ static int s2io_link_test(struct s2io_nic *sp, uint64_t *data)
 
 /**
  * s2io_rldram_test - offline test for access to the RldRam chip on the NIC
- * @sp - private member of the device structure, which is a pointer to the
+ * @sp: private member of the device structure, which is a pointer to the
  * s2io_nic structure.
- * @data - variable that returns the result of each of the test
+ * @data: variable that returns the result of each of the test
  * conducted by the driver.
  * Description:
  *  This is one of the offline test that tests the read and write
@@ -6947,9 +6942,9 @@ static  int rxd_owner_bit_reset(struct s2io_nic *sp)
 				if (sp->rxd_mode == RXD_MODE_3B)
 					ba = &ring->ba[j][k];
 				if (set_rxd_buffer_pointer(sp, rxdp, ba, &skb,
-							   (u64 *)&temp0_64,
-							   (u64 *)&temp1_64,
-							   (u64 *)&temp2_64,
+							   &temp0_64,
+							   &temp1_64,
+							   &temp2_64,
 							   size) == -ENOMEM) {
 					return 0;
 				}
@@ -7046,7 +7041,7 @@ static int s2io_add_isr(struct s2io_nic *sp)
 		}
 	}
 	if (sp->config.intr_type == INTA) {
-		err = request_irq((int)sp->pdev->irq, s2io_isr, IRQF_SHARED,
+		err = request_irq(sp->pdev->irq, s2io_isr, IRQF_SHARED,
 				  sp->name, dev);
 		if (err) {
 			DBG_PRINT(ERR_DBG, "%s: ISR registration failed\n",
@@ -7150,7 +7145,7 @@ static int s2io_card_up(struct s2io_nic *sp)
 	int i, ret = 0;
 	struct config_param *config;
 	struct mac_info *mac_control;
-	struct net_device *dev = (struct net_device *)sp->dev;
+	struct net_device *dev = sp->dev;
 	u16 interruptible;
 
 	/* Initialize the H/W I/O registers */
@@ -7326,7 +7321,7 @@ static void s2io_tx_watchdog(struct net_device *dev)
 static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 {
 	struct s2io_nic *sp = ring_data->nic;
-	struct net_device *dev = (struct net_device *)ring_data->dev;
+	struct net_device *dev = ring_data->dev;
 	struct sk_buff *skb = (struct sk_buff *)
 		((unsigned long)rxdp->Host_Control);
 	int ring_no = ring_data->ring_no;
@@ -7509,7 +7504,7 @@ aggregate:
 
 static void s2io_link(struct s2io_nic *sp, int link)
 {
-	struct net_device *dev = (struct net_device *)sp->dev;
+	struct net_device *dev = sp->dev;
 	struct swStat *swstats = &sp->mac_control.stats_info->sw_stat;
 
 	if (link != sp->last_link_state) {
@@ -7703,7 +7698,7 @@ static const struct net_device_ops s2io_netdev_ops = {
  *  returns 0 on success and negative on failure.
  */
 
-static int __devinit
+static int
 s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 {
 	struct s2io_nic *sp;
@@ -7908,9 +7903,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto bar1_remap_failed;
 	}
 
-	dev->irq = pdev->irq;
-	dev->base_addr = (unsigned long)sp->bar0;
-
 	/* Initializing the BAR1 address as the start of the FIFO pointer. */
 	for (j = 0; j < MAX_TX_FIFOS; j++) {
 		mac_control->tx_FIFO_start[j] = sp->bar1 + (j * 0x00020000);
@@ -7918,12 +7910,12 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/*  Driver entry points */
 	dev->netdev_ops = &s2io_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_RXCSUM | NETIF_F_LRO;
 	dev->features |= dev->hw_features |
-		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 	if (sp->device_type & XFRAME_II_DEVICE) {
 		dev->hw_features |= NETIF_F_UFO;
 		if (ufo)
@@ -8018,7 +8010,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	/*  Set the factory defined MAC address initially   */
 	dev->addr_len = ETH_ALEN;
 	memcpy(dev->dev_addr, sp->def_mac_addr, ETH_ALEN);
-	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 
 	/* initialize number of multicast & unicast MAC entries variables */
 	if (sp->device_type == XFRAME_I_DEVICE) {
@@ -8189,7 +8180,6 @@ mem_alloc_failed:
 	free_shared_mem(sp);
 	pci_disable_device(pdev);
 	pci_release_regions(pdev);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 
 	return ret;
@@ -8204,7 +8194,7 @@ mem_alloc_failed:
  * from memory.
  */
 
-static void __devexit s2io_rem_nic(struct pci_dev *pdev)
+static void s2io_rem_nic(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct s2io_nic *sp;
@@ -8225,7 +8215,6 @@ static void __devexit s2io_rem_nic(struct pci_dev *pdev)
 	iounmap(sp->bar0);
 	iounmap(sp->bar1);
 	pci_release_regions(pdev);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 	pci_disable_device(pdev);
 }
@@ -8243,7 +8232,8 @@ static int __init s2io_starter(void)
 
 /**
  * s2io_closer - Cleanup routine for the driver
- * Description: This function is the cleanup routine for the driver. It unregist * ers the driver.
+ * Description: This function is the cleanup routine for the driver. It
+ * unregisters the driver.
  */
 
 static __exit void s2io_closer(void)
@@ -8284,7 +8274,7 @@ static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
 		return -1;
 	}
 
-	*ip = (struct iphdr *)((u8 *)buffer + ip_off);
+	*ip = (struct iphdr *)(buffer + ip_off);
 	ip_len = (u8)((*ip)->ihl);
 	ip_len <<= 2;
 	*tcp = (struct tcphdr *)((unsigned long)*ip + ip_len);
@@ -8341,16 +8331,13 @@ static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro)
 {
 	struct iphdr *ip = lro->iph;
 	struct tcphdr *tcp = lro->tcph;
-	__sum16 nchk;
 	struct swStat *swstats = &sp->mac_control.stats_info->sw_stat;
 
 	DBG_PRINT(INFO_DBG, "%s: Been here...\n", __func__);
 
 	/* Update L3 header */
+	csum_replace2(&ip->check, ip->tot_len, htons(lro->total_len));
 	ip->tot_len = htons(lro->total_len);
-	ip->check = 0;
-	nchk = ip_fast_csum((u8 *)lro->iph, ip->ihl);
-	ip->check = nchk;
 
 	/* Update L4 header */
 	tcp->ack_seq = lro->tcp_ack;
@@ -8561,7 +8548,7 @@ static void queue_rx_frame(struct sk_buff *skb, u16 vlan_tag)
 
 	skb->protocol = eth_type_trans(skb, dev);
 	if (vlan_tag && sp->vlan_strip_flag)
-		__vlan_hwaccel_put_tag(skb, vlan_tag);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 	if (sp->config.napi)
 		netif_receive_skb(skb);
 	else

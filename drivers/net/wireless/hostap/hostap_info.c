@@ -4,6 +4,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/etherdevice.h>
 #include "hostap_wlan.h"
 #include "hostap.h"
 #include "hostap_ap.h"
@@ -216,7 +217,7 @@ static void prism2_host_roaming(local_info_t *local)
 		}
 	}
 
-	memcpy(req.bssid, selected->bssid, 6);
+	memcpy(req.bssid, selected->bssid, ETH_ALEN);
 	req.channel = selected->chid;
 	spin_unlock_irqrestore(&local->lock, flags);
 
@@ -463,8 +464,7 @@ static void handle_info_queue_scanresults(local_info_t *local)
 		prism2_host_roaming(local);
 
 	if (local->host_roaming == 2 && local->iw_mode == IW_MODE_INFRA &&
-	    memcmp(local->preferred_ap, "\x00\x00\x00\x00\x00\x00",
-		   ETH_ALEN) != 0) {
+	    !is_zero_ether_addr(local->preferred_ap)) {
 		/*
 		 * Firmware seems to be getting into odd state in host_roaming
 		 * mode 2 when hostscan is used without join command, so try

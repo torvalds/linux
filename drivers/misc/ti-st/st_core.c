@@ -22,7 +22,6 @@
 #define pr_fmt(fmt)	"(stc): " fmt
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/tty.h>
 
 #include <linux/seq_file.h>
@@ -30,11 +29,13 @@
 
 #include <linux/ti_wilink_st.h>
 
+extern void st_kim_recv(void *, const unsigned char *, long);
+void st_int_recv(void *, const unsigned char *, long);
 /* function pointer pointing to either,
  * st_kim_recv during registration to receive fw download responses
  * st_int_recv after registration to receive proto stack responses
  */
-void (*st_recv) (void*, const unsigned char*, long);
+static void (*st_recv) (void *, const unsigned char *, long);
 
 /********************************************************************/
 static void add_channel_to_table(struct st_data_s *st_gdata,
@@ -100,7 +101,7 @@ int st_int_write(struct st_data_s *st_gdata,
  * push the skb received to relevant
  * protocol stacks
  */
-void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
+static void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
 {
 	pr_debug(" %s(prot:%d) ", __func__, chnl_id);
 
@@ -140,7 +141,7 @@ void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
  * This function is being called with spin lock held, protocol drivers are
  * only expected to complete their waits and do nothing more than that.
  */
-void st_reg_complete(struct st_data_s *st_gdata, char err)
+static void st_reg_complete(struct st_data_s *st_gdata, char err)
 {
 	unsigned char i = 0;
 	pr_info(" %s ", __func__);
@@ -238,7 +239,8 @@ void st_int_recv(void *disc_data,
 	char *ptr;
 	struct st_proto_s *proto;
 	unsigned short payload_len = 0;
-	int len = 0, type = 0;
+	int len = 0;
+	unsigned char type = 0;
 	unsigned char *plen;
 	struct st_data_s *st_gdata = (struct st_data_s *)disc_data;
 	unsigned long flags;
@@ -349,6 +351,11 @@ void st_int_recv(void *disc_data,
 			st_gdata->rx_skb = alloc_skb(
 					st_gdata->list[type]->max_frame_size,
 					GFP_ATOMIC);
+			if (st_gdata->rx_skb == NULL) {
+				pr_err("out of memory: dropping\n");
+				goto done;
+			}
+
 			skb_reserve(st_gdata->rx_skb,
 					st_gdata->list[type]->reserve);
 			/* next 2 required for BT only */
@@ -374,7 +381,7 @@ done:
  *	completely, return that skb which has the pending data.
  *	In normal cases, return top of txq.
  */
-struct sk_buff *st_int_dequeue(struct st_data_s *st_gdata)
+static struct sk_buff *st_int_dequeue(struct st_data_s *st_gdata)
 {
 	struct sk_buff *returning_skb;
 
@@ -396,7 +403,7 @@ struct sk_buff *st_int_dequeue(struct st_data_s *st_gdata)
  *	txq and waitq needs protection since the other contexts
  *	may be sending data, waking up chip.
  */
-void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
+static void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 {
 	unsigned long flags = 0;
 
@@ -504,7 +511,6 @@ long st_register(struct st_proto_s *new_proto)
 	unsigned long flags = 0;
 
 	st_kim_ref(&st_gdata, 0);
-	pr_info("%s(%d) ", __func__, new_proto->chnl_id);
 	if (st_gdata == NULL || new_proto == NULL || new_proto->recv == NULL
 	    || new_proto->reg_complete_cb == NULL) {
 		pr_err("gdata/new_proto/recv or reg_complete_cb not ready");
@@ -555,7 +561,9 @@ long st_register(struct st_proto_s *new_proto)
 			if ((st_gdata->protos_registered != ST_EMPTY) &&
 			    (test_bit(ST_REG_PENDING, &st_gdata->st_state))) {
 				pr_err(" KIM failure complete callback ");
+				spin_lock_irqsave(&st_gdata->lock, flags);
 				st_reg_complete(st_gdata, err);
+				spin_unlock_irqrestore(&st_gdata->lock, flags);
 				clear_bit(ST_REG_PENDING, &st_gdata->st_state);
 			}
 			return -EINVAL;
@@ -803,7 +811,7 @@ static void st_tty_flush_buffer(struct tty_struct *tty)
 	kfree_skb(st_gdata->tx_skb);
 	st_gdata->tx_skb = NULL;
 
-	tty->ops->flush_buffer(tty);
+	tty_driver_flush_buffer(tty);
 	return;
 }
 

@@ -25,8 +25,8 @@
 
 #include <mach/pxa320.h>
 #include <mach/colibri.h>
-#include <mach/pxafb.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/audio.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/udc.h>
@@ -259,7 +259,7 @@ MACHINE_START(COLIBRI320, "Toradex Colibri PXA320")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 

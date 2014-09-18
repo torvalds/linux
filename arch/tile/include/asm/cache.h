@@ -27,11 +27,17 @@
 #define L2_CACHE_ALIGN(x)	(((x)+(L2_CACHE_BYTES-1)) & -L2_CACHE_BYTES)
 
 /*
- * TILE-Gx is fully coherent so we don't need to define ARCH_DMA_MINALIGN.
+ * TILEPro I/O is not always coherent (networking typically uses coherent
+ * I/O, but PCI traffic does not) and setting ARCH_DMA_MINALIGN to the
+ * L2 cacheline size helps ensure that kernel heap allocations are aligned.
+ * TILE-Gx I/O is always coherent when used on hash-for-home pages.
+ *
+ * However, it's possible at runtime to request not to use hash-for-home
+ * for the kernel heap, in which case the kernel will use flush-and-inval
+ * to manage coherence.  As a result, we use L2_CACHE_BYTES for the
+ * DMA minimum alignment to avoid false sharing in the kernel heap.
  */
-#ifndef __tilegx__
 #define ARCH_DMA_MINALIGN	L2_CACHE_BYTES
-#endif
 
 /* use the cache line size for the L2, which is where it counts */
 #define SMP_CACHE_BYTES_SHIFT	L2_CACHE_SHIFT
@@ -43,9 +49,16 @@
 #define __read_mostly __attribute__((__section__(".data..read_mostly")))
 
 /*
- * Attribute for data that is kept read/write coherent until the end of
- * initialization, then bumped to read/only incoherent for performance.
+ * Originally we used small TLB pages for kernel data and grouped some
+ * things together as "write once", enforcing the property at the end
+ * of initialization by making those pages read-only and non-coherent.
+ * This allowed better cache utilization since cache inclusion did not
+ * need to be maintained.  However, to do this requires an extra TLB
+ * entry, which on balance is more of a performance hit than the
+ * non-coherence is a performance gain, so we now just make "read
+ * mostly" and "write once" be synonyms.  We keep the attribute
+ * separate in case we change our minds at a future date.
  */
-#define __write_once __attribute__((__section__(".w1data")))
+#define __write_once __read_mostly
 
 #endif /* _ASM_TILE_CACHE_H */

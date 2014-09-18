@@ -2,7 +2,7 @@
  * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
  *
  * Based on the r8180 driver, which is:
- * Copyright 2004-2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ * Copyright 2004-2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -28,7 +28,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -87,10 +86,6 @@
 	.vendor = (vend), .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID , \
 	.driver_data = (kernel_ulong_t)&(cfg)
-
-#define irqreturn_type irqreturn_t
-
-#define rtl8192_interrupt(x, y, z) rtl8192_interrupt_rsl(x, y)
 
 #define RTL_MAX_SCAN_SIZE 128
 
@@ -191,6 +186,8 @@
 
 #define MAX_RX_COUNT				64
 #define MAX_TX_QUEUE_COUNT			9
+
+extern int hwwep;
 
 enum RTL819x_PHY_PARAM {
 	RTL819X_PHY_MACPHY_REG			= 0,
@@ -353,7 +350,6 @@ struct rt_stats {
 	unsigned long rxrdu;
 	unsigned long rxok;
 	unsigned long rxframgment;
-	unsigned long rxcmdpkt[8];
 	unsigned long rxurberr;
 	unsigned long rxstaterr;
 	unsigned long rxdatacrcerr;
@@ -586,7 +582,6 @@ struct r8192_priv {
 
 	struct rt_firmware			*pFirmware;
 	enum rtl819x_loopback LoopbackMode;
-	enum firmware_source firmware_source;
 
 	struct timer_list			watch_dog_timer;
 	struct timer_list			fsync_timer;
@@ -944,7 +939,7 @@ struct r8192_priv {
 	bool		bfsync_processing;
 	u32		rate_record;
 	u32		rateCountDiffRecord;
-	u32		ContiuneDiffCount;
+	u32		ContinueDiffCount;
 	bool		bswitch_fsync;
 	u8		framesync;
 	u32		framesyncC34;
@@ -1045,8 +1040,6 @@ void rtl8192_set_chan(struct net_device *dev, short ch);
 void check_rfctrl_gpio_timer(unsigned long data);
 
 void rtl8192_hw_wakeup_wq(void *data);
-irqreturn_type rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs);
-
 short rtl8192_pci_initdescring(struct net_device *dev);
 
 void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
@@ -1085,11 +1078,5 @@ bool MgntActSet_RF_State(struct net_device *dev,
 void ActUpdateChannelAccessSetting(struct net_device *dev,
 			   enum wireless_mode WirelessMode,
 			   struct channel_access_setting *ChnlAccessSetting);
-
-/* proc stuff from rtl_debug.c */
-void rtl8192_proc_init_one(struct net_device *dev);
-void rtl8192_proc_remove_one(struct net_device *dev);
-void rtl8192_proc_module_init(void);
-void rtl8192_proc_module_remove(void);
 
 #endif

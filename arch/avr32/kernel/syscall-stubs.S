@@ -20,41 +20,11 @@ __sys_rt_sigsuspend:
 	mov	r10, sp
 	rjmp	sys_rt_sigsuspend
 
-	.global	__sys_sigaltstack
-	.type	__sys_sigaltstack,@function
-__sys_sigaltstack:
-	mov	r10, sp
-	rjmp	sys_sigaltstack
-
 	.global	__sys_rt_sigreturn
 	.type	__sys_rt_sigreturn,@function
 __sys_rt_sigreturn:
 	mov	r12, sp
 	rjmp	sys_rt_sigreturn
-
-	.global	__sys_fork
-	.type	__sys_fork,@function
-__sys_fork:
-	mov	r12, sp
-	rjmp	sys_fork
-
-	.global	__sys_clone
-	.type	__sys_clone,@function
-__sys_clone:
-	mov	r8, sp
-	rjmp	sys_clone
-
-	.global	__sys_vfork
-	.type	__sys_vfork,@function
-__sys_vfork:
-	mov	r12, sp
-	rjmp	sys_vfork
-
-	.global	__sys_execve
-	.type	__sys_execve,@function
-__sys_execve:
-	mov	r9, sp
-	rjmp	sys_execve
 
 	.global	__sys_mmap2
 	.type	__sys_mmap2,@function

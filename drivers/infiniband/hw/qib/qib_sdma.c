@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2007, 2008, 2009, 2010 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2012 Intel Corporation. All rights reserved.
+ * Copyright (c) 2007 - 2012 QLogic Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -276,8 +277,8 @@ static int alloc_sdma(struct qib_pportdata *ppd)
 		GFP_KERNEL);
 
 	if (!ppd->sdma_descq) {
-		qib_dev_err(ppd->dd, "failed to allocate SendDMA descriptor "
-			    "FIFO memory\n");
+		qib_dev_err(ppd->dd,
+			"failed to allocate SendDMA descriptor FIFO memory\n");
 		goto bail;
 	}
 
@@ -285,8 +286,8 @@ static int alloc_sdma(struct qib_pportdata *ppd)
 	ppd->sdma_head_dma = dma_alloc_coherent(&ppd->dd->pcidev->dev,
 		PAGE_SIZE, &ppd->sdma_head_phys, GFP_KERNEL);
 	if (!ppd->sdma_head_dma) {
-		qib_dev_err(ppd->dd, "failed to allocate SendDMA "
-			    "head memory\n");
+		qib_dev_err(ppd->dd,
+			"failed to allocate SendDMA head memory\n");
 		goto cleanup_descq;
 	}
 	ppd->sdma_head_dma[0] = 0;
@@ -422,8 +423,11 @@ void qib_sdma_intr(struct qib_pportdata *ppd)
 
 void __qib_sdma_intr(struct qib_pportdata *ppd)
 {
-	if (__qib_sdma_running(ppd))
+	if (__qib_sdma_running(ppd)) {
 		qib_sdma_make_progress(ppd);
+		if (!list_empty(&ppd->sdma_userpending))
+			qib_user_sdma_send_desc(ppd, &ppd->sdma_userpending);
+	}
 }
 
 int qib_setup_sdma(struct qib_pportdata *ppd)
@@ -450,6 +454,9 @@ int qib_setup_sdma(struct qib_pportdata *ppd)
 	ppd->sdma_descq_head = 0;
 	ppd->sdma_descq_removed = 0;
 	ppd->sdma_descq_added = 0;
+
+	ppd->sdma_intrequest = 0;
+	INIT_LIST_HEAD(&ppd->sdma_userpending);
 
 	INIT_LIST_HEAD(&ppd->sdma_activelist);
 
@@ -705,6 +712,62 @@ busy:
 unlock:
 	spin_unlock_irqrestore(&ppd->sdma_lock, flags);
 	return ret;
+}
+
+/*
+ * sdma_lock should be acquired before calling this routine
+ */
+void dump_sdma_state(struct qib_pportdata *ppd)
+{
+	struct qib_sdma_desc *descq;
+	struct qib_sdma_txreq *txp, *txpnext;
+	__le64 *descqp;
+	u64 desc[2];
+	u64 addr;
+	u16 gen, dwlen, dwoffset;
+	u16 head, tail, cnt;
+
+	head = ppd->sdma_descq_head;
+	tail = ppd->sdma_descq_tail;
+	cnt = qib_sdma_descq_freecnt(ppd);
+	descq = ppd->sdma_descq;
+
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA ppd->sdma_descq_head: %u\n", head);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA ppd->sdma_descq_tail: %u\n", tail);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA sdma_descq_freecnt: %u\n", cnt);
+
+	/* print info for each entry in the descriptor queue */
+	while (head != tail) {
+		char flags[6] = { 'x', 'x', 'x', 'x', 'x', 0 };
+
+		descqp = &descq[head].qw[0];
+		desc[0] = le64_to_cpu(descqp[0]);
+		desc[1] = le64_to_cpu(descqp[1]);
+		flags[0] = (desc[0] & 1<<15) ? 'I' : '-';
+		flags[1] = (desc[0] & 1<<14) ? 'L' : 'S';
+		flags[2] = (desc[0] & 1<<13) ? 'H' : '-';
+		flags[3] = (desc[0] & 1<<12) ? 'F' : '-';
+		flags[4] = (desc[0] & 1<<11) ? 'L' : '-';
+		addr = (desc[1] << 32) | ((desc[0] >> 32) & 0xfffffffcULL);
+		gen = (desc[0] >> 30) & 3ULL;
+		dwlen = (desc[0] >> 14) & (0x7ffULL << 2);
+		dwoffset = (desc[0] & 0x7ffULL) << 2;
+		qib_dev_porterr(ppd->dd, ppd->port,
+			"SDMA sdmadesc[%u]: flags:%s addr:0x%016llx gen:%u len:%u bytes offset:%u bytes\n",
+			 head, flags, addr, gen, dwlen, dwoffset);
+		if (++head == ppd->sdma_descq_cnt)
+			head = 0;
+	}
+
+	/* print dma descriptor indices from the TX requests */
+	list_for_each_entry_safe(txp, txpnext, &ppd->sdma_activelist,
+				 list)
+		qib_dev_porterr(ppd->dd, ppd->port,
+			"SDMA txp->start_idx: %u txp->next_descq_idx: %u\n",
+			txp->start_idx, txp->next_descq_idx);
 }
 
 void qib_sdma_process_event(struct qib_pportdata *ppd,

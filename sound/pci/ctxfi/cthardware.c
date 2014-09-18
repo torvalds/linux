@@ -20,8 +20,8 @@
 #include "cthw20k2.h"
 #include <linux/bug.h>
 
-int __devinit create_hw_obj(struct pci_dev *pci, enum CHIPTYP chip_type,
-			    enum CTCARDS model, struct hw **rhw)
+int create_hw_obj(struct pci_dev *pci, enum CHIPTYP chip_type,
+		  enum CTCARDS model, struct hw **rhw)
 {
 	int err;
 
@@ -69,7 +69,8 @@ unsigned int get_field(unsigned int data, unsigned int field)
 {
 	int i;
 
-	BUG_ON(!field);
+	if (WARN_ON(!field))
+		return 0;
 	/* @field should always be greater than 0 */
 	for (i = 0; !(field & (1 << i)); )
 		i++;
@@ -81,7 +82,8 @@ void set_field(unsigned int *data, unsigned int field, unsigned int value)
 {
 	int i;
 
-	BUG_ON(!field);
+	if (WARN_ON(!field))
+		return;
 	/* @field should always be greater than 0 */
 	for (i = 0; !(field & (1 << i)); )
 		i++;

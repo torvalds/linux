@@ -222,7 +222,6 @@ int i2400m_check_mac_addr(struct i2400m *i2400m)
 	struct sk_buff *skb;
 	const struct i2400m_tlv_detailed_device_info *ddi;
 	struct net_device *net_dev = i2400m->wimax_dev.net_dev;
-	const unsigned char zeromac[ETH_ALEN] = { 0 };
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	skb = i2400m_get_device_info(i2400m);
@@ -244,7 +243,7 @@ int i2400m_check_mac_addr(struct i2400m *i2400m)
 		 "to that of boot mode's\n");
 	dev_warn(dev, "device reports     %pM\n", ddi->mac_address);
 	dev_warn(dev, "boot mode reported %pM\n", net_dev->perm_addr);
-	if (!memcmp(zeromac, ddi->mac_address, sizeof(zeromac)))
+	if (is_zero_ether_addr(ddi->mac_address))
 		dev_err(dev, "device reports an invalid MAC address, "
 			"not updating\n");
 	else {
@@ -501,26 +500,23 @@ int i2400m_pm_notifier(struct notifier_block *notifier,
  */
 int i2400m_pre_reset(struct i2400m *i2400m)
 {
-	int result;
 	struct device *dev = i2400m_dev(i2400m);
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	d_printf(1, dev, "pre-reset shut down\n");
 
-	result = 0;
 	mutex_lock(&i2400m->init_mutex);
 	if (i2400m->updown) {
 		netif_tx_disable(i2400m->wimax_dev.net_dev);
 		__i2400m_dev_stop(i2400m);
-		result = 0;
 		/* down't set updown to zero -- this way
 		 * post_reset can restore properly */
 	}
 	mutex_unlock(&i2400m->init_mutex);
 	if (i2400m->bus_release)
 		i2400m->bus_release(i2400m);
-	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
-	return result;
+	d_fnend(3, dev, "(i2400m %p) = 0\n", i2400m);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(i2400m_pre_reset);
 
@@ -754,8 +750,7 @@ EXPORT_SYMBOL_GPL(i2400m_error_recovery);
 /*
  * Alloc the command and ack buffers for boot mode
  *
- * Get the buffers needed to deal with boot mode messages.  These
- * buffers need to be allocated before the sdio receive irq is setup.
+ * Get the buffers needed to deal with boot mode messages.
  */
 static
 int i2400m_bm_buf_alloc(struct i2400m *i2400m)
@@ -897,7 +892,7 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	result = i2400m_read_mac_addr(i2400m);
 	if (result < 0)
 		goto error_read_mac_addr;
-	random_ether_addr(i2400m->src_mac_addr);
+	eth_random_addr(i2400m->src_mac_addr);
 
 	i2400m->pm_notifier.notifier_call = i2400m_pm_notifier;
 	register_pm_notifier(&i2400m->pm_notifier);

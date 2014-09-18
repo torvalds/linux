@@ -131,7 +131,7 @@ typedef struct drm_r128_buf_priv {
 	drm_r128_freelist_t *list_entry;
 } drm_r128_buf_priv_t;
 
-extern struct drm_ioctl_desc r128_ioctls[];
+extern const struct drm_ioctl_desc r128_ioctls[];
 extern int r128_max_ioctl;
 
 				/* r128_cce.c */
@@ -154,7 +154,7 @@ extern int r128_do_cleanup_cce(struct drm_device *dev);
 extern int r128_enable_vblank(struct drm_device *dev, int crtc);
 extern void r128_disable_vblank(struct drm_device *dev, int crtc);
 extern u32 r128_get_vblank_counter(struct drm_device *dev, int crtc);
-extern irqreturn_t r128_driver_irq_handler(DRM_IRQ_ARGS);
+extern irqreturn_t r128_driver_irq_handler(int irq, void *arg);
 extern void r128_driver_irq_preinstall(struct drm_device *dev);
 extern int r128_driver_irq_postinstall(struct drm_device *dev);
 extern void r128_driver_irq_uninstall(struct drm_device *dev);
@@ -514,7 +514,7 @@ do {									\
 	if (R128_VERBOSE)						\
 		DRM_INFO("COMMIT_RING() tail=0x%06x\n",			\
 			 dev_priv->ring.tail);				\
-	DRM_MEMORYBARRIER();						\
+	mb();						\
 	R128_WRITE(R128_PM4_BUFFER_DL_WPTR, dev_priv->ring.tail);	\
 	R128_READ(R128_PM4_BUFFER_DL_WPTR);				\
 } while (0)

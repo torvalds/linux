@@ -273,7 +273,6 @@ static int orinoco_plx_init_one(struct pci_dev *pdev,
 	free_irq(pdev->irq, priv);
 
  fail_irq:
-	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(priv);
 
  fail_alloc:
@@ -294,14 +293,13 @@ static int orinoco_plx_init_one(struct pci_dev *pdev,
 	return err;
 }
 
-static void __devexit orinoco_plx_remove_one(struct pci_dev *pdev)
+static void orinoco_plx_remove_one(struct pci_dev *pdev)
 {
 	struct orinoco_private *priv = pci_get_drvdata(pdev);
 	struct orinoco_pci_card *card = priv->card;
 
 	orinoco_if_del(priv);
 	free_irq(pdev->irq, priv);
-	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(priv);
 	pci_iounmap(pdev, priv->hw.iobase);
 	pci_iounmap(pdev, card->attr_io);
@@ -310,7 +308,7 @@ static void __devexit orinoco_plx_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(orinoco_plx_id_table) = {
+static const struct pci_device_id orinoco_plx_id_table[] = {
 	{0x111a, 0x1023, PCI_ANY_ID, PCI_ANY_ID,},	/* Siemens SpeedStream SS1023 */
 	{0x1385, 0x4100, PCI_ANY_ID, PCI_ANY_ID,},	/* Netgear MA301 */
 	{0x15e8, 0x0130, PCI_ANY_ID, PCI_ANY_ID,},	/* Correga  - does this work? */
@@ -334,7 +332,7 @@ static struct pci_driver orinoco_plx_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= orinoco_plx_id_table,
 	.probe		= orinoco_plx_init_one,
-	.remove		= __devexit_p(orinoco_plx_remove_one),
+	.remove		= orinoco_plx_remove_one,
 	.suspend	= orinoco_pci_suspend,
 	.resume		= orinoco_pci_resume,
 };

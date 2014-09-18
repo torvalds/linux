@@ -33,6 +33,7 @@
 /* Maximum number of main interrupts */
 #define MAX_MAIN_INTERRUPT		5
 #define RC5T583_MAX_GPEDGE_REG		2
+#define RC5T583_MAX_INTERRUPT_EN_REGS	8
 #define RC5T583_MAX_INTERRUPT_MASK_REGS	9
 
 /* Interrupt enable register */
@@ -146,6 +147,28 @@
 #define RC5T583_GPIO_MON_IOIN	0xAB
 #define RC5T583_GPIO_GPOFUNC	0xAC
 
+/* RTC registers */
+#define RC5T583_RTC_SEC		0xE0
+#define RC5T583_RTC_MIN		0xE1
+#define RC5T583_RTC_HOUR	0xE2
+#define RC5T583_RTC_WDAY	0xE3
+#define RC5T583_RTC_DAY		0xE4
+#define RC5T583_RTC_MONTH	0xE5
+#define RC5T583_RTC_YEAR	0xE6
+#define RC5T583_RTC_ADJ		0xE7
+#define RC5T583_RTC_AW_MIN	0xE8
+#define RC5T583_RTC_AW_HOUR	0xE9
+#define RC5T583_RTC_AW_WEEK	0xEA
+#define RC5T583_RTC_AD_MIN	0xEB
+#define RC5T583_RTC_AD_HOUR	0xEC
+#define RC5T583_RTC_CTL1	0xED
+#define RC5T583_RTC_CTL2	0xEE
+#define RC5T583_RTC_AY_MIN	0xF0
+#define RC5T583_RTC_AY_HOUR	0xF1
+#define RC5T583_RTC_AY_DAY	0xF2
+#define RC5T583_RTC_AY_MONTH 0xF3
+#define RC5T583_RTC_AY_YEAR	0xF4
+
 /* RICOH_RC5T583 IRQ definitions */
 enum {
 	RC5T583_IRQ_ONKEY,
@@ -250,6 +273,26 @@ enum {
 	RC5T583_EXT_PWRREQ2_CONTROL = 0x2,
 };
 
+enum {
+	RC5T583_REGULATOR_DC0,
+	RC5T583_REGULATOR_DC1,
+	RC5T583_REGULATOR_DC2,
+	RC5T583_REGULATOR_DC3,
+	RC5T583_REGULATOR_LDO0,
+	RC5T583_REGULATOR_LDO1,
+	RC5T583_REGULATOR_LDO2,
+	RC5T583_REGULATOR_LDO3,
+	RC5T583_REGULATOR_LDO4,
+	RC5T583_REGULATOR_LDO5,
+	RC5T583_REGULATOR_LDO6,
+	RC5T583_REGULATOR_LDO7,
+	RC5T583_REGULATOR_LDO8,
+	RC5T583_REGULATOR_LDO9,
+
+	/* Should be last entry */
+	RC5T583_REGULATOR_MAX,
+};
+
 struct rc5t583 {
 	struct device	*dev;
 	struct regmap	*regmap;
@@ -262,7 +305,7 @@ struct rc5t583 {
 	uint8_t		intc_inten_reg;
 
 	/* For group interrupt bits and address */
-	uint8_t		irq_en_reg[RC5T583_MAX_INTERRUPT_MASK_REGS];
+	uint8_t		irq_en_reg[RC5T583_MAX_INTERRUPT_EN_REGS];
 
 	/* For gpio edge */
 	uint8_t		gpedge_reg[RC5T583_MAX_GPEDGE_REG];
@@ -272,12 +315,23 @@ struct rc5t583 {
  * rc5t583_platform_data: Platform data for ricoh rc5t583 pmu.
  * The board specific data is provided through this structure.
  * @irq_base: Irq base number on which this device registers their interrupts.
+ * @gpio_base: GPIO base from which gpio of this device will start.
  * @enable_shutdown: Enable shutdown through the input pin "shutdown".
+ * @regulator_deepsleep_slot: The slot number on which device goes to sleep
+ *		in device sleep mode.
+ * @regulator_ext_pwr_control: External power request regulator control. The
+ *		regulator output enable/disable is controlled by the external
+ *		power request input state.
+ * @reg_init_data: Regulator init data.
  */
 
 struct rc5t583_platform_data {
 	int		irq_base;
+	int		gpio_base;
 	bool		enable_shutdown;
+	int		regulator_deepsleep_slot[RC5T583_REGULATOR_MAX];
+	unsigned long	regulator_ext_pwr_control[RC5T583_REGULATOR_MAX];
+	struct regulator_init_data *reg_init_data[RC5T583_REGULATOR_MAX];
 };
 
 static inline int rc5t583_write(struct device *dev, uint8_t reg, uint8_t val)

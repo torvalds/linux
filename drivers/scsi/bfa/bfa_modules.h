@@ -45,6 +45,7 @@ struct bfa_modules_s {
 	struct bfa_diag_s	diag_mod;	/*  diagnostics module	*/
 	struct bfa_phy_s	phy;		/*  phy module		*/
 	struct bfa_dconf_mod_s	dconf_mod;	/*  DCONF common module	*/
+	struct bfa_fru_s	fru;		/*  fru module		*/
 };
 
 /*
@@ -121,6 +122,7 @@ struct bfa_s {
 	bfa_boolean_t		fcs;		/*  FCS is attached to BFA */
 	struct bfa_msix_s	msix;
 	int			bfa_aen_seq;
+	bfa_boolean_t		intr_enabled;	/*  Status of interrupts */
 };
 
 extern bfa_boolean_t bfa_auto_recover;

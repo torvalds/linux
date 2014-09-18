@@ -10,7 +10,7 @@
  * License v2. See the file COPYING in the main directory of this archive for
  * more details.
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "udl_drv.h"
 
 /* -BULK_SIZE as per usb-skeleton. Can we get full page and avoid overhead? */
@@ -41,11 +41,8 @@ static int udl_parse_vendor_descriptor(struct drm_device *dev,
 	total_len = usb_get_descriptor(usbdev, 0x5f, /* vendor specific */
 				    0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
 	if (total_len > 5) {
-		DRM_INFO("vendor descriptor length:%x data:%02x %02x %02x %02x" \
-			"%02x %02x %02x %02x %02x %02x %02x\n",
-			total_len, desc[0],
-			desc[1], desc[2], desc[3], desc[4], desc[5], desc[6],
-			desc[7], desc[8], desc[9], desc[10]);
+		DRM_INFO("vendor descriptor length:%x data:%11ph\n",
+			total_len, desc);
 
 		if ((desc[0] != total_len) || /* descriptor length */
 		    (desc[1] != 0x5f) ||   /* vendor descriptor type */
@@ -61,7 +58,7 @@ static int udl_parse_vendor_descriptor(struct drm_device *dev,
 			u8 length;
 			u16 key;
 
-			key = *((u16 *) desc);
+			key = le16_to_cpu(*((u16 *) desc));
 			desc += sizeof(u16);
 			length = *desc;
 			desc++;
@@ -286,7 +283,7 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
 int udl_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct udl_device *udl;
-	int ret;
+	int ret = -ENOMEM;
 
 	DRM_DEBUG("\n");
 	udl = kzalloc(sizeof(struct udl_device), GFP_KERNEL);
@@ -297,22 +294,35 @@ int udl_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = udl;
 
 	if (!udl_parse_vendor_descriptor(dev, dev->usbdev)) {
+		ret = -ENODEV;
 		DRM_ERROR("firmware not recognized. Assume incompatible device\n");
 		goto err;
 	}
 
 	if (!udl_alloc_urb_list(dev, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
-		ret = -ENOMEM;
 		DRM_ERROR("udl_alloc_urb_list failed\n");
 		goto err;
 	}
 
 	DRM_DEBUG("\n");
 	ret = udl_modeset_init(dev);
+	if (ret)
+		goto err;
 
 	ret = udl_fbdev_init(dev);
+	if (ret)
+		goto err;
+
+	ret = drm_vblank_init(dev, 1);
+	if (ret)
+		goto err_fb;
+
 	return 0;
+err_fb:
+	udl_fbdev_cleanup(dev);
 err:
+	if (udl->urbs.count)
+		udl_free_urb_list(dev);
 	kfree(udl);
 	DRM_ERROR("%d\n", ret);
 	return ret;
@@ -327,6 +337,8 @@ int udl_drop_usb(struct drm_device *dev)
 int udl_driver_unload(struct drm_device *dev)
 {
 	struct udl_device *udl = dev->dev_private;
+
+	drm_vblank_cleanup(dev);
 
 	if (udl->urbs.count)
 		udl_free_urb_list(dev);

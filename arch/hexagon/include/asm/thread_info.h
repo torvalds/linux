@@ -1,7 +1,7 @@
 /*
  * Thread support for the Hexagon architecture
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,15 +31,7 @@
 
 #define THREAD_SHIFT		12
 #define THREAD_SIZE		(1<<THREAD_SHIFT)
-
-#if THREAD_SHIFT >= PAGE_SHIFT
 #define THREAD_SIZE_ORDER	(THREAD_SHIFT - PAGE_SHIFT)
-#else  /*  don't use standard allocator  */
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-extern struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node);
-extern void free_thread_info(struct thread_info *ti);
-#endif
-
 
 #ifndef __ASSEMBLY__
 
@@ -80,10 +72,6 @@ struct thread_info {
 #include <asm/asm-offsets.h>
 
 #endif  /* __ASSEMBLY__  */
-
-/*  looks like "linux/hardirq.h" uses this.  */
-
-#define PREEMPT_ACTIVE		0x10000000
 
 #ifndef __ASSEMBLY__
 
@@ -128,10 +116,8 @@ register struct thread_info *__current_thread_info asm(QUOTED_THREADINFO_REG);
 #define TIF_SIGPENDING          2       /* signal pending */
 #define TIF_NEED_RESCHED        3       /* rescheduling necessary */
 #define TIF_SINGLESTEP          4       /* restore ss @ return to usr mode */
-#define TIF_IRET                5       /* return with iret */
 #define TIF_RESTORE_SIGMASK     6       /* restore sig mask in do_signal() */
 /* true if poll_idle() is polling TIF_NEED_RESCHED */
-#define TIF_POLLING_NRFLAG      16
 #define TIF_MEMDIE              17      /* OOM killer killed process */
 
 #define _TIF_SYSCALL_TRACE      (1 << TIF_SYSCALL_TRACE)
@@ -139,9 +125,6 @@ register struct thread_info *__current_thread_info asm(QUOTED_THREADINFO_REG);
 #define _TIF_SIGPENDING         (1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED       (1 << TIF_NEED_RESCHED)
 #define _TIF_SINGLESTEP         (1 << TIF_SINGLESTEP)
-#define _TIF_IRET               (1 << TIF_IRET)
-#define _TIF_RESTORE_SIGMASK    (1 << TIF_RESTORE_SIGMASK)
-#define _TIF_POLLING_NRFLAG     (1 << TIF_POLLING_NRFLAG)
 
 /* work to do on interrupt/exception return - All but TIF_SYSCALL_TRACE */
 #define _TIF_WORK_MASK          (0x0000FFFF & ~_TIF_SYSCALL_TRACE)

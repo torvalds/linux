@@ -1,11 +1,9 @@
 /*
- * arch/s390/appldata/appldata_net_sum.c
- *
  * Data gathering module for Linux-VM Monitor Stream, Stage 1.
  * Collects accumulated network statistics (Packets received/transmitted,
  * dropped, errors, ...).
  *
- * Copyright (C) 2003,2006 IBM Corporation, IBM Deutschland Entwicklung GmbH.
+ * Copyright IBM Corp. 2003, 2006
  *
  * Author: Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
@@ -31,7 +29,7 @@
  * book:
  * http://oss.software.ibm.com/developerworks/opensource/linux390/index.shtml
  */
-static struct appldata_net_sum_data {
+struct appldata_net_sum_data {
 	u64 timestamp;
 	u32 sync_count_1;	/* after VM collected the record data, */
 	u32 sync_count_2;	/* sync_count_1 and sync_count_2 should be the
@@ -53,7 +51,7 @@ static struct appldata_net_sum_data {
 	u64 rx_dropped;		/* no space in linux buffers     */
 	u64 tx_dropped;		/* no space available in linux   */
 	u64 collisions;		/* collisions while transmitting */
-} __attribute__((packed)) appldata_net_sum_data;
+} __packed;
 
 
 /*
@@ -113,7 +111,7 @@ static void appldata_get_net_sum_data(void *data)
 	net_data->tx_dropped = tx_dropped;
 	net_data->collisions = collisions;
 
-	net_data->timestamp = get_clock();
+	net_data->timestamp = get_tod_clock();
 	net_data->sync_count_2++;
 }
 
@@ -123,7 +121,6 @@ static struct appldata_ops ops = {
 	.record_nr = APPLDATA_RECORD_NET_SUM_ID,
 	.size	   = sizeof(struct appldata_net_sum_data),
 	.callback  = &appldata_get_net_sum_data,
-	.data      = &appldata_net_sum_data,
 	.owner     = THIS_MODULE,
 	.mod_lvl   = {0xF0, 0xF0},		/* EBCDIC "00" */
 };
@@ -136,7 +133,17 @@ static struct appldata_ops ops = {
  */
 static int __init appldata_net_init(void)
 {
-	return appldata_register_ops(&ops);
+	int ret;
+
+	ops.data = kzalloc(sizeof(struct appldata_net_sum_data), GFP_KERNEL);
+	if (!ops.data)
+		return -ENOMEM;
+
+	ret = appldata_register_ops(&ops);
+	if (ret)
+		kfree(ops.data);
+
+	return ret;
 }
 
 /*
@@ -147,6 +154,7 @@ static int __init appldata_net_init(void)
 static void __exit appldata_net_exit(void)
 {
 	appldata_unregister_ops(&ops);
+	kfree(ops.data);
 }
 
 

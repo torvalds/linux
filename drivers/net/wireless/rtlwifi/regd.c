@@ -59,30 +59,26 @@ static struct country_code_to_enum_rd allCountries[] = {
  */
 #define RTL819x_2GHZ_CH12_13	\
 	REG_RULE(2467-10, 2472+10, 40, 0, 20,\
-	NL80211_RRF_PASSIVE_SCAN)
+		 NL80211_RRF_NO_IR)
 
 #define RTL819x_2GHZ_CH14	\
 	REG_RULE(2484-10, 2484+10, 40, 0, 20, \
-	NL80211_RRF_PASSIVE_SCAN | \
-	NL80211_RRF_NO_OFDM)
+		 NL80211_RRF_NO_IR | NL80211_RRF_NO_OFDM)
 
 /* 5G chan 36 - chan 64*/
 #define RTL819x_5GHZ_5150_5350	\
 	REG_RULE(5150-10, 5350+10, 40, 0, 30, \
-	NL80211_RRF_PASSIVE_SCAN | \
-	NL80211_RRF_NO_IBSS)
+		 NL80211_RRF_NO_IR)
 
 /* 5G chan 100 - chan 165*/
 #define RTL819x_5GHZ_5470_5850	\
 	REG_RULE(5470-10, 5850+10, 40, 0, 30, \
-	NL80211_RRF_PASSIVE_SCAN | \
-	NL80211_RRF_NO_IBSS)
+		 NL80211_RRF_NO_IR)
 
 /* 5G chan 149 - chan 165*/
 #define RTL819x_5GHZ_5725_5850	\
 	REG_RULE(5725-10, 5850+10, 40, 0, 30, \
-	NL80211_RRF_PASSIVE_SCAN | \
-	NL80211_RRF_NO_IBSS)
+		 NL80211_RRF_NO_IR)
 
 #define RTL819x_5GHZ_ALL	\
 	(RTL819x_5GHZ_5150_5350, RTL819x_5GHZ_5470_5850)
@@ -158,8 +154,6 @@ static void _rtl_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	const struct ieee80211_reg_rule *reg_rule;
 	struct ieee80211_channel *ch;
 	unsigned int i;
-	u32 bandwidth = 0;
-	int r;
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 
@@ -174,9 +168,9 @@ static void _rtl_reg_apply_beaconing_flags(struct wiphy *wiphy,
 			    (ch->flags & IEEE80211_CHAN_RADAR))
 				continue;
 			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-				r = freq_reg_info(wiphy, ch->center_freq,
-						  bandwidth, &reg_rule);
-				if (r)
+				reg_rule = freq_reg_info(wiphy,
+							 MHZ_TO_KHZ(ch->center_freq));
+				if (IS_ERR(reg_rule))
 					continue;
 
 				/*
@@ -188,16 +182,11 @@ static void _rtl_reg_apply_beaconing_flags(struct wiphy *wiphy,
 				 *regulatory_hint().
 				 */
 
-				if (!(reg_rule->flags & NL80211_RRF_NO_IBSS))
-					ch->flags &= ~IEEE80211_CHAN_NO_IBSS;
-				if (!(reg_rule->
-				     flags & NL80211_RRF_PASSIVE_SCAN))
-					ch->flags &=
-					    ~IEEE80211_CHAN_PASSIVE_SCAN;
+				if (!(reg_rule->flags & NL80211_RRF_NO_IR))
+					ch->flags &= ~IEEE80211_CHAN_NO_IR;
 			} else {
 				if (ch->beacon_found)
-					ch->flags &= ~(IEEE80211_CHAN_NO_IBSS |
-						  IEEE80211_CHAN_PASSIVE_SCAN);
+					ch->flags &= ~IEEE80211_CHAN_NO_IR;
 			}
 		}
 	}
@@ -211,8 +200,6 @@ static void _rtl_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	const struct ieee80211_reg_rule *reg_rule;
-	u32 bandwidth = 0;
-	int r;
 
 	if (!wiphy->bands[IEEE80211_BAND_2GHZ])
 		return;
@@ -224,11 +211,11 @@ static void _rtl_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	 */
 	if (initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE) {
 		ch = &sband->channels[11];	/* CH 12 */
-		if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
-			ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+		if (ch->flags & IEEE80211_CHAN_NO_IR)
+			ch->flags &= ~IEEE80211_CHAN_NO_IR;
 		ch = &sband->channels[12];	/* CH 13 */
-		if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
-			ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+		if (ch->flags & IEEE80211_CHAN_NO_IR)
+			ch->flags &= ~IEEE80211_CHAN_NO_IR;
 		return;
 	}
 
@@ -240,19 +227,19 @@ static void _rtl_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	 */
 
 	ch = &sband->channels[11];	/* CH 12 */
-	r = freq_reg_info(wiphy, ch->center_freq, bandwidth, &reg_rule);
-	if (!r) {
-		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
-			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
-				ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+	reg_rule = freq_reg_info(wiphy, MHZ_TO_KHZ(ch->center_freq));
+	if (!IS_ERR(reg_rule)) {
+		if (!(reg_rule->flags & NL80211_RRF_NO_IR))
+			if (ch->flags & IEEE80211_CHAN_NO_IR)
+				ch->flags &= ~IEEE80211_CHAN_NO_IR;
 	}
 
 	ch = &sband->channels[12];	/* CH 13 */
-	r = freq_reg_info(wiphy, ch->center_freq, bandwidth, &reg_rule);
-	if (!r) {
-		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
-			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
-				ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+	reg_rule = freq_reg_info(wiphy, MHZ_TO_KHZ(ch->center_freq));
+	if (!IS_ERR(reg_rule)) {
+		if (!(reg_rule->flags & NL80211_RRF_NO_IR))
+			if (ch->flags & IEEE80211_CHAN_NO_IR)
+				ch->flags &= ~IEEE80211_CHAN_NO_IR;
 	}
 }
 
@@ -289,8 +276,7 @@ static void _rtl_reg_apply_radar_flags(struct wiphy *wiphy)
 		 */
 		if (!(ch->flags & IEEE80211_CHAN_DISABLED))
 			ch->flags |= IEEE80211_CHAN_RADAR |
-			    IEEE80211_CHAN_NO_IBSS |
-			    IEEE80211_CHAN_PASSIVE_SCAN;
+				     IEEE80211_CHAN_NO_IR;
 	}
 }
 
@@ -303,9 +289,9 @@ static void _rtl_reg_apply_world_flags(struct wiphy *wiphy,
 	return;
 }
 
-static int _rtl_reg_notifier_apply(struct wiphy *wiphy,
-				   struct regulatory_request *request,
-				   struct rtl_regulatory *reg)
+static void _rtl_reg_notifier_apply(struct wiphy *wiphy,
+				    struct regulatory_request *request,
+				    struct rtl_regulatory *reg)
 {
 	/* We always apply this */
 	_rtl_reg_apply_radar_flags(wiphy);
@@ -319,8 +305,6 @@ static int _rtl_reg_notifier_apply(struct wiphy *wiphy,
 		_rtl_reg_apply_world_flags(wiphy, request->initiator, reg);
 		break;
 	}
-
-	return 0;
 }
 
 static const struct ieee80211_regdomain *_rtl_regdomain_select(
@@ -353,17 +337,17 @@ static const struct ieee80211_regdomain *_rtl_regdomain_select(
 
 static int _rtl_regd_init_wiphy(struct rtl_regulatory *reg,
 				struct wiphy *wiphy,
-				int (*reg_notifier) (struct wiphy *wiphy,
-						     struct regulatory_request *
-						     request))
+				void (*reg_notifier) (struct wiphy *wiphy,
+						      struct regulatory_request *
+						      request))
 {
 	const struct ieee80211_regdomain *regd;
 
 	wiphy->reg_notifier = reg_notifier;
 
-	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
-	wiphy->flags &= ~WIPHY_FLAG_STRICT_REGULATORY;
-	wiphy->flags &= ~WIPHY_FLAG_DISABLE_BEACON_HINTS;
+	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
+	wiphy->regulatory_flags &= ~REGULATORY_STRICT_REG;
+	wiphy->regulatory_flags &= ~REGULATORY_DISABLE_BEACON_HINTS;
 
 	regd = _rtl_regdomain_select(reg);
 	wiphy_apply_custom_regulatory(wiphy, regd);
@@ -384,7 +368,7 @@ static struct country_code_to_enum_rd *_rtl_regd_find_country(u16 countrycode)
 }
 
 int rtl_regd_init(struct ieee80211_hw *hw,
-		  int (*reg_notifier) (struct wiphy *wiphy,
+		  void (*reg_notifier) (struct wiphy *wiphy,
 				       struct regulatory_request *request))
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -426,12 +410,12 @@ int rtl_regd_init(struct ieee80211_hw *hw,
 	return 0;
 }
 
-int rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+void rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	RT_TRACE(rtlpriv, COMP_REGD, DBG_LOUD, "\n");
 
-	return _rtl_reg_notifier_apply(wiphy, request, &rtlpriv->regd);
+	_rtl_reg_notifier_apply(wiphy, request, &rtlpriv->regd);
 }

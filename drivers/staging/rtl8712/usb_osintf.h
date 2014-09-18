@@ -28,9 +28,6 @@
 
 #include "osdep_service.h"
 #include "drv_types.h"
-#include "usb_vendor_req.h"
-
-#define USBD_HALTED(Status) ((u32)(Status) >> 30 == 3)
 
 extern char *r8712_initmac;
 

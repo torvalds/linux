@@ -1,0 +1,64 @@
+LEDs connected to GPIO lines
+
+Required properties:
+- compatible : should be "gpio-leds".
+
+Each LED is represented as a sub-node of the gpio-leds device.  Each
+node's name represents the name of the corresponding LED.
+
+LED sub-node properties:
+- gpios :  Should specify the LED's GPIO, see "gpios property" in
+  Documentation/devicetree/bindings/gpio/gpio.txt.  Active low LEDs should be
+  indicated using flags in the GPIO specifier.
+- label :  (optional)
+  see Documentation/devicetree/bindings/leds/common.txt
+- linux,default-trigger :  (optional)
+  see Documentation/devicetree/bindings/leds/common.txt
+- default-state:  (optional) The initial state of the LED.  Valid
+  values are "on", "off", and "keep".  If the LED is already on or off
+  and the default-state property is set the to same value, then no
+  glitch should be produced where the LED momentarily turns off (or
+  on).  The "keep" setting will keep the LED at whatever its current
+  state is, without producing a glitch.  The default is off if this
+  property is not present.
+- retain-state-suspended: (optional) The suspend state can be retained.Such
+  as charge-led gpio.
+
+Examples:
+
+leds {
+	compatible = "gpio-leds";
+	hdd {
+		label = "IDE Activity";
+		gpios = <&mcu_pio 0 1>; /* Active low */
+		linux,default-trigger = "ide-disk";
+	};
+
+	fault {
+		gpios = <&mcu_pio 1 0>;
+		/* Keep LED on if BIOS detected hardware fault */
+		default-state = "keep";
+	};
+};
+
+run-control {
+	compatible = "gpio-leds";
+	red {
+		gpios = <&mpc8572 6 0>;
+		default-state = "off";
+	};
+	green {
+		gpios = <&mpc8572 7 0>;
+		default-state = "on";
+	};
+};
+
+leds {
+	compatible = "gpio-leds";
+
+	charger-led {
+		gpios = <&gpio1 2 0>;
+		linux,default-trigger = "max8903-charger-charging";
+		retain-state-suspended;
+	};
+};

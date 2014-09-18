@@ -25,7 +25,7 @@
 /*
  * This macro relies on fact that for all HW i/o addresses bits 20-23 are 0
  */
-#define IO_ADDRESS(x)	(((((x) & 0xff000000) >> 4) | ((x) & 0xfffff)) |\
+#define IO_ADDRESS(x)	IOMEM(((((x) & 0xff000000) >> 4) | ((x) & 0xfffff)) |\
 			 IO_BASE)
 
 #define io_p2v(x)	((void __iomem *) (unsigned long) IO_ADDRESS(x))

@@ -356,13 +356,11 @@
 				interrupt-parent = <&ipic>;
 				interrupts = <17 0x8>;
 				reg = <0x3>;
-				device_type = "ethernet-phy";
 			};
 			phy4: ethernet-phy@04 {
 				interrupt-parent = <&ipic>;
 				interrupts = <18 0x8>;
 				reg = <0x4>;
-				device_type = "ethernet-phy";
 			};
 		};
 

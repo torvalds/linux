@@ -13,6 +13,14 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
+/* Since each block in the file system is represented by two bits in the
+ * bitmap, one 64-bit word in the bitmap will represent 32 blocks.
+ * By reserving 32 blocks at a time, we can optimize / shortcut how we search
+ * through the bitmaps by looking a word at a time.
+ */
+#define RGRP_RSRV_MINBYTES 8
+#define RGRP_RSRV_MINBLKS ((u32)(RGRP_RSRV_MINBYTES * GFS2_NBBY))
+
 struct gfs2_rgrpd;
 struct gfs2_sbd;
 struct gfs2_holder;
@@ -29,20 +37,18 @@ extern void gfs2_free_clones(struct gfs2_rgrpd *rgd);
 extern int gfs2_rgrp_go_lock(struct gfs2_holder *gh);
 extern void gfs2_rgrp_go_unlock(struct gfs2_holder *gh);
 
-extern struct gfs2_qadata *gfs2_qadata_get(struct gfs2_inode *ip);
-static inline void gfs2_qadata_put(struct gfs2_inode *ip)
-{
-	BUG_ON(ip->i_qadata == NULL);
-	kfree(ip->i_qadata);
-	ip->i_qadata = NULL;
-}
+extern struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip);
 
-extern int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested);
+#define GFS2_AF_ORLOV 1
+extern int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *ap);
 extern void gfs2_inplace_release(struct gfs2_inode *ip);
 
 extern int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *n,
 			     bool dinode, u64 *generation);
 
+extern int gfs2_rs_alloc(struct gfs2_inode *ip);
+extern void gfs2_rs_deltree(struct gfs2_blkreserv *rs);
+extern void gfs2_rs_delete(struct gfs2_inode *ip, atomic_t *wcount);
 extern void __gfs2_free_blocks(struct gfs2_inode *ip, u64 bstart, u32 blen, int meta);
 extern void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen);
 extern void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip);
@@ -62,10 +68,16 @@ extern void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
 extern void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state);
 extern void gfs2_rlist_free(struct gfs2_rgrp_list *rlist);
 extern u64 gfs2_ri_total(struct gfs2_sbd *sdp);
-extern int gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl);
+extern void gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl);
 extern int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 				   struct buffer_head *bh,
 				   const struct gfs2_bitmap *bi, unsigned minlen, u64 *ptrimmed);
 extern int gfs2_fitrim(struct file *filp, void __user *argp);
+
+/* This is how to tell if a reservation is in the rgrp tree: */
+static inline bool gfs2_rs_active(struct gfs2_blkreserv *rs)
+{
+	return rs && !RB_EMPTY_NODE(&rs->rs_node);
+}
 
 #endif /* __RGRP_DOT_H__ */

@@ -342,7 +342,7 @@ static int at76_dfu_get_status(struct usb_device *udev,
 	return ret;
 }
 
-static u8 at76_dfu_get_state(struct usb_device *udev, u8 *state)
+static int at76_dfu_get_state(struct usb_device *udev, u8 *state)
 {
 	int ret;
 
@@ -365,51 +365,66 @@ static inline unsigned long at76_get_timeout(struct dfu_status *s)
 static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 				int manifest_sync_timeout)
 {
-	u8 *block;
-	struct dfu_status dfu_stat_buf;
 	int ret = 0;
 	int need_dfu_state = 1;
 	int is_done = 0;
-	u8 dfu_state = 0;
 	u32 dfu_timeout = 0;
 	int bsize = 0;
 	int blockno = 0;
+	struct dfu_status *dfu_stat_buf = NULL;
+	u8 *dfu_state = NULL;
+	u8 *block = NULL;
 
 	at76_dbg(DBG_DFU, "%s( %p, %u, %d)", __func__, buf, size,
 		 manifest_sync_timeout);
 
 	if (!size) {
-		dev_printk(KERN_ERR, &udev->dev, "FW buffer length invalid!\n");
+		dev_err(&udev->dev, "FW buffer length invalid!\n");
 		return -EINVAL;
 	}
 
+	dfu_stat_buf = kmalloc(sizeof(struct dfu_status), GFP_KERNEL);
+	if (!dfu_stat_buf) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
 	block = kmalloc(FW_BLOCK_SIZE, GFP_KERNEL);
-	if (!block)
-		return -ENOMEM;
+	if (!block) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	dfu_state = kmalloc(sizeof(u8), GFP_KERNEL);
+	if (!dfu_state) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+	*dfu_state = 0;
 
 	do {
 		if (need_dfu_state) {
-			ret = at76_dfu_get_state(udev, &dfu_state);
+			ret = at76_dfu_get_state(udev, dfu_state);
 			if (ret < 0) {
-				dev_printk(KERN_ERR, &udev->dev,
-					   "cannot get DFU state: %d\n", ret);
+				dev_err(&udev->dev,
+					"cannot get DFU state: %d\n", ret);
 				goto exit;
 			}
 			need_dfu_state = 0;
 		}
 
-		switch (dfu_state) {
+		switch (*dfu_state) {
 		case STATE_DFU_DOWNLOAD_SYNC:
 			at76_dbg(DBG_DFU, "STATE_DFU_DOWNLOAD_SYNC");
-			ret = at76_dfu_get_status(udev, &dfu_stat_buf);
+			ret = at76_dfu_get_status(udev, dfu_stat_buf);
 			if (ret >= 0) {
-				dfu_state = dfu_stat_buf.state;
-				dfu_timeout = at76_get_timeout(&dfu_stat_buf);
+				*dfu_state = dfu_stat_buf->state;
+				dfu_timeout = at76_get_timeout(dfu_stat_buf);
 				need_dfu_state = 0;
 			} else
-				dev_printk(KERN_ERR, &udev->dev,
-					   "at76_dfu_get_status returned %d\n",
-					   ret);
+				dev_err(&udev->dev,
+					"at76_dfu_get_status returned %d\n",
+					ret);
 			break;
 
 		case STATE_DFU_DOWNLOAD_BUSY:
@@ -438,21 +453,21 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 			blockno++;
 
 			if (ret != bsize)
-				dev_printk(KERN_ERR, &udev->dev,
-					   "at76_load_int_fw_block "
-					   "returned %d\n", ret);
+				dev_err(&udev->dev,
+					"at76_load_int_fw_block returned %d\n",
+					ret);
 			need_dfu_state = 1;
 			break;
 
 		case STATE_DFU_MANIFEST_SYNC:
 			at76_dbg(DBG_DFU, "STATE_DFU_MANIFEST_SYNC");
 
-			ret = at76_dfu_get_status(udev, &dfu_stat_buf);
+			ret = at76_dfu_get_status(udev, dfu_stat_buf);
 			if (ret < 0)
 				break;
 
-			dfu_state = dfu_stat_buf.state;
-			dfu_timeout = at76_get_timeout(&dfu_stat_buf);
+			*dfu_state = dfu_stat_buf->state;
+			dfu_timeout = at76_get_timeout(dfu_stat_buf);
 			need_dfu_state = 0;
 
 			/* override the timeout from the status response,
@@ -484,46 +499,19 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 			break;
 
 		default:
-			at76_dbg(DBG_DFU, "DFU UNKNOWN STATE (%d)", dfu_state);
+			at76_dbg(DBG_DFU, "DFU UNKNOWN STATE (%d)", *dfu_state);
 			ret = -EINVAL;
 			break;
 		}
 	} while (!is_done && (ret >= 0));
 
 exit:
+	kfree(dfu_state);
 	kfree(block);
+	kfree(dfu_stat_buf);
+
 	if (ret >= 0)
 		ret = 0;
-
-	return ret;
-}
-
-#define HEX2STR_BUFFERS 4
-#define HEX2STR_MAX_LEN 64
-
-/* Convert binary data into hex string */
-static char *hex2str(void *buf, size_t len)
-{
-	static atomic_t a = ATOMIC_INIT(0);
-	static char bufs[HEX2STR_BUFFERS][3 * HEX2STR_MAX_LEN + 1];
-	char *ret = bufs[atomic_inc_return(&a) & (HEX2STR_BUFFERS - 1)];
-	char *obuf = ret;
-	u8 *ibuf = buf;
-
-	if (len > HEX2STR_MAX_LEN)
-		len = HEX2STR_MAX_LEN;
-
-	if (len == 0)
-		goto exit;
-
-	while (len--) {
-		obuf = hex_byte_pack(obuf, *ibuf++);
-		*obuf++ = '-';
-	}
-	obuf--;
-
-exit:
-	*obuf = '\0';
 
 	return ret;
 }
@@ -1004,9 +992,9 @@ static void at76_dump_mib_mac_wep(struct at76_priv *priv)
 	    WEP_SMALL_KEY_LEN : WEP_LARGE_KEY_LEN;
 
 	for (i = 0; i < WEP_KEYS; i++)
-		at76_dbg(DBG_MIB, "%s: MIB MAC_WEP: key %d: %s",
+		at76_dbg(DBG_MIB, "%s: MIB MAC_WEP: key %d: %*phD",
 			 wiphy_name(priv->hw->wiphy), i,
-			 hex2str(m->wep_default_keyvalue[i], key_len));
+			 key_len, m->wep_default_keyvalue[i]);
 exit:
 	kfree(m);
 }
@@ -1031,7 +1019,7 @@ static void at76_dump_mib_mac_mgmt(struct at76_priv *priv)
 	at76_dbg(DBG_MIB, "%s: MIB MAC_MGMT: beacon_period %d CFP_max_duration "
 		 "%d medium_occupancy_limit %d station_id 0x%x ATIM_window %d "
 		 "CFP_mode %d privacy_opt_impl %d DTIM_period %d CFP_period %d "
-		 "current_bssid %pM current_essid %s current_bss_type %d "
+		 "current_bssid %pM current_essid %*phD current_bss_type %d "
 		 "pm_mode %d ibss_change %d res %d "
 		 "multi_domain_capability_implemented %d "
 		 "international_roaming %d country_string %.3s",
@@ -1041,7 +1029,7 @@ static void at76_dump_mib_mac_mgmt(struct at76_priv *priv)
 		 le16_to_cpu(m->station_id), le16_to_cpu(m->ATIM_window),
 		 m->CFP_mode, m->privacy_option_implemented, m->DTIM_period,
 		 m->CFP_period, m->current_bssid,
-		 hex2str(m->current_essid, IW_ESSID_MAX_SIZE),
+		 IW_ESSID_MAX_SIZE, m->current_essid,
 		 m->current_bss_type, m->power_mgmt_mode, m->ibss_change,
 		 m->res, m->multi_domain_capability_implemented,
 		 m->multi_domain_capability_enabled, m->country_string);
@@ -1069,7 +1057,7 @@ static void at76_dump_mib_mac(struct at76_priv *priv)
 		 "cwmin %d cwmax %d short_retry_time %d long_retry_time %d "
 		 "scan_type %d scan_channel %d probe_delay %u "
 		 "min_channel_time %d max_channel_time %d listen_int %d "
-		 "desired_ssid %s desired_bssid %pM desired_bsstype %d",
+		 "desired_ssid %*phD desired_bssid %pM desired_bsstype %d",
 		 wiphy_name(priv->hw->wiphy),
 		 le32_to_cpu(m->max_tx_msdu_lifetime),
 		 le32_to_cpu(m->max_rx_lifetime),
@@ -1080,7 +1068,7 @@ static void at76_dump_mib_mac(struct at76_priv *priv)
 		 le16_to_cpu(m->min_channel_time),
 		 le16_to_cpu(m->max_channel_time),
 		 le16_to_cpu(m->listen_interval),
-		 hex2str(m->desired_ssid, IW_ESSID_MAX_SIZE),
+		 IW_ESSID_MAX_SIZE, m->desired_ssid,
 		 m->desired_bssid, m->desired_bsstype);
 exit:
 	kfree(m);
@@ -1122,12 +1110,12 @@ exit:
 static void at76_dump_mib_local(struct at76_priv *priv)
 {
 	int ret;
-	struct mib_local *m = kmalloc(sizeof(struct mib_phy), GFP_KERNEL);
+	struct mib_local *m = kmalloc(sizeof(*m), GFP_KERNEL);
 
 	if (!m)
 		return;
 
-	ret = at76_get_mib(priv->udev, MIB_LOCAL, m, sizeof(struct mib_local));
+	ret = at76_get_mib(priv->udev, MIB_LOCAL, m, sizeof(*m));
 	if (ret < 0) {
 		wiphy_err(priv->hw->wiphy,
 			  "at76_get_mib (LOCAL) failed: %d\n", ret);
@@ -1160,13 +1148,13 @@ static void at76_dump_mib_mdomain(struct at76_priv *priv)
 		goto exit;
 	}
 
-	at76_dbg(DBG_MIB, "%s: MIB MDOMAIN: channel_list %s",
+	at76_dbg(DBG_MIB, "%s: MIB MDOMAIN: channel_list %*phD",
 		 wiphy_name(priv->hw->wiphy),
-		 hex2str(m->channel_list, sizeof(m->channel_list)));
+		 (int)sizeof(m->channel_list), m->channel_list);
 
-	at76_dbg(DBG_MIB, "%s: MIB MDOMAIN: tx_powerlevel %s",
+	at76_dbg(DBG_MIB, "%s: MIB MDOMAIN: tx_powerlevel %*phD",
 		 wiphy_name(priv->hw->wiphy),
-		 hex2str(m->tx_powerlevel, sizeof(m->tx_powerlevel)));
+		 (int)sizeof(m->tx_powerlevel), m->tx_powerlevel);
 exit:
 	kfree(m);
 }
@@ -1285,8 +1273,7 @@ static int at76_load_external_fw(struct usb_device *udev, struct fwentry *fwe)
 	at76_dbg(DBG_DEVSTART, "opmode %d", op_mode);
 
 	if (op_mode != OPMODE_NORMAL_NIC_WITHOUT_FLASH) {
-		dev_printk(KERN_ERR, &udev->dev, "unexpected opmode %d\n",
-			   op_mode);
+		dev_err(&udev->dev, "unexpected opmode %d\n", op_mode);
 		return -EINVAL;
 	}
 
@@ -1305,9 +1292,10 @@ static int at76_load_external_fw(struct usb_device *udev, struct fwentry *fwe)
 			 size, bsize, blockno);
 		ret = at76_load_ext_fw_block(udev, blockno, block, bsize);
 		if (ret != bsize) {
-			dev_printk(KERN_ERR, &udev->dev,
-				   "loading %dth firmware block failed: %d\n",
-				   blockno, ret);
+			dev_err(&udev->dev,
+				"loading %dth firmware block failed: %d\n",
+				blockno, ret);
+			ret = -EIO;
 			goto exit;
 		}
 		buf += bsize;
@@ -1323,8 +1311,8 @@ static int at76_load_external_fw(struct usb_device *udev, struct fwentry *fwe)
 exit:
 	kfree(block);
 	if (ret < 0)
-		dev_printk(KERN_ERR, &udev->dev,
-			   "downloading external firmware failed: %d\n", ret);
+		dev_err(&udev->dev,
+			"downloading external firmware failed: %d\n", ret);
 	return ret;
 }
 
@@ -1338,8 +1326,8 @@ static int at76_load_internal_fw(struct usb_device *udev, struct fwentry *fwe)
 				   need_remap ? 0 : 2 * HZ);
 
 	if (ret < 0) {
-		dev_printk(KERN_ERR, &udev->dev,
-			   "downloading internal fw failed with %d\n", ret);
+		dev_err(&udev->dev,
+			"downloading internal fw failed with %d\n", ret);
 		goto exit;
 	}
 
@@ -1349,8 +1337,8 @@ static int at76_load_internal_fw(struct usb_device *udev, struct fwentry *fwe)
 	if (need_remap) {
 		ret = at76_remap(udev);
 		if (ret < 0) {
-			dev_printk(KERN_ERR, &udev->dev,
-				   "sending REMAP failed with %d\n", ret);
+			dev_err(&udev->dev,
+				"sending REMAP failed with %d\n", ret);
 			goto exit;
 		}
 	}
@@ -1369,9 +1357,9 @@ static int at76_startup_device(struct at76_priv *priv)
 	int ret;
 
 	at76_dbg(DBG_PARAMS,
-		 "%s param: ssid %.*s (%s) mode %s ch %d wep %s key %d "
+		 "%s param: ssid %.*s (%*phD) mode %s ch %d wep %s key %d "
 		 "keylen %d", wiphy_name(priv->hw->wiphy), priv->essid_size,
-		 priv->essid, hex2str(priv->essid, IW_ESSID_MAX_SIZE),
+		 priv->essid, IW_ESSID_MAX_SIZE, priv->essid,
 		 priv->iw_mode == IW_MODE_ADHOC ? "adhoc" : "infra",
 		 priv->channel, priv->wep_enabled ? "enabled" : "disabled",
 		 priv->wep_key_id, priv->wep_keys_len[priv->wep_key_id]);
@@ -1440,6 +1428,8 @@ static int at76_startup_device(struct at76_priv *priv)
 
 	/* remove BSSID from previous run */
 	memset(priv->bssid, 0, ETH_ALEN);
+
+	priv->scanning = false;
 
 	if (at76_set_radio(priv, 1) == 1)
 		at76_wait_completion(priv, CMD_RADIO_ON);
@@ -1514,6 +1504,52 @@ static void at76_work_submit_rx(struct work_struct *work)
 	mutex_unlock(&priv->mtx);
 }
 
+/* This is a workaround to make scan working:
+ * currently mac80211 does not process frames with no frequency
+ * information.
+ * However during scan the HW performs a sweep by itself, and we
+ * are unable to know where the radio is actually tuned.
+ * This function tries to do its best to guess this information..
+ * During scan, If the current frame is a beacon or a probe response,
+ * the channel information is extracted from it.
+ * When not scanning, for other frames, or if it happens that for
+ * whatever reason we fail to parse beacons and probe responses, this
+ * function returns the priv->channel information, that should be correct
+ * at least when we are not scanning.
+ */
+static inline int at76_guess_freq(struct at76_priv *priv)
+{
+	size_t el_off;
+	const u8 *el;
+	int channel = priv->channel;
+	int len = priv->rx_skb->len;
+	struct ieee80211_hdr *hdr = (void *)priv->rx_skb->data;
+
+	if (!priv->scanning)
+		goto exit;
+
+	if (len < 24)
+		goto exit;
+
+	if (ieee80211_is_probe_resp(hdr->frame_control)) {
+		el_off = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
+		el = ((struct ieee80211_mgmt *)hdr)->u.probe_resp.variable;
+	} else if (ieee80211_is_beacon(hdr->frame_control)) {
+		el_off = offsetof(struct ieee80211_mgmt, u.beacon.variable);
+		el = ((struct ieee80211_mgmt *)hdr)->u.beacon.variable;
+	} else {
+		goto exit;
+	}
+	len -= el_off;
+
+	el = cfg80211_find_ie(WLAN_EID_DS_PARAMS, el, len);
+	if (el && el[1] > 0)
+		channel = el[2];
+
+exit:
+	return ieee80211_channel_to_frequency(channel, IEEE80211_BAND_2GHZ);
+}
+
 static void at76_rx_tasklet(unsigned long param)
 {
 	struct urb *urb = (struct urb *)param;
@@ -1554,6 +1590,8 @@ static void at76_rx_tasklet(unsigned long param)
 	rx_status.signal = buf->rssi;
 	rx_status.flag |= RX_FLAG_DECRYPTED;
 	rx_status.flag |= RX_FLAG_IV_STRIPPED;
+	rx_status.band = IEEE80211_BAND_2GHZ;
+	rx_status.freq = at76_guess_freq(priv);
 
 	at76_dbg(DBG_MAC80211, "calling ieee80211_rx_irqsafe(): %d/%d",
 		 priv->rx_skb->len, priv->rx_skb->data_len);
@@ -1585,11 +1623,10 @@ static struct fwentry *at76_load_firmware(struct usb_device *udev,
 	at76_dbg(DBG_FW, "downloading firmware %s", fwe->fwname);
 	ret = request_firmware(&fwe->fw, fwe->fwname, &udev->dev);
 	if (ret < 0) {
-		dev_printk(KERN_ERR, &udev->dev, "firmware %s not found!\n",
-			   fwe->fwname);
-		dev_printk(KERN_ERR, &udev->dev,
-			   "you may need to download the firmware from "
-			   "http://developer.berlios.de/projects/at76c503a/\n");
+		dev_err(&udev->dev, "firmware %s not found!\n",
+			fwe->fwname);
+		dev_err(&udev->dev,
+			"you may need to download the firmware from http://developer.berlios.de/projects/at76c503a/\n");
 		goto exit;
 	}
 
@@ -1597,17 +1634,17 @@ static struct fwentry *at76_load_firmware(struct usb_device *udev,
 	fwh = (struct at76_fw_header *)(fwe->fw->data);
 
 	if (fwe->fw->size <= sizeof(*fwh)) {
-		dev_printk(KERN_ERR, &udev->dev,
-			   "firmware is too short (0x%zx)\n", fwe->fw->size);
+		dev_err(&udev->dev,
+			"firmware is too short (0x%zx)\n", fwe->fw->size);
 		goto exit;
 	}
 
 	/* CRC currently not checked */
 	fwe->board_type = le32_to_cpu(fwh->board_type);
 	if (fwe->board_type != board_type) {
-		dev_printk(KERN_ERR, &udev->dev,
-			   "board type mismatch, requested %u, got %u\n",
-			   board_type, fwe->board_type);
+		dev_err(&udev->dev,
+			"board type mismatch, requested %u, got %u\n",
+			board_type, fwe->board_type);
 		goto exit;
 	}
 
@@ -1726,7 +1763,9 @@ static void at76_mac80211_tx_callback(struct urb *urb)
 	ieee80211_wake_queues(priv->hw);
 }
 
-static void at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void at76_mac80211_tx(struct ieee80211_hw *hw,
+			     struct ieee80211_tx_control *control,
+			     struct sk_buff *skb)
 {
 	struct at76_priv *priv = hw->priv;
 	struct at76_tx_buffer *tx_buffer = priv->bulk_out_buffer;
@@ -1751,7 +1790,7 @@ static void at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * following workaround is necessary. If the TX frame is an
 	 * authentication frame extract the bssid and send the CMD_JOIN. */
 	if (mgmt->frame_control & cpu_to_le16(IEEE80211_STYPE_AUTH)) {
-		if (compare_ether_addr(priv->bssid, mgmt->bssid)) {
+		if (!ether_addr_equal_64bits(priv->bssid, mgmt->bssid)) {
 			memcpy(priv->bssid, mgmt->bssid, ETH_ALEN);
 			ieee80211_queue_work(hw, &priv->work_join_bssid);
 			dev_kfree_skb_any(skb);
@@ -1905,6 +1944,8 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 	if (is_valid_ether_addr(priv->bssid))
 		at76_join(priv);
 
+	priv->scanning = false;
+
 	mutex_unlock(&priv->mtx);
 
 	ieee80211_scan_completed(priv->hw, false);
@@ -1914,8 +1955,9 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 
 static int at76_hw_scan(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif,
-			struct cfg80211_scan_request *req)
+			struct ieee80211_scan_request *hw_req)
 {
+	struct cfg80211_scan_request *req = &hw_req->req;
 	struct at76_priv *priv = hw->priv;
 	struct at76_req_scan scan;
 	u8 *ssid = NULL;
@@ -1955,10 +1997,11 @@ static int at76_hw_scan(struct ieee80211_hw *hw,
 	ret = at76_set_card_command(priv->udev, CMD_SCAN, &scan, sizeof(scan));
 
 	if (ret < 0) {
-		err("CMD_SCAN failed: %d", ret);
+		wiphy_err(priv->hw->wiphy, "CMD_SCAN failed: %d\n", ret);
 		goto exit;
 	}
 
+	priv->scanning = true;
 	ieee80211_queue_delayed_work(priv->hw, &priv->dwork_hw_scan,
 				     SCAN_POLL_INTERVAL);
 
@@ -1973,12 +2016,12 @@ static int at76_config(struct ieee80211_hw *hw, u32 changed)
 	struct at76_priv *priv = hw->priv;
 
 	at76_dbg(DBG_MAC80211, "%s(): channel %d",
-		 __func__, hw->conf.channel->hw_value);
+		 __func__, hw->conf.chandef.chan->hw_value);
 	at76_dbg_dump(DBG_MAC80211, priv->bssid, ETH_ALEN, "bssid:");
 
 	mutex_lock(&priv->mtx);
 
-	priv->channel = hw->conf.channel->hw_value;
+	priv->channel = hw->conf.chandef.chan->hw_value;
 
 	if (is_valid_ether_addr(priv->bssid))
 		at76_join(priv);
@@ -2050,6 +2093,44 @@ static void at76_configure_filter(struct ieee80211_hw *hw,
 	ieee80211_queue_work(hw, &priv->work_set_promisc);
 }
 
+static int at76_set_wep(struct at76_priv *priv)
+{
+	int ret = 0;
+	struct mib_mac_wep *mib_data = &priv->mib_buf.data.wep_mib;
+
+	priv->mib_buf.type = MIB_MAC_WEP;
+	priv->mib_buf.size = sizeof(struct mib_mac_wep);
+	priv->mib_buf.index = 0;
+
+	memset(mib_data, 0, sizeof(*mib_data));
+
+	if (priv->wep_enabled) {
+		if (priv->wep_keys_len[priv->wep_key_id] > WEP_SMALL_KEY_LEN)
+			mib_data->encryption_level = 2;
+		else
+			mib_data->encryption_level = 1;
+
+		/* always exclude unencrypted if WEP is active */
+		mib_data->exclude_unencrypted = 1;
+	} else {
+		mib_data->exclude_unencrypted = 0;
+		mib_data->encryption_level = 0;
+	}
+
+	mib_data->privacy_invoked = priv->wep_enabled;
+	mib_data->wep_default_key_id = priv->wep_key_id;
+	memcpy(mib_data->wep_default_keyvalue, priv->wep_keys,
+	       sizeof(priv->wep_keys));
+
+	ret = at76_set_mib(priv, &priv->mib_buf);
+
+	if (ret < 0)
+		wiphy_err(priv->hw->wiphy,
+			  "set_mib (wep) failed: %d\n", ret);
+
+	return ret;
+}
+
 static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 			struct ieee80211_key_conf *key)
@@ -2092,7 +2173,7 @@ static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			priv->wep_enabled = 1;
 	}
 
-	at76_startup_device(priv);
+	at76_set_wep(priv);
 
 	mutex_unlock(&priv->mtx);
 
@@ -2142,7 +2223,6 @@ static struct at76_priv *at76_alloc_new_device(struct usb_device *udev)
 	priv->pm_period = 0;
 
 	/* unit us */
-	priv->hw->channel_change_time = 100000;
 
 	return priv;
 }
@@ -2178,8 +2258,7 @@ static int at76_alloc_urbs(struct at76_priv *priv,
 	}
 
 	if (!ep_in || !ep_out) {
-		dev_printk(KERN_ERR, &interface->dev,
-			   "bulk endpoints missing\n");
+		dev_err(&interface->dev, "bulk endpoints missing\n");
 		return -ENXIO;
 	}
 
@@ -2189,17 +2268,14 @@ static int at76_alloc_urbs(struct at76_priv *priv,
 	priv->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	priv->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!priv->rx_urb || !priv->tx_urb) {
-		dev_printk(KERN_ERR, &interface->dev, "cannot allocate URB\n");
+		dev_err(&interface->dev, "cannot allocate URB\n");
 		return -ENOMEM;
 	}
 
 	buffer_size = sizeof(struct at76_tx_buffer) + MAX_PADDING_SIZE;
 	priv->bulk_out_buffer = kmalloc(buffer_size, GFP_KERNEL);
-	if (!priv->bulk_out_buffer) {
-		dev_printk(KERN_ERR, &interface->dev,
-			   "cannot allocate output buffer\n");
+	if (!priv->bulk_out_buffer)
 		return -ENOMEM;
-	}
 
 	at76_dbg(DBG_PROC_ENTRY, "%s: EXIT", __func__);
 
@@ -2258,8 +2334,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 	/* MAC address */
 	ret = at76_get_hw_config(priv);
 	if (ret < 0) {
-		dev_printk(KERN_ERR, &interface->dev,
-			   "cannot get MAC address\n");
+		dev_err(&interface->dev, "cannot get MAC address\n");
 		goto exit;
 	}
 
@@ -2348,8 +2423,6 @@ static void at76_delete_device(struct at76_priv *priv)
 
 	kfree_skb(priv->rx_skb);
 
-	usb_put_dev(priv->udev);
-
 	at76_dbg(DBG_PROC_ENTRY, "%s: before freeing priv/ieee80211_hw",
 		 __func__);
 	ieee80211_free_hw(priv->hw);
@@ -2366,16 +2439,22 @@ static int at76_probe(struct usb_interface *interface,
 	struct usb_device *udev;
 	int op_mode;
 	int need_ext_fw = 0;
-	struct mib_fw_version fwv;
+	struct mib_fw_version *fwv = NULL;
 	int board_type = (int)id->driver_info;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
+
+	fwv = kmalloc(sizeof(*fwv), GFP_KERNEL);
+	if (!fwv) {
+		ret = -ENOMEM;
+		goto exit;
+	}
 
 	/* Load firmware into kernel memory */
 	fwe = at76_load_firmware(udev, board_type);
 	if (!fwe) {
 		ret = -ENOENT;
-		goto error;
+		goto exit;
 	}
 
 	op_mode = at76_get_op_mode(udev);
@@ -2386,10 +2465,10 @@ static int at76_probe(struct usb_interface *interface,
 	   we get 204 with 2.4.23, Fiberline FL-WL240u (505A+RFMD2958) ??? */
 
 	if (op_mode == OPMODE_HW_CONFIG_MODE) {
-		dev_printk(KERN_ERR, &interface->dev,
-			   "cannot handle a device in HW_CONFIG_MODE\n");
+		dev_err(&interface->dev,
+			"cannot handle a device in HW_CONFIG_MODE\n");
 		ret = -EBUSY;
-		goto error;
+		goto exit;
 	}
 
 	if (op_mode != OPMODE_NORMAL_NIC_WITH_FLASH
@@ -2399,13 +2478,13 @@ static int at76_probe(struct usb_interface *interface,
 			   "downloading internal firmware\n");
 		ret = at76_load_internal_fw(udev, fwe);
 		if (ret < 0) {
-			dev_printk(KERN_ERR, &interface->dev,
-				   "error %d downloading internal firmware\n",
-				   ret);
-			goto error;
+			dev_err(&interface->dev,
+				"error %d downloading internal firmware\n",
+				ret);
+			goto exit;
 		}
 		usb_put_dev(udev);
-		return ret;
+		goto exit;
 	}
 
 	/* Internal firmware already inside the device.  Get firmware
@@ -2418,8 +2497,8 @@ static int at76_probe(struct usb_interface *interface,
 	 * query the device for the fw version */
 	if ((fwe->fw_version.major > 0 || fwe->fw_version.minor >= 100)
 	    || (op_mode == OPMODE_NORMAL_NIC_WITH_FLASH)) {
-		ret = at76_get_mib(udev, MIB_FW_VERSION, &fwv, sizeof(fwv));
-		if (ret < 0 || (fwv.major | fwv.minor) == 0)
+		ret = at76_get_mib(udev, MIB_FW_VERSION, fwv, sizeof(*fwv));
+		if (ret < 0 || (fwv->major | fwv->minor) == 0)
 			need_ext_fw = 1;
 	} else
 		/* No way to check firmware version, reload to be sure */
@@ -2430,37 +2509,37 @@ static int at76_probe(struct usb_interface *interface,
 			   "downloading external firmware\n");
 
 		ret = at76_load_external_fw(udev, fwe);
-		if (ret)
-			goto error;
+		if (ret < 0)
+			goto exit;
 
 		/* Re-check firmware version */
-		ret = at76_get_mib(udev, MIB_FW_VERSION, &fwv, sizeof(fwv));
+		ret = at76_get_mib(udev, MIB_FW_VERSION, fwv, sizeof(*fwv));
 		if (ret < 0) {
-			dev_printk(KERN_ERR, &interface->dev,
-				   "error %d getting firmware version\n", ret);
-			goto error;
+			dev_err(&interface->dev,
+				"error %d getting firmware version\n", ret);
+			goto exit;
 		}
 	}
 
 	priv = at76_alloc_new_device(udev);
 	if (!priv) {
 		ret = -ENOMEM;
-		goto error;
+		goto exit;
 	}
 
 	usb_set_intfdata(interface, priv);
 
-	memcpy(&priv->fw_version, &fwv, sizeof(struct mib_fw_version));
+	memcpy(&priv->fw_version, fwv, sizeof(struct mib_fw_version));
 	priv->board_type = board_type;
 
 	ret = at76_init_new_device(priv, interface);
 	if (ret < 0)
 		at76_delete_device(priv);
 
-	return ret;
-
-error:
-	usb_put_dev(udev);
+exit:
+	kfree(fwv);
+	if (ret < 0)
+		usb_put_dev(udev);
 	return ret;
 }
 
@@ -2477,7 +2556,8 @@ static void at76_disconnect(struct usb_interface *interface)
 
 	wiphy_info(priv->hw->wiphy, "disconnecting\n");
 	at76_delete_device(priv);
-	dev_printk(KERN_INFO, &interface->dev, "disconnected\n");
+	usb_put_dev(priv->udev);
+	dev_info(&interface->dev, "disconnected\n");
 }
 
 /* Structure for registering this driver with the USB subsystem */
@@ -2486,6 +2566,7 @@ static struct usb_driver at76_driver = {
 	.probe = at76_probe,
 	.disconnect = at76_disconnect,
 	.id_table = dev_table,
+	.disable_hub_initiated_lpm = 1,
 };
 
 static int __init at76_mod_init(void)
@@ -2512,10 +2593,8 @@ static void __exit at76_mod_exit(void)
 
 	printk(KERN_INFO DRIVER_DESC " " DRIVER_VERSION " unloading\n");
 	usb_deregister(&at76_driver);
-	for (i = 0; i < ARRAY_SIZE(firmwares); i++) {
-		if (firmwares[i].fw)
-			release_firmware(firmwares[i].fw);
-	}
+	for (i = 0; i < ARRAY_SIZE(firmwares); i++)
+		release_firmware(firmwares[i].fw);
 	led_trigger_unregister_simple(ledtrig_tx);
 }
 

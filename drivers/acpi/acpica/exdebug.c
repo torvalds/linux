@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,8 +54,8 @@ ACPI_MODULE_NAME("exdebug")
  * FUNCTION:    acpi_ex_do_debug_object
  *
  * PARAMETERS:  source_desc         - Object to be output to "Debug Object"
- *              Level               - Indentation level (used for packages)
- *              Index               - Current package element, zero if not pkg
+ *              level               - Indentation level (used for packages)
+ *              index               - Current package element, zero if not pkg
  *
  * RETURN:      None
  *
@@ -75,6 +75,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			u32 level, u32 index)
 {
 	u32 i;
+	u32 timer;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_do_debug_object, source_desc);
 
@@ -86,11 +87,19 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	}
 
 	/*
+	 * We will emit the current timer value (in microseconds) with each
+	 * debug output. Only need the lower 26 bits. This allows for 67
+	 * million microseconds or 67 seconds before rollover.
+	 */
+	timer = ((u32)acpi_os_get_timer() / 10);	/* (100 nanoseconds to microseconds) */
+	timer &= 0x03FFFFFF;
+
+	/*
 	 * Print line header as long as we are not in the middle of an
 	 * object display
 	 */
 	if (!((level > 0) && index == 0)) {
-		acpi_os_printf("[ACPI Debug] %*s", level, " ");
+		acpi_os_printf("[ACPI Debug %.8u] %*s", timer, level, " ");
 	}
 
 	/* Display the index for package output only */
@@ -145,10 +154,10 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	case ACPI_TYPE_BUFFER:
 
 		acpi_os_printf("[0x%.2X]\n", (u32)source_desc->buffer.length);
-		acpi_ut_dump_buffer2(source_desc->buffer.pointer,
-				     (source_desc->buffer.length < 256) ?
-				     source_desc->buffer.length : 256,
-				     DB_BYTE_DISPLAY);
+		acpi_ut_dump_buffer(source_desc->buffer.pointer,
+				    (source_desc->buffer.length < 256) ?
+				    source_desc->buffer.length : 256,
+				    DB_BYTE_DISPLAY, 0);
 		break;
 
 	case ACPI_TYPE_STRING:
@@ -190,9 +199,10 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 			acpi_os_printf("Table Index 0x%X\n",
 				       source_desc->reference.value);
-			return;
+			return_VOID;
 
 		default:
+
 			break;
 		}
 
@@ -226,6 +236,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 					break;
 
 				default:
+
 					acpi_ex_do_debug_object((source_desc->
 								 reference.
 								 node)->object,

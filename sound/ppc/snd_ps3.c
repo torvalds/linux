@@ -786,7 +786,7 @@ static struct snd_pcm_ops snd_ps3_pcm_spdif_ops = {
 };
 
 
-static int __devinit snd_ps3_map_mmio(void)
+static int snd_ps3_map_mmio(void)
 {
 	the_card.mapped_mmio_vaddr =
 		ioremap(the_card.ps3_dev->m_region->bus_addr,
@@ -808,7 +808,7 @@ static void snd_ps3_unmap_mmio(void)
 	the_card.mapped_mmio_vaddr = NULL;
 }
 
-static int __devinit snd_ps3_allocate_irq(void)
+static int snd_ps3_allocate_irq(void)
 {
 	int ret;
 	u64 lpar_addr, lpar_size;
@@ -866,7 +866,7 @@ static void snd_ps3_free_irq(void)
 	ps3_irq_plug_destroy(the_card.irq_no);
 }
 
-static void __devinit snd_ps3_audio_set_base_addr(uint64_t ioaddr_start)
+static void snd_ps3_audio_set_base_addr(uint64_t ioaddr_start)
 {
 	uint64_t val;
 	int ret;
@@ -882,7 +882,7 @@ static void __devinit snd_ps3_audio_set_base_addr(uint64_t ioaddr_start)
 			ret);
 }
 
-static void __devinit snd_ps3_audio_fixup(struct snd_ps3_card_info *card)
+static void snd_ps3_audio_fixup(struct snd_ps3_card_info *card)
 {
 	/*
 	 * avsetting driver seems to never change the followings
@@ -906,7 +906,7 @@ static void __devinit snd_ps3_audio_fixup(struct snd_ps3_card_info *card)
 		   PS3_AUDIO_AO_3WMCTRL_ASOPLRCK_DEFAULT);
 }
 
-static int __devinit snd_ps3_init_avsetting(struct snd_ps3_card_info *card)
+static int snd_ps3_init_avsetting(struct snd_ps3_card_info *card)
 {
 	int ret;
 	pr_debug("%s: start\n", __func__);
@@ -928,13 +928,15 @@ static int __devinit snd_ps3_init_avsetting(struct snd_ps3_card_info *card)
 	return ret;
 }
 
-static int __devinit snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
+static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 {
 	int i, ret;
 	u64 lpar_addr, lpar_size;
 
-	BUG_ON(!firmware_has_feature(FW_FEATURE_PS3_LV1));
-	BUG_ON(dev->match_id != PS3_MATCH_ID_SOUND);
+	if (WARN_ON(!firmware_has_feature(FW_FEATURE_PS3_LV1)))
+		return -ENODEV;
+	if (WARN_ON(dev->match_id != PS3_MATCH_ID_SOUND))
+		return -ENODEV;
 
 	the_card.ps3_dev = dev;
 
@@ -982,7 +984,8 @@ static int __devinit snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	}
 
 	/* create card instance */
-	ret = snd_card_create(index, id, THIS_MODULE, 0, &the_card.card);
+	ret = snd_card_new(&dev->core, index, id, THIS_MODULE,
+			   0, &the_card.card);
 	if (ret < 0)
 		goto clean_irq;
 
@@ -1040,6 +1043,7 @@ static int __devinit snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 				   GFP_KERNEL);
 	if (!the_card.null_buffer_start_vaddr) {
 		pr_info("%s: nullbuffer alloc failed\n", __func__);
+		ret = -ENOMEM;
 		goto clean_preallocate;
 	}
 	pr_debug("%s: null vaddr=%p dma=%#llx\n", __func__,
@@ -1049,7 +1053,6 @@ static int __devinit snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	snd_ps3_init_avsetting(&the_card);
 
 	/* register the card */
-	snd_card_set_dev(the_card.card, &dev->core);
 	ret = snd_card_register(the_card.card);
 	if (ret < 0)
 		goto clean_dma_map;

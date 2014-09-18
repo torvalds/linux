@@ -90,7 +90,7 @@ asm volatile ("\n"					\
 		__put_user_asm(__pu_err, __pu_val, ptr, b, d, -EFAULT);	\
 		break;							\
 	case 2:								\
-		__put_user_asm(__pu_err, __pu_val, ptr, w, d, -EFAULT);	\
+		__put_user_asm(__pu_err, __pu_val, ptr, w, r, -EFAULT);	\
 		break;							\
 	case 4:								\
 		__put_user_asm(__pu_err, __pu_val, ptr, l, r, -EFAULT);	\
@@ -158,7 +158,7 @@ asm volatile ("\n"					\
 		__get_user_asm(__gu_err, x, ptr, u8, b, d, -EFAULT);	\
 		break;							\
 	case 2:								\
-		__get_user_asm(__gu_err, x, ptr, u16, w, d, -EFAULT);	\
+		__get_user_asm(__gu_err, x, ptr, u16, w, r, -EFAULT);	\
 		break;							\
 	case 4:								\
 		__get_user_asm(__gu_err, x, ptr, u32, l, r, -EFAULT);	\
@@ -245,7 +245,7 @@ __constant_copy_from_user(void *to, const void __user *from, unsigned long n)
 		__get_user_asm(res, *(u8 *)to, (u8 __user *)from, u8, b, d, 1);
 		break;
 	case 2:
-		__get_user_asm(res, *(u16 *)to, (u16 __user *)from, u16, w, d, 2);
+		__get_user_asm(res, *(u16 *)to, (u16 __user *)from, u16, w, r, 2);
 		break;
 	case 3:
 		__constant_copy_from_user_asm(res, to, from, tmp, 3, w, b,);
@@ -326,7 +326,7 @@ __constant_copy_to_user(void __user *to, const void *from, unsigned long n)
 		__put_user_asm(res, *(u8 *)from, (u8 __user *)to, b, d, 1);
 		break;
 	case 2:
-		__put_user_asm(res, *(u16 *)from, (u16 __user *)to, w, d, 2);
+		__put_user_asm(res, *(u16 *)from, (u16 __user *)to, w, r, 2);
 		break;
 	case 3:
 		__constant_copy_to_user_asm(res, to, from, tmp, 3, w, b,);
@@ -379,12 +379,15 @@ __constant_copy_to_user(void __user *to, const void *from, unsigned long n)
 #define copy_from_user(to, from, n)	__copy_from_user(to, from, n)
 #define copy_to_user(to, from, n)	__copy_to_user(to, from, n)
 
-long strncpy_from_user(char *dst, const char __user *src, long count);
-long strnlen_user(const char __user *src, long n);
+#define user_addr_max() \
+	(segment_eq(get_fs(), USER_DS) ? TASK_SIZE : ~0UL)
+
+extern long strncpy_from_user(char *dst, const char __user *src, long count);
+extern __must_check long strlen_user(const char __user *str);
+extern __must_check long strnlen_user(const char __user *str, long n);
+
 unsigned long __clear_user(void __user *to, unsigned long n);
 
 #define clear_user	__clear_user
-
-#define strlen_user(str) strnlen_user(str, 32767)
 
 #endif /* _M68K_UACCESS_H */

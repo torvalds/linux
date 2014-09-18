@@ -39,14 +39,13 @@
 #include <asm/page.h>
 #include <asm/setup.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/board-mx31lite.h>
-#include <mach/iomux-mx3.h>
-#include <mach/irqs.h>
-#include <mach/ulpi.h>
-
+#include "board-mx31lite.h"
+#include "common.h"
 #include "devices-imx31.h"
+#include "ehci.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
+#include "ulpi.h"
 
 /*
  * This file contains the module-specific initialization routines.
@@ -83,8 +82,7 @@ static struct resource smsc911x_resources[] = {
 		.end		= MX31_CS4_BASE_ADDR + 0x100,
 		.flags		= IORESOURCE_MEM,
 	}, {
-		.start		= IOMUX_TO_IRQ(MX31_PIN_SFS6),
-		.end		= IOMUX_TO_IRQ(MX31_PIN_SFS6),
+		/* irq number is run-time assigned */
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -124,7 +122,7 @@ static struct spi_board_info mc13783_spi_dev __initdata = {
 	.bus_num	= 1,
 	.chip_select    = 0,
 	.platform_data  = &mc13783_pdata,
-	.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
+	/* irq number is run-time assigned */
 };
 
 /*
@@ -209,7 +207,7 @@ static struct platform_device physmap_flash_device = {
  */
 static struct map_desc mx31lite_io_desc[] __initdata = {
 	{
-		.virtual = MX31_CS4_BASE_ADDR_VIRT,
+		.virtual = (unsigned long)MX31_CS4_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(MX31_CS4_BASE_ADDR),
 		.length = MX31_CS4_SIZE,
 		.type = MT_DEVICE
@@ -258,6 +256,7 @@ static void __init mx31lite_init(void)
 	imx31_add_mxc_nand(&mx31lite_nand_board_info);
 
 	imx31_add_spi_imx1(&spi1_pdata);
+	mc13783_spi_dev.irq = gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
 	spi_register_board_info(&mc13783_spi_dev, 1);
 
 	/* USB */
@@ -274,6 +273,10 @@ static void __init mx31lite_init(void)
 		pr_warning("could not get LAN irq gpio\n");
 	else {
 		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_SFS6));
+		smsc911x_resources[1].start =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_SFS6));
+		smsc911x_resources[1].end =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_SFS6));
 		platform_device_register(&smsc911x_device);
 	}
 }
@@ -283,18 +286,13 @@ static void __init mx31lite_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-struct sys_timer mx31lite_timer = {
-	.init	= mx31lite_timer_init,
-};
-
 MACHINE_START(MX31LITE, "LogicPD i.MX31 SOM")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.atag_offset = 0x100,
 	.map_io = mx31lite_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.handle_irq = imx31_handle_irq,
-	.timer = &mx31lite_timer,
+	.init_time	= mx31lite_timer_init,
 	.init_machine = mx31lite_init,
 	.restart	= mxc_restart,
 MACHINE_END

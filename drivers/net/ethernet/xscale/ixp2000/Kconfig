@@ -1,6 +1,0 @@
-config ENP2611_MSF_NET
-	tristate "Radisys ENP2611 MSF network interface support"
-	depends on ARCH_ENP2611
-	---help---
-	  This is a driver for the MSF network interface unit in
-	  the IXP2400 on the Radisys ENP2611 platform.

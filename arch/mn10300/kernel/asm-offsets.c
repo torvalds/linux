@@ -96,7 +96,7 @@ void foo(void)
 	OFFSET(__rx_outp,		mn10300_serial_port, rx_outp);
 	OFFSET(__uart_state,		mn10300_serial_port, uart.state);
 	OFFSET(__tx_xchar,		mn10300_serial_port, tx_xchar);
-	OFFSET(__tx_break,		mn10300_serial_port, tx_break);
+	OFFSET(__tx_flags,		mn10300_serial_port, tx_flags);
 	OFFSET(__intr_flags,		mn10300_serial_port, intr_flags);
 	OFFSET(__rx_icr,		mn10300_serial_port, rx_icr);
 	OFFSET(__tx_icr,		mn10300_serial_port, tx_icr);

@@ -130,7 +130,7 @@ ssize_t i2400m_tlv_match(const struct i2400m_tlv_hdr *tlv,
 	    && le16_to_cpu(tlv->length) + sizeof(*tlv) != tlv_size) {
 		size_t size = le16_to_cpu(tlv->length) + sizeof(*tlv);
 		printk(KERN_WARNING "W: tlv type 0x%x mismatched because of "
-		       "size (got %zu vs %zu expected)\n",
+		       "size (got %zu vs %zd expected)\n",
 		       tlv_type, size, tlv_size);
 		return size;
 	}
@@ -235,7 +235,7 @@ const struct i2400m_tlv_hdr *i2400m_tlv_find(
 			break;
 		if (match > 0)
 			dev_warn(dev, "TLV type 0x%04x found with size "
-				 "mismatch (%zu vs %zu needed)\n",
+				 "mismatch (%zu vs %zd needed)\n",
 				 tlv_type, match, tlv_size);
 	}
 	return tlv;
@@ -1061,7 +1061,7 @@ int i2400m_firmware_check(struct i2400m *i2400m)
 		goto error_bad_major;
 	}
 	result = 0;
-	if (minor < I2400M_HDIv_MINOR_2 && minor > I2400M_HDIv_MINOR)
+	if (minor > I2400M_HDIv_MINOR_2 || minor < I2400M_HDIv_MINOR)
 		dev_warn(dev, "untested minor fw version %u.%u.%u\n",
 			 major, minor, branch);
 	/* Yes, we ignore the branch -- we don't have to track it */

@@ -160,7 +160,7 @@ static inline void mvs_write_port_irq_mask(struct mvs_info *mvi,
 			MVS_P4_INT_MASK, port, val);
 }
 
-static inline void __devinit mvs_phy_hacks(struct mvs_info *mvi)
+static inline void mvs_phy_hacks(struct mvs_info *mvi)
 {
 	u32 tmp;
 

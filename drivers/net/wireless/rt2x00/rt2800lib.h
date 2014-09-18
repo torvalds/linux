@@ -14,9 +14,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef RT2800LIB_H
@@ -42,6 +40,9 @@ struct rt2800_ops {
 	int (*regbusy_read)(struct rt2x00_dev *rt2x00dev,
 			    const unsigned int offset,
 			    const struct rt2x00_field32 field, u32 *reg);
+
+	int (*read_eeprom)(struct rt2x00_dev *rt2x00dev);
+	bool (*hwcrypt_disabled)(struct rt2x00_dev *rt2x00dev);
 
 	int (*drv_write_firmware)(struct rt2x00_dev *rt2x00dev,
 				  const u8 *data, const size_t len);
@@ -112,6 +113,20 @@ static inline int rt2800_regbusy_read(struct rt2x00_dev *rt2x00dev,
 	const struct rt2800_ops *rt2800ops = rt2x00dev->ops->drv;
 
 	return rt2800ops->regbusy_read(rt2x00dev, offset, field, reg);
+}
+
+static inline int rt2800_read_eeprom(struct rt2x00_dev *rt2x00dev)
+{
+	const struct rt2800_ops *rt2800ops = rt2x00dev->ops->drv;
+
+	return rt2800ops->read_eeprom(rt2x00dev);
+}
+
+static inline bool rt2800_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
+{
+	const struct rt2800_ops *rt2800ops = rt2x00dev->ops->drv;
+
+	return rt2800ops->hwcrypt_disabled(rt2x00dev);
 }
 
 static inline int rt2800_drv_write_firmware(struct rt2x00_dev *rt2x00dev,
@@ -190,10 +205,9 @@ int rt2800_enable_radio(struct rt2x00_dev *rt2x00dev);
 void rt2800_disable_radio(struct rt2x00_dev *rt2x00dev);
 
 int rt2800_efuse_detect(struct rt2x00_dev *rt2x00dev);
-void rt2800_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev);
-int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev);
-int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev);
-int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev);
+int rt2800_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev);
+
+int rt2800_probe_hw(struct rt2x00_dev *rt2x00dev);
 
 void rt2800_get_tkip_seq(struct ieee80211_hw *hw, u8 hw_key_idx, u32 *iv32,
 			 u16 *iv16);
@@ -208,5 +222,10 @@ int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			u8 buf_size);
 int rt2800_get_survey(struct ieee80211_hw *hw, int idx,
 		      struct survey_info *survey);
+void rt2800_disable_wpdma(struct rt2x00_dev *rt2x00dev);
+
+void rt2800_get_txwi_rxwi_size(struct rt2x00_dev *rt2x00dev,
+			       unsigned short *txwi_size,
+			       unsigned short *rxwi_size);
 
 #endif /* RT2800LIB_H */

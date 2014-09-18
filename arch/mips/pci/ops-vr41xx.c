@@ -33,7 +33,7 @@
 #define PCICONFAREG	(void __iomem *)KSEG1ADDR(0x0f000c18)
 
 static inline int set_pci_configuration_address(unsigned char number,
-                                                unsigned int devfn, int where)
+						unsigned int devfn, int where)
 {
 	if (number == 0) {
 		/*
@@ -59,7 +59,7 @@ static inline int set_pci_configuration_address(unsigned char number,
 }
 
 static int pci_config_read(struct pci_bus *bus, unsigned int devfn, int where,
-                           int size, uint32_t *val)
+			   int size, uint32_t *val)
 {
 	uint32_t data;
 
@@ -87,7 +87,7 @@ static int pci_config_read(struct pci_bus *bus, unsigned int devfn, int where,
 }
 
 static int pci_config_write(struct pci_bus *bus, unsigned int devfn, int where,
-                            int size, uint32_t val)
+			    int size, uint32_t val)
 {
 	uint32_t data;
 	int shift;

@@ -153,7 +153,7 @@ abort:
 	return ret;
 }
 
-static int __devinit sch5627_read_limits(struct sch5627_data *data)
+static int sch5627_read_limits(struct sch5627_data *data)
 {
 	int i, val;
 
@@ -461,18 +461,17 @@ static int sch5627_remove(struct platform_device *pdev)
 		hwmon_device_unregister(data->hwmon_dev);
 
 	sysfs_remove_group(&pdev->dev.kobj, &sch5627_group);
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
 
 	return 0;
 }
 
-static int __devinit sch5627_probe(struct platform_device *pdev)
+static int sch5627_probe(struct platform_device *pdev)
 {
 	struct sch5627_data *data;
 	int err, build_code, build_id, hwmon_rev, val;
 
-	data = kzalloc(sizeof(struct sch5627_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct sch5627_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -579,7 +578,7 @@ static int __devinit sch5627_probe(struct platform_device *pdev)
 	}
 
 	/* Note failing to register the watchdog is not a fatal error */
-	data->watchdog = sch56xx_watchdog_register(data->addr,
+	data->watchdog = sch56xx_watchdog_register(&pdev->dev, data->addr,
 			(build_code << 24) | (build_id << 8) | hwmon_rev,
 			&data->update_lock, 1);
 

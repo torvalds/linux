@@ -1,0 +1,29 @@
+TI SOC EHRPWM based PWM controller
+
+Required properties:
+- compatible: Must be "ti,<soc>-ehrpwm".
+  for am33xx - compatible = "ti,am33xx-ehrpwm";
+  for da850  - compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
+- #pwm-cells: should be 3. See pwm.txt in this directory for a description of
+  the cells format. The only third cell flag supported by this binding is
+  PWM_POLARITY_INVERTED.
+- reg: physical base address and size of the registers map.
+
+Optional properties:
+- ti,hwmods: Name of the hwmod associated to the EHRPWM:
+  "ehrpwm<x>", <x> being the 0-based instance number from the HW spec
+
+Example:
+
+ehrpwm0: ehrpwm@0 { /* EHRPWM on am33xx */
+	compatible = "ti,am33xx-ehrpwm";
+	#pwm-cells = <3>;
+	reg = <0x48300200 0x100>;
+	ti,hwmods = "ehrpwm0";
+};
+
+ehrpwm0: ehrpwm@0 { /* EHRPWM on da850 */
+	compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
+	#pwm-cells = <3>;
+	reg = <0x300000 0x2000>;
+};

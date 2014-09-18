@@ -1,2 +1,0 @@
-header-y += big_endian.h
-header-y += little_endian.h

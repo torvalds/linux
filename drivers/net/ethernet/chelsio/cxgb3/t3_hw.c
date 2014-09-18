@@ -1076,7 +1076,7 @@ static int t3_flash_erase_sectors(struct adapter *adapter, int start, int end)
 	return 0;
 }
 
-/*
+/**
  *	t3_load_fw - download firmware
  *	@adapter: the adapter
  *	@fw_data: the firmware image to write
@@ -3289,29 +3289,25 @@ static void config_pcie(struct adapter *adap)
 	unsigned int log2_width, pldsize;
 	unsigned int fst_trn_rx, fst_trn_tx, acklat, rpllmt;
 
-	pci_read_config_word(adap->pdev,
-			     adap->pdev->pcie_cap + PCI_EXP_DEVCTL,
-			     &val);
+	pcie_capability_read_word(adap->pdev, PCI_EXP_DEVCTL, &val);
 	pldsize = (val & PCI_EXP_DEVCTL_PAYLOAD) >> 5;
 
 	pci_read_config_word(adap->pdev, 0x2, &devid);
 	if (devid == 0x37) {
-		pci_write_config_word(adap->pdev,
-				      adap->pdev->pcie_cap + PCI_EXP_DEVCTL,
-				      val & ~PCI_EXP_DEVCTL_READRQ &
-				      ~PCI_EXP_DEVCTL_PAYLOAD);
+		pcie_capability_write_word(adap->pdev, PCI_EXP_DEVCTL,
+					   val & ~PCI_EXP_DEVCTL_READRQ &
+					   ~PCI_EXP_DEVCTL_PAYLOAD);
 		pldsize = 0;
 	}
 
-	pci_read_config_word(adap->pdev, adap->pdev->pcie_cap + PCI_EXP_LNKCTL,
-			     &val);
+	pcie_capability_read_word(adap->pdev, PCI_EXP_LNKCTL, &val);
 
 	fst_trn_tx = G_NUMFSTTRNSEQ(t3_read_reg(adap, A_PCIE_PEX_CTRL0));
 	fst_trn_rx = adap->params.rev == 0 ? fst_trn_tx :
 	    G_NUMFSTTRNSEQRX(t3_read_reg(adap, A_PCIE_MODE));
 	log2_width = fls(adap->params.pci.width) - 1;
 	acklat = ack_lat[log2_width][pldsize];
-	if (val & 1)		/* check LOsEnable */
+	if (val & PCI_EXP_LNKCTL_ASPM_L0S)	/* check LOsEnable */
 		acklat += fst_trn_tx * 4;
 	rpllmt = rpl_tmr[log2_width][pldsize] + fst_trn_rx * 4;
 
@@ -3425,15 +3421,13 @@ out_err:
 static void get_pci_mode(struct adapter *adapter, struct pci_params *p)
 {
 	static unsigned short speed_map[] = { 33, 66, 100, 133 };
-	u32 pci_mode, pcie_cap;
+	u32 pci_mode;
 
-	pcie_cap = pci_pcie_cap(adapter->pdev);
-	if (pcie_cap) {
+	if (pci_is_pcie(adapter->pdev)) {
 		u16 val;
 
 		p->variant = PCI_VARIANT_PCIE;
-		pci_read_config_word(adapter->pdev, pcie_cap + PCI_EXP_LNKSTA,
-					&val);
+		pcie_capability_read_word(adapter->pdev, PCI_EXP_LNKSTA, &val);
 		p->width = (val >> 4) & 0x3f;
 		return;
 	}
@@ -3730,8 +3724,6 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		hw_addr[5] = adapter->params.vpd.eth_base[5] + i;
 
 		memcpy(adapter->port[i]->dev_addr, hw_addr,
-		       ETH_ALEN);
-		memcpy(adapter->port[i]->perm_addr, hw_addr,
 		       ETH_ALEN);
 		init_link_config(&p->link_config, p->phy.caps);
 		p->phy.ops->power_down(&p->phy, 1);

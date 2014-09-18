@@ -4,7 +4,7 @@
  * Copyright 2005 Alessandro Zummo
  *
  * please send all reports to:
- * 	Karen Spearel <kas111 at gmail dot com>
+ *	Karen Spearel <kas111 at gmail dot com>
  *	Alessandro Zummo <a.zummo@towertech.it>
  *
  * based on a lot of other RTC drivers.
@@ -97,8 +97,17 @@ static int x1205_get_datetime(struct i2c_client *client, struct rtc_time *tm,
 	int i;
 
 	struct i2c_msg msgs[] = {
-		{ client->addr, 0, 2, dt_addr },	/* setup read ptr */
-		{ client->addr, I2C_M_RD, 8, buf },	/* read date */
+		{/* setup read ptr */
+			.addr = client->addr,
+			.len = 2,
+			.buf = dt_addr
+		},
+		{/* read date */
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 8,
+			.buf = buf
+		},
 	};
 
 	/* read date registers */
@@ -142,8 +151,17 @@ static int x1205_get_status(struct i2c_client *client, unsigned char *sr)
 	static unsigned char sr_addr[2] = { 0, X1205_REG_SR };
 
 	struct i2c_msg msgs[] = {
-		{ client->addr, 0, 2, sr_addr },	/* setup read ptr */
-		{ client->addr, I2C_M_RD, 1, sr },	/* read status */
+		{     /* setup read ptr */
+			.addr = client->addr,
+			.len = 2,
+			.buf = sr_addr
+		},
+		{    /* read status */
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = sr
+		},
 	};
 
 	/* read status register */
@@ -197,12 +215,14 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 			buf[i] |= 0x80;
 
 	/* this sequence is required to unlock the chip */
-	if ((xfer = i2c_master_send(client, wel, 3)) != 3) {
+	xfer = i2c_master_send(client, wel, 3);
+	if (xfer != 3) {
 		dev_err(&client->dev, "%s: wel - %d\n", __func__, xfer);
 		return -EIO;
 	}
 
-	if ((xfer = i2c_master_send(client, rwel, 3)) != 3) {
+	xfer = i2c_master_send(client, rwel, 3);
+	if (xfer != 3) {
 		dev_err(&client->dev, "%s: rwel - %d\n", __func__, xfer);
 		return -EIO;
 	}
@@ -251,7 +271,8 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 	}
 
 	/* disable further writes */
-	if ((xfer = i2c_master_send(client, diswe, 3)) != 3) {
+	xfer = i2c_master_send(client, diswe, 3);
+	if (xfer != 3) {
 		dev_err(&client->dev, "%s: diswe - %d\n", __func__, xfer);
 		return -EIO;
 	}
@@ -279,8 +300,17 @@ static int x1205_get_dtrim(struct i2c_client *client, int *trim)
 	static unsigned char dtr_addr[2] = { 0, X1205_REG_DTR };
 
 	struct i2c_msg msgs[] = {
-		{ client->addr, 0, 2, dtr_addr },	/* setup read ptr */
-		{ client->addr, I2C_M_RD, 1, &dtr }, 	/* read dtr */
+		{	/* setup read ptr */
+			.addr = client->addr,
+			.len = 2,
+			.buf = dtr_addr
+		},
+		{      /* read dtr */
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = &dtr
+		},
 	};
 
 	/* read dtr register */
@@ -311,8 +341,17 @@ static int x1205_get_atrim(struct i2c_client *client, int *trim)
 	static unsigned char atr_addr[2] = { 0, X1205_REG_ATR };
 
 	struct i2c_msg msgs[] = {
-		{ client->addr, 0, 2, atr_addr },	/* setup read ptr */
-		{ client->addr, I2C_M_RD, 1, &atr }, 	/* read atr */
+		{/* setup read ptr */
+			.addr = client->addr,
+			.len = 2,
+			.buf = atr_addr
+		},
+		{/* read atr */
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = &atr
+		},
 	};
 
 	/* read atr register */
@@ -339,8 +378,7 @@ static int x1205_get_atrim(struct i2c_client *client, int *trim)
 	return 0;
 }
 
-struct x1205_limit
-{
+struct x1205_limit {
 	unsigned char reg, mask, min, max;
 };
 
@@ -381,11 +419,21 @@ static int x1205_validate_client(struct i2c_client *client)
 		unsigned char addr[2] = { 0, probe_zero_pattern[i] };
 
 		struct i2c_msg msgs[2] = {
-			{ client->addr, 0, 2, addr },
-			{ client->addr, I2C_M_RD, 1, &buf },
+			{
+				.addr = client->addr,
+				.len = 2,
+				.buf = addr
+			},
+			{
+				.addr = client->addr,
+				.flags = I2C_M_RD,
+				.len = 1,
+				.buf = &buf
+			},
 		};
 
-		if ((xfer = i2c_transfer(client->adapter, msgs, 2)) != 2) {
+		xfer = i2c_transfer(client->adapter, msgs, 2);
+		if (xfer != 2) {
 			dev_err(&client->dev,
 				"%s: could not read register %x\n",
 				__func__, probe_zero_pattern[i]);
@@ -409,11 +457,21 @@ static int x1205_validate_client(struct i2c_client *client)
 		unsigned char addr[2] = { 0, probe_limits_pattern[i].reg };
 
 		struct i2c_msg msgs[2] = {
-			{ client->addr, 0, 2, addr },
-			{ client->addr, I2C_M_RD, 1, &reg },
+			{
+				.addr = client->addr,
+				.len = 2,
+				.buf = addr
+			},
+			{
+				.addr = client->addr,
+				.flags = I2C_M_RD,
+				.len = 1,
+				.buf = &reg
+			},
 		};
 
-		if ((xfer = i2c_transfer(client->adapter, msgs, 2)) != 2) {
+		xfer = i2c_transfer(client->adapter, msgs, 2);
+		if (xfer != 2) {
 			dev_err(&client->dev,
 				"%s: could not read register %x\n",
 				__func__, probe_limits_pattern[i].reg);
@@ -444,8 +502,18 @@ static int x1205_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	static unsigned char int_addr[2] = { 0, X1205_REG_INT };
 	struct i2c_client *client = to_i2c_client(dev);
 	struct i2c_msg msgs[] = {
-		{ client->addr, 0, 2, int_addr },        /* setup read ptr */
-		{ client->addr, I2C_M_RD, 1, &intreg },  /* read INT register */
+		{ /* setup read ptr */
+			.addr = client->addr,
+			.len = 2,
+			.buf = int_addr
+		},
+		{/* read INT register */
+
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = &intreg
+		},
 	};
 
 	/* read interrupt register and status register */
@@ -484,10 +552,12 @@ static int x1205_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	int err, dtrim, atrim;
 
-	if ((err = x1205_get_dtrim(to_i2c_client(dev), &dtrim)) == 0)
+	err = x1205_get_dtrim(to_i2c_client(dev), &dtrim);
+	if (!err)
 		seq_printf(seq, "digital_trim\t: %d ppm\n", dtrim);
 
-	if ((err = x1205_get_atrim(to_i2c_client(dev), &atrim)) == 0)
+	err = x1205_get_atrim(to_i2c_client(dev), &atrim);
+	if (!err)
 		seq_printf(seq, "analog_trim\t: %d.%02d pF\n",
 			atrim / 1000, atrim % 1000);
 	return 0;
@@ -566,8 +636,8 @@ static int x1205_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
-	rtc = rtc_device_register(x1205_driver.driver.name, &client->dev,
-				&x1205_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&client->dev, x1205_driver.driver.name,
+					&x1205_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
@@ -575,7 +645,8 @@ static int x1205_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, rtc);
 
 	/* Check for power failures and eventually enable the osc */
-	if ((err = x1205_get_status(client, &sr)) == 0) {
+	err = x1205_get_status(client, &sr);
+	if (!err) {
 		if (sr & X1205_SR_RTCF) {
 			dev_err(&client->dev,
 				"power failure detected, "
@@ -583,27 +654,19 @@ static int x1205_probe(struct i2c_client *client,
 			udelay(50);
 			x1205_fix_osc(client);
 		}
-	}
-	else
+	} else {
 		dev_err(&client->dev, "couldn't read status\n");
+	}
 
 	err = x1205_sysfs_register(&client->dev);
 	if (err)
-		goto exit_devreg;
+		dev_err(&client->dev, "Unable to create sysfs entries\n");
 
 	return 0;
-
-exit_devreg:
-	rtc_device_unregister(rtc);
-
-	return err;
 }
 
 static int x1205_remove(struct i2c_client *client)
 {
-	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	rtc_device_unregister(rtc);
 	x1205_sysfs_unregister(&client->dev);
 	return 0;
 }

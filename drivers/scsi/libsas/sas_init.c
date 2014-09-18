@@ -48,18 +48,37 @@ struct sas_task *sas_alloc_task(gfp_t flags)
 		INIT_LIST_HEAD(&task->list);
 		spin_lock_init(&task->task_state_lock);
 		task->task_state_flags = SAS_TASK_STATE_PENDING;
-		init_timer(&task->timer);
-		init_completion(&task->completion);
 	}
 
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_task);
 
+struct sas_task *sas_alloc_slow_task(gfp_t flags)
+{
+	struct sas_task *task = sas_alloc_task(flags);
+	struct sas_task_slow *slow = kmalloc(sizeof(*slow), flags);
+
+	if (!task || !slow) {
+		if (task)
+			kmem_cache_free(sas_task_cache, task);
+		kfree(slow);
+		return NULL;
+	}
+
+	task->slow_task = slow;
+	init_timer(&slow->timer);
+	init_completion(&slow->completion);
+
+	return task;
+}
+EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
+
 void sas_free_task(struct sas_task *task)
 {
 	if (task) {
 		BUG_ON(!list_empty(&task->list));
+		kfree(task->slow_task);
 		kmem_cache_free(sas_task_cache, task);
 	}
 }
@@ -94,8 +113,7 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 
 void sas_hae_reset(struct work_struct *work)
 {
-	struct sas_ha_event *ev =
-		container_of(work, struct sas_ha_event, work);
+	struct sas_ha_event *ev = to_sas_ha_event(work);
 	struct sas_ha_struct *ha = ev->ha;
 
 	clear_bit(HAE_RESET, &ha->pending);
@@ -115,9 +133,11 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 		sas_ha->lldd_queue_size = 128; /* Sanity */
 
 	set_bit(SAS_HA_REGISTERED, &sas_ha->state);
-	spin_lock_init(&sas_ha->state_lock);
+	spin_lock_init(&sas_ha->lock);
 	mutex_init(&sas_ha->drain_mutex);
+	init_waitqueue_head(&sas_ha->eh_wait_q);
 	INIT_LIST_HEAD(&sas_ha->defer_q);
+	INIT_LIST_HEAD(&sas_ha->eh_dev_q);
 
 	error = sas_register_phys(sas_ha);
 	if (error) {
@@ -158,18 +178,22 @@ Undo_phys:
 	return error;
 }
 
-int sas_unregister_ha(struct sas_ha_struct *sas_ha)
+static void sas_disable_events(struct sas_ha_struct *sas_ha)
 {
 	/* Set the state to unregistered to avoid further unchained
 	 * events to be queued, and flush any in-progress drainers
 	 */
 	mutex_lock(&sas_ha->drain_mutex);
-	spin_lock_irq(&sas_ha->state_lock);
+	spin_lock_irq(&sas_ha->lock);
 	clear_bit(SAS_HA_REGISTERED, &sas_ha->state);
-	spin_unlock_irq(&sas_ha->state_lock);
+	spin_unlock_irq(&sas_ha->lock);
 	__sas_drain_work(sas_ha);
 	mutex_unlock(&sas_ha->drain_mutex);
+}
 
+int sas_unregister_ha(struct sas_ha_struct *sas_ha)
+{
+	sas_disable_events(sas_ha);
 	sas_unregister_ports(sas_ha);
 
 	/* flush unregistration work */
@@ -361,6 +385,90 @@ int sas_set_phy_speed(struct sas_phy *phy,
 	return ret;
 }
 
+void sas_prep_resume_ha(struct sas_ha_struct *ha)
+{
+	int i;
+
+	set_bit(SAS_HA_REGISTERED, &ha->state);
+
+	/* clear out any stale link events/data from the suspension path */
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_phy *phy = ha->sas_phy[i];
+
+		memset(phy->attached_sas_addr, 0, SAS_ADDR_SIZE);
+		phy->port_events_pending = 0;
+		phy->phy_events_pending = 0;
+		phy->frame_rcvd_size = 0;
+	}
+}
+EXPORT_SYMBOL(sas_prep_resume_ha);
+
+static int phys_suspended(struct sas_ha_struct *ha)
+{
+	int i, rc = 0;
+
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_phy *phy = ha->sas_phy[i];
+
+		if (phy->suspended)
+			rc++;
+	}
+
+	return rc;
+}
+
+void sas_resume_ha(struct sas_ha_struct *ha)
+{
+	const unsigned long tmo = msecs_to_jiffies(25000);
+	int i;
+
+	/* deform ports on phys that did not resume
+	 * at this point we may be racing the phy coming back (as posted
+	 * by the lldd).  So we post the event and once we are in the
+	 * libsas context check that the phy remains suspended before
+	 * tearing it down.
+	 */
+	i = phys_suspended(ha);
+	if (i)
+		dev_info(ha->dev, "waiting up to 25 seconds for %d phy%s to resume\n",
+			 i, i > 1 ? "s" : "");
+	wait_event_timeout(ha->eh_wait_q, phys_suspended(ha) == 0, tmo);
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_phy *phy = ha->sas_phy[i];
+
+		if (phy->suspended) {
+			dev_warn(&phy->phy->dev, "resume timeout\n");
+			sas_notify_phy_event(phy, PHYE_RESUME_TIMEOUT);
+		}
+	}
+
+	/* all phys are back up or timed out, turn on i/o so we can
+	 * flush out disks that did not return
+	 */
+	scsi_unblock_requests(ha->core.shost);
+	sas_drain_work(ha);
+}
+EXPORT_SYMBOL(sas_resume_ha);
+
+void sas_suspend_ha(struct sas_ha_struct *ha)
+{
+	int i;
+
+	sas_disable_events(ha);
+	scsi_block_requests(ha->core.shost);
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_port *port = ha->sas_port[i];
+
+		sas_discover_event(port, DISCE_SUSPEND);
+	}
+
+	/* flush suspend events while unregistered */
+	mutex_lock(&ha->drain_mutex);
+	__sas_drain_work(ha);
+	mutex_unlock(&ha->drain_mutex);
+}
+EXPORT_SYMBOL(sas_suspend_ha);
+
 static void sas_phy_release(struct sas_phy *phy)
 {
 	kfree(phy->hostdata);
@@ -369,14 +477,14 @@ static void sas_phy_release(struct sas_phy *phy)
 
 static void phy_reset_work(struct work_struct *work)
 {
-	struct sas_phy_data *d = container_of(work, typeof(*d), reset_work);
+	struct sas_phy_data *d = container_of(work, typeof(*d), reset_work.work);
 
 	d->reset_result = transport_sas_phy_reset(d->phy, d->hard_reset);
 }
 
 static void phy_enable_work(struct work_struct *work)
 {
-	struct sas_phy_data *d = container_of(work, typeof(*d), enable_work);
+	struct sas_phy_data *d = container_of(work, typeof(*d), enable_work.work);
 
 	d->enable_result = sas_phy_enable(d->phy, d->enable);
 }
@@ -389,8 +497,8 @@ static int sas_phy_setup(struct sas_phy *phy)
 		return -ENOMEM;
 
 	mutex_init(&d->event_lock);
-	INIT_WORK(&d->reset_work, phy_reset_work);
-	INIT_WORK(&d->enable_work, phy_enable_work);
+	INIT_SAS_WORK(&d->reset_work, phy_reset_work);
+	INIT_SAS_WORK(&d->enable_work, phy_enable_work);
 	d->phy = phy;
 	phy->hostdata = d;
 
@@ -412,9 +520,9 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	d->reset_result = 0;
 	d->hard_reset = hard_reset;
 
-	spin_lock_irq(&ha->state_lock);
+	spin_lock_irq(&ha->lock);
 	sas_queue_work(ha, &d->reset_work);
-	spin_unlock_irq(&ha->state_lock);
+	spin_unlock_irq(&ha->lock);
 
 	rc = sas_drain_work(ha);
 	if (rc == 0)
@@ -439,9 +547,9 @@ static int queue_phy_enable(struct sas_phy *phy, int enable)
 	d->enable_result = 0;
 	d->enable = enable;
 
-	spin_lock_irq(&ha->state_lock);
+	spin_lock_irq(&ha->lock);
 	sas_queue_work(ha, &d->enable_work);
-	spin_unlock_irq(&ha->state_lock);
+	spin_unlock_irq(&ha->lock);
 
 	rc = sas_drain_work(ha);
 	if (rc == 0)

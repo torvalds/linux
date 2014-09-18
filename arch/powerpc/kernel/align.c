@@ -25,14 +25,13 @@
 #include <asm/cputable.h>
 #include <asm/emulated_ops.h>
 #include <asm/switch_to.h>
+#include <asm/disassemble.h>
 
 struct aligninfo {
 	unsigned char len;
 	unsigned char flags;
 };
 
-#define IS_XFORM(inst)	(((inst) >> 26) == 31)
-#define IS_DSFORM(inst)	(((inst) >> 26) >= 56)
 
 #define INVALID	{ 0, 0 }
 
@@ -54,8 +53,6 @@ struct aligninfo {
 /* DSISR bits reported for a DCBZ instruction: */
 #define DCBZ	0x5f	/* 8xx/82xx dcbz faults when cache not enabled */
 
-#define SWAP(a, b)	(t = (a), (a) = (b), (b) = t)
-
 /*
  * The PowerPC stores certain bits of the instruction that caused the
  * alignment exception in the DSISR register.  This array maps those
@@ -75,7 +72,7 @@ static struct aligninfo aligninfo[128] = {
 	{ 8, LD+F },		/* 00 0 1001: lfd */
 	{ 4, ST+F+S },		/* 00 0 1010: stfs */
 	{ 8, ST+F },		/* 00 0 1011: stfd */
-	INVALID,		/* 00 0 1100 */
+	{ 16, LD },		/* 00 0 1100: lq */
 	{ 8, LD },		/* 00 0 1101: ld/ldu/lwa */
 	INVALID,		/* 00 0 1110 */
 	{ 8, ST },		/* 00 0 1111: std/stdu */
@@ -142,7 +139,7 @@ static struct aligninfo aligninfo[128] = {
 	{ 2, LD+SW },		/* 10 0 1100: lhbrx */
 	{ 4, LD+SE },		/* 10 0 1101  lwa */
 	{ 2, ST+SW },		/* 10 0 1110: sthbrx */
-	INVALID,		/* 10 0 1111 */
+	{ 16, ST },		/* 10 0 1111: stq */
 	INVALID,		/* 10 1 0000 */
 	INVALID,		/* 10 1 0001 */
 	INVALID,		/* 10 1 0010 */
@@ -194,37 +191,6 @@ static struct aligninfo aligninfo[128] = {
 };
 
 /*
- * Create a DSISR value from the instruction
- */
-static inline unsigned make_dsisr(unsigned instr)
-{
-	unsigned dsisr;
-
-
-	/* bits  6:15 --> 22:31 */
-	dsisr = (instr & 0x03ff0000) >> 16;
-
-	if (IS_XFORM(instr)) {
-		/* bits 29:30 --> 15:16 */
-		dsisr |= (instr & 0x00000006) << 14;
-		/* bit     25 -->    17 */
-		dsisr |= (instr & 0x00000040) << 8;
-		/* bits 21:24 --> 18:21 */
-		dsisr |= (instr & 0x00000780) << 3;
-	} else {
-		/* bit      5 -->    17 */
-		dsisr |= (instr & 0x04000000) >> 12;
-		/* bits  1: 4 --> 18:21 */
-		dsisr |= (instr & 0x78000000) >> 17;
-		/* bits 30:31 --> 12:13 */
-		if (IS_DSFORM(instr))
-			dsisr |= (instr & 0x00000003) << 18;
-	}
-
-	return dsisr;
-}
-
-/*
  * The dcbz (data cache block zero) instruction
  * gives an alignment fault if used on non-cacheable
  * memory.  We handle the fault mainly for the
@@ -256,10 +222,16 @@ static int emulate_dcbz(struct pt_regs *regs, unsigned char __user *addr)
  * bottom 4 bytes of each register, and the loads clear the
  * top 4 bytes of the affected register.
  */
+#ifdef __BIG_ENDIAN__
 #ifdef CONFIG_PPC64
 #define REG_BYTE(rp, i)		*((u8 *)((rp) + ((i) >> 2)) + ((i) & 3) + 4)
 #else
 #define REG_BYTE(rp, i)		*((u8 *)(rp) + (i))
+#endif
+#endif
+
+#ifdef __LITTLE_ENDIAN__
+#define REG_BYTE(rp, i)		(*(((u8 *)((rp) + ((i)>>2)) + ((i)&3))))
 #endif
 
 #define SWIZ_PTR(p)		((unsigned char __user *)((p) ^ swiz))
@@ -305,6 +277,15 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
 			nb0 = nb + reg * 4 - 128;
 			nb = 128 - reg * 4;
 		}
+#ifdef __LITTLE_ENDIAN__
+		/*
+		 *  String instructions are endian neutral but the code
+		 *  below is not.  Force byte swapping on so that the
+		 *  effects of swizzling are undone in the load/store
+		 *  loops below.
+		 */
+		flags ^= SW;
+#endif
 	} else {
 		/* lwm, stmw */
 		nb = (32 - reg) * 4;
@@ -372,8 +353,6 @@ static int emulate_fp_pair(unsigned char __user *addr, unsigned int reg,
 	char *ptr1 = (char *) &current->thread.TS_FPR(reg+1);
 	int i, ret, sw = 0;
 
-	if (!(flags & F))
-		return 0;
 	if (reg & 1)
 		return 0;	/* invalid form: FRS/FRT must be even */
 	if (flags & SW)
@@ -392,6 +371,34 @@ static int emulate_fp_pair(unsigned char __user *addr, unsigned int reg,
 		return -EFAULT;
 	return 1;	/* exception handled and fixed up */
 }
+
+#ifdef CONFIG_PPC64
+static int emulate_lq_stq(struct pt_regs *regs, unsigned char __user *addr,
+			  unsigned int reg, unsigned int flags)
+{
+	char *ptr0 = (char *)&regs->gpr[reg];
+	char *ptr1 = (char *)&regs->gpr[reg+1];
+	int i, ret, sw = 0;
+
+	if (reg & 1)
+		return 0;	/* invalid form: GPR must be even */
+	if (flags & SW)
+		sw = 7;
+	ret = 0;
+	for (i = 0; i < 8; ++i) {
+		if (!(flags & ST)) {
+			ret |= __get_user(ptr0[i^sw], addr + i);
+			ret |= __get_user(ptr1[i^sw], addr + i + 8);
+		} else {
+			ret |= __put_user(ptr0[i^sw], addr + i);
+			ret |= __put_user(ptr1[i^sw], addr + i + 8);
+		}
+	}
+	if (ret)
+		return -EFAULT;
+	return 1;	/* exception handled and fixed up */
+}
+#endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_SPE
 
@@ -458,7 +465,7 @@ static struct aligninfo spe_aligninfo[32] = {
 static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 		       unsigned int instr)
 {
-	int t, ret;
+	int ret;
 	union {
 		u64 ll;
 		u32 w[2];
@@ -581,24 +588,18 @@ static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 	if (flags & SW) {
 		switch (flags & 0xf0) {
 		case E8:
-			SWAP(data.v[0], data.v[7]);
-			SWAP(data.v[1], data.v[6]);
-			SWAP(data.v[2], data.v[5]);
-			SWAP(data.v[3], data.v[4]);
+			data.ll = swab64(data.ll);
 			break;
 		case E4:
-
-			SWAP(data.v[0], data.v[3]);
-			SWAP(data.v[1], data.v[2]);
-			SWAP(data.v[4], data.v[7]);
-			SWAP(data.v[5], data.v[6]);
+			data.w[0] = swab32(data.w[0]);
+			data.w[1] = swab32(data.w[1]);
 			break;
 		/* Its half word endian */
 		default:
-			SWAP(data.v[0], data.v[1]);
-			SWAP(data.v[2], data.v[3]);
-			SWAP(data.v[4], data.v[5]);
-			SWAP(data.v[6], data.v[7]);
+			data.h[0] = swab16(data.h[0]);
+			data.h[1] = swab16(data.h[1]);
+			data.h[2] = swab16(data.h[2]);
+			data.h[3] = swab16(data.h[3]);
 			break;
 		}
 	}
@@ -651,17 +652,38 @@ static int emulate_vsx(unsigned char __user *addr, unsigned int reg,
 	int sw = 0;
 	int i, j;
 
+	/* userland only */
+	if (unlikely(!user_mode(regs)))
+		return 0;
+
 	flush_vsx_to_thread(current);
 
 	if (reg < 32)
-		ptr = (char *) &current->thread.TS_FPR(reg);
+		ptr = (char *) &current->thread.fp_state.fpr[reg][0];
 	else
-		ptr = (char *) &current->thread.vr[reg - 32];
+		ptr = (char *) &current->thread.vr_state.vr[reg - 32];
 
 	lptr = (unsigned long *) ptr;
 
+#ifdef __LITTLE_ENDIAN__
+	if (flags & SW) {
+		elsize = length;
+		sw = length-1;
+	} else {
+		/*
+		 * The elements are BE ordered, even in LE mode, so process
+		 * them in reverse order.
+		 */
+		addr += length - elsize;
+
+		/* 8 byte memory accesses go in the top 8 bytes of the VR */
+		if (length == 8)
+			ptr += 8;
+	}
+#else
 	if (flags & SW)
 		sw = elsize-1;
+#endif
 
 	for (j = 0; j < length; j += elsize) {
 		for (i = 0; i < elsize; ++i) {
@@ -671,8 +693,20 @@ static int emulate_vsx(unsigned char __user *addr, unsigned int reg,
 				ret |= __get_user(ptr[i^sw], addr + i);
 		}
 		ptr  += elsize;
+#ifdef __LITTLE_ENDIAN__
+		addr -= elsize;
+#else
 		addr += elsize;
+#endif
 	}
+
+#ifdef __BIG_ENDIAN__
+#define VSX_HI 0
+#define VSX_LO 1
+#else
+#define VSX_HI 1
+#define VSX_LO 0
+#endif
 
 	if (!ret) {
 		if (flags & U)
@@ -680,10 +714,10 @@ static int emulate_vsx(unsigned char __user *addr, unsigned int reg,
 
 		/* Splat load copies the same data to top and bottom 8 bytes */
 		if (flags & SPLT)
-			lptr[1] = lptr[0];
-		/* For 8 byte loads, zero the top 8 bytes */
+			lptr[VSX_LO] = lptr[VSX_HI];
+		/* For 8 byte loads, zero the low 8 bytes */
 		else if (!(flags & ST) && (8 == length))
-			lptr[1] = 0;
+			lptr[VSX_LO] = 0;
 	} else
 		return -EFAULT;
 
@@ -706,18 +740,28 @@ int fix_alignment(struct pt_regs *regs)
 	unsigned int dsisr;
 	unsigned char __user *addr;
 	unsigned long p, swiz;
-	int ret, t;
-	union {
+	int ret, i;
+	union data {
 		u64 ll;
 		double dd;
 		unsigned char v[8];
 		struct {
+#ifdef __LITTLE_ENDIAN__
+			int	 low32;
+			unsigned hi32;
+#else
 			unsigned hi32;
 			int	 low32;
+#endif
 		} x32;
 		struct {
+#ifdef __LITTLE_ENDIAN__
+			short	      low16;
+			unsigned char hi48[6];
+#else
 			unsigned char hi48[6];
 			short	      low16;
+#endif
 		} x16;
 	} data;
 
@@ -764,10 +808,21 @@ int fix_alignment(struct pt_regs *regs)
 	nb = aligninfo[instr].len;
 	flags = aligninfo[instr].flags;
 
+	/* ldbrx/stdbrx overlap lfs/stfs in the DSISR unfortunately */
+	if (IS_XFORM(instruction) && ((instruction >> 1) & 0x3ff) == 532) {
+		nb = 8;
+		flags = LD+SW;
+	} else if (IS_XFORM(instruction) &&
+		   ((instruction >> 1) & 0x3ff) == 660) {
+		nb = 8;
+		flags = ST+SW;
+	}
+
 	/* Byteswap little endian loads and stores */
 	swiz = 0;
-	if (regs->msr & MSR_LE) {
+	if ((regs->msr & MSR_LE) != (MSR_KERNEL & MSR_LE)) {
 		flags ^= SW;
+#ifdef __BIG_ENDIAN__
 		/*
 		 * So-called "PowerPC little endian" mode works by
 		 * swizzling addresses rather than by actually doing
@@ -780,6 +835,7 @@ int fix_alignment(struct pt_regs *regs)
 		 */
 		if (cpu_has_feature(CPU_FTR_PPC_LE))
 			swiz = 7;
+#endif
 	}
 
 	/* DAR has the operand effective address */
@@ -804,7 +860,7 @@ int fix_alignment(struct pt_regs *regs)
 			elsize = 8;
 
 		flags = 0;
-		if (regs->msr & MSR_LE)
+		if ((regs->msr & MSR_LE) != (MSR_KERNEL & MSR_LE))
 			flags |= SW;
 		if (instruction & 0x100)
 			flags |= ST;
@@ -852,10 +908,20 @@ int fix_alignment(struct pt_regs *regs)
 		flush_fp_to_thread(current);
 	}
 
-	/* Special case for 16-byte FP loads and stores */
-	if (nb == 16) {
-		PPC_WARN_ALIGNMENT(fp_pair, regs);
-		return emulate_fp_pair(addr, reg, flags);
+	if ((nb == 16)) {
+		if (flags & F) {
+			/* Special case for 16-byte FP loads and stores */
+			PPC_WARN_ALIGNMENT(fp_pair, regs);
+			return emulate_fp_pair(addr, reg, flags);
+		} else {
+#ifdef CONFIG_PPC64
+			/* Special case for 16-byte loads and stores */
+			PPC_WARN_ALIGNMENT(lq_stq, regs);
+			return emulate_lq_stq(regs, addr, reg, flags);
+#else
+			return 0;
+#endif
+		}
 	}
 
 	PPC_WARN_ALIGNMENT(unaligned, regs);
@@ -864,32 +930,36 @@ int fix_alignment(struct pt_regs *regs)
 	 * get it from register values
 	 */
 	if (!(flags & ST)) {
+		unsigned int start = 0;
+
+		switch (nb) {
+		case 4:
+			start = offsetof(union data, x32.low32);
+			break;
+		case 2:
+			start = offsetof(union data, x16.low16);
+			break;
+		}
+
 		data.ll = 0;
 		ret = 0;
-		p = (unsigned long) addr;
-		switch (nb) {
-		case 8:
-			ret |= __get_user_inatomic(data.v[0], SWIZ_PTR(p++));
-			ret |= __get_user_inatomic(data.v[1], SWIZ_PTR(p++));
-			ret |= __get_user_inatomic(data.v[2], SWIZ_PTR(p++));
-			ret |= __get_user_inatomic(data.v[3], SWIZ_PTR(p++));
-		case 4:
-			ret |= __get_user_inatomic(data.v[4], SWIZ_PTR(p++));
-			ret |= __get_user_inatomic(data.v[5], SWIZ_PTR(p++));
-		case 2:
-			ret |= __get_user_inatomic(data.v[6], SWIZ_PTR(p++));
-			ret |= __get_user_inatomic(data.v[7], SWIZ_PTR(p++));
-			if (unlikely(ret))
-				return -EFAULT;
-		}
+		p = (unsigned long)addr;
+
+		for (i = 0; i < nb; i++)
+			ret |= __get_user_inatomic(data.v[start + i],
+						   SWIZ_PTR(p++));
+
+		if (unlikely(ret))
+			return -EFAULT;
+
 	} else if (flags & F) {
-		data.dd = current->thread.TS_FPR(reg);
+		data.ll = current->thread.TS_FPR(reg);
 		if (flags & S) {
 			/* Single-precision FP store requires conversion... */
 #ifdef CONFIG_PPC_FPU
 			preempt_disable();
 			enable_kernel_fp();
-			cvt_df(&data.dd, (float *)&data.v[4]);
+			cvt_df(&data.dd, (float *)&data.x32.low32);
 			preempt_enable();
 #else
 			return 0;
@@ -901,17 +971,13 @@ int fix_alignment(struct pt_regs *regs)
 	if (flags & SW) {
 		switch (nb) {
 		case 8:
-			SWAP(data.v[0], data.v[7]);
-			SWAP(data.v[1], data.v[6]);
-			SWAP(data.v[2], data.v[5]);
-			SWAP(data.v[3], data.v[4]);
+			data.ll = swab64(data.ll);
 			break;
 		case 4:
-			SWAP(data.v[4], data.v[7]);
-			SWAP(data.v[5], data.v[6]);
+			data.x32.low32 = swab32(data.x32.low32);
 			break;
 		case 2:
-			SWAP(data.v[6], data.v[7]);
+			data.x16.low16 = swab16(data.x16.low16);
 			break;
 		}
 	}
@@ -933,7 +999,7 @@ int fix_alignment(struct pt_regs *regs)
 #ifdef CONFIG_PPC_FPU
 		preempt_disable();
 		enable_kernel_fp();
-		cvt_fd((float *)&data.v[4], &data.dd);
+		cvt_fd((float *)&data.x32.low32, &data.dd);
 		preempt_enable();
 #else
 		return 0;
@@ -943,25 +1009,28 @@ int fix_alignment(struct pt_regs *regs)
 
 	/* Store result to memory or update registers */
 	if (flags & ST) {
-		ret = 0;
-		p = (unsigned long) addr;
+		unsigned int start = 0;
+
 		switch (nb) {
-		case 8:
-			ret |= __put_user_inatomic(data.v[0], SWIZ_PTR(p++));
-			ret |= __put_user_inatomic(data.v[1], SWIZ_PTR(p++));
-			ret |= __put_user_inatomic(data.v[2], SWIZ_PTR(p++));
-			ret |= __put_user_inatomic(data.v[3], SWIZ_PTR(p++));
 		case 4:
-			ret |= __put_user_inatomic(data.v[4], SWIZ_PTR(p++));
-			ret |= __put_user_inatomic(data.v[5], SWIZ_PTR(p++));
+			start = offsetof(union data, x32.low32);
+			break;
 		case 2:
-			ret |= __put_user_inatomic(data.v[6], SWIZ_PTR(p++));
-			ret |= __put_user_inatomic(data.v[7], SWIZ_PTR(p++));
+			start = offsetof(union data, x16.low16);
+			break;
 		}
+
+		ret = 0;
+		p = (unsigned long)addr;
+
+		for (i = 0; i < nb; i++)
+			ret |= __put_user_inatomic(data.v[start + i],
+						   SWIZ_PTR(p++));
+
 		if (unlikely(ret))
 			return -EFAULT;
 	} else if (flags & F)
-		current->thread.TS_FPR(reg) = data.dd;
+		current->thread.TS_FPR(reg) = data.ll;
 	else
 		regs->gpr[reg] = data.ll;
 

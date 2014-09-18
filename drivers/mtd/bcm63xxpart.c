@@ -4,7 +4,7 @@
  * Copyright © 2006-2008  Florian Fainelli <florian@openwrt.org>
  *			  Mike Albon <malbon@openwrt.org>
  * Copyright © 2009-2010  Daniel Dickinson <openwrt@cshore.neomailbox.net>
- * Copyright © 2011 Jonas Gorski <jonas.gorski@gmail.com>
+ * Copyright © 2011-2013  Jonas Gorski <jonas.gorski@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,18 +27,19 @@
 #include <linux/crc32.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
+#include <asm/mach-bcm63xx/bcm63xx_nvram.h>
 #include <asm/mach-bcm63xx/bcm963xx_tag.h>
 #include <asm/mach-bcm63xx/board_bcm963xx.h>
 
 #define BCM63XX_EXTENDED_SIZE	0xBFC00000	/* Extended flash address */
 
-#define BCM63XX_MIN_CFE_SIZE	0x10000		/* always at least 64KiB */
-#define BCM63XX_MIN_NVRAM_SIZE	0x10000		/* always at least 64KiB */
+#define BCM63XX_CFE_BLOCK_SIZE	SZ_64K		/* always at least 64KiB */
 
 #define BCM63XX_CFE_MAGIC_OFFSET 0x4e0
 
@@ -79,15 +80,20 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	unsigned int rootfsaddr, kerneladdr, spareaddr;
 	unsigned int rootfslen, kernellen, sparelen, totallen;
 	unsigned int cfelen, nvramlen;
-	int namelen = 0;
+	unsigned int cfe_erasesize;
 	int i;
 	u32 computed_crc;
+	bool rootfs_first = false;
 
 	if (bcm63xx_detect_cfe(master))
 		return -EINVAL;
 
-	cfelen = max_t(uint32_t, master->erasesize, BCM63XX_MIN_CFE_SIZE);
-	nvramlen = max_t(uint32_t, master->erasesize, BCM63XX_MIN_NVRAM_SIZE);
+	cfe_erasesize = max_t(uint32_t, master->erasesize,
+			      BCM63XX_CFE_BLOCK_SIZE);
+
+	cfelen = cfe_erasesize;
+	nvramlen = bcm63xx_nvram_get_psi_size() * SZ_1K;
+	nvramlen = roundup(nvramlen, cfe_erasesize);
 
 	/* Allocate memory for buffer */
 	buf = vmalloc(sizeof(struct bcm_tag));
@@ -109,6 +115,7 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 		char *boardid = &(buf->board_id[0]);
 		char *tagversion = &(buf->tag_version[0]);
 
+		sscanf(buf->flash_image_start, "%u", &rootfsaddr);
 		sscanf(buf->kernel_address, "%u", &kerneladdr);
 		sscanf(buf->kernel_length, "%u", &kernellen);
 		sscanf(buf->total_length, "%u", &totallen);
@@ -117,10 +124,18 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 			tagversion, boardid);
 
 		kerneladdr = kerneladdr - BCM63XX_EXTENDED_SIZE;
-		rootfsaddr = kerneladdr + kernellen;
+		rootfsaddr = rootfsaddr - BCM63XX_EXTENDED_SIZE;
 		spareaddr = roundup(totallen, master->erasesize) + cfelen;
-		sparelen = master->size - spareaddr - nvramlen;
-		rootfslen = spareaddr - rootfsaddr;
+
+		if (rootfsaddr < kerneladdr) {
+			/* default Broadcom layout */
+			rootfslen = kerneladdr - rootfsaddr;
+			rootfs_first = true;
+		} else {
+			/* OpenWrt layout */
+			rootfsaddr = kerneladdr + kernellen;
+			rootfslen = spareaddr - rootfsaddr;
+		}
 	} else {
 		pr_warn("CFE boot tag CRC invalid (expected %08x, actual %08x)\n",
 			buf->header_crc, computed_crc);
@@ -128,19 +143,15 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 		rootfslen = 0;
 		rootfsaddr = 0;
 		spareaddr = cfelen;
-		sparelen = master->size - cfelen - nvramlen;
 	}
+	sparelen = master->size - spareaddr - nvramlen;
 
 	/* Determine number of partitions */
-	namelen = 8;
-	if (rootfslen > 0) {
+	if (rootfslen > 0)
 		nrparts++;
-		namelen += 6;
-	}
-	if (kernellen > 0) {
+
+	if (kernellen > 0)
 		nrparts++;
-		namelen += 6;
-	}
 
 	/* Ask kernel for more memory */
 	parts = kzalloc(sizeof(*parts) * nrparts + 10 * nrparts, GFP_KERNEL);
@@ -156,35 +167,42 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	curpart++;
 
 	if (kernellen > 0) {
-		parts[curpart].name = "kernel";
-		parts[curpart].offset = kerneladdr;
-		parts[curpart].size = kernellen;
+		int kernelpart = curpart;
+
+		if (rootfslen > 0 && rootfs_first)
+			kernelpart++;
+		parts[kernelpart].name = "kernel";
+		parts[kernelpart].offset = kerneladdr;
+		parts[kernelpart].size = kernellen;
 		curpart++;
 	}
 
 	if (rootfslen > 0) {
-		parts[curpart].name = "rootfs";
-		parts[curpart].offset = rootfsaddr;
-		parts[curpart].size = rootfslen;
-		if (sparelen > 0)
-			parts[curpart].size += sparelen;
+		int rootfspart = curpart;
+
+		if (kernellen > 0 && rootfs_first)
+			rootfspart--;
+		parts[rootfspart].name = "rootfs";
+		parts[rootfspart].offset = rootfsaddr;
+		parts[rootfspart].size = rootfslen;
+		if (sparelen > 0  && !rootfs_first)
+			parts[rootfspart].size += sparelen;
 		curpart++;
 	}
 
 	parts[curpart].name = "nvram";
 	parts[curpart].offset = master->size - nvramlen;
 	parts[curpart].size = nvramlen;
+	curpart++;
 
 	/* Global partition "linux" to make easy firmware upgrade */
-	curpart++;
 	parts[curpart].name = "linux";
 	parts[curpart].offset = cfelen;
 	parts[curpart].size = master->size - cfelen - nvramlen;
 
 	for (i = 0; i < nrparts; i++)
-		pr_info("Partition %d is %s offset %lx and length %lx\n", i,
-			parts[i].name, (long unsigned int)(parts[i].offset),
-			(long unsigned int)(parts[i].size));
+		pr_info("Partition %d is %s offset %llx and length %llx\n", i,
+			parts[i].name, parts[i].offset,	parts[i].size);
 
 	pr_info("Spare partition is offset %x and length %x\n",	spareaddr,
 		sparelen);
@@ -203,7 +221,8 @@ static struct mtd_part_parser bcm63xx_cfe_parser = {
 
 static int __init bcm63xx_cfe_parser_init(void)
 {
-	return register_mtd_parser(&bcm63xx_cfe_parser);
+	register_mtd_parser(&bcm63xx_cfe_parser);
+	return 0;
 }
 
 static void __exit bcm63xx_cfe_parser_exit(void)

@@ -40,7 +40,11 @@
 	.global sh7372_resume_core_standby_sysc
 sh7372_resume_core_standby_sysc:
 	ldr     pc, 1f
-1:	.long   cpu_resume - PAGE_OFFSET + PLAT_PHYS_OFFSET
+
+	.align	2
+	.globl	sh7372_cpu_resume
+sh7372_cpu_resume:
+1:	.space	4
 
 #define SPDCR 0xe6180008
 
@@ -59,16 +63,18 @@ sh7372_do_idle_sysc:
 	mcr	p15, 0, r0, c1, c0, 0
 	isb
 
+	/*
+	 * Clean and invalidate data cache again.
+	 */
+	ldr	r1, kernel_flush
+	blx	r1
+
 	/* disable L2 cache in the aux control register */
 	mrc     p15, 0, r10, c1, c0, 1
 	bic     r10, r10, #2
 	mcr     p15, 0, r10, c1, c0, 1
+	isb
 
-	/*
-	 * Invalidate data cache again.
-	 */
-	ldr	r1, kernel_flush
-	blx	r1
 	/*
 	 * The kernel doesn't interwork: v7_flush_dcache_all in particluar will
 	 * always return in Thumb state when CONFIG_THUMB2_KERNEL is enabled.
@@ -91,6 +97,7 @@ sh7372_do_idle_sysc:
 1:
 	b      1b
 
+	.align	2
 kernel_flush:
 	.word v7_flush_dcache_all
 #endif

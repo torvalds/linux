@@ -30,7 +30,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -43,12 +42,6 @@
 
 #define CYBERJACK_LOCAL_BUF_SIZE 32
 
-static bool debug;
-
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.01"
 #define DRIVER_AUTHOR "Matthias Bruestle"
 #define DRIVER_DESC "REINER SCT cyberJack pinpad/e-com USB Chipcard Reader Driver"
 
@@ -57,9 +50,8 @@ static bool debug;
 #define CYBERJACK_PRODUCT_ID	0x0100
 
 /* Function prototypes */
-static int cyberjack_startup(struct usb_serial *serial);
-static void cyberjack_disconnect(struct usb_serial *serial);
-static void cyberjack_release(struct usb_serial *serial);
+static int cyberjack_port_probe(struct usb_serial_port *port);
+static int cyberjack_port_remove(struct usb_serial_port *port);
 static int  cyberjack_open(struct tty_struct *tty,
 	struct usb_serial_port *port);
 static void cyberjack_close(struct usb_serial_port *port);
@@ -77,13 +69,6 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver cyberjack_driver = {
-	.name =		"cyberjack",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
-};
-
 static struct usb_serial_driver cyberjack_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -92,9 +77,8 @@ static struct usb_serial_driver cyberjack_device = {
 	.description =		"Reiner SCT Cyberjack USB card reader",
 	.id_table =		id_table,
 	.num_ports =		1,
-	.attach =		cyberjack_startup,
-	.disconnect =		cyberjack_disconnect,
-	.release =		cyberjack_release,
+	.port_probe =		cyberjack_port_probe,
+	.port_remove =		cyberjack_port_remove,
 	.open =			cyberjack_open,
 	.close =		cyberjack_close,
 	.write =		cyberjack_write,
@@ -116,61 +100,39 @@ struct cyberjack_private {
 	short		wrsent;		/* Data already sent */
 };
 
-/* do some startup allocations not currently performed by usb_serial_probe() */
-static int cyberjack_startup(struct usb_serial *serial)
+static int cyberjack_port_probe(struct usb_serial_port *port)
 {
 	struct cyberjack_private *priv;
-	int i;
+	int result;
 
-	dbg("%s", __func__);
-
-	/* allocate the private data structure */
 	priv = kmalloc(sizeof(struct cyberjack_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	/* set initial values */
 	spin_lock_init(&priv->lock);
 	priv->rdtodo = 0;
 	priv->wrfilled = 0;
 	priv->wrsent = 0;
-	usb_set_serial_port_data(serial->port[0], priv);
 
-	init_waitqueue_head(&serial->port[0]->write_wait);
+	usb_set_serial_port_data(port, priv);
 
-	for (i = 0; i < serial->num_ports; ++i) {
-		int result;
-		result = usb_submit_urb(serial->port[i]->interrupt_in_urb,
-					GFP_KERNEL);
-		if (result)
-			dev_err(&serial->dev->dev,
-				"usb_submit_urb(read int) failed\n");
-		dbg("%s - usb_submit_urb(int urb)", __func__);
-	}
+	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
+	if (result)
+		dev_err(&port->dev, "usb_submit_urb(read int) failed\n");
 
 	return 0;
 }
 
-static void cyberjack_disconnect(struct usb_serial *serial)
+static int cyberjack_port_remove(struct usb_serial_port *port)
 {
-	int i;
+	struct cyberjack_private *priv;
 
-	dbg("%s", __func__);
+	usb_kill_urb(port->interrupt_in_urb);
 
-	for (i = 0; i < serial->num_ports; ++i)
-		usb_kill_urb(serial->port[i]->interrupt_in_urb);
-}
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
 
-static void cyberjack_release(struct usb_serial *serial)
-{
-	int i;
-
-	dbg("%s", __func__);
-
-	for (i = 0; i < serial->num_ports; ++i) {
-		/* My special items, the standard routines free my urbs */
-		kfree(usb_get_serial_port_data(serial->port[i]));
-	}
+	return 0;
 }
 
 static int  cyberjack_open(struct tty_struct *tty,
@@ -180,9 +142,7 @@ static int  cyberjack_open(struct tty_struct *tty,
 	unsigned long flags;
 	int result = 0;
 
-	dbg("%s - port %d", __func__, port->number);
-
-	dbg("%s - usb_clear_halt", __func__);
+	dev_dbg(&port->dev, "%s - usb_clear_halt\n", __func__);
 	usb_clear_halt(port->serial->dev, port->write_urb->pipe);
 
 	priv = usb_get_serial_port_data(port);
@@ -197,32 +157,26 @@ static int  cyberjack_open(struct tty_struct *tty,
 
 static void cyberjack_close(struct usb_serial_port *port)
 {
-	dbg("%s - port %d", __func__, port->number);
-
-	if (port->serial->dev) {
-		/* shutdown any bulk reads that might be going on */
-		usb_kill_urb(port->write_urb);
-		usb_kill_urb(port->read_urb);
-	}
+	usb_kill_urb(port->write_urb);
+	usb_kill_urb(port->read_urb);
 }
 
 static int cyberjack_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
+	struct device *dev = &port->dev;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	int result;
 	int wrexpected;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	if (count == 0) {
-		dbg("%s - write request of 0 bytes", __func__);
+		dev_dbg(dev, "%s - write request of 0 bytes\n", __func__);
 		return 0;
 	}
 
 	if (!test_and_clear_bit(0, &port->write_urbs_free)) {
-		dbg("%s - already writing", __func__);
+		dev_dbg(dev, "%s - already writing\n", __func__);
 		return 0;
 	}
 
@@ -239,13 +193,12 @@ static int cyberjack_write(struct tty_struct *tty,
 	/* Copy data */
 	memcpy(priv->wrbuf + priv->wrfilled, buf, count);
 
-	usb_serial_debug_data(debug, &port->dev, __func__, count,
-		priv->wrbuf + priv->wrfilled);
+	usb_serial_debug_data(dev, __func__, count, priv->wrbuf + priv->wrfilled);
 	priv->wrfilled += count;
 
 	if (priv->wrfilled >= 3) {
 		wrexpected = ((int)priv->wrbuf[2]<<8)+priv->wrbuf[1]+3;
-		dbg("%s - expected data: %d", __func__, wrexpected);
+		dev_dbg(dev, "%s - expected data: %d\n", __func__, wrexpected);
 	} else
 		wrexpected = sizeof(priv->wrbuf);
 
@@ -253,7 +206,7 @@ static int cyberjack_write(struct tty_struct *tty,
 		/* We have enough data to begin transmission */
 		int length;
 
-		dbg("%s - transmitting data (frame 1)", __func__);
+		dev_dbg(dev, "%s - transmitting data (frame 1)\n", __func__);
 		length = (wrexpected > port->bulk_out_size) ?
 					port->bulk_out_size : wrexpected;
 
@@ -267,7 +220,7 @@ static int cyberjack_write(struct tty_struct *tty,
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result) {
 			dev_err(&port->dev,
-				"%s - failed submitting write urb, error %d",
+				"%s - failed submitting write urb, error %d\n",
 				__func__, result);
 			/* Throw away data. No better idea what to do with it. */
 			priv->wrfilled = 0;
@@ -277,11 +230,11 @@ static int cyberjack_write(struct tty_struct *tty,
 			return 0;
 		}
 
-		dbg("%s - priv->wrsent=%d", __func__, priv->wrsent);
-		dbg("%s - priv->wrfilled=%d", __func__, priv->wrfilled);
+		dev_dbg(dev, "%s - priv->wrsent=%d\n", __func__, priv->wrsent);
+		dev_dbg(dev, "%s - priv->wrfilled=%d\n", __func__, priv->wrfilled);
 
 		if (priv->wrsent >= priv->wrfilled) {
-			dbg("%s - buffer cleaned", __func__);
+			dev_dbg(dev, "%s - buffer cleaned\n", __func__);
 			memset(priv->wrbuf, 0, sizeof(priv->wrbuf));
 			priv->wrfilled = 0;
 			priv->wrsent = 0;
@@ -303,18 +256,16 @@ static void cyberjack_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
+	struct device *dev = &port->dev;
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
 	int result;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	/* the urb might have been killed. */
 	if (status)
 		return;
 
-	usb_serial_debug_data(debug, &port->dev, __func__,
-						urb->actual_length, data);
+	usb_serial_debug_data(dev, __func__, urb->actual_length, data);
 
 	/* React only to interrupts signaling a bulk_in transfer */
 	if (urb->actual_length == 4 && data[0] == 0x01) {
@@ -327,26 +278,25 @@ static void cyberjack_read_int_callback(struct urb *urb)
 
 		old_rdtodo = priv->rdtodo;
 
-		if (old_rdtodo + size < old_rdtodo) {
-			dbg("To many bulk_in urbs to do.");
+		if (old_rdtodo > SHRT_MAX - size) {
+			dev_dbg(dev, "To many bulk_in urbs to do.\n");
 			spin_unlock(&priv->lock);
 			goto resubmit;
 		}
 
-		/* "+=" is probably more fault tollerant than "=" */
+		/* "+=" is probably more fault tolerant than "=" */
 		priv->rdtodo += size;
 
-		dbg("%s - rdtodo: %d", __func__, priv->rdtodo);
+		dev_dbg(dev, "%s - rdtodo: %d\n", __func__, priv->rdtodo);
 
 		spin_unlock(&priv->lock);
 
 		if (!old_rdtodo) {
 			result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 			if (result)
-				dev_err(&port->dev, "%s - failed resubmitting "
-					"read urb, error %d\n",
+				dev_err(dev, "%s - failed resubmitting read urb, error %d\n",
 					__func__, result);
-			dbg("%s - usb_submit_urb(read urb)", __func__);
+			dev_dbg(dev, "%s - usb_submit_urb(read urb)\n", __func__);
 		}
 	}
 
@@ -354,39 +304,30 @@ resubmit:
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 	if (result)
 		dev_err(&port->dev, "usb_submit_urb(read int) failed\n");
-	dbg("%s - usb_submit_urb(int urb)", __func__);
+	dev_dbg(dev, "%s - usb_submit_urb(int urb)\n", __func__);
 }
 
 static void cyberjack_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
+	struct device *dev = &port->dev;
 	unsigned char *data = urb->transfer_buffer;
 	short todo;
 	int result;
 	int status = urb->status;
 
-	dbg("%s - port %d", __func__, port->number);
-
-	usb_serial_debug_data(debug, &port->dev, __func__,
-						urb->actual_length, data);
+	usb_serial_debug_data(dev, __func__, urb->actual_length, data);
 	if (status) {
-		dbg("%s - nonzero read bulk status received: %d",
-		    __func__, status);
+		dev_dbg(dev, "%s - nonzero read bulk status received: %d\n",
+			__func__, status);
 		return;
 	}
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty) {
-		dbg("%s - ignoring since device not open", __func__);
-		return;
-	}
 	if (urb->actual_length) {
-		tty_insert_flip_string(tty, data, urb->actual_length);
-		tty_flip_buffer_push(tty);
+		tty_insert_flip_string(&port->port, data, urb->actual_length);
+		tty_flip_buffer_push(&port->port);
 	}
-	tty_kref_put(tty);
 
 	spin_lock(&priv->lock);
 
@@ -399,15 +340,15 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 
 	spin_unlock(&priv->lock);
 
-	dbg("%s - rdtodo: %d", __func__, todo);
+	dev_dbg(dev, "%s - rdtodo: %d\n", __func__, todo);
 
 	/* Continue to read if we have still urbs to do. */
 	if (todo /* || (urb->actual_length==port->bulk_in_endpointAddress)*/) {
 		result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (result)
-			dev_err(&port->dev, "%s - failed resubmitting read "
-				"urb, error %d\n", __func__, result);
-		dbg("%s - usb_submit_urb(read urb)", __func__);
+			dev_err(dev, "%s - failed resubmitting read urb, error %d\n",
+				__func__, result);
+		dev_dbg(dev, "%s - usb_submit_urb(read urb)\n", __func__);
 	}
 }
 
@@ -415,14 +356,13 @@ static void cyberjack_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
+	struct device *dev = &port->dev;
 	int status = urb->status;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	set_bit(0, &port->write_urbs_free);
 	if (status) {
-		dbg("%s - nonzero write bulk status received: %d",
-		    __func__, status);
+		dev_dbg(dev, "%s - nonzero write bulk status received: %d\n",
+			__func__, status);
 		return;
 	}
 
@@ -432,7 +372,7 @@ static void cyberjack_write_bulk_callback(struct urb *urb)
 	if (priv->wrfilled) {
 		int length, blksize, result;
 
-		dbg("%s - transmitting data (frame n)", __func__);
+		dev_dbg(dev, "%s - transmitting data (frame n)\n", __func__);
 
 		length = ((priv->wrfilled - priv->wrsent) > port->bulk_out_size) ?
 			port->bulk_out_size : (priv->wrfilled - priv->wrsent);
@@ -447,8 +387,7 @@ static void cyberjack_write_bulk_callback(struct urb *urb)
 		/* send the data out the bulk port */
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result) {
-			dev_err(&port->dev,
-				"%s - failed submitting write urb, error %d\n",
+			dev_err(dev, "%s - failed submitting write urb, error %d\n",
 				__func__, result);
 			/* Throw away data. No better idea what to do with it. */
 			priv->wrfilled = 0;
@@ -456,14 +395,14 @@ static void cyberjack_write_bulk_callback(struct urb *urb)
 			goto exit;
 		}
 
-		dbg("%s - priv->wrsent=%d", __func__, priv->wrsent);
-		dbg("%s - priv->wrfilled=%d", __func__, priv->wrfilled);
+		dev_dbg(dev, "%s - priv->wrsent=%d\n", __func__, priv->wrsent);
+		dev_dbg(dev, "%s - priv->wrfilled=%d\n", __func__, priv->wrfilled);
 
 		blksize = ((int)priv->wrbuf[2]<<8)+priv->wrbuf[1]+3;
 
 		if (priv->wrsent >= priv->wrfilled ||
 					priv->wrsent >= blksize) {
-			dbg("%s - buffer cleaned", __func__);
+			dev_dbg(dev, "%s - buffer cleaned\n", __func__);
 			memset(priv->wrbuf, 0, sizeof(priv->wrbuf));
 			priv->wrfilled = 0;
 			priv->wrsent = 0;
@@ -475,12 +414,8 @@ exit:
 	usb_serial_port_softint(port);
 }
 
-module_usb_serial_driver(cyberjack_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

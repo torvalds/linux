@@ -68,9 +68,6 @@ static void usb_hcd_tdi_set_mode(struct ehci_hcd *ehci)
 
 	/* set TWI GPIO USB_HOST_DEV pin high */
 	gpio_direction_output(MSP_PIN_USB0_HOST_DEV, 1);
-#ifdef CONFIG_MSP_HAS_DUAL_USB
-	gpio_direction_output(MSP_PIN_USB1_HOST_DEV, 1);
-#endif
 }
 
 /* called during probe() after chip reset completes */
@@ -78,32 +75,18 @@ static int ehci_msp_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	int			retval;
+
 	ehci->big_endian_mmio = 1;
 	ehci->big_endian_desc = 1;
 
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-	dbg_hcs_params(ehci, "reset");
-	dbg_hcc_params(ehci, "reset");
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 	hcd->has_tt = 1;
 
-	retval = ehci_halt(ehci);
-	if (retval)
-		return retval;
-
-	ehci_reset(ehci);
-
-	/* data structure init */
-	retval = ehci_init(hcd);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
 
 	usb_hcd_tdi_set_mode(ehci);
-	ehci_port_power(ehci, 0);
 
 	return retval;
 }
@@ -224,8 +207,10 @@ int usb_hcd_msp_probe(const struct hc_driver *driver,
 
 
 	retval = usb_add_hcd(hcd, res->start, IRQF_SHARED);
-	if (retval == 0)
+	if (retval == 0) {
+		device_wakeup_enable(hcd->self.controller);
 		return 0;
+	}
 
 	usb_remove_hcd(hcd);
 err3:
@@ -260,33 +245,6 @@ void usb_hcd_msp_remove(struct usb_hcd *hcd, struct platform_device *dev)
 	usb_put_hcd(hcd);
 }
 
-#ifdef CONFIG_MSP_HAS_DUAL_USB
-/*
- * Wrapper around the main ehci_irq.  Since both USB host controllers are
- * sharing the same IRQ, need to first determine whether we're the intended
- * recipient of this interrupt.
- */
-static irqreturn_t ehci_msp_irq(struct usb_hcd *hcd)
-{
-	u32 int_src;
-	struct device *dev = hcd->self.controller;
-	struct platform_device *pdev;
-	struct mspusb_device *mdev;
-	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
-	/* need to reverse-map a couple of containers to get our device */
-	pdev = to_platform_device(dev);
-	mdev = to_mspusb_device(pdev);
-
-	/* Check to see if this interrupt is for this host controller */
-	int_src = ehci_readl(ehci, &mdev->mab_regs->int_stat);
-	if (int_src & (1 << pdev->id))
-		return ehci_irq(hcd);
-
-	/* Not for this device */
-	return IRQ_NONE;
-}
-#endif /* DUAL_USB */
-
 static const struct hc_driver ehci_msp_hc_driver = {
 	.description =		hcd_name,
 	.product_desc =		"PMC MSP EHCI",
@@ -295,18 +253,13 @@ static const struct hc_driver ehci_msp_hc_driver = {
 	/*
 	 * generic hardware linkage
 	 */
-#ifdef CONFIG_MSP_HAS_DUAL_USB
-	.irq =			ehci_msp_irq,
-#else
 	.irq =			ehci_irq,
-#endif
-	.flags =		HCD_MEMORY | HCD_USB2,
+	.flags =		HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset =		ehci_msp_setup,
-	.start =		ehci_run,
+	.reset			= ehci_msp_setup,
 	.shutdown		= ehci_shutdown,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
@@ -347,9 +300,6 @@ static int ehci_hcd_msp_drv_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	gpio_request(MSP_PIN_USB0_HOST_DEV, "USB0_HOST_DEV_GPIO");
-#ifdef CONFIG_MSP_HAS_DUAL_USB
-	gpio_request(MSP_PIN_USB1_HOST_DEV, "USB1_HOST_DEV_GPIO");
-#endif
 
 	ret = usb_hcd_msp_probe(&ehci_msp_hc_driver, pdev);
 
@@ -364,9 +314,6 @@ static int ehci_hcd_msp_drv_remove(struct platform_device *pdev)
 
 	/* free TWI GPIO USB_HOST_DEV pin */
 	gpio_free(MSP_PIN_USB0_HOST_DEV);
-#ifdef CONFIG_MSP_HAS_DUAL_USB
-	gpio_free(MSP_PIN_USB1_HOST_DEV);
-#endif
 
 	return 0;
 }

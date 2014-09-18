@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/timer.h>
 #include <linux/io.h>
 #include <linux/mmc/host.h>
@@ -33,23 +34,22 @@
 #include <asm/mach-types.h>
 
 #include <mach/fb.h>
-#include <mach/leds-gpio.h>
+#include <linux/platform_data/leds-s3c24xx.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
+#include <mach/gpio-samsung.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include <plat/iic.h>
-#include <plat/regs-serial.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 
-#include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/mci.h>
-#include <plat/s3c2410.h>
-#include <plat/udc.h>
+#include <linux/platform_data/mmc-s3cmci.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 
@@ -534,8 +534,14 @@ static void __init n30_map_io(void)
 {
 	s3c24xx_init_io(n30_iodesc, ARRAY_SIZE(n30_iodesc));
 	n30_hwinit();
-	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(n30_uartcfgs, ARRAY_SIZE(n30_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init n30_init_time(void)
+{
+	s3c2410_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 /* GPB3 is the line that controls the pull-up for the USB D+ line */
@@ -589,9 +595,9 @@ MACHINE_START(N30, "Acer-N30")
 				Ben Dooks <ben-linux@fluff.org>
 	*/
 	.atag_offset	= 0x100,
-	.timer		= &s3c24xx_timer,
+	.init_time	= n30_init_time,
 	.init_machine	= n30_init,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.map_io		= n30_map_io,
 	.restart	= s3c2410_restart,
 MACHINE_END
@@ -600,9 +606,9 @@ MACHINE_START(N35, "Acer-N35")
 	/* Maintainer: Christer Weinigel <christer@weinigel.se>
 	*/
 	.atag_offset	= 0x100,
-	.timer		= &s3c24xx_timer,
+	.init_time	= n30_init_time,
 	.init_machine	= n30_init,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.map_io		= n30_map_io,
 	.restart	= s3c2410_restart,
 MACHINE_END

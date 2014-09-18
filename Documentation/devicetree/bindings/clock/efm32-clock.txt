@@ -1,0 +1,11 @@
+* Clock bindings for Energy Micro efm32 Giant Gecko's Clock Management Unit
+
+Required properties:
+- compatible: Should be "efm32gg,cmu"
+- reg: Base address and length of the register set
+- interrupts: Interrupt used by the CMU
+- #clock-cells: Should be <1>
+
+The clock consumer should specify the desired clock by having the clock ID in
+its "clocks" phandle cell. The header efm32-clk.h contains a list of available
+IDs.

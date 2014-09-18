@@ -10,117 +10,18 @@
  * Free Software Foundation.
  */
 
-#include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/mutex.h>
-#include <linux/interrupt.h>
-#include <linux/spi/spi.h>
-#include <linux/mfd/core.h>
-#include <linux/mfd/mc13xxx.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
+#include <linux/platform_device.h>
+#include <linux/mfd/core.h>
 
-struct mc13xxx {
-	struct spi_device *spidev;
-	struct mutex lock;
-	int irq;
-	int flags;
-
-	irq_handler_t irqhandler[MC13XXX_NUM_IRQ];
-	void *irqdata[MC13XXX_NUM_IRQ];
-
-	int adcflags;
-};
+#include "mc13xxx.h"
 
 #define MC13XXX_IRQSTAT0	0
-#define MC13XXX_IRQSTAT0_ADCDONEI	(1 << 0)
-#define MC13XXX_IRQSTAT0_ADCBISDONEI	(1 << 1)
-#define MC13XXX_IRQSTAT0_TSI		(1 << 2)
-#define MC13783_IRQSTAT0_WHIGHI		(1 << 3)
-#define MC13783_IRQSTAT0_WLOWI		(1 << 4)
-#define MC13XXX_IRQSTAT0_CHGDETI	(1 << 6)
-#define MC13783_IRQSTAT0_CHGOVI		(1 << 7)
-#define MC13XXX_IRQSTAT0_CHGREVI	(1 << 8)
-#define MC13XXX_IRQSTAT0_CHGSHORTI	(1 << 9)
-#define MC13XXX_IRQSTAT0_CCCVI		(1 << 10)
-#define MC13XXX_IRQSTAT0_CHGCURRI	(1 << 11)
-#define MC13XXX_IRQSTAT0_BPONI		(1 << 12)
-#define MC13XXX_IRQSTAT0_LOBATLI	(1 << 13)
-#define MC13XXX_IRQSTAT0_LOBATHI	(1 << 14)
-#define MC13783_IRQSTAT0_UDPI		(1 << 15)
-#define MC13783_IRQSTAT0_USBI		(1 << 16)
-#define MC13783_IRQSTAT0_IDI		(1 << 19)
-#define MC13783_IRQSTAT0_SE1I		(1 << 21)
-#define MC13783_IRQSTAT0_CKDETI		(1 << 22)
-#define MC13783_IRQSTAT0_UDMI		(1 << 23)
-
 #define MC13XXX_IRQMASK0	1
-#define MC13XXX_IRQMASK0_ADCDONEM	MC13XXX_IRQSTAT0_ADCDONEI
-#define MC13XXX_IRQMASK0_ADCBISDONEM	MC13XXX_IRQSTAT0_ADCBISDONEI
-#define MC13XXX_IRQMASK0_TSM		MC13XXX_IRQSTAT0_TSI
-#define MC13783_IRQMASK0_WHIGHM		MC13783_IRQSTAT0_WHIGHI
-#define MC13783_IRQMASK0_WLOWM		MC13783_IRQSTAT0_WLOWI
-#define MC13XXX_IRQMASK0_CHGDETM	MC13XXX_IRQSTAT0_CHGDETI
-#define MC13783_IRQMASK0_CHGOVM		MC13783_IRQSTAT0_CHGOVI
-#define MC13XXX_IRQMASK0_CHGREVM	MC13XXX_IRQSTAT0_CHGREVI
-#define MC13XXX_IRQMASK0_CHGSHORTM	MC13XXX_IRQSTAT0_CHGSHORTI
-#define MC13XXX_IRQMASK0_CCCVM		MC13XXX_IRQSTAT0_CCCVI
-#define MC13XXX_IRQMASK0_CHGCURRM	MC13XXX_IRQSTAT0_CHGCURRI
-#define MC13XXX_IRQMASK0_BPONM		MC13XXX_IRQSTAT0_BPONI
-#define MC13XXX_IRQMASK0_LOBATLM	MC13XXX_IRQSTAT0_LOBATLI
-#define MC13XXX_IRQMASK0_LOBATHM	MC13XXX_IRQSTAT0_LOBATHI
-#define MC13783_IRQMASK0_UDPM		MC13783_IRQSTAT0_UDPI
-#define MC13783_IRQMASK0_USBM		MC13783_IRQSTAT0_USBI
-#define MC13783_IRQMASK0_IDM		MC13783_IRQSTAT0_IDI
-#define MC13783_IRQMASK0_SE1M		MC13783_IRQSTAT0_SE1I
-#define MC13783_IRQMASK0_CKDETM		MC13783_IRQSTAT0_CKDETI
-#define MC13783_IRQMASK0_UDMM		MC13783_IRQSTAT0_UDMI
-
 #define MC13XXX_IRQSTAT1	3
-#define MC13XXX_IRQSTAT1_1HZI		(1 << 0)
-#define MC13XXX_IRQSTAT1_TODAI		(1 << 1)
-#define MC13783_IRQSTAT1_ONOFD1I	(1 << 3)
-#define MC13783_IRQSTAT1_ONOFD2I	(1 << 4)
-#define MC13783_IRQSTAT1_ONOFD3I	(1 << 5)
-#define MC13XXX_IRQSTAT1_SYSRSTI	(1 << 6)
-#define MC13XXX_IRQSTAT1_RTCRSTI	(1 << 7)
-#define MC13XXX_IRQSTAT1_PCI		(1 << 8)
-#define MC13XXX_IRQSTAT1_WARMI		(1 << 9)
-#define MC13XXX_IRQSTAT1_MEMHLDI	(1 << 10)
-#define MC13783_IRQSTAT1_PWRRDYI	(1 << 11)
-#define MC13XXX_IRQSTAT1_THWARNLI	(1 << 12)
-#define MC13XXX_IRQSTAT1_THWARNHI	(1 << 13)
-#define MC13XXX_IRQSTAT1_CLKI		(1 << 14)
-#define MC13783_IRQSTAT1_SEMAFI		(1 << 15)
-#define MC13783_IRQSTAT1_MC2BI		(1 << 17)
-#define MC13783_IRQSTAT1_HSDETI		(1 << 18)
-#define MC13783_IRQSTAT1_HSLI		(1 << 19)
-#define MC13783_IRQSTAT1_ALSPTHI	(1 << 20)
-#define MC13783_IRQSTAT1_AHSSHORTI	(1 << 21)
-
 #define MC13XXX_IRQMASK1	4
-#define MC13XXX_IRQMASK1_1HZM		MC13XXX_IRQSTAT1_1HZI
-#define MC13XXX_IRQMASK1_TODAM		MC13XXX_IRQSTAT1_TODAI
-#define MC13783_IRQMASK1_ONOFD1M	MC13783_IRQSTAT1_ONOFD1I
-#define MC13783_IRQMASK1_ONOFD2M	MC13783_IRQSTAT1_ONOFD2I
-#define MC13783_IRQMASK1_ONOFD3M	MC13783_IRQSTAT1_ONOFD3I
-#define MC13XXX_IRQMASK1_SYSRSTM	MC13XXX_IRQSTAT1_SYSRSTI
-#define MC13XXX_IRQMASK1_RTCRSTM	MC13XXX_IRQSTAT1_RTCRSTI
-#define MC13XXX_IRQMASK1_PCM		MC13XXX_IRQSTAT1_PCI
-#define MC13XXX_IRQMASK1_WARMM		MC13XXX_IRQSTAT1_WARMI
-#define MC13XXX_IRQMASK1_MEMHLDM	MC13XXX_IRQSTAT1_MEMHLDI
-#define MC13783_IRQMASK1_PWRRDYM	MC13783_IRQSTAT1_PWRRDYI
-#define MC13XXX_IRQMASK1_THWARNLM	MC13XXX_IRQSTAT1_THWARNLI
-#define MC13XXX_IRQMASK1_THWARNHM	MC13XXX_IRQSTAT1_THWARNHI
-#define MC13XXX_IRQMASK1_CLKM		MC13XXX_IRQSTAT1_CLKI
-#define MC13783_IRQMASK1_SEMAFM		MC13783_IRQSTAT1_SEMAFI
-#define MC13783_IRQMASK1_MC2BM		MC13783_IRQSTAT1_MC2BI
-#define MC13783_IRQMASK1_HSDETM		MC13783_IRQSTAT1_HSDETI
-#define MC13783_IRQMASK1_HSLM		MC13783_IRQSTAT1_HSLI
-#define MC13783_IRQMASK1_ALSPTHM	MC13783_IRQSTAT1_ALSPTHI
-#define MC13783_IRQMASK1_AHSSHORTM	MC13783_IRQSTAT1_AHSSHORTI
 
 #define MC13XXX_REVISION	7
 #define MC13XXX_REVISION_REVMETAL	(0x07 <<  0)
@@ -129,6 +30,11 @@ struct mc13xxx {
 #define MC13XXX_REVISION_FIN		(0x03 <<  9)
 #define MC13XXX_REVISION_FAB		(0x03 << 11)
 #define MC13XXX_REVISION_ICIDCODE	(0x3f << 13)
+
+#define MC34708_REVISION_REVMETAL	(0x07 <<  0)
+#define MC34708_REVISION_REVFULL	(0x07 <<  3)
+#define MC34708_REVISION_FIN		(0x07 <<  6)
+#define MC34708_REVISION_FAB		(0x07 <<  9)
 
 #define MC13XXX_ADC1		44
 #define MC13XXX_ADC1_ADEN		(1 << 0)
@@ -139,163 +45,77 @@ struct mc13xxx {
 
 #define MC13XXX_ADC2		45
 
-#define MC13XXX_NUMREGS 0x3f
-
 void mc13xxx_lock(struct mc13xxx *mc13xxx)
 {
 	if (!mutex_trylock(&mc13xxx->lock)) {
-		dev_dbg(&mc13xxx->spidev->dev, "wait for %s from %pf\n",
+		dev_dbg(mc13xxx->dev, "wait for %s from %pf\n",
 				__func__, __builtin_return_address(0));
 
 		mutex_lock(&mc13xxx->lock);
 	}
-	dev_dbg(&mc13xxx->spidev->dev, "%s from %pf\n",
+	dev_dbg(mc13xxx->dev, "%s from %pf\n",
 			__func__, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(mc13xxx_lock);
 
 void mc13xxx_unlock(struct mc13xxx *mc13xxx)
 {
-	dev_dbg(&mc13xxx->spidev->dev, "%s from %pf\n",
+	dev_dbg(mc13xxx->dev, "%s from %pf\n",
 			__func__, __builtin_return_address(0));
 	mutex_unlock(&mc13xxx->lock);
 }
 EXPORT_SYMBOL(mc13xxx_unlock);
 
-#define MC13XXX_REGOFFSET_SHIFT 25
 int mc13xxx_reg_read(struct mc13xxx *mc13xxx, unsigned int offset, u32 *val)
 {
-	struct spi_transfer t;
-	struct spi_message m;
 	int ret;
 
-	BUG_ON(!mutex_is_locked(&mc13xxx->lock));
+	ret = regmap_read(mc13xxx->regmap, offset, val);
+	dev_vdbg(mc13xxx->dev, "[0x%02x] -> 0x%06x\n", offset, *val);
 
-	if (offset > MC13XXX_NUMREGS)
-		return -EINVAL;
-
-	*val = offset << MC13XXX_REGOFFSET_SHIFT;
-
-	memset(&t, 0, sizeof(t));
-
-	t.tx_buf = val;
-	t.rx_buf = val;
-	t.len = sizeof(u32);
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-
-	ret = spi_sync(mc13xxx->spidev, &m);
-
-	/* error in message.status implies error return from spi_sync */
-	BUG_ON(!ret && m.status);
-
-	if (ret)
-		return ret;
-
-	*val &= 0xffffff;
-
-	dev_vdbg(&mc13xxx->spidev->dev, "[0x%02x] -> 0x%06x\n", offset, *val);
-
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(mc13xxx_reg_read);
 
 int mc13xxx_reg_write(struct mc13xxx *mc13xxx, unsigned int offset, u32 val)
 {
-	u32 buf;
-	struct spi_transfer t;
-	struct spi_message m;
-	int ret;
+	dev_vdbg(mc13xxx->dev, "[0x%02x] <- 0x%06x\n", offset, val);
 
-	BUG_ON(!mutex_is_locked(&mc13xxx->lock));
-
-	dev_vdbg(&mc13xxx->spidev->dev, "[0x%02x] <- 0x%06x\n", offset, val);
-
-	if (offset > MC13XXX_NUMREGS || val > 0xffffff)
+	if (val >= BIT(24))
 		return -EINVAL;
 
-	buf = 1 << 31 | offset << MC13XXX_REGOFFSET_SHIFT | val;
-
-	memset(&t, 0, sizeof(t));
-
-	t.tx_buf = &buf;
-	t.rx_buf = &buf;
-	t.len = sizeof(u32);
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-
-	ret = spi_sync(mc13xxx->spidev, &m);
-
-	BUG_ON(!ret && m.status);
-
-	if (ret)
-		return ret;
-
-	return 0;
+	return regmap_write(mc13xxx->regmap, offset, val);
 }
 EXPORT_SYMBOL(mc13xxx_reg_write);
 
 int mc13xxx_reg_rmw(struct mc13xxx *mc13xxx, unsigned int offset,
 		u32 mask, u32 val)
 {
-	int ret;
-	u32 valread;
-
 	BUG_ON(val & ~mask);
+	dev_vdbg(mc13xxx->dev, "[0x%02x] <- 0x%06x (mask: 0x%06x)\n",
+			offset, val, mask);
 
-	ret = mc13xxx_reg_read(mc13xxx, offset, &valread);
-	if (ret)
-		return ret;
-
-	valread = (valread & ~mask) | val;
-
-	return mc13xxx_reg_write(mc13xxx, offset, valread);
+	return regmap_update_bits(mc13xxx->regmap, offset, mask, val);
 }
 EXPORT_SYMBOL(mc13xxx_reg_rmw);
 
 int mc13xxx_irq_mask(struct mc13xxx *mc13xxx, int irq)
 {
-	int ret;
-	unsigned int offmask = irq < 24 ? MC13XXX_IRQMASK0 : MC13XXX_IRQMASK1;
-	u32 irqbit = 1 << (irq < 24 ? irq : irq - 24);
-	u32 mask;
+	int virq = regmap_irq_get_virq(mc13xxx->irq_data, irq);
 
-	if (irq < 0 || irq >= MC13XXX_NUM_IRQ)
-		return -EINVAL;
+	disable_irq_nosync(virq);
 
-	ret = mc13xxx_reg_read(mc13xxx, offmask, &mask);
-	if (ret)
-		return ret;
-
-	if (mask & irqbit)
-		/* already masked */
-		return 0;
-
-	return mc13xxx_reg_write(mc13xxx, offmask, mask | irqbit);
+	return 0;
 }
 EXPORT_SYMBOL(mc13xxx_irq_mask);
 
 int mc13xxx_irq_unmask(struct mc13xxx *mc13xxx, int irq)
 {
-	int ret;
-	unsigned int offmask = irq < 24 ? MC13XXX_IRQMASK0 : MC13XXX_IRQMASK1;
-	u32 irqbit = 1 << (irq < 24 ? irq : irq - 24);
-	u32 mask;
+	int virq = regmap_irq_get_virq(mc13xxx->irq_data, irq);
 
-	if (irq < 0 || irq >= MC13XXX_NUM_IRQ)
-		return -EINVAL;
+	enable_irq(virq);
 
-	ret = mc13xxx_reg_read(mc13xxx, offmask, &mask);
-	if (ret)
-		return ret;
-
-	if (!(mask & irqbit))
-		/* already unmasked */
-		return 0;
-
-	return mc13xxx_reg_write(mc13xxx, offmask, mask & ~irqbit);
+	return 0;
 }
 EXPORT_SYMBOL(mc13xxx_irq_unmask);
 
@@ -307,7 +127,7 @@ int mc13xxx_irq_status(struct mc13xxx *mc13xxx, int irq,
 	unsigned int offstat = irq < 24 ? MC13XXX_IRQSTAT0 : MC13XXX_IRQSTAT1;
 	u32 irqbit = 1 << (irq < 24 ? irq : irq - 24);
 
-	if (irq < 0 || irq >= MC13XXX_NUM_IRQ)
+	if (irq < 0 || irq >= ARRAY_SIZE(mc13xxx->irqs))
 		return -EINVAL;
 
 	if (enabled) {
@@ -334,222 +154,72 @@ int mc13xxx_irq_status(struct mc13xxx *mc13xxx, int irq,
 }
 EXPORT_SYMBOL(mc13xxx_irq_status);
 
-int mc13xxx_irq_ack(struct mc13xxx *mc13xxx, int irq)
-{
-	unsigned int offstat = irq < 24 ? MC13XXX_IRQSTAT0 : MC13XXX_IRQSTAT1;
-	unsigned int val = 1 << (irq < 24 ? irq : irq - 24);
-
-	BUG_ON(irq < 0 || irq >= MC13XXX_NUM_IRQ);
-
-	return mc13xxx_reg_write(mc13xxx, offstat, val);
-}
-EXPORT_SYMBOL(mc13xxx_irq_ack);
-
-int mc13xxx_irq_request_nounmask(struct mc13xxx *mc13xxx, int irq,
-		irq_handler_t handler, const char *name, void *dev)
-{
-	BUG_ON(!mutex_is_locked(&mc13xxx->lock));
-	BUG_ON(!handler);
-
-	if (irq < 0 || irq >= MC13XXX_NUM_IRQ)
-		return -EINVAL;
-
-	if (mc13xxx->irqhandler[irq])
-		return -EBUSY;
-
-	mc13xxx->irqhandler[irq] = handler;
-	mc13xxx->irqdata[irq] = dev;
-
-	return 0;
-}
-EXPORT_SYMBOL(mc13xxx_irq_request_nounmask);
-
 int mc13xxx_irq_request(struct mc13xxx *mc13xxx, int irq,
 		irq_handler_t handler, const char *name, void *dev)
 {
-	int ret;
+	int virq = regmap_irq_get_virq(mc13xxx->irq_data, irq);
 
-	ret = mc13xxx_irq_request_nounmask(mc13xxx, irq, handler, name, dev);
-	if (ret)
-		return ret;
-
-	ret = mc13xxx_irq_unmask(mc13xxx, irq);
-	if (ret) {
-		mc13xxx->irqhandler[irq] = NULL;
-		mc13xxx->irqdata[irq] = NULL;
-		return ret;
-	}
-
-	return 0;
+	return devm_request_threaded_irq(mc13xxx->dev, virq, NULL, handler,
+					 0, name, dev);
 }
 EXPORT_SYMBOL(mc13xxx_irq_request);
 
 int mc13xxx_irq_free(struct mc13xxx *mc13xxx, int irq, void *dev)
 {
-	int ret;
-	BUG_ON(!mutex_is_locked(&mc13xxx->lock));
+	int virq = regmap_irq_get_virq(mc13xxx->irq_data, irq);
 
-	if (irq < 0 || irq >= MC13XXX_NUM_IRQ || !mc13xxx->irqhandler[irq] ||
-			mc13xxx->irqdata[irq] != dev)
-		return -EINVAL;
-
-	ret = mc13xxx_irq_mask(mc13xxx, irq);
-	if (ret)
-		return ret;
-
-	mc13xxx->irqhandler[irq] = NULL;
-	mc13xxx->irqdata[irq] = NULL;
+	devm_free_irq(mc13xxx->dev, virq, dev);
 
 	return 0;
 }
 EXPORT_SYMBOL(mc13xxx_irq_free);
 
-static inline irqreturn_t mc13xxx_irqhandler(struct mc13xxx *mc13xxx, int irq)
-{
-	return mc13xxx->irqhandler[irq](irq, mc13xxx->irqdata[irq]);
-}
-
-/*
- * returns: number of handled irqs or negative error
- * locking: holds mc13xxx->lock
- */
-static int mc13xxx_irq_handle(struct mc13xxx *mc13xxx,
-		unsigned int offstat, unsigned int offmask, int baseirq)
-{
-	u32 stat, mask;
-	int ret = mc13xxx_reg_read(mc13xxx, offstat, &stat);
-	int num_handled = 0;
-
-	if (ret)
-		return ret;
-
-	ret = mc13xxx_reg_read(mc13xxx, offmask, &mask);
-	if (ret)
-		return ret;
-
-	while (stat & ~mask) {
-		int irq = __ffs(stat & ~mask);
-
-		stat &= ~(1 << irq);
-
-		if (likely(mc13xxx->irqhandler[baseirq + irq])) {
-			irqreturn_t handled;
-
-			handled = mc13xxx_irqhandler(mc13xxx, baseirq + irq);
-			if (handled == IRQ_HANDLED)
-				num_handled++;
-		} else {
-			dev_err(&mc13xxx->spidev->dev,
-					"BUG: irq %u but no handler\n",
-					baseirq + irq);
-
-			mask |= 1 << irq;
-
-			ret = mc13xxx_reg_write(mc13xxx, offmask, mask);
-		}
-	}
-
-	return num_handled;
-}
-
-static irqreturn_t mc13xxx_irq_thread(int irq, void *data)
-{
-	struct mc13xxx *mc13xxx = data;
-	irqreturn_t ret;
-	int handled = 0;
-
-	mc13xxx_lock(mc13xxx);
-
-	ret = mc13xxx_irq_handle(mc13xxx, MC13XXX_IRQSTAT0,
-			MC13XXX_IRQMASK0, 0);
-	if (ret > 0)
-		handled = 1;
-
-	ret = mc13xxx_irq_handle(mc13xxx, MC13XXX_IRQSTAT1,
-			MC13XXX_IRQMASK1, 24);
-	if (ret > 0)
-		handled = 1;
-
-	mc13xxx_unlock(mc13xxx);
-
-	return IRQ_RETVAL(handled);
-}
-
-enum mc13xxx_id {
-	MC13XXX_ID_MC13783,
-	MC13XXX_ID_MC13892,
-	MC13XXX_ID_INVALID,
-};
-
-static const char *mc13xxx_chipname[] = {
-	[MC13XXX_ID_MC13783] = "mc13783",
-	[MC13XXX_ID_MC13892] = "mc13892",
-};
-
 #define maskval(reg, mask)	(((reg) & (mask)) >> __ffs(mask))
-static int mc13xxx_identify(struct mc13xxx *mc13xxx, enum mc13xxx_id *id)
+static void mc13xxx_print_revision(struct mc13xxx *mc13xxx, u32 revision)
 {
-	u32 icid;
-	u32 revision;
-	const char *name;
-	int ret;
-
-	ret = mc13xxx_reg_read(mc13xxx, 46, &icid);
-	if (ret)
-		return ret;
-
-	icid = (icid >> 6) & 0x7;
-
-	switch (icid) {
-	case 2:
-		*id = MC13XXX_ID_MC13783;
-		name = "mc13783";
-		break;
-	case 7:
-		*id = MC13XXX_ID_MC13892;
-		name = "mc13892";
-		break;
-	default:
-		*id = MC13XXX_ID_INVALID;
-		break;
-	}
-
-	if (*id == MC13XXX_ID_MC13783 || *id == MC13XXX_ID_MC13892) {
-		ret = mc13xxx_reg_read(mc13xxx, MC13XXX_REVISION, &revision);
-		if (ret)
-			return ret;
-
-		dev_info(&mc13xxx->spidev->dev, "%s: rev: %d.%d, "
-				"fin: %d, fab: %d, icid: %d/%d\n",
-				mc13xxx_chipname[*id],
-				maskval(revision, MC13XXX_REVISION_REVFULL),
-				maskval(revision, MC13XXX_REVISION_REVMETAL),
-				maskval(revision, MC13XXX_REVISION_FIN),
-				maskval(revision, MC13XXX_REVISION_FAB),
-				maskval(revision, MC13XXX_REVISION_ICID),
-				maskval(revision, MC13XXX_REVISION_ICIDCODE));
-	}
-
-	if (*id != MC13XXX_ID_INVALID) {
-		const struct spi_device_id *devid =
-			spi_get_device_id(mc13xxx->spidev);
-		if (!devid || devid->driver_data != *id)
-			dev_warn(&mc13xxx->spidev->dev, "device id doesn't "
-					"match auto detection!\n");
-	}
-
-	return 0;
+	dev_info(mc13xxx->dev, "%s: rev: %d.%d, "
+			"fin: %d, fab: %d, icid: %d/%d\n",
+			mc13xxx->variant->name,
+			maskval(revision, MC13XXX_REVISION_REVFULL),
+			maskval(revision, MC13XXX_REVISION_REVMETAL),
+			maskval(revision, MC13XXX_REVISION_FIN),
+			maskval(revision, MC13XXX_REVISION_FAB),
+			maskval(revision, MC13XXX_REVISION_ICID),
+			maskval(revision, MC13XXX_REVISION_ICIDCODE));
 }
+
+static void mc34708_print_revision(struct mc13xxx *mc13xxx, u32 revision)
+{
+	dev_info(mc13xxx->dev, "%s: rev %d.%d, fin: %d, fab: %d\n",
+			mc13xxx->variant->name,
+			maskval(revision, MC34708_REVISION_REVFULL),
+			maskval(revision, MC34708_REVISION_REVMETAL),
+			maskval(revision, MC34708_REVISION_FIN),
+			maskval(revision, MC34708_REVISION_FAB));
+}
+
+/* These are only exported for mc13xxx-i2c and mc13xxx-spi */
+struct mc13xxx_variant mc13xxx_variant_mc13783 = {
+	.name = "mc13783",
+	.print_revision = mc13xxx_print_revision,
+};
+EXPORT_SYMBOL_GPL(mc13xxx_variant_mc13783);
+
+struct mc13xxx_variant mc13xxx_variant_mc13892 = {
+	.name = "mc13892",
+	.print_revision = mc13xxx_print_revision,
+};
+EXPORT_SYMBOL_GPL(mc13xxx_variant_mc13892);
+
+struct mc13xxx_variant mc13xxx_variant_mc34708 = {
+	.name = "mc34708",
+	.print_revision = mc34708_print_revision,
+};
+EXPORT_SYMBOL_GPL(mc13xxx_variant_mc34708);
 
 static const char *mc13xxx_get_chipname(struct mc13xxx *mc13xxx)
 {
-	const struct spi_device_id *devid =
-		spi_get_device_id(mc13xxx->spidev);
-
-	if (!devid)
-		return NULL;
-
-	return mc13xxx_chipname[devid->driver_data];
+	return mc13xxx->variant->name;
 }
 
 int mc13xxx_get_flags(struct mc13xxx *mc13xxx)
@@ -572,8 +242,6 @@ static irqreturn_t mc13xxx_handler_adcdone(int irq, void *data)
 {
 	struct mc13xxx_adcdone_data *adcdone_data = data;
 
-	mc13xxx_irq_ack(adcdone_data->mc13xxx, irq);
-
 	complete_all(&adcdone_data->done);
 
 	return IRQ_HANDLED;
@@ -592,7 +260,7 @@ int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx, unsigned int mode,
 	};
 	init_completion(&adcdone_data.done);
 
-	dev_dbg(&mc13xxx->spidev->dev, "%s\n", __func__);
+	dev_dbg(mc13xxx->dev, "%s\n", __func__);
 
 	mc13xxx_lock(mc13xxx);
 
@@ -637,10 +305,10 @@ int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx, unsigned int mode,
 	adc1 |= ato << MC13783_ADC1_ATO_SHIFT;
 	if (atox)
 		adc1 |= MC13783_ADC1_ATOX;
-	dev_dbg(&mc13xxx->spidev->dev, "%s: request irq\n", __func__);
+
+	dev_dbg(mc13xxx->dev, "%s: request irq\n", __func__);
 	mc13xxx_irq_request(mc13xxx, MC13XXX_IRQ_ADCDONE,
 			mc13xxx_handler_adcdone, __func__, &adcdone_data);
-	mc13xxx_irq_ack(mc13xxx, MC13XXX_IRQ_ADCDONE);
 
 	mc13xxx_reg_write(mc13xxx, MC13XXX_ADC0, adc0);
 	mc13xxx_reg_write(mc13xxx, MC13XXX_ADC1, adc1);
@@ -695,7 +363,8 @@ static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
 	if (!cell.name)
 		return -ENOMEM;
 
-	return mfd_add_devices(&mc13xxx->spidev->dev, -1, &cell, 1, NULL, 0);
+	return mfd_add_devices(mc13xxx->dev, -1, &cell, 1, NULL, 0,
+			       regmap_irq_get_domain(mc13xxx->irq_data));
 }
 
 static int mc13xxx_add_subdevice(struct mc13xxx *mc13xxx, const char *format)
@@ -706,7 +375,7 @@ static int mc13xxx_add_subdevice(struct mc13xxx *mc13xxx, const char *format)
 #ifdef CONFIG_OF
 static int mc13xxx_probe_flags_dt(struct mc13xxx *mc13xxx)
 {
-	struct device_node *np = mc13xxx->spidev->dev.of_node;
+	struct device_node *np = mc13xxx->dev->of_node;
 
 	if (!np)
 		return -ENODEV;
@@ -732,95 +401,46 @@ static inline int mc13xxx_probe_flags_dt(struct mc13xxx *mc13xxx)
 }
 #endif
 
-static const struct spi_device_id mc13xxx_device_id[] = {
-	{
-		.name = "mc13783",
-		.driver_data = MC13XXX_ID_MC13783,
-	}, {
-		.name = "mc13892",
-		.driver_data = MC13XXX_ID_MC13892,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(spi, mc13xxx_device_id);
-
-static const struct of_device_id mc13xxx_dt_ids[] = {
-	{ .compatible = "fsl,mc13783", .data = (void *) MC13XXX_ID_MC13783, },
-	{ .compatible = "fsl,mc13892", .data = (void *) MC13XXX_ID_MC13892, },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, mc13xxx_dt_ids);
-
-static int mc13xxx_probe(struct spi_device *spi)
+int mc13xxx_common_init(struct device *dev)
 {
-	const struct of_device_id *of_id;
-	struct spi_driver *sdrv = to_spi_driver(spi->dev.driver);
-	struct mc13xxx *mc13xxx;
-	struct mc13xxx_platform_data *pdata = dev_get_platdata(&spi->dev);
-	enum mc13xxx_id id;
-	int ret;
+	struct mc13xxx_platform_data *pdata = dev_get_platdata(dev);
+	struct mc13xxx *mc13xxx = dev_get_drvdata(dev);
+	u32 revision;
+	int i, ret;
 
-	of_id = of_match_device(mc13xxx_dt_ids, &spi->dev);
-	if (of_id)
-		sdrv->id_table = &mc13xxx_device_id[(enum mc13xxx_id) of_id->data];
+	mc13xxx->dev = dev;
 
-	mc13xxx = kzalloc(sizeof(*mc13xxx), GFP_KERNEL);
-	if (!mc13xxx)
-		return -ENOMEM;
+	ret = mc13xxx_reg_read(mc13xxx, MC13XXX_REVISION, &revision);
+	if (ret)
+		return ret;
 
-	dev_set_drvdata(&spi->dev, mc13xxx);
-	spi->mode = SPI_MODE_0 | SPI_CS_HIGH;
-	spi->bits_per_word = 32;
-	spi_setup(spi);
+	mc13xxx->variant->print_revision(mc13xxx, revision);
 
-	mc13xxx->spidev = spi;
+	for (i = 0; i < ARRAY_SIZE(mc13xxx->irqs); i++) {
+		mc13xxx->irqs[i].reg_offset = i / MC13XXX_IRQ_PER_REG;
+		mc13xxx->irqs[i].mask = BIT(i % MC13XXX_IRQ_PER_REG);
+	}
+
+	mc13xxx->irq_chip.name = dev_name(dev);
+	mc13xxx->irq_chip.status_base = MC13XXX_IRQSTAT0;
+	mc13xxx->irq_chip.mask_base = MC13XXX_IRQMASK0;
+	mc13xxx->irq_chip.ack_base = MC13XXX_IRQSTAT0;
+	mc13xxx->irq_chip.irq_reg_stride = MC13XXX_IRQSTAT1 - MC13XXX_IRQSTAT0;
+	mc13xxx->irq_chip.init_ack_masked = true;
+	mc13xxx->irq_chip.use_ack = true;
+	mc13xxx->irq_chip.num_regs = MC13XXX_IRQ_REG_CNT;
+	mc13xxx->irq_chip.irqs = mc13xxx->irqs;
+	mc13xxx->irq_chip.num_irqs = ARRAY_SIZE(mc13xxx->irqs);
+
+	ret = regmap_add_irq_chip(mc13xxx->regmap, mc13xxx->irq, IRQF_ONESHOT,
+				  0, &mc13xxx->irq_chip, &mc13xxx->irq_data);
+	if (ret)
+		return ret;
 
 	mutex_init(&mc13xxx->lock);
-	mc13xxx_lock(mc13xxx);
-
-	ret = mc13xxx_identify(mc13xxx, &id);
-	if (ret || id == MC13XXX_ID_INVALID)
-		goto err_revision;
-
-	/* mask all irqs */
-	ret = mc13xxx_reg_write(mc13xxx, MC13XXX_IRQMASK0, 0x00ffffff);
-	if (ret)
-		goto err_mask;
-
-	ret = mc13xxx_reg_write(mc13xxx, MC13XXX_IRQMASK1, 0x00ffffff);
-	if (ret)
-		goto err_mask;
-
-	ret = request_threaded_irq(spi->irq, NULL, mc13xxx_irq_thread,
-			IRQF_ONESHOT | IRQF_TRIGGER_HIGH, "mc13xxx", mc13xxx);
-
-	if (ret) {
-err_mask:
-err_revision:
-		mc13xxx_unlock(mc13xxx);
-		dev_set_drvdata(&spi->dev, NULL);
-		kfree(mc13xxx);
-		return ret;
-	}
-
-	mc13xxx_unlock(mc13xxx);
 
 	if (mc13xxx_probe_flags_dt(mc13xxx) < 0 && pdata)
 		mc13xxx->flags = pdata->flags;
-
-	if (mc13xxx->flags & MC13XXX_USE_ADC)
-		mc13xxx_add_subdevice(mc13xxx, "%s-adc");
-
-	if (mc13xxx->flags & MC13XXX_USE_CODEC)
-		mc13xxx_add_subdevice(mc13xxx, "%s-codec");
-
-	if (mc13xxx->flags & MC13XXX_USE_RTC)
-		mc13xxx_add_subdevice(mc13xxx, "%s-rtc");
-
-	if (mc13xxx->flags & MC13XXX_USE_TOUCHSCREEN)
-		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-ts",
-				&pdata->touch, sizeof(pdata->touch));
 
 	if (pdata) {
 		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-regulator",
@@ -829,50 +449,43 @@ err_revision:
 				pdata->leds, sizeof(*pdata->leds));
 		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-pwrbutton",
 				pdata->buttons, sizeof(*pdata->buttons));
+		if (mc13xxx->flags & MC13XXX_USE_CODEC)
+			mc13xxx_add_subdevice_pdata(mc13xxx, "%s-codec",
+				pdata->codec, sizeof(*pdata->codec));
+		if (mc13xxx->flags & MC13XXX_USE_TOUCHSCREEN)
+			mc13xxx_add_subdevice_pdata(mc13xxx, "%s-ts",
+				&pdata->touch, sizeof(pdata->touch));
 	} else {
 		mc13xxx_add_subdevice(mc13xxx, "%s-regulator");
 		mc13xxx_add_subdevice(mc13xxx, "%s-led");
 		mc13xxx_add_subdevice(mc13xxx, "%s-pwrbutton");
+		if (mc13xxx->flags & MC13XXX_USE_CODEC)
+			mc13xxx_add_subdevice(mc13xxx, "%s-codec");
+		if (mc13xxx->flags & MC13XXX_USE_TOUCHSCREEN)
+			mc13xxx_add_subdevice(mc13xxx, "%s-ts");
 	}
 
-	return 0;
-}
+	if (mc13xxx->flags & MC13XXX_USE_ADC)
+		mc13xxx_add_subdevice(mc13xxx, "%s-adc");
 
-static int __devexit mc13xxx_remove(struct spi_device *spi)
-{
-	struct mc13xxx *mc13xxx = dev_get_drvdata(&spi->dev);
-
-	free_irq(mc13xxx->spidev->irq, mc13xxx);
-
-	mfd_remove_devices(&spi->dev);
-
-	kfree(mc13xxx);
+	if (mc13xxx->flags & MC13XXX_USE_RTC)
+		mc13xxx_add_subdevice(mc13xxx, "%s-rtc");
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mc13xxx_common_init);
 
-static struct spi_driver mc13xxx_driver = {
-	.id_table = mc13xxx_device_id,
-	.driver = {
-		.name = "mc13xxx",
-		.owner = THIS_MODULE,
-		.of_match_table = mc13xxx_dt_ids,
-	},
-	.probe = mc13xxx_probe,
-	.remove = __devexit_p(mc13xxx_remove),
-};
-
-static int __init mc13xxx_init(void)
+int mc13xxx_common_exit(struct device *dev)
 {
-	return spi_register_driver(&mc13xxx_driver);
-}
-subsys_initcall(mc13xxx_init);
+	struct mc13xxx *mc13xxx = dev_get_drvdata(dev);
 
-static void __exit mc13xxx_exit(void)
-{
-	spi_unregister_driver(&mc13xxx_driver);
+	mfd_remove_devices(dev);
+	regmap_del_irq_chip(mc13xxx->irq, mc13xxx->irq_data);
+	mutex_destroy(&mc13xxx->lock);
+
+	return 0;
 }
-module_exit(mc13xxx_exit);
+EXPORT_SYMBOL_GPL(mc13xxx_common_exit);
 
 MODULE_DESCRIPTION("Core driver for Freescale MC13XXX PMIC");
 MODULE_AUTHOR("Uwe Kleine-Koenig <u.kleine-koenig@pengutronix.de>");

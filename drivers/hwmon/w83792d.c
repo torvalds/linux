@@ -2,7 +2,7 @@
  * w83792d.c - Part of lm_sensors, Linux kernel modules for hardware
  *	       monitoring
  * Copyright (C) 2004, 2005 Winbond Electronics Corp.
- *			    Chunhao Huang <DZShen@Winbond.com.tw>,
+ *			    Shane Huang,
  *			    Rudolf Marek <r.marek@assembler.cz>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -31,7 +31,7 @@
 /*
  * Supports following chips:
  *
- * Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
+ * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
  * w83792d	9	7	7	3	0x7a	0x5ca3	yes	no
  */
 
@@ -44,6 +44,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
+#include <linux/jiffies.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
@@ -53,8 +54,8 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
-MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
-			"{bus, clientaddr, subclientaddr1, subclientaddr2}");
+MODULE_PARM_DESC(force_subclients,
+		 "List of subclient addresses: {bus, clientaddr, subclientaddr1, subclientaddr2}");
 
 static bool init;
 module_param(init, bool, 0);
@@ -234,8 +235,8 @@ FAN_TO_REG(long rpm, int div)
 {
 	if (rpm == 0)
 		return 255;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
+	rpm = clamp_val(rpm, 1, 1000000);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 #define FAN_FROM_REG(val, div)	((val) == 0   ? -1 : \
@@ -243,16 +244,15 @@ FAN_TO_REG(long rpm, int div)
 						1350000 / ((val) * (div))))
 
 /* for temp1 */
-#define TEMP1_TO_REG(val)	(SENSORS_LIMIT(((val) < 0 ? (val)+0x100*1000 \
-					: (val)) / 1000, 0, 0xff))
+#define TEMP1_TO_REG(val)	(clamp_val(((val) < 0 ? (val) + 0x100 * 1000 \
+						      : (val)) / 1000, 0, 0xff))
 #define TEMP1_FROM_REG(val)	(((val) & 0x80 ? (val)-0x100 : (val)) * 1000)
 /* for temp2 and temp3, because they need additional resolution */
 #define TEMP_ADD_FROM_REG(val1, val2) \
 	((((val1) & 0x80 ? (val1)-0x100 \
 		: (val1)) * 1000) + ((val2 & 0x80) ? 500 : 0))
 #define TEMP_ADD_TO_REG_HIGH(val) \
-	(SENSORS_LIMIT(((val) < 0 ? (val)+0x100*1000 \
-			: (val)) / 1000, 0, 0xff))
+	(clamp_val(((val) < 0 ? (val) + 0x100 * 1000 : (val)) / 1000, 0, 0xff))
 #define TEMP_ADD_TO_REG_LOW(val)	((val%1000) ? 0x80 : 0x00)
 
 #define DIV_FROM_REG(val)		(1 << (val))
@@ -261,7 +261,7 @@ static inline u8
 DIV_TO_REG(long val)
 {
 	int i;
-	val = SENSORS_LIMIT(val, 1, 128) >> 1;
+	val = clamp_val(val, 1, 128) >> 1;
 	for (i = 0; i < 7; i++) {
 		if (val == 0)
 			break;
@@ -296,7 +296,6 @@ struct w83792d_data {
 	u8 pwmenable[3];
 	u32 alarms;		/* realtime status register encoding,combined */
 	u8 chassis;		/* Chassis status */
-	u8 chassis_clear;	/* CLR_CHS, clear chassis intrusion detection */
 	u8 thermal_cruise[3];	/* Smart FanI: Fan1,2,3 target value */
 	u8 tolerance[3];	/* Fan1,2,3 tolerance(Smart Fan I/II) */
 	u8 sf2_points[3][4];	/* Smart FanII: Fan1,2,3 temperature points */
@@ -397,7 +396,7 @@ static ssize_t store_in_##reg(struct device *dev, \
 	if (err) \
 		return err; \
 	mutex_lock(&data->update_lock); \
-	data->in_##reg[nr] = SENSORS_LIMIT(IN_TO_REG(nr, val) / 4, 0, 255); \
+	data->in_##reg[nr] = clamp_val(IN_TO_REG(nr, val) / 4, 0, 255); \
 	w83792d_write_value(client, W83792D_REG_IN_##REG[nr], \
 			    data->in_##reg[nr]); \
 	mutex_unlock(&data->update_lock); \
@@ -580,7 +579,7 @@ static ssize_t store_temp23(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-/* get reatime status of all sensors items: voltage, temp, fan */
+/* get realtime status of all sensors items: voltage, temp, fan */
 static ssize_t
 show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -645,7 +644,7 @@ store_pwm(struct device *dev, struct device_attribute *attr,
 	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
-	val = SENSORS_LIMIT(val, 0, 255) >> 4;
+	val = clamp_val(val, 0, 255) >> 4;
 
 	mutex_lock(&data->update_lock);
 	val |= w83792d_read_value(client, W83792D_REG_PWM[nr]) & 0xf0;
@@ -739,57 +738,11 @@ store_pwm_mode(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-show_chassis(struct device *dev, struct device_attribute *attr,
+show_chassis_clear(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	struct w83792d_data *data = w83792d_update_device(dev);
 	return sprintf(buf, "%d\n", data->chassis);
-}
-
-static ssize_t
-show_regs_chassis(struct device *dev, struct device_attribute *attr,
-			char *buf)
-{
-	dev_warn(dev,
-		 "Attribute %s is deprecated, use intrusion0_alarm instead\n",
-		 "chassis");
-	return show_chassis(dev, attr, buf);
-}
-
-static ssize_t
-show_chassis_clear(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct w83792d_data *data = w83792d_update_device(dev);
-	return sprintf(buf, "%d\n", data->chassis_clear);
-}
-
-static ssize_t
-store_chassis_clear_legacy(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct w83792d_data *data = i2c_get_clientdata(client);
-	unsigned long val;
-	int err;
-	u8 temp1 = 0, temp2 = 0;
-
-	dev_warn(dev,
-		 "Attribute %s is deprecated, use intrusion0_alarm instead\n",
-		 "chassis_clear");
-
-	err = kstrtoul(buf, 10, &val);
-	if (err)
-		return err;
-
-	mutex_lock(&data->update_lock);
-	data->chassis_clear = SENSORS_LIMIT(val, 0, 1);
-	temp1 = ((data->chassis_clear) << 7) & 0x80;
-	temp2 = w83792d_read_value(client,
-		W83792D_REG_CHASSIS_CLR) & 0x7f;
-	w83792d_write_value(client, W83792D_REG_CHASSIS_CLR, temp1 | temp2);
-	mutex_unlock(&data->update_lock);
-
-	return count;
 }
 
 static ssize_t
@@ -845,7 +798,7 @@ store_thermal_cruise(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	target_mask = w83792d_read_value(client,
 					 W83792D_REG_THERMAL[nr]) & 0x80;
-	data->thermal_cruise[nr] = SENSORS_LIMIT(target_tmp, 0, 255);
+	data->thermal_cruise[nr] = clamp_val(target_tmp, 0, 255);
 	w83792d_write_value(client, W83792D_REG_THERMAL[nr],
 		(data->thermal_cruise[nr]) | target_mask);
 	mutex_unlock(&data->update_lock);
@@ -883,7 +836,7 @@ store_tolerance(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	tol_mask = w83792d_read_value(client,
 		W83792D_REG_TOLERANCE[nr]) & ((nr == 1) ? 0x0f : 0xf0);
-	tol_tmp = SENSORS_LIMIT(val, 0, 15);
+	tol_tmp = clamp_val(val, 0, 15);
 	tol_tmp &= 0x0f;
 	data->tolerance[nr] = tol_tmp;
 	if (nr == 1)
@@ -927,7 +880,7 @@ store_sf2_point(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->sf2_points[index][nr] = SENSORS_LIMIT(val, 0, 127);
+	data->sf2_points[index][nr] = clamp_val(val, 0, 127);
 	mask_tmp = w83792d_read_value(client,
 					W83792D_REG_POINTS[index][nr]) & 0x80;
 	w83792d_write_value(client, W83792D_REG_POINTS[index][nr],
@@ -969,7 +922,7 @@ store_sf2_level(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->sf2_levels[index][nr] = SENSORS_LIMIT((val * 15) / 100, 0, 15);
+	data->sf2_levels[index][nr] = clamp_val((val * 15) / 100, 0, 15);
 	mask_tmp = w83792d_read_value(client, W83792D_REG_LEVELS[index][nr])
 		& ((nr == 3) ? 0xf0 : 0x0f);
 	if (nr == 3)
@@ -998,8 +951,8 @@ w83792d_detect_subclients(struct i2c_client *new_client)
 		for (i = 2; i <= 3; i++) {
 			if (force_subclients[i] < 0x48 ||
 			    force_subclients[i] > 0x4f) {
-				dev_err(&new_client->dev, "invalid subclient "
-					"address %d; must be 0x48-0x4f\n",
+				dev_err(&new_client->dev,
+					"invalid subclient address %d; must be 0x48-0x4f\n",
 					force_subclients[i]);
 				err = -ENODEV;
 				goto ERROR_SC_0;
@@ -1016,8 +969,9 @@ w83792d_detect_subclients(struct i2c_client *new_client)
 	if (!(val & 0x80)) {
 		if ((data->lm75[0] != NULL) &&
 			((val & 0x7) == ((val >> 4) & 0x7))) {
-			dev_err(&new_client->dev, "duplicate addresses 0x%x, "
-				"use force_subclient\n", data->lm75[0]->addr);
+			dev_err(&new_client->dev,
+				"duplicate addresses 0x%x, use force_subclient\n",
+				data->lm75[0]->addr);
 			err = -ENODEV;
 			goto ERROR_SC_1;
 		}
@@ -1116,11 +1070,8 @@ static SENSOR_DEVICE_ATTR(in8_alarm, S_IRUGO, show_alarm, NULL, 20);
 static SENSOR_DEVICE_ATTR(fan4_alarm, S_IRUGO, show_alarm, NULL, 21);
 static SENSOR_DEVICE_ATTR(fan5_alarm, S_IRUGO, show_alarm, NULL, 22);
 static SENSOR_DEVICE_ATTR(fan6_alarm, S_IRUGO, show_alarm, NULL, 23);
-static DEVICE_ATTR(chassis, S_IRUGO, show_regs_chassis, NULL);
-static DEVICE_ATTR(chassis_clear, S_IRUGO | S_IWUSR,
-			show_chassis_clear, store_chassis_clear_legacy);
 static DEVICE_ATTR(intrusion0_alarm, S_IRUGO | S_IWUSR,
-			show_chassis, store_chassis_clear);
+			show_chassis_clear, store_chassis_clear);
 static SENSOR_DEVICE_ATTR(pwm1, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 0);
 static SENSOR_DEVICE_ATTR(pwm2, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 1);
 static SENSOR_DEVICE_ATTR(pwm3, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 2);
@@ -1320,8 +1271,6 @@ static struct attribute *w83792d_attributes[] = {
 	&sensor_dev_attr_pwm3_mode.dev_attr.attr,
 	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
 	&dev_attr_alarms.attr,
-	&dev_attr_chassis.attr,
-	&dev_attr_chassis_clear.attr,
 	&dev_attr_intrusion0_alarm.attr,
 	&sensor_dev_attr_tolerance1.dev_attr.attr,
 	&sensor_dev_attr_thermal_cruise1.dev_attr.attr,
@@ -1422,19 +1371,16 @@ w83792d_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct device *dev = &client->dev;
 	int i, val1, err;
 
-	data = kzalloc(sizeof(struct w83792d_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto ERROR0;
-	}
+	data = devm_kzalloc(dev, sizeof(struct w83792d_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-	data->valid = 0;
 	mutex_init(&data->update_lock);
 
 	err = w83792d_detect_subclients(client);
 	if (err)
-		goto ERROR1;
+		return err;
 
 	/* Initialize the chip */
 	w83792d_init_client(client);
@@ -1448,7 +1394,7 @@ w83792d_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&dev->kobj, &w83792d_group);
 	if (err)
-		goto ERROR3;
+		goto exit_i2c_unregister;
 
 	/*
 	 * Read GPIO enable register to check if pins for fan 4,5 are used as
@@ -1493,14 +1439,11 @@ exit_remove_files:
 	sysfs_remove_group(&dev->kobj, &w83792d_group);
 	for (i = 0; i < ARRAY_SIZE(w83792d_group_fan); i++)
 		sysfs_remove_group(&dev->kobj, &w83792d_group_fan[i]);
-ERROR3:
+exit_i2c_unregister:
 	if (data->lm75[0] != NULL)
 		i2c_unregister_device(data->lm75[0]);
 	if (data->lm75[1] != NULL)
 		i2c_unregister_device(data->lm75[1]);
-ERROR1:
-	kfree(data);
-ERROR0:
 	return err;
 }
 
@@ -1521,7 +1464,6 @@ w83792d_remove(struct i2c_client *client)
 	if (data->lm75[1] != NULL)
 		i2c_unregister_device(data->lm75[1]);
 
-	kfree(data);
 	return 0;
 }
 
@@ -1633,8 +1575,6 @@ static struct w83792d_data *w83792d_update_device(struct device *dev)
 		/* Update CaseOpen status and it's CLR_CHS. */
 		data->chassis = (w83792d_read_value(client,
 			W83792D_REG_CHASSIS) >> 5) & 0x01;
-		data->chassis_clear = (w83792d_read_value(client,
-			W83792D_REG_CHASSIS_CLR) >> 7) & 0x01;
 
 		/* Update Thermal Cruise/Smart Fan I target value */
 		for (i = 0; i < 3; i++) {
@@ -1724,6 +1664,6 @@ static void w83792d_print_debug(struct w83792d_data *data, struct device *dev)
 
 module_i2c_driver(w83792d_driver);
 
-MODULE_AUTHOR("Chunhao Huang @ Winbond <DZShen@Winbond.com.tw>");
+MODULE_AUTHOR("Shane Huang (Winbond)");
 MODULE_DESCRIPTION("W83792AD/D driver for linux-2.6");
 MODULE_LICENSE("GPL");

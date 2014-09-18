@@ -27,22 +27,21 @@
 #include <linux/omapfb.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/platform_data/omap1_bl.h>
+#include <linux/platform_data/leds-omap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/led.h>
-#include <plat/flash.h>
-#include <plat/mux.h>
-#include <plat/usb.h>
-#include <plat/dma.h>
-#include <plat/tc.h>
-#include <plat/board.h>
-#include <plat/irda.h>
-#include <plat/keypad.h>
+#include <mach/flash.h>
+#include <mach/mux.h>
+#include <linux/omap-dma.h>
+#include <mach/tc.h>
+#include <linux/platform_data/keypad-omap.h>
 
 #include <mach/hardware.h>
+#include <mach/usb.h>
 
 #include "common.h"
 
@@ -162,33 +161,6 @@ static struct platform_device palmtt_lcd_device = {
 	.name		= "lcd_palmtt",
 	.id		= -1,
 };
-static struct omap_irda_config palmtt_irda_config = {
-	.transceiver_cap	= IR_SIRMODE,
-	.rx_channel		= OMAP_DMA_UART3_RX,
-	.tx_channel		= OMAP_DMA_UART3_TX,
-	.dest_start		= UART3_THR,
-	.src_start		= UART3_RHR,
-	.tx_trigger		= 0,
-	.rx_trigger		= 0,
-};
-
-static struct resource palmtt_irda_resources[] = {
-	[0]	= {
-		.start	= INT_UART3,
-		.end	= INT_UART3,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device palmtt_irda_device = {
-	.name		= "omapirda",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &palmtt_irda_config,
-	},
-	.num_resources	= ARRAY_SIZE(palmtt_irda_resources),
-	.resource	= palmtt_irda_resources,
-};
 
 static struct platform_device palmtt_spi_device = {
 	.name		= "spi_palmtt",
@@ -233,7 +205,6 @@ static struct platform_device *palmtt_devices[] __initdata = {
 	&palmtt_flash_device,
 	&palmtt_kp_device,
 	&palmtt_lcd_device,
-	&palmtt_irda_device,
 	&palmtt_spi_device,
 	&palmtt_backlight_device,
 	&palmtt_led_device,
@@ -310,9 +281,9 @@ MACHINE_START(OMAP_PALMTT, "OMAP1510 based Palm Tungsten|T")
 	.atag_offset	= 0x100,
 	.map_io		= omap15xx_map_io,
 	.init_early     = omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_palmtt_init,
-	.timer		= &omap1_timer,
+	.init_late	= omap1_init_late,
+	.init_time	= omap1_timer_init,
 	.restart	= omap1_restart,
 MACHINE_END

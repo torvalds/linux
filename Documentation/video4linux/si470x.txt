@@ -53,6 +53,9 @@ Testing is usually done with most application under Debian/testing:
 - kradio - Comfortable Radio Application for KDE
 - radio - ncurses-based radio application
 - mplayer - The Ultimate Movie Player For Linux
+- v4l2-ctl - Collection of command line video4linux utilities
+For example, you can use:
+v4l2-ctl -d /dev/radio0 --set-ctrl=volume=10,mute=0 --set-freq=95.21 --all
 
 There is also a library libv4l, which can be used. It's going to have a function
 for frequency seeking, either by using hardware functionality as in radio-si470x
@@ -75,8 +78,10 @@ commands. Please adjust the audio devices to your needs (/dev/dsp* and hw:x,x).
 If you just want to test audio (very poor quality):
 cat /dev/dsp1 > /dev/dsp
 
-If you use OSS try:
+If you use sox + OSS try:
 sox -2 --endian little -r 96000 -t oss /dev/dsp1 -t oss /dev/dsp
+or using sox + alsa:
+sox --endian little -c 2 -S -r 96000 -t alsa hw:1 -t alsa -r 96000 hw:0
 
 If you use arts try:
 arecord -D hw:1,0 -r96000 -c2 -f S16_LE | artsdsp aplay -B -

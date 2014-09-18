@@ -41,7 +41,7 @@
 #define	GET_ABS_Y(packet)	((packet[2] << 2) | (packet[3] & 0x03))
 
 /** Driver version. */
-static const char fsp_drv_ver[] = "1.0.0-K";
+static const char fsp_drv_ver[] = "1.1.0-K";
 
 /*
  * Make sure that the value being sent to FSP will not conflict with
@@ -301,6 +301,27 @@ static int fsp_get_revision(struct psmouse *psmouse, int *rev)
 		return -EIO;
 
 	return 0;
+}
+
+static int fsp_get_sn(struct psmouse *psmouse, int *sn)
+{
+	int v0, v1, v2;
+	int rc = -EIO;
+
+	/* production number since Cx is available at: 0x0b40 ~ 0x0b42 */
+	if (fsp_page_reg_write(psmouse, FSP_PAGE_0B))
+		goto out;
+	if (fsp_reg_read(psmouse, FSP_REG_SN0, &v0))
+		goto out;
+	if (fsp_reg_read(psmouse, FSP_REG_SN1, &v1))
+		goto out;
+	if (fsp_reg_read(psmouse, FSP_REG_SN2, &v2))
+		goto out;
+	*sn = (v0 << 16) | (v1 << 8) | v2;
+	rc = 0;
+out:
+	fsp_page_reg_write(psmouse, FSP_PAGE_DEFAULT);
+	return rc;
 }
 
 static int fsp_get_buttons(struct psmouse *psmouse, int *btn)
@@ -700,6 +721,17 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 
 	switch (psmouse->packet[0] >> FSP_PKT_TYPE_SHIFT) {
 	case FSP_PKT_TYPE_ABS:
+
+		if ((packet[0] == 0x48 || packet[0] == 0x49) &&
+		    packet[1] == 0 && packet[2] == 0) {
+			/*
+			 * Ignore coordinate noise when finger leaving the
+			 * surface, otherwise cursor may jump to upper-left
+			 * corner.
+			 */
+			packet[3] &= 0xf0;
+		}
+
 		abs_x = GET_ABS_X(packet);
 		abs_y = GET_ABS_Y(packet);
 
@@ -759,7 +791,7 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 			fsp_set_slot(dev, 0, fgrs > 0, abs_x, abs_y);
 			fsp_set_slot(dev, 1, false, 0, 0);
 		}
-		if (fgrs > 0) {
+		if (fgrs == 1 || (fgrs == 2 && !(packet[0] & FSP_PB0_MFMC_FGR2))) {
 			input_report_abs(dev, ABS_X, abs_x);
 			input_report_abs(dev, ABS_Y, abs_y);
 		}
@@ -939,7 +971,7 @@ static int fsp_set_input_params(struct psmouse *psmouse)
 
 		input_set_abs_params(dev, ABS_X, 0, abs_x, 0, 0);
 		input_set_abs_params(dev, ABS_Y, 0, abs_y, 0, 0);
-		input_mt_init_slots(dev, 2);
+		input_mt_init_slots(dev, 2, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_X, 0, abs_x, 0, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_Y, 0, abs_y, 0, 0);
 	}
@@ -1000,16 +1032,21 @@ static int fsp_reconnect(struct psmouse *psmouse)
 int fsp_init(struct psmouse *psmouse)
 {
 	struct fsp_data *priv;
-	int ver, rev;
+	int ver, rev, sn = 0;
 	int error;
 
 	if (fsp_get_version(psmouse, &ver) ||
 	    fsp_get_revision(psmouse, &rev)) {
 		return -ENODEV;
 	}
+	if (ver >= FSP_VER_STL3888_C0) {
+		/* firmware information is only available since C0 */
+		fsp_get_sn(psmouse, &sn);
+	}
 
-	psmouse_info(psmouse, "Finger Sensing Pad, hw: %d.%d.%d, sw: %s\n",
-		     ver >> 4, ver & 0x0F, rev, fsp_drv_ver);
+	psmouse_info(psmouse,
+		     "Finger Sensing Pad, hw: %d.%d.%d, sn: %x, sw: %s\n",
+		     ver >> 4, ver & 0x0F, rev, sn, fsp_drv_ver);
 
 	psmouse->private = priv = kzalloc(sizeof(struct fsp_data), GFP_KERNEL);
 	if (!priv)

@@ -25,7 +25,7 @@
 
 struct icmp_err {
   int		errno;
-  unsigned	fatal:1;
+  unsigned int	fatal:1;
 };
 
 extern const struct icmp_err icmp_err_convert[];
@@ -39,10 +39,10 @@ struct net_proto_family;
 struct sk_buff;
 struct net;
 
-extern void	icmp_send(struct sk_buff *skb_in,  int type, int code, __be32 info);
-extern int	icmp_rcv(struct sk_buff *skb);
-extern int	icmp_ioctl(struct sock *sk, int cmd, unsigned long arg);
-extern int	icmp_init(void);
-extern void	icmp_out_count(struct net *net, unsigned char type);
+void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info);
+int icmp_rcv(struct sk_buff *skb);
+void icmp_err(struct sk_buff *skb, u32 info);
+int icmp_init(void);
+void icmp_out_count(struct net *net, unsigned char type);
 
 #endif	/* _ICMP_H */

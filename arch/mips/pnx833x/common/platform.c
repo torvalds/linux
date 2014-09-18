@@ -6,7 +6,7 @@
  *    Daniel Laird <daniel.j.laird@nxp.com>
  *
  *  Based on software written by:
- *      Nikita Youshchenko <yoush@debian.org>, based on PNX8550 code.
+ *	Nikita Youshchenko <yoush@debian.org>, based on PNX8550 code.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,16 +33,11 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
-#ifdef CONFIG_I2C_PNX0105
-/* Until i2c driver available in kernel.*/
-#include <linux/i2c-pnx0105.h>
-#endif
-
 #include <irq.h>
 #include <irq-mapping.h>
 #include <pnx833x.h>
 
-static u64 uart_dmamask     = DMA_BIT_MASK(32);
+static u64 uart_dmamask	    = DMA_BIT_MASK(32);
 
 static struct resource pnx833x_uart_resources[] = {
 	[0] = {
@@ -69,7 +64,7 @@ static struct resource pnx833x_uart_resources[] = {
 
 struct pnx8xxx_port pnx8xxx_ports[] = {
 	[0] = {
-		.port   = {
+		.port	= {
 			.type		= PORT_PNX8XXX,
 			.iotype		= UPIO_MEM,
 			.membase	= (void __iomem *)PNX833X_UART0_PORTS_START,
@@ -82,7 +77,7 @@ struct pnx8xxx_port pnx8xxx_ports[] = {
 		},
 	},
 	[1] = {
-		.port   = {
+		.port	= {
 			.type		= PORT_PNX8XXX,
 			.iotype		= UPIO_MEM,
 			.membase	= (void __iomem *)PNX833X_UART1_PORTS_START,
@@ -108,7 +103,7 @@ static struct platform_device pnx833x_uart_device = {
 	.resource	= pnx833x_uart_resources,
 };
 
-static u64 ehci_dmamask     = DMA_BIT_MASK(32);
+static u64 ehci_dmamask	    = DMA_BIT_MASK(32);
 
 static struct resource pnx833x_usb_ehci_resources[] = {
 	[0] = {
@@ -134,70 +129,6 @@ static struct platform_device pnx833x_usb_ehci_device = {
 	.resource	= pnx833x_usb_ehci_resources,
 };
 
-#ifdef CONFIG_I2C_PNX0105
-static struct resource pnx833x_i2c0_resources[] = {
-	{
-		.start		= PNX833X_I2C0_PORTS_START,
-		.end		= PNX833X_I2C0_PORTS_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= PNX833X_PIC_I2C0_INT,
-		.end		= PNX833X_PIC_I2C0_INT,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct resource pnx833x_i2c1_resources[] = {
-	{
-		.start		= PNX833X_I2C1_PORTS_START,
-		.end		= PNX833X_I2C1_PORTS_END,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= PNX833X_PIC_I2C1_INT,
-		.end		= PNX833X_PIC_I2C1_INT,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct i2c_pnx0105_dev pnx833x_i2c_dev[] = {
-	{
-		.base = PNX833X_I2C0_PORTS_START,
-		.irq = -1, /* should be PNX833X_PIC_I2C0_INT but polling is faster */
-		.clock = 6,	/* 0 == 400 kHz, 4 == 100 kHz(Maximum HDMI), 6 = 50kHz(Preferred HDCP) */
-		.bus_addr = 0,	/* no slave support */
-	},
-	{
-		.base = PNX833X_I2C1_PORTS_START,
-		.irq = -1,	/* on high freq, polling is faster */
-		/*.irq = PNX833X_PIC_I2C1_INT,*/
-		.clock = 4,	/* 0 == 400 kHz, 4 == 100 kHz. 100 kHz seems a safe default for now */
-		.bus_addr = 0,	/* no slave support */
-	},
-};
-
-static struct platform_device pnx833x_i2c0_device = {
-	.name		= "i2c-pnx0105",
-	.id		= 0,
-	.dev = {
-		.platform_data = &pnx833x_i2c_dev[0],
-	},
-	.num_resources  = ARRAY_SIZE(pnx833x_i2c0_resources),
-	.resource	= pnx833x_i2c0_resources,
-};
-
-static struct platform_device pnx833x_i2c1_device = {
-	.name		= "i2c-pnx0105",
-	.id		= 1,
-	.dev = {
-		.platform_data = &pnx833x_i2c_dev[1],
-	},
-	.num_resources  = ARRAY_SIZE(pnx833x_i2c1_resources),
-	.resource	= pnx833x_i2c1_resources,
-};
-#endif
-
 static u64 ethernet_dmamask = DMA_BIT_MASK(32);
 
 static struct resource pnx833x_ethernet_resources[] = {
@@ -206,18 +137,20 @@ static struct resource pnx833x_ethernet_resources[] = {
 		.end   = PNX8335_IP3902_PORTS_END,
 		.flags = IORESOURCE_MEM,
 	},
+#ifdef CONFIG_SOC_PNX8335
 	[1] = {
 		.start = PNX8335_PIC_ETHERNET_INT,
 		.end   = PNX8335_PIC_ETHERNET_INT,
 		.flags = IORESOURCE_IRQ,
 	},
+#endif
 };
 
 static struct platform_device pnx833x_ethernet_device = {
 	.name = "ip3902-eth",
 	.id   = -1,
 	.dev  = {
-		.dma_mask          = &ethernet_dmamask,
+		.dma_mask	   = &ethernet_dmamask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 	.num_resources = ARRAY_SIZE(pnx833x_ethernet_resources),
@@ -238,15 +171,10 @@ static struct resource pnx833x_sata_resources[] = {
 };
 
 static struct platform_device pnx833x_sata_device = {
-	.name          = "pnx833x-sata",
-	.id            = -1,
+	.name	       = "pnx833x-sata",
+	.id	       = -1,
 	.num_resources = ARRAY_SIZE(pnx833x_sata_resources),
 	.resource      = pnx833x_sata_resources,
-};
-
-static const char *part_probes[] = {
-	"cmdlinepart",
-	NULL
 };
 
 static void
@@ -268,10 +196,9 @@ static struct platform_nand_data pnx833x_flash_nand_data = {
 	.chip = {
 		.nr_chips		= 1,
 		.chip_delay		= 25,
-		.part_probe_types 	= part_probes,
 	},
 	.ctrl = {
-		.cmd_ctrl 		= pnx833x_flash_nand_cmd_ctrl
+		.cmd_ctrl		= pnx833x_flash_nand_cmd_ctrl
 	}
 };
 
@@ -280,17 +207,17 @@ static struct platform_nand_data pnx833x_flash_nand_data = {
  * 12 bytes more seems to be the standard that allows for NAND access.
  */
 static struct resource pnx833x_flash_nand_resource = {
-	.start 	= PNX8335_NAND_BASE,
-	.end 	= PNX8335_NAND_BASE + 12,
-	.flags 	= IORESOURCE_MEM,
+	.start	= PNX8335_NAND_BASE,
+	.end	= PNX8335_NAND_BASE + 12,
+	.flags	= IORESOURCE_MEM,
 };
 
 static struct platform_device pnx833x_flash_nand = {
-	.name	        = "gen_nand",
-	.id		        = -1,
+	.name		= "gen_nand",
+	.id			= -1,
 	.num_resources	= 1,
 	.resource	    = &pnx833x_flash_nand_resource,
-	.dev            = {
+	.dev		= {
 		.platform_data = &pnx833x_flash_nand_data,
 	},
 };
@@ -298,10 +225,6 @@ static struct platform_device pnx833x_flash_nand = {
 static struct platform_device *pnx833x_platform_devices[] __initdata = {
 	&pnx833x_uart_device,
 	&pnx833x_usb_ehci_device,
-#ifdef CONFIG_I2C_PNX0105
-	&pnx833x_i2c0_device,
-	&pnx833x_i2c1_device,
-#endif
 	&pnx833x_ethernet_device,
 	&pnx833x_sata_device,
 	&pnx833x_flash_nand,

@@ -168,9 +168,9 @@ union intel_mid_dma_cfg_hi {
  * @active_list: current active descriptors
  * @queue: current queued up descriptors
  * @free_list: current free descriptors
- * @slave: dma slave struture
- * @descs_allocated: total number of decsiptors allocated
- * @dma: dma device struture pointer
+ * @slave: dma slave structure
+ * @descs_allocated: total number of descriptors allocated
+ * @dma: dma device structure pointer
  * @busy: bool representing if ch is busy (active txn) or not
  * @in_use: bool representing if ch is in use or not
  * @raw_tfr: raw trf interrupt received

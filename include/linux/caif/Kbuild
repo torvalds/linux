@@ -1,2 +1,0 @@
-header-y += caif_socket.h
-header-y += if_caif.h

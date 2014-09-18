@@ -87,7 +87,7 @@ static void ll_device_want_to_wakeup(struct st_data_s *st_data)
 	/* communicate to platform about chip wakeup */
 	kim_data = st_data->kim_data;
 	pdata = kim_data->kim_pdev->dev.platform_data;
-	if (pdata->chip_asleep)
+	if (pdata->chip_awake)
 		pdata->chip_awake(NULL);
 }
 

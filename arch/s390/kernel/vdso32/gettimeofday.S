@@ -35,15 +35,14 @@ __kernel_gettimeofday:
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,3f
 	ahi	%r0,-1
-3:	ms	%r0,__VDSO_NTP_MULT(%r5)	/* cyc2ns(clock,cycle_delta) */
+3:	ms	%r0,__VDSO_TK_MULT(%r5)		/*  * tk->mult */
 	st	%r0,24(%r15)
-	l	%r0,__VDSO_NTP_MULT(%r5)
+	l	%r0,__VDSO_TK_MULT(%r5)
 	ltr	%r1,%r1
 	mr	%r0,%r0
 	jnm	4f
-	a	%r0,__VDSO_NTP_MULT(%r5)
+	a	%r0,__VDSO_TK_MULT(%r5)
 4:	al	%r0,24(%r15)
-	srdl	%r0,12
 	al	%r0,__VDSO_XTIME_NSEC(%r5)	/*  + xtime */
 	al	%r1,__VDSO_XTIME_NSEC+4(%r5)
 	brc	12,5f
@@ -51,6 +50,8 @@ __kernel_gettimeofday:
 5:	mvc	24(4,%r15),__VDSO_XTIME_SEC+4(%r5)
 	cl	%r4,__VDSO_UPD_COUNT+4(%r5)	/* check update counter */
 	jne	1b
+	l	%r4,__VDSO_TK_SHIFT(%r5)	/* Timekeeper shift */
+	srdl	%r0,0(%r4)			/*  >> tk->shift */
 	l	%r4,24(%r15)			/* get tv_sec from stack */
 	basr	%r5,0
 6:	ltr	%r0,%r0

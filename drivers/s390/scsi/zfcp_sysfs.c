@@ -3,7 +3,7 @@
  *
  * sysfs attributes.
  *
- * Copyright IBM Corporation 2008, 2010
+ * Copyright IBM Corp. 2008, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -22,6 +22,16 @@ static ssize_t zfcp_sysfs_##_feat##_##_name##_show(struct device *dev,	       \
 {									       \
 	struct _feat_def *_feat = container_of(dev, struct _feat_def, dev);    \
 									       \
+	return sprintf(buf, _format, _value);				       \
+}									       \
+static ZFCP_DEV_ATTR(_feat, _name, S_IRUGO,				       \
+		     zfcp_sysfs_##_feat##_##_name##_show, NULL);
+
+#define ZFCP_DEFINE_ATTR_CONST(_feat, _name, _format, _value)		       \
+static ssize_t zfcp_sysfs_##_feat##_##_name##_show(struct device *dev,	       \
+						   struct device_attribute *at,\
+						   char *buf)		       \
+{									       \
 	return sprintf(buf, _format, _value);				       \
 }									       \
 static ZFCP_DEV_ATTR(_feat, _name, S_IRUGO,				       \
@@ -75,12 +85,8 @@ ZFCP_DEFINE_ATTR(zfcp_unit, unit, in_recovery, "%d\n",
 ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_denied, "%d\n",
 		 (zfcp_unit_sdev_status(unit) &
 		  ZFCP_STATUS_COMMON_ACCESS_DENIED) != 0);
-ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_shared, "%d\n",
-		 (zfcp_unit_sdev_status(unit) &
-		  ZFCP_STATUS_LUN_SHARED) != 0);
-ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_readonly, "%d\n",
-		 (zfcp_unit_sdev_status(unit) &
-		  ZFCP_STATUS_LUN_READONLY) != 0);
+ZFCP_DEFINE_ATTR_CONST(unit, access_shared, "%d\n", 0);
+ZFCP_DEFINE_ATTR_CONST(unit, access_readonly, "%d\n", 0);
 
 static ssize_t zfcp_sysfs_port_failed_show(struct device *dev,
 					   struct device_attribute *attr,
@@ -101,7 +107,7 @@ static ssize_t zfcp_sysfs_port_failed_store(struct device *dev,
 	struct zfcp_port *port = container_of(dev, struct zfcp_port, dev);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val) || val != 0)
+	if (kstrtoul(buf, 0, &val) || val != 0)
 		return -EINVAL;
 
 	zfcp_erp_set_port_status(port, ZFCP_STATUS_COMMON_RUNNING);
@@ -140,7 +146,7 @@ static ssize_t zfcp_sysfs_unit_failed_store(struct device *dev,
 	unsigned long val;
 	struct scsi_device *sdev;
 
-	if (strict_strtoul(buf, 0, &val) || val != 0)
+	if (kstrtoul(buf, 0, &val) || val != 0)
 		return -EINVAL;
 
 	sdev = zfcp_unit_sdev(unit);
@@ -190,7 +196,7 @@ static ssize_t zfcp_sysfs_adapter_failed_store(struct device *dev,
 	if (!adapter)
 		return -ENODEV;
 
-	if (strict_strtoul(buf, 0, &val) || val != 0) {
+	if (kstrtoul(buf, 0, &val) || val != 0) {
 		retval = -EINVAL;
 		goto out;
 	}
@@ -227,6 +233,8 @@ static ssize_t zfcp_sysfs_port_rescan_store(struct device *dev,
 static ZFCP_DEV_ATTR(adapter, port_rescan, S_IWUSR, NULL,
 		     zfcp_sysfs_port_rescan_store);
 
+DEFINE_MUTEX(zfcp_sysfs_port_units_mutex);
+
 static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 					    struct device_attribute *attr,
 					    const char *buf, size_t count)
@@ -240,7 +248,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	if (!adapter)
 		return -ENODEV;
 
-	if (strict_strtoull(buf, 0, (unsigned long long *) &wwpn))
+	if (kstrtoull(buf, 0, (unsigned long long *) &wwpn))
 		goto out;
 
 	port = zfcp_get_port_by_wwpn(adapter, wwpn);
@@ -249,6 +257,16 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	else
 		retval = 0;
 
+	mutex_lock(&zfcp_sysfs_port_units_mutex);
+	if (atomic_read(&port->units) > 0) {
+		retval = -EBUSY;
+		mutex_unlock(&zfcp_sysfs_port_units_mutex);
+		goto out;
+	}
+	/* port is about to be removed, so no more unit_add */
+	atomic_set(&port->units, -1);
+	mutex_unlock(&zfcp_sysfs_port_units_mutex);
+
 	write_lock_irq(&adapter->port_list_lock);
 	list_del(&port->list);
 	write_unlock_irq(&adapter->port_list_lock);
@@ -256,7 +274,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	put_device(&port->dev);
 
 	zfcp_erp_port_shutdown(port, 0, "syprs_1");
-	zfcp_device_unregister(&port->dev, &zfcp_sysfs_port_attrs);
+	device_unregister(&port->dev);
  out:
 	zfcp_ccw_adapter_put(adapter);
 	return retval ? retval : (ssize_t) count;
@@ -289,12 +307,14 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 {
 	struct zfcp_port *port = container_of(dev, struct zfcp_port, dev);
 	u64 fcp_lun;
+	int retval;
 
-	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
+	if (kstrtoull(buf, 0, (unsigned long long *) &fcp_lun))
 		return -EINVAL;
 
-	if (zfcp_unit_add(port, fcp_lun))
-		return -EINVAL;
+	retval = zfcp_unit_add(port, fcp_lun);
+	if (retval)
+		return retval;
 
 	return count;
 }
@@ -307,7 +327,7 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	struct zfcp_port *port = container_of(dev, struct zfcp_port, dev);
 	u64 fcp_lun;
 
-	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
+	if (kstrtoull(buf, 0, (unsigned long long *) &fcp_lun))
 		return -EINVAL;
 
 	if (zfcp_unit_remove(port, fcp_lun))
@@ -326,12 +346,12 @@ static struct attribute *zfcp_port_attrs[] = {
 	&dev_attr_port_access_denied.attr,
 	NULL
 };
-
-/**
- * zfcp_sysfs_port_attrs - sysfs attributes for all other ports
- */
-struct attribute_group zfcp_sysfs_port_attrs = {
+static struct attribute_group zfcp_port_attr_group = {
 	.attrs = zfcp_port_attrs,
+};
+const struct attribute_group *zfcp_port_attr_groups[] = {
+	&zfcp_port_attr_group,
+	NULL,
 };
 
 static struct attribute *zfcp_unit_attrs[] = {
@@ -343,9 +363,12 @@ static struct attribute *zfcp_unit_attrs[] = {
 	&dev_attr_unit_access_readonly.attr,
 	NULL
 };
-
-struct attribute_group zfcp_sysfs_unit_attrs = {
+static struct attribute_group zfcp_unit_attr_group = {
 	.attrs = zfcp_unit_attrs,
+};
+const struct attribute_group *zfcp_unit_attr_groups[] = {
+	&zfcp_unit_attr_group,
+	NULL,
 };
 
 #define ZFCP_DEFINE_LATENCY_ATTR(_name) 				\

@@ -12,11 +12,11 @@
 #include <linux/oprofile.h>
 #include <linux/smp.h>
 #include <asm/cpu-info.h>
+#include <asm/cpu-type.h>
 
 #include "op_impl.h"
 
 extern struct op_mips_model op_model_mipsxx_ops __weak;
-extern struct op_mips_model op_model_rm9000_ops __weak;
 extern struct op_mips_model op_model_loongson2_ops __weak;
 
 static struct op_mips_model *model;
@@ -28,13 +28,13 @@ static int op_mips_setup(void)
 	/* Pre-compute the values to stuff in the hardware registers.  */
 	model->reg_setup(ctr);
 
-	/* Configure the registers on all cpus.  */
+	/* Configure the registers on all cpus.	 */
 	on_each_cpu(model->cpu_setup, NULL, 1);
 
-        return 0;
+	return 0;
 }
 
-static int op_mips_create_files(struct super_block *sb, struct dentry *root)
+static int op_mips_create_files(struct dentry *root)
 {
 	int i;
 
@@ -43,16 +43,16 @@ static int op_mips_create_files(struct super_block *sb, struct dentry *root)
 		char buf[4];
 
 		snprintf(buf, sizeof buf, "%d", i);
-		dir = oprofilefs_mkdir(sb, root, buf);
+		dir = oprofilefs_mkdir(root, buf);
 
-		oprofilefs_create_ulong(sb, dir, "enabled", &ctr[i].enabled);
-		oprofilefs_create_ulong(sb, dir, "event", &ctr[i].event);
-		oprofilefs_create_ulong(sb, dir, "count", &ctr[i].count);
-		oprofilefs_create_ulong(sb, dir, "kernel", &ctr[i].kernel);
-		oprofilefs_create_ulong(sb, dir, "user", &ctr[i].user);
-		oprofilefs_create_ulong(sb, dir, "exl", &ctr[i].exl);
+		oprofilefs_create_ulong(dir, "enabled", &ctr[i].enabled);
+		oprofilefs_create_ulong(dir, "event", &ctr[i].event);
+		oprofilefs_create_ulong(dir, "count", &ctr[i].count);
+		oprofilefs_create_ulong(dir, "kernel", &ctr[i].kernel);
+		oprofilefs_create_ulong(dir, "user", &ctr[i].user);
+		oprofilefs_create_ulong(dir, "exl", &ctr[i].exl);
 		/* Dummy.  */
-		oprofilefs_create_ulong(sb, dir, "unit_mask", &ctr[i].unit_mask);
+		oprofilefs_create_ulong(dir, "unit_mask", &ctr[i].unit_mask);
 	}
 
 	return 0;
@@ -78,23 +78,29 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 	switch (current_cpu_type()) {
 	case CPU_5KC:
+	case CPU_M14KC:
+	case CPU_M14KEC:
 	case CPU_20KC:
 	case CPU_24K:
 	case CPU_25KF:
 	case CPU_34K:
 	case CPU_1004K:
 	case CPU_74K:
+	case CPU_1074K:
+	case CPU_INTERAPTIV:
+	case CPU_PROAPTIV:
+	case CPU_P5600:
+	case CPU_M5150:
+	case CPU_LOONGSON1:
 	case CPU_SB1:
 	case CPU_SB1A:
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_R14000:
+	case CPU_XLR:
 		lmodel = &op_model_mipsxx_ops;
 		break;
 
-	case CPU_RM9000:
-		lmodel = &op_model_rm9000_ops;
-		break;
 	case CPU_LOONGSON2:
 		lmodel = &op_model_loongson2_ops;
 		break;
@@ -111,7 +117,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 	ops->create_files	= op_mips_create_files;
 	ops->setup		= op_mips_setup;
-	//ops->shutdown         = op_mips_shutdown;
+	//ops->shutdown		= op_mips_shutdown;
 	ops->start		= op_mips_start;
 	ops->stop		= op_mips_stop;
 	ops->cpu_type		= lmodel->cpu_type;

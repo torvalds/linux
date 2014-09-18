@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,22 +83,22 @@ acpi_status acpi_hw_clear_acpi_status(void);
 /*
  * hwsleep - sleep/wake support (Legacy sleep registers)
  */
-acpi_status acpi_hw_legacy_sleep(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_legacy_sleep(u8 sleep_state);
 
-acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state);
 
-acpi_status acpi_hw_legacy_wake(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_legacy_wake(u8 sleep_state);
 
 /*
  * hwesleep - sleep/wake support (Extended FADT-V5 sleep registers)
  */
 void acpi_hw_execute_sleep_method(char *method_name, u32 integer_argument);
 
-acpi_status acpi_hw_extended_sleep(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_extended_sleep(u8 sleep_state);
 
-acpi_status acpi_hw_extended_wake_prep(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_extended_wake_prep(u8 sleep_state);
 
-acpi_status acpi_hw_extended_wake(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_extended_wake(u8 sleep_state);
 
 /*
  * hwvalid - Port I/O with validation
@@ -110,8 +110,7 @@ acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width);
 /*
  * hwgpe - GPE support
  */
-u32 acpi_hw_get_gpe_register_bit(struct acpi_gpe_event_info *gpe_event_info,
-			     struct acpi_gpe_register_info *gpe_register_info);
+u32 acpi_hw_get_gpe_register_bit(struct acpi_gpe_event_info *gpe_event_info);
 
 acpi_status
 acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action);

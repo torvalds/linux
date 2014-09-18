@@ -80,13 +80,9 @@ static void acpi_topstar_notify(struct acpi_device *device, u32 event)
 static int acpi_topstar_fncx_switch(struct acpi_device *device, bool state)
 {
 	acpi_status status;
-	union acpi_object fncx_params[1] = {
-		{ .type = ACPI_TYPE_INTEGER }
-	};
-	struct acpi_object_list fncx_arg_list = { 1, &fncx_params[0] };
 
-	fncx_params[0].integer.value = state ? 0x86 : 0x87;
-	status = acpi_evaluate_object(device->handle, "FNCX", &fncx_arg_list, NULL);
+	status = acpi_execute_simple_method(device->handle, "FNCX",
+						state ? 0x86 : 0x87);
 	if (ACPI_FAILURE(status)) {
 		pr_err("Unable to switch FNCX notifications\n");
 		return -ENODEV;
@@ -101,10 +97,8 @@ static int acpi_topstar_init_hkey(struct topstar_hkey *hkey)
 	int error;
 
 	input = input_allocate_device();
-	if (!input) {
-		pr_err("Unable to allocate input device\n");
+	if (!input)
 		return -ENOMEM;
-	}
 
 	input->name = "Topstar Laptop extra buttons";
 	input->phys = "topstar/input0";
@@ -157,7 +151,7 @@ add_err:
 	return -ENODEV;
 }
 
-static int acpi_topstar_remove(struct acpi_device *device, int type)
+static int acpi_topstar_remove(struct acpi_device *device)
 {
 	struct topstar_hkey *tps_hkey = acpi_driver_data(device);
 
@@ -186,27 +180,7 @@ static struct acpi_driver acpi_topstar_driver = {
 		.notify = acpi_topstar_notify,
 	},
 };
-
-static int __init topstar_laptop_init(void)
-{
-	int ret;
-
-	ret = acpi_bus_register_driver(&acpi_topstar_driver);
-	if (ret < 0)
-		return ret;
-
-	pr_info("ACPI extras driver loaded\n");
-
-	return 0;
-}
-
-static void __exit topstar_laptop_exit(void)
-{
-	acpi_bus_unregister_driver(&acpi_topstar_driver);
-}
-
-module_init(topstar_laptop_init);
-module_exit(topstar_laptop_exit);
+module_acpi_driver(acpi_topstar_driver);
 
 MODULE_AUTHOR("Herton Ronaldo Krzesinski");
 MODULE_DESCRIPTION("Topstar Laptop ACPI Extras driver");

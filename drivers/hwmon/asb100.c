@@ -32,7 +32,7 @@
  * ASB100-A supports pwm1, while plain ASB100 does not.  There is no known
  * way for the driver to tell which one is there.
  *
- * Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
+ * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
  * asb100	7	3	1	4	0x31	0x0694	yes	no
  */
 
@@ -55,8 +55,8 @@ static const unsigned short normal_i2c[] = { 0x2d, I2C_CLIENT_END };
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
-MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
-	"{bus, clientaddr, subclientaddr1, subclientaddr2}");
+MODULE_PARM_DESC(force_subclients,
+	"List of subclient addresses: {bus, clientaddr, subclientaddr1, subclientaddr2}");
 
 /* Voltage IN registers 0-6 */
 #define ASB100_REG_IN(nr)	(0x20 + (nr))
@@ -114,7 +114,7 @@ static const u16 asb100_reg_temp_hyst[]	= {0, 0x3a, 0x153, 0x253, 0x19};
  */
 static u8 IN_TO_REG(unsigned val)
 {
-	unsigned nval = SENSORS_LIMIT(val, ASB100_IN_MIN, ASB100_IN_MAX);
+	unsigned nval = clamp_val(val, ASB100_IN_MIN, ASB100_IN_MAX);
 	return (nval + 8) / 16;
 }
 
@@ -129,8 +129,8 @@ static u8 FAN_TO_REG(long rpm, int div)
 		return 0;
 	if (rpm == 0)
 		return 255;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
+	rpm = clamp_val(rpm, 1, 1000000);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 static int FAN_FROM_REG(u8 val, int div)
@@ -148,7 +148,7 @@ static int FAN_FROM_REG(u8 val, int div)
  */
 static u8 TEMP_TO_REG(long temp)
 {
-	int ntemp = SENSORS_LIMIT(temp, ASB100_TEMP_MIN, ASB100_TEMP_MAX);
+	int ntemp = clamp_val(temp, ASB100_TEMP_MIN, ASB100_TEMP_MAX);
 	ntemp += (ntemp < 0 ? -500 : 500);
 	return (u8)(ntemp / 1000);
 }
@@ -164,7 +164,7 @@ static int TEMP_FROM_REG(u8 reg)
  */
 static u8 ASB100_PWM_TO_REG(int pwm)
 {
-	pwm = SENSORS_LIMIT(pwm, 0, 255);
+	pwm = clamp_val(pwm, 0, 255);
 	return (u8)(pwm / 16);
 }
 
@@ -510,6 +510,10 @@ static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
 	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
+
+	if (val > 255)
+		return -EINVAL;
+
 	data->vrm = val;
 	return count;
 }
@@ -689,8 +693,8 @@ static int asb100_detect_subclients(struct i2c_client *client)
 		for (i = 2; i <= 3; i++) {
 			if (force_subclients[i] < 0x48 ||
 			    force_subclients[i] > 0x4f) {
-				dev_err(&client->dev, "invalid subclient "
-					"address %d; must be 0x48-0x4f\n",
+				dev_err(&client->dev,
+					"invalid subclient address %d; must be 0x48-0x4f\n",
 					force_subclients[i]);
 				err = -ENODEV;
 				goto ERROR_SC_2;
@@ -708,24 +712,27 @@ static int asb100_detect_subclients(struct i2c_client *client)
 	}
 
 	if (sc_addr[0] == sc_addr[1]) {
-		dev_err(&client->dev, "duplicate addresses 0x%x "
-				"for subclients\n", sc_addr[0]);
+		dev_err(&client->dev,
+			"duplicate addresses 0x%x for subclients\n",
+			sc_addr[0]);
 		err = -ENODEV;
 		goto ERROR_SC_2;
 	}
 
 	data->lm75[0] = i2c_new_dummy(adapter, sc_addr[0]);
 	if (!data->lm75[0]) {
-		dev_err(&client->dev, "subclient %d registration "
-			"at address 0x%x failed.\n", 1, sc_addr[0]);
+		dev_err(&client->dev,
+			"subclient %d registration at address 0x%x failed.\n",
+			1, sc_addr[0]);
 		err = -ENOMEM;
 		goto ERROR_SC_2;
 	}
 
 	data->lm75[1] = i2c_new_dummy(adapter, sc_addr[1]);
 	if (!data->lm75[1]) {
-		dev_err(&client->dev, "subclient %d registration "
-			"at address 0x%x failed.\n", 2, sc_addr[1]);
+		dev_err(&client->dev,
+			"subclient %d registration at address 0x%x failed.\n",
+			2, sc_addr[1]);
 		err = -ENOMEM;
 		goto ERROR_SC_3;
 	}
@@ -787,12 +794,10 @@ static int asb100_probe(struct i2c_client *client,
 	int err;
 	struct asb100_data *data;
 
-	data = kzalloc(sizeof(struct asb100_data), GFP_KERNEL);
-	if (!data) {
-		pr_debug("probe failed, kzalloc failed!\n");
-		err = -ENOMEM;
-		goto ERROR0;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct asb100_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->lock);
@@ -801,7 +806,7 @@ static int asb100_probe(struct i2c_client *client,
 	/* Attach secondary lm75 clients */
 	err = asb100_detect_subclients(client);
 	if (err)
-		goto ERROR1;
+		return err;
 
 	/* Initialize the chip */
 	asb100_init_client(client);
@@ -829,9 +834,6 @@ ERROR4:
 ERROR3:
 	i2c_unregister_device(data->lm75[1]);
 	i2c_unregister_device(data->lm75[0]);
-ERROR1:
-	kfree(data);
-ERROR0:
 	return err;
 }
 
@@ -844,8 +846,6 @@ static int asb100_remove(struct i2c_client *client)
 
 	i2c_unregister_device(data->lm75[1]);
 	i2c_unregister_device(data->lm75[0]);
-
-	kfree(data);
 
 	return 0;
 }

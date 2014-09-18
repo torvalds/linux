@@ -23,5 +23,5 @@ ENTRY(strchr)
 		teq	r2, r1
 		movne	r0, #0
 		subeq	r0, r0, #1
-		mov	pc, lr
+		ret	lr
 ENDPROC(strchr)

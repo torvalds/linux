@@ -27,6 +27,8 @@ Contents of this document:
 
  (*) AF_RXRPC kernel interface.
 
+ (*) Configurable parameters.
+
 
 ========
 OVERVIEW
@@ -144,7 +146,7 @@ An overview of the RxRPC protocol:
  (*) Calls use ACK packets to handle reliability.  Data packets are also
      explicitly sequenced per call.
 
- (*) There are two types of positive acknowledgement: hard-ACKs and soft-ACKs.
+ (*) There are two types of positive acknowledgment: hard-ACKs and soft-ACKs.
      A hard-ACK indicates to the far side that all the data received to a point
      has been received and processed; a soft-ACK indicates that the data has
      been received but may yet be discarded and re-requested.  The sender may
@@ -864,3 +866,82 @@ The kernel interface functions are as follows:
 
      This is used to allocate a null RxRPC key that can be used to indicate
      anonymous security for a particular domain.
+
+
+=======================
+CONFIGURABLE PARAMETERS
+=======================
+
+The RxRPC protocol driver has a number of configurable parameters that can be
+adjusted through sysctls in /proc/net/rxrpc/:
+
+ (*) req_ack_delay
+
+     The amount of time in milliseconds after receiving a packet with the
+     request-ack flag set before we honour the flag and actually send the
+     requested ack.
+
+     Usually the other side won't stop sending packets until the advertised
+     reception window is full (to a maximum of 255 packets), so delaying the
+     ACK permits several packets to be ACK'd in one go.
+
+ (*) soft_ack_delay
+
+     The amount of time in milliseconds after receiving a new packet before we
+     generate a soft-ACK to tell the sender that it doesn't need to resend.
+
+ (*) idle_ack_delay
+
+     The amount of time in milliseconds after all the packets currently in the
+     received queue have been consumed before we generate a hard-ACK to tell
+     the sender it can free its buffers, assuming no other reason occurs that
+     we would send an ACK.
+
+ (*) resend_timeout
+
+     The amount of time in milliseconds after transmitting a packet before we
+     transmit it again, assuming no ACK is received from the receiver telling
+     us they got it.
+
+ (*) max_call_lifetime
+
+     The maximum amount of time in seconds that a call may be in progress
+     before we preemptively kill it.
+
+ (*) dead_call_expiry
+
+     The amount of time in seconds before we remove a dead call from the call
+     list.  Dead calls are kept around for a little while for the purpose of
+     repeating ACK and ABORT packets.
+
+ (*) connection_expiry
+
+     The amount of time in seconds after a connection was last used before we
+     remove it from the connection list.  Whilst a connection is in existence,
+     it serves as a placeholder for negotiated security; when it is deleted,
+     the security must be renegotiated.
+
+ (*) transport_expiry
+
+     The amount of time in seconds after a transport was last used before we
+     remove it from the transport list.  Whilst a transport is in existence, it
+     serves to anchor the peer data and keeps the connection ID counter.
+
+ (*) rxrpc_rx_window_size
+
+     The size of the receive window in packets.  This is the maximum number of
+     unconsumed received packets we're willing to hold in memory for any
+     particular call.
+
+ (*) rxrpc_rx_mtu
+
+     The maximum packet MTU size that we're willing to receive in bytes.  This
+     indicates to the peer whether we're willing to accept jumbo packets.
+
+ (*) rxrpc_rx_jumbo_max
+
+     The maximum number of packets that we're willing to accept in a jumbo
+     packet.  Non-terminal packets in a jumbo packet must contain a four byte
+     header plus exactly 1412 bytes of data.  The terminal packet must contain
+     a four byte header plus any amount of data.  In any event, a jumbo packet
+     may not exceed rxrpc_rx_mtu in size.

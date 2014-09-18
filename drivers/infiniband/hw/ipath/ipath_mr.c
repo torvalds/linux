@@ -188,8 +188,8 @@ struct ib_mr *ipath_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 {
 	struct ipath_mr *mr;
 	struct ib_umem *umem;
-	struct ib_umem_chunk *chunk;
-	int n, m, i;
+	int n, m, entry;
+	struct scatterlist *sg;
 	struct ib_mr *ret;
 
 	if (length == 0) {
@@ -202,10 +202,7 @@ struct ib_mr *ipath_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (IS_ERR(umem))
 		return (void *) umem;
 
-	n = 0;
-	list_for_each_entry(chunk, &umem->chunk_list, list)
-		n += chunk->nents;
-
+	n = umem->nmap;
 	mr = alloc_mr(n, &to_idev(pd->device)->lk_table);
 	if (!mr) {
 		ret = ERR_PTR(-ENOMEM);
@@ -224,22 +221,20 @@ struct ib_mr *ipath_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	m = 0;
 	n = 0;
-	list_for_each_entry(chunk, &umem->chunk_list, list) {
-		for (i = 0; i < chunk->nents; i++) {
-			void *vaddr;
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
+		void *vaddr;
 
-			vaddr = page_address(sg_page(&chunk->page_list[i]));
-			if (!vaddr) {
-				ret = ERR_PTR(-EINVAL);
-				goto bail;
-			}
-			mr->mr.map[m]->segs[n].vaddr = vaddr;
-			mr->mr.map[m]->segs[n].length = umem->page_size;
-			n++;
-			if (n == IPATH_SEGSZ) {
-				m++;
-				n = 0;
-			}
+		vaddr = page_address(sg_page(sg));
+		if (!vaddr) {
+			ret = ERR_PTR(-EINVAL);
+			goto bail;
+		}
+		mr->mr.map[m]->segs[n].vaddr = vaddr;
+		mr->mr.map[m]->segs[n].length = umem->page_size;
+		n++;
+		if (n == IPATH_SEGSZ) {
+			m++;
+			n = 0;
 		}
 	}
 	ret = &mr->ibmr;

@@ -24,7 +24,7 @@ OBJCOPYFLAGS    := -O binary -R .note -R .comment -S
 LDFLAGS_vmlinux :=
 LIBGCC 		:= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
-KBUILD_CFLAGS	+= -pipe -ffixed-r10
+KBUILD_CFLAGS	+= -pipe -ffixed-r10 -D__linux__
 
 ifeq ($(CONFIG_OPENRISC_HAVE_INST_MUL),y)
 	KBUILD_CFLAGS += $(call cc-option,-mhard-mul)
@@ -38,7 +38,7 @@ else
 	KBUILD_CFLAGS += $(call cc-option,-msoft-div)
 endif
 
-head-y 		:= arch/openrisc/kernel/head.o arch/openrisc/kernel/init_task.o
+head-y 		:= arch/openrisc/kernel/head.o
 
 core-y		+= arch/openrisc/lib/ \
 		   arch/openrisc/kernel/ \
@@ -50,6 +50,6 @@ BUILTIN_DTB := y
 else
 BUILTIN_DTB := n
 endif
-core-$(BUILTIN_DTB) += arch/openrisc/boot/
+core-$(BUILTIN_DTB) += arch/openrisc/boot/dts/
 
 all: vmlinux

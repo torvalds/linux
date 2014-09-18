@@ -49,13 +49,6 @@
   <refsect1>
     <title>Description</title>
 
-    <note>
-      <title>Experimental</title>
-
-      <para>This is an <link linkend="experimental">experimental</link>
-interface and may change in the future.</para>
-    </note>
-
     <para>These ioctls control an audio/video (usually MPEG-) encoder.
 <constant>VIDIOC_ENCODER_CMD</constant> sends a command to the
 encoder, <constant>VIDIOC_TRY_ENCODER_CMD</constant> can be used to

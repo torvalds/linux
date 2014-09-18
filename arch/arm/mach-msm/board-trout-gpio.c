@@ -89,7 +89,7 @@ static int trout_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 			.base		  = base_gpio,			\
 			.ngpio		  = 8,				\
 		},							\
-		.reg = (void *) reg_num + TROUT_CPLD_BASE,		\
+		.reg = reg_num + TROUT_CPLD_BASE,			\
 		.shadow = shadow_val,					\
 	}
 

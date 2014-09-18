@@ -1,0 +1,27 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+config EARLY_PRINTK
+	bool "Early printk" if EMBEDDED
+	default y
+	help
+	  Write kernel log output directly into the VGA buffer or to a serial
+	  port.
+
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized. For normal operation
+	  it is not recommended because it looks ugly and doesn't cooperate
+	  with klogd/syslogd or the X server. You should normally N here,
+	  unless you want to debug such a crash.
+
+config 16KSTACKS
+	bool "Use 16Kb for kernel stacks instead of 8Kb"
+	help
+	  If you say Y here the kernel will use a  16Kb stacksize for the
+	  kernel stack attached to each process/thread. The default is 8K.
+	  This increases the resident kernel footprint and will cause less
+	  threads to run on the system and also increase the pressure
+	  on the VM subsystem for higher order allocations.
+
+endmenu

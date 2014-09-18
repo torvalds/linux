@@ -19,7 +19,6 @@
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/hwtest.h>
-#include <linux/proc_fs.h>
 #include <asm/mac_via.h>
 #include <asm/mac_oss.h>
 
@@ -474,7 +473,7 @@ static struct nubus_dev* __init
 	if (slot == 0 && (unsigned long)dir.base % 2)
 		dir.base += 1;
 	
-	if (console_loglevel >= 10)
+	if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG)
 		printk(KERN_DEBUG "nubus_get_functional_resource: parent is 0x%p, dir is 0x%p\n",
 		       parent->base, dir.base);
 
@@ -569,7 +568,7 @@ static int __init nubus_get_vidnames(struct nubus_board* board,
 
 	printk(KERN_INFO "    video modes supported:\n");
 	nubus_get_subdir(parent, &dir);
-	if (console_loglevel >= 10)
+	if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG)
 		printk(KERN_DEBUG "nubus_get_vidnames: parent is 0x%p, dir is 0x%p\n",
 		       parent->base, dir.base);
 
@@ -630,7 +629,7 @@ static int __init nubus_get_vendorinfo(struct nubus_board* board,
 
 	printk(KERN_INFO "    vendor info:\n");
 	nubus_get_subdir(parent, &dir);
-	if (console_loglevel >= 10)
+	if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG)
 		printk(KERN_DEBUG "nubus_get_vendorinfo: parent is 0x%p, dir is 0x%p\n",
 		       parent->base, dir.base);
 
@@ -655,7 +654,7 @@ static int __init nubus_get_board_resource(struct nubus_board* board, int slot,
 	struct nubus_dirent ent;
 	
 	nubus_get_subdir(parent, &dir);
-	if (console_loglevel >= 10)
+	if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG)
 		printk(KERN_DEBUG "nubus_get_board_resource: parent is 0x%p, dir is 0x%p\n",
 		       parent->base, dir.base);
 
@@ -754,19 +753,19 @@ static void __init nubus_find_rom_dir(struct nubus_board* board)
 	if (nubus_readdir(&dir, &ent) == -1)
 		goto badrom;
 
-	if (console_loglevel >= 10)
+	if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG)
 		printk(KERN_INFO "nubus_get_rom_dir: entry %02x %06x\n", ent.type, ent.data);
 	/* This one takes us to where we want to go. */
 	if (nubus_readdir(&dir, &ent) == -1) 
 		goto badrom;
-	if (console_loglevel >= 10)
+	if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG)
 		printk(KERN_DEBUG "nubus_get_rom_dir: entry %02x %06x\n", ent.type, ent.data);
 	nubus_get_subdir(&ent, &dir);
 
 	/* Resource ID 01, also an "Unknown Macintosh" */
 	if (nubus_readdir(&dir, &ent) == -1) 
 		goto badrom;
-	if (console_loglevel >= 10)
+	if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG)
 		printk(KERN_DEBUG "nubus_get_rom_dir: entry %02x %06x\n", ent.type, ent.data);
 
 	/* FIXME: the first one is *not* always the right one.  We
@@ -781,7 +780,7 @@ static void __init nubus_find_rom_dir(struct nubus_board* board)
 	   path to that address... */
 	if (nubus_readdir(&dir, &ent) == -1)
 		goto badrom;
-	if (console_loglevel >= 10)
+	if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG)
 		printk(KERN_DEBUG "nubus_get_rom_dir: entry %02x %06x\n", ent.type, ent.data);
 	
 	/* Bwahahahaha... */
@@ -817,7 +816,7 @@ static struct nubus_board* __init nubus_add_board(int slot, int bytelanes)
 	board->fblock = rp;
 
 	/* Dump the format block for debugging purposes */
-	if (console_loglevel >= 10) {
+	if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG) {
 		int i;
 		printk(KERN_DEBUG "Slot %X, format block at 0x%p\n",
 		       slot, rp);
@@ -954,56 +953,6 @@ void __init nubus_probe_slot(int slot)
 	}
 }
 
-#if defined(CONFIG_PROC_FS)
-
-/* /proc/nubus stuff */
-
-static int sprint_nubus_board(struct nubus_board* board, char* ptr, int len)
-{
-	if(len < 100)
-		return -1;
-	
-	sprintf(ptr, "Slot %X: %s\n",
-		board->slot, board->name);
-	
-	return strlen(ptr);
-}
-
-static int nubus_read_proc(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
-{
-	int nprinted, len, begin = 0;
-	int size = PAGE_SIZE;
-	struct nubus_board* board;
-	
-	len   = sprintf(page, "Nubus devices found:\n");
-	/* Walk the list of NuBus boards */
-	for (board = nubus_boards; board != NULL; board = board->next)
-	{
-		nprinted = sprint_nubus_board(board, page + len, size - len);
-		if (nprinted < 0)
-			break;
-		len += nprinted;
-		if (len+begin < off) {
-			begin += len;
-			len = 0;
-		}
-		if (len+begin >= off+count)
-			break;
-	}
-	if (len+begin < off)
-		*eof = 1;
-	off -= begin;
-	*start = page + off;
-	len -= off;
-	if (len>count)
-		len = count;
-	if (len<0)
-		len = 0;
-	return len;
-}
-#endif
-
 void __init nubus_scan_bus(void)
 {
 	int slot;
@@ -1041,11 +990,7 @@ static int __init nubus_init(void)
 	nubus_devices = NULL;
 	nubus_boards  = NULL;
 	nubus_scan_bus();
-
-#ifdef CONFIG_PROC_FS
-	create_proc_read_entry("nubus", 0, NULL, nubus_read_proc, NULL);
 	nubus_proc_init();
-#endif
 	return 0;
 }
 

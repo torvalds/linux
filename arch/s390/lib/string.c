@@ -1,9 +1,8 @@
 /*
- *  arch/s390/lib/string.c
  *    Optimized string functions
  *
  *  S390 version
- *    Copyright (C) 2004 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2004
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
@@ -44,11 +43,7 @@ static inline char *__strnend(const char *s, size_t n)
  */
 size_t strlen(const char *s)
 {
-#if __GNUC__ < 4
 	return __strend(s) - s;
-#else
-	return __builtin_strlen(s);
-#endif
 }
 EXPORT_SYMBOL(strlen);
 
@@ -74,7 +69,6 @@ EXPORT_SYMBOL(strnlen);
  */
 char *strcpy(char *dest, const char *src)
 {
-#if __GNUC__ < 4
 	register int r0 asm("0") = 0;
 	char *ret = dest;
 
@@ -83,9 +77,6 @@ char *strcpy(char *dest, const char *src)
 		      : "+&a" (dest), "+&a" (src) : "d" (r0)
 		      : "cc", "memory" );
 	return ret;
-#else
-	return __builtin_strcpy(dest, src);
-#endif
 }
 EXPORT_SYMBOL(strcpy);
 
@@ -107,7 +98,7 @@ size_t strlcpy(char *dest, const char *src, size_t size)
 	if (size) {
 		size_t len = (ret >= size) ? size-1 : ret;
 		dest[len] = '\0';
-		__builtin_memcpy(dest, src, len);
+		memcpy(dest, src, len);
 	}
 	return ret;
 }
@@ -125,8 +116,8 @@ EXPORT_SYMBOL(strlcpy);
 char *strncpy(char *dest, const char *src, size_t n)
 {
 	size_t len = __strnend(src, n) - src;
-	__builtin_memset(dest + len, 0, n - len);
-	__builtin_memcpy(dest, src, len);
+	memset(dest + len, 0, n - len);
+	memcpy(dest, src, len);
 	return dest;
 }
 EXPORT_SYMBOL(strncpy);
@@ -172,7 +163,7 @@ size_t strlcat(char *dest, const char *src, size_t n)
 		if (len >= n)
 			len = n - 1;
 		dest[len] = '\0';
-		__builtin_memcpy(dest, src, len);
+		memcpy(dest, src, len);
 	}
 	return res;
 }
@@ -195,7 +186,7 @@ char *strncat(char *dest, const char *src, size_t n)
 	char *p = __strend(dest);
 
 	p[len] = '\0';
-	__builtin_memcpy(p, src, len);
+	memcpy(p, src, len);
 	return dest;
 }
 EXPORT_SYMBOL(strncat);
@@ -349,41 +340,3 @@ void *memscan(void *s, int c, size_t n)
 	return (void *) ret;
 }
 EXPORT_SYMBOL(memscan);
-
-/**
- * memcpy - Copy one area of memory to another
- * @dest: Where to copy to
- * @src: Where to copy from
- * @n: The size of the area.
- *
- * returns a pointer to @dest
- */
-void *memcpy(void *dest, const void *src, size_t n)
-{
-	return __builtin_memcpy(dest, src, n);
-}
-EXPORT_SYMBOL(memcpy);
-
-/**
- * memset - Fill a region of memory with the given value
- * @s: Pointer to the start of the area.
- * @c: The byte to fill the area with
- * @n: The size of the area.
- *
- * returns a pointer to @s
- */
-void *memset(void *s, int c, size_t n)
-{
-	char *xs;
-
-	if (c == 0)
-		return __builtin_memset(s, 0, n);
-
-	xs = (char *) s;
-	if (n > 0)
-		do {
-			*xs++ = c;
-		} while (--n > 0);
-	return s;
-}
-EXPORT_SYMBOL(memset);

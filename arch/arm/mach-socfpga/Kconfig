@@ -1,0 +1,10 @@
+config ARCH_SOCFPGA
+	bool "Altera SOCFPGA family" if ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select CACHE_L2X0
+	select DW_APB_TIMER_OF
+	select GPIO_PL061 if GPIOLIB
+	select HAVE_ARM_SCU
+	select HAVE_ARM_TWD if SMP
+	select MFD_SYSCON

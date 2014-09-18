@@ -14,9 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
- * MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution
  * in the file called "COPYING".
@@ -53,8 +51,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
 #define _NETXEN_NIC_LINUX_MINOR 0
-#define _NETXEN_NIC_LINUX_SUBVERSION 78
-#define NETXEN_NIC_LINUX_VERSIONID  "4.0.78"
+#define _NETXEN_NIC_LINUX_SUBVERSION 82
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.82"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -419,6 +417,8 @@ struct rcv_desc {
 	(((sts_data) >> 52) & 0x1)
 #define netxen_get_lro_sts_seq_number(sts_data)		\
 	((sts_data) & 0x0FFFFFFFF)
+#define netxen_get_lro_sts_mss(sts_data1)		\
+	((sts_data1 >> 32) & 0x0FFFF)
 
 
 struct status_desc {
@@ -794,6 +794,7 @@ struct netxen_cmd_args {
 #define NX_CAP0_JUMBO_CONTIGUOUS	NX_CAP_BIT(0, 7)
 #define NX_CAP0_LRO_CONTIGUOUS		NX_CAP_BIT(0, 8)
 #define NX_CAP0_HW_LRO			NX_CAP_BIT(0, 10)
+#define NX_CAP0_HW_LRO_MSS		NX_CAP_BIT(0, 21)
 
 /*
  * Context state
@@ -952,9 +953,10 @@ typedef struct nx_mac_list_s {
 	uint8_t mac_addr[ETH_ALEN+2];
 } nx_mac_list_t;
 
-struct nx_vlan_ip_list {
+struct nx_ip_list {
 	struct list_head list;
 	__be32 ip_addr;
+	bool master;
 };
 
 /*
@@ -1073,6 +1075,8 @@ typedef struct {
 #define NX_FW_CAPABILITY_FVLANTX		(1 << 9)
 #define NX_FW_CAPABILITY_HW_LRO			(1 << 10)
 #define NX_FW_CAPABILITY_GBE_LINK_CFG		(1 << 11)
+#define NX_FW_CAPABILITY_MORE_CAPS		(1 << 31)
+#define NX_FW_CAPABILITY_2_LRO_MAX_TCP_SEG	(1 << 2)
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -1155,6 +1159,7 @@ typedef struct {
 #define NETXEN_NIC_BRIDGE_ENABLED       0X10
 #define NETXEN_NIC_DIAG_ENABLED		0x20
 #define NETXEN_FW_RESET_OWNER           0x40
+#define NETXEN_FW_MSS_CAP	        0x80
 #define NETXEN_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED))
 
@@ -1164,7 +1169,6 @@ typedef struct {
 
 #define NETXEN_DB_MAPSIZE_BYTES    	0x1000
 
-#define NETXEN_NETDEV_WEIGHT 128
 #define NETXEN_ADAPTER_UP_MAGIC 777
 #define NETXEN_NIC_PEG_TUNE 0
 
@@ -1200,6 +1204,9 @@ typedef struct {
 #define NX_DISABLE_FW_DUMP              0xbadfeed
 #define NX_FORCE_FW_RESET               0xdeaddead
 
+
+/* Fw dump levels */
+static const u32 FW_DUMP_LEVELS[] = { 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff };
 
 /* Flash read/write address */
 #define NX_FW_DUMP_REG1         0x00130060
@@ -1596,7 +1603,7 @@ struct netxen_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct list_head mac_list;
-	struct list_head vlan_ip_list;
+	struct list_head ip_list;
 
 	spinlock_t tx_clean_lock;
 
@@ -1814,6 +1821,13 @@ struct netxen_brdinfo {
 	char short_name[NETXEN_MAX_SHORT_NAME];
 };
 
+struct netxen_dimm_cfg {
+	u8 presence;
+	u8 mem_type;
+	u8 dimm_type;
+	u32 size;
+};
+
 static const struct netxen_brdinfo netxen_boards[] = {
 	{NETXEN_BRDTYPE_P2_SB31_10G_CX4, 1, "XGb CX4"},
 	{NETXEN_BRDTYPE_P2_SB31_10G_HMEZ, 1, "XGb HMEZ"},
@@ -1838,7 +1852,7 @@ static const struct netxen_brdinfo netxen_boards[] = {
 
 #define NUM_SUPPORTED_BOARDS ARRAY_SIZE(netxen_boards)
 
-static inline void get_brd_name_by_type(u32 type, char *name)
+static inline int netxen_nic_get_brd_name_by_type(u32 type, char *name)
 {
 	int i, found = 0;
 	for (i = 0; i < NUM_SUPPORTED_BOARDS; ++i) {
@@ -1847,10 +1861,14 @@ static inline void get_brd_name_by_type(u32 type, char *name)
 			found = 1;
 			break;
 		}
-
 	}
-	if (!found)
-		name = "Unknown";
+
+	if (!found) {
+		strcpy(name, "Unknown");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static inline u32 netxen_tx_avail(struct nx_host_tx_ring *tx_ring)
@@ -1863,9 +1881,8 @@ static inline u32 netxen_tx_avail(struct nx_host_tx_ring *tx_ring)
 
 int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 *mac);
 int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, u64 *mac);
-extern void netxen_change_ringparam(struct netxen_adapter *adapter);
-extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
-				int *valp);
+void netxen_change_ringparam(struct netxen_adapter *adapter);
+int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp);
 
 extern const struct ethtool_ops netxen_nic_ethtool_ops;
 

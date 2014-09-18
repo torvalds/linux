@@ -323,7 +323,7 @@ chrp_find_bridges(void)
  * ATA controller to be set to fully native mode or bad things
  * will happen.
  */
-static void __devinit chrp_pci_fixup_winbond_ata(struct pci_dev *sl82c105)
+static void chrp_pci_fixup_winbond_ata(struct pci_dev *sl82c105)
 {
 	u8 progif;
 

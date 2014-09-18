@@ -1,0 +1,64 @@
+The struct perf_event_attr test (attr tests) support
+====================================================
+This testing support is embedded into perf directly and is governed
+by the PERF_TEST_ATTR environment variable and hook inside the
+sys_perf_event_open function.
+
+The general idea is to store 'struct perf_event_attr' details for
+each event created within single perf command. Each event details
+are stored into separate text file. Once perf command is finished
+these files are checked for values we expect for command.
+
+The attr tests consist of following parts:
+
+tests/attr.c
+------------
+This is the sys_perf_event_open hook implementation. The hook
+is triggered when the PERF_TEST_ATTR environment variable is
+defined. It must contain name of existing directory with access
+and write permissions.
+
+For each sys_perf_event_open call event details are stored in
+separate file. Besides 'struct perf_event_attr' values we also
+store 'fd' and 'group_fd' values to allow checking for groups.
+
+tests/attr.py
+-------------
+This is the python script that does all the hard work. It reads
+the test definition, executes it and checks results.
+
+tests/attr/
+-----------
+Directory containing all attr test definitions.
+Following tests are defined (with perf commands):
+
+  perf record kill                              (test-record-basic)
+  perf record -b kill                           (test-record-branch-any)
+  perf record -j any kill                       (test-record-branch-filter-any)
+  perf record -j any_call kill                  (test-record-branch-filter-any_call)
+  perf record -j any_ret kill                   (test-record-branch-filter-any_ret)
+  perf record -j hv kill                        (test-record-branch-filter-hv)
+  perf record -j ind_call kill                  (test-record-branch-filter-ind_call)
+  perf record -j k kill                         (test-record-branch-filter-k)
+  perf record -j u kill                         (test-record-branch-filter-u)
+  perf record -c 123 kill                       (test-record-count)
+  perf record -d kill                           (test-record-data)
+  perf record -F 100 kill                       (test-record-freq)
+  perf record -g kill                           (test-record-graph-default)
+  perf record --call-graph dwarf kill		(test-record-graph-dwarf)
+  perf record --call-graph fp kill              (test-record-graph-fp)
+  perf record --group -e cycles,instructions kill (test-record-group)
+  perf record -e '{cycles,instructions}' kill   (test-record-group1)
+  perf record -D kill                           (test-record-no-delay)
+  perf record -i kill                           (test-record-no-inherit)
+  perf record -n kill                           (test-record-no-samples)
+  perf record -c 100 -P kill                    (test-record-period)
+  perf record -R kill                           (test-record-raw)
+  perf stat -e cycles kill                      (test-stat-basic)
+  perf stat kill                                (test-stat-default)
+  perf stat -d kill                             (test-stat-detailed-1)
+  perf stat -dd kill                            (test-stat-detailed-2)
+  perf stat -ddd kill                           (test-stat-detailed-3)
+  perf stat --group -e cycles,instructions kill (test-stat-group)
+  perf stat -e '{cycles,instructions}' kill     (test-stat-group1)
+  perf stat -i -e cycles kill                   (test-stat-no-inherit)

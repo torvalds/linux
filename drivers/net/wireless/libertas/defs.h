@@ -90,7 +90,8 @@ do { if ((lbs_debug & (grp)) == (grp)) \
 #define lbs_deb_cfg80211(fmt, args...)  LBS_DEB_LL(LBS_DEB_CFG80211, " cfg80211", fmt, ##args)
 
 #ifdef DEBUG
-static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, int len)
+static inline void lbs_deb_hex(unsigned int grp, const char *prompt,
+			       const u8 *buf, int len)
 {
 	int i = 0;
 

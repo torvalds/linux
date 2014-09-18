@@ -192,7 +192,7 @@ grub.conf needs to be modified as follows:
 
 The kernel option for enabling Intel TXT support is found under the
 Security top-level menu and is called "Enable Intel(R) Trusted
-Execution Technology (TXT)".  It is marked as EXPERIMENTAL and
+Execution Technology (TXT)".  It is considered EXPERIMENTAL and
 depends on the generic x86 support (to allow maximum flexibility in
 kernel build options), since the tboot code will detect whether the
 platform actually supports Intel TXT and thus whether any of the

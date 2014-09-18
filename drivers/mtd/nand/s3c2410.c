@@ -21,15 +21,17 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#define pr_fmt(fmt) "nand-s3c2410: " fmt
+
 #ifdef CONFIG_MTD_NAND_S3C2410_DEBUG
 #define DEBUG
 #endif
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -43,23 +45,42 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
-#include <asm/io.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
 
-#include <plat/regs-nand.h>
-#include <plat/nand.h>
+#define S3C2410_NFREG(x) (x)
 
-#ifdef CONFIG_MTD_NAND_S3C2410_HWECC
-static int hardware_ecc = 1;
-#else
-static int hardware_ecc = 0;
-#endif
-
-#ifdef CONFIG_MTD_NAND_S3C2410_CLKSTOP
-static const int clock_stop = 1;
-#else
-static const int clock_stop = 0;
-#endif
-
+#define S3C2410_NFCONF		S3C2410_NFREG(0x00)
+#define S3C2410_NFCMD		S3C2410_NFREG(0x04)
+#define S3C2410_NFADDR		S3C2410_NFREG(0x08)
+#define S3C2410_NFDATA		S3C2410_NFREG(0x0C)
+#define S3C2410_NFSTAT		S3C2410_NFREG(0x10)
+#define S3C2410_NFECC		S3C2410_NFREG(0x14)
+#define S3C2440_NFCONT		S3C2410_NFREG(0x04)
+#define S3C2440_NFCMD		S3C2410_NFREG(0x08)
+#define S3C2440_NFADDR		S3C2410_NFREG(0x0C)
+#define S3C2440_NFDATA		S3C2410_NFREG(0x10)
+#define S3C2440_NFSTAT		S3C2410_NFREG(0x20)
+#define S3C2440_NFMECC0		S3C2410_NFREG(0x2C)
+#define S3C2412_NFSTAT		S3C2410_NFREG(0x28)
+#define S3C2412_NFMECC0		S3C2410_NFREG(0x34)
+#define S3C2410_NFCONF_EN		(1<<15)
+#define S3C2410_NFCONF_INITECC		(1<<12)
+#define S3C2410_NFCONF_nFCE		(1<<11)
+#define S3C2410_NFCONF_TACLS(x)		((x)<<8)
+#define S3C2410_NFCONF_TWRPH0(x)	((x)<<4)
+#define S3C2410_NFCONF_TWRPH1(x)	((x)<<0)
+#define S3C2410_NFSTAT_BUSY		(1<<0)
+#define S3C2440_NFCONF_TACLS(x)		((x)<<12)
+#define S3C2440_NFCONF_TWRPH0(x)	((x)<<8)
+#define S3C2440_NFCONF_TWRPH1(x)	((x)<<4)
+#define S3C2440_NFCONT_INITECC		(1<<4)
+#define S3C2440_NFCONT_nFCE		(1<<1)
+#define S3C2440_NFCONT_ENABLE		(1<<0)
+#define S3C2440_NFSTAT_READY		(1<<0)
+#define S3C2412_NFCONF_NANDBOOT		(1<<31)
+#define S3C2412_NFCONT_INIT_MAIN_ECC	(1<<5)
+#define S3C2412_NFCONT_nFCE0		(1<<1)
+#define S3C2412_NFSTAT_READY		(1<<0)
 
 /* new oob placement block for use with hardware ecc generation
  */
@@ -109,9 +130,8 @@ enum s3c_nand_clk_state {
  * @mtds: An array of MTD instances on this controoler.
  * @platform: The platform data for this board.
  * @device: The platform device we bound to.
- * @area: The IO area resource that came from request_mem_region().
  * @clk: The clock resource for this controller.
- * @regs: The area mapped for the hardware registers described by @area.
+ * @regs: The area mapped for the hardware registers.
  * @sel_reg: Pointer to the register controlling the NAND selection.
  * @sel_bit: The bit in @sel_reg to select the NAND chip.
  * @mtd_count: The number of MTDs created from this controller.
@@ -128,7 +148,6 @@ struct s3c2410_nand_info {
 
 	/* device info */
 	struct device			*device;
-	struct resource			*area;
 	struct clk			*clk;
 	void __iomem			*regs;
 	void __iomem			*sel_reg;
@@ -164,12 +183,16 @@ static struct s3c2410_nand_info *to_nand_info(struct platform_device *dev)
 
 static struct s3c2410_platform_nand *to_nand_plat(struct platform_device *dev)
 {
-	return dev->dev.platform_data;
+	return dev_get_platdata(&dev->dev);
 }
 
 static inline int allow_clk_suspend(struct s3c2410_nand_info *info)
 {
-	return clock_stop;
+#ifdef CONFIG_MTD_NAND_S3C2410_CLKSTOP
+	return 1;
+#else
+	return 0;
+#endif
 }
 
 /**
@@ -185,10 +208,10 @@ static void s3c2410_nand_clk_set_state(struct s3c2410_nand_info *info,
 
 	if (info->clk_state == CLOCK_ENABLE) {
 		if (new_state != CLOCK_ENABLE)
-			clk_disable(info->clk);
+			clk_disable_unprepare(info->clk);
 	} else {
 		if (new_state == CLOCK_ENABLE)
-			clk_enable(info->clk);
+			clk_prepare_enable(info->clk);
 	}
 
 	info->clk_state = new_state;
@@ -215,7 +238,8 @@ static int s3c_nand_calc_rate(int wanted, unsigned long clk, int max)
 	pr_debug("result %d from %ld, %d\n", result, clk, wanted);
 
 	if (result > max) {
-		printk("%d ns is too big for current clock rate %ld\n", wanted, clk);
+		pr_err("%d ns is too big for current clock rate %ld\n",
+			wanted, clk);
 		return -1;
 	}
 
@@ -225,7 +249,7 @@ static int s3c_nand_calc_rate(int wanted, unsigned long clk, int max)
 	return result;
 }
 
-#define to_ns(ticks,clk) (((ticks) * NS_IN_KHZ) / (unsigned int)(clk))
+#define to_ns(ticks, clk) (((ticks) * NS_IN_KHZ) / (unsigned int)(clk))
 
 /* controller setup */
 
@@ -268,7 +292,8 @@ static int s3c2410_nand_setrate(struct s3c2410_nand_info *info)
 	}
 
 	dev_info(info->device, "Tacls=%d, %dns Twrph0=%d %dns, Twrph1=%d %dns\n",
-	       tacls, to_ns(tacls, clkrate), twrph0, to_ns(twrph0, clkrate), twrph1, to_ns(twrph1, clkrate));
+		tacls, to_ns(tacls, clkrate), twrph0, to_ns(twrph0, clkrate),
+						twrph1, to_ns(twrph1, clkrate));
 
 	switch (info->cpu_type) {
 	case TYPE_S3C2410:
@@ -325,13 +350,13 @@ static int s3c2410_nand_inithw(struct s3c2410_nand_info *info)
 	if (ret < 0)
 		return ret;
 
- 	switch (info->cpu_type) {
- 	case TYPE_S3C2410:
+	switch (info->cpu_type) {
+	case TYPE_S3C2410:
 	default:
 		break;
 
- 	case TYPE_S3C2440:
- 	case TYPE_S3C2412:
+	case TYPE_S3C2440:
+	case TYPE_S3C2412:
 		/* enable the controller and de-assert nFCE */
 
 		writel(S3C2440_NFCONT_ENABLE, info->regs + S3C2440_NFCONT);
@@ -450,6 +475,7 @@ static int s3c2412_nand_devready(struct mtd_info *mtd)
 
 /* ECC handling functions */
 
+#ifdef CONFIG_MTD_NAND_S3C2410_HWECC
 static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 				     u_char *read_ecc, u_char *calc_ecc)
 {
@@ -463,10 +489,8 @@ static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	diff1 = read_ecc[1] ^ calc_ecc[1];
 	diff2 = read_ecc[2] ^ calc_ecc[2];
 
-	pr_debug("%s: rd %02x%02x%02x calc %02x%02x%02x diff %02x%02x%02x\n",
-		 __func__,
-		 read_ecc[0], read_ecc[1], read_ecc[2],
-		 calc_ecc[0], calc_ecc[1], calc_ecc[2],
+	pr_debug("%s: rd %*phN calc %*phN diff %02x%02x%02x\n",
+		 __func__, 3, read_ecc, 3, calc_ecc,
 		 diff0, diff1, diff2);
 
 	if (diff0 == 0 && diff1 == 0 && diff2 == 0)
@@ -546,7 +570,8 @@ static void s3c2412_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 	unsigned long ctrl;
 
 	ctrl = readl(info->regs + S3C2440_NFCONT);
-	writel(ctrl | S3C2412_NFCONT_INIT_MAIN_ECC, info->regs + S3C2440_NFCONT);
+	writel(ctrl | S3C2412_NFCONT_INIT_MAIN_ECC,
+	       info->regs + S3C2440_NFCONT);
 }
 
 static void s3c2440_nand_enable_hwecc(struct mtd_info *mtd, int mode)
@@ -558,7 +583,8 @@ static void s3c2440_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 	writel(ctrl | S3C2440_NFCONT_INITECC, info->regs + S3C2440_NFCONT);
 }
 
-static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
+static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
+				      u_char *ecc_code)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
@@ -566,13 +592,13 @@ static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 	ecc_code[1] = readb(info->regs + S3C2410_NFECC + 1);
 	ecc_code[2] = readb(info->regs + S3C2410_NFECC + 2);
 
-	pr_debug("%s: returning ecc %02x%02x%02x\n", __func__,
-		 ecc_code[0], ecc_code[1], ecc_code[2]);
+	pr_debug("%s: returning ecc %*phN\n", __func__, 3, ecc_code);
 
 	return 0;
 }
 
-static int s3c2412_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
+static int s3c2412_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
+				      u_char *ecc_code)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	unsigned long ecc = readl(info->regs + S3C2412_NFMECC0);
@@ -581,12 +607,13 @@ static int s3c2412_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 	ecc_code[1] = ecc >> 8;
 	ecc_code[2] = ecc >> 16;
 
-	pr_debug("calculate_ecc: returning ecc %02x,%02x,%02x\n", ecc_code[0], ecc_code[1], ecc_code[2]);
+	pr_debug("%s: returning ecc %*phN\n", __func__, 3, ecc_code);
 
 	return 0;
 }
 
-static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
+static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
+				      u_char *ecc_code)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	unsigned long ecc = readl(info->regs + S3C2440_NFMECC0);
@@ -599,6 +626,7 @@ static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 
 	return 0;
 }
+#endif
 
 /* over-ride the standard functions for a little more speed. We can
  * use read/write block to move the data buffers to/from the controller
@@ -625,13 +653,15 @@ static void s3c2440_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	}
 }
 
-static void s3c2410_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void s3c2410_nand_write_buf(struct mtd_info *mtd, const u_char *buf,
+				   int len)
 {
 	struct nand_chip *this = mtd->priv;
 	writesb(this->IO_ADDR_W, buf, len);
 }
 
-static void s3c2440_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void s3c2440_nand_write_buf(struct mtd_info *mtd, const u_char *buf,
+				   int len)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
@@ -675,7 +705,8 @@ static inline int s3c2410_nand_cpufreq_register(struct s3c2410_nand_info *info)
 					 CPUFREQ_TRANSITION_NOTIFIER);
 }
 
-static inline void s3c2410_nand_cpufreq_deregister(struct s3c2410_nand_info *info)
+static inline void
+s3c2410_nand_cpufreq_deregister(struct s3c2410_nand_info *info)
 {
 	cpufreq_unregister_notifier(&info->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
@@ -687,7 +718,8 @@ static inline int s3c2410_nand_cpufreq_register(struct s3c2410_nand_info *info)
 	return 0;
 }
 
-static inline void s3c2410_nand_cpufreq_deregister(struct s3c2410_nand_info *info)
+static inline void
+s3c2410_nand_cpufreq_deregister(struct s3c2410_nand_info *info)
 {
 }
 #endif
@@ -697,8 +729,6 @@ static inline void s3c2410_nand_cpufreq_deregister(struct s3c2410_nand_info *inf
 static int s3c24xx_nand_remove(struct platform_device *pdev)
 {
 	struct s3c2410_nand_info *info = to_nand_info(pdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	if (info == NULL)
 		return 0;
@@ -717,29 +747,12 @@ static int s3c24xx_nand_remove(struct platform_device *pdev)
 			pr_debug("releasing mtd %d (%p)\n", mtdno, ptr);
 			nand_release(&ptr->mtd);
 		}
-
-		kfree(info->mtds);
 	}
 
 	/* free the common resources */
 
-	if (!IS_ERR(info->clk)) {
+	if (!IS_ERR(info->clk))
 		s3c2410_nand_clk_set_state(info, CLOCK_DISABLE);
-		clk_put(info->clk);
-	}
-
-	if (info->regs != NULL) {
-		iounmap(info->regs);
-		info->regs = NULL;
-	}
-
-	if (info->area != NULL) {
-		release_resource(info->area);
-		kfree(info->area);
-		info->area = NULL;
-	}
-
-	kfree(info);
 
 	return 0;
 }
@@ -748,11 +761,14 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 				      struct s3c2410_nand_mtd *mtd,
 				      struct s3c2410_nand_set *set)
 {
-	if (set)
+	if (set) {
 		mtd->mtd.name = set->name;
 
-	return mtd_device_parse_register(&mtd->mtd, NULL, NULL,
+		return mtd_device_parse_register(&mtd->mtd, NULL, NULL,
 					 set->partitions, set->nr_partitions);
+	}
+
+	return -ENODEV;
 }
 
 /**
@@ -810,7 +826,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 			dev_info(info->device, "System booted from NAND\n");
 
 		break;
-  	}
+	}
 
 	chip->IO_ADDR_R = chip->IO_ADDR_W;
 
@@ -819,32 +835,31 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	nmtd->mtd.owner    = THIS_MODULE;
 	nmtd->set	   = set;
 
-	if (hardware_ecc) {
+#ifdef CONFIG_MTD_NAND_S3C2410_HWECC
+	chip->ecc.calculate = s3c2410_nand_calculate_ecc;
+	chip->ecc.correct   = s3c2410_nand_correct_data;
+	chip->ecc.mode	    = NAND_ECC_HW;
+	chip->ecc.strength  = 1;
+
+	switch (info->cpu_type) {
+	case TYPE_S3C2410:
+		chip->ecc.hwctl	    = s3c2410_nand_enable_hwecc;
 		chip->ecc.calculate = s3c2410_nand_calculate_ecc;
-		chip->ecc.correct   = s3c2410_nand_correct_data;
-		chip->ecc.mode	    = NAND_ECC_HW;
-		chip->ecc.strength  = 1;
+		break;
 
-		switch (info->cpu_type) {
-		case TYPE_S3C2410:
-			chip->ecc.hwctl	    = s3c2410_nand_enable_hwecc;
-			chip->ecc.calculate = s3c2410_nand_calculate_ecc;
-			break;
+	case TYPE_S3C2412:
+		chip->ecc.hwctl     = s3c2412_nand_enable_hwecc;
+		chip->ecc.calculate = s3c2412_nand_calculate_ecc;
+		break;
 
-		case TYPE_S3C2412:
-  			chip->ecc.hwctl     = s3c2412_nand_enable_hwecc;
-  			chip->ecc.calculate = s3c2412_nand_calculate_ecc;
-			break;
-
-		case TYPE_S3C2440:
-  			chip->ecc.hwctl     = s3c2440_nand_enable_hwecc;
-  			chip->ecc.calculate = s3c2440_nand_calculate_ecc;
-			break;
-
-		}
-	} else {
-		chip->ecc.mode	    = NAND_ECC_SOFT;
+	case TYPE_S3C2440:
+		chip->ecc.hwctl     = s3c2440_nand_enable_hwecc;
+		chip->ecc.calculate = s3c2440_nand_calculate_ecc;
+		break;
 	}
+#else
+	chip->ecc.mode	    = NAND_ECC_SOFT;
+#endif
 
 	if (set->ecc_layout != NULL)
 		chip->ecc.layout = set->ecc_layout;
@@ -898,7 +913,7 @@ static void s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
 	if (chip->ecc.mode != NAND_ECC_HW)
 		return;
 
-		/* change the behaviour depending on wether we are using
+		/* change the behaviour depending on whether we are using
 		 * the large or small page nand device */
 
 	if (chip->page_shift > 10) {
@@ -921,7 +936,7 @@ static void s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
 static int s3c24xx_nand_probe(struct platform_device *pdev)
 {
 	struct s3c2410_platform_nand *plat = to_nand_plat(pdev);
-	enum s3c_cpu_type cpu_type; 
+	enum s3c_cpu_type cpu_type;
 	struct s3c2410_nand_info *info;
 	struct s3c2410_nand_mtd *nmtd;
 	struct s3c2410_nand_set *sets;
@@ -935,9 +950,8 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	pr_debug("s3c2410_nand_probe(%p)\n", pdev);
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		dev_err(&pdev->dev, "no memory for flash info\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
@@ -949,7 +963,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	/* get the clock source and enable it */
 
-	info->clk = clk_get(&pdev->dev, "nand");
+	info->clk = devm_clk_get(&pdev->dev, "nand");
 	if (IS_ERR(info->clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		err = -ENOENT;
@@ -961,25 +975,16 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	/* allocate and map the resource */
 
 	/* currently we assume we have the one resource */
-	res  = pdev->resource;
+	res = pdev->resource;
 	size = resource_size(res);
 
-	info->area = request_mem_region(res->start, size, pdev->name);
+	info->device	= &pdev->dev;
+	info->platform	= plat;
+	info->cpu_type	= cpu_type;
 
-	if (info->area == NULL) {
-		dev_err(&pdev->dev, "cannot reserve register region\n");
-		err = -ENOENT;
-		goto exit_error;
-	}
-
-	info->device     = &pdev->dev;
-	info->platform   = plat;
-	info->regs       = ioremap(res->start, size);
-	info->cpu_type   = cpu_type;
-
-	if (info->regs == NULL) {
-		dev_err(&pdev->dev, "cannot reserve register region\n");
-		err = -EIO;
+	info->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->regs)) {
+		err = PTR_ERR(info->regs);
 		goto exit_error;
 	}
 
@@ -999,9 +1004,8 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	/* allocate our information */
 
 	size = nr_sets * sizeof(*info->mtds);
-	info->mtds = kzalloc(size, GFP_KERNEL);
+	info->mtds = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (info->mtds == NULL) {
-		dev_err(&pdev->dev, "failed to allocate mtd storage\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
@@ -1011,7 +1015,8 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	nmtd = info->mtds;
 
 	for (setno = 0; setno < nr_sets; setno++, nmtd++) {
-		pr_debug("initialising set %d (%p, info %p)\n", setno, nmtd, info);
+		pr_debug("initialising set %d (%p, info %p)\n",
+			 setno, nmtd, info);
 
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
@@ -1134,20 +1139,7 @@ static struct platform_driver s3c24xx_nand_driver = {
 	},
 };
 
-static int __init s3c2410_nand_init(void)
-{
-	printk("S3C24XX NAND Driver, (c) 2004 Simtec Electronics\n");
-
-	return platform_driver_register(&s3c24xx_nand_driver);
-}
-
-static void __exit s3c2410_nand_exit(void)
-{
-	platform_driver_unregister(&s3c24xx_nand_driver);
-}
-
-module_init(s3c2410_nand_init);
-module_exit(s3c2410_nand_exit);
+module_platform_driver(s3c24xx_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");

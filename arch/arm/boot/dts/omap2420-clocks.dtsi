@@ -1,0 +1,270 @@
+/*
+ * Device Tree Source for OMAP2420 clock data
+ *
+ * Copyright (C) 2014 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+&prcm_clocks {
+	sys_clkout2_src_gate: sys_clkout2_src_gate {
+		#clock-cells = <0>;
+		compatible = "ti,composite-no-wait-gate-clock";
+		clocks = <&core_ck>;
+		ti,bit-shift = <15>;
+		reg = <0x0070>;
+	};
+
+	sys_clkout2_src_mux: sys_clkout2_src_mux {
+		#clock-cells = <0>;
+		compatible = "ti,composite-mux-clock";
+		clocks = <&core_ck>, <&sys_ck>, <&func_96m_ck>, <&func_54m_ck>;
+		ti,bit-shift = <8>;
+		reg = <0x0070>;
+	};
+
+	sys_clkout2_src: sys_clkout2_src {
+		#clock-cells = <0>;
+		compatible = "ti,composite-clock";
+		clocks = <&sys_clkout2_src_gate>, <&sys_clkout2_src_mux>;
+	};
+
+	sys_clkout2: sys_clkout2 {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&sys_clkout2_src>;
+		ti,bit-shift = <11>;
+		ti,max-div = <64>;
+		reg = <0x0070>;
+		ti,index-power-of-two;
+	};
+
+	dsp_gate_ick: dsp_gate_ick {
+		#clock-cells = <0>;
+		compatible = "ti,composite-interface-clock";
+		clocks = <&dsp_fck>;
+		ti,bit-shift = <1>;
+		reg = <0x0810>;
+	};
+
+	dsp_div_ick: dsp_div_ick {
+		#clock-cells = <0>;
+		compatible = "ti,composite-divider-clock";
+		clocks = <&dsp_fck>;
+		ti,bit-shift = <5>;
+		ti,max-div = <3>;
+		reg = <0x0840>;
+		ti,index-starts-at-one;
+	};
+
+	dsp_ick: dsp_ick {
+		#clock-cells = <0>;
+		compatible = "ti,composite-clock";
+		clocks = <&dsp_gate_ick>, <&dsp_div_ick>;
+	};
+
+	iva1_gate_ifck: iva1_gate_ifck {
+		#clock-cells = <0>;
+		compatible = "ti,composite-gate-clock";
+		clocks = <&core_ck>;
+		ti,bit-shift = <10>;
+		reg = <0x0800>;
+	};
+
+	iva1_div_ifck: iva1_div_ifck {
+		#clock-cells = <0>;
+		compatible = "ti,composite-divider-clock";
+		clocks = <&core_ck>;
+		ti,bit-shift = <8>;
+		reg = <0x0840>;
+		ti,dividers = <0>, <1>, <2>, <3>, <4>, <0>, <6>, <0>, <8>, <0>, <0>, <0>, <12>;
+	};
+
+	iva1_ifck: iva1_ifck {
+		#clock-cells = <0>;
+		compatible = "ti,composite-clock";
+		clocks = <&iva1_gate_ifck>, <&iva1_div_ifck>;
+	};
+
+	iva1_ifck_div: iva1_ifck_div {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&iva1_ifck>;
+		clock-mult = <1>;
+		clock-div = <2>;
+	};
+
+	iva1_mpu_int_ifck: iva1_mpu_int_ifck {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&iva1_ifck_div>;
+		ti,bit-shift = <8>;
+		reg = <0x0800>;
+	};
+
+	wdt3_ick: wdt3_ick {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-interface-clock";
+		clocks = <&l4_ck>;
+		ti,bit-shift = <28>;
+		reg = <0x0210>;
+	};
+
+	wdt3_fck: wdt3_fck {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&func_32k_ck>;
+		ti,bit-shift = <28>;
+		reg = <0x0200>;
+	};
+
+	mmc_ick: mmc_ick {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-interface-clock";
+		clocks = <&l4_ck>;
+		ti,bit-shift = <26>;
+		reg = <0x0210>;
+	};
+
+	mmc_fck: mmc_fck {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&func_96m_ck>;
+		ti,bit-shift = <26>;
+		reg = <0x0200>;
+	};
+
+	eac_ick: eac_ick {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-interface-clock";
+		clocks = <&l4_ck>;
+		ti,bit-shift = <24>;
+		reg = <0x0210>;
+	};
+
+	eac_fck: eac_fck {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&func_96m_ck>;
+		ti,bit-shift = <24>;
+		reg = <0x0200>;
+	};
+
+	i2c1_fck: i2c1_fck {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&func_12m_ck>;
+		ti,bit-shift = <19>;
+		reg = <0x0200>;
+	};
+
+	i2c2_fck: i2c2_fck {
+		#clock-cells = <0>;
+		compatible = "ti,wait-gate-clock";
+		clocks = <&func_12m_ck>;
+		ti,bit-shift = <20>;
+		reg = <0x0200>;
+	};
+
+	vlynq_ick: vlynq_ick {
+		#clock-cells = <0>;
+		compatible = "ti,omap3-interface-clock";
+		clocks = <&core_l3_ck>;
+		ti,bit-shift = <3>;
+		reg = <0x0210>;
+	};
+
+	vlynq_gate_fck: vlynq_gate_fck {
+		#clock-cells = <0>;
+		compatible = "ti,composite-gate-clock";
+		clocks = <&core_ck>;
+		ti,bit-shift = <3>;
+		reg = <0x0200>;
+	};
+
+	core_d18_ck: core_d18_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&core_ck>;
+		clock-mult = <1>;
+		clock-div = <18>;
+	};
+
+	vlynq_mux_fck: vlynq_mux_fck {
+		#clock-cells = <0>;
+		compatible = "ti,composite-mux-clock";
+		clocks = <&func_96m_ck>, <&core_ck>, <&core_d2_ck>, <&core_d3_ck>, <&core_d4_ck>, <&dummy_ck>, <&core_d6_ck>, <&dummy_ck>, <&core_d8_ck>, <&core_d9_ck>, <&dummy_ck>, <&dummy_ck>, <&core_d12_ck>, <&dummy_ck>, <&dummy_ck>, <&dummy_ck>, <&core_d16_ck>, <&dummy_ck>, <&core_d18_ck>;
+		ti,bit-shift = <15>;
+		reg = <0x0240>;
+	};
+
+	vlynq_fck: vlynq_fck {
+		#clock-cells = <0>;
+		compatible = "ti,composite-clock";
+		clocks = <&vlynq_gate_fck>, <&vlynq_mux_fck>;
+	};
+};
+
+&prcm_clockdomains {
+	gfx_clkdm: gfx_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&gfx_ick>;
+	};
+
+	core_l3_clkdm: core_l3_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&cam_fck>, <&vlynq_ick>, <&usb_fck>;
+	};
+
+	wkup_clkdm: wkup_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&dpll_ck>, <&emul_ck>, <&gpt1_ick>, <&gpios_ick>,
+			 <&gpios_fck>, <&mpu_wdt_ick>, <&mpu_wdt_fck>,
+			 <&sync_32k_ick>, <&wdt1_ick>, <&omapctrl_ick>;
+	};
+
+	iva1_clkdm: iva1_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&iva1_mpu_int_ifck>;
+	};
+
+	dss_clkdm: dss_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&dss_ick>, <&dss_54m_fck>;
+	};
+
+	core_l4_clkdm: core_l4_clkdm {
+		compatible = "ti,clockdomain";
+		clocks = <&ssi_l4_ick>, <&gpt2_ick>, <&gpt3_ick>, <&gpt4_ick>,
+			 <&gpt5_ick>, <&gpt6_ick>, <&gpt7_ick>, <&gpt8_ick>,
+			 <&gpt9_ick>, <&gpt10_ick>, <&gpt11_ick>, <&gpt12_ick>,
+			 <&mcbsp1_ick>, <&mcbsp2_ick>, <&mcspi1_ick>,
+			 <&mcspi1_fck>, <&mcspi2_ick>, <&mcspi2_fck>,
+			 <&uart1_ick>, <&uart1_fck>, <&uart2_ick>, <&uart2_fck>,
+			 <&uart3_ick>, <&uart3_fck>, <&cam_ick>,
+			 <&mailboxes_ick>, <&wdt4_ick>, <&wdt4_fck>,
+			 <&wdt3_ick>, <&wdt3_fck>, <&mspro_ick>, <&mspro_fck>,
+			 <&mmc_ick>, <&mmc_fck>, <&fac_ick>, <&fac_fck>,
+			 <&eac_ick>, <&eac_fck>, <&hdq_ick>, <&hdq_fck>,
+			 <&i2c1_ick>, <&i2c1_fck>, <&i2c2_ick>, <&i2c2_fck>,
+			 <&des_ick>, <&sha_ick>, <&rng_ick>, <&aes_ick>,
+			 <&pka_ick>;
+	};
+};
+
+&func_96m_ck {
+	compatible = "fixed-factor-clock";
+	clocks = <&apll96_ck>;
+	clock-mult = <1>;
+	clock-div = <1>;
+};
+
+&dsp_div_fck {
+	ti,dividers = <0>, <1>, <2>, <3>, <4>, <0>, <6>, <0>, <8>, <0>, <0>, <0>, <12>;
+};
+
+&ssi_ssr_sst_div_fck {
+	ti,dividers = <0>, <1>, <2>, <3>, <4>, <0>, <6>, <0>, <8>;
+};

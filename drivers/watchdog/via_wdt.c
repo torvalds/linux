@@ -91,7 +91,7 @@ static inline void wdt_reset(void)
 static void wdt_timer_tick(unsigned long data)
 {
 	if (time_before(jiffies, next_heartbeat) ||
-	   (!test_bit(WDOG_ACTIVE, &wdt_dev.status))) {
+	   (!watchdog_active(&wdt_dev))) {
 		wdt_reset();
 		mod_timer(&timer, jiffies + WDT_HEARTBEAT);
 	} else
@@ -155,7 +155,7 @@ static struct watchdog_device wdt_dev = {
 	.max_timeout =	WDT_TIMEOUT_MAX,
 };
 
-static int __devinit wdt_probe(struct pci_dev *pdev,
+static int wdt_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
 	unsigned char conf;
@@ -202,6 +202,9 @@ static int __devinit wdt_probe(struct pci_dev *pdev,
 		goto err_out_release;
 	}
 
+	if (timeout < 1 || timeout > WDT_TIMEOUT_MAX)
+		timeout = WDT_TIMEOUT;
+
 	wdt_dev.timeout = timeout;
 	watchdog_set_nowayout(&wdt_dev, nowayout);
 	if (readl(wdt_mem) & VIA_WDT_FIRED)
@@ -226,17 +229,17 @@ err_out_disable_device:
 	return ret;
 }
 
-static void __devexit wdt_remove(struct pci_dev *pdev)
+static void wdt_remove(struct pci_dev *pdev)
 {
 	watchdog_unregister_device(&wdt_dev);
-	del_timer(&timer);
+	del_timer_sync(&timer);
 	iounmap(wdt_mem);
 	release_mem_region(mmio, VIA_WDT_MMIO_LEN);
 	release_resource(&wdt_res);
 	pci_disable_device(pdev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(wdt_pci_table) = {
+static const struct pci_device_id wdt_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_CX700) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VX800) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VX855) },
@@ -247,23 +250,10 @@ static struct pci_driver wdt_driver = {
 	.name		= "via_wdt",
 	.id_table	= wdt_pci_table,
 	.probe		= wdt_probe,
-	.remove		= __devexit_p(wdt_remove),
+	.remove		= wdt_remove,
 };
 
-static int __init wdt_init(void)
-{
-	if (timeout < 1 || timeout > WDT_TIMEOUT_MAX)
-		timeout = WDT_TIMEOUT;
-	return pci_register_driver(&wdt_driver);
-}
-
-static void __exit wdt_exit(void)
-{
-	pci_unregister_driver(&wdt_driver);
-}
-
-module_init(wdt_init);
-module_exit(wdt_exit);
+module_pci_driver(wdt_driver);
 
 MODULE_AUTHOR("Marc Vertes");
 MODULE_DESCRIPTION("Driver for watchdog timer on VIA chipset");

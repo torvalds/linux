@@ -132,6 +132,10 @@
 			reg = <0x68>;
 			interrupts = <0 0x1 0 0>;
 		};
+		adt7461@4c {
+			compatible = "adi,adt7461";
+			reg = <0x4c>;
+		};
 	};
 
 	spi@7000 {
@@ -196,12 +200,18 @@
 		phy0: ethernet-phy@0 {
 			interrupts = <10 0x1 0 0>;
 			reg = <0>;
-			device_type = "ethernet-phy";
 		};
 		phy1: ethernet-phy@1 {
 			interrupts = <10 0x1 0 0>;
 			reg = <1>;
-			device_type = "ethernet-phy";
+		};
+		sgmii_phy0: sgmii-phy@0 {
+			interrupts = <6 1 0 0>;
+			reg = <0x1d>;
+		};
+		sgmii_phy1: sgmii-phy@1 {
+			interrupts = <6 1 0 0>;
+			reg = <0x1c>;
 		};
 		tbi0: tbi-phy@11 {
 			reg = <0x11>;

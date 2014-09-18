@@ -46,6 +46,7 @@
  */
 #define	BFI_FLASH_CHUNK_SZ			256	/*  Flash chunk size */
 #define	BFI_FLASH_CHUNK_SZ_WORDS	(BFI_FLASH_CHUNK_SZ/sizeof(u32))
+#define BFI_FLASH_IMAGE_SZ		0x100000
 
 /*
  * Msg header common to all msgs
@@ -210,7 +211,8 @@ enum bfi_mclass {
 	BFI_MC_PORT		= 21,	/*  Physical port		    */
 	BFI_MC_SFP		= 22,	/*  SFP module	*/
 	BFI_MC_PHY		= 25,   /*  External PHY message class	*/
-	BFI_MC_MAX		= 32
+	BFI_MC_FRU		= 34,
+	BFI_MC_MAX		= 35
 };
 
 #define BFI_IOC_MAX_CQS		4
@@ -263,6 +265,7 @@ struct bfi_ioc_getattr_req_s {
 	union bfi_addr_u	attr_addr;
 };
 
+#define BFI_IOC_ATTR_UUID_SZ	16
 struct bfi_ioc_attr_s {
 	wwn_t		mfg_pwwn;	/*  Mfg port wwn	   */
 	wwn_t		mfg_nwwn;	/*  Mfg node wwn	   */
@@ -288,6 +291,10 @@ struct bfi_ioc_attr_s {
 	char		optrom_version[BFA_VERSION_LEN];
 	struct		bfa_mfg_vpd_s	vpd;
 	u32	card_type;	/*  card type			*/
+	u8	mfg_day;	/* manufacturing day */
+	u8	mfg_month;	/* manufacturing month */
+	u16	mfg_year;	/* manufacturing year */
+	u8	uuid[BFI_IOC_ATTR_UUID_SZ];	/*!< chinook uuid */
 };
 
 /*
@@ -318,7 +325,29 @@ struct bfi_ioc_getattr_reply_s {
 #define BFI_IOC_TRC_ENTS	256
 
 #define BFI_IOC_FW_SIGNATURE	(0xbfadbfad)
+#define BFA_IOC_FW_INV_SIGN	(0xdeaddead)
 #define BFI_IOC_MD5SUM_SZ	4
+
+struct bfi_ioc_fwver_s {
+#ifdef __BIG_ENDIAN
+	uint8_t patch;
+	uint8_t maint;
+	uint8_t minor;
+	uint8_t major;
+	uint8_t rsvd[2];
+	uint8_t build;
+	uint8_t phase;
+#else
+	uint8_t major;
+	uint8_t minor;
+	uint8_t maint;
+	uint8_t patch;
+	uint8_t phase;
+	uint8_t build;
+	uint8_t rsvd[2];
+#endif
+};
+
 struct bfi_ioc_image_hdr_s {
 	u32	signature;	/* constant signature		*/
 	u8	asic_gen;	/* asic generation		*/
@@ -327,8 +356,16 @@ struct bfi_ioc_image_hdr_s {
 	u8	port1_mode;	/* device mode for port 1	*/
 	u32	exec;		/* exec vector			*/
 	u32	bootenv;	/* fimware boot env		*/
-	u32	rsvd_b[4];
+	u32	rsvd_b[2];
+	struct bfi_ioc_fwver_s	fwver;
 	u32	md5sum[BFI_IOC_MD5SUM_SZ];
+};
+
+enum bfi_ioc_img_ver_cmp_e {
+	BFI_IOC_IMG_VER_INCOMP,
+	BFI_IOC_IMG_VER_OLD,
+	BFI_IOC_IMG_VER_SAME,
+	BFI_IOC_IMG_VER_BETTER
 };
 
 #define BFI_FWBOOT_DEVMODE_OFF		4
@@ -339,6 +376,12 @@ struct bfi_ioc_image_hdr_s {
 	 ((u32)(__asic_mode)) << 16 |		\
 	 ((u32)(__p0_mode)) << 8 |		\
 	 ((u32)(__p1_mode)))
+
+enum bfi_fwboot_type {
+	BFI_FWBOOT_TYPE_NORMAL  = 0,
+	BFI_FWBOOT_TYPE_FLASH   = 1,
+	BFI_FWBOOT_TYPE_MEMTEST = 2,
+};
 
 #define BFI_FWBOOT_TYPE_NORMAL	0
 #define BFI_FWBOOT_TYPE_MEMTEST	2
@@ -369,6 +412,10 @@ enum bfi_ioc_state {
 	BFI_IOC_FAIL		= 8,	/*  IOC heart-beat failure	     */
 	BFI_IOC_MEMTEST		= 9,	/*  IOC is doing memtest	     */
 };
+
+#define BFA_IOC_CB_JOIN_SH	16
+#define BFA_IOC_CB_FWSTATE_MASK	0x0000ffff
+#define BFA_IOC_CB_JOIN_MASK	0xffff0000
 
 #define BFI_IOC_ENDIAN_SIG  0x12345678
 
@@ -687,7 +734,8 @@ struct bfi_ablk_h2i_pf_req_s {
 	u8			pcifn;
 	u8			port;
 	u16			pers;
-	u32			bw;
+	u16			bw_min; /* percent BW @ max speed */
+	u16			bw_max; /* percent BW @ max speed */
 };
 
 /* BFI_ABLK_H2I_OPTROM_ENABLE, BFI_ABLK_H2I_OPTROM_DISABLE */
@@ -957,6 +1005,7 @@ enum bfi_diag_h2i {
 	BFI_DIAG_H2I_TEMPSENSOR = 4,
 	BFI_DIAG_H2I_LEDTEST = 5,
 	BFI_DIAG_H2I_QTEST      = 6,
+	BFI_DIAG_H2I_DPORT	= 7,
 };
 
 enum bfi_diag_i2h {
@@ -966,6 +1015,8 @@ enum bfi_diag_i2h {
 	BFI_DIAG_I2H_TEMPSENSOR = BFA_I2HM(BFI_DIAG_H2I_TEMPSENSOR),
 	BFI_DIAG_I2H_LEDTEST = BFA_I2HM(BFI_DIAG_H2I_LEDTEST),
 	BFI_DIAG_I2H_QTEST      = BFA_I2HM(BFI_DIAG_H2I_QTEST),
+	BFI_DIAG_I2H_DPORT	= BFA_I2HM(BFI_DIAG_H2I_DPORT),
+	BFI_DIAG_I2H_DPORT_SCN	= BFA_I2HM(8),
 };
 
 #define BFI_DIAG_MAX_SGES	2
@@ -1050,6 +1101,81 @@ struct bfi_diag_qtest_req_s {
 	u32	data[BFI_LMSG_PL_WSZ]; /* fill up tcm prefetch area */
 };
 #define bfi_diag_qtest_rsp_t struct bfi_diag_qtest_req_s
+
+/*
+ *	D-port test
+ */
+enum bfi_dport_req {
+	BFI_DPORT_DISABLE	= 0,	/* disable dport request	*/
+	BFI_DPORT_ENABLE	= 1,	/* enable dport request		*/
+	BFI_DPORT_START		= 2,	/* start dport request	*/
+	BFI_DPORT_SHOW		= 3,	/* show dport request	*/
+	BFI_DPORT_DYN_DISABLE	= 4,	/* disable dynamic dport request */
+};
+
+enum bfi_dport_scn {
+	BFI_DPORT_SCN_TESTSTART		= 1,
+	BFI_DPORT_SCN_TESTCOMP		= 2,
+	BFI_DPORT_SCN_SFP_REMOVED	= 3,
+	BFI_DPORT_SCN_DDPORT_ENABLE	= 4,
+	BFI_DPORT_SCN_DDPORT_DISABLE	= 5,
+	BFI_DPORT_SCN_FCPORT_DISABLE	= 6,
+	BFI_DPORT_SCN_SUBTESTSTART	= 7,
+	BFI_DPORT_SCN_TESTSKIP		= 8,
+	BFI_DPORT_SCN_DDPORT_DISABLED	= 9,
+};
+
+struct bfi_diag_dport_req_s {
+	struct bfi_mhdr_s	mh;	/* 4 bytes                      */
+	u8			req;	/* request 1: enable 0: disable	*/
+	u8			rsvd[3];
+	u32			lpcnt;
+	u32			payload;
+};
+
+struct bfi_diag_dport_rsp_s {
+	struct bfi_mhdr_s	mh;	/* header 4 bytes		*/
+	bfa_status_t		status;	/* reply status			*/
+	wwn_t			pwwn;	/* switch port wwn. 8 bytes	*/
+	wwn_t			nwwn;	/* switch node wwn. 8 bytes	*/
+};
+
+struct bfi_diag_dport_scn_teststart_s {
+	wwn_t	pwwn;	/* switch port wwn. 8 bytes */
+	wwn_t	nwwn;	/* switch node wwn. 8 bytes */
+	u8	type;	/* bfa_diag_dport_test_type_e */
+	u8	mode;	/* bfa_diag_dport_test_opmode */
+	u8	rsvd[2];
+	u32	numfrm; /* from switch uint in 1M */
+};
+
+struct bfi_diag_dport_scn_testcomp_s {
+	u8	status; /* bfa_diag_dport_test_status_e */
+	u8	speed;  /* bfa_port_speed_t  */
+	u16	numbuffer; /* from switch  */
+	u8	subtest_status[DPORT_TEST_MAX];  /* 4 bytes */
+	u32	latency;   /* from switch  */
+	u32	distance;  /* from swtich unit in meters  */
+			/* Buffers required to saturate the link */
+	u16	frm_sz;	/* from switch for buf_reqd */
+	u8	rsvd[2];
+};
+
+struct bfi_diag_dport_scn_s {		/* max size == RDS_RMESZ	*/
+	struct bfi_mhdr_s	mh;	/* header 4 bytes		*/
+	u8			state;  /* new state			*/
+	u8			rsvd[3];
+	union {
+		struct bfi_diag_dport_scn_teststart_s teststart;
+		struct bfi_diag_dport_scn_testcomp_s testcomp;
+	} info;
+};
+
+union bfi_diag_dport_msg_u {
+	struct bfi_diag_dport_req_s	req;
+	struct bfi_diag_dport_rsp_s	rsp;
+	struct bfi_diag_dport_scn_s	scn;
+};
 
 /*
  *	PHY module specific
@@ -1147,6 +1273,52 @@ struct bfi_phy_write_rsp_s {
 	u32			length;
 };
 
+enum bfi_fru_h2i_msgs {
+	BFI_FRUVPD_H2I_WRITE_REQ = 1,
+	BFI_FRUVPD_H2I_READ_REQ = 2,
+	BFI_TFRU_H2I_WRITE_REQ = 3,
+	BFI_TFRU_H2I_READ_REQ = 4,
+};
+
+enum bfi_fru_i2h_msgs {
+	BFI_FRUVPD_I2H_WRITE_RSP = BFA_I2HM(1),
+	BFI_FRUVPD_I2H_READ_RSP = BFA_I2HM(2),
+	BFI_TFRU_I2H_WRITE_RSP = BFA_I2HM(3),
+	BFI_TFRU_I2H_READ_RSP = BFA_I2HM(4),
+};
+
+/*
+ * FRU write request
+ */
+struct bfi_fru_write_req_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	u8			last;
+	u8			rsv_1[3];
+	u8			trfr_cmpl;
+	u8			rsv_2[3];
+	u32			offset;
+	u32			length;
+	struct bfi_alen_s	alen;
+};
+
+/*
+ * FRU read request
+ */
+struct bfi_fru_read_req_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	u32			offset;
+	u32			length;
+	struct bfi_alen_s	alen;
+};
+
+/*
+ * FRU response
+ */
+struct bfi_fru_rsp_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	u32			status;
+	u32			length;
+};
 #pragma pack()
 
 #endif /* __BFI_H__ */

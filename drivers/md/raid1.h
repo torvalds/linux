@@ -1,9 +1,15 @@
 #ifndef _RAID1_H
 #define _RAID1_H
 
-struct mirror_info {
+struct raid1_info {
 	struct md_rdev	*rdev;
 	sector_t	head_position;
+
+	/* When choose the best device for a read (read_balance())
+	 * we try to keep sequential reads one the same device
+	 */
+	sector_t	next_seq_sect;
+	sector_t	seq_start;
 };
 
 /*
@@ -24,22 +30,29 @@ struct pool_info {
 
 struct r1conf {
 	struct mddev		*mddev;
-	struct mirror_info	*mirrors;	/* twice 'raid_disks' to
+	struct raid1_info	*mirrors;	/* twice 'raid_disks' to
 						 * allow for replacements.
 						 */
 	int			raid_disks;
 
-	/* When choose the best device for a read (read_balance())
-	 * we try to keep sequential reads one the same device
-	 * using 'last_used' and 'next_seq_sect'
-	 */
-	int			last_used;
-	sector_t		next_seq_sect;
 	/* During resync, read_balancing is only allowed on the part
 	 * of the array that has been resynced.  'next_resync' tells us
 	 * where that is.
 	 */
 	sector_t		next_resync;
+
+	/* When raid1 starts resync, we divide array into four partitions
+	 * |---------|--------------|---------------------|-------------|
+	 *        next_resync   start_next_window       end_window
+	 * start_next_window = next_resync + NEXT_NORMALIO_DISTANCE
+	 * end_window = start_next_window + NEXT_NORMALIO_DISTANCE
+	 * current_window_requests means the count of normalIO between
+	 *   start_next_window and end_window.
+	 * next_window_requests means the count of normalIO after end_window.
+	 * */
+	sector_t		start_next_window;
+	int			current_window_requests;
+	int			next_window_requests;
 
 	spinlock_t		device_lock;
 
@@ -65,6 +78,7 @@ struct r1conf {
 	int			nr_waiting;
 	int			nr_queued;
 	int			barrier;
+	int			array_frozen;
 
 	/* Set to 1 if a full sync is needed, (fresh device added).
 	 * Cleared when a sync completes.
@@ -111,6 +125,7 @@ struct r1bio {
 						 * in this BehindIO request
 						 */
 	sector_t		sector;
+	sector_t		start_next_window;
 	int			sectors;
 	unsigned long		state;
 	struct mddev		*mddev;
@@ -134,20 +149,6 @@ struct r1bio {
 	struct bio		*bios[0];
 	/* DO NOT PUT ANY NEW FIELDS HERE - bios array is contiguously alloced*/
 };
-
-/* when we get a read error on a read-only array, we redirect to another
- * device without failing the first device, or trying to over-write to
- * correct the read error.  To keep track of bad blocks on a per-bio
- * level, we store IO_BLOCKED in the appropriate 'bios' pointer
- */
-#define IO_BLOCKED ((struct bio *)1)
-/* When we successfully write to a known bad-block, we need to remove the
- * bad-block marking which must be done from process context.  So we record
- * the success by setting bios[n] to IO_MADE_GOOD
- */
-#define IO_MADE_GOOD ((struct bio *)2)
-
-#define BIO_SPECIAL(bio) ((unsigned long)bio <= 2)
 
 /* bits for r1bio.state */
 #define	R1BIO_Uptodate	0

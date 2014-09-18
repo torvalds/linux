@@ -17,7 +17,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
-#include <linux/init.h>
 #include <linux/input-polldev.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
@@ -91,7 +90,7 @@ static void handle_buttons(struct input_polled_dev *dev)
 	}
 }
 
-static int __devinit sgi_buttons_probe(struct platform_device *pdev)
+static int sgi_buttons_probe(struct platform_device *pdev)
 {
 	struct buttons_dev *bdev;
 	struct input_polled_dev *poll_dev;
@@ -128,7 +127,7 @@ static int __devinit sgi_buttons_probe(struct platform_device *pdev)
 	__clear_bit(KEY_RESERVED, input->keybit);
 
 	bdev->poll_dev = poll_dev;
-	dev_set_drvdata(&pdev->dev, bdev);
+	platform_set_drvdata(pdev, bdev);
 
 	error = input_register_polled_device(poll_dev);
 	if (error)
@@ -139,26 +138,23 @@ static int __devinit sgi_buttons_probe(struct platform_device *pdev)
  err_free_mem:
 	input_free_polled_device(poll_dev);
 	kfree(bdev);
-	dev_set_drvdata(&pdev->dev, NULL);
 	return error;
 }
 
-static int __devexit sgi_buttons_remove(struct platform_device *pdev)
+static int sgi_buttons_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct buttons_dev *bdev = dev_get_drvdata(dev);
+	struct buttons_dev *bdev = platform_get_drvdata(pdev);
 
 	input_unregister_polled_device(bdev->poll_dev);
 	input_free_polled_device(bdev->poll_dev);
 	kfree(bdev);
-	dev_set_drvdata(dev, NULL);
 
 	return 0;
 }
 
 static struct platform_driver sgi_buttons_driver = {
 	.probe	= sgi_buttons_probe,
-	.remove	= __devexit_p(sgi_buttons_remove),
+	.remove	= sgi_buttons_remove,
 	.driver	= {
 		.name	= "sgibtns",
 		.owner	= THIS_MODULE,

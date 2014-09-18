@@ -38,9 +38,6 @@
 #define DIVA_NO_DEBUGLIB
 #endif
 
-#define DIVA_INIT_FUNCTION  __init
-#define DIVA_EXIT_FUNCTION  __exit
-
 #define DIVA_USER_MODE_CARD_CONFIG 1
 #define	USE_EXTENDED_DEBUGS 1
 

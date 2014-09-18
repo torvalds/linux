@@ -1,15 +1,15 @@
 #ifndef _INTERFACE_ISR_H
 #define _INTERFACE_ISR_H
 
-int CreateInterruptUrb(PS_INTERFACE_ADAPTER psIntfAdapter);
+int CreateInterruptUrb(struct bcm_interface_adapter *psIntfAdapter);
 
 
-INT StartInterruptUrb(PS_INTERFACE_ADAPTER psIntfAdapter);
+INT StartInterruptUrb(struct bcm_interface_adapter *psIntfAdapter);
 
 
-VOID InterfaceEnableInterrupt(PMINI_ADAPTER Adapter);
+VOID InterfaceEnableInterrupt(struct bcm_mini_adapter *Adapter);
 
-VOID InterfaceDisableInterrupt(PMINI_ADAPTER Adapter);
+VOID InterfaceDisableInterrupt(struct bcm_mini_adapter *Adapter);
 
 #endif
 

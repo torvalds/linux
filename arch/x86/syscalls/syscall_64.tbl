@@ -60,8 +60,8 @@
 51	common	getsockname		sys_getsockname
 52	common	getpeername		sys_getpeername
 53	common	socketpair		sys_socketpair
-54	common	setsockopt		sys_setsockopt
-55	common	getsockopt		sys_getsockopt
+54	64	setsockopt		sys_setsockopt
+55	64	getsockopt		sys_getsockopt
 56	common	clone			stub_clone
 57	common	fork			stub_fork
 58	common	vfork			stub_vfork
@@ -137,7 +137,7 @@
 128	64	rt_sigtimedwait		sys_rt_sigtimedwait
 129	64	rt_sigqueueinfo		sys_rt_sigqueueinfo
 130	common	rt_sigsuspend		sys_rt_sigsuspend
-131	64	sigaltstack		stub_sigaltstack
+131	64	sigaltstack		sys_sigaltstack
 132	common	utime			sys_utime
 133	common	mknod			sys_mknod
 134	64	uselib
@@ -212,10 +212,10 @@
 203	common	sched_setaffinity	sys_sched_setaffinity
 204	common	sched_getaffinity	sys_sched_getaffinity
 205	64	set_thread_area
-206	common	io_setup		sys_io_setup
+206	64	io_setup		sys_io_setup
 207	common	io_destroy		sys_io_destroy
 208	common	io_getevents		sys_io_getevents
-209	common	io_submit		sys_io_submit
+209	64	io_submit		sys_io_submit
 210	common	io_cancel		sys_io_cancel
 211	64	get_thread_area
 212	common	lookup_dcookie		sys_lookup_dcookie
@@ -318,11 +318,21 @@
 309	common	getcpu			sys_getcpu
 310	64	process_vm_readv	sys_process_vm_readv
 311	64	process_vm_writev	sys_process_vm_writev
+312	common	kcmp			sys_kcmp
+313	common	finit_module		sys_finit_module
+314	common	sched_setattr		sys_sched_setattr
+315	common	sched_getattr		sys_sched_getattr
+316	common	renameat2		sys_renameat2
+317	common	seccomp			sys_seccomp
+318	common	getrandom		sys_getrandom
+319	common	memfd_create		sys_memfd_create
+320	common	kexec_file_load		sys_kexec_file_load
+
 #
 # x32-specific system call numbers start at 512 to avoid cache impact
 # for native 64-bit operation.
 #
-512	x32	rt_sigaction		sys32_rt_sigaction
+512	x32	rt_sigaction		compat_sys_rt_sigaction
 513	x32	rt_sigreturn		stub_x32_rt_sigreturn
 514	x32	ioctl			compat_sys_ioctl
 515	x32	readv			compat_sys_readv
@@ -332,10 +342,10 @@
 519	x32	recvmsg			compat_sys_recvmsg
 520	x32	execve			stub_x32_execve
 521	x32	ptrace			compat_sys_ptrace
-522	x32	rt_sigpending		sys32_rt_sigpending
+522	x32	rt_sigpending		compat_sys_rt_sigpending
 523	x32	rt_sigtimedwait		compat_sys_rt_sigtimedwait
-524	x32	rt_sigqueueinfo		sys32_rt_sigqueueinfo
-525	x32	sigaltstack		stub_x32_sigaltstack
+524	x32	rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
+525	x32	sigaltstack		compat_sys_sigaltstack
 526	x32	timer_create		compat_sys_timer_create
 527	x32	mq_notify		compat_sys_mq_notify
 528	x32	kexec_load		compat_sys_kexec_load
@@ -351,3 +361,7 @@
 538	x32	sendmmsg		compat_sys_sendmmsg
 539	x32	process_vm_readv	compat_sys_process_vm_readv
 540	x32	process_vm_writev	compat_sys_process_vm_writev
+541	x32	setsockopt		compat_sys_setsockopt
+542	x32	getsockopt		compat_sys_getsockopt
+543	x32	io_setup		compat_sys_io_setup
+544	x32	io_submit		compat_sys_io_submit

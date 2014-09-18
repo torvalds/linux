@@ -26,17 +26,13 @@ static __be32
 nfsd_return_attrs(__be32 err, struct nfsd_attrstat *resp)
 {
 	if (err) return err;
-	return nfserrno(vfs_getattr(resp->fh.fh_export->ex_path.mnt,
-				    resp->fh.fh_dentry,
-				    &resp->stat));
+	return fh_getattr(&resp->fh, &resp->stat);
 }
 static __be32
 nfsd_return_dirop(__be32 err, struct nfsd_diropres *resp)
 {
 	if (err) return err;
-	return nfserrno(vfs_getattr(resp->fh.fh_export->ex_path.mnt,
-				    resp->fh.fh_dentry,
-				    &resp->stat));
+	return fh_getattr(&resp->fh, &resp->stat);
 }
 /*
  * Get a file's attributes
@@ -150,9 +146,7 @@ nfsd_proc_read(struct svc_rqst *rqstp, struct nfsd_readargs *argp,
 				  &resp->count);
 
 	if (nfserr) return nfserr;
-	return nfserrno(vfs_getattr(resp->fh.fh_export->ex_path.mnt,
-				    resp->fh.fh_dentry,
-				    &resp->stat));
+	return fh_getattr(&resp->fh, &resp->stat);
 }
 
 /*
@@ -196,6 +190,7 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 	struct dentry	*dchild;
 	int		type, mode;
 	__be32		nfserr;
+	int		hosterr;
 	dev_t		rdev = 0, wanted = new_decode_dev(attr->ia_size);
 
 	dprintk("nfsd: CREATE   %s %.*s\n",
@@ -214,6 +209,12 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 	nfserr = nfserr_exist;
 	if (isdotent(argp->name, argp->len))
 		goto done;
+	hosterr = fh_want_write(dirfhp);
+	if (hosterr) {
+		nfserr = nfserrno(hosterr);
+		goto done;
+	}
+
 	fh_lock_nested(dirfhp, I_MUTEX_PARENT);
 	dchild = lookup_one_len(argp->name, dirfhp->fh_dentry, argp->len);
 	if (IS_ERR(dchild)) {
@@ -330,7 +331,7 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 out_unlock:
 	/* We don't really need to unlock, as fh_put does it. */
 	fh_unlock(dirfhp);
-
+	fh_drop_write(dirfhp);
 done:
 	fh_put(dirfhp);
 	return nfsd_return_dirop(nfserr, resp);
@@ -402,12 +403,13 @@ nfsd_proc_symlink(struct svc_rqst *rqstp, struct nfsd_symlinkargs *argp,
 
 	fh_init(&newfh, NFS_FHSIZE);
 	/*
-	 * Create the link, look up new file and set attrs.
+	 * Crazy hack: the request fits in a page, and already-decoded
+	 * attributes follow argp->tname, so it's safe to just write a
+	 * null to ensure it's null-terminated:
 	 */
+	argp->tname[argp->tlen] = '\0';
 	nfserr = nfsd_symlink(rqstp, &argp->ffh, argp->fname, argp->flen,
-						 argp->tname, argp->tlen,
-				 		 &newfh, &argp->attrs);
-
+						 argp->tname, &newfh);
 
 	fh_put(&argp->ffh);
 	fh_put(&newfh);
@@ -715,6 +717,7 @@ nfserrno (int errno)
 		{ nfserr_noent, -ENOENT },
 		{ nfserr_io, -EIO },
 		{ nfserr_nxio, -ENXIO },
+		{ nfserr_fbig, -E2BIG },
 		{ nfserr_acces, -EACCES },
 		{ nfserr_exist, -EEXIST },
 		{ nfserr_xdev, -EXDEV },
@@ -742,6 +745,7 @@ nfserrno (int errno)
 		{ nfserr_notsupp, -EOPNOTSUPP },
 		{ nfserr_toosmall, -ETOOSMALL },
 		{ nfserr_serverfault, -ESERVERFAULT },
+		{ nfserr_serverfault, -ENFILE },
 	};
 	int	i;
 
@@ -749,7 +753,7 @@ nfserrno (int errno)
 		if (nfs_errtbl[i].syserr == errno)
 			return nfs_errtbl[i].nfserr;
 	}
-	printk (KERN_INFO "nfsd: non-standard errno: %d\n", errno);
+	WARN(1, "nfsd: non-standard errno: %d\n", errno);
 	return nfserr_io;
 }
 

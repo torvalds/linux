@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2010 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -67,10 +67,15 @@
 #define  QID_MASK    0xffff8000U
 #define  QID_SHIFT   15
 #define  QID(x)      ((x) << QID_SHIFT)
-#define  DBPRIO      0x00004000U
+#define  DBPRIO(x)   ((x) << 14)
+#define  DBTYPE(x)   ((x) << 13)
 #define  PIDX_MASK   0x00003fffU
 #define  PIDX_SHIFT  0
 #define  PIDX(x)     ((x) << PIDX_SHIFT)
+#define  S_PIDX_T5   0
+#define  M_PIDX_T5   0x1fffU
+#define  PIDX_T5(x)  (((x) >> S_PIDX_T5) & M_PIDX_T5)
+
 
 #define SGE_PF_GTS 0x4
 #define  INGRESSQID_MASK   0xffff0000U
@@ -86,10 +91,17 @@
 #define  CIDXINC_SHIFT     0
 #define  CIDXINC(x)        ((x) << CIDXINC_SHIFT)
 
+#define X_RXPKTCPLMODE_SPLIT     1
+#define X_INGPADBOUNDARY_SHIFT 5
+
 #define SGE_CONTROL 0x1008
 #define  DCASYSTYPE             0x00080000U
-#define  RXPKTCPLMODE           0x00040000U
-#define  EGRSTATUSPAGESIZE      0x00020000U
+#define  RXPKTCPLMODE_MASK      0x00040000U
+#define  RXPKTCPLMODE_SHIFT     18
+#define  RXPKTCPLMODE(x)        ((x) << RXPKTCPLMODE_SHIFT)
+#define  EGRSTATUSPAGESIZE_MASK  0x00020000U
+#define  EGRSTATUSPAGESIZE_SHIFT 17
+#define  EGRSTATUSPAGESIZE(x)    ((x) << EGRSTATUSPAGESIZE_SHIFT)
 #define  PKTSHIFT_MASK          0x00001c00U
 #define  PKTSHIFT_SHIFT         10
 #define  PKTSHIFT(x)            ((x) << PKTSHIFT_SHIFT)
@@ -108,6 +120,35 @@
 #define  GLOBALENABLE           0x00000001U
 
 #define SGE_HOST_PAGE_SIZE 0x100c
+
+#define  HOSTPAGESIZEPF7_MASK   0x0000000fU
+#define  HOSTPAGESIZEPF7_SHIFT  28
+#define  HOSTPAGESIZEPF7(x)     ((x) << HOSTPAGESIZEPF7_SHIFT)
+
+#define  HOSTPAGESIZEPF6_MASK   0x0000000fU
+#define  HOSTPAGESIZEPF6_SHIFT  24
+#define  HOSTPAGESIZEPF6(x)     ((x) << HOSTPAGESIZEPF6_SHIFT)
+
+#define  HOSTPAGESIZEPF5_MASK   0x0000000fU
+#define  HOSTPAGESIZEPF5_SHIFT  20
+#define  HOSTPAGESIZEPF5(x)     ((x) << HOSTPAGESIZEPF5_SHIFT)
+
+#define  HOSTPAGESIZEPF4_MASK   0x0000000fU
+#define  HOSTPAGESIZEPF4_SHIFT  16
+#define  HOSTPAGESIZEPF4(x)     ((x) << HOSTPAGESIZEPF4_SHIFT)
+
+#define  HOSTPAGESIZEPF3_MASK   0x0000000fU
+#define  HOSTPAGESIZEPF3_SHIFT  12
+#define  HOSTPAGESIZEPF3(x)     ((x) << HOSTPAGESIZEPF3_SHIFT)
+
+#define  HOSTPAGESIZEPF2_MASK   0x0000000fU
+#define  HOSTPAGESIZEPF2_SHIFT  8
+#define  HOSTPAGESIZEPF2(x)     ((x) << HOSTPAGESIZEPF2_SHIFT)
+
+#define  HOSTPAGESIZEPF1_MASK   0x0000000fU
+#define  HOSTPAGESIZEPF1_SHIFT  4
+#define  HOSTPAGESIZEPF1(x)     ((x) << HOSTPAGESIZEPF1_SHIFT)
+
 #define  HOSTPAGESIZEPF0_MASK   0x0000000fU
 #define  HOSTPAGESIZEPF0_SHIFT  0
 #define  HOSTPAGESIZEPF0(x)     ((x) << HOSTPAGESIZEPF0_SHIFT)
@@ -115,6 +156,8 @@
 #define SGE_EGRESS_QUEUES_PER_PAGE_PF 0x1010
 #define  QUEUESPERPAGEPF0_MASK   0x0000000fU
 #define  QUEUESPERPAGEPF0_GET(x) ((x) & QUEUESPERPAGEPF0_MASK)
+
+#define QUEUESPERPAGEPF1    4
 
 #define SGE_INT_CAUSE1 0x1024
 #define SGE_INT_CAUSE2 0x1030
@@ -155,6 +198,14 @@
 #define SGE_INT_ENABLE3 0x1040
 #define SGE_FL_BUFFER_SIZE0 0x1044
 #define SGE_FL_BUFFER_SIZE1 0x1048
+#define SGE_FL_BUFFER_SIZE2 0x104c
+#define SGE_FL_BUFFER_SIZE3 0x1050
+#define SGE_FL_BUFFER_SIZE4 0x1054
+#define SGE_FL_BUFFER_SIZE5 0x1058
+#define SGE_FL_BUFFER_SIZE6 0x105c
+#define SGE_FL_BUFFER_SIZE7 0x1060
+#define SGE_FL_BUFFER_SIZE8 0x1064
+
 #define SGE_INGRESS_RX_THRESHOLD 0x10a0
 #define  THRESHOLD_0_MASK   0x3f000000U
 #define  THRESHOLD_0_SHIFT  24
@@ -173,6 +224,39 @@
 #define  THRESHOLD_3(x)     ((x) << THRESHOLD_3_SHIFT)
 #define  THRESHOLD_3_GET(x) (((x) & THRESHOLD_3_MASK) >> THRESHOLD_3_SHIFT)
 
+#define SGE_CONM_CTRL 0x1094
+#define  EGRTHRESHOLD_MASK   0x00003f00U
+#define  EGRTHRESHOLDshift   8
+#define  EGRTHRESHOLD(x)     ((x) << EGRTHRESHOLDshift)
+#define  EGRTHRESHOLD_GET(x) (((x) & EGRTHRESHOLD_MASK) >> EGRTHRESHOLDshift)
+
+#define EGRTHRESHOLDPACKING_MASK	0x3fU
+#define EGRTHRESHOLDPACKING_SHIFT	14
+#define EGRTHRESHOLDPACKING(x)		((x) << EGRTHRESHOLDPACKING_SHIFT)
+#define EGRTHRESHOLDPACKING_GET(x)	(((x) >> EGRTHRESHOLDPACKING_SHIFT) & \
+					  EGRTHRESHOLDPACKING_MASK)
+
+#define SGE_DBFIFO_STATUS 0x10a4
+#define  HP_INT_THRESH_SHIFT 28
+#define  HP_INT_THRESH_MASK  0xfU
+#define  HP_INT_THRESH(x)    ((x) << HP_INT_THRESH_SHIFT)
+#define  LP_INT_THRESH_SHIFT 12
+#define  LP_INT_THRESH_MASK  0xfU
+#define  LP_INT_THRESH(x)    ((x) << LP_INT_THRESH_SHIFT)
+
+#define SGE_DOORBELL_CONTROL 0x10a8
+#define  ENABLE_DROP        (1 << 13)
+
+#define S_NOCOALESCE    26
+#define V_NOCOALESCE(x) ((x) << S_NOCOALESCE)
+#define F_NOCOALESCE    V_NOCOALESCE(1U)
+
+#define SGE_TIMESTAMP_LO 0x1098
+#define SGE_TIMESTAMP_HI 0x109c
+#define S_TSVAL    0
+#define M_TSVAL    0xfffffffU
+#define GET_TSVAL(x) (((x) >> S_TSVAL) & M_TSVAL)
+
 #define SGE_TIMER_VALUE_0_AND_1 0x10b8
 #define  TIMERVALUE0_MASK   0xffff0000U
 #define  TIMERVALUE0_SHIFT  16
@@ -184,11 +268,80 @@
 #define  TIMERVALUE1_GET(x) (((x) & TIMERVALUE1_MASK) >> TIMERVALUE1_SHIFT)
 
 #define SGE_TIMER_VALUE_2_AND_3 0x10bc
+#define  TIMERVALUE2_MASK   0xffff0000U
+#define  TIMERVALUE2_SHIFT  16
+#define  TIMERVALUE2(x)     ((x) << TIMERVALUE2_SHIFT)
+#define  TIMERVALUE2_GET(x) (((x) & TIMERVALUE2_MASK) >> TIMERVALUE2_SHIFT)
+#define  TIMERVALUE3_MASK   0x0000ffffU
+#define  TIMERVALUE3_SHIFT  0
+#define  TIMERVALUE3(x)     ((x) << TIMERVALUE3_SHIFT)
+#define  TIMERVALUE3_GET(x) (((x) & TIMERVALUE3_MASK) >> TIMERVALUE3_SHIFT)
+
 #define SGE_TIMER_VALUE_4_AND_5 0x10c0
+#define  TIMERVALUE4_MASK   0xffff0000U
+#define  TIMERVALUE4_SHIFT  16
+#define  TIMERVALUE4(x)     ((x) << TIMERVALUE4_SHIFT)
+#define  TIMERVALUE4_GET(x) (((x) & TIMERVALUE4_MASK) >> TIMERVALUE4_SHIFT)
+#define  TIMERVALUE5_MASK   0x0000ffffU
+#define  TIMERVALUE5_SHIFT  0
+#define  TIMERVALUE5(x)     ((x) << TIMERVALUE5_SHIFT)
+#define  TIMERVALUE5_GET(x) (((x) & TIMERVALUE5_MASK) >> TIMERVALUE5_SHIFT)
+
 #define SGE_DEBUG_INDEX 0x10cc
 #define SGE_DEBUG_DATA_HIGH 0x10d0
 #define SGE_DEBUG_DATA_LOW 0x10d4
+#define SGE_DEBUG_DATA_LOW_INDEX_2	0x12c8
+#define SGE_DEBUG_DATA_LOW_INDEX_3	0x12cc
+#define SGE_DEBUG_DATA_HIGH_INDEX_10	0x12a8
 #define SGE_INGRESS_QUEUES_PER_PAGE_PF 0x10f4
+
+#define S_HP_INT_THRESH    28
+#define M_HP_INT_THRESH 0xfU
+#define V_HP_INT_THRESH(x) ((x) << S_HP_INT_THRESH)
+#define S_LP_INT_THRESH_T5    18
+#define V_LP_INT_THRESH_T5(x) ((x) << S_LP_INT_THRESH_T5)
+#define M_LP_COUNT_T5    0x3ffffU
+#define G_LP_COUNT_T5(x) (((x) >> S_LP_COUNT) & M_LP_COUNT_T5)
+#define M_HP_COUNT 0x7ffU
+#define S_HP_COUNT 16
+#define G_HP_COUNT(x) (((x) >> S_HP_COUNT) & M_HP_COUNT)
+#define S_LP_INT_THRESH    12
+#define M_LP_INT_THRESH 0xfU
+#define M_LP_INT_THRESH_T5    0xfffU
+#define V_LP_INT_THRESH(x) ((x) << S_LP_INT_THRESH)
+#define M_LP_COUNT 0x7ffU
+#define S_LP_COUNT 0
+#define G_LP_COUNT(x) (((x) >> S_LP_COUNT) & M_LP_COUNT)
+#define A_SGE_DBFIFO_STATUS 0x10a4
+
+#define SGE_STAT_TOTAL 0x10e4
+#define SGE_STAT_MATCH 0x10e8
+
+#define SGE_STAT_CFG   0x10ec
+#define S_STATSOURCE_T5    9
+#define STATSOURCE_T5(x) ((x) << S_STATSOURCE_T5)
+
+#define SGE_DBFIFO_STATUS2 0x1118
+#define M_HP_COUNT_T5    0x3ffU
+#define G_HP_COUNT_T5(x) ((x)  & M_HP_COUNT_T5)
+#define S_HP_INT_THRESH_T5    10
+#define M_HP_INT_THRESH_T5    0xfU
+#define V_HP_INT_THRESH_T5(x) ((x) << S_HP_INT_THRESH_T5)
+
+#define S_ENABLE_DROP    13
+#define V_ENABLE_DROP(x) ((x) << S_ENABLE_DROP)
+#define F_ENABLE_DROP    V_ENABLE_DROP(1U)
+#define S_DROPPED_DB 0
+#define V_DROPPED_DB(x) ((x) << S_DROPPED_DB)
+#define F_DROPPED_DB V_DROPPED_DB(1U)
+#define A_SGE_DOORBELL_CONTROL 0x10a8
+
+#define A_SGE_CTXT_CMD 0x11fc
+#define A_SGE_DBQ_CTXT_BADDR 0x1084
+
+#define PCIE_PF_CFG 0x40
+#define  AIVEC(x)	((x) << 4)
+#define  AIVEC_MASK	0x3ffU
 
 #define PCIE_PF_CLI 0x44
 #define PCIE_INT_CAUSE 0x3004
@@ -223,8 +376,29 @@
 #define  MSIADDRHPERR  0x00000002U
 #define  MSIADDRLPERR  0x00000001U
 
+#define  READRSPERR      0x20000000U
+#define  TRGT1GRPPERR    0x10000000U
+#define  IPSOTPERR       0x08000000U
+#define  IPRXDATAGRPPERR 0x02000000U
+#define  IPRXHDRGRPPERR  0x01000000U
+#define  MAGRPPERR       0x00400000U
+#define  VFIDPERR        0x00200000U
+#define  HREQWRPERR      0x00010000U
+#define  DREQWRPERR      0x00002000U
+#define  MSTTAGQPERR     0x00000400U
+#define  PIOREQGRPPERR   0x00000100U
+#define  PIOCPLGRPPERR   0x00000080U
+#define  MSIXSTIPERR     0x00000004U
+#define  MSTTIMEOUTPERR  0x00000002U
+#define  MSTGRPPERR      0x00000001U
+
 #define PCIE_NONFAT_ERR 0x3010
+#define PCIE_CFG_SPACE_REQ 0x3060
+#define PCIE_CFG_SPACE_DATA 0x3064
 #define PCIE_MEM_ACCESS_BASE_WIN 0x3068
+#define S_PCIEOFST       10
+#define M_PCIEOFST       0x3fffffU
+#define GET_PCIEOFST(x)  (((x) >> S_PCIEOFST) & M_PCIEOFST)
 #define  PCIEOFST_MASK   0xfffffc00U
 #define  BIR_MASK        0x00000300U
 #define  BIR_SHIFT       8
@@ -232,7 +406,23 @@
 #define  WINDOW_MASK     0x000000ffU
 #define  WINDOW_SHIFT    0
 #define  WINDOW(x)       ((x) << WINDOW_SHIFT)
+#define  GET_WINDOW(x)	 (((x) >> WINDOW_SHIFT) & WINDOW_MASK)
 #define PCIE_MEM_ACCESS_OFFSET 0x306c
+#define ENABLE	(1U << 30)
+#define FUNCTION(x) ((x) << 12)
+#define F_LOCALCFG    (1U << 28)
+
+#define S_PFNUM    0
+#define V_PFNUM(x) ((x) << S_PFNUM)
+
+#define PCIE_FW 0x30b8
+#define  PCIE_FW_ERR		0x80000000U
+#define  PCIE_FW_INIT		0x40000000U
+#define  PCIE_FW_HALT		0x20000000U
+#define  PCIE_FW_MASTER_VLD	0x00008000U
+#define  PCIE_FW_MASTER(x)	((x) << 12)
+#define  PCIE_FW_MASTER_MASK	0x7
+#define  PCIE_FW_MASTER_GET(x)	(((x) >> 12) & PCIE_FW_MASTER_MASK)
 
 #define PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS 0x5908
 #define  RNPP 0x80000000U
@@ -258,11 +448,13 @@
 #define  TDUE 0x00010000U
 
 #define MC_INT_CAUSE 0x7518
+#define MC_P_INT_CAUSE 0x41318
 #define  ECC_UE_INT_CAUSE 0x00000004U
 #define  ECC_CE_INT_CAUSE 0x00000002U
 #define  PERR_INT_CAUSE   0x00000001U
 
 #define MC_ECC_STATUS 0x751c
+#define MC_P_ECC_STATUS 0x4131c
 #define  ECC_CECNT_MASK   0xffff0000U
 #define  ECC_CECNT_SHIFT  16
 #define  ECC_CECNT(x)     ((x) << ECC_CECNT_SHIFT)
@@ -290,12 +482,18 @@
 
 #define MC_BIST_STATUS_RDATA 0x7688
 
+#define MA_EDRAM0_BAR 0x77c0
+#define MA_EDRAM1_BAR 0x77c4
+#define EDRAM_SIZE_MASK   0xfffU
+#define EDRAM_SIZE_GET(x) ((x) & EDRAM_SIZE_MASK)
+
 #define MA_EXT_MEMORY_BAR 0x77c8
 #define  EXT_MEM_SIZE_MASK   0x00000fffU
 #define  EXT_MEM_SIZE_SHIFT  0
 #define  EXT_MEM_SIZE_GET(x) (((x) & EXT_MEM_SIZE_MASK) >> EXT_MEM_SIZE_SHIFT)
 
 #define MA_TARGET_MEM_ENABLE 0x77d8
+#define  EXT_MEM1_ENABLE 0x00000010U
 #define  EXT_MEM_ENABLE 0x00000004U
 #define  EDRAM1_ENABLE  0x00000002U
 #define  EDRAM0_ENABLE  0x00000001U
@@ -311,9 +509,11 @@
 #define  MEM_WRAP_CLIENT_NUM_MASK   0x0000000fU
 #define  MEM_WRAP_CLIENT_NUM_SHIFT  0
 #define  MEM_WRAP_CLIENT_NUM_GET(x) (((x) & MEM_WRAP_CLIENT_NUM_MASK) >> MEM_WRAP_CLIENT_NUM_SHIFT)
-
+#define MA_PCIE_FW 0x30b8
 #define MA_PARITY_ERROR_STATUS 0x77f4
+#define MA_PARITY_ERROR_STATUS2 0x7804
 
+#define MA_EXT_MEMORY1_BAR 0x7808
 #define EDC_0_BASE_ADDR 0x7900
 
 #define EDC_BIST_CMD 0x7904
@@ -332,6 +532,7 @@
 
 #define CIM_BOOT_CFG 0x7b00
 #define  BOOTADDR_MASK 0xffffff00U
+#define  UPCRST        0x1U
 
 #define CIM_PF_MAILBOX_DATA 0x240
 #define CIM_PF_MAILBOX_CTRL 0x280
@@ -341,6 +542,9 @@
 #define  MBOWNER_SHIFT  0
 #define  MBOWNER(x)     ((x) << MBOWNER_SHIFT)
 #define  MBOWNER_GET(x) (((x) & MBOWNER_MASK) >> MBOWNER_SHIFT)
+
+#define CIM_PF_HOST_INT_ENABLE 0x288
+#define  MBMSGRDYINTEN(x) ((x) << 19)
 
 #define CIM_PF_HOST_INT_CAUSE 0x28c
 #define  MBMSGRDYINT 0x00080000U
@@ -404,6 +608,13 @@
 #define  VLANEXTENABLE_MASK  0x0000f000U
 #define  VLANEXTENABLE_SHIFT 12
 
+#define TP_GLOBAL_CONFIG 0x7d08
+#define  FIVETUPLELOOKUP_SHIFT  17
+#define  FIVETUPLELOOKUP_MASK   0x00060000U
+#define  FIVETUPLELOOKUP(x)     ((x) << FIVETUPLELOOKUP_SHIFT)
+#define  FIVETUPLELOOKUP_GET(x) (((x) & FIVETUPLELOOKUP_MASK) >> \
+				FIVETUPLELOOKUP_SHIFT)
+
 #define TP_PARA_REG2 0x7d68
 #define  MAXRXDATA_MASK    0xffff0000U
 #define  MAXRXDATA_SHIFT   16
@@ -413,8 +624,47 @@
 #define  TIMERRESOLUTION_MASK   0x00ff0000U
 #define  TIMERRESOLUTION_SHIFT  16
 #define  TIMERRESOLUTION_GET(x) (((x) & TIMERRESOLUTION_MASK) >> TIMERRESOLUTION_SHIFT)
+#define  DELAYEDACKRESOLUTION_MASK 0x000000ffU
+#define  DELAYEDACKRESOLUTION_SHIFT     0
+#define  DELAYEDACKRESOLUTION_GET(x) \
+	(((x) & DELAYEDACKRESOLUTION_MASK) >> DELAYEDACKRESOLUTION_SHIFT)
 
 #define TP_SHIFT_CNT 0x7dc0
+#define  SYNSHIFTMAX_SHIFT         24
+#define  SYNSHIFTMAX_MASK          0xff000000U
+#define  SYNSHIFTMAX(x)            ((x) << SYNSHIFTMAX_SHIFT)
+#define  SYNSHIFTMAX_GET(x)        (((x) & SYNSHIFTMAX_MASK) >> \
+				   SYNSHIFTMAX_SHIFT)
+#define  RXTSHIFTMAXR1_SHIFT       20
+#define  RXTSHIFTMAXR1_MASK        0x00f00000U
+#define  RXTSHIFTMAXR1(x)          ((x) << RXTSHIFTMAXR1_SHIFT)
+#define  RXTSHIFTMAXR1_GET(x)      (((x) & RXTSHIFTMAXR1_MASK) >> \
+				   RXTSHIFTMAXR1_SHIFT)
+#define  RXTSHIFTMAXR2_SHIFT       16
+#define  RXTSHIFTMAXR2_MASK        0x000f0000U
+#define  RXTSHIFTMAXR2(x)          ((x) << RXTSHIFTMAXR2_SHIFT)
+#define  RXTSHIFTMAXR2_GET(x)      (((x) & RXTSHIFTMAXR2_MASK) >> \
+				   RXTSHIFTMAXR2_SHIFT)
+#define  PERSHIFTBACKOFFMAX_SHIFT  12
+#define  PERSHIFTBACKOFFMAX_MASK   0x0000f000U
+#define  PERSHIFTBACKOFFMAX(x)     ((x) << PERSHIFTBACKOFFMAX_SHIFT)
+#define  PERSHIFTBACKOFFMAX_GET(x) (((x) & PERSHIFTBACKOFFMAX_MASK) >> \
+				   PERSHIFTBACKOFFMAX_SHIFT)
+#define  PERSHIFTMAX_SHIFT         8
+#define  PERSHIFTMAX_MASK          0x00000f00U
+#define  PERSHIFTMAX(x)            ((x) << PERSHIFTMAX_SHIFT)
+#define  PERSHIFTMAX_GET(x)        (((x) & PERSHIFTMAX_MASK) >> \
+				   PERSHIFTMAX_SHIFT)
+#define  KEEPALIVEMAXR1_SHIFT      4
+#define  KEEPALIVEMAXR1_MASK       0x000000f0U
+#define  KEEPALIVEMAXR1(x)         ((x) << KEEPALIVEMAXR1_SHIFT)
+#define  KEEPALIVEMAXR1_GET(x)     (((x) & KEEPALIVEMAXR1_MASK) >> \
+				   KEEPALIVEMAXR1_SHIFT)
+#define KEEPALIVEMAXR2_SHIFT       0
+#define KEEPALIVEMAXR2_MASK        0x0000000fU
+#define KEEPALIVEMAXR2(x)          ((x) << KEEPALIVEMAXR2_SHIFT)
+#define KEEPALIVEMAXR2_GET(x)      (((x) & KEEPALIVEMAXR2_MASK) >> \
+				   KEEPALIVEMAXR2_SHIFT)
 
 #define TP_CCTRL_TABLE 0x7ddc
 #define TP_MTU_TABLE 0x7de4
@@ -447,6 +697,20 @@
 #define TP_MIB_DATA 0x7e54
 #define TP_INT_CAUSE 0x7e74
 #define  FLMTXFLSTEMPTY 0x40000000U
+
+#define TP_VLAN_PRI_MAP 0x140
+#define  FRAGMENTATION_SHIFT 9
+#define  FRAGMENTATION_MASK  0x00000200U
+#define  MPSHITTYPE_MASK     0x00000100U
+#define  MACMATCH_MASK       0x00000080U
+#define  ETHERTYPE_MASK      0x00000040U
+#define  PROTOCOL_MASK       0x00000020U
+#define  TOS_MASK            0x00000010U
+#define  VLAN_MASK           0x00000008U
+#define  VNIC_ID_MASK        0x00000004U
+#define  PORT_MASK           0x00000002U
+#define  FCOE_SHIFT          0
+#define  FCOE_MASK           0x00000001U
 
 #define TP_INGRESS_CONFIG 0x141
 #define  VNIC                0x00000800U
@@ -620,6 +884,15 @@
 #define MPS_PORT_STAT_RX_PORT_PPP7_H 0x60c
 #define MPS_PORT_STAT_RX_PORT_LESS_64B_L 0x610
 #define MPS_PORT_STAT_RX_PORT_LESS_64B_H 0x614
+#define MAC_PORT_CFG2 0x818
+#define MAC_PORT_MAGIC_MACID_LO 0x824
+#define MAC_PORT_MAGIC_MACID_HI 0x828
+#define MAC_PORT_EPIO_DATA0 0x8c0
+#define MAC_PORT_EPIO_DATA1 0x8c4
+#define MAC_PORT_EPIO_DATA2 0x8c8
+#define MAC_PORT_EPIO_DATA3 0x8cc
+#define MAC_PORT_EPIO_OP 0x8d0
+
 #define MPS_CMN_CTL 0x9000
 #define  NUMPORTS_MASK   0x00000003U
 #define  NUMPORTS_SHIFT  0
@@ -687,6 +960,7 @@
 #define  TRCMULTIFILTER     0x00000001U
 
 #define MPS_TRC_RSS_CONTROL 0x9808
+#define MPS_T5_TRC_RSS_CONTROL 0xa00c
 #define  RSSCONTROL_MASK    0x00ff0000U
 #define  RSSCONTROL_SHIFT   16
 #define  RSSCONTROL(x)      ((x) << RSSCONTROL_SHIFT)
@@ -772,7 +1046,7 @@
 
 #define SF_DATA 0x193f8
 #define SF_OP 0x193fc
-#define  BUSY          0x80000000U
+#define  SF_BUSY       0x80000000U
 #define  SF_LOCK       0x00000010U
 #define  SF_CONT       0x00000008U
 #define  BYTECNT_MASK  0x00000006U
@@ -831,6 +1105,8 @@
 #define  I2CM       0x00000002U
 #define  CIM        0x00000001U
 
+#define MC1 0x31
+#define PL_INT_ENABLE 0x19410
 #define PL_INT_MAP0 0x19414
 #define PL_RST 0x19428
 #define  PIORST     0x00000002U
@@ -841,6 +1117,11 @@
 #define  PERRVFID  0x00000001U
 
 #define PL_REV 0x1943c
+
+#define S_REV    0
+#define M_REV    0xfU
+#define V_REV(x) ((x) << S_REV)
+#define G_REV(x) (((x) >> S_REV) & M_REV)
 
 #define LE_DB_CONFIG 0x19c04
 #define  HASHEN 0x00100000U
@@ -881,5 +1162,154 @@
 #define  ADDRESS_SHIFT  0
 #define  ADDRESS(x)     ((x) << ADDRESS_SHIFT)
 
+#define MAC_PORT_INT_CAUSE 0x8dc
 #define XGMAC_PORT_INT_CAUSE 0x10dc
+
+#define A_TP_TX_MOD_QUEUE_REQ_MAP 0x7e28
+
+#define A_TP_TX_MOD_CHANNEL_WEIGHT 0x7e34
+
+#define S_TX_MOD_QUEUE_REQ_MAP    0
+#define M_TX_MOD_QUEUE_REQ_MAP    0xffffU
+#define V_TX_MOD_QUEUE_REQ_MAP(x) ((x) << S_TX_MOD_QUEUE_REQ_MAP)
+
+#define A_TP_TX_MOD_QUEUE_WEIGHT0 0x7e30
+
+#define S_TX_MODQ_WEIGHT3    24
+#define M_TX_MODQ_WEIGHT3    0xffU
+#define V_TX_MODQ_WEIGHT3(x) ((x) << S_TX_MODQ_WEIGHT3)
+
+#define S_TX_MODQ_WEIGHT2    16
+#define M_TX_MODQ_WEIGHT2    0xffU
+#define V_TX_MODQ_WEIGHT2(x) ((x) << S_TX_MODQ_WEIGHT2)
+
+#define S_TX_MODQ_WEIGHT1    8
+#define M_TX_MODQ_WEIGHT1    0xffU
+#define V_TX_MODQ_WEIGHT1(x) ((x) << S_TX_MODQ_WEIGHT1)
+
+#define S_TX_MODQ_WEIGHT0    0
+#define M_TX_MODQ_WEIGHT0    0xffU
+#define V_TX_MODQ_WEIGHT0(x) ((x) << S_TX_MODQ_WEIGHT0)
+
+#define A_TP_TX_SCHED_HDR 0x23
+
+#define A_TP_TX_SCHED_FIFO 0x24
+
+#define A_TP_TX_SCHED_PCMD 0x25
+
+#define S_VNIC    11
+#define V_VNIC(x) ((x) << S_VNIC)
+#define F_VNIC    V_VNIC(1U)
+
+#define S_FRAGMENTATION    9
+#define V_FRAGMENTATION(x) ((x) << S_FRAGMENTATION)
+#define F_FRAGMENTATION    V_FRAGMENTATION(1U)
+
+#define S_MPSHITTYPE    8
+#define V_MPSHITTYPE(x) ((x) << S_MPSHITTYPE)
+#define F_MPSHITTYPE    V_MPSHITTYPE(1U)
+
+#define S_MACMATCH    7
+#define V_MACMATCH(x) ((x) << S_MACMATCH)
+#define F_MACMATCH    V_MACMATCH(1U)
+
+#define S_ETHERTYPE    6
+#define V_ETHERTYPE(x) ((x) << S_ETHERTYPE)
+#define F_ETHERTYPE    V_ETHERTYPE(1U)
+
+#define S_PROTOCOL    5
+#define V_PROTOCOL(x) ((x) << S_PROTOCOL)
+#define F_PROTOCOL    V_PROTOCOL(1U)
+
+#define S_TOS    4
+#define V_TOS(x) ((x) << S_TOS)
+#define F_TOS    V_TOS(1U)
+
+#define S_VLAN    3
+#define V_VLAN(x) ((x) << S_VLAN)
+#define F_VLAN    V_VLAN(1U)
+
+#define S_VNIC_ID    2
+#define V_VNIC_ID(x) ((x) << S_VNIC_ID)
+#define F_VNIC_ID    V_VNIC_ID(1U)
+
+#define S_PORT    1
+#define V_PORT(x) ((x) << S_PORT)
+#define F_PORT    V_PORT(1U)
+
+#define S_FCOE    0
+#define V_FCOE(x) ((x) << S_FCOE)
+#define F_FCOE    V_FCOE(1U)
+
+#define NUM_MPS_CLS_SRAM_L_INSTANCES 336
+#define NUM_MPS_T5_CLS_SRAM_L_INSTANCES 512
+
+#define T5_PORT0_BASE 0x30000
+#define T5_PORT_STRIDE 0x4000
+#define T5_PORT_BASE(idx) (T5_PORT0_BASE + (idx) * T5_PORT_STRIDE)
+#define T5_PORT_REG(idx, reg) (T5_PORT_BASE(idx) + (reg))
+
+#define MC_0_BASE_ADDR 0x40000
+#define MC_1_BASE_ADDR 0x48000
+#define MC_STRIDE (MC_1_BASE_ADDR - MC_0_BASE_ADDR)
+#define MC_REG(reg, idx) (reg + MC_STRIDE * idx)
+
+#define MC_P_BIST_CMD 0x41400
+#define MC_P_BIST_CMD_ADDR 0x41404
+#define MC_P_BIST_CMD_LEN 0x41408
+#define MC_P_BIST_DATA_PATTERN 0x4140c
+#define MC_P_BIST_STATUS_RDATA 0x41488
+#define EDC_T50_BASE_ADDR 0x50000
+#define EDC_H_BIST_CMD 0x50004
+#define EDC_H_BIST_CMD_ADDR 0x50008
+#define EDC_H_BIST_CMD_LEN 0x5000c
+#define EDC_H_BIST_DATA_PATTERN 0x50010
+#define EDC_H_BIST_STATUS_RDATA 0x50028
+
+#define EDC_T51_BASE_ADDR 0x50800
+#define EDC_STRIDE_T5 (EDC_T51_BASE_ADDR - EDC_T50_BASE_ADDR)
+#define EDC_REG_T5(reg, idx) (reg + EDC_STRIDE_T5 * idx)
+
+#define A_PL_VF_REV 0x4
+#define A_PL_VF_WHOAMI 0x0
+#define A_PL_VF_REVISION 0x8
+
+#define S_CHIPID    4
+#define M_CHIPID    0xfU
+#define V_CHIPID(x) ((x) << S_CHIPID)
+#define G_CHIPID(x) (((x) >> S_CHIPID) & M_CHIPID)
+
+/* TP_VLAN_PRI_MAP controls which subset of fields will be present in the
+ * Compressed Filter Tuple for LE filters.  Each bit set in TP_VLAN_PRI_MAP
+ * selects for a particular field being present.  These fields, when present
+ * in the Compressed Filter Tuple, have the following widths in bits.
+ */
+#define W_FT_FCOE                       1
+#define W_FT_PORT                       3
+#define W_FT_VNIC_ID                    17
+#define W_FT_VLAN                       17
+#define W_FT_TOS                        8
+#define W_FT_PROTOCOL                   8
+#define W_FT_ETHERTYPE                  16
+#define W_FT_MACMATCH                   9
+#define W_FT_MPSHITTYPE                 3
+#define W_FT_FRAGMENTATION              1
+
+/* Some of the Compressed Filter Tuple fields have internal structure.  These
+ * bit shifts/masks describe those structures.  All shifts are relative to the
+ * base position of the fields within the Compressed Filter Tuple
+ */
+#define S_FT_VLAN_VLD                   16
+#define V_FT_VLAN_VLD(x)                ((x) << S_FT_VLAN_VLD)
+#define F_FT_VLAN_VLD                   V_FT_VLAN_VLD(1U)
+
+#define S_FT_VNID_ID_VF                 0
+#define V_FT_VNID_ID_VF(x)              ((x) << S_FT_VNID_ID_VF)
+
+#define S_FT_VNID_ID_PF                 7
+#define V_FT_VNID_ID_PF(x)              ((x) << S_FT_VNID_ID_PF)
+
+#define S_FT_VNID_ID_VLD                16
+#define V_FT_VNID_ID_VLD(x)             ((x) << S_FT_VNID_ID_VLD)
+
 #endif /* __T4_REGS_H */

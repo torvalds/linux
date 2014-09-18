@@ -1,0 +1,215 @@
+Intel(R) Management Engine Interface (Intel(R) MEI)
+=======================
+
+Introduction
+=======================
+
+The Intel Management Engine (Intel ME) is an isolated and protected computing
+resource (Co-processor) residing inside certain Intel chipsets. The Intel ME
+provides support for computer/IT management features. The feature set
+depends on the Intel chipset SKU.
+
+The Intel Management Engine Interface (Intel MEI, previously known as HECI)
+is the interface between the Host and Intel ME. This interface is exposed
+to the host as a PCI device. The Intel MEI Driver is in charge of the
+communication channel between a host application and the Intel ME feature.
+
+Each Intel ME feature (Intel ME Client) is addressed by a GUID/UUID and
+each client has its own protocol. The protocol is message-based with a
+header and payload up to 512 bytes.
+
+Prominent usage of the Intel ME Interface is to communicate with Intel(R)
+Active Management Technology (Intel AMT)implemented in firmware running on
+the Intel ME.
+
+Intel AMT provides the ability to manage a host remotely out-of-band (OOB)
+even when the operating system running on the host processor has crashed or
+is in a sleep state.
+
+Some examples of Intel AMT usage are:
+   - Monitoring hardware state and platform components
+   - Remote power off/on (useful for green computing or overnight IT
+     maintenance)
+   - OS updates
+   - Storage of useful platform information such as software assets
+   - Built-in hardware KVM
+   - Selective network isolation of Ethernet and IP protocol flows based
+     on policies set by a remote management console
+   - IDE device redirection from remote management console
+
+Intel AMT (OOB) communication is based on SOAP (deprecated
+starting with Release 6.0) over HTTP/S or WS-Management protocol over
+HTTP/S that are received from a remote management console application.
+
+For more information about Intel AMT:
+http://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide
+
+Intel MEI Driver
+=======================
+
+The driver exposes a misc device called /dev/mei.
+
+An application maintains communication with an Intel ME feature while
+/dev/mei is open. The binding to a specific feature is performed by calling
+MEI_CONNECT_CLIENT_IOCTL, which passes the desired UUID.
+The number of instances of an Intel ME feature that can be opened
+at the same time depends on the Intel ME feature, but most of the
+features allow only a single instance.
+
+The Intel AMT Host Interface (Intel AMTHI) feature supports multiple
+simultaneous user connected applications. The Intel MEI driver
+handles this internally by maintaining request queues for the applications.
+
+The driver is transparent to data that are passed between firmware feature
+and host application.
+
+Because some of the Intel ME features can change the system
+configuration, the driver by default allows only a privileged
+user to access it.
+
+A code snippet for an application communicating with Intel AMTHI client:
+
+	struct mei_connect_client_data data;
+	fd = open(MEI_DEVICE);
+
+	data.d.in_client_uuid = AMTHI_UUID;
+
+	ioctl(fd, IOCTL_MEI_CONNECT_CLIENT, &data);
+
+	printf("Ver=%d, MaxLen=%ld\n",
+			data.d.in_client_uuid.protocol_version,
+			data.d.in_client_uuid.max_msg_length);
+
+	[...]
+
+	write(fd, amthi_req_data, amthi_req_data_len);
+
+	[...]
+
+	read(fd, &amthi_res_data, amthi_res_data_len);
+
+	[...]
+	close(fd);
+
+IOCTL:
+======
+The Intel MEI Driver supports the following IOCTL command:
+	IOCTL_MEI_CONNECT_CLIENT	Connect to firmware Feature (client).
+
+	usage:
+		struct mei_connect_client_data clientData;
+		ioctl(fd, IOCTL_MEI_CONNECT_CLIENT, &clientData);
+
+	inputs:
+		mei_connect_client_data struct contain the following
+		input field:
+
+		in_client_uuid -	UUID of the FW Feature that needs
+					to connect to.
+	outputs:
+		out_client_properties - Client Properties: MTU and Protocol Version.
+
+	error returns:
+		EINVAL	Wrong IOCTL Number
+		ENODEV	Device or Connection is not initialized or ready.
+			(e.g. Wrong UUID)
+		ENOMEM	Unable to allocate memory to client internal data.
+		EFAULT	Fatal Error (e.g. Unable to access user input data)
+		EBUSY	Connection Already Open
+
+	Notes:
+        max_msg_length (MTU) in client properties describes the maximum
+        data that can be sent or received. (e.g. if MTU=2K, can send
+        requests up to bytes 2k and received responses up to 2k bytes).
+
+Intel ME Applications:
+==============
+
+1) Intel Local Management Service (Intel LMS)
+
+	Applications running locally on the platform communicate with Intel AMT Release
+	2.0 and later releases in the same way that network applications do via SOAP
+	over HTTP (deprecated starting with Release 6.0) or with WS-Management over
+	SOAP over HTTP. This means that some Intel AMT features can be accessed from a
+	local application using the same network interface as a remote application
+	communicating with Intel AMT over the network.
+
+	When a local application sends a message addressed to the local Intel AMT host
+	name, the Intel LMS, which listens for traffic directed to the host name,
+	intercepts the message and routes it to the Intel MEI.
+	For more information:
+	http://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide
+	Under "About Intel AMT" => "Local Access"
+
+	For downloading Intel LMS:
+	http://software.intel.com/en-us/articles/download-the-latest-intel-amt-open-source-drivers/
+
+	The Intel LMS opens a connection using the Intel MEI driver to the Intel LMS
+	firmware feature using a defined UUID and then communicates with the feature
+	using a protocol called Intel AMT Port Forwarding Protocol(Intel APF protocol).
+	The protocol is used to maintain multiple sessions with Intel AMT from a
+	single application.
+
+	See the protocol specification in the Intel AMT Software Development Kit(SDK)
+	http://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide
+	Under "SDK Resources" => "Intel(R) vPro(TM) Gateway(MPS)"
+	=> "Information for Intel(R) vPro(TM) Gateway Developers"
+	=> "Description of the Intel AMT Port Forwarding (APF)Protocol"
+
+  2) Intel AMT Remote configuration using a Local Agent
+	A Local Agent enables IT personnel to configure Intel AMT out-of-the-box
+	without requiring installing additional data to enable setup. The remote
+	configuration process may involve an ISV-developed remote configuration
+	agent that runs on the host.
+	For more information:
+	http://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide
+	Under "Setup and Configuration of Intel AMT" =>
+	"SDK Tools Supporting Setup and Configuration" =>
+	"Using the Local Agent Sample"
+
+	An open source Intel AMT configuration utility,	implementing a local agent
+	that accesses the Intel MEI driver, can be found here:
+	http://software.intel.com/en-us/articles/download-the-latest-intel-amt-open-source-drivers/
+
+
+Intel AMT OS Health Watchdog:
+=============================
+The Intel AMT Watchdog is an OS Health (Hang/Crash) watchdog.
+Whenever the OS hangs or crashes, Intel AMT will send an event
+to any subscriber to this event. This mechanism means that
+IT knows when a platform crashes even when there is a hard failure on the host.
+
+The Intel AMT Watchdog is composed of two parts:
+	1) Firmware feature - receives the heartbeats
+	   and sends an event when the heartbeats stop.
+	2) Intel MEI driver - connects to the watchdog feature, configures the
+	   watchdog and sends the heartbeats.
+
+The Intel MEI driver uses the kernel watchdog API to configure the Intel AMT
+Watchdog and to send heartbeats to it. The default timeout of the
+watchdog is 120 seconds.
+
+If the Intel AMT Watchdog feature does not exist (i.e. the connection failed),
+the Intel MEI driver will disable the sending of heartbeats.
+
+Supported Chipsets:
+==================
+7 Series Chipset Family
+6 Series Chipset Family
+5 Series Chipset Family
+4 Series Chipset Family
+Mobile 4 Series Chipset Family
+ICH9
+82946GZ/GL
+82G35 Express
+82Q963/Q965
+82P965/G965
+Mobile PM965/GM965
+Mobile GME965/GLE960
+82Q35 Express
+82G33/G31/P35/P31 Express
+82Q33 Express
+82X38/X48 Express
+
+---
+linux-mei@linux.intel.com

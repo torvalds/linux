@@ -1,0 +1,177 @@
+/*
+ * Device Tree file for Marvell Armada 370 evaluation board
+ * (DB-88F6710-BP-DDR3)
+ *
+ *  Copyright (C) 2012 Marvell
+ *
+ * Lior Amsalem <alior@marvell.com>
+ * Gregory CLEMENT <gregory.clement@free-electrons.com>
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "armada-370.dtsi"
+
+/ {
+	model = "Marvell Armada 370 Evaluation Board";
+	compatible = "marvell,a370-db", "marvell,armada370", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x40000000>; /* 1 GB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
+
+		internal-regs {
+			serial@12000 {
+				status = "okay";
+			};
+			sata@a0000 {
+				nr-ports = <2>;
+				status = "okay";
+			};
+
+			mdio {
+				phy0: ethernet-phy@0 {
+					reg = <0>;
+				};
+
+				phy1: ethernet-phy@1 {
+					reg = <1>;
+				};
+			};
+
+			ethernet@70000 {
+				status = "okay";
+				phy = <&phy0>;
+				phy-mode = "rgmii-id";
+			};
+			ethernet@74000 {
+				status = "okay";
+				phy = <&phy1>;
+				phy-mode = "rgmii-id";
+			};
+
+			i2c@11000 {
+				pinctrl-0 = <&i2c0_pins>;
+				pinctrl-names = "default";
+				clock-frequency = <100000>;
+				status = "okay";
+				audio_codec: audio-codec@4a {
+					compatible = "cirrus,cs42l51";
+					reg = <0x4a>;
+				};
+			};
+
+			audio-controller@30000 {
+				pinctrl-0 = <&i2s_pins2>;
+				pinctrl-names = "default";
+				status = "okay";
+			};
+
+			mvsdio@d4000 {
+				pinctrl-0 = <&sdio_pins1>;
+				pinctrl-names = "default";
+				/*
+				 * This device is disabled by default, because
+				 * using the SD card connector requires
+				 * changing the default CON40 connector
+				 * "DB-88F6710_MPP_2xRGMII_DEVICE_Jumper" to a
+				 * different connector
+				 * "DB-88F6710_MPP_RGMII_SD_Jumper".
+				 */
+				status = "disabled";
+				/* No CD or WP GPIOs */
+				broken-cd;
+			};
+
+			pinctrl {
+				/*
+				 * These pins might be muxed as I2S by
+				 * the bootloader, but it conflicts
+				 * with the real I2S pins that are
+				 * muxed using i2s_pins. We must mux
+				 * those pins to a function other than
+				 * I2S.
+				 */
+				pinctrl-0 = <&hog_pins1 &hog_pins2>;
+				pinctrl-names = "default";
+
+				hog_pins1: hog-pins1 {
+					marvell,pins = "mpp6",  "mpp8", "mpp10",
+						       "mpp12", "mpp13";
+					marvell,function = "gpio";
+				};
+
+				hog_pins2: hog-pins2 {
+					marvell,pins = "mpp5", "mpp7", "mpp9";
+					marvell,function = "gpo";
+				};
+			};
+
+			usb@50000 {
+				status = "okay";
+			};
+
+			usb@51000 {
+				status = "okay";
+			};
+
+			spi0: spi@10600 {
+				status = "okay";
+
+				spi-flash@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
+					compatible = "mx25l25635e";
+					reg = <0>; /* Chip select 0 */
+					spi-max-frequency = <50000000>;
+				};
+			};
+		};
+
+		pcie-controller {
+			status = "okay";
+			/*
+			 * The two PCIe units are accessible through
+			 * both standard PCIe slots and mini-PCIe
+			 * slots on the board.
+			 */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+
+			pcie@2,0 {
+				/* Port 1, Lane 0 */
+				status = "okay";
+			};
+		};
+	};
+
+	sound {
+	      compatible = "marvell,a370db-audio";
+	      marvell,audio-controller = <&audio_controller>;
+	      marvell,audio-codec = <&audio_codec &spdif_out &spdif_in>;
+	      status = "okay";
+	};
+
+	spdif_out: spdif-out {
+	      compatible = "linux,spdif-dit";
+	};
+
+	spdif_in: spdif-in {
+	      compatible = "linux,spdif-dir";
+	};
+};

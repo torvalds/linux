@@ -142,7 +142,6 @@ struct uart_txx9_port {
 #define TXX9_SIFCR_RDIL_12	0x00000180
 #define TXX9_SIFCR_RDIL_MAX	0x00000180
 #define TXX9_SIFCR_TDIL_MASK	0x00000018
-#define TXX9_SIFCR_TDIL_MASK	0x00000018
 #define TXX9_SIFCR_TDIL_1	0x00000000
 #define TXX9_SIFCR_TDIL_4	0x00000001
 #define TXX9_SIFCR_TDIL_8	0x00000010
@@ -244,11 +243,6 @@ static void serial_txx9_stop_rx(struct uart_port *port)
 	up->port.read_status_mask &= ~TXX9_SIDISR_RDIS;
 }
 
-static void serial_txx9_enable_ms(struct uart_port *port)
-{
-	/* TXX9-SIO can not control DTR... */
-}
-
 static void serial_txx9_initialize(struct uart_port *port)
 {
 	struct uart_txx9_port *up = to_uart_txx9_port(port);
@@ -277,7 +271,6 @@ static void serial_txx9_initialize(struct uart_port *port)
 static inline void
 receive_chars(struct uart_txx9_port *up, unsigned int *status)
 {
-	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned char ch;
 	unsigned int disr = *status;
 	int max_count = 256;
@@ -346,7 +339,7 @@ receive_chars(struct uart_txx9_port *up, unsigned int *status)
 		disr = sio_in(up, TXX9_SIDISR);
 	} while (!(disr & TXX9_SIDISR_UVALID) && (max_count-- > 0));
 	spin_unlock(&up->port.lock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&up->port.state->port);
 	spin_lock(&up->port.lock);
 	*status = disr;
 }
@@ -466,7 +459,7 @@ static void serial_txx9_break_ctl(struct uart_port *port, int break_state)
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
-#if defined(CONFIG_SERIAL_TXX9_CONSOLE) || (CONFIG_CONSOLE_POLL)
+#if defined(CONFIG_SERIAL_TXX9_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
 /*
  *	Wait for transmitter & holding register to empty
  */
@@ -536,13 +529,8 @@ static void serial_txx9_put_poll_char(struct uart_port *port, unsigned char c)
 	wait_for_xmitr(up);
 	/*
 	 *	Send the character out.
-	 *	If a LF, also do CR...
 	 */
 	sio_out(up, TXX9_SITFIFO, c);
-	if (c == 10) {
-		wait_for_xmitr(up);
-		sio_out(up, TXX9_SITFIFO, 13);
-	}
 
 	/*
 	 *	Finally, wait for transmitter to become empty
@@ -703,7 +691,7 @@ serial_txx9_set_termios(struct uart_port *port, struct ktermios *termios,
 		TXX9_SIDISR_TDIS | TXX9_SIDISR_RDIS;
 	if (termios->c_iflag & INPCK)
 		up->port.read_status_mask |= TXX9_SIDISR_UFER | TXX9_SIDISR_UPER;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		up->port.read_status_mask |= TXX9_SIDISR_UBRK;
 
 	/*
@@ -864,7 +852,6 @@ static struct uart_ops serial_txx9_pops = {
 	.stop_tx	= serial_txx9_stop_tx,
 	.start_tx	= serial_txx9_start_tx,
 	.stop_rx	= serial_txx9_stop_rx,
-	.enable_ms	= serial_txx9_enable_ms,
 	.break_ctl	= serial_txx9_break_ctl,
 	.startup	= serial_txx9_startup,
 	.shutdown	= serial_txx9_shutdown,
@@ -1030,7 +1017,7 @@ static DEFINE_MUTEX(serial_txx9_mutex);
  *
  *	On success the port is ready to use and the line number is returned.
  */
-static int __devinit serial_txx9_register_port(struct uart_port *port)
+static int serial_txx9_register_port(struct uart_port *port)
 {
 	int i;
 	struct uart_txx9_port *uart;
@@ -1078,7 +1065,7 @@ static int __devinit serial_txx9_register_port(struct uart_port *port)
  *	Remove one serial port.  This may not be called from interrupt
  *	context.  We hand the port back to the our control.
  */
-static void __devexit serial_txx9_unregister_port(int line)
+static void serial_txx9_unregister_port(int line)
 {
 	struct uart_txx9_port *uart = &serial_txx9_ports[line];
 
@@ -1096,9 +1083,9 @@ static void __devexit serial_txx9_unregister_port(int line)
 /*
  * Register a set of serial devices attached to a platform device.
  */
-static int __devinit serial_txx9_probe(struct platform_device *dev)
+static int serial_txx9_probe(struct platform_device *dev)
 {
-	struct uart_port *p = dev->dev.platform_data;
+	struct uart_port *p = dev_get_platdata(&dev->dev);
 	struct uart_port port;
 	int ret, i;
 
@@ -1126,7 +1113,7 @@ static int __devinit serial_txx9_probe(struct platform_device *dev)
 /*
  * Remove serial ports registered against a platform device.
  */
-static int __devexit serial_txx9_remove(struct platform_device *dev)
+static int serial_txx9_remove(struct platform_device *dev)
 {
 	int i;
 
@@ -1171,7 +1158,7 @@ static int serial_txx9_resume(struct platform_device *dev)
 
 static struct platform_driver serial_txx9_plat_driver = {
 	.probe		= serial_txx9_probe,
-	.remove		= __devexit_p(serial_txx9_remove),
+	.remove		= serial_txx9_remove,
 #ifdef CONFIG_PM
 	.suspend	= serial_txx9_suspend,
 	.resume		= serial_txx9_resume,
@@ -1187,7 +1174,7 @@ static struct platform_driver serial_txx9_plat_driver = {
  * Probe one serial board.  Unfortunately, there is no rhyme nor reason
  * to the arrangement of serial ports on a PCI card.
  */
-static int __devinit
+static int
 pciserial_txx9_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct uart_port port;
@@ -1217,11 +1204,9 @@ pciserial_txx9_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	return 0;
 }
 
-static void __devexit pciserial_txx9_remove_one(struct pci_dev *dev)
+static void pciserial_txx9_remove_one(struct pci_dev *dev)
 {
 	struct uart_txx9_port *up = pci_get_drvdata(dev);
-
-	pci_set_drvdata(dev, NULL);
 
 	if (up) {
 		serial_txx9_unregister_port(up->port.line);
@@ -1261,7 +1246,7 @@ static const struct pci_device_id serial_txx9_pci_tbl[] = {
 static struct pci_driver serial_txx9_pci_driver = {
 	.name		= "serial_txx9",
 	.probe		= pciserial_txx9_init_one,
-	.remove		= __devexit_p(pciserial_txx9_remove_one),
+	.remove		= pciserial_txx9_remove_one,
 #ifdef CONFIG_PM
 	.suspend	= pciserial_txx9_suspend_one,
 	.resume		= pciserial_txx9_resume_one,

@@ -525,7 +525,7 @@ static int ps3vram_proc_show(struct seq_file *m, void *v)
 
 static int ps3vram_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, ps3vram_proc_show, PDE(inode)->data);
+	return single_open(file, ps3vram_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations ps3vram_proc_fops = {
@@ -536,7 +536,7 @@ static const struct file_operations ps3vram_proc_fops = {
 	.release	= single_release,
 };
 
-static void __devinit ps3vram_proc_init(struct ps3_system_bus_device *dev)
+static void ps3vram_proc_init(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	struct proc_dir_entry *pde;
@@ -553,16 +553,16 @@ static struct bio *ps3vram_do_bio(struct ps3_system_bus_device *dev,
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	int write = bio_data_dir(bio) == WRITE;
 	const char *op = write ? "write" : "read";
-	loff_t offset = bio->bi_sector << 9;
+	loff_t offset = bio->bi_iter.bi_sector << 9;
 	int error = 0;
-	struct bio_vec *bvec;
-	unsigned int i;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
 	struct bio *next;
 
-	bio_for_each_segment(bvec, bio, i) {
+	bio_for_each_segment(bvec, bio, iter) {
 		/* PS3 is ppc64, so we don't handle highmem */
-		char *ptr = page_address(bvec->bv_page) + bvec->bv_offset;
-		size_t len = bvec->bv_len, retlen;
+		char *ptr = page_address(bvec.bv_page) + bvec.bv_offset;
+		size_t len = bvec.bv_len, retlen;
 
 		dev_dbg(&dev->core, "    %s %zu bytes at offset %llu\n", op,
 			len, offset);
@@ -618,7 +618,7 @@ static void ps3vram_make_request(struct request_queue *q, struct bio *bio)
 	} while (bio);
 }
 
-static int __devinit ps3vram_probe(struct ps3_system_bus_device *dev)
+static int ps3vram_probe(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv;
 	int error, status;

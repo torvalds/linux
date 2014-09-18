@@ -14,6 +14,7 @@
 #include <asm/thread_info.h>
 #include <asm/processor-flags.h>
 #include <asm/segment.h>
+#include <asm/asm.h>
 
 #include <xen/interface/xen.h>
 
@@ -74,6 +75,17 @@ ENDPROC(xen_sysexit)
  * stack state in whatever form its in, we keep things simple by only
  * using a single register which is pushed/popped on the stack.
  */
+
+.macro POP_FS
+1:
+	popw %fs
+.pushsection .fixup, "ax"
+2:	movw $0, (%esp)
+	jmp 1b
+.popsection
+	_ASM_EXTABLE(1b,2b)
+.endm
+
 ENTRY(xen_iret)
 	/* test eflags for special cases */
 	testl $(X86_EFLAGS_VM | XEN_EFLAGS_NMI), 8(%esp)
@@ -82,17 +94,15 @@ ENTRY(xen_iret)
 	push %eax
 	ESP_OFFSET=4	# bytes pushed onto stack
 
-	/*
-	 * Store vcpu_info pointer for easy access.  Do it this way to
-	 * avoid having to reload %fs
-	 */
+	/* Store vcpu_info pointer for easy access */
 #ifdef CONFIG_SMP
-	GET_THREAD_INFO(%eax)
-	movl TI_cpu(%eax), %eax
-	movl __per_cpu_offset(,%eax,4), %eax
-	mov xen_vcpu(%eax), %eax
+	pushw %fs
+	movl $(__KERNEL_PERCPU), %eax
+	movl %eax, %fs
+	movl %fs:xen_vcpu, %eax
+	POP_FS
 #else
-	movl xen_vcpu, %eax
+	movl %ss:xen_vcpu, %eax
 #endif
 
 	/* check IF state we're restoring */
@@ -105,11 +115,11 @@ ENTRY(xen_iret)
 	 * resuming the code, so we don't have to be worried about
 	 * being preempted to another CPU.
 	 */
-	setz XEN_vcpu_info_mask(%eax)
+	setz %ss:XEN_vcpu_info_mask(%eax)
 xen_iret_start_crit:
 
 	/* check for unmasked and pending */
-	cmpw $0x0001, XEN_vcpu_info_pending(%eax)
+	cmpw $0x0001, %ss:XEN_vcpu_info_pending(%eax)
 
 	/*
 	 * If there's something pending, mask events again so we can
@@ -117,7 +127,7 @@ xen_iret_start_crit:
 	 * touch XEN_vcpu_info_mask.
 	 */
 	jne 1f
-	movb $1, XEN_vcpu_info_mask(%eax)
+	movb $1, %ss:XEN_vcpu_info_mask(%eax)
 
 1:	popl %eax
 
@@ -137,10 +147,7 @@ iret_restore_end:
 
 1:	iret
 xen_iret_end_crit:
-.section __ex_table, "a"
-	.align 4
-	.long 1b, iret_exc
-.previous
+	_ASM_EXTABLE(1b, iret_exc)
 
 hyper_iret:
 	/* put this out of line since its very rarely used */

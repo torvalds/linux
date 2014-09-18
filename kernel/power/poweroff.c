@@ -32,12 +32,12 @@ static void handle_poweroff(int key)
 
 static struct sysrq_key_op	sysrq_poweroff_op = {
 	.handler        = handle_poweroff,
-	.help_msg       = "powerOff",
+	.help_msg       = "poweroff(o)",
 	.action_msg     = "Power Off",
 	.enable_mask	= SYSRQ_ENABLE_BOOT,
 };
 
-static int pm_sysrq_init(void)
+static int __init pm_sysrq_init(void)
 {
 	register_sysrq_key('o', &sysrq_poweroff_op);
 	return 0;

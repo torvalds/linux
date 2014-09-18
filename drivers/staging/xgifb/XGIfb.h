@@ -1,8 +1,5 @@
 #ifndef _LINUX_XGIFB
 #define _LINUX_XGIFB
-#include <linux/ioctl.h>
-#include <linux/types.h>
-
 #include "vgatypes.h"
 #include "vb_struct.h"
 
@@ -23,9 +20,7 @@ enum xgifb_display_type {
 
 enum XGI_CHIP_TYPE {
 	XG40 = 32,
-	XG41,
 	XG42,
-	XG45,
 	XG20 = 48,
 	XG21,
 	XG27,
@@ -35,13 +30,13 @@ enum xgi_tvtype {
 	TVMODE_NTSC = 0,
 	TVMODE_PAL,
 	TVMODE_HIVISION,
-	TVTYPE_PALM,	/* vicki@030226 */
-	TVTYPE_PALN,	/* vicki@030226 */
-	TVTYPE_NTSCJ,	/* vicki@030226 */
+	TVTYPE_PALM,
+	TVTYPE_PALN,
+	TVTYPE_NTSCJ,
 	TVMODE_TOTAL
 };
 
-enum xgi_tv_plug { /* vicki@030226 */
+enum xgi_tv_plug {
 	TVPLUG_UNKNOWN = 0,
 	TVPLUG_COMPOSITE = 1,
 	TVPLUG_SVIDEO = 2,
@@ -66,13 +61,13 @@ struct xgifb_video_info {
 
 	int           chip_id;
 	unsigned int  video_size;
-	unsigned long video_base;
+	phys_addr_t   video_base;
 	void __iomem *video_vbase;
-	unsigned long mmio_base;
+	phys_addr_t   mmio_base;
 	unsigned long mmio_size;
 	void __iomem *mmio_vbase;
 	unsigned long vga_base;
-	unsigned long mtrr;
+	int mtrr;
 
 	int    video_bpp;
 	int    video_cmap_len;

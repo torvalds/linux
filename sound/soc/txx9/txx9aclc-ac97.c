@@ -119,12 +119,11 @@ static void txx9aclc_ac97_cold_reset(struct snd_ac97 *ac97)
 }
 
 /* AC97 controller operations */
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops txx9aclc_ac97_ops = {
 	.read		= txx9aclc_ac97_read,
 	.write		= txx9aclc_ac97_write,
 	.reset		= txx9aclc_ac97_cold_reset,
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static irqreturn_t txx9aclc_ac97_irq(int irq, void *dev_id)
 {
@@ -170,7 +169,11 @@ static struct snd_soc_dai_driver txx9aclc_ac97_dai = {
 	},
 };
 
-static int __devinit txx9aclc_ac97_dev_probe(struct platform_device *pdev)
+static const struct snd_soc_component_driver txx9aclc_ac97_component = {
+	.name		= "txx9aclc-ac97",
+};
+
+static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 {
 	struct txx9aclc_plat_drvdata *drvdata;
 	struct resource *r;
@@ -180,43 +183,45 @@ static int __devinit txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r)
-		return -EBUSY;
-
-	if (!devm_request_mem_region(&pdev->dev, r->start, resource_size(r),
-				     dev_name(&pdev->dev)))
-		return -EBUSY;
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	drvdata->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(drvdata->base))
+		return PTR_ERR(drvdata->base);
+
 	platform_set_drvdata(pdev, drvdata);
 	drvdata->physbase = r->start;
 	if (sizeof(drvdata->physbase) > sizeof(r->start) &&
 	    r->start >= TXX9_DIRECTMAP_BASE &&
 	    r->start < TXX9_DIRECTMAP_BASE + 0x400000)
 		drvdata->physbase |= 0xf00000000ull;
-	drvdata->base = devm_ioremap(&pdev->dev, r->start, resource_size(r));
-	if (!drvdata->base)
-		return -EBUSY;
 	err = devm_request_irq(&pdev->dev, irq, txx9aclc_ac97_irq,
 			       0, dev_name(&pdev->dev), drvdata);
 	if (err < 0)
 		return err;
 
-	return snd_soc_register_dai(&pdev->dev, &txx9aclc_ac97_dai);
+	err = snd_soc_set_ac97_ops(&txx9aclc_ac97_ops);
+	if (err < 0)
+		return err;
+
+	return snd_soc_register_component(&pdev->dev, &txx9aclc_ac97_component,
+					  &txx9aclc_ac97_dai, 1);
 }
 
-static int __devexit txx9aclc_ac97_dev_remove(struct platform_device *pdev)
+static int txx9aclc_ac97_dev_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
+	snd_soc_set_ac97_ops(NULL);
 	return 0;
 }
 
 static struct platform_driver txx9aclc_ac97_driver = {
 	.probe		= txx9aclc_ac97_dev_probe,
-	.remove		= __devexit_p(txx9aclc_ac97_dev_remove),
+	.remove		= txx9aclc_ac97_dev_remove,
 	.driver		= {
 		.name	= "txx9aclc-ac97",
 		.owner	= THIS_MODULE,

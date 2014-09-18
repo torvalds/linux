@@ -91,7 +91,7 @@ static const struct ide_port_ops dtc2278_port_ops = {
 	.set_pio_mode		= dtc2278_set_pio_mode,
 };
 
-static const struct ide_port_info dtc2278_port_info __initdata = {
+static const struct ide_port_info dtc2278_port_info __initconst = {
 	.name			= DRV_NAME,
 	.chipset		= ide_dtc2278,
 	.port_ops		= &dtc2278_port_ops,

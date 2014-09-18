@@ -1,7 +1,7 @@
 /*
  * CAIF USB handler
  * Copyright (C) ST-Ericsson AB 2011
- * Author:	Sjur Brendeland/sjur.brandeland@stericsson.com
+ * Author:	Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  *
  */
@@ -14,6 +14,7 @@
 #include <linux/mii.h>
 #include <linux/usb.h>
 #include <linux/usb/usbnet.h>
+#include <linux/etherdevice.h>
 #include <net/netns/generic.h>
 #include <net/caif/caif_dev.h>
 #include <net/caif/caif_layer.h>
@@ -75,14 +76,14 @@ static int cfusbl_transmit(struct cflayer *layr, struct cfpkt *pkt)
 }
 
 static void cfusbl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
-					int phyid)
+			   int phyid)
 {
 	if (layr->up && layr->up->ctrlcmd)
 		layr->up->ctrlcmd(layr->up, ctrl, layr->id);
 }
 
-struct cflayer *cfusbl_create(int phyid, u8 ethaddr[ETH_ALEN],
-					u8 braddr[ETH_ALEN])
+static struct cflayer *cfusbl_create(int phyid, u8 ethaddr[ETH_ALEN],
+				      u8 braddr[ETH_ALEN])
 {
 	struct cfusbl *this = kmalloc(sizeof(struct cfusbl), GFP_ATOMIC);
 
@@ -105,8 +106,8 @@ struct cflayer *cfusbl_create(int phyid, u8 ethaddr[ETH_ALEN],
 	 *	5-11	source address
 	 *	12-13	protocol type
 	 */
-	memcpy(&this->tx_eth_hdr[ETH_ALEN], braddr, ETH_ALEN);
-	memcpy(&this->tx_eth_hdr[ETH_ALEN], ethaddr, ETH_ALEN);
+	ether_addr_copy(&this->tx_eth_hdr[ETH_ALEN], braddr);
+	ether_addr_copy(&this->tx_eth_hdr[ETH_ALEN], ethaddr);
 	this->tx_eth_hdr[12] = cpu_to_be16(ETH_P_802_EX1) & 0xff;
 	this->tx_eth_hdr[13] = (cpu_to_be16(ETH_P_802_EX1) >> 8) & 0xff;
 	pr_debug("caif ethernet TX-header dst:%pM src:%pM type:%02x%02x\n",
@@ -121,25 +122,21 @@ static struct packet_type caif_usb_type __read_mostly = {
 };
 
 static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
-			      void *arg)
+				void *ptr)
 {
-	struct net_device *dev = arg;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct caif_dev_common common;
 	struct cflayer *layer, *link_support;
-	struct usbnet	*usbnet = netdev_priv(dev);
-	struct usb_device	*usbdev = usbnet->udev;
-	struct ethtool_drvinfo drvinfo;
+	struct usbnet *usbnet;
+	struct usb_device *usbdev;
 
-	/*
-	 * Quirks: High-jack ethtool to find if we have a NCM device,
-	 * and find it's VID/PID.
-	 */
-	if (dev->ethtool_ops == NULL || dev->ethtool_ops->get_drvinfo == NULL)
+	/* Check whether we have a NCM device, and find its VID/PID. */
+	if (!(dev->dev.parent && dev->dev.parent->driver &&
+	      strcmp(dev->dev.parent->driver->name, "cdc_ncm") == 0))
 		return 0;
 
-	dev->ethtool_ops->get_drvinfo(dev, &drvinfo);
-	if (strncmp(drvinfo.driver, "cdc_ncm", 7) != 0)
-		return 0;
+	usbnet = netdev_priv(dev);
+	usbdev = usbnet->udev;
 
 	pr_debug("USB CDC NCM device VID:0x%4x PID:0x%4x\n",
 		le16_to_cpu(usbdev->descriptor.idVendor),

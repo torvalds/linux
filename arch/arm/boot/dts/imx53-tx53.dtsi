@@ -1,0 +1,549 @@
+/*
+ * Copyright 2012 <LW@KARO-electronics.de>
+ * based on imx53-qsb.dts
+ *   Copyright 2011 Freescale Semiconductor, Inc.
+ *   Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include "imx53.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Ka-Ro electronics TX53 module";
+	compatible = "karo,tx53", "fsl,imx53";
+
+	aliases {
+		can0 = &can2; /* Make the can interface indices consistent with TX28/TX48 modules */
+		can1 = &can1;
+		ipu = &ipu;
+		reg_can_xcvr = &reg_can_xcvr;
+		usbh1 = &usbh1;
+		usbotg = &usbotg;
+	};
+
+	clocks {
+		ckih1 {
+			clock-frequency = <0>;
+		};
+
+		mclk: clock@0 {
+			compatible = "fixed-clock";
+			reg = <0>;
+			#clock-cells = <0>;
+			clock-frequency = <27000000>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_key>;
+
+		power {
+			label = "Power Button";
+			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_stk5led>;
+
+		user {
+			label = "Heartbeat";
+			gpios = <&gpio2 20 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_2v5: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "2V5";
+			regulator-min-microvolt = <2500000>;
+			regulator-max-microvolt = <2500000>;
+		};
+
+		reg_3v3: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		reg_can_xcvr: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "CAN XCVR";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_can_xcvr>;
+			gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
+		};
+
+		reg_usbh1_vbus: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "usbh1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usbh1_vbus>;
+			gpio = <&gpio3 31 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		reg_usbotg_vbus: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "usbotg_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usbotg_vbus>;
+			gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+	};
+
+	sound {
+		compatible = "karo,tx53-audio-sgtl5000", "fsl,imx-audio-sgtl5000";
+		model = "tx53-audio-sgtl5000";
+		ssi-controller = <&ssi1>;
+		audio-codec = <&sgtl5000>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		/* '1' based port numbers according to datasheet names */
+		mux-int-port = <1>;
+		mux-ext-port = <5>;
+	};
+};
+
+&audmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ssi1>;
+	status = "okay";
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_can1>;
+	xceiver-supply = <&reg_can_xcvr>;
+	status = "okay";
+};
+
+&can2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_can2>;
+	xceiver-supply = <&reg_can_xcvr>;
+	status = "okay";
+};
+
+&ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	fsl,spi-num-chipselects = <2>;
+	status = "okay";
+
+	cs-gpios = <
+		&gpio2 30 GPIO_ACTIVE_HIGH
+		&gpio3 19 GPIO_ACTIVE_HIGH
+	>;
+
+	spidev0: spi@0 {
+		compatible = "spidev";
+		reg = <0>;
+		spi-max-frequency = <54000000>;
+	};
+
+	spidev1: spi@1 {
+		compatible = "spidev";
+		reg = <1>;
+		spi-max-frequency = <54000000>;
+	};
+};
+
+&esdhc1 {
+	cd-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>;
+	fsl,wp-controller;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	status = "okay";
+};
+
+&esdhc2 {
+	cd-gpios = <&gpio3 25 GPIO_ACTIVE_HIGH>;
+	fsl,wp-controller;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc2>;
+	status = "okay";
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec>;
+	phy-mode = "rmii";
+	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_HIGH>;
+	phy-handle = <&phy0>;
+	mac-address = [000000000000]; /* placeholder; will be overwritten by bootloader */
+	status = "okay";
+
+	phy0: ethernet-phy@0 {
+		interrupt-parent = <&gpio2>;
+		interrupts = <4>;
+		device_type = "ethernet-phy";
+	};
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	rtc1: ds1339@68 {
+		compatible = "dallas,ds1339";
+		reg = <0x68>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ds1339>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <20 0>;
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	imx53-tx53 {
+		pinctrl_hog: hoggrp {
+			/* pins not in use by any device on the Starterkit board series */
+			fsl,pins = <
+				/* CMOS Sensor Interface */
+				MX53_PAD_CSI0_DAT12__GPIO5_30 0x1f4
+				MX53_PAD_CSI0_DAT13__GPIO5_31 0x1f4
+				MX53_PAD_CSI0_DAT14__GPIO6_0 0x1f4
+				MX53_PAD_CSI0_DAT15__GPIO6_1 0x1f4
+				MX53_PAD_CSI0_DAT16__GPIO6_2 0x1f4
+				MX53_PAD_CSI0_DAT17__GPIO6_3 0x1f4
+				MX53_PAD_CSI0_DAT18__GPIO6_4 0x1f4
+				MX53_PAD_CSI0_DAT19__GPIO6_5 0x1f4
+				MX53_PAD_CSI0_MCLK__GPIO5_19 0x1f4
+				MX53_PAD_CSI0_VSYNC__GPIO5_21 0x1f4
+				MX53_PAD_CSI0_PIXCLK__GPIO5_18 0x1f4
+				MX53_PAD_GPIO_0__GPIO1_0 0x1f4
+				/* Module Specific Signal */
+				/* MX53_PAD_NANDF_CS2__GPIO6_15 0x1f4 maybe used by EDT-FT5x06 */
+				/* MX53_PAD_EIM_A16__GPIO2_22 0x1f4 maybe used by EDT-FT5x06 */
+				MX53_PAD_EIM_D29__GPIO3_29 0x1f4
+				MX53_PAD_EIM_EB3__GPIO2_31 0x1f4
+				/* MX53_PAD_EIM_A17__GPIO2_21 0x1f4 maybe used by EDT-FT5x06 */
+				/* MX53_PAD_EIM_A18__GPIO2_20 0x1f4 used by LED */
+				MX53_PAD_EIM_A19__GPIO2_19 0x1f4
+				MX53_PAD_EIM_A20__GPIO2_18 0x1f4
+				MX53_PAD_EIM_A21__GPIO2_17 0x1f4
+				MX53_PAD_EIM_A22__GPIO2_16 0x1f4
+				MX53_PAD_EIM_A23__GPIO6_6 0x1f4
+				MX53_PAD_EIM_A24__GPIO5_4 0x1f4
+				MX53_PAD_CSI0_DAT8__GPIO5_26 0x1f4
+				MX53_PAD_CSI0_DAT9__GPIO5_27 0x1f4
+				MX53_PAD_CSI0_DAT10__GPIO5_28 0x1f4
+				MX53_PAD_CSI0_DAT11__GPIO5_29 0x1f4
+				/* MX53_PAD_EIM_D22__GPIO3_22 0x1f4 maybe used by EETI touchpanel driver */
+				/* MX53_PAD_EIM_D23__GPIO3_23 0x1f4 maybe used by EETI touchpanel driver */
+				MX53_PAD_GPIO_13__GPIO4_3 0x1f4
+				MX53_PAD_EIM_CS0__GPIO2_23 0x1f4
+				MX53_PAD_EIM_CS1__GPIO2_24 0x1f4
+				MX53_PAD_CSI0_DATA_EN__GPIO5_20 0x1f4
+				MX53_PAD_EIM_WAIT__GPIO5_0 0x1f4
+				MX53_PAD_EIM_EB0__GPIO2_28 0x1f4
+				MX53_PAD_EIM_EB1__GPIO2_29 0x1f4
+				MX53_PAD_EIM_OE__GPIO2_25 0x1f4
+				MX53_PAD_EIM_LBA__GPIO2_27 0x1f4
+				MX53_PAD_EIM_RW__GPIO2_26 0x1f4
+				MX53_PAD_EIM_DA8__GPIO3_8 0x1f4
+				MX53_PAD_EIM_DA9__GPIO3_9 0x1f4
+				MX53_PAD_EIM_DA10__GPIO3_10 0x1f4
+				MX53_PAD_EIM_DA11__GPIO3_11 0x1f4
+				MX53_PAD_EIM_DA12__GPIO3_12 0x1f4
+				MX53_PAD_EIM_DA13__GPIO3_13 0x1f4
+				MX53_PAD_EIM_DA14__GPIO3_14 0x1f4
+				MX53_PAD_EIM_DA15__GPIO3_15 0x1f4
+				>;
+		};
+
+		pinctrl_can1: can1grp {
+			fsl,pins = <
+				MX53_PAD_GPIO_7__CAN1_TXCAN		0x80000000
+				MX53_PAD_GPIO_8__CAN1_RXCAN		0x80000000
+			>;
+		};
+
+		pinctrl_can2: can2grp {
+			fsl,pins = <
+				MX53_PAD_KEY_COL4__CAN2_TXCAN		0x80000000
+				MX53_PAD_KEY_ROW4__CAN2_RXCAN		0x80000000
+			>;
+		};
+
+		pinctrl_can_xcvr: can-xcvrgrp {
+			fsl,pins = <MX53_PAD_DISP0_DAT0__GPIO4_21 0xe0>; /* Flexcan XCVR enable */
+		};
+
+		pinctrl_ds1339: ds1339grp {
+			fsl,pins = <MX53_PAD_DI0_PIN4__GPIO4_20 0xe0>;
+		};
+
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX53_PAD_GPIO_19__ECSPI1_RDY		0x80000000
+				MX53_PAD_EIM_EB2__ECSPI1_SS0		0x80000000
+				MX53_PAD_EIM_D16__ECSPI1_SCLK		0x80000000
+				MX53_PAD_EIM_D17__ECSPI1_MISO		0x80000000
+				MX53_PAD_EIM_D18__ECSPI1_MOSI		0x80000000
+				MX53_PAD_EIM_D19__ECSPI1_SS1		0x80000000
+			>;
+		};
+
+		pinctrl_esdhc1: esdhc1grp {
+			fsl,pins = <
+				MX53_PAD_SD1_DATA0__ESDHC1_DAT0		0x1d5
+				MX53_PAD_SD1_DATA1__ESDHC1_DAT1		0x1d5
+				MX53_PAD_SD1_DATA2__ESDHC1_DAT2		0x1d5
+				MX53_PAD_SD1_DATA3__ESDHC1_DAT3		0x1d5
+				MX53_PAD_SD1_CMD__ESDHC1_CMD		0x1d5
+				MX53_PAD_SD1_CLK__ESDHC1_CLK		0x1d5
+				MX53_PAD_EIM_D24__GPIO3_24 0x1f0
+			>;
+		};
+
+		pinctrl_esdhc2: esdhc2grp {
+			fsl,pins = <
+				MX53_PAD_SD2_CMD__ESDHC2_CMD		0x1d5
+				MX53_PAD_SD2_CLK__ESDHC2_CLK		0x1d5
+				MX53_PAD_SD2_DATA0__ESDHC2_DAT0		0x1d5
+				MX53_PAD_SD2_DATA1__ESDHC2_DAT1		0x1d5
+				MX53_PAD_SD2_DATA2__ESDHC2_DAT2		0x1d5
+				MX53_PAD_SD2_DATA3__ESDHC2_DAT3		0x1d5
+				MX53_PAD_EIM_D25__GPIO3_25 0x1f0
+			>;
+		};
+
+		pinctrl_fec: fecgrp {
+			fsl,pins = <
+				MX53_PAD_FEC_MDC__FEC_MDC		0x80000000
+				MX53_PAD_FEC_MDIO__FEC_MDIO		0x80000000
+				MX53_PAD_FEC_REF_CLK__FEC_TX_CLK	0x80000000
+				MX53_PAD_FEC_RX_ER__FEC_RX_ER		0x80000000
+				MX53_PAD_FEC_CRS_DV__FEC_RX_DV		0x80000000
+				MX53_PAD_FEC_RXD1__FEC_RDATA_1		0x80000000
+				MX53_PAD_FEC_RXD0__FEC_RDATA_0		0x80000000
+				MX53_PAD_FEC_TX_EN__FEC_TX_EN		0x80000000
+				MX53_PAD_FEC_TXD1__FEC_TDATA_1		0x80000000
+				MX53_PAD_FEC_TXD0__FEC_TDATA_0		0x80000000
+			>;
+		};
+
+		pinctrl_gpio_key: gpio-keygrp {
+			fsl,pins = <MX53_PAD_EIM_A25__GPIO5_2 0x1f4>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX53_PAD_EIM_D21__I2C1_SCL		0xc0000000
+				MX53_PAD_EIM_D28__I2C1_SDA		0xc0000000
+			>;
+		};
+
+		pinctrl_i2c3: i2c3grp {
+			fsl,pins = <
+				MX53_PAD_GPIO_3__I2C3_SCL		0xc0000000
+				MX53_PAD_GPIO_6__I2C3_SDA		0xc0000000
+			>;
+		};
+
+		pinctrl_nand: nandgrp {
+			fsl,pins = <
+				MX53_PAD_NANDF_WE_B__EMI_NANDF_WE_B	0x4
+				MX53_PAD_NANDF_RE_B__EMI_NANDF_RE_B	0x4
+				MX53_PAD_NANDF_CLE__EMI_NANDF_CLE	0x4
+				MX53_PAD_NANDF_ALE__EMI_NANDF_ALE	0x4
+				MX53_PAD_NANDF_WP_B__EMI_NANDF_WP_B	0xe0
+				MX53_PAD_NANDF_RB0__EMI_NANDF_RB_0	0xe0
+				MX53_PAD_NANDF_CS0__EMI_NANDF_CS_0	0x4
+				MX53_PAD_EIM_DA0__EMI_NAND_WEIM_DA_0	0xa4
+				MX53_PAD_EIM_DA1__EMI_NAND_WEIM_DA_1	0xa4
+				MX53_PAD_EIM_DA2__EMI_NAND_WEIM_DA_2	0xa4
+				MX53_PAD_EIM_DA3__EMI_NAND_WEIM_DA_3	0xa4
+				MX53_PAD_EIM_DA4__EMI_NAND_WEIM_DA_4	0xa4
+				MX53_PAD_EIM_DA5__EMI_NAND_WEIM_DA_5	0xa4
+				MX53_PAD_EIM_DA6__EMI_NAND_WEIM_DA_6	0xa4
+				MX53_PAD_EIM_DA7__EMI_NAND_WEIM_DA_7	0xa4
+			>;
+		};
+
+		pinctrl_pwm2: pwm2grp {
+			fsl,pins = <
+				MX53_PAD_GPIO_1__PWM2_PWMO		0x80000000
+			>;
+		};
+
+		pinctrl_ssi1: ssi1grp {
+			fsl,pins = <
+				MX53_PAD_KEY_COL0__AUDMUX_AUD5_TXC	0x80000000
+				MX53_PAD_KEY_ROW0__AUDMUX_AUD5_TXD	0x80000000
+				MX53_PAD_KEY_COL1__AUDMUX_AUD5_TXFS	0x80000000
+				MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD	0x80000000
+			>;
+		};
+
+		pinctrl_ssi2: ssi2grp {
+			fsl,pins = <
+				MX53_PAD_CSI0_DAT4__AUDMUX_AUD3_TXC	0x80000000
+				MX53_PAD_CSI0_DAT5__AUDMUX_AUD3_TXD	0x80000000
+				MX53_PAD_CSI0_DAT6__AUDMUX_AUD3_TXFS	0x80000000
+				MX53_PAD_CSI0_DAT7__AUDMUX_AUD3_RXD	0x80000000
+				MX53_PAD_EIM_D27__GPIO3_27 0x1f0
+			>;
+		};
+
+		pinctrl_stk5led: stk5ledgrp {
+			fsl,pins = <MX53_PAD_EIM_A18__GPIO2_20 0xc0>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX53_PAD_PATA_DIOW__UART1_TXD_MUX	0x1e4
+				MX53_PAD_PATA_DMACK__UART1_RXD_MUX	0x1e4
+				MX53_PAD_PATA_RESET_B__UART1_CTS	0x1c5
+				MX53_PAD_PATA_IORDY__UART1_RTS		0x1c5
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX	0x1c5
+				MX53_PAD_PATA_DMARQ__UART2_TXD_MUX	0x1c5
+				MX53_PAD_PATA_DIOR__UART2_RTS		0x1c5
+				MX53_PAD_PATA_INTRQ__UART2_CTS		0x1c5
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX53_PAD_PATA_CS_0__UART3_TXD_MUX	0x1e4
+				MX53_PAD_PATA_CS_1__UART3_RXD_MUX	0x1e4
+				MX53_PAD_PATA_DA_1__UART3_CTS		0x1e4
+				MX53_PAD_PATA_DA_2__UART3_RTS		0x1e4
+			>;
+		};
+
+		pinctrl_usbh1: usbh1grp {
+			fsl,pins = <
+				MX53_PAD_EIM_D30__GPIO3_30 0x100 /* OC */
+			>;
+		};
+
+		pinctrl_usbh1_vbus: usbh1-vbusgrp {
+			fsl,pins = <
+				MX53_PAD_EIM_D31__GPIO3_31 0xe0 /* VBUS ENABLE */
+			>;
+		};
+
+		pinctrl_usbotg_vbus: usbotg-vbusgrp {
+			fsl,pins = <
+				MX53_PAD_GPIO_7__GPIO1_7 0xe0 /* VBUS ENABLE */
+				MX53_PAD_GPIO_8__GPIO1_8 0x100 /* OC */
+			>;
+		};
+	};
+};
+
+&ipu {
+	status = "okay";
+};
+
+&nfc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_nand>;
+	nand-bus-width = <8>;
+	nand-ecc-mode = "hw";
+	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&pwm2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm2>;
+	#pwm-cells = <3>;
+};
+
+&sdma {
+	fsl,sdma-ram-script-name = "sdma-imx53.bin";
+};
+
+&ssi1 {
+	codec-handle = <&sgtl5000>;
+	status = "okay";
+};
+
+&ssi2 {
+	status = "disabled";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&usbh1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh1>;
+	phy_type = "utmi";
+	disable-over-current;
+	vbus-supply = <&reg_usbh1_vbus>;
+	status = "okay";
+};
+
+&usbotg {
+	phy_type = "utmi";
+	dr_mode = "peripheral";
+	disable-over-current;
+	vbus-supply = <&reg_usbotg_vbus>;
+	status = "okay";
+};

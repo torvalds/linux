@@ -13,36 +13,33 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/bootmem.h>
-#include <linux/initrd.h>
 #include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 
 #include <asm/page.h>
 #include <asm/prom.h>
 
-int __init early_init_dt_scan_memory_arch(unsigned long node,
-					  const char *uname, int depth,
-					  void *data)
+static char mips_machine_name[64] = "Unknown";
+
+__init void mips_set_machine_name(const char *name)
 {
-	return early_init_dt_scan_memory(node, uname, depth, data);
+	if (name == NULL)
+		return;
+
+	strlcpy(mips_machine_name, name, sizeof(mips_machine_name));
+	pr_info("MIPS: machine is %s\n", mips_get_machine_name());
 }
 
+char *mips_get_machine_name(void)
+{
+	return mips_machine_name;
+}
+
+#ifdef CONFIG_OF
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	return add_memory_region(base, size, BOOT_MEM_RAM);
-}
-
-int __init reserve_mem_mach(unsigned long addr, unsigned long size)
-{
-	return reserve_bootmem(addr, size, BOOTMEM_DEFAULT);
-}
-
-void __init free_mem_mach(unsigned long addr, unsigned long size)
-{
-	return free_bootmem(addr, size);
 }
 
 void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
@@ -50,48 +47,11 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 	return __alloc_bootmem(size, align, __pa(MAX_DMA_ADDRESS));
 }
 
-#ifdef CONFIG_BLK_DEV_INITRD
-void __init early_init_dt_setup_initrd_arch(unsigned long start,
-					    unsigned long end)
+void __init __dt_setup_arch(void *bph)
 {
-	initrd_start = (unsigned long)__va(start);
-	initrd_end = (unsigned long)__va(end);
-	initrd_below_start_ok = 1;
-}
-#endif
-
-void __init early_init_devtree(void *params)
-{
-	/* Setup flat device-tree pointer */
-	initial_boot_params = params;
-
-	/* Retrieve various informations from the /chosen node of the
-	 * device-tree, including the platform type, initrd location and
-	 * size, and more ...
-	 */
-	of_scan_flat_dt(early_init_dt_scan_chosen, arcs_cmdline);
-
-
-	/* Scan memory nodes */
-	of_scan_flat_dt(early_init_dt_scan_root, NULL);
-	of_scan_flat_dt(early_init_dt_scan_memory_arch, NULL);
-}
-
-void __init device_tree_init(void)
-{
-	unsigned long base, size;
-
-	if (!initial_boot_params)
+	if (!early_init_dt_scan(bph))
 		return;
 
-	base = virt_to_phys((void *)initial_boot_params);
-	size = be32_to_cpu(initial_boot_params->totalsize);
-
-	/* Before we do anything, lets reserve the dt blob */
-	reserve_mem_mach(base, size);
-
-	unflatten_device_tree();
-
-	/* free the space reserved for the dt blob */
-	free_mem_mach(base, size);
+	mips_set_machine_name(of_flat_dt_get_machine_name());
 }
+#endif

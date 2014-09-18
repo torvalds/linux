@@ -17,7 +17,7 @@
 #include <linux/rwsem.h>
 #include <linux/leds.h>
 
-static inline void led_set_brightness(struct led_classdev *led_cdev,
+static inline void __led_set_brightness(struct led_classdev *led_cdev,
 					enum led_brightness value)
 {
 	if (value > led_cdev->max_brightness)
@@ -31,6 +31,8 @@ static inline int led_get_brightness(struct led_classdev *led_cdev)
 {
 	return led_cdev->brightness;
 }
+
+void led_stop_software_blink(struct led_classdev *led_cdev);
 
 extern struct rw_semaphore leds_list_lock;
 extern struct list_head leds_list;

@@ -29,9 +29,8 @@
  */
 #include <linux/compat.h>
 
-#include "drmP.h"
-#include "drm.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon_drv.h"
 
 typedef struct drm_radeon_init32 {
@@ -369,7 +368,7 @@ static int compat_radeon_cp_setparam(struct file *file, unsigned int cmd,
 #define compat_radeon_cp_setparam NULL
 #endif /* X86_64 || IA64 */
 
-drm_ioctl_compat_t *radeon_compat_ioctls[] = {
+static drm_ioctl_compat_t *radeon_compat_ioctls[] = {
 	[DRM_RADEON_CP_INIT] = compat_radeon_cp_init,
 	[DRM_RADEON_CLEAR] = compat_radeon_cp_clear,
 	[DRM_RADEON_STIPPLE] = compat_radeon_cp_stipple,
@@ -400,7 +399,7 @@ long radeon_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (nr < DRM_COMMAND_BASE)
 		return drm_compat_ioctl(filp, cmd, arg);
 
-	if (nr < DRM_COMMAND_BASE + DRM_ARRAY_SIZE(radeon_compat_ioctls))
+	if (nr < DRM_COMMAND_BASE + ARRAY_SIZE(radeon_compat_ioctls))
 		fn = radeon_compat_ioctls[nr - DRM_COMMAND_BASE];
 
 	if (fn != NULL)
@@ -419,7 +418,7 @@ long radeon_kms_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 	if (nr < DRM_COMMAND_BASE)
 		return drm_compat_ioctl(filp, cmd, arg);
 
-	ret = drm_ioctl(filp, cmd, arg);
+	ret = radeon_drm_ioctl(filp, cmd, arg);
 
 	return ret;
 }

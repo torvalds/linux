@@ -7,20 +7,22 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvmmmu
 
-#define KVM_MMU_PAGE_FIELDS \
-	__field(__u64, gfn) \
-	__field(__u32, role) \
-	__field(__u32, root_count) \
+#define KVM_MMU_PAGE_FIELDS			\
+	__field(unsigned long, mmu_valid_gen)	\
+	__field(__u64, gfn)			\
+	__field(__u32, role)			\
+	__field(__u32, root_count)		\
 	__field(bool, unsync)
 
-#define KVM_MMU_PAGE_ASSIGN(sp)			     \
-	__entry->gfn = sp->gfn;			     \
-	__entry->role = sp->role.word;		     \
-	__entry->root_count = sp->root_count;        \
+#define KVM_MMU_PAGE_ASSIGN(sp)				\
+	__entry->mmu_valid_gen = sp->mmu_valid_gen;	\
+	__entry->gfn = sp->gfn;				\
+	__entry->role = sp->role.word;			\
+	__entry->root_count = sp->root_count;		\
 	__entry->unsync = sp->unsync;
 
 #define KVM_MMU_PAGE_PRINTK() ({				        \
-	const char *ret = p->buffer + p->len;				\
+	const u32 saved_len = p->len;					\
 	static const char *access_str[] = {			        \
 		"---", "--x", "w--", "w-x", "-u-", "-ux", "wu-", "wux"  \
 	};							        \
@@ -28,8 +30,8 @@
 								        \
 	role.word = __entry->role;					\
 									\
-	trace_seq_printf(p, "sp gfn %llx %u%s q%u%s %s%s"		\
-			 " %snxe root %u %s%c",				\
+	trace_seq_printf(p, "sp gen %lx gfn %llx %u%s q%u%s %s%s"	\
+			 " %snxe root %u %s%c",	__entry->mmu_valid_gen,	\
 			 __entry->gfn, role.level,			\
 			 role.cr4_pae ? " pae" : "",			\
 			 role.quadrant,					\
@@ -39,7 +41,7 @@
 			 role.nxe ? "" : "!",				\
 			 __entry->root_count,				\
 			 __entry->unsync ? "unsync" : "sync", 0);	\
-	ret;								\
+	p->buffer + saved_len;						\
 		})
 
 #define kvm_mmu_trace_pferr_flags       \
@@ -54,8 +56,8 @@
  */
 TRACE_EVENT(
 	kvm_mmu_pagetable_walk,
-	TP_PROTO(u64 addr, int write_fault, int user_fault, int fetch_fault),
-	TP_ARGS(addr, write_fault, user_fault, fetch_fault),
+	TP_PROTO(u64 addr, u32 pferr),
+	TP_ARGS(addr, pferr),
 
 	TP_STRUCT__entry(
 		__field(__u64, addr)
@@ -64,8 +66,7 @@ TRACE_EVENT(
 
 	TP_fast_assign(
 		__entry->addr = addr;
-		__entry->pferr = (!!write_fault << 1) | (!!user_fault << 2)
-		                 | (!!fetch_fault << 4);
+		__entry->pferr = pferr;
 	),
 
 	TP_printk("addr %llx pferr %x %s", __entry->addr, __entry->pferr,
@@ -196,31 +197,27 @@ DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_prepare_zap_page,
 	TP_ARGS(sp)
 );
 
-DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_delay_free_pages,
-	TP_PROTO(struct kvm_mmu_page *sp),
-
-	TP_ARGS(sp)
-);
-
 TRACE_EVENT(
 	mark_mmio_spte,
-	TP_PROTO(u64 *sptep, gfn_t gfn, unsigned access),
-	TP_ARGS(sptep, gfn, access),
+	TP_PROTO(u64 *sptep, gfn_t gfn, unsigned access, unsigned int gen),
+	TP_ARGS(sptep, gfn, access, gen),
 
 	TP_STRUCT__entry(
 		__field(void *, sptep)
 		__field(gfn_t, gfn)
 		__field(unsigned, access)
+		__field(unsigned int, gen)
 	),
 
 	TP_fast_assign(
 		__entry->sptep = sptep;
 		__entry->gfn = gfn;
 		__entry->access = access;
+		__entry->gen = gen;
 	),
 
-	TP_printk("sptep:%p gfn %llx access %x", __entry->sptep, __entry->gfn,
-		  __entry->access)
+	TP_printk("sptep:%p gfn %llx access %x gen %x", __entry->sptep,
+		  __entry->gfn, __entry->access, __entry->gen)
 );
 
 TRACE_EVENT(
@@ -242,6 +239,88 @@ TRACE_EVENT(
 
 	TP_printk("addr:%llx gfn %llx access %x", __entry->addr, __entry->gfn,
 		  __entry->access)
+);
+
+#define __spte_satisfied(__spte)				\
+	(__entry->retry && is_writable_pte(__entry->__spte))
+
+TRACE_EVENT(
+	fast_page_fault,
+	TP_PROTO(struct kvm_vcpu *vcpu, gva_t gva, u32 error_code,
+		 u64 *sptep, u64 old_spte, bool retry),
+	TP_ARGS(vcpu, gva, error_code, sptep, old_spte, retry),
+
+	TP_STRUCT__entry(
+		__field(int, vcpu_id)
+		__field(gva_t, gva)
+		__field(u32, error_code)
+		__field(u64 *, sptep)
+		__field(u64, old_spte)
+		__field(u64, new_spte)
+		__field(bool, retry)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id = vcpu->vcpu_id;
+		__entry->gva = gva;
+		__entry->error_code = error_code;
+		__entry->sptep = sptep;
+		__entry->old_spte = old_spte;
+		__entry->new_spte = *sptep;
+		__entry->retry = retry;
+	),
+
+	TP_printk("vcpu %d gva %lx error_code %s sptep %p old %#llx"
+		  " new %llx spurious %d fixed %d", __entry->vcpu_id,
+		  __entry->gva, __print_flags(__entry->error_code, "|",
+		  kvm_mmu_trace_pferr_flags), __entry->sptep,
+		  __entry->old_spte, __entry->new_spte,
+		  __spte_satisfied(old_spte), __spte_satisfied(new_spte)
+	)
+);
+
+TRACE_EVENT(
+	kvm_mmu_invalidate_zap_all_pages,
+	TP_PROTO(struct kvm *kvm),
+	TP_ARGS(kvm),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, mmu_valid_gen)
+		__field(unsigned int, mmu_used_pages)
+	),
+
+	TP_fast_assign(
+		__entry->mmu_valid_gen = kvm->arch.mmu_valid_gen;
+		__entry->mmu_used_pages = kvm->arch.n_used_mmu_pages;
+	),
+
+	TP_printk("kvm-mmu-valid-gen %lx used_pages %x",
+		  __entry->mmu_valid_gen, __entry->mmu_used_pages
+	)
+);
+
+
+TRACE_EVENT(
+	check_mmio_spte,
+	TP_PROTO(u64 spte, unsigned int kvm_gen, unsigned int spte_gen),
+	TP_ARGS(spte, kvm_gen, spte_gen),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, kvm_gen)
+		__field(unsigned int, spte_gen)
+		__field(u64, spte)
+	),
+
+	TP_fast_assign(
+		__entry->kvm_gen = kvm_gen;
+		__entry->spte_gen = spte_gen;
+		__entry->spte = spte;
+	),
+
+	TP_printk("spte %llx kvm_gen %x spte-gen %x valid %d", __entry->spte,
+		  __entry->kvm_gen, __entry->spte_gen,
+		  __entry->kvm_gen == __entry->spte_gen
+	)
 );
 #endif /* _TRACE_KVMMMU_H */
 

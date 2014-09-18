@@ -457,6 +457,7 @@ struct d11regs {
 /*== maccontrol register ==*/
 #define	MCTL_GMODE		(1U << 31)
 #define	MCTL_DISCARD_PMQ	(1 << 30)
+#define	MCTL_TBTTHOLD		(1 << 28)
 #define	MCTL_WAKE		(1 << 26)
 #define	MCTL_HPS		(1 << 25)
 #define	MCTL_PROMISC		(1 << 24)
@@ -733,7 +734,7 @@ struct cck_phy_hdr {
 	do { \
 		plcp[1] = len & 0xff; \
 		plcp[2] = ((len >> 8) & 0xff); \
-	} while (0);
+	} while (0)
 
 #define BRCMS_SET_MIMO_PLCP_AMPDU(plcp) (plcp[3] |= MIMO_PLCP_AMPDU)
 #define BRCMS_CLR_MIMO_PLCP_AMPDU(plcp) (plcp[3] &= ~MIMO_PLCP_AMPDU)

@@ -367,7 +367,7 @@ static int hsc_rx_set(struct hsi_client *cl, struct hsc_rx_config *rxc)
 		return -EINVAL;
 	tmp = cl->rx_cfg;
 	cl->rx_cfg.mode = rxc->mode;
-	cl->rx_cfg.channels = rxc->channels;
+	cl->rx_cfg.num_hw_channels = rxc->channels;
 	cl->rx_cfg.flow = rxc->flow;
 	ret = hsi_setup(cl);
 	if (ret < 0) {
@@ -383,7 +383,7 @@ static int hsc_rx_set(struct hsi_client *cl, struct hsc_rx_config *rxc)
 static inline void hsc_rx_get(struct hsi_client *cl, struct hsc_rx_config *rxc)
 {
 	rxc->mode = cl->rx_cfg.mode;
-	rxc->channels = cl->rx_cfg.channels;
+	rxc->channels = cl->rx_cfg.num_hw_channels;
 	rxc->flow = cl->rx_cfg.flow;
 }
 
@@ -402,7 +402,7 @@ static int hsc_tx_set(struct hsi_client *cl, struct hsc_tx_config *txc)
 		return -EINVAL;
 	tmp = cl->tx_cfg;
 	cl->tx_cfg.mode = txc->mode;
-	cl->tx_cfg.channels = txc->channels;
+	cl->tx_cfg.num_hw_channels = txc->channels;
 	cl->tx_cfg.speed = txc->speed;
 	cl->tx_cfg.arb_mode = txc->arb_mode;
 	ret = hsi_setup(cl);
@@ -417,7 +417,7 @@ static int hsc_tx_set(struct hsi_client *cl, struct hsc_tx_config *txc)
 static inline void hsc_tx_get(struct hsi_client *cl, struct hsc_tx_config *txc)
 {
 	txc->mode = cl->tx_cfg.mode;
-	txc->channels = cl->tx_cfg.channels;
+	txc->channels = cl->tx_cfg.num_hw_channels;
 	txc->speed = cl->tx_cfg.speed;
 	txc->arb_mode = cl->tx_cfg.arb_mode;
 }
@@ -435,7 +435,7 @@ static ssize_t hsc_read(struct file *file, char __user *buf, size_t len,
 		return -EINVAL;
 	if (len > max_data_size)
 		len = max_data_size;
-	if (channel->ch >= channel->cl->rx_cfg.channels)
+	if (channel->ch >= channel->cl->rx_cfg.num_hw_channels)
 		return -ECHRNG;
 	if (test_and_set_bit(HSC_CH_READ, &channel->flags))
 		return -EBUSY;
@@ -492,7 +492,7 @@ static ssize_t hsc_write(struct file *file, const char __user *buf, size_t len,
 		return -EINVAL;
 	if (len > max_data_size)
 		len = max_data_size;
-	if (channel->ch >= channel->cl->tx_cfg.channels)
+	if (channel->ch >= channel->cl->tx_cfg.num_hw_channels)
 		return -ECHRNG;
 	if (test_and_set_bit(HSC_CH_WRITE, &channel->flags))
 		return -EBUSY;
@@ -675,7 +675,7 @@ static const struct file_operations hsc_fops = {
 	.release	= hsc_release,
 };
 
-static void __devinit hsc_channel_init(struct hsc_channel *channel)
+static void hsc_channel_init(struct hsc_channel *channel)
 {
 	init_waitqueue_head(&channel->rx_wait);
 	init_waitqueue_head(&channel->tx_wait);
@@ -685,7 +685,7 @@ static void __devinit hsc_channel_init(struct hsc_channel *channel)
 	INIT_LIST_HEAD(&channel->tx_msgs_queue);
 }
 
-static int __devinit hsc_probe(struct device *dev)
+static int hsc_probe(struct device *dev)
 {
 	const char devname[] = "hsi_char";
 	struct hsc_client_data *cl_data;
@@ -705,7 +705,7 @@ static int __devinit hsc_probe(struct device *dev)
 	if (!hsc_major) {
 		ret = alloc_chrdev_region(&hsc_dev, hsc_baseminor,
 						HSC_DEVS, devname);
-		if (ret > 0)
+		if (ret == 0)
 			hsc_major = MAJOR(hsc_dev);
 	} else {
 		hsc_dev = MKDEV(hsc_major, hsc_baseminor);
@@ -744,7 +744,7 @@ out1:
 	return ret;
 }
 
-static int __devexit hsc_remove(struct device *dev)
+static int hsc_remove(struct device *dev)
 {
 	struct hsi_client *cl = to_hsi_client(dev);
 	struct hsc_client_data *cl_data = hsi_client_drvdata(cl);
@@ -763,7 +763,7 @@ static struct hsi_client_driver hsc_driver = {
 		.name	= "hsi_char",
 		.owner	= THIS_MODULE,
 		.probe	= hsc_probe,
-		.remove	= __devexit_p(hsc_remove),
+		.remove	= hsc_remove,
 	},
 };
 

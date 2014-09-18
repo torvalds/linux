@@ -1,0 +1,24 @@
+BMP085/BMP18x digital pressure sensors
+
+Required properties:
+- compatible: bosch,bmp085
+
+Optional properties:
+- chip-id: configurable chip id for non-default chip revisions
+- temp-measurement-period: temperature measurement period (milliseconds)
+- default-oversampling: default oversampling value to be used at startup,
+  value range is 0-3 with rising sensitivity.
+- interrupt-parent: should be the phandle for the interrupt controller
+- interrupts: interrupt mapping for IRQ
+
+Example:
+
+pressure@77 {
+	compatible = "bosch,bmp085";
+	reg = <0x77>;
+	chip-id = <10>;
+	temp-measurement-period = <100>;
+	default-oversampling = <2>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <25 IRQ_TYPE_EDGE_RISING>;
+};

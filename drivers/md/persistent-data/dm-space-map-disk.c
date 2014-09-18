@@ -4,7 +4,6 @@
  * This file is released under the GPL.
  */
 
-#include "dm-space-map-checker.h"
 #include "dm-space-map-common.h"
 #include "dm-space-map-disk.h"
 #include "dm-space-map.h"
@@ -141,26 +140,10 @@ static int sm_disk_inc_block(struct dm_space_map *sm, dm_block_t b)
 
 static int sm_disk_dec_block(struct dm_space_map *sm, dm_block_t b)
 {
-	int r;
-	uint32_t old_count;
 	enum allocation_event ev;
 	struct sm_disk *smd = container_of(sm, struct sm_disk, sm);
 
-	r = sm_ll_dec(&smd->ll, b, &ev);
-	if (!r && (ev == SM_FREE)) {
-		/*
-		 * It's only free if it's also free in the last
-		 * transaction.
-		 */
-		r = sm_ll_lookup(&smd->old_ll, b, &old_count);
-		if (r)
-			return r;
-
-		if (!old_count)
-			smd->nr_allocated_this_transaction--;
-	}
-
-	return r;
+	return sm_ll_dec(&smd->ll, b, &ev);
 }
 
 static int sm_disk_new_block(struct dm_space_map *sm, dm_block_t *b)
@@ -249,12 +232,12 @@ static struct dm_space_map ops = {
 	.new_block = sm_disk_new_block,
 	.commit = sm_disk_commit,
 	.root_size = sm_disk_root_size,
-	.copy_root = sm_disk_copy_root
+	.copy_root = sm_disk_copy_root,
+	.register_threshold_callback = NULL
 };
 
-static struct dm_space_map *dm_sm_disk_create_real(
-	struct dm_transaction_manager *tm,
-	dm_block_t nr_blocks)
+struct dm_space_map *dm_sm_disk_create(struct dm_transaction_manager *tm,
+				       dm_block_t nr_blocks)
 {
 	int r;
 	struct sm_disk *smd;
@@ -285,18 +268,10 @@ bad:
 	kfree(smd);
 	return ERR_PTR(r);
 }
-
-struct dm_space_map *dm_sm_disk_create(struct dm_transaction_manager *tm,
-				       dm_block_t nr_blocks)
-{
-	struct dm_space_map *sm = dm_sm_disk_create_real(tm, nr_blocks);
-	return dm_sm_checker_create_fresh(sm);
-}
 EXPORT_SYMBOL_GPL(dm_sm_disk_create);
 
-static struct dm_space_map *dm_sm_disk_open_real(
-	struct dm_transaction_manager *tm,
-	void *root_le, size_t len)
+struct dm_space_map *dm_sm_disk_open(struct dm_transaction_manager *tm,
+				     void *root_le, size_t len)
 {
 	int r;
 	struct sm_disk *smd;
@@ -322,13 +297,6 @@ static struct dm_space_map *dm_sm_disk_open_real(
 bad:
 	kfree(smd);
 	return ERR_PTR(r);
-}
-
-struct dm_space_map *dm_sm_disk_open(struct dm_transaction_manager *tm,
-				     void *root_le, size_t len)
-{
-	return dm_sm_checker_create(
-		dm_sm_disk_open_real(tm, root_le, len));
 }
 EXPORT_SYMBOL_GPL(dm_sm_disk_open);
 

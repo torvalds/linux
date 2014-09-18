@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * Copyright (C) IBM Corporation, 2002, 2006
+ * Copyright IBM Corp. 2002, 2006
  *
  * s390 port, used ppc64 as template. Mike Grundy <grundym@us.ibm.com>
  */
@@ -26,19 +26,42 @@
 #include <linux/stop_machine.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
-#include <asm/cacheflush.h>
-#include <asm/sections.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/hardirq.h>
+#include <asm/cacheflush.h>
+#include <asm/sections.h>
+#include <asm/dis.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = { };
 
+DEFINE_INSN_CACHE_OPS(dmainsn);
+
+static void *alloc_dmainsn_page(void)
+{
+	return (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
+}
+
+static void free_dmainsn_page(void *page)
+{
+	free_page((unsigned long)page);
+}
+
+struct kprobe_insn_cache kprobe_dmainsn_slots = {
+	.mutex = __MUTEX_INITIALIZER(kprobe_dmainsn_slots.mutex),
+	.alloc = alloc_dmainsn_page,
+	.free = free_dmainsn_page,
+	.pages = LIST_HEAD_INIT(kprobe_dmainsn_slots.pages),
+	.insn_size = MAX_INSN_SIZE,
+};
+
 static int __kprobes is_prohibited_opcode(kprobe_opcode_t *insn)
 {
+	if (!is_known_insn((unsigned char *)insn))
+		return -EINVAL;
 	switch (insn[0] >> 8) {
 	case 0x0c:	/* bassm */
 	case 0x0b:	/* bsm	 */
@@ -47,6 +70,11 @@ static int __kprobes is_prohibited_opcode(kprobe_opcode_t *insn)
 	case 0xac:	/* stnsm */
 	case 0xad:	/* stosm */
 		return -EINVAL;
+	case 0xc6:
+		switch (insn[0] & 0x0f) {
+		case 0x00: /* exrl   */
+			return -EINVAL;
+		}
 	}
 	switch (insn[0]) {
 	case 0x0101:	/* pr	 */
@@ -100,35 +128,160 @@ static int __kprobes get_fixup_type(kprobe_opcode_t *insn)
 			fixup |= FIXUP_RETURN_REGISTER;
 		break;
 	case 0xc0:
-		if ((insn[0] & 0x0f) == 0x00 ||	/* larl  */
-		    (insn[0] & 0x0f) == 0x05)	/* brasl */
-		fixup |= FIXUP_RETURN_REGISTER;
+		if ((insn[0] & 0x0f) == 0x05)	/* brasl */
+			fixup |= FIXUP_RETURN_REGISTER;
 		break;
 	case 0xeb:
-		if ((insn[2] & 0xff) == 0x44 ||	/* bxhg  */
-		    (insn[2] & 0xff) == 0x45)	/* bxleg */
+		switch (insn[2] & 0xff) {
+		case 0x44: /* bxhg  */
+		case 0x45: /* bxleg */
 			fixup = FIXUP_BRANCH_NOT_TAKEN;
+			break;
+		}
 		break;
 	case 0xe3:	/* bctg	*/
 		if ((insn[2] & 0xff) == 0x46)
 			fixup = FIXUP_BRANCH_NOT_TAKEN;
 		break;
+	case 0xec:
+		switch (insn[2] & 0xff) {
+		case 0xe5: /* clgrb */
+		case 0xe6: /* cgrb  */
+		case 0xf6: /* crb   */
+		case 0xf7: /* clrb  */
+		case 0xfc: /* cgib  */
+		case 0xfd: /* cglib */
+		case 0xfe: /* cib   */
+		case 0xff: /* clib  */
+			fixup = FIXUP_BRANCH_NOT_TAKEN;
+			break;
+		}
+		break;
 	}
 	return fixup;
+}
+
+static int __kprobes is_insn_relative_long(kprobe_opcode_t *insn)
+{
+	/* Check if we have a RIL-b or RIL-c format instruction which
+	 * we need to modify in order to avoid instruction emulation. */
+	switch (insn[0] >> 8) {
+	case 0xc0:
+		if ((insn[0] & 0x0f) == 0x00) /* larl */
+			return true;
+		break;
+	case 0xc4:
+		switch (insn[0] & 0x0f) {
+		case 0x02: /* llhrl  */
+		case 0x04: /* lghrl  */
+		case 0x05: /* lhrl   */
+		case 0x06: /* llghrl */
+		case 0x07: /* sthrl  */
+		case 0x08: /* lgrl   */
+		case 0x0b: /* stgrl  */
+		case 0x0c: /* lgfrl  */
+		case 0x0d: /* lrl    */
+		case 0x0e: /* llgfrl */
+		case 0x0f: /* strl   */
+			return true;
+		}
+		break;
+	case 0xc6:
+		switch (insn[0] & 0x0f) {
+		case 0x02: /* pfdrl  */
+		case 0x04: /* cghrl  */
+		case 0x05: /* chrl   */
+		case 0x06: /* clghrl */
+		case 0x07: /* clhrl  */
+		case 0x08: /* cgrl   */
+		case 0x0a: /* clgrl  */
+		case 0x0c: /* cgfrl  */
+		case 0x0d: /* crl    */
+		case 0x0e: /* clgfrl */
+		case 0x0f: /* clrl   */
+			return true;
+		}
+		break;
+	}
+	return false;
+}
+
+static void __kprobes copy_instruction(struct kprobe *p)
+{
+	s64 disp, new_disp;
+	u64 addr, new_addr;
+
+	memcpy(p->ainsn.insn, p->addr, insn_length(p->opcode >> 8));
+	if (!is_insn_relative_long(p->ainsn.insn))
+		return;
+	/*
+	 * For pc-relative instructions in RIL-b or RIL-c format patch the
+	 * RI2 displacement field. We have already made sure that the insn
+	 * slot for the patched instruction is within the same 2GB area
+	 * as the original instruction (either kernel image or module area).
+	 * Therefore the new displacement will always fit.
+	 */
+	disp = *(s32 *)&p->ainsn.insn[1];
+	addr = (u64)(unsigned long)p->addr;
+	new_addr = (u64)(unsigned long)p->ainsn.insn;
+	new_disp = ((addr + (disp * 2)) - new_addr) / 2;
+	*(s32 *)&p->ainsn.insn[1] = new_disp;
+}
+
+static inline int is_kernel_addr(void *addr)
+{
+	return addr < (void *)_end;
+}
+
+static inline int is_module_addr(void *addr)
+{
+#ifdef CONFIG_64BIT
+	BUILD_BUG_ON(MODULES_LEN > (1UL << 31));
+	if (addr < (void *)MODULES_VADDR)
+		return 0;
+	if (addr > (void *)MODULES_END)
+		return 0;
+#endif
+	return 1;
+}
+
+static int __kprobes s390_get_insn_slot(struct kprobe *p)
+{
+	/*
+	 * Get an insn slot that is within the same 2GB area like the original
+	 * instruction. That way instructions with a 32bit signed displacement
+	 * field can be patched and executed within the insn slot.
+	 */
+	p->ainsn.insn = NULL;
+	if (is_kernel_addr(p->addr))
+		p->ainsn.insn = get_dmainsn_slot();
+	else if (is_module_addr(p->addr))
+		p->ainsn.insn = get_insn_slot();
+	return p->ainsn.insn ? 0 : -ENOMEM;
+}
+
+static void __kprobes s390_free_insn_slot(struct kprobe *p)
+{
+	if (!p->ainsn.insn)
+		return;
+	if (is_kernel_addr(p->addr))
+		free_dmainsn_slot(p->ainsn.insn, 0);
+	else
+		free_insn_slot(p->ainsn.insn, 0);
+	p->ainsn.insn = NULL;
 }
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	if ((unsigned long) p->addr & 0x01)
 		return -EINVAL;
-
 	/* Make sure the probe isn't going on a difficult instruction */
 	if (is_prohibited_opcode(p->addr))
 		return -EINVAL;
-
+	if (s390_get_insn_slot(p))
+		return -ENOMEM;
 	p->opcode = *p->addr;
-	memcpy(p->ainsn.insn, p->addr, ((p->opcode >> 14) + 3) & -2);
-
+	copy_instruction(p);
 	return 0;
 }
 
@@ -169,6 +322,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
+	s390_free_insn_slot(p);
 }
 
 static void __kprobes enable_singlestep(struct kprobe_ctlblk *kcb,
@@ -354,7 +508,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 {
 	struct kretprobe_instance *ri;
 	struct hlist_head *head, empty_rp;
-	struct hlist_node *node, *tmp;
+	struct hlist_node *tmp;
 	unsigned long flags, orig_ret_address;
 	unsigned long trampoline_address;
 	kprobe_opcode_t *correct_ret_addr;
@@ -379,7 +533,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	orig_ret_address = 0;
 	correct_ret_addr = NULL;
 	trampoline_address = (unsigned long) &kretprobe_trampoline;
-	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
 			/* another task is sharing our hash bucket */
 			continue;
@@ -398,7 +552,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	kretprobe_assert(ri, orig_ret_address, trampoline_address);
 
 	correct_ret_addr = ri->ret_addr;
-	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
 			/* another task is sharing our hash bucket */
 			continue;
@@ -427,7 +581,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	kretprobe_hash_unlock(current, &flags);
 	preempt_enable_no_resched();
 
-	hlist_for_each_entry_safe(ri, node, tmp, &empty_rp, hlist) {
+	hlist_for_each_entry_safe(ri, tmp, &empty_rp, hlist) {
 		hlist_del(&ri->hlist);
 		kfree(ri);
 	}
@@ -457,7 +611,7 @@ static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 		ip += (unsigned long) p->addr - (unsigned long) p->ainsn.insn;
 
 	if (fixup & FIXUP_BRANCH_NOT_TAKEN) {
-		int ilen = ((p->ainsn.insn[0] >> 14) + 3) & -2;
+		int ilen = insn_length(p->ainsn.insn[0] >> 8);
 		if (ip - (unsigned long) p->ainsn.insn == ilen)
 			ip = (unsigned long) p->addr + ilen;
 	}
@@ -526,7 +680,7 @@ static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 	case KPROBE_HIT_SSDONE:
 		/*
 		 * We increment the nmissed count for accounting,
-		 * we can also use npre/npostfault count for accouting
+		 * we can also use npre/npostfault count for accounting
 		 * these specific fault cases.
 		 */
 		kprobes_inc_nmissed_count(p);
@@ -547,7 +701,7 @@ static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 */
 		entry = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
 		if (entry) {
-			regs->psw.addr = entry->fixup | PSW_ADDR_AMODE;
+			regs->psw.addr = extable_fixup(entry) | PSW_ADDR_AMODE;
 			return 1;
 		}
 

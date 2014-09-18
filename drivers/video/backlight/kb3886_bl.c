@@ -34,9 +34,9 @@ static void kb3886_bl_set_intensity(int intensity)
 	mutex_lock(&bl_mutex);
 	intensity = intensity&0xff;
 	outb(KB3886_ADC_DAC_PWM, KB3886_PARENT);
-	msleep(10);
+	usleep_range(10000, 11000);
 	outb(KB3886_PWM0_WRITE, KB3886_IO);
-	msleep(10);
+	usleep_range(10000, 11000);
 	outb(intensity, KB3886_IO);
 	mutex_unlock(&bl_mutex);
 }
@@ -78,7 +78,7 @@ static struct kb3886bl_machinfo *bl_machinfo;
 static unsigned long kb3886bl_flags;
 #define KB3886BL_SUSPENDED     0x01
 
-static struct dmi_system_id __initdata kb3886bl_device_table[] = {
+static struct dmi_system_id kb3886bl_device_table[] __initdata = {
 	{
 		.ident = "Sahara Touch-iT",
 		.matches = {
@@ -106,28 +106,27 @@ static int kb3886bl_send_intensity(struct backlight_device *bd)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int kb3886bl_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int kb3886bl_suspend(struct device *dev)
 {
-	struct backlight_device *bd = platform_get_drvdata(pdev);
+	struct backlight_device *bd = dev_get_drvdata(dev);
 
 	kb3886bl_flags |= KB3886BL_SUSPENDED;
 	backlight_update_status(bd);
 	return 0;
 }
 
-static int kb3886bl_resume(struct platform_device *pdev)
+static int kb3886bl_resume(struct device *dev)
 {
-	struct backlight_device *bd = platform_get_drvdata(pdev);
+	struct backlight_device *bd = dev_get_drvdata(dev);
 
 	kb3886bl_flags &= ~KB3886BL_SUSPENDED;
 	backlight_update_status(bd);
 	return 0;
 }
-#else
-#define kb3886bl_suspend	NULL
-#define kb3886bl_resume		NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(kb3886bl_pm_ops, kb3886bl_suspend, kb3886bl_resume);
 
 static int kb3886bl_get_intensity(struct backlight_device *bd)
 {
@@ -142,7 +141,7 @@ static const struct backlight_ops kb3886bl_ops = {
 static int kb3886bl_probe(struct platform_device *pdev)
 {
 	struct backlight_properties props;
-	struct kb3886bl_machinfo *machinfo = pdev->dev.platform_data;
+	struct kb3886bl_machinfo *machinfo = dev_get_platdata(&pdev->dev);
 
 	bl_machinfo = machinfo;
 	if (!machinfo->limit_mask)
@@ -151,10 +150,10 @@ static int kb3886bl_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = machinfo->max_intensity;
-	kb3886_backlight_device = backlight_device_register("kb3886-bl",
-							    &pdev->dev, NULL,
-							    &kb3886bl_ops,
-							    &props);
+	kb3886_backlight_device = devm_backlight_device_register(&pdev->dev,
+							"kb3886-bl", &pdev->dev,
+							NULL, &kb3886bl_ops,
+							&props);
 	if (IS_ERR(kb3886_backlight_device))
 		return PTR_ERR(kb3886_backlight_device);
 
@@ -167,22 +166,11 @@ static int kb3886bl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int kb3886bl_remove(struct platform_device *pdev)
-{
-	struct backlight_device *bd = platform_get_drvdata(pdev);
-
-	backlight_device_unregister(bd);
-
-	return 0;
-}
-
 static struct platform_driver kb3886bl_driver = {
 	.probe		= kb3886bl_probe,
-	.remove		= kb3886bl_remove,
-	.suspend	= kb3886bl_suspend,
-	.resume		= kb3886bl_resume,
 	.driver		= {
 		.name	= "kb3886-bl",
+		.pm	= &kb3886bl_pm_ops,
 	},
 };
 

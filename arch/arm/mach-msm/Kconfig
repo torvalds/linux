@@ -3,74 +3,51 @@ if ARCH_MSM
 choice
 	prompt "Qualcomm MSM SoC Type"
 	default ARCH_MSM7X00A
+	depends on ARCH_MSM
 
 config ARCH_MSM7X00A
 	bool "MSM7x00A / MSM7x01A"
-	select MACH_TROUT if !MACH_HALIBUT
 	select ARCH_MSM_ARM11
-	select MSM_SMD
-	select MSM_SMD_PKG3
 	select CPU_V6
 	select GPIO_MSM_V1
+	select MACH_TROUT if !MACH_HALIBUT
 	select MSM_PROC_COMM
+	select MSM_SMD
+	select CLKSRC_QCOM
+	select MSM_SMD_PKG3
 
 config ARCH_MSM7X30
 	bool "MSM7x30"
-	select MACH_MSM7X30_SURF # if !
 	select ARCH_MSM_SCORPION
-	select MSM_SMD
-	select MSM_VIC
 	select CPU_V7
-	select MSM_GPIOMUX
 	select GPIO_MSM_V1
+	select MACH_MSM7X30_SURF # if !
+	select MSM_GPIOMUX
 	select MSM_PROC_COMM
+	select MSM_SMD
+	select CLKSRC_QCOM
+	select MSM_VIC
 
 config ARCH_QSD8X50
 	bool "QSD8X50"
-	select MACH_QSD8X50_SURF if !MACH_QSD8X50A_ST1_5
 	select ARCH_MSM_SCORPION
-	select MSM_SMD
-	select MSM_VIC
 	select CPU_V7
-	select MSM_GPIOMUX
 	select GPIO_MSM_V1
+	select MACH_QSD8X50_SURF if !MACH_QSD8X50A_ST1_5
+	select MSM_GPIOMUX
 	select MSM_PROC_COMM
-
-config ARCH_MSM8X60
-	bool "MSM8X60"
-	select MACH_MSM8X60_SURF if (!MACH_MSM8X60_RUMI3 && !MACH_MSM8X60_SIM \
-				  && !MACH_MSM8X60_FFA)
-	select ARCH_MSM_SCORPIONMP
-	select ARM_GIC
-	select CPU_V7
-	select MSM_V2_TLMM
-	select GPIO_MSM_V2
-	select MSM_GPIOMUX
-	select MSM_SCM if SMP
-
-config ARCH_MSM8960
-	bool "MSM8960"
-	select ARCH_MSM_SCORPIONMP
-	select MACH_MSM8960_SIM if (!MACH_MSM8960_RUMI3)
-	select ARM_GIC
-	select CPU_V7
-	select MSM_V2_TLMM
-	select MSM_GPIOMUX
-	select MSM_SCM if SMP
+	select MSM_SMD
+	select CLKSRC_QCOM
+	select MSM_VIC
 
 endchoice
 
-config MSM_HAS_DEBUG_UART_HS
-	bool
-
 config MSM_SOC_REV_A
 	bool
-config  ARCH_MSM_SCORPIONMP
-	bool
-	select HAVE_SMP
 
 config  ARCH_MSM_ARM11
 	bool
+
 config  ARCH_MSM_SCORPION
 	bool
 
@@ -78,6 +55,7 @@ config  MSM_VIC
 	bool
 
 menu "Qualcomm MSM Board Type"
+	depends on ARCH_MSM
 
 config MACH_HALIBUT
 	depends on ARCH_MSM
@@ -107,46 +85,10 @@ config MACH_QSD8X50_SURF
 
 config MACH_QSD8X50A_ST1_5
 	depends on ARCH_QSD8X50
-	select MSM_SOC_REV_A
 	bool "QSD8x50A ST1.5"
+	select MSM_SOC_REV_A
 	help
 	  Support for the Qualcomm ST1.5.
-
-config MACH_MSM8X60_RUMI3
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 RUMI3"
-	help
-	  Support for the Qualcomm MSM8x60 RUMI3 emulator.
-
-config MACH_MSM8X60_SURF
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 SURF"
-	help
-	  Support for the Qualcomm MSM8x60 SURF eval board.
-
-config MACH_MSM8X60_SIM
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 Simulator"
-	help
-	  Support for the Qualcomm MSM8x60 simulator.
-
-config MACH_MSM8X60_FFA
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 FFA"
-	help
-	  Support for the Qualcomm MSM8x60 FFA eval board.
-
-config MACH_MSM8960_SIM
-	depends on ARCH_MSM8960
-	bool "MSM8960 Simulator"
-	help
-	  Support for the Qualcomm MSM8960 simulator.
-
-config MACH_MSM8960_RUMI3
-	depends on ARCH_MSM8960
-	bool "MSM8960 RUMI3"
-	help
-	  Support for the Qualcomm MSM8960 RUMI3 emulator.
 
 endmenu
 
@@ -161,10 +103,7 @@ config MSM_SMD
 
 config MSM_GPIOMUX
 	bool
+	help
+	  Support for MSM V1 TLMM GPIOMUX architecture.
 
-config MSM_V2_TLMM
-	bool
-
-config MSM_SCM
-	bool
 endif

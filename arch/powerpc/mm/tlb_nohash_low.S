@@ -191,12 +191,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 #ifdef CONFIG_PPC_47x
 
 /*
- * 47x variant of icbt
- */
-# define ICBT(CT,RA,RB)	\
-	.long	0x7c00002c | ((CT) << 21) | ((RA) << 16) | ((RB) << 11)
-
-/*
  * _tlbivax_bcast is only on 47x. We don't bother doing a runtime
  * check though, it will blow up soon enough if we mistakenly try
  * to use it on a 440.
@@ -208,8 +202,7 @@ _GLOBAL(_tlbivax_bcast)
 	wrteei	0
 	mtspr	SPRN_MMUCR,r5
 	isync
-/*	tlbivax	0,r3 - use .long to avoid binutils deps */
-	.long 0x7c000624 | (r3 << 11)
+	PPC_TLBIVAX(0, R3)
 	isync
 	eieio
 	tlbsync
@@ -227,11 +220,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
 	bl	2f
 2:	mflr	r6
 	li	r7,32
-	ICBT(0,r6,r7)		/* touch next cache line */
+	PPC_ICBT(0,R6,R7)		/* touch next cache line */
 	add	r6,r6,r7
-	ICBT(0,r6,r7)		/* touch next cache line */
+	PPC_ICBT(0,R6,R7)		/* touch next cache line */
 	add	r6,r6,r7
-	ICBT(0,r6,r7)		/* touch next cache line */
+	PPC_ICBT(0,R6,R7)		/* touch next cache line */
 	sync
 	nop
 	nop
@@ -266,7 +259,7 @@ BEGIN_MMU_FTR_SECTION
 	andi.	r3,r3,MMUCSR0_TLBFI@l
 	bne	1b
 MMU_FTR_SECTION_ELSE
-	PPC_TLBILX_ALL(0,0)
+	PPC_TLBILX_ALL(0,R0)
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_TLBILX)
 	msync
 	isync
@@ -279,7 +272,7 @@ BEGIN_MMU_FTR_SECTION
 	wrteei	0
 	mfspr	r4,SPRN_MAS6	/* save MAS6 */
 	mtspr	SPRN_MAS6,r3
-	PPC_TLBILX_PID(0,0)
+	PPC_TLBILX_PID(0,R0)
 	mtspr	SPRN_MAS6,r4	/* restore MAS6 */
 	wrtee	r10
 MMU_FTR_SECTION_ELSE
@@ -313,7 +306,7 @@ BEGIN_MMU_FTR_SECTION
 	mtspr	SPRN_MAS1,r4
 	tlbwe
 MMU_FTR_SECTION_ELSE
-	PPC_TLBILX_VA(0,r3)
+	PPC_TLBILX_VA(0,R3)
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_TLBILX)
 	msync
 	isync
@@ -331,7 +324,7 @@ _GLOBAL(_tlbil_pid)
 	mfmsr	r10
 	wrteei	0
 	mtspr	SPRN_MAS6,r4
-	PPC_TLBILX_PID(0,0)
+	PPC_TLBILX_PID(0,R0)
 	wrtee	r10
 	msync
 	isync
@@ -343,14 +336,14 @@ _GLOBAL(_tlbil_pid_noind)
 	ori	r4,r4,MAS6_SIND
 	wrteei	0
 	mtspr	SPRN_MAS6,r4
-	PPC_TLBILX_PID(0,0)
+	PPC_TLBILX_PID(0,R0)
 	wrtee	r10
 	msync
 	isync
 	blr
 
 _GLOBAL(_tlbil_all)
-	PPC_TLBILX_ALL(0,0)
+	PPC_TLBILX_ALL(0,R0)
 	msync
 	isync
 	blr
@@ -364,7 +357,7 @@ _GLOBAL(_tlbil_va)
 	beq	1f
 	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
 1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
-	PPC_TLBILX_VA(0,r3)
+	PPC_TLBILX_VA(0,R3)
 	msync
 	isync
 	wrtee	r10
@@ -379,7 +372,7 @@ _GLOBAL(_tlbivax_bcast)
 	beq	1f
 	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
 1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
-	PPC_TLBIVAX(0,r3)
+	PPC_TLBIVAX(0,R3)
 	eieio
 	tlbsync
 	sync
@@ -409,7 +402,9 @@ _GLOBAL(set_context)
  * Load TLBCAM[index] entry in to the L2 CAM MMU
  */
 _GLOBAL(loadcam_entry)
-	LOAD_REG_ADDR(r4, TLBCAM)
+	mflr	r5
+	LOAD_REG_ADDR_PIC(r4, TLBCAM)
+	mtlr	r5
 	mulli	r5,r3,TLBCAM_SIZE
 	add	r3,r5,r4
 	lwz	r4,TLBCAM_MAS0(r3)

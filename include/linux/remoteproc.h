@@ -36,7 +36,6 @@
 #define REMOTEPROC_H
 
 #include <linux/types.h>
-#include <linux/kref.h>
 #include <linux/klist.h>
 #include <linux/mutex.h>
 #include <linux/virtio.h>
@@ -362,6 +361,19 @@ enum rproc_state {
 };
 
 /**
+ * enum rproc_crash_type - remote processor crash types
+ * @RPROC_MMUFAULT:	iommu fault
+ *
+ * Each element of the enum is used as an array index. So that, the value of
+ * the elements should be always something sane.
+ *
+ * Feel free to add more types when needed.
+ */
+enum rproc_crash_type {
+	RPROC_MMUFAULT,
+};
+
+/**
  * struct rproc - represents a physical remote processor device
  * @node: klist node of this rproc object
  * @domain: iommu domain
@@ -369,8 +381,8 @@ enum rproc_state {
  * @firmware: name of firmware file to be loaded
  * @priv: private data which belongs to the platform-specific rproc module
  * @ops: platform-specific start/stop rproc handlers
- * @dev: underlying device
- * @refcount: refcount of users that have a valid pointer to this rproc
+ * @dev: virtual device for refcounting and common remoteproc behavior
+ * @fw_ops: firmware-specific handlers
  * @power: refcount of users who need this rproc powered up
  * @state: state of the device
  * @lock: lock which protects concurrent manipulations of the rproc
@@ -383,6 +395,15 @@ enum rproc_state {
  * @bootaddr: address of first instruction to boot rproc with (optional)
  * @rvdevs: list of remote virtio devices
  * @notifyids: idr for dynamically assigning rproc-wide unique notify ids
+ * @index: index of this rproc device
+ * @crash_handler: workqueue for handling a crash
+ * @crash_cnt: crash counter
+ * @crash_comp: completion used to sync crash handler and the rproc reload
+ * @recovery_disabled: flag that state if recovery was disabled
+ * @max_notifyid: largest allocated notify id.
+ * @table_ptr: pointer to the resource table in effect
+ * @cached_table: copy of the resource table
+ * @table_csum: checksum of the resource table
  */
 struct rproc {
 	struct klist_node node;
@@ -391,8 +412,8 @@ struct rproc {
 	const char *firmware;
 	void *priv;
 	const struct rproc_ops *ops;
-	struct device *dev;
-	struct kref refcount;
+	struct device dev;
+	const struct rproc_fw_ops *fw_ops;
 	atomic_t power;
 	unsigned int state;
 	struct mutex lock;
@@ -405,9 +426,19 @@ struct rproc {
 	u32 bootaddr;
 	struct list_head rvdevs;
 	struct idr notifyids;
+	int index;
+	struct work_struct crash_handler;
+	unsigned crash_cnt;
+	struct completion crash_comp;
+	bool recovery_disabled;
+	int max_notifyid;
+	struct resource_table *table_ptr;
+	struct resource_table *cached_table;
+	u32 table_csum;
 };
 
 /* we currently support only two vrings per rvdev */
+
 #define RVDEV_NUM_VRINGS 2
 
 /**
@@ -438,30 +469,26 @@ struct rproc_vring {
  * @rproc: the rproc handle
  * @vdev: the virio device
  * @vring: the vrings for this vdev
- * @dfeatures: virtio device features
- * @gfeatures: virtio guest features
+ * @rsc_offset: offset of the vdev's resource entry
  */
 struct rproc_vdev {
 	struct list_head node;
 	struct rproc *rproc;
 	struct virtio_device vdev;
 	struct rproc_vring vring[RVDEV_NUM_VRINGS];
-	unsigned long dfeatures;
-	unsigned long gfeatures;
+	u32 rsc_offset;
 };
-
-struct rproc *rproc_get_by_name(const char *name);
-void rproc_put(struct rproc *rproc);
 
 struct rproc *rproc_alloc(struct device *dev, const char *name,
 				const struct rproc_ops *ops,
 				const char *firmware, int len);
-void rproc_free(struct rproc *rproc);
-int rproc_register(struct rproc *rproc);
-int rproc_unregister(struct rproc *rproc);
+void rproc_put(struct rproc *rproc);
+int rproc_add(struct rproc *rproc);
+int rproc_del(struct rproc *rproc);
 
 int rproc_boot(struct rproc *rproc);
 void rproc_shutdown(struct rproc *rproc);
+void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type);
 
 static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
 {

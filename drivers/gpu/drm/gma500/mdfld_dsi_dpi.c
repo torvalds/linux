@@ -684,7 +684,7 @@ void mdfld_dsi_dpi_dpms(struct drm_encoder *encoder, int mode)
 }
 
 bool mdfld_dsi_dpi_mode_fixup(struct drm_encoder *encoder,
-				     struct drm_display_mode *mode,
+				     const struct drm_display_mode *mode,
 				     struct drm_display_mode *adjusted_mode)
 {
 	struct mdfld_dsi_encoder *dsi_encoder = mdfld_dsi_encoder(encoder);
@@ -869,7 +869,6 @@ void mdfld_dsi_dpi_mode_set(struct drm_encoder *encoder,
 		mdfld_set_pipe_timing(dsi_config, pipe);
 
 		REG_WRITE(DSPABASE, 0x00);
-		REG_WRITE(DSPASTRIDE, (mode->hdisplay * 4));
 		REG_WRITE(DSPASIZE,
 			((mode->vdisplay - 1) << 16) | (mode->hdisplay - 1));
 

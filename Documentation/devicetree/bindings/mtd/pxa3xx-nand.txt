@@ -1,0 +1,43 @@
+PXA3xx NAND DT bindings
+
+Required properties:
+
+ - compatible:		Should be set to one of the following:
+			marvell,pxa3xx-nand
+			marvell,armada370-nand
+ - reg: 		The register base for the controller
+ - interrupts:		The interrupt to map
+ - #address-cells:	Set to <1> if the node includes partitions
+
+Optional properties:
+
+ - marvell,nand-enable-arbiter:	Set to enable the bus arbiter
+ - marvell,nand-keep-config:	Set to keep the NAND controller config as set
+				by the bootloader
+ - num-cs:			Number of chipselect lines to usw
+ - nand-on-flash-bbt: 		boolean to enable on flash bbt option if
+				not present false
+ - nand-ecc-strength:           number of bits to correct per ECC step
+ - nand-ecc-step-size:          number of data bytes covered by a single ECC step
+
+The following ECC strength and step size are currently supported:
+
+ - nand-ecc-strength = <1>, nand-ecc-step-size = <512>
+ - nand-ecc-strength = <4>, nand-ecc-step-size = <512>
+ - nand-ecc-strength = <8>, nand-ecc-step-size = <512>
+
+Example:
+
+	nand0: nand@43100000 {
+		compatible = "marvell,pxa3xx-nand";
+		reg = <0x43100000 90>;
+		interrupts = <45>;
+		#address-cells = <1>;
+
+		marvell,nand-enable-arbiter;
+		marvell,nand-keep-config;
+		num-cs = <1>;
+
+		/* partitions (optional) */
+	};
+

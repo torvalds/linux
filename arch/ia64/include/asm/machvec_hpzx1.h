@@ -11,7 +11,7 @@ extern ia64_mv_dma_init			sba_dma_init;
  * platform's machvec structure.  When compiling a non-generic kernel,
  * the macros are used directly.
  */
-#define platform_name				"hpzx1"
+#define ia64_platform_name			"hpzx1"
 #define platform_setup				dig_setup
 #define platform_dma_init			sba_dma_init
 

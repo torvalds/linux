@@ -17,6 +17,7 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 #include <asm/acpi.h>
+#include <asm/numa.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
@@ -26,13 +27,15 @@
 #include <xen/interface/memory.h>
 #include <xen/interface/physdev.h>
 #include <xen/features.h>
-
 #include "xen-ops.h"
 #include "vdso.h"
 
 /* These are code, but not functions.  Defined in entry.S */
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
+#ifdef CONFIG_X86_64
+extern asmlinkage void nmi(void);
+#endif
 extern void xen_sysenter_target(void);
 extern void xen_syscall_target(void);
 extern void xen_syscall32_target(void);
@@ -79,13 +82,20 @@ static void __init xen_add_extra_mem(u64 start, u64 size)
 	memblock_reserve(start, size);
 
 	xen_max_p2m_pfn = PFN_DOWN(start + size);
+	for (pfn = PFN_DOWN(start); pfn < xen_max_p2m_pfn; pfn++) {
+		unsigned long mfn = pfn_to_mfn(pfn);
 
-	for (pfn = PFN_DOWN(start); pfn <= xen_max_p2m_pfn; pfn++)
+		if (WARN_ONCE(mfn == pfn, "Trying to over-write 1-1 mapping (pfn: %lx)\n", pfn))
+			continue;
+		WARN_ONCE(mfn != INVALID_P2M_ENTRY, "Trying to remove %lx which has %lx mfn!\n",
+			  pfn, mfn);
+
 		__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+	}
 }
 
-static unsigned long __init xen_release_chunk(unsigned long start,
-					      unsigned long end)
+static unsigned long __init xen_do_chunk(unsigned long start,
+					 unsigned long end, bool release)
 {
 	struct xen_memory_reservation reservation = {
 		.address_bits = 0,
@@ -96,28 +106,137 @@ static unsigned long __init xen_release_chunk(unsigned long start,
 	unsigned long pfn;
 	int ret;
 
-	for(pfn = start; pfn < end; pfn++) {
+	for (pfn = start; pfn < end; pfn++) {
+		unsigned long frame;
 		unsigned long mfn = pfn_to_mfn(pfn);
 
-		/* Make sure pfn exists to start with */
-		if (mfn == INVALID_P2M_ENTRY || mfn_to_pfn(mfn) != pfn)
-			continue;
-
-		set_xen_guest_handle(reservation.extent_start, &mfn);
+		if (release) {
+			/* Make sure pfn exists to start with */
+			if (mfn == INVALID_P2M_ENTRY || mfn_to_pfn(mfn) != pfn)
+				continue;
+			frame = mfn;
+		} else {
+			if (mfn != INVALID_P2M_ENTRY)
+				continue;
+			frame = pfn;
+		}
+		set_xen_guest_handle(reservation.extent_start, &frame);
 		reservation.nr_extents = 1;
 
-		ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation,
+		ret = HYPERVISOR_memory_op(release ? XENMEM_decrease_reservation : XENMEM_populate_physmap,
 					   &reservation);
-		WARN(ret != 1, "Failed to release pfn %lx err=%d\n", pfn, ret);
+		WARN(ret != 1, "Failed to %s pfn %lx err=%d\n",
+		     release ? "release" : "populate", pfn, ret);
+
 		if (ret == 1) {
-			__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+			if (!early_set_phys_to_machine(pfn, release ? INVALID_P2M_ENTRY : frame)) {
+				if (release)
+					break;
+				set_xen_guest_handle(reservation.extent_start, &frame);
+				reservation.nr_extents = 1;
+				ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation,
+							   &reservation);
+				break;
+			}
 			len++;
-		}
+		} else
+			break;
 	}
-	printk(KERN_INFO "Freeing  %lx-%lx pfn range: %lu pages freed\n",
-	       start, end, len);
+	if (len)
+		printk(KERN_INFO "%s %lx-%lx pfn range: %lu pages %s\n",
+		       release ? "Freeing" : "Populating",
+		       start, end, len,
+		       release ? "freed" : "added");
 
 	return len;
+}
+
+static unsigned long __init xen_release_chunk(unsigned long start,
+					      unsigned long end)
+{
+	return xen_do_chunk(start, end, true);
+}
+
+static unsigned long __init xen_populate_chunk(
+	const struct e820entry *list, size_t map_size,
+	unsigned long max_pfn, unsigned long *last_pfn,
+	unsigned long credits_left)
+{
+	const struct e820entry *entry;
+	unsigned int i;
+	unsigned long done = 0;
+	unsigned long dest_pfn;
+
+	for (i = 0, entry = list; i < map_size; i++, entry++) {
+		unsigned long s_pfn;
+		unsigned long e_pfn;
+		unsigned long pfns;
+		long capacity;
+
+		if (credits_left <= 0)
+			break;
+
+		if (entry->type != E820_RAM)
+			continue;
+
+		e_pfn = PFN_DOWN(entry->addr + entry->size);
+
+		/* We only care about E820 after the xen_start_info->nr_pages */
+		if (e_pfn <= max_pfn)
+			continue;
+
+		s_pfn = PFN_UP(entry->addr);
+		/* If the E820 falls within the nr_pages, we want to start
+		 * at the nr_pages PFN.
+		 * If that would mean going past the E820 entry, skip it
+		 */
+		if (s_pfn <= max_pfn) {
+			capacity = e_pfn - max_pfn;
+			dest_pfn = max_pfn;
+		} else {
+			capacity = e_pfn - s_pfn;
+			dest_pfn = s_pfn;
+		}
+
+		if (credits_left < capacity)
+			capacity = credits_left;
+
+		pfns = xen_do_chunk(dest_pfn, dest_pfn + capacity, false);
+		done += pfns;
+		*last_pfn = (dest_pfn + pfns);
+		if (pfns < capacity)
+			break;
+		credits_left -= pfns;
+	}
+	return done;
+}
+
+static void __init xen_set_identity_and_release_chunk(
+	unsigned long start_pfn, unsigned long end_pfn, unsigned long nr_pages,
+	unsigned long *released, unsigned long *identity)
+{
+	unsigned long pfn;
+
+	/*
+	 * If the PFNs are currently mapped, clear the mappings
+	 * (except for the ISA region which must be 1:1 mapped) to
+	 * release the refcounts (in Xen) on the original frames.
+	 */
+	for (pfn = start_pfn; pfn <= max_pfn_mapped && pfn < end_pfn; pfn++) {
+		pte_t pte = __pte_ma(0);
+
+		if (pfn < PFN_UP(ISA_END_ADDRESS))
+			pte = mfn_pte(pfn, PAGE_KERNEL_IO);
+
+		(void)HYPERVISOR_update_va_mapping(
+			(unsigned long)__va(pfn << PAGE_SHIFT), pte, 0);
+	}
+
+	if (start_pfn < nr_pages)
+		*released += xen_release_chunk(
+			start_pfn, min(end_pfn, nr_pages));
+
+	*identity += set_phys_range_identity(start_pfn, end_pfn);
 }
 
 static unsigned long __init xen_set_identity_and_release(
@@ -142,7 +261,6 @@ static unsigned long __init xen_set_identity_and_release(
 	 */
 	for (i = 0, entry = list; i < map_size; i++, entry++) {
 		phys_addr_t end = entry->addr + entry->size;
-
 		if (entry->type == E820_RAM || i == map_size - 1) {
 			unsigned long start_pfn = PFN_DOWN(start);
 			unsigned long end_pfn = PFN_UP(end);
@@ -150,20 +268,19 @@ static unsigned long __init xen_set_identity_and_release(
 			if (entry->type == E820_RAM)
 				end_pfn = PFN_UP(entry->addr);
 
-			if (start_pfn < end_pfn) {
-				if (start_pfn < nr_pages)
-					released += xen_release_chunk(
-						start_pfn, min(end_pfn, nr_pages));
+			if (start_pfn < end_pfn)
+				xen_set_identity_and_release_chunk(
+					start_pfn, end_pfn, nr_pages,
+					&released, &identity);
 
-				identity += set_phys_range_identity(
-					start_pfn, end_pfn);
-			}
 			start = end;
 		}
 	}
 
-	printk(KERN_INFO "Released %lu pages of unused memory\n", released);
-	printk(KERN_INFO "Set %ld page(s) to 1-1 mapping\n", identity);
+	if (released)
+		printk(KERN_INFO "Released %lu pages of unused memory\n", released);
+	if (identity)
+		printk(KERN_INFO "Set %ld page(s) to 1-1 mapping\n", identity);
 
 	return released;
 }
@@ -205,6 +322,17 @@ static void xen_align_and_add_e820_region(u64 start, u64 size, int type)
 	e820_add_region(start, end - start, type);
 }
 
+void xen_ignore_unusable(struct e820entry *list, size_t map_size)
+{
+	struct e820entry *entry;
+	unsigned int i;
+
+	for (i = 0, entry = list; i < map_size; i++, entry++) {
+		if (entry->type == E820_UNUSABLE)
+			entry->type = E820_RAM;
+	}
+}
+
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.
  **/
@@ -217,7 +345,9 @@ char * __init xen_memory_setup(void)
 	int rc;
 	struct xen_memory_map memmap;
 	unsigned long max_pages;
+	unsigned long last_pfn = 0;
 	unsigned long extra_pages = 0;
+	unsigned long populated;
 	int i;
 	int op;
 
@@ -243,6 +373,17 @@ char * __init xen_memory_setup(void)
 	}
 	BUG_ON(rc);
 
+	/*
+	 * Xen won't allow a 1:1 mapping to be created to UNUSABLE
+	 * regions, so if we're using the machine memory map leave the
+	 * region as RAM as it is in the pseudo-physical map.
+	 *
+	 * UNUSABLE regions in domUs are not handled and will need
+	 * a patch in the future.
+	 */
+	if (xen_initial_domain())
+		xen_ignore_unusable(map, memmap.nr_entries);
+
 	/* Make sure the Xen-supplied memory map is well-ordered. */
 	sanitize_e820_map(map, memmap.nr_entries, &memmap.nr_entries);
 
@@ -257,8 +398,20 @@ char * __init xen_memory_setup(void)
 	 */
 	xen_released_pages = xen_set_identity_and_release(
 		map, memmap.nr_entries, max_pfn);
+
+	/*
+	 * Populate back the non-RAM pages and E820 gaps that had been
+	 * released. */
+	populated = xen_populate_chunk(map, memmap.nr_entries,
+			max_pfn, &last_pfn, xen_released_pages);
+
+	xen_released_pages -= populated;
 	extra_pages += xen_released_pages;
 
+	if (last_pfn > max_pfn) {
+		max_pfn = min(MAX_DOMAIN_PAGES, last_pfn);
+		mem_end = PFN_PHYS(max_pfn);
+	}
 	/*
 	 * Clamp the amount of extra memory to a EXTRA_MEM_RATIO
 	 * factor the base size.  On non-highmem systems, the base
@@ -272,7 +425,6 @@ char * __init xen_memory_setup(void)
 	 */
 	extra_pages = min(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
 			  extra_pages);
-
 	i = 0;
 	while (i < memmap.nr_entries) {
 		u64 addr = map[i].addr;
@@ -299,6 +451,15 @@ char * __init xen_memory_setup(void)
 	}
 
 	/*
+	 * Set the rest as identity mapped, in case PCI BARs are
+	 * located here.
+	 *
+	 * PFNs above MAX_P2M_PFN are considered identity mapped as
+	 * well.
+	 */
+	set_phys_range_identity(map[i-1].addr / PAGE_SIZE, ~0ul);
+
+	/*
 	 * In domU, the ISA region is normal, usable memory, but we
 	 * reserve ISA memory anyway because too many things poke
 	 * about in there.
@@ -311,11 +472,58 @@ char * __init xen_memory_setup(void)
 	 *  - mfn_list
 	 *  - xen_start_info
 	 * See comment above "struct start_info" in <xen/interface/xen.h>
+	 * We tried to make the the memblock_reserve more selective so
+	 * that it would be clear what region is reserved. Sadly we ran
+	 * in the problem wherein on a 64-bit hypervisor with a 32-bit
+	 * initial domain, the pt_base has the cr3 value which is not
+	 * neccessarily where the pagetable starts! As Jan put it: "
+	 * Actually, the adjustment turns out to be correct: The page
+	 * tables for a 32-on-64 dom0 get allocated in the order "first L1",
+	 * "first L2", "first L3", so the offset to the page table base is
+	 * indeed 2. When reading xen/include/public/xen.h's comment
+	 * very strictly, this is not a violation (since there nothing is said
+	 * that the first thing in the page table space is pointed to by
+	 * pt_base; I admit that this seems to be implied though, namely
+	 * do I think that it is implied that the page table space is the
+	 * range [pt_base, pt_base + nt_pt_frames), whereas that
+	 * range here indeed is [pt_base - 2, pt_base - 2 + nt_pt_frames),
+	 * which - without a priori knowledge - the kernel would have
+	 * difficulty to figure out)." - so lets just fall back to the
+	 * easy way and reserve the whole region.
 	 */
 	memblock_reserve(__pa(xen_start_info->mfn_list),
 			 xen_start_info->pt_base - xen_start_info->mfn_list);
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+
+	return "Xen";
+}
+
+/*
+ * Machine specific memory setup for auto-translated guests.
+ */
+char * __init xen_auto_xlated_memory_setup(void)
+{
+	static struct e820entry map[E820MAX] __initdata;
+
+	struct xen_memory_map memmap;
+	int i;
+	int rc;
+
+	memmap.nr_entries = E820MAX;
+	set_xen_guest_handle(memmap.buffer, map);
+
+	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
+	if (rc < 0)
+		panic("No memory map (%d)\n", rc);
+
+	sanitize_e820_map(map, ARRAY_SIZE(map), &memmap.nr_entries);
+
+	for (i = 0; i < memmap.nr_entries; i++)
+		e820_add_region(map[i].addr, map[i].size, map[i].type);
+
+	memblock_reserve(__pa(xen_start_info->mfn_list),
+			 xen_start_info->pt_base - xen_start_info->mfn_list);
 
 	return "Xen";
 }
@@ -328,15 +536,22 @@ char * __init xen_memory_setup(void)
 static void __init fiddle_vdso(void)
 {
 #ifdef CONFIG_X86_32
+	/*
+	 * This could be called before selected_vdso32 is initialized, so
+	 * just fiddle with both possible images.  vdso_image_32_syscall
+	 * can't be selected, since it only exists on 64-bit systems.
+	 */
 	u32 *mask;
-	mask = VDSO32_SYMBOL(&vdso32_int80_start, NOTE_MASK);
+	mask = vdso_image_32_int80.data +
+		vdso_image_32_int80.sym_VDSO32_NOTE_MASK;
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
-	mask = VDSO32_SYMBOL(&vdso32_sysenter_start, NOTE_MASK);
+	mask = vdso_image_32_sysenter.data +
+		vdso_image_32_sysenter.sym_VDSO32_NOTE_MASK;
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
 #endif
 }
 
-static int __cpuinit register_callback(unsigned type, const void *func)
+static int register_callback(unsigned type, const void *func)
 {
 	struct callback_register callback = {
 		.type = type,
@@ -347,7 +562,7 @@ static int __cpuinit register_callback(unsigned type, const void *func)
 	return HYPERVISOR_callback_op(CALLBACKOP_register, &callback);
 }
 
-void __cpuinit xen_enable_sysenter(void)
+void xen_enable_sysenter(void)
 {
 	int ret;
 	unsigned sysenter_feature;
@@ -366,7 +581,7 @@ void __cpuinit xen_enable_sysenter(void)
 		setup_clear_cpu_cap(sysenter_feature);
 }
 
-void __cpuinit xen_enable_syscall(void)
+void xen_enable_syscall(void)
 {
 #ifdef CONFIG_X86_64
 	int ret;
@@ -387,16 +602,13 @@ void __cpuinit xen_enable_syscall(void)
 #endif /* CONFIG_X86_64 */
 }
 
-void __init xen_arch_setup(void)
+void __init xen_pvmmu_arch_setup(void)
 {
-	xen_panic_handler_init();
-
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_writable_pagetables);
 
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		HYPERVISOR_vm_assist(VMASST_CMD_enable,
-				     VMASST_TYPE_pae_extended_cr3);
+	HYPERVISOR_vm_assist(VMASST_CMD_enable,
+			     VMASST_TYPE_pae_extended_cr3);
 
 	if (register_callback(CALLBACKTYPE_event, xen_hypervisor_callback) ||
 	    register_callback(CALLBACKTYPE_failsafe, xen_failsafe_callback))
@@ -404,6 +616,14 @@ void __init xen_arch_setup(void)
 
 	xen_enable_sysenter();
 	xen_enable_syscall();
+}
+
+/* This function is not called for HVM domains */
+void __init xen_arch_setup(void)
+{
+	xen_panic_handler_init();
+	if (!xen_feature(XENFEAT_auto_translated_physmap))
+		xen_pvmmu_arch_setup();
 
 #ifdef CONFIG_ACPI
 	if (!(xen_start_info->flags & SIF_INITDOMAIN)) {
@@ -417,11 +637,11 @@ void __init xen_arch_setup(void)
 	       COMMAND_LINE_SIZE : MAX_GUEST_CMDLINE);
 
 	/* Set up idle, making sure it calls safe_halt() pvop */
-#ifdef CONFIG_X86_32
-	boot_cpu_data.hlt_works_ok = 1;
-#endif
 	disable_cpuidle();
 	disable_cpufreq();
-	WARN_ON(set_pm_idle_to_default());
+	WARN_ON(xen_set_default_idle());
 	fiddle_vdso();
+#ifdef CONFIG_NUMA
+	numa_off = 1;
+#endif
 }

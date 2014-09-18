@@ -410,7 +410,7 @@ static int set_recmask(sb_devc * devc, int mask)
 		case MDL_SMW:
 			if (devc->model == MDL_ESS && ess_set_recmask (devc, &devmask)) {
 				break;
-			};
+			}
 			if (devmask != SOUND_MASK_MIC &&
 				devmask != SOUND_MASK_LINE &&
 				devmask != SOUND_MASK_CD)
@@ -666,7 +666,7 @@ static void sb_mixer_reset(sb_devc * devc)
 
 	if (devc->model != MDL_ESS || !ess_mixer_reset (devc)) {
 		set_recmask(devc, SOUND_MASK_MIC);
-	};
+	}
 }
 
 int sb_mixer_init(sb_devc * devc, struct module *owner)

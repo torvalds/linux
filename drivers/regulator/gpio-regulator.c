@@ -28,19 +28,16 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/regulator/gpio-regulator.h>
 #include <linux/gpio.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 struct gpio_regulator_data {
 	struct regulator_desc desc;
 	struct regulator_dev *dev;
-
-	int enable_gpio;
-	bool enable_high;
-	bool is_enabled;
-	unsigned startup_delay;
 
 	struct gpio *gpios;
 	int nr_gpios;
@@ -50,44 +47,6 @@ struct gpio_regulator_data {
 
 	int state;
 };
-
-static int gpio_regulator_is_enabled(struct regulator_dev *dev)
-{
-	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
-
-	return data->is_enabled;
-}
-
-static int gpio_regulator_enable(struct regulator_dev *dev)
-{
-	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
-
-	if (gpio_is_valid(data->enable_gpio)) {
-		gpio_set_value_cansleep(data->enable_gpio, data->enable_high);
-		data->is_enabled = true;
-	}
-
-	return 0;
-}
-
-static int gpio_regulator_disable(struct regulator_dev *dev)
-{
-	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
-
-	if (gpio_is_valid(data->enable_gpio)) {
-		gpio_set_value_cansleep(data->enable_gpio, !data->enable_high);
-		data->is_enabled = false;
-	}
-
-	return 0;
-}
-
-static int gpio_regulator_enable_time(struct regulator_dev *dev)
-{
-	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
-
-	return data->startup_delay;
-}
 
 static int gpio_regulator_get_value(struct regulator_dev *dev)
 {
@@ -101,35 +60,33 @@ static int gpio_regulator_get_value(struct regulator_dev *dev)
 	return -EINVAL;
 }
 
-static int gpio_regulator_set_value(struct regulator_dev *dev,
-					int min, int max)
-{
-	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
-	int ptr, target, state;
-
-	target = -1;
-	for (ptr = 0; ptr < data->nr_states; ptr++)
-		if (data->states[ptr].value >= min &&
-		    data->states[ptr].value <= max)
-			target = data->states[ptr].gpios;
-
-	if (target < 0)
-		return -EINVAL;
-
-	for (ptr = 0; ptr < data->nr_gpios; ptr++) {
-		state = (target & (1 << ptr)) >> ptr;
-		gpio_set_value(data->gpios[ptr].gpio, state);
-	}
-	data->state = target;
-
-	return 0;
-}
-
 static int gpio_regulator_set_voltage(struct regulator_dev *dev,
 					int min_uV, int max_uV,
 					unsigned *selector)
 {
-	return gpio_regulator_set_value(dev, min_uV, max_uV);
+	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
+	int ptr, target = 0, state, best_val = INT_MAX;
+
+	for (ptr = 0; ptr < data->nr_states; ptr++)
+		if (data->states[ptr].value < best_val &&
+		    data->states[ptr].value >= min_uV &&
+		    data->states[ptr].value <= max_uV) {
+			target = data->states[ptr].gpios;
+			best_val = data->states[ptr].value;
+			if (selector)
+				*selector = ptr;
+		}
+
+	if (best_val == INT_MAX)
+		return -EINVAL;
+
+	for (ptr = 0; ptr < data->nr_gpios; ptr++) {
+		state = (target & (1 << ptr)) >> ptr;
+		gpio_set_value_cansleep(data->gpios[ptr].gpio, state);
+	}
+	data->state = target;
+
+	return 0;
 }
 
 static int gpio_regulator_list_voltage(struct regulator_dev *dev,
@@ -146,39 +103,156 @@ static int gpio_regulator_list_voltage(struct regulator_dev *dev,
 static int gpio_regulator_set_current_limit(struct regulator_dev *dev,
 					int min_uA, int max_uA)
 {
-	return gpio_regulator_set_value(dev, min_uA, max_uA);
+	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
+	int ptr, target = 0, state, best_val = 0;
+
+	for (ptr = 0; ptr < data->nr_states; ptr++)
+		if (data->states[ptr].value > best_val &&
+		    data->states[ptr].value >= min_uA &&
+		    data->states[ptr].value <= max_uA) {
+			target = data->states[ptr].gpios;
+			best_val = data->states[ptr].value;
+		}
+
+	if (best_val == 0)
+		return -EINVAL;
+
+	for (ptr = 0; ptr < data->nr_gpios; ptr++) {
+		state = (target & (1 << ptr)) >> ptr;
+		gpio_set_value_cansleep(data->gpios[ptr].gpio, state);
+	}
+	data->state = target;
+
+	return 0;
 }
 
 static struct regulator_ops gpio_regulator_voltage_ops = {
-	.is_enabled = gpio_regulator_is_enabled,
-	.enable = gpio_regulator_enable,
-	.disable = gpio_regulator_disable,
-	.enable_time = gpio_regulator_enable_time,
 	.get_voltage = gpio_regulator_get_value,
 	.set_voltage = gpio_regulator_set_voltage,
 	.list_voltage = gpio_regulator_list_voltage,
 };
 
+static struct gpio_regulator_config *
+of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
+{
+	struct gpio_regulator_config *config;
+	const char *regtype;
+	int proplen, gpio, i;
+	int ret;
+
+	config = devm_kzalloc(dev,
+			sizeof(struct gpio_regulator_config),
+			GFP_KERNEL);
+	if (!config)
+		return ERR_PTR(-ENOMEM);
+
+	config->init_data = of_get_regulator_init_data(dev, np);
+	if (!config->init_data)
+		return ERR_PTR(-EINVAL);
+
+	config->supply_name = config->init_data->constraints.name;
+
+	if (of_property_read_bool(np, "enable-active-high"))
+		config->enable_high = true;
+
+	if (of_property_read_bool(np, "enable-at-boot"))
+		config->enabled_at_boot = true;
+
+	of_property_read_u32(np, "startup-delay-us", &config->startup_delay);
+
+	config->enable_gpio = of_get_named_gpio(np, "enable-gpio", 0);
+
+	/* Fetch GPIOs. */
+	config->nr_gpios = of_gpio_count(np);
+
+	config->gpios = devm_kzalloc(dev,
+				sizeof(struct gpio) * config->nr_gpios,
+				GFP_KERNEL);
+	if (!config->gpios)
+		return ERR_PTR(-ENOMEM);
+
+	proplen = of_property_count_u32_elems(np, "gpios-states");
+	/* optional property */
+	if (proplen < 0)
+		proplen = 0;
+
+	if (proplen > 0 && proplen != config->nr_gpios) {
+		dev_warn(dev, "gpios <-> gpios-states mismatch\n");
+		proplen = 0;
+	}
+
+	for (i = 0; i < config->nr_gpios; i++) {
+		gpio = of_get_named_gpio(np, "gpios", i);
+		if (gpio < 0)
+			break;
+		config->gpios[i].gpio = gpio;
+		if (proplen > 0) {
+			of_property_read_u32_index(np, "gpios-states", i, &ret);
+			if (ret)
+				config->gpios[i].flags = GPIOF_OUT_INIT_HIGH;
+		}
+	}
+
+	/* Fetch states. */
+	proplen = of_property_count_u32_elems(np, "states");
+	if (proplen < 0) {
+		dev_err(dev, "No 'states' property found\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	config->states = devm_kzalloc(dev,
+				sizeof(struct gpio_regulator_state)
+				* (proplen / 2),
+				GFP_KERNEL);
+	if (!config->states)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < proplen / 2; i++) {
+		of_property_read_u32_index(np, "states", i * 2,
+					   &config->states[i].value);
+		of_property_read_u32_index(np, "states", i * 2 + 1,
+					   &config->states[i].gpios);
+	}
+	config->nr_states = i;
+
+	config->type = REGULATOR_VOLTAGE;
+	ret = of_property_read_string(np, "regulator-type", &regtype);
+	if (ret >= 0) {
+		if (!strncmp("voltage", regtype, 7))
+			config->type = REGULATOR_VOLTAGE;
+		else if (!strncmp("current", regtype, 7))
+			config->type = REGULATOR_CURRENT;
+		else
+			dev_warn(dev, "Unknown regulator-type '%s'\n",
+				 regtype);
+	}
+
+	return config;
+}
+
 static struct regulator_ops gpio_regulator_current_ops = {
-	.is_enabled = gpio_regulator_is_enabled,
-	.enable = gpio_regulator_enable,
-	.disable = gpio_regulator_disable,
-	.enable_time = gpio_regulator_enable_time,
 	.get_current_limit = gpio_regulator_get_value,
 	.set_current_limit = gpio_regulator_set_current_limit,
 };
 
-static int __devinit gpio_regulator_probe(struct platform_device *pdev)
+static int gpio_regulator_probe(struct platform_device *pdev)
 {
-	struct gpio_regulator_config *config = pdev->dev.platform_data;
+	struct gpio_regulator_config *config = dev_get_platdata(&pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
 	struct gpio_regulator_data *drvdata;
+	struct regulator_config cfg = { };
 	int ptr, ret, state;
 
-	drvdata = kzalloc(sizeof(struct gpio_regulator_data), GFP_KERNEL);
-	if (drvdata == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate device data\n");
-		return -ENOMEM;
+	if (np) {
+		config = of_get_gpio_regulator_config(&pdev->dev, np);
+		if (IS_ERR(config))
+			return PTR_ERR(config);
 	}
+
+	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct gpio_regulator_data),
+			       GFP_KERNEL);
+	if (drvdata == NULL)
+		return -ENOMEM;
 
 	drvdata->desc.name = kstrdup(config->supply_name, GFP_KERNEL);
 	if (drvdata->desc.name == NULL) {
@@ -208,6 +282,7 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 	drvdata->nr_states = config->nr_states;
 
 	drvdata->desc.owner = THIS_MODULE;
+	drvdata->desc.enable_time = config->startup_delay;
 
 	/* handle regulator type*/
 	switch (config->type) {
@@ -224,47 +299,6 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No regulator type set\n");
 		ret = -EINVAL;
 		goto err_memgpio;
-		break;
-	}
-
-	drvdata->enable_gpio = config->enable_gpio;
-	drvdata->startup_delay = config->startup_delay;
-
-	if (gpio_is_valid(config->enable_gpio)) {
-		drvdata->enable_high = config->enable_high;
-
-		ret = gpio_request(config->enable_gpio, config->supply_name);
-		if (ret) {
-			dev_err(&pdev->dev,
-			   "Could not obtain regulator enable GPIO %d: %d\n",
-						config->enable_gpio, ret);
-			goto err_memstate;
-		}
-
-		/* set output direction without changing state
-		 * to prevent glitch
-		 */
-		if (config->enabled_at_boot) {
-			drvdata->is_enabled = true;
-			ret = gpio_direction_output(config->enable_gpio,
-						    config->enable_high);
-		} else {
-			drvdata->is_enabled = false;
-			ret = gpio_direction_output(config->enable_gpio,
-						    !config->enable_high);
-		}
-
-		if (ret) {
-			dev_err(&pdev->dev,
-			   "Could not configure regulator enable GPIO %d direction: %d\n",
-						config->enable_gpio, ret);
-			goto err_enablegpio;
-		}
-	} else {
-		/* Regulator without GPIO control is considered
-		 * always enabled
-		 */
-		drvdata->is_enabled = true;
 	}
 
 	drvdata->nr_gpios = config->nr_gpios;
@@ -272,7 +306,7 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev,
 		   "Could not obtain regulator setting GPIOs: %d\n", ret);
-		goto err_enablegpio;
+		goto err_memstate;
 	}
 
 	/* build initial state from gpio init data. */
@@ -283,8 +317,27 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 	}
 	drvdata->state = state;
 
-	drvdata->dev = regulator_register(&drvdata->desc, &pdev->dev,
-					  config->init_data, drvdata, NULL);
+	cfg.dev = &pdev->dev;
+	cfg.init_data = config->init_data;
+	cfg.driver_data = drvdata;
+	cfg.of_node = np;
+
+	if (config->enable_gpio >= 0)
+		cfg.ena_gpio = config->enable_gpio;
+	cfg.ena_gpio_invert = !config->enable_high;
+	if (config->enabled_at_boot) {
+		if (config->enable_high)
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
+		else
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_LOW;
+	} else {
+		if (config->enable_high)
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_LOW;
+		else
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
+	}
+
+	drvdata->dev = regulator_register(&drvdata->desc, &cfg);
 	if (IS_ERR(drvdata->dev)) {
 		ret = PTR_ERR(drvdata->dev);
 		dev_err(&pdev->dev, "Failed to register regulator: %d\n", ret);
@@ -297,9 +350,6 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 
 err_stategpio:
 	gpio_free_array(drvdata->gpios, drvdata->nr_gpios);
-err_enablegpio:
-	if (gpio_is_valid(config->enable_gpio))
-		gpio_free(config->enable_gpio);
 err_memstate:
 	kfree(drvdata->states);
 err_memgpio:
@@ -307,11 +357,10 @@ err_memgpio:
 err_name:
 	kfree(drvdata->desc.name);
 err:
-	kfree(drvdata);
 	return ret;
 }
 
-static int __devexit gpio_regulator_remove(struct platform_device *pdev)
+static int gpio_regulator_remove(struct platform_device *pdev)
 {
 	struct gpio_regulator_data *drvdata = platform_get_drvdata(pdev);
 
@@ -322,21 +371,25 @@ static int __devexit gpio_regulator_remove(struct platform_device *pdev)
 	kfree(drvdata->states);
 	kfree(drvdata->gpios);
 
-	if (gpio_is_valid(drvdata->enable_gpio))
-		gpio_free(drvdata->enable_gpio);
-
 	kfree(drvdata->desc.name);
-	kfree(drvdata);
 
 	return 0;
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id regulator_gpio_of_match[] = {
+	{ .compatible = "regulator-gpio", },
+	{},
+};
+#endif
+
 static struct platform_driver gpio_regulator_driver = {
 	.probe		= gpio_regulator_probe,
-	.remove		= __devexit_p(gpio_regulator_remove),
+	.remove		= gpio_regulator_remove,
 	.driver		= {
 		.name		= "gpio-regulator",
 		.owner		= THIS_MODULE,
+		.of_match_table = of_match_ptr(regulator_gpio_of_match),
 	},
 };
 

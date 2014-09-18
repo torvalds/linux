@@ -211,7 +211,7 @@ static int pcmcia_probe(struct sa1111_dev *dev)
 	return 0;
 }
 
-static int __devexit pcmcia_remove(struct sa1111_dev *dev)
+static int pcmcia_remove(struct sa1111_dev *dev)
 {
 	struct sa1111_pcmcia_socket *next, *s = dev_get_drvdata(&dev->dev);
 
@@ -234,7 +234,7 @@ static struct sa1111_driver pcmcia_driver = {
 	},
 	.devid		= SA1111_DEVID_PCMCIA,
 	.probe		= pcmcia_probe,
-	.remove		= __devexit_p(pcmcia_remove),
+	.remove		= pcmcia_remove,
 };
 
 static int __init sa1111_drv_pcmcia_init(void)

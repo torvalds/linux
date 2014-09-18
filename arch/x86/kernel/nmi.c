@@ -14,12 +14,11 @@
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/nmi.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-
-#include <linux/mca.h>
 
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
@@ -31,13 +30,8 @@
 #include <asm/nmi.h>
 #include <asm/x86_init.h>
 
-#define NMI_MAX_NAMELEN	16
-struct nmiaction {
-	struct list_head list;
-	nmi_handler_t handler;
-	unsigned int flags;
-	char *name;
-};
+#define CREATE_TRACE_POINTS
+#include <trace/events/nmi.h>
 
 struct nmi_desc {
 	spinlock_t lock;
@@ -53,6 +47,14 @@ static struct nmi_desc nmi_desc[NMI_MAX] =
 	{
 		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[1].lock),
 		.head = LIST_HEAD_INIT(nmi_desc[1].head),
+	},
+	{
+		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[2].lock),
+		.head = LIST_HEAD_INIT(nmi_desc[2].head),
+	},
+	{
+		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[3].lock),
+		.head = LIST_HEAD_INIT(nmi_desc[3].head),
 	},
 
 };
@@ -84,7 +86,31 @@ __setup("unknown_nmi_panic", setup_unknown_nmi_panic);
 
 #define nmi_to_desc(type) (&nmi_desc[type])
 
-static int notrace __kprobes nmi_handle(unsigned int type, struct pt_regs *regs, bool b2b)
+static u64 nmi_longest_ns = 1 * NSEC_PER_MSEC;
+
+static int __init nmi_warning_debugfs(void)
+{
+	debugfs_create_u64("nmi_longest_ns", 0644,
+			arch_debugfs_dir, &nmi_longest_ns);
+	return 0;
+}
+fs_initcall(nmi_warning_debugfs);
+
+static void nmi_max_handler(struct irq_work *w)
+{
+	struct nmiaction *a = container_of(w, struct nmiaction, irq_work);
+	int remainder_ns, decimal_msecs;
+	u64 whole_msecs = ACCESS_ONCE(a->max_duration);
+
+	remainder_ns = do_div(whole_msecs, (1000 * 1000));
+	decimal_msecs = remainder_ns / 1000;
+
+	printk_ratelimited(KERN_INFO
+		"INFO: NMI handler (%ps) took too long to run: %lld.%03d msecs\n",
+		a->handler, whole_msecs, decimal_msecs);
+}
+
+static int nmi_handle(unsigned int type, struct pt_regs *regs, bool b2b)
 {
 	struct nmi_desc *desc = nmi_to_desc(type);
 	struct nmiaction *a;
@@ -98,19 +124,39 @@ static int notrace __kprobes nmi_handle(unsigned int type, struct pt_regs *regs,
 	 * can be latched at any given time.  Walk the whole list
 	 * to handle those situations.
 	 */
-	list_for_each_entry_rcu(a, &desc->head, list)
-		handled += a->handler(type, regs);
+	list_for_each_entry_rcu(a, &desc->head, list) {
+		int thishandled;
+		u64 delta;
+
+		delta = sched_clock();
+		thishandled = a->handler(type, regs);
+		handled += thishandled;
+		delta = sched_clock() - delta;
+		trace_nmi_handler(a->handler, (int)delta, thishandled);
+
+		if (delta < nmi_longest_ns || delta < a->max_duration)
+			continue;
+
+		a->max_duration = delta;
+		irq_work_queue(&a->irq_work);
+	}
 
 	rcu_read_unlock();
 
 	/* return total number of NMI events handled */
 	return handled;
 }
+NOKPROBE_SYMBOL(nmi_handle);
 
-static int __setup_nmi(unsigned int type, struct nmiaction *action)
+int __register_nmi_handler(unsigned int type, struct nmiaction *action)
 {
 	struct nmi_desc *desc = nmi_to_desc(type);
 	unsigned long flags;
+
+	if (!action->handler)
+		return -EINVAL;
+
+	init_irq_work(&action->irq_work, nmi_max_handler);
 
 	spin_lock_irqsave(&desc->lock, flags);
 
@@ -120,6 +166,8 @@ static int __setup_nmi(unsigned int type, struct nmiaction *action)
 	 * to manage expectations
 	 */
 	WARN_ON_ONCE(type == NMI_UNKNOWN && !list_empty(&desc->head));
+	WARN_ON_ONCE(type == NMI_SERR && !list_empty(&desc->head));
+	WARN_ON_ONCE(type == NMI_IO_CHECK && !list_empty(&desc->head));
 
 	/*
 	 * some handlers need to be executed first otherwise a fake
@@ -133,8 +181,9 @@ static int __setup_nmi(unsigned int type, struct nmiaction *action)
 	spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
+EXPORT_SYMBOL(__register_nmi_handler);
 
-static struct nmiaction *__free_nmi(unsigned int type, const char *name)
+void unregister_nmi_handler(unsigned int type, const char *name)
 {
 	struct nmi_desc *desc = nmi_to_desc(type);
 	struct nmiaction *n;
@@ -157,61 +206,16 @@ static struct nmiaction *__free_nmi(unsigned int type, const char *name)
 
 	spin_unlock_irqrestore(&desc->lock, flags);
 	synchronize_rcu();
-	return (n);
 }
-
-int register_nmi_handler(unsigned int type, nmi_handler_t handler,
-			unsigned long nmiflags, const char *devname)
-{
-	struct nmiaction *action;
-	int retval = -ENOMEM;
-
-	if (!handler)
-		return -EINVAL;
-
-	action = kzalloc(sizeof(struct nmiaction), GFP_KERNEL);
-	if (!action)
-		goto fail_action;
-
-	action->handler = handler;
-	action->flags = nmiflags;
-	action->name = kstrndup(devname, NMI_MAX_NAMELEN, GFP_KERNEL);
-	if (!action->name)
-		goto fail_action_name;
-
-	retval = __setup_nmi(type, action);
-
-	if (retval)
-		goto fail_setup_nmi;
-
-	return retval;
-
-fail_setup_nmi:
-	kfree(action->name);
-fail_action_name:
-	kfree(action);
-fail_action:	
-
-	return retval;
-}
-EXPORT_SYMBOL_GPL(register_nmi_handler);
-
-void unregister_nmi_handler(unsigned int type, const char *name)
-{
-	struct nmiaction *a;
-
-	a = __free_nmi(type, name);
-	if (a) {
-		kfree(a->name);
-		kfree(a);
-	}
-}
-
 EXPORT_SYMBOL_GPL(unregister_nmi_handler);
 
-static notrace __kprobes void
+static void
 pci_serr_error(unsigned char reason, struct pt_regs *regs)
 {
+	/* check to see if anyone registered against these types of errors */
+	if (nmi_handle(NMI_SERR, regs, false))
+		return;
+
 	pr_emerg("NMI: PCI system error (SERR) for reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
 
@@ -235,16 +239,21 @@ pci_serr_error(unsigned char reason, struct pt_regs *regs)
 	reason = (reason & NMI_REASON_CLEAR_MASK) | NMI_REASON_CLEAR_SERR;
 	outb(reason, NMI_REASON_PORT);
 }
+NOKPROBE_SYMBOL(pci_serr_error);
 
-static notrace __kprobes void
+static void
 io_check_error(unsigned char reason, struct pt_regs *regs)
 {
 	unsigned long i;
 
+	/* check to see if anyone registered against these types of errors */
+	if (nmi_handle(NMI_IO_CHECK, regs, false))
+		return;
+
 	pr_emerg(
 	"NMI: IOCK error (debug interrupt?) for reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
-	show_registers(regs);
+	show_regs(regs);
 
 	if (panic_on_io_nmi)
 		panic("NMI IOCK error: Not continuing");
@@ -262,8 +271,9 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 	reason &= ~NMI_REASON_CLEAR_IOCHK;
 	outb(reason, NMI_REASON_PORT);
 }
+NOKPROBE_SYMBOL(io_check_error);
 
-static notrace __kprobes void
+static void
 unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
 	int handled;
@@ -282,16 +292,6 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 
 	__this_cpu_add(nmi_stats.unknown, 1);
 
-#ifdef CONFIG_MCA
-	/*
-	 * Might actually be able to figure out what the guilty party
-	 * is:
-	 */
-	if (MCA_bus) {
-		mca_handle_nmi();
-		return;
-	}
-#endif
 	pr_emerg("Uhhuh. NMI received for unknown reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
 
@@ -301,11 +301,12 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 
 	pr_emerg("Dazed and confused, but trying to continue\n");
 }
+NOKPROBE_SYMBOL(unknown_nmi_error);
 
 static DEFINE_PER_CPU(bool, swallow_nmi);
 static DEFINE_PER_CPU(unsigned long, last_nmi_rip);
 
-static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
+static void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
 	int handled;
@@ -404,6 +405,7 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 	else
 		unknown_nmi_error(reason, regs);
 }
+NOKPROBE_SYMBOL(default_do_nmi);
 
 /*
  * NMIs can hit breakpoints which will cause it to lose its
@@ -412,8 +414,9 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 #ifdef CONFIG_X86_32
 /*
  * For i386, NMIs use the same stack as the kernel, and we can
- * add a workaround to the iret problem in C. Simply have 3 states
- * the NMI can be in.
+ * add a workaround to the iret problem in C (preventing nested
+ * NMIs if an NMI takes a trap). Simply have 3 states the NMI
+ * can be in:
  *
  *  1) not running
  *  2) executing
@@ -430,32 +433,50 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
  * If an NMI hits a breakpoint that executes an iret, another
  * NMI can preempt it. We do not want to allow this new NMI
  * to run, but we want to execute it when the first one finishes.
- * We set the state to "latched", and the first NMI will perform
- * an cmpxchg on the state, and if it doesn't successfully
- * reset the state to "not running" it will restart the next
- * NMI.
+ * We set the state to "latched", and the exit of the first NMI will
+ * perform a dec_return, if the result is zero (NOT_RUNNING), then
+ * it will simply exit the NMI handler. If not, the dec_return
+ * would have set the state to NMI_EXECUTING (what we want it to
+ * be when we are running). In this case, we simply jump back
+ * to rerun the NMI handler again, and restart the 'latched' NMI.
+ *
+ * No trap (breakpoint or page fault) should be hit before nmi_restart,
+ * thus there is no race between the first check of state for NOT_RUNNING
+ * and setting it to NMI_EXECUTING. The HW will prevent nested NMIs
+ * at this point.
+ *
+ * In case the NMI takes a page fault, we need to save off the CR2
+ * because the NMI could have preempted another page fault and corrupt
+ * the CR2 that is about to be read. As nested NMIs must be restarted
+ * and they can not take breakpoints or page faults, the update of the
+ * CR2 must be done before converting the nmi state back to NOT_RUNNING.
+ * Otherwise, there would be a race of another nested NMI coming in
+ * after setting state to NOT_RUNNING but before updating the nmi_cr2.
  */
 enum nmi_states {
-	NMI_NOT_RUNNING,
+	NMI_NOT_RUNNING = 0,
 	NMI_EXECUTING,
 	NMI_LATCHED,
 };
 static DEFINE_PER_CPU(enum nmi_states, nmi_state);
+static DEFINE_PER_CPU(unsigned long, nmi_cr2);
 
 #define nmi_nesting_preprocess(regs)					\
 	do {								\
-		if (__get_cpu_var(nmi_state) != NMI_NOT_RUNNING) {	\
-			__get_cpu_var(nmi_state) = NMI_LATCHED;		\
+		if (this_cpu_read(nmi_state) != NMI_NOT_RUNNING) {	\
+			this_cpu_write(nmi_state, NMI_LATCHED);		\
 			return;						\
 		}							\
-	nmi_restart:							\
-		__get_cpu_var(nmi_state) = NMI_EXECUTING;		\
-	} while (0)
+		this_cpu_write(nmi_state, NMI_EXECUTING);		\
+		this_cpu_write(nmi_cr2, read_cr2());			\
+	} while (0);							\
+	nmi_restart:
 
 #define nmi_nesting_postprocess()					\
 	do {								\
-		if (cmpxchg(&__get_cpu_var(nmi_state),			\
-		    NMI_EXECUTING, NMI_NOT_RUNNING) != NMI_EXECUTING)	\
+		if (unlikely(this_cpu_read(nmi_cr2) != read_cr2()))	\
+			write_cr2(this_cpu_read(nmi_cr2));		\
+		if (this_cpu_dec_return(nmi_state))			\
 			goto nmi_restart;				\
 	} while (0)
 #else /* x86_64 */
@@ -491,18 +512,20 @@ static inline void nmi_nesting_preprocess(struct pt_regs *regs)
 	 */
 	if (unlikely(is_debug_stack(regs->sp))) {
 		debug_stack_set_zero();
-		__get_cpu_var(update_debug_stack) = 1;
+		this_cpu_write(update_debug_stack, 1);
 	}
 }
 
 static inline void nmi_nesting_postprocess(void)
 {
-	if (unlikely(__get_cpu_var(update_debug_stack)))
+	if (unlikely(this_cpu_read(update_debug_stack))) {
 		debug_stack_reset();
+		this_cpu_write(update_debug_stack, 0);
+	}
 }
 #endif
 
-dotraplinkage notrace __kprobes void
+dotraplinkage notrace void
 do_nmi(struct pt_regs *regs, long error_code)
 {
 	nmi_nesting_preprocess(regs);
@@ -519,6 +542,7 @@ do_nmi(struct pt_regs *regs, long error_code)
 	/* On i386, may loop back to preprocess */
 	nmi_nesting_postprocess();
 }
+NOKPROBE_SYMBOL(do_nmi);
 
 void stop_nmi(void)
 {
@@ -535,3 +559,4 @@ void local_touch_nmi(void)
 {
 	__this_cpu_write(last_nmi_rip, 0);
 }
+EXPORT_SYMBOL_GPL(local_touch_nmi);

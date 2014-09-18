@@ -6,159 +6,57 @@
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "exynos_drm_drv.h"
+#include "exynos_drm_crtc.h"
 #include "exynos_drm_encoder.h"
-#include "exynos_drm_connector.h"
 #include "exynos_drm_fbdev.h"
 
 static LIST_HEAD(exynos_drm_subdrv_list);
-static struct drm_device *drm_dev;
 
-static int exynos_drm_subdrv_probe(struct drm_device *dev,
-					struct exynos_drm_subdrv *subdrv)
+int exynos_drm_create_enc_conn(struct drm_device *dev,
+					struct exynos_drm_display *display)
 {
 	struct drm_encoder *encoder;
-	struct drm_connector *connector;
+	int ret;
+	unsigned long possible_crtcs = 0;
 
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
+	ret = exynos_drm_crtc_get_pipe_from_type(dev, display->type);
+	if (ret < 0)
+		return ret;
 
-	if (subdrv->probe) {
-		int ret;
-
-		/*
-		 * this probe callback would be called by sub driver
-		 * after setting of all resources to this sub driver,
-		 * such as clock, irq and register map are done or by load()
-		 * of exynos drm driver.
-		 *
-		 * P.S. note that this driver is considered for modularization.
-		 */
-		ret = subdrv->probe(dev, subdrv->dev);
-		if (ret)
-			return ret;
-	}
-
-	if (!subdrv->manager)
-		return 0;
-
-	subdrv->manager->dev = subdrv->dev;
+	possible_crtcs |= 1 << ret;
 
 	/* create and initialize a encoder for this sub driver. */
-	encoder = exynos_drm_encoder_create(dev, subdrv->manager,
-			(1 << MAX_CRTC) - 1);
+	encoder = exynos_drm_encoder_create(dev, display, possible_crtcs);
 	if (!encoder) {
 		DRM_ERROR("failed to create encoder\n");
 		return -EFAULT;
 	}
 
-	/*
-	 * create and initialize a connector for this sub driver and
-	 * attach the encoder created above to the connector.
-	 */
-	connector = exynos_drm_connector_create(dev, encoder);
-	if (!connector) {
-		DRM_ERROR("failed to create connector\n");
-		encoder->funcs->destroy(encoder);
-		return -EFAULT;
-	}
+	display->encoder = encoder;
 
-	subdrv->encoder = encoder;
-	subdrv->connector = connector;
-
-	return 0;
-}
-
-static void exynos_drm_subdrv_remove(struct drm_device *dev,
-				      struct exynos_drm_subdrv *subdrv)
-{
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
-	if (subdrv->remove)
-		subdrv->remove(dev);
-
-	if (subdrv->encoder) {
-		struct drm_encoder *encoder = subdrv->encoder;
-		encoder->funcs->destroy(encoder);
-		subdrv->encoder = NULL;
-	}
-
-	if (subdrv->connector) {
-		struct drm_connector *connector = subdrv->connector;
-		connector->funcs->destroy(connector);
-		subdrv->connector = NULL;
-	}
-}
-
-int exynos_drm_device_register(struct drm_device *dev)
-{
-	struct exynos_drm_subdrv *subdrv, *n;
-	int err;
-
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
-	if (!dev)
-		return -EINVAL;
-
-	drm_dev = dev;
-
-	list_for_each_entry_safe(subdrv, n, &exynos_drm_subdrv_list, list) {
-		subdrv->drm_dev = dev;
-		err = exynos_drm_subdrv_probe(dev, subdrv);
-		if (err) {
-			DRM_DEBUG("exynos drm subdrv probe failed.\n");
-			list_del(&subdrv->list);
-		}
+	ret = display->ops->create_connector(display, encoder);
+	if (ret) {
+		DRM_ERROR("failed to create connector ret = %d\n", ret);
+		goto err_destroy_encoder;
 	}
 
 	return 0;
+
+err_destroy_encoder:
+	encoder->funcs->destroy(encoder);
+	return ret;
 }
-EXPORT_SYMBOL_GPL(exynos_drm_device_register);
-
-int exynos_drm_device_unregister(struct drm_device *dev)
-{
-	struct exynos_drm_subdrv *subdrv;
-
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
-	if (!dev) {
-		WARN(1, "Unexpected drm device unregister!\n");
-		return -EINVAL;
-	}
-
-	list_for_each_entry(subdrv, &exynos_drm_subdrv_list, list)
-		exynos_drm_subdrv_remove(dev, subdrv);
-
-	drm_dev = NULL;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(exynos_drm_device_unregister);
 
 int exynos_drm_subdrv_register(struct exynos_drm_subdrv *subdrv)
 {
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
 	if (!subdrv)
 		return -EINVAL;
 
@@ -170,8 +68,6 @@ EXPORT_SYMBOL_GPL(exynos_drm_subdrv_register);
 
 int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *subdrv)
 {
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
 	if (!subdrv)
 		return -EINVAL;
 
@@ -180,6 +76,54 @@ int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *subdrv)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_drm_subdrv_unregister);
+
+int exynos_drm_device_subdrv_probe(struct drm_device *dev)
+{
+	struct exynos_drm_subdrv *subdrv, *n;
+	int err;
+
+	if (!dev)
+		return -EINVAL;
+
+	list_for_each_entry_safe(subdrv, n, &exynos_drm_subdrv_list, list) {
+		if (subdrv->probe) {
+			subdrv->drm_dev = dev;
+
+			/*
+			 * this probe callback would be called by sub driver
+			 * after setting of all resources to this sub driver,
+			 * such as clock, irq and register map are done.
+			 */
+			err = subdrv->probe(dev, subdrv->dev);
+			if (err) {
+				DRM_DEBUG("exynos drm subdrv probe failed.\n");
+				list_del(&subdrv->list);
+				continue;
+			}
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(exynos_drm_device_subdrv_probe);
+
+int exynos_drm_device_subdrv_remove(struct drm_device *dev)
+{
+	struct exynos_drm_subdrv *subdrv;
+
+	if (!dev) {
+		WARN(1, "Unexpected drm device unregister!\n");
+		return -EINVAL;
+	}
+
+	list_for_each_entry(subdrv, &exynos_drm_subdrv_list, list) {
+		if (subdrv->remove)
+			subdrv->remove(dev, subdrv->dev);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(exynos_drm_device_subdrv_remove);
 
 int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file)
 {

@@ -9,7 +9,6 @@
 #define __ASM_MACH_GENERIC_FLOPPY_H
 
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/linkage.h>
@@ -98,7 +97,7 @@ static inline void fd_disable_irq(void)
 static inline int fd_request_irq(void)
 {
 	return request_irq(FLOPPY_IRQ, floppy_interrupt,
-	                   0, "floppy", NULL);
+			   0, "floppy", NULL);
 }
 
 static inline void fd_free_irq(void)
@@ -106,7 +105,7 @@ static inline void fd_free_irq(void)
 	free_irq(FLOPPY_IRQ, NULL);
 }
 
-#define fd_free_irq()           free_irq(FLOPPY_IRQ, NULL);
+#define fd_free_irq()		free_irq(FLOPPY_IRQ, NULL);
 
 
 static inline unsigned long fd_getfdaddr1(void)

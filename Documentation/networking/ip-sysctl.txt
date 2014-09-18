@@ -15,31 +15,78 @@ ip_default_ttl - INTEGER
 	forwarded) IP packets. Should be between 1 and 255 inclusive.
 	Default: 64 (as recommended by RFC1700)
 
-ip_no_pmtu_disc - BOOLEAN
-	Disable Path MTU Discovery.
-	default FALSE
+ip_no_pmtu_disc - INTEGER
+	Disable Path MTU Discovery. If enabled in mode 1 and a
+	fragmentation-required ICMP is received, the PMTU to this
+	destination will be set to min_pmtu (see below). You will need
+	to raise min_pmtu to the smallest interface MTU on your system
+	manually if you want to avoid locally generated fragments.
+
+	In mode 2 incoming Path MTU Discovery messages will be
+	discarded. Outgoing frames are handled the same as in mode 1,
+	implicitly setting IP_PMTUDISC_DONT on every created socket.
+
+	Mode 3 is a hardend pmtu discover mode. The kernel will only
+	accept fragmentation-needed errors if the underlying protocol
+	can verify them besides a plain socket lookup. Current
+	protocols for which pmtu events will be honored are TCP, SCTP
+	and DCCP as they verify e.g. the sequence number or the
+	association. This mode should not be enabled globally but is
+	only intended to secure e.g. name servers in namespaces where
+	TCP path mtu must still work but path MTU information of other
+	protocols should be discarded. If enabled globally this mode
+	could break other protocols.
+
+	Possible values: 0-3
+	Default: FALSE
 
 min_pmtu - INTEGER
 	default 552 - minimum discovered Path MTU
+
+ip_forward_use_pmtu - BOOLEAN
+	By default we don't trust protocol path MTUs while forwarding
+	because they could be easily forged and can lead to unwanted
+	fragmentation by the router.
+	You only need to enable this if you have user-space software
+	which tries to discover path mtus by itself and depends on the
+	kernel honoring this information. This is normally not the
+	case.
+	Default: 0 (disabled)
+	Possible values:
+	0 - disabled
+	1 - enabled
 
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
 
+neigh/default/gc_thresh1 - INTEGER
+	Minimum number of entries to keep.  Garbage collector will not
+	purge entries if there are fewer than this number.
+	Default: 128
+
 neigh/default/gc_thresh3 - INTEGER
 	Maximum number of neighbor entries allowed.  Increase this
 	when using large numbers of interfaces and when communicating
 	with large numbers of directly-connected peers.
+	Default: 1024
 
 neigh/default/unres_qlen_bytes - INTEGER
 	The maximum number of bytes which may be used by packets
 	queued for each	unresolved address by other network layers.
 	(added in linux 3.3)
+	Setting negative value is meaningless and will return error.
+	Default: 65536 Bytes(64KB)
 
 neigh/default/unres_qlen - INTEGER
 	The maximum number of packets which may be queued for each
 	unresolved address by other network layers.
 	(deprecated in linux 3.3) : use unres_qlen_bytes instead.
+	Prior to linux 3.3, the default value is 3 which may cause
+	unexpected packet loss. The current default value is calculated
+	according to default value of unres_qlen_bytes and true size of
+	packet.
+	Default: 31
 
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
@@ -48,30 +95,22 @@ min_adv_mss - INTEGER
 	The advertised MSS depends on the first hop route MTU, but will
 	never be lower than this setting.
 
-rt_cache_rebuild_count - INTEGER
-	The per net-namespace route cache emergency rebuild threshold.
-	Any net-namespace having its route cache rebuilt due to
-	a hash bucket chain being too long more than this many times
-	will have its route caching disabled
-
 IP Fragmentation:
 
 ipfrag_high_thresh - INTEGER
 	Maximum memory used to reassemble IP fragments. When
 	ipfrag_high_thresh bytes of memory is allocated for this purpose,
 	the fragment handler will toss packets until ipfrag_low_thresh
-	is reached.
+	is reached. This also serves as a maximum limit to namespaces
+	different from the initial one.
 
 ipfrag_low_thresh - INTEGER
-	See ipfrag_high_thresh
+	Maximum memory used to reassemble IP fragments before the kernel
+	begins to remove incomplete fragment queues to free up resources.
+	The kernel still accepts new fragments for defragmentation.
 
 ipfrag_time - INTEGER
 	Time in seconds to keep an IP fragment in memory.
-
-ipfrag_secret_interval - INTEGER
-	Regeneration interval (in seconds) of the hash secret (or lifetime
-	for the hash secret) for IP fragments.
-	Default: 600
 
 ipfrag_max_dist - INTEGER
 	ipfrag_max_dist is a non-negative integer value which defines the
@@ -123,17 +162,6 @@ somaxconn - INTEGER
 	Defaults to 128.  See also tcp_max_syn_backlog for additional tuning
 	for TCP sockets.
 
-tcp_abc - INTEGER
-	Controls Appropriate Byte Count (ABC) defined in RFC3465.
-	ABC is a way of increasing congestion window (cwnd) more slowly
-	in response to partial acknowledgments.
-	Possible values are:
-		0 increase cwnd once per acknowledgment (no ABC)
-		1 increase cwnd once per acknowledgment of full sized segment
-		2 allow increase cwnd by two if acknowledgment is
-		  of two segments to compensate for delayed acknowledgments.
-	Default: 0 (off)
-
 tcp_abort_on_overflow - BOOLEAN
 	If listening service is too slow to accept new connections,
 	reset them. Default state is FALSE. It means that if overflow
@@ -147,7 +175,7 @@ tcp_adv_win_scale - INTEGER
 	(if tcp_adv_win_scale > 0) or bytes-bytes/2^(-tcp_adv_win_scale),
 	if it is <= 0.
 	Possible values are [-31, 31], inclusive.
-	Default: 2
+	Default: 1
 
 tcp_allowed_congestion_control - STRING
 	Show/set the congestion control choices available to non-privileged
@@ -159,6 +187,16 @@ tcp_app_win - INTEGER
 	Reserve max(window/2^tcp_app_win, mss) of window for application
 	buffer. Value 0 is special, it means that nothing is reserved.
 	Default: 31
+
+tcp_autocorking - BOOLEAN
+	Enable TCP auto corking :
+	When applications do consecutive small write()/sendmsg() system calls,
+	we try to coalesce these small writes as much as possible, to lower
+	total amount of sent packets. This is done if at least one prior
+	packet for the flow is waiting in Qdisc queues or device transmit
+	queue. Applications can still use TCP_CORK for optimal behavior
+	when they know how/when to uncork their sockets.
+	Default : 1
 
 tcp_available_congestion_control - STRING
 	Shows the available congestion control choices that are registered.
@@ -179,27 +217,39 @@ tcp_congestion_control - STRING
 	is inherited.
 	[see setsockopt(listenfd, SOL_TCP, TCP_CONGESTION, "name" ...) ]
 
-tcp_cookie_size - INTEGER
-	Default size of TCP Cookie Transactions (TCPCT) option, that may be
-	overridden on a per socket basis by the TCPCT socket option.
-	Values greater than the maximum (16) are interpreted as the maximum.
-	Values greater than zero and less than the minimum (8) are interpreted
-	as the minimum.  Odd values are interpreted as the next even value.
-	Default: 0 (off).
-
 tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
 
+tcp_early_retrans - INTEGER
+	Enable Early Retransmit (ER), per RFC 5827. ER lowers the threshold
+	for triggering fast retransmit when the amount of outstanding data is
+	small and when no previously unsent data can be transmitted (such
+	that limited transmit could be used). Also controls the use of
+	Tail loss probe (TLP) that converts RTOs occurring due to tail
+	losses into fast recovery (draft-dukkipati-tcpm-tcp-loss-probe-01).
+	Possible values:
+		0 disables ER
+		1 enables ER
+		2 enables ER but delays fast recovery and fast retransmit
+		  by a fourth of RTT. This mitigates connection falsely
+		  recovers when network has a small degree of reordering
+		  (less than 3 packets).
+		3 enables delayed ER and TLP.
+		4 enables TLP only.
+	Default: 3
+
 tcp_ecn - INTEGER
-	Enable Explicit Congestion Notification (ECN) in TCP. ECN is only
-	used when both ends of the TCP flow support it. It is useful to
-	avoid losses due to congestion (when the bottleneck router supports
-	ECN).
+	Control use of Explicit Congestion Notification (ECN) by TCP.
+	ECN is used only when both ends of the TCP connection indicate
+	support for it.  This feature is useful in avoiding losses due
+	to congestion by allowing supporting routers to signal
+	congestion before having to drop packets.
 	Possible values are:
-		0 disable ECN
-		1 ECN enabled
-		2 Only server-side ECN enabled. If the other end does
-		  not support ECN, behavior is like with ECN disabled.
+		0 Disable ECN.  Neither initiate nor accept ECN.
+		1 Enable ECN when requested by incoming connections and
+		  also request ECN on outgoing connection attempts.
+		2 Enable ECN when requested by incoming connections
+		  but do not request ECN on outgoing connections.
 	Default: 2
 
 tcp_fack - BOOLEAN
@@ -207,47 +257,23 @@ tcp_fack - BOOLEAN
 	The value is not used, if tcp_sack is not enabled.
 
 tcp_fin_timeout - INTEGER
-	Time to hold socket in state FIN-WAIT-2, if it was closed
-	by our side. Peer can be broken and never close its side,
-	or even died unexpectedly. Default value is 60sec.
-	Usual value used in 2.2 was 180 seconds, you may restore
-	it, but remember that if your machine is even underloaded WEB server,
-	you risk to overflow memory with kilotons of dead sockets,
-	FIN-WAIT-2 sockets are less dangerous than FIN-WAIT-1,
-	because they eat maximum 1.5K of memory, but they tend
-	to live longer.	Cf. tcp_max_orphans.
+	The length of time an orphaned (no longer referenced by any
+	application) connection will remain in the FIN_WAIT_2 state
+	before it is aborted at the local end.  While a perfectly
+	valid "receive only" state for an un-orphaned connection, an
+	orphaned connection in FIN_WAIT_2 state could otherwise wait
+	forever for the remote to close its end of the connection.
+	Cf. tcp_max_orphans
+	Default: 60 seconds
 
 tcp_frto - INTEGER
-	Enables Forward RTO-Recovery (F-RTO) defined in RFC4138.
+	Enables Forward RTO-Recovery (F-RTO) defined in RFC5682.
 	F-RTO is an enhanced recovery algorithm for TCP retransmission
-	timeouts.  It is particularly beneficial in wireless environments
-	where packet loss is typically due to random radio interference
-	rather than intermediate router congestion.  F-RTO is sender-side
-	only modification. Therefore it does not require any support from
-	the peer.
+	timeouts.  It is particularly beneficial in networks where the
+	RTT fluctuates (e.g., wireless). F-RTO is sender-side only
+	modification. It does not require any support from the peer.
 
-	If set to 1, basic version is enabled.  2 enables SACK enhanced
-	F-RTO if flow uses SACK.  The basic version can be used also when
-	SACK is in use though scenario(s) with it exists where F-RTO
-	interacts badly with the packet counting of the SACK enabled TCP
-	flow.
-
-tcp_frto_response - INTEGER
-	When F-RTO has detected that a TCP retransmission timeout was
-	spurious (i.e, the timeout would have been avoided had TCP set a
-	longer retransmission timeout), TCP has several options what to do
-	next. Possible values are:
-		0 Rate halving based; a smooth and conservative response,
-		  results in halved cwnd and ssthresh after one RTT
-		1 Very conservative response; not recommended because even
-		  though being valid, it interacts poorly with the rest of
-		  Linux TCP, halves cwnd and ssthresh immediately
-		2 Aggressive response; undoes congestion control measures
-		  that are now known to be unnecessary (ignoring the
-		  possibility of a lost retransmission that would require
-		  TCP to be more cautious), cwnd and ssthresh are restored
-		  to the values prior timeout
-	Default: 0 (rate halving based)
+	By default it's enabled with a non-zero value. 0 disables F-RTO.
 
 tcp_keepalive_time - INTEGER
 	How often TCP sends out keepalive messages when keepalive is enabled.
@@ -282,17 +308,6 @@ tcp_max_orphans - INTEGER
 	and tune network services to linger and kill such states
 	more aggressively. Let me to remind again: each orphan eats
 	up to ~64K of unswappable memory.
-
-tcp_max_ssthresh - INTEGER
-	Limited Slow-Start for TCP with large congestion windows (cwnd) defined in
-	RFC3742. Limited slow-start is a mechanism to limit growth of the cwnd
-	on the region where cwnd is larger than tcp_max_ssthresh. TCP increases cwnd
-	by at most tcp_max_ssthresh segments, and by at least tcp_max_ssthresh/2
-	segments per RTT when the cwnd is above tcp_max_ssthresh.
-	If TCP connection increased cwnd to thousands (or tens of thousands) segments,
-	and thousands of packets were being dropped during slow-start, you can set
-	tcp_max_ssthresh to improve performance for new TCP connection.
-	Default: 0 (off)
 
 tcp_max_syn_backlog - INTEGER
 	Maximal number of remembered connection requests, which have not
@@ -410,7 +425,7 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 	net.core.rmem_max.  Calling setsockopt() with SO_RCVBUF disables
 	automatic tuning of that socket's receive buffer size, in which
 	case this value is ignored.
-	Default: between 87380B and 4MB, depending on RAM size.
+	Default: between 87380B and 6MB, depending on RAM size.
 
 tcp_sack - BOOLEAN
 	Enable select acknowledgments (SACKS).
@@ -431,13 +446,15 @@ tcp_stdurg - BOOLEAN
 tcp_synack_retries - INTEGER
 	Number of times SYNACKs for a passive TCP connection attempt will
 	be retransmitted. Should not be higher than 255. Default value
-	is 5, which corresponds to ~180seconds.
+	is 5, which corresponds to 31seconds till the last retransmission
+	with the current initial RTO of 1second. With this the final timeout
+	for a passive TCP connection will happen after 63seconds.
 
 tcp_syncookies - BOOLEAN
-	Only valid when the kernel was compiled with CONFIG_SYNCOOKIES
+	Only valid when the kernel was compiled with CONFIG_SYN_COOKIES
 	Send out syncookies when the syn backlog queue of a socket
 	overflows. This is to prevent against the common 'SYN flood attack'
-	Default: FALSE
+	Default: 1
 
 	Note, that syncookies is fallback facility.
 	It MUST NOT be used to help highly loaded servers to stand
@@ -454,13 +471,56 @@ tcp_syncookies - BOOLEAN
 	SYN flood warnings in logs not being really flooded, your server
 	is seriously misconfigured.
 
+	If you want to test which effects syncookies have to your
+	network connections you can set this knob to 2 to enable
+	unconditionally generation of syncookies.
+
+tcp_fastopen - INTEGER
+	Enable TCP Fast Open feature (draft-ietf-tcpm-fastopen) to send data
+	in the opening SYN packet. To use this feature, the client application
+	must use sendmsg() or sendto() with MSG_FASTOPEN flag rather than
+	connect() to perform a TCP handshake automatically.
+
+	The values (bitmap) are
+	1: Enables sending data in the opening SYN on the client w/ MSG_FASTOPEN.
+	2: Enables TCP Fast Open on the server side, i.e., allowing data in
+	   a SYN packet to be accepted and passed to the application before
+	   3-way hand shake finishes.
+	4: Send data in the opening SYN regardless of cookie availability and
+	   without a cookie option.
+	0x100: Accept SYN data w/o validating the cookie.
+	0x200: Accept data-in-SYN w/o any cookie option present.
+	0x400/0x800: Enable Fast Open on all listeners regardless of the
+	   TCP_FASTOPEN socket option. The two different flags designate two
+	   different ways of setting max_qlen without the TCP_FASTOPEN socket
+	   option.
+
+	Default: 1
+
+	Note that the client & server side Fast Open flags (1 and 2
+	respectively) must be also enabled before the rest of flags can take
+	effect.
+
+	See include/net/tcp.h and the code for more details.
+
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
 	will be retransmitted. Should not be higher than 255. Default value
-	is 5, which corresponds to ~180seconds.
+	is 6, which corresponds to 63seconds till the last retransmission
+	with the current initial RTO of 1second. With this the final timeout
+	for an active TCP connection attempt will happen after 127seconds.
 
 tcp_timestamps - BOOLEAN
 	Enable timestamps as defined in RFC1323.
+
+tcp_min_tso_segs - INTEGER
+	Minimal number of segments per TSO frame.
+	Since linux-3.12, TCP does an automatic sizing of TSO frames,
+	depending on flow rate, instead of filling 64Kbytes packets.
+	For specific usages, it's possible to force TCP to build big
+	TSO frames. Note that TCP stack might split too big TSO packets
+	if available window is too small.
+	Default: 2
 
 tcp_tso_win_divisor - INTEGER
 	This allows control over what percentage of the congestion window
@@ -500,6 +560,19 @@ tcp_wmem - vector of 3 INTEGERs: min, default, max
 	this value is ignored.
 	Default: between 64K and 4MB, depending on RAM size.
 
+tcp_notsent_lowat - UNSIGNED INTEGER
+	A TCP socket can control the amount of unsent bytes in its write queue,
+	thanks to TCP_NOTSENT_LOWAT socket option. poll()/select()/epoll()
+	reports POLLOUT events if the amount of unsent bytes is below a per
+	socket value, and if the write queue is not full. sendmsg() will
+	also not add new buffers if the limit is hit.
+
+	This global variable controls the amount of unsent data for
+	sockets not using TCP_NOTSENT_LOWAT. For these sockets, a change
+	to the global variable has immediate effect.
+
+	Default: UINT_MAX (0xFFFFFFFF)
+
 tcp_workaround_signed_windows - BOOLEAN
 	If set, assume no receipt of a window scaling option means the
 	remote TCP is broken and treats the window as a signed quantity.
@@ -536,6 +609,22 @@ tcp_thin_dupack - BOOLEAN
 	For more information on thin streams, see
 	Documentation/networking/tcp-thin.txt
 	Default: 0
+
+tcp_limit_output_bytes - INTEGER
+	Controls TCP Small Queue limit per tcp socket.
+	TCP bulk sender tends to increase packets in flight until it
+	gets losses notifications. With SNDBUF autotuning, this can
+	result in a large amount of packets queued in qdisc/device
+	on the local machine, hurting latency of other flows, for
+	typical pfifo_fast qdiscs.
+	tcp_limit_output_bytes limits the number of bytes on qdisc
+	or device to reduce artificial RTT/cwnd and reduce bufferbloat.
+	Default: 131072
+
+tcp_challenge_ack_limit - INTEGER
+	Limits number of Challenge ACK sent per second, as recommended
+	in RFC 5961 (Improving TCP's Robustness to Blind In-Window Attacks)
+	Default: 100
 
 UDP variables:
 
@@ -650,6 +739,15 @@ ip_dynaddr - BOOLEAN
 	occurs.
 	Default: 0
 
+ip_early_demux - BOOLEAN
+	Optimize input packet processing down to one demux for
+	certain kinds of local sockets.  Currently we only do this
+	for established TCP sockets.
+
+	It may add an additional cost for pure routing workloads that
+	reduces overall throughput, in such case you should disable it.
+	Default: 1
+
 icmp_echo_ignore_all - BOOLEAN
 	If set non-zero, then the kernel will ignore all ICMP ECHO
 	requests sent to it.
@@ -694,7 +792,7 @@ icmp_ignore_bogus_error_responses - BOOLEAN
 	frames.  Such violations are normally logged via a kernel warning.
 	If this is set to TRUE, the kernel will not give such warnings, which
 	will avoid log file clutter.
-	Default: FALSE
+	Default: 1
 
 icmp_errors_use_inbound_ifaddr - BOOLEAN
 
@@ -843,9 +941,19 @@ accept_source_route - BOOLEAN
 		FALSE (host)
 
 accept_local - BOOLEAN
-	Accept packets with local source addresses. In combination with
-	suitable routing, this can be used to direct packets between two
-	local interfaces over the wire and have them accepted properly.
+	Accept packets with local source addresses. In combination
+	with suitable routing, this can be used to direct packets
+	between two local interfaces over the wire and have them
+	accepted properly.
+
+	rp_filter must be set to a non-zero value in order for
+	accept_local to have an effect.
+
+	default FALSE
+
+route_localnet - BOOLEAN
+	Do not consider loopback addresses as martian source or destination
+	while routing. This enables the use of 127/8 for local routing purposes.
 	default FALSE
 
 rp_filter - INTEGER
@@ -968,6 +1076,20 @@ disable_policy - BOOLEAN
 disable_xfrm - BOOLEAN
 	Disable IPSEC encryption on this interface, whatever the policy
 
+igmpv2_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	IGMPv1 or IGMPv2 report retransmit will take place.
+	Default: 10000 (10 seconds)
+
+igmpv3_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	IGMPv3 report retransmit will take place.
+	Default: 1000 (1 seconds)
+
+promote_secondaries - BOOLEAN
+	When a primary IP address is removed from this interface
+	promote a corresponding secondary IP address instead of
+	removing all the corresponding secondary IP addresses.
 
 
 tag - INTEGER
@@ -1000,6 +1122,30 @@ bindv6only - BOOLEAN
 
 	Default: FALSE (as specified in RFC3493)
 
+flowlabel_consistency - BOOLEAN
+	Protect the consistency (and unicity) of flow label.
+	You have to disable it to use IPV6_FL_F_REFLECT flag on the
+	flow label manager.
+	TRUE: enabled
+	FALSE: disabled
+	Default: TRUE
+
+auto_flowlabels - BOOLEAN
+	Automatically generate flow labels based based on a flow hash
+	of the packet. This allows intermediate devices, such as routers,
+	to idenfify packet flows for mechanisms like Equal Cost Multipath
+	Routing (see RFC 6438).
+	TRUE: enabled
+	FALSE: disabled
+	Default: false
+
+anycast_src_echo_reply - BOOLEAN
+	Controls the use of anycast addresses as source addresses for ICMPv6
+	echo reply
+	TRUE:  enabled
+	FALSE: disabled
+	Default: FALSE
+
 IPv6 Fragmentation:
 
 ip6frag_high_thresh - INTEGER
@@ -1013,11 +1159,6 @@ ip6frag_low_thresh - INTEGER
 
 ip6frag_time - INTEGER
 	Time in seconds to keep an IPv6 fragment in memory.
-
-ip6frag_secret_interval - INTEGER
-	Regeneration interval (in seconds) of the hash secret (or lifetime
-	for the hash secret) for IPv6 fragments.
-	Default: 600
 
 conf/default/*:
 	Change the interface-specific default settings.
@@ -1070,6 +1211,18 @@ accept_ra_defrtr - BOOLEAN
 
 	Functional default: enabled if accept_ra is enabled.
 			    disabled if accept_ra is disabled.
+
+accept_ra_from_local - BOOLEAN
+	Accept RA with source-address that is found on local machine
+        if the RA is otherwise proper and able to be accepted.
+        Default is to NOT accept these as it may be an un-intended
+        network loop.
+
+	Functional default:
+           enabled if accept_ra_from_local is enabled
+               on a specific interface.
+	   disabled if accept_ra_from_local is disabled
+               on a specific interface.
 
 accept_ra_pinfo - BOOLEAN
 	Learn Prefix Information in Router Advertisement.
@@ -1254,6 +1407,33 @@ force_tllao - BOOLEAN
 	race condition where the sender deletes the cached link-layer address
 	prior to receiving a response to a previous solicitation."
 
+ndisc_notify - BOOLEAN
+	Define mode for notification of address and device changes.
+	0 - (default): do nothing
+	1 - Generate unsolicited neighbour advertisements when device is brought
+	    up or hardware address changes.
+
+mldv1_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	MLDv1 report retransmit will take place.
+	Default: 10000 (10 seconds)
+
+mldv2_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	MLDv2 report retransmit will take place.
+	Default: 1000 (1 second)
+
+force_mld_version - INTEGER
+	0 - (default) No enforcement of a MLD version, MLDv1 fallback allowed
+	1 - Enforce to use MLD version 1
+	2 - Enforce to use MLD version 2
+
+suppress_frag_ndisc - INTEGER
+	Control RFC 6980 (Security Implications of IPv6 Fragmentation
+	with IPv6 Neighbor Discovery) behavior:
+	1 - (default) discard fragmented neighbor discovery packets
+	0 - allow fragmented neighbor discovery packets
+
 icmp/*:
 ratelimit - INTEGER
 	Limit the maximal rates for sending ICMPv6 packets.
@@ -1287,13 +1467,22 @@ bridge-nf-call-ip6tables - BOOLEAN
 bridge-nf-filter-vlan-tagged - BOOLEAN
 	1 : pass bridged vlan-tagged ARP/IP/IPv6 traffic to {arp,ip,ip6}tables.
 	0 : disable this.
-	Default: 1
+	Default: 0
 
 bridge-nf-filter-pppoe-tagged - BOOLEAN
 	1 : pass bridged pppoe-tagged IP/IPv6 traffic to {ip,ip6}tables.
 	0 : disable this.
-	Default: 1
+	Default: 0
 
+bridge-nf-pass-vlan-input-dev - BOOLEAN
+	1: if bridge-nf-filter-vlan-tagged is enabled, try to find a vlan
+	interface on the bridge and set the netfilter input device to the vlan.
+	This allows use of e.g. "iptables -i br0.1" and makes the REDIRECT
+	target work with vlan-on-top-of-bridge interfaces.  When no matching
+	vlan interface is found, or this switch is off, the input device is
+	set to the bridge interface.
+	0: disable bridge netfilter vlan interface lookup.
+	Default: 0
 
 proc/sys/net/sctp/* Variables:
 
@@ -1375,6 +1564,20 @@ path_max_retrans - INTEGER
 
 	Default: 5
 
+pf_retrans - INTEGER
+	The number of retransmissions that will be attempted on a given path
+	before traffic is redirected to an alternate transport (should one
+	exist).  Note this is distinct from path_max_retrans, as a path that
+	passes the pf_retrans threshold can still be used.  Its only
+	deprioritized when a transmission path is selected by the stack.  This
+	setting is primarily used to enable fast failover mechanisms without
+	having to reduce path_max_retrans to a very low value.  See:
+	http://www.ietf.org/id/draft-nishida-tsvwg-sctp-failover-05.txt
+	for details.  Note also that a value of pf_retrans > path_max_retrans
+	disables this feature
+
+	Default: 0
+
 rto_initial - INTEGER
 	The initial round trip timeout value in milliseconds that will be used
 	in calculating round trip times.  This is the initial time interval
@@ -1422,6 +1625,20 @@ cookie_preserve_enable - BOOLEAN
 
 	Default: 1
 
+cookie_hmac_alg - STRING
+	Select the hmac algorithm used when generating the cookie value sent by
+	a listening sctp socket to a connecting client in the INIT-ACK chunk.
+	Valid values are:
+	* md5
+	* sha1
+	* none
+	Ability to assign md5 or sha1 as the selected alg is predicated on the
+	configuration of those algorithms at build time (CONFIG_CRYPTO_MD5 and
+	CONFIG_CRYPTO_SHA1).
+
+	Default: Dependent on configuration.  MD5 if available, else SHA1 if
+	available, else none.
+
 rcvbuf_policy - INTEGER
 	Determines if the receive buffer is attributed to the socket or to
 	association.   SCTP supports the capability to create multiple
@@ -1434,7 +1651,7 @@ rcvbuf_policy - INTEGER
 	blocking.
 
 	1: rcvbuf space is per association
-	0: recbuf space is per socket
+	0: rcvbuf space is per socket
 
 	Default: 0
 
@@ -1484,11 +1701,8 @@ addr_scope_policy - INTEGER
 
 
 /proc/sys/net/core/*
-dev_weight - INTEGER
-	The maximum number of packets that kernel can handle on a NAPI
-	interrupt, it's a Per-CPU variable.
+	Please see: Documentation/sysctl/net.txt for descriptions of these entries.
 
-	Default: 64
 
 /proc/sys/net/unix/*
 max_dgram_qlen - INTEGER

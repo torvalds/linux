@@ -150,12 +150,12 @@ MODULE_DEVICE_TABLE(pci, divas_pci_tbl);
 
 static int divas_init_one(struct pci_dev *pdev,
 			  const struct pci_device_id *ent);
-static void __devexit divas_remove_one(struct pci_dev *pdev);
+static void divas_remove_one(struct pci_dev *pdev);
 
 static struct pci_driver diva_pci_driver = {
 	.name     = "divas",
 	.probe    = divas_init_one,
-	.remove   = __devexit_p(divas_remove_one),
+	.remove   = divas_remove_one,
 	.id_table = divas_pci_tbl,
 };
 
@@ -481,7 +481,7 @@ void __inline__ outpp(void __iomem *addr, word p)
 int diva_os_register_irq(void *context, byte irq, const char *name)
 {
 	int result = request_irq(irq, diva_os_irq_wrapper,
-				 IRQF_DISABLED | IRQF_SHARED, name, context);
+				 IRQF_SHARED, name, context);
 	return (result);
 }
 
@@ -673,7 +673,7 @@ static void divas_unregister_chrdev(void)
 	unregister_chrdev(major, DEVNAME);
 }
 
-static int DIVA_INIT_FUNCTION divas_register_chrdev(void)
+static int __init divas_register_chrdev(void)
 {
 	if ((major = register_chrdev(0, DEVNAME, &divas_fops)) < 0)
 	{
@@ -688,8 +688,7 @@ static int DIVA_INIT_FUNCTION divas_register_chrdev(void)
 /* --------------------------------------------------------------------------
    PCI driver section
    -------------------------------------------------------------------------- */
-static int __devinit divas_init_one(struct pci_dev *pdev,
-				    const struct pci_device_id *ent)
+static int divas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	void *pdiva = NULL;
 	u8 pci_latency;
@@ -749,7 +748,7 @@ static int __devinit divas_init_one(struct pci_dev *pdev,
 	return (0);
 }
 
-static void __devexit divas_remove_one(struct pci_dev *pdev)
+static void divas_remove_one(struct pci_dev *pdev)
 {
 	void *pdiva = pci_get_drvdata(pdev);
 
@@ -767,7 +766,7 @@ static void __devexit divas_remove_one(struct pci_dev *pdev)
 /* --------------------------------------------------------------------------
    Driver Load / Startup
    -------------------------------------------------------------------------- */
-static int DIVA_INIT_FUNCTION divas_init(void)
+static int __init divas_init(void)
 {
 	char tmprev[50];
 	int ret = 0;
@@ -831,7 +830,7 @@ out:
 /* --------------------------------------------------------------------------
    Driver Unload
    -------------------------------------------------------------------------- */
-static void DIVA_EXIT_FUNCTION divas_exit(void)
+static void __exit divas_exit(void)
 {
 	pci_unregister_driver(&diva_pci_driver);
 	remove_divas_proc();

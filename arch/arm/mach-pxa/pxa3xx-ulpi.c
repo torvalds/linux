@@ -27,7 +27,7 @@
 
 #include <mach/hardware.h>
 #include <mach/regs-u2d.h>
-#include <mach/pxa3xx-u2d.h>
+#include <linux/platform_data/usb-pxa3xx-ulpi.h>
 
 struct pxa3xx_u2d_ulpi {
 	struct clk		*clk;
@@ -384,18 +384,7 @@ static struct platform_driver pxa3xx_u2d_ulpi_driver = {
         .probe          = pxa3xx_u2d_probe,
         .remove         = pxa3xx_u2d_remove,
 };
-
-static int pxa3xx_u2d_ulpi_init(void)
-{
-	return platform_driver_register(&pxa3xx_u2d_ulpi_driver);
-}
-module_init(pxa3xx_u2d_ulpi_init);
-
-static void __exit pxa3xx_u2d_ulpi_exit(void)
-{
-	platform_driver_unregister(&pxa3xx_u2d_ulpi_driver);
-}
-module_exit(pxa3xx_u2d_ulpi_exit);
+module_platform_driver(pxa3xx_u2d_ulpi_driver);
 
 MODULE_DESCRIPTION("PXA3xx U2D ULPI driver");
 MODULE_AUTHOR("Igor Grinberg");

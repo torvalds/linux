@@ -8,9 +8,9 @@
 #include <poll.h>
 #include <signal.h>
 #include <string.h>
-#include "irq_user.h"
-#include "os.h"
-#include "um_malloc.h"
+#include <irq_user.h>
+#include <os.h>
+#include <um_malloc.h>
 
 /*
  * Locked by irq_lock in arch/um/kernel/irq.c.  Changed by os_create_pollfd

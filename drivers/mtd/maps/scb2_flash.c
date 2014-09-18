@@ -47,7 +47,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <asm/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -69,8 +68,7 @@ static struct map_info scb2_map = {
 };
 static int region_fail;
 
-static int __devinit
-scb2_fixup_mtd(struct mtd_info *mtd)
+static int scb2_fixup_mtd(struct mtd_info *mtd)
 {
 	int i;
 	int done = 0;
@@ -133,8 +131,8 @@ scb2_fixup_mtd(struct mtd_info *mtd)
 /* CSB5's 'Function Control Register' has bits for decoding @ >= 0xffc00000 */
 #define CSB5_FCR	0x41
 #define CSB5_FCR_DECODE_ALL 0x0e
-static int __devinit
-scb2_flash_probe(struct pci_dev *dev, const struct pci_device_id *ent)
+static int scb2_flash_probe(struct pci_dev *dev,
+			    const struct pci_device_id *ent)
 {
 	u8 reg;
 
@@ -197,8 +195,7 @@ scb2_flash_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	return 0;
 }
 
-static void __devexit
-scb2_flash_remove(struct pci_dev *dev)
+static void scb2_flash_remove(struct pci_dev *dev)
 {
 	if (!scb2_mtd)
 		return;
@@ -214,7 +211,6 @@ scb2_flash_remove(struct pci_dev *dev)
 
 	if (!region_fail)
 		release_mem_region(SCB2_ADDR, SCB2_WINDOW);
-	pci_set_drvdata(dev, NULL);
 }
 
 static struct pci_device_id scb2_flash_pci_ids[] = {
@@ -231,23 +227,10 @@ static struct pci_driver scb2_flash_driver = {
 	.name =     "Intel SCB2 BIOS Flash",
 	.id_table = scb2_flash_pci_ids,
 	.probe =    scb2_flash_probe,
-	.remove =   __devexit_p(scb2_flash_remove),
+	.remove =   scb2_flash_remove,
 };
 
-static int __init
-scb2_flash_init(void)
-{
-	return pci_register_driver(&scb2_flash_driver);
-}
-
-static void __exit
-scb2_flash_exit(void)
-{
-	pci_unregister_driver(&scb2_flash_driver);
-}
-
-module_init(scb2_flash_init);
-module_exit(scb2_flash_exit);
+module_pci_driver(scb2_flash_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tim Hockin <thockin@sun.com>");

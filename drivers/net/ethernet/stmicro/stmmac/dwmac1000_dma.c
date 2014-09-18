@@ -30,8 +30,8 @@
 #include "dwmac1000.h"
 #include "dwmac_dma.h"
 
-static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, u32 dma_tx,
-			      u32 dma_rx)
+static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
+			      int burst_len, u32 dma_tx, u32 dma_rx, int atds)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
 	int limit;
@@ -48,20 +48,62 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, u32 dma_tx,
 	if (limit < 0)
 		return -EBUSY;
 
-	value = /* DMA_BUS_MODE_FB | */ DMA_BUS_MODE_4PBL |
-	    ((pbl << DMA_BUS_MODE_PBL_SHIFT) |
-	     (pbl << DMA_BUS_MODE_RPBL_SHIFT));
+	/*
+	 * Set the DMA PBL (Programmable Burst Length) mode
+	 * Before stmmac core 3.50 this mode bit was 4xPBL, and
+	 * post 3.5 mode bit acts as 8*PBL.
+	 * For core rev < 3.5, when the core is set for 4xPBL mode, the
+	 * DMA transfers the data in 4, 8, 16, 32, 64 & 128 beats
+	 * depending on pbl value.
+	 * For core rev > 3.5, when the core is set for 8xPBL mode, the
+	 * DMA transfers the data in 8, 16, 32, 64, 128 & 256 beats
+	 * depending on pbl value.
+	 */
+	value = DMA_BUS_MODE_PBL | ((pbl << DMA_BUS_MODE_PBL_SHIFT) |
+				    (pbl << DMA_BUS_MODE_RPBL_SHIFT));
+
+	/* Set the Fixed burst mode */
+	if (fb)
+		value |= DMA_BUS_MODE_FB;
+
+	/* Mixed Burst has no effect when fb is set */
+	if (mb)
+		value |= DMA_BUS_MODE_MB;
 
 #ifdef CONFIG_STMMAC_DA
 	value |= DMA_BUS_MODE_DA;	/* Rx has priority over tx */
 #endif
+
+	if (atds)
+		value |= DMA_BUS_MODE_ATDS;
+
 	writel(value, ioaddr + DMA_BUS_MODE);
+
+	/* In case of GMAC AXI configuration, program the DMA_AXI_BUS_MODE
+	 * for supported bursts.
+	 *
+	 * Note: This is applicable only for revision GMACv3.61a. For
+	 * older version this register is reserved and shall have no
+	 * effect.
+	 *
+	 * Note:
+	 *  For Fixed Burst Mode: if we directly write 0xFF to this
+	 *  register using the configurations pass from platform code,
+	 *  this would ensure that all bursts supported by core are set
+	 *  and those which are not supported would remain ineffective.
+	 *
+	 *  For Non Fixed Burst Mode: provide the maximum value of the
+	 *  burst length. Any burst equal or below the provided burst
+	 *  length would be allowed to perform.
+	 */
+	writel(burst_len, ioaddr + DMA_AXI_BUS_MODE);
 
 	/* Mask interrupts by writing to CSR7 */
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + DMA_INTR_ENA);
 
-	/* The base address of the RX/TX descriptor lists must be written into
-	 * DMA CSR3 and CSR4, respectively. */
+	/* RX/TX descriptor base address lists must be written into
+	 * DMA CSR3 and CSR4, respectively
+	 */
 	writel(dma_tx, ioaddr + DMA_TX_BASE_ADDR);
 	writel(dma_rx, ioaddr + DMA_RCV_BASE_ADDR);
 
@@ -69,20 +111,20 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, u32 dma_tx,
 }
 
 static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
-				    int rxmode)
+					 int rxmode)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
 
 	if (txmode == SF_DMA_MODE) {
-		CHIP_DBG(KERN_DEBUG "GMAC: enable TX store and forward mode\n");
+		pr_debug("GMAC: enable TX store and forward mode\n");
 		/* Transmit COE type 2 cannot be done in cut-through mode. */
 		csr6 |= DMA_CONTROL_TSF;
 		/* Operating on second frame increase the performance
-		 * especially when transmit store-and-forward is used.*/
+		 * especially when transmit store-and-forward is used.
+		 */
 		csr6 |= DMA_CONTROL_OSF;
 	} else {
-		CHIP_DBG(KERN_DEBUG "GMAC: disabling TX store and forward mode"
-			      " (threshold = %d)\n", txmode);
+		pr_debug("GMAC: disabling TX SF (threshold %d)\n", txmode);
 		csr6 &= ~DMA_CONTROL_TSF;
 		csr6 &= DMA_CONTROL_TC_TX_MASK;
 		/* Set the transmit threshold */
@@ -99,11 +141,10 @@ static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
 	}
 
 	if (rxmode == SF_DMA_MODE) {
-		CHIP_DBG(KERN_DEBUG "GMAC: enable RX store and forward mode\n");
+		pr_debug("GMAC: enable RX store and forward mode\n");
 		csr6 |= DMA_CONTROL_RSF;
 	} else {
-		CHIP_DBG(KERN_DEBUG "GMAC: disabling RX store and forward mode"
-			      " (threshold = %d)\n", rxmode);
+		pr_debug("GMAC: disable RX SF mode (threshold %d)\n", rxmode);
 		csr6 &= ~DMA_CONTROL_RSF;
 		csr6 &= DMA_CONTROL_TC_RX_MASK;
 		if (rxmode <= 32)
@@ -138,6 +179,11 @@ static unsigned int dwmac1000_get_hw_feature(void __iomem *ioaddr)
 	return readl(ioaddr + DMA_HW_FEATURE);
 }
 
+static void dwmac1000_rx_watchdog(void __iomem *ioaddr, u32 riwt)
+{
+	writel(riwt, ioaddr + DMA_RX_WATCHDOG);
+}
+
 const struct stmmac_dma_ops dwmac1000_dma_ops = {
 	.init = dwmac1000_dma_init,
 	.dump_regs = dwmac1000_dump_dma_regs,
@@ -151,4 +197,5 @@ const struct stmmac_dma_ops dwmac1000_dma_ops = {
 	.stop_rx = dwmac_dma_stop_rx,
 	.dma_interrupt = dwmac_dma_interrupt,
 	.get_hw_feature = dwmac1000_get_hw_feature,
+	.rx_watchdog = dwmac1000_rx_watchdog,
 };

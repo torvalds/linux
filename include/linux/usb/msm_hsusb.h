@@ -20,21 +20,7 @@
 
 #include <linux/types.h>
 #include <linux/usb/otg.h>
-
-/**
- * Supported USB modes
- *
- * USB_PERIPHERAL       Only peripheral mode is supported.
- * USB_HOST             Only host mode is supported.
- * USB_OTG              OTG mode is supported.
- *
- */
-enum usb_mode_type {
-	USB_NONE = 0,
-	USB_PERIPHERAL,
-	USB_HOST,
-	USB_OTG,
-};
+#include <linux/clk.h>
 
 /**
  * OTG control
@@ -114,27 +100,25 @@ enum usb_chg_type {
 /**
  * struct msm_otg_platform_data - platform device data
  *              for msm_otg driver.
- * @phy_init_seq: PHY configuration sequence. val, reg pairs
- *              terminated by -1.
+ * @phy_init_seq: PHY configuration sequence values. Value of -1 is reserved as
+ *              "do not overwrite default vaule at this address".
+ * @phy_init_sz: PHY configuration sequence size.
  * @vbus_power: VBUS power on/off routine.
  * @power_budget: VBUS power budget in mA (0 will be treated as 500mA).
  * @mode: Supported mode (OTG/peripheral/host).
  * @otg_control: OTG switch controlled by user/Id pin
- * @default_mode: Default operational mode. Applicable only if
- *              OTG switch is controller by user.
- * @pclk_src_name: pclk is derived from ebi1_usb_clk in case of 7x27 and 8k
- *              dfab_usb_hs_clk in case of 8660 and 8960.
  */
 struct msm_otg_platform_data {
 	int *phy_init_seq;
+	int phy_init_sz;
 	void (*vbus_power)(bool on);
 	unsigned power_budget;
-	enum usb_mode_type mode;
+	enum usb_dr_mode mode;
 	enum otg_control_type otg_control;
-	enum usb_mode_type default_mode;
 	enum msm_usb_phy_type phy_type;
 	void (*setup_gpio)(enum usb_otg_state state);
-	char *pclk_src_name;
+	int (*link_clk_reset)(struct clk *link_clk, bool assert);
+	int (*phy_clk_reset)(struct clk *phy_clk);
 };
 
 /**
@@ -144,7 +128,6 @@ struct msm_otg_platform_data {
  * @irq: IRQ number assigned for HSUSB controller.
  * @clk: clock struct of usb_hs_clk.
  * @pclk: clock struct of usb_hs_pclk.
- * @pclk_src: pclk source for voting.
  * @phy_reset_clk: clock struct of usb_phy_clk.
  * @core_clk: clock struct of usb_hs_core_clk.
  * @regs: ioremapped register base address.
@@ -165,7 +148,6 @@ struct msm_otg {
 	int irq;
 	struct clk *clk;
 	struct clk *pclk;
-	struct clk *pclk_src;
 	struct clk *phy_reset_clk;
 	struct clk *core_clk;
 	void __iomem *regs;
@@ -176,10 +158,18 @@ struct msm_otg {
 	atomic_t in_lpm;
 	int async_int;
 	unsigned cur_power;
+	int phy_number;
 	struct delayed_work chg_work;
 	enum usb_chg_state chg_state;
 	enum usb_chg_type chg_type;
 	u8 dcd_retries;
+	struct regulator *v3p3;
+	struct regulator *v1p8;
+	struct regulator *vddcx;
+
+	struct reset_control *phy_rst;
+	struct reset_control *link_rst;
+	int vdd_levels[3];
 };
 
 #endif

@@ -30,46 +30,16 @@
 #ifndef __USBPIPE_H__
 #define __USBPIPE_H__
 
-#include "ttype.h"
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
+int vnt_control_out(struct vnt_private *, u8, u16, u16, u16, u8 *);
+int vnt_control_in(struct vnt_private *, u8, u16, u16, u16,  u8 *);
 
-/*---------------------  Export Classes  ----------------------------*/
+void vnt_control_out_u8(struct vnt_private *, u8, u8, u8);
+void vnt_control_in_u8(struct vnt_private *, u8, u8, u8 *);
 
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
-int PIPEnsControlOut(
-     PSDevice     pDevice,
-     BYTE         byRequest,
-     WORD         wValue,
-     WORD         wIndex,
-     WORD         wLength,
-     PBYTE        pbyBuffer
-    );
-
-int PIPEnsControlOutAsyn(
-     PSDevice     pDevice,
-     BYTE         byRequest,
-     WORD         wValue,
-     WORD         wIndex,
-     WORD         wLength,
-     PBYTE        pbyBuffer
-    );
-
-int PIPEnsControlIn(
-     PSDevice     pDevice,
-     BYTE         byRequest,
-     WORD         wValue,
-     WORD         wIndex,
-     WORD         wLength,
-       PBYTE   pbyBuffer
-    );
-
-int PIPEnsInterruptRead(PSDevice pDevice);
-int PIPEnsBulkInUsbRead(PSDevice pDevice, PRCB pRCB);
-int PIPEnsSendBulkOut(PSDevice pDevice, PUSB_SEND_CONTEXT pContext);
+int vnt_start_interrupt_urb(struct vnt_private *);
+int vnt_submit_rx_urb(struct vnt_private *, struct vnt_rcb *);
+int vnt_tx_context(struct vnt_private *, struct vnt_usb_send_context *);
 
 #endif /* __USBPIPE_H__ */

@@ -1,7 +1,7 @@
 /*
  * wm8996.c - WM8996 audio codec interface
  *
- * Copyright 2011 Wolfson Microelectronics PLC.
+ * Copyright 2011-2 Wolfson Microelectronics PLC.
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -296,184 +296,6 @@ static struct reg_default wm8996_reg[] = {
 	{ WM8996_RIGHT_PDM_SPEAKER, 0x1 },
 	{ WM8996_PDM_SPEAKER_MUTE_SEQUENCE, 0x69 },
 	{ WM8996_PDM_SPEAKER_VOLUME, 0x66 },
-	{ WM8996_WRITE_SEQUENCER_0, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_1, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_3, 0x6 },
-	{ WM8996_WRITE_SEQUENCER_4, 0x40 },
-	{ WM8996_WRITE_SEQUENCER_5, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_6, 0xf },
-	{ WM8996_WRITE_SEQUENCER_7, 0x6 },
-	{ WM8996_WRITE_SEQUENCER_8, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_9, 0x3 },
-	{ WM8996_WRITE_SEQUENCER_10, 0x104 },
-	{ WM8996_WRITE_SEQUENCER_12, 0x60 },
-	{ WM8996_WRITE_SEQUENCER_13, 0x11 },
-	{ WM8996_WRITE_SEQUENCER_14, 0x401 },
-	{ WM8996_WRITE_SEQUENCER_16, 0x50 },
-	{ WM8996_WRITE_SEQUENCER_17, 0x3 },
-	{ WM8996_WRITE_SEQUENCER_18, 0x100 },
-	{ WM8996_WRITE_SEQUENCER_20, 0x51 },
-	{ WM8996_WRITE_SEQUENCER_21, 0x3 },
-	{ WM8996_WRITE_SEQUENCER_22, 0x104 },
-	{ WM8996_WRITE_SEQUENCER_23, 0xa },
-	{ WM8996_WRITE_SEQUENCER_24, 0x60 },
-	{ WM8996_WRITE_SEQUENCER_25, 0x3b },
-	{ WM8996_WRITE_SEQUENCER_26, 0x502 },
-	{ WM8996_WRITE_SEQUENCER_27, 0x100 },
-	{ WM8996_WRITE_SEQUENCER_28, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_32, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_36, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_40, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_44, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_48, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_52, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_56, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_60, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_64, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_65, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_67, 0x6 },
-	{ WM8996_WRITE_SEQUENCER_68, 0x40 },
-	{ WM8996_WRITE_SEQUENCER_69, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_70, 0xf },
-	{ WM8996_WRITE_SEQUENCER_71, 0x6 },
-	{ WM8996_WRITE_SEQUENCER_72, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_73, 0x3 },
-	{ WM8996_WRITE_SEQUENCER_74, 0x104 },
-	{ WM8996_WRITE_SEQUENCER_76, 0x60 },
-	{ WM8996_WRITE_SEQUENCER_77, 0x11 },
-	{ WM8996_WRITE_SEQUENCER_78, 0x401 },
-	{ WM8996_WRITE_SEQUENCER_80, 0x50 },
-	{ WM8996_WRITE_SEQUENCER_81, 0x3 },
-	{ WM8996_WRITE_SEQUENCER_82, 0x100 },
-	{ WM8996_WRITE_SEQUENCER_84, 0x60 },
-	{ WM8996_WRITE_SEQUENCER_85, 0x3b },
-	{ WM8996_WRITE_SEQUENCER_86, 0x502 },
-	{ WM8996_WRITE_SEQUENCER_87, 0x100 },
-	{ WM8996_WRITE_SEQUENCER_88, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_92, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_96, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_100, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_104, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_108, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_112, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_116, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_120, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_124, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_128, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_129, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_131, 0x6 },
-	{ WM8996_WRITE_SEQUENCER_132, 0x40 },
-	{ WM8996_WRITE_SEQUENCER_133, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_134, 0xf },
-	{ WM8996_WRITE_SEQUENCER_135, 0x6 },
-	{ WM8996_WRITE_SEQUENCER_136, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_137, 0x3 },
-	{ WM8996_WRITE_SEQUENCER_138, 0x106 },
-	{ WM8996_WRITE_SEQUENCER_140, 0x61 },
-	{ WM8996_WRITE_SEQUENCER_141, 0x11 },
-	{ WM8996_WRITE_SEQUENCER_142, 0x401 },
-	{ WM8996_WRITE_SEQUENCER_144, 0x50 },
-	{ WM8996_WRITE_SEQUENCER_145, 0x3 },
-	{ WM8996_WRITE_SEQUENCER_146, 0x102 },
-	{ WM8996_WRITE_SEQUENCER_148, 0x51 },
-	{ WM8996_WRITE_SEQUENCER_149, 0x3 },
-	{ WM8996_WRITE_SEQUENCER_150, 0x106 },
-	{ WM8996_WRITE_SEQUENCER_151, 0xa },
-	{ WM8996_WRITE_SEQUENCER_152, 0x61 },
-	{ WM8996_WRITE_SEQUENCER_153, 0x3b },
-	{ WM8996_WRITE_SEQUENCER_154, 0x502 },
-	{ WM8996_WRITE_SEQUENCER_155, 0x100 },
-	{ WM8996_WRITE_SEQUENCER_156, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_160, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_164, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_168, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_172, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_176, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_180, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_184, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_188, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_192, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_193, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_195, 0x6 },
-	{ WM8996_WRITE_SEQUENCER_196, 0x40 },
-	{ WM8996_WRITE_SEQUENCER_197, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_198, 0xf },
-	{ WM8996_WRITE_SEQUENCER_199, 0x6 },
-	{ WM8996_WRITE_SEQUENCER_200, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_201, 0x3 },
-	{ WM8996_WRITE_SEQUENCER_202, 0x106 },
-	{ WM8996_WRITE_SEQUENCER_204, 0x61 },
-	{ WM8996_WRITE_SEQUENCER_205, 0x11 },
-	{ WM8996_WRITE_SEQUENCER_206, 0x401 },
-	{ WM8996_WRITE_SEQUENCER_208, 0x50 },
-	{ WM8996_WRITE_SEQUENCER_209, 0x3 },
-	{ WM8996_WRITE_SEQUENCER_210, 0x102 },
-	{ WM8996_WRITE_SEQUENCER_212, 0x61 },
-	{ WM8996_WRITE_SEQUENCER_213, 0x3b },
-	{ WM8996_WRITE_SEQUENCER_214, 0x502 },
-	{ WM8996_WRITE_SEQUENCER_215, 0x100 },
-	{ WM8996_WRITE_SEQUENCER_216, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_220, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_224, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_228, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_232, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_236, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_240, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_244, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_248, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_252, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_256, 0x60 },
-	{ WM8996_WRITE_SEQUENCER_258, 0x601 },
-	{ WM8996_WRITE_SEQUENCER_260, 0x50 },
-	{ WM8996_WRITE_SEQUENCER_262, 0x100 },
-	{ WM8996_WRITE_SEQUENCER_264, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_266, 0x104 },
-	{ WM8996_WRITE_SEQUENCER_267, 0x100 },
-	{ WM8996_WRITE_SEQUENCER_268, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_272, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_276, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_280, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_284, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_288, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_292, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_296, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_300, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_304, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_308, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_312, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_316, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_320, 0x61 },
-	{ WM8996_WRITE_SEQUENCER_322, 0x601 },
-	{ WM8996_WRITE_SEQUENCER_324, 0x50 },
-	{ WM8996_WRITE_SEQUENCER_326, 0x102 },
-	{ WM8996_WRITE_SEQUENCER_328, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_330, 0x106 },
-	{ WM8996_WRITE_SEQUENCER_331, 0x100 },
-	{ WM8996_WRITE_SEQUENCER_332, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_336, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_340, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_344, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_348, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_352, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_356, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_360, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_364, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_368, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_372, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_376, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_380, 0x2fff },
-	{ WM8996_WRITE_SEQUENCER_384, 0x60 },
-	{ WM8996_WRITE_SEQUENCER_386, 0x601 },
-	{ WM8996_WRITE_SEQUENCER_388, 0x61 },
-	{ WM8996_WRITE_SEQUENCER_390, 0x601 },
-	{ WM8996_WRITE_SEQUENCER_392, 0x50 },
-	{ WM8996_WRITE_SEQUENCER_394, 0x300 },
-	{ WM8996_WRITE_SEQUENCER_396, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_398, 0x304 },
-	{ WM8996_WRITE_SEQUENCER_400, 0x40 },
-	{ WM8996_WRITE_SEQUENCER_402, 0xf },
-	{ WM8996_WRITE_SEQUENCER_404, 0x1 },
-	{ WM8996_WRITE_SEQUENCER_407, 0x100 },
 };
 
 static const DECLARE_TLV_DB_SCALE(inpga_tlv, 0, 100, 0);
@@ -489,28 +311,28 @@ static const char *sidetone_hpf_text[] = {
 	"2.9kHz", "1.5kHz", "735Hz", "403Hz", "196Hz", "98Hz", "49Hz"
 };
 
-static const struct soc_enum sidetone_hpf =
-	SOC_ENUM_SINGLE(WM8996_SIDETONE, 7, 7, sidetone_hpf_text);
+static SOC_ENUM_SINGLE_DECL(sidetone_hpf,
+			    WM8996_SIDETONE, 7, sidetone_hpf_text);
 
 static const char *hpf_mode_text[] = {
 	"HiFi", "Custom", "Voice"
 };
 
-static const struct soc_enum dsp1tx_hpf_mode =
-	SOC_ENUM_SINGLE(WM8996_DSP1_TX_FILTERS, 3, 3, hpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(dsp1tx_hpf_mode,
+			    WM8996_DSP1_TX_FILTERS, 3, hpf_mode_text);
 
-static const struct soc_enum dsp2tx_hpf_mode =
-	SOC_ENUM_SINGLE(WM8996_DSP2_TX_FILTERS, 3, 3, hpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(dsp2tx_hpf_mode,
+			    WM8996_DSP2_TX_FILTERS, 3, hpf_mode_text);
 
 static const char *hpf_cutoff_text[] = {
 	"50Hz", "75Hz", "100Hz", "150Hz", "200Hz", "300Hz", "400Hz"
 };
 
-static const struct soc_enum dsp1tx_hpf_cutoff =
-	SOC_ENUM_SINGLE(WM8996_DSP1_TX_FILTERS, 0, 7, hpf_cutoff_text);
+static SOC_ENUM_SINGLE_DECL(dsp1tx_hpf_cutoff,
+			    WM8996_DSP1_TX_FILTERS, 0, hpf_cutoff_text);
 
-static const struct soc_enum dsp2tx_hpf_cutoff =
-	SOC_ENUM_SINGLE(WM8996_DSP2_TX_FILTERS, 0, 7, hpf_cutoff_text);
+static SOC_ENUM_SINGLE_DECL(dsp2tx_hpf_cutoff,
+			    WM8996_DSP2_TX_FILTERS, 0, hpf_cutoff_text);
 
 static void wm8996_set_retune_mobile(struct snd_soc_codec *codec, int block)
 {
@@ -590,7 +412,7 @@ static int wm8996_get_retune_mobile_block(const char *name)
 static int wm8996_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	struct wm8996_pdata *pdata = &wm8996->pdata;
 	int block = wm8996_get_retune_mobile_block(kcontrol->id.name);
@@ -612,10 +434,12 @@ static int wm8996_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 static int wm8996_get_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	int block = wm8996_get_retune_mobile_block(kcontrol->id.name);
 
+	if (block < 0)
+		return block;
 	ucontrol->value.enumerated.item[0] = wm8996->retune_mobile_cfg[block];
 
 	return 0;
@@ -786,7 +610,7 @@ static int bg_event(struct snd_soc_dapm_widget *w,
 		wm8996_bg_disable(codec);
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		ret = -EINVAL;
 	}
 
@@ -796,15 +620,12 @@ static int bg_event(struct snd_soc_dapm_widget *w,
 static int cp_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
-	int ret = 0;
-
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		msleep(5);
 		break;
 	default:
-		BUG();
-		ret = -EINVAL;
+		WARN(1, "Invalid event %d\n", event);
 	}
 
 	return 0;
@@ -824,7 +645,7 @@ static int rmv_short_event(struct snd_soc_dapm_widget *w,
 		wm8996->hpout_pending |= w->shift;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	}
 
@@ -866,8 +687,7 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, u16 mask)
 static void wm8996_seq_notifier(struct snd_soc_dapm_context *dapm,
 				enum snd_soc_dapm_type event, int subseq)
 {
-	struct snd_soc_codec *codec = container_of(dapm,
-						   struct snd_soc_codec, dapm);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	u16 val, mask;
 
@@ -945,7 +765,7 @@ static int dcs_start(struct snd_soc_dapm_widget *w,
 		wm8996->dcs_pending |= 1 << w->shift;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	}
 
@@ -956,14 +776,14 @@ static const char *sidetone_text[] = {
 	"IN1", "IN2",
 };
 
-static const struct soc_enum left_sidetone_enum =
-	SOC_ENUM_SINGLE(WM8996_SIDETONE, 0, 2, sidetone_text);
+static SOC_ENUM_SINGLE_DECL(left_sidetone_enum,
+			    WM8996_SIDETONE, 0, sidetone_text);
 
 static const struct snd_kcontrol_new left_sidetone =
 	SOC_DAPM_ENUM("Left Sidetone", left_sidetone_enum);
 
-static const struct soc_enum right_sidetone_enum =
-	SOC_ENUM_SINGLE(WM8996_SIDETONE, 1, 2, sidetone_text);
+static SOC_ENUM_SINGLE_DECL(right_sidetone_enum,
+			    WM8996_SIDETONE, 1, sidetone_text);
 
 static const struct snd_kcontrol_new right_sidetone =
 	SOC_DAPM_ENUM("Right Sidetone", right_sidetone_enum);
@@ -972,14 +792,14 @@ static const char *spk_text[] = {
 	"DAC1L", "DAC1R", "DAC2L", "DAC2R"
 };
 
-static const struct soc_enum spkl_enum =
-	SOC_ENUM_SINGLE(WM8996_LEFT_PDM_SPEAKER, 0, 4, spk_text);
+static SOC_ENUM_SINGLE_DECL(spkl_enum,
+			    WM8996_LEFT_PDM_SPEAKER, 0, spk_text);
 
 static const struct snd_kcontrol_new spkl_mux =
 	SOC_DAPM_ENUM("SPKL", spkl_enum);
 
-static const struct soc_enum spkr_enum =
-	SOC_ENUM_SINGLE(WM8996_RIGHT_PDM_SPEAKER, 0, 4, spk_text);
+static SOC_ENUM_SINGLE_DECL(spkr_enum,
+			    WM8996_RIGHT_PDM_SPEAKER, 0, spk_text);
 
 static const struct snd_kcontrol_new spkr_mux =
 	SOC_DAPM_ENUM("SPKR", spkr_enum);
@@ -988,8 +808,8 @@ static const char *dsp1rx_text[] = {
 	"AIF1", "AIF2"
 };
 
-static const struct soc_enum dsp1rx_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_8, 0, 2, dsp1rx_text);
+static SOC_ENUM_SINGLE_DECL(dsp1rx_enum,
+			    WM8996_POWER_MANAGEMENT_8, 0, dsp1rx_text);
 
 static const struct snd_kcontrol_new dsp1rx =
 	SOC_DAPM_ENUM("DSP1RX", dsp1rx_enum);
@@ -998,8 +818,8 @@ static const char *dsp2rx_text[] = {
 	 "AIF2", "AIF1"
 };
 
-static const struct soc_enum dsp2rx_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_8, 4, 2, dsp2rx_text);
+static SOC_ENUM_SINGLE_DECL(dsp2rx_enum,
+			    WM8996_POWER_MANAGEMENT_8, 4, dsp2rx_text);
 
 static const struct snd_kcontrol_new dsp2rx =
 	SOC_DAPM_ENUM("DSP2RX", dsp2rx_enum);
@@ -1008,8 +828,8 @@ static const char *aif2tx_text[] = {
 	"DSP2", "DSP1", "AIF1"
 };
 
-static const struct soc_enum aif2tx_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_8, 6, 3, aif2tx_text);
+static SOC_ENUM_SINGLE_DECL(aif2tx_enum,
+			    WM8996_POWER_MANAGEMENT_8, 6, aif2tx_text);
 
 static const struct snd_kcontrol_new aif2tx =
 	SOC_DAPM_ENUM("AIF2TX", aif2tx_enum);
@@ -1018,14 +838,14 @@ static const char *inmux_text[] = {
 	"ADC", "DMIC1", "DMIC2"
 };
 
-static const struct soc_enum in1_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_7, 0, 3, inmux_text);
+static SOC_ENUM_SINGLE_DECL(in1_enum,
+			    WM8996_POWER_MANAGEMENT_7, 0, inmux_text);
 
 static const struct snd_kcontrol_new in1_mux =
 	SOC_DAPM_ENUM("IN1 Mux", in1_enum);
 
-static const struct soc_enum in2_enum =
-	SOC_ENUM_SINGLE(WM8996_POWER_MANAGEMENT_7, 4, 3, inmux_text);
+static SOC_ENUM_SINGLE_DECL(in2_enum,
+			    WM8996_POWER_MANAGEMENT_7, 4, inmux_text);
 
 static const struct snd_kcontrol_new in2_mux =
 	SOC_DAPM_ENUM("IN2 Mux", in2_enum);
@@ -1109,7 +929,7 @@ SND_SOC_DAPM_INPUT("IN2RP"),
 SND_SOC_DAPM_INPUT("DMIC1DAT"),
 SND_SOC_DAPM_INPUT("DMIC2DAT"),
 
-SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20),
+SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20, 0),
 SND_SOC_DAPM_SUPPLY_S("SYSCLK", 1, WM8996_AIF_CLOCKING_1, 0, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("SYSDSPCLK", 2, WM8996_CLOCKING_1, 1, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("AIFCLK", 2, WM8996_CLOCKING_1, 2, 0, NULL, 0),
@@ -1706,18 +1526,6 @@ static bool wm8996_volatile_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static int wm8996_reset(struct wm8996_priv *wm8996)
-{
-	if (wm8996->pdata.ldo_ena > 0) {
-		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
-		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 1);
-		return 0;
-	} else {
-		return regmap_write(wm8996->regmap, WM8996_SOFTWARE_RESET,
-				    0x8915);
-	}
-}
-
 static const int bclk_divs[] = {
 	1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96
 };
@@ -1770,7 +1578,13 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
+		break;
 	case SND_SOC_BIAS_PREPARE:
+		/* Put the MICBIASes into regulating mode */
+		snd_soc_update_bits(codec, WM8996_MICBIAS_1,
+				    WM8996_MICB1_MODE, 0);
+		snd_soc_update_bits(codec, WM8996_MICBIAS_2,
+				    WM8996_MICB2_MODE, 0);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
@@ -1790,15 +1604,23 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 				msleep(5);
 			}
 
-			regcache_cache_only(codec->control_data, false);
-			regcache_sync(codec->control_data);
+			regcache_cache_only(wm8996->regmap, false);
+			regcache_sync(wm8996->regmap);
 		}
+
+		/* Bypass the MICBIASes for lowest power */
+		snd_soc_update_bits(codec, WM8996_MICBIAS_1,
+				    WM8996_MICB1_MODE, WM8996_MICB1_MODE);
+		snd_soc_update_bits(codec, WM8996_MICBIAS_2,
+				    WM8996_MICB2_MODE, WM8996_MICB2_MODE);
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		regcache_cache_only(codec->control_data, true);
-		if (wm8996->pdata.ldo_ena >= 0)
+		regcache_cache_only(wm8996->regmap, true);
+		if (wm8996->pdata.ldo_ena >= 0) {
 			gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
+			regcache_cache_only(wm8996->regmap, true);
+		}
 		regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies),
 				       wm8996->supplies);
 		break;
@@ -1832,7 +1654,7 @@ static int wm8996_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		lrclk_rx_reg = WM8996_AIF2_RX_LRCLK_2;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid dai id %d\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -1944,7 +1766,7 @@ static int wm8996_hw_params(struct snd_pcm_substream *substream,
 		dsp_shift = WM8996_DSP2_DIV_SHIFT;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid dai id %d\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -2425,6 +2247,7 @@ int wm8996_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		  wm8996_polarity_fn polarity_cb)
 {
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	wm8996->jack = jack;
 	wm8996->detecting = true;
@@ -2441,8 +2264,12 @@ int wm8996_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 			    WM8996_MICB2_DISCH, 0);
 
 	/* LDO2 powers the microphones, SYSCLK clocks detection */
-	snd_soc_dapm_force_enable_pin(&codec->dapm, "LDO2");
-	snd_soc_dapm_force_enable_pin(&codec->dapm, "SYSCLK");
+	snd_soc_dapm_mutex_lock(dapm);
+
+	snd_soc_dapm_force_enable_pin_unlocked(dapm, "LDO2");
+	snd_soc_dapm_force_enable_pin_unlocked(dapm, "SYSCLK");
+
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	/* We start off just enabling microphone detection - even a
 	 * plain headphone will trigger detection.
@@ -2769,7 +2596,7 @@ static void wm8996_retune_mobile_pdata(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "Allocated %d unique ReTune Mobile names\n",
 		wm8996->num_retune_mobile_texts);
 
-	wm8996->retune_mobile_enum.max = wm8996->num_retune_mobile_texts;
+	wm8996->retune_mobile_enum.items = wm8996->num_retune_mobile_texts;
 	wm8996->retune_mobile_enum.texts = wm8996->retune_mobile_texts;
 
 	ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
@@ -2795,193 +2622,18 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 	int ret;
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
-	int i, irq_flags;
+	int irq_flags;
 
 	wm8996->codec = codec;
 
 	init_completion(&wm8996->dcs_done);
 	init_completion(&wm8996->fll_lock);
 
-	codec->control_data = wm8996->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		goto err;
-	}
-
-	wm8996->disable_nb[0].notifier_call = wm8996_regulator_event_0;
-	wm8996->disable_nb[1].notifier_call = wm8996_regulator_event_1;
-	wm8996->disable_nb[2].notifier_call = wm8996_regulator_event_2;
-
-	/* This should really be moved into the regulator core */
-	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++) {
-		ret = regulator_register_notifier(wm8996->supplies[i].consumer,
-						  &wm8996->disable_nb[i]);
-		if (ret != 0) {
-			dev_err(codec->dev,
-				"Failed to register regulator notifier: %d\n",
-				ret);
-		}
-	}
-
-	regcache_cache_only(codec->control_data, true);
-
-	/* Apply platform data settings */
-	snd_soc_update_bits(codec, WM8996_LINE_INPUT_CONTROL,
-			    WM8996_INL_MODE_MASK | WM8996_INR_MODE_MASK,
-			    wm8996->pdata.inl_mode << WM8996_INL_MODE_SHIFT |
-			    wm8996->pdata.inr_mode);
-
-	for (i = 0; i < ARRAY_SIZE(wm8996->pdata.gpio_default); i++) {
-		if (!wm8996->pdata.gpio_default[i])
-			continue;
-
-		snd_soc_write(codec, WM8996_GPIO_1 + i,
-			      wm8996->pdata.gpio_default[i] & 0xffff);
-	}
-
-	if (wm8996->pdata.spkmute_seq)
-		snd_soc_update_bits(codec, WM8996_PDM_SPEAKER_MUTE_SEQUENCE,
-				    WM8996_SPK_MUTE_ENDIAN |
-				    WM8996_SPK_MUTE_SEQ1_MASK,
-				    wm8996->pdata.spkmute_seq);
-
-	snd_soc_update_bits(codec, WM8996_ACCESSORY_DETECT_MODE_2,
-			    WM8996_MICD_BIAS_SRC | WM8996_HPOUT1FB_SRC |
-			    WM8996_MICD_SRC, wm8996->pdata.micdet_def);
-
-	/* Latch volume update bits */
-	snd_soc_update_bits(codec, WM8996_LEFT_LINE_INPUT_VOLUME,
-			    WM8996_IN1_VU, WM8996_IN1_VU);
-	snd_soc_update_bits(codec, WM8996_RIGHT_LINE_INPUT_VOLUME,
-			    WM8996_IN1_VU, WM8996_IN1_VU);
-
-	snd_soc_update_bits(codec, WM8996_DAC1_LEFT_VOLUME,
-			    WM8996_DAC1_VU, WM8996_DAC1_VU);
-	snd_soc_update_bits(codec, WM8996_DAC1_RIGHT_VOLUME,
-			    WM8996_DAC1_VU, WM8996_DAC1_VU);
-	snd_soc_update_bits(codec, WM8996_DAC2_LEFT_VOLUME,
-			    WM8996_DAC2_VU, WM8996_DAC2_VU);
-	snd_soc_update_bits(codec, WM8996_DAC2_RIGHT_VOLUME,
-			    WM8996_DAC2_VU, WM8996_DAC2_VU);
-
-	snd_soc_update_bits(codec, WM8996_OUTPUT1_LEFT_VOLUME,
-			    WM8996_DAC1_VU, WM8996_DAC1_VU);
-	snd_soc_update_bits(codec, WM8996_OUTPUT1_RIGHT_VOLUME,
-			    WM8996_DAC1_VU, WM8996_DAC1_VU);
-	snd_soc_update_bits(codec, WM8996_OUTPUT2_LEFT_VOLUME,
-			    WM8996_DAC2_VU, WM8996_DAC2_VU);
-	snd_soc_update_bits(codec, WM8996_OUTPUT2_RIGHT_VOLUME,
-			    WM8996_DAC2_VU, WM8996_DAC2_VU);
-
-	snd_soc_update_bits(codec, WM8996_DSP1_TX_LEFT_VOLUME,
-			    WM8996_DSP1TX_VU, WM8996_DSP1TX_VU);
-	snd_soc_update_bits(codec, WM8996_DSP1_TX_RIGHT_VOLUME,
-			    WM8996_DSP1TX_VU, WM8996_DSP1TX_VU);
-	snd_soc_update_bits(codec, WM8996_DSP2_TX_LEFT_VOLUME,
-			    WM8996_DSP2TX_VU, WM8996_DSP2TX_VU);
-	snd_soc_update_bits(codec, WM8996_DSP2_TX_RIGHT_VOLUME,
-			    WM8996_DSP2TX_VU, WM8996_DSP2TX_VU);
-
-	snd_soc_update_bits(codec, WM8996_DSP1_RX_LEFT_VOLUME,
-			    WM8996_DSP1RX_VU, WM8996_DSP1RX_VU);
-	snd_soc_update_bits(codec, WM8996_DSP1_RX_RIGHT_VOLUME,
-			    WM8996_DSP1RX_VU, WM8996_DSP1RX_VU);
-	snd_soc_update_bits(codec, WM8996_DSP2_RX_LEFT_VOLUME,
-			    WM8996_DSP2RX_VU, WM8996_DSP2RX_VU);
-	snd_soc_update_bits(codec, WM8996_DSP2_RX_RIGHT_VOLUME,
-			    WM8996_DSP2RX_VU, WM8996_DSP2RX_VU);
-
-	/* No support currently for the underclocked TDM modes and
-	 * pick a default TDM layout with each channel pair working with
-	 * slots 0 and 1. */
-	snd_soc_update_bits(codec, WM8996_AIF1RX_CHANNEL_0_CONFIGURATION,
-			    WM8996_AIF1RX_CHAN0_SLOTS_MASK |
-			    WM8996_AIF1RX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF1RX_CHAN0_SLOTS_SHIFT | 0);
-	snd_soc_update_bits(codec, WM8996_AIF1RX_CHANNEL_1_CONFIGURATION,
-			    WM8996_AIF1RX_CHAN1_SLOTS_MASK |
-			    WM8996_AIF1RX_CHAN1_START_SLOT_MASK,
-			    1 << WM8996_AIF1RX_CHAN1_SLOTS_SHIFT | 1);
-	snd_soc_update_bits(codec, WM8996_AIF1RX_CHANNEL_2_CONFIGURATION,
-			    WM8996_AIF1RX_CHAN2_SLOTS_MASK |
-			    WM8996_AIF1RX_CHAN2_START_SLOT_MASK,
-			    1 << WM8996_AIF1RX_CHAN2_SLOTS_SHIFT | 0);
-	snd_soc_update_bits(codec, WM8996_AIF1RX_CHANNEL_3_CONFIGURATION,
-			    WM8996_AIF1RX_CHAN3_SLOTS_MASK |
-			    WM8996_AIF1RX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF1RX_CHAN3_SLOTS_SHIFT | 1);
-	snd_soc_update_bits(codec, WM8996_AIF1RX_CHANNEL_4_CONFIGURATION,
-			    WM8996_AIF1RX_CHAN4_SLOTS_MASK |
-			    WM8996_AIF1RX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF1RX_CHAN4_SLOTS_SHIFT | 0);
-	snd_soc_update_bits(codec, WM8996_AIF1RX_CHANNEL_5_CONFIGURATION,
-			    WM8996_AIF1RX_CHAN5_SLOTS_MASK |
-			    WM8996_AIF1RX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF1RX_CHAN5_SLOTS_SHIFT | 1);
-
-	snd_soc_update_bits(codec, WM8996_AIF2RX_CHANNEL_0_CONFIGURATION,
-			    WM8996_AIF2RX_CHAN0_SLOTS_MASK |
-			    WM8996_AIF2RX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF2RX_CHAN0_SLOTS_SHIFT | 0);
-	snd_soc_update_bits(codec, WM8996_AIF2RX_CHANNEL_1_CONFIGURATION,
-			    WM8996_AIF2RX_CHAN1_SLOTS_MASK |
-			    WM8996_AIF2RX_CHAN1_START_SLOT_MASK,
-			    1 << WM8996_AIF2RX_CHAN1_SLOTS_SHIFT | 1);
-
-	snd_soc_update_bits(codec, WM8996_AIF1TX_CHANNEL_0_CONFIGURATION,
-			    WM8996_AIF1TX_CHAN0_SLOTS_MASK |
-			    WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF1TX_CHAN0_SLOTS_SHIFT | 0);
-	snd_soc_update_bits(codec, WM8996_AIF1TX_CHANNEL_1_CONFIGURATION,
-			    WM8996_AIF1TX_CHAN1_SLOTS_MASK |
-			    WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF1TX_CHAN1_SLOTS_SHIFT | 1);
-	snd_soc_update_bits(codec, WM8996_AIF1TX_CHANNEL_2_CONFIGURATION,
-			    WM8996_AIF1TX_CHAN2_SLOTS_MASK |
-			    WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF1TX_CHAN2_SLOTS_SHIFT | 0);
-	snd_soc_update_bits(codec, WM8996_AIF1TX_CHANNEL_3_CONFIGURATION,
-			    WM8996_AIF1TX_CHAN3_SLOTS_MASK |
-			    WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF1TX_CHAN3_SLOTS_SHIFT | 1);
-	snd_soc_update_bits(codec, WM8996_AIF1TX_CHANNEL_4_CONFIGURATION,
-			    WM8996_AIF1TX_CHAN4_SLOTS_MASK |
-			    WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF1TX_CHAN4_SLOTS_SHIFT | 0);
-	snd_soc_update_bits(codec, WM8996_AIF1TX_CHANNEL_5_CONFIGURATION,
-			    WM8996_AIF1TX_CHAN5_SLOTS_MASK |
-			    WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF1TX_CHAN5_SLOTS_SHIFT | 1);
-
-	snd_soc_update_bits(codec, WM8996_AIF2TX_CHANNEL_0_CONFIGURATION,
-			    WM8996_AIF2TX_CHAN0_SLOTS_MASK |
-			    WM8996_AIF2TX_CHAN0_START_SLOT_MASK,
-			    1 << WM8996_AIF2TX_CHAN0_SLOTS_SHIFT | 0);
-	snd_soc_update_bits(codec, WM8996_AIF1TX_CHANNEL_1_CONFIGURATION,
-			    WM8996_AIF2TX_CHAN1_SLOTS_MASK |
-			    WM8996_AIF2TX_CHAN1_START_SLOT_MASK,
-			    1 << WM8996_AIF1TX_CHAN1_SLOTS_SHIFT | 1);
-
 	if (wm8996->pdata.num_retune_mobile_cfgs)
 		wm8996_retune_mobile_pdata(codec);
 	else
 		snd_soc_add_codec_controls(codec, wm8996_eq_controls,
 				     ARRAY_SIZE(wm8996_eq_controls));
-
-	/* If the TX LRCLK pins are not in LRCLK mode configure the
-	 * AIFs to source their clocks from the RX LRCLKs.
-	 */
-	if ((snd_soc_read(codec, WM8996_GPIO_1)))
-		snd_soc_update_bits(codec, WM8996_AIF1_TX_LRCLK_2,
-				    WM8996_AIF1TX_LRCLK_MODE,
-				    WM8996_AIF1TX_LRCLK_MODE);
-
-	if ((snd_soc_read(codec, WM8996_GPIO_2)))
-		snd_soc_update_bits(codec, WM8996_AIF2_TX_LRCLK_2,
-				    WM8996_AIF2TX_LRCLK_MODE,
-				    WM8996_AIF2TX_LRCLK_MODE);
 
 	if (i2c->irq) {
 		if (wm8996->pdata.irq_flags)
@@ -3015,31 +2667,22 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 		} else {
 			dev_err(codec->dev, "Failed to request IRQ: %d\n",
 				ret);
+			return ret;
 		}
 	}
 
 	return 0;
-
-err:
-	return ret;
 }
 
 static int wm8996_remove(struct snd_soc_codec *codec)
 {
-	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
-	int i;
 
 	snd_soc_update_bits(codec, WM8996_INTERRUPT_CONTROL,
 			    WM8996_IM_IRQ, WM8996_IM_IRQ);
 
 	if (i2c->irq)
 		free_irq(i2c->irq, codec);
-
-	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++)
-		regulator_unregister_notifier(wm8996->supplies[i].consumer,
-					      &wm8996->disable_nb[i]);
-	regulator_bulk_free(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
 
 	return 0;
 }
@@ -3115,8 +2758,8 @@ static struct snd_soc_dai_driver wm8996_dai[] = {
 	},
 };
 
-static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8996_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8996_priv *wm8996;
 	int ret, i;
@@ -3154,6 +2797,21 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 		goto err_gpio;
 	}
 
+	wm8996->disable_nb[0].notifier_call = wm8996_regulator_event_0;
+	wm8996->disable_nb[1].notifier_call = wm8996_regulator_event_1;
+	wm8996->disable_nb[2].notifier_call = wm8996_regulator_event_2;
+
+	/* This should really be moved into the regulator core */
+	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++) {
+		ret = regulator_register_notifier(wm8996->supplies[i].consumer,
+						  &wm8996->disable_nb[i]);
+		if (ret != 0) {
+			dev_err(&i2c->dev,
+				"Failed to register regulator notifier: %d\n",
+				ret);
+		}
+	}
+
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8996->supplies),
 				    wm8996->supplies);
 	if (ret != 0) {
@@ -3166,7 +2824,7 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 		msleep(5);
 	}
 
-	wm8996->regmap = regmap_init_i2c(i2c, &wm8996_regmap);
+	wm8996->regmap = devm_regmap_init_i2c(i2c, &wm8996_regmap);
 	if (IS_ERR(wm8996->regmap)) {
 		ret = PTR_ERR(wm8996->regmap);
 		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
@@ -3194,13 +2852,198 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 	dev_info(&i2c->dev, "revision %c\n",
 		 (reg & WM8996_CHIP_REV_MASK) + 'A');
 
+	if (wm8996->pdata.ldo_ena > 0) {
+		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
+		regcache_cache_only(wm8996->regmap, true);
+	} else {
+		ret = regmap_write(wm8996->regmap, WM8996_SOFTWARE_RESET,
+				   0x8915);
+		if (ret != 0) {
+			dev_err(&i2c->dev, "Failed to issue reset: %d\n", ret);
+			goto err_regmap;
+		}
+	}
+
 	regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
 
-	ret = wm8996_reset(wm8996);
-	if (ret < 0) {
-		dev_err(&i2c->dev, "Failed to issue reset\n");
+	/* Apply platform data settings */
+	regmap_update_bits(wm8996->regmap, WM8996_LINE_INPUT_CONTROL,
+			   WM8996_INL_MODE_MASK | WM8996_INR_MODE_MASK,
+			   wm8996->pdata.inl_mode << WM8996_INL_MODE_SHIFT |
+			   wm8996->pdata.inr_mode);
+
+	for (i = 0; i < ARRAY_SIZE(wm8996->pdata.gpio_default); i++) {
+		if (!wm8996->pdata.gpio_default[i])
+			continue;
+
+		regmap_write(wm8996->regmap, WM8996_GPIO_1 + i,
+			     wm8996->pdata.gpio_default[i] & 0xffff);
+	}
+
+	if (wm8996->pdata.spkmute_seq)
+		regmap_update_bits(wm8996->regmap,
+				   WM8996_PDM_SPEAKER_MUTE_SEQUENCE,
+				   WM8996_SPK_MUTE_ENDIAN |
+				   WM8996_SPK_MUTE_SEQ1_MASK,
+				   wm8996->pdata.spkmute_seq);
+
+	regmap_update_bits(wm8996->regmap, WM8996_ACCESSORY_DETECT_MODE_2,
+			   WM8996_MICD_BIAS_SRC | WM8996_HPOUT1FB_SRC |
+			   WM8996_MICD_SRC, wm8996->pdata.micdet_def);
+
+	/* Latch volume update bits */
+	regmap_update_bits(wm8996->regmap, WM8996_LEFT_LINE_INPUT_VOLUME,
+			   WM8996_IN1_VU, WM8996_IN1_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_RIGHT_LINE_INPUT_VOLUME,
+			   WM8996_IN1_VU, WM8996_IN1_VU);
+
+	regmap_update_bits(wm8996->regmap, WM8996_DAC1_LEFT_VOLUME,
+			   WM8996_DAC1_VU, WM8996_DAC1_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_DAC1_RIGHT_VOLUME,
+			   WM8996_DAC1_VU, WM8996_DAC1_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_DAC2_LEFT_VOLUME,
+			   WM8996_DAC2_VU, WM8996_DAC2_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_DAC2_RIGHT_VOLUME,
+			   WM8996_DAC2_VU, WM8996_DAC2_VU);
+
+	regmap_update_bits(wm8996->regmap, WM8996_OUTPUT1_LEFT_VOLUME,
+			   WM8996_DAC1_VU, WM8996_DAC1_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_OUTPUT1_RIGHT_VOLUME,
+			   WM8996_DAC1_VU, WM8996_DAC1_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_OUTPUT2_LEFT_VOLUME,
+			   WM8996_DAC2_VU, WM8996_DAC2_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_OUTPUT2_RIGHT_VOLUME,
+			   WM8996_DAC2_VU, WM8996_DAC2_VU);
+
+	regmap_update_bits(wm8996->regmap, WM8996_DSP1_TX_LEFT_VOLUME,
+			   WM8996_DSP1TX_VU, WM8996_DSP1TX_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_DSP1_TX_RIGHT_VOLUME,
+			   WM8996_DSP1TX_VU, WM8996_DSP1TX_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_DSP2_TX_LEFT_VOLUME,
+			   WM8996_DSP2TX_VU, WM8996_DSP2TX_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_DSP2_TX_RIGHT_VOLUME,
+			   WM8996_DSP2TX_VU, WM8996_DSP2TX_VU);
+
+	regmap_update_bits(wm8996->regmap, WM8996_DSP1_RX_LEFT_VOLUME,
+			   WM8996_DSP1RX_VU, WM8996_DSP1RX_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_DSP1_RX_RIGHT_VOLUME,
+			   WM8996_DSP1RX_VU, WM8996_DSP1RX_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_DSP2_RX_LEFT_VOLUME,
+			   WM8996_DSP2RX_VU, WM8996_DSP2RX_VU);
+	regmap_update_bits(wm8996->regmap, WM8996_DSP2_RX_RIGHT_VOLUME,
+			   WM8996_DSP2RX_VU, WM8996_DSP2RX_VU);
+
+	/* No support currently for the underclocked TDM modes and
+	 * pick a default TDM layout with each channel pair working with
+	 * slots 0 and 1. */
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1RX_CHANNEL_0_CONFIGURATION,
+			   WM8996_AIF1RX_CHAN0_SLOTS_MASK |
+			   WM8996_AIF1RX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF1RX_CHAN0_SLOTS_SHIFT | 0);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1RX_CHANNEL_1_CONFIGURATION,
+			   WM8996_AIF1RX_CHAN1_SLOTS_MASK |
+			   WM8996_AIF1RX_CHAN1_START_SLOT_MASK,
+			   1 << WM8996_AIF1RX_CHAN1_SLOTS_SHIFT | 1);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1RX_CHANNEL_2_CONFIGURATION,
+			   WM8996_AIF1RX_CHAN2_SLOTS_MASK |
+			   WM8996_AIF1RX_CHAN2_START_SLOT_MASK,
+			   1 << WM8996_AIF1RX_CHAN2_SLOTS_SHIFT | 0);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1RX_CHANNEL_3_CONFIGURATION,
+			   WM8996_AIF1RX_CHAN3_SLOTS_MASK |
+			   WM8996_AIF1RX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF1RX_CHAN3_SLOTS_SHIFT | 1);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1RX_CHANNEL_4_CONFIGURATION,
+			   WM8996_AIF1RX_CHAN4_SLOTS_MASK |
+			   WM8996_AIF1RX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF1RX_CHAN4_SLOTS_SHIFT | 0);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1RX_CHANNEL_5_CONFIGURATION,
+			   WM8996_AIF1RX_CHAN5_SLOTS_MASK |
+			   WM8996_AIF1RX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF1RX_CHAN5_SLOTS_SHIFT | 1);
+
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF2RX_CHANNEL_0_CONFIGURATION,
+			   WM8996_AIF2RX_CHAN0_SLOTS_MASK |
+			   WM8996_AIF2RX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF2RX_CHAN0_SLOTS_SHIFT | 0);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF2RX_CHANNEL_1_CONFIGURATION,
+			   WM8996_AIF2RX_CHAN1_SLOTS_MASK |
+			   WM8996_AIF2RX_CHAN1_START_SLOT_MASK,
+			   1 << WM8996_AIF2RX_CHAN1_SLOTS_SHIFT | 1);
+
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1TX_CHANNEL_0_CONFIGURATION,
+			   WM8996_AIF1TX_CHAN0_SLOTS_MASK |
+			   WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF1TX_CHAN0_SLOTS_SHIFT | 0);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1TX_CHANNEL_1_CONFIGURATION,
+			   WM8996_AIF1TX_CHAN1_SLOTS_MASK |
+			   WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF1TX_CHAN1_SLOTS_SHIFT | 1);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1TX_CHANNEL_2_CONFIGURATION,
+			   WM8996_AIF1TX_CHAN2_SLOTS_MASK |
+			   WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF1TX_CHAN2_SLOTS_SHIFT | 0);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1TX_CHANNEL_3_CONFIGURATION,
+			   WM8996_AIF1TX_CHAN3_SLOTS_MASK |
+			   WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF1TX_CHAN3_SLOTS_SHIFT | 1);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1TX_CHANNEL_4_CONFIGURATION,
+			   WM8996_AIF1TX_CHAN4_SLOTS_MASK |
+			   WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF1TX_CHAN4_SLOTS_SHIFT | 0);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1TX_CHANNEL_5_CONFIGURATION,
+			   WM8996_AIF1TX_CHAN5_SLOTS_MASK |
+			   WM8996_AIF1TX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF1TX_CHAN5_SLOTS_SHIFT | 1);
+
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF2TX_CHANNEL_0_CONFIGURATION,
+			   WM8996_AIF2TX_CHAN0_SLOTS_MASK |
+			   WM8996_AIF2TX_CHAN0_START_SLOT_MASK,
+			   1 << WM8996_AIF2TX_CHAN0_SLOTS_SHIFT | 0);
+	regmap_update_bits(wm8996->regmap,
+			   WM8996_AIF1TX_CHANNEL_1_CONFIGURATION,
+			   WM8996_AIF2TX_CHAN1_SLOTS_MASK |
+			   WM8996_AIF2TX_CHAN1_START_SLOT_MASK,
+			   1 << WM8996_AIF1TX_CHAN1_SLOTS_SHIFT | 1);
+
+	/* If the TX LRCLK pins are not in LRCLK mode configure the
+	 * AIFs to source their clocks from the RX LRCLKs.
+	 */
+	ret = regmap_read(wm8996->regmap, WM8996_GPIO_1, &reg);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to read GPIO1: %d\n", ret);
 		goto err_regmap;
 	}
+
+	if (reg & WM8996_GP1_FN_MASK)
+		regmap_update_bits(wm8996->regmap, WM8996_AIF1_TX_LRCLK_2,
+				   WM8996_AIF1TX_LRCLK_MODE,
+				   WM8996_AIF1TX_LRCLK_MODE);
+
+	ret = regmap_read(wm8996->regmap, WM8996_GPIO_2, &reg);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to read GPIO2: %d\n", ret);
+		goto err_regmap;
+	}
+
+	if (reg & WM8996_GP2_FN_MASK)
+		regmap_update_bits(wm8996->regmap, WM8996_AIF2_TX_LRCLK_2,
+				   WM8996_AIF2TX_LRCLK_MODE,
+				   WM8996_AIF2TX_LRCLK_MODE);
 
 	wm8996_init_gpio(wm8996);
 
@@ -3215,7 +3058,6 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 err_gpiolib:
 	wm8996_free_gpio(wm8996);
 err_regmap:
-	regmap_exit(wm8996->regmap);
 err_enable:
 	if (wm8996->pdata.ldo_ena > 0)
 		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
@@ -3228,17 +3070,21 @@ err:
 	return ret;
 }
 
-static __devexit int wm8996_i2c_remove(struct i2c_client *client)
+static int wm8996_i2c_remove(struct i2c_client *client)
 {
 	struct wm8996_priv *wm8996 = i2c_get_clientdata(client);
+	int i;
 
 	snd_soc_unregister_codec(&client->dev);
 	wm8996_free_gpio(wm8996);
-	regmap_exit(wm8996->regmap);
 	if (wm8996->pdata.ldo_ena > 0) {
 		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
 		gpio_free(wm8996->pdata.ldo_ena);
 	}
+	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++)
+		regulator_unregister_notifier(wm8996->supplies[i].consumer,
+					      &wm8996->disable_nb[i]);
+
 	return 0;
 }
 
@@ -3254,7 +3100,7 @@ static struct i2c_driver wm8996_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8996_i2c_probe,
-	.remove =   __devexit_p(wm8996_i2c_remove),
+	.remove =   wm8996_i2c_remove,
 	.id_table = wm8996_i2c_id,
 };
 

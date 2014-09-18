@@ -6,11 +6,6 @@
 #define __ASM_ARCH_MEMORY_H
 
 /*
- * Physical DRAM offset.
- */
-#define PLAT_PHYS_OFFSET		UL(0x10000000)
-
-/*
  * Bus address is physical address, except for OMAP-1510 Local Bus.
  * OMAP-1510 bus address is translated into a Local Bus address if the
  * OMAP bus type is lbus. We do the address translation based on the
@@ -19,7 +14,7 @@
  * because of the strncmp().
  */
 #if defined(CONFIG_ARCH_OMAP15XX) && !defined(__ASSEMBLER__)
-#include <plat/cpu.h>
+#include <mach/soc.h>
 
 /*
  * OMAP-1510 Local Bus address offset

@@ -16,9 +16,9 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 
 #include "ad7280a.h"
 
@@ -117,7 +117,7 @@
  */
 #define POLYNOM		0x2F
 #define POLYNOM_ORDER	8
-#define HIGHBIT		1 << (POLYNOM_ORDER - 1);
+#define HIGHBIT		(1 << (POLYNOM_ORDER - 1))
 
 struct ad7280_state {
 	struct spi_device		*spi;
@@ -134,6 +134,8 @@ struct ad7280_state {
 	unsigned char			aux_threshhigh;
 	unsigned char			aux_threshlow;
 	unsigned char			cb_mask[AD7280A_MAX_CHAIN];
+
+	__be32				buf[2] ____cacheline_aligned;
 };
 
 static void ad7280_crc8_build_table(unsigned char *crc_tab)
@@ -189,26 +191,22 @@ static void ad7280_delay(struct ad7280_state *st)
 		msleep(1);
 }
 
-static int __ad7280_read32(struct spi_device *spi, unsigned *val)
+static int __ad7280_read32(struct ad7280_state *st, unsigned *val)
 {
-	unsigned rx_buf, tx_buf = cpu_to_be32(AD7280A_READ_TXVAL);
 	int ret;
-
 	struct spi_transfer t = {
-		.tx_buf	= &tx_buf,
-		.rx_buf = &rx_buf,
+		.tx_buf	= &st->buf[0],
+		.rx_buf = &st->buf[1],
 		.len = 4,
 	};
-	struct spi_message m;
 
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
+	st->buf[0] = cpu_to_be32(AD7280A_READ_TXVAL);
 
-	ret = spi_sync(spi, &m);
+	ret = spi_sync_transfer(st->spi, &t, 1);
 	if (ret)
 		return ret;
 
-	*val = be32_to_cpu(rx_buf);
+	*val = be32_to_cpu(st->buf[1]);
 
 	return 0;
 }
@@ -220,9 +218,9 @@ static int ad7280_write(struct ad7280_state *st, unsigned devaddr,
 			(val & 0xFF) << 13 | all << 12);
 
 	reg |= ad7280_calc_crc8(st->crc_tab, reg >> 11) << 3 | 0x2;
-	reg = cpu_to_be32(reg);
+	st->buf[0] = cpu_to_be32(reg);
 
-	return spi_write(st->spi, &reg, 4);
+	return spi_write(st->spi, &st->buf[0], 4);
 }
 
 static int ad7280_read(struct ad7280_state *st, unsigned devaddr,
@@ -252,7 +250,7 @@ static int ad7280_read(struct ad7280_state *st, unsigned devaddr,
 	if (ret)
 		return ret;
 
-	__ad7280_read32(st->spi, &tmp);
+	__ad7280_read32(st, &tmp);
 
 	if (ad7280_check_crc(st, tmp))
 		return -EIO;
@@ -290,7 +288,7 @@ static int ad7280_read_channel(struct ad7280_state *st, unsigned devaddr,
 
 	ad7280_delay(st);
 
-	__ad7280_read32(st->spi, &tmp);
+	__ad7280_read32(st, &tmp);
 
 	if (ad7280_check_crc(st, tmp))
 		return -EIO;
@@ -323,7 +321,7 @@ static int ad7280_read_all_channels(struct ad7280_state *st, unsigned cnt,
 	ad7280_delay(st);
 
 	for (i = 0; i < cnt; i++) {
-		__ad7280_read32(st->spi, &tmp);
+		__ad7280_read32(st, &tmp);
 
 		if (ad7280_check_crc(st, tmp))
 			return -EIO;
@@ -366,7 +364,7 @@ static int ad7280_chain_setup(struct ad7280_state *st)
 		return ret;
 
 	for (n = 0; n <= AD7280A_MAX_CHAIN; n++) {
-		__ad7280_read32(st->spi, &val);
+		__ad7280_read32(st, &val);
 		if (val == 0)
 			return n - 1;
 
@@ -384,7 +382,7 @@ static ssize_t ad7280_show_balance_sw(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7280_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
@@ -398,7 +396,7 @@ static ssize_t ad7280_store_balance_sw(struct device *dev,
 					 const char *buf,
 					 size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7280_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	bool readin;
@@ -429,7 +427,7 @@ static ssize_t ad7280_show_balance_timer(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7280_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
@@ -445,7 +443,7 @@ static ssize_t ad7280_show_balance_timer(struct device *dev,
 
 	msecs = (ret >> 3) * 71500;
 
-	return sprintf(buf, "%d\n", msecs);
+	return sprintf(buf, "%u\n", msecs);
 }
 
 static ssize_t ad7280_store_balance_timer(struct device *dev,
@@ -453,7 +451,7 @@ static ssize_t ad7280_store_balance_timer(struct device *dev,
 					 const char *buf,
 					 size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7280_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	unsigned long val;
@@ -507,8 +505,10 @@ static int ad7280_channel_init(struct ad7280_state *st)
 				st->channels[cnt].channel = (dev * 6) + ch - 6;
 			}
 			st->channels[cnt].indexed = 1;
-			st->channels[cnt].info_mask =
-				IIO_CHAN_INFO_SCALE_SHARED_BIT;
+			st->channels[cnt].info_mask_separate =
+				BIT(IIO_CHAN_INFO_RAW);
+			st->channels[cnt].info_mask_shared_by_type =
+				BIT(IIO_CHAN_INFO_SCALE);
 			st->channels[cnt].address =
 				AD7280A_DEVADDR(dev) << 8 | ch;
 			st->channels[cnt].scan_index = cnt;
@@ -524,7 +524,8 @@ static int ad7280_channel_init(struct ad7280_state *st)
 	st->channels[cnt].channel2 = dev * 6;
 	st->channels[cnt].address = AD7280A_ALL_CELLS;
 	st->channels[cnt].indexed = 1;
-	st->channels[cnt].info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT;
+	st->channels[cnt].info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
+	st->channels[cnt].info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE);
 	st->channels[cnt].scan_index = cnt;
 	st->channels[cnt].scan_type.sign = 'u';
 	st->channels[cnt].scan_type.realbits = 32;
@@ -596,7 +597,7 @@ static ssize_t ad7280_read_channel_config(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7280_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	unsigned val;
@@ -618,7 +619,7 @@ static ssize_t ad7280_read_channel_config(struct device *dev,
 		return -EINVAL;
 	}
 
-	return sprintf(buf, "%d\n", val);
+	return sprintf(buf, "%u\n", val);
 }
 
 static ssize_t ad7280_write_channel_config(struct device *dev,
@@ -626,14 +627,14 @@ static ssize_t ad7280_write_channel_config(struct device *dev,
 					 const char *buf,
 					 size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7280_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
 	long val;
 	int ret;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtol(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -784,11 +785,10 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad7280_state *st = iio_priv(indio_dev);
-	unsigned int scale_uv;
 	int ret;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		if (chan->address == AD7280A_ALL_CELLS)
 			ret = ad7280_read_all_channels(st, st->scan_cnt, NULL);
@@ -805,13 +805,12 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		if ((chan->address & 0xFF) <= AD7280A_CELL_VOLTAGE_6)
-			scale_uv = (4000 * 1000) >> AD7280A_BITS;
+			*val = 4000;
 		else
-			scale_uv = (5000 * 1000) >> AD7280A_BITS;
+			*val = 5000;
 
-		*val =  scale_uv / 1000;
-		*val2 = (scale_uv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val2 = AD7280A_BITS;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 	return -EINVAL;
 }
@@ -829,15 +828,16 @@ static const struct ad7280_platform_data ad7793_default_pdata = {
 	.thermistor_term_en = true,
 };
 
-static int __devinit ad7280_probe(struct spi_device *spi)
+static int ad7280_probe(struct spi_device *spi)
 {
 	const struct ad7280_platform_data *pdata = spi->dev.platform_data;
 	struct ad7280_state *st;
 	int ret;
 	const unsigned short tACQ_ns[4] = {465, 1010, 1460, 1890};
 	const unsigned short nAVG[4] = {1, 2, 4, 8};
-	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
+	struct iio_dev *indio_dev;
 
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -861,7 +861,7 @@ static int __devinit ad7280_probe(struct spi_device *spi)
 
 	ret = ad7280_chain_setup(st);
 	if (ret < 0)
-		goto error_free_device;
+		return ret;
 
 	st->slave_num = ret;
 	st->scan_cnt = (st->slave_num + 1) * AD7280A_NUM_CH;
@@ -892,7 +892,7 @@ static int __devinit ad7280_probe(struct spi_device *spi)
 
 	ret = ad7280_channel_init(st);
 	if (ret < 0)
-		goto error_free_device;
+		return ret;
 
 	indio_dev->num_channels = ret;
 	indio_dev->channels = st->channels;
@@ -941,13 +941,10 @@ error_free_attr:
 error_free_channels:
 	kfree(st->channels);
 
-error_free_device:
-	iio_free_device(indio_dev);
-
 	return ret;
 }
 
-static int __devexit ad7280_remove(struct spi_device *spi)
+static int ad7280_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7280_state *st = iio_priv(indio_dev);
@@ -961,7 +958,6 @@ static int __devexit ad7280_remove(struct spi_device *spi)
 
 	kfree(st->channels);
 	kfree(st->iio_attr);
-	iio_free_device(indio_dev);
 
 	return 0;
 }
@@ -978,7 +974,7 @@ static struct spi_driver ad7280_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7280_probe,
-	.remove		= __devexit_p(ad7280_remove),
+	.remove		= ad7280_remove,
 	.id_table	= ad7280_id,
 };
 module_spi_driver(ad7280_driver);

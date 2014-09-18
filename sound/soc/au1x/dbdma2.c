@@ -65,19 +65,10 @@ struct au1xpsc_audio_dmadata {
 #define AU1XPSC_PERIOD_MIN_BYTES	1024
 #define AU1XPSC_BUFFER_MIN_BYTES	65536
 
-#define AU1XPSC_PCM_FMTS					\
-	(SNDRV_PCM_FMTBIT_S8     | SNDRV_PCM_FMTBIT_U8 |	\
-	 SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |	\
-	 SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_U16_BE |	\
-	 SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE |	\
-	 SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_U32_BE |	\
-	 0)
-
 /* PCM hardware DMA capabilities - platform specific */
 static const struct snd_pcm_hardware au1xpsc_pcm_hardware = {
 	.info		  = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 			    SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BATCH,
-	.formats	  = AU1XPSC_PCM_FMTS,
 	.period_bytes_min = AU1XPSC_PERIOD_MIN_BYTES,
 	.period_bytes_max = 4096 * 1024 - 1,
 	.periods_min	  = 2,
@@ -347,7 +338,7 @@ static struct snd_soc_platform_driver au1xpsc_soc_platform = {
 	.pcm_free	= au1xpsc_pcm_free_dma_buffers,
 };
 
-static int __devinit au1xpsc_pcm_drvprobe(struct platform_device *pdev)
+static int au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_dmadata *dmadata;
 
@@ -362,7 +353,7 @@ static int __devinit au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 	return snd_soc_register_platform(&pdev->dev, &au1xpsc_soc_platform);
 }
 
-static int __devexit au1xpsc_pcm_drvremove(struct platform_device *pdev)
+static int au1xpsc_pcm_drvremove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 
@@ -375,7 +366,7 @@ static struct platform_driver au1xpsc_pcm_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= au1xpsc_pcm_drvprobe,
-	.remove		= __devexit_p(au1xpsc_pcm_drvremove),
+	.remove		= au1xpsc_pcm_drvremove,
 };
 
 module_platform_driver(au1xpsc_pcm_driver);

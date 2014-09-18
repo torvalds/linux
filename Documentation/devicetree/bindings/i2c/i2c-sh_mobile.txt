@@ -1,0 +1,26 @@
+Device tree configuration for Renesas IIC (sh_mobile) driver
+
+Required properties:
+- compatible      : "renesas,iic-<soctype>". "renesas,rmobile-iic" as fallback
+- reg             : address start and address range size of device
+- interrupts      : interrupt of device
+- clocks          : clock for device
+- #address-cells  : should be <1>
+- #size-cells     : should be <0>
+
+Optional properties:
+- clock-frequency : frequency of bus clock in Hz. Default 100kHz if unset.
+
+Pinctrl properties might be needed, too. See there.
+
+Example:
+
+	iic0: i2c@e6500000 {
+		compatible = "renesas,iic-r8a7790", "renesas,rmobile-iic";
+		reg = <0 0xe6500000 0 0x425>;
+		interrupts = <0 174 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp3_clks R8A7790_CLK_IIC0>;
+		clock-frequency = <400000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};

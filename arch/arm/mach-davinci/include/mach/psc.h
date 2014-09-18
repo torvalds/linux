@@ -166,6 +166,7 @@
 #define DA830_LPSC1_McASP1		8
 #define DA850_LPSC1_SATA		8
 #define DA830_LPSC1_McASP2		9
+#define DA850_LPSC1_VPIF		9
 #define DA8XX_LPSC1_SPI1		10
 #define DA8XX_LPSC1_I2C			11
 #define DA8XX_LPSC1_UART1		12
@@ -180,53 +181,6 @@
 #define DA8XX_LPSC1_SCR_P1_SS		25
 #define DA8XX_LPSC1_CR_P3_SS		26
 #define DA8XX_LPSC1_L3_CBA_RAM		31
-
-/* TNETV107X LPSC Assignments */
-#define TNETV107X_LPSC_ARM			0
-#define TNETV107X_LPSC_GEM			1
-#define TNETV107X_LPSC_DDR2_PHY			2
-#define TNETV107X_LPSC_TPCC			3
-#define TNETV107X_LPSC_TPTC0			4
-#define TNETV107X_LPSC_TPTC1			5
-#define TNETV107X_LPSC_RAM			6
-#define TNETV107X_LPSC_MBX_LITE			7
-#define TNETV107X_LPSC_LCD			8
-#define TNETV107X_LPSC_ETHSS			9
-#define TNETV107X_LPSC_AEMIF			10
-#define TNETV107X_LPSC_CHIP_CFG			11
-#define TNETV107X_LPSC_TSC			12
-#define TNETV107X_LPSC_ROM			13
-#define TNETV107X_LPSC_UART2			14
-#define TNETV107X_LPSC_PKTSEC			15
-#define TNETV107X_LPSC_SECCTL			16
-#define TNETV107X_LPSC_KEYMGR			17
-#define TNETV107X_LPSC_KEYPAD			18
-#define TNETV107X_LPSC_GPIO			19
-#define TNETV107X_LPSC_MDIO			20
-#define TNETV107X_LPSC_SDIO0			21
-#define TNETV107X_LPSC_UART0			22
-#define TNETV107X_LPSC_UART1			23
-#define TNETV107X_LPSC_TIMER0			24
-#define TNETV107X_LPSC_TIMER1			25
-#define TNETV107X_LPSC_WDT_ARM			26
-#define TNETV107X_LPSC_WDT_DSP			27
-#define TNETV107X_LPSC_SSP			28
-#define TNETV107X_LPSC_TDM0			29
-#define TNETV107X_LPSC_VLYNQ			30
-#define TNETV107X_LPSC_MCDMA			31
-#define TNETV107X_LPSC_USB0			32
-#define TNETV107X_LPSC_TDM1			33
-#define TNETV107X_LPSC_DEBUGSS			34
-#define TNETV107X_LPSC_ETHSS_RGMII		35
-#define TNETV107X_LPSC_SYSTEM			36
-#define TNETV107X_LPSC_IMCOP			37
-#define TNETV107X_LPSC_SPARE			38
-#define TNETV107X_LPSC_SDIO1			39
-#define TNETV107X_LPSC_USB1			40
-#define TNETV107X_LPSC_USBSS			41
-#define TNETV107X_LPSC_DDR2_EMIF1_VRST		42
-#define TNETV107X_LPSC_DDR2_EMIF2_VCTL_RST	43
-#define TNETV107X_LPSC_MAX			44
 
 /* PSC register offsets */
 #define EPCPR		0x070
@@ -245,13 +199,16 @@
 
 #define MDSTAT_STATE_MASK	0x3f
 #define PDSTAT_STATE_MASK	0x1f
+#define MDCTL_LRST		BIT(8)
 #define MDCTL_FORCE		BIT(31)
-#define PDCTL_NEXT		BIT(1)
+#define PDCTL_NEXT		BIT(0)
 #define PDCTL_EPCGOOD		BIT(8)
 
 #ifndef __ASSEMBLER__
 
 extern int davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id);
+extern void davinci_psc_reset(unsigned int ctlr, unsigned int id,
+		bool reset);
 extern void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 		unsigned int id, bool enable, u32 flags);
 

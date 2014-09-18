@@ -6,7 +6,7 @@
 # for more details.
 #
 
-targets := vmImage vmImage.bin vmImage.bz2 vmImage.gz vmImage.lzma vmImage.lzo vmImage.xip
+targets := uImage uImage.bin uImage.bz2 uImage.gz uImage.lzma uImage.lzo uImage.xip
 extra-y += vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma vmlinux.bin.lzo vmlinux.bin.xip
 
 ifeq ($(CONFIG_RAMKERNEL),y)
@@ -39,22 +39,22 @@ quiet_cmd_mk_bin_xip = BIN     $@
 $(obj)/vmlinux.bin.xip: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,mk_bin_xip)
 
-$(obj)/vmImage.bin: $(obj)/vmlinux.bin
+$(obj)/uImage.bin: $(obj)/vmlinux.bin
 	$(call if_changed,uimage,none)
 
-$(obj)/vmImage.bz2: $(obj)/vmlinux.bin.bz2
+$(obj)/uImage.bz2: $(obj)/vmlinux.bin.bz2
 	$(call if_changed,uimage,bzip2)
 
-$(obj)/vmImage.gz: $(obj)/vmlinux.bin.gz
+$(obj)/uImage.gz: $(obj)/vmlinux.bin.gz
 	$(call if_changed,uimage,gzip)
 
-$(obj)/vmImage.lzma: $(obj)/vmlinux.bin.lzma
+$(obj)/uImage.lzma: $(obj)/vmlinux.bin.lzma
 	$(call if_changed,uimage,lzma)
 
-$(obj)/vmImage.lzo: $(obj)/vmlinux.bin.lzo
+$(obj)/uImage.lzo: $(obj)/vmlinux.bin.lzo
 	$(call if_changed,uimage,lzo)
 
-$(obj)/vmImage.xip: $(obj)/vmlinux.bin.xip
+$(obj)/uImage.xip: $(obj)/vmlinux.bin.xip
 	$(call if_changed,uimage,none)
 
 suffix-y                      := bin
@@ -64,7 +64,7 @@ suffix-$(CONFIG_KERNEL_LZMA)  := lzma
 suffix-$(CONFIG_KERNEL_LZO)   := lzo
 suffix-$(CONFIG_ROMKERNEL)    := xip
 
-$(obj)/vmImage: $(obj)/vmImage.$(suffix-y)
+$(obj)/uImage: $(obj)/uImage.$(suffix-y)
 	@ln -sf $(notdir $<) $@
 
 install:

@@ -112,8 +112,10 @@ static unsigned int steal_context_smp(unsigned int id)
 		 */
 		for_each_cpu(cpu, mm_cpumask(mm)) {
 			for (i = cpu_first_thread_sibling(cpu);
-			     i <= cpu_last_thread_sibling(cpu); i++)
-				__set_bit(id, stale_map[i]);
+			     i <= cpu_last_thread_sibling(cpu); i++) {
+				if (stale_map[i])
+					__set_bit(id, stale_map[i]);
+			}
 			cpu = i - 1;
 		}
 		return id;
@@ -272,7 +274,8 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 		/* XXX This clear should ultimately be part of local_flush_tlb_mm */
 		for (i = cpu_first_thread_sibling(cpu);
 		     i <= cpu_last_thread_sibling(cpu); i++) {
-			__clear_bit(id, stale_map[i]);
+			if (stale_map[i])
+				__clear_bit(id, stale_map[i]);
 		}
 	}
 
@@ -329,13 +332,11 @@ void destroy_context(struct mm_struct *mm)
 
 #ifdef CONFIG_SMP
 
-static int __cpuinit mmu_context_cpu_notify(struct notifier_block *self,
-					    unsigned long action, void *hcpu)
+static int mmu_context_cpu_notify(struct notifier_block *self,
+				  unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned int)(long)hcpu;
-#ifdef CONFIG_HOTPLUG_CPU
-	struct task_struct *p;
-#endif
+
 	/* We don't touch CPU 0 map, it's allocated at aboot and kept
 	 * around forever
 	 */
@@ -358,19 +359,14 @@ static int __cpuinit mmu_context_cpu_notify(struct notifier_block *self,
 		stale_map[cpu] = NULL;
 
 		/* We also clear the cpu_vm_mask bits of CPUs going away */
-		read_lock(&tasklist_lock);
-		for_each_process(p) {
-			if (p->mm)
-				cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
-		}
-		read_unlock(&tasklist_lock);
+		clear_tasks_mm_cpumask(cpu);
 	break;
 #endif /* CONFIG_HOTPLUG_CPU */
 	}
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata mmu_context_cpu_nb = {
+static struct notifier_block mmu_context_cpu_nb = {
 	.notifier_call	= mmu_context_cpu_notify,
 };
 
@@ -414,17 +410,7 @@ void __init mmu_context_init(void)
 	} else if (mmu_has_feature(MMU_FTR_TYPE_47x)) {
 		first_context = 1;
 		last_context = 65535;
-	} else
-#ifdef CONFIG_PPC_BOOK3E_MMU
-	if (mmu_has_feature(MMU_FTR_TYPE_3E)) {
-		u32 mmucfg = mfspr(SPRN_MMUCFG);
-		u32 pid_bits = (mmucfg & MMUCFG_PIDSIZE_MASK)
-				>> MMUCFG_PIDSIZE_SHIFT;
-		first_context = 1;
-		last_context = (1UL << (pid_bits + 1)) - 1;
-	} else
-#endif
-	{
+	} else {
 		first_context = 1;
 		last_context = 255;
 	}

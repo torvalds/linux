@@ -181,6 +181,11 @@ struct dsa_switch_driver {
 void register_switch_driver(struct dsa_switch_driver *type);
 void unregister_switch_driver(struct dsa_switch_driver *type);
 
+static inline void *ds_to_priv(struct dsa_switch *ds)
+{
+	return (void *)(ds + 1);
+}
+
 /*
  * The original DSA tag format and some other tag formats have no
  * ethertype, which means that we need to add a little hack to the

@@ -1,0 +1,14 @@
+TI-NSPIRE calculators
+
+Required properties:
+- compatible: Compatible property value should contain "ti,nspire".
+	CX models should have "ti,nspire-cx"
+	Touchpad models should have "ti,nspire-tp"
+	Clickpad models should have "ti,nspire-clp"
+
+Example:
+
+/ {
+	model = "TI-NSPIRE CX";
+	compatible = "ti,nspire-cx";
+	...

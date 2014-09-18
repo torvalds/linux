@@ -37,7 +37,7 @@ extern void isdn_timer_ctrl(int tf, int onoff);
 extern void isdn_unexclusive_channel(int di, int ch);
 extern int isdn_getnum(char **);
 extern int isdn_readbchan(int, int, u_char *, u_char *, int, wait_queue_head_t *);
-extern int isdn_readbchan_tty(int, int, struct tty_struct *, int);
+extern int isdn_readbchan_tty(int, int, struct tty_port *, int);
 extern int isdn_get_free_channel(int, int, int, int, int, char *);
 extern int isdn_writebuf_skb_stub(int, int, int, struct sk_buff *);
 extern int register_isdn(isdn_if *i);

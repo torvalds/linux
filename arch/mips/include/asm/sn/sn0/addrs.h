@@ -29,7 +29,7 @@
  * chapter of the Hub specification.
  *
  * NOTE: This header file is included both by C and by assembler source
- *	 files.  Please bracket any language-dependent definitions
+ *	 files.	 Please bracket any language-dependent definitions
  *	 appropriately.
  */
 
@@ -102,14 +102,14 @@
 
 #define BWIN_INDEX_BITS		3
 #define BWIN_SIZE		(UINT64_CAST 1 << BWIN_SIZE_BITS)
-#define	BWIN_SIZEMASK		(BWIN_SIZE - 1)
-#define	BWIN_WIDGET_MASK	0x7
+#define BWIN_SIZEMASK		(BWIN_SIZE - 1)
+#define BWIN_WIDGET_MASK	0x7
 #define NODE_BWIN_BASE0(nasid)	(NODE_IO_BASE(nasid) + BWIN_SIZE)
-#define NODE_BWIN_BASE(nasid, bigwin)	(NODE_BWIN_BASE0(nasid) + 	\
+#define NODE_BWIN_BASE(nasid, bigwin)	(NODE_BWIN_BASE0(nasid) +	\
 			(UINT64_CAST(bigwin) << BWIN_SIZE_BITS))
 
-#define	BWIN_WIDGETADDR(addr)	((addr) & BWIN_SIZEMASK)
-#define	BWIN_WINDOWNUM(addr)	(((addr) >> BWIN_SIZE_BITS) & BWIN_WIDGET_MASK)
+#define BWIN_WIDGETADDR(addr)	((addr) & BWIN_SIZEMASK)
+#define BWIN_WINDOWNUM(addr)	(((addr) >> BWIN_SIZE_BITS) & BWIN_WIDGET_MASK)
 /*
  * Verify if addr belongs to large window address of node with "nasid"
  *
@@ -120,7 +120,7 @@
  *
  */
 
-#define	NODE_BWIN_ADDR(nasid, addr)	\
+#define NODE_BWIN_ADDR(nasid, addr)	\
 		(((addr) >= NODE_BWIN_BASE0(nasid)) && \
 		 ((addr) < (NODE_BWIN_BASE(nasid, HUB_NUM_BIG_WINDOW) + \
 				BWIN_SIZE)))
@@ -129,7 +129,7 @@
  * The following define the major position-independent aliases used
  * in SN0.
  *	CALIAS -- Varies in size, points to the first n bytes of memory
- *		  	on the reader's node.
+ *			on the reader's node.
  */
 
 #define CALIAS_BASE		CAC_BASE
@@ -146,7 +146,7 @@
 
 #ifndef __ASSEMBLY__
 #define KERN_NMI_ADDR(nasid, slice)					\
-                    TO_NODE_UNCAC((nasid), IP27_NMI_KREGS_OFFSET + 	\
+		    TO_NODE_UNCAC((nasid), IP27_NMI_KREGS_OFFSET +	\
 				  (IP27_NMI_KREGS_CPU_SIZE * (slice)))
 #endif /* !__ASSEMBLY__ */
 
@@ -203,7 +203,7 @@
 
 #define IO6PROM_BASE		PHYS_TO_K0(0x01c00000)
 #define IO6PROM_SIZE		0x400000
-#define	IO6PROM_BASE_MAPPED	(UNCAC_BASE | 0x11c00000)
+#define IO6PROM_BASE_MAPPED	(UNCAC_BASE | 0x11c00000)
 #define IO6DPROM_BASE		PHYS_TO_K0(0x01c00000)
 #define IO6DPROM_SIZE		0x200000
 

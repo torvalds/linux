@@ -87,6 +87,13 @@ struct pci_dev;
 #define BCMA_CORE_PCI_PCICFG2			0x0600	/* PCI config space 2 (rev >= 8) */
 #define BCMA_CORE_PCI_PCICFG3			0x0700	/* PCI config space 3 (rev >= 8) */
 #define BCMA_CORE_PCI_SPROM(wordoffset)		(0x0800 + ((wordoffset) * 2)) /* SPROM shadow area (72 bytes) */
+#define  BCMA_CORE_PCI_SPROM_PI_OFFSET		0	/* first word */
+#define   BCMA_CORE_PCI_SPROM_PI_MASK		0xf000	/* bit 15:12 */
+#define   BCMA_CORE_PCI_SPROM_PI_SHIFT		12	/* bit 15:12 */
+#define  BCMA_CORE_PCI_SPROM_MISC_CONFIG	5	/* word 5 */
+#define   BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST	0x8000	/* bit 15 */
+#define   BCMA_CORE_PCI_SPROM_CLKREQ_OFFSET_REV5	20	/* word 20 for srom rev <= 5 */
+#define   BCMA_CORE_PCI_SPROM_CLKREQ_ENB	0x0800	/* bit 11 */
 
 /* SBtoPCIx */
 #define BCMA_CORE_PCI_SBTOPCI_MEM		0x00000000
@@ -133,6 +140,7 @@ struct pci_dev;
 #define BCMA_CORE_PCI_DLLP_LRREG		0x120	/* Link Replay */
 #define BCMA_CORE_PCI_DLLP_LACKTOREG		0x124	/* Link Ack Timeout */
 #define BCMA_CORE_PCI_DLLP_PMTHRESHREG		0x128	/* Power Management Threshold */
+#define  BCMA_CORE_PCI_ASPMTIMER_EXTEND		0x01000000 /* > rev7: enable extend ASPM timer */
 #define BCMA_CORE_PCI_DLLP_RTRYWPREG		0x12C	/* Retry buffer write ptr */
 #define BCMA_CORE_PCI_DLLP_RTRYRPREG		0x130	/* Retry buffer Read ptr */
 #define BCMA_CORE_PCI_DLLP_RTRYPPREG		0x134	/* Retry buffer Purged ptr */
@@ -171,10 +179,33 @@ struct pci_dev;
 #define BCMA_CORE_PCI_CFG_FUN_MASK		7	/* Function mask */
 #define BCMA_CORE_PCI_CFG_OFF_MASK		0xfff	/* Register mask */
 
+#define BCMA_CORE_PCI_CFG_DEVCTRL		0xd8
+
+#define BCMA_CORE_PCI_
+
+/* MDIO devices (SERDES modules) */
+#define BCMA_CORE_PCI_MDIO_IEEE0		0x000
+#define BCMA_CORE_PCI_MDIO_IEEE1		0x001
+#define BCMA_CORE_PCI_MDIO_BLK0			0x800
+#define BCMA_CORE_PCI_MDIO_BLK1			0x801
+#define  BCMA_CORE_PCI_MDIO_BLK1_MGMT0		0x16
+#define  BCMA_CORE_PCI_MDIO_BLK1_MGMT1		0x17
+#define  BCMA_CORE_PCI_MDIO_BLK1_MGMT2		0x18
+#define  BCMA_CORE_PCI_MDIO_BLK1_MGMT3		0x19
+#define  BCMA_CORE_PCI_MDIO_BLK1_MGMT4		0x1A
+#define BCMA_CORE_PCI_MDIO_BLK2			0x802
+#define BCMA_CORE_PCI_MDIO_BLK3			0x803
+#define BCMA_CORE_PCI_MDIO_BLK4			0x804
+#define BCMA_CORE_PCI_MDIO_TXPLL		0x808	/* TXPLL register block idx */
+#define BCMA_CORE_PCI_MDIO_TXCTRL0		0x820
+#define BCMA_CORE_PCI_MDIO_SERDESID		0x831
+#define BCMA_CORE_PCI_MDIO_RXCTRL0		0x840
+
 /* PCIE Root Capability Register bits (Host mode only) */
 #define BCMA_CORE_PCI_RC_CRS_VISIBILITY		0x0001
 
 struct bcma_drv_pci;
+struct bcma_bus;
 
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
 struct bcma_drv_pci_host {
@@ -201,12 +232,17 @@ struct bcma_drv_pci {
 };
 
 /* Register access */
+#define pcicore_read16(pc, offset)		bcma_read16((pc)->core, offset)
 #define pcicore_read32(pc, offset)		bcma_read32((pc)->core, offset)
+#define pcicore_write16(pc, offset, val)	bcma_write16((pc)->core, offset, val)
 #define pcicore_write32(pc, offset, val)	bcma_write32((pc)->core, offset, val)
 
-extern void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc);
+extern void bcma_core_pci_init(struct bcma_drv_pci *pc);
 extern int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc,
 				 struct bcma_device *core, bool enable);
+extern void bcma_core_pci_up(struct bcma_bus *bus);
+extern void bcma_core_pci_down(struct bcma_bus *bus);
+extern void bcma_core_pci_power_save(struct bcma_bus *bus, bool up);
 
 extern int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev);
 extern int bcma_core_pci_plat_dev_init(struct pci_dev *dev);

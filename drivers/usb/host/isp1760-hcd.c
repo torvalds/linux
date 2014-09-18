@@ -932,7 +932,7 @@ static void enqueue_qtds(struct usb_hcd *hcd, struct isp1760_qh *qh)
 	}
 }
 
-void schedule_ptds(struct usb_hcd *hcd)
+static void schedule_ptds(struct usb_hcd *hcd)
 {
 	struct isp1760_hcd *priv;
 	struct isp1760_qh *qh, *qh_next;
@@ -1285,7 +1285,7 @@ leave:
 #define SLOT_CHECK_PERIOD 200
 static struct timer_list errata2_timer;
 
-void errata2_function(unsigned long data)
+static void errata2_function(unsigned long data)
 {
 	struct usb_hcd *hcd = (struct usb_hcd *) data;
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
@@ -1562,11 +1562,14 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
 		retval = -ESHUTDOWN;
+		qtd_list_free(&new_qtds);
 		goto out;
 	}
 	retval = usb_hcd_link_urb_to_ep(hcd, urb);
-	if (retval)
+	if (retval) {
+		qtd_list_free(&new_qtds);
 		goto out;
+	}
 
 	qh = urb->ep->hcpriv;
 	if (qh) {
@@ -1584,6 +1587,7 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		if (!qh) {
 			retval = -ENOMEM;
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
+			qtd_list_free(&new_qtds);
 			goto out;
 		}
 		list_add_tail(&qh->qh_list, ep_queue);
@@ -1683,6 +1687,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 	list_for_each_entry(qtd, &qh->qtd_list, qtd_list)
 		if (qtd->urb == urb) {
 			dequeue_urb_from_qtd(hcd, qh, qtd);
+			list_move(&qtd->qtd_list, &qh->qtd_list);
 			break;
 		}
 
@@ -1734,7 +1739,7 @@ static int isp1760_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int retval = 1;
 	unsigned long flags;
 
-	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
+	/* if !PM_RUNTIME, root hub timers won't get shut down ... */
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 
@@ -2176,7 +2181,7 @@ static const struct hc_driver isp1760_hc_driver = {
 
 int __init init_kmem_once(void)
 {
-	urb_listitem_cachep = kmem_cache_create("isp1760 urb_listitem",
+	urb_listitem_cachep = kmem_cache_create("isp1760_urb_listitem",
 			sizeof(struct urb_listitem), 0, SLAB_TEMPORARY |
 			SLAB_MEM_SPREAD, NULL);
 
@@ -2245,6 +2250,7 @@ struct usb_hcd *isp1760_register(phys_addr_t res_start, resource_size_t res_len,
 	ret = usb_add_hcd(hcd, irq, irqflags);
 	if (ret)
 		goto err_unmap;
+	device_wakeup_enable(hcd->self.controller);
 
 	return hcd;
 

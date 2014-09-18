@@ -71,7 +71,7 @@ extern ia64_mv_pci_fixup_bus_t		sn_pci_fixup_bus;
  * platform's machvec structure.  When compiling a non-generic kernel,
  * the macros are used directly.
  */
-#define platform_name			"sn2"
+#define ia64_platform_name		"sn2"
 #define platform_setup			sn_setup
 #define platform_cpu_init		sn_cpu_init
 #define platform_irq_init		sn_irq_init

@@ -159,7 +159,7 @@ static inline int __init indy_sc_probe(void)
 }
 
 /* XXX Check with wje if the Indy caches can differenciate between
-   writeback + invalidate and just invalidate.  */
+   writeback + invalidate and just invalidate.	*/
 static struct bcache_ops indy_sc_ops = {
 	.bc_enable = indy_sc_enable,
 	.bc_disable = indy_sc_disable,
@@ -167,7 +167,7 @@ static struct bcache_ops indy_sc_ops = {
 	.bc_inv = indy_sc_wback_invalidate
 };
 
-void __cpuinit indy_sc_init(void)
+void indy_sc_init(void)
 {
 	if (indy_sc_probe()) {
 		indy_sc_enable();

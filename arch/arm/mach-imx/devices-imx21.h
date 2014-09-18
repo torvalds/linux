@@ -6,15 +6,14 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <mach/mx21.h>
-#include <mach/devices-common.h>
+#include "devices/devices-common.h"
 
 extern const struct imx_imx21_hcd_data imx21_imx21_hcd_data;
 #define imx21_add_imx21_hcd(pdata)	\
 	imx_add_imx21_hcd(&imx21_imx21_hcd_data, pdata)
 
 extern const struct imx_imx2_wdt_data imx21_imx2_wdt_data;
-#define imx21_add_imx2_wdt(pdata)	\
+#define imx21_add_imx2_wdt()	\
 	imx_add_imx2_wdt(&imx21_imx2_wdt_data)
 
 extern const struct imx_imx_fb_data imx21_imx_fb_data;
@@ -50,7 +49,7 @@ extern const struct imx_mxc_nand_data imx21_mxc_nand_data;
 	imx_add_mxc_nand(&imx21_mxc_nand_data, pdata)
 
 extern const struct imx_mxc_w1_data imx21_mxc_w1_data;
-#define imx21_add_mxc_w1(pdata)	\
+#define imx21_add_mxc_w1()	\
 	imx_add_mxc_w1(&imx21_mxc_w1_data)
 
 extern const struct imx_spi_imx_data imx21_cspi_data[];

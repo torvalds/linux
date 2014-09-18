@@ -31,8 +31,8 @@
  *    Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
-#include "drmP.h"
-#include "sis_drm.h"
+#include <drm/drmP.h>
+#include <drm/sis_drm.h>
 #include "sis_drv.h"
 
 #include <video/sisfb.h>
@@ -74,7 +74,7 @@ static int sis_fb_init(struct drm_device *dev, void *data, struct drm_file *file
 	dev_priv->vram_offset = fb->offset;
 
 	mutex_unlock(&dev->struct_mutex);
-	DRM_DEBUG("offset = %u, size = %u\n", fb->offset, fb->size);
+	DRM_DEBUG("offset = %lu, size = %lu\n", fb->offset, fb->size);
 
 	return 0;
 }
@@ -109,7 +109,8 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 	if (pool == AGP_TYPE) {
 		retval = drm_mm_insert_node(&dev_priv->agp_mm,
 					    &item->mm_node,
-					    mem->size, 0);
+					    mem->size, 0,
+					    DRM_MM_SEARCH_DEFAULT);
 		offset = item->mm_node.start;
 	} else {
 #if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
@@ -121,24 +122,18 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 #else
 		retval = drm_mm_insert_node(&dev_priv->vram_mm,
 					    &item->mm_node,
-					    mem->size, 0);
+					    mem->size, 0,
+					    DRM_MM_SEARCH_DEFAULT);
 		offset = item->mm_node.start;
 #endif
 	}
 	if (retval)
 		goto fail_alloc;
 
-again:
-	if (idr_pre_get(&dev_priv->object_idr, GFP_KERNEL) == 0) {
-		retval = -ENOMEM;
+	retval = idr_alloc(&dev_priv->object_idr, item, 1, 0, GFP_KERNEL);
+	if (retval < 0)
 		goto fail_idr;
-	}
-
-	retval = idr_get_new_above(&dev_priv->object_idr, item, 1, &user_key);
-	if (retval == -EAGAIN)
-		goto again;
-	if (retval)
-		goto fail_idr;
+	user_key = retval;
 
 	list_add(&item->owner_list, &file_priv->obj_list);
 	mutex_unlock(&dev->struct_mutex);
@@ -161,7 +156,7 @@ fail_alloc:
 	mem->size = 0;
 	mem->free = 0;
 
-	DRM_DEBUG("alloc %d, size = %d, offset = %d\n", pool, mem->size,
+	DRM_DEBUG("alloc %d, size = %ld, offset = %ld\n", pool, mem->size,
 		  mem->offset);
 
 	return retval;
@@ -215,7 +210,7 @@ static int sis_ioctl_agp_init(struct drm_device *dev, void *data,
 	dev_priv->agp_offset = agp->offset;
 	mutex_unlock(&dev->struct_mutex);
 
-	DRM_DEBUG("offset = %u, size = %u\n", agp->offset, agp->size);
+	DRM_DEBUG("offset = %lu, size = %lu\n", agp->offset, agp->size);
 	return 0;
 }
 
@@ -271,7 +266,7 @@ int sis_idle(struct drm_device *dev)
 	 * because its polling frequency is too low.
 	 */
 
-	end = jiffies + (DRM_HZ * 3);
+	end = jiffies + (HZ * 3);
 
 	for (i = 0; i < 4; ++i) {
 		do {
@@ -321,14 +316,20 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 	struct sis_file_private *file_priv = file->driver_priv;
 	struct sis_memblock *entry, *next;
 
+	if (!(file->minor->master && file->master->lock.hw_lock))
+		return;
+
+	drm_idlelock_take(&file->master->lock);
+
 	mutex_lock(&dev->struct_mutex);
 	if (list_empty(&file_priv->obj_list)) {
 		mutex_unlock(&dev->struct_mutex);
+		drm_idlelock_release(&file->master->lock);
+
 		return;
 	}
 
-	if (dev->driver->dma_quiescent)
-		dev->driver->dma_quiescent(dev);
+	sis_idle(dev);
 
 
 	list_for_each_entry_safe(entry, next, &file_priv->obj_list,
@@ -343,10 +344,13 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 		kfree(entry);
 	}
 	mutex_unlock(&dev->struct_mutex);
+
+	drm_idlelock_release(&file->master->lock);
+
 	return;
 }
 
-struct drm_ioctl_desc sis_ioctls[] = {
+const struct drm_ioctl_desc sis_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(SIS_FB_ALLOC, sis_fb_alloc, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(SIS_FB_FREE, sis_drm_free, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(SIS_AGP_INIT, sis_ioctl_agp_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
@@ -355,4 +359,4 @@ struct drm_ioctl_desc sis_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(SIS_FB_INIT, sis_fb_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
 };
 
-int sis_max_ioctl = DRM_ARRAY_SIZE(sis_ioctls);
+int sis_max_ioctl = ARRAY_SIZE(sis_ioctls);

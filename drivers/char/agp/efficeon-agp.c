@@ -128,7 +128,6 @@ static void efficeon_cleanup(void)
 
 static int efficeon_configure(void)
 {
-	u32 temp;
 	u16 temp2;
 	struct aper_size_info_lvl2 *current_size;
 
@@ -141,8 +140,8 @@ static int efficeon_configure(void)
 			      current_size->size_value);
 
 	/* address to map to */
-	pci_read_config_dword(agp_bridge->dev, AGP_APBASE, &temp);
-	agp_bridge->gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
+	agp_bridge->gart_bus_addr = pci_bus_address(agp_bridge->dev,
+						    AGP_APERTURE_BAR);
 
 	/* agpctrl */
 	pci_write_config_dword(agp_bridge->dev, INTEL_AGPCTRL, 0x2280);
@@ -343,8 +342,8 @@ static const struct agp_bridge_driver efficeon_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static int __devinit agp_efficeon_probe(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+static int agp_efficeon_probe(struct pci_dev *pdev,
+			      const struct pci_device_id *ent)
 {
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr;
@@ -407,7 +406,7 @@ static int __devinit agp_efficeon_probe(struct pci_dev *pdev,
 	return agp_add_bridge(bridge);
 }
 
-static void __devexit agp_efficeon_remove(struct pci_dev *pdev)
+static void agp_efficeon_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 

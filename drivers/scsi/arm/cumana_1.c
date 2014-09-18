@@ -30,15 +30,11 @@
 #define NCR5380_write(reg, value)	cumanascsi_write(_instance, reg, value)
 #define NCR5380_intr			cumanascsi_intr
 #define NCR5380_queue_command		cumanascsi_queue_command
-#define NCR5380_proc_info		cumanascsi_proc_info
 
 #define NCR5380_implementation_fields	\
 	unsigned ctrl;			\
 	void __iomem *base;		\
 	void __iomem *dma
-
-#define BOARD_NORMAL	0
-#define BOARD_NCR53C400	1
 
 #include "../NCR5380.h"
 
@@ -225,8 +221,8 @@ static struct scsi_host_template cumanascsi_template = {
 	.proc_name		= "CumanaSCSI-1",
 };
 
-static int __devinit
-cumanascsi1_probe(struct expansion_card *ec, const struct ecard_id *id)
+static int cumanascsi1_probe(struct expansion_card *ec,
+			     const struct ecard_id *id)
 {
 	struct Scsi_Host *host;
 	int ret;
@@ -263,7 +259,7 @@ cumanascsi1_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto out_unmap;
 	}
 
-	ret = request_irq(host->irq, cumanascsi_intr, IRQF_DISABLED,
+	ret = request_irq(host->irq, cumanascsi_intr, 0,
 			  "CumanaSCSI-1", host);
 	if (ret) {
 		printk("scsi%d: IRQ%d not free: %d\n",
@@ -298,7 +294,7 @@ cumanascsi1_probe(struct expansion_card *ec, const struct ecard_id *id)
 	return ret;
 }
 
-static void __devexit cumanascsi1_remove(struct expansion_card *ec)
+static void cumanascsi1_remove(struct expansion_card *ec)
 {
 	struct Scsi_Host *host = ecard_get_drvdata(ec);
 
@@ -320,7 +316,7 @@ static const struct ecard_id cumanascsi1_cids[] = {
 
 static struct ecard_driver cumanascsi1_driver = {
 	.probe		= cumanascsi1_probe,
-	.remove		= __devexit_p(cumanascsi1_remove),
+	.remove		= cumanascsi1_remove,
 	.id_table	= cumanascsi1_cids,
 	.drv = {
 		.name		= "cumanascsi1",

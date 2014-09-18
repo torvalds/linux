@@ -21,30 +21,14 @@
  *
  */
 
+#include <linux/compat.h>
 #include "ext3.h"
 
 static unsigned char ext3_filetype_table[] = {
 	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
 };
 
-static int ext3_readdir(struct file *, void *, filldir_t);
-static int ext3_dx_readdir(struct file * filp,
-			   void * dirent, filldir_t filldir);
-static int ext3_release_dir (struct inode * inode,
-				struct file * filp);
-
-const struct file_operations ext3_dir_operations = {
-	.llseek		= generic_file_llseek,
-	.read		= generic_read_dir,
-	.readdir	= ext3_readdir,		/* we take BKL. needed?*/
-	.unlocked_ioctl	= ext3_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= ext3_compat_ioctl,
-#endif
-	.fsync		= ext3_sync_file,	/* BKL held */
-	.release	= ext3_release_dir,
-};
-
+static int ext3_dx_readdir(struct file *, struct dir_context *);
 
 static unsigned char get_dtype(struct super_block *sb, int filetype)
 {
@@ -55,6 +39,25 @@ static unsigned char get_dtype(struct super_block *sb, int filetype)
 	return (ext3_filetype_table[filetype]);
 }
 
+/**
+ * Check if the given dir-inode refers to an htree-indexed directory
+ * (or a directory which could potentially get converted to use htree
+ * indexing).
+ *
+ * Return 1 if it is a dx dir, 0 if not
+ */
+static int is_dx_dir(struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+
+	if (EXT3_HAS_COMPAT_FEATURE(inode->i_sb,
+		     EXT3_FEATURE_COMPAT_DIR_INDEX) &&
+	    ((EXT3_I(inode)->i_flags & EXT3_INDEX_FL) ||
+	     ((inode->i_size >> sb->s_blocksize_bits) == 1)))
+		return 1;
+
+	return 0;
+}
 
 int ext3_check_dir_entry (const char * function, struct inode * dir,
 			  struct ext3_dir_entry_2 * de,
@@ -87,41 +90,30 @@ int ext3_check_dir_entry (const char * function, struct inode * dir,
 	return error_msg == NULL ? 1 : 0;
 }
 
-static int ext3_readdir(struct file * filp,
-			 void * dirent, filldir_t filldir)
+static int ext3_readdir(struct file *file, struct dir_context *ctx)
 {
-	int error = 0;
 	unsigned long offset;
-	int i, stored;
+	int i;
 	struct ext3_dir_entry_2 *de;
-	struct super_block *sb;
 	int err;
-	struct inode *inode = filp->f_path.dentry->d_inode;
-	int ret = 0;
+	struct inode *inode = file_inode(file);
+	struct super_block *sb = inode->i_sb;
 	int dir_has_error = 0;
 
-	sb = inode->i_sb;
-
-	if (EXT3_HAS_COMPAT_FEATURE(inode->i_sb,
-				    EXT3_FEATURE_COMPAT_DIR_INDEX) &&
-	    ((EXT3_I(inode)->i_flags & EXT3_INDEX_FL) ||
-	     ((inode->i_size >> sb->s_blocksize_bits) == 1))) {
-		err = ext3_dx_readdir(filp, dirent, filldir);
-		if (err != ERR_BAD_DX_DIR) {
-			ret = err;
-			goto out;
-		}
+	if (is_dx_dir(inode)) {
+		err = ext3_dx_readdir(file, ctx);
+		if (err != ERR_BAD_DX_DIR)
+			return err;
 		/*
 		 * We don't set the inode dirty flag since it's not
 		 * critical that it get flushed back to the disk.
 		 */
-		EXT3_I(filp->f_path.dentry->d_inode)->i_flags &= ~EXT3_INDEX_FL;
+		EXT3_I(inode)->i_flags &= ~EXT3_INDEX_FL;
 	}
-	stored = 0;
-	offset = filp->f_pos & (sb->s_blocksize - 1);
+	offset = ctx->pos & (sb->s_blocksize - 1);
 
-	while (!error && !stored && filp->f_pos < inode->i_size) {
-		unsigned long blk = filp->f_pos >> EXT3_BLOCK_SIZE_BITS(sb);
+	while (ctx->pos < inode->i_size) {
+		unsigned long blk = ctx->pos >> EXT3_BLOCK_SIZE_BITS(sb);
 		struct buffer_head map_bh;
 		struct buffer_head *bh = NULL;
 
@@ -130,12 +122,12 @@ static int ext3_readdir(struct file * filp,
 		if (err > 0) {
 			pgoff_t index = map_bh.b_blocknr >>
 					(PAGE_CACHE_SHIFT - inode->i_blkbits);
-			if (!ra_has_index(&filp->f_ra, index))
+			if (!ra_has_index(&file->f_ra, index))
 				page_cache_sync_readahead(
 					sb->s_bdev->bd_inode->i_mapping,
-					&filp->f_ra, filp,
+					&file->f_ra, file,
 					index, 1);
-			filp->f_ra.prev_pos = (loff_t)index << PAGE_CACHE_SHIFT;
+			file->f_ra.prev_pos = (loff_t)index << PAGE_CACHE_SHIFT;
 			bh = ext3_bread(NULL, inode, blk, 0, &err);
 		}
 
@@ -147,22 +139,21 @@ static int ext3_readdir(struct file * filp,
 			if (!dir_has_error) {
 				ext3_error(sb, __func__, "directory #%lu "
 					"contains a hole at offset %lld",
-					inode->i_ino, filp->f_pos);
+					inode->i_ino, ctx->pos);
 				dir_has_error = 1;
 			}
 			/* corrupt size?  Maybe no more blocks to read */
-			if (filp->f_pos > inode->i_blocks << 9)
+			if (ctx->pos > inode->i_blocks << 9)
 				break;
-			filp->f_pos += sb->s_blocksize - offset;
+			ctx->pos += sb->s_blocksize - offset;
 			continue;
 		}
 
-revalidate:
 		/* If the dir block has changed since the last call to
 		 * readdir(2), then we might be pointing to an invalid
 		 * dirent right now.  Scan from the start of the block
 		 * to make sure. */
-		if (filp->f_version != inode->i_version) {
+		if (offset && file->f_version != inode->i_version) {
 			for (i = 0; i < sb->s_blocksize && i < offset; ) {
 				de = (struct ext3_dir_entry_2 *)
 					(bh->b_data + i);
@@ -178,71 +169,124 @@ revalidate:
 				i += ext3_rec_len_from_disk(de->rec_len);
 			}
 			offset = i;
-			filp->f_pos = (filp->f_pos & ~(sb->s_blocksize - 1))
+			ctx->pos = (ctx->pos & ~(sb->s_blocksize - 1))
 				| offset;
-			filp->f_version = inode->i_version;
+			file->f_version = inode->i_version;
 		}
 
-		while (!error && filp->f_pos < inode->i_size
+		while (ctx->pos < inode->i_size
 		       && offset < sb->s_blocksize) {
 			de = (struct ext3_dir_entry_2 *) (bh->b_data + offset);
 			if (!ext3_check_dir_entry ("ext3_readdir", inode, de,
 						   bh, offset)) {
-				/* On error, skip the f_pos to the
+				/* On error, skip the to the
                                    next block. */
-				filp->f_pos = (filp->f_pos |
+				ctx->pos = (ctx->pos |
 						(sb->s_blocksize - 1)) + 1;
-				brelse (bh);
-				ret = stored;
-				goto out;
+				break;
 			}
 			offset += ext3_rec_len_from_disk(de->rec_len);
 			if (le32_to_cpu(de->inode)) {
-				/* We might block in the next section
-				 * if the data destination is
-				 * currently swapped out.  So, use a
-				 * version stamp to detect whether or
-				 * not the directory has been modified
-				 * during the copy operation.
-				 */
-				u64 version = filp->f_version;
-
-				error = filldir(dirent, de->name,
-						de->name_len,
-						filp->f_pos,
-						le32_to_cpu(de->inode),
-						get_dtype(sb, de->file_type));
-				if (error)
-					break;
-				if (version != filp->f_version)
-					goto revalidate;
-				stored ++;
+				if (!dir_emit(ctx, de->name, de->name_len,
+					      le32_to_cpu(de->inode),
+					      get_dtype(sb, de->file_type))) {
+					brelse(bh);
+					return 0;
+				}
 			}
-			filp->f_pos += ext3_rec_len_from_disk(de->rec_len);
+			ctx->pos += ext3_rec_len_from_disk(de->rec_len);
 		}
 		offset = 0;
 		brelse (bh);
+		if (ctx->pos < inode->i_size)
+			if (!dir_relax(inode))
+				return 0;
 	}
-out:
-	return ret;
+	return 0;
+}
+
+static inline int is_32bit_api(void)
+{
+#ifdef CONFIG_COMPAT
+	return is_compat_task();
+#else
+	return (BITS_PER_LONG == 32);
+#endif
 }
 
 /*
  * These functions convert from the major/minor hash to an f_pos
- * value.
+ * value for dx directories
  *
- * Currently we only use major hash numer.  This is unfortunate, but
- * on 32-bit machines, the same VFS interface is used for lseek and
- * llseek, so if we use the 64 bit offset, then the 32-bit versions of
- * lseek/telldir/seekdir will blow out spectacularly, and from within
- * the ext2 low-level routine, we don't know if we're being called by
- * a 64-bit version of the system call or the 32-bit version of the
- * system call.  Worse yet, NFSv2 only allows for a 32-bit readdir
- * cookie.  Sigh.
+ * Upper layer (for example NFS) should specify FMODE_32BITHASH or
+ * FMODE_64BITHASH explicitly. On the other hand, we allow ext3 to be mounted
+ * directly on both 32-bit and 64-bit nodes, under such case, neither
+ * FMODE_32BITHASH nor FMODE_64BITHASH is specified.
  */
-#define hash2pos(major, minor)	(major >> 1)
-#define pos2maj_hash(pos)	((pos << 1) & 0xffffffff)
-#define pos2min_hash(pos)	(0)
+static inline loff_t hash2pos(struct file *filp, __u32 major, __u32 minor)
+{
+	if ((filp->f_mode & FMODE_32BITHASH) ||
+	    (!(filp->f_mode & FMODE_64BITHASH) && is_32bit_api()))
+		return major >> 1;
+	else
+		return ((__u64)(major >> 1) << 32) | (__u64)minor;
+}
+
+static inline __u32 pos2maj_hash(struct file *filp, loff_t pos)
+{
+	if ((filp->f_mode & FMODE_32BITHASH) ||
+	    (!(filp->f_mode & FMODE_64BITHASH) && is_32bit_api()))
+		return (pos << 1) & 0xffffffff;
+	else
+		return ((pos >> 32) << 1) & 0xffffffff;
+}
+
+static inline __u32 pos2min_hash(struct file *filp, loff_t pos)
+{
+	if ((filp->f_mode & FMODE_32BITHASH) ||
+	    (!(filp->f_mode & FMODE_64BITHASH) && is_32bit_api()))
+		return 0;
+	else
+		return pos & 0xffffffff;
+}
+
+/*
+ * Return 32- or 64-bit end-of-file for dx directories
+ */
+static inline loff_t ext3_get_htree_eof(struct file *filp)
+{
+	if ((filp->f_mode & FMODE_32BITHASH) ||
+	    (!(filp->f_mode & FMODE_64BITHASH) && is_32bit_api()))
+		return EXT3_HTREE_EOF_32BIT;
+	else
+		return EXT3_HTREE_EOF_64BIT;
+}
+
+
+/*
+ * ext3_dir_llseek() calls generic_file_llseek[_size]() to handle both
+ * non-htree and htree directories, where the "offset" is in terms
+ * of the filename hash value instead of the byte offset.
+ *
+ * Because we may return a 64-bit hash that is well beyond s_maxbytes,
+ * we need to pass the max hash as the maximum allowable offset in
+ * the htree directory case.
+ *
+ * NOTE: offsets obtained *before* ext3_set_inode_flag(dir, EXT3_INODE_INDEX)
+ *       will be invalid once the directory was converted into a dx directory
+ */
+static loff_t ext3_dir_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct inode *inode = file->f_mapping->host;
+	int dx_dir = is_dx_dir(inode);
+	loff_t htree_max = ext3_get_htree_eof(file);
+
+	if (likely(dx_dir))
+		return generic_file_llseek_size(file, offset, whence,
+					        htree_max, htree_max);
+	else
+		return generic_file_llseek(file, offset, whence);
+}
 
 /*
  * This structure holds the nodes of the red-black tree used to store
@@ -265,53 +309,28 @@ struct fname {
  */
 static void free_rb_tree_fname(struct rb_root *root)
 {
-	struct rb_node	*n = root->rb_node;
-	struct rb_node	*parent;
-	struct fname	*fname;
+	struct fname *fname, *next;
 
-	while (n) {
-		/* Do the node's children first */
-		if (n->rb_left) {
-			n = n->rb_left;
-			continue;
-		}
-		if (n->rb_right) {
-			n = n->rb_right;
-			continue;
-		}
-		/*
-		 * The node has no children; free it, and then zero
-		 * out parent's link to it.  Finally go to the
-		 * beginning of the loop and try to free the parent
-		 * node.
-		 */
-		parent = rb_parent(n);
-		fname = rb_entry(n, struct fname, rb_hash);
-		while (fname) {
-			struct fname * old = fname;
+	rbtree_postorder_for_each_entry_safe(fname, next, root, rb_hash)
+		do {
+			struct fname *old = fname;
 			fname = fname->next;
-			kfree (old);
-		}
-		if (!parent)
-			*root = RB_ROOT;
-		else if (parent->rb_left == n)
-			parent->rb_left = NULL;
-		else if (parent->rb_right == n)
-			parent->rb_right = NULL;
-		n = parent;
-	}
+			kfree(old);
+		} while (fname);
+
+	*root = RB_ROOT;
 }
 
-
-static struct dir_private_info *ext3_htree_create_dir_info(loff_t pos)
+static struct dir_private_info *ext3_htree_create_dir_info(struct file *filp,
+							   loff_t pos)
 {
 	struct dir_private_info *p;
 
 	p = kzalloc(sizeof(struct dir_private_info), GFP_KERNEL);
 	if (!p)
 		return NULL;
-	p->curr_hash = pos2maj_hash(pos);
-	p->curr_minor_hash = pos2min_hash(pos);
+	p->curr_hash = pos2maj_hash(filp, pos);
+	p->curr_minor_hash = pos2min_hash(filp, pos);
 	return p;
 }
 
@@ -386,62 +405,54 @@ int ext3_htree_store_dirent(struct file *dir_file, __u32 hash,
  * for all entres on the fname linked list.  (Normally there is only
  * one entry on the linked list, unless there are 62 bit hash collisions.)
  */
-static int call_filldir(struct file * filp, void * dirent,
-			filldir_t filldir, struct fname *fname)
+static bool call_filldir(struct file *file, struct dir_context *ctx,
+			struct fname *fname)
 {
-	struct dir_private_info *info = filp->private_data;
-	loff_t	curr_pos;
-	struct inode *inode = filp->f_path.dentry->d_inode;
-	struct super_block * sb;
-	int error;
-
-	sb = inode->i_sb;
+	struct dir_private_info *info = file->private_data;
+	struct inode *inode = file_inode(file);
+	struct super_block *sb = inode->i_sb;
 
 	if (!fname) {
 		printk("call_filldir: called with null fname?!?\n");
-		return 0;
+		return true;
 	}
-	curr_pos = hash2pos(fname->hash, fname->minor_hash);
+	ctx->pos = hash2pos(file, fname->hash, fname->minor_hash);
 	while (fname) {
-		error = filldir(dirent, fname->name,
-				fname->name_len, curr_pos,
+		if (!dir_emit(ctx, fname->name, fname->name_len,
 				fname->inode,
-				get_dtype(sb, fname->file_type));
-		if (error) {
-			filp->f_pos = curr_pos;
+				get_dtype(sb, fname->file_type))) {
 			info->extra_fname = fname;
-			return error;
+			return false;
 		}
 		fname = fname->next;
 	}
-	return 0;
+	return true;
 }
 
-static int ext3_dx_readdir(struct file * filp,
-			 void * dirent, filldir_t filldir)
+static int ext3_dx_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct dir_private_info *info = filp->private_data;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct dir_private_info *info = file->private_data;
+	struct inode *inode = file_inode(file);
 	struct fname *fname;
 	int	ret;
 
 	if (!info) {
-		info = ext3_htree_create_dir_info(filp->f_pos);
+		info = ext3_htree_create_dir_info(file, ctx->pos);
 		if (!info)
 			return -ENOMEM;
-		filp->private_data = info;
+		file->private_data = info;
 	}
 
-	if (filp->f_pos == EXT3_HTREE_EOF)
+	if (ctx->pos == ext3_get_htree_eof(file))
 		return 0;	/* EOF */
 
 	/* Some one has messed with f_pos; reset the world */
-	if (info->last_pos != filp->f_pos) {
+	if (info->last_pos != ctx->pos) {
 		free_rb_tree_fname(&info->root);
 		info->curr_node = NULL;
 		info->extra_fname = NULL;
-		info->curr_hash = pos2maj_hash(filp->f_pos);
-		info->curr_minor_hash = pos2min_hash(filp->f_pos);
+		info->curr_hash = pos2maj_hash(file, ctx->pos);
+		info->curr_minor_hash = pos2min_hash(file, ctx->pos);
 	}
 
 	/*
@@ -449,7 +460,7 @@ static int ext3_dx_readdir(struct file * filp,
 	 * chain, return them first.
 	 */
 	if (info->extra_fname) {
-		if (call_filldir(filp, dirent, filldir, info->extra_fname))
+		if (!call_filldir(file, ctx, info->extra_fname))
 			goto finished;
 		info->extra_fname = NULL;
 		goto next_node;
@@ -463,17 +474,17 @@ static int ext3_dx_readdir(struct file * filp,
 		 * cached entries.
 		 */
 		if ((!info->curr_node) ||
-		    (filp->f_version != inode->i_version)) {
+		    (file->f_version != inode->i_version)) {
 			info->curr_node = NULL;
 			free_rb_tree_fname(&info->root);
-			filp->f_version = inode->i_version;
-			ret = ext3_htree_fill_tree(filp, info->curr_hash,
+			file->f_version = inode->i_version;
+			ret = ext3_htree_fill_tree(file, info->curr_hash,
 						   info->curr_minor_hash,
 						   &info->next_hash);
 			if (ret < 0)
 				return ret;
 			if (ret == 0) {
-				filp->f_pos = EXT3_HTREE_EOF;
+				ctx->pos = ext3_get_htree_eof(file);
 				break;
 			}
 			info->curr_node = rb_first(&info->root);
@@ -482,7 +493,7 @@ static int ext3_dx_readdir(struct file * filp,
 		fname = rb_entry(info->curr_node, struct fname, rb_hash);
 		info->curr_hash = fname->hash;
 		info->curr_minor_hash = fname->minor_hash;
-		if (call_filldir(filp, dirent, filldir, fname))
+		if (!call_filldir(file, ctx, fname))
 			break;
 	next_node:
 		info->curr_node = rb_next(info->curr_node);
@@ -493,7 +504,7 @@ static int ext3_dx_readdir(struct file * filp,
 			info->curr_minor_hash = fname->minor_hash;
 		} else {
 			if (info->next_hash == ~0) {
-				filp->f_pos = EXT3_HTREE_EOF;
+				ctx->pos = ext3_get_htree_eof(file);
 				break;
 			}
 			info->curr_hash = info->next_hash;
@@ -501,7 +512,7 @@ static int ext3_dx_readdir(struct file * filp,
 		}
 	}
 finished:
-	info->last_pos = filp->f_pos;
+	info->last_pos = ctx->pos;
 	return 0;
 }
 
@@ -512,3 +523,15 @@ static int ext3_release_dir (struct inode * inode, struct file * filp)
 
 	return 0;
 }
+
+const struct file_operations ext3_dir_operations = {
+	.llseek		= ext3_dir_llseek,
+	.read		= generic_read_dir,
+	.iterate	= ext3_readdir,
+	.unlocked_ioctl = ext3_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ext3_compat_ioctl,
+#endif
+	.fsync		= ext3_sync_file,
+	.release	= ext3_release_dir,
+};

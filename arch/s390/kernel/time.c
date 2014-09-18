@@ -1,5 +1,4 @@
 /*
- *  arch/s390/kernel/time.c
  *    Time of day based timer functions.
  *
  *  S390 version
@@ -35,7 +34,7 @@
 #include <linux/profile.h>
 #include <linux/timex.h>
 #include <linux/notifier.h>
-#include <linux/clocksource.h>
+#include <linux/timekeeper_internal.h>
 #include <linux/clockchips.h>
 #include <linux/gfp.h>
 #include <linux/kprobes.h>
@@ -45,7 +44,7 @@
 #include <asm/vdso.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
-#include <asm/timer.h>
+#include <asm/vtimer.h>
 #include <asm/etr.h>
 #include <asm/cio.h>
 #include "entry.h"
@@ -64,7 +63,7 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
  */
 unsigned long long notrace __kprobes sched_clock(void)
 {
-	return (get_clock_monotonic() * 125) >> 9;
+	return tod_to_ns(get_tod_clock_monotonic());
 }
 
 /*
@@ -93,7 +92,6 @@ void clock_comparator_work(void)
 	struct clock_event_device *cd;
 
 	S390_lowcore.clock_comparator = -1ULL;
-	set_clock_comparator(S390_lowcore.clock_comparator);
 	cd = &__get_cpu_var(comparators);
 	cd->event_handler(cd);
 }
@@ -110,17 +108,10 @@ static void fixup_clock_comparator(unsigned long long delta)
 	set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
-static int s390_next_ktime(ktime_t expires,
+static int s390_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
 {
-	struct timespec ts;
-	u64 nsecs;
-
-	ts.tv_sec = ts.tv_nsec = 0;
-	monotonic_to_bootbased(&ts);
-	nsecs = ktime_to_ns(ktime_add(timespec_to_ktime(ts), expires));
-	do_div(nsecs, 125);
-	S390_lowcore.clock_comparator = sched_clock_base_cc + (nsecs << 9);
+	S390_lowcore.clock_comparator = get_tod_clock() + delta;
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	return 0;
 }
@@ -145,15 +136,14 @@ void init_cpu_timer(void)
 	cpu = smp_processor_id();
 	cd = &per_cpu(comparators, cpu);
 	cd->name		= "comparator";
-	cd->features		= CLOCK_EVT_FEAT_ONESHOT |
-				  CLOCK_EVT_FEAT_KTIME;
+	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
 	cd->mult		= 16777;
 	cd->shift		= 12;
 	cd->min_delta_ns	= 1;
 	cd->max_delta_ns	= LONG_MAX;
 	cd->rating		= 400;
 	cd->cpumask		= cpumask_of(cpu);
-	cd->set_next_ktime	= s390_next_ktime;
+	cd->set_next_event	= s390_next_event;
 	cd->set_mode		= s390_set_mode;
 
 	clockevents_register_device(cd);
@@ -169,7 +159,7 @@ static void clock_comparator_interrupt(struct ext_code ext_code,
 				       unsigned int param32,
 				       unsigned long param64)
 {
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_CLK]++;
+	inc_irq_stat(IRQEXT_CLK);
 	if (S390_lowcore.clock_comparator == -1ULL)
 		set_clock_comparator(S390_lowcore.clock_comparator);
 }
@@ -180,7 +170,7 @@ static void stp_timing_alert(struct stp_irq_parm *);
 static void timing_alert_interrupt(struct ext_code ext_code,
 				   unsigned int param32, unsigned long param64)
 {
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_TLA]++;
+	inc_irq_stat(IRQEXT_TLA);
 	if (param32 & 0x00c40000)
 		etr_timing_alert((struct etr_irq_parm *) &param32);
 	if (param32 & 0x00038000)
@@ -192,7 +182,7 @@ static void stp_reset(void);
 
 void read_persistent_clock(struct timespec *ts)
 {
-	tod_to_timeval(get_clock() - TOD_UNIX_EPOCH, ts);
+	tod_to_timeval(get_tod_clock() - TOD_UNIX_EPOCH, ts);
 }
 
 void read_boot_clock(struct timespec *ts)
@@ -202,7 +192,7 @@ void read_boot_clock(struct timespec *ts)
 
 static cycle_t read_tod_clock(struct clocksource *cs)
 {
-	return get_clock();
+	return get_tod_clock();
 }
 
 static struct clocksource clocksource_tod = {
@@ -220,21 +210,30 @@ struct clocksource * __init clocksource_default_clock(void)
 	return &clocksource_tod;
 }
 
-void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
-			struct clocksource *clock, u32 mult)
+void update_vsyscall(struct timekeeper *tk)
 {
-	if (clock != &clocksource_tod)
+	u64 nsecps;
+
+	if (tk->tkr.clock != &clocksource_tod)
 		return;
 
 	/* Make userspace gettimeofday spin until we're done. */
 	++vdso_data->tb_update_count;
 	smp_wmb();
-	vdso_data->xtime_tod_stamp = clock->cycle_last;
-	vdso_data->xtime_clock_sec = wall_time->tv_sec;
-	vdso_data->xtime_clock_nsec = wall_time->tv_nsec;
-	vdso_data->wtom_clock_sec = wtm->tv_sec;
-	vdso_data->wtom_clock_nsec = wtm->tv_nsec;
-	vdso_data->ntp_mult = mult;
+	vdso_data->xtime_tod_stamp = tk->tkr.cycle_last;
+	vdso_data->xtime_clock_sec = tk->xtime_sec;
+	vdso_data->xtime_clock_nsec = tk->tkr.xtime_nsec;
+	vdso_data->wtom_clock_sec =
+		tk->xtime_sec + tk->wall_to_monotonic.tv_sec;
+	vdso_data->wtom_clock_nsec = tk->tkr.xtime_nsec +
+		+ ((u64) tk->wall_to_monotonic.tv_nsec << tk->tkr.shift);
+	nsecps = (u64) NSEC_PER_SEC << tk->tkr.shift;
+	while (vdso_data->wtom_clock_nsec >= nsecps) {
+		vdso_data->wtom_clock_nsec -= nsecps;
+		vdso_data->wtom_clock_sec++;
+	}
+	vdso_data->tk_mult = tk->tkr.mult;
+	vdso_data->tk_shift = tk->tkr.shift;
 	smp_wmb();
 	++vdso_data->tb_update_count;
 }
@@ -263,11 +262,11 @@ void __init time_init(void)
 	stp_reset();
 
 	/* request the clock comparator external interrupt */
-	if (register_external_interrupt(0x1004, clock_comparator_interrupt))
-                panic("Couldn't request external interrupt 0x1004");
+	if (register_external_irq(EXT_IRQ_CLK_COMP, clock_comparator_interrupt))
+		panic("Couldn't request external interrupt 0x1004");
 
 	/* request the timing alert external interrupt */
-	if (register_external_interrupt(0x1406, timing_alert_interrupt))
+	if (register_external_irq(EXT_IRQ_TIMING_ALERT, timing_alert_interrupt))
 		panic("Couldn't request external interrupt 0x1406");
 
 	if (clocksource_register(&clocksource_tod) != 0)
@@ -330,7 +329,7 @@ static unsigned long clock_sync_flags;
  * The synchronous get_clock function. It will write the current clock
  * value to the clock pointer and return 0 if the clock is in sync with
  * the external time source. If the clock mode is local it will return
- * -ENOSYS and -EAGAIN if the clock is not in sync with the external
+ * -EOPNOTSUPP and -EAGAIN if the clock is not in sync with the external
  * reference.
  */
 int get_sync_clock(unsigned long long *clock)
@@ -340,7 +339,7 @@ int get_sync_clock(unsigned long long *clock)
 
 	sw_ptr = &get_cpu_var(clock_sync_word);
 	sw0 = atomic_read(sw_ptr);
-	*clock = get_clock();
+	*clock = get_tod_clock();
 	sw1 = atomic_read(sw_ptr);
 	put_cpu_var(clock_sync_word);
 	if (sw0 == sw1 && (sw0 & 0x80000000U))
@@ -348,7 +347,7 @@ int get_sync_clock(unsigned long long *clock)
 		return 0;
 	if (!test_bit(CLOCK_SYNC_HAS_ETR, &clock_sync_flags) &&
 	    !test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 	if (!test_bit(CLOCK_SYNC_ETR, &clock_sync_flags) &&
 	    !test_bit(CLOCK_SYNC_STP, &clock_sync_flags))
 		return -EACCES;
@@ -484,7 +483,7 @@ static void etr_reset(void)
 		.p0 = 0, .p1 = 0, ._pad1 = 0, .ea = 0,
 		.es = 0, .sl = 0 };
 	if (etr_setr(&etr_eacr) == 0) {
-		etr_tolec = get_clock();
+		etr_tolec = get_tod_clock();
 		set_bit(CLOCK_SYNC_HAS_ETR, &clock_sync_flags);
 		if (etr_port0_online && etr_port1_online)
 			set_bit(CLOCK_SYNC_ETR, &clock_sync_flags);
@@ -766,8 +765,8 @@ static int etr_sync_clock(void *data)
 	__ctl_set_bit(14, 21);
 	__ctl_set_bit(0, 29);
 	clock = ((unsigned long long) (aib->edf2.etv + 1)) << 32;
-	old_clock = get_clock();
-	if (set_clock(clock) == 0) {
+	old_clock = get_tod_clock();
+	if (set_tod_clock(clock) == 0) {
 		__udelay(1);	/* Wait for the clock to start. */
 		__ctl_clear_bit(0, 29);
 		__ctl_clear_bit(14, 21);
@@ -843,7 +842,7 @@ static struct etr_eacr etr_handle_events(struct etr_eacr eacr)
 			 * assume that this can have caused an stepping
 			 * port switch.
 			 */
-			etr_tolec = get_clock();
+			etr_tolec = get_tod_clock();
 		eacr.p0 = etr_port0_online;
 		if (!eacr.p0)
 			eacr.e0 = 0;
@@ -856,7 +855,7 @@ static struct etr_eacr etr_handle_events(struct etr_eacr eacr)
 			 * assume that this can have caused an stepping
 			 * port switch.
 			 */
-			etr_tolec = get_clock();
+			etr_tolec = get_tod_clock();
 		eacr.p1 = etr_port1_online;
 		if (!eacr.p1)
 			eacr.e1 = 0;
@@ -972,7 +971,7 @@ static void etr_update_eacr(struct etr_eacr eacr)
 	etr_eacr = eacr;
 	etr_setr(&etr_eacr);
 	if (dp_changed)
-		etr_tolec = get_clock();
+		etr_tolec = get_tod_clock();
 }
 
 /*
@@ -1010,7 +1009,7 @@ static void etr_work_fn(struct work_struct *work)
 	/* Store aib to get the current ETR status word. */
 	BUG_ON(etr_stetr(&aib) != 0);
 	etr_port0.esw = etr_port1.esw = aib.esw;	/* Copy status word. */
-	now = get_clock();
+	now = get_tod_clock();
 
 	/*
 	 * Update the port information if the last stepping port change
@@ -1535,10 +1534,10 @@ static int stp_sync_clock(void *data)
 	if (stp_info.todoff[0] || stp_info.todoff[1] ||
 	    stp_info.todoff[2] || stp_info.todoff[3] ||
 	    stp_info.tmd != 2) {
-		old_clock = get_clock();
+		old_clock = get_tod_clock();
 		rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0);
 		if (rc == 0) {
-			delta = adjust_time(old_clock, get_clock(), 0);
+			delta = adjust_time(old_clock, get_tod_clock(), 0);
 			fixup_clock_comparator(delta);
 			rc = chsc_sstpi(stp_page, &stp_info,
 					sizeof(struct stp_sstpi));

@@ -7,8 +7,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include "kern_util.h"
-#include "os.h"
+#include <kern_util.h>
+#include <os.h>
 
 struct grantpt_info {
 	int fd;

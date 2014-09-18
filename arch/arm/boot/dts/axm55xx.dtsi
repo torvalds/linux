@@ -1,0 +1,204 @@
+/*
+ * arch/arm/boot/dts/axm55xx.dtsi
+ *
+ * Copyright (C) 2013 LSI
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/lsi,axm5516-clks.h>
+
+#include "skeleton64.dtsi"
+
+/ {
+	interrupt-parent = <&gic>;
+
+	aliases {
+		serial0	  = &serial0;
+		serial1   = &serial1;
+		serial2	  = &serial2;
+		serial3	  = &serial3;
+		timer	  = &timer0;
+	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		clk_ref0: clk_ref0 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <125000000>;
+		};
+
+		clk_ref1: clk_ref1 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <125000000>;
+		};
+
+		clk_ref2: clk_ref2 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <125000000>;
+		};
+
+		clks: clock-controller@2010020000 {
+			compatible = "lsi,axm5516-clks";
+			#clock-cells = <1>;
+			reg = <0x20 0x10020000 0 0x20000>;
+		};
+	};
+
+	gic: interrupt-controller@2001001000 {
+		compatible = "arm,cortex-a15-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		reg = <0x20 0x01001000 0 0x1000>,
+		      <0x20 0x01002000 0 0x1000>,
+		      <0x20 0x01004000 0 0x2000>,
+		      <0x20 0x01006000 0 0x2000>;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) |
+				IRQ_TYPE_LEVEL_HIGH)>;
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts =
+			<GIC_PPI 13
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 14
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 11
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 10
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+
+	pmu {
+		compatible = "arm,cortex-a15-pmu";
+		interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		device_type = "soc";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		interrupt-parent = <&gic>;
+		ranges;
+
+		syscon: syscon@2010030000 {
+			compatible = "lsi,axxia-syscon", "syscon";
+			reg = <0x20 0x10030000 0 0x2000>;
+		};
+
+		reset: reset@2010031000 {
+			compatible = "lsi,axm55xx-reset";
+			syscon = <&syscon>;
+		};
+
+		amba {
+			compatible = "arm,amba-bus";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			serial0: uart@2010080000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x20 0x10080000 0 0x1000>;
+				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks AXXIA_CLK_PER>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			serial1: uart@2010081000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x20 0x10081000 0 0x1000>;
+				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks AXXIA_CLK_PER>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			serial2: uart@2010082000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x20 0x10082000 0 0x1000>;
+				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks AXXIA_CLK_PER>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			serial3: uart@2010083000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x20 0x10083000 0 0x1000>;
+				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks AXXIA_CLK_PER>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			timer0: timer@2010091000 {
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0x20 0x10091000 0 0x1000>;
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks AXXIA_CLK_PER>;
+				clock-names = "apb_pclk";
+				status = "okay";
+			};
+
+			gpio0: gpio@2010092000 {
+				#gpio-cells = <2>;
+				compatible = "arm,pl061", "arm,primecell";
+				gpio-controller;
+				reg = <0x20 0x10092000 0x00 0x1000>;
+				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks AXXIA_CLK_PER>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			gpio1: gpio@2010093000 {
+				#gpio-cells = <2>;
+				compatible = "arm,pl061", "arm,primecell";
+				gpio-controller;
+				reg = <0x20 0x10093000 0x00 0x1000>;
+				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks AXXIA_CLK_PER>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+		};
+	};
+};
+
+/*
+  Local Variables:
+  mode: C
+  End:
+*/

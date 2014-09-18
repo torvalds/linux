@@ -14,9 +14,9 @@
 #include <sys/time.h>
 #include <sys/un.h>
 #include "daemon.h"
-#include "net_user.h"
-#include "os.h"
-#include "um_malloc.h"
+#include <net_user.h>
+#include <os.h>
+#include <um_malloc.h>
 
 enum request_type { REQ_NEW_CONTROL };
 

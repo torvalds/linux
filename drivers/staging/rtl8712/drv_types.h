@@ -70,9 +70,7 @@ struct	qos_priv	{
 #include "rtl871x_event.h"
 #include "rtl871x_led.h"
 
-#define SPEC_DEV_ID_NONE BIT(0)
 #define SPEC_DEV_ID_DISABLE_HT BIT(1)
-#define SPEC_DEV_ID_ENABLE_PS BIT(2)
 
 struct specific_device_id {
 	u32		flags;
@@ -127,13 +125,6 @@ struct registry_priv {
 	u8 wifi_test;
 };
 
-/* For registry parameters */
-#define RGTRY_OFT(field) ((addr_t)FIELD_OFFSET(struct registry_priv, field))
-#define RGTRY_SZ(field)   sizeof(((struct registry_priv *)0)->field)
-#define BSSID_OFT(field) ((addr_t)FIELD_OFFSET(struct ndis_wlan_bssid_ex, \
-			 field))
-#define BSSID_SZ(field)   sizeof(((struct ndis_wlan_bssid_ex *)0)->field)
-
 struct dvobj_priv {
 	struct _adapter *padapter;
 	u32 nr_endpoint;
@@ -146,7 +137,7 @@ struct dvobj_priv {
 /**
  * struct _adapter - the main adapter structure for this device.
  *
- * bup: True indicates that the interface is Up.
+ * bup: True indicates that the interface is up.
  */
 struct _adapter {
 	struct	dvobj_priv dvobjpriv;
@@ -169,7 +160,6 @@ struct _adapter {
 	s32	bSurpriseRemoved;
 	u32	IsrContent;
 	u32	ImrContent;
-	bool	fw_found;
 	u8	EepromAddressSize;
 	u8	hw_init_completed;
 	struct task_struct *cmdThread;
@@ -177,13 +167,13 @@ struct _adapter {
 	struct task_struct *xmitThread;
 	pid_t recvThread;
 	uint(*dvobj_init)(struct _adapter *adapter);
-	void  (*dvobj_deinit)(struct _adapter *adapter);
+	void (*dvobj_deinit)(struct _adapter *adapter);
 	struct net_device *pnetdev;
 	int bup;
 	struct net_device_stats stats;
 	struct iw_statistics iwstats;
 	int pid; /*process id from UI*/
-	_workitem wkFilterRxFF0;
+	struct work_struct wkFilterRxFF0;
 	u8 blnEnableRxFF0Filter;
 	spinlock_t lockRxFF0Filter;
 	const struct firmware *fw;

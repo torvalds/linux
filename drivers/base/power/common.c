@@ -6,7 +6,6 @@
  * This file is released under the GPLv2.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/export.h>
@@ -24,7 +23,6 @@
 int dev_pm_get_subsys_data(struct device *dev)
 {
 	struct pm_subsys_data *psd;
-	int ret = 0;
 
 	psd = kzalloc(sizeof(*psd), GFP_KERNEL);
 	if (!psd)
@@ -40,7 +38,6 @@ int dev_pm_get_subsys_data(struct device *dev)
 		dev->power.subsys_data = psd;
 		pm_clk_init(dev);
 		psd = NULL;
-		ret = 1;
 	}
 
 	spin_unlock_irq(&dev->power.lock);
@@ -48,7 +45,7 @@ int dev_pm_get_subsys_data(struct device *dev)
 	/* kfree() verifies that its argument is nonzero. */
 	kfree(psd);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dev_pm_get_subsys_data);
 
@@ -63,24 +60,24 @@ EXPORT_SYMBOL_GPL(dev_pm_get_subsys_data);
 int dev_pm_put_subsys_data(struct device *dev)
 {
 	struct pm_subsys_data *psd;
-	int ret = 0;
+	int ret = 1;
 
 	spin_lock_irq(&dev->power.lock);
 
 	psd = dev_to_psd(dev);
-	if (!psd) {
-		ret = -EINVAL;
+	if (!psd)
 		goto out;
-	}
 
 	if (--psd->refcount == 0) {
 		dev->power.subsys_data = NULL;
-		kfree(psd);
-		ret = 1;
+	} else {
+		psd = NULL;
+		ret = 0;
 	}
 
  out:
 	spin_unlock_irq(&dev->power.lock);
+	kfree(psd);
 
 	return ret;
 }

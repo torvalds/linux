@@ -1,0 +1,102 @@
+/*
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * Integrated Power Management Chip
+ * http://www.ti.com/lit/ds/symlink/twl6030.pdf
+ */
+&twl {
+	compatible = "ti,twl6030";
+	interrupt-controller;
+	#interrupt-cells = <1>;
+
+	rtc {
+		compatible = "ti,twl4030-rtc";
+		interrupts = <11>;
+	};
+
+	vaux1: regulator-vaux1 {
+		compatible = "ti,twl6030-vaux1";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
+	vaux2: regulator-vaux2 {
+		compatible = "ti,twl6030-vaux2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <2800000>;
+	};
+
+	vaux3: regulator-vaux3 {
+		compatible = "ti,twl6030-vaux3";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
+	vmmc: regulator-vmmc {
+		compatible = "ti,twl6030-vmmc";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
+	vpp: regulator-vpp {
+		compatible = "ti,twl6030-vpp";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <2500000>;
+	};
+
+	vusim: regulator-vusim {
+		compatible = "ti,twl6030-vusim";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <2900000>;
+	};
+
+	vdac: regulator-vdac {
+		compatible = "ti,twl6030-vdac";
+	};
+
+	vana: regulator-vana {
+		compatible = "ti,twl6030-vana";
+	};
+
+	vcxio: regulator-vcxio {
+		compatible = "ti,twl6030-vcxio";
+		regulator-always-on;
+	};
+
+	vusb: regulator-vusb {
+		compatible = "ti,twl6030-vusb";
+	};
+
+	v1v8: regulator-v1v8 {
+		compatible = "ti,twl6030-v1v8";
+		regulator-always-on;
+	};
+
+	v2v1: regulator-v2v1 {
+		compatible = "ti,twl6030-v2v1";
+		regulator-always-on;
+	};
+
+	twl_usb_comparator: usb-comparator {
+		compatible = "ti,twl6030-usb";
+		interrupts = <4>, <10>;
+	};
+
+	twl_pwm: pwm {
+		/* provides two PWMs (id 0, 1 for PWM1 and PWM2) */
+		compatible = "ti,twl6030-pwm";
+		#pwm-cells = <2>;
+	};
+
+	twl_pwmled: pwmled {
+		/* provides one PWM (id 0 for Charging indicator LED) */
+		compatible = "ti,twl6030-pwmled";
+		#pwm-cells = <2>;
+	};
+};

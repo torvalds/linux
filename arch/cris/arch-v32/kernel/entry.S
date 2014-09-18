@@ -31,6 +31,7 @@
 	.globl system_call
 	.globl ret_from_intr
 	.globl ret_from_fork
+	.globl ret_from_kernel_thread
 	.globl resume
 	.globl multiple_interrupt
 	.globl nmi_interrupt
@@ -83,6 +84,18 @@ ret_from_fork:
 	ba  ret_from_sys_call
 	nop
 	.size	ret_from_fork, . - ret_from_fork
+
+	.type	ret_from_kernel_thread,@function
+ret_from_kernel_thread:
+	jsr schedule_tail
+	nop
+	move.d	$r2, $r10
+	jsr	$r1
+	nop
+	moveq	0, $r9			; no syscall restarts, TYVM...
+	ba  ret_from_sys_call
+	nop
+	.size	ret_from_kernel_thread, . - ret_from_kernel_thread
 
 	.type	ret_from_intr,@function
 ret_from_intr:
@@ -411,7 +424,7 @@ nmi_interrupt:
 	bpl     1f
 	nop
 	jsr	handle_watchdog_bite	; In time.c.
-        move.d	$sp, $r10		; Pointer to registers
+	move.d	$sp, $r10		; Pointer to registers
 1:	btstq	REG_BIT(intr_vect, r_nmi, ext), $r0
 	bpl     1f
 	nop
@@ -439,7 +452,7 @@ spurious_interrupt:
 	nop
 
 	;; This handles the case when multiple interrupts arrive at the same
-	;; time. Jump to the first set interrupt bit in a priotiry fashion. The
+	;; time. Jump to the first set interrupt bit in a priority fashion. The
 	;; hardware will call the unserved interrupts after the handler
 	;; finishes.
 	.type	multiple_interrupt, @function
@@ -530,15 +543,6 @@ gdb_handle_exception:
 _ugdb_handle_exception:
 	ba	do_sigtrap		; SIGTRAP the offending process.
 	move.d	[$sp+], $r0		; Restore R0 in delay slot.
-
-	.global kernel_execve
-	.type	kernel_execve,@function
-kernel_execve:
-	move.d __NR_execve, $r9
-	break 13
-	ret
-	nop
-	.size	kernel_execve, . - kernel_execve
 
 	.data
 
@@ -881,13 +885,29 @@ sys_call_table:
 	.long sys_preadv
 	.long sys_pwritev
 	.long sys_setns			/* 335 */
+	.long sys_name_to_handle_at
+	.long sys_open_by_handle_at
+	.long sys_rt_tgsigqueueinfo
+	.long sys_perf_event_open
+	.long sys_recvmmsg		/* 340 */
+	.long sys_accept4
+	.long sys_fanotify_init
+	.long sys_fanotify_mark
+	.long sys_prlimit64
+	.long sys_clock_adjtime		/* 345 */
+	.long sys_syncfs
+	.long sys_sendmmsg
+	.long sys_process_vm_readv
+	.long sys_process_vm_writev
+	.long sys_kcmp			/* 350 */
+	.long sys_finit_module
 
-        /*
-         * NOTE!! This doesn't have to be exact - we just have
-         * to make sure we have _enough_ of the "sys_ni_syscall"
-         * entries. Don't panic if you notice that this hasn't
-         * been shrunk every time we add a new system call.
-         */
+	/*
+	 * NOTE!! This doesn't have to be exact - we just have
+	 * to make sure we have _enough_ of the "sys_ni_syscall"
+	 * entries. Don't panic if you notice that this hasn't
+	 * been shrunk every time we add a new system call.
+	 */
 
 	.rept NR_syscalls - (.-sys_call_table) / 4
 		.long sys_ni_syscall

@@ -1,7 +1,7 @@
 /*
  * i2c-nforce2-s4985.c - i2c-nforce2 extras for the Tyan S4985 motherboard
  *
- * Copyright (C) 2008 Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2008 Jean Delvare <jdelvare@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -164,11 +164,7 @@ static int __init nforce2_s4985_init(void)
 	}
 
 	/* Unregister physical bus */
-	error = i2c_del_adapter(nforce2_smbus);
-	if (error) {
-		dev_err(&nforce2_smbus->dev, "Physical bus removal failed\n");
-		goto ERROR0;
-	}
+	i2c_del_adapter(nforce2_smbus);
 
 	printk(KERN_INFO "Enabling SMBus multiplexing for Tyan S4985\n");
 	/* Define the 5 virtual adapters and algorithms structures */
@@ -249,7 +245,7 @@ static void __exit nforce2_s4985_exit(void)
 		       "Physical bus restoration failed\n");
 }
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("S4985 SMBus multiplexing");
 MODULE_LICENSE("GPL");
 

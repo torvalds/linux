@@ -20,9 +20,9 @@
  */
 
 
-#include<linux/kernel.h>
-#include<linux/module.h>
-#include<asm/fpswa.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <asm/fpswa.h>
 
 #include "vcpu.h"
 

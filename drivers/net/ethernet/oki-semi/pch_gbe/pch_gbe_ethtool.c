@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "pch_gbe.h"
 #include "pch_gbe_api.h"
@@ -77,7 +76,7 @@ static const struct pch_gbe_stats pch_gbe_gstrings_stats[] = {
  * pch_gbe_get_settings - Get device-specific settings
  * @netdev: Network interface device structure
  * @ecmd:   Ethtool command
- * Returns
+ * Returns:
  *	0:			Successful.
  *	Negative value:		Failed.
  */
@@ -92,7 +91,7 @@ static int pch_gbe_get_settings(struct net_device *netdev,
 	ecmd->advertising &= ~(ADVERTISED_TP | ADVERTISED_1000baseT_Half);
 
 	if (!netif_carrier_ok(adapter->netdev))
-		ethtool_cmd_speed_set(ecmd, -1);
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
 	return ret;
 }
 
@@ -100,7 +99,7 @@ static int pch_gbe_get_settings(struct net_device *netdev,
  * pch_gbe_set_settings - Set device-specific settings
  * @netdev: Network interface device structure
  * @ecmd:   Ethtool command
- * Returns
+ * Returns:
  *	0:			Successful.
  *	Negative value:		Failed.
  */
@@ -118,18 +117,18 @@ static int pch_gbe_set_settings(struct net_device *netdev,
 	 * filled by get_settings() on a down link, speed is -1: */
 	if (speed == UINT_MAX) {
 		speed = SPEED_1000;
+		ethtool_cmd_speed_set(ecmd, speed);
 		ecmd->duplex = DUPLEX_FULL;
 	}
 	ret = mii_ethtool_sset(&adapter->mii, ecmd);
 	if (ret) {
-		pr_err("Error: mii_ethtool_sset\n");
+		netdev_err(netdev, "Error: mii_ethtool_sset\n");
 		return ret;
 	}
 	hw->mac.link_speed = speed;
 	hw->mac.link_duplex = ecmd->duplex;
 	hw->phy.autoneg_advertised = ecmd->advertising;
 	hw->mac.autoneg = ecmd->autoneg;
-	pch_gbe_hal_phy_sw_reset(hw);
 
 	/* reset the link */
 	if (netif_running(adapter->netdev)) {
@@ -220,7 +219,7 @@ static void pch_gbe_get_wol(struct net_device *netdev,
  * pch_gbe_set_wol - Turn Wake-on-Lan on or off
  * @netdev: Network interface device structure
  * @wol:    Pointer of wake-on-Lan information straucture
- * Returns
+ * Returns:
  *	0:			Successful.
  *	Negative value:		Failed.
  */
@@ -248,7 +247,7 @@ static int pch_gbe_set_wol(struct net_device *netdev,
 /**
  * pch_gbe_nway_reset - Restart autonegotiation
  * @netdev: Network interface device structure
- * Returns
+ * Returns:
  *	0:			Successful.
  *	Negative value:		Failed.
  */
@@ -398,7 +397,7 @@ static void pch_gbe_get_pauseparam(struct net_device *netdev,
  * pch_gbe_set_pauseparam - Set pause paramters
  * @netdev:  Network interface device structure
  * @pause:   Pause parameters structure
- * Returns
+ * Returns:
  *	0:			Successful.
  *	Negative value:		Failed.
  */
@@ -509,5 +508,5 @@ static const struct ethtool_ops pch_gbe_ethtool_ops = {
 
 void pch_gbe_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &pch_gbe_ethtool_ops);
+	netdev->ethtool_ops = &pch_gbe_ethtool_ops;
 }

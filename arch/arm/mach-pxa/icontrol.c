@@ -73,9 +73,6 @@ static struct pxa2xx_spi_chip mcp251x_chip_info4 = {
 
 static struct mcp251x_platform_data mcp251x_info = {
 	.oscillator_frequency = 16E6,
-	.board_specific_setup = NULL,
-	.power_enable         = NULL,
-	.transceiver_enable   = NULL
 };
 
 static struct spi_board_info mcp251x_board_info[] = {
@@ -196,7 +193,7 @@ MACHINE_START(ICONTROL, "iControl/SafeTcam boards using Embedian MXM-8x10 CoM")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= icontrol_init,
 	.restart	= pxa_restart,
 MACHINE_END

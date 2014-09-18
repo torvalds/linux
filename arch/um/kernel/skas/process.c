@@ -3,12 +3,12 @@
  * Licensed under the GPL
  */
 
-#include "linux/init.h"
-#include "linux/sched.h"
-#include "as-layout.h"
-#include "kern.h"
-#include "os.h"
-#include "skas.h"
+#include <linux/init.h>
+#include <linux/sched.h>
+#include <as-layout.h>
+#include <kern.h>
+#include <os.h>
+#include <skas.h>
 
 int new_mm(unsigned long stack)
 {

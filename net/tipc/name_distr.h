@@ -39,10 +39,39 @@
 
 #include "name_table.h"
 
-void tipc_named_publish(struct publication *publ);
-void tipc_named_withdraw(struct publication *publ);
-void tipc_named_node_up(unsigned long node);
-void tipc_named_recv(struct sk_buff *buf);
+#define ITEM_SIZE sizeof(struct distr_item)
+
+/**
+ * struct distr_item - publication info distributed to other nodes
+ * @type: name sequence type
+ * @lower: name sequence lower bound
+ * @upper: name sequence upper bound
+ * @ref: publishing port reference
+ * @key: publication key
+ *
+ * ===> All fields are stored in network byte order. <===
+ *
+ * First 3 fields identify (name or) name sequence being published.
+ * Reference field uniquely identifies port that published name sequence.
+ * Key field uniquely identifies publication, in the event a port has
+ * multiple publications of the same name sequence.
+ *
+ * Note: There is no field that identifies the publishing node because it is
+ * the same for all items contained within a publication message.
+ */
+struct distr_item {
+	__be32 type;
+	__be32 lower;
+	__be32 upper;
+	__be32 ref;
+	__be32 key;
+};
+
+struct sk_buff *tipc_named_publish(struct publication *publ);
+struct sk_buff *tipc_named_withdraw(struct publication *publ);
+void named_cluster_distribute(struct sk_buff *buf);
+void tipc_named_node_up(u32 dnode);
+void tipc_named_rcv(struct sk_buff *buf);
 void tipc_named_reinit(void);
 
 #endif

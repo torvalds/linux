@@ -163,16 +163,4 @@ static struct pcmcia_driver avmcs_driver = {
 	.remove	= avmcs_detach,
 	.id_table = avmcs_ids,
 };
-
-static int __init avmcs_init(void)
-{
-	return pcmcia_register_driver(&avmcs_driver);
-}
-
-static void __exit avmcs_exit(void)
-{
-	pcmcia_unregister_driver(&avmcs_driver);
-}
-
-module_init(avmcs_init);
-module_exit(avmcs_exit);
+module_pcmcia_driver(avmcs_driver);

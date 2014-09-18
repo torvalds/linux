@@ -51,14 +51,14 @@ static struct platform_device *device;
 /*
  */
 
-static int __devinit snd_pmac_probe(struct platform_device *devptr)
+static int snd_pmac_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
 	struct snd_pmac *chip;
 	char *name_ext;
 	int err;
 
-	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	err = snd_card_new(&devptr->dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
@@ -122,8 +122,6 @@ static int __devinit snd_pmac_probe(struct platform_device *devptr)
 	if (enable_beep)
 		snd_pmac_attach_beep(chip);
 
-	snd_card_set_dev(card, &devptr->dev);
-
 	if ((err = snd_card_register(card)) < 0)
 		goto __error;
 
@@ -136,40 +134,42 @@ __error:
 }
 
 
-static int __devexit snd_pmac_remove(struct platform_device *devptr)
+static int snd_pmac_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int snd_pmac_driver_suspend(struct platform_device *devptr, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int snd_pmac_driver_suspend(struct device *dev)
 {
-	struct snd_card *card = platform_get_drvdata(devptr);
+	struct snd_card *card = dev_get_drvdata(dev);
 	snd_pmac_suspend(card->private_data);
 	return 0;
 }
 
-static int snd_pmac_driver_resume(struct platform_device *devptr)
+static int snd_pmac_driver_resume(struct device *dev)
 {
-	struct snd_card *card = platform_get_drvdata(devptr);
+	struct snd_card *card = dev_get_drvdata(dev);
 	snd_pmac_resume(card->private_data);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(snd_pmac_pm, snd_pmac_driver_suspend, snd_pmac_driver_resume);
+#define SND_PMAC_PM_OPS	&snd_pmac_pm
+#else
+#define SND_PMAC_PM_OPS	NULL
 #endif
 
 #define SND_PMAC_DRIVER		"snd_powermac"
 
 static struct platform_driver snd_pmac_driver = {
 	.probe		= snd_pmac_probe,
-	.remove		= __devexit_p(snd_pmac_remove),
-#ifdef CONFIG_PM
-	.suspend	= snd_pmac_driver_suspend,
-	.resume		= snd_pmac_driver_resume,
-#endif
+	.remove		= snd_pmac_remove,
 	.driver		= {
-		.name	= SND_PMAC_DRIVER
+		.name	= SND_PMAC_DRIVER,
+		.owner	= THIS_MODULE,
+		.pm	= SND_PMAC_PM_OPS,
 	},
 };
 

@@ -123,7 +123,7 @@ KEY SERVICE OVERVIEW
 
 The key service provides a number of features besides keys:
 
- (*) The key service defines two special key types:
+ (*) The key service defines three special key types:
 
      (+) "keyring"
 
@@ -136,6 +136,18 @@ The key service provides a number of features besides keys:
 	 A key of this type has a description and a payload that are arbitrary
 	 blobs of data. These can be created, updated and read by userspace,
 	 and aren't intended for use by kernel services.
+
+     (+) "logon"
+
+	 Like a "user" key, a "logon" key has a payload that is an arbitrary
+	 blob of data. It is intended as a place to store secrets which are
+	 accessible to the kernel but not to userspace programs.
+
+	 The description can be arbitrary, but must be prefixed with a non-zero
+	 length string that describes the key "subclass". The subclass is
+	 separated from the rest of the description by a ':'. "logon" keys can
+	 be created and updated from userspace, but the payload is only
+	 readable from kernel space.
 
  (*) Each process subscribes to three keyrings: a thread-specific keyring, a
      process-specific keyring, and a session-specific keyring.
@@ -399,6 +411,10 @@ The main syscalls are:
      description, and to instantiate it with the supplied payload and attach it
      to the keyring. In this case, an error will be generated if the process
      does not have permission to write to the keyring.
+
+     If the key type supports it, if the description is NULL or an empty
+     string, the key type will try and generate a description from the content
+     of the payload.
 
      The payload is optional, and the pointer can be NULL if not required by
      the type. The payload is plen in size, and plen can be zero for an empty
@@ -793,6 +809,23 @@ The keyctl syscall functions are:
      kernel and resumes executing userspace.
 
 
+ (*) Invalidate a key.
+
+	long keyctl(KEYCTL_INVALIDATE, key_serial_t key);
+
+     This function marks a key as being invalidated and then wakes up the
+     garbage collector.  The garbage collector immediately removes invalidated
+     keys from all keyrings and deletes the key when its reference count
+     reaches zero.
+
+     Keys that are marked invalidated become invisible to normal key operations
+     immediately, though they are still visible in /proc/keys until deleted
+     (they're marked with an 'i' flag).
+
+     A process must have search permission on the key for this function to be
+     successful.
+
+
 ===============
 KERNEL SERVICES
 ===============
@@ -832,15 +865,14 @@ encountered:
      calling processes has a searchable link to the key from one of its
      keyrings. There are three functions for dealing with these:
 
-	key_ref_t make_key_ref(const struct key *key,
-			       unsigned long possession);
+	key_ref_t make_key_ref(const struct key *key, bool possession);
 
 	struct key *key_ref_to_ptr(const key_ref_t key_ref);
 
-	unsigned long is_key_possessed(const key_ref_t key_ref);
+	bool is_key_possessed(const key_ref_t key_ref);
 
      The first function constructs a key reference from a key pointer and
-     possession information (which must be 0 or 1 and not any other value).
+     possession information (which must be true or false).
 
      The second function retrieves the key pointer from a reference and the
      third retrieves the possession flag.
@@ -928,14 +960,17 @@ payload contents" for more information.
     the argument will not be parsed.
 
 
-(*) Extra references can be made to a key by calling the following function:
+(*) Extra references can be made to a key by calling one of the following
+    functions:
 
+	struct key *__key_get(struct key *key);
 	struct key *key_get(struct key *key);
 
-    These need to be disposed of by calling key_put() when they've been
-    finished with. The key pointer passed in will be returned. If the pointer
-    is NULL or CONFIG_KEYS is not set then the key will not be dereferenced and
-    no increment will take place.
+    Keys so references will need to be disposed of by calling key_put() when
+    they've been finished with.  The key pointer passed in will be returned.
+
+    In the case of key_get(), if the pointer is NULL or CONFIG_KEYS is not set
+    then the key will not be dereferenced and no increment will take place.
 
 
 (*) A key's serial number can be obtained by calling:
@@ -959,6 +994,23 @@ payload contents" for more information.
     The possession attribute from the keyring reference is used to control
     access through the permissions mask and is propagated to the returned key
     reference pointer if successful.
+
+
+(*) A keyring can be created by:
+
+	struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
+				  const struct cred *cred,
+				  key_perm_t perm,
+				  unsigned long flags,
+				  struct key *dest);
+
+    This creates a keyring with the given attributes and returns it.  If dest
+    is not NULL, the new keyring will be linked into the keyring to which it
+    points.  No permission checks are made upon the destination keyring.
+
+    Error EDQUOT can be returned if the keyring would overload the quota (pass
+    KEY_ALLOC_NOT_IN_QUOTA in flags if the keyring shouldn't be accounted
+    towards the user's quota).  Error ENOMEM can also be returned.
 
 
 (*) To check the validity of a key, this function can be called:
@@ -1085,11 +1137,58 @@ The structure has a number of fields, some of which are mandatory:
      it should return 0.
 
 
- (*) int (*instantiate)(struct key *key, const void *data, size_t datalen);
+ (*) int (*preparse)(struct key_preparsed_payload *prep);
+
+     This optional method permits the key type to attempt to parse payload
+     before a key is created (add key) or the key semaphore is taken (update or
+     instantiate key).  The structure pointed to by prep looks like:
+
+	struct key_preparsed_payload {
+		char		*description;
+		void		*type_data[2];
+		void		*payload;
+		const void	*data;
+		size_t		datalen;
+		size_t		quotalen;
+		time_t		expiry;
+	};
+
+     Before calling the method, the caller will fill in data and datalen with
+     the payload blob parameters; quotalen will be filled in with the default
+     quota size from the key type; expiry will be set to TIME_T_MAX and the
+     rest will be cleared.
+
+     If a description can be proposed from the payload contents, that should be
+     attached as a string to the description field.  This will be used for the
+     key description if the caller of add_key() passes NULL or "".
+
+     The method can attach anything it likes to type_data[] and payload.  These
+     are merely passed along to the instantiate() or update() operations.  If
+     set, the expiry time will be applied to the key if it is instantiated from
+     this data.
+
+     The method should return 0 if successful or a negative error code
+     otherwise.
+
+     
+ (*) void (*free_preparse)(struct key_preparsed_payload *prep);
+
+     This method is only required if the preparse() method is provided,
+     otherwise it is unused.  It cleans up anything attached to the
+     description, type_data and payload fields of the key_preparsed_payload
+     struct as filled in by the preparse() method.  It will always be called
+     after preparse() returns successfully, even if instantiate() or update()
+     succeed.
+
+
+ (*) int (*instantiate)(struct key *key, struct key_preparsed_payload *prep);
 
      This method is called to attach a payload to a key during construction.
      The payload attached need not bear any relation to the data passed to this
      function.
+
+     The prep->data and prep->datalen fields will define the original payload
+     blob.  If preparse() was supplied then other fields may be filled in also.
 
      If the amount of data attached to the key differs from the size in
      keytype->def_datalen, then key_payload_reserve() should be called.
@@ -1105,6 +1204,9 @@ The structure has a number of fields, some of which are mandatory:
 
      If this type of key can be updated, then this method should be provided.
      It is called to update a key's payload from the blob of data provided.
+
+     The prep->data and prep->datalen fields will define the original payload
+     blob.  If preparse() was supplied then other fields may be filled in also.
 
      key_payload_reserve() should be called if the data length might change
      before any changes are actually made. Note that if this succeeds, the type

@@ -4,33 +4,41 @@
 
 #include <stdbool.h>
 #include "event.h"
+#include "../ui/helpline.h"
+#include "../ui/progress.h"
+#include "../ui/util.h"
 
 extern int verbose;
 extern bool quiet, dump_trace;
 
+#ifndef pr_fmt
+#define pr_fmt(fmt) fmt
+#endif
+
+#define pr_err(fmt, ...) \
+	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_warning(fmt, ...) \
+	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_info(fmt, ...) \
+	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_debug(fmt, ...) \
+	eprintf(1, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_debugN(n, fmt, ...) \
+	eprintf(n, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_debug2(fmt, ...) pr_debugN(2, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_debug3(fmt, ...) pr_debugN(3, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_debug4(fmt, ...) pr_debugN(4, pr_fmt(fmt), ##__VA_ARGS__)
+
 int dump_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 void trace_event(union perf_event *event);
 
-struct ui_progress;
-
-#ifdef NO_NEWT_SUPPORT
-static inline int ui_helpline__show_help(const char *format __used, va_list ap __used)
-{
-	return 0;
-}
-
-static inline void ui_progress__update(u64 curr __used, u64 total __used,
-				       const char *title __used) {}
-
-#define ui__error(format, arg...) ui__warning(format, ##arg)
-#else
-extern char ui_helpline__last_msg[];
-int ui_helpline__show_help(const char *format, va_list ap);
-#include "ui/progress.h"
 int ui__error(const char *format, ...) __attribute__((format(printf, 1, 2)));
-#endif
-
 int ui__warning(const char *format, ...) __attribute__((format(printf, 1, 2)));
-int ui__error_paranoid(void);
+
+void pr_stat(const char *fmt, ...);
+
+int eprintf(int level, int var, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
+
+int perf_debug_option(const char *str);
 
 #endif	/* __PERF_DEBUG_H */

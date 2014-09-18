@@ -282,8 +282,7 @@ search:
 	spin_unlock(&oi->ip_lock);
 
 out:
-	if (new_emi)
-		kfree(new_emi);
+	kfree(new_emi);
 }
 
 static int ocfs2_last_eb_is_empty(struct inode *inode,
@@ -782,7 +781,6 @@ int ocfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	cpos = map_start >> osb->s_clustersize_bits;
 	mapping_end = ocfs2_clusters_for_bytes(inode->i_sb,
 					       map_start + map_len);
-	mapping_end -= cpos;
 	is_last = 0;
 	while (cpos < mapping_end && !is_last) {
 		u32 fe_flags;
@@ -791,7 +789,7 @@ int ocfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 						 &hole_size, &rec, &is_last);
 		if (ret) {
 			mlog_errno(ret);
-			goto out;
+			goto out_unlock;
 		}
 
 		if (rec.e_blkno == 0ULL) {
@@ -832,7 +830,7 @@ out:
 	return ret;
 }
 
-int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int origin)
+int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	int ret;
@@ -843,7 +841,7 @@ int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int origin)
 	struct buffer_head *di_bh = NULL;
 	struct ocfs2_extent_rec rec;
 
-	BUG_ON(origin != SEEK_DATA && origin != SEEK_HOLE);
+	BUG_ON(whence != SEEK_DATA && whence != SEEK_HOLE);
 
 	ret = ocfs2_inode_lock(inode, &di_bh, 0);
 	if (ret) {
@@ -853,20 +851,20 @@ int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int origin)
 
 	down_read(&OCFS2_I(inode)->ip_alloc_sem);
 
-	if (*offset >= inode->i_size) {
+	if (*offset >= i_size_read(inode)) {
 		ret = -ENXIO;
 		goto out_unlock;
 	}
 
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
-		if (origin == SEEK_HOLE)
-			*offset = inode->i_size;
+		if (whence == SEEK_HOLE)
+			*offset = i_size_read(inode);
 		goto out_unlock;
 	}
 
 	clen = 0;
 	cpos = *offset >> cs_bits;
-	cend = ocfs2_clusters_for_bytes(inode->i_sb, inode->i_size);
+	cend = ocfs2_clusters_for_bytes(inode->i_sb, i_size_read(inode));
 
 	while (cpos < cend && !is_last) {
 		ret = ocfs2_get_clusters_nocache(inode, di_bh, cpos, &hole_size,
@@ -888,8 +886,8 @@ int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int origin)
 			is_data = (rec.e_flags & OCFS2_EXT_UNWRITTEN) ?  0 : 1;
 		}
 
-		if ((!is_data && origin == SEEK_HOLE) ||
-		    (is_data && origin == SEEK_DATA)) {
+		if ((!is_data && whence == SEEK_HOLE) ||
+		    (is_data && whence == SEEK_DATA)) {
 			if (extoff > *offset)
 				*offset = extoff;
 			goto out_unlock;
@@ -899,14 +897,14 @@ int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int origin)
 			cpos += clen;
 	}
 
-	if (origin == SEEK_HOLE) {
+	if (whence == SEEK_HOLE) {
 		extoff = cpos;
 		extoff <<= cs_bits;
 		extlen = clen;
 		extlen <<=  cs_bits;
 
-		if ((extoff + extlen) > inode->i_size)
-			extlen = inode->i_size - extoff;
+		if ((extoff + extlen) > i_size_read(inode))
+			extlen = i_size_read(inode) - extoff;
 		extoff += extlen;
 		if (extoff > *offset)
 			*offset = extoff;
@@ -923,8 +921,6 @@ out_unlock:
 
 	ocfs2_inode_unlock(inode, 0);
 out:
-	if (ret && ret != -ENXIO)
-		ret = -ENXIO;
 	return ret;
 }
 

@@ -1,7 +1,7 @@
 /*
  * Radio tuning for Maxim max2820 on RTL8180
  *
- * Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright 2007 Andrea Merello <andrea.merello@gmail.com>
  *
  * Code from the BSD driver and the rtl8181 project have been
  * very useful to understand certain things
@@ -18,7 +18,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <net/mac80211.h>
@@ -95,7 +94,7 @@ static void max2820_rf_set_channel(struct ieee80211_hw *dev,
 {
 	struct rtl8180_priv *priv = dev->priv;
 	int channel = conf ?
-		ieee80211_frequency_to_channel(conf->channel->center_freq) : 1;
+		ieee80211_frequency_to_channel(conf->chandef.chan->center_freq) : 1;
 	unsigned int chan_idx = channel - 1;
 	u32 txpw = priv->channels[chan_idx].hw_value & 0xFF;
 	u32 chan = max2820_chan[chan_idx];

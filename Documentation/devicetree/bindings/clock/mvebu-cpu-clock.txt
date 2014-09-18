@@ -1,0 +1,22 @@
+Device Tree Clock bindings for cpu clock of Marvell EBU platforms
+
+Required properties:
+- compatible : shall be one of the following:
+	"marvell,armada-xp-cpu-clock" - cpu clocks for Armada XP
+- reg : Address and length of the clock complex register set, followed
+        by address and length of the PMU DFS registers
+- #clock-cells : should be set to 1.
+- clocks : shall be the input parent clock phandle for the clock.
+
+cpuclk: clock-complex@d0018700 {
+	#clock-cells = <1>;
+	compatible = "marvell,armada-xp-cpu-clock";
+	reg = <0xd0018700 0xA0>, <0x1c054 0x10>;
+	clocks = <&coreclk 1>;
+}
+
+cpu@0 {
+	compatible = "marvell,sheeva-v7";
+	reg = <0>;
+	clocks = <&cpuclk 0>;
+};

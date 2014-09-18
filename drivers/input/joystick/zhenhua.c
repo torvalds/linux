@@ -49,7 +49,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/serio.h>
-#include <linux/init.h>
 
 #define DRIVER_DESC	"RC transmitter with 5-byte Zhen Hua protocol joystick driver"
 
@@ -225,19 +224,4 @@ static struct serio_driver zhenhua_drv = {
 	.disconnect	= zhenhua_disconnect,
 };
 
-/*
- * The functions for inserting/removing us as a module.
- */
-
-static int __init zhenhua_init(void)
-{
-	return serio_register_driver(&zhenhua_drv);
-}
-
-static void __exit zhenhua_exit(void)
-{
-	serio_unregister_driver(&zhenhua_drv);
-}
-
-module_init(zhenhua_init);
-module_exit(zhenhua_exit);
+module_serio_driver(zhenhua_drv);

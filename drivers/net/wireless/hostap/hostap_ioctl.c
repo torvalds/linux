@@ -6,6 +6,7 @@
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
 #include <linux/module.h>
+#include <linux/etherdevice.h>
 #include <net/lib80211.h>
 
 #include "hostap_wlan.h"
@@ -522,9 +523,9 @@ static int prism2_ioctl_giwaplist(struct net_device *dev,
 
 	data->length = prism2_ap_get_sta_qual(local, addr, qual, IW_MAX_AP, 1);
 
-	memcpy(extra, &addr, sizeof(struct sockaddr) * data->length);
+	memcpy(extra, addr, sizeof(struct sockaddr) * data->length);
 	data->flags = 1; /* has quality information */
-	memcpy(extra + sizeof(struct sockaddr) * data->length, &qual,
+	memcpy(extra + sizeof(struct sockaddr) * data->length, qual,
 	       sizeof(struct iw_quality) * data->length);
 
 	kfree(addr);
@@ -654,7 +655,7 @@ static int hostap_join_ap(struct net_device *dev)
 		if (!local->last_scan_results)
 			break;
 		entry = &local->last_scan_results[i];
-		if (memcmp(local->preferred_ap, entry->bssid, ETH_ALEN) == 0) {
+		if (ether_addr_equal(local->preferred_ap, entry->bssid)) {
 			req.channel = entry->chid;
 			break;
 		}
@@ -1977,7 +1978,7 @@ static inline int prism2_translate_scan(local_info_t *local,
 		list_for_each(ptr, &local->bss_list) {
 			struct hostap_bss_info *bss;
 			bss = list_entry(ptr, struct hostap_bss_info, list);
-			if (memcmp(bss->bssid, scan->bssid, ETH_ALEN) == 0) {
+			if (ether_addr_equal(bss->bssid, scan->bssid)) {
 				bss->included = 1;
 				current_ev = __prism2_translate_scan(
 					local, info, scan, bss, current_ev,
@@ -2566,7 +2567,7 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 		local->passive_scan_interval = value;
 		if (timer_pending(&local->passive_scan_timer))
 			del_timer(&local->passive_scan_timer);
-		if (value > 0) {
+		if (value > 0 && value < INT_MAX / HZ) {
 			local->passive_scan_timer.expires = jiffies +
 				local->passive_scan_interval * HZ;
 			add_timer(&local->passive_scan_timer);
@@ -3221,8 +3222,7 @@ static int prism2_ioctl_siwencodeext(struct net_device *dev,
 		return -EINVAL;
 
 	addr = ext->addr.sa_data;
-	if (addr[0] == 0xff && addr[1] == 0xff && addr[2] == 0xff &&
-	    addr[3] == 0xff && addr[4] == 0xff && addr[5] == 0xff) {
+	if (is_broadcast_ether_addr(addr)) {
 		sta_ptr = NULL;
 		crypt = &local->crypt_info.crypt[i];
 	} else {
@@ -3394,8 +3394,7 @@ static int prism2_ioctl_giwencodeext(struct net_device *dev,
 		i--;
 
 	addr = ext->addr.sa_data;
-	if (addr[0] == 0xff && addr[1] == 0xff && addr[2] == 0xff &&
-	    addr[3] == 0xff && addr[4] == 0xff && addr[5] == 0xff) {
+	if (is_broadcast_ether_addr(addr)) {
 		sta_ptr = NULL;
 		crypt = &local->crypt_info.crypt[i];
 	} else {
@@ -3458,9 +3457,7 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 	    param->u.crypt.key_len)
 		return -EINVAL;
 
-	if (param->sta_addr[0] == 0xff && param->sta_addr[1] == 0xff &&
-	    param->sta_addr[2] == 0xff && param->sta_addr[3] == 0xff &&
-	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff) {
+	if (is_broadcast_ether_addr(param->sta_addr)) {
 		if (param->u.crypt.idx >= WEP_KEYS)
 			return -EINVAL;
 		sta_ptr = NULL;
@@ -3593,9 +3590,7 @@ static int prism2_ioctl_get_encryption(local_info_t *local,
 	if (max_key_len < 0)
 		return -EINVAL;
 
-	if (param->sta_addr[0] == 0xff && param->sta_addr[1] == 0xff &&
-	    param->sta_addr[2] == 0xff && param->sta_addr[3] == 0xff &&
-	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff) {
+	if (is_broadcast_ether_addr(param->sta_addr)) {
 		sta_ptr = NULL;
 		if (param->u.crypt.idx >= WEP_KEYS)
 			param->u.crypt.idx = local->crypt_info.tx_keyidx;

@@ -14,6 +14,7 @@
 #ifndef __ASM_ARCH_CPU_H__
 #define __ASM_ARCH_CPU_H__
 
+#include <linux/io.h>
 #include <asm/cputype.h>
 
 /* Processor id value in CP15 Register 0 */
@@ -37,7 +38,7 @@
 
 static inline u32 ixp4xx_read_feature_bits(void)
 {
-	u32 val = ~*IXP4XX_EXP_CFG2;
+	u32 val = ~__raw_readl(IXP4XX_EXP_CFG2);
 
 	if (cpu_is_ixp42x_rev_a0())
 		return IXP42X_FEATURE_MASK & ~(IXP4XX_FEATURE_RCOMP |
@@ -51,7 +52,7 @@ static inline u32 ixp4xx_read_feature_bits(void)
 
 static inline void ixp4xx_write_feature_bits(u32 value)
 {
-	*IXP4XX_EXP_CFG2 = ~value;
+	__raw_writel(~value, IXP4XX_EXP_CFG2);
 }
 
 #endif  /* _ASM_ARCH_CPU_H */

@@ -11,72 +11,58 @@
 #undef DEBUG
 
 #include <linux/kernel.h>
-#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/io.h>
 
-#include <plat/clock.h>
-#include <plat/prcm.h>
-
 #include "clock.h"
-#include "clock2xxx.h"
-#include "cm2xxx_3xxx.h"
-#include "cm-regbits-24xx.h"
+
+/* Register offsets */
+#define CM_AUTOIDLE			0x30
+#define CM_ICLKEN			0x10
 
 /* Private functions */
 
 /* XXX */
-void omap2_clkt_iclk_allow_idle(struct clk *clk)
+void omap2_clkt_iclk_allow_idle(struct clk_hw_omap *clk)
 {
-	u32 v, r;
+	u32 v;
+	void __iomem *r;
 
-	r = ((__force u32)clk->enable_reg ^ (CM_AUTOIDLE ^ CM_ICLKEN));
+	r = (__force void __iomem *)
+		((__force u32)clk->enable_reg ^ (CM_AUTOIDLE ^ CM_ICLKEN));
 
-	v = __raw_readl((__force void __iomem *)r);
+	v = omap2_clk_readl(clk, r);
 	v |= (1 << clk->enable_bit);
-	__raw_writel(v, (__force void __iomem *)r);
+	omap2_clk_writel(v, clk, r);
 }
 
 /* XXX */
-void omap2_clkt_iclk_deny_idle(struct clk *clk)
+void omap2_clkt_iclk_deny_idle(struct clk_hw_omap *clk)
 {
-	u32 v, r;
+	u32 v;
+	void __iomem *r;
 
-	r = ((__force u32)clk->enable_reg ^ (CM_AUTOIDLE ^ CM_ICLKEN));
+	r = (__force void __iomem *)
+		((__force u32)clk->enable_reg ^ (CM_AUTOIDLE ^ CM_ICLKEN));
 
-	v = __raw_readl((__force void __iomem *)r);
+	v = omap2_clk_readl(clk, r);
 	v &= ~(1 << clk->enable_bit);
-	__raw_writel(v, (__force void __iomem *)r);
+	omap2_clk_writel(v, clk, r);
 }
 
 /* Public data */
 
-const struct clkops clkops_omap2_iclk_dflt_wait = {
-	.enable		= omap2_dflt_clk_enable,
-	.disable	= omap2_dflt_clk_disable,
-	.find_companion	= omap2_clk_dflt_find_companion,
+const struct clk_hw_omap_ops clkhwops_iclk = {
+	.allow_idle	= omap2_clkt_iclk_allow_idle,
+	.deny_idle	= omap2_clkt_iclk_deny_idle,
+};
+
+const struct clk_hw_omap_ops clkhwops_iclk_wait = {
+	.allow_idle	= omap2_clkt_iclk_allow_idle,
+	.deny_idle	= omap2_clkt_iclk_deny_idle,
 	.find_idlest	= omap2_clk_dflt_find_idlest,
-	.allow_idle	= omap2_clkt_iclk_allow_idle,
-	.deny_idle	= omap2_clkt_iclk_deny_idle,
-};
-
-const struct clkops clkops_omap2_iclk_dflt = {
-	.enable		= omap2_dflt_clk_enable,
-	.disable	= omap2_dflt_clk_disable,
-	.allow_idle	= omap2_clkt_iclk_allow_idle,
-	.deny_idle	= omap2_clkt_iclk_deny_idle,
-};
-
-const struct clkops clkops_omap2_iclk_idle_only = {
-	.allow_idle	= omap2_clkt_iclk_allow_idle,
-	.deny_idle	= omap2_clkt_iclk_deny_idle,
-};
-
-const struct clkops clkops_omap2_mdmclk_dflt_wait = {
-	.enable		= omap2_dflt_clk_enable,
-	.disable	= omap2_dflt_clk_disable,
 	.find_companion	= omap2_clk_dflt_find_companion,
-	.find_idlest	= omap2_clk_dflt_find_idlest,
-	.allow_idle	= omap2_clkt_iclk_allow_idle,
-	.deny_idle	= omap2_clkt_iclk_deny_idle,
 };
+
+
 

@@ -68,7 +68,10 @@ extern unsigned long get_switch_to_pc(void);
 /* Support function for forking a new task. */
 void ret_from_fork(void);
 
-/* Called from ret_from_fork() when a new process starts up. */
+/* Support function for forking a new kernel thread. */
+void ret_from_kernel_thread(void *fn, void *arg);
+
+/* Called from ret_from_xxx() when a new process starts up. */
 struct task_struct *sim_notify_fork(struct task_struct *prev);
 
 #endif /* !__ASSEMBLY__ */

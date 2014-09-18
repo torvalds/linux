@@ -7,8 +7,7 @@ Supported chips:
     Addresses scanned: I2C 0x2c - 0x2f
     Datasheet: http://www.winbond.com.tw
 
-Author: Chunhao Huang
-Contact: DZShen <DZShen@Winbond.com.tw>
+Author: Shane Huang (Winbond)
 
 
 Module Parameters

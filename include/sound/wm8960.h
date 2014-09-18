@@ -18,7 +18,7 @@
 struct wm8960_data {
 	bool capless;  /* Headphone outputs configured in capless mode */
 
-	int dres;  /* Discharge resistance for headphone outputs */
+	bool shared_lrclk;  /* DAC and ADC LRCLKs are wired together */
 };
 
 #endif

@@ -25,6 +25,8 @@
 #ifndef TI_WILINK_ST_H
 #define TI_WILINK_ST_H
 
+#include <linux/skbuff.h>
+
 /**
  * enum proto-type - The protocol on WiLink chips which share a
  *	common physical interface like UART.
@@ -279,9 +281,10 @@ struct kim_data_s {
 long st_kim_start(void *);
 long st_kim_stop(void *);
 
-void st_kim_recv(void *, const unsigned char *, long count);
 void st_kim_complete(void *);
 void kim_st_list_protocols(struct st_data_s *, void *);
+void st_kim_recv(void *, const unsigned char *, long);
+
 
 /*
  * BTS headers

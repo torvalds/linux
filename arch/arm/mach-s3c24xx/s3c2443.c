@@ -22,27 +22,29 @@
 #include <linux/device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/reboot.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/gpio-samsung.h>
 #include <asm/irq.h>
 #include <asm/system_misc.h>
 
 #include <mach/regs-s3c2443-clock.h>
+#include <mach/rtc-core.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
-#include <plat/s3c2443.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb-core.h>
 #include <plat/nand-core.h>
 #include <plat/adc-core.h>
-#include <plat/rtc-core.h>
+#include <plat/spi-core.h>
 
 static struct map_desc s3c2443_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),
@@ -59,9 +61,9 @@ static struct device s3c2443_dev = {
 	.bus		= &s3c2443_subsys,
 };
 
-void s3c2443_restart(char mode, const char *cmd)
+void s3c2443_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode == 's')
+	if (mode == REBOOT_SOFT)
 		soft_restart(0);
 
 	__raw_writel(S3C2443_SWRST_RESET, S3C2443_SWRST);
@@ -99,6 +101,9 @@ void __init s3c2443_map_io(void)
 {
 	s3c24xx_gpiocfg_default.set_pull = s3c2443_gpio_setpull;
 	s3c24xx_gpiocfg_default.get_pull = s3c2443_gpio_getpull;
+
+	/* initialize device information early */
+	s3c64xx_spi_setname("s3c2443-spi");
 
 	iotable_init(s3c2443_iodesc, ARRAY_SIZE(s3c2443_iodesc));
 }

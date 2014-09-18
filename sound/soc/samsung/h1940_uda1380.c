@@ -20,10 +20,10 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 
-#include <plat/regs-iis.h>
-#include <mach/h1940-latch.h>
+#include "regs-iis.h"
 #include <asm/mach-types.h>
 
+#include <mach/gpio-samsung.h>
 #include "s3c24xx-i2s.h"
 
 static unsigned int rates[] = {
@@ -66,10 +66,6 @@ static int h1940_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	runtime->hw.rate_min = hw_rates.list[0];
-	runtime->hw.rate_max = hw_rates.list[hw_rates.count - 1];
-	runtime->hw.rates = SNDRV_PCM_RATE_KNOT;
-
 	return snd_pcm_hw_constraint_list(runtime, 0,
 					SNDRV_PCM_HW_PARAM_RATE,
 					&hw_rates);
@@ -94,7 +90,7 @@ static int h1940_hw_params(struct snd_pcm_substream *substream,
 			div++;
 		break;
 	default:
-		dev_err(&rtd->dev, "%s: rate %d is not supported\n",
+		dev_err(rtd->dev, "%s: rate %d is not supported\n",
 			__func__, rate);
 		return -EINVAL;
 	}
@@ -147,9 +143,9 @@ static int h1940_spk_power(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
-		gpio_set_value(H1940_LATCH_AUDIO_POWER, 1);
+		gpio_set_value(S3C_GPIO_END + 9, 1);
 	else
-		gpio_set_value(H1940_LATCH_AUDIO_POWER, 0);
+		gpio_set_value(S3C_GPIO_END + 9, 0);
 
 	return 0;
 }
@@ -180,12 +176,6 @@ static struct platform_device *s3c24xx_snd_device;
 static int h1940_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int err;
-
-	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
-	snd_soc_dapm_enable_pin(dapm, "Speaker");
-	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 
 	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
 		&hp_jack);
@@ -199,6 +189,14 @@ static int h1940_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+static int h1940_uda1380_card_remove(struct snd_soc_card *card)
+{
+	snd_soc_jack_free_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
+		hp_jack_gpios);
+
+	return 0;
+}
+
 /* s3c24xx digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link h1940_uda1380_dai[] = {
 	{
@@ -207,7 +205,7 @@ static struct snd_soc_dai_link h1940_uda1380_dai[] = {
 		.cpu_dai_name	= "s3c24xx-iis",
 		.codec_dai_name	= "uda1380-hifi",
 		.init		= h1940_uda1380_init,
-		.platform_name	= "samsung-audio",
+		.platform_name	= "s3c24xx-iis",
 		.codec_name	= "uda1380-codec.0-001a",
 		.ops		= &h1940_ops,
 	},
@@ -216,6 +214,7 @@ static struct snd_soc_dai_link h1940_uda1380_dai[] = {
 static struct snd_soc_card h1940_asoc = {
 	.name = "h1940",
 	.owner = THIS_MODULE,
+	.remove = h1940_uda1380_card_remove,
 	.dai_link = h1940_uda1380_dai,
 	.num_links = ARRAY_SIZE(h1940_uda1380_dai),
 
@@ -233,11 +232,11 @@ static int __init h1940_init(void)
 		return -ENODEV;
 
 	/* configure some gpios */
-	ret = gpio_request(H1940_LATCH_AUDIO_POWER, "speaker-power");
+	ret = gpio_request(S3C_GPIO_END + 9, "speaker-power");
 	if (ret)
 		goto err_out;
 
-	ret = gpio_direction_output(H1940_LATCH_AUDIO_POWER, 0);
+	ret = gpio_direction_output(S3C_GPIO_END + 9, 0);
 	if (ret)
 		goto err_gpio;
 
@@ -258,7 +257,7 @@ static int __init h1940_init(void)
 err_plat:
 	platform_device_put(s3c24xx_snd_device);
 err_gpio:
-	gpio_free(H1940_LATCH_AUDIO_POWER);
+	gpio_free(S3C_GPIO_END + 9);
 
 err_out:
 	return ret;
@@ -267,9 +266,7 @@ err_out:
 static void __exit h1940_exit(void)
 {
 	platform_device_unregister(s3c24xx_snd_device);
-	snd_soc_jack_free_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
-		hp_jack_gpios);
-	gpio_free(H1940_LATCH_AUDIO_POWER);
+	gpio_free(S3C_GPIO_END + 9);
 }
 
 module_init(h1940_init);

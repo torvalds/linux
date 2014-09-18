@@ -15,9 +15,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -33,9 +31,10 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
-struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
+struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct data_queue *queue = entry->queue;
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	struct sk_buff *skb;
 	struct skb_frame_desc *skbdesc;
 	unsigned int frame_size;
@@ -46,7 +45,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
 	 * The frame size includes descriptor size, because the
 	 * hardware directly receive the frame into the skbuffer.
 	 */
-	frame_size = entry->queue->data_size + entry->queue->desc_size;
+	frame_size = queue->data_size + queue->desc_size + queue->winfo_size;
 
 	/*
 	 * The payload should be aligned to a 4-byte boundary,
@@ -60,7 +59,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
 	 * at least 8 bytes bytes available in headroom for IV/EIV
 	 * and 8 bytes for ICV data as tailroon.
 	 */
-	if (test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags)) {
+	if (rt2x00_has_cap_hw_crypto(rt2x00dev)) {
 		head_size += 8;
 		tail_size += 8;
 	}
@@ -68,7 +67,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
 	/*
 	 * Allocate skbuffer.
 	 */
-	skb = dev_alloc_skb(frame_size + head_size + tail_size);
+	skb = __dev_alloc_skb(frame_size + head_size + tail_size, gfp);
 	if (!skb)
 		return NULL;
 
@@ -87,24 +86,35 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
 	skbdesc->entry = entry;
 
 	if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags)) {
-		skbdesc->skb_dma = dma_map_single(rt2x00dev->dev,
-						  skb->data,
-						  skb->len,
-						  DMA_FROM_DEVICE);
+		dma_addr_t skb_dma;
+
+		skb_dma = dma_map_single(rt2x00dev->dev, skb->data, skb->len,
+					 DMA_FROM_DEVICE);
+		if (unlikely(dma_mapping_error(rt2x00dev->dev, skb_dma))) {
+			dev_kfree_skb_any(skb);
+			return NULL;
+		}
+
+		skbdesc->skb_dma = skb_dma;
 		skbdesc->flags |= SKBDESC_DMA_MAPPED_RX;
 	}
 
 	return skb;
 }
 
-void rt2x00queue_map_txskb(struct queue_entry *entry)
+int rt2x00queue_map_txskb(struct queue_entry *entry)
 {
 	struct device *dev = entry->queue->rt2x00dev->dev;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 
 	skbdesc->skb_dma =
 	    dma_map_single(dev, entry->skb->data, entry->skb->len, DMA_TO_DEVICE);
+
+	if (unlikely(dma_mapping_error(dev, skbdesc->skb_dma)))
+		return -ENOMEM;
+
 	skbdesc->flags |= SKBDESC_DMA_MAPPED_TX;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_map_txskb);
 
@@ -207,14 +217,26 @@ static void rt2x00queue_create_tx_descriptor_seq(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
+	u16 seqno;
 
 	if (!(tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
 		return;
 
 	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
 
-	if (!test_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags))
-		return;
+	if (!test_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags)) {
+		/*
+		 * rt2800 has a H/W (or F/W) bug, device incorrectly increase
+		 * seqno on retransmited data (non-QOS) frames. To workaround
+		 * the problem let's generate seqno in software if QOS is
+		 * disabled.
+		 */
+		if (test_bit(CONFIG_QOS_DISABLED, &rt2x00dev->flags))
+			__clear_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
+		else
+			/* H/W will generate sequence number */
+			return;
+	}
 
 	/*
 	 * The hardware is not able to insert a sequence number. Assign a
@@ -227,15 +249,13 @@ static void rt2x00queue_create_tx_descriptor_seq(struct rt2x00_dev *rt2x00dev,
 	 * sequence counting per-frame, since those will override the
 	 * sequence counter given by mac80211.
 	 */
-	spin_lock(&intf->seqlock);
-
 	if (test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags))
-		intf->seqno += 0x10;
+		seqno = atomic_add_return(0x10, &intf->seqno);
+	else
+		seqno = atomic_read(&intf->seqno);
+
 	hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-	hdr->seq_ctrl |= cpu_to_le16(intf->seqno);
-
-	spin_unlock(&intf->seqlock);
-
+	hdr->seq_ctrl |= cpu_to_le16(seqno);
 }
 
 static void rt2x00queue_create_tx_descriptor_plcp(struct rt2x00_dev *rt2x00dev,
@@ -305,6 +325,7 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct rt2x00_dev *rt2x00dev,
 static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 						struct sk_buff *skb,
 						struct txentry_desc *txdesc,
+						struct ieee80211_sta *sta,
 						const struct rt2x00_rate *hwrate)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -312,21 +333,13 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rt2x00_sta *sta_priv = NULL;
 
-	if (tx_info->control.sta) {
+	if (sta) {
 		txdesc->u.ht.mpdu_density =
-		    tx_info->control.sta->ht_cap.ampdu_density;
+		    sta->ht_cap.ampdu_density;
 
-		sta_priv = sta_to_rt2x00_sta(tx_info->control.sta);
+		sta_priv = sta_to_rt2x00_sta(sta);
 		txdesc->u.ht.wcid = sta_priv->wcid;
 	}
-
-	txdesc->u.ht.ba_size = 7;	/* FIXME: What value is needed? */
-
-	/*
-	 * Only one STBC stream is supported for now.
-	 */
-	if (tx_info->flags & IEEE80211_TX_CTL_STBC)
-		txdesc->u.ht.stbc = 1;
 
 	/*
 	 * If IEEE80211_TX_RC_MCS is set txrate->idx just contains the
@@ -339,17 +352,32 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 		 * MIMO PS should be set to 1 for STA's using dynamic SM PS
 		 * when using more then one tx stream (>MCS7).
 		 */
-		if (tx_info->control.sta && txdesc->u.ht.mcs > 7 &&
-		    ((tx_info->control.sta->ht_cap.cap &
-		      IEEE80211_HT_CAP_SM_PS) >>
-		     IEEE80211_HT_CAP_SM_PS_SHIFT) ==
-		    WLAN_HT_CAP_SM_PS_DYNAMIC)
+		if (sta && txdesc->u.ht.mcs > 7 &&
+		    sta->smps_mode == IEEE80211_SMPS_DYNAMIC)
 			__set_bit(ENTRY_TXD_HT_MIMO_PS, &txdesc->flags);
 	} else {
 		txdesc->u.ht.mcs = rt2x00_get_rate_mcs(hwrate->mcs);
 		if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 			txdesc->u.ht.mcs |= 0x08;
 	}
+
+	if (test_bit(CONFIG_HT_DISABLED, &rt2x00dev->flags)) {
+		if (!(tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT))
+			txdesc->u.ht.txop = TXOP_SIFS;
+		else
+			txdesc->u.ht.txop = TXOP_BACKOFF;
+
+		/* Left zero on all other settings. */
+		return;
+	}
+
+	txdesc->u.ht.ba_size = 7;	/* FIXME: What value is needed? */
+
+	/*
+	 * Only one STBC stream is supported for now.
+	 */
+	if (tx_info->flags & IEEE80211_TX_CTL_STBC)
+		txdesc->u.ht.stbc = 1;
 
 	/*
 	 * This frame is eligible for an AMPDU, however, don't aggregate
@@ -389,7 +417,8 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 
 static void rt2x00queue_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
 					     struct sk_buff *skb,
-					     struct txentry_desc *txdesc)
+					     struct txentry_desc *txdesc,
+					     struct ieee80211_sta *sta)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -483,7 +512,7 @@ static void rt2x00queue_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
 
 	if (test_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags))
 		rt2x00queue_create_tx_descriptor_ht(rt2x00dev, skb, txdesc,
-						    hwrate);
+						   sta, hwrate);
 	else
 		rt2x00queue_create_tx_descriptor_plcp(rt2x00dev, skb, txdesc,
 						      hwrate);
@@ -501,18 +530,18 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	 */
 	if (unlikely(rt2x00dev->ops->lib->get_entry_state &&
 		     rt2x00dev->ops->lib->get_entry_state(entry))) {
-		ERROR(rt2x00dev,
-		      "Corrupt queue %d, accessing entry which is not ours.\n"
-		      "Please file bug report to %s.\n",
-		      entry->queue->qid, DRV_PROJECT);
+		rt2x00_err(rt2x00dev,
+			   "Corrupt queue %d, accessing entry which is not ours\n"
+			   "Please file bug report to %s\n",
+			   entry->queue->qid, DRV_PROJECT);
 		return -EINVAL;
 	}
 
 	/*
 	 * Add the requested extra tx headroom in front of the skb.
 	 */
-	skb_push(entry->skb, rt2x00dev->ops->extra_tx_headroom);
-	memset(entry->skb->data, 0, rt2x00dev->ops->extra_tx_headroom);
+	skb_push(entry->skb, rt2x00dev->extra_tx_headroom);
+	memset(entry->skb->data, 0, rt2x00dev->extra_tx_headroom);
 
 	/*
 	 * Call the driver's write_tx_data function, if it exists.
@@ -523,8 +552,9 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	/*
 	 * Map the skb to DMA.
 	 */
-	if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags))
-		rt2x00queue_map_txskb(entry);
+	if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags) &&
+	    rt2x00queue_map_txskb(entry))
+		return -ENOMEM;
 
 	return 0;
 }
@@ -560,8 +590,50 @@ static void rt2x00queue_kick_tx_queue(struct data_queue *queue,
 		queue->rt2x00dev->ops->lib->kick_queue(queue);
 }
 
+static void rt2x00queue_bar_check(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct ieee80211_bar *bar = (void *) (entry->skb->data +
+				    rt2x00dev->extra_tx_headroom);
+	struct rt2x00_bar_list_entry *bar_entry;
+
+	if (likely(!ieee80211_is_back_req(bar->frame_control)))
+		return;
+
+	bar_entry = kmalloc(sizeof(*bar_entry), GFP_ATOMIC);
+
+	/*
+	 * If the alloc fails we still send the BAR out but just don't track
+	 * it in our bar list. And as a result we will report it to mac80211
+	 * back as failed.
+	 */
+	if (!bar_entry)
+		return;
+
+	bar_entry->entry = entry;
+	bar_entry->block_acked = 0;
+
+	/*
+	 * Copy the relevant parts of the 802.11 BAR into out check list
+	 * such that we can use RCU for less-overhead in the RX path since
+	 * sending BARs and processing the according BlockAck should be
+	 * the exception.
+	 */
+	memcpy(bar_entry->ra, bar->ra, sizeof(bar->ra));
+	memcpy(bar_entry->ta, bar->ta, sizeof(bar->ta));
+	bar_entry->control = bar->control;
+	bar_entry->start_seq_num = bar->start_seq_num;
+
+	/*
+	 * Insert BAR into our BAR check list.
+	 */
+	spin_lock_bh(&rt2x00dev->bar_list_lock);
+	list_add_tail_rcu(&bar_entry->list, &rt2x00dev->bar_list);
+	spin_unlock_bh(&rt2x00dev->bar_list_lock);
+}
+
 int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
-			       bool local)
+			       struct ieee80211_sta *sta, bool local)
 {
 	struct ieee80211_tx_info *tx_info;
 	struct queue_entry *entry;
@@ -575,7 +647,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	 * after that we are free to use the skb->cb array
 	 * for our information.
 	 */
-	rt2x00queue_create_tx_descriptor(queue->rt2x00dev, skb, &txdesc);
+	rt2x00queue_create_tx_descriptor(queue->rt2x00dev, skb, &txdesc, sta);
 
 	/*
 	 * All information is retrieved from the skb->cb array,
@@ -625,8 +697,8 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	spin_lock(&queue->tx_lock);
 
 	if (unlikely(rt2x00queue_full(queue))) {
-		ERROR(queue->rt2x00dev,
-		      "Dropping frame due to full tx queue %d.\n", queue->qid);
+		rt2x00_err(queue->rt2x00dev, "Dropping frame due to full tx queue %d\n",
+			   queue->qid);
 		ret = -ENOBUFS;
 		goto out;
 	}
@@ -635,10 +707,10 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 
 	if (unlikely(test_and_set_bit(ENTRY_OWNER_DEVICE_DATA,
 				      &entry->flags))) {
-		ERROR(queue->rt2x00dev,
-		      "Arrived at non-free entry in the non-full queue %d.\n"
-		      "Please file bug report to %s.\n",
-		      queue->qid, DRV_PROJECT);
+		rt2x00_err(queue->rt2x00dev,
+			   "Arrived at non-free entry in the non-full queue %d\n"
+			   "Please file bug report to %s\n",
+			   queue->qid, DRV_PROJECT);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -657,6 +729,11 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 		ret = -EIO;
 		goto out;
 	}
+
+	/*
+	 * Put BlockAckReqs into our check list for driver BA processing.
+	 */
+	rt2x00queue_bar_check(entry);
 
 	set_bit(ENTRY_DATA_PENDING, &entry->flags);
 
@@ -677,8 +754,6 @@ int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
 
-	mutex_lock(&intf->beacon_skb_mutex);
-
 	/*
 	 * Clean up the beacon skb.
 	 */
@@ -691,13 +766,11 @@ int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
 	if (rt2x00dev->ops->lib->clear_beacon)
 		rt2x00dev->ops->lib->clear_beacon(intf->beacon);
 
-	mutex_unlock(&intf->beacon_skb_mutex);
-
 	return 0;
 }
 
-int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
-				     struct ieee80211_vif *vif)
+int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
+			      struct ieee80211_vif *vif)
 {
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 	struct skb_frame_desc *skbdesc;
@@ -720,7 +793,7 @@ int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
 	 * after that we are free to use the skb->cb array
 	 * for our information.
 	 */
-	rt2x00queue_create_tx_descriptor(rt2x00dev, intf->beacon->skb, &txdesc);
+	rt2x00queue_create_tx_descriptor(rt2x00dev, intf->beacon->skb, &txdesc, NULL);
 
 	/*
 	 * Fill in skb descriptor
@@ -738,19 +811,6 @@ int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
 
 }
 
-int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
-			      struct ieee80211_vif *vif)
-{
-	struct rt2x00_intf *intf = vif_to_intf(vif);
-	int ret;
-
-	mutex_lock(&intf->beacon_skb_mutex);
-	ret = rt2x00queue_update_beacon_locked(rt2x00dev, vif);
-	mutex_unlock(&intf->beacon_skb_mutex);
-
-	return ret;
-}
-
 bool rt2x00queue_for_each_entry(struct data_queue *queue,
 				enum queue_index start,
 				enum queue_index end,
@@ -764,9 +824,9 @@ bool rt2x00queue_for_each_entry(struct data_queue *queue,
 	unsigned int i;
 
 	if (unlikely(start >= Q_INDEX_MAX || end >= Q_INDEX_MAX)) {
-		ERROR(queue->rt2x00dev,
-		      "Entry requested from invalid index range (%d - %d)\n",
-		      start, end);
+		rt2x00_err(queue->rt2x00dev,
+			   "Entry requested from invalid index range (%d - %d)\n",
+			   start, end);
 		return true;
 	}
 
@@ -813,8 +873,8 @@ struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 	unsigned long irqflags;
 
 	if (unlikely(index >= Q_INDEX_MAX)) {
-		ERROR(queue->rt2x00dev,
-		      "Entry requested from invalid index type (%d)\n", index);
+		rt2x00_err(queue->rt2x00dev, "Entry requested from invalid index type (%d)\n",
+			   index);
 		return NULL;
 	}
 
@@ -834,8 +894,8 @@ void rt2x00queue_index_inc(struct queue_entry *entry, enum queue_index index)
 	unsigned long irqflags;
 
 	if (unlikely(index >= Q_INDEX_MAX)) {
-		ERROR(queue->rt2x00dev,
-		      "Index change on invalid index type (%d)\n", index);
+		rt2x00_err(queue->rt2x00dev,
+			   "Index change on invalid index type (%d)\n", index);
 		return;
 	}
 
@@ -857,13 +917,8 @@ void rt2x00queue_index_inc(struct queue_entry *entry, enum queue_index index)
 	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 }
 
-void rt2x00queue_pause_queue(struct data_queue *queue)
+static void rt2x00queue_pause_queue_nocheck(struct data_queue *queue)
 {
-	if (!test_bit(DEVICE_STATE_PRESENT, &queue->rt2x00dev->flags) ||
-	    !test_bit(QUEUE_STARTED, &queue->flags) ||
-	    test_and_set_bit(QUEUE_PAUSED, &queue->flags))
-		return;
-
 	switch (queue->qid) {
 	case QID_AC_VO:
 	case QID_AC_VI:
@@ -878,6 +933,15 @@ void rt2x00queue_pause_queue(struct data_queue *queue)
 	default:
 		break;
 	}
+}
+void rt2x00queue_pause_queue(struct data_queue *queue)
+{
+	if (!test_bit(DEVICE_STATE_PRESENT, &queue->rt2x00dev->flags) ||
+	    !test_bit(QUEUE_STARTED, &queue->flags) ||
+	    test_and_set_bit(QUEUE_PAUSED, &queue->flags))
+		return;
+
+	rt2x00queue_pause_queue_nocheck(queue);
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_pause_queue);
 
@@ -940,7 +1004,7 @@ void rt2x00queue_stop_queue(struct data_queue *queue)
 		return;
 	}
 
-	rt2x00queue_pause_queue(queue);
+	rt2x00queue_pause_queue_nocheck(queue);
 
 	queue->rt2x00dev->ops->lib->stop_queue(queue);
 
@@ -950,38 +1014,21 @@ EXPORT_SYMBOL_GPL(rt2x00queue_stop_queue);
 
 void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 {
-	bool started;
 	bool tx_queue =
 		(queue->qid == QID_AC_VO) ||
 		(queue->qid == QID_AC_VI) ||
 		(queue->qid == QID_AC_BE) ||
 		(queue->qid == QID_AC_BK);
 
-	mutex_lock(&queue->status_lock);
 
 	/*
-	 * If the queue has been started, we must stop it temporarily
-	 * to prevent any new frames to be queued on the device. If
-	 * we are not dropping the pending frames, the queue must
-	 * only be stopped in the software and not the hardware,
-	 * otherwise the queue will never become empty on its own.
+	 * If we are not supposed to drop any pending
+	 * frames, this means we must force a start (=kick)
+	 * to the queue to make sure the hardware will
+	 * start transmitting.
 	 */
-	started = test_bit(QUEUE_STARTED, &queue->flags);
-	if (started) {
-		/*
-		 * Pause the queue
-		 */
-		rt2x00queue_pause_queue(queue);
-
-		/*
-		 * If we are not supposed to drop any pending
-		 * frames, this means we must force a start (=kick)
-		 * to the queue to make sure the hardware will
-		 * start transmitting.
-		 */
-		if (!drop && tx_queue)
-			queue->rt2x00dev->ops->lib->kick_queue(queue);
-	}
+	if (!drop && tx_queue)
+		queue->rt2x00dev->ops->lib->kick_queue(queue);
 
 	/*
 	 * Check if driver supports flushing, if that is the case we can
@@ -995,15 +1042,8 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 	 * The queue flush has failed...
 	 */
 	if (unlikely(!rt2x00queue_empty(queue)))
-		WARNING(queue->rt2x00dev, "Queue %d failed to flush\n", queue->qid);
-
-	/*
-	 * Restore the queue to the previous status
-	 */
-	if (started)
-		rt2x00queue_unpause_queue(queue);
-
-	mutex_unlock(&queue->status_lock);
+		rt2x00_warn(queue->rt2x00dev, "Queue %d failed to flush\n",
+			    queue->qid);
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_flush_queue);
 
@@ -1081,8 +1121,7 @@ void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
-static int rt2x00queue_alloc_entries(struct data_queue *queue,
-				     const struct data_queue_desc *qdesc)
+static int rt2x00queue_alloc_entries(struct data_queue *queue)
 {
 	struct queue_entry *entries;
 	unsigned int entry_size;
@@ -1090,15 +1129,10 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 
 	rt2x00queue_reset(queue);
 
-	queue->limit = qdesc->entry_num;
-	queue->threshold = DIV_ROUND_UP(qdesc->entry_num, 10);
-	queue->data_size = qdesc->data_size;
-	queue->desc_size = qdesc->desc_size;
-
 	/*
 	 * Allocate all queue entries.
 	 */
-	entry_size = sizeof(*entries) + qdesc->priv_size;
+	entry_size = sizeof(*entries) + queue->priv_size;
 	entries = kcalloc(queue->limit, entry_size, GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
@@ -1114,7 +1148,7 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 		entries[i].entry_idx = i;
 		entries[i].priv_data =
 		    QUEUE_ENTRY_PRIV_OFFSET(entries, i, queue->limit,
-					    sizeof(*entries), qdesc->priv_size);
+					    sizeof(*entries), queue->priv_size);
 	}
 
 #undef QUEUE_ENTRY_PRIV_OFFSET
@@ -1142,7 +1176,7 @@ static int rt2x00queue_alloc_rxskbs(struct data_queue *queue)
 	struct sk_buff *skb;
 
 	for (i = 0; i < queue->limit; i++) {
-		skb = rt2x00queue_alloc_rxskb(&queue->entries[i]);
+		skb = rt2x00queue_alloc_rxskb(&queue->entries[i], GFP_KERNEL);
 		if (!skb)
 			return -ENOMEM;
 		queue->entries[i].skb = skb;
@@ -1156,23 +1190,22 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 	int status;
 
-	status = rt2x00queue_alloc_entries(rt2x00dev->rx, rt2x00dev->ops->rx);
+	status = rt2x00queue_alloc_entries(rt2x00dev->rx);
 	if (status)
 		goto exit;
 
 	tx_queue_for_each(rt2x00dev, queue) {
-		status = rt2x00queue_alloc_entries(queue, rt2x00dev->ops->tx);
+		status = rt2x00queue_alloc_entries(queue);
 		if (status)
 			goto exit;
 	}
 
-	status = rt2x00queue_alloc_entries(rt2x00dev->bcn, rt2x00dev->ops->bcn);
+	status = rt2x00queue_alloc_entries(rt2x00dev->bcn);
 	if (status)
 		goto exit;
 
 	if (test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags)) {
-		status = rt2x00queue_alloc_entries(rt2x00dev->atim,
-						   rt2x00dev->ops->atim);
+		status = rt2x00queue_alloc_entries(rt2x00dev->atim);
 		if (status)
 			goto exit;
 	}
@@ -1184,7 +1217,7 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 	return 0;
 
 exit:
-	ERROR(rt2x00dev, "Queue entries allocation failed.\n");
+	rt2x00_err(rt2x00dev, "Queue entries allocation failed\n");
 
 	rt2x00queue_uninitialize(rt2x00dev);
 
@@ -1216,6 +1249,10 @@ static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 	queue->aifs = 2;
 	queue->cw_min = 5;
 	queue->cw_max = 10;
+
+	rt2x00dev->ops->queue_init(queue);
+
+	queue->threshold = DIV_ROUND_UP(queue->limit, 10);
 }
 
 int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
@@ -1236,7 +1273,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 
 	queue = kcalloc(rt2x00dev->data_queues, sizeof(*queue), GFP_KERNEL);
 	if (!queue) {
-		ERROR(rt2x00dev, "Queue allocation failed.\n");
+		rt2x00_err(rt2x00dev, "Queue allocation failed\n");
 		return -ENOMEM;
 	}
 

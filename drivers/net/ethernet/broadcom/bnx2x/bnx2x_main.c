@@ -1,12 +1,12 @@
 /* bnx2x_main.c: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2012 Broadcom Corporation
+ * Copyright (c) 2007-2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
  * Written by: Eliezer Tamir
  * Based on code from Michael Chan's bnx2 driver
  * UDP CSUM errata workaround by Arik Gendelman
@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/aer.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -39,7 +40,6 @@
 #include <linux/time.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
-#include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -60,6 +60,7 @@
 #include "bnx2x_init.h"
 #include "bnx2x_init_ops.h"
 #include "bnx2x_cmn.h"
+#include "bnx2x_vfpf.h"
 #include "bnx2x_dcb.h"
 #include "bnx2x_sp.h"
 
@@ -78,7 +79,7 @@
 /* Time in jiffies before concluding the transmitter is hung */
 #define TX_TIMEOUT		(5*HZ)
 
-static char version[] __devinitdata =
+static char version[] =
 	"Broadcom NetXtreme II 5771x/578xx 10/20-Gigabit Ethernet Driver "
 	DRV_MODULE_NAME " " DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
@@ -93,42 +94,45 @@ MODULE_FIRMWARE(FW_FILE_NAME_E1);
 MODULE_FIRMWARE(FW_FILE_NAME_E1H);
 MODULE_FIRMWARE(FW_FILE_NAME_E2);
 
-static int multi_mode = 1;
-module_param(multi_mode, int, 0);
-MODULE_PARM_DESC(multi_mode, " Multi queue mode "
-			     "(0 Disable; 1 Enable (default))");
-
-int num_queues;
-module_param(num_queues, int, 0);
-MODULE_PARM_DESC(num_queues, " Number of queues for multi_mode=1"
-				" (default is as a number of CPUs)");
+int bnx2x_num_queues;
+module_param_named(num_queues, bnx2x_num_queues, int, S_IRUGO);
+MODULE_PARM_DESC(num_queues,
+		 " Set number of queues (default is as a number of CPUs)");
 
 static int disable_tpa;
-module_param(disable_tpa, int, 0);
+module_param(disable_tpa, int, S_IRUGO);
 MODULE_PARM_DESC(disable_tpa, " Disable the TPA (LRO) feature");
 
-#define INT_MODE_INTx			1
-#define INT_MODE_MSI			2
 static int int_mode;
-module_param(int_mode, int, 0);
+module_param(int_mode, int, S_IRUGO);
 MODULE_PARM_DESC(int_mode, " Force interrupt mode other than MSI-X "
 				"(1 INT#x; 2 MSI)");
 
 static int dropless_fc;
-module_param(dropless_fc, int, 0);
+module_param(dropless_fc, int, S_IRUGO);
 MODULE_PARM_DESC(dropless_fc, " Pause on exhausted host ring");
 
 static int mrrs = -1;
-module_param(mrrs, int, 0);
+module_param(mrrs, int, S_IRUGO);
 MODULE_PARM_DESC(mrrs, " Force Max Read Req Size (0..3) (for debug)");
 
 static int debug;
-module_param(debug, int, 0);
+module_param(debug, int, S_IRUGO);
 MODULE_PARM_DESC(debug, " Default debug msglevel");
 
+static struct workqueue_struct *bnx2x_wq;
+struct workqueue_struct *bnx2x_iov_wq;
 
-
-struct workqueue_struct *bnx2x_wq;
+struct bnx2x_mac_vals {
+	u32 xmac_addr;
+	u32 xmac_val;
+	u32 emac_addr;
+	u32 emac_val;
+	u32 umac_addr;
+	u32 umac_val;
+	u32 bmac_addr;
+	u32 bmac_val[2];
+};
 
 enum bnx2x_board_type {
 	BCM57710 = 0,
@@ -136,30 +140,49 @@ enum bnx2x_board_type {
 	BCM57711E,
 	BCM57712,
 	BCM57712_MF,
+	BCM57712_VF,
 	BCM57800,
 	BCM57800_MF,
+	BCM57800_VF,
 	BCM57810,
 	BCM57810_MF,
-	BCM57840,
-	BCM57840_MF
+	BCM57810_VF,
+	BCM57840_4_10,
+	BCM57840_2_20,
+	BCM57840_MF,
+	BCM57840_VF,
+	BCM57811,
+	BCM57811_MF,
+	BCM57840_O,
+	BCM57840_MFO,
+	BCM57811_VF
 };
 
 /* indexed by board_type, above */
 static struct {
 	char *name;
-} board_info[] __devinitdata = {
-	{ "Broadcom NetXtreme II BCM57710 10 Gigabit PCIe [Everest]" },
-	{ "Broadcom NetXtreme II BCM57711 10 Gigabit PCIe" },
-	{ "Broadcom NetXtreme II BCM57711E 10 Gigabit PCIe" },
-	{ "Broadcom NetXtreme II BCM57712 10 Gigabit Ethernet" },
-	{ "Broadcom NetXtreme II BCM57712 10 Gigabit Ethernet Multi Function" },
-	{ "Broadcom NetXtreme II BCM57800 10 Gigabit Ethernet" },
-	{ "Broadcom NetXtreme II BCM57800 10 Gigabit Ethernet Multi Function" },
-	{ "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet" },
-	{ "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet Multi Function" },
-	{ "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet" },
-	{ "Broadcom NetXtreme II BCM57840 10/20 Gigabit "
-						"Ethernet Multi Function"}
+} board_info[] = {
+	[BCM57710]	= { "Broadcom NetXtreme II BCM57710 10 Gigabit PCIe [Everest]" },
+	[BCM57711]	= { "Broadcom NetXtreme II BCM57711 10 Gigabit PCIe" },
+	[BCM57711E]	= { "Broadcom NetXtreme II BCM57711E 10 Gigabit PCIe" },
+	[BCM57712]	= { "Broadcom NetXtreme II BCM57712 10 Gigabit Ethernet" },
+	[BCM57712_MF]	= { "Broadcom NetXtreme II BCM57712 10 Gigabit Ethernet Multi Function" },
+	[BCM57712_VF]	= { "Broadcom NetXtreme II BCM57712 10 Gigabit Ethernet Virtual Function" },
+	[BCM57800]	= { "Broadcom NetXtreme II BCM57800 10 Gigabit Ethernet" },
+	[BCM57800_MF]	= { "Broadcom NetXtreme II BCM57800 10 Gigabit Ethernet Multi Function" },
+	[BCM57800_VF]	= { "Broadcom NetXtreme II BCM57800 10 Gigabit Ethernet Virtual Function" },
+	[BCM57810]	= { "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet" },
+	[BCM57810_MF]	= { "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet Multi Function" },
+	[BCM57810_VF]	= { "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet Virtual Function" },
+	[BCM57840_4_10]	= { "Broadcom NetXtreme II BCM57840 10 Gigabit Ethernet" },
+	[BCM57840_2_20]	= { "Broadcom NetXtreme II BCM57840 20 Gigabit Ethernet" },
+	[BCM57840_MF]	= { "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet Multi Function" },
+	[BCM57840_VF]	= { "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet Virtual Function" },
+	[BCM57811]	= { "Broadcom NetXtreme II BCM57811 10 Gigabit Ethernet" },
+	[BCM57811_MF]	= { "Broadcom NetXtreme II BCM57811 10 Gigabit Ethernet Multi Function" },
+	[BCM57840_O]	= { "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet" },
+	[BCM57840_MFO]	= { "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet Multi Function" },
+	[BCM57811_VF]	= { "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet Virtual Function" }
 };
 
 #ifndef PCI_DEVICE_ID_NX2_57710
@@ -177,11 +200,17 @@ static struct {
 #ifndef PCI_DEVICE_ID_NX2_57712_MF
 #define PCI_DEVICE_ID_NX2_57712_MF	CHIP_NUM_57712_MF
 #endif
+#ifndef PCI_DEVICE_ID_NX2_57712_VF
+#define PCI_DEVICE_ID_NX2_57712_VF	CHIP_NUM_57712_VF
+#endif
 #ifndef PCI_DEVICE_ID_NX2_57800
 #define PCI_DEVICE_ID_NX2_57800		CHIP_NUM_57800
 #endif
 #ifndef PCI_DEVICE_ID_NX2_57800_MF
 #define PCI_DEVICE_ID_NX2_57800_MF	CHIP_NUM_57800_MF
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57800_VF
+#define PCI_DEVICE_ID_NX2_57800_VF	CHIP_NUM_57800_VF
 #endif
 #ifndef PCI_DEVICE_ID_NX2_57810
 #define PCI_DEVICE_ID_NX2_57810		CHIP_NUM_57810
@@ -189,24 +218,59 @@ static struct {
 #ifndef PCI_DEVICE_ID_NX2_57810_MF
 #define PCI_DEVICE_ID_NX2_57810_MF	CHIP_NUM_57810_MF
 #endif
-#ifndef PCI_DEVICE_ID_NX2_57840
-#define PCI_DEVICE_ID_NX2_57840		CHIP_NUM_57840
+#ifndef PCI_DEVICE_ID_NX2_57840_O
+#define PCI_DEVICE_ID_NX2_57840_O	CHIP_NUM_57840_OBSOLETE
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57810_VF
+#define PCI_DEVICE_ID_NX2_57810_VF	CHIP_NUM_57810_VF
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57840_4_10
+#define PCI_DEVICE_ID_NX2_57840_4_10	CHIP_NUM_57840_4_10
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57840_2_20
+#define PCI_DEVICE_ID_NX2_57840_2_20	CHIP_NUM_57840_2_20
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57840_MFO
+#define PCI_DEVICE_ID_NX2_57840_MFO	CHIP_NUM_57840_MF_OBSOLETE
 #endif
 #ifndef PCI_DEVICE_ID_NX2_57840_MF
 #define PCI_DEVICE_ID_NX2_57840_MF	CHIP_NUM_57840_MF
 #endif
-static DEFINE_PCI_DEVICE_TABLE(bnx2x_pci_tbl) = {
+#ifndef PCI_DEVICE_ID_NX2_57840_VF
+#define PCI_DEVICE_ID_NX2_57840_VF	CHIP_NUM_57840_VF
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57811
+#define PCI_DEVICE_ID_NX2_57811		CHIP_NUM_57811
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57811_MF
+#define PCI_DEVICE_ID_NX2_57811_MF	CHIP_NUM_57811_MF
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57811_VF
+#define PCI_DEVICE_ID_NX2_57811_VF	CHIP_NUM_57811_VF
+#endif
+
+static const struct pci_device_id bnx2x_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57710), BCM57710 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711), BCM57711 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711E), BCM57711E },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712), BCM57712 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712_MF), BCM57712_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712_VF), BCM57712_VF },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800), BCM57800 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800_MF), BCM57800_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800_VF), BCM57800_VF },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810), BCM57810 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810_MF), BCM57810_MF },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840), BCM57840 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_O), BCM57840_O },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_4_10), BCM57840_4_10 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_2_20), BCM57840_2_20 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810_VF), BCM57810_VF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_MFO), BCM57840_MFO },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_MF), BCM57840_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_VF), BCM57840_VF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811), BCM57811 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811_MF), BCM57811_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811_VF), BCM57811_VF },
 	{ 0 }
 };
 
@@ -216,19 +280,25 @@ MODULE_DEVICE_TABLE(pci, bnx2x_pci_tbl);
 #define BNX2X_PREV_WAIT_NEEDED 1
 static DEFINE_SEMAPHORE(bnx2x_prev_sem);
 static LIST_HEAD(bnx2x_prev_list);
+
+/* Forward declaration */
+static struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev);
+static u32 bnx2x_rx_ustorm_prods_offset(struct bnx2x_fastpath *fp);
+static int bnx2x_set_storm_rx_mode(struct bnx2x *bp);
+
 /****************************************************************************
 * General service functions
 ****************************************************************************/
 
-static inline void __storm_memset_dma_mapping(struct bnx2x *bp,
+static void __storm_memset_dma_mapping(struct bnx2x *bp,
 				       u32 addr, dma_addr_t mapping)
 {
 	REG_WR(bp,  addr, U64_LO(mapping));
 	REG_WR(bp,  addr + 4, U64_HI(mapping));
 }
 
-static inline void storm_memset_spq_addr(struct bnx2x *bp,
-					 dma_addr_t mapping, u16 abs_fid)
+static void storm_memset_spq_addr(struct bnx2x *bp,
+				  dma_addr_t mapping, u16 abs_fid)
 {
 	u32 addr = XSEM_REG_FAST_MEMORY +
 			XSTORM_SPQ_PAGE_BASE_OFFSET(abs_fid);
@@ -236,8 +306,8 @@ static inline void storm_memset_spq_addr(struct bnx2x *bp,
 	__storm_memset_dma_mapping(bp, addr, mapping);
 }
 
-static inline void storm_memset_vf_to_pf(struct bnx2x *bp, u16 abs_fid,
-					 u16 pf_id)
+static void storm_memset_vf_to_pf(struct bnx2x *bp, u16 abs_fid,
+				  u16 pf_id)
 {
 	REG_WR8(bp, BAR_XSTRORM_INTMEM + XSTORM_VF_TO_PF_OFFSET(abs_fid),
 		pf_id);
@@ -249,8 +319,8 @@ static inline void storm_memset_vf_to_pf(struct bnx2x *bp, u16 abs_fid,
 		pf_id);
 }
 
-static inline void storm_memset_func_en(struct bnx2x *bp, u16 abs_fid,
-					u8 enable)
+static void storm_memset_func_en(struct bnx2x *bp, u16 abs_fid,
+				 u8 enable)
 {
 	REG_WR8(bp, BAR_XSTRORM_INTMEM + XSTORM_FUNC_EN_OFFSET(abs_fid),
 		enable);
@@ -262,8 +332,8 @@ static inline void storm_memset_func_en(struct bnx2x *bp, u16 abs_fid,
 		enable);
 }
 
-static inline void storm_memset_eq_data(struct bnx2x *bp,
-				struct event_ring_data *eq_data,
+static void storm_memset_eq_data(struct bnx2x *bp,
+				 struct event_ring_data *eq_data,
 				u16 pfid)
 {
 	size_t size = sizeof(struct event_ring_data);
@@ -273,8 +343,8 @@ static inline void storm_memset_eq_data(struct bnx2x *bp,
 	__storm_memset_struct(bp, addr, size, (u32 *)eq_data);
 }
 
-static inline void storm_memset_eq_prod(struct bnx2x *bp, u16 eq_prod,
-					u16 pfid)
+static void storm_memset_eq_prod(struct bnx2x *bp, u16 eq_prod,
+				 u16 pfid)
 {
 	u32 addr = BAR_CSTRORM_INTMEM + CSTORM_EVENT_RING_PROD_OFFSET(pfid);
 	REG_WR16(bp, addr, eq_prod);
@@ -309,10 +379,11 @@ static u32 bnx2x_reg_rd_ind(struct bnx2x *bp, u32 addr)
 #define DMAE_DP_DST_PCI		"pci dst_addr [%x:%08x]"
 #define DMAE_DP_DST_NONE	"dst_addr [none]"
 
-static void bnx2x_dp_dmae(struct bnx2x *bp, struct dmae_command *dmae,
-			  int msglvl)
+static void bnx2x_dp_dmae(struct bnx2x *bp,
+			  struct dmae_command *dmae, int msglvl)
 {
 	u32 src_type = dmae->opcode & DMAE_COMMAND_SRC;
+	int i;
 
 	switch (dmae->opcode & DMAE_COMMAND_DST) {
 	case DMAE_CMD_DST_PCI:
@@ -369,6 +440,9 @@ static void bnx2x_dp_dmae(struct bnx2x *bp, struct dmae_command *dmae,
 		break;
 	}
 
+	for (i = 0; i < (sizeof(struct dmae_command)/4); i++)
+		DP(msglvl, "DMAE RAW [%02d]: 0x%08x\n",
+		   i, *(((u32 *)dmae) + i));
 }
 
 /* copy command into DMAE command memory and set DMAE command go */
@@ -420,7 +494,7 @@ u32 bnx2x_dmae_opcode(struct bnx2x *bp, u8 src_type, u8 dst_type,
 	return opcode;
 }
 
-static void bnx2x_prep_dmae_with_comp(struct bnx2x *bp,
+void bnx2x_prep_dmae_with_comp(struct bnx2x *bp,
 				      struct dmae_command *dmae,
 				      u8 src_type, u8 dst_type)
 {
@@ -436,30 +510,30 @@ static void bnx2x_prep_dmae_with_comp(struct bnx2x *bp,
 	dmae->comp_val = DMAE_COMP_VAL;
 }
 
-/* issue a dmae command over the init-channel and wailt for completion */
-static int bnx2x_issue_dmae_with_comp(struct bnx2x *bp,
-				      struct dmae_command *dmae)
+/* issue a dmae command over the init-channel and wait for completion */
+int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae,
+			       u32 *comp)
 {
-	u32 *wb_comp = bnx2x_sp(bp, wb_comp);
 	int cnt = CHIP_REV_IS_SLOW(bp) ? (400000) : 4000;
 	int rc = 0;
 
-	/*
-	 * Lock the dmae channel. Disable BHs to prevent a dead-lock
+	bnx2x_dp_dmae(bp, dmae, BNX2X_MSG_DMAE);
+
+	/* Lock the dmae channel. Disable BHs to prevent a dead-lock
 	 * as long as this code is called both from syscall context and
 	 * from ndo_set_rx_mode() flow that may be called from BH.
 	 */
 	spin_lock_bh(&bp->dmae_lock);
 
 	/* reset completion */
-	*wb_comp = 0;
+	*comp = 0;
 
 	/* post the command on the channel used for initializations */
 	bnx2x_post_dmae(bp, dmae, INIT_DMAE_C(bp));
 
 	/* wait for completion */
 	udelay(5);
-	while ((*wb_comp & ~DMAE_PCI_ERR_FLAG) != DMAE_COMP_VAL) {
+	while ((*comp & ~DMAE_PCI_ERR_FLAG) != DMAE_COMP_VAL) {
 
 		if (!cnt ||
 		    (bp->recovery_state != BNX2X_RECOVERY_DONE &&
@@ -471,7 +545,7 @@ static int bnx2x_issue_dmae_with_comp(struct bnx2x *bp,
 		cnt--;
 		udelay(50);
 	}
-	if (*wb_comp & DMAE_PCI_ERR_FLAG) {
+	if (*comp & DMAE_PCI_ERR_FLAG) {
 		BNX2X_ERR("DMAE PCI error!\n");
 		rc = DMAE_PCI_ERROR;
 	}
@@ -484,6 +558,7 @@ unlock:
 void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 		      u32 len32)
 {
+	int rc;
 	struct dmae_command dmae;
 
 	if (!bp->dmae_ready) {
@@ -506,14 +581,19 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 	dmae.dst_addr_hi = 0;
 	dmae.len = len32;
 
-	bnx2x_dp_dmae(bp, &dmae, BNX2X_MSG_OFF);
-
 	/* issue the command and wait for completion */
-	bnx2x_issue_dmae_with_comp(bp, &dmae);
+	rc = bnx2x_issue_dmae_with_comp(bp, &dmae, bnx2x_sp(bp, wb_comp));
+	if (rc) {
+		BNX2X_ERR("DMAE returned failure %d\n", rc);
+#ifdef BNX2X_STOP_ON_ERROR
+		bnx2x_panic();
+#endif
+	}
 }
 
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 {
+	int rc;
 	struct dmae_command dmae;
 
 	if (!bp->dmae_ready) {
@@ -540,10 +620,14 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 	dmae.dst_addr_hi = U64_HI(bnx2x_sp_mapping(bp, wb_data));
 	dmae.len = len32;
 
-	bnx2x_dp_dmae(bp, &dmae, BNX2X_MSG_OFF);
-
 	/* issue the command and wait for completion */
-	bnx2x_issue_dmae_with_comp(bp, &dmae);
+	rc = bnx2x_issue_dmae_with_comp(bp, &dmae, bnx2x_sp(bp, wb_comp));
+	if (rc) {
+		BNX2X_ERR("DMAE returned failure %d\n", rc);
+#ifdef BNX2X_STOP_ON_ERROR
+		bnx2x_panic();
+#endif
+	}
 }
 
 static void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
@@ -561,27 +645,6 @@ static void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
 
 	bnx2x_write_dmae(bp, phys_addr + offset, addr + offset, len);
 }
-
-/* used only for slowpath so not inlined */
-static void bnx2x_wb_wr(struct bnx2x *bp, int reg, u32 val_hi, u32 val_lo)
-{
-	u32 wb_write[2];
-
-	wb_write[0] = val_hi;
-	wb_write[1] = val_lo;
-	REG_WR_DMAE(bp, reg, wb_write, 2);
-}
-
-#ifdef USE_WB_RD
-static u64 bnx2x_wb_rd(struct bnx2x *bp, int reg)
-{
-	u32 wb_data[2];
-
-	REG_RD_DMAE(bp, reg, wb_data, 2);
-
-	return HILO_U64(wb_data[0], wb_data[1]);
-}
-#endif
 
 static int bnx2x_mc_assert(struct bnx2x *bp)
 {
@@ -700,6 +763,10 @@ static int bnx2x_mc_assert(struct bnx2x *bp)
 	return rc;
 }
 
+#define MCPR_TRACE_BUFFER_SIZE	(0x800)
+#define SCRATCH_BUFFER_SIZE(bp)	\
+	(CHIP_IS_E1(bp) ? 0x10000 : (CHIP_IS_E1H(bp) ? 0x20000 : 0x28000))
+
 void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl)
 {
 	u32 addr, val;
@@ -724,7 +791,17 @@ void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl)
 		trace_shmem_base = bp->common.shmem_base;
 	else
 		trace_shmem_base = SHMEM2_RD(bp, other_shmem_base_addr);
-	addr = trace_shmem_base - 0x800;
+
+	/* sanity */
+	if (trace_shmem_base < MCPR_SCRATCH_BASE(bp) + MCPR_TRACE_BUFFER_SIZE ||
+	    trace_shmem_base >= MCPR_SCRATCH_BASE(bp) +
+				SCRATCH_BUFFER_SIZE(bp)) {
+		BNX2X_ERR("Unable to dump trace buffer (mark %x)\n",
+			  trace_shmem_base);
+		return;
+	}
+
+	addr = trace_shmem_base - MCPR_TRACE_BUFFER_SIZE;
 
 	/* validate TRCB signature */
 	mark = REG_RD(bp, addr);
@@ -736,17 +813,24 @@ void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl)
 	/* read cyclic buffer pointer */
 	addr += 4;
 	mark = REG_RD(bp, addr);
-	mark = (CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)
-			+ ((mark + 0x3) & ~0x3) - 0x08000000;
+	mark = MCPR_SCRATCH_BASE(bp) + ((mark + 0x3) & ~0x3) - 0x08000000;
+	if (mark >= trace_shmem_base || mark < addr + 4) {
+		BNX2X_ERR("Mark doesn't fall inside Trace Buffer\n");
+		return;
+	}
 	printk("%s" "begin fw dump (mark 0x%x)\n", lvl, mark);
 
 	printk("%s", lvl);
-	for (offset = mark; offset <= trace_shmem_base; offset += 0x8*4) {
+
+	/* dump buffer after the mark */
+	for (offset = mark; offset < trace_shmem_base; offset += 0x8*4) {
 		for (word = 0; word < 8; word++)
 			data[word] = htonl(REG_RD(bp, offset + 4*word));
 		data[8] = 0x0;
 		pr_cont("%s", (char *)data);
 	}
+
+	/* dump buffer before the mark */
 	for (offset = addr + 4; offset <= mark; offset += 0x8*4) {
 		for (word = 0; word < 8; word++)
 			data[word] = htonl(REG_RD(bp, offset + 4*word));
@@ -756,12 +840,76 @@ void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl)
 	printk("%s" "end of fw dump\n", lvl);
 }
 
-static inline void bnx2x_fw_dump(struct bnx2x *bp)
+static void bnx2x_fw_dump(struct bnx2x *bp)
 {
 	bnx2x_fw_dump_lvl(bp, KERN_ERR);
 }
 
-void bnx2x_panic_dump(struct bnx2x *bp)
+static void bnx2x_hc_int_disable(struct bnx2x *bp)
+{
+	int port = BP_PORT(bp);
+	u32 addr = port ? HC_REG_CONFIG_1 : HC_REG_CONFIG_0;
+	u32 val = REG_RD(bp, addr);
+
+	/* in E1 we must use only PCI configuration space to disable
+	 * MSI/MSIX capability
+	 * It's forbidden to disable IGU_PF_CONF_MSI_MSIX_EN in HC block
+	 */
+	if (CHIP_IS_E1(bp)) {
+		/* Since IGU_PF_CONF_MSI_MSIX_EN still always on
+		 * Use mask register to prevent from HC sending interrupts
+		 * after we exit the function
+		 */
+		REG_WR(bp, HC_REG_INT_MASK + port*4, 0);
+
+		val &= ~(HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
+			 HC_CONFIG_0_REG_INT_LINE_EN_0 |
+			 HC_CONFIG_0_REG_ATTN_BIT_EN_0);
+	} else
+		val &= ~(HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
+			 HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0 |
+			 HC_CONFIG_0_REG_INT_LINE_EN_0 |
+			 HC_CONFIG_0_REG_ATTN_BIT_EN_0);
+
+	DP(NETIF_MSG_IFDOWN,
+	   "write %x to HC %d (addr 0x%x)\n",
+	   val, port, addr);
+
+	/* flush all outstanding writes */
+	mmiowb();
+
+	REG_WR(bp, addr, val);
+	if (REG_RD(bp, addr) != val)
+		BNX2X_ERR("BUG! Proper val not read from IGU!\n");
+}
+
+static void bnx2x_igu_int_disable(struct bnx2x *bp)
+{
+	u32 val = REG_RD(bp, IGU_REG_PF_CONFIGURATION);
+
+	val &= ~(IGU_PF_CONF_MSI_MSIX_EN |
+		 IGU_PF_CONF_INT_LINE_EN |
+		 IGU_PF_CONF_ATTN_BIT_EN);
+
+	DP(NETIF_MSG_IFDOWN, "write %x to IGU\n", val);
+
+	/* flush all outstanding writes */
+	mmiowb();
+
+	REG_WR(bp, IGU_REG_PF_CONFIGURATION, val);
+	if (REG_RD(bp, IGU_REG_PF_CONFIGURATION) != val)
+		BNX2X_ERR("BUG! Proper val not read from IGU!\n");
+}
+
+static void bnx2x_int_disable(struct bnx2x *bp)
+{
+	if (bp->common.int_block == INT_BLOCK_HC)
+		bnx2x_hc_int_disable(bp);
+	else
+		bnx2x_igu_int_disable(bp);
+}
+
+void bnx2x_panic_dump(struct bnx2x *bp, bool disable_int)
 {
 	int i;
 	u16 j;
@@ -771,6 +919,8 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 	u16 start = 0, end = 0;
 	u8 cos;
 #endif
+	if (IS_PF(bp) && disable_int)
+		bnx2x_int_disable(bp);
 
 	bp->stats_state = STATS_STATE_DISABLED;
 	bp->eth_stats.unrecoverable_error++;
@@ -780,34 +930,41 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 
 	/* Indices */
 	/* Common */
-	BNX2X_ERR("def_idx(0x%x)  def_att_idx(0x%x)  attn_state(0x%x)  spq_prod_idx(0x%x) next_stats_cnt(0x%x)\n",
-		  bp->def_idx, bp->def_att_idx, bp->attn_state,
-		  bp->spq_prod_idx, bp->stats_counter);
-	BNX2X_ERR("DSB: attn bits(0x%x)  ack(0x%x)  id(0x%x)  idx(0x%x)\n",
-		  bp->def_status_blk->atten_status_block.attn_bits,
-		  bp->def_status_blk->atten_status_block.attn_bits_ack,
-		  bp->def_status_blk->atten_status_block.status_block_id,
-		  bp->def_status_blk->atten_status_block.attn_bits_index);
-	BNX2X_ERR("     def (");
-	for (i = 0; i < HC_SP_SB_MAX_INDICES; i++)
-		pr_cont("0x%x%s",
-			bp->def_status_blk->sp_sb.index_values[i],
-			(i == HC_SP_SB_MAX_INDICES - 1) ? ")  " : " ");
+	if (IS_PF(bp)) {
+		struct host_sp_status_block *def_sb = bp->def_status_blk;
+		int data_size, cstorm_offset;
 
-	for (i = 0; i < sizeof(struct hc_sp_status_block_data)/sizeof(u32); i++)
-		*((u32 *)&sp_sb_data + i) = REG_RD(bp, BAR_CSTRORM_INTMEM +
-			CSTORM_SP_STATUS_BLOCK_DATA_OFFSET(func) +
-			i*sizeof(u32));
+		BNX2X_ERR("def_idx(0x%x)  def_att_idx(0x%x)  attn_state(0x%x)  spq_prod_idx(0x%x) next_stats_cnt(0x%x)\n",
+			  bp->def_idx, bp->def_att_idx, bp->attn_state,
+			  bp->spq_prod_idx, bp->stats_counter);
+		BNX2X_ERR("DSB: attn bits(0x%x)  ack(0x%x)  id(0x%x)  idx(0x%x)\n",
+			  def_sb->atten_status_block.attn_bits,
+			  def_sb->atten_status_block.attn_bits_ack,
+			  def_sb->atten_status_block.status_block_id,
+			  def_sb->atten_status_block.attn_bits_index);
+		BNX2X_ERR("     def (");
+		for (i = 0; i < HC_SP_SB_MAX_INDICES; i++)
+			pr_cont("0x%x%s",
+				def_sb->sp_sb.index_values[i],
+				(i == HC_SP_SB_MAX_INDICES - 1) ? ")  " : " ");
 
-	pr_cont("igu_sb_id(0x%x)  igu_seg_id(0x%x) pf_id(0x%x)  vnic_id(0x%x)  vf_id(0x%x)  vf_valid (0x%x) state(0x%x)\n",
-	       sp_sb_data.igu_sb_id,
-	       sp_sb_data.igu_seg_id,
-	       sp_sb_data.p_func.pf_id,
-	       sp_sb_data.p_func.vnic_id,
-	       sp_sb_data.p_func.vf_id,
-	       sp_sb_data.p_func.vf_valid,
-	       sp_sb_data.state);
+		data_size = sizeof(struct hc_sp_status_block_data) /
+			    sizeof(u32);
+		cstorm_offset = CSTORM_SP_STATUS_BLOCK_DATA_OFFSET(func);
+		for (i = 0; i < data_size; i++)
+			*((u32 *)&sp_sb_data + i) =
+				REG_RD(bp, BAR_CSTRORM_INTMEM + cstorm_offset +
+					   i * sizeof(u32));
 
+		pr_cont("igu_sb_id(0x%x)  igu_seg_id(0x%x) pf_id(0x%x)  vnic_id(0x%x)  vf_id(0x%x)  vf_valid (0x%x) state(0x%x)\n",
+			sp_sb_data.igu_sb_id,
+			sp_sb_data.igu_seg_id,
+			sp_sb_data.p_func.pf_id,
+			sp_sb_data.p_func.vnic_id,
+			sp_sb_data.p_func.vf_id,
+			sp_sb_data.p_func.vf_valid,
+			sp_sb_data.state);
+	}
 
 	for_each_eth_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
@@ -838,7 +995,7 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 		/* Tx */
 		for_each_cos_in_tx_queue(fp, cos)
 		{
-			txdata = fp->txdata[cos];
+			txdata = *fp->txdata_ptr[cos];
 			BNX2X_ERR("fp%d: tx_pkt_prod(0x%x)  tx_pkt_cons(0x%x)  tx_bd_prod(0x%x)  tx_bd_cons(0x%x)  *tx_cons_sb(0x%x)\n",
 				  i, txdata.tx_pkt_prod,
 				  txdata.tx_pkt_cons, txdata.tx_bd_prod,
@@ -851,10 +1008,9 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 
 		/* host sb data */
 
-#ifdef BCM_CNIC
 		if (IS_FCOE_FP(fp))
 			continue;
-#endif
+
 		BNX2X_ERR("     run indexes (");
 		for (j = 0; j < HC_SB_MAX_SM; j++)
 			pr_cont("0x%x%s",
@@ -866,6 +1022,11 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 			pr_cont("0x%x%s",
 			       fp->sb_index_values[j],
 			       (j == loop - 1) ? ")" : " ");
+
+		/* VF cannot access FW refelection for status block */
+		if (IS_VF(bp))
+			continue;
+
 		/* fw sb data */
 		data_size = CHIP_IS_E1x(bp) ?
 			sizeof(struct hc_status_block_data_e1x) :
@@ -908,7 +1069,7 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 				hc_sm_p[j].timer_value);
 		}
 
-		/* Indecies data */
+		/* Indices data */
 		for (j = 0; j < loop; j++) {
 			pr_cont("INDEX[%d] flags (0x%x) timeout (0x%x)\n", j,
 			       hc_index_p[j].flags,
@@ -917,9 +1078,23 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 	}
 
 #ifdef BNX2X_STOP_ON_ERROR
+	if (IS_PF(bp)) {
+		/* event queue */
+		BNX2X_ERR("eq cons %x prod %x\n", bp->eq_cons, bp->eq_prod);
+		for (i = 0; i < NUM_EQ_DESC; i++) {
+			u32 *data = (u32 *)&bp->eq_ring[i].message.data;
+
+			BNX2X_ERR("event queue [%d]: header: opcode %d, error %d\n",
+				  i, bp->eq_ring[i].message.opcode,
+				  bp->eq_ring[i].message.error);
+			BNX2X_ERR("data: %x %x %x\n",
+				  data[0], data[1], data[2]);
+		}
+	}
+
 	/* Rings */
 	/* Rx */
-	for_each_rx_queue(bp, i) {
+	for_each_valid_rx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		start = RX_BD(le16_to_cpu(*fp->rx_cons_sb) - 10);
@@ -953,10 +1128,10 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 	}
 
 	/* Tx */
-	for_each_tx_queue(bp, i) {
+	for_each_valid_tx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 		for_each_cos_in_tx_queue(fp, cos) {
-			struct bnx2x_fp_txdata *txdata = &fp->txdata[cos];
+			struct bnx2x_fp_txdata *txdata = fp->txdata_ptr[cos];
 
 			start = TX_BD(le16_to_cpu(*txdata->tx_cons_sb) - 10);
 			end = TX_BD(le16_to_cpu(*txdata->tx_cons_sb) + 245);
@@ -981,8 +1156,10 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 		}
 	}
 #endif
-	bnx2x_fw_dump(bp);
-	bnx2x_mc_assert(bp);
+	if (IS_PF(bp)) {
+		bnx2x_fw_dump(bp);
+		bnx2x_mc_assert(bp);
+	}
 	BNX2X_ERR("end crash dump -----------------\n");
 }
 
@@ -992,7 +1169,7 @@ void bnx2x_panic_dump(struct bnx2x *bp)
  * bnx2x_pf_flr_clnup() is called during nic_load in the per function HW
  * initialization.
  */
-#define FLR_WAIT_USEC		10000	/* 10 miliseconds */
+#define FLR_WAIT_USEC		10000	/* 10 milliseconds */
 #define FLR_WAIT_INTERVAL	50	/* usec */
 #define	FLR_POLL_CNT		(FLR_WAIT_USEC/FLR_WAIT_INTERVAL) /* 200 */
 
@@ -1076,8 +1253,8 @@ static void bnx2x_pbf_pN_cmd_flushed(struct bnx2x *bp,
 	   poll_count-cur_cnt, FLR_WAIT_INTERVAL, regs->pN);
 }
 
-static inline u32 bnx2x_flr_clnup_reg_poll(struct bnx2x *bp, u32 reg,
-				     u32 expected, u32 poll_count)
+static u32 bnx2x_flr_clnup_reg_poll(struct bnx2x *bp, u32 reg,
+				    u32 expected, u32 poll_count)
 {
 	u32 cur_cnt = poll_count;
 	u32 val;
@@ -1088,8 +1265,8 @@ static inline u32 bnx2x_flr_clnup_reg_poll(struct bnx2x *bp, u32 reg,
 	return val;
 }
 
-static inline int bnx2x_flr_clnup_poll_hw_counter(struct bnx2x *bp, u32 reg,
-						  char *msg, u32 poll_cnt)
+int bnx2x_flr_clnup_poll_hw_counter(struct bnx2x *bp, u32 reg,
+				    char *msg, u32 poll_cnt)
 {
 	u32 val = bnx2x_flr_clnup_reg_poll(bp, reg, 0, poll_cnt);
 	if (val != 0) {
@@ -1099,7 +1276,8 @@ static inline int bnx2x_flr_clnup_poll_hw_counter(struct bnx2x *bp, u32 reg,
 	return 0;
 }
 
-static u32 bnx2x_flr_clnup_poll_count(struct bnx2x *bp)
+/* Common routines with VF FLR cleanup */
+u32 bnx2x_flr_clnup_poll_count(struct bnx2x *bp)
 {
 	/* adjust polling timeout */
 	if (CHIP_REV_IS_EMUL(bp))
@@ -1111,7 +1289,7 @@ static u32 bnx2x_flr_clnup_poll_count(struct bnx2x *bp)
 	return FLR_POLL_CNT;
 }
 
-static void bnx2x_tx_hw_flushed(struct bnx2x *bp, u32 poll_count)
+void bnx2x_tx_hw_flushed(struct bnx2x *bp, u32 poll_count)
 {
 	struct pbf_pN_cmd_regs cmd_regs[] = {
 		{0, (CHIP_IS_E3B0(bp)) ?
@@ -1170,7 +1348,6 @@ static void bnx2x_tx_hw_flushed(struct bnx2x *bp, u32 poll_count)
 	for (i = 0; i < ARRAY_SIZE(cmd_regs); i++)
 		bnx2x_pbf_pN_cmd_flushed(bp, &cmd_regs[i], poll_count);
 
-
 	/* Verify the transmission buffers are flushed P0, P1, P4 */
 	for (i = 0; i < ARRAY_SIZE(buf_regs); i++)
 		bnx2x_pbf_pN_buf_flushed(bp, &buf_regs[i], poll_count);
@@ -1185,12 +1362,9 @@ static void bnx2x_tx_hw_flushed(struct bnx2x *bp, u32 poll_count)
 #define OP_GEN_AGG_VECT(index) \
 	(((index) << SDM_OP_GEN_AGG_VECT_IDX_SHIFT) & SDM_OP_GEN_AGG_VECT_IDX)
 
-
-static inline int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func,
-					 u32 poll_cnt)
+int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func, u32 poll_cnt)
 {
-	struct sdm_op_gen op_gen = {0};
-
+	u32 op_gen_command = 0;
 	u32 comp_addr = BAR_CSTRORM_INTMEM +
 			CSTORM_FINAL_CLEANUP_COMPLETE_OFFSET(clnup_func);
 	int ret = 0;
@@ -1200,36 +1374,32 @@ static inline int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func,
 		return 1;
 	}
 
-	op_gen.command |= OP_GEN_PARAM(XSTORM_AGG_INT_FINAL_CLEANUP_INDEX);
-	op_gen.command |= OP_GEN_TYPE(XSTORM_AGG_INT_FINAL_CLEANUP_COMP_TYPE);
-	op_gen.command |= OP_GEN_AGG_VECT(clnup_func);
-	op_gen.command |= 1 << SDM_OP_GEN_AGG_VECT_IDX_VALID_SHIFT;
+	op_gen_command |= OP_GEN_PARAM(XSTORM_AGG_INT_FINAL_CLEANUP_INDEX);
+	op_gen_command |= OP_GEN_TYPE(XSTORM_AGG_INT_FINAL_CLEANUP_COMP_TYPE);
+	op_gen_command |= OP_GEN_AGG_VECT(clnup_func);
+	op_gen_command |= 1 << SDM_OP_GEN_AGG_VECT_IDX_VALID_SHIFT;
 
 	DP(BNX2X_MSG_SP, "sending FW Final cleanup\n");
-	REG_WR(bp, XSDM_REG_OPERATION_GEN, op_gen.command);
+	REG_WR(bp, XSDM_REG_OPERATION_GEN, op_gen_command);
 
 	if (bnx2x_flr_clnup_reg_poll(bp, comp_addr, 1, poll_cnt) != 1) {
 		BNX2X_ERR("FW final cleanup did not succeed\n");
 		DP(BNX2X_MSG_SP, "At timeout completion address contained %x\n",
 		   (REG_RD(bp, comp_addr)));
-		ret = 1;
+		bnx2x_panic();
+		return 1;
 	}
-	/* Zero completion for nxt FLR */
+	/* Zero completion for next FLR */
 	REG_WR(bp, comp_addr, 0);
 
 	return ret;
 }
 
-static inline u8 bnx2x_is_pcie_pending(struct pci_dev *dev)
+u8 bnx2x_is_pcie_pending(struct pci_dev *dev)
 {
-	int pos;
 	u16 status;
 
-	pos = pci_pcie_cap(dev);
-	if (!pos)
-		return false;
-
-	pci_read_config_word(dev, pos + PCI_EXP_DEVSTA, &status);
+	pcie_capability_read_word(dev, PCI_EXP_DEVSTA, &status);
 	return status & PCI_EXP_DEVSTA_TRPND;
 }
 
@@ -1237,14 +1407,12 @@ static inline u8 bnx2x_is_pcie_pending(struct pci_dev *dev)
 */
 static int bnx2x_poll_hw_usage_counters(struct bnx2x *bp, u32 poll_cnt)
 {
-
 	/* wait for CFC PF usage-counter to zero (includes all the VFs) */
 	if (bnx2x_flr_clnup_poll_hw_counter(bp,
 			CFC_REG_NUM_LCIDS_INSIDE_PF,
 			"CFC PF usage counter timed out",
 			poll_cnt))
 		return 1;
-
 
 	/* Wait for DQ PF usage-counter to zero (until DQ cleanup) */
 	if (bnx2x_flr_clnup_poll_hw_counter(bp,
@@ -1275,7 +1443,7 @@ static int bnx2x_poll_hw_usage_counters(struct bnx2x *bp, u32 poll_cnt)
 	/* Wait DMAE PF usage counter to zero */
 	if (bnx2x_flr_clnup_poll_hw_counter(bp,
 			dmae_reg_go_c[INIT_DMAE_C(bp)],
-			"DMAE dommand register timed out",
+			"DMAE command register timed out",
 			poll_cnt))
 		return 1;
 
@@ -1361,14 +1529,17 @@ static void bnx2x_hc_int_enable(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 	u32 addr = port ? HC_REG_CONFIG_1 : HC_REG_CONFIG_0;
 	u32 val = REG_RD(bp, addr);
-	int msix = (bp->flags & USING_MSIX_FLAG) ? 1 : 0;
-	int msi = (bp->flags & USING_MSI_FLAG) ? 1 : 0;
+	bool msix = (bp->flags & USING_MSIX_FLAG) ? true : false;
+	bool single_msix = (bp->flags & USING_SINGLE_MSIX_FLAG) ? true : false;
+	bool msi = (bp->flags & USING_MSI_FLAG) ? true : false;
 
 	if (msix) {
 		val &= ~(HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
 			 HC_CONFIG_0_REG_INT_LINE_EN_0);
 		val |= (HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0 |
 			HC_CONFIG_0_REG_ATTN_BIT_EN_0);
+		if (single_msix)
+			val |= HC_CONFIG_0_REG_SINGLE_ISR_EN_0;
 	} else if (msi) {
 		val &= ~HC_CONFIG_0_REG_INT_LINE_EN_0;
 		val |= (HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
@@ -1425,35 +1596,47 @@ static void bnx2x_hc_int_enable(struct bnx2x *bp)
 static void bnx2x_igu_int_enable(struct bnx2x *bp)
 {
 	u32 val;
-	int msix = (bp->flags & USING_MSIX_FLAG) ? 1 : 0;
-	int msi = (bp->flags & USING_MSI_FLAG) ? 1 : 0;
+	bool msix = (bp->flags & USING_MSIX_FLAG) ? true : false;
+	bool single_msix = (bp->flags & USING_SINGLE_MSIX_FLAG) ? true : false;
+	bool msi = (bp->flags & USING_MSI_FLAG) ? true : false;
 
 	val = REG_RD(bp, IGU_REG_PF_CONFIGURATION);
 
 	if (msix) {
 		val &= ~(IGU_PF_CONF_INT_LINE_EN |
 			 IGU_PF_CONF_SINGLE_ISR_EN);
-		val |= (IGU_PF_CONF_FUNC_EN |
-			IGU_PF_CONF_MSI_MSIX_EN |
+		val |= (IGU_PF_CONF_MSI_MSIX_EN |
 			IGU_PF_CONF_ATTN_BIT_EN);
+
+		if (single_msix)
+			val |= IGU_PF_CONF_SINGLE_ISR_EN;
 	} else if (msi) {
 		val &= ~IGU_PF_CONF_INT_LINE_EN;
-		val |= (IGU_PF_CONF_FUNC_EN |
-			IGU_PF_CONF_MSI_MSIX_EN |
+		val |= (IGU_PF_CONF_MSI_MSIX_EN |
 			IGU_PF_CONF_ATTN_BIT_EN |
 			IGU_PF_CONF_SINGLE_ISR_EN);
 	} else {
 		val &= ~IGU_PF_CONF_MSI_MSIX_EN;
-		val |= (IGU_PF_CONF_FUNC_EN |
-			IGU_PF_CONF_INT_LINE_EN |
+		val |= (IGU_PF_CONF_INT_LINE_EN |
 			IGU_PF_CONF_ATTN_BIT_EN |
 			IGU_PF_CONF_SINGLE_ISR_EN);
 	}
+
+	/* Clean previous status - need to configure igu prior to ack*/
+	if ((!msix) || single_msix) {
+		REG_WR(bp, IGU_REG_PF_CONFIGURATION, val);
+		bnx2x_ack_int(bp);
+	}
+
+	val |= IGU_PF_CONF_FUNC_EN;
 
 	DP(NETIF_MSG_IFUP, "write 0x%x to IGU  mode %s\n",
 	   val, (msix ? "MSI-X" : (msi ? "MSI" : "INTx")));
 
 	REG_WR(bp, IGU_REG_PF_CONFIGURATION, val);
+
+	if (val & IGU_PF_CONF_INT_LINE_EN)
+		pci_intx(bp->pdev, true);
 
 	barrier();
 
@@ -1481,71 +1664,6 @@ void bnx2x_int_enable(struct bnx2x *bp)
 		bnx2x_igu_int_enable(bp);
 }
 
-static void bnx2x_hc_int_disable(struct bnx2x *bp)
-{
-	int port = BP_PORT(bp);
-	u32 addr = port ? HC_REG_CONFIG_1 : HC_REG_CONFIG_0;
-	u32 val = REG_RD(bp, addr);
-
-	/*
-	 * in E1 we must use only PCI configuration space to disable
-	 * MSI/MSIX capablility
-	 * It's forbitten to disable IGU_PF_CONF_MSI_MSIX_EN in HC block
-	 */
-	if (CHIP_IS_E1(bp)) {
-		/*  Since IGU_PF_CONF_MSI_MSIX_EN still always on
-		 *  Use mask register to prevent from HC sending interrupts
-		 *  after we exit the function
-		 */
-		REG_WR(bp, HC_REG_INT_MASK + port*4, 0);
-
-		val &= ~(HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
-			 HC_CONFIG_0_REG_INT_LINE_EN_0 |
-			 HC_CONFIG_0_REG_ATTN_BIT_EN_0);
-	} else
-		val &= ~(HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
-			 HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0 |
-			 HC_CONFIG_0_REG_INT_LINE_EN_0 |
-			 HC_CONFIG_0_REG_ATTN_BIT_EN_0);
-
-	DP(NETIF_MSG_IFDOWN,
-	   "write %x to HC %d (addr 0x%x)\n",
-	   val, port, addr);
-
-	/* flush all outstanding writes */
-	mmiowb();
-
-	REG_WR(bp, addr, val);
-	if (REG_RD(bp, addr) != val)
-		BNX2X_ERR("BUG! proper val not read from IGU!\n");
-}
-
-static void bnx2x_igu_int_disable(struct bnx2x *bp)
-{
-	u32 val = REG_RD(bp, IGU_REG_PF_CONFIGURATION);
-
-	val &= ~(IGU_PF_CONF_MSI_MSIX_EN |
-		 IGU_PF_CONF_INT_LINE_EN |
-		 IGU_PF_CONF_ATTN_BIT_EN);
-
-	DP(NETIF_MSG_IFDOWN, "write %x to IGU\n", val);
-
-	/* flush all outstanding writes */
-	mmiowb();
-
-	REG_WR(bp, IGU_REG_PF_CONFIGURATION, val);
-	if (REG_RD(bp, IGU_REG_PF_CONFIGURATION) != val)
-		BNX2X_ERR("BUG! proper val not read from IGU!\n");
-}
-
-void bnx2x_int_disable(struct bnx2x *bp)
-{
-	if (bp->common.int_block == INT_BLOCK_HC)
-		bnx2x_hc_int_disable(bp);
-	else
-		bnx2x_igu_int_disable(bp);
-}
-
 void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
 {
 	int msix = (bp->flags & USING_MSIX_FLAG) ? 1 : 0;
@@ -1559,9 +1677,8 @@ void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
 	if (msix) {
 		synchronize_irq(bp->msix_table[0].vector);
 		offset = 1;
-#ifdef BCM_CNIC
-		offset++;
-#endif
+		if (CNIC_SUPPORT(bp))
+			offset++;
 		for_each_eth_queue(bp, i)
 			synchronize_irq(bp->msix_table[offset++].vector);
 	} else
@@ -1623,7 +1740,7 @@ static bool bnx2x_trylock_hw_lock(struct bnx2x *bp, u32 resource)
  * Returns the recovery leader resource id according to the engine this function
  * belongs to. Currently only only 2 engines is supported.
  */
-static inline int bnx2x_get_leader_lock_resource(struct bnx2x *bp)
+static int bnx2x_get_leader_lock_resource(struct bnx2x *bp)
 {
 	if (BP_PATH(bp))
 		return HW_LOCK_RESOURCE_RECOVERY_LEADER_1;
@@ -1632,20 +1749,37 @@ static inline int bnx2x_get_leader_lock_resource(struct bnx2x *bp)
 }
 
 /**
- * bnx2x_trylock_leader_lock- try to aquire a leader lock.
+ * bnx2x_trylock_leader_lock- try to acquire a leader lock.
  *
  * @bp: driver handle
  *
- * Tries to aquire a leader lock for cuurent engine.
+ * Tries to acquire a leader lock for current engine.
  */
-static inline bool bnx2x_trylock_leader_lock(struct bnx2x *bp)
+static bool bnx2x_trylock_leader_lock(struct bnx2x *bp)
 {
 	return bnx2x_trylock_hw_lock(bp, bnx2x_get_leader_lock_resource(bp));
 }
 
-#ifdef BCM_CNIC
 static void bnx2x_cnic_cfc_comp(struct bnx2x *bp, int cid, u8 err);
-#endif
+
+/* schedule the sp task and mark that interrupt occurred (runs from ISR) */
+static int bnx2x_schedule_sp_task(struct bnx2x *bp)
+{
+	/* Set the interrupt occurred bit for the sp-task to recognize it
+	 * must ack the interrupt and transition according to the IGU
+	 * state machine.
+	 */
+	atomic_set(&bp->interrupt_occurred, 1);
+
+	/* The sp_task must execute only after this bit
+	 * is set, otherwise we will get out of sync and miss all
+	 * further interrupts. Hence, the barrier.
+	 */
+	smp_wmb();
+
+	/* schedule sp_task to workqueue */
+	return queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);
+}
 
 void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 {
@@ -1653,12 +1787,19 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 	int cid = SW_CID(rr_cqe->ramrod_cqe.conn_and_cmd_data);
 	int command = CQE_CMD(rr_cqe->ramrod_cqe.conn_and_cmd_data);
 	enum bnx2x_queue_cmd drv_cmd = BNX2X_Q_CMD_MAX;
-	struct bnx2x_queue_sp_obj *q_obj = &fp->q_obj;
+	struct bnx2x_queue_sp_obj *q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 
 	DP(BNX2X_MSG_SP,
 	   "fp %d  cid %d  got ramrod #%d  state is %x  type is %d\n",
 	   fp->index, cid, command, bp->state,
 	   rr_cqe->ramrod_cqe.ramrod_type);
+
+	/* If cid is within VF range, replace the slowpath object with the
+	 * one corresponding to this VF
+	 */
+	if (cid >= BNX2X_FIRST_VF_CID  &&
+	    cid < BNX2X_FIRST_VF_CID + BNX2X_VF_CIDS)
+		bnx2x_iov_set_queue_sp_obj(bp, cid, &q_obj);
 
 	switch (command) {
 	case (RAMROD_CMD_ID_ETH_CLIENT_UPDATE):
@@ -1682,13 +1823,18 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 		break;
 
 	case (RAMROD_CMD_ID_ETH_TERMINATE):
-		DP(BNX2X_MSG_SP, "got MULTI[%d] teminate ramrod\n", cid);
+		DP(BNX2X_MSG_SP, "got MULTI[%d] terminate ramrod\n", cid);
 		drv_cmd = BNX2X_Q_CMD_TERMINATE;
 		break;
 
 	case (RAMROD_CMD_ID_ETH_EMPTY):
 		DP(BNX2X_MSG_SP, "got MULTI[%d] empty ramrod\n", cid);
 		drv_cmd = BNX2X_Q_CMD_EMPTY;
+		break;
+
+	case (RAMROD_CMD_ID_ETH_TPA_UPDATE):
+		DP(BNX2X_MSG_SP, "got tpa update ramrod CID=%d\n", cid);
+		drv_cmd = BNX2X_Q_CMD_UPDATE_TPA;
 		break;
 
 	default:
@@ -1712,23 +1858,35 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 		return;
 #endif
 
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_inc(&bp->cq_spq_left);
 	/* push the change in bp->spq_left and towards the memory */
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 
 	DP(BNX2X_MSG_SP, "bp->cq_spq_left %x\n", atomic_read(&bp->cq_spq_left));
 
+	if ((drv_cmd == BNX2X_Q_CMD_UPDATE) && (IS_FCOE_FP(fp)) &&
+	    (!!test_bit(BNX2X_AFEX_FCOE_Q_UPDATE_PENDING, &bp->sp_state))) {
+		/* if Q update ramrod is completed for last Q in AFEX vif set
+		 * flow, then ACK MCP at the end
+		 *
+		 * mark pending ACK to MCP bit.
+		 * prevent case that both bits are cleared.
+		 * At the end of load/unload driver checks that
+		 * sp_state is cleared, and this order prevents
+		 * races
+		 */
+		smp_mb__before_atomic();
+		set_bit(BNX2X_AFEX_PENDING_VIFSET_MCP_ACK, &bp->sp_state);
+		wmb();
+		clear_bit(BNX2X_AFEX_FCOE_Q_UPDATE_PENDING, &bp->sp_state);
+		smp_mb__after_atomic();
+
+		/* schedule the sp task as mcp ack is required */
+		bnx2x_schedule_sp_task(bp);
+	}
+
 	return;
-}
-
-void bnx2x_update_rx_prod(struct bnx2x *bp, struct bnx2x_fastpath *fp,
-			u16 bd_prod, u16 rx_comp_prod, u16 rx_sge_prod)
-{
-	u32 start = BAR_USTRORM_INTMEM + fp->ustorm_rx_prods_offset;
-
-	bnx2x_update_rx_prod_gen(bp, fp, bd_prod, rx_comp_prod, rx_sge_prod,
-				 start);
 }
 
 irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
@@ -1754,37 +1912,39 @@ irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 	for_each_eth_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
-		mask = 0x2 << (fp->index + CNIC_PRESENT);
+		mask = 0x2 << (fp->index + CNIC_SUPPORT(bp));
 		if (status & mask) {
 			/* Handle Rx or Tx according to SB id */
-			prefetch(fp->rx_cons_sb);
 			for_each_cos_in_tx_queue(fp, cos)
-				prefetch(fp->txdata[cos].tx_cons_sb);
+				prefetch(fp->txdata_ptr[cos]->tx_cons_sb);
 			prefetch(&fp->sb_running_index[SM_RX_ID]);
 			napi_schedule(&bnx2x_fp(bp, fp->index, napi));
 			status &= ~mask;
 		}
 	}
 
-#ifdef BCM_CNIC
-	mask = 0x2;
-	if (status & (mask | 0x1)) {
-		struct cnic_ops *c_ops = NULL;
+	if (CNIC_SUPPORT(bp)) {
+		mask = 0x2;
+		if (status & (mask | 0x1)) {
+			struct cnic_ops *c_ops = NULL;
 
-		if (likely(bp->state == BNX2X_STATE_OPEN)) {
 			rcu_read_lock();
 			c_ops = rcu_dereference(bp->cnic_ops);
-			if (c_ops)
+			if (c_ops && (bp->cnic_eth_dev.drv_state &
+				      CNIC_DRV_STATE_HANDLES_IRQ))
 				c_ops->cnic_handler(bp->cnic_data, NULL);
 			rcu_read_unlock();
-		}
 
-		status &= ~mask;
+			status &= ~mask;
+		}
 	}
-#endif
 
 	if (unlikely(status & 0x1)) {
-		queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);
+
+		/* schedule sp task to perform default status block work, ack
+		 * attentions and enable interrupts.
+		 */
+		bnx2x_schedule_sp_task(bp);
 
 		status &= ~0x1;
 		if (!status)
@@ -1842,7 +2002,7 @@ int bnx2x_acquire_hw_lock(struct bnx2x *bp, u32 resource)
 		if (lock_status & resource_bit)
 			return 0;
 
-		msleep(5);
+		usleep_range(5000, 10000);
 	}
 	BNX2X_ERR("Timeout\n");
 	return -EAGAIN;
@@ -1877,15 +2037,14 @@ int bnx2x_release_hw_lock(struct bnx2x *bp, u32 resource)
 	/* Validating that the resource is currently taken */
 	lock_status = REG_RD(bp, hw_lock_control_reg);
 	if (!(lock_status & resource_bit)) {
-		BNX2X_ERR("lock_status 0x%x resource_bit 0x%x. unlock was called but lock wasn't taken!\n",
-		   lock_status, resource_bit);
+		BNX2X_ERR("lock_status 0x%x resource_bit 0x%x. Unlock was called but lock wasn't taken!\n",
+			  lock_status, resource_bit);
 		return -EFAULT;
 	}
 
 	REG_WR(bp, hw_lock_control_reg, resource_bit);
 	return 0;
 }
-
 
 int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port)
 {
@@ -2068,40 +2227,39 @@ int bnx2x_set_gpio_int(struct bnx2x *bp, int gpio_num, u32 mode, u8 port)
 	return 0;
 }
 
-static int bnx2x_set_spio(struct bnx2x *bp, int spio_num, u32 mode)
+static int bnx2x_set_spio(struct bnx2x *bp, int spio, u32 mode)
 {
-	u32 spio_mask = (1 << spio_num);
 	u32 spio_reg;
 
-	if ((spio_num < MISC_REGISTERS_SPIO_4) ||
-	    (spio_num > MISC_REGISTERS_SPIO_7)) {
-		BNX2X_ERR("Invalid SPIO %d\n", spio_num);
+	/* Only 2 SPIOs are configurable */
+	if ((spio != MISC_SPIO_SPIO4) && (spio != MISC_SPIO_SPIO5)) {
+		BNX2X_ERR("Invalid SPIO 0x%x\n", spio);
 		return -EINVAL;
 	}
 
 	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_SPIO);
 	/* read SPIO and mask except the float bits */
-	spio_reg = (REG_RD(bp, MISC_REG_SPIO) & MISC_REGISTERS_SPIO_FLOAT);
+	spio_reg = (REG_RD(bp, MISC_REG_SPIO) & MISC_SPIO_FLOAT);
 
 	switch (mode) {
-	case MISC_REGISTERS_SPIO_OUTPUT_LOW:
-		DP(NETIF_MSG_HW, "Set SPIO %d -> output low\n", spio_num);
+	case MISC_SPIO_OUTPUT_LOW:
+		DP(NETIF_MSG_HW, "Set SPIO 0x%x -> output low\n", spio);
 		/* clear FLOAT and set CLR */
-		spio_reg &= ~(spio_mask << MISC_REGISTERS_SPIO_FLOAT_POS);
-		spio_reg |=  (spio_mask << MISC_REGISTERS_SPIO_CLR_POS);
+		spio_reg &= ~(spio << MISC_SPIO_FLOAT_POS);
+		spio_reg |=  (spio << MISC_SPIO_CLR_POS);
 		break;
 
-	case MISC_REGISTERS_SPIO_OUTPUT_HIGH:
-		DP(NETIF_MSG_HW, "Set SPIO %d -> output high\n", spio_num);
+	case MISC_SPIO_OUTPUT_HIGH:
+		DP(NETIF_MSG_HW, "Set SPIO 0x%x -> output high\n", spio);
 		/* clear FLOAT and set SET */
-		spio_reg &= ~(spio_mask << MISC_REGISTERS_SPIO_FLOAT_POS);
-		spio_reg |=  (spio_mask << MISC_REGISTERS_SPIO_SET_POS);
+		spio_reg &= ~(spio << MISC_SPIO_FLOAT_POS);
+		spio_reg |=  (spio << MISC_SPIO_SET_POS);
 		break;
 
-	case MISC_REGISTERS_SPIO_INPUT_HI_Z:
-		DP(NETIF_MSG_HW, "Set SPIO %d -> input\n", spio_num);
+	case MISC_SPIO_INPUT_HI_Z:
+		DP(NETIF_MSG_HW, "Set SPIO 0x%x -> input\n", spio);
 		/* set FLOAT */
-		spio_reg |= (spio_mask << MISC_REGISTERS_SPIO_FLOAT_POS);
+		spio_reg |= (spio << MISC_SPIO_FLOAT_POS);
 		break;
 
 	default:
@@ -2140,22 +2298,42 @@ void bnx2x_calc_fc_adv(struct bnx2x *bp)
 	}
 }
 
-u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
+static void bnx2x_set_requested_fc(struct bnx2x *bp)
 {
-	if (!BP_NOMCP(bp)) {
-		u8 rc;
-		int cfx_idx = bnx2x_get_link_cfg_idx(bp);
-		u16 req_line_speed = bp->link_params.req_line_speed[cfx_idx];
-		/*
-		 * Initialize link parameters structure variables
-		 * It is recommended to turn off RX FC for jumbo frames
-		 * for better performance
-		 */
-		if (CHIP_IS_E1x(bp) && (bp->dev->mtu > 5000))
-			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_TX;
-		else
-			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_BOTH;
+	/* Initialize link parameters structure variables
+	 * It is recommended to turn off RX FC for jumbo frames
+	 *  for better performance
+	 */
+	if (CHIP_IS_E1x(bp) && (bp->dev->mtu > 5000))
+		bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_TX;
+	else
+		bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_BOTH;
+}
 
+static void bnx2x_init_dropless_fc(struct bnx2x *bp)
+{
+	u32 pause_enabled = 0;
+
+	if (!CHIP_IS_E1(bp) && bp->dropless_fc && bp->link_vars.link_up) {
+		if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX)
+			pause_enabled = 1;
+
+		REG_WR(bp, BAR_USTRORM_INTMEM +
+			   USTORM_ETH_PAUSE_ENABLED_OFFSET(BP_PORT(bp)),
+		       pause_enabled);
+	}
+
+	DP(NETIF_MSG_IFUP | NETIF_MSG_LINK, "dropless_fc is %s\n",
+	   pause_enabled ? "enabled" : "disabled");
+}
+
+int bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
+{
+	int rc, cfx_idx = bnx2x_get_link_cfg_idx(bp);
+	u16 req_line_speed = bp->link_params.req_line_speed[cfx_idx];
+
+	if (!BP_NOMCP(bp)) {
+		bnx2x_set_requested_fc(bp);
 		bnx2x_acquire_phy_lock(bp);
 
 		if (load_mode == LOAD_DIAG) {
@@ -2173,17 +2351,24 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 			}
 		}
 
+		if (load_mode == LOAD_LOOPBACK_EXT) {
+			struct link_params *lp = &bp->link_params;
+			lp->loopback_mode = LOOPBACK_EXT;
+		}
+
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);
 
 		bnx2x_release_phy_lock(bp);
 
+		bnx2x_init_dropless_fc(bp);
+
 		bnx2x_calc_fc_adv(bp);
 
-		if (CHIP_REV_IS_SLOW(bp) && bp->link_vars.link_up) {
+		if (bp->link_vars.link_up) {
 			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 			bnx2x_link_report(bp);
-		} else
-			queue_delayed_work(bnx2x_wq, &bp->period_task, 0);
+		}
+		queue_delayed_work(bnx2x_wq, &bp->period_task, 0);
 		bp->link_params.req_line_speed[cfx_idx] = req_line_speed;
 		return rc;
 	}
@@ -2195,9 +2380,10 @@ void bnx2x_link_set(struct bnx2x *bp)
 {
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
-		bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
 		bnx2x_phy_init(&bp->link_params, &bp->link_vars);
 		bnx2x_release_phy_lock(bp);
+
+		bnx2x_init_dropless_fc(bp);
 
 		bnx2x_calc_fc_adv(bp);
 	} else
@@ -2208,10 +2394,17 @@ static void bnx2x__link_reset(struct bnx2x *bp)
 {
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
-		bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
+		bnx2x_lfa_reset(&bp->link_params, &bp->link_vars);
 		bnx2x_release_phy_lock(bp);
 	} else
 		BNX2X_ERR("Bootcode is missing - can not reset link\n");
+}
+
+void bnx2x_force_link_reset(struct bnx2x *bp)
+{
+	bnx2x_acquire_phy_lock(bp);
+	bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
+	bnx2x_release_phy_lock(bp);
 }
 
 u8 bnx2x_link_test(struct bnx2x *bp, u8 is_serdes)
@@ -2229,56 +2422,21 @@ u8 bnx2x_link_test(struct bnx2x *bp, u8 is_serdes)
 	return rc;
 }
 
-static void bnx2x_init_port_minmax(struct bnx2x *bp)
-{
-	u32 r_param = bp->link_vars.line_speed / 8;
-	u32 fair_periodic_timeout_usec;
-	u32 t_fair;
-
-	memset(&(bp->cmng.rs_vars), 0,
-	       sizeof(struct rate_shaping_vars_per_port));
-	memset(&(bp->cmng.fair_vars), 0, sizeof(struct fairness_vars_per_port));
-
-	/* 100 usec in SDM ticks = 25 since each tick is 4 usec */
-	bp->cmng.rs_vars.rs_periodic_timeout = RS_PERIODIC_TIMEOUT_USEC / 4;
-
-	/* this is the threshold below which no timer arming will occur
-	   1.25 coefficient is for the threshold to be a little bigger
-	   than the real time, to compensate for timer in-accuracy */
-	bp->cmng.rs_vars.rs_threshold =
-				(RS_PERIODIC_TIMEOUT_USEC * r_param * 5) / 4;
-
-	/* resolution of fairness timer */
-	fair_periodic_timeout_usec = QM_ARB_BYTES / r_param;
-	/* for 10G it is 1000usec. for 1G it is 10000usec. */
-	t_fair = T_FAIR_COEF / bp->link_vars.line_speed;
-
-	/* this is the threshold below which we won't arm the timer anymore */
-	bp->cmng.fair_vars.fair_threshold = QM_ARB_BYTES;
-
-	/* we multiply by 1e3/8 to get bytes/msec.
-	   We don't want the credits to pass a credit
-	   of the t_fair*FAIR_MEM (algorithm resolution) */
-	bp->cmng.fair_vars.upper_bound = r_param * t_fair * FAIR_MEM;
-	/* since each tick is 4 usec */
-	bp->cmng.fair_vars.fairness_timeout = fair_periodic_timeout_usec / 4;
-}
-
 /* Calculates the sum of vn_min_rates.
    It's needed for further normalizing of the min_rates.
    Returns:
      sum of vn_min_rates.
        or
      0 - if all the min_rates are 0.
-     In the later case fainess algorithm should be deactivated.
+     In the later case fairness algorithm should be deactivated.
      If not all min_rates are zero then those that are zeroes will be set to 1.
  */
-static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
+static void bnx2x_calc_vn_min(struct bnx2x *bp,
+				      struct cmng_init_input *input)
 {
 	int all_zero = 1;
 	int vn;
 
-	bp->vn_weight_sum = 0;
 	for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++) {
 		u32 vn_cfg = bp->mf_config[vn];
 		u32 vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
@@ -2286,104 +2444,53 @@ static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
 
 		/* Skip hidden vns */
 		if (vn_cfg & FUNC_MF_CFG_FUNC_HIDE)
-			continue;
-
+			vn_min_rate = 0;
 		/* If min rate is zero - set it to 1 */
-		if (!vn_min_rate)
+		else if (!vn_min_rate)
 			vn_min_rate = DEF_MIN_RATE;
 		else
 			all_zero = 0;
 
-		bp->vn_weight_sum += vn_min_rate;
+		input->vnic_min_rate[vn] = vn_min_rate;
 	}
 
 	/* if ETS or all min rates are zeros - disable fairness */
 	if (BNX2X_IS_ETS_ENABLED(bp)) {
-		bp->cmng.flags.cmng_enables &=
+		input->flags.cmng_enables &=
 					~CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
 		DP(NETIF_MSG_IFUP, "Fairness will be disabled due to ETS\n");
 	} else if (all_zero) {
-		bp->cmng.flags.cmng_enables &=
+		input->flags.cmng_enables &=
 					~CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
-		DP(NETIF_MSG_IFUP, "All MIN values are zeroes"
-		   "  fairness will be disabled\n");
+		DP(NETIF_MSG_IFUP,
+		   "All MIN values are zeroes fairness will be disabled\n");
 	} else
-		bp->cmng.flags.cmng_enables |=
+		input->flags.cmng_enables |=
 					CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
 }
 
-static void bnx2x_init_vn_minmax(struct bnx2x *bp, int vn)
+static void bnx2x_calc_vn_max(struct bnx2x *bp, int vn,
+				    struct cmng_init_input *input)
 {
-	struct rate_shaping_vars_per_vn m_rs_vn;
-	struct fairness_vars_per_vn m_fair_vn;
+	u16 vn_max_rate;
 	u32 vn_cfg = bp->mf_config[vn];
-	int func = func_by_vn(bp, vn);
-	u16 vn_min_rate, vn_max_rate;
-	int i;
 
-	/* If function is hidden - set min and max to zeroes */
-	if (vn_cfg & FUNC_MF_CFG_FUNC_HIDE) {
-		vn_min_rate = 0;
+	if (vn_cfg & FUNC_MF_CFG_FUNC_HIDE)
 		vn_max_rate = 0;
-
-	} else {
+	else {
 		u32 maxCfg = bnx2x_extract_max_cfg(bp, vn_cfg);
 
-		vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
-				FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
-		/* If fairness is enabled (not all min rates are zeroes) and
-		   if current min rate is zero - set it to 1.
-		   This is a requirement of the algorithm. */
-		if (bp->vn_weight_sum && (vn_min_rate == 0))
-			vn_min_rate = DEF_MIN_RATE;
-
-		if (IS_MF_SI(bp))
+		if (IS_MF_SI(bp)) {
 			/* maxCfg in percents of linkspeed */
 			vn_max_rate = (bp->link_vars.line_speed * maxCfg) / 100;
-		else
+		} else /* SD modes */
 			/* maxCfg is absolute in 100Mb units */
 			vn_max_rate = maxCfg * 100;
 	}
 
-	DP(NETIF_MSG_IFUP,
-	   "func %d: vn_min_rate %d  vn_max_rate %d  vn_weight_sum %d\n",
-	   func, vn_min_rate, vn_max_rate, bp->vn_weight_sum);
+	DP(NETIF_MSG_IFUP, "vn %d: vn_max_rate %d\n", vn, vn_max_rate);
 
-	memset(&m_rs_vn, 0, sizeof(struct rate_shaping_vars_per_vn));
-	memset(&m_fair_vn, 0, sizeof(struct fairness_vars_per_vn));
-
-	/* global vn counter - maximal Mbps for this vn */
-	m_rs_vn.vn_counter.rate = vn_max_rate;
-
-	/* quota - number of bytes transmitted in this period */
-	m_rs_vn.vn_counter.quota =
-				(vn_max_rate * RS_PERIODIC_TIMEOUT_USEC) / 8;
-
-	if (bp->vn_weight_sum) {
-		/* credit for each period of the fairness algorithm:
-		   number of bytes in T_FAIR (the vn share the port rate).
-		   vn_weight_sum should not be larger than 10000, thus
-		   T_FAIR_COEF / (8 * vn_weight_sum) will always be greater
-		   than zero */
-		m_fair_vn.vn_credit_delta =
-			max_t(u32, (vn_min_rate * (T_FAIR_COEF /
-						   (8 * bp->vn_weight_sum))),
-			      (bp->cmng.fair_vars.fair_threshold +
-							MIN_ABOVE_THRESH));
-		DP(NETIF_MSG_IFUP, "m_fair_vn.vn_credit_delta %d\n",
-		   m_fair_vn.vn_credit_delta);
-	}
-
-	/* Store it to internal memory */
-	for (i = 0; i < sizeof(struct rate_shaping_vars_per_vn)/4; i++)
-		REG_WR(bp, BAR_XSTRORM_INTMEM +
-		       XSTORM_RATE_SHAPING_PER_VN_VARS_OFFSET(func) + i * 4,
-		       ((u32 *)(&m_rs_vn))[i]);
-
-	for (i = 0; i < sizeof(struct fairness_vars_per_vn)/4; i++)
-		REG_WR(bp, BAR_XSTRORM_INTMEM +
-		       XSTORM_FAIRNESS_PER_VN_VARS_OFFSET(func) + i * 4,
-		       ((u32 *)(&m_fair_vn))[i]);
+	input->vnic_max_rate[vn] = vn_max_rate;
 }
 
 static int bnx2x_get_cmng_fns_mode(struct bnx2x *bp)
@@ -2401,7 +2508,7 @@ void bnx2x_read_mf_cfg(struct bnx2x *bp)
 	int vn, n = (CHIP_MODE_IS_4_PORT(bp) ? 2 : 1);
 
 	if (BP_NOMCP(bp))
-		return; /* what should be the default bvalue in this case */
+		return; /* what should be the default value in this case */
 
 	/* For 2 port configuration the absolute function number formula
 	 * is:
@@ -2423,44 +2530,92 @@ void bnx2x_read_mf_cfg(struct bnx2x *bp)
 		bp->mf_config[vn] =
 			MF_CFG_RD(bp, func_mf_config[func].config);
 	}
+	if (bp->mf_config[BP_VN(bp)] & FUNC_MF_CFG_FUNC_DISABLED) {
+		DP(NETIF_MSG_IFUP, "mf_cfg function disabled\n");
+		bp->flags |= MF_FUNC_DIS;
+	} else {
+		DP(NETIF_MSG_IFUP, "mf_cfg function enabled\n");
+		bp->flags &= ~MF_FUNC_DIS;
+	}
 }
 
 static void bnx2x_cmng_fns_init(struct bnx2x *bp, u8 read_cfg, u8 cmng_type)
 {
+	struct cmng_init_input input;
+	memset(&input, 0, sizeof(struct cmng_init_input));
 
-	if (cmng_type == CMNG_FNS_MINMAX) {
+	input.port_rate = bp->link_vars.line_speed;
+
+	if (cmng_type == CMNG_FNS_MINMAX && input.port_rate) {
 		int vn;
-
-		/* clear cmng_enables */
-		bp->cmng.flags.cmng_enables = 0;
 
 		/* read mf conf from shmem */
 		if (read_cfg)
 			bnx2x_read_mf_cfg(bp);
 
-		/* Init rate shaping and fairness contexts */
-		bnx2x_init_port_minmax(bp);
-
 		/* vn_weight_sum and enable fairness if not 0 */
-		bnx2x_calc_vn_weight_sum(bp);
+		bnx2x_calc_vn_min(bp, &input);
 
 		/* calculate and set min-max rate for each vn */
 		if (bp->port.pmf)
 			for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++)
-				bnx2x_init_vn_minmax(bp, vn);
+				bnx2x_calc_vn_max(bp, vn, &input);
 
 		/* always enable rate shaping and fairness */
-		bp->cmng.flags.cmng_enables |=
+		input.flags.cmng_enables |=
 					CMNG_FLAGS_PER_PORT_RATE_SHAPING_VN;
-		if (!bp->vn_weight_sum)
-			DP(NETIF_MSG_IFUP, "All MIN values are zeroes"
-				   "  fairness will be disabled\n");
+
+		bnx2x_init_cmng(&input, &bp->cmng);
 		return;
 	}
 
 	/* rate shaping and fairness are disabled */
 	DP(NETIF_MSG_IFUP,
 	   "rate shaping and fairness are disabled\n");
+}
+
+static void storm_memset_cmng(struct bnx2x *bp,
+			      struct cmng_init *cmng,
+			      u8 port)
+{
+	int vn;
+	size_t size = sizeof(struct cmng_struct_per_port);
+
+	u32 addr = BAR_XSTRORM_INTMEM +
+			XSTORM_CMNG_PER_PORT_VARS_OFFSET(port);
+
+	__storm_memset_struct(bp, addr, size, (u32 *)&cmng->port);
+
+	for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++) {
+		int func = func_by_vn(bp, vn);
+
+		addr = BAR_XSTRORM_INTMEM +
+		       XSTORM_RATE_SHAPING_PER_VN_VARS_OFFSET(func);
+		size = sizeof(struct rate_shaping_vars_per_vn);
+		__storm_memset_struct(bp, addr, size,
+				      (u32 *)&cmng->vnic.vnic_max_rate[vn]);
+
+		addr = BAR_XSTRORM_INTMEM +
+		       XSTORM_FAIRNESS_PER_VN_VARS_OFFSET(func);
+		size = sizeof(struct fairness_vars_per_vn);
+		__storm_memset_struct(bp, addr, size,
+				      (u32 *)&cmng->vnic.vnic_min_rate[vn]);
+	}
+}
+
+/* init cmng mode in HW according to local configuration */
+void bnx2x_set_local_cmng(struct bnx2x *bp)
+{
+	int cmng_fns = bnx2x_get_cmng_fns_mode(bp);
+
+	if (cmng_fns != CMNG_FNS_NONE) {
+		bnx2x_cmng_fns_init(bp, false, cmng_fns);
+		storm_memset_cmng(bp, &bp->cmng, BP_PORT(bp));
+	} else {
+		/* rate shaping and fairness are disabled */
+		DP(NETIF_MSG_IFUP,
+		   "single function mode without fairness\n");
+	}
 }
 
 /* This function is called upon link interrupt */
@@ -2471,20 +2626,9 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 
 	bnx2x_link_update(&bp->link_params, &bp->link_vars);
 
+	bnx2x_init_dropless_fc(bp);
+
 	if (bp->link_vars.link_up) {
-
-		/* dropless flow control */
-		if (!CHIP_IS_E1(bp) && bp->dropless_fc) {
-			int port = BP_PORT(bp);
-			u32 pause_enabled = 0;
-
-			if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX)
-				pause_enabled = 1;
-
-			REG_WR(bp, BAR_USTRORM_INTMEM +
-			       USTORM_ETH_PAUSE_ENABLED_OFFSET(port),
-			       pause_enabled);
-		}
 
 		if (bp->link_vars.mac_type != MAC_TYPE_EMAC) {
 			struct host_port_stats *pstats;
@@ -2498,17 +2642,8 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 	}
 
-	if (bp->link_vars.link_up && bp->link_vars.line_speed) {
-		int cmng_fns = bnx2x_get_cmng_fns_mode(bp);
-
-		if (cmng_fns != CMNG_FNS_NONE) {
-			bnx2x_cmng_fns_init(bp, false, cmng_fns);
-			storm_memset_cmng(bp, &bp->cmng, BP_PORT(bp));
-		} else
-			/* rate shaping and fairness are disabled */
-			DP(NETIF_MSG_IFUP,
-			   "single function mode without fairness\n");
-	}
+	if (bp->link_vars.link_up && bp->link_vars.line_speed)
+		bnx2x_set_local_cmng(bp);
 
 	__bnx2x_link_report(bp);
 
@@ -2522,17 +2657,241 @@ void bnx2x__link_status_update(struct bnx2x *bp)
 		return;
 
 	/* read updated dcb configuration */
-	bnx2x_dcbx_pmf_update(bp);
+	if (IS_PF(bp)) {
+		bnx2x_dcbx_pmf_update(bp);
+		bnx2x_link_status_update(&bp->link_params, &bp->link_vars);
+		if (bp->link_vars.link_up)
+			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
+		else
+			bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+			/* indicate link status */
+		bnx2x_link_report(bp);
 
-	bnx2x_link_status_update(&bp->link_params, &bp->link_vars);
+	} else { /* VF */
+		bp->port.supported[0] |= (SUPPORTED_10baseT_Half |
+					  SUPPORTED_10baseT_Full |
+					  SUPPORTED_100baseT_Half |
+					  SUPPORTED_100baseT_Full |
+					  SUPPORTED_1000baseT_Full |
+					  SUPPORTED_2500baseX_Full |
+					  SUPPORTED_10000baseT_Full |
+					  SUPPORTED_TP |
+					  SUPPORTED_FIBRE |
+					  SUPPORTED_Autoneg |
+					  SUPPORTED_Pause |
+					  SUPPORTED_Asym_Pause);
+		bp->port.advertising[0] = bp->port.supported[0];
 
-	if (bp->link_vars.link_up)
+		bp->link_params.bp = bp;
+		bp->link_params.port = BP_PORT(bp);
+		bp->link_params.req_duplex[0] = DUPLEX_FULL;
+		bp->link_params.req_flow_ctrl[0] = BNX2X_FLOW_CTRL_NONE;
+		bp->link_params.req_line_speed[0] = SPEED_10000;
+		bp->link_params.speed_cap_mask[0] = 0x7f0000;
+		bp->link_params.switch_cfg = SWITCH_CFG_10G;
+		bp->link_vars.mac_type = MAC_TYPE_BMAC;
+		bp->link_vars.line_speed = SPEED_10000;
+		bp->link_vars.link_status =
+			(LINK_STATUS_LINK_UP |
+			 LINK_STATUS_SPEED_AND_DUPLEX_10GTFD);
+		bp->link_vars.link_up = 1;
+		bp->link_vars.duplex = DUPLEX_FULL;
+		bp->link_vars.flow_ctrl = BNX2X_FLOW_CTRL_NONE;
+		__bnx2x_link_report(bp);
+
+		bnx2x_sample_bulletin(bp);
+
+		/* if bulletin board did not have an update for link status
+		 * __bnx2x_link_report will report current status
+		 * but it will NOT duplicate report in case of already reported
+		 * during sampling bulletin board.
+		 */
 		bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
-	else
-		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+	}
+}
 
-	/* indicate link status */
-	bnx2x_link_report(bp);
+static int bnx2x_afex_func_update(struct bnx2x *bp, u16 vifid,
+				  u16 vlan_val, u8 allowed_prio)
+{
+	struct bnx2x_func_state_params func_params = {NULL};
+	struct bnx2x_func_afex_update_params *f_update_params =
+		&func_params.params.afex_update;
+
+	func_params.f_obj = &bp->func_obj;
+	func_params.cmd = BNX2X_F_CMD_AFEX_UPDATE;
+
+	/* no need to wait for RAMROD completion, so don't
+	 * set RAMROD_COMP_WAIT flag
+	 */
+
+	f_update_params->vif_id = vifid;
+	f_update_params->afex_default_vlan = vlan_val;
+	f_update_params->allowed_priorities = allowed_prio;
+
+	/* if ramrod can not be sent, response to MCP immediately */
+	if (bnx2x_func_state_change(bp, &func_params) < 0)
+		bnx2x_fw_command(bp, DRV_MSG_CODE_AFEX_VIFSET_ACK, 0);
+
+	return 0;
+}
+
+static int bnx2x_afex_handle_vif_list_cmd(struct bnx2x *bp, u8 cmd_type,
+					  u16 vif_index, u8 func_bit_map)
+{
+	struct bnx2x_func_state_params func_params = {NULL};
+	struct bnx2x_func_afex_viflists_params *update_params =
+		&func_params.params.afex_viflists;
+	int rc;
+	u32 drv_msg_code;
+
+	/* validate only LIST_SET and LIST_GET are received from switch */
+	if ((cmd_type != VIF_LIST_RULE_GET) && (cmd_type != VIF_LIST_RULE_SET))
+		BNX2X_ERR("BUG! afex_handle_vif_list_cmd invalid type 0x%x\n",
+			  cmd_type);
+
+	func_params.f_obj = &bp->func_obj;
+	func_params.cmd = BNX2X_F_CMD_AFEX_VIFLISTS;
+
+	/* set parameters according to cmd_type */
+	update_params->afex_vif_list_command = cmd_type;
+	update_params->vif_list_index = vif_index;
+	update_params->func_bit_map =
+		(cmd_type == VIF_LIST_RULE_GET) ? 0 : func_bit_map;
+	update_params->func_to_clear = 0;
+	drv_msg_code =
+		(cmd_type == VIF_LIST_RULE_GET) ?
+		DRV_MSG_CODE_AFEX_LISTGET_ACK :
+		DRV_MSG_CODE_AFEX_LISTSET_ACK;
+
+	/* if ramrod can not be sent, respond to MCP immediately for
+	 * SET and GET requests (other are not triggered from MCP)
+	 */
+	rc = bnx2x_func_state_change(bp, &func_params);
+	if (rc < 0)
+		bnx2x_fw_command(bp, drv_msg_code, 0);
+
+	return 0;
+}
+
+static void bnx2x_handle_afex_cmd(struct bnx2x *bp, u32 cmd)
+{
+	struct afex_stats afex_stats;
+	u32 func = BP_ABS_FUNC(bp);
+	u32 mf_config;
+	u16 vlan_val;
+	u32 vlan_prio;
+	u16 vif_id;
+	u8 allowed_prio;
+	u8 vlan_mode;
+	u32 addr_to_write, vifid, addrs, stats_type, i;
+
+	if (cmd & DRV_STATUS_AFEX_LISTGET_REQ) {
+		vifid = SHMEM2_RD(bp, afex_param1_to_driver[BP_FW_MB_IDX(bp)]);
+		DP(BNX2X_MSG_MCP,
+		   "afex: got MCP req LISTGET_REQ for vifid 0x%x\n", vifid);
+		bnx2x_afex_handle_vif_list_cmd(bp, VIF_LIST_RULE_GET, vifid, 0);
+	}
+
+	if (cmd & DRV_STATUS_AFEX_LISTSET_REQ) {
+		vifid = SHMEM2_RD(bp, afex_param1_to_driver[BP_FW_MB_IDX(bp)]);
+		addrs = SHMEM2_RD(bp, afex_param2_to_driver[BP_FW_MB_IDX(bp)]);
+		DP(BNX2X_MSG_MCP,
+		   "afex: got MCP req LISTSET_REQ for vifid 0x%x addrs 0x%x\n",
+		   vifid, addrs);
+		bnx2x_afex_handle_vif_list_cmd(bp, VIF_LIST_RULE_SET, vifid,
+					       addrs);
+	}
+
+	if (cmd & DRV_STATUS_AFEX_STATSGET_REQ) {
+		addr_to_write = SHMEM2_RD(bp,
+			afex_scratchpad_addr_to_write[BP_FW_MB_IDX(bp)]);
+		stats_type = SHMEM2_RD(bp,
+			afex_param1_to_driver[BP_FW_MB_IDX(bp)]);
+
+		DP(BNX2X_MSG_MCP,
+		   "afex: got MCP req STATSGET_REQ, write to addr 0x%x\n",
+		   addr_to_write);
+
+		bnx2x_afex_collect_stats(bp, (void *)&afex_stats, stats_type);
+
+		/* write response to scratchpad, for MCP */
+		for (i = 0; i < (sizeof(struct afex_stats)/sizeof(u32)); i++)
+			REG_WR(bp, addr_to_write + i*sizeof(u32),
+			       *(((u32 *)(&afex_stats))+i));
+
+		/* send ack message to MCP */
+		bnx2x_fw_command(bp, DRV_MSG_CODE_AFEX_STATSGET_ACK, 0);
+	}
+
+	if (cmd & DRV_STATUS_AFEX_VIFSET_REQ) {
+		mf_config = MF_CFG_RD(bp, func_mf_config[func].config);
+		bp->mf_config[BP_VN(bp)] = mf_config;
+		DP(BNX2X_MSG_MCP,
+		   "afex: got MCP req VIFSET_REQ, mf_config 0x%x\n",
+		   mf_config);
+
+		/* if VIF_SET is "enabled" */
+		if (!(mf_config & FUNC_MF_CFG_FUNC_DISABLED)) {
+			/* set rate limit directly to internal RAM */
+			struct cmng_init_input cmng_input;
+			struct rate_shaping_vars_per_vn m_rs_vn;
+			size_t size = sizeof(struct rate_shaping_vars_per_vn);
+			u32 addr = BAR_XSTRORM_INTMEM +
+			    XSTORM_RATE_SHAPING_PER_VN_VARS_OFFSET(BP_FUNC(bp));
+
+			bp->mf_config[BP_VN(bp)] = mf_config;
+
+			bnx2x_calc_vn_max(bp, BP_VN(bp), &cmng_input);
+			m_rs_vn.vn_counter.rate =
+				cmng_input.vnic_max_rate[BP_VN(bp)];
+			m_rs_vn.vn_counter.quota =
+				(m_rs_vn.vn_counter.rate *
+				 RS_PERIODIC_TIMEOUT_USEC) / 8;
+
+			__storm_memset_struct(bp, addr, size, (u32 *)&m_rs_vn);
+
+			/* read relevant values from mf_cfg struct in shmem */
+			vif_id =
+				(MF_CFG_RD(bp, func_mf_config[func].e1hov_tag) &
+				 FUNC_MF_CFG_E1HOV_TAG_MASK) >>
+				FUNC_MF_CFG_E1HOV_TAG_SHIFT;
+			vlan_val =
+				(MF_CFG_RD(bp, func_mf_config[func].e1hov_tag) &
+				 FUNC_MF_CFG_AFEX_VLAN_MASK) >>
+				FUNC_MF_CFG_AFEX_VLAN_SHIFT;
+			vlan_prio = (mf_config &
+				     FUNC_MF_CFG_TRANSMIT_PRIORITY_MASK) >>
+				    FUNC_MF_CFG_TRANSMIT_PRIORITY_SHIFT;
+			vlan_val |= (vlan_prio << VLAN_PRIO_SHIFT);
+			vlan_mode =
+				(MF_CFG_RD(bp,
+					   func_mf_config[func].afex_config) &
+				 FUNC_MF_CFG_AFEX_VLAN_MODE_MASK) >>
+				FUNC_MF_CFG_AFEX_VLAN_MODE_SHIFT;
+			allowed_prio =
+				(MF_CFG_RD(bp,
+					   func_mf_config[func].afex_config) &
+				 FUNC_MF_CFG_AFEX_COS_FILTER_MASK) >>
+				FUNC_MF_CFG_AFEX_COS_FILTER_SHIFT;
+
+			/* send ramrod to FW, return in case of failure */
+			if (bnx2x_afex_func_update(bp, vif_id, vlan_val,
+						   allowed_prio))
+				return;
+
+			bp->afex_def_vlan_tag = vlan_val;
+			bp->afex_vlan_mode = vlan_mode;
+		} else {
+			/* notify link down because BP->flags is disabled */
+			bnx2x_link_report(bp);
+
+			/* send INVALID VIF ramrod to FW */
+			bnx2x_afex_func_update(bp, 0xFFFF, 0, 0);
+
+			/* Reset the default afex VLAN */
+			bp->afex_def_vlan_tag = -1;
+		}
+	}
 }
 
 static void bnx2x_pmf_update(struct bnx2x *bp)
@@ -2618,6 +2977,17 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command, u32 param)
 	return rc;
 }
 
+static void storm_memset_func_cfg(struct bnx2x *bp,
+				 struct tstorm_eth_function_common_config *tcfg,
+				 u16 abs_fid)
+{
+	size_t size = sizeof(struct tstorm_eth_function_common_config);
+
+	u32 addr = BAR_TSTRORM_INTMEM +
+			TSTORM_FUNCTION_COMMON_CONFIG_OFFSET(abs_fid);
+
+	__storm_memset_struct(bp, addr, size, (u32 *)tcfg);
+}
 
 void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p)
 {
@@ -2640,7 +3010,7 @@ void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p)
 }
 
 /**
- * bnx2x_get_tx_only_flags - Return common flags
+ * bnx2x_get_common_flags - Return common flags
  *
  * @bp		device handle
  * @fp		queue handle
@@ -2648,9 +3018,9 @@ void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p)
  *
  * Return the flags that are common for the Tx-only and not normal connections.
  */
-static inline unsigned long bnx2x_get_common_flags(struct bnx2x *bp,
-						   struct bnx2x_fastpath *fp,
-						   bool zero_stats)
+static unsigned long bnx2x_get_common_flags(struct bnx2x *bp,
+					    struct bnx2x_fastpath *fp,
+					    bool zero_stats)
 {
 	unsigned long flags = 0;
 
@@ -2658,21 +3028,30 @@ static inline unsigned long bnx2x_get_common_flags(struct bnx2x *bp,
 	__set_bit(BNX2X_Q_FLG_ACTIVE, &flags);
 
 	/* tx only connections collect statistics (on the same index as the
-	 *  parent connection). The statistics are zeroed when the parent
-	 *  connection is initialized.
+	 * parent connection). The statistics are zeroed when the parent
+	 * connection is initialized.
 	 */
 
 	__set_bit(BNX2X_Q_FLG_STATS, &flags);
 	if (zero_stats)
 		__set_bit(BNX2X_Q_FLG_ZERO_STATS, &flags);
 
+	if (bp->flags & TX_SWITCHING)
+		__set_bit(BNX2X_Q_FLG_TX_SWITCH, &flags);
+
+	__set_bit(BNX2X_Q_FLG_PCSUM_ON_PKT, &flags);
+	__set_bit(BNX2X_Q_FLG_TUN_INC_INNER_IP_ID, &flags);
+
+#ifdef BNX2X_STOP_ON_ERROR
+	__set_bit(BNX2X_Q_FLG_TX_SEC, &flags);
+#endif
 
 	return flags;
 }
 
-static inline unsigned long bnx2x_get_q_flags(struct bnx2x *bp,
-					      struct bnx2x_fastpath *fp,
-					      bool leading)
+static unsigned long bnx2x_get_q_flags(struct bnx2x *bp,
+				       struct bnx2x_fastpath *fp,
+				       bool leading)
 {
 	unsigned long flags = 0;
 
@@ -2680,8 +3059,11 @@ static inline unsigned long bnx2x_get_q_flags(struct bnx2x *bp,
 	if (IS_MF_SD(bp))
 		__set_bit(BNX2X_Q_FLG_OV, &flags);
 
-	if (IS_FCOE_FP(fp))
+	if (IS_FCOE_FP(fp)) {
 		__set_bit(BNX2X_Q_FLG_FCOE, &flags);
+		/* For FCoE - force usage of default priority (for afex) */
+		__set_bit(BNX2X_Q_FLG_FORCE_DEFAULT_PRI, &flags);
+	}
 
 	if (!fp->disable_tpa) {
 		__set_bit(BNX2X_Q_FLG_TPA, &flags);
@@ -2698,6 +3080,9 @@ static inline unsigned long bnx2x_get_q_flags(struct bnx2x *bp,
 	/* Always set HW VLAN stripping */
 	__set_bit(BNX2X_Q_FLG_VLAN, &flags);
 
+	/* configure silent vlan removal */
+	if (IS_MF_AFEX(bp))
+		__set_bit(BNX2X_Q_FLG_SILENT_VLAN_REM, &flags);
 
 	return flags | bnx2x_get_common_flags(bp, fp, true);
 }
@@ -2735,15 +3120,12 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 				pause->sge_th_hi + FW_PREFETCH_CNT >
 				MAX_RX_SGE_CNT * NUM_RX_SGE_PAGES);
 
-		tpa_agg_size = min_t(u32,
-			(min_t(u32, 8, MAX_SKB_FRAGS) *
-			SGE_PAGE_SIZE * PAGES_PER_SGE), 0xffff);
+		tpa_agg_size = TPA_AGG_SIZE;
 		max_sge = SGE_PAGE_ALIGN(bp->dev->mtu) >>
 			SGE_PAGE_SHIFT;
 		max_sge = ((max_sge + PAGES_PER_SGE - 1) &
 			  (~(PAGES_PER_SGE-1))) >> PAGES_PER_SGE_SHIFT;
-		sge_sz = (u16)min_t(u32, SGE_PAGE_SIZE * PAGES_PER_SGE,
-				    0xffff);
+		sge_sz = (u16)min_t(u32, SGE_PAGES, 0xffff);
 	}
 
 	/* pause - not for e1 */
@@ -2777,7 +3159,7 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 	 * placed on the BD (not including paddings).
 	 */
 	rxq_init->buf_sz = fp->rx_buf_size - BNX2X_FW_RX_ALIGN_START -
-		BNX2X_FW_RX_ALIGN_END -	IP_HEADER_ALIGNMENT_PADDING;
+			   BNX2X_FW_RX_ALIGN_END - IP_HEADER_ALIGNMENT_PADDING;
 
 	rxq_init->cl_qzone_id = fp->cl_qzone_id;
 	rxq_init->tpa_agg_sz = tpa_agg_size;
@@ -2788,7 +3170,7 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 
 	/* Maximum number or simultaneous TPA aggregation for this Queue.
 	 *
-	 * For PF Clients it should be the maximum avaliable number.
+	 * For PF Clients it should be the maximum available number.
 	 * VF driver(s) may want to define it to a smaller value.
 	 */
 	rxq_init->max_tpa_queues = MAX_AGG_QS(bp);
@@ -2800,19 +3182,26 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 		rxq_init->sb_cq_index = HC_SP_INDEX_ETH_FCOE_RX_CQ_CONS;
 	else
 		rxq_init->sb_cq_index = HC_INDEX_ETH_RX_CQ_CONS;
+	/* configure silent vlan removal
+	 * if multi function mode is afex, then mask default vlan
+	 */
+	if (IS_MF_AFEX(bp)) {
+		rxq_init->silent_removal_value = bp->afex_def_vlan_tag;
+		rxq_init->silent_removal_mask = VLAN_VID_MASK;
+	}
 }
 
 static void bnx2x_pf_tx_q_prep(struct bnx2x *bp,
 	struct bnx2x_fastpath *fp, struct bnx2x_txq_setup_params *txq_init,
 	u8 cos)
 {
-	txq_init->dscr_map = fp->txdata[cos].tx_desc_mapping;
+	txq_init->dscr_map = fp->txdata_ptr[cos]->tx_desc_mapping;
 	txq_init->sb_cq_index = HC_INDEX_ETH_FIRST_TX_CQ_CONS + cos;
 	txq_init->traffic_type = LLFC_TRAFFIC_TYPE_NW;
 	txq_init->fw_sb_id = fp->fw_sb_id;
 
 	/*
-	 * set the tss leading client id for TX classfication ==
+	 * set the tss leading client id for TX classification ==
 	 * leading RSS client id
 	 */
 	txq_init->tss_leading_cl_id = bnx2x_fp(bp, 0, cl_id);
@@ -2875,7 +3264,7 @@ static void bnx2x_pf_init(struct bnx2x *bp)
 	if (bp->port.pmf)
 		storm_memset_cmng(bp, &bp->cmng, BP_PORT(bp));
 
-	/* init Event Queue */
+	/* init Event Queue - PCI bus guarantees correct endianity*/
 	eq_data.base_addr.hi = U64_HI(bp->eq_mapping);
 	eq_data.base_addr.lo = U64_LO(bp->eq_mapping);
 	eq_data.producer = bp->eq_prod;
@@ -2883,7 +3272,6 @@ static void bnx2x_pf_init(struct bnx2x *bp)
 	eq_data.sb_id = DEF_SB_ID;
 	storm_memset_eq_data(bp, &eq_data, BP_FUNC(bp));
 }
-
 
 static void bnx2x_e1h_disable(struct bnx2x *bp)
 {
@@ -2900,7 +3288,7 @@ static void bnx2x_e1h_enable(struct bnx2x *bp)
 
 	REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 1);
 
-	/* Tx queue should be only reenabled */
+	/* Tx queue should be only re-enabled */
 	netif_tx_wake_all_queues(bp->dev);
 
 	/*
@@ -2915,17 +3303,29 @@ static void bnx2x_drv_info_ether_stat(struct bnx2x *bp)
 {
 	struct eth_stats_info *ether_stat =
 		&bp->slowpath->drv_info_to_mcp.ether_stat;
+	struct bnx2x_vlan_mac_obj *mac_obj =
+		&bp->sp_objs->mac_obj;
+	int i;
 
-	/* leave last char as NULL */
-	memcpy(ether_stat->version, DRV_MODULE_VERSION,
-	       ETH_STAT_INFO_VERSION_LEN - 1);
+	strlcpy(ether_stat->version, DRV_MODULE_VERSION,
+		ETH_STAT_INFO_VERSION_LEN);
 
-	bp->fp[0].mac_obj.get_n_elements(bp, &bp->fp[0].mac_obj,
-					 DRV_INFO_ETH_STAT_NUM_MACS_REQUIRED,
-					 ether_stat->mac_local);
-
+	/* get DRV_INFO_ETH_STAT_NUM_MACS_REQUIRED macs, placing them in the
+	 * mac_local field in ether_stat struct. The base address is offset by 2
+	 * bytes to account for the field being 8 bytes but a mac address is
+	 * only 6 bytes. Likewise, the stride for the get_n_elements function is
+	 * 2 bytes to compensate from the 6 bytes of a mac to the 8 bytes
+	 * allocated by the ether_stat struct, so the macs will land in their
+	 * proper positions.
+	 */
+	for (i = 0; i < DRV_INFO_ETH_STAT_NUM_MACS_REQUIRED; i++)
+		memset(ether_stat->mac_local + i, 0,
+		       sizeof(ether_stat->mac_local[0]));
+	mac_obj->get_n_elements(bp, &bp->sp_objs[0].mac_obj,
+				DRV_INFO_ETH_STAT_NUM_MACS_REQUIRED,
+				ether_stat->mac_local + MAC_PAD, MAC_PAD,
+				ETH_ALEN);
 	ether_stat->mtu_size = bp->dev->mtu;
-
 	if (bp->dev->features & NETIF_F_RXCSUM)
 		ether_stat->feature_flags |= FEATURE_ETH_CHKSUM_OFFLOAD_MASK;
 	if (bp->dev->features & NETIF_F_TSO)
@@ -2936,16 +3336,22 @@ static void bnx2x_drv_info_ether_stat(struct bnx2x *bp)
 
 	ether_stat->txq_size = bp->tx_ring_size;
 	ether_stat->rxq_size = bp->rx_ring_size;
+
+#ifdef CONFIG_BNX2X_SRIOV
+	ether_stat->vf_cnt = IS_SRIOV(bp) ? bp->vfdb->sriov.nr_virtfn : 0;
+#endif
 }
 
 static void bnx2x_drv_info_fcoe_stat(struct bnx2x *bp)
 {
-#ifdef BCM_CNIC
 	struct bnx2x_dcbx_app_params *app = &bp->dcbx_port_params.app;
 	struct fcoe_stats_info *fcoe_stat =
 		&bp->slowpath->drv_info_to_mcp.fcoe_stat;
 
-	memcpy(fcoe_stat->mac_local, bp->fip_mac, ETH_ALEN);
+	if (!CNIC_LOADED(bp))
+		return;
+
+	memcpy(fcoe_stat->mac_local + MAC_PAD, bp->fip_mac, ETH_ALEN);
 
 	fcoe_stat->qos_priority =
 		app->traffic_type_priority[LLFC_TRAFFIC_TYPE_FCOE];
@@ -2953,97 +3359,108 @@ static void bnx2x_drv_info_fcoe_stat(struct bnx2x *bp)
 	/* insert FCoE stats from ramrod response */
 	if (!NO_FCOE(bp)) {
 		struct tstorm_per_queue_stats *fcoe_q_tstorm_stats =
-			&bp->fw_stats_data->queue_stats[FCOE_IDX].
+			&bp->fw_stats_data->queue_stats[FCOE_IDX(bp)].
 			tstorm_queue_statistics;
 
 		struct xstorm_per_queue_stats *fcoe_q_xstorm_stats =
-			&bp->fw_stats_data->queue_stats[FCOE_IDX].
+			&bp->fw_stats_data->queue_stats[FCOE_IDX(bp)].
 			xstorm_queue_statistics;
 
 		struct fcoe_statistics_params *fw_fcoe_stat =
 			&bp->fw_stats_data->fcoe;
 
-		ADD_64(fcoe_stat->rx_bytes_hi, 0, fcoe_stat->rx_bytes_lo,
-		       fw_fcoe_stat->rx_stat0.fcoe_rx_byte_cnt);
+		ADD_64_LE(fcoe_stat->rx_bytes_hi, LE32_0,
+			  fcoe_stat->rx_bytes_lo,
+			  fw_fcoe_stat->rx_stat0.fcoe_rx_byte_cnt);
 
-		ADD_64(fcoe_stat->rx_bytes_hi,
-		       fcoe_q_tstorm_stats->rcv_ucast_bytes.hi,
-		       fcoe_stat->rx_bytes_lo,
-		       fcoe_q_tstorm_stats->rcv_ucast_bytes.lo);
+		ADD_64_LE(fcoe_stat->rx_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_ucast_bytes.hi,
+			  fcoe_stat->rx_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_ucast_bytes.lo);
 
-		ADD_64(fcoe_stat->rx_bytes_hi,
-		       fcoe_q_tstorm_stats->rcv_bcast_bytes.hi,
-		       fcoe_stat->rx_bytes_lo,
-		       fcoe_q_tstorm_stats->rcv_bcast_bytes.lo);
+		ADD_64_LE(fcoe_stat->rx_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_bcast_bytes.hi,
+			  fcoe_stat->rx_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_bcast_bytes.lo);
 
-		ADD_64(fcoe_stat->rx_bytes_hi,
-		       fcoe_q_tstorm_stats->rcv_mcast_bytes.hi,
-		       fcoe_stat->rx_bytes_lo,
-		       fcoe_q_tstorm_stats->rcv_mcast_bytes.lo);
+		ADD_64_LE(fcoe_stat->rx_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_mcast_bytes.hi,
+			  fcoe_stat->rx_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_mcast_bytes.lo);
 
-		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
-		       fw_fcoe_stat->rx_stat0.fcoe_rx_pkt_cnt);
+		ADD_64_LE(fcoe_stat->rx_frames_hi, LE32_0,
+			  fcoe_stat->rx_frames_lo,
+			  fw_fcoe_stat->rx_stat0.fcoe_rx_pkt_cnt);
 
-		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
-		       fcoe_q_tstorm_stats->rcv_ucast_pkts);
+		ADD_64_LE(fcoe_stat->rx_frames_hi, LE32_0,
+			  fcoe_stat->rx_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_ucast_pkts);
 
-		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
-		       fcoe_q_tstorm_stats->rcv_bcast_pkts);
+		ADD_64_LE(fcoe_stat->rx_frames_hi, LE32_0,
+			  fcoe_stat->rx_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_bcast_pkts);
 
-		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
-		       fcoe_q_tstorm_stats->rcv_mcast_pkts);
+		ADD_64_LE(fcoe_stat->rx_frames_hi, LE32_0,
+			  fcoe_stat->rx_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_mcast_pkts);
 
-		ADD_64(fcoe_stat->tx_bytes_hi, 0, fcoe_stat->tx_bytes_lo,
-		       fw_fcoe_stat->tx_stat.fcoe_tx_byte_cnt);
+		ADD_64_LE(fcoe_stat->tx_bytes_hi, LE32_0,
+			  fcoe_stat->tx_bytes_lo,
+			  fw_fcoe_stat->tx_stat.fcoe_tx_byte_cnt);
 
-		ADD_64(fcoe_stat->tx_bytes_hi,
-		       fcoe_q_xstorm_stats->ucast_bytes_sent.hi,
-		       fcoe_stat->tx_bytes_lo,
-		       fcoe_q_xstorm_stats->ucast_bytes_sent.lo);
+		ADD_64_LE(fcoe_stat->tx_bytes_hi,
+			  fcoe_q_xstorm_stats->ucast_bytes_sent.hi,
+			  fcoe_stat->tx_bytes_lo,
+			  fcoe_q_xstorm_stats->ucast_bytes_sent.lo);
 
-		ADD_64(fcoe_stat->tx_bytes_hi,
-		       fcoe_q_xstorm_stats->bcast_bytes_sent.hi,
-		       fcoe_stat->tx_bytes_lo,
-		       fcoe_q_xstorm_stats->bcast_bytes_sent.lo);
+		ADD_64_LE(fcoe_stat->tx_bytes_hi,
+			  fcoe_q_xstorm_stats->bcast_bytes_sent.hi,
+			  fcoe_stat->tx_bytes_lo,
+			  fcoe_q_xstorm_stats->bcast_bytes_sent.lo);
 
-		ADD_64(fcoe_stat->tx_bytes_hi,
-		       fcoe_q_xstorm_stats->mcast_bytes_sent.hi,
-		       fcoe_stat->tx_bytes_lo,
-		       fcoe_q_xstorm_stats->mcast_bytes_sent.lo);
+		ADD_64_LE(fcoe_stat->tx_bytes_hi,
+			  fcoe_q_xstorm_stats->mcast_bytes_sent.hi,
+			  fcoe_stat->tx_bytes_lo,
+			  fcoe_q_xstorm_stats->mcast_bytes_sent.lo);
 
-		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
-		       fw_fcoe_stat->tx_stat.fcoe_tx_pkt_cnt);
+		ADD_64_LE(fcoe_stat->tx_frames_hi, LE32_0,
+			  fcoe_stat->tx_frames_lo,
+			  fw_fcoe_stat->tx_stat.fcoe_tx_pkt_cnt);
 
-		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
-		       fcoe_q_xstorm_stats->ucast_pkts_sent);
+		ADD_64_LE(fcoe_stat->tx_frames_hi, LE32_0,
+			  fcoe_stat->tx_frames_lo,
+			  fcoe_q_xstorm_stats->ucast_pkts_sent);
 
-		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
-		       fcoe_q_xstorm_stats->bcast_pkts_sent);
+		ADD_64_LE(fcoe_stat->tx_frames_hi, LE32_0,
+			  fcoe_stat->tx_frames_lo,
+			  fcoe_q_xstorm_stats->bcast_pkts_sent);
 
-		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
-		       fcoe_q_xstorm_stats->mcast_pkts_sent);
+		ADD_64_LE(fcoe_stat->tx_frames_hi, LE32_0,
+			  fcoe_stat->tx_frames_lo,
+			  fcoe_q_xstorm_stats->mcast_pkts_sent);
 	}
 
 	/* ask L5 driver to add data to the struct */
 	bnx2x_cnic_notify(bp, CNIC_CTL_FCOE_STATS_GET_CMD);
-#endif
 }
 
 static void bnx2x_drv_info_iscsi_stat(struct bnx2x *bp)
 {
-#ifdef BCM_CNIC
 	struct bnx2x_dcbx_app_params *app = &bp->dcbx_port_params.app;
 	struct iscsi_stats_info *iscsi_stat =
 		&bp->slowpath->drv_info_to_mcp.iscsi_stat;
 
-	memcpy(iscsi_stat->mac_local, bp->cnic_eth_dev.iscsi_mac, ETH_ALEN);
+	if (!CNIC_LOADED(bp))
+		return;
+
+	memcpy(iscsi_stat->mac_local + MAC_PAD, bp->cnic_eth_dev.iscsi_mac,
+	       ETH_ALEN);
 
 	iscsi_stat->qos_priority =
 		app->traffic_type_priority[LLFC_TRAFFIC_TYPE_ISCSI];
 
 	/* ask L5 driver to add data to the struct */
 	bnx2x_cnic_notify(bp, CNIC_CTL_ISCSI_STATS_GET_CMD);
-#endif
 }
 
 /* called due to MCP event (on pmf):
@@ -3051,7 +3468,7 @@ static void bnx2x_drv_info_iscsi_stat(struct bnx2x *bp)
  *	configure FW
  *	notify others function about the change
  */
-static inline void bnx2x_config_mf_bw(struct bnx2x *bp)
+static void bnx2x_config_mf_bw(struct bnx2x *bp)
 {
 	if (bp->link_vars.link_up) {
 		bnx2x_cmng_fns_init(bp, true, CMNG_FNS_MINMAX);
@@ -3060,16 +3477,27 @@ static inline void bnx2x_config_mf_bw(struct bnx2x *bp)
 	storm_memset_cmng(bp, &bp->cmng, BP_PORT(bp));
 }
 
-static inline void bnx2x_set_mf_bw(struct bnx2x *bp)
+static void bnx2x_set_mf_bw(struct bnx2x *bp)
 {
 	bnx2x_config_mf_bw(bp);
 	bnx2x_fw_command(bp, DRV_MSG_CODE_SET_MF_BW_ACK, 0);
 }
 
+static void bnx2x_handle_eee_event(struct bnx2x *bp)
+{
+	DP(BNX2X_MSG_MCP, "EEE - LLDP event\n");
+	bnx2x_fw_command(bp, DRV_MSG_CODE_EEE_RESULTS_ACK, 0);
+}
+
+#define BNX2X_UPDATE_DRV_INFO_IND_LENGTH	(20)
+#define BNX2X_UPDATE_DRV_INFO_IND_COUNT		(25)
+
 static void bnx2x_handle_drv_info_req(struct bnx2x *bp)
 {
 	enum drv_info_opcode op_code;
 	u32 drv_info_ctl = SHMEM2_RD(bp, drv_info_control);
+	bool release = false;
+	int wait;
 
 	/* if drv_info version supported by MFW doesn't match - send NACK */
 	if ((drv_info_ctl & DRV_INFO_CONTROL_VER_MASK) != DRV_INFO_CUR_VER) {
@@ -3079,6 +3507,9 @@ static void bnx2x_handle_drv_info_req(struct bnx2x *bp)
 
 	op_code = (drv_info_ctl & DRV_INFO_CONTROL_OP_CODE_MASK) >>
 		  DRV_INFO_CONTROL_OP_CODE_SHIFT;
+
+	/* Must prevent other flows from accessing drv_info_to_mcp */
+	mutex_lock(&bp->drv_info_mutex);
 
 	memset(&bp->slowpath->drv_info_to_mcp, 0,
 	       sizeof(union drv_info_to_mcp));
@@ -3096,7 +3527,7 @@ static void bnx2x_handle_drv_info_req(struct bnx2x *bp)
 	default:
 		/* if op code isn't supported - send NACK */
 		bnx2x_fw_command(bp, DRV_MSG_CODE_DRV_INFO_NACK, 0);
-		return;
+		goto out;
 	}
 
 	/* if we got drv_info attn from MFW then these fields are defined in
@@ -3108,6 +3539,106 @@ static void bnx2x_handle_drv_info_req(struct bnx2x *bp)
 		U64_HI(bnx2x_sp_mapping(bp, drv_info_to_mcp)));
 
 	bnx2x_fw_command(bp, DRV_MSG_CODE_DRV_INFO_ACK, 0);
+
+	/* Since possible management wants both this and get_driver_version
+	 * need to wait until management notifies us it finished utilizing
+	 * the buffer.
+	 */
+	if (!SHMEM2_HAS(bp, mfw_drv_indication)) {
+		DP(BNX2X_MSG_MCP, "Management does not support indication\n");
+	} else if (!bp->drv_info_mng_owner) {
+		u32 bit = MFW_DRV_IND_READ_DONE_OFFSET((BP_ABS_FUNC(bp) >> 1));
+
+		for (wait = 0; wait < BNX2X_UPDATE_DRV_INFO_IND_COUNT; wait++) {
+			u32 indication = SHMEM2_RD(bp, mfw_drv_indication);
+
+			/* Management is done; need to clear indication */
+			if (indication & bit) {
+				SHMEM2_WR(bp, mfw_drv_indication,
+					  indication & ~bit);
+				release = true;
+				break;
+			}
+
+			msleep(BNX2X_UPDATE_DRV_INFO_IND_LENGTH);
+		}
+	}
+	if (!release) {
+		DP(BNX2X_MSG_MCP, "Management did not release indication\n");
+		bp->drv_info_mng_owner = true;
+	}
+
+out:
+	mutex_unlock(&bp->drv_info_mutex);
+}
+
+static u32 bnx2x_update_mng_version_utility(u8 *version, bool bnx2x_format)
+{
+	u8 vals[4];
+	int i = 0;
+
+	if (bnx2x_format) {
+		i = sscanf(version, "1.%c%hhd.%hhd.%hhd",
+			   &vals[0], &vals[1], &vals[2], &vals[3]);
+		if (i > 0)
+			vals[0] -= '0';
+	} else {
+		i = sscanf(version, "%hhd.%hhd.%hhd.%hhd",
+			   &vals[0], &vals[1], &vals[2], &vals[3]);
+	}
+
+	while (i < 4)
+		vals[i++] = 0;
+
+	return (vals[0] << 24) | (vals[1] << 16) | (vals[2] << 8) | vals[3];
+}
+
+void bnx2x_update_mng_version(struct bnx2x *bp)
+{
+	u32 iscsiver = DRV_VER_NOT_LOADED;
+	u32 fcoever = DRV_VER_NOT_LOADED;
+	u32 ethver = DRV_VER_NOT_LOADED;
+	int idx = BP_FW_MB_IDX(bp);
+	u8 *version;
+
+	if (!SHMEM2_HAS(bp, func_os_drv_ver))
+		return;
+
+	mutex_lock(&bp->drv_info_mutex);
+	/* Must not proceed when `bnx2x_handle_drv_info_req' is feasible */
+	if (bp->drv_info_mng_owner)
+		goto out;
+
+	if (bp->state != BNX2X_STATE_OPEN)
+		goto out;
+
+	/* Parse ethernet driver version */
+	ethver = bnx2x_update_mng_version_utility(DRV_MODULE_VERSION, true);
+	if (!CNIC_LOADED(bp))
+		goto out;
+
+	/* Try getting storage driver version via cnic */
+	memset(&bp->slowpath->drv_info_to_mcp, 0,
+	       sizeof(union drv_info_to_mcp));
+	bnx2x_drv_info_iscsi_stat(bp);
+	version = bp->slowpath->drv_info_to_mcp.iscsi_stat.version;
+	iscsiver = bnx2x_update_mng_version_utility(version, false);
+
+	memset(&bp->slowpath->drv_info_to_mcp, 0,
+	       sizeof(union drv_info_to_mcp));
+	bnx2x_drv_info_fcoe_stat(bp);
+	version = bp->slowpath->drv_info_to_mcp.fcoe_stat.version;
+	fcoever = bnx2x_update_mng_version_utility(version, false);
+
+out:
+	SHMEM2_WR(bp, func_os_drv_ver[idx].versions[DRV_PERS_ETHERNET], ethver);
+	SHMEM2_WR(bp, func_os_drv_ver[idx].versions[DRV_PERS_ISCSI], iscsiver);
+	SHMEM2_WR(bp, func_os_drv_ver[idx].versions[DRV_PERS_FCOE], fcoever);
+
+	mutex_unlock(&bp->drv_info_mutex);
+
+	DP(BNX2X_MSG_MCP, "Setting driver version: ETH [%08x] iSCSI [%08x] FCoE [%08x]\n",
+	   ethver, iscsiver, fcoever);
 }
 
 static void bnx2x_dcc_event(struct bnx2x *bp, u32 dcc_event)
@@ -3147,7 +3678,7 @@ static void bnx2x_dcc_event(struct bnx2x *bp, u32 dcc_event)
 }
 
 /* must be called under the spq lock */
-static inline struct eth_spe *bnx2x_sp_get_next(struct bnx2x *bp)
+static struct eth_spe *bnx2x_sp_get_next(struct bnx2x *bp)
 {
 	struct eth_spe *next_spe = bp->spq_prod_bd;
 
@@ -3163,7 +3694,7 @@ static inline struct eth_spe *bnx2x_sp_get_next(struct bnx2x *bp)
 }
 
 /* must be called under the spq lock */
-static inline void bnx2x_sp_prod_update(struct bnx2x *bp)
+static void bnx2x_sp_prod_update(struct bnx2x *bp)
 {
 	int func = BP_FUNC(bp);
 
@@ -3185,7 +3716,7 @@ static inline void bnx2x_sp_prod_update(struct bnx2x *bp)
  * @cmd:	command to check
  * @cmd_type:	command type
  */
-static inline bool bnx2x_is_contextless_ramrod(int cmd, int cmd_type)
+static bool bnx2x_is_contextless_ramrod(int cmd, int cmd_type)
 {
 	if ((cmd_type == NONE_CONNECTION_TYPE) ||
 	    (cmd == RAMROD_CMD_ID_ETH_FORWARD_SETUP) ||
@@ -3197,9 +3728,7 @@ static inline bool bnx2x_is_contextless_ramrod(int cmd, int cmd_type)
 		return true;
 	else
 		return false;
-
 }
-
 
 /**
  * bnx2x_sp_post - place a single command on an SP ring
@@ -3252,10 +3781,18 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 			cpu_to_le32((command << SPE_HDR_CMD_ID_SHIFT) |
 				    HW_CID(bp, cid));
 
-	type = (cmd_type << SPE_HDR_CONN_TYPE_SHIFT) & SPE_HDR_CONN_TYPE;
-
-	type |= ((BP_FUNC(bp) << SPE_HDR_FUNCTION_ID_SHIFT) &
-		 SPE_HDR_FUNCTION_ID);
+	/* In some cases, type may already contain the func-id
+	 * mainly in SRIOV related use cases, so we add it here only
+	 * if it's not already set.
+	 */
+	if (!(cmd_type & SPE_HDR_FUNCTION_ID)) {
+		type = (cmd_type << SPE_HDR_CONN_TYPE_SHIFT) &
+			SPE_HDR_CONN_TYPE;
+		type |= ((BP_FUNC(bp) << SPE_HDR_FUNCTION_ID_SHIFT) &
+			 SPE_HDR_FUNCTION_ID);
+	} else {
+		type = cmd_type;
+	}
 
 	spe->hdr.type = cpu_to_le16(type);
 
@@ -3265,13 +3802,12 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 	/*
 	 * It's ok if the actual decrement is issued towards the memory
 	 * somewhere between the spin_lock and spin_unlock. Thus no
-	 * more explict memory barrier is needed.
+	 * more explicit memory barrier is needed.
 	 */
 	if (common)
 		atomic_dec(&bp->eq_spq_left);
 	else
 		atomic_dec(&bp->cq_spq_left);
-
 
 	DP(BNX2X_MSG_SP,
 	   "SPQE[%x] (%x:%x)  (cmd, common?) (%d,%d)  hw_cid %x  data (%x:%x) type(0x%x) left (CQ, EQ) (%x,%x)\n",
@@ -3294,15 +3830,14 @@ static int bnx2x_acquire_alr(struct bnx2x *bp)
 
 	might_sleep();
 	for (j = 0; j < 1000; j++) {
-		val = (1UL << 31);
-		REG_WR(bp, GRCBASE_MCP + 0x9c, val);
-		val = REG_RD(bp, GRCBASE_MCP + 0x9c);
-		if (val & (1L << 31))
+		REG_WR(bp, MCP_REG_MCPR_ACCESS_LOCK, MCPR_ACCESS_LOCK_LOCK);
+		val = REG_RD(bp, MCP_REG_MCPR_ACCESS_LOCK);
+		if (val & MCPR_ACCESS_LOCK_LOCK)
 			break;
 
-		msleep(5);
+		usleep_range(5000, 10000);
 	}
-	if (!(val & (1L << 31))) {
+	if (!(val & MCPR_ACCESS_LOCK_LOCK)) {
 		BNX2X_ERR("Cannot acquire MCP access lock register\n");
 		rc = -EBUSY;
 	}
@@ -3313,13 +3848,13 @@ static int bnx2x_acquire_alr(struct bnx2x *bp)
 /* release split MCP access lock register */
 static void bnx2x_release_alr(struct bnx2x *bp)
 {
-	REG_WR(bp, GRCBASE_MCP + 0x9c, 0);
+	REG_WR(bp, MCP_REG_MCPR_ACCESS_LOCK, 0);
 }
 
 #define BNX2X_DEF_SB_ATT_IDX	0x0001
 #define BNX2X_DEF_SB_IDX	0x0002
 
-static inline u16 bnx2x_update_dsb_idx(struct bnx2x *bp)
+static u16 bnx2x_update_dsb_idx(struct bnx2x *bp)
 {
 	struct host_sp_status_block *def_sb = bp->def_status_blk;
 	u16 rc = 0;
@@ -3335,7 +3870,7 @@ static inline u16 bnx2x_update_dsb_idx(struct bnx2x *bp)
 		rc |= BNX2X_DEF_SB_IDX;
 	}
 
-	/* Do not reorder: indecies reading should complete before handling */
+	/* Do not reorder: indices reading should complete before handling */
 	barrier();
 	return rc;
 }
@@ -3446,12 +3981,27 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 
 	/* now set back the mask */
 	if (asserted & ATTN_NIG_FOR_FUNC) {
+		/* Verify that IGU ack through BAR was written before restoring
+		 * NIG mask. This loop should exit after 2-3 iterations max.
+		 */
+		if (bp->common.int_block != INT_BLOCK_HC) {
+			u32 cnt = 0, igu_acked;
+			do {
+				igu_acked = REG_RD(bp,
+						   IGU_REG_ATTENTION_ACK_BITS);
+			} while (((igu_acked & ATTN_NIG_FOR_FUNC) == 0) &&
+				 (++cnt < MAX_IGU_ATTN_ACK_TO));
+			if (!igu_acked)
+				DP(NETIF_MSG_HW,
+				   "Failed to verify IGU ack on time\n");
+			barrier();
+		}
 		REG_WR(bp, nig_int_mask_addr, nig_mask);
 		bnx2x_release_phy_lock(bp);
 	}
 }
 
-static inline void bnx2x_fan_failure(struct bnx2x *bp)
+static void bnx2x_fan_failure(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
 	u32 ext_phy_config;
@@ -3469,19 +4019,14 @@ static inline void bnx2x_fan_failure(struct bnx2x *bp)
 	netdev_err(bp->dev, "Fan Failure on Network Controller has caused the driver to shutdown the card to prevent permanent damage.\n"
 			    "Please contact OEM Support for assistance\n");
 
-	/*
-	 * Scheudle device reset (unload)
+	/* Schedule device reset (unload)
 	 * This is due to some boards consuming sufficient power when driver is
 	 * up to overheat if fan fails.
 	 */
-	smp_mb__before_clear_bit();
-	set_bit(BNX2X_SP_RTNL_FAN_FAILURE, &bp->sp_rtnl_state);
-	smp_mb__after_clear_bit();
-	schedule_delayed_work(&bp->sp_rtnl_task, 0);
-
+	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_FAN_FAILURE, 0);
 }
 
-static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
+static void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 {
 	int port = BP_PORT(bp);
 	int reg_offset;
@@ -3521,7 +4066,7 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 	}
 }
 
-static inline void bnx2x_attn_int_deasserted1(struct bnx2x *bp, u32 attn)
+static void bnx2x_attn_int_deasserted1(struct bnx2x *bp, u32 attn)
 {
 	u32 val;
 
@@ -3552,7 +4097,7 @@ static inline void bnx2x_attn_int_deasserted1(struct bnx2x *bp, u32 attn)
 	}
 }
 
-static inline void bnx2x_attn_int_deasserted2(struct bnx2x *bp, u32 attn)
+static void bnx2x_attn_int_deasserted2(struct bnx2x *bp, u32 attn)
 {
 	u32 val;
 
@@ -3596,7 +4141,7 @@ static inline void bnx2x_attn_int_deasserted2(struct bnx2x *bp, u32 attn)
 	}
 }
 
-static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
+static void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 {
 	u32 val;
 
@@ -3606,6 +4151,7 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 			int func = BP_FUNC(bp);
 
 			REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_12 + func*4, 0);
+			bnx2x_read_mf_cfg(bp);
 			bp->mf_config[BP_VN(bp)] = MF_CFG_RD(bp,
 					func_mf_config[BP_ABS_FUNC(bp)].config);
 			val = SHMEM_RD(bp,
@@ -3619,6 +4165,11 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 
 			if (val & DRV_STATUS_DRV_INFO_REQ)
 				bnx2x_handle_drv_info_req(bp);
+
+			if (val & DRV_STATUS_VF_DISABLED)
+				bnx2x_schedule_iov_task(bp,
+							BNX2X_IOV_HANDLE_FLR);
+
 			if ((bp->port.pmf == 0) && (val & DRV_STATUS_PMF))
 				bnx2x_pmf_update(bp);
 
@@ -3628,6 +4179,11 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 				/* start dcbx state machine */
 				bnx2x_dcbx_set_params(bp,
 					BNX2X_DCBX_STATE_NEG_RECEIVED);
+			if (val & DRV_STATUS_AFEX_EVENT_MASK)
+				bnx2x_handle_afex_cmd(bp,
+					val & DRV_STATUS_AFEX_EVENT_MASK);
+			if (val & DRV_STATUS_EEE_NEGOTIATION_RESULTS)
+				bnx2x_handle_eee_event(bp);
 			if (bp->link_vars.periodic_flags &
 			    PERIODIC_FLAGS_LINK_EVENT) {
 				/*  sync with link */
@@ -3722,7 +4278,7 @@ void bnx2x_set_reset_global(struct bnx2x *bp)
  *
  * Should be run under rtnl lock
  */
-static inline void bnx2x_clear_reset_global(struct bnx2x *bp)
+static void bnx2x_clear_reset_global(struct bnx2x *bp)
 {
 	u32 val;
 	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
@@ -3736,9 +4292,9 @@ static inline void bnx2x_clear_reset_global(struct bnx2x *bp)
  *
  * should be run under rtnl lock
  */
-static inline bool bnx2x_reset_is_global(struct bnx2x *bp)
+static bool bnx2x_reset_is_global(struct bnx2x *bp)
 {
-	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
 
 	DP(NETIF_MSG_HW, "GEN_REG_VAL=0x%08x\n", val);
 	return (val & BNX2X_GLOBAL_RESET_BIT) ? true : false;
@@ -3749,7 +4305,7 @@ static inline bool bnx2x_reset_is_global(struct bnx2x *bp)
  *
  * Should be run under rtnl lock
  */
-static inline void bnx2x_set_reset_done(struct bnx2x *bp)
+static void bnx2x_set_reset_done(struct bnx2x *bp)
 {
 	u32 val;
 	u32 bit = BP_PATH(bp) ?
@@ -3789,7 +4345,7 @@ void bnx2x_set_reset_in_progress(struct bnx2x *bp)
  */
 bool bnx2x_reset_is_done(struct bnx2x *bp, int engine)
 {
-	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
 	u32 bit = engine ?
 		BNX2X_PATH1_RST_IN_PROG_BIT : BNX2X_PATH0_RST_IN_PROG_BIT;
 
@@ -3874,7 +4430,7 @@ bool bnx2x_clear_pf_load(struct bnx2x *bp)
  *
  * should be run under rtnl lock
  */
-static inline bool bnx2x_get_load_status(struct bnx2x *bp, int engine)
+static bool bnx2x_get_load_status(struct bnx2x *bp, int engine)
 {
 	u32 mask = (engine ? BNX2X_PATH1_LOAD_CNT_MASK :
 			     BNX2X_PATH0_LOAD_CNT_MASK);
@@ -3892,63 +4448,70 @@ static inline bool bnx2x_get_load_status(struct bnx2x *bp, int engine)
 	return val != 0;
 }
 
-/*
- * Reset the load status for the current engine.
- */
-static inline void bnx2x_clear_load_status(struct bnx2x *bp)
+static void _print_parity(struct bnx2x *bp, u32 reg)
 {
-	u32 val;
-	u32 mask = (BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
-		    BNX2X_PATH0_LOAD_CNT_MASK);
-	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
-	val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
-	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val & (~mask));
-	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
+	pr_cont(" [0x%08x] ", REG_RD(bp, reg));
 }
 
-static inline void _print_next_block(int idx, const char *blk)
+static void _print_next_block(int idx, const char *blk)
 {
 	pr_cont("%s%s", idx ? ", " : "", blk);
 }
 
-static inline int bnx2x_check_blocks_with_parity0(u32 sig, int par_num,
-						  bool print)
+static bool bnx2x_check_blocks_with_parity0(struct bnx2x *bp, u32 sig,
+					    int *par_num, bool print)
 {
-	int i = 0;
-	u32 cur_bit = 0;
+	u32 cur_bit;
+	bool res;
+	int i;
+
+	res = false;
+
 	for (i = 0; sig; i++) {
-		cur_bit = ((u32)0x1 << i);
+		cur_bit = (0x1UL << i);
 		if (sig & cur_bit) {
-			switch (cur_bit) {
-			case AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "BRB");
-				break;
-			case AEU_INPUTS_ATTN_BITS_PARSER_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "PARSER");
-				break;
-			case AEU_INPUTS_ATTN_BITS_TSDM_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "TSDM");
-				break;
-			case AEU_INPUTS_ATTN_BITS_SEARCHER_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++,
+			res |= true; /* Each bit is real error! */
+
+			if (print) {
+				switch (cur_bit) {
+				case AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR:
+					_print_next_block((*par_num)++, "BRB");
+					_print_parity(bp,
+						      BRB1_REG_BRB1_PRTY_STS);
+					break;
+				case AEU_INPUTS_ATTN_BITS_PARSER_PARITY_ERROR:
+					_print_next_block((*par_num)++,
+							  "PARSER");
+					_print_parity(bp, PRS_REG_PRS_PRTY_STS);
+					break;
+				case AEU_INPUTS_ATTN_BITS_TSDM_PARITY_ERROR:
+					_print_next_block((*par_num)++, "TSDM");
+					_print_parity(bp,
+						      TSDM_REG_TSDM_PRTY_STS);
+					break;
+				case AEU_INPUTS_ATTN_BITS_SEARCHER_PARITY_ERROR:
+					_print_next_block((*par_num)++,
 							  "SEARCHER");
-				break;
-			case AEU_INPUTS_ATTN_BITS_TCM_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "TCM");
-				break;
-			case AEU_INPUTS_ATTN_BITS_TSEMI_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "TSEMI");
-				break;
-			case AEU_INPUTS_ATTN_BITS_PBCLIENT_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "XPB");
-				break;
+					_print_parity(bp, SRC_REG_SRC_PRTY_STS);
+					break;
+				case AEU_INPUTS_ATTN_BITS_TCM_PARITY_ERROR:
+					_print_next_block((*par_num)++, "TCM");
+					_print_parity(bp, TCM_REG_TCM_PRTY_STS);
+					break;
+				case AEU_INPUTS_ATTN_BITS_TSEMI_PARITY_ERROR:
+					_print_next_block((*par_num)++,
+							  "TSEMI");
+					_print_parity(bp,
+						      TSEM_REG_TSEM_PRTY_STS_0);
+					_print_parity(bp,
+						      TSEM_REG_TSEM_PRTY_STS_1);
+					break;
+				case AEU_INPUTS_ATTN_BITS_PBCLIENT_PARITY_ERROR:
+					_print_next_block((*par_num)++, "XPB");
+					_print_parity(bp, GRCBASE_XPB +
+							  PB_REG_PB_PRTY_STS);
+					break;
+				}
 			}
 
 			/* Clear the bit */
@@ -3956,84 +4519,142 @@ static inline int bnx2x_check_blocks_with_parity0(u32 sig, int par_num,
 		}
 	}
 
-	return par_num;
+	return res;
 }
 
-static inline int bnx2x_check_blocks_with_parity1(u32 sig, int par_num,
-						  bool *global, bool print)
+static bool bnx2x_check_blocks_with_parity1(struct bnx2x *bp, u32 sig,
+					    int *par_num, bool *global,
+					    bool print)
 {
-	int i = 0;
-	u32 cur_bit = 0;
+	u32 cur_bit;
+	bool res;
+	int i;
+
+	res = false;
+
 	for (i = 0; sig; i++) {
-		cur_bit = ((u32)0x1 << i);
+		cur_bit = (0x1UL << i);
 		if (sig & cur_bit) {
+			res |= true; /* Each bit is real error! */
 			switch (cur_bit) {
 			case AEU_INPUTS_ATTN_BITS_PBF_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "PBF");
+				if (print) {
+					_print_next_block((*par_num)++, "PBF");
+					_print_parity(bp, PBF_REG_PBF_PRTY_STS);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_QM_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "QM");
+				if (print) {
+					_print_next_block((*par_num)++, "QM");
+					_print_parity(bp, QM_REG_QM_PRTY_STS);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_TIMERS_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "TM");
+				if (print) {
+					_print_next_block((*par_num)++, "TM");
+					_print_parity(bp, TM_REG_TM_PRTY_STS);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_XSDM_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "XSDM");
+				if (print) {
+					_print_next_block((*par_num)++, "XSDM");
+					_print_parity(bp,
+						      XSDM_REG_XSDM_PRTY_STS);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_XCM_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "XCM");
+				if (print) {
+					_print_next_block((*par_num)++, "XCM");
+					_print_parity(bp, XCM_REG_XCM_PRTY_STS);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_XSEMI_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "XSEMI");
+				if (print) {
+					_print_next_block((*par_num)++,
+							  "XSEMI");
+					_print_parity(bp,
+						      XSEM_REG_XSEM_PRTY_STS_0);
+					_print_parity(bp,
+						      XSEM_REG_XSEM_PRTY_STS_1);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++,
+				if (print) {
+					_print_next_block((*par_num)++,
 							  "DOORBELLQ");
+					_print_parity(bp,
+						      DORQ_REG_DORQ_PRTY_STS);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_NIG_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "NIG");
+				if (print) {
+					_print_next_block((*par_num)++, "NIG");
+					if (CHIP_IS_E1x(bp)) {
+						_print_parity(bp,
+							NIG_REG_NIG_PRTY_STS);
+					} else {
+						_print_parity(bp,
+							NIG_REG_NIG_PRTY_STS_0);
+						_print_parity(bp,
+							NIG_REG_NIG_PRTY_STS_1);
+					}
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_VAUX_PCI_CORE_PARITY_ERROR:
 				if (print)
-					_print_next_block(par_num++,
+					_print_next_block((*par_num)++,
 							  "VAUX PCI CORE");
 				*global = true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_DEBUG_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "DEBUG");
+				if (print) {
+					_print_next_block((*par_num)++,
+							  "DEBUG");
+					_print_parity(bp, DBG_REG_DBG_PRTY_STS);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_USDM_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "USDM");
+				if (print) {
+					_print_next_block((*par_num)++, "USDM");
+					_print_parity(bp,
+						      USDM_REG_USDM_PRTY_STS);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_UCM_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "UCM");
+				if (print) {
+					_print_next_block((*par_num)++, "UCM");
+					_print_parity(bp, UCM_REG_UCM_PRTY_STS);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_USEMI_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "USEMI");
+				if (print) {
+					_print_next_block((*par_num)++,
+							  "USEMI");
+					_print_parity(bp,
+						      USEM_REG_USEM_PRTY_STS_0);
+					_print_parity(bp,
+						      USEM_REG_USEM_PRTY_STS_1);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_UPB_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "UPB");
+				if (print) {
+					_print_next_block((*par_num)++, "UPB");
+					_print_parity(bp, GRCBASE_UPB +
+							  PB_REG_PB_PRTY_STS);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_CSDM_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "CSDM");
+				if (print) {
+					_print_next_block((*par_num)++, "CSDM");
+					_print_parity(bp,
+						      CSDM_REG_CSDM_PRTY_STS);
+				}
 				break;
 			case AEU_INPUTS_ATTN_BITS_CCM_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "CCM");
+				if (print) {
+					_print_next_block((*par_num)++, "CCM");
+					_print_parity(bp, CCM_REG_CCM_PRTY_STS);
+				}
 				break;
 			}
 
@@ -4042,51 +4663,73 @@ static inline int bnx2x_check_blocks_with_parity1(u32 sig, int par_num,
 		}
 	}
 
-	return par_num;
+	return res;
 }
 
-static inline int bnx2x_check_blocks_with_parity2(u32 sig, int par_num,
-						  bool print)
+static bool bnx2x_check_blocks_with_parity2(struct bnx2x *bp, u32 sig,
+					    int *par_num, bool print)
 {
-	int i = 0;
-	u32 cur_bit = 0;
+	u32 cur_bit;
+	bool res;
+	int i;
+
+	res = false;
+
 	for (i = 0; sig; i++) {
-		cur_bit = ((u32)0x1 << i);
+		cur_bit = (0x1UL << i);
 		if (sig & cur_bit) {
-			switch (cur_bit) {
-			case AEU_INPUTS_ATTN_BITS_CSEMI_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "CSEMI");
-				break;
-			case AEU_INPUTS_ATTN_BITS_PXP_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "PXP");
-				break;
-			case AEU_IN_ATTN_BITS_PXPPCICLOCKCLIENT_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++,
-					"PXPPCICLOCKCLIENT");
-				break;
-			case AEU_INPUTS_ATTN_BITS_CFC_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "CFC");
-				break;
-			case AEU_INPUTS_ATTN_BITS_CDU_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "CDU");
-				break;
-			case AEU_INPUTS_ATTN_BITS_DMAE_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "DMAE");
-				break;
-			case AEU_INPUTS_ATTN_BITS_IGU_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "IGU");
-				break;
-			case AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "MISC");
-				break;
+			res |= true; /* Each bit is real error! */
+			if (print) {
+				switch (cur_bit) {
+				case AEU_INPUTS_ATTN_BITS_CSEMI_PARITY_ERROR:
+					_print_next_block((*par_num)++,
+							  "CSEMI");
+					_print_parity(bp,
+						      CSEM_REG_CSEM_PRTY_STS_0);
+					_print_parity(bp,
+						      CSEM_REG_CSEM_PRTY_STS_1);
+					break;
+				case AEU_INPUTS_ATTN_BITS_PXP_PARITY_ERROR:
+					_print_next_block((*par_num)++, "PXP");
+					_print_parity(bp, PXP_REG_PXP_PRTY_STS);
+					_print_parity(bp,
+						      PXP2_REG_PXP2_PRTY_STS_0);
+					_print_parity(bp,
+						      PXP2_REG_PXP2_PRTY_STS_1);
+					break;
+				case AEU_IN_ATTN_BITS_PXPPCICLOCKCLIENT_PARITY_ERROR:
+					_print_next_block((*par_num)++,
+							  "PXPPCICLOCKCLIENT");
+					break;
+				case AEU_INPUTS_ATTN_BITS_CFC_PARITY_ERROR:
+					_print_next_block((*par_num)++, "CFC");
+					_print_parity(bp,
+						      CFC_REG_CFC_PRTY_STS);
+					break;
+				case AEU_INPUTS_ATTN_BITS_CDU_PARITY_ERROR:
+					_print_next_block((*par_num)++, "CDU");
+					_print_parity(bp, CDU_REG_CDU_PRTY_STS);
+					break;
+				case AEU_INPUTS_ATTN_BITS_DMAE_PARITY_ERROR:
+					_print_next_block((*par_num)++, "DMAE");
+					_print_parity(bp,
+						      DMAE_REG_DMAE_PRTY_STS);
+					break;
+				case AEU_INPUTS_ATTN_BITS_IGU_PARITY_ERROR:
+					_print_next_block((*par_num)++, "IGU");
+					if (CHIP_IS_E1x(bp))
+						_print_parity(bp,
+							HC_REG_HC_PRTY_STS);
+					else
+						_print_parity(bp,
+							IGU_REG_IGU_PRTY_STS);
+					break;
+				case AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR:
+					_print_next_block((*par_num)++, "MISC");
+					_print_parity(bp,
+						      MISC_REG_MISC_PRTY_STS);
+					break;
+				}
 			}
 
 			/* Clear the bit */
@@ -4094,40 +4737,49 @@ static inline int bnx2x_check_blocks_with_parity2(u32 sig, int par_num,
 		}
 	}
 
-	return par_num;
+	return res;
 }
 
-static inline int bnx2x_check_blocks_with_parity3(u32 sig, int par_num,
-						  bool *global, bool print)
+static bool bnx2x_check_blocks_with_parity3(struct bnx2x *bp, u32 sig,
+					    int *par_num, bool *global,
+					    bool print)
 {
-	int i = 0;
-	u32 cur_bit = 0;
+	bool res = false;
+	u32 cur_bit;
+	int i;
+
 	for (i = 0; sig; i++) {
-		cur_bit = ((u32)0x1 << i);
+		cur_bit = (0x1UL << i);
 		if (sig & cur_bit) {
 			switch (cur_bit) {
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_ROM_PARITY:
 				if (print)
-					_print_next_block(par_num++, "MCP ROM");
+					_print_next_block((*par_num)++,
+							  "MCP ROM");
 				*global = true;
+				res |= true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY:
 				if (print)
-					_print_next_block(par_num++,
+					_print_next_block((*par_num)++,
 							  "MCP UMP RX");
 				*global = true;
+				res |= true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY:
 				if (print)
-					_print_next_block(par_num++,
+					_print_next_block((*par_num)++,
 							  "MCP UMP TX");
 				*global = true;
+				res |= true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY:
 				if (print)
-					_print_next_block(par_num++,
+					_print_next_block((*par_num)++,
 							  "MCP SCPAD");
-				*global = true;
+				/* clear latched SCPAD PATIRY from MCP */
+				REG_WR(bp, MISC_REG_AEU_CLR_LATCH_SIGNAL,
+				       1UL << 10);
 				break;
 			}
 
@@ -4136,39 +4788,50 @@ static inline int bnx2x_check_blocks_with_parity3(u32 sig, int par_num,
 		}
 	}
 
-	return par_num;
+	return res;
 }
 
-static inline int bnx2x_check_blocks_with_parity4(u32 sig, int par_num,
-						  bool print)
+static bool bnx2x_check_blocks_with_parity4(struct bnx2x *bp, u32 sig,
+					    int *par_num, bool print)
 {
-	int i = 0;
-	u32 cur_bit = 0;
+	u32 cur_bit;
+	bool res;
+	int i;
+
+	res = false;
+
 	for (i = 0; sig; i++) {
-		cur_bit = ((u32)0x1 << i);
+		cur_bit = (0x1UL << i);
 		if (sig & cur_bit) {
-			switch (cur_bit) {
-			case AEU_INPUTS_ATTN_BITS_PGLUE_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "PGLUE_B");
-				break;
-			case AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR:
-				if (print)
-					_print_next_block(par_num++, "ATC");
-				break;
+			res |= true; /* Each bit is real error! */
+			if (print) {
+				switch (cur_bit) {
+				case AEU_INPUTS_ATTN_BITS_PGLUE_PARITY_ERROR:
+					_print_next_block((*par_num)++,
+							  "PGLUE_B");
+					_print_parity(bp,
+						      PGLUE_B_REG_PGLUE_B_PRTY_STS);
+					break;
+				case AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR:
+					_print_next_block((*par_num)++, "ATC");
+					_print_parity(bp,
+						      ATC_REG_ATC_PRTY_STS);
+					break;
+				}
 			}
-
 			/* Clear the bit */
 			sig &= ~cur_bit;
 		}
 	}
 
-	return par_num;
+	return res;
 }
 
-static inline bool bnx2x_parity_attn(struct bnx2x *bp, bool *global, bool print,
-				     u32 *sig)
+static bool bnx2x_parity_attn(struct bnx2x *bp, bool *global, bool print,
+			      u32 *sig)
 {
+	bool res = false;
+
 	if ((sig[0] & HW_PRTY_ASSERT_SET_0) ||
 	    (sig[1] & HW_PRTY_ASSERT_SET_1) ||
 	    (sig[2] & HW_PRTY_ASSERT_SET_2) ||
@@ -4185,23 +4848,22 @@ static inline bool bnx2x_parity_attn(struct bnx2x *bp, bool *global, bool print,
 		if (print)
 			netdev_err(bp->dev,
 				   "Parity errors detected in blocks: ");
-		par_num = bnx2x_check_blocks_with_parity0(
-			sig[0] & HW_PRTY_ASSERT_SET_0, par_num, print);
-		par_num = bnx2x_check_blocks_with_parity1(
-			sig[1] & HW_PRTY_ASSERT_SET_1, par_num, global, print);
-		par_num = bnx2x_check_blocks_with_parity2(
-			sig[2] & HW_PRTY_ASSERT_SET_2, par_num, print);
-		par_num = bnx2x_check_blocks_with_parity3(
-			sig[3] & HW_PRTY_ASSERT_SET_3, par_num, global, print);
-		par_num = bnx2x_check_blocks_with_parity4(
-			sig[4] & HW_PRTY_ASSERT_SET_4, par_num, print);
+		res |= bnx2x_check_blocks_with_parity0(bp,
+			sig[0] & HW_PRTY_ASSERT_SET_0, &par_num, print);
+		res |= bnx2x_check_blocks_with_parity1(bp,
+			sig[1] & HW_PRTY_ASSERT_SET_1, &par_num, global, print);
+		res |= bnx2x_check_blocks_with_parity2(bp,
+			sig[2] & HW_PRTY_ASSERT_SET_2, &par_num, print);
+		res |= bnx2x_check_blocks_with_parity3(bp,
+			sig[3] & HW_PRTY_ASSERT_SET_3, &par_num, global, print);
+		res |= bnx2x_check_blocks_with_parity4(bp,
+			sig[4] & HW_PRTY_ASSERT_SET_4, &par_num, print);
 
 		if (print)
 			pr_cont("\n");
+	}
 
-		return true;
-	} else
-		return false;
+	return res;
 }
 
 /**
@@ -4228,6 +4890,14 @@ bool bnx2x_chk_parity_attn(struct bnx2x *bp, bool *global, bool print)
 	attn.sig[3] = REG_RD(bp,
 		MISC_REG_AEU_AFTER_INVERT_4_FUNC_0 +
 			     port*4);
+	/* Since MCP attentions can't be disabled inside the block, we need to
+	 * read AEU registers to see whether they're currently disabled
+	 */
+	attn.sig[3] &= ((REG_RD(bp,
+				!port ? MISC_REG_AEU_ENABLE4_FUNC_0_OUT_0
+				      : MISC_REG_AEU_ENABLE4_FUNC_1_OUT_0) &
+			 MISC_AEU_ENABLE_MCP_PRTY_BITS) |
+			~MISC_AEU_ENABLE_MCP_PRTY_BITS);
 
 	if (!CHIP_IS_E1x(bp))
 		attn.sig[4] = REG_RD(bp,
@@ -4237,8 +4907,7 @@ bool bnx2x_chk_parity_attn(struct bnx2x *bp, bool *global, bool print)
 	return bnx2x_parity_attn(bp, global, print, attn.sig);
 }
 
-
-static inline void bnx2x_attn_int_deasserted4(struct bnx2x *bp, u32 attn)
+static void bnx2x_attn_int_deasserted4(struct bnx2x *bp, u32 attn)
 {
 	u32 val;
 	if (attn & AEU_INPUTS_ATTN_BITS_PGLUE_HW_INTERRUPT) {
@@ -4289,7 +4958,6 @@ static inline void bnx2x_attn_int_deasserted4(struct bnx2x *bp, u32 attn)
 		(u32)(attn & (AEU_INPUTS_ATTN_BITS_PGLUE_PARITY_ERROR |
 		    AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR)));
 	}
-
 }
 
 static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
@@ -4424,20 +5092,19 @@ static void bnx2x_attn_int(struct bnx2x *bp)
 void bnx2x_igu_ack_sb(struct bnx2x *bp, u8 igu_sb_id, u8 segment,
 		      u16 index, u8 op, u8 update)
 {
-	u32 igu_addr = BAR_IGU_INTMEM + (IGU_CMD_INT_ACK_BASE + igu_sb_id)*8;
-
+	u32 igu_addr = bp->igu_base_addr;
+	igu_addr += (IGU_CMD_INT_ACK_BASE + igu_sb_id)*8;
 	bnx2x_igu_ack_sb_gen(bp, igu_sb_id, segment, index, op, update,
 			     igu_addr);
 }
 
-static inline void bnx2x_update_eq_prod(struct bnx2x *bp, u16 prod)
+static void bnx2x_update_eq_prod(struct bnx2x *bp, u16 prod)
 {
 	/* No memory barriers */
 	storm_memset_eq_prod(bp, prod, BP_FUNC(bp));
 	mmiowb(); /* keep prod updates ordered */
 }
 
-#ifdef BCM_CNIC
 static int  bnx2x_cnic_handle_cfc_del(struct bnx2x *bp, u32 cid,
 				      union event_ring_elem *elem)
 {
@@ -4454,14 +5121,13 @@ static int  bnx2x_cnic_handle_cfc_del(struct bnx2x *bp, u32 cid,
 
 		BNX2X_ERR("got delete ramrod for CNIC CID %d with error!\n",
 			  cid);
-		bnx2x_panic_dump(bp);
+		bnx2x_panic_dump(bp, false);
 	}
 	bnx2x_cnic_cfc_comp(bp, cid, err);
 	return 0;
 }
-#endif
 
-static inline void bnx2x_handle_mcast_eqe(struct bnx2x *bp)
+static void bnx2x_handle_mcast_eqe(struct bnx2x *bp)
 {
 	struct bnx2x_mcast_ramrod_params rparam;
 	int rc;
@@ -4486,8 +5152,8 @@ static inline void bnx2x_handle_mcast_eqe(struct bnx2x *bp)
 	netif_addr_unlock_bh(bp->dev);
 }
 
-static inline void bnx2x_handle_classification_eqe(struct bnx2x *bp,
-						   union event_ring_elem *elem)
+static void bnx2x_handle_classification_eqe(struct bnx2x *bp,
+					    union event_ring_elem *elem)
 {
 	unsigned long ramrod_flags = 0;
 	int rc = 0;
@@ -4497,15 +5163,14 @@ static inline void bnx2x_handle_classification_eqe(struct bnx2x *bp,
 	/* Always push next commands out, don't wait here */
 	__set_bit(RAMROD_CONT, &ramrod_flags);
 
-	switch (elem->message.data.eth_event.echo >> BNX2X_SWCID_SHIFT) {
+	switch (le32_to_cpu((__force __le32)elem->message.data.eth_event.echo)
+			    >> BNX2X_SWCID_SHIFT) {
 	case BNX2X_FILTER_MAC_PENDING:
 		DP(BNX2X_MSG_SP, "Got SETUP_MAC completions\n");
-#ifdef BCM_CNIC
-		if (cid == BNX2X_ISCSI_ETH_CID)
+		if (CNIC_LOADED(bp) && (cid == BNX2X_ISCSI_ETH_CID(bp)))
 			vlan_mac_obj = &bp->iscsi_l2_mac_obj;
 		else
-#endif
-			vlan_mac_obj = &bp->fp[cid].mac_obj;
+			vlan_mac_obj = &bp->sp_objs[cid].mac_obj;
 
 		break;
 	case BNX2X_FILTER_MCAST_PENDING:
@@ -4527,14 +5192,11 @@ static inline void bnx2x_handle_classification_eqe(struct bnx2x *bp,
 		BNX2X_ERR("Failed to schedule new commands: %d\n", rc);
 	else if (rc > 0)
 		DP(BNX2X_MSG_SP, "Scheduled next pending commands...\n");
-
 }
 
-#ifdef BCM_CNIC
 static void bnx2x_set_iscsi_eth_rx_mode(struct bnx2x *bp, bool start);
-#endif
 
-static inline void bnx2x_handle_rx_mode_eqe(struct bnx2x *bp)
+static void bnx2x_handle_rx_mode_eqe(struct bnx2x *bp)
 {
 	netif_addr_lock_bh(bp->dev);
 
@@ -4543,37 +5205,116 @@ static inline void bnx2x_handle_rx_mode_eqe(struct bnx2x *bp)
 	/* Send rx_mode command again if was requested */
 	if (test_and_clear_bit(BNX2X_FILTER_RX_MODE_SCHED, &bp->sp_state))
 		bnx2x_set_storm_rx_mode(bp);
-#ifdef BCM_CNIC
 	else if (test_and_clear_bit(BNX2X_FILTER_ISCSI_ETH_START_SCHED,
 				    &bp->sp_state))
 		bnx2x_set_iscsi_eth_rx_mode(bp, true);
 	else if (test_and_clear_bit(BNX2X_FILTER_ISCSI_ETH_STOP_SCHED,
 				    &bp->sp_state))
 		bnx2x_set_iscsi_eth_rx_mode(bp, false);
-#endif
 
 	netif_addr_unlock_bh(bp->dev);
 }
 
-static inline struct bnx2x_queue_sp_obj *bnx2x_cid_to_q_obj(
+static void bnx2x_after_afex_vif_lists(struct bnx2x *bp,
+					      union event_ring_elem *elem)
+{
+	if (elem->message.data.vif_list_event.echo == VIF_LIST_RULE_GET) {
+		DP(BNX2X_MSG_SP,
+		   "afex: ramrod completed VIF LIST_GET, addrs 0x%x\n",
+		   elem->message.data.vif_list_event.func_bit_map);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_AFEX_LISTGET_ACK,
+			elem->message.data.vif_list_event.func_bit_map);
+	} else if (elem->message.data.vif_list_event.echo ==
+		   VIF_LIST_RULE_SET) {
+		DP(BNX2X_MSG_SP, "afex: ramrod completed VIF LIST_SET\n");
+		bnx2x_fw_command(bp, DRV_MSG_CODE_AFEX_LISTSET_ACK, 0);
+	}
+}
+
+/* called with rtnl_lock */
+static void bnx2x_after_function_update(struct bnx2x *bp)
+{
+	int q, rc;
+	struct bnx2x_fastpath *fp;
+	struct bnx2x_queue_state_params queue_params = {NULL};
+	struct bnx2x_queue_update_params *q_update_params =
+		&queue_params.params.update;
+
+	/* Send Q update command with afex vlan removal values for all Qs */
+	queue_params.cmd = BNX2X_Q_CMD_UPDATE;
+
+	/* set silent vlan removal values according to vlan mode */
+	__set_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM_CHNG,
+		  &q_update_params->update_flags);
+	__set_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM,
+		  &q_update_params->update_flags);
+	__set_bit(RAMROD_COMP_WAIT, &queue_params.ramrod_flags);
+
+	/* in access mode mark mask and value are 0 to strip all vlans */
+	if (bp->afex_vlan_mode == FUNC_MF_CFG_AFEX_VLAN_ACCESS_MODE) {
+		q_update_params->silent_removal_value = 0;
+		q_update_params->silent_removal_mask = 0;
+	} else {
+		q_update_params->silent_removal_value =
+			(bp->afex_def_vlan_tag & VLAN_VID_MASK);
+		q_update_params->silent_removal_mask = VLAN_VID_MASK;
+	}
+
+	for_each_eth_queue(bp, q) {
+		/* Set the appropriate Queue object */
+		fp = &bp->fp[q];
+		queue_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
+
+		/* send the ramrod */
+		rc = bnx2x_queue_state_change(bp, &queue_params);
+		if (rc < 0)
+			BNX2X_ERR("Failed to config silent vlan rem for Q %d\n",
+				  q);
+	}
+
+	if (!NO_FCOE(bp) && CNIC_ENABLED(bp)) {
+		fp = &bp->fp[FCOE_IDX(bp)];
+		queue_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
+
+		/* clear pending completion bit */
+		__clear_bit(RAMROD_COMP_WAIT, &queue_params.ramrod_flags);
+
+		/* mark latest Q bit */
+		smp_mb__before_atomic();
+		set_bit(BNX2X_AFEX_FCOE_Q_UPDATE_PENDING, &bp->sp_state);
+		smp_mb__after_atomic();
+
+		/* send Q update ramrod for FCoE Q */
+		rc = bnx2x_queue_state_change(bp, &queue_params);
+		if (rc < 0)
+			BNX2X_ERR("Failed to config silent vlan rem for Q %d\n",
+				  q);
+	} else {
+		/* If no FCoE ring - ACK MCP now */
+		bnx2x_link_report(bp);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_AFEX_VIFSET_ACK, 0);
+	}
+}
+
+static struct bnx2x_queue_sp_obj *bnx2x_cid_to_q_obj(
 	struct bnx2x *bp, u32 cid)
 {
 	DP(BNX2X_MSG_SP, "retrieving fp from cid %d\n", cid);
-#ifdef BCM_CNIC
-	if (cid == BNX2X_FCOE_ETH_CID)
-		return &bnx2x_fcoe(bp, q_obj);
+
+	if (CNIC_LOADED(bp) && (cid == BNX2X_FCOE_ETH_CID(bp)))
+		return &bnx2x_fcoe_sp_obj(bp, q_obj);
 	else
-#endif
-		return &bnx2x_fp(bp, CID_TO_FP(cid), q_obj);
+		return &bp->sp_objs[CID_TO_FP(cid, bp)].q_obj;
 }
 
 static void bnx2x_eq_int(struct bnx2x *bp)
 {
 	u16 hw_cons, sw_cons, sw_prod;
 	union event_ring_elem *elem;
+	u8 echo;
 	u32 cid;
 	u8 opcode;
-	int spqe_cnt = 0;
+	int rc, spqe_cnt = 0;
 	struct bnx2x_queue_sp_obj *q_obj;
 	struct bnx2x_func_sp_obj *f_obj = &bp->func_obj;
 	struct bnx2x_raw_obj *rss_raw = &bp->rss_conf_obj.raw;
@@ -4581,7 +5322,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 	hw_cons = le16_to_cpu(*bp->eq_cons_sb);
 
 	/* The hw_cos range is 1-255, 257 - the sw_cons range is 0-254, 256.
-	 * when we get the the next-page we nned to adjust so the loop
+	 * when we get the next-page we need to adjust so the loop
 	 * condition below will be met. The next element is the size of a
 	 * regular element and hence incrementing by 1
 	 */
@@ -4601,19 +5342,31 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 	for (; sw_cons != hw_cons;
 	      sw_prod = NEXT_EQ_IDX(sw_prod), sw_cons = NEXT_EQ_IDX(sw_cons)) {
 
-
 		elem = &bp->eq_ring[EQ_DESC(sw_cons)];
 
-		cid = SW_CID(elem->message.data.cfc_del_event.cid);
-		opcode = elem->message.opcode;
+		rc = bnx2x_iov_eq_sp_event(bp, elem);
+		if (!rc) {
+			DP(BNX2X_MSG_IOV, "bnx2x_iov_eq_sp_event returned %d\n",
+			   rc);
+			goto next_spqe;
+		}
 
+		/* elem CID originates from FW; actually LE */
+		cid = SW_CID((__force __le32)
+			     elem->message.data.cfc_del_event.cid);
+		opcode = elem->message.opcode;
 
 		/* handle eq element */
 		switch (opcode) {
+		case EVENT_RING_OPCODE_VF_PF_CHANNEL:
+			bnx2x_vf_mbx_schedule(bp,
+					      &elem->message.data.vf_pf_event);
+			continue;
+
 		case EVENT_RING_OPCODE_STAT_QUERY:
-			DP(BNX2X_MSG_SP | BNX2X_MSG_STATS,
-			   "got statistics comp event %d\n",
-			   bp->stats_comp++);
+			DP_AND((BNX2X_MSG_SP | BNX2X_MSG_STATS),
+			       "got statistics comp event %d\n",
+			       bp->stats_comp++);
 			/* nothing to do with stats comp */
 			goto next_spqe;
 
@@ -4625,33 +5378,64 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			 */
 			DP(BNX2X_MSG_SP,
 			   "got delete ramrod for MULTI[%d]\n", cid);
-#ifdef BCM_CNIC
-			if (!bnx2x_cnic_handle_cfc_del(bp, cid, elem))
+
+			if (CNIC_LOADED(bp) &&
+			    !bnx2x_cnic_handle_cfc_del(bp, cid, elem))
 				goto next_spqe;
-#endif
+
 			q_obj = bnx2x_cid_to_q_obj(bp, cid);
 
 			if (q_obj->complete_cmd(bp, q_obj, BNX2X_Q_CMD_CFC_DEL))
 				break;
 
-
-
 			goto next_spqe;
 
 		case EVENT_RING_OPCODE_STOP_TRAFFIC:
 			DP(BNX2X_MSG_SP | BNX2X_MSG_DCB, "got STOP TRAFFIC\n");
+			bnx2x_dcbx_set_params(bp, BNX2X_DCBX_STATE_TX_PAUSED);
 			if (f_obj->complete_cmd(bp, f_obj,
 						BNX2X_F_CMD_TX_STOP))
 				break;
-			bnx2x_dcbx_set_params(bp, BNX2X_DCBX_STATE_TX_PAUSED);
 			goto next_spqe;
 
 		case EVENT_RING_OPCODE_START_TRAFFIC:
 			DP(BNX2X_MSG_SP | BNX2X_MSG_DCB, "got START TRAFFIC\n");
+			bnx2x_dcbx_set_params(bp, BNX2X_DCBX_STATE_TX_RELEASED);
 			if (f_obj->complete_cmd(bp, f_obj,
 						BNX2X_F_CMD_TX_START))
 				break;
-			bnx2x_dcbx_set_params(bp, BNX2X_DCBX_STATE_TX_RELEASED);
+			goto next_spqe;
+
+		case EVENT_RING_OPCODE_FUNCTION_UPDATE:
+			echo = elem->message.data.function_update_event.echo;
+			if (echo == SWITCH_UPDATE) {
+				DP(BNX2X_MSG_SP | NETIF_MSG_IFUP,
+				   "got FUNC_SWITCH_UPDATE ramrod\n");
+				if (f_obj->complete_cmd(
+					bp, f_obj, BNX2X_F_CMD_SWITCH_UPDATE))
+					break;
+
+			} else {
+				int cmd = BNX2X_SP_RTNL_AFEX_F_UPDATE;
+
+				DP(BNX2X_MSG_SP | BNX2X_MSG_MCP,
+				   "AFEX: ramrod completed FUNCTION_UPDATE\n");
+				f_obj->complete_cmd(bp, f_obj,
+						    BNX2X_F_CMD_AFEX_UPDATE);
+
+				/* We will perform the Queues update from
+				 * sp_rtnl task as all Queue SP operations
+				 * should run under rtnl_lock.
+				 */
+				bnx2x_schedule_sp_rtnl(bp, cmd, 0);
+			}
+
+			goto next_spqe;
+
+		case EVENT_RING_OPCODE_AFEX_VIF_LISTS:
+			f_obj->complete_cmd(bp, f_obj,
+					    BNX2X_F_CMD_AFEX_VIFLISTS);
+			bnx2x_after_afex_vif_lists(bp, elem);
 			goto next_spqe;
 		case EVENT_RING_OPCODE_FUNCTION_START:
 			DP(BNX2X_MSG_SP | NETIF_MSG_IFUP,
@@ -4724,7 +5508,7 @@ next_spqe:
 		spqe_cnt++;
 	} /* for */
 
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_add(spqe_cnt, &bp->eq_spq_left);
 
 	bp->eq_cons = sw_cons;
@@ -4739,51 +5523,64 @@ next_spqe:
 static void bnx2x_sp_task(struct work_struct *work)
 {
 	struct bnx2x *bp = container_of(work, struct bnx2x, sp_task.work);
-	u16 status;
 
-	status = bnx2x_update_dsb_idx(bp);
-/*	if (status == 0)				     */
-/*		BNX2X_ERR("spurious slowpath interrupt!\n"); */
+	DP(BNX2X_MSG_SP, "sp task invoked\n");
 
-	DP(BNX2X_MSG_SP, "got a slowpath interrupt (status 0x%x)\n", status);
+	/* make sure the atomic interrupt_occurred has been written */
+	smp_rmb();
+	if (atomic_read(&bp->interrupt_occurred)) {
 
-	/* HW attentions */
-	if (status & BNX2X_DEF_SB_ATT_IDX) {
-		bnx2x_attn_int(bp);
-		status &= ~BNX2X_DEF_SB_ATT_IDX;
-	}
+		/* what work needs to be performed? */
+		u16 status = bnx2x_update_dsb_idx(bp);
 
-	/* SP events: STAT_QUERY and others */
-	if (status & BNX2X_DEF_SB_IDX) {
-#ifdef BCM_CNIC
-		struct bnx2x_fastpath *fp = bnx2x_fcoe_fp(bp);
+		DP(BNX2X_MSG_SP, "status %x\n", status);
+		DP(BNX2X_MSG_SP, "setting interrupt_occurred to 0\n");
+		atomic_set(&bp->interrupt_occurred, 0);
 
-		if ((!NO_FCOE(bp)) &&
-			(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
-			/*
-			 * Prevent local bottom-halves from running as
-			 * we are going to change the local NAPI list.
-			 */
-			local_bh_disable();
-			napi_schedule(&bnx2x_fcoe(bp, napi));
-			local_bh_enable();
+		/* HW attentions */
+		if (status & BNX2X_DEF_SB_ATT_IDX) {
+			bnx2x_attn_int(bp);
+			status &= ~BNX2X_DEF_SB_ATT_IDX;
 		}
-#endif
-		/* Handle EQ completions */
-		bnx2x_eq_int(bp);
 
-		bnx2x_ack_sb(bp, bp->igu_dsb_id, USTORM_ID,
-			le16_to_cpu(bp->def_idx), IGU_INT_NOP, 1);
+		/* SP events: STAT_QUERY and others */
+		if (status & BNX2X_DEF_SB_IDX) {
+			struct bnx2x_fastpath *fp = bnx2x_fcoe_fp(bp);
 
-		status &= ~BNX2X_DEF_SB_IDX;
+		if (FCOE_INIT(bp) &&
+			    (bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
+				/* Prevent local bottom-halves from running as
+				 * we are going to change the local NAPI list.
+				 */
+				local_bh_disable();
+				napi_schedule(&bnx2x_fcoe(bp, napi));
+				local_bh_enable();
+			}
+
+			/* Handle EQ completions */
+			bnx2x_eq_int(bp);
+			bnx2x_ack_sb(bp, bp->igu_dsb_id, USTORM_ID,
+				     le16_to_cpu(bp->def_idx), IGU_INT_NOP, 1);
+
+			status &= ~BNX2X_DEF_SB_IDX;
+		}
+
+		/* if status is non zero then perhaps something went wrong */
+		if (unlikely(status))
+			DP(BNX2X_MSG_SP,
+			   "got an unknown interrupt! (status 0x%x)\n", status);
+
+		/* ack status block only if something was actually handled */
+		bnx2x_ack_sb(bp, bp->igu_dsb_id, ATTENTION_ID,
+			     le16_to_cpu(bp->def_att_idx), IGU_INT_ENABLE, 1);
 	}
 
-	if (unlikely(status))
-		DP(BNX2X_MSG_SP, "got an unknown interrupt! (status 0x%x)\n",
-		   status);
-
-	bnx2x_ack_sb(bp, bp->igu_dsb_id, ATTENTION_ID,
-	     le16_to_cpu(bp->def_att_idx), IGU_INT_ENABLE, 1);
+	/* afex - poll to check if VIFSET_ACK should be sent to MFW */
+	if (test_and_clear_bit(BNX2X_AFEX_PENDING_VIFSET_MCP_ACK,
+			       &bp->sp_state)) {
+		bnx2x_link_report(bp);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_AFEX_VIFSET_ACK, 0);
+	}
 }
 
 irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
@@ -4799,8 +5596,7 @@ irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 		return IRQ_HANDLED;
 #endif
 
-#ifdef BCM_CNIC
-	{
+	if (CNIC_LOADED(bp)) {
 		struct cnic_ops *c_ops;
 
 		rcu_read_lock();
@@ -4809,21 +5605,22 @@ irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 			c_ops->cnic_handler(bp->cnic_data, NULL);
 		rcu_read_unlock();
 	}
-#endif
-	queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);
+
+	/* schedule sp task to perform default status block work, ack
+	 * attentions and enable interrupts.
+	 */
+	bnx2x_schedule_sp_task(bp);
 
 	return IRQ_HANDLED;
 }
 
 /* end of slow path */
 
-
 void bnx2x_drv_pulse(struct bnx2x *bp)
 {
 	SHMEM_WR(bp, func_mb[BP_FW_MB_IDX(bp)].drv_pulse_mb,
 		 bp->fw_drv_pulse_wr_seq);
 }
-
 
 static void bnx2x_timer(unsigned long data)
 {
@@ -4832,32 +5629,35 @@ static void bnx2x_timer(unsigned long data)
 	if (!netif_running(bp->dev))
 		return;
 
-	if (!BP_NOMCP(bp)) {
+	if (IS_PF(bp) &&
+	    !BP_NOMCP(bp)) {
 		int mb_idx = BP_FW_MB_IDX(bp);
-		u32 drv_pulse;
-		u32 mcp_pulse;
+		u16 drv_pulse;
+		u16 mcp_pulse;
 
 		++bp->fw_drv_pulse_wr_seq;
 		bp->fw_drv_pulse_wr_seq &= DRV_PULSE_SEQ_MASK;
-		/* TBD - add SYSTEM_TIME */
 		drv_pulse = bp->fw_drv_pulse_wr_seq;
 		bnx2x_drv_pulse(bp);
 
 		mcp_pulse = (SHMEM_RD(bp, func_mb[mb_idx].mcp_pulse_mb) &
 			     MCP_PULSE_SEQ_MASK);
 		/* The delta between driver pulse and mcp response
-		 * should be 1 (before mcp response) or 0 (after mcp response)
+		 * should not get too big. If the MFW is more than 5 pulses
+		 * behind, we should worry about it enough to generate an error
+		 * log.
 		 */
-		if ((drv_pulse != mcp_pulse) &&
-		    (drv_pulse != ((mcp_pulse + 1) & MCP_PULSE_SEQ_MASK))) {
-			/* someone lost a heartbeat... */
-			BNX2X_ERR("drv_pulse (0x%x) != mcp_pulse (0x%x)\n",
+		if (((drv_pulse - mcp_pulse) & MCP_PULSE_SEQ_MASK) > 5)
+			BNX2X_ERR("MFW seems hanged: drv_pulse (0x%x) != mcp_pulse (0x%x)\n",
 				  drv_pulse, mcp_pulse);
-		}
 	}
 
 	if (bp->state == BNX2X_STATE_OPEN)
 		bnx2x_stats_handle(bp, STATS_EVENT_UPDATE);
+
+	/* sample pf vf bulletin board for new posts from pf */
+	if (IS_VF(bp))
+		bnx2x_timer_sriov(bp);
 
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
@@ -4870,7 +5670,7 @@ static void bnx2x_timer(unsigned long data)
  * nic init service functions
  */
 
-static inline void bnx2x_fill(struct bnx2x *bp, u32 addr, int fill, u32 len)
+static void bnx2x_fill(struct bnx2x *bp, u32 addr, int fill, u32 len)
 {
 	u32 i;
 	if (!(len%4) && !(addr%4))
@@ -4879,14 +5679,13 @@ static inline void bnx2x_fill(struct bnx2x *bp, u32 addr, int fill, u32 len)
 	else
 		for (i = 0; i < len; i++)
 			REG_WR8(bp, addr + i, fill);
-
 }
 
 /* helper: writes FP SP data to FW - data_size in dwords */
-static inline void bnx2x_wr_fp_sb_data(struct bnx2x *bp,
-				       int fw_sb_id,
-				       u32 *sb_data_p,
-				       u32 data_size)
+static void bnx2x_wr_fp_sb_data(struct bnx2x *bp,
+				int fw_sb_id,
+				u32 *sb_data_p,
+				u32 data_size)
 {
 	int index;
 	for (index = 0; index < data_size; index++)
@@ -4896,7 +5695,7 @@ static inline void bnx2x_wr_fp_sb_data(struct bnx2x *bp,
 			*(sb_data_p + index));
 }
 
-static inline void bnx2x_zero_fp_sb(struct bnx2x *bp, int fw_sb_id)
+static void bnx2x_zero_fp_sb(struct bnx2x *bp, int fw_sb_id)
 {
 	u32 *sb_data_p;
 	u32 data_size = 0;
@@ -4929,7 +5728,7 @@ static inline void bnx2x_zero_fp_sb(struct bnx2x *bp, int fw_sb_id)
 }
 
 /* helper:  writes SP SB data to FW */
-static inline void bnx2x_wr_sp_sb_data(struct bnx2x *bp,
+static void bnx2x_wr_sp_sb_data(struct bnx2x *bp,
 		struct hc_sp_status_block_data *sp_sb_data)
 {
 	int func = BP_FUNC(bp);
@@ -4941,7 +5740,7 @@ static inline void bnx2x_wr_sp_sb_data(struct bnx2x *bp,
 			*((u32 *)sp_sb_data + i));
 }
 
-static inline void bnx2x_zero_sp_sb(struct bnx2x *bp)
+static void bnx2x_zero_sp_sb(struct bnx2x *bp)
 {
 	int func = BP_FUNC(bp);
 	struct hc_sp_status_block_data sp_sb_data;
@@ -4958,12 +5757,9 @@ static inline void bnx2x_zero_sp_sb(struct bnx2x *bp)
 	bnx2x_fill(bp, BAR_CSTRORM_INTMEM +
 			CSTORM_SP_SYNC_BLOCK_OFFSET(func), 0,
 			CSTORM_SP_SYNC_BLOCK_SIZE);
-
 }
 
-
-static inline
-void bnx2x_setup_ndsb_state_machine(struct hc_status_block_sm *hc_sm,
+static void bnx2x_setup_ndsb_state_machine(struct hc_status_block_sm *hc_sm,
 					   int igu_sb_id, int igu_seg_id)
 {
 	hc_sm->igu_sb_id = igu_sb_id;
@@ -4972,10 +5768,8 @@ void bnx2x_setup_ndsb_state_machine(struct hc_status_block_sm *hc_sm,
 	hc_sm->time_to_expire = 0xFFFFFFFF;
 }
 
-
 /* allocates state machine ids. */
-static inline
-void bnx2x_map_sb_state_machines(struct hc_index_data *index_data)
+static void bnx2x_map_sb_state_machines(struct hc_index_data *index_data)
 {
 	/* zero out state machine indices */
 	/* rx indices */
@@ -5003,7 +5797,7 @@ void bnx2x_map_sb_state_machines(struct hc_index_data *index_data)
 		SM_TX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
 }
 
-static void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
+void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 			  u8 vf_valid, int fw_sb_id, int igu_sb_id)
 {
 	int igu_seg_id;
@@ -5059,7 +5853,7 @@ static void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 
 	DP(NETIF_MSG_IFUP, "Init FW SB %d\n", fw_sb_id);
 
-	/* write indecies to HW */
+	/* write indices to HW - PCI guarantees endianity of regpairs */
 	bnx2x_wr_fp_sb_data(bp, fw_sb_id, sb_data_p, data_size);
 }
 
@@ -5147,6 +5941,7 @@ static void bnx2x_init_def_sb(struct bnx2x *bp)
 
 	bnx2x_zero_sp_sb(bp);
 
+	/* PCI guarantees endianity of regpairs */
 	sp_sb_data.state		= SB_ENABLED;
 	sp_sb_data.host_sb_addr.lo	= U64_LO(section);
 	sp_sb_data.host_sb_addr.hi	= U64_HI(section);
@@ -5198,18 +5993,17 @@ static void bnx2x_init_eq_ring(struct bnx2x *bp)
 	bp->eq_cons = 0;
 	bp->eq_prod = NUM_EQ_DESC;
 	bp->eq_cons_sb = BNX2X_EQ_INDEX;
-	/* we want a warning message before it gets rought... */
+	/* we want a warning message before it gets wrought... */
 	atomic_set(&bp->eq_spq_left,
 		min_t(int, MAX_SP_DESC_CNT - MAX_SPQ_PENDING, NUM_EQ_DESC) - 1);
 }
 
-
 /* called with netif_addr_lock_bh() */
-void bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
-			 unsigned long rx_mode_flags,
-			 unsigned long rx_accept_flags,
-			 unsigned long tx_accept_flags,
-			 unsigned long ramrod_flags)
+static int bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
+			       unsigned long rx_mode_flags,
+			       unsigned long rx_accept_flags,
+			       unsigned long tx_accept_flags,
+			       unsigned long ramrod_flags)
 {
 	struct bnx2x_rx_mode_ramrod_params ramrod_param;
 	int rc;
@@ -5239,24 +6033,21 @@ void bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
 	rc = bnx2x_config_rx_mode(bp, &ramrod_param);
 	if (rc < 0) {
 		BNX2X_ERR("Set rx_mode %d failed\n", bp->rx_mode);
-		return;
+		return rc;
 	}
+
+	return 0;
 }
 
-/* called with netif_addr_lock_bh() */
-void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
+static int bnx2x_fill_accept_flags(struct bnx2x *bp, u32 rx_mode,
+				   unsigned long *rx_accept_flags,
+				   unsigned long *tx_accept_flags)
 {
-	unsigned long rx_mode_flags = 0, ramrod_flags = 0;
-	unsigned long rx_accept_flags = 0, tx_accept_flags = 0;
+	/* Clear the flags first */
+	*rx_accept_flags = 0;
+	*tx_accept_flags = 0;
 
-#ifdef BCM_CNIC
-	if (!NO_FCOE(bp))
-
-		/* Configure rx_mode of FCoE Queue */
-		__set_bit(BNX2X_RX_MODE_FCOE_ETH, &rx_mode_flags);
-#endif
-
-	switch (bp->rx_mode) {
+	switch (rx_mode) {
 	case BNX2X_RX_MODE_NONE:
 		/*
 		 * 'drop all' supersedes any accept flags that may have been
@@ -5264,79 +6055,88 @@ void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 		 */
 		break;
 	case BNX2X_RX_MODE_NORMAL:
-		__set_bit(BNX2X_ACCEPT_UNICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_MULTICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_MULTICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, rx_accept_flags);
 
 		/* internal switching mode */
-		__set_bit(BNX2X_ACCEPT_UNICAST, &tx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_MULTICAST, &tx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNICAST, tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_MULTICAST, tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, tx_accept_flags);
 
 		break;
 	case BNX2X_RX_MODE_ALLMULTI:
-		__set_bit(BNX2X_ACCEPT_UNICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, rx_accept_flags);
 
 		/* internal switching mode */
-		__set_bit(BNX2X_ACCEPT_UNICAST, &tx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, &tx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNICAST, tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, tx_accept_flags);
 
 		break;
 	case BNX2X_RX_MODE_PROMISC:
-		/* According to deffinition of SI mode, iface in promisc mode
+		/* According to definition of SI mode, iface in promisc mode
 		 * should receive matched and unmatched (in resolution of port)
 		 * unicast packets.
 		 */
-		__set_bit(BNX2X_ACCEPT_UNMATCHED, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_UNICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNMATCHED, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_UNICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, rx_accept_flags);
 
 		/* internal switching mode */
-		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, &tx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_BROADCAST, &tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_BROADCAST, tx_accept_flags);
 
 		if (IS_MF_SI(bp))
-			__set_bit(BNX2X_ACCEPT_ALL_UNICAST, &tx_accept_flags);
+			__set_bit(BNX2X_ACCEPT_ALL_UNICAST, tx_accept_flags);
 		else
-			__set_bit(BNX2X_ACCEPT_UNICAST, &tx_accept_flags);
+			__set_bit(BNX2X_ACCEPT_UNICAST, tx_accept_flags);
 
 		break;
 	default:
-		BNX2X_ERR("Unknown rx_mode: %d\n", bp->rx_mode);
-		return;
+		BNX2X_ERR("Unknown rx_mode: %d\n", rx_mode);
+		return -EINVAL;
 	}
 
+	/* Set ACCEPT_ANY_VLAN as we do not enable filtering by VLAN */
 	if (bp->rx_mode != BNX2X_RX_MODE_NONE) {
-		__set_bit(BNX2X_ACCEPT_ANY_VLAN, &rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_ANY_VLAN, &tx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ANY_VLAN, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ANY_VLAN, tx_accept_flags);
 	}
+
+	return 0;
+}
+
+/* called with netif_addr_lock_bh() */
+static int bnx2x_set_storm_rx_mode(struct bnx2x *bp)
+{
+	unsigned long rx_mode_flags = 0, ramrod_flags = 0;
+	unsigned long rx_accept_flags = 0, tx_accept_flags = 0;
+	int rc;
+
+	if (!NO_FCOE(bp))
+		/* Configure rx_mode of FCoE Queue */
+		__set_bit(BNX2X_RX_MODE_FCOE_ETH, &rx_mode_flags);
+
+	rc = bnx2x_fill_accept_flags(bp, bp->rx_mode, &rx_accept_flags,
+				     &tx_accept_flags);
+	if (rc)
+		return rc;
 
 	__set_bit(RAMROD_RX, &ramrod_flags);
 	__set_bit(RAMROD_TX, &ramrod_flags);
 
-	bnx2x_set_q_rx_mode(bp, bp->fp->cl_id, rx_mode_flags, rx_accept_flags,
-			    tx_accept_flags, ramrod_flags);
+	return bnx2x_set_q_rx_mode(bp, bp->fp->cl_id, rx_mode_flags,
+				   rx_accept_flags, tx_accept_flags,
+				   ramrod_flags);
 }
 
 static void bnx2x_init_internal_common(struct bnx2x *bp)
 {
 	int i;
-
-	if (IS_MF_SI(bp))
-		/*
-		 * In switch independent mode, the TSTORM needs to accept
-		 * packets that failed classification, since approximate match
-		 * mac addresses aren't written to NIG LLH
-		 */
-		REG_WR8(bp, BAR_TSTRORM_INTMEM +
-			    TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET, 2);
-	else if (!CHIP_IS_E1(bp)) /* 57710 doesn't support MF */
-		REG_WR8(bp, BAR_TSTRORM_INTMEM +
-			    TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET, 0);
 
 	/* Zero this manually as its initialization is
 	   currently missing in the initTool */
@@ -5375,15 +6175,15 @@ static void bnx2x_init_internal(struct bnx2x *bp, u32 load_code)
 
 static inline u8 bnx2x_fp_igu_sb_id(struct bnx2x_fastpath *fp)
 {
-	return fp->bp->igu_base_sb + fp->index + CNIC_PRESENT;
+	return fp->bp->igu_base_sb + fp->index + CNIC_SUPPORT(fp->bp);
 }
 
 static inline u8 bnx2x_fp_fw_sb_id(struct bnx2x_fastpath *fp)
 {
-	return fp->bp->base_fw_ndsb + fp->index + CNIC_PRESENT;
+	return fp->bp->base_fw_ndsb + fp->index + CNIC_SUPPORT(fp->bp);
 }
 
-static inline u8 bnx2x_fp_cl_id(struct bnx2x_fastpath *fp)
+static u8 bnx2x_fp_cl_id(struct bnx2x_fastpath *fp)
 {
 	if (CHIP_IS_E1x(fp->bp))
 		return BP_L_ID(fp->bp) + fp->index;
@@ -5408,7 +6208,7 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 	/* init shortcut */
 	fp->ustorm_rx_prods_offset = bnx2x_rx_ustorm_prods_offset(fp);
 
-	/* Setup SB indicies */
+	/* Setup SB indices */
 	fp->rx_cons_sb = BNX2X_RX_SB_INDEX;
 
 	/* Configure Queue State object */
@@ -5419,15 +6219,22 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 
 	/* init tx data */
 	for_each_cos_in_tx_queue(fp, cos) {
-		bnx2x_init_txdata(bp, &fp->txdata[cos],
-				  CID_COS_TO_TX_ONLY_CID(fp->cid, cos),
-				  FP_COS_TO_TXQ(fp, cos),
-				  BNX2X_TX_SB_INDEX_BASE + cos);
-		cids[cos] = fp->txdata[cos].cid;
+		bnx2x_init_txdata(bp, fp->txdata_ptr[cos],
+				  CID_COS_TO_TX_ONLY_CID(fp->cid, cos, bp),
+				  FP_COS_TO_TXQ(fp, cos, bp),
+				  BNX2X_TX_SB_INDEX_BASE + cos, fp);
+		cids[cos] = fp->txdata_ptr[cos]->cid;
 	}
 
-	bnx2x_init_queue_obj(bp, &fp->q_obj, fp->cl_id, cids, fp->max_cos,
-			     BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
+	/* nothing more for vf to do here */
+	if (IS_VF(bp))
+		return;
+
+	bnx2x_init_sb(bp, fp->status_blk_mapping, BNX2X_VF_ID_INVALID, false,
+		      fp->fw_sb_id, fp->igu_sb_id);
+	bnx2x_update_fpsb_idx(fp);
+	bnx2x_init_queue_obj(bp, &bnx2x_sp_obj(bp, fp).q_obj, fp->cl_id, cids,
+			     fp->max_cos, BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
 			     bnx2x_sp_mapping(bp, q_rdata), q_type);
 
 	/**
@@ -5435,22 +6242,102 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 	 */
 	bnx2x_init_vlan_mac_fp_objs(fp, BNX2X_OBJ_TYPE_RX_TX);
 
-	DP(NETIF_MSG_IFUP, "queue[%d]:  bnx2x_init_sb(%p,%p)  cl_id %d  fw_sb %d  igu_sb %d\n",
-		   fp_idx, bp, fp->status_blk.e2_sb, fp->cl_id, fp->fw_sb_id,
-		   fp->igu_sb_id);
-	bnx2x_init_sb(bp, fp->status_blk_mapping, BNX2X_VF_ID_INVALID, false,
-		      fp->fw_sb_id, fp->igu_sb_id);
-
-	bnx2x_update_fpsb_idx(fp);
+	DP(NETIF_MSG_IFUP,
+	   "queue[%d]:  bnx2x_init_sb(%p,%p)  cl_id %d  fw_sb %d  igu_sb %d\n",
+	   fp_idx, bp, fp->status_blk.e2_sb, fp->cl_id, fp->fw_sb_id,
+	   fp->igu_sb_id);
 }
 
-void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
+static void bnx2x_init_tx_ring_one(struct bnx2x_fp_txdata *txdata)
 {
 	int i;
 
+	for (i = 1; i <= NUM_TX_RINGS; i++) {
+		struct eth_tx_next_bd *tx_next_bd =
+			&txdata->tx_desc_ring[TX_DESC_CNT * i - 1].next_bd;
+
+		tx_next_bd->addr_hi =
+			cpu_to_le32(U64_HI(txdata->tx_desc_mapping +
+				    BCM_PAGE_SIZE*(i % NUM_TX_RINGS)));
+		tx_next_bd->addr_lo =
+			cpu_to_le32(U64_LO(txdata->tx_desc_mapping +
+				    BCM_PAGE_SIZE*(i % NUM_TX_RINGS)));
+	}
+
+	*txdata->tx_cons_sb = cpu_to_le16(0);
+
+	SET_FLAG(txdata->tx_db.data.header.header, DOORBELL_HDR_DB_TYPE, 1);
+	txdata->tx_db.data.zero_fill1 = 0;
+	txdata->tx_db.data.prod = 0;
+
+	txdata->tx_pkt_prod = 0;
+	txdata->tx_pkt_cons = 0;
+	txdata->tx_bd_prod = 0;
+	txdata->tx_bd_cons = 0;
+	txdata->tx_pkt = 0;
+}
+
+static void bnx2x_init_tx_rings_cnic(struct bnx2x *bp)
+{
+	int i;
+
+	for_each_tx_queue_cnic(bp, i)
+		bnx2x_init_tx_ring_one(bp->fp[i].txdata_ptr[0]);
+}
+
+static void bnx2x_init_tx_rings(struct bnx2x *bp)
+{
+	int i;
+	u8 cos;
+
 	for_each_eth_queue(bp, i)
-		bnx2x_init_eth_fp(bp, i);
-#ifdef BCM_CNIC
+		for_each_cos_in_tx_queue(&bp->fp[i], cos)
+			bnx2x_init_tx_ring_one(bp->fp[i].txdata_ptr[cos]);
+}
+
+static void bnx2x_init_fcoe_fp(struct bnx2x *bp)
+{
+	struct bnx2x_fastpath *fp = bnx2x_fcoe_fp(bp);
+	unsigned long q_type = 0;
+
+	bnx2x_fcoe(bp, rx_queue) = BNX2X_NUM_ETH_QUEUES(bp);
+	bnx2x_fcoe(bp, cl_id) = bnx2x_cnic_eth_cl_id(bp,
+						     BNX2X_FCOE_ETH_CL_ID_IDX);
+	bnx2x_fcoe(bp, cid) = BNX2X_FCOE_ETH_CID(bp);
+	bnx2x_fcoe(bp, fw_sb_id) = DEF_SB_ID;
+	bnx2x_fcoe(bp, igu_sb_id) = bp->igu_dsb_id;
+	bnx2x_fcoe(bp, rx_cons_sb) = BNX2X_FCOE_L2_RX_INDEX;
+	bnx2x_init_txdata(bp, bnx2x_fcoe(bp, txdata_ptr[0]),
+			  fp->cid, FCOE_TXQ_IDX(bp), BNX2X_FCOE_L2_TX_INDEX,
+			  fp);
+
+	DP(NETIF_MSG_IFUP, "created fcoe tx data (fp index %d)\n", fp->index);
+
+	/* qZone id equals to FW (per path) client id */
+	bnx2x_fcoe(bp, cl_qzone_id) = bnx2x_fp_qzone_id(fp);
+	/* init shortcut */
+	bnx2x_fcoe(bp, ustorm_rx_prods_offset) =
+		bnx2x_rx_ustorm_prods_offset(fp);
+
+	/* Configure Queue State object */
+	__set_bit(BNX2X_Q_TYPE_HAS_RX, &q_type);
+	__set_bit(BNX2X_Q_TYPE_HAS_TX, &q_type);
+
+	/* No multi-CoS for FCoE L2 client */
+	BUG_ON(fp->max_cos != 1);
+
+	bnx2x_init_queue_obj(bp, &bnx2x_sp_obj(bp, fp).q_obj, fp->cl_id,
+			     &fp->cid, 1, BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
+			     bnx2x_sp_mapping(bp, q_rdata), q_type);
+
+	DP(NETIF_MSG_IFUP,
+	   "queue[%d]: bnx2x_init_sb(%p,%p) cl_id %d fw_sb %d igu_sb %d\n",
+	   fp->index, bp, fp->status_blk.e2_sb, fp->cl_id, fp->fw_sb_id,
+	   fp->igu_sb_id);
+}
+
+void bnx2x_nic_init_cnic(struct bnx2x *bp)
+{
 	if (!NO_FCOE(bp))
 		bnx2x_init_fcoe_fp(bp);
 
@@ -5458,20 +6345,46 @@ void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 		      BNX2X_VF_ID_INVALID, false,
 		      bnx2x_cnic_fw_sb_id(bp), bnx2x_cnic_igu_sb_id(bp));
 
-#endif
-
-	/* Initialize MOD_ABS interrupts */
-	bnx2x_init_mod_abs_int(bp, &bp->link_vars, bp->common.chip_id,
-			       bp->common.shmem_base, bp->common.shmem2_base,
-			       BP_PORT(bp));
 	/* ensure status block indices were read */
 	rmb();
+	bnx2x_init_rx_rings_cnic(bp);
+	bnx2x_init_tx_rings_cnic(bp);
 
-	bnx2x_init_def_sb(bp);
-	bnx2x_update_dsb_idx(bp);
+	/* flush all */
+	mb();
+	mmiowb();
+}
+
+void bnx2x_pre_irq_nic_init(struct bnx2x *bp)
+{
+	int i;
+
+	/* Setup NIC internals and enable interrupts */
+	for_each_eth_queue(bp, i)
+		bnx2x_init_eth_fp(bp, i);
+
+	/* ensure status block indices were read */
+	rmb();
 	bnx2x_init_rx_rings(bp);
 	bnx2x_init_tx_rings(bp);
-	bnx2x_init_sp_ring(bp);
+
+	if (IS_PF(bp)) {
+		/* Initialize MOD_ABS interrupts */
+		bnx2x_init_mod_abs_int(bp, &bp->link_vars, bp->common.chip_id,
+				       bp->common.shmem_base,
+				       bp->common.shmem2_base, BP_PORT(bp));
+
+		/* initialize the default status block and sp ring */
+		bnx2x_init_def_sb(bp);
+		bnx2x_update_dsb_idx(bp);
+		bnx2x_init_sp_ring(bp);
+	} else {
+		bnx2x_memset_stats(bp);
+	}
+}
+
+void bnx2x_post_irq_nic_init(struct bnx2x *bp, u32 load_code)
+{
 	bnx2x_init_eq_ring(bp);
 	bnx2x_init_internal(bp, load_code);
 	bnx2x_pf_init(bp);
@@ -5489,12 +6402,7 @@ void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 				   AEU_INPUTS_ATTN_BITS_SPIO5);
 }
 
-/* end of nic init */
-
-/*
- * gzip service functions
- */
-
+/* gzip service functions */
 static int bnx2x_gunzip_init(struct bnx2x *bp)
 {
 	bp->gunzip_buf = dma_alloc_coherent(&bp->pdev->dev, FW_BUF_SIZE,
@@ -5650,7 +6558,7 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 		if (val == 0x10)
 			break;
 
-		msleep(10);
+		usleep_range(10000, 20000);
 		count--;
 	}
 	if (val != 0x10) {
@@ -5665,7 +6573,7 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 		if (val == 1)
 			break;
 
-		msleep(10);
+		usleep_range(10000, 20000);
 		count--;
 	}
 	if (val != 0x1) {
@@ -5706,7 +6614,7 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 		if (val == 0xb0)
 			break;
 
-		msleep(10);
+		usleep_range(10000, 20000);
 		count--;
 	}
 	if (val != 0xb0) {
@@ -5745,10 +6653,9 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 	msleep(50);
 	bnx2x_init_block(bp, BLOCK_BRB1, PHASE_COMMON);
 	bnx2x_init_block(bp, BLOCK_PRS, PHASE_COMMON);
-#ifndef BCM_CNIC
-	/* set NIC mode */
-	REG_WR(bp, PRS_REG_NIC_MODE, 1);
-#endif
+	if (!CNIC_SUPPORT(bp))
+		/* set NIC mode */
+		REG_WR(bp, PRS_REG_NIC_MODE, 1);
 
 	/* Enable inputs of parser neighbor blocks */
 	REG_WR(bp, TSDM_REG_ENABLE_IN1, 0x7fffffff);
@@ -5763,6 +6670,8 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 
 static void bnx2x_enable_blocks_attention(struct bnx2x *bp)
 {
+	u32 val;
+
 	REG_WR(bp, PXP_REG_PXP_INT_MASK_0, 0);
 	if (!CHIP_IS_E1x(bp))
 		REG_WR(bp, PXP_REG_PXP_INT_MASK_1, 0x40);
@@ -5796,17 +6705,14 @@ static void bnx2x_enable_blocks_attention(struct bnx2x *bp)
 /*	REG_WR(bp, CSEM_REG_CSEM_INT_MASK_0, 0); */
 /*	REG_WR(bp, CSEM_REG_CSEM_INT_MASK_1, 0); */
 
-	if (CHIP_REV_IS_FPGA(bp))
-		REG_WR(bp, PXP2_REG_PXP2_INT_MASK_0, 0x580000);
-	else if (!CHIP_IS_E1x(bp))
-		REG_WR(bp, PXP2_REG_PXP2_INT_MASK_0,
-			   (PXP2_PXP2_INT_MASK_0_REG_PGL_CPL_OF
-				| PXP2_PXP2_INT_MASK_0_REG_PGL_CPL_AFT
-				| PXP2_PXP2_INT_MASK_0_REG_PGL_PCIE_ATTN
-				| PXP2_PXP2_INT_MASK_0_REG_PGL_READ_BLOCKED
-				| PXP2_PXP2_INT_MASK_0_REG_PGL_WRITE_BLOCKED));
-	else
-		REG_WR(bp, PXP2_REG_PXP2_INT_MASK_0, 0x480000);
+	val = PXP2_PXP2_INT_MASK_0_REG_PGL_CPL_AFT  |
+		PXP2_PXP2_INT_MASK_0_REG_PGL_CPL_OF |
+		PXP2_PXP2_INT_MASK_0_REG_PGL_PCIE_ATTN;
+	if (!CHIP_IS_E1x(bp))
+		val |= PXP2_PXP2_INT_MASK_0_REG_PGL_READ_BLOCKED |
+			PXP2_PXP2_INT_MASK_0_REG_PGL_WRITE_BLOCKED;
+	REG_WR(bp, PXP2_REG_PXP2_INT_MASK_0, val);
+
 	REG_WR(bp, TSDM_REG_TSDM_INT_MASK_0, 0);
 	REG_WR(bp, TSDM_REG_TSDM_INT_MASK_1, 0);
 	REG_WR(bp, TCM_REG_TCM_INT_MASK, 0);
@@ -5849,8 +6755,7 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 	u16 devctl;
 	int r_order, w_order;
 
-	pci_read_config_word(bp->pdev,
-			     pci_pcie_cap(bp->pdev) + PCI_EXP_DEVCTL, &devctl);
+	pcie_capability_read_word(bp->pdev, PCI_EXP_DEVCTL, &devctl);
 	DP(NETIF_MSG_HW, "read 0x%x from devctl\n", devctl);
 	w_order = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
 	if (bp->mrrs == -1)
@@ -5900,62 +6805,17 @@ static void bnx2x_setup_fan_failure_detection(struct bnx2x *bp)
 		return;
 
 	/* Fan failure is indicated by SPIO 5 */
-	bnx2x_set_spio(bp, MISC_REGISTERS_SPIO_5,
-		       MISC_REGISTERS_SPIO_INPUT_HI_Z);
+	bnx2x_set_spio(bp, MISC_SPIO_SPIO5, MISC_SPIO_INPUT_HI_Z);
 
 	/* set to active low mode */
 	val = REG_RD(bp, MISC_REG_SPIO_INT);
-	val |= ((1 << MISC_REGISTERS_SPIO_5) <<
-					MISC_REGISTERS_SPIO_INT_OLD_SET_POS);
+	val |= (MISC_SPIO_SPIO5 << MISC_SPIO_INT_OLD_SET_POS);
 	REG_WR(bp, MISC_REG_SPIO_INT, val);
 
 	/* enable interrupt to signal the IGU */
 	val = REG_RD(bp, MISC_REG_SPIO_EVENT_EN);
-	val |= (1 << MISC_REGISTERS_SPIO_5);
+	val |= MISC_SPIO_SPIO5;
 	REG_WR(bp, MISC_REG_SPIO_EVENT_EN, val);
-}
-
-static void bnx2x_pretend_func(struct bnx2x *bp, u8 pretend_func_num)
-{
-	u32 offset = 0;
-
-	if (CHIP_IS_E1(bp))
-		return;
-	if (CHIP_IS_E1H(bp) && (pretend_func_num >= E1H_FUNC_MAX))
-		return;
-
-	switch (BP_ABS_FUNC(bp)) {
-	case 0:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F0;
-		break;
-	case 1:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F1;
-		break;
-	case 2:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F2;
-		break;
-	case 3:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F3;
-		break;
-	case 4:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F4;
-		break;
-	case 5:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F5;
-		break;
-	case 6:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F6;
-		break;
-	case 7:
-		offset = PXP2_REG_PGL_PRETEND_FUNC_F7;
-		break;
-	default:
-		return;
-	}
-
-	REG_WR(bp, offset, pretend_func_num);
-	REG_RD(bp, offset);
-	DP(NETIF_MSG_HW, "Pretending to func %d\n", pretend_func_num);
 }
 
 void bnx2x_pf_disable(struct bnx2x *bp)
@@ -5968,9 +6828,13 @@ void bnx2x_pf_disable(struct bnx2x *bp)
 	REG_WR(bp, CFC_REG_WEAK_ENABLE_PF, 0);
 }
 
-static inline void bnx2x__common_init_phy(struct bnx2x *bp)
+static void bnx2x__common_init_phy(struct bnx2x *bp)
 {
 	u32 shmem_base[2], shmem2_base[2];
+	/* Avoid common init in case MFW supports LFA */
+	if (SHMEM2_RD(bp, size) >
+	    (u32)offsetof(struct shmem2_region, lfa_host_addr[BP_PORT(bp)]))
+		return;
 	shmem_base[0] =  bp->common.shmem_base;
 	shmem2_base[0] = bp->common.shmem2_base;
 	if (!CHIP_IS_E1x(bp)) {
@@ -5985,6 +6849,37 @@ static inline void bnx2x__common_init_phy(struct bnx2x *bp)
 	bnx2x_release_phy_lock(bp);
 }
 
+static void bnx2x_config_endianity(struct bnx2x *bp, u32 val)
+{
+	REG_WR(bp, PXP2_REG_RQ_QM_ENDIAN_M, val);
+	REG_WR(bp, PXP2_REG_RQ_TM_ENDIAN_M, val);
+	REG_WR(bp, PXP2_REG_RQ_SRC_ENDIAN_M, val);
+	REG_WR(bp, PXP2_REG_RQ_CDU_ENDIAN_M, val);
+	REG_WR(bp, PXP2_REG_RQ_DBG_ENDIAN_M, val);
+
+	/* make sure this value is 0 */
+	REG_WR(bp, PXP2_REG_RQ_HC_ENDIAN_M, 0);
+
+	REG_WR(bp, PXP2_REG_RD_QM_SWAP_MODE, val);
+	REG_WR(bp, PXP2_REG_RD_TM_SWAP_MODE, val);
+	REG_WR(bp, PXP2_REG_RD_SRC_SWAP_MODE, val);
+	REG_WR(bp, PXP2_REG_RD_CDURD_SWAP_MODE, val);
+}
+
+static void bnx2x_set_endianity(struct bnx2x *bp)
+{
+#ifdef __BIG_ENDIAN
+	bnx2x_config_endianity(bp, 1);
+#else
+	bnx2x_config_endianity(bp, 0);
+#endif
+}
+
+static void bnx2x_reset_endianity(struct bnx2x *bp)
+{
+	bnx2x_config_endianity(bp, 0);
+}
+
 /**
  * bnx2x_init_hw_common - initialize the HW at the COMMON phase.
  *
@@ -5997,7 +6892,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	DP(NETIF_MSG_HW, "starting common init  func %d\n", BP_ABS_FUNC(bp));
 
 	/*
-	 * take the UNDI lock to protect undi_unload flow from accessing
+	 * take the RESET lock to protect undi_unload flow from accessing
 	 * registers while we're resetting the chip
 	 */
 	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
@@ -6051,23 +6946,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_PXP2, PHASE_COMMON);
 	bnx2x_init_pxp(bp);
-
-#ifdef __BIG_ENDIAN
-	REG_WR(bp, PXP2_REG_RQ_QM_ENDIAN_M, 1);
-	REG_WR(bp, PXP2_REG_RQ_TM_ENDIAN_M, 1);
-	REG_WR(bp, PXP2_REG_RQ_SRC_ENDIAN_M, 1);
-	REG_WR(bp, PXP2_REG_RQ_CDU_ENDIAN_M, 1);
-	REG_WR(bp, PXP2_REG_RQ_DBG_ENDIAN_M, 1);
-	/* make sure this value is 0 */
-	REG_WR(bp, PXP2_REG_RQ_HC_ENDIAN_M, 0);
-
-/*	REG_WR(bp, PXP2_REG_RD_PBF_SWAP_MODE, 1); */
-	REG_WR(bp, PXP2_REG_RD_QM_SWAP_MODE, 1);
-	REG_WR(bp, PXP2_REG_RD_TM_SWAP_MODE, 1);
-	REG_WR(bp, PXP2_REG_RD_SRC_SWAP_MODE, 1);
-	REG_WR(bp, PXP2_REG_RD_CDURD_SWAP_MODE, 1);
-#endif
-
+	bnx2x_set_endianity(bp);
 	bnx2x_ilt_init_page_size(bp, INITOP_SET);
 
 	if (CHIP_REV_IS_FPGA(bp) && CHIP_IS_E1H(bp))
@@ -6127,7 +7006,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
  *		    queues with "old" ILT addresses.
  *		c.  PF enable in the PGLC.
  *		d.  Clear the was_error of the PF in the PGLC. (could have
- *		    occured while driver was down)
+ *		    occurred while driver was down)
  *		e.  PF enable in the CFC (WEAK + STRONG)
  *		f.  Timers scan enable
  *	3.  PF driver unload flow:
@@ -6139,7 +7018,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
  *		    stay set)
  *		f.  If this is VNIC 3 of a port then also init
  *		    first_timers_ilt_entry to zero and last_timers_ilt_entry
- *		    to the last enrty in the ILT.
+ *		    to the last entry in the ILT.
  *
  *	Notes:
  *	Currently the PF error in the PGLC is non recoverable.
@@ -6168,7 +7047,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 		/* Step 1: set zeroes to all ilt page entries with valid bit on
 		 * Step 2: set the timers first/last ilt entry to point
 		 * to the entire range to prevent ILT range error for 3rd/4th
-		 * vnic	(this code assumes existance of the vnic)
+		 * vnic	(this code assumes existence of the vnic)
 		 *
 		 * both steps performed by call to bnx2x_ilt_client_init_op()
 		 * with dummy TM client
@@ -6184,7 +7063,6 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 		REG_WR(bp, PXP2_REG_RQ_DRAM_ALIGN_RD, BNX2X_PXP_DRAM_ALIGN);
 		REG_WR(bp, PXP2_REG_RQ_DRAM_ALIGN_SEL, 1);
 	}
-
 
 	REG_WR(bp, PXP2_REG_RQ_DISABLE_INPUTS, 0);
 	REG_WR(bp, PXP2_REG_RD_DISABLE_INPUTS, 0);
@@ -6210,6 +7088,8 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_DMAE, PHASE_COMMON);
 
+	bnx2x_iov_init_dmae(bp);
+
 	/* clean the DMAE memory */
 	bp->dmae_ready = 1;
 	bnx2x_init_fill(bp, TSEM_REG_PRAM, 0, 8, 1);
@@ -6229,7 +7109,6 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_QM, PHASE_COMMON);
 
-
 	/* QM queues pointers table */
 	bnx2x_qm_init_ptr_table(bp, bp->qm_cid_count, INITOP_SET);
 
@@ -6237,12 +7116,11 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	REG_WR(bp, QM_REG_SOFT_RESET, 1);
 	REG_WR(bp, QM_REG_SOFT_RESET, 0);
 
-#ifdef BCM_CNIC
-	bnx2x_init_block(bp, BLOCK_TM, PHASE_COMMON);
-#endif
+	if (CNIC_SUPPORT(bp))
+		bnx2x_init_block(bp, BLOCK_TM, PHASE_COMMON);
 
 	bnx2x_init_block(bp, BLOCK_DORQ, PHASE_COMMON);
-	REG_WR(bp, DORQ_REG_DPM_CID_OFST, BNX2X_DB_SHIFT);
+
 	if (!CHIP_REV_IS_SLOW(bp))
 		/* enable hw interrupt from doorbell Q */
 		REG_WR(bp, DORQ_REG_DORQ_INT_MASK, 0);
@@ -6255,12 +7133,24 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	if (!CHIP_IS_E1(bp))
 		REG_WR(bp, PRS_REG_E1HOV_MODE, bp->path_has_ovlan);
 
-	if (!CHIP_IS_E1x(bp) && !CHIP_IS_E3B0(bp))
-		/* Bit-map indicating which L2 hdrs may appear
-		 * after the basic Ethernet header
-		 */
-		REG_WR(bp, PRS_REG_HDRS_AFTER_BASIC,
-		       bp->path_has_ovlan ? 7 : 6);
+	if (!CHIP_IS_E1x(bp) && !CHIP_IS_E3B0(bp)) {
+		if (IS_MF_AFEX(bp)) {
+			/* configure that VNTag and VLAN headers must be
+			 * received in afex mode
+			 */
+			REG_WR(bp, PRS_REG_HDRS_AFTER_BASIC, 0xE);
+			REG_WR(bp, PRS_REG_MUST_HAVE_HDRS, 0xA);
+			REG_WR(bp, PRS_REG_HDRS_AFTER_TAG_0, 0x6);
+			REG_WR(bp, PRS_REG_TAG_ETHERTYPE_0, 0x8926);
+			REG_WR(bp, PRS_REG_TAG_LEN_0, 0x4);
+		} else {
+			/* Bit-map indicating which L2 hdrs may appear
+			 * after the basic Ethernet header
+			 */
+			REG_WR(bp, PRS_REG_HDRS_AFTER_BASIC,
+			       bp->path_has_ovlan ? 7 : 6);
+		}
+	}
 
 	bnx2x_init_block(bp, BLOCK_TSDM, PHASE_COMMON);
 	bnx2x_init_block(bp, BLOCK_CSDM, PHASE_COMMON);
@@ -6294,26 +7184,38 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	bnx2x_init_block(bp, BLOCK_XPB, PHASE_COMMON);
 	bnx2x_init_block(bp, BLOCK_PBF, PHASE_COMMON);
 
-	if (!CHIP_IS_E1x(bp))
-		REG_WR(bp, PBF_REG_HDRS_AFTER_BASIC,
-		       bp->path_has_ovlan ? 7 : 6);
+	if (!CHIP_IS_E1x(bp)) {
+		if (IS_MF_AFEX(bp)) {
+			/* configure that VNTag and VLAN headers must be
+			 * sent in afex mode
+			 */
+			REG_WR(bp, PBF_REG_HDRS_AFTER_BASIC, 0xE);
+			REG_WR(bp, PBF_REG_MUST_HAVE_HDRS, 0xA);
+			REG_WR(bp, PBF_REG_HDRS_AFTER_TAG_0, 0x6);
+			REG_WR(bp, PBF_REG_TAG_ETHERTYPE_0, 0x8926);
+			REG_WR(bp, PBF_REG_TAG_LEN_0, 0x4);
+		} else {
+			REG_WR(bp, PBF_REG_HDRS_AFTER_BASIC,
+			       bp->path_has_ovlan ? 7 : 6);
+		}
+	}
 
 	REG_WR(bp, SRC_REG_SOFT_RST, 1);
 
 	bnx2x_init_block(bp, BLOCK_SRC, PHASE_COMMON);
 
-#ifdef BCM_CNIC
-	REG_WR(bp, SRC_REG_KEYSEARCH_0, 0x63285672);
-	REG_WR(bp, SRC_REG_KEYSEARCH_1, 0x24b8f2cc);
-	REG_WR(bp, SRC_REG_KEYSEARCH_2, 0x223aef9b);
-	REG_WR(bp, SRC_REG_KEYSEARCH_3, 0x26001e3a);
-	REG_WR(bp, SRC_REG_KEYSEARCH_4, 0x7ae91116);
-	REG_WR(bp, SRC_REG_KEYSEARCH_5, 0x5ce5230b);
-	REG_WR(bp, SRC_REG_KEYSEARCH_6, 0x298d8adf);
-	REG_WR(bp, SRC_REG_KEYSEARCH_7, 0x6eb0ff09);
-	REG_WR(bp, SRC_REG_KEYSEARCH_8, 0x1830f82f);
-	REG_WR(bp, SRC_REG_KEYSEARCH_9, 0x01e46be7);
-#endif
+	if (CNIC_SUPPORT(bp)) {
+		REG_WR(bp, SRC_REG_KEYSEARCH_0, 0x63285672);
+		REG_WR(bp, SRC_REG_KEYSEARCH_1, 0x24b8f2cc);
+		REG_WR(bp, SRC_REG_KEYSEARCH_2, 0x223aef9b);
+		REG_WR(bp, SRC_REG_KEYSEARCH_3, 0x26001e3a);
+		REG_WR(bp, SRC_REG_KEYSEARCH_4, 0x7ae91116);
+		REG_WR(bp, SRC_REG_KEYSEARCH_5, 0x5ce5230b);
+		REG_WR(bp, SRC_REG_KEYSEARCH_6, 0x298d8adf);
+		REG_WR(bp, SRC_REG_KEYSEARCH_7, 0x6eb0ff09);
+		REG_WR(bp, SRC_REG_KEYSEARCH_8, 0x1830f82f);
+		REG_WR(bp, SRC_REG_KEYSEARCH_9, 0x01e46be7);
+	}
 	REG_WR(bp, SRC_REG_SOFT_RST, 0);
 
 	if (sizeof(union cdu_context) != 1024)
@@ -6445,9 +7347,7 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 	int init_phase = port ? PHASE_PORT1 : PHASE_PORT0;
 	u32 low, high;
-	u32 val;
-
-	bnx2x__link_reset(bp);
+	u32 val, reg;
 
 	DP(NETIF_MSG_HW, "starting port init  port %d\n", port);
 
@@ -6478,16 +7378,17 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 	/* QM cid (connection) count */
 	bnx2x_qm_init_cid_count(bp, bp->qm_cid_count, INITOP_SET);
 
-#ifdef BCM_CNIC
-	bnx2x_init_block(bp, BLOCK_TM, init_phase);
-	REG_WR(bp, TM_REG_LIN0_SCAN_TIME + port*4, 20);
-	REG_WR(bp, TM_REG_LIN0_MAX_ACTIVE_CID + port*4, 31);
-#endif
+	if (CNIC_SUPPORT(bp)) {
+		bnx2x_init_block(bp, BLOCK_TM, init_phase);
+		REG_WR(bp, TM_REG_LIN0_SCAN_TIME + port*4, 20);
+		REG_WR(bp, TM_REG_LIN0_MAX_ACTIVE_CID + port*4, 31);
+	}
 
 	bnx2x_init_block(bp, BLOCK_DORQ, init_phase);
 
+	bnx2x_init_block(bp, BLOCK_BRB1, init_phase);
+
 	if (CHIP_IS_E1(bp) || CHIP_IS_E1H(bp)) {
-		bnx2x_init_block(bp, BLOCK_BRB1, init_phase);
 
 		if (IS_MF(bp))
 			low = ((bp->flags & ONE_PORT_FLAG) ? 160 : 246);
@@ -6512,17 +7413,30 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 			    BRB1_REG_MAC_GUARANTIED_1 :
 			    BRB1_REG_MAC_GUARANTIED_0), 40);
 
-
 	bnx2x_init_block(bp, BLOCK_PRS, init_phase);
-	if (CHIP_IS_E3B0(bp))
-		/* Ovlan exists only if we are in multi-function +
-		 * switch-dependent mode, in switch-independent there
-		 * is no ovlan headers
-		 */
-		REG_WR(bp, BP_PORT(bp) ?
-		       PRS_REG_HDRS_AFTER_BASIC_PORT_1 :
-		       PRS_REG_HDRS_AFTER_BASIC_PORT_0,
-		       (bp->path_has_ovlan ? 7 : 6));
+	if (CHIP_IS_E3B0(bp)) {
+		if (IS_MF_AFEX(bp)) {
+			/* configure headers for AFEX mode */
+			REG_WR(bp, BP_PORT(bp) ?
+			       PRS_REG_HDRS_AFTER_BASIC_PORT_1 :
+			       PRS_REG_HDRS_AFTER_BASIC_PORT_0, 0xE);
+			REG_WR(bp, BP_PORT(bp) ?
+			       PRS_REG_HDRS_AFTER_TAG_0_PORT_1 :
+			       PRS_REG_HDRS_AFTER_TAG_0_PORT_0, 0x6);
+			REG_WR(bp, BP_PORT(bp) ?
+			       PRS_REG_MUST_HAVE_HDRS_PORT_1 :
+			       PRS_REG_MUST_HAVE_HDRS_PORT_0, 0xA);
+		} else {
+			/* Ovlan exists only if we are in multi-function +
+			 * switch-dependent mode, in switch-independent there
+			 * is no ovlan headers
+			 */
+			REG_WR(bp, BP_PORT(bp) ?
+			       PRS_REG_HDRS_AFTER_BASIC_PORT_1 :
+			       PRS_REG_HDRS_AFTER_BASIC_PORT_0,
+			       (bp->path_has_ovlan ? 7 : 6));
+		}
+	}
 
 	bnx2x_init_block(bp, BLOCK_TSDM, init_phase);
 	bnx2x_init_block(bp, BLOCK_CSDM, init_phase);
@@ -6554,9 +7468,9 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 		REG_WR(bp, PBF_REG_INIT_P0 + port*4, 0);
 	}
 
-#ifdef BCM_CNIC
-	bnx2x_init_block(bp, BLOCK_SRC, init_phase);
-#endif
+	if (CNIC_SUPPORT(bp))
+		bnx2x_init_block(bp, BLOCK_SRC, init_phase);
+
 	bnx2x_init_block(bp, BLOCK_CDU, init_phase);
 	bnx2x_init_block(bp, BLOCK_CFC, init_phase);
 
@@ -6570,13 +7484,24 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_MISC_AEU, init_phase);
 	/* init aeu_mask_attn_func_0/1:
-	 *  - SF mode: bits 3-7 are masked. only bits 0-2 are in use
-	 *  - MF mode: bit 3 is masked. bits 0-2 are in use as in SF
+	 *  - SF mode: bits 3-7 are masked. Only bits 0-2 are in use
+	 *  - MF mode: bit 3 is masked. Bits 0-2 are in use as in SF
 	 *             bits 4-7 are used for "per vn group attention" */
 	val = IS_MF(bp) ? 0xF7 : 0x7;
 	/* Enable DCBX attention for all but E1 */
 	val |= CHIP_IS_E1(bp) ? 0 : 0x10;
 	REG_WR(bp, MISC_REG_AEU_MASK_ATTN_FUNC_0 + port*4, val);
+
+	/* SCPAD_PARITY should NOT trigger close the gates */
+	reg = port ? MISC_REG_AEU_ENABLE4_NIG_1 : MISC_REG_AEU_ENABLE4_NIG_0;
+	REG_WR(bp, reg,
+	       REG_RD(bp, reg) &
+	       ~AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY);
+
+	reg = port ? MISC_REG_AEU_ENABLE4_PXP_1 : MISC_REG_AEU_ENABLE4_PXP_0;
+	REG_WR(bp, reg,
+	       REG_RD(bp, reg) &
+	       ~AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY);
 
 	bnx2x_init_block(bp, BLOCK_NIG, init_phase);
 
@@ -6584,10 +7509,15 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 		/* Bit-map indicating which L2 hdrs may appear after the
 		 * basic Ethernet header
 		 */
-		REG_WR(bp, BP_PORT(bp) ?
-			   NIG_REG_P1_HDRS_AFTER_BASIC :
-			   NIG_REG_P0_HDRS_AFTER_BASIC,
-			   IS_MF_SD(bp) ? 7 : 6);
+		if (IS_MF_AFEX(bp))
+			REG_WR(bp, BP_PORT(bp) ?
+			       NIG_REG_P1_HDRS_AFTER_BASIC :
+			       NIG_REG_P0_HDRS_AFTER_BASIC, 0xE);
+		else
+			REG_WR(bp, BP_PORT(bp) ?
+			       NIG_REG_P1_HDRS_AFTER_BASIC :
+			       NIG_REG_P0_HDRS_AFTER_BASIC,
+			       IS_MF_SD(bp) ? 7 : 6);
 
 		if (CHIP_IS_E3(bp))
 			REG_WR(bp, BP_PORT(bp) ?
@@ -6609,6 +7539,7 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 				val = 1;
 				break;
 			case MULTI_FUNCTION_SI:
+			case MULTI_FUNCTION_AFEX:
 				val = 2;
 				break;
 			}
@@ -6623,10 +7554,9 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 		}
 	}
 
-
 	/* If SPIO5 is set to generate interrupts, enable it for this port */
 	val = REG_RD(bp, MISC_REG_SPIO_EVENT_EN);
-	if (val & (1 << MISC_REGISTERS_SPIO_5)) {
+	if (val & MISC_SPIO_SPIO5) {
 		u32 reg_addr = (port ? MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0 :
 				       MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0);
 		val = REG_RD(bp, reg_addr);
@@ -6640,25 +7570,195 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 static void bnx2x_ilt_wr(struct bnx2x *bp, u32 index, dma_addr_t addr)
 {
 	int reg;
+	u32 wb_write[2];
 
 	if (CHIP_IS_E1(bp))
 		reg = PXP2_REG_RQ_ONCHIP_AT + index*8;
 	else
 		reg = PXP2_REG_RQ_ONCHIP_AT_B0 + index*8;
 
-	bnx2x_wb_wr(bp, reg, ONCHIP_ADDR1(addr), ONCHIP_ADDR2(addr));
+	wb_write[0] = ONCHIP_ADDR1(addr);
+	wb_write[1] = ONCHIP_ADDR2(addr);
+	REG_WR_DMAE(bp, reg, wb_write, 2);
 }
 
-static inline void bnx2x_igu_clear_sb(struct bnx2x *bp, u8 idu_sb_id)
+void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id, bool is_pf)
+{
+	u32 data, ctl, cnt = 100;
+	u32 igu_addr_data = IGU_REG_COMMAND_REG_32LSB_DATA;
+	u32 igu_addr_ctl = IGU_REG_COMMAND_REG_CTRL;
+	u32 igu_addr_ack = IGU_REG_CSTORM_TYPE_0_SB_CLEANUP + (idu_sb_id/32)*4;
+	u32 sb_bit =  1 << (idu_sb_id%32);
+	u32 func_encode = func | (is_pf ? 1 : 0) << IGU_FID_ENCODE_IS_PF_SHIFT;
+	u32 addr_encode = IGU_CMD_E2_PROD_UPD_BASE + idu_sb_id;
+
+	/* Not supported in BC mode */
+	if (CHIP_INT_MODE_IS_BC(bp))
+		return;
+
+	data = (IGU_USE_REGISTER_cstorm_type_0_sb_cleanup
+			<< IGU_REGULAR_CLEANUP_TYPE_SHIFT)	|
+		IGU_REGULAR_CLEANUP_SET				|
+		IGU_REGULAR_BCLEANUP;
+
+	ctl = addr_encode << IGU_CTRL_REG_ADDRESS_SHIFT		|
+	      func_encode << IGU_CTRL_REG_FID_SHIFT		|
+	      IGU_CTRL_CMD_TYPE_WR << IGU_CTRL_REG_TYPE_SHIFT;
+
+	DP(NETIF_MSG_HW, "write 0x%08x to IGU(via GRC) addr 0x%x\n",
+			 data, igu_addr_data);
+	REG_WR(bp, igu_addr_data, data);
+	mmiowb();
+	barrier();
+	DP(NETIF_MSG_HW, "write 0x%08x to IGU(via GRC) addr 0x%x\n",
+			  ctl, igu_addr_ctl);
+	REG_WR(bp, igu_addr_ctl, ctl);
+	mmiowb();
+	barrier();
+
+	/* wait for clean up to finish */
+	while (!(REG_RD(bp, igu_addr_ack) & sb_bit) && --cnt)
+		msleep(20);
+
+	if (!(REG_RD(bp, igu_addr_ack) & sb_bit)) {
+		DP(NETIF_MSG_HW,
+		   "Unable to finish IGU cleanup: idu_sb_id %d offset %d bit %d (cnt %d)\n",
+			  idu_sb_id, idu_sb_id/32, idu_sb_id%32, cnt);
+	}
+}
+
+static void bnx2x_igu_clear_sb(struct bnx2x *bp, u8 idu_sb_id)
 {
 	bnx2x_igu_clear_sb_gen(bp, BP_FUNC(bp), idu_sb_id, true /*PF*/);
 }
 
-static inline void bnx2x_clear_func_ilt(struct bnx2x *bp, u32 func)
+static void bnx2x_clear_func_ilt(struct bnx2x *bp, u32 func)
 {
 	u32 i, base = FUNC_ILT_BASE(func);
 	for (i = base; i < base + ILT_PER_FUNC; i++)
 		bnx2x_ilt_wr(bp, i, 0);
+}
+
+static void bnx2x_init_searcher(struct bnx2x *bp)
+{
+	int port = BP_PORT(bp);
+	bnx2x_src_init_t2(bp, bp->t2, bp->t2_mapping, SRC_CONN_NUM);
+	/* T1 hash bits value determines the T1 number of entries */
+	REG_WR(bp, SRC_REG_NUMBER_HASH_BITS0 + port*4, SRC_HASH_BITS);
+}
+
+static inline int bnx2x_func_switch_update(struct bnx2x *bp, int suspend)
+{
+	int rc;
+	struct bnx2x_func_state_params func_params = {NULL};
+	struct bnx2x_func_switch_update_params *switch_update_params =
+		&func_params.params.switch_update;
+
+	/* Prepare parameters for function state transitions */
+	__set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
+	__set_bit(RAMROD_RETRY, &func_params.ramrod_flags);
+
+	func_params.f_obj = &bp->func_obj;
+	func_params.cmd = BNX2X_F_CMD_SWITCH_UPDATE;
+
+	/* Function parameters */
+	switch_update_params->suspend = suspend;
+
+	rc = bnx2x_func_state_change(bp, &func_params);
+
+	return rc;
+}
+
+static int bnx2x_reset_nic_mode(struct bnx2x *bp)
+{
+	int rc, i, port = BP_PORT(bp);
+	int vlan_en = 0, mac_en[NUM_MACS];
+
+	/* Close input from network */
+	if (bp->mf_mode == SINGLE_FUNCTION) {
+		bnx2x_set_rx_filter(&bp->link_params, 0);
+	} else {
+		vlan_en = REG_RD(bp, port ? NIG_REG_LLH1_FUNC_EN :
+				   NIG_REG_LLH0_FUNC_EN);
+		REG_WR(bp, port ? NIG_REG_LLH1_FUNC_EN :
+			  NIG_REG_LLH0_FUNC_EN, 0);
+		for (i = 0; i < NUM_MACS; i++) {
+			mac_en[i] = REG_RD(bp, port ?
+					     (NIG_REG_LLH1_FUNC_MEM_ENABLE +
+					      4 * i) :
+					     (NIG_REG_LLH0_FUNC_MEM_ENABLE +
+					      4 * i));
+			REG_WR(bp, port ? (NIG_REG_LLH1_FUNC_MEM_ENABLE +
+					      4 * i) :
+				  (NIG_REG_LLH0_FUNC_MEM_ENABLE + 4 * i), 0);
+		}
+	}
+
+	/* Close BMC to host */
+	REG_WR(bp, port ? NIG_REG_P0_TX_MNG_HOST_ENABLE :
+	       NIG_REG_P1_TX_MNG_HOST_ENABLE, 0);
+
+	/* Suspend Tx switching to the PF. Completion of this ramrod
+	 * further guarantees that all the packets of that PF / child
+	 * VFs in BRB were processed by the Parser, so it is safe to
+	 * change the NIC_MODE register.
+	 */
+	rc = bnx2x_func_switch_update(bp, 1);
+	if (rc) {
+		BNX2X_ERR("Can't suspend tx-switching!\n");
+		return rc;
+	}
+
+	/* Change NIC_MODE register */
+	REG_WR(bp, PRS_REG_NIC_MODE, 0);
+
+	/* Open input from network */
+	if (bp->mf_mode == SINGLE_FUNCTION) {
+		bnx2x_set_rx_filter(&bp->link_params, 1);
+	} else {
+		REG_WR(bp, port ? NIG_REG_LLH1_FUNC_EN :
+			  NIG_REG_LLH0_FUNC_EN, vlan_en);
+		for (i = 0; i < NUM_MACS; i++) {
+			REG_WR(bp, port ? (NIG_REG_LLH1_FUNC_MEM_ENABLE +
+					      4 * i) :
+				  (NIG_REG_LLH0_FUNC_MEM_ENABLE + 4 * i),
+				  mac_en[i]);
+		}
+	}
+
+	/* Enable BMC to host */
+	REG_WR(bp, port ? NIG_REG_P0_TX_MNG_HOST_ENABLE :
+	       NIG_REG_P1_TX_MNG_HOST_ENABLE, 1);
+
+	/* Resume Tx switching to the PF */
+	rc = bnx2x_func_switch_update(bp, 0);
+	if (rc) {
+		BNX2X_ERR("Can't resume tx-switching!\n");
+		return rc;
+	}
+
+	DP(NETIF_MSG_IFUP, "NIC MODE disabled\n");
+	return 0;
+}
+
+int bnx2x_init_hw_func_cnic(struct bnx2x *bp)
+{
+	int rc;
+
+	bnx2x_ilt_init_op_cnic(bp, INITOP_SET);
+
+	if (CONFIGURE_NIC_MODE(bp)) {
+		/* Configure searcher as part of function hw init */
+		bnx2x_init_searcher(bp);
+
+		/* Reset NIC mode */
+		rc = bnx2x_reset_nic_mode(bp);
+		if (rc)
+			BNX2X_ERR("Can't change NIC mode!\n");
+		return rc;
+	}
+
+	return 0;
 }
 
 static int bnx2x_init_hw_func(struct bnx2x *bp)
@@ -6677,8 +7777,10 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 	/* FLR cleanup - hmmm */
 	if (!CHIP_IS_E1x(bp)) {
 		rc = bnx2x_pf_flr_clnup(bp);
-		if (rc)
+		if (rc) {
+			bnx2x_fw_dump(bp);
 			return rc;
+		}
 	}
 
 	/* set MSI reconfigure capability */
@@ -6695,27 +7797,32 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 	ilt = BP_ILT(bp);
 	cdu_ilt_start = ilt->clients[ILT_CLIENT_CDU].start;
 
+	if (IS_SRIOV(bp))
+		cdu_ilt_start += BNX2X_FIRST_VF_CID/ILT_PAGE_CIDS;
+	cdu_ilt_start = bnx2x_iov_init_ilt(bp, cdu_ilt_start);
+
+	/* since BNX2X_FIRST_VF_CID > 0 the PF L2 cids precedes
+	 * those of the VFs, so start line should be reset
+	 */
+	cdu_ilt_start = ilt->clients[ILT_CLIENT_CDU].start;
 	for (i = 0; i < L2_ILT_LINES(bp); i++) {
-		ilt->lines[cdu_ilt_start + i].page =
-			bp->context.vcxt + (ILT_PAGE_CIDS * i);
+		ilt->lines[cdu_ilt_start + i].page = bp->context[i].vcxt;
 		ilt->lines[cdu_ilt_start + i].page_mapping =
-			bp->context.cxt_mapping + (CDU_ILT_PAGE_SZ * i);
-		/* cdu ilt pages are allocated manually so there's no need to
-		set the size */
+			bp->context[i].cxt_mapping;
+		ilt->lines[cdu_ilt_start + i].size = bp->context[i].size;
 	}
+
 	bnx2x_ilt_init_op(bp, INITOP_SET);
 
-#ifdef BCM_CNIC
-	bnx2x_src_init_t2(bp, bp->t2, bp->t2_mapping, SRC_CONN_NUM);
-
-	/* T1 hash bits value determines the T1 number of entries */
-	REG_WR(bp, SRC_REG_NUMBER_HASH_BITS0 + port*4, SRC_HASH_BITS);
-#endif
-
-#ifndef BCM_CNIC
-	/* set NIC mode */
-	REG_WR(bp, PRS_REG_NIC_MODE, 1);
-#endif  /* BCM_CNIC */
+	if (!CONFIGURE_NIC_MODE(bp)) {
+		bnx2x_init_searcher(bp);
+		REG_WR(bp, PRS_REG_NIC_MODE, 0);
+		DP(NETIF_MSG_IFUP, "NIC MODE disabled\n");
+	} else {
+		/* Set NIC mode */
+		REG_WR(bp, PRS_REG_NIC_MODE, 1);
+		DP(NETIF_MSG_IFUP, "NIC MODE configured\n");
+	}
 
 	if (!CHIP_IS_E1x(bp)) {
 		u32 pf_conf = IGU_PF_CONF_FUNC_EN;
@@ -6776,6 +7883,10 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_TM, init_phase);
 	bnx2x_init_block(bp, BLOCK_DORQ, init_phase);
+	REG_WR(bp, DORQ_REG_MODE_ACT, 1); /* no dpm */
+
+	bnx2x_iov_init_dq(bp);
+
 	bnx2x_init_block(bp, BLOCK_BRB1, init_phase);
 	bnx2x_init_block(bp, BLOCK_PRS, init_phase);
 	bnx2x_init_block(bp, BLOCK_TSDM, init_phase);
@@ -6908,7 +8019,7 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 			}
 			bnx2x_igu_clear_sb(bp, bp->igu_dsb_id);
 
-			/* !!! these should become driver const once
+			/* !!! These should become driver const once
 			   rf-tool supports split-68 const */
 			REG_WR(bp, IGU_REG_SB_INT_BEFORE_MASK_LSB, 0);
 			REG_WR(bp, IGU_REG_SB_INT_BEFORE_MASK_MSB, 0);
@@ -6965,30 +8076,10 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 	return 0;
 }
 
-
-void bnx2x_free_mem(struct bnx2x *bp)
+void bnx2x_free_mem_cnic(struct bnx2x *bp)
 {
-	/* fastpath */
-	bnx2x_free_fp_mem(bp);
-	/* end of fastpath */
+	bnx2x_ilt_mem_op_cnic(bp, ILT_MEMOP_FREE);
 
-	BNX2X_PCI_FREE(bp->def_status_blk, bp->def_status_blk_mapping,
-		       sizeof(struct host_sp_status_block));
-
-	BNX2X_PCI_FREE(bp->fw_stats, bp->fw_stats_mapping,
-		       bp->fw_stats_data_sz + bp->fw_stats_req_sz);
-
-	BNX2X_PCI_FREE(bp->slowpath, bp->slowpath_mapping,
-		       sizeof(struct bnx2x_slowpath));
-
-	BNX2X_PCI_FREE(bp->context.vcxt, bp->context.cxt_mapping,
-		       bp->context.size);
-
-	bnx2x_ilt_mem_op(bp, ILT_MEMOP_FREE);
-
-	BNX2X_FREE(bp->ilt->lines);
-
-#ifdef BCM_CNIC
 	if (!CHIP_IS_E1x(bp))
 		BNX2X_PCI_FREE(bp->cnic_sb.e2_sb, bp->cnic_sb_mapping,
 			       sizeof(struct host_hc_status_block_e2));
@@ -6997,131 +8088,145 @@ void bnx2x_free_mem(struct bnx2x *bp)
 			       sizeof(struct host_hc_status_block_e1x));
 
 	BNX2X_PCI_FREE(bp->t2, bp->t2_mapping, SRC_T2_SZ);
-#endif
+}
+
+void bnx2x_free_mem(struct bnx2x *bp)
+{
+	int i;
+
+	BNX2X_PCI_FREE(bp->fw_stats, bp->fw_stats_mapping,
+		       bp->fw_stats_data_sz + bp->fw_stats_req_sz);
+
+	if (IS_VF(bp))
+		return;
+
+	BNX2X_PCI_FREE(bp->def_status_blk, bp->def_status_blk_mapping,
+		       sizeof(struct host_sp_status_block));
+
+	BNX2X_PCI_FREE(bp->slowpath, bp->slowpath_mapping,
+		       sizeof(struct bnx2x_slowpath));
+
+	for (i = 0; i < L2_ILT_LINES(bp); i++)
+		BNX2X_PCI_FREE(bp->context[i].vcxt, bp->context[i].cxt_mapping,
+			       bp->context[i].size);
+	bnx2x_ilt_mem_op(bp, ILT_MEMOP_FREE);
+
+	BNX2X_FREE(bp->ilt->lines);
 
 	BNX2X_PCI_FREE(bp->spq, bp->spq_mapping, BCM_PAGE_SIZE);
 
 	BNX2X_PCI_FREE(bp->eq_ring, bp->eq_mapping,
 		       BCM_PAGE_SIZE * NUM_EQ_PAGES);
+
+	BNX2X_PCI_FREE(bp->t2, bp->t2_mapping, SRC_T2_SZ);
+
+	bnx2x_iov_free_mem(bp);
 }
 
-static inline int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
+int bnx2x_alloc_mem_cnic(struct bnx2x *bp)
 {
-	int num_groups;
-	int is_fcoe_stats = NO_FCOE(bp) ? 0 : 1;
+	if (!CHIP_IS_E1x(bp)) {
+		/* size = the status block + ramrod buffers */
+		bp->cnic_sb.e2_sb = BNX2X_PCI_ALLOC(&bp->cnic_sb_mapping,
+						    sizeof(struct host_hc_status_block_e2));
+		if (!bp->cnic_sb.e2_sb)
+			goto alloc_mem_err;
+	} else {
+		bp->cnic_sb.e1x_sb = BNX2X_PCI_ALLOC(&bp->cnic_sb_mapping,
+						     sizeof(struct host_hc_status_block_e1x));
+		if (!bp->cnic_sb.e1x_sb)
+			goto alloc_mem_err;
+	}
 
-	/* number of queues for statistics is number of eth queues + FCoE */
-	u8 num_queue_stats = BNX2X_NUM_ETH_QUEUES(bp) + is_fcoe_stats;
+	if (CONFIGURE_NIC_MODE(bp) && !bp->t2) {
+		/* allocate searcher T2 table, as it wasn't allocated before */
+		bp->t2 = BNX2X_PCI_ALLOC(&bp->t2_mapping, SRC_T2_SZ);
+		if (!bp->t2)
+			goto alloc_mem_err;
+	}
 
-	/* Total number of FW statistics requests =
-	 * 1 for port stats + 1 for PF stats + potential 1 for FCoE stats +
-	 * num of queues
-	 */
-	bp->fw_stats_num = 2 + is_fcoe_stats + num_queue_stats;
+	/* write address to which L5 should insert its values */
+	bp->cnic_eth_dev.addr_drv_info_to_mcp =
+		&bp->slowpath->drv_info_to_mcp;
 
+	if (bnx2x_ilt_mem_op_cnic(bp, ILT_MEMOP_ALLOC))
+		goto alloc_mem_err;
 
-	/* Request is built from stats_query_header and an array of
-	 * stats_query_cmd_group each of which contains
-	 * STATS_QUERY_CMD_COUNT rules. The real number or requests is
-	 * configured in the stats_query_header.
-	 */
-	num_groups = ((bp->fw_stats_num) / STATS_QUERY_CMD_COUNT) +
-		     (((bp->fw_stats_num) % STATS_QUERY_CMD_COUNT) ? 1 : 0);
-
-	bp->fw_stats_req_sz = sizeof(struct stats_query_header) +
-			num_groups * sizeof(struct stats_query_cmd_group);
-
-	/* Data for statistics requests + stats_conter
-	 *
-	 * stats_counter holds per-STORM counters that are incremented
-	 * when STORM has finished with the current request.
-	 *
-	 * memory for FCoE offloaded statistics are counted anyway,
-	 * even if they will not be sent.
-	 */
-	bp->fw_stats_data_sz = sizeof(struct per_port_stats) +
-		sizeof(struct per_pf_stats) +
-		sizeof(struct fcoe_statistics_params) +
-		sizeof(struct per_queue_stats) * num_queue_stats +
-		sizeof(struct stats_counter);
-
-	BNX2X_PCI_ALLOC(bp->fw_stats, &bp->fw_stats_mapping,
-			bp->fw_stats_data_sz + bp->fw_stats_req_sz);
-
-	/* Set shortcuts */
-	bp->fw_stats_req = (struct bnx2x_fw_stats_req *)bp->fw_stats;
-	bp->fw_stats_req_mapping = bp->fw_stats_mapping;
-
-	bp->fw_stats_data = (struct bnx2x_fw_stats_data *)
-		((u8 *)bp->fw_stats + bp->fw_stats_req_sz);
-
-	bp->fw_stats_data_mapping = bp->fw_stats_mapping +
-				   bp->fw_stats_req_sz;
 	return 0;
 
 alloc_mem_err:
-	BNX2X_PCI_FREE(bp->fw_stats, bp->fw_stats_mapping,
-		       bp->fw_stats_data_sz + bp->fw_stats_req_sz);
+	bnx2x_free_mem_cnic(bp);
 	BNX2X_ERR("Can't allocate memory\n");
 	return -ENOMEM;
 }
 
-
 int bnx2x_alloc_mem(struct bnx2x *bp)
 {
-#ifdef BCM_CNIC
-	if (!CHIP_IS_E1x(bp))
-		/* size = the status block + ramrod buffers */
-		BNX2X_PCI_ALLOC(bp->cnic_sb.e2_sb, &bp->cnic_sb_mapping,
-				sizeof(struct host_hc_status_block_e2));
-	else
-		BNX2X_PCI_ALLOC(bp->cnic_sb.e1x_sb, &bp->cnic_sb_mapping,
-				sizeof(struct host_hc_status_block_e1x));
+	int i, allocated, context_size;
 
-	/* allocate searcher T2 table */
-	BNX2X_PCI_ALLOC(bp->t2, &bp->t2_mapping, SRC_T2_SZ);
-#endif
+	if (!CONFIGURE_NIC_MODE(bp) && !bp->t2) {
+		/* allocate searcher T2 table */
+		bp->t2 = BNX2X_PCI_ALLOC(&bp->t2_mapping, SRC_T2_SZ);
+		if (!bp->t2)
+			goto alloc_mem_err;
+	}
 
-
-	BNX2X_PCI_ALLOC(bp->def_status_blk, &bp->def_status_blk_mapping,
-			sizeof(struct host_sp_status_block));
-
-	BNX2X_PCI_ALLOC(bp->slowpath, &bp->slowpath_mapping,
-			sizeof(struct bnx2x_slowpath));
-
-#ifdef BCM_CNIC
-	/* write address to which L5 should insert its values */
-	bp->cnic_eth_dev.addr_drv_info_to_mcp = &bp->slowpath->drv_info_to_mcp;
-#endif
-
-	/* Allocated memory for FW statistics  */
-	if (bnx2x_alloc_fw_stats_mem(bp))
+	bp->def_status_blk = BNX2X_PCI_ALLOC(&bp->def_status_blk_mapping,
+					     sizeof(struct host_sp_status_block));
+	if (!bp->def_status_blk)
 		goto alloc_mem_err;
 
-	bp->context.size = sizeof(union cdu_context) * BNX2X_L2_CID_COUNT(bp);
+	bp->slowpath = BNX2X_PCI_ALLOC(&bp->slowpath_mapping,
+				       sizeof(struct bnx2x_slowpath));
+	if (!bp->slowpath)
+		goto alloc_mem_err;
 
-	BNX2X_PCI_ALLOC(bp->context.vcxt, &bp->context.cxt_mapping,
-			bp->context.size);
+	/* Allocate memory for CDU context:
+	 * This memory is allocated separately and not in the generic ILT
+	 * functions because CDU differs in few aspects:
+	 * 1. There are multiple entities allocating memory for context -
+	 * 'regular' driver, CNIC and SRIOV driver. Each separately controls
+	 * its own ILT lines.
+	 * 2. Since CDU page-size is not a single 4KB page (which is the case
+	 * for the other ILT clients), to be efficient we want to support
+	 * allocation of sub-page-size in the last entry.
+	 * 3. Context pointers are used by the driver to pass to FW / update
+	 * the context (for the other ILT clients the pointers are used just to
+	 * free the memory during unload).
+	 */
+	context_size = sizeof(union cdu_context) * BNX2X_L2_CID_COUNT(bp);
 
-	BNX2X_ALLOC(bp->ilt->lines, sizeof(struct ilt_line) * ILT_MAX_LINES);
+	for (i = 0, allocated = 0; allocated < context_size; i++) {
+		bp->context[i].size = min(CDU_ILT_PAGE_SZ,
+					  (context_size - allocated));
+		bp->context[i].vcxt = BNX2X_PCI_ALLOC(&bp->context[i].cxt_mapping,
+						      bp->context[i].size);
+		if (!bp->context[i].vcxt)
+			goto alloc_mem_err;
+		allocated += bp->context[i].size;
+	}
+	bp->ilt->lines = kcalloc(ILT_MAX_LINES, sizeof(struct ilt_line),
+				 GFP_KERNEL);
+	if (!bp->ilt->lines)
+		goto alloc_mem_err;
 
 	if (bnx2x_ilt_mem_op(bp, ILT_MEMOP_ALLOC))
 		goto alloc_mem_err;
 
+	if (bnx2x_iov_alloc_mem(bp))
+		goto alloc_mem_err;
+
 	/* Slow path ring */
-	BNX2X_PCI_ALLOC(bp->spq, &bp->spq_mapping, BCM_PAGE_SIZE);
+	bp->spq = BNX2X_PCI_ALLOC(&bp->spq_mapping, BCM_PAGE_SIZE);
+	if (!bp->spq)
+		goto alloc_mem_err;
 
 	/* EQ */
-	BNX2X_PCI_ALLOC(bp->eq_ring, &bp->eq_mapping,
-			BCM_PAGE_SIZE * NUM_EQ_PAGES);
-
-
-	/* fastpath */
-	/* need to be done at the end, since it's self adjusting to amount
-	 * of memory available for RSS queues
-	 */
-	if (bnx2x_alloc_fp_mem(bp))
+	bp->eq_ring = BNX2X_PCI_ALLOC(&bp->eq_mapping,
+				      BCM_PAGE_SIZE * NUM_EQ_PAGES);
+	if (!bp->eq_ring)
 		goto alloc_mem_err;
+
 	return 0;
 
 alloc_mem_err:
@@ -7161,8 +8266,14 @@ int bnx2x_set_mac_one(struct bnx2x *bp, u8 *mac,
 	}
 
 	rc = bnx2x_config_vlan_mac(bp, &ramrod_param);
-	if (rc < 0)
+
+	if (rc == -EEXIST) {
+		DP(BNX2X_MSG_SP, "Failed to schedule ADD operations: %d\n", rc);
+		/* do not treat adding same MAC as error */
+		rc = 0;
+	} else if (rc < 0)
 		BNX2X_ERR("%s MAC failed\n", (set ? "Set" : "Del"));
+
 	return rc;
 }
 
@@ -7189,27 +8300,33 @@ int bnx2x_del_all_macs(struct bnx2x *bp,
 
 int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 {
-	unsigned long ramrod_flags = 0;
-
-#ifdef BCM_CNIC
-	if (is_zero_ether_addr(bp->dev->dev_addr) && IS_MF_STORAGE_SD(bp)) {
+	if (is_zero_ether_addr(bp->dev->dev_addr) &&
+	    (IS_MF_STORAGE_SD(bp) || IS_MF_FCOE_AFEX(bp))) {
 		DP(NETIF_MSG_IFUP | NETIF_MSG_IFDOWN,
 		   "Ignoring Zero MAC for STORAGE SD mode\n");
 		return 0;
 	}
-#endif
 
-	DP(NETIF_MSG_IFUP, "Adding Eth MAC\n");
+	if (IS_PF(bp)) {
+		unsigned long ramrod_flags = 0;
 
-	__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
-	/* Eth MAC is set on RSS leading client (fp[0]) */
-	return bnx2x_set_mac_one(bp, bp->dev->dev_addr, &bp->fp->mac_obj, set,
-				 BNX2X_ETH_MAC, &ramrod_flags);
+		DP(NETIF_MSG_IFUP, "Adding Eth MAC\n");
+		__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
+		return bnx2x_set_mac_one(bp, bp->dev->dev_addr,
+					 &bp->sp_objs->mac_obj, set,
+					 BNX2X_ETH_MAC, &ramrod_flags);
+	} else { /* vf */
+		return bnx2x_vfpf_config_mac(bp, bp->dev->dev_addr,
+					     bp->fp->index, true);
+	}
 }
 
 int bnx2x_setup_leading(struct bnx2x *bp)
 {
-	return bnx2x_setup_queue(bp, &bp->fp[0], 1);
+	if (IS_PF(bp))
+		return bnx2x_setup_queue(bp, &bp->fp[0], true);
+	else /* VF */
+		return bnx2x_vfpf_setup_q(bp, &bp->fp[0], true);
 }
 
 /**
@@ -7219,44 +8336,55 @@ int bnx2x_setup_leading(struct bnx2x *bp)
  *
  * In case of MSI-X it will also try to enable MSI-X.
  */
-static void __devinit bnx2x_set_int_mode(struct bnx2x *bp)
+int bnx2x_set_int_mode(struct bnx2x *bp)
 {
+	int rc = 0;
+
+	if (IS_VF(bp) && int_mode != BNX2X_INT_MODE_MSIX) {
+		BNX2X_ERR("VF not loaded since interrupt mode not msix\n");
+		return -EINVAL;
+	}
+
 	switch (int_mode) {
-	case INT_MODE_MSI:
-		bnx2x_enable_msi(bp);
+	case BNX2X_INT_MODE_MSIX:
+		/* attempt to enable msix */
+		rc = bnx2x_enable_msix(bp);
+
+		/* msix attained */
+		if (!rc)
+			return 0;
+
+		/* vfs use only msix */
+		if (rc && IS_VF(bp))
+			return rc;
+
+		/* failed to enable multiple MSI-X */
+		BNX2X_DEV_INFO("Failed to enable multiple MSI-X (%d), set number of queues to %d\n",
+			       bp->num_queues,
+			       1 + bp->num_cnic_queues);
+
 		/* falling through... */
-	case INT_MODE_INTx:
-		bp->num_queues = 1 + NON_ETH_CONTEXT_USE;
+	case BNX2X_INT_MODE_MSI:
+		bnx2x_enable_msi(bp);
+
+		/* falling through... */
+	case BNX2X_INT_MODE_INTX:
+		bp->num_ethernet_queues = 1;
+		bp->num_queues = bp->num_ethernet_queues + bp->num_cnic_queues;
 		BNX2X_DEV_INFO("set number of queues to 1\n");
 		break;
 	default:
-		/* Set number of queues according to bp->multi_mode value */
-		bnx2x_set_num_queues(bp);
-
-		BNX2X_DEV_INFO("set number of queues to %d\n", bp->num_queues);
-
-		/* if we can't use MSI-X we only need one fp,
-		 * so try to enable MSI-X with the requested number of fp's
-		 * and fallback to MSI or legacy INTx with one fp
-		 */
-		if (bnx2x_enable_msix(bp)) {
-			/* failed to enable MSI-X */
-			BNX2X_DEV_INFO("Failed to enable MSI-X (%d), set number of queues to %d\n",
-				       bp->num_queues, 1 + NON_ETH_CONTEXT_USE);
-
-			bp->num_queues = 1 + NON_ETH_CONTEXT_USE;
-
-			/* Try to enable MSI */
-			if (!(bp->flags & DISABLE_MSI_FLAG))
-				bnx2x_enable_msi(bp);
-		}
-		break;
+		BNX2X_DEV_INFO("unknown value in int_mode module parameter\n");
+		return -EINVAL;
 	}
+	return 0;
 }
 
-/* must be called prioir to any HW initializations */
+/* must be called prior to any HW initializations */
 static inline u16 bnx2x_cid_ilt_lines(struct bnx2x *bp)
 {
+	if (IS_SRIOV(bp))
+		return (BNX2X_FIRST_VF_CID + BNX2X_VF_CIDS)/ILT_PAGE_CIDS;
 	return L2_ILT_LINES(bp);
 }
 
@@ -7276,9 +8404,9 @@ void bnx2x_ilt_set_info(struct bnx2x *bp)
 	ilt_client->flags = ILT_CLIENT_SKIP_MEM;
 	ilt_client->start = line;
 	line += bnx2x_cid_ilt_lines(bp);
-#ifdef BCM_CNIC
-	line += CNIC_ILT_LINES;
-#endif
+
+	if (CNIC_SUPPORT(bp))
+		line += CNIC_ILT_LINES;
 	ilt_client->end = line - 1;
 
 	DP(NETIF_MSG_IFUP, "ilt client[CDU]: start %d, end %d, psz 0x%x, flags 0x%x, hw psz %d\n",
@@ -7309,51 +8437,44 @@ void bnx2x_ilt_set_info(struct bnx2x *bp)
 		   ilt_client->page_size,
 		   ilt_client->flags,
 		   ilog2(ilt_client->page_size >> 12));
-
 	}
-	/* SRC */
-	ilt_client = &ilt->clients[ILT_CLIENT_SRC];
-#ifdef BCM_CNIC
-	ilt_client->client_num = ILT_CLIENT_SRC;
-	ilt_client->page_size = SRC_ILT_PAGE_SZ;
-	ilt_client->flags = 0;
-	ilt_client->start = line;
-	line += SRC_ILT_LINES;
-	ilt_client->end = line - 1;
 
-	DP(NETIF_MSG_IFUP,
-	   "ilt client[SRC]: start %d, end %d, psz 0x%x, flags 0x%x, hw psz %d\n",
-	   ilt_client->start,
-	   ilt_client->end,
-	   ilt_client->page_size,
-	   ilt_client->flags,
-	   ilog2(ilt_client->page_size >> 12));
+	if (CNIC_SUPPORT(bp)) {
+		/* SRC */
+		ilt_client = &ilt->clients[ILT_CLIENT_SRC];
+		ilt_client->client_num = ILT_CLIENT_SRC;
+		ilt_client->page_size = SRC_ILT_PAGE_SZ;
+		ilt_client->flags = 0;
+		ilt_client->start = line;
+		line += SRC_ILT_LINES;
+		ilt_client->end = line - 1;
 
-#else
-	ilt_client->flags = (ILT_CLIENT_SKIP_INIT | ILT_CLIENT_SKIP_MEM);
-#endif
+		DP(NETIF_MSG_IFUP,
+		   "ilt client[SRC]: start %d, end %d, psz 0x%x, flags 0x%x, hw psz %d\n",
+		   ilt_client->start,
+		   ilt_client->end,
+		   ilt_client->page_size,
+		   ilt_client->flags,
+		   ilog2(ilt_client->page_size >> 12));
 
-	/* TM */
-	ilt_client = &ilt->clients[ILT_CLIENT_TM];
-#ifdef BCM_CNIC
-	ilt_client->client_num = ILT_CLIENT_TM;
-	ilt_client->page_size = TM_ILT_PAGE_SZ;
-	ilt_client->flags = 0;
-	ilt_client->start = line;
-	line += TM_ILT_LINES;
-	ilt_client->end = line - 1;
+		/* TM */
+		ilt_client = &ilt->clients[ILT_CLIENT_TM];
+		ilt_client->client_num = ILT_CLIENT_TM;
+		ilt_client->page_size = TM_ILT_PAGE_SZ;
+		ilt_client->flags = 0;
+		ilt_client->start = line;
+		line += TM_ILT_LINES;
+		ilt_client->end = line - 1;
 
-	DP(NETIF_MSG_IFUP,
-	   "ilt client[TM]: start %d, end %d, psz 0x%x, flags 0x%x, hw psz %d\n",
-	   ilt_client->start,
-	   ilt_client->end,
-	   ilt_client->page_size,
-	   ilt_client->flags,
-	   ilog2(ilt_client->page_size >> 12));
+		DP(NETIF_MSG_IFUP,
+		   "ilt client[TM]: start %d, end %d, psz 0x%x, flags 0x%x, hw psz %d\n",
+		   ilt_client->start,
+		   ilt_client->end,
+		   ilt_client->page_size,
+		   ilt_client->flags,
+		   ilog2(ilt_client->page_size >> 12));
+	}
 
-#else
-	ilt_client->flags = (ILT_CLIENT_SKIP_INIT | ILT_CLIENT_SKIP_MEM);
-#endif
 	BUG_ON(line > ILT_MAX_LINES);
 }
 
@@ -7368,17 +8489,18 @@ void bnx2x_ilt_set_info(struct bnx2x *bp)
  *      - HC configuration
  *      - Queue's CDU context
  */
-static inline void bnx2x_pf_q_prep_init(struct bnx2x *bp,
+static void bnx2x_pf_q_prep_init(struct bnx2x *bp,
 	struct bnx2x_fastpath *fp, struct bnx2x_queue_init_params *init_params)
 {
-
 	u8 cos;
+	int cxt_index, cxt_offset;
+
 	/* FCoE Queue uses Default SB, thus has no HC capabilities */
 	if (!IS_FCOE_FP(fp)) {
 		__set_bit(BNX2X_Q_FLG_HC, &init_params->rx.flags);
 		__set_bit(BNX2X_Q_FLG_HC, &init_params->tx.flags);
 
-		/* If HC is supporterd, enable host coalescing in the transition
+		/* If HC is supported, enable host coalescing in the transition
 		 * to INIT state.
 		 */
 		__set_bit(BNX2X_Q_FLG_HC_EN, &init_params->rx.flags);
@@ -7409,12 +8531,16 @@ static inline void bnx2x_pf_q_prep_init(struct bnx2x *bp,
 	    fp->index, init_params->max_cos);
 
 	/* set the context pointers queue object */
-	for (cos = FIRST_TX_COS_INDEX; cos < init_params->max_cos; cos++)
+	for (cos = FIRST_TX_COS_INDEX; cos < init_params->max_cos; cos++) {
+		cxt_index = fp->txdata_ptr[cos]->cid / ILT_PAGE_CIDS;
+		cxt_offset = fp->txdata_ptr[cos]->cid - (cxt_index *
+				ILT_PAGE_CIDS);
 		init_params->cxts[cos] =
-			&bp->context.vcxt[fp->txdata[cos].cid].eth;
+			&bp->context[cxt_index].vcxt[cxt_offset].eth;
+	}
 }
 
-int bnx2x_setup_tx_only(struct bnx2x *bp, struct bnx2x_fastpath *fp,
+static int bnx2x_setup_tx_only(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			struct bnx2x_queue_state_params *q_params,
 			struct bnx2x_queue_setup_tx_only_params *tx_only_params,
 			int tx_index, bool leading)
@@ -7446,7 +8572,6 @@ int bnx2x_setup_tx_only(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	return bnx2x_queue_state_change(bp, q_params);
 }
 
-
 /**
  * bnx2x_setup_queue - setup queue
  *
@@ -7476,7 +8601,7 @@ int bnx2x_setup_queue(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		bnx2x_ack_sb(bp, fp->igu_sb_id, USTORM_ID, 0,
 			     IGU_INT_ENABLE, 0);
 
-	q_params.q_obj = &fp->q_obj;
+	q_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 	/* We want to wait for completion in this context */
 	__set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
 
@@ -7494,7 +8619,6 @@ int bnx2x_setup_queue(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	}
 
 	DP(NETIF_MSG_IFUP, "init complete\n");
-
 
 	/* Now move the Queue to the SETUP state... */
 	memset(setup_params, 0, sizeof(*setup_params));
@@ -7514,6 +8638,9 @@ int bnx2x_setup_queue(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 	/* Set the command */
 	q_params.cmd = BNX2X_Q_CMD_SETUP;
+
+	if (IS_FCOE_FP(fp))
+		bp->fcoe_init = true;
 
 	/* Change the state to SETUP */
 	rc = bnx2x_queue_state_change(bp, &q_params);
@@ -7549,10 +8676,9 @@ static int bnx2x_stop_queue(struct bnx2x *bp, int index)
 
 	DP(NETIF_MSG_IFDOWN, "stopping queue %d cid %d\n", index, fp->cid);
 
-	q_params.q_obj = &fp->q_obj;
+	q_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 	/* We want to wait for completion in this context */
 	__set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
-
 
 	/* close tx-only connections */
 	for (tx_index = FIRST_TX_ONLY_COS_INDEX;
@@ -7560,7 +8686,7 @@ static int bnx2x_stop_queue(struct bnx2x *bp, int index)
 	     tx_index++){
 
 		/* ascertain this is a normal queue*/
-		txdata = &fp->txdata[tx_index];
+		txdata = fp->txdata_ptr[tx_index];
 
 		DP(NETIF_MSG_IFDOWN, "stopping tx-only queue %d\n",
 							txdata->txq_index);
@@ -7607,7 +8733,6 @@ static int bnx2x_stop_queue(struct bnx2x *bp, int index)
 	return bnx2x_queue_state_change(bp, &q_params);
 }
 
-
 static void bnx2x_reset_func(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
@@ -7628,16 +8753,16 @@ static void bnx2x_reset_func(struct bnx2x *bp)
 			   SB_DISABLED);
 	}
 
-#ifdef BCM_CNIC
-	/* CNIC SB */
-	REG_WR8(bp, BAR_CSTRORM_INTMEM +
-		CSTORM_STATUS_BLOCK_DATA_STATE_OFFSET(bnx2x_cnic_fw_sb_id(bp)),
-		SB_DISABLED);
-#endif
+	if (CNIC_LOADED(bp))
+		/* CNIC SB */
+		REG_WR8(bp, BAR_CSTRORM_INTMEM +
+			CSTORM_STATUS_BLOCK_DATA_STATE_OFFSET
+			(bnx2x_cnic_fw_sb_id(bp)), SB_DISABLED);
+
 	/* SP SB */
 	REG_WR8(bp, BAR_CSTRORM_INTMEM +
-		   CSTORM_SP_STATUS_BLOCK_DATA_STATE_OFFSET(func),
-		   SB_DISABLED);
+		CSTORM_SP_STATUS_BLOCK_DATA_STATE_OFFSET(func),
+		SB_DISABLED);
 
 	for (i = 0; i < XSTORM_SPQ_DATA_SIZE / 4; i++)
 		REG_WR(bp, BAR_XSTRORM_INTMEM + XSTORM_SPQ_DATA_OFFSET(func),
@@ -7652,19 +8777,19 @@ static void bnx2x_reset_func(struct bnx2x *bp)
 		REG_WR(bp, IGU_REG_TRAILING_EDGE_LATCH, 0);
 	}
 
-#ifdef BCM_CNIC
-	/* Disable Timer scan */
-	REG_WR(bp, TM_REG_EN_LINEAR0_TIMER + port*4, 0);
-	/*
-	 * Wait for at least 10ms and up to 2 second for the timers scan to
-	 * complete
-	 */
-	for (i = 0; i < 200; i++) {
-		msleep(10);
-		if (!REG_RD(bp, TM_REG_LIN0_SCAN_ON + port*4))
-			break;
+	if (CNIC_LOADED(bp)) {
+		/* Disable Timer scan */
+		REG_WR(bp, TM_REG_EN_LINEAR0_TIMER + port*4, 0);
+		/*
+		 * Wait for at least 10ms and up to 2 second for the timers
+		 * scan to complete
+		 */
+		for (i = 0; i < 200; i++) {
+			usleep_range(10000, 20000);
+			if (!REG_RD(bp, TM_REG_LIN0_SCAN_ON + port*4))
+				break;
+		}
 	}
-#endif
 	/* Clear ILT */
 	bnx2x_clear_func_ilt(bp, func);
 
@@ -7718,7 +8843,7 @@ static void bnx2x_reset_port(struct bnx2x *bp)
 	/* TODO: Close Doorbell port? */
 }
 
-static inline int bnx2x_reset_hw(struct bnx2x *bp, u32 load_code)
+static int bnx2x_reset_hw(struct bnx2x *bp, u32 load_code)
 {
 	struct bnx2x_func_state_params func_params = {NULL};
 
@@ -7733,7 +8858,7 @@ static inline int bnx2x_reset_hw(struct bnx2x *bp, u32 load_code)
 	return bnx2x_func_state_change(bp, &func_params);
 }
 
-static inline int bnx2x_func_stop(struct bnx2x *bp)
+static int bnx2x_func_stop(struct bnx2x *bp)
 {
 	struct bnx2x_func_state_params func_params = {NULL};
 	int rc;
@@ -7786,6 +8911,7 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 	else if (bp->wol) {
 		u32 emac_base = port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
 		u8 *mac_addr = bp->dev->dev_addr;
+		struct pci_dev *pdev = bp->pdev;
 		u32 val;
 		u16 pmc;
 
@@ -7802,9 +8928,9 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 		EMAC_WR(bp, EMAC_REG_EMAC_MAC_MATCH + entry + 4, val);
 
 		/* Enable the PME and clear the status */
-		pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, &pmc);
+		pci_read_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, &pmc);
 		pmc |= PCI_PM_CTRL_PME_ENABLE | PCI_PM_CTRL_PME_STATUS;
-		pci_write_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, pmc);
+		pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, pmc);
 
 		reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_EN;
 
@@ -7818,16 +8944,16 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 		int path = BP_PATH(bp);
 
 		DP(NETIF_MSG_IFDOWN, "NO MCP - load counts[%d]      %d, %d, %d\n",
-		   path, load_count[path][0], load_count[path][1],
-		   load_count[path][2]);
-		load_count[path][0]--;
-		load_count[path][1 + port]--;
+		   path, bnx2x_load_count[path][0], bnx2x_load_count[path][1],
+		   bnx2x_load_count[path][2]);
+		bnx2x_load_count[path][0]--;
+		bnx2x_load_count[path][1 + port]--;
 		DP(NETIF_MSG_IFDOWN, "NO MCP - new load counts[%d]  %d, %d, %d\n",
-		   path, load_count[path][0], load_count[path][1],
-		   load_count[path][2]);
-		if (load_count[path][0] == 0)
+		   path, bnx2x_load_count[path][0], bnx2x_load_count[path][1],
+		   bnx2x_load_count[path][2]);
+		if (bnx2x_load_count[path][0] == 0)
 			reset_code = FW_MSG_CODE_DRV_UNLOAD_COMMON;
-		else if (load_count[path][1 + port] == 0)
+		else if (bnx2x_load_count[path][1 + port] == 0)
 			reset_code = FW_MSG_CODE_DRV_UNLOAD_PORT;
 		else
 			reset_code = FW_MSG_CODE_DRV_UNLOAD_FUNCTION;
@@ -7840,15 +8966,18 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
  * bnx2x_send_unload_done - send UNLOAD_DONE command to the MCP.
  *
  * @bp:		driver handle
+ * @keep_link:		true iff link should be kept up
  */
-void bnx2x_send_unload_done(struct bnx2x *bp)
+void bnx2x_send_unload_done(struct bnx2x *bp, bool keep_link)
 {
+	u32 reset_param = keep_link ? DRV_MSG_CODE_UNLOAD_SKIP_LINK_RESET : 0;
+
 	/* Report UNLOAD_DONE to MCP */
 	if (!BP_NOMCP(bp))
-		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, reset_param);
 }
 
-static inline int bnx2x_func_wait_started(struct bnx2x *bp)
+static int bnx2x_func_wait_started(struct bnx2x *bp)
 {
 	int tout = 50;
 	int msix = (bp->flags & USING_MSIX_FLAG) ? 1 : 0;
@@ -7858,14 +8987,14 @@ static inline int bnx2x_func_wait_started(struct bnx2x *bp)
 
 	/*
 	 * (assumption: No Attention from MCP at this stage)
-	 * PMF probably in the middle of TXdisable/enable transaction
+	 * PMF probably in the middle of TX disable/enable transaction
 	 * 1. Sync IRS for default SB
-	 * 2. Sync SP queue - this guarantes us that attention handling started
-	 * 3. Wait, that TXdisable/enable transaction completes
+	 * 2. Sync SP queue - this guarantees us that attention handling started
+	 * 3. Wait, that TX disable/enable transaction completes
 	 *
-	 * 1+2 guranty that if DCBx attention was scheduled it already changed
-	 * pending bit of transaction from STARTED-->TX_STOPPED, if we alredy
-	 * received complettion for the transaction the state is TX_STOPPED.
+	 * 1+2 guarantee that if DCBx attention was scheduled it already changed
+	 * pending bit of transaction from STARTED-->TX_STOPPED, if we already
+	 * received completion for the transaction the state is TX_STOPPED.
 	 * State will return to STARTED after completion of TX_STOPPED-->STARTED
 	 * transaction.
 	 */
@@ -7877,6 +9006,7 @@ static inline int bnx2x_func_wait_started(struct bnx2x *bp)
 		synchronize_irq(bp->pdev->irq);
 
 	flush_workqueue(bnx2x_wq);
+	flush_workqueue(bnx2x_iov_wq);
 
 	while (bnx2x_func_get_state(bp, &bp->func_obj) !=
 				BNX2X_F_STATE_STARTED && tout--)
@@ -7895,7 +9025,7 @@ static inline int bnx2x_func_wait_started(struct bnx2x *bp)
 		struct bnx2x_func_state_params func_params = {NULL};
 
 		DP(NETIF_MSG_IFDOWN,
-		   "Hmmm... unexpected function state! Forcing STARTED-->TX_ST0PPED-->STARTED\n");
+		   "Hmmm... Unexpected function state! Forcing STARTED-->TX_ST0PPED-->STARTED\n");
 
 		func_params.f_obj = &bp->func_obj;
 		__set_bit(RAMROD_DRV_CLR_ONLY,
@@ -7914,7 +9044,7 @@ static inline int bnx2x_func_wait_started(struct bnx2x *bp)
 	return 0;
 }
 
-void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
+void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode, bool keep_link)
 {
 	int port = BP_PORT(bp);
 	int i, rc = 0;
@@ -7927,7 +9057,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		for_each_cos_in_tx_queue(fp, cos)
-			rc = bnx2x_clean_tx_queue(bp, &fp->txdata[cos]);
+			rc = bnx2x_clean_tx_queue(bp, fp->txdata_ptr[cos]);
 #ifdef BNX2X_STOP_ON_ERROR
 		if (rc)
 			return;
@@ -7935,15 +9065,16 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 	}
 
 	/* Give HW time to discard old tx messages */
-	usleep_range(1000, 1000);
+	usleep_range(1000, 2000);
 
 	/* Clean all ETH MACs */
-	rc = bnx2x_del_all_macs(bp, &bp->fp[0].mac_obj, BNX2X_ETH_MAC, false);
+	rc = bnx2x_del_all_macs(bp, &bp->sp_objs[0].mac_obj, BNX2X_ETH_MAC,
+				false);
 	if (rc < 0)
 		BNX2X_ERR("Failed to delete all ETH macs: %d\n", rc);
 
 	/* Clean up UC list  */
-	rc = bnx2x_del_all_macs(bp, &bp->fp[0].mac_obj, BNX2X_UC_LIST_MAC,
+	rc = bnx2x_del_all_macs(bp, &bp->sp_objs[0].mac_obj, BNX2X_UC_LIST_MAC,
 				true);
 	if (rc < 0)
 		BNX2X_ERR("Failed to schedule DEL commands for UC MACs list: %d\n",
@@ -7972,7 +9103,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 
 	netif_addr_unlock_bh(bp->dev);
 
-
+	bnx2x_iov_chip_cleanup(bp);
 
 	/*
 	 * Send the UNLOAD_REQUEST to the MCP. This will return if
@@ -7983,7 +9114,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 
 	/*
 	 * (assumption: No Attention from MCP at this stage)
-	 * PMF probably in the middle of TXdisable/enable transaction
+	 * PMF probably in the middle of TX disable/enable transaction
 	 */
 	rc = bnx2x_func_wait_started(bp);
 	if (rc) {
@@ -7996,13 +9127,24 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 	/* Close multi and leading connections
 	 * Completions for ramrods are collected in a synchronous way
 	 */
-	for_each_queue(bp, i)
+	for_each_eth_queue(bp, i)
 		if (bnx2x_stop_queue(bp, i))
 #ifdef BNX2X_STOP_ON_ERROR
 			return;
 #else
 			goto unload_error;
 #endif
+
+	if (CNIC_LOADED(bp)) {
+		for_each_cnic_queue(bp, i)
+			if (bnx2x_stop_queue(bp, i))
+#ifdef BNX2X_STOP_ON_ERROR
+				return;
+#else
+				goto unload_error;
+#endif
+	}
+
 	/* If SP settings didn't get completed so far - something
 	 * very wrong has happen.
 	 */
@@ -8022,6 +9164,10 @@ unload_error:
 
 	/* Disable HW interrupts, NAPI */
 	bnx2x_netif_stop(bp, 1);
+	/* Delete all NAPI objects */
+	bnx2x_del_all_napi(bp);
+	if (CNIC_LOADED(bp))
+		bnx2x_del_all_napi_cnic(bp);
 
 	/* Release IRQs */
 	bnx2x_free_irq(bp);
@@ -8031,9 +9177,8 @@ unload_error:
 	if (rc)
 		BNX2X_ERR("HW_RESET failed\n");
 
-
 	/* Report UNLOAD_DONE to MCP */
-	bnx2x_send_unload_done(bp);
+	bnx2x_send_unload_done(bp, keep_link);
 }
 
 void bnx2x_disable_close_the_gate(struct bnx2x *bp)
@@ -8084,7 +9229,7 @@ static void bnx2x_set_234_gates(struct bnx2x *bp, bool close)
 		       (!close) ? (val | HC_CONFIG_0_REG_BLOCK_DISABLE_0) :
 		       (val & ~(u32)HC_CONFIG_0_REG_BLOCK_DISABLE_0));
 	} else {
-		/* Prevent incomming interrupts in IGU */
+		/* Prevent incoming interrupts in IGU */
 		val = REG_RD(bp, IGU_REG_BLOCK_CONFIGURATION);
 
 		REG_WR(bp, IGU_REG_BLOCK_CONFIGURATION,
@@ -8143,7 +9288,8 @@ static void bnx2x_reset_mcp_prep(struct bnx2x *bp, u32 *magic_val)
 
 	/* Get shmem offset */
 	shmem = REG_RD(bp, MISC_REG_SHARED_MEM_ADDR);
-	validity_offset = offsetof(struct shmem_region, validity_map[0]);
+	validity_offset =
+		offsetof(struct shmem_region, validity_map[BP_PORT(bp)]);
 
 	/* Clear validity map flags */
 	if (shmem > 0)
@@ -8158,7 +9304,7 @@ static void bnx2x_reset_mcp_prep(struct bnx2x *bp, u32 *magic_val)
  *
  * @bp:	driver handle
  */
-static inline void bnx2x_mcp_wait_one(struct bnx2x *bp)
+static void bnx2x_mcp_wait_one(struct bnx2x *bp)
 {
 	/* special handling for emulation and FPGA,
 	   wait 10 times longer */
@@ -8236,7 +9382,11 @@ static void bnx2x_process_kill_chip_reset(struct bnx2x *bp, bool global)
 		MISC_REGISTERS_RESET_REG_2_RST_MCP_N_RESET_CMN_CPU |
 		MISC_REGISTERS_RESET_REG_2_RST_MCP_N_RESET_CMN_CORE;
 
-	/* Don't reset the following blocks */
+	/* Don't reset the following blocks.
+	 * Important: per port blocks (such as EMAC, BMAC, UMAC) can't be
+	 *            reset, as in 4 port device they might still be owned
+	 *            by the MCP (there is only one leader per path).
+	 */
 	not_reset_mask1 =
 		MISC_REGISTERS_RESET_REG_1_RST_HC |
 		MISC_REGISTERS_RESET_REG_1_RST_PXPV |
@@ -8252,19 +9402,19 @@ static void bnx2x_process_kill_chip_reset(struct bnx2x *bp, bool global)
 		MISC_REGISTERS_RESET_REG_2_RST_MCP_N_RESET_REG_HARD_CORE |
 		MISC_REGISTERS_RESET_REG_2_RST_MCP_N_HARD_CORE_RST_B |
 		MISC_REGISTERS_RESET_REG_2_RST_ATC |
-		MISC_REGISTERS_RESET_REG_2_PGLC;
+		MISC_REGISTERS_RESET_REG_2_PGLC |
+		MISC_REGISTERS_RESET_REG_2_RST_BMAC0 |
+		MISC_REGISTERS_RESET_REG_2_RST_BMAC1 |
+		MISC_REGISTERS_RESET_REG_2_RST_EMAC0 |
+		MISC_REGISTERS_RESET_REG_2_RST_EMAC1 |
+		MISC_REGISTERS_RESET_REG_2_UMAC0 |
+		MISC_REGISTERS_RESET_REG_2_UMAC1;
 
 	/*
 	 * Keep the following blocks in reset:
 	 *  - all xxMACs are handled by the bnx2x_link code.
 	 */
 	stay_reset2 =
-		MISC_REGISTERS_RESET_REG_2_RST_BMAC0 |
-		MISC_REGISTERS_RESET_REG_2_RST_BMAC1 |
-		MISC_REGISTERS_RESET_REG_2_RST_EMAC0 |
-		MISC_REGISTERS_RESET_REG_2_RST_EMAC1 |
-		MISC_REGISTERS_RESET_REG_2_UMAC0 |
-		MISC_REGISTERS_RESET_REG_2_UMAC1 |
 		MISC_REGISTERS_RESET_REG_2_XMAC |
 		MISC_REGISTERS_RESET_REG_2_XMAC_SOFT;
 
@@ -8337,7 +9487,7 @@ static int bnx2x_er_poll_igu_vq(struct bnx2x *bp)
 		if (pend_bits == 0)
 			break;
 
-		usleep_range(1000, 1000);
+		usleep_range(1000, 2000);
 	} while (cnt-- > 0);
 
 	if (cnt <= 0) {
@@ -8354,7 +9504,7 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 	int cnt = 1000;
 	u32 val = 0;
 	u32 sr_cnt, blk_cnt, port_is_idle_0, port_is_idle_1, pgl_exp_rom2;
-
+	u32 tags_63_32 = 0;
 
 	/* Empty the Tetris buffer, wait for 1s */
 	do {
@@ -8363,12 +9513,16 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 		port_is_idle_0 = REG_RD(bp, PXP2_REG_RD_PORT_IS_IDLE_0);
 		port_is_idle_1 = REG_RD(bp, PXP2_REG_RD_PORT_IS_IDLE_1);
 		pgl_exp_rom2 = REG_RD(bp, PXP2_REG_PGL_EXP_ROM2);
+		if (CHIP_IS_E3(bp))
+			tags_63_32 = REG_RD(bp, PGLUE_B_REG_TAGS_63_32);
+
 		if ((sr_cnt == 0x7e) && (blk_cnt == 0xa0) &&
 		    ((port_is_idle_0 & 0x1) == 0x1) &&
 		    ((port_is_idle_1 & 0x1) == 0x1) &&
-		    (pgl_exp_rom2 == 0xffffffff))
+		    (pgl_exp_rom2 == 0xffffffff) &&
+		    (!CHIP_IS_E3(bp) || (tags_63_32 == 0xffffffff)))
 			break;
-		usleep_range(1000, 1000);
+		usleep_range(1000, 2000);
 	} while (cnt-- > 0);
 
 	if (cnt <= 0) {
@@ -8388,7 +9542,6 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 	if (!CHIP_IS_E1x(bp) && bnx2x_er_poll_igu_vq(bp))
 		return -EAGAIN;
 
-
 	/* TBD: Indicate that "process kill" is in progress to MCP */
 
 	/* Clear "unprepared" bit */
@@ -8401,7 +9554,7 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 	/* Wait for 1ms to empty GLUE and PCI-E core queues,
 	 * PSWHST, GRC and PSWRD Tetris buffer.
 	 */
-	usleep_range(1000, 1000);
+	usleep_range(1000, 2000);
 
 	/* Prepare to chip reset: */
 	/* MCP */
@@ -8416,15 +9569,16 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 	bnx2x_process_kill_chip_reset(bp, global);
 	barrier();
 
+	/* clear errors in PGB */
+	if (!CHIP_IS_E1x(bp))
+		REG_WR(bp, PGLUE_B_REG_LATCHED_ERRORS_CLR, 0x7f);
+
 	/* Recover after reset: */
 	/* MCP */
 	if (global && bnx2x_reset_mcp_comp(bp, val))
 		return -EAGAIN;
 
 	/* TBD: Add resetting the NO_MCP mode DB here */
-
-	/* PXP */
-	bnx2x_pxp_prep(bp);
 
 	/* Open the gates #2, #3 and #4 */
 	bnx2x_set_234_gates(bp, false);
@@ -8435,7 +9589,7 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 	return 0;
 }
 
-int bnx2x_leader_reset(struct bnx2x *bp)
+static int bnx2x_leader_reset(struct bnx2x *bp)
 {
 	int rc = 0;
 	bool global = bnx2x_reset_is_global(bp);
@@ -8445,7 +9599,8 @@ int bnx2x_leader_reset(struct bnx2x *bp)
 	 * driver is owner of the HW
 	 */
 	if (!global && !BP_NOMCP(bp)) {
-		load_code = bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_REQ, 0);
+		load_code = bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_REQ,
+					     DRV_MSG_CODE_LOAD_REQ_WITH_LFA);
 		if (!load_code) {
 			BNX2X_ERR("MCP response failure, aborting\n");
 			rc = -EAGAIN;
@@ -8494,7 +9649,7 @@ exit_leader_reset:
 	return rc;
 }
 
-static inline void bnx2x_recovery_failed(struct bnx2x *bp)
+static void bnx2x_recovery_failed(struct bnx2x *bp)
 {
 	netdev_err(bp->dev, "Recovery has failed. Power cycle is needed.\n");
 
@@ -8551,7 +9706,7 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 
 			/* Stop the driver */
 			/* If interface has been removed - break */
-			if (bnx2x_nic_unload(bp, UNLOAD_RECOVERY))
+			if (bnx2x_nic_unload(bp, UNLOAD_RECOVERY, false))
 				return;
 
 			bp->recovery_state = BNX2X_RECOVERY_WAIT;
@@ -8578,7 +9733,7 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 				 * the first leader that performs a
 				 * leader_reset() reset the global blocks in
 				 * order to clear global attentions. Otherwise
-				 * the the gates will remain closed for that
+				 * the gates will remain closed for that
 				 * engine.
 				 */
 				if (load_status ||
@@ -8686,17 +9841,17 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 
 	rtnl_lock();
 
-	if (!netif_running(bp->dev))
-		goto sp_rtnl_exit;
-
-	/* if stop on error is defined no recovery flows should be executed */
-#ifdef BNX2X_STOP_ON_ERROR
-	BNX2X_ERR("recovery flow called but STOP_ON_ERROR defined so reset not done to allow debug dump,\n"
-		  "you will need to reboot when done\n");
-	goto sp_rtnl_not_reset;
-#endif
+	if (!netif_running(bp->dev)) {
+		rtnl_unlock();
+		return;
+	}
 
 	if (unlikely(bp->recovery_state != BNX2X_RECOVERY_DONE)) {
+#ifdef BNX2X_STOP_ON_ERROR
+		BNX2X_ERR("recovery flow called but STOP_ON_ERROR defined so reset not done to allow debug dump,\n"
+			  "you will need to reboot when done\n");
+		goto sp_rtnl_not_reset;
+#endif
 		/*
 		 * Clear all pending SP commands as we are going to reset the
 		 * function anyway.
@@ -8706,10 +9861,17 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 
 		bnx2x_parity_recover(bp);
 
-		goto sp_rtnl_exit;
+		rtnl_unlock();
+		return;
 	}
 
 	if (test_and_clear_bit(BNX2X_SP_RTNL_TX_TIMEOUT, &bp->sp_rtnl_state)) {
+#ifdef BNX2X_STOP_ON_ERROR
+		BNX2X_ERR("recovery flow called but STOP_ON_ERROR defined so reset not done to allow debug dump,\n"
+			  "you will need to reboot when done\n");
+		goto sp_rtnl_not_reset;
+#endif
+
 		/*
 		 * Clear all pending SP commands as we are going to reset the
 		 * function anyway.
@@ -8717,17 +9879,19 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 		bp->sp_rtnl_state = 0;
 		smp_mb();
 
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+		bnx2x_nic_unload(bp, UNLOAD_NORMAL, true);
 		bnx2x_nic_load(bp, LOAD_NORMAL);
 
-		goto sp_rtnl_exit;
+		rtnl_unlock();
+		return;
 	}
 #ifdef BNX2X_STOP_ON_ERROR
 sp_rtnl_not_reset:
 #endif
 	if (test_and_clear_bit(BNX2X_SP_RTNL_SETUP_TC, &bp->sp_rtnl_state))
 		bnx2x_setup_tc(bp->dev, bp->dcbx_port_params.ets.num_of_cos);
-
+	if (test_and_clear_bit(BNX2X_SP_RTNL_AFEX_F_UPDATE, &bp->sp_rtnl_state))
+		bnx2x_after_function_update(bp);
 	/*
 	 * in case of fan failure we need to reset id if the "stop on error"
 	 * debug flag is set, since we trying to prevent permanent overheating
@@ -8737,13 +9901,53 @@ sp_rtnl_not_reset:
 		DP(NETIF_MSG_HW, "fan failure detected. Unloading driver\n");
 		netif_device_detach(bp->dev);
 		bnx2x_close(bp->dev);
+		rtnl_unlock();
+		return;
 	}
 
-sp_rtnl_exit:
-	rtnl_unlock();
-}
+	if (test_and_clear_bit(BNX2X_SP_RTNL_VFPF_MCAST, &bp->sp_rtnl_state)) {
+		DP(BNX2X_MSG_SP,
+		   "sending set mcast vf pf channel message from rtnl sp-task\n");
+		bnx2x_vfpf_set_mcast(bp->dev);
+	}
+	if (test_and_clear_bit(BNX2X_SP_RTNL_VFPF_CHANNEL_DOWN,
+			       &bp->sp_rtnl_state)){
+		if (!test_bit(__LINK_STATE_NOCARRIER, &bp->dev->state)) {
+			bnx2x_tx_disable(bp);
+			BNX2X_ERR("PF indicated channel is not servicable anymore. This means this VF device is no longer operational\n");
+		}
+	}
 
-/* end of nic load/unload */
+	if (test_and_clear_bit(BNX2X_SP_RTNL_RX_MODE, &bp->sp_rtnl_state)) {
+		DP(BNX2X_MSG_SP, "Handling Rx Mode setting\n");
+		bnx2x_set_rx_mode_inner(bp);
+	}
+
+	if (test_and_clear_bit(BNX2X_SP_RTNL_HYPERVISOR_VLAN,
+			       &bp->sp_rtnl_state))
+		bnx2x_pf_set_vfs_vlan(bp);
+
+	if (test_and_clear_bit(BNX2X_SP_RTNL_TX_STOP, &bp->sp_rtnl_state)) {
+		bnx2x_dcbx_stop_hw_tx(bp);
+		bnx2x_dcbx_resume_hw_tx(bp);
+	}
+
+	if (test_and_clear_bit(BNX2X_SP_RTNL_GET_DRV_VERSION,
+			       &bp->sp_rtnl_state))
+		bnx2x_update_mng_version(bp);
+
+	/* work which needs rtnl lock not-taken (as it takes the lock itself and
+	 * can be called from other contexts as well)
+	 */
+	rtnl_unlock();
+
+	/* enable SR-IOV if applicable */
+	if (IS_SRIOV(bp) && test_and_clear_bit(BNX2X_SP_RTNL_ENABLE_SRIOV,
+					       &bp->sp_rtnl_state)) {
+		bnx2x_disable_sriov(bp);
+		bnx2x_enable_sriov(bp);
+	}
+}
 
 static void bnx2x_period_task(struct work_struct *work)
 {
@@ -8787,41 +9991,18 @@ static u32 bnx2x_get_pretend_reg(struct bnx2x *bp)
 	return base + (BP_ABS_FUNC(bp)) * stride;
 }
 
-static void bnx2x_undi_int_disable_e1h(struct bnx2x *bp)
-{
-	u32 reg = bnx2x_get_pretend_reg(bp);
-
-	/* Flush all outstanding writes */
-	mmiowb();
-
-	/* Pretend to be function 0 */
-	REG_WR(bp, reg, 0);
-	REG_RD(bp, reg);	/* Flush the GRC transaction (in the chip) */
-
-	/* From now we are in the "like-E1" mode */
-	bnx2x_int_disable(bp);
-
-	/* Flush all outstanding writes */
-	mmiowb();
-
-	/* Restore the original function */
-	REG_WR(bp, reg, BP_ABS_FUNC(bp));
-	REG_RD(bp, reg);
-}
-
-static inline void bnx2x_undi_int_disable(struct bnx2x *bp)
-{
-	if (CHIP_IS_E1(bp))
-		bnx2x_int_disable(bp);
-	else
-		bnx2x_undi_int_disable_e1h(bp);
-}
-
-static void __devinit bnx2x_prev_unload_close_mac(struct bnx2x *bp)
+static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
+					struct bnx2x_mac_vals *vals)
 {
 	u32 val, base_addr, offset, mask, reset_reg;
 	bool mac_stopped = false;
 	u8 port = BP_PORT(bp);
+
+	/* reset addresses as they also mark which values were changed */
+	vals->bmac_addr = 0;
+	vals->umac_addr = 0;
+	vals->xmac_addr = 0;
+	vals->emac_addr = 0;
 
 	reset_reg = REG_RD(bp, MISC_REG_RESET_REG_2);
 
@@ -8844,14 +10025,17 @@ static void __devinit bnx2x_prev_unload_close_mac(struct bnx2x *bp)
 			 */
 			wb_data[0] = REG_RD(bp, base_addr + offset);
 			wb_data[1] = REG_RD(bp, base_addr + offset + 0x4);
+			vals->bmac_addr = base_addr + offset;
+			vals->bmac_val[0] = wb_data[0];
+			vals->bmac_val[1] = wb_data[1];
 			wb_data[0] &= ~BMAC_CONTROL_RX_ENABLE;
-			REG_WR(bp, base_addr + offset, wb_data[0]);
-			REG_WR(bp, base_addr + offset + 0x4, wb_data[1]);
-
+			REG_WR(bp, vals->bmac_addr, wb_data[0]);
+			REG_WR(bp, vals->bmac_addr + 0x4, wb_data[1]);
 		}
 		BNX2X_DEV_INFO("Disable emac Rx\n");
-		REG_WR(bp, NIG_REG_NIG_EMAC0_EN + BP_PORT(bp)*4, 0);
-
+		vals->emac_addr = NIG_REG_NIG_EMAC0_EN + BP_PORT(bp)*4;
+		vals->emac_val = REG_RD(bp, vals->emac_addr);
+		REG_WR(bp, vals->emac_addr, 0);
 		mac_stopped = true;
 	} else {
 		if (reset_reg & MISC_REGISTERS_RESET_REG_2_XMAC) {
@@ -8862,47 +10046,79 @@ static void __devinit bnx2x_prev_unload_close_mac(struct bnx2x *bp)
 			       val & ~(1 << 1));
 			REG_WR(bp, base_addr + XMAC_REG_PFC_CTRL_HI,
 			       val | (1 << 1));
-			REG_WR(bp, base_addr + XMAC_REG_CTRL, 0);
+			vals->xmac_addr = base_addr + XMAC_REG_CTRL;
+			vals->xmac_val = REG_RD(bp, vals->xmac_addr);
+			REG_WR(bp, vals->xmac_addr, 0);
 			mac_stopped = true;
 		}
 		mask = MISC_REGISTERS_RESET_REG_2_UMAC0 << port;
 		if (mask & reset_reg) {
 			BNX2X_DEV_INFO("Disable umac Rx\n");
 			base_addr = BP_PORT(bp) ? GRCBASE_UMAC1 : GRCBASE_UMAC0;
-			REG_WR(bp, base_addr + UMAC_REG_COMMAND_CONFIG, 0);
+			vals->umac_addr = base_addr + UMAC_REG_COMMAND_CONFIG;
+			vals->umac_val = REG_RD(bp, vals->umac_addr);
+			REG_WR(bp, vals->umac_addr, 0);
 			mac_stopped = true;
 		}
 	}
 
 	if (mac_stopped)
 		msleep(20);
-
 }
 
 #define BNX2X_PREV_UNDI_PROD_ADDR(p) (BAR_TSTRORM_INTMEM + 0x1508 + ((p) << 4))
+#define BNX2X_PREV_UNDI_PROD_ADDR_H(f) (BAR_TSTRORM_INTMEM + \
+					0x1848 + ((f) << 4))
 #define BNX2X_PREV_UNDI_RCQ(val)	((val) & 0xffff)
 #define BNX2X_PREV_UNDI_BD(val)		((val) >> 16 & 0xffff)
 #define BNX2X_PREV_UNDI_PROD(rcq, bd)	((bd) << 16 | (rcq))
 
-static void __devinit bnx2x_prev_unload_undi_inc(struct bnx2x *bp, u8 port,
-						 u8 inc)
+#define BCM_5710_UNDI_FW_MF_MAJOR	(0x07)
+#define BCM_5710_UNDI_FW_MF_MINOR	(0x08)
+#define BCM_5710_UNDI_FW_MF_VERS	(0x05)
+
+static bool bnx2x_prev_is_after_undi(struct bnx2x *bp)
+{
+	/* UNDI marks its presence in DORQ -
+	 * it initializes CID offset for normal bell to 0x7
+	 */
+	if (!(REG_RD(bp, MISC_REG_RESET_REG_1) &
+	    MISC_REGISTERS_RESET_REG_1_RST_DORQ))
+		return false;
+
+	if (REG_RD(bp, DORQ_REG_NORM_CID_OFST) == 0x7) {
+		BNX2X_DEV_INFO("UNDI previously loaded\n");
+		return true;
+	}
+
+	return false;
+}
+
+static void bnx2x_prev_unload_undi_inc(struct bnx2x *bp, u8 inc)
 {
 	u16 rcq, bd;
-	u32 tmp_reg = REG_RD(bp, BNX2X_PREV_UNDI_PROD_ADDR(port));
+	u32 addr, tmp_reg;
 
+	if (BP_FUNC(bp) < 2)
+		addr = BNX2X_PREV_UNDI_PROD_ADDR(BP_PORT(bp));
+	else
+		addr = BNX2X_PREV_UNDI_PROD_ADDR_H(BP_FUNC(bp) - 2);
+
+	tmp_reg = REG_RD(bp, addr);
 	rcq = BNX2X_PREV_UNDI_RCQ(tmp_reg) + inc;
 	bd = BNX2X_PREV_UNDI_BD(tmp_reg) + inc;
 
 	tmp_reg = BNX2X_PREV_UNDI_PROD(rcq, bd);
-	REG_WR(bp, BNX2X_PREV_UNDI_PROD_ADDR(port), tmp_reg);
+	REG_WR(bp, addr, tmp_reg);
 
-	BNX2X_DEV_INFO("UNDI producer [%d] rings bd -> 0x%04x, rcq -> 0x%04x\n",
-		       port, bd, rcq);
+	BNX2X_DEV_INFO("UNDI producer [%d/%d][%08x] rings bd -> 0x%04x, rcq -> 0x%04x\n",
+		       BP_PORT(bp), BP_FUNC(bp), addr, bd, rcq);
 }
 
-static int __devinit bnx2x_prev_mcp_done(struct bnx2x *bp)
+static int bnx2x_prev_mcp_done(struct bnx2x *bp)
 {
-	u32 rc = bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
+	u32 rc = bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE,
+				  DRV_MSG_CODE_UNLOAD_SKIP_LINK_RESET);
 	if (!rc) {
 		BNX2X_ERR("MCP response failure, aborting\n");
 		return -EBUSY;
@@ -8911,22 +10127,62 @@ static int __devinit bnx2x_prev_mcp_done(struct bnx2x *bp)
 	return 0;
 }
 
-static bool __devinit bnx2x_prev_is_path_marked(struct bnx2x *bp)
+static struct bnx2x_prev_path_list *
+		bnx2x_prev_path_get_entry(struct bnx2x *bp)
 {
 	struct bnx2x_prev_path_list *tmp_list;
-	int rc = false;
+
+	list_for_each_entry(tmp_list, &bnx2x_prev_list, list)
+		if (PCI_SLOT(bp->pdev->devfn) == tmp_list->slot &&
+		    bp->pdev->bus->number == tmp_list->bus &&
+		    BP_PATH(bp) == tmp_list->path)
+			return tmp_list;
+
+	return NULL;
+}
+
+static int bnx2x_prev_path_mark_eeh(struct bnx2x *bp)
+{
+	struct bnx2x_prev_path_list *tmp_list;
+	int rc;
+
+	rc = down_interruptible(&bnx2x_prev_sem);
+	if (rc) {
+		BNX2X_ERR("Received %d when tried to take lock\n", rc);
+		return rc;
+	}
+
+	tmp_list = bnx2x_prev_path_get_entry(bp);
+	if (tmp_list) {
+		tmp_list->aer = 1;
+		rc = 0;
+	} else {
+		BNX2X_ERR("path %d: Entry does not exist for eeh; Flow occurs before initial insmod is over ?\n",
+			  BP_PATH(bp));
+	}
+
+	up(&bnx2x_prev_sem);
+
+	return rc;
+}
+
+static bool bnx2x_prev_is_path_marked(struct bnx2x *bp)
+{
+	struct bnx2x_prev_path_list *tmp_list;
+	bool rc = false;
 
 	if (down_trylock(&bnx2x_prev_sem))
 		return false;
 
-	list_for_each_entry(tmp_list, &bnx2x_prev_list, list) {
-		if (PCI_SLOT(bp->pdev->devfn) == tmp_list->slot &&
-		    bp->pdev->bus->number == tmp_list->bus &&
-		    BP_PATH(bp) == tmp_list->path) {
+	tmp_list = bnx2x_prev_path_get_entry(bp);
+	if (tmp_list) {
+		if (tmp_list->aer) {
+			DP(NETIF_MSG_HW, "Path %d was marked by AER\n",
+			   BP_PATH(bp));
+		} else {
 			rc = true;
 			BNX2X_DEV_INFO("Path %d was already cleaned from previous drivers\n",
 				       BP_PATH(bp));
-			break;
 		}
 	}
 
@@ -8935,13 +10191,49 @@ static bool __devinit bnx2x_prev_is_path_marked(struct bnx2x *bp)
 	return rc;
 }
 
-static int __devinit bnx2x_prev_mark_path(struct bnx2x *bp)
+bool bnx2x_port_after_undi(struct bnx2x *bp)
+{
+	struct bnx2x_prev_path_list *entry;
+	bool val;
+
+	down(&bnx2x_prev_sem);
+
+	entry = bnx2x_prev_path_get_entry(bp);
+	val = !!(entry && (entry->undi & (1 << BP_PORT(bp))));
+
+	up(&bnx2x_prev_sem);
+
+	return val;
+}
+
+static int bnx2x_prev_mark_path(struct bnx2x *bp, bool after_undi)
 {
 	struct bnx2x_prev_path_list *tmp_list;
 	int rc;
 
-	tmp_list = (struct bnx2x_prev_path_list *)
-		    kmalloc(sizeof(struct bnx2x_prev_path_list), GFP_KERNEL);
+	rc = down_interruptible(&bnx2x_prev_sem);
+	if (rc) {
+		BNX2X_ERR("Received %d when tried to take lock\n", rc);
+		return rc;
+	}
+
+	/* Check whether the entry for this path already exists */
+	tmp_list = bnx2x_prev_path_get_entry(bp);
+	if (tmp_list) {
+		if (!tmp_list->aer) {
+			BNX2X_ERR("Re-Marking the path.\n");
+		} else {
+			DP(NETIF_MSG_HW, "Removing AER indication from path %d\n",
+			   BP_PATH(bp));
+			tmp_list->aer = 0;
+		}
+		up(&bnx2x_prev_sem);
+		return 0;
+	}
+	up(&bnx2x_prev_sem);
+
+	/* Create an entry for this path and add it */
+	tmp_list = kmalloc(sizeof(struct bnx2x_prev_path_list), GFP_KERNEL);
 	if (!tmp_list) {
 		BNX2X_ERR("Failed to allocate 'bnx2x_prev_path_list'\n");
 		return -ENOMEM;
@@ -8950,14 +10242,16 @@ static int __devinit bnx2x_prev_mark_path(struct bnx2x *bp)
 	tmp_list->bus = bp->pdev->bus->number;
 	tmp_list->slot = PCI_SLOT(bp->pdev->devfn);
 	tmp_list->path = BP_PATH(bp);
+	tmp_list->aer = 0;
+	tmp_list->undi = after_undi ? (1 << BP_PORT(bp)) : 0;
 
 	rc = down_interruptible(&bnx2x_prev_sem);
 	if (rc) {
 		BNX2X_ERR("Received %d when tried to take lock\n", rc);
 		kfree(tmp_list);
 	} else {
-		BNX2X_DEV_INFO("Marked path [%d] - finished previous unload\n",
-				BP_PATH(bp));
+		DP(NETIF_MSG_HW, "Marked path [%d] - finished previous unload\n",
+		   BP_PATH(bp));
 		list_add(&tmp_list->list, &bnx2x_prev_list);
 		up(&bnx2x_prev_sem);
 	}
@@ -8965,63 +10259,32 @@ static int __devinit bnx2x_prev_mark_path(struct bnx2x *bp)
 	return rc;
 }
 
-static bool __devinit bnx2x_can_flr(struct bnx2x *bp)
+static int bnx2x_do_flr(struct bnx2x *bp)
 {
-	int pos;
-	u32 cap;
 	struct pci_dev *dev = bp->pdev;
 
-	pos = pci_pcie_cap(dev);
-	if (!pos)
-		return false;
-
-	pci_read_config_dword(dev, pos + PCI_EXP_DEVCAP, &cap);
-	if (!(cap & PCI_EXP_DEVCAP_FLR))
-		return false;
-
-	return true;
-}
-
-static int __devinit bnx2x_do_flr(struct bnx2x *bp)
-{
-	int i, pos;
-	u16 status;
-	struct pci_dev *dev = bp->pdev;
-
-	/* probe the capability first */
-	if (bnx2x_can_flr(bp))
-		return -ENOTTY;
-
-	pos = pci_pcie_cap(dev);
-	if (!pos)
-		return -ENOTTY;
-
-	/* Wait for Transaction Pending bit clean */
-	for (i = 0; i < 4; i++) {
-		if (i)
-			msleep((1 << (i - 1)) * 100);
-
-		pci_read_config_word(dev, pos + PCI_EXP_DEVSTA, &status);
-		if (!(status & PCI_EXP_DEVSTA_TRPND))
-			goto clear;
+	if (CHIP_IS_E1x(bp)) {
+		BNX2X_DEV_INFO("FLR not supported in E1/E1H\n");
+		return -EINVAL;
 	}
 
-	dev_err(&dev->dev,
-		"transaction is not cleared; proceeding with reset anyway\n");
-
-clear:
+	/* only bootcode REQ_BC_VER_4_INITIATE_FLR and onwards support flr */
 	if (bp->common.bc_ver < REQ_BC_VER_4_INITIATE_FLR) {
 		BNX2X_ERR("FLR not supported by BC_VER: 0x%x\n",
 			  bp->common.bc_ver);
 		return -EINVAL;
 	}
 
+	if (!pci_wait_for_pending_transaction(dev))
+		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
+
+	BNX2X_DEV_INFO("Initiating FLR\n");
 	bnx2x_fw_command(bp, DRV_MSG_CODE_INITIATE_FLR, 0);
 
 	return 0;
 }
 
-static int __devinit bnx2x_prev_unload_uncommon(struct bnx2x *bp)
+static int bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 {
 	int rc;
 
@@ -9031,13 +10294,33 @@ static int __devinit bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 	if (bnx2x_prev_is_path_marked(bp))
 		return bnx2x_prev_mcp_done(bp);
 
+	BNX2X_DEV_INFO("Path is unmarked\n");
+
+	/* Cannot proceed with FLR if UNDI is loaded, since FW does not match */
+	if (bnx2x_prev_is_after_undi(bp))
+		goto out;
+
 	/* If function has FLR capabilities, and existing FW version matches
 	 * the one required, then FLR will be sufficient to clean any residue
 	 * left by previous driver
 	 */
-	if (bnx2x_test_firmware_version(bp, false) && bnx2x_can_flr(bp))
-		return bnx2x_do_flr(bp);
+	rc = bnx2x_compare_fw_ver(bp, FW_MSG_CODE_DRV_LOAD_FUNCTION, false);
 
+	if (!rc) {
+		/* fw version is good */
+		BNX2X_DEV_INFO("FW version matches our own. Attempting FLR\n");
+		rc = bnx2x_do_flr(bp);
+	}
+
+	if (!rc) {
+		/* FLR was performed */
+		BNX2X_DEV_INFO("FLR successful\n");
+		return 0;
+	}
+
+	BNX2X_DEV_INFO("Could not FLR\n");
+
+out:
 	/* Close the MCP request, return failure*/
 	rc = bnx2x_prev_mcp_done(bp);
 	if (!rc)
@@ -9046,14 +10329,19 @@ static int __devinit bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 	return rc;
 }
 
-static int __devinit bnx2x_prev_unload_common(struct bnx2x *bp)
+static int bnx2x_prev_unload_common(struct bnx2x *bp)
 {
 	u32 reset_reg, tmp_reg = 0, rc;
+	bool prev_undi = false;
+	struct bnx2x_mac_vals mac_vals;
+
 	/* It is possible a previous function received 'common' answer,
 	 * but hasn't loaded yet, therefore creating a scenario of
 	 * multiple functions receiving 'common' on the same path.
 	 */
 	BNX2X_DEV_INFO("Common unload Flow\n");
+
+	memset(&mac_vals, 0, sizeof(mac_vals));
 
 	if (bnx2x_prev_is_path_marked(bp))
 		return bnx2x_prev_mcp_done(bp);
@@ -9063,24 +10351,25 @@ static int __devinit bnx2x_prev_unload_common(struct bnx2x *bp)
 	/* Reset should be performed after BRB is emptied */
 	if (reset_reg & MISC_REGISTERS_RESET_REG_1_RST_BRB1) {
 		u32 timer_count = 1000;
-		bool prev_undi = false;
 
 		/* Close the MAC Rx to prevent BRB from filling up */
-		bnx2x_prev_unload_close_mac(bp);
+		bnx2x_prev_unload_close_mac(bp, &mac_vals);
 
-		/* Check if the UNDI driver was previously loaded
-		 * UNDI driver initializes CID offset for normal bell to 0x7
-		 */
-		reset_reg = REG_RD(bp, MISC_REG_RESET_REG_1);
-		if (reset_reg & MISC_REGISTERS_RESET_REG_1_RST_DORQ) {
-			tmp_reg = REG_RD(bp, DORQ_REG_NORM_CID_OFST);
-			if (tmp_reg == 0x7) {
-				BNX2X_DEV_INFO("UNDI previously loaded\n");
-				prev_undi = true;
-				/* clear the UNDI indication */
-				REG_WR(bp, DORQ_REG_NORM_CID_OFST, 0);
-			}
+		/* close LLH filters towards the BRB */
+		bnx2x_set_rx_filter(&bp->link_params, 0);
+
+		/* Check if the UNDI driver was previously loaded */
+		if (bnx2x_prev_is_after_undi(bp)) {
+			prev_undi = true;
+			/* clear the UNDI indication */
+			REG_WR(bp, DORQ_REG_NORM_CID_OFST, 0);
+			/* clear possible idle check errors */
+			REG_RD(bp, NIG_REG_NIG_INT_STS_CLR_0);
 		}
+		if (!CHIP_IS_E1x(bp))
+			/* block FW from writing to host */
+			REG_WR(bp, PGLUE_B_REG_INTERNAL_PFID_ENABLE_MASTER, 0);
+
 		/* wait until BRB is empty */
 		tmp_reg = REG_RD(bp, BRB1_REG_NUM_OF_FULL_BLOCKS);
 		while (timer_count) {
@@ -9100,20 +10389,30 @@ static int __devinit bnx2x_prev_unload_common(struct bnx2x *bp)
 
 			/* If UNDI resides in memory, manually increment it */
 			if (prev_undi)
-				bnx2x_prev_unload_undi_inc(bp, BP_PORT(bp), 1);
+				bnx2x_prev_unload_undi_inc(bp, 1);
 
 			udelay(10);
 		}
 
 		if (!timer_count)
 			BNX2X_ERR("Failed to empty BRB, hope for the best\n");
-
 	}
 
 	/* No packets are in the pipeline, path is ready for reset */
 	bnx2x_reset_common(bp);
 
-	rc = bnx2x_prev_mark_path(bp);
+	if (mac_vals.xmac_addr)
+		REG_WR(bp, mac_vals.xmac_addr, mac_vals.xmac_val);
+	if (mac_vals.umac_addr)
+		REG_WR(bp, mac_vals.umac_addr, mac_vals.umac_val);
+	if (mac_vals.emac_addr)
+		REG_WR(bp, mac_vals.emac_addr, mac_vals.emac_val);
+	if (mac_vals.bmac_addr) {
+		REG_WR(bp, mac_vals.bmac_addr, mac_vals.bmac_val[0]);
+		REG_WR(bp, mac_vals.bmac_addr + 4, mac_vals.bmac_val[1]);
+	}
+
+	rc = bnx2x_prev_mark_path(bp, prev_undi);
 	if (rc) {
 		bnx2x_prev_mcp_done(bp);
 		return rc;
@@ -9122,18 +10421,43 @@ static int __devinit bnx2x_prev_unload_common(struct bnx2x *bp)
 	return bnx2x_prev_mcp_done(bp);
 }
 
-static int __devinit bnx2x_prev_unload(struct bnx2x *bp)
+/* previous driver DMAE transaction may have occurred when pre-boot stage ended
+ * and boot began, or when kdump kernel was loaded. Either case would invalidate
+ * the addresses of the transaction, resulting in was-error bit set in the pci
+ * causing all hw-to-host pcie transactions to timeout. If this happened we want
+ * to clear the interrupt which detected this from the pglueb and the was done
+ * bit
+ */
+static void bnx2x_prev_interrupted_dmae(struct bnx2x *bp)
+{
+	if (!CHIP_IS_E1x(bp)) {
+		u32 val = REG_RD(bp, PGLUE_B_REG_PGLUE_B_INT_STS);
+		if (val & PGLUE_B_PGLUE_B_INT_STS_REG_WAS_ERROR_ATTN) {
+			DP(BNX2X_MSG_SP,
+			   "'was error' bit was found to be set in pglueb upon startup. Clearing\n");
+			REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR,
+			       1 << BP_FUNC(bp));
+		}
+	}
+}
+
+static int bnx2x_prev_unload(struct bnx2x *bp)
 {
 	int time_counter = 10;
 	u32 rc, fw, hw_lock_reg, hw_lock_val;
 	BNX2X_DEV_INFO("Entering Previous Unload Flow\n");
 
-       /* Release previously held locks */
+	/* clear hw from errors which may have resulted from an interrupted
+	 * dmae transaction.
+	 */
+	bnx2x_prev_interrupted_dmae(bp);
+
+	/* Release previously held locks */
 	hw_lock_reg = (BP_FUNC(bp) <= 5) ?
 		      (MISC_REG_DRIVER_CONTROL_1 + BP_FUNC(bp) * 8) :
 		      (MISC_REG_DRIVER_CONTROL_7 + (BP_FUNC(bp) - 6) * 8);
 
-	hw_lock_val = (REG_RD(bp, hw_lock_reg));
+	hw_lock_val = REG_RD(bp, hw_lock_reg);
 	if (hw_lock_val) {
 		if (hw_lock_val & HW_LOCK_RESOURCE_NVRAM) {
 			BNX2X_DEV_INFO("Release Previously held NVRAM lock\n");
@@ -9148,11 +10472,11 @@ static int __devinit bnx2x_prev_unload(struct bnx2x *bp)
 
 	if (MCPR_ACCESS_LOCK_LOCK & REG_RD(bp, MCP_REG_MCPR_ACCESS_LOCK)) {
 		BNX2X_DEV_INFO("Release previously held alr\n");
-		REG_WR(bp, MCP_REG_MCPR_ACCESS_LOCK, 0);
+		bnx2x_release_alr(bp);
 	}
 
-
 	do {
+		int aer = 0;
 		/* Lock MCP using an unload request */
 		fw = bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS, 0);
 		if (!fw) {
@@ -9161,12 +10485,23 @@ static int __devinit bnx2x_prev_unload(struct bnx2x *bp)
 			break;
 		}
 
-		if (fw == FW_MSG_CODE_DRV_UNLOAD_COMMON) {
+		rc = down_interruptible(&bnx2x_prev_sem);
+		if (rc) {
+			BNX2X_ERR("Cannot check for AER; Received %d when tried to take lock\n",
+				  rc);
+		} else {
+			/* If Path is marked by EEH, ignore unload status */
+			aer = !!(bnx2x_prev_path_get_entry(bp) &&
+				 bnx2x_prev_path_get_entry(bp)->aer);
+			up(&bnx2x_prev_sem);
+		}
+
+		if (fw == FW_MSG_CODE_DRV_UNLOAD_COMMON || aer) {
 			rc = bnx2x_prev_unload_common(bp);
 			break;
 		}
 
-		/* non-common reply from MCP night require looping */
+		/* non-common reply from MCP might require looping */
 		rc = bnx2x_prev_unload_uncommon(bp);
 		if (rc != BNX2X_PREV_WAIT_NEEDED)
 			break;
@@ -9175,16 +10510,21 @@ static int __devinit bnx2x_prev_unload(struct bnx2x *bp)
 	} while (--time_counter);
 
 	if (!time_counter || rc) {
-		BNX2X_ERR("Failed unloading previous driver, aborting\n");
-		rc = -EBUSY;
+		BNX2X_DEV_INFO("Unloading previous driver did not occur, Possibly due to MF UNDI\n");
+		rc = -EPROBE_DEFER;
 	}
+
+	/* Mark function if its port was used to boot from SAN */
+	if (bnx2x_port_after_undi(bp))
+		bp->link_params.feature_config_flags |=
+			FEATURE_CONFIG_BOOT_FROM_SAN;
 
 	BNX2X_DEV_INFO("Finished Previous Unload Flow [%d]\n", rc);
 
 	return rc;
 }
 
-static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
+static void bnx2x_get_common_hwinfo(struct bnx2x *bp)
 {
 	u32 val, val2, val3, val4, id, boot_mode;
 	u16 pmc;
@@ -9195,11 +10535,26 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	id = ((val & 0xffff) << 16);
 	val = REG_RD(bp, MISC_REG_CHIP_REV);
 	id |= ((val & 0xf) << 12);
-	val = REG_RD(bp, MISC_REG_CHIP_METAL);
-	id |= ((val & 0xff) << 4);
+
+	/* Metal is read from PCI regs, but we can't access >=0x400 from
+	 * the configuration space (so we need to reg_rd)
+	 */
+	val = REG_RD(bp, PCICFG_OFFSET + PCI_ID_VAL3);
+	id |= (((val >> 24) & 0xf) << 4);
 	val = REG_RD(bp, MISC_REG_BOND_ID);
 	id |= (val & 0xf);
 	bp->common.chip_id = id;
+
+	/* force 57811 according to MISC register */
+	if (REG_RD(bp, MISC_REG_CHIP_TYPE) & MISC_REG_CHIP_TYPE_57811_MASK) {
+		if (CHIP_IS_57810(bp))
+			bp->common.chip_id = (CHIP_NUM_57811 << 16) |
+				(bp->common.chip_id & 0x0000FFFF);
+		else if (CHIP_IS_57810_MF(bp))
+			bp->common.chip_id = (CHIP_NUM_57811_MF << 16) |
+				(bp->common.chip_id & 0x0000FFFF);
+		bp->common.chip_id |= 0x1;
+	}
 
 	/* Set doorbell size */
 	bp->db_size = (1 << BNX2X_DB_SHIFT);
@@ -9244,14 +10599,20 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 
 	bnx2x_init_shmem(bp);
 
-
-
 	bp->common.shmem2_base = REG_RD(bp, (BP_PATH(bp) ?
 					MISC_REG_GENERIC_CR_1 :
 					MISC_REG_GENERIC_CR_0));
 
 	bp->link_params.shmem_base = bp->common.shmem_base;
 	bp->link_params.shmem2_base = bp->common.shmem2_base;
+	if (SHMEM2_RD(bp, size) >
+	    (u32)offsetof(struct shmem2_region, lfa_host_addr[BP_PORT(bp)]))
+		bp->link_params.lfa_base =
+		REG_RD(bp, bp->common.shmem2_base +
+		       (u32)offsetof(struct shmem2_region,
+				     lfa_host_addr[BP_PORT(bp)]));
+	else
+		bp->link_params.lfa_base = 0;
 	BNX2X_DEV_INFO("shmem offset 0x%x  shmem2 offset 0x%x\n",
 		       bp->common.shmem_base, bp->common.shmem2_base);
 
@@ -9293,12 +10654,28 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	bp->link_params.feature_config_flags |=
 		(val >= REQ_BC_VER_4_VRFY_SPECIFIC_PHY_OPT_MDL) ?
 		FEATURE_CONFIG_BC_SUPPORTS_DUAL_PHY_OPT_MDL_VRFY : 0;
-
+	bp->link_params.feature_config_flags |=
+		(val >= REQ_BC_VER_4_VRFY_AFEX_SUPPORTED) ?
+		FEATURE_CONFIG_BC_SUPPORTS_AFEX : 0;
 	bp->link_params.feature_config_flags |=
 		(val >= REQ_BC_VER_4_SFP_TX_DISABLE_SUPPORTED) ?
 		FEATURE_CONFIG_BC_SUPPORTS_SFP_TX_DISABLED : 0;
+
+	bp->link_params.feature_config_flags |=
+		(val >= REQ_BC_VER_4_MT_SUPPORTED) ?
+		FEATURE_CONFIG_MT_SUPPORT : 0;
+
 	bp->flags |= (val >= REQ_BC_VER_4_PFC_STATS_SUPPORTED) ?
 			BC_SUPPORTS_PFC_STATS : 0;
+
+	bp->flags |= (val >= REQ_BC_VER_4_FCOE_FEATURES) ?
+			BC_SUPPORTS_FCOE_FEATURES : 0;
+
+	bp->flags |= (val >= REQ_BC_VER_4_DCBX_ADMIN_MSG_NON_PMF) ?
+			BC_SUPPORTS_DCBX_MSG_NON_PMF : 0;
+
+	bp->flags |= (val >= REQ_BC_VER_4_RMMOD_CMD) ?
+			BC_SUPPORTS_RMMOD_CMD : 0;
 
 	boot_mode = SHMEM_RD(bp,
 			dev_info.port_feature_config[BP_PORT(bp)].mba_config) &
@@ -9318,7 +10695,7 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		break;
 	}
 
-	pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_PMC, &pmc);
+	pci_read_config_word(bp->pdev, bp->pdev->pm_cap + PCI_PM_PMC, &pmc);
 	bp->flags |= (pmc & PCI_PM_CAP_PME_D3cold) ? 0 : NO_WOL_FLAG;
 
 	BNX2X_DEV_INFO("%sWoL capable\n",
@@ -9336,7 +10713,7 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 #define IGU_FID(val)	GET_FIELD((val), IGU_REG_MAPPING_MEMORY_FID)
 #define IGU_VEC(val)	GET_FIELD((val), IGU_REG_MAPPING_MEMORY_VECTOR)
 
-static void __devinit bnx2x_get_igu_cam_info(struct bnx2x *bp)
+static int bnx2x_get_igu_cam_info(struct bnx2x *bp)
 {
 	int pfid = BP_FUNC(bp);
 	int igu_sb_id;
@@ -9353,7 +10730,7 @@ static void __devinit bnx2x_get_igu_cam_info(struct bnx2x *bp)
 		bp->igu_dsb_id =  E1HVN_MAX * FP_SB_MAX_E1x +
 			(CHIP_MODE_IS_4_PORT(bp) ? pfid : vn);
 
-		return;
+		return 0;
 	}
 
 	/* IGU in normal mode - read CAM */
@@ -9378,20 +10755,24 @@ static void __devinit bnx2x_get_igu_cam_info(struct bnx2x *bp)
 	}
 
 #ifdef CONFIG_PCI_MSI
-	/*
-	 * It's expected that number of CAM entries for this functions is equal
-	 * to the number evaluated based on the MSI-X table size. We want a
-	 * harsh warning if these values are different!
+	/* Due to new PF resource allocation by MFW T7.4 and above, it's
+	 * optional that number of CAM entries will not be equal to the value
+	 * advertised in PCI.
+	 * Driver should use the minimal value of both as the actual status
+	 * block count
 	 */
-	WARN_ON(bp->igu_sb_cnt != igu_sb_cnt);
+	bp->igu_sb_cnt = min_t(int, bp->igu_sb_cnt, igu_sb_cnt);
 #endif
 
-	if (igu_sb_cnt == 0)
+	if (igu_sb_cnt == 0) {
 		BNX2X_ERR("CAM configuration error\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
-static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
-						    u32 switch_cfg)
+static void bnx2x_link_settings_supported(struct bnx2x *bp, u32 switch_cfg)
 {
 	int cfg_size = 0, idx, port = BP_PORT(bp);
 
@@ -9483,13 +10864,16 @@ static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
 					PORT_HW_CFG_SPEED_CAPABILITY_D0_10G))
 			bp->port.supported[idx] &= ~SUPPORTED_10000baseT_Full;
 
+		if (!(bp->link_params.speed_cap_mask[idx] &
+					PORT_HW_CFG_SPEED_CAPABILITY_D0_20G))
+			bp->port.supported[idx] &= ~SUPPORTED_20000baseKR2_Full;
 	}
 
 	BNX2X_DEV_INFO("supported 0x%x 0x%x\n", bp->port.supported[0],
 		       bp->port.supported[1]);
 }
 
-static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
+static void bnx2x_link_settings_requested(struct bnx2x *bp)
 {
 	u32 link_config, idx, cfg_size = 0;
 	bp->port.advertising[0] = 0;
@@ -9658,11 +11042,13 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 
 		bp->link_params.req_flow_ctrl[idx] = (link_config &
 					 PORT_FEATURE_FLOW_CONTROL_MASK);
-		if ((bp->link_params.req_flow_ctrl[idx] ==
-		     BNX2X_FLOW_CTRL_AUTO) &&
-		    !(bp->port.supported[idx] & SUPPORTED_Autoneg)) {
-			bp->link_params.req_flow_ctrl[idx] =
-				BNX2X_FLOW_CTRL_NONE;
+		if (bp->link_params.req_flow_ctrl[idx] ==
+		    BNX2X_FLOW_CTRL_AUTO) {
+			if (!(bp->port.supported[idx] & SUPPORTED_Autoneg))
+				bp->link_params.req_flow_ctrl[idx] =
+							BNX2X_FLOW_CTRL_NONE;
+			else
+				bnx2x_set_requested_fc(bp);
 		}
 
 		BNX2X_DEV_INFO("req_line_speed %d  req_duplex %d req_flow_ctrl 0x%x advertising 0x%x\n",
@@ -9673,19 +11059,19 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 	}
 }
 
-static void __devinit bnx2x_set_mac_buf(u8 *mac_buf, u32 mac_lo, u16 mac_hi)
+static void bnx2x_set_mac_buf(u8 *mac_buf, u32 mac_lo, u16 mac_hi)
 {
-	mac_hi = cpu_to_be16(mac_hi);
-	mac_lo = cpu_to_be32(mac_lo);
-	memcpy(mac_buf, &mac_hi, sizeof(mac_hi));
-	memcpy(mac_buf + sizeof(mac_hi), &mac_lo, sizeof(mac_lo));
+	__be16 mac_hi_be = cpu_to_be16(mac_hi);
+	__be32 mac_lo_be = cpu_to_be32(mac_lo);
+	memcpy(mac_buf, &mac_hi_be, sizeof(mac_hi_be));
+	memcpy(mac_buf + sizeof(mac_hi_be), &mac_lo_be, sizeof(mac_lo_be));
 }
 
-static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
+static void bnx2x_get_port_hwinfo(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
 	u32 config;
-	u32 ext_phy_type, ext_phy_config;
+	u32 ext_phy_type, ext_phy_config, eee_mode;
 
 	bp->link_params.bp = bp;
 	bp->link_params.port = port;
@@ -9695,10 +11081,12 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 
 	bp->link_params.speed_cap_mask[0] =
 		SHMEM_RD(bp,
-			 dev_info.port_hw_config[port].speed_capability_mask);
+			 dev_info.port_hw_config[port].speed_capability_mask) &
+		PORT_HW_CFG_SPEED_CAPABILITY_D0_MASK;
 	bp->link_params.speed_cap_mask[1] =
 		SHMEM_RD(bp,
-			 dev_info.port_hw_config[port].speed_capability_mask2);
+			 dev_info.port_hw_config[port].speed_capability_mask2) &
+		PORT_HW_CFG_SPEED_CAPABILITY_D0_MASK;
 	bp->port.link_config[0] =
 		SHMEM_RD(bp, dev_info.port_feature_config[port].link_config);
 
@@ -9713,6 +11101,13 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	config = SHMEM_RD(bp, dev_info.port_feature_config[port].config);
 	bp->wol = (!(bp->flags & NO_WOL_FLAG) &&
 		   (config & PORT_FEATURE_WOL_ENABLED));
+
+	if ((config & PORT_FEAT_CFG_STORAGE_PERSONALITY_MASK) ==
+	    PORT_FEAT_CFG_STORAGE_PERSONALITY_FCOE && !IS_MF(bp))
+		bp->flags |= NO_ISCSI_FLAG;
+	if ((config & PORT_FEAT_CFG_STORAGE_PERSONALITY_MASK) ==
+	    PORT_FEAT_CFG_STORAGE_PERSONALITY_ISCSI && !(IS_MF(bp)))
+		bp->flags |= NO_FCOE_FLAG;
 
 	BNX2X_DEV_INFO("lane_config 0x%08x  speed_cap_mask0 0x%08x  link_config0 0x%08x\n",
 		       bp->link_params.lane_config,
@@ -9742,26 +11137,31 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 		bp->mdio.prtad =
 			XGXS_EXT_PHY_ADDR(ext_phy_config);
 
-	/*
-	 * Check if hw lock is required to access MDC/MDIO bus to the PHY(s)
-	 * In MF mode, it is set to cover self test cases
-	 */
-	if (IS_MF(bp))
-		bp->port.need_hw_lock = 1;
-	else
-		bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
-							bp->common.shmem_base,
-							bp->common.shmem2_base);
+	/* Configure link feature according to nvram value */
+	eee_mode = (((SHMEM_RD(bp, dev_info.
+		      port_feature_config[port].eee_power_mode)) &
+		     PORT_FEAT_CFG_EEE_POWER_MODE_MASK) >>
+		    PORT_FEAT_CFG_EEE_POWER_MODE_SHIFT);
+	if (eee_mode != PORT_FEAT_CFG_EEE_POWER_MODE_DISABLED) {
+		bp->link_params.eee_mode = EEE_MODE_ADV_LPI |
+					   EEE_MODE_ENABLE_LPI |
+					   EEE_MODE_OUTPUT_TIME;
+	} else {
+		bp->link_params.eee_mode = 0;
+	}
 }
 
 void bnx2x_get_iscsi_info(struct bnx2x *bp)
 {
 	u32 no_flags = NO_ISCSI_FLAG;
-#ifdef BCM_CNIC
 	int port = BP_PORT(bp);
-
 	u32 max_iscsi_conn = FW_ENCODE_32BIT_PATTERN ^ SHMEM_RD(bp,
 				drv_lic_key[port].max_iscsi_conn);
+
+	if (!CNIC_SUPPORT(bp)) {
+		bp->flags |= no_flags;
+		return;
+	}
 
 	/* Get the number of maximum allowed iSCSI connections */
 	bp->cnic_eth_dev.max_iscsi_conn =
@@ -9777,13 +11177,9 @@ void bnx2x_get_iscsi_info(struct bnx2x *bp)
 	 */
 	if (!bp->cnic_eth_dev.max_iscsi_conn)
 		bp->flags |= no_flags;
-#else
-	bp->flags |= no_flags;
-#endif
 }
 
-#ifdef BCM_CNIC
-static void __devinit bnx2x_get_ext_wwn_info(struct bnx2x *bp, int func)
+static void bnx2x_get_ext_wwn_info(struct bnx2x *bp, int func)
 {
 	/* Port info */
 	bp->cnic_eth_dev.fcoe_wwn_port_name_hi =
@@ -9797,54 +11193,106 @@ static void __devinit bnx2x_get_ext_wwn_info(struct bnx2x *bp, int func)
 	bp->cnic_eth_dev.fcoe_wwn_node_name_lo =
 		MF_CFG_RD(bp, func_ext_config[func].fcoe_wwn_node_name_lower);
 }
-#endif
-static void __devinit bnx2x_get_fcoe_info(struct bnx2x *bp)
+
+static int bnx2x_shared_fcoe_funcs(struct bnx2x *bp)
 {
-#ifdef BCM_CNIC
+	u8 count = 0;
+
+	if (IS_MF(bp)) {
+		u8 fid;
+
+		/* iterate over absolute function ids for this path: */
+		for (fid = BP_PATH(bp); fid < E2_FUNC_MAX * 2; fid += 2) {
+			if (IS_MF_SD(bp)) {
+				u32 cfg = MF_CFG_RD(bp,
+						    func_mf_config[fid].config);
+
+				if (!(cfg & FUNC_MF_CFG_FUNC_HIDE) &&
+				    ((cfg & FUNC_MF_CFG_PROTOCOL_MASK) ==
+					    FUNC_MF_CFG_PROTOCOL_FCOE))
+					count++;
+			} else {
+				u32 cfg = MF_CFG_RD(bp,
+						    func_ext_config[fid].
+								      func_cfg);
+
+				if ((cfg & MACP_FUNC_CFG_FLAGS_ENABLED) &&
+				    (cfg & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD))
+					count++;
+			}
+		}
+	} else { /* SF */
+		int port, port_cnt = CHIP_MODE_IS_4_PORT(bp) ? 2 : 1;
+
+		for (port = 0; port < port_cnt; port++) {
+			u32 lic = SHMEM_RD(bp,
+					   drv_lic_key[port].max_fcoe_conn) ^
+				  FW_ENCODE_32BIT_PATTERN;
+			if (lic)
+				count++;
+		}
+	}
+
+	return count;
+}
+
+static void bnx2x_get_fcoe_info(struct bnx2x *bp)
+{
 	int port = BP_PORT(bp);
 	int func = BP_ABS_FUNC(bp);
-
 	u32 max_fcoe_conn = FW_ENCODE_32BIT_PATTERN ^ SHMEM_RD(bp,
 				drv_lic_key[port].max_fcoe_conn);
+	u8 num_fcoe_func = bnx2x_shared_fcoe_funcs(bp);
+
+	if (!CNIC_SUPPORT(bp)) {
+		bp->flags |= NO_FCOE_FLAG;
+		return;
+	}
 
 	/* Get the number of maximum allowed FCoE connections */
 	bp->cnic_eth_dev.max_fcoe_conn =
 		(max_fcoe_conn & BNX2X_MAX_FCOE_INIT_CONN_MASK) >>
 		BNX2X_MAX_FCOE_INIT_CONN_SHIFT;
 
+	/* Calculate the number of maximum allowed FCoE tasks */
+	bp->cnic_eth_dev.max_fcoe_exchanges = MAX_NUM_FCOE_TASKS_PER_ENGINE;
+
+	/* check if FCoE resources must be shared between different functions */
+	if (num_fcoe_func)
+		bp->cnic_eth_dev.max_fcoe_exchanges /= num_fcoe_func;
+
 	/* Read the WWN: */
 	if (!IS_MF(bp)) {
 		/* Port info */
 		bp->cnic_eth_dev.fcoe_wwn_port_name_hi =
 			SHMEM_RD(bp,
-				dev_info.port_hw_config[port].
+				 dev_info.port_hw_config[port].
 				 fcoe_wwn_port_name_upper);
 		bp->cnic_eth_dev.fcoe_wwn_port_name_lo =
 			SHMEM_RD(bp,
-				dev_info.port_hw_config[port].
+				 dev_info.port_hw_config[port].
 				 fcoe_wwn_port_name_lower);
 
 		/* Node info */
 		bp->cnic_eth_dev.fcoe_wwn_node_name_hi =
 			SHMEM_RD(bp,
-				dev_info.port_hw_config[port].
+				 dev_info.port_hw_config[port].
 				 fcoe_wwn_node_name_upper);
 		bp->cnic_eth_dev.fcoe_wwn_node_name_lo =
 			SHMEM_RD(bp,
-				dev_info.port_hw_config[port].
+				 dev_info.port_hw_config[port].
 				 fcoe_wwn_node_name_lower);
 	} else if (!IS_MF_SD(bp)) {
-		u32 cfg = MF_CFG_RD(bp, func_ext_config[func].func_cfg);
-
 		/*
 		 * Read the WWN info only if the FCoE feature is enabled for
 		 * this function.
 		 */
-		if (cfg & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD)
+		if (BNX2X_MF_EXT_PROTOCOL_FCOE(bp) && !CHIP_IS_E1x(bp))
 			bnx2x_get_ext_wwn_info(bp, func);
 
-	} else if (IS_MF_FCOE_SD(bp))
+	} else if (IS_MF_FCOE_SD(bp) && !CHIP_IS_E1x(bp)) {
 		bnx2x_get_ext_wwn_info(bp, func);
+	}
 
 	BNX2X_DEV_INFO("max_fcoe_conn 0x%x\n", bp->cnic_eth_dev.max_fcoe_conn);
 
@@ -9854,12 +11302,9 @@ static void __devinit bnx2x_get_fcoe_info(struct bnx2x *bp)
 	 */
 	if (!bp->cnic_eth_dev.max_fcoe_conn)
 		bp->flags |= NO_FCOE_FLAG;
-#else
-	bp->flags |= NO_FCOE_FLAG;
-#endif
 }
 
-static void __devinit bnx2x_get_cnic_info(struct bnx2x *bp)
+static void bnx2x_get_cnic_info(struct bnx2x *bp)
 {
 	/*
 	 * iSCSI may be dynamically disabled but reading
@@ -9870,15 +11315,103 @@ static void __devinit bnx2x_get_cnic_info(struct bnx2x *bp)
 	bnx2x_get_fcoe_info(bp);
 }
 
-static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
+static void bnx2x_get_cnic_mac_hwinfo(struct bnx2x *bp)
 {
 	u32 val, val2;
 	int func = BP_ABS_FUNC(bp);
 	int port = BP_PORT(bp);
-#ifdef BCM_CNIC
 	u8 *iscsi_mac = bp->cnic_eth_dev.iscsi_mac;
 	u8 *fip_mac = bp->fip_mac;
-#endif
+
+	if (IS_MF(bp)) {
+		/* iSCSI and FCoE NPAR MACs: if there is no either iSCSI or
+		 * FCoE MAC then the appropriate feature should be disabled.
+		 * In non SD mode features configuration comes from struct
+		 * func_ext_config.
+		 */
+		if (!IS_MF_SD(bp) && !CHIP_IS_E1x(bp)) {
+			u32 cfg = MF_CFG_RD(bp, func_ext_config[func].func_cfg);
+			if (cfg & MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD) {
+				val2 = MF_CFG_RD(bp, func_ext_config[func].
+						 iscsi_mac_addr_upper);
+				val = MF_CFG_RD(bp, func_ext_config[func].
+						iscsi_mac_addr_lower);
+				bnx2x_set_mac_buf(iscsi_mac, val, val2);
+				BNX2X_DEV_INFO
+					("Read iSCSI MAC: %pM\n", iscsi_mac);
+			} else {
+				bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
+			}
+
+			if (cfg & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD) {
+				val2 = MF_CFG_RD(bp, func_ext_config[func].
+						 fcoe_mac_addr_upper);
+				val = MF_CFG_RD(bp, func_ext_config[func].
+						fcoe_mac_addr_lower);
+				bnx2x_set_mac_buf(fip_mac, val, val2);
+				BNX2X_DEV_INFO
+					("Read FCoE L2 MAC: %pM\n", fip_mac);
+			} else {
+				bp->flags |= NO_FCOE_FLAG;
+			}
+
+			bp->mf_ext_config = cfg;
+
+		} else { /* SD MODE */
+			if (BNX2X_IS_MF_SD_PROTOCOL_ISCSI(bp)) {
+				/* use primary mac as iscsi mac */
+				memcpy(iscsi_mac, bp->dev->dev_addr, ETH_ALEN);
+
+				BNX2X_DEV_INFO("SD ISCSI MODE\n");
+				BNX2X_DEV_INFO
+					("Read iSCSI MAC: %pM\n", iscsi_mac);
+			} else if (BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)) {
+				/* use primary mac as fip mac */
+				memcpy(fip_mac, bp->dev->dev_addr, ETH_ALEN);
+				BNX2X_DEV_INFO("SD FCoE MODE\n");
+				BNX2X_DEV_INFO
+					("Read FIP MAC: %pM\n", fip_mac);
+			}
+		}
+
+		/* If this is a storage-only interface, use SAN mac as
+		 * primary MAC. Notice that for SD this is already the case,
+		 * as the SAN mac was copied from the primary MAC.
+		 */
+		if (IS_MF_FCOE_AFEX(bp))
+			memcpy(bp->dev->dev_addr, fip_mac, ETH_ALEN);
+	} else {
+		val2 = SHMEM_RD(bp, dev_info.port_hw_config[port].
+				iscsi_mac_upper);
+		val = SHMEM_RD(bp, dev_info.port_hw_config[port].
+			       iscsi_mac_lower);
+		bnx2x_set_mac_buf(iscsi_mac, val, val2);
+
+		val2 = SHMEM_RD(bp, dev_info.port_hw_config[port].
+				fcoe_fip_mac_upper);
+		val = SHMEM_RD(bp, dev_info.port_hw_config[port].
+			       fcoe_fip_mac_lower);
+		bnx2x_set_mac_buf(fip_mac, val, val2);
+	}
+
+	/* Disable iSCSI OOO if MAC configuration is invalid. */
+	if (!is_valid_ether_addr(iscsi_mac)) {
+		bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
+		memset(iscsi_mac, 0, ETH_ALEN);
+	}
+
+	/* Disable FCoE if MAC configuration is invalid. */
+	if (!is_valid_ether_addr(fip_mac)) {
+		bp->flags |= NO_FCOE_FLAG;
+		memset(bp->fip_mac, 0, ETH_ALEN);
+	}
+}
+
+static void bnx2x_get_mac_hwinfo(struct bnx2x *bp)
+{
+	u32 val, val2;
+	int func = BP_ABS_FUNC(bp);
+	int port = BP_PORT(bp);
 
 	/* Zero primary MAC configuration */
 	memset(bp->dev->dev_addr, 0, ETH_ALEN);
@@ -9893,112 +11426,59 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 		    (val != FUNC_MF_CFG_LOWERMAC_DEFAULT))
 			bnx2x_set_mac_buf(bp->dev->dev_addr, val, val2);
 
-#ifdef BCM_CNIC
-		/*
-		 * iSCSI and FCoE NPAR MACs: if there is no either iSCSI or
-		 * FCoE MAC then the appropriate feature should be disabled.
-		 *
-		 * In non SD mode features configuration comes from
-		 * struct func_ext_config.
-		 */
-		if (!IS_MF_SD(bp)) {
-			u32 cfg = MF_CFG_RD(bp, func_ext_config[func].func_cfg);
-			if (cfg & MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD) {
-				val2 = MF_CFG_RD(bp, func_ext_config[func].
-						     iscsi_mac_addr_upper);
-				val = MF_CFG_RD(bp, func_ext_config[func].
-						    iscsi_mac_addr_lower);
-				bnx2x_set_mac_buf(iscsi_mac, val, val2);
-				BNX2X_DEV_INFO("Read iSCSI MAC: %pM\n",
-					       iscsi_mac);
-			} else
-				bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
-
-			if (cfg & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD) {
-				val2 = MF_CFG_RD(bp, func_ext_config[func].
-						     fcoe_mac_addr_upper);
-				val = MF_CFG_RD(bp, func_ext_config[func].
-						    fcoe_mac_addr_lower);
-				bnx2x_set_mac_buf(fip_mac, val, val2);
-				BNX2X_DEV_INFO("Read FCoE L2 MAC: %pM\n",
-					       fip_mac);
-
-			} else
-				bp->flags |= NO_FCOE_FLAG;
-		} else { /* SD MODE */
-			if (IS_MF_STORAGE_SD(bp)) {
-				if (BNX2X_IS_MF_SD_PROTOCOL_ISCSI(bp)) {
-					/* use primary mac as iscsi mac */
-					memcpy(iscsi_mac, bp->dev->dev_addr,
-					       ETH_ALEN);
-
-					BNX2X_DEV_INFO("SD ISCSI MODE\n");
-					BNX2X_DEV_INFO("Read iSCSI MAC: %pM\n",
-						       iscsi_mac);
-				} else { /* FCoE */
-					memcpy(fip_mac, bp->dev->dev_addr,
-					       ETH_ALEN);
-					BNX2X_DEV_INFO("SD FCoE MODE\n");
-					BNX2X_DEV_INFO("Read FIP MAC: %pM\n",
-						       fip_mac);
-				}
-				/* Zero primary MAC configuration */
-				memset(bp->dev->dev_addr, 0, ETH_ALEN);
-			}
-		}
-#endif
+		if (CNIC_SUPPORT(bp))
+			bnx2x_get_cnic_mac_hwinfo(bp);
 	} else {
 		/* in SF read MACs from port configuration */
 		val2 = SHMEM_RD(bp, dev_info.port_hw_config[port].mac_upper);
 		val = SHMEM_RD(bp, dev_info.port_hw_config[port].mac_lower);
 		bnx2x_set_mac_buf(bp->dev->dev_addr, val, val2);
 
-#ifdef BCM_CNIC
-		val2 = SHMEM_RD(bp, dev_info.port_hw_config[port].
-				    iscsi_mac_upper);
-		val = SHMEM_RD(bp, dev_info.port_hw_config[port].
-				   iscsi_mac_lower);
-		bnx2x_set_mac_buf(iscsi_mac, val, val2);
+		if (CNIC_SUPPORT(bp))
+			bnx2x_get_cnic_mac_hwinfo(bp);
+	}
 
-		val2 = SHMEM_RD(bp, dev_info.port_hw_config[port].
-				    fcoe_fip_mac_upper);
-		val = SHMEM_RD(bp, dev_info.port_hw_config[port].
-				   fcoe_fip_mac_lower);
-		bnx2x_set_mac_buf(fip_mac, val, val2);
-#endif
+	if (!BP_NOMCP(bp)) {
+		/* Read physical port identifier from shmem */
+		val2 = SHMEM_RD(bp, dev_info.port_hw_config[port].mac_upper);
+		val = SHMEM_RD(bp, dev_info.port_hw_config[port].mac_lower);
+		bnx2x_set_mac_buf(bp->phys_port_id, val, val2);
+		bp->flags |= HAS_PHYS_PORT_ID;
 	}
 
 	memcpy(bp->link_params.mac_addr, bp->dev->dev_addr, ETH_ALEN);
-	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, ETH_ALEN);
-
-#ifdef BCM_CNIC
-	/* Disable iSCSI if MAC configuration is
-	 * invalid.
-	 */
-	if (!is_valid_ether_addr(iscsi_mac)) {
-		bp->flags |= NO_ISCSI_FLAG;
-		memset(iscsi_mac, 0, ETH_ALEN);
-	}
-
-	/* Disable FCoE if MAC configuration is
-	 * invalid.
-	 */
-	if (!is_valid_ether_addr(fip_mac)) {
-		bp->flags |= NO_FCOE_FLAG;
-		memset(bp->fip_mac, 0, ETH_ALEN);
-	}
-#endif
 
 	if (!bnx2x_is_valid_ether_addr(bp, bp->dev->dev_addr))
 		dev_err(&bp->pdev->dev,
 			"bad Ethernet MAC address configuration: %pM\n"
 			"change it manually before bringing up the appropriate network interface\n",
 			bp->dev->dev_addr);
-
-
 }
 
-static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
+static bool bnx2x_get_dropless_info(struct bnx2x *bp)
+{
+	int tmp;
+	u32 cfg;
+
+	if (IS_VF(bp))
+		return 0;
+
+	if (IS_MF(bp) && !CHIP_IS_E1x(bp)) {
+		/* Take function: tmp = func */
+		tmp = BP_ABS_FUNC(bp);
+		cfg = MF_CFG_RD(bp, func_ext_config[tmp].func_cfg);
+		cfg = !!(cfg & MACP_FUNC_CFG_PAUSE_ON_HOST_RING);
+	} else {
+		/* Take port: tmp = port */
+		tmp = BP_PORT(bp);
+		cfg = SHMEM_RD(bp,
+			       dev_info.port_hw_config[tmp].generic_features);
+		cfg = !!(cfg & PORT_HW_CFG_PAUSE_ON_HOST_RING_ENABLED);
+	}
+	return cfg;
+}
+
+static int bnx2x_get_hwinfo(struct bnx2x *bp)
 {
 	int /*abs*/func = BP_ABS_FUNC(bp);
 	int vn;
@@ -10018,7 +11498,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 	} else {
 		bp->common.int_block = INT_BLOCK_IGU;
 
-		/* do not allow device reset during IGU info preocessing */
+		/* do not allow device reset during IGU info processing */
 		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 
 		val = REG_RD(bp, IGU_REG_BLOCK_CONFIGURATION);
@@ -10034,12 +11514,14 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 
 			while (tout && REG_RD(bp, IGU_REG_RESET_MEMORIES)) {
 				tout--;
-				usleep_range(1000, 1000);
+				usleep_range(1000, 2000);
 			}
 
 			if (REG_RD(bp, IGU_REG_RESET_MEMORIES)) {
 				dev_err(&bp->pdev->dev,
 					"FORCING Normal Mode failed!!!\n");
+				bnx2x_release_hw_lock(bp,
+						      HW_LOCK_RESOURCE_RESET);
 				return -EPERM;
 			}
 		}
@@ -10050,9 +11532,10 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 		} else
 			BNX2X_DEV_INFO("IGU Normal Mode\n");
 
-		bnx2x_get_igu_cam_info(bp);
-
+		rc = bnx2x_get_igu_cam_info(bp);
 		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
+		if (rc)
+			return rc;
 	}
 
 	/*
@@ -10094,7 +11577,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 				E1H_FUNC_MAX * sizeof(struct drv_func_mb);
 		/*
 		 * get mf configuration:
-		 * 1. existence of MF configuration
+		 * 1. Existence of MF configuration
 		 * 2. MAC address must be legal (check only upper bytes)
 		 *    for  Switch-Independent mode;
 		 *    OVLAN must be legal for Switch-Dependent mode
@@ -10118,6 +11601,19 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 				} else
 					BNX2X_DEV_INFO("illegal MAC address for SI\n");
 				break;
+			case SHARED_FEAT_CFG_FORCE_SF_MODE_AFEX_MODE:
+				if ((!CHIP_IS_E1x(bp)) &&
+				    (MF_CFG_RD(bp, func_mf_config[func].
+					       mac_upper) != 0xffff) &&
+				    (SHMEM2_HAS(bp,
+						afex_driver_support))) {
+					bp->mf_mode = MULTI_FUNCTION_AFEX;
+					bp->mf_config[vn] = MF_CFG_RD(bp,
+						func_mf_config[func].config);
+				} else {
+					BNX2X_DEV_INFO("can not configure afex mode\n");
+				}
+				break;
 			case SHARED_FEAT_CFG_FORCE_SF_MODE_MF_ALLOWED:
 				/* get OV configuration */
 				val = MF_CFG_RD(bp,
@@ -10130,6 +11626,9 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 						func_mf_config[func].config);
 				} else
 					BNX2X_DEV_INFO("illegal OV for SD\n");
+				break;
+			case SHARED_FEAT_CFG_FORCE_SF_MODE_FORCED_SF:
+				bp->mf_config[vn] = 0;
 				break;
 			default:
 				/* Unknown configuration: reset mf_config */
@@ -10157,6 +11656,9 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 					func);
 				return -EPERM;
 			}
+			break;
+		case MULTI_FUNCTION_AFEX:
+			BNX2X_DEV_INFO("func %d is in MF afex mode\n", func);
 			break;
 		case MULTI_FUNCTION_SI:
 			BNX2X_DEV_INFO("func %d is in MF switch-independent mode\n",
@@ -10190,9 +11692,9 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 		}
 	}
 
-	/* adjust igu_sb_cnt to MF for E1x */
-	if (CHIP_IS_E1x(bp) && IS_MF(bp))
-		bp->igu_sb_cnt /= E1HVN_MAX;
+	/* adjust igu_sb_cnt to MF for E1H */
+	if (CHIP_IS_E1H(bp) && IS_MF(bp))
+		bp->igu_sb_cnt = min_t(u8, bp->igu_sb_cnt, E1H_MAX_MF_SB_COUNT);
 
 	/* port info */
 	bnx2x_get_port_hwinfo(bp);
@@ -10205,7 +11707,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 	return rc;
 }
 
-static void __devinit bnx2x_read_fwinfo(struct bnx2x *bp)
+static void bnx2x_read_fwinfo(struct bnx2x *bp)
 {
 	int cnt, i, block_end, rodi;
 	char vpd_start[BNX2X_VPD_LEN+1];
@@ -10290,7 +11792,7 @@ out_not_found:
 	return;
 }
 
-static void __devinit bnx2x_set_modes_bitmap(struct bnx2x *bp)
+static void bnx2x_set_modes_bitmap(struct bnx2x *bp)
 {
 	u32 flags = 0;
 
@@ -10325,6 +11827,9 @@ static void __devinit bnx2x_set_modes_bitmap(struct bnx2x *bp)
 		case MULTI_FUNCTION_SI:
 			SET_FLAGS(flags, MODE_MF_SI);
 			break;
+		case MULTI_FUNCTION_AFEX:
+			SET_FLAGS(flags, MODE_MF_AFEX);
+			break;
 		}
 	} else
 		SET_FLAGS(flags, MODE_SF);
@@ -10337,24 +11842,29 @@ static void __devinit bnx2x_set_modes_bitmap(struct bnx2x *bp)
 	INIT_MODE_FLAGS(bp) = flags;
 }
 
-static int __devinit bnx2x_init_bp(struct bnx2x *bp)
+static int bnx2x_init_bp(struct bnx2x *bp)
 {
 	int func;
 	int rc;
 
 	mutex_init(&bp->port.phy_mutex);
 	mutex_init(&bp->fw_mb_mutex);
+	mutex_init(&bp->drv_info_mutex);
+	bp->drv_info_mng_owner = false;
 	spin_lock_init(&bp->stats_lock);
-#ifdef BCM_CNIC
-	mutex_init(&bp->cnic_mutex);
-#endif
+	sema_init(&bp->stats_sema, 1);
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
 	INIT_DELAYED_WORK(&bp->sp_rtnl_task, bnx2x_sp_rtnl_task);
 	INIT_DELAYED_WORK(&bp->period_task, bnx2x_period_task);
-	rc = bnx2x_get_hwinfo(bp);
-	if (rc)
-		return rc;
+	INIT_DELAYED_WORK(&bp->iov_task, bnx2x_iov_task);
+	if (IS_PF(bp)) {
+		rc = bnx2x_get_hwinfo(bp);
+		if (rc)
+			return rc;
+	} else {
+		eth_zero_addr(bp->dev->dev_addr);
+	}
 
 	bnx2x_set_modes_bitmap(bp);
 
@@ -10367,16 +11877,19 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	func = BP_FUNC(bp);
 
 	/* need to reset chip if undi was active */
-	if (!BP_NOMCP(bp)) {
+	if (IS_PF(bp) && !BP_NOMCP(bp)) {
 		/* init fw_seq */
 		bp->fw_seq =
 			SHMEM_RD(bp, func_mb[BP_FW_MB_IDX(bp)].drv_mb_header) &
 							DRV_MSG_SEQ_NUMBER_MASK;
 		BNX2X_DEV_INFO("fw_seq 0x%08x\n", bp->fw_seq);
 
-		bnx2x_prev_unload(bp);
+		rc = bnx2x_prev_unload(bp);
+		if (rc) {
+			bnx2x_free_mem_bp(bp);
+			return rc;
+		}
 	}
-
 
 	if (CHIP_REV_IS_FPGA(bp))
 		dev_err(&bp->pdev->dev, "FPGA detected\n");
@@ -10384,13 +11897,10 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	if (BP_NOMCP(bp) && (func == 0))
 		dev_err(&bp->pdev->dev, "MCP disabled, must load devices in order!\n");
 
-	bp->multi_mode = multi_mode;
-
 	bp->disable_tpa = disable_tpa;
-
-#ifdef BCM_CNIC
-	bp->disable_tpa |= IS_MF_STORAGE_SD(bp);
-#endif
+	bp->disable_tpa |= IS_MF_STORAGE_SD(bp) || IS_MF_FCOE_AFEX(bp);
+	/* Reduce memory usage in kdump environment by disabling TPA */
+	bp->disable_tpa |= reset_devices;
 
 	/* Set TPA flags */
 	if (bp->disable_tpa) {
@@ -10404,11 +11914,13 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	if (CHIP_IS_E1(bp))
 		bp->dropless_fc = 0;
 	else
-		bp->dropless_fc = dropless_fc;
+		bp->dropless_fc = dropless_fc | bnx2x_get_dropless_info(bp);
 
 	bp->mrrs = mrrs;
 
-	bp->tx_ring_size = MAX_TX_AVAIL;
+	bp->tx_ring_size = IS_MF_FCOE_AFEX(bp) ? 0 : MAX_TX_AVAIL;
+	if (IS_VF(bp))
+		bp->rx_ring_size = MAX_RX_AVAIL;
 
 	/* make sure that the numbers are in the right granularity */
 	bp->tx_ticks = (50 / BNX2X_BTR) * BNX2X_BTR;
@@ -10421,29 +11933,51 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	bp->timer.data = (unsigned long) bp;
 	bp->timer.function = bnx2x_timer;
 
-	bnx2x_dcbx_set_state(bp, true, BNX2X_DCBX_ENABLED_ON_NEG_ON);
-	bnx2x_dcbx_init_params(bp);
+	if (SHMEM2_HAS(bp, dcbx_lldp_params_offset) &&
+	    SHMEM2_HAS(bp, dcbx_lldp_dcbx_stat_offset) &&
+	    SHMEM2_RD(bp, dcbx_lldp_params_offset) &&
+	    SHMEM2_RD(bp, dcbx_lldp_dcbx_stat_offset)) {
+		bnx2x_dcbx_set_state(bp, true, BNX2X_DCBX_ENABLED_ON_NEG_ON);
+		bnx2x_dcbx_init_params(bp);
+	} else {
+		bnx2x_dcbx_set_state(bp, false, BNX2X_DCBX_ENABLED_OFF);
+	}
 
-#ifdef BCM_CNIC
 	if (CHIP_IS_E1x(bp))
 		bp->cnic_base_cl_id = FP_SB_MAX_E1x;
 	else
 		bp->cnic_base_cl_id = FP_SB_MAX_E2;
-#endif
 
 	/* multiple tx priority */
-	if (CHIP_IS_E1x(bp))
+	if (IS_VF(bp))
+		bp->max_cos = 1;
+	else if (CHIP_IS_E1x(bp))
 		bp->max_cos = BNX2X_MULTI_TX_COS_E1X;
-	if (CHIP_IS_E2(bp) || CHIP_IS_E3A0(bp))
+	else if (CHIP_IS_E2(bp) || CHIP_IS_E3A0(bp))
 		bp->max_cos = BNX2X_MULTI_TX_COS_E2_E3A0;
-	if (CHIP_IS_E3B0(bp))
+	else if (CHIP_IS_E3B0(bp))
 		bp->max_cos = BNX2X_MULTI_TX_COS_E3B0;
+	else
+		BNX2X_ERR("unknown chip %x revision %x\n",
+			  CHIP_NUM(bp), CHIP_REV(bp));
+	BNX2X_DEV_INFO("set bp->max_cos to %d\n", bp->max_cos);
 
-	bp->gro_check = bnx2x_need_gro_check(bp->dev->mtu);
+	/* We need at least one default status block for slow-path events,
+	 * second status block for the L2 queue, and a third status block for
+	 * CNIC if supported.
+	 */
+	if (IS_VF(bp))
+		bp->min_msix_vec_cnt = 1;
+	else if (CNIC_SUPPORT(bp))
+		bp->min_msix_vec_cnt = 3;
+	else /* PF w/o cnic */
+		bp->min_msix_vec_cnt = 2;
+	BNX2X_DEV_INFO("bp->min_msix_vec_cnt %d", bp->min_msix_vec_cnt);
+
+	bp->dump_preset_idx = 1;
 
 	return rc;
 }
-
 
 /****************************************************************************
 * General service functions
@@ -10457,9 +11991,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 static int bnx2x_open(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	bool global = false;
-	int other_engine = BP_PATH(bp) ? 0 : 1;
-	bool other_load_status, load_status;
+	int rc;
 
 	bp->stats_init = true;
 
@@ -10467,53 +11999,61 @@ static int bnx2x_open(struct net_device *dev)
 
 	bnx2x_set_power_state(bp, PCI_D0);
 
-	other_load_status = bnx2x_get_load_status(bp, other_engine);
-	load_status = bnx2x_get_load_status(bp, BP_PATH(bp));
-
-	/*
-	 * If parity had happen during the unload, then attentions
+	/* If parity had happen during the unload, then attentions
 	 * and/or RECOVERY_IN_PROGRES may still be set. In this case we
 	 * want the first function loaded on the current engine to
 	 * complete the recovery.
+	 * Parity recovery is only relevant for PF driver.
 	 */
-	if (!bnx2x_reset_is_done(bp, BP_PATH(bp)) ||
-	    bnx2x_chk_parity_attn(bp, &global, true))
-		do {
-			/*
-			 * If there are attentions and they are in a global
-			 * blocks, set the GLOBAL_RESET bit regardless whether
-			 * it will be this function that will complete the
-			 * recovery or not.
-			 */
-			if (global)
-				bnx2x_set_reset_global(bp);
+	if (IS_PF(bp)) {
+		int other_engine = BP_PATH(bp) ? 0 : 1;
+		bool other_load_status, load_status;
+		bool global = false;
 
-			/*
-			 * Only the first function on the current engine should
-			 * try to recover in open. In case of attentions in
-			 * global blocks only the first in the chip should try
-			 * to recover.
-			 */
-			if ((!load_status &&
-			     (!global || !other_load_status)) &&
-			    bnx2x_trylock_leader_lock(bp) &&
-			    !bnx2x_leader_reset(bp)) {
-				netdev_info(bp->dev, "Recovered in open\n");
-				break;
-			}
+		other_load_status = bnx2x_get_load_status(bp, other_engine);
+		load_status = bnx2x_get_load_status(bp, BP_PATH(bp));
+		if (!bnx2x_reset_is_done(bp, BP_PATH(bp)) ||
+		    bnx2x_chk_parity_attn(bp, &global, true)) {
+			do {
+				/* If there are attentions and they are in a
+				 * global blocks, set the GLOBAL_RESET bit
+				 * regardless whether it will be this function
+				 * that will complete the recovery or not.
+				 */
+				if (global)
+					bnx2x_set_reset_global(bp);
 
-			/* recovery has failed... */
-			bnx2x_set_power_state(bp, PCI_D3hot);
-			bp->recovery_state = BNX2X_RECOVERY_FAILED;
+				/* Only the first function on the current
+				 * engine should try to recover in open. In case
+				 * of attentions in global blocks only the first
+				 * in the chip should try to recover.
+				 */
+				if ((!load_status &&
+				     (!global || !other_load_status)) &&
+				      bnx2x_trylock_leader_lock(bp) &&
+				      !bnx2x_leader_reset(bp)) {
+					netdev_info(bp->dev,
+						    "Recovered in open\n");
+					break;
+				}
 
-			BNX2X_ERR("Recovery flow hasn't been properly completed yet. Try again later.\n"
-				  "If you still see this message after a few retries then power cycle is required.\n");
+				/* recovery has failed... */
+				bnx2x_set_power_state(bp, PCI_D3hot);
+				bp->recovery_state = BNX2X_RECOVERY_FAILED;
 
-			return -EAGAIN;
-		} while (0);
+				BNX2X_ERR("Recovery flow hasn't been properly completed yet. Try again later.\n"
+					  "If you still see this message after a few retries then power cycle is required.\n");
+
+				return -EAGAIN;
+			} while (0);
+		}
+	}
 
 	bp->recovery_state = BNX2X_RECOVERY_DONE;
-	return bnx2x_nic_load(bp, LOAD_OPEN);
+	rc = bnx2x_nic_load(bp, LOAD_OPEN);
+	if (rc)
+		return rc;
+	return 0;
 }
 
 /* called with rtnl_lock */
@@ -10522,20 +12062,17 @@ static int bnx2x_close(struct net_device *dev)
 	struct bnx2x *bp = netdev_priv(dev);
 
 	/* Unload the driver, release IRQs */
-	bnx2x_nic_unload(bp, UNLOAD_CLOSE);
-
-	/* Power off */
-	bnx2x_set_power_state(bp, PCI_D3hot);
+	bnx2x_nic_unload(bp, UNLOAD_CLOSE, false);
 
 	return 0;
 }
 
-static inline int bnx2x_init_mcast_macs_list(struct bnx2x *bp,
-					 struct bnx2x_mcast_ramrod_params *p)
+static int bnx2x_init_mcast_macs_list(struct bnx2x *bp,
+				      struct bnx2x_mcast_ramrod_params *p)
 {
 	int mc_count = netdev_mc_count(bp->dev);
 	struct bnx2x_mcast_list_elem *mc_mac =
-		kzalloc(sizeof(*mc_mac) * mc_count, GFP_ATOMIC);
+		kcalloc(mc_count, sizeof(*mc_mac), GFP_ATOMIC);
 	struct netdev_hw_addr *ha;
 
 	if (!mc_mac)
@@ -10554,7 +12091,7 @@ static inline int bnx2x_init_mcast_macs_list(struct bnx2x *bp,
 	return 0;
 }
 
-static inline void bnx2x_free_mcast_macs_list(
+static void bnx2x_free_mcast_macs_list(
 	struct bnx2x_mcast_ramrod_params *p)
 {
 	struct bnx2x_mcast_list_elem *mc_mac =
@@ -10572,12 +12109,12 @@ static inline void bnx2x_free_mcast_macs_list(
  *
  * We will use zero (0) as a MAC type for these MACs.
  */
-static inline int bnx2x_set_uc_list(struct bnx2x *bp)
+static int bnx2x_set_uc_list(struct bnx2x *bp)
 {
 	int rc;
 	struct net_device *dev = bp->dev;
 	struct netdev_hw_addr *ha;
-	struct bnx2x_vlan_mac_obj *mac_obj = &bp->fp->mac_obj;
+	struct bnx2x_vlan_mac_obj *mac_obj = &bp->sp_objs->mac_obj;
 	unsigned long ramrod_flags = 0;
 
 	/* First schedule a cleanup up of old configuration */
@@ -10590,7 +12127,14 @@ static inline int bnx2x_set_uc_list(struct bnx2x *bp)
 	netdev_for_each_uc_addr(ha, dev) {
 		rc = bnx2x_set_mac_one(bp, bnx2x_uc_addr(ha), mac_obj, true,
 				       BNX2X_UC_LIST_MAC, &ramrod_flags);
-		if (rc < 0) {
+		if (rc == -EEXIST) {
+			DP(BNX2X_MSG_SP,
+			   "Failed to schedule ADD operations: %d\n", rc);
+			/* do not treat adding same MAC as error */
+			rc = 0;
+
+		} else if (rc < 0) {
+
 			BNX2X_ERR("Failed to schedule ADD operations: %d\n",
 				  rc);
 			return rc;
@@ -10603,7 +12147,7 @@ static inline int bnx2x_set_uc_list(struct bnx2x *bp)
 				 BNX2X_UC_LIST_MAC, &ramrod_flags);
 }
 
-static inline int bnx2x_set_mc_list(struct bnx2x *bp)
+static int bnx2x_set_mc_list(struct bnx2x *bp)
 {
 	struct net_device *dev = bp->dev;
 	struct bnx2x_mcast_ramrod_params rparam = {NULL};
@@ -10640,49 +12184,78 @@ static inline int bnx2x_set_mc_list(struct bnx2x *bp)
 	return rc;
 }
 
-
 /* If bp->state is OPEN, should be called with netif_addr_lock_bh() */
-void bnx2x_set_rx_mode(struct net_device *dev)
+static void bnx2x_set_rx_mode(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	u32 rx_mode = BNX2X_RX_MODE_NORMAL;
 
 	if (bp->state != BNX2X_STATE_OPEN) {
 		DP(NETIF_MSG_IFUP, "state is %x, returning\n", bp->state);
 		return;
+	} else {
+		/* Schedule an SP task to handle rest of change */
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_RX_MODE,
+				       NETIF_MSG_IFUP);
 	}
+}
+
+void bnx2x_set_rx_mode_inner(struct bnx2x *bp)
+{
+	u32 rx_mode = BNX2X_RX_MODE_NORMAL;
 
 	DP(NETIF_MSG_IFUP, "dev->flags = %x\n", bp->dev->flags);
 
-	if (dev->flags & IFF_PROMISC)
-		rx_mode = BNX2X_RX_MODE_PROMISC;
-	else if ((dev->flags & IFF_ALLMULTI) ||
-		 ((netdev_mc_count(dev) > BNX2X_MAX_MULTICAST) &&
-		  CHIP_IS_E1(bp)))
-		rx_mode = BNX2X_RX_MODE_ALLMULTI;
-	else {
-		/* some multicasts */
-		if (bnx2x_set_mc_list(bp) < 0)
-			rx_mode = BNX2X_RX_MODE_ALLMULTI;
+	netif_addr_lock_bh(bp->dev);
 
-		if (bnx2x_set_uc_list(bp) < 0)
-			rx_mode = BNX2X_RX_MODE_PROMISC;
+	if (bp->dev->flags & IFF_PROMISC) {
+		rx_mode = BNX2X_RX_MODE_PROMISC;
+	} else if ((bp->dev->flags & IFF_ALLMULTI) ||
+		   ((netdev_mc_count(bp->dev) > BNX2X_MAX_MULTICAST) &&
+		    CHIP_IS_E1(bp))) {
+		rx_mode = BNX2X_RX_MODE_ALLMULTI;
+	} else {
+		if (IS_PF(bp)) {
+			/* some multicasts */
+			if (bnx2x_set_mc_list(bp) < 0)
+				rx_mode = BNX2X_RX_MODE_ALLMULTI;
+
+			/* release bh lock, as bnx2x_set_uc_list might sleep */
+			netif_addr_unlock_bh(bp->dev);
+			if (bnx2x_set_uc_list(bp) < 0)
+				rx_mode = BNX2X_RX_MODE_PROMISC;
+			netif_addr_lock_bh(bp->dev);
+		} else {
+			/* configuring mcast to a vf involves sleeping (when we
+			 * wait for the pf's response).
+			 */
+			bnx2x_schedule_sp_rtnl(bp,
+					       BNX2X_SP_RTNL_VFPF_MCAST, 0);
+		}
 	}
 
 	bp->rx_mode = rx_mode;
-#ifdef BCM_CNIC
 	/* handle ISCSI SD mode */
 	if (IS_MF_ISCSI_SD(bp))
 		bp->rx_mode = BNX2X_RX_MODE_NONE;
-#endif
 
 	/* Schedule the rx_mode command */
 	if (test_bit(BNX2X_FILTER_RX_MODE_PENDING, &bp->sp_state)) {
 		set_bit(BNX2X_FILTER_RX_MODE_SCHED, &bp->sp_state);
+		netif_addr_unlock_bh(bp->dev);
 		return;
 	}
 
-	bnx2x_set_storm_rx_mode(bp);
+	if (IS_PF(bp)) {
+		bnx2x_set_storm_rx_mode(bp);
+		netif_addr_unlock_bh(bp->dev);
+	} else {
+		/* VF will need to request the PF to make this change, and so
+		 * the VF needs to release the bottom-half lock prior to the
+		 * request (as it will likely require sleep on the VF side)
+		 */
+		netif_addr_unlock_bh(bp->dev);
+		bnx2x_vfpf_storm_rx_mode(bp);
+	}
 }
 
 /* called with rtnl_lock */
@@ -10748,10 +12321,12 @@ static int bnx2x_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static void poll_bnx2x(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
+	int i;
 
-	disable_irq(bp->pdev->irq);
-	bnx2x_interrupt(bp->pdev->irq, dev);
-	enable_irq(bp->pdev->irq);
+	for_each_eth_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+		napi_schedule(&bnx2x_fp(bp, fp->index, napi));
+	}
 }
 #endif
 
@@ -10759,10 +12334,28 @@ static int bnx2x_validate_addr(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
+	/* query the bulletin board for mac address configured by the PF */
+	if (IS_VF(bp))
+		bnx2x_sample_bulletin(bp);
+
 	if (!bnx2x_is_valid_ether_addr(bp, dev->dev_addr)) {
 		BNX2X_ERR("Non-valid Ethernet address\n");
 		return -EADDRNOTAVAIL;
 	}
+	return 0;
+}
+
+static int bnx2x_get_phys_port_id(struct net_device *netdev,
+				  struct netdev_phys_port_id *ppid)
+{
+	struct bnx2x *bp = netdev_priv(netdev);
+
+	if (!(bp->flags & HAS_PHYS_PORT_ID))
+		return -EOPNOTSUPP;
+
+	ppid->id_len = sizeof(bp->phys_port_id);
+	memcpy(ppid->id, bp->phys_port_id, ppid->id_len);
+
 	return 0;
 }
 
@@ -10783,23 +12376,28 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
 	.ndo_setup_tc		= bnx2x_setup_tc,
-
-#if defined(NETDEV_FCOE_WWNN) && defined(BCM_CNIC)
+#ifdef CONFIG_BNX2X_SRIOV
+	.ndo_set_vf_mac		= bnx2x_set_vf_mac,
+	.ndo_set_vf_vlan	= bnx2x_set_vf_vlan,
+	.ndo_get_vf_config	= bnx2x_get_vf_config,
+#endif
+#ifdef NETDEV_FCOE_WWNN
 	.ndo_fcoe_get_wwn	= bnx2x_fcoe_get_wwn,
 #endif
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	.ndo_busy_poll		= bnx2x_low_latency_recv,
+#endif
+	.ndo_get_phys_port_id	= bnx2x_get_phys_port_id,
+	.ndo_set_vf_link_state	= bnx2x_set_vf_link_state,
 };
 
-static inline int bnx2x_set_coherency_mask(struct bnx2x *bp)
+static int bnx2x_set_coherency_mask(struct bnx2x *bp)
 {
 	struct device *dev = &bp->pdev->dev;
 
-	if (dma_set_mask(dev, DMA_BIT_MASK(64)) == 0) {
-		bp->flags |= USING_DAC_FLAG;
-		if (dma_set_coherent_mask(dev, DMA_BIT_MASK(64)) != 0) {
-			dev_err(dev, "dma_set_coherent_mask failed, aborting\n");
-			return -EIO;
-		}
-	} else if (dma_set_mask(dev, DMA_BIT_MASK(32)) != 0) {
+	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)) != 0 &&
+	    dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32)) != 0) {
 		dev_err(dev, "System does not support DMA, aborting\n");
 		return -EIO;
 	}
@@ -10807,11 +12405,17 @@ static inline int bnx2x_set_coherency_mask(struct bnx2x *bp)
 	return 0;
 }
 
-static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
-				    struct net_device *dev,
-				    unsigned long board_type)
+static void bnx2x_disable_pcie_error_reporting(struct bnx2x *bp)
 {
-	struct bnx2x *bp;
+	if (bp->flags & AER_ENABLED) {
+		pci_disable_pcie_error_reporting(bp->pdev);
+		bp->flags &= ~AER_ENABLED;
+	}
+}
+
+static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
+			  struct net_device *dev, unsigned long board_type)
+{
 	int rc;
 	u32 pci_cfg_dword;
 	bool chip_is_e1x = (board_type == BCM57710 ||
@@ -10819,11 +12423,9 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 			    board_type == BCM57711E);
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
-	bp = netdev_priv(dev);
 
 	bp->dev = dev;
 	bp->pdev = pdev;
-	bp->flags = 0;
 
 	rc = pci_enable_device(pdev);
 	if (rc) {
@@ -10839,9 +12441,16 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		goto err_out_disable;
 	}
 
-	if (!(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
-		dev_err(&bp->pdev->dev, "Cannot find second PCI device"
-		       " base address, aborting\n");
+	if (IS_PF(bp) && !(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
+		dev_err(&bp->pdev->dev, "Cannot find second PCI device base address, aborting\n");
+		rc = -ENODEV;
+		goto err_out_disable;
+	}
+
+	pci_read_config_dword(pdev, PCICFG_REVISION_ID_OFFSET, &pci_cfg_dword);
+	if ((pci_cfg_dword & PCICFG_REVESION_ID_MASK) ==
+	    PCICFG_REVESION_ID_ERROR_VAL) {
+		pr_err("PCI device error, probably due to fan failure, aborting\n");
 		rc = -ENODEV;
 		goto err_out_disable;
 	}
@@ -10858,12 +12467,13 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		pci_save_state(pdev);
 	}
 
-	bp->pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
-	if (bp->pm_cap == 0) {
-		dev_err(&bp->pdev->dev,
-			"Cannot find power management capability, aborting\n");
-		rc = -EIO;
-		goto err_out_release;
+	if (IS_PF(bp)) {
+		if (!pdev->pm_cap) {
+			dev_err(&bp->pdev->dev,
+				"Cannot find power management capability, aborting\n");
+			rc = -EIO;
+			goto err_out_release;
+		}
 	}
 
 	if (!pci_is_pcie(pdev)) {
@@ -10895,65 +12505,81 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	 * support Physical Device Assignment where kernel BDF maybe arbitrary
 	 * (depending on hypervisor).
 	 */
-	if (chip_is_e1x)
+	if (chip_is_e1x) {
 		bp->pf_num = PCI_FUNC(pdev->devfn);
-	else {/* chip is E2/3*/
+	} else {
+		/* chip is E2/3*/
 		pci_read_config_dword(bp->pdev,
 				      PCICFG_ME_REGISTER, &pci_cfg_dword);
 		bp->pf_num = (u8)((pci_cfg_dword & ME_REG_ABS_PF_NUM) >>
-		    ME_REG_ABS_PF_NUM_SHIFT);
+				  ME_REG_ABS_PF_NUM_SHIFT);
 	}
 	BNX2X_DEV_INFO("me reg PF num: %d\n", bp->pf_num);
-
-	bnx2x_set_power_state(bp, PCI_D0);
 
 	/* clean indirect addresses */
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_ADDRESS,
 			       PCICFG_VENDOR_ID_OFFSET);
+
+	/* AER (Advanced Error reporting) configuration */
+	rc = pci_enable_pcie_error_reporting(pdev);
+	if (!rc)
+		bp->flags |= AER_ENABLED;
+	else
+		BNX2X_DEV_INFO("Failed To configure PCIe AER [%d]\n", rc);
+
 	/*
 	 * Clean the following indirect addresses for all functions since it
 	 * is not used by the driver.
 	 */
-	REG_WR(bp, PXP2_REG_PGL_ADDR_88_F0, 0);
-	REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F0, 0);
-	REG_WR(bp, PXP2_REG_PGL_ADDR_90_F0, 0);
-	REG_WR(bp, PXP2_REG_PGL_ADDR_94_F0, 0);
+	if (IS_PF(bp)) {
+		REG_WR(bp, PXP2_REG_PGL_ADDR_88_F0, 0);
+		REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F0, 0);
+		REG_WR(bp, PXP2_REG_PGL_ADDR_90_F0, 0);
+		REG_WR(bp, PXP2_REG_PGL_ADDR_94_F0, 0);
 
-	if (chip_is_e1x) {
-		REG_WR(bp, PXP2_REG_PGL_ADDR_88_F1, 0);
-		REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F1, 0);
-		REG_WR(bp, PXP2_REG_PGL_ADDR_90_F1, 0);
-		REG_WR(bp, PXP2_REG_PGL_ADDR_94_F1, 0);
+		if (chip_is_e1x) {
+			REG_WR(bp, PXP2_REG_PGL_ADDR_88_F1, 0);
+			REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F1, 0);
+			REG_WR(bp, PXP2_REG_PGL_ADDR_90_F1, 0);
+			REG_WR(bp, PXP2_REG_PGL_ADDR_94_F1, 0);
+		}
+
+		/* Enable internal target-read (in case we are probed after PF
+		 * FLR). Must be done prior to any BAR read access. Only for
+		 * 57712 and up
+		 */
+		if (!chip_is_e1x)
+			REG_WR(bp,
+			       PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ, 1);
 	}
-
-	/*
-	 * Enable internal target-read (in case we are probed after PF FLR).
-	 * Must be done prior to any BAR read access. Only for 57712 and up
-	 */
-	if (!chip_is_e1x)
-		REG_WR(bp, PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ, 1);
-
-	/* Reset the load counter */
-	bnx2x_clear_load_status(bp);
 
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	dev->netdev_ops = &bnx2x_netdev_ops;
-	bnx2x_set_ethtool_ops(dev);
+	bnx2x_set_ethtool_ops(bp, dev);
 
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
 	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 |
 		NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO |
-		NETIF_F_RXHASH | NETIF_F_HW_VLAN_TX;
+		NETIF_F_RXHASH | NETIF_F_HW_VLAN_CTAG_TX;
+	if (!CHIP_IS_E1x(bp)) {
+		dev->hw_features |= NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL |
+				    NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT;
+		dev->hw_enc_features =
+			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
+			NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 |
+			NETIF_F_GSO_IPIP |
+			NETIF_F_GSO_SIT |
+			NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL;
+	}
 
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_HIGHDMA;
 
-	dev->features |= dev->hw_features | NETIF_F_HW_VLAN_RX;
-	if (bp->flags & USING_DAC_FLAG)
-		dev->features |= NETIF_F_HIGHDMA;
+	dev->features |= dev->hw_features | NETIF_F_HW_VLAN_CTAG_RX;
+	dev->features |= NETIF_F_HIGHDMA;
 
 	/* Add Loopback capability to the device */
 	dev->hw_features |= NETIF_F_LOOPBACK;
@@ -10978,21 +12604,9 @@ err_out_release:
 
 err_out_disable:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 err_out:
 	return rc;
-}
-
-static void __devinit bnx2x_get_pcie_width_speed(struct bnx2x *bp,
-						 int *width, int *speed)
-{
-	u32 val = REG_RD(bp, PCICFG_OFFSET + PCICFG_LINK_CONTROL);
-
-	*width = (val & PCICFG_LINK_WIDTH) >> PCICFG_LINK_WIDTH_SHIFT;
-
-	/* return value of 1=2.5GHz 2=5GHz */
-	*speed = (val & PCICFG_LINK_SPEED) >> PCICFG_LINK_SPEED_SHIFT;
 }
 
 static int bnx2x_check_firmware(struct bnx2x *bp)
@@ -11001,7 +12615,7 @@ static int bnx2x_check_firmware(struct bnx2x *bp)
 	struct bnx2x_fw_file_hdr *fw_hdr;
 	struct bnx2x_fw_file_section *sections;
 	u32 offset, len, num_ops;
-	u16 *ops_offsets;
+	__be16 *ops_offsets;
 	int i;
 	const u8 *fw_ver;
 
@@ -11026,7 +12640,7 @@ static int bnx2x_check_firmware(struct bnx2x *bp)
 
 	/* Likewise for the init_ops offsets */
 	offset = be32_to_cpu(fw_hdr->init_ops_offsets.offset);
-	ops_offsets = (u16 *)(firmware->data + offset);
+	ops_offsets = (__force __be16 *)(firmware->data + offset);
 	num_ops = be32_to_cpu(fw_hdr->init_ops.len) / sizeof(struct raw_op);
 
 	for (i = 0; i < be32_to_cpu(fw_hdr->init_ops_offsets.len) / 2; i++) {
@@ -11055,7 +12669,7 @@ static int bnx2x_check_firmware(struct bnx2x *bp)
 	return 0;
 }
 
-static inline void be32_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
+static void be32_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
 {
 	const __be32 *source = (const __be32 *)_source;
 	u32 *target = (u32 *)_target;
@@ -11069,7 +12683,7 @@ static inline void be32_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
    Ops array is stored in the following format:
    {op(8bit), offset(24bit, big endian), data(32bit, big endian)}
  */
-static inline void bnx2x_prep_ops(const u8 *_source, u8 *_target, u32 n)
+static void bnx2x_prep_ops(const u8 *_source, u8 *_target, u32 n)
 {
 	const __be32 *source = (const __be32 *)_source;
 	struct raw_op *target = (struct raw_op *)_target;
@@ -11083,11 +12697,10 @@ static inline void bnx2x_prep_ops(const u8 *_source, u8 *_target, u32 n)
 	}
 }
 
-/**
- * IRO array is stored in the following format:
+/* IRO array is stored in the following format:
  * {base(24bit), m1(16bit), m2(16bit), m3(16bit), size(16bit) }
  */
-static inline void bnx2x_prep_iro(const u8 *_source, u8 *_target, u32 n)
+static void bnx2x_prep_iro(const u8 *_source, u8 *_target, u32 n)
 {
 	const __be32 *source = (const __be32 *)_source;
 	struct iro *target = (struct iro *)_target;
@@ -11107,7 +12720,7 @@ static inline void bnx2x_prep_iro(const u8 *_source, u8 *_target, u32 n)
 	}
 }
 
-static inline void be16_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
+static void be16_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
 {
 	const __be16 *source = (const __be16 *)_source;
 	u16 *target = (u16 *)_target;
@@ -11218,7 +12831,6 @@ static void bnx2x_release_firmware(struct bnx2x *bp)
 	bp->firmware = NULL;
 }
 
-
 static struct bnx2x_func_sp_drv_ops bnx2x_func_sp_drv = {
 	.init_hw_cmn_chip = bnx2x_init_hw_common_chip,
 	.init_hw_cmn      = bnx2x_init_hw_common,
@@ -11244,17 +12856,22 @@ void bnx2x__init_func_obj(struct bnx2x *bp)
 	bnx2x_init_func_obj(bp, &bp->func_obj,
 			    bnx2x_sp(bp, func_rdata),
 			    bnx2x_sp_mapping(bp, func_rdata),
+			    bnx2x_sp(bp, func_afex_rdata),
+			    bnx2x_sp_mapping(bp, func_afex_rdata),
 			    &bnx2x_func_sp_drv);
 }
 
 /* must be called after sriov-enable */
-static inline int bnx2x_set_qm_cid_count(struct bnx2x *bp)
+static int bnx2x_set_qm_cid_count(struct bnx2x *bp)
 {
-	int cid_count = BNX2X_L2_CID_COUNT(bp);
+	int cid_count = BNX2X_L2_MAX_CID(bp);
 
-#ifdef BCM_CNIC
-	cid_count += CNIC_CID_MAX;
-#endif
+	if (IS_SRIOV(bp))
+		cid_count += BNX2X_VF_CIDS;
+
+	if (CNIC_SUPPORT(bp))
+		cid_count += CNIC_CID_MAX;
+
 	return roundup(cid_count, QM_CID_ROUND);
 }
 
@@ -11264,40 +12881,97 @@ static inline int bnx2x_set_qm_cid_count(struct bnx2x *bp)
  * @dev:	pci device
  *
  */
-static inline int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev)
+static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev, int cnic_cnt)
 {
-	int pos;
-	u16 control;
-
-	pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
+	int index;
+	u16 control = 0;
 
 	/*
 	 * If MSI-X is not supported - return number of SBs needed to support
 	 * one fast path queue: one FP queue + SB for CNIC
 	 */
-	if (!pos)
-		return 1 + CNIC_PRESENT;
+	if (!pdev->msix_cap) {
+		dev_info(&pdev->dev, "no msix capability found\n");
+		return 1 + cnic_cnt;
+	}
+	dev_info(&pdev->dev, "msix capability found\n");
 
 	/*
 	 * The value in the PCI configuration space is the index of the last
 	 * entry, namely one less than the actual size of the table, which is
 	 * exactly what we want to return from this function: number of all SBs
 	 * without the default SB.
+	 * For VFs there is no default SB, then we return (index+1).
 	 */
-	pci_read_config_word(pdev, pos  + PCI_MSI_FLAGS, &control);
-	return control & PCI_MSIX_FLAGS_QSIZE;
+	pci_read_config_word(pdev, pdev->msix_cap + PCI_MSIX_FLAGS, &control);
+
+	index = control & PCI_MSIX_FLAGS_QSIZE;
+
+	return index;
 }
 
-static int __devinit bnx2x_init_one(struct pci_dev *pdev,
+static int set_max_cos_est(int chip_id)
+{
+	switch (chip_id) {
+	case BCM57710:
+	case BCM57711:
+	case BCM57711E:
+		return BNX2X_MULTI_TX_COS_E1X;
+	case BCM57712:
+	case BCM57712_MF:
+		return BNX2X_MULTI_TX_COS_E2_E3A0;
+	case BCM57800:
+	case BCM57800_MF:
+	case BCM57810:
+	case BCM57810_MF:
+	case BCM57840_4_10:
+	case BCM57840_2_20:
+	case BCM57840_O:
+	case BCM57840_MFO:
+	case BCM57840_MF:
+	case BCM57811:
+	case BCM57811_MF:
+		return BNX2X_MULTI_TX_COS_E3B0;
+	case BCM57712_VF:
+	case BCM57800_VF:
+	case BCM57810_VF:
+	case BCM57840_VF:
+	case BCM57811_VF:
+		return 1;
+	default:
+		pr_err("Unknown board_type (%d), aborting\n", chip_id);
+		return -ENODEV;
+	}
+}
+
+static int set_is_vf(int chip_id)
+{
+	switch (chip_id) {
+	case BCM57712_VF:
+	case BCM57800_VF:
+	case BCM57810_VF:
+	case BCM57840_VF:
+	case BCM57811_VF:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int bnx2x_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
 	struct net_device *dev = NULL;
 	struct bnx2x *bp;
-	int pcie_width, pcie_speed;
+	enum pcie_link_width pcie_width;
+	enum pci_bus_speed pcie_speed;
 	int rc, max_non_def_sbs;
-	int rx_count, tx_count, rss_count;
-	/*
-	 * An estimated maximum supported CoS number according to the chip
+	int rx_count, tx_count, rss_count, doorbell_size;
+	int max_cos_est;
+	bool is_vf;
+	int cnic_cnt;
+
+	/* An estimated maximum supported CoS number according to the chip
 	 * version.
 	 * We will try to roughly estimate the maximum number of CoSes this chip
 	 * may support in order to minimize the memory allocated for Tx
@@ -11305,57 +12979,30 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	 * initialization of bp->max_cos based on the chip versions AND chip
 	 * revision in the bnx2x_init_bp().
 	 */
-	u8 max_cos_est = 0;
+	max_cos_est = set_max_cos_est(ent->driver_data);
+	if (max_cos_est < 0)
+		return max_cos_est;
+	is_vf = set_is_vf(ent->driver_data);
+	cnic_cnt = is_vf ? 0 : 1;
 
-	switch (ent->driver_data) {
-	case BCM57710:
-	case BCM57711:
-	case BCM57711E:
-		max_cos_est = BNX2X_MULTI_TX_COS_E1X;
-		break;
+	max_non_def_sbs = bnx2x_get_num_non_def_sbs(pdev, cnic_cnt);
 
-	case BCM57712:
-	case BCM57712_MF:
-		max_cos_est = BNX2X_MULTI_TX_COS_E2_E3A0;
-		break;
-
-	case BCM57800:
-	case BCM57800_MF:
-	case BCM57810:
-	case BCM57810_MF:
-	case BCM57840:
-	case BCM57840_MF:
-		max_cos_est = BNX2X_MULTI_TX_COS_E3B0;
-		break;
-
-	default:
-		pr_err("Unknown board_type (%ld), aborting\n",
-			   ent->driver_data);
-		return -ENODEV;
-	}
-
-	max_non_def_sbs = bnx2x_get_num_non_def_sbs(pdev);
-
-	/* !!! FIXME !!!
-	 * Do not allow the maximum SB count to grow above 16
-	 * since Special CIDs starts from 16*BNX2X_MULTI_TX_COS=48.
-	 * We will use the FP_SB_MAX_E1x macro for this matter.
-	 */
-	max_non_def_sbs = min_t(int, FP_SB_MAX_E1x, max_non_def_sbs);
-
-	WARN_ON(!max_non_def_sbs);
+	/* add another SB for VF as it has no default SB */
+	max_non_def_sbs += is_vf ? 1 : 0;
 
 	/* Maximum number of RSS queues: one IGU SB goes to CNIC */
-	rss_count = max_non_def_sbs - CNIC_PRESENT;
+	rss_count = max_non_def_sbs - cnic_cnt;
+
+	if (rss_count < 1)
+		return -EINVAL;
 
 	/* Maximum number of netdev Rx queues: RSS + FCoE L2 */
-	rx_count = rss_count + FCOE_PRESENT;
+	rx_count = rss_count + cnic_cnt;
 
-	/*
-	 * Maximum number of netdev Tx queues:
-	 *      Maximum TSS queues * Maximum supported number of CoS  + FCoE L2
+	/* Maximum number of netdev Tx queues:
+	 * Maximum TSS queues * Maximum supported number of CoS  + FCoE L2
 	 */
-	tx_count = MAX_TXQS_PER_COS * max_cos_est + FCOE_PRESENT;
+	tx_count = rss_count * max_cos_est + cnic_cnt;
 
 	/* dev zeroed in init_etherdev */
 	dev = alloc_etherdev_mqs(sizeof(*bp), tx_count, rx_count);
@@ -11364,32 +13011,55 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 	bp = netdev_priv(dev);
 
-	BNX2X_DEV_INFO("Allocated netdev with %d tx and %d rx queues\n",
-			  tx_count, rx_count);
+	bp->flags = 0;
+	if (is_vf)
+		bp->flags |= IS_VF_FLAG;
 
 	bp->igu_sb_cnt = max_non_def_sbs;
+	bp->igu_base_addr = IS_VF(bp) ? PXP_VF_ADDR_IGU_START : BAR_IGU_INTMEM;
 	bp->msg_enable = debug;
+	bp->cnic_support = cnic_cnt;
+	bp->cnic_probe = bnx2x_cnic_probe;
+
 	pci_set_drvdata(pdev, dev);
 
-	rc = bnx2x_init_dev(pdev, dev, ent->driver_data);
+	rc = bnx2x_init_dev(bp, pdev, dev, ent->driver_data);
 	if (rc < 0) {
 		free_netdev(dev);
 		return rc;
 	}
 
-	BNX2X_DEV_INFO("max_non_def_sbs %d\n", max_non_def_sbs);
+	BNX2X_DEV_INFO("This is a %s function\n",
+		       IS_PF(bp) ? "physical" : "virtual");
+	BNX2X_DEV_INFO("Cnic support is %s\n", CNIC_SUPPORT(bp) ? "on" : "off");
+	BNX2X_DEV_INFO("Max num of status blocks %d\n", max_non_def_sbs);
+	BNX2X_DEV_INFO("Allocated netdev with %d tx and %d rx queues\n",
+		       tx_count, rx_count);
 
 	rc = bnx2x_init_bp(bp);
 	if (rc)
 		goto init_one_exit;
 
-	/*
-	 * Map doorbels here as we need the real value of bp->max_cos which
-	 * is initialized in bnx2x_init_bp().
+	/* Map doorbells here as we need the real value of bp->max_cos which
+	 * is initialized in bnx2x_init_bp() to determine the number of
+	 * l2 connections.
 	 */
-	bp->doorbells = ioremap_nocache(pci_resource_start(pdev, 2),
-					min_t(u64, BNX2X_DB_SIZE(bp),
-					      pci_resource_len(pdev, 2)));
+	if (IS_VF(bp)) {
+		bp->doorbells = bnx2x_vf_doorbells(bp);
+		rc = bnx2x_vf_pci_alloc(bp);
+		if (rc)
+			goto init_one_exit;
+	} else {
+		doorbell_size = BNX2X_L2_MAX_CID(bp) * (1 << BNX2X_DB_SHIFT);
+		if (doorbell_size > pci_resource_len(pdev, 2)) {
+			dev_err(&bp->pdev->dev,
+				"Cannot map doorbells, bar size too small, aborting\n");
+			rc = -ENOMEM;
+			goto init_one_exit;
+		}
+		bp->doorbells = ioremap_nocache(pci_resource_start(pdev, 2),
+						doorbell_size);
+	}
 	if (!bp->doorbells) {
 		dev_err(&bp->pdev->dev,
 			"Cannot map doorbell space, aborting\n");
@@ -11397,58 +13067,77 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 		goto init_one_exit;
 	}
 
+	if (IS_VF(bp)) {
+		rc = bnx2x_vfpf_acquire(bp, tx_count, rx_count);
+		if (rc)
+			goto init_one_exit;
+	}
+
+	/* Enable SRIOV if capability found in configuration space */
+	rc = bnx2x_iov_init_one(bp, int_mode, BNX2X_MAX_NUM_OF_VFS);
+	if (rc)
+		goto init_one_exit;
+
 	/* calc qm_cid_count */
 	bp->qm_cid_count = bnx2x_set_qm_cid_count(bp);
+	BNX2X_DEV_INFO("qm_cid_count %d\n", bp->qm_cid_count);
 
-#ifdef BCM_CNIC
-	/* disable FCOE L2 queue for E1x */
+	/* disable FCOE L2 queue for E1x*/
 	if (CHIP_IS_E1x(bp))
 		bp->flags |= NO_FCOE_FLAG;
 
-#endif
+	/* Set bp->num_queues for MSI-X mode*/
+	bnx2x_set_num_queues(bp);
 
 	/* Configure interrupt mode: try to enable MSI-X/MSI if
-	 * needed, set bp->num_queues appropriately.
+	 * needed.
 	 */
-	bnx2x_set_int_mode(bp);
+	rc = bnx2x_set_int_mode(bp);
+	if (rc) {
+		dev_err(&pdev->dev, "Cannot set interrupts\n");
+		goto init_one_exit;
+	}
+	BNX2X_DEV_INFO("set interrupts successfully\n");
 
-	/* Add all NAPI objects */
-	bnx2x_add_all_napi(bp);
-
+	/* register the net device */
 	rc = register_netdev(dev);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
 		goto init_one_exit;
 	}
+	BNX2X_DEV_INFO("device name after netdev register %s\n", dev->name);
 
-#ifdef BCM_CNIC
 	if (!NO_FCOE(bp)) {
 		/* Add storage MAC address */
 		rtnl_lock();
 		dev_addr_add(bp->dev, bp->fip_mac, NETDEV_HW_ADDR_T_SAN);
 		rtnl_unlock();
 	}
-#endif
-
-	bnx2x_get_pcie_width_speed(bp, &pcie_width, &pcie_speed);
-
-	BNX2X_DEV_INFO(
-		"%s (%c%d) PCI-E x%d %s found at mem %lx, IRQ %d, node addr %pM\n",
-		    board_info[ent->driver_data].name,
-		    (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
-		    pcie_width,
-		    ((!CHIP_IS_E2(bp) && pcie_speed == 2) ||
-		     (CHIP_IS_E2(bp) && pcie_speed == 1)) ?
-		    "5GHz (Gen2)" : "2.5GHz",
-		    dev->base_addr, bp->pdev->irq, dev->dev_addr);
+	if (pcie_get_minimum_link(bp->pdev, &pcie_speed, &pcie_width) ||
+	    pcie_speed == PCI_SPEED_UNKNOWN ||
+	    pcie_width == PCIE_LNK_WIDTH_UNKNOWN)
+		BNX2X_DEV_INFO("Failed to determine PCI Express Bandwidth\n");
+	else
+		BNX2X_DEV_INFO(
+		       "%s (%c%d) PCI-E x%d %s found at mem %lx, IRQ %d, node addr %pM\n",
+		       board_info[ent->driver_data].name,
+		       (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
+		       pcie_width,
+		       pcie_speed == PCIE_SPEED_2_5GT ? "2.5GHz" :
+		       pcie_speed == PCIE_SPEED_5_0GT ? "5.0GHz" :
+		       pcie_speed == PCIE_SPEED_8_0GT ? "8.0GHz" :
+		       "Unknown",
+		       dev->base_addr, bp->pdev->irq, dev->dev_addr);
 
 	return 0;
 
 init_one_exit:
+	bnx2x_disable_pcie_error_reporting(bp);
+
 	if (bp->regview)
 		iounmap(bp->regview);
 
-	if (bp->doorbells)
+	if (IS_PF(bp) && bp->doorbells)
 		iounmap(bp->doorbells);
 
 	free_netdev(dev);
@@ -11457,12 +13146,101 @@ init_one_exit:
 		pci_release_regions(pdev);
 
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 	return rc;
 }
 
-static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
+static void __bnx2x_remove(struct pci_dev *pdev,
+			   struct net_device *dev,
+			   struct bnx2x *bp,
+			   bool remove_netdev)
+{
+	/* Delete storage MAC address */
+	if (!NO_FCOE(bp)) {
+		rtnl_lock();
+		dev_addr_del(bp->dev, bp->fip_mac, NETDEV_HW_ADDR_T_SAN);
+		rtnl_unlock();
+	}
+
+#ifdef BCM_DCBNL
+	/* Delete app tlvs from dcbnl */
+	bnx2x_dcbnl_update_applist(bp, true);
+#endif
+
+	if (IS_PF(bp) &&
+	    !BP_NOMCP(bp) &&
+	    (bp->flags & BC_SUPPORTS_RMMOD_CMD))
+		bnx2x_fw_command(bp, DRV_MSG_CODE_RMMOD, 0);
+
+	/* Close the interface - either directly or implicitly */
+	if (remove_netdev) {
+		unregister_netdev(dev);
+	} else {
+		rtnl_lock();
+		dev_close(dev);
+		rtnl_unlock();
+	}
+
+	bnx2x_iov_remove_one(bp);
+
+	/* Power on: we can't let PCI layer write to us while we are in D3 */
+	if (IS_PF(bp)) {
+		bnx2x_set_power_state(bp, PCI_D0);
+
+		/* Set endianity registers to reset values in case next driver
+		 * boots in different endianty environment.
+		 */
+		bnx2x_reset_endianity(bp);
+	}
+
+	/* Disable MSI/MSI-X */
+	bnx2x_disable_msi(bp);
+
+	/* Power off */
+	if (IS_PF(bp))
+		bnx2x_set_power_state(bp, PCI_D3hot);
+
+	/* Make sure RESET task is not scheduled before continuing */
+	cancel_delayed_work_sync(&bp->sp_rtnl_task);
+
+	/* send message via vfpf channel to release the resources of this vf */
+	if (IS_VF(bp))
+		bnx2x_vfpf_release(bp);
+
+	/* Assumes no further PCIe PM changes will occur */
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, bp->wol);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+
+	bnx2x_disable_pcie_error_reporting(bp);
+	if (remove_netdev) {
+		if (bp->regview)
+			iounmap(bp->regview);
+
+		/* For vfs, doorbells are part of the regview and were unmapped
+		 * along with it. FW is only loaded by PF.
+		 */
+		if (IS_PF(bp)) {
+			if (bp->doorbells)
+				iounmap(bp->doorbells);
+
+			bnx2x_release_firmware(bp);
+		} else {
+			bnx2x_vf_pci_dealloc(bp);
+		}
+		bnx2x_free_mem_bp(bp);
+
+		free_netdev(dev);
+
+		if (atomic_read(&pdev->enable_cnt) == 1)
+			pci_release_regions(pdev);
+
+		pci_disable_device(pdev);
+	}
+}
+
+static void bnx2x_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2x *bp;
@@ -11473,105 +13251,39 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 	}
 	bp = netdev_priv(dev);
 
-#ifdef BCM_CNIC
-	/* Delete storage MAC address */
-	if (!NO_FCOE(bp)) {
-		rtnl_lock();
-		dev_addr_del(bp->dev, bp->fip_mac, NETDEV_HW_ADDR_T_SAN);
-		rtnl_unlock();
-	}
-#endif
-
-#ifdef BCM_DCBNL
-	/* Delete app tlvs from dcbnl */
-	bnx2x_dcbnl_update_applist(bp, true);
-#endif
-
-	unregister_netdev(dev);
-
-	/* Delete all NAPI objects */
-	bnx2x_del_all_napi(bp);
-
-	/* Power on: we can't let PCI layer write to us while we are in D3 */
-	bnx2x_set_power_state(bp, PCI_D0);
-
-	/* Disable MSI/MSI-X */
-	bnx2x_disable_msi(bp);
-
-	/* Power off */
-	bnx2x_set_power_state(bp, PCI_D3hot);
-
-	/* Make sure RESET task is not scheduled before continuing */
-	cancel_delayed_work_sync(&bp->sp_rtnl_task);
-
-	if (bp->regview)
-		iounmap(bp->regview);
-
-	if (bp->doorbells)
-		iounmap(bp->doorbells);
-
-	bnx2x_release_firmware(bp);
-
-	bnx2x_free_mem_bp(bp);
-
-	free_netdev(dev);
-
-	if (atomic_read(&pdev->enable_cnt) == 1)
-		pci_release_regions(pdev);
-
-	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
+	__bnx2x_remove(pdev, dev, bp, true);
 }
 
 static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 {
-	int i;
-
-	bp->state = BNX2X_STATE_ERROR;
+	bp->state = BNX2X_STATE_CLOSING_WAIT4_HALT;
 
 	bp->rx_mode = BNX2X_RX_MODE_NONE;
 
-#ifdef BCM_CNIC
-	bnx2x_cnic_notify(bp, CNIC_CTL_STOP_CMD);
-#endif
+	if (CNIC_LOADED(bp))
+		bnx2x_cnic_notify(bp, CNIC_CTL_STOP_CMD);
+
 	/* Stop Tx */
 	bnx2x_tx_disable(bp);
-
-	bnx2x_netif_stop(bp, 0);
+	/* Delete all NAPI objects */
+	bnx2x_del_all_napi(bp);
+	if (CNIC_LOADED(bp))
+		bnx2x_del_all_napi_cnic(bp);
+	netdev_reset_tc(bp->dev);
 
 	del_timer_sync(&bp->timer);
+	cancel_delayed_work_sync(&bp->sp_task);
+	cancel_delayed_work_sync(&bp->period_task);
 
-	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+	spin_lock_bh(&bp->stats_lock);
+	bp->stats_state = STATS_STATE_DISABLED;
+	spin_unlock_bh(&bp->stats_lock);
 
-	/* Release IRQs */
-	bnx2x_free_irq(bp);
-
-	/* Free SKBs, SGEs, TPA pool and driver internals */
-	bnx2x_free_skbs(bp);
-
-	for_each_rx_queue(bp, i)
-		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
-
-	bnx2x_free_mem(bp);
-
-	bp->state = BNX2X_STATE_CLOSED;
+	bnx2x_save_statistics(bp);
 
 	netif_carrier_off(bp->dev);
 
 	return 0;
-}
-
-static void bnx2x_eeh_recover(struct bnx2x *bp)
-{
-	u32 val;
-
-	mutex_init(&bp->port.phy_mutex);
-
-
-	val = SHMEM_RD(bp, validity_map[BP_PORT(bp)]);
-	if ((val & (SHR_MEM_VALIDITY_DEV_INFO | SHR_MEM_VALIDITY_MB))
-		!= (SHR_MEM_VALIDITY_DEV_INFO | SHR_MEM_VALIDITY_MB))
-		BNX2X_ERR("BAD MCP validity signature\n");
 }
 
 /**
@@ -11590,6 +13302,8 @@ static pci_ers_result_t bnx2x_io_error_detected(struct pci_dev *pdev,
 
 	rtnl_lock();
 
+	BNX2X_ERR("IO error detected\n");
+
 	netif_device_detach(dev);
 
 	if (state == pci_channel_io_perm_failure) {
@@ -11599,6 +13313,8 @@ static pci_ers_result_t bnx2x_io_error_detected(struct pci_dev *pdev,
 
 	if (netif_running(dev))
 		bnx2x_eeh_nic_unload(bp);
+
+	bnx2x_prev_path_mark_eeh(bp);
 
 	pci_disable_device(pdev);
 
@@ -11618,9 +13334,10 @@ static pci_ers_result_t bnx2x_io_slot_reset(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2x *bp = netdev_priv(dev);
+	int i;
 
 	rtnl_lock();
-
+	BNX2X_ERR("IO slot reset initializing...\n");
 	if (pci_enable_device(pdev)) {
 		dev_err(&pdev->dev,
 			"Cannot re-enable PCI device after reset\n");
@@ -11630,11 +13347,60 @@ static pci_ers_result_t bnx2x_io_slot_reset(struct pci_dev *pdev)
 
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
+	pci_save_state(pdev);
 
 	if (netif_running(dev))
 		bnx2x_set_power_state(bp, PCI_D0);
 
+	if (netif_running(dev)) {
+		BNX2X_ERR("IO slot reset --> driver unload\n");
+
+		/* MCP should have been reset; Need to wait for validity */
+		bnx2x_init_shmem(bp);
+
+		if (IS_PF(bp) && SHMEM2_HAS(bp, drv_capabilities_flag)) {
+			u32 v;
+
+			v = SHMEM2_RD(bp,
+				      drv_capabilities_flag[BP_FW_MB_IDX(bp)]);
+			SHMEM2_WR(bp, drv_capabilities_flag[BP_FW_MB_IDX(bp)],
+				  v & ~DRV_FLAGS_CAPABILITIES_LOADED_L2);
+		}
+		bnx2x_drain_tx_queues(bp);
+		bnx2x_send_unload_req(bp, UNLOAD_RECOVERY);
+		bnx2x_netif_stop(bp, 1);
+		bnx2x_free_irq(bp);
+
+		/* Report UNLOAD_DONE to MCP */
+		bnx2x_send_unload_done(bp, true);
+
+		bp->sp_state = 0;
+		bp->port.pmf = 0;
+
+		bnx2x_prev_unload(bp);
+
+		/* We should have reseted the engine, so It's fair to
+		 * assume the FW will no longer write to the bnx2x driver.
+		 */
+		bnx2x_squeeze_objects(bp);
+		bnx2x_free_skbs(bp);
+		for_each_rx_queue(bp, i)
+			bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
+		bnx2x_free_fp_mem(bp);
+		bnx2x_free_mem(bp);
+
+		bp->state = BNX2X_STATE_CLOSED;
+	}
+
 	rtnl_unlock();
+
+	/* If AER, perform cleanup of the PCIe registers */
+	if (bp->flags & AER_ENABLED) {
+		if (pci_cleanup_aer_uncorrect_error_status(pdev))
+			BNX2X_ERR("pci_cleanup_aer_uncorrect_error_status failed\n");
+		else
+			DP(NETIF_MSG_HW, "pci_cleanup_aer_uncorrect_error_status succeeded\n");
+	}
 
 	return PCI_ERS_RESULT_RECOVERED;
 }
@@ -11658,7 +13424,8 @@ static void bnx2x_io_resume(struct pci_dev *pdev)
 
 	rtnl_lock();
 
-	bnx2x_eeh_recover(bp);
+	bp->fw_seq = SHMEM_RD(bp, func_mb[BP_FW_MB_IDX(bp)].drv_mb_header) &
+							DRV_MSG_SEQ_NUMBER_MASK;
 
 	if (netif_running(dev))
 		bnx2x_nic_load(bp, LOAD_NORMAL);
@@ -11668,20 +13435,47 @@ static void bnx2x_io_resume(struct pci_dev *pdev)
 	rtnl_unlock();
 }
 
-static struct pci_error_handlers bnx2x_err_handler = {
+static const struct pci_error_handlers bnx2x_err_handler = {
 	.error_detected = bnx2x_io_error_detected,
 	.slot_reset     = bnx2x_io_slot_reset,
 	.resume         = bnx2x_io_resume,
 };
 
+static void bnx2x_shutdown(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct bnx2x *bp;
+
+	if (!dev)
+		return;
+
+	bp = netdev_priv(dev);
+	if (!bp)
+		return;
+
+	rtnl_lock();
+	netif_device_detach(dev);
+	rtnl_unlock();
+
+	/* Don't remove the netdevice, as there are scenarios which will cause
+	 * the kernel to hang, e.g., when trying to remove bnx2i while the
+	 * rootfs is mounted from SAN.
+	 */
+	__bnx2x_remove(pdev, dev, bp, false);
+}
+
 static struct pci_driver bnx2x_pci_driver = {
 	.name        = DRV_MODULE_NAME,
 	.id_table    = bnx2x_pci_tbl,
 	.probe       = bnx2x_init_one,
-	.remove      = __devexit_p(bnx2x_remove_one),
+	.remove      = bnx2x_remove_one,
 	.suspend     = bnx2x_suspend,
 	.resume      = bnx2x_resume,
 	.err_handler = &bnx2x_err_handler,
+#ifdef CONFIG_BNX2X_SRIOV
+	.sriov_configure = bnx2x_sriov_configure,
+#endif
+	.shutdown    = bnx2x_shutdown,
 };
 
 static int __init bnx2x_init(void)
@@ -11695,11 +13489,18 @@ static int __init bnx2x_init(void)
 		pr_err("Cannot create workqueue\n");
 		return -ENOMEM;
 	}
+	bnx2x_iov_wq = create_singlethread_workqueue("bnx2x_iov");
+	if (!bnx2x_iov_wq) {
+		pr_err("Cannot create iov workqueue\n");
+		destroy_workqueue(bnx2x_wq);
+		return -ENOMEM;
+	}
 
 	ret = pci_register_driver(&bnx2x_pci_driver);
 	if (ret) {
 		pr_err("Cannot register driver\n");
 		destroy_workqueue(bnx2x_wq);
+		destroy_workqueue(bnx2x_iov_wq);
 	}
 	return ret;
 }
@@ -11707,11 +13508,13 @@ static int __init bnx2x_init(void)
 static void __exit bnx2x_cleanup(void)
 {
 	struct list_head *pos, *q;
+
 	pci_unregister_driver(&bnx2x_pci_driver);
 
 	destroy_workqueue(bnx2x_wq);
+	destroy_workqueue(bnx2x_iov_wq);
 
-	/* Free globablly allocated resources */
+	/* Free globally allocated resources */
 	list_for_each_safe(pos, q, &bnx2x_prev_list) {
 		struct bnx2x_prev_path_list *tmp =
 			list_entry(pos, struct bnx2x_prev_path_list, list);
@@ -11728,17 +13531,16 @@ void bnx2x_notify_link_changed(struct bnx2x *bp)
 module_init(bnx2x_init);
 module_exit(bnx2x_cleanup);
 
-#ifdef BCM_CNIC
 /**
  * bnx2x_set_iscsi_eth_mac_addr - set iSCSI MAC(s).
  *
  * @bp:		driver handle
  * @set:	set or clear the CAM entry
  *
- * This function will wait until the ramdord completion returns.
+ * This function will wait until the ramrod completion returns.
  * Return 0 if success, -ENODEV if ramrod doesn't return.
  */
-static inline int bnx2x_set_iscsi_eth_mac_addr(struct bnx2x *bp)
+static int bnx2x_set_iscsi_eth_mac_addr(struct bnx2x *bp)
 {
 	unsigned long ramrod_flags = 0;
 
@@ -11752,6 +13554,7 @@ static inline int bnx2x_set_iscsi_eth_mac_addr(struct bnx2x *bp)
 static void bnx2x_cnic_sp_post(struct bnx2x *bp, int count)
 {
 	struct eth_spe *spe;
+	int cxt_index, cxt_offset;
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (unlikely(bp->panic))
@@ -11761,7 +13564,6 @@ static void bnx2x_cnic_sp_post(struct bnx2x *bp, int count)
 	spin_lock_bh(&bp->spq_lock);
 	BUG_ON(bp->cnic_spq_pending < count);
 	bp->cnic_spq_pending -= count;
-
 
 	for (; bp->cnic_kwq_pending; bp->cnic_kwq_pending--) {
 		u16 type =  (le16_to_cpu(bp->cnic_kwq_cons->hdr.type)
@@ -11774,10 +13576,16 @@ static void bnx2x_cnic_sp_post(struct bnx2x *bp, int count)
 		 *  ramrod
 		 */
 		if (type == ETH_CONNECTION_TYPE) {
-			if (cmd == RAMROD_CMD_ID_ETH_CLIENT_SETUP)
-				bnx2x_set_ctx_validation(bp, &bp->context.
-					vcxt[BNX2X_ISCSI_ETH_CID].eth,
-					BNX2X_ISCSI_ETH_CID);
+			if (cmd == RAMROD_CMD_ID_ETH_CLIENT_SETUP) {
+				cxt_index = BNX2X_ISCSI_ETH_CID(bp) /
+					ILT_PAGE_CIDS;
+				cxt_offset = BNX2X_ISCSI_ETH_CID(bp) -
+					(cxt_index * ILT_PAGE_CIDS);
+				bnx2x_set_ctx_validation(bp,
+					&bp->context[cxt_index].
+							 vcxt[cxt_offset].eth,
+					BNX2X_ISCSI_ETH_CID(bp));
+			}
 		}
 
 		/*
@@ -11929,7 +13737,6 @@ static void bnx2x_cnic_cfc_comp(struct bnx2x *bp, int cid, u8 err)
 	bnx2x_cnic_sp_post(bp, 0);
 }
 
-
 /* Called with netif_addr_lock_bh() taken.
  * Sets an rx_mode config for an iSCSI ETH client.
  * Doesn't block.
@@ -11969,7 +13776,6 @@ static void bnx2x_set_iscsi_eth_rx_mode(struct bnx2x *bp, bool start)
 				    ramrod_flags);
 	}
 }
-
 
 static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 {
@@ -12058,27 +13864,52 @@ static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 	case DRV_CTL_RET_L2_SPQ_CREDIT_CMD: {
 		int count = ctl->data.credit.credit_count;
 
-		smp_mb__before_atomic_inc();
+		smp_mb__before_atomic();
 		atomic_add(count, &bp->cq_spq_left);
-		smp_mb__after_atomic_inc();
+		smp_mb__after_atomic();
 		break;
 	}
 	case DRV_CTL_ULP_REGISTER_CMD: {
-		int ulp_type = ctl->data.ulp_type;
+		int ulp_type = ctl->data.register_data.ulp_type;
 
 		if (CHIP_IS_E3(bp)) {
 			int idx = BP_FW_MB_IDX(bp);
-			u32 cap;
+			u32 cap = SHMEM2_RD(bp, drv_capabilities_flag[idx]);
+			int path = BP_PATH(bp);
+			int port = BP_PORT(bp);
+			int i;
+			u32 scratch_offset;
+			u32 *host_addr;
 
-			cap = SHMEM2_RD(bp, drv_capabilities_flag[idx]);
+			/* first write capability to shmem2 */
 			if (ulp_type == CNIC_ULP_ISCSI)
 				cap |= DRV_FLAGS_CAPABILITIES_LOADED_ISCSI;
 			else if (ulp_type == CNIC_ULP_FCOE)
 				cap |= DRV_FLAGS_CAPABILITIES_LOADED_FCOE;
 			SHMEM2_WR(bp, drv_capabilities_flag[idx], cap);
+
+			if ((ulp_type != CNIC_ULP_FCOE) ||
+			    (!SHMEM2_HAS(bp, ncsi_oem_data_addr)) ||
+			    (!(bp->flags &  BC_SUPPORTS_FCOE_FEATURES)))
+				break;
+
+			/* if reached here - should write fcoe capabilities */
+			scratch_offset = SHMEM2_RD(bp, ncsi_oem_data_addr);
+			if (!scratch_offset)
+				break;
+			scratch_offset += offsetof(struct glob_ncsi_oem_data,
+						   fcoe_features[path][port]);
+			host_addr = (u32 *) &(ctl->data.register_data.
+					      fcoe_features);
+			for (i = 0; i < sizeof(struct fcoe_capabilities);
+			     i += 4)
+				REG_WR(bp, scratch_offset + i,
+				       *(host_addr + i/4));
 		}
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_GET_DRV_VERSION, 0);
 		break;
 	}
+
 	case DRV_CTL_ULP_UNREGISTER_CMD: {
 		int ulp_type = ctl->data.ulp_type;
 
@@ -12093,6 +13924,7 @@ static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 				cap &= ~DRV_FLAGS_CAPABILITIES_LOADED_FCOE;
 			SHMEM2_WR(bp, drv_capabilities_flag[idx], cap);
 		}
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_GET_DRV_VERSION, 0);
 		break;
 	}
 
@@ -12130,16 +13962,52 @@ void bnx2x_setup_cnic_irq_info(struct bnx2x *bp)
 	cp->num_irq = 2;
 }
 
+void bnx2x_setup_cnic_info(struct bnx2x *bp)
+{
+	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
+
+	cp->ctx_tbl_offset = FUNC_ILT_BASE(BP_FUNC(bp)) +
+			     bnx2x_cid_ilt_lines(bp);
+	cp->starting_cid = bnx2x_cid_ilt_lines(bp) * ILT_PAGE_CIDS;
+	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID(bp);
+	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID(bp);
+
+	DP(NETIF_MSG_IFUP, "BNX2X_1st_NON_L2_ETH_CID(bp) %x, cp->starting_cid %x, cp->fcoe_init_cid %x, cp->iscsi_l2_cid %x\n",
+	   BNX2X_1st_NON_L2_ETH_CID(bp), cp->starting_cid, cp->fcoe_init_cid,
+	   cp->iscsi_l2_cid);
+
+	if (NO_ISCSI_OOO(bp))
+		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;
+}
+
 static int bnx2x_register_cnic(struct net_device *dev, struct cnic_ops *ops,
 			       void *data)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
+	int rc;
+
+	DP(NETIF_MSG_IFUP, "Register_cnic called\n");
 
 	if (ops == NULL) {
 		BNX2X_ERR("NULL ops received\n");
 		return -EINVAL;
 	}
+
+	if (!CNIC_SUPPORT(bp)) {
+		BNX2X_ERR("Can't register CNIC when not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (!CNIC_LOADED(bp)) {
+		rc = bnx2x_load_cnic(bp);
+		if (rc) {
+			BNX2X_ERR("CNIC-related load failed\n");
+			return rc;
+		}
+	}
+
+	bp->cnic_enabled = true;
 
 	bp->cnic_kwq = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!bp->cnic_kwq)
@@ -12162,6 +14030,9 @@ static int bnx2x_register_cnic(struct net_device *dev, struct cnic_ops *ops,
 
 	rcu_assign_pointer(bp->cnic_ops, ops);
 
+	/* Schedule driver to read CNIC driver versions */
+	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_GET_DRV_VERSION, 0);
+
 	return 0;
 }
 
@@ -12175,13 +14046,14 @@ static int bnx2x_unregister_cnic(struct net_device *dev)
 	RCU_INIT_POINTER(bp->cnic_ops, NULL);
 	mutex_unlock(&bp->cnic_mutex);
 	synchronize_rcu();
+	bp->cnic_enabled = false;
 	kfree(bp->cnic_kwq);
 	bp->cnic_kwq = NULL;
 
 	return 0;
 }
 
-struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
+static struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
@@ -12208,10 +14080,10 @@ struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 	cp->drv_ctl = bnx2x_drv_ctl;
 	cp->drv_register_cnic = bnx2x_register_cnic;
 	cp->drv_unregister_cnic = bnx2x_unregister_cnic;
-	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID;
+	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID(bp);
 	cp->iscsi_l2_client_id =
 		bnx2x_cnic_eth_cl_id(bp, BNX2X_ISCSI_ETH_CL_ID_IDX);
-	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID;
+	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID(bp);
 
 	if (NO_ISCSI_OOO(bp))
 		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;
@@ -12230,7 +14102,37 @@ struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 	   cp->starting_cid);
 	return cp;
 }
-EXPORT_SYMBOL(bnx2x_cnic_probe);
 
-#endif /* BCM_CNIC */
+static u32 bnx2x_rx_ustorm_prods_offset(struct bnx2x_fastpath *fp)
+{
+	struct bnx2x *bp = fp->bp;
+	u32 offset = BAR_USTRORM_INTMEM;
 
+	if (IS_VF(bp))
+		return bnx2x_vf_ustorm_prods_offset(bp, fp);
+	else if (!CHIP_IS_E1x(bp))
+		offset += USTORM_RX_PRODS_E2_OFFSET(fp->cl_qzone_id);
+	else
+		offset += USTORM_RX_PRODS_E1X_OFFSET(BP_PORT(bp), fp->cl_id);
+
+	return offset;
+}
+
+/* called only on E1H or E2.
+ * When pretending to be PF, the pretend value is the function number 0...7
+ * When pretending to be VF, the pretend val is the PF-num:VF-valid:ABS-VFID
+ * combination
+ */
+int bnx2x_pretend_func(struct bnx2x *bp, u16 pretend_func_val)
+{
+	u32 pretend_reg;
+
+	if (CHIP_IS_E1H(bp) && pretend_func_val >= E1H_FUNC_MAX)
+		return -1;
+
+	/* get my own pretend register */
+	pretend_reg = bnx2x_get_pretend_reg(bp);
+	REG_WR(bp, pretend_reg, pretend_func_val);
+	REG_RD(bp, pretend_reg);
+	return 0;
+}

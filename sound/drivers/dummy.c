@@ -134,6 +134,9 @@ struct snd_dummy {
 	spinlock_t mixer_lock;
 	int mixer_volume[MIXER_ADDR_LAST+1][2];
 	int capture_source[MIXER_ADDR_LAST+1][2];
+	int iobox;
+	struct snd_kcontrol *cd_volume_ctl;
+	struct snd_kcontrol *cd_switch_ctl;
 	const struct dummy_timer_ops *timer_ops;
 };
 
@@ -685,8 +688,8 @@ static struct snd_pcm_ops dummy_pcm_ops_no_buf = {
 	.page =		dummy_pcm_page,
 };
 
-static int __devinit snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
-					int substreams)
+static int snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
+			      int substreams)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_ops *ops;
@@ -817,6 +820,57 @@ static int snd_dummy_capsrc_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	return change;
 }
 
+static int snd_dummy_iobox_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *info)
+{
+	const char *const names[] = { "None", "CD Player" };
+
+	return snd_ctl_enum_info(info, 1, 2, names);
+}
+
+static int snd_dummy_iobox_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *value)
+{
+	struct snd_dummy *dummy = snd_kcontrol_chip(kcontrol);
+
+	value->value.enumerated.item[0] = dummy->iobox;
+	return 0;
+}
+
+static int snd_dummy_iobox_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *value)
+{
+	struct snd_dummy *dummy = snd_kcontrol_chip(kcontrol);
+	int changed;
+
+	if (value->value.enumerated.item[0] > 1)
+		return -EINVAL;
+
+	changed = value->value.enumerated.item[0] != dummy->iobox;
+	if (changed) {
+		dummy->iobox = value->value.enumerated.item[0];
+
+		if (dummy->iobox) {
+			dummy->cd_volume_ctl->vd[0].access &=
+				~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+			dummy->cd_switch_ctl->vd[0].access &=
+				~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+		} else {
+			dummy->cd_volume_ctl->vd[0].access |=
+				SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+			dummy->cd_switch_ctl->vd[0].access |=
+				SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+		}
+
+		snd_ctl_notify(dummy->card, SNDRV_CTL_EVENT_MASK_INFO,
+			       &dummy->cd_volume_ctl->id);
+		snd_ctl_notify(dummy->card, SNDRV_CTL_EVENT_MASK_INFO,
+			       &dummy->cd_switch_ctl->id);
+	}
+
+	return changed;
+}
+
 static struct snd_kcontrol_new snd_dummy_controls[] = {
 DUMMY_VOLUME("Master Volume", 0, MIXER_ADDR_MASTER),
 DUMMY_CAPSRC("Master Capture Switch", 0, MIXER_ADDR_MASTER),
@@ -827,22 +881,37 @@ DUMMY_CAPSRC("Line Capture Switch", 0, MIXER_ADDR_LINE),
 DUMMY_VOLUME("Mic Volume", 0, MIXER_ADDR_MIC),
 DUMMY_CAPSRC("Mic Capture Switch", 0, MIXER_ADDR_MIC),
 DUMMY_VOLUME("CD Volume", 0, MIXER_ADDR_CD),
-DUMMY_CAPSRC("CD Capture Switch", 0, MIXER_ADDR_CD)
+DUMMY_CAPSRC("CD Capture Switch", 0, MIXER_ADDR_CD),
+{
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name  = "External I/O Box",
+	.info  = snd_dummy_iobox_info,
+	.get   = snd_dummy_iobox_get,
+	.put   = snd_dummy_iobox_put,
+},
 };
 
-static int __devinit snd_card_dummy_new_mixer(struct snd_dummy *dummy)
+static int snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 {
 	struct snd_card *card = dummy->card;
+	struct snd_kcontrol *kcontrol;
 	unsigned int idx;
 	int err;
 
 	spin_lock_init(&dummy->mixer_lock);
 	strcpy(card->mixername, "Dummy Mixer");
+	dummy->iobox = 1;
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_dummy_controls); idx++) {
-		err = snd_ctl_add(card, snd_ctl_new1(&snd_dummy_controls[idx], dummy));
+		kcontrol = snd_ctl_new1(&snd_dummy_controls[idx], dummy);
+		err = snd_ctl_add(card, kcontrol);
 		if (err < 0)
 			return err;
+		if (!strcmp(kcontrol->id.name, "CD Volume"))
+			dummy->cd_volume_ctl = kcontrol;
+		else if (!strcmp(kcontrol->id.name, "CD Capture Switch"))
+			dummy->cd_switch_ctl = kcontrol;
+
 	}
 	return 0;
 }
@@ -953,7 +1022,7 @@ static void dummy_proc_write(struct snd_info_entry *entry,
 		if (i >= ARRAY_SIZE(fields))
 			continue;
 		snd_info_get_str(item, ptr, sizeof(item));
-		if (strict_strtoull(item, 0, &val))
+		if (kstrtoull(item, 0, &val))
 			continue;
 		if (fields[i].size == sizeof(int))
 			*get_dummy_int_ptr(dummy, fields[i].offset) = val;
@@ -962,7 +1031,7 @@ static void dummy_proc_write(struct snd_info_entry *entry,
 	}
 }
 
-static void __devinit dummy_proc_init(struct snd_dummy *chip)
+static void dummy_proc_init(struct snd_dummy *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -977,7 +1046,7 @@ static void __devinit dummy_proc_init(struct snd_dummy *chip)
 #define dummy_proc_init(x)
 #endif /* CONFIG_SND_DEBUG && CONFIG_PROC_FS */
 
-static int __devinit snd_dummy_probe(struct platform_device *devptr)
+static int snd_dummy_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
 	struct snd_dummy *dummy;
@@ -985,8 +1054,8 @@ static int __devinit snd_dummy_probe(struct platform_device *devptr)
 	int idx, err;
 	int dev = devptr->id;
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_dummy), &card);
+	err = snd_card_new(&devptr->dev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_dummy), &card);
 	if (err < 0)
 		return err;
 	dummy = card->private_data;
@@ -1045,8 +1114,6 @@ static int __devinit snd_dummy_probe(struct platform_device *devptr)
 
 	dummy_proc_init(dummy);
 
-	snd_card_set_dev(card, &devptr->dev);
-
 	err = snd_card_register(card);
 	if (err == 0) {
 		platform_set_drvdata(devptr, card);
@@ -1057,17 +1124,16 @@ static int __devinit snd_dummy_probe(struct platform_device *devptr)
 	return err;
 }
 
-static int __devexit snd_dummy_remove(struct platform_device *devptr)
+static int snd_dummy_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int snd_dummy_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int snd_dummy_suspend(struct device *pdev)
 {
-	struct snd_card *card = platform_get_drvdata(pdev);
+	struct snd_card *card = dev_get_drvdata(pdev);
 	struct snd_dummy *dummy = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
@@ -1075,26 +1141,29 @@ static int snd_dummy_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 	
-static int snd_dummy_resume(struct platform_device *pdev)
+static int snd_dummy_resume(struct device *pdev)
 {
-	struct snd_card *card = platform_get_drvdata(pdev);
+	struct snd_card *card = dev_get_drvdata(pdev);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(snd_dummy_pm, snd_dummy_suspend, snd_dummy_resume);
+#define SND_DUMMY_PM_OPS	&snd_dummy_pm
+#else
+#define SND_DUMMY_PM_OPS	NULL
 #endif
 
 #define SND_DUMMY_DRIVER	"snd_dummy"
 
 static struct platform_driver snd_dummy_driver = {
 	.probe		= snd_dummy_probe,
-	.remove		= __devexit_p(snd_dummy_remove),
-#ifdef CONFIG_PM
-	.suspend	= snd_dummy_suspend,
-	.resume		= snd_dummy_resume,
-#endif
+	.remove		= snd_dummy_remove,
 	.driver		= {
-		.name	= SND_DUMMY_DRIVER
+		.name	= SND_DUMMY_DRIVER,
+		.owner	= THIS_MODULE,
+		.pm	= SND_DUMMY_PM_OPS,
 	},
 };
 

@@ -61,7 +61,7 @@ static void dc_pad_callback(struct mapleq *mq)
 
 static int dc_pad_open(struct input_dev *dev)
 {
-	struct dc_pad *pad = dev->dev.platform_data;
+	struct dc_pad *pad = dev_get_platdata(&dev->dev);
 
 	maple_getcond_callback(pad->mdev, dc_pad_callback, HZ/20,
 		MAPLE_FUNC_CONTROLLER);
@@ -71,14 +71,14 @@ static int dc_pad_open(struct input_dev *dev)
 
 static void dc_pad_close(struct input_dev *dev)
 {
-	struct dc_pad *pad = dev->dev.platform_data;
+	struct dc_pad *pad = dev_get_platdata(&dev->dev);
 
 	maple_getcond_callback(pad->mdev, dc_pad_callback, 0,
 		MAPLE_FUNC_CONTROLLER);
 }
 
 /* allow the controller to be used */
-static int __devinit probe_maple_controller(struct device *dev)
+static int probe_maple_controller(struct device *dev)
 {
 	static const short btn_bit[32] = {
 		BTN_C, BTN_B, BTN_A, BTN_START, -1, -1, -1, -1,
@@ -157,7 +157,7 @@ fail:
 	return error;
 }
 
-static int __devexit remove_maple_controller(struct device *dev)
+static int remove_maple_controller(struct device *dev)
 {
 	struct maple_device *mdev = to_maple_dev(dev);
 	struct dc_pad *pad = maple_get_drvdata(mdev);
@@ -175,7 +175,7 @@ static struct maple_driver dc_pad_driver = {
 	.drv = {
 		.name	= "Dreamcast_controller",
 		.probe	= probe_maple_controller,
-		.remove	= __devexit_p(remove_maple_controller),
+		.remove	= remove_maple_controller,
 	},
 };
 

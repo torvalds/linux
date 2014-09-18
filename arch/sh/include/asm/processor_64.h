@@ -47,7 +47,7 @@ pc; })
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
-#define TASK_UNMAPPED_BASE	(TASK_SIZE / 3)
+#define TASK_UNMAPPED_BASE	PAGE_ALIGN(TASK_SIZE / 3)
 
 /*
  * Bit of SR register
@@ -121,12 +121,21 @@ struct thread_struct {
 	   NULL for a kernel thread. */
 	struct pt_regs *uregs;
 
-	unsigned long trap_no, error_code;
 	unsigned long address;
 	/* Hardware debugging registers may come here */
 
 	/* floating point info */
 	union thread_xstate *xstate;
+
+	/*
+	 * fpu_counter contains the number of consecutive context switches
+	 * that the FPU is used. If this is over a threshold, the lazy fpu
+	 * saving becomes unlazy to save the trap. This is an unsigned char
+	 * so that after 256 times the counter wraps and the behavior turns
+	 * lazy again; this to deal with bursty apps that only use FPU for
+	 * a short time
+	 */
+	unsigned char fpu_counter;
 };
 
 #define INIT_MMAP \
@@ -138,8 +147,6 @@ struct thread_struct {
 	.pc		= 0,			\
         .kregs		= &fake_swapper_regs,	\
 	.uregs	        = NULL,			\
-	.trap_no	= 0,			\
-	.error_code	= 0,			\
 	.address	= 0,			\
 	.flags		= 0,			\
 }
@@ -162,17 +169,11 @@ struct mm_struct;
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
-/*
- * create a kernel thread without removing it from tasklists
- */
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
-
 
 /* Copy and release all segment info associated with a VM */
 #define copy_segments(p, mm)	do { } while (0)
 #define release_segments(mm)	do { } while (0)
 #define forget_segments()	do { } while (0)
-#define prepare_to_copy(tsk)	do { } while (0)
 /*
  * FPU lazy state save handling.
  */

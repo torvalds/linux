@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 
 #include <asm/hvcall.h>
 #include <asm/hvcserver.h>
@@ -162,8 +163,8 @@ int hvcs_get_partner_info(uint32_t unit_address, struct list_head *head,
 			return retval;
 		}
 
-		last_p_partition_ID = pi_buff[0];
-		last_p_unit_address = pi_buff[1];
+		last_p_partition_ID = be64_to_cpu(pi_buff[0]);
+		last_p_unit_address = be64_to_cpu(pi_buff[1]);
 
 		/* This indicates that there are no further partners */
 		if (last_p_partition_ID == ~0UL
@@ -188,9 +189,9 @@ int hvcs_get_partner_info(uint32_t unit_address, struct list_head *head,
 			= (unsigned int)last_p_partition_ID;
 
 		/* copy the Null-term char too */
-		strncpy(&next_partner_info->location_code[0],
+		strlcpy(&next_partner_info->location_code[0],
 			(char *)&pi_buff[2],
-			strlen((char *)&pi_buff[2]) + 1);
+			sizeof(next_partner_info->location_code));
 
 		list_add_tail(&(next_partner_info->node), head);
 		next_partner_info = NULL;

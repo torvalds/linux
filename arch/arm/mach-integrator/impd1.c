@@ -21,13 +21,13 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 #include <linux/io.h>
+#include <linux/platform_data/clk-integrator.h>
 #include <linux/slab.h>
-#include <linux/clkdev.h>
+#include <linux/irqchip/arm-vic.h>
 
-#include <asm/hardware/icst.h>
-#include <mach/lm.h>
-#include <mach/impd1.h>
 #include <asm/sizes.h>
+#include "lm.h"
+#include "impd1.h"
 
 static int module_id;
 
@@ -36,45 +36,7 @@ MODULE_PARM_DESC(lmid, "logic module stack position");
 
 struct impd1_module {
 	void __iomem	*base;
-	struct clk	vcos[2];
-	struct clk_lookup *clks[3];
-};
-
-static const struct icst_params impd1_vco_params = {
-	.ref		= 24000000,	/* 24 MHz */
-	.vco_max	= ICST525_VCO_MAX_3V,
-	.vco_min	= ICST525_VCO_MIN,
-	.vd_min		= 12,
-	.vd_max		= 519,
-	.rd_min		= 3,
-	.rd_max		= 120,
-	.s2div		= icst525_s2div,
-	.idx2s		= icst525_idx2s,
-};
-
-static void impd1_setvco(struct clk *clk, struct icst_vco vco)
-{
-	struct impd1_module *impd1 = clk->data;
-	u32 val = vco.v | (vco.r << 9) | (vco.s << 16);
-
-	writel(0xa05f, impd1->base + IMPD1_LOCK);
-	writel(val, clk->vcoreg);
-	writel(0, impd1->base + IMPD1_LOCK);
-
-#ifdef DEBUG
-	vco.v = val & 0x1ff;
-	vco.r = (val >> 9) & 0x7f;
-	vco.s = (val >> 16) & 7;
-
-	pr_debug("IM-PD1: VCO%d clock is %ld Hz\n",
-		 vconr, icst525_hz(&impd1_vco_params, vco));
-#endif
-}
-
-static const struct clk_ops impd1_clk_ops = {
-	.round	= icst_clk_round,
-	.set	= icst_clk_set,
-	.setvco	= impd1_setvco,
+	void __iomem	*vic_base;
 };
 
 void impd1_tweak_control(struct device *dev, u32 mask, u32 val)
@@ -302,9 +264,6 @@ struct impd1_device {
 
 static struct impd1_device impd1_devs[] = {
 	{
-		.offset	= 0x03000000,
-		.id	= 0x00041190,
-	}, {
 		.offset	= 0x00100000,
 		.irq	= { 1 },
 		.id	= 0x00141011,
@@ -344,90 +303,86 @@ static struct impd1_device impd1_devs[] = {
 	}
 };
 
-static struct clk fixed_14745600 = {
-	.rate = 14745600,
-};
+/*
+ * Valid IRQs: 0 thru 9 and 11, 10 unused.
+ */
+#define IMPD1_VALID_IRQS 0x00000bffU
 
-static int impd1_probe(struct lm_device *dev)
+/*
+ * As this module is bool, it is OK to have this as __init_refok() - no
+ * probe calls will be done after the initial system bootup, as devices
+ * are discovered as part of the machine startup.
+ */
+static int __init_refok impd1_probe(struct lm_device *dev)
 {
 	struct impd1_module *impd1;
-	int i, ret;
+	int irq_base;
+	int i;
 
 	if (dev->id != module_id)
 		return -EINVAL;
 
-	if (!request_mem_region(dev->resource.start, SZ_4K, "LM registers"))
+	if (!devm_request_mem_region(&dev->dev, dev->resource.start,
+				     SZ_4K, "LM registers"))
 		return -EBUSY;
 
-	impd1 = kzalloc(sizeof(struct impd1_module), GFP_KERNEL);
-	if (!impd1) {
-		ret = -ENOMEM;
-		goto release_lm;
-	}
+	impd1 = devm_kzalloc(&dev->dev, sizeof(struct impd1_module),
+			     GFP_KERNEL);
+	if (!impd1)
+		return -ENOMEM;
 
-	impd1->base = ioremap(dev->resource.start, SZ_4K);
-	if (!impd1->base) {
-		ret = -ENOMEM;
-		goto free_impd1;
-	}
+	impd1->base = devm_ioremap(&dev->dev, dev->resource.start, SZ_4K);
+	if (!impd1->base)
+		return -ENOMEM;
+
+	integrator_impd1_clk_init(impd1->base, dev->id);
+
+	if (!devm_request_mem_region(&dev->dev,
+				     dev->resource.start + 0x03000000,
+				     SZ_4K, "VIC"))
+		return -EBUSY;
+
+	impd1->vic_base = devm_ioremap(&dev->dev,
+				       dev->resource.start + 0x03000000,
+				       SZ_4K);
+	if (!impd1->vic_base)
+		return -ENOMEM;
+
+	irq_base = vic_init_cascaded(impd1->vic_base, dev->irq,
+				     IMPD1_VALID_IRQS, 0);
 
 	lm_set_drvdata(dev, impd1);
 
-	printk("IM-PD1 found at 0x%08lx\n",
-		(unsigned long)dev->resource.start);
-
-	for (i = 0; i < ARRAY_SIZE(impd1->vcos); i++) {
-		impd1->vcos[i].ops = &impd1_clk_ops,
-		impd1->vcos[i].owner = THIS_MODULE,
-		impd1->vcos[i].params = &impd1_vco_params,
-		impd1->vcos[i].data = impd1;
-	}
-	impd1->vcos[0].vcoreg = impd1->base + IMPD1_OSC1;
-	impd1->vcos[1].vcoreg = impd1->base + IMPD1_OSC2;
-
-	impd1->clks[0] = clkdev_alloc(&impd1->vcos[0], NULL, "lm%x:01000",
-					dev->id);
-	impd1->clks[1] = clkdev_alloc(&fixed_14745600, NULL, "lm%x:00100",
-					dev->id);
-	impd1->clks[2] = clkdev_alloc(&fixed_14745600, NULL, "lm%x:00200",
-					dev->id);
-	for (i = 0; i < ARRAY_SIZE(impd1->clks); i++)
-		clkdev_add(impd1->clks[i]);
+	dev_info(&dev->dev, "IM-PD1 found at 0x%08lx\n",
+		 (unsigned long)dev->resource.start);
 
 	for (i = 0; i < ARRAY_SIZE(impd1_devs); i++) {
 		struct impd1_device *idev = impd1_devs + i;
 		struct amba_device *d;
 		unsigned long pc_base;
+		char devname[32];
+		int irq1 = idev->irq[0];
+		int irq2 = idev->irq[1];
+
+		/* Translate IRQs to IM-PD1 local numberspace */
+		if (irq1)
+			irq1 += irq_base;
+		if (irq2)
+			irq2 += irq_base;
 
 		pc_base = dev->resource.start + idev->offset;
-
-		d = amba_device_alloc(NULL, pc_base, SZ_4K);
-		if (!d)
+		snprintf(devname, 32, "lm%x:%5.5lx", dev->id, idev->offset >> 12);
+		d = amba_ahb_device_add_res(&dev->dev, devname, pc_base, SZ_4K,
+					    irq1, irq2,
+					    idev->platform_data, idev->id,
+					    &dev->resource);
+		if (IS_ERR(d)) {
+			dev_err(&dev->dev, "unable to register device: %ld\n", PTR_ERR(d));
 			continue;
-
-		dev_set_name(&d->dev, "lm%x:%5.5lx", dev->id, idev->offset >> 12);
-		d->dev.parent	= &dev->dev;
-		d->irq[0]	= dev->irq;
-		d->irq[1]	= dev->irq;
-		d->periphid	= idev->id;
-		d->dev.platform_data = idev->platform_data;
-
-		ret = amba_device_add(d, &dev->resource);
-		if (ret) {
-			dev_err(&d->dev, "unable to register device: %d\n", ret);
-			amba_device_put(d);
 		}
 	}
 
 	return 0;
-
- free_impd1:
-	if (impd1 && impd1->base)
-		iounmap(impd1->base);
-	kfree(impd1);
- release_lm:
-	release_mem_region(dev->resource.start, SZ_4K);
-	return ret;
 }
 
 static int impd1_remove_one(struct device *dev, void *data)
@@ -438,24 +393,20 @@ static int impd1_remove_one(struct device *dev, void *data)
 
 static void impd1_remove(struct lm_device *dev)
 {
-	struct impd1_module *impd1 = lm_get_drvdata(dev);
-	int i;
-
 	device_for_each_child(&dev->dev, NULL, impd1_remove_one);
-
-	for (i = 0; i < ARRAY_SIZE(impd1->clks); i++)
-		clkdev_drop(impd1->clks[i]);
+	integrator_impd1_clk_exit(dev->id);
 
 	lm_set_drvdata(dev, NULL);
-
-	iounmap(impd1->base);
-	kfree(impd1);
-	release_mem_region(dev->resource.start, SZ_4K);
 }
 
 static struct lm_driver impd1_driver = {
 	.drv = {
 		.name	= "impd1",
+		/*
+		 * As we're dropping the probe() function, suppress driver
+		 * binding from sysfs.
+		 */
+		.suppress_bind_attrs = true,
 	},
 	.probe		= impd1_probe,
 	.remove		= impd1_remove,

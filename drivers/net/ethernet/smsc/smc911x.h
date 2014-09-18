@@ -15,8 +15,7 @@
  . GNU General Public License for more details.
  .
  . You should have received a copy of the GNU General Public License
- . along with this program; if not, write to the Free Software
- . Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ . along with this program; if not, see <http://www.gnu.org/licenses/>.
  .
  . Information contained in this file was obtained from the LAN9118
  . manual from SMC.  To get a copy, if you really want one, you can find
@@ -159,12 +158,12 @@ static inline void SMC_insl(struct smc911x_local *lp, int reg,
 	void __iomem *ioaddr = lp->base + reg;
 
 	if (lp->cfg.flags & SMC911X_USE_32BIT) {
-		readsl(ioaddr, addr, count);
+		ioread32_rep(ioaddr, addr, count);
 		return;
 	}
 
 	if (lp->cfg.flags & SMC911X_USE_16BIT) {
-		readsw(ioaddr, addr, count * 2);
+		ioread16_rep(ioaddr, addr, count * 2);
 		return;
 	}
 
@@ -177,12 +176,12 @@ static inline void SMC_outsl(struct smc911x_local *lp, int reg,
 	void __iomem *ioaddr = lp->base + reg;
 
 	if (lp->cfg.flags & SMC911X_USE_32BIT) {
-		writesl(ioaddr, addr, count);
+		iowrite32_rep(ioaddr, addr, count);
 		return;
 	}
 
 	if (lp->cfg.flags & SMC911X_USE_16BIT) {
-		writesw(ioaddr, addr, count * 2);
+		iowrite16_rep(ioaddr, addr, count * 2);
 		return;
 	}
 
@@ -196,14 +195,14 @@ static inline void SMC_outsl(struct smc911x_local *lp, int reg,
 		 writew(v & 0xFFFF, (lp)->base + (r));	 \
 		 writew(v >> 16, (lp)->base + (r) + 2); \
 	 } while (0)
-#define SMC_insl(lp, r, p, l)	 readsw((short*)((lp)->base + (r)), p, l*2)
-#define SMC_outsl(lp, r, p, l)	 writesw((short*)((lp)->base + (r)), p, l*2)
+#define SMC_insl(lp, r, p, l)	 ioread16_rep((short*)((lp)->base + (r)), p, l*2)
+#define SMC_outsl(lp, r, p, l)	 iowrite16_rep((short*)((lp)->base + (r)), p, l*2)
 
 #elif	SMC_USE_32BIT
 #define SMC_inl(lp, r)		 readl((lp)->base + (r))
 #define SMC_outl(v, lp, r)	 writel(v, (lp)->base + (r))
-#define SMC_insl(lp, r, p, l)	 readsl((int*)((lp)->base + (r)), p, l)
-#define SMC_outsl(lp, r, p, l)	 writesl((int*)((lp)->base + (r)), p, l)
+#define SMC_insl(lp, r, p, l)	 ioread32_rep((int*)((lp)->base + (r)), p, l)
+#define SMC_outsl(lp, r, p, l)	 iowrite32_rep((int*)((lp)->base + (r)), p, l)
 
 #endif /* SMC_USE_16BIT */
 #endif /* SMC_DYNAMIC_BUS_CONFIG */
@@ -227,7 +226,7 @@ static inline void SMC_outsl(struct smc911x_local *lp, int reg,
 #define SMC_DMA_ACK_IRQ(dev, dma)					\
 {									\
 	if (DCSR(dma) & DCSR_BUSERR) {					\
-		printk("%s: DMA %d bus error!\n", dev->name, dma);	\
+		netdev_err(dev, "DMA %d bus error!\n", dma);		\
 	}								\
 	DCSR(dma) = DCSR_STARTINTR|DCSR_ENDINTR|DCSR_BUSERR;		\
 }

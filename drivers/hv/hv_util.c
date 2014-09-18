@@ -28,6 +28,34 @@
 #include <linux/reboot.h>
 #include <linux/hyperv.h>
 
+#include "hyperv_vmbus.h"
+
+#define SD_MAJOR	3
+#define SD_MINOR	0
+#define SD_VERSION	(SD_MAJOR << 16 | SD_MINOR)
+
+#define SD_WS2008_MAJOR		1
+#define SD_WS2008_VERSION	(SD_WS2008_MAJOR << 16 | SD_MINOR)
+
+#define TS_MAJOR	3
+#define TS_MINOR	0
+#define TS_VERSION	(TS_MAJOR << 16 | TS_MINOR)
+
+#define TS_WS2008_MAJOR		1
+#define TS_WS2008_VERSION	(TS_WS2008_MAJOR << 16 | TS_MINOR)
+
+#define HB_MAJOR	3
+#define HB_MINOR 0
+#define HB_VERSION	(HB_MAJOR << 16 | HB_MINOR)
+
+#define HB_WS2008_MAJOR	1
+#define HB_WS2008_VERSION	(HB_WS2008_MAJOR << 16 | HB_MINOR)
+
+static int sd_srv_version;
+static int ts_srv_version;
+static int hb_srv_version;
+static int util_fw_version;
+
 static void shutdown_onchannelcallback(void *context);
 static struct hv_util_service util_shutdown = {
 	.util_cb = shutdown_onchannelcallback,
@@ -49,12 +77,34 @@ static struct hv_util_service util_kvp = {
 	.util_deinit = hv_kvp_deinit,
 };
 
+static struct hv_util_service util_vss = {
+	.util_cb = hv_vss_onchannelcallback,
+	.util_init = hv_vss_init,
+	.util_deinit = hv_vss_deinit,
+};
+
+static struct hv_util_service util_fcopy = {
+	.util_cb = hv_fcopy_onchannelcallback,
+	.util_init = hv_fcopy_init,
+	.util_deinit = hv_fcopy_deinit,
+};
+
+static void perform_shutdown(struct work_struct *dummy)
+{
+	orderly_poweroff(true);
+}
+
+/*
+ * Perform the shutdown operation in a thread context.
+ */
+static DECLARE_WORK(shutdown_work, perform_shutdown);
+
 static void shutdown_onchannelcallback(void *context)
 {
 	struct vmbus_channel *channel = context;
 	u32 recvlen;
 	u64 requestid;
-	u8  execute_shutdown = false;
+	bool execute_shutdown = false;
 	u8  *shut_txf_buf = util_shutdown.recv_buffer;
 
 	struct shutdown_msg_data *shutdown_msg;
@@ -70,7 +120,9 @@ static void shutdown_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp, negop, shut_txf_buf);
+			vmbus_prep_negotiate_resp(icmsghdrp, negop,
+					shut_txf_buf, util_fw_version,
+					sd_srv_version);
 		} else {
 			shutdown_msg =
 				(struct shutdown_msg_data *)&shut_txf_buf[
@@ -105,7 +157,7 @@ static void shutdown_onchannelcallback(void *context)
 	}
 
 	if (execute_shutdown == true)
-		orderly_poweroff(true);
+		schedule_work(&shutdown_work);
 }
 
 /*
@@ -186,6 +238,7 @@ static void timesync_onchannelcallback(void *context)
 	struct icmsg_hdr *icmsghdrp;
 	struct ictimesync_data *timedatap;
 	u8 *time_txf_buf = util_timesynch.recv_buffer;
+	struct icmsg_negotiate *negop = NULL;
 
 	vmbus_recvpacket(channel, time_txf_buf,
 			 PAGE_SIZE, &recvlen, &requestid);
@@ -195,7 +248,10 @@ static void timesync_onchannelcallback(void *context)
 				sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp, NULL, time_txf_buf);
+			vmbus_prep_negotiate_resp(icmsghdrp, negop,
+						time_txf_buf,
+						util_fw_version,
+						ts_srv_version);
 		} else {
 			timedatap = (struct ictimesync_data *)&time_txf_buf[
 				sizeof(struct vmbuspipe_hdr) +
@@ -225,6 +281,7 @@ static void heartbeat_onchannelcallback(void *context)
 	struct icmsg_hdr *icmsghdrp;
 	struct heartbeat_msg_data *heartbeat_msg;
 	u8 *hbeat_txf_buf = util_heartbeat.recv_buffer;
+	struct icmsg_negotiate *negop = NULL;
 
 	vmbus_recvpacket(channel, hbeat_txf_buf,
 			 PAGE_SIZE, &recvlen, &requestid);
@@ -234,7 +291,9 @@ static void heartbeat_onchannelcallback(void *context)
 				sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp, NULL, hbeat_txf_buf);
+			vmbus_prep_negotiate_resp(icmsghdrp, negop,
+				hbeat_txf_buf, util_fw_version,
+				hb_srv_version);
 		} else {
 			heartbeat_msg =
 				(struct heartbeat_msg_data *)&hbeat_txf_buf[
@@ -260,7 +319,7 @@ static int util_probe(struct hv_device *dev,
 		(struct hv_util_service *)dev_id->driver_data;
 	int ret;
 
-	srv->recv_buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	srv->recv_buffer = kmalloc(PAGE_SIZE * 4, GFP_KERNEL);
 	if (!srv->recv_buffer)
 		return -ENOMEM;
 	if (srv->util_init) {
@@ -271,12 +330,41 @@ static int util_probe(struct hv_device *dev,
 		}
 	}
 
-	ret = vmbus_open(dev->channel, 2 * PAGE_SIZE, 2 * PAGE_SIZE, NULL, 0,
+	/*
+	 * The set of services managed by the util driver are not performance
+	 * critical and do not need batched reading. Furthermore, some services
+	 * such as KVP can only handle one message from the host at a time.
+	 * Turn off batched reading for all util drivers before we open the
+	 * channel.
+	 */
+
+	set_channel_read_state(dev->channel, false);
+
+	ret = vmbus_open(dev->channel, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
 			srv->util_cb, dev->channel);
 	if (ret)
 		goto error;
 
 	hv_set_drvdata(dev, srv);
+	/*
+	 * Based on the host; initialize the framework and
+	 * service version numbers we will negotiate.
+	 */
+	switch (vmbus_proto_version) {
+	case (VERSION_WS2008):
+		util_fw_version = UTIL_WS2K8_FW_VERSION;
+		sd_srv_version = SD_WS2008_VERSION;
+		ts_srv_version = TS_WS2008_VERSION;
+		hb_srv_version = HB_WS2008_VERSION;
+		break;
+
+	default:
+		util_fw_version = UTIL_FW_VERSION;
+		sd_srv_version = SD_VERSION;
+		ts_srv_version = TS_VERSION;
+		hb_srv_version = HB_VERSION;
+	}
+
 	return 0;
 
 error:
@@ -301,21 +389,29 @@ static int util_remove(struct hv_device *dev)
 
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Shutdown guid */
-	{ VMBUS_DEVICE(0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
-		       0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB)
-	  .driver_data = (unsigned long)&util_shutdown },
+	{ HV_SHUTDOWN_GUID,
+	  .driver_data = (unsigned long)&util_shutdown
+	},
 	/* Time synch guid */
-	{ VMBUS_DEVICE(0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
-		       0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf)
-	  .driver_data = (unsigned long)&util_timesynch },
+	{ HV_TS_GUID,
+	  .driver_data = (unsigned long)&util_timesynch
+	},
 	/* Heartbeat guid */
-	{ VMBUS_DEVICE(0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
-		       0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d)
-	  .driver_data = (unsigned long)&util_heartbeat },
+	{ HV_HEART_BEAT_GUID,
+	  .driver_data = (unsigned long)&util_heartbeat
+	},
 	/* KVP guid */
-	{ VMBUS_DEVICE(0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
-		       0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6)
-	  .driver_data = (unsigned long)&util_kvp },
+	{ HV_KVP_GUID,
+	  .driver_data = (unsigned long)&util_kvp
+	},
+	/* VSS GUID */
+	{ HV_VSS_GUID,
+	  .driver_data = (unsigned long)&util_vss
+	},
+	/* File copy GUID */
+	{ HV_FCOPY_GUID,
+	  .driver_data = (unsigned long)&util_fcopy
+	},
 	{ },
 };
 
@@ -347,5 +443,4 @@ module_init(init_hyperv_utils);
 module_exit(exit_hyperv_utils);
 
 MODULE_DESCRIPTION("Hyper-V Utilities");
-MODULE_VERSION(HV_DRV_VERSION);
 MODULE_LICENSE("GPL");

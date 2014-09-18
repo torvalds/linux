@@ -16,7 +16,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
@@ -402,7 +401,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 	struct p54_rssi_db_entry *rssi_data;
 	unsigned int i;
 	void *entry;
-	__le16 freq = cpu_to_le16(priv->hw->conf.channel->center_freq);
+	__le16 freq = cpu_to_le16(priv->hw->conf.chandef.chan->center_freq);
 
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*head) +
 			    2 + sizeof(*iq_autocal) + sizeof(*body) +
@@ -478,7 +477,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 
 		if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW) {
 			memcpy(&body->longbow.curve_data,
-				(void *) entry + sizeof(__le16),
+				entry + sizeof(__le16),
 				priv->curve_data->entry_size);
 		} else {
 			struct p54_scan_body *chan = &body->normal;
@@ -532,7 +531,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 err:
 	wiphy_err(priv->hw->wiphy, "frequency change to channel %d failed.\n",
 		  ieee80211_frequency_to_channel(
-			  priv->hw->conf.channel->center_freq));
+			  priv->hw->conf.chandef.chan->center_freq));
 
 	dev_kfree_skb_any(skb);
 	return -EINVAL;

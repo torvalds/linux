@@ -36,7 +36,7 @@
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/keyscan.h>
+#include <linux/platform_data/keyscan-davinci.h>
 
 /* Key scan registers */
 #define DAVINCI_KEYSCAN_KEYCTRL		0x0000
@@ -172,7 +172,7 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 	struct input_dev *key_dev;
 	struct resource *res, *mem;
 	struct device *dev = &pdev->dev;
-	struct davinci_ks_platform_data *pdata = pdev->dev.platform_data;
+	struct davinci_ks_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int error, i;
 
 	if (pdata->device_enable) {
@@ -303,7 +303,7 @@ fail1:
 	return error;
 }
 
-static int __devexit davinci_ks_remove(struct platform_device *pdev)
+static int davinci_ks_remove(struct platform_device *pdev)
 {
 	struct davinci_ks *davinci_ks = platform_get_drvdata(pdev);
 
@@ -313,8 +313,6 @@ static int __devexit davinci_ks_remove(struct platform_device *pdev)
 
 	iounmap(davinci_ks->base);
 	release_mem_region(davinci_ks->pbase, davinci_ks->base_size);
-
-	platform_set_drvdata(pdev, NULL);
 
 	kfree(davinci_ks);
 
@@ -326,20 +324,10 @@ static struct platform_driver davinci_ks_driver = {
 		.name = "davinci_keyscan",
 		.owner = THIS_MODULE,
 	},
-	.remove	= __devexit_p(davinci_ks_remove),
+	.remove	= davinci_ks_remove,
 };
 
-static int __init davinci_ks_init(void)
-{
-	return platform_driver_probe(&davinci_ks_driver, davinci_ks_probe);
-}
-module_init(davinci_ks_init);
-
-static void __exit davinci_ks_exit(void)
-{
-	platform_driver_unregister(&davinci_ks_driver);
-}
-module_exit(davinci_ks_exit);
+module_platform_driver_probe(davinci_ks_driver, davinci_ks_probe);
 
 MODULE_AUTHOR("Miguel Aguilar");
 MODULE_DESCRIPTION("Texas Instruments DaVinci Key Scan Driver");

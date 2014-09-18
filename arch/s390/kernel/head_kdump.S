@@ -5,6 +5,8 @@
  * Author(s): Michael Holzheu <holzheu@linux.vnet.ibm.com>
  */
 
+#include <asm/sigp.h>
+
 #define DATAMOVER_ADDR	0x4000
 #define COPY_PAGE_ADDR	0x6000
 
@@ -19,7 +21,7 @@
 .align 2
 .Lep_startup_kdump:
 	lhi	%r1,2				# mode 2 = esame (dump)
-	sigp	%r1,%r0,0x12			# Switch to esame mode
+	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE	# Switch to esame mode
 	sam64					# Switch to 64 bit addressing
 	basr	%r13,0
 .Lbase:
@@ -83,23 +85,10 @@
 .align 2
 startup_kdump_relocated:
 	basr	%r13,0
-0:
-	mvc	0(8,%r0),.Lrestart_psw-0b(%r13)	# Setup restart PSW
-	mvc	464(16,%r0),.Lpgm_psw-0b(%r13)	# Setup pgm check PSW
-	lhi	%r1,1				# Start new kernel
-	diag	%r1,%r1,0x308			# with diag 308
-
-.Lno_diag308:					# No diag 308
-	sam31					# Switch to 31 bit addr mode
-	sr	%r1,%r1				# Erase register r1
-	sr	%r2,%r2				# Erase register r2
-	sigp	%r1,%r2,0x12			# Switch to 31 bit arch mode
-	lpsw	0				# Start new kernel...
+0:	lpswe	.Lrestart_psw-0b(%r13)		# Start new kernel...
 .align	8
 .Lrestart_psw:
-	.long	0x00080000,0x80000000 + startup
-.Lpgm_psw:
-	.quad	0x0000000180000000,0x0000000000000000 + .Lno_diag308
+	.quad	0x0000000080000000,0x0000000000000000 + startup
 #else
 .align 2
 .Lep_startup_kdump:

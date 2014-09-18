@@ -6,8 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <mach/mx35.h>
-#include <mach/devices-common.h>
+#include "devices/devices-common.h"
 
 extern const struct imx_fec_data imx35_fec_data;
 #define imx35_add_fec(pdata)	\
@@ -18,13 +17,13 @@ extern const struct imx_fsl_usb2_udc_data imx35_fsl_usb2_udc_data;
 	imx_add_fsl_usb2_udc(&imx35_fsl_usb2_udc_data, pdata)
 
 extern const struct imx_flexcan_data imx35_flexcan_data[];
-#define imx35_add_flexcan(id, pdata)	\
-	imx_add_flexcan(&imx35_flexcan_data[id], pdata)
-#define imx35_add_flexcan0(pdata)	imx35_add_flexcan(0, pdata)
-#define imx35_add_flexcan1(pdata)	imx35_add_flexcan(1, pdata)
+#define imx35_add_flexcan(id)	\
+	imx_add_flexcan(&imx35_flexcan_data[id])
+#define imx35_add_flexcan0()		imx35_add_flexcan(0)
+#define imx35_add_flexcan1()		imx35_add_flexcan(1)
 
 extern const struct imx_imx2_wdt_data imx35_imx2_wdt_data;
-#define imx35_add_imx2_wdt(pdata)       \
+#define imx35_add_imx2_wdt()       \
 	imx_add_imx2_wdt(&imx35_imx2_wdt_data)
 
 extern const struct imx_imx_i2c_data imx35_imx_i2c_data[];
@@ -50,8 +49,8 @@ extern const struct imx_imx_uart_1irq_data imx35_imx_uart_data[];
 #define imx35_add_imx_uart2(pdata)	imx35_add_imx_uart(2, pdata)
 
 extern const struct imx_ipu_core_data imx35_ipu_core_data;
-#define imx35_add_ipu_core(pdata)	\
-	imx_add_ipu_core(&imx35_ipu_core_data, pdata)
+#define imx35_add_ipu_core()		\
+	imx_add_ipu_core(&imx35_ipu_core_data)
 #define imx35_alloc_mx3_camera(pdata)	\
 	imx_alloc_mx3_camera(&imx35_ipu_core_data, pdata)
 #define imx35_add_mx3_sdc_fb(pdata)	\
@@ -68,8 +67,12 @@ extern const struct imx_mxc_nand_data imx35_mxc_nand_data;
 #define imx35_add_mxc_nand(pdata)	\
 	imx_add_mxc_nand(&imx35_mxc_nand_data, pdata)
 
+extern const struct imx_mxc_rtc_data imx35_mxc_rtc_data;
+#define imx35_add_mxc_rtc()	\
+	imx_add_mxc_rtc(&imx35_mxc_rtc_data)
+
 extern const struct imx_mxc_w1_data imx35_mxc_w1_data;
-#define imx35_add_mxc_w1(pdata)	\
+#define imx35_add_mxc_w1()	\
 	imx_add_mxc_w1(&imx35_mxc_w1_data)
 
 extern const struct imx_sdhci_esdhc_imx_data imx35_sdhci_esdhc_imx_data[];

@@ -12,12 +12,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Authors	Mitsuru KANDA  <mk@linux-ipv6.org>
  * 		YOSHIFUJI Hideaki <yoshfuji@linux-ipv6.org>
  */
+
+#define pr_fmt(fmt) "IPv6: " fmt
 
 #include <linux/icmpv6.h>
 #include <linux/init.h>
@@ -160,11 +161,11 @@ static const struct inet6_protocol tunnel46_protocol = {
 static int __init tunnel6_init(void)
 {
 	if (inet6_add_protocol(&tunnel6_protocol, IPPROTO_IPV6)) {
-		printk(KERN_ERR "tunnel6 init(): can't add protocol\n");
+		pr_err("%s: can't add protocol\n", __func__);
 		return -EAGAIN;
 	}
 	if (inet6_add_protocol(&tunnel46_protocol, IPPROTO_IPIP)) {
-		printk(KERN_ERR "tunnel6 init(): can't add protocol\n");
+		pr_err("%s: can't add protocol\n", __func__);
 		inet6_del_protocol(&tunnel6_protocol, IPPROTO_IPV6);
 		return -EAGAIN;
 	}
@@ -174,9 +175,9 @@ static int __init tunnel6_init(void)
 static void __exit tunnel6_fini(void)
 {
 	if (inet6_del_protocol(&tunnel46_protocol, IPPROTO_IPIP))
-		printk(KERN_ERR "tunnel6 close: can't remove protocol\n");
+		pr_err("%s: can't remove protocol\n", __func__);
 	if (inet6_del_protocol(&tunnel6_protocol, IPPROTO_IPV6))
-		printk(KERN_ERR "tunnel6 close: can't remove protocol\n");
+		pr_err("%s: can't remove protocol\n", __func__);
 }
 
 module_init(tunnel6_init);

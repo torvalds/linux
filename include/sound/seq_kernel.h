@@ -22,7 +22,7 @@
  *
  */
 #include <linux/time.h>
-#include "asequencer.h"
+#include <sound/asequencer.h>
 
 typedef struct snd_seq_real_time snd_seq_real_time_t;
 typedef union snd_seq_timestamp snd_seq_timestamp_t;

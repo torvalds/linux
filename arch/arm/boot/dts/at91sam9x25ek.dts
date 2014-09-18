@@ -1,0 +1,30 @@
+/*
+ * at91sam9x25ek.dts - Device Tree file for AT91SAM9X25-EK board
+ *
+ *  Copyright (C) 2012 Atmel,
+ *                2012 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+/dts-v1/;
+#include "at91sam9x25.dtsi"
+#include "at91sam9x5ek.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9X25-EK";
+	compatible = "atmel,at91sam9x25ek", "atmel,at91sam9x5ek", "atmel,at91sam9x5", "atmel,at91sam9";
+
+	ahb {
+		apb {
+			macb0: ethernet@f802c000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+
+			macb1: ethernet@f8030000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+		};
+	};
+};

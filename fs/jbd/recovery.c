@@ -265,8 +265,11 @@ int journal_recover(journal_t *journal)
 	if (!err)
 		err = err2;
 	/* Flush disk caches to get replayed data on the permanent storage */
-	if (journal->j_flags & JFS_BARRIER)
-		blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL);
+	if (journal->j_flags & JFS_BARRIER) {
+		err2 = blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL);
+		if (!err)
+			err = err2;
+	}
 
 	return err;
 }

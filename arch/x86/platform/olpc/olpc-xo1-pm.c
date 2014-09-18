@@ -18,6 +18,7 @@
 #include <linux/pm.h>
 #include <linux/mfd/core.h>
 #include <linux/suspend.h>
+#include <linux/olpc-ec.h>
 
 #include <asm/io.h>
 #include <asm/olpc.h>
@@ -51,15 +52,10 @@ EXPORT_SYMBOL_GPL(olpc_xo1_pm_wakeup_clear);
 static int xo1_power_state_enter(suspend_state_t pm_state)
 {
 	unsigned long saved_sci_mask;
-	int r;
 
 	/* Only STR is supported */
 	if (pm_state != PM_SUSPEND_MEM)
 		return -EINVAL;
-
-	r = olpc_ec_cmd(EC_SET_SCI_INHIBIT, NULL, 0, NULL, 0);
-	if (r)
-		return r;
 
 	/*
 	 * Save SCI mask (this gets lost since PM1_EN is used as a mask for
@@ -76,20 +72,10 @@ static int xo1_power_state_enter(suspend_state_t pm_state)
 	/* Restore SCI mask (using dword access to CS5536_PM1_EN) */
 	outl(saved_sci_mask, acpi_base + CS5536_PM1_STS);
 
-	/* Tell the EC to stop inhibiting SCIs */
-	olpc_ec_cmd(EC_SET_SCI_INHIBIT_RELEASE, NULL, 0, NULL, 0);
-
-	/*
-	 * Tell the wireless module to restart USB communication.
-	 * Must be done twice.
-	 */
-	olpc_ec_cmd(EC_WAKE_UP_WLAN, NULL, 0, NULL, 0);
-	olpc_ec_cmd(EC_WAKE_UP_WLAN, NULL, 0, NULL, 0);
-
 	return 0;
 }
 
-asmlinkage int xo1_do_sleep(u8 sleep_state)
+asmlinkage __visible int xo1_do_sleep(u8 sleep_state)
 {
 	void *pgd_addr = __va(read_cr3());
 
@@ -135,7 +121,7 @@ static const struct platform_suspend_ops xo1_suspend_ops = {
 	.enter = xo1_power_state_enter,
 };
 
-static int __devinit xo1_pm_probe(struct platform_device *pdev)
+static int xo1_pm_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int err;
@@ -168,7 +154,7 @@ static int __devinit xo1_pm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit xo1_pm_remove(struct platform_device *pdev)
+static int xo1_pm_remove(struct platform_device *pdev)
 {
 	mfd_cell_disable(pdev);
 
@@ -187,7 +173,7 @@ static struct platform_driver cs5535_pms_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = xo1_pm_probe,
-	.remove = __devexit_p(xo1_pm_remove),
+	.remove = xo1_pm_remove,
 };
 
 static struct platform_driver cs5535_acpi_driver = {
@@ -196,7 +182,7 @@ static struct platform_driver cs5535_acpi_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = xo1_pm_probe,
-	.remove = __devexit_p(xo1_pm_remove),
+	.remove = xo1_pm_remove,
 };
 
 static int __init xo1_pm_init(void)

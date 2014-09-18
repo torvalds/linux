@@ -695,6 +695,7 @@ static struct ib_cq *mthca_create_cq(struct ib_device *ibdev, int entries,
 
 	if (context && ib_copy_to_udata(udata, &cq->cqn, sizeof (__u32))) {
 		mthca_free_cq(to_mdev(ibdev), cq);
+		err = -EFAULT;
 		goto err_free;
 	}
 
@@ -976,12 +977,12 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				       u64 virt, int acc, struct ib_udata *udata)
 {
 	struct mthca_dev *dev = to_mdev(pd->device);
-	struct ib_umem_chunk *chunk;
+	struct scatterlist *sg;
 	struct mthca_mr *mr;
 	struct mthca_reg_mr ucmd;
 	u64 *pages;
 	int shift, n, len;
-	int i, j, k;
+	int i, k, entry;
 	int err = 0;
 	int write_mtt_size;
 
@@ -1009,10 +1010,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	}
 
 	shift = ffs(mr->umem->page_size) - 1;
-
-	n = 0;
-	list_for_each_entry(chunk, &mr->umem->chunk_list, list)
-		n += chunk->nents;
+	n = mr->umem->nmap;
 
 	mr->mtt = mthca_alloc_mtt(dev, n);
 	if (IS_ERR(mr->mtt)) {
@@ -1030,25 +1028,24 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	write_mtt_size = min(mthca_write_mtt_size(dev), (int) (PAGE_SIZE / sizeof *pages));
 
-	list_for_each_entry(chunk, &mr->umem->chunk_list, list)
-		for (j = 0; j < chunk->nmap; ++j) {
-			len = sg_dma_len(&chunk->page_list[j]) >> shift;
-			for (k = 0; k < len; ++k) {
-				pages[i++] = sg_dma_address(&chunk->page_list[j]) +
-					mr->umem->page_size * k;
-				/*
-				 * Be friendly to write_mtt and pass it chunks
-				 * of appropriate size.
-				 */
-				if (i == write_mtt_size) {
-					err = mthca_write_mtt(dev, mr->mtt, n, pages, i);
-					if (err)
-						goto mtt_done;
-					n += i;
-					i = 0;
-				}
+	for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
+		len = sg_dma_len(sg) >> shift;
+		for (k = 0; k < len; ++k) {
+			pages[i++] = sg_dma_address(sg) +
+				mr->umem->page_size * k;
+			/*
+			 * Be friendly to write_mtt and pass it chunks
+			 * of appropriate size.
+			 */
+			if (i == write_mtt_size) {
+				err = mthca_write_mtt(dev, mr->mtt, n, pages, i);
+				if (err)
+					goto mtt_done;
+				n += i;
+				i = 0;
 			}
 		}
+	}
 
 	if (i)
 		err = mthca_write_mtt(dev, mr->mtt, n, pages, i);

@@ -21,6 +21,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/memblock.h>
 
 #include <video/w100fb.h>
 
@@ -32,23 +33,21 @@
 #include <mach/eseries-gpio.h>
 #include <mach/eseries-irq.h>
 #include <mach/audio.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 #include <mach/udc.h>
-#include <mach/irda.h>
+#include <linux/platform_data/irda-pxaficp.h>
 
 #include "devices.h"
 #include "generic.h"
 #include "clock.h"
 
 /* Only e800 has 128MB RAM */
-void __init eseries_fixup(struct tag *tags, char **cmdline, struct meminfo *mi)
+void __init eseries_fixup(struct tag *tags, char **cmdline)
 {
-	mi->nr_banks=1;
-	mi->bank[0].start = 0xa0000000;
 	if (machine_is_e800())
-		mi->bank[0].size = (128*1024*1024);
+		memblock_add(0xa0000000, SZ_128M);
 	else
-		mi->bank[0].size = (64*1024*1024);
+		memblock_add(0xa0000000, SZ_64M);
 }
 
 struct gpio_vbus_mach_info e7xx_udc_info = {
@@ -195,7 +194,7 @@ MACHINE_START(E330, "Toshiba e330")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e330_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -246,7 +245,7 @@ MACHINE_START(E350, "Toshiba e350")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e350_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -370,7 +369,7 @@ MACHINE_START(E400, "Toshiba e400")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e400_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -566,7 +565,7 @@ MACHINE_START(E740, "Toshiba e740")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e740_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -765,7 +764,7 @@ MACHINE_START(E750, "Toshiba e750")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e750_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -977,7 +976,7 @@ MACHINE_START(E800, "Toshiba e800")
 	.handle_irq	= pxa25x_handle_irq,
 	.fixup		= eseries_fixup,
 	.init_machine	= e800_init,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif

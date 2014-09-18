@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-s3c2440/mach-osiris.c
- *
+/*
  * Copyright (c) 2005-2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
@@ -19,42 +18,42 @@
 #include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 
 #include <linux/i2c/tps65010.h>
 
+#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
-
-#include <mach/osiris-map.h>
-#include <mach/osiris-cpld.h>
-
-#include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/mach-types.h>
 
-#include <plat/cpu-freq.h>
-#include <plat/regs-serial.h>
-#include <mach/regs-gpio.h>
-#include <mach/regs-mem.h>
-#include <mach/regs-lcd.h>
-#include <plat/nand.h>
-#include <plat/iic.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
-#include <plat/gpio-cfg.h>
-#include <plat/clock.h>
-#include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/cpu-freq.h>
+#include <plat/devs.h>
+#include <plat/gpio-cfg.h>
+#include <plat/samsung-time.h>
+
+#include <mach/hardware.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-lcd.h>
+#include <mach/gpio-samsung.h>
 
 #include "common.h"
+#include "osiris.h"
+#include "regs-mem.h"
 
 /* onboard perihperal map */
 
@@ -244,16 +243,8 @@ static struct s3c2410_platform_nand __initdata osiris_nand_info = {
 /* PCMCIA control and configuration */
 
 static struct resource osiris_pcmcia_resource[] = {
-	[0] = {
-		.start	= 0x0f000000,
-		.end	= 0x0f100000,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 0x0c000000,
-		.end	= 0x0c100000,
-		.flags	= IORESOURCE_MEM,
-	}
+	[0] = DEFINE_RES_MEM(0x0f000000, SZ_1M),
+	[1] = DEFINE_RES_MEM(0x0c000000, SZ_1M),
 };
 
 static struct platform_device osiris_pcmcia = {
@@ -282,8 +273,8 @@ static int osiris_pm_suspend(void)
 	__raw_writeb(tmp, OSIRIS_VA_CTRL0);
 
 	/* ensure that an nRESET is not generated on resume. */
-	s3c2410_gpio_setpin(S3C2410_GPA(21), 1);
-	s3c_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPIO_OUTPUT);
+	gpio_request_one(S3C2410_GPA(21), GPIOF_OUT_INIT_HIGH, NULL);
+	gpio_free(S3C2410_GPA(21));
 
 	return 0;
 }
@@ -352,18 +343,11 @@ static struct i2c_board_info osiris_i2c_devs[] __initdata = {
 /* Standard Osiris devices */
 
 static struct platform_device *osiris_devices[] __initdata = {
+	&s3c2410_device_dclk,
 	&s3c_device_i2c0,
 	&s3c_device_wdt,
 	&s3c_device_nand,
 	&osiris_pcmcia,
-};
-
-static struct clk *osiris_clocks[] __initdata = {
-	&s3c24xx_dclk0,
-	&s3c24xx_dclk1,
-	&s3c24xx_clkout0,
-	&s3c24xx_clkout1,
-	&s3c24xx_uclk,
 };
 
 static struct s3c_cpufreq_board __initdata osiris_cpufreq = {
@@ -376,24 +360,9 @@ static void __init osiris_map_io(void)
 {
 	unsigned long flags;
 
-	/* initialise the clocks */
-
-	s3c24xx_dclk0.parent = &clk_upll;
-	s3c24xx_dclk0.rate   = 12*1000*1000;
-
-	s3c24xx_dclk1.parent = &clk_upll;
-	s3c24xx_dclk1.rate   = 24*1000*1000;
-
-	s3c24xx_clkout0.parent  = &s3c24xx_dclk0;
-	s3c24xx_clkout1.parent  = &s3c24xx_dclk1;
-
-	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
-
-	s3c24xx_register_clocks(osiris_clocks, ARRAY_SIZE(osiris_clocks));
-
 	s3c24xx_init_io(osiris_iodesc, ARRAY_SIZE(osiris_iodesc));
-	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(osiris_uartcfgs, ARRAY_SIZE(osiris_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	/* check for the newer revision boards with large page nand */
 
@@ -404,7 +373,8 @@ static void __init osiris_map_io(void)
 		osiris_nand_sets[0].nr_partitions = ARRAY_SIZE(osiris_default_nand_part_large);
 	} else {
 		/* write-protect line to the NAND */
-		s3c2410_gpio_setpin(S3C2410_GPA(0), 1);
+		gpio_request_one(S3C2410_GPA(0), GPIOF_OUT_INIT_HIGH, NULL);
+		gpio_free(S3C2410_GPA(0));
 	}
 
 	/* fix bus configuration (nBE settings wrong on ABLE pre v2.20) */
@@ -412,6 +382,12 @@ static void __init osiris_map_io(void)
 	local_irq_save(flags);
 	__raw_writel(__raw_readl(S3C2410_BWSCON) | S3C2410_BWSCON_ST1 | S3C2410_BWSCON_ST2 | S3C2410_BWSCON_ST3 | S3C2410_BWSCON_ST4 | S3C2410_BWSCON_ST5, S3C2410_BWSCON);
 	local_irq_restore(flags);
+}
+
+static void __init osiris_init_time(void)
+{
+	s3c2440_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void __init osiris_init(void)
@@ -433,8 +409,8 @@ MACHINE_START(OSIRIS, "Simtec-OSIRIS")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
 	.atag_offset	= 0x100,
 	.map_io		= osiris_map_io,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2440_init_irq,
 	.init_machine	= osiris_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= osiris_init_time,
 	.restart	= s3c244x_restart,
 MACHINE_END

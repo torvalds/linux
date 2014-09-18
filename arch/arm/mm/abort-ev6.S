@@ -17,27 +17,25 @@
  */
 	.align	5
 ENTRY(v6_early_abort)
-#ifdef CONFIG_CPU_V6
-	sub	r1, sp, #4			@ Get unused stack location
-	strex	r0, r1, [r1]			@ Clear the exclusive monitor
-#elif defined(CONFIG_CPU_32v6K)
-	clrex
-#endif
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
 /*
- * Faulty SWP instruction on 1136 doesn't set bit 11 in DFSR (erratum 326103).
- * The test below covers all the write situations, including Java bytecodes
+ * Faulty SWP instruction on 1136 doesn't set bit 11 in DFSR.
  */
-	bic	r1, r1, #1 << 11		@ clear bit 11 of FSR
-	tst	r5, #PSR_J_BIT			@ Java?
+#ifdef CONFIG_ARM_ERRATA_326103
+	ldr	ip, =0x4107b36
+	mrc	p15, 0, r3, c0, c0, 0		@ get processor id
+	teq	ip, r3, lsr #4			@ r0 ARM1136?
 	bne	do_DataAbort
-	do_thumb_abort fsr=r1, pc=r4, psr=r5, tmp=r3
-	ldreq	r3, [r4]			@ read aborted ARM instruction
-#ifdef CONFIG_CPU_ENDIAN_BE8
-	reveq	r3, r3
-#endif
+	tst	r5, #PSR_J_BIT			@ Java?
+	tsteq	r5, #PSR_T_BIT			@ Thumb?
+	bne	do_DataAbort
+	bic	r1, r1, #1 << 11		@ clear bit 11 of FSR
+	ldr	r3, [r4]			@ read aborted ARM instruction
+ ARM_BE8(rev	r3, r3)
+
 	do_ldrd_abort tmp=ip, insn=r3
 	tst	r3, #1 << 20			@ L = 0 -> write
 	orreq	r1, r1, #1 << 11		@ yes.
+#endif
 	b	do_DataAbort

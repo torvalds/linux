@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-lpc32xx/gpiolib.c
+ * GPIO driver for LPC32xx SoC
  *
  * Author: Kevin Wells <kevin.wells@nxp.com>
  *
@@ -21,10 +21,15 @@
 #include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/platform_device.h>
+#include <linux/module.h>
+#include <linux/platform_data/gpio-lpc32xx.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <mach/gpio-lpc32xx.h>
+#include <mach/irqs.h>
 
 #define LPC32XX_GPIO_P3_INP_STATE		_GPREG(0x000)
 #define LPC32XX_GPIO_P3_OUTP_SET		_GPREG(0x004)
@@ -109,7 +114,8 @@ static const char *gpi_p3_names[LPC32XX_GPI_P3_MAX] = {
 	 NULL,    NULL,    NULL,   "gpi15",
 	"gpi16", "gpi17", "gpi18", "gpi19",
 	"gpi20", "gpi21", "gpi22", "gpi23",
-	"gpi24", "gpi25", "gpi26", "gpi27"
+	"gpi24", "gpi25", "gpi26", "gpi27",
+	"gpi28"
 };
 
 static const char *gpo_p3_names[LPC32XX_GPO_P3_MAX] = {
@@ -250,7 +256,7 @@ static int __get_gpo_state_p3(struct lpc32xx_gpio_chip *group,
 }
 
 /*
- * GENERIC_GPIO primitives.
+ * GPIO primitives.
  */
 static int lpc32xx_gpio_dir_input_p012(struct gpio_chip *chip,
 	unsigned pin)
@@ -304,6 +310,7 @@ static int lpc32xx_gpio_dir_output_p012(struct gpio_chip *chip, unsigned pin,
 {
 	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
 
+	__set_gpio_level_p012(group, pin, value);
 	__set_gpio_dir_p012(group, pin, 0);
 
 	return 0;
@@ -314,6 +321,7 @@ static int lpc32xx_gpio_dir_output_p3(struct gpio_chip *chip, unsigned pin,
 {
 	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
 
+	__set_gpio_level_p3(group, pin, value);
 	__set_gpio_dir_p3(group, pin, 0);
 
 	return 0;
@@ -322,6 +330,9 @@ static int lpc32xx_gpio_dir_output_p3(struct gpio_chip *chip, unsigned pin,
 static int lpc32xx_gpio_dir_out_always(struct gpio_chip *chip, unsigned pin,
 	int value)
 {
+	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+
+	__set_gpo_level_p3(group, pin, value);
 	return 0;
 }
 
@@ -364,6 +375,66 @@ static int lpc32xx_gpio_request(struct gpio_chip *chip, unsigned pin)
 	return -EINVAL;
 }
 
+static int lpc32xx_gpio_to_irq_p01(struct gpio_chip *chip, unsigned offset)
+{
+	return IRQ_LPC32XX_P0_P1_IRQ;
+}
+
+static const char lpc32xx_gpio_to_irq_gpio_p3_table[] = {
+	IRQ_LPC32XX_GPIO_00,
+	IRQ_LPC32XX_GPIO_01,
+	IRQ_LPC32XX_GPIO_02,
+	IRQ_LPC32XX_GPIO_03,
+	IRQ_LPC32XX_GPIO_04,
+	IRQ_LPC32XX_GPIO_05,
+};
+
+static int lpc32xx_gpio_to_irq_gpio_p3(struct gpio_chip *chip, unsigned offset)
+{
+	if (offset < ARRAY_SIZE(lpc32xx_gpio_to_irq_gpio_p3_table))
+		return lpc32xx_gpio_to_irq_gpio_p3_table[offset];
+	return -ENXIO;
+}
+
+static const char lpc32xx_gpio_to_irq_gpi_p3_table[] = {
+	IRQ_LPC32XX_GPI_00,
+	IRQ_LPC32XX_GPI_01,
+	IRQ_LPC32XX_GPI_02,
+	IRQ_LPC32XX_GPI_03,
+	IRQ_LPC32XX_GPI_04,
+	IRQ_LPC32XX_GPI_05,
+	IRQ_LPC32XX_GPI_06,
+	IRQ_LPC32XX_GPI_07,
+	IRQ_LPC32XX_GPI_08,
+	IRQ_LPC32XX_GPI_09,
+	-ENXIO, /* 10 */
+	-ENXIO, /* 11 */
+	-ENXIO, /* 12 */
+	-ENXIO, /* 13 */
+	-ENXIO, /* 14 */
+	-ENXIO, /* 15 */
+	-ENXIO, /* 16 */
+	-ENXIO, /* 17 */
+	-ENXIO, /* 18 */
+	IRQ_LPC32XX_GPI_19,
+	-ENXIO, /* 20 */
+	-ENXIO, /* 21 */
+	-ENXIO, /* 22 */
+	-ENXIO, /* 23 */
+	-ENXIO, /* 24 */
+	-ENXIO, /* 25 */
+	-ENXIO, /* 26 */
+	-ENXIO, /* 27 */
+	IRQ_LPC32XX_GPI_28,
+};
+
+static int lpc32xx_gpio_to_irq_gpi_p3(struct gpio_chip *chip, unsigned offset)
+{
+	if (offset < ARRAY_SIZE(lpc32xx_gpio_to_irq_gpi_p3_table))
+		return lpc32xx_gpio_to_irq_gpi_p3_table[offset];
+	return -ENXIO;
+}
+
 static struct lpc32xx_gpio_chip lpc32xx_gpiochip[] = {
 	{
 		.chip = {
@@ -373,10 +444,11 @@ static struct lpc32xx_gpio_chip lpc32xx_gpiochip[] = {
 			.direction_output	= lpc32xx_gpio_dir_output_p012,
 			.set			= lpc32xx_gpio_set_value_p012,
 			.request		= lpc32xx_gpio_request,
+			.to_irq			= lpc32xx_gpio_to_irq_p01,
 			.base			= LPC32XX_GPIO_P0_GRP,
 			.ngpio			= LPC32XX_GPIO_P0_MAX,
 			.names			= gpio_p0_names,
-			.can_sleep		= 0,
+			.can_sleep		= false,
 		},
 		.gpio_grp = &gpio_grp_regs_p0,
 	},
@@ -388,10 +460,11 @@ static struct lpc32xx_gpio_chip lpc32xx_gpiochip[] = {
 			.direction_output	= lpc32xx_gpio_dir_output_p012,
 			.set			= lpc32xx_gpio_set_value_p012,
 			.request		= lpc32xx_gpio_request,
+			.to_irq			= lpc32xx_gpio_to_irq_p01,
 			.base			= LPC32XX_GPIO_P1_GRP,
 			.ngpio			= LPC32XX_GPIO_P1_MAX,
 			.names			= gpio_p1_names,
-			.can_sleep		= 0,
+			.can_sleep		= false,
 		},
 		.gpio_grp = &gpio_grp_regs_p1,
 	},
@@ -406,7 +479,7 @@ static struct lpc32xx_gpio_chip lpc32xx_gpiochip[] = {
 			.base			= LPC32XX_GPIO_P2_GRP,
 			.ngpio			= LPC32XX_GPIO_P2_MAX,
 			.names			= gpio_p2_names,
-			.can_sleep		= 0,
+			.can_sleep		= false,
 		},
 		.gpio_grp = &gpio_grp_regs_p2,
 	},
@@ -418,10 +491,11 @@ static struct lpc32xx_gpio_chip lpc32xx_gpiochip[] = {
 			.direction_output	= lpc32xx_gpio_dir_output_p3,
 			.set			= lpc32xx_gpio_set_value_p3,
 			.request		= lpc32xx_gpio_request,
+			.to_irq			= lpc32xx_gpio_to_irq_gpio_p3,
 			.base			= LPC32XX_GPIO_P3_GRP,
 			.ngpio			= LPC32XX_GPIO_P3_MAX,
 			.names			= gpio_p3_names,
-			.can_sleep		= 0,
+			.can_sleep		= false,
 		},
 		.gpio_grp = &gpio_grp_regs_p3,
 	},
@@ -431,10 +505,11 @@ static struct lpc32xx_gpio_chip lpc32xx_gpiochip[] = {
 			.direction_input	= lpc32xx_gpio_dir_in_always,
 			.get			= lpc32xx_gpi_get_value,
 			.request		= lpc32xx_gpio_request,
+			.to_irq			= lpc32xx_gpio_to_irq_gpi_p3,
 			.base			= LPC32XX_GPI_P3_GRP,
 			.ngpio			= LPC32XX_GPI_P3_MAX,
 			.names			= gpi_p3_names,
-			.can_sleep		= 0,
+			.can_sleep		= false,
 		},
 		.gpio_grp = &gpio_grp_regs_p3,
 	},
@@ -448,16 +523,56 @@ static struct lpc32xx_gpio_chip lpc32xx_gpiochip[] = {
 			.base			= LPC32XX_GPO_P3_GRP,
 			.ngpio			= LPC32XX_GPO_P3_MAX,
 			.names			= gpo_p3_names,
-			.can_sleep		= 0,
+			.can_sleep		= false,
 		},
 		.gpio_grp = &gpio_grp_regs_p3,
 	},
 };
 
-void __init lpc32xx_gpio_init(void)
+static int lpc32xx_of_xlate(struct gpio_chip *gc,
+			    const struct of_phandle_args *gpiospec, u32 *flags)
+{
+	/* Is this the correct bank? */
+	u32 bank = gpiospec->args[0];
+	if ((bank >= ARRAY_SIZE(lpc32xx_gpiochip) ||
+	    (gc != &lpc32xx_gpiochip[bank].chip)))
+		return -EINVAL;
+
+	if (flags)
+		*flags = gpiospec->args[2];
+	return gpiospec->args[1];
+}
+
+static int lpc32xx_gpio_probe(struct platform_device *pdev)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(lpc32xx_gpiochip); i++)
+	for (i = 0; i < ARRAY_SIZE(lpc32xx_gpiochip); i++) {
+		if (pdev->dev.of_node) {
+			lpc32xx_gpiochip[i].chip.of_xlate = lpc32xx_of_xlate;
+			lpc32xx_gpiochip[i].chip.of_gpio_n_cells = 3;
+			lpc32xx_gpiochip[i].chip.of_node = pdev->dev.of_node;
+		}
 		gpiochip_add(&lpc32xx_gpiochip[i].chip);
+	}
+
+	return 0;
 }
+
+#ifdef CONFIG_OF
+static const struct of_device_id lpc32xx_gpio_of_match[] = {
+	{ .compatible = "nxp,lpc3220-gpio", },
+	{ },
+};
+#endif
+
+static struct platform_driver lpc32xx_gpio_driver = {
+	.driver		= {
+		.name	= "lpc32xx-gpio",
+		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(lpc32xx_gpio_of_match),
+	},
+	.probe		= lpc32xx_gpio_probe,
+};
+
+module_platform_driver(lpc32xx_gpio_driver);

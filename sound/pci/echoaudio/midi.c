@@ -221,7 +221,8 @@ static void snd_echo_midi_output_write(unsigned long data)
 		DE_MID(("Try to send %d bytes...\n", bytes));
 		sent = write_midi(chip, buf, bytes);
 		if (sent < 0) {
-			snd_printk(KERN_ERR "write_midi() error %d\n", sent);
+			dev_err(chip->card->dev,
+				"write_midi() error %d\n", sent);
 			/* retry later */
 			sent = 9000;
 			chip->midi_full = 1;
@@ -307,8 +308,8 @@ static struct snd_rawmidi_ops snd_echo_midi_output = {
 
 
 /* <--snd_echo_probe() */
-static int __devinit snd_echo_midi_create(struct snd_card *card,
-					  struct echoaudio *chip)
+static int snd_echo_midi_create(struct snd_card *card,
+				struct echoaudio *chip)
 {
 	int err;
 

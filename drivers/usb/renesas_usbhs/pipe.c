@@ -16,8 +16,8 @@
  */
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include "./common.h"
-#include "./pipe.h"
+#include "common.h"
+#include "pipe.h"
 
 /*
  *		macros
@@ -90,6 +90,82 @@ static void __usbhsp_pipe_xxx_set(struct usbhs_pipe *pipe,
 static void usbhsp_pipe_cfg_set(struct usbhs_pipe *pipe, u16 mask, u16 val)
 {
 	__usbhsp_pipe_xxx_set(pipe, DCPCFG, PIPECFG, mask, val);
+}
+
+/*
+ *		PIPEnTRN/PIPEnTRE functions
+ */
+static void usbhsp_pipe_trn_set(struct usbhs_pipe *pipe, u16 mask, u16 val)
+{
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct device *dev = usbhs_priv_to_dev(priv);
+	int num = usbhs_pipe_number(pipe);
+	u16 reg;
+
+	/*
+	 * It is impossible to calculate address,
+	 * since PIPEnTRN addresses were mapped randomly.
+	 */
+#define CASE_PIPExTRN(a)		\
+	case 0x ## a:			\
+		reg = PIPE ## a ## TRN;	\
+		break;
+
+	switch (num) {
+	CASE_PIPExTRN(1);
+	CASE_PIPExTRN(2);
+	CASE_PIPExTRN(3);
+	CASE_PIPExTRN(4);
+	CASE_PIPExTRN(5);
+	CASE_PIPExTRN(B);
+	CASE_PIPExTRN(C);
+	CASE_PIPExTRN(D);
+	CASE_PIPExTRN(E);
+	CASE_PIPExTRN(F);
+	CASE_PIPExTRN(9);
+	CASE_PIPExTRN(A);
+	default:
+		dev_err(dev, "unknown pipe (%d)\n", num);
+		return;
+	}
+	__usbhsp_pipe_xxx_set(pipe, 0, reg, mask, val);
+}
+
+static void usbhsp_pipe_tre_set(struct usbhs_pipe *pipe, u16 mask, u16 val)
+{
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct device *dev = usbhs_priv_to_dev(priv);
+	int num = usbhs_pipe_number(pipe);
+	u16 reg;
+
+	/*
+	 * It is impossible to calculate address,
+	 * since PIPEnTRE addresses were mapped randomly.
+	 */
+#define CASE_PIPExTRE(a)			\
+	case 0x ## a:				\
+		reg = PIPE ## a ## TRE;		\
+		break;
+
+	switch (num) {
+	CASE_PIPExTRE(1);
+	CASE_PIPExTRE(2);
+	CASE_PIPExTRE(3);
+	CASE_PIPExTRE(4);
+	CASE_PIPExTRE(5);
+	CASE_PIPExTRE(B);
+	CASE_PIPExTRE(C);
+	CASE_PIPExTRE(D);
+	CASE_PIPExTRE(E);
+	CASE_PIPExTRE(F);
+	CASE_PIPExTRE(9);
+	CASE_PIPExTRE(A);
+	default:
+		dev_err(dev, "unknown pipe (%d)\n", num);
+		return;
+	}
+
+	__usbhsp_pipe_xxx_set(pipe, 0, reg, mask, val);
 }
 
 /*
@@ -263,6 +339,31 @@ int usbhs_pipe_is_stall(struct usbhs_pipe *pipe)
 
 	return (int)(pid == PID_STALL10 || pid == PID_STALL11);
 }
+
+void usbhs_pipe_set_trans_count_if_bulk(struct usbhs_pipe *pipe, int len)
+{
+	if (!usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK))
+		return;
+
+	/*
+	 * clear and disable transfer counter for IN/OUT pipe
+	 */
+	usbhsp_pipe_tre_set(pipe, TRCLR | TRENB, TRCLR);
+
+	/*
+	 * Only IN direction bulk pipe can use transfer count.
+	 * Without using this function,
+	 * received data will break if it was large data size.
+	 * see PIPEnTRN/PIPEnTRE for detail
+	 */
+	if (usbhs_pipe_is_dir_in(pipe)) {
+		int maxp = usbhs_pipe_get_maxpacket(pipe);
+
+		usbhsp_pipe_trn_set(pipe, 0xffff, DIV_ROUND_UP(len, maxp));
+		usbhsp_pipe_tre_set(pipe, TRENB, TRENB); /* enable */
+	}
+}
+
 
 /*
  *		pipe setup
@@ -477,6 +578,19 @@ int usbhs_pipe_is_dir_host(struct usbhs_pipe *pipe)
 	return usbhsp_flags_has(pipe, IS_DIR_HOST);
 }
 
+int usbhs_pipe_is_running(struct usbhs_pipe *pipe)
+{
+	return usbhsp_flags_has(pipe, IS_RUNNING);
+}
+
+void usbhs_pipe_running(struct usbhs_pipe *pipe, int running)
+{
+	if (running)
+		usbhsp_flags_set(pipe, IS_RUNNING);
+	else
+		usbhsp_flags_clr(pipe, IS_RUNNING);
+}
+
 void usbhs_pipe_data_sequence(struct usbhs_pipe *pipe, int sequence)
 {
 	u16 mask = (SQCLR | SQSET);
@@ -537,6 +651,11 @@ static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)
 	usbhsp_flags_set(pipe, IS_USED);
 
 	return pipe;
+}
+
+static void usbhsp_put_pipe(struct usbhs_pipe *pipe)
+{
+	usbhsp_flags_init(pipe);
 }
 
 void usbhs_pipe_init(struct usbhs_priv *priv,
@@ -609,6 +728,7 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 	usbhsp_pipe_select(pipe);
 	usbhsp_pipe_cfg_set(pipe, 0xFFFF, pipecfg);
 	usbhsp_pipe_buf_set(pipe, 0xFFFF, pipebuf);
+	usbhs_pipe_clear(pipe);
 
 	usbhs_pipe_sequence_data0(pipe);
 
@@ -623,6 +743,11 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 	 */
 
 	return pipe;
+}
+
+void usbhs_pipe_free(struct usbhs_pipe *pipe)
+{
+	usbhsp_put_pipe(pipe);
 }
 
 void usbhs_pipe_select_fifo(struct usbhs_pipe *pipe, struct usbhs_fifo *fifo)

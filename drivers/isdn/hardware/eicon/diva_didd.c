@@ -91,7 +91,7 @@ static const struct file_operations divadidd_proc_fops = {
 	.release	= single_release,
 };
 
-static int DIVA_INIT_FUNCTION create_proc(void)
+static int __init create_proc(void)
 {
 	proc_net_eicon = proc_mkdir("eicon", init_net.proc_net);
 
@@ -109,7 +109,7 @@ static void remove_proc(void)
 	remove_proc_entry("eicon", init_net.proc_net);
 }
 
-static int DIVA_INIT_FUNCTION divadidd_init(void)
+static int __init divadidd_init(void)
 {
 	char tmprev[32];
 	int ret = 0;
@@ -141,7 +141,7 @@ out:
 	return (ret);
 }
 
-static void DIVA_EXIT_FUNCTION divadidd_exit(void)
+static void __exit divadidd_exit(void)
 {
 	diddfunc_finit();
 	remove_proc();

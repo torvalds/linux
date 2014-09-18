@@ -1,11 +1,8 @@
 #ifndef _LINUX_SIGNAL_H
 #define _LINUX_SIGNAL_H
 
-#include <asm/signal.h>
-#include <asm/siginfo.h>
-
-#ifdef __KERNEL__
 #include <linux/list.h>
+#include <uapi/linux/signal.h>
 
 struct task_struct;
 
@@ -64,11 +61,6 @@ static inline int sigismember(sigset_t *set, int _sig)
 		return 1 & (set->sig[0] >> sig);
 	else
 		return 1 & (set->sig[sig / _NSIG_BPW] >> (sig % _NSIG_BPW));
-}
-
-static inline int sigfindinword(unsigned long word)
-{
-	return ffz(~word);
 }
 
 #endif /* __HAVE_ARCH_SIG_BITOPS */
@@ -244,18 +236,69 @@ extern int do_send_sig_info(int sig, struct siginfo *info,
 				struct task_struct *p, bool group);
 extern int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p);
 extern int __group_send_sig_info(int, struct siginfo *, struct task_struct *);
-extern long do_rt_tgsigqueueinfo(pid_t tgid, pid_t pid, int sig,
-				 siginfo_t *info);
-extern long do_sigpending(void __user *, unsigned long);
 extern int do_sigtimedwait(const sigset_t *, siginfo_t *,
 				const struct timespec *);
 extern int sigprocmask(int, sigset_t *, sigset_t *);
-extern void set_current_blocked(const sigset_t *);
+extern void set_current_blocked(sigset_t *);
+extern void __set_current_blocked(const sigset_t *);
 extern int show_unhandled_signals;
+extern int sigsuspend(sigset_t *);
 
-extern int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka, struct pt_regs *regs, void *cookie);
-extern void block_sigmask(struct k_sigaction *ka, int signr);
+struct sigaction {
+#ifndef __ARCH_HAS_IRIX_SIGACTION
+	__sighandler_t	sa_handler;
+	unsigned long	sa_flags;
+#else
+	unsigned int	sa_flags;
+	__sighandler_t	sa_handler;
+#endif
+#ifdef __ARCH_HAS_SA_RESTORER
+	__sigrestore_t sa_restorer;
+#endif
+	sigset_t	sa_mask;	/* mask last for extensibility */
+};
+
+struct k_sigaction {
+	struct sigaction sa;
+#ifdef __ARCH_HAS_KA_RESTORER
+	__sigrestore_t ka_restorer;
+#endif
+};
+ 
+#ifdef CONFIG_OLD_SIGACTION
+struct old_sigaction {
+	__sighandler_t sa_handler;
+	old_sigset_t sa_mask;
+	unsigned long sa_flags;
+	__sigrestore_t sa_restorer;
+};
+#endif
+
+struct ksignal {
+	struct k_sigaction ka;
+	siginfo_t info;
+	int sig;
+};
+
+extern int get_signal(struct ksignal *ksig);
+extern void signal_setup_done(int failed, struct ksignal *ksig, int stepping);
 extern void exit_signals(struct task_struct *tsk);
+extern void kernel_sigaction(int, __sighandler_t);
+
+static inline void allow_signal(int sig)
+{
+	/*
+	 * Kernel threads handle their own signals. Let the signal code
+	 * know it'll be handled, so that they don't get converted to
+	 * SIGKILL or just silently dropped.
+	 */
+	kernel_sigaction(sig, (__force __sighandler_t)2);
+}
+
+static inline void disallow_signal(int sig)
+{
+	kernel_sigaction(sig, SIG_IGN);
+}
 
 extern struct kmem_cache *sighand_cachep;
 
@@ -386,6 +429,20 @@ int unhandled_signal(struct task_struct *tsk, int sig);
 
 void signals_init(void);
 
-#endif /* __KERNEL__ */
+int restore_altstack(const stack_t __user *);
+int __save_altstack(stack_t __user *, unsigned long);
+
+#define save_altstack_ex(uss, sp) do { \
+	stack_t __user *__uss = uss; \
+	struct task_struct *t = current; \
+	put_user_ex((void __user *)t->sas_ss_sp, &__uss->ss_sp); \
+	put_user_ex(sas_ss_flags(sp), &__uss->ss_flags); \
+	put_user_ex(t->sas_ss_size, &__uss->ss_size); \
+} while (0);
+
+#ifdef CONFIG_PROC_FS
+struct seq_file;
+extern void render_sigset_t(struct seq_file *, const char *, sigset_t *);
+#endif
 
 #endif /* _LINUX_SIGNAL_H */

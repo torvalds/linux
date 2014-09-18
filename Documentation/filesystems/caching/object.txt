@@ -216,7 +216,14 @@ servicing netfs requests:
      The normal running state.  In this state, requests the netfs makes will be
      passed on to the cache.
 
- (6) State FSCACHE_OBJECT_UPDATING.
+ (6) State FSCACHE_OBJECT_INVALIDATING.
+
+     The object is undergoing invalidation.  When the state comes here, it
+     discards all pending read, write and attribute change operations as it is
+     going to clear out the cache entirely and reinitialise it.  It will then
+     continue to the FSCACHE_OBJECT_UPDATING state.
+
+ (7) State FSCACHE_OBJECT_UPDATING.
 
      The state machine comes here to update the object in the cache from the
      netfs's records.  This involves updating the auxiliary data that is used
@@ -225,13 +232,13 @@ servicing netfs requests:
 And there are terminal states in which an object cleans itself up, deallocates
 memory and potentially deletes stuff from disk:
 
- (7) State FSCACHE_OBJECT_LC_DYING.
+ (8) State FSCACHE_OBJECT_LC_DYING.
 
      The object comes here if it is dying because of a lookup or creation
      error.  This would be due to a disk error or system error of some sort.
      Temporary data is cleaned up, and the parent is released.
 
- (8) State FSCACHE_OBJECT_DYING.
+ (9) State FSCACHE_OBJECT_DYING.
 
      The object comes here if it is dying due to an error, because its parent
      cookie has been relinquished by the netfs or because the cache is being
@@ -241,27 +248,27 @@ memory and potentially deletes stuff from disk:
      can destroy themselves.  This object waits for all its children to go away
      before advancing to the next state.
 
- (9) State FSCACHE_OBJECT_ABORT_INIT.
+(10) State FSCACHE_OBJECT_ABORT_INIT.
 
      The object comes to this state if it was waiting on its parent in
      FSCACHE_OBJECT_INIT, but its parent died.  The object will destroy itself
      so that the parent may proceed from the FSCACHE_OBJECT_DYING state.
 
-(10) State FSCACHE_OBJECT_RELEASING.
-(11) State FSCACHE_OBJECT_RECYCLING.
+(11) State FSCACHE_OBJECT_RELEASING.
+(12) State FSCACHE_OBJECT_RECYCLING.
 
      The object comes to one of these two states when dying once it is rid of
      all its children, if it is dying because the netfs relinquished its
      cookie.  In the first state, the cached data is expected to persist, and
      in the second it will be deleted.
 
-(12) State FSCACHE_OBJECT_WITHDRAWING.
+(13) State FSCACHE_OBJECT_WITHDRAWING.
 
      The object transits to this state if the cache decides it wants to
      withdraw the object from service, perhaps to make space, but also due to
      error or just because the whole cache is being withdrawn.
 
-(13) State FSCACHE_OBJECT_DEAD.
+(14) State FSCACHE_OBJECT_DEAD.
 
      The object transits to this state when the in-memory object record is
      ready to be deleted.  The object processor shouldn't ever see an object in

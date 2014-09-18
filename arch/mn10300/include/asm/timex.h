@@ -11,7 +11,6 @@
 #ifndef _ASM_TIMEX_H
 #define _ASM_TIMEX_H
 
-#include <asm/hardirq.h>
 #include <unit/timex.h>
 
 #define TICK_SIZE (tick_nsec / 1000)
@@ -29,16 +28,6 @@ static inline cycles_t get_cycles(void)
 
 extern int init_clockevents(void);
 extern int init_clocksource(void);
-
-static inline void setup_jiffies_interrupt(int irq,
-					   struct irqaction *action)
-{
-	u16 tmp;
-	setup_irq(irq, action);
-	set_intr_level(irq, NUM2GxICR_LEVEL(CONFIG_TIMER_IRQ_LEVEL));
-	GxICR(irq) |= GxICR_ENABLE | GxICR_DETECT | GxICR_REQUEST;
-	tmp = GxICR(irq);
-}
 
 #endif /* __KERNEL__ */
 

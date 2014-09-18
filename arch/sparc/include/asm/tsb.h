@@ -142,45 +142,75 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	or		REG1, %lo(swapper_pg_dir), REG1; \
 	sllx		VADDR, 64 - (PGDIR_SHIFT + PGDIR_BITS), REG2; \
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
-	andn		REG2, 0x3, REG2; \
-	lduw		[REG1 + REG2], REG1; \
+	andn		REG2, 0x7, REG2; \
+	ldx		[REG1 + REG2], REG1; \
 	brz,pn		REG1, FAIL_LABEL; \
 	 sllx		VADDR, 64 - (PMD_SHIFT + PMD_BITS), REG2; \
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
-	sllx		REG1, 11, REG1; \
-	andn		REG2, 0x3, REG2; \
-	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
+	andn		REG2, 0x7, REG2; \
+	ldxa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
 	brz,pn		REG1, FAIL_LABEL; \
 	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
-	sllx		REG1, 11, REG1; \
 	andn		REG2, 0x7, REG2; \
 	add		REG1, REG2, REG1;
 
-	/* Do a user page table walk in MMU globals.  Leaves physical PTE
-	 * pointer in REG1.  Jumps to FAIL_LABEL on early page table walk
-	 * termination.  Physical base of page tables is in PHYS_PGD which
-	 * will not be modified.
+	/* PMD has been loaded into REG1, interpret the value, seeing
+	 * if it is a HUGE PMD or a normal one.  If it is not valid
+	 * then jump to FAIL_LABEL.  If it is a HUGE PMD, and it
+	 * translates to a valid PTE, branch to PTE_LABEL.
+	 *
+	 * We have to propagate the 4MB bit of the virtual address
+	 * because we are fabricating 8MB pages using 4MB hw pages.
+	 */
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define USER_PGTABLE_CHECK_PMD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, PTE_LABEL) \
+	brz,pn		REG1, FAIL_LABEL;		\
+	 sethi		%uhi(_PAGE_PMD_HUGE), REG2;	\
+	sllx		REG2, 32, REG2;			\
+	andcc		REG1, REG2, %g0;		\
+	be,pt		%xcc, 700f;			\
+	 sethi		%hi(4 * 1024 * 1024), REG2;	\
+	brgez,pn	REG1, FAIL_LABEL;		\
+	 andn		REG1, REG2, REG1;		\
+	and		VADDR, REG2, REG2;		\
+	brlz,pt		REG1, PTE_LABEL;		\
+	 or		REG1, REG2, REG1;		\
+700:
+#else
+#define USER_PGTABLE_CHECK_PMD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, PTE_LABEL) \
+	brz,pn		REG1, FAIL_LABEL; \
+	 nop;
+#endif
+
+	/* Do a user page table walk in MMU globals.  Leaves final,
+	 * valid, PTE value in REG1.  Jumps to FAIL_LABEL on early
+	 * page table walk termination or if the PTE is not valid.
+	 *
+	 * Physical base of page tables is in PHYS_PGD which will not
+	 * be modified.
 	 *
 	 * VADDR will not be clobbered, but REG1 and REG2 will.
 	 */
 #define USER_PGTABLE_WALK_TL1(VADDR, PHYS_PGD, REG1, REG2, FAIL_LABEL)	\
 	sllx		VADDR, 64 - (PGDIR_SHIFT + PGDIR_BITS), REG2; \
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
-	andn		REG2, 0x3, REG2; \
-	lduwa		[PHYS_PGD + REG2] ASI_PHYS_USE_EC, REG1; \
+	andn		REG2, 0x7, REG2; \
+	ldxa		[PHYS_PGD + REG2] ASI_PHYS_USE_EC, REG1; \
 	brz,pn		REG1, FAIL_LABEL; \
 	 sllx		VADDR, 64 - (PMD_SHIFT + PMD_BITS), REG2; \
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
-	sllx		REG1, 11, REG1; \
-	andn		REG2, 0x3, REG2; \
-	lduwa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
-	brz,pn		REG1, FAIL_LABEL; \
-	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
-	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
-	sllx		REG1, 11, REG1; \
 	andn		REG2, 0x7, REG2; \
-	add		REG1, REG2, REG1;
+	ldxa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
+	USER_PGTABLE_CHECK_PMD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, 800f) \
+	sllx		VADDR, 64 - PMD_SHIFT, REG2; \
+	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
+	andn		REG2, 0x7, REG2; \
+	add		REG1, REG2, REG1; \
+	ldxa		[REG1] ASI_PHYS_USE_EC, REG1; \
+	brgez,pn	REG1, FAIL_LABEL; \
+	 nop; \
+800:
 
 /* Lookup a OBP mapping on VADDR in the prom_trans[] table at TL>0.
  * If no entry is found, FAIL_LABEL will be branched to.  On success

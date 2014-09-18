@@ -27,7 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 
-#include <plat/dma.h>
+#include <linux/omap-dma.h>
 
 #include <mach/hardware.h>
 #include <mach/lcdc.h>
@@ -57,7 +57,7 @@ static struct lcd_dma_info {
 	void *cb_data;
 
 	int active;
-	unsigned long addr, size;
+	unsigned long addr;
 	int rotate, data_type, xres, yres;
 	int vxres;
 	int mirror;
@@ -76,11 +76,6 @@ void omap_set_lcd_dma_b1(unsigned long addr, u16 fb_xres, u16 fb_yres,
 	lcd_dma.yres = fb_yres;
 }
 EXPORT_SYMBOL(omap_set_lcd_dma_b1);
-
-void omap_set_lcd_dma_src_port(int port)
-{
-	lcd_dma.src_port = port;
-}
 
 void omap_set_lcd_dma_ext_controller(int external)
 {
@@ -118,8 +113,7 @@ EXPORT_SYMBOL(omap_set_lcd_dma_b1_mirror);
 void omap_set_lcd_dma_b1_vxres(unsigned long vxres)
 {
 	if (cpu_is_omap15xx()) {
-		printk(KERN_ERR "DMA virtual resolution is not supported "
-				"in 1510 mode\n");
+		pr_err("DMA virtual resolution is not supported in 1510 mode\n");
 		BUG();
 	}
 	lcd_dma.vxres = vxres;
@@ -442,8 +436,7 @@ static int __init omap_init_lcd_dma(void)
 	r = request_irq(INT_DMA_LCD, lcd_dma_irq_handler, 0,
 			"LCD DMA", NULL);
 	if (r != 0)
-		printk(KERN_ERR "unable to request IRQ for LCD DMA "
-			       "(error %d)\n", r);
+		pr_err("unable to request IRQ for LCD DMA (error %d)\n", r);
 
 	return r;
 }

@@ -208,7 +208,7 @@ MODULE_PARM_DESC(use_io, "Force use of i/o access mode");
 #define INTEL_8255X_ETHERNET_DEVICE(device_id, ich) {\
 	PCI_VENDOR_ID_INTEL, device_id, PCI_ANY_ID, PCI_ANY_ID, \
 	PCI_CLASS_NETWORK_ETHERNET << 8, 0xFFFF00, ich }
-static DEFINE_PCI_DEVICE_TABLE(e100_id_table) = {
+static const struct pci_device_id e100_id_table[] = {
 	INTEL_8255X_ETHERNET_DEVICE(0x1029, 0),
 	INTEL_8255X_ETHERNET_DEVICE(0x1030, 0),
 	INTEL_8255X_ETHERNET_DEVICE(0x1031, 3),
@@ -870,7 +870,7 @@ err_unlock:
 }
 
 static int e100_exec_cb(struct nic *nic, struct sk_buff *skb,
-	void (*cb_prepare)(struct nic *, struct cb *, struct sk_buff *))
+	int (*cb_prepare)(struct nic *, struct cb *, struct sk_buff *))
 {
 	struct cb *cb;
 	unsigned long flags;
@@ -888,10 +888,13 @@ static int e100_exec_cb(struct nic *nic, struct sk_buff *skb,
 	nic->cbs_avail--;
 	cb->skb = skb;
 
+	err = cb_prepare(nic, cb, skb);
+	if (err)
+		goto err_unlock;
+
 	if (unlikely(!nic->cbs_avail))
 		err = -ENOSPC;
 
-	cb_prepare(nic, cb, skb);
 
 	/* Order is important otherwise we'll be in a race with h/w:
 	 * set S-bit in current first, then clear S-bit in previous. */
@@ -1091,7 +1094,7 @@ static void e100_get_defaults(struct nic *nic)
 	nic->mii.mdio_write = mdio_write;
 }
 
-static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
+static int e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 	struct config *config = &cb->u.config;
 	u8 *c = (u8 *)config;
@@ -1172,15 +1175,13 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 		config->rx_discard_short_frames = 0x0;  /* 1=discard, 0=save */
 	}
 
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
-		     "[00-07]=%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
-		     c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
-		     "[08-15]=%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
-		     c[8], c[9], c[10], c[11], c[12], c[13], c[14], c[15]);
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
-		     "[16-23]=%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
-		     c[16], c[17], c[18], c[19], c[20], c[21], c[22], c[23]);
+	netif_printk(nic, hw, KERN_DEBUG, nic->netdev, "[00-07]=%8ph\n",
+		     c + 0);
+	netif_printk(nic, hw, KERN_DEBUG, nic->netdev, "[08-15]=%8ph\n",
+		     c + 8);
+	netif_printk(nic, hw, KERN_DEBUG, nic->netdev, "[16-23]=%8ph\n",
+		     c + 16);
+	return 0;
 }
 
 /*************************************************************************
@@ -1249,20 +1250,35 @@ static const struct firmware *e100_request_firmware(struct nic *nic)
 	const struct firmware *fw = nic->fw;
 	u8 timer, bundle, min_size;
 	int err = 0;
+	bool required = false;
 
 	/* do not load u-code for ICH devices */
 	if (nic->flags & ich)
 		return NULL;
 
-	/* Search for ucode match against h/w revision */
-	if (nic->mac == mac_82559_D101M)
+	/* Search for ucode match against h/w revision
+	 *
+	 * Based on comments in the source code for the FreeBSD fxp
+	 * driver, the FIRMWARE_D102E ucode includes both CPUSaver and
+	 *
+	 *    "fixes for bugs in the B-step hardware (specifically, bugs
+	 *     with Inline Receive)."
+	 *
+	 * So we must fail if it cannot be loaded.
+	 *
+	 * The other microcode files are only required for the optional
+	 * CPUSaver feature.  Nice to have, but no reason to fail.
+	 */
+	if (nic->mac == mac_82559_D101M) {
 		fw_name = FIRMWARE_D101M;
-	else if (nic->mac == mac_82559_D101S)
+	} else if (nic->mac == mac_82559_D101S) {
 		fw_name = FIRMWARE_D101S;
-	else if (nic->mac == mac_82551_F || nic->mac == mac_82551_10)
+	} else if (nic->mac == mac_82551_F || nic->mac == mac_82551_10) {
 		fw_name = FIRMWARE_D102E;
-	else /* No ucode on other devices */
+		required = true;
+	} else { /* No ucode on other devices */
 		return NULL;
+	}
 
 	/* If the firmware has not previously been loaded, request a pointer
 	 * to it. If it was previously loaded, we are reinitializing the
@@ -1273,10 +1289,17 @@ static const struct firmware *e100_request_firmware(struct nic *nic)
 		err = request_firmware(&fw, fw_name, &nic->pdev->dev);
 
 	if (err) {
-		netif_err(nic, probe, nic->netdev,
-			  "Failed to load firmware \"%s\": %d\n",
-			  fw_name, err);
-		return ERR_PTR(err);
+		if (required) {
+			netif_err(nic, probe, nic->netdev,
+				  "Failed to load firmware \"%s\": %d\n",
+				  fw_name, err);
+			return ERR_PTR(err);
+		} else {
+			netif_info(nic, probe, nic->netdev,
+				   "CPUSaver disabled. Needs \"%s\": %d\n",
+				   fw_name, err);
+			return NULL;
+		}
 	}
 
 	/* Firmware should be precisely UCODE_SIZE (words) plus three bytes
@@ -1309,7 +1332,7 @@ static const struct firmware *e100_request_firmware(struct nic *nic)
 	return fw;
 }
 
-static void e100_setup_ucode(struct nic *nic, struct cb *cb,
+static int e100_setup_ucode(struct nic *nic, struct cb *cb,
 			     struct sk_buff *skb)
 {
 	const struct firmware *fw = (void *)skb;
@@ -1336,6 +1359,7 @@ static void e100_setup_ucode(struct nic *nic, struct cb *cb,
 	cb->u.ucode[min_size] |= cpu_to_le32((BUNDLESMALL) ? 0xFFFF : 0xFF80);
 
 	cb->command = cpu_to_le16(cb_ucode | cb_el);
+	return 0;
 }
 
 static inline int e100_load_ucode_wait(struct nic *nic)
@@ -1378,18 +1402,20 @@ static inline int e100_load_ucode_wait(struct nic *nic)
 	return err;
 }
 
-static void e100_setup_iaaddr(struct nic *nic, struct cb *cb,
+static int e100_setup_iaaddr(struct nic *nic, struct cb *cb,
 	struct sk_buff *skb)
 {
 	cb->command = cpu_to_le16(cb_iaaddr);
 	memcpy(cb->u.iaaddr, nic->netdev->dev_addr, ETH_ALEN);
+	return 0;
 }
 
-static void e100_dump(struct nic *nic, struct cb *cb, struct sk_buff *skb)
+static int e100_dump(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 	cb->command = cpu_to_le16(cb_dump);
 	cb->u.dump_buffer_addr = cpu_to_le32(nic->dma_addr +
 		offsetof(struct mem, dump_buf));
+	return 0;
 }
 
 static int e100_phy_check_without_mii(struct nic *nic)
@@ -1559,7 +1585,7 @@ static int e100_hw_init(struct nic *nic)
 	return 0;
 }
 
-static void e100_multi(struct nic *nic, struct cb *cb, struct sk_buff *skb)
+static int e100_multi(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 	struct net_device *netdev = nic->netdev;
 	struct netdev_hw_addr *ha;
@@ -1574,6 +1600,7 @@ static void e100_multi(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 		memcpy(&cb->u.multi.addr[i++ * ETH_ALEN], &ha->addr,
 			ETH_ALEN);
 	}
+	return 0;
 }
 
 static void e100_set_multicast_list(struct net_device *netdev)
@@ -1734,19 +1761,26 @@ static void e100_watchdog(unsigned long data)
 		  round_jiffies(jiffies + E100_WATCHDOG_PERIOD));
 }
 
-static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
+static int e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	struct sk_buff *skb)
 {
+	dma_addr_t dma_addr;
 	cb->command = nic->tx_command;
+
+	dma_addr = pci_map_single(nic->pdev,
+				  skb->data, skb->len, PCI_DMA_TODEVICE);
+	/* If we can't map the skb, have the upper layer try later */
+	if (pci_dma_mapping_error(nic->pdev, dma_addr))
+		return -ENOMEM;
 
 	/*
 	 * Use the last 4 bytes of the SKB payload packet as the CRC, used for
 	 * testing, ie sending frames with bad CRC.
 	 */
 	if (unlikely(skb->no_fcs))
-		cb->command |= __constant_cpu_to_le16(cb_tx_nc);
+		cb->command |= cpu_to_le16(cb_tx_nc);
 	else
-		cb->command &= ~__constant_cpu_to_le16(cb_tx_nc);
+		cb->command &= ~cpu_to_le16(cb_tx_nc);
 
 	/* interrupt every 16 packets regardless of delay */
 	if ((nic->cbs_avail & ~15) == nic->cbs_avail)
@@ -1755,10 +1789,10 @@ static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	cb->u.tcb.tcb_byte_count = 0;
 	cb->u.tcb.threshold = nic->tx_threshold;
 	cb->u.tcb.tbd_count = 1;
-	cb->u.tcb.tbd.buf_addr = cpu_to_le32(pci_map_single(nic->pdev,
-		skb->data, skb->len, PCI_DMA_TODEVICE));
-	/* check for mapping failure? */
+	cb->u.tcb.tbd.buf_addr = cpu_to_le32(dma_addr);
 	cb->u.tcb.tbd.size = cpu_to_le16(skb->len);
+	skb_tx_timestamp(skb);
+	return 0;
 }
 
 static netdev_tx_t e100_xmit_frame(struct sk_buff *skb,
@@ -2733,6 +2767,7 @@ static const struct ethtool_ops e100_ethtool_ops = {
 	.set_phys_id		= e100_set_phys_id,
 	.get_ethtool_stats	= e100_get_ethtool_stats,
 	.get_sset_count		= e100_get_sset_count,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 static int e100_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
@@ -2805,8 +2840,7 @@ static const struct net_device_ops e100_netdev_ops = {
 	.ndo_set_features	= e100_set_features,
 };
 
-static int __devinit e100_probe(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int e100_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct nic *nic;
@@ -2820,7 +2854,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	netdev->hw_features |= NETIF_F_RXALL;
 
 	netdev->netdev_ops = &e100_netdev_ops;
-	SET_ETHTOOL_OPS(netdev, &e100_ethtool_ops);
+	netdev->ethtool_ops = &e100_ethtool_ops;
 	netdev->watchdog_timeo = E100_WATCHDOG_PERIOD;
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
@@ -2905,8 +2939,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	e100_phy_init(nic);
 
 	memcpy(netdev->dev_addr, nic->eeprom, ETH_ALEN);
-	memcpy(netdev->perm_addr, nic->eeprom, ETH_ALEN);
-	if (!is_valid_ether_addr(netdev->perm_addr)) {
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		if (!eeprom_bad_csum_allow) {
 			netif_err(nic, probe, nic->netdev, "Invalid MAC address from EEPROM, aborting\n");
 			err = -EAGAIN;
@@ -2952,12 +2985,11 @@ err_out_free_res:
 err_out_disable_pdev:
 	pci_disable_device(pdev);
 err_out_free_dev:
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(netdev);
 	return err;
 }
 
-static void __devexit e100_remove(struct pci_dev *pdev)
+static void e100_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 
@@ -2970,7 +3002,6 @@ static void __devexit e100_remove(struct pci_dev *pdev)
 		free_netdev(netdev);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 
@@ -3003,7 +3034,7 @@ static void __e100_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		*enable_wake = false;
 	}
 
-	pci_disable_device(pdev);
+	pci_clear_master(pdev);
 }
 
 static int __e100_power_off(struct pci_dev *pdev, bool wake)
@@ -3033,7 +3064,7 @@ static int e100_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	/* ack any pending wake events, disable PME */
-	pci_enable_wake(pdev, 0, 0);
+	pci_enable_wake(pdev, PCI_D0, 0);
 
 	/* disable reverse auto-negotiation */
 	if (nic->phy == phy_82552_v) {
@@ -3124,7 +3155,7 @@ static void e100_io_resume(struct pci_dev *pdev)
 	struct nic *nic = netdev_priv(netdev);
 
 	/* ack any pending wake events, disable PME */
-	pci_enable_wake(pdev, 0, 0);
+	pci_enable_wake(pdev, PCI_D0, 0);
 
 	netif_device_attach(netdev);
 	if (netif_running(netdev)) {
@@ -3133,7 +3164,7 @@ static void e100_io_resume(struct pci_dev *pdev)
 	}
 }
 
-static struct pci_error_handlers e100_err_handler = {
+static const struct pci_error_handlers e100_err_handler = {
 	.error_detected = e100_io_error_detected,
 	.slot_reset = e100_io_slot_reset,
 	.resume = e100_io_resume,
@@ -3143,7 +3174,7 @@ static struct pci_driver e100_driver = {
 	.name =         DRV_NAME,
 	.id_table =     e100_id_table,
 	.probe =        e100_probe,
-	.remove =       __devexit_p(e100_remove),
+	.remove =       e100_remove,
 #ifdef CONFIG_PM
 	/* Power Management hooks */
 	.suspend =      e100_suspend,

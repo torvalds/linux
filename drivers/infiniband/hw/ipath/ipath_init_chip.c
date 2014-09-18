@@ -719,16 +719,6 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		goto done;
 
 	/*
-	 * we ignore most issues after reporting them, but have to specially
-	 * handle hardware-disabled chips.
-	 */
-	if (ret == 2) {
-		/* unique error, known to ipath_init_one */
-		ret = -EPERM;
-		goto done;
-	}
-
-	/*
 	 * We could bump this to allow for full rcvegrcnt + rcvtidcnt,
 	 * but then it no longer nicely fits power of two, and since
 	 * we now use routines that backend onto __get_free_pages, the

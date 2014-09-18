@@ -112,36 +112,6 @@ static int if_config(struct cardstate *cs, int *arg)
 }
 
 /*** the terminal driver ***/
-/* stolen from usbserial and some other tty drivers */
-
-static int  if_open(struct tty_struct *tty, struct file *filp);
-static void if_close(struct tty_struct *tty, struct file *filp);
-static int  if_ioctl(struct tty_struct *tty,
-		     unsigned int cmd, unsigned long arg);
-static int  if_write_room(struct tty_struct *tty);
-static int  if_chars_in_buffer(struct tty_struct *tty);
-static void if_throttle(struct tty_struct *tty);
-static void if_unthrottle(struct tty_struct *tty);
-static void if_set_termios(struct tty_struct *tty, struct ktermios *old);
-static int  if_tiocmget(struct tty_struct *tty);
-static int  if_tiocmset(struct tty_struct *tty,
-			unsigned int set, unsigned int clear);
-static int  if_write(struct tty_struct *tty,
-		     const unsigned char *buf, int count);
-
-static const struct tty_operations if_ops = {
-	.open =			if_open,
-	.close =		if_close,
-	.ioctl =		if_ioctl,
-	.write =		if_write,
-	.write_room =		if_write_room,
-	.chars_in_buffer =	if_chars_in_buffer,
-	.set_termios =		if_set_termios,
-	.throttle =		if_throttle,
-	.unthrottle =		if_unthrottle,
-	.tiocmget =		if_tiocmget,
-	.tiocmset =		if_tiocmset,
-};
 
 static int if_open(struct tty_struct *tty, struct file *filp)
 {
@@ -164,7 +134,7 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 
 	if (cs->port.count == 1) {
 		tty_port_tty_set(&cs->port, tty);
-		tty->low_latency = 1;
+		cs->port.low_latency = 1;
 	}
 
 	mutex_unlock(&cs->mutex);
@@ -355,7 +325,7 @@ done:
 static int if_write_room(struct tty_struct *tty)
 {
 	struct cardstate *cs = tty->driver_data;
-	int retval = -ENODEV;
+	int retval;
 
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
@@ -446,8 +416,8 @@ static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 		goto out;
 	}
 
-	iflag = tty->termios->c_iflag;
-	cflag = tty->termios->c_cflag;
+	iflag = tty->termios.c_iflag;
+	cflag = tty->termios.c_cflag;
 	old_cflag = old ? old->c_cflag : cflag;
 	gig_dbg(DEBUG_IF, "%u: iflag %x cflag %x old %x",
 		cs->minor_index, iflag, cflag, old_cflag);
@@ -498,17 +468,27 @@ out:
 	mutex_unlock(&cs->mutex);
 }
 
+static const struct tty_operations if_ops = {
+	.open =			if_open,
+	.close =		if_close,
+	.ioctl =		if_ioctl,
+	.write =		if_write,
+	.write_room =		if_write_room,
+	.chars_in_buffer =	if_chars_in_buffer,
+	.set_termios =		if_set_termios,
+	.throttle =		if_throttle,
+	.unthrottle =		if_unthrottle,
+	.tiocmget =		if_tiocmget,
+	.tiocmset =		if_tiocmset,
+};
+
 
 /* wakeup tasklet for the write operation */
 static void if_wake(unsigned long data)
 {
 	struct cardstate *cs = (struct cardstate *)data;
-	struct tty_struct *tty = tty_port_tty_get(&cs->port);
 
-	if (tty) {
-		tty_wakeup(tty);
-		tty_kref_put(tty);
-	}
+	tty_port_tty_wakeup(&cs->port);
 }
 
 /*** interface to common ***/
@@ -524,7 +504,8 @@ void gigaset_if_init(struct cardstate *cs)
 	tasklet_init(&cs->if_wake_tasklet, if_wake, (unsigned long) cs);
 
 	mutex_lock(&cs->mutex);
-	cs->tty_dev = tty_register_device(drv->tty, cs->minor_index, NULL);
+	cs->tty_dev = tty_port_register_device(&cs->port, drv->tty,
+			cs->minor_index, NULL);
 
 	if (!IS_ERR(cs->tty_dev))
 		dev_set_drvdata(cs->tty_dev, cs);
@@ -561,16 +542,8 @@ void gigaset_if_free(struct cardstate *cs)
 void gigaset_if_receive(struct cardstate *cs,
 			unsigned char *buffer, size_t len)
 {
-	struct tty_struct *tty = tty_port_tty_get(&cs->port);
-
-	if (tty == NULL) {
-		gig_dbg(DEBUG_IF, "receive on closed device");
-		return;
-	}
-
-	tty_insert_flip_string(tty, buffer, len);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_insert_flip_string(&cs->port, buffer, len);
+	tty_flip_buffer_push(&cs->port);
 }
 EXPORT_SYMBOL_GPL(gigaset_if_receive);
 

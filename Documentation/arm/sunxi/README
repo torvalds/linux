@@ -1,0 +1,52 @@
+ARM Allwinner SoCs
+==================
+
+This document lists all the ARM Allwinner SoCs that are currently
+supported in mainline by the Linux kernel. This document will also
+provide links to documentation and/or datasheet for these SoCs.
+
+SunXi family
+------------
+  Linux kernel mach directory: arch/arm/mach-sunxi
+
+  Flavors:
+    * ARM926 based SoCs
+      - Allwinner F20 (sun3i)
+        + Not Supported
+
+    * ARM Cortex-A8 based SoCs
+      - Allwinner A10 (sun4i)
+        + Datasheet
+	  http://dl.linux-sunxi.org/A10/A10%20Datasheet%20-%20v1.21%20%282012-04-06%29.pdf
+	+ User Manual
+	  http://dl.linux-sunxi.org/A10/A10%20User%20Manual%20-%20v1.20%20%282012-04-09%2c%20DECRYPTED%29.pdf
+
+      - Allwinner A10s (sun5i)
+        + Datasheet
+          http://dl.linux-sunxi.org/A10s/A10s%20Datasheet%20-%20v1.20%20%282012-03-27%29.pdf
+
+      - Allwinner A13 (sun5i)
+        + Datasheet
+	  http://dl.linux-sunxi.org/A13/A13%20Datasheet%20-%20v1.12%20%282012-03-29%29.pdf
+        + User Manual
+          http://dl.linux-sunxi.org/A13/A13%20User%20Manual%20-%20v1.2%20%282013-01-08%29.pdf
+
+    * Dual ARM Cortex-A7 based SoCs
+      - Allwinner A20 (sun7i)
+        + User Manual
+          http://dl.linux-sunxi.org/A20/A20%20User%20Manual%202013-03-22.pdf
+
+      - Allwinner A23
+        + Not Supported
+
+    * Quad ARM Cortex-A7 based SoCs
+      - Allwinner A31 (sun6i)
+        + Datasheet
+          http://dl.linux-sunxi.org/A31/A31%20Datasheet%20-%20v1.00%20(2012-12-24).pdf
+
+      - Allwinner A31s (sun6i)
+        + Not Supported
+
+    * Quad ARM Cortex-A15, Quad ARM Cortex-A7 based SoCs
+      - Allwinner A80
+        + Not Supported

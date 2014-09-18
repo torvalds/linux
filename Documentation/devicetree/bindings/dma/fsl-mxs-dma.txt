@@ -1,0 +1,60 @@
+* Freescale MXS DMA
+
+Required properties:
+- compatible : Should be "fsl,<chip>-dma-apbh" or "fsl,<chip>-dma-apbx"
+- reg : Should contain registers location and length
+- interrupts : Should contain the interrupt numbers of DMA channels.
+  If a channel is empty/reserved, 0 should be filled in place.
+- #dma-cells : Must be <1>.  The number cell specifies the channel ID.
+- dma-channels : Number of channels supported by the DMA controller
+
+Optional properties:
+- interrupt-names : Name of DMA channel interrupts
+
+Supported chips:
+imx23, imx28.
+
+Examples:
+
+dma_apbh: dma-apbh@80004000 {
+	compatible = "fsl,imx28-dma-apbh";
+	reg = <0x80004000 0x2000>;
+	interrupts = <82 83 84 85
+		      88 88 88 88
+		      88 88 88 88
+		      87 86 0 0>;
+	interrupt-names = "ssp0", "ssp1", "ssp2", "ssp3",
+			  "gpmi0", "gmpi1", "gpmi2", "gmpi3",
+			  "gpmi4", "gmpi5", "gpmi6", "gmpi7",
+			  "hsadc", "lcdif", "empty", "empty";
+	#dma-cells = <1>;
+	dma-channels = <16>;
+};
+
+dma_apbx: dma-apbx@80024000 {
+	compatible = "fsl,imx28-dma-apbx";
+	reg = <0x80024000 0x2000>;
+	interrupts = <78 79 66 0
+		      80 81 68 69
+		      70 71 72 73
+		      74 75 76 77>;
+	interrupt-names = "auart4-rx", "aurat4-tx", "spdif-tx", "empty",
+			  "saif0", "saif1", "i2c0", "i2c1",
+			  "auart0-rx", "auart0-tx", "auart1-rx", "auart1-tx",
+			  "auart2-rx", "auart2-tx", "auart3-rx", "auart3-tx";
+	#dma-cells = <1>;
+	dma-channels = <16>;
+};
+
+DMA clients connected to the MXS DMA controller must use the format
+described in the dma.txt file.
+
+Examples:
+
+auart0: serial@8006a000 {
+	compatible = "fsl,imx28-auart", "fsl,imx23-auart";
+	reg = <0x8006a000 0x2000>;
+	interrupts = <112>;
+	dmas = <&dma_apbx 8>, <&dma_apbx 9>;
+	dma-names = "rx", "tx";
+};

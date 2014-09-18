@@ -238,7 +238,6 @@ static int vxpocket_config(struct pcmcia_device *link)
 		goto failed;
 
 	chip->dev = &link->dev;
-	snd_card_set_dev(chip->card, chip->dev);
 
 	if (snd_vxpocket_assign_resources(chip, link->resource[0]->start,
 						link->irq) < 0)
@@ -260,7 +259,7 @@ static int vxp_suspend(struct pcmcia_device *link)
 	snd_printdd(KERN_DEBUG "SUSPEND\n");
 	if (chip) {
 		snd_printdd(KERN_DEBUG "snd_vx_suspend calling\n");
-		snd_vx_suspend(chip, PMSG_SUSPEND);
+		snd_vx_suspend(chip);
 	}
 
 	return 0;
@@ -307,7 +306,8 @@ static int vxpocket_probe(struct pcmcia_device *p_dev)
 		return -ENODEV; /* disabled explicitly */
 
 	/* ok, create a card instance */
-	err = snd_card_create(index[i], id[i], THIS_MODULE, 0, &card);
+	err = snd_card_new(&p_dev->dev, index[i], id[i], THIS_MODULE,
+			   0, &card);
 	if (err < 0) {
 		snd_printk(KERN_ERR "vxpocket: cannot create a card instance\n");
 		return err;
@@ -367,16 +367,4 @@ static struct pcmcia_driver vxp_cs_driver = {
 	.resume		= vxp_resume,
 #endif
 };
-
-static int __init init_vxpocket(void)
-{
-	return pcmcia_register_driver(&vxp_cs_driver);
-}
-
-static void __exit exit_vxpocket(void)
-{
-	pcmcia_unregister_driver(&vxp_cs_driver);
-}
-
-module_init(init_vxpocket);
-module_exit(exit_vxpocket);
+module_pcmcia_driver(vxp_cs_driver);

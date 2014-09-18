@@ -15,21 +15,19 @@
 #define _HWMON_H_
 
 struct device;
+struct attribute_group;
 
 struct device *hwmon_device_register(struct device *dev);
+struct device *
+hwmon_device_register_with_groups(struct device *dev, const char *name,
+				  void *drvdata,
+				  const struct attribute_group **groups);
+struct device *
+devm_hwmon_device_register_with_groups(struct device *dev, const char *name,
+				       void *drvdata,
+				       const struct attribute_group **groups);
 
 void hwmon_device_unregister(struct device *dev);
-
-/* Scale user input to sensible values */
-static inline int SENSORS_LIMIT(long value, long low, long high)
-{
-	if (value < low)
-		return low;
-	else if (value > high)
-		return high;
-	else
-		return value;
-}
+void devm_hwmon_device_unregister(struct device *dev);
 
 #endif
-

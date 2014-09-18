@@ -27,6 +27,8 @@
 #include <asm/iommu.h>
 #include <asm/dma.h>
 
+#include "mm_32.h"
+
 /*
  * This can be sized dynamically, but we will do this
  * only when we have a guidance about actual I/O pressures.
@@ -34,14 +36,9 @@
 #define IOMMU_RNGE	IOMMU_RNGE_256MB
 #define IOMMU_START	0xF0000000
 #define IOMMU_WINSIZE	(256*1024*1024U)
-#define IOMMU_NPTES	(IOMMU_WINSIZE/PAGE_SIZE)	/* 64K PTEs, 265KB */
+#define IOMMU_NPTES	(IOMMU_WINSIZE/PAGE_SIZE)	/* 64K PTEs, 256KB */
 #define IOMMU_ORDER	6				/* 4096 * (1<<6) */
 
-/* srmmu.c */
-extern int viking_mxcc_present;
-BTFIXUPDEF_CALL(void, flush_page_for_dma, unsigned long)
-#define flush_page_for_dma(page) BTFIXUP_CALL(flush_page_for_dma)(page)
-extern int flush_page_for_dma_global;
 static int viking_flush;
 /* viking.S */
 extern void viking_flush_page(unsigned long page);
@@ -61,6 +58,8 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	struct iommu_struct *iommu;
 	unsigned int impl, vers;
 	unsigned long *bitmap;
+	unsigned long control;
+	unsigned long base;
 	unsigned long tmp;
 
 	iommu = kmalloc(sizeof(struct iommu_struct), GFP_KERNEL);
@@ -75,12 +74,14 @@ static void __init sbus_iommu_init(struct platform_device *op)
 		prom_printf("Cannot map IOMMU registers\n");
 		prom_halt();
 	}
-	impl = (iommu->regs->control & IOMMU_CTRL_IMPL) >> 28;
-	vers = (iommu->regs->control & IOMMU_CTRL_VERS) >> 24;
-	tmp = iommu->regs->control;
-	tmp &= ~(IOMMU_CTRL_RNGE);
-	tmp |= (IOMMU_RNGE_256MB | IOMMU_CTRL_ENAB);
-	iommu->regs->control = tmp;
+
+	control = sbus_readl(&iommu->regs->control);
+	impl = (control & IOMMU_CTRL_IMPL) >> 28;
+	vers = (control & IOMMU_CTRL_VERS) >> 24;
+	control &= ~(IOMMU_CTRL_RNGE);
+	control |= (IOMMU_RNGE_256MB | IOMMU_CTRL_ENAB);
+	sbus_writel(control, &iommu->regs->control);
+
 	iommu_invalidate(iommu->regs);
 	iommu->start = IOMMU_START;
 	iommu->end = 0xffffffff;
@@ -92,8 +93,8 @@ static void __init sbus_iommu_init(struct platform_device *op)
            it to us. */
         tmp = __get_free_pages(GFP_KERNEL, IOMMU_ORDER);
 	if (!tmp) {
-		prom_printf("Unable to allocate iommu table [0x%08x]\n",
-			    IOMMU_NPTES*sizeof(iopte_t));
+		prom_printf("Unable to allocate iommu table [0x%lx]\n",
+			    IOMMU_NPTES * sizeof(iopte_t));
 		prom_halt();
 	}
 	iommu->page_table = (iopte_t *)tmp;
@@ -102,7 +103,9 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	memset(iommu->page_table, 0, IOMMU_NPTES*sizeof(iopte_t));
 	flush_cache_all();
 	flush_tlb_all();
-	iommu->regs->base = __pa((unsigned long) iommu->page_table) >> 4;
+
+	base = __pa((unsigned long)iommu->page_table) >> 4;
+	sbus_writel(base, &iommu->regs->base);
 	iommu_invalidate(iommu->regs);
 
 	bitmap = kmalloc(IOMMU_NPTES>>3, GFP_KERNEL);
@@ -143,7 +146,6 @@ static int __init iommu_init(void)
 
 subsys_initcall(iommu_init);
 
-/* This begs to be btfixup-ed by srmmu. */
 /* Flush the iotlb entries to ram. */
 /* This could be better if we didn't have to flush whole pages. */
 static void iommu_flush_iotlb(iopte_t *iopte, unsigned int niopte)
@@ -216,11 +218,6 @@ static u32 iommu_get_scsi_one(struct device *dev, char *vaddr, unsigned int len)
 	return busa + off;
 }
 
-static __u32 iommu_get_scsi_one_noflush(struct device *dev, char *vaddr, unsigned long len)
-{
-	return iommu_get_scsi_one(dev, vaddr, len);
-}
-
 static __u32 iommu_get_scsi_one_gflush(struct device *dev, char *vaddr, unsigned long len)
 {
 	flush_page_for_dma(0);
@@ -236,19 +233,6 @@ static __u32 iommu_get_scsi_one_pflush(struct device *dev, char *vaddr, unsigned
 		page += PAGE_SIZE;
 	}
 	return iommu_get_scsi_one(dev, vaddr, len);
-}
-
-static void iommu_get_scsi_sgl_noflush(struct device *dev, struct scatterlist *sg, int sz)
-{
-	int n;
-
-	while (sz != 0) {
-		--sz;
-		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
-		sg->dma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
-		sg->dma_length = sg->length;
-		sg = sg_next(sg);
-	}
 }
 
 static void iommu_get_scsi_sgl_gflush(struct device *dev, struct scatterlist *sg, int sz)
@@ -426,40 +410,36 @@ static void iommu_unmap_dma_area(struct device *dev, unsigned long busa, int len
 }
 #endif
 
-static char *iommu_lockarea(char *vaddr, unsigned long len)
-{
-	return vaddr;
-}
+static const struct sparc32_dma_ops iommu_dma_gflush_ops = {
+	.get_scsi_one		= iommu_get_scsi_one_gflush,
+	.get_scsi_sgl		= iommu_get_scsi_sgl_gflush,
+	.release_scsi_one	= iommu_release_scsi_one,
+	.release_scsi_sgl	= iommu_release_scsi_sgl,
+#ifdef CONFIG_SBUS
+	.map_dma_area		= iommu_map_dma_area,
+	.unmap_dma_area		= iommu_unmap_dma_area,
+#endif
+};
 
-static void iommu_unlockarea(char *vaddr, unsigned long len)
-{
-}
+static const struct sparc32_dma_ops iommu_dma_pflush_ops = {
+	.get_scsi_one		= iommu_get_scsi_one_pflush,
+	.get_scsi_sgl		= iommu_get_scsi_sgl_pflush,
+	.release_scsi_one	= iommu_release_scsi_one,
+	.release_scsi_sgl	= iommu_release_scsi_sgl,
+#ifdef CONFIG_SBUS
+	.map_dma_area		= iommu_map_dma_area,
+	.unmap_dma_area		= iommu_unmap_dma_area,
+#endif
+};
 
 void __init ld_mmu_iommu(void)
 {
-	viking_flush = (BTFIXUPVAL_CALL(flush_page_for_dma) == (unsigned long)viking_flush_page);
-	BTFIXUPSET_CALL(mmu_lockarea, iommu_lockarea, BTFIXUPCALL_RETO0);
-	BTFIXUPSET_CALL(mmu_unlockarea, iommu_unlockarea, BTFIXUPCALL_NOP);
-
-	if (!BTFIXUPVAL_CALL(flush_page_for_dma)) {
-		/* IO coherent chip */
-		BTFIXUPSET_CALL(mmu_get_scsi_one, iommu_get_scsi_one_noflush, BTFIXUPCALL_RETO0);
-		BTFIXUPSET_CALL(mmu_get_scsi_sgl, iommu_get_scsi_sgl_noflush, BTFIXUPCALL_NORM);
-	} else if (flush_page_for_dma_global) {
+	if (flush_page_for_dma_global) {
 		/* flush_page_for_dma flushes everything, no matter of what page is it */
-		BTFIXUPSET_CALL(mmu_get_scsi_one, iommu_get_scsi_one_gflush, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(mmu_get_scsi_sgl, iommu_get_scsi_sgl_gflush, BTFIXUPCALL_NORM);
+		sparc32_dma_ops = &iommu_dma_gflush_ops;
 	} else {
-		BTFIXUPSET_CALL(mmu_get_scsi_one, iommu_get_scsi_one_pflush, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(mmu_get_scsi_sgl, iommu_get_scsi_sgl_pflush, BTFIXUPCALL_NORM);
+		sparc32_dma_ops = &iommu_dma_pflush_ops;
 	}
-	BTFIXUPSET_CALL(mmu_release_scsi_one, iommu_release_scsi_one, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_release_scsi_sgl, iommu_release_scsi_sgl, BTFIXUPCALL_NORM);
-
-#ifdef CONFIG_SBUS
-	BTFIXUPSET_CALL(mmu_map_dma_area, iommu_map_dma_area, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_unmap_dma_area, iommu_unmap_dma_area, BTFIXUPCALL_NORM);
-#endif
 
 	if (viking_mxcc_present || srmmu_modtype == HyperSparc) {
 		dvma_prot = __pgprot(SRMMU_CACHE | SRMMU_ET_PTE | SRMMU_PRIV);

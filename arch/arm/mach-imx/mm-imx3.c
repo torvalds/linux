@@ -19,17 +19,20 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/pinctrl/machine.h>
 
 #include <asm/pgtable.h>
 #include <asm/system_misc.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
-#include <mach/devices-common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-v3.h>
-#include <mach/irqs.h>
+#include "common.h"
+#include "crmregs-imx3.h"
+#include "devices/devices-common.h"
+#include "hardware.h"
+#include "iomux-v3.h"
+
+void __iomem *mx3_ccm_base;
 
 static void imx3_idle(void)
 {
@@ -62,7 +65,7 @@ static void imx3_idle(void)
 		: "=r" (reg));
 }
 
-static void __iomem *imx3_ioremap_caller(unsigned long phys_addr, size_t size,
+static void __iomem *imx3_ioremap_caller(phys_addr_t phys_addr, size_t size,
 					 unsigned int mtype, void *caller)
 {
 	if (mtype == MT_DEVICE) {
@@ -79,8 +82,9 @@ static void __iomem *imx3_ioremap_caller(unsigned long phys_addr, size_t size,
 	return __arm_ioremap_caller(phys_addr, size, mtype, caller);
 }
 
-void __init imx3_init_l2x0(void)
+static void __init imx3_init_l2x0(void)
 {
+#ifdef CONFIG_CACHE_L2X0
 	void __iomem *l2x0_base;
 	void __iomem *clkctl_base;
 
@@ -103,13 +107,13 @@ void __init imx3_init_l2x0(void)
 	}
 
 	l2x0_base = ioremap(MX3x_L2CC_BASE_ADDR, 4096);
-	if (IS_ERR(l2x0_base)) {
-		printk(KERN_ERR "remapping L2 cache area failed with %ld\n",
-				PTR_ERR(l2x0_base));
+	if (!l2x0_base) {
+		printk(KERN_ERR "remapping L2 cache area failed\n");
 		return;
 	}
 
 	l2x0_init(l2x0_base, 0x00030024, 0x00000000);
+#endif
 }
 
 #ifdef CONFIG_SOC_IMX31
@@ -134,9 +138,9 @@ void __init mx31_map_io(void)
 void __init imx31_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX31);
-	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
 	arch_ioremap_caller = imx3_ioremap_caller;
 	arm_pm_idle = imx3_idle;
+	mx3_ccm_base = MX31_IO_ADDRESS(MX31_CCM_BASE_ADDR);
 }
 
 void __init mx31_init_irq(void)
@@ -169,9 +173,14 @@ void __init imx31_soc_init(void)
 
 	imx3_init_l2x0();
 
+	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
+	mxc_device_init();
+
 	mxc_register_gpio("imx31-gpio", 0, MX31_GPIO1_BASE_ADDR, SZ_16K, MX31_INT_GPIO1, 0);
 	mxc_register_gpio("imx31-gpio", 1, MX31_GPIO2_BASE_ADDR, SZ_16K, MX31_INT_GPIO2, 0);
 	mxc_register_gpio("imx31-gpio", 2, MX31_GPIO3_BASE_ADDR, SZ_16K, MX31_INT_GPIO3, 0);
+
+	pinctrl_provide_dummies();
 
 	if (to_version == 1) {
 		strncpy(imx31_sdma_pdata.fw_name, "sdma-imx31-to1.bin",
@@ -207,9 +216,9 @@ void __init imx35_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX35);
 	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
-	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
 	arm_pm_idle = imx3_idle;
 	arch_ioremap_caller = imx3_ioremap_caller;
+	mx3_ccm_base = MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR);
 }
 
 void __init mx35_init_irq(void)
@@ -262,11 +271,14 @@ void __init imx35_soc_init(void)
 
 	imx3_init_l2x0();
 
-	/* i.mx35 has the i.mx31 type gpio */
-	mxc_register_gpio("imx31-gpio", 0, MX35_GPIO1_BASE_ADDR, SZ_16K, MX35_INT_GPIO1, 0);
-	mxc_register_gpio("imx31-gpio", 1, MX35_GPIO2_BASE_ADDR, SZ_16K, MX35_INT_GPIO2, 0);
-	mxc_register_gpio("imx31-gpio", 2, MX35_GPIO3_BASE_ADDR, SZ_16K, MX35_INT_GPIO3, 0);
+	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
+	mxc_device_init();
 
+	mxc_register_gpio("imx35-gpio", 0, MX35_GPIO1_BASE_ADDR, SZ_16K, MX35_INT_GPIO1, 0);
+	mxc_register_gpio("imx35-gpio", 1, MX35_GPIO2_BASE_ADDR, SZ_16K, MX35_INT_GPIO2, 0);
+	mxc_register_gpio("imx35-gpio", 2, MX35_GPIO3_BASE_ADDR, SZ_16K, MX35_INT_GPIO3, 0);
+
+	pinctrl_provide_dummies();
 	if (to_version == 1) {
 		strncpy(imx35_sdma_pdata.fw_name, "sdma-imx35-to1.bin",
 			strlen(imx35_sdma_pdata.fw_name));

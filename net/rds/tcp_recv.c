@@ -314,15 +314,15 @@ int rds_tcp_recv(struct rds_connection *conn)
 	return ret;
 }
 
-void rds_tcp_data_ready(struct sock *sk, int bytes)
+void rds_tcp_data_ready(struct sock *sk)
 {
-	void (*ready)(struct sock *sk, int bytes);
+	void (*ready)(struct sock *sk);
 	struct rds_connection *conn;
 	struct rds_tcp_connection *tc;
 
-	rdsdebug("data ready sk %p bytes %d\n", sk, bytes);
+	rdsdebug("data ready sk %p\n", sk);
 
-	read_lock_bh(&sk->sk_callback_lock);
+	read_lock(&sk->sk_callback_lock);
 	conn = sk->sk_user_data;
 	if (!conn) { /* check for teardown race */
 		ready = sk->sk_data_ready;
@@ -336,8 +336,8 @@ void rds_tcp_data_ready(struct sock *sk, int bytes)
 	if (rds_tcp_read_sock(conn, GFP_ATOMIC) == -ENOMEM)
 		queue_delayed_work(rds_wq, &conn->c_recv_w, 0);
 out:
-	read_unlock_bh(&sk->sk_callback_lock);
-	ready(sk, bytes);
+	read_unlock(&sk->sk_callback_lock);
+	ready(sk);
 }
 
 int rds_tcp_recv_init(void)

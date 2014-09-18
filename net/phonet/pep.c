@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2008 Nokia Corporation.
  *
- * Author: Rémi Denis-Courmont <remi.denis-courmont@nokia.com>
+ * Author: Rémi Denis-Courmont
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -273,7 +273,7 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 	hdr = pnp_hdr(skb);
 	if (hdr->data[0] != PN_PEP_TYPE_COMMON) {
 		LIMIT_NETDEBUG(KERN_DEBUG"Phonet unknown PEP type: %u\n",
-				(unsigned)hdr->data[0]);
+				(unsigned int)hdr->data[0]);
 		return -EOPNOTSUPP;
 	}
 
@@ -305,7 +305,7 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 
 	default:
 		LIMIT_NETDEBUG(KERN_DEBUG"Phonet unknown PEP indication: %u\n",
-				(unsigned)hdr->data[1]);
+				(unsigned int)hdr->data[1]);
 		return -EOPNOTSUPP;
 	}
 	if (wake)
@@ -462,10 +462,9 @@ out:
 queue:
 	skb->dev = NULL;
 	skb_set_owner_r(skb, sk);
-	err = skb->len;
 	skb_queue_tail(queue, skb);
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, err);
+		sk->sk_data_ready(sk);
 	return NET_RX_SUCCESS;
 }
 
@@ -478,9 +477,9 @@ static void pipe_destruct(struct sock *sk)
 	skb_queue_purge(&pn->ctrlreq_queue);
 }
 
-static u8 pipe_negotiate_fc(const u8 *fcs, unsigned n)
+static u8 pipe_negotiate_fc(const u8 *fcs, unsigned int n)
 {
-	unsigned i;
+	unsigned int i;
 	u8 final_fc = PN_NO_FLOW_CONTROL;
 
 	for (i = 0; i < n; i++) {
@@ -587,10 +586,9 @@ static int pipe_handler_do_rcv(struct sock *sk, struct sk_buff *skb)
 		pn->rx_credits--;
 		skb->dev = NULL;
 		skb_set_owner_r(skb, sk);
-		err = skb->len;
 		skb_queue_tail(&sk->sk_receive_queue, skb);
 		if (!sock_flag(sk, SOCK_DEAD))
-			sk->sk_data_ready(sk, err);
+			sk->sk_data_ready(sk);
 		return NET_RX_SUCCESS;
 
 	case PNS_PEP_CONNECT_RESP:
@@ -640,11 +638,10 @@ static struct sock *pep_find_pipe(const struct hlist_head *hlist,
 					const struct sockaddr_pn *dst,
 					u8 pipe_handle)
 {
-	struct hlist_node *node;
 	struct sock *sknode;
 	u16 dobj = pn_sockaddr_get_object(dst);
 
-	sk_for_each(sknode, node, hlist) {
+	sk_for_each(sknode, hlist) {
 		struct pep_sock *pnnode = pep_sk(sknode);
 
 		/* Ports match, but addresses might not: */
@@ -699,7 +696,7 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 		skb_queue_head(&sk->sk_receive_queue, skb);
 		sk_acceptq_added(sk);
 		if (!sock_flag(sk, SOCK_DEAD))
-			sk->sk_data_ready(sk, 0);
+			sk->sk_data_ready(sk);
 		return NET_RX_SUCCESS;
 
 	case PNS_PEP_DISCONNECT_REQ:

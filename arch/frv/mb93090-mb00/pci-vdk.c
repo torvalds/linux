@@ -25,8 +25,6 @@
 
 unsigned int __nongpreldata pci_probe = 1;
 
-int  __nongpreldata pcibios_last_bus = -1;
-struct pci_bus *__nongpreldata pci_root_bus;
 struct pci_ops *__nongpreldata pci_root_ops;
 
 /*
@@ -221,37 +219,6 @@ static struct pci_ops * __init pci_check_direct(void)
 }
 
 /*
- * Discover remaining PCI buses in case there are peer host bridges.
- * We use the number of last PCI bus provided by the PCI BIOS.
- */
-static void __init pcibios_fixup_peer_bridges(void)
-{
-	struct pci_bus bus;
-	struct pci_dev dev;
-	int n;
-	u16 l;
-
-	if (pcibios_last_bus <= 0 || pcibios_last_bus >= 0xff)
-		return;
-	printk("PCI: Peer bridge fixup\n");
-	for (n=0; n <= pcibios_last_bus; n++) {
-		if (pci_find_bus(0, n))
-			continue;
-		bus.number = n;
-		bus.ops = pci_root_ops;
-		dev.bus = &bus;
-		for(dev.devfn=0; dev.devfn<256; dev.devfn += 8)
-			if (!pci_read_config_word(&dev, PCI_VENDOR_ID, &l) &&
-			    l != 0x0000 && l != 0xffff) {
-				printk("Found device at %02x:%02x [%04x]\n", n, dev.devfn, l);
-				printk("PCI: Discovered peer bus %02x\n", n);
-				pci_scan_bus(n, pci_root_ops, NULL);
-				break;
-			}
-	}
-}
-
-/*
  * Exceptions for specific devices. Usually work-arounds for fatal design flaws.
  */
 
@@ -268,7 +235,7 @@ static void __init pci_fixup_umc_ide(struct pci_dev *d)
 		d->resource[i].flags |= PCI_BASE_ADDRESS_SPACE_IO;
 }
 
-static void __init pci_fixup_ide_bases(struct pci_dev *d)
+static void pci_fixup_ide_bases(struct pci_dev *d)
 {
 	int i;
 
@@ -287,7 +254,7 @@ static void __init pci_fixup_ide_bases(struct pci_dev *d)
 	}
 }
 
-static void __init pci_fixup_ide_trash(struct pci_dev *d)
+static void pci_fixup_ide_trash(struct pci_dev *d)
 {
 	int i;
 
@@ -300,7 +267,7 @@ static void __init pci_fixup_ide_trash(struct pci_dev *d)
 		d->resource[i].start = d->resource[i].end = d->resource[i].flags = 0;
 }
 
-static void __devinit  pci_fixup_latency(struct pci_dev *d)
+static void pci_fixup_latency(struct pci_dev *d)
 {
 	/*
 	 *  SiS 5597 and 5598 chipsets require latency timer set to
@@ -321,7 +288,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_ide_bases);
  *  are examined.
  */
 
-void __init pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 #if 0
 	printk("### PCIBIOS_FIXUP_BUS(%d)\n",bus->number);
@@ -330,10 +297,8 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 	pci_read_bridge_bases(bus);
 
 	if (bus->number == 0) {
-		struct list_head *ln;
 		struct pci_dev *dev;
-		for (ln=bus->devices.next; ln != &bus->devices; ln=ln->next) {
-			dev = pci_dev_b(ln);
+		list_for_each_entry(dev, &bus->devices, bus_list) {
 			if (dev->devfn == 0) {
 				dev->resource[0].start = 0;
 				dev->resource[0].end = 0;
@@ -418,11 +383,9 @@ int __init pcibios_init(void)
 	printk("PCI: Probing PCI hardware\n");
 	pci_add_resource(&resources, &pci_ioport_resource);
 	pci_add_resource(&resources, &pci_iomem_resource);
-	pci_root_bus = pci_scan_root_bus(NULL, 0, pci_root_ops, NULL,
-					 &resources);
+	pci_scan_root_bus(NULL, 0, pci_root_ops, NULL, &resources);
 
 	pcibios_irq_init();
-	pcibios_fixup_peer_bridges();
 	pcibios_fixup_irqs();
 	pcibios_resource_survey();
 
@@ -435,9 +398,6 @@ char * __init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		pci_probe = 0;
-		return NULL;
-	} else if (!strncmp(str, "lastbus=", 8)) {
-		pcibios_last_bus = simple_strtol(str+8, NULL, 0);
 		return NULL;
 	}
 	return str;

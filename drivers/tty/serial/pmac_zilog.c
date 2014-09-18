@@ -57,6 +57,8 @@
 #include <linux/bitops.h>
 #include <linux/sysrq.h>
 #include <linux/mutex.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <asm/sections.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -227,19 +229,19 @@ static void pmz_interrupt_control(struct uart_pmac_port *uap, int enable)
 	write_zsreg(uap, R1, uap->curregs[1]);
 }
 
-static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
+static bool pmz_receive_chars(struct uart_pmac_port *uap)
 {
-	struct tty_struct *tty = NULL;
+	struct tty_port *port;
 	unsigned char ch, r1, drop, error, flag;
 	int loops = 0;
 
 	/* Sanity check, make sure the old bug is no longer happening */
-	if (uap->port.state == NULL || uap->port.state->port.tty == NULL) {
+	if (uap->port.state == NULL) {
 		WARN_ON(1);
 		(void)read_zsdata(uap);
-		return NULL;
+		return false;
 	}
-	tty = uap->port.state->port.tty;
+	port = &uap->port.state->port;
 
 	while (1) {
 		error = 0;
@@ -309,10 +311,10 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 
 		if (uap->port.ignore_status_mask == 0xff ||
 		    (r1 & uap->port.ignore_status_mask) == 0) {
-			tty_insert_flip_char(tty, ch, flag);
+			tty_insert_flip_char(port, ch, flag);
 		}
 		if (r1 & Rx_OVR)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(port, 0, TTY_OVERRUN);
 	next_char:
 		/* We can get stuck in an infinite loop getting char 0 when the
 		 * line is in a wrong HW state, we break that here.
@@ -328,11 +330,11 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 			break;
 	}
 
-	return tty;
+	return true;
  flood:
 	pmz_interrupt_control(uap, 0);
 	pmz_error("pmz: rx irq flood !\n");
-	return tty;
+	return true;
 }
 
 static void pmz_status_handle(struct uart_pmac_port *uap)
@@ -453,7 +455,7 @@ static irqreturn_t pmz_interrupt(int irq, void *dev_id)
 	struct uart_pmac_port *uap_a;
 	struct uart_pmac_port *uap_b;
 	int rc = IRQ_NONE;
-	struct tty_struct *tty;
+	bool push;
 	u8 r3;
 
 	uap_a = pmz_get_port_A(uap);
@@ -466,10 +468,10 @@ static irqreturn_t pmz_interrupt(int irq, void *dev_id)
 	pmz_debug("irq, r3: %x\n", r3);
 #endif
 	/* Channel A */
-	tty = NULL;
+	push = false;
 	if (r3 & (CHAEXT | CHATxIP | CHARxIP)) {
 		if (!ZS_IS_OPEN(uap_a)) {
-			pmz_debug("ChanA interrupt while open !\n");
+			pmz_debug("ChanA interrupt while not open !\n");
 			goto skip_a;
 		}
 		write_zsreg(uap_a, R0, RES_H_IUS);
@@ -477,24 +479,24 @@ static irqreturn_t pmz_interrupt(int irq, void *dev_id)
 		if (r3 & CHAEXT)
 			pmz_status_handle(uap_a);
 		if (r3 & CHARxIP)
-			tty = pmz_receive_chars(uap_a);
+			push = pmz_receive_chars(uap_a);
 		if (r3 & CHATxIP)
 			pmz_transmit_chars(uap_a);
 		rc = IRQ_HANDLED;
 	}
  skip_a:
 	spin_unlock(&uap_a->port.lock);
-	if (tty != NULL)
-		tty_flip_buffer_push(tty);
+	if (push)
+		tty_flip_buffer_push(&uap->port.state->port);
 
 	if (!uap_b)
 		goto out;
 
 	spin_lock(&uap_b->port.lock);
-	tty = NULL;
+	push = false;
 	if (r3 & (CHBEXT | CHBTxIP | CHBRxIP)) {
-		if (!ZS_IS_OPEN(uap_a)) {
-			pmz_debug("ChanB interrupt while open !\n");
+		if (!ZS_IS_OPEN(uap_b)) {
+			pmz_debug("ChanB interrupt while not open !\n");
 			goto skip_b;
 		}
 		write_zsreg(uap_b, R0, RES_H_IUS);
@@ -502,15 +504,15 @@ static irqreturn_t pmz_interrupt(int irq, void *dev_id)
 		if (r3 & CHBEXT)
 			pmz_status_handle(uap_b);
 		if (r3 & CHBRxIP)
-			tty = pmz_receive_chars(uap_b);
+			push = pmz_receive_chars(uap_b);
 		if (r3 & CHBTxIP)
 			pmz_transmit_chars(uap_b);
 		rc = IRQ_HANDLED;
 	}
  skip_b:
 	spin_unlock(&uap_b->port.lock);
-	if (tty != NULL)
-		tty_flip_buffer_push(tty);
+	if (push)
+		tty_flip_buffer_push(&uap->port.state->port);
 
  out:
 	return rc;
@@ -651,6 +653,8 @@ static void pmz_start_tx(struct uart_port *port)
 	} else {
 		struct circ_buf *xmit = &port->state->xmit;
 
+		if (uart_circ_empty(xmit))
+			goto out;
 		write_zsdata(uap, xmit->buf[xmit->tail]);
 		zssync(uap);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
@@ -659,6 +663,7 @@ static void pmz_start_tx(struct uart_port *port)
 		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 			uart_write_wakeup(&uap->port);
 	}
+ out:
 	pmz_debug("pmz: start_tx() done.\n");
 }
 
@@ -1072,7 +1077,7 @@ static void pmz_convert_to_zs(struct uart_pmac_port *uap, unsigned int cflag,
 		uap->curregs[5] |= Tx8;
 		uap->parity_mask = 0xff;
 		break;
-	};
+	}
 	uap->curregs[4] &= ~(SB_MASK);
 	if (cflag & CSTOPB)
 		uap->curregs[4] |= SB2;
@@ -1090,7 +1095,7 @@ static void pmz_convert_to_zs(struct uart_pmac_port *uap, unsigned int cflag,
 	uap->port.read_status_mask = Rx_OVR;
 	if (iflag & INPCK)
 		uap->port.read_status_mask |= CRC_ERR | PAR_ERR;
-	if (iflag & (BRKINT | PARMRK))
+	if (iflag & (IGNBRK | BRKINT | PARMRK))
 		uap->port.read_status_mask |= BRK_ABRT;
 
 	uap->port.ignore_status_mask = 0;
@@ -1348,10 +1353,16 @@ static int pmz_verify_port(struct uart_port *port, struct serial_struct *ser)
 static int pmz_poll_get_char(struct uart_port *port)
 {
 	struct uart_pmac_port *uap = (struct uart_pmac_port *)port;
+	int tries = 2;
 
-	while ((read_zsreg(uap, R0) & Rx_CH_AV) == 0)
-		udelay(5);
-	return read_zsdata(uap);
+	while (tries) {
+		if ((read_zsreg(uap, R0) & Rx_CH_AV) != 0)
+			return read_zsdata(uap);
+		if (tries--)
+			udelay(5);
+	}
+
+	return NO_POLL_CHAR;
 }
 
 static void pmz_poll_put_char(struct uart_port *port, unsigned char c)
@@ -1642,8 +1653,7 @@ static int __init pmz_probe(void)
 	/*
 	 * Find all escc chips in the system
 	 */
-	node_p = of_find_node_by_name(NULL, "escc");
-	while (node_p) {
+	for_each_node_by_name(node_p, "escc") {
 		/*
 		 * First get channel A/B node pointers
 		 * 
@@ -1661,7 +1671,7 @@ static int __init pmz_probe(void)
 			of_node_put(node_b);
 			printk(KERN_ERR "pmac_zilog: missing node %c for escc %s\n",
 				(!node_a) ? 'a' : 'b', node_p->full_name);
-			goto next;
+			continue;
 		}
 
 		/*
@@ -1688,11 +1698,9 @@ static int __init pmz_probe(void)
 			of_node_put(node_b);
 			memset(&pmz_ports[count], 0, sizeof(struct uart_pmac_port));
 			memset(&pmz_ports[count+1], 0, sizeof(struct uart_pmac_port));
-			goto next;
+			continue;
 		}
 		count += 2;
-next:
-		node_p = of_find_node_by_name(node_p, "escc");
 	}
 	pmz_ports_count = count;
 
@@ -1792,7 +1800,6 @@ static int __exit pmz_detach(struct platform_device *pdev)
 
 	uart_remove_one_port(&pmz_uart_reg, &uap->port);
 
-	platform_set_drvdata(pdev, NULL);
 	uap->port.dev = NULL;
 
 	return 0;
@@ -2044,6 +2051,9 @@ static int __init pmz_console_init(void)
 {
 	/* Probe ports */
 	pmz_probe();
+
+	if (pmz_ports_count == 0)
+		return -ENODEV;
 
 	/* TODO: Autoprobe console based on OF */
 	/* pmz_console.index = i; */

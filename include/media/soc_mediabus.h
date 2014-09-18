@@ -26,6 +26,8 @@
  * @SOC_MBUS_PACKING_VARIABLE:	compressed formats with variable packing
  * @SOC_MBUS_PACKING_1_5X8:	used for packed YUV 4:2:0 formats, where 4
  *				pixels occupy 6 bytes in RAM
+ * @SOC_MBUS_PACKING_EXTEND32:	sample width (e.g., 24 bits) has to be extended
+ *				to 32 bits
  */
 enum soc_mbus_packing {
 	SOC_MBUS_PACKING_NONE,
@@ -34,6 +36,7 @@ enum soc_mbus_packing {
 	SOC_MBUS_PACKING_EXTEND16,
 	SOC_MBUS_PACKING_VARIABLE,
 	SOC_MBUS_PACKING_1_5X8,
+	SOC_MBUS_PACKING_EXTEND32,
 };
 
 /**
@@ -44,6 +47,24 @@ enum soc_mbus_packing {
 enum soc_mbus_order {
 	SOC_MBUS_ORDER_LE,
 	SOC_MBUS_ORDER_BE,
+};
+
+/**
+ * enum soc_mbus_layout - planes layout in memory
+ * @SOC_MBUS_LAYOUT_PACKED:		color components packed
+ * @SOC_MBUS_LAYOUT_PLANAR_2Y_U_V:	YUV components stored in 3 planes (4:2:2)
+ * @SOC_MBUS_LAYOUT_PLANAR_2Y_C:	YUV components stored in a luma and a
+ *					chroma plane (C plane is half the size
+ *					of Y plane)
+ * @SOC_MBUS_LAYOUT_PLANAR_Y_C:		YUV components stored in a luma and a
+ *					chroma plane (C plane is the same size
+ *					as Y plane)
+ */
+enum soc_mbus_layout {
+	SOC_MBUS_LAYOUT_PACKED = 0,
+	SOC_MBUS_LAYOUT_PLANAR_2Y_U_V,
+	SOC_MBUS_LAYOUT_PLANAR_2Y_C,
+	SOC_MBUS_LAYOUT_PLANAR_Y_C,
 };
 
 /**
@@ -60,6 +81,7 @@ struct soc_mbus_pixelfmt {
 	u32			fourcc;
 	enum soc_mbus_packing	packing;
 	enum soc_mbus_order	order;
+	enum soc_mbus_layout	layout;
 	u8			bits_per_sample;
 };
 
@@ -80,6 +102,8 @@ const struct soc_mbus_pixelfmt *soc_mbus_find_fmtdesc(
 const struct soc_mbus_pixelfmt *soc_mbus_get_fmtdesc(
 	enum v4l2_mbus_pixelcode code);
 s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf);
+s32 soc_mbus_image_size(const struct soc_mbus_pixelfmt *mf,
+			u32 bytes_per_line, u32 height);
 int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf,
 			unsigned int *numerator, unsigned int *denominator);
 unsigned int soc_mbus_config_compatible(const struct v4l2_mbus_config *cfg,

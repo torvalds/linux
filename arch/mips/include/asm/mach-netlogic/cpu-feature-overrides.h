@@ -26,6 +26,7 @@
 #define cpu_has_vtag_icache	0
 #define cpu_has_ic_fills_f_dc	1
 #define cpu_has_dsp		0
+#define cpu_has_dsp2		0
 #define cpu_has_mipsmt		0
 #define cpu_icache_snoops_remote_store	1
 
@@ -48,7 +49,6 @@
 #define cpu_has_userlocal	1
 #define cpu_has_mips32r2	1
 #define cpu_has_mips64r2	1
-#define cpu_has_dc_aliases	1
 #else
 #error "Unknown Netlogic CPU"
 #endif

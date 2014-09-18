@@ -97,8 +97,6 @@ static int sch_gpio_core_direction_out(struct gpio_chip *gc,
 	u8 curr_dirs;
 	unsigned short offset, bit;
 
-	sch_gpio_core_set(gc, gpio_num, val);
-
 	spin_lock(&gpio_lock);
 
 	offset = CGIO + gpio_num / 8;
@@ -109,6 +107,17 @@ static int sch_gpio_core_direction_out(struct gpio_chip *gc,
 		outb(curr_dirs & ~(1 << bit), gpio_ba + offset);
 
 	spin_unlock(&gpio_lock);
+
+	/*
+	 * according to the datasheet, writing to the level register has no
+	 * effect when GPIO is programmed as input.
+	 * Actually the the level register is read-only when configured as input.
+	 * Thus presetting the output level before switching to output is _NOT_ possible.
+	 * Hence we set the level after configuring the GPIO as output.
+	 * But we cannot prevent a short low pulse if direction is set to high
+	 * and an external pull-up is connected.
+	 */
+	sch_gpio_core_set(gc, gpio_num, val);
 	return 0;
 }
 
@@ -125,13 +134,17 @@ static int sch_gpio_resume_direction_in(struct gpio_chip *gc,
 					unsigned gpio_num)
 {
 	u8 curr_dirs;
+	unsigned short offset, bit;
 
 	spin_lock(&gpio_lock);
 
-	curr_dirs = inb(gpio_ba + RGIO);
+	offset = RGIO + gpio_num / 8;
+	bit = gpio_num % 8;
 
-	if (!(curr_dirs & (1 << gpio_num)))
-		outb(curr_dirs | (1 << gpio_num) , gpio_ba + RGIO);
+	curr_dirs = inb(gpio_ba + offset);
+
+	if (!(curr_dirs & (1 << bit)))
+		outb(curr_dirs | (1 << bit), gpio_ba + offset);
 
 	spin_unlock(&gpio_lock);
 	return 0;
@@ -139,22 +152,31 @@ static int sch_gpio_resume_direction_in(struct gpio_chip *gc,
 
 static int sch_gpio_resume_get(struct gpio_chip *gc, unsigned gpio_num)
 {
-	return !!(inb(gpio_ba + RGLV) & (1 << gpio_num));
+	unsigned short offset, bit;
+
+	offset = RGLV + gpio_num / 8;
+	bit = gpio_num % 8;
+
+	return !!(inb(gpio_ba + offset) & (1 << bit));
 }
 
 static void sch_gpio_resume_set(struct gpio_chip *gc,
 				unsigned gpio_num, int val)
 {
 	u8 curr_vals;
+	unsigned short offset, bit;
 
 	spin_lock(&gpio_lock);
 
-	curr_vals = inb(gpio_ba + RGLV);
+	offset = RGLV + gpio_num / 8;
+	bit = gpio_num % 8;
+
+	curr_vals = inb(gpio_ba + offset);
 
 	if (val)
-		outb(curr_vals | (1 << gpio_num), gpio_ba + RGLV);
+		outb(curr_vals | (1 << bit), gpio_ba + offset);
 	else
-		outb((curr_vals & ~(1 << gpio_num)), gpio_ba + RGLV);
+		outb((curr_vals & ~(1 << bit)), gpio_ba + offset);
 
 	spin_unlock(&gpio_lock);
 }
@@ -163,16 +185,29 @@ static int sch_gpio_resume_direction_out(struct gpio_chip *gc,
 					unsigned gpio_num, int val)
 {
 	u8 curr_dirs;
+	unsigned short offset, bit;
 
-	sch_gpio_resume_set(gc, gpio_num, val);
+	offset = RGIO + gpio_num / 8;
+	bit = gpio_num % 8;
 
 	spin_lock(&gpio_lock);
 
-	curr_dirs = inb(gpio_ba + RGIO);
-	if (curr_dirs & (1 << gpio_num))
-		outb(curr_dirs & ~(1 << gpio_num), gpio_ba + RGIO);
+	curr_dirs = inb(gpio_ba + offset);
+	if (curr_dirs & (1 << bit))
+		outb(curr_dirs & ~(1 << bit), gpio_ba + offset);
 
 	spin_unlock(&gpio_lock);
+
+	/*
+	* according to the datasheet, writing to the level register has no
+	* effect when GPIO is programmed as input.
+	* Actually the the level register is read-only when configured as input.
+	* Thus presetting the output level before switching to output is _NOT_ possible.
+	* Hence we set the level after configuring the GPIO as output.
+	* But we cannot prevent a short low pulse if direction is set to high
+	* and an external pull-up is connected.
+	*/
+	sch_gpio_resume_set(gc, gpio_num, val);
 	return 0;
 }
 
@@ -185,7 +220,7 @@ static struct gpio_chip sch_gpio_resume = {
 	.set			= sch_gpio_resume_set,
 };
 
-static int __devinit sch_gpio_probe(struct platform_device *pdev)
+static int sch_gpio_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int err, id;
@@ -204,36 +239,41 @@ static int __devinit sch_gpio_probe(struct platform_device *pdev)
 	gpio_ba = res->start;
 
 	switch (id) {
-		case PCI_DEVICE_ID_INTEL_SCH_LPC:
-			sch_gpio_core.base = 0;
-			sch_gpio_core.ngpio = 10;
+	case PCI_DEVICE_ID_INTEL_SCH_LPC:
+		sch_gpio_core.base = 0;
+		sch_gpio_core.ngpio = 10;
+		sch_gpio_resume.base = 10;
+		sch_gpio_resume.ngpio = 4;
+		/*
+		 * GPIO[6:0] enabled by default
+		 * GPIO7 is configured by the CMC as SLPIOVR
+		 * Enable GPIO[9:8] core powered gpios explicitly
+		 */
+		outb(0x3, gpio_ba + CGEN + 1);
+		/*
+		 * SUS_GPIO[2:0] enabled by default
+		 * Enable SUS_GPIO3 resume powered gpio explicitly
+		 */
+		outb(0x8, gpio_ba + RGEN);
+		break;
 
-			sch_gpio_resume.base = 10;
-			sch_gpio_resume.ngpio = 4;
+	case PCI_DEVICE_ID_INTEL_ITC_LPC:
+		sch_gpio_core.base = 0;
+		sch_gpio_core.ngpio = 5;
+		sch_gpio_resume.base = 5;
+		sch_gpio_resume.ngpio = 9;
+		break;
 
-			/*
-			 * GPIO[6:0] enabled by default
-			 * GPIO7 is configured by the CMC as SLPIOVR
-			 * Enable GPIO[9:8] core powered gpios explicitly
-			 */
-			outb(0x3, gpio_ba + CGEN + 1);
-			/*
-			 * SUS_GPIO[2:0] enabled by default
-			 * Enable SUS_GPIO3 resume powered gpio explicitly
-			 */
-			outb(0x8, gpio_ba + RGEN);
-			break;
+	case PCI_DEVICE_ID_INTEL_CENTERTON_ILB:
+		sch_gpio_core.base = 0;
+		sch_gpio_core.ngpio = 21;
+		sch_gpio_resume.base = 21;
+		sch_gpio_resume.ngpio = 9;
+		break;
 
-		case PCI_DEVICE_ID_INTEL_ITC_LPC:
-			sch_gpio_core.base = 0;
-			sch_gpio_core.ngpio = 5;
-
-			sch_gpio_resume.base = 5;
-			sch_gpio_resume.ngpio = 9;
-			break;
-
-		default:
-			return -ENODEV;
+	default:
+		err = -ENODEV;
+		goto err_sch_gpio_core;
 	}
 
 	sch_gpio_core.dev = &pdev->dev;
@@ -250,10 +290,7 @@ static int __devinit sch_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 err_sch_gpio_resume:
-	err = gpiochip_remove(&sch_gpio_core);
-	if (err)
-		dev_err(&pdev->dev, "%s failed, %d\n",
-				"gpiochip_remove()", err);
+	gpiochip_remove(&sch_gpio_core);
 
 err_sch_gpio_core:
 	release_region(res->start, resource_size(res));
@@ -262,27 +299,18 @@ err_sch_gpio_core:
 	return err;
 }
 
-static int __devexit sch_gpio_remove(struct platform_device *pdev)
+static int sch_gpio_remove(struct platform_device *pdev)
 {
 	struct resource *res;
 	if (gpio_ba) {
-		int err;
 
-		err  = gpiochip_remove(&sch_gpio_core);
-		if (err)
-			dev_err(&pdev->dev, "%s failed, %d\n",
-				"gpiochip_remove()", err);
-		err = gpiochip_remove(&sch_gpio_resume);
-		if (err)
-			dev_err(&pdev->dev, "%s failed, %d\n",
-				"gpiochip_remove()", err);
+		gpiochip_remove(&sch_gpio_core);
+		gpiochip_remove(&sch_gpio_resume);
 
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 
 		release_region(res->start, resource_size(res));
 		gpio_ba = 0;
-
-		return err;
 	}
 
 	return 0;
@@ -294,7 +322,7 @@ static struct platform_driver sch_gpio_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= sch_gpio_probe,
-	.remove		= __devexit_p(sch_gpio_remove),
+	.remove		= sch_gpio_remove,
 };
 
 module_platform_driver(sch_gpio_driver);

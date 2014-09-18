@@ -19,12 +19,12 @@
 
 #undef DEBUG
 
+#include <linux/memblock.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
-#include <asm/abs_addr.h>
 #include <asm/firmware.h>
 
 #define IOBMAP_PAGE_SHIFT	12
@@ -99,7 +99,7 @@ static int iobmap_build(struct iommu_table *tbl, long index,
 	ip = ((u32 *)tbl->it_base) + index;
 
 	while (npages--) {
-		rpn = virt_to_abs(uaddr) >> IOBMAP_PAGE_SHIFT;
+		rpn = __pa(uaddr) >> IOBMAP_PAGE_SHIFT;
 
 		*(ip++) = IOBMAP_L2E_V | rpn;
 		/* invalidate tlb, can be optimized more */
@@ -138,8 +138,11 @@ static void iommu_table_iobmap_setup(void)
 	pr_debug(" -> %s\n", __func__);
 	iommu_table_iobmap.it_busno = 0;
 	iommu_table_iobmap.it_offset = 0;
+	iommu_table_iobmap.it_page_shift = IOBMAP_PAGE_SHIFT;
+
 	/* it_size is in number of entries */
-	iommu_table_iobmap.it_size = 0x80000000 >> IOBMAP_PAGE_SHIFT;
+	iommu_table_iobmap.it_size =
+		0x80000000 >> iommu_table_iobmap.it_page_shift;
 
 	/* Initialize the common IOMMU code */
 	iommu_table_iobmap.it_base = (unsigned long)iob_l2_base;
@@ -258,7 +261,7 @@ void __init alloc_iobmap_l2(void)
 	return;
 #endif
 	/* For 2G space, 8x64 pages (2^21 bytes) is max total l2 size */
-	iob_l2_base = (u32 *)abs_to_virt(memblock_alloc_base(1UL<<21, 1UL<<21, 0x80000000));
+	iob_l2_base = (u32 *)__va(memblock_alloc_base(1UL<<21, 1UL<<21, 0x80000000));
 
 	printk(KERN_INFO "IOBMAP L2 allocated at: %p\n", iob_l2_base);
 }

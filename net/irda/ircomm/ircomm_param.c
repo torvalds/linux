@@ -22,9 +22,7 @@
  *     GNU General Public License for more details.
  *
  *     You should have received a copy of the GNU General Public License
- *     along with this program; if not, write to the Free Software
- *     Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- *     MA 02111-1307 USA
+ *     along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  ********************************************************************/
 
@@ -99,7 +97,6 @@ pi_param_info_t ircomm_param_info = { pi_major_call_table, 3, 0x0f, 4 };
  */
 int ircomm_param_request(struct ircomm_tty_cb *self, __u8 pi, int flush)
 {
-	struct tty_struct *tty;
 	unsigned long flags;
 	struct sk_buff *skb;
 	int count;
@@ -108,10 +105,6 @@ int ircomm_param_request(struct ircomm_tty_cb *self, __u8 pi, int flush)
 
 	IRDA_ASSERT(self != NULL, return -1;);
 	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
-
-	tty = self->tty;
-	if (!tty)
-		return 0;
 
 	/* Make sure we don't send parameters for raw mode */
 	if (self->service_type == IRCOMM_3_WIRE_RAW)

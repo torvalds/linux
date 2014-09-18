@@ -11,9 +11,9 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 			  unsigned long fd, unsigned long pgoff);
 
 #ifdef CONFIG_SUPERH32
-# include "syscalls_32.h"
+# include <asm/syscalls_32.h>
 #else
-# include "syscalls_64.h"
+# include <asm/syscalls_64.h>
 #endif
 
 #endif /* __KERNEL__ */

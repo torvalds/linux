@@ -30,6 +30,7 @@
 #include <linux/kthread.h>
 #include <linux/time.h>
 #include <linux/random.h>
+#include <linux/delay.h>
 
 #include <cluster/masklog.h>
 
@@ -355,11 +356,14 @@ handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 	if (journal_current_handle())
 		return jbd2_journal_start(journal, max_buffs);
 
+	sb_start_intwrite(osb->sb);
+
 	down_read(&osb->journal->j_trans_barrier);
 
 	handle = jbd2_journal_start(journal, max_buffs);
 	if (IS_ERR(handle)) {
 		up_read(&osb->journal->j_trans_barrier);
+		sb_end_intwrite(osb->sb);
 
 		mlog_errno(PTR_ERR(handle));
 
@@ -388,8 +392,10 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
 	if (ret < 0)
 		mlog_errno(ret);
 
-	if (!nested)
+	if (!nested) {
 		up_read(&journal->j_trans_barrier);
+		sb_end_intwrite(osb->sb);
+	}
 
 	return ret;
 }
@@ -449,6 +455,41 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 bail:
 	return status;
 }
+
+/*
+ * If we have fewer than thresh credits, extend by OCFS2_MAX_TRANS_DATA.
+ * If that fails, restart the transaction & regain write access for the
+ * buffer head which is used for metadata modifications.
+ * Taken from Ext4: extend_or_restart_transaction()
+ */
+int ocfs2_allocate_extend_trans(handle_t *handle, int thresh)
+{
+	int status, old_nblks;
+
+	BUG_ON(!handle);
+
+	old_nblks = handle->h_buffer_credits;
+	trace_ocfs2_allocate_extend_trans(old_nblks, thresh);
+
+	if (old_nblks < thresh)
+		return 0;
+
+	status = jbd2_journal_extend(handle, OCFS2_MAX_TRANS_DATA);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	if (status > 0) {
+		status = jbd2_journal_restart(handle, OCFS2_MAX_TRANS_DATA);
+		if (status < 0)
+			mlog_errno(status);
+	}
+
+bail:
+	return status;
+}
+
 
 struct ocfs2_triggers {
 	struct jbd2_buffer_trigger_type	ot_triggers;
@@ -796,14 +837,14 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	inode_lock = 1;
 	di = (struct ocfs2_dinode *)bh->b_data;
 
-	if (inode->i_size <  OCFS2_MIN_JOURNAL_SIZE) {
+	if (i_size_read(inode) <  OCFS2_MIN_JOURNAL_SIZE) {
 		mlog(ML_ERROR, "Journal file size (%lld) is too small!\n",
-		     inode->i_size);
+		     i_size_read(inode));
 		status = -EINVAL;
 		goto done;
 	}
 
-	trace_ocfs2_journal_init(inode->i_size,
+	trace_ocfs2_journal_init(i_size_read(inode),
 				 (unsigned long long)inode->i_blocks,
 				 OCFS2_I(inode)->ip_clusters);
 
@@ -1091,7 +1132,7 @@ static int ocfs2_force_read_journal(struct inode *inode)
 
 	memset(bhs, 0, sizeof(struct buffer_head *) * CONCURRENT_JOURNAL_FILL);
 
-	num_blocks = ocfs2_blocks_for_bytes(inode->i_sb, inode->i_size);
+	num_blocks = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
 	v_blkno = 0;
 	while (v_blkno < num_blocks) {
 		status = ocfs2_extent_map_get_blocks(inode, v_blkno,
@@ -1229,11 +1270,8 @@ static void ocfs2_queue_recovery_completion(struct ocfs2_journal *journal,
 		/* Though we wish to avoid it, we are in fact safe in
 		 * skipping local alloc cleanup as fsck.ocfs2 is more
 		 * than capable of reclaiming unused space. */
-		if (la_dinode)
-			kfree(la_dinode);
-
-		if (tl_dinode)
-			kfree(tl_dinode);
+		kfree(la_dinode);
+		kfree(tl_dinode);
 
 		if (qrec)
 			ocfs2_free_quota_recovery(qrec);
@@ -1403,8 +1441,7 @@ bail:
 
 	mutex_unlock(&osb->recovery_lock);
 
-	if (rm_quota)
-		kfree(rm_quota);
+	kfree(rm_quota);
 
 	/* no one is callint kthread_stop() for us so the kthread() api
 	 * requires that we call do_exit().  And it isn't exported, but
@@ -1940,6 +1977,7 @@ void ocfs2_orphan_scan_start(struct ocfs2_super *osb)
 }
 
 struct ocfs2_orphan_filldir_priv {
+	struct dir_context	ctx;
 	struct inode		*head;
 	struct ocfs2_super	*osb;
 };
@@ -1976,11 +2014,11 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 {
 	int status;
 	struct inode *orphan_dir_inode = NULL;
-	struct ocfs2_orphan_filldir_priv priv;
-	loff_t pos = 0;
-
-	priv.osb = osb;
-	priv.head = *head;
+	struct ocfs2_orphan_filldir_priv priv = {
+		.ctx.actor = ocfs2_orphan_filldir,
+		.osb = osb,
+		.head = *head
+	};
 
 	orphan_dir_inode = ocfs2_get_system_file_inode(osb,
 						       ORPHAN_DIR_SYSTEM_INODE,
@@ -1998,8 +2036,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 		goto out;
 	}
 
-	status = ocfs2_dir_foreach(orphan_dir_inode, &pos, &priv,
-				   ocfs2_orphan_filldir);
+	status = ocfs2_dir_foreach(orphan_dir_inode, &priv.ctx);
 	if (status) {
 		mlog_errno(status);
 		goto out_cluster;
@@ -2096,12 +2133,6 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 		iter = oi->ip_next_orphan;
 
 		spin_lock(&oi->ip_lock);
-		/* The remote delete code may have set these on the
-		 * assumption that the other node would wipe them
-		 * successfully.  If they are still in the node's
-		 * orphan dir, we need to reset that state. */
-		oi->ip_flags &= ~(OCFS2_INODE_DELETED|OCFS2_INODE_SKIP_DELETE);
-
 		/* Set the proper information to get us going into
 		 * ocfs2_delete_inode. */
 		oi->ip_flags |= OCFS2_INODE_MAYBE_ORPHANED;
@@ -2155,8 +2186,20 @@ static int ocfs2_commit_thread(void *arg)
 					 || kthread_should_stop());
 
 		status = ocfs2_commit_cache(osb);
-		if (status < 0)
-			mlog_errno(status);
+		if (status < 0) {
+			static unsigned long abort_warn_time;
+
+			/* Warn about this once per minute */
+			if (printk_timed_ratelimit(&abort_warn_time, 60*HZ))
+				mlog(ML_ERROR, "status = %d, journal is "
+						"already aborted.\n", status);
+			/*
+			 * After ocfs2_commit_cache() fails, j_num_trans has a
+			 * non-zero value.  Sleep here to avoid a busy-wait
+			 * loop.
+			 */
+			msleep_interruptible(1000);
+		}
 
 		if (kthread_should_stop() && atomic_read(&journal->j_num_trans)){
 			mlog(ML_KTHREAD,

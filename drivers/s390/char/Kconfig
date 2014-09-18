@@ -11,7 +11,7 @@ config TN3270
 config TN3270_TTY
 	def_tristate y
 	prompt "Support for tty input/output on 3270 terminals"
-	depends on TN3270
+	depends on TN3270 && TTY
 	help
 	  Include support for using an IBM 3270 terminal as a Linux tty.
 
@@ -33,7 +33,7 @@ config TN3270_CONSOLE
 config TN3215
 	def_bool y
 	prompt "Support for 3215 line mode terminal"
-	depends on CCW
+	depends on CCW && TTY
 	help
 	  Include support for IBM 3215 line-mode terminals.
 
@@ -51,7 +51,7 @@ config CCW_CONSOLE
 config SCLP_TTY
 	def_bool y
 	prompt "Support for SCLP line mode terminal"
-	depends on S390
+	depends on S390 && TTY
 	help
 	  Include support for IBM SCLP line-mode terminals.
 
@@ -66,7 +66,7 @@ config SCLP_CONSOLE
 config SCLP_VT220_TTY
 	def_bool y
 	prompt "Support for SCLP VT220-compatible terminal"
-	depends on S390
+	depends on S390 && TTY
 	help
 	  Include support for an IBM SCLP VT220-compatible terminal.
 

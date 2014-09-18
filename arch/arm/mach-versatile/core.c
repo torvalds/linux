@@ -28,19 +28,22 @@
 #include <linux/of_platform.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/platform_data/video-clcd-versatile.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
+#include <linux/irqchip/arm-vic.h>
+#include <linux/irqchip/versatile-fpga.h>
 #include <linux/gfp.h>
 #include <linux/clkdev.h>
 #include <linux/mtd/physmap.h>
+#include <linux/bitops.h>
+#include <linux/reboot.h>
 
 #include <asm/irq.h>
-#include <asm/leds.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/icst.h>
-#include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 
 #include <asm/mach/arch.h>
@@ -51,8 +54,6 @@
 #include <mach/platform.h>
 #include <asm/hardware/timer-sp.h>
 
-#include <plat/clcd.h>
-#include <plat/fpga-irq.h>
 #include <plat/sched_clock.h>
 
 #include "core.h"
@@ -66,22 +67,28 @@
 #define VA_VIC_BASE		__io_address(VERSATILE_VIC_BASE)
 #define VA_SIC_BASE		__io_address(VERSATILE_SIC_BASE)
 
-static struct fpga_irq_data sic_irq = {
-	.base		= VA_SIC_BASE,
-	.irq_start	= IRQ_SIC_START,
-	.chip.name	= "SIC",
-};
-
+/* These PIC IRQs are valid in each configuration */
+#define PIC_VALID_ALL	BIT(SIC_INT_KMI0) | BIT(SIC_INT_KMI1) | \
+			BIT(SIC_INT_SCI3) | BIT(SIC_INT_UART3) | \
+			BIT(SIC_INT_CLCD) | BIT(SIC_INT_TOUCH) | \
+			BIT(SIC_INT_KEYPAD) | BIT(SIC_INT_DoC) | \
+			BIT(SIC_INT_USB) | BIT(SIC_INT_PCI0) | \
+			BIT(SIC_INT_PCI1) | BIT(SIC_INT_PCI2) | \
+			BIT(SIC_INT_PCI3)
 #if 1
 #define IRQ_MMCI0A	IRQ_VICSOURCE22
 #define IRQ_AACI	IRQ_VICSOURCE24
 #define IRQ_ETH		IRQ_VICSOURCE25
 #define PIC_MASK	0xFFD00000
+#define PIC_VALID	PIC_VALID_ALL
 #else
 #define IRQ_MMCI0A	IRQ_SIC_MMCI0A
 #define IRQ_AACI	IRQ_SIC_AACI
 #define IRQ_ETH		IRQ_SIC_ETH
 #define PIC_MASK	0
+#define PIC_VALID	PIC_VALID_ALL | BIT(SIC_INT_MMCI0A) | \
+			BIT(SIC_INT_MMCI1A) | BIT(SIC_INT_AACI) | \
+			BIT(SIC_INT_ETH)
 #endif
 
 /* Lookup table for finding a DT node that represents the vic instance */
@@ -101,12 +108,15 @@ void __init versatile_init_irq(void)
 
 	np = of_find_matching_node_by_address(NULL, vic_of_match,
 					      VERSATILE_VIC_BASE);
-	__vic_init(VA_VIC_BASE, IRQ_VIC_START, ~0, 0, np);
+	__vic_init(VA_VIC_BASE, 0, IRQ_VIC_START, ~0, 0, np);
 
 	writel(~0, VA_SIC_BASE + SIC_IRQ_ENABLE_CLEAR);
 
-	fpga_irq_init(IRQ_VICSOURCE31, ~PIC_MASK, &sic_irq);
-	irq_domain_generate_simple(sic_of_match, VERSATILE_SIC_BASE, IRQ_SIC_START);
+	np = of_find_matching_node_by_address(NULL, sic_of_match,
+					      VERSATILE_SIC_BASE);
+
+	fpga_irq_init(VA_SIC_BASE, "SIC", IRQ_SIC_START,
+		IRQ_VICSOURCE31, PIC_VALID, np);
 
 	/*
 	 * Interrupts on secondary controller from 0 to 8 are routed to
@@ -118,7 +128,7 @@ void __init versatile_init_irq(void)
 	writel(PIC_MASK, VA_SIC_BASE + SIC_INT_PIC_ENABLE);
 }
 
-static struct map_desc versatile_io_desc[] __initdata = {
+static struct map_desc versatile_io_desc[] __initdata __maybe_unused = {
 	{
 		.virtual	=  IO_ADDRESS(VERSATILE_SYS_BASE),
 		.pfn		= __phys_to_pfn(VERSATILE_SYS_BASE),
@@ -173,24 +183,6 @@ static struct map_desc versatile_io_desc[] __initdata = {
 		.length		= VERSATILE_PCI_CFG_BASE_SIZE,
 		.type		= MT_DEVICE
 	},
-#if 0
- 	{
-		.virtual	=  VERSATILE_PCI_VIRT_MEM_BASE0,
-		.pfn		= __phys_to_pfn(VERSATILE_PCI_MEM_BASE0),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	=  VERSATILE_PCI_VIRT_MEM_BASE1,
-		.pfn		= __phys_to_pfn(VERSATILE_PCI_MEM_BASE1),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	=  VERSATILE_PCI_VIRT_MEM_BASE2,
-		.pfn		= __phys_to_pfn(VERSATILE_PCI_MEM_BASE2),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE
-	},
-#endif
 #endif
 };
 
@@ -316,6 +308,21 @@ static struct platform_device char_lcd_device = {
 	.id             =       -1,
 	.num_resources  =       ARRAY_SIZE(char_lcd_resources),
 	.resource       =       char_lcd_resources,
+};
+
+static struct resource leds_resources[] = {
+	{
+		.start	= VERSATILE_SYS_BASE + VERSATILE_SYS_LED_OFFSET,
+		.end	= VERSATILE_SYS_BASE + VERSATILE_SYS_LED_OFFSET + 4,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device leds_device = {
+	.name		= "versatile-leds",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(leds_resources),
+	.resource	= leds_resources,
 };
 
 /*
@@ -578,6 +585,16 @@ static struct pl061_platform_data gpio1_plat_data = {
 	.irq_base	= IRQ_GPIO1_START,
 };
 
+static struct pl061_platform_data gpio2_plat_data = {
+	.gpio_base	= 16,
+	.irq_base	= IRQ_GPIO2_START,
+};
+
+static struct pl061_platform_data gpio3_plat_data = {
+	.gpio_base	= 24,
+	.irq_base	= IRQ_GPIO3_START,
+};
+
 static struct pl022_ssp_controller ssp0_plat_data = {
 	.bus_id = 0,
 	.enable_dma = 0,
@@ -604,6 +621,8 @@ static struct pl022_ssp_controller ssp0_plat_data = {
 #define WATCHDOG_IRQ	{ IRQ_WDOGINT }
 #define GPIO0_IRQ	{ IRQ_GPIOINT0 }
 #define GPIO1_IRQ	{ IRQ_GPIOINT1 }
+#define GPIO2_IRQ	{ IRQ_GPIOINT2 }
+#define GPIO3_IRQ	{ IRQ_GPIOINT3 }
 #define RTC_IRQ		{ IRQ_RTCINT }
 
 /*
@@ -630,6 +649,8 @@ APB_DEVICE(sctl,  "dev:e0",  SCTL,     NULL);
 APB_DEVICE(wdog,  "dev:e1",  WATCHDOG, NULL);
 APB_DEVICE(gpio0, "dev:e4",  GPIO0,    &gpio0_plat_data);
 APB_DEVICE(gpio1, "dev:e5",  GPIO1,    &gpio1_plat_data);
+APB_DEVICE(gpio2, "dev:e6",  GPIO2,    &gpio2_plat_data);
+APB_DEVICE(gpio3, "dev:e7",  GPIO3,    &gpio3_plat_data);
 APB_DEVICE(rtc,   "dev:e8",  RTC,      NULL);
 APB_DEVICE(sci0,  "dev:f0",  SCI,      NULL);
 APB_DEVICE(uart0, "dev:f1",  UART0,    NULL);
@@ -649,6 +670,8 @@ static struct amba_device *amba_devs[] __initdata = {
 	&wdog_device,
 	&gpio0_device,
 	&gpio1_device,
+	&gpio2_device,
+	&gpio3_device,
 	&rtc_device,
 	&sci0_device,
 	&ssp0_device,
@@ -666,17 +689,18 @@ static struct amba_device *amba_devs[] __initdata = {
  * having a specific name.
  */
 struct of_dev_auxdata versatile_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("arm,primecell", VERSATILE_MMCI0_BASE, "fpga:05", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_MMCI0_BASE, "fpga:05", &mmc0_plat_data),
 	OF_DEV_AUXDATA("arm,primecell", VERSATILE_KMI0_BASE, "fpga:06", NULL),
 	OF_DEV_AUXDATA("arm,primecell", VERSATILE_KMI1_BASE, "fpga:07", NULL),
 	OF_DEV_AUXDATA("arm,primecell", VERSATILE_UART3_BASE, "fpga:09", NULL),
+	/* FIXME: this is buggy, the platform data is needed for this MMC instance too */
 	OF_DEV_AUXDATA("arm,primecell", VERSATILE_MMCI1_BASE, "fpga:0b", NULL),
 
 	OF_DEV_AUXDATA("arm,primecell", VERSATILE_CLCD_BASE, "dev:20", &clcd_plat_data),
 	OF_DEV_AUXDATA("arm,primecell", VERSATILE_UART0_BASE, "dev:f1", NULL),
 	OF_DEV_AUXDATA("arm,primecell", VERSATILE_UART1_BASE, "dev:f2", NULL),
 	OF_DEV_AUXDATA("arm,primecell", VERSATILE_UART2_BASE, "dev:f3", NULL),
-	OF_DEV_AUXDATA("arm,primecell", VERSATILE_SSP_BASE, "dev:f4", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_SSP_BASE, "dev:f4", &ssp0_plat_data),
 
 #if 0
 	/*
@@ -741,7 +765,7 @@ static void versatile_leds_event(led_event_t ledevt)
 }
 #endif	/* CONFIG_LEDS */
 
-void versatile_restart(char mode, const char *cmd)
+void versatile_restart(enum reboot_mode mode, const char *cmd)
 {
 	void __iomem *sys = __io_address(VERSATILE_SYS_BASE);
 	u32 val;
@@ -757,12 +781,25 @@ void versatile_restart(char mode, const char *cmd)
 /* Early initializations */
 void __init versatile_init_early(void)
 {
+	u32 val;
 	void __iomem *sys = __io_address(VERSATILE_SYS_BASE);
 
 	osc4_clk.vcoreg	= sys + VERSATILE_SYS_OSCCLCD_OFFSET;
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	versatile_sched_clock_init(sys + VERSATILE_SYS_24MHz_OFFSET, 24000000);
+
+	/*
+	 * set clock frequency:
+	 *	VERSATILE_REFCLK is 32KHz
+	 *	VERSATILE_TIMCLK is 1MHz
+	 */
+	val = readl(__io_address(VERSATILE_SCTL_BASE));
+	writel((VERSATILE_TIMCLK << VERSATILE_TIMER1_EnSel) |
+	       (VERSATILE_TIMCLK << VERSATILE_TIMER2_EnSel) |
+	       (VERSATILE_TIMCLK << VERSATILE_TIMER3_EnSel) |
+	       (VERSATILE_TIMCLK << VERSATILE_TIMER4_EnSel) | val,
+	       __io_address(VERSATILE_SCTL_BASE));
 }
 
 void __init versatile_init(void)
@@ -773,15 +810,12 @@ void __init versatile_init(void)
 	platform_device_register(&versatile_i2c_device);
 	platform_device_register(&smc91x_device);
 	platform_device_register(&char_lcd_device);
+	platform_device_register(&leds_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
 		amba_device_register(d, &iomem_resource);
 	}
-
-#ifdef CONFIG_LEDS
-	leds_event = versatile_leds_event;
-#endif
 }
 
 /*
@@ -795,21 +829,8 @@ void __init versatile_init(void)
 /*
  * Set up timer interrupt, and return the current time in seconds.
  */
-static void __init versatile_timer_init(void)
+void __init versatile_timer_init(void)
 {
-	u32 val;
-
-	/* 
-	 * set clock frequency: 
-	 *	VERSATILE_REFCLK is 32KHz
-	 *	VERSATILE_TIMCLK is 1MHz
-	 */
-	val = readl(__io_address(VERSATILE_SCTL_BASE));
-	writel((VERSATILE_TIMCLK << VERSATILE_TIMER1_EnSel) |
-	       (VERSATILE_TIMCLK << VERSATILE_TIMER2_EnSel) | 
-	       (VERSATILE_TIMCLK << VERSATILE_TIMER3_EnSel) |
-	       (VERSATILE_TIMCLK << VERSATILE_TIMER4_EnSel) | val,
-	       __io_address(VERSATILE_SCTL_BASE));
 
 	/*
 	 * Initialise to a known state (all timers off)
@@ -822,8 +843,3 @@ static void __init versatile_timer_init(void)
 	sp804_clocksource_init(TIMER3_VA_BASE, "timer3");
 	sp804_clockevents_init(TIMER0_VA_BASE, IRQ_TIMERINT0_1, "timer0");
 }
-
-struct sys_timer versatile_timer = {
-	.init		= versatile_timer_init,
-};
-

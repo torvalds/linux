@@ -1,0 +1,35 @@
+/*
+ * Broadcom BCM470X / BCM5301X arm platform code.
+ * DTS for Netgear R6250 V1
+ *
+ * Copyright 2013 Hauke Mehrtens <hauke@hauke-m.de>
+ *
+ * Licensed under the GNU/GPL. See COPYING for details.
+ */
+
+/dts-v1/;
+
+#include "bcm4708.dtsi"
+
+/ {
+	compatible = "netgear,r6250v1", "brcm,bcm4708";
+	model = "Netgear R6250 V1 (BCM4708)";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	memory {
+		reg = <0x00000000 0x08000000>;
+	};
+
+	chipcommonA {
+		uart0: serial@0300 {
+			status = "okay";
+		};
+
+		uart1: serial@0400 {
+			status = "okay";
+		};
+	};
+};

@@ -14,7 +14,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
-#include <linux/reciprocal_div.h>
 #include <linux/vmalloc.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
@@ -76,12 +75,6 @@ struct choke_sched_data {
 
 	struct sk_buff **tab;
 };
-
-/* deliver a random number between 0 and N - 1 */
-static u32 random_N(unsigned int N)
-{
-	return reciprocal_divide(random32(), N);
-}
 
 /* number of elements in queue including holes */
 static unsigned int choke_len(const struct choke_sched_data *q)
@@ -233,7 +226,7 @@ static struct sk_buff *choke_peek_random(const struct choke_sched_data *q,
 	int retrys = 3;
 
 	do {
-		*pidx = (q->head + random_N(choke_len(q))) & q->tab_mask;
+		*pidx = (q->head + prandom_u32_max(choke_len(q))) & q->tab_mask;
 		skb = q->tab[*pidx];
 		if (skb)
 			return skb;
@@ -332,15 +325,13 @@ static int choke_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	q->stats.pdrop++;
-	sch->qstats.drops++;
-	kfree_skb(skb);
-	return NET_XMIT_DROP;
+	return qdisc_drop(skb, sch);
 
- congestion_drop:
+congestion_drop:
 	qdisc_drop(skb, sch);
 	return NET_XMIT_CN;
 
- other_drop:
+other_drop:
 	if (ret & __NET_XMIT_BYPASS)
 		sch->qstats.drops++;
 	kfree_skb(skb);
@@ -400,12 +391,7 @@ static const struct nla_policy choke_policy[TCA_CHOKE_MAX + 1] = {
 
 static void choke_free(void *addr)
 {
-	if (addr) {
-		if (is_vmalloc_addr(addr))
-			vfree(addr);
-		else
-			kfree(addr);
-	}
+	kvfree(addr);
 }
 
 static int choke_change(struct Qdisc *sch, struct nlattr *opt)
@@ -440,7 +426,8 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
 	if (mask != q->tab_mask) {
 		struct sk_buff **ntab;
 
-		ntab = kcalloc(mask + 1, sizeof(struct sk_buff *), GFP_KERNEL);
+		ntab = kcalloc(mask + 1, sizeof(struct sk_buff *),
+			       GFP_KERNEL | __GFP_NOWARN);
 		if (!ntab)
 			ntab = vzalloc((mask + 1) * sizeof(struct sk_buff *));
 		if (!ntab)
@@ -515,8 +502,9 @@ static int choke_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (opts == NULL)
 		goto nla_put_failure;
 
-	NLA_PUT(skb, TCA_CHOKE_PARMS, sizeof(opt), &opt);
-	NLA_PUT_U32(skb, TCA_CHOKE_MAX_P, q->parms.max_P);
+	if (nla_put(skb, TCA_CHOKE_PARMS, sizeof(opt), &opt) ||
+	    nla_put_u32(skb, TCA_CHOKE_MAX_P, q->parms.max_P))
+		goto nla_put_failure;
 	return nla_nest_end(skb, opts);
 
 nla_put_failure:

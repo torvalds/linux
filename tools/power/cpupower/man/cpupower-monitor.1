@@ -7,11 +7,11 @@ cpupower\-monitor \- Report processor frequency and idle statistics
 .RB "\-l"
 
 .B cpupower monitor
-.RB [ "\-m <mon1>," [ "<mon2>,..." ] ]
+.RB [ -c ] [ "\-m <mon1>," [ "<mon2>,..." ] ]
 .RB [ "\-i seconds" ]
 .br
 .B cpupower monitor
-.RB [ "\-m <mon1>," [ "<mon2>,..." ] ]
+.RB [ -c ][ "\-m <mon1>," [ "<mon2>,..." ] ]
 .RB command
 .br
 .SH DESCRIPTION
@@ -64,6 +64,17 @@ Only display specific monitors. Use the monitor string(s) provided by \-l option
 Measure intervall.
 .RE
 .PP
+\-c
+.RS 4
+Schedule the process on every core before starting and ending measuring.
+This could be needed for the Idle_Stats monitor when no other MSR based
+monitor (has to be run on the core that is measured) is run in parallel.
+This is to wake up the processors from deeper sleep states and let the
+kernel re
+-account its cpuidle (C-state) information before reading the
+cpuidle timings from sysfs.
+.RE
+.PP
 command
 .RS 4
 Measure idle and frequency characteristics of an arbitrary command/workload.
@@ -99,13 +110,21 @@ May work poorly on Linux-2.6.20 through 2.6.29, as the \fBacpi-cpufreq \fP
 kernel frequency driver periodically cleared aperf/mperf registers in those
 kernels.
 
-.SS "Nehalem" "SandyBridge"
+.SS "Nehalem" "SandyBridge" "HaswellExtended"
 Intel Core and Package sleep state counters.
 Threads (hyperthreaded cores) may not be able to enter deeper core states if
 its sibling is utilized.
 Deepest package sleep states may in reality show up as machine/platform wide
 sleep states and can only be entered if all cores are idle. Look up Intel
 manuals (some are provided in the References section) for further details.
+The monitors are named after the CPU family where the sleep state capabilities
+got introduced and may not match exactly the CPU name of the platform.
+For example an IvyBridge processor has sleep state capabilities which got
+introduced in Nehalem and SandyBridge processor families.
+Thus on an IvyBridge processor one will get Nehalem and SandyBridge sleep
+state monitors.
+HaswellExtended extra package sleep state capabilities are available only in a
+specific Haswell (family 0x45) and probably also other future processors.
 
 .SS "Fam_12h" "Fam_14h"
 AMD laptop and desktop processor (family 12h and 14h) sleep state counters.

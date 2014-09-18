@@ -61,7 +61,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
@@ -132,7 +131,7 @@
 #define PCI_DEVICE_ID_SGI_ACENIC	0x0009
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(acenic_pci_tbl) = {
+static const struct pci_device_id acenic_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ALTEON, PCI_DEVICE_ID_ALTEON_ACENIC_FIBRE,
 	  PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_NETWORK_ETHERNET << 8, 0xffff00, },
 	{ PCI_VENDOR_ID_ALTEON, PCI_DEVICE_ID_ALTEON_ACENIC_COPPER,
@@ -426,7 +425,7 @@ MODULE_PARM_DESC(max_rx_desc, "AceNIC/3C985/GA620 max number of receive descript
 MODULE_PARM_DESC(tx_ratio, "AceNIC/3C985/GA620 ratio of NIC memory used for TX/RX descriptors (range 0-63)");
 
 
-static const char version[] __devinitconst =
+static const char version[] =
   "acenic.c: v0.92 08/05/2002  Jes Sorensen, linux-acenic@SunSITE.dk\n"
   "                            http://home.cern.ch/~jes/gige/acenic.html\n";
 
@@ -454,8 +453,8 @@ static const struct net_device_ops ace_netdev_ops = {
 	.ndo_change_mtu		= ace_change_mtu,
 };
 
-static int __devinit acenic_probe_one(struct pci_dev *pdev,
-		const struct pci_device_id *id)
+static int acenic_probe_one(struct pci_dev *pdev,
+			    const struct pci_device_id *id)
 {
 	struct net_device *dev;
 	struct ace_private *ap;
@@ -472,12 +471,12 @@ static int __devinit acenic_probe_one(struct pci_dev *pdev,
 	ap->name = pci_name(pdev);
 
 	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 
 	dev->watchdog_timeo = 5*HZ;
 
 	dev->netdev_ops = &ace_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &ace_ethtool_ops);
+	dev->ethtool_ops = &ace_ethtool_ops;
 
 	/* we only display this string ONCE */
 	if (!boards_found)
@@ -603,7 +602,7 @@ static int __devinit acenic_probe_one(struct pci_dev *pdev,
 	return -ENODEV;
 }
 
-static void __devexit acenic_remove_one(struct pci_dev *pdev)
+static void acenic_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct ace_private *ap = netdev_priv(dev);
@@ -699,21 +698,8 @@ static struct pci_driver acenic_pci_driver = {
 	.name		= "acenic",
 	.id_table	= acenic_pci_tbl,
 	.probe		= acenic_probe_one,
-	.remove		= __devexit_p(acenic_remove_one),
+	.remove		= acenic_remove_one,
 };
-
-static int __init acenic_init(void)
-{
-	return pci_register_driver(&acenic_pci_driver);
-}
-
-static void __exit acenic_exit(void)
-{
-	pci_unregister_driver(&acenic_pci_driver);
-}
-
-module_init(acenic_init);
-module_exit(acenic_exit);
 
 static void ace_free_descriptors(struct net_device *dev)
 {
@@ -871,7 +857,7 @@ static inline void ace_issue_cmd(struct ace_regs __iomem *regs, struct cmd *cmd)
 }
 
 
-static int __devinit ace_init(struct net_device *dev)
+static int ace_init(struct net_device *dev)
 {
 	struct ace_private *ap;
 	struct ace_regs __iomem *regs;
@@ -2019,7 +2005,7 @@ static void ace_rx_int(struct net_device *dev, u32 rxretprd, u32 rxretcsm)
 
 		/* send it up */
 		if ((bd_flags & BD_FLG_VLAN_TAG))
-			__vlan_hwaccel_put_tag(skb, retdesc->vlan);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), retdesc->vlan);
 		netif_rx(skb);
 
 		dev->stats.rx_packets++;
@@ -2824,8 +2810,8 @@ static struct net_device_stats *ace_get_stats(struct net_device *dev)
 }
 
 
-static void __devinit ace_copy(struct ace_regs __iomem *regs, const __be32 *src,
-			       u32 dest, int size)
+static void ace_copy(struct ace_regs __iomem *regs, const __be32 *src,
+		     u32 dest, int size)
 {
 	void __iomem *tdest;
 	short tsize, i;
@@ -2851,7 +2837,7 @@ static void __devinit ace_copy(struct ace_regs __iomem *regs, const __be32 *src,
 }
 
 
-static void __devinit ace_clear(struct ace_regs __iomem *regs, u32 dest, int size)
+static void ace_clear(struct ace_regs __iomem *regs, u32 dest, int size)
 {
 	void __iomem *tdest;
 	short tsize = 0, i;
@@ -2882,7 +2868,7 @@ static void __devinit ace_clear(struct ace_regs __iomem *regs, u32 dest, int siz
  * This operation requires the NIC to be halted and is performed with
  * interrupts disabled and with the spinlock hold.
  */
-static int __devinit ace_load_firmware(struct net_device *dev)
+static int ace_load_firmware(struct net_device *dev)
 {
 	const struct firmware *fw;
 	const char *fw_name = "acenic/tg2.bin";
@@ -2962,7 +2948,7 @@ static int __devinit ace_load_firmware(struct net_device *dev)
  * Thanks to Stevarino Webinski for helping tracking down the bugs in the
  * code i2c readout code by beta testing all my hacks.
  */
-static void __devinit eeprom_start(struct ace_regs __iomem *regs)
+static void eeprom_start(struct ace_regs __iomem *regs)
 {
 	u32 local;
 
@@ -2991,7 +2977,7 @@ static void __devinit eeprom_start(struct ace_regs __iomem *regs)
 }
 
 
-static void __devinit eeprom_prep(struct ace_regs __iomem *regs, u8 magic)
+static void eeprom_prep(struct ace_regs __iomem *regs, u8 magic)
 {
 	short i;
 	u32 local;
@@ -3028,7 +3014,7 @@ static void __devinit eeprom_prep(struct ace_regs __iomem *regs, u8 magic)
 }
 
 
-static int __devinit eeprom_check_ack(struct ace_regs __iomem *regs)
+static int eeprom_check_ack(struct ace_regs __iomem *regs)
 {
 	int state;
 	u32 local;
@@ -3056,7 +3042,7 @@ static int __devinit eeprom_check_ack(struct ace_regs __iomem *regs)
 }
 
 
-static void __devinit eeprom_stop(struct ace_regs __iomem *regs)
+static void eeprom_stop(struct ace_regs __iomem *regs)
 {
 	u32 local;
 
@@ -3091,8 +3077,7 @@ static void __devinit eeprom_stop(struct ace_regs __iomem *regs)
 /*
  * Read a whole byte from the EEPROM.
  */
-static int __devinit read_eeprom_byte(struct net_device *dev,
-				   unsigned long offset)
+static int read_eeprom_byte(struct net_device *dev, unsigned long offset)
 {
 	struct ace_private *ap = netdev_priv(dev);
 	struct ace_regs __iomem *regs = ap->regs;
@@ -3200,3 +3185,5 @@ static int __devinit read_eeprom_byte(struct net_device *dev,
 	       ap->name, offset);
 	goto out;
 }
+
+module_pci_driver(acenic_pci_driver);

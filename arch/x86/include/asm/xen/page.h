@@ -44,13 +44,22 @@ extern unsigned long  machine_to_phys_nr;
 
 extern unsigned long get_phys_to_machine(unsigned long pfn);
 extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+extern bool __init early_set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 extern unsigned long set_phys_range_identity(unsigned long pfn_s,
 					     unsigned long pfn_e);
 
+extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
+				   struct gnttab_map_grant_ref *kmap_ops,
+				   struct page **pages, unsigned int count);
 extern int m2p_add_override(unsigned long mfn, struct page *page,
 			    struct gnttab_map_grant_ref *kmap_op);
-extern int m2p_remove_override(struct page *page, bool clear_pte);
+extern int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
+				     struct gnttab_map_grant_ref *kmap_ops,
+				     struct page **pages, unsigned int count);
+extern int m2p_remove_override(struct page *page,
+			       struct gnttab_map_grant_ref *kmap_op,
+			       unsigned long mfn);
 extern struct page *m2p_find_override(unsigned long mfn);
 extern unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn);
 
@@ -77,30 +86,38 @@ static inline int phys_to_machine_mapping_valid(unsigned long pfn)
 	return get_phys_to_machine(pfn) != INVALID_P2M_ENTRY;
 }
 
-static inline unsigned long mfn_to_pfn(unsigned long mfn)
+static inline unsigned long mfn_to_pfn_no_overrides(unsigned long mfn)
 {
 	unsigned long pfn;
-	int ret = 0;
+	int ret;
 
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return mfn;
 
-	if (unlikely(mfn >= machine_to_phys_nr)) {
-		pfn = ~0;
-		goto try_override;
-	}
-	pfn = 0;
+	if (unlikely(mfn >= machine_to_phys_nr))
+		return ~0;
+
 	/*
 	 * The array access can fail (e.g., device space beyond end of RAM).
 	 * In such cases it doesn't matter what we return (we return garbage),
 	 * but we must handle the fault without crashing!
 	 */
 	ret = __get_user(pfn, &machine_to_phys_mapping[mfn]);
-try_override:
-	/* ret might be < 0 if there are no entries in the m2p for mfn */
 	if (ret < 0)
-		pfn = ~0;
-	else if (get_phys_to_machine(pfn) != mfn)
+		return ~0;
+
+	return pfn;
+}
+
+static inline unsigned long mfn_to_pfn(unsigned long mfn)
+{
+	unsigned long pfn;
+
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return mfn;
+
+	pfn = mfn_to_pfn_no_overrides(mfn);
+	if (get_phys_to_machine(pfn) != mfn) {
 		/*
 		 * If this appears to be a foreign mfn (because the pfn
 		 * doesn't map back to the mfn), then check the local override
@@ -109,8 +126,9 @@ try_override:
 		 * m2p_find_override_pfn returns ~0 if it doesn't find anything.
 		 */
 		pfn = m2p_find_override_pfn(mfn, ~0);
+	}
 
-	/* 
+	/*
 	 * pfn is ~0 if there are no entries in the m2p for mfn or if the
 	 * entry doesn't map back to the mfn and m2p_override doesn't have a
 	 * valid entry for it.
@@ -156,7 +174,12 @@ static inline xpaddr_t machine_to_phys(xmaddr_t machine)
  */
 static inline unsigned long mfn_to_local_pfn(unsigned long mfn)
 {
-	unsigned long pfn = mfn_to_pfn(mfn);
+	unsigned long pfn;
+
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return mfn;
+
+	pfn = mfn_to_pfn(mfn);
 	if (get_phys_to_machine(pfn) != mfn)
 		return -1; /* force !pfn_valid() */
 	return pfn;
@@ -209,5 +232,8 @@ xmaddr_t arbitrary_virt_to_machine(void *address);
 unsigned long arbitrary_virt_to_mfn(void *vaddr);
 void make_lowmem_page_readonly(void *vaddr);
 void make_lowmem_page_readwrite(void *vaddr);
+
+#define xen_remap(cookie, size) ioremap((cookie), (size));
+#define xen_unmap(cookie) iounmap((cookie))
 
 #endif /* _ASM_X86_XEN_PAGE_H */

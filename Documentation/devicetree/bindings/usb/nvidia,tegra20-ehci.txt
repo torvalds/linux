@@ -1,0 +1,20 @@
+Tegra SOC USB controllers
+
+The device node for a USB controller that is part of a Tegra
+SOC is as described in the document "Open Firmware Recommended
+Practice : Universal Serial Bus" with the following modifications
+and additions :
+
+Required properties :
+ - compatible : Should be "nvidia,tegra20-ehci".
+ - nvidia,phy : phandle of the PHY that the controller is connected to.
+ - clocks : Must contain one entry, for the module clock.
+   See ../clocks/clock-bindings.txt for details.
+ - resets : Must contain an entry for each entry in reset-names.
+   See ../reset/reset.txt for details.
+ - reset-names : Must include the following entries:
+   - usb
+
+Optional properties:
+ - nvidia,needs-double-reset : boolean is to be set for some of the Tegra20
+   USB ports, which need reset twice due to hardware issues.

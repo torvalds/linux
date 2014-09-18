@@ -64,10 +64,11 @@ struct nf_conntrack_l3proto {
 	size_t nla_size;
 
 #ifdef CONFIG_SYSCTL
-	struct ctl_table_header	*ctl_table_header;
-	struct ctl_path		*ctl_table_path;
-	struct ctl_table	*ctl_table;
+	const char		*ctl_table_path;
 #endif /* CONFIG_SYSCTL */
+
+	/* Init l3proto pernet data */
+	int (*init_net)(struct net *net);
 
 	/* Module (if any) which this is connected to. */
 	struct module *me;
@@ -75,11 +76,17 @@ struct nf_conntrack_l3proto {
 
 extern struct nf_conntrack_l3proto __rcu *nf_ct_l3protos[AF_MAX];
 
-/* Protocol registration. */
-extern int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto);
-extern void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto);
-extern struct nf_conntrack_l3proto *nf_ct_l3proto_find_get(u_int16_t l3proto);
-extern void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p);
+/* Protocol pernet registration. */
+int nf_ct_l3proto_pernet_register(struct net *net,
+				  struct nf_conntrack_l3proto *proto);
+void nf_ct_l3proto_pernet_unregister(struct net *net,
+				     struct nf_conntrack_l3proto *proto);
+
+/* Protocol global registration. */
+int nf_ct_l3proto_register(struct nf_conntrack_l3proto *proto);
+void nf_ct_l3proto_unregister(struct nf_conntrack_l3proto *proto);
+
+struct nf_conntrack_l3proto *nf_ct_l3proto_find_get(u_int16_t l3proto);
 
 /* Existing built-in protocols */
 extern struct nf_conntrack_l3proto nf_conntrack_l3proto_generic;

@@ -21,14 +21,6 @@
 
 #include "psc.h"
 
-#define ALCHEMY_PCM_FMTS					\
-	(SNDRV_PCM_FMTBIT_S8     | SNDRV_PCM_FMTBIT_U8 |	\
-	 SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |	\
-	 SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_U16_BE |	\
-	 SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE |	\
-	 SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_U32_BE |	\
-	 0)
-
 struct pcm_period {
 	u32 start;
 	u32 relative_end;	/* relative to start of buffer */
@@ -171,12 +163,6 @@ static irqreturn_t au1000_dma_interrupt(int irq, void *ptr)
 static const struct snd_pcm_hardware alchemy_pcm_hardware = {
 	.info		  = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 			    SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BATCH,
-	.formats	  = ALCHEMY_PCM_FMTS,
-	.rates		  = SNDRV_PCM_RATE_8000_192000,
-	.rate_min	  = SNDRV_PCM_RATE_8000,
-	.rate_max	  = SNDRV_PCM_RATE_192000,
-	.channels_min	  = 2,
-	.channels_max	  = 2,
 	.period_bytes_min = 1024,
 	.period_bytes_max = 16 * 1024 - 1,
 	.periods_min	  = 4,
@@ -322,7 +308,7 @@ static struct snd_soc_platform_driver alchemy_pcm_soc_platform = {
 	.pcm_free	= alchemy_pcm_free_dma_buffers,
 };
 
-static int __devinit alchemy_pcm_drvprobe(struct platform_device *pdev)
+static int alchemy_pcm_drvprobe(struct platform_device *pdev)
 {
 	struct alchemy_pcm_ctx *ctx;
 
@@ -335,7 +321,7 @@ static int __devinit alchemy_pcm_drvprobe(struct platform_device *pdev)
 	return snd_soc_register_platform(&pdev->dev, &alchemy_pcm_soc_platform);
 }
 
-static int __devexit alchemy_pcm_drvremove(struct platform_device *pdev)
+static int alchemy_pcm_drvremove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 
@@ -348,7 +334,7 @@ static struct platform_driver alchemy_pcmdma_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= alchemy_pcm_drvprobe,
-	.remove		= __devexit_p(alchemy_pcm_drvremove),
+	.remove		= alchemy_pcm_drvremove,
 };
 
 module_platform_driver(alchemy_pcmdma_driver);

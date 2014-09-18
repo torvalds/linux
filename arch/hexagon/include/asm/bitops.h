@@ -1,7 +1,7 @@
 /*
  * Bit operations for the Hexagon architecture
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,11 +25,9 @@
 #include <linux/compiler.h>
 #include <asm/byteorder.h>
 #include <asm/atomic.h>
+#include <asm/barrier.h>
 
 #ifdef __KERNEL__
-
-#define smp_mb__before_clear_bit()	barrier()
-#define smp_mb__after_clear_bit()	barrier()
 
 /*
  * The offset calculations for these are based on BITS_PER_LONG == 32

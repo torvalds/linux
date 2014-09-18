@@ -116,10 +116,8 @@ static void audit_mappings(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 	gfn = kvm_mmu_page_get_gfn(sp, sptep - sp->spt);
 	pfn = gfn_to_pfn_atomic(vcpu->kvm, gfn);
 
-	if (is_error_pfn(pfn)) {
-		kvm_release_pfn_clean(pfn);
+	if (is_error_pfn(pfn))
 		return;
-	}
 
 	hpa =  pfn << PAGE_SHIFT;
 	if ((*sptep & PT64_BASE_ADDR_MASK) != hpa)
@@ -190,23 +188,21 @@ static void check_mappings_rmap(struct kvm *kvm, struct kvm_mmu_page *sp)
 
 static void audit_write_protection(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
-	struct kvm_memory_slot *slot;
 	unsigned long *rmapp;
-	u64 *spte;
+	u64 *sptep;
+	struct rmap_iterator iter;
 
 	if (sp->role.direct || sp->unsync || sp->role.invalid)
 		return;
 
-	slot = gfn_to_memslot(kvm, sp->gfn);
-	rmapp = &slot->rmap[sp->gfn - slot->base_gfn];
+	rmapp = gfn_to_rmap(kvm, sp->gfn, PT_PAGE_TABLE_LEVEL);
 
-	spte = rmap_next(rmapp, NULL);
-	while (spte) {
-		if (is_writable_pte(*spte))
+	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
+	     sptep = rmap_get_next(&iter)) {
+		if (is_writable_pte(*sptep))
 			audit_printk(kvm, "shadow page has writable "
 				     "mappings: gfn %llx role %x\n",
 				     sp->gfn, sp->role.word);
-		spte = rmap_next(rmapp, spte);
 	}
 }
 
@@ -277,7 +273,7 @@ static int mmu_audit_set(const char *val, const struct kernel_param *kp)
 	int ret;
 	unsigned long enable;
 
-	ret = strict_strtoul(val, 10, &enable);
+	ret = kstrtoul(val, 10, &enable);
 	if (ret < 0)
 		return -EINVAL;
 
@@ -300,4 +296,4 @@ static struct kernel_param_ops audit_param_ops = {
 	.get = param_get_bool,
 };
 
-module_param_cb(mmu_audit, &audit_param_ops, &mmu_audit, 0644);
+arch_param_cb(mmu_audit, &audit_param_ops, &mmu_audit, 0644);

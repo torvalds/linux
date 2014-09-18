@@ -36,6 +36,9 @@
 /* dumpHostSlim output buffer size */
 #define LPFC_DUMPHOSTSLIM_SIZE 4096
 
+/* dumpSLIqinfo output buffer size */
+#define	LPFC_DUMPSLIQINFO_SIZE 4096
+
 /* hbqinfo output buffer size */
 #define LPFC_HBQINFO_SIZE 8192
 
@@ -267,3 +270,402 @@ struct lpfc_idiag {
 #define LPFC_DISC_TRC_DISCOVERY		0xef    /* common mask for general
 						 * discovery */
 #endif /* H_LPFC_DEBUG_FS */
+
+
+/*
+ * Driver debug utility routines outside of debugfs. The debug utility
+ * routines implemented here is intended to be used in the instrumented
+ * debug driver for debugging host or port issues.
+ */
+
+/**
+ * lpfc_debug_dump_qe - dump an specific entry from a queue
+ * @q: Pointer to the queue descriptor.
+ * @idx: Index to the entry on the queue.
+ *
+ * This function dumps an entry indexed by @idx from a queue specified by the
+ * queue descriptor @q.
+ **/
+static inline void
+lpfc_debug_dump_qe(struct lpfc_queue *q, uint32_t idx)
+{
+	char line_buf[LPFC_LBUF_SZ];
+	int i, esize, qe_word_cnt, len;
+	uint32_t *pword;
+
+	/* sanity checks */
+	if (!q)
+		return;
+	if (idx >= q->entry_count)
+		return;
+
+	esize = q->entry_size;
+	qe_word_cnt = esize / sizeof(uint32_t);
+	pword = q->qe[idx].address;
+
+	len = 0;
+	len += snprintf(line_buf+len, LPFC_LBUF_SZ-len, "QE[%04d]: ", idx);
+	if (qe_word_cnt > 8)
+		printk(KERN_ERR "%s\n", line_buf);
+
+	for (i = 0; i < qe_word_cnt; i++) {
+		if (!(i % 8)) {
+			if (i != 0)
+				printk(KERN_ERR "%s\n", line_buf);
+			if (qe_word_cnt > 8) {
+				len = 0;
+				memset(line_buf, 0, LPFC_LBUF_SZ);
+				len += snprintf(line_buf+len, LPFC_LBUF_SZ-len,
+						"%03d: ", i);
+			}
+		}
+		len += snprintf(line_buf+len, LPFC_LBUF_SZ-len, "%08x ",
+				((uint32_t)*pword) & 0xffffffff);
+		pword++;
+	}
+	if (qe_word_cnt <= 8 || (i - 1) % 8)
+		printk(KERN_ERR "%s\n", line_buf);
+}
+
+/**
+ * lpfc_debug_dump_q - dump all entries from an specific queue
+ * @q: Pointer to the queue descriptor.
+ *
+ * This function dumps all entries from a queue specified by the queue
+ * descriptor @q.
+ **/
+static inline void
+lpfc_debug_dump_q(struct lpfc_queue *q)
+{
+	int idx, entry_count;
+
+	/* sanity check */
+	if (!q)
+		return;
+
+	dev_printk(KERN_ERR, &(((q->phba))->pcidev)->dev,
+		"%d: [qid:%d, type:%d, subtype:%d, "
+		"qe_size:%d, qe_count:%d, "
+		"host_index:%d, port_index:%d]\n",
+		(q->phba)->brd_no,
+		q->queue_id, q->type, q->subtype,
+		q->entry_size, q->entry_count,
+		q->host_index, q->hba_index);
+	entry_count = q->entry_count;
+	for (idx = 0; idx < entry_count; idx++)
+		lpfc_debug_dump_qe(q, idx);
+	printk(KERN_ERR "\n");
+}
+
+/**
+ * lpfc_debug_dump_fcp_wq - dump all entries from a fcp work queue
+ * @phba: Pointer to HBA context object.
+ * @fcp_wqidx: Index to a FCP work queue.
+ *
+ * This function dumps all entries from a FCP work queue specified by the
+ * @fcp_wqidx.
+ **/
+static inline void
+lpfc_debug_dump_fcp_wq(struct lpfc_hba *phba, int fcp_wqidx)
+{
+	/* sanity check */
+	if (fcp_wqidx >= phba->cfg_fcp_io_channel)
+		return;
+
+	printk(KERN_ERR "FCP WQ: WQ[Idx:%d|Qid:%d]\n",
+		fcp_wqidx, phba->sli4_hba.fcp_wq[fcp_wqidx]->queue_id);
+	lpfc_debug_dump_q(phba->sli4_hba.fcp_wq[fcp_wqidx]);
+}
+
+/**
+ * lpfc_debug_dump_fcp_cq - dump all entries from a fcp work queue's cmpl queue
+ * @phba: Pointer to HBA context object.
+ * @fcp_wqidx: Index to a FCP work queue.
+ *
+ * This function dumps all entries from a FCP complete queue which is
+ * associated to the FCP work queue specified by the @fcp_wqidx.
+ **/
+static inline void
+lpfc_debug_dump_fcp_cq(struct lpfc_hba *phba, int fcp_wqidx)
+{
+	int fcp_cqidx, fcp_cqid;
+
+	/* sanity check */
+	if (fcp_wqidx >= phba->cfg_fcp_io_channel)
+		return;
+
+	fcp_cqid = phba->sli4_hba.fcp_wq[fcp_wqidx]->assoc_qid;
+	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_io_channel; fcp_cqidx++)
+		if (phba->sli4_hba.fcp_cq[fcp_cqidx]->queue_id == fcp_cqid)
+			break;
+	if (phba->intr_type == MSIX) {
+		if (fcp_cqidx >= phba->cfg_fcp_io_channel)
+			return;
+	} else {
+		if (fcp_cqidx > 0)
+			return;
+	}
+
+	printk(KERN_ERR "FCP CQ: WQ[Idx:%d|Qid%d]->CQ[Idx%d|Qid%d]:\n",
+		fcp_wqidx, phba->sli4_hba.fcp_wq[fcp_wqidx]->queue_id,
+		fcp_cqidx, fcp_cqid);
+	lpfc_debug_dump_q(phba->sli4_hba.fcp_cq[fcp_cqidx]);
+}
+
+/**
+ * lpfc_debug_dump_hba_eq - dump all entries from a fcp work queue's evt queue
+ * @phba: Pointer to HBA context object.
+ * @fcp_wqidx: Index to a FCP work queue.
+ *
+ * This function dumps all entries from a FCP event queue which is
+ * associated to the FCP work queue specified by the @fcp_wqidx.
+ **/
+static inline void
+lpfc_debug_dump_hba_eq(struct lpfc_hba *phba, int fcp_wqidx)
+{
+	struct lpfc_queue *qdesc;
+	int fcp_eqidx, fcp_eqid;
+	int fcp_cqidx, fcp_cqid;
+
+	/* sanity check */
+	if (fcp_wqidx >= phba->cfg_fcp_io_channel)
+		return;
+	fcp_cqid = phba->sli4_hba.fcp_wq[fcp_wqidx]->assoc_qid;
+	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_io_channel; fcp_cqidx++)
+		if (phba->sli4_hba.fcp_cq[fcp_cqidx]->queue_id == fcp_cqid)
+			break;
+	if (phba->intr_type == MSIX) {
+		if (fcp_cqidx >= phba->cfg_fcp_io_channel)
+			return;
+	} else {
+		if (fcp_cqidx > 0)
+			return;
+	}
+
+	fcp_eqidx = fcp_cqidx;
+	fcp_eqid = phba->sli4_hba.hba_eq[fcp_eqidx]->queue_id;
+	qdesc = phba->sli4_hba.hba_eq[fcp_eqidx];
+
+	printk(KERN_ERR "FCP EQ: WQ[Idx:%d|Qid:%d]->CQ[Idx:%d|Qid:%d]->"
+		"EQ[Idx:%d|Qid:%d]\n",
+		fcp_wqidx, phba->sli4_hba.fcp_wq[fcp_wqidx]->queue_id,
+		fcp_cqidx, fcp_cqid, fcp_eqidx, fcp_eqid);
+	lpfc_debug_dump_q(qdesc);
+}
+
+/**
+ * lpfc_debug_dump_els_wq - dump all entries from the els work queue
+ * @phba: Pointer to HBA context object.
+ *
+ * This function dumps all entries from the ELS work queue.
+ **/
+static inline void
+lpfc_debug_dump_els_wq(struct lpfc_hba *phba)
+{
+	printk(KERN_ERR "ELS WQ: WQ[Qid:%d]:\n",
+		phba->sli4_hba.els_wq->queue_id);
+	lpfc_debug_dump_q(phba->sli4_hba.els_wq);
+}
+
+/**
+ * lpfc_debug_dump_mbx_wq - dump all entries from the mbox work queue
+ * @phba: Pointer to HBA context object.
+ *
+ * This function dumps all entries from the MBOX work queue.
+ **/
+static inline void
+lpfc_debug_dump_mbx_wq(struct lpfc_hba *phba)
+{
+	printk(KERN_ERR "MBX WQ: WQ[Qid:%d]\n",
+		phba->sli4_hba.mbx_wq->queue_id);
+	lpfc_debug_dump_q(phba->sli4_hba.mbx_wq);
+}
+
+/**
+ * lpfc_debug_dump_dat_rq - dump all entries from the receive data queue
+ * @phba: Pointer to HBA context object.
+ *
+ * This function dumps all entries from the receive data queue.
+ **/
+static inline void
+lpfc_debug_dump_dat_rq(struct lpfc_hba *phba)
+{
+	printk(KERN_ERR "DAT RQ: RQ[Qid:%d]\n",
+		phba->sli4_hba.dat_rq->queue_id);
+	lpfc_debug_dump_q(phba->sli4_hba.dat_rq);
+}
+
+/**
+ * lpfc_debug_dump_hdr_rq - dump all entries from the receive header queue
+ * @phba: Pointer to HBA context object.
+ *
+ * This function dumps all entries from the receive header queue.
+ **/
+static inline void
+lpfc_debug_dump_hdr_rq(struct lpfc_hba *phba)
+{
+	printk(KERN_ERR "HDR RQ: RQ[Qid:%d]\n",
+		phba->sli4_hba.hdr_rq->queue_id);
+	lpfc_debug_dump_q(phba->sli4_hba.hdr_rq);
+}
+
+/**
+ * lpfc_debug_dump_els_cq - dump all entries from the els complete queue
+ * @phba: Pointer to HBA context object.
+ *
+ * This function dumps all entries from the els complete queue.
+ **/
+static inline void
+lpfc_debug_dump_els_cq(struct lpfc_hba *phba)
+{
+	printk(KERN_ERR "ELS CQ: WQ[Qid:%d]->CQ[Qid:%d]\n",
+		phba->sli4_hba.els_wq->queue_id,
+		phba->sli4_hba.els_cq->queue_id);
+	lpfc_debug_dump_q(phba->sli4_hba.els_cq);
+}
+
+/**
+ * lpfc_debug_dump_mbx_cq - dump all entries from the mbox complete queue
+ * @phba: Pointer to HBA context object.
+ *
+ * This function dumps all entries from the mbox complete queue.
+ **/
+static inline void
+lpfc_debug_dump_mbx_cq(struct lpfc_hba *phba)
+{
+	printk(KERN_ERR "MBX CQ: WQ[Qid:%d]->CQ[Qid:%d]\n",
+		phba->sli4_hba.mbx_wq->queue_id,
+		phba->sli4_hba.mbx_cq->queue_id);
+	lpfc_debug_dump_q(phba->sli4_hba.mbx_cq);
+}
+
+/**
+ * lpfc_debug_dump_wq_by_id - dump all entries from a work queue by queue id
+ * @phba: Pointer to HBA context object.
+ * @qid: Work queue identifier.
+ *
+ * This function dumps all entries from a work queue identified by the queue
+ * identifier.
+ **/
+static inline void
+lpfc_debug_dump_wq_by_id(struct lpfc_hba *phba, int qid)
+{
+	int wq_idx;
+
+	for (wq_idx = 0; wq_idx < phba->cfg_fcp_io_channel; wq_idx++)
+		if (phba->sli4_hba.fcp_wq[wq_idx]->queue_id == qid)
+			break;
+	if (wq_idx < phba->cfg_fcp_io_channel) {
+		printk(KERN_ERR "FCP WQ[Idx:%d|Qid:%d]\n", wq_idx, qid);
+		lpfc_debug_dump_q(phba->sli4_hba.fcp_wq[wq_idx]);
+		return;
+	}
+
+	if (phba->sli4_hba.els_wq->queue_id == qid) {
+		printk(KERN_ERR "ELS WQ[Qid:%d]\n", qid);
+		lpfc_debug_dump_q(phba->sli4_hba.els_wq);
+	}
+}
+
+/**
+ * lpfc_debug_dump_mq_by_id - dump all entries from a mbox queue by queue id
+ * @phba: Pointer to HBA context object.
+ * @qid: Mbox work queue identifier.
+ *
+ * This function dumps all entries from a mbox work queue identified by the
+ * queue identifier.
+ **/
+static inline void
+lpfc_debug_dump_mq_by_id(struct lpfc_hba *phba, int qid)
+{
+	if (phba->sli4_hba.mbx_wq->queue_id == qid) {
+		printk(KERN_ERR "MBX WQ[Qid:%d]\n", qid);
+		lpfc_debug_dump_q(phba->sli4_hba.mbx_wq);
+	}
+}
+
+/**
+ * lpfc_debug_dump_rq_by_id - dump all entries from a receive queue by queue id
+ * @phba: Pointer to HBA context object.
+ * @qid: Receive queue identifier.
+ *
+ * This function dumps all entries from a receive queue identified by the
+ * queue identifier.
+ **/
+static inline void
+lpfc_debug_dump_rq_by_id(struct lpfc_hba *phba, int qid)
+{
+	if (phba->sli4_hba.hdr_rq->queue_id == qid) {
+		printk(KERN_ERR "HDR RQ[Qid:%d]\n", qid);
+		lpfc_debug_dump_q(phba->sli4_hba.hdr_rq);
+		return;
+	}
+	if (phba->sli4_hba.dat_rq->queue_id == qid) {
+		printk(KERN_ERR "DAT RQ[Qid:%d]\n", qid);
+		lpfc_debug_dump_q(phba->sli4_hba.dat_rq);
+	}
+}
+
+/**
+ * lpfc_debug_dump_cq_by_id - dump all entries from a cmpl queue by queue id
+ * @phba: Pointer to HBA context object.
+ * @qid: Complete queue identifier.
+ *
+ * This function dumps all entries from a complete queue identified by the
+ * queue identifier.
+ **/
+static inline void
+lpfc_debug_dump_cq_by_id(struct lpfc_hba *phba, int qid)
+{
+	int cq_idx = 0;
+
+	do {
+		if (phba->sli4_hba.fcp_cq[cq_idx]->queue_id == qid)
+			break;
+	} while (++cq_idx < phba->cfg_fcp_io_channel);
+
+	if (cq_idx < phba->cfg_fcp_io_channel) {
+		printk(KERN_ERR "FCP CQ[Idx:%d|Qid:%d]\n", cq_idx, qid);
+		lpfc_debug_dump_q(phba->sli4_hba.fcp_cq[cq_idx]);
+		return;
+	}
+
+	if (phba->sli4_hba.els_cq->queue_id == qid) {
+		printk(KERN_ERR "ELS CQ[Qid:%d]\n", qid);
+		lpfc_debug_dump_q(phba->sli4_hba.els_cq);
+		return;
+	}
+
+	if (phba->sli4_hba.mbx_cq->queue_id == qid) {
+		printk(KERN_ERR "MBX CQ[Qid:%d]\n", qid);
+		lpfc_debug_dump_q(phba->sli4_hba.mbx_cq);
+	}
+}
+
+/**
+ * lpfc_debug_dump_eq_by_id - dump all entries from an event queue by queue id
+ * @phba: Pointer to HBA context object.
+ * @qid: Complete queue identifier.
+ *
+ * This function dumps all entries from an event queue identified by the
+ * queue identifier.
+ **/
+static inline void
+lpfc_debug_dump_eq_by_id(struct lpfc_hba *phba, int qid)
+{
+	int eq_idx;
+
+	for (eq_idx = 0; eq_idx < phba->cfg_fcp_io_channel; eq_idx++) {
+		if (phba->sli4_hba.hba_eq[eq_idx]->queue_id == qid)
+			break;
+	}
+
+	if (eq_idx < phba->cfg_fcp_io_channel) {
+		printk(KERN_ERR "FCP EQ[Idx:%d|Qid:%d]\n", eq_idx, qid);
+		lpfc_debug_dump_q(phba->sli4_hba.hba_eq[eq_idx]);
+		return;
+	}
+
+}
+
+void lpfc_debug_dump_all_queues(struct lpfc_hba *);

@@ -37,7 +37,7 @@
 
 #define VERSION "0.10"
 
-static struct usb_device_id bpa10x_table[] = {
+static const struct usb_device_id bpa10x_table[] = {
 	/* Tektronix BPA 100/105 (Digianswer) */
 	{ USB_DEVICE(0x08fd, 0x0002) },
 
@@ -129,8 +129,6 @@ static int bpa10x_recv(struct hci_dev *hdev, int queue, void *buf, int count)
 				return -ENOMEM;
 			}
 
-			skb->dev = (void *) hdev;
-
 			data->rx_skb[queue] = skb;
 
 			scb = (void *) skb->cb;
@@ -155,7 +153,7 @@ static int bpa10x_recv(struct hci_dev *hdev, int queue, void *buf, int count)
 			data->rx_skb[queue] = NULL;
 
 			bt_cb(skb)->pkt_type = scb->type;
-			hci_recv_frame(skb);
+			hci_recv_frame(hdev, skb);
 		}
 
 		count -= len; buf += len;
@@ -352,9 +350,8 @@ static int bpa10x_flush(struct hci_dev *hdev)
 	return 0;
 }
 
-static int bpa10x_send_frame(struct sk_buff *skb)
+static int bpa10x_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
 	struct bpa10x_data *data = hci_get_drvdata(hdev);
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
@@ -365,6 +362,8 @@ static int bpa10x_send_frame(struct sk_buff *skb)
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return -EBUSY;
+
+	skb->dev = (void *) hdev;
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
@@ -443,7 +442,7 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
 		return -ENODEV;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&intf->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -453,10 +452,8 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	init_usb_anchor(&data->rx_anchor);
 
 	hdev = hci_alloc_dev();
-	if (!hdev) {
-		kfree(data);
+	if (!hdev)
 		return -ENOMEM;
-	}
 
 	hdev->bus = HCI_USB;
 	hci_set_drvdata(hdev, data);
@@ -470,12 +467,11 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	hdev->flush    = bpa10x_flush;
 	hdev->send     = bpa10x_send_frame;
 
-	set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
+	set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
 	err = hci_register_dev(hdev);
 	if (err < 0) {
 		hci_free_dev(hdev);
-		kfree(data);
 		return err;
 	}
 
@@ -500,7 +496,6 @@ static void bpa10x_disconnect(struct usb_interface *intf)
 	hci_free_dev(data->hdev);
 	kfree_skb(data->rx_skb[0]);
 	kfree_skb(data->rx_skb[1]);
-	kfree(data);
 }
 
 static struct usb_driver bpa10x_driver = {
@@ -508,6 +503,7 @@ static struct usb_driver bpa10x_driver = {
 	.probe		= bpa10x_probe,
 	.disconnect	= bpa10x_disconnect,
 	.id_table	= bpa10x_table,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(bpa10x_driver);

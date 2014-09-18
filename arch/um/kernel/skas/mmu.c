@@ -3,14 +3,14 @@
  * Licensed under the GPL
  */
 
-#include "linux/mm.h"
-#include "linux/sched.h"
-#include "linux/slab.h"
-#include "asm/pgalloc.h"
-#include "asm/pgtable.h"
-#include "as-layout.h"
-#include "os.h"
-#include "skas.h"
+#include <linux/mm.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <asm/pgalloc.h>
+#include <asm/pgtable.h>
+#include <as-layout.h>
+#include <os.h>
+#include <skas.h>
 
 extern int __syscall_stub_start;
 
@@ -123,7 +123,7 @@ void uml_setup_stubs(struct mm_struct *mm)
 	/* dup_mmap already holds mmap_sem */
 	err = install_special_mapping(mm, STUB_START, STUB_END - STUB_START,
 				      VM_READ | VM_MAYREAD | VM_EXEC |
-				      VM_MAYEXEC | VM_DONTCOPY,
+				      VM_MAYEXEC | VM_DONTCOPY | VM_PFNMAP,
 				      mm->context.stub_pages);
 	if (err) {
 		printk(KERN_ERR "install_special_mapping returned %d\n", err);

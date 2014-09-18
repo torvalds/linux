@@ -2,9 +2,9 @@
 # Makefile for the PCI bus specific drivers.
 #
 
-obj-y		+= access.o bus.o probe.o remove.o pci.o \
+obj-y		+= access.o bus.o probe.o host-bridge.o remove.o pci.o \
 			pci-driver.o search.o pci-sysfs.o rom.o setup-res.o \
-			irq.o vpd.o
+			irq.o vpd.o setup-bus.o vc.o
 obj-$(CONFIG_PROC_FS) += proc.o
 obj-$(CONFIG_SYSFS) += slot.o
 
@@ -14,8 +14,6 @@ obj-$(CONFIG_PCI_QUIRKS) += quirks.o
 obj-$(CONFIG_PCIEPORTBUS) += pcie/
 
 obj-$(CONFIG_PCI_IOAPIC) += ioapic.o
-
-obj-$(CONFIG_HOTPLUG) += hotplug.o
 
 # Build the PCI Hotplug drivers if we were asked to
 obj-$(CONFIG_HOTPLUG_PCI) += hotplug/
@@ -35,19 +33,14 @@ obj-$(CONFIG_PCI_IOV) += iov.o
 #
 # Some architectures use the generic PCI setup functions
 #
-obj-$(CONFIG_X86) += setup-bus.o
-obj-$(CONFIG_ALPHA) += setup-bus.o setup-irq.o
-obj-$(CONFIG_ARM) += setup-bus.o setup-irq.o
-obj-$(CONFIG_UNICORE32) += setup-bus.o setup-irq.o
-obj-$(CONFIG_PARISC) += setup-bus.o
-obj-$(CONFIG_SUPERH) += setup-bus.o setup-irq.o
-obj-$(CONFIG_PPC) += setup-bus.o
-obj-$(CONFIG_MIPS) += setup-bus.o setup-irq.o
-obj-$(CONFIG_X86_VISWS) += setup-irq.o
-obj-$(CONFIG_MN10300) += setup-bus.o
-obj-$(CONFIG_MICROBLAZE) += setup-bus.o
-obj-$(CONFIG_TILE) += setup-bus.o setup-irq.o
-obj-$(CONFIG_SPARC_LEON) += setup-bus.o setup-irq.o
+obj-$(CONFIG_ALPHA) += setup-irq.o
+obj-$(CONFIG_ARM) += setup-irq.o
+obj-$(CONFIG_UNICORE32) += setup-irq.o
+obj-$(CONFIG_SUPERH) += setup-irq.o
+obj-$(CONFIG_MIPS) += setup-irq.o
+obj-$(CONFIG_TILE) += setup-irq.o
+obj-$(CONFIG_SPARC_LEON) += setup-irq.o
+obj-$(CONFIG_M68K) += setup-irq.o
 
 #
 # ACPI Related PCI FW Functions
@@ -58,9 +51,6 @@ obj-$(CONFIG_ACPI)    += pci-acpi.o
 # SMBIOS provided firmware instance and labels
 obj-$(CONFIG_PCI_LABEL) += pci-label.o
 
-# Cardbus & CompactPCI use setup-bus
-obj-$(CONFIG_HOTPLUG) += setup-bus.o
-
 obj-$(CONFIG_PCI_SYSCALL) += syscall.o
 
 obj-$(CONFIG_PCI_STUB) += pci-stub.o
@@ -70,3 +60,6 @@ obj-$(CONFIG_XEN_PCIDEV_FRONTEND) += xen-pcifront.o
 obj-$(CONFIG_OF) += of.o
 
 ccflags-$(CONFIG_PCI_DEBUG) := -DDEBUG
+
+# PCI host controller drivers
+obj-y += host/

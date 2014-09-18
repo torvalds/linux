@@ -1,9 +1,7 @@
 /*
- *  linux/drivers/s390/crypto/zcrypt_pcica.c
- *
  *  zcrypt 2.1.0
  *
- *  Copyright (C)  2001, 2006 IBM Corporation
+ *  Copyright IBM Corp. 2001, 2006
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
@@ -25,6 +23,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
+#define KMSG_COMPONENT "zcrypt"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -56,7 +57,7 @@ static struct ap_device_id zcrypt_pcica_ids[] = {
 MODULE_DEVICE_TABLE(ap, zcrypt_pcica_ids);
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("PCICA Cryptographic Coprocessor device driver, "
-		   "Copyright 2001, 2006 IBM Corporation");
+		   "Copyright IBM Corp. 2001, 2006");
 MODULE_LICENSE("GPL");
 
 static int zcrypt_pcica_probe(struct ap_device *ap_dev);
@@ -67,7 +68,6 @@ static void zcrypt_pcica_receive(struct ap_device *, struct ap_message *,
 static struct ap_driver zcrypt_pcica_driver = {
 	.probe = zcrypt_pcica_probe,
 	.remove = zcrypt_pcica_remove,
-	.receive = zcrypt_pcica_receive,
 	.ids = zcrypt_pcica_ids,
 	.request_timeout = PCICA_CLEANUP_TIME,
 };
@@ -202,6 +202,10 @@ static int convert_type84(struct zcrypt_device *zdev,
 	if (t84h->len < sizeof(*t84h) + outputdatalength) {
 		/* The result is too short, the PCICA card may not do that.. */
 		zdev->online = 0;
+		pr_err("Cryptographic device %x failed and was set offline\n",
+		       zdev->ap_dev->qid);
+		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
+			       zdev->ap_dev->qid, zdev->online, t84h->code);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 	BUG_ON(t84h->len > PCICA_MAX_RESPONSE_SIZE);
@@ -226,6 +230,10 @@ static int convert_response(struct zcrypt_device *zdev,
 				      outputdata, outputdatalength);
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zdev->online = 0;
+		pr_err("Cryptographic device %x failed and was set offline\n",
+		       zdev->ap_dev->qid);
+		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%dfail",
+			       zdev->ap_dev->qid, zdev->online);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 }
@@ -284,6 +292,7 @@ static long zcrypt_pcica_modexpo(struct zcrypt_device *zdev,
 	ap_msg.message = kmalloc(PCICA_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
+	ap_msg.receive = zcrypt_pcica_receive;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg.private = &work;
@@ -322,6 +331,7 @@ static long zcrypt_pcica_modexpo_crt(struct zcrypt_device *zdev,
 	ap_msg.message = kmalloc(PCICA_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
+	ap_msg.receive = zcrypt_pcica_receive;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg.private = &work;

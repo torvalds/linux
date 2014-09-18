@@ -1,30 +1,23 @@
-/*******************************************************************************
-
-  Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel PRO/1000 Linux driver
+ * Copyright(c) 1999 - 2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * Linux NICS <linux.nics@intel.com>
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #include "e1000.h"
 
@@ -73,8 +66,7 @@ void e1000_set_lan_id_multi_port_pcie(struct e1000_hw *hw)
 	struct e1000_bus_info *bus = &hw->bus;
 	u32 reg;
 
-	/*
-	 * The status register reports the correct function number
+	/* The status register reports the correct function number
 	 * for the device regardless of function swap state.
 	 */
 	reg = er32(STATUS);
@@ -143,12 +135,12 @@ void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 	/* Setup the receive address */
 	e_dbg("Programming MAC Address into RAR[0]\n");
 
-	e1000e_rar_set(hw, hw->mac.addr, 0);
+	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
 
 	/* Zero out the other (rar_entry_count - 1) receive addresses */
 	e_dbg("Clearing RAR[1-%u]\n", rar_count - 1);
 	for (i = 1; i < rar_count; i++)
-		e1000e_rar_set(hw, mac_addr, i);
+		hw->mac.ops.rar_set(hw, mac_addr, i);
 }
 
 /**
@@ -166,7 +158,7 @@ void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 {
 	u32 i;
-	s32 ret_val = 0;
+	s32 ret_val;
 	u16 offset, nvm_alt_mac_addr_offset, nvm_data;
 	u8 alt_mac_addr[ETH_ALEN];
 
@@ -210,18 +202,22 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 		return 0;
 	}
 
-	/*
-	 * We have a valid alternate MAC address, and we want to treat it the
+	/* We have a valid alternate MAC address, and we want to treat it the
 	 * same as the normal permanent MAC address stored by the HW into the
 	 * RAR. Do this by mapping this address into RAR0.
 	 */
-	e1000e_rar_set(hw, alt_mac_addr, 0);
+	hw->mac.ops.rar_set(hw, alt_mac_addr, 0);
 
 	return 0;
 }
 
+u32 e1000e_rar_get_count_generic(struct e1000_hw *hw)
+{
+	return hw->mac.rar_entry_count;
+}
+
 /**
- *  e1000e_rar_set - Set receive address register
+ *  e1000e_rar_set_generic - Set receive address register
  *  @hw: pointer to the HW structure
  *  @addr: pointer to the receive address
  *  @index: receive address array register
@@ -229,12 +225,11 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
  *  Sets the receive address array register at index to the address passed
  *  in by addr.
  **/
-void e1000e_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
+int e1000e_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
 {
 	u32 rar_low, rar_high;
 
-	/*
-	 * HW expects these in little endian so we reverse the byte order
+	/* HW expects these in little endian so we reverse the byte order
 	 * from network order (big endian) to little endian
 	 */
 	rar_low = ((u32)addr[0] | ((u32)addr[1] << 8) |
@@ -246,8 +241,7 @@ void e1000e_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 	if (rar_low || rar_high)
 		rar_high |= E1000_RAH_AV;
 
-	/*
-	 * Some bridges will combine consecutive 32-bit writes into
+	/* Some bridges will combine consecutive 32-bit writes into
 	 * a single burst write, which will malfunction on some parts.
 	 * The flushes avoid this.
 	 */
@@ -255,6 +249,8 @@ void e1000e_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 	e1e_flush();
 	ew32(RAH(index), rar_high);
 	e1e_flush();
+
+	return 0;
 }
 
 /**
@@ -273,15 +269,13 @@ static u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 	/* Register count multiplied by bits per register */
 	hash_mask = (hw->mac.mta_reg_count * 32) - 1;
 
-	/*
-	 * For a mc_filter_type of 0, bit_shift is the number of left-shifts
+	/* For a mc_filter_type of 0, bit_shift is the number of left-shifts
 	 * where 0xFF would still fall within the hash mask.
 	 */
 	while (hash_mask >> bit_shift != 0xFF)
 		bit_shift++;
 
-	/*
-	 * The portion of the address that is used for the hash table
+	/* The portion of the address that is used for the hash table
 	 * is determined by the mc_filter_type setting.
 	 * The algorithm is such that there is a total of 8 bits of shifting.
 	 * The bit_shift for a mc_filter_type of 0 represents the number of
@@ -423,8 +417,7 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	s32 ret_val;
 	bool link;
 
-	/*
-	 * We only want to go out to the PHY registers to see if Auto-Neg
+	/* We only want to go out to the PHY registers to see if Auto-Neg
 	 * has completed and/or if our link status has changed.  The
 	 * get_link_status flag is set upon receiving a Link Status
 	 * Change or Rx Sequence Error interrupt.
@@ -432,8 +425,7 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	if (!mac->get_link_status)
 		return 0;
 
-	/*
-	 * First we want to see if the MII Status Register reports
+	/* First we want to see if the MII Status Register reports
 	 * link.  If so, then we want to get the current speed/duplex
 	 * of the PHY.
 	 */
@@ -446,28 +438,24 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 
 	mac->get_link_status = false;
 
-	/*
-	 * Check if there was DownShift, must be checked
+	/* Check if there was DownShift, must be checked
 	 * immediately after link-up
 	 */
 	e1000e_check_downshift(hw);
 
-	/*
-	 * If we are forcing speed/duplex, then we simply return since
+	/* If we are forcing speed/duplex, then we simply return since
 	 * we have already determined whether we have link or not.
 	 */
 	if (!mac->autoneg)
 		return -E1000_ERR_CONFIG;
 
-	/*
-	 * Auto-Neg is enabled.  Auto Speed Detection takes care
+	/* Auto-Neg is enabled.  Auto Speed Detection takes care
 	 * of MAC speed/duplex configuration.  So we only need to
 	 * configure Collision Distance in the MAC.
 	 */
 	mac->ops.config_collision_dist(hw);
 
-	/*
-	 * Configure Flow Control now that Auto-Neg has completed.
+	/* Configure Flow Control now that Auto-Neg has completed.
 	 * First, we need to restore the desired flow control
 	 * settings because we may have had to re-autoneg with a
 	 * different link partner.
@@ -498,8 +486,7 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 	status = er32(STATUS);
 	rxcw = er32(RXCW);
 
-	/*
-	 * If we don't have link (auto-negotiation failed or link partner
+	/* If we don't have link (auto-negotiation failed or link partner
 	 * cannot auto-negotiate), the cable is plugged in (we have signal),
 	 * and our link partner is not trying to auto-negotiate with us (we
 	 * are receiving idles or data), we need to force link up. We also
@@ -530,8 +517,7 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 			return ret_val;
 		}
 	} else if ((ctrl & E1000_CTRL_SLU) && (rxcw & E1000_RXCW_C)) {
-		/*
-		 * If we are forcing link and we are receiving /C/ ordered
+		/* If we are forcing link and we are receiving /C/ ordered
 		 * sets, re-enable auto-negotiation in the TXCW register
 		 * and disable forced link in the Device Control register
 		 * in an attempt to auto-negotiate with our link partner.
@@ -565,8 +551,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 	status = er32(STATUS);
 	rxcw = er32(RXCW);
 
-	/*
-	 * If we don't have link (auto-negotiation failed or link partner
+	/* If we don't have link (auto-negotiation failed or link partner
 	 * cannot auto-negotiate), and our link partner is not trying to
 	 * auto-negotiate with us (we are receiving idles or data),
 	 * we need to force link up. We also need to give auto-negotiation
@@ -595,8 +580,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 			return ret_val;
 		}
 	} else if ((ctrl & E1000_CTRL_SLU) && (rxcw & E1000_RXCW_C)) {
-		/*
-		 * If we are forcing link and we are receiving /C/ ordered
+		/* If we are forcing link and we are receiving /C/ ordered
 		 * sets, re-enable auto-negotiation in the TXCW register
 		 * and disable forced link in the Device Control register
 		 * in an attempt to auto-negotiate with our link partner.
@@ -607,13 +591,12 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 
 		mac->serdes_has_link = true;
 	} else if (!(E1000_TXCW_ANE & er32(TXCW))) {
-		/*
-		 * If we force link for non-auto-negotiation switch, check
+		/* If we force link for non-auto-negotiation switch, check
 		 * link status based on MAC synchronization for internal
 		 * serdes media type.
 		 */
 		/* SYNCH bit and IV bit are sticky. */
-		udelay(10);
+		usleep_range(10, 20);
 		rxcw = er32(RXCW);
 		if (rxcw & E1000_RXCW_SYNCH) {
 			if (!(rxcw & E1000_RXCW_IV)) {
@@ -630,7 +613,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 		status = er32(STATUS);
 		if (status & E1000_STATUS_LU) {
 			/* SYNCH bit and IV bit are sticky, so reread rxcw. */
-			udelay(10);
+			usleep_range(10, 20);
 			rxcw = er32(RXCW);
 			if (rxcw & E1000_RXCW_SYNCH) {
 				if (!(rxcw & E1000_RXCW_IV)) {
@@ -665,8 +648,7 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 nvm_data;
 
-	/*
-	 * Read and store word 0x0F of the EEPROM. This word contains bits
+	/* Read and store word 0x0F of the EEPROM. This word contains bits
 	 * that determine the hardware's default PAUSE (flow control) mode,
 	 * a bit that determines whether the HW defaults to enabling or
 	 * disabling auto-negotiation, and the direction of the
@@ -681,7 +663,7 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 		return ret_val;
 	}
 
-	if ((nvm_data & NVM_WORD0F_PAUSE_MASK) == 0)
+	if (!(nvm_data & NVM_WORD0F_PAUSE_MASK))
 		hw->fc.requested_mode = e1000_fc_none;
 	else if ((nvm_data & NVM_WORD0F_PAUSE_MASK) == NVM_WORD0F_ASM_DIR)
 		hw->fc.requested_mode = e1000_fc_tx_pause;
@@ -705,15 +687,13 @@ s32 e1000e_setup_link_generic(struct e1000_hw *hw)
 {
 	s32 ret_val;
 
-	/*
-	 * In the case of the phy reset being blocked, we already have a link.
+	/* In the case of the phy reset being blocked, we already have a link.
 	 * We do not need to set it up again.
 	 */
-	if (hw->phy.ops.check_reset_block(hw))
+	if (hw->phy.ops.check_reset_block && hw->phy.ops.check_reset_block(hw))
 		return 0;
 
-	/*
-	 * If requested flow control is set to default, set flow control
+	/* If requested flow control is set to default, set flow control
 	 * based on the EEPROM flow control settings.
 	 */
 	if (hw->fc.requested_mode == e1000_fc_default) {
@@ -722,8 +702,7 @@ s32 e1000e_setup_link_generic(struct e1000_hw *hw)
 			return ret_val;
 	}
 
-	/*
-	 * Save off the requested flow control mode for use later.  Depending
+	/* Save off the requested flow control mode for use later.  Depending
 	 * on the link partner's capabilities, we may or may not use this mode.
 	 */
 	hw->fc.current_mode = hw->fc.requested_mode;
@@ -735,8 +714,7 @@ s32 e1000e_setup_link_generic(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/*
-	 * Initialize the flow control address, type, and PAUSE timer
+	/* Initialize the flow control address, type, and PAUSE timer
 	 * registers to their default values.  This is done even if flow
 	 * control is disabled, because it does not hurt anything to
 	 * initialize these registers.
@@ -763,8 +741,7 @@ static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 txcw;
 
-	/*
-	 * Check for a software override of the flow control settings, and
+	/* Check for a software override of the flow control settings, and
 	 * setup the device accordingly.  If auto-negotiation is enabled, then
 	 * software will have to set the "PAUSE" bits to the correct value in
 	 * the Transmit Config Word Register (TXCW) and re-start auto-
@@ -786,8 +763,7 @@ static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 		txcw = (E1000_TXCW_ANE | E1000_TXCW_FD);
 		break;
 	case e1000_fc_rx_pause:
-		/*
-		 * Rx Flow control is enabled and Tx Flow control is disabled
+		/* Rx Flow control is enabled and Tx Flow control is disabled
 		 * by a software over-ride. Since there really isn't a way to
 		 * advertise that we are capable of Rx Pause ONLY, we will
 		 * advertise that we support both symmetric and asymmetric Rx
@@ -797,15 +773,13 @@ static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 		txcw = (E1000_TXCW_ANE | E1000_TXCW_FD | E1000_TXCW_PAUSE_MASK);
 		break;
 	case e1000_fc_tx_pause:
-		/*
-		 * Tx Flow control is enabled, and Rx Flow control is disabled,
+		/* Tx Flow control is enabled, and Rx Flow control is disabled,
 		 * by a software over-ride.
 		 */
 		txcw = (E1000_TXCW_ANE | E1000_TXCW_FD | E1000_TXCW_ASM_DIR);
 		break;
 	case e1000_fc_full:
-		/*
-		 * Flow control (both Rx and Tx) is enabled by a software
+		/* Flow control (both Rx and Tx) is enabled by a software
 		 * over-ride.
 		 */
 		txcw = (E1000_TXCW_ANE | E1000_TXCW_FD | E1000_TXCW_PAUSE_MASK);
@@ -813,7 +787,6 @@ static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 	default:
 		e_dbg("Flow control param set incorrectly\n");
 		return -E1000_ERR_CONFIG;
-		break;
 	}
 
 	ew32(TXCW, txcw);
@@ -835,8 +808,7 @@ static s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
 	u32 i, status;
 	s32 ret_val;
 
-	/*
-	 * If we have a signal (the cable is plugged in, or assumed true for
+	/* If we have a signal (the cable is plugged in, or assumed true for
 	 * serdes media) then poll for a "Link-Up" indication in the Device
 	 * Status Register.  Time-out if a link isn't seen in 500 milliseconds
 	 * seconds (Auto-negotiation should complete in less than 500
@@ -851,8 +823,7 @@ static s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
 	if (i == FIBER_LINK_UP_LIMIT) {
 		e_dbg("Never got a valid link from auto-neg!!!\n");
 		mac->autoneg_failed = true;
-		/*
-		 * AutoNeg failed to achieve a link, so we'll call
+		/* AutoNeg failed to achieve a link, so we'll call
 		 * mac->check_for_link. This routine will force the
 		 * link up if we detect a signal. This will allow us to
 		 * communicate with non-autonegotiating link partners.
@@ -894,8 +865,7 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/*
-	 * Since auto-negotiation is enabled, take the link out of reset (the
+	/* Since auto-negotiation is enabled, take the link out of reset (the
 	 * link will be in reset, because we previously reset the chip). This
 	 * will restart auto-negotiation.  If auto-negotiation is successful
 	 * then the link-up status bit will be set and the flow control enable
@@ -907,8 +877,7 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 	e1e_flush();
 	usleep_range(1000, 2000);
 
-	/*
-	 * For these adapters, the SW definable pin 1 is set when the optics
+	/* For these adapters, the SW definable pin 1 is set when the optics
 	 * detect a signal.  If we have a signal, then poll for a "Link-Up"
 	 * indication.
 	 */
@@ -954,16 +923,14 @@ s32 e1000e_set_fc_watermarks(struct e1000_hw *hw)
 {
 	u32 fcrtl = 0, fcrth = 0;
 
-	/*
-	 * Set the flow control receive threshold registers.  Normally,
+	/* Set the flow control receive threshold registers.  Normally,
 	 * these registers will be set to a default threshold that may be
 	 * adjusted later by the driver's runtime code.  However, if the
 	 * ability to transmit pause frames is not enabled, then these
 	 * registers will be set to 0.
 	 */
 	if (hw->fc.current_mode & e1000_fc_tx_pause) {
-		/*
-		 * We need to set up the Receive Threshold high and low water
+		/* We need to set up the Receive Threshold high and low water
 		 * marks as well as (optionally) enabling the transmission of
 		 * XON frames.
 		 */
@@ -995,8 +962,7 @@ s32 e1000e_force_mac_fc(struct e1000_hw *hw)
 
 	ctrl = er32(CTRL);
 
-	/*
-	 * Because we didn't get link via the internal auto-negotiation
+	/* Because we didn't get link via the internal auto-negotiation
 	 * mechanism (we either forced link or we got link via PHY
 	 * auto-neg), we have to manually enable/disable transmit an
 	 * receive flow control.
@@ -1054,11 +1020,11 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	s32 ret_val = 0;
+	u32 pcs_status_reg, pcs_adv_reg, pcs_lp_ability_reg, pcs_ctrl_reg;
 	u16 mii_status_reg, mii_nway_adv_reg, mii_nway_lp_ability_reg;
 	u16 speed, duplex;
 
-	/*
-	 * Check for the case where we have fiber media and auto-neg failed
+	/* Check for the case where we have fiber media and auto-neg failed
 	 * so we had to force link.  In this case, we need to force the
 	 * configuration of the MAC to match the "fc" parameter.
 	 */
@@ -1076,47 +1042,42 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		return ret_val;
 	}
 
-	/*
-	 * Check for the case where we have copper media and auto-neg is
+	/* Check for the case where we have copper media and auto-neg is
 	 * enabled.  In this case, we need to check and see if Auto-Neg
 	 * has completed, and if so, how the PHY and link partner has
 	 * flow control configured.
 	 */
 	if ((hw->phy.media_type == e1000_media_type_copper) && mac->autoneg) {
-		/*
-		 * Read the MII Status Register and check to see if AutoNeg
+		/* Read the MII Status Register and check to see if AutoNeg
 		 * has completed.  We read this twice because this reg has
 		 * some "sticky" (latched) bits.
 		 */
-		ret_val = e1e_rphy(hw, PHY_STATUS, &mii_status_reg);
+		ret_val = e1e_rphy(hw, MII_BMSR, &mii_status_reg);
 		if (ret_val)
 			return ret_val;
-		ret_val = e1e_rphy(hw, PHY_STATUS, &mii_status_reg);
+		ret_val = e1e_rphy(hw, MII_BMSR, &mii_status_reg);
 		if (ret_val)
 			return ret_val;
 
-		if (!(mii_status_reg & MII_SR_AUTONEG_COMPLETE)) {
+		if (!(mii_status_reg & BMSR_ANEGCOMPLETE)) {
 			e_dbg("Copper PHY and Auto Neg has not completed.\n");
 			return ret_val;
 		}
 
-		/*
-		 * The AutoNeg process has completed, so we now need to
+		/* The AutoNeg process has completed, so we now need to
 		 * read both the Auto Negotiation Advertisement
 		 * Register (Address 4) and the Auto_Negotiation Base
 		 * Page Ability Register (Address 5) to determine how
 		 * flow control was negotiated.
 		 */
-		ret_val = e1e_rphy(hw, PHY_AUTONEG_ADV, &mii_nway_adv_reg);
+		ret_val = e1e_rphy(hw, MII_ADVERTISE, &mii_nway_adv_reg);
 		if (ret_val)
 			return ret_val;
-		ret_val =
-		    e1e_rphy(hw, PHY_LP_ABILITY, &mii_nway_lp_ability_reg);
+		ret_val = e1e_rphy(hw, MII_LPA, &mii_nway_lp_ability_reg);
 		if (ret_val)
 			return ret_val;
 
-		/*
-		 * Two bits in the Auto Negotiation Advertisement Register
+		/* Two bits in the Auto Negotiation Advertisement Register
 		 * (Address 4) and two bits in the Auto Negotiation Base
 		 * Page Ability Register (Address 5) determine flow control
 		 * for both the PHY and the link partner.  The following
@@ -1149,10 +1110,9 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 *   1   |   DC    |   1   |   DC    | E1000_fc_full
 		 *
 		 */
-		if ((mii_nway_adv_reg & NWAY_AR_PAUSE) &&
-		    (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE)) {
-			/*
-			 * Now we need to check if the user selected Rx ONLY
+		if ((mii_nway_adv_reg & ADVERTISE_PAUSE_CAP) &&
+		    (mii_nway_lp_ability_reg & LPA_PAUSE_CAP)) {
+			/* Now we need to check if the user selected Rx ONLY
 			 * of pause frames.  In this case, we had to advertise
 			 * FULL flow control because we could not advertise Rx
 			 * ONLY. Hence, we must now check to see if we need to
@@ -1166,46 +1126,42 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 				e_dbg("Flow Control = Rx PAUSE frames only.\n");
 			}
 		}
-		/*
-		 * For receiving PAUSE frames ONLY.
+		/* For receiving PAUSE frames ONLY.
 		 *
 		 *   LOCAL DEVICE  |   LINK PARTNER
 		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
 		 *-------|---------|-------|---------|--------------------
 		 *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
 		 */
-		else if (!(mii_nway_adv_reg & NWAY_AR_PAUSE) &&
-			 (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
-			 (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
-			 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
+		else if (!(mii_nway_adv_reg & ADVERTISE_PAUSE_CAP) &&
+			 (mii_nway_adv_reg & ADVERTISE_PAUSE_ASYM) &&
+			 (mii_nway_lp_ability_reg & LPA_PAUSE_CAP) &&
+			 (mii_nway_lp_ability_reg & LPA_PAUSE_ASYM)) {
 			hw->fc.current_mode = e1000_fc_tx_pause;
 			e_dbg("Flow Control = Tx PAUSE frames only.\n");
 		}
-		/*
-		 * For transmitting PAUSE frames ONLY.
+		/* For transmitting PAUSE frames ONLY.
 		 *
 		 *   LOCAL DEVICE  |   LINK PARTNER
 		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
 		 *-------|---------|-------|---------|--------------------
 		 *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
 		 */
-		else if ((mii_nway_adv_reg & NWAY_AR_PAUSE) &&
-			 (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
-			 !(mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
-			 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
+		else if ((mii_nway_adv_reg & ADVERTISE_PAUSE_CAP) &&
+			 (mii_nway_adv_reg & ADVERTISE_PAUSE_ASYM) &&
+			 !(mii_nway_lp_ability_reg & LPA_PAUSE_CAP) &&
+			 (mii_nway_lp_ability_reg & LPA_PAUSE_ASYM)) {
 			hw->fc.current_mode = e1000_fc_rx_pause;
 			e_dbg("Flow Control = Rx PAUSE frames only.\n");
 		} else {
-			/*
-			 * Per the IEEE spec, at this point flow control
+			/* Per the IEEE spec, at this point flow control
 			 * should be disabled.
 			 */
 			hw->fc.current_mode = e1000_fc_none;
 			e_dbg("Flow Control = NONE.\n");
 		}
 
-		/*
-		 * Now we need to do one last check...  If we auto-
+		/* Now we need to do one last check...  If we auto-
 		 * negotiated to HALF DUPLEX, flow control should not be
 		 * enabled per IEEE 802.3 spec.
 		 */
@@ -1218,10 +1174,133 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		if (duplex == HALF_DUPLEX)
 			hw->fc.current_mode = e1000_fc_none;
 
-		/*
-		 * Now we call a subroutine to actually force the MAC
+		/* Now we call a subroutine to actually force the MAC
 		 * controller to use the correct flow control settings.
 		 */
+		ret_val = e1000e_force_mac_fc(hw);
+		if (ret_val) {
+			e_dbg("Error forcing flow control settings\n");
+			return ret_val;
+		}
+	}
+
+	/* Check for the case where we have SerDes media and auto-neg is
+	 * enabled.  In this case, we need to check and see if Auto-Neg
+	 * has completed, and if so, how the PHY and link partner has
+	 * flow control configured.
+	 */
+	if ((hw->phy.media_type == e1000_media_type_internal_serdes) &&
+	    mac->autoneg) {
+		/* Read the PCS_LSTS and check to see if AutoNeg
+		 * has completed.
+		 */
+		pcs_status_reg = er32(PCS_LSTAT);
+
+		if (!(pcs_status_reg & E1000_PCS_LSTS_AN_COMPLETE)) {
+			e_dbg("PCS Auto Neg has not completed.\n");
+			return ret_val;
+		}
+
+		/* The AutoNeg process has completed, so we now need to
+		 * read both the Auto Negotiation Advertisement
+		 * Register (PCS_ANADV) and the Auto_Negotiation Base
+		 * Page Ability Register (PCS_LPAB) to determine how
+		 * flow control was negotiated.
+		 */
+		pcs_adv_reg = er32(PCS_ANADV);
+		pcs_lp_ability_reg = er32(PCS_LPAB);
+
+		/* Two bits in the Auto Negotiation Advertisement Register
+		 * (PCS_ANADV) and two bits in the Auto Negotiation Base
+		 * Page Ability Register (PCS_LPAB) determine flow control
+		 * for both the PHY and the link partner.  The following
+		 * table, taken out of the IEEE 802.3ab/D6.0 dated March 25,
+		 * 1999, describes these PAUSE resolution bits and how flow
+		 * control is determined based upon these settings.
+		 * NOTE:  DC = Don't Care
+		 *
+		 *   LOCAL DEVICE  |   LINK PARTNER
+		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | NIC Resolution
+		 *-------|---------|-------|---------|--------------------
+		 *   0   |    0    |  DC   |   DC    | e1000_fc_none
+		 *   0   |    1    |   0   |   DC    | e1000_fc_none
+		 *   0   |    1    |   1   |    0    | e1000_fc_none
+		 *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
+		 *   1   |    0    |   0   |   DC    | e1000_fc_none
+		 *   1   |   DC    |   1   |   DC    | e1000_fc_full
+		 *   1   |    1    |   0   |    0    | e1000_fc_none
+		 *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
+		 *
+		 * Are both PAUSE bits set to 1?  If so, this implies
+		 * Symmetric Flow Control is enabled at both ends.  The
+		 * ASM_DIR bits are irrelevant per the spec.
+		 *
+		 * For Symmetric Flow Control:
+		 *
+		 *   LOCAL DEVICE  |   LINK PARTNER
+		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
+		 *-------|---------|-------|---------|--------------------
+		 *   1   |   DC    |   1   |   DC    | e1000_fc_full
+		 *
+		 */
+		if ((pcs_adv_reg & E1000_TXCW_PAUSE) &&
+		    (pcs_lp_ability_reg & E1000_TXCW_PAUSE)) {
+			/* Now we need to check if the user selected Rx ONLY
+			 * of pause frames.  In this case, we had to advertise
+			 * FULL flow control because we could not advertise Rx
+			 * ONLY. Hence, we must now check to see if we need to
+			 * turn OFF the TRANSMISSION of PAUSE frames.
+			 */
+			if (hw->fc.requested_mode == e1000_fc_full) {
+				hw->fc.current_mode = e1000_fc_full;
+				e_dbg("Flow Control = FULL.\n");
+			} else {
+				hw->fc.current_mode = e1000_fc_rx_pause;
+				e_dbg("Flow Control = Rx PAUSE frames only.\n");
+			}
+		}
+		/* For receiving PAUSE frames ONLY.
+		 *
+		 *   LOCAL DEVICE  |   LINK PARTNER
+		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
+		 *-------|---------|-------|---------|--------------------
+		 *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
+		 */
+		else if (!(pcs_adv_reg & E1000_TXCW_PAUSE) &&
+			 (pcs_adv_reg & E1000_TXCW_ASM_DIR) &&
+			 (pcs_lp_ability_reg & E1000_TXCW_PAUSE) &&
+			 (pcs_lp_ability_reg & E1000_TXCW_ASM_DIR)) {
+			hw->fc.current_mode = e1000_fc_tx_pause;
+			e_dbg("Flow Control = Tx PAUSE frames only.\n");
+		}
+		/* For transmitting PAUSE frames ONLY.
+		 *
+		 *   LOCAL DEVICE  |   LINK PARTNER
+		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
+		 *-------|---------|-------|---------|--------------------
+		 *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
+		 */
+		else if ((pcs_adv_reg & E1000_TXCW_PAUSE) &&
+			 (pcs_adv_reg & E1000_TXCW_ASM_DIR) &&
+			 !(pcs_lp_ability_reg & E1000_TXCW_PAUSE) &&
+			 (pcs_lp_ability_reg & E1000_TXCW_ASM_DIR)) {
+			hw->fc.current_mode = e1000_fc_rx_pause;
+			e_dbg("Flow Control = Rx PAUSE frames only.\n");
+		} else {
+			/* Per the IEEE spec, at this point flow control
+			 * should be disabled.
+			 */
+			hw->fc.current_mode = e1000_fc_none;
+			e_dbg("Flow Control = NONE.\n");
+		}
+
+		/* Now we call a subroutine to actually force the MAC
+		 * controller to use the correct flow control settings.
+		 */
+		pcs_ctrl_reg = er32(PCS_LCTL);
+		pcs_ctrl_reg |= E1000_PCS_LCTL_FORCE_FCTRL;
+		ew32(PCS_LCTL, pcs_ctrl_reg);
+
 		ret_val = e1000e_force_mac_fc(hw);
 		if (ret_val) {
 			e_dbg("Error forcing flow control settings\n");
@@ -1275,8 +1354,8 @@ s32 e1000e_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed,
  *  Sets the speed and duplex to gigabit full duplex (the only possible option)
  *  for fiber/serdes links.
  **/
-s32 e1000e_get_speed_and_duplex_fiber_serdes(struct e1000_hw *hw, u16 *speed,
-					     u16 *duplex)
+s32 e1000e_get_speed_and_duplex_fiber_serdes(struct e1000_hw __always_unused
+					     *hw, u16 *speed, u16 *duplex)
 {
 	*speed = SPEED_1000;
 	*duplex = FULL_DUPLEX;
@@ -1302,7 +1381,7 @@ s32 e1000e_get_hw_semaphore(struct e1000_hw *hw)
 		if (!(swsm & E1000_SWSM_SMBI))
 			break;
 
-		udelay(50);
+		usleep_range(50, 100);
 		i++;
 	}
 
@@ -1320,7 +1399,7 @@ s32 e1000e_get_hw_semaphore(struct e1000_hw *hw)
 		if (er32(SWSM) & E1000_SWSM_SWESMBI)
 			break;
 
-		udelay(50);
+		usleep_range(50, 100);
 	}
 
 	if (i == timeout) {
@@ -1520,16 +1599,28 @@ s32 e1000e_blink_led_generic(struct e1000_hw *hw)
 		ledctl_blink = E1000_LEDCTL_LED0_BLINK |
 		    (E1000_LEDCTL_MODE_LED_ON << E1000_LEDCTL_LED0_MODE_SHIFT);
 	} else {
-		/*
-		 * set the blink bit for each LED that's "on" (0x0E)
-		 * in ledctl_mode2
+		/* Set the blink bit for each LED that's "on" (0x0E)
+		 * (or "off" if inverted) in ledctl_mode2.  The blink
+		 * logic in hardware only works when mode is set to "on"
+		 * so it must be changed accordingly when the mode is
+		 * "off" and inverted.
 		 */
 		ledctl_blink = hw->mac.ledctl_mode2;
-		for (i = 0; i < 4; i++)
-			if (((hw->mac.ledctl_mode2 >> (i * 8)) & 0xFF) ==
-			    E1000_LEDCTL_MODE_LED_ON)
-				ledctl_blink |= (E1000_LEDCTL_LED0_BLINK <<
-						 (i * 8));
+		for (i = 0; i < 32; i += 8) {
+			u32 mode = (hw->mac.ledctl_mode2 >> i) &
+			    E1000_LEDCTL_LED0_MODE_MASK;
+			u32 led_default = hw->mac.ledctl_default >> i;
+
+			if ((!(led_default & E1000_LEDCTL_LED0_IVRT) &&
+			     (mode == E1000_LEDCTL_MODE_LED_ON)) ||
+			    ((led_default & E1000_LEDCTL_LED0_IVRT) &&
+			     (mode == E1000_LEDCTL_MODE_LED_OFF))) {
+				ledctl_blink &=
+				    ~(E1000_LEDCTL_LED0_MODE_MASK << i);
+				ledctl_blink |= (E1000_LEDCTL_LED0_BLINK |
+						 E1000_LEDCTL_MODE_LED_ON) << i;
+			}
+		}
 	}
 
 	ew32(LEDCTL, ledctl_blink);
@@ -1633,7 +1724,7 @@ s32 e1000e_disable_pcie_master(struct e1000_hw *hw)
 	while (timeout) {
 		if (!(er32(STATUS) & E1000_STATUS_GIO_MASTER_ENABLE))
 			break;
-		udelay(100);
+		usleep_range(100, 200);
 		timeout--;
 	}
 

@@ -24,9 +24,8 @@
 #define _INTEL_DVO_H
 
 #include <linux/i2c.h>
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
 #include "intel_drv.h"
 
 struct intel_dvo_device {
@@ -58,13 +57,12 @@ struct intel_dvo_dev_ops {
 	void (*create_resources)(struct intel_dvo_device *dvo);
 
 	/*
-	 * Turn on/off output or set intermediate power levels if available.
+	 * Turn on/off output.
 	 *
-	 * Unsupported intermediate modes drop to the lower power setting.
-	 * If the  mode is DPMSModeOff, the output must be disabled,
-	 * as the DPLL may be disabled afterwards.
+	 * Because none of our dvo drivers support an intermediate power levels,
+	 * we don't expose this in the interfac.
 	 */
-	void (*dpms)(struct intel_dvo_device *dvo, int mode);
+	void (*dpms)(struct intel_dvo_device *dvo, bool enable);
 
 	/*
 	 * Callback for testing a video mode for a given output.
@@ -77,17 +75,6 @@ struct intel_dvo_dev_ops {
 	 */
 	int (*mode_valid)(struct intel_dvo_device *dvo,
 			  struct drm_display_mode *mode);
-
-	/*
-	 * Callback to adjust the mode to be set in the CRTC.
-	 *
-	 * This allows an output to adjust the clock or even the entire set of
-	 * timings, which is used for panels with fixed timings or for
-	 * buses with clock limitations.
-	 */
-	bool (*mode_fixup)(struct intel_dvo_device *dvo,
-			   struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode);
 
 	/*
 	 * Callback for preparing mode changes on an output
@@ -115,6 +102,12 @@ struct intel_dvo_dev_ops {
 	 */
 	enum drm_connector_status (*detect)(struct intel_dvo_device *dvo);
 
+	/*
+	 * Probe the current hw status, returning true if the connected output
+	 * is active.
+	 */
+	bool (*get_hw_state)(struct intel_dvo_device *dev);
+
 	/**
 	 * Query the device for the modes it provides.
 	 *
@@ -140,5 +133,6 @@ extern struct intel_dvo_dev_ops ch7xxx_ops;
 extern struct intel_dvo_dev_ops ivch_ops;
 extern struct intel_dvo_dev_ops tfp410_ops;
 extern struct intel_dvo_dev_ops ch7017_ops;
+extern struct intel_dvo_dev_ops ns2501_ops;
 
 #endif /* _INTEL_DVO_H */

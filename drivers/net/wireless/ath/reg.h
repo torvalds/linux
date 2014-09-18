@@ -23,6 +23,10 @@
 #define AR_MIBC_CMC		0x00000004
 #define AR_MIBC_MCS		0x00000008
 
+#define AR_STA_ID0		0x8000
+#define AR_STA_ID1		0x8004
+#define AR_STA_ID1_SADH_MASK	0x0000ffff
+
 /*
  * BSSID mask registers. See ath_hw_set_bssid_mask()
  * for detailed documentation about these registers.

@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _ZD_USB_H
@@ -274,7 +273,7 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 static inline int zd_usb_ioread16(struct zd_usb *usb, u16 *value,
 	                      const zd_addr_t addr)
 {
-	return zd_usb_ioread16v(usb, value, (const zd_addr_t *)&addr, 1);
+	return zd_usb_ioread16v(usb, value, &addr, 1);
 }
 
 void zd_usb_iowrite16v_async_start(struct zd_usb *usb);

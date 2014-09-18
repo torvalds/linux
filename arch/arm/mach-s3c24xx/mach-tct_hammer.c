@@ -33,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/io.h>
 
 #include <asm/mach/arch.h>
@@ -44,8 +45,7 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <plat/regs-serial.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 
@@ -53,14 +53,12 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/physmap.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 
-static struct resource tct_hammer_nor_resource = {
-		.start = 0x00000000,
-		.end   = 0x01000000 - 1,
-		.flags = IORESOURCE_MEM,
-};
+static struct resource tct_hammer_nor_resource =
+			DEFINE_RES_MEM(0x00000000, SZ_16M);
 
 static struct mtd_partition tct_hammer_mtd_partitions[] = {
 	{
@@ -137,8 +135,14 @@ static struct platform_device *tct_hammer_devices[] __initdata = {
 static void __init tct_hammer_map_io(void)
 {
 	s3c24xx_init_io(tct_hammer_iodesc, ARRAY_SIZE(tct_hammer_iodesc));
-	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(tct_hammer_uartcfgs, ARRAY_SIZE(tct_hammer_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init tct_hammer_init_time(void)
+{
+	s3c2410_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void __init tct_hammer_init(void)
@@ -150,8 +154,8 @@ static void __init tct_hammer_init(void)
 MACHINE_START(TCT_HAMMER, "TCT_HAMMER")
 	.atag_offset	= 0x100,
 	.map_io		= tct_hammer_map_io,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.init_machine	= tct_hammer_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= tct_hammer_init_time,
 	.restart	= s3c2410_restart,
 MACHINE_END

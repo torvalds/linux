@@ -6,29 +6,28 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <mach/mx25.h>
-#include <mach/devices-common.h>
+#include "devices/devices-common.h"
 
 extern const struct imx_fec_data imx25_fec_data;
 #define imx25_add_fec(pdata)	\
 	imx_add_fec(&imx25_fec_data, pdata)
 
 extern const struct imx_flexcan_data imx25_flexcan_data[];
-#define imx25_add_flexcan(id, pdata)	\
-	imx_add_flexcan(&imx25_flexcan_data[id], pdata)
-#define imx25_add_flexcan0(pdata)	imx25_add_flexcan(0, pdata)
-#define imx25_add_flexcan1(pdata)	imx25_add_flexcan(1, pdata)
+#define imx25_add_flexcan(id)	\
+	imx_add_flexcan(&imx25_flexcan_data[id])
+#define imx25_add_flexcan0()		imx25_add_flexcan(0)
+#define imx25_add_flexcan1()		imx25_add_flexcan(1)
 
 extern const struct imx_fsl_usb2_udc_data imx25_fsl_usb2_udc_data;
 #define imx25_add_fsl_usb2_udc(pdata)	\
 	imx_add_fsl_usb2_udc(&imx25_fsl_usb2_udc_data, pdata)
 
 extern struct imx_imxdi_rtc_data imx25_imxdi_rtc_data;
-#define imx25_add_imxdi_rtc(pdata)	\
+#define imx25_add_imxdi_rtc()	\
 	imx_add_imxdi_rtc(&imx25_imxdi_rtc_data)
 
 extern const struct imx_imx2_wdt_data imx25_imx2_wdt_data;
-#define imx25_add_imx2_wdt(pdata)	\
+#define imx25_add_imx2_wdt()	\
 	imx_add_imx2_wdt(&imx25_imx2_wdt_data)
 
 extern const struct imx_imx_fb_data imx25_imx_fb_data;
@@ -84,7 +83,3 @@ extern const struct imx_spi_imx_data imx25_cspi_data[];
 #define imx25_add_spi_imx0(pdata)	imx25_add_spi_imx(0, pdata)
 #define imx25_add_spi_imx1(pdata)	imx25_add_spi_imx(1, pdata)
 #define imx25_add_spi_imx2(pdata)	imx25_add_spi_imx(2, pdata)
-
-extern struct imx_mxc_pwm_data imx25_mxc_pwm_data[];
-#define imx25_add_mxc_pwm(id)	\
-	imx_add_mxc_pwm(&imx25_mxc_pwm_data[id])

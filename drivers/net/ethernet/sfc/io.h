@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2010 Solarflare Communications Inc.
+ * Copyright 2006-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -20,24 +20,23 @@
  *
  **************************************************************************
  *
- * Notes on locking strategy:
+ * Notes on locking strategy for the Falcon architecture:
  *
- * Most CSRs are 128-bit (oword) and therefore cannot be read or
- * written atomically.  Access from the host is buffered by the Bus
- * Interface Unit (BIU).  Whenever the host reads from the lowest
- * address of such a register, or from the address of a different such
- * register, the BIU latches the register's value.  Subsequent reads
- * from higher addresses of the same register will read the latched
- * value.  Whenever the host writes part of such a register, the BIU
- * collects the written value and does not write to the underlying
- * register until all 4 dwords have been written.  A similar buffering
- * scheme applies to host access to the NIC's 64-bit SRAM.
+ * Many CSRs are very wide and cannot be read or written atomically.
+ * Writes from the host are buffered by the Bus Interface Unit (BIU)
+ * up to 128 bits.  Whenever the host writes part of such a register,
+ * the BIU collects the written value and does not write to the
+ * underlying register until all 4 dwords have been written.  A
+ * similar buffering scheme applies to host access to the NIC's 64-bit
+ * SRAM.
  *
- * Access to different CSRs and 64-bit SRAM words must be serialised,
- * since interleaved access can result in lost writes or lost
- * information from read-to-clear fields.  We use efx_nic::biu_lock
- * for this.  (We could use separate locks for read and write, but
- * this is not normally a performance bottleneck.)
+ * Writes to different CSRs and 64-bit SRAM words must be serialised,
+ * since interleaved access can result in lost writes.  We use
+ * efx_nic::biu_lock for this.
+ *
+ * We also serialise reads from 128-bit CSRs and SRAM with the same
+ * spinlock.  This may not be necessary, but it doesn't really matter
+ * as there are no such reads on the fast path.
  *
  * The DMA descriptor pointers (RX_DESC_UPD and TX_DESC_UPD) are
  * 128-bit but are special-cased in the BIU to avoid the need for
@@ -55,10 +54,28 @@
  *   register while the collector already holds values for some other
  *   register, the write is discarded and the collector maintains its
  *   current state.
+ *
+ * The EF10 architecture exposes very few registers to the host and
+ * most of them are only 32 bits wide.  The only exceptions are the MC
+ * doorbell register pair, which has its own latching, and
+ * TX_DESC_UPD, which works in a similar way to the Falcon
+ * architecture.
  */
 
 #if BITS_PER_LONG == 64
 #define EFX_USE_QWORD_IO 1
+#endif
+
+/* Hardware issue requires that only 64-bit naturally aligned writes
+ * are seen by hardware. Its not strictly necessary to restrict to
+ * x86_64 arch, but done for safety since unusual write combining behaviour
+ * can break PIO.
+ */
+#ifdef CONFIG_X86_64
+/* PIO is a win only if write-combining is possible */
+#ifdef ARCH_HAS_IOREMAP_WC
+#define EFX_USE_PIO 1
+#endif
 #endif
 
 #ifdef EFX_USE_QWORD_IO
@@ -84,7 +101,7 @@ static inline __le32 _efx_readd(struct efx_nic *efx, unsigned int reg)
 }
 
 /* Write a normal 128-bit CSR, locking as appropriate. */
-static inline void efx_writeo(struct efx_nic *efx, efx_oword_t *value,
+static inline void efx_writeo(struct efx_nic *efx, const efx_oword_t *value,
 			      unsigned int reg)
 {
 	unsigned long flags __attribute__ ((unused));
@@ -109,7 +126,7 @@ static inline void efx_writeo(struct efx_nic *efx, efx_oword_t *value,
 
 /* Write 64-bit SRAM through the supplied mapping, locking as appropriate. */
 static inline void efx_sram_writeq(struct efx_nic *efx, void __iomem *membase,
-				   efx_qword_t *value, unsigned int index)
+				   const efx_qword_t *value, unsigned int index)
 {
 	unsigned int addr = index * sizeof(*value);
 	unsigned long flags __attribute__ ((unused));
@@ -130,7 +147,7 @@ static inline void efx_sram_writeq(struct efx_nic *efx, void __iomem *membase,
 }
 
 /* Write a 32-bit CSR or the last dword of a special 128-bit CSR */
-static inline void efx_writed(struct efx_nic *efx, efx_dword_t *value,
+static inline void efx_writed(struct efx_nic *efx, const efx_dword_t *value,
 			      unsigned int reg)
 {
 	netif_vdbg(efx, hw, efx->net_dev,
@@ -191,8 +208,9 @@ static inline void efx_readd(struct efx_nic *efx, efx_dword_t *value,
 }
 
 /* Write a 128-bit CSR forming part of a table */
-static inline void efx_writeo_table(struct efx_nic *efx, efx_oword_t *value,
-				      unsigned int reg, unsigned int index)
+static inline void
+efx_writeo_table(struct efx_nic *efx, const efx_oword_t *value,
+		 unsigned int reg, unsigned int index)
 {
 	efx_writeo(efx, value, reg + index * sizeof(efx_oword_t));
 }
@@ -204,26 +222,12 @@ static inline void efx_reado_table(struct efx_nic *efx, efx_oword_t *value,
 	efx_reado(efx, value, reg + index * sizeof(efx_oword_t));
 }
 
-/* Write a 32-bit CSR forming part of a table, or 32-bit SRAM */
-static inline void efx_writed_table(struct efx_nic *efx, efx_dword_t *value,
-				       unsigned int reg, unsigned int index)
-{
-	efx_writed(efx, value, reg + index * sizeof(efx_oword_t));
-}
+/* Page size used as step between per-VI registers */
+#define EFX_VI_PAGE_SIZE 0x2000
 
-/* Read a 32-bit CSR forming part of a table, or 32-bit SRAM */
-static inline void efx_readd_table(struct efx_nic *efx, efx_dword_t *value,
-				   unsigned int reg, unsigned int index)
-{
-	efx_readd(efx, value, reg + index * sizeof(efx_dword_t));
-}
-
-/* Page-mapped register block size */
-#define EFX_PAGE_BLOCK_SIZE 0x2000
-
-/* Calculate offset to page-mapped register block */
+/* Calculate offset to page-mapped register */
 #define EFX_PAGED_REG(page, reg) \
-	((page) * EFX_PAGE_BLOCK_SIZE + (reg))
+	((page) * EFX_VI_PAGE_SIZE + (reg))
 
 /* Write the whole of RX_DESC_UPD or TX_DESC_UPD */
 static inline void _efx_writeo_page(struct efx_nic *efx, efx_oword_t *value,
@@ -251,19 +255,24 @@ static inline void _efx_writeo_page(struct efx_nic *efx, efx_oword_t *value,
 			 BUILD_BUG_ON_ZERO((reg) != 0x830 && (reg) != 0xa10), \
 			 page)
 
-/* Write a page-mapped 32-bit CSR (EVQ_RPTR or the high bits of
- * RX_DESC_UPD or TX_DESC_UPD)
+/* Write a page-mapped 32-bit CSR (EVQ_RPTR, EVQ_TMR (EF10), or the
+ * high bits of RX_DESC_UPD or TX_DESC_UPD)
  */
-static inline void _efx_writed_page(struct efx_nic *efx, efx_dword_t *value,
-				    unsigned int reg, unsigned int page)
+static inline void
+_efx_writed_page(struct efx_nic *efx, const efx_dword_t *value,
+		 unsigned int reg, unsigned int page)
 {
 	efx_writed(efx, value, EFX_PAGED_REG(page, reg));
 }
 #define efx_writed_page(efx, value, reg, page)				\
 	_efx_writed_page(efx, value,					\
 			 reg +						\
-			 BUILD_BUG_ON_ZERO((reg) != 0x400 && (reg) != 0x83c \
-					   && (reg) != 0xa1c),		\
+			 BUILD_BUG_ON_ZERO((reg) != 0x400 &&		\
+					   (reg) != 0x420 &&		\
+					   (reg) != 0x830 &&		\
+					   (reg) != 0x83c &&		\
+					   (reg) != 0xa18 &&		\
+					   (reg) != 0xa1c),		\
 			 page)
 
 /* Write TIMER_COMMAND.  This is a page-mapped 32-bit CSR, but a bug
@@ -271,7 +280,7 @@ static inline void _efx_writed_page(struct efx_nic *efx, efx_dword_t *value,
  * collector register.
  */
 static inline void _efx_writed_page_locked(struct efx_nic *efx,
-					   efx_dword_t *value,
+					   const efx_dword_t *value,
 					   unsigned int reg,
 					   unsigned int page)
 {

@@ -8,9 +8,9 @@ Properties:
 	Definition: Must include "fsl,srio" for IP blocks with IP Block
 	Revision Register (SRIO IPBRR1) Major ID equal to 0x01c0.
 
-	Optionally, a compatiable string of "fsl,srio-vX.Y" where X is Major
+	Optionally, a compatible string of "fsl,srio-vX.Y" where X is Major
 	version in IP Block Revision Register and Y is Minor version.  If this
-	compatiable is provided it should be ordered before "fsl,srio".
+	compatible is provided it should be ordered before "fsl,srio".
 
    - reg
 	Usage: required

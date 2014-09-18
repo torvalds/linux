@@ -22,7 +22,7 @@
  *
  * P2M_PER_PAGE depends on the architecture, as a mfn is always
  * unsigned long (8 bytes on 64-bit, 4 bytes on 32), leading to
- * 512 and 1024 entries respectively. 
+ * 512 and 1024 entries respectively.
  *
  * In short, these structures contain the Machine Frame Number (MFN) of the PFN.
  *
@@ -36,7 +36,7 @@
  *  pfn_to_mfn(0xc0000)=0xc0000
  *
  * The benefit of this is, that we can assume for non-RAM regions (think
- * PCI BARs, or ACPI spaces), we can create mappings easily b/c we
+ * PCI BARs, or ACPI spaces), we can create mappings easily because we
  * get the PFN value to match the MFN.
  *
  * For this to work efficiently we have one new page p2m_identity and
@@ -60,7 +60,7 @@
  * There is also a digram of the P2M at the end that can help.
  * Imagine your E820 looking as so:
  *
- *                    1GB                                           2GB
+ *                    1GB                                           2GB    4GB
  * /-------------------+---------\/----\         /----------\    /---+-----\
  * | System RAM        | Sys RAM ||ACPI|         | reserved |    | Sys RAM |
  * \-------------------+---------/\----/         \----------/    \---+-----/
@@ -77,9 +77,8 @@
  * of the PFN and the end PFN (263424 and 512256 respectively). The first step
  * is to reserve_brk a top leaf page if the p2m[1] is missing. The top leaf page
  * covers 512^2 of page estate (1GB) and in case the start or end PFN is not
- * aligned on 512^2*PAGE_SIZE (1GB) we loop on aligned 1GB PFNs from start pfn
- * to end pfn.  We reserve_brk top leaf pages if they are missing (means they
- * point to p2m_mid_missing).
+ * aligned on 512^2*PAGE_SIZE (1GB) we reserve_brk new middle and leaf pages as
+ * required to split any existing p2m_mid_missing middle pages.
  *
  * With the E820 example above, 263424 is not 1GB aligned so we allocate a
  * reserve_brk page which will cover the PFNs estate from 0x40000 to 0x80000.
@@ -88,7 +87,7 @@
  * Next stage is to determine if we need to do a more granular boundary check
  * on the 4MB (or 2MB depending on architecture) off the start and end pfn's.
  * We check if the start pfn and end pfn violate that boundary check, and if
- * so reserve_brk a middle (p2m[x][y]) leaf page. This way we have a much finer
+ * so reserve_brk a (p2m[x][y]) leaf page. This way we have a much finer
  * granularity of setting which PFNs are missing and which ones are identity.
  * In our example 263424 and 512256 both fail the check so we reserve_brk two
  * pages. Populate them with INVALID_P2M_ENTRY (so they both have "missing"
@@ -102,9 +101,10 @@
  *
  * The next step is to walk from the start pfn to the end pfn setting
  * the IDENTITY_FRAME_BIT on each PFN. This is done in set_phys_range_identity.
- * If we find that the middle leaf is pointing to p2m_missing we can swap it
- * over to p2m_identity - this way covering 4MB (or 2MB) PFN space.  At this
- * point we do not need to worry about boundary aligment (so no need to
+ * If we find that the middle entry is pointing to p2m_missing we can swap it
+ * over to p2m_identity - this way covering 4MB (or 2MB) PFN space (and
+ * similarly swapping p2m_mid_missing for p2m_mid_identity for larger regions).
+ * At this point we do not need to worry about boundary aligment (so no need to
  * reserve_brk a middle page, figure out which PFNs are "missing" and which
  * ones are identity), as that has been done earlier.  If we find that the
  * middle leaf is not occupied by p2m_identity or p2m_missing, we dereference
@@ -118,6 +118,9 @@
  * considered missing). In our case, p2m[1][2][0->255] and p2m[1][488][257->511]
  * contain the INVALID_P2M_ENTRY value and are considered "missing."
  *
+ * Finally, the region beyond the end of of the E820 (4 GB in this example)
+ * is set to be identity (in case there are MMIO regions placed here).
+ *
  * This is what the p2m ends up looking (for the E820 above) with this
  * fabulous drawing:
  *
@@ -129,21 +132,27 @@
  *  |-----|    \                      | [p2m_identity]+\\    | ....            |
  *  |  2  |--\  \-------------------->|  ...          | \\   \----------------/
  *  |-----|   \                       \---------------/  \\
- *  |  3  |\   \                                          \\  p2m_identity
- *  |-----| \   \-------------------->/---------------\   /-----------------\
- *  | ..  +->+                        | [p2m_identity]+-->| ~0, ~0, ~0, ... |
- *  \-----/ /                         | [p2m_identity]+-->| ..., ~0         |
- *         / /---------------\        | ....          |   \-----------------/
- *        /  | IDENTITY[@0]  |      /-+-[x], ~0, ~0.. |
- *       /   | IDENTITY[@256]|<----/  \---------------/
- *      /    | ~0, ~0, ....  |
- *     |     \---------------/
- *     |
- *     p2m_missing             p2m_missing
- * /------------------\     /------------\
- * | [p2m_mid_missing]+---->| ~0, ~0, ~0 |
- * | [p2m_mid_missing]+---->| ..., ~0    |
- * \------------------/     \------------/
+ *  |  3  |-\  \                                          \\  p2m_identity [1]
+ *  |-----|  \  \-------------------->/---------------\   /-----------------\
+ *  | ..  |\  |                       | [p2m_identity]+-->| ~0, ~0, ~0, ... |
+ *  \-----/ | |                       | [p2m_identity]+-->| ..., ~0         |
+ *          | |                       | ....          |   \-----------------/
+ *          | |                       +-[x], ~0, ~0.. +\
+ *          | |                       \---------------/ \
+ *          | |                                          \-> /---------------\
+ *          | V  p2m_mid_missing       p2m_missing           | IDENTITY[@0]  |
+ *          | /-----------------\     /------------\         | IDENTITY[@256]|
+ *          | | [p2m_missing]   +---->| ~0, ~0, ...|         | ~0, ~0, ....  |
+ *          | | [p2m_missing]   +---->| ..., ~0    |         \---------------/
+ *          | | ...             |     \------------/
+ *          | \-----------------/
+ *          |
+ *          |     p2m_mid_identity
+ *          |   /-----------------\
+ *          \-->| [p2m_identity]  +---->[1]
+ *              | [p2m_identity]  +---->[1]
+ *              | ...             |
+ *              \-----------------/
  *
  * where ~0 is INVALID_P2M_ENTRY. IDENTITY is (PFN | IDENTITY_BIT)
  */
@@ -161,6 +170,7 @@
 #include <asm/xen/page.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
+#include <xen/balloon.h>
 #include <xen/grant_table.h>
 
 #include "multicalls.h"
@@ -186,13 +196,22 @@ static RESERVE_BRK_ARRAY(unsigned long, p2m_top_mfn, P2M_TOP_PER_PAGE);
 static RESERVE_BRK_ARRAY(unsigned long *, p2m_top_mfn_p, P2M_TOP_PER_PAGE);
 
 static RESERVE_BRK_ARRAY(unsigned long, p2m_identity, P2M_PER_PAGE);
+static RESERVE_BRK_ARRAY(unsigned long *, p2m_mid_identity, P2M_MID_PER_PAGE);
+static RESERVE_BRK_ARRAY(unsigned long, p2m_mid_identity_mfn, P2M_MID_PER_PAGE);
 
 RESERVE_BRK(p2m_mid, PAGE_SIZE * (MAX_DOMAIN_PAGES / (P2M_PER_PAGE * P2M_MID_PER_PAGE)));
 RESERVE_BRK(p2m_mid_mfn, PAGE_SIZE * (MAX_DOMAIN_PAGES / (P2M_PER_PAGE * P2M_MID_PER_PAGE)));
 
 /* We might hit two boundary violations at the start and end, at max each
  * boundary violation will require three middle nodes. */
-RESERVE_BRK(p2m_mid_identity, PAGE_SIZE * 2 * 3);
+RESERVE_BRK(p2m_mid_extra, PAGE_SIZE * 2 * 3);
+
+/* When we populate back during bootup, the amount of pages can vary. The
+ * max we have is seen is 395979, but that does not mean it can't be more.
+ * Some machines can have 3GB I/O holes even. With early_can_reuse_p2m_middle
+ * it can re-use Xen provided mfn_list array, so we only need to allocate at
+ * most three P2M top nodes. */
+RESERVE_BRK(p2m_populated, PAGE_SIZE * 3);
 
 static inline unsigned p2m_top_index(unsigned long pfn)
 {
@@ -234,20 +253,20 @@ static void p2m_top_mfn_p_init(unsigned long **top)
 		top[i] = p2m_mid_missing_mfn;
 }
 
-static void p2m_mid_init(unsigned long **mid)
+static void p2m_mid_init(unsigned long **mid, unsigned long *leaf)
 {
 	unsigned i;
 
 	for (i = 0; i < P2M_MID_PER_PAGE; i++)
-		mid[i] = p2m_missing;
+		mid[i] = leaf;
 }
 
-static void p2m_mid_mfn_init(unsigned long *mid)
+static void p2m_mid_mfn_init(unsigned long *mid, unsigned long *leaf)
 {
 	unsigned i;
 
 	for (i = 0; i < P2M_MID_PER_PAGE; i++)
-		mid[i] = virt_to_mfn(p2m_missing);
+		mid[i] = virt_to_mfn(leaf);
 }
 
 static void p2m_init(unsigned long *p2m)
@@ -272,10 +291,15 @@ void __ref xen_build_mfn_list_list(void)
 {
 	unsigned long pfn;
 
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
 	/* Pre-initialize p2m_top_mfn to be completely missing */
 	if (p2m_top_mfn == NULL) {
 		p2m_mid_missing_mfn = extend_brk(PAGE_SIZE, PAGE_SIZE);
-		p2m_mid_mfn_init(p2m_mid_missing_mfn);
+		p2m_mid_mfn_init(p2m_mid_missing_mfn, p2m_missing);
+		p2m_mid_identity_mfn = extend_brk(PAGE_SIZE, PAGE_SIZE);
+		p2m_mid_mfn_init(p2m_mid_identity_mfn, p2m_identity);
 
 		p2m_top_mfn_p = extend_brk(PAGE_SIZE, PAGE_SIZE);
 		p2m_top_mfn_p_init(p2m_top_mfn_p);
@@ -284,7 +308,8 @@ void __ref xen_build_mfn_list_list(void)
 		p2m_top_mfn_init(p2m_top_mfn);
 	} else {
 		/* Reinitialise, mfn's all change after migration */
-		p2m_mid_mfn_init(p2m_mid_missing_mfn);
+		p2m_mid_mfn_init(p2m_mid_missing_mfn, p2m_missing);
+		p2m_mid_mfn_init(p2m_mid_identity_mfn, p2m_identity);
 	}
 
 	for (pfn = 0; pfn < xen_max_p2m_pfn; pfn += P2M_PER_PAGE) {
@@ -316,7 +341,7 @@ void __ref xen_build_mfn_list_list(void)
 			 * it too late.
 			 */
 			mid_mfn_p = extend_brk(PAGE_SIZE, PAGE_SIZE);
-			p2m_mid_mfn_init(mid_mfn_p);
+			p2m_mid_mfn_init(mid_mfn_p, p2m_missing);
 
 			p2m_top_mfn_p[topidx] = mid_mfn_p;
 		}
@@ -328,6 +353,9 @@ void __ref xen_build_mfn_list_list(void)
 
 void xen_setup_mfn_list_list(void)
 {
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
 	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
 
 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
@@ -338,23 +366,29 @@ void xen_setup_mfn_list_list(void)
 /* Set up p2m_top to point to the domain-builder provided p2m pages */
 void __init xen_build_dynamic_phys_to_machine(void)
 {
-	unsigned long *mfn_list = (unsigned long *)xen_start_info->mfn_list;
-	unsigned long max_pfn = min(MAX_DOMAIN_PAGES, xen_start_info->nr_pages);
+	unsigned long *mfn_list;
+	unsigned long max_pfn;
 	unsigned long pfn;
 
+	 if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
+	mfn_list = (unsigned long *)xen_start_info->mfn_list;
+	max_pfn = min(MAX_DOMAIN_PAGES, xen_start_info->nr_pages);
 	xen_max_p2m_pfn = max_pfn;
 
 	p2m_missing = extend_brk(PAGE_SIZE, PAGE_SIZE);
 	p2m_init(p2m_missing);
+	p2m_identity = extend_brk(PAGE_SIZE, PAGE_SIZE);
+	p2m_init(p2m_identity);
 
 	p2m_mid_missing = extend_brk(PAGE_SIZE, PAGE_SIZE);
-	p2m_mid_init(p2m_mid_missing);
+	p2m_mid_init(p2m_mid_missing, p2m_missing);
+	p2m_mid_identity = extend_brk(PAGE_SIZE, PAGE_SIZE);
+	p2m_mid_init(p2m_mid_identity, p2m_identity);
 
 	p2m_top = extend_brk(PAGE_SIZE, PAGE_SIZE);
 	p2m_top_init(p2m_top);
-
-	p2m_identity = extend_brk(PAGE_SIZE, PAGE_SIZE);
-	p2m_init(p2m_identity);
 
 	/*
 	 * The domain builder gives us a pre-constructed p2m array in
@@ -367,7 +401,7 @@ void __init xen_build_dynamic_phys_to_machine(void)
 
 		if (p2m_top[topidx] == p2m_mid_missing) {
 			unsigned long **mid = extend_brk(PAGE_SIZE, PAGE_SIZE);
-			p2m_mid_init(mid);
+			p2m_mid_init(mid, p2m_missing);
 
 			p2m_top[topidx] = mid;
 		}
@@ -389,13 +423,91 @@ void __init xen_build_dynamic_phys_to_machine(void)
 
 	m2p_override_init();
 }
+#ifdef CONFIG_X86_64
+#include <linux/bootmem.h>
+unsigned long __init xen_revector_p2m_tree(void)
+{
+	unsigned long va_start;
+	unsigned long va_end;
+	unsigned long pfn;
+	unsigned long pfn_free = 0;
+	unsigned long *mfn_list = NULL;
+	unsigned long size;
 
+	va_start = xen_start_info->mfn_list;
+	/*We copy in increments of P2M_PER_PAGE * sizeof(unsigned long),
+	 * so make sure it is rounded up to that */
+	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
+	va_end = va_start + size;
+
+	/* If we were revectored already, don't do it again. */
+	if (va_start <= __START_KERNEL_map && va_start >= __PAGE_OFFSET)
+		return 0;
+
+	mfn_list = alloc_bootmem_align(size, PAGE_SIZE);
+	if (!mfn_list) {
+		pr_warn("Could not allocate space for a new P2M tree!\n");
+		return xen_start_info->mfn_list;
+	}
+	/* Fill it out with INVALID_P2M_ENTRY value */
+	memset(mfn_list, 0xFF, size);
+
+	for (pfn = 0; pfn < ALIGN(MAX_DOMAIN_PAGES, P2M_PER_PAGE); pfn += P2M_PER_PAGE) {
+		unsigned topidx = p2m_top_index(pfn);
+		unsigned mididx;
+		unsigned long *mid_p;
+
+		if (!p2m_top[topidx])
+			continue;
+
+		if (p2m_top[topidx] == p2m_mid_missing)
+			continue;
+
+		mididx = p2m_mid_index(pfn);
+		mid_p = p2m_top[topidx][mididx];
+		if (!mid_p)
+			continue;
+		if ((mid_p == p2m_missing) || (mid_p == p2m_identity))
+			continue;
+
+		if ((unsigned long)mid_p == INVALID_P2M_ENTRY)
+			continue;
+
+		/* The old va. Rebase it on mfn_list */
+		if (mid_p >= (unsigned long *)va_start && mid_p <= (unsigned long *)va_end) {
+			unsigned long *new;
+
+			if (pfn_free  > (size / sizeof(unsigned long))) {
+				WARN(1, "Only allocated for %ld pages, but we want %ld!\n",
+				     size / sizeof(unsigned long), pfn_free);
+				return 0;
+			}
+			new = &mfn_list[pfn_free];
+
+			copy_page(new, mid_p);
+			p2m_top[topidx][mididx] = &mfn_list[pfn_free];
+			p2m_top_mfn_p[topidx][mididx] = virt_to_mfn(&mfn_list[pfn_free]);
+
+			pfn_free += P2M_PER_PAGE;
+
+		}
+		/* This should be the leafs allocated for identity from _brk. */
+	}
+	return (unsigned long)mfn_list;
+
+}
+#else
+unsigned long __init xen_revector_p2m_tree(void)
+{
+	return 0;
+}
+#endif
 unsigned long get_phys_to_machine(unsigned long pfn)
 {
 	unsigned topidx, mididx, idx;
 
 	if (unlikely(pfn >= MAX_P2M_PFN))
-		return INVALID_P2M_ENTRY;
+		return IDENTITY_FRAME(pfn);
 
 	topidx = p2m_top_index(pfn);
 	mididx = p2m_mid_index(pfn);
@@ -423,7 +535,7 @@ static void free_p2m_page(void *p)
 	free_page((unsigned long)p);
 }
 
-/* 
+/*
  * Fully allocate the p2m structure for a given pfn.  We need to check
  * that both the top and mid levels are allocated, and make sure the
  * parallel mfn tree is kept in sync.  We may race with other cpus, so
@@ -448,7 +560,7 @@ static bool alloc_p2m(unsigned long pfn)
 		if (!mid)
 			return false;
 
-		p2m_mid_init(mid);
+		p2m_mid_init(mid, p2m_missing);
 
 		if (cmpxchg(top_p, p2m_mid_missing, mid) != p2m_mid_missing)
 			free_p2m_page(mid);
@@ -468,7 +580,7 @@ static bool alloc_p2m(unsigned long pfn)
 		if (!mid_mfn)
 			return false;
 
-		p2m_mid_mfn_init(mid_mfn);
+		p2m_mid_mfn_init(mid_mfn, p2m_missing);
 
 		missing_mfn = virt_to_mfn(p2m_mid_missing_mfn);
 		mid_mfn_mfn = virt_to_mfn(mid_mfn);
@@ -499,16 +611,18 @@ static bool alloc_p2m(unsigned long pfn)
 	return true;
 }
 
-static bool __init __early_alloc_p2m(unsigned long pfn)
+static bool __init early_alloc_p2m(unsigned long pfn, bool check_boundary)
 {
 	unsigned topidx, mididx, idx;
+	unsigned long *p2m;
+	unsigned long *mid_mfn_p;
 
 	topidx = p2m_top_index(pfn);
 	mididx = p2m_mid_index(pfn);
 	idx = p2m_index(pfn);
 
 	/* Pfff.. No boundary cross-over, lets get out. */
-	if (!idx)
+	if (!idx && check_boundary)
 		return false;
 
 	WARN(p2m_top[topidx][mididx] == p2m_identity,
@@ -522,31 +636,178 @@ static bool __init __early_alloc_p2m(unsigned long pfn)
 		return false;
 
 	/* Boundary cross-over for the edges: */
-	if (idx) {
-		unsigned long *p2m = extend_brk(PAGE_SIZE, PAGE_SIZE);
-		unsigned long *mid_mfn_p;
+	p2m = extend_brk(PAGE_SIZE, PAGE_SIZE);
 
-		p2m_init(p2m);
+	p2m_init(p2m);
 
-		p2m_top[topidx][mididx] = p2m;
+	p2m_top[topidx][mididx] = p2m;
 
-		/* For save/restore we need to MFN of the P2M saved */
-		
-		mid_mfn_p = p2m_top_mfn_p[topidx];
-		WARN(mid_mfn_p[mididx] != virt_to_mfn(p2m_missing),
-			"P2M_TOP_P[%d][%d] != MFN of p2m_missing!\n",
-			topidx, mididx);
-		mid_mfn_p[mididx] = virt_to_mfn(p2m);
+	/* For save/restore we need to MFN of the P2M saved */
 
-	}
-	return idx != 0;
+	mid_mfn_p = p2m_top_mfn_p[topidx];
+	WARN(mid_mfn_p[mididx] != virt_to_mfn(p2m_missing),
+		"P2M_TOP_P[%d][%d] != MFN of p2m_missing!\n",
+		topidx, mididx);
+	mid_mfn_p[mididx] = virt_to_mfn(p2m);
+
+	return true;
 }
+
+static bool __init early_alloc_p2m_middle(unsigned long pfn)
+{
+	unsigned topidx = p2m_top_index(pfn);
+	unsigned long *mid_mfn_p;
+	unsigned long **mid;
+
+	mid = p2m_top[topidx];
+	mid_mfn_p = p2m_top_mfn_p[topidx];
+	if (mid == p2m_mid_missing) {
+		mid = extend_brk(PAGE_SIZE, PAGE_SIZE);
+
+		p2m_mid_init(mid, p2m_missing);
+
+		p2m_top[topidx] = mid;
+
+		BUG_ON(mid_mfn_p != p2m_mid_missing_mfn);
+	}
+	/* And the save/restore P2M tables.. */
+	if (mid_mfn_p == p2m_mid_missing_mfn) {
+		mid_mfn_p = extend_brk(PAGE_SIZE, PAGE_SIZE);
+		p2m_mid_mfn_init(mid_mfn_p, p2m_missing);
+
+		p2m_top_mfn_p[topidx] = mid_mfn_p;
+		p2m_top_mfn[topidx] = virt_to_mfn(mid_mfn_p);
+		/* Note: we don't set mid_mfn_p[midix] here,
+		 * look in early_alloc_p2m() */
+	}
+	return true;
+}
+
+/*
+ * Skim over the P2M tree looking at pages that are either filled with
+ * INVALID_P2M_ENTRY or with 1:1 PFNs. If found, re-use that page and
+ * replace the P2M leaf with a p2m_missing or p2m_identity.
+ * Stick the old page in the new P2M tree location.
+ */
+bool __init early_can_reuse_p2m_middle(unsigned long set_pfn, unsigned long set_mfn)
+{
+	unsigned topidx;
+	unsigned mididx;
+	unsigned ident_pfns;
+	unsigned inv_pfns;
+	unsigned long *p2m;
+	unsigned long *mid_mfn_p;
+	unsigned idx;
+	unsigned long pfn;
+
+	/* We only look when this entails a P2M middle layer */
+	if (p2m_index(set_pfn))
+		return false;
+
+	for (pfn = 0; pfn < MAX_DOMAIN_PAGES; pfn += P2M_PER_PAGE) {
+		topidx = p2m_top_index(pfn);
+
+		if (!p2m_top[topidx])
+			continue;
+
+		if (p2m_top[topidx] == p2m_mid_missing)
+			continue;
+
+		mididx = p2m_mid_index(pfn);
+		p2m = p2m_top[topidx][mididx];
+		if (!p2m)
+			continue;
+
+		if ((p2m == p2m_missing) || (p2m == p2m_identity))
+			continue;
+
+		if ((unsigned long)p2m == INVALID_P2M_ENTRY)
+			continue;
+
+		ident_pfns = 0;
+		inv_pfns = 0;
+		for (idx = 0; idx < P2M_PER_PAGE; idx++) {
+			/* IDENTITY_PFNs are 1:1 */
+			if (p2m[idx] == IDENTITY_FRAME(pfn + idx))
+				ident_pfns++;
+			else if (p2m[idx] == INVALID_P2M_ENTRY)
+				inv_pfns++;
+			else
+				break;
+		}
+		if ((ident_pfns == P2M_PER_PAGE) || (inv_pfns == P2M_PER_PAGE))
+			goto found;
+	}
+	return false;
+found:
+	/* Found one, replace old with p2m_identity or p2m_missing */
+	p2m_top[topidx][mididx] = (ident_pfns ? p2m_identity : p2m_missing);
+	/* And the other for save/restore.. */
+	mid_mfn_p = p2m_top_mfn_p[topidx];
+	/* NOTE: Even if it is a p2m_identity it should still be point to
+	 * a page filled with INVALID_P2M_ENTRY entries. */
+	mid_mfn_p[mididx] = virt_to_mfn(p2m_missing);
+
+	/* Reset where we want to stick the old page in. */
+	topidx = p2m_top_index(set_pfn);
+	mididx = p2m_mid_index(set_pfn);
+
+	/* This shouldn't happen */
+	if (WARN_ON(p2m_top[topidx] == p2m_mid_missing))
+		early_alloc_p2m_middle(set_pfn);
+
+	if (WARN_ON(p2m_top[topidx][mididx] != p2m_missing))
+		return false;
+
+	p2m_init(p2m);
+	p2m_top[topidx][mididx] = p2m;
+	mid_mfn_p = p2m_top_mfn_p[topidx];
+	mid_mfn_p[mididx] = virt_to_mfn(p2m);
+
+	return true;
+}
+bool __init early_set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+{
+	if (unlikely(!__set_phys_to_machine(pfn, mfn)))  {
+		if (!early_alloc_p2m_middle(pfn))
+			return false;
+
+		if (early_can_reuse_p2m_middle(pfn, mfn))
+			return __set_phys_to_machine(pfn, mfn);
+
+		if (!early_alloc_p2m(pfn, false /* boundary crossover OK!*/))
+			return false;
+
+		if (!__set_phys_to_machine(pfn, mfn))
+			return false;
+	}
+
+	return true;
+}
+
+static void __init early_split_p2m(unsigned long pfn)
+{
+	unsigned long mididx, idx;
+
+	mididx = p2m_mid_index(pfn);
+	idx = p2m_index(pfn);
+
+	/*
+	 * Allocate new middle and leaf pages if this pfn lies in the
+	 * middle of one.
+	 */
+	if (mididx || idx)
+		early_alloc_p2m_middle(pfn);
+	if (idx)
+		early_alloc_p2m(pfn, false);
+}
+
 unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 				      unsigned long pfn_e)
 {
 	unsigned long pfn;
 
-	if (unlikely(pfn_s >= MAX_P2M_PFN || pfn_e >= MAX_P2M_PFN))
+	if (unlikely(pfn_s >= MAX_P2M_PFN))
 		return 0;
 
 	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap)))
@@ -555,48 +816,34 @@ unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 	if (pfn_s > pfn_e)
 		return 0;
 
-	for (pfn = (pfn_s & ~(P2M_MID_PER_PAGE * P2M_PER_PAGE - 1));
-		pfn < ALIGN(pfn_e, (P2M_MID_PER_PAGE * P2M_PER_PAGE));
-		pfn += P2M_MID_PER_PAGE * P2M_PER_PAGE)
-	{
+	if (pfn_e > MAX_P2M_PFN)
+		pfn_e = MAX_P2M_PFN;
+
+	early_split_p2m(pfn_s);
+	early_split_p2m(pfn_e);
+
+	for (pfn = pfn_s; pfn < pfn_e;) {
 		unsigned topidx = p2m_top_index(pfn);
-		unsigned long *mid_mfn_p;
-		unsigned long **mid;
+		unsigned mididx = p2m_mid_index(pfn);
 
-		mid = p2m_top[topidx];
-		mid_mfn_p = p2m_top_mfn_p[topidx];
-		if (mid == p2m_mid_missing) {
-			mid = extend_brk(PAGE_SIZE, PAGE_SIZE);
-
-			p2m_mid_init(mid);
-
-			p2m_top[topidx] = mid;
-
-			BUG_ON(mid_mfn_p != p2m_mid_missing_mfn);
-		}
-		/* And the save/restore P2M tables.. */
-		if (mid_mfn_p == p2m_mid_missing_mfn) {
-			mid_mfn_p = extend_brk(PAGE_SIZE, PAGE_SIZE);
-			p2m_mid_mfn_init(mid_mfn_p);
-
-			p2m_top_mfn_p[topidx] = mid_mfn_p;
-			p2m_top_mfn[topidx] = virt_to_mfn(mid_mfn_p);
-			/* Note: we don't set mid_mfn_p[midix] here,
-		 	 * look in __early_alloc_p2m */
-		}
-	}
-
-	__early_alloc_p2m(pfn_s);
-	__early_alloc_p2m(pfn_e);
-
-	for (pfn = pfn_s; pfn < pfn_e; pfn++)
 		if (!__set_phys_to_machine(pfn, IDENTITY_FRAME(pfn)))
 			break;
+		pfn++;
 
-	if (!WARN((pfn - pfn_s) != (pfn_e - pfn_s),
+		/*
+		 * If the PFN was set to a middle or leaf identity
+		 * page the remainder must also be identity, so skip
+		 * ahead to the next middle or leaf entry.
+		 */
+		if (p2m_top[topidx] == p2m_mid_identity)
+			pfn = ALIGN(pfn, P2M_MID_PER_PAGE * P2M_PER_PAGE);
+		else if (p2m_top[topidx][mididx] == p2m_identity)
+			pfn = ALIGN(pfn, P2M_PER_PAGE);
+	}
+
+	WARN((pfn - pfn_s) != (pfn_e - pfn_s),
 		"Identity mapping failed. We are %ld short of 1-1 mappings!\n",
-		(pfn_e - pfn_s) - (pfn - pfn_s)))
-		printk(KERN_DEBUG "1-1 mapping on %lx->%lx\n", pfn_s, pfn);
+		(pfn_e - pfn_s) - (pfn - pfn_s));
 
 	return pfn - pfn_s;
 }
@@ -606,10 +853,10 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
 	unsigned topidx, mididx, idx;
 
-	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap))) {
-		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
+	/* don't track P2M changes in autotranslate guests */
+	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap)))
 		return true;
-	}
+
 	if (unlikely(pfn >= MAX_P2M_PFN)) {
 		BUG_ON(mfn != INVALID_P2M_ENTRY);
 		return true;
@@ -621,8 +868,22 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 
 	/* For sparse holes were the p2m leaf has real PFN along with
 	 * PCI holes, stick in the PFN as the MFN value.
+	 *
+	 * set_phys_range_identity() will have allocated new middle
+	 * and leaf pages as required so an existing p2m_mid_missing
+	 * or p2m_missing mean that whole range will be identity so
+	 * these can be switched to p2m_mid_identity or p2m_identity.
 	 */
 	if (mfn != INVALID_P2M_ENTRY && (mfn & IDENTITY_FRAME_BIT)) {
+		if (p2m_top[topidx] == p2m_mid_identity)
+			return true;
+
+		if (p2m_top[topidx] == p2m_mid_missing) {
+			WARN_ON(cmpxchg(&p2m_top[topidx], p2m_mid_missing,
+					p2m_mid_identity) != p2m_mid_missing);
+			return true;
+		}
+
 		if (p2m_top[topidx][mididx] == p2m_identity)
 			return true;
 
@@ -677,6 +938,65 @@ static unsigned long mfn_hash(unsigned long mfn)
 	return hash_long(mfn, M2P_OVERRIDE_HASH_SHIFT);
 }
 
+int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
+			    struct gnttab_map_grant_ref *kmap_ops,
+			    struct page **pages, unsigned int count)
+{
+	int i, ret = 0;
+	bool lazy = false;
+	pte_t *pte;
+
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return 0;
+
+	if (kmap_ops &&
+	    !in_interrupt() &&
+	    paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
+		arch_enter_lazy_mmu_mode();
+		lazy = true;
+	}
+
+	for (i = 0; i < count; i++) {
+		unsigned long mfn, pfn;
+
+		/* Do not add to override if the map failed. */
+		if (map_ops[i].status)
+			continue;
+
+		if (map_ops[i].flags & GNTMAP_contains_pte) {
+			pte = (pte_t *) (mfn_to_virt(PFN_DOWN(map_ops[i].host_addr)) +
+				(map_ops[i].host_addr & ~PAGE_MASK));
+			mfn = pte_mfn(*pte);
+		} else {
+			mfn = PFN_DOWN(map_ops[i].dev_bus_addr);
+		}
+		pfn = page_to_pfn(pages[i]);
+
+		WARN_ON(PagePrivate(pages[i]));
+		SetPagePrivate(pages[i]);
+		set_page_private(pages[i], mfn);
+		pages[i]->index = pfn_to_mfn(pfn);
+
+		if (unlikely(!set_phys_to_machine(pfn, FOREIGN_FRAME(mfn)))) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		if (kmap_ops) {
+			ret = m2p_add_override(mfn, pages[i], &kmap_ops[i]);
+			if (ret)
+				goto out;
+		}
+	}
+
+out:
+	if (lazy)
+		arch_leave_lazy_mmu_mode();
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(set_foreign_p2m_mapping);
+
 /* Add an MFN override for a particular page */
 int m2p_add_override(unsigned long mfn, struct page *page,
 		struct gnttab_map_grant_ref *kmap_op)
@@ -695,13 +1015,6 @@ int m2p_add_override(unsigned long mfn, struct page *page,
 					"m2p_add_override: pfn %lx not mapped", pfn))
 			return -EINVAL;
 	}
-	WARN_ON(PagePrivate(page));
-	SetPagePrivate(page);
-	set_page_private(page, mfn);
-	page->index = pfn_to_mfn(pfn);
-
-	if (unlikely(!set_phys_to_machine(pfn, FOREIGN_FRAME(mfn))))
-		return -ENOMEM;
 
 	if (kmap_op != NULL) {
 		if (!PageHighMem(page)) {
@@ -713,30 +1026,88 @@ int m2p_add_override(unsigned long mfn, struct page *page,
 
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
 		}
-		/* let's use dev_bus_addr to record the old mfn instead */
-		kmap_op->dev_bus_addr = page->index;
-		page->index = (unsigned long) kmap_op;
 	}
 	spin_lock_irqsave(&m2p_override_lock, flags);
 	list_add(&page->lru,  &m2p_overrides[mfn_hash(mfn)]);
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
 
+	/* p2m(m2p(mfn)) == mfn: the mfn is already present somewhere in
+	 * this domain. Set the FOREIGN_FRAME_BIT in the p2m for the other
+	 * pfn so that the following mfn_to_pfn(mfn) calls will return the
+	 * pfn from the m2p_override (the backend pfn) instead.
+	 * We need to do this because the pages shared by the frontend
+	 * (xen-blkfront) can be already locked (lock_page, called by
+	 * do_read_cache_page); when the userspace backend tries to use them
+	 * with direct_IO, mfn_to_pfn returns the pfn of the frontend, so
+	 * do_blockdev_direct_IO is going to try to lock the same pages
+	 * again resulting in a deadlock.
+	 * As a side effect get_user_pages_fast might not be safe on the
+	 * frontend pages while they are being shared with the backend,
+	 * because mfn_to_pfn (that ends up being called by GUPF) will
+	 * return the backend pfn rather than the frontend pfn. */
+	pfn = mfn_to_pfn_no_overrides(mfn);
+	if (get_phys_to_machine(pfn) == mfn)
+		set_phys_to_machine(pfn, FOREIGN_FRAME(mfn));
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(m2p_add_override);
-int m2p_remove_override(struct page *page, bool clear_pte)
+
+int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
+			      struct gnttab_map_grant_ref *kmap_ops,
+			      struct page **pages, unsigned int count)
+{
+	int i, ret = 0;
+	bool lazy = false;
+
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return 0;
+
+	if (kmap_ops &&
+	    !in_interrupt() &&
+	    paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
+		arch_enter_lazy_mmu_mode();
+		lazy = true;
+	}
+
+	for (i = 0; i < count; i++) {
+		unsigned long mfn = get_phys_to_machine(page_to_pfn(pages[i]));
+		unsigned long pfn = page_to_pfn(pages[i]);
+
+		if (mfn == INVALID_P2M_ENTRY || !(mfn & FOREIGN_FRAME_BIT)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		set_page_private(pages[i], INVALID_P2M_ENTRY);
+		WARN_ON(!PagePrivate(pages[i]));
+		ClearPagePrivate(pages[i]);
+		set_phys_to_machine(pfn, pages[i]->index);
+
+		if (kmap_ops)
+			ret = m2p_remove_override(pages[i], &kmap_ops[i], mfn);
+		if (ret)
+			goto out;
+	}
+
+out:
+	if (lazy)
+		arch_leave_lazy_mmu_mode();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(clear_foreign_p2m_mapping);
+
+int m2p_remove_override(struct page *page,
+			struct gnttab_map_grant_ref *kmap_op,
+			unsigned long mfn)
 {
 	unsigned long flags;
-	unsigned long mfn;
 	unsigned long pfn;
 	unsigned long uninitialized_var(address);
 	unsigned level;
 	pte_t *ptep = NULL;
 
 	pfn = page_to_pfn(page);
-	mfn = get_phys_to_machine(pfn);
-	if (mfn == INVALID_P2M_ENTRY || !(mfn & FOREIGN_FRAME_BIT))
-		return -EINVAL;
 
 	if (!PageHighMem(page)) {
 		address = (unsigned long)__va(pfn << PAGE_SHIFT);
@@ -750,16 +1121,14 @@ int m2p_remove_override(struct page *page, bool clear_pte)
 	spin_lock_irqsave(&m2p_override_lock, flags);
 	list_del(&page->lru);
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
-	WARN_ON(!PagePrivate(page));
-	ClearPagePrivate(page);
 
-	if (clear_pte) {
-		struct gnttab_map_grant_ref *map_op =
-			(struct gnttab_map_grant_ref *) page->index;
-		set_phys_to_machine(pfn, map_op->dev_bus_addr);
+	if (kmap_op != NULL) {
 		if (!PageHighMem(page)) {
 			struct multicall_space mcs;
-			struct gnttab_unmap_grant_ref *unmap_op;
+			struct gnttab_unmap_and_replace *unmap_op;
+			struct page *scratch_page = get_balloon_scratch_page();
+			unsigned long scratch_page_address = (unsigned long)
+				__va(page_to_pfn(scratch_page) << PAGE_SHIFT);
 
 			/*
 			 * It might be that we queued all the m2p grant table
@@ -768,38 +1137,59 @@ int m2p_remove_override(struct page *page, bool clear_pte)
 			 * issued. In this case handle is going to -1 because
 			 * it hasn't been modified yet.
 			 */
-			if (map_op->handle == -1)
+			if (kmap_op->handle == -1)
 				xen_mc_flush();
 			/*
-			 * Now if map_op->handle is negative it means that the
+			 * Now if kmap_op->handle is negative it means that the
 			 * hypercall actually returned an error.
 			 */
-			if (map_op->handle == GNTST_general_error) {
+			if (kmap_op->handle == GNTST_general_error) {
 				printk(KERN_WARNING "m2p_remove_override: "
 						"pfn %lx mfn %lx, failed to modify kernel mappings",
 						pfn, mfn);
+				put_balloon_scratch_page();
 				return -1;
 			}
 
-			mcs = xen_mc_entry(
-					sizeof(struct gnttab_unmap_grant_ref));
+			xen_mc_batch();
+
+			mcs = __xen_mc_entry(
+					sizeof(struct gnttab_unmap_and_replace));
 			unmap_op = mcs.args;
-			unmap_op->host_addr = map_op->host_addr;
-			unmap_op->handle = map_op->handle;
-			unmap_op->dev_bus_addr = 0;
+			unmap_op->host_addr = kmap_op->host_addr;
+			unmap_op->new_addr = scratch_page_address;
+			unmap_op->handle = kmap_op->handle;
 
 			MULTI_grant_table_op(mcs.mc,
-					GNTTABOP_unmap_grant_ref, unmap_op, 1);
+					GNTTABOP_unmap_and_replace, unmap_op, 1);
+
+			mcs = __xen_mc_entry(0);
+			MULTI_update_va_mapping(mcs.mc, scratch_page_address,
+					pfn_pte(page_to_pfn(scratch_page),
+					PAGE_KERNEL_RO), 0);
 
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
 
-			set_pte_at(&init_mm, address, ptep,
-					pfn_pte(pfn, PAGE_KERNEL));
-			__flush_tlb_single(address);
-			map_op->host_addr = 0;
+			kmap_op->host_addr = 0;
+			put_balloon_scratch_page();
 		}
-	} else
-		set_phys_to_machine(pfn, page->index);
+	}
+
+	/* p2m(m2p(mfn)) == FOREIGN_FRAME(mfn): the mfn is already present
+	 * somewhere in this domain, even before being added to the
+	 * m2p_override (see comment above in m2p_add_override).
+	 * If there are no other entries in the m2p_override corresponding
+	 * to this mfn, then remove the FOREIGN_FRAME_BIT from the p2m for
+	 * the original pfn (the one shared by the frontend): the backend
+	 * cannot do any IO on this page anymore because it has been
+	 * unshared. Removing the FOREIGN_FRAME_BIT from the p2m entry of
+	 * the original pfn causes mfn_to_pfn(mfn) to return the frontend
+	 * pfn again. */
+	mfn &= ~FOREIGN_FRAME_BIT;
+	pfn = mfn_to_pfn_no_overrides(mfn);
+	if (get_phys_to_machine(pfn) == FOREIGN_FRAME(mfn) &&
+			m2p_find_override(mfn) == NULL)
+		set_phys_to_machine(pfn, mfn);
 
 	return 0;
 }

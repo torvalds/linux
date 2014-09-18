@@ -24,16 +24,6 @@
 #include <asm/homecache.h>
 #include <arch/opcode.h>
 
-#ifdef __tilegx__
-# define Elf_Rela Elf64_Rela
-# define ELF_R_SYM ELF64_R_SYM
-# define ELF_R_TYPE ELF64_R_TYPE
-#else
-# define Elf_Rela Elf32_Rela
-# define ELF_R_SYM ELF32_R_SYM
-# define ELF_R_TYPE ELF32_R_TYPE
-#endif
-
 #ifdef MODULE_DEBUG
 #define DEBUGP printk
 #else
@@ -52,8 +42,6 @@ void *module_alloc(unsigned long size)
 	int i = 0;
 	int npages;
 
-	if (size == 0)
-		return NULL;
 	npages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 	pages = kmalloc(npages * sizeof(struct page *), GFP_KERNEL);
 	if (pages == NULL)
@@ -70,7 +58,7 @@ void *module_alloc(unsigned long size)
 	area->nr_pages = npages;
 	area->pages = pages;
 
-	if (map_vm_area(area, prot_rwx, &pages)) {
+	if (map_vm_area(area, prot_rwx, pages)) {
 		vunmap(area->addr);
 		goto error;
 	}
@@ -159,7 +147,17 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 
 		switch (ELF_R_TYPE(rel[i].r_info)) {
 
-#define MUNGE(func) (*location = ((*location & ~func(-1)) | func(value)))
+#ifdef __LITTLE_ENDIAN
+# define MUNGE(func) \
+	(*location = ((*location & ~func(-1)) | func(value)))
+#else
+/*
+ * Instructions are always little-endian, so when we read them as data,
+ * we have to swap them around before and after modifying them.
+ */
+# define MUNGE(func) \
+	(*location = swab64((swab64(*location) & ~func(-1)) | func(value)))
+#endif
 
 #ifndef __tilegx__
 		case R_TILE_32:

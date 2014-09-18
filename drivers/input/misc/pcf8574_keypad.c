@@ -7,7 +7,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -82,7 +81,7 @@ static irqreturn_t pcf8574_kp_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit pcf8574_kp_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int pcf8574_kp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int i, ret;
 	struct input_dev *idev;
@@ -113,9 +112,12 @@ static int __devinit pcf8574_kp_probe(struct i2c_client *client, const struct i2
 	idev->keycodemax = ARRAY_SIZE(lp->btncode);
 
 	for (i = 0; i < ARRAY_SIZE(pcf8574_kp_btncode); i++) {
-		lp->btncode[i] = pcf8574_kp_btncode[i];
-		__set_bit(lp->btncode[i] & KEY_MAX, idev->keybit);
+		if (lp->btncode[i] <= KEY_MAX) {
+			lp->btncode[i] = pcf8574_kp_btncode[i];
+			__set_bit(lp->btncode[i], idev->keybit);
+		}
 	}
+	__clear_bit(KEY_RESERVED, idev->keybit);
 
 	sprintf(lp->name, DRV_NAME);
 	sprintf(lp->phys, "kp_data/input0");
@@ -156,7 +158,7 @@ static int __devinit pcf8574_kp_probe(struct i2c_client *client, const struct i2
 	return ret;
 }
 
-static int __devexit pcf8574_kp_remove(struct i2c_client *client)
+static int pcf8574_kp_remove(struct i2c_client *client)
 {
 	struct kp_data *lp = i2c_get_clientdata(client);
 
@@ -212,7 +214,7 @@ static struct i2c_driver pcf8574_kp_driver = {
 #endif
 	},
 	.probe    = pcf8574_kp_probe,
-	.remove   = __devexit_p(pcf8574_kp_remove),
+	.remove   = pcf8574_kp_remove,
 	.id_table = pcf8574_kp_id,
 };
 

@@ -20,16 +20,15 @@
 #include <linux/mtd/nand.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/fsl/mxs-dma.h>
+#include <linux/dmaengine.h>
 
+#define GPMI_CLK_MAX 5 /* MX6Q needs five clocks */
 struct resources {
-	void          *gpmi_regs;
-	void          *bch_regs;
-	unsigned int  bch_low_interrupt;
-	unsigned int  bch_high_interrupt;
+	void __iomem  *gpmi_regs;
+	void __iomem  *bch_regs;
 	unsigned int  dma_low_channel;
 	unsigned int  dma_high_channel;
-	struct clk    *clock;
+	struct clk    *clock[GPMI_CLK_MAX];
 };
 
 /**
@@ -120,17 +119,36 @@ struct nand_timing {
 	int8_t  tRHOH_in_ns;
 };
 
+enum gpmi_type {
+	IS_MX23,
+	IS_MX28,
+	IS_MX6Q,
+	IS_MX6SX
+};
+
+struct gpmi_devdata {
+	enum gpmi_type type;
+	int bch_max_ecc_strength;
+	int max_chain_delay; /* See the async EDO mode */
+};
+
 struct gpmi_nand_data {
+	/* flags */
+#define GPMI_ASYNC_EDO_ENABLED	(1 << 0)
+#define GPMI_TIMING_INIT_OK	(1 << 1)
+	int			flags;
+	const struct gpmi_devdata *devdata;
+
 	/* System Interface */
 	struct device		*dev;
 	struct platform_device	*pdev;
-	struct gpmi_nand_platform_data	*pdata;
 
 	/* Resources */
 	struct resources	resources;
 
 	/* Flash Hardware */
 	struct nand_timing	timing;
+	int			timing_mode;
 
 	/* BCH */
 	struct bch_geometry	bch_geometry;
@@ -174,7 +192,6 @@ struct gpmi_nand_data {
 	/* DMA channels */
 #define DMA_CHANS		8
 	struct dma_chan		*dma_chans[DMA_CHANS];
-	struct mxs_dma_data	dma_data;
 	enum dma_ops_type	last_dma_type;
 	enum dma_ops_type	dma_type;
 	struct completion	dma_done;
@@ -188,16 +205,28 @@ struct gpmi_nand_data {
  * @data_setup_in_cycles:      The data setup time, in cycles.
  * @data_hold_in_cycles:       The data hold time, in cycles.
  * @address_setup_in_cycles:   The address setup time, in cycles.
+ * @device_busy_timeout:       The timeout waiting for NAND Ready/Busy,
+ *                             this value is the number of cycles multiplied
+ *                             by 4096.
  * @use_half_periods:          Indicates the clock is running slowly, so the
  *                             NFC DLL should use half-periods.
  * @sample_delay_factor:       The sample delay factor.
+ * @wrn_dly_sel:               The delay on the GPMI write strobe.
  */
 struct gpmi_nfc_hardware_timing {
+	/* for HW_GPMI_TIMING0 */
 	uint8_t  data_setup_in_cycles;
 	uint8_t  data_hold_in_cycles;
 	uint8_t  address_setup_in_cycles;
+
+	/* for HW_GPMI_TIMING1 */
+	uint16_t device_busy_timeout;
+#define GPMI_DEFAULT_BUSY_TIMEOUT	0x500 /* default busy timeout value.*/
+
+	/* for HW_GPMI_CTRL1 */
 	bool     use_half_periods;
 	uint8_t  sample_delay_factor;
+	uint8_t  wrn_dly_sel;
 };
 
 /**
@@ -246,6 +275,7 @@ extern int start_dma_with_bch_irq(struct gpmi_nand_data *,
 
 /* GPMI-NAND helper function library */
 extern int gpmi_init(struct gpmi_nand_data *);
+extern int gpmi_extra_init(struct gpmi_nand_data *);
 extern void gpmi_clear_bch(struct gpmi_nand_data *);
 extern void gpmi_dump_info(struct gpmi_nand_data *);
 extern int bch_set_geometry(struct gpmi_nand_data *);
@@ -265,9 +295,11 @@ extern int gpmi_read_page(struct gpmi_nand_data *,
 #define STATUS_ERASED		0xff
 #define STATUS_UNCORRECTABLE	0xfe
 
-/* Use the platform_id to distinguish different Archs. */
-#define IS_MX23			0x1
-#define IS_MX28			0x2
-#define GPMI_IS_MX23(x)		((x)->pdev->id_entry->driver_data == IS_MX23)
-#define GPMI_IS_MX28(x)		((x)->pdev->id_entry->driver_data == IS_MX28)
+/* Use the devdata to distinguish different Archs. */
+#define GPMI_IS_MX23(x)		((x)->devdata->type == IS_MX23)
+#define GPMI_IS_MX28(x)		((x)->devdata->type == IS_MX28)
+#define GPMI_IS_MX6Q(x)		((x)->devdata->type == IS_MX6Q)
+#define GPMI_IS_MX6SX(x)	((x)->devdata->type == IS_MX6SX)
+
+#define GPMI_IS_MX6(x)		(GPMI_IS_MX6Q(x) || GPMI_IS_MX6SX(x))
 #endif

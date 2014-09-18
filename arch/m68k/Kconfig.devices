@@ -41,7 +41,7 @@ config NFBLOCK
 
 config NFCON
 	tristate "NatFeat console driver"
-	depends on NATFEAT
+	depends on TTY && NATFEAT
 	help
 	  Say Y to include support for the ARAnyM NatFeat console driver
 	  which allows the console output to be redirected to the stderr
@@ -55,13 +55,37 @@ config NFETH
 	  which will emulate a regular ethernet device while presenting an
 	  ethertap device to the host system.
 
+config ATARI_ETHERNAT
+	bool "Atari EtherNAT Ethernet support"
+	depends on ATARI
+	---help---
+	  Say Y to include support for the EtherNAT network adapter for the
+	  CT/60 extension port.
+
+	  To compile the actual ethernet driver, choose Y or M for the SMC91X
+	  option in the network device section; the module will be called smc91x.
+
+config ATARI_ETHERNEC
+	bool "Atari EtherNEC Ethernet support"
+	depends on ATARI_ROM_ISA
+	---help---
+	  Say Y to include support for the EtherNEC network adapter for the
+	  ROM port. The driver works by polling instead of interrupts, so it
+	  is quite slow.
+
+	  This driver also suppports the ethernet part of the NetUSBee ROM
+	  port combined Ethernet/USB adapter.
+
+	  To compile the actual ethernet driver, choose Y or M in for the NE2000
+	  option in the network device section; the module will be called ne.
+
 endmenu
 
 menu "Character devices"
 
 config ATARI_DSP56K
-	tristate "Atari DSP56k support (EXPERIMENTAL)"
-	depends on ATARI && EXPERIMENTAL
+	tristate "Atari DSP56k support"
+	depends on ATARI
 	help
 	  If you want to be able to use the DSP56001 in Falcons, say Y. This
 	  driver is still experimental, and if you don't know what it is, or
@@ -87,7 +111,7 @@ config HPDCA
 
 config HPAPCI
 	tristate "HP APCI serial support"
-	depends on HP300 && SERIAL_8250 && EXPERIMENTAL
+	depends on HP300 && SERIAL_8250
 	help
 	  If you want to use the internal "APCI" serial ports on an HP400
 	  machine, say Y here.

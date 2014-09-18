@@ -3,7 +3,7 @@
  *   YeAH TCP
  *
  * For further details look at:
- *    http://wil.cs.caltech.edu/pfldnet2007/paper/YeAH_TCP.pdf
+ *   https://web.archive.org/web/20080316215752/http://wil.cs.caltech.edu/pfldnet2007/paper/YeAH_TCP.pdf
  *
  */
 #include <linux/mm.h>
@@ -15,13 +15,13 @@
 
 #include "tcp_vegas.h"
 
-#define TCP_YEAH_ALPHA       80 //lin number of packets queued at the bottleneck
-#define TCP_YEAH_GAMMA        1 //lin fraction of queue to be removed per rtt
-#define TCP_YEAH_DELTA        3 //log minimum fraction of cwnd to be removed on loss
-#define TCP_YEAH_EPSILON      1 //log maximum fraction to be removed on early decongestion
-#define TCP_YEAH_PHY          8 //lin maximum delta from base
-#define TCP_YEAH_RHO         16 //lin minimum number of consecutive rtt to consider competition on loss
-#define TCP_YEAH_ZETA        50 //lin minimum number of state switchs to reset reno_count
+#define TCP_YEAH_ALPHA       80 /* number of packets queued at the bottleneck */
+#define TCP_YEAH_GAMMA        1 /* fraction of queue to be removed per rtt */
+#define TCP_YEAH_DELTA        3 /* log minimum fraction of cwnd to be removed on loss */
+#define TCP_YEAH_EPSILON      1 /* log maximum fraction to be removed on early decongestion */
+#define TCP_YEAH_PHY          8 /* maximum delta from base */
+#define TCP_YEAH_RHO         16 /* minimum number of consecutive rtt to consider competition on loss */
+#define TCP_YEAH_ZETA        50 /* minimum number of state switches to reset reno_count */
 
 #define TCP_SCALABLE_AI_CNT	 100U
 
@@ -69,16 +69,16 @@ static void tcp_yeah_pkts_acked(struct sock *sk, u32 pkts_acked, s32 rtt_us)
 	tcp_vegas_pkts_acked(sk, pkts_acked, rtt_us);
 }
 
-static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
+static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct yeah *yeah = inet_csk_ca(sk);
 
-	if (!tcp_is_cwnd_limited(sk, in_flight))
+	if (!tcp_is_cwnd_limited(sk))
 		return;
 
 	if (tp->snd_cwnd <= tp->snd_ssthresh)
-		tcp_slow_start(tp);
+		tcp_slow_start(tp, acked);
 
 	else if (!yeah->doing_reno_now) {
 		/* Scalable */
@@ -213,9 +213,9 @@ static u32 tcp_yeah_ssthresh(struct sock *sk) {
 	if (yeah->doing_reno_now < TCP_YEAH_RHO) {
 		reduction = yeah->lastQ;
 
-		reduction = min( reduction, max(tp->snd_cwnd>>1, 2U) );
+		reduction = min(reduction, max(tp->snd_cwnd>>1, 2U));
 
-		reduction = max( reduction, tp->snd_cwnd >> TCP_YEAH_DELTA);
+		reduction = max(reduction, tp->snd_cwnd >> TCP_YEAH_DELTA);
 	} else
 		reduction = max(tp->snd_cwnd>>1, 2U);
 
@@ -226,11 +226,9 @@ static u32 tcp_yeah_ssthresh(struct sock *sk) {
 }
 
 static struct tcp_congestion_ops tcp_yeah __read_mostly = {
-	.flags		= TCP_CONG_RTT_STAMP,
 	.init		= tcp_yeah_init,
 	.ssthresh	= tcp_yeah_ssthresh,
 	.cong_avoid	= tcp_yeah_cong_avoid,
-	.min_cwnd	= tcp_reno_min_cwnd,
 	.set_state	= tcp_vegas_state,
 	.cwnd_event	= tcp_vegas_cwnd_event,
 	.get_info	= tcp_vegas_get_info,

@@ -82,7 +82,7 @@ PROPERTIES
 	Which event source asserted the interrupt is captured in an EPU
 	Interrupt Status Register (EPISR0,EPISR1).
 
-	Interrupt numbers are lised in order (perfmon, event0, event1).
+	Interrupt numbers are listed in order (perfmon, event0, event1).
 
 	- interrupt-parent
 	Usage: required

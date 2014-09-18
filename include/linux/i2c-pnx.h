@@ -22,6 +22,7 @@ struct i2c_pnx_mif {
 	struct timer_list	timer;		/* Timeout */
 	u8 *			buf;		/* Data buffer */
 	int			len;		/* Length of data buffer */
+	int			order;		/* RX Bytes to order via TX */
 };
 
 struct i2c_pnx_algo_data {
@@ -29,14 +30,9 @@ struct i2c_pnx_algo_data {
 	struct i2c_pnx_mif	mif;
 	int			last;
 	struct clk		*clk;
-	struct i2c_pnx_data	*i2c_pnx;
 	struct i2c_adapter	adapter;
-};
-
-struct i2c_pnx_data {
-	const char *name;
-	u32 base;
-	int irq;
+	int			irq;
+	u32			timeout;
 };
 
 #endif /* __I2C_PNX_H__ */

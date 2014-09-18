@@ -9,9 +9,6 @@
 #define RXFRAME_ALIGN	8
 #define RXFRAME_ALIGN_SZ	(1 << RXFRAME_ALIGN)
 
-#define MAX_RXFRAME_CNT	512
-#define MAX_RX_NUMBLKS		(32)
-#define RECVFRAME_HDR_ALIGN 128
 #define MAX_SUBFRAME_COUNT	64
 
 #define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
@@ -130,15 +127,10 @@ struct sta_recv_priv {
 
 /* get a free recv_frame from pfree_recv_queue */
 union recv_frame *r8712_alloc_recvframe(struct  __queue *pfree_recv_queue);
-union recv_frame *r8712_dequeue_recvframe(struct  __queue *queue);
-int r8712_enqueue_recvframe(union recv_frame *precvframe,
-			     struct  __queue *queue);
 int r8712_free_recvframe(union recv_frame *precvframe,
 			  struct  __queue *pfree_recv_queue);
 void r8712_free_recvframe_queue(struct  __queue *pframequeue,
 				 struct  __queue *pfree_recv_queue);
-void r8712_init_recvframe(union recv_frame *precvframe,
-			   struct recv_priv *precvpriv);
 int r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe);
 int recv_func(struct _adapter *padapter, void *pcontext);
 
@@ -150,38 +142,11 @@ static inline u8 *get_rxmem(union recv_frame *precvframe)
 	return precvframe->u.hdr.rx_head;
 }
 
-static inline u8 *get_rx_status(union recv_frame *precvframe)
-{
-	return get_rxmem(precvframe);
-}
-
 static inline u8 *get_recvframe_data(union recv_frame *precvframe)
 {
 	/* always return rx_data */
 	if (precvframe == NULL)
 		return NULL;
-	return precvframe->u.hdr.rx_data;
-}
-
-static inline u8 *recvframe_push(union recv_frame *precvframe, sint sz)
-{
-	/* append data before rx_data */
-
-	/* add data to the start of recv_frame
-	 *
-	 * This function extends the used data area of the recv_frame at the
-	 * buffer start. rx_data must be still larger than rx_head, after
-	 * pushing.
-	 */
-
-	if (precvframe == NULL)
-		return NULL;
-	precvframe->u.hdr.rx_data -= sz ;
-	if (precvframe->u.hdr.rx_data < precvframe->u.hdr.rx_head) {
-		precvframe->u.hdr.rx_data += sz ;
-		return NULL;
-	}
-	precvframe->u.hdr.len += sz;
 	return precvframe->u.hdr.rx_data;
 }
 
@@ -236,53 +201,6 @@ static inline u8 *recvframe_pull_tail(union recv_frame *precvframe, sint sz)
 	return precvframe->u.hdr.rx_tail;
 }
 
-static inline _buffer *get_rxbuf_desc(union recv_frame *precvframe)
-{
-	_buffer *buf_desc;
-	if (precvframe == NULL)
-		return NULL;
-	return buf_desc;
-}
-
-static inline union recv_frame *rxmem_to_recvframe(u8 *rxmem)
-{
-	/* due to the design of 2048 bytes alignment of recv_frame, we can
-	 * reference the union recv_frame from any given member of recv_frame.
-	 * rxmem indicates the any member/address in recv_frame */
-	return (union recv_frame *)(((addr_t)rxmem >> RXFRAME_ALIGN) <<
-				  RXFRAME_ALIGN);
-}
-
-static inline union recv_frame *pkt_to_recvframe(_pkt *pkt)
-{
-	u8 *buf_star;
-	union recv_frame *precv_frame;
-
-	precv_frame = rxmem_to_recvframe((unsigned char *)buf_star);
-	return precv_frame;
-}
-
-static inline u8 *pkt_to_recvmem(_pkt *pkt)
-{
-	/* return the rx_head */
-	union recv_frame *precv_frame = pkt_to_recvframe(pkt);
-
-	return	precv_frame->u.hdr.rx_head;
-}
-
-static inline u8 *pkt_to_recvdata(_pkt *pkt)
-{
-	/* return the rx_data */
-	union recv_frame *precv_frame = pkt_to_recvframe(pkt);
-
-	return	precv_frame->u.hdr.rx_data;
-}
-
-static inline sint get_recvframe_len(union recv_frame *precvframe)
-{
-	return precvframe->u.hdr.len;
-}
-
 struct sta_info;
 
 void	_r8712_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv);
@@ -292,36 +210,10 @@ union recv_frame *r8712_decryptor(struct _adapter *adapter,
 				  union recv_frame *precv_frame);
 union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *adapter,
 					     union recv_frame *precv_frame);
-union recv_frame *r8712_recvframe_defrag(struct _adapter *adapter,
-					 struct  __queue *defrag_q);
-union recv_frame *r8712_recvframe_chk_defrag_new(struct _adapter *adapter,
-					union recv_frame *precv_frame);
-union recv_frame *r8712_recvframe_defrag_new(struct _adapter *adapter,
-					struct  __queue *defrag_q,
-					union recv_frame *precv_frame);
-int r8712_recv_decache(union recv_frame *precv_frame, u8 bretry,
-		       struct stainfo_rxcache *prxcache);
-int r8712_sta2sta_data_frame(struct _adapter *adapter,
-			     union recv_frame *precv_frame,
-			     struct sta_info **psta);
-int r8712_ap2sta_data_frame(struct _adapter *adapter,
-			    union recv_frame *precv_frame,
-			    struct sta_info **psta);
-int r8712_sta2ap_data_frame(struct _adapter *adapter,
-			    union recv_frame *precv_frame,
-			    struct sta_info **psta);
-int r8712_validate_recv_ctrl_frame(struct _adapter *adapter,
-				   union recv_frame *precv_frame);
-int r8712_validate_recv_mgnt_frame(struct _adapter *adapter,
-				   union recv_frame *precv_frame);
-int r8712_validate_recv_data_frame(struct _adapter *adapter,
-				   union recv_frame *precv_frame);
 int r8712_validate_recv_frame(struct _adapter *adapter,
 			      union recv_frame *precv_frame);
 union recv_frame *r8712_portctrl(struct _adapter *adapter,
 				 union recv_frame *precv_frame);
-void  r8712_mgt_dispatcher(struct _adapter *padapter, u8 *pframe, uint len);
-int r8712_amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe);
 
 #endif
 

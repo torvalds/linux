@@ -175,12 +175,11 @@ static struct hlist_head *dn_find_list(struct sock *sk)
 static int check_port(__le16 port)
 {
 	struct sock *sk;
-	struct hlist_node *node;
 
 	if (port == 0)
 		return -1;
 
-	sk_for_each(sk, node, &dn_sk_hash[le16_to_cpu(port) & DN_SK_HASH_MASK]) {
+	sk_for_each(sk, &dn_sk_hash[le16_to_cpu(port) & DN_SK_HASH_MASK]) {
 		struct dn_scp *scp = DN_SK(sk);
 		if (scp->addrloc == port)
 			return -1;
@@ -250,7 +249,7 @@ static void dn_unhash_sock_bh(struct sock *sk)
 static struct hlist_head *listen_hash(struct sockaddr_dn *addr)
 {
 	int i;
-	unsigned hash = addr->sdn_objnum;
+	unsigned int hash = addr->sdn_objnum;
 
 	if (hash == 0) {
 		hash = addr->sdn_objnamel;
@@ -374,11 +373,10 @@ int dn_username2sockaddr(unsigned char *data, int len, struct sockaddr_dn *sdn, 
 struct sock *dn_sklist_find_listener(struct sockaddr_dn *addr)
 {
 	struct hlist_head *list = listen_hash(addr);
-	struct hlist_node *node;
 	struct sock *sk;
 
 	read_lock(&dn_hash_lock);
-	sk_for_each(sk, node, list) {
+	sk_for_each(sk, list) {
 		struct dn_scp *scp = DN_SK(sk);
 		if (sk->sk_state != TCP_LISTEN)
 			continue;
@@ -414,11 +412,10 @@ struct sock *dn_find_by_skb(struct sk_buff *skb)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 	struct sock *sk;
-	struct hlist_node *node;
 	struct dn_scp *scp;
 
 	read_lock(&dn_hash_lock);
-	sk_for_each(sk, node, &dn_sk_hash[le16_to_cpu(cb->dst_port) & DN_SK_HASH_MASK]) {
+	sk_for_each(sk, &dn_sk_hash[le16_to_cpu(cb->dst_port) & DN_SK_HASH_MASK]) {
 		scp = DN_SK(sk);
 		if (cb->src != dn_saddr2dn(&scp->peer))
 			continue;
@@ -484,7 +481,7 @@ static struct sock *dn_alloc_sock(struct net *net, struct socket *sock, gfp_t gf
 
 	sk->sk_backlog_rcv = dn_nsp_backlog_rcv;
 	sk->sk_destruct    = dn_destruct;
-	sk->sk_no_check    = 1;
+	sk->sk_no_check_tx = 1;
 	sk->sk_family      = PF_DECnet;
 	sk->sk_protocol    = 0;
 	sk->sk_allocation  = gfp;
@@ -909,6 +906,7 @@ static int __dn_connect(struct sock *sk, struct sockaddr_dn *addr, int addrlen, 
 	struct dn_scp *scp = DN_SK(sk);
 	int err = -EISCONN;
 	struct flowidn fld;
+	struct dst_entry *dst;
 
 	if (sock->state == SS_CONNECTED)
 		goto out;
@@ -955,10 +953,11 @@ static int __dn_connect(struct sock *sk, struct sockaddr_dn *addr, int addrlen, 
 	fld.flowidn_proto = DNPROTO_NSP;
 	if (dn_route_output_sock(&sk->sk_dst_cache, &fld, sk, flags) < 0)
 		goto out;
-	sk->sk_route_caps = sk->sk_dst_cache->dev->features;
+	dst = __sk_dst_get(sk);
+	sk->sk_route_caps = dst->dev->features;
 	sock->state = SS_CONNECTING;
 	scp->state = DN_CI;
-	scp->segsize_loc = dst_metric_advmss(sk->sk_dst_cache);
+	scp->segsize_loc = dst_metric_advmss(dst);
 
 	dn_nsp_send_conninit(sk, NSP_CI);
 	err = -EINPROGRESS;
@@ -1313,10 +1312,10 @@ static int dn_shutdown(struct socket *sock, int how)
 	if (scp->state == DN_O)
 		goto out;
 
-	if (how != SHUTDOWN_MASK)
+	if (how != SHUT_RDWR)
 		goto out;
 
-	sk->sk_shutdown = how;
+	sk->sk_shutdown = SHUTDOWN_MASK;
 	dn_destroy_sock(sk);
 	err = 0;
 
@@ -1809,6 +1808,7 @@ out:
 		rv = (flags & MSG_PEEK) ? -sk->sk_err : sock_error(sk);
 
 	if ((rv >= 0) && msg->msg_name) {
+		__sockaddr_check_size(sizeof(struct sockaddr_dn));
 		memcpy(msg->msg_name, &scp->peer, sizeof(struct sockaddr_dn));
 		msg->msg_namelen = sizeof(struct sockaddr_dn);
 	}
@@ -1844,9 +1844,9 @@ static inline int dn_queue_too_long(struct dn_scp *scp, struct sk_buff_head *que
  * inclusion (or not) of the two 16 bit acknowledgement fields so it doesn't
  * make much practical difference.
  */
-unsigned dn_mss_from_pmtu(struct net_device *dev, int mtu)
+unsigned int dn_mss_from_pmtu(struct net_device *dev, int mtu)
 {
-	unsigned mss = 230 - DN_MAX_NSP_DATA_HEADER;
+	unsigned int mss = 230 - DN_MAX_NSP_DATA_HEADER;
 	if (dev) {
 		struct dn_dev *dn_db = rcu_dereference_raw(dev->dn_ptr);
 		mtu -= LL_RESERVED_SPACE(dev);
@@ -1915,7 +1915,7 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 	int err = 0;
 	size_t sent = 0;
 	int addr_len = msg->msg_namelen;
-	struct sockaddr_dn *addr = (struct sockaddr_dn *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_dn *, addr, msg->msg_name);
 	struct sk_buff *skb = NULL;
 	struct dn_skb_cb *cb;
 	size_t len;
@@ -2079,9 +2079,9 @@ out_err:
 }
 
 static int dn_device_event(struct notifier_block *this, unsigned long event,
-			void *ptr)
+			   void *ptr)
 {
-	struct net_device *dev = (struct net_device *)ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
@@ -2103,8 +2103,6 @@ static int dn_device_event(struct notifier_block *this, unsigned long event,
 static struct notifier_block dn_dev_notifier = {
 	.notifier_call = dn_device_event,
 };
-
-extern int dn_route_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 
 static struct packet_type dn_dix_packet_type __read_mostly = {
 	.type =		cpu_to_be16(ETH_P_DNA_RT),
@@ -2353,9 +2351,6 @@ static const struct proto_ops dn_proto_ops = {
 	.sendpage =	sock_no_sendpage,
 };
 
-void dn_register_sysctl(void);
-void dn_unregister_sysctl(void);
-
 MODULE_DESCRIPTION("The Linux DECnet Network Protocol");
 MODULE_AUTHOR("Linux DECnet Project Team");
 MODULE_LICENSE("GPL");
@@ -2382,7 +2377,7 @@ static int __init decnet_init(void)
 	dev_add_pack(&dn_dix_packet_type);
 	register_netdevice_notifier(&dn_dev_notifier);
 
-	proc_net_fops_create(&init_net, "decnet", S_IRUGO, &dn_socket_seq_fops);
+	proc_create("decnet", S_IRUGO, init_net.proc_net, &dn_socket_seq_fops);
 	dn_register_sysctl();
 out:
 	return rc;
@@ -2411,7 +2406,7 @@ static void __exit decnet_exit(void)
 	dn_neigh_cleanup();
 	dn_fib_cleanup();
 
-	proc_net_remove(&init_net, "decnet");
+	remove_proc_entry("decnet", init_net.proc_net);
 
 	proto_unregister(&dn_proto);
 

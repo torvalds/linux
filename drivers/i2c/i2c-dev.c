@@ -102,8 +102,8 @@ static void return_i2c_dev(struct i2c_dev *i2c_dev)
 	kfree(i2c_dev);
 }
 
-static ssize_t show_adapter_name(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t name_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct i2c_dev *i2c_dev = i2c_dev_get_by_minor(MINOR(dev->devt));
 
@@ -111,7 +111,13 @@ static ssize_t show_adapter_name(struct device *dev,
 		return -ENODEV;
 	return sprintf(buf, "%s\n", i2c_dev->adap->name);
 }
-static DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
+static DEVICE_ATTR_RO(name);
+
+static struct attribute *i2c_attrs[] = {
+	&dev_attr_name.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(i2c);
 
 /* ------------------------------------------------------------------------- */
 
@@ -148,7 +154,7 @@ static ssize_t i2cdev_read(struct file *file, char __user *buf, size_t count,
 		return -ENOMEM;
 
 	pr_debug("i2c-dev: i2c-%d reading %zu bytes.\n",
-		iminor(file->f_path.dentry->d_inode), count);
+		iminor(file_inode(file)), count);
 
 	ret = i2c_master_recv(client, tmp, count);
 	if (ret >= 0)
@@ -172,7 +178,7 @@ static ssize_t i2cdev_write(struct file *file, const char __user *buf,
 		return PTR_ERR(tmp);
 
 	pr_debug("i2c-dev: i2c-%d writing %zu bytes.\n",
-		iminor(file->f_path.dentry->d_inode), count);
+		iminor(file_inode(file)), count);
 
 	ret = i2c_master_send(client, tmp, count);
 	kfree(tmp);
@@ -265,18 +271,40 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 
 	res = 0;
 	for (i = 0; i < rdwr_arg.nmsgs; i++) {
-		/* Limit the size of the message to a sane amount;
-		 * and don't let length change either. */
-		if ((rdwr_pa[i].len > 8192) ||
-		    (rdwr_pa[i].flags & I2C_M_RECV_LEN)) {
+		/* Limit the size of the message to a sane amount */
+		if (rdwr_pa[i].len > 8192) {
 			res = -EINVAL;
 			break;
 		}
+
 		data_ptrs[i] = (u8 __user *)rdwr_pa[i].buf;
 		rdwr_pa[i].buf = memdup_user(data_ptrs[i], rdwr_pa[i].len);
 		if (IS_ERR(rdwr_pa[i].buf)) {
 			res = PTR_ERR(rdwr_pa[i].buf);
 			break;
+		}
+
+		/*
+		 * If the message length is received from the slave (similar
+		 * to SMBus block read), we must ensure that the buffer will
+		 * be large enough to cope with a message length of
+		 * I2C_SMBUS_BLOCK_MAX as this is the maximum underlying bus
+		 * drivers allow. The first byte in the buffer must be
+		 * pre-filled with the number of extra bytes, which must be
+		 * at least one to hold the message length, but can be
+		 * greater (for example to account for a checksum byte at
+		 * the end of the message.)
+		 */
+		if (rdwr_pa[i].flags & I2C_M_RECV_LEN) {
+			if (!(rdwr_pa[i].flags & I2C_M_RD) ||
+			    rdwr_pa[i].buf[0] < 1 ||
+			    rdwr_pa[i].len < rdwr_pa[i].buf[0] +
+					     I2C_SMBUS_BLOCK_MAX) {
+				res = -EINVAL;
+				break;
+			}
+
+			rdwr_pa[i].len = rdwr_pa[i].buf[0];
 		}
 	}
 	if (res < 0) {
@@ -540,15 +568,10 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 		res = PTR_ERR(i2c_dev->dev);
 		goto error;
 	}
-	res = device_create_file(i2c_dev->dev, &dev_attr_name);
-	if (res)
-		goto error_destroy;
 
 	pr_debug("i2c-dev: adapter [%s] registered as minor %d\n",
 		 adap->name, adap->nr);
 	return 0;
-error_destroy:
-	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 error:
 	return_i2c_dev(i2c_dev);
 	return res;
@@ -567,7 +590,6 @@ static int i2cdev_detach_adapter(struct device *dev, void *dummy)
 	if (!i2c_dev) /* attach_adapter must have failed */
 		return 0;
 
-	device_remove_file(i2c_dev->dev, &dev_attr_name);
 	return_i2c_dev(i2c_dev);
 	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 
@@ -615,6 +637,7 @@ static int __init i2c_dev_init(void)
 		res = PTR_ERR(i2c_dev_class);
 		goto out_unreg_chrdev;
 	}
+	i2c_dev_class->dev_groups = i2c_groups;
 
 	/* Keep track of adapters which will be added or removed later */
 	res = bus_register_notifier(&i2c_bus_type, &i2cdev_notifier);

@@ -1,0 +1,33 @@
+TI SoC Davinci/Keystone2 MDIO Controller Device Tree Bindings
+---------------------------------------------------
+
+Required properties:
+- compatible		: Should be "ti,davinci_mdio" or "ti,keystone_mdio"
+- reg			: physical base address and size of the davinci mdio
+			  registers map
+- bus_freq		: Mdio Bus frequency
+
+Optional properties:
+- ti,hwmods		: Must be "davinci_mdio"
+
+Note: "ti,hwmods" field is used to fetch the base address and irq
+resources from TI, omap hwmod data base during device registration.
+Future plan is to migrate hwmod data base contents into device tree
+blob so that, all the required data will be used from device tree dts
+file.
+
+Examples:
+
+	mdio: davinci_mdio@4A101000 {
+		compatible = "ti,davinci_mdio";
+		reg = <0x4A101000 0x1000>;
+		bus_freq = <1000000>;
+	};
+
+(or)
+
+	mdio: davinci_mdio@4A101000 {
+		compatible = "ti,davinci_mdio";
+		ti,hwmods = "davinci_mdio";
+		bus_freq = <1000000>;
+	};

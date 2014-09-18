@@ -1,5 +1,5 @@
 /*
- * kvm_virtio.c - virtio for kvm on s390
+ * virtio for kvm on s390
  *
  * Copyright IBM Corp. 2008
  *
@@ -25,6 +25,7 @@
 #include <asm/io.h>
 #include <asm/kvm_para.h>
 #include <asm/kvm_virtio.h>
+#include <asm/sclp.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
 
@@ -165,11 +166,15 @@ static void kvm_reset(struct virtio_device *vdev)
  * make a hypercall.  We hand the address  of the virtqueue so the Host
  * knows which virtqueue we're talking about.
  */
-static void kvm_notify(struct virtqueue *vq)
+static bool kvm_notify(struct virtqueue *vq)
 {
+	long rc;
 	struct kvm_vqconfig *config = vq->priv;
 
-	kvm_hypercall1(KVM_S390_VIRTIO_NOTIFY, config->address);
+	rc = kvm_hypercall1(KVM_S390_VIRTIO_NOTIFY, config->address);
+	if (rc < 0)
+		return false;
+	return true;
 }
 
 /*
@@ -189,6 +194,9 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 	if (index >= kdev->desc->num_vq)
 		return ERR_PTR(-ENOENT);
 
+	if (!name)
+		return NULL;
+
 	config = kvm_vq_config(kdev->desc)+index;
 
 	err = vmem_add_mapping(config->address,
@@ -197,7 +205,7 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 	if (err)
 		goto out;
 
-	vq = vring_new_virtqueue(config->num, KVM_S390_VIRTIO_RING_ALIGN,
+	vq = vring_new_virtqueue(index, config->num, KVM_S390_VIRTIO_RING_ALIGN,
 				 vdev, true, (void *) config->address,
 				 kvm_notify, callback, name);
 	if (!vq) {
@@ -271,7 +279,7 @@ static const char *kvm_bus_name(struct virtio_device *vdev)
 /*
  * The config ops structure as defined by virtio config
  */
-static struct virtio_config_ops kvm_vq_configspace_ops = {
+static const struct virtio_config_ops kvm_vq_configspace_ops = {
 	.get_features = kvm_get_features,
 	.finalize_features = kvm_finalize_features,
 	.get = kvm_get,
@@ -388,7 +396,7 @@ static void kvm_extint_handler(struct ext_code ext_code,
 
 	if ((ext_code.subcode & 0xff00) != VIRTIO_SUBCODE_64)
 		return;
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_VRT]++;
+	inc_irq_stat(IRQEXT_VRT);
 
 	/* The LSB might be overloaded, we have to mask it */
 	vq = (struct virtqueue *)(param64 & ~1UL);
@@ -418,35 +426,58 @@ static void kvm_extint_handler(struct ext_code ext_code,
 }
 
 /*
+ * For s390-virtio, we expect a page above main storage containing
+ * the virtio configuration. Try to actually load from this area
+ * in order to figure out if the host provides this page.
+ */
+static int __init test_devices_support(unsigned long addr)
+{
+	int ret = -EIO;
+
+	asm volatile(
+		"0:	lura	0,%1\n"
+		"1:	xgr	%0,%0\n"
+		"2:\n"
+		EX_TABLE(0b,2b)
+		EX_TABLE(1b,2b)
+		: "+d" (ret)
+		: "a" (addr)
+		: "0", "cc");
+	return ret;
+}
+/*
  * Init function for virtio
- * devices are in a single page above top of "normal" mem
+ * devices are in a single page above top of "normal" + standby mem
  */
 static int __init kvm_devices_init(void)
 {
 	int rc;
+	unsigned long total_memory_size = sclp_get_rzm() * sclp_get_rnmax();
 
 	if (!MACHINE_IS_KVM)
 		return -ENODEV;
+
+	if (test_devices_support(total_memory_size) < 0)
+		return -ENODEV;
+
+	rc = vmem_add_mapping(total_memory_size, PAGE_SIZE);
+	if (rc)
+		return rc;
+
+	kvm_devices = (void *) total_memory_size;
 
 	kvm_root = root_device_register("kvm_s390");
 	if (IS_ERR(kvm_root)) {
 		rc = PTR_ERR(kvm_root);
 		printk(KERN_ERR "Could not register kvm_s390 root device");
+		vmem_remove_mapping(total_memory_size, PAGE_SIZE);
 		return rc;
 	}
-
-	rc = vmem_add_mapping(real_memory_size, PAGE_SIZE);
-	if (rc) {
-		root_device_unregister(kvm_root);
-		return rc;
-	}
-
-	kvm_devices = (void *) real_memory_size;
 
 	INIT_WORK(&hotplug_work, hotplug_devices);
 
-	service_subclass_irq_register();
-	register_external_interrupt(0x2603, kvm_extint_handler);
+	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
+	register_external_irq(EXT_IRQ_CP_SERVICE, kvm_extint_handler);
 
 	scan_devices();
 	return 0;
@@ -468,7 +499,7 @@ static __init int early_put_chars(u32 vtermno, const char *buf, int count)
 
 static int __init s390_virtio_console_init(void)
 {
-	if (!MACHINE_IS_KVM)
+	if (sclp_has_vt220() || sclp_has_linemode())
 		return -ENODEV;
 	return virtio_cons_early_init(early_put_chars);
 }

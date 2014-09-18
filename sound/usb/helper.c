@@ -21,6 +21,7 @@
 
 #include "usbaudio.h"
 #include "helper.h"
+#include "quirks.h"
 
 /*
  * combine bytes and get an integer value
@@ -85,18 +86,30 @@ int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 {
 	int err;
 	void *buf = NULL;
+	int timeout;
 
 	if (size > 0) {
 		buf = kmemdup(data, size, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 	}
+
+	if (requesttype & USB_DIR_IN)
+		timeout = USB_CTRL_GET_TIMEOUT;
+	else
+		timeout = USB_CTRL_SET_TIMEOUT;
+
 	err = usb_control_msg(dev, pipe, request, requesttype,
-			      value, index, buf, size, 1000);
+			      value, index, buf, size, timeout);
+
 	if (size > 0) {
 		memcpy(data, buf, size);
 		kfree(buf);
 	}
+
+	snd_usb_ctl_msg_quirk(dev, pipe, request, requesttype,
+			      value, index, data, size);
+
 	return err;
 }
 
@@ -105,6 +118,7 @@ unsigned char snd_usb_parse_datainterval(struct snd_usb_audio *chip,
 {
 	switch (snd_usb_get_speed(chip->dev)) {
 	case USB_SPEED_HIGH:
+	case USB_SPEED_WIRELESS:
 	case USB_SPEED_SUPER:
 		if (get_endpoint(alts, 0)->bInterval >= 1 &&
 		    get_endpoint(alts, 0)->bInterval <= 4)

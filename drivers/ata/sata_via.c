@@ -1,7 +1,7 @@
 /*
  *  sata_via.c - VIA Serial ATA controllers
  *
- *  Maintained by:  Jeff Garzik <jgarzik@pobox.com>
+ *  Maintained by:  Tejun Heo <tj@kernel.org>
  * 		   Please ALWAYS copy linux-ide@vger.kernel.org
  *		   on emails.
  *
@@ -36,7 +36,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -104,7 +103,7 @@ static struct pci_driver svia_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= svia_pci_tbl,
 	.probe			= svia_init_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend		= ata_pci_device_suspend,
 	.resume			= ata_pci_device_resume,
 #endif
@@ -655,15 +654,4 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				 IRQF_SHARED, &svia_sht);
 }
 
-static int __init svia_init(void)
-{
-	return pci_register_driver(&svia_pci_driver);
-}
-
-static void __exit svia_exit(void)
-{
-	pci_unregister_driver(&svia_pci_driver);
-}
-
-module_init(svia_init);
-module_exit(svia_exit);
+module_pci_driver(svia_pci_driver);

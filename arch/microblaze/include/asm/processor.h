@@ -22,8 +22,7 @@
 extern const struct seq_operations cpuinfo_op;
 
 # define cpu_relax()		barrier()
-# define cpu_sleep()		do {} while (0)
-# define prepare_to_copy(tsk)	do {} while (0)
+# define cpu_relax_lowlatency()	cpu_relax()
 
 #define task_pt_regs(tsk) \
 		(((struct pt_regs *)(THREAD_SIZE + task_stack_page(tsk))) - 1)
@@ -32,6 +31,7 @@ extern const struct seq_operations cpuinfo_op;
 void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp);
 
 extern void ret_from_fork(void);
+extern void ret_from_kernel_thread(void);
 
 # endif /* __ASSEMBLY__ */
 
@@ -79,11 +79,6 @@ extern unsigned long thread_saved_pc(struct task_struct *t);
 
 extern unsigned long get_wchan(struct task_struct *p);
 
-/*
- * create a kernel thread without removing it from tasklists
- */
-extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
-
 # define KSTK_EIP(tsk)	(0)
 # define KSTK_ESP(tsk)	(0)
 
@@ -128,11 +123,9 @@ struct thread_struct {
 }
 
 /* Free all resources held by a thread. */
-extern inline void release_thread(struct task_struct *dead_task)
+static inline void release_thread(struct task_struct *dead_task)
 {
 }
-
-extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 /* Free current thread data structures etc.  */
 static inline void exit_thread(void)
@@ -166,10 +159,6 @@ unsigned long get_wchan(struct task_struct *p);
 
 #  define STACK_TOP	TASK_SIZE
 #  define STACK_TOP_MAX	STACK_TOP
-
-void disable_hlt(void);
-void enable_hlt(void);
-void default_idle(void);
 
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *of_debugfs_root;

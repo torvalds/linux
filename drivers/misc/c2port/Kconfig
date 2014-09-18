@@ -3,9 +3,8 @@
 #
 
 menuconfig C2PORT
-	tristate "Silicon Labs C2 port support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	default no
+	tristate "Silicon Labs C2 port support"
+	default n
 	help
 	  This option enables support for Silicon Labs C2 port used to
 	  program Silicon micro controller chips (and other 8051 compatible).
@@ -22,9 +21,9 @@ menuconfig C2PORT
 if C2PORT
 
 config C2PORT_DURAMAR_2150
-	tristate "C2 port support for Eurotech's Duramar 2150 (EXPERIMENTAL)"
-	depends on X86 && C2PORT
-	default no
+	tristate "C2 port support for Eurotech's Duramar 2150"
+	depends on X86
+	default n
 	help
 	  This option enables C2 support for the Eurotech's Duramar 2150
 	  on board micro controller.

@@ -39,17 +39,19 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/i2c/tps65010.h>
+#include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/omap1_bl.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/flash.h>
-#include <plat/usb.h>
-#include <plat/mux.h>
-#include <plat/tc.h>
+#include <mach/flash.h>
+#include <mach/mux.h>
+#include <mach/tc.h>
 
 #include <mach/hardware.h>
+#include <mach/usb.h>
 
 #include "common.h"
 
@@ -189,6 +191,9 @@ static struct platform_device osk5912_tps_leds = {
 
 static int osk_tps_setup(struct i2c_client *client, void *context)
 {
+	if (!IS_BUILTIN(CONFIG_TPS65010))
+		return -ENOSYS;
+
 	/* Set GPIO 1 HIGH to disable VBUS power supply;
 	 * OHCI driver powers it up/down as needed.
 	 */
@@ -278,7 +283,7 @@ static struct omap_usb_config osk_usb_config __initdata = {
 	 * be used, with a NONSTANDARD gender-bending cable/dongle, as
 	 * a peripheral.
 	 */
-#ifdef	CONFIG_USB_GADGET_OMAP
+#if IS_ENABLED(CONFIG_USB_OMAP)
 	.register_dev	= 1,
 	.hmc_mode	= 0,
 #else
@@ -298,11 +303,11 @@ static struct omap_lcd_config osk_lcd_config __initdata = {
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 
 #include <linux/input.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
-#include <plat/keypad.h>
+#include <linux/platform_data/keypad-omap.h>
 
 static struct at24_platform_data at24c04 = {
 	.byte_len	= SZ_4K / 8,
@@ -380,10 +385,37 @@ static struct platform_device osk5912_lcd_device = {
 	.id		= -1,
 };
 
+static struct gpio_led mistral_gpio_led_pins[] = {
+	{
+		.name		= "mistral:red",
+		.default_trigger = "heartbeat",
+		.gpio		= 3,
+	},
+	{
+		.name		= "mistral:green",
+		.default_trigger = "cpu0",
+		.gpio		= OMAP_MPUIO(4),
+	},
+};
+
+static struct gpio_led_platform_data mistral_gpio_led_data = {
+	.leds		= mistral_gpio_led_pins,
+	.num_leds	= ARRAY_SIZE(mistral_gpio_led_pins),
+};
+
+static struct platform_device mistral_gpio_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &mistral_gpio_led_data,
+	},
+};
+
 static struct platform_device *mistral_devices[] __initdata = {
 	&osk5912_kp_device,
 	&mistral_bl_device,
 	&osk5912_lcd_device,
+	&mistral_gpio_leds,
 };
 
 static int mistral_get_pendown_state(void)
@@ -508,6 +540,12 @@ static void __init osk_mistral_init(void)
 	if (gpio_request(2, "lcd_pwr") == 0)
 		gpio_direction_output(2, 1);
 
+	/*
+	 * GPIO based LEDs
+	 */
+	omap_cfg_reg(P18_1610_GPIO3);
+	omap_cfg_reg(MPUIO4);
+
 	i2c_register_board_info(1, mistral_i2c_board_info,
 			ARRAY_SIZE(mistral_i2c_board_info));
 
@@ -571,9 +609,9 @@ MACHINE_START(OMAP_OSK, "TI-OSK")
 	.atag_offset	= 0x100,
 	.map_io		= omap16xx_map_io,
 	.init_early	= omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= osk_init,
-	.timer		= &omap1_timer,
+	.init_late	= omap1_init_late,
+	.init_time	= omap1_timer_init,
 	.restart	= omap1_restart,
 MACHINE_END

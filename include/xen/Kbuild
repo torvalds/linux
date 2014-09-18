@@ -1,2 +1,0 @@
-header-y += evtchn.h
-header-y += privcmd.h

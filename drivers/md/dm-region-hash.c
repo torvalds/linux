@@ -126,7 +126,8 @@ EXPORT_SYMBOL_GPL(dm_rh_region_to_sector);
 
 region_t dm_rh_bio_to_region(struct dm_region_hash *rh, struct bio *bio)
 {
-	return dm_rh_sector_to_region(rh, bio->bi_sector - rh->target_begin);
+	return dm_rh_sector_to_region(rh, bio->bi_iter.bi_sector -
+				      rh->target_begin);
 }
 EXPORT_SYMBOL_GPL(dm_rh_bio_to_region);
 
@@ -404,6 +405,9 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
 		return;
 	}
 
+	if (bio->bi_rw & REQ_DISCARD)
+		return;
+
 	/* We must inform the log that the sync count has changed. */
 	log->type->set_region_sync(log, region, 0);
 
@@ -524,7 +528,7 @@ void dm_rh_inc_pending(struct dm_region_hash *rh, struct bio_list *bios)
 	struct bio *bio;
 
 	for (bio = bios->head; bio; bio = bio->bi_next) {
-		if (bio->bi_rw & REQ_FLUSH)
+		if (bio->bi_rw & (REQ_FLUSH | REQ_DISCARD))
 			continue;
 		rh_inc(rh, dm_rh_bio_to_region(rh, bio));
 	}

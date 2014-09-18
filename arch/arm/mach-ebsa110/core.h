@@ -31,11 +31,11 @@
 #define TRICK7_PHYS		0xf3c00000
 
 /* Virtual addresses */
-#define PIT_BASE		0xfc000000	/* trick 0 */
-#define SOFT_BASE		0xfd000000	/* trick 1 */
-#define IRQ_MASK		0xfe000000	/* trick 3 - read */
-#define IRQ_MSET		0xfe000000	/* trick 3 - write */
-#define IRQ_STAT		0xff000000	/* trick 4 - read */
-#define IRQ_MCLR		0xff000000	/* trick 4 - write */
+#define PIT_BASE		IOMEM(0xfc000000)	/* trick 0 */
+#define SOFT_BASE		IOMEM(0xfd000000)	/* trick 1 */
+#define IRQ_MASK		IOMEM(0xfe000000)	/* trick 3 - read */
+#define IRQ_MSET		IOMEM(0xfe000000)	/* trick 3 - write */
+#define IRQ_STAT		IOMEM(0xff000000)	/* trick 4 - read */
+#define IRQ_MCLR		IOMEM(0xff000000)	/* trick 4 - write */
 
 #endif

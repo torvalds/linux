@@ -364,7 +364,7 @@ static ssize_t store_pwm_auto_point_temp(struct device *dev,
 static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
 	char *buf);
 
-static int __devinit f71882fg_probe(struct platform_device *pdev);
+static int f71882fg_probe(struct platform_device *pdev);
 static int f71882fg_remove(struct platform_device *pdev);
 
 static struct platform_driver f71882fg_driver = {
@@ -1350,7 +1350,7 @@ static ssize_t store_fan_full_speed(struct device *dev,
 	if (err)
 		return err;
 
-	val = SENSORS_LIMIT(val, 23, 1500000);
+	val = clamp_val(val, 23, 1500000);
 	val = fan_to_reg(val);
 
 	mutex_lock(&data->update_lock);
@@ -1438,7 +1438,7 @@ static ssize_t store_in_max(struct device *dev, struct device_attribute
 		return err;
 
 	val /= 8;
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	f71882fg_write8(data, F71882FG_REG_IN1_HIGH, val);
@@ -1542,7 +1542,7 @@ static ssize_t store_temp_max(struct device *dev, struct device_attribute
 		return err;
 
 	val /= 1000;
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	f71882fg_write8(data, F71882FG_REG_TEMP_HIGH(nr), val);
@@ -1589,8 +1589,7 @@ static ssize_t store_temp_max_hyst(struct device *dev, struct device_attribute
 
 	/* convert abs to relative and check */
 	data->temp_high[nr] = f71882fg_read8(data, F71882FG_REG_TEMP_HIGH(nr));
-	val = SENSORS_LIMIT(val, data->temp_high[nr] - 15,
-			    data->temp_high[nr]);
+	val = clamp_val(val, data->temp_high[nr] - 15, data->temp_high[nr]);
 	val = data->temp_high[nr] - val;
 
 	/* convert value to register contents */
@@ -1627,7 +1626,7 @@ static ssize_t store_temp_crit(struct device *dev, struct device_attribute
 		return err;
 
 	val /= 1000;
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	f71882fg_write8(data, F71882FG_REG_TEMP_OVT(nr), val);
@@ -1754,7 +1753,7 @@ static ssize_t store_pwm(struct device *dev,
 	if (err)
 		return err;
 
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
@@ -1805,7 +1804,7 @@ static ssize_t store_simple_pwm(struct device *dev,
 	if (err)
 		return err;
 
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	f71882fg_write8(data, F71882FG_REG_PWM(nr), val);
@@ -1932,7 +1931,7 @@ static ssize_t store_pwm_auto_point_pwm(struct device *dev,
 	if (err)
 		return err;
 
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
@@ -1991,8 +1990,8 @@ static ssize_t store_pwm_auto_point_temp_hyst(struct device *dev,
 	mutex_lock(&data->update_lock);
 	data->pwm_auto_point_temp[nr][point] =
 		f71882fg_read8(data, F71882FG_REG_POINT_TEMP(nr, point));
-	val = SENSORS_LIMIT(val, data->pwm_auto_point_temp[nr][point] - 15,
-				data->pwm_auto_point_temp[nr][point]);
+	val = clamp_val(val, data->pwm_auto_point_temp[nr][point] - 15,
+			data->pwm_auto_point_temp[nr][point]);
 	val = data->pwm_auto_point_temp[nr][point] - val;
 
 	reg = f71882fg_read8(data, F71882FG_REG_FAN_HYST(nr / 2));
@@ -2126,9 +2125,9 @@ static ssize_t store_pwm_auto_point_temp(struct device *dev,
 	val /= 1000;
 
 	if (data->auto_point_temp_signed)
-		val = SENSORS_LIMIT(val, -128, 127);
+		val = clamp_val(val, -128, 127);
 	else
-		val = SENSORS_LIMIT(val, 0, 127);
+		val = clamp_val(val, 0, 127);
 
 	mutex_lock(&data->update_lock);
 	f71882fg_write8(data, F71882FG_REG_POINT_TEMP(pwm, point), val);
@@ -2145,7 +2144,7 @@ static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
 	return sprintf(buf, "%s\n", f71882fg_names[data->type]);
 }
 
-static int __devinit f71882fg_create_sysfs_files(struct platform_device *pdev,
+static int f71882fg_create_sysfs_files(struct platform_device *pdev,
 	struct sensor_device_attribute_2 *attr, int count)
 {
 	int err, i;
@@ -2167,7 +2166,7 @@ static void f71882fg_remove_sysfs_files(struct platform_device *pdev,
 		device_remove_file(&pdev->dev, &attr[i].dev_attr);
 }
 
-static int __devinit f71882fg_create_fan_sysfs_files(
+static int f71882fg_create_fan_sysfs_files(
 	struct platform_device *pdev, int idx)
 {
 	struct f71882fg_data *data = platform_get_drvdata(pdev);
@@ -2265,16 +2264,17 @@ static int __devinit f71882fg_create_fan_sysfs_files(
 	return err;
 }
 
-static int __devinit f71882fg_probe(struct platform_device *pdev)
+static int f71882fg_probe(struct platform_device *pdev)
 {
 	struct f71882fg_data *data;
-	struct f71882fg_sio_data *sio_data = pdev->dev.platform_data;
+	struct f71882fg_sio_data *sio_data = dev_get_platdata(&pdev->dev);
 	int nr_fans = f71882fg_nr_fans[sio_data->type];
 	int nr_temps = f71882fg_nr_temps[sio_data->type];
 	int err, i;
 	u8 start_reg, reg;
 
-	data = kzalloc(sizeof(struct f71882fg_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct f71882fg_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -2288,13 +2288,11 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 	start_reg = f71882fg_read8(data, F71882FG_REG_START);
 	if (start_reg & 0x04) {
 		dev_warn(&pdev->dev, "Hardware monitor is powered down\n");
-		err = -ENODEV;
-		goto exit_free;
+		return -ENODEV;
 	}
 	if (!(start_reg & 0x03)) {
 		dev_warn(&pdev->dev, "Hardware monitoring not activated\n");
-		err = -ENODEV;
-		goto exit_free;
+		return -ENODEV;
 	}
 
 	/* Register sysfs interface files */
@@ -2422,9 +2420,6 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 exit_unregister_sysfs:
 	f71882fg_remove(pdev); /* Will unregister the sysfs files for us */
 	return err; /* f71882fg_remove() also frees our data */
-exit_free:
-	kfree(data);
-	return err;
 }
 
 static int f71882fg_remove(struct platform_device *pdev)
@@ -2525,17 +2520,13 @@ static int f71882fg_remove(struct platform_device *pdev)
 				ARRAY_SIZE(fxxxx_auto_pwm_attr[0]) * nr_fans);
 		}
 	}
-
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
-
 	return 0;
 }
 
-static int __init f71882fg_find(int sioaddr, unsigned short *address,
-	struct f71882fg_sio_data *sio_data)
+static int __init f71882fg_find(int sioaddr, struct f71882fg_sio_data *sio_data)
 {
 	u16 devid;
+	unsigned short address;
 	int err = superio_enter(sioaddr);
 	if (err)
 		return err;
@@ -2603,25 +2594,25 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 		goto exit;
 	}
 
-	*address = superio_inw(sioaddr, SIO_REG_ADDR);
-	if (*address == 0) {
+	address = superio_inw(sioaddr, SIO_REG_ADDR);
+	if (address == 0) {
 		pr_warn("Base address not set\n");
 		err = -ENODEV;
 		goto exit;
 	}
-	*address &= ~(REGION_LENGTH - 1);	/* Ignore 3 LSB */
+	address &= ~(REGION_LENGTH - 1);	/* Ignore 3 LSB */
 
-	err = 0;
+	err = address;
 	pr_info("Found %s chip at %#x, revision %d\n",
-		f71882fg_names[sio_data->type],	(unsigned int)*address,
+		f71882fg_names[sio_data->type],	(unsigned int)address,
 		(int)superio_inb(sioaddr, SIO_REG_DEVREV));
 exit:
 	superio_exit(sioaddr);
 	return err;
 }
 
-static int __init f71882fg_device_add(unsigned short address,
-	const struct f71882fg_sio_data *sio_data)
+static int __init f71882fg_device_add(int address,
+				      const struct f71882fg_sio_data *sio_data)
 {
 	struct resource res = {
 		.start	= address,
@@ -2668,19 +2659,21 @@ exit_device_put:
 
 static int __init f71882fg_init(void)
 {
-	int err = -ENODEV;
-	unsigned short address;
+	int err;
+	int address;
 	struct f71882fg_sio_data sio_data;
 
 	memset(&sio_data, 0, sizeof(sio_data));
 
-	if (f71882fg_find(0x2e, &address, &sio_data) &&
-	    f71882fg_find(0x4e, &address, &sio_data))
-		goto exit;
+	address = f71882fg_find(0x2e, &sio_data);
+	if (address < 0)
+		address = f71882fg_find(0x4e, &sio_data);
+	if (address < 0)
+		return address;
 
 	err = platform_driver_register(&f71882fg_driver);
 	if (err)
-		goto exit;
+		return err;
 
 	err = f71882fg_device_add(address, &sio_data);
 	if (err)
@@ -2690,7 +2683,6 @@ static int __init f71882fg_init(void)
 
 exit_driver:
 	platform_driver_unregister(&f71882fg_driver);
-exit:
 	return err;
 }
 

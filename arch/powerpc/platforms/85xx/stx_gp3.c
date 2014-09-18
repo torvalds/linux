@@ -60,20 +60,13 @@ static void __init stx_gp3_pic_init(void)
  */
 static void __init stx_gp3_setup_arch(void)
 {
-#ifdef CONFIG_PCI
-	struct device_node *np;
-#endif
-
 	if (ppc_md.progress)
 		ppc_md.progress("stx_gp3_setup_arch()", 0);
 
+	fsl_pci_assign_primary();
+
 #ifdef CONFIG_CPM2
 	cpm2_reset();
-#endif
-
-#ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,mpc8540-pci")
-		fsl_add_bridge(np, 1);
 #endif
 }
 
@@ -93,7 +86,7 @@ static void stx_gp3_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "PLL setting\t: 0x%x\n", ((phid1 >> 24) & 0x3f));
 }
 
-machine_device_initcall(stx_gp3, mpc85xx_common_publish_devices);
+machine_arch_initcall(stx_gp3, mpc85xx_common_publish_devices);
 
 /*
  * Called very early, device-tree isn't unflattened

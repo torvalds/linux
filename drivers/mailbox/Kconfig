@@ -1,0 +1,36 @@
+menuconfig MAILBOX
+	bool "Mailbox Hardware Support"
+	help
+	  Mailbox is a framework to control hardware communication between
+	  on-chip processors through queued messages and interrupt driven
+	  signals. Say Y if your platform supports hardware mailboxes.
+
+if MAILBOX
+config PL320_MBOX
+	bool "ARM PL320 Mailbox"
+	depends on ARM_AMBA
+	help
+	  An implementation of the ARM PL320 Interprocessor Communication
+	  Mailbox (IPCM), tailored for the Calxeda Highbank. It is used to
+	  send short messages between Highbank's A9 cores and the EnergyCore
+	  Management Engine, primarily for cpufreq. Say Y here if you want
+	  to use the PL320 IPCM support.
+
+config OMAP2PLUS_MBOX
+	tristate "OMAP2+ Mailbox framework support"
+	depends on ARCH_OMAP2PLUS
+	help
+	  Mailbox implementation for OMAP family chips with hardware for
+	  interprocessor communication involving DSP, IVA1.0 and IVA2 in
+	  OMAP2/3; or IPU, IVA HD and DSP in OMAP4/5. Say Y here if you
+	  want to use OMAP2+ Mailbox framework support.
+
+config OMAP_MBOX_KFIFO_SIZE
+	int "Mailbox kfifo default buffer size (bytes)"
+	depends on OMAP2PLUS_MBOX
+	default 256
+	help
+	  Specify the default size of mailbox's kfifo buffers (bytes).
+	  This can also be changed at runtime (via the mbox_kfifo_size
+	  module parameter).
+endif

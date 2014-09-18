@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -106,7 +105,6 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 		break;
 
 	case ACPI_DESC_TYPE_NAMED:
-
 		/*
 		 * A named reference that has already been resolved to a Node
 		 */
@@ -144,8 +142,8 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_ex_concat_template
  *
- * PARAMETERS:  Operand0            - First source object
- *              Operand1            - Second source object
+ * PARAMETERS:  operand0            - First source object
+ *              operand1            - Second source object
  *              actual_return_desc  - Where to place the return object
  *              walk_state          - Current walk state
  *
@@ -229,8 +227,8 @@ acpi_ex_concat_template(union acpi_operand_object *operand0,
  *
  * FUNCTION:    acpi_ex_do_concatenate
  *
- * PARAMETERS:  Operand0            - First source object
- *              Operand1            - Second source object
+ * PARAMETERS:  operand0            - First source object
+ *              operand1            - Second source object
  *              actual_return_desc  - Where to place the return object
  *              walk_state          - Current walk state
  *
@@ -254,7 +252,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 	ACPI_FUNCTION_TRACE(ex_do_concatenate);
 
 	/*
-	 * Convert the second operand if necessary.  The first operand
+	 * Convert the second operand if necessary. The first operand
 	 * determines the type of the second operand, (See the Data Types
 	 * section of the ACPI specification.)  Both object types are
 	 * guaranteed to be either Integer/String/Buffer by the operand
@@ -262,20 +260,24 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 	 */
 	switch (operand0->common.type) {
 	case ACPI_TYPE_INTEGER:
+
 		status =
 		    acpi_ex_convert_to_integer(operand1, &local_operand1, 16);
 		break;
 
 	case ACPI_TYPE_STRING:
+
 		status = acpi_ex_convert_to_string(operand1, &local_operand1,
 						   ACPI_IMPLICIT_CONVERT_HEX);
 		break;
 
 	case ACPI_TYPE_BUFFER:
+
 		status = acpi_ex_convert_to_buffer(operand1, &local_operand1);
 		break;
 
 	default:
+
 		ACPI_ERROR((AE_INFO, "Invalid object type: 0x%X",
 			    operand0->common.type));
 		status = AE_AML_INTERNAL;
@@ -386,7 +388,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 	*actual_return_desc = return_desc;
 
-      cleanup:
+cleanup:
 	if (local_operand1 != operand1) {
 		acpi_ut_remove_reference(local_operand1);
 	}
@@ -397,9 +399,9 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
  *
  * FUNCTION:    acpi_ex_do_math_op
  *
- * PARAMETERS:  Opcode              - AML opcode
- *              Integer0            - Integer operand #0
- *              Integer1            - Integer operand #1
+ * PARAMETERS:  opcode              - AML opcode
+ *              integer0            - Integer operand #0
+ *              integer1            - Integer operand #1
  *
  * RETURN:      Integer result of the operation
  *
@@ -479,9 +481,9 @@ u64 acpi_ex_do_math_op(u16 opcode, u64 integer0, u64 integer1)
  *
  * FUNCTION:    acpi_ex_do_logical_numeric_op
  *
- * PARAMETERS:  Opcode              - AML opcode
- *              Integer0            - Integer operand #0
- *              Integer1            - Integer operand #1
+ * PARAMETERS:  opcode              - AML opcode
+ *              integer0            - Integer operand #0
+ *              integer1            - Integer operand #1
  *              logical_result      - TRUE/FALSE result of the operation
  *
  * RETURN:      Status
@@ -520,6 +522,7 @@ acpi_ex_do_logical_numeric_op(u16 opcode,
 		break;
 
 	default:
+
 		status = AE_AML_INTERNAL;
 		break;
 	}
@@ -534,9 +537,9 @@ acpi_ex_do_logical_numeric_op(u16 opcode,
  *
  * FUNCTION:    acpi_ex_do_logical_op
  *
- * PARAMETERS:  Opcode              - AML opcode
- *              Operand0            - operand #0
- *              Operand1            - operand #1
+ * PARAMETERS:  opcode              - AML opcode
+ *              operand0            - operand #0
+ *              operand1            - operand #1
  *              logical_result      - TRUE/FALSE result of the operation
  *
  * RETURN:      Status
@@ -573,7 +576,7 @@ acpi_ex_do_logical_op(u16 opcode,
 	ACPI_FUNCTION_TRACE(ex_do_logical_op);
 
 	/*
-	 * Convert the second operand if necessary.  The first operand
+	 * Convert the second operand if necessary. The first operand
 	 * determines the type of the second operand, (See the Data Types
 	 * section of the ACPI 3.0+ specification.)  Both object types are
 	 * guaranteed to be either Integer/String/Buffer by the operand
@@ -581,20 +584,24 @@ acpi_ex_do_logical_op(u16 opcode,
 	 */
 	switch (operand0->common.type) {
 	case ACPI_TYPE_INTEGER:
+
 		status =
 		    acpi_ex_convert_to_integer(operand1, &local_operand1, 16);
 		break;
 
 	case ACPI_TYPE_STRING:
+
 		status = acpi_ex_convert_to_string(operand1, &local_operand1,
 						   ACPI_IMPLICIT_CONVERT_HEX);
 		break;
 
 	case ACPI_TYPE_BUFFER:
+
 		status = acpi_ex_convert_to_buffer(operand1, &local_operand1);
 		break;
 
 	default:
+
 		status = AE_AML_INTERNAL;
 		break;
 	}
@@ -637,6 +644,7 @@ acpi_ex_do_logical_op(u16 opcode,
 			break;
 
 		default:
+
 			status = AE_AML_INTERNAL;
 			break;
 		}
@@ -704,12 +712,13 @@ acpi_ex_do_logical_op(u16 opcode,
 			break;
 
 		default:
+
 			status = AE_AML_INTERNAL;
 			break;
 		}
 	}
 
-      cleanup:
+cleanup:
 
 	/* New object was created if implicit conversion performed - delete */
 

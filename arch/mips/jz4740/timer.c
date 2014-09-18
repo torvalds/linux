@@ -3,7 +3,7 @@
  *  JZ4740 platform timer support
  *
  *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
+ *  under  the terms of the GNU General	 Public License as published by the
  *  Free Software Foundation;  either version 2 of the License, or (at your
  *  option) any later version.
  *
@@ -17,11 +17,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "timer.h"
-
 #include <asm/mach-jz4740/base.h>
+#include <asm/mach-jz4740/timer.h>
 
 void __iomem *jz4740_timer_base;
+EXPORT_SYMBOL_GPL(jz4740_timer_base);
 
 void jz4740_timer_enable_watchdog(void)
 {

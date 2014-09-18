@@ -8,6 +8,7 @@
  *  publishhed by the Free Software Foundation.
  */
 #include <linux/gpio.h>
+#include <linux/gpio-pxa.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -60,6 +61,10 @@ static unsigned long tavorevb_pin_config[] __initdata = {
 	DF_RDY0_DF_RDY0,
 };
 
+static struct pxa_gpio_platform_data pxa910_gpio_pdata = {
+	.irq_base	= MMP_GPIO_TO_IRQ(0),
+};
+
 static struct smc91x_platdata tavorevb_smc91x_info = {
 	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
 };
@@ -93,6 +98,8 @@ static void __init tavorevb_init(void)
 
 	/* on-chip devices */
 	pxa910_add_uart(1);
+	platform_device_add_data(&pxa910_device_gpio, &pxa910_gpio_pdata,
+				 sizeof(struct pxa_gpio_platform_data));
 	platform_device_register(&pxa910_device_gpio);
 
 	/* off-chip devices */
@@ -103,7 +110,7 @@ MACHINE_START(TAVOREVB, "PXA910 Evaluation Board (aka TavorEVB)")
 	.map_io		= mmp_map_io,
 	.nr_irqs	= MMP_NR_IRQS,
 	.init_irq       = pxa910_init_irq,
-	.timer          = &pxa910_timer,
+	.init_time	= pxa910_timer_init,
 	.init_machine   = tavorevb_init,
 	.restart	= mmp_restart,
 MACHINE_END

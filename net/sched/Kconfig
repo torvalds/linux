@@ -250,6 +250,64 @@ config NET_SCH_QFQ
 
 	  If unsure, say N.
 
+config NET_SCH_CODEL
+	tristate "Controlled Delay AQM (CODEL)"
+	help
+	  Say Y here if you want to use the Controlled Delay (CODEL)
+	  packet scheduling algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_codel.
+
+	  If unsure, say N.
+
+config NET_SCH_FQ_CODEL
+	tristate "Fair Queue Controlled Delay AQM (FQ_CODEL)"
+	help
+	  Say Y here if you want to use the FQ Controlled Delay (FQ_CODEL)
+	  packet scheduling algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_fq_codel.
+
+	  If unsure, say N.
+
+config NET_SCH_FQ
+	tristate "Fair Queue"
+	help
+	  Say Y here if you want to use the FQ packet scheduling algorithm.
+
+	  FQ does flow separation, and is able to respect pacing requirements
+	  set by TCP stack into sk->sk_pacing_rate (for localy generated
+	  traffic)
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_fq.
+
+	  If unsure, say N.
+
+config NET_SCH_HHF
+	tristate "Heavy-Hitter Filter (HHF)"
+	help
+	  Say Y here if you want to use the Heavy-Hitter Filter (HHF)
+	  packet scheduling algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_hhf.
+
+config NET_SCH_PIE
+	tristate "Proportional Integral controller Enhanced (PIE) scheduler"
+	help
+	  Say Y here if you want to use the Proportional Integral controller
+	  Enhanced scheduler packet scheduling algorithm.
+	  For more information, please see
+	  http://tools.ietf.org/html/draft-pan-tsvwg-pie-00
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_pie.
+
+	  If unsure, say N.
+
 config NET_SCH_INGRESS
 	tristate "Ingress Qdisc"
 	depends on NET_CLS_ACT
@@ -399,6 +457,7 @@ config NET_CLS_FLOW
 config NET_CLS_CGROUP
 	tristate "Control Group Classifier"
 	select NET_CLS
+	select CGROUP_NET_CLASSID
 	depends on CGROUPS
 	---help---
 	  Say Y here if you want to classify packets based on the control
@@ -406,6 +465,16 @@ config NET_CLS_CGROUP
 
 	  To compile this code as a module, choose M here: the
 	  module will be called cls_cgroup.
+
+config NET_CLS_BPF
+	tristate "BPF-based classifier"
+	select NET_CLS
+	---help---
+	  If you say Y here, you will be able to classify packets based on
+	  programmable BPF (JIT'ed) filters as an alternative to ematches.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cls_bpf.
 
 config NET_EMATCH
 	bool "Extended Matches"
@@ -484,6 +553,26 @@ config NET_EMATCH_TEXT
 
 	  To compile this code as a module, choose M here: the
 	  module will be called em_text.
+
+config NET_EMATCH_CANID
+	tristate "CAN Identifier"
+	depends on NET_EMATCH && (CAN=y || CAN=m)
+	---help---
+	  Say Y here if you want to be able to classify CAN frames based
+	  on CAN Identifier.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_canid.
+
+config NET_EMATCH_IPSET
+	tristate "IPset"
+	depends on NET_EMATCH && IP_SET
+	---help---
+	  Say Y here if you want to be able to classify packets based on
+	  ipset membership.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_ipset.
 
 config NET_CLS_ACT
 	bool "Actions"

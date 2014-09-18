@@ -9,8 +9,8 @@
 #include <errno.h>
 #include <termios.h>
 #include "chan_user.h"
-#include "os.h"
-#include "um_malloc.h"
+#include <os.h>
+#include <um_malloc.h>
 
 struct fd_chan {
 	int fd;

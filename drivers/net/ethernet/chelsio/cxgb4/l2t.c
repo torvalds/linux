@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2010 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -45,6 +45,7 @@
 #include "l2t.h"
 #include "t4_msg.h"
 #include "t4fw_api.h"
+#include "t4_regs.h"
 
 #define VLAN_NONE 0xfff
 
@@ -153,7 +154,7 @@ static int write_l2e(struct adapter *adap, struct l2t_entry *e, int sync)
 	req->params = htons(L2T_W_PORT(e->lport) | L2T_W_NOREPLY(!sync));
 	req->l2t_idx = htons(e->idx);
 	req->vlan = htons(e->vlan);
-	if (e->neigh)
+	if (e->neigh && !(e->neigh->dev->flags & IFF_LOOPBACK))
 		memcpy(e->dmac, e->neigh->ha, sizeof(e->dmac));
 	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
 
@@ -393,6 +394,8 @@ struct l2t_entry *cxgb4_l2t_get(struct l2t_data *d, struct neighbour *neigh,
 	if (e) {
 		spin_lock(&e->lock);          /* avoid race with t4_l2t_free */
 		e->state = L2T_STATE_RESOLVING;
+		if (neigh->dev->flags & IFF_LOOPBACK)
+			memcpy(e->dmac, physdev->dev_addr, sizeof(e->dmac));
 		memcpy(e->addr, addr, addr_len);
 		e->ifindex = ifidx;
 		e->hash = hash;
@@ -410,6 +413,40 @@ done:
 	return e;
 }
 EXPORT_SYMBOL(cxgb4_l2t_get);
+
+u64 cxgb4_select_ntuple(struct net_device *dev,
+			const struct l2t_entry *l2t)
+{
+	struct adapter *adap = netdev2adap(dev);
+	struct tp_params *tp = &adap->params.tp;
+	u64 ntuple = 0;
+
+	/* Initialize each of the fields which we care about which are present
+	 * in the Compressed Filter Tuple.
+	 */
+	if (tp->vlan_shift >= 0 && l2t->vlan != VLAN_NONE)
+		ntuple |= (u64)(F_FT_VLAN_VLD | l2t->vlan) << tp->vlan_shift;
+
+	if (tp->port_shift >= 0)
+		ntuple |= (u64)l2t->lport << tp->port_shift;
+
+	if (tp->protocol_shift >= 0)
+		ntuple |= (u64)IPPROTO_TCP << tp->protocol_shift;
+
+	if (tp->vnic_shift >= 0) {
+		u32 viid = cxgb4_port_viid(dev);
+		u32 vf = FW_VIID_VIN_GET(viid);
+		u32 pf = FW_VIID_PFN_GET(viid);
+		u32 vld = FW_VIID_VIVLD_GET(viid);
+
+		ntuple |= (u64)(V_FT_VNID_ID_VF(vf) |
+				V_FT_VNID_ID_PF(pf) |
+				V_FT_VNID_ID_VLD(vld)) << tp->vnic_shift;
+	}
+
+	return ntuple;
+}
+EXPORT_SYMBOL(cxgb4_select_ntuple);
 
 /*
  * Called when address resolution fails for an L2T entry to handle packets
@@ -482,6 +519,38 @@ void t4_l2t_update(struct adapter *adap, struct neighbour *neigh)
 
 	if (arpq)
 		handle_failed_resolution(adap, arpq);
+}
+
+/* Allocate an L2T entry for use by a switching rule.  Such need to be
+ * explicitly freed and while busy they are not on any hash chain, so normal
+ * address resolution updates do not see them.
+ */
+struct l2t_entry *t4_l2t_alloc_switching(struct l2t_data *d)
+{
+	struct l2t_entry *e;
+
+	write_lock_bh(&d->lock);
+	e = alloc_l2e(d);
+	if (e) {
+		spin_lock(&e->lock);          /* avoid race with t4_l2t_free */
+		e->state = L2T_STATE_SWITCHING;
+		atomic_set(&e->refcnt, 1);
+		spin_unlock(&e->lock);
+	}
+	write_unlock_bh(&d->lock);
+	return e;
+}
+
+/* Sets/updates the contents of a switching L2T entry that has been allocated
+ * with an earlier call to @t4_l2t_alloc_switching.
+ */
+int t4_l2t_set_switching(struct adapter *adap, struct l2t_entry *e, u16 vlan,
+		u8 port, u8 *eth_addr)
+{
+	e->vlan = vlan;
+	e->lport = port;
+	memcpy(e->dmac, eth_addr, ETH_ALEN);
+	return write_l2e(adap, e, 0);
 }
 
 struct l2t_data *t4_init_l2t(void)

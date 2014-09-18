@@ -8,22 +8,15 @@
 #ifndef __ASM_AVR32_BARRIER_H
 #define __ASM_AVR32_BARRIER_H
 
-#define nop()			asm volatile("nop")
-
-#define mb()			asm volatile("" : : : "memory")
-#define rmb()			mb()
-#define wmb()			asm volatile("sync 0" : : : "memory")
-#define read_barrier_depends()  do { } while(0)
-#define set_mb(var, value)      do { var = value; mb(); } while(0)
+/*
+ * Weirdest thing ever.. no full barrier, but it has a write barrier!
+ */
+#define wmb()	asm volatile("sync 0" : : : "memory")
 
 #ifdef CONFIG_SMP
 # error "The AVR32 port does not support SMP"
-#else
-# define smp_mb()		barrier()
-# define smp_rmb()		barrier()
-# define smp_wmb()		barrier()
-# define smp_read_barrier_depends() do { } while(0)
 #endif
 
+#include <asm-generic/barrier.h>
 
 #endif /* __ASM_AVR32_BARRIER_H */

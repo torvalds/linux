@@ -1,0 +1,94 @@
+* Freescale IOMUX Controller (IOMUXC) for i.MX
+
+The IOMUX Controller (IOMUXC), together with the IOMUX, enables the IC
+to share one PAD to several functional blocks. The sharing is done by
+multiplexing the PAD input/output signals. For each PAD there are up to
+8 muxing options (called ALT modes). Since different modules require
+different PAD settings (like pull up, keeper, etc) the IOMUXC controls
+also the PAD settings parameters.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+Freescale IMX pin configuration node is a node of a group of pins which can be
+used for a specific device or function. This node represents both mux and config
+of the pins in that group. The 'mux' selects the function mode(also named mux
+mode) this pin can work on and the 'config' configures various pad settings
+such as pull-up, open drain, drive strength, etc.
+
+Required properties for iomux controller:
+- compatible: "fsl,<soc>-iomuxc"
+  Please refer to each fsl,<soc>-pinctrl.txt binding doc for supported SoCs.
+
+Required properties for pin configuration node:
+- fsl,pins: each entry consists of 6 integers and represents the mux and config
+  setting for one pin. The first 5 integers <mux_reg conf_reg input_reg mux_val
+  input_val> are specified using a PIN_FUNC_ID macro, which can be found in
+  imx*-pinfunc.h under device tree source folder. The last integer CONFIG is
+  the pad setting value like pull-up on this pin. And that's why fsl,pins entry
+  looks like <PIN_FUNC_ID CONFIG> in the example below.
+
+Bits used for CONFIG:
+NO_PAD_CTL(1 << 31): indicate this pin does not need config.
+
+SION(1 << 30): Software Input On Field.
+Force the selected mux mode input path no matter of MUX_MODE functionality.
+By default the input path is determined by functionality of the selected
+mux mode (regular).
+
+Other bits are used for PAD setting.
+Please refer to each fsl,<soc>-pinctrl,txt binding doc for SoC specific part
+of bits definitions.
+
+NOTE:
+Some requirements for using fsl,imx-pinctrl binding:
+1. We have pin function node defined under iomux controller node to represent
+   what pinmux functions this SoC supports.
+2. The pin configuration node intends to work on a specific function should
+   to be defined under that specific function node.
+   The function node's name should represent well about what function
+   this group of pins in this pin configuration node are working on.
+3. The driver can use the function node's name and pin configuration node's
+   name describe the pin function and group hierarchy.
+   For example, Linux IMX pinctrl driver takes the function node's name
+   as the function name and pin configuration node's name as group name to
+   create the map table.
+4. Each pin configuration node should have a phandle, devices can set pins
+   configurations by referring to the phandle of that pin configuration node.
+
+Examples:
+usdhc@0219c000 { /* uSDHC4 */
+	non-removable;
+	vmmc-supply = <&reg_3p3v>;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc4_1>;
+};
+
+iomuxc@020e0000 {
+	compatible = "fsl,imx6q-iomuxc";
+	reg = <0x020e0000 0x4000>;
+
+	/* shared pinctrl settings */
+	usdhc4 {
+		pinctrl_usdhc4_1: usdhc4grp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_SD4_CMD__SD4_CMD    0x17059
+				MX6QDL_PAD_SD4_CLK__SD4_CLK    0x10059
+				MX6QDL_PAD_SD4_DAT0__SD4_DATA0 0x17059
+				MX6QDL_PAD_SD4_DAT1__SD4_DATA1 0x17059
+				MX6QDL_PAD_SD4_DAT2__SD4_DATA2 0x17059
+				MX6QDL_PAD_SD4_DAT3__SD4_DATA3 0x17059
+				MX6QDL_PAD_SD4_DAT4__SD4_DATA4 0x17059
+				MX6QDL_PAD_SD4_DAT5__SD4_DATA5 0x17059
+				MX6QDL_PAD_SD4_DAT6__SD4_DATA6 0x17059
+				MX6QDL_PAD_SD4_DAT7__SD4_DATA7 0x17059
+			>;
+	};
+	....
+};
+Refer to the IOMUXC controller chapter in imx6q datasheet,
+0x17059 means enable hysteresis, 47KOhm Pull Up, 50Mhz speed,
+80Ohm driver strength and Fast Slew Rate.
+User should refer to each SoC spec to set the correct value.

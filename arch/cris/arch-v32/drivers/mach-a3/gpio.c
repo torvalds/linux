@@ -978,7 +978,7 @@ static int __init gpio_init(void)
 	CRIS_LED_DISK_WRITE(0);
 
 	int res2 = request_irq(GIO_INTR_VECT, gpio_interrupt,
-		IRQF_SHARED | IRQF_DISABLED, "gpio", &alarmlist);
+		IRQF_SHARED, "gpio", &alarmlist);
 	if (res2) {
 		printk(KERN_ERR "err: irq for gpio\n");
 		return res2;

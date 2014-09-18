@@ -21,17 +21,48 @@
 #include <mach/irqs.h>
 #include <mach/msm_iomap.h>
 #include <mach/dma.h>
-#include <mach/board.h>
 
 #include "devices.h"
 #include "smd_private.h"
+#include "common.h"
 
 #include <asm/mach/flash.h>
 
+#include "clock.h"
 #include "clock-pcom.h"
-#include "clock-7x30.h"
 
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-msm_sdcc.h>
+
+static struct resource msm_gpio_resources[] = {
+	{
+		.start	= 32 + 18,
+		.end	= 32 + 18,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= 32 + 19,
+		.end	= 32 + 19,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= 0xac001000,
+		.end	= 0xac001000 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+		.name  = "gpio1"
+	},
+	{
+		.start	= 0xac101400,
+		.end	= 0xac101400 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+		.name  = "gpio2"
+	},
+};
+
+struct platform_device msm_device_gpio_7x30 = {
+	.name	= "gpio-msm-7x30",
+	.num_resources	= ARRAY_SIZE(msm_gpio_resources),
+	.resource	= msm_gpio_resources,
+};
 
 static struct resource resources_uart2[] = {
 	{
@@ -130,7 +161,7 @@ struct platform_device msm_device_hsusb_host = {
 	},
 };
 
-struct clk_lookup msm_clocks_7x30[] = {
+static struct clk_pcom_desc msm_clocks_7x30[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),
 	CLK_PCOM("cam_m_clk",	CAM_M_CLK,	NULL, 0),
@@ -146,7 +177,6 @@ struct clk_lookup msm_clocks_7x30[] = {
 	CLK_PCOM("grp_2d_pclk",	GRP_2D_P_CLK,	NULL, 0),
 	CLK_PCOM("grp_clk",	GRP_3D_CLK,	NULL, 0),
 	CLK_PCOM("grp_pclk",	GRP_3D_P_CLK,	NULL, 0),
-	CLK_7X30S("grp_src_clk", GRP_3D_SRC_CLK, GRP_3D_CLK,	NULL, 0),
 	CLK_PCOM("hdmi_clk",	HDMI_CLK,	NULL, 0),
 	CLK_PCOM("imem_clk",	IMEM_CLK,	NULL, OFF),
 	CLK_PCOM("jpeg_clk",	JPEG_CLK,	NULL, OFF),
@@ -179,10 +209,9 @@ struct clk_lookup msm_clocks_7x30[] = {
 	CLK_PCOM("sdac_clk",	SDAC_CLK,	NULL, OFF),
 	CLK_PCOM("spi_clk",	SPI_CLK,	NULL, 0),
 	CLK_PCOM("spi_pclk",	SPI_P_CLK,	NULL, 0),
-	CLK_7X30S("tv_src_clk",	TV_CLK, 	TV_ENC_CLK,	NULL, 0),
 	CLK_PCOM("tv_dac_clk",	TV_DAC_CLK,	NULL, 0),
 	CLK_PCOM("tv_enc_clk",	TV_ENC_CLK,	NULL, 0),
-	CLK_PCOM("uart_clk",	UART2_CLK,	"msm_serial.1", 0),
+	CLK_PCOM("core",	UART2_CLK,	"msm_serial.1", 0),
 	CLK_PCOM("usb_phy_clk",	USB_PHY_CLK,	NULL, 0),
 	CLK_PCOM("usb_hs_clk",		USB_HS_CLK,		NULL, OFF),
 	CLK_PCOM("usb_hs_pclk",		USB_HS_P_CLK,		NULL, OFF),
@@ -206,5 +235,12 @@ struct clk_lookup msm_clocks_7x30[] = {
 	CLK_PCOM("csi_vfe_clk",	CSI0_VFE_CLK,	NULL, 0),
 };
 
-unsigned msm_num_clocks_7x30 = ARRAY_SIZE(msm_clocks_7x30);
+static struct pcom_clk_pdata msm_clock_7x30_pdata = {
+	.lookup = msm_clocks_7x30,
+	.num_lookups = ARRAY_SIZE(msm_clocks_7x30),
+};
 
+struct platform_device msm_clock_7x30 = {
+	.name = "msm-clock-pcom",
+	.dev.platform_data = &msm_clock_7x30_pdata,
+};

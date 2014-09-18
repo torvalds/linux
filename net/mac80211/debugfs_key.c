@@ -116,7 +116,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 				size_t count, loff_t *ppos)
 {
 	struct ieee80211_key *key = file->private_data;
-	char buf[14*NUM_RX_DATA_QUEUES+1], *p = buf;
+	char buf[14*IEEE80211_NUM_TIDS+1], *p = buf;
 	int i, len;
 	const u8 *rpn;
 
@@ -126,7 +126,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 		len = scnprintf(buf, sizeof(buf), "\n");
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
-		for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
+		for (i = 0; i < IEEE80211_NUM_TIDS; i++)
 			p += scnprintf(p, sizeof(buf)+buf-p,
 				       "%08x %04x\n",
 				       key->u.tkip.rx[i].iv32,
@@ -134,7 +134,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 		len = p - buf;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
-		for (i = 0; i < NUM_RX_DATA_QUEUES + 1; i++) {
+		for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++) {
 			rpn = key->u.ccmp.rx_pn[i];
 			p += scnprintf(p, sizeof(buf)+buf-p,
 				       "%02x%02x%02x%02x%02x%02x\n",
@@ -199,6 +199,22 @@ static ssize_t key_icverrors_read(struct file *file, char __user *userbuf,
 }
 KEY_OPS(icverrors);
 
+static ssize_t key_mic_failures_read(struct file *file, char __user *userbuf,
+				     size_t count, loff_t *ppos)
+{
+	struct ieee80211_key *key = file->private_data;
+	char buf[20];
+	int len;
+
+	if (key->conf.cipher != WLAN_CIPHER_SUITE_TKIP)
+		return -EINVAL;
+
+	len = scnprintf(buf, sizeof(buf), "%u\n", key->u.tkip.mic_failures);
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
+}
+KEY_OPS(mic_failures);
+
 static ssize_t key_key_read(struct file *file, char __user *userbuf,
 			    size_t count, loff_t *ppos)
 {
@@ -260,6 +276,7 @@ void ieee80211_debugfs_key_add(struct ieee80211_key *key)
 	DEBUGFS_ADD(rx_spec);
 	DEBUGFS_ADD(replays);
 	DEBUGFS_ADD(icverrors);
+	DEBUGFS_ADD(mic_failures);
 	DEBUGFS_ADD(key);
 	DEBUGFS_ADD(ifindex);
 };
@@ -278,10 +295,15 @@ void ieee80211_debugfs_key_update_default(struct ieee80211_sub_if_data *sdata)
 	char buf[50];
 	struct ieee80211_key *key;
 
-	if (!sdata->debugfs.dir)
+	if (!sdata->vif.debugfs_dir)
 		return;
 
 	lockdep_assert_held(&sdata->local->key_mtx);
+
+	if (sdata->debugfs.default_unicast_key) {
+		debugfs_remove(sdata->debugfs.default_unicast_key);
+		sdata->debugfs.default_unicast_key = NULL;
+	}
 
 	if (sdata->default_unicast_key) {
 		key = key_mtx_dereference(sdata->local,
@@ -289,10 +311,12 @@ void ieee80211_debugfs_key_update_default(struct ieee80211_sub_if_data *sdata)
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
 		sdata->debugfs.default_unicast_key =
 			debugfs_create_symlink("default_unicast_key",
-					       sdata->debugfs.dir, buf);
-	} else {
-		debugfs_remove(sdata->debugfs.default_unicast_key);
-		sdata->debugfs.default_unicast_key = NULL;
+					       sdata->vif.debugfs_dir, buf);
+	}
+
+	if (sdata->debugfs.default_multicast_key) {
+		debugfs_remove(sdata->debugfs.default_multicast_key);
+		sdata->debugfs.default_multicast_key = NULL;
 	}
 
 	if (sdata->default_multicast_key) {
@@ -301,10 +325,7 @@ void ieee80211_debugfs_key_update_default(struct ieee80211_sub_if_data *sdata)
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
 		sdata->debugfs.default_multicast_key =
 			debugfs_create_symlink("default_multicast_key",
-					       sdata->debugfs.dir, buf);
-	} else {
-		debugfs_remove(sdata->debugfs.default_multicast_key);
-		sdata->debugfs.default_multicast_key = NULL;
+					       sdata->vif.debugfs_dir, buf);
 	}
 }
 
@@ -313,7 +334,7 @@ void ieee80211_debugfs_key_add_mgmt_default(struct ieee80211_sub_if_data *sdata)
 	char buf[50];
 	struct ieee80211_key *key;
 
-	if (!sdata->debugfs.dir)
+	if (!sdata->vif.debugfs_dir)
 		return;
 
 	key = key_mtx_dereference(sdata->local,
@@ -322,7 +343,7 @@ void ieee80211_debugfs_key_add_mgmt_default(struct ieee80211_sub_if_data *sdata)
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
 		sdata->debugfs.default_mgmt_key =
 			debugfs_create_symlink("default_mgmt_key",
-					       sdata->debugfs.dir, buf);
+					       sdata->vif.debugfs_dir, buf);
 	} else
 		ieee80211_debugfs_key_remove_mgmt_default(sdata);
 }

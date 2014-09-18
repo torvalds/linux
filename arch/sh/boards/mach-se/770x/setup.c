@@ -128,8 +128,8 @@ static struct resource sh_eth0_resources[] = {
 };
 
 static struct platform_device sh_eth0_device = {
-	.name = "sh-eth",
-	.id	= 0,
+	.name = "sh771x-ether",
+	.id = 0,
 	.dev = {
 		.platform_data = PHY_ID,
 	},
@@ -151,8 +151,8 @@ static struct resource sh_eth1_resources[] = {
 };
 
 static struct platform_device sh_eth1_device = {
-	.name = "sh-eth",
-	.id	= 1,
+	.name = "sh771x-ether",
+	.id = 1,
 	.dev = {
 		.platform_data = PHY_ID,
 	},
@@ -184,16 +184,5 @@ device_initcall(se_devices_setup);
 static struct sh_machine_vector mv_se __initmv = {
 	.mv_name		= "SolutionEngine",
 	.mv_setup		= smsc_setup,
-#if defined(CONFIG_CPU_SH4)
-	.mv_nr_irqs		= 48,
-#elif defined(CONFIG_CPU_SUBTYPE_SH7708)
-	.mv_nr_irqs		= 32,
-#elif defined(CONFIG_CPU_SUBTYPE_SH7709)
-	.mv_nr_irqs		= 61,
-#elif defined(CONFIG_CPU_SUBTYPE_SH7705)
-	.mv_nr_irqs		= 86,
-#elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
-	.mv_nr_irqs             = 104,
-#endif
 	.mv_init_irq		= init_se_IRQ,
 };

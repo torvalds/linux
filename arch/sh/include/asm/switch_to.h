@@ -11,9 +11,9 @@
 #define __ASM_SH_SWITCH_TO_H
 
 #ifdef CONFIG_SUPERH32
-# include "switch_to_32.h"
+# include <asm/switch_to_32.h>
 #else
-# include "switch_to_64.h"
+# include <asm/switch_to_64.h>
 #endif
 
 #endif /* __ASM_SH_SWITCH_TO_H */

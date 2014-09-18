@@ -1,29 +1,25 @@
-/*******************************************************************************
-
-  Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel(R) Gigabit Ethernet Linux driver
+ * Copyright(c) 2007-2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #ifndef _E1000_PHY_H_
 #define _E1000_PHY_H_
@@ -69,10 +65,14 @@ s32  igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data);
 s32  igb_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data);
 s32  igb_read_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 *data);
 s32  igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data);
+s32  igb_read_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 *data);
 s32  igb_copper_link_setup_82580(struct e1000_hw *hw);
 s32  igb_get_phy_info_82580(struct e1000_hw *hw);
 s32  igb_phy_force_speed_duplex_82580(struct e1000_hw *hw);
 s32  igb_get_cable_length_82580(struct e1000_hw *hw);
+s32  igb_read_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 *data);
+s32  igb_write_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 data);
+s32  igb_check_polarity_m88(struct e1000_hw *hw);
 
 /* IGP01E1000 Specific Registers */
 #define IGP01E1000_PHY_PORT_CONFIG        0x10 /* Port Config */
@@ -108,12 +108,21 @@ s32  igb_get_cable_length_82580(struct e1000_hw *hw);
 #define I82580_PHY_STATUS2_SPEED_100MBPS  0x0100
 
 /* I82580 PHY Control 2 */
-#define I82580_PHY_CTRL2_AUTO_MDIX        0x0400
-#define I82580_PHY_CTRL2_FORCE_MDI_MDIX   0x0200
+#define I82580_PHY_CTRL2_MANUAL_MDIX      0x0200
+#define I82580_PHY_CTRL2_AUTO_MDI_MDIX    0x0400
+#define I82580_PHY_CTRL2_MDIX_CFG_MASK    0x0600
 
 /* I82580 PHY Diagnostics Status */
 #define I82580_DSTATUS_CABLE_LENGTH       0x03FC
 #define I82580_DSTATUS_CABLE_LENGTH_SHIFT 2
+
+/* 82580 PHY Power Management */
+#define E1000_82580_PHY_POWER_MGMT	0xE14
+#define E1000_82580_PM_SPD		0x0001 /* Smart Power Down */
+#define E1000_82580_PM_D0_LPLU		0x0002 /* For D0a states */
+#define E1000_82580_PM_D3_LPLU		0x0004 /* For all other states */
+#define E1000_82580_PM_GO_LINKD		0x0020 /* Go Link Disconnect */
+
 /* Enable flexible speed on link-up */
 #define IGP02E1000_PM_D0_LPLU             0x0002 /* For D0a states */
 #define IGP02E1000_PM_D3_LPLU             0x0004 /* For all other states */
@@ -132,5 +141,34 @@ s32  igb_get_cable_length_82580(struct e1000_hw *hw);
 #define IGP02E1000_AGC_RANGE              15
 
 #define E1000_CABLE_LENGTH_UNDEFINED      0xFF
+
+/* GS40G - I210 PHY defines */
+#define GS40G_PAGE_SELECT		0x16
+#define GS40G_PAGE_SHIFT		16
+#define GS40G_OFFSET_MASK		0xFFFF
+#define GS40G_PAGE_2			0x20000
+#define GS40G_MAC_REG2			0x15
+#define GS40G_MAC_LB			0x4140
+#define GS40G_MAC_SPEED_1G		0X0006
+#define GS40G_COPPER_SPEC		0x0010
+#define GS40G_LINE_LB			0x4000
+
+/* SFP modules ID memory locations */
+#define E1000_SFF_IDENTIFIER_OFFSET	0x00
+#define E1000_SFF_IDENTIFIER_SFF	0x02
+#define E1000_SFF_IDENTIFIER_SFP	0x03
+
+#define E1000_SFF_ETH_FLAGS_OFFSET	0x06
+/* Flags for SFP modules compatible with ETH up to 1Gb */
+struct e1000_sfp_flags {
+	u8 e1000_base_sx:1;
+	u8 e1000_base_lx:1;
+	u8 e1000_base_cx:1;
+	u8 e1000_base_t:1;
+	u8 e100_base_lx:1;
+	u8 e100_base_fx:1;
+	u8 e10_base_bx10:1;
+	u8 e10_base_px:1;
+};
 
 #endif

@@ -1,0 +1,30 @@
+config DRM_PANEL
+	bool
+	depends on DRM
+	help
+	  Panel registration and lookup framework.
+
+menu "Display Panels"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_SIMPLE
+	tristate "support for simple panels"
+	depends on OF
+	help
+	  DRM panel driver for dumb panels that need at most a regulator and
+	  a GPIO to be powered up. Optionally a backlight can be attached so
+	  that it can be automatically turned off when the panel goes into a
+	  low power state.
+
+config DRM_PANEL_LD9040
+	tristate "LD9040 RGB/SPI panel"
+	depends on OF && SPI
+	select VIDEOMODE_HELPERS
+
+config DRM_PANEL_S6E8AA0
+	tristate "S6E8AA0 DSI video mode panel"
+	depends on OF
+	select DRM_MIPI_DSI
+	select VIDEOMODE_HELPERS
+
+endmenu

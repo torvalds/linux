@@ -14,3 +14,11 @@ config PACKET
 	  be called af_packet.
 
 	  If unsure, say Y.
+
+config PACKET_DIAG
+	tristate "Packet: sockets monitoring interface"
+	depends on PACKET
+	default n
+	---help---
+	  Support for PF_PACKET sockets monitoring interface used by the ss tool.
+	  If unsure, say Y.

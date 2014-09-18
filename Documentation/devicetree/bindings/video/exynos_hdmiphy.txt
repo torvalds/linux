@@ -1,0 +1,15 @@
+Device-Tree bindings for hdmiphy driver
+
+Required properties:
+- compatible: value should be one of the following:
+	1) "samsung,exynos5-hdmiphy" <DEPRECATED>
+	2) "samsung,exynos4210-hdmiphy".
+	3) "samsung,exynos4212-hdmiphy".
+- reg: I2C address of the hdmiphy device.
+
+Example:
+
+	hdmiphy {
+		compatible = "samsung,exynos4210-hdmiphy";
+		reg = <0x38>;
+	};

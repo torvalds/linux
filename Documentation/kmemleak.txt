@@ -11,9 +11,7 @@ with the difference that the orphan objects are not freed but only
 reported via /sys/kernel/debug/kmemleak. A similar method is used by the
 Valgrind tool (memcheck --leak-check) to detect the memory leaks in
 user-space applications.
-
-Please check DEBUG_KMEMLEAK dependencies in lib/Kconfig.debug for supported
-architectures.
+Kmemleak is supported on x86, arm, powerpc, sparc, sh, microblaze, ppc, mips, s390, metag and tile.
 
 Usage
 -----
@@ -53,7 +51,8 @@ Memory scanning parameters can be modified at run-time by writing to the
 		  (default 600, 0 to stop the automatic scanning)
   scan		- trigger a memory scan
   clear		- clear list of current memory leak suspects, done by
-		  marking all current reported unreferenced objects grey
+		  marking all current reported unreferenced objects grey,
+		  or free all kmemleak objects if kmemleak has been disabled.
   dump=<addr>	- dump information about the object found at <addr>
 
 Kmemleak can also be disabled at boot-time by passing "kmemleak=off" on
@@ -68,7 +67,7 @@ Basic Algorithm
 
 The memory allocations via kmalloc, vmalloc, kmem_cache_alloc and
 friends are traced and the pointers, together with additional
-information like size and stack trace, are stored in a prio search tree.
+information like size and stack trace, are stored in a rbtree.
 The corresponding freeing function calls are tracked and the pointers
 removed from the kmemleak data structures.
 
@@ -84,7 +83,7 @@ The scanning algorithm steps:
   1. mark all objects as white (remaining white objects will later be
      considered orphan)
   2. scan the memory starting with the data section and stacks, checking
-     the values against the addresses stored in the prio search tree. If
+     the values against the addresses stored in the rbtree. If
      a pointer to a white object is found, the object is added to the
      gray list
   3. scan the gray objects for matching addresses (some white objects
@@ -120,6 +119,18 @@ Then as usual to get your report with:
 
   # cat /sys/kernel/debug/kmemleak
 
+Freeing kmemleak internal objects
+---------------------------------
+
+To allow access to previosuly found memory leaks after kmemleak has been
+disabled by the user or due to an fatal error, internal kmemleak objects
+won't be freed when kmemleak is disabled, and those objects may occupy
+a large part of physical memory.
+
+In this situation, you may reclaim memory with:
+
+  # echo clear > /sys/kernel/debug/kmemleak
+
 Kmemleak API
 ------------
 
@@ -131,6 +142,7 @@ kmemleak_alloc_percpu	 - notify of a percpu memory block allocation
 kmemleak_free		 - notify of a memory block freeing
 kmemleak_free_part	 - notify of a partial memory block freeing
 kmemleak_free_percpu	 - notify of a percpu memory block freeing
+kmemleak_update_trace	 - update object allocation stack trace
 kmemleak_not_leak	 - mark an object as not a leak
 kmemleak_ignore		 - do not scan or report an object as leak
 kmemleak_scan_area	 - add scan areas inside a memory block

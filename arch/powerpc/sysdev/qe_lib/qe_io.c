@@ -3,7 +3,7 @@
  *
  * QE Parallel I/O ports configuration routines
  *
- * Copyright (C) Freescale Semicondutor, Inc. 2006. All rights reserved.
+ * Copyright 2006 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Author: Li Yang <LeoLi@freescale.com>
  * Based on code from Shlomi Gridish <gridish@freescale.com>
@@ -16,7 +16,6 @@
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/ioport.h>

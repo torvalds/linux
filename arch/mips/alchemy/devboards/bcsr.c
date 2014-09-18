@@ -20,7 +20,7 @@ static struct bcsr_reg {
 	spinlock_t lock;
 } bcsr_regs[BCSR_CNT];
 
-static void __iomem *bcsr_virt;	/* KSEG1 addr of BCSR base */
+static void __iomem *bcsr_virt; /* KSEG1 addr of BCSR base */
 static int bcsr_csc_base;	/* linux-irq of first cascaded irq */
 
 void __init bcsr_init(unsigned long bcsr1_phys, unsigned long bcsr2_phys)
@@ -90,10 +90,7 @@ static void bcsr_csc_handler(unsigned int irq, struct irq_desc *d)
 	unsigned short bisr = __raw_readw(bcsr_virt + BCSR_REG_INTSTAT);
 
 	disable_irq_nosync(irq);
-
-	for ( ; bisr; bisr &= bisr - 1)
-		generic_handle_irq(bcsr_csc_base + __ffs(bisr));
-
+	generic_handle_irq(bcsr_csc_base + __ffs(bisr));
 	enable_irq(irq);
 }
 

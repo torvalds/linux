@@ -195,7 +195,7 @@ static const struct net_device_ops mace_netdev_ops = {
  * model of Macintrash has a MACE (AV macintoshes)
  */
 
-static int __devinit mace_probe(struct platform_device *pdev)
+static int mace_probe(struct platform_device *pdev)
 {
 	int j;
 	struct mace_data *mp;
@@ -211,6 +211,7 @@ static int __devinit mace_probe(struct platform_device *pdev)
 	mp = netdev_priv(dev);
 
 	mp->device = &pdev->dev;
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	dev->base_addr = (u32)MACE_BASE;
@@ -228,7 +229,7 @@ static int __devinit mace_probe(struct platform_device *pdev)
 	 * bits are reversed.
 	 */
 
-	addr = (void *)MACE_PROM;
+	addr = MACE_PROM;
 
 	for (j = 0; j < 6; ++j) {
 		u8 v = bitrev8(addr[j<<4]);
@@ -386,20 +387,16 @@ static int mace_open(struct net_device *dev)
 	/* Allocate the DMA ring buffers */
 
 	mp->tx_ring = dma_alloc_coherent(mp->device,
-			N_TX_RING * MACE_BUFF_SIZE,
-			&mp->tx_ring_phys, GFP_KERNEL);
-	if (mp->tx_ring == NULL) {
-		printk(KERN_ERR "%s: unable to allocate DMA tx buffers\n", dev->name);
+					 N_TX_RING * MACE_BUFF_SIZE,
+					 &mp->tx_ring_phys, GFP_KERNEL);
+	if (mp->tx_ring == NULL)
 		goto out1;
-	}
 
 	mp->rx_ring = dma_alloc_coherent(mp->device,
-			N_RX_RING * MACE_BUFF_SIZE,
-			&mp->rx_ring_phys, GFP_KERNEL);
-	if (mp->rx_ring == NULL) {
-		printk(KERN_ERR "%s: unable to allocate DMA rx buffers\n", dev->name);
+					 N_RX_RING * MACE_BUFF_SIZE,
+					 &mp->rx_ring_phys, GFP_KERNEL);
+	if (mp->rx_ring == NULL)
 		goto out2;
-	}
 
 	mace_dma_off(dev);
 
@@ -746,7 +743,7 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Macintosh MACE ethernet driver");
 MODULE_ALIAS("platform:macmace");
 
-static int __devexit mac_mace_device_remove (struct platform_device *pdev)
+static int mac_mace_device_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct mace_data *mp = netdev_priv(dev);
@@ -768,7 +765,7 @@ static int __devexit mac_mace_device_remove (struct platform_device *pdev)
 
 static struct platform_driver mac_mace_driver = {
 	.probe  = mace_probe,
-	.remove = __devexit_p(mac_mace_device_remove),
+	.remove = mac_mace_device_remove,
 	.driver	= {
 		.name	= mac_mace_string,
 		.owner	= THIS_MODULE,

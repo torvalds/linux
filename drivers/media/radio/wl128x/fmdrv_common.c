@@ -175,7 +175,7 @@ static int_handler_prototype int_handler_table[] = {
 	fm_irq_handle_intmsk_cmd_resp
 };
 
-long (*g_st_write) (struct sk_buff *skb);
+static long (*g_st_write) (struct sk_buff *skb);
 static struct completion wait_for_fmdrv_reg_comp;
 
 static inline void fm_irq_call(struct fmdev *fmdev)
@@ -715,7 +715,7 @@ static void fm_irq_handle_rdsdata_getcmd_resp(struct fmdev *fmdev)
 	struct fm_rdsdata_format rds_fmt;
 	struct fm_rds *rds = &fmdev->rx.rds;
 	unsigned long group_idx, flags;
-	u8 *rds_data, meta_data, tmpbuf[3];
+	u8 *rds_data, meta_data, tmpbuf[FM_RDS_BLK_SIZE];
 	u8 type, blk_idx;
 	u16 cur_picode;
 	u32 rds_len;
@@ -742,7 +742,7 @@ static void fm_irq_handle_rdsdata_getcmd_resp(struct fmdev *fmdev)
 		if ((meta_data & FM_RDS_STATUS_ERR_MASK) != 0)
 			break;
 
-		if (blk_idx < FM_RDS_BLK_IDX_A || blk_idx > FM_RDS_BLK_IDX_D) {
+		if (blk_idx > FM_RDS_BLK_IDX_D) {
 			fmdbg("Block sequence mismatch\n");
 			rds->last_blk_idx = -1;
 			break;
@@ -1073,6 +1073,7 @@ int fmc_transfer_rds_from_internal_buff(struct fmdev *fmdev, struct file *file,
 		u8 __user *buf, size_t count)
 {
 	u32 block_count;
+	u8 tmpbuf[FM_RDS_BLK_SIZE];
 	unsigned long flags;
 	int ret;
 
@@ -1087,29 +1088,32 @@ int fmc_transfer_rds_from_internal_buff(struct fmdev *fmdev, struct file *file,
 	}
 
 	/* Calculate block count from byte count */
-	count /= 3;
+	count /= FM_RDS_BLK_SIZE;
 	block_count = 0;
 	ret = 0;
 
-	spin_lock_irqsave(&fmdev->rds_buff_lock, flags);
-
 	while (block_count < count) {
-		if (fmdev->rx.rds.wr_idx == fmdev->rx.rds.rd_idx)
-			break;
+		spin_lock_irqsave(&fmdev->rds_buff_lock, flags);
 
-		if (copy_to_user(buf, &fmdev->rx.rds.buff[fmdev->rx.rds.rd_idx],
-					FM_RDS_BLK_SIZE))
+		if (fmdev->rx.rds.wr_idx == fmdev->rx.rds.rd_idx) {
+			spin_unlock_irqrestore(&fmdev->rds_buff_lock, flags);
 			break;
-
+		}
+		memcpy(tmpbuf, &fmdev->rx.rds.buff[fmdev->rx.rds.rd_idx],
+					FM_RDS_BLK_SIZE);
 		fmdev->rx.rds.rd_idx += FM_RDS_BLK_SIZE;
 		if (fmdev->rx.rds.rd_idx >= fmdev->rx.rds.buf_size)
 			fmdev->rx.rds.rd_idx = 0;
+
+		spin_unlock_irqrestore(&fmdev->rds_buff_lock, flags);
+
+		if (copy_to_user(buf, tmpbuf, FM_RDS_BLK_SIZE))
+			break;
 
 		block_count++;
 		buf += FM_RDS_BLK_SIZE;
 		ret += FM_RDS_BLK_SIZE;
 	}
-	spin_unlock_irqrestore(&fmdev->rds_buff_lock, flags);
 	return ret;
 }
 
@@ -1563,8 +1567,7 @@ int fmc_prepare(struct fmdev *fmdev)
 	fmdev->irq_info.mask = FM_MAL_EVENT;
 
 	/* Region info */
-	memcpy(&fmdev->rx.region, &region_configs[default_radio_region],
-			sizeof(struct region_info));
+	fmdev->rx.region = region_configs[default_radio_region];
 
 	fmdev->rx.mute_mode = FM_MUTE_OFF;
 	fmdev->rx.rf_depend_mute = FM_RX_RF_DEPENDENT_MUTE_OFF;

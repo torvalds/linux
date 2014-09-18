@@ -15,6 +15,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
 
@@ -98,24 +99,6 @@ static uint16_t socrates_nand_read_word(struct mtd_info *mtd)
 	return word;
 }
 
-/**
- * socrates_nand_verify_buf -  Verify chip data against buffer
- * @mtd:	MTD device structure
- * @buf:	buffer containing the data to compare
- * @len:	number of bytes to compare
- */
-static int socrates_nand_verify_buf(struct mtd_info *mtd, const u8 *buf,
-		int len)
-{
-	int i;
-
-	for (i = 0; i < len; i++) {
-		if (buf[i] != socrates_nand_read_byte(mtd))
-			return -EFAULT;
-	}
-	return 0;
-}
-
 /*
  * Hardware specific access to control-lines
  */
@@ -158,7 +141,7 @@ static int socrates_nand_device_ready(struct mtd_info *mtd)
 /*
  * Probe for the NAND device.
  */
-static int __devinit socrates_nand_probe(struct platform_device *ofdev)
+static int socrates_nand_probe(struct platform_device *ofdev)
 {
 	struct socrates_nand_host *host;
 	struct mtd_info *mtd;
@@ -167,17 +150,13 @@ static int __devinit socrates_nand_probe(struct platform_device *ofdev)
 	struct mtd_part_parser_data ppdata;
 
 	/* Allocate memory for the device structure (and zero it) */
-	host = kzalloc(sizeof(struct socrates_nand_host), GFP_KERNEL);
-	if (!host) {
-		printk(KERN_ERR
-		       "socrates_nand: failed to allocate device structure.\n");
+	host = devm_kzalloc(&ofdev->dev, sizeof(*host), GFP_KERNEL);
+	if (!host)
 		return -ENOMEM;
-	}
 
 	host->io_base = of_iomap(ofdev->dev.of_node, 0);
 	if (host->io_base == NULL) {
-		printk(KERN_ERR "socrates_nand: ioremap failed\n");
-		kfree(host);
+		dev_err(&ofdev->dev, "ioremap failed\n");
 		return -EIO;
 	}
 
@@ -201,7 +180,6 @@ static int __devinit socrates_nand_probe(struct platform_device *ofdev)
 	nand_chip->read_word = socrates_nand_read_word;
 	nand_chip->write_buf = socrates_nand_write_buf;
 	nand_chip->read_buf = socrates_nand_read_buf;
-	nand_chip->verify_buf = socrates_nand_verify_buf;
 	nand_chip->dev_ready = socrates_nand_device_ready;
 
 	nand_chip->ecc.mode = NAND_ECC_SOFT;	/* enable ECC */
@@ -230,25 +208,21 @@ static int __devinit socrates_nand_probe(struct platform_device *ofdev)
 	nand_release(mtd);
 
 out:
-	dev_set_drvdata(&ofdev->dev, NULL);
 	iounmap(host->io_base);
-	kfree(host);
 	return res;
 }
 
 /*
  * Remove a NAND device.
  */
-static int __devexit socrates_nand_remove(struct platform_device *ofdev)
+static int socrates_nand_remove(struct platform_device *ofdev)
 {
 	struct socrates_nand_host *host = dev_get_drvdata(&ofdev->dev);
 	struct mtd_info *mtd = &host->mtd;
 
 	nand_release(mtd);
 
-	dev_set_drvdata(&ofdev->dev, NULL);
 	iounmap(host->io_base);
-	kfree(host);
 
 	return 0;
 }
@@ -270,7 +244,7 @@ static struct platform_driver socrates_nand_driver = {
 		.of_match_table = socrates_nand_match,
 	},
 	.probe		= socrates_nand_probe,
-	.remove		= __devexit_p(socrates_nand_remove),
+	.remove		= socrates_nand_remove,
 };
 
 module_platform_driver(socrates_nand_driver);

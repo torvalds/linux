@@ -80,10 +80,6 @@ int rtas_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 	if (ret)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (returnval == EEH_IO_ERROR_VALUE(size) &&
-	    eeh_dn_check_failure (pdn->node, NULL))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -92,18 +88,39 @@ static int rtas_pci_read_config(struct pci_bus *bus,
 				int where, int size, u32 *val)
 {
 	struct device_node *busdn, *dn;
-
-	busdn = pci_bus_to_OF_node(bus);
+	struct pci_dn *pdn;
+	bool found = false;
+#ifdef CONFIG_EEH
+	struct eeh_dev *edev;
+#endif
+	int ret;
 
 	/* Search only direct children of the bus */
+	*val = 0xFFFFFFFF;
+	busdn = pci_bus_to_OF_node(bus);
 	for (dn = busdn->child; dn; dn = dn->sibling) {
-		struct pci_dn *pdn = PCI_DN(dn);
+		pdn = PCI_DN(dn);
 		if (pdn && pdn->devfn == devfn
-		    && of_device_is_available(dn))
-			return rtas_read_config(pdn, where, size, val);
+		    && of_device_is_available(dn)) {
+			found = true;
+			break;
+		}
 	}
 
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	if (!found)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+#ifdef CONFIG_EEH
+	edev = of_node_to_eeh_dev(dn);
+	if (edev && edev->pe && edev->pe->state & EEH_PE_RESET)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+#endif
+
+	ret = rtas_read_config(pdn, where, size, val);
+	if (*val == EEH_IO_ERROR_VALUE(size) &&
+	    eeh_dev_check_failure(of_node_to_eeh_dev(dn)))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	return ret;
 }
 
 int rtas_write_config(struct pci_dn *pdn, int where, int size, u32 val)
@@ -136,17 +153,34 @@ static int rtas_pci_write_config(struct pci_bus *bus,
 				 int where, int size, u32 val)
 {
 	struct device_node *busdn, *dn;
-
-	busdn = pci_bus_to_OF_node(bus);
+	struct pci_dn *pdn;
+	bool found = false;
+#ifdef CONFIG_EEH
+	struct eeh_dev *edev;
+#endif
+	int ret;
 
 	/* Search only direct children of the bus */
+	busdn = pci_bus_to_OF_node(bus);
 	for (dn = busdn->child; dn; dn = dn->sibling) {
-		struct pci_dn *pdn = PCI_DN(dn);
+		pdn = PCI_DN(dn);
 		if (pdn && pdn->devfn == devfn
-		    && of_device_is_available(dn))
-			return rtas_write_config(pdn, where, size, val);
+		    && of_device_is_available(dn)) {
+			found = true;
+			break;
+		}
 	}
-	return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (!found)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+#ifdef CONFIG_EEH
+	edev = of_node_to_eeh_dev(dn);
+	if (edev && edev->pe && (edev->pe->state & EEH_PE_RESET))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+#endif
+	ret = rtas_write_config(pdn, where, size, val);
+
+	return ret;
 }
 
 static struct pci_ops rtas_pci_ops = {
@@ -201,7 +235,7 @@ static void python_countermeasures(struct device_node *dev)
 	iounmap(chip_regs);
 }
 
-void __init init_pci_config_tokens (void)
+void __init init_pci_config_tokens(void)
 {
 	read_pci_config = rtas_token("read-pci-config");
 	write_pci_config = rtas_token("write-pci-config");
@@ -209,7 +243,7 @@ void __init init_pci_config_tokens (void)
 	ibm_write_pci_config = rtas_token("ibm,write-pci-config");
 }
 
-unsigned long __devinit get_phb_buid (struct device_node *phb)
+unsigned long get_phb_buid(struct device_node *phb)
 {
 	struct resource r;
 
@@ -223,7 +257,7 @@ unsigned long __devinit get_phb_buid (struct device_node *phb)
 static int phb_set_bus_ranges(struct device_node *dev,
 			      struct pci_controller *phb)
 {
-	const int *bus_range;
+	const __be32 *bus_range;
 	unsigned int len;
 
 	bus_range = of_get_property(dev, "bus-range", &len);
@@ -231,13 +265,13 @@ static int phb_set_bus_ranges(struct device_node *dev,
 		return 1;
  	}
 
-	phb->first_busno =  bus_range[0];
-	phb->last_busno  =  bus_range[1];
+	phb->first_busno = be32_to_cpu(bus_range[0]);
+	phb->last_busno  = be32_to_cpu(bus_range[1]);
 
 	return 0;
 }
 
-int __devinit rtas_setup_phb(struct pci_controller *phb)
+int rtas_setup_phb(struct pci_controller *phb)
 {
 	struct device_node *dev = phb->dn;
 
@@ -274,9 +308,6 @@ void __init find_and_init_phbs(void)
 
 	of_node_put(root);
 	pci_devs_phb_init();
-
-	/* Create EEH devices for all PHBs */
-	eeh_dev_phb_init();
 
 	/*
 	 * PCI_PROBE_ONLY and PCI_REASSIGN_ALL_BUS can be set via properties

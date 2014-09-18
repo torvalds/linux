@@ -2,6 +2,7 @@ if LANTIQ
 
 config SOC_TYPE_XWAY
 	bool
+	select PINCTRL_XWAY
 	default n
 
 choice
@@ -16,8 +17,27 @@ config SOC_XWAY
 	bool "XWAY"
 	select SOC_TYPE_XWAY
 	select HW_HAS_PCI
+
+config SOC_FALCON
+	bool "FALCON"
+	select PINCTRL_FALCON
+
 endchoice
 
-source "arch/mips/lantiq/xway/Kconfig"
+choice
+	prompt "Devicetree"
+
+config DT_EASY50712
+	bool "Easy50712"
+	depends on SOC_XWAY
+endchoice
+
+config PCI_LANTIQ
+	bool "PCI Support"
+	depends on SOC_XWAY && PCI
+
+config XRX200_PHY_FW
+	bool "XRX200 PHY firmware loader"
+	depends on SOC_XWAY
 
 endif

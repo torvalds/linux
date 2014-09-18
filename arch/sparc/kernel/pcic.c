@@ -36,6 +36,7 @@
 #include <asm/uaccess.h>
 #include <asm/irq_regs.h>
 
+#include "kernel.h"
 #include "irq.h"
 
 /*
@@ -162,8 +163,8 @@ static int pcic0_up;
 static struct linux_pcic pcic0;
 
 void __iomem *pcic_regs;
-volatile int pcic_speculative;
-volatile int pcic_trapped;
+static volatile int pcic_speculative;
+static volatile int pcic_trapped;
 
 /* forward */
 unsigned int pcic_build_device_irq(struct platform_device *op,
@@ -329,7 +330,7 @@ int __init pcic_probe(void)
 
 	pcic->pcic_res_cfg_addr.name = "pcic_cfg_addr";
 	if ((pcic->pcic_config_space_addr =
-	    ioremap(regs[2].phys_addr, regs[2].reg_size * 2)) == 0) {
+	    ioremap(regs[2].phys_addr, regs[2].reg_size * 2)) == NULL) {
 		prom_printf("PCIC: Error, cannot map "
 			    "PCI Configuration Space Address.\n");
 		prom_halt();
@@ -341,7 +342,7 @@ int __init pcic_probe(void)
 	 */
 	pcic->pcic_res_cfg_data.name = "pcic_cfg_data";
 	if ((pcic->pcic_config_space_data =
-	    ioremap(regs[3].phys_addr, regs[3].reg_size * 2)) == 0) {
+	    ioremap(regs[3].phys_addr, regs[3].reg_size * 2)) == NULL) {
 		prom_printf("PCIC: Error, cannot map "
 			    "PCI Configuration Space Data.\n");
 		prom_halt();
@@ -353,7 +354,6 @@ int __init pcic_probe(void)
 	strcpy(pbm->prom_name, namebuf);
 
 	{
-		extern volatile int t_nmi[4];
 		extern int pcic_nmi_trap_patch[4];
 
 		t_nmi[0] = pcic_nmi_trap_patch[0];
@@ -439,8 +439,7 @@ int pcic_present(void)
 	return pcic0_up;
 }
 
-static int __devinit pdev_to_pnode(struct linux_pbm_info *pbm,
-				    struct pci_dev *pdev)
+static int pdev_to_pnode(struct linux_pbm_info *pbm, struct pci_dev *pdev)
 {
 	struct linux_prom_pci_registers regs[PROMREG_MAX];
 	int err;
@@ -537,7 +536,7 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 		prom_getstring(node, "name", namebuf, sizeof(namebuf));
 	}
 
-	if ((p = pcic->pcic_imap) == 0) {
+	if ((p = pcic->pcic_imap) == NULL) {
 		dev->irq = 0;
 		return;
 	}
@@ -595,7 +594,7 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 /*
  * Normally called from {do_}pci_scan_bus...
  */
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	int i, has_io, has_mem;
@@ -671,30 +670,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 	}
 }
 
-/*
- * pcic_pin_to_irq() is exported to bus probing code
- */
-unsigned int
-pcic_pin_to_irq(unsigned int pin, const char *name)
-{
-	struct linux_pcic *pcic = &pcic0;
-	unsigned int irq;
-	unsigned int ivec;
-
-	if (pin < 4) {
-		ivec = readw(pcic->pcic_regs+PCI_INT_SELECT_LO);
-		irq = ivec >> (pin << 2) & 0xF;
-	} else if (pin < 8) {
-		ivec = readw(pcic->pcic_regs+PCI_INT_SELECT_HI);
-		irq = ivec >> ((pin-4) << 2) & 0xF;
-	} else {					/* Corrupted map */
-		printk("PCIC: BAD PIN %d FOR %s\n", pin, name);
-		for (;;) {}	/* XXX Cannot panic properly in case of PROLL */
-	}
-/* P3 */ /* printk("PCIC: dev %s pin %d ivec 0x%x irq %x\n", name, pin, ivec, irq); */
-	return irq;
-}
-
 /* Makes compiler happy */
 static volatile int pcic_timer_dummy;
 
@@ -703,31 +678,28 @@ static void pcic_clear_clock_irq(void)
 	pcic_timer_dummy = readl(pcic0.pcic_regs+PCI_SYS_LIMIT);
 }
 
-static irqreturn_t pcic_timer_handler (int irq, void *h)
-{
-	pcic_clear_clock_irq();
-	xtime_update(1);
-#ifndef CONFIG_SMP
-	update_process_times(user_mode(get_irq_regs()));
-#endif
-	return IRQ_HANDLED;
-}
+/* CPU frequency is 100 MHz, timer increments every 4 CPU clocks */
+#define USECS_PER_JIFFY  (1000000 / HZ)
+#define TICK_TIMER_LIMIT ((100 * 1000000 / 4) / HZ)
 
-#define USECS_PER_JIFFY  10000  /* We have 100HZ "standard" timer for sparc */
-#define TICK_TIMER_LIMIT ((100*1000000/4)/100)
-
-u32 pci_gettimeoffset(void)
+static unsigned int pcic_cycles_offset(void)
 {
+	u32 value, count;
+
+	value = readl(pcic0.pcic_regs + PCI_SYS_COUNTER);
+	count = value & ~PCI_SYS_COUNTER_OVERFLOW;
+
+	if (value & PCI_SYS_COUNTER_OVERFLOW)
+		count += TICK_TIMER_LIMIT;
 	/*
-	 * We divide all by 100
+	 * We divide all by HZ
 	 * to have microsecond resolution and to avoid overflow
 	 */
-	unsigned long count =
-	    readl(pcic0.pcic_regs+PCI_SYS_COUNTER) & ~PCI_SYS_COUNTER_OVERFLOW;
-	count = ((count/100)*USECS_PER_JIFFY) / (TICK_TIMER_LIMIT/100);
-	return count * 1000;
-}
+	count = ((count / HZ) * USECS_PER_JIFFY) / (TICK_TIMER_LIMIT / HZ);
 
+	/* Coordinate with the sparc_config.clock_rate setting */
+	return count * 2;
+}
 
 void __init pci_time_init(void)
 {
@@ -736,9 +708,16 @@ void __init pci_time_init(void)
 	int timer_irq, irq;
 	int err;
 
-	do_arch_gettimeoffset = pci_gettimeoffset;
-
-	btfixup();
+#ifndef CONFIG_SMP
+	/*
+	 * The clock_rate is in SBUS dimension.
+	 * We take into account this in pcic_cycles_offset()
+	 */
+	sparc_config.clock_rate = SBUS_CLOCK_RATE / HZ;
+	sparc_config.features |= FEAT_L10_CLOCKEVENT;
+#endif
+	sparc_config.features |= FEAT_L10_CLOCKSOURCE;
+	sparc_config.get_cycles_offset = pcic_cycles_offset;
 
 	writel (TICK_TIMER_LIMIT, pcic->pcic_regs+PCI_SYS_LIMIT);
 	/* PROM should set appropriate irq */
@@ -747,7 +726,7 @@ void __init pci_time_init(void)
 	writel (PCI_COUNTER_IRQ_SET(timer_irq, 0),
 		pcic->pcic_regs+PCI_COUNTER_IRQ);
 	irq = pcic_build_device_irq(NULL, timer_irq);
-	err = request_irq(irq, pcic_timer_handler,
+	err = request_irq(irq, timer_interrupt,
 			  IRQF_TIMER, "timer", NULL);
 	if (err) {
 		prom_printf("time_init: unable to attach IRQ%d\n", timer_irq);
@@ -762,14 +741,6 @@ static void watchdog_reset() {
 	writeb(0, pcic->pcic_regs+PCI_SYS_STATUS);
 }
 #endif
-
-/*
- * Other archs parse arguments here.
- */
-char * __devinit pcibios_setup(char *str)
-{
-	return str;
-}
 
 resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				resource_size_t size, resource_size_t align)
@@ -788,7 +759,7 @@ int pcibios_enable_device(struct pci_dev *pdev, int mask)
 void pcic_nmi(unsigned int pend, struct pt_regs *regs)
 {
 
-	pend = flip_dword(pend);
+	pend = swab32(pend);
 
 	if (!pcic_speculative || (pend & PCI_SYS_INT_PENDING_PIO) == 0) {
 		/*
@@ -875,93 +846,9 @@ static void pcic_load_profile_irq(int cpu, unsigned int limit)
 
 void __init sun4m_pci_init_IRQ(void)
 {
-	sparc_irq_config.build_device_irq = pcic_build_device_irq;
-
-	BTFIXUPSET_CALL(clear_clock_irq, pcic_clear_clock_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(load_profile_irq, pcic_load_profile_irq, BTFIXUPCALL_NORM);
+	sparc_config.build_device_irq = pcic_build_device_irq;
+	sparc_config.clear_clock_irq  = pcic_clear_clock_irq;
+	sparc_config.load_profile_irq = pcic_load_profile_irq;
 }
-
-int pcibios_assign_resource(struct pci_dev *pdev, int resource)
-{
-	return -ENXIO;
-}
-
-/*
- * This probably belongs here rather than ioport.c because
- * we do not want this crud linked into SBus kernels.
- * Also, think for a moment about likes of floppy.c that
- * include architecture specific parts. They may want to redefine ins/outs.
- *
- * We do not use horrible macros here because we want to
- * advance pointer by sizeof(size).
- */
-void outsb(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 1;
-		outb(*(const char *)src, addr);
-		src += 1;
-		/* addr += 1; */
-	}
-}
-EXPORT_SYMBOL(outsb);
-
-void outsw(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 2;
-		outw(*(const short *)src, addr);
-		src += 2;
-		/* addr += 2; */
-	}
-}
-EXPORT_SYMBOL(outsw);
-
-void outsl(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 4;
-		outl(*(const long *)src, addr);
-		src += 4;
-		/* addr += 4; */
-	}
-}
-EXPORT_SYMBOL(outsl);
-
-void insb(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 1;
-		*(unsigned char *)dst = inb(addr);
-		dst += 1;
-		/* addr += 1; */
-	}
-}
-EXPORT_SYMBOL(insb);
-
-void insw(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 2;
-		*(unsigned short *)dst = inw(addr);
-		dst += 2;
-		/* addr += 2; */
-	}
-}
-EXPORT_SYMBOL(insw);
-
-void insl(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 4;
-		/*
-		 * XXX I am sure we are in for an unaligned trap here.
-		 */
-		*(unsigned long *)dst = inl(addr);
-		dst += 4;
-		/* addr += 4; */
-	}
-}
-EXPORT_SYMBOL(insl);
 
 subsys_initcall(pcic_init);

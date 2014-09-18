@@ -232,7 +232,7 @@ The parameter can be given:
    # modprobe snd-usb-audio index=1 device_setup=0x09
 
  * Or while configuring the modules options in your modules configuration file
-   (tipically a .conf file in /etc/modprobe.d/ directory:
+   (typically a .conf file in /etc/modprobe.d/ directory:
        alias snd-card-1 snd-usb-audio
        options snd-usb-audio index=1 device_setup=0x09
 

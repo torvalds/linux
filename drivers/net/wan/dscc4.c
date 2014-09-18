@@ -699,16 +699,13 @@ static void dscc4_free1(struct pci_dev *pdev)
 	for (i = 0; i < dev_per_card; i++)
 		unregister_hdlc_device(dscc4_to_dev(root + i));
 
-	pci_set_drvdata(pdev, NULL);
-
 	for (i = 0; i < dev_per_card; i++)
 		free_netdev(root[i].dev);
 	kfree(root);
 	kfree(ppriv);
 }
 
-static int __devinit dscc4_init_one(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int dscc4_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct dscc4_pci_priv *priv;
 	struct dscc4_dev_priv *dpriv;
@@ -774,13 +771,14 @@ static int __devinit dscc4_init_one(struct pci_dev *pdev,
 	}
 	/* Global interrupt queue */
 	writel((u32)(((IRQ_RING_SIZE >> 5) - 1) << 20), ioaddr + IQLENR1);
+
+	rc = -ENOMEM;
+
 	priv->iqcfg = (__le32 *) pci_alloc_consistent(pdev,
 		IRQ_RING_SIZE*sizeof(__le32), &priv->iqcfg_dma);
 	if (!priv->iqcfg)
 		goto err_free_irq_5;
 	writel(priv->iqcfg_dma, ioaddr + IQCFG);
-
-	rc = -ENOMEM;
 
 	/*
 	 * SCC 0-3 private rx/tx irq structures
@@ -1967,7 +1965,7 @@ err_out:
 	return -ENOMEM;
 }
 
-static void __devexit dscc4_remove_one(struct pci_dev *pdev)
+static void dscc4_remove_one(struct pci_dev *pdev)
 {
 	struct dscc4_pci_priv *ppriv;
 	struct dscc4_dev_priv *root;
@@ -2041,7 +2039,7 @@ static int __init dscc4_setup(char *str)
 __setup("dscc4.setup=", dscc4_setup);
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(dscc4_pci_tbl) = {
+static const struct pci_device_id dscc4_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SIEMENS, PCI_DEVICE_ID_SIEMENS_DSCC4,
 	        PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0,}
@@ -2052,18 +2050,7 @@ static struct pci_driver dscc4_driver = {
 	.name		= DRV_NAME,
 	.id_table	= dscc4_pci_tbl,
 	.probe		= dscc4_init_one,
-	.remove		= __devexit_p(dscc4_remove_one),
+	.remove		= dscc4_remove_one,
 };
 
-static int __init dscc4_init_module(void)
-{
-	return pci_register_driver(&dscc4_driver);
-}
-
-static void __exit dscc4_cleanup_module(void)
-{
-	pci_unregister_driver(&dscc4_driver);
-}
-
-module_init(dscc4_init_module);
-module_exit(dscc4_cleanup_module);
+module_pci_driver(dscc4_driver);

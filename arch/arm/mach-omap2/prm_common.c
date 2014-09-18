@@ -23,13 +23,18 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/clk-provider.h>
+#include <linux/clk/ti.h>
 
-#include <plat/common.h>
-#include <plat/prcm.h>
-#include <plat/irqs.h>
-
+#include "soc.h"
 #include "prm2xxx_3xxx.h"
+#include "prm2xxx.h"
+#include "prm3xxx.h"
 #include "prm44xx.h"
+#include "common.h"
+#include "clock.h"
 
 /*
  * OMAP_PRCM_MAX_NR_PENDING_REG: maximum number of PRM_IRQ*_MPU regs
@@ -53,6 +58,18 @@ static struct irq_chip_generic **prcm_irq_chips;
  * that calls omap_prcm_register_chain_handler().
  */
 static struct omap_prcm_irq_setup *prcm_irq_setup;
+
+/* prm_base: base virtual address of the PRM IP block */
+void __iomem *prm_base;
+
+u16 prm_features;
+
+/*
+ * prm_ll_data: function pointers to SoC-specific implementations of
+ * common PRM functions
+ */
+static struct prm_ll_data null_prm_ll_data;
+static struct prm_ll_data *prm_ll_data = &null_prm_ll_data;
 
 /* Private functions */
 
@@ -85,7 +102,7 @@ static void omap_prcm_irq_handler(unsigned int irq, struct irq_desc *desc)
 	unsigned long priority_pending[OMAP_PRCM_MAX_NR_PENDING_REG];
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int virtirq;
-	int nr_irqs = prcm_irq_setup->nr_regs * 32;
+	int nr_irq = prcm_irq_setup->nr_regs * 32;
 
 	/*
 	 * If we are suspended, mask all interrupts from PRCM level,
@@ -110,7 +127,7 @@ static void omap_prcm_irq_handler(unsigned int irq, struct irq_desc *desc)
 		prcm_irq_setup->read_pending_irqs(pending);
 
 		/* No bit set, then all IRQs are handled */
-		if (find_first_bit(pending, nr_irqs) >= nr_irqs)
+		if (find_first_bit(pending, nr_irq) >= nr_irq)
 			break;
 
 		omap_prcm_events_filter_priority(pending, priority_pending);
@@ -121,11 +138,11 @@ static void omap_prcm_irq_handler(unsigned int irq, struct irq_desc *desc)
 		 */
 
 		/* Serve priority events first */
-		for_each_set_bit(virtirq, priority_pending, nr_irqs)
+		for_each_set_bit(virtirq, priority_pending, nr_irq)
 			generic_handle_irq(prcm_irq_setup->base_irq + virtirq);
 
 		/* Serve normal events next */
-		for_each_set_bit(virtirq, pending, nr_irqs)
+		for_each_set_bit(virtirq, pending, nr_irq)
 			generic_handle_irq(prcm_irq_setup->base_irq + virtirq);
 	}
 	if (chip->irq_ack)
@@ -237,7 +254,7 @@ void omap_prcm_irq_complete(void)
  */
 int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 {
-	int nr_regs = irq_setup->nr_regs;
+	int nr_regs;
 	u32 mask[OMAP_PRCM_MAX_NR_PENDING_REG];
 	int offset, i;
 	struct irq_chip_generic *gc;
@@ -245,6 +262,8 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 
 	if (!irq_setup)
 		return -EINVAL;
+
+	nr_regs = irq_setup->nr_regs;
 
 	if (prcm_irq_setup) {
 		pr_err("PRCM: already initialized; won't reinitialize\n");
@@ -311,9 +330,210 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 		prcm_irq_chips[i] = gc;
 	}
 
+	if (of_have_populated_dt()) {
+		int irq = omap_prcm_event_to_irq("io");
+		omap_pcs_legacy_init(irq, irq_setup->reconfigure_io_chain);
+	}
+
 	return 0;
 
 err:
 	omap_prcm_irq_cleanup();
 	return -ENOMEM;
 }
+
+/**
+ * omap2_set_globals_prm - set the PRM base address (for early use)
+ * @prm: PRM base virtual address
+ *
+ * XXX Will be replaced when the PRM/CM drivers are completed.
+ */
+void __init omap2_set_globals_prm(void __iomem *prm)
+{
+	prm_base = prm;
+}
+
+/**
+ * prm_read_reset_sources - return the sources of the SoC's last reset
+ *
+ * Return a u32 bitmask representing the reset sources that caused the
+ * SoC to reset.  The low-level per-SoC functions called by this
+ * function remap the SoC-specific reset source bits into an
+ * OMAP-common set of reset source bits, defined in
+ * arch/arm/mach-omap2/prm.h.  Returns the standardized reset source
+ * u32 bitmask from the hardware upon success, or returns (1 <<
+ * OMAP_UNKNOWN_RST_SRC_ID_SHIFT) if no low-level read_reset_sources()
+ * function was registered.
+ */
+u32 prm_read_reset_sources(void)
+{
+	u32 ret = 1 << OMAP_UNKNOWN_RST_SRC_ID_SHIFT;
+
+	if (prm_ll_data->read_reset_sources)
+		ret = prm_ll_data->read_reset_sources();
+	else
+		WARN_ONCE(1, "prm: %s: no mapping function defined for reset sources\n", __func__);
+
+	return ret;
+}
+
+/**
+ * prm_was_any_context_lost_old - was device context lost? (old API)
+ * @part: PRM partition ID (e.g., OMAP4430_PRM_PARTITION)
+ * @inst: PRM instance offset (e.g., OMAP4430_PRM_MPU_INST)
+ * @idx: CONTEXT register offset
+ *
+ * Return 1 if any bits were set in the *_CONTEXT_* register
+ * identified by (@part, @inst, @idx), which means that some context
+ * was lost for that module; otherwise, return 0.  XXX Deprecated;
+ * callers need to use a less-SoC-dependent way to identify hardware
+ * IP blocks.
+ */
+bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx)
+{
+	bool ret = true;
+
+	if (prm_ll_data->was_any_context_lost_old)
+		ret = prm_ll_data->was_any_context_lost_old(part, inst, idx);
+	else
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+
+	return ret;
+}
+
+/**
+ * prm_clear_context_lost_flags_old - clear context loss flags (old API)
+ * @part: PRM partition ID (e.g., OMAP4430_PRM_PARTITION)
+ * @inst: PRM instance offset (e.g., OMAP4430_PRM_MPU_INST)
+ * @idx: CONTEXT register offset
+ *
+ * Clear hardware context loss bits for the module identified by
+ * (@part, @inst, @idx).  No return value.  XXX Deprecated; callers
+ * need to use a less-SoC-dependent way to identify hardware IP
+ * blocks.
+ */
+void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx)
+{
+	if (prm_ll_data->clear_context_loss_flags_old)
+		prm_ll_data->clear_context_loss_flags_old(part, inst, idx);
+	else
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+}
+
+/**
+ * prm_register - register per-SoC low-level data with the PRM
+ * @pld: low-level per-SoC OMAP PRM data & function pointers to register
+ *
+ * Register per-SoC low-level OMAP PRM data and function pointers with
+ * the OMAP PRM common interface.  The caller must keep the data
+ * pointed to by @pld valid until it calls prm_unregister() and
+ * it returns successfully.  Returns 0 upon success, -EINVAL if @pld
+ * is NULL, or -EEXIST if prm_register() has already been called
+ * without an intervening prm_unregister().
+ */
+int prm_register(struct prm_ll_data *pld)
+{
+	if (!pld)
+		return -EINVAL;
+
+	if (prm_ll_data != &null_prm_ll_data)
+		return -EEXIST;
+
+	prm_ll_data = pld;
+
+	return 0;
+}
+
+/**
+ * prm_unregister - unregister per-SoC low-level data & function pointers
+ * @pld: low-level per-SoC OMAP PRM data & function pointers to unregister
+ *
+ * Unregister per-SoC low-level OMAP PRM data and function pointers
+ * that were previously registered with prm_register().  The
+ * caller may not destroy any of the data pointed to by @pld until
+ * this function returns successfully.  Returns 0 upon success, or
+ * -EINVAL if @pld is NULL or if @pld does not match the struct
+ * prm_ll_data * previously registered by prm_register().
+ */
+int prm_unregister(struct prm_ll_data *pld)
+{
+	if (!pld || prm_ll_data != pld)
+		return -EINVAL;
+
+	prm_ll_data = &null_prm_ll_data;
+
+	return 0;
+}
+
+static struct of_device_id omap_prcm_dt_match_table[] = {
+	{ .compatible = "ti,am3-prcm" },
+	{ .compatible = "ti,am3-scrm" },
+	{ .compatible = "ti,am4-prcm" },
+	{ .compatible = "ti,am4-scrm" },
+	{ .compatible = "ti,omap2-prcm" },
+	{ .compatible = "ti,omap2-scrm" },
+	{ .compatible = "ti,omap3-prm" },
+	{ .compatible = "ti,omap3-cm" },
+	{ .compatible = "ti,omap3-scrm" },
+	{ .compatible = "ti,omap4-cm1" },
+	{ .compatible = "ti,omap4-prm" },
+	{ .compatible = "ti,omap4-cm2" },
+	{ .compatible = "ti,omap4-scrm" },
+	{ .compatible = "ti,omap5-prm" },
+	{ .compatible = "ti,omap5-cm-core-aon" },
+	{ .compatible = "ti,omap5-scrm" },
+	{ .compatible = "ti,omap5-cm-core" },
+	{ .compatible = "ti,dra7-prm" },
+	{ .compatible = "ti,dra7-cm-core-aon" },
+	{ .compatible = "ti,dra7-cm-core" },
+	{ }
+};
+
+static struct clk_hw_omap memmap_dummy_ck = {
+	.flags = MEMMAP_ADDRESSING,
+};
+
+static u32 prm_clk_readl(void __iomem *reg)
+{
+	return omap2_clk_readl(&memmap_dummy_ck, reg);
+}
+
+static void prm_clk_writel(u32 val, void __iomem *reg)
+{
+	omap2_clk_writel(val, &memmap_dummy_ck, reg);
+}
+
+static struct ti_clk_ll_ops omap_clk_ll_ops = {
+	.clk_readl = prm_clk_readl,
+	.clk_writel = prm_clk_writel,
+};
+
+int __init of_prcm_init(void)
+{
+	struct device_node *np;
+	void __iomem *mem;
+	int memmap_index = 0;
+
+	ti_clk_ll_ops = &omap_clk_ll_ops;
+
+	for_each_matching_node(np, omap_prcm_dt_match_table) {
+		mem = of_iomap(np, 0);
+		clk_memmaps[memmap_index] = mem;
+		ti_dt_clk_init_provider(np, memmap_index);
+		memmap_index++;
+	}
+
+	ti_dt_clockdomains_setup();
+
+	return 0;
+}
+
+static int __init prm_late_init(void)
+{
+	if (prm_ll_data->late_init)
+		return prm_ll_data->late_init();
+	return 0;
+}
+subsys_initcall(prm_late_init);

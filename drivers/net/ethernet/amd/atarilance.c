@@ -558,21 +558,18 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 			printk( "Lance: request for irq %d failed\n", IRQ_AUTO_5 );
 			return 0;
 		}
-		dev->irq = (unsigned short)IRQ_AUTO_5;
+		dev->irq = IRQ_AUTO_5;
 	}
 	else {
-		/* For VME-RieblCards, request a free VME int;
-		 * (This must be unsigned long, since dev->irq is short and the
-		 * IRQ_MACHSPEC bit would be cut off...)
-		 */
-		unsigned long irq = atari_register_vme_int();
+		/* For VME-RieblCards, request a free VME int */
+		unsigned int irq = atari_register_vme_int();
 		if (!irq) {
 			printk( "Lance: request for VME interrupt failed\n" );
 			return 0;
 		}
 		if (request_irq(irq, lance_interrupt, IRQ_TYPE_PRIO,
 		            "Riebl-VME Ethernet", dev)) {
-			printk( "Lance: request for irq %ld failed\n", irq );
+			printk( "Lance: request for irq %u failed\n", irq );
 			return 0;
 		}
 		dev->irq = irq;
@@ -589,10 +586,10 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	switch( lp->cardtype ) {
 	  case OLD_RIEBL:
 		/* No ethernet address! (Set some default address) */
-		memcpy( dev->dev_addr, OldRieblDefHwaddr, 6 );
+		memcpy(dev->dev_addr, OldRieblDefHwaddr, ETH_ALEN);
 		break;
 	  case NEW_RIEBL:
-		lp->memcpy_f( dev->dev_addr, RIEBL_HWADDR_ADDR, 6 );
+		lp->memcpy_f(dev->dev_addr, RIEBL_HWADDR_ADDR, ETH_ALEN);
 		break;
 	  case PAM_CARD:
 		i = IO->eeprom;
@@ -999,8 +996,6 @@ static int lance_rx( struct net_device *dev )
 			else {
 				skb = netdev_alloc_skb(dev, pkt_len + 2);
 				if (skb == NULL) {
-					DPRINTK( 1, ( "%s: Memory squeeze, deferring packet.\n",
-								  dev->name ));
 					for( i = 0; i < RX_RING_SIZE; i++ )
 						if (MEM->rx_head[(entry+i) & RX_RING_MOD_MASK].flag &
 							RMD1_OWN_CHIP)
@@ -1152,9 +1147,7 @@ static struct net_device *atarilance_dev;
 static int __init atarilance_module_init(void)
 {
 	atarilance_dev = atarilance_probe(-1);
-	if (IS_ERR(atarilance_dev))
-		return PTR_ERR(atarilance_dev);
-	return 0;
+	return PTR_ERR_OR_ZERO(atarilance_dev);
 }
 
 static void __exit atarilance_module_exit(void)

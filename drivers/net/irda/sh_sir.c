@@ -217,21 +217,17 @@ crc_init_out:
 static u32 sh_sir_find_sclk(struct clk *irda_clk)
 {
 	struct cpufreq_frequency_table *freq_table = irda_clk->freq_table;
+	struct cpufreq_frequency_table *pos;
 	struct clk *pclk = clk_get(NULL, "peripheral_clk");
 	u32 limit, min = 0xffffffff, tmp;
-	int i, index = 0;
+	int index = 0;
 
 	limit = clk_get_rate(pclk);
 	clk_put(pclk);
 
 	/* IrDA can not set over peripheral_clk */
-	for (i = 0;
-	     freq_table[i].frequency != CPUFREQ_TABLE_END;
-	     i++) {
-		u32 freq = freq_table[i].frequency;
-
-		if (freq == CPUFREQ_ENTRY_INVALID)
-			continue;
+	cpufreq_for_each_valid_entry(pos, freq_table) {
+		u32 freq = pos->frequency;
 
 		/* IrDA should not over peripheral_clk */
 		if (freq > limit)
@@ -240,7 +236,7 @@ static u32 sh_sir_find_sclk(struct clk *irda_clk)
 		tmp = freq % SCLK_BASE;
 		if (tmp < min) {
 			min = tmp;
-			index = i;
+			index = pos - freq_table;
 		}
 	}
 
@@ -280,7 +276,7 @@ static int sh_sir_set_baudrate(struct sh_sir_self *self, u32 baudrate)
 	}
 
 	clk = clk_get(NULL, "irda_clk");
-	if (!clk) {
+	if (IS_ERR(clk)) {
 		dev_err(dev, "can not get irda_clk\n");
 		return -EIO;
 	}
@@ -685,7 +681,7 @@ static int sh_sir_stop(struct net_device *ndev)
 
 	netif_stop_queue(ndev);
 
-	dev_info(&ndev->dev, "stoped\n");
+	dev_info(&ndev->dev, "stopped\n");
 
 	return 0;
 }
@@ -705,7 +701,7 @@ static const struct net_device_ops sh_sir_ndo = {
 
 
 ************************************************************************/
-static int __devinit sh_sir_probe(struct platform_device *pdev)
+static int sh_sir_probe(struct platform_device *pdev)
 {
 	struct net_device *ndev;
 	struct sh_sir_self *self;
@@ -741,6 +737,7 @@ static int __devinit sh_sir_probe(struct platform_device *pdev)
 	self->clk = clk_get(&pdev->dev, clk_name);
 	if (IS_ERR(self->clk)) {
 		dev_err(&pdev->dev, "cannot get clock \"%s\"\n", clk_name);
+		err = -ENODEV;
 		goto err_mem_3;
 	}
 
@@ -760,8 +757,8 @@ static int __devinit sh_sir_probe(struct platform_device *pdev)
 		goto err_mem_4;
 
 	platform_set_drvdata(pdev, ndev);
-
-	if (request_irq(irq, sh_sir_irq, IRQF_DISABLED, "sh_sir", self)) {
+	err = devm_request_irq(&pdev->dev, irq, sh_sir_irq, 0, "sh_sir", self);
+	if (err) {
 		dev_warn(&pdev->dev, "Unable to attach sh_sir interrupt\n");
 		goto err_mem_4;
 	}
@@ -782,7 +779,7 @@ exit:
 	return err;
 }
 
-static int __devexit sh_sir_remove(struct platform_device *pdev)
+static int sh_sir_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct sh_sir_self *self = netdev_priv(ndev);
@@ -795,14 +792,13 @@ static int __devexit sh_sir_remove(struct platform_device *pdev)
 	sh_sir_remove_iobuf(self);
 	iounmap(self->membase);
 	free_netdev(ndev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
 static struct platform_driver sh_sir_driver = {
 	.probe   = sh_sir_probe,
-	.remove  = __devexit_p(sh_sir_remove),
+	.remove  = sh_sir_remove,
 	.driver  = {
 		.name = DRIVER_NAME,
 	},

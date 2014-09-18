@@ -102,9 +102,8 @@ static inline int gred_wred_mode_check(struct Qdisc *sch)
 		if (q == NULL)
 			continue;
 
-		for (n = 0; n < table->DPs; n++)
-			if (table->tab[n] && table->tab[n] != q &&
-			    table->tab[n]->prio == q->prio)
+		for (n = i + 1; n < table->DPs; n++)
+			if (table->tab[n] && table->tab[n]->prio == q->prio)
 				return 1;
 	}
 
@@ -137,6 +136,7 @@ static inline void gred_store_wred_set(struct gred_sched *table,
 				       struct gred_sched_data *q)
 {
 	table->wred_set.qavg = q->vars.qavg;
+	table->wred_set.qidlestart = q->vars.qidlestart;
 }
 
 static inline int gred_use_ecn(struct gred_sched *t)
@@ -176,7 +176,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		skb->tc_index = (skb->tc_index & ~GRED_VQ_MASK) | dp;
 	}
 
-	/* sum up all the qaves of prios <= to ours to get the new qave */
+	/* sum up all the qaves of prios < ours to get the new qave */
 	if (!gred_wred_mode(t) && gred_rio_mode(t)) {
 		int i;
 
@@ -255,22 +255,22 @@ static struct sk_buff *gred_dequeue(struct Qdisc *sch)
 		u16 dp = tc_index_to_dp(skb);
 
 		if (dp >= t->DPs || (q = t->tab[dp]) == NULL) {
-			if (net_ratelimit())
-				pr_warning("GRED: Unable to relocate VQ 0x%x "
-					   "after dequeue, screwing up "
-					   "backlog.\n", tc_index_to_dp(skb));
+			net_warn_ratelimited("GRED: Unable to relocate VQ 0x%x after dequeue, screwing up backlog\n",
+					     tc_index_to_dp(skb));
 		} else {
 			q->backlog -= qdisc_pkt_len(skb);
 
-			if (!q->backlog && !gred_wred_mode(t))
-				red_start_of_idle_period(&q->vars);
+			if (gred_wred_mode(t)) {
+				if (!sch->qstats.backlog)
+					red_start_of_idle_period(&t->wred_set);
+			} else {
+				if (!q->backlog)
+					red_start_of_idle_period(&q->vars);
+			}
 		}
 
 		return skb;
 	}
-
-	if (gred_wred_mode(t) && !red_is_idling(&t->wred_set))
-		red_start_of_idle_period(&t->wred_set);
 
 	return NULL;
 }
@@ -287,27 +287,26 @@ static unsigned int gred_drop(struct Qdisc *sch)
 		u16 dp = tc_index_to_dp(skb);
 
 		if (dp >= t->DPs || (q = t->tab[dp]) == NULL) {
-			if (net_ratelimit())
-				pr_warning("GRED: Unable to relocate VQ 0x%x "
-					   "while dropping, screwing up "
-					   "backlog.\n", tc_index_to_dp(skb));
+			net_warn_ratelimited("GRED: Unable to relocate VQ 0x%x while dropping, screwing up backlog\n",
+					     tc_index_to_dp(skb));
 		} else {
 			q->backlog -= len;
 			q->stats.other++;
 
-			if (!q->backlog && !gred_wred_mode(t))
-				red_start_of_idle_period(&q->vars);
+			if (gred_wred_mode(t)) {
+				if (!sch->qstats.backlog)
+					red_start_of_idle_period(&t->wred_set);
+			} else {
+				if (!q->backlog)
+					red_start_of_idle_period(&q->vars);
+			}
 		}
 
 		qdisc_drop(skb, sch);
 		return len;
 	}
 
-	if (gred_wred_mode(t) && !red_is_idling(&t->wred_set))
-		red_start_of_idle_period(&t->wred_set);
-
 	return 0;
-
 }
 
 static void gred_reset(struct Qdisc *sch)
@@ -371,8 +370,8 @@ static inline int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps)
 
 	for (i = table->DPs; i < MAX_DPs; i++) {
 		if (table->tab[i]) {
-			pr_warning("GRED: Warning: Destroying "
-				   "shadowed VQ 0x%x\n", i);
+			pr_warn("GRED: Warning: Destroying shadowed VQ 0x%x\n",
+				i);
 			gred_destroy_vq(table->tab[i]);
 			table->tab[i] = NULL;
 		}
@@ -521,14 +520,16 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opts = nla_nest_start(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
-	NLA_PUT(skb, TCA_GRED_DPS, sizeof(sopt), &sopt);
+	if (nla_put(skb, TCA_GRED_DPS, sizeof(sopt), &sopt))
+		goto nla_put_failure;
 
 	for (i = 0; i < MAX_DPs; i++) {
 		struct gred_sched_data *q = table->tab[i];
 
 		max_p[i] = q ? q->parms.max_P : 0;
 	}
-	NLA_PUT(skb, TCA_GRED_MAX_P, sizeof(max_p), max_p);
+	if (nla_put(skb, TCA_GRED_MAX_P, sizeof(max_p), max_p))
+		goto nla_put_failure;
 
 	parms = nla_nest_start(skb, TCA_GRED_PARMS);
 	if (parms == NULL)
@@ -537,6 +538,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 	for (i = 0; i < MAX_DPs; i++) {
 		struct gred_sched_data *q = table->tab[i];
 		struct tc_gred_qopt opt;
+		unsigned long qavg;
 
 		memset(&opt, 0, sizeof(opt));
 
@@ -568,7 +570,9 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 		if (gred_wred_mode(table))
 			gred_load_wred_set(table, q);
 
-		opt.qave = red_calc_qavg(&q->parms, &q->vars, q->vars.qavg);
+		qavg = red_calc_qavg(&q->parms, &q->vars,
+				     q->vars.qavg >> q->parms.Wlog);
+		opt.qave = qavg >> q->parms.Wlog;
 
 append_opt:
 		if (nla_append(skb, sizeof(opt), &opt) < 0)

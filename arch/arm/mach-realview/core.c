@@ -25,17 +25,17 @@
 #include <linux/interrupt.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/platform_data/video-clcd-versatile.h>
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 #include <linux/ata_platform.h>
 #include <linux/amba/mmci.h>
 #include <linux/gfp.h>
-#include <linux/clkdev.h>
 #include <linux/mtd/physmap.h>
+#include <linux/memblock.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/icst.h>
@@ -44,13 +44,11 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include <asm/hardware/gic.h>
 
 #include <mach/platform.h>
 #include <mach/irqs.h>
 #include <asm/hardware/timer-sp.h>
 
-#include <plat/clcd.h>
 #include <plat/sched_clock.h>
 
 #include "core.h"
@@ -151,6 +149,21 @@ struct platform_device realview_cf_device = {
 	},
 };
 
+static struct resource realview_leds_resources[] = {
+	{
+		.start	= REALVIEW_SYS_BASE + REALVIEW_SYS_LED_OFFSET,
+		.end	= REALVIEW_SYS_BASE + REALVIEW_SYS_LED_OFFSET + 4,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device realview_leds_device = {
+	.name		= "versatile-leds",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(realview_leds_resources),
+	.resource	= realview_leds_resources,
+};
+
 static struct resource realview_i2c_resource = {
 	.start		= REALVIEW_I2C_BASE,
 	.end		= REALVIEW_I2C_BASE + SZ_4K - 1,
@@ -226,114 +239,9 @@ struct mmci_platform_data realview_mmc1_plat_data = {
 	.cd_invert	= true,
 };
 
-/*
- * Clock handling
- */
-static const struct icst_params realview_oscvco_params = {
-	.ref		= 24000000,
-	.vco_max	= ICST307_VCO_MAX,
-	.vco_min	= ICST307_VCO_MIN,
-	.vd_min		= 4 + 8,
-	.vd_max		= 511 + 8,
-	.rd_min		= 1 + 2,
-	.rd_max		= 127 + 2,
-	.s2div		= icst307_s2div,
-	.idx2s		= icst307_idx2s,
-};
-
-static void realview_oscvco_set(struct clk *clk, struct icst_vco vco)
-{
-	void __iomem *sys_lock = __io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_LOCK_OFFSET;
-	u32 val;
-
-	val = readl(clk->vcoreg) & ~0x7ffff;
-	val |= vco.v | (vco.r << 9) | (vco.s << 16);
-
-	writel(0xa05f, sys_lock);
-	writel(val, clk->vcoreg);
-	writel(0, sys_lock);
-}
-
-static const struct clk_ops oscvco_clk_ops = {
-	.round	= icst_clk_round,
-	.set	= icst_clk_set,
-	.setvco	= realview_oscvco_set,
-};
-
-static struct clk oscvco_clk = {
-	.ops	= &oscvco_clk_ops,
-	.params	= &realview_oscvco_params,
-};
-
-/*
- * These are fixed clocks.
- */
-static struct clk ref24_clk = {
-	.rate	= 24000000,
-};
-
-static struct clk sp804_clk = {
-	.rate	= 1000000,
-};
-
-static struct clk dummy_apb_pclk;
-
-static struct clk_lookup lookups[] = {
-	{	/* Bus clock */
-		.con_id		= "apb_pclk",
-		.clk		= &dummy_apb_pclk,
-	}, {	/* UART0 */
-		.dev_id		= "dev:uart0",
-		.clk		= &ref24_clk,
-	}, {	/* UART1 */
-		.dev_id		= "dev:uart1",
-		.clk		= &ref24_clk,
-	}, {	/* UART2 */
-		.dev_id		= "dev:uart2",
-		.clk		= &ref24_clk,
-	}, {	/* UART3 */
-		.dev_id		= "fpga:uart3",
-		.clk		= &ref24_clk,
-	}, {	/* UART3 is on the dev chip in PB1176 */
-		.dev_id		= "dev:uart3",
-		.clk		= &ref24_clk,
-	}, {	/* UART4 only exists in PB1176 */
-		.dev_id		= "fpga:uart4",
-		.clk		= &ref24_clk,
-	}, {	/* KMI0 */
-		.dev_id		= "fpga:kmi0",
-		.clk		= &ref24_clk,
-	}, {	/* KMI1 */
-		.dev_id		= "fpga:kmi1",
-		.clk		= &ref24_clk,
-	}, {	/* MMC0 */
-		.dev_id		= "fpga:mmc0",
-		.clk		= &ref24_clk,
-	}, {	/* CLCD is in the PB1176 and EB DevChip */
-		.dev_id		= "dev:clcd",
-		.clk		= &oscvco_clk,
-	}, {	/* PB:CLCD */
-		.dev_id		= "issp:clcd",
-		.clk		= &oscvco_clk,
-	}, {	/* SSP */
-		.dev_id		= "dev:ssp0",
-		.clk		= &ref24_clk,
-	}, {	/* SP804 timers */
-		.dev_id		= "sp804",
-		.clk		= &sp804_clk,
-	},
-};
-
 void __init realview_init_early(void)
 {
 	void __iomem *sys = __io_address(REALVIEW_SYS_BASE);
-
-	if (machine_is_realview_pb1176())
-		oscvco_clk.vcoreg = sys + REALVIEW_SYS_OSC0_OFFSET;
-	else
-		oscvco_clk.vcoreg = sys + REALVIEW_SYS_OSC4_OFFSET;
-
-	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	versatile_sched_clock_init(sys + REALVIEW_SYS_24MHz_OFFSET, 24000000);
 }
@@ -436,44 +344,6 @@ struct clcd_board clcd_plat_data = {
 	.remove		= versatile_clcd_remove_dma,
 };
 
-#ifdef CONFIG_LEDS
-#define VA_LEDS_BASE (__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_LED_OFFSET)
-
-void realview_leds_event(led_event_t ledevt)
-{
-	unsigned long flags;
-	u32 val;
-	u32 led = 1 << smp_processor_id();
-
-	local_irq_save(flags);
-	val = readl(VA_LEDS_BASE);
-
-	switch (ledevt) {
-	case led_idle_start:
-		val = val & ~led;
-		break;
-
-	case led_idle_end:
-		val = val | led;
-		break;
-
-	case led_timer:
-		val = val ^ REALVIEW_SYS_LED7;
-		break;
-
-	case led_halted:
-		val = 0;
-		break;
-
-	default:
-		break;
-	}
-
-	writel(val, VA_LEDS_BASE);
-	local_irq_restore(flags);
-}
-#endif	/* CONFIG_LEDS */
-
 /*
  * Where is the timer (VA)?
  */
@@ -516,19 +386,15 @@ void __init realview_timer_init(unsigned int timer_irq)
 /*
  * Setup the memory banks.
  */
-void realview_fixup(struct tag *tags, char **from, struct meminfo *meminfo)
+void realview_fixup(struct tag *tags, char **from)
 {
 	/*
 	 * Most RealView platforms have 512MB contiguous RAM at 0x70000000.
 	 * Half of this is mirrored at 0.
 	 */
 #ifdef CONFIG_REALVIEW_HIGH_PHYS_OFFSET
-	meminfo->bank[0].start = 0x70000000;
-	meminfo->bank[0].size = SZ_512M;
-	meminfo->nr_banks = 1;
+	memblock_add(0x70000000, SZ_512M);
 #else
-	meminfo->bank[0].start = 0;
-	meminfo->bank[0].size = SZ_256M;
-	meminfo->nr_banks = 1;
+	memblock_add(0, SZ_256M);
 #endif
 }

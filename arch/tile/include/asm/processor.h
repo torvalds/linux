@@ -15,6 +15,8 @@
 #ifndef _ASM_TILE_PROCESSOR_H
 #define _ASM_TILE_PROCESSOR_H
 
+#include <arch/chip.h>
+
 #ifndef __ASSEMBLY__
 
 /*
@@ -25,7 +27,6 @@
 #include <asm/ptrace.h>
 #include <asm/percpu.h>
 
-#include <arch/chip.h>
 #include <arch/spr_def.h>
 
 struct task_struct;
@@ -76,6 +77,17 @@ struct async_tlb {
 
 #ifdef CONFIG_HARDWALL
 struct hardwall_info;
+struct hardwall_task {
+	/* Which hardwall is this task tied to? (or NULL if none) */
+	struct hardwall_info *info;
+	/* Chains this task into the list at info->task_head. */
+	struct list_head list;
+};
+#ifdef __tilepro__
+#define HARDWALL_TYPES 1   /* udn */
+#else
+#define HARDWALL_TYPES 3   /* udn, idn, and ipi */
+#endif
 #endif
 
 struct thread_struct {
@@ -99,37 +111,27 @@ struct thread_struct {
 	unsigned long long interrupt_mask;
 	/* User interrupt-control 0 state */
 	unsigned long intctrl_0;
-#if CHIP_HAS_PROC_STATUS_SPR()
+	/* Is this task currently doing a backtrace? */
+	bool in_backtrace;
 	/* Any other miscellaneous processor state bits */
 	unsigned long proc_status;
-#endif
 #if !CHIP_HAS_FIXED_INTVEC_BASE()
 	/* Interrupt base for PL0 interrupts */
 	unsigned long interrupt_vector_base;
 #endif
-#if CHIP_HAS_TILE_RTF_HWM()
 	/* Tile cache retry fifo high-water mark */
 	unsigned long tile_rtf_hwm;
-#endif
 #if CHIP_HAS_DSTREAM_PF()
 	/* Data stream prefetch control */
 	unsigned long dstream_pf;
 #endif
 #ifdef CONFIG_HARDWALL
-	/* Is this task tied to an activated hardwall? */
-	struct hardwall_info *hardwall;
-	/* Chains this task into the list at hardwall->list. */
-	struct list_head hardwall_list;
+	/* Hardwall information for various resources. */
+	struct hardwall_task hardwall[HARDWALL_TYPES];
 #endif
 #if CHIP_HAS_TILE_DMA()
 	/* Async DMA TLB fault information */
 	struct async_tlb dma_async_tlb;
-#endif
-#if CHIP_HAS_SN_PROC()
-	/* Was static network processor when we were switched out? */
-	int sn_proc_running;
-	/* Async SNI TLB fault information */
-	struct async_tlb sn_async_tlb;
 #endif
 };
 
@@ -137,9 +139,10 @@ struct thread_struct {
 
 /*
  * Start with "sp" this many bytes below the top of the kernel stack.
- * This preserves the invariant that a called function may write to *sp.
+ * This allows us to be cache-aware when handling the initial save
+ * of the pt_regs value to the stack.
  */
-#define STACK_TOP_DELTA 8
+#define STACK_TOP_DELTA 64
 
 /*
  * When entering the kernel via a fault, start with the top of the
@@ -155,7 +158,7 @@ struct thread_struct {
 #ifndef __ASSEMBLY__
 
 #ifdef __tilegx__
-#define TASK_SIZE_MAX		(MEM_LOW_END + 1)
+#define TASK_SIZE_MAX		(_AC(1, UL) << (MAX_VA_WIDTH - 1))
 #else
 #define TASK_SIZE_MAX		PAGE_OFFSET
 #endif
@@ -169,10 +172,10 @@ struct thread_struct {
 #define TASK_SIZE		TASK_SIZE_MAX
 #endif
 
-/* We provide a minimal "vdso" a la x86; just the sigreturn code for now. */
-#define VDSO_BASE		(TASK_SIZE - PAGE_SIZE)
+#define VDSO_BASE	((unsigned long)current->active_mm->context.vdso_base)
+#define VDSO_SYM(x)	(VDSO_BASE + (unsigned long)(x))
 
-#define STACK_TOP		VDSO_BASE
+#define STACK_TOP		TASK_SIZE
 
 /* STACK_TOP_MAX is used temporarily in execve and should not check COMPAT. */
 #define STACK_TOP_MAX		TASK_SIZE_MAX
@@ -202,6 +205,7 @@ static inline void start_thread(struct pt_regs *regs,
 {
 	regs->pc = pc;
 	regs->sp = usp;
+	single_step_execve();
 }
 
 /* Free all resources held by a thread. */
@@ -210,34 +214,39 @@ static inline void release_thread(struct task_struct *dead_task)
 	/* Nothing for now */
 }
 
-/* Prepare to copy thread state - unlazy all lazy status. */
-#define prepare_to_copy(tsk)	do { } while (0)
-
-extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
-
 extern int do_work_pending(struct pt_regs *regs, u32 flags);
 
 
 /*
  * Return saved (kernel) PC of a blocked thread.
- * Only used in a printk() in kernel/sched.c, so don't work too hard.
+ * Only used in a printk() in kernel/sched/core.c, so don't work too hard.
  */
 #define thread_saved_pc(t)   ((t)->thread.pc)
 
 unsigned long get_wchan(struct task_struct *p);
 
 /* Return initial ksp value for given task. */
-#define task_ksp0(task) ((unsigned long)(task)->stack + THREAD_SIZE)
+#define task_ksp0(task) \
+	((unsigned long)(task)->stack + THREAD_SIZE - STACK_TOP_DELTA)
 
 /* Return some info about the user process TASK. */
-#define KSTK_TOP(task)	(task_ksp0(task) - STACK_TOP_DELTA)
 #define task_pt_regs(task) \
-  ((struct pt_regs *)(task_ksp0(task) - KSTK_PTREGS_GAP) - 1)
+	((struct pt_regs *)(task_ksp0(task) - KSTK_PTREGS_GAP) - 1)
+#define current_pt_regs()                                   \
+	((struct pt_regs *)((stack_pointer | (THREAD_SIZE - 1)) - \
+			    STACK_TOP_DELTA - (KSTK_PTREGS_GAP - 1)) - 1)
 #define task_sp(task)	(task_pt_regs(task)->sp)
 #define task_pc(task)	(task_pt_regs(task)->pc)
 /* Aliases for pc and sp (used in fs/proc/array.c) */
 #define KSTK_EIP(task)	task_pc(task)
 #define KSTK_ESP(task)	task_sp(task)
+
+/* Fine-grained unaligned JIT support */
+#define GET_UNALIGN_CTL(tsk, adr)	get_unalign_ctl((tsk), (adr))
+#define SET_UNALIGN_CTL(tsk, val)	set_unalign_ctl((tsk), (val))
+
+extern int get_unalign_ctl(struct task_struct *tsk, unsigned long adr);
+extern int set_unalign_ctl(struct task_struct *tsk, unsigned int val);
 
 /* Standard format for printing registers and other word-size data. */
 #ifdef __tilegx__
@@ -257,6 +266,8 @@ static inline void cpu_relax(void)
 	barrier();
 }
 
+#define cpu_relax_lowlatency() cpu_relax()
+
 /* Info on this processor (see fs/proc/cpuinfo.c) */
 struct seq_operations;
 extern const struct seq_operations cpuinfo_op;
@@ -267,7 +278,6 @@ extern char chip_model[64];
 /* Data on which physical memory controller corresponds to which NUMA node. */
 extern int node_controller[];
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 /* Does the heap allocator return hash-for-home pages by default? */
 extern int hash_default;
 
@@ -277,11 +287,6 @@ extern int kstack_hash;
 /* Does MAP_ANONYMOUS return hash-for-home pages by default? */
 #define uheap_hash hash_default
 
-#else
-#define hash_default 0
-#define kstack_hash 0
-#define uheap_hash 0
-#endif
 
 /* Are we using huge pages in the TLB for kernel data? */
 extern int kdata_huge;
@@ -329,7 +334,6 @@ extern int kdata_huge;
 
 /*
  * Provide symbolic constants for PLs.
- * Note that assembly code assumes that USER_PL is zero.
  */
 #define USER_PL 0
 #if CONFIG_KERNEL_PL == 2
@@ -338,20 +342,38 @@ extern int kdata_huge;
 #define KERNEL_PL CONFIG_KERNEL_PL
 
 /* SYSTEM_SAVE_K_0 holds the current cpu number ORed with ksp0. */
-#define CPU_LOG_MASK_VALUE 12
-#define CPU_MASK_VALUE ((1 << CPU_LOG_MASK_VALUE) - 1)
-#if CONFIG_NR_CPUS > CPU_MASK_VALUE
-# error Too many cpus!
+#ifdef __tilegx__
+#define CPU_SHIFT 48
+#if CHIP_VA_WIDTH() > CPU_SHIFT
+# error Too many VA bits!
 #endif
+#define MAX_CPU_ID ((1 << (64 - CPU_SHIFT)) - 1)
 #define raw_smp_processor_id() \
-	((int)__insn_mfspr(SPR_SYSTEM_SAVE_K_0) & CPU_MASK_VALUE)
+	((int)(__insn_mfspr(SPR_SYSTEM_SAVE_K_0) >> CPU_SHIFT))
 #define get_current_ksp0() \
-	(__insn_mfspr(SPR_SYSTEM_SAVE_K_0) & ~CPU_MASK_VALUE)
+	((unsigned long)(((long)__insn_mfspr(SPR_SYSTEM_SAVE_K_0) << \
+			  (64 - CPU_SHIFT)) >> (64 - CPU_SHIFT)))
+#define next_current_ksp0(task) ({ \
+	unsigned long __ksp0 = task_ksp0(task) & ((1UL << CPU_SHIFT) - 1); \
+	unsigned long __cpu = (long)raw_smp_processor_id() << CPU_SHIFT; \
+	__ksp0 | __cpu; \
+})
+#else
+#define LOG2_NR_CPU_IDS 6
+#define MAX_CPU_ID ((1 << LOG2_NR_CPU_IDS) - 1)
+#define raw_smp_processor_id() \
+	((int)__insn_mfspr(SPR_SYSTEM_SAVE_K_0) & MAX_CPU_ID)
+#define get_current_ksp0() \
+	(__insn_mfspr(SPR_SYSTEM_SAVE_K_0) & ~MAX_CPU_ID)
 #define next_current_ksp0(task) ({ \
 	unsigned long __ksp0 = task_ksp0(task); \
 	int __cpu = raw_smp_processor_id(); \
-	BUG_ON(__ksp0 & CPU_MASK_VALUE); \
+	BUG_ON(__ksp0 & MAX_CPU_ID); \
 	__ksp0 | __cpu; \
 })
+#endif
+#if CONFIG_NR_CPUS > (MAX_CPU_ID + 1)
+# error Too many cpus!
+#endif
 
 #endif /* _ASM_TILE_PROCESSOR_H */

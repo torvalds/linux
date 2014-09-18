@@ -24,6 +24,9 @@ Partitions and P_Keys
   The P_Key for any interface is given by the "pkey" file, and the
   main interface for a subinterface is in "parent."
 
+  Child interface create/delete can also be done using IPoIB's
+  rtnl_link_ops, where childs created using either way behave the same.
+
 Datagram vs Connected modes
 
   The IPoIB driver supports two modes of operation: datagram and

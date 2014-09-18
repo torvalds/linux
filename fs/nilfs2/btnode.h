@@ -29,7 +29,13 @@
 #include <linux/fs.h>
 #include <linux/backing-dev.h>
 
-
+/**
+ * struct nilfs_btnode_chkey_ctxt - change key context
+ * @oldkey: old key of block's moving content
+ * @newkey: new key for block's content
+ * @bh: buffer head of old buffer
+ * @newbh: buffer head of new buffer
+ */
 struct nilfs_btnode_chkey_ctxt {
 	__u64 oldkey;
 	__u64 newkey;

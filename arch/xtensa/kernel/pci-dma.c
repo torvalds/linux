@@ -21,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <linux/gfp.h>
+#include <linux/module.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
 
@@ -48,9 +49,8 @@ dma_alloc_coherent(struct device *dev,size_t size,dma_addr_t *handle,gfp_t flag)
 
 	/* We currently don't support coherent memory outside KSEG */
 
-	if (ret < XCHAL_KSEG_CACHED_VADDR
-	    || ret >= XCHAL_KSEG_CACHED_VADDR + XCHAL_KSEG_SIZE)
-		BUG();
+	BUG_ON(ret < XCHAL_KSEG_CACHED_VADDR ||
+	       ret > XCHAL_KSEG_CACHED_VADDR + XCHAL_KSEG_SIZE - 1);
 
 
 	if (ret != 0) {
@@ -62,17 +62,20 @@ dma_alloc_coherent(struct device *dev,size_t size,dma_addr_t *handle,gfp_t flag)
 
 	return (void*)uncached;
 }
+EXPORT_SYMBOL(dma_alloc_coherent);
 
 void dma_free_coherent(struct device *hwdev, size_t size,
 			 void *vaddr, dma_addr_t dma_handle)
 {
-	long addr=(long)vaddr+XCHAL_KSEG_CACHED_VADDR-XCHAL_KSEG_BYPASS_VADDR;
+	unsigned long addr = (unsigned long)vaddr +
+		XCHAL_KSEG_CACHED_VADDR - XCHAL_KSEG_BYPASS_VADDR;
 
-	if (addr < 0 || addr >= XCHAL_KSEG_SIZE)
-		BUG();
+	BUG_ON(addr < XCHAL_KSEG_CACHED_VADDR ||
+	       addr > XCHAL_KSEG_CACHED_VADDR + XCHAL_KSEG_SIZE - 1);
 
 	free_pages(addr, get_order(size));
 }
+EXPORT_SYMBOL(dma_free_coherent);
 
 
 void consistent_sync(void *vaddr, size_t size, int direction)
@@ -92,3 +95,4 @@ void consistent_sync(void *vaddr, size_t size, int direction)
 		break;
 	}
 }
+EXPORT_SYMBOL(consistent_sync);

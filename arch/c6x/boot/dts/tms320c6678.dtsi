@@ -1,0 +1,146 @@
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			reg = <0>;
+			model = "ti,c66x";
+		};
+		cpu@1 {
+			device_type = "cpu";
+			reg = <1>;
+			model = "ti,c66x";
+		};
+		cpu@2 {
+			device_type = "cpu";
+			reg = <2>;
+			model = "ti,c66x";
+		};
+		cpu@3 {
+			device_type = "cpu";
+			reg = <3>;
+			model = "ti,c66x";
+		};
+		cpu@4 {
+			device_type = "cpu";
+			reg = <4>;
+			model = "ti,c66x";
+		};
+		cpu@5 {
+			device_type = "cpu";
+			reg = <5>;
+			model = "ti,c66x";
+		};
+		cpu@6 {
+			device_type = "cpu";
+			reg = <6>;
+			model = "ti,c66x";
+		};
+		cpu@7 {
+			device_type = "cpu";
+			reg = <7>;
+			model = "ti,c66x";
+		};
+	};
+
+	soc {
+		compatible = "simple-bus";
+		model = "tms320c6678";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		core_pic: interrupt-controller {
+			compatible = "ti,c64x+core-pic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		megamod_pic: interrupt-controller@1800000 {
+		       compatible = "ti,c64x+megamod-pic";
+		       interrupt-controller;
+		       #interrupt-cells = <1>;
+		       reg = <0x1800000 0x1000>;
+		       interrupt-parent = <&core_pic>;
+		};
+
+		cache-controller@1840000 {
+			compatible = "ti,c64x+cache";
+			reg = <0x01840000 0x8400>;
+		};
+
+		timer8: timer@2280000 {
+			compatible = "ti,c64x+timer64";
+			ti,core-mask = < 0x01 >;
+			reg = <0x2280000 0x40>;
+		};
+
+		timer9: timer@2290000 {
+			compatible = "ti,c64x+timer64";
+			ti,core-mask = < 0x02 >;
+			reg = <0x2290000 0x40>;
+		};
+
+		timer10: timer@22A0000 {
+			compatible = "ti,c64x+timer64";
+			ti,core-mask = < 0x04 >;
+			reg = <0x22A0000 0x40>;
+		};
+
+		timer11: timer@22B0000 {
+			compatible = "ti,c64x+timer64";
+			ti,core-mask = < 0x08 >;
+			reg = <0x22B0000 0x40>;
+		};
+
+		timer12: timer@22C0000 {
+			compatible = "ti,c64x+timer64";
+			ti,core-mask = < 0x10 >;
+			reg = <0x22C0000 0x40>;
+		};
+
+		timer13: timer@22D0000 {
+			compatible = "ti,c64x+timer64";
+			ti,core-mask = < 0x20 >;
+			reg = <0x22D0000 0x40>;
+		};
+
+		timer14: timer@22E0000 {
+			compatible = "ti,c64x+timer64";
+			ti,core-mask = < 0x40 >;
+			reg = <0x22E0000 0x40>;
+		};
+
+		timer15: timer@22F0000 {
+			compatible = "ti,c64x+timer64";
+			ti,core-mask = < 0x80 >;
+			reg = <0x22F0000 0x40>;
+		};
+
+		clock-controller@2310000 {
+			compatible = "ti,c6678-pll", "ti,c64x+pll";
+			reg = <0x02310000 0x200>;
+			ti,c64x+pll-bypass-delay = <200>;
+			ti,c64x+pll-reset-delay = <12000>;
+			ti,c64x+pll-lock-delay = <80000>;
+		};
+
+		device-state-controller@2620000 {
+			compatible = "ti,c64x+dscr";
+			reg = <0x02620000 0x1000>;
+
+			ti,dscr-devstat = <0x20>;
+			ti,dscr-silicon-rev = <0x18 28 0xf>;
+
+			ti,dscr-mac-fuse-regs = <0x110 1 2 3 4
+						 0x114 5 6 0 0>;
+
+		};
+	};
+};

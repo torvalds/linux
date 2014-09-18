@@ -15,6 +15,7 @@
 
 #include <asm/percpu.h>
 #include <asm/ptrace.h>
+#include <linux/linkage.h>
 
 /*
  * These are per-cpu variables required in entry.S, among other
@@ -29,6 +30,8 @@ DECLARE_PER_CPU(unsigned int, KM); /* Kernel/user mode */
 DECLARE_PER_CPU(unsigned int, ENTRY_SP); /* Saved SP on kernel entry */
 DECLARE_PER_CPU(unsigned int, R11_SAVE); /* Temp variable for entry */
 DECLARE_PER_CPU(unsigned int, CURRENT_SAVE); /* Saved current pointer */
+
+extern asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall);
 # endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_MICROBLAZE_ENTRY_H */

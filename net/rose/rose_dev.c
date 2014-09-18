@@ -37,7 +37,7 @@
 
 static int rose_header(struct sk_buff *skb, struct net_device *dev,
 		       unsigned short type,
-		       const void *daddr, const void *saddr, unsigned len)
+		       const void *daddr, const void *saddr, unsigned int len)
 {
 	unsigned char *buff = skb_push(skb, ROSE_MIN_LEN + 2);
 
@@ -146,7 +146,7 @@ static netdev_tx_t rose_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static const struct header_ops rose_header_ops = {
 	.create	= rose_header,
-	.rebuild= rose_rebuild_header,
+	.rebuild = rose_rebuild_header,
 };
 
 static const struct net_device_ops rose_netdev_ops = {

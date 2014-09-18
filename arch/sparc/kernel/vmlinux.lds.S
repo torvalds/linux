@@ -107,6 +107,11 @@ SECTIONS
 		*(.sun4v_2insn_patch)
 		__sun4v_2insn_patch_end = .;
 	}
+	.leon_1insn_patch : {
+		__leon_1insn_patch = .;
+		*(.leon_1insn_patch)
+		__leon_1insn_patch_end = .;
+	}
 	.swapper_tsb_phys_patch : {
 		__swapper_tsb_phys_patch = .;
 		*(.swapper_tsb_phys_patch)
@@ -117,6 +122,11 @@ SECTIONS
 		*(.swapper_4m_tsb_phys_patch)
 		__swapper_4m_tsb_phys_patch_end = .;
 	}
+	.page_offset_shift_patch : {
+		__page_offset_shift_patch = .;
+		*(.page_offset_shift_patch)
+		__page_offset_shift_patch_end = .;
+	}
 	.popc_3insn_patch : {
 		__popc_3insn_patch = .;
 		*(.popc_3insn_patch)
@@ -126,6 +136,11 @@ SECTIONS
 		__popc_6insn_patch = .;
 		*(.popc_6insn_patch)
 		__popc_6insn_patch_end = .;
+	}
+	.pause_3insn_patch : {
+		__pause_3insn_patch = .;
+		*(.pause_3insn_patch)
+		__pause_3insn_patch_end = .;
 	}
 	PERCPU_SECTION(SMP_CACHE_BYTES)
 

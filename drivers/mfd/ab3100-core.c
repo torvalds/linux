@@ -21,6 +21,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
+#include <linux/mfd/ab3100.h>
 #include <linux/mfd/abx500.h>
 
 /* These are the only registers inside AB3100 used in this main file */
@@ -90,8 +91,8 @@ static int ab3100_set_register_interruptible(struct ab3100 *ab3100,
 			err);
 	} else if (err != 2) {
 		dev_err(ab3100->dev,
-			"write error (write register) "
-			"%d bytes transferred (expected 2)\n",
+			"write error (write register)\n"
+			"  %d bytes transferred (expected 2)\n",
 			err);
 		err = -EIO;
 	} else {
@@ -134,8 +135,8 @@ static int ab3100_set_test_register_interruptible(struct ab3100 *ab3100,
 			err);
 	} else if (err != 2) {
 		dev_err(ab3100->dev,
-			"write error (write test register) "
-			"%d bytes transferred (expected 2)\n",
+			"write error (write test register)\n"
+			"  %d bytes transferred (expected 2)\n",
 			err);
 		err = -EIO;
 	} else {
@@ -170,8 +171,8 @@ static int ab3100_get_register_interruptible(struct ab3100 *ab3100,
 		goto get_reg_out_unlock;
 	} else if (err != 1) {
 		dev_err(ab3100->dev,
-			"write error (send register address) "
-			"%d bytes transferred (expected 1)\n",
+			"write error (send register address)\n"
+			"  %d bytes transferred (expected 1)\n",
 			err);
 		err = -EIO;
 		goto get_reg_out_unlock;
@@ -188,8 +189,8 @@ static int ab3100_get_register_interruptible(struct ab3100 *ab3100,
 		goto get_reg_out_unlock;
 	} else if (err != 1) {
 		dev_err(ab3100->dev,
-			"write error (read register) "
-			"%d bytes transferred (expected 1)\n",
+			"write error (read register)\n"
+			"  %d bytes transferred (expected 1)\n",
 			err);
 		err = -EIO;
 		goto get_reg_out_unlock;
@@ -236,8 +237,8 @@ static int ab3100_get_register_page_interruptible(struct ab3100 *ab3100,
 		goto get_reg_page_out_unlock;
 	} else if (err != 1) {
 		dev_err(ab3100->dev,
-			"write error (send first register address) "
-			"%d bytes transferred (expected 1)\n",
+			"write error (send first register address)\n"
+			"  %d bytes transferred (expected 1)\n",
 			err);
 		err = -EIO;
 		goto get_reg_page_out_unlock;
@@ -251,8 +252,8 @@ static int ab3100_get_register_page_interruptible(struct ab3100 *ab3100,
 		goto get_reg_page_out_unlock;
 	} else if (err != numregs) {
 		dev_err(ab3100->dev,
-			"write error (read register page) "
-			"%d bytes transferred (expected %d)\n",
+			"write error (read register page)\n"
+			"  %d bytes transferred (expected %d)\n",
 			err, numregs);
 		err = -EIO;
 		goto get_reg_page_out_unlock;
@@ -294,8 +295,8 @@ static int ab3100_mask_and_set_register_interruptible(struct ab3100 *ab3100,
 		goto get_maskset_unlock;
 	} else if (err != 1) {
 		dev_err(ab3100->dev,
-			"write error (maskset send address) "
-			"%d bytes transferred (expected 1)\n",
+			"write error (maskset send address)\n"
+			"  %d bytes transferred (expected 1)\n",
 			err);
 		err = -EIO;
 		goto get_maskset_unlock;
@@ -309,8 +310,8 @@ static int ab3100_mask_and_set_register_interruptible(struct ab3100 *ab3100,
 		goto get_maskset_unlock;
 	} else if (err != 1) {
 		dev_err(ab3100->dev,
-			"write error (maskset read register) "
-			"%d bytes transferred (expected 1)\n",
+			"write error (maskset read register)\n"
+			"  %d bytes transferred (expected 1)\n",
 			err);
 		err = -EIO;
 		goto get_maskset_unlock;
@@ -329,8 +330,8 @@ static int ab3100_mask_and_set_register_interruptible(struct ab3100 *ab3100,
 		goto get_maskset_unlock;
 	} else if (err != 2) {
 		dev_err(ab3100->dev,
-			"write error (write register) "
-			"%d bytes transferred (expected 2)\n",
+			"write error (write register)\n"
+			"  %d bytes transferred (expected 2)\n",
 			err);
 		err = -EIO;
 		goto get_maskset_unlock;
@@ -370,7 +371,7 @@ EXPORT_SYMBOL(ab3100_event_register);
 int ab3100_event_unregister(struct ab3100 *ab3100,
 			    struct notifier_block *nb)
 {
-  return blocking_notifier_chain_unregister(&ab3100->event_subscribers,
+	return blocking_notifier_chain_unregister(&ab3100->event_subscribers,
 					    nb);
 }
 EXPORT_SYMBOL(ab3100_event_unregister);
@@ -408,8 +409,6 @@ static irqreturn_t ab3100_irq_handler(int irq, void *data)
 	u8 event_regs[3];
 	u32 fatevent;
 	int err;
-
-	add_interrupt_randomness(irq);
 
 	err = ab3100_get_register_page_interruptible(ab3100, AB3100_EVENTA1,
 				       event_regs, 3);
@@ -456,7 +455,7 @@ static int ab3100_registers_print(struct seq_file *s, void *p)
 	u8 value;
 	u8 reg;
 
-	seq_printf(s, "AB3100 registers:\n");
+	seq_puts(s, "AB3100 registers:\n");
 
 	for (reg = 0; reg < 0xff; reg++) {
 		ab3100_get_register_interruptible(ab3100, reg, &value);
@@ -492,7 +491,7 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 	char buf[32];
 	ssize_t buf_size;
 	int regp;
-	unsigned long user_reg;
+	u8 user_reg;
 	int err;
 	int i = 0;
 
@@ -515,34 +514,29 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 	/*
 	 * Advance pointer to end of string then terminate
 	 * the register string. This is needed to satisfy
-	 * the strict_strtoul() function.
+	 * the kstrtou8() function.
 	 */
 	while ((i < buf_size) && (buf[i] != ' '))
 		i++;
 	buf[i] = '\0';
 
-	err = strict_strtoul(&buf[regp], 16, &user_reg);
+	err = kstrtou8(&buf[regp], 16, &user_reg);
 	if (err)
 		return err;
-	if (user_reg > 0xff)
-		return -EINVAL;
 
 	/* Either we read or we write a register here */
 	if (!priv->mode) {
 		/* Reading */
-		u8 reg = (u8) user_reg;
 		u8 regvalue;
 
-		ab3100_get_register_interruptible(ab3100, reg, &regvalue);
+		ab3100_get_register_interruptible(ab3100, user_reg, &regvalue);
 
 		dev_info(ab3100->dev,
 			 "debug read AB3100 reg[0x%02x]: 0x%02x\n",
-			 reg, regvalue);
+			 user_reg, regvalue);
 	} else {
 		int valp;
-		unsigned long user_value;
-		u8 reg = (u8) user_reg;
-		u8 value;
+		u8 user_value;
 		u8 regvalue;
 
 		/*
@@ -558,20 +552,17 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 			i++;
 		buf[i] = '\0';
 
-		err = strict_strtoul(&buf[valp], 16, &user_value);
+		err = kstrtou8(&buf[valp], 16, &user_value);
 		if (err)
 			return err;
-		if (user_reg > 0xff)
-			return -EINVAL;
 
-		value = (u8) user_value;
-		ab3100_set_register_interruptible(ab3100, reg, value);
-		ab3100_get_register_interruptible(ab3100, reg, &regvalue);
+		ab3100_set_register_interruptible(ab3100, user_reg, user_value);
+		ab3100_get_register_interruptible(ab3100, user_reg, &regvalue);
 
 		dev_info(ab3100->dev,
-			 "debug write reg[0x%02x] with 0x%02x, "
-			 "after readback: 0x%02x\n",
-			 reg, value, regvalue);
+			 "debug write reg[0x%02x]\n"
+			 "  with 0x%02x, after readback: 0x%02x\n",
+			 user_reg, user_value, regvalue);
 	}
 	return buf_size;
 }
@@ -662,8 +653,7 @@ struct ab3100_init_setting {
 	u8 setting;
 };
 
-static const struct ab3100_init_setting __devinitconst
-ab3100_init_settings[] = {
+static const struct ab3100_init_setting ab3100_init_settings[] = {
 	{
 		.abreg = AB3100_MCA,
 		.setting = 0x01
@@ -709,7 +699,7 @@ ab3100_init_settings[] = {
 	},
 };
 
-static int __devinit ab3100_setup(struct ab3100 *ab3100)
+static int ab3100_setup(struct ab3100 *ab3100)
 {
 	int err = 0;
 	int i;
@@ -729,8 +719,7 @@ static int __devinit ab3100_setup(struct ab3100 *ab3100)
 	 */
 	if (ab3100->chip_id == 0xc4) {
 		dev_warn(ab3100->dev,
-			 "AB3100 P1E variant detected, "
-			 "forcing chip to 32KHz\n");
+			 "AB3100 P1E variant detected forcing chip to 32KHz\n");
 		err = ab3100_set_test_register_interruptible(ab3100,
 			0x02, 0x08);
 	}
@@ -755,6 +744,7 @@ static struct mfd_cell ab3100_devs[] = {
 	},
 	{
 		.name = "ab3100-regulators",
+		.of_compatible = "stericsson,ab3100-regulators",
 		.id = -1,
 	},
 	{
@@ -804,7 +794,7 @@ struct ab_family_id {
 	char	*name;
 };
 
-static const struct ab_family_id ids[] __devinitconst = {
+static const struct ab_family_id ids[] = {
 	/* AB3100 */
 	{
 		.id = 0xc0,
@@ -858,16 +848,16 @@ static const struct ab_family_id ids[] __devinitconst = {
 	},
 };
 
-static int __devinit ab3100_probe(struct i2c_client *client,
+static int ab3100_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct ab3100 *ab3100;
 	struct ab3100_platform_data *ab3100_plf_data =
-		client->dev.platform_data;
+		dev_get_platdata(&client->dev);
 	int err;
 	int i;
 
-	ab3100 = kzalloc(sizeof(struct ab3100), GFP_KERNEL);
+	ab3100 = devm_kzalloc(&client->dev, sizeof(struct ab3100), GFP_KERNEL);
 	if (!ab3100) {
 		dev_err(&client->dev, "could not allocate AB3100 device\n");
 		return -ENOMEM;
@@ -887,8 +877,7 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 						&ab3100->chip_id);
 	if (err) {
 		dev_err(&client->dev,
-			"could not communicate with the AB3100 analog "
-			"baseband chip\n");
+			"failed to communicate with AB3100 chip\n");
 		goto exit_no_detect;
 	}
 
@@ -911,8 +900,8 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 	if (ids[i].id == 0x0) {
 		dev_err(&client->dev, "unknown analog baseband chip id: 0x%x\n",
 			ab3100->chip_id);
-		dev_err(&client->dev, "accepting it anyway. Please update "
-			"the driver.\n");
+		dev_err(&client->dev,
+			"accepting it anyway. Please update the driver.\n");
 		goto exit_no_detect;
 	}
 
@@ -921,7 +910,7 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 
 	/* Attach a second dummy i2c_client to the test register address */
 	ab3100->testreg_client = i2c_new_dummy(client->adapter,
-						     client->addr + 1);
+					       client->addr + 1);
 	if (!ab3100->testreg_client) {
 		err = -ENOMEM;
 		goto exit_no_testreg_client;
@@ -931,11 +920,9 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 	if (err)
 		goto exit_no_setup;
 
-	err = request_threaded_irq(client->irq, NULL, ab3100_irq_handler,
-				IRQF_ONESHOT, "ab3100-core", ab3100);
-	/* This real unpredictable IRQ is of course sampled for entropy */
-	rand_initialize_irq(client->irq);
-
+	err = devm_request_threaded_irq(&client->dev,
+					client->irq, NULL, ab3100_irq_handler,
+					IRQF_ONESHOT, "ab3100-core", ab3100);
 	if (err)
 		goto exit_no_irq;
 
@@ -950,7 +937,7 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 	}
 
 	err = mfd_add_devices(&client->dev, 0, ab3100_devs,
-		ARRAY_SIZE(ab3100_devs), NULL, 0);
+			      ARRAY_SIZE(ab3100_devs), NULL, 0, NULL);
 
 	ab3100_setup_debugfs(ab3100);
 
@@ -962,26 +949,17 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 	i2c_unregister_device(ab3100->testreg_client);
  exit_no_testreg_client:
  exit_no_detect:
-	kfree(ab3100);
 	return err;
 }
 
-static int __devexit ab3100_remove(struct i2c_client *client)
+static int ab3100_remove(struct i2c_client *client)
 {
 	struct ab3100 *ab3100 = i2c_get_clientdata(client);
 
 	/* Unregister subdevices */
 	mfd_remove_devices(&client->dev);
-
 	ab3100_remove_debugfs();
 	i2c_unregister_device(ab3100->testreg_client);
-
-	/*
-	 * At this point, all subscribers should have unregistered
-	 * their notifiers so deactivate IRQ
-	 */
-	free_irq(client->irq, ab3100);
-	kfree(ab3100);
 	return 0;
 }
 
@@ -998,7 +976,7 @@ static struct i2c_driver ab3100_driver = {
 	},
 	.id_table	= ab3100_id,
 	.probe		= ab3100_probe,
-	.remove		= __devexit_p(ab3100_remove),
+	.remove		= ab3100_remove,
 };
 
 static int __init ab3100_i2c_init(void)

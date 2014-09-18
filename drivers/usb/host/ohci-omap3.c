@@ -29,89 +29,22 @@
  *	- add kernel-doc
  */
 
+#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/usb/otg.h>
 #include <linux/platform_device.h>
-#include <plat/usb.h>
 #include <linux/pm_runtime.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
 
-/*-------------------------------------------------------------------------*/
+#include "ohci.h"
 
-static int ohci_omap3_init(struct usb_hcd *hcd)
-{
-	dev_dbg(hcd->self.controller, "starting OHCI controller\n");
+#define DRIVER_DESC "OHCI OMAP3 driver"
 
-	return ohci_init(hcd_to_ohci(hcd));
-}
-
-/*-------------------------------------------------------------------------*/
-
-static int ohci_omap3_start(struct usb_hcd *hcd)
-{
-	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
-	int ret;
-
-	/*
-	 * RemoteWakeupConnected has to be set explicitly before
-	 * calling ohci_run. The reset value of RWC is 0.
-	 */
-	ohci->hc_control = OHCI_CTRL_RWC;
-	writel(OHCI_CTRL_RWC, &ohci->regs->control);
-
-	ret = ohci_run(ohci);
-
-	if (ret < 0) {
-		dev_err(hcd->self.controller, "can't start\n");
-		ohci_stop(hcd);
-	}
-
-	return ret;
-}
-
-/*-------------------------------------------------------------------------*/
-
-static const struct hc_driver ohci_omap3_hc_driver = {
-	.description =		hcd_name,
-	.product_desc =		"OMAP3 OHCI Host Controller",
-	.hcd_priv_size =	sizeof(struct ohci_hcd),
-
-	/*
-	 * generic hardware linkage
-	 */
-	.irq =			ohci_irq,
-	.flags =		HCD_USB11 | HCD_MEMORY,
-
-	/*
-	 * basic lifecycle operations
-	 */
-	.reset =		ohci_omap3_init,
-	.start =		ohci_omap3_start,
-	.stop =			ohci_stop,
-	.shutdown =		ohci_shutdown,
-
-	/*
-	 * managing i/o requests and associated device resources
-	 */
-	.urb_enqueue =		ohci_urb_enqueue,
-	.urb_dequeue =		ohci_urb_dequeue,
-	.endpoint_disable =	ohci_endpoint_disable,
-
-	/*
-	 * scheduling support
-	 */
-	.get_frame_number =	ohci_get_frame,
-
-	/*
-	 * root hub support
-	 */
-	.hub_status_data =	ohci_hub_status_data,
-	.hub_control =		ohci_hub_control,
-#ifdef	CONFIG_PM
-	.bus_suspend =		ohci_bus_suspend,
-	.bus_resume =		ohci_bus_resume,
-#endif
-	.start_port_reset =	ohci_start_port_reset,
-};
-
-/*-------------------------------------------------------------------------*/
+static const char hcd_name[] = "ohci-omap3";
+static struct hc_driver __read_mostly ohci_omap3_hc_driver;
 
 /*
  * configure so an HC device and id are always provided
@@ -125,13 +58,14 @@ static const struct hc_driver ohci_omap3_hc_driver = {
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
  */
-static int __devinit ohci_hcd_omap3_probe(struct platform_device *pdev)
+static int ohci_hcd_omap3_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
+	struct ohci_hcd		*ohci;
 	struct usb_hcd		*hcd = NULL;
 	void __iomem		*regs = NULL;
 	struct resource		*res;
-	int			ret = -ENODEV;
+	int			ret;
 	int			irq;
 
 	if (usb_disabled())
@@ -142,14 +76,13 @@ static int __devinit ohci_hcd_omap3_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	irq = platform_get_irq_byname(pdev, "ohci-irq");
+	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(dev, "OHCI irq failed\n");
 		return -ENODEV;
 	}
 
-	res = platform_get_resource_byname(pdev,
-				IORESOURCE_MEM, "ohci");
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "UHH OHCI get resource failed\n");
 		return -ENOMEM;
@@ -161,7 +94,16 @@ static int __devinit ohci_hcd_omap3_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	/*
+	 * Right now device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for now.
+	 * Once we have dma capability bindings this can go away.
+	 */
+	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	if (ret)
+		goto err_io;
 
+	ret = -ENODEV;
 	hcd = usb_create_hcd(&ohci_omap3_hc_driver, dev,
 			dev_name(dev));
 	if (!hcd) {
@@ -176,13 +118,19 @@ static int __devinit ohci_hcd_omap3_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
-	ohci_hcd_init(hcd_to_ohci(hcd));
+	ohci = hcd_to_ohci(hcd);
+	/*
+	 * RemoteWakeupConnected has to be set explicitly before
+	 * calling ohci_run. The reset value of RWC is 0.
+	 */
+	ohci->hc_control = OHCI_CTRL_RWC;
 
 	ret = usb_add_hcd(hcd, irq, 0);
 	if (ret) {
 		dev_dbg(dev, "failed to add hcd with err %d\n", ret);
 		goto err_add_hcd;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return 0;
 
@@ -209,7 +157,7 @@ err_io:
  * the HCD's stop() method.  It is always called from a thread
  * context, normally "rmmod", "apmd", or something similar.
  */
-static int __devexit ohci_hcd_omap3_remove(struct platform_device *pdev)
+static int ohci_hcd_omap3_remove(struct platform_device *pdev)
 {
 	struct device *dev	= &pdev->dev;
 	struct usb_hcd *hcd	= dev_get_drvdata(dev);
@@ -222,22 +170,42 @@ static int __devexit ohci_hcd_omap3_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void ohci_hcd_omap3_shutdown(struct platform_device *pdev)
-{
-	struct usb_hcd *hcd = dev_get_drvdata(&pdev->dev);
+static const struct of_device_id omap_ohci_dt_ids[] = {
+	{ .compatible = "ti,ohci-omap3" },
+	{ }
+};
 
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
-}
+MODULE_DEVICE_TABLE(of, omap_ohci_dt_ids);
 
 static struct platform_driver ohci_hcd_omap3_driver = {
 	.probe		= ohci_hcd_omap3_probe,
-	.remove		= __devexit_p(ohci_hcd_omap3_remove),
-	.shutdown	= ohci_hcd_omap3_shutdown,
+	.remove		= ohci_hcd_omap3_remove,
+	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "ohci-omap3",
+		.of_match_table = omap_ohci_dt_ids,
 	},
 };
 
+static int __init ohci_omap3_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
+
+	ohci_init_driver(&ohci_omap3_hc_driver, NULL);
+	return platform_driver_register(&ohci_hcd_omap3_driver);
+}
+module_init(ohci_omap3_init);
+
+static void __exit ohci_omap3_cleanup(void)
+{
+	platform_driver_unregister(&ohci_hcd_omap3_driver);
+}
+module_exit(ohci_omap3_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_ALIAS("platform:ohci-omap3");
 MODULE_AUTHOR("Anand Gadiyar <gadiyar@ti.com>");
+MODULE_LICENSE("GPL");

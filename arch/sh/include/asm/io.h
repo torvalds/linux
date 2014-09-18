@@ -122,7 +122,7 @@ __BUILD_MEMORY_STRING(__raw_, l, u32)
 
 __BUILD_MEMORY_STRING(__raw_, q, u64)
 
-#ifdef CONFIG_HAS_IOPORT
+#ifdef CONFIG_HAS_IOPORT_MAP
 
 /*
  * Slowdown I/O port space accesses for antique hardware.
@@ -134,7 +134,7 @@ __BUILD_MEMORY_STRING(__raw_, q, u64)
  * load/store instructions. sh_io_port_base is the virtual address to
  * which all ports are being mapped.
  */
-extern const unsigned long sh_io_port_base;
+extern unsigned long sh_io_port_base;
 
 static inline void __set_io_port_base(unsigned long pbase)
 {
@@ -218,7 +218,12 @@ __BUILD_IOPORT_STRING(w, u16)
 __BUILD_IOPORT_STRING(l, u32)
 __BUILD_IOPORT_STRING(q, u64)
 
+#else /* !CONFIG_HAS_IOPORT_MAP */
+
+#include <asm/io_noioport.h>
+
 #endif
+
 
 #define IO_SPACE_LIMIT 0xffffffff
 
@@ -377,7 +382,7 @@ static inline int iounmap_fixed(void __iomem *addr) { return -EINVAL; }
 #define xlate_dev_kmem_ptr(p)	p
 
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
-int valid_phys_addr_range(unsigned long addr, size_t size);
+int valid_phys_addr_range(phys_addr_t addr, size_t size);
 int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
 
 #endif /* __KERNEL__ */

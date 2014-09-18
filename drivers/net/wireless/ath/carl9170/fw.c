@@ -28,11 +28,6 @@
 #include "fwcmd.h"
 #include "version.h"
 
-#define MAKE_STR(symbol) #symbol
-#define TO_STR(symbol) MAKE_STR(symbol)
-#define CARL9170FW_API_VER_STR TO_STR(CARL9170FW_API_MAX_VER)
-MODULE_VERSION(CARL9170FW_API_VER_STR ":" CARL9170FW_VERSION_GIT);
-
 static const u8 otus_magic[4] = { OTUS_MAGIC };
 
 static const void *carl9170_fw_find_desc(struct ar9170 *ar, const u8 descid[4],
@@ -220,6 +215,24 @@ static int carl9170_fw_tx_sequence(struct ar9170 *ar)
 	return 0;
 }
 
+static void carl9170_fw_set_if_combinations(struct ar9170 *ar,
+					    u16 if_comb_types)
+{
+	if (ar->fw.vif_num < 2)
+		return;
+
+	ar->if_comb_limits[0].max = ar->fw.vif_num;
+	ar->if_comb_limits[0].types = if_comb_types;
+
+	ar->if_combs[0].num_different_channels = 1;
+	ar->if_combs[0].max_interfaces = ar->fw.vif_num;
+	ar->if_combs[0].limits = ar->if_comb_limits;
+	ar->if_combs[0].n_limits = ARRAY_SIZE(ar->if_comb_limits);
+
+	ar->hw->wiphy->iface_combinations = ar->if_combs;
+	ar->hw->wiphy->n_iface_combinations = ARRAY_SIZE(ar->if_combs);
+}
+
 static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 {
 	const struct carl9170fw_otus_desc *otus_desc;
@@ -269,7 +282,7 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 	if (!SUPP(CARL9170FW_COMMAND_CAM)) {
 		dev_info(&ar->udev->dev, "crypto offloading is disabled "
 			 "by firmware.\n");
-		ar->disable_offload = true;
+		ar->fw.disable_offload_fw = true;
 	}
 
 	if (SUPP(CARL9170FW_PSM) && SUPP(CARL9170FW_FIXED_5GHZ_PSM))
@@ -307,6 +320,9 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 	if (SUPP(CARL9170FW_WOL))
 		device_set_wakeup_enable(&ar->udev->dev, true);
 
+	if (SUPP(CARL9170FW_RX_BA_FILTER))
+		ar->fw.ba_filter = true;
+
 	if_comb_types = BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_P2P_CLIENT);
 
@@ -339,21 +355,23 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 			if_comb_types |=
 				BIT(NL80211_IFTYPE_AP) |
 				BIT(NL80211_IFTYPE_P2P_GO);
+
+#ifdef CONFIG_MAC80211_MESH
+			if_comb_types |=
+				BIT(NL80211_IFTYPE_MESH_POINT);
+#endif /* CONFIG_MAC80211_MESH */
 		}
 	}
 
-	ar->if_comb_limits[0].max = ar->fw.vif_num;
-	ar->if_comb_limits[0].types = if_comb_types;
-
-	ar->if_combs[0].num_different_channels = 1;
-	ar->if_combs[0].max_interfaces = ar->fw.vif_num;
-	ar->if_combs[0].limits = ar->if_comb_limits;
-	ar->if_combs[0].n_limits = ARRAY_SIZE(ar->if_comb_limits);
-
-	ar->hw->wiphy->iface_combinations = ar->if_combs;
-	ar->hw->wiphy->n_iface_combinations = ARRAY_SIZE(ar->if_combs);
+	carl9170_fw_set_if_combinations(ar, if_comb_types);
 
 	ar->hw->wiphy->interface_modes |= if_comb_types;
+
+	ar->hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
+
+	/* As IBSS Encryption is software-based, IBSS RSN is supported. */
+	ar->hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
+		 WIPHY_FLAG_IBSS_RSN | WIPHY_FLAG_SUPPORTS_TDLS;
 
 #undef SUPPORTED
 	return carl9170_fw_tx_sequence(ar);

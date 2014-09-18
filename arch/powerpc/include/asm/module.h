@@ -11,6 +11,7 @@
 
 #include <linux/list.h>
 #include <asm/bug.h>
+#include <asm-generic/module.h>
 
 
 #ifndef __powerpc64__
@@ -34,6 +35,7 @@ struct mod_arch_specific {
 #ifdef __powerpc64__
 	unsigned int stubs_section;	/* Index of stubs section in module */
 	unsigned int toc_section;	/* What section is the TOC? */
+	bool toc_fixed;			/* Have we fixed up .TOC.? */
 #ifdef CONFIG_DYNAMIC_FTRACE
 	unsigned long toc;
 	unsigned long tramp;
@@ -60,16 +62,10 @@ struct mod_arch_specific {
  */
 
 #ifdef __powerpc64__
-#    define Elf_Shdr	Elf64_Shdr
-#    define Elf_Sym	Elf64_Sym
-#    define Elf_Ehdr	Elf64_Ehdr
 #    ifdef MODULE
 	asm(".section .stubs,\"ax\",@nobits; .align 3; .previous");
 #    endif
 #else
-#    define Elf_Shdr	Elf32_Shdr
-#    define Elf_Sym	Elf32_Sym
-#    define Elf_Ehdr	Elf32_Ehdr
 #    ifdef MODULE
 	asm(".section .plt,\"ax\",@nobits; .align 3; .previous");
 	asm(".section .init.plt,\"ax\",@nobits; .align 3; .previous");
@@ -82,15 +78,17 @@ struct mod_arch_specific {
 #    endif	/* MODULE */
 #endif
 
+bool is_module_trampoline(u32 *insns);
+int module_trampoline_target(struct module *mod, u32 *trampoline,
+			     unsigned long *target);
 
 struct exception_table_entry;
 void sort_ex_table(struct exception_table_entry *start,
 		   struct exception_table_entry *finish);
 
-#ifdef CONFIG_MODVERSIONS
+#if defined(CONFIG_MODVERSIONS) && defined(CONFIG_PPC64)
 #define ARCH_RELOCATES_KCRCTAB
-
-extern const unsigned long reloc_start[];
+#define reloc_start PHYSICAL_START
 #endif
 #endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_MODULE_H */

@@ -1,0 +1,17 @@
+TODO:
+- get DRM Maintainer review for this code
+- decide where to put the base driver. It is not specific to a subsystem
+  and would be used by DRM/KMS and media/V4L2
+
+Missing features (not necessarily for moving out of staging):
+
+- Add support for IC (Image converter)
+- Add support for CSI (CMOS Sensor interface)
+- Add support for VDIC (Video Deinterlacer)
+
+Many work-in-progress patches for the above features exist. Contact
+Sascha Hauer <kernel@pengutronix.de> if you are interested in working
+on a specific feature.
+
+Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org> and
+Sascha Hauer <kernel@pengutronix.de>

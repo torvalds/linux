@@ -264,7 +264,7 @@ resume_kernel:
 	disable_irq
 	lw	r8, [r28, TI_PRE_COUNT]
 	cmpz.c	r8
-	bne	r8, restore_all
+	bne	restore_all
 need_resched:
 	lw	r8, [r28, TI_FLAGS]
 	andri.c	r9, r8, _TIF_NEED_RESCHED
@@ -277,6 +277,13 @@ need_resched:
 	j	need_resched
 	nop
 #endif
+
+ENTRY(ret_from_kernel_thread)
+	bl	schedule_tail			# r4=struct task_struct *prev
+	nop
+	mv	r4, r13
+	brl	r12
+	j	syscall_exit
 
 ENTRY(ret_from_fork)
 	bl	schedule_tail			# r4=struct task_struct *prev
@@ -408,7 +415,7 @@ ENTRY(handle_sys)
 	sw	r9, [r0, PT_EPC]
 
 	cmpi.c	r27, __NR_syscalls 	# check syscall number
-	bgeu	illegal_syscall
+	bcs	illegal_syscall
 
 	slli	r8, r27, 2		# get syscall routine
 	la	r11, sys_call_table
@@ -480,35 +487,7 @@ illegal_syscall:
 	sw	r9, [r0, PT_R7]
 	j	syscall_return
 
-ENTRY(sys_execve)
-	mv	r4, r0
-	la	r8, score_execve
-	br	r8
-
-ENTRY(sys_clone)
-	mv	r4, r0
-	la	r8, score_clone
-	br	r8
-
 ENTRY(sys_rt_sigreturn)
 	mv	r4, r0
 	la	r8, score_rt_sigreturn
 	br	r8
-
-ENTRY(sys_sigaltstack)
-	mv	r4, r0
-	la	r8, score_sigaltstack
-	br	r8
-
-#ifdef __ARCH_WANT_SYSCALL_DEPRECATED
-ENTRY(sys_fork)
-	mv	r4, r0
-	la	r8, score_fork
-	br	r8
-
-ENTRY(sys_vfork)
-	mv	r4, r0
-	la	r8, score_vfork
-	br	r8
-#endif /* __ARCH_WANT_SYSCALL_DEPRECATED */
-

@@ -10,7 +10,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
@@ -70,15 +69,13 @@
 #define TC3589x_EVT_INT_CLR	0x2
 #define TC3589x_KBD_INT_CLR	0x1
 
-#define TC3589x_KBD_KEYMAP_SIZE     64
-
 /**
  * struct tc_keypad - data structure used by keypad driver
  * @tc3589x:    pointer to tc35893
  * @input:      pointer to input device object
  * @board:      keypad platform device
  * @krow:	number of rows
- * @kcol:	number of coloumns
+ * @kcol:	number of columns
  * @keymap:     matrix scan code table for keycodes
  * @keypad_stopped: holds keypad status
  */
@@ -88,7 +85,7 @@ struct tc_keypad {
 	const struct tc3589x_keypad_platform_data *board;
 	unsigned int krow;
 	unsigned int kcol;
-	unsigned short keymap[TC3589x_KBD_KEYMAP_SIZE];
+	unsigned short *keymap;
 	bool keypad_stopped;
 };
 
@@ -96,21 +93,15 @@ static int tc3589x_keypad_init_key_hardware(struct tc_keypad *keypad)
 {
 	int ret;
 	struct tc3589x *tc3589x = keypad->tc3589x;
-	u8 settle_time = keypad->board->settle_time;
-	u8 dbounce_period = keypad->board->debounce_period;
-	u8 rows = keypad->board->krow & 0xf;	/* mask out the nibble */
-	u8 column = keypad->board->kcol & 0xf;	/* mask out the nibble */
+	const struct tc3589x_keypad_platform_data *board = keypad->board;
 
-	/* validate platform configurations */
-	if (keypad->board->kcol > TC3589x_MAX_KPCOL ||
-	    keypad->board->krow > TC3589x_MAX_KPROW ||
-	    keypad->board->debounce_period > TC3589x_MAX_DEBOUNCE_SETTLE ||
-	    keypad->board->settle_time > TC3589x_MAX_DEBOUNCE_SETTLE)
+	/* validate platform configuration */
+	if (board->kcol > TC3589x_MAX_KPCOL || board->krow > TC3589x_MAX_KPROW)
 		return -EINVAL;
 
 	/* configure KBDSIZE 4 LSbits for cols and 4 MSbits for rows */
 	ret = tc3589x_reg_write(tc3589x, TC3589x_KBDSIZE,
-			(rows << KP_ROW_SHIFT) | column);
+			(board->krow << KP_ROW_SHIFT) | board->kcol);
 	if (ret < 0)
 		return ret;
 
@@ -124,12 +115,14 @@ static int tc3589x_keypad_init_key_hardware(struct tc_keypad *keypad)
 		return ret;
 
 	/* Configure settle time */
-	ret = tc3589x_reg_write(tc3589x, TC3589x_KBDSETTLE_REG, settle_time);
+	ret = tc3589x_reg_write(tc3589x, TC3589x_KBDSETTLE_REG,
+				board->settle_time);
 	if (ret < 0)
 		return ret;
 
 	/* Configure debounce time */
-	ret = tc3589x_reg_write(tc3589x, TC3589x_KBDBOUNCE, dbounce_period);
+	ret = tc3589x_reg_write(tc3589x, TC3589x_KBDBOUNCE,
+				board->debounce_period);
 	if (ret < 0)
 		return ret;
 
@@ -303,7 +296,66 @@ static void tc3589x_keypad_close(struct input_dev *input)
 	tc3589x_keypad_disable(keypad);
 }
 
-static int __devinit tc3589x_keypad_probe(struct platform_device *pdev)
+#ifdef CONFIG_OF
+static const struct tc3589x_keypad_platform_data *
+tc3589x_keypad_of_probe(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct tc3589x_keypad_platform_data *plat;
+	u32 cols, rows;
+	u32 debounce_ms;
+	int proplen;
+
+	if (!np)
+		return ERR_PTR(-ENODEV);
+
+	plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
+	if (!plat)
+		return ERR_PTR(-ENOMEM);
+
+	of_property_read_u32(np, "keypad,num-columns", &cols);
+	of_property_read_u32(np, "keypad,num-rows", &rows);
+	plat->kcol = (u8) cols;
+	plat->krow = (u8) rows;
+	if (!plat->krow || !plat->kcol ||
+	     plat->krow > TC_KPD_ROWS || plat->kcol > TC_KPD_COLUMNS) {
+		dev_err(dev,
+			"keypad columns/rows not properly specified (%ux%u)\n",
+			plat->kcol, plat->krow);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (!of_get_property(np, "linux,keymap", &proplen)) {
+		dev_err(dev, "property linux,keymap not found\n");
+		return ERR_PTR(-ENOENT);
+	}
+
+	plat->no_autorepeat = of_property_read_bool(np, "linux,no-autorepeat");
+	plat->enable_wakeup = of_property_read_bool(np, "linux,wakeup");
+
+	/* The custom delay format is ms/16 */
+	of_property_read_u32(np, "debounce-delay-ms", &debounce_ms);
+	if (debounce_ms)
+		plat->debounce_period = debounce_ms * 16;
+	else
+		plat->debounce_period = TC_KPD_DEBOUNCE_PERIOD;
+
+	plat->settle_time = TC_KPD_SETTLE_TIME;
+	/* FIXME: should be property of the IRQ resource? */
+	plat->irqtype = IRQF_TRIGGER_FALLING;
+
+	return plat;
+}
+#else
+static inline const struct tc3589x_keypad_platform_data *
+tc3589x_keypad_of_probe(struct device *dev)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
+
+
+static int tc3589x_keypad_probe(struct platform_device *pdev)
 {
 	struct tc3589x *tc3589x = dev_get_drvdata(pdev->dev.parent);
 	struct tc_keypad *keypad;
@@ -313,8 +365,11 @@ static int __devinit tc3589x_keypad_probe(struct platform_device *pdev)
 
 	plat = tc3589x->pdata->keypad;
 	if (!plat) {
-		dev_err(&pdev->dev, "invalid keypad platform data\n");
-		return -EINVAL;
+		plat = tc3589x_keypad_of_probe(&pdev->dev);
+		if (IS_ERR(plat)) {
+			dev_err(&pdev->dev, "invalid keypad platform data\n");
+			return PTR_ERR(plat);
+		}
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -337,23 +392,24 @@ static int __devinit tc3589x_keypad_probe(struct platform_device *pdev)
 	input->name = pdev->name;
 	input->dev.parent = &pdev->dev;
 
-	input->keycode = keypad->keymap;
-	input->keycodesize = sizeof(keypad->keymap[0]);
-	input->keycodemax = ARRAY_SIZE(keypad->keymap);
-
 	input->open = tc3589x_keypad_open;
 	input->close = tc3589x_keypad_close;
 
-	input_set_drvdata(input, keypad);
+	error = matrix_keypad_build_keymap(plat->keymap_data, NULL,
+					   TC3589x_MAX_KPROW, TC3589x_MAX_KPCOL,
+					   NULL, input);
+	if (error) {
+		dev_err(&pdev->dev, "Failed to build keymap\n");
+		goto err_free_mem;
+	}
+
+	keypad->keymap = input->keycode;
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
-
-	__set_bit(EV_KEY, input->evbit);
 	if (!plat->no_autorepeat)
 		__set_bit(EV_REP, input->evbit);
 
-	matrix_keypad_build_keymap(plat->keymap_data, 0x3,
-			input->keycode, input->keybit);
+	input_set_drvdata(input, keypad);
 
 	error = request_threaded_irq(irq, NULL,
 			tc3589x_keypad_irq, plat->irqtype,
@@ -387,7 +443,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit tc3589x_keypad_remove(struct platform_device *pdev)
+static int tc3589x_keypad_remove(struct platform_device *pdev)
 {
 	struct tc_keypad *keypad = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);
@@ -453,7 +509,7 @@ static struct platform_driver tc3589x_keypad_driver = {
 		.pm	= &tc3589x_keypad_dev_pm_ops,
 	},
 	.probe	= tc3589x_keypad_probe,
-	.remove	= __devexit_p(tc3589x_keypad_remove),
+	.remove	= tc3589x_keypad_remove,
 };
 module_platform_driver(tc3589x_keypad_driver);
 

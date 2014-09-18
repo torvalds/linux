@@ -36,14 +36,12 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
-#include <linux/init.h>
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -123,93 +121,20 @@ static const char driver_name[] = "MOSCHIP usb-ethernet driver";
 
 static int mcs7830_get_reg(struct usbnet *dev, u16 index, u16 size, void *data)
 {
-	struct usb_device *xdev = dev->udev;
-	int ret;
-	void *buffer;
-
-	buffer = kmalloc(size, GFP_NOIO);
-	if (buffer == NULL)
-		return -ENOMEM;
-
-	ret = usb_control_msg(xdev, usb_rcvctrlpipe(xdev, 0), MCS7830_RD_BREQ,
-			      MCS7830_RD_BMREQ, 0x0000, index, buffer,
-			      size, MCS7830_CTRL_TIMEOUT);
-	memcpy(data, buffer, size);
-	kfree(buffer);
-
-	return ret;
+	return usbnet_read_cmd(dev, MCS7830_RD_BREQ, MCS7830_RD_BMREQ,
+				0x0000, index, data, size);
 }
 
 static int mcs7830_set_reg(struct usbnet *dev, u16 index, u16 size, const void *data)
 {
-	struct usb_device *xdev = dev->udev;
-	int ret;
-	void *buffer;
-
-	buffer = kmemdup(data, size, GFP_NOIO);
-	if (buffer == NULL)
-		return -ENOMEM;
-
-	ret = usb_control_msg(xdev, usb_sndctrlpipe(xdev, 0), MCS7830_WR_BREQ,
-			      MCS7830_WR_BMREQ, 0x0000, index, buffer,
-			      size, MCS7830_CTRL_TIMEOUT);
-	kfree(buffer);
-	return ret;
-}
-
-static void mcs7830_async_cmd_callback(struct urb *urb)
-{
-	struct usb_ctrlrequest *req = (struct usb_ctrlrequest *)urb->context;
-	int status = urb->status;
-
-	if (status < 0)
-		printk(KERN_DEBUG "%s() failed with %d\n",
-		       __func__, status);
-
-	kfree(req);
-	usb_free_urb(urb);
+	return usbnet_write_cmd(dev, MCS7830_WR_BREQ, MCS7830_WR_BMREQ,
+				0x0000, index, data, size);
 }
 
 static void mcs7830_set_reg_async(struct usbnet *dev, u16 index, u16 size, void *data)
 {
-	struct usb_ctrlrequest *req;
-	int ret;
-	struct urb *urb;
-
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		dev_dbg(&dev->udev->dev,
-			"Error allocating URB in write_cmd_async!\n");
-		return;
-	}
-
-	req = kmalloc(sizeof *req, GFP_ATOMIC);
-	if (!req) {
-		dev_err(&dev->udev->dev,
-			"Failed to allocate memory for control request\n");
-		goto out;
-	}
-	req->bRequestType = MCS7830_WR_BMREQ;
-	req->bRequest = MCS7830_WR_BREQ;
-	req->wValue = 0;
-	req->wIndex = cpu_to_le16(index);
-	req->wLength = cpu_to_le16(size);
-
-	usb_fill_control_urb(urb, dev->udev,
-			     usb_sndctrlpipe(dev->udev, 0),
-			     (void *)req, data, size,
-			     mcs7830_async_cmd_callback, req);
-
-	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ret < 0) {
-		dev_err(&dev->udev->dev,
-			"Error submitting the control message: ret=%d\n", ret);
-		goto out;
-	}
-	return;
-out:
-	kfree(req);
-	usb_free_urb(urb);
+	usbnet_write_cmd_async(dev, MCS7830_WR_BREQ, MCS7830_WR_BMREQ,
+				0x0000, index, data, size);
 }
 
 static int mcs7830_hif_get_mac_address(struct usbnet *dev, unsigned char *addr)
@@ -601,8 +526,9 @@ static int mcs7830_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	u8 status;
 
-	if (skb->len == 0) {
-		dev_err(&dev->udev->dev, "unexpected empty rx frame\n");
+	/* This check is no longer done by usbnet */
+	if (skb->len < dev->net->hard_header_len) {
+		dev_err(&dev->udev->dev, "unexpected tiny rx frame\n");
 		return 0;
 	}
 
@@ -629,11 +555,28 @@ static int mcs7830_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	return skb->len > 0;
 }
 
+static void mcs7830_status(struct usbnet *dev, struct urb *urb)
+{
+	u8 *buf = urb->transfer_buffer;
+	bool link, link_changed;
+
+	if (urb->actual_length < 16)
+		return;
+
+	link = !(buf[1] == 0x20);
+	link_changed = netif_carrier_ok(dev->net) != link;
+	if (link_changed) {
+		usbnet_link_change(dev, link, 0);
+		netdev_dbg(dev->net, "Link Status is: %d\n", link);
+	}
+}
+
 static const struct driver_info moschip_info = {
 	.description	= "MOSCHIP 7830/7832/7730 usb-NET adapter",
 	.bind		= mcs7830_bind,
 	.rx_fixup	= mcs7830_rx_fixup,
-	.flags		= FLAG_ETHER,
+	.flags		= FLAG_ETHER | FLAG_LINK_INTR,
+	.status		= mcs7830_status,
 	.in		= 1,
 	.out		= 2,
 };
@@ -642,7 +585,8 @@ static const struct driver_info sitecom_info = {
 	.description    = "Sitecom LN-30 usb-NET adapter",
 	.bind		= mcs7830_bind,
 	.rx_fixup	= mcs7830_rx_fixup,
-	.flags		= FLAG_ETHER,
+	.flags		= FLAG_ETHER | FLAG_LINK_INTR,
+	.status		= mcs7830_status,
 	.in		= 1,
 	.out		= 2,
 };
@@ -690,6 +634,7 @@ static struct usb_driver mcs7830_driver = {
 	.suspend = usbnet_suspend,
 	.resume = usbnet_resume,
 	.reset_resume = mcs7830_reset_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(mcs7830_driver);

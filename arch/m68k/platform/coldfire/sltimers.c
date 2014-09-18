@@ -32,7 +32,7 @@
 /*
  *	By default use Slice Timer 1 as the profiler clock timer.
  */
-#define	PA(a)	(MCF_MBAR + MCFSLT_TIMER1 + (a))
+#define	PA(a)	(MCFSLT_TIMER1 + (a))
 
 /*
  *	Choose a reasonably fast profile timer. Make it an odd value to
@@ -51,7 +51,7 @@ irqreturn_t mcfslt_profile_tick(int irq, void *dummy)
 
 static struct irqaction mcfslt_profile_irq = {
 	.name	 = "profile timer",
-	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.flags	 = IRQF_TIMER,
 	.handler = mcfslt_profile_tick,
 };
 
@@ -76,7 +76,7 @@ void mcfslt_profile_init(void)
 /*
  *	By default use Slice Timer 0 as the system clock timer.
  */
-#define	TA(a)	(MCF_MBAR + MCFSLT_TIMER0 + (a))
+#define	TA(a)	(MCFSLT_TIMER0 + (a))
 
 static u32 mcfslt_cycles_per_jiffy;
 static u32 mcfslt_cnt;
@@ -93,7 +93,7 @@ static irqreturn_t mcfslt_tick(int irq, void *dummy)
 
 static struct irqaction mcfslt_timer_irq = {
 	.name	 = "timer",
-	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.flags	 = IRQF_TIMER,
 	.handler = mcfslt_tick,
 };
 

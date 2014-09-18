@@ -22,15 +22,12 @@
 
 #pragma pack(1)
 
-/**
- * BFI FW image type
- */
+/* BFI FW image type */
 #define	BFI_FLASH_CHUNK_SZ			256	/*!< Flash chunk size */
 #define	BFI_FLASH_CHUNK_SZ_WORDS	(BFI_FLASH_CHUNK_SZ/sizeof(u32))
+#define BFI_FLASH_IMAGE_SZ		0x100000
 
-/**
- * Msg header common to all msgs
- */
+/* Msg header common to all msgs */
 struct bfi_mhdr {
 	u8		msg_class;	/*!< @ref enum bfi_mclass	    */
 	u8		msg_id;		/*!< msg opcode with in the class   */
@@ -65,17 +62,14 @@ struct bfi_mhdr {
 #define BFI_I2H_OPCODE_BASE	128
 #define BFA_I2HM(_x)			((_x) + BFI_I2H_OPCODE_BASE)
 
-/**
- ****************************************************************************
+/****************************************************************************
  *
  * Scatter Gather Element and Page definition
  *
  ****************************************************************************
  */
 
-/**
- * DMA addresses
- */
+/* DMA addresses */
 union bfi_addr_u {
 	struct {
 		u32	addr_lo;
@@ -83,9 +77,7 @@ union bfi_addr_u {
 	} a32;
 };
 
-/**
- * Generic DMA addr-len pair.
- */
+/* Generic DMA addr-len pair. */
 struct bfi_alen {
 	union bfi_addr_u	al_addr;	/* DMA addr of buffer	*/
 	u32			al_len;		/* length of buffer */
@@ -98,26 +90,20 @@ struct bfi_alen {
 #define BFI_LMSG_PL_WSZ	\
 			((BFI_LMSG_SZ - sizeof(struct bfi_mhdr)) / 4)
 
-/**
- * Mailbox message structure
- */
+/* Mailbox message structure */
 #define BFI_MBMSG_SZ		7
 struct bfi_mbmsg {
 	struct bfi_mhdr mh;
 	u32		pl[BFI_MBMSG_SZ];
 };
 
-/**
- * Supported PCI function class codes (personality)
- */
+/* Supported PCI function class codes (personality) */
 enum bfi_pcifn_class {
 	BFI_PCIFN_CLASS_FC	= 0x0c04,
 	BFI_PCIFN_CLASS_ETH	= 0x0200,
 };
 
-/**
- * Message Classes
- */
+/* Message Classes */
 enum bfi_mclass {
 	BFI_MC_IOC		= 1,	/*!< IO Controller (IOC)	    */
 	BFI_MC_DIAG		= 2,	/*!< Diagnostic Msgs		    */
@@ -159,15 +145,12 @@ enum bfi_mclass {
 
 #define BFI_FWBOOT_ENV_OS		0
 
-/**
- *----------------------------------------------------------------------
+/*----------------------------------------------------------------------
  *				IOC
  *----------------------------------------------------------------------
  */
 
-/**
- * Different asic generations
- */
+/* Different asic generations */
 enum bfi_asic_gen {
 	BFI_ASIC_GEN_CB		= 1,
 	BFI_ASIC_GEN_CT		= 2,
@@ -196,9 +179,7 @@ enum bfi_ioc_i2h_msgs {
 	BFI_IOC_I2H_HBEAT		= BFA_I2HM(4),
 };
 
-/**
- * BFI_IOC_H2I_GETATTR_REQ message
- */
+/* BFI_IOC_H2I_GETATTR_REQ message */
 struct bfi_ioc_getattr_req {
 	struct bfi_mhdr mh;
 	union bfi_addr_u	attr_addr;
@@ -231,37 +212,51 @@ struct bfi_ioc_attr {
 	u32	card_type;	/*!< card type			*/
 };
 
-/**
- * BFI_IOC_I2H_GETATTR_REPLY message
- */
+/* BFI_IOC_I2H_GETATTR_REPLY message */
 struct bfi_ioc_getattr_reply {
 	struct bfi_mhdr mh;	/*!< Common msg header		*/
 	u8			status;	/*!< cfg reply status		*/
 	u8			rsvd[3];
 };
 
-/**
- * Firmware memory page offsets
- */
+/* Firmware memory page offsets */
 #define BFI_IOC_SMEM_PG0_CB	(0x40)
 #define BFI_IOC_SMEM_PG0_CT	(0x180)
 
-/**
- * Firmware statistic offset
- */
+/* Firmware statistic offset */
 #define BFI_IOC_FWSTATS_OFF	(0x6B40)
 #define BFI_IOC_FWSTATS_SZ	(4096)
 
-/**
- * Firmware trace offset
- */
+/* Firmware trace offset */
 #define BFI_IOC_TRC_OFF		(0x4b00)
 #define BFI_IOC_TRC_ENTS	256
 #define BFI_IOC_TRC_ENT_SZ	16
 #define BFI_IOC_TRC_HDR_SZ	32
 
 #define BFI_IOC_FW_SIGNATURE	(0xbfadbfad)
+#define BFI_IOC_FW_INV_SIGN	(0xdeaddead)
 #define BFI_IOC_MD5SUM_SZ	4
+
+struct bfi_ioc_fwver {
+#ifdef __BIG_ENDIAN
+	u8 patch;
+	u8 maint;
+	u8 minor;
+	u8 major;
+	u8 rsvd[2];
+	u8 build;
+	u8 phase;
+#else
+	u8 major;
+	u8 minor;
+	u8 maint;
+	u8 patch;
+	u8 phase;
+	u8 build;
+	u8 rsvd[2];
+#endif
+};
+
 struct bfi_ioc_image_hdr {
 	u32	signature;	/*!< constant signature */
 	u8	asic_gen;	/*!< asic generation */
@@ -270,8 +265,16 @@ struct bfi_ioc_image_hdr {
 	u8	port1_mode;	/*!< device mode for port 1 */
 	u32	exec;		/*!< exec vector	*/
 	u32	bootenv;	/*!< firmware boot env */
-	u32	rsvd_b[4];
+	u32	rsvd_b[2];
+	struct bfi_ioc_fwver fwver;
 	u32	md5sum[BFI_IOC_MD5SUM_SZ];
+};
+
+enum bfi_ioc_img_ver_cmp {
+	BFI_IOC_IMG_VER_INCOMP,
+	BFI_IOC_IMG_VER_OLD,
+	BFI_IOC_IMG_VER_SAME,
+	BFI_IOC_IMG_VER_BETTER
 };
 
 #define BFI_FWBOOT_DEVMODE_OFF		4
@@ -299,9 +302,7 @@ struct bfi_ioc_hbeat {
 	u32	   hb_count;	/*!< current heart beat count	*/
 };
 
-/**
- * IOC hardware/firmware state
- */
+/* IOC hardware/firmware state */
 enum bfi_ioc_state {
 	BFI_IOC_UNINIT		= 0,	/*!< not initialized		     */
 	BFI_IOC_INITING		= 1,	/*!< h/w is being initialized	     */
@@ -345,9 +346,7 @@ enum {
 	((__adap_type) & (BFI_ADAPTER_TTV | BFI_ADAPTER_PROTO |	\
 			BFI_ADAPTER_UNSUPP))
 
-/**
- * BFI_IOC_H2I_ENABLE_REQ & BFI_IOC_H2I_DISABLE_REQ messages
- */
+/* BFI_IOC_H2I_ENABLE_REQ & BFI_IOC_H2I_DISABLE_REQ messages */
 struct bfi_ioc_ctrl_req {
 	struct bfi_mhdr mh;
 	u16			clscode;
@@ -355,9 +354,7 @@ struct bfi_ioc_ctrl_req {
 	u32		tv_sec;
 };
 
-/**
- * BFI_IOC_I2H_ENABLE_REPLY & BFI_IOC_I2H_DISABLE_REPLY messages
- */
+/* BFI_IOC_I2H_ENABLE_REPLY & BFI_IOC_I2H_DISABLE_REPLY messages */
 struct bfi_ioc_ctrl_reply {
 	struct bfi_mhdr mh;			/*!< Common msg header     */
 	u8			status;		/*!< enable/disable status */
@@ -367,9 +364,7 @@ struct bfi_ioc_ctrl_reply {
 };
 
 #define BFI_IOC_MSGSZ   8
-/**
- * H2I Messages
- */
+/* H2I Messages */
 union bfi_ioc_h2i_msg_u {
 	struct bfi_mhdr mh;
 	struct bfi_ioc_ctrl_req enable_req;
@@ -378,17 +373,14 @@ union bfi_ioc_h2i_msg_u {
 	u32			mboxmsg[BFI_IOC_MSGSZ];
 };
 
-/**
- * I2H Messages
- */
+/* I2H Messages */
 union bfi_ioc_i2h_msg_u {
 	struct bfi_mhdr mh;
 	struct bfi_ioc_ctrl_reply fw_event;
 	u32			mboxmsg[BFI_IOC_MSGSZ];
 };
 
-/**
- *----------------------------------------------------------------------
+/*----------------------------------------------------------------------
  *				MSGQ
  *----------------------------------------------------------------------
  */

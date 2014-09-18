@@ -17,43 +17,67 @@
 #ifndef	_BRCM_HW_IDS_H_
 #define	_BRCM_HW_IDS_H_
 
-#define	BCM4325_D11DUAL_ID	0x431b
-#define	BCM4325_D11G_ID		0x431c
-#define	BCM4325_D11A_ID		0x431d
+#include <linux/pci_ids.h>
+#include <linux/mmc/sdio_ids.h>
 
-#define BCM4329_D11N2G_ID	0x432f	/* 4329 802.11n 2.4G device */
-#define BCM4329_D11N5G_ID	0x4330	/* 4329 802.11n 5G device */
-#define BCM4329_D11NDUAL_ID	0x432e
+#define BRCM_USB_VENDOR_ID_BROADCOM	0x0a5c
+#define BRCM_PCIE_VENDOR_ID_BROADCOM	PCI_VENDOR_ID_BROADCOM
+#define BRCM_SDIO_VENDOR_ID_BROADCOM	SDIO_VENDOR_ID_BROADCOM
 
-#define BCM4319_D11N_ID		0x4337	/* 4319 802.11n dualband device */
-#define BCM4319_D11N2G_ID	0x4338	/* 4319 802.11n 2.4G device */
-#define BCM4319_D11N5G_ID	0x4339	/* 4319 802.11n 5G device */
+/* Chipcommon Core Chip IDs */
+#define BRCM_CC_43143_CHIP_ID		43143
+#define BRCM_CC_43235_CHIP_ID		43235
+#define BRCM_CC_43236_CHIP_ID		43236
+#define BRCM_CC_43238_CHIP_ID		43238
+#define BRCM_CC_43241_CHIP_ID		0x4324
+#define BRCM_CC_43242_CHIP_ID		43242
+#define BRCM_CC_4329_CHIP_ID		0x4329
+#define BRCM_CC_4330_CHIP_ID		0x4330
+#define BRCM_CC_4334_CHIP_ID		0x4334
+#define BRCM_CC_43362_CHIP_ID		43362
+#define BRCM_CC_4335_CHIP_ID		0x4335
+#define BRCM_CC_4339_CHIP_ID		0x4339
+#define BRCM_CC_4354_CHIP_ID		0x4354
+#define BRCM_CC_4356_CHIP_ID		0x4356
+#define BRCM_CC_43566_CHIP_ID		43566
+#define BRCM_CC_43567_CHIP_ID		43567
+#define BRCM_CC_43569_CHIP_ID		43569
+#define BRCM_CC_43570_CHIP_ID		43570
+#define BRCM_CC_43602_CHIP_ID		43602
 
+/* SDIO Device IDs */
+#define BRCM_SDIO_43143_DEVICE_ID	BRCM_CC_43143_CHIP_ID
+#define BRCM_SDIO_43241_DEVICE_ID	BRCM_CC_43241_CHIP_ID
+#define BRCM_SDIO_4329_DEVICE_ID	BRCM_CC_4329_CHIP_ID
+#define BRCM_SDIO_4330_DEVICE_ID	BRCM_CC_4330_CHIP_ID
+#define BRCM_SDIO_4334_DEVICE_ID	BRCM_CC_4334_CHIP_ID
+#define BRCM_SDIO_43362_DEVICE_ID	BRCM_CC_43362_CHIP_ID
+#define BRCM_SDIO_4335_4339_DEVICE_ID	BRCM_CC_4335_CHIP_ID
+#define BRCM_SDIO_4354_DEVICE_ID	BRCM_CC_4354_CHIP_ID
+
+/* USB Device IDs */
+#define BRCM_USB_43143_DEVICE_ID	0xbd1e
+#define BRCM_USB_43236_DEVICE_ID	0xbd17
+#define BRCM_USB_43242_DEVICE_ID	0xbd1f
+#define BRCM_USB_43569_DEVICE_ID	0xbd27
+#define BRCM_USB_BCMFW_DEVICE_ID	0x0bdc
+
+/* PCIE Device IDs */
+#define BRCM_PCIE_4354_DEVICE_ID	0x43df
+#define BRCM_PCIE_4356_DEVICE_ID	0x43ec
+#define BRCM_PCIE_43567_DEVICE_ID	0x43d3
+#define BRCM_PCIE_43570_DEVICE_ID	0x43d9
+#define BRCM_PCIE_43602_DEVICE_ID	0x43ba
+
+/* brcmsmac IDs */
+#define BCM4313_D11N2G_ID	0x4727	/* 4313 802.11n 2.4G device */
 #define BCM43224_D11N_ID	0x4353	/* 43224 802.11n dualband device */
 #define BCM43224_D11N_ID_VEN1	0x0576	/* Vendor specific 43224 802.11n db */
-
 #define BCM43225_D11N2G_ID	0x4357	/* 43225 802.11n 2.4GHz device */
-
 #define BCM43236_D11N_ID	0x4346	/* 43236 802.11n dualband device */
 #define BCM43236_D11N2G_ID	0x4347	/* 43236 802.11n 2.4GHz device */
 
-#define BCM4313_D11N2G_ID	0x4727	/* 4313 802.11n 2.4G device */
-
-/* Chip IDs */
-#define BCM4313_CHIP_ID		0x4313	/* 4313 chip id */
-#define	BCM4319_CHIP_ID		0x4319	/* 4319 chip id */
-
-#define	BCM43224_CHIP_ID	43224	/* 43224 chipcommon chipid */
-#define	BCM43225_CHIP_ID	43225	/* 43225 chipcommon chipid */
-#define	BCM43421_CHIP_ID	43421	/* 43421 chipcommon chipid */
-#define	BCM43235_CHIP_ID	43235	/* 43235 chipcommon chipid */
-#define	BCM43236_CHIP_ID	43236	/* 43236 chipcommon chipid */
-#define	BCM43238_CHIP_ID	43238	/* 43238 chipcommon chipid */
-#define	BCM4329_CHIP_ID		0x4329	/* 4329 chipcommon chipid */
-#define	BCM4325_CHIP_ID		0x4325	/* 4325 chipcommon chipid */
-#define	BCM4331_CHIP_ID		0x4331	/* 4331 chipcommon chipid */
-#define BCM4336_CHIP_ID		0x4336	/* 4336 chipcommon chipid */
-#define BCM4330_CHIP_ID		0x4330	/* 4330 chipcommon chipid */
-#define BCM6362_CHIP_ID		0x6362	/* 6362 chipcommon chipid */
+#define BCM4313_CHIP_ID		0x4313
+#define BCM43224_CHIP_ID	43224
 
 #endif				/* _BRCM_HW_IDS_H_ */

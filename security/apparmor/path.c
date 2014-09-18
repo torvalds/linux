@@ -94,6 +94,8 @@ static int d_namespace_path(struct path *path, char *buf, int buflen,
 	 * be returned.
 	 */
 	if (!res || IS_ERR(res)) {
+		if (PTR_ERR(res) == -ENAMETOOLONG)
+			return -ENAMETOOLONG;
 		connected = 0;
 		res = dentry_path_raw(path->dentry, buf, buflen);
 		if (IS_ERR(res)) {
@@ -172,7 +174,7 @@ static int get_name_to_buffer(struct path *path, int flags, char *buffer,
 	if (info && error) {
 		if (error == -ENOENT)
 			*info = "Failed name lookup - deleted entry";
-		else if (error == -ESTALE)
+		else if (error == -EACCES)
 			*info = "Failed name lookup - disconnected path";
 		else if (error == -ENAMETOOLONG)
 			*info = "Failed name lookup - name too long";

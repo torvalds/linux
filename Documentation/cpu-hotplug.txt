@@ -5,7 +5,7 @@
 			Rusty Russell <rusty@rustcorp.com.au>
 			Srivatsa Vaddagiri <vatsa@in.ibm.com>
 		i386:
-			Zwane Mwaikambo <zwane@arm.linux.org.uk>
+			Zwane Mwaikambo <zwanem@gmail.com>
 		ppc64:
 			Nathan Lynch <nathanl@austin.ibm.com>
 			Joel Schopp <jschopp@austin.ibm.com>
@@ -128,7 +128,7 @@ A: When doing make defconfig, Enable CPU hotplug support
 
    "Processor type and Features" -> Support for Hotpluggable CPUs
 
-Make sure that you have CONFIG_HOTPLUG, and CONFIG_SMP turned on as well.
+Make sure that you have CONFIG_SMP turned on as well.
 
 You would need to enable CONFIG_HOTPLUG_CPU for SMP suspend/resume support
 as well.
@@ -207,6 +207,30 @@ by making it not-removable.
 
 In such cases you will also notice that the online file is missing under cpu0.
 
+Q: Is CPU0 removable on X86?
+A: Yes. If kernel is compiled with CONFIG_BOOTPARAM_HOTPLUG_CPU0=y, CPU0 is
+removable by default. Otherwise, CPU0 is also removable by kernel option
+cpu0_hotplug.
+
+But some features depend on CPU0. Two known dependencies are:
+
+1. Resume from hibernate/suspend depends on CPU0. Hibernate/suspend will fail if
+CPU0 is offline and you need to online CPU0 before hibernate/suspend can
+continue.
+2. PIC interrupts also depend on CPU0. CPU0 can't be removed if a PIC interrupt
+is detected.
+
+It's said poweroff/reboot may depend on CPU0 on some machines although I haven't
+seen any poweroff/reboot failure so far after CPU0 is offline on a few tested
+machines.
+
+Please let me know if you know or see any other dependencies of CPU0.
+
+If the dependencies are under your control, you can turn on CPU0 hotplug feature
+either by CONFIG_BOOTPARAM_HOTPLUG_CPU0 or by kernel parameter cpu0_hotplug.
+
+--Fenghua Yu <fenghua.yu@intel.com>
+
 Q: How do i find out if a particular CPU is not removable?
 A: Depending on the implementation, some architectures may show this by the
 absence of the "online" file. This is done if it can be determined ahead of
@@ -243,8 +267,8 @@ Q: If i have some kernel code that needs to be aware of CPU arrival and
 A: This is what you would need in your kernel code to receive notifications.
 
 	#include <linux/cpu.h>
-	static int __cpuinit foobar_cpu_callback(struct notifier_block *nfb,
-					    unsigned long action, void *hcpu)
+	static int foobar_cpu_callback(struct notifier_block *nfb,
+				       unsigned long action, void *hcpu)
 	{
 		unsigned int cpu = (unsigned long)hcpu;
 
@@ -261,7 +285,7 @@ A: This is what you would need in your kernel code to receive notifications.
 		return NOTIFY_OK;
 	}
 
-	static struct notifier_block __cpuinitdata foobar_cpu_notifer =
+	static struct notifier_block foobar_cpu_notifier =
 	{
 	   .notifier_call = foobar_cpu_callback,
 	};
@@ -288,11 +312,56 @@ things will happen if a notifier in path sent a BAD notify code.
 Q: I don't see my action being called for all CPUs already up and running?
 A: Yes, CPU notifiers are called only when new CPUs are on-lined or offlined.
    If you need to perform some action for each cpu already in the system, then
+   do this:
 
 	for_each_online_cpu(i) {
 		foobar_cpu_callback(&foobar_cpu_notifier, CPU_UP_PREPARE, i);
 		foobar_cpu_callback(&foobar_cpu_notifier, CPU_ONLINE, i);
 	}
+
+   However, if you want to register a hotplug callback, as well as perform
+   some initialization for CPUs that are already online, then do this:
+
+   Version 1: (Correct)
+   ---------
+
+   	cpu_notifier_register_begin();
+
+		for_each_online_cpu(i) {
+			foobar_cpu_callback(&foobar_cpu_notifier,
+					    CPU_UP_PREPARE, i);
+			foobar_cpu_callback(&foobar_cpu_notifier,
+					    CPU_ONLINE, i);
+		}
+
+	/* Note the use of the double underscored version of the API */
+	__register_cpu_notifier(&foobar_cpu_notifier);
+
+	cpu_notifier_register_done();
+
+   Note that the following code is *NOT* the right way to achieve this,
+   because it is prone to an ABBA deadlock between the cpu_add_remove_lock
+   and the cpu_hotplug.lock.
+
+   Version 2: (Wrong!)
+   ---------
+
+	get_online_cpus();
+
+		for_each_online_cpu(i) {
+			foobar_cpu_callback(&foobar_cpu_notifier,
+					    CPU_UP_PREPARE, i);
+			foobar_cpu_callback(&foobar_cpu_notifier,
+					    CPU_ONLINE, i);
+		}
+
+	register_cpu_notifier(&foobar_cpu_notifier);
+
+	put_online_cpus();
+
+    So always use the first version shown above when you want to register
+    callbacks as well as initialize the already online CPUs.
+
 
 Q: If i would like to develop cpu hotplug support for a new architecture,
    what do i need at a minimum?
@@ -346,8 +415,10 @@ A: There is no clear spec defined way from ACPI that can give us that
    CPUs in MADT as hotpluggable CPUS.  In the case there are no disabled CPUS
    we assume 1/2 the number of CPUs currently present can be hotplugged.
 
-   Caveat: Today's ACPI MADT can only provide 256 entries since the apicid field
-   in MADT is only 8 bits.
+   Caveat: ACPI MADT can only provide 256 entries in systems with only ACPI 2.0c
+   or earlier ACPI version supported, because the apicid field in MADT is only
+   8 bits. From ACPI 3.0, this limitation was removed since the apicid field
+   was extended to 32 bits with x2APIC introduced.
 
 User Space Notification
 

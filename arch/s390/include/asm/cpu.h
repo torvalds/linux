@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 2000,2009
+ *    Copyright IBM Corp. 2000, 2009
  *    Author(s): Hartmut Penner <hp@de.ibm.com>,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Christian Ehrhardt <ehrhardt@de.ibm.com>,

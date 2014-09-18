@@ -33,13 +33,13 @@
 #include <linux/stddef.h>
 #include <linux/ioport.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/acpi.h>
 
 /* SCH SMBus address offsets */
 #define SMBHSTCNT	(0 + sch_smba)
 #define SMBHSTSTS	(1 + sch_smba)
+#define SMBHSTCLK	(2 + sch_smba)
 #define SMBHSTADD	(4 + sch_smba) /* TSA */
 #define SMBHSTCMD	(5 + sch_smba)
 #define SMBHSTDAT0	(6 + sch_smba)
@@ -58,6 +58,9 @@
 
 static unsigned short sch_smba;
 static struct i2c_adapter sch_adapter;
+static int backbone_speed = 33000; /* backbone speed in kHz */
+module_param(backbone_speed, int, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(backbone_speed, "Backbone speed in kHz, (default = 33000)");
 
 /*
  * Start the i2c transaction -- the i2c_access will prepare the transaction
@@ -156,6 +159,19 @@ static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 		dev_dbg(&sch_adapter.dev, "SMBus busy (%02x)\n", temp);
 		return -EAGAIN;
 	}
+	temp = inw(SMBHSTCLK);
+	if (!temp) {
+		/*
+		 * We can't determine if we have 33 or 25 MHz clock for
+		 * SMBus, so expect 33 MHz and calculate a bus clock of
+		 * 100 kHz. If we actually run at 25 MHz the bus will be
+		 * run ~75 kHz instead which should do no harm.
+		 */
+		dev_notice(&sch_adapter.dev,
+			"Clock divider unitialized. Setting defaults\n");
+		outw(backbone_speed / (4 * 100), SMBHSTCLK);
+	}
+
 	dev_dbg(&sch_adapter.dev, "access size: %d %s\n", size,
 		(read_write)?"READ":"WRITE");
 	switch (size) {
@@ -249,7 +265,7 @@ static struct i2c_adapter sch_adapter = {
 	.algo		= &smbus_algorithm,
 };
 
-static int __devinit smbus_sch_probe(struct platform_device *dev)
+static int smbus_sch_probe(struct platform_device *dev)
 {
 	struct resource *res;
 	int retval;
@@ -258,7 +274,8 @@ static int __devinit smbus_sch_probe(struct platform_device *dev)
 	if (!res)
 		return -EBUSY;
 
-	if (!request_region(res->start, resource_size(res), dev->name)) {
+	if (!devm_request_region(&dev->dev, res->start, resource_size(res),
+				 dev->name)) {
 		dev_err(&dev->dev, "SMBus region 0x%x already in use!\n",
 			sch_smba);
 		return -EBUSY;
@@ -277,20 +294,16 @@ static int __devinit smbus_sch_probe(struct platform_device *dev)
 	retval = i2c_add_adapter(&sch_adapter);
 	if (retval) {
 		dev_err(&dev->dev, "Couldn't register adapter!\n");
-		release_region(res->start, resource_size(res));
 		sch_smba = 0;
 	}
 
 	return retval;
 }
 
-static int __devexit smbus_sch_remove(struct platform_device *pdev)
+static int smbus_sch_remove(struct platform_device *pdev)
 {
-	struct resource *res;
 	if (sch_smba) {
 		i2c_del_adapter(&sch_adapter);
-		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-		release_region(res->start, resource_size(res));
 		sch_smba = 0;
 	}
 
@@ -303,7 +316,7 @@ static struct platform_driver smbus_sch_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= smbus_sch_probe,
-	.remove		= __devexit_p(smbus_sch_remove),
+	.remove		= smbus_sch_remove,
 };
 
 module_platform_driver(smbus_sch_driver);

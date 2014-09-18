@@ -83,7 +83,7 @@ static void intc_mask_ack(struct irq_data *data)
 	unsigned int irq = data->irq;
 	struct intc_desc_int *d = get_intc_desc(irq);
 	unsigned long handle = intc_get_ack_handle(irq);
-	unsigned long addr;
+	void __iomem *addr;
 
 	intc_disable(data);
 
@@ -91,7 +91,7 @@ static void intc_mask_ack(struct irq_data *data)
 	if (handle) {
 		unsigned int value;
 
-		addr = INTC_REG(d, _INTC_ADDR_D(handle), 0);
+		addr = (void __iomem *)INTC_REG(d, _INTC_ADDR_D(handle), 0);
 		value = intc_set_field_from_handle(0, 1, handle);
 
 		switch (_INTC_FN(handle)) {

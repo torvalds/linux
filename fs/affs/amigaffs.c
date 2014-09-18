@@ -34,7 +34,7 @@ affs_insert_hash(struct inode *dir, struct buffer_head *bh)
 	ino = bh->b_blocknr;
 	offset = affs_hash_name(sb, AFFS_TAIL(sb, bh)->name + 1, AFFS_TAIL(sb, bh)->name[0]);
 
-	pr_debug("AFFS: insert_hash(dir=%u, ino=%d)\n", (u32)dir->i_ino, ino);
+	pr_debug("%s(dir=%u, ino=%d)\n", __func__, (u32)dir->i_ino, ino);
 
 	dir_bh = affs_bread(sb, dir->i_ino);
 	if (!dir_bh)
@@ -84,7 +84,8 @@ affs_remove_hash(struct inode *dir, struct buffer_head *rem_bh)
 	sb = dir->i_sb;
 	rem_ino = rem_bh->b_blocknr;
 	offset = affs_hash_name(sb, AFFS_TAIL(sb, rem_bh)->name+1, AFFS_TAIL(sb, rem_bh)->name[0]);
-	pr_debug("AFFS: remove_hash(dir=%d, ino=%d, hashval=%d)\n", (u32)dir->i_ino, rem_ino, offset);
+	pr_debug("%s(dir=%d, ino=%d, hashval=%d)\n",
+		 __func__, (u32)dir->i_ino, rem_ino, offset);
 
 	bh = affs_bread(sb, dir->i_ino);
 	if (!bh)
@@ -122,22 +123,15 @@ affs_remove_hash(struct inode *dir, struct buffer_head *rem_bh)
 }
 
 static void
-affs_fix_dcache(struct dentry *dentry, u32 entry_ino)
+affs_fix_dcache(struct inode *inode, u32 entry_ino)
 {
-	struct inode *inode = dentry->d_inode;
-	void *data = dentry->d_fsdata;
-	struct list_head *head, *next;
-
+	struct dentry *dentry;
 	spin_lock(&inode->i_lock);
-	head = &inode->i_dentry;
-	next = head->next;
-	while (next != head) {
-		dentry = list_entry(next, struct dentry, d_alias);
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
 		if (entry_ino == (u32)(long)dentry->d_fsdata) {
-			dentry->d_fsdata = data;
+			dentry->d_fsdata = (void *)inode->i_ino;
 			break;
 		}
-		next = next->next;
 	}
 	spin_unlock(&inode->i_lock);
 }
@@ -154,7 +148,7 @@ affs_remove_link(struct dentry *dentry)
 	u32 link_ino, ino;
 	int retval;
 
-	pr_debug("AFFS: remove_link(key=%ld)\n", inode->i_ino);
+	pr_debug("%s(key=%ld)\n", __func__, inode->i_ino);
 	retval = -EIO;
 	bh = affs_bread(sb, inode->i_ino);
 	if (!bh)
@@ -177,7 +171,11 @@ affs_remove_link(struct dentry *dentry)
 		}
 
 		affs_lock_dir(dir);
-		affs_fix_dcache(dentry, link_ino);
+		/*
+		 * if there's a dentry for that block, make it
+		 * refer to inode itself.
+		 */
+		affs_fix_dcache(inode, link_ino);
 		retval = affs_remove_hash(dir, link_bh);
 		if (retval) {
 			affs_unlock_dir(dir);
@@ -282,7 +280,7 @@ affs_remove_header(struct dentry *dentry)
 	if (!inode)
 		goto done;
 
-	pr_debug("AFFS: remove_header(key=%ld)\n", inode->i_ino);
+	pr_debug("%s(key=%ld)\n", __func__, inode->i_ino);
 	retval = -EIO;
 	bh = affs_bread(sb, (u32)(long)dentry->d_fsdata);
 	if (!bh)
@@ -454,10 +452,10 @@ affs_error(struct super_block *sb, const char *function, const char *fmt, ...)
 	vsnprintf(ErrorBuffer,sizeof(ErrorBuffer),fmt,args);
 	va_end(args);
 
-	printk(KERN_CRIT "AFFS error (device %s): %s(): %s\n", sb->s_id,
+	pr_crit("error (device %s): %s(): %s\n", sb->s_id,
 		function,ErrorBuffer);
 	if (!(sb->s_flags & MS_RDONLY))
-		printk(KERN_WARNING "AFFS: Remounting filesystem read-only\n");
+		pr_warn("Remounting filesystem read-only\n");
 	sb->s_flags |= MS_RDONLY;
 }
 
@@ -470,24 +468,31 @@ affs_warning(struct super_block *sb, const char *function, const char *fmt, ...)
 	vsnprintf(ErrorBuffer,sizeof(ErrorBuffer),fmt,args);
 	va_end(args);
 
-	printk(KERN_WARNING "AFFS warning (device %s): %s(): %s\n", sb->s_id,
+	pr_warn("(device %s): %s(): %s\n", sb->s_id,
 		function,ErrorBuffer);
+}
+
+bool
+affs_nofilenametruncate(const struct dentry *dentry)
+{
+	struct inode *inode = dentry->d_inode;
+	return AFFS_SB(inode->i_sb)->s_flags & SF_NO_TRUNCATE;
+
 }
 
 /* Check if the name is valid for a affs object. */
 
 int
-affs_check_name(const unsigned char *name, int len)
+affs_check_name(const unsigned char *name, int len, bool notruncate)
 {
 	int	 i;
 
-	if (len > 30)
-#ifdef AFFS_NO_TRUNCATE
-		return -ENAMETOOLONG;
-#else
-		len = 30;
-#endif
-
+	if (len > 30) {
+		if (notruncate)
+			return -ENAMETOOLONG;
+		else
+			len = 30;
+	}
 	for (i = 0; i < len; i++) {
 		if (name[i] < ' ' || name[i] == ':'
 		    || (name[i] > 0x7e && name[i] < 0xa0))

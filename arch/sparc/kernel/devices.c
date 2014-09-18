@@ -19,9 +19,9 @@
 #include <asm/smp.h>
 #include <asm/cpudata.h>
 #include <asm/cpu_type.h>
+#include <asm/setup.h>
 
-extern void clock_stop_probe(void); /* tadpole.c */
-extern void sun4c_probe_memerr_reg(void);
+#include "kernel.h"
 
 static char *cpu_mid_prop(void)
 {
@@ -132,14 +132,6 @@ void __init device_scan(void)
 	}
 #endif /* !CONFIG_SMP */
 
-	{
-		extern void auxio_probe(void);
-		extern void auxio_power_probe(void);
-		auxio_probe();
-		auxio_power_probe();
-	}
-	clock_stop_probe();
-
-	if (ARCH_SUN4C)
-		sun4c_probe_memerr_reg();
+	auxio_probe();
+	auxio_power_probe();
 }

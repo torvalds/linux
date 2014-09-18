@@ -38,12 +38,6 @@ enum isp_interface_type {
 };
 
 enum {
-	ISP_BRIDGE_DISABLE = 0,
-	ISP_BRIDGE_LITTLE_ENDIAN = 2,
-	ISP_BRIDGE_BIG_ENDIAN = 3,
-};
-
-enum {
 	ISP_LANE_SHIFT_0 = 0,
 	ISP_LANE_SHIFT_2 = 1,
 	ISP_LANE_SHIFT_4 = 2,
@@ -63,17 +57,15 @@ enum {
  *		0 - Active high, 1 - Active low
  * @vs_pol: Vertical synchronization polarity
  *		0 - Active high, 1 - Active low
- * @bridge: CCDC Bridge input control
- *		ISP_BRIDGE_DISABLE - Disable
- *		ISP_BRIDGE_LITTLE_ENDIAN - Little endian
- *		ISP_BRIDGE_BIG_ENDIAN - Big endian
+ * @data_pol: Data polarity
+ *		0 - Normal, 1 - One's complement
  */
 struct isp_parallel_platform_data {
 	unsigned int data_lane_shift:2;
 	unsigned int clk_pol:1;
 	unsigned int hs_pol:1;
 	unsigned int vs_pol:1;
-	unsigned int bridge:2;
+	unsigned int data_pol:1;
 };
 
 enum {
@@ -84,6 +76,29 @@ enum {
 enum {
 	ISP_CCP2_MODE_MIPI = 0,
 	ISP_CCP2_MODE_CCP2 = 1,
+};
+
+/**
+ * struct isp_csiphy_lane: CCP2/CSI2 lane position and polarity
+ * @pos: position of the lane
+ * @pol: polarity of the lane
+ */
+struct isp_csiphy_lane {
+	u8 pos;
+	u8 pol;
+};
+
+#define ISP_CSIPHY1_NUM_DATA_LANES	1
+#define ISP_CSIPHY2_NUM_DATA_LANES	2
+
+/**
+ * struct isp_csiphy_lanes_cfg - CCP2/CSI2 lane configuration
+ * @data: Configuration of one or two data lanes
+ * @clk: Clock lane configuration
+ */
+struct isp_csiphy_lanes_cfg {
+	struct isp_csiphy_lane data[ISP_CSIPHY2_NUM_DATA_LANES];
+	struct isp_csiphy_lane clk;
 };
 
 /**
@@ -105,6 +120,7 @@ struct isp_ccp2_platform_data {
 	unsigned int ccp2_mode:1;
 	unsigned int phy_layer:1;
 	unsigned int vpclk_div:2;
+	struct isp_csiphy_lanes_cfg lanecfg;
 };
 
 /**
@@ -115,6 +131,7 @@ struct isp_ccp2_platform_data {
 struct isp_csi2_platform_data {
 	unsigned crc:1;
 	unsigned vpclk_div:2;
+	struct isp_csiphy_lanes_cfg lanecfg;
 };
 
 struct isp_subdev_i2c_board_info {
@@ -132,7 +149,13 @@ struct isp_v4l2_subdevs_group {
 	} bus; /* gcc < 4.6.0 chokes on anonymous union initializers */
 };
 
+struct isp_platform_xclk {
+	const char *dev_id;
+	const char *con_id;
+};
+
 struct isp_platform_data {
+	struct isp_platform_xclk xclks[2];
 	struct isp_v4l2_subdevs_group *subdevs;
 	void (*set_constraints)(struct isp_device *isp, bool enable);
 };

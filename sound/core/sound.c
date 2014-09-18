@@ -27,7 +27,6 @@
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/info.h>
-#include <sound/version.h>
 #include <sound/control.h>
 #include <sound/initval.h>
 #include <linux/kmod.h>
@@ -99,6 +98,13 @@ static void snd_request_other(int minor)
  *
  * Checks that a minor device with the specified type is registered, and returns
  * its user data pointer.
+ *
+ * This function increments the reference counter of the card instance
+ * if an associated instance with the given minor number and type is found.
+ * The caller must call snd_card_unref() appropriately later.
+ *
+ * Return: The user data pointer if the specified device is found. %NULL
+ * otherwise.
  */
 void *snd_lookup_minor_data(unsigned int minor, int type)
 {
@@ -109,9 +115,11 @@ void *snd_lookup_minor_data(unsigned int minor, int type)
 		return NULL;
 	mutex_lock(&sound_mutex);
 	mreg = snd_minors[minor];
-	if (mreg && mreg->type == type)
+	if (mreg && mreg->type == type) {
 		private_data = mreg->private_data;
-	else
+		if (private_data && mreg->card_ptr)
+			get_device(&mreg->card_ptr->card_dev);
+	} else
 		private_data = NULL;
 	mutex_unlock(&sound_mutex);
 	return private_data;
@@ -145,7 +153,7 @@ static int snd_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor = iminor(inode);
 	struct snd_minor *mptr = NULL;
-	const struct file_operations *old_fops;
+	const struct file_operations *new_fops;
 	int err = 0;
 
 	if (minor >= ARRAY_SIZE(snd_minors))
@@ -159,24 +167,14 @@ static int snd_open(struct inode *inode, struct file *file)
 			return -ENODEV;
 		}
 	}
-	old_fops = file->f_op;
-	file->f_op = fops_get(mptr->f_ops);
-	if (file->f_op == NULL) {
-		file->f_op = old_fops;
-		err = -ENODEV;
-	}
+	new_fops = fops_get(mptr->f_ops);
 	mutex_unlock(&sound_mutex);
-	if (err < 0)
-		return err;
+	if (!new_fops)
+		return -ENODEV;
+	replace_fops(file, new_fops);
 
-	if (file->f_op->open) {
+	if (file->f_op->open)
 		err = file->f_op->open(inode, file);
-		if (err) {
-			fops_put(file->f_op);
-			file->f_op = fops_get(old_fops);
-		}
-	}
-	fops_put(old_fops);
 	return err;
 }
 
@@ -256,7 +254,7 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
  * Registers an ALSA device file for the given card.
  * The operators have to be set in reg parameter.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 				const struct file_operations *f_ops,
@@ -276,6 +274,7 @@ int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 	preg->device = dev;
 	preg->f_ops = f_ops;
 	preg->private_data = private_data;
+	preg->card_ptr = card;
 	mutex_lock(&sound_mutex);
 #ifdef CONFIG_SND_DYNAMIC_MINORS
 	minor = snd_find_free_minor(type);
@@ -333,7 +332,7 @@ static int find_snd_minor(int type, struct snd_card *card, int dev)
  * Unregisters the device file already registered via
  * snd_register_device().
  *
- * Returns zero if sucecessful, or a negative error code on failure
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_unregister_device(int type, struct snd_card *card, int dev)
 {
@@ -356,22 +355,25 @@ int snd_unregister_device(int type, struct snd_card *card, int dev)
 
 EXPORT_SYMBOL(snd_unregister_device);
 
-int snd_add_device_sysfs_file(int type, struct snd_card *card, int dev,
-			      struct device_attribute *attr)
+/* get the assigned device to the given type and device number;
+ * the caller needs to release it via put_device() after using it
+ */
+struct device *snd_get_device(int type, struct snd_card *card, int dev)
 {
-	int minor, ret = -EINVAL;
-	struct device *d;
+	int minor;
+	struct device *d = NULL;
 
 	mutex_lock(&sound_mutex);
 	minor = find_snd_minor(type, card, dev);
-	if (minor >= 0 && (d = snd_minors[minor]->dev) != NULL)
-		ret = device_create_file(d, attr);
+	if (minor >= 0) {
+		d = snd_minors[minor]->dev;
+		if (d)
+			get_device(d);
+	}
 	mutex_unlock(&sound_mutex);
-	return ret;
-
+	return d;
 }
-
-EXPORT_SYMBOL(snd_add_device_sysfs_file);
+EXPORT_SYMBOL(snd_get_device);
 
 #ifdef CONFIG_PROC_FS
 /*
@@ -459,7 +461,7 @@ static int __init alsa_sound_init(void)
 	snd_major = major;
 	snd_ecards_limit = cards_limit;
 	if (register_chrdev(major, "alsa", &snd_fops)) {
-		snd_printk(KERN_ERR "unable to register native major device number %d\n", major);
+		pr_err("ALSA core: unable to register native major device number %d\n", major);
 		return -EIO;
 	}
 	if (snd_info_init() < 0) {
@@ -468,7 +470,7 @@ static int __init alsa_sound_init(void)
 	}
 	snd_info_minor_register();
 #ifndef MODULE
-	printk(KERN_INFO "Advanced Linux Sound Architecture Driver Version " CONFIG_SND_VERSION CONFIG_SND_DATE ".\n");
+	pr_info("Advanced Linux Sound Architecture Driver Initialized.\n");
 #endif
 	return 0;
 }

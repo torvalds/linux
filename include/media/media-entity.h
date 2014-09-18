@@ -23,6 +23,8 @@
 #ifndef _MEDIA_ENTITY_H
 #define _MEDIA_ENTITY_H
 
+#include <linux/bitops.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/media.h>
 
@@ -46,6 +48,7 @@ struct media_entity_operations {
 	int (*link_setup)(struct media_entity *entity,
 			  const struct media_pad *local,
 			  const struct media_pad *remote, u32 flags);
+	int (*link_validate)(struct media_link *link);
 };
 
 struct media_entity {
@@ -112,12 +115,15 @@ static inline u32 media_entity_subtype(struct media_entity *entity)
 }
 
 #define MEDIA_ENTITY_ENUM_MAX_DEPTH	16
+#define MEDIA_ENTITY_ENUM_MAX_ID	64
 
 struct media_entity_graph {
 	struct {
 		struct media_entity *entity;
 		int link;
 	} stack[MEDIA_ENTITY_ENUM_MAX_DEPTH];
+
+	DECLARE_BITMAP(entities, MEDIA_ENTITY_ENUM_MAX_ID);
 	int top;
 };
 
@@ -127,11 +133,14 @@ void media_entity_cleanup(struct media_entity *entity);
 
 int media_entity_create_link(struct media_entity *source, u16 source_pad,
 		struct media_entity *sink, u16 sink_pad, u32 flags);
+void __media_entity_remove_links(struct media_entity *entity);
+void media_entity_remove_links(struct media_entity *entity);
+
 int __media_entity_setup_link(struct media_link *link, u32 flags);
 int media_entity_setup_link(struct media_link *link, u32 flags);
 struct media_link *media_entity_find_link(struct media_pad *source,
 		struct media_pad *sink);
-struct media_pad *media_entity_remote_source(struct media_pad *pad);
+struct media_pad *media_entity_remote_pad(struct media_pad *pad);
 
 struct media_entity *media_entity_get(struct media_entity *entity);
 void media_entity_put(struct media_entity *entity);
@@ -140,8 +149,8 @@ void media_entity_graph_walk_start(struct media_entity_graph *graph,
 		struct media_entity *entity);
 struct media_entity *
 media_entity_graph_walk_next(struct media_entity_graph *graph);
-void media_entity_pipeline_start(struct media_entity *entity,
-		struct media_pipeline *pipe);
+__must_check int media_entity_pipeline_start(struct media_entity *entity,
+					     struct media_pipeline *pipe);
 void media_entity_pipeline_stop(struct media_entity *entity);
 
 #define media_entity_call(entity, operation, args...)			\

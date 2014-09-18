@@ -119,7 +119,7 @@ struct pkt_attrib {
 
 	u8	priority;
 	u8	encrypt;	/* when 0 indicate no encrypt. when non-zero,
-				 * indicate the encrypt algorith*/
+				 * indicate the encrypt algorithm*/
 	u8	iv_len;
 	u8	icv_len;
 	unsigned char iv[8];
@@ -233,9 +233,9 @@ struct	xmit_priv {
 	u8	hwxmit_entry;
 	u8	txirp_cnt;
 	struct tasklet_struct xmit_tasklet;
-	_workitem xmit_pipe4_reset_wi;
-	_workitem xmit_pipe6_reset_wi;
-	_workitem xmit_piped_reset_wi;
+	struct work_struct xmit_pipe4_reset_wi;
+	struct work_struct xmit_pipe6_reset_wi;
+	struct work_struct xmit_piped_reset_wi;
 	/*per AC pending irp*/
 	int beq_cnt;
 	int bkq_cnt;

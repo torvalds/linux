@@ -75,21 +75,7 @@ enum max8998_regulators {
 struct max8997_regulator_data {
 	int id;
 	struct regulator_init_data *initdata;
-};
-
-enum max8997_muic_usb_type {
-	MAX8997_USB_HOST,
-	MAX8997_USB_DEVICE,
-};
-
-enum max8997_muic_charger_type {
-	MAX8997_CHARGER_TYPE_NONE = 0,
-	MAX8997_CHARGER_TYPE_USB,
-	MAX8997_CHARGER_TYPE_DOWNSTREAM_PORT,
-	MAX8997_CHARGER_TYPE_DEDICATED_CHG,
-	MAX8997_CHARGER_TYPE_500MA,
-	MAX8997_CHARGER_TYPE_1A,
-	MAX8997_CHARGER_TYPE_DEAD_BATTERY = 7,
+	struct device_node *reg_node;
 };
 
 struct max8997_muic_reg_data {
@@ -99,36 +85,23 @@ struct max8997_muic_reg_data {
 
 /**
  * struct max8997_muic_platform_data
- * @usb_callback: callback function for USB
- *		  inform callee of USB type (HOST or DEVICE)
- *		  and attached state(true or false)
- * @charger_callback: callback function for charger
- *		  inform callee of charger_type
- *		  and attached state(true or false)
- * @deskdock_callback: callback function for desk dock
- *		  inform callee of attached state(true or false)
- * @cardock_callback: callback function for car dock
- *		  inform callee of attached state(true or false)
- * @mhl_callback: callback function for MHL (Mobile High-definition Link)
- *		  inform callee of attached state(true or false)
- * @uart_callback: callback function for JIG UART
- *		   inform callee of attached state(true or false)
  * @init_data: array of max8997_muic_reg_data
  *	       used for initializing registers of MAX8997 MUIC device
  * @num_init_data: array size of init_data
  */
 struct max8997_muic_platform_data {
-	void (*usb_callback)(enum max8997_muic_usb_type usb_type,
-		bool attached);
-	void (*charger_callback)(bool attached,
-		enum max8997_muic_charger_type charger_type);
-	void (*deskdock_callback) (bool attached);
-	void (*cardock_callback) (bool attached);
-	void (*mhl_callback) (bool attached);
-	void (*uart_callback) (bool attached);
-
 	struct max8997_muic_reg_data *init_data;
 	int num_init_data;
+
+	/* Check cable state after certain delay */
+	int detcable_delay_ms;
+
+	/*
+	 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
+	 * h/w path of COMP2/COMN1 on CONTROL1 register.
+	 */
+	int path_usb;
+	int path_uart;
 };
 
 enum max8997_haptic_motor_type {
@@ -204,7 +177,6 @@ struct max8997_led_platform_data {
 
 struct max8997_platform_data {
 	/* IRQ */
-	int irq_base;
 	int ono;
 	int wakeup;
 

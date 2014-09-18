@@ -164,4 +164,4 @@ read the CRC recorded by the NIC on receipt of the packet.
 This requests that the NIC receive all possible frames, including errored
 frames (such as bad FCS, etc).  This can be helpful when sniffing a link with
 bad packets on it.  Some NICs may receive more packets if also put into normal
-PROMISC mdoe.
+PROMISC mode.

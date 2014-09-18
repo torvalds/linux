@@ -31,7 +31,7 @@
 #ifndef _TTM_EXECBUF_UTIL_H_
 #define _TTM_EXECBUF_UTIL_H_
 
-#include "ttm/ttm_bo_api.h"
+#include <ttm/ttm_bo_api.h>
 #include <linux/list.h>
 
 /**
@@ -39,8 +39,6 @@
  *
  * @head:           list head for thread-private list.
  * @bo:             refcounted buffer object pointer.
- * @new_sync_obj_arg: New sync_obj_arg for @bo, to be used once
- * adding a new sync object.
  * @reserved:       Indicates whether @bo has been reserved for validation.
  * @removed:        Indicates whether @bo has been removed from lru lists.
  * @put_count:      Number of outstanding references on bo::list_kref.
@@ -50,7 +48,6 @@
 struct ttm_validate_buffer {
 	struct list_head head;
 	struct ttm_buffer_object *bo;
-	void *new_sync_obj_arg;
 	bool reserved;
 	bool removed;
 	int put_count;
@@ -60,17 +57,21 @@ struct ttm_validate_buffer {
 /**
  * function ttm_eu_backoff_reservation
  *
+ * @ticket:   ww_acquire_ctx from reserve call
  * @list:     thread private list of ttm_validate_buffer structs.
  *
  * Undoes all buffer validation reservations for bos pointed to by
  * the list entries.
  */
 
-extern void ttm_eu_backoff_reservation(struct list_head *list);
+extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
+				       struct list_head *list);
 
 /**
  * function ttm_eu_reserve_buffers
  *
+ * @ticket:  [out] ww_acquire_ctx filled in by call, or NULL if only
+ *           non-blocking reserves should be tried.
  * @list:    thread private list of ttm_validate_buffer structs.
  *
  * Tries to reserve bos pointed to by the list entries for validation.
@@ -93,11 +94,13 @@ extern void ttm_eu_backoff_reservation(struct list_head *list);
  * has failed.
  */
 
-extern int ttm_eu_reserve_buffers(struct list_head *list);
+extern int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
+				  struct list_head *list);
 
 /**
  * function ttm_eu_fence_buffer_objects.
  *
+ * @ticket:      ww_acquire_ctx from reserve call
  * @list:        thread private list of ttm_validate_buffer structs.
  * @sync_obj:    The new sync object for the buffers.
  *
@@ -107,6 +110,7 @@ extern int ttm_eu_reserve_buffers(struct list_head *list);
  *
  */
 
-extern void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj);
+extern void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
+					struct list_head *list, void *sync_obj);
 
 #endif

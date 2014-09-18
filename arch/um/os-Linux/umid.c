@@ -12,8 +12,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include "init.h"
-#include "os.h"
+#include <init.h>
+#include <os.h>
 
 #define UML_DIR "~/.uml/"
 

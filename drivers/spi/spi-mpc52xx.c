@@ -12,7 +12,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
@@ -235,7 +234,8 @@ static int mpc52xx_spi_fsmstate_transfer(int irq, struct mpc52xx_spi *ms,
 		dev_err(&ms->master->dev, "mode fault\n");
 		mpc52xx_spi_chipsel(ms, 0);
 		ms->message->status = -EIO;
-		ms->message->complete(ms->message->context);
+		if (ms->message->complete)
+			ms->message->complete(ms->message->context);
 		ms->state = mpc52xx_spi_fsmstate_idle;
 		return FSM_CONTINUE;
 	}
@@ -289,7 +289,8 @@ mpc52xx_spi_fsmstate_wait(int irq, struct mpc52xx_spi *ms, u8 status, u8 data)
 		ms->msg_count++;
 		mpc52xx_spi_chipsel(ms, 0);
 		ms->message->status = 0;
-		ms->message->complete(ms->message->context);
+		if (ms->message->complete)
+			ms->message->complete(ms->message->context);
 		ms->state = mpc52xx_spi_fsmstate_idle;
 		return FSM_CONTINUE;
 	}
@@ -357,20 +358,6 @@ static void mpc52xx_spi_wq(struct work_struct *work)
  * spi_master ops
  */
 
-static int mpc52xx_spi_setup(struct spi_device *spi)
-{
-	if (spi->bits_per_word % 8)
-		return -EINVAL;
-
-	if (spi->mode & ~(SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST))
-		return -EINVAL;
-
-	if (spi->chip_select >= spi->master->num_chipselect)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int mpc52xx_spi_transfer(struct spi_device *spi, struct spi_message *m)
 {
 	struct mpc52xx_spi *ms = spi_master_get_devdata(spi->master);
@@ -390,7 +377,7 @@ static int mpc52xx_spi_transfer(struct spi_device *spi, struct spi_message *m)
 /*
  * OF Platform Bus Binding
  */
-static int __devinit mpc52xx_spi_probe(struct platform_device *op)
+static int mpc52xx_spi_probe(struct platform_device *op)
 {
 	struct spi_master *master;
 	struct mpc52xx_spi *ms;
@@ -433,13 +420,12 @@ static int __devinit mpc52xx_spi_probe(struct platform_device *op)
 		goto err_alloc;
 	}
 
-	master->bus_num = -1;
-	master->setup = mpc52xx_spi_setup;
 	master->transfer = mpc52xx_spi_transfer;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->dev.of_node = op->dev.of_node;
 
-	dev_set_drvdata(&op->dev, master);
+	platform_set_drvdata(op, master);
 
 	ms = spi_master_get_devdata(master);
 	ms->master = master;
@@ -455,7 +441,7 @@ static int __devinit mpc52xx_spi_probe(struct platform_device *op)
 				GFP_KERNEL);
 		if (!ms->gpio_cs) {
 			rc = -ENOMEM;
-			goto err_alloc;
+			goto err_alloc_gpio;
 		}
 
 		for (i = 0; i < ms->gpio_cs_count; i++) {
@@ -479,8 +465,6 @@ static int __devinit mpc52xx_spi_probe(struct platform_device *op)
 			gpio_direction_output(gpio_cs, 1);
 			ms->gpio_cs[i] = gpio_cs;
 		}
-	} else {
-		master->num_chipselect = 1;
 	}
 
 	spin_lock_init(&ms->lock);
@@ -517,21 +501,22 @@ static int __devinit mpc52xx_spi_probe(struct platform_device *op)
 
  err_register:
 	dev_err(&ms->master->dev, "initialization failed\n");
-	spi_master_put(master);
  err_gpio:
 	while (i-- > 0)
 		gpio_free(ms->gpio_cs[i]);
 
 	kfree(ms->gpio_cs);
+ err_alloc_gpio:
+	spi_master_put(master);
  err_alloc:
  err_init:
 	iounmap(regs);
 	return rc;
 }
 
-static int __devexit mpc52xx_spi_remove(struct platform_device *op)
+static int mpc52xx_spi_remove(struct platform_device *op)
 {
-	struct spi_master *master = dev_get_drvdata(&op->dev);
+	struct spi_master *master = spi_master_get(platform_get_drvdata(op));
 	struct mpc52xx_spi *ms = spi_master_get_devdata(master);
 	int i;
 
@@ -543,13 +528,13 @@ static int __devexit mpc52xx_spi_remove(struct platform_device *op)
 
 	kfree(ms->gpio_cs);
 	spi_unregister_master(master);
-	spi_master_put(master);
 	iounmap(ms->regs);
+	spi_master_put(master);
 
 	return 0;
 }
 
-static const struct of_device_id mpc52xx_spi_match[] __devinitconst = {
+static const struct of_device_id mpc52xx_spi_match[] = {
 	{ .compatible = "fsl,mpc5200-spi", },
 	{}
 };
@@ -562,6 +547,6 @@ static struct platform_driver mpc52xx_spi_of_driver = {
 		.of_match_table = mpc52xx_spi_match,
 	},
 	.probe = mpc52xx_spi_probe,
-	.remove = __devexit_p(mpc52xx_spi_remove),
+	.remove = mpc52xx_spi_remove,
 };
 module_platform_driver(mpc52xx_spi_of_driver);

@@ -1,0 +1,16 @@
+config MTD_SPINAND_MT29F
+	tristate "SPINAND Device Support for Micron"
+	depends on MTD_NAND && SPI
+	help
+	  This enables support for accessing Micron SPI NAND flash
+	  devices.
+	  If you have Micron SPI NAND chip say yes.
+
+	  If unsure, say no here.
+
+config MTD_SPINAND_ONDIEECC
+	bool "Use SPINAND internal ECC"
+	depends on MTD_SPINAND_MT29F
+	help
+	  Internel ECC.
+	  Enables Hardware ECC support for Micron SPI NAND.

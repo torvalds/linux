@@ -39,7 +39,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -364,7 +363,7 @@ static int synusb_probe(struct usb_interface *intf,
 			 le16_to_cpu(udev->descriptor.idProduct));
 
 	if (synusb->flags & SYNUSB_STICK)
-		strlcat(synusb->name, " (Stick) ", sizeof(synusb->name));
+		strlcat(synusb->name, " (Stick)", sizeof(synusb->name));
 
 	usb_make_path(udev, synusb->phys, sizeof(synusb->phys));
 	strlcat(synusb->phys, "/input0", sizeof(synusb->phys));
@@ -388,6 +387,7 @@ static int synusb_probe(struct usb_interface *intf,
 		__set_bit(EV_REL, input_dev->evbit);
 		__set_bit(REL_X, input_dev->relbit);
 		__set_bit(REL_Y, input_dev->relbit);
+		__set_bit(INPUT_PROP_POINTING_STICK, input_dev->propbit);
 		input_set_abs_params(input_dev, ABS_PRESSURE, 0, 127, 0, 0);
 	} else {
 		input_set_abs_params(input_dev, ABS_X,
@@ -401,6 +401,11 @@ static int synusb_probe(struct usb_interface *intf,
 		__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 		__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 	}
+
+	if (synusb->flags & SYNUSB_TOUCHSCREEN)
+		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
+	else
+		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 
 	__set_bit(BTN_LEFT, input_dev->keybit);
 	__set_bit(BTN_RIGHT, input_dev->keybit);

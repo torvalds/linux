@@ -1,5 +1,5 @@
 /*
- * net/drivers/team/team_mode_roundrobin.c - Round-robin mode for team
+ * drivers/net/team/team_mode_roundrobin.c - Round-robin mode for team
  * Copyright (c) 2011 Jiri Pirko <jpirko@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,38 +25,20 @@ static struct rr_priv *rr_priv(struct team *team)
 	return (struct rr_priv *) &team->mode_priv;
 }
 
-static struct team_port *__get_first_port_up(struct team *team,
-					     struct team_port *port)
-{
-	struct team_port *cur;
-
-	if (port->linkup)
-		return port;
-	cur = port;
-	list_for_each_entry_continue_rcu(cur, &team->port_list, list)
-		if (cur->linkup)
-			return cur;
-	list_for_each_entry_rcu(cur, &team->port_list, list) {
-		if (cur == port)
-			break;
-		if (cur->linkup)
-			return cur;
-	}
-	return NULL;
-}
-
 static bool rr_transmit(struct team *team, struct sk_buff *skb)
 {
 	struct team_port *port;
 	int port_index;
 
-	port_index = rr_priv(team)->sent_packets++ % team->port_count;
+	port_index = team_num_to_port_index(team,
+					    rr_priv(team)->sent_packets++);
 	port = team_get_port_by_index_rcu(team, port_index);
-	port = __get_first_port_up(team, port);
 	if (unlikely(!port))
 		goto drop;
-	skb->dev = port->dev;
-	if (dev_queue_xmit(skb))
+	port = team_get_first_port_txable_rcu(team, port);
+	if (unlikely(!port))
+		goto drop;
+	if (team_dev_queue_xmit(team, port, skb))
 		return false;
 	return true;
 
@@ -65,23 +47,13 @@ drop:
 	return false;
 }
 
-static int rr_port_enter(struct team *team, struct team_port *port)
-{
-	return team_port_set_team_mac(port);
-}
-
-static void rr_port_change_mac(struct team *team, struct team_port *port)
-{
-	team_port_set_team_mac(port);
-}
-
 static const struct team_mode_ops rr_mode_ops = {
 	.transmit		= rr_transmit,
-	.port_enter		= rr_port_enter,
-	.port_change_mac	= rr_port_change_mac,
+	.port_enter		= team_modeop_port_enter,
+	.port_change_dev_addr	= team_modeop_port_change_dev_addr,
 };
 
-static struct team_mode rr_mode = {
+static const struct team_mode rr_mode = {
 	.kind		= "roundrobin",
 	.owner		= THIS_MODULE,
 	.priv_size	= sizeof(struct rr_priv),

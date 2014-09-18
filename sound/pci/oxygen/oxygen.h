@@ -161,9 +161,8 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 				     )
 		    );
 void oxygen_pci_remove(struct pci_dev *pci);
-#ifdef CONFIG_PM
-int oxygen_pci_suspend(struct pci_dev *pci, pm_message_t state);
-int oxygen_pci_resume(struct pci_dev *pci);
+#ifdef CONFIG_PM_SLEEP
+extern const struct dev_pm_ops oxygen_pci_pm;
 #endif
 void oxygen_pci_shutdown(struct pci_dev *pci);
 
@@ -199,7 +198,7 @@ void oxygen_write_ac97(struct oxygen *chip, unsigned int codec,
 void oxygen_write_ac97_masked(struct oxygen *chip, unsigned int codec,
 			      unsigned int index, u16 data, u16 mask);
 
-void oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data);
+int oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data);
 void oxygen_write_i2c(struct oxygen *chip, u8 device, u8 map, u8 data);
 
 void oxygen_reset_uart(struct oxygen *chip);

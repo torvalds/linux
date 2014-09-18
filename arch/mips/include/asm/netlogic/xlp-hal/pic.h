@@ -36,7 +36,7 @@
 #define _NLM_HAL_PIC_H
 
 /* PIC Specific registers */
-#define PIC_CTRL                0x00
+#define PIC_CTRL		0x00
 
 /* PIC control register defines */
 #define PIC_CTRL_ITV		32 /* interrupt timeout value */
@@ -71,41 +71,41 @@
 #define PIC_IRT_DB		16 /* Destination base */
 #define PIC_IRT_DTE		0  /* Destination thread enables */
 
-#define PIC_BYTESWAP            0x02
-#define PIC_STATUS              0x04
+#define PIC_BYTESWAP		0x02
+#define PIC_STATUS		0x04
 #define PIC_INTR_TIMEOUT	0x06
 #define PIC_ICI0_INTR_TIMEOUT	0x08
 #define PIC_ICI1_INTR_TIMEOUT	0x0a
 #define PIC_ICI2_INTR_TIMEOUT	0x0c
 #define PIC_IPI_CTL		0x0e
-#define PIC_INT_ACK             0x10
-#define PIC_INT_PENDING0        0x12
-#define PIC_INT_PENDING1        0x14
-#define PIC_INT_PENDING2        0x16
+#define PIC_INT_ACK		0x10
+#define PIC_INT_PENDING0	0x12
+#define PIC_INT_PENDING1	0x14
+#define PIC_INT_PENDING2	0x16
 
-#define PIC_WDOG0_MAXVAL        0x18
-#define PIC_WDOG0_COUNT         0x1a
-#define PIC_WDOG0_ENABLE0       0x1c
-#define PIC_WDOG0_ENABLE1       0x1e
-#define PIC_WDOG0_BEATCMD       0x20
-#define PIC_WDOG0_BEAT0         0x22
-#define PIC_WDOG0_BEAT1         0x24
+#define PIC_WDOG0_MAXVAL	0x18
+#define PIC_WDOG0_COUNT		0x1a
+#define PIC_WDOG0_ENABLE0	0x1c
+#define PIC_WDOG0_ENABLE1	0x1e
+#define PIC_WDOG0_BEATCMD	0x20
+#define PIC_WDOG0_BEAT0		0x22
+#define PIC_WDOG0_BEAT1		0x24
 
-#define PIC_WDOG1_MAXVAL        0x26
-#define PIC_WDOG1_COUNT         0x28
-#define PIC_WDOG1_ENABLE0       0x2a
-#define PIC_WDOG1_ENABLE1       0x2c
-#define PIC_WDOG1_BEATCMD       0x2e
-#define PIC_WDOG1_BEAT0         0x30
-#define PIC_WDOG1_BEAT1         0x32
+#define PIC_WDOG1_MAXVAL	0x26
+#define PIC_WDOG1_COUNT		0x28
+#define PIC_WDOG1_ENABLE0	0x2a
+#define PIC_WDOG1_ENABLE1	0x2c
+#define PIC_WDOG1_BEATCMD	0x2e
+#define PIC_WDOG1_BEAT0		0x30
+#define PIC_WDOG1_BEAT1		0x32
 
-#define PIC_WDOG_MAXVAL(i)      (PIC_WDOG0_MAXVAL + ((i) ? 7 : 0))
-#define PIC_WDOG_COUNT(i)       (PIC_WDOG0_COUNT + ((i) ? 7 : 0))
-#define PIC_WDOG_ENABLE0(i)     (PIC_WDOG0_ENABLE0 + ((i) ? 7 : 0))
-#define PIC_WDOG_ENABLE1(i)     (PIC_WDOG0_ENABLE1 + ((i) ? 7 : 0))
-#define PIC_WDOG_BEATCMD(i)     (PIC_WDOG0_BEATCMD + ((i) ? 7 : 0))
-#define PIC_WDOG_BEAT0(i)       (PIC_WDOG0_BEAT0 + ((i) ? 7 : 0))
-#define PIC_WDOG_BEAT1(i)       (PIC_WDOG0_BEAT1 + ((i) ? 7 : 0))
+#define PIC_WDOG_MAXVAL(i)	(PIC_WDOG0_MAXVAL + ((i) ? 7 : 0))
+#define PIC_WDOG_COUNT(i)	(PIC_WDOG0_COUNT + ((i) ? 7 : 0))
+#define PIC_WDOG_ENABLE0(i)	(PIC_WDOG0_ENABLE0 + ((i) ? 7 : 0))
+#define PIC_WDOG_ENABLE1(i)	(PIC_WDOG0_ENABLE1 + ((i) ? 7 : 0))
+#define PIC_WDOG_BEATCMD(i)	(PIC_WDOG0_BEATCMD + ((i) ? 7 : 0))
+#define PIC_WDOG_BEAT0(i)	(PIC_WDOG0_BEAT0 + ((i) ? 7 : 0))
+#define PIC_WDOG_BEAT1(i)	(PIC_WDOG0_BEAT1 + ((i) ? 7 : 0))
 
 #define PIC_TIMER0_MAXVAL    0x34
 #define PIC_TIMER1_MAXVAL    0x36
@@ -127,35 +127,42 @@
 #define PIC_TIMER7_COUNT     0x52
 #define PIC_TIMER_COUNT(i)   (PIC_TIMER0_COUNT + ((i) * 2))
 
-#define PIC_ITE0_N0_N1          0x54
-#define PIC_ITE1_N0_N1          0x58
-#define PIC_ITE2_N0_N1          0x5c
-#define PIC_ITE3_N0_N1          0x60
-#define PIC_ITE4_N0_N1          0x64
-#define PIC_ITE5_N0_N1          0x68
-#define PIC_ITE6_N0_N1          0x6c
-#define PIC_ITE7_N0_N1          0x70
-#define PIC_ITE_N0_N1(i)        (PIC_ITE0_N0_N1 + ((i) * 4))
+#define PIC_ITE0_N0_N1		0x54
+#define PIC_ITE1_N0_N1		0x58
+#define PIC_ITE2_N0_N1		0x5c
+#define PIC_ITE3_N0_N1		0x60
+#define PIC_ITE4_N0_N1		0x64
+#define PIC_ITE5_N0_N1		0x68
+#define PIC_ITE6_N0_N1		0x6c
+#define PIC_ITE7_N0_N1		0x70
+#define PIC_ITE_N0_N1(i)	(PIC_ITE0_N0_N1 + ((i) * 4))
 
-#define PIC_ITE0_N2_N3          0x56
-#define PIC_ITE1_N2_N3          0x5a
-#define PIC_ITE2_N2_N3          0x5e
-#define PIC_ITE3_N2_N3          0x62
-#define PIC_ITE4_N2_N3          0x66
-#define PIC_ITE5_N2_N3          0x6a
-#define PIC_ITE6_N2_N3          0x6e
-#define PIC_ITE7_N2_N3          0x72
-#define PIC_ITE_N2_N3(i)        (PIC_ITE0_N2_N3 + ((i) * 4))
+#define PIC_ITE0_N2_N3		0x56
+#define PIC_ITE1_N2_N3		0x5a
+#define PIC_ITE2_N2_N3		0x5e
+#define PIC_ITE3_N2_N3		0x62
+#define PIC_ITE4_N2_N3		0x66
+#define PIC_ITE5_N2_N3		0x6a
+#define PIC_ITE6_N2_N3		0x6e
+#define PIC_ITE7_N2_N3		0x72
+#define PIC_ITE_N2_N3(i)	(PIC_ITE0_N2_N3 + ((i) * 4))
 
-#define PIC_IRT0                0x74
-#define PIC_IRT(i)              (PIC_IRT0 + ((i) * 2))
+#define PIC_IRT0		0x74
+#define PIC_IRT(i)		(PIC_IRT0 + ((i) * 2))
 
-#define TIMER_CYCLES_MAXVAL	0xffffffffffffffffULL
+#define PIC_9XX_PENDING_0	0x6
+#define PIC_9XX_PENDING_1	0x8
+#define PIC_9XX_PENDING_2	0xa
+#define PIC_9XX_PENDING_3	0xc
+
+#define PIC_9XX_IRT0		0x1c0
+#define PIC_9XX_IRT(i)		(PIC_9XX_IRT0 + ((i) * 2))
 
 /*
  *    IRT Map
  */
 #define PIC_NUM_IRTS		160
+#define PIC_9XX_NUM_IRTS	256
 
 #define PIC_IRT_WD_0_INDEX	0
 #define PIC_IRT_WD_1_INDEX	1
@@ -191,64 +198,14 @@
 #define PIC_IRT_PCIE_LINK_2_INDEX	80
 #define PIC_IRT_PCIE_LINK_3_INDEX	81
 #define PIC_IRT_PCIE_LINK_INDEX(num)	((num) + PIC_IRT_PCIE_LINK_0_INDEX)
-/* 78 to 81 */
-#define PIC_NUM_NA_IRTS			32
-/* 82 to 113 */
-#define PIC_IRT_NA_0_INDEX		82
-#define PIC_IRT_NA_INDEX(num)		((num) + PIC_IRT_NA_0_INDEX)
-#define PIC_IRT_POE_INDEX		114
 
-#define PIC_NUM_USB_IRTS		6
-#define PIC_IRT_USB_0_INDEX		115
-#define PIC_IRT_EHCI_0_INDEX		115
-#define PIC_IRT_EHCI_1_INDEX		118
-#define PIC_IRT_USB_INDEX(num)		((num) + PIC_IRT_USB_0_INDEX)
-/* 115 to 120 */
-#define PIC_IRT_GDX_INDEX		121
-#define PIC_IRT_SEC_INDEX		122
-#define PIC_IRT_RSA_INDEX		123
-
-#define PIC_NUM_COMP_IRTS		4
-#define PIC_IRT_COMP_0_INDEX		124
-#define PIC_IRT_COMP_INDEX(num)		((num) + PIC_IRT_COMP_0_INDEX)
-/* 124 to 127 */
-#define PIC_IRT_GBU_INDEX		128
-#define PIC_IRT_ICC_0_INDEX		129 /* ICC - Inter Chip Coherency */
-#define PIC_IRT_ICC_1_INDEX		130
-#define PIC_IRT_ICC_2_INDEX		131
-#define PIC_IRT_CAM_INDEX		132
-#define PIC_IRT_UART_0_INDEX		133
-#define PIC_IRT_UART_1_INDEX		134
-#define PIC_IRT_I2C_0_INDEX		135
-#define PIC_IRT_I2C_1_INDEX		136
-#define PIC_IRT_SYS_0_INDEX		137
-#define PIC_IRT_SYS_1_INDEX		138
-#define PIC_IRT_JTAG_INDEX		139
-#define PIC_IRT_PIC_INDEX		140
-#define PIC_IRT_NBU_INDEX		141
-#define PIC_IRT_TCU_INDEX		142
-#define PIC_IRT_GCU_INDEX		143 /* GBC - Global Coherency */
-#define PIC_IRT_DMC_0_INDEX		144
-#define PIC_IRT_DMC_1_INDEX		145
-
-#define PIC_NUM_GPIO_IRTS		4
-#define PIC_IRT_GPIO_0_INDEX		146
-#define PIC_IRT_GPIO_INDEX(num)		((num) + PIC_IRT_GPIO_0_INDEX)
-
-/* 146 to 149 */
-#define PIC_IRT_NOR_INDEX		150
-#define PIC_IRT_NAND_INDEX		151
-#define PIC_IRT_SPI_INDEX		152
-#define PIC_IRT_MMC_INDEX		153
+#define PIC_9XX_IRT_PCIE_LINK_0_INDEX	191
+#define PIC_9XX_IRT_PCIE_LINK_INDEX(num) \
+				((num) + PIC_9XX_IRT_PCIE_LINK_0_INDEX)
 
 #define PIC_CLOCK_TIMER			7
-#define PIC_IRQ_BASE			8
 
 #if !defined(LOCORE) && !defined(__ASSEMBLY__)
-
-#define PIC_IRT_FIRST_IRQ		(PIC_IRQ_BASE)
-#define PIC_IRT_LAST_IRQ		63
-#define PIC_IRQ_IS_IRT(irq)		((irq) >= PIC_IRT_FIRST_IRQ)
 
 /*
  *   Misc
@@ -259,47 +216,26 @@
 
 #define nlm_read_pic_reg(b, r)	nlm_read_reg64(b, r)
 #define nlm_write_pic_reg(b, r, v) nlm_write_reg64(b, r, v)
-#define nlm_get_pic_pcibase(node) nlm_pcicfg_base(XLP_IO_PIC_OFFSET(node))
+#define nlm_get_pic_pcibase(node)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
+		XLP9XX_IO_PIC_OFFSET(node) : XLP_IO_PIC_OFFSET(node))
 #define nlm_get_pic_regbase(node) (nlm_get_pic_pcibase(node) + XLP_IO_PCI_HDRSZ)
 
+/* We use PIC on node 0 as a timer */
+#define pic_timer_freq()		nlm_get_pic_frequency(0)
+
 /* IRT and h/w interrupt routines */
-static inline int
-nlm_pic_read_irt(uint64_t base, int irt_index)
-{
-	return nlm_read_pic_reg(base, PIC_IRT(irt_index));
-}
-
-static inline uint64_t
-nlm_pic_read_control(uint64_t base)
-{
-	return nlm_read_pic_reg(base, PIC_CTRL);
-}
-
 static inline void
-nlm_pic_write_control(uint64_t base, uint64_t control)
-{
-	nlm_write_pic_reg(base, PIC_CTRL, control);
-}
-
-static inline void
-nlm_pic_update_control(uint64_t base, uint64_t control)
+nlm_9xx_pic_write_irt(uint64_t base, int irt_num, int en, int nmi,
+	int sch, int vec, int dt, int db, int cpu)
 {
 	uint64_t val;
 
-	val = nlm_read_pic_reg(base, PIC_CTRL);
-	nlm_write_pic_reg(base, PIC_CTRL, control | val);
-}
+	val = (((uint64_t)en & 0x1) << 22) | ((nmi & 0x1) << 23) |
+			((0 /*mc*/) << 20) | ((vec & 0x3f) << 24) |
+			((dt & 0x1) << 21) | (0 /*ptr*/ << 16) |
+			(cpu & 0x3ff);
 
-static inline void
-nlm_set_irt_to_cpu(uint64_t base, int irt, int cpu)
-{
-	uint64_t val;
-
-	val = nlm_read_pic_reg(base, PIC_IRT(irt));
-	val |= cpu & 0xf;
-	if (cpu > 15)
-		val |= 1 << 16;
-	nlm_write_pic_reg(base, PIC_IRT(irt), val);
+	nlm_write_pic_reg(base, PIC_9XX_IRT(irt_num), val);
 }
 
 static inline void
@@ -320,15 +256,25 @@ static inline void
 nlm_pic_write_irt_direct(uint64_t base, int irt_num, int en, int nmi,
 	int sch, int vec, int cpu)
 {
-	nlm_pic_write_irt(base, irt_num, en, nmi, sch, vec, 1,
-		(cpu >> 4),		/* thread group */
-		1 << (cpu & 0xf));	/* thread mask */
+	if (cpu_is_xlp9xx())
+		nlm_9xx_pic_write_irt(base, irt_num, en, nmi, sch, vec,
+							1, 0, cpu);
+	else
+		nlm_pic_write_irt(base, irt_num, en, nmi, sch, vec, 1,
+			(cpu >> 4),		/* thread group */
+			1 << (cpu & 0xf));	/* thread mask */
 }
 
 static inline uint64_t
 nlm_pic_read_timer(uint64_t base, int timer)
 {
 	return nlm_read_pic_reg(base, PIC_TIMER_COUNT(timer));
+}
+
+static inline uint32_t
+nlm_pic_read_timer32(uint64_t base, int timer)
+{
+	return (uint32_t)nlm_read_pic_reg(base, PIC_TIMER_COUNT(timer));
 }
 
 static inline void
@@ -358,31 +304,42 @@ nlm_pic_enable_irt(uint64_t base, int irt)
 {
 	uint64_t reg;
 
-	reg = nlm_read_pic_reg(base, PIC_IRT(irt));
-	nlm_write_pic_reg(base, PIC_IRT(irt), reg | (1u << 31));
+	if (cpu_is_xlp9xx()) {
+		reg = nlm_read_pic_reg(base, PIC_9XX_IRT(irt));
+		nlm_write_pic_reg(base, PIC_9XX_IRT(irt), reg | (1 << 22));
+	} else {
+		reg = nlm_read_pic_reg(base, PIC_IRT(irt));
+		nlm_write_pic_reg(base, PIC_IRT(irt), reg | (1u << 31));
+	}
 }
 
 static inline void
 nlm_pic_disable_irt(uint64_t base, int irt)
 {
-	uint32_t reg;
+	uint64_t reg;
 
-	reg = nlm_read_pic_reg(base, PIC_IRT(irt));
-	nlm_write_pic_reg(base, PIC_IRT(irt), reg & ~((uint64_t)1 << 31));
+	if (cpu_is_xlp9xx()) {
+		reg = nlm_read_pic_reg(base, PIC_9XX_IRT(irt));
+		reg &= ~((uint64_t)1 << 22);
+		nlm_write_pic_reg(base, PIC_9XX_IRT(irt), reg);
+	} else {
+		reg = nlm_read_pic_reg(base, PIC_IRT(irt));
+		reg &= ~((uint64_t)1 << 31);
+		nlm_write_pic_reg(base, PIC_IRT(irt), reg);
+	}
 }
 
 static inline void
 nlm_pic_send_ipi(uint64_t base, int hwt, int irq, int nmi)
 {
 	uint64_t ipi;
-	int	node, ncpu;
 
-	node = hwt / 32;
-	ncpu = hwt & 0x1f;
-	ipi = ((uint64_t)nmi << 31) | (irq << 20) | (node << 17) |
-		(1 << (ncpu & 0xf));
-	if (ncpu > 15)
-		ipi |= 0x10000; /* Setting bit 16 to select cpus 16-31 */
+	if (cpu_is_xlp9xx())
+		ipi = (nmi << 23) | (irq << 24) |
+			(0/*mcm*/ << 20) | (0/*ptr*/ << 16) | hwt;
+	else
+		ipi = ((uint64_t)nmi << 31) | (irq << 20) |
+			((hwt >> 4) << 16) | (1 << (hwt & 0xf));
 
 	nlm_write_pic_reg(base, PIC_IPI_CTL, ipi);
 }
@@ -398,14 +355,12 @@ nlm_pic_ack(uint64_t base, int irt_num)
 }
 
 static inline void
-nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt)
+nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt, int en)
 {
-	nlm_pic_write_irt_direct(base, irt, 0, 0, 0, irq, 0);
+	nlm_pic_write_irt_direct(base, irt, en, 0, 0, irq, hwt);
 }
 
-extern uint64_t nlm_pic_base;
 int nlm_irq_to_irt(int irq);
-int nlm_irt_to_irq(int irt);
 
 #endif /* __ASSEMBLY__ */
 #endif /* _NLM_HAL_PIC_H */

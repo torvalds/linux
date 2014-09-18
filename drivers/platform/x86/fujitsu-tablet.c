@@ -16,6 +16,8 @@
  * 59 Temple Place Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -34,7 +36,8 @@
 #define ACPI_FUJITSU_CLASS "fujitsu"
 
 #define INVERT_TABLET_MODE_BIT      0x01
-#define FORCE_TABLET_MODE_IF_UNDOCK 0x02
+#define INVERT_DOCK_STATE_BIT       0x02
+#define FORCE_TABLET_MODE_IF_UNDOCK 0x04
 
 #define KEYMAP_LEN 16
 
@@ -49,7 +52,7 @@ struct fujitsu_config {
 	unsigned int quirks;
 };
 
-static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -68,7 +71,45 @@ static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Lifebook_T901[KEYMAP_LEN] __initdata = {
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_SCROLLDOWN,
+	KEY_SCROLLUP,
+	KEY_CYCLEWINDOWS,
+	KEY_LEFTCTRL,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_LEFTMETA
+};
+
+static unsigned short keymap_Lifebook_T902[KEYMAP_LEN] __initdata = {
+	KEY_RESERVED,
+	KEY_VOLUMEDOWN,
+	KEY_VOLUMEUP,
+	KEY_CYCLEWINDOWS,
+	KEY_PROG1,
+	KEY_PROG2,
+	KEY_LEFTMETA,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+};
+
+static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -87,7 +128,7 @@ static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Stylistic_Tseries[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Stylistic_Tseries[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -106,7 +147,7 @@ static unsigned short keymap_Stylistic_Tseries[KEYMAP_LEN] __initconst = {
 	KEY_LEFTALT
 };
 
-static unsigned short keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initconst = {
+static unsigned short keymap_Stylistic_ST5xxx[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -161,6 +202,8 @@ static void fujitsu_send_state(void)
 	state = fujitsu_read_register(0xdd);
 
 	dock = state & 0x02;
+	if (fujitsu.config.quirks & INVERT_DOCK_STATE_BIT)
+		dock = !dock;
 
 	if ((fujitsu.config.quirks & FORCE_TABLET_MODE_IF_UNDOCK) && (!dock)) {
 		tablet_mode = 1;
@@ -187,8 +230,8 @@ static void fujitsu_reset(void)
 	fujitsu_send_state();
 }
 
-static int __devinit input_fujitsu_setup(struct device *parent,
-					 const char *name, const char *phys)
+static int input_fujitsu_setup(struct device *parent, const char *name,
+			       const char *phys)
 {
 	struct input_dev *idev;
 	int error;
@@ -217,9 +260,6 @@ static int __devinit input_fujitsu_setup(struct device *parent,
 			input_set_capability(idev, EV_KEY, fujitsu.config.keymap[i]);
 
 	input_set_capability(idev, EV_MSC, MSC_SCAN);
-
-	input_set_capability(idev, EV_SW, SW_DOCK);
-	input_set_capability(idev, EV_SW, SW_TABLET_MODE);
 
 	input_set_capability(idev, EV_SW, SW_DOCK);
 	input_set_capability(idev, EV_SW, SW_TABLET_MODE);
@@ -275,25 +315,58 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit fujitsu_dmi_default(const struct dmi_system_id *dmi)
+static void __init fujitsu_dmi_common(const struct dmi_system_id *dmi)
 {
-	printk(KERN_INFO MODULENAME ": %s\n", dmi->ident);
+	pr_info("%s\n", dmi->ident);
 	memcpy(fujitsu.config.keymap, dmi->driver_data,
 			sizeof(fujitsu.config.keymap));
-	return 1;
 }
 
-static int __devinit fujitsu_dmi_stylistic(const struct dmi_system_id *dmi)
+static int __init fujitsu_dmi_lifebook(const struct dmi_system_id *dmi)
 {
-	fujitsu_dmi_default(dmi);
-	fujitsu.config.quirks |= FORCE_TABLET_MODE_IF_UNDOCK;
+	fujitsu_dmi_common(dmi);
 	fujitsu.config.quirks |= INVERT_TABLET_MODE_BIT;
 	return 1;
 }
 
-static struct dmi_system_id dmi_ids[] __initconst = {
+static int __init fujitsu_dmi_stylistic(const struct dmi_system_id *dmi)
+{
+	fujitsu_dmi_common(dmi);
+	fujitsu.config.quirks |= FORCE_TABLET_MODE_IF_UNDOCK;
+	fujitsu.config.quirks |= INVERT_DOCK_STATE_BIT;
+	return 1;
+}
+
+static const struct dmi_system_id dmi_ids[] __initconst = {
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_lifebook,
+		.ident = "Fujitsu Lifebook T901",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook T901")
+		},
+		.driver_data = keymap_Lifebook_T901
+	},
+	{
+		.callback = fujitsu_dmi_lifebook,
+		.ident = "Fujitsu Lifebook T901",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK T901")
+		},
+		.driver_data = keymap_Lifebook_T901
+	},
+	{
+		.callback = fujitsu_dmi_lifebook,
+		.ident = "Fujitsu Lifebook T902",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK T902")
+		},
+		.driver_data = keymap_Lifebook_T902
+	},
+	{
+		.callback = fujitsu_dmi_lifebook,
 		.ident = "Fujitsu Siemens P/T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -302,7 +375,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 		.driver_data = keymap_Lifebook_Tseries
 	},
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_lifebook,
 		.ident = "Fujitsu Lifebook T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -320,7 +393,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 		.driver_data = keymap_Stylistic_Tseries
 	},
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_lifebook,
 		.ident = "Fujitsu LifeBook U810",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -347,7 +420,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 		.driver_data = keymap_Stylistic_ST5xxx
 	},
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_lifebook,
 		.ident = "Unknown (using defaults)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, ""),
@@ -358,8 +431,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 	{ NULL }
 };
 
-static acpi_status __devinit
-fujitsu_walk_resources(struct acpi_resource *res, void *data)
+static acpi_status fujitsu_walk_resources(struct acpi_resource *res, void *data)
 {
 	switch (res->type) {
 	case ACPI_RESOURCE_TYPE_IRQ:
@@ -382,7 +454,7 @@ fujitsu_walk_resources(struct acpi_resource *res, void *data)
 	}
 }
 
-static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
+static int acpi_fujitsu_add(struct acpi_device *adev)
 {
 	acpi_status status;
 	int error;
@@ -424,7 +496,7 @@ static int __devinit acpi_fujitsu_add(struct acpi_device *adev)
 	return 0;
 }
 
-static int __devexit acpi_fujitsu_remove(struct acpi_device *adev, int type)
+static int acpi_fujitsu_remove(struct acpi_device *adev)
 {
 	free_irq(fujitsu.irq, fujitsu_interrupt);
 	release_region(fujitsu.io_base, fujitsu.io_length);
@@ -432,11 +504,15 @@ static int __devexit acpi_fujitsu_remove(struct acpi_device *adev, int type)
 	return 0;
 }
 
-static int acpi_fujitsu_resume(struct acpi_device *adev)
+#ifdef CONFIG_PM_SLEEP
+static int acpi_fujitsu_resume(struct device *dev)
 {
 	fujitsu_reset();
 	return 0;
 }
+#endif
+
+static SIMPLE_DEV_PM_OPS(acpi_fujitsu_pm, NULL, acpi_fujitsu_resume);
 
 static struct acpi_driver acpi_fujitsu_driver = {
 	.name  = MODULENAME,
@@ -445,8 +521,8 @@ static struct acpi_driver acpi_fujitsu_driver = {
 	.ops   = {
 		.add    = acpi_fujitsu_add,
 		.remove	= acpi_fujitsu_remove,
-		.resume = acpi_fujitsu_resume,
-	}
+	},
+	.drv.pm = &acpi_fujitsu_pm,
 };
 
 static int __init fujitsu_module_init(void)
@@ -473,6 +549,6 @@ module_exit(fujitsu_module_exit);
 MODULE_AUTHOR("Robert Gerlach <khnz@gmx.de>");
 MODULE_DESCRIPTION("Fujitsu tablet pc extras driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("2.4");
+MODULE_VERSION("2.5");
 
 MODULE_DEVICE_TABLE(acpi, fujitsu_ids);

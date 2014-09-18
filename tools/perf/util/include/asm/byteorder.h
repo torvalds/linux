@@ -1,2 +1,2 @@
 #include <asm/types.h>
-#include "../../../../include/linux/swab.h"
+#include "../../../../include/uapi/linux/swab.h"

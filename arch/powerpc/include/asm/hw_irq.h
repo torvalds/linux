@@ -25,6 +25,7 @@
 #define PACA_IRQ_EE		0x04
 #define PACA_IRQ_DEC		0x08 /* Or FIT */
 #define PACA_IRQ_EE_EDGE	0x10 /* BookE only */
+#define PACA_IRQ_HMI		0x20
 
 #endif /* CONFIG_PPC64 */
 
@@ -33,6 +34,9 @@
 extern void __replay_interrupt(unsigned int vector);
 
 extern void timer_interrupt(struct pt_regs *);
+extern void performance_monitor_exception(struct pt_regs *regs);
+extern void WatchdogException(struct pt_regs *regs);
+extern void unknown_exception(struct pt_regs *regs);
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
@@ -85,18 +89,26 @@ static inline bool arch_irqs_disabled(void)
 }
 
 #ifdef CONFIG_PPC_BOOK3E
-#define __hard_irq_enable()	asm volatile("wrteei 1" : : : "memory");
-#define __hard_irq_disable()	asm volatile("wrteei 0" : : : "memory");
+#define __hard_irq_enable()	asm volatile("wrteei 1" : : : "memory")
+#define __hard_irq_disable()	asm volatile("wrteei 0" : : : "memory")
 #else
 #define __hard_irq_enable()	__mtmsrd(local_paca->kernel_msr | MSR_EE, 1)
 #define __hard_irq_disable()	__mtmsrd(local_paca->kernel_msr, 1)
 #endif
 
-static inline void hard_irq_disable(void)
+#define hard_irq_disable()	do {			\
+	u8 _was_enabled;				\
+	__hard_irq_disable();				\
+	_was_enabled = local_paca->soft_enabled;	\
+	local_paca->soft_enabled = 0;			\
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;	\
+	if (_was_enabled)				\
+		trace_hardirqs_off();			\
+} while(0)
+
+static inline bool lazy_irq_pending(void)
 {
-	__hard_irq_disable();
-	get_paca()->soft_enabled = 0;
-	get_paca()->irq_happened |= PACA_IRQ_HARD_DIS;
+	return !!(get_paca()->irq_happened & ~PACA_IRQ_HARD_DIS);
 }
 
 /*
@@ -115,6 +127,8 @@ static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
 {
 	return !regs->softe;
 }
+
+extern bool prep_irq_for_idle(void);
 
 #else /* CONFIG_PPC64 */
 

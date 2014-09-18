@@ -279,6 +279,7 @@ static struct request *get_rdac_req(struct scsi_device *sdev,
 				"get_rdac_req: blk_get_request failed.\n");
 		return NULL;
 	}
+	blk_rq_set_block_pc(rq);
 
 	if (buflen && blk_rq_map_kern(q, rq, buffer, buflen, GFP_NOIO)) {
 		blk_put_request(rq);
@@ -287,7 +288,6 @@ static struct request *get_rdac_req(struct scsi_device *sdev,
 		return NULL;
 	}
 
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->cmd_flags |= REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT |
 			 REQ_FAILFAST_DRIVER;
 	rq->retries = RDAC_RETRIES;
@@ -786,33 +786,24 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"IBM", "1742"},
 	{"IBM", "1745"},
 	{"IBM", "1746"},
+	{"IBM", "1813"},
 	{"IBM", "1814"},
 	{"IBM", "1815"},
 	{"IBM", "1818"},
 	{"IBM", "3526"},
-	{"SGI", "TP9400"},
-	{"SGI", "TP9500"},
-	{"SGI", "TP9700"},
+	{"SGI", "TP9"},
 	{"SGI", "IS"},
 	{"STK", "OPENstorage D280"},
-	{"SUN", "CSM200_R"},
-	{"SUN", "LCSM100_I"},
-	{"SUN", "LCSM100_S"},
-	{"SUN", "LCSM100_E"},
-	{"SUN", "LCSM100_F"},
-	{"DELL", "MD3000"},
-	{"DELL", "MD3000i"},
-	{"DELL", "MD32xx"},
-	{"DELL", "MD32xxi"},
-	{"DELL", "MD36xxi"},
-	{"DELL", "MD36xxf"},
-	{"LSI", "INF-01-00"},
-	{"ENGENIO", "INF-01-00"},
 	{"STK", "FLEXLINE 380"},
-	{"SUN", "CSM100_R_FC"},
+	{"SUN", "CSM"},
+	{"SUN", "LCSM100"},
 	{"SUN", "STK6580_6780"},
 	{"SUN", "SUN_6180"},
 	{"SUN", "ArrayStorage"},
+	{"DELL", "MD3"},
+	{"NETAPP", "INF-01-00"},
+	{"LSI", "INF-01-00"},
+	{"ENGENIO", "INF-01-00"},
 	{NULL, NULL},
 };
 
@@ -863,7 +854,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	if (!scsi_dh_data) {
 		sdev_printk(KERN_ERR, sdev, "%s: Attach failed\n",
 			    RDAC_NAME);
-		return 0;
+		return -ENOMEM;
 	}
 
 	scsi_dh_data->scsi_dh = &rdac_dh;

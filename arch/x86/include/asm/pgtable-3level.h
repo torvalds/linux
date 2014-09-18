@@ -9,13 +9,13 @@
  */
 
 #define pte_ERROR(e)							\
-	printk("%s:%d: bad pte %p(%08lx%08lx).\n",			\
+	pr_err("%s:%d: bad pte %p(%08lx%08lx)\n",			\
 	       __FILE__, __LINE__, &(e), (e).pte_high, (e).pte_low)
 #define pmd_ERROR(e)							\
-	printk("%s:%d: bad pmd %p(%016Lx).\n",				\
+	pr_err("%s:%d: bad pmd %p(%016Lx)\n",				\
 	       __FILE__, __LINE__, &(e), pmd_val(e))
 #define pgd_ERROR(e)							\
-	printk("%s:%d: bad pgd %p(%016Lx).\n",				\
+	pr_err("%s:%d: bad pgd %p(%016Lx)\n",				\
 	       __FILE__, __LINE__, &(e), pgd_val(e))
 
 /* Rules for using set_pte: the pte being assigned *must* be
@@ -29,6 +29,60 @@ static inline void native_set_pte(pte_t *ptep, pte_t pte)
 	ptep->pte_high = pte.pte_high;
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
+}
+
+#define pmd_read_atomic pmd_read_atomic
+/*
+ * pte_offset_map_lock on 32bit PAE kernels was reading the pmd_t with
+ * a "*pmdp" dereference done by gcc. Problem is, in certain places
+ * where pte_offset_map_lock is called, concurrent page faults are
+ * allowed, if the mmap_sem is hold for reading. An example is mincore
+ * vs page faults vs MADV_DONTNEED. On the page fault side
+ * pmd_populate rightfully does a set_64bit, but if we're reading the
+ * pmd_t with a "*pmdp" on the mincore side, a SMP race can happen
+ * because gcc will not read the 64bit of the pmd atomically. To fix
+ * this all places running pmd_offset_map_lock() while holding the
+ * mmap_sem in read mode, shall read the pmdp pointer using this
+ * function to know if the pmd is null nor not, and in turn to know if
+ * they can run pmd_offset_map_lock or pmd_trans_huge or other pmd
+ * operations.
+ *
+ * Without THP if the mmap_sem is hold for reading, the pmd can only
+ * transition from null to not null while pmd_read_atomic runs. So
+ * we can always return atomic pmd values with this function.
+ *
+ * With THP if the mmap_sem is hold for reading, the pmd can become
+ * trans_huge or none or point to a pte (and in turn become "stable")
+ * at any time under pmd_read_atomic. We could read it really
+ * atomically here with a atomic64_read for the THP enabled case (and
+ * it would be a whole lot simpler), but to avoid using cmpxchg8b we
+ * only return an atomic pmdval if the low part of the pmdval is later
+ * found stable (i.e. pointing to a pte). And we're returning a none
+ * pmdval if the low part of the pmd is none. In some cases the high
+ * and low part of the pmdval returned may not be consistent if THP is
+ * enabled (the low part may point to previously mapped hugepage,
+ * while the high part may point to a more recently mapped hugepage),
+ * but pmd_none_or_trans_huge_or_clear_bad() only needs the low part
+ * of the pmd to be read atomically to decide if the pmd is unstable
+ * or not, with the only exception of when the low part of the pmd is
+ * zero in which case we return a none pmd.
+ */
+static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
+{
+	pmdval_t ret;
+	u32 *tmp = (u32 *)pmdp;
+
+	ret = (pmdval_t) (*tmp);
+	if (ret) {
+		/*
+		 * If the low part is null, we must not read the high part
+		 * or we can end up with a partial pmd.
+		 */
+		smp_rmb();
+		ret |= ((pmdval_t)*(tmp + 1)) << 32;
+	}
+
+	return (pmd_t) { ret };
 }
 
 static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
@@ -125,6 +179,9 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *pmdp)
 /*
  * Bits 0, 6 and 7 are taken in the low part of the pte,
  * put the 32 bits of offset into the high part.
+ *
+ * For soft-dirty tracking 11 bit is taken from
+ * the low part of pte as well.
  */
 #define pte_to_pgoff(pte) ((pte).pte_high)
 #define pgoff_to_pte(off)						\

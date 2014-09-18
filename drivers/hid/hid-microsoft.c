@@ -5,7 +5,6 @@
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
  *  Copyright (c) 2006-2007 Jiri Kosina
- *  Copyright (c) 2007 Paul Walmsley
  *  Copyright (c) 2008 Jiri Slaby
  */
 
@@ -29,21 +28,29 @@
 #define MS_RDESC		0x08
 #define MS_NOGET		0x10
 #define MS_DUPLICATE_USAGES	0x20
+#define MS_RDESC_3K		0x40
 
-/*
- * Microsoft Wireless Desktop Receiver (Model 1028) has
- * 'Usage Min/Max' where it ought to have 'Physical Min/Max'
- */
 static __u8 *ms_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
 
+	/*
+	 * Microsoft Wireless Desktop Receiver (Model 1028) has
+	 * 'Usage Min/Max' where it ought to have 'Physical Min/Max'
+	 */
 	if ((quirks & MS_RDESC) && *rsize == 571 && rdesc[557] == 0x19 &&
 			rdesc[559] == 0x29) {
 		hid_info(hdev, "fixing up Microsoft Wireless Receiver Model 1028 report descriptor\n");
 		rdesc[557] = 0x35;
 		rdesc[559] = 0x45;
+	}
+	/* the same as above (s/usage/physical/) */
+	if ((quirks & MS_RDESC_3K) && *rsize == 106 && rdesc[94] == 0x19 &&
+			rdesc[95] == 0x00 && rdesc[96] == 0x29 &&
+			rdesc[97] == 0xff) {
+		rdesc[94] = 0x35;
+		rdesc[96] = 0x45;
 	}
 	return rdesc;
 }
@@ -55,9 +62,48 @@ static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 {
 	struct input_dev *input = hi->input;
 
+	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_CONSUMER) {
+		switch (usage->hid & HID_USAGE) {
+		/*
+		 * Microsoft uses these 2 reserved usage ids for 2 keys on
+		 * the MS office kb labelled "Office Home" and "Task Pane".
+		 */
+		case 0x29d:
+			ms_map_key_clear(KEY_PROG1);
+			return 1;
+		case 0x29e:
+			ms_map_key_clear(KEY_PROG2);
+			return 1;
+		}
+		return 0;
+	}
+
+	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
+		return 0;
+
 	switch (usage->hid & HID_USAGE) {
 	case 0xfd06: ms_map_key_clear(KEY_CHAT);	break;
 	case 0xfd07: ms_map_key_clear(KEY_PHONE);	break;
+	case 0xff00:
+		/* Special keypad keys */
+		ms_map_key_clear(KEY_KPEQUAL);
+		set_bit(KEY_KPLEFTPAREN, input->keybit);
+		set_bit(KEY_KPRIGHTPAREN, input->keybit);
+		break;
+	case 0xff01:
+		/* Scroll wheel */
+		hid_map_usage_clear(hi, usage, bit, max, EV_REL, REL_WHEEL);
+		break;
+	case 0xff02:
+		/*
+		 * This byte contains a copy of the modifier keys byte of a
+		 * standard hid keyboard report, as send by interface 0
+		 * (this usage is found on interface 1).
+		 *
+		 * This byte only gets send when another key in the same report
+		 * changes state, and as such is useless, ignore it.
+		 */
+		return -1;
 	case 0xff05:
 		set_bit(EV_REP, input->evbit);
 		ms_map_key_clear(KEY_F13);
@@ -66,6 +112,7 @@ static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 		set_bit(KEY_F16, input->keybit);
 		set_bit(KEY_F17, input->keybit);
 		set_bit(KEY_F18, input->keybit);
+		break;
 	default:
 		return 0;
 	}
@@ -75,6 +122,9 @@ static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 static int ms_presenter_8k_quirk(struct hid_input *hi, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
+	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
+		return 0;
+
 	set_bit(EV_REP, hi->input->evbit);
 	switch (usage->hid & HID_USAGE) {
 	case 0xfd08: ms_map_key_clear(KEY_FORWARD);	break;
@@ -93,9 +143,6 @@ static int ms_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		unsigned long **bit, int *max)
 {
 	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
-
-	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_MSVENDOR)
-		return 0;
 
 	if (quirks & MS_ERGONOMY) {
 		int ret = ms_ergonomy_kb_quirk(hi, usage, bit, max);
@@ -126,14 +173,39 @@ static int ms_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value)
 {
 	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
+	struct input_dev *input;
 
 	if (!(hdev->claimed & HID_CLAIMED_INPUT) || !field->hidinput ||
 			!usage->type)
 		return 0;
 
+	input = field->hidinput->input;
+
 	/* Handling MS keyboards special buttons */
+	if (quirks & MS_ERGONOMY && usage->hid == (HID_UP_MSVENDOR | 0xff00)) {
+		/* Special keypad keys */
+		input_report_key(input, KEY_KPEQUAL, value & 0x01);
+		input_report_key(input, KEY_KPLEFTPAREN, value & 0x02);
+		input_report_key(input, KEY_KPRIGHTPAREN, value & 0x04);
+		return 1;
+	}
+
+	if (quirks & MS_ERGONOMY && usage->hid == (HID_UP_MSVENDOR | 0xff01)) {
+		/* Scroll wheel */
+		int step = ((value & 0x60) >> 5) + 1;
+
+		switch (value & 0x1f) {
+		case 0x01:
+			input_report_rel(input, REL_WHEEL, step);
+			break;
+		case 0x1f:
+			input_report_rel(input, REL_WHEEL, -step);
+			break;
+		}
+		return 1;
+	}
+
 	if (quirks & MS_ERGONOMY && usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
-		struct input_dev *input = field->hidinput->input;
 		static unsigned int last_key = 0;
 		unsigned int key = 0;
 		switch (value) {
@@ -186,14 +258,18 @@ err_free:
 static const struct hid_device_id ms_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_SIDEWINDER_GV),
 		.driver_data = MS_HIDINPUT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_OFFICE_KB),
+		.driver_data = MS_ERGONOMY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_NE4K),
+		.driver_data = MS_ERGONOMY },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_NE4K_JP),
 		.driver_data = MS_ERGONOMY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_LK6K),
 		.driver_data = MS_ERGONOMY | MS_RDESC },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_PRESENTER_8K_USB),
 		.driver_data = MS_PRESENTER },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_DIGITAL_MEDIA_3K),
-		.driver_data = MS_ERGONOMY },
+		.driver_data = MS_ERGONOMY | MS_RDESC_3K },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_WIRELESS_OPTICAL_DESKTOP_3_0),
 		.driver_data = MS_NOGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_COMFORT_MOUSE_4500),
@@ -214,17 +290,6 @@ static struct hid_driver ms_driver = {
 	.event = ms_event,
 	.probe = ms_probe,
 };
+module_hid_driver(ms_driver);
 
-static int __init ms_init(void)
-{
-	return hid_register_driver(&ms_driver);
-}
-
-static void __exit ms_exit(void)
-{
-	hid_unregister_driver(&ms_driver);
-}
-
-module_init(ms_init);
-module_exit(ms_exit);
 MODULE_LICENSE("GPL");

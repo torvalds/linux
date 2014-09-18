@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2000-2011 LSI Corporation.
+ *  Copyright (c) 2000-2013 LSI Corporation.
  *
  *
  *           Name:  mpi2.h
@@ -8,7 +8,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.22
+ *  mpi2.h Version:  02.00.28
  *
  *  Version History
  *  ---------------
@@ -71,6 +71,13 @@
  *  03-09-11  02.00.20  Bumped MPI2_HEADER_VERSION_UNIT.
  *  05-25-11  02.00.21  Bumped MPI2_HEADER_VERSION_UNIT.
  *  08-24-11  02.00.22  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-18-11  02.00.23  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  02-06-12  02.00.24  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  03-29-12  02.00.25  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added Hard Reset delay timings.
+ *  07-10-12  02.00.26  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  07-26-12  02.00.27  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-27-12  02.00.28  Bumped MPI2_HEADER_VERSION_UNIT.
  *  --------------------------------------------------------------------------
  */
 
@@ -96,7 +103,7 @@
 #define MPI2_VERSION_02_00                  (0x0200)
 
 /* versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x16)
+#define MPI2_HEADER_VERSION_UNIT            (0x1C)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -273,6 +280,11 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
 #define MPI2_REQUEST_DESCRIPTOR_POST_LOW_OFFSET     (0x000000C0)
 #define MPI2_REQUEST_DESCRIPTOR_POST_HIGH_OFFSET    (0x000000C4)
 
+
+/* Hard Reset delay timings */
+#define MPI2_HARD_RESET_PCIE_FIRST_READ_DELAY_MICRO_SEC     (50000)
+#define MPI2_HARD_RESET_PCIE_RESET_READ_WINDOW_MICRO_SEC    (255000)
+#define MPI2_HARD_RESET_PCIE_SECOND_READ_DELAY_MICRO_SEC    (256000)
 
 /*****************************************************************************
 *
@@ -480,7 +492,7 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
     MPI2_RAID_ACCELERATOR_SUCCESS_REPLY_DESCRIPTOR  RAIDAcceleratorSuccess;
     U64                                             Words;
 } MPI2_REPLY_DESCRIPTORS_UNION, MPI2_POINTER PTR_MPI2_REPLY_DESCRIPTORS_UNION,
-  Mpi2ReplyDescriptorsUnion_t, MPI2_POINTER pMpi2ReplyDescriptorsUnion_t;
+Mpi2ReplyDescriptorsUnion_t, MPI2_POINTER pMpi2ReplyDescriptorsUnion_t;
 
 
 

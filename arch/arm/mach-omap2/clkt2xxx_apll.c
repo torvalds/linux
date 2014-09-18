@@ -21,12 +21,10 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/clock.h>
-#include <plat/prcm.h>
 
 #include "clock.h"
 #include "clock2xxx.h"
-#include "cm2xxx_3xxx.h"
+#include "cm2xxx.h"
 #include "cm-regbits-24xx.h"
 
 /* CM_CLKEN_PLL.EN_{54,96}M_PLL options (24XX) */
@@ -38,90 +36,88 @@
 #define APLLS_CLKIN_13MHZ		2
 #define APLLS_CLKIN_12MHZ		3
 
-void __iomem *cm_idlest_pll;
-
 /* Private functions */
 
-/* Enable an APLL if off */
-static int omap2_clk_apll_enable(struct clk *clk, u32 status_mask)
+/**
+ * omap2xxx_clk_apll_locked - is the APLL locked?
+ * @hw: struct clk_hw * of the APLL to check
+ *
+ * If the APLL IP block referred to by @hw indicates that it's locked,
+ * return true; otherwise, return false.
+ */
+static bool omap2xxx_clk_apll_locked(struct clk_hw *hw)
 {
-	u32 cval, apll_mask;
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+	u32 r, apll_mask;
 
 	apll_mask = EN_APLL_LOCKED << clk->enable_bit;
 
-	cval = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
+	r = omap2xxx_cm_get_pll_status();
 
-	if ((cval & apll_mask) == apll_mask)
-		return 0;   /* apll already enabled */
-
-	cval &= ~apll_mask;
-	cval |= apll_mask;
-	omap2_cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
-
-	omap2_cm_wait_idlest(cm_idlest_pll, status_mask,
-			     OMAP24XX_CM_IDLEST_VAL, clk->name);
-
-	/*
-	 * REVISIT: Should we return an error code if omap2_wait_clock_ready()
-	 * fails?
-	 */
-	return 0;
+	return ((r & apll_mask) == apll_mask) ? true : false;
 }
 
-static int omap2_clk_apll96_enable(struct clk *clk)
+int omap2_clk_apll96_enable(struct clk_hw *hw)
 {
-	return omap2_clk_apll_enable(clk, OMAP24XX_ST_96M_APLL_MASK);
+	return omap2xxx_cm_apll96_enable();
 }
 
-static int omap2_clk_apll54_enable(struct clk *clk)
+int omap2_clk_apll54_enable(struct clk_hw *hw)
 {
-	return omap2_clk_apll_enable(clk, OMAP24XX_ST_54M_APLL_MASK);
+	return omap2xxx_cm_apll54_enable();
 }
 
-static void _apll96_allow_idle(struct clk *clk)
+static void _apll96_allow_idle(struct clk_hw_omap *clk)
 {
 	omap2xxx_cm_set_apll96_auto_low_power_stop();
 }
 
-static void _apll96_deny_idle(struct clk *clk)
+static void _apll96_deny_idle(struct clk_hw_omap *clk)
 {
 	omap2xxx_cm_set_apll96_disable_autoidle();
 }
 
-static void _apll54_allow_idle(struct clk *clk)
+static void _apll54_allow_idle(struct clk_hw_omap *clk)
 {
 	omap2xxx_cm_set_apll54_auto_low_power_stop();
 }
 
-static void _apll54_deny_idle(struct clk *clk)
+static void _apll54_deny_idle(struct clk_hw_omap *clk)
 {
 	omap2xxx_cm_set_apll54_disable_autoidle();
 }
 
-/* Stop APLL */
-static void omap2_clk_apll_disable(struct clk *clk)
+void omap2_clk_apll96_disable(struct clk_hw *hw)
 {
-	u32 cval;
+	omap2xxx_cm_apll96_disable();
+}
 
-	cval = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
-	cval &= ~(EN_APLL_LOCKED << clk->enable_bit);
-	omap2_cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
+void omap2_clk_apll54_disable(struct clk_hw *hw)
+{
+	omap2xxx_cm_apll54_disable();
+}
+
+unsigned long omap2_clk_apll54_recalc(struct clk_hw *hw,
+				      unsigned long parent_rate)
+{
+	return (omap2xxx_clk_apll_locked(hw)) ? 54000000 : 0;
+}
+
+unsigned long omap2_clk_apll96_recalc(struct clk_hw *hw,
+				      unsigned long parent_rate)
+{
+	return (omap2xxx_clk_apll_locked(hw)) ? 96000000 : 0;
 }
 
 /* Public data */
-
-const struct clkops clkops_apll96 = {
-	.enable		= omap2_clk_apll96_enable,
-	.disable	= omap2_clk_apll_disable,
-	.allow_idle	= _apll96_allow_idle,
-	.deny_idle	= _apll96_deny_idle,
-};
-
-const struct clkops clkops_apll54 = {
-	.enable		= omap2_clk_apll54_enable,
-	.disable	= omap2_clk_apll_disable,
+const struct clk_hw_omap_ops clkhwops_apll54 = {
 	.allow_idle	= _apll54_allow_idle,
 	.deny_idle	= _apll54_deny_idle,
+};
+
+const struct clk_hw_omap_ops clkhwops_apll96 = {
+	.allow_idle	= _apll96_allow_idle,
+	.deny_idle	= _apll96_deny_idle,
 };
 
 /* Public functions */
@@ -130,7 +126,7 @@ u32 omap2xxx_get_apll_clkin(void)
 {
 	u32 aplls, srate = 0;
 
-	aplls = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL1);
+	aplls = omap2xxx_cm_get_pll_config();
 	aplls &= OMAP24XX_APLLS_CLKIN_MASK;
 	aplls >>= OMAP24XX_APLLS_CLKIN_SHIFT;
 

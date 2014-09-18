@@ -287,23 +287,16 @@ static int w90p910_init_desc(struct net_device *dev)
 	ether = netdev_priv(dev);
 	pdev = ether->pdev;
 
-	ether->tdesc = (struct tran_pdesc *)
-		dma_alloc_coherent(&pdev->dev, sizeof(struct tran_pdesc),
-					&ether->tdesc_phys, GFP_KERNEL);
-
-	if (!ether->tdesc) {
-		dev_err(&pdev->dev, "Failed to allocate memory for tx desc\n");
+	ether->tdesc = dma_alloc_coherent(&pdev->dev, sizeof(struct tran_pdesc),
+					  &ether->tdesc_phys, GFP_KERNEL);
+	if (!ether->tdesc)
 		return -ENOMEM;
-	}
 
-	ether->rdesc = (struct recv_pdesc *)
-		dma_alloc_coherent(&pdev->dev, sizeof(struct recv_pdesc),
-					&ether->rdesc_phys, GFP_KERNEL);
-
+	ether->rdesc = dma_alloc_coherent(&pdev->dev, sizeof(struct recv_pdesc),
+					  &ether->rdesc_phys, GFP_KERNEL);
 	if (!ether->rdesc) {
-		dev_err(&pdev->dev, "Failed to allocate memory for rx desc\n");
 		dma_free_coherent(&pdev->dev, sizeof(struct tran_pdesc),
-					ether->tdesc, ether->tdesc_phys);
+				  ether->tdesc, ether->tdesc_phys);
 		return -ENOMEM;
 	}
 
@@ -737,7 +730,6 @@ static void netdev_rx(struct net_device *dev)
 			data = ether->rdesc->recv_buf[ether->cur_rx];
 			skb = netdev_alloc_skb(dev, length + 2);
 			if (!skb) {
-				dev_err(&pdev->dev, "get skb buffer error\n");
 				ether->stats.rx_dropped++;
 				return;
 			}
@@ -878,8 +870,8 @@ static int w90p910_ether_ioctl(struct net_device *dev,
 static void w90p910_get_drvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_MODULE_NAME);
-	strcpy(info->version, DRV_MODULE_VERSION);
+	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
 static int w90p910_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -930,7 +922,7 @@ static void __init get_mac_address(struct net_device *dev)
 {
 	struct w90p910_ether *ether = netdev_priv(dev);
 	struct platform_device *pdev;
-	char addr[6];
+	char addr[ETH_ALEN];
 
 	pdev = ether->pdev;
 
@@ -942,7 +934,7 @@ static void __init get_mac_address(struct net_device *dev)
 	addr[5] = 0xa8;
 
 	if (is_valid_ether_addr(addr))
-		memcpy(dev->dev_addr, &addr, 0x06);
+		memcpy(dev->dev_addr, &addr, ETH_ALEN);
 	else
 		dev_err(&pdev->dev, "invalid mac address\n");
 }
@@ -978,7 +970,7 @@ static int w90p910_ether_setup(struct net_device *dev)
 	return 0;
 }
 
-static int __devinit w90p910_ether_probe(struct platform_device *pdev)
+static int w90p910_ether_probe(struct platform_device *pdev)
 {
 	struct w90p910_ether *ether;
 	struct net_device *dev;
@@ -1022,7 +1014,7 @@ static int __devinit w90p910_ether_probe(struct platform_device *pdev)
 	if (ether->rxirq < 0) {
 		dev_err(&pdev->dev, "failed to get ether rx irq\n");
 		error = -ENXIO;
-		goto failed_free_txirq;
+		goto failed_free_io;
 	}
 
 	platform_set_drvdata(pdev, dev);
@@ -1031,7 +1023,7 @@ static int __devinit w90p910_ether_probe(struct platform_device *pdev)
 	if (IS_ERR(ether->clk)) {
 		dev_err(&pdev->dev, "failed to get ether clock\n");
 		error = PTR_ERR(ether->clk);
-		goto failed_free_rxirq;
+		goto failed_free_io;
 	}
 
 	ether->rmiiclk = clk_get(&pdev->dev, "RMII");
@@ -1057,11 +1049,6 @@ failed_put_rmiiclk:
 	clk_put(ether->rmiiclk);
 failed_put_clk:
 	clk_put(ether->clk);
-failed_free_rxirq:
-	free_irq(ether->rxirq, pdev);
-	platform_set_drvdata(pdev, NULL);
-failed_free_txirq:
-	free_irq(ether->txirq, pdev);
 failed_free_io:
 	iounmap(ether->reg);
 failed_free_mem:
@@ -1071,7 +1058,7 @@ failed_free:
 	return error;
 }
 
-static int __devexit w90p910_ether_remove(struct platform_device *pdev)
+static int w90p910_ether_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct w90p910_ether *ether = netdev_priv(dev);
@@ -1084,11 +1071,7 @@ static int __devexit w90p910_ether_remove(struct platform_device *pdev)
 	iounmap(ether->reg);
 	release_mem_region(ether->res->start, resource_size(ether->res));
 
-	free_irq(ether->txirq, dev);
-	free_irq(ether->rxirq, dev);
-
 	del_timer_sync(&ether->check_timer);
-	platform_set_drvdata(pdev, NULL);
 
 	free_netdev(dev);
 	return 0;
@@ -1096,7 +1079,7 @@ static int __devexit w90p910_ether_remove(struct platform_device *pdev)
 
 static struct platform_driver w90p910_ether_driver = {
 	.probe		= w90p910_ether_probe,
-	.remove		= __devexit_p(w90p910_ether_remove),
+	.remove		= w90p910_ether_remove,
 	.driver		= {
 		.name	= "nuc900-emc",
 		.owner	= THIS_MODULE,

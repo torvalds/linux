@@ -33,7 +33,7 @@
  *		detection. The mods to Rev F required more family
  *		information detection.
  *
- *	Changes/Fixes by Borislav Petkov <borislav.petkov@amd.com>:
+ *	Changes/Fixes by Borislav Petkov <bp@alien8.de>:
  *		- misc fixes and code cleanups
  *
  * This module is based on the following documents
@@ -160,19 +160,16 @@
 #define OFF false
 
 /*
- * Create a contiguous bitmask starting at bit position @lo and ending at
- * position @hi. For example
- *
- * GENMASK(21, 39) gives us the 64bit vector 0x000000ffffe00000.
- */
-#define GENMASK(lo, hi)			(((1ULL << ((hi) - (lo) + 1)) - 1) << (lo))
-
-/*
  * PCI-defined configuration space registers
  */
+#define PCI_DEVICE_ID_AMD_15H_M30H_NB_F1 0x141b
+#define PCI_DEVICE_ID_AMD_15H_M30H_NB_F2 0x141c
 #define PCI_DEVICE_ID_AMD_15H_NB_F1	0x1601
 #define PCI_DEVICE_ID_AMD_15H_NB_F2	0x1602
-
+#define PCI_DEVICE_ID_AMD_16H_NB_F1	0x1531
+#define PCI_DEVICE_ID_AMD_16H_NB_F2	0x1532
+#define PCI_DEVICE_ID_AMD_16H_M30H_NB_F1 0x1581
+#define PCI_DEVICE_ID_AMD_16H_M30H_NB_F2 0x1582
 
 /*
  * Function 1 - Address Map
@@ -180,13 +177,22 @@
 #define DRAM_BASE_LO			0x40
 #define DRAM_LIMIT_LO			0x44
 
-#define dram_intlv_en(pvt, i)		((u8)((pvt->ranges[i].base.lo >> 8) & 0x7))
+/*
+ * F15 M30h D18F1x2[1C:00]
+ */
+#define DRAM_CONT_BASE			0x200
+#define DRAM_CONT_LIMIT			0x204
+
+/*
+ * F15 M30h D18F1x2[4C:40]
+ */
+#define DRAM_CONT_HIGH_OFF		0x240
+
 #define dram_rw(pvt, i)			((u8)(pvt->ranges[i].base.lo & 0x3))
 #define dram_intlv_sel(pvt, i)		((u8)((pvt->ranges[i].lim.lo >> 8) & 0x7))
 #define dram_dst_node(pvt, i)		((u8)(pvt->ranges[i].lim.lo & 0x7))
 
 #define DHAR				0xf0
-#define dhar_valid(pvt)			((pvt)->dhar & BIT(0))
 #define dhar_mem_hoist_valid(pvt)	((pvt)->dhar & BIT(1))
 #define dhar_base(pvt)			((pvt)->dhar & 0xff000000)
 #define k8_dhar_offset(pvt)		(((pvt)->dhar & 0x0000ff00) << 16)
@@ -219,7 +225,7 @@
 #define DBAM1				0x180
 
 /* Extract the DIMM 'type' on the i'th DIMM from the DBAM reg value passed */
-#define DBAM_DIMM(i, reg)		((((reg) >> (4*i))) & 0xF)
+#define DBAM_DIMM(i, reg)		((((reg) >> (4*(i)))) & 0xF)
 
 #define DBAM_MAX_VALUE			11
 
@@ -233,8 +239,6 @@
 #define DDR3_MODE			BIT(8)
 
 #define DCT_SEL_LO			0x110
-#define dct_sel_baseaddr(pvt)		((pvt)->dct_sel_lo & 0xFFFFF800)
-#define dct_sel_interleave_addr(pvt)	(((pvt)->dct_sel_lo >> 6) & 0x3)
 #define dct_high_range_enabled(pvt)	((pvt)->dct_sel_lo & BIT(0))
 #define dct_interleave_enabled(pvt)	((pvt)->dct_sel_lo & BIT(2))
 
@@ -267,18 +271,20 @@
 #define online_spare_bad_dramcs(pvt, c)	(((pvt)->online_spare >> (4 + 4 * (c))) & 0x7)
 
 #define F10_NB_ARRAY_ADDR		0xB8
-#define F10_NB_ARRAY_DRAM_ECC		BIT(31)
+#define F10_NB_ARRAY_DRAM		BIT(31)
 
 /* Bits [2:1] are used to select 16-byte section within a 64-byte cacheline  */
-#define SET_NB_ARRAY_ADDRESS(section)	(((section) & 0x3) << 1)
+#define SET_NB_ARRAY_ADDR(section)	(((section) & 0x3) << 1)
 
 #define F10_NB_ARRAY_DATA		0xBC
-#define SET_NB_DRAM_INJECTION_WRITE(word, bits)  \
-					(BIT(((word) & 0xF) + 20) | \
-					BIT(17) | bits)
-#define SET_NB_DRAM_INJECTION_READ(word, bits)  \
-					(BIT(((word) & 0xF) + 20) | \
-					BIT(16) |  bits)
+#define F10_NB_ARR_ECC_WR_REQ		BIT(17)
+#define SET_NB_DRAM_INJECTION_WRITE(inj)  \
+					(BIT(((inj.word) & 0xF) + 20) | \
+					F10_NB_ARR_ECC_WR_REQ | inj.bit_map)
+#define SET_NB_DRAM_INJECTION_READ(inj)  \
+					(BIT(((inj.word) & 0xF) + 20) | \
+					BIT(16) |  inj.bit_map)
+
 
 #define NBCAP				0xE8
 #define NBCAP_CHIPKILL			BIT(4)
@@ -290,24 +296,21 @@
 /* MSRs */
 #define MSR_MCGCTL_NBE			BIT(4)
 
-/* AMD sets the first MC device at device ID 0x18. */
-static inline u8 get_node_id(struct pci_dev *pdev)
-{
-	return PCI_SLOT(pdev->devfn) - 0x18;
-}
-
 enum amd_families {
 	K8_CPUS = 0,
 	F10_CPUS,
 	F15_CPUS,
+	F15_M30H_CPUS,
+	F16_CPUS,
+	F16_M30H_CPUS,
 	NUM_FAMILIES,
 };
 
 /* Error injection control structure */
 struct error_injection {
-	u32	section;
-	u32	word;
-	u32	bit_map;
+	u32	 section;
+	u32	 word;
+	u32	 bit_map;
 };
 
 /* low and high part of PCI config space regs */
@@ -338,7 +341,11 @@ struct amd64_pvt {
 	/* pci_device handles which we utilize */
 	struct pci_dev *F1, *F2, *F3;
 
-	unsigned mc_node_id;	/* MC index of this MC node */
+	u16 mc_node_id;		/* MC index of this MC node */
+	u8 fam;			/* CPU family */
+	u8 model;		/* ... model */
+	u8 stepping;		/* ... stepping */
+
 	int ext_model;		/* extended model value of this node */
 	int channel_count;
 
@@ -374,7 +381,24 @@ struct amd64_pvt {
 	struct error_injection injection;
 };
 
-static inline u64 get_dram_base(struct amd64_pvt *pvt, unsigned i)
+enum err_codes {
+	DECODE_OK	=  0,
+	ERR_NODE	= -1,
+	ERR_CSROW	= -2,
+	ERR_CHANNEL	= -3,
+};
+
+struct err_info {
+	int err_code;
+	struct mem_ctl_info *src_mci;
+	int csrow;
+	int channel;
+	u16 syndrome;
+	u32 page;
+	u32 offset;
+};
+
+static inline u64 get_dram_base(struct amd64_pvt *pvt, u8 i)
 {
 	u64 addr = ((u64)pvt->ranges[i].base.lo & 0xffff0000) << 8;
 
@@ -384,7 +408,7 @@ static inline u64 get_dram_base(struct amd64_pvt *pvt, unsigned i)
 	return (((u64)pvt->ranges[i].base.hi & 0x000000ff) << 40) | addr;
 }
 
-static inline u64 get_dram_limit(struct amd64_pvt *pvt, unsigned i)
+static inline u64 get_dram_limit(struct amd64_pvt *pvt, u8 i)
 {
 	u64 lim = (((u64)pvt->ranges[i].lim.lo & 0xffff0000) << 8) | 0x00ffffff;
 
@@ -399,6 +423,14 @@ static inline u16 extract_syndrome(u64 status)
 	return ((status >> 47) & 0xff) | ((status >> 16) & 0xff00);
 }
 
+static inline u8 dct_sel_interleave_addr(struct amd64_pvt *pvt)
+{
+	if (pvt->fam == 0x15 && pvt->model >= 0x30)
+		return (((pvt->dct_sel_hi >> 9) & 0x1) << 2) |
+			((pvt->dct_sel_lo >> 6) & 0x3);
+
+	return	((pvt)->dct_sel_lo >> 6) & 0x3;
+}
 /*
  * per-node ECC settings descriptor
  */
@@ -413,19 +445,32 @@ struct ecc_settings {
 };
 
 #ifdef CONFIG_EDAC_DEBUG
-#define NUM_DBG_ATTRS 5
+int amd64_create_sysfs_dbg_files(struct mem_ctl_info *mci);
+void amd64_remove_sysfs_dbg_files(struct mem_ctl_info *mci);
+
 #else
-#define NUM_DBG_ATTRS 0
+static inline int amd64_create_sysfs_dbg_files(struct mem_ctl_info *mci)
+{
+	return 0;
+}
+static void inline amd64_remove_sysfs_dbg_files(struct mem_ctl_info *mci)
+{
+}
 #endif
 
 #ifdef CONFIG_EDAC_AMD64_ERROR_INJECTION
-#define NUM_INJ_ATTRS 5
-#else
-#define NUM_INJ_ATTRS 0
-#endif
+int amd64_create_sysfs_inject_files(struct mem_ctl_info *mci);
+void amd64_remove_sysfs_inject_files(struct mem_ctl_info *mci);
 
-extern struct mcidev_sysfs_attribute amd64_dbg_attrs[NUM_DBG_ATTRS],
-				     amd64_inj_attrs[NUM_INJ_ATTRS];
+#else
+static inline int amd64_create_sysfs_inject_files(struct mem_ctl_info *mci)
+{
+	return 0;
+}
+static inline void amd64_remove_sysfs_inject_files(struct mem_ctl_info *mci)
+{
+}
+#endif
 
 /*
  * Each of the PCI Device IDs types have their own set of hardware accessor
@@ -434,7 +479,7 @@ extern struct mcidev_sysfs_attribute amd64_dbg_attrs[NUM_DBG_ATTRS],
 struct low_ops {
 	int (*early_channel_count)	(struct amd64_pvt *pvt);
 	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci, u64 sys_addr,
-					 u16 syndrome);
+					 struct err_info *);
 	int (*dbam_to_cs)		(struct amd64_pvt *pvt, u8 dct, unsigned cs_mode);
 	int (*read_dct_pci_cfg)		(struct amd64_pvt *pvt, int offset,
 					 u32 *val, const char *func);
@@ -446,6 +491,8 @@ struct amd64_family_type {
 	struct low_ops ops;
 };
 
+int __amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
+			       u32 *val, const char *func);
 int __amd64_write_pci_cfg_dword(struct pci_dev *pdev, int offset,
 				u32 val, const char *func);
 
@@ -460,3 +507,47 @@ int __amd64_write_pci_cfg_dword(struct pci_dev *pdev, int offset,
 
 int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size);
+
+#define to_mci(k) container_of(k, struct mem_ctl_info, dev)
+
+/* Injection helpers */
+static inline void disable_caches(void *dummy)
+{
+	write_cr0(read_cr0() | X86_CR0_CD);
+	wbinvd();
+}
+
+static inline void enable_caches(void *dummy)
+{
+	write_cr0(read_cr0() & ~X86_CR0_CD);
+}
+
+static inline u8 dram_intlv_en(struct amd64_pvt *pvt, unsigned int i)
+{
+	if (pvt->fam == 0x15 && pvt->model >= 0x30) {
+		u32 tmp;
+		amd64_read_pci_cfg(pvt->F1, DRAM_CONT_LIMIT, &tmp);
+		return (u8) tmp & 0xF;
+	}
+	return (u8) (pvt->ranges[i].base.lo >> 8) & 0x7;
+}
+
+static inline u8 dhar_valid(struct amd64_pvt *pvt)
+{
+	if (pvt->fam == 0x15 && pvt->model >= 0x30) {
+		u32 tmp;
+		amd64_read_pci_cfg(pvt->F1, DRAM_CONT_BASE, &tmp);
+		return (tmp >> 1) & BIT(0);
+	}
+	return (pvt)->dhar & BIT(0);
+}
+
+static inline u32 dct_sel_baseaddr(struct amd64_pvt *pvt)
+{
+	if (pvt->fam == 0x15 && pvt->model >= 0x30) {
+		u32 tmp;
+		amd64_read_pci_cfg(pvt->F1, DRAM_CONT_BASE, &tmp);
+		return (tmp >> 11) & 0x1FFF;
+	}
+	return (pvt)->dct_sel_lo & 0xFFFFF800;
+}

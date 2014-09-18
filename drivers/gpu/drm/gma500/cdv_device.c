@@ -20,12 +20,13 @@
 #include <linux/backlight.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "gma_drm.h"
+#include <drm/gma_drm.h>
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
 #include "intel_bios.h"
 #include "cdv_device.h"
+#include "gma_device.h"
 
 #define VGA_SR_INDEX		0x3c4
 #define VGA_SR_DATA		0x3c5
@@ -49,93 +50,101 @@ static void cdv_disable_vga(struct drm_device *dev)
 static int cdv_output_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+
+	drm_mode_create_scaling_mode_property(dev);
+
 	cdv_disable_vga(dev);
 
 	cdv_intel_crt_init(dev, &dev_priv->mode_dev);
 	cdv_intel_lvds_init(dev, &dev_priv->mode_dev);
 
-	/* These bits indicate HDMI not SDVO on CDV, but we don't yet support
-	   the HDMI interface */
-	if (REG_READ(SDVOB) & SDVO_DETECTED)
+	/* These bits indicate HDMI not SDVO on CDV */
+	if (REG_READ(SDVOB) & SDVO_DETECTED) {
 		cdv_hdmi_init(dev, &dev_priv->mode_dev, SDVOB);
-	if (REG_READ(SDVOC) & SDVO_DETECTED)
+		if (REG_READ(DP_B) & DP_DETECTED)
+			cdv_intel_dp_init(dev, &dev_priv->mode_dev, DP_B);
+	}
+
+	if (REG_READ(SDVOC) & SDVO_DETECTED) {
 		cdv_hdmi_init(dev, &dev_priv->mode_dev, SDVOC);
+		if (REG_READ(DP_C) & DP_DETECTED)
+			cdv_intel_dp_init(dev, &dev_priv->mode_dev, DP_C);
+	}
 	return 0;
 }
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 
 /*
- *	Poulsbo Backlight Interfaces
+ *	Cedartrail Backlght Interfaces
  */
 
-#define BLC_PWM_PRECISION_FACTOR 100	/* 10000000 */
-#define BLC_PWM_FREQ_CALC_CONSTANT 32
-#define MHz 1000000
-
-#define PSB_BLC_PWM_PRECISION_FACTOR    10
-#define PSB_BLC_MAX_PWM_REG_FREQ        0xFFFE
-#define PSB_BLC_MIN_PWM_REG_FREQ        0x2
-
-#define PSB_BACKLIGHT_PWM_POLARITY_BIT_CLEAR (0xFFFE)
-#define PSB_BACKLIGHT_PWM_CTL_SHIFT	(16)
-
-static int cdv_brightness;
 static struct backlight_device *cdv_backlight_device;
+
+static int cdv_backlight_combination_mode(struct drm_device *dev)
+{
+	return REG_READ(BLC_PWM_CTL2) & PWM_LEGACY_MODE;
+}
+
+static u32 cdv_get_max_backlight(struct drm_device *dev)
+{
+	u32 max = REG_READ(BLC_PWM_CTL);
+
+	if (max == 0) {
+		DRM_DEBUG_KMS("LVDS Panel PWM value is 0!\n");
+		/* i915 does this, I believe which means that we should not
+		 * smash PWM control as firmware will take control of it. */
+		return 1;
+	}
+
+	max >>= 16;
+	if (cdv_backlight_combination_mode(dev))
+		max *= 0xff;
+	return max;
+}
 
 static int cdv_get_brightness(struct backlight_device *bd)
 {
-	/* return locally cached var instead of HW read (due to DPST etc.) */
-	/* FIXME: ideally return actual value in case firmware fiddled with
-	   it */
-	return cdv_brightness;
-}
+	struct drm_device *dev = bl_get_data(bd);
+	u32 val = REG_READ(BLC_PWM_CTL) & BACKLIGHT_DUTY_CYCLE_MASK;
 
+	if (cdv_backlight_combination_mode(dev)) {
+		u8 lbpc;
 
-static int cdv_backlight_setup(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	unsigned long core_clock;
-	/* u32 bl_max_freq; */
-	/* unsigned long value; */
-	u16 bl_max_freq;
-	uint32_t value;
-	uint32_t blc_pwm_precision_factor;
-
-	/* get bl_max_freq and pol from dev_priv*/
-	if (!dev_priv->lvds_bl) {
-		dev_err(dev->dev, "Has no valid LVDS backlight info\n");
-		return -ENOENT;
+		val &= ~1;
+		pci_read_config_byte(dev->pdev, 0xF4, &lbpc);
+		val *= lbpc;
 	}
-	bl_max_freq = dev_priv->lvds_bl->freq;
-	blc_pwm_precision_factor = PSB_BLC_PWM_PRECISION_FACTOR;
+	return (val * 100)/cdv_get_max_backlight(dev);
 
-	core_clock = dev_priv->core_freq;
-
-	value = (core_clock * MHz) / BLC_PWM_FREQ_CALC_CONSTANT;
-	value *= blc_pwm_precision_factor;
-	value /= bl_max_freq;
-	value /= blc_pwm_precision_factor;
-
-	if (value > (unsigned long long)PSB_BLC_MAX_PWM_REG_FREQ ||
-		 value < (unsigned long long)PSB_BLC_MIN_PWM_REG_FREQ)
-				return -ERANGE;
-	else {
-		/* FIXME */
-	}
-	return 0;
 }
 
 static int cdv_set_brightness(struct backlight_device *bd)
 {
+	struct drm_device *dev = bl_get_data(bd);
 	int level = bd->props.brightness;
+	u32 blc_pwm_ctl;
 
 	/* Percentage 1-100% being valid */
 	if (level < 1)
 		level = 1;
 
-	/*cdv_intel_lvds_set_brightness(dev, level); FIXME */
-	cdv_brightness = level;
+	level *= cdv_get_max_backlight(dev);
+	level /= 100;
+
+	if (cdv_backlight_combination_mode(dev)) {
+		u32 max = cdv_get_max_backlight(dev);
+		u8 lbpc;
+
+		lbpc = level * 0xfe / max + 1;
+		level /= lbpc;
+
+		pci_write_config_byte(dev->pdev, 0xF4, lbpc);
+	}
+
+	blc_pwm_ctl = REG_READ(BLC_PWM_CTL) & ~BACKLIGHT_DUTY_CYCLE_MASK;
+	REG_WRITE(BLC_PWM_CTL, (blc_pwm_ctl |
+				(level << BACKLIGHT_DUTY_CYCLE_SHIFT)));
 	return 0;
 }
 
@@ -147,7 +156,6 @@ static const struct backlight_ops cdv_ops = {
 static int cdv_backlight_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	int ret;
 	struct backlight_properties props;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
@@ -159,16 +167,11 @@ static int cdv_backlight_init(struct drm_device *dev)
 	if (IS_ERR(cdv_backlight_device))
 		return PTR_ERR(cdv_backlight_device);
 
-	ret = cdv_backlight_setup(dev);
-	if (ret < 0) {
-		backlight_device_unregister(cdv_backlight_device);
-		cdv_backlight_device = NULL;
-		return ret;
-	}
-	cdv_backlight_device->props.brightness = 100;
-	cdv_backlight_device->props.max_brightness = 100;
+	cdv_backlight_device->props.brightness =
+			cdv_get_brightness(cdv_backlight_device);
 	backlight_update_status(cdv_backlight_device);
 	dev_priv->backlight_device = cdv_backlight_device;
+	dev_priv->backlight_enabled = true;
 	return 0;
 }
 
@@ -238,6 +241,19 @@ static void cdv_init_pm(struct drm_device *dev)
 	dev_err(dev->dev, "GPU: power management timed out.\n");
 }
 
+static void cdv_errata(struct drm_device *dev)
+{
+	/* Disable bonus launch.
+	 *	CPU and GPU competes for memory and display misses updates and
+	 *	flickers. Worst with dual core, dual displays.
+	 *
+	 *	Fixes were done to Win 7 gfx driver to disable a feature called
+	 *	Bonus Launch to work around the issue, by degrading
+	 *	performance.
+	 */
+	 CDV_MSG_WRITE32(3, 0x30, 0x08027108);
+}
+
 /**
  *	cdv_save_display_registers	-	save registers lost on suspend
  *	@dev: our DRM device
@@ -251,7 +267,7 @@ static int cdv_save_display_registers(struct drm_device *dev)
 	struct psb_save_area *regs = &dev_priv->regs;
 	struct drm_connector *connector;
 
-	dev_info(dev->dev, "Saving GPU registers.\n");
+	dev_dbg(dev->dev, "Saving GPU registers.\n");
 
 	pci_read_config_byte(dev->pdev, 0xF4, &regs->cdv.saveLBB);
 
@@ -355,7 +371,7 @@ static int cdv_restore_display_registers(struct drm_device *dev)
 	REG_WRITE(PSB_INT_MASK_R, regs->cdv.saveIMR);
 
 	/* Fix arbitration bug */
-	CDV_MSG_WRITE32(3, 0x30, 0x08027108);
+	cdv_errata(dev);
 
 	drm_mode_config_reset(dev);
 
@@ -411,49 +427,165 @@ static int cdv_power_up(struct drm_device *dev)
 	return 0;
 }
 
-/* FIXME ? - shared with Poulsbo */
-static void cdv_get_core_freq(struct drm_device *dev)
+static void cdv_hotplug_work_func(struct work_struct *work)
 {
-	uint32_t clock;
-	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+        struct drm_psb_private *dev_priv = container_of(work, struct drm_psb_private,
+							hotplug_work);                 
+        struct drm_device *dev = dev_priv->dev;
+
+        /* Just fire off a uevent and let userspace tell us what to do */
+        drm_helper_hpd_irq_event(dev);
+}                       
+
+/* The core driver has received a hotplug IRQ. We are in IRQ context
+   so extract the needed information and kick off queued processing */
+   
+static int cdv_hotplug_event(struct drm_device *dev)
+{
 	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	pci_write_config_dword(pci_root, 0xD0, 0xD0050300);
-	pci_read_config_dword(pci_root, 0xD4, &clock);
-	pci_dev_put(pci_root);
-
-	switch (clock & 0x07) {
-	case 0:
-		dev_priv->core_freq = 100;
-		break;
-	case 1:
-		dev_priv->core_freq = 133;
-		break;
-	case 2:
-		dev_priv->core_freq = 150;
-		break;
-	case 3:
-		dev_priv->core_freq = 178;
-		break;
-	case 4:
-		dev_priv->core_freq = 200;
-		break;
-	case 5:
-	case 6:
-	case 7:
-		dev_priv->core_freq = 266;
-	default:
-		dev_priv->core_freq = 0;
-	}
+	schedule_work(&dev_priv->hotplug_work);
+	REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
+	return 1;
 }
+
+static void cdv_hotplug_enable(struct drm_device *dev, bool on)
+{
+	if (on) {
+		u32 hotplug = REG_READ(PORT_HOTPLUG_EN);
+		hotplug |= HDMIB_HOTPLUG_INT_EN | HDMIC_HOTPLUG_INT_EN |
+			   HDMID_HOTPLUG_INT_EN | CRT_HOTPLUG_INT_EN;
+		REG_WRITE(PORT_HOTPLUG_EN, hotplug);
+	}  else {
+		REG_WRITE(PORT_HOTPLUG_EN, 0);
+		REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
+	}	
+}
+
+static const char *force_audio_names[] = {
+	"off",
+	"auto",
+	"on",
+};
+
+void cdv_intel_attach_force_audio_property(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_property *prop;
+	int i;
+
+	prop = dev_priv->force_audio_property;
+	if (prop == NULL) {
+		prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+					   "audio",
+					   ARRAY_SIZE(force_audio_names));
+		if (prop == NULL)
+			return;
+
+		for (i = 0; i < ARRAY_SIZE(force_audio_names); i++)
+			drm_property_add_enum(prop, i, i-1, force_audio_names[i]);
+
+		dev_priv->force_audio_property = prop;
+	}
+	drm_object_attach_property(&connector->base, prop, 0);
+}
+
+
+static const char *broadcast_rgb_names[] = {
+	"Full",
+	"Limited 16:235",
+};
+
+void cdv_intel_attach_broadcast_rgb_property(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_property *prop;
+	int i;
+
+	prop = dev_priv->broadcast_rgb_property;
+	if (prop == NULL) {
+		prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+					   "Broadcast RGB",
+					   ARRAY_SIZE(broadcast_rgb_names));
+		if (prop == NULL)
+			return;
+
+		for (i = 0; i < ARRAY_SIZE(broadcast_rgb_names); i++)
+			drm_property_add_enum(prop, i, i, broadcast_rgb_names[i]);
+
+		dev_priv->broadcast_rgb_property = prop;
+	}
+
+	drm_object_attach_property(&connector->base, prop, 0);
+}
+
+/* Cedarview */
+static const struct psb_offset cdv_regmap[2] = {
+	{
+		.fp0 = FPA0,
+		.fp1 = FPA1,
+		.cntr = DSPACNTR,
+		.conf = PIPEACONF,
+		.src = PIPEASRC,
+		.dpll = DPLL_A,
+		.dpll_md = DPLL_A_MD,
+		.htotal = HTOTAL_A,
+		.hblank = HBLANK_A,
+		.hsync = HSYNC_A,
+		.vtotal = VTOTAL_A,
+		.vblank = VBLANK_A,
+		.vsync = VSYNC_A,
+		.stride = DSPASTRIDE,
+		.size = DSPASIZE,
+		.pos = DSPAPOS,
+		.base = DSPABASE,
+		.surf = DSPASURF,
+		.addr = DSPABASE,
+		.status = PIPEASTAT,
+		.linoff = DSPALINOFF,
+		.tileoff = DSPATILEOFF,
+		.palette = PALETTE_A,
+	},
+	{
+		.fp0 = FPB0,
+		.fp1 = FPB1,
+		.cntr = DSPBCNTR,
+		.conf = PIPEBCONF,
+		.src = PIPEBSRC,
+		.dpll = DPLL_B,
+		.dpll_md = DPLL_B_MD,
+		.htotal = HTOTAL_B,
+		.hblank = HBLANK_B,
+		.hsync = HSYNC_B,
+		.vtotal = VTOTAL_B,
+		.vblank = VBLANK_B,
+		.vsync = VSYNC_B,
+		.stride = DSPBSTRIDE,
+		.size = DSPBSIZE,
+		.pos = DSPBPOS,
+		.base = DSPBBASE,
+		.surf = DSPBSURF,
+		.addr = DSPBBASE,
+		.status = PIPEBSTAT,
+		.linoff = DSPBLINOFF,
+		.tileoff = DSPBTILEOFF,
+		.palette = PALETTE_B,
+	}
+};
 
 static int cdv_chip_setup(struct drm_device *dev)
 {
-	cdv_get_core_freq(dev);
-	gma_intel_opregion_init(dev);
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	INIT_WORK(&dev_priv->hotplug_work, cdv_hotplug_work_func);
+
+	if (pci_enable_msi(dev->pdev))
+		dev_warn(dev->dev, "Enabling MSI failed!\n");
+	dev_priv->regmap = cdv_regmap;
+	gma_get_core_freq(dev);
+	psb_intel_opregion_init(dev);
 	psb_intel_init_bios(dev);
-	REG_WRITE(PORT_HOTPLUG_EN, 0);
-	REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
+	cdv_hotplug_enable(dev, false);
 	return 0;
 }
 
@@ -464,13 +596,21 @@ const struct psb_ops cdv_chip_ops = {
 	.accel_2d = 0,
 	.pipes = 2,
 	.crtcs = 2,
+	.hdmi_mask = (1 << 0) | (1 << 1),
+	.lvds_mask = (1 << 1),
+	.sdvo_mask = (1 << 0),
+	.cursor_needs_phys = 0,
 	.sgx_offset = MRST_SGX_OFFSET,
 	.chip_setup = cdv_chip_setup,
+	.errata = cdv_errata,
 
 	.crtc_helper = &cdv_intel_helper_funcs,
 	.crtc_funcs = &cdv_intel_crtc_funcs,
+	.clock_funcs = &cdv_clock_funcs,
 
 	.output_init = cdv_output_init,
+	.hotplug = cdv_hotplug_event,
+	.hotplug_enable = cdv_hotplug_enable,
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 	.backlight_init = cdv_backlight_init,
@@ -481,4 +621,6 @@ const struct psb_ops cdv_chip_ops = {
 	.restore_regs = cdv_restore_display_registers,
 	.power_down = cdv_power_down,
 	.power_up = cdv_power_up,
+	.update_wm = cdv_update_wm,
+	.disable_sr = cdv_disable_sr,
 };

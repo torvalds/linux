@@ -90,7 +90,7 @@ void v9fs_cache_session_get_cookie(struct v9fs_session_info *v9ses)
 
 	v9ses->fscache = fscache_acquire_cookie(v9fs_cache_netfs.primary_index,
 						&v9fs_cache_session_index_def,
-						v9ses);
+						v9ses, true);
 	p9_debug(P9_DEBUG_FSC, "session %p get cookie %p\n",
 		 v9ses, v9ses->fscache);
 }
@@ -204,7 +204,7 @@ void v9fs_cache_inode_get_cookie(struct inode *inode)
 	v9ses = v9fs_inode2v9ses(inode);
 	v9inode->fscache = fscache_acquire_cookie(v9ses->fscache,
 						  &v9fs_cache_inode_index_def,
-						  v9inode);
+						  v9inode, true);
 
 	p9_debug(P9_DEBUG_FSC, "inode %p get cookie %p\n",
 		 inode, v9inode->fscache);
@@ -239,13 +239,12 @@ void v9fs_cache_inode_flush_cookie(struct inode *inode)
 void v9fs_cache_inode_set_cookie(struct inode *inode, struct file *filp)
 {
 	struct v9fs_inode *v9inode = V9FS_I(inode);
-	struct p9_fid *fid;
 
 	if (!v9inode->fscache)
 		return;
 
 	spin_lock(&v9inode->fscache_lock);
-	fid = filp->private_data;
+
 	if ((filp->f_flags & O_ACCMODE) != O_RDONLY)
 		v9fs_cache_inode_flush_cookie(inode);
 	else
@@ -271,7 +270,7 @@ void v9fs_cache_inode_reset_cookie(struct inode *inode)
 	v9ses = v9fs_inode2v9ses(inode);
 	v9inode->fscache = fscache_acquire_cookie(v9ses->fscache,
 						  &v9fs_cache_inode_index_def,
-						  v9inode);
+						  v9inode, true);
 	p9_debug(P9_DEBUG_FSC, "inode %p revalidating cookie old %p new %p\n",
 		 inode, old, v9inode->fscache);
 

@@ -219,84 +219,55 @@ static void xeta_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 	out[1] = cpu_to_le32(z);
 }
 
-static struct crypto_alg tea_alg = {
+static struct crypto_alg tea_algs[3] = { {
 	.cra_name		=	"tea",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	TEA_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct tea_ctx),
 	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(tea_alg.cra_list),
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	TEA_KEY_SIZE,
 	.cia_max_keysize	=	TEA_KEY_SIZE,
 	.cia_setkey		= 	tea_setkey,
 	.cia_encrypt		=	tea_encrypt,
 	.cia_decrypt		=	tea_decrypt } }
-};
-
-static struct crypto_alg xtea_alg = {
+}, {
 	.cra_name		=	"xtea",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	XTEA_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct xtea_ctx),
 	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(xtea_alg.cra_list),
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	XTEA_KEY_SIZE,
 	.cia_max_keysize	=	XTEA_KEY_SIZE,
 	.cia_setkey		= 	xtea_setkey,
 	.cia_encrypt		=	xtea_encrypt,
 	.cia_decrypt		=	xtea_decrypt } }
-};
-
-static struct crypto_alg xeta_alg = {
+}, {
 	.cra_name		=	"xeta",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	XTEA_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct xtea_ctx),
 	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(xtea_alg.cra_list),
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	XTEA_KEY_SIZE,
 	.cia_max_keysize	=	XTEA_KEY_SIZE,
 	.cia_setkey		= 	xtea_setkey,
 	.cia_encrypt		=	xeta_encrypt,
 	.cia_decrypt		=	xeta_decrypt } }
-};
+} };
 
 static int __init tea_mod_init(void)
 {
-	int ret = 0;
-	
-	ret = crypto_register_alg(&tea_alg);
-	if (ret < 0)
-		goto out;
-
-	ret = crypto_register_alg(&xtea_alg);
-	if (ret < 0) {
-		crypto_unregister_alg(&tea_alg);
-		goto out;
-	}
-
-	ret = crypto_register_alg(&xeta_alg);
-	if (ret < 0) {
-		crypto_unregister_alg(&tea_alg);
-		crypto_unregister_alg(&xtea_alg);
-		goto out;
-	}
-
-out:	
-	return ret;
+	return crypto_register_algs(tea_algs, ARRAY_SIZE(tea_algs));
 }
 
 static void __exit tea_mod_fini(void)
 {
-	crypto_unregister_alg(&tea_alg);
-	crypto_unregister_alg(&xtea_alg);
-	crypto_unregister_alg(&xeta_alg);
+	crypto_unregister_algs(tea_algs, ARRAY_SIZE(tea_algs));
 }
 
 MODULE_ALIAS("xtea");

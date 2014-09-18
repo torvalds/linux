@@ -52,10 +52,8 @@ void __init prom_init(void)
 	prom_init_cmdline();
 
 	memsize_str = prom_getenv("memsize");
-	if (!memsize_str)
+	if (!memsize_str || kstrtoul(memsize_str, 0, &memsize))
 		memsize = 0x04000000;
-	else
-		strict_strtoul(memsize_str, 0, &memsize);
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
 }
 
@@ -81,16 +79,16 @@ static void mtx1_power_off(void)
 
 void __init board_setup(void)
 {
-#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+#if IS_ENABLED(CONFIG_USB_OHCI_HCD)
 	/* Enable USB power switch */
 	alchemy_gpio_direction_output(204, 0);
-#endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
+#endif /* IS_ENABLED(CONFIG_USB_OHCI_HCD) */
 
 	/* Initialize sys_pinfunc */
-	au_writel(SYS_PF_NI2, SYS_PINFUNC);
+	alchemy_wrsys(SYS_PF_NI2, AU1000_SYS_PINFUNC);
 
 	/* Initialize GPIO */
-	au_writel(~0, KSEG1ADDR(AU1000_SYS_PHYS_ADDR) + SYS_TRIOUTCLR);
+	alchemy_wrsys(~0, AU1000_SYS_TRIOUTCLR);
 	alchemy_gpio_direction_output(0, 0);	/* Disable M66EN (PCI 66MHz) */
 	alchemy_gpio_direction_output(3, 1);	/* Disable PCI CLKRUN# */
 	alchemy_gpio_direction_output(1, 1);	/* Enable EXT_IO3 */
@@ -173,23 +171,23 @@ static struct mtd_partition mtx1_mtd_partitions[] = {
 	{
 		.name	= "filesystem",
 		.size	= 0x01C00000,
-		.offset	= 0,
+		.offset = 0,
 	},
 	{
 		.name	= "yamon",
 		.size	= 0x00100000,
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 		.mask_flags = MTD_WRITEABLE,
 	},
 	{
 		.name	= "kernel",
 		.size	= 0x002c0000,
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 	},
 	{
 		.name	= "yamon env",
 		.size	= 0x00040000,
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 	},
 };
 
@@ -228,6 +226,8 @@ static int mtx1_pci_idsel(unsigned int devsel, int assert)
 	 * adapter on the mtx-1 "singleboard" variant. It triggers a custom
 	 * logic chip connected to EXT_IO3 (GPIO1) to suppress IDSEL signals.
 	 */
+	udelay(1);
+
 	if (assert && devsel != 0)
 		/* Suppress signal to Cardbus */
 		alchemy_gpio_set_value(1, 0);	/* set EXT_IO3 OFF */
@@ -274,7 +274,7 @@ static struct platform_device mtx1_pci_host = {
 	.resource	= alchemy_pci_host_res,
 };
 
-static struct __initdata platform_device * mtx1_devs[] = {
+static struct platform_device *mtx1_devs[] __initdata = {
 	&mtx1_pci_host,
 	&mtx1_gpio_leds,
 	&mtx1_wdt,

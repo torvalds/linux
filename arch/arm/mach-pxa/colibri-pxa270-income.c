@@ -27,11 +27,11 @@
 #include <asm/mach-types.h>
 
 #include <mach/hardware.h>
-#include <mach/mmc.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/pxa27x.h>
 #include <mach/pxa27x-udc.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -189,6 +189,7 @@ static struct platform_pwm_backlight_data income_backlight_data = {
 	.max_brightness	= 0x3ff,
 	.dft_brightness	= 0x1ff,
 	.pwm_period_ns	= 1000000,
+	.enable_gpio	= -1,
 };
 
 static struct platform_device income_backlight = {

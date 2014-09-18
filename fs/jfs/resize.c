@@ -530,7 +530,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	goto resume;
 
       error_out:
-	jfs_error(sb, "jfs_extendfs");
+	jfs_error(sb, "\n");
 
       resume:
 	/*

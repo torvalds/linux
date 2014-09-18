@@ -41,5 +41,9 @@
 
 extern const struct ieee80211_ops rtl_ops;
 void rtl_fw_cb(const struct firmware *firmware, void *context);
+void rtl_addr_delay(u32 addr);
+void rtl_rfreg_delay(struct ieee80211_hw *hw, enum radio_path rfpath, u32 addr,
+		     u32 mask, u32 data);
+void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data);
 
 #endif

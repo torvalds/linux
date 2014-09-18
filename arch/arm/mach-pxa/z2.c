@@ -37,9 +37,9 @@
 #include <mach/pxa27x.h>
 #include <mach/mfp-pxa27x.h>
 #include <mach/z2.h>
-#include <mach/pxafb.h>
-#include <mach/mmc.h>
-#include <plat/pxa27x_keypad.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/keypad-pxa27x.h>
 #include <mach/pm.h>
 
 #include "generic.h"
@@ -206,6 +206,7 @@ static struct platform_pwm_backlight_data z2_backlight_data[] = {
 		.max_brightness	= 1023,
 		.dft_brightness	= 0,
 		.pwm_period_ns	= 1260320,
+		.enable_gpio	= -1,
 	},
 	[1] = {
 		/* LCD Backlight */
@@ -213,6 +214,7 @@ static struct platform_pwm_backlight_data z2_backlight_data[] = {
 		.max_brightness	= 1023,
 		.dft_brightness	= 512,
 		.pwm_period_ns	= 1260320,
+		.enable_gpio	= -1,
 	},
 };
 
@@ -345,7 +347,7 @@ static inline void z2_leds_init(void) {}
  * GPIO keyboard
  ******************************************************************************/
 #if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
-static unsigned int z2_matrix_keys[] = {
+static const unsigned int z2_matrix_keys[] = {
 	KEY(0, 0, KEY_OPTION),
 	KEY(1, 0, KEY_UP),
 	KEY(2, 0, KEY_DOWN),
@@ -405,11 +407,15 @@ static unsigned int z2_matrix_keys[] = {
 	KEY(5, 7, KEY_DOT),
 };
 
+static struct matrix_keymap_data z2_matrix_keymap_data = {
+	.keymap			= z2_matrix_keys,
+	.keymap_size		= ARRAY_SIZE(z2_matrix_keys),
+};
+
 static struct pxa27x_keypad_platform_data z2_keypad_platform_data = {
 	.matrix_key_rows	= 7,
 	.matrix_key_cols	= 8,
-	.matrix_key_map		= z2_matrix_keys,
-	.matrix_key_map_size	= ARRAY_SIZE(z2_matrix_keys),
+	.matrix_keymap_data	= &z2_matrix_keymap_data,
 
 	.debounce_interval	= 30,
 };
@@ -615,9 +621,7 @@ static inline void z2_spi_init(void) {}
 #if defined(CONFIG_REGULATOR_TPS65023) || \
 	defined(CONFIG_REGULATOR_TPS65023_MODULE)
 static struct regulator_consumer_supply z2_tps65021_consumers[] = {
-	{
-		.supply	= "vcc_core",
-	}
+	REGULATOR_SUPPLY("vcc_core", NULL),
 };
 
 static struct regulator_init_data z2_tps65021_info[] = {
@@ -724,7 +728,7 @@ MACHINE_START(ZIPIT2, "Zipit Z2")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= z2_init,
 	.restart	= pxa_restart,
 MACHINE_END

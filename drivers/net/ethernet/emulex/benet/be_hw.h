@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2014 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -31,12 +31,12 @@
 
 #define MPU_EP_CONTROL 		0
 
-/********** MPU semphore ******************/
-#define MPU_EP_SEMAPHORE_OFFSET		0xac
-#define MPU_EP_SEMAPHORE_IF_TYPE2_OFFSET	0x400
-#define EP_SEMAPHORE_POST_STAGE_MASK		0x0000FFFF
-#define EP_SEMAPHORE_POST_ERR_MASK		0x1
-#define EP_SEMAPHORE_POST_ERR_SHIFT		31
+/********** MPU semphore: used for SH & BE  *************/
+#define SLIPORT_SEMAPHORE_OFFSET_BEx		0xac  /* CSR BAR offset */
+#define SLIPORT_SEMAPHORE_OFFSET_SH		0x94  /* PCI-CFG offset */
+#define POST_STAGE_MASK				0x0000FFFF
+#define POST_ERR_MASK				0x1
+#define POST_ERR_SHIFT				31
 
 /* MPU semphore POST stage values */
 #define POST_STAGE_AWAITING_HOST_RDY 	0x1 /* FW awaiting goahead from host */
@@ -45,18 +45,27 @@
 #define POST_STAGE_ARMFW_RDY		0xc000	/* FW is done with POST */
 
 
-/* Lancer SLIPORT_CONTROL SLIPORT_STATUS registers */
+/* Lancer SLIPORT registers */
 #define SLIPORT_STATUS_OFFSET		0x404
 #define SLIPORT_CONTROL_OFFSET		0x408
 #define SLIPORT_ERROR1_OFFSET		0x40C
 #define SLIPORT_ERROR2_OFFSET		0x410
+#define PHYSDEV_CONTROL_OFFSET		0x414
 
 #define SLIPORT_STATUS_ERR_MASK		0x80000000
+#define SLIPORT_STATUS_DIP_MASK		0x02000000
 #define SLIPORT_STATUS_RN_MASK		0x01000000
 #define SLIPORT_STATUS_RDY_MASK		0x00800000
-
-
 #define SLI_PORT_CONTROL_IP_MASK	0x08000000
+#define PHYSDEV_CONTROL_FW_RESET_MASK	0x00000002
+#define PHYSDEV_CONTROL_DD_MASK		0x00000004
+#define PHYSDEV_CONTROL_INP_MASK	0x40000000
+
+#define SLIPORT_ERROR_NO_RESOURCE1	0x2
+#define SLIPORT_ERROR_NO_RESOURCE2	0x9
+
+#define SLIPORT_ERROR_FW_RESET1		0x2
+#define SLIPORT_ERROR_FW_RESET2		0x0
 
 /********* Memory BAR register ************/
 #define PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET 	0xfc
@@ -67,6 +76,10 @@
  * with the OS.
  */
 #define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	(1 << 29) /* bit 29 */
+
+/********* PCI Function Capability *********/
+#define BE_FUNCTION_CAPS_RSS			0x2
+#define BE_FUNCTION_CAPS_SUPER_NIC		0x40
 
 /********* Power management (WOL) **********/
 #define PCICFG_PM_CONTROL_OFFSET		0x44
@@ -98,11 +111,8 @@
 #define SLI_INTF_REV_SHIFT			4
 #define SLI_INTF_FT_MASK			0x00000001
 
-
-/* SLI family */
-#define BE_SLI_FAMILY		0x0
-#define LANCER_A0_SLI_FAMILY	0xA
-
+#define SLI_INTF_TYPE_2		2
+#define SLI_INTF_TYPE_3		3
 
 /********* ISR0 Register offset **********/
 #define CEV_ISR0_OFFSET 			0xC18
@@ -162,25 +172,30 @@
 #define QUERY_FAT	1
 
 /* Flashrom related descriptors */
+#define MAX_FLASH_COMP			32
 #define IMAGE_TYPE_FIRMWARE		160
 #define IMAGE_TYPE_BOOTCODE		224
 #define IMAGE_TYPE_OPTIONROM		32
 
 #define NUM_FLASHDIR_ENTRIES		32
 
-#define IMG_TYPE_ISCSI_ACTIVE		0
-#define IMG_TYPE_REDBOOT		1
-#define IMG_TYPE_BIOS			2
-#define IMG_TYPE_PXE_BIOS		3
-#define IMG_TYPE_FCOE_BIOS		8
-#define IMG_TYPE_ISCSI_BACKUP		9
-#define IMG_TYPE_FCOE_FW_ACTIVE		10
-#define IMG_TYPE_FCOE_FW_BACKUP 	11
-#define IMG_TYPE_NCSI_FW		13
-#define IMG_TYPE_PHY_FW			99
+#define OPTYPE_ISCSI_ACTIVE		0
+#define OPTYPE_REDBOOT			1
+#define OPTYPE_BIOS			2
+#define OPTYPE_PXE_BIOS			3
+#define OPTYPE_FCOE_BIOS		8
+#define OPTYPE_ISCSI_BACKUP		9
+#define OPTYPE_FCOE_FW_ACTIVE		10
+#define OPTYPE_FCOE_FW_BACKUP		11
+#define OPTYPE_NCSI_FW			13
+#define OPTYPE_REDBOOT_DIR		18
+#define OPTYPE_REDBOOT_CONFIG		19
+#define OPTYPE_SH_PHY_FW		21
+#define OPTYPE_FLASHISM_JUMPVECTOR	22
+#define OPTYPE_UFI_DIR			23
+#define OPTYPE_PHY_FW			99
 #define TN_8022				13
 
-#define ILLEGAL_IOCTL_REQ		2
 #define FLASHROM_OPER_PHY_FLASH		9
 #define FLASHROM_OPER_PHY_SAVE		10
 #define FLASHROM_OPER_FLASH		1
@@ -222,6 +237,27 @@
 #define FLASH_FCoE_BIOS_START_g3           (13631488)
 #define FLASH_REDBOOT_START_g3             (262144)
 #define FLASH_PHY_FW_START_g3		   1310720
+
+#define IMAGE_NCSI			16
+#define IMAGE_OPTION_ROM_PXE		32
+#define IMAGE_OPTION_ROM_FCoE		33
+#define IMAGE_OPTION_ROM_ISCSI		34
+#define IMAGE_FLASHISM_JUMPVECTOR	48
+#define IMAGE_FLASH_ISM			49
+#define IMAGE_JUMP_VECTOR		50
+#define IMAGE_FIRMWARE_iSCSI		160
+#define IMAGE_FIRMWARE_COMP_iSCSI	161
+#define IMAGE_FIRMWARE_FCoE		162
+#define IMAGE_FIRMWARE_COMP_FCoE	163
+#define IMAGE_FIRMWARE_BACKUP_iSCSI	176
+#define IMAGE_FIRMWARE_BACKUP_COMP_iSCSI 177
+#define IMAGE_FIRMWARE_BACKUP_FCoE	178
+#define IMAGE_FIRMWARE_BACKUP_COMP_FCoE 179
+#define IMAGE_FIRMWARE_PHY		192
+#define IMAGE_REDBOOT_DIR		208
+#define IMAGE_REDBOOT_CONFIG		209
+#define IMAGE_UFI_DIR			210
+#define IMAGE_BOOT_CODE			224
 
 /************* Rx Packet Type Encoding **************/
 #define BE_UNICAST_PACKET		0
@@ -332,14 +368,14 @@ struct amap_eth_rx_compl_v0 {
 	u8 ip_version;		/* dword 1 */
 	u8 macdst[6];		/* dword 1 */
 	u8 vtp;			/* dword 1 */
-	u8 rsvd0;		/* dword 1 */
+	u8 ip_frag;		/* dword 1 */
 	u8 fragndx[10];		/* dword 1 */
 	u8 ct[2];		/* dword 1 */
 	u8 sw;			/* dword 1 */
 	u8 numfrags[3];		/* dword 1 */
 	u8 rss_flush;		/* dword 2 */
 	u8 cast_enc[2];		/* dword 2 */
-	u8 vtm;			/* dword 2 */
+	u8 qnq;			/* dword 2 */
 	u8 rss_bank;		/* dword 2 */
 	u8 rsvd1[23];		/* dword 2 */
 	u8 lro_pkt;		/* dword 2 */
@@ -372,13 +408,14 @@ struct amap_eth_rx_compl_v1 {
 	u8 numfrags[3];		/* dword 1 */
 	u8 rss_flush;		/* dword 2 */
 	u8 cast_enc[2];		/* dword 2 */
-	u8 vtm;			/* dword 2 */
+	u8 qnq;			/* dword 2 */
 	u8 rss_bank;		/* dword 2 */
 	u8 port[2];		/* dword 2 */
 	u8 vntagp;		/* dword 2 */
 	u8 header_len[8];	/* dword 2 */
 	u8 header_split[2];	/* dword 2 */
-	u8 rsvd1[13];		/* dword 2 */
+	u8 rsvd1[12];		/* dword 2 */
+	u8 tunneled;
 	u8 valid;		/* dword 2 */
 	u8 rsshash[32];		/* dword 3 */
 } __packed;
@@ -445,6 +482,7 @@ struct flash_comp {
 	unsigned long offset;
 	int optype;
 	int size;
+	int img_type;
 };
 
 struct image_hdr {
@@ -474,24 +512,27 @@ struct flash_file_hdr_g3 {
 	u32 antidote;
 	u32 num_imgs;
 	u8 build[24];
-	u8 rsvd[32];
+	u8 asic_type_rev;
+	u8 rsvd[31];
 };
 
 struct flash_section_hdr {
 	u32 format_rev;
 	u32 cksum;
 	u32 antidote;
-	u32 build_no;
-	u8 id_string[64];
-	u32 active_entry_mask;
-	u32 valid_entry_mask;
-	u32 org_content_mask;
-	u32 rsvd0;
-	u32 rsvd1;
-	u32 rsvd2;
-	u32 rsvd3;
-	u32 rsvd4;
-};
+	u32 num_images;
+	u8 id_string[128];
+	u32 rsvd[4];
+} __packed;
+
+struct flash_section_hdr_g2 {
+	u32 format_rev;
+	u32 cksum;
+	u32 antidote;
+	u32 build_num;
+	u8 id_string[128];
+	u32 rsvd[8];
+} __packed;
 
 struct flash_section_entry {
 	u32 type;
@@ -500,13 +541,20 @@ struct flash_section_entry {
 	u32 image_size;
 	u32 cksum;
 	u32 entry_point;
-	u32 rsvd0;
+	u16 optype;
+	u16 rsvd0;
 	u32 rsvd1;
 	u8 ver_data[32];
-};
+} __packed;
 
 struct flash_section_info {
 	u8 cookie[32];
 	struct flash_section_hdr fsec_hdr;
 	struct flash_section_entry fsec_entry[32];
-};
+} __packed;
+
+struct flash_section_info_g2 {
+	u8 cookie[32];
+	struct flash_section_hdr_g2 fsec_hdr;
+	struct flash_section_entry fsec_entry[32];
+} __packed;

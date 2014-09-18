@@ -14,7 +14,7 @@
  * Copyright (c) 2004, Intel Corporation
  *
  * Modified for Realtek's wi-fi cards by Andrea Merello
- * <andreamrl@tiscali.it>
+ * <andrea.merello@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -169,7 +169,7 @@ struct cb_desc {
 
 	u8 nStuckCount;
 
-	/* Tx Firmware Relaged flags (10-11)*/
+	/* Tx Firmware Related flags (10-11)*/
 	u8 bCTSEnable:1;
 	u8 bRTSEnable:1;
 	u8 bUseShortGI:1;
@@ -1690,7 +1690,7 @@ enum rtllib_state {
 	/* the association procedure is sending AUTH request*/
 	RTLLIB_ASSOCIATING_AUTHENTICATING,
 
-	/* the association procedure has successfully authentcated
+	/* the association procedure has successfully authenticated
 	 * and is sending association request
 	 */
 	RTLLIB_ASSOCIATING_AUTHENTICATED,
@@ -2397,19 +2397,19 @@ struct rtllib_device {
 				 struct rtllib_network *network, u16 type);
 	int (*is_qos_active)(struct net_device *dev, struct sk_buff *skb);
 
-	/* Softmac-generated frames (mamagement) are TXed via this
+	/* Softmac-generated frames (management) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is
 	 * not set. As some cards may have different HW queues that
 	 * one might want to use for data and management frames
 	 * the option to have two callbacks might be useful.
-	 * This fucntion can't sleep.
+	 * This function can't sleep.
 	 */
 	int (*softmac_hard_start_xmit)(struct sk_buff *skb,
 			       struct net_device *dev);
 
 	/* used instead of hard_start_xmit (not softmac_hard_start_xmit)
 	 * if the IEEE_SOFTMAC_TX_QUEUE feature is used to TX data
-	 * frames. I the option IEEE_SOFTMAC_SINGLE_QUEUE is also set
+	 * frames. If the option IEEE_SOFTMAC_SINGLE_QUEUE is also set
 	 * then also management frames are sent via this callback.
 	 * This function can't sleep.
 	 */
@@ -2422,12 +2422,12 @@ struct rtllib_device {
 	 */
 	void (*data_hard_stop)(struct net_device *dev);
 
-	/* OK this is complementar to data_poll_hard_stop */
+	/* OK this is complementing to data_poll_hard_stop */
 	void (*data_hard_resume)(struct net_device *dev);
 
 	/* ask to the driver to retune the radio .
 	 * This function can sleep. the driver should ensure
-	 * the radio has been swithced before return.
+	 * the radio has been switched before return.
 	 */
 	void (*set_chan)(struct net_device *dev, short ch);
 
@@ -2438,12 +2438,12 @@ struct rtllib_device {
 	 * The syncro version is similar to the start_scan but
 	 * does not return until all channels has been scanned.
 	 * this is called in user context and should sleep,
-	 * it is called in a work_queue when swithcing to ad-hoc mode
+	 * it is called in a work_queue when switching to ad-hoc mode
 	 * or in behalf of iwlist scan when the card is associated
 	 * and root user ask for a scan.
-	 * the fucntion stop_scan should stop both the syncro and
+	 * the function stop_scan should stop both the syncro and
 	 * background scanning and can sleep.
-	 * The fucntion start_scan should initiate the background
+	 * The function start_scan should initiate the background
 	 * scanning and can't sleep.
 	 */
 	void (*scan_syncro)(struct net_device *dev);
@@ -2481,7 +2481,7 @@ struct rtllib_device {
 				     struct rtllib_network *network);
 
 
-	/* check whether Tx hw resouce available */
+	/* check whether Tx hw resource available */
 	short (*check_nic_enough_desc)(struct net_device *dev, int queue_index);
 	short (*get_nic_desc_num)(struct net_device *dev, int queue_index);
 	void (*SetBWModeHandler)(struct net_device *dev,
@@ -2543,10 +2543,10 @@ struct rtllib_device {
 /* Generate probe requests */
 #define IEEE_SOFTMAC_PROBERQ (1<<4)
 
-/* Generate respones to probe requests */
+/* Generate response to probe requests */
 #define IEEE_SOFTMAC_PROBERS (1<<5)
 
-/* The ieee802.11 stack will manages the netif queue
+/* The ieee802.11 stack will manage the netif queue
  * wake/stop for the driver, taking care of 802.11
  * fragmentation. See softmac.c for details. */
 #define IEEE_SOFTMAC_TX_QUEUE (1<<7)
@@ -2567,7 +2567,7 @@ static inline void *rtllib_priv(struct net_device *dev)
 	return ((struct rtllib_device *)netdev_priv(dev))->priv;
 }
 
-extern inline int rtllib_is_empty_essid(const char *essid, int essid_len)
+static inline int rtllib_is_empty_essid(const char *essid, int essid_len)
 {
 	/* Single white space is for Linksys APs */
 	if (essid_len == 1 && essid[0] == ' ')
@@ -2583,7 +2583,7 @@ extern inline int rtllib_is_empty_essid(const char *essid, int essid_len)
 	return 1;
 }
 
-extern inline int rtllib_is_valid_mode(struct rtllib_device *ieee, int mode)
+static inline int rtllib_is_valid_mode(struct rtllib_device *ieee, int mode)
 {
 	/*
 	 * It is possible for both access points and our device to support
@@ -2609,7 +2609,7 @@ extern inline int rtllib_is_valid_mode(struct rtllib_device *ieee, int mode)
 	return 0;
 }
 
-extern inline int rtllib_get_hdrlen(u16 fc)
+static inline int rtllib_get_hdrlen(u16 fc)
 {
 	int hdrlen = RTLLIB_3ADDR_LEN;
 
@@ -2896,7 +2896,7 @@ extern void HTConstructCapabilityElement(struct rtllib_device *ieee,
 extern void HTConstructInfoElement(struct rtllib_device *ieee,
 				   u8 *posHTInfo, u8 *len, u8 isEncrypt);
 extern void HTConstructRT2RTAggElement(struct rtllib_device *ieee,
-				       u8 *posRT2RTAgg, u8* len);
+				       u8 *posRT2RTAgg, u8 *len);
 extern void HTOnAssocRsp(struct rtllib_device *ieee);
 extern void HTInitializeHTInfo(struct rtllib_device *ieee);
 extern void HTInitializeBssDesc(struct bss_ht *pBssHT);

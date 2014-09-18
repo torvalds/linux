@@ -34,7 +34,7 @@ struct op_system_config {
 	unsigned long mmcra;
 #ifdef CONFIG_OPROFILE_CELL
 	/* Register for oprofile user tool to check cell kernel profiling
-	 * suport.
+	 * support.
 	 */
 	unsigned long cell_support;
 #endif
@@ -61,7 +61,6 @@ struct op_powerpc_model {
 };
 
 extern struct op_powerpc_model op_model_fsl_emb;
-extern struct op_powerpc_model op_model_rs64;
 extern struct op_powerpc_model op_model_power4;
 extern struct op_powerpc_model op_model_7450;
 extern struct op_powerpc_model op_model_cell;

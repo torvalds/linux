@@ -5,6 +5,7 @@
  * way.
  *
  * Rusty Russell (C)2000 -- This code is GPL.
+ * Patrick McHardy (c) 2006-2012
  */
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
@@ -29,14 +30,12 @@ static DEFINE_MUTEX(afinfo_mutex);
 
 const struct nf_afinfo __rcu *nf_afinfo[NFPROTO_NUMPROTO] __read_mostly;
 EXPORT_SYMBOL(nf_afinfo);
+const struct nf_ipv6_ops __rcu *nf_ipv6_ops __read_mostly;
+EXPORT_SYMBOL_GPL(nf_ipv6_ops);
 
 int nf_register_afinfo(const struct nf_afinfo *afinfo)
 {
-	int err;
-
-	err = mutex_lock_interruptible(&afinfo_mutex);
-	if (err < 0)
-		return err;
+	mutex_lock(&afinfo_mutex);
 	RCU_INIT_POINTER(nf_afinfo[afinfo->family], afinfo);
 	mutex_unlock(&afinfo_mutex);
 	return 0;
@@ -55,7 +54,7 @@ EXPORT_SYMBOL_GPL(nf_unregister_afinfo);
 struct list_head nf_hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS] __read_mostly;
 EXPORT_SYMBOL(nf_hooks);
 
-#if defined(CONFIG_JUMP_LABEL)
+#ifdef HAVE_JUMP_LABEL
 struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 EXPORT_SYMBOL(nf_hooks_needed);
 #endif
@@ -65,18 +64,15 @@ static DEFINE_MUTEX(nf_hook_mutex);
 int nf_register_hook(struct nf_hook_ops *reg)
 {
 	struct nf_hook_ops *elem;
-	int err;
 
-	err = mutex_lock_interruptible(&nf_hook_mutex);
-	if (err < 0)
-		return err;
+	mutex_lock(&nf_hook_mutex);
 	list_for_each_entry(elem, &nf_hooks[reg->pf][reg->hooknum], list) {
 		if (reg->priority < elem->priority)
 			break;
 	}
 	list_add_rcu(&reg->list, elem->list.prev);
 	mutex_unlock(&nf_hook_mutex);
-#if defined(CONFIG_JUMP_LABEL)
+#ifdef HAVE_JUMP_LABEL
 	static_key_slow_inc(&nf_hooks_needed[reg->pf][reg->hooknum]);
 #endif
 	return 0;
@@ -88,7 +84,7 @@ void nf_unregister_hook(struct nf_hook_ops *reg)
 	mutex_lock(&nf_hook_mutex);
 	list_del_rcu(&reg->list);
 	mutex_unlock(&nf_hook_mutex);
-#if defined(CONFIG_JUMP_LABEL)
+#ifdef HAVE_JUMP_LABEL
 	static_key_slow_dec(&nf_hooks_needed[reg->pf][reg->hooknum]);
 #endif
 	synchronize_net();
@@ -126,7 +122,7 @@ unsigned int nf_iterate(struct list_head *head,
 			unsigned int hook,
 			const struct net_device *indev,
 			const struct net_device *outdev,
-			struct list_head **i,
+			struct nf_hook_ops **elemp,
 			int (*okfn)(struct sk_buff *),
 			int hook_thresh)
 {
@@ -136,22 +132,20 @@ unsigned int nf_iterate(struct list_head *head,
 	 * The caller must not block between calls to this
 	 * function because of risk of continuing from deleted element.
 	 */
-	list_for_each_continue_rcu(*i, head) {
-		struct nf_hook_ops *elem = (struct nf_hook_ops *)*i;
-
-		if (hook_thresh > elem->priority)
+	list_for_each_entry_continue_rcu((*elemp), head, list) {
+		if (hook_thresh > (*elemp)->priority)
 			continue;
 
 		/* Optimization: we don't need to hold module
 		   reference here, since function can't sleep. --RR */
 repeat:
-		verdict = elem->hook(hook, skb, indev, outdev, okfn);
+		verdict = (*elemp)->hook(*elemp, skb, indev, outdev, okfn);
 		if (verdict != NF_ACCEPT) {
 #ifdef CONFIG_NETFILTER_DEBUG
 			if (unlikely((verdict & NF_VERDICT_MASK)
 							> NF_MAX_VERDICT)) {
 				NFDEBUG("Evil return from %p(%u).\n",
-					elem->hook, hook);
+					(*elemp)->hook, hook);
 				continue;
 			}
 #endif
@@ -172,14 +166,14 @@ int nf_hook_slow(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
 		 int (*okfn)(struct sk_buff *),
 		 int hook_thresh)
 {
-	struct list_head *elem;
+	struct nf_hook_ops *elem;
 	unsigned int verdict;
 	int ret = 0;
 
 	/* We may already have this, but read-locks nest anyway */
 	rcu_read_lock();
 
-	elem = &nf_hooks[pf][hook];
+	elem = list_entry_rcu(&nf_hooks[pf][hook], struct nf_hook_ops, list);
 next_hook:
 	verdict = nf_iterate(&nf_hooks[pf][hook], skb, hook, indev,
 			     outdev, &elem, okfn, hook_thresh);
@@ -233,12 +227,13 @@ EXPORT_SYMBOL(skb_make_writable);
 /* This does not belong here, but locally generated errors need it if connection
    tracking in use: without this, connection may not be in hash table, and hence
    manufactured ICMP or RST packets will not be associated with it. */
-void (*ip_ct_attach)(struct sk_buff *, struct sk_buff *) __rcu __read_mostly;
+void (*ip_ct_attach)(struct sk_buff *, const struct sk_buff *)
+		__rcu __read_mostly;
 EXPORT_SYMBOL(ip_ct_attach);
 
-void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb)
+void nf_ct_attach(struct sk_buff *new, const struct sk_buff *skb)
 {
-	void (*attach)(struct sk_buff *, struct sk_buff *);
+	void (*attach)(struct sk_buff *, const struct sk_buff *);
 
 	if (skb->nfct) {
 		rcu_read_lock();
@@ -264,38 +259,65 @@ void nf_conntrack_destroy(struct nf_conntrack *nfct)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(nf_conntrack_destroy);
+
+struct nfq_ct_hook __rcu *nfq_ct_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nfq_ct_hook);
+
+struct nfq_ct_nat_hook __rcu *nfq_ct_nat_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nfq_ct_nat_hook);
+
 #endif /* CONFIG_NF_CONNTRACK */
 
-#ifdef CONFIG_PROC_FS
-struct proc_dir_entry *proc_net_netfilter;
-EXPORT_SYMBOL(proc_net_netfilter);
+#ifdef CONFIG_NF_NAT_NEEDED
+void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
+EXPORT_SYMBOL(nf_nat_decode_session_hook);
 #endif
 
-void __init netfilter_init(void)
+static int __net_init netfilter_net_init(struct net *net)
 {
-	int i, h;
+#ifdef CONFIG_PROC_FS
+	net->nf.proc_netfilter = proc_net_mkdir(net, "netfilter",
+						net->proc_net);
+	if (!net->nf.proc_netfilter) {
+		if (!net_eq(net, &init_net))
+			pr_err("cannot create netfilter proc entry");
+
+		return -ENOMEM;
+	}
+#endif
+	return 0;
+}
+
+static void __net_exit netfilter_net_exit(struct net *net)
+{
+	remove_proc_entry("netfilter", net->proc_net);
+}
+
+static struct pernet_operations netfilter_net_ops = {
+	.init = netfilter_net_init,
+	.exit = netfilter_net_exit,
+};
+
+int __init netfilter_init(void)
+{
+	int i, h, ret;
+
 	for (i = 0; i < ARRAY_SIZE(nf_hooks); i++) {
 		for (h = 0; h < NF_MAX_HOOKS; h++)
 			INIT_LIST_HEAD(&nf_hooks[i][h]);
 	}
 
-#ifdef CONFIG_PROC_FS
-	proc_net_netfilter = proc_mkdir("netfilter", init_net.proc_net);
-	if (!proc_net_netfilter)
-		panic("cannot create netfilter proc entry");
-#endif
+	ret = register_pernet_subsys(&netfilter_net_ops);
+	if (ret < 0)
+		goto err;
 
-	if (netfilter_queue_init() < 0)
-		panic("cannot initialize nf_queue");
-	if (netfilter_log_init() < 0)
-		panic("cannot initialize nf_log");
+	ret = netfilter_log_init();
+	if (ret < 0)
+		goto err_pernet;
+
+	return 0;
+err_pernet:
+	unregister_pernet_subsys(&netfilter_net_ops);
+err:
+	return ret;
 }
-
-#ifdef CONFIG_SYSCTL
-struct ctl_path nf_net_netfilter_sysctl_path[] = {
-	{ .procname = "net", },
-	{ .procname = "netfilter", },
-	{ }
-};
-EXPORT_SYMBOL_GPL(nf_net_netfilter_sysctl_path);
-#endif /* CONFIG_SYSCTL */

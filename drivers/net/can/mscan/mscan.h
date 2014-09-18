@@ -14,13 +14,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __MSCAN_H__
 #define __MSCAN_H__
 
+#include <linux/clk.h>
 #include <linux/types.h>
 
 /* MSCAN control register 0 (CANCTL0) bits */
@@ -281,9 +281,10 @@ struct tx_queue_entry {
 struct mscan_priv {
 	struct can_priv can;	/* must be the first member */
 	unsigned int type; 	/* MSCAN type variants */
-	long open_time;
 	unsigned long flags;
 	void __iomem *reg_base;	/* ioremap'ed address to registers */
+	struct clk *clk_ipg;	/* clock for registers */
+	struct clk *clk_can;	/* clock for bitrates */
 	u8 shadow_statflg;
 	u8 shadow_canrier;
 	u8 cur_pri;
@@ -295,8 +296,8 @@ struct mscan_priv {
 	struct napi_struct napi;
 };
 
-extern struct net_device *alloc_mscandev(void);
-extern int register_mscandev(struct net_device *dev, int mscan_clksrc);
-extern void unregister_mscandev(struct net_device *dev);
+struct net_device *alloc_mscandev(void);
+int register_mscandev(struct net_device *dev, int mscan_clksrc);
+void unregister_mscandev(struct net_device *dev);
 
 #endif /* __MSCAN_H__ */

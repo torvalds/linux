@@ -49,14 +49,12 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 	err = request_firmware(&firmware, fw_name, &dev->dev);
 
 	if (err || !firmware) {
-		dev_printk(KERN_ERR, &dev->dev,
-			"%d, request_firmware failed for  %s\n", err,
-			fw_name);
+		dev_err(&dev->dev, "%d, request_firmware failed for %s\n",
+			err, fw_name);
 		goto error1;
 	}
 	if (firmware->size < sizeof(header)) {
-		dev_printk(KERN_ERR, &dev->dev, "Header size too small %s\n",
-			fw_name);
+		dev_err(&dev->dev, "Header size too small %s\n", fw_name);
 		goto error2;
 	}
 	memcpy(&header, firmware->data, sizeof(header));
@@ -64,7 +62,7 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 	if ((header.type != 0x45444F43) ||	/* "CODE" */
 		(header.adapter != adapter)
 		|| (header.size != firmware->size)) {
-		dev_printk(KERN_ERR, &dev->dev,
+		dev_err(&dev->dev,
 			"Invalid firmware header size %d != file %zd\n",
 			header.size, firmware->size);
 		goto error2;
@@ -72,17 +70,15 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 
 	if ((header.version >> 9) != (HPI_VER >> 9)) {
 		/* Consider even and subsequent odd minor versions to be compatible */
-		dev_printk(KERN_ERR, &dev->dev,
-			"Incompatible firmware version "
-			"DSP image %X != Driver %X\n", header.version,
-			HPI_VER);
+		dev_err(&dev->dev, "Incompatible firmware version DSP image %X != Driver %X\n",
+			header.version, HPI_VER);
 		goto error2;
 	}
 
 	if (header.version != HPI_VER) {
-		dev_printk(KERN_INFO, &dev->dev,
-			"Firmware: release version mismatch  DSP image %X != Driver %X\n",
-			header.version, HPI_VER);
+		dev_info(&dev->dev,
+			 "Firmware: release version mismatch  DSP image %X != Driver %X\n",
+			 header.version, HPI_VER);
 	}
 
 	HPI_DEBUG_LOG(DEBUG, "dsp code %s opened\n", fw_name);

@@ -8,6 +8,7 @@
 #ifdef __KERNEL__
 #include <linux/types.h>
 #include <asm/cmpxchg.h>
+#include <asm/barrier.h>
 
 #define ATOMIC_INIT(i)		{ (i) }
 
@@ -268,11 +269,7 @@ static __inline__ int atomic_dec_if_positive(atomic_t *v)
 
 	return t;
 }
-
-#define smp_mb__before_atomic_dec()     smp_mb()
-#define smp_mb__after_atomic_dec()      smp_mb()
-#define smp_mb__before_atomic_inc()     smp_mb()
-#define smp_mb__after_atomic_inc()      smp_mb()
+#define atomic_dec_if_positive atomic_dec_if_positive
 
 #ifdef __powerpc64__
 

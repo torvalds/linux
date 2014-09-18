@@ -314,7 +314,7 @@ ppp_asynctty_ioctl(struct tty_struct *tty, struct file *file,
 		/* flush our buffers and the serial port's buffer */
 		if (arg == TCIOFLUSH || arg == TCOFLUSH)
 			ppp_async_flush_output(ap);
-		err = tty_perform_flush(tty, arg);
+		err = n_tty_ioctl_helper(tty, file, cmd, arg);
 		break;
 
 	case FIONREAD:
@@ -613,7 +613,7 @@ ppp_async_encode(struct asyncppp *ap)
 	*buf++ = PPP_FLAG;
 	ap->olim = buf;
 
-	kfree_skb(ap->tpkt);
+	consume_skb(ap->tpkt);
 	ap->tpkt = NULL;
 	return 1;
 }

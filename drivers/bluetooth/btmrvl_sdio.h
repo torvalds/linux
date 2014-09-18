@@ -78,6 +78,9 @@ struct btmrvl_sdio_card_reg {
 	u8 io_port_0;
 	u8 io_port_1;
 	u8 io_port_2;
+	bool int_read_to_clear;
+	u8 host_int_rsr;
+	u8 card_misc_cfg;
 };
 
 struct btmrvl_sdio_card {
@@ -86,6 +89,7 @@ struct btmrvl_sdio_card {
 	const char *helper;
 	const char *firmware;
 	const struct btmrvl_sdio_card_reg *reg;
+	bool support_pscan_win_report;
 	u16 sd_blksz_fw_dl;
 	u8 rx_unit;
 	struct btmrvl_private *priv;
@@ -95,6 +99,7 @@ struct btmrvl_sdio_device {
 	const char *helper;
 	const char *firmware;
 	const struct btmrvl_sdio_card_reg *reg;
+	const bool support_pscan_win_report;
 	u16 sd_blksz_fw_dl;
 };
 

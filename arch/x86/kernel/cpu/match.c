@@ -23,7 +23,7 @@
  * %X86_MODEL_ANY, %X86_FEATURE_ANY or 0 (except for vendor)
  *
  * Arrays used to match for this should also be declared using
- * MODULE_DEVICE_TABLE(x86_cpu, ...)
+ * MODULE_DEVICE_TABLE(x86cpu, ...)
  *
  * This always matches against the boot cpu, assuming models and features are
  * consistent over all CPUs.
@@ -47,45 +47,3 @@ const struct x86_cpu_id *x86_match_cpu(const struct x86_cpu_id *match)
 	return NULL;
 }
 EXPORT_SYMBOL(x86_match_cpu);
-
-ssize_t arch_print_cpu_modalias(struct device *dev,
-				struct device_attribute *attr,
-				char *bufptr)
-{
-	int size = PAGE_SIZE;
-	int i, n;
-	char *buf = bufptr;
-
-	n = snprintf(buf, size, "x86cpu:vendor:%04X:family:%04X:"
-		     "model:%04X:feature:",
-		boot_cpu_data.x86_vendor,
-		boot_cpu_data.x86,
-		boot_cpu_data.x86_model);
-	size -= n;
-	buf += n;
-	size -= 1;
-	for (i = 0; i < NCAPINTS*32; i++) {
-		if (boot_cpu_has(i)) {
-			n = snprintf(buf, size, ",%04X", i);
-			if (n >= size) {
-				WARN(1, "x86 features overflow page\n");
-				break;
-			}
-			size -= n;
-			buf += n;
-		}
-	}
-	*buf++ = '\n';
-	return buf - bufptr;
-}
-
-int arch_cpu_uevent(struct device *dev, struct kobj_uevent_env *env)
-{
-	char *buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (buf) {
-		arch_print_cpu_modalias(NULL, NULL, buf);
-		add_uevent_var(env, "MODALIAS=%s", buf);
-		kfree(buf);
-	}
-	return 0;
-}

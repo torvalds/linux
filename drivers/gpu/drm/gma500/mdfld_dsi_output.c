@@ -92,14 +92,17 @@ void mdfld_dsi_brightness_init(struct mdfld_dsi_config *dsi_config, int pipe)
 {
 	struct mdfld_dsi_pkg_sender *sender =
 				mdfld_dsi_get_pkg_sender(dsi_config);
-	struct drm_device *dev = sender->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_device *dev;
+	struct drm_psb_private *dev_priv;
 	u32 gen_ctrl_val;
 
 	if (!sender) {
 		DRM_ERROR("No sender found\n");
 		return;
 	}
+
+	dev = sender->dev;
+	dev_priv = dev->dev_private;
 
 	/* Set default display backlight value to 85% (0xd8)*/
 	mdfld_dsi_send_mcs_short(sender, write_display_brightness, 0xd8, 1,
@@ -246,12 +249,11 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 	struct drm_encoder *encoder = connector->encoder;
 
 	if (!strcmp(property->name, "scaling mode") && encoder) {
-		struct psb_intel_crtc *psb_crtc =
-					to_psb_intel_crtc(encoder->crtc);
+		struct gma_crtc *gma_crtc = to_gma_crtc(encoder->crtc);
 		bool centerechange;
 		uint64_t val;
 
-		if (!psb_crtc)
+		if (!gma_crtc)
 			goto set_prop_error;
 
 		switch (value) {
@@ -265,51 +267,42 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 			goto set_prop_error;
 		}
 
-		if (drm_connector_property_get_value(connector, property, &val))
+		if (drm_object_property_get_value(&connector->base, property, &val))
 			goto set_prop_error;
 
 		if (val == value)
 			goto set_prop_done;
 
-		if (drm_connector_property_set_value(connector,
+		if (drm_object_property_set_value(&connector->base,
 							property, value))
 			goto set_prop_error;
 
 		centerechange = (val == DRM_MODE_SCALE_NO_SCALE) ||
 			(value == DRM_MODE_SCALE_NO_SCALE);
 
-		if (psb_crtc->saved_mode.hdisplay != 0 &&
-		    psb_crtc->saved_mode.vdisplay != 0) {
+		if (gma_crtc->saved_mode.hdisplay != 0 &&
+		    gma_crtc->saved_mode.vdisplay != 0) {
 			if (centerechange) {
 				if (!drm_crtc_helper_set_mode(encoder->crtc,
-						&psb_crtc->saved_mode,
+						&gma_crtc->saved_mode,
 						encoder->crtc->x,
 						encoder->crtc->y,
-						encoder->crtc->fb))
+						encoder->crtc->primary->fb))
 					goto set_prop_error;
 			} else {
 				struct drm_encoder_helper_funcs *funcs =
 						encoder->helper_private;
 				funcs->mode_set(encoder,
-					&psb_crtc->saved_mode,
-					&psb_crtc->saved_adjusted_mode);
+					&gma_crtc->saved_mode,
+					&gma_crtc->saved_adjusted_mode);
 			}
 		}
 	} else if (!strcmp(property->name, "backlight") && encoder) {
-		if (drm_connector_property_set_value(connector, property,
+		if (drm_object_property_set_value(&connector->base, property,
 									value))
 			goto set_prop_error;
-		else {
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-			struct backlight_device *psb_bd;
-
-			psb_bd = mdfld_get_backlight_device();
-			if (psb_bd) {
-				psb_bd->props.brightness = value;
-				mdfld_set_brightness(psb_bd);
-			}
-#endif
-		}
+		else
+			gma_backlight_set(encoder->dev, value);
 	}
 set_prop_done:
 	return 0;
@@ -325,7 +318,7 @@ static void mdfld_dsi_connector_destroy(struct drm_connector *connector)
 
 	if (!dsi_connector)
 		return;
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	sender = dsi_connector->pkg_sender;
 	mdfld_dsi_pkg_sender_destroy(sender);
@@ -515,7 +508,7 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 
 	dev_dbg(dev->dev, "init DSI output on pipe %d\n", pipe);
 
-	if (!dev || ((pipe != 0) && (pipe != 2))) {
+	if (pipe != 0 && pipe != 2) {
 		DRM_ERROR("Invalid parameter\n");
 		return;
 	}
@@ -581,10 +574,10 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 	connector->doublescan_allowed = false;
 
 	/*attach properties*/
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				dev->mode_config.scaling_mode_property,
 				DRM_MODE_SCALE_FULLSCREEN);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				dev_priv->backlight_property,
 				MDFLD_DSI_BRIGHTNESS_MAX_LEVEL);
 
@@ -604,7 +597,7 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 	dsi_config->encoder = encoder;
 	encoder->base.type = (pipe == 0) ? INTEL_OUTPUT_MIPI :
 		INTEL_OUTPUT_MIPI2;
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 	return;
 
 	/*TODO: add code to destroy outputs on error*/

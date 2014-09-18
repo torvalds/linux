@@ -65,6 +65,10 @@ struct oz_hdr {
 
 #define OZ_LAST_PN_HALF_CYCLE	127
 
+#define OZ_LATENCY_MASK		0xc0
+#define OZ_ONE_MS_LATENCY	0x40
+#define OZ_TEN_MS_LATENCY	0x80
+
 /* Connect request data structure.
  */
 struct oz_elt_connect_req {
@@ -73,7 +77,7 @@ struct oz_elt_connect_req {
 	u8	pd_info;
 	u8	session_id;
 	u8	presleep;
-	u8	resv2;
+	u8	ms_isoc_latency;
 	u8	host_vendor;
 	u8	keep_alive;
 	u16	apps;
@@ -89,6 +93,7 @@ struct oz_elt_connect_req {
 #define OZ_MODE_MASK		0xf
 #define OZ_F_ISOC_NO_ELTS	0x40
 #define OZ_F_ISOC_ANYTIME	0x80
+#define OZ_NO_ELTS_ANYTIME	0xc0
 
 /* Keep alive field.
  */
@@ -187,7 +192,7 @@ struct oz_get_desc_req {
 	u16	size;
 	u8	req_type;
 	u8	desc_type;
-	u16	w_index;
+	__le16	w_index;
 	u8	index;
 } PACKED;
 
@@ -214,8 +219,8 @@ struct oz_get_desc_rsp {
 	u8	elt_seq_num;
 	u8	type;
 	u8	req_id;
-	u16	offset;
-	u16	total_size;
+	__le16	offset;
+	__le16	total_size;
 	u8	rcode;
 	u8	data[1];
 } PACKED;

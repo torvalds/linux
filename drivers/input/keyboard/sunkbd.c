@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/serio.h>
 #include <linux/workqueue.h>
@@ -369,19 +368,4 @@ static struct serio_driver sunkbd_drv = {
 	.disconnect	= sunkbd_disconnect,
 };
 
-/*
- * The functions for insering/removing us as a module.
- */
-
-static int __init sunkbd_init(void)
-{
-	return serio_register_driver(&sunkbd_drv);
-}
-
-static void __exit sunkbd_exit(void)
-{
-	serio_unregister_driver(&sunkbd_drv);
-}
-
-module_init(sunkbd_init);
-module_exit(sunkbd_exit);
+module_serio_driver(sunkbd_drv);

@@ -5,7 +5,6 @@
 #include "btrfs_inode.h"
 #include "print-tree.h"
 #include "export.h"
-#include "compat.h"
 
 #define BTRFS_FID_SIZE_NON_CONNECTABLE (offsetof(struct btrfs_fid, \
 						 parent_objectid) / 4)
@@ -13,20 +12,19 @@
 					     parent_root_objectid) / 4)
 #define BTRFS_FID_SIZE_CONNECTABLE_ROOT (sizeof(struct btrfs_fid) / 4)
 
-static int btrfs_encode_fh(struct dentry *dentry, u32 *fh, int *max_len,
-			   int connectable)
+static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
+			   struct inode *parent)
 {
 	struct btrfs_fid *fid = (struct btrfs_fid *)fh;
-	struct inode *inode = dentry->d_inode;
 	int len = *max_len;
 	int type;
 
-	if (connectable && (len < BTRFS_FID_SIZE_CONNECTABLE)) {
+	if (parent && (len < BTRFS_FID_SIZE_CONNECTABLE)) {
 		*max_len = BTRFS_FID_SIZE_CONNECTABLE;
-		return 255;
+		return FILEID_INVALID;
 	} else if (len < BTRFS_FID_SIZE_NON_CONNECTABLE) {
 		*max_len = BTRFS_FID_SIZE_NON_CONNECTABLE;
-		return 255;
+		return FILEID_INVALID;
 	}
 
 	len  = BTRFS_FID_SIZE_NON_CONNECTABLE;
@@ -36,18 +34,12 @@ static int btrfs_encode_fh(struct dentry *dentry, u32 *fh, int *max_len,
 	fid->root_objectid = BTRFS_I(inode)->root->objectid;
 	fid->gen = inode->i_generation;
 
-	if (connectable && !S_ISDIR(inode->i_mode)) {
-		struct inode *parent;
+	if (parent) {
 		u64 parent_root_id;
 
-		spin_lock(&dentry->d_lock);
-
-		parent = dentry->d_parent->d_inode;
 		fid->parent_objectid = BTRFS_I(parent)->location.objectid;
 		fid->parent_gen = parent->i_generation;
 		parent_root_id = BTRFS_I(parent)->root->objectid;
-
-		spin_unlock(&dentry->d_lock);
 
 		if (parent_root_id != fid->root_objectid) {
 			fid->parent_root_objectid = parent_root_id;
@@ -86,11 +78,6 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 	root = btrfs_read_fs_root_no_name(fs_info, &key);
 	if (IS_ERR(root)) {
 		err = PTR_ERR(root);
-		goto fail;
-	}
-
-	if (btrfs_root_refs(&root->root_item) == 0) {
-		err = -ENOENT;
 		goto fail;
 	}
 

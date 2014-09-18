@@ -2,13 +2,18 @@ menu "Machine selection"
 
 config SCORE
        def_bool y
-       select HAVE_GENERIC_HARDIRQS
        select GENERIC_IRQ_SHOW
        select GENERIC_IOMAP
+       select GENERIC_ATOMIC64
        select HAVE_MEMBLOCK
        select HAVE_MEMBLOCK_NODE_MAP
        select ARCH_DISCARD_MEMBLOCK
        select GENERIC_CPU_DEVICES
+       select GENERIC_CLOCKEVENTS
+       select HAVE_MOD_ARCH_SPECIFIC
+	select VIRT_TO_BUS
+	select MODULES_USE_ELF_REL
+	select CLONE_BACKWARDS
 
 choice
 	prompt "System type"
@@ -17,26 +22,20 @@ choice
 config ARCH_SCORE7
 	bool "SCORE7 processor"
 	select SYS_SUPPORTS_32BIT_KERNEL
-	select CPU_SCORE7
 	select GENERIC_HAS_IOMAP
 
 config MACH_SPCT6600
 	bool "SPCT6600 series based machines"
 	select SYS_SUPPORTS_32BIT_KERNEL
-	select CPU_SCORE7
 	select GENERIC_HAS_IOMAP
 
 config SCORE_SIM
 	bool "Score simulator"
 	select SYS_SUPPORTS_32BIT_KERNEL
-	select CPU_SCORE7
 	select GENERIC_HAS_IOMAP
 endchoice
 
 endmenu
-
-config CPU_SCORE7
-	bool
 
 config NO_DMA
 	bool
@@ -49,9 +48,6 @@ config GENERIC_HWEIGHT
 	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
-	def_bool y
-
-config GENERIC_CLOCKEVENTS
 	def_bool y
 
 menu "Kernel type"
@@ -68,7 +64,6 @@ config MEMORY_START
 	hex
 	default	0xa0000000
 
-source "kernel/time/Kconfig"
 source "kernel/Kconfig.hz"
 source "kernel/Kconfig.preempt"
 
@@ -84,6 +79,8 @@ config STACKTRACE_SUPPORT
 	def_bool y
 
 source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
 
 config MMU
 	def_bool y
@@ -107,3 +104,6 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
+
+config NO_IOMEM
+       def_bool y

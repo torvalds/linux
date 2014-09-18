@@ -1,7 +1,5 @@
 /*
- *  include/asm-s390/cputime.h
- *
- *  (C) Copyright IBM Corp. 2004
+ *  Copyright IBM Corp. 2004
  *
  *  Author: Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
@@ -14,6 +12,7 @@
 #include <linux/spinlock.h>
 #include <asm/div64.h>
 
+
 /* We want to use full resolution of the CPU timer: 2**-12 micro-seconds. */
 
 typedef unsigned long long __nocast cputime_t;
@@ -21,15 +20,15 @@ typedef unsigned long long __nocast cputime64_t;
 
 static inline unsigned long __div(unsigned long long n, unsigned long base)
 {
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	register_pair rp;
 
 	rp.pair = n >> 1;
 	asm ("dr %0,%1" : "+d" (rp) : "d" (base >> 1));
 	return rp.subreg.odd;
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 	return n / base;
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 }
 
 #define cputime_one_jiffy		jiffies_to_cputime(1)
@@ -100,7 +99,7 @@ static inline void cputime_to_timespec(const cputime_t cputime,
 				       struct timespec *value)
 {
 	unsigned long long __cputime = (__force unsigned long long) cputime;
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	register_pair rp;
 
 	rp.pair = __cputime >> 1;
@@ -128,7 +127,7 @@ static inline void cputime_to_timeval(const cputime_t cputime,
 				      struct timeval *value)
 {
 	unsigned long long __cputime = (__force unsigned long long) cputime;
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	register_pair rp;
 
 	rp.pair = __cputime >> 1;
@@ -167,12 +166,14 @@ static inline clock_t cputime64_to_clock_t(cputime64_t cputime)
 }
 
 struct s390_idle_data {
+	int nohz_delay;
 	unsigned int sequence;
 	unsigned long long idle_count;
-	unsigned long long idle_enter;
-	unsigned long long idle_exit;
 	unsigned long long idle_time;
-	int nohz_delay;
+	unsigned long long clock_idle_enter;
+	unsigned long long clock_idle_exit;
+	unsigned long long timer_idle_enter;
+	unsigned long long timer_idle_exit;
 };
 
 DECLARE_PER_CPU(struct s390_idle_data, s390_idle);

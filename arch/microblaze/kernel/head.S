@@ -64,6 +64,10 @@ real_start:
 #endif
 
 	mts	rmsr, r0
+/* Disable stack protection from bootloader */
+	mts	rslr, r0
+	addi	r8, r0, 0xFFFFFFFF
+	mts	rshr, r8
 /*
  * According to Xilinx, msrclr instruction behaves like 'mfs rX,rpc'
  * if the msrclr instruction is not enabled. We use this to detect
@@ -109,31 +113,35 @@ no_fdt_arg:
 #ifndef CONFIG_CMDLINE_BOOL
 /*
  * handling command line
- * copy command line to __init_end. There is space for storing command line.
+ * copy command line directly to cmd_line placed in data section.
  */
-	or	r6, r0, r0		/* incremment */
-	ori	r4, r0, __init_end	/* load address of command line */
+	beqid	r5, skip	/* Skip if NULL pointer */
+	or	r11, r0, r0		/* incremment */
+	ori	r4, r0, cmd_line	/* load address of command line */
 	tophys(r4,r4)			/* convert to phys address */
 	ori	r3, r0, COMMAND_LINE_SIZE - 1 /* number of loops */
 _copy_command_line:
-	lbu	r2, r5, r6 /* r2=r5+r6 - r5 contain pointer to command line */
-	sb	r2, r4, r6		/* addr[r4+r6]= r2*/
-	addik	r6, r6, 1		/* increment counting */
+	/* r2=r5+r6 - r5 contain pointer to command line */
+	lbu	r2, r5, r11
+	beqid	r2, skip		/* Skip if no data */
+	sb	r2, r4, r11		/* addr[r4+r6]= r2 */
+	addik	r11, r11, 1		/* increment counting */
 	bgtid	r3, _copy_command_line	/* loop for all entries       */
-	addik	r3, r3, -1		/* descrement loop */
+	addik	r3, r3, -1		/* decrement loop */
 	addik	r5, r4, 0		/* add new space for command line */
 	tovirt(r5,r5)
+skip:
 #endif /* CONFIG_CMDLINE_BOOL */
 
 #ifdef NOT_COMPILE
 /* save bram context */
-	or	r6, r0, r0				/* incremment */
+	or	r11, r0, r0				/* incremment */
 	ori	r4, r0, TOPHYS(_bram_load_start)	/* save bram context */
 	ori	r3, r0, (LMB_SIZE - 4)
 _copy_bram:
-	lw	r7, r0, r6		/* r7 = r0 + r6 */
-	sw	r7, r4, r6		/* addr[r4 + r6] = r7*/
-	addik	r6, r6, 4		/* increment counting */
+	lw	r7, r0, r11		/* r7 = r0 + r6 */
+	sw	r7, r4, r11		/* addr[r4 + r6] = r7 */
+	addik	r11, r11, 4		/* increment counting */
 	bgtid	r3, _copy_bram		/* loop for all entries */
 	addik	r3, r3, -4		/* descrement loop */
 #endif
@@ -172,7 +180,7 @@ _invalidate:
 	/* start to do TLB calculation */
 	addik	r12, r0, _end
 	rsub	r12, r3, r12
-	addik	r12, r12, CONFIG_KERNEL_PAD /* that's the pad */
+	addik	r12, r12, CONFIG_LOWMEM_SIZE >> PTE_SHIFT /* that's the pad */
 
 	or r9, r0, r0 /* TLB0 = 0 */
 	or r10, r0, r0 /* TLB1 = 0 */
@@ -197,7 +205,7 @@ GT4: /* r11 contains the rest - will be either 1 or 4 */
 GT16: /* TLB0 is 16MB */
 	addik	r9, r0, 0x1000000 /* means TLB0 is 16MB */
 TLB1:
-	/* must be used r2 because of substract if failed */
+	/* must be used r2 because of subtract if failed */
 	addik	r2, r11, -0x0400000
 	bgei	r2, GT20 /* size is greater than 16MB */
 	/* size is >16MB and <20MB */
@@ -299,8 +307,8 @@ jump_over2:
 	 * the exception vectors, using a 4k real==virtual mapping.
 	 */
 	/* Use temporary TLB_ID for LMB - clear this temporary mapping later */
-	ori	r6, r0, MICROBLAZE_LMB_TLB_ID
-	mts     rtlbx,r6
+	ori	r11, r0, MICROBLAZE_LMB_TLB_ID
+	mts     rtlbx,r11
 
 	ori	r4,r0,(TLB_WR | TLB_EX)
 	ori	r3,r0,(TLB_VALID | TLB_PAGESZ(PAGESZ_4K))

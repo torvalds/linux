@@ -16,6 +16,8 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
+#include <linux/genalloc.h>
+#include <linux/platform_data/edma.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -23,8 +25,6 @@
 #include <sound/soc.h>
 
 #include <asm/dma.h>
-#include <mach/edma.h>
-#include <mach/sram.h>
 
 #include "davinci-pcm.h"
 
@@ -46,37 +46,11 @@ static void print_buf_info(int slot, char *name)
 }
 #endif
 
-#define DAVINCI_PCM_FMTBITS	(\
-				SNDRV_PCM_FMTBIT_S8	|\
-				SNDRV_PCM_FMTBIT_U8	|\
-				SNDRV_PCM_FMTBIT_S16_LE	|\
-				SNDRV_PCM_FMTBIT_S16_BE	|\
-				SNDRV_PCM_FMTBIT_U16_LE	|\
-				SNDRV_PCM_FMTBIT_U16_BE	|\
-				SNDRV_PCM_FMTBIT_S24_LE	|\
-				SNDRV_PCM_FMTBIT_S24_BE	|\
-				SNDRV_PCM_FMTBIT_U24_LE	|\
-				SNDRV_PCM_FMTBIT_U24_BE	|\
-				SNDRV_PCM_FMTBIT_S32_LE	|\
-				SNDRV_PCM_FMTBIT_S32_BE	|\
-				SNDRV_PCM_FMTBIT_U32_LE	|\
-				SNDRV_PCM_FMTBIT_U32_BE)
-
 static struct snd_pcm_hardware pcm_hardware_playback = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME|
 		 SNDRV_PCM_INFO_BATCH),
-	.formats = DAVINCI_PCM_FMTBITS,
-	.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |
-		  SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 |
-		  SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
-		  SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 |
-		  SNDRV_PCM_RATE_KNOT),
-	.rate_min = 8000,
-	.rate_max = 96000,
-	.channels_min = 2,
-	.channels_max = 384,
 	.buffer_bytes_max = 128 * 1024,
 	.period_bytes_min = 32,
 	.period_bytes_max = 8 * 1024,
@@ -90,16 +64,6 @@ static struct snd_pcm_hardware pcm_hardware_capture = {
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_PAUSE |
 		 SNDRV_PCM_INFO_BATCH),
-	.formats = DAVINCI_PCM_FMTBITS,
-	.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |
-		  SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 |
-		  SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
-		  SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 |
-		  SNDRV_PCM_RATE_KNOT),
-	.rate_min = 8000,
-	.rate_max = 96000,
-	.channels_min = 2,
-	.channels_max = 384,
 	.buffer_bytes_max = 128 * 1024,
 	.period_bytes_min = 32,
 	.period_bytes_max = 8 * 1024,
@@ -209,7 +173,7 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		src = dma_pos;
 		dst = prtd->params->dma_addr;
 		src_bidx = data_type;
-		dst_bidx = 0;
+		dst_bidx = 4;
 		src_cidx = data_type * fifo_level;
 		dst_cidx = 0;
 	} else {
@@ -232,9 +196,10 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		edma_set_transfer_params(prtd->asp_link[0], acnt, count, 1, 0,
 							ASYNC);
 	else
-		edma_set_transfer_params(prtd->asp_link[0], acnt, fifo_level,
-							count, fifo_level,
-							ABSYNC);
+		edma_set_transfer_params(prtd->asp_link[0], acnt,
+						fifo_level,
+						count, fifo_level,
+						ABSYNC);
 }
 
 static void davinci_pcm_dma_irq(unsigned link, u16 ch_status, void *data)
@@ -245,7 +210,7 @@ static void davinci_pcm_dma_irq(unsigned link, u16 ch_status, void *data)
 	print_buf_info(prtd->ram_channel, "i ram_channel");
 	pr_debug("davinci_pcm: link=%d, status=0x%x\n", link, ch_status);
 
-	if (unlikely(ch_status != DMA_COMPLETE))
+	if (unlikely(ch_status != EDMA_DMA_COMPLETE))
 		return;
 
 	if (snd_pcm_running(substream)) {
@@ -260,7 +225,9 @@ static void davinci_pcm_dma_irq(unsigned link, u16 ch_status, void *data)
 	}
 }
 
-static int allocate_sram(struct snd_pcm_substream *substream, unsigned size,
+#ifdef CONFIG_GENERIC_ALLOCATOR
+static int allocate_sram(struct snd_pcm_substream *substream,
+		struct gen_pool *sram_pool, unsigned size,
 		struct snd_pcm_hardware *ppcm)
 {
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
@@ -272,7 +239,7 @@ static int allocate_sram(struct snd_pcm_substream *substream, unsigned size,
 		return 0;
 
 	ppcm->period_bytes_max = size;
-	iram_virt = sram_alloc(size, &iram_phys);
+	iram_virt = gen_pool_dma_alloc(sram_pool, size, &iram_phys);
 	if (!iram_virt)
 		goto exit1;
 	iram_dma = kzalloc(sizeof(*iram_dma), GFP_KERNEL);
@@ -286,10 +253,32 @@ static int allocate_sram(struct snd_pcm_substream *substream, unsigned size,
 	return 0;
 exit2:
 	if (iram_virt)
-		sram_free(iram_virt, size);
+		gen_pool_free(sram_pool, (unsigned)iram_virt, size);
 exit1:
 	return -ENOMEM;
 }
+
+static void davinci_free_sram(struct snd_pcm_substream *substream,
+			      struct snd_dma_buffer *iram_dma)
+{
+	struct davinci_runtime_data *prtd = substream->runtime->private_data;
+	struct gen_pool *sram_pool = prtd->params->sram_pool;
+
+	gen_pool_free(sram_pool, (unsigned) iram_dma->area, iram_dma->bytes);
+}
+#else
+static int allocate_sram(struct snd_pcm_substream *substream,
+		struct gen_pool *sram_pool, unsigned size,
+		struct snd_pcm_hardware *ppcm)
+{
+	return 0;
+}
+
+static void davinci_free_sram(struct snd_pcm_substream *substream,
+			      struct snd_dma_buffer *iram_dma)
+{
+}
+#endif
 
 /*
  * Only used with ping/pong.
@@ -677,7 +666,7 @@ static int davinci_pcm_open(struct snd_pcm_substream *substream)
 
 	ppcm = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
 			&pcm_hardware_playback : &pcm_hardware_capture;
-	allocate_sram(substream, params->sram_size, ppcm);
+	allocate_sram(substream, params->sram_pool, params->sram_size, ppcm);
 	snd_soc_set_runtime_hwparams(substream, ppcm);
 	/* ensure that buffer size is a multiple of period size */
 	ret = snd_pcm_hw_constraint_integer(runtime,
@@ -820,13 +809,11 @@ static void davinci_pcm_free(struct snd_pcm *pcm)
 		buf->area = NULL;
 		iram_dma = buf->private_data;
 		if (iram_dma) {
-			sram_free(iram_dma->area, iram_dma->bytes);
+			davinci_free_sram(substream, iram_dma);
 			kfree(iram_dma);
 		}
 	}
 }
-
-static u64 davinci_pcm_dmamask = DMA_BIT_MASK(32);
 
 static int davinci_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
@@ -834,10 +821,9 @@ static int davinci_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct snd_pcm *pcm = rtd->pcm;
 	int ret;
 
-	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &davinci_pcm_dmamask;
-	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = davinci_pcm_preallocate_dma_buffer(pcm,
@@ -864,28 +850,11 @@ static struct snd_soc_platform_driver davinci_soc_platform = {
 	.pcm_free = 	davinci_pcm_free,
 };
 
-static int __devinit davinci_soc_platform_probe(struct platform_device *pdev)
+int davinci_soc_platform_register(struct device *dev)
 {
-	return snd_soc_register_platform(&pdev->dev, &davinci_soc_platform);
+	return devm_snd_soc_register_platform(dev, &davinci_soc_platform);
 }
-
-static int __devexit davinci_soc_platform_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_platform(&pdev->dev);
-	return 0;
-}
-
-static struct platform_driver davinci_pcm_driver = {
-	.driver = {
-			.name = "davinci-pcm-audio",
-			.owner = THIS_MODULE,
-	},
-
-	.probe = davinci_soc_platform_probe,
-	.remove = __devexit_p(davinci_soc_platform_remove),
-};
-
-module_platform_driver(davinci_pcm_driver);
+EXPORT_SYMBOL_GPL(davinci_soc_platform_register);
 
 MODULE_AUTHOR("Vladimir Barinov");
 MODULE_DESCRIPTION("TI DAVINCI PCM DMA module");

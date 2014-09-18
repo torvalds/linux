@@ -38,13 +38,13 @@ ENTRY(_start)
 	  movei r2, TILE_CHIP_REV
 	}
 	{
-	  moveli r0, _HV_VERSION
-	  jal hv_init
+	  moveli r0, _HV_VERSION_OLD_HV_INIT
+	  jal _hv_init
 	}
 	/* Get a reasonable default ASID in r0 */
 	{
 	  move r0, zero
-	  jal hv_inquire_asid
+	  jal _hv_inquire_asid
 	}
 	/* Install the default page table */
 	{
@@ -64,21 +64,21 @@ ENTRY(_start)
 	  auli r0, r0, ha16(swapper_pg_dir - PAGE_OFFSET)
 	}
 	{
-	  inv r6
+	  finv r6
 	  move r1, zero   /* high 32 bits of CPA is zero */
 	}
 	{
 	  moveli lr, lo16(1f)
-	  move r5, zero
+	  moveli r5, CTX_PAGE_FLAG
 	}
 	{
 	  auli lr, lr, ha16(1f)
-	  j hv_install_context
+	  j _hv_install_context
 	}
 1:
 
 	/* Get our processor number and save it away in SAVE_K_0. */
-	jal hv_inquire_topology
+	jal _hv_inquire_topology
 	mulll_uu r4, r1, r2        /* r1 == y, r2 == width */
 	add r4, r4, r0             /* r0 == x, so r4 == cpu == y*width + x */
 
@@ -86,7 +86,7 @@ ENTRY(_start)
 	/*
 	 * Load up our per-cpu offset.  When the first (master) tile
 	 * boots, this value is still zero, so we will load boot_pc
-	 * with start_kernel, and boot_sp with init_stack + THREAD_SIZE.
+	 * with start_kernel, and boot_sp at the top of init_stack.
 	 * The master tile initializes the per-cpu offset array, so that
 	 * when subsequent (secondary) tiles boot, they will instead load
 	 * from their per-cpu versions of boot_sp and boot_pc.
@@ -126,7 +126,6 @@ ENTRY(_start)
 	lw sp, r1
 	or r4, sp, r4
 	mtspr SPR_SYSTEM_SAVE_K_0, r4  /* save ksp0 + cpu */
-	addi sp, sp, -STACK_TOP_DELTA
 	{
 	  move lr, zero   /* stop backtraces in the called function */
 	  jr r0
@@ -141,11 +140,11 @@ ENTRY(empty_zero_page)
 
 	.macro PTE va, cpa, bits1, no_org=0
 	.ifeq \no_org
-	.org swapper_pg_dir + HV_L1_INDEX(\va) * HV_PTE_SIZE
+	.org swapper_pg_dir + PGD_INDEX(\va) * HV_PTE_SIZE
 	.endif
 	.word HV_PTE_PAGE | HV_PTE_DIRTY | HV_PTE_PRESENT | HV_PTE_ACCESSED | \
 	      (HV_PTE_MODE_CACHE_NO_L3 << HV_PTE_INDEX_MODE)
-	.word (\bits1) | (HV_CPA_TO_PFN(\cpa) << (HV_PTE_INDEX_PFN - 32))
+	.word (\bits1) | (HV_CPA_TO_PTFN(\cpa) << (HV_PTE_INDEX_PTFN - 32))
 	.endm
 
 __PAGE_ALIGNED_DATA
@@ -163,10 +162,10 @@ ENTRY(swapper_pg_dir)
 	.set addr, addr + PGDIR_SIZE
 	.endr
 
-	/* The true text VAs are mapped as VA = PA + MEM_SV_INTRPT */
-	PTE MEM_SV_INTRPT, 0, (1 << (HV_PTE_INDEX_READABLE - 32)) | \
+	/* The true text VAs are mapped as VA = PA + MEM_SV_START */
+	PTE MEM_SV_START, 0, (1 << (HV_PTE_INDEX_READABLE - 32)) | \
 			      (1 << (HV_PTE_INDEX_EXECUTABLE - 32))
-	.org swapper_pg_dir + HV_L1_SIZE
+	.org swapper_pg_dir + PGDIR_SIZE
 	END(swapper_pg_dir)
 
 	/*

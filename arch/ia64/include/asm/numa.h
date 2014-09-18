@@ -59,7 +59,7 @@ extern struct node_cpuid_s node_cpuid[NR_CPUS];
  */
 
 extern u8 numa_slit[MAX_NUMNODES * MAX_NUMNODES];
-#define node_distance(from,to) (numa_slit[(from) * num_online_nodes() + (to)])
+#define node_distance(from,to) (numa_slit[(from) * MAX_NUMNODES + (to)])
 
 extern int paddr_to_nid(unsigned long paddr);
 
@@ -67,14 +67,13 @@ extern int paddr_to_nid(unsigned long paddr);
 
 extern void map_cpu_to_node(int cpu, int nid);
 extern void unmap_cpu_from_node(int cpu, int nid);
-
+extern void numa_clear_node(int cpu);
 
 #else /* !CONFIG_NUMA */
 #define map_cpu_to_node(cpu, nid)	do{}while(0)
 #define unmap_cpu_from_node(cpu, nid)	do{}while(0)
-
 #define paddr_to_nid(addr)	0
-
+#define numa_clear_node(cpu)	do { } while (0)
 #endif /* CONFIG_NUMA */
 
 #endif /* _ASM_IA64_NUMA_H */

@@ -115,11 +115,12 @@ static inline int ntrig_get_mode(struct hid_device *hdev)
 	struct hid_report *report = hdev->report_enum[HID_FEATURE_REPORT].
 				    report_id_hash[0x0d];
 
-	if (!report)
+	if (!report || report->maxfield < 1 ||
+	    report->field[0]->report_count < 1)
 		return -EINVAL;
 
-	usbhid_submit_report(hdev, report, USB_DIR_IN);
-	usbhid_wait_io(hdev);
+	hid_hw_request(hdev, report, HID_REQ_GET_REPORT);
+	hid_hw_wait(hdev);
 	return (int)report->field[0]->value[0];
 }
 
@@ -137,7 +138,7 @@ static inline void ntrig_set_mode(struct hid_device *hdev, const int mode)
 	if (!report)
 		return;
 
-	usbhid_submit_report(hdev, report, USB_DIR_IN);
+	hid_hw_request(hdev, report, HID_REQ_GET_REPORT);
 }
 
 static void ntrig_report_version(struct hid_device *hdev)
@@ -237,7 +238,7 @@ static ssize_t set_min_width(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_width)
@@ -272,7 +273,7 @@ static ssize_t set_min_height(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_height)
@@ -306,7 +307,7 @@ static ssize_t set_activate_slack(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > 0x7f)
@@ -341,7 +342,7 @@ static ssize_t set_activation_width(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_width)
@@ -377,7 +378,7 @@ static ssize_t set_activation_height(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_height)
@@ -411,7 +412,7 @@ static ssize_t set_deactivate_slack(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	/*
@@ -858,12 +859,43 @@ not_claimed_input:
 	return 1;
 }
 
+static void ntrig_input_configured(struct hid_device *hid,
+		struct hid_input *hidinput)
+
+{
+	struct input_dev *input = hidinput->input;
+
+	if (hidinput->report->maxfield < 1)
+		return;
+
+	switch (hidinput->report->field[0]->application) {
+	case HID_DG_PEN:
+		input->name = "N-Trig Pen";
+		break;
+	case HID_DG_TOUCHSCREEN:
+		/* These keys are redundant for fingers, clear them
+		 * to prevent incorrect identification */
+		__clear_bit(BTN_TOOL_PEN, input->keybit);
+		__clear_bit(BTN_TOOL_FINGER, input->keybit);
+		__clear_bit(BTN_0, input->keybit);
+		__set_bit(BTN_TOOL_DOUBLETAP, input->keybit);
+		/*
+		 * The physical touchscreen (single touch)
+		 * input has a value for physical, whereas
+		 * the multitouch only has logical input
+		 * fields.
+		 */
+		input->name = (hidinput->report->field[0]->physical) ?
+							"N-Trig Touchscreen" :
+							"N-Trig MultiTouch";
+		break;
+	}
+}
+
 static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret;
 	struct ntrig_data *nd;
-	struct hid_input *hidinput;
-	struct input_dev *input;
 	struct hid_report *report;
 
 	if (id->driver_data)
@@ -882,10 +914,10 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	nd->activate_slack = activate_slack;
 	nd->act_state = activate_slack;
 	nd->deactivate_slack = -deactivate_slack;
-	nd->sensor_logical_width = 0;
-	nd->sensor_logical_height = 0;
-	nd->sensor_physical_width = 0;
-	nd->sensor_physical_height = 0;
+	nd->sensor_logical_width = 1;
+	nd->sensor_logical_height = 1;
+	nd->sensor_physical_width = 1;
+	nd->sensor_physical_height = 1;
 
 	hid_set_drvdata(hdev, nd);
 
@@ -901,45 +933,13 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err_free;
 	}
 
-
-	list_for_each_entry(hidinput, &hdev->inputs, list) {
-		if (hidinput->report->maxfield < 1)
-			continue;
-
-		input = hidinput->input;
-		switch (hidinput->report->field[0]->application) {
-		case HID_DG_PEN:
-			input->name = "N-Trig Pen";
-			break;
-		case HID_DG_TOUCHSCREEN:
-			/* These keys are redundant for fingers, clear them
-			 * to prevent incorrect identification */
-			__clear_bit(BTN_TOOL_PEN, input->keybit);
-			__clear_bit(BTN_TOOL_FINGER, input->keybit);
-			__clear_bit(BTN_0, input->keybit);
-			__set_bit(BTN_TOOL_DOUBLETAP, input->keybit);
-			/*
-			 * The physical touchscreen (single touch)
-			 * input has a value for physical, whereas
-			 * the multitouch only has logical input
-			 * fields.
-			 */
-			input->name =
-				(hidinput->report->field[0]
-				 ->physical) ?
-				"N-Trig Touchscreen" :
-				"N-Trig MultiTouch";
-			break;
-		}
-	}
-
 	/* This is needed for devices with more recent firmware versions */
 	report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[0x0a];
 	if (report) {
 		/* Let the device settle to ensure the wakeup message gets
 		 * through */
-		usbhid_wait_io(hdev);
-		usbhid_submit_report(hdev, report, USB_DIR_IN);
+		hid_hw_wait(hdev);
+		hid_hw_request(hdev, report, HID_REQ_GET_REPORT);
 
 		/*
 		 * Sanity check: if the current mode is invalid reset it to
@@ -1023,20 +1023,10 @@ static struct hid_driver ntrig_driver = {
 	.remove = ntrig_remove,
 	.input_mapping = ntrig_input_mapping,
 	.input_mapped = ntrig_input_mapped,
+	.input_configured = ntrig_input_configured,
 	.usage_table = ntrig_grabbed_usages,
 	.event = ntrig_event,
 };
+module_hid_driver(ntrig_driver);
 
-static int __init ntrig_init(void)
-{
-	return hid_register_driver(&ntrig_driver);
-}
-
-static void __exit ntrig_exit(void)
-{
-	hid_unregister_driver(&ntrig_driver);
-}
-
-module_init(ntrig_init);
-module_exit(ntrig_exit);
 MODULE_LICENSE("GPL");

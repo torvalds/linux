@@ -1,0 +1,143 @@
+NVIDIA Tegra20 pinmux controller
+
+Required properties:
+- compatible: "nvidia,tegra20-pinmux"
+- reg: Should contain the register physical address and length for each of
+  the tri-state, mux, pull-up/down, and pad control register sets.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+Tegra's pin configuration nodes act as a container for an abitrary number of
+subnodes. Each of these subnodes represents some desired configuration for a
+pin, a group, or a list of pins or groups. This configuration can include the
+mux function to select on those pin(s)/group(s), and various pin configuration
+parameters, such as pull-up, tristate, drive strength, etc.
+
+The name of each subnode is not important; all subnodes should be enumerated
+and processed purely based on their content.
+
+Each subnode only affects those parameters that are explicitly listed. In
+other words, a subnode that lists a mux function but no pin configuration
+parameters implies no information about any pin configuration parameters.
+Similarly, a pin subnode that describes a pullup parameter implies no
+information about e.g. the mux function or tristate parameter. For this
+reason, even seemingly boolean values are actually tristates in this binding:
+unspecified, off, or on. Unspecified is represented as an absent property,
+and off/on are represented as integer values 0 and 1.
+
+Required subnode-properties:
+- nvidia,pins : An array of strings. Each string contains the name of a pin or
+    group. Valid values for these names are listed below.
+
+Optional subnode-properties:
+- nvidia,function: A string containing the name of the function to mux to the
+  pin or group. Valid values for function names are listed below. See the Tegra
+  TRM to determine which are valid for each pin or group.
+- nvidia,pull: Integer, representing the pull-down/up to apply to the pin.
+    0: none, 1: down, 2: up.
+- nvidia,tristate: Integer.
+    0: drive, 1: tristate.
+- nvidia,high-speed-mode: Integer. Enable high speed mode the pins.
+    0: no, 1: yes.
+- nvidia,schmitt: Integer. Enables Schmitt Trigger on the input.
+    0: no, 1: yes.
+- nvidia,low-power-mode: Integer. Valid values 0-3. 0 is least power, 3 is
+    most power. Controls the drive power or current. See "Low Power Mode"
+    or "LPMD1" and "LPMD0" in the Tegra TRM.
+- nvidia,pull-down-strength: Integer. Controls drive strength. 0 is weakest.
+    The range of valid values depends on the pingroup. See "CAL_DRVDN" in the
+    Tegra TRM.
+- nvidia,pull-up-strength: Integer. Controls drive strength. 0 is weakest.
+    The range of valid values depends on the pingroup. See "CAL_DRVUP" in the
+    Tegra TRM.
+- nvidia,slew-rate-rising: Integer. Controls rising signal slew rate. 0 is
+    fastest. The range of valid values depends on the pingroup. See
+    "DRVDN_SLWR" in the Tegra TRM.
+- nvidia,slew-rate-falling: Integer. Controls falling signal slew rate. 0 is
+    fastest. The range of valid values depends on the pingroup. See
+    "DRVUP_SLWF" in the Tegra TRM.
+
+Note that many of these properties are only valid for certain specific pins
+or groups. See the Tegra TRM and various pinmux spreadsheets for complete
+details regarding which groups support which functionality. The Linux pinctrl
+driver may also be a useful reference, since it consolidates, disambiguates,
+and corrects data from all those sources.
+
+Valid values for pin and group names are:
+
+  mux groups:
+
+    These all support nvidia,function, nvidia,tristate, and many support
+    nvidia,pull.
+
+    ata, atb, atc, atd, ate, cdev1, cdev2, crtp, csus, dap1, dap2, dap3, dap4,
+    ddc, dta, dtb, dtc, dtd, dte, dtf, gma, gmb, gmc, gmd, gme, gpu, gpu7,
+    gpv, hdint, i2cp, irrx, irtx, kbca, kbcb, kbcc, kbcd, kbce, kbcf, lcsn,
+    ld0, ld1, ld2, ld3, ld4, ld5, ld6, ld7, ld8, ld9, ld10, ld11, ld12, ld13,
+    ld14, ld15, ld16, ld17, ldc, ldi, lhp0, lhp1, lhp2, lhs, lm0, lm1, lpp,
+    lpw0, lpw1, lpw2, lsc0, lsc1, lsck, lsda, lsdi, lspi, lvp0, lvp1, lvs,
+    owc, pmc, pta, rm, sdb, sdc, sdd, sdio1, slxa, slxc, slxd, slxk, spdi,
+    spdo, spia, spib, spic, spid, spie, spif, spig, spih, uaa, uab, uac, uad,
+    uca, ucb, uda.
+
+  tristate groups:
+
+    These only support nvidia,pull.
+
+    ck32, ddrc, pmca, pmcb, pmcc, pmcd, pmce, xm2c, xm2d, ls, lc, ld17_0,
+    ld19_18, ld21_20, ld23_22.
+
+  drive groups:
+
+    With some exceptions, these support nvidia,high-speed-mode,
+    nvidia,schmitt, nvidia,low-power-mode, nvidia,pull-down-strength,
+    nvidia,pull-up-strength, nvidia,slew-rate-rising, nvidia,slew-rate-falling.
+
+    drive_ao1, drive_ao2, drive_at1, drive_at2, drive_cdev1, drive_cdev2,
+    drive_csus, drive_dap1, drive_dap2, drive_dap3, drive_dap4, drive_dbg,
+    drive_lcd1, drive_lcd2, drive_sdmmc2, drive_sdmmc3, drive_spi, drive_uaa,
+    drive_uab, drive_uart2, drive_uart3, drive_vi1, drive_vi2, drive_xm2a,
+    drive_xm2c, drive_xm2d, drive_xm2clk, drive_sdio1, drive_crt, drive_ddc,
+    drive_gma, drive_gmb, drive_gmc, drive_gmd, drive_gme, drive_owr,
+    drive_uda.
+
+Valid values for nvidia,functions are:
+
+  ahb_clk, apb_clk, audio_sync, crt, dap1, dap2, dap3, dap4, dap5,
+  displaya, displayb, emc_test0_dll, emc_test1_dll, gmi, gmi_int,
+  hdmi, i2cp, i2c1, i2c2, i2c3, ide, irda, kbc, mio, mipi_hs, nand,
+  osc, owr, pcie, plla_out, pllc_out1, pllm_out1, pllp_out2, pllp_out3,
+  pllp_out4, pwm, pwr_intr, pwr_on, rsvd1, rsvd2, rsvd3, rsvd4, rtck,
+  sdio1, sdio2, sdio3, sdio4, sflash, spdif, spi1, spi2, spi2_alt,
+  spi3, spi4, trace, twc, uarta, uartb, uartc, uartd, uarte, ulpi,
+  vi, vi_sensor_clk, xio
+
+Example:
+
+	pinctrl@70000000 {
+		compatible = "nvidia,tegra20-pinmux";
+		reg = < 0x70000014 0x10    /* Tri-state registers */
+			0x70000080 0x20    /* Mux registers */
+			0x700000a0 0x14    /* Pull-up/down registers */
+			0x70000868 0xa8 >; /* Pad control registers */
+	};
+
+Example board file extract:
+
+	pinctrl@70000000 {
+		sdio4_default: sdio4_default {
+			atb {
+				nvidia,pins = "atb", "gma", "gme";
+				nvidia,function = "sdio4";
+				nvidia,pull = <0>;
+				nvidia,tristate = <0>;
+			};
+		};
+	};
+
+	sdhci@c8000600 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdio4_default>;
+	};

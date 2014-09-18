@@ -14,15 +14,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 // #define	DEBUG			// error path messages, extra info
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -86,12 +84,18 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	u32			size;
 	u32			count;
 
+	/* This check is no longer done by usbnet */
+	if (skb->len < dev->net->hard_header_len)
+		return 0;
+
 	header = (struct gl_header *) skb->data;
 
 	// get the packet count of the received skb
 	count = le32_to_cpu(header->packet_count);
 	if (count > GL_MAX_TRANSMIT_PACKETS) {
-		dbg("genelink: invalid received packet count %u", count);
+		netdev_dbg(dev->net,
+			   "genelink: invalid received packet count %u\n",
+			   count);
 		return 0;
 	}
 
@@ -107,7 +111,8 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 		// this may be a broken packet
 		if (size > GL_MAX_PACKET_LEN) {
-			dbg("genelink: invalid rx length %d", size);
+			netdev_dbg(dev->net, "genelink: invalid rx length %d\n",
+				   size);
 			return 0;
 		}
 
@@ -133,7 +138,8 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	skb_pull(skb, 4);
 
 	if (skb->len > GL_MAX_PACKET_LEN) {
-		dbg("genelink: invalid rx length %d", skb->len);
+		netdev_dbg(dev->net, "genelink: invalid rx length %d\n",
+			   skb->len);
 		return 0;
 	}
 	return 1;
@@ -225,6 +231,7 @@ static struct usb_driver gl620a_driver = {
 	.disconnect =	usbnet_disconnect,
 	.suspend =	usbnet_suspend,
 	.resume =	usbnet_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(gl620a_driver);

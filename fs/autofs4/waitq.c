@@ -42,10 +42,8 @@ void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
 	while (wq) {
 		nwq = wq->next;
 		wq->status = -ENOENT; /* Magic is gone - report failure */
-		if (wq->name.name) {
-			kfree(wq->name.name);
-			wq->name.name = NULL;
-		}
+		kfree(wq->name.name);
+		wq->name.name = NULL;
 		wq->wait_ctr--;
 		wake_up_interruptible(&wq->queue);
 		wq = nwq;
@@ -91,24 +89,7 @@ static int autofs4_write(struct autofs_sb_info *sbi,
 
 	return (bytes > 0);
 }
-
-/*
- * The autofs_v5 packet was misdesigned.
- *
- * The packets are identical on x86-32 and x86-64, but have different
- * alignment. Which means that 'sizeof()' will give different results.
- * Fix it up for the case of running 32-bit user mode on a 64-bit kernel.
- */
-static noinline size_t autofs_v5_packet_size(struct autofs_sb_info *sbi)
-{
-	size_t pktsz = sizeof(struct autofs_v5_packet);
-#if defined(CONFIG_X86_64) && defined(CONFIG_COMPAT)
-	if (sbi->compat_daemon > 0)
-		pktsz -= 4;
-#endif
-	return pktsz;
-}
-
+	
 static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 				 struct autofs_wait_queue *wq,
 				 int type)
@@ -128,13 +109,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 
 	pkt.hdr.proto_version = sbi->version;
 	pkt.hdr.type = type;
-	mutex_lock(&sbi->wq_mutex);
 
-	/* Check if we have become catatonic */
-	if (sbi->catatonic) {
-		mutex_unlock(&sbi->wq_mutex);
-		return;
-	}
 	switch (type) {
 	/* Kernel protocol v4 missing and expire packets */
 	case autofs_ptype_missing:
@@ -171,16 +146,18 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 	case autofs_ptype_expire_direct:
 	{
 		struct autofs_v5_packet *packet = &pkt.v5_pkt.v5_packet;
+		struct user_namespace *user_ns = sbi->pipe->f_cred->user_ns;
 
-		pktsz = autofs_v5_packet_size(sbi);
+		pktsz = sizeof(*packet);
+
 		packet->wait_queue_token = wq->wait_queue_token;
 		packet->len = wq->name.len;
 		memcpy(packet->name, wq->name.name, wq->name.len);
 		packet->name[wq->name.len] = '\0';
 		packet->dev = wq->dev;
 		packet->ino = wq->ino;
-		packet->uid = wq->uid;
-		packet->gid = wq->gid;
+		packet->uid = from_kuid_munged(user_ns, wq->uid);
+		packet->gid = from_kgid_munged(user_ns, wq->gid);
 		packet->pid = wq->pid;
 		packet->tgid = wq->tgid;
 		break;
@@ -191,8 +168,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 		return;
 	}
 
-	pipe = sbi->pipe;
-	get_file(pipe);
+	pipe = get_file(sbi->pipe);
 
 	mutex_unlock(&sbi->wq_mutex);
 
@@ -371,9 +347,21 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 	struct qstr qstr;
 	char *name;
 	int status, ret, type;
+	pid_t pid;
+	pid_t tgid;
 
 	/* In catatonic mode, we don't wait for nobody */
 	if (sbi->catatonic)
+		return -ENOENT;
+
+	/*
+	 * Try translating pids to the namespace of the daemon.
+	 *
+	 * Zero means failure: we are in an unrelated pid namespace.
+	 */
+	pid = task_pid_nr_ns(current, ns_of_pid(sbi->oz_pgrp));
+	tgid = task_tgid_nr_ns(current, ns_of_pid(sbi->oz_pgrp));
+	if (pid == 0 || tgid == 0)
 		return -ENOENT;
 
 	if (!dentry->d_inode) {
@@ -441,11 +429,10 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		wq->ino = autofs4_get_ino(sbi);
 		wq->uid = current_uid();
 		wq->gid = current_gid();
-		wq->pid = current->pid;
-		wq->tgid = current->tgid;
+		wq->pid = pid;
+		wq->tgid = tgid;
 		wq->status = -EINTR; /* Status return if interrupted */
 		wq->wait_ctr = 2;
-		mutex_unlock(&sbi->wq_mutex);
 
 		if (sbi->version < 5) {
 			if (notify == NFY_MOUNT)
@@ -467,15 +454,15 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 			(unsigned long) wq->wait_queue_token, wq->name.len,
 			wq->name.name, notify);
 
-		/* autofs4_notify_daemon() may block */
+		/* autofs4_notify_daemon() may block; it will unlock ->wq_mutex */
 		autofs4_notify_daemon(sbi, wq, type);
 	} else {
 		wq->wait_ctr++;
-		mutex_unlock(&sbi->wq_mutex);
-		kfree(qstr.name);
 		DPRINTK("existing wait id = 0x%08lx, name = %.*s, nfy=%d",
 			(unsigned long) wq->wait_queue_token, wq->name.len,
 			wq->name.name, notify);
+		mutex_unlock(&sbi->wq_mutex);
+		kfree(qstr.name);
 	}
 
 	/*

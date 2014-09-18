@@ -13,6 +13,7 @@ perf*.html
 common-cmds.h
 perf.data
 perf.data.old
+output.svg
 perf-archive
 tags
 TAGS
@@ -21,3 +22,5 @@ config.mak
 config.mak.autogen
 *-bison.*
 *-flex.*
+*.pyc
+*.pyo

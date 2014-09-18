@@ -52,7 +52,7 @@ int pcf50633_bl_set_brightness_limit(struct pcf50633 *pcf, unsigned int limit)
 	pcf_bl->brightness_limit = limit & 0x3f;
 	backlight_update_status(pcf_bl->bl);
 
-    return 0;
+	return 0;
 }
 
 static int pcf50633_bl_update_status(struct backlight_device *bl)
@@ -99,11 +99,11 @@ static const struct backlight_ops pcf50633_bl_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 };
 
-static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
+static int pcf50633_bl_probe(struct platform_device *pdev)
 {
 	struct pcf50633_bl *pcf_bl;
 	struct device *parent = pdev->dev.parent;
-	struct pcf50633_platform_data *pcf50633_data = parent->platform_data;
+	struct pcf50633_platform_data *pcf50633_data = dev_get_platdata(parent);
 	struct pcf50633_bl_platform_data *pdata = pcf50633_data->backlight_data;
 	struct backlight_properties bl_props;
 
@@ -111,6 +111,7 @@ static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
 	if (!pcf_bl)
 		return -ENOMEM;
 
+	memset(&bl_props, 0, sizeof(bl_props));
 	bl_props.type = BACKLIGHT_RAW;
 	bl_props.max_brightness = 0x3f;
 	bl_props.power = FB_BLANK_UNBLANK;
@@ -125,7 +126,8 @@ static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
 
 	pcf_bl->pcf = dev_to_pcf50633(pdev->dev.parent);
 
-	pcf_bl->bl = backlight_device_register(pdev->name, &pdev->dev, pcf_bl,
+	pcf_bl->bl = devm_backlight_device_register(&pdev->dev, pdev->name,
+						&pdev->dev, pcf_bl,
 						&pcf50633_bl_ops, &bl_props);
 
 	if (IS_ERR(pcf_bl->bl))
@@ -135,8 +137,10 @@ static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
 
 	pcf50633_reg_write(pcf_bl->pcf, PCF50633_REG_LEDDIM, pdata->ramp_time);
 
-	/* Should be different from bl_props.brightness, so we do not exit
-	 * update_status early the first time it's called */
+	/*
+	 * Should be different from bl_props.brightness, so we do not exit
+	 * update_status early the first time it's called
+	 */
 	pcf_bl->brightness = pcf_bl->bl->props.brightness + 1;
 
 	backlight_update_status(pcf_bl->bl);
@@ -144,20 +148,8 @@ static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pcf50633_bl_remove(struct platform_device *pdev)
-{
-	struct pcf50633_bl *pcf_bl = platform_get_drvdata(pdev);
-
-	backlight_device_unregister(pcf_bl->bl);
-
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
-}
-
 static struct platform_driver pcf50633_bl_driver = {
 	.probe =	pcf50633_bl_probe,
-	.remove =	__devexit_p(pcf50633_bl_remove),
 	.driver = {
 		.name = "pcf50633-backlight",
 	},

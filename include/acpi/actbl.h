@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,9 +79,15 @@
 #pragma pack(1)
 
 /*
- * Note about bitfields: The u8 type is used for bitfields in ACPI tables.
- * This is the only type that is even remotely portable. Anything else is not
- * portable, so do not use any other bitfield types.
+ * Note: C bitfields are not used for this reason:
+ *
+ * "Bitfields are great and easy to read, but unfortunately the C language
+ * does not specify the layout of bitfields in memory, which means they are
+ * essentially useless for dealing with packed data in on-disk formats or
+ * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
+ * this decision was a design error in C. Ritchie could have picked an order
+ * and stuck with it." Norman Ramsey.
+ * See http://stackoverflow.com/a/1053662/41661
  */
 
 /*******************************************************************************
@@ -94,7 +100,7 @@
 struct acpi_table_header {
 	char signature[ACPI_NAME_SIZE];	/* ASCII table signature */
 	u32 length;		/* Length of table in bytes, including this header */
-	u8 revision;		/* ACPI Specification minor version # */
+	u8 revision;		/* ACPI Specification minor version number */
 	u8 checksum;		/* To make sum of entire table == 0 */
 	char oem_id[ACPI_OEM_ID_SIZE];	/* ASCII OEM identification */
 	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE];	/* ASCII OEM table identification */
@@ -108,7 +114,7 @@ struct acpi_table_header {
  * GAS - Generic Address Structure (ACPI 2.0+)
  *
  * Note: Since this structure is used in the ACPI tables, it is byte aligned.
- * If misaliged access is not supported by the hardware, accesses to the
+ * If misaligned access is not supported by the hardware, accesses to the
  * 64-bit Address field must be performed with care.
  *
  ******************************************************************************/
@@ -140,7 +146,24 @@ struct acpi_table_rsdp {
 	u8 reserved[3];		/* Reserved, must be zero */
 };
 
-#define ACPI_RSDP_REV0_SIZE     20	/* Size of original ACPI 1.0 RSDP */
+/* Standalone struct for the ACPI 1.0 RSDP */
+
+struct acpi_rsdp_common {
+	char signature[8];
+	u8 checksum;
+	char oem_id[ACPI_OEM_ID_SIZE];
+	u8 revision;
+	u32 rsdt_physical_address;
+};
+
+/* Standalone struct for the extended part of the RSDP (ACPI 2.0+) */
+
+struct acpi_rsdp_extension {
+	u32 length;
+	u64 xsdt_physical_address;
+	u8 extended_checksum;
+	u8 reserved[3];
+};
 
 /*******************************************************************************
  *
@@ -158,6 +181,9 @@ struct acpi_table_xsdt {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u64 table_offset_entry[1];	/* Array of pointers to ACPI tables */
 };
+
+#define ACPI_RSDT_ENTRY_SIZE        (sizeof (u32))
+#define ACPI_XSDT_ENTRY_SIZE        (sizeof (u64))
 
 /*******************************************************************************
  *
@@ -210,18 +236,18 @@ struct acpi_table_fadt {
 	u8 preferred_profile;	/* Conveys preferred power management profile to OSPM. */
 	u16 sci_interrupt;	/* System vector of SCI interrupt */
 	u32 smi_command;	/* 32-bit Port address of SMI command port */
-	u8 acpi_enable;		/* Value to write to smi_cmd to enable ACPI */
-	u8 acpi_disable;	/* Value to write to smi_cmd to disable ACPI */
-	u8 S4bios_request;	/* Value to write to SMI CMD to enter S4BIOS state */
+	u8 acpi_enable;		/* Value to write to SMI_CMD to enable ACPI */
+	u8 acpi_disable;	/* Value to write to SMI_CMD to disable ACPI */
+	u8 s4_bios_request;	/* Value to write to SMI_CMD to enter S4BIOS state */
 	u8 pstate_control;	/* Processor performance state control */
-	u32 pm1a_event_block;	/* 32-bit Port address of Power Mgt 1a Event Reg Blk */
-	u32 pm1b_event_block;	/* 32-bit Port address of Power Mgt 1b Event Reg Blk */
-	u32 pm1a_control_block;	/* 32-bit Port address of Power Mgt 1a Control Reg Blk */
-	u32 pm1b_control_block;	/* 32-bit Port address of Power Mgt 1b Control Reg Blk */
-	u32 pm2_control_block;	/* 32-bit Port address of Power Mgt 2 Control Reg Blk */
-	u32 pm_timer_block;	/* 32-bit Port address of Power Mgt Timer Ctrl Reg Blk */
-	u32 gpe0_block;		/* 32-bit Port address of General Purpose Event 0 Reg Blk */
-	u32 gpe1_block;		/* 32-bit Port address of General Purpose Event 1 Reg Blk */
+	u32 pm1a_event_block;	/* 32-bit port address of Power Mgt 1a Event Reg Blk */
+	u32 pm1b_event_block;	/* 32-bit port address of Power Mgt 1b Event Reg Blk */
+	u32 pm1a_control_block;	/* 32-bit port address of Power Mgt 1a Control Reg Blk */
+	u32 pm1b_control_block;	/* 32-bit port address of Power Mgt 1b Control Reg Blk */
+	u32 pm2_control_block;	/* 32-bit port address of Power Mgt 2 Control Reg Blk */
+	u32 pm_timer_block;	/* 32-bit port address of Power Mgt Timer Ctrl Reg Blk */
+	u32 gpe0_block;		/* 32-bit port address of General Purpose Event 0 Reg Blk */
+	u32 gpe1_block;		/* 32-bit port address of General Purpose Event 1 Reg Blk */
 	u8 pm1_event_length;	/* Byte Length of ports at pm1x_event_block */
 	u8 pm1_control_length;	/* Byte Length of ports at pm1x_control_block */
 	u8 pm2_control_length;	/* Byte Length of ports at pm2_control_block */
@@ -229,12 +255,12 @@ struct acpi_table_fadt {
 	u8 gpe0_block_length;	/* Byte Length of ports at gpe0_block */
 	u8 gpe1_block_length;	/* Byte Length of ports at gpe1_block */
 	u8 gpe1_base;		/* Offset in GPE number space where GPE1 events start */
-	u8 cst_control;		/* Support for the _CST object and C States change notification */
-	u16 C2latency;		/* Worst case HW latency to enter/exit C2 state */
-	u16 C3latency;		/* Worst case HW latency to enter/exit C3 state */
-	u16 flush_size;		/* Processor's memory cache line width, in bytes */
+	u8 cst_control;		/* Support for the _CST object and C-States change notification */
+	u16 c2_latency;		/* Worst case HW latency to enter/exit C2 state */
+	u16 c3_latency;		/* Worst case HW latency to enter/exit C3 state */
+	u16 flush_size;		/* Processor memory cache line width, in bytes */
 	u16 flush_stride;	/* Number of flush strides that need to be read */
-	u8 duty_offset;		/* Processor duty cycle index in processor's P_CNT reg */
+	u8 duty_offset;		/* Processor duty cycle index in processor P_CNT reg */
 	u8 duty_width;		/* Processor duty cycle value bit width in P_CNT register */
 	u8 day_alarm;		/* Index to day-of-month alarm in RTC CMOS RAM */
 	u8 month_alarm;		/* Index to month-of-year alarm in RTC CMOS RAM */
@@ -244,7 +270,8 @@ struct acpi_table_fadt {
 	u32 flags;		/* Miscellaneous flag bits (see below for individual flags) */
 	struct acpi_generic_address reset_register;	/* 64-bit address of the Reset register */
 	u8 reset_value;		/* Value to write to the reset_register port to reset the system */
-	u8 reserved4[3];	/* Reserved, must be zero */
+	u16 arm_boot_flags;	/* ARM-Specific Boot Flags (see below for individual flags) (ACPI 5.1) */
+	u8 minor_revision;	/* FADT Minor Revision (ACPI 5.1) */
 	u64 Xfacs;		/* 64-bit physical address of FACS */
 	u64 Xdsdt;		/* 64-bit physical address of DSDT */
 	struct acpi_generic_address xpm1a_event_block;	/* 64-bit Extended Power Mgt 1a Event Reg Blk address */
@@ -255,11 +282,11 @@ struct acpi_table_fadt {
 	struct acpi_generic_address xpm_timer_block;	/* 64-bit Extended Power Mgt Timer Ctrl Reg Blk address */
 	struct acpi_generic_address xgpe0_block;	/* 64-bit Extended General Purpose Event 0 Reg Blk address */
 	struct acpi_generic_address xgpe1_block;	/* 64-bit Extended General Purpose Event 1 Reg Blk address */
-	struct acpi_generic_address sleep_control;	/* 64-bit Sleep Control register */
-	struct acpi_generic_address sleep_status;	/* 64-bit Sleep Status register */
+	struct acpi_generic_address sleep_control;	/* 64-bit Sleep Control register (ACPI 5.0) */
+	struct acpi_generic_address sleep_status;	/* 64-bit Sleep Status register (ACPI 5.0) */
 };
 
-/* Masks for FADT Boot Architecture Flags (boot_flags) */
+/* Masks for FADT IA-PC Boot Architecture Flags (boot_flags) [Vx]=Introduced in this FADT revision */
 
 #define ACPI_FADT_LEGACY_DEVICES    (1)  	/* 00: [V2] System has LPC or ISA bus devices */
 #define ACPI_FADT_8042              (1<<1)	/* 01: [V3] System has an 8042 controller on port 60/64 */
@@ -270,15 +297,20 @@ struct acpi_table_fadt {
 
 #define FADT2_REVISION_ID               3
 
+/* Masks for FADT ARM Boot Architecture Flags (arm_boot_flags) ACPI 5.1 */
+
+#define ACPI_FADT_PSCI_COMPLIANT    (1)	/* 00: [V5+] PSCI 0.2+ is implemented */
+#define ACPI_FADT_PSCI_USE_HVC      (1<<1)	/* 01: [V5+] HVC must be used instead of SMC as the PSCI conduit */
+
 /* Masks for FADT flags */
 
-#define ACPI_FADT_WBINVD            (1)	/* 00: [V1] The wbinvd instruction works properly */
-#define ACPI_FADT_WBINVD_FLUSH      (1<<1)	/* 01: [V1] wbinvd flushes but does not invalidate caches */
+#define ACPI_FADT_WBINVD            (1)	/* 00: [V1] The WBINVD instruction works properly */
+#define ACPI_FADT_WBINVD_FLUSH      (1<<1)	/* 01: [V1] WBINVD flushes but does not invalidate caches */
 #define ACPI_FADT_C1_SUPPORTED      (1<<2)	/* 02: [V1] All processors support C1 state */
 #define ACPI_FADT_C2_MP_SUPPORTED   (1<<3)	/* 03: [V1] C2 state works on MP system */
 #define ACPI_FADT_POWER_BUTTON      (1<<4)	/* 04: [V1] Power button is handled as a control method device */
 #define ACPI_FADT_SLEEP_BUTTON      (1<<5)	/* 05: [V1] Sleep button is handled as a control method device */
-#define ACPI_FADT_FIXED_RTC         (1<<6)	/* 06: [V1] RTC wakeup status not in fixed register space */
+#define ACPI_FADT_FIXED_RTC         (1<<6)	/* 06: [V1] RTC wakeup status is not in fixed register space */
 #define ACPI_FADT_S4_RTC_WAKE       (1<<7)	/* 07: [V1] RTC alarm can wake system from S4 */
 #define ACPI_FADT_32BIT_TIMER       (1<<8)	/* 08: [V1] ACPI timer width is 32-bit (0=24-bit) */
 #define ACPI_FADT_DOCKING_SUPPORTED (1<<9)	/* 09: [V1] Docking supported */
@@ -291,13 +323,13 @@ struct acpi_table_fadt {
 #define ACPI_FADT_S4_RTC_VALID      (1<<16)	/* 16: [V4] Contents of RTC_STS valid after S4 wake (ACPI 3.0) */
 #define ACPI_FADT_REMOTE_POWER_ON   (1<<17)	/* 17: [V4] System is compatible with remote power on (ACPI 3.0) */
 #define ACPI_FADT_APIC_CLUSTER      (1<<18)	/* 18: [V4] All local APICs must use cluster model (ACPI 3.0) */
-#define ACPI_FADT_APIC_PHYSICAL     (1<<19)	/* 19: [V4] All local x_aPICs must use physical dest mode (ACPI 3.0) */
+#define ACPI_FADT_APIC_PHYSICAL     (1<<19)	/* 19: [V4] All local xAPICs must use physical dest mode (ACPI 3.0) */
 #define ACPI_FADT_HW_REDUCED        (1<<20)	/* 20: [V5] ACPI hardware is not implemented (ACPI 5.0) */
 #define ACPI_FADT_LOW_POWER_S0      (1<<21)	/* 21: [V5] S0 power savings are equal or better than S3 (ACPI 5.0) */
 
 /* Values for preferred_profile (Preferred Power Management Profiles) */
 
-enum acpi_prefered_pm_profiles {
+enum acpi_preferred_pm_profiles {
 	PM_UNSPECIFIED = 0,
 	PM_DESKTOP = 1,
 	PM_MOBILE = 2,
@@ -320,8 +352,6 @@ enum acpi_prefered_pm_profiles {
 
 #pragma pack()
 
-#define ACPI_FADT_OFFSET(f)             (u16) ACPI_OFFSET (struct acpi_table_fadt, f)
-
 /*
  * Internal table-related structures
  */
@@ -335,7 +365,7 @@ union acpi_name_union {
 struct acpi_table_desc {
 	acpi_physical_address address;
 	struct acpi_table_header *pointer;
-	u32 length;		/* Length fixed at 32 bits */
+	u32 length;		/* Length fixed at 32 bits (fixed in table header) */
 	union acpi_name_union signature;
 	acpi_owner_id owner_id;
 	u8 flags;
@@ -343,20 +373,22 @@ struct acpi_table_desc {
 
 /* Masks for Flags field above */
 
-#define ACPI_TABLE_ORIGIN_UNKNOWN       (0)
-#define ACPI_TABLE_ORIGIN_MAPPED        (1)
-#define ACPI_TABLE_ORIGIN_ALLOCATED     (2)
-#define ACPI_TABLE_ORIGIN_OVERRIDE      (4)
-#define ACPI_TABLE_ORIGIN_MASK          (7)
-#define ACPI_TABLE_IS_LOADED            (8)
+#define ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL  (0)	/* Virtual address, external maintained */
+#define ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL (1)	/* Physical address, internally mapped */
+#define ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL  (2)	/* Virtual address, internallly allocated */
+#define ACPI_TABLE_ORIGIN_MASK              (3)
+#define ACPI_TABLE_IS_LOADED                (8)
 
 /*
  * Get the remaining ACPI tables
  */
-
 #include <acpi/actbl1.h>
 #include <acpi/actbl2.h>
 #include <acpi/actbl3.h>
+
+/* Macros used to generate offsets to specific table fields */
+
+#define ACPI_FADT_OFFSET(f)             (u16) ACPI_OFFSET (struct acpi_table_fadt, f)
 
 /*
  * Sizes of the various flavors of FADT. We need to look closely
@@ -373,7 +405,7 @@ struct acpi_table_desc {
  *     FADT V5  size: 0x10C
  */
 #define ACPI_FADT_V1_SIZE       (u32) (ACPI_FADT_OFFSET (flags) + 4)
-#define ACPI_FADT_V2_SIZE       (u32) (ACPI_FADT_OFFSET (reserved4[0]) + 3)
+#define ACPI_FADT_V2_SIZE       (u32) (ACPI_FADT_OFFSET (minor_revision) + 1)
 #define ACPI_FADT_V3_SIZE       (u32) (ACPI_FADT_OFFSET (sleep_control))
 #define ACPI_FADT_V5_SIZE       (u32) (sizeof (struct acpi_table_fadt))
 

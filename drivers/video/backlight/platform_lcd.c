@@ -16,6 +16,7 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/lcd.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 
 #include <video/platform_lcd.h>
@@ -26,7 +27,7 @@ struct platform_lcd {
 	struct plat_lcd_data	*pdata;
 
 	unsigned int		 power;
-	unsigned int		 suspended : 1;
+	unsigned int		 suspended:1;
 };
 
 static inline struct platform_lcd *to_our_lcd(struct lcd_device *lcd)
@@ -72,55 +73,46 @@ static struct lcd_ops platform_lcd_ops = {
 	.check_fb	= platform_lcd_match,
 };
 
-static int __devinit platform_lcd_probe(struct platform_device *pdev)
+static int platform_lcd_probe(struct platform_device *pdev)
 {
 	struct plat_lcd_data *pdata;
 	struct platform_lcd *plcd;
 	struct device *dev = &pdev->dev;
 	int err;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(dev, "no platform data supplied\n");
 		return -EINVAL;
 	}
 
+	if (pdata->probe) {
+		err = pdata->probe(pdata);
+		if (err)
+			return err;
+	}
+
 	plcd = devm_kzalloc(&pdev->dev, sizeof(struct platform_lcd),
 			    GFP_KERNEL);
-	if (!plcd) {
-		dev_err(dev, "no memory for state\n");
+	if (!plcd)
 		return -ENOMEM;
-	}
 
 	plcd->us = dev;
 	plcd->pdata = pdata;
-	plcd->lcd = lcd_device_register(dev_name(dev), dev,
-					plcd, &platform_lcd_ops);
+	plcd->lcd = devm_lcd_device_register(&pdev->dev, dev_name(dev), dev,
+						plcd, &platform_lcd_ops);
 	if (IS_ERR(plcd->lcd)) {
 		dev_err(dev, "cannot register lcd device\n");
-		err = PTR_ERR(plcd->lcd);
-		goto err;
+		return PTR_ERR(plcd->lcd);
 	}
 
 	platform_set_drvdata(pdev, plcd);
 	platform_lcd_set_power(plcd->lcd, FB_BLANK_NORMAL);
 
 	return 0;
-
- err:
-	return err;
 }
 
-static int __devexit platform_lcd_remove(struct platform_device *pdev)
-{
-	struct platform_lcd *plcd = platform_get_drvdata(pdev);
-
-	lcd_device_unregister(plcd->lcd);
-
-	return 0;
-}
-
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int platform_lcd_suspend(struct device *dev)
 {
 	struct platform_lcd *plcd = dev_get_drvdata(dev);
@@ -140,21 +132,27 @@ static int platform_lcd_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(platform_lcd_pm_ops, platform_lcd_suspend,
 			platform_lcd_resume);
+
+#ifdef CONFIG_OF
+static const struct of_device_id platform_lcd_of_match[] = {
+	{ .compatible = "platform-lcd" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, platform_lcd_of_match);
 #endif
 
 static struct platform_driver platform_lcd_driver = {
 	.driver		= {
 		.name	= "platform-lcd",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	= &platform_lcd_pm_ops,
-#endif
+		.of_match_table = of_match_ptr(platform_lcd_of_match),
 	},
 	.probe		= platform_lcd_probe,
-	.remove		= __devexit_p(platform_lcd_remove),
 };
 
 module_platform_driver(platform_lcd_driver);

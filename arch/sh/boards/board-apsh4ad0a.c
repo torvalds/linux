@@ -12,11 +12,19 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <asm/machvec.h>
 #include <asm/sizes.h>
+
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
 
 static struct resource smsc911x_resources[] = {
 	[0] = {
@@ -56,6 +64,8 @@ static struct platform_device *apsh4ad0a_devices[] __initdata = {
 
 static int __init apsh4ad0a_devices_setup(void)
 {
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
 	return platform_add_devices(apsh4ad0a_devices,
 				    ARRAY_SIZE(apsh4ad0a_devices));
 }

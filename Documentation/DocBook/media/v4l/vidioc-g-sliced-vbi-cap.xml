@@ -148,7 +148,7 @@ using the &VIDIOC-S-FMT; ioctl as described in <xref
 <structfield>service_lines</structfield>[1][0] to zero.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-buf-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry>Type of the data stream, see <xref
 		  linkend="v4l2-buf-type" />. Should be

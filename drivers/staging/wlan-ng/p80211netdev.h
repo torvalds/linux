@@ -138,7 +138,7 @@ typedef struct p80211_frmrx_t {
 } p80211_frmrx_t;
 
 /* called by /proc/net/wireless */
-struct iw_statistics *p80211wext_get_wireless_stats(netdevice_t * dev);
+struct iw_statistics *p80211wext_get_wireless_stats(netdevice_t *dev);
 /* wireless extensions' ioctls */
 extern struct iw_handler_def p80211wext_handler_def;
 int p80211wext_event_associated(struct wlandevice *wlandev, int assoc);
@@ -209,7 +209,6 @@ typedef struct wlandevice {
 	/* queue for indications waiting for cmd completion */
 	/* Linux netdevice and support */
 	netdevice_t *netdev;	/* ptr to linux netdevice */
-	struct net_device_stats linux_stats;
 
 	/* Rx bottom half */
 	struct tasklet_struct rx_bh;
@@ -235,7 +234,7 @@ int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
 		u8 *iv, u8 *icv);
 
 int wlan_setup(wlandevice_t *wlandev, struct device *physdev);
-int wlan_unsetup(wlandevice_t *wlandev);
+void wlan_unsetup(wlandevice_t *wlandev);
 int register_wlandev(wlandevice_t *wlandev);
 int unregister_wlandev(wlandevice_t *wlandev);
 void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb);

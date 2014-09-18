@@ -248,7 +248,7 @@ void udf_truncate_extents(struct inode *inode)
 				/* We managed to free all extents in the
 				 * indirect extent - free it too */
 				BUG_ON(!epos.bh);
-				udf_free_blocks(sb, inode, &epos.block,
+				udf_free_blocks(sb, NULL, &epos.block,
 						0, indirect_ext_len);
 			} else if (!epos.bh) {
 				iinfo->i_lenAlloc = lenalloc;
@@ -275,7 +275,7 @@ void udf_truncate_extents(struct inode *inode)
 
 	if (indirect_ext_len) {
 		BUG_ON(!epos.bh);
-		udf_free_blocks(sb, inode, &epos.block, 0, indirect_ext_len);
+		udf_free_blocks(sb, NULL, &epos.block, 0, indirect_ext_len);
 	} else if (!epos.bh) {
 		iinfo->i_lenAlloc = lenalloc;
 		mark_inode_dirty(inode);

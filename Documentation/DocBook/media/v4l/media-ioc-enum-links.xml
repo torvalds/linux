@@ -79,13 +79,13 @@
 	    <entry>Entity id, set by the application.</entry>
 	  </row>
 	  <row>
-	    <entry>struct &media-pad-desc;</entry>
+	    <entry>&media-pad-desc;</entry>
 	    <entry>*<structfield>pads</structfield></entry>
 	    <entry>Pointer to a pads array allocated by the application. Ignored
 	    if NULL.</entry>
 	  </row>
 	  <row>
-	    <entry>struct &media-link-desc;</entry>
+	    <entry>&media-link-desc;</entry>
 	    <entry>*<structfield>links</structfield></entry>
 	    <entry>Pointer to a links array allocated by the application. Ignored
 	    if NULL.</entry>
@@ -134,6 +134,15 @@
 	    <entry>Output pad, relative to the entity. Output pads source data
 	    and are origins of links.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>MEDIA_PAD_FL_MUST_CONNECT</constant></entry>
+	    <entry>If this flag is set and the pad is linked to any other
+	    pad, then at least one of those links must be enabled for the
+	    entity to be able to stream. There could be temporary reasons
+	    (e.g. device configuration dependent) for the pad to need
+	    enabled links even when this flag isn't set; the absence of the
+	    flag doesn't imply there is none.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
@@ -144,12 +153,12 @@
         &cs-str;
 	<tbody valign="top">
 	  <row>
-	    <entry>struct &media-pad-desc;</entry>
+	    <entry>&media-pad-desc;</entry>
 	    <entry><structfield>source</structfield></entry>
 	    <entry>Pad at the origin of this link.</entry>
 	  </row>
 	  <row>
-	    <entry>struct &media-pad-desc;</entry>
+	    <entry>&media-pad-desc;</entry>
 	    <entry><structfield>sink</structfield></entry>
 	    <entry>Pad at the target of this link.</entry>
 	  </row>

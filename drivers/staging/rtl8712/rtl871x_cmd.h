@@ -83,7 +83,7 @@ struct	evt_priv {
 
 #define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
 do {\
-	_init_listhead(&pcmd->list);\
+	INIT_LIST_HEAD(&pcmd->list);\
 	pcmd->cmdcode = code;\
 	pcmd->parmbuf = (u8 *)(pparm);\
 	pcmd->cmdsz = sizeof(*pparm);\
@@ -720,7 +720,7 @@ struct DisconnectCtrlEx_param {
  * Result:
  * 0x00: success
  * 0x01: success, and check Response.
- * 0x02: cmd ignored due to duplicated sequcne number
+ * 0x02: cmd ignored due to duplicated sequence number
  * 0x03: cmd dropped due to invalid cmd code
  * 0x04: reserved.
  */
@@ -749,7 +749,7 @@ u8 r8712_setopmode_cmd(struct _adapter *padapter,
 u8 r8712_setdatarate_cmd(struct _adapter *padapter, u8 *rateset);
 u8 r8712_set_chplan_cmd(struct _adapter  *padapter, int chplan);
 u8 r8712_setbasicrate_cmd(struct _adapter *padapter, u8 *rateset);
-u8 r8712_getrfreg_cmd(struct _adapter *padapter, u8 offset, u8 * pval);
+u8 r8712_getrfreg_cmd(struct _adapter *padapter, u8 offset, u8 *pval);
 u8 r8712_setrfintfs_cmd(struct _adapter *padapter, u8 mode);
 u8 r8712_setrfreg_cmd(struct _adapter  *padapter, u8 offset, u32 val);
 u8 r8712_setrttbl_cmd(struct _adapter  *padapter,

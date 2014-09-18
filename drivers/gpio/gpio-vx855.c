@@ -214,12 +214,12 @@ static void vx855gpio_gpio_setup(struct vx855_gpio *vg)
 	c->dbg_show = NULL;
 	c->base = 0;
 	c->ngpio = NR_VX855_GP;
-	c->can_sleep = 0;
+	c->can_sleep = false;
 	c->names = vx855gpio_names;
 }
 
 /* This platform device is ordinarily registered by the vx855 mfd driver */
-static __devinit int vx855gpio_probe(struct platform_device *pdev)
+static int vx855gpio_probe(struct platform_device *pdev)
 {
 	struct resource *res_gpi;
 	struct resource *res_gpo;
@@ -279,18 +279,16 @@ out_release:
 		release_region(res_gpi->start, resource_size(res_gpi));
 	if (vg->gpo_reserved)
 		release_region(res_gpi->start, resource_size(res_gpo));
-	platform_set_drvdata(pdev, NULL);
 	kfree(vg);
 	return ret;
 }
 
-static int __devexit vx855gpio_remove(struct platform_device *pdev)
+static int vx855gpio_remove(struct platform_device *pdev)
 {
 	struct vx855_gpio *vg = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	if (gpiochip_remove(&vg->gpio))
-		dev_err(&pdev->dev, "unable to remove gpio_chip?\n");
+	gpiochip_remove(&vg->gpio);
 
 	if (vg->gpi_reserved) {
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
@@ -301,7 +299,6 @@ static int __devexit vx855gpio_remove(struct platform_device *pdev)
 		release_region(res->start, resource_size(res));
 	}
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(vg);
 	return 0;
 }
@@ -312,7 +309,7 @@ static struct platform_driver vx855gpio_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= vx855gpio_probe,
-	.remove		= __devexit_p(vx855gpio_remove),
+	.remove		= vx855gpio_remove,
 };
 
 module_platform_driver(vx855gpio_driver);

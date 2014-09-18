@@ -24,20 +24,23 @@
 #include <linux/interrupt.h>
 
 #define USE_TIMER
+#define MV_XOR_POOL_SIZE		PAGE_SIZE
 #define MV_XOR_SLOT_SIZE		64
 #define MV_XOR_THRESHOLD		1
+#define MV_XOR_MAX_CHANNELS             2
 
+/* Values for the XOR_CONFIG register */
 #define XOR_OPERATION_MODE_XOR		0
 #define XOR_OPERATION_MODE_MEMCPY	2
-#define XOR_OPERATION_MODE_MEMSET	4
+#define XOR_DESCRIPTOR_SWAP		BIT(14)
 
-#define XOR_CURR_DESC(chan)	(chan->mmr_base + 0x210 + (chan->idx * 4))
-#define XOR_NEXT_DESC(chan)	(chan->mmr_base + 0x200 + (chan->idx * 4))
-#define XOR_BYTE_COUNT(chan)	(chan->mmr_base + 0x220 + (chan->idx * 4))
-#define XOR_DEST_POINTER(chan)	(chan->mmr_base + 0x2B0 + (chan->idx * 4))
-#define XOR_BLOCK_SIZE(chan)	(chan->mmr_base + 0x2C0 + (chan->idx * 4))
-#define XOR_INIT_VALUE_LOW(chan)	(chan->mmr_base + 0x2E0)
-#define XOR_INIT_VALUE_HIGH(chan)	(chan->mmr_base + 0x2E4)
+#define XOR_CURR_DESC(chan)	(chan->mmr_high_base + 0x10 + (chan->idx * 4))
+#define XOR_NEXT_DESC(chan)	(chan->mmr_high_base + 0x00 + (chan->idx * 4))
+#define XOR_BYTE_COUNT(chan)	(chan->mmr_high_base + 0x20 + (chan->idx * 4))
+#define XOR_DEST_POINTER(chan)	(chan->mmr_high_base + 0xB0 + (chan->idx * 4))
+#define XOR_BLOCK_SIZE(chan)	(chan->mmr_high_base + 0xC0 + (chan->idx * 4))
+#define XOR_INIT_VALUE_LOW(chan)	(chan->mmr_high_base + 0xE0)
+#define XOR_INIT_VALUE_HIGH(chan)	(chan->mmr_high_base + 0xE4)
 
 #define XOR_CONFIG(chan)	(chan->mmr_base + 0x10 + (chan->idx * 4))
 #define XOR_ACTIVATION(chan)	(chan->mmr_base + 0x20 + (chan->idx * 4))
@@ -47,32 +50,17 @@
 #define XOR_ERROR_ADDR(chan)	(chan->mmr_base + 0x60)
 #define XOR_INTR_MASK_VALUE	0x3F5
 
-#define WINDOW_BASE(w)		(0x250 + ((w) << 2))
-#define WINDOW_SIZE(w)		(0x270 + ((w) << 2))
-#define WINDOW_REMAP_HIGH(w)	(0x290 + ((w) << 2))
-#define WINDOW_BAR_ENABLE(chan)	(0x240 + ((chan) << 2))
+#define WINDOW_BASE(w)		(0x50 + ((w) << 2))
+#define WINDOW_SIZE(w)		(0x70 + ((w) << 2))
+#define WINDOW_REMAP_HIGH(w)	(0x90 + ((w) << 2))
+#define WINDOW_BAR_ENABLE(chan)	(0x40 + ((chan) << 2))
+#define WINDOW_OVERRIDE_CTRL(chan)	(0xA0 + ((chan) << 2))
 
-struct mv_xor_shared_private {
-	void __iomem	*xor_base;
-	void __iomem	*xor_high_base;
-};
-
-
-/**
- * struct mv_xor_device - internal representation of a XOR device
- * @pdev: Platform device
- * @id: HW XOR Device selector
- * @dma_desc_pool: base of DMA descriptor region (DMA address)
- * @dma_desc_pool_virt: base of DMA descriptor region (CPU address)
- * @common: embedded struct dma_device
- */
 struct mv_xor_device {
-	struct platform_device		*pdev;
-	int				id;
-	dma_addr_t			dma_desc_pool;
-	void				*dma_desc_pool_virt;
-	struct dma_device		common;
-	struct mv_xor_shared_private	*shared;
+	void __iomem	     *xor_base;
+	void __iomem	     *xor_high_base;
+	struct clk	     *clk;
+	struct mv_xor_chan   *channels[MV_XOR_MAX_CHANNELS];
 };
 
 /**
@@ -94,12 +82,17 @@ struct mv_xor_chan {
 	int			pending;
 	spinlock_t		lock; /* protects the descriptor slot pool */
 	void __iomem		*mmr_base;
+	void __iomem		*mmr_high_base;
 	unsigned int		idx;
+	int                     irq;
 	enum dma_transaction_type	current_type;
 	struct list_head	chain;
 	struct list_head	completed_slots;
-	struct mv_xor_device	*device;
-	struct dma_chan		common;
+	dma_addr_t		dma_desc_pool;
+	void			*dma_desc_pool_virt;
+	size_t                  pool_size;
+	struct dma_device	dmadev;
+	struct dma_chan		dmachan;
 	struct mv_xor_desc_slot	*last_used;
 	struct list_head	all_slots;
 	int			slots_allocated;
@@ -153,7 +146,16 @@ struct mv_xor_desc_slot {
 #endif
 };
 
-/* This structure describes XOR descriptor size 64bytes	*/
+/*
+ * This structure describes XOR descriptor size 64bytes. The
+ * mv_phy_src_idx() macro must be used when indexing the values of the
+ * phy_src_addr[] array. This is due to the fact that the 'descriptor
+ * swap' feature, used on big endian systems, swaps descriptors data
+ * within blocks of 8 bytes. So two consecutive values of the
+ * phy_src_addr[] array are actually swapped in big-endian, which
+ * explains the different mv_phy_src_idx() implementation.
+ */
+#if defined(__LITTLE_ENDIAN)
 struct mv_xor_desc {
 	u32 status;		/* descriptor execution status */
 	u32 crc32_result;	/* result of CRC-32 calculation */
@@ -165,6 +167,21 @@ struct mv_xor_desc {
 	u32 reserved0;
 	u32 reserved1;
 };
+#define mv_phy_src_idx(src_idx) (src_idx)
+#else
+struct mv_xor_desc {
+	u32 crc32_result;	/* result of CRC-32 calculation */
+	u32 status;		/* descriptor execution status */
+	u32 phy_next_desc;	/* next descriptor address pointer */
+	u32 desc_command;	/* type of operation to be carried out */
+	u32 phy_dest_addr;	/* destination block address */
+	u32 byte_count;		/* size of src/dst blocks in bytes */
+	u32 phy_src_addr[8];	/* source block addresses */
+	u32 reserved1;
+	u32 reserved0;
+};
+#define mv_phy_src_idx(src_idx) (src_idx ^ 1)
+#endif
 
 #define to_mv_sw_desc(addr_hw_desc)		\
 	container_of(addr_hw_desc, struct mv_xor_desc_slot, hw_desc)

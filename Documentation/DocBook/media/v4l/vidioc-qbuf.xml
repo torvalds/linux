@@ -71,12 +71,9 @@ initialize the <structfield>bytesused</structfield>,
 <structfield>field</structfield> and
 <structfield>timestamp</structfield> fields, see <xref
 linkend="buffer" /> for details.
-Applications must also set <structfield>flags</structfield> to 0. If a driver
-supports capturing from specific video inputs and you want to specify a video
-input, then <structfield>flags</structfield> should be set to
-<constant>V4L2_BUF_FLAG_INPUT</constant> and the field
-<structfield>input</structfield> must be initialized to the desired input.
-The <structfield>reserved</structfield> field must be set to 0. When using
+Applications must also set <structfield>flags</structfield> to 0.
+The <structfield>reserved2</structfield> and
+<structfield>reserved</structfield> fields must be set to 0. When using
 the <link linkend="planar-apis">multi-planar API</link>, the
 <structfield>m.planes</structfield> field must contain a userspace pointer
 to a filled-in array of &v4l2-plane; and the <structfield>length</structfield>
@@ -112,6 +109,23 @@ they cannot be swapped out to disk. Buffers remain locked until
 dequeued, until the &VIDIOC-STREAMOFF; or &VIDIOC-REQBUFS; ioctl is
 called, or until the device is closed.</para>
 
+    <para>To enqueue a <link linkend="dmabuf">DMABUF</link> buffer applications
+set the <structfield>memory</structfield> field to
+<constant>V4L2_MEMORY_DMABUF</constant> and the <structfield>m.fd</structfield>
+field to a file descriptor associated with a DMABUF buffer. When the
+multi-planar API is used the <structfield>m.fd</structfield> fields of the
+passed array of &v4l2-plane; have to be used instead. When
+<constant>VIDIOC_QBUF</constant> is called with a pointer to this structure the
+driver sets the <constant>V4L2_BUF_FLAG_QUEUED</constant> flag and clears the
+<constant>V4L2_BUF_FLAG_MAPPED</constant> and
+<constant>V4L2_BUF_FLAG_DONE</constant> flags in the
+<structfield>flags</structfield> field, or it returns an error code.  This
+ioctl locks the buffer. Locking a buffer means passing it to a driver for a
+hardware access (usually DMA).  If an application accesses (reads/writes) a
+locked buffer then the result is undefined.  Buffers remain locked until
+dequeued, until the &VIDIOC-STREAMOFF; or &VIDIOC-REQBUFS; ioctl is called, or
+until the device is closed.</para>
+
     <para>Applications call the <constant>VIDIOC_DQBUF</constant>
 ioctl to dequeue a filled (capturing) or displayed (output) buffer
 from the driver's outgoing queue. They just set the
@@ -124,8 +138,7 @@ remaining fields or returns an error code. The driver may also set
 field. It indicates a non-critical (recoverable) streaming error. In such case
 the application may continue as normal, but should be aware that data in the
 dequeued buffer might be corrupted. When using the multi-planar API, the
-planes array does not have to be passed; the <structfield>m.planes</structfield>
-member must be set to NULL in that case.</para>
+planes array must be passed in as well.</para>
 
     <para>By default <constant>VIDIOC_DQBUF</constant> blocks when no
 buffer is in the outgoing queue. When the
@@ -158,6 +171,8 @@ or no buffers have been allocated yet, or the
 <structfield>userptr</structfield> or
 <structfield>length</structfield> are invalid.</para>
 	</listitem>
+      </varlistentry>
+      <varlistentry>
 	<term><errorcode>EIO</errorcode></term>
 	<listitem>
 	  <para><constant>VIDIOC_DQBUF</constant> failed due to an

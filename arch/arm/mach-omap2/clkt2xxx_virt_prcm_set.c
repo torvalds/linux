@@ -1,7 +1,7 @@
 /*
  * OMAP2xxx DVFS virtual clock functions
  *
- * Copyright (C) 2005-2008 Texas Instruments, Inc.
+ * Copyright (C) 2005-2008, 2012 Texas Instruments, Inc.
  * Copyright (C) 2004-2010 Nokia Corporation
  *
  * Contacts:
@@ -33,19 +33,24 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 
-#include <plat/cpu.h>
-#include <plat/clock.h>
-#include <plat/sram.h>
-#include <plat/sdrc.h>
-
+#include "soc.h"
 #include "clock.h"
 #include "clock2xxx.h"
 #include "opp2xxx.h"
-#include "cm2xxx_3xxx.h"
+#include "cm2xxx.h"
 #include "cm-regbits-24xx.h"
+#include "sdrc.h"
+#include "sram.h"
 
 const struct prcm_config *curr_prcm_set;
 const struct prcm_config *rate_table;
+
+/*
+ * sys_ck_rate: the rate of the external high-frequency clock
+ * oscillator on the board.  Set by the SoC-specific clock init code.
+ * Once set during a boot, will not change.
+ */
+static unsigned long sys_ck_rate;
 
 /**
  * omap2_table_mpu_recalc - just return the MPU speed
@@ -53,7 +58,8 @@ const struct prcm_config *rate_table;
  *
  * Set virt_prcm_set's rate to the mpu_speed field of the current PRCM set.
  */
-unsigned long omap2_table_mpu_recalc(struct clk *clk)
+unsigned long omap2_table_mpu_recalc(struct clk_hw *clk,
+				     unsigned long parent_rate)
 {
 	return curr_prcm_set->mpu_speed;
 }
@@ -65,7 +71,8 @@ unsigned long omap2_table_mpu_recalc(struct clk *clk)
  * Some might argue L3-DDR, others ARM, others IVA. This code is simple and
  * just uses the ARM rates.
  */
-long omap2_round_to_table_rate(struct clk *clk, unsigned long rate)
+long omap2_round_to_table_rate(struct clk_hw *hw, unsigned long rate,
+			       unsigned long *parent_rate)
 {
 	const struct prcm_config *ptr;
 	long highest_rate;
@@ -75,7 +82,7 @@ long omap2_round_to_table_rate(struct clk *clk, unsigned long rate)
 	for (ptr = rate_table; ptr->mpu_speed; ptr++) {
 		if (!(ptr->flags & cpu_mask))
 			continue;
-		if (ptr->xtal_speed != sclk->rate)
+		if (ptr->xtal_speed != sys_ck_rate)
 			continue;
 
 		highest_rate = ptr->mpu_speed;
@@ -88,9 +95,10 @@ long omap2_round_to_table_rate(struct clk *clk, unsigned long rate)
 }
 
 /* Sets basic clocks based on the specified rate */
-int omap2_select_table_rate(struct clk *clk, unsigned long rate)
+int omap2_select_table_rate(struct clk_hw *hw, unsigned long rate,
+			    unsigned long parent_rate)
 {
-	u32 cur_rate, done_rate, bypass = 0, tmp;
+	u32 cur_rate, done_rate, bypass = 0;
 	const struct prcm_config *prcm;
 	unsigned long found_speed = 0;
 	unsigned long flags;
@@ -99,7 +107,7 @@ int omap2_select_table_rate(struct clk *clk, unsigned long rate)
 		if (!(prcm->flags & cpu_mask))
 			continue;
 
-		if (prcm->xtal_speed != sclk->rate)
+		if (prcm->xtal_speed != sys_ck_rate)
 			continue;
 
 		if (prcm->mpu_speed <= rate) {
@@ -115,7 +123,7 @@ int omap2_select_table_rate(struct clk *clk, unsigned long rate)
 	}
 
 	curr_prcm_set = prcm;
-	cur_rate = omap2xxx_clk_get_core_rate(dclk);
+	cur_rate = omap2xxx_clk_get_core_rate();
 
 	if (prcm->dpll_speed == cur_rate / 2) {
 		omap2xxx_sdrc_reprogram(CORE_CLK_SRC_DPLL, 1);
@@ -133,23 +141,11 @@ int omap2_select_table_rate(struct clk *clk, unsigned long rate)
 		else
 			done_rate = CORE_CLK_SRC_DPLL;
 
-		/* MPU divider */
-		omap2_cm_write_mod_reg(prcm->cm_clksel_mpu, MPU_MOD, CM_CLKSEL);
-
-		/* dsp + iva1 div(2420), iva2.1(2430) */
-		omap2_cm_write_mod_reg(prcm->cm_clksel_dsp,
-				 OMAP24XX_DSP_MOD, CM_CLKSEL);
-
-		omap2_cm_write_mod_reg(prcm->cm_clksel_gfx, GFX_MOD, CM_CLKSEL);
-
-		/* Major subsystem dividers */
-		tmp = omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL1) & OMAP24XX_CLKSEL_DSS2_MASK;
-		omap2_cm_write_mod_reg(prcm->cm_clksel1_core | tmp, CORE_MOD,
-				 CM_CLKSEL1);
-
-		if (cpu_is_omap2430())
-			omap2_cm_write_mod_reg(prcm->cm_clksel_mdm,
-					 OMAP2430_MDM_MOD, CM_CLKSEL);
+		omap2xxx_cm_set_mod_dividers(prcm->cm_clksel_mpu,
+					     prcm->cm_clksel_dsp,
+					     prcm->cm_clksel_gfx,
+					     prcm->cm_clksel1_core,
+					     prcm->cm_clksel_mdm);
 
 		/* x2 to enter omap2xxx_sdrc_init_params() */
 		omap2xxx_sdrc_reprogram(CORE_CLK_SRC_DPLL_X2, 1);
@@ -165,3 +161,103 @@ int omap2_select_table_rate(struct clk *clk, unsigned long rate)
 
 	return 0;
 }
+
+/**
+ * omap2xxx_clkt_vps_check_bootloader_rate - determine which of the rate
+ * table sets matches the current CORE DPLL hardware rate
+ *
+ * Check the MPU rate set by bootloader.  Sets the 'curr_prcm_set'
+ * global to point to the active rate set when found; otherwise, sets
+ * it to NULL.  No return value;
+ */
+void omap2xxx_clkt_vps_check_bootloader_rates(void)
+{
+	const struct prcm_config *prcm = NULL;
+	unsigned long rate;
+
+	rate = omap2xxx_clk_get_core_rate();
+	for (prcm = rate_table; prcm->mpu_speed; prcm++) {
+		if (!(prcm->flags & cpu_mask))
+			continue;
+		if (prcm->xtal_speed != sys_ck_rate)
+			continue;
+		if (prcm->dpll_speed <= rate)
+			break;
+	}
+	curr_prcm_set = prcm;
+}
+
+/**
+ * omap2xxx_clkt_vps_late_init - store a copy of the sys_ck rate
+ *
+ * Store a copy of the sys_ck rate for later use by the OMAP2xxx DVFS
+ * code.  (The sys_ck rate does not -- or rather, must not -- change
+ * during kernel runtime.)  Must be called after we have a valid
+ * sys_ck rate, but before the virt_prcm_set clock rate is
+ * recalculated.  No return value.
+ */
+void omap2xxx_clkt_vps_late_init(void)
+{
+	struct clk *c;
+
+	c = clk_get(NULL, "sys_ck");
+	if (IS_ERR(c)) {
+		WARN(1, "could not locate sys_ck\n");
+	} else {
+		sys_ck_rate = clk_get_rate(c);
+		clk_put(c);
+	}
+}
+
+#ifdef CONFIG_OF
+#include <linux/clk-provider.h>
+#include <linux/clkdev.h>
+
+static const struct clk_ops virt_prcm_set_ops = {
+	.recalc_rate	= &omap2_table_mpu_recalc,
+	.set_rate	= &omap2_select_table_rate,
+	.round_rate	= &omap2_round_to_table_rate,
+};
+
+/**
+ * omap2xxx_clkt_vps_init - initialize virt_prcm_set clock
+ *
+ * Does a manual init for the virtual prcm DVFS clock for OMAP2. This
+ * function is called only from omap2 DT clock init, as the virtual
+ * node is not modelled in the DT clock data.
+ */
+void omap2xxx_clkt_vps_init(void)
+{
+	struct clk_init_data init = { NULL };
+	struct clk_hw_omap *hw = NULL;
+	struct clk *clk;
+	const char *parent_name = "mpu_ck";
+	struct clk_lookup *lookup = NULL;
+
+	omap2xxx_clkt_vps_late_init();
+	omap2xxx_clkt_vps_check_bootloader_rates();
+
+	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+	lookup = kzalloc(sizeof(*lookup), GFP_KERNEL);
+	if (!hw || !lookup)
+		goto cleanup;
+	init.name = "virt_prcm_set";
+	init.ops = &virt_prcm_set_ops;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	hw->hw.init = &init;
+
+	clk = clk_register(NULL, &hw->hw);
+
+	lookup->dev_id = NULL;
+	lookup->con_id = "cpufreq_ck";
+	lookup->clk = clk;
+
+	clkdev_add(lookup);
+	return;
+cleanup:
+	kfree(hw);
+	kfree(lookup);
+}
+#endif

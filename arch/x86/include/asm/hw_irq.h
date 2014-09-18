@@ -26,61 +26,78 @@
 #include <asm/sections.h>
 
 /* Interrupt handlers registered during init_IRQ */
-extern void apic_timer_interrupt(void);
-extern void x86_platform_ipi(void);
-extern void error_interrupt(void);
-extern void irq_work_interrupt(void);
+extern asmlinkage void apic_timer_interrupt(void);
+extern asmlinkage void x86_platform_ipi(void);
+extern asmlinkage void kvm_posted_intr_ipi(void);
+extern asmlinkage void error_interrupt(void);
+extern asmlinkage void irq_work_interrupt(void);
 
-extern void spurious_interrupt(void);
-extern void thermal_interrupt(void);
-extern void reschedule_interrupt(void);
+extern asmlinkage void spurious_interrupt(void);
+extern asmlinkage void thermal_interrupt(void);
+extern asmlinkage void reschedule_interrupt(void);
 
-extern void invalidate_interrupt(void);
-extern void invalidate_interrupt0(void);
-extern void invalidate_interrupt1(void);
-extern void invalidate_interrupt2(void);
-extern void invalidate_interrupt3(void);
-extern void invalidate_interrupt4(void);
-extern void invalidate_interrupt5(void);
-extern void invalidate_interrupt6(void);
-extern void invalidate_interrupt7(void);
-extern void invalidate_interrupt8(void);
-extern void invalidate_interrupt9(void);
-extern void invalidate_interrupt10(void);
-extern void invalidate_interrupt11(void);
-extern void invalidate_interrupt12(void);
-extern void invalidate_interrupt13(void);
-extern void invalidate_interrupt14(void);
-extern void invalidate_interrupt15(void);
-extern void invalidate_interrupt16(void);
-extern void invalidate_interrupt17(void);
-extern void invalidate_interrupt18(void);
-extern void invalidate_interrupt19(void);
-extern void invalidate_interrupt20(void);
-extern void invalidate_interrupt21(void);
-extern void invalidate_interrupt22(void);
-extern void invalidate_interrupt23(void);
-extern void invalidate_interrupt24(void);
-extern void invalidate_interrupt25(void);
-extern void invalidate_interrupt26(void);
-extern void invalidate_interrupt27(void);
-extern void invalidate_interrupt28(void);
-extern void invalidate_interrupt29(void);
-extern void invalidate_interrupt30(void);
-extern void invalidate_interrupt31(void);
+extern asmlinkage void invalidate_interrupt(void);
+extern asmlinkage void invalidate_interrupt0(void);
+extern asmlinkage void invalidate_interrupt1(void);
+extern asmlinkage void invalidate_interrupt2(void);
+extern asmlinkage void invalidate_interrupt3(void);
+extern asmlinkage void invalidate_interrupt4(void);
+extern asmlinkage void invalidate_interrupt5(void);
+extern asmlinkage void invalidate_interrupt6(void);
+extern asmlinkage void invalidate_interrupt7(void);
+extern asmlinkage void invalidate_interrupt8(void);
+extern asmlinkage void invalidate_interrupt9(void);
+extern asmlinkage void invalidate_interrupt10(void);
+extern asmlinkage void invalidate_interrupt11(void);
+extern asmlinkage void invalidate_interrupt12(void);
+extern asmlinkage void invalidate_interrupt13(void);
+extern asmlinkage void invalidate_interrupt14(void);
+extern asmlinkage void invalidate_interrupt15(void);
+extern asmlinkage void invalidate_interrupt16(void);
+extern asmlinkage void invalidate_interrupt17(void);
+extern asmlinkage void invalidate_interrupt18(void);
+extern asmlinkage void invalidate_interrupt19(void);
+extern asmlinkage void invalidate_interrupt20(void);
+extern asmlinkage void invalidate_interrupt21(void);
+extern asmlinkage void invalidate_interrupt22(void);
+extern asmlinkage void invalidate_interrupt23(void);
+extern asmlinkage void invalidate_interrupt24(void);
+extern asmlinkage void invalidate_interrupt25(void);
+extern asmlinkage void invalidate_interrupt26(void);
+extern asmlinkage void invalidate_interrupt27(void);
+extern asmlinkage void invalidate_interrupt28(void);
+extern asmlinkage void invalidate_interrupt29(void);
+extern asmlinkage void invalidate_interrupt30(void);
+extern asmlinkage void invalidate_interrupt31(void);
 
-extern void irq_move_cleanup_interrupt(void);
-extern void reboot_interrupt(void);
-extern void threshold_interrupt(void);
+extern asmlinkage void irq_move_cleanup_interrupt(void);
+extern asmlinkage void reboot_interrupt(void);
+extern asmlinkage void threshold_interrupt(void);
 
-extern void call_function_interrupt(void);
-extern void call_function_single_interrupt(void);
+extern asmlinkage void call_function_interrupt(void);
+extern asmlinkage void call_function_single_interrupt(void);
+
+#ifdef CONFIG_TRACING
+/* Interrupt handlers registered during init_IRQ */
+extern void trace_apic_timer_interrupt(void);
+extern void trace_x86_platform_ipi(void);
+extern void trace_error_interrupt(void);
+extern void trace_irq_work_interrupt(void);
+extern void trace_spurious_interrupt(void);
+extern void trace_thermal_interrupt(void);
+extern void trace_reschedule_interrupt(void);
+extern void trace_threshold_interrupt(void);
+extern void trace_call_function_interrupt(void);
+extern void trace_call_function_single_interrupt(void);
+#define trace_irq_move_cleanup_interrupt  irq_move_cleanup_interrupt
+#define trace_reboot_interrupt  reboot_interrupt
+#define trace_kvm_posted_intr_ipi kvm_posted_intr_ipi
+#endif /* CONFIG_TRACING */
 
 /* IOAPIC */
 #define IO_APIC_IRQ(x) (((x) >= NR_IRQS_LEGACY) || ((1<<(x)) & io_apic_irqs))
 extern unsigned long io_apic_irqs;
 
-extern void init_VISWS_APIC_irqs(void);
 extern void setup_IO_APIC(void);
 extern void disable_IO_APIC(void);
 
@@ -101,11 +118,18 @@ static inline void set_io_apic_irq_attr(struct io_apic_irq_attr *irq_attr,
 	irq_attr->polarity	= polarity;
 }
 
+/* Intel specific interrupt remapping information */
 struct irq_2_iommu {
 	struct intel_iommu *iommu;
 	u16 irte_index;
 	u16 sub_handle;
 	u8  irte_mask;
+};
+
+/* AMD specific interrupt remapping information */
+struct irq_2_irte {
+	u16 devid; /* Device ID for IRTE table */
+	u16 index; /* Index into IRTE table*/
 };
 
 /*
@@ -120,7 +144,11 @@ struct irq_cfg {
 	u8			vector;
 	u8			move_in_progress : 1;
 #ifdef CONFIG_IRQ_REMAP
-	struct irq_2_iommu	irq_2_iommu;
+	u8			remapped : 1;
+	union {
+		struct irq_2_iommu irq_2_iommu;
+		struct irq_2_irte  irq_2_irte;
+	};
 #endif
 };
 
@@ -143,25 +171,27 @@ extern atomic_t irq_mis_count;
 extern void eisa_set_level_irq(unsigned int irq);
 
 /* SMP */
-extern void smp_apic_timer_interrupt(struct pt_regs *);
-extern void smp_spurious_interrupt(struct pt_regs *);
-extern void smp_x86_platform_ipi(struct pt_regs *);
-extern void smp_error_interrupt(struct pt_regs *);
+extern __visible void smp_apic_timer_interrupt(struct pt_regs *);
+extern __visible void smp_spurious_interrupt(struct pt_regs *);
+extern __visible void smp_x86_platform_ipi(struct pt_regs *);
+extern __visible void smp_error_interrupt(struct pt_regs *);
 #ifdef CONFIG_X86_IO_APIC
 extern asmlinkage void smp_irq_move_cleanup_interrupt(void);
 #endif
 #ifdef CONFIG_SMP
-extern void smp_reschedule_interrupt(struct pt_regs *);
-extern void smp_call_function_interrupt(struct pt_regs *);
-extern void smp_call_function_single_interrupt(struct pt_regs *);
-#ifdef CONFIG_X86_32
-extern void smp_invalidate_interrupt(struct pt_regs *);
-#else
-extern asmlinkage void smp_invalidate_interrupt(struct pt_regs *);
-#endif
+extern __visible void smp_reschedule_interrupt(struct pt_regs *);
+extern __visible void smp_call_function_interrupt(struct pt_regs *);
+extern __visible void smp_call_function_single_interrupt(struct pt_regs *);
+extern __visible void smp_invalidate_interrupt(struct pt_regs *);
 #endif
 
 extern void (*__initconst interrupt[NR_VECTORS-FIRST_EXTERNAL_VECTOR])(void);
+#ifdef CONFIG_TRACING
+#define trace_interrupt interrupt
+#endif
+
+#define VECTOR_UNDEFINED	(-1)
+#define VECTOR_RETRIGGERED	(-2)
 
 typedef int vector_irq_t[NR_VECTORS];
 DECLARE_PER_CPU(vector_irq_t, vector_irq);

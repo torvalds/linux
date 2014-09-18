@@ -34,9 +34,54 @@
 
 #include "iw_cxgb4.h"
 
+static int db_delay_usecs = 1;
+module_param(db_delay_usecs, int, 0644);
+MODULE_PARM_DESC(db_delay_usecs, "Usecs to delay awaiting db fifo to drain");
+
 static int ocqp_support = 1;
 module_param(ocqp_support, int, 0644);
 MODULE_PARM_DESC(ocqp_support, "Support on-chip SQs (default=1)");
+
+int db_fc_threshold = 1000;
+module_param(db_fc_threshold, int, 0644);
+MODULE_PARM_DESC(db_fc_threshold,
+		 "QP count/threshold that triggers"
+		 " automatic db flow control mode (default = 1000)");
+
+int db_coalescing_threshold;
+module_param(db_coalescing_threshold, int, 0644);
+MODULE_PARM_DESC(db_coalescing_threshold,
+		 "QP count/threshold that triggers"
+		 " disabling db coalescing (default = 0)");
+
+static int max_fr_immd = T4_MAX_FR_IMMD;
+module_param(max_fr_immd, int, 0644);
+MODULE_PARM_DESC(max_fr_immd, "fastreg threshold for using DSGL instead of immedate");
+
+static int alloc_ird(struct c4iw_dev *dev, u32 ird)
+{
+	int ret = 0;
+
+	spin_lock_irq(&dev->lock);
+	if (ird <= dev->avail_ird)
+		dev->avail_ird -= ird;
+	else
+		ret = -ENOMEM;
+	spin_unlock_irq(&dev->lock);
+
+	if (ret)
+		dev_warn(&dev->rdev.lldi.pdev->dev,
+			 "device IRD resources exhausted\n");
+
+	return ret;
+}
+
+static void free_ird(struct c4iw_dev *dev, int ird)
+{
+	spin_lock_irq(&dev->lock);
+	dev->avail_ird += ird;
+	spin_unlock_irq(&dev->lock);
+}
 
 static void set_state(struct c4iw_qp *qhp, enum c4iw_qp_state state)
 {
@@ -67,7 +112,7 @@ static void dealloc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 
 static int alloc_oc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 {
-	if (!ocqp_support || !t4_ocqp_supported())
+	if (!ocqp_support || !ocqp_supported(&rdev->lldi))
 		return -ENOSYS;
 	sq->dma_addr = c4iw_ocqp_pool_alloc(rdev, sq->memsize);
 	if (!sq->dma_addr)
@@ -89,6 +134,16 @@ static int alloc_host_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 	sq->phys_addr = virt_to_phys(sq->queue);
 	pci_unmap_addr_set(sq, mapping, sq->dma_addr);
 	return 0;
+}
+
+static int alloc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq, int user)
+{
+	int ret = -ENOSYS;
+	if (user)
+		ret = alloc_oc_sq(rdev, sq);
+	if (ret)
+		ret = alloc_host_sq(rdev, sq);
+	return ret;
 }
 
 static int destroy_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
@@ -120,7 +175,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	int wr_len;
 	struct c4iw_wr_wait wr_wait;
 	struct sk_buff *skb;
-	int ret;
+	int ret = 0;
 	int eqsize;
 
 	wq->sq.qid = c4iw_get_qpid(rdev, uctx);
@@ -128,43 +183,50 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		return -ENOMEM;
 
 	wq->rq.qid = c4iw_get_qpid(rdev, uctx);
-	if (!wq->rq.qid)
-		goto err1;
+	if (!wq->rq.qid) {
+		ret = -ENOMEM;
+		goto free_sq_qid;
+	}
 
 	if (!user) {
 		wq->sq.sw_sq = kzalloc(wq->sq.size * sizeof *wq->sq.sw_sq,
 				 GFP_KERNEL);
-		if (!wq->sq.sw_sq)
-			goto err2;
+		if (!wq->sq.sw_sq) {
+			ret = -ENOMEM;
+			goto free_rq_qid;
+		}
 
 		wq->rq.sw_rq = kzalloc(wq->rq.size * sizeof *wq->rq.sw_rq,
 				 GFP_KERNEL);
-		if (!wq->rq.sw_rq)
-			goto err3;
+		if (!wq->rq.sw_rq) {
+			ret = -ENOMEM;
+			goto free_sw_sq;
+		}
 	}
 
 	/*
-	 * RQT must be a power of 2.
+	 * RQT must be a power of 2 and at least 16 deep.
 	 */
-	wq->rq.rqt_size = roundup_pow_of_two(wq->rq.size);
+	wq->rq.rqt_size = roundup_pow_of_two(max_t(u16, wq->rq.size, 16));
 	wq->rq.rqt_hwaddr = c4iw_rqtpool_alloc(rdev, wq->rq.rqt_size);
-	if (!wq->rq.rqt_hwaddr)
-		goto err4;
+	if (!wq->rq.rqt_hwaddr) {
+		ret = -ENOMEM;
+		goto free_sw_rq;
+	}
 
-	if (user) {
-		if (alloc_oc_sq(rdev, &wq->sq) && alloc_host_sq(rdev, &wq->sq))
-			goto err5;
-	} else
-		if (alloc_host_sq(rdev, &wq->sq))
-			goto err5;
+	ret = alloc_sq(rdev, &wq->sq, user);
+	if (ret)
+		goto free_hwaddr;
 	memset(wq->sq.queue, 0, wq->sq.memsize);
 	dma_unmap_addr_set(&wq->sq, mapping, wq->sq.dma_addr);
 
 	wq->rq.queue = dma_alloc_coherent(&(rdev->lldi.pdev->dev),
 					  wq->rq.memsize, &(wq->rq.dma_addr),
 					  GFP_KERNEL);
-	if (!wq->rq.queue)
-		goto err6;
+	if (!wq->rq.queue) {
+		ret = -ENOMEM;
+		goto free_sq;
+	}
 	PDBG("%s sq base va 0x%p pa 0x%llx rq base va 0x%p pa 0x%llx\n",
 		__func__, wq->sq.queue,
 		(unsigned long long)virt_to_phys(wq->sq.queue),
@@ -175,13 +237,23 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 
 	wq->db = rdev->lldi.db_reg;
 	wq->gts = rdev->lldi.gts_reg;
-	if (user) {
-		wq->sq.udb = (u64)pci_resource_start(rdev->lldi.pdev, 2) +
-					(wq->sq.qid << rdev->qpshift);
-		wq->sq.udb &= PAGE_MASK;
-		wq->rq.udb = (u64)pci_resource_start(rdev->lldi.pdev, 2) +
-					(wq->rq.qid << rdev->qpshift);
-		wq->rq.udb &= PAGE_MASK;
+	if (user || is_t5(rdev->lldi.adapter_type)) {
+		u32 off;
+
+		off = (wq->sq.qid << rdev->qpshift) & PAGE_MASK;
+		if (user) {
+			wq->sq.udb = (u64 __iomem *)(rdev->bar2_pa + off);
+		} else {
+			off += 128 * (wq->sq.qid & rdev->qpmask) + 8;
+			wq->sq.udb = (u64 __iomem *)(rdev->bar2_kva + off);
+		}
+		off = (wq->rq.qid << rdev->qpshift) & PAGE_MASK;
+		if (user) {
+			wq->rq.udb = (u64 __iomem *)(rdev->bar2_pa + off);
+		} else {
+			off += 128 * (wq->rq.qid & rdev->qpmask) + 8;
+			wq->rq.udb = (u64 __iomem *)(rdev->bar2_kva + off);
+		}
 	}
 	wq->rdev = rdev;
 	wq->rq.msn = 1;
@@ -192,7 +264,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	skb = alloc_skb(wr_len, GFP_KERNEL);
 	if (!skb) {
 		ret = -ENOMEM;
-		goto err7;
+		goto free_dma;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
 
@@ -211,7 +283,8 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	/*
 	 * eqsize is the number of 64B entries plus the status page size.
 	 */
-	eqsize = wq->sq.size * T4_SQ_NUM_SLOTS + T4_EQ_STATUS_ENTRIES;
+	eqsize = wq->sq.size * T4_SQ_NUM_SLOTS +
+		rdev->hw_queue.t4_eq_status_entries;
 
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
 		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
@@ -236,7 +309,8 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	/*
 	 * eqsize is the number of 64B entries plus the status page size.
 	 */
-	eqsize = wq->rq.size * T4_RQ_NUM_SLOTS + T4_EQ_STATUS_ENTRIES;
+	eqsize = wq->rq.size * T4_RQ_NUM_SLOTS +
+		rdev->hw_queue.t4_eq_status_entries;
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
 		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
 		V_FW_RI_RES_WR_CPRIO(0) |	/* don't keep in chip cache */
@@ -257,33 +331,34 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 
 	ret = c4iw_ofld_send(rdev, skb);
 	if (ret)
-		goto err7;
+		goto free_dma;
 	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, wq->sq.qid, __func__);
 	if (ret)
-		goto err7;
+		goto free_dma;
 
-	PDBG("%s sqid 0x%x rqid 0x%x kdb 0x%p squdb 0x%llx rqudb 0x%llx\n",
+	PDBG("%s sqid 0x%x rqid 0x%x kdb 0x%p squdb 0x%lx rqudb 0x%lx\n",
 	     __func__, wq->sq.qid, wq->rq.qid, wq->db,
-	     (unsigned long long)wq->sq.udb, (unsigned long long)wq->rq.udb);
+	     (__force unsigned long) wq->sq.udb,
+	     (__force unsigned long) wq->rq.udb);
 
 	return 0;
-err7:
+free_dma:
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
 			  wq->rq.memsize, wq->rq.queue,
 			  dma_unmap_addr(&wq->rq, mapping));
-err6:
+free_sq:
 	dealloc_sq(rdev, &wq->sq);
-err5:
+free_hwaddr:
 	c4iw_rqtpool_free(rdev, wq->rq.rqt_hwaddr, wq->rq.rqt_size);
-err4:
+free_sw_rq:
 	kfree(wq->rq.sw_rq);
-err3:
+free_sw_sq:
 	kfree(wq->sq.sw_sq);
-err2:
+free_rq_qid:
 	c4iw_put_qpid(rdev, wq->rq.qid, uctx);
-err1:
+free_sq_qid:
 	c4iw_put_qpid(rdev, wq->sq.qid, uctx);
-	return -ENOMEM;
+	return ret;
 }
 
 static int build_immd(struct t4_sq *sq, struct fw_ri_immd *immdp,
@@ -388,6 +463,8 @@ static int build_rdma_send(struct t4_sq *sq, union t4_wr *wqe,
 	default:
 		return -EINVAL;
 	}
+	wqe->send.r3 = 0;
+	wqe->send.r4 = 0;
 
 	plen = 0;
 	if (wr->num_sge) {
@@ -509,7 +586,7 @@ static int build_rdma_recv(struct c4iw_qp *qhp, union t4_recv_wr *wqe,
 }
 
 static int build_fastreg(struct t4_sq *sq, union t4_wr *wqe,
-			 struct ib_send_wr *wr, u8 *len16)
+			 struct ib_send_wr *wr, u8 *len16, u8 t5dev)
 {
 
 	struct fw_ri_immd *imdp;
@@ -518,7 +595,8 @@ static int build_fastreg(struct t4_sq *sq, union t4_wr *wqe,
 	int pbllen = roundup(wr->wr.fast_reg.page_list_len * sizeof(u64), 32);
 	int rem;
 
-	if (wr->wr.fast_reg.page_list_len > T4_MAX_FR_DEPTH)
+	if (wr->wr.fast_reg.page_list_len >
+	    t4_max_fr_depth(use_dsgl))
 		return -EINVAL;
 
 	wqe->fr.qpbinde_to_dcacpu = 0;
@@ -531,28 +609,51 @@ static int build_fastreg(struct t4_sq *sq, union t4_wr *wqe,
 	wqe->fr.va_hi = cpu_to_be32(wr->wr.fast_reg.iova_start >> 32);
 	wqe->fr.va_lo_fbo = cpu_to_be32(wr->wr.fast_reg.iova_start &
 					0xffffffff);
-	WARN_ON(pbllen > T4_MAX_FR_IMMD);
-	imdp = (struct fw_ri_immd *)(&wqe->fr + 1);
-	imdp->op = FW_RI_DATA_IMMD;
-	imdp->r1 = 0;
-	imdp->r2 = 0;
-	imdp->immdlen = cpu_to_be32(pbllen);
-	p = (__be64 *)(imdp + 1);
-	rem = pbllen;
-	for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
-		*p = cpu_to_be64((u64)wr->wr.fast_reg.page_list->page_list[i]);
-		rem -= sizeof *p;
-		if (++p == (__be64 *)&sq->queue[sq->size])
-			p = (__be64 *)sq->queue;
+
+	if (t5dev && use_dsgl && (pbllen > max_fr_immd)) {
+		struct c4iw_fr_page_list *c4pl =
+			to_c4iw_fr_page_list(wr->wr.fast_reg.page_list);
+		struct fw_ri_dsgl *sglp;
+
+		for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
+			wr->wr.fast_reg.page_list->page_list[i] = (__force u64)
+				cpu_to_be64((u64)
+				wr->wr.fast_reg.page_list->page_list[i]);
+		}
+
+		sglp = (struct fw_ri_dsgl *)(&wqe->fr + 1);
+		sglp->op = FW_RI_DATA_DSGL;
+		sglp->r1 = 0;
+		sglp->nsge = cpu_to_be16(1);
+		sglp->addr0 = cpu_to_be64(c4pl->dma_addr);
+		sglp->len0 = cpu_to_be32(pbllen);
+
+		*len16 = DIV_ROUND_UP(sizeof(wqe->fr) + sizeof(*sglp), 16);
+	} else {
+		imdp = (struct fw_ri_immd *)(&wqe->fr + 1);
+		imdp->op = FW_RI_DATA_IMMD;
+		imdp->r1 = 0;
+		imdp->r2 = 0;
+		imdp->immdlen = cpu_to_be32(pbllen);
+		p = (__be64 *)(imdp + 1);
+		rem = pbllen;
+		for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
+			*p = cpu_to_be64(
+				(u64)wr->wr.fast_reg.page_list->page_list[i]);
+			rem -= sizeof(*p);
+			if (++p == (__be64 *)&sq->queue[sq->size])
+				p = (__be64 *)sq->queue;
+		}
+		BUG_ON(rem < 0);
+		while (rem) {
+			*p = 0;
+			rem -= sizeof(*p);
+			if (++p == (__be64 *)&sq->queue[sq->size])
+				p = (__be64 *)sq->queue;
+		}
+		*len16 = DIV_ROUND_UP(sizeof(wqe->fr) + sizeof(*imdp)
+				      + pbllen, 16);
 	}
-	BUG_ON(rem < 0);
-	while (rem) {
-		*p = 0;
-		rem -= sizeof *p;
-		if (++p == (__be64 *)&sq->queue[sq->size])
-			p = (__be64 *)sq->queue;
-	}
-	*len16 = DIV_ROUND_UP(sizeof wqe->fr + sizeof *imdp + pbllen, 16);
 	return 0;
 }
 
@@ -578,6 +679,48 @@ void c4iw_qp_rem_ref(struct ib_qp *qp)
 		wake_up(&(to_c4iw_qp(qp)->wait));
 }
 
+static void add_to_fc_list(struct list_head *head, struct list_head *entry)
+{
+	if (list_empty(entry))
+		list_add_tail(entry, head);
+}
+
+static int ring_kernel_sq_db(struct c4iw_qp *qhp, u16 inc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&qhp->rhp->lock, flags);
+	spin_lock(&qhp->lock);
+	if (qhp->rhp->db_state == NORMAL)
+		t4_ring_sq_db(&qhp->wq, inc,
+			      is_t5(qhp->rhp->rdev.lldi.adapter_type), NULL);
+	else {
+		add_to_fc_list(&qhp->rhp->db_fc_list, &qhp->db_fc_entry);
+		qhp->wq.sq.wq_pidx_inc += inc;
+	}
+	spin_unlock(&qhp->lock);
+	spin_unlock_irqrestore(&qhp->rhp->lock, flags);
+	return 0;
+}
+
+static int ring_kernel_rq_db(struct c4iw_qp *qhp, u16 inc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&qhp->rhp->lock, flags);
+	spin_lock(&qhp->lock);
+	if (qhp->rhp->db_state == NORMAL)
+		t4_ring_rq_db(&qhp->wq, inc,
+			      is_t5(qhp->rhp->rdev.lldi.adapter_type), NULL);
+	else {
+		add_to_fc_list(&qhp->rhp->db_fc_list, &qhp->db_fc_entry);
+		qhp->wq.rq.wq_pidx_inc += inc;
+	}
+	spin_unlock(&qhp->lock);
+	spin_unlock_irqrestore(&qhp->rhp->lock, flags);
+	return 0;
+}
+
 int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		   struct ib_send_wr **bad_wr)
 {
@@ -586,7 +729,7 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	enum fw_wr_opcodes fw_opcode = 0;
 	enum fw_ri_wr_flags fw_flags;
 	struct c4iw_qp *qhp;
-	union t4_wr *wqe;
+	union t4_wr *wqe = NULL;
 	u32 num_wrs;
 	struct t4_swsqe *swsqe;
 	unsigned long flag;
@@ -615,7 +758,7 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		fw_flags = 0;
 		if (wr->send_flags & IB_SEND_SOLICITED)
 			fw_flags |= FW_RI_SOLICITED_EVENT_FLAG;
-		if (wr->send_flags & IB_SEND_SIGNALED)
+		if (wr->send_flags & IB_SEND_SIGNALED || qhp->sq_sig_all)
 			fw_flags |= FW_RI_COMPLETION_FLAG;
 		swsqe = &qhp->wq.sq.sw_sq[qhp->wq.sq.pidx];
 		switch (wr->opcode) {
@@ -653,7 +796,10 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		case IB_WR_FAST_REG_MR:
 			fw_opcode = FW_RI_FR_NSMR_WR;
 			swsqe->opcode = FW_RI_FAST_REGISTER;
-			err = build_fastreg(&qhp->wq.sq, wqe, wr, &len16);
+			err = build_fastreg(&qhp->wq.sq, wqe, wr, &len16,
+					    is_t5(
+					    qhp->rhp->rdev.lldi.adapter_type) ?
+					    1 : 0);
 			break;
 		case IB_WR_LOCAL_INV:
 			if (wr->send_flags & IB_SEND_FENCE)
@@ -673,8 +819,15 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		}
 		swsqe->idx = qhp->wq.sq.pidx;
 		swsqe->complete = 0;
-		swsqe->signaled = (wr->send_flags & IB_SEND_SIGNALED);
+		swsqe->signaled = (wr->send_flags & IB_SEND_SIGNALED) ||
+				  qhp->sq_sig_all;
+		swsqe->flushed = 0;
 		swsqe->wr_id = wr->wr_id;
+		if (c4iw_wr_log) {
+			swsqe->sge_ts = cxgb4_read_sge_timestamp(
+					qhp->rhp->rdev.lldi.ports[0]);
+			getnstimeofday(&swsqe->host_ts);
+		}
 
 		init_wr_hdr(wqe, qhp->wq.sq.pidx, fw_opcode, fw_flags, len16);
 
@@ -686,9 +839,14 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		t4_sq_produce(&qhp->wq, len16);
 		idx += DIV_ROUND_UP(len16*16, T4_EQ_ENTRY_SIZE);
 	}
-	if (t4_wq_db_enabled(&qhp->wq))
-		t4_ring_sq_db(&qhp->wq, idx);
-	spin_unlock_irqrestore(&qhp->lock, flag);
+	if (!qhp->rhp->rdev.status_page->db_off) {
+		t4_ring_sq_db(&qhp->wq, idx,
+			      is_t5(qhp->rhp->rdev.lldi.adapter_type), wqe);
+		spin_unlock_irqrestore(&qhp->lock, flag);
+	} else {
+		spin_unlock_irqrestore(&qhp->lock, flag);
+		ring_kernel_sq_db(qhp, idx);
+	}
 	return err;
 }
 
@@ -697,7 +855,7 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 {
 	int err = 0;
 	struct c4iw_qp *qhp;
-	union t4_recv_wr *wqe;
+	union t4_recv_wr *wqe = NULL;
 	u32 num_wrs;
 	u8 len16 = 0;
 	unsigned long flag;
@@ -733,6 +891,13 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		}
 
 		qhp->wq.rq.sw_rq[qhp->wq.rq.pidx].wr_id = wr->wr_id;
+		if (c4iw_wr_log) {
+			qhp->wq.rq.sw_rq[qhp->wq.rq.pidx].sge_ts =
+				cxgb4_read_sge_timestamp(
+						qhp->rhp->rdev.lldi.ports[0]);
+			getnstimeofday(
+				&qhp->wq.rq.sw_rq[qhp->wq.rq.pidx].host_ts);
+		}
 
 		wqe->recv.opcode = FW_RI_RECV_WR;
 		wqe->recv.r1 = 0;
@@ -748,9 +913,14 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		wr = wr->next;
 		num_wrs--;
 	}
-	if (t4_wq_db_enabled(&qhp->wq))
-		t4_ring_rq_db(&qhp->wq, idx);
-	spin_unlock_irqrestore(&qhp->lock, flag);
+	if (!qhp->rhp->rdev.status_page->db_off) {
+		t4_ring_rq_db(&qhp->wq, idx,
+			      is_t5(qhp->rhp->rdev.lldi.adapter_type), wqe);
+		spin_unlock_irqrestore(&qhp->lock, flag);
+	} else {
+		spin_unlock_irqrestore(&qhp->lock, flag);
+		ring_kernel_rq_db(qhp, idx);
+	}
 	return err;
 }
 
@@ -935,7 +1105,7 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 		       struct c4iw_cq *schp)
 {
 	int count;
-	int flushed;
+	int rq_flushed, sq_flushed;
 	unsigned long flag;
 
 	PDBG("%s qhp %p rchp %p schp %p\n", __func__, qhp, rchp, schp);
@@ -943,29 +1113,50 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&rchp->lock, flag);
 	spin_lock(&qhp->lock);
-	c4iw_flush_hw_cq(&rchp->cq);
+
+	if (qhp->wq.flushed) {
+		spin_unlock(&qhp->lock);
+		spin_unlock_irqrestore(&rchp->lock, flag);
+		return;
+	}
+	qhp->wq.flushed = 1;
+
+	c4iw_flush_hw_cq(rchp);
 	c4iw_count_rcqes(&rchp->cq, &qhp->wq, &count);
-	flushed = c4iw_flush_rq(&qhp->wq, &rchp->cq, count);
+	rq_flushed = c4iw_flush_rq(&qhp->wq, &rchp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&rchp->lock, flag);
-	if (flushed) {
-		spin_lock_irqsave(&rchp->comp_handler_lock, flag);
-		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
-		spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
-	}
 
 	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, flag);
 	spin_lock(&qhp->lock);
-	c4iw_flush_hw_cq(&schp->cq);
-	c4iw_count_scqes(&schp->cq, &qhp->wq, &count);
-	flushed = c4iw_flush_sq(&qhp->wq, &schp->cq, count);
+	if (schp != rchp)
+		c4iw_flush_hw_cq(schp);
+	sq_flushed = c4iw_flush_sq(qhp);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&schp->lock, flag);
-	if (flushed) {
-		spin_lock_irqsave(&schp->comp_handler_lock, flag);
-		(*schp->ibcq.comp_handler)(&schp->ibcq, schp->ibcq.cq_context);
-		spin_unlock_irqrestore(&schp->comp_handler_lock, flag);
+
+	if (schp == rchp) {
+		if (t4_clear_cq_armed(&rchp->cq) &&
+		    (rq_flushed || sq_flushed)) {
+			spin_lock_irqsave(&rchp->comp_handler_lock, flag);
+			(*rchp->ibcq.comp_handler)(&rchp->ibcq,
+						   rchp->ibcq.cq_context);
+			spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
+		}
+	} else {
+		if (t4_clear_cq_armed(&rchp->cq) && rq_flushed) {
+			spin_lock_irqsave(&rchp->comp_handler_lock, flag);
+			(*rchp->ibcq.comp_handler)(&rchp->ibcq,
+						   rchp->ibcq.cq_context);
+			spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
+		}
+		if (t4_clear_cq_armed(&schp->cq) && sq_flushed) {
+			spin_lock_irqsave(&schp->comp_handler_lock, flag);
+			(*schp->ibcq.comp_handler)(&schp->ibcq,
+						   schp->ibcq.cq_context);
+			spin_unlock_irqrestore(&schp->comp_handler_lock, flag);
+		}
 	}
 }
 
@@ -974,11 +1165,11 @@ static void flush_qp(struct c4iw_qp *qhp)
 	struct c4iw_cq *rchp, *schp;
 	unsigned long flag;
 
-	rchp = get_chp(qhp->rhp, qhp->attr.rcq);
-	schp = get_chp(qhp->rhp, qhp->attr.scq);
+	rchp = to_c4iw_cq(qhp->ibqp.recv_cq);
+	schp = to_c4iw_cq(qhp->ibqp.send_cq);
 
+	t4_set_wq_in_error(&qhp->wq);
 	if (qhp->ibqp.uobject) {
-		t4_set_wq_in_error(&qhp->wq);
 		t4_set_cq_in_error(&rchp->cq);
 		spin_lock_irqsave(&rchp->comp_handler_lock, flag);
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
@@ -1063,12 +1254,20 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 	int ret;
 	struct sk_buff *skb;
 
-	PDBG("%s qhp %p qid 0x%x tid %u\n", __func__, qhp, qhp->wq.sq.qid,
-	     qhp->ep->hwtid);
+	PDBG("%s qhp %p qid 0x%x tid %u ird %u ord %u\n", __func__, qhp,
+	     qhp->wq.sq.qid, qhp->ep->hwtid, qhp->ep->ird, qhp->ep->ord);
 
 	skb = alloc_skb(sizeof *wqe, GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
+	if (!skb) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	ret = alloc_ird(rhp, qhp->attr.max_ird);
+	if (ret) {
+		qhp->attr.max_ird = 0;
+		kfree_skb(skb);
+		goto out;
+	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, qhp->ep->txq_idx);
 
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
@@ -1119,10 +1318,14 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 
 	ret = c4iw_ofld_send(&rhp->rdev, skb);
 	if (ret)
-		goto out;
+		goto err1;
 
 	ret = c4iw_wait_for_reply(&rhp->rdev, &qhp->ep->com.wr_wait,
 				  qhp->ep->hwtid, qhp->wq.sq.qid, __func__);
+	if (!ret)
+		goto out;
+err1:
+	free_ird(rhp, qhp->attr.max_ird);
 out:
 	PDBG("%s ret %d\n", __func__, ret);
 	return ret;
@@ -1167,13 +1370,22 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			newattr.max_ord = attrs->max_ord;
 		}
 		if (mask & C4IW_QP_ATTR_MAX_IRD) {
-			if (attrs->max_ird > c4iw_max_read_depth) {
+			if (attrs->max_ird > cur_max_read_depth(rhp)) {
 				ret = -EINVAL;
 				goto out;
 			}
 			newattr.max_ird = attrs->max_ird;
 		}
 		qhp->attr = newattr;
+	}
+
+	if (mask & C4IW_QP_ATTR_SQ_DB) {
+		ret = ring_kernel_sq_db(qhp, attrs->sq_db_inc);
+		goto out;
+	}
+	if (mask & C4IW_QP_ATTR_RQ_DB) {
+		ret = ring_kernel_rq_db(qhp, attrs->rq_db_inc);
+		goto out;
 	}
 
 	if (!(mask & C4IW_QP_ATTR_NEXT_STATE))
@@ -1222,6 +1434,7 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 		switch (attrs->next_state) {
 		case C4IW_QP_STATE_CLOSING:
 			BUG_ON(atomic_read(&qhp->ep->com.kref.refcount) < 2);
+			t4_set_wq_in_error(&qhp->wq);
 			set_state(qhp, C4IW_QP_STATE_CLOSING);
 			ep = qhp->ep;
 			if (!internal) {
@@ -1229,28 +1442,30 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 				disconnect = 1;
 				c4iw_get_ep(&qhp->ep->com);
 			}
-			if (qhp->ibqp.uobject)
-				t4_set_wq_in_error(&qhp->wq);
 			ret = rdma_fini(rhp, qhp, ep);
 			if (ret)
 				goto err;
 			break;
 		case C4IW_QP_STATE_TERMINATE:
+			t4_set_wq_in_error(&qhp->wq);
 			set_state(qhp, C4IW_QP_STATE_TERMINATE);
 			qhp->attr.layer_etype = attrs->layer_etype;
 			qhp->attr.ecode = attrs->ecode;
-			if (qhp->ibqp.uobject)
-				t4_set_wq_in_error(&qhp->wq);
 			ep = qhp->ep;
-			if (!internal)
+			if (!internal) {
+				c4iw_get_ep(&qhp->ep->com);
 				terminate = 1;
-			disconnect = 1;
-			c4iw_get_ep(&qhp->ep->com);
+				disconnect = 1;
+			} else {
+				terminate = qhp->attr.send_term;
+				ret = rdma_fini(rhp, qhp, ep);
+				if (ret)
+					goto err;
+			}
 			break;
 		case C4IW_QP_STATE_ERROR:
+			t4_set_wq_in_error(&qhp->wq);
 			set_state(qhp, C4IW_QP_STATE_ERROR);
-			if (qhp->ibqp.uobject)
-				t4_set_wq_in_error(&qhp->wq);
 			if (!internal) {
 				abort = 1;
 				disconnect = 1;
@@ -1322,6 +1537,7 @@ err:
 	qhp->ep = NULL;
 	set_state(qhp, C4IW_QP_STATE_ERROR);
 	free = 1;
+	abort = 1;
 	wake_up(&qhp->wait);
 	BUG_ON(!ep);
 	flush_qp(qhp);
@@ -1373,6 +1589,12 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 	atomic_dec(&qhp->refcnt);
 	wait_event(qhp->wait, !atomic_read(&qhp->refcnt));
 
+	spin_lock_irq(&rhp->lock);
+	if (!list_empty(&qhp->db_fc_entry))
+		list_del_init(&qhp->db_fc_entry);
+	spin_unlock_irq(&rhp->lock);
+	free_ird(rhp, qhp->attr.max_ird);
+
 	ucontext = ib_qp->uobject ?
 		   to_c4iw_ucontext(ib_qp->uobject->context) : NULL;
 	destroy_qp(&rhp->rdev, &qhp->wq,
@@ -1392,7 +1614,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	struct c4iw_cq *schp;
 	struct c4iw_cq *rchp;
 	struct c4iw_create_qp_resp uresp;
-	int sqsize, rqsize;
+	unsigned int sqsize, rqsize;
 	struct c4iw_ucontext *ucontext;
 	int ret;
 	struct c4iw_mm_entry *mm1, *mm2, *mm3, *mm4, *mm5 = NULL;
@@ -1412,32 +1634,37 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	if (attrs->cap.max_inline_data > T4_MAX_SEND_INLINE)
 		return ERR_PTR(-EINVAL);
 
-	rqsize = roundup(attrs->cap.max_recv_wr + 1, 16);
-	if (rqsize > T4_MAX_RQ_SIZE)
+	if (attrs->cap.max_recv_wr > rhp->rdev.hw_queue.t4_max_rq_size)
 		return ERR_PTR(-E2BIG);
+	rqsize = attrs->cap.max_recv_wr + 1;
+	if (rqsize < 8)
+		rqsize = 8;
 
-	sqsize = roundup(attrs->cap.max_send_wr + 1, 16);
-	if (sqsize > T4_MAX_SQ_SIZE)
+	if (attrs->cap.max_send_wr > rhp->rdev.hw_queue.t4_max_sq_size)
 		return ERR_PTR(-E2BIG);
+	sqsize = attrs->cap.max_send_wr + 1;
+	if (sqsize < 8)
+		sqsize = 8;
 
 	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
-
 
 	qhp = kzalloc(sizeof(*qhp), GFP_KERNEL);
 	if (!qhp)
 		return ERR_PTR(-ENOMEM);
 	qhp->wq.sq.size = sqsize;
-	qhp->wq.sq.memsize = (sqsize + 1) * sizeof *qhp->wq.sq.queue;
+	qhp->wq.sq.memsize =
+		(sqsize + rhp->rdev.hw_queue.t4_eq_status_entries) *
+		sizeof(*qhp->wq.sq.queue) + 16 * sizeof(__be64);
+	qhp->wq.sq.flush_cidx = -1;
 	qhp->wq.rq.size = rqsize;
-	qhp->wq.rq.memsize = (rqsize + 1) * sizeof *qhp->wq.rq.queue;
+	qhp->wq.rq.memsize =
+		(rqsize + rhp->rdev.hw_queue.t4_eq_status_entries) *
+		sizeof(*qhp->wq.rq.queue);
 
 	if (ucontext) {
 		qhp->wq.sq.memsize = roundup(qhp->wq.sq.memsize, PAGE_SIZE);
 		qhp->wq.rq.memsize = roundup(qhp->wq.rq.memsize, PAGE_SIZE);
 	}
-
-	PDBG("%s sqsize %u sqmemsize %zu rqsize %u rqmemsize %zu\n",
-	     __func__, sqsize, qhp->wq.sq.memsize, rqsize, qhp->wq.rq.memsize);
 
 	ret = create_qp(&rhp->rdev, &qhp->wq, &schp->cq, &rchp->cq,
 			ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
@@ -1462,8 +1689,9 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	qhp->attr.enable_rdma_read = 1;
 	qhp->attr.enable_rdma_write = 1;
 	qhp->attr.enable_bind = 1;
-	qhp->attr.max_ord = 1;
-	qhp->attr.max_ird = 1;
+	qhp->attr.max_ord = 0;
+	qhp->attr.max_ird = 0;
+	qhp->sq_sig_all = attrs->sq_sig_type == IB_SIGNAL_ALL_WR;
 	spin_lock_init(&qhp->lock);
 	mutex_init(&qhp->mutex);
 	init_waitqueue_head(&qhp->wait);
@@ -1514,6 +1742,8 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		if (mm5) {
 			uresp.ma_sync_key = ucontext->key;
 			ucontext->key += PAGE_SIZE;
+		} else {
+			uresp.ma_sync_key =  0;
 		}
 		uresp.sq_key = ucontext->key;
 		ucontext->key += PAGE_SIZE;
@@ -1536,11 +1766,11 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		mm2->len = PAGE_ALIGN(qhp->wq.rq.memsize);
 		insert_mmap(ucontext, mm2);
 		mm3->key = uresp.sq_db_gts_key;
-		mm3->addr = qhp->wq.sq.udb;
+		mm3->addr = (__force unsigned long) qhp->wq.sq.udb;
 		mm3->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm3);
 		mm4->key = uresp.rq_db_gts_key;
-		mm4->addr = qhp->wq.rq.udb;
+		mm4->addr = (__force unsigned long) qhp->wq.rq.udb;
 		mm4->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm4);
 		if (mm5) {
@@ -1553,9 +1783,12 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	}
 	qhp->ibqp.qp_num = qhp->wq.sq.qid;
 	init_timer(&(qhp->timer));
-	PDBG("%s qhp %p sq_num_entries %d, rq_num_entries %d qpid 0x%0x\n",
-	     __func__, qhp, qhp->attr.sq_num_entries, qhp->attr.rq_num_entries,
-	     qhp->wq.sq.qid);
+	INIT_LIST_HEAD(&qhp->db_fc_entry);
+	PDBG("%s sq id %u size %u memsize %zu num_entries %u "
+	     "rq id %u size %u memsize %zu num_entries %u\n", __func__,
+	     qhp->wq.sq.qid, qhp->wq.sq.size, qhp->wq.sq.memsize,
+	     attrs->cap.max_send_wr, qhp->wq.rq.qid, qhp->wq.rq.size,
+	     qhp->wq.rq.memsize, attrs->cap.max_recv_wr);
 	return &qhp->ibqp;
 err8:
 	kfree(mm5);
@@ -1613,6 +1846,19 @@ int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			 C4IW_QP_ATTR_ENABLE_RDMA_WRITE |
 			 C4IW_QP_ATTR_ENABLE_RDMA_BIND) : 0;
 
+	/*
+	 * Use SQ_PSN and RQ_PSN to pass in IDX_INC values for
+	 * ringing the queue db when we're in DB_FULL mode.
+	 * Only allow this on T4 devices.
+	 */
+	attrs.sq_db_inc = attr->sq_psn;
+	attrs.rq_db_inc = attr->rq_psn;
+	mask |= (attr_mask & IB_QP_SQ_PSN) ? C4IW_QP_ATTR_SQ_DB : 0;
+	mask |= (attr_mask & IB_QP_RQ_PSN) ? C4IW_QP_ATTR_RQ_DB : 0;
+	if (is_t5(to_c4iw_qp(ibqp)->rhp->rdev.lldi.adapter_type) &&
+	    (mask & (C4IW_QP_ATTR_SQ_DB|C4IW_QP_ATTR_RQ_DB)))
+		return -EINVAL;
+
 	return c4iw_modify_qp(rhp, qhp, mask, &attrs, 0);
 }
 
@@ -1620,4 +1866,21 @@ struct ib_qp *c4iw_get_qp(struct ib_device *dev, int qpn)
 {
 	PDBG("%s ib_dev %p qpn 0x%x\n", __func__, dev, qpn);
 	return (struct ib_qp *)get_qhp(to_c4iw_dev(dev), qpn);
+}
+
+int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
+		     int attr_mask, struct ib_qp_init_attr *init_attr)
+{
+	struct c4iw_qp *qhp = to_c4iw_qp(ibqp);
+
+	memset(attr, 0, sizeof *attr);
+	memset(init_attr, 0, sizeof *init_attr);
+	attr->qp_state = to_ib_qp_state(qhp->attr.state);
+	init_attr->cap.max_send_wr = qhp->attr.sq_num_entries;
+	init_attr->cap.max_recv_wr = qhp->attr.rq_num_entries;
+	init_attr->cap.max_send_sge = qhp->attr.sq_max_sges;
+	init_attr->cap.max_recv_sge = qhp->attr.sq_max_sges;
+	init_attr->cap.max_inline_data = T4_MAX_SEND_INLINE;
+	init_attr->sq_sig_type = qhp->sq_sig_all ? IB_SIGNAL_ALL_WR : 0;
+	return 0;
 }

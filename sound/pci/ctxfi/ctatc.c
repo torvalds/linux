@@ -38,7 +38,7 @@
 			    | (0x10 << 16) \
 			    | ((IEC958_AES3_CON_FS_48000) << 24))
 
-static struct snd_pci_quirk __devinitdata subsys_20k1_list[] = {
+static struct snd_pci_quirk subsys_20k1_list[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x0022, "SB055x", CTSB055X),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x002f, "SB055x", CTSB055X),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x0029, "SB073x", CTSB073X),
@@ -48,7 +48,7 @@ static struct snd_pci_quirk __devinitdata subsys_20k1_list[] = {
 	{ } /* terminator */
 };
 
-static struct snd_pci_quirk __devinitdata subsys_20k2_list[] = {
+static struct snd_pci_quirk subsys_20k2_list[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB0760,
 		      "SB0760", CTSB0760),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB1270,
@@ -434,6 +434,11 @@ atc_pcm_playback_position(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	if (!src)
 		return 0;
 	position = src->ops->get_ca(src);
+
+	if (position < apcm->vm_block->addr) {
+		snd_printdd("ctxfi: bad ca - ca=0x%08x, vba=0x%08x, vbs=0x%08x\n", position, apcm->vm_block->addr, apcm->vm_block->size);
+		position = apcm->vm_block->addr;
+	}
 
 	size = apcm->vm_block->size;
 	max_cisz = src->multi * src->rsc.msr;
@@ -1249,7 +1254,7 @@ static int atc_dev_free(struct snd_device *dev)
 	return ct_atc_destroy(atc);
 }
 
-static int __devinit atc_identify_card(struct ct_atc *atc, unsigned int ssid)
+static int atc_identify_card(struct ct_atc *atc, unsigned int ssid)
 {
 	const struct snd_pci_quirk *p;
 	const struct snd_pci_quirk *list;
@@ -1296,7 +1301,7 @@ static int __devinit atc_identify_card(struct ct_atc *atc, unsigned int ssid)
 	return 0;
 }
 
-int __devinit ct_atc_create_alsa_devs(struct ct_atc *atc)
+int ct_atc_create_alsa_devs(struct ct_atc *atc)
 {
 	enum CTALSADEVS i;
 	int err;
@@ -1319,7 +1324,7 @@ int __devinit ct_atc_create_alsa_devs(struct ct_atc *atc)
 	return 0;
 }
 
-static int __devinit atc_create_hw_devs(struct ct_atc *atc)
+static int atc_create_hw_devs(struct ct_atc *atc)
 {
 	struct hw *hw;
 	struct card_conf info = {0};
@@ -1536,8 +1541,8 @@ static void atc_connect_resources(struct ct_atc *atc)
 	}
 }
 
-#ifdef CONFIG_PM
-static int atc_suspend(struct ct_atc *atc, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int atc_suspend(struct ct_atc *atc)
 {
 	int i;
 	struct hw *hw = atc->hw;
@@ -1553,7 +1558,7 @@ static int atc_suspend(struct ct_atc *atc, pm_message_t state)
 
 	atc_release_resources(atc);
 
-	hw->suspend(hw, state);
+	hw->suspend(hw);
 
 	return 0;
 }
@@ -1614,7 +1619,7 @@ static int atc_resume(struct ct_atc *atc)
 }
 #endif
 
-static struct ct_atc atc_preset __devinitdata = {
+static struct ct_atc atc_preset = {
 	.map_audio_buffer = ct_map_audio_buffer,
 	.unmap_audio_buffer = ct_unmap_audio_buffer,
 	.pcm_playback_prepare = atc_pcm_playback_prepare,
@@ -1647,7 +1652,7 @@ static struct ct_atc atc_preset __devinitdata = {
 	.output_switch_put = atc_output_switch_put,
 	.mic_source_switch_get = atc_mic_source_switch_get,
 	.mic_source_switch_put = atc_mic_source_switch_put,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend = atc_suspend,
 	.resume = atc_resume,
 #endif
@@ -1665,10 +1670,10 @@ static struct ct_atc atc_preset __devinitdata = {
  *  Returns 0 if succeeds, or negative error code if fails.
  */
 
-int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
-			    unsigned int rsr, unsigned int msr,
-			    int chip_type, unsigned int ssid,
-			    struct ct_atc **ratc)
+int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
+		  unsigned int rsr, unsigned int msr,
+		  int chip_type, unsigned int ssid,
+		  struct ct_atc **ratc)
 {
 	struct ct_atc *atc;
 	static struct snd_device_ops ops = {
@@ -1725,14 +1730,14 @@ int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	atc_connect_resources(atc);
 
 	atc->timer = ct_timer_new(atc);
-	if (!atc->timer)
+	if (!atc->timer) {
+		err = -ENOMEM;
 		goto error1;
+	}
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, atc, &ops);
 	if (err < 0)
 		goto error1;
-
-	snd_card_set_dev(card, &pci->dev);
 
 	*ratc = atc;
 	return 0;

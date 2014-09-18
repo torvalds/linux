@@ -17,7 +17,7 @@
 #include <linux/clk.h>
 
 #include <mach/da8xx.h>
-#include <mach/usb.h>
+#include <linux/platform_data/usb-davinci.h>
 
 #ifndef CONFIG_ARCH_DAVINCI_DA8XX
 #error "This file is DA8xx bus glue.  Define CONFIG_ARCH_DAVINCI_DA8XX."
@@ -85,7 +85,7 @@ static void ohci_da8xx_ocic_handler(struct da8xx_ohci_root_hub *hub,
 static int ohci_da8xx_init(struct usb_hcd *hcd)
 {
 	struct device *dev		= hcd->self.controller;
-	struct da8xx_ohci_root_hub *hub	= dev->platform_data;
+	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(dev);
 	struct ohci_hcd	*ohci		= hcd_to_ohci(hcd);
 	int result;
 	u32 rh_a;
@@ -171,7 +171,7 @@ static int ohci_da8xx_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				  u16 wIndex, char *buf, u16 wLength)
 {
 	struct device *dev		= hcd->self.controller;
-	struct da8xx_ohci_root_hub *hub	= dev->platform_data;
+	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(dev);
 	int temp;
 
 	switch (typeReq) {
@@ -292,7 +292,7 @@ static const struct hc_driver ohci_da8xx_hc_driver = {
 static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 			       struct platform_device *pdev)
 {
-	struct da8xx_ohci_root_hub *hub	= pdev->dev.platform_data;
+	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(&pdev->dev);
 	struct usb_hcd	*hcd;
 	struct resource *mem;
 	int error, irq;
@@ -300,41 +300,28 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 	if (hub == NULL)
 		return -ENODEV;
 
-	usb11_clk = clk_get(&pdev->dev, "usb11");
+	usb11_clk = devm_clk_get(&pdev->dev, "usb11");
 	if (IS_ERR(usb11_clk))
 		return PTR_ERR(usb11_clk);
 
-	usb20_clk = clk_get(&pdev->dev, "usb20");
-	if (IS_ERR(usb20_clk)) {
-		error = PTR_ERR(usb20_clk);
-		goto err0;
-	}
+	usb20_clk = devm_clk_get(&pdev->dev, "usb20");
+	if (IS_ERR(usb20_clk))
+		return PTR_ERR(usb20_clk);
 
 	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
-	if (!hcd) {
-		error = -ENOMEM;
-		goto err1;
-	}
+	if (!hcd)
+		return -ENOMEM;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		error = -ENODEV;
-		goto err2;
-	}
+	if (!mem)
+		return -ENODEV;
 	hcd->rsrc_start = mem->start;
 	hcd->rsrc_len = resource_size(mem);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		dev_dbg(&pdev->dev, "request_mem_region failed\n");
-		error = -EBUSY;
-		goto err2;
-	}
-
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
-	if (!hcd->regs) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		error = -ENOMEM;
-		goto err3;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(hcd->regs)) {
+		error = PTR_ERR(hcd->regs);
+		goto err;
 	}
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
@@ -342,11 +329,13 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		error = -ENODEV;
-		goto err4;
+		goto err;
 	}
 	error = usb_add_hcd(hcd, irq, 0);
 	if (error)
-		goto err4;
+		goto err;
+
+	device_wakeup_enable(hcd->self.controller);
 
 	if (hub->ocic_notify) {
 		error = hub->ocic_notify(ohci_da8xx_ocic_handler);
@@ -355,16 +344,8 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 	}
 
 	usb_remove_hcd(hcd);
-err4:
-	iounmap(hcd->regs);
-err3:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-err2:
+err:
 	usb_put_hcd(hcd);
-err1:
-	clk_put(usb20_clk);
-err0:
-	clk_put(usb11_clk);
 	return error;
 }
 
@@ -380,15 +361,11 @@ err0:
 static inline void
 usb_hcd_da8xx_remove(struct usb_hcd *hcd, struct platform_device *pdev)
 {
-	struct da8xx_ohci_root_hub *hub	= pdev->dev.platform_data;
+	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(&pdev->dev);
 
 	hub->ocic_notify(NULL);
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-	clk_put(usb20_clk);
-	clk_put(usb11_clk);
 }
 
 static int ohci_hcd_da8xx_drv_probe(struct platform_device *dev)
@@ -401,25 +378,32 @@ static int ohci_hcd_da8xx_drv_remove(struct platform_device *dev)
 	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 
 	usb_hcd_da8xx_remove(hcd, dev);
-	platform_set_drvdata(dev, NULL);
 
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int ohci_da8xx_suspend(struct platform_device *dev, pm_message_t message)
+static int ohci_da8xx_suspend(struct platform_device *pdev,
+				pm_message_t message)
 {
-	struct usb_hcd	*hcd	= platform_get_drvdata(dev);
+	struct usb_hcd	*hcd	= platform_get_drvdata(pdev);
 	struct ohci_hcd	*ohci	= hcd_to_ohci(hcd);
+	bool		do_wakeup	= device_may_wakeup(&pdev->dev);
+	int		ret;
+
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
 	ohci->next_statechange = jiffies;
 
+	ret = ohci_suspend(hcd, do_wakeup);
+	if (ret)
+		return ret;
+
 	ohci_da8xx_clock(0);
 	hcd->state = HC_STATE_SUSPENDED;
-	dev->dev.power.power_state = PMSG_SUSPEND;
-	return 0;
+
+	return ret;
 }
 
 static int ohci_da8xx_resume(struct platform_device *dev)
@@ -454,3 +438,5 @@ static struct platform_driver ohci_hcd_da8xx_driver = {
 		.name	= "ohci",
 	},
 };
+
+MODULE_ALIAS("platform:ohci");

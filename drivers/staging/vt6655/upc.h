@@ -34,124 +34,79 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-
-//
-//  For IO mapped
-//
-
-#ifdef IO_MAP
-
-#define VNSvInPortB(dwIOAddress, pbyData) {                     \
-	*(pbyData) = inb(dwIOAddress);                              \
-}
-
-
-#define VNSvInPortW(dwIOAddress, pwData) {                      \
-	    *(pwData) = inw(dwIOAddress);                           \
-}
-
-#define VNSvInPortD(dwIOAddress, pdwData) {                     \
-	    *(pdwData) = inl(dwIOAddress);                          \
-}
-
-
-#define VNSvOutPortB(dwIOAddress, byData) {                     \
-        outb(byData, dwIOAddress);                              \
-}
-
-
-#define VNSvOutPortW(dwIOAddress, wData) {                      \
-        outw(wData, dwIOAddress);                               \
-}
-
-#define VNSvOutPortD(dwIOAddress, dwData) {                     \
-        outl(dwData, dwIOAddress);                              \
-}
-
-#else
-
 //
 //  For memory mapped IO
 //
 
+#define VNSvInPortB(dwIOAddress, pbyData)				\
+do {									\
+	*(pbyData) = readb(dwIOAddress);				\
+} while (0)
 
-#define VNSvInPortB(dwIOAddress, pbyData) {                     \
-	volatile unsigned char * pbyAddr = ((unsigned char *)(dwIOAddress));            \
-	*(pbyData) = readb(pbyAddr);                           \
-}
+#define VNSvInPortW(dwIOAddress, pwData)				\
+do {									\
+	*(pwData) = readw(dwIOAddress);					\
+} while (0)
 
+#define VNSvInPortD(dwIOAddress, pdwData)				\
+do {									\
+	*(pdwData) = readl(dwIOAddress);				\
+} while (0)
 
-#define VNSvInPortW(dwIOAddress, pwData) {                      \
-	volatile unsigned short *pwAddr = ((unsigned short *)(dwIOAddress));             \
-	*(pwData) = readw(pwAddr);                             \
-}
+#define VNSvOutPortB(dwIOAddress, byData)				\
+do {									\
+	writeb((unsigned char)byData, dwIOAddress);			\
+} while (0)
 
-#define VNSvInPortD(dwIOAddress, pdwData) {                     \
-	volatile unsigned long *pdwAddr = ((unsigned long *)(dwIOAddress));          \
-	*(pdwData) = readl(pdwAddr);                           \
-}
+#define VNSvOutPortW(dwIOAddress, wData)				\
+do {									\
+	writew((unsigned short)wData, dwIOAddress);			\
+} while (0)
 
-
-#define VNSvOutPortB(dwIOAddress, byData) {                     \
-    volatile unsigned char * pbyAddr = ((unsigned char *)(dwIOAddress));            \
-    writeb((unsigned char)byData, pbyAddr);							\
-}
-
-
-#define VNSvOutPortW(dwIOAddress, wData) {                      \
-    volatile unsigned short *pwAddr = ((unsigned short *)(dwIOAddress));             \
-    writew((unsigned short)wData, pwAddr);							\
-}
-
-#define VNSvOutPortD(dwIOAddress, dwData) {                     \
-    volatile unsigned long *pdwAddr = ((unsigned long *)(dwIOAddress));          \
-    writel((unsigned long)dwData, pdwAddr);					    \
-}
-
-#endif
-
+#define VNSvOutPortD(dwIOAddress, dwData)				\
+do {									\
+	writel((unsigned long)dwData, dwIOAddress);			\
+} while (0)
 
 //
 // ALWAYS IO-Mapped IO when in 16-bit/32-bit environment
 //
-#define PCBvInPortB(dwIOAddress, pbyData) {     \
-	    *(pbyData) = inb(dwIOAddress);          \
-}
+#define PCBvInPortB(dwIOAddress, pbyData)	\
+do {						\
+	*(pbyData) = inb(dwIOAddress);		\
+} while (0)
 
-#define PCBvInPortW(dwIOAddress, pwData) {      \
-	    *(pwData) = inw(dwIOAddress);           \
-}
+#define PCBvInPortW(dwIOAddress, pwData)	\
+do {						\
+	*(pwData) = inw(dwIOAddress);		\
+} while (0)
 
-#define PCBvInPortD(dwIOAddress, pdwData) {     \
-	    *(pdwData) = inl(dwIOAddress);          \
-}
+#define PCBvInPortD(dwIOAddress, pdwData)	\
+do {						\
+	*(pdwData) = inl(dwIOAddress);		\
+} while (0)
 
-#define PCBvOutPortB(dwIOAddress, byData) {     \
-        outb(byData, dwIOAddress);              \
-}
+#define PCBvOutPortB(dwIOAddress, byData)	\
+	outb(byData, dwIOAddress)
 
-#define PCBvOutPortW(dwIOAddress, wData) {      \
-        outw(wData, dwIOAddress);               \
-}
+#define PCBvOutPortW(dwIOAddress, wData)	\
+	outw(wData, dwIOAddress)
 
-#define PCBvOutPortD(dwIOAddress, dwData) {     \
-        outl(dwData, dwIOAddress);              \
-}
+#define PCBvOutPortD(dwIOAddress, dwData)	\
+	outl(dwData, dwIOAddress)
 
-
-#define PCAvDelayByIO(uDelayUnit) {             \
-    unsigned char byData;                       \
-    unsigned long ii;                           \
-                                                \
-    if (uDelayUnit <= 50) {                     \
-        udelay(uDelayUnit);                     \
-    }                                           \
-    else {                                      \
-        for (ii = 0; ii < (uDelayUnit); ii++)   \
-		     byData = inb(0x61);				\
-    }                                           \
-}
-
+#define PCAvDelayByIO(uDelayUnit)				\
+do {								\
+	unsigned char byData;					\
+	unsigned long ii;					\
+								\
+	if (uDelayUnit <= 50) {					\
+		udelay(uDelayUnit);				\
+	} else {						\
+		for (ii = 0; ii < (uDelayUnit); ii++)		\
+			byData = inb(0x61);			\
+	}							\
+} while (0)
 
 /*---------------------  Export Classes  ----------------------------*/
 
@@ -159,8 +114,4 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-
-
 #endif // __UPC_H__
-

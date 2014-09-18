@@ -596,8 +596,7 @@ struct prism2_helper_functions {
 			struct prism2_download_param *param);
 	int (*tx)(struct sk_buff *skb, struct net_device *dev);
 	int (*set_tim)(struct net_device *dev, int aid, int set);
-	int (*read_aux)(struct net_device *dev, unsigned addr, int len,
-			u8 *buf);
+	const struct file_operations *read_aux_fops;
 
 	int need_tx_headroom; /* number of bytes of headroom needed before
 			       * IEEE 802.11 header */

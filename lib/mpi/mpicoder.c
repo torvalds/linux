@@ -18,9 +18,64 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <linux/bitops.h>
+#include <asm-generic/bitops/count_zeros.h>
 #include "mpi-internal.h"
 
 #define MAX_EXTERN_MPI_BITS 16384
+
+/**
+ * mpi_read_raw_data - Read a raw byte stream as a positive integer
+ * @xbuffer: The data to read
+ * @nbytes: The amount of data to read
+ */
+MPI mpi_read_raw_data(const void *xbuffer, size_t nbytes)
+{
+	const uint8_t *buffer = xbuffer;
+	int i, j;
+	unsigned nbits, nlimbs;
+	mpi_limb_t a;
+	MPI val = NULL;
+
+	while (nbytes > 0 && buffer[0] == 0) {
+		buffer++;
+		nbytes--;
+	}
+
+	nbits = nbytes * 8;
+	if (nbits > MAX_EXTERN_MPI_BITS) {
+		pr_info("MPI: mpi too large (%u bits)\n", nbits);
+		return NULL;
+	}
+	if (nbytes > 0)
+		nbits -= count_leading_zeros(buffer[0]);
+	else
+		nbits = 0;
+
+	nlimbs = DIV_ROUND_UP(nbytes, BYTES_PER_MPI_LIMB);
+	val = mpi_alloc(nlimbs);
+	if (!val)
+		return NULL;
+	val->nbits = nbits;
+	val->sign = 0;
+	val->nlimbs = nlimbs;
+
+	if (nbytes > 0) {
+		i = BYTES_PER_MPI_LIMB - nbytes % BYTES_PER_MPI_LIMB;
+		i %= BYTES_PER_MPI_LIMB;
+		for (j = nlimbs; j > 0; j--) {
+			a = 0;
+			for (; i < BYTES_PER_MPI_LIMB; i++) {
+				a <<= 8;
+				a |= *buffer++;
+			}
+			i = 0;
+			val->d[j - 1] = a;
+		}
+	}
+	return val;
+}
+EXPORT_SYMBOL_GPL(mpi_read_raw_data);
 
 MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 {
@@ -41,8 +96,8 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 	buffer += 2;
 	nread = 2;
 
-	nbytes = (nbits + 7) / 8;
-	nlimbs = (nbytes + BYTES_PER_MPI_LIMB - 1) / BYTES_PER_MPI_LIMB;
+	nbytes = DIV_ROUND_UP(nbits, 8);
+	nlimbs = DIV_ROUND_UP(nbytes, BYTES_PER_MPI_LIMB);
 	val = mpi_alloc(nlimbs);
 	if (!val)
 		return NULL;
@@ -72,81 +127,6 @@ leave:
 	return val;
 }
 EXPORT_SYMBOL_GPL(mpi_read_from_buffer);
-
-/****************
- * Make an mpi from a character string.
- */
-int mpi_fromstr(MPI val, const char *str)
-{
-	int hexmode = 0, sign = 0, prepend_zero = 0, i, j, c, c1, c2;
-	unsigned nbits, nbytes, nlimbs;
-	mpi_limb_t a;
-
-	if (*str == '-') {
-		sign = 1;
-		str++;
-	}
-	if (*str == '0' && str[1] == 'x')
-		hexmode = 1;
-	else
-		return -EINVAL;	/* other bases are not yet supported */
-	str += 2;
-
-	nbits = strlen(str) * 4;
-	if (nbits % 8)
-		prepend_zero = 1;
-	nbytes = (nbits + 7) / 8;
-	nlimbs = (nbytes + BYTES_PER_MPI_LIMB - 1) / BYTES_PER_MPI_LIMB;
-	if (val->alloced < nlimbs)
-		if (!mpi_resize(val, nlimbs))
-			return -ENOMEM;
-	i = BYTES_PER_MPI_LIMB - nbytes % BYTES_PER_MPI_LIMB;
-	i %= BYTES_PER_MPI_LIMB;
-	j = val->nlimbs = nlimbs;
-	val->sign = sign;
-	for (; j > 0; j--) {
-		a = 0;
-		for (; i < BYTES_PER_MPI_LIMB; i++) {
-			if (prepend_zero) {
-				c1 = '0';
-				prepend_zero = 0;
-			} else
-				c1 = *str++;
-			assert(c1);
-			c2 = *str++;
-			assert(c2);
-			if (c1 >= '0' && c1 <= '9')
-				c = c1 - '0';
-			else if (c1 >= 'a' && c1 <= 'f')
-				c = c1 - 'a' + 10;
-			else if (c1 >= 'A' && c1 <= 'F')
-				c = c1 - 'A' + 10;
-			else {
-				mpi_clear(val);
-				return 1;
-			}
-			c <<= 4;
-			if (c2 >= '0' && c2 <= '9')
-				c |= c2 - '0';
-			else if (c2 >= 'a' && c2 <= 'f')
-				c |= c2 - 'a' + 10;
-			else if (c2 >= 'A' && c2 <= 'F')
-				c |= c2 - 'A' + 10;
-			else {
-				mpi_clear(val);
-				return 1;
-			}
-			a <<= 8;
-			a |= c;
-		}
-		i = 0;
-
-		val->d[j - 1] = a;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mpi_fromstr);
 
 /****************
  * Return an allocated buffer with the MPI (msb first).
@@ -213,7 +193,7 @@ int mpi_set_buffer(MPI a, const void *xbuffer, unsigned nbytes, int sign)
 	int nlimbs;
 	int i;
 
-	nlimbs = (nbytes + BYTES_PER_MPI_LIMB - 1) / BYTES_PER_MPI_LIMB;
+	nlimbs = DIV_ROUND_UP(nbytes, BYTES_PER_MPI_LIMB);
 	if (RESIZE_IF_NEEDED(a, nlimbs) < 0)
 		return -ENOMEM;
 	a->sign = sign;

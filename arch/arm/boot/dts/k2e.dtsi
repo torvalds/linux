@@ -1,0 +1,80 @@
+/*
+ * Copyright 2013-2014 Texas Instruments, Inc.
+ *
+ * Keystone 2 Edison soc device tree
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&gic>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <0>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <1>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <2>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <3>;
+		};
+	};
+
+	soc {
+		/include/ "k2e-clocks.dtsi"
+
+		usb: usb@2680000 {
+			interrupts = <GIC_SPI 152 IRQ_TYPE_EDGE_RISING>;
+			dwc3@2690000 {
+				interrupts = <GIC_SPI 152 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
+		usb1_phy: usb_phy@2620750 {
+			compatible = "ti,keystone-usbphy";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x2620750 24>;
+			status = "disabled";
+		};
+
+		usb1: usb@25000000 {
+			compatible = "ti,keystone-dwc3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x25000000 0x10000>;
+			clocks = <&clkusb1>;
+			clock-names = "usb";
+			interrupts = <GIC_SPI 414 IRQ_TYPE_EDGE_RISING>;
+			ranges;
+			status = "disabled";
+
+			dwc3@25010000 {
+				compatible = "synopsys,dwc3";
+				reg = <0x25010000 0x70000>;
+				interrupts = <GIC_SPI 414 IRQ_TYPE_EDGE_RISING>;
+				usb-phy = <&usb1_phy>, <&usb1_phy>;
+			};
+		};
+	};
+};

@@ -6,43 +6,30 @@
 
 config PLAT_SAMSUNG
 	bool
-	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P
-	select NO_IOPORT
-	select GENERIC_IRQ_CHIP
+	depends on PLAT_S3C24XX || ARCH_S3C64XX || ARCH_EXYNOS || ARCH_S5PV210
 	default y
+	select GENERIC_IRQ_CHIP
+	select NO_IOPORT_MAP
 	help
 	  Base platform code for all Samsung SoC based systems
 
+config SAMSUNG_PM
+	bool
+	depends on PM && (PLAT_S3C24XX || ARCH_S3C64XX)
+	default y
+	help
+	  Base platform power management code for samsung code
+
 if PLAT_SAMSUNG
+menu "Samsung Common options"
 
 # boot configurations
 
 comment "Boot options"
 
-config S3C_BOOT_WATCHDOG
-	bool "S3C Initialisation watchdog"
-	depends on S3C2410_WATCHDOG
-	help
-	  Say y to enable the watchdog during the kernel decompression
-	  stage. If the kernel fails to uncompress, then the watchdog
-	  will trigger a reset and the system should restart.
-
-config S3C_BOOT_ERROR_RESET
-	bool "S3C Reboot on decompression error"
-	help
-	  Say y here to use the watchdog to reset the system if the
-	  kernel decompressor detects an error during decompression.
-
-config S3C_BOOT_UART_FORCE_FIFO
-       bool "Force UART FIFO on during boot process"
-       default y
-       help
-         Say Y here to force the UART FIFOs on during the kernel
-	 uncompressor
-
-
 config S3C_LOWLEVEL_UART_PORT
 	int "S3C UART to use for low-level messages"
+	depends on ARCH_S3C64XX
 	default 0
 	help
 	  Choice of which UART port to use for the low-level messages,
@@ -50,57 +37,19 @@ config S3C_LOWLEVEL_UART_PORT
 	  this configuration should be between zero and two. The port
 	  must have been initialised by the boot-loader before use.
 
-# clock options
-
-config SAMSUNG_CLKSRC
-	bool
+config SAMSUNG_ATAGS
+	def_bool n
+	depends on !ARCH_MULTIPLATFORM
+	depends on ATAGS
 	help
-	  Select the clock code for the clksrc implementation
-	  used by newer systems such as the S3C64XX.
+	   This option enables ATAGS based boot support code for
+	   Samsung platforms, including static platform devices, legacy
+	   clock, timer and interrupt initialization, etc.
 
-# options for IRQ support
+	   Platforms that support only DT based boot need not to select
+	   this option.
 
-config SAMSUNG_IRQ_VIC_TIMER
-       bool
-       help
-         Internal configuration to build the VIC timer interrupt code.
-
-# options for gpio configuration support
-
-config SAMSUNG_GPIOLIB_4BIT
-	bool
-	help
-	  GPIOlib file contains the 4 bit modification functions for gpio
-	  configuration. GPIOlib shall be compiled only for S3C64XX and S5P
-	  series of processors.
-
-config S3C_GPIO_CFG_S3C64XX
-	bool
-	help
-	  Internal configuration to enable S3C64XX style GPIO configuration
-	  functions.
-
-config S5P_GPIO_DRVSTR
-	bool
-	help
-	  Internal configuration to get and set correct GPIO driver strength
-	  helper
-
-config SAMSUNG_GPIO_EXTRA
-	int "Number of additional GPIO pins"
-	default 128 if SAMSUNG_GPIO_EXTRA128
-	default 64 if SAMSUNG_GPIO_EXTRA64
-	default 0
-	help
-	  Use additional GPIO space in addition to the GPIO's the SOC
-	  provides. This allows expanding the GPIO space for use with
-	  GPIO expanders.
-
-config SAMSUNG_GPIO_EXTRA64
-	bool
-
-config SAMSUNG_GPIO_EXTRA128
-	bool
+if SAMSUNG_ATAGS
 
 config S3C_GPIO_SPACE
 	int "Space between gpio banks"
@@ -276,10 +225,16 @@ config SAMSUNG_DEV_BACKLIGHT
 
 config S3C24XX_PWM
 	bool "PWM device support"
-	select HAVE_PWM
+	select PWM
+	select PWM_SAMSUNG
 	help
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system
+
+config S3C_SETUP_CAMIF
+	bool
+	help
+	  Compile in common setup code for S3C CAMIF devices
 
 # DMA
 
@@ -288,21 +243,33 @@ config S3C_DMA
 	help
 	  Internal configuration for S3C DMA core
 
-config SAMSUNG_DMADEV
+config SAMSUNG_PM_GPIO
 	bool
+	default y if GPIO_SAMSUNG && PM
+	help
+	  Include legacy GPIO power management code for platforms not using
+	  pinctrl-samsung driver.
+
+config SAMSUNG_DMADEV
+	bool "Use legacy Samsung DMA abstraction"
+	depends on CPU_S5PV210 || ARCH_S3C64XX
 	select DMADEVICES
-	select PL330_DMA if (CPU_EXYNOS4210 || CPU_S5PV210 || CPU_S5PC100 || \
-					CPU_S5P6450 || CPU_S5P6440)
-	select ARM_AMBA
+	default y
 	help
 	  Use DMA device engine for PL330 DMAC.
+
+endif
+
+config S5P_DEV_MFC
+	bool
+	help
+	  Compile in setup memory (init) code for MFC
 
 comment "Power management"
 
 config SAMSUNG_PM_DEBUG
 	bool "S3C2410 PM Suspend debug"
-	depends on PM
-	select DEBUG_LL
+	depends on PM && DEBUG_KERNEL && DEBUG_S3C_UART
 	help
 	  Say Y here if you want verbose debugging from the PM Suspend and
 	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
@@ -319,7 +286,8 @@ config S3C_PM_DEBUG_LED_SMDK
 
 config SAMSUNG_PM_CHECK
 	bool "S3C2410 PM Suspend Memory CRC"
-	depends on PM && CRC32
+	depends on PM
+	select CRC32
 	help
 	  Enable the PM code's memory area checksum over sleep. This option
 	  will generate CRCs of all blocks of memory, and store them before
@@ -351,13 +319,11 @@ config SAMSUNG_WAKEMASK
 	  and above. This code allows a set of interrupt to wakeup-mask
 	  mappings. See <plat/wakeup-mask.h>
 
-comment "Power Domain"
-
-config SAMSUNG_PD
-	bool "Samsung Power Domain"
-	depends on PM_RUNTIME
+config SAMSUNG_WDT_RESET
+	bool
 	help
-	  Say Y here if you want to control Power Domain by Runtime PM.
+	  Compile support for system restart by triggering watchdog reset.
+	  Used on SoCs that do not provide dedicated reset control.
 
 config DEBUG_S3C_UART
 	depends on PLAT_SAMSUNG
@@ -365,5 +331,7 @@ config DEBUG_S3C_UART
 	default "0" if DEBUG_S3C_UART0
 	default "1" if DEBUG_S3C_UART1
 	default "2" if DEBUG_S3C_UART2
+	default "3" if DEBUG_S3C_UART3
 
+endmenu
 endif

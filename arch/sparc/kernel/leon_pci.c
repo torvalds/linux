@@ -29,6 +29,8 @@ void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 	pci_add_resource_offset(&resources, &info->io_space,
 				info->io_space.start - 0x1000);
 	pci_add_resource(&resources, &info->mem_space);
+	info->busn.flags = IORESOURCE_BUS;
+	pci_add_resource(&resources, &info->busn);
 
 	root_bus = pci_scan_root_bus(&ofdev->dev, 0, info->ops, info,
 				     &resources);
@@ -43,7 +45,7 @@ void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 	}
 }
 
-void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
+void pcibios_fixup_bus(struct pci_bus *pbus)
 {
 	struct pci_dev *dev;
 	int i, has_io, has_mem;
@@ -91,109 +93,8 @@ void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
 	}
 }
 
-/*
- * Other archs parse arguments here.
- */
-char * __devinit pcibios_setup(char *str)
-{
-	return str;
-}
-
 resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				resource_size_t size, resource_size_t align)
 {
 	return res->start;
 }
-
-int pcibios_enable_device(struct pci_dev *dev, int mask)
-{
-	return pci_enable_resources(dev, mask);
-}
-
-void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-#ifdef CONFIG_PCI_DEBUG
-	printk(KERN_DEBUG "LEONPCI: Assigning IRQ %02d to %s\n", irq,
-		pci_name(dev));
-#endif
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-}
-
-/* in/out routines taken from pcic.c
- *
- * This probably belongs here rather than ioport.c because
- * we do not want this crud linked into SBus kernels.
- * Also, think for a moment about likes of floppy.c that
- * include architecture specific parts. They may want to redefine ins/outs.
- *
- * We do not use horrible macros here because we want to
- * advance pointer by sizeof(size).
- */
-void outsb(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 1;
-		outb(*(const char *)src, addr);
-		src += 1;
-		/* addr += 1; */
-	}
-}
-EXPORT_SYMBOL(outsb);
-
-void outsw(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 2;
-		outw(*(const short *)src, addr);
-		src += 2;
-		/* addr += 2; */
-	}
-}
-EXPORT_SYMBOL(outsw);
-
-void outsl(unsigned long addr, const void *src, unsigned long count)
-{
-	while (count) {
-		count -= 4;
-		outl(*(const long *)src, addr);
-		src += 4;
-		/* addr += 4; */
-	}
-}
-EXPORT_SYMBOL(outsl);
-
-void insb(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 1;
-		*(unsigned char *)dst = inb(addr);
-		dst += 1;
-		/* addr += 1; */
-	}
-}
-EXPORT_SYMBOL(insb);
-
-void insw(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 2;
-		*(unsigned short *)dst = inw(addr);
-		dst += 2;
-		/* addr += 2; */
-	}
-}
-EXPORT_SYMBOL(insw);
-
-void insl(unsigned long addr, void *dst, unsigned long count)
-{
-	while (count) {
-		count -= 4;
-		/*
-		 * XXX I am sure we are in for an unaligned trap here.
-		 */
-		*(unsigned long *)dst = inl(addr);
-		dst += 4;
-		/* addr += 4; */
-	}
-}
-EXPORT_SYMBOL(insl);

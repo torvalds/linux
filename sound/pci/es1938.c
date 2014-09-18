@@ -236,14 +236,14 @@ struct es1938 {
 #ifdef SUPPORT_JOYSTICK
 	struct gameport *gameport;
 #endif
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	unsigned char saved_regs[SAVED_REG_SIZE];
 #endif
 };
 
 static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id);
 
-static DEFINE_PCI_DEVICE_TABLE(snd_es1938_ids) = {
+static const struct pci_device_id snd_es1938_ids[] = {
 	{ PCI_VDEVICE(ESS, 0x1969), 0, },   /* Solo-1 */
 	{ 0, }
 };
@@ -254,7 +254,6 @@ MODULE_DEVICE_TABLE(pci, snd_es1938_ids);
 #define WRITE_LOOP_TIMEOUT	0x10000
 #define GET_LOOP_TIMEOUT	0x01000
 
-#undef REG_DEBUG
 /* -----------------------------------------------------------------
  * Write to a mixer register
  * -----------------------------------------------------------------*/
@@ -265,9 +264,7 @@ static void snd_es1938_mixer_write(struct es1938 *chip, unsigned char reg, unsig
 	outb(reg, SLSB_REG(chip, MIXERADDR));
 	outb(val, SLSB_REG(chip, MIXERDATA));
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);
-#ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Mixer reg %02x set to %02x\n", reg, val);
-#endif
+	dev_dbg(chip->card->dev, "Mixer reg %02x set to %02x\n", reg, val);
 }
 
 /* -----------------------------------------------------------------
@@ -281,9 +278,7 @@ static int snd_es1938_mixer_read(struct es1938 *chip, unsigned char reg)
 	outb(reg, SLSB_REG(chip, MIXERADDR));
 	data = inb(SLSB_REG(chip, MIXERDATA));
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);
-#ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Mixer reg %02x now is %02x\n", reg, data);
-#endif
+	dev_dbg(chip->card->dev, "Mixer reg %02x now is %02x\n", reg, data);
 	return data;
 }
 
@@ -302,10 +297,9 @@ static int snd_es1938_mixer_bits(struct es1938 *chip, unsigned char reg,
 	if (val != oval) {
 		new = (old & ~mask) | (val & mask);
 		outb(new, SLSB_REG(chip, MIXERDATA));
-#ifdef REG_DEBUG
-		snd_printk(KERN_DEBUG "Mixer reg %02x was %02x, set to %02x\n",
+		dev_dbg(chip->card->dev,
+			"Mixer reg %02x was %02x, set to %02x\n",
 			   reg, old, new);
-#endif
 	}
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);
 	return oval;
@@ -324,7 +318,8 @@ static void snd_es1938_write_cmd(struct es1938 *chip, unsigned char cmd)
 			return;
 		}
 	}
-	printk(KERN_ERR "snd_es1938_write_cmd timeout (0x02%x/0x02%x)\n", cmd, v);
+	dev_err(chip->card->dev,
+		"snd_es1938_write_cmd timeout (0x02%x/0x02%x)\n", cmd, v);
 }
 
 /* -----------------------------------------------------------------
@@ -337,7 +332,7 @@ static int snd_es1938_get_byte(struct es1938 *chip)
 	for (i = GET_LOOP_TIMEOUT; i; i--)
 		if ((v = inb(SLSB_REG(chip, STATUS))) & 0x80)
 			return inb(SLSB_REG(chip, READDATA));
-	snd_printk(KERN_ERR "get_byte timeout: status 0x02%x\n", v);
+	dev_err(chip->card->dev, "get_byte timeout: status 0x02%x\n", v);
 	return -ENODEV;
 }
 
@@ -351,9 +346,7 @@ static void snd_es1938_write(struct es1938 *chip, unsigned char reg, unsigned ch
 	snd_es1938_write_cmd(chip, reg);
 	snd_es1938_write_cmd(chip, val);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
-#ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Reg %02x set to %02x\n", reg, val);
-#endif
+	dev_dbg(chip->card->dev, "Reg %02x set to %02x\n", reg, val);
 }
 
 /* -----------------------------------------------------------------
@@ -368,9 +361,7 @@ static unsigned char snd_es1938_read(struct es1938 *chip, unsigned char reg)
 	snd_es1938_write_cmd(chip, reg);
 	val = snd_es1938_get_byte(chip);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
-#ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Reg %02x now is %02x\n", reg, val);
-#endif
+	dev_dbg(chip->card->dev, "Reg %02x now is %02x\n", reg, val);
 	return val;
 }
 
@@ -391,10 +382,8 @@ static int snd_es1938_bits(struct es1938 *chip, unsigned char reg, unsigned char
 		snd_es1938_write_cmd(chip, reg);
 		new = (old & ~mask) | (val & mask);
 		snd_es1938_write_cmd(chip, new);
-#ifdef REG_DEBUG
-		snd_printk(KERN_DEBUG "Reg %02x was %02x, set to %02x\n",
+		dev_dbg(chip->card->dev, "Reg %02x was %02x, set to %02x\n",
 			   reg, old, new);
-#endif
 	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return oval;
@@ -416,7 +405,7 @@ static void snd_es1938_reset(struct es1938 *chip)
 				goto __next;
 		}
 	}
-	snd_printk(KERN_ERR "ESS Solo-1 reset failed\n");
+	dev_err(chip->card->dev, "ESS Solo-1 reset failed\n");
 
      __next:
 	snd_es1938_write_cmd(chip, ESS_CMD_ENABLEEXT);
@@ -1027,7 +1016,7 @@ static struct snd_pcm_ops snd_es1938_capture_ops = {
 	.copy =		snd_es1938_capture_copy,
 };
 
-static int __devinit snd_es1938_new_pcm(struct es1938 *chip, int device)
+static int snd_es1938_new_pcm(struct es1938 *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1321,35 +1310,30 @@ static int snd_es1938_put_double(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static unsigned int db_scale_master[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_master,
 	0, 54, TLV_DB_SCALE_ITEM(-3600, 50, 1),
 	54, 63, TLV_DB_SCALE_ITEM(-900, 100, 0),
-};
+);
 
-static unsigned int db_scale_audio1[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_audio1,
 	0, 8, TLV_DB_SCALE_ITEM(-3300, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-900, 150, 0),
-};
+);
 
-static unsigned int db_scale_audio2[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_audio2,
 	0, 8, TLV_DB_SCALE_ITEM(-3450, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-1050, 150, 0),
-};
+);
 
-static unsigned int db_scale_mic[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_mic,
 	0, 8, TLV_DB_SCALE_ITEM(-2400, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(0, 150, 0),
-};
+);
 
-static unsigned int db_scale_line[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_line,
 	0, 8, TLV_DB_SCALE_ITEM(-3150, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-750, 150, 0),
-};
+);
 
 static const DECLARE_TLV_DB_SCALE(db_scale_capture, 0, 150, 0);
 
@@ -1461,7 +1445,7 @@ static void snd_es1938_chip_init(struct es1938 *chip)
 	outb(0, SLDM_REG(chip, DMACLEAR));
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * PM support
  */
@@ -1474,9 +1458,10 @@ static unsigned char saved_regs[SAVED_REG_SIZE+1] = {
 };
 
 
-static int es1938_suspend(struct pci_dev *pci, pm_message_t state)
+static int es1938_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct es1938 *chip = card->private_data;
 	unsigned char *s, *d;
 
@@ -1494,29 +1479,29 @@ static int es1938_suspend(struct pci_dev *pci, pm_message_t state)
 	}
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int es1938_resume(struct pci_dev *pci)
+static int es1938_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct es1938 *chip = card->private_data;
 	unsigned char *s, *d;
 
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
 	if (pci_enable_device(pci) < 0) {
-		printk(KERN_ERR "es1938: pci_enable_device failed, "
-		       "disabling device\n");
+		dev_err(dev, "pci_enable_device failed, disabling device\n");
 		snd_card_disconnect(card);
 		return -EIO;
 	}
 
 	if (request_irq(pci->irq, snd_es1938_interrupt,
 			IRQF_SHARED, KBUILD_MODNAME, chip)) {
-		printk(KERN_ERR "es1938: unable to grab IRQ %d, "
-		       "disabling device\n", pci->irq);
+		dev_err(dev, "unable to grab IRQ %d, disabling device\n",
+			pci->irq);
 		snd_card_disconnect(card);
 		return -EIO;
 	}
@@ -1534,16 +1519,22 @@ static int es1938_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-#endif /* CONFIG_PM */
+
+static SIMPLE_DEV_PM_OPS(es1938_pm, es1938_suspend, es1938_resume);
+#define ES1938_PM_OPS	&es1938_pm
+#else
+#define ES1938_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef SUPPORT_JOYSTICK
-static int __devinit snd_es1938_create_gameport(struct es1938 *chip)
+static int snd_es1938_create_gameport(struct es1938 *chip)
 {
 	struct gameport *gp;
 
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
-		printk(KERN_ERR "es1938: cannot allocate memory for gameport\n");
+		dev_err(chip->card->dev,
+			"cannot allocate memory for gameport\n");
 		return -ENOMEM;
 	}
 
@@ -1592,9 +1583,9 @@ static int snd_es1938_dev_free(struct snd_device *device)
 	return snd_es1938_free(chip);
 }
 
-static int __devinit snd_es1938_create(struct snd_card *card,
-				    struct pci_dev * pci,
-				    struct es1938 ** rchip)
+static int snd_es1938_create(struct snd_card *card,
+			     struct pci_dev *pci,
+			     struct es1938 **rchip)
 {
 	struct es1938 *chip;
 	int err;
@@ -1610,7 +1601,8 @@ static int __devinit snd_es1938_create(struct snd_card *card,
         /* check, if we can restrict PCI DMA transfers to 24 bits */
 	if (pci_set_dma_mask(pci, DMA_BIT_MASK(24)) < 0 ||
 	    pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(24)) < 0) {
-		snd_printk(KERN_ERR "architecture does not support 24bit PCI busmaster DMA\n");
+		dev_err(card->dev,
+			"architecture does not support 24bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
                 return -ENXIO;
         }
@@ -1637,15 +1629,14 @@ static int __devinit snd_es1938_create(struct snd_card *card,
 	chip->game_port = pci_resource_start(pci, 4);
 	if (request_irq(pci->irq, snd_es1938_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
 		snd_es1938_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
-#ifdef ES1938_DDEBUG
-	snd_printk(KERN_DEBUG "create: io: 0x%lx, sb: 0x%lx, vc: 0x%lx, mpu: 0x%lx, game: 0x%lx\n",
+	dev_dbg(card->dev,
+		"create: io: 0x%lx, sb: 0x%lx, vc: 0x%lx, mpu: 0x%lx, game: 0x%lx\n",
 		   chip->io_port, chip->sb_port, chip->vc_port, chip->mpu_port, chip->game_port);
-#endif
 
 	chip->ddma_port = chip->vc_port + 0x00;		/* fix from Thomas Sailer */
 
@@ -1655,8 +1646,6 @@ static int __devinit snd_es1938_create(struct snd_card *card,
 		snd_es1938_free(chip);
 		return err;
 	}
-
-	snd_card_set_dev(card, &pci->dev);
 
 	*rchip = chip;
 	return 0;
@@ -1673,21 +1662,22 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id)
 
 	status = inb(SLIO_REG(chip, IRQCONTROL));
 #if 0
-	printk(KERN_DEBUG "Es1938debug - interrupt status: =0x%x\n", status);
+	dev_dbg(chip->card->dev,
+		"Es1938debug - interrupt status: =0x%x\n", status);
 #endif
 	
 	/* AUDIO 1 */
 	if (status & 0x10) {
 #if 0
-                printk(KERN_DEBUG
+		dev_dbg(chip->card->dev,
 		       "Es1938debug - AUDIO channel 1 interrupt\n");
-		printk(KERN_DEBUG
+		dev_dbg(chip->card->dev,
 		       "Es1938debug - AUDIO channel 1 DMAC DMA count: %u\n",
 		       inw(SLDM_REG(chip, DMACOUNT)));
-		printk(KERN_DEBUG
+		dev_dbg(chip->card->dev,
 		       "Es1938debug - AUDIO channel 1 DMAC DMA base: %u\n",
 		       inl(SLDM_REG(chip, DMAADDR)));
-		printk(KERN_DEBUG
+		dev_dbg(chip->card->dev,
 		       "Es1938debug - AUDIO channel 1 DMAC DMA status: 0x%x\n",
 		       inl(SLDM_REG(chip, DMASTATUS)));
 #endif
@@ -1703,12 +1693,12 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id)
 	/* AUDIO 2 */
 	if (status & 0x20) {
 #if 0
-                printk(KERN_DEBUG
+		dev_dbg(chip->card->dev,
 		       "Es1938debug - AUDIO channel 2 interrupt\n");
-		printk(KERN_DEBUG
+		dev_dbg(chip->card->dev,
 		       "Es1938debug - AUDIO channel 2 DMAC DMA count: %u\n",
 		       inw(SLIO_REG(chip, AUDIO2DMACOUNT)));
-		printk(KERN_DEBUG
+		dev_dbg(chip->card->dev,
 		       "Es1938debug - AUDIO channel 2 DMAC DMA base: %u\n",
 		       inl(SLIO_REG(chip, AUDIO2DMAADDR)));
 
@@ -1752,7 +1742,7 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id)
 
 #define ES1938_DMA_SIZE 64
 
-static int __devinit snd_es1938_mixer(struct es1938 *chip)
+static int snd_es1938_mixer(struct es1938 *chip)
 {
 	struct snd_card *card;
 	unsigned int idx;
@@ -1790,8 +1780,8 @@ static int __devinit snd_es1938_mixer(struct es1938 *chip)
 }
        
 
-static int __devinit snd_es1938_probe(struct pci_dev *pci,
-				      const struct pci_device_id *pci_id)
+static int snd_es1938_probe(struct pci_dev *pci,
+			    const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -1806,7 +1796,8 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
 	for (idx = 0; idx < 5; idx++) {
@@ -1841,7 +1832,7 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 			    SLSB_REG(chip, FMLOWADDR),
 			    SLSB_REG(chip, FMHIGHADDR),
 			    OPL3_HW_OPL3, 1, &opl3) < 0) {
-		printk(KERN_ERR "es1938: OPL3 not detected at 0x%lx\n",
+		dev_err(card->dev, "OPL3 not detected at 0x%lx\n",
 			   SLSB_REG(chip, FMLOWADDR));
 	} else {
 	        if ((err = snd_opl3_timer_new(opl3, 0, 1)) < 0) {
@@ -1857,7 +1848,7 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 				chip->mpu_port,
 				MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
 				-1, &chip->rmidi) < 0) {
-		printk(KERN_ERR "es1938: unable to initialize MPU-401\n");
+		dev_err(card->dev, "unable to initialize MPU-401\n");
 	} else {
 		// this line is vital for MIDI interrupt handling on ess-solo1
 		// andreas@flying-snail.de
@@ -1876,32 +1867,19 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_es1938_remove(struct pci_dev *pci)
+static void snd_es1938_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver es1938_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_es1938_ids,
 	.probe = snd_es1938_probe,
-	.remove = __devexit_p(snd_es1938_remove),
-#ifdef CONFIG_PM
-	.suspend = es1938_suspend,
-	.resume = es1938_resume,
-#endif
+	.remove = snd_es1938_remove,
+	.driver = {
+		.pm = ES1938_PM_OPS,
+	},
 };
 
-static int __init alsa_card_es1938_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_es1938_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_es1938_init)
-module_exit(alsa_card_es1938_exit)
+module_pci_driver(es1938_driver);

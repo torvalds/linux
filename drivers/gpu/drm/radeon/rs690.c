@@ -25,7 +25,7 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "atom.h"
@@ -145,9 +145,11 @@ void rs690_pm_info(struct radeon_device *rdev)
 	rdev->pm.sideport_bandwidth.full = dfixed_div(rdev->pm.sideport_bandwidth, tmp);
 }
 
-void rs690_mc_init(struct radeon_device *rdev)
+static void rs690_mc_init(struct radeon_device *rdev)
 {
 	u64 base;
+	uint32_t h_addr, l_addr;
+	unsigned long long k8_addr;
 
 	rs400_gart_adjust_size(rdev);
 	rdev->mc.vram_is_ddr = true;
@@ -160,6 +162,37 @@ void rs690_mc_init(struct radeon_device *rdev)
 	base = RREG32_MC(R_000100_MCCFG_FB_LOCATION);
 	base = G_000100_MC_FB_START(base) << 16;
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+	/* Some boards seem to be configured for 128MB of sideport memory,
+	 * but really only have 64MB.  Just skip the sideport and use
+	 * UMA memory.
+	 */
+	if (rdev->mc.igp_sideport_enabled &&
+	    (rdev->mc.real_vram_size == (384 * 1024 * 1024))) {
+		base += 128 * 1024 * 1024;
+		rdev->mc.real_vram_size -= 128 * 1024 * 1024;
+		rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
+	}
+
+	/* Use K8 direct mapping for fast fb access. */ 
+	rdev->fastfb_working = false;
+	h_addr = G_00005F_K8_ADDR_EXT(RREG32_MC(R_00005F_MC_MISC_UMA_CNTL));
+	l_addr = RREG32_MC(R_00001E_K8_FB_LOCATION);
+	k8_addr = ((unsigned long long)h_addr) << 32 | l_addr;
+#if defined(CONFIG_X86_32) && !defined(CONFIG_X86_PAE)
+	if (k8_addr + rdev->mc.visible_vram_size < 0x100000000ULL)	
+#endif
+	{
+		/* FastFB shall be used with UMA memory. Here it is simply disabled when sideport 
+		 * memory is present.
+		 */
+		if (rdev->mc.igp_sideport_enabled == false && radeon_fastfb == 1) {
+			DRM_INFO("Direct mapping: aper base at 0x%llx, replaced by direct mapping base 0x%llx.\n", 
+					(unsigned long long)rdev->mc.aper_base, k8_addr);
+			rdev->mc.aper_base = (resource_size_t)k8_addr;
+			rdev->fastfb_working = true;
+		}
+	}  
+
 	rs690_pm_info(rdev);
 	radeon_vram_location(rdev, &rdev->mc, base);
 	rdev->mc.gtt_base_align = rdev->mc.gtt_size - 1;
@@ -224,20 +257,38 @@ struct rs690_watermark {
 	fixed20_12 sclk;
 };
 
-void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
-				  struct radeon_crtc *crtc,
-				  struct rs690_watermark *wm)
+static void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
+					 struct radeon_crtc *crtc,
+					 struct rs690_watermark *wm,
+					 bool low)
 {
 	struct drm_display_mode *mode = &crtc->base.mode;
 	fixed20_12 a, b, c;
 	fixed20_12 pclk, request_fifo_depth, tolerable_latency, estimated_width;
 	fixed20_12 consumption_time, line_time, chunk_time, read_delay_latency;
+	fixed20_12 sclk, core_bandwidth, max_bandwidth;
+	u32 selected_sclk;
 
 	if (!crtc->base.enabled) {
 		/* FIXME: wouldn't it better to set priority mark to maximum */
 		wm->lb_request_fifo_depth = 4;
 		return;
 	}
+
+	if (((rdev->family == CHIP_RS780) || (rdev->family == CHIP_RS880)) &&
+	    (rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled)
+		selected_sclk = radeon_dpm_get_sclk(rdev, low);
+	else
+		selected_sclk = rdev->pm.current_sclk;
+
+	/* sclk in Mhz */
+	a.full = dfixed_const(100);
+	sclk.full = dfixed_const(selected_sclk);
+	sclk.full = dfixed_div(sclk, a);
+
+	/* core_bandwidth = sclk(Mhz) * 16 */
+	a.full = dfixed_const(16);
+	core_bandwidth.full = dfixed_div(rdev->pm.sclk, a);
 
 	if (crtc->vsc.full > dfixed_const(2))
 		wm->num_line_pair.full = dfixed_const(2);
@@ -299,36 +350,38 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	wm->active_time.full = dfixed_div(wm->active_time, a);
 
 	/* Maximun bandwidth is the minimun bandwidth of all component */
-	rdev->pm.max_bandwidth = rdev->pm.core_bandwidth;
+	max_bandwidth = core_bandwidth;
 	if (rdev->mc.igp_sideport_enabled) {
-		if (rdev->pm.max_bandwidth.full > rdev->pm.sideport_bandwidth.full &&
+		if (max_bandwidth.full > rdev->pm.sideport_bandwidth.full &&
 			rdev->pm.sideport_bandwidth.full)
-			rdev->pm.max_bandwidth = rdev->pm.sideport_bandwidth;
-		read_delay_latency.full = dfixed_const(370 * 800 * 1000);
-		read_delay_latency.full = dfixed_div(read_delay_latency,
-			rdev->pm.igp_sideport_mclk);
+			max_bandwidth = rdev->pm.sideport_bandwidth;
+		read_delay_latency.full = dfixed_const(370 * 800);
+		a.full = dfixed_const(1000);
+		b.full = dfixed_div(rdev->pm.igp_sideport_mclk, a);
+		read_delay_latency.full = dfixed_div(read_delay_latency, b);
+		read_delay_latency.full = dfixed_mul(read_delay_latency, a);
 	} else {
-		if (rdev->pm.max_bandwidth.full > rdev->pm.k8_bandwidth.full &&
+		if (max_bandwidth.full > rdev->pm.k8_bandwidth.full &&
 			rdev->pm.k8_bandwidth.full)
-			rdev->pm.max_bandwidth = rdev->pm.k8_bandwidth;
-		if (rdev->pm.max_bandwidth.full > rdev->pm.ht_bandwidth.full &&
+			max_bandwidth = rdev->pm.k8_bandwidth;
+		if (max_bandwidth.full > rdev->pm.ht_bandwidth.full &&
 			rdev->pm.ht_bandwidth.full)
-			rdev->pm.max_bandwidth = rdev->pm.ht_bandwidth;
+			max_bandwidth = rdev->pm.ht_bandwidth;
 		read_delay_latency.full = dfixed_const(5000);
 	}
 
 	/* sclk = system clocks(ns) = 1000 / max_bandwidth / 16 */
 	a.full = dfixed_const(16);
-	rdev->pm.sclk.full = dfixed_mul(rdev->pm.max_bandwidth, a);
+	sclk.full = dfixed_mul(max_bandwidth, a);
 	a.full = dfixed_const(1000);
-	rdev->pm.sclk.full = dfixed_div(a, rdev->pm.sclk);
+	sclk.full = dfixed_div(a, sclk);
 	/* Determine chunk time
 	 * ChunkTime = the time it takes the DCP to send one chunk of data
 	 * to the LB which consists of pipeline delay and inter chunk gap
 	 * sclk = system clock(ns)
 	 */
 	a.full = dfixed_const(256 * 13);
-	chunk_time.full = dfixed_mul(rdev->pm.sclk, a);
+	chunk_time.full = dfixed_mul(sclk, a);
 	a.full = dfixed_const(10);
 	chunk_time.full = dfixed_div(chunk_time, a);
 
@@ -392,17 +445,139 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	}
 }
 
+static void rs690_compute_mode_priority(struct radeon_device *rdev,
+					struct rs690_watermark *wm0,
+					struct rs690_watermark *wm1,
+					struct drm_display_mode *mode0,
+					struct drm_display_mode *mode1,
+					u32 *d1mode_priority_a_cnt,
+					u32 *d2mode_priority_a_cnt)
+{
+	fixed20_12 priority_mark02, priority_mark12, fill_rate;
+	fixed20_12 a, b;
+
+	*d1mode_priority_a_cnt = S_006548_D1MODE_PRIORITY_A_OFF(1);
+	*d2mode_priority_a_cnt = S_006548_D1MODE_PRIORITY_A_OFF(1);
+
+	if (mode0 && mode1) {
+		if (dfixed_trunc(wm0->dbpp) > 64)
+			a.full = dfixed_mul(wm0->dbpp, wm0->num_line_pair);
+		else
+			a.full = wm0->num_line_pair.full;
+		if (dfixed_trunc(wm1->dbpp) > 64)
+			b.full = dfixed_mul(wm1->dbpp, wm1->num_line_pair);
+		else
+			b.full = wm1->num_line_pair.full;
+		a.full += b.full;
+		fill_rate.full = dfixed_div(wm0->sclk, a);
+		if (wm0->consumption_rate.full > fill_rate.full) {
+			b.full = wm0->consumption_rate.full - fill_rate.full;
+			b.full = dfixed_mul(b, wm0->active_time);
+			a.full = dfixed_mul(wm0->worst_case_latency,
+						wm0->consumption_rate);
+			a.full = a.full + b.full;
+			b.full = dfixed_const(16 * 1000);
+			priority_mark02.full = dfixed_div(a, b);
+		} else {
+			a.full = dfixed_mul(wm0->worst_case_latency,
+						wm0->consumption_rate);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark02.full = dfixed_div(a, b);
+		}
+		if (wm1->consumption_rate.full > fill_rate.full) {
+			b.full = wm1->consumption_rate.full - fill_rate.full;
+			b.full = dfixed_mul(b, wm1->active_time);
+			a.full = dfixed_mul(wm1->worst_case_latency,
+						wm1->consumption_rate);
+			a.full = a.full + b.full;
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
+		} else {
+			a.full = dfixed_mul(wm1->worst_case_latency,
+						wm1->consumption_rate);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
+		}
+		if (wm0->priority_mark.full > priority_mark02.full)
+			priority_mark02.full = wm0->priority_mark.full;
+		if (wm0->priority_mark_max.full > priority_mark02.full)
+			priority_mark02.full = wm0->priority_mark_max.full;
+		if (wm1->priority_mark.full > priority_mark12.full)
+			priority_mark12.full = wm1->priority_mark.full;
+		if (wm1->priority_mark_max.full > priority_mark12.full)
+			priority_mark12.full = wm1->priority_mark_max.full;
+		*d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
+		*d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
+		if (rdev->disp_priority == 2) {
+			*d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
+			*d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
+		}
+	} else if (mode0) {
+		if (dfixed_trunc(wm0->dbpp) > 64)
+			a.full = dfixed_mul(wm0->dbpp, wm0->num_line_pair);
+		else
+			a.full = wm0->num_line_pair.full;
+		fill_rate.full = dfixed_div(wm0->sclk, a);
+		if (wm0->consumption_rate.full > fill_rate.full) {
+			b.full = wm0->consumption_rate.full - fill_rate.full;
+			b.full = dfixed_mul(b, wm0->active_time);
+			a.full = dfixed_mul(wm0->worst_case_latency,
+						wm0->consumption_rate);
+			a.full = a.full + b.full;
+			b.full = dfixed_const(16 * 1000);
+			priority_mark02.full = dfixed_div(a, b);
+		} else {
+			a.full = dfixed_mul(wm0->worst_case_latency,
+						wm0->consumption_rate);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark02.full = dfixed_div(a, b);
+		}
+		if (wm0->priority_mark.full > priority_mark02.full)
+			priority_mark02.full = wm0->priority_mark.full;
+		if (wm0->priority_mark_max.full > priority_mark02.full)
+			priority_mark02.full = wm0->priority_mark_max.full;
+		*d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
+		if (rdev->disp_priority == 2)
+			*d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
+	} else if (mode1) {
+		if (dfixed_trunc(wm1->dbpp) > 64)
+			a.full = dfixed_mul(wm1->dbpp, wm1->num_line_pair);
+		else
+			a.full = wm1->num_line_pair.full;
+		fill_rate.full = dfixed_div(wm1->sclk, a);
+		if (wm1->consumption_rate.full > fill_rate.full) {
+			b.full = wm1->consumption_rate.full - fill_rate.full;
+			b.full = dfixed_mul(b, wm1->active_time);
+			a.full = dfixed_mul(wm1->worst_case_latency,
+						wm1->consumption_rate);
+			a.full = a.full + b.full;
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
+		} else {
+			a.full = dfixed_mul(wm1->worst_case_latency,
+						wm1->consumption_rate);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
+		}
+		if (wm1->priority_mark.full > priority_mark12.full)
+			priority_mark12.full = wm1->priority_mark.full;
+		if (wm1->priority_mark_max.full > priority_mark12.full)
+			priority_mark12.full = wm1->priority_mark_max.full;
+		*d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
+		if (rdev->disp_priority == 2)
+			*d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
+	}
+}
+
 void rs690_bandwidth_update(struct radeon_device *rdev)
 {
 	struct drm_display_mode *mode0 = NULL;
 	struct drm_display_mode *mode1 = NULL;
-	struct rs690_watermark wm0;
-	struct rs690_watermark wm1;
+	struct rs690_watermark wm0_high, wm0_low;
+	struct rs690_watermark wm1_high, wm1_low;
 	u32 tmp;
-	u32 d1mode_priority_a_cnt = S_006548_D1MODE_PRIORITY_A_OFF(1);
-	u32 d2mode_priority_a_cnt = S_006548_D1MODE_PRIORITY_A_OFF(1);
-	fixed20_12 priority_mark02, priority_mark12, fill_rate;
-	fixed20_12 a, b;
+	u32 d1mode_priority_a_cnt, d1mode_priority_b_cnt;
+	u32 d2mode_priority_a_cnt, d2mode_priority_b_cnt;
 
 	radeon_update_display_priority(rdev);
 
@@ -433,155 +608,57 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 	if ((rdev->family == CHIP_RS780) || (rdev->family == CHIP_RS880))
 		WREG32(R_006C9C_DCP_CONTROL, 2);
 
-	rs690_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[0], &wm0);
-	rs690_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[1], &wm1);
+	rs690_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[0], &wm0_high, false);
+	rs690_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[1], &wm1_high, false);
 
-	tmp = (wm0.lb_request_fifo_depth - 1);
-	tmp |= (wm1.lb_request_fifo_depth - 1) << 16;
+	rs690_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[0], &wm0_low, true);
+	rs690_crtc_bandwidth_compute(rdev, rdev->mode_info.crtcs[1], &wm1_low, true);
+
+	tmp = (wm0_high.lb_request_fifo_depth - 1);
+	tmp |= (wm1_high.lb_request_fifo_depth - 1) << 16;
 	WREG32(R_006D58_LB_MAX_REQ_OUTSTANDING, tmp);
 
-	if (mode0 && mode1) {
-		if (dfixed_trunc(wm0.dbpp) > 64)
-			a.full = dfixed_mul(wm0.dbpp, wm0.num_line_pair);
-		else
-			a.full = wm0.num_line_pair.full;
-		if (dfixed_trunc(wm1.dbpp) > 64)
-			b.full = dfixed_mul(wm1.dbpp, wm1.num_line_pair);
-		else
-			b.full = wm1.num_line_pair.full;
-		a.full += b.full;
-		fill_rate.full = dfixed_div(wm0.sclk, a);
-		if (wm0.consumption_rate.full > fill_rate.full) {
-			b.full = wm0.consumption_rate.full - fill_rate.full;
-			b.full = dfixed_mul(b, wm0.active_time);
-			a.full = dfixed_mul(wm0.worst_case_latency,
-						wm0.consumption_rate);
-			a.full = a.full + b.full;
-			b.full = dfixed_const(16 * 1000);
-			priority_mark02.full = dfixed_div(a, b);
-		} else {
-			a.full = dfixed_mul(wm0.worst_case_latency,
-						wm0.consumption_rate);
-			b.full = dfixed_const(16 * 1000);
-			priority_mark02.full = dfixed_div(a, b);
-		}
-		if (wm1.consumption_rate.full > fill_rate.full) {
-			b.full = wm1.consumption_rate.full - fill_rate.full;
-			b.full = dfixed_mul(b, wm1.active_time);
-			a.full = dfixed_mul(wm1.worst_case_latency,
-						wm1.consumption_rate);
-			a.full = a.full + b.full;
-			b.full = dfixed_const(16 * 1000);
-			priority_mark12.full = dfixed_div(a, b);
-		} else {
-			a.full = dfixed_mul(wm1.worst_case_latency,
-						wm1.consumption_rate);
-			b.full = dfixed_const(16 * 1000);
-			priority_mark12.full = dfixed_div(a, b);
-		}
-		if (wm0.priority_mark.full > priority_mark02.full)
-			priority_mark02.full = wm0.priority_mark.full;
-		if (dfixed_trunc(priority_mark02) < 0)
-			priority_mark02.full = 0;
-		if (wm0.priority_mark_max.full > priority_mark02.full)
-			priority_mark02.full = wm0.priority_mark_max.full;
-		if (wm1.priority_mark.full > priority_mark12.full)
-			priority_mark12.full = wm1.priority_mark.full;
-		if (dfixed_trunc(priority_mark12) < 0)
-			priority_mark12.full = 0;
-		if (wm1.priority_mark_max.full > priority_mark12.full)
-			priority_mark12.full = wm1.priority_mark_max.full;
-		d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
-		d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
-		if (rdev->disp_priority == 2) {
-			d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
-			d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
-		}
-	} else if (mode0) {
-		if (dfixed_trunc(wm0.dbpp) > 64)
-			a.full = dfixed_mul(wm0.dbpp, wm0.num_line_pair);
-		else
-			a.full = wm0.num_line_pair.full;
-		fill_rate.full = dfixed_div(wm0.sclk, a);
-		if (wm0.consumption_rate.full > fill_rate.full) {
-			b.full = wm0.consumption_rate.full - fill_rate.full;
-			b.full = dfixed_mul(b, wm0.active_time);
-			a.full = dfixed_mul(wm0.worst_case_latency,
-						wm0.consumption_rate);
-			a.full = a.full + b.full;
-			b.full = dfixed_const(16 * 1000);
-			priority_mark02.full = dfixed_div(a, b);
-		} else {
-			a.full = dfixed_mul(wm0.worst_case_latency,
-						wm0.consumption_rate);
-			b.full = dfixed_const(16 * 1000);
-			priority_mark02.full = dfixed_div(a, b);
-		}
-		if (wm0.priority_mark.full > priority_mark02.full)
-			priority_mark02.full = wm0.priority_mark.full;
-		if (dfixed_trunc(priority_mark02) < 0)
-			priority_mark02.full = 0;
-		if (wm0.priority_mark_max.full > priority_mark02.full)
-			priority_mark02.full = wm0.priority_mark_max.full;
-		d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
-		if (rdev->disp_priority == 2)
-			d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
-	} else if (mode1) {
-		if (dfixed_trunc(wm1.dbpp) > 64)
-			a.full = dfixed_mul(wm1.dbpp, wm1.num_line_pair);
-		else
-			a.full = wm1.num_line_pair.full;
-		fill_rate.full = dfixed_div(wm1.sclk, a);
-		if (wm1.consumption_rate.full > fill_rate.full) {
-			b.full = wm1.consumption_rate.full - fill_rate.full;
-			b.full = dfixed_mul(b, wm1.active_time);
-			a.full = dfixed_mul(wm1.worst_case_latency,
-						wm1.consumption_rate);
-			a.full = a.full + b.full;
-			b.full = dfixed_const(16 * 1000);
-			priority_mark12.full = dfixed_div(a, b);
-		} else {
-			a.full = dfixed_mul(wm1.worst_case_latency,
-						wm1.consumption_rate);
-			b.full = dfixed_const(16 * 1000);
-			priority_mark12.full = dfixed_div(a, b);
-		}
-		if (wm1.priority_mark.full > priority_mark12.full)
-			priority_mark12.full = wm1.priority_mark.full;
-		if (dfixed_trunc(priority_mark12) < 0)
-			priority_mark12.full = 0;
-		if (wm1.priority_mark_max.full > priority_mark12.full)
-			priority_mark12.full = wm1.priority_mark_max.full;
-		d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
-		if (rdev->disp_priority == 2)
-			d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
-	}
+	rs690_compute_mode_priority(rdev,
+				    &wm0_high, &wm1_high,
+				    mode0, mode1,
+				    &d1mode_priority_a_cnt, &d2mode_priority_a_cnt);
+	rs690_compute_mode_priority(rdev,
+				    &wm0_low, &wm1_low,
+				    mode0, mode1,
+				    &d1mode_priority_b_cnt, &d2mode_priority_b_cnt);
 
 	WREG32(R_006548_D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
-	WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
+	WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, d1mode_priority_b_cnt);
 	WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
-	WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
+	WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_b_cnt);
 }
 
 uint32_t rs690_mc_rreg(struct radeon_device *rdev, uint32_t reg)
 {
+	unsigned long flags;
 	uint32_t r;
 
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_000078_MC_INDEX, S_000078_MC_IND_ADDR(reg));
 	r = RREG32(R_00007C_MC_DATA);
 	WREG32(R_000078_MC_INDEX, ~C_000078_MC_IND_ADDR);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 	return r;
 }
 
 void rs690_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_000078_MC_INDEX, S_000078_MC_IND_ADDR(reg) |
 		S_000078_MC_IND_WR_EN(1));
 	WREG32(R_00007C_MC_DATA, v);
 	WREG32(R_000078_MC_INDEX, 0x7F);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
-void rs690_mc_program(struct radeon_device *rdev)
+static void rs690_mc_program(struct radeon_device *rdev)
 {
 	struct rv515_mc_save save;
 
@@ -628,6 +705,12 @@ static int rs690_startup(struct radeon_device *rdev)
 	}
 
 	/* Enable IRQ */
+	if (!rdev->irq.installed) {
+		r = radeon_irq_kms_init(rdev);
+		if (r)
+			return r;
+	}
+
 	rs600_irq_set(rdev);
 	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
@@ -637,20 +720,15 @@ static int rs690_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_audio_init(rdev);
+	r = radeon_ib_pool_init(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failed initializing audio\n");
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 		return r;
 	}
 
-	r = radeon_ib_pool_start(rdev);
-	if (r)
-		return r;
-
-	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	r = r600_audio_init(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
-		rdev->accel_working = false;
+		dev_err(rdev->dev, "failed initializing audio\n");
 		return r;
 	}
 
@@ -688,7 +766,7 @@ int rs690_resume(struct radeon_device *rdev)
 
 int rs690_suspend(struct radeon_device *rdev)
 {
-	radeon_ib_pool_suspend(rdev);
+	radeon_pm_suspend(rdev);
 	r600_audio_fini(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
@@ -699,10 +777,11 @@ int rs690_suspend(struct radeon_device *rdev)
 
 void rs690_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r600_audio_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
-	r100_ib_fini(rdev);
+	radeon_ib_pool_fini(rdev);
 	radeon_gem_fini(rdev);
 	rs400_gart_fini(rdev);
 	radeon_irq_kms_fini(rdev);
@@ -759,9 +838,6 @@ int rs690_init(struct radeon_device *rdev)
 	r = radeon_fence_driver_init(rdev);
 	if (r)
 		return r;
-	r = radeon_irq_kms_init(rdev);
-	if (r)
-		return r;
 	/* Memory manager */
 	r = radeon_bo_init(rdev);
 	if (r)
@@ -771,20 +847,17 @@ int rs690_init(struct radeon_device *rdev)
 		return r;
 	rs600_set_safe_registers(rdev);
 
-	r = radeon_ib_pool_init(rdev);
-	rdev->accel_working = true;
-	if (r) {
-		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
-		rdev->accel_working = false;
-	}
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 
+	rdev->accel_working = true;
 	r = rs690_startup(rdev);
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
 		radeon_wb_fini(rdev);
-		r100_ib_fini(rdev);
+		radeon_ib_pool_fini(rdev);
 		rs400_gart_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		rdev->accel_working = false;

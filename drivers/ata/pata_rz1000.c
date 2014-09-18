@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <scsi/scsi_host.h>
@@ -102,10 +101,10 @@ static int rz1000_init_one (struct pci_dev *pdev, const struct pci_device_id *en
 	return -ENODEV;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int rz1000_reinit_one(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	int rc;
 
 	rc = ata_pci_device_do_resume(pdev);
@@ -134,28 +133,16 @@ static struct pci_driver rz1000_pci_driver = {
 	.id_table	= pata_rz1000,
 	.probe 		= rz1000_init_one,
 	.remove		= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend	= ata_pci_device_suspend,
 	.resume		= rz1000_reinit_one,
 #endif
 };
 
-static int __init rz1000_init(void)
-{
-	return pci_register_driver(&rz1000_pci_driver);
-}
-
-static void __exit rz1000_exit(void)
-{
-	pci_unregister_driver(&rz1000_pci_driver);
-}
+module_pci_driver(rz1000_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for RZ1000 PCI ATA");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, pata_rz1000);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(rz1000_init);
-module_exit(rz1000_exit);
-

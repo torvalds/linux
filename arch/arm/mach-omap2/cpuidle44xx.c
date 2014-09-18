@@ -1,7 +1,7 @@
 /*
- * OMAP4 CPU idle Routines
+ * OMAP4+ CPU idle Routines
  *
- * Copyright (C) 2011 Texas Instruments, Inc.
+ * Copyright (C) 2011-2013 Texas Instruments, Inc.
  * Santosh Shilimkar <santosh.shilimkar@ti.com>
  * Rajendra Nayak <rnayak@ti.com>
  *
@@ -16,38 +16,52 @@
 #include <linux/export.h>
 #include <linux/clockchips.h>
 
+#include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
 
 #include "common.h"
 #include "pm.h"
 #include "prm.h"
+#include "clockdomain.h"
 
-#ifdef CONFIG_CPU_IDLE
+#define MAX_CPUS	2
 
-/* Machine specific information to be recorded in the C-state driver_data */
-struct omap4_idle_statedata {
+/* Machine specific information */
+struct idle_statedata {
 	u32 cpu_state;
 	u32 mpu_logic_state;
 	u32 mpu_state;
-	u8 valid;
 };
 
-static struct cpuidle_params cpuidle_params_table[] = {
-	/* C1 - CPU0 ON + CPU1 ON + MPU ON */
-	{.exit_latency = 2 + 2 , .target_residency = 5, .valid = 1},
-	/* C2- CPU0 OFF + CPU1 OFF + MPU CSWR */
-	{.exit_latency = 328 + 440 , .target_residency = 960, .valid = 1},
-	/* C3 - CPU0 OFF + CPU1 OFF + MPU OSWR */
-	{.exit_latency = 460 + 518 , .target_residency = 1100, .valid = 1},
+static struct idle_statedata omap4_idle_data[] = {
+	{
+		.cpu_state = PWRDM_POWER_ON,
+		.mpu_state = PWRDM_POWER_ON,
+		.mpu_logic_state = PWRDM_POWER_RET,
+	},
+	{
+		.cpu_state = PWRDM_POWER_OFF,
+		.mpu_state = PWRDM_POWER_RET,
+		.mpu_logic_state = PWRDM_POWER_RET,
+	},
+	{
+		.cpu_state = PWRDM_POWER_OFF,
+		.mpu_state = PWRDM_POWER_RET,
+		.mpu_logic_state = PWRDM_POWER_OFF,
+	},
 };
 
-#define OMAP4_NUM_STATES ARRAY_SIZE(cpuidle_params_table)
+static struct powerdomain *mpu_pd, *cpu_pd[MAX_CPUS];
+static struct clockdomain *cpu_clkdm[MAX_CPUS];
 
-struct omap4_idle_statedata omap4_idle_data[OMAP4_NUM_STATES];
-static struct powerdomain *mpu_pd, *cpu0_pd, *cpu1_pd;
+static atomic_t abort_barrier;
+static bool cpu_done[MAX_CPUS];
+static struct idle_statedata *state_ptr = &omap4_idle_data[0];
+
+/* Private functions */
 
 /**
- * omap4_enter_idle - Programs OMAP4 to enter the specified state
+ * omap_enter_idle_[simple/coupled] - OMAP4PLUS cpuidle entry functions
  * @dev: cpuidle device
  * @drv: cpuidle driver
  * @index: the index of state to be entered
@@ -56,174 +70,183 @@ static struct powerdomain *mpu_pd, *cpu0_pd, *cpu1_pd;
  * specified low power state selected by the governor.
  * Returns the amount of time spent in the low power state.
  */
-static int omap4_enter_idle(struct cpuidle_device *dev,
+static int omap_enter_idle_simple(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 			int index)
 {
-	struct omap4_idle_statedata *cx =
-			cpuidle_get_statedata(&dev->states_usage[index]);
-	u32 cpu1_state;
+	omap_do_wfi();
+	return index;
+}
+
+static int omap_enter_idle_coupled(struct cpuidle_device *dev,
+			struct cpuidle_driver *drv,
+			int index)
+{
+	struct idle_statedata *cx = state_ptr + index;
+	u32 mpuss_can_lose_context = 0;
 	int cpu_id = smp_processor_id();
 
-	local_fiq_disable();
-
 	/*
-	 * CPU0 has to stay ON (i.e in C1) until CPU1 is OFF state.
+	 * CPU0 has to wait and stay ON until CPU1 is OFF state.
 	 * This is necessary to honour hardware recommondation
 	 * of triggeing all the possible low power modes once CPU1 is
 	 * out of coherency and in OFF mode.
-	 * Update dev->last_state so that governor stats reflects right
-	 * data.
 	 */
-	cpu1_state = pwrdm_read_pwrst(cpu1_pd);
-	if (cpu1_state != PWRDM_POWER_OFF) {
-		index = drv->safe_state_index;
-		cx = cpuidle_get_statedata(&dev->states_usage[index]);
+	if (dev->cpu == 0 && cpumask_test_cpu(1, cpu_online_mask)) {
+		while (pwrdm_read_pwrst(cpu_pd[1]) != PWRDM_POWER_OFF) {
+			cpu_relax();
+
+			/*
+			 * CPU1 could have already entered & exited idle
+			 * without hitting off because of a wakeup
+			 * or a failed attempt to hit off mode.  Check for
+			 * that here, otherwise we could spin forever
+			 * waiting for CPU1 off.
+			 */
+			if (cpu_done[1])
+			    goto fail;
+
+		}
 	}
 
-	if (index > 0)
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu_id);
+	mpuss_can_lose_context = (cx->mpu_state == PWRDM_POWER_RET) &&
+				 (cx->mpu_logic_state == PWRDM_POWER_OFF);
+
+	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu_id);
 
 	/*
 	 * Call idle CPU PM enter notifier chain so that
 	 * VFP and per CPU interrupt context is saved.
 	 */
-	if (cx->cpu_state == PWRDM_POWER_OFF)
-		cpu_pm_enter();
+	cpu_pm_enter();
 
-	pwrdm_set_logic_retst(mpu_pd, cx->mpu_logic_state);
-	omap_set_pwrdm_state(mpu_pd, cx->mpu_state);
+	if (dev->cpu == 0) {
+		pwrdm_set_logic_retst(mpu_pd, cx->mpu_logic_state);
+		omap_set_pwrdm_state(mpu_pd, cx->mpu_state);
 
-	/*
-	 * Call idle CPU cluster PM enter notifier chain
-	 * to save GIC and wakeupgen context.
-	 */
-	if ((cx->mpu_state == PWRDM_POWER_RET) &&
-		(cx->mpu_logic_state == PWRDM_POWER_OFF))
+		/*
+		 * Call idle CPU cluster PM enter notifier chain
+		 * to save GIC and wakeupgen context.
+		 */
+		if (mpuss_can_lose_context)
 			cpu_cluster_pm_enter();
+	}
 
 	omap4_enter_lowpower(dev->cpu, cx->cpu_state);
+	cpu_done[dev->cpu] = true;
+
+	/* Wakeup CPU1 only if it is not offlined */
+	if (dev->cpu == 0 && cpumask_test_cpu(1, cpu_online_mask)) {
+
+		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD) &&
+		    mpuss_can_lose_context)
+			gic_dist_disable();
+
+		clkdm_wakeup(cpu_clkdm[1]);
+		omap_set_pwrdm_state(cpu_pd[1], PWRDM_POWER_ON);
+		clkdm_allow_idle(cpu_clkdm[1]);
+
+		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD) &&
+		    mpuss_can_lose_context) {
+			while (gic_dist_disabled()) {
+				udelay(1);
+				cpu_relax();
+			}
+			gic_timer_retrigger();
+		}
+	}
 
 	/*
 	 * Call idle CPU PM exit notifier chain to restore
-	 * VFP and per CPU IRQ context. Only CPU0 state is
-	 * considered since CPU1 is managed by CPU hotplug.
+	 * VFP and per CPU IRQ context.
 	 */
-	if (pwrdm_read_prev_pwrst(cpu0_pd) == PWRDM_POWER_OFF)
-		cpu_pm_exit();
+	cpu_pm_exit();
 
 	/*
 	 * Call idle CPU cluster PM exit notifier chain
 	 * to restore GIC and wakeupgen context.
 	 */
-	if (omap4_mpuss_read_prev_context_state())
+	if (dev->cpu == 0 && mpuss_can_lose_context)
 		cpu_cluster_pm_exit();
 
-	if (index > 0)
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu_id);
+	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu_id);
 
-	local_fiq_enable();
+fail:
+	cpuidle_coupled_parallel_barrier(dev, &abort_barrier);
+	cpu_done[dev->cpu] = false;
 
 	return index;
 }
 
-DEFINE_PER_CPU(struct cpuidle_device, omap4_idle_dev);
+/*
+ * For each cpu, setup the broadcast timer because local timers
+ * stops for the states above C1.
+ */
+static void omap_setup_broadcast_timer(void *arg)
+{
+	int cpu = smp_processor_id();
+	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ON, &cpu);
+}
 
-struct cpuidle_driver omap4_idle_driver = {
+static struct cpuidle_driver omap4_idle_driver = {
 	.name				= "omap4_idle",
 	.owner				= THIS_MODULE,
-	.en_core_tk_irqen		= 1,
+	.states = {
+		{
+			/* C1 - CPU0 ON + CPU1 ON + MPU ON */
+			.exit_latency = 2 + 2,
+			.target_residency = 5,
+			.flags = CPUIDLE_FLAG_TIME_VALID,
+			.enter = omap_enter_idle_simple,
+			.name = "C1",
+			.desc = "CPUx ON, MPUSS ON"
+		},
+		{
+			/* C2 - CPU0 OFF + CPU1 OFF + MPU CSWR */
+			.exit_latency = 328 + 440,
+			.target_residency = 960,
+			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED,
+			.enter = omap_enter_idle_coupled,
+			.name = "C2",
+			.desc = "CPUx OFF, MPUSS CSWR",
+		},
+		{
+			/* C3 - CPU0 OFF + CPU1 OFF + MPU OSWR */
+			.exit_latency = 460 + 518,
+			.target_residency = 1100,
+			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED,
+			.enter = omap_enter_idle_coupled,
+			.name = "C3",
+			.desc = "CPUx OFF, MPUSS OSWR",
+		},
+	},
+	.state_count = ARRAY_SIZE(omap4_idle_data),
+	.safe_state_index = 0,
 };
 
-static inline void _fill_cstate(struct cpuidle_driver *drv,
-					int idx, const char *descr)
-{
-	struct cpuidle_state *state = &drv->states[idx];
-
-	state->exit_latency	= cpuidle_params_table[idx].exit_latency;
-	state->target_residency	= cpuidle_params_table[idx].target_residency;
-	state->flags		= CPUIDLE_FLAG_TIME_VALID;
-	state->enter		= omap4_enter_idle;
-	sprintf(state->name, "C%d", idx + 1);
-	strncpy(state->desc, descr, CPUIDLE_DESC_LEN);
-}
-
-static inline struct omap4_idle_statedata *_fill_cstate_usage(
-					struct cpuidle_device *dev,
-					int idx)
-{
-	struct omap4_idle_statedata *cx = &omap4_idle_data[idx];
-	struct cpuidle_state_usage *state_usage = &dev->states_usage[idx];
-
-	cx->valid		= cpuidle_params_table[idx].valid;
-	cpuidle_set_statedata(state_usage, cx);
-
-	return cx;
-}
-
-
+/* Public functions */
 
 /**
- * omap4_idle_init - Init routine for OMAP4 idle
+ * omap4_idle_init - Init routine for OMAP4+ idle
  *
- * Registers the OMAP4 specific cpuidle driver to the cpuidle
+ * Registers the OMAP4+ specific cpuidle driver to the cpuidle
  * framework with the valid set of states.
  */
 int __init omap4_idle_init(void)
 {
-	struct omap4_idle_statedata *cx;
-	struct cpuidle_device *dev;
-	struct cpuidle_driver *drv = &omap4_idle_driver;
-	unsigned int cpu_id = 0;
-
 	mpu_pd = pwrdm_lookup("mpu_pwrdm");
-	cpu0_pd = pwrdm_lookup("cpu0_pwrdm");
-	cpu1_pd = pwrdm_lookup("cpu1_pwrdm");
-	if ((!mpu_pd) || (!cpu0_pd) || (!cpu1_pd))
+	cpu_pd[0] = pwrdm_lookup("cpu0_pwrdm");
+	cpu_pd[1] = pwrdm_lookup("cpu1_pwrdm");
+	if ((!mpu_pd) || (!cpu_pd[0]) || (!cpu_pd[1]))
 		return -ENODEV;
 
+	cpu_clkdm[0] = clkdm_lookup("mpu0_clkdm");
+	cpu_clkdm[1] = clkdm_lookup("mpu1_clkdm");
+	if (!cpu_clkdm[0] || !cpu_clkdm[1])
+		return -ENODEV;
 
-	drv->safe_state_index = -1;
-	dev = &per_cpu(omap4_idle_dev, cpu_id);
-	dev->cpu = cpu_id;
+	/* Configure the broadcast timer on each cpu */
+	on_each_cpu(omap_setup_broadcast_timer, NULL, 1);
 
-	/* C1 - CPU0 ON + CPU1 ON + MPU ON */
-	_fill_cstate(drv, 0, "MPUSS ON");
-	drv->safe_state_index = 0;
-	cx = _fill_cstate_usage(dev, 0);
-	cx->valid = 1;	/* C1 is always valid */
-	cx->cpu_state = PWRDM_POWER_ON;
-	cx->mpu_state = PWRDM_POWER_ON;
-	cx->mpu_logic_state = PWRDM_POWER_RET;
-
-	/* C2 - CPU0 OFF + CPU1 OFF + MPU CSWR */
-	_fill_cstate(drv, 1, "MPUSS CSWR");
-	cx = _fill_cstate_usage(dev, 1);
-	cx->cpu_state = PWRDM_POWER_OFF;
-	cx->mpu_state = PWRDM_POWER_RET;
-	cx->mpu_logic_state = PWRDM_POWER_RET;
-
-	/* C3 - CPU0 OFF + CPU1 OFF + MPU OSWR */
-	_fill_cstate(drv, 2, "MPUSS OSWR");
-	cx = _fill_cstate_usage(dev, 2);
-	cx->cpu_state = PWRDM_POWER_OFF;
-	cx->mpu_state = PWRDM_POWER_RET;
-	cx->mpu_logic_state = PWRDM_POWER_OFF;
-
-	drv->state_count = OMAP4_NUM_STATES;
-	cpuidle_register_driver(&omap4_idle_driver);
-
-	dev->state_count = OMAP4_NUM_STATES;
-	if (cpuidle_register_device(dev)) {
-		pr_err("%s: CPUidle register device failed\n", __func__);
-			return -EIO;
-		}
-
-	return 0;
+	return cpuidle_register(&omap4_idle_driver, cpu_online_mask);
 }
-#else
-int __init omap4_idle_init(void)
-{
-	return 0;
-}
-#endif /* CONFIG_CPU_IDLE */

@@ -150,8 +150,7 @@ static const struct platform_suspend_ops sh_pm_ops = {
 static int __init sh_pm_init(void)
 {
 	suspend_set_ops(&sh_pm_ops);
-	sh_mobile_setup_cpuidle();
-	return 0;
+	return sh_mobile_setup_cpuidle();
 }
 
 late_initcall(sh_pm_init);

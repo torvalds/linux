@@ -20,9 +20,8 @@
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 
-#include <plat/board.h>
-#include <plat/gpmc.h>
-#include <plat/gpmc-smsc911x.h>
+#include "gpmc.h"
+#include "gpmc-smsc911x.h"
 
 static struct resource gpmc_smsc911x_resources[] = {
 	[0] = {
@@ -84,7 +83,7 @@ void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *gpmc_cfg)
 	pdev = platform_device_register_resndata(NULL, "smsc911x", gpmc_cfg->id,
 		 gpmc_smsc911x_resources, ARRAY_SIZE(gpmc_smsc911x_resources),
 		 &gpmc_smsc911x_config, sizeof(gpmc_smsc911x_config));
-	if (!pdev) {
+	if (IS_ERR(pdev)) {
 		pr_err("Unable to register platform device\n");
 		gpio_free(gpmc_cfg->gpio_reset);
 		goto free2;

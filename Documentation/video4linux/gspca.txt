@@ -55,6 +55,7 @@ zc3xx		0458:700f	Genius VideoCam Web V2
 sonixj		0458:7025	Genius Eye 311Q
 sn9c20x		0458:7029	Genius Look 320s
 sonixj		0458:702e	Genius Slim 310 NB
+sn9c20x		0458:7045	Genius Look 1320 V2
 sn9c20x		0458:704a	Genius Slim 1320
 sn9c20x		0458:704c	Genius i-Look 1321
 sn9c20x		045e:00f4	LifeCam VX-6000 (SN9C20x + OV9650)
@@ -276,6 +277,7 @@ pac7302		093a:2622	Genius Eye 312
 pac7302		093a:2624	PAC7302
 pac7302		093a:2625	Genius iSlim 310
 pac7302		093a:2626	Labtec 2200
+pac7302		093a:2627	Genius FaceCam 300
 pac7302		093a:2628	Genius iLook 300
 pac7302		093a:2629	Genious iSlim 300
 pac7302		093a:262a	Webcam 300k

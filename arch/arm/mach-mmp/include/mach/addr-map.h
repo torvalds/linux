@@ -31,4 +31,16 @@
 #define SMC_CS1_PHYS_BASE	0x90000000
 #define SMC_CS1_PHYS_SIZE	0x10000000
 
+#define APMU_VIRT_BASE		(AXI_VIRT_BASE + 0x82800)
+#define APMU_REG(x)		(APMU_VIRT_BASE + (x))
+
+#define APBC_VIRT_BASE		(APB_VIRT_BASE + 0x015000)
+#define APBC_REG(x)		(APBC_VIRT_BASE + (x))
+
+#define MPMU_VIRT_BASE		(APB_VIRT_BASE + 0x50000)
+#define MPMU_REG(x)		(MPMU_VIRT_BASE + (x))
+
+#define CIU_VIRT_BASE		(AXI_VIRT_BASE + 0x82c00)
+#define CIU_REG(x)		(CIU_VIRT_BASE + (x))
+
 #endif /* __ASM_MACH_ADDR_MAP_H */

@@ -16,7 +16,7 @@ menuconfig PM_DEVFREQ
 	  is attached to a single device and returns a "representative"
 	  clock frequency of the device, which is also attached
 	  to a device by 1-to-1. The device registering devfreq takes the
-	  responsiblity to "interpret" the representative frequency and
+	  responsibility to "interpret" the representative frequency and
 	  to set its every clock accordingly with the "target" callback
 	  given to devfreq.
 
@@ -30,7 +30,7 @@ if PM_DEVFREQ
 comment "DEVFREQ Governors"
 
 config DEVFREQ_GOV_SIMPLE_ONDEMAND
-	bool "Simple Ondemand"
+	tristate "Simple Ondemand"
 	help
 	  Chooses frequency based on the recent load on the device. Works
 	  similar as ONDEMAND governor of CPUFREQ does. A device with
@@ -39,7 +39,7 @@ config DEVFREQ_GOV_SIMPLE_ONDEMAND
 	  values to the governor with data field at devfreq_add_device().
 
 config DEVFREQ_GOV_PERFORMANCE
-	bool "Performance"
+	tristate "Performance"
 	help
 	  Sets the frequency at the maximum available frequency.
 	  This governor always returns UINT_MAX as frequency so that
@@ -47,7 +47,7 @@ config DEVFREQ_GOV_PERFORMANCE
 	  at any time.
 
 config DEVFREQ_GOV_POWERSAVE
-	bool "Powersave"
+	tristate "Powersave"
 	help
 	  Sets the frequency at the minimum available frequency.
 	  This governor always returns 0 as frequency so that
@@ -55,7 +55,7 @@ config DEVFREQ_GOV_POWERSAVE
 	  at any time.
 
 config DEVFREQ_GOV_USERSPACE
-	bool "Userspace"
+	tristate "Userspace"
 	help
 	  Sets the frequency at the user specified one.
 	  This governor returns the user configured frequency if there
@@ -67,15 +67,25 @@ comment "DEVFREQ Drivers"
 
 config ARM_EXYNOS4_BUS_DEVFREQ
 	bool "ARM Exynos4210/4212/4412 Memory Bus DEVFREQ Driver"
-	depends on CPU_EXYNOS4210 || CPU_EXYNOS4212 || CPU_EXYNOS4412
-	select ARCH_HAS_OPP
+	depends on (CPU_EXYNOS4210 || SOC_EXYNOS4212 || SOC_EXYNOS4412) && !ARCH_MULTIPLATFORM
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select PM_OPP
 	help
 	  This adds the DEVFREQ driver for Exynos4210 memory bus (vdd_int)
 	  and Exynos4212/4412 memory interface and bus (vdd_mif + vdd_int).
 	  It reads PPMU counters of memory controllers and adjusts
 	  the operating frequencies and voltages with OPP support.
-	  To operate with optimal voltages, ASV support is required
-	  (CONFIG_EXYNOS_ASV).
+	  This does not yet operate with optimal voltages.
+
+config ARM_EXYNOS5_BUS_DEVFREQ
+	bool "ARM Exynos5250 Bus DEVFREQ Driver"
+	depends on SOC_EXYNOS5250
+	select ARCH_HAS_OPP
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select PM_OPP
+	help
+	  This adds the DEVFREQ driver for Exynos5250 bus interface (vdd_int).
+	  It reads PPMU counters of memory controllers and adjusts the
+	  operating frequencies and voltages with OPP support.
 
 endif # PM_DEVFREQ

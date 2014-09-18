@@ -10,6 +10,8 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/completion.h>
 #include <linux/miscdevice.h>
@@ -546,7 +548,7 @@ static noinline int fpga_program_dma(struct fpga_dev *priv)
 		goto out_dma_unmap;
 	}
 
-	dma_async_memcpy_issue_pending(chan);
+	dma_async_issue_pending(chan);
 
 	/* Set the total byte count */
 	fpga_set_byte_count(priv->regs, priv->bytes);
@@ -830,8 +832,9 @@ static ssize_t penable_store(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	int ret;
 
-	if (strict_strtoul(buf, 0, &val))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &val);
+	if (ret)
+		return ret;
 
 	if (val) {
 		ret = fpga_enable_power_supplies(priv);
@@ -859,8 +862,9 @@ static ssize_t program_store(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	int ret;
 
-	if (strict_strtoul(buf, 0, &val))
-		return -EINVAL;
+	ret = kstrtoul(buf, 0, &val);
+	if (ret)
+		return ret;
 
 	/* We can't have an image writer and be programming simultaneously */
 	if (mutex_lock_interruptible(&priv->lock))
@@ -919,7 +923,7 @@ static bool dma_filter(struct dma_chan *chan, void *data)
 
 static int fpga_of_remove(struct platform_device *op)
 {
-	struct fpga_dev *priv = dev_get_drvdata(&op->dev);
+	struct fpga_dev *priv = platform_get_drvdata(op);
 	struct device *this_device = priv->miscdev.this_device;
 
 	sysfs_remove_group(&this_device->kobj, &fpga_attr_group);
@@ -969,7 +973,7 @@ static int fpga_of_probe(struct platform_device *op)
 
 	kref_init(&priv->ref);
 
-	dev_set_drvdata(&op->dev, priv);
+	platform_set_drvdata(op, priv);
 	priv->dev = &op->dev;
 	mutex_init(&priv->lock);
 	init_completion(&priv->completion);
@@ -978,7 +982,6 @@ static int fpga_of_probe(struct platform_device *op)
 	dev_set_drvdata(priv->dev, priv);
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_MEMCPY, mask);
-	dma_cap_set(DMA_INTERRUPT, mask);
 	dma_cap_set(DMA_SLAVE, mask);
 	dma_cap_set(DMA_SG, mask);
 

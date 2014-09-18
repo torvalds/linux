@@ -177,17 +177,16 @@ void ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *keyconf,
 	struct ieee80211_key *key = (struct ieee80211_key *)
 			container_of(keyconf, struct ieee80211_key, conf);
 	struct tkip_ctx *ctx = &key->u.tkip.tx;
-	unsigned long flags;
 
-	spin_lock_irqsave(&key->u.tkip.txlock, flags);
+	spin_lock_bh(&key->u.tkip.txlock);
 	ieee80211_compute_tkip_p1k(key, iv32);
 	memcpy(p1k, ctx->p1k, sizeof(ctx->p1k));
-	spin_unlock_irqrestore(&key->u.tkip.txlock, flags);
+	spin_unlock_bh(&key->u.tkip.txlock);
 }
 EXPORT_SYMBOL(ieee80211_get_tkip_p1k_iv);
 
 void ieee80211_get_tkip_rx_p1k(struct ieee80211_key_conf *keyconf,
-                               const u8 *ta, u32 iv32, u16 *p1k)
+			       const u8 *ta, u32 iv32, u16 *p1k)
 {
 	const u8 *tk = &keyconf->key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
 	struct tkip_ctx ctx;
@@ -208,12 +207,11 @@ void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
 	const u8 *data = (u8 *)hdr + ieee80211_hdrlen(hdr->frame_control);
 	u32 iv32 = get_unaligned_le32(&data[4]);
 	u16 iv16 = data[2] | (data[0] << 8);
-	unsigned long flags;
 
-	spin_lock_irqsave(&key->u.tkip.txlock, flags);
+	spin_lock(&key->u.tkip.txlock);
 	ieee80211_compute_tkip_p1k(key, iv32);
 	tkip_mixing_phase2(tk, ctx, iv16, p2k);
-	spin_unlock_irqrestore(&key->u.tkip.txlock, flags);
+	spin_unlock(&key->u.tkip.txlock);
 }
 EXPORT_SYMBOL(ieee80211_get_tkip_p2k);
 
@@ -260,17 +258,6 @@ int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
 	keyid = pos[3];
 	iv32 = get_unaligned_le32(pos + 4);
 	pos += 8;
-#ifdef CONFIG_MAC80211_TKIP_DEBUG
-	{
-		int i;
-		printk(KERN_DEBUG "TKIP decrypt: data(len=%zd)", payload_len);
-		for (i = 0; i < payload_len; i++)
-			printk(" %02x", payload[i]);
-		printk("\n");
-		printk(KERN_DEBUG "TKIP decrypt: iv16=%04x iv32=%08x\n",
-		       iv16, iv32);
-	}
-#endif
 
 	if (!(keyid & (1 << 5)))
 		return TKIP_DECRYPT_NO_EXT_IV;
@@ -281,16 +268,8 @@ int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
 	if (key->u.tkip.rx[queue].state != TKIP_STATE_NOT_INIT &&
 	    (iv32 < key->u.tkip.rx[queue].iv32 ||
 	     (iv32 == key->u.tkip.rx[queue].iv32 &&
-	      iv16 <= key->u.tkip.rx[queue].iv16))) {
-#ifdef CONFIG_MAC80211_TKIP_DEBUG
-		printk(KERN_DEBUG "TKIP replay detected for RX frame from "
-		       "%pM (RX IV (%04x,%02x) <= prev. IV (%04x,%02x)\n",
-		       ta,
-		       iv32, iv16, key->u.tkip.rx[queue].iv32,
-		       key->u.tkip.rx[queue].iv16);
-#endif
+	      iv16 <= key->u.tkip.rx[queue].iv16)))
 		return TKIP_DECRYPT_REPLAY;
-	}
 
 	if (only_iv) {
 		res = TKIP_DECRYPT_OK;
@@ -302,22 +281,6 @@ int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
 	    key->u.tkip.rx[queue].iv32 != iv32) {
 		/* IV16 wrapped around - perform TKIP phase 1 */
 		tkip_mixing_phase1(tk, &key->u.tkip.rx[queue], ta, iv32);
-#ifdef CONFIG_MAC80211_TKIP_DEBUG
-		{
-			int i;
-			u8 key_offset = NL80211_TKIP_DATA_OFFSET_ENCR_KEY;
-			printk(KERN_DEBUG "TKIP decrypt: Phase1 TA=%pM"
-			       " TK=", ta);
-			for (i = 0; i < 16; i++)
-				printk("%02x ",
-				       key->conf.key[key_offset + i]);
-			printk("\n");
-			printk(KERN_DEBUG "TKIP decrypt: P1K=");
-			for (i = 0; i < 5; i++)
-				printk("%04x ", key->u.tkip.rx[queue].p1k[i]);
-			printk("\n");
-		}
-#endif
 	}
 	if (key->local->ops->update_tkip_key &&
 	    key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
@@ -333,15 +296,6 @@ int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
 	}
 
 	tkip_mixing_phase2(tk, &key->u.tkip.rx[queue], iv16, rc4key);
-#ifdef CONFIG_MAC80211_TKIP_DEBUG
-	{
-		int i;
-		printk(KERN_DEBUG "TKIP decrypt: Phase2 rc4key=");
-		for (i = 0; i < 16; i++)
-			printk("%02x ", rc4key[i]);
-		printk("\n");
-	}
-#endif
 
 	res = ieee80211_wep_decrypt_data(tfm, rc4key, 16, pos, payload_len - 12);
  done:

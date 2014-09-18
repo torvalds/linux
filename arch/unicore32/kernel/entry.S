@@ -544,8 +544,6 @@ fast_work_pending:
 work_pending:
 	cand.a	r1, #_TIF_NEED_RESCHED
 	bne	work_resched
-	cand.a	r1, #_TIF_SIGPENDING|_TIF_NOTIFY_RESUME
-	beq	no_work_pending
 	mov	r0, sp				@ 'regs'
 	mov	r2, why				@ 'syscall'
 	cand.a	r1, #_TIF_SIGPENDING		@ delivering a signal?
@@ -575,16 +573,15 @@ ENDPROC(ret_to_user)
  */
 ENTRY(ret_from_fork)
 	b.l	schedule_tail
-	get_thread_info tsk
-	ldw	r1, [tsk+], #TI_FLAGS		@ check for syscall tracing
-	mov	why, #1
-	cand.a	r1, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
-	beq	ret_slow_syscall
-	mov	r1, sp
-	mov	r0, #1				@ trace exit [IP = 1]
-	b.l	syscall_trace
 	b	ret_slow_syscall
 ENDPROC(ret_from_fork)
+
+ENTRY(ret_from_kernel_thread)
+	b.l	schedule_tail
+	mov	r0, r5
+	adr	lr, ret_slow_syscall
+	mov	pc, r4
+ENDPROC(ret_from_kernel_thread)
 
 /*=============================================================================
  * SWI handler
@@ -671,27 +668,11 @@ __cr_alignment:
 #endif
 	.ltorg
 
-ENTRY(sys_execve)
-		add	r3, sp, #S_OFF
-		b	__sys_execve
-ENDPROC(sys_execve)
-
-ENTRY(sys_clone)
-		add	ip, sp, #S_OFF
-		stw	ip, [sp+], #4
-		b	__sys_clone
-ENDPROC(sys_clone)
-
 ENTRY(sys_rt_sigreturn)
 		add	r0, sp, #S_OFF
 		mov	why, #0		@ prevent syscall restart handling
 		b	__sys_rt_sigreturn
 ENDPROC(sys_rt_sigreturn)
-
-ENTRY(sys_sigaltstack)
-		ldw	r2, [sp+], #S_OFF + S_SP
-		b	do_sigaltstack
-ENDPROC(sys_sigaltstack)
 
 	__INIT
 

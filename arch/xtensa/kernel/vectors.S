@@ -10,7 +10,7 @@
  * Public License.  See the file "COPYING" in the main directory of
  * this archive for more details.
  *
- * Copyright (C) 2005 Tensilica, Inc.
+ * Copyright (C) 2005 - 2008 Tensilica, Inc.
  *
  * Chris Zankel <chris@zankel.net>
  *
@@ -50,6 +50,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/thread_info.h>
+#include <asm/vectors.h>
 
 #define WINDOW_VECTORS_SIZE   0x180
 
@@ -69,15 +70,18 @@
 
 ENTRY(_UserExceptionVector)
 
-	xsr	a3, EXCSAVE_1		# save a3 and get dispatch table
-	wsr	a2, DEPC		# save a2
+	xsr	a3, excsave1		# save a3 and get dispatch table
+	wsr	a2, depc		# save a2
 	l32i	a2, a3, EXC_TABLE_KSTK	# load kernel stack to a2
 	s32i	a0, a2, PT_AREG0	# save a0 to ESF
-	rsr	a0, EXCCAUSE		# retrieve exception cause
+	rsr	a0, exccause		# retrieve exception cause
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception
 	addx4	a0, a0, a3		# find entry in table
 	l32i	a0, a0, EXC_TABLE_FAST_USER	# load handler
+	xsr	a3, excsave1		# restore a3 and dispatch table
 	jx	a0
+
+ENDPROC(_UserExceptionVector)
 
 /*
  * Kernel exception vector. (Exceptions with PS.UM == 0, PS.EXCM == 0)
@@ -93,16 +97,18 @@ ENTRY(_UserExceptionVector)
 
 ENTRY(_KernelExceptionVector)
 
-	xsr	a3, EXCSAVE_1		# save a3, and get dispatch table
-	wsr	a2, DEPC		# save a2
+	xsr	a3, excsave1		# save a3, and get dispatch table
+	wsr	a2, depc		# save a2
 	addi	a2, a1, -16-PT_SIZE	# adjust stack pointer
 	s32i	a0, a2, PT_AREG0	# save a0 to ESF
-	rsr	a0, EXCCAUSE		# retrieve exception cause
+	rsr	a0, exccause		# retrieve exception cause
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception
 	addx4	a0, a0, a3		# find entry in table
 	l32i	a0, a0, EXC_TABLE_FAST_KERNEL	# load handler address
+	xsr	a3, excsave1		# restore a3 and dispatch table
 	jx	a0
 
+ENDPROC(_KernelExceptionVector)
 
 /*
  * Double exception vector (Exceptions with PS.EXCM == 1)
@@ -164,7 +170,7 @@ ENTRY(_KernelExceptionVector)
  *
  *	a0:	   DEPC
  *	a1: 	   a1
- *	a2:	   trashed, original value in EXC_TABLE_DOUBLE_A2
+ *	a2:	   trashed, original value in EXC_TABLE_DOUBLE_SAVE
  *	a3:	   exctable
  *	depc:	   a0
  *	excsave_1: a3
@@ -200,41 +206,46 @@ ENTRY(_KernelExceptionVector)
 
 	.section .DoubleExceptionVector.text, "ax"
 	.begin literal_prefix .DoubleExceptionVector
+	.globl _DoubleExceptionVector_WindowUnderflow
+	.globl _DoubleExceptionVector_WindowOverflow
 
 ENTRY(_DoubleExceptionVector)
 
-	/* Deliberately destroy excsave (don't assume it's value was valid). */
-
-	wsr	a3, EXCSAVE_1		# save a3
+	xsr	a3, excsave1
+	s32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
 
 	/* Check for kernel double exception (usually fatal). */
 
-	rsr	a3, PS
-	_bbci.l	a3, PS_UM_BIT, .Lksp
+	rsr	a2, ps
+	_bbci.l	a2, PS_UM_BIT, .Lksp
 
 	/* Check if we are currently handling a window exception. */
 	/* Note: We don't need to indicate that we enter a critical section. */
 
-	xsr	a0, DEPC		# get DEPC, save a0
+	xsr	a0, depc		# get DEPC, save a0
 
-	movi	a3, XCHAL_WINDOW_VECTORS_VADDR
-	_bltu	a0, a3, .Lfixup
-	addi	a3, a3, WINDOW_VECTORS_SIZE
-	_bgeu	a0, a3, .Lfixup
+	movi	a2, WINDOW_VECTORS_VADDR
+	_bltu	a0, a2, .Lfixup
+	addi	a2, a2, WINDOW_VECTORS_SIZE
+	_bgeu	a0, a2, .Lfixup
 
 	/* Window overflow/underflow exception. Get stack pointer. */
 
-	mov	a3, a2
-	movi	a2, exc_table
-	l32i	a2, a2, EXC_TABLE_KSTK
+	l32i	a2, a3, EXC_TABLE_KSTK
 
 	/* Check for overflow/underflow exception, jump if overflow. */
 
-	_bbci.l	a0, 6, .Lovfl
+	bbci.l	a0, 6, _DoubleExceptionVector_WindowOverflow
 
-	/* a0: depc, a1: a1, a2: kstk, a3: a2, depc: a0, excsave: a3  */
-
-	/* Restart window underflow exception.
+	/*
+	 * Restart window underflow exception.
+	 * Currently:
+	 *	depc = orig a0,
+	 *	a0 = orig DEPC,
+	 *	a2 = new sp based on KSTK from exc_table
+	 *	a3 = excsave_1
+	 *	excsave_1 = orig a3
+	 *
 	 * We return to the instruction in user space that caused the window
 	 * underflow exception. Therefore, we change window base to the value
 	 * before we entered the window underflow exception and prepare the
@@ -242,63 +253,23 @@ ENTRY(_DoubleExceptionVector)
 	 * by changing depc (in a0).
 	 * Note: We can trash the current window frame (a0...a3) and depc!
 	 */
-
-	wsr	a2, DEPC		# save stack pointer temporarily
-	rsr	a0, PS
-	extui	a0, a0, PS_OWB_SHIFT, 4
-	wsr	a0, WINDOWBASE
+_DoubleExceptionVector_WindowUnderflow:
+	xsr	a3, excsave1
+	wsr	a2, depc		# save stack pointer temporarily
+	rsr	a0, ps
+	extui	a0, a0, PS_OWB_SHIFT, PS_OWB_WIDTH
+	wsr	a0, windowbase
 	rsync
 
 	/* We are now in the previous window frame. Save registers again. */
 
-	xsr	a2, DEPC		# save a2 and get stack pointer
+	xsr	a2, depc		# save a2 and get stack pointer
 	s32i	a0, a2, PT_AREG0
-
-	wsr	a3, EXCSAVE_1		# save a3
-	movi	a3, exc_table
-
-	rsr	a0, EXCCAUSE
+	xsr	a3, excsave1
+	rsr	a0, exccause
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception
 	addx4	a0, a0, a3
-	l32i	a0, a0, EXC_TABLE_FAST_USER
-	jx	a0
-
-.Lfixup:/* Check for a fixup handler or if we were in a critical section. */
-
-	/* a0: depc, a1: a1, a2: a2, a3: trashed, depc: a0, excsave1: a3 */
-
-	movi	a3, exc_table
-	s32i	a2, a3, EXC_TABLE_DOUBLE_SAVE	# temporary variable
-
-	/* Enter critical section. */
-
-	l32i	a2, a3, EXC_TABLE_FIXUP
-	s32i	a3, a3, EXC_TABLE_FIXUP
-	beq	a2, a3, .Lunrecoverable_fixup	# critical!
-	beqz	a2, .Ldflt			# no handler was registered
-
-	/* a0: depc, a1: a1, a2: trash, a3: exctable, depc: a0, excsave: a3 */
-
-	jx	a2
-
-.Ldflt:	/* Get stack pointer. */
-
-	l32i	a3, a3, EXC_TABLE_DOUBLE_SAVE
-	addi	a2, a3, -PT_USER_SIZE
-
-.Lovfl:	/* Jump to default handlers. */
-
-	/* a0: depc, a1: a1, a2: kstk, a3: a2, depc: a0, excsave: a3 */
-
-	xsr	a3, DEPC
-	s32i	a0, a2, PT_DEPC
-	s32i	a3, a2, PT_AREG0
-
-	/* a0: avail, a1: a1, a2: kstk, a3: avail, depc: a2, excsave: a3 */
-
-	movi	a3, exc_table
-	rsr	a0, EXCCAUSE
-	addx4	a0, a0, a3
+	xsr	a3, excsave1
 	l32i	a0, a0, EXC_TABLE_FAST_USER
 	jx	a0
 
@@ -312,7 +283,7 @@ ENTRY(_DoubleExceptionVector)
 
 .Lksp:	/* a0: a0, a1: a1, a2: a2, a3: trashed, depc: depc, excsave: a3 */
 
-	rsr	a3, EXCCAUSE
+	rsr	a3, exccause
 	beqi	a3, EXCCAUSE_ITLB_MISS, 1f
 	addi	a3, a3, -EXCCAUSE_DTLB_MISS
 	bnez	a3, .Lunrecoverable
@@ -328,17 +299,295 @@ ENTRY(_DoubleExceptionVector)
 
 .Lunrecoverable_fixup:
 	l32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
-	xsr	a0, DEPC
+	xsr	a0, depc
 
 .Lunrecoverable:
-	rsr	a3, EXCSAVE_1
-	wsr	a0, EXCSAVE_1
+	rsr	a3, excsave1
+	wsr	a0, excsave1
 	movi	a0, unrecoverable_exception
 	callx0	a0
 
+.Lfixup:/* Check for a fixup handler or if we were in a critical section. */
+
+	/* a0: depc, a1: a1, a2: trash, a3: exctable, depc: a0, excsave1: a3 */
+
+	/* Enter critical section. */
+
+	l32i	a2, a3, EXC_TABLE_FIXUP
+	s32i	a3, a3, EXC_TABLE_FIXUP
+	beq	a2, a3, .Lunrecoverable_fixup	# critical section
+	beqz	a2, .Ldflt			# no handler was registered
+
+	/* a0: depc, a1: a1, a2: trash, a3: exctable, depc: a0, excsave: a3 */
+
+	jx	a2
+
+.Ldflt:	/* Get stack pointer. */
+
+	l32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
+	addi	a2, a2, -PT_USER_SIZE
+
+	/* a0: depc, a1: a1, a2: kstk, a3: exctable, depc: a0, excsave: a3 */
+
+	s32i	a0, a2, PT_DEPC
+	l32i	a0, a3, EXC_TABLE_DOUBLE_SAVE
+	xsr	a0, depc
+	s32i	a0, a2, PT_AREG0
+
+	/* a0: avail, a1: a1, a2: kstk, a3: exctable, depc: a2, excsave: a3 */
+
+	rsr	a0, exccause
+	addx4	a0, a0, a3
+	xsr	a3, excsave1
+	l32i	a0, a0, EXC_TABLE_FAST_USER
+	jx	a0
+
+	/*
+	 * Restart window OVERFLOW exception.
+	 * Currently:
+	 *	depc = orig a0,
+	 *	a0 = orig DEPC,
+	 *	a2 = new sp based on KSTK from exc_table
+	 *	a3 = EXCSAVE_1
+	 *	excsave_1 = orig a3
+	 *
+	 * We return to the instruction in user space that caused the window
+	 * overflow exception. Therefore, we change window base to the value
+	 * before we entered the window overflow exception and prepare the
+	 * registers to return as if we were coming from a regular exception
+	 * by changing DEPC (in a0).
+	 *
+	 * NOTE: We CANNOT trash the current window frame (a0...a3), but we
+	 * can clobber depc.
+	 *
+	 * The tricky part here is that overflow8 and overflow12 handlers
+	 * save a0, then clobber a0.  To restart the handler, we have to restore
+	 * a0 if the double exception was past the point where a0 was clobbered.
+	 *
+	 * To keep things simple, we take advantage of the fact all overflow
+	 * handlers save a0 in their very first instruction.  If DEPC was past
+	 * that instruction, we can safely restore a0 from where it was saved
+	 * on the stack.
+	 *
+	 * a0: depc, a1: a1, a2: kstk, a3: exc_table, depc: a0, excsave1: a3
+	 */
+_DoubleExceptionVector_WindowOverflow:
+	extui	a2, a0, 0, 6	# get offset into 64-byte vector handler
+	beqz	a2, 1f		# if at start of vector, don't restore
+
+	addi	a0, a0, -128
+	bbsi.l	a0, 8, 1f	# don't restore except for overflow 8 and 12
+
+	/*
+	 * This fixup handler is for the extremely unlikely case where the
+	 * overflow handler's reference thru a0 gets a hardware TLB refill
+	 * that bumps out the (distinct, aliasing) TLB entry that mapped its
+	 * prior references thru a9/a13, and where our reference now thru
+	 * a9/a13 gets a 2nd-level miss exception (not hardware TLB refill).
+	 */
+	movi	a2, window_overflow_restore_a0_fixup
+	s32i	a2, a3, EXC_TABLE_FIXUP
+	l32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
+	xsr	a3, excsave1
+
+	bbsi.l	a0, 7, 2f
+
+	/*
+	 * Restore a0 as saved by _WindowOverflow8().
+	 */
+
+	l32e	a0, a9, -16
+	wsr	a0, depc	# replace the saved a0
+	j	3f
+
+2:
+	/*
+	 * Restore a0 as saved by _WindowOverflow12().
+	 */
+
+	l32e	a0, a13, -16
+	wsr	a0, depc	# replace the saved a0
+3:
+	xsr	a3, excsave1
+	movi	a0, 0
+	s32i	a0, a3, EXC_TABLE_FIXUP
+	s32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
+1:
+	/*
+	 * Restore WindowBase while leaving all address registers restored.
+	 * We have to use ROTW for this, because WSR.WINDOWBASE requires
+	 * an address register (which would prevent restore).
+	 *
+	 * Window Base goes from 0 ... 7 (Module 8)
+	 * Window Start is 8 bits; Ex: (0b1010 1010):0x55 from series of call4s
+	 */
+
+	rsr	a0, ps
+	extui	a0, a0, PS_OWB_SHIFT, PS_OWB_WIDTH
+	rsr	a2, windowbase
+	sub	a0, a2, a0
+	extui	a0, a0, 0, 3
+
+	l32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
+	xsr	a3, excsave1
+	beqi	a0, 1, .L1pane
+	beqi	a0, 3, .L3pane
+
+	rsr	a0, depc
+	rotw	-2
+
+	/*
+	 * We are now in the user code's original window frame.
+	 * Process the exception as a user exception as if it was
+	 * taken by the user code.
+	 *
+	 * This is similar to the user exception vector,
+	 * except that PT_DEPC isn't set to EXCCAUSE.
+	 */
+1:
+	xsr	a3, excsave1
+	wsr	a2, depc
+	l32i	a2, a3, EXC_TABLE_KSTK
+	s32i	a0, a2, PT_AREG0
+	rsr	a0, exccause
+
+	s32i	a0, a2, PT_DEPC
+
+_DoubleExceptionVector_handle_exception:
+	addi	a0, a0, -EXCCAUSE_UNALIGNED
+	beqz	a0, 2f
+	addx4	a0, a0, a3
+	l32i	a0, a0, EXC_TABLE_FAST_USER + 4 * EXCCAUSE_UNALIGNED
+	xsr	a3, excsave1
+	jx	a0
+2:
+	movi	a0, user_exception
+	xsr	a3, excsave1
+	jx	a0
+
+.L1pane:
+	rsr	a0, depc
+	rotw	-1
+	j	1b
+
+.L3pane:
+	rsr	a0, depc
+	rotw	-3
+	j	1b
+
+
+ENDPROC(_DoubleExceptionVector)
+
+/*
+ * Fixup handler for TLB miss in double exception handler for window owerflow.
+ * We get here with windowbase set to the window that was being spilled and
+ * a0 trashed. a0 bit 7 determines if this is a call8 (bit clear) or call12
+ * (bit set) window.
+ *
+ * We do the following here:
+ * - go to the original window retaining a0 value;
+ * - set up exception stack to return back to appropriate a0 restore code
+ *   (we'll need to rotate window back and there's no place to save this
+ *    information, use different return address for that);
+ * - handle the exception;
+ * - go to the window that was being spilled;
+ * - set up window_overflow_restore_a0_fixup as a fixup routine;
+ * - reload a0;
+ * - restore the original window;
+ * - reset the default fixup routine;
+ * - return to user. By the time we get to this fixup handler all information
+ *   about the conditions of the original double exception that happened in
+ *   the window overflow handler is lost, so we just return to userspace to
+ *   retry overflow from start.
+ *
+ * a0: value of depc, original value in depc
+ * a2: trashed, original value in EXC_TABLE_DOUBLE_SAVE
+ * a3: exctable, original value in excsave1
+ */
+
+ENTRY(window_overflow_restore_a0_fixup)
+
+	rsr	a0, ps
+	extui	a0, a0, PS_OWB_SHIFT, PS_OWB_WIDTH
+	rsr	a2, windowbase
+	sub	a0, a2, a0
+	extui	a0, a0, 0, 3
+	l32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
+	xsr	a3, excsave1
+
+	_beqi	a0, 1, .Lhandle_1
+	_beqi	a0, 3, .Lhandle_3
+
+	.macro	overflow_fixup_handle_exception_pane n
+
+	rsr	a0, depc
+	rotw	-\n
+
+	xsr	a3, excsave1
+	wsr	a2, depc
+	l32i	a2, a3, EXC_TABLE_KSTK
+	s32i	a0, a2, PT_AREG0
+
+	movi	a0, .Lrestore_\n
+	s32i	a0, a2, PT_DEPC
+	rsr	a0, exccause
+	j	_DoubleExceptionVector_handle_exception
+
+	.endm
+
+	overflow_fixup_handle_exception_pane 2
+.Lhandle_1:
+	overflow_fixup_handle_exception_pane 1
+.Lhandle_3:
+	overflow_fixup_handle_exception_pane 3
+
+	.macro	overflow_fixup_restore_a0_pane n
+
+	rotw	\n
+	/* Need to preserve a0 value here to be able to handle exception
+	 * that may occur on a0 reload from stack. It may occur because
+	 * TLB miss handler may not be atomic and pointer to page table
+	 * may be lost before we get here. There are no free registers,
+	 * so we need to use EXC_TABLE_DOUBLE_SAVE area.
+	 */
+	xsr	a3, excsave1
+	s32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
+	movi	a2, window_overflow_restore_a0_fixup
+	s32i	a2, a3, EXC_TABLE_FIXUP
+	l32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
+	xsr	a3, excsave1
+	bbsi.l	a0, 7, 1f
+	l32e	a0, a9, -16
+	j	2f
+1:
+	l32e	a0, a13, -16
+2:
+	rotw	-\n
+
+	.endm
+
+.Lrestore_2:
+	overflow_fixup_restore_a0_pane 2
+
+.Lset_default_fixup:
+	xsr	a3, excsave1
+	s32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
+	movi	a2, 0
+	s32i	a2, a3, EXC_TABLE_FIXUP
+	l32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
+	xsr	a3, excsave1
+	rfe
+
+.Lrestore_1:
+	overflow_fixup_restore_a0_pane 1
+	j	.Lset_default_fixup
+.Lrestore_3:
+	overflow_fixup_restore_a0_pane 3
+	j	.Lset_default_fixup
+
+ENDPROC(window_overflow_restore_a0_fixup)
+
 	.end literal_prefix
-
-
 /*
  * Debug interrupt vector
  *
@@ -349,9 +598,49 @@ ENTRY(_DoubleExceptionVector)
 	.section .DebugInterruptVector.text, "ax"
 
 ENTRY(_DebugInterruptVector)
-	xsr	a0, EXCSAVE + XCHAL_DEBUGLEVEL
+
+	xsr	a0, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 	jx	a0
 
+ENDPROC(_DebugInterruptVector)
+
+
+
+/*
+ * Medium priority level interrupt vectors
+ *
+ * Each takes less than 16 (0x10) bytes, no literals, by placing
+ * the extra 8 bytes that would otherwise be required in the window
+ * vectors area where there is space.  With relocatable vectors,
+ * all vectors are within ~ 4 kB range of each other, so we can
+ * simply jump (J) to another vector without having to use JX.
+ *
+ * common_exception code gets current IRQ level in PS.INTLEVEL
+ * and preserves it for the IRQ handling time.
+ */
+
+	.macro	irq_entry_level level
+
+	.if	XCHAL_EXCM_LEVEL >= \level
+	.section .Level\level\()InterruptVector.text, "ax"
+ENTRY(_Level\level\()InterruptVector)
+	wsr	a0, excsave2
+	rsr	a0, epc\level
+	wsr	a0, epc1
+	movi	a0, EXCCAUSE_LEVEL1_INTERRUPT
+	wsr	a0, exccause
+	rsr	a0, eps\level
+					# branch to user or kernel vector
+	j	_SimulateUserKernelVectorException
+	.endif
+
+	.endm
+
+	irq_entry_level 2
+	irq_entry_level 3
+	irq_entry_level 4
+	irq_entry_level 5
+	irq_entry_level 6
 
 
 /* Window overflow and underflow handlers.
@@ -363,38 +652,61 @@ ENTRY(_DebugInterruptVector)
  *	 we try to access any page that would cause a page fault early.
  */
 
+#define ENTRY_ALIGN64(name)	\
+	.globl name;		\
+	.align 64;		\
+	name:
+
 	.section		.WindowVectors.text, "ax"
 
 
 /* 4-Register Window Overflow Vector (Handler) */
 
-	.align 64
-.global _WindowOverflow4
-_WindowOverflow4:
+ENTRY_ALIGN64(_WindowOverflow4)
+
 	s32e	a0, a5, -16
 	s32e	a1, a5, -12
 	s32e	a2, a5,  -8
 	s32e	a3, a5,  -4
 	rfwo
 
+ENDPROC(_WindowOverflow4)
+
+
+#if XCHAL_EXCM_LEVEL >= 2
+	/*  Not a window vector - but a convenient location
+	 *  (where we know there's space) for continuation of
+	 *  medium priority interrupt dispatch code.
+	 *  On entry here, a0 contains PS, and EPC2 contains saved a0:
+	 */
+	.align 4
+_SimulateUserKernelVectorException:
+	addi	a0, a0, (1 << PS_EXCM_BIT)
+	wsr	a0, ps
+	bbsi.l	a0, PS_UM_BIT, 1f	# branch if user mode
+	rsr	a0, excsave2		# restore a0
+	j	_KernelExceptionVector	# simulate kernel vector exception
+1:	rsr	a0, excsave2		# restore a0
+	j	_UserExceptionVector	# simulate user vector exception
+#endif
+
 
 /* 4-Register Window Underflow Vector (Handler) */
 
-	.align 64
-.global _WindowUnderflow4
-_WindowUnderflow4:
+ENTRY_ALIGN64(_WindowUnderflow4)
+
 	l32e	a0, a5, -16
 	l32e	a1, a5, -12
 	l32e	a2, a5,  -8
 	l32e	a3, a5,  -4
 	rfwu
 
+ENDPROC(_WindowUnderflow4)
 
 /* 8-Register Window Overflow Vector (Handler) */
 
-	.align 64
-.global _WindowOverflow8
-_WindowOverflow8:
+ENTRY_ALIGN64(_WindowOverflow8)
+
 	s32e	a0, a9, -16
 	l32e	a0, a1, -12
 	s32e	a2, a9,  -8
@@ -406,11 +718,12 @@ _WindowOverflow8:
 	s32e	a7, a0, -20
 	rfwo
 
+ENDPROC(_WindowOverflow8)
+
 /* 8-Register Window Underflow Vector (Handler) */
 
-	.align 64
-.global _WindowUnderflow8
-_WindowUnderflow8:
+ENTRY_ALIGN64(_WindowUnderflow8)
+
 	l32e	a1, a9, -12
 	l32e	a0, a9, -16
 	l32e	a7, a1, -12
@@ -422,12 +735,12 @@ _WindowUnderflow8:
 	l32e	a7, a7, -20
 	rfwu
 
+ENDPROC(_WindowUnderflow8)
 
 /* 12-Register Window Overflow Vector (Handler) */
 
-	.align 64
-.global _WindowOverflow12
-_WindowOverflow12:
+ENTRY_ALIGN64(_WindowOverflow12)
+
 	s32e	a0,  a13, -16
 	l32e	a0,  a1,  -12
 	s32e	a1,  a13, -12
@@ -443,11 +756,12 @@ _WindowOverflow12:
 	s32e	a11, a0,  -20
 	rfwo
 
+ENDPROC(_WindowOverflow12)
+
 /* 12-Register Window Underflow Vector (Handler) */
 
-	.align 64
-.global _WindowUnderflow12
-_WindowUnderflow12:
+ENTRY_ALIGN64(_WindowUnderflow12)
+
 	l32e	a1,  a13, -12
 	l32e	a0,  a13, -16
 	l32e	a11, a1,  -12
@@ -463,6 +777,6 @@ _WindowUnderflow12:
 	l32e	a11, a11, -20
 	rfwu
 
+ENDPROC(_WindowUnderflow12)
+
 	.text
-
-

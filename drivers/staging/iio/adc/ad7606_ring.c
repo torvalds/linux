@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Analog Devices Inc.
+ * Copyright 2011-2012 Analog Devices Inc.
  *
  * Licensed under the GPL-2.
  *
@@ -11,10 +11,10 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
-#include "../iio.h"
-#include "../buffer.h"
-#include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include "ad7606.h"
 
@@ -46,13 +46,10 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	struct ad7606_state *st = container_of(work_s, struct ad7606_state,
 						poll_work);
 	struct iio_dev *indio_dev = iio_priv_to_dev(st);
-	struct iio_buffer *ring = indio_dev->buffer;
-	s64 time_ns;
 	__u8 *buf;
 	int ret;
 
-	buf = kzalloc(ring->access->get_bytes_per_datum(ring),
-		      GFP_KERNEL);
+	buf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (buf == NULL)
 		return;
 
@@ -80,67 +77,25 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 			goto done;
 	}
 
-	time_ns = iio_get_time_ns();
-
-	if (ring->scan_timestamp)
-		*((s64 *)(buf + ring->access->get_bytes_per_datum(ring) -
-			  sizeof(s64))) = time_ns;
-
-	ring->access->store_to(indio_dev->buffer, buf, time_ns);
+	iio_push_to_buffers_with_timestamp(indio_dev, buf, iio_get_time_ns());
 done:
 	gpio_set_value(st->pdata->gpio_convst, 0);
 	iio_trigger_notify_done(indio_dev->trig);
 	kfree(buf);
 }
 
-static const struct iio_buffer_setup_ops ad7606_ring_setup_ops = {
-	.preenable = &iio_sw_buffer_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
-};
-
 int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	int ret;
-
-	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	indio_dev->pollfunc = iio_alloc_pollfunc(&ad7606_trigger_handler_th_bh,
-						 &ad7606_trigger_handler_th_bh,
-						 0,
-						 indio_dev,
-						 "%s_consumer%d",
-						 indio_dev->name,
-						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_deallocate_sw_rb;
-	}
-
-	/* Ring buffer functions - here trigger setup related */
-
-	indio_dev->setup_ops = &ad7606_ring_setup_ops;
-	indio_dev->buffer->scan_timestamp = true ;
 
 	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);
 
-	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-	return 0;
-
-error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->buffer);
-error_ret:
-	return ret;
+	return iio_triggered_buffer_setup(indio_dev,
+		&ad7606_trigger_handler_th_bh, &ad7606_trigger_handler_th_bh,
+		NULL);
 }
 
 void ad7606_ring_cleanup(struct iio_dev *indio_dev)
 {
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_triggered_buffer_cleanup(indio_dev);
 }

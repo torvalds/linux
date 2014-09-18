@@ -45,7 +45,7 @@
  * cpu_mohawk_proc_init()
  */
 ENTRY(cpu_mohawk_proc_init)
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_mohawk_proc_fin()
@@ -55,7 +55,7 @@ ENTRY(cpu_mohawk_proc_fin)
 	bic	r0, r0, #0x1800			@ ...iz...........
 	bic	r0, r0, #0x0006			@ .............ca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_mohawk_reset(loc)
@@ -79,7 +79,7 @@ ENTRY(cpu_mohawk_reset)
 	bic	ip, ip, #0x0007			@ .............cam
 	bic	ip, ip, #0x1100			@ ...i...s........
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
-	mov	pc, r0
+	ret	r0
 ENDPROC(cpu_mohawk_reset)
 	.popsection
 
@@ -93,7 +93,7 @@ ENTRY(cpu_mohawk_do_idle)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
 	mcr	p15, 0, r0, c7, c0, 4		@ wait for interrupt
-	mov	pc, lr
+	ret	lr
 
 /*
  *	flush_icache_all()
@@ -103,7 +103,7 @@ ENTRY(cpu_mohawk_do_idle)
 ENTRY(mohawk_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
-	mov	pc, lr
+	ret	lr
 ENDPROC(mohawk_flush_icache_all)
 
 /*
@@ -128,7 +128,7 @@ __flush_whole_cache:
 	tst	r2, #VM_EXEC
 	mcrne	p15, 0, ip, c7, c5, 0		@ invalidate I cache
 	mcrne	p15, 0, ip, c7, c10, 0		@ drain write buffer
-	mov	pc, lr
+	ret	lr
 
 /*
  *	flush_user_cache_range(start, end, flags)
@@ -158,7 +158,7 @@ ENTRY(mohawk_flush_user_cache_range)
 	blo	1b
 	tst	r2, #VM_EXEC
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	coherent_kern_range(start, end)
@@ -193,7 +193,8 @@ ENTRY(mohawk_coherent_user_range)
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	mov	r0, #0
+	ret	lr
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -213,7 +214,7 @@ ENTRY(mohawk_flush_kern_dcache_area)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_inv_range(start, end)
@@ -239,7 +240,7 @@ mohawk_dma_inv_range:
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_clean_range(start, end)
@@ -258,7 +259,7 @@ mohawk_dma_clean_range:
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_flush_range(start, end)
@@ -276,7 +277,7 @@ ENTRY(mohawk_dma_flush_range)
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_map_area(start, size, dir)
@@ -299,8 +300,11 @@ ENDPROC(mohawk_dma_map_area)
  *	- dir	- DMA direction
  */
 ENTRY(mohawk_dma_unmap_area)
-	mov	pc, lr
+	ret	lr
 ENDPROC(mohawk_dma_unmap_area)
+
+	.globl	mohawk_flush_kern_cache_louis
+	.equ	mohawk_flush_kern_cache_louis, mohawk_flush_kern_cache_all
 
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
 	define_cache_functions mohawk
@@ -311,7 +315,7 @@ ENTRY(cpu_mohawk_dcache_clean_area)
 	subs	r1, r1, #CACHE_DLINESIZE
 	bhi	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_mohawk_switch_mm(pgd)
@@ -329,7 +333,7 @@ ENTRY(cpu_mohawk_switch_mm)
 	orr	r0, r0, #0x18			@ cache the page table in L2
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_mohawk_set_pte_ext(ptep, pte, ext)
@@ -342,9 +346,42 @@ ENTRY(cpu_mohawk_set_pte_ext)
 	mov	r0, r0
 	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
-	__CPUINIT
+.globl	cpu_mohawk_suspend_size
+.equ	cpu_mohawk_suspend_size, 4 * 6
+#ifdef CONFIG_ARM_CPU_SUSPEND
+ENTRY(cpu_mohawk_do_suspend)
+	stmfd	sp!, {r4 - r9, lr}
+	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode
+	mrc	p15, 0, r5, c15, c1, 0	@ CP access reg
+	mrc	p15, 0, r6, c13, c0, 0	@ PID
+	mrc 	p15, 0, r7, c3, c0, 0	@ domain ID
+	mrc	p15, 0, r8, c1, c0, 1	@ auxiliary control reg
+	mrc 	p15, 0, r9, c1, c0, 0	@ control reg
+	bic	r4, r4, #2		@ clear frequency change bit
+	stmia	r0, {r4 - r9}		@ store cp regs
+	ldmia	sp!, {r4 - r9, pc}
+ENDPROC(cpu_mohawk_do_suspend)
+
+ENTRY(cpu_mohawk_do_resume)
+	ldmia	r0, {r4 - r9}		@ load cp regs
+	mov	ip, #0
+	mcr	p15, 0, ip, c7, c7, 0	@ invalidate I & D caches, BTB
+	mcr	p15, 0, ip, c7, c10, 4	@ drain write (&fill) buffer
+	mcr	p15, 0, ip, c7, c5, 4	@ flush prefetch buffer
+	mcr	p15, 0, ip, c8, c7, 0	@ invalidate I & D TLBs
+	mcr	p14, 0, r4, c6, c0, 0	@ clock configuration, turbo mode.
+	mcr	p15, 0, r5, c15, c1, 0	@ CP access reg
+	mcr	p15, 0, r6, c13, c0, 0	@ PID
+	mcr	p15, 0, r7, c3, c0, 0	@ domain ID
+	orr	r1, r1, #0x18		@ cache the page table in L2
+	mcr	p15, 0, r1, c2, c0, 0	@ translation table base addr
+	mcr	p15, 0, r8, c1, c0, 1	@ auxiliary control reg
+	mov	r0, r9			@ control register
+	b	cpu_resume_mmu
+ENDPROC(cpu_mohawk_do_resume)
+#endif
 
 	.type	__mohawk_setup, #function
 __mohawk_setup:
@@ -363,7 +400,7 @@ __mohawk_setup:
 	mrc	p15, 0, r0, c1, c0		@ get control register
 	bic	r0, r0, r5
 	orr	r0, r0, r6
-	mov	pc, lr
+	ret	lr
 
 	.size	__mohawk_setup, . - __mohawk_setup
 

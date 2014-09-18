@@ -47,12 +47,10 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			*location = value;
 			break;
 		case R_OR32_CONST:
-			location = (uint16_t *)location + 1;
-			*((uint16_t *)location) = (uint16_t) (value);
+			*((uint16_t *)location + 1) = value;
 			break;
 		case R_OR32_CONSTH:
-			location = (uint16_t *)location + 1;
-			*((uint16_t *)location) = (uint16_t) (value >> 16);
+			*((uint16_t *)location + 1) = value >> 16;
 			break;
 		case R_OR32_JUMPTARG:
 			value -= (uint32_t)location;

@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-s3c2412/s3c2412.c
- *
+/*
  * Copyright (c) 2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -21,36 +20,36 @@
 #include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/reboot.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/hardware.h>
 #include <asm/proc-fns.h>
 #include <asm/irq.h>
 #include <asm/system_misc.h>
 
-#include <plat/cpu-freq.h>
-
+#include <mach/hardware.h>
 #include <mach/regs-clock.h>
-#include <plat/regs-serial.h>
-#include <mach/regs-power.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-gpioj.h>
-#include <mach/regs-dsc.h>
-#include <plat/regs-spi.h>
-#include <mach/regs-s3c2412.h>
 
-#include <plat/s3c2412.h>
 #include <plat/cpu.h>
+#include <plat/cpu-freq.h>
 #include <plat/devs.h>
-#include <plat/clock.h>
-#include <plat/pm.h>
-#include <plat/pll.h>
 #include <plat/nand-core.h>
+#include <plat/pm.h>
+#include <plat/regs-spi.h>
+
+#include "common.h"
+#include "regs-dsc.h"
+#include "s3c2412-power.h"
+
+#define S3C2412_SWRST			(S3C24XX_VA_CLKPWR + 0x30)
+#define S3C2412_SWRST_RESET		(0x533C2412)
 
 #ifndef CONFIG_CPU_S3C2412_ONLY
 void __iomem *s3c24xx_va_gpio2 = S3C24XX_VA_GPIO;
@@ -129,9 +128,9 @@ static void s3c2412_idle(void)
 	cpu_do_idle();
 }
 
-void s3c2412_restart(char mode, const char *cmd)
+void s3c2412_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode == 's')
+	if (mode == REBOOT_SOFT)
 		soft_restart(0);
 
 	/* errata "Watch-dog/Software Reset Problem" specifies that
@@ -170,53 +169,6 @@ void __init s3c2412_map_io(void)
 	iotable_init(s3c2412_iodesc, ARRAY_SIZE(s3c2412_iodesc));
 }
 
-void __init_or_cpufreq s3c2412_setup_clocks(void)
-{
-	struct clk *xtal_clk;
-	unsigned long tmp;
-	unsigned long xtal;
-	unsigned long fclk;
-	unsigned long hclk;
-	unsigned long pclk;
-
-	xtal_clk = clk_get(NULL, "xtal");
-	xtal = clk_get_rate(xtal_clk);
-	clk_put(xtal_clk);
-
-	/* now we've got our machine bits initialised, work out what
-	 * clocks we've got */
-
-	fclk = s3c24xx_get_pll(__raw_readl(S3C2410_MPLLCON), xtal * 2);
-
-	clk_mpll.rate = fclk;
-
-	tmp = __raw_readl(S3C2410_CLKDIVN);
-
-	/* work out clock scalings */
-
-	hclk = fclk / ((tmp & S3C2412_CLKDIVN_HDIVN_MASK) + 1);
-	hclk /= ((tmp & S3C2412_CLKDIVN_ARMDIVN) ? 2 : 1);
-	pclk = hclk / ((tmp & S3C2412_CLKDIVN_PDIVN) ? 2 : 1);
-
-	/* print brieft summary of clocks, etc */
-
-	printk("S3C2412: core %ld.%03ld MHz, memory %ld.%03ld MHz, peripheral %ld.%03ld MHz\n",
-	       print_mhz(fclk), print_mhz(hclk), print_mhz(pclk));
-
-	s3c24xx_setup_clocks(fclk, hclk, pclk);
-}
-
-void __init s3c2412_init_clocks(int xtal)
-{
-	/* initialise the clocks here, to allow other things like the
-	 * console to use them
-	 */
-
-	s3c24xx_register_baseclocks(xtal);
-	s3c2412_setup_clocks();
-	s3c2412_baseclk_add();
-}
-
 /* need to register the subsystem before we actually register the device, and
  * we also need to ensure that it has been initialised before any of the
  * drivers even try to use it (even if not on an s3c2412 based system)
@@ -245,8 +197,8 @@ int __init s3c2412_init(void)
 
 #ifdef CONFIG_PM
 	register_syscore_ops(&s3c2412_pm_syscore_ops);
-#endif
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
+#endif
 
 	return device_register(&s3c2412_dev);
 }

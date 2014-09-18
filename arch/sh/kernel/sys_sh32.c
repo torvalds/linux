@@ -21,17 +21,14 @@
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way Unix traditionally does this, though.
  */
-asmlinkage int sys_sh_pipe(unsigned long r4, unsigned long r5,
-	unsigned long r6, unsigned long r7,
-	struct pt_regs __regs)
+asmlinkage int sys_sh_pipe(void)
 {
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	int fd[2];
 	int error;
 
 	error = do_pipe_flags(fd, 0);
 	if (!error) {
-		regs->regs[1] = fd[1];
+		current_pt_regs()->regs[1] = fd[1];
 		return fd[0];
 	}
 	return error;
@@ -59,28 +56,4 @@ asmlinkage int sys_fadvise64_64_wrapper(int fd, u32 offset0, u32 offset1,
 	return sys_fadvise64_64(fd, (u64)offset0 << 32 | offset1,
 				(u64)len0 << 32 | len1,	advice);
 #endif
-}
-
-#if defined(CONFIG_CPU_SH2) || defined(CONFIG_CPU_SH2A)
-#define SYSCALL_ARG3	"trapa #0x23"
-#else
-#define SYSCALL_ARG3	"trapa #0x13"
-#endif
-
-/*
- * Do a system call from kernel instead of calling sys_execve so we
- * end up with proper pt_regs.
- */
-int kernel_execve(const char *filename,
-		  const char *const argv[],
-		  const char *const envp[])
-{
-	register long __sc0 __asm__ ("r3") = __NR_execve;
-	register long __sc4 __asm__ ("r4") = (long) filename;
-	register long __sc5 __asm__ ("r5") = (long) argv;
-	register long __sc6 __asm__ ("r6") = (long) envp;
-	__asm__ __volatile__ (SYSCALL_ARG3 : "=z" (__sc0)
-			: "0" (__sc0), "r" (__sc4), "r" (__sc5), "r" (__sc6)
-			: "memory");
-	return __sc0;
 }

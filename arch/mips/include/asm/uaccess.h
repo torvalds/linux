@@ -6,6 +6,7 @@
  * Copyright (C) 1996, 1997, 1998, 1999, 2000, 03, 04 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2007  Maciej W. Rozycki
+ * Copyright (C) 2014, Imagination Technologies Ltd.
  */
 #ifndef _ASM_UACCESS_H
 #define _ASM_UACCESS_H
@@ -13,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/thread_info.h>
+#include <asm/asm-eva.h>
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -23,7 +25,11 @@
  */
 #ifdef CONFIG_32BIT
 
-#define __UA_LIMIT	0x80000000UL
+#ifdef CONFIG_KVM_GUEST
+#define __UA_LIMIT 0x40000000UL
+#else
+#define __UA_LIMIT 0x80000000UL
+#endif
 
 #define __UA_ADDR	".word"
 #define __UA_LA		"la"
@@ -55,8 +61,13 @@ extern u64 __ua_limit;
  * address in this range it's the process's problem, not ours :-)
  */
 
+#ifdef CONFIG_KVM_GUEST
+#define KERNEL_DS	((mm_segment_t) { 0x80000000UL })
+#define USER_DS		((mm_segment_t) { 0xC0000000UL })
+#else
 #define KERNEL_DS	((mm_segment_t) { 0UL })
 #define USER_DS		((mm_segment_t) { __UA_LIMIT })
+#endif
 
 #define VERIFY_READ    0
 #define VERIFY_WRITE   1
@@ -87,12 +98,12 @@ extern u64 __ua_limit;
 /*
  * access_ok: - Checks if a user space pointer is valid
  * @type: Type of access: %VERIFY_READ or %VERIFY_WRITE.  Note that
- *        %VERIFY_WRITE is a superset of %VERIFY_READ - if it is safe
- *        to write to a block, it is always safe to read from it.
+ *	  %VERIFY_WRITE is a superset of %VERIFY_READ - if it is safe
+ *	  to write to a block, it is always safe to read from it.
  * @addr: User space pointer to start of block to check
  * @size: Size of block to check
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Checks if a pointer to a block of memory in user space is valid.
  *
@@ -124,10 +135,10 @@ extern u64 __ua_limit;
 
 /*
  * put_user: - Write a simple value into user space.
- * @x:   Value to copy to user space.
+ * @x:	 Value to copy to user space.
  * @ptr: Destination address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
  * space.  It supports simple types like char and int, but not larger
@@ -138,15 +149,15 @@ extern u64 __ua_limit;
  *
  * Returns zero on success, or -EFAULT on error.
  */
-#define put_user(x,ptr)	\
+#define put_user(x,ptr) \
 	__put_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
  * get_user: - Get a simple variable from user space.
- * @x:   Variable to store result.
+ * @x:	 Variable to store result.
  * @ptr: Source address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
  * space.  It supports simple types like char and int, but not larger
@@ -163,10 +174,10 @@ extern u64 __ua_limit;
 
 /*
  * __put_user: - Write a simple value into user space, with less checking.
- * @x:   Value to copy to user space.
+ * @x:	 Value to copy to user space.
  * @ptr: Destination address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
  * space.  It supports simple types like char and int, but not larger
@@ -185,10 +196,10 @@ extern u64 __ua_limit;
 
 /*
  * __get_user: - Get a simple variable from user space, with less checking.
- * @x:   Variable to store result.
+ * @x:	 Variable to store result.
  * @ptr: Source address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
  * space.  It supports simple types like char and int, but not larger
@@ -213,11 +224,44 @@ struct __large_struct { unsigned long buf[100]; };
  * Yuck.  We need two variants, one for 64bit operation and one
  * for 32 bit mode and old iron.
  */
+#ifndef CONFIG_EVA
+#define __get_kernel_common(val, size, ptr) __get_user_common(val, size, ptr)
+#else
+/*
+ * Kernel specific functions for EVA. We need to use normal load instructions
+ * to read data from kernel when operating in EVA mode. We use these macros to
+ * avoid redefining __get_user_asm for EVA.
+ */
+#undef _loadd
+#undef _loadw
+#undef _loadh
+#undef _loadb
 #ifdef CONFIG_32BIT
-#define __GET_USER_DW(val, ptr) __get_user_asm_ll32(val, ptr)
+#define _loadd			_loadw
+#else
+#define _loadd(reg, addr)	"ld " reg ", " addr
+#endif
+#define _loadw(reg, addr)	"lw " reg ", " addr
+#define _loadh(reg, addr)	"lh " reg ", " addr
+#define _loadb(reg, addr)	"lb " reg ", " addr
+
+#define __get_kernel_common(val, size, ptr)				\
+do {									\
+	switch (size) {							\
+	case 1: __get_data_asm(val, _loadb, ptr); break;		\
+	case 2: __get_data_asm(val, _loadh, ptr); break;		\
+	case 4: __get_data_asm(val, _loadw, ptr); break;		\
+	case 8: __GET_DW(val, _loadd, ptr); break;			\
+	default: __get_user_unknown(); break;				\
+	}								\
+} while (0)
+#endif
+
+#ifdef CONFIG_32BIT
+#define __GET_DW(val, insn, ptr) __get_data_asm_ll32(val, insn, ptr)
 #endif
 #ifdef CONFIG_64BIT
-#define __GET_USER_DW(val, ptr) __get_user_asm(val, "ld", ptr)
+#define __GET_DW(val, insn, ptr) __get_data_asm(val, insn, ptr)
 #endif
 
 extern void __get_user_unknown(void);
@@ -225,10 +269,10 @@ extern void __get_user_unknown(void);
 #define __get_user_common(val, size, ptr)				\
 do {									\
 	switch (size) {							\
-	case 1: __get_user_asm(val, "lb", ptr); break;			\
-	case 2: __get_user_asm(val, "lh", ptr); break;			\
-	case 4: __get_user_asm(val, "lw", ptr); break;			\
-	case 8: __GET_USER_DW(val, ptr); break;				\
+	case 1: __get_data_asm(val, user_lb, ptr); break;		\
+	case 2: __get_data_asm(val, user_lh, ptr); break;		\
+	case 4: __get_data_asm(val, user_lw, ptr); break;		\
+	case 8: __GET_DW(val, user_ld, ptr); break;			\
 	default: __get_user_unknown(); break;				\
 	}								\
 } while (0)
@@ -237,8 +281,12 @@ do {									\
 ({									\
 	int __gu_err;							\
 									\
-	__chk_user_ptr(ptr);						\
-	__get_user_common((x), size, ptr);				\
+	if (segment_eq(get_fs(), get_ds())) {				\
+		__get_kernel_common((x), size, ptr);			\
+	} else {							\
+		__chk_user_ptr(ptr);					\
+		__get_user_common((x), size, ptr);			\
+	}								\
 	__gu_err;							\
 })
 
@@ -248,19 +296,24 @@ do {									\
 	const __typeof__(*(ptr)) __user * __gu_ptr = (ptr);		\
 									\
 	might_fault();							\
-	if (likely(access_ok(VERIFY_READ,  __gu_ptr, size)))		\
-		__get_user_common((x), size, __gu_ptr);			\
+	if (likely(access_ok(VERIFY_READ,  __gu_ptr, size))) {		\
+		if (segment_eq(get_fs(), get_ds()))			\
+			__get_kernel_common((x), size, __gu_ptr);	\
+		else							\
+			__get_user_common((x), size, __gu_ptr);		\
+	}								\
 									\
 	__gu_err;							\
 })
 
-#define __get_user_asm(val, insn, addr)					\
+#define __get_data_asm(val, insn, addr)					\
 {									\
 	long __gu_tmp;							\
 									\
 	__asm__ __volatile__(						\
-	"1:	" insn "	%1, %3				\n"	\
+	"1:	"insn("%1", "%3")"				\n"	\
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -277,7 +330,7 @@ do {									\
 /*
  * Get a long long 64 using 32 bit registers.
  */
-#define __get_user_asm_ll32(val, addr)					\
+#define __get_data_asm_ll32(val, insn, addr)				\
 {									\
 	union {								\
 		unsigned long long	l;				\
@@ -285,9 +338,11 @@ do {									\
 	} __gu_tmp;							\
 									\
 	__asm__ __volatile__(						\
-	"1:	lw	%1, (%3)				\n"	\
-	"2:	lw	%D1, 4(%3)				\n"	\
-	"3:	.section	.fixup,\"ax\"			\n"	\
+	"1:	" insn("%1", "(%3)")"				\n"	\
+	"2:	" insn("%D1", "4(%3)")"				\n"	\
+	"3:							\n"	\
+	"	.insn						\n"	\
+	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	move	%1, $0					\n"	\
 	"	move	%D1, $0					\n"	\
@@ -303,30 +358,73 @@ do {									\
 	(val) = __gu_tmp.t;						\
 }
 
+#ifndef CONFIG_EVA
+#define __put_kernel_common(ptr, size) __put_user_common(ptr, size)
+#else
+/*
+ * Kernel specific functions for EVA. We need to use normal load instructions
+ * to read data from kernel when operating in EVA mode. We use these macros to
+ * avoid redefining __get_data_asm for EVA.
+ */
+#undef _stored
+#undef _storew
+#undef _storeh
+#undef _storeb
+#ifdef CONFIG_32BIT
+#define _stored			_storew
+#else
+#define _stored(reg, addr)	"ld " reg ", " addr
+#endif
+
+#define _storew(reg, addr)	"sw " reg ", " addr
+#define _storeh(reg, addr)	"sh " reg ", " addr
+#define _storeb(reg, addr)	"sb " reg ", " addr
+
+#define __put_kernel_common(ptr, size)					\
+do {									\
+	switch (size) {							\
+	case 1: __put_data_asm(_storeb, ptr); break;			\
+	case 2: __put_data_asm(_storeh, ptr); break;			\
+	case 4: __put_data_asm(_storew, ptr); break;			\
+	case 8: __PUT_DW(_stored, ptr); break;				\
+	default: __put_user_unknown(); break;				\
+	}								\
+} while(0)
+#endif
+
 /*
  * Yuck.  We need two variants, one for 64bit operation and one
  * for 32 bit mode and old iron.
  */
 #ifdef CONFIG_32BIT
-#define __PUT_USER_DW(ptr) __put_user_asm_ll32(ptr)
+#define __PUT_DW(insn, ptr) __put_data_asm_ll32(insn, ptr)
 #endif
 #ifdef CONFIG_64BIT
-#define __PUT_USER_DW(ptr) __put_user_asm("sd", ptr)
+#define __PUT_DW(insn, ptr) __put_data_asm(insn, ptr)
 #endif
+
+#define __put_user_common(ptr, size)					\
+do {									\
+	switch (size) {							\
+	case 1: __put_data_asm(user_sb, ptr); break;			\
+	case 2: __put_data_asm(user_sh, ptr); break;			\
+	case 4: __put_data_asm(user_sw, ptr); break;			\
+	case 8: __PUT_DW(user_sd, ptr); break;				\
+	default: __put_user_unknown(); break;				\
+	}								\
+} while (0)
 
 #define __put_user_nocheck(x, ptr, size)				\
 ({									\
 	__typeof__(*(ptr)) __pu_val;					\
 	int __pu_err = 0;						\
 									\
-	__chk_user_ptr(ptr);						\
 	__pu_val = (x);							\
-	switch (size) {							\
-	case 1: __put_user_asm("sb", ptr); break;			\
-	case 2: __put_user_asm("sh", ptr); break;			\
-	case 4: __put_user_asm("sw", ptr); break;			\
-	case 8: __PUT_USER_DW(ptr); break;				\
-	default: __put_user_unknown(); break;				\
+	if (segment_eq(get_fs(), get_ds())) {				\
+		__put_kernel_common(ptr, size);				\
+	} else {							\
+		__chk_user_ptr(ptr);					\
+		__put_user_common(ptr, size);				\
 	}								\
 	__pu_err;							\
 })
@@ -339,22 +437,21 @@ do {									\
 									\
 	might_fault();							\
 	if (likely(access_ok(VERIFY_WRITE,  __pu_addr, size))) {	\
-		switch (size) {						\
-		case 1: __put_user_asm("sb", __pu_addr); break;		\
-		case 2: __put_user_asm("sh", __pu_addr); break;		\
-		case 4: __put_user_asm("sw", __pu_addr); break;		\
-		case 8: __PUT_USER_DW(__pu_addr); break;		\
-		default: __put_user_unknown(); break;			\
-		}							\
+		if (segment_eq(get_fs(), get_ds()))			\
+			__put_kernel_common(__pu_addr, size);		\
+		else							\
+			__put_user_common(__pu_addr, size);		\
 	}								\
+									\
 	__pu_err;							\
 })
 
-#define __put_user_asm(insn, ptr)					\
+#define __put_data_asm(insn, ptr)					\
 {									\
 	__asm__ __volatile__(						\
-	"1:	" insn "	%z2, %3		# __put_user_asm\n"	\
+	"1:	"insn("%z2", "%3")"	# __put_data_asm	\n"	\
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -367,12 +464,13 @@ do {									\
 	  "i" (-EFAULT));						\
 }
 
-#define __put_user_asm_ll32(ptr)					\
+#define __put_data_asm_ll32(insn, ptr)					\
 {									\
 	__asm__ __volatile__(						\
-	"1:	sw	%2, (%3)	# __put_user_asm_ll32	\n"	\
-	"2:	sw	%D2, 4(%3)				\n"	\
+	"1:	"insn("%2", "(%3)")"	# __put_data_asm_ll32	\n"	\
+	"2:	"insn("%D2", "4(%3)")"				\n"	\
 	"3:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	j	3b					\n"	\
@@ -389,11 +487,16 @@ do {									\
 extern void __put_user_unknown(void);
 
 /*
+ * ul{b,h,w} are macros and there are no equivalent macros for EVA.
+ * EVA unaligned access is handled in the ADE exception handler.
+ */
+#ifndef CONFIG_EVA
+/*
  * put_user_unaligned: - Write a simple value into user space.
- * @x:   Value to copy to user space.
+ * @x:	 Value to copy to user space.
  * @ptr: Destination address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
  * space.  It supports simple types like char and int, but not larger
@@ -409,10 +512,10 @@ extern void __put_user_unknown(void);
 
 /*
  * get_user_unaligned: - Get a simple variable from user space.
- * @x:   Variable to store result.
+ * @x:	 Variable to store result.
  * @ptr: Source address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
  * space.  It supports simple types like char and int, but not larger
@@ -429,10 +532,10 @@ extern void __put_user_unknown(void);
 
 /*
  * __put_user_unaligned: - Write a simple value into user space, with less checking.
- * @x:   Value to copy to user space.
+ * @x:	 Value to copy to user space.
  * @ptr: Destination address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
  * space.  It supports simple types like char and int, but not larger
@@ -451,10 +554,10 @@ extern void __put_user_unknown(void);
 
 /*
  * __get_user_unaligned: - Get a simple variable from user space, with less checking.
- * @x:   Variable to store result.
+ * @x:	 Variable to store result.
  * @ptr: Source address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
  * space.  It supports simple types like char and int, but not larger
@@ -490,7 +593,7 @@ extern void __get_user_unaligned_unknown(void);
 #define __get_user_unaligned_common(val, size, ptr)			\
 do {									\
 	switch (size) {							\
-	case 1: __get_user_asm(val, "lb", ptr); break;			\
+	case 1: __get_data_asm(val, "lb", ptr); break;			\
 	case 2: __get_user_unaligned_asm(val, "ulh", ptr); break;	\
 	case 4: __get_user_unaligned_asm(val, "ulw", ptr); break;	\
 	case 8: __GET_USER_UNALIGNED_DW(val, ptr); break;		\
@@ -517,13 +620,14 @@ do {									\
 	__gu_err;							\
 })
 
-#define __get_user_unaligned_asm(val, insn, addr)			\
+#define __get_data_unaligned_asm(val, insn, addr)			\
 {									\
 	long __gu_tmp;							\
 									\
 	__asm__ __volatile__(						\
 	"1:	" insn "	%1, %3				\n"	\
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -543,13 +647,15 @@ do {									\
  */
 #define __get_user_unaligned_asm_ll32(val, addr)			\
 {									\
-        unsigned long long __gu_tmp;					\
+	unsigned long long __gu_tmp;					\
 									\
 	__asm__ __volatile__(						\
 	"1:	ulw	%1, (%3)				\n"	\
 	"2:	ulw	%D1, 4(%3)				\n"	\
 	"	move	%0, $0					\n"	\
-	"3:	.section	.fixup,\"ax\"			\n"	\
+	"3:							\n"	\
+	"	.insn						\n"	\
+	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	move	%1, $0					\n"	\
 	"	move	%D1, $0					\n"	\
@@ -577,19 +683,23 @@ do {									\
 #define __PUT_USER_UNALIGNED_DW(ptr) __put_user_unaligned_asm("usd", ptr)
 #endif
 
+#define __put_user_unaligned_common(ptr, size)				\
+do {									\
+	switch (size) {							\
+	case 1: __put_data_asm("sb", ptr); break;			\
+	case 2: __put_user_unaligned_asm("ush", ptr); break;		\
+	case 4: __put_user_unaligned_asm("usw", ptr); break;		\
+	case 8: __PUT_USER_UNALIGNED_DW(ptr); break;			\
+	default: __put_user_unaligned_unknown(); break;			\
+} while (0)
+
 #define __put_user_unaligned_nocheck(x,ptr,size)			\
 ({									\
 	__typeof__(*(ptr)) __pu_val;					\
 	int __pu_err = 0;						\
 									\
 	__pu_val = (x);							\
-	switch (size) {							\
-	case 1: __put_user_asm("sb", ptr); break;			\
-	case 2: __put_user_unaligned_asm("ush", ptr); break;		\
-	case 4: __put_user_unaligned_asm("usw", ptr); break;		\
-	case 8: __PUT_USER_UNALIGNED_DW(ptr); break;			\
-	default: __put_user_unaligned_unknown(); break;			\
-	}								\
+	__put_user_unaligned_common(ptr, size);				\
 	__pu_err;							\
 })
 
@@ -599,15 +709,9 @@ do {									\
 	__typeof__(*(ptr)) __pu_val = (x);				\
 	int __pu_err = -EFAULT;						\
 									\
-	if (likely(access_ok(VERIFY_WRITE,  __pu_addr, size))) {	\
-		switch (size) {						\
-		case 1: __put_user_asm("sb", __pu_addr); break;		\
-		case 2: __put_user_unaligned_asm("ush", __pu_addr); break; \
-		case 4: __put_user_unaligned_asm("usw", __pu_addr); break; \
-		case 8: __PUT_USER_UNALGINED_DW(__pu_addr); break;	\
-		default: __put_user_unaligned_unknown(); break;		\
-		}							\
-	}								\
+	if (likely(access_ok(VERIFY_WRITE,  __pu_addr, size)))		\
+		__put_user_unaligned_common(__pu_addr, size);		\
+									\
 	__pu_err;							\
 })
 
@@ -616,6 +720,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	" insn "	%z2, %3		# __put_user_unaligned_asm\n" \
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -631,9 +736,10 @@ do {									\
 #define __put_user_unaligned_asm_ll32(ptr)				\
 {									\
 	__asm__ __volatile__(						\
-	"1:	sw	%2, (%3)	# __put_user_unaligned_asm_ll32	\n" \
+	"1:	sw	%2, (%3)	# __put_user_unaligned_asm_ll32 \n" \
 	"2:	sw	%D2, 4(%3)				\n"	\
 	"3:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	j	3b					\n"	\
@@ -650,6 +756,7 @@ do {									\
 }
 
 extern void __put_user_unaligned_unknown(void);
+#endif
 
 /*
  * We're generating jump to subroutines which will be outside the range of
@@ -658,7 +765,7 @@ extern void __put_user_unaligned_unknown(void);
 #ifdef MODULE
 #define __MODULE_JAL(destination)					\
 	".set\tnoat\n\t"						\
-	__UA_LA "\t$1, " #destination "\n\t" 				\
+	__UA_LA "\t$1, " #destination "\n\t"				\
 	"jalr\t$1\n\t"							\
 	".set\tat\n\t"
 #else
@@ -674,6 +781,7 @@ extern void __put_user_unaligned_unknown(void);
 
 extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 
+#ifndef CONFIG_EVA
 #define __invoke_copy_to_user(to, from, n)				\
 ({									\
 	register void __user *__cu_to_r __asm__("$4");			\
@@ -687,18 +795,23 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__MODULE_JAL(__copy_user)					\
 	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
 	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$15", "$24", "$31",		\
+	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
 	  DADDI_SCRATCH, "memory");					\
 	__cu_len_r;							\
 })
 
+#define __invoke_copy_to_kernel(to, from, n)				\
+	__invoke_copy_to_user(to, from, n)
+
+#endif
+
 /*
  * __copy_to_user: - Copy a block of data into user space, with less checking.
- * @to:   Destination address, in user space.
+ * @to:	  Destination address, in user space.
  * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
+ * @n:	  Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Copy data from kernel space to user space.  Caller must check
  * the specified block with access_ok() before calling this function.
@@ -716,7 +829,12 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__cu_from = (from);						\
 	__cu_len = (n);							\
 	might_fault();							\
-	__cu_len = __invoke_copy_to_user(__cu_to, __cu_from, __cu_len);	\
+	if (segment_eq(get_fs(), get_ds()))				\
+		__cu_len = __invoke_copy_to_kernel(__cu_to, __cu_from,	\
+						   __cu_len);		\
+	else								\
+		__cu_len = __invoke_copy_to_user(__cu_to, __cu_from,	\
+						 __cu_len);		\
 	__cu_len;							\
 })
 
@@ -731,7 +849,12 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_to = (to);							\
 	__cu_from = (from);						\
 	__cu_len = (n);							\
-	__cu_len = __invoke_copy_to_user(__cu_to, __cu_from, __cu_len);	\
+	if (segment_eq(get_fs(), get_ds()))				\
+		__cu_len = __invoke_copy_to_kernel(__cu_to, __cu_from,	\
+						   __cu_len);		\
+	else								\
+		__cu_len = __invoke_copy_to_user(__cu_to, __cu_from,	\
+						 __cu_len);		\
 	__cu_len;							\
 })
 
@@ -744,18 +867,24 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_to = (to);							\
 	__cu_from = (from);						\
 	__cu_len = (n);							\
-	__cu_len = __invoke_copy_from_user_inatomic(__cu_to, __cu_from,	\
-	                                            __cu_len);		\
+	if (segment_eq(get_fs(), get_ds()))				\
+		__cu_len = __invoke_copy_from_kernel_inatomic(__cu_to,	\
+							      __cu_from,\
+							      __cu_len);\
+	else								\
+		__cu_len = __invoke_copy_from_user_inatomic(__cu_to,	\
+							    __cu_from,	\
+							    __cu_len);	\
 	__cu_len;							\
 })
 
 /*
  * copy_to_user: - Copy a block of data into user space.
- * @to:   Destination address, in user space.
+ * @to:	  Destination address, in user space.
  * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
+ * @n:	  Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Copy data from kernel space to user space.
  *
@@ -771,13 +900,22 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_to = (to);							\
 	__cu_from = (from);						\
 	__cu_len = (n);							\
-	if (access_ok(VERIFY_WRITE, __cu_to, __cu_len)) {		\
-		might_fault();						\
-		__cu_len = __invoke_copy_to_user(__cu_to, __cu_from,	\
-		                                 __cu_len);		\
+	if (segment_eq(get_fs(), get_ds())) {				\
+		__cu_len = __invoke_copy_to_kernel(__cu_to,		\
+						   __cu_from,		\
+						   __cu_len);		\
+	} else {							\
+		if (access_ok(VERIFY_WRITE, __cu_to, __cu_len)) {       \
+			might_fault();                                  \
+			__cu_len = __invoke_copy_to_user(__cu_to,	\
+							 __cu_from,	\
+							 __cu_len);     \
+		}							\
 	}								\
 	__cu_len;							\
 })
+
+#ifndef CONFIG_EVA
 
 #define __invoke_copy_from_user(to, from, n)				\
 ({									\
@@ -797,10 +935,21 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	".set\treorder"							\
 	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
 	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$15", "$24", "$31",		\
+	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
 	  DADDI_SCRATCH, "memory");					\
 	__cu_len_r;							\
 })
+
+#define __invoke_copy_from_kernel(to, from, n)				\
+	__invoke_copy_from_user(to, from, n)
+
+/* For userland <-> userland operations */
+#define ___invoke_copy_in_user(to, from, n)				\
+	__invoke_copy_from_user(to, from, n)
+
+/* For kernel <-> kernel operations */
+#define ___invoke_copy_in_kernel(to, from, n)				\
+	__invoke_copy_from_user(to, from, n)
 
 #define __invoke_copy_from_user_inatomic(to, from, n)			\
 ({									\
@@ -820,18 +969,109 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	".set\treorder"							\
 	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
 	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$15", "$24", "$31",		\
+	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
+	  DADDI_SCRATCH, "memory");					\
+	__cu_len_r;							\
+})
+
+#define __invoke_copy_from_kernel_inatomic(to, from, n)			\
+	__invoke_copy_from_user_inatomic(to, from, n)			\
+
+#else
+
+/* EVA specific functions */
+
+extern size_t __copy_user_inatomic_eva(void *__to, const void *__from,
+				       size_t __n);
+extern size_t __copy_from_user_eva(void *__to, const void *__from,
+				   size_t __n);
+extern size_t __copy_to_user_eva(void *__to, const void *__from,
+				 size_t __n);
+extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
+
+#define __invoke_copy_from_user_eva_generic(to, from, n, func_ptr)	\
+({									\
+	register void *__cu_to_r __asm__("$4");				\
+	register const void __user *__cu_from_r __asm__("$5");		\
+	register long __cu_len_r __asm__("$6");				\
+									\
+	__cu_to_r = (to);						\
+	__cu_from_r = (from);						\
+	__cu_len_r = (n);						\
+	__asm__ __volatile__(						\
+	".set\tnoreorder\n\t"						\
+	__MODULE_JAL(func_ptr)						\
+	".set\tnoat\n\t"						\
+	__UA_ADDU "\t$1, %1, %2\n\t"					\
+	".set\tat\n\t"							\
+	".set\treorder"							\
+	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
+	:								\
+	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
+	  DADDI_SCRATCH, "memory");					\
+	__cu_len_r;							\
+})
+
+#define __invoke_copy_to_user_eva_generic(to, from, n, func_ptr)	\
+({									\
+	register void *__cu_to_r __asm__("$4");				\
+	register const void __user *__cu_from_r __asm__("$5");		\
+	register long __cu_len_r __asm__("$6");				\
+									\
+	__cu_to_r = (to);						\
+	__cu_from_r = (from);						\
+	__cu_len_r = (n);						\
+	__asm__ __volatile__(						\
+	__MODULE_JAL(func_ptr)						\
+	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
+	:								\
+	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
 	  DADDI_SCRATCH, "memory");					\
 	__cu_len_r;							\
 })
 
 /*
+ * Source or destination address is in userland. We need to go through
+ * the TLB
+ */
+#define __invoke_copy_from_user(to, from, n)				\
+	__invoke_copy_from_user_eva_generic(to, from, n, __copy_from_user_eva)
+
+#define __invoke_copy_from_user_inatomic(to, from, n)			\
+	__invoke_copy_from_user_eva_generic(to, from, n,		\
+					    __copy_user_inatomic_eva)
+
+#define __invoke_copy_to_user(to, from, n)				\
+	__invoke_copy_to_user_eva_generic(to, from, n, __copy_to_user_eva)
+
+#define ___invoke_copy_in_user(to, from, n)				\
+	__invoke_copy_from_user_eva_generic(to, from, n, __copy_in_user_eva)
+
+/*
+ * Source or destination address in the kernel. We are not going through
+ * the TLB
+ */
+#define __invoke_copy_from_kernel(to, from, n)				\
+	__invoke_copy_from_user_eva_generic(to, from, n, __copy_user)
+
+#define __invoke_copy_from_kernel_inatomic(to, from, n)			\
+	__invoke_copy_from_user_eva_generic(to, from, n, __copy_user_inatomic)
+
+#define __invoke_copy_to_kernel(to, from, n)				\
+	__invoke_copy_to_user_eva_generic(to, from, n, __copy_user)
+
+#define ___invoke_copy_in_kernel(to, from, n)				\
+	__invoke_copy_from_user_eva_generic(to, from, n, __copy_user)
+
+#endif /* CONFIG_EVA */
+
+/*
  * __copy_from_user: - Copy a block of data from user space, with less checking.
- * @to:   Destination address, in kernel space.
+ * @to:	  Destination address, in kernel space.
  * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
+ * @n:	  Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Copy data from user space to kernel space.  Caller must check
  * the specified block with access_ok() before calling this function.
@@ -853,17 +1093,17 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_len = (n);							\
 	might_fault();							\
 	__cu_len = __invoke_copy_from_user(__cu_to, __cu_from,		\
-	                                   __cu_len);			\
+					   __cu_len);			\
 	__cu_len;							\
 })
 
 /*
  * copy_from_user: - Copy a block of data from user space.
- * @to:   Destination address, in kernel space.
+ * @to:	  Destination address, in kernel space.
  * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
+ * @n:	  Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Copy data from user space to kernel space.
  *
@@ -882,10 +1122,17 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_to = (to);							\
 	__cu_from = (from);						\
 	__cu_len = (n);							\
-	if (access_ok(VERIFY_READ, __cu_from, __cu_len)) {		\
-		might_fault();						\
-		__cu_len = __invoke_copy_from_user(__cu_to, __cu_from,	\
-		                                   __cu_len);		\
+	if (segment_eq(get_fs(), get_ds())) {				\
+		__cu_len = __invoke_copy_from_kernel(__cu_to,		\
+						     __cu_from,		\
+						     __cu_len);		\
+	} else {							\
+		if (access_ok(VERIFY_READ, __cu_from, __cu_len)) {	\
+			might_fault();                                  \
+			__cu_len = __invoke_copy_from_user(__cu_to,	\
+							   __cu_from,	\
+							   __cu_len);   \
+		}							\
 	}								\
 	__cu_len;							\
 })
@@ -899,9 +1146,14 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_to = (to);							\
 	__cu_from = (from);						\
 	__cu_len = (n);							\
-	might_fault();							\
-	__cu_len = __invoke_copy_from_user(__cu_to, __cu_from,		\
-	                                   __cu_len);			\
+	if (segment_eq(get_fs(), get_ds())) {				\
+		__cu_len = ___invoke_copy_in_kernel(__cu_to, __cu_from,	\
+						    __cu_len);		\
+	} else {							\
+		might_fault();						\
+		__cu_len = ___invoke_copy_in_user(__cu_to, __cu_from,	\
+						  __cu_len);		\
+	}								\
 	__cu_len;							\
 })
 
@@ -914,19 +1166,25 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_to = (to);							\
 	__cu_from = (from);						\
 	__cu_len = (n);							\
-	if (likely(access_ok(VERIFY_READ, __cu_from, __cu_len) &&	\
-	           access_ok(VERIFY_WRITE, __cu_to, __cu_len))) {	\
-		might_fault();						\
-		__cu_len = __invoke_copy_from_user(__cu_to, __cu_from,	\
-		                                   __cu_len);		\
+	if (segment_eq(get_fs(), get_ds())) {				\
+		__cu_len = ___invoke_copy_in_kernel(__cu_to,__cu_from,	\
+						    __cu_len);		\
+	} else {							\
+		if (likely(access_ok(VERIFY_READ, __cu_from, __cu_len) &&\
+			   access_ok(VERIFY_WRITE, __cu_to, __cu_len))) {\
+			might_fault();					\
+			__cu_len = ___invoke_copy_in_user(__cu_to,	\
+							  __cu_from,	\
+							  __cu_len);	\
+		}							\
 	}								\
 	__cu_len;							\
 })
 
 /*
  * __clear_user: - Zero a block of memory in user space, with less checking.
- * @to:   Destination address, in user space.
- * @n:    Number of bytes to zero.
+ * @to:	  Destination address, in user space.
+ * @n:	  Number of bytes to zero.
  *
  * Zero a block of memory in user space.  Caller must check
  * the specified block with access_ok() before calling this function.
@@ -966,7 +1224,7 @@ __clear_user(void __user *addr, __kernel_size_t size)
 /*
  * __strncpy_from_user: - Copy a NUL terminated string from userspace, with less checking.
  * @dst:   Destination address, in kernel space.  This buffer must be at
- *         least @count bytes long.
+ *	   least @count bytes long.
  * @src:   Source address, in user space.
  * @count: Maximum number of bytes to copy, including the trailing NUL.
  *
@@ -988,16 +1246,28 @@ __strncpy_from_user(char *__to, const char __user *__from, long __len)
 {
 	long res;
 
-	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		"move\t$5, %2\n\t"
-		"move\t$6, %3\n\t"
-		__MODULE_JAL(__strncpy_from_user_nocheck_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (__to), "r" (__from), "r" (__len)
-		: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			"move\t$6, %3\n\t"
+			__MODULE_JAL(__strncpy_from_kernel_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (__to), "r" (__from), "r" (__len)
+			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	} else {
+		might_fault();
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			"move\t$6, %3\n\t"
+			__MODULE_JAL(__strncpy_from_user_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (__to), "r" (__from), "r" (__len)
+			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	}
 
 	return res;
 }
@@ -1005,7 +1275,7 @@ __strncpy_from_user(char *__to, const char __user *__from, long __len)
 /*
  * strncpy_from_user: - Copy a NUL terminated string from userspace.
  * @dst:   Destination address, in kernel space.  This buffer must be at
- *         least @count bytes long.
+ *	   least @count bytes long.
  * @src:   Source address, in user space.
  * @count: Maximum number of bytes to copy, including the trailing NUL.
  *
@@ -1025,16 +1295,28 @@ strncpy_from_user(char *__to, const char __user *__from, long __len)
 {
 	long res;
 
-	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		"move\t$5, %2\n\t"
-		"move\t$6, %3\n\t"
-		__MODULE_JAL(__strncpy_from_user_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (__to), "r" (__from), "r" (__len)
-		: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			"move\t$6, %3\n\t"
+			__MODULE_JAL(__strncpy_from_kernel_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (__to), "r" (__from), "r" (__len)
+			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	} else {
+		might_fault();
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			"move\t$6, %3\n\t"
+			__MODULE_JAL(__strncpy_from_user_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (__to), "r" (__from), "r" (__len)
+			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
+	}
 
 	return res;
 }
@@ -1044,14 +1326,24 @@ static inline long __strlen_user(const char __user *s)
 {
 	long res;
 
-	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		__MODULE_JAL(__strlen_user_nocheck_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (s)
-		: "$2", "$4", __UA_t0, "$31");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			__MODULE_JAL(__strlen_kernel_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s)
+			: "$2", "$4", __UA_t0, "$31");
+	} else {
+		might_fault();
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			__MODULE_JAL(__strlen_user_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s)
+			: "$2", "$4", __UA_t0, "$31");
+	}
 
 	return res;
 }
@@ -1060,7 +1352,7 @@ static inline long __strlen_user(const char __user *s)
  * strlen_user: - Get the size of a string in user space.
  * @str: The string to measure.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Get the size of a NUL-terminated string in user space.
  *
@@ -1074,14 +1366,24 @@ static inline long strlen_user(const char __user *s)
 {
 	long res;
 
-	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		__MODULE_JAL(__strlen_user_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (s)
-		: "$2", "$4", __UA_t0, "$31");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			__MODULE_JAL(__strlen_kernel_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s)
+			: "$2", "$4", __UA_t0, "$31");
+	} else {
+		might_fault();
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			__MODULE_JAL(__strlen_kernel_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s)
+			: "$2", "$4", __UA_t0, "$31");
+	}
 
 	return res;
 }
@@ -1091,15 +1393,26 @@ static inline long __strnlen_user(const char __user *s, long n)
 {
 	long res;
 
-	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		"move\t$5, %2\n\t"
-		__MODULE_JAL(__strnlen_user_nocheck_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (s), "r" (n)
-		: "$2", "$4", "$5", __UA_t0, "$31");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			__MODULE_JAL(__strnlen_kernel_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s), "r" (n)
+			: "$2", "$4", "$5", __UA_t0, "$31");
+	} else {
+		might_fault();
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			__MODULE_JAL(__strnlen_user_nocheck_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s), "r" (n)
+			: "$2", "$4", "$5", __UA_t0, "$31");
+	}
 
 	return res;
 }
@@ -1108,7 +1421,7 @@ static inline long __strnlen_user(const char __user *s, long n)
  * strlen_user: - Get the size of a string in user space.
  * @str: The string to measure.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Get the size of a NUL-terminated string in user space.
  *
@@ -1123,14 +1436,25 @@ static inline long strnlen_user(const char __user *s, long n)
 	long res;
 
 	might_fault();
-	__asm__ __volatile__(
-		"move\t$4, %1\n\t"
-		"move\t$5, %2\n\t"
-		__MODULE_JAL(__strnlen_user_asm)
-		"move\t%0, $2"
-		: "=r" (res)
-		: "r" (s), "r" (n)
-		: "$2", "$4", "$5", __UA_t0, "$31");
+	if (segment_eq(get_fs(), get_ds())) {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			__MODULE_JAL(__strnlen_kernel_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s), "r" (n)
+			: "$2", "$4", "$5", __UA_t0, "$31");
+	} else {
+		__asm__ __volatile__(
+			"move\t$4, %1\n\t"
+			"move\t$5, %2\n\t"
+			__MODULE_JAL(__strnlen_user_asm)
+			"move\t%0, $2"
+			: "=r" (res)
+			: "r" (s), "r" (n)
+			: "$2", "$4", "$5", __UA_t0, "$31");
+	}
 
 	return res;
 }

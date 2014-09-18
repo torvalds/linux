@@ -1,5 +1,5 @@
-#include "linux/types.h"
-#include "linux/module.h"
+#include <linux/types.h>
+#include <linux/module.h>
 
 /* Some of this are builtin function (some are not but could in the future),
  * so I *must* declare good prototypes for them and then EXPORT them.

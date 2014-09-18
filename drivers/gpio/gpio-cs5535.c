@@ -300,7 +300,7 @@ static struct cs5535_gpio_chip cs5535_gpio_chip = {
 	},
 };
 
-static int __devinit cs5535_gpio_probe(struct platform_device *pdev)
+static int cs5535_gpio_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int err = -EIO;
@@ -355,17 +355,11 @@ done:
 	return err;
 }
 
-static int __devexit cs5535_gpio_remove(struct platform_device *pdev)
+static int cs5535_gpio_remove(struct platform_device *pdev)
 {
 	struct resource *r;
-	int err;
 
-	err = gpiochip_remove(&cs5535_gpio_chip.chip);
-	if (err) {
-		/* uhh? */
-		dev_err(&pdev->dev, "unable to remove gpio_chip?\n");
-		return err;
-	}
+	gpiochip_remove(&cs5535_gpio_chip.chip);
 
 	r = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	release_region(r->start, resource_size(r));
@@ -378,7 +372,7 @@ static struct platform_driver cs5535_gpio_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = cs5535_gpio_probe,
-	.remove = __devexit_p(cs5535_gpio_remove),
+	.remove = cs5535_gpio_remove,
 };
 
 module_platform_driver(cs5535_gpio_driver);

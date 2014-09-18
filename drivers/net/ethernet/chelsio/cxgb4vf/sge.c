@@ -401,7 +401,7 @@ static void free_tx_desc(struct adapter *adapter, struct sge_txq *tq,
 		if (sdesc->skb) {
 			if (need_unmap)
 				unmap_sgl(dev, sdesc->skb, sdesc->sgl, tq);
-			kfree_skb(sdesc->skb);
+			dev_consume_skb_any(sdesc->skb);
 			sdesc->skb = NULL;
 		}
 
@@ -528,17 +528,21 @@ static void unmap_rx_buf(struct adapter *adapter, struct sge_fl *fl)
  */
 static inline void ring_fl_db(struct adapter *adapter, struct sge_fl *fl)
 {
+	u32 val;
+
 	/*
 	 * The SGE keeps track of its Producer and Consumer Indices in terms
 	 * of Egress Queue Units so we can only tell it about integral numbers
 	 * of multiples of Free List Entries per Egress Queue Units ...
 	 */
 	if (fl->pend_cred >= FL_PER_EQ_UNIT) {
+		val = PIDX(fl->pend_cred / FL_PER_EQ_UNIT);
+		if (!is_t4(adapter->params.chip))
+			val |= DBTYPE(1);
 		wmb();
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
-			     DBPRIO |
-			     QID(fl->cntxt_id) |
-			     PIDX(fl->pend_cred / FL_PER_EQ_UNIT));
+			     DBPRIO(1) |
+			     QID(fl->cntxt_id) | val);
 		fl->pend_cred %= FL_PER_EQ_UNIT;
 	}
 }
@@ -653,7 +657,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 
 alloc_small_pages:
 	while (n--) {
-		page = alloc_page(gfp | __GFP_NOWARN | __GFP_COLD);
+		page = __skb_alloc_page(gfp | __GFP_NOWARN, NULL);
 		if (unlikely(!page)) {
 			fl->alloc_failed++;
 			break;
@@ -934,7 +938,7 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *tq,
 		end = (void *)tq->desc + part1;
 	}
 	if ((uintptr_t)end & 8)           /* 0-pad to multiple of 16 */
-		*(u64 *)end = 0;
+		*end = 0;
 }
 
 /**
@@ -952,7 +956,7 @@ static inline void ring_tx_db(struct adapter *adapter, struct sge_txq *tq,
 	 * Warn if we write doorbells with the wrong priority and write
 	 * descriptors before telling HW.
 	 */
-	WARN_ON((QID(tq->cntxt_id) | PIDX(n)) & DBPRIO);
+	WARN_ON((QID(tq->cntxt_id) | PIDX(n)) & DBPRIO(1));
 	wmb();
 	t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
 		     QID(tq->cntxt_id) | PIDX(n));
@@ -1271,7 +1275,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * need it any longer.
 		 */
 		inline_tx_skb(skb, &txq->q, cpl + 1);
-		dev_kfree_skb(skb);
+		dev_consume_skb_any(skb);
 	} else {
 		/*
 		 * Write the skb's Scatter/Gather list into the TX Packet CPL
@@ -1323,8 +1327,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if (unlikely((void *)sgl == (void *)tq->stat)) {
 			sgl = (void *)tq->desc;
-			end = (void *)((void *)tq->desc +
-				       ((void *)end - (void *)tq->stat));
+			end = ((void *)tq->desc + ((void *)end - (void *)tq->stat));
 		}
 
 		write_sgl(skb, tq, sgl, end, 0, addr);
@@ -1351,7 +1354,7 @@ out_free:
 	 * An error of some sort happened.  Free the TX skb and tell the
 	 * OS that we've "dealt" with the packet ...
 	 */
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -1393,8 +1396,9 @@ static inline void copy_frags(struct sk_buff *skb,
  *	Builds an sk_buff from the given packet gather list.  Returns the
  *	sk_buff or %NULL if sk_buff allocation failed.
  */
-struct sk_buff *t4vf_pktgl_to_skb(const struct pkt_gl *gl,
-				  unsigned int skb_len, unsigned int pull_len)
+static struct sk_buff *t4vf_pktgl_to_skb(const struct pkt_gl *gl,
+					 unsigned int skb_len,
+					 unsigned int pull_len)
 {
 	struct sk_buff *skb;
 
@@ -1440,7 +1444,7 @@ out:
  *	Releases the pages of a packet gather list.  We do not own the last
  *	page on the list and do not free it.
  */
-void t4vf_pktgl_free(const struct pkt_gl *gl)
+static void t4vf_pktgl_free(const struct pkt_gl *gl)
 {
 	int frag;
 
@@ -1478,8 +1482,11 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb_record_rx_queue(skb, rxq->rspq.idx);
 
-	if (pkt->vlan_ex)
-		__vlan_hwaccel_put_tag(skb, be16_to_cpu(pkt->vlan));
+	if (pkt->vlan_ex) {
+		__vlan_hwaccel_put_tag(skb, cpu_to_be16(ETH_P_8021Q),
+					be16_to_cpu(pkt->vlan));
+		rxq->stats.vlan_ex++;
+	}
 	ret = napi_gro_frags(&rxq->rspq.napi);
 
 	if (ret == GRO_HELD)
@@ -1502,8 +1509,9 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		       const struct pkt_gl *gl)
 {
 	struct sk_buff *skb;
-	const struct cpl_rx_pkt *pkt = (void *)&rsp[1];
-	bool csum_ok = pkt->csum_calc && !pkt->err_vec;
+	const struct cpl_rx_pkt *pkt = (void *)rsp;
+	bool csum_ok = pkt->csum_calc && !pkt->err_vec &&
+		       (rspq->netdev->features & NETIF_F_RXCSUM);
 	struct sge_eth_rxq *rxq = container_of(rspq, struct sge_eth_rxq, rspq);
 
 	/*
@@ -1531,8 +1539,8 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	skb_record_rx_queue(skb, rspq->idx);
 	rxq->stats.pkts++;
 
-	if (csum_ok && (rspq->netdev->features & NETIF_F_RXCSUM) &&
-	    !pkt->err_vec && (be32_to_cpu(pkt->l2info) & (RXF_UDP|RXF_TCP))) {
+	if (csum_ok && !pkt->err_vec &&
+	    (be32_to_cpu(pkt->l2info) & (RXF_UDP|RXF_TCP))) {
 		if (!pkt->ip_frag)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else {
@@ -1546,7 +1554,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 
 	if (pkt->vlan_ex) {
 		rxq->stats.vlan_ex++;
-		__vlan_hwaccel_put_tag(skb, be16_to_cpu(pkt->vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), be16_to_cpu(pkt->vlan));
 	}
 
 	netif_receive_skb(skb);
@@ -1634,7 +1642,7 @@ static inline void rspq_next(struct sge_rspq *rspq)
  *	on this queue.  If the system is under memory shortage use a fairly
  *	long delay to help recovery.
  */
-int process_responses(struct sge_rspq *rspq, int budget)
+static int process_responses(struct sge_rspq *rspq, int budget)
 {
 	struct sge_eth_rxq *rxq = container_of(rspq, struct sge_eth_rxq, rspq);
 	int budget_left = budget;
@@ -1887,7 +1895,7 @@ static unsigned int process_intrq(struct adapter *adapter)
  * The MSI interrupt handler handles data events from SGE response queues as
  * well as error and other async events as they all use the same MSI vector.
  */
-irqreturn_t t4vf_intr_msi(int irq, void *cookie)
+static irqreturn_t t4vf_intr_msi(int irq, void *cookie)
 {
 	struct adapter *adapter = cookie;
 
@@ -1944,7 +1952,7 @@ static void sge_rx_timer_cb(unsigned long data)
 			struct sge_fl *fl = s->egr_map[id];
 
 			clear_bit(id, s->starving_fl);
-			smp_mb__after_clear_bit();
+			smp_mb__after_atomic();
 
 			/*
 			 * Since we are accessing fl without a lock there's a
@@ -2127,8 +2135,8 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 		cmd.iqns_to_fl0congen =
 			cpu_to_be32(
 				FW_IQ_CMD_FL0HOSTFCMODE(SGE_HOSTFCMODE_NONE) |
-				FW_IQ_CMD_FL0PACKEN |
-				FW_IQ_CMD_FL0PADEN);
+				FW_IQ_CMD_FL0PACKEN(1) |
+				FW_IQ_CMD_FL0PADEN(1));
 		cmd.fl0dcaen_to_fl0cidxfthresh =
 			cpu_to_be16(
 				FW_IQ_CMD_FL0FBMIN(SGE_FETCHBURSTMIN_64B) |
@@ -2242,7 +2250,8 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 	cmd.alloc_to_len16 = cpu_to_be32(FW_EQ_ETH_CMD_ALLOC |
 					 FW_EQ_ETH_CMD_EQSTART |
 					 FW_LEN16(cmd));
-	cmd.viid_pkd = cpu_to_be32(FW_EQ_ETH_CMD_VIID(pi->viid));
+	cmd.viid_pkd = cpu_to_be32(FW_EQ_ETH_CMD_AUTOEQUEQE |
+				   FW_EQ_ETH_CMD_VIID(pi->viid));
 	cmd.fetchszm_to_iqid =
 		cpu_to_be32(FW_EQ_ETH_CMD_HOSTFCMODE(SGE_HOSTFCMODE_STPG) |
 			    FW_EQ_ETH_CMD_PCIECHN(pi->port_id) |
@@ -2422,7 +2431,7 @@ int t4vf_sge_init(struct adapter *adapter)
 			fl0, fl1);
 		return -EINVAL;
 	}
-	if ((sge_params->sge_control & RXPKTCPLMODE) == 0) {
+	if ((sge_params->sge_control & RXPKTCPLMODE_MASK) == 0) {
 		dev_err(adapter->pdev_dev, "bad SGE CPL MODE\n");
 		return -EINVAL;
 	}
@@ -2432,7 +2441,8 @@ int t4vf_sge_init(struct adapter *adapter)
 	 */
 	if (fl1)
 		FL_PG_ORDER = ilog2(fl1) - PAGE_SHIFT;
-	STAT_LEN = ((sge_params->sge_control & EGRSTATUSPAGESIZE) ? 128 : 64);
+	STAT_LEN = ((sge_params->sge_control & EGRSTATUSPAGESIZE_MASK)
+		    ? 128 : 64);
 	PKTSHIFT = PKTSHIFT_GET(sge_params->sge_control);
 	FL_ALIGN = 1 << (INGPADBOUNDARY_GET(sge_params->sge_control) +
 			 SGE_INGPADBOUNDARY_SHIFT);

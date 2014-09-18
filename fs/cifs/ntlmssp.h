@@ -126,3 +126,13 @@ typedef struct _AUTHENTICATE_MESSAGE {
 	   do not set the version is present flag */
 	char UserString[0];
 } __attribute__((packed)) AUTHENTICATE_MESSAGE, *PAUTHENTICATE_MESSAGE;
+
+/*
+ * Size of the session key (crypto key encrypted with the password
+ */
+
+int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len, struct cifs_ses *ses);
+void build_ntlmssp_negotiate_blob(unsigned char *pbuffer, struct cifs_ses *ses);
+int build_ntlmssp_auth_blob(unsigned char *pbuffer, u16 *buflen,
+			struct cifs_ses *ses,
+			const struct nls_table *nls_cp);

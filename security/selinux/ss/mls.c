@@ -160,8 +160,6 @@ void mls_sid_to_context(struct context *context,
 int mls_level_isvalid(struct policydb *p, struct mls_level *l)
 {
 	struct level_datum *levdatum;
-	struct ebitmap_node *node;
-	int i;
 
 	if (!l->sens || l->sens > p->p_levels.nprim)
 		return 0;
@@ -170,19 +168,13 @@ int mls_level_isvalid(struct policydb *p, struct mls_level *l)
 	if (!levdatum)
 		return 0;
 
-	ebitmap_for_each_positive_bit(&l->cat, node, i) {
-		if (i > p->p_cats.nprim)
-			return 0;
-		if (!ebitmap_get_bit(&levdatum->level->cat, i)) {
-			/*
-			 * Category may not be associated with
-			 * sensitivity.
-			 */
-			return 0;
-		}
-	}
-
-	return 1;
+	/*
+	 * Return 1 iff all the bits set in l->cat are also be set in
+	 * levdatum->level->cat and no bit in l->cat is larger than
+	 * p->p_cats.nprim.
+	 */
+	return ebitmap_contains(&levdatum->level->cat, &l->cat,
+				p->p_cats.nprim);
 }
 
 int mls_range_isvalid(struct policydb *p, struct mls_range *r)
@@ -500,6 +492,8 @@ int mls_convert_context(struct policydb *oldp,
 			rc = ebitmap_set_bit(&bitmap, catdatum->value - 1, 1);
 			if (rc)
 				return rc;
+
+			cond_resched();
 		}
 		ebitmap_destroy(&c->range.level[l].cat);
 		c->range.level[l].cat = bitmap;
@@ -517,6 +511,8 @@ int mls_compute_sid(struct context *scontext,
 {
 	struct range_trans rtr;
 	struct mls_range *r;
+	struct class_datum *cladatum;
+	int default_range = 0;
 
 	if (!policydb.mls_enabled)
 		return 0;
@@ -530,6 +526,28 @@ int mls_compute_sid(struct context *scontext,
 		r = hashtab_search(policydb.range_tr, &rtr);
 		if (r)
 			return mls_range_set(newcontext, r);
+
+		if (tclass && tclass <= policydb.p_classes.nprim) {
+			cladatum = policydb.class_val_to_struct[tclass - 1];
+			if (cladatum)
+				default_range = cladatum->default_range;
+		}
+
+		switch (default_range) {
+		case DEFAULT_SOURCE_LOW:
+			return mls_context_cpy_low(newcontext, scontext);
+		case DEFAULT_SOURCE_HIGH:
+			return mls_context_cpy_high(newcontext, scontext);
+		case DEFAULT_SOURCE_LOW_HIGH:
+			return mls_context_cpy(newcontext, scontext);
+		case DEFAULT_TARGET_LOW:
+			return mls_context_cpy_low(newcontext, tcontext);
+		case DEFAULT_TARGET_HIGH:
+			return mls_context_cpy_high(newcontext, tcontext);
+		case DEFAULT_TARGET_LOW_HIGH:
+			return mls_context_cpy(newcontext, tcontext);
+		}
+
 		/* Fallthrough */
 	case AVTAB_CHANGE:
 		if ((tclass == policydb.process_class) || (sock == true))

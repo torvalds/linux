@@ -6,6 +6,7 @@
  */
 
 #include <linux/kernel_stat.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 
 #include <asm/timer.h>
@@ -15,6 +16,7 @@
 #include <asm/sbi.h>
 #include <asm/cacheflush.h>
 #include <asm/setup.h>
+#include <asm/oplib.h>
 
 #include "kernel.h"
 #include "irq.h"
@@ -141,7 +143,7 @@ static void sun4d_sbus_handler_irq(int sbusl)
 	}
 }
 
-void sun4d_handler_irq(int pil, struct pt_regs *regs)
+void sun4d_handler_irq(unsigned int pil, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 	/* SBUS IRQ level (1 - 7) */
@@ -234,7 +236,7 @@ static void sun4d_shutdown_irq(struct irq_data *data)
 	irq_unlink(data->irq);
 }
 
-struct irq_chip sun4d_irq = {
+static struct irq_chip sun4d_irq = {
 	.name		= "sun4d",
 	.irq_startup	= sun4d_startup_irq,
 	.irq_shutdown	= sun4d_shutdown_irq,
@@ -243,19 +245,6 @@ struct irq_chip sun4d_irq = {
 };
 
 #ifdef CONFIG_SMP
-static void sun4d_set_cpu_int(int cpu, int level)
-{
-	sun4d_send_ipi(cpu, level);
-}
-
-static void sun4d_clear_ipi(int cpu, int level)
-{
-}
-
-static void sun4d_set_udt(int cpu)
-{
-}
-
 /* Setup IRQ distribution scheme. */
 void __init sun4d_distribute_irqs(void)
 {
@@ -282,7 +271,8 @@ static void sun4d_clear_clock_irq(void)
 
 static void sun4d_load_profile_irq(int cpu, unsigned int limit)
 {
-	bw_set_prof_limit(cpu, limit);
+	unsigned int value = limit ? timer_value(limit) : 0;
+	bw_set_prof_limit(cpu, value);
 }
 
 static void __init sun4d_load_profile_irqs(void)
@@ -295,9 +285,9 @@ static void __init sun4d_load_profile_irqs(void)
 	}
 }
 
-unsigned int _sun4d_build_device_irq(unsigned int real_irq,
-                                     unsigned int pil,
-                                     unsigned int board)
+static unsigned int _sun4d_build_device_irq(unsigned int real_irq,
+                                            unsigned int pil,
+                                            unsigned int board)
 {
 	struct sun4d_handler_data *handler_data;
 	unsigned int irq;
@@ -330,8 +320,8 @@ err_out:
 
 
 
-unsigned int sun4d_build_device_irq(struct platform_device *op,
-                                    unsigned int real_irq)
+static unsigned int sun4d_build_device_irq(struct platform_device *op,
+                                           unsigned int real_irq)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct device_node *board_parent, *bus = dp->parent;
@@ -393,7 +383,8 @@ err_out:
 	return irq;
 }
 
-unsigned int sun4d_build_timer_irq(unsigned int board, unsigned int real_irq)
+static unsigned int sun4d_build_timer_irq(unsigned int board,
+                                          unsigned int real_irq)
 {
 	return _sun4d_build_device_irq(real_irq, real_irq, board);
 }
@@ -418,12 +409,12 @@ static void __init sun4d_fixup_trap_table(void)
 	trap_table->inst_two = lvl14_save[1];
 	trap_table->inst_three = lvl14_save[2];
 	trap_table->inst_four = lvl14_save[3];
-	local_flush_cache_all();
+	local_ops->cache_all();
 	local_irq_restore(flags);
 #endif
 }
 
-static void __init sun4d_init_timers(irq_handler_t counter_fn)
+static void __init sun4d_init_timers(void)
 {
 	struct device_node *dp;
 	struct resource res;
@@ -466,12 +457,20 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 		prom_halt();
 	}
 
-	sbus_writel((((1000000/HZ) + 1) << 10), &sun4d_timers->l10_timer_limit);
+#ifdef CONFIG_SMP
+	sparc_config.cs_period = SBUS_CLOCK_RATE * 2;  /* 2 seconds */
+#else
+	sparc_config.cs_period = SBUS_CLOCK_RATE / HZ; /* 1/HZ sec  */
+	sparc_config.features |= FEAT_L10_CLOCKEVENT;
+#endif
+	sparc_config.features |= FEAT_L10_CLOCKSOURCE;
+	sbus_writel(timer_value(sparc_config.cs_period),
+		    &sun4d_timers->l10_timer_limit);
 
 	master_l10_counter = &sun4d_timers->l10_cur_count;
 
 	irq = sun4d_build_timer_irq(board, SUN4D_TIMER_IRQ);
-	err = request_irq(irq, counter_fn, IRQF_TIMER, "timer", NULL);
+	err = request_irq(irq, timer_interrupt, IRQF_TIMER, "timer", NULL);
 	if (err) {
 		prom_printf("sun4d_init_timers: request_irq() failed with %d\n",
 		             err);
@@ -509,16 +508,11 @@ void __init sun4d_init_IRQ(void)
 {
 	local_irq_disable();
 
-	BTFIXUPSET_CALL(clear_clock_irq, sun4d_clear_clock_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(load_profile_irq, sun4d_load_profile_irq, BTFIXUPCALL_NORM);
+	sparc_config.init_timers      = sun4d_init_timers;
+	sparc_config.build_device_irq = sun4d_build_device_irq;
+	sparc_config.clock_rate       = SBUS_CLOCK_RATE;
+	sparc_config.clear_clock_irq  = sun4d_clear_clock_irq;
+	sparc_config.load_profile_irq = sun4d_load_profile_irq;
 
-	sparc_irq_config.init_timers      = sun4d_init_timers;
-	sparc_irq_config.build_device_irq = sun4d_build_device_irq;
-
-#ifdef CONFIG_SMP
-	BTFIXUPSET_CALL(set_cpu_int, sun4d_set_cpu_int, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(clear_cpu_int, sun4d_clear_ipi, BTFIXUPCALL_NOP);
-	BTFIXUPSET_CALL(set_irq_udt, sun4d_set_udt, BTFIXUPCALL_NOP);
-#endif
 	/* Cannot enable interrupts until OBP ticker is disabled. */
 }

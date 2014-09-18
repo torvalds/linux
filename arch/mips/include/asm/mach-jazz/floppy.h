@@ -9,7 +9,6 @@
 #define __ASM_MACH_JAZZ_FLOPPY_H
 
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -90,7 +89,7 @@ static inline void fd_disable_irq(void)
 static inline int fd_request_irq(void)
 {
 	return request_irq(FLOPPY_IRQ, floppy_interrupt,
-	                   0, "floppy", NULL);
+			   0, "floppy", NULL);
 }
 
 static inline void fd_free_irq(void)

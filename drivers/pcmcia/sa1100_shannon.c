@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -91,7 +92,7 @@ static struct pcmcia_low_level shannon_pcmcia_ops = {
 	.configure_socket	= shannon_pcmcia_configure_socket,
 };
 
-int __devinit pcmcia_shannon_init(struct device *dev)
+int pcmcia_shannon_init(struct device *dev)
 {
 	int ret = -ENODEV;
 

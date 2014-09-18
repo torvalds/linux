@@ -5,7 +5,6 @@
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
  *  Copyright (c) 2006-2007 Jiri Kosina
- *  Copyright (c) 2007 Paul Walmsley
  *  Copyright (c) 2008 Jiri Slaby
  */
 
@@ -77,17 +76,6 @@ static struct hid_driver ez_driver = {
 	.input_mapping = ez_input_mapping,
 	.event = ez_event,
 };
+module_hid_driver(ez_driver);
 
-static int __init ez_init(void)
-{
-	return hid_register_driver(&ez_driver);
-}
-
-static void __exit ez_exit(void)
-{
-	hid_unregister_driver(&ez_driver);
-}
-
-module_init(ez_init);
-module_exit(ez_exit);
 MODULE_LICENSE("GPL");

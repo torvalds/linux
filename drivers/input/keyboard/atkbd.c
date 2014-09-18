@@ -243,6 +243,12 @@ static void (*atkbd_platform_fixup)(struct atkbd *, const void *data);
 static void *atkbd_platform_fixup_data;
 static unsigned int (*atkbd_platform_scancode_fixup)(struct atkbd *, unsigned int);
 
+/*
+ * Certain keyboards to not like ATKBD_CMD_RESET_DIS and stop responding
+ * to many commands until full reset (ATKBD_CMD_RESET_BAT) is performed.
+ */
+static bool atkbd_skip_deactivate;
+
 static ssize_t atkbd_attr_show_helper(struct device *dev, char *buf,
 				ssize_t (*handler)(struct atkbd *, char *));
 static ssize_t atkbd_attr_set_helper(struct device *dev, const char *buf, size_t count,
@@ -433,7 +439,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 		if (printk_ratelimit())
 			dev_warn(&serio->dev,
 				 "Spurious %s on %s. "
-				 "Some program might be trying access hardware directly.\n",
+				 "Some program might be trying to access hardware directly.\n",
 				 data == ATKBD_RET_ACK ? "ACK" : "NAK", serio->phys);
 		goto out;
 	case ATKBD_RET_ERR:
@@ -676,6 +682,39 @@ static inline void atkbd_disable(struct atkbd *atkbd)
 	serio_continue_rx(atkbd->ps2dev.serio);
 }
 
+static int atkbd_activate(struct atkbd *atkbd)
+{
+	struct ps2dev *ps2dev = &atkbd->ps2dev;
+
+/*
+ * Enable the keyboard to receive keystrokes.
+ */
+
+	if (ps2_command(ps2dev, NULL, ATKBD_CMD_ENABLE)) {
+		dev_err(&ps2dev->serio->dev,
+			"Failed to enable keyboard on %s\n",
+			ps2dev->serio->phys);
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * atkbd_deactivate() resets and disables the keyboard from sending
+ * keystrokes.
+ */
+
+static void atkbd_deactivate(struct atkbd *atkbd)
+{
+	struct ps2dev *ps2dev = &atkbd->ps2dev;
+
+	if (ps2_command(ps2dev, NULL, ATKBD_CMD_RESET_DIS))
+		dev_err(&ps2dev->serio->dev,
+			"Failed to deactivate keyboard on %s\n",
+			ps2dev->serio->phys);
+}
+
 /*
  * atkbd_probe() probes for an AT keyboard on a serio port.
  */
@@ -726,10 +765,17 @@ static int atkbd_probe(struct atkbd *atkbd)
 
 	if (atkbd->id == 0xaca1 && atkbd->translated) {
 		dev_err(&ps2dev->serio->dev,
-			"NCD terminal keyboards are only supported on non-translating controlelrs. "
+			"NCD terminal keyboards are only supported on non-translating controllers. "
 			"Use i8042.direct=1 to disable translation.\n");
 		return -1;
 	}
+
+/*
+ * Make sure nothing is coming from the keyboard and disturbs our
+ * internal state.
+ */
+	if (!atkbd_skip_deactivate)
+		atkbd_deactivate(atkbd);
 
 	return 0;
 }
@@ -821,24 +867,6 @@ static int atkbd_reset_state(struct atkbd *atkbd)
 	param[0] = 0;
 	if (ps2_command(ps2dev, param, ATKBD_CMD_SETREP))
 		return -1;
-
-	return 0;
-}
-
-static int atkbd_activate(struct atkbd *atkbd)
-{
-	struct ps2dev *ps2dev = &atkbd->ps2dev;
-
-/*
- * Enable the keyboard to receive keystrokes.
- */
-
-	if (ps2_command(ps2dev, NULL, ATKBD_CMD_ENABLE)) {
-		dev_err(&ps2dev->serio->dev,
-			"Failed to enable keyboard on %s\n",
-			ps2dev->serio->phys);
-		return -1;
-	}
 
 	return 0;
 }
@@ -1150,7 +1178,6 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 
 		atkbd->set = atkbd_select_set(atkbd, atkbd_set, atkbd_extra);
 		atkbd_reset_state(atkbd);
-		atkbd_activate(atkbd);
 
 	} else {
 		atkbd->set = 2;
@@ -1165,6 +1192,8 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 		goto fail3;
 
 	atkbd_enable(atkbd);
+	if (serio->write)
+		atkbd_activate(atkbd);
 
 	err = input_register_device(atkbd->dev);
 	if (err)
@@ -1208,8 +1237,6 @@ static int atkbd_reconnect(struct serio *serio)
 		if (atkbd->set != atkbd_select_set(atkbd, atkbd->set, atkbd->extra))
 			goto out;
 
-		atkbd_activate(atkbd);
-
 		/*
 		 * Restore LED state and repeat rate. While input core
 		 * will do this for us at resume time reconnect may happen
@@ -1223,7 +1250,17 @@ static int atkbd_reconnect(struct serio *serio)
 
 	}
 
+	/*
+	 * Reset our state machine in case reconnect happened in the middle
+	 * of multi-byte scancode.
+	 */
+	atkbd->xl_bit = 0;
+	atkbd->emul = 0;
+
 	atkbd_enable(atkbd);
+	if (atkbd->write)
+		atkbd_activate(atkbd);
+
 	retval = 0;
 
  out:
@@ -1608,6 +1645,12 @@ static int __init atkbd_setup_scancode_fixup(const struct dmi_system_id *id)
 	return 1;
 }
 
+static int __init atkbd_deactivate_fixup(const struct dmi_system_id *id)
+{
+	atkbd_skip_deactivate = true;
+	return 1;
+}
+
 static const struct dmi_system_id atkbd_dmi_quirk_table[] __initconst = {
 	{
 		.matches = {
@@ -1744,6 +1787,12 @@ static const struct dmi_system_id atkbd_dmi_quirk_table[] __initconst = {
 		},
 		.callback = atkbd_setup_scancode_fixup,
 		.driver_data = atkbd_oqo_01plus_scancode_fixup,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LG Electronics"),
+		},
+		.callback = atkbd_deactivate_fixup,
 	},
 	{ }
 };

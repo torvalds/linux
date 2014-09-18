@@ -58,8 +58,10 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 	sys_clk_rate = voltdm->sys_clk.rate / 1000;
 
 	timeout = (sys_clk_rate * voltdm->pmic->vp_timeout_us) / 1000;
-	vddmin = voltdm->pmic->vp_vddmin;
-	vddmax = voltdm->pmic->vp_vddmax;
+	vddmin = max(voltdm->vp_param->vddmin, voltdm->pmic->vddmin);
+	vddmax = min(voltdm->vp_param->vddmax, voltdm->pmic->vddmax);
+	vddmin = voltdm->pmic->uv_to_vsel(vddmin);
+	vddmax = voltdm->pmic->uv_to_vsel(vddmax);
 
 	waittime = DIV_ROUND_UP(voltdm->pmic->step_size * sys_clk_rate,
 				1000 * voltdm->pmic->slew_rate);
@@ -138,8 +140,8 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 		udelay(1);
 	}
 	if (timeout >= VP_TRANXDONE_TIMEOUT) {
-		pr_warning("%s: vdd_%s TRANXDONE timeout exceeded."
-			"Voltage change aborted", __func__, voltdm->name);
+		pr_warn("%s: vdd_%s TRANXDONE timeout exceeded. Voltage change aborted\n",
+			__func__, voltdm->name);
 		return -ETIMEDOUT;
 	}
 
@@ -157,9 +159,8 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 	omap_test_timeout(vp->common->ops->check_txdone(vp->id),
 			  VP_TRANXDONE_TIMEOUT, timeout);
 	if (timeout >= VP_TRANXDONE_TIMEOUT)
-		pr_err("%s: vdd_%s TRANXDONE timeout exceeded."
-			"TRANXDONE never got set after the voltage update\n",
-			__func__, voltdm->name);
+		pr_err("%s: vdd_%s TRANXDONE timeout exceeded. TRANXDONE never got set after the voltage update\n",
+		       __func__, voltdm->name);
 
 	omap_vc_post_scale(voltdm, target_volt, target_vsel, current_vsel);
 
@@ -176,8 +177,7 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 	}
 
 	if (timeout >= VP_TRANXDONE_TIMEOUT)
-		pr_warning("%s: vdd_%s TRANXDONE timeout exceeded while trying"
-			"to clear the TRANXDONE status\n",
+		pr_warn("%s: vdd_%s TRANXDONE timeout exceeded while trying to clear the TRANXDONE status\n",
 			__func__, voltdm->name);
 
 	/* Clear force bit */
@@ -199,7 +199,7 @@ void omap_vp_enable(struct voltagedomain *voltdm)
 	u32 vpconfig, volt;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does not exist!\n", __func__);
 		return;
 	}
 
@@ -216,8 +216,8 @@ void omap_vp_enable(struct voltagedomain *voltdm)
 
 	volt = voltdm_get_voltage(voltdm);
 	if (!volt) {
-		pr_warning("%s: unable to find current voltage for %s\n",
-			   __func__, voltdm->name);
+		pr_warn("%s: unable to find current voltage for %s\n",
+			__func__, voltdm->name);
 		return;
 	}
 
@@ -244,7 +244,7 @@ void omap_vp_disable(struct voltagedomain *voltdm)
 	int timeout;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does not exist!\n", __func__);
 		return;
 	}
 
@@ -257,8 +257,8 @@ void omap_vp_disable(struct voltagedomain *voltdm)
 
 	/* If VP is already disabled, do nothing. Return */
 	if (!vp->enabled) {
-		pr_warning("%s: Trying to disable VP for vdd_%s when"
-			"it is already disabled\n", __func__, voltdm->name);
+		pr_warn("%s: Trying to disable VP for vdd_%s when it is already disabled\n",
+			__func__, voltdm->name);
 		return;
 	}
 
@@ -274,8 +274,7 @@ void omap_vp_disable(struct voltagedomain *voltdm)
 			  VP_IDLE_TIMEOUT, timeout);
 
 	if (timeout >= VP_IDLE_TIMEOUT)
-		pr_warning("%s: vdd_%s idle timedout\n",
-			__func__, voltdm->name);
+		pr_warn("%s: vdd_%s idle timedout\n", __func__, voltdm->name);
 
 	vp->enabled = false;
 

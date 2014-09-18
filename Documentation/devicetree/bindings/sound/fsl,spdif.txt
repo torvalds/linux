@@ -1,0 +1,59 @@
+Freescale Sony/Philips Digital Interface Format (S/PDIF) Controller
+
+The Freescale S/PDIF audio block is a stereo transceiver that allows the
+processor to receive and transmit digital audio via an coaxial cable or
+a fibre cable.
+
+Required properties:
+
+  - compatible : Compatible list, must contain "fsl,imx35-spdif".
+
+  - reg : Offset and length of the register set for the device.
+
+  - interrupts : Contains the spdif interrupt.
+
+  - dmas : Generic dma devicetree binding as described in
+  Documentation/devicetree/bindings/dma/dma.txt.
+
+  - dma-names : Two dmas have to be defined, "tx" and "rx".
+
+  - clocks : Contains an entry for each entry in clock-names.
+
+  - clock-names : Includes the following entries:
+	"core"		The core clock of spdif controller
+	"rxtx<0-7>"	Clock source list for tx and rx clock.
+			This clock list should be identical to
+			the source list connecting to the spdif
+			clock mux in "SPDIF Transceiver Clock
+			Diagram" of SoC reference manual. It
+			can also be referred to TxClk_Source
+			bit of register SPDIF_STC.
+
+   - big-endian : If this property is absent, the native endian mode will
+   be in use as default, or the big endian mode will be in use for all the
+   device registers.
+
+Example:
+
+spdif: spdif@02004000 {
+	compatible = "fsl,imx35-spdif";
+	reg = <0x02004000 0x4000>;
+	interrupts = <0 52 0x04>;
+	dmas = <&sdma 14 18 0>,
+	       <&sdma 15 18 0>;
+	dma-names = "rx", "tx";
+
+	clocks = <&clks 197>, <&clks 3>,
+	       <&clks 197>, <&clks 107>,
+	       <&clks 0>, <&clks 118>,
+	       <&clks 62>, <&clks 139>,
+	       <&clks 0>;
+	clock-names = "core", "rxtx0",
+		"rxtx1", "rxtx2",
+		"rxtx3", "rxtx4",
+		"rxtx5", "rxtx6",
+		"rxtx7";
+
+	big-endian;
+	status = "okay";
+};

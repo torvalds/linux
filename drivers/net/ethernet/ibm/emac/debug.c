@@ -245,7 +245,7 @@ static void emac_sysrq_handler(int key)
 
 static struct sysrq_key_op emac_sysrq_op = {
 	.handler = emac_sysrq_handler,
-	.help_msg = "emaC",
+	.help_msg = "emac(c)",
 	.action_msg = "Show EMAC(s) status",
 };
 

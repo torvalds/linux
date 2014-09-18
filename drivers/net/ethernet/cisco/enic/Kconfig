@@ -4,6 +4,6 @@
 
 config ENIC
 	tristate "Cisco VIC Ethernet NIC Support"
-	depends on PCI && INET
+	depends on PCI
 	---help---
 	  This enables the support for the Cisco VIC Ethernet card.

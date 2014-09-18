@@ -1,4 +1,0 @@
-header-y += tc_em_cmp.h
-header-y += tc_em_meta.h
-header-y += tc_em_nbyte.h
-header-y += tc_em_text.h

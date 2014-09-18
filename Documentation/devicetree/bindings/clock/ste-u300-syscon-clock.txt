@@ -1,0 +1,80 @@
+Clock bindings for ST-Ericsson U300 System Controller Clocks
+
+Bindings for the gated system controller clocks:
+
+Required properties:
+- compatible: must be "stericsson,u300-syscon-clk"
+- #clock-cells: must be <0>
+- clock-type: specifies the type of clock:
+  0 = slow clock
+  1 = fast clock
+  2 = rest/remaining clock
+- clock-id: specifies the clock in the type range
+
+Optional properties:
+- clocks: parent clock(s)
+
+The available clocks per type are as follows:
+
+Type:  ID:   Clock:
+-------------------
+0      0     Slow peripheral bridge clock
+0      1     UART0 clock
+0      4     GPIO clock
+0      6     RTC clock
+0      7     Application timer clock
+0      8     Access timer clock
+
+1      0     Fast peripheral bridge clock
+1      1     I2C bus 0 clock
+1      2     I2C bus 1 clock
+1      5     MMC interface peripheral (silicon) clock
+1      6     SPI clock
+
+2      3     CPU clock
+2      4     DMA controller clock
+2      5     External Memory Interface (EMIF) clock
+2      6     NAND flask interface clock
+2      8     XGAM graphics engine clock
+2      9     Shared External Memory Interface (SEMI) clock
+2      10    AHB Subsystem Bridge clock
+2      12    Interrupt controller clock
+
+Example:
+
+gpio_clk: gpio_clk@13M {
+	#clock-cells = <0>;
+	compatible = "stericsson,u300-syscon-clk";
+	clock-type = <0>; /* Slow */
+	clock-id = <4>;
+	clocks = <&slow_clk>;
+};
+
+gpio: gpio@c0016000 {
+	compatible = "stericsson,gpio-coh901";
+	(...)
+	clocks = <&gpio_clk>;
+};
+
+
+Bindings for the MMC/SD card clock:
+
+Required properties:
+- compatible: must be "stericsson,u300-syscon-mclk"
+- #clock-cells: must be <0>
+
+Optional properties:
+- clocks: parent clock(s)
+
+mmc_mclk: mmc_mclk {
+	#clock-cells = <0>;
+	compatible = "stericsson,u300-syscon-mclk";
+	clocks = <&mmc_pclk>;
+};
+
+mmcsd: mmcsd@c0001000 {
+	compatible = "arm,pl18x", "arm,primecell";
+	clocks = <&mmc_pclk>, <&mmc_mclk>;
+	clock-names = "apb_pclk", "mclk";
+	(...)
+};

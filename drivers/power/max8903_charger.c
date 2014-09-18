@@ -179,7 +179,7 @@ static irqreturn_t max8903_fault(int irq, void *_data)
 	return IRQ_HANDLED;
 }
 
-static __devinit int max8903_probe(struct platform_device *pdev)
+static int max8903_probe(struct platform_device *pdev)
 {
 	struct max8903_data *data;
 	struct device *dev = &pdev->dev;
@@ -189,7 +189,7 @@ static __devinit int max8903_probe(struct platform_device *pdev)
 	int ta_in = 0;
 	int usb_in = 0;
 
-	data = kzalloc(sizeof(struct max8903_data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct max8903_data), GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(dev, "Cannot allocate memory.\n");
 		return -ENOMEM;
@@ -341,11 +341,10 @@ err_dc_irq:
 err_psy:
 	power_supply_unregister(&data->psy);
 err:
-	kfree(data);
 	return ret;
 }
 
-static __devexit int max8903_remove(struct platform_device *pdev)
+static int max8903_remove(struct platform_device *pdev)
 {
 	struct max8903_data *data = platform_get_drvdata(pdev);
 
@@ -359,7 +358,6 @@ static __devexit int max8903_remove(struct platform_device *pdev)
 		if (pdata->dc_valid)
 			free_irq(gpio_to_irq(pdata->dok), data);
 		power_supply_unregister(&data->psy);
-		kfree(data);
 	}
 
 	return 0;
@@ -367,7 +365,7 @@ static __devexit int max8903_remove(struct platform_device *pdev)
 
 static struct platform_driver max8903_driver = {
 	.probe	= max8903_probe,
-	.remove	= __devexit_p(max8903_remove),
+	.remove	= max8903_remove,
 	.driver = {
 		.name	= "max8903-charger",
 		.owner	= THIS_MODULE,

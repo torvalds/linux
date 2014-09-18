@@ -228,6 +228,10 @@ fc_plogi_x_build(struct fchs_s *fchs, void *pld, u32 d_id, u32 s_id,
 
 	memcpy(plogi, &plogi_tmpl, sizeof(struct fc_logi_s));
 
+	/* For FC AL bb_cr is 0 and altbbcred is 1 */
+	if (!bb_cr)
+		plogi->csp.altbbcred = 1;
+
 	plogi->els_cmd.els_code = els_code;
 	if (els_code == FC_ELS_PLOGI)
 		fc_els_req_build(fchs, d_id, s_id, ox_id);
@@ -1249,6 +1253,27 @@ fc_rspnid_build(struct fchs_s *fchs, void *pyld, u32 s_id, u16 ox_id,
 	strncpy((char *)rspnid->spn, (char *)name, rspnid->spn_len);
 
 	return sizeof(struct fcgs_rspnid_req_s) + sizeof(struct ct_hdr_s);
+}
+
+u16
+fc_rsnn_nn_build(struct fchs_s *fchs, void *pyld, u32 s_id,
+			wwn_t node_name, u8 *name)
+{
+	struct ct_hdr_s *cthdr = (struct ct_hdr_s *) pyld;
+	struct fcgs_rsnn_nn_req_s *rsnn_nn =
+		(struct fcgs_rsnn_nn_req_s *) (cthdr + 1);
+	u32	d_id = bfa_hton3b(FC_NAME_SERVER);
+
+	fc_gs_fchdr_build(fchs, d_id, s_id, 0);
+	fc_gs_cthdr_build(cthdr, s_id, GS_RSNN_NN);
+
+	memset(rsnn_nn, 0, sizeof(struct fcgs_rsnn_nn_req_s));
+
+	rsnn_nn->node_name = node_name;
+	rsnn_nn->snn_len = (u8) strlen((char *)name);
+	strncpy((char *)rsnn_nn->snn, (char *)name, rsnn_nn->snn_len);
+
+	return sizeof(struct fcgs_rsnn_nn_req_s) + sizeof(struct ct_hdr_s);
 }
 
 u16

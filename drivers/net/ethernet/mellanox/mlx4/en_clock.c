@@ -1,0 +1,334 @@
+/*
+ * Copyright (c) 2012 Mellanox Technologies. All rights reserved.
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
+
+#include <linux/mlx4/device.h>
+
+#include "mlx4_en.h"
+
+int mlx4_en_timestamp_config(struct net_device *dev, int tx_type, int rx_filter)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	int port_up = 0;
+	int err = 0;
+
+	if (priv->hwtstamp_config.tx_type == tx_type &&
+	    priv->hwtstamp_config.rx_filter == rx_filter)
+		return 0;
+
+	mutex_lock(&mdev->state_lock);
+	if (priv->port_up) {
+		port_up = 1;
+		mlx4_en_stop_port(dev, 1);
+	}
+
+	mlx4_en_free_resources(priv);
+
+	en_warn(priv, "Changing Time Stamp configuration\n");
+
+	priv->hwtstamp_config.tx_type = tx_type;
+	priv->hwtstamp_config.rx_filter = rx_filter;
+
+	if (rx_filter != HWTSTAMP_FILTER_NONE)
+		dev->features &= ~NETIF_F_HW_VLAN_CTAG_RX;
+	else
+		dev->features |= NETIF_F_HW_VLAN_CTAG_RX;
+
+	err = mlx4_en_alloc_resources(priv);
+	if (err) {
+		en_err(priv, "Failed reallocating port resources\n");
+		goto out;
+	}
+	if (port_up) {
+		err = mlx4_en_start_port(dev);
+		if (err)
+			en_err(priv, "Failed starting port\n");
+	}
+
+out:
+	mutex_unlock(&mdev->state_lock);
+	netdev_features_change(dev);
+	return err;
+}
+
+/* mlx4_en_read_clock - read raw cycle counter (to be used by time counter)
+ */
+static cycle_t mlx4_en_read_clock(const struct cyclecounter *tc)
+{
+	struct mlx4_en_dev *mdev =
+		container_of(tc, struct mlx4_en_dev, cycles);
+	struct mlx4_dev *dev = mdev->dev;
+
+	return mlx4_read_clock(dev) & tc->mask;
+}
+
+u64 mlx4_en_get_cqe_ts(struct mlx4_cqe *cqe)
+{
+	u64 hi, lo;
+	struct mlx4_ts_cqe *ts_cqe = (struct mlx4_ts_cqe *)cqe;
+
+	lo = (u64)be16_to_cpu(ts_cqe->timestamp_lo);
+	hi = ((u64)be32_to_cpu(ts_cqe->timestamp_hi) + !lo) << 16;
+
+	return hi | lo;
+}
+
+void mlx4_en_fill_hwtstamps(struct mlx4_en_dev *mdev,
+			    struct skb_shared_hwtstamps *hwts,
+			    u64 timestamp)
+{
+	unsigned long flags;
+	u64 nsec;
+
+	read_lock_irqsave(&mdev->clock_lock, flags);
+	nsec = timecounter_cyc2time(&mdev->clock, timestamp);
+	read_unlock_irqrestore(&mdev->clock_lock, flags);
+
+	memset(hwts, 0, sizeof(struct skb_shared_hwtstamps));
+	hwts->hwtstamp = ns_to_ktime(nsec);
+}
+
+/**
+ * mlx4_en_remove_timestamp - disable PTP device
+ * @mdev: board private structure
+ *
+ * Stop the PTP support.
+ **/
+void mlx4_en_remove_timestamp(struct mlx4_en_dev *mdev)
+{
+	if (mdev->ptp_clock) {
+		ptp_clock_unregister(mdev->ptp_clock);
+		mdev->ptp_clock = NULL;
+		mlx4_info(mdev, "removed PHC\n");
+	}
+}
+
+void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev)
+{
+	bool timeout = time_is_before_jiffies(mdev->last_overflow_check +
+					      mdev->overflow_period);
+	unsigned long flags;
+
+	if (timeout) {
+		write_lock_irqsave(&mdev->clock_lock, flags);
+		timecounter_read(&mdev->clock);
+		write_unlock_irqrestore(&mdev->clock_lock, flags);
+		mdev->last_overflow_check = jiffies;
+	}
+}
+
+/**
+ * mlx4_en_phc_adjfreq - adjust the frequency of the hardware clock
+ * @ptp: ptp clock structure
+ * @delta: Desired frequency change in parts per billion
+ *
+ * Adjust the frequency of the PHC cycle counter by the indicated delta from
+ * the base frequency.
+ **/
+static int mlx4_en_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
+{
+	u64 adj;
+	u32 diff, mult;
+	int neg_adj = 0;
+	unsigned long flags;
+	struct mlx4_en_dev *mdev = container_of(ptp, struct mlx4_en_dev,
+						ptp_clock_info);
+
+	if (delta < 0) {
+		neg_adj = 1;
+		delta = -delta;
+	}
+	mult = mdev->nominal_c_mult;
+	adj = mult;
+	adj *= delta;
+	diff = div_u64(adj, 1000000000ULL);
+
+	write_lock_irqsave(&mdev->clock_lock, flags);
+	timecounter_read(&mdev->clock);
+	mdev->cycles.mult = neg_adj ? mult - diff : mult + diff;
+	write_unlock_irqrestore(&mdev->clock_lock, flags);
+
+	return 0;
+}
+
+/**
+ * mlx4_en_phc_adjtime - Shift the time of the hardware clock
+ * @ptp: ptp clock structure
+ * @delta: Desired change in nanoseconds
+ *
+ * Adjust the timer by resetting the timecounter structure.
+ **/
+static int mlx4_en_phc_adjtime(struct ptp_clock_info *ptp, s64 delta)
+{
+	struct mlx4_en_dev *mdev = container_of(ptp, struct mlx4_en_dev,
+						ptp_clock_info);
+	unsigned long flags;
+	s64 now;
+
+	write_lock_irqsave(&mdev->clock_lock, flags);
+	now = timecounter_read(&mdev->clock);
+	now += delta;
+	timecounter_init(&mdev->clock, &mdev->cycles, now);
+	write_unlock_irqrestore(&mdev->clock_lock, flags);
+
+	return 0;
+}
+
+/**
+ * mlx4_en_phc_gettime - Reads the current time from the hardware clock
+ * @ptp: ptp clock structure
+ * @ts: timespec structure to hold the current time value
+ *
+ * Read the timecounter and return the correct value in ns after converting
+ * it into a struct timespec.
+ **/
+static int mlx4_en_phc_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+{
+	struct mlx4_en_dev *mdev = container_of(ptp, struct mlx4_en_dev,
+						ptp_clock_info);
+	unsigned long flags;
+	u32 remainder;
+	u64 ns;
+
+	write_lock_irqsave(&mdev->clock_lock, flags);
+	ns = timecounter_read(&mdev->clock);
+	write_unlock_irqrestore(&mdev->clock_lock, flags);
+
+	ts->tv_sec = div_u64_rem(ns, NSEC_PER_SEC, &remainder);
+	ts->tv_nsec = remainder;
+
+	return 0;
+}
+
+/**
+ * mlx4_en_phc_settime - Set the current time on the hardware clock
+ * @ptp: ptp clock structure
+ * @ts: timespec containing the new time for the cycle counter
+ *
+ * Reset the timecounter to use a new base value instead of the kernel
+ * wall timer value.
+ **/
+static int mlx4_en_phc_settime(struct ptp_clock_info *ptp,
+			       const struct timespec *ts)
+{
+	struct mlx4_en_dev *mdev = container_of(ptp, struct mlx4_en_dev,
+						ptp_clock_info);
+	u64 ns = timespec_to_ns(ts);
+	unsigned long flags;
+
+	/* reset the timecounter */
+	write_lock_irqsave(&mdev->clock_lock, flags);
+	timecounter_init(&mdev->clock, &mdev->cycles, ns);
+	write_unlock_irqrestore(&mdev->clock_lock, flags);
+
+	return 0;
+}
+
+/**
+ * mlx4_en_phc_enable - enable or disable an ancillary feature
+ * @ptp: ptp clock structure
+ * @request: Desired resource to enable or disable
+ * @on: Caller passes one to enable or zero to disable
+ *
+ * Enable (or disable) ancillary features of the PHC subsystem.
+ * Currently, no ancillary features are supported.
+ **/
+static int mlx4_en_phc_enable(struct ptp_clock_info __always_unused *ptp,
+			      struct ptp_clock_request __always_unused *request,
+			      int __always_unused on)
+{
+	return -EOPNOTSUPP;
+}
+
+static const struct ptp_clock_info mlx4_en_ptp_clock_info = {
+	.owner		= THIS_MODULE,
+	.max_adj	= 100000000,
+	.n_alarm	= 0,
+	.n_ext_ts	= 0,
+	.n_per_out	= 0,
+	.n_pins		= 0,
+	.pps		= 0,
+	.adjfreq	= mlx4_en_phc_adjfreq,
+	.adjtime	= mlx4_en_phc_adjtime,
+	.gettime	= mlx4_en_phc_gettime,
+	.settime	= mlx4_en_phc_settime,
+	.enable		= mlx4_en_phc_enable,
+};
+
+void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev)
+{
+	struct mlx4_dev *dev = mdev->dev;
+	unsigned long flags;
+	u64 ns;
+
+	rwlock_init(&mdev->clock_lock);
+
+	memset(&mdev->cycles, 0, sizeof(mdev->cycles));
+	mdev->cycles.read = mlx4_en_read_clock;
+	mdev->cycles.mask = CLOCKSOURCE_MASK(48);
+	/* Using shift to make calculation more accurate. Since current HW
+	 * clock frequency is 427 MHz, and cycles are given using a 48 bits
+	 * register, the biggest shift when calculating using u64, is 14
+	 * (max_cycles * multiplier < 2^64)
+	 */
+	mdev->cycles.shift = 14;
+	mdev->cycles.mult =
+		clocksource_khz2mult(1000 * dev->caps.hca_core_clock, mdev->cycles.shift);
+	mdev->nominal_c_mult = mdev->cycles.mult;
+
+	write_lock_irqsave(&mdev->clock_lock, flags);
+	timecounter_init(&mdev->clock, &mdev->cycles,
+			 ktime_to_ns(ktime_get_real()));
+	write_unlock_irqrestore(&mdev->clock_lock, flags);
+
+	/* Calculate period in seconds to call the overflow watchdog - to make
+	 * sure counter is checked at least once every wrap around.
+	 */
+	ns = cyclecounter_cyc2ns(&mdev->cycles, mdev->cycles.mask);
+	do_div(ns, NSEC_PER_SEC / 2 / HZ);
+	mdev->overflow_period = ns;
+
+	/* Configure the PHC */
+	mdev->ptp_clock_info = mlx4_en_ptp_clock_info;
+	snprintf(mdev->ptp_clock_info.name, 16, "mlx4 ptp");
+
+	mdev->ptp_clock = ptp_clock_register(&mdev->ptp_clock_info,
+					     &mdev->pdev->dev);
+	if (IS_ERR(mdev->ptp_clock)) {
+		mdev->ptp_clock = NULL;
+		mlx4_err(mdev, "ptp_clock_register failed\n");
+	} else {
+		mlx4_info(mdev, "registered PHC clock\n");
+	}
+
+}

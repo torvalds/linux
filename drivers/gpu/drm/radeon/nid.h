@@ -41,11 +41,50 @@
 #define CAYMAN_MAX_TCC               16
 #define CAYMAN_MAX_TCC_MASK          0xFF
 
+#define CAYMAN_GB_ADDR_CONFIG_GOLDEN       0x02011003
+#define ARUBA_GB_ADDR_CONFIG_GOLDEN        0x12010001
+
 #define DMIF_ADDR_CONFIG  				0xBD4
+
+/* DCE6 only */
+#define DMIF_ADDR_CALC  				0xC00
+
 #define	SRBM_GFX_CNTL				        0x0E44
 #define		RINGID(x)					(((x) & 0x3) << 0)
 #define		VMID(x)						(((x) & 0x7) << 0)
 #define	SRBM_STATUS				        0x0E50
+#define		RLC_RQ_PENDING 				(1 << 3)
+#define		GRBM_RQ_PENDING 			(1 << 5)
+#define		VMC_BUSY 				(1 << 8)
+#define		MCB_BUSY 				(1 << 9)
+#define		MCB_NON_DISPLAY_BUSY 			(1 << 10)
+#define		MCC_BUSY 				(1 << 11)
+#define		MCD_BUSY 				(1 << 12)
+#define		SEM_BUSY 				(1 << 14)
+#define		RLC_BUSY 				(1 << 15)
+#define		IH_BUSY 				(1 << 17)
+
+#define	SRBM_SOFT_RESET				        0x0E60
+#define		SOFT_RESET_BIF				(1 << 1)
+#define		SOFT_RESET_CG				(1 << 2)
+#define		SOFT_RESET_DC				(1 << 5)
+#define		SOFT_RESET_DMA1				(1 << 6)
+#define		SOFT_RESET_GRBM				(1 << 8)
+#define		SOFT_RESET_HDP				(1 << 9)
+#define		SOFT_RESET_IH				(1 << 10)
+#define		SOFT_RESET_MC				(1 << 11)
+#define		SOFT_RESET_RLC				(1 << 13)
+#define		SOFT_RESET_ROM				(1 << 14)
+#define		SOFT_RESET_SEM				(1 << 15)
+#define		SOFT_RESET_VMC				(1 << 17)
+#define		SOFT_RESET_DMA				(1 << 20)
+#define		SOFT_RESET_TST				(1 << 21)
+#define		SOFT_RESET_REGBB			(1 << 22)
+#define		SOFT_RESET_ORB				(1 << 23)
+
+#define	SRBM_STATUS2				        0x0EC4
+#define		DMA_BUSY 				(1 << 5)
+#define		DMA1_BUSY 				(1 << 6)
 
 #define VM_CONTEXT0_REQUEST_RESPONSE			0x1470
 #define		REQUEST_TYPE(x)					(((x) & 0xf) << 0)
@@ -77,12 +116,40 @@
 #define VM_CONTEXT0_CNTL				0x1410
 #define		ENABLE_CONTEXT					(1 << 0)
 #define		PAGE_TABLE_DEPTH(x)				(((x) & 3) << 1)
+#define		RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT		(1 << 3)
 #define		RANGE_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 4)
+#define		DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT	(1 << 6)
+#define		DUMMY_PAGE_PROTECTION_FAULT_ENABLE_DEFAULT	(1 << 7)
+#define		PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT		(1 << 9)
+#define		PDE0_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 10)
+#define		VALID_PROTECTION_FAULT_ENABLE_INTERRUPT		(1 << 12)
+#define		VALID_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 13)
+#define		READ_PROTECTION_FAULT_ENABLE_INTERRUPT		(1 << 15)
+#define		READ_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 16)
+#define		WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT		(1 << 18)
+#define		WRITE_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 19)
+#define		PAGE_TABLE_BLOCK_SIZE(x)			(((x) & 0xF) << 24)
 #define VM_CONTEXT1_CNTL				0x1414
 #define VM_CONTEXT0_CNTL2				0x1430
 #define VM_CONTEXT1_CNTL2				0x1434
 #define VM_INVALIDATE_REQUEST				0x1478
 #define VM_INVALIDATE_RESPONSE				0x147c
+#define	VM_CONTEXT1_PROTECTION_FAULT_ADDR		0x14FC
+#define	VM_CONTEXT1_PROTECTION_FAULT_STATUS		0x14DC
+#define		PROTECTIONS_MASK			(0xf << 0)
+#define		PROTECTIONS_SHIFT			0
+		/* bit 0: range
+		 * bit 2: pde0
+		 * bit 3: valid
+		 * bit 4: read
+		 * bit 5: write
+		 */
+#define		MEMORY_CLIENT_ID_MASK			(0xff << 12)
+#define		MEMORY_CLIENT_ID_SHIFT			12
+#define		MEMORY_CLIENT_RW_MASK			(1 << 24)
+#define		MEMORY_CLIENT_RW_SHIFT			24
+#define		FAULT_VMID_MASK				(0x7 << 25)
+#define		FAULT_VMID_SHIFT			25
 #define VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR	0x1518
 #define VM_CONTEXT1_PROTECTION_FAULT_DEFAULT_ADDR	0x151c
 #define	VM_CONTEXT0_PAGE_TABLE_BASE_ADDR		0x153C
@@ -148,6 +215,8 @@
 #define	CGTS_SYS_TCC_DISABLE				0x3F90
 #define	CGTS_USER_SYS_TCC_DISABLE			0x3F94
 
+#define RLC_GFX_INDEX           			0x3FC4
+
 #define	CONFIG_MEMSIZE					0x5428
 
 #define HDP_MEM_COHERENCY_FLUSH_CNTL			0x5480
@@ -212,6 +281,12 @@
 #define		SOFT_RESET_VGT					(1 << 14)
 #define		SOFT_RESET_IA					(1 << 15)
 
+#define GRBM_GFX_INDEX          			0x802C
+#define		INSTANCE_INDEX(x)			((x) << 0)
+#define		SE_INDEX(x)     			((x) << 16)
+#define		INSTANCE_BROADCAST_WRITES      		(1 << 30)
+#define		SE_BROADCAST_WRITES      		(1 << 31)
+
 #define	SCRATCH_REG0					0x8500
 #define	SCRATCH_REG1					0x8504
 #define	SCRATCH_REG2					0x8508
@@ -225,6 +300,10 @@
 #define	CP_SEM_WAIT_TIMER				0x85BC
 #define	CP_SEM_INCOMPLETE_TIMER_CNTL			0x85C8
 #define	CP_COHER_CNTL2					0x85E8
+#define	CP_STALLED_STAT1			0x8674
+#define	CP_STALLED_STAT2			0x8678
+#define	CP_BUSY_STAT				0x867C
+#define	CP_STAT						0x8680
 #define CP_ME_CNTL					0x86D8
 #define		CP_ME_HALT					(1 << 28)
 #define		CP_PFP_HALT					(1 << 26)
@@ -427,19 +506,587 @@
 #       define CACHE_FLUSH_AND_INV_EVENT_TS                     (0x14 << 0)
 #       define CACHE_FLUSH_AND_INV_EVENT                        (0x16 << 0)
 
+/* TN SMU registers */
+#define	TN_CURRENT_GNB_TEMP				0x1F390
+
+/* pm registers */
+#define	SMC_MSG						0x20c
+#define		HOST_SMC_MSG(x)				((x) << 0)
+#define		HOST_SMC_MSG_MASK			(0xff << 0)
+#define		HOST_SMC_MSG_SHIFT			0
+#define		HOST_SMC_RESP(x)			((x) << 8)
+#define		HOST_SMC_RESP_MASK			(0xff << 8)
+#define		HOST_SMC_RESP_SHIFT			8
+#define		SMC_HOST_MSG(x)				((x) << 16)
+#define		SMC_HOST_MSG_MASK			(0xff << 16)
+#define		SMC_HOST_MSG_SHIFT			16
+#define		SMC_HOST_RESP(x)			((x) << 24)
+#define		SMC_HOST_RESP_MASK			(0xff << 24)
+#define		SMC_HOST_RESP_SHIFT			24
+
+#define	CG_SPLL_FUNC_CNTL				0x600
+#define		SPLL_RESET				(1 << 0)
+#define		SPLL_SLEEP				(1 << 1)
+#define		SPLL_BYPASS_EN				(1 << 3)
+#define		SPLL_REF_DIV(x)				((x) << 4)
+#define		SPLL_REF_DIV_MASK			(0x3f << 4)
+#define		SPLL_PDIV_A(x)				((x) << 20)
+#define		SPLL_PDIV_A_MASK			(0x7f << 20)
+#define		SPLL_PDIV_A_SHIFT			20
+#define	CG_SPLL_FUNC_CNTL_2				0x604
+#define		SCLK_MUX_SEL(x)				((x) << 0)
+#define		SCLK_MUX_SEL_MASK			(0x1ff << 0)
+#define	CG_SPLL_FUNC_CNTL_3				0x608
+#define		SPLL_FB_DIV(x)				((x) << 0)
+#define		SPLL_FB_DIV_MASK			(0x3ffffff << 0)
+#define		SPLL_FB_DIV_SHIFT			0
+#define		SPLL_DITHEN				(1 << 28)
+
+#define MPLL_CNTL_MODE                                  0x61c
+#       define SS_SSEN                                  (1 << 24)
+#       define SS_DSMODE_EN                             (1 << 25)
+
+#define	MPLL_AD_FUNC_CNTL				0x624
+#define		CLKF(x)					((x) << 0)
+#define		CLKF_MASK				(0x7f << 0)
+#define		CLKR(x)					((x) << 7)
+#define		CLKR_MASK				(0x1f << 7)
+#define		CLKFRAC(x)				((x) << 12)
+#define		CLKFRAC_MASK				(0x1f << 12)
+#define		YCLK_POST_DIV(x)			((x) << 17)
+#define		YCLK_POST_DIV_MASK			(3 << 17)
+#define		IBIAS(x)				((x) << 20)
+#define		IBIAS_MASK				(0x3ff << 20)
+#define		RESET					(1 << 30)
+#define		PDNB					(1 << 31)
+#define	MPLL_AD_FUNC_CNTL_2				0x628
+#define		BYPASS					(1 << 19)
+#define		BIAS_GEN_PDNB				(1 << 24)
+#define		RESET_EN				(1 << 25)
+#define		VCO_MODE				(1 << 29)
+#define	MPLL_DQ_FUNC_CNTL				0x62c
+#define	MPLL_DQ_FUNC_CNTL_2				0x630
+
+#define GENERAL_PWRMGT                                  0x63c
+#       define GLOBAL_PWRMGT_EN                         (1 << 0)
+#       define STATIC_PM_EN                             (1 << 1)
+#       define THERMAL_PROTECTION_DIS                   (1 << 2)
+#       define THERMAL_PROTECTION_TYPE                  (1 << 3)
+#       define ENABLE_GEN2PCIE                          (1 << 4)
+#       define ENABLE_GEN2XSP                           (1 << 5)
+#       define SW_SMIO_INDEX(x)                         ((x) << 6)
+#       define SW_SMIO_INDEX_MASK                       (3 << 6)
+#       define SW_SMIO_INDEX_SHIFT                      6
+#       define LOW_VOLT_D2_ACPI                         (1 << 8)
+#       define LOW_VOLT_D3_ACPI                         (1 << 9)
+#       define VOLT_PWRMGT_EN                           (1 << 10)
+#       define BACKBIAS_PAD_EN                          (1 << 18)
+#       define BACKBIAS_VALUE                           (1 << 19)
+#       define DYN_SPREAD_SPECTRUM_EN                   (1 << 23)
+#       define AC_DC_SW                                 (1 << 24)
+
+#define SCLK_PWRMGT_CNTL                                  0x644
+#       define SCLK_PWRMGT_OFF                            (1 << 0)
+#       define SCLK_LOW_D1                                (1 << 1)
+#       define FIR_RESET                                  (1 << 4)
+#       define FIR_FORCE_TREND_SEL                        (1 << 5)
+#       define FIR_TREND_MODE                             (1 << 6)
+#       define DYN_GFX_CLK_OFF_EN                         (1 << 7)
+#       define GFX_CLK_FORCE_ON                           (1 << 8)
+#       define GFX_CLK_REQUEST_OFF                        (1 << 9)
+#       define GFX_CLK_FORCE_OFF                          (1 << 10)
+#       define GFX_CLK_OFF_ACPI_D1                        (1 << 11)
+#       define GFX_CLK_OFF_ACPI_D2                        (1 << 12)
+#       define GFX_CLK_OFF_ACPI_D3                        (1 << 13)
+#       define DYN_LIGHT_SLEEP_EN                         (1 << 14)
+#define	MCLK_PWRMGT_CNTL				0x648
+#       define DLL_SPEED(x)				((x) << 0)
+#       define DLL_SPEED_MASK				(0x1f << 0)
+#       define MPLL_PWRMGT_OFF                          (1 << 5)
+#       define DLL_READY                                (1 << 6)
+#       define MC_INT_CNTL                              (1 << 7)
+#       define MRDCKA0_PDNB                             (1 << 8)
+#       define MRDCKA1_PDNB                             (1 << 9)
+#       define MRDCKB0_PDNB                             (1 << 10)
+#       define MRDCKB1_PDNB                             (1 << 11)
+#       define MRDCKC0_PDNB                             (1 << 12)
+#       define MRDCKC1_PDNB                             (1 << 13)
+#       define MRDCKD0_PDNB                             (1 << 14)
+#       define MRDCKD1_PDNB                             (1 << 15)
+#       define MRDCKA0_RESET                            (1 << 16)
+#       define MRDCKA1_RESET                            (1 << 17)
+#       define MRDCKB0_RESET                            (1 << 18)
+#       define MRDCKB1_RESET                            (1 << 19)
+#       define MRDCKC0_RESET                            (1 << 20)
+#       define MRDCKC1_RESET                            (1 << 21)
+#       define MRDCKD0_RESET                            (1 << 22)
+#       define MRDCKD1_RESET                            (1 << 23)
+#       define DLL_READY_READ                           (1 << 24)
+#       define USE_DISPLAY_GAP                          (1 << 25)
+#       define USE_DISPLAY_URGENT_NORMAL                (1 << 26)
+#       define MPLL_TURNOFF_D2                          (1 << 28)
+#define	DLL_CNTL					0x64c
+#       define MRDCKA0_BYPASS                           (1 << 24)
+#       define MRDCKA1_BYPASS                           (1 << 25)
+#       define MRDCKB0_BYPASS                           (1 << 26)
+#       define MRDCKB1_BYPASS                           (1 << 27)
+#       define MRDCKC0_BYPASS                           (1 << 28)
+#       define MRDCKC1_BYPASS                           (1 << 29)
+#       define MRDCKD0_BYPASS                           (1 << 30)
+#       define MRDCKD1_BYPASS                           (1 << 31)
+
+#define TARGET_AND_CURRENT_PROFILE_INDEX                  0x66c
+#       define CURRENT_STATE_INDEX_MASK                   (0xf << 4)
+#       define CURRENT_STATE_INDEX_SHIFT                  4
+
+#define CG_AT                                           0x6d4
+#       define CG_R(x)					((x) << 0)
+#       define CG_R_MASK				(0xffff << 0)
+#       define CG_L(x)					((x) << 16)
+#       define CG_L_MASK				(0xffff << 16)
+
+#define	CG_BIF_REQ_AND_RSP				0x7f4
+#define		CG_CLIENT_REQ(x)			((x) << 0)
+#define		CG_CLIENT_REQ_MASK			(0xff << 0)
+#define		CG_CLIENT_REQ_SHIFT			0
+#define		CG_CLIENT_RESP(x)			((x) << 8)
+#define		CG_CLIENT_RESP_MASK			(0xff << 8)
+#define		CG_CLIENT_RESP_SHIFT			8
+#define		CLIENT_CG_REQ(x)			((x) << 16)
+#define		CLIENT_CG_REQ_MASK			(0xff << 16)
+#define		CLIENT_CG_REQ_SHIFT			16
+#define		CLIENT_CG_RESP(x)			((x) << 24)
+#define		CLIENT_CG_RESP_MASK			(0xff << 24)
+#define		CLIENT_CG_RESP_SHIFT			24
+
+#define	CG_SPLL_SPREAD_SPECTRUM				0x790
+#define		SSEN					(1 << 0)
+#define		CLK_S(x)				((x) << 4)
+#define		CLK_S_MASK				(0xfff << 4)
+#define		CLK_S_SHIFT				4
+#define	CG_SPLL_SPREAD_SPECTRUM_2			0x794
+#define		CLK_V(x)				((x) << 0)
+#define		CLK_V_MASK				(0x3ffffff << 0)
+#define		CLK_V_SHIFT				0
+
+#define SMC_SCRATCH0                                    0x81c
+
+#define	CG_SPLL_FUNC_CNTL_4				0x850
+
+#define	MPLL_SS1					0x85c
+#define		CLKV(x)					((x) << 0)
+#define		CLKV_MASK				(0x3ffffff << 0)
+#define	MPLL_SS2					0x860
+#define		CLKS(x)					((x) << 0)
+#define		CLKS_MASK				(0xfff << 0)
+
+#define	CG_CAC_CTRL					0x88c
+#define		TID_CNT(x)				((x) << 0)
+#define		TID_CNT_MASK				(0x3fff << 0)
+#define		TID_UNIT(x)				((x) << 14)
+#define		TID_UNIT_MASK				(0xf << 14)
+
+#define	CG_IND_ADDR					0x8f8
+#define	CG_IND_DATA					0x8fc
+/* CGIND regs */
+#define	CG_CGTT_LOCAL_0					0x00
+#define	CG_CGTT_LOCAL_1					0x01
+
+#define MC_CG_CONFIG                                    0x25bc
+#define         MCDW_WR_ENABLE                          (1 << 0)
+#define         MCDX_WR_ENABLE                          (1 << 1)
+#define         MCDY_WR_ENABLE                          (1 << 2)
+#define         MCDZ_WR_ENABLE                          (1 << 3)
+#define		MC_RD_ENABLE(x)				((x) << 4)
+#define		MC_RD_ENABLE_MASK			(3 << 4)
+#define		INDEX(x)				((x) << 6)
+#define		INDEX_MASK				(0xfff << 6)
+#define		INDEX_SHIFT				6
+
+#define	MC_ARB_CAC_CNTL					0x2750
+#define         ENABLE                                  (1 << 0)
+#define		READ_WEIGHT(x)				((x) << 1)
+#define		READ_WEIGHT_MASK			(0x3f << 1)
+#define		READ_WEIGHT_SHIFT			1
+#define		WRITE_WEIGHT(x)				((x) << 7)
+#define		WRITE_WEIGHT_MASK			(0x3f << 7)
+#define		WRITE_WEIGHT_SHIFT			7
+#define         ALLOW_OVERFLOW                          (1 << 13)
+
+#define	MC_ARB_DRAM_TIMING				0x2774
+#define	MC_ARB_DRAM_TIMING2				0x2778
+
+#define	MC_ARB_RFSH_RATE				0x27b0
+#define		POWERMODE0(x)				((x) << 0)
+#define		POWERMODE0_MASK				(0xff << 0)
+#define		POWERMODE0_SHIFT			0
+#define		POWERMODE1(x)				((x) << 8)
+#define		POWERMODE1_MASK				(0xff << 8)
+#define		POWERMODE1_SHIFT			8
+#define		POWERMODE2(x)				((x) << 16)
+#define		POWERMODE2_MASK				(0xff << 16)
+#define		POWERMODE2_SHIFT			16
+#define		POWERMODE3(x)				((x) << 24)
+#define		POWERMODE3_MASK				(0xff << 24)
+#define		POWERMODE3_SHIFT			24
+
+#define MC_ARB_CG                                       0x27e8
+#define		CG_ARB_REQ(x)				((x) << 0)
+#define		CG_ARB_REQ_MASK				(0xff << 0)
+#define		CG_ARB_REQ_SHIFT			0
+#define		CG_ARB_RESP(x)				((x) << 8)
+#define		CG_ARB_RESP_MASK			(0xff << 8)
+#define		CG_ARB_RESP_SHIFT			8
+#define		ARB_CG_REQ(x)				((x) << 16)
+#define		ARB_CG_REQ_MASK				(0xff << 16)
+#define		ARB_CG_REQ_SHIFT			16
+#define		ARB_CG_RESP(x)				((x) << 24)
+#define		ARB_CG_RESP_MASK			(0xff << 24)
+#define		ARB_CG_RESP_SHIFT			24
+
+#define	MC_ARB_DRAM_TIMING_1				0x27f0
+#define	MC_ARB_DRAM_TIMING_2				0x27f4
+#define	MC_ARB_DRAM_TIMING_3				0x27f8
+#define	MC_ARB_DRAM_TIMING2_1				0x27fc
+#define	MC_ARB_DRAM_TIMING2_2				0x2800
+#define	MC_ARB_DRAM_TIMING2_3				0x2804
+#define MC_ARB_BURST_TIME                               0x2808
+#define		STATE0(x)				((x) << 0)
+#define		STATE0_MASK				(0x1f << 0)
+#define		STATE0_SHIFT				0
+#define		STATE1(x)				((x) << 5)
+#define		STATE1_MASK				(0x1f << 5)
+#define		STATE1_SHIFT				5
+#define		STATE2(x)				((x) << 10)
+#define		STATE2_MASK				(0x1f << 10)
+#define		STATE2_SHIFT				10
+#define		STATE3(x)				((x) << 15)
+#define		STATE3_MASK				(0x1f << 15)
+#define		STATE3_SHIFT				15
+
+#define MC_CG_DATAPORT                                  0x2884
+
+#define MC_SEQ_RAS_TIMING                               0x28a0
+#define MC_SEQ_CAS_TIMING                               0x28a4
+#define MC_SEQ_MISC_TIMING                              0x28a8
+#define MC_SEQ_MISC_TIMING2                             0x28ac
+#define MC_SEQ_PMG_TIMING                               0x28b0
+#define MC_SEQ_RD_CTL_D0                                0x28b4
+#define MC_SEQ_RD_CTL_D1                                0x28b8
+#define MC_SEQ_WR_CTL_D0                                0x28bc
+#define MC_SEQ_WR_CTL_D1                                0x28c0
+
+#define MC_SEQ_MISC0                                    0x2a00
+#define         MC_SEQ_MISC0_GDDR5_SHIFT                28
+#define         MC_SEQ_MISC0_GDDR5_MASK                 0xf0000000
+#define         MC_SEQ_MISC0_GDDR5_VALUE                5
+#define MC_SEQ_MISC1                                    0x2a04
+#define MC_SEQ_RESERVE_M                                0x2a08
+#define MC_PMG_CMD_EMRS                                 0x2a0c
+
+#define MC_SEQ_MISC3                                    0x2a2c
+
+#define MC_SEQ_MISC5                                    0x2a54
+#define MC_SEQ_MISC6                                    0x2a58
+
+#define MC_SEQ_MISC7                                    0x2a64
+
+#define MC_SEQ_RAS_TIMING_LP                            0x2a6c
+#define MC_SEQ_CAS_TIMING_LP                            0x2a70
+#define MC_SEQ_MISC_TIMING_LP                           0x2a74
+#define MC_SEQ_MISC_TIMING2_LP                          0x2a78
+#define MC_SEQ_WR_CTL_D0_LP                             0x2a7c
+#define MC_SEQ_WR_CTL_D1_LP                             0x2a80
+#define MC_SEQ_PMG_CMD_EMRS_LP                          0x2a84
+#define MC_SEQ_PMG_CMD_MRS_LP                           0x2a88
+
+#define MC_PMG_CMD_MRS                                  0x2aac
+
+#define MC_SEQ_RD_CTL_D0_LP                             0x2b1c
+#define MC_SEQ_RD_CTL_D1_LP                             0x2b20
+
+#define MC_PMG_CMD_MRS1                                 0x2b44
+#define MC_SEQ_PMG_CMD_MRS1_LP                          0x2b48
+#define MC_SEQ_PMG_TIMING_LP                            0x2b4c
+
+#define MC_PMG_CMD_MRS2                                 0x2b5c
+#define MC_SEQ_PMG_CMD_MRS2_LP                          0x2b60
+
+#define	LB_SYNC_RESET_SEL				0x6b28
+#define		LB_SYNC_RESET_SEL_MASK			(3 << 0)
+#define		LB_SYNC_RESET_SEL_SHIFT			0
+
+#define	DC_STUTTER_CNTL					0x6b30
+#define		DC_STUTTER_ENABLE_A			(1 << 0)
+#define		DC_STUTTER_ENABLE_B			(1 << 1)
+
+#define SQ_CAC_THRESHOLD                                0x8e4c
+#define		VSP(x)					((x) << 0)
+#define		VSP_MASK				(0xff << 0)
+#define		VSP_SHIFT				0
+#define		VSP0(x)					((x) << 8)
+#define		VSP0_MASK				(0xff << 8)
+#define		VSP0_SHIFT				8
+#define		GPR(x)					((x) << 16)
+#define		GPR_MASK				(0xff << 16)
+#define		GPR_SHIFT				16
+
+#define SQ_POWER_THROTTLE                               0x8e58
+#define		MIN_POWER(x)				((x) << 0)
+#define		MIN_POWER_MASK				(0x3fff << 0)
+#define		MIN_POWER_SHIFT				0
+#define		MAX_POWER(x)				((x) << 16)
+#define		MAX_POWER_MASK				(0x3fff << 16)
+#define		MAX_POWER_SHIFT				0
+#define SQ_POWER_THROTTLE2                              0x8e5c
+#define		MAX_POWER_DELTA(x)			((x) << 0)
+#define		MAX_POWER_DELTA_MASK			(0x3fff << 0)
+#define		MAX_POWER_DELTA_SHIFT			0
+#define		STI_SIZE(x)				((x) << 16)
+#define		STI_SIZE_MASK				(0x3ff << 16)
+#define		STI_SIZE_SHIFT				16
+#define		LTI_RATIO(x)				((x) << 27)
+#define		LTI_RATIO_MASK				(0xf << 27)
+#define		LTI_RATIO_SHIFT				27
+
+/* CG indirect registers */
+#define CG_CAC_REGION_1_WEIGHT_0                        0x83
+#define		WEIGHT_TCP_SIG0(x)			((x) << 0)
+#define		WEIGHT_TCP_SIG0_MASK			(0x3f << 0)
+#define		WEIGHT_TCP_SIG0_SHIFT			0
+#define		WEIGHT_TCP_SIG1(x)			((x) << 6)
+#define		WEIGHT_TCP_SIG1_MASK			(0x3f << 6)
+#define		WEIGHT_TCP_SIG1_SHIFT			6
+#define		WEIGHT_TA_SIG(x)			((x) << 12)
+#define		WEIGHT_TA_SIG_MASK			(0x3f << 12)
+#define		WEIGHT_TA_SIG_SHIFT			12
+#define CG_CAC_REGION_1_WEIGHT_1                        0x84
+#define		WEIGHT_TCC_EN0(x)			((x) << 0)
+#define		WEIGHT_TCC_EN0_MASK			(0x3f << 0)
+#define		WEIGHT_TCC_EN0_SHIFT			0
+#define		WEIGHT_TCC_EN1(x)			((x) << 6)
+#define		WEIGHT_TCC_EN1_MASK			(0x3f << 6)
+#define		WEIGHT_TCC_EN1_SHIFT			6
+#define		WEIGHT_TCC_EN2(x)			((x) << 12)
+#define		WEIGHT_TCC_EN2_MASK			(0x3f << 12)
+#define		WEIGHT_TCC_EN2_SHIFT			12
+#define		WEIGHT_TCC_EN3(x)			((x) << 18)
+#define		WEIGHT_TCC_EN3_MASK			(0x3f << 18)
+#define		WEIGHT_TCC_EN3_SHIFT			18
+#define CG_CAC_REGION_2_WEIGHT_0                        0x85
+#define		WEIGHT_CB_EN0(x)			((x) << 0)
+#define		WEIGHT_CB_EN0_MASK			(0x3f << 0)
+#define		WEIGHT_CB_EN0_SHIFT			0
+#define		WEIGHT_CB_EN1(x)			((x) << 6)
+#define		WEIGHT_CB_EN1_MASK			(0x3f << 6)
+#define		WEIGHT_CB_EN1_SHIFT			6
+#define		WEIGHT_CB_EN2(x)			((x) << 12)
+#define		WEIGHT_CB_EN2_MASK			(0x3f << 12)
+#define		WEIGHT_CB_EN2_SHIFT			12
+#define		WEIGHT_CB_EN3(x)			((x) << 18)
+#define		WEIGHT_CB_EN3_MASK			(0x3f << 18)
+#define		WEIGHT_CB_EN3_SHIFT			18
+#define CG_CAC_REGION_2_WEIGHT_1                        0x86
+#define		WEIGHT_DB_SIG0(x)			((x) << 0)
+#define		WEIGHT_DB_SIG0_MASK			(0x3f << 0)
+#define		WEIGHT_DB_SIG0_SHIFT			0
+#define		WEIGHT_DB_SIG1(x)			((x) << 6)
+#define		WEIGHT_DB_SIG1_MASK			(0x3f << 6)
+#define		WEIGHT_DB_SIG1_SHIFT			6
+#define		WEIGHT_DB_SIG2(x)			((x) << 12)
+#define		WEIGHT_DB_SIG2_MASK			(0x3f << 12)
+#define		WEIGHT_DB_SIG2_SHIFT			12
+#define		WEIGHT_DB_SIG3(x)			((x) << 18)
+#define		WEIGHT_DB_SIG3_MASK			(0x3f << 18)
+#define		WEIGHT_DB_SIG3_SHIFT			18
+#define CG_CAC_REGION_2_WEIGHT_2                        0x87
+#define		WEIGHT_SXM_SIG0(x)			((x) << 0)
+#define		WEIGHT_SXM_SIG0_MASK			(0x3f << 0)
+#define		WEIGHT_SXM_SIG0_SHIFT			0
+#define		WEIGHT_SXM_SIG1(x)			((x) << 6)
+#define		WEIGHT_SXM_SIG1_MASK			(0x3f << 6)
+#define		WEIGHT_SXM_SIG1_SHIFT			6
+#define		WEIGHT_SXM_SIG2(x)			((x) << 12)
+#define		WEIGHT_SXM_SIG2_MASK			(0x3f << 12)
+#define		WEIGHT_SXM_SIG2_SHIFT			12
+#define		WEIGHT_SXS_SIG0(x)			((x) << 18)
+#define		WEIGHT_SXS_SIG0_MASK			(0x3f << 18)
+#define		WEIGHT_SXS_SIG0_SHIFT			18
+#define		WEIGHT_SXS_SIG1(x)			((x) << 24)
+#define		WEIGHT_SXS_SIG1_MASK			(0x3f << 24)
+#define		WEIGHT_SXS_SIG1_SHIFT			24
+#define CG_CAC_REGION_3_WEIGHT_0                        0x88
+#define		WEIGHT_XBR_0(x)				((x) << 0)
+#define		WEIGHT_XBR_0_MASK			(0x3f << 0)
+#define		WEIGHT_XBR_0_SHIFT			0
+#define		WEIGHT_XBR_1(x)				((x) << 6)
+#define		WEIGHT_XBR_1_MASK			(0x3f << 6)
+#define		WEIGHT_XBR_1_SHIFT			6
+#define		WEIGHT_XBR_2(x)				((x) << 12)
+#define		WEIGHT_XBR_2_MASK			(0x3f << 12)
+#define		WEIGHT_XBR_2_SHIFT			12
+#define		WEIGHT_SPI_SIG0(x)			((x) << 18)
+#define		WEIGHT_SPI_SIG0_MASK			(0x3f << 18)
+#define		WEIGHT_SPI_SIG0_SHIFT			18
+#define CG_CAC_REGION_3_WEIGHT_1                        0x89
+#define		WEIGHT_SPI_SIG1(x)			((x) << 0)
+#define		WEIGHT_SPI_SIG1_MASK			(0x3f << 0)
+#define		WEIGHT_SPI_SIG1_SHIFT			0
+#define		WEIGHT_SPI_SIG2(x)			((x) << 6)
+#define		WEIGHT_SPI_SIG2_MASK			(0x3f << 6)
+#define		WEIGHT_SPI_SIG2_SHIFT			6
+#define		WEIGHT_SPI_SIG3(x)			((x) << 12)
+#define		WEIGHT_SPI_SIG3_MASK			(0x3f << 12)
+#define		WEIGHT_SPI_SIG3_SHIFT			12
+#define		WEIGHT_SPI_SIG4(x)			((x) << 18)
+#define		WEIGHT_SPI_SIG4_MASK			(0x3f << 18)
+#define		WEIGHT_SPI_SIG4_SHIFT			18
+#define		WEIGHT_SPI_SIG5(x)			((x) << 24)
+#define		WEIGHT_SPI_SIG5_MASK			(0x3f << 24)
+#define		WEIGHT_SPI_SIG5_SHIFT			24
+#define CG_CAC_REGION_4_WEIGHT_0                        0x8a
+#define		WEIGHT_LDS_SIG0(x)			((x) << 0)
+#define		WEIGHT_LDS_SIG0_MASK			(0x3f << 0)
+#define		WEIGHT_LDS_SIG0_SHIFT			0
+#define		WEIGHT_LDS_SIG1(x)			((x) << 6)
+#define		WEIGHT_LDS_SIG1_MASK			(0x3f << 6)
+#define		WEIGHT_LDS_SIG1_SHIFT			6
+#define		WEIGHT_SC(x)				((x) << 24)
+#define		WEIGHT_SC_MASK				(0x3f << 24)
+#define		WEIGHT_SC_SHIFT				24
+#define CG_CAC_REGION_4_WEIGHT_1                        0x8b
+#define		WEIGHT_BIF(x)				((x) << 0)
+#define		WEIGHT_BIF_MASK				(0x3f << 0)
+#define		WEIGHT_BIF_SHIFT			0
+#define		WEIGHT_CP(x)				((x) << 6)
+#define		WEIGHT_CP_MASK				(0x3f << 6)
+#define		WEIGHT_CP_SHIFT				6
+#define		WEIGHT_PA_SIG0(x)			((x) << 12)
+#define		WEIGHT_PA_SIG0_MASK			(0x3f << 12)
+#define		WEIGHT_PA_SIG0_SHIFT			12
+#define		WEIGHT_PA_SIG1(x)			((x) << 18)
+#define		WEIGHT_PA_SIG1_MASK			(0x3f << 18)
+#define		WEIGHT_PA_SIG1_SHIFT			18
+#define		WEIGHT_VGT_SIG0(x)			((x) << 24)
+#define		WEIGHT_VGT_SIG0_MASK			(0x3f << 24)
+#define		WEIGHT_VGT_SIG0_SHIFT			24
+#define CG_CAC_REGION_4_WEIGHT_2                        0x8c
+#define		WEIGHT_VGT_SIG1(x)			((x) << 0)
+#define		WEIGHT_VGT_SIG1_MASK			(0x3f << 0)
+#define		WEIGHT_VGT_SIG1_SHIFT			0
+#define		WEIGHT_VGT_SIG2(x)			((x) << 6)
+#define		WEIGHT_VGT_SIG2_MASK			(0x3f << 6)
+#define		WEIGHT_VGT_SIG2_SHIFT			6
+#define		WEIGHT_DC_SIG0(x)			((x) << 12)
+#define		WEIGHT_DC_SIG0_MASK			(0x3f << 12)
+#define		WEIGHT_DC_SIG0_SHIFT			12
+#define		WEIGHT_DC_SIG1(x)			((x) << 18)
+#define		WEIGHT_DC_SIG1_MASK			(0x3f << 18)
+#define		WEIGHT_DC_SIG1_SHIFT			18
+#define		WEIGHT_DC_SIG2(x)			((x) << 24)
+#define		WEIGHT_DC_SIG2_MASK			(0x3f << 24)
+#define		WEIGHT_DC_SIG2_SHIFT			24
+#define CG_CAC_REGION_4_WEIGHT_3                        0x8d
+#define		WEIGHT_DC_SIG3(x)			((x) << 0)
+#define		WEIGHT_DC_SIG3_MASK			(0x3f << 0)
+#define		WEIGHT_DC_SIG3_SHIFT			0
+#define		WEIGHT_UVD_SIG0(x)			((x) << 6)
+#define		WEIGHT_UVD_SIG0_MASK			(0x3f << 6)
+#define		WEIGHT_UVD_SIG0_SHIFT			6
+#define		WEIGHT_UVD_SIG1(x)			((x) << 12)
+#define		WEIGHT_UVD_SIG1_MASK			(0x3f << 12)
+#define		WEIGHT_UVD_SIG1_SHIFT			12
+#define		WEIGHT_SPARE0(x)			((x) << 18)
+#define		WEIGHT_SPARE0_MASK			(0x3f << 18)
+#define		WEIGHT_SPARE0_SHIFT			18
+#define		WEIGHT_SPARE1(x)			((x) << 24)
+#define		WEIGHT_SPARE1_MASK			(0x3f << 24)
+#define		WEIGHT_SPARE1_SHIFT			24
+#define CG_CAC_REGION_5_WEIGHT_0                        0x8e
+#define		WEIGHT_SQ_VSP(x)			((x) << 0)
+#define		WEIGHT_SQ_VSP_MASK			(0x3fff << 0)
+#define		WEIGHT_SQ_VSP_SHIFT			0
+#define		WEIGHT_SQ_VSP0(x)			((x) << 14)
+#define		WEIGHT_SQ_VSP0_MASK			(0x3fff << 14)
+#define		WEIGHT_SQ_VSP0_SHIFT			14
+#define CG_CAC_REGION_4_OVERRIDE_4                      0xab
+#define		OVR_MODE_SPARE_0(x)			((x) << 16)
+#define		OVR_MODE_SPARE_0_MASK			(0x1 << 16)
+#define		OVR_MODE_SPARE_0_SHIFT			16
+#define		OVR_VAL_SPARE_0(x)			((x) << 17)
+#define		OVR_VAL_SPARE_0_MASK			(0x1 << 17)
+#define		OVR_VAL_SPARE_0_SHIFT			17
+#define		OVR_MODE_SPARE_1(x)			((x) << 18)
+#define		OVR_MODE_SPARE_1_MASK			(0x3f << 18)
+#define		OVR_MODE_SPARE_1_SHIFT			18
+#define		OVR_VAL_SPARE_1(x)			((x) << 19)
+#define		OVR_VAL_SPARE_1_MASK			(0x3f << 19)
+#define		OVR_VAL_SPARE_1_SHIFT			19
+#define CG_CAC_REGION_5_WEIGHT_1                        0xb7
+#define		WEIGHT_SQ_GPR(x)			((x) << 0)
+#define		WEIGHT_SQ_GPR_MASK			(0x3fff << 0)
+#define		WEIGHT_SQ_GPR_SHIFT			0
+#define		WEIGHT_SQ_LDS(x)			((x) << 14)
+#define		WEIGHT_SQ_LDS_MASK			(0x3fff << 14)
+#define		WEIGHT_SQ_LDS_SHIFT			14
+
+/* PCIE link stuff */
+#define PCIE_LC_TRAINING_CNTL                             0xa1 /* PCIE_P */
+#define PCIE_LC_LINK_WIDTH_CNTL                           0xa2 /* PCIE_P */
+#       define LC_LINK_WIDTH_SHIFT                        0
+#       define LC_LINK_WIDTH_MASK                         0x7
+#       define LC_LINK_WIDTH_X0                           0
+#       define LC_LINK_WIDTH_X1                           1
+#       define LC_LINK_WIDTH_X2                           2
+#       define LC_LINK_WIDTH_X4                           3
+#       define LC_LINK_WIDTH_X8                           4
+#       define LC_LINK_WIDTH_X16                          6
+#       define LC_LINK_WIDTH_RD_SHIFT                     4
+#       define LC_LINK_WIDTH_RD_MASK                      0x70
+#       define LC_RECONFIG_ARC_MISSING_ESCAPE             (1 << 7)
+#       define LC_RECONFIG_NOW                            (1 << 8)
+#       define LC_RENEGOTIATION_SUPPORT                   (1 << 9)
+#       define LC_RENEGOTIATE_EN                          (1 << 10)
+#       define LC_SHORT_RECONFIG_EN                       (1 << 11)
+#       define LC_UPCONFIGURE_SUPPORT                     (1 << 12)
+#       define LC_UPCONFIGURE_DIS                         (1 << 13)
+#define PCIE_LC_SPEED_CNTL                                0xa4 /* PCIE_P */
+#       define LC_GEN2_EN_STRAP                           (1 << 0)
+#       define LC_TARGET_LINK_SPEED_OVERRIDE_EN           (1 << 1)
+#       define LC_FORCE_EN_HW_SPEED_CHANGE                (1 << 5)
+#       define LC_FORCE_DIS_HW_SPEED_CHANGE               (1 << 6)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_MASK      (0x3 << 8)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_SHIFT     3
+#       define LC_CURRENT_DATA_RATE                       (1 << 11)
+#       define LC_HW_VOLTAGE_IF_CONTROL(x)                ((x) << 12)
+#       define LC_HW_VOLTAGE_IF_CONTROL_MASK              (3 << 12)
+#       define LC_HW_VOLTAGE_IF_CONTROL_SHIFT             12
+#       define LC_VOLTAGE_TIMER_SEL_MASK                  (0xf << 14)
+#       define LC_CLR_FAILED_SPD_CHANGE_CNT               (1 << 21)
+#       define LC_OTHER_SIDE_EVER_SENT_GEN2               (1 << 23)
+#       define LC_OTHER_SIDE_SUPPORTS_GEN2                (1 << 24)
+#define MM_CFGREGS_CNTL                                   0x544c
+#       define MM_WR_TO_CFG_EN                            (1 << 3)
+#define LINK_CNTL2                                        0x88 /* F0 */
+#       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
+#       define SELECTABLE_DEEMPHASIS                      (1 << 6)
+
+/*
+ * UVD
+ */
+#define UVD_SEMA_ADDR_LOW				0xEF00
+#define UVD_SEMA_ADDR_HIGH				0xEF04
+#define UVD_SEMA_CMD					0xEF08
+#define UVD_UDEC_ADDR_CONFIG				0xEF4C
+#define UVD_UDEC_DB_ADDR_CONFIG				0xEF50
+#define UVD_UDEC_DBW_ADDR_CONFIG			0xEF54
+#define UVD_RBC_RB_RPTR					0xF690
+#define UVD_RBC_RB_WPTR					0xF694
+
 /*
  * PM4
  */
-#define	PACKET_TYPE0	0
-#define	PACKET_TYPE1	1
-#define	PACKET_TYPE2	2
-#define	PACKET_TYPE3	3
-
-#define CP_PACKET_GET_TYPE(h) (((h) >> 30) & 3)
-#define CP_PACKET_GET_COUNT(h) (((h) >> 16) & 0x3FFF)
-#define CP_PACKET0_GET_REG(h) (((h) & 0xFFFF) << 2)
-#define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
-#define PACKET0(reg, n)	((PACKET_TYPE0 << 30) |				\
+#define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
 			 (((reg) >> 2) & 0xFFFF) |			\
 			 ((n) & 0x3FFF) << 16)
 #define CP_PACKET2			0x80000000
@@ -448,7 +1095,7 @@
 
 #define PACKET2(v)	(CP_PACKET2 | REG_SET(PACKET2_PAD, (v)))
 
-#define PACKET3(op, n)	((PACKET_TYPE3 << 30) |				\
+#define PACKET3(op, n)	((RADEON_PACKET_TYPE3 << 30) |			\
 			 (((op) & 0xFF) << 8) |				\
 			 ((n) & 0x3FFF) << 16)
 
@@ -487,6 +1134,7 @@
 #define	PACKET3_MPEG_INDEX				0x3A
 #define	PACKET3_WAIT_REG_MEM				0x3C
 #define	PACKET3_MEM_WRITE				0x3D
+#define	PACKET3_PFP_SYNC_ME				0x42
 #define	PACKET3_SURFACE_SYNC				0x43
 #              define PACKET3_CB0_DEST_BASE_ENA    (1 << 6)
 #              define PACKET3_CB1_DEST_BASE_ENA    (1 << 7)
@@ -507,6 +1155,7 @@
 #              define PACKET3_DB_ACTION_ENA        (1 << 26)
 #              define PACKET3_SH_ACTION_ENA        (1 << 27)
 #              define PACKET3_SX_ACTION_ENA        (1 << 28)
+#              define PACKET3_ENGINE_ME            (1 << 31)
 #define	PACKET3_ME_INITIALIZE				0x44
 #define		PACKET3_ME_INITIALIZE_DEVICE_ID(x) ((x) << 16)
 #define	PACKET3_COND_WRITE				0x45
@@ -570,6 +1219,68 @@
 #define	PACKET3_SET_CONTEXT_REG_INDIRECT		0x73
 #define	PACKET3_SET_RESOURCE_INDIRECT			0x74
 #define	PACKET3_SET_APPEND_CNT			        0x75
+#define	PACKET3_ME_WRITE				0x7A
+
+/* ASYNC DMA - first instance at 0xd000, second at 0xd800 */
+#define DMA0_REGISTER_OFFSET                              0x0 /* not a register */
+#define DMA1_REGISTER_OFFSET                              0x800 /* not a register */
+
+#define DMA_RB_CNTL                                       0xd000
+#       define DMA_RB_ENABLE                              (1 << 0)
+#       define DMA_RB_SIZE(x)                             ((x) << 1) /* log2 */
+#       define DMA_RB_SWAP_ENABLE                         (1 << 9) /* 8IN32 */
+#       define DMA_RPTR_WRITEBACK_ENABLE                  (1 << 12)
+#       define DMA_RPTR_WRITEBACK_SWAP_ENABLE             (1 << 13)  /* 8IN32 */
+#       define DMA_RPTR_WRITEBACK_TIMER(x)                ((x) << 16) /* log2 */
+#define DMA_RB_BASE                                       0xd004
+#define DMA_RB_RPTR                                       0xd008
+#define DMA_RB_WPTR                                       0xd00c
+
+#define DMA_RB_RPTR_ADDR_HI                               0xd01c
+#define DMA_RB_RPTR_ADDR_LO                               0xd020
+
+#define DMA_IB_CNTL                                       0xd024
+#       define DMA_IB_ENABLE                              (1 << 0)
+#       define DMA_IB_SWAP_ENABLE                         (1 << 4)
+#       define CMD_VMID_FORCE                             (1 << 31)
+#define DMA_IB_RPTR                                       0xd028
+#define DMA_CNTL                                          0xd02c
+#       define TRAP_ENABLE                                (1 << 0)
+#       define SEM_INCOMPLETE_INT_ENABLE                  (1 << 1)
+#       define SEM_WAIT_INT_ENABLE                        (1 << 2)
+#       define DATA_SWAP_ENABLE                           (1 << 3)
+#       define FENCE_SWAP_ENABLE                          (1 << 4)
+#       define CTXEMPTY_INT_ENABLE                        (1 << 28)
+#define DMA_STATUS_REG                                    0xd034
+#       define DMA_IDLE                                   (1 << 0)
+#define DMA_SEM_INCOMPLETE_TIMER_CNTL                     0xd044
+#define DMA_SEM_WAIT_FAIL_TIMER_CNTL                      0xd048
+#define DMA_TILING_CONFIG  				  0xd0b8
+#define DMA_MODE                                          0xd0bc
+
+#define DMA_PACKET(cmd, t, s, n)	((((cmd) & 0xF) << 28) |	\
+					 (((t) & 0x1) << 23) |		\
+					 (((s) & 0x1) << 22) |		\
+					 (((n) & 0xFFFFF) << 0))
+
+#define DMA_IB_PACKET(cmd, vmid, n)	((((cmd) & 0xF) << 28) |	\
+					 (((vmid) & 0xF) << 20) |	\
+					 (((n) & 0xFFFFF) << 0))
+
+#define DMA_PTE_PDE_PACKET(n)		((2 << 28) |			\
+					 (1 << 26) |			\
+					 (1 << 21) |			\
+					 (((n) & 0xFFFFF) << 0))
+
+/* async DMA Packet types */
+#define	DMA_PACKET_WRITE				  0x2
+#define	DMA_PACKET_COPY					  0x3
+#define	DMA_PACKET_INDIRECT_BUFFER			  0x4
+#define	DMA_PACKET_SEMAPHORE				  0x5
+#define	DMA_PACKET_FENCE				  0x6
+#define	DMA_PACKET_TRAP					  0x7
+#define	DMA_PACKET_SRBM_WRITE				  0x9
+#define	DMA_PACKET_CONSTANT_FILL			  0xd
+#define	DMA_PACKET_NOP					  0xf
 
 #endif
-

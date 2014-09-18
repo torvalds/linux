@@ -561,8 +561,8 @@ struct tomoyo_address_group {
 
 /* Subset of "struct stat". Used by conditional ACL and audit logs. */
 struct tomoyo_mini_stat {
-	uid_t uid;
-	gid_t gid;
+	kuid_t uid;
+	kgid_t gid;
 	ino_t ino;
 	umode_t mode;
 	dev_t dev;
@@ -860,7 +860,6 @@ struct tomoyo_aggregator {
 /* Structure for policy manager. */
 struct tomoyo_manager {
 	struct tomoyo_acl_head head;
-	bool is_domain;  /* True if manager is a domainname. */
 	/* A path to program or a domainname. */
 	const struct tomoyo_path_info *manager;
 };
@@ -959,7 +958,7 @@ const struct tomoyo_path_info *tomoyo_path_matches_group
 (const struct tomoyo_path_info *pathname, const struct tomoyo_group *group);
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag);
-int tomoyo_close_control(struct tomoyo_io_buffer *head);
+void tomoyo_close_control(struct tomoyo_io_buffer *head);
 int tomoyo_env_perm(struct tomoyo_request_info *r, const char *env);
 int tomoyo_execute_permission(struct tomoyo_request_info *r,
 			      const struct tomoyo_path_info *filename);
@@ -971,7 +970,7 @@ int tomoyo_init_request_info(struct tomoyo_request_info *r,
 			     const u8 index);
 int tomoyo_mkdev_perm(const u8 operation, struct path *path,
 		      const unsigned int mode, unsigned int dev);
-int tomoyo_mount_permission(char *dev_name, struct path *path,
+int tomoyo_mount_permission(const char *dev_name, struct path *path,
 			    const char *type, unsigned long flags,
 			    void *data_page);
 int tomoyo_open_control(const u8 type, struct file *file);

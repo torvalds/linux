@@ -7,7 +7,6 @@ r8192e_pci-objs :=		\
 	r8190P_rtl8256.o	\
 	rtl_cam.o		\
 	rtl_core.o		\
-	rtl_debug.o		\
 	rtl_dm.o		\
 	rtl_eeprom.o		\
 	rtl_ethtool.o		\

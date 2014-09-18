@@ -22,13 +22,6 @@ rather straightforward and risk-free manner.
 Architectures that want to support this need to do a couple of
 code-organizational changes first:
 
-- move their irq-flags manipulation code from their asm/system.h header
-  to asm/irqflags.h
-
-- rename local_irq_disable()/etc to raw_local_irq_disable()/etc. so that
-  the linux/irqflags.h code can inject callbacks and can construct the
-  real local_irq_disable()/etc APIs.
-
 - add and enable TRACE_IRQFLAGS_SUPPORT in their arch level Kconfig file
 
 and then a couple of functional changes are needed as well to implement

@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/suspend.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -34,7 +34,10 @@ static void sirfsoc_set_wakeup_source(void)
 	pwr_trigger_en_reg = sirfsoc_rtc_iobrg_readl(sirfsoc_pwrc_base +
 		SIRFSOC_PWRC_TRIGGER_EN);
 #define X_ON_KEY_B (1 << 0)
-	sirfsoc_rtc_iobrg_writel(pwr_trigger_en_reg | X_ON_KEY_B,
+#define RTC_ALARM0_B (1 << 2)
+#define RTC_ALARM1_B (1 << 3)
+	sirfsoc_rtc_iobrg_writel(pwr_trigger_en_reg | X_ON_KEY_B |
+		RTC_ALARM0_B | RTC_ALARM1_B,
 		sirfsoc_pwrc_base + SIRFSOC_PWRC_TRIGGER_EN);
 }
 
@@ -68,7 +71,6 @@ static int sirfsoc_pm_enter(suspend_state_t state)
 	case PM_SUSPEND_MEM:
 		sirfsoc_pre_suspend_power_off();
 
-		outer_flush_all();
 		outer_disable();
 		/* go zzz */
 		cpu_suspend(0, sirfsoc_finish_suspend);
@@ -85,13 +87,6 @@ static const struct platform_suspend_ops sirfsoc_pm_ops = {
 	.valid = suspend_valid_only_mem,
 };
 
-static int __init sirfsoc_pm_init(void)
-{
-	suspend_set_ops(&sirfsoc_pm_ops);
-	return 0;
-}
-late_initcall(sirfsoc_pm_init);
-
 static const struct of_device_id pwrc_ids[] = {
 	{ .compatible = "sirf,prima2-pwrc" },
 	{}
@@ -102,8 +97,10 @@ static int __init sirfsoc_of_pwrc_init(void)
 	struct device_node *np;
 
 	np = of_find_matching_node(NULL, pwrc_ids);
-	if (!np)
-		panic("unable to find compatible pwrc node in dtb\n");
+	if (!np) {
+		pr_err("unable to find compatible sirf pwrc node in dtb\n");
+		return -ENOENT;
+	}
 
 	/*
 	 * pwrc behind rtciobrg is not located in memory space
@@ -117,14 +114,13 @@ static int __init sirfsoc_of_pwrc_init(void)
 
 	return 0;
 }
-postcore_initcall(sirfsoc_of_pwrc_init);
 
 static const struct of_device_id memc_ids[] = {
 	{ .compatible = "sirf,prima2-memc" },
 	{}
 };
 
-static int __devinit sirfsoc_memc_probe(struct platform_device *op)
+static int sirfsoc_memc_probe(struct platform_device *op)
 {
 	struct device_node *np = op->dev.of_node;
 
@@ -148,4 +144,11 @@ static int __init sirfsoc_memc_init(void)
 {
 	return platform_driver_register(&sirfsoc_memc_driver);
 }
-postcore_initcall(sirfsoc_memc_init);
+
+int __init sirfsoc_pm_init(void)
+{
+	sirfsoc_of_pwrc_init();
+	sirfsoc_memc_init();
+	suspend_set_ops(&sirfsoc_pm_ops);
+	return 0;
+}

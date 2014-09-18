@@ -31,7 +31,6 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -50,7 +49,6 @@
 #include "drv_types.h"
 #include "recv_osdep.h"
 #include "mlme_osdep.h"
-#include "rtl871x_byteorder.h"
 #include "rtl871x_ioctl_set.h"
 
 static void check_hw_pbc(struct _adapter *padapter)
@@ -63,13 +61,13 @@ static void check_hw_pbc(struct _adapter *padapter)
 	r8712_write8(padapter, GPIO_IO_SEL, tmp1byte);
 	tmp1byte = r8712_read8(padapter, GPIO_CTRL);
 	if (tmp1byte == 0xff)
-		return ;
+		return;
 	if (tmp1byte&HAL_8192S_HW_GPIO_WPS_BIT) {
 		/* Here we only set bPbcPressed to true
 		 * After trigger PBC, the variable will be set to false */
 		DBG_8712("CheckPbcGPIO - PBC is pressed !!!!\n");
 		/* 0 is the default value and it means the application monitors
-		 * the HW PBC doesn't privde its pid to driver. */
+		 * the HW PBC doesn't provide its pid to driver. */
 		if (padapter->pid == 0)
 			return;
 		kill_pid(find_vpid(padapter->pid), SIGUSR1, 1);
@@ -292,8 +290,7 @@ static struct cmd_obj *cmd_hdl_filter(struct _adapter *padapter,
 
 static u8 check_cmd_fifo(struct _adapter *padapter, uint sz)
 {
-	u8 res = _SUCCESS;
-	return res;
+	return _SUCCESS;
 }
 
 u8 r8712_fw_cmd(struct _adapter *pAdapter, u32 cmd)
@@ -329,7 +326,7 @@ int r8712_cmd_thread(void *context)
 	struct _adapter *padapter = (struct _adapter *)context;
 	struct	cmd_priv	*pcmdpriv = &(padapter->cmdpriv);
 
-	thread_enter(padapter);
+	allow_signal(SIGTERM);
 	while (1) {
 		if ((_down_sema(&(pcmdpriv->cmd_queue_sema))) == _FAIL)
 			break;
@@ -354,7 +351,7 @@ _next:
 						    &padapter->dvobjpriv;
 			u8 blnPending = 0;
 			pcmdpriv->cmd_issued_cnt++;
-			cmdsz = _RND8((pcmd->cmdsz)); /* _RND8	*/
+			cmdsz = round_up(pcmd->cmdsz, 8);
 			wr_sz = TXDESC_SIZE + 8 + cmdsz;
 			pdesc->txdw0 |= cpu_to_le32((wr_sz-TXDESC_SIZE) &
 						     0x0000ffff);
@@ -382,7 +379,7 @@ _next:
 			*pcmdbuf = cpu_to_le32((cmdsz & 0x0000ffff) |
 					       (pcmd->cmdcode << 16) |
 					       (pcmdpriv->cmd_seq << 24));
-			pcmdbuf += 2 ; /* 8 bytes aligment */
+			pcmdbuf += 2; /* 8 bytes alignment */
 			memcpy((u8 *)pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
 			while (check_cmd_fifo(padapter, wr_sz) == _FAIL) {
 				if ((padapter->bDriverStopped == true) ||
@@ -413,7 +410,7 @@ _next:
 				}
 			}
 			r8712_free_cmd_obj(pcmd);
-			if (_queue_empty(&(pcmdpriv->cmd_queue))) {
+			if (list_empty(&pcmdpriv->cmd_queue.queue)) {
 				r8712_unregister_cmd_alive(padapter);
 				continue;
 			} else
@@ -471,12 +468,10 @@ void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
 	pevt_priv->event_seq++;	/* update evt_seq */
 	if (pevt_priv->event_seq > 127)
 		pevt_priv->event_seq = 0;
-	peventbuf = peventbuf + 2; /* move to event content, 8 bytes aligment */
-	if (peventbuf) {
-		event_callback = wlanevents[evt_code].event_callback;
-		if (event_callback)
-			event_callback(padapter, (u8 *)peventbuf);
-	}
+	peventbuf = peventbuf + 2; /* move to event content, 8 bytes alignment */
+	event_callback = wlanevents[evt_code].event_callback;
+	if (event_callback)
+		event_callback(padapter, (u8 *)peventbuf);
 	pevt_priv->evt_done_cnt++;
 _abort_event_:
 	return;

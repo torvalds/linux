@@ -1,0 +1,314 @@
+ACPI based device enumeration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ACPI 5 introduced a set of new resources (UartTSerialBus, I2cSerialBus,
+SpiSerialBus, GpioIo and GpioInt) which can be used in enumerating slave
+devices behind serial bus controllers.
+
+In addition we are starting to see peripherals integrated in the
+SoC/Chipset to appear only in ACPI namespace. These are typically devices
+that are accessed through memory-mapped registers.
+
+In order to support this and re-use the existing drivers as much as
+possible we decided to do following:
+
+	o Devices that have no bus connector resource are represented as
+	  platform devices.
+
+	o Devices behind real busses where there is a connector resource
+	  are represented as struct spi_device or struct i2c_device
+	  (standard UARTs are not busses so there is no struct uart_device).
+
+As both ACPI and Device Tree represent a tree of devices (and their
+resources) this implementation follows the Device Tree way as much as
+possible.
+
+The ACPI implementation enumerates devices behind busses (platform, SPI and
+I2C), creates the physical devices and binds them to their ACPI handle in
+the ACPI namespace.
+
+This means that when ACPI_HANDLE(dev) returns non-NULL the device was
+enumerated from ACPI namespace. This handle can be used to extract other
+device-specific configuration. There is an example of this below.
+
+Platform bus support
+~~~~~~~~~~~~~~~~~~~~
+Since we are using platform devices to represent devices that are not
+connected to any physical bus we only need to implement a platform driver
+for the device and add supported ACPI IDs. If this same IP-block is used on
+some other non-ACPI platform, the driver might work out of the box or needs
+some minor changes.
+
+Adding ACPI support for an existing driver should be pretty
+straightforward. Here is the simplest example:
+
+	#ifdef CONFIG_ACPI
+	static struct acpi_device_id mydrv_acpi_match[] = {
+		/* ACPI IDs here */
+		{ }
+	};
+	MODULE_DEVICE_TABLE(acpi, mydrv_acpi_match);
+	#endif
+
+	static struct platform_driver my_driver = {
+		...
+		.driver = {
+			.acpi_match_table = ACPI_PTR(mydrv_acpi_match),
+		},
+	};
+
+If the driver needs to perform more complex initialization like getting and
+configuring GPIOs it can get its ACPI handle and extract this information
+from ACPI tables.
+
+DMA support
+~~~~~~~~~~~
+DMA controllers enumerated via ACPI should be registered in the system to
+provide generic access to their resources. For example, a driver that would
+like to be accessible to slave devices via generic API call
+dma_request_slave_channel() must register itself at the end of the probe
+function like this:
+
+	err = devm_acpi_dma_controller_register(dev, xlate_func, dw);
+	/* Handle the error if it's not a case of !CONFIG_ACPI */
+
+and implement custom xlate function if needed (usually acpi_dma_simple_xlate()
+is enough) which converts the FixedDMA resource provided by struct
+acpi_dma_spec into the corresponding DMA channel. A piece of code for that case
+could look like:
+
+	#ifdef CONFIG_ACPI
+	struct filter_args {
+		/* Provide necessary information for the filter_func */
+		...
+	};
+
+	static bool filter_func(struct dma_chan *chan, void *param)
+	{
+		/* Choose the proper channel */
+		...
+	}
+
+	static struct dma_chan *xlate_func(struct acpi_dma_spec *dma_spec,
+			struct acpi_dma *adma)
+	{
+		dma_cap_mask_t cap;
+		struct filter_args args;
+
+		/* Prepare arguments for filter_func */
+		...
+		return dma_request_channel(cap, filter_func, &args);
+	}
+	#else
+	static struct dma_chan *xlate_func(struct acpi_dma_spec *dma_spec,
+			struct acpi_dma *adma)
+	{
+		return NULL;
+	}
+	#endif
+
+dma_request_slave_channel() will call xlate_func() for each registered DMA
+controller. In the xlate function the proper channel must be chosen based on
+information in struct acpi_dma_spec and the properties of the controller
+provided by struct acpi_dma.
+
+Clients must call dma_request_slave_channel() with the string parameter that
+corresponds to a specific FixedDMA resource. By default "tx" means the first
+entry of the FixedDMA resource array, "rx" means the second entry. The table
+below shows a layout:
+
+	Device (I2C0)
+	{
+		...
+		Method (_CRS, 0, NotSerialized)
+		{
+			Name (DBUF, ResourceTemplate ()
+			{
+				FixedDMA (0x0018, 0x0004, Width32bit, _Y48)
+				FixedDMA (0x0019, 0x0005, Width32bit, )
+			})
+		...
+		}
+	}
+
+So, the FixedDMA with request line 0x0018 is "tx" and next one is "rx" in
+this example.
+
+In robust cases the client unfortunately needs to call
+acpi_dma_request_slave_chan_by_index() directly and therefore choose the
+specific FixedDMA resource by its index.
+
+SPI serial bus support
+~~~~~~~~~~~~~~~~~~~~~~
+Slave devices behind SPI bus have SpiSerialBus resource attached to them.
+This is extracted automatically by the SPI core and the slave devices are
+enumerated once spi_register_master() is called by the bus driver.
+
+Here is what the ACPI namespace for a SPI slave might look like:
+
+	Device (EEP0)
+	{
+		Name (_ADR, 1)
+		Name (_CID, Package() {
+			"ATML0025",
+			"AT25",
+		})
+		...
+		Method (_CRS, 0, NotSerialized)
+		{
+			SPISerialBus(1, PolarityLow, FourWireMode, 8,
+				ControllerInitiated, 1000000, ClockPolarityLow,
+				ClockPhaseFirst, "\\_SB.PCI0.SPI1",)
+		}
+		...
+
+The SPI device drivers only need to add ACPI IDs in a similar way than with
+the platform device drivers. Below is an example where we add ACPI support
+to at25 SPI eeprom driver (this is meant for the above ACPI snippet):
+
+	#ifdef CONFIG_ACPI
+	static struct acpi_device_id at25_acpi_match[] = {
+		{ "AT25", 0 },
+		{ },
+	};
+	MODULE_DEVICE_TABLE(acpi, at25_acpi_match);
+	#endif
+
+	static struct spi_driver at25_driver = {
+		.driver = {
+			...
+			.acpi_match_table = ACPI_PTR(at25_acpi_match),
+		},
+	};
+
+Note that this driver actually needs more information like page size of the
+eeprom etc. but at the time writing this there is no standard way of
+passing those. One idea is to return this in _DSM method like:
+
+	Device (EEP0)
+	{
+		...
+		Method (_DSM, 4, NotSerialized)
+		{
+			Store (Package (6)
+			{
+				"byte-len", 1024,
+				"addr-mode", 2,
+				"page-size, 32
+			}, Local0)
+
+			// Check UUIDs etc.
+
+			Return (Local0)
+		}
+
+Then the at25 SPI driver can get this configuration by calling _DSM on its
+ACPI handle like:
+
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_object_list input;
+	acpi_status status;
+
+	/* Fill in the input buffer */
+
+	status = acpi_evaluate_object(ACPI_HANDLE(&spi->dev), "_DSM",
+				      &input, &output);
+	if (ACPI_FAILURE(status))
+		/* Handle the error */
+
+	/* Extract the data here */
+
+	kfree(output.pointer);
+
+I2C serial bus support
+~~~~~~~~~~~~~~~~~~~~~~
+The slaves behind I2C bus controller only need to add the ACPI IDs like
+with the platform and SPI drivers. The I2C core automatically enumerates
+any slave devices behind the controller device once the adapter is
+registered.
+
+Below is an example of how to add ACPI support to the existing mpu3050
+input driver:
+
+	#ifdef CONFIG_ACPI
+	static struct acpi_device_id mpu3050_acpi_match[] = {
+		{ "MPU3050", 0 },
+		{ },
+	};
+	MODULE_DEVICE_TABLE(acpi, mpu3050_acpi_match);
+	#endif
+
+	static struct i2c_driver mpu3050_i2c_driver = {
+		.driver	= {
+			.name	= "mpu3050",
+			.owner	= THIS_MODULE,
+			.pm	= &mpu3050_pm,
+			.of_match_table = mpu3050_of_match,
+			.acpi_match_table  ACPI_PTR(mpu3050_acpi_match),
+		},
+		.probe		= mpu3050_probe,
+		.remove		= mpu3050_remove,
+		.id_table	= mpu3050_ids,
+	};
+
+GPIO support
+~~~~~~~~~~~~
+ACPI 5 introduced two new resources to describe GPIO connections: GpioIo
+and GpioInt. These resources are used be used to pass GPIO numbers used by
+the device to the driver. For example:
+
+	Method (_CRS, 0, NotSerialized)
+	{
+		Name (SBUF, ResourceTemplate()
+		{
+			...
+			// Used to power on/off the device
+			GpioIo (Exclusive, PullDefault, 0x0000, 0x0000,
+				IoRestrictionOutputOnly, "\\_SB.PCI0.GPI0",
+				0x00, ResourceConsumer,,)
+			{
+				// Pin List
+				0x0055
+			}
+
+			// Interrupt for the device
+			GpioInt (Edge, ActiveHigh, ExclusiveAndWake, PullNone,
+				 0x0000, "\\_SB.PCI0.GPI0", 0x00, ResourceConsumer,,)
+			{
+				// Pin list
+				0x0058
+			}
+
+			...
+
+		}
+
+		Return (SBUF)
+	}
+
+These GPIO numbers are controller relative and path "\\_SB.PCI0.GPI0"
+specifies the path to the controller. In order to use these GPIOs in Linux
+we need to translate them to the corresponding Linux GPIO descriptors.
+
+There is a standard GPIO API for that and is documented in
+Documentation/gpio/.
+
+In the above example we can get the corresponding two GPIO descriptors with
+a code like this:
+
+	#include <linux/gpio/consumer.h>
+	...
+
+	struct gpio_desc *irq_desc, *power_desc;
+
+	irq_desc = gpiod_get_index(dev, NULL, 1);
+	if (IS_ERR(irq_desc))
+		/* handle error */
+
+	power_desc = gpiod_get_index(dev, NULL, 0);
+	if (IS_ERR(power_desc))
+		/* handle error */
+
+	/* Now we can use the GPIO descriptors */
+
+There are also devm_* versions of these functions which release the
+descriptors once the device is released.

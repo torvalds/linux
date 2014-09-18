@@ -1,0 +1,286 @@
+config METAG
+	def_bool y
+	select EMBEDDED
+	select GENERIC_ATOMIC64
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_SHOW
+	select GENERIC_SMP_IDLE_THREAD
+	select HAVE_64BIT_ALIGNED_ACCESS
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_C_RECORDMCOUNT
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_FUNCTION_TRACER
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_XZ
+	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
+	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_OPROFILE
+	select HAVE_PERF_EVENTS
+	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_UNDERSCORE_SYMBOL_PREFIX
+	select IRQ_DOMAIN
+	select MODULES_USE_ELF_RELA
+	select OF
+	select OF_EARLY_FLATTREE
+	select SPARSE_IRQ
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config HAVE_LATENCYTOP_SUPPORT
+	def_bool y
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config NO_IOPORT_MAP
+	def_bool y
+
+source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
+
+menu "Processor type and features"
+
+config MMU
+	def_bool y
+
+config STACK_GROWSUP
+	def_bool y
+
+config HOTPLUG_CPU
+	bool "Enable CPU hotplug support"
+	depends on SMP
+	help
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu.
+
+	  Say N if you want to disable CPU hotplug.
+
+config HIGHMEM
+	bool "High Memory Support"
+	help
+	  The address space of Meta processors is only 4 Gigabytes large
+	  and it has to accommodate user address space, kernel address
+	  space as well as some memory mapped IO. That means that, if you
+	  have a large amount of physical memory and/or IO, not all of the
+	  memory can be "permanently mapped" by the kernel. The physical
+	  memory that is not permanently mapped is called "high memory".
+
+	  Depending on the selected kernel/user memory split, minimum
+	  vmalloc space and actual amount of RAM, you may not need this
+	  option which should result in a slightly faster kernel.
+
+	  If unsure, say n.
+
+source "arch/metag/mm/Kconfig"
+
+source "arch/metag/Kconfig.soc"
+
+config METAG_META12
+	bool
+	help
+	  Select this from the SoC config symbol to indicate that it contains a
+	  Meta 1.2 core.
+
+config METAG_META21
+	bool
+	help
+	  Select this from the SoC config symbol to indicate that it contains a
+	  Meta 2.1 core.
+
+config SMP
+	bool "Symmetric multi-processing support"
+	depends on METAG_META21 && METAG_META21_MMU
+	help
+	  This enables support for systems with more than one thread running
+	  Linux. If you have a system with only one thread running Linux,
+	  say N. Otherwise, say Y.
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-4)" if SMP
+	range 2 4 if SMP
+	default "1" if !SMP
+	default "4" if SMP
+
+config METAG_SMP_WRITE_REORDERING
+	bool
+	help
+	  This attempts to prevent cache-memory incoherence due to external
+	  reordering of writes from different hardware threads when SMP is
+	  enabled. It adds fences (system event 0) to smp_mb and smp_rmb in an
+	  attempt to catch some of the cases, and also before writes to shared
+	  memory in LOCK1 protected atomics and spinlocks.
+	  This will not completely prevent cache incoherency on affected cores.
+
+config METAG_LNKGET_AROUND_CACHE
+	bool
+	depends on METAG_META21
+	help
+	  This indicates that the LNKGET/LNKSET instructions go around the
+	  cache, which requires some extra cache flushes when the memory needs
+	  to be accessed by normal GET/SET instructions too.
+
+choice
+	prompt "Atomicity primitive"
+	default METAG_ATOMICITY_LNKGET
+	help
+	  This option selects the mechanism for performing atomic operations.
+
+config METAG_ATOMICITY_IRQSOFF
+	depends on !SMP
+	bool "irqsoff"
+	help
+	  This option disables interrupts to achieve atomicity. This mechanism
+	  is not SMP-safe.
+
+config METAG_ATOMICITY_LNKGET
+	depends on METAG_META21
+	bool "lnkget/lnkset"
+	help
+	  This option uses the LNKGET and LNKSET instructions to achieve
+	  atomicity. LNKGET/LNKSET are load-link/store-conditional instructions.
+	  Choose this option if your system requires low latency.
+
+config METAG_ATOMICITY_LOCK1
+	depends on SMP
+	bool "lock1"
+	help
+	  This option uses the LOCK1 instruction for atomicity. This is mainly
+	  provided as a debugging aid if the lnkget/lnkset atomicity primitive
+	  isn't working properly.
+
+endchoice
+
+config METAG_FPU
+	bool "FPU Support"
+	depends on METAG_META21
+	default y
+	help
+	  This option allows processes to use FPU hardware available with this
+	  CPU. If this option is not enabled FPU registers will not be saved
+	  and restored on context-switch.
+
+	  If you plan on running programs which are compiled to use hard floats
+	  say Y here.
+
+config METAG_DSP
+	bool "DSP Support"
+	help
+	  This option allows processes to use DSP hardware available
+	  with this CPU. If this option is not enabled DSP registers
+	  will not be saved and restored on context-switch.
+
+	  If you plan on running DSP programs say Y here.
+
+config METAG_PERFCOUNTER_IRQS
+	bool "PerfCounters interrupt support"
+	depends on METAG_META21
+	help
+	  This option enables using interrupts to collect information from
+	  Performance Counters. This option is supported in new META21
+	  (starting from HTP265).
+
+	  When disabled, Performance Counters information will be collected
+	  based on Timer Interrupt.
+
+config HW_PERF_EVENTS
+	def_bool METAG_PERFCOUNTER_IRQS && PERF_EVENTS
+
+config METAG_DA
+	bool "DA support"
+	help
+	  Say Y if you plan to use a DA debug adapter with Linux. The presence
+	  of the DA will be detected automatically at boot, so it is safe to say
+	  Y to this option even when booting without a DA.
+
+	  This enables support for services provided by DA JTAG debug adapters,
+	  such as:
+	  - communication over DA channels (such as the console driver).
+	  - use of the DA filesystem.
+
+menu "Boot options"
+
+config METAG_BUILTIN_DTB
+	bool "Embed DTB in kernel image"
+	default y
+	help
+	  Embeds a device tree binary in the kernel image.
+
+config METAG_BUILTIN_DTB_NAME
+	string "Built in DTB"
+	depends on METAG_BUILTIN_DTB
+	help
+	  Set the name of the DTB to embed (leave blank to pick one
+	  automatically based on kernel configuration).
+
+config CMDLINE_BOOL
+	bool "Default bootloader kernel arguments"
+
+config CMDLINE
+	string "Kernel command line"
+	depends on CMDLINE_BOOL
+	help
+	  On some architectures there is currently no way for the boot loader
+	  to pass arguments to the kernel. For these architectures, you should
+	  supply some command-line options at build time by entering them
+	  here.
+
+config CMDLINE_FORCE
+	bool "Force default kernel command string"
+	depends on CMDLINE_BOOL
+	help
+	  Set this to have arguments from the default kernel command string
+	  override those passed by the boot loader.
+
+endmenu
+
+source "kernel/Kconfig.preempt"
+
+source kernel/Kconfig.hz
+
+endmenu
+
+menu "Power management options"
+
+source kernel/power/Kconfig
+
+endmenu
+
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/metag/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

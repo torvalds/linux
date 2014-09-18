@@ -17,8 +17,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+this program; if not, see <http://www.gnu.org/licenses/>.
 
 F01 Oct/02/02: Modify code for V0.11(move out back to back transfer)
 F02 Oct/28/02: Add SB device ID for 3147 and 3177.
@@ -77,7 +76,7 @@ static int dongle_id = 0;	/* default: probe */
 module_param(dongle_id, int, 0);
 
 /* Some prototypes */
-static int via_ircc_open(struct pci_dev *pdev, chipio_t * info,
+static int via_ircc_open(struct pci_dev *pdev, chipio_t *info,
 			 unsigned int id);
 static int via_ircc_dma_receive(struct via_ircc_cb *self);
 static int via_ircc_dma_receive_complete(struct via_ircc_cb *self,
@@ -102,8 +101,8 @@ static int RxTimerHandler(struct via_ircc_cb *self, int iobase);
 static void hwreset(struct via_ircc_cb *self);
 static int via_ircc_dma_xmit(struct via_ircc_cb *self, u16 iobase);
 static int upload_rxdata(struct via_ircc_cb *self, int iobase);
-static int __devinit via_init_one (struct pci_dev *pcidev, const struct pci_device_id *id);
-static void __devexit via_remove_one (struct pci_dev *pdev);
+static int via_init_one(struct pci_dev *pcidev, const struct pci_device_id *id);
+static void via_remove_one(struct pci_dev *pdev);
 
 /* FIXME : Should use udelay() instead, even if we are x86 only - Jean II */
 static void iodelay(int udelay)
@@ -116,7 +115,7 @@ static void iodelay(int udelay)
 	}
 }
 
-static DEFINE_PCI_DEVICE_TABLE(via_pci_tbl) = {
+static const struct pci_device_id via_pci_tbl[] = {
 	{ PCI_VENDOR_ID_VIA, 0x8231, PCI_ANY_ID, PCI_ANY_ID,0,0,0 },
 	{ PCI_VENDOR_ID_VIA, 0x3109, PCI_ANY_ID, PCI_ANY_ID,0,0,1 },
 	{ PCI_VENDOR_ID_VIA, 0x3074, PCI_ANY_ID, PCI_ANY_ID,0,0,2 },
@@ -132,7 +131,7 @@ static struct pci_driver via_driver = {
 	.name		= VIA_MODULE_NAME,
 	.id_table	= via_pci_tbl,
 	.probe		= via_init_one,
-	.remove		= __devexit_p(via_remove_one),
+	.remove		= via_remove_one,
 };
 
 
@@ -156,7 +155,7 @@ static int __init via_ircc_init(void)
 	return 0;
 }
 
-static int __devinit via_init_one (struct pci_dev *pcidev, const struct pci_device_id *id)
+static int via_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 {
 	int rc;
         u8 temp,oldPCI_40,oldPCI_44,bTmp,bTmp1;
@@ -210,8 +209,7 @@ static int __devinit via_init_one (struct pci_dev *pcidev, const struct pci_devi
 			pci_write_config_byte(pcidev,0x42,(bTmp | 0xf0));
 			pci_write_config_byte(pcidev,0x5a,0xc0);
 			WriteLPCReg(0x28, 0x70 );
-			if (via_ircc_open(pcidev, &info, 0x3076) == 0)
-				rc=0;
+			rc = via_ircc_open(pcidev, &info, 0x3076);
 		} else
 			rc = -ENODEV; //IR not turn on	 
 	} else { //Not VT1211
@@ -249,8 +247,7 @@ static int __devinit via_init_one (struct pci_dev *pcidev, const struct pci_devi
 			info.irq=FirIRQ;
 			info.dma=FirDRQ1;
 			info.dma2=FirDRQ0;
-			if (via_ircc_open(pcidev, &info, 0x3096) == 0)
-				rc=0;
+			rc = via_ircc_open(pcidev, &info, 0x3096);
 		} else
 			rc = -ENODEV; //IR not turn on !!!!!
 	}//Not VT1211
@@ -286,8 +283,7 @@ static const struct net_device_ops via_ircc_fir_ops = {
  *    Open driver instance
  *
  */
-static __devinit int via_ircc_open(struct pci_dev *pdev, chipio_t * info,
-				   unsigned int id)
+static int via_ircc_open(struct pci_dev *pdev, chipio_t *info, unsigned int id)
 {
 	struct net_device *dev;
 	struct via_ircc_cb *self;
@@ -364,22 +360,20 @@ static __devinit int via_ircc_open(struct pci_dev *pdev, chipio_t * info,
 
 	/* Allocate memory if needed */
 	self->rx_buff.head =
-		dma_alloc_coherent(&pdev->dev, self->rx_buff.truesize,
-				   &self->rx_buff_dma, GFP_KERNEL);
+		dma_zalloc_coherent(&pdev->dev, self->rx_buff.truesize,
+				    &self->rx_buff_dma, GFP_KERNEL);
 	if (self->rx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out2;
 	}
-	memset(self->rx_buff.head, 0, self->rx_buff.truesize);
 
 	self->tx_buff.head =
-		dma_alloc_coherent(&pdev->dev, self->tx_buff.truesize,
-				   &self->tx_buff_dma, GFP_KERNEL);
+		dma_zalloc_coherent(&pdev->dev, self->tx_buff.truesize,
+				    &self->tx_buff_dma, GFP_KERNEL);
 	if (self->tx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out3;
 	}
-	memset(self->tx_buff.head, 0, self->tx_buff.truesize);
 
 	self->rx_buff.in_frame = FALSE;
 	self->rx_buff.state = OUTSIDE_FRAME;
@@ -413,7 +407,6 @@ static __devinit int via_ircc_open(struct pci_dev *pdev, chipio_t * info,
  err_out2:
 	release_region(self->io.fir_base, self->io.fir_ext);
  err_out1:
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 	return err;
 }
@@ -424,7 +417,7 @@ static __devinit int via_ircc_open(struct pci_dev *pdev, chipio_t * info,
  *    Close driver instance
  *
  */
-static void __devexit via_remove_one(struct pci_dev *pdev)
+static void via_remove_one(struct pci_dev *pdev)
 {
 	struct via_ircc_cb *self = pci_get_drvdata(pdev);
 	int iobase;
@@ -447,7 +440,6 @@ static void __devexit via_remove_one(struct pci_dev *pdev)
 	if (self->rx_buff.head)
 		dma_free_coherent(&pdev->dev, self->rx_buff.truesize,
 				  self->rx_buff.head, self->rx_buff_dma);
-	pci_set_drvdata(pdev, NULL);
 
 	free_netdev(self->netdev);
 
@@ -518,10 +510,8 @@ static void via_hw_init(struct via_ircc_cb *self)
  */
 static int via_ircc_read_dongle_id(int iobase)
 {
-	int dongle_id = 9;	/* Default to IBM */
-
 	IRDA_ERROR("via-ircc: dongle probing not supported, please specify dongle_id module parameter.\n");
-	return dongle_id;
+	return 9;	/* Default to IBM */
 }
 
 /*
@@ -934,7 +924,6 @@ static int via_ircc_dma_xmit(struct via_ircc_cb *self, u16 iobase)
 static int via_ircc_dma_xmit_complete(struct via_ircc_cb *self)
 {
 	int iobase;
-	int ret = TRUE;
 	u8 Tx_status;
 
 	IRDA_DEBUG(3, "%s()\n", __func__);
@@ -991,7 +980,7 @@ F01_E*/
 	// Tell the network layer, that we can accept more frames 
 	netif_wake_queue(self->netdev);
 //F01   }
-	return ret;
+	return TRUE;
 }
 
 /*

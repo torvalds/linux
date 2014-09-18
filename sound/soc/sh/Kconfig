@@ -22,6 +22,7 @@ config SND_SOC_SH4_SSI
 
 config SND_SOC_SH4_FSI
 	tristate "SH4 FSI support"
+	select SND_SIMPLE_CARD
 	help
 	  This option enables FSI sound support
 
@@ -32,6 +33,13 @@ config SND_SOC_SH4_SIU
 	select DMADEVICES
 	select SH_DMAE
 	select FW_LOADER
+
+config SND_SOC_RCAR
+	tristate "R-Car series SRU/SCU/SSIU/SSI support"
+	select SND_SIMPLE_CARD
+	select REGMAP_MMIO
+	help
+	  This option enables R-Car SUR/SCU/SSIU/SSI sound support
 
 ##
 ## Boards
@@ -46,32 +54,9 @@ config SND_SH7760_AC97
 	  This option enables generic sound support for the first
 	  AC97 unit of the SH7760.
 
-config SND_FSI_AK4642
-	tristate "FSI-AK4642 sound support"
-	depends on SND_SOC_SH4_FSI && I2C
-	select SND_SOC_AK4642
-	help
-	  This option enables generic sound support for the
-	  FSI - AK4642 unit
-
-config SND_FSI_DA7210
-	tristate "FSI-DA7210 sound support"
-	depends on SND_SOC_SH4_FSI && I2C
-	select SND_SOC_DA7210
-	help
-	  This option enables generic sound support for the
-	  FSI - DA7210 unit
-
-config SND_FSI_HDMI
-	tristate "FSI-HDMI sound support"
-	depends on SND_SOC_SH4_FSI && FB_SH_MOBILE_HDMI
-	help
-	  This option enables generic sound support for the
-	  FSI - HDMI unit
-
 config SND_SIU_MIGOR
 	tristate "SIU sound support on Migo-R"
-	depends on SH_MIGOR
+	depends on SH_MIGOR && I2C
 	select SND_SOC_SH4_SIU
 	select SND_SOC_WM8978
 	help

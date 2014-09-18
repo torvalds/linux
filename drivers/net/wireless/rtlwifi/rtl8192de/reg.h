@@ -369,6 +369,7 @@
 #define	MSR_ADHOC			0x01
 #define	MSR_INFRA			0x02
 #define	MSR_AP				0x03
+#define	MSR_MASK			0x03
 
 /* 6. Adaptive Control Registers  (Offset: 0x0160 - 0x01CF) */
 /* ----------------------------------------------------- */
@@ -543,7 +544,7 @@
 #define	IMR_TIMEOUT1			BIT(16)
 #define	IMR_TXFOVW			BIT(15)
 #define	IMR_PSTIMEOUT			BIT(14)
-#define	IMR_BcnInt			BIT(13)
+#define	IMR_BCNINT			BIT(13)
 #define	IMR_RXFOVW			BIT(12)
 #define	IMR_RDU				BIT(11)
 #define	IMR_ATIMEND			BIT(10)
@@ -1294,19 +1295,5 @@
 #define	BWORD0					0x3
 #define	BWORD1					0xc
 #define	BDWORD					0xf
-
-#define	BMASKBYTE0				0xff
-#define	BMASKBYTE1				0xff00
-#define	BMASKBYTE2				0xff0000
-#define	BMASKBYTE3				0xff000000
-#define	BMASKHWORD				0xffff0000
-#define	BMASKLWORD				0x0000ffff
-#define	BMASKDWORD				0xffffffff
-#define	BMASK12BITS				0xfff
-#define	BMASKH4BITS				0xf0000000
-#define BMASKOFDM_D				0xffc00000
-#define	BMASKCCK				0x3f3f3f3f
-
-#define BRFREGOFFSETMASK			0xfffff
 
 #endif

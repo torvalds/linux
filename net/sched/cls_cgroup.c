@@ -11,87 +11,12 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/types.h>
-#include <linux/string.h>
-#include <linux/errno.h>
 #include <linux/skbuff.h>
-#include <linux/cgroup.h>
 #include <linux/rcupdate.h>
 #include <net/rtnetlink.h>
 #include <net/pkt_cls.h>
 #include <net/sock.h>
 #include <net/cls_cgroup.h>
-
-static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp);
-static void cgrp_destroy(struct cgroup *cgrp);
-static int cgrp_populate(struct cgroup_subsys *ss, struct cgroup *cgrp);
-
-struct cgroup_subsys net_cls_subsys = {
-	.name		= "net_cls",
-	.create		= cgrp_create,
-	.destroy	= cgrp_destroy,
-	.populate	= cgrp_populate,
-#ifdef CONFIG_NET_CLS_CGROUP
-	.subsys_id	= net_cls_subsys_id,
-#endif
-	.module		= THIS_MODULE,
-};
-
-
-static inline struct cgroup_cls_state *cgrp_cls_state(struct cgroup *cgrp)
-{
-	return container_of(cgroup_subsys_state(cgrp, net_cls_subsys_id),
-			    struct cgroup_cls_state, css);
-}
-
-static inline struct cgroup_cls_state *task_cls_state(struct task_struct *p)
-{
-	return container_of(task_subsys_state(p, net_cls_subsys_id),
-			    struct cgroup_cls_state, css);
-}
-
-static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp)
-{
-	struct cgroup_cls_state *cs;
-
-	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
-	if (!cs)
-		return ERR_PTR(-ENOMEM);
-
-	if (cgrp->parent)
-		cs->classid = cgrp_cls_state(cgrp->parent)->classid;
-
-	return &cs->css;
-}
-
-static void cgrp_destroy(struct cgroup *cgrp)
-{
-	kfree(cgrp_cls_state(cgrp));
-}
-
-static u64 read_classid(struct cgroup *cgrp, struct cftype *cft)
-{
-	return cgrp_cls_state(cgrp)->classid;
-}
-
-static int write_classid(struct cgroup *cgrp, struct cftype *cft, u64 value)
-{
-	cgrp_cls_state(cgrp)->classid = (u32) value;
-	return 0;
-}
-
-static struct cftype ss_files[] = {
-	{
-		.name = "classid",
-		.read_u64 = read_classid,
-		.write_u64 = write_classid,
-	},
-};
-
-static int cgrp_populate(struct cgroup_subsys *ss, struct cgroup *cgrp)
-{
-	return cgroup_add_files(cgrp, ss, ss_files, ARRAY_SIZE(ss_files));
-}
 
 struct cls_cgroup_head {
 	u32			handle;
@@ -151,18 +76,14 @@ static int cls_cgroup_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static const struct tcf_ext_map cgroup_ext_map = {
-	.action = TCA_CGROUP_ACT,
-	.police = TCA_CGROUP_POLICE,
-};
-
 static const struct nla_policy cgroup_policy[TCA_CGROUP_MAX + 1] = {
 	[TCA_CGROUP_EMATCHES]	= { .type = NLA_NESTED },
 };
 
-static int cls_cgroup_change(struct tcf_proto *tp, unsigned long base,
+static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
+			     struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
-			     unsigned long *arg)
+			     unsigned long *arg, bool ovr)
 {
 	struct nlattr *tb[TCA_CGROUP_MAX + 1];
 	struct cls_cgroup_head *head = tp->root;
@@ -181,6 +102,7 @@ static int cls_cgroup_change(struct tcf_proto *tp, unsigned long base,
 		if (head == NULL)
 			return -ENOBUFS;
 
+		tcf_exts_init(&head->exts, TCA_CGROUP_ACT, TCA_CGROUP_POLICE);
 		head->handle = handle;
 
 		tcf_tree_lock(tp);
@@ -196,7 +118,8 @@ static int cls_cgroup_change(struct tcf_proto *tp, unsigned long base,
 	if (err < 0)
 		return err;
 
-	err = tcf_exts_validate(tp, tb, tca[TCA_RATE], &e, &cgroup_ext_map);
+	tcf_exts_init(&e, TCA_CGROUP_ACT, TCA_CGROUP_POLICE);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
 	if (err < 0)
 		return err;
 
@@ -241,7 +164,7 @@ skip:
 	arg->count++;
 }
 
-static int cls_cgroup_dump(struct tcf_proto *tp, unsigned long fh,
+static int cls_cgroup_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			   struct sk_buff *skb, struct tcmsg *t)
 {
 	struct cls_cgroup_head *head = tp->root;
@@ -254,13 +177,13 @@ static int cls_cgroup_dump(struct tcf_proto *tp, unsigned long fh,
 	if (nest == NULL)
 		goto nla_put_failure;
 
-	if (tcf_exts_dump(skb, &head->exts, &cgroup_ext_map) < 0 ||
+	if (tcf_exts_dump(skb, &head->exts) < 0 ||
 	    tcf_em_tree_dump(skb, &head->ematches, TCA_CGROUP_EMATCHES) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
 
-	if (tcf_exts_dump_stats(skb, &head->exts, &cgroup_ext_map) < 0)
+	if (tcf_exts_dump_stats(skb, &head->exts) < 0)
 		goto nla_put_failure;
 
 	return skb->len;
@@ -286,36 +209,12 @@ static struct tcf_proto_ops cls_cgroup_ops __read_mostly = {
 
 static int __init init_cgroup_cls(void)
 {
-	int ret;
-
-	ret = cgroup_load_subsys(&net_cls_subsys);
-	if (ret)
-		goto out;
-
-#ifndef CONFIG_NET_CLS_CGROUP
-	/* We can't use rcu_assign_pointer because this is an int. */
-	smp_wmb();
-	net_cls_subsys_id = net_cls_subsys.subsys_id;
-#endif
-
-	ret = register_tcf_proto_ops(&cls_cgroup_ops);
-	if (ret)
-		cgroup_unload_subsys(&net_cls_subsys);
-
-out:
-	return ret;
+	return register_tcf_proto_ops(&cls_cgroup_ops);
 }
 
 static void __exit exit_cgroup_cls(void)
 {
 	unregister_tcf_proto_ops(&cls_cgroup_ops);
-
-#ifndef CONFIG_NET_CLS_CGROUP
-	net_cls_subsys_id = -1;
-	synchronize_rcu();
-#endif
-
-	cgroup_unload_subsys(&net_cls_subsys);
 }
 
 module_init(init_cgroup_cls);

@@ -73,12 +73,14 @@
 #ifdef MSND_CLASSIC
 #  include "msnd_classic.h"
 #  define LOGNAME			"msnd_classic"
+#  define DEV_NAME			"msnd-classic"
 #else
 #  include "msnd_pinnacle.h"
 #  define LOGNAME			"snd_msnd_pinnacle"
+#  define DEV_NAME			"msnd-pinnacle"
 #endif
 
-static void __devinit set_default_audio_parameters(struct snd_msnd *chip)
+static void set_default_audio_parameters(struct snd_msnd *chip)
 {
 	chip->play_sample_size = DEFSAMPLESIZE;
 	chip->play_sample_rate = DEFSAMPLERATE;
@@ -213,7 +215,7 @@ static int snd_msnd_reset_dsp(long io, unsigned char *info)
 	return -EIO;
 }
 
-static int __devinit snd_msnd_probe(struct snd_card *card)
+static int snd_msnd_probe(struct snd_card *card)
 {
 	struct snd_msnd *chip = card->private_data;
 	unsigned char info;
@@ -497,7 +499,7 @@ static int snd_msnd_send_dsp_cmd_chk(struct snd_msnd *chip, u8 cmd)
 	return snd_msnd_send_dsp_cmd(chip, cmd);
 }
 
-static int __devinit snd_msnd_calibrate_adc(struct snd_msnd *chip, u16 srate)
+static int snd_msnd_calibrate_adc(struct snd_msnd *chip, u16 srate)
 {
 	snd_printdd("snd_msnd_calibrate_adc(%i)\n", srate);
 	writew(srate, chip->SMA + SMA_wCalFreqAtoD);
@@ -535,7 +537,7 @@ static void snd_msnd_mpu401_close(struct snd_mpu401 *mpu)
 static long mpu_io[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
 static int mpu_irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;
 
-static int __devinit snd_msnd_attach(struct snd_card *card)
+static int snd_msnd_attach(struct snd_card *card)
 {
 	struct snd_msnd *chip = card->private_data;
 	int err;
@@ -634,7 +636,7 @@ err_release_region:
 }
 
 
-static void __devexit snd_msnd_unload(struct snd_card *card)
+static void snd_msnd_unload(struct snd_card *card)
 {
 	struct snd_msnd *chip = card->private_data;
 
@@ -649,7 +651,7 @@ static void __devexit snd_msnd_unload(struct snd_card *card)
 
 /* Pinnacle/Fiji Logical Device Configuration */
 
-static int __devinit snd_msnd_write_cfg(int cfg, int reg, int value)
+static int snd_msnd_write_cfg(int cfg, int reg, int value)
 {
 	outb(reg, cfg);
 	outb(value, cfg + 1);
@@ -660,7 +662,7 @@ static int __devinit snd_msnd_write_cfg(int cfg, int reg, int value)
 	return 0;
 }
 
-static int __devinit snd_msnd_write_cfg_io0(int cfg, int num, u16 io)
+static int snd_msnd_write_cfg_io0(int cfg, int num, u16 io)
 {
 	if (snd_msnd_write_cfg(cfg, IREG_LOGDEVICE, num))
 		return -EIO;
@@ -671,7 +673,7 @@ static int __devinit snd_msnd_write_cfg_io0(int cfg, int num, u16 io)
 	return 0;
 }
 
-static int __devinit snd_msnd_write_cfg_io1(int cfg, int num, u16 io)
+static int snd_msnd_write_cfg_io1(int cfg, int num, u16 io)
 {
 	if (snd_msnd_write_cfg(cfg, IREG_LOGDEVICE, num))
 		return -EIO;
@@ -682,7 +684,7 @@ static int __devinit snd_msnd_write_cfg_io1(int cfg, int num, u16 io)
 	return 0;
 }
 
-static int __devinit snd_msnd_write_cfg_irq(int cfg, int num, u16 irq)
+static int snd_msnd_write_cfg_irq(int cfg, int num, u16 irq)
 {
 	if (snd_msnd_write_cfg(cfg, IREG_LOGDEVICE, num))
 		return -EIO;
@@ -693,7 +695,7 @@ static int __devinit snd_msnd_write_cfg_irq(int cfg, int num, u16 irq)
 	return 0;
 }
 
-static int __devinit snd_msnd_write_cfg_mem(int cfg, int num, int mem)
+static int snd_msnd_write_cfg_mem(int cfg, int num, int mem)
 {
 	u16 wmem;
 
@@ -711,7 +713,7 @@ static int __devinit snd_msnd_write_cfg_mem(int cfg, int num, int mem)
 	return 0;
 }
 
-static int __devinit snd_msnd_activate_logical(int cfg, int num)
+static int snd_msnd_activate_logical(int cfg, int num)
 {
 	if (snd_msnd_write_cfg(cfg, IREG_LOGDEVICE, num))
 		return -EIO;
@@ -720,8 +722,8 @@ static int __devinit snd_msnd_activate_logical(int cfg, int num)
 	return 0;
 }
 
-static int __devinit snd_msnd_write_cfg_logical(int cfg, int num, u16 io0,
-						u16 io1, u16 irq, int mem)
+static int snd_msnd_write_cfg_logical(int cfg, int num, u16 io0,
+				      u16 io1, u16 irq, int mem)
 {
 	if (snd_msnd_write_cfg(cfg, IREG_LOGDEVICE, num))
 		return -EIO;
@@ -738,7 +740,7 @@ static int __devinit snd_msnd_write_cfg_logical(int cfg, int num, u16 io0,
 	return 0;
 }
 
-static int __devinit snd_msnd_pinnacle_cfg_reset(int cfg)
+static int snd_msnd_pinnacle_cfg_reset(int cfg)
 {
 	int i;
 
@@ -818,7 +820,7 @@ module_param_array(joystick_io, long, NULL, S_IRUGO);
 #endif
 
 
-static int __devinit snd_msnd_isa_match(struct device *pdev, unsigned int i)
+static int snd_msnd_isa_match(struct device *pdev, unsigned int i)
 {
 	if (io[i] == SNDRV_AUTO_PORT)
 		return 0;
@@ -888,7 +890,7 @@ static int __devinit snd_msnd_isa_match(struct device *pdev, unsigned int i)
 	return 1;
 }
 
-static int __devinit snd_msnd_isa_probe(struct device *pdev, unsigned int idx)
+static int snd_msnd_isa_probe(struct device *pdev, unsigned int idx)
 {
 	int err;
 	struct snd_card *card;
@@ -903,12 +905,11 @@ static int __devinit snd_msnd_isa_probe(struct device *pdev, unsigned int idx)
 		return -ENODEV;
 	}
 
-	err = snd_card_create(index[idx], id[idx], THIS_MODULE,
-			      sizeof(struct snd_msnd), &card);
+	err = snd_card_new(pdev, index[idx], id[idx], THIS_MODULE,
+			   sizeof(struct snd_msnd), &card);
 	if (err < 0)
 		return err;
 
-	snd_card_set_dev(card, pdev);
 	chip = card->private_data;
 	chip->card = card;
 
@@ -1061,19 +1062,16 @@ cfg_error:
 #endif
 }
 
-static int __devexit snd_msnd_isa_remove(struct device *pdev, unsigned int dev)
+static int snd_msnd_isa_remove(struct device *pdev, unsigned int dev)
 {
 	snd_msnd_unload(dev_get_drvdata(pdev));
-	dev_set_drvdata(pdev, NULL);
 	return 0;
 }
-
-#define DEV_NAME "msnd-pinnacle"
 
 static struct isa_driver snd_msnd_driver = {
 	.match		= snd_msnd_isa_match,
 	.probe		= snd_msnd_isa_probe,
-	.remove		= __devexit_p(snd_msnd_isa_remove),
+	.remove		= snd_msnd_isa_remove,
 	/* FIXME: suspend, resume */
 	.driver		= {
 		.name	= DEV_NAME
@@ -1081,8 +1079,8 @@ static struct isa_driver snd_msnd_driver = {
 };
 
 #ifdef CONFIG_PNP
-static int __devinit snd_msnd_pnp_detect(struct pnp_card_link *pcard,
-					 const struct pnp_card_device_id *pid)
+static int snd_msnd_pnp_detect(struct pnp_card_link *pcard,
+			       const struct pnp_card_device_id *pid)
 {
 	static int idx;
 	struct pnp_dev *pnp_dev;
@@ -1123,14 +1121,14 @@ static int __devinit snd_msnd_pnp_detect(struct pnp_card_link *pcard,
 	 * Create a new ALSA sound card entry, in anticipation
 	 * of detecting our hardware ...
 	 */
-	ret = snd_card_create(index[idx], id[idx], THIS_MODULE,
-			      sizeof(struct snd_msnd), &card);
+	ret = snd_card_new(&pcard->card->dev,
+			   index[idx], id[idx], THIS_MODULE,
+			   sizeof(struct snd_msnd), &card);
 	if (ret < 0)
 		return ret;
 
 	chip = card->private_data;
 	chip->card = card;
-	snd_card_set_dev(card, &pcard->card->dev);
 
 	/*
 	 * Read the correct parameters off the ISA PnP bus ...
@@ -1185,7 +1183,7 @@ _release_card:
 	return ret;
 }
 
-static void __devexit snd_msnd_pnp_remove(struct pnp_card_link *pcard)
+static void snd_msnd_pnp_remove(struct pnp_card_link *pcard)
 {
 	snd_msnd_unload(pnp_get_card_drvdata(pcard));
 	pnp_set_card_drvdata(pcard, NULL);
@@ -1207,7 +1205,7 @@ static struct pnp_card_driver msnd_pnpc_driver = {
 	.name = "msnd_pinnacle",
 	.id_table = msnd_pnpids,
 	.probe = snd_msnd_pnp_detect,
-	.remove = __devexit_p(snd_msnd_pnp_remove),
+	.remove = snd_msnd_pnp_remove,
 };
 #endif /* CONFIG_PNP */
 

@@ -8,6 +8,7 @@
  *
  * SH-Mobile SolutionEngine 7343 support
  */
+#include <linux/sh_intc.h>
 
 /* Box specific addresses.  */
 
@@ -49,9 +50,6 @@
 #define PA_LED		0xb0C00000	/* LED */
 #define LED_SHIFT       0
 #define PA_DIPSW	0xb0900000	/* Dip switch 31 */
-#define PA_CPLD_MODESET	0xb1400004	/* CPLD Mode set register */
-#define PA_CPLD_ST	0xb1400008	/* CPLD Interrupt status register */
-#define PA_CPLD_IMSK	0xb140000a	/* CPLD Interrupt mask register */
 /* Area 5 */
 #define PA_EXT5		0x14000000
 #define PA_EXT5_SIZE	0x04000000
@@ -118,10 +116,10 @@
 #define FPGA_IN		0xb1400000
 #define FPGA_OUT	0xb1400002
 
-#define IRQ0_IRQ        32
-#define IRQ1_IRQ        33
-#define IRQ4_IRQ        36
-#define IRQ5_IRQ        37
+#define IRQ0_IRQ        evt2irq(0x600)
+#define IRQ1_IRQ        evt2irq(0x620)
+#define IRQ4_IRQ        evt2irq(0x680)
+#define IRQ5_IRQ        evt2irq(0x6a0)
 
 #define SE7343_FPGA_IRQ_MRSHPC0	0
 #define SE7343_FPGA_IRQ_MRSHPC1	1
@@ -134,8 +132,10 @@
 
 #define SE7343_FPGA_IRQ_NR	12
 
+struct irq_domain;
+
 /* arch/sh/boards/se/7343/irq.c */
-extern unsigned int se7343_fpga_irq[];
+extern struct irq_domain *se7343_irq_domain;
 
 void init_7343se_IRQ(void);
 

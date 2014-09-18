@@ -137,7 +137,7 @@ static int tc6393xb_nand_enable(struct platform_device *nand)
 	return 0;
 }
 
-static struct resource __devinitdata tc6393xb_nand_resources[] = {
+static struct resource tc6393xb_nand_resources[] = {
 	{
 		.start	= 0x1000,
 		.end	= 0x1007,
@@ -196,7 +196,7 @@ static const struct resource tc6393xb_ohci_resources[] = {
 	},
 };
 
-static struct resource __devinitdata tc6393xb_fb_resources[] = {
+static struct resource tc6393xb_fb_resources[] = {
 	{
 		.start	= 0x5000,
 		.end	= 0x51ff,
@@ -382,7 +382,7 @@ static struct tmio_mmc_data tc6393xb_mmc_data = {
 	.set_clk_div = tc6393xb_mmc_clk_div,
 };
 
-static struct mfd_cell __devinitdata tc6393xb_cells[] = {
+static struct mfd_cell tc6393xb_cells[] = {
 	[TC6393XB_CELL_NAND] = {
 		.name = "tmio-nand",
 		.enable = tc6393xb_nand_enable,
@@ -602,9 +602,9 @@ static void tc6393xb_detach_irq(struct platform_device *dev)
 
 /*--------------------------------------------------------------------------*/
 
-static int __devinit tc6393xb_probe(struct platform_device *dev)
+static int tc6393xb_probe(struct platform_device *dev)
 {
-	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
+	struct tc6393xb_platform_data *tcpd = dev_get_platdata(&dev->dev);
 	struct tc6393xb *tc6393xb;
 	struct resource *iomem, *rscr;
 	int ret, temp;
@@ -700,8 +700,8 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 	tc6393xb_cells[TC6393XB_CELL_FB].pdata_size = sizeof(*tcpd->fb_data);
 
 	ret = mfd_add_devices(&dev->dev, dev->id,
-			tc6393xb_cells, ARRAY_SIZE(tc6393xb_cells),
-			iomem, tcpd->irq_base);
+			      tc6393xb_cells, ARRAY_SIZE(tc6393xb_cells),
+			      iomem, tcpd->irq_base, NULL);
 
 	if (!ret)
 		return 0;
@@ -731,9 +731,9 @@ err_kzalloc:
 	return ret;
 }
 
-static int __devexit tc6393xb_remove(struct platform_device *dev)
+static int tc6393xb_remove(struct platform_device *dev)
 {
-	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
+	struct tc6393xb_platform_data *tcpd = dev_get_platdata(&dev->dev);
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	int ret;
 
@@ -756,7 +756,6 @@ static int __devexit tc6393xb_remove(struct platform_device *dev)
 	clk_disable(tc6393xb->clk);
 	iounmap(tc6393xb->scr);
 	release_resource(&tc6393xb->rscr);
-	platform_set_drvdata(dev, NULL);
 	clk_put(tc6393xb->clk);
 	kfree(tc6393xb);
 
@@ -766,7 +765,7 @@ static int __devexit tc6393xb_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int tc6393xb_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
+	struct tc6393xb_platform_data *tcpd = dev_get_platdata(&dev->dev);
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	int i, ret;
 
@@ -789,7 +788,7 @@ static int tc6393xb_suspend(struct platform_device *dev, pm_message_t state)
 
 static int tc6393xb_resume(struct platform_device *dev)
 {
-	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
+	struct tc6393xb_platform_data *tcpd = dev_get_platdata(&dev->dev);
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	int ret;
 	int i;
@@ -831,7 +830,7 @@ static int tc6393xb_resume(struct platform_device *dev)
 
 static struct platform_driver tc6393xb_driver = {
 	.probe = tc6393xb_probe,
-	.remove = __devexit_p(tc6393xb_remove),
+	.remove = tc6393xb_remove,
 	.suspend = tc6393xb_suspend,
 	.resume = tc6393xb_resume,
 

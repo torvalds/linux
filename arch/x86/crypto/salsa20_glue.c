@@ -26,11 +26,6 @@
 #define SALSA20_MIN_KEY_SIZE  16U
 #define SALSA20_MAX_KEY_SIZE  32U
 
-// use the ECRYPT_* function names
-#define salsa20_keysetup        ECRYPT_keysetup
-#define salsa20_ivsetup         ECRYPT_ivsetup
-#define salsa20_encrypt_bytes   ECRYPT_encrypt_bytes
-
 struct salsa20_ctx
 {
 	u32 input[16];
@@ -97,7 +92,6 @@ static struct crypto_alg alg = {
 	.cra_ctxsize        =   sizeof(struct salsa20_ctx),
 	.cra_alignmask      =	3,
 	.cra_module         =   THIS_MODULE,
-	.cra_list           =   LIST_HEAD_INIT(alg.cra_list),
 	.cra_u              =   {
 		.blkcipher = {
 			.setkey         =   setkey,

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Author:	Sjur Brendeland / sjur.brandeland@stericsson.com
+ * Author:	Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  */
 
@@ -21,7 +21,7 @@
 #include <linux/debugfs.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Sjur Brendeland<sjur.brandeland@stericsson.com>");
+MODULE_AUTHOR("Sjur Brendeland");
 MODULE_DESCRIPTION("CAIF serial device TTY line discipline");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_CAIF);
@@ -35,8 +35,9 @@ MODULE_ALIAS_LDISC(N_CAIF);
 #define OFF 0
 #define CAIF_MAX_MTU 4096
 
-/*This list is protected by the rtnl lock. */
+static DEFINE_SPINLOCK(ser_lock);
 static LIST_HEAD(ser_list);
+static LIST_HEAD(ser_release_list);
 
 static bool ser_loop;
 module_param(ser_loop, bool, S_IRUGO);
@@ -88,11 +89,9 @@ static inline void update_tty_status(struct ser_device *ser)
 {
 	ser->tty_status =
 		ser->tty->stopped << 5 |
-		ser->tty->hw_stopped << 4 |
 		ser->tty->flow_stopped << 3 |
 		ser->tty->packet << 2 |
-		ser->tty->low_latency << 1 |
-		ser->tty->warned;
+		ser->tty->port->low_latency << 1;
 }
 static inline void debugfs_init(struct ser_device *ser, struct tty_struct *tty)
 {
@@ -205,7 +204,6 @@ static void ldisc_receive(struct tty_struct *tty, const u8 *data,
 
 	skb->protocol = htons(ETH_P_CAIF);
 	skb_reset_mac_header(skb);
-	skb->dev = ser->dev;
 	debugfs_rx(ser, data, count);
 	/* Push received packet up the stack. */
 	ret = netif_rx_ni(skb);
@@ -310,6 +308,28 @@ static void ldisc_tx_wakeup(struct tty_struct *tty)
 }
 
 
+static void ser_release(struct work_struct *work)
+{
+	struct list_head list;
+	struct ser_device *ser, *tmp;
+
+	spin_lock(&ser_lock);
+	list_replace_init(&ser_release_list, &list);
+	spin_unlock(&ser_lock);
+
+	if (!list_empty(&list)) {
+		rtnl_lock();
+		list_for_each_entry_safe(ser, tmp, &list, node) {
+			dev_close(ser->dev);
+			unregister_netdevice(ser->dev);
+			debugfs_deinit(ser);
+		}
+		rtnl_unlock();
+	}
+}
+
+static DECLARE_WORK(ser_release_work, ser_release);
+
 static int ldisc_open(struct tty_struct *tty)
 {
 	struct ser_device *ser;
@@ -323,8 +343,17 @@ static int ldisc_open(struct tty_struct *tty)
 	if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_TTY_CONFIG))
 		return -EPERM;
 
-	sprintf(name, "cf%s", tty->name);
-	dev = alloc_netdev(sizeof(*ser), name, caifdev_setup);
+	/* release devices to avoid name collision */
+	ser_release(NULL);
+
+	result = snprintf(name, sizeof(name), "cf%s", tty->name);
+	if (result >= IFNAMSIZ)
+		return -EINVAL;
+	dev = alloc_netdev(sizeof(*ser), name, NET_NAME_UNKNOWN,
+			   caifdev_setup);
+	if (!dev)
+		return -ENOMEM;
+
 	ser = netdev_priv(dev);
 	ser->tty = tty_kref_get(tty);
 	ser->dev = dev;
@@ -340,7 +369,9 @@ static int ldisc_open(struct tty_struct *tty)
 		return -ENODEV;
 	}
 
+	spin_lock(&ser_lock);
 	list_add(&ser->node, &ser_list);
+	spin_unlock(&ser_lock);
 	rtnl_unlock();
 	netif_stop_queue(dev);
 	update_tty_status(ser);
@@ -350,19 +381,13 @@ static int ldisc_open(struct tty_struct *tty)
 static void ldisc_close(struct tty_struct *tty)
 {
 	struct ser_device *ser = tty->disc_data;
-	/* Remove may be called inside or outside of rtnl_lock */
-	int islocked = rtnl_is_locked();
 
-	if (!islocked)
-		rtnl_lock();
-	/* device is freed automagically by net-sysfs */
-	dev_close(ser->dev);
-	unregister_netdevice(ser->dev);
-	list_del(&ser->node);
-	debugfs_deinit(ser);
 	tty_kref_put(ser->tty);
-	if (!islocked)
-		rtnl_unlock();
+
+	spin_lock(&ser_lock);
+	list_move(&ser->node, &ser_release_list);
+	spin_unlock(&ser_lock);
+	schedule_work(&ser_release_work);
 }
 
 /* The line discipline structure. */
@@ -437,16 +462,11 @@ static int __init caif_ser_init(void)
 
 static void __exit caif_ser_exit(void)
 {
-	struct ser_device *ser = NULL;
-	struct list_head *node;
-	struct list_head *_tmp;
-
-	list_for_each_safe(node, _tmp, &ser_list) {
-		ser = list_entry(node, struct ser_device, node);
-		dev_close(ser->dev);
-		unregister_netdevice(ser->dev);
-		list_del(node);
-	}
+	spin_lock(&ser_lock);
+	list_splice(&ser_list, &ser_release_list);
+	spin_unlock(&ser_lock);
+	ser_release(NULL);
+	cancel_work_sync(&ser_release_work);
 	tty_unregister_ldisc(N_CAIF);
 	debugfs_remove_recursive(debugfsdir);
 }

@@ -51,6 +51,7 @@
 #include <linux/zorro.h>
 #include <linux/bitops.h>
 
+#include <asm/byteorder.h>
 #include <asm/amigaints.h>
 #include <asm/amigahw.h>
 #include <asm/irq.h>
@@ -193,7 +194,6 @@ static int ariadne_rx(struct net_device *dev)
 
 			skb = netdev_alloc_skb(dev, pkt_len + 2);
 			if (skb == NULL) {
-				netdev_warn(dev, "Memory squeeze, deferring packet\n");
 				for (i = 0; i < RX_RING_SIZE; i++)
 					if (lowb(priv->rx_ring[(entry + i) % RX_RING_SIZE]->RMD1) & RF_OWN)
 						break;
@@ -213,10 +213,10 @@ static int ariadne_rx(struct net_device *dev)
 						(const void *)priv->rx_buff[entry],
 						pkt_len);
 			skb->protocol = eth_type_trans(skb, dev);
-			netdev_dbg(dev, "RX pkt type 0x%04x from %pM to %pM data 0x%08x len %d\n",
+			netdev_dbg(dev, "RX pkt type 0x%04x from %pM to %pM data %p len %u\n",
 				   ((u_short *)skb->data)[6],
 				   skb->data + 6, skb->data,
-				   (int)skb->data, (int)skb->len);
+				   skb->data, skb->len);
 
 			netif_rx(skb);
 			dev->stats.rx_packets++;
@@ -566,10 +566,10 @@ static netdev_tx_t ariadne_start_xmit(struct sk_buff *skb,
 
 	/* Fill in a Tx ring entry */
 
-	netdev_dbg(dev, "TX pkt type 0x%04x from %pM to %pM data 0x%08x len %d\n",
+	netdev_dbg(dev, "TX pkt type 0x%04x from %pM to %pM data %p len %u\n",
 		   ((u_short *)skb->data)[6],
 		   skb->data + 6, skb->data,
-		   (int)skb->data, (int)skb->len);
+		   skb->data, skb->len);
 
 	local_irq_save(flags);
 
@@ -682,7 +682,7 @@ static void set_multicast_list(struct net_device *dev)
 }
 
 
-static void __devexit ariadne_remove_one(struct zorro_dev *z)
+static void ariadne_remove_one(struct zorro_dev *z)
 {
 	struct net_device *dev = zorro_get_drvdata(z);
 
@@ -692,7 +692,7 @@ static void __devexit ariadne_remove_one(struct zorro_dev *z)
 	free_netdev(dev);
 }
 
-static struct zorro_device_id ariadne_zorro_tbl[] __devinitdata = {
+static struct zorro_device_id ariadne_zorro_tbl[] = {
 	{ ZORRO_PROD_VILLAGE_TRONIC_ARIADNE },
 	{ 0 }
 };
@@ -710,15 +710,15 @@ static const struct net_device_ops ariadne_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
-static int __devinit ariadne_init_one(struct zorro_dev *z,
-				      const struct zorro_device_id *ent)
+static int ariadne_init_one(struct zorro_dev *z,
+			    const struct zorro_device_id *ent)
 {
 	unsigned long board = z->resource.start;
 	unsigned long base_addr = board + ARIADNE_LANCE;
 	unsigned long mem_start = board + ARIADNE_RAM;
 	struct resource *r1, *r2;
 	struct net_device *dev;
-	struct ariadne_private *priv;
+	u32 serial;
 	int err;
 
 	r1 = request_mem_region(base_addr, sizeof(struct Am79C960), "Am79C960");
@@ -737,19 +737,18 @@ static int __devinit ariadne_init_one(struct zorro_dev *z,
 		return -ENOMEM;
 	}
 
-	priv = netdev_priv(dev);
-
 	r1->name = dev->name;
 	r2->name = dev->name;
 
+	serial = be32_to_cpu(z->rom.er_SerialNumber);
 	dev->dev_addr[0] = 0x00;
 	dev->dev_addr[1] = 0x60;
 	dev->dev_addr[2] = 0x30;
-	dev->dev_addr[3] = (z->rom.er_SerialNumber >> 16) & 0xff;
-	dev->dev_addr[4] = (z->rom.er_SerialNumber >> 8) & 0xff;
-	dev->dev_addr[5] = z->rom.er_SerialNumber & 0xff;
-	dev->base_addr = ZTWO_VADDR(base_addr);
-	dev->mem_start = ZTWO_VADDR(mem_start);
+	dev->dev_addr[3] = (serial >> 16) & 0xff;
+	dev->dev_addr[4] = (serial >> 8) & 0xff;
+	dev->dev_addr[5] = serial & 0xff;
+	dev->base_addr = (unsigned long)ZTWO_VADDR(base_addr);
+	dev->mem_start = (unsigned long)ZTWO_VADDR(mem_start);
 	dev->mem_end = dev->mem_start + ARIADNE_RAM_SIZE;
 
 	dev->netdev_ops = &ariadne_netdev_ops;
@@ -774,7 +773,7 @@ static struct zorro_driver ariadne_driver = {
 	.name		= "ariadne",
 	.id_table	= ariadne_zorro_tbl,
 	.probe		= ariadne_init_one,
-	.remove		= __devexit_p(ariadne_remove_one),
+	.remove		= ariadne_remove_one,
 };
 
 static int __init ariadne_init_module(void)

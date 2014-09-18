@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
 */
 
+#include <linux/amba/pl330.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -17,6 +18,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -29,15 +31,18 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mmc/host.h>
 #include <linux/ioport.h>
+#include <linux/sizes.h>
 #include <linux/platform_data/s3c-hsudc.h>
+#include <linux/platform_data/s3c-hsotg.h>
+#include <linux/platform_data/dma-s3c24xx.h>
+
+#include <media/s5p_hdmi.h>
 
 #include <asm/irq.h>
-#include <asm/pmu.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/hardware.h>
 #include <mach/dma.h>
 #include <mach/irqs.h>
 #include <mach/map.h>
@@ -45,25 +50,22 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/adc.h>
-#include <plat/ata.h>
-#include <plat/ehci.h>
+#include <linux/platform_data/ata-samsung_cf.h>
 #include <plat/fb.h>
 #include <plat/fb-s3c2410.h>
-#include <plat/hwmon.h>
-#include <plat/iic.h>
+#include <linux/platform_data/hwmon-s3c.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/keypad.h>
-#include <plat/mci.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mmc-s3cmci.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <plat/pwm-core.h>
 #include <plat/sdhci.h>
-#include <plat/ts.h>
-#include <plat/udc.h>
-#include <plat/udc-hs.h>
-#include <plat/usb-control.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
+#include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <plat/usb-phy.h>
-#include <plat/regs-iic.h>
-#include <plat/regs-serial.h>
 #include <plat/regs-spi.h>
-#include <plat/s3c64xx-spi.h>
+#include <linux/platform_data/spi-s3c64xx.h>
 
 static u64 samsung_device_dma_mask = DMA_BIT_MASK(32);
 
@@ -126,7 +128,8 @@ struct platform_device s3c_device_adc = {
 #ifdef CONFIG_CPU_S3C2440
 static struct resource s3c_camif_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2440_PA_CAMIF, S3C2440_SZ_CAMIF),
-	[1] = DEFINE_RES_IRQ(IRQ_CAM),
+	[1] = DEFINE_RES_IRQ(IRQ_S3C2440_CAM_C),
+	[2] = DEFINE_RES_IRQ(IRQ_S3C2440_CAM_P),
 };
 
 struct platform_device s3c_device_camif = {
@@ -140,26 +143,6 @@ struct platform_device s3c_device_camif = {
 	}
 };
 #endif /* CONFIG_CPU_S3C2440 */
-
-/* ASOC DMA */
-
-struct platform_device samsung_asoc_dma = {
-	.name		= "samsung-audio",
-	.id		= -1,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	}
-};
-
-struct platform_device samsung_asoc_idma = {
-	.name		= "samsung-idma",
-	.id		= -1,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	}
-};
 
 /* FB */
 
@@ -189,159 +172,6 @@ void __init s3c_fb_set_platdata(struct s3c_fb_platdata *pd)
 }
 #endif /* CONFIG_S3C_DEV_FB */
 
-/* FIMC */
-
-#ifdef CONFIG_S5P_DEV_FIMC0
-static struct resource s5p_fimc0_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_FIMC0, SZ_4K),
-	[1] = DEFINE_RES_IRQ(IRQ_FIMC0),
-};
-
-struct platform_device s5p_device_fimc0 = {
-	.name		= "s5p-fimc",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(s5p_fimc0_resource),
-	.resource	= s5p_fimc0_resource,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
-struct platform_device s5p_device_fimc_md = {
-	.name	= "s5p-fimc-md",
-	.id	= -1,
-};
-#endif /* CONFIG_S5P_DEV_FIMC0 */
-
-#ifdef CONFIG_S5P_DEV_FIMC1
-static struct resource s5p_fimc1_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_FIMC1, SZ_4K),
-	[1] = DEFINE_RES_IRQ(IRQ_FIMC1),
-};
-
-struct platform_device s5p_device_fimc1 = {
-	.name		= "s5p-fimc",
-	.id		= 1,
-	.num_resources	= ARRAY_SIZE(s5p_fimc1_resource),
-	.resource	= s5p_fimc1_resource,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-#endif /* CONFIG_S5P_DEV_FIMC1 */
-
-#ifdef CONFIG_S5P_DEV_FIMC2
-static struct resource s5p_fimc2_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_FIMC2, SZ_4K),
-	[1] = DEFINE_RES_IRQ(IRQ_FIMC2),
-};
-
-struct platform_device s5p_device_fimc2 = {
-	.name		= "s5p-fimc",
-	.id		= 2,
-	.num_resources	= ARRAY_SIZE(s5p_fimc2_resource),
-	.resource	= s5p_fimc2_resource,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-#endif /* CONFIG_S5P_DEV_FIMC2 */
-
-#ifdef CONFIG_S5P_DEV_FIMC3
-static struct resource s5p_fimc3_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_FIMC3, SZ_4K),
-	[1] = DEFINE_RES_IRQ(IRQ_FIMC3),
-};
-
-struct platform_device s5p_device_fimc3 = {
-	.name		= "s5p-fimc",
-	.id		= 3,
-	.num_resources	= ARRAY_SIZE(s5p_fimc3_resource),
-	.resource	= s5p_fimc3_resource,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-#endif /* CONFIG_S5P_DEV_FIMC3 */
-
-/* G2D */
-
-#ifdef CONFIG_S5P_DEV_G2D
-static struct resource s5p_g2d_resource[] = {
-	[0] = {
-		.start	= S5P_PA_G2D,
-		.end	= S5P_PA_G2D + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_2D,
-		.end	= IRQ_2D,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device s5p_device_g2d = {
-	.name		= "s5p-g2d",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(s5p_g2d_resource),
-	.resource	= s5p_g2d_resource,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-#endif /* CONFIG_S5P_DEV_G2D */
-
-#ifdef CONFIG_S5P_DEV_JPEG
-static struct resource s5p_jpeg_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_JPEG, SZ_4K),
-	[1] = DEFINE_RES_IRQ(IRQ_JPEG),
-};
-
-struct platform_device s5p_device_jpeg = {
-	.name		= "s5p-jpeg",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(s5p_jpeg_resource),
-	.resource	= s5p_jpeg_resource,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-#endif /*  CONFIG_S5P_DEV_JPEG */
-
-/* FIMD0 */
-
-#ifdef CONFIG_S5P_DEV_FIMD0
-static struct resource s5p_fimd0_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_FIMD0, SZ_32K),
-	[1] = DEFINE_RES_IRQ(IRQ_FIMD0_VSYNC),
-	[2] = DEFINE_RES_IRQ(IRQ_FIMD0_FIFO),
-	[3] = DEFINE_RES_IRQ(IRQ_FIMD0_SYSTEM),
-};
-
-struct platform_device s5p_device_fimd0 = {
-	.name		= "s5p-fb",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(s5p_fimd0_resource),
-	.resource	= s5p_fimd0_resource,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
-void __init s5p_fimd0_set_platdata(struct s3c_fb_platdata *pd)
-{
-	s3c_set_platdata(pd, sizeof(struct s3c_fb_platdata),
-			 &s5p_device_fimd0);
-}
-#endif /* CONFIG_S5P_DEV_FIMD0 */
-
 /* HWMON */
 
 #ifdef CONFIG_S3C_DEV_HWMON
@@ -370,7 +200,6 @@ struct s3c_sdhci_platdata s3c_hsmmc0_def_platdata = {
 	.max_width	= 4,
 	.host_caps	= (MMC_CAP_4_BIT_DATA |
 			   MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
-	.clk_type	= S3C_SDHCI_CLK_DIV_INTERNAL,
 };
 
 struct platform_device s3c_device_hsmmc0 = {
@@ -401,7 +230,6 @@ struct s3c_sdhci_platdata s3c_hsmmc1_def_platdata = {
 	.max_width	= 4,
 	.host_caps	= (MMC_CAP_4_BIT_DATA |
 			   MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
-	.clk_type	= S3C_SDHCI_CLK_DIV_INTERNAL,
 };
 
 struct platform_device s3c_device_hsmmc1 = {
@@ -434,7 +262,6 @@ struct s3c_sdhci_platdata s3c_hsmmc2_def_platdata = {
 	.max_width	= 4,
 	.host_caps	= (MMC_CAP_4_BIT_DATA |
 			   MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
-	.clk_type	= S3C_SDHCI_CLK_DIV_INTERNAL,
 };
 
 struct platform_device s3c_device_hsmmc2 = {
@@ -465,7 +292,6 @@ struct s3c_sdhci_platdata s3c_hsmmc3_def_platdata = {
 	.max_width	= 4,
 	.host_caps	= (MMC_CAP_4_BIT_DATA |
 			   MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
-	.clk_type	= S3C_SDHCI_CLK_DIV_INTERNAL,
 };
 
 struct platform_device s3c_device_hsmmc3 = {
@@ -495,11 +321,7 @@ static struct resource s3c_i2c0_resource[] = {
 
 struct platform_device s3c_device_i2c0 = {
 	.name		= "s3c2410-i2c",
-#ifdef CONFIG_S3C_DEV_I2C1
 	.id		= 0,
-#else
-	.id		= -1,
-#endif
 	.num_resources	= ARRAY_SIZE(s3c_i2c0_resource),
 	.resource	= s3c_i2c0_resource,
 };
@@ -737,41 +559,6 @@ void __init s3c_i2c7_set_platdata(struct s3c2410_platform_i2c *pd)
 }
 #endif /* CONFIG_S3C_DEV_I2C7 */
 
-/* I2C HDMIPHY */
-
-#ifdef CONFIG_S5P_DEV_I2C_HDMIPHY
-static struct resource s5p_i2c_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_IIC_HDMIPHY, SZ_4K),
-	[1] = DEFINE_RES_IRQ(IRQ_IIC_HDMIPHY),
-};
-
-struct platform_device s5p_device_i2c_hdmiphy = {
-	.name		= "s3c2440-hdmiphy-i2c",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(s5p_i2c_resource),
-	.resource	= s5p_i2c_resource,
-};
-
-void __init s5p_i2c_hdmiphy_set_platdata(struct s3c2410_platform_i2c *pd)
-{
-	struct s3c2410_platform_i2c *npd;
-
-	if (!pd) {
-		pd = &default_i2c_data;
-
-		if (soc_is_exynos4210())
-			pd->bus_num = 8;
-		else if (soc_is_s5pv210())
-			pd->bus_num = 3;
-		else
-			pd->bus_num = 0;
-	}
-
-	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
-			       &s5p_device_i2c_hdmiphy);
-}
-#endif /* CONFIG_S5P_DEV_I2C_HDMIPHY */
-
 /* I2S */
 
 #ifdef CONFIG_PLAT_S3C24XX
@@ -874,80 +661,6 @@ void __init s3c24xx_fb_set_platdata(struct s3c2410fb_mach_info *pd)
 	}
 }
 #endif /* CONFIG_PLAT_S3C24XX */
-
-/* MFC */
-
-#ifdef CONFIG_S5P_DEV_MFC
-static struct resource s5p_mfc_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_MFC, SZ_64K),
-	[1] = DEFINE_RES_IRQ(IRQ_MFC),
-};
-
-struct platform_device s5p_device_mfc = {
-	.name		= "s5p-mfc",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(s5p_mfc_resource),
-	.resource	= s5p_mfc_resource,
-};
-
-/*
- * MFC hardware has 2 memory interfaces which are modelled as two separate
- * platform devices to let dma-mapping distinguish between them.
- *
- * MFC parent device (s5p_device_mfc) must be registered before memory
- * interface specific devices (s5p_device_mfc_l and s5p_device_mfc_r).
- */
-
-struct platform_device s5p_device_mfc_l = {
-	.name		= "s5p-mfc-l",
-	.id		= -1,
-	.dev		= {
-		.parent			= &s5p_device_mfc.dev,
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
-struct platform_device s5p_device_mfc_r = {
-	.name		= "s5p-mfc-r",
-	.id		= -1,
-	.dev		= {
-		.parent			= &s5p_device_mfc.dev,
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-#endif /* CONFIG_S5P_DEV_MFC */
-
-/* MIPI CSIS */
-
-#ifdef CONFIG_S5P_DEV_CSIS0
-static struct resource s5p_mipi_csis0_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_MIPI_CSIS0, SZ_16K),
-	[1] = DEFINE_RES_IRQ(IRQ_MIPI_CSIS0),
-};
-
-struct platform_device s5p_device_mipi_csis0 = {
-	.name		= "s5p-mipi-csis",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(s5p_mipi_csis0_resource),
-	.resource	= s5p_mipi_csis0_resource,
-};
-#endif /* CONFIG_S5P_DEV_CSIS0 */
-
-#ifdef CONFIG_S5P_DEV_CSIS1
-static struct resource s5p_mipi_csis1_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_MIPI_CSIS1, SZ_16K),
-	[1] = DEFINE_RES_IRQ(IRQ_MIPI_CSIS1),
-};
-
-struct platform_device s5p_device_mipi_csis1 = {
-	.name		= "s5p-mipi-csis",
-	.id		= 1,
-	.num_resources	= ARRAY_SIZE(s5p_mipi_csis1_resource),
-	.resource	= s5p_mipi_csis1_resource,
-};
-#endif
 
 /* NAND */
 
@@ -1092,76 +805,24 @@ void __init s3c64xx_onenand1_set_platdata(struct onenand_platform_data *pdata)
 }
 #endif /* CONFIG_S3C64XX_DEV_ONENAND1 */
 
-#ifdef CONFIG_S5P_DEV_ONENAND
-static struct resource s5p_onenand_resources[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_ONENAND, SZ_128K),
-	[1] = DEFINE_RES_MEM(S5P_PA_ONENAND_DMA, SZ_8K),
-	[2] = DEFINE_RES_IRQ(IRQ_ONENAND_AUDI),
-};
-
-struct platform_device s5p_device_onenand = {
-	.name		= "s5pc110-onenand",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(s5p_onenand_resources),
-	.resource	= s5p_onenand_resources,
-};
-#endif /* CONFIG_S5P_DEV_ONENAND */
-
-/* PMU */
-
-#ifdef CONFIG_PLAT_S5P
-static struct resource s5p_pmu_resource[] = {
-	DEFINE_RES_IRQ(IRQ_PMU)
-};
-
-static struct platform_device s5p_device_pmu = {
-	.name		= "arm-pmu",
-	.id		= ARM_PMU_DEVICE_CPU,
-	.num_resources	= ARRAY_SIZE(s5p_pmu_resource),
-	.resource	= s5p_pmu_resource,
-};
-
-static int __init s5p_pmu_init(void)
-{
-	platform_device_register(&s5p_device_pmu);
-	return 0;
-}
-arch_initcall(s5p_pmu_init);
-#endif /* CONFIG_PLAT_S5P */
-
 /* PWM Timer */
 
 #ifdef CONFIG_SAMSUNG_DEV_PWM
-
-#define TIMER_RESOURCE_SIZE (1)
-
-#define TIMER_RESOURCE(_tmr, _irq)			\
-	(struct resource [TIMER_RESOURCE_SIZE]) {	\
-		[0] = {					\
-			.start	= _irq,			\
-			.end	= _irq,			\
-			.flags	= IORESOURCE_IRQ	\
-		}					\
-	}
-
-#define DEFINE_S3C_TIMER(_tmr_no, _irq)			\
-	.name		= "s3c24xx-pwm",		\
-	.id		= _tmr_no,			\
-	.num_resources	= TIMER_RESOURCE_SIZE,		\
-	.resource	= TIMER_RESOURCE(_tmr_no, _irq),	\
-
-/*
- * since we already have an static mapping for the timer,
- * we do not bother setting any IO resource for the base.
- */
-
-struct platform_device s3c_device_timer[] = {
-	[0] = { DEFINE_S3C_TIMER(0, IRQ_TIMER0) },
-	[1] = { DEFINE_S3C_TIMER(1, IRQ_TIMER1) },
-	[2] = { DEFINE_S3C_TIMER(2, IRQ_TIMER2) },
-	[3] = { DEFINE_S3C_TIMER(3, IRQ_TIMER3) },
-	[4] = { DEFINE_S3C_TIMER(4, IRQ_TIMER4) },
+static struct resource samsung_pwm_resource[] = {
+	DEFINE_RES_MEM(SAMSUNG_PA_TIMER, SZ_4K),
 };
+
+struct platform_device samsung_device_pwm = {
+	.name		= "samsung-pwm",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(samsung_pwm_resource),
+	.resource	= samsung_pwm_resource,
+};
+
+void __init samsung_pwm_set_platdata(struct samsung_pwm_variant *pd)
+{
+	samsung_device_pwm.dev.platform_data = pd;
+}
 #endif /* CONFIG_SAMSUNG_DEV_PWM */
 
 /* RTC */
@@ -1306,52 +967,6 @@ void __init s3c24xx_ts_set_platdata(struct s3c2410_ts_mach_info *pd)
 }
 #endif /* CONFIG_SAMSUNG_DEV_TS */
 
-/* TV */
-
-#ifdef CONFIG_S5P_DEV_TV
-
-static struct resource s5p_hdmi_resources[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_HDMI, SZ_1M),
-	[1] = DEFINE_RES_IRQ(IRQ_HDMI),
-};
-
-struct platform_device s5p_device_hdmi = {
-	.name		= "s5p-hdmi",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(s5p_hdmi_resources),
-	.resource	= s5p_hdmi_resources,
-};
-
-static struct resource s5p_sdo_resources[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_SDO, SZ_64K),
-	[1] = DEFINE_RES_IRQ(IRQ_SDO),
-};
-
-struct platform_device s5p_device_sdo = {
-	.name		= "s5p-sdo",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(s5p_sdo_resources),
-	.resource	= s5p_sdo_resources,
-};
-
-static struct resource s5p_mixer_resources[] = {
-	[0] = DEFINE_RES_MEM_NAMED(S5P_PA_MIXER, SZ_64K, "mxr"),
-	[1] = DEFINE_RES_MEM_NAMED(S5P_PA_VP, SZ_64K, "vp"),
-	[2] = DEFINE_RES_IRQ_NAMED(IRQ_MIXER, "irq"),
-};
-
-struct platform_device s5p_device_mixer = {
-	.name		= "s5p-mixer",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(s5p_mixer_resources),
-	.resource	= s5p_mixer_resources,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	}
-};
-#endif /* CONFIG_S5P_DEV_TV */
-
 /* USB */
 
 #ifdef CONFIG_S3C_DEV_USB_HOST
@@ -1407,39 +1022,6 @@ void __init s3c24xx_udc_set_platdata(struct s3c2410_udc_mach_info *pd)
 	s3c_set_platdata(pd, sizeof(*pd), &s3c_device_usbgadget);
 }
 #endif /* CONFIG_PLAT_S3C24XX */
-
-/* USB EHCI Host Controller */
-
-#ifdef CONFIG_S5P_DEV_USB_EHCI
-static struct resource s5p_ehci_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_EHCI, SZ_256),
-	[1] = DEFINE_RES_IRQ(IRQ_USB_HOST),
-};
-
-struct platform_device s5p_device_ehci = {
-	.name		= "s5p-ehci",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(s5p_ehci_resource),
-	.resource	= s5p_ehci_resource,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	}
-};
-
-void __init s5p_ehci_set_platdata(struct s5p_ehci_platdata *pd)
-{
-	struct s5p_ehci_platdata *npd;
-
-	npd = s3c_set_platdata(pd, sizeof(struct s5p_ehci_platdata),
-			&s5p_device_ehci);
-
-	if (!npd->phy_init)
-		npd->phy_init = s5p_usb_phy_init;
-	if (!npd->phy_exit)
-		npd->phy_exit = s5p_usb_phy_exit;
-}
-#endif /* CONFIG_S5P_DEV_USB_EHCI */
 
 /* USB HSOTG */
 
@@ -1524,7 +1106,7 @@ static struct resource s3c64xx_spi0_resource[] = {
 };
 
 struct platform_device s3c64xx_device_spi0 = {
-	.name		= "s3c64xx-spi",
+	.name		= "s3c6410-spi",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(s3c64xx_spi0_resource),
 	.resource	= s3c64xx_spi0_resource,
@@ -1534,13 +1116,10 @@ struct platform_device s3c64xx_device_spi0 = {
 	},
 };
 
-void __init s3c64xx_spi0_set_platdata(struct s3c64xx_spi_info *pd,
-				      int src_clk_nr, int num_cs)
+void __init s3c64xx_spi0_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
+						int num_cs)
 {
-	if (!pd) {
-		pr_err("%s:Need to pass platform data\n", __func__);
-		return;
-	}
+	struct s3c64xx_spi_info pd;
 
 	/* Reject invalid configuration */
 	if (!num_cs || src_clk_nr < 0) {
@@ -1548,12 +1127,18 @@ void __init s3c64xx_spi0_set_platdata(struct s3c64xx_spi_info *pd,
 		return;
 	}
 
-	pd->num_cs = num_cs;
-	pd->src_clk_nr = src_clk_nr;
-	if (!pd->cfg_gpio)
-		pd->cfg_gpio = s3c64xx_spi0_cfg_gpio;
+	pd.num_cs = num_cs;
+	pd.src_clk_nr = src_clk_nr;
+	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi0_cfg_gpio;
+#if defined(CONFIG_PL330_DMA)
+	pd.filter = pl330_filter;
+#elif defined(CONFIG_S3C64XX_PL080)
+	pd.filter = pl08x_filter_id;
+#elif defined(CONFIG_S3C24XX_DMAC)
+	pd.filter = s3c24xx_dma_filter;
+#endif
 
-	s3c_set_platdata(pd, sizeof(*pd), &s3c64xx_device_spi0);
+	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi0);
 }
 #endif /* CONFIG_S3C64XX_DEV_SPI0 */
 
@@ -1566,7 +1151,7 @@ static struct resource s3c64xx_spi1_resource[] = {
 };
 
 struct platform_device s3c64xx_device_spi1 = {
-	.name		= "s3c64xx-spi",
+	.name		= "s3c6410-spi",
 	.id		= 1,
 	.num_resources	= ARRAY_SIZE(s3c64xx_spi1_resource),
 	.resource	= s3c64xx_spi1_resource,
@@ -1576,13 +1161,10 @@ struct platform_device s3c64xx_device_spi1 = {
 	},
 };
 
-void __init s3c64xx_spi1_set_platdata(struct s3c64xx_spi_info *pd,
-				      int src_clk_nr, int num_cs)
+void __init s3c64xx_spi1_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
+						int num_cs)
 {
-	if (!pd) {
-		pr_err("%s:Need to pass platform data\n", __func__);
-		return;
-	}
+	struct s3c64xx_spi_info pd;
 
 	/* Reject invalid configuration */
 	if (!num_cs || src_clk_nr < 0) {
@@ -1590,12 +1172,16 @@ void __init s3c64xx_spi1_set_platdata(struct s3c64xx_spi_info *pd,
 		return;
 	}
 
-	pd->num_cs = num_cs;
-	pd->src_clk_nr = src_clk_nr;
-	if (!pd->cfg_gpio)
-		pd->cfg_gpio = s3c64xx_spi1_cfg_gpio;
+	pd.num_cs = num_cs;
+	pd.src_clk_nr = src_clk_nr;
+	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi1_cfg_gpio;
+#if defined(CONFIG_PL330_DMA)
+	pd.filter = pl330_filter;
+#elif defined(CONFIG_S3C64XX_PL080)
+	pd.filter = pl08x_filter_id;
+#endif
 
-	s3c_set_platdata(pd, sizeof(*pd), &s3c64xx_device_spi1);
+	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi1);
 }
 #endif /* CONFIG_S3C64XX_DEV_SPI1 */
 
@@ -1608,7 +1194,7 @@ static struct resource s3c64xx_spi2_resource[] = {
 };
 
 struct platform_device s3c64xx_device_spi2 = {
-	.name		= "s3c64xx-spi",
+	.name		= "s3c6410-spi",
 	.id		= 2,
 	.num_resources	= ARRAY_SIZE(s3c64xx_spi2_resource),
 	.resource	= s3c64xx_spi2_resource,
@@ -1618,13 +1204,10 @@ struct platform_device s3c64xx_device_spi2 = {
 	},
 };
 
-void __init s3c64xx_spi2_set_platdata(struct s3c64xx_spi_info *pd,
-				      int src_clk_nr, int num_cs)
+void __init s3c64xx_spi2_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
+						int num_cs)
 {
-	if (!pd) {
-		pr_err("%s:Need to pass platform data\n", __func__);
-		return;
-	}
+	struct s3c64xx_spi_info pd;
 
 	/* Reject invalid configuration */
 	if (!num_cs || src_clk_nr < 0) {
@@ -1632,11 +1215,15 @@ void __init s3c64xx_spi2_set_platdata(struct s3c64xx_spi_info *pd,
 		return;
 	}
 
-	pd->num_cs = num_cs;
-	pd->src_clk_nr = src_clk_nr;
-	if (!pd->cfg_gpio)
-		pd->cfg_gpio = s3c64xx_spi2_cfg_gpio;
+	pd.num_cs = num_cs;
+	pd.src_clk_nr = src_clk_nr;
+	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi2_cfg_gpio;
+#if defined(CONFIG_PL330_DMA)
+	pd.filter = pl330_filter;
+#elif defined(CONFIG_S3C64XX_PL080)
+	pd.filter = pl08x_filter_id;
+#endif
 
-	s3c_set_platdata(pd, sizeof(*pd), &s3c64xx_device_spi2);
+	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi2);
 }
 #endif /* CONFIG_S3C64XX_DEV_SPI2 */

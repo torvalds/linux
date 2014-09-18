@@ -1,0 +1,13 @@
+Altera SOCFPGA Reset Manager
+
+Required properties:
+- compatible : "altr,rst-mgr"
+- reg : Should contain 1 register ranges(address and length)
+- #reset-cells: 1
+
+Example:
+	 rstmgr@ffd05000 {
+		#reset-cells = <1>;
+		compatible = "altr,rst-mgr";
+		reg = <0xffd05000 0x1000>;
+	};

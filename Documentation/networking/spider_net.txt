@@ -73,7 +73,7 @@ Thus, in an idle system, the GDACTDPA, tail and head pointers will
 all be pointing at the same descr, which should be "empty". All of the
 other descrs in the ring should be "empty" as well.
 
-The show_rx_chain() routine will print out the the locations of the
+The show_rx_chain() routine will print out the locations of the
 GDACTDPA, tail and head pointers. It will also summarize the contents
 of the ring, starting at the tail pointer, and listing the status
 of the descrs that follow.

@@ -13,7 +13,7 @@
 #include <linux/pm.h>
 #include "ad714x.h"
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ad714x_i2c_suspend(struct device *dev)
 {
 	return ad714x_disable(i2c_get_clientdata(to_i2c_client(dev)));
@@ -72,7 +72,7 @@ static int ad714x_i2c_read(struct ad714x_chip *chip,
 	return 0;
 }
 
-static int __devinit ad714x_i2c_probe(struct i2c_client *client,
+static int ad714x_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct ad714x_chip *chip;
@@ -87,7 +87,7 @@ static int __devinit ad714x_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit ad714x_i2c_remove(struct i2c_client *client)
+static int ad714x_i2c_remove(struct i2c_client *client)
 {
 	struct ad714x_chip *chip = i2c_get_clientdata(client);
 
@@ -112,7 +112,7 @@ static struct i2c_driver ad714x_i2c_driver = {
 		.pm   = &ad714x_i2c_pm,
 	},
 	.probe    = ad714x_i2c_probe,
-	.remove   = __devexit_p(ad714x_i2c_remove),
+	.remove   = ad714x_i2c_remove,
 	.id_table = ad714x_id,
 };
 

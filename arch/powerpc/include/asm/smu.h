@@ -132,7 +132,7 @@
   *
   * At this point, the OF driver seems to have a limitation on transfer
   * sizes of 0xd bytes on reads and 0x5 bytes on writes. I do not know
-  * wether this is just an OF limit due to some temporary buffer size
+  * whether this is just an OF limit due to some temporary buffer size
   * or if this is an SMU imposed limit. This driver has the same limitation
   * for now as I use a 0x10 bytes temporary buffer as well
   *
@@ -236,7 +236,7 @@
  *   3 (optional): enable nmi? [0x00 or 0x01]
  *
  * Returns:
- *   If parameter 2 is 0x00 and parameter 3 is not specified, returns wether
+ *   If parameter 2 is 0x00 and parameter 3 is not specified, returns whether
  *   NMI is enabled. Otherwise unknown.
  */
 #define   SMU_CMD_MISC_df_NMI_OPTION		0x04

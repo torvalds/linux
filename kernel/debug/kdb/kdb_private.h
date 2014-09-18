@@ -19,7 +19,6 @@
 #define KDB_CMD_GO	(-1001)
 #define KDB_CMD_CPU	(-1002)
 #define KDB_CMD_SS	(-1003)
-#define KDB_CMD_SSB	(-1004)
 #define KDB_CMD_KGDB (-1005)
 
 /* Internal debug flags */
@@ -125,8 +124,6 @@ extern int kdb_state;
 						 * kdb control */
 #define KDB_STATE_HOLD_CPU	0x00000010	/* Hold this cpu inside kdb */
 #define KDB_STATE_DOING_SS	0x00000020	/* Doing ss command */
-#define KDB_STATE_DOING_SSB	0x00000040	/* Doing ssb command,
-						 * DOING_SS is also set */
 #define KDB_STATE_SSBPT		0x00000080	/* Install breakpoint
 						 * after one ss, independent of
 						 * DOING_SS */
@@ -191,7 +188,6 @@ extern void kdb_bp_remove(void);
 typedef enum {
 	KDB_DB_BPT,	/* Breakpoint */
 	KDB_DB_SS,	/* Single-step trap */
-	KDB_DB_SSB,	/* Single step to branch */
 	KDB_DB_SSBPT,	/* Single step over breakpoint */
 	KDB_DB_NOBPT	/* Spurious breakpoint */
 } kdb_dbtrap_t;
@@ -205,7 +201,6 @@ extern char kdb_grep_string[];
 extern int kdb_grep_leading;
 extern int kdb_grep_trailing;
 extern char *kdb_cmds[];
-extern void kdb_syslog_data(char *syslog_data[]);
 extern unsigned long kdb_task_state_string(const char *);
 extern char kdb_task_state_char (const struct task_struct *);
 extern unsigned long kdb_task_state(const struct task_struct *p,

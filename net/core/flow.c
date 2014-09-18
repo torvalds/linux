@@ -24,6 +24,7 @@
 #include <net/flow.h>
 #include <linux/atomic.h>
 #include <linux/security.h>
+#include <net/net_namespace.h>
 
 struct flow_cache_entry {
 	union {
@@ -38,36 +39,13 @@ struct flow_cache_entry {
 	struct flow_cache_object	*object;
 };
 
-struct flow_cache_percpu {
-	struct hlist_head		*hash_table;
-	int				hash_count;
-	u32				hash_rnd;
-	int				hash_rnd_recalc;
-	struct tasklet_struct		flush_tasklet;
-};
-
 struct flow_flush_info {
 	struct flow_cache		*cache;
 	atomic_t			cpuleft;
 	struct completion		completion;
 };
 
-struct flow_cache {
-	u32				hash_shift;
-	struct flow_cache_percpu __percpu *percpu;
-	struct notifier_block		hotcpu_notifier;
-	int				low_watermark;
-	int				high_watermark;
-	struct timer_list		rnd_timer;
-};
-
-atomic_t flow_cache_genid = ATOMIC_INIT(0);
-EXPORT_SYMBOL(flow_cache_genid);
-static struct flow_cache flow_cache_global;
 static struct kmem_cache *flow_cachep __read_mostly;
-
-static DEFINE_SPINLOCK(flow_cache_gc_lock);
-static LIST_HEAD(flow_cache_gc_list);
 
 #define flow_cache_hash_size(cache)	(1 << (cache)->hash_shift)
 #define FLOW_HASH_RND_PERIOD		(10 * 60 * HZ)
@@ -84,16 +62,18 @@ static void flow_cache_new_hashrnd(unsigned long arg)
 	add_timer(&fc->rnd_timer);
 }
 
-static int flow_entry_valid(struct flow_cache_entry *fle)
+static int flow_entry_valid(struct flow_cache_entry *fle,
+				struct netns_xfrm *xfrm)
 {
-	if (atomic_read(&flow_cache_genid) != fle->genid)
+	if (atomic_read(&xfrm->flow_cache_genid) != fle->genid)
 		return 0;
 	if (fle->object && !fle->object->ops->check(fle->object))
 		return 0;
 	return 1;
 }
 
-static void flow_entry_kill(struct flow_cache_entry *fle)
+static void flow_entry_kill(struct flow_cache_entry *fle,
+				struct netns_xfrm *xfrm)
 {
 	if (fle->object)
 		fle->object->ops->delete(fle->object);
@@ -104,26 +84,28 @@ static void flow_cache_gc_task(struct work_struct *work)
 {
 	struct list_head gc_list;
 	struct flow_cache_entry *fce, *n;
+	struct netns_xfrm *xfrm = container_of(work, struct netns_xfrm,
+						flow_cache_gc_work);
 
 	INIT_LIST_HEAD(&gc_list);
-	spin_lock_bh(&flow_cache_gc_lock);
-	list_splice_tail_init(&flow_cache_gc_list, &gc_list);
-	spin_unlock_bh(&flow_cache_gc_lock);
+	spin_lock_bh(&xfrm->flow_cache_gc_lock);
+	list_splice_tail_init(&xfrm->flow_cache_gc_list, &gc_list);
+	spin_unlock_bh(&xfrm->flow_cache_gc_lock);
 
 	list_for_each_entry_safe(fce, n, &gc_list, u.gc_list)
-		flow_entry_kill(fce);
+		flow_entry_kill(fce, xfrm);
 }
-static DECLARE_WORK(flow_cache_gc_work, flow_cache_gc_task);
 
 static void flow_cache_queue_garbage(struct flow_cache_percpu *fcp,
-				     int deleted, struct list_head *gc_list)
+				     int deleted, struct list_head *gc_list,
+				     struct netns_xfrm *xfrm)
 {
 	if (deleted) {
 		fcp->hash_count -= deleted;
-		spin_lock_bh(&flow_cache_gc_lock);
-		list_splice_tail(gc_list, &flow_cache_gc_list);
-		spin_unlock_bh(&flow_cache_gc_lock);
-		schedule_work(&flow_cache_gc_work);
+		spin_lock_bh(&xfrm->flow_cache_gc_lock);
+		list_splice_tail(gc_list, &xfrm->flow_cache_gc_list);
+		spin_unlock_bh(&xfrm->flow_cache_gc_lock);
+		schedule_work(&xfrm->flow_cache_gc_work);
 	}
 }
 
@@ -132,17 +114,19 @@ static void __flow_cache_shrink(struct flow_cache *fc,
 				int shrink_to)
 {
 	struct flow_cache_entry *fle;
-	struct hlist_node *entry, *tmp;
+	struct hlist_node *tmp;
 	LIST_HEAD(gc_list);
 	int i, deleted = 0;
+	struct netns_xfrm *xfrm = container_of(fc, struct netns_xfrm,
+						flow_cache_global);
 
 	for (i = 0; i < flow_cache_hash_size(fc); i++) {
 		int saved = 0;
 
-		hlist_for_each_entry_safe(fle, entry, tmp,
+		hlist_for_each_entry_safe(fle, tmp,
 					  &fcp->hash_table[i], u.hlist) {
 			if (saved < shrink_to &&
-			    flow_entry_valid(fle)) {
+			    flow_entry_valid(fle, xfrm)) {
 				saved++;
 			} else {
 				deleted++;
@@ -152,7 +136,7 @@ static void __flow_cache_shrink(struct flow_cache *fc,
 		}
 	}
 
-	flow_cache_queue_garbage(fcp, deleted, &gc_list);
+	flow_cache_queue_garbage(fcp, deleted, &gc_list, xfrm);
 }
 
 static void flow_cache_shrink(struct flow_cache *fc,
@@ -208,10 +192,9 @@ struct flow_cache_object *
 flow_cache_lookup(struct net *net, const struct flowi *key, u16 family, u8 dir,
 		  flow_resolve_t resolver, void *ctx)
 {
-	struct flow_cache *fc = &flow_cache_global;
+	struct flow_cache *fc = &net->xfrm.flow_cache_global;
 	struct flow_cache_percpu *fcp;
 	struct flow_cache_entry *fle, *tfle;
-	struct hlist_node *entry;
 	struct flow_cache_object *flo;
 	size_t keysize;
 	unsigned int hash;
@@ -235,7 +218,7 @@ flow_cache_lookup(struct net *net, const struct flowi *key, u16 family, u8 dir,
 		flow_new_hash_rnd(fc, fcp);
 
 	hash = flow_hash_code(fc, fcp, key, keysize);
-	hlist_for_each_entry(tfle, entry, &fcp->hash_table[hash], u.hlist) {
+	hlist_for_each_entry(tfle, &fcp->hash_table[hash], u.hlist) {
 		if (tfle->net == net &&
 		    tfle->family == family &&
 		    tfle->dir == dir &&
@@ -259,7 +242,7 @@ flow_cache_lookup(struct net *net, const struct flowi *key, u16 family, u8 dir,
 			hlist_add_head(&fle->u.hlist, &fcp->hash_table[hash]);
 			fcp->hash_count++;
 		}
-	} else if (likely(fle->genid == atomic_read(&flow_cache_genid))) {
+	} else if (likely(fle->genid == atomic_read(&net->xfrm.flow_cache_genid))) {
 		flo = fle->object;
 		if (!flo)
 			goto ret_object;
@@ -280,13 +263,13 @@ nocache:
 	}
 	flo = resolver(net, key, family, dir, flo, ctx);
 	if (fle) {
-		fle->genid = atomic_read(&flow_cache_genid);
+		fle->genid = atomic_read(&net->xfrm.flow_cache_genid);
 		if (!IS_ERR(flo))
 			fle->object = flo;
 		else
 			fle->genid--;
 	} else {
-		if (flo && !IS_ERR(flo))
+		if (!IS_ERR_OR_NULL(flo))
 			flo->ops->delete(flo);
 	}
 ret_object:
@@ -301,15 +284,17 @@ static void flow_cache_flush_tasklet(unsigned long data)
 	struct flow_cache *fc = info->cache;
 	struct flow_cache_percpu *fcp;
 	struct flow_cache_entry *fle;
-	struct hlist_node *entry, *tmp;
+	struct hlist_node *tmp;
 	LIST_HEAD(gc_list);
 	int i, deleted = 0;
+	struct netns_xfrm *xfrm = container_of(fc, struct netns_xfrm,
+						flow_cache_global);
 
 	fcp = this_cpu_ptr(fc->percpu);
 	for (i = 0; i < flow_cache_hash_size(fc); i++) {
-		hlist_for_each_entry_safe(fle, entry, tmp,
+		hlist_for_each_entry_safe(fle, tmp,
 					  &fcp->hash_table[i], u.hlist) {
-			if (flow_entry_valid(fle))
+			if (flow_entry_valid(fle, xfrm))
 				continue;
 
 			deleted++;
@@ -318,59 +303,94 @@ static void flow_cache_flush_tasklet(unsigned long data)
 		}
 	}
 
-	flow_cache_queue_garbage(fcp, deleted, &gc_list);
+	flow_cache_queue_garbage(fcp, deleted, &gc_list, xfrm);
 
 	if (atomic_dec_and_test(&info->cpuleft))
 		complete(&info->completion);
 }
 
+/*
+ * Return whether a cpu needs flushing.  Conservatively, we assume
+ * the presence of any entries means the core may require flushing,
+ * since the flow_cache_ops.check() function may assume it's running
+ * on the same core as the per-cpu cache component.
+ */
+static int flow_cache_percpu_empty(struct flow_cache *fc, int cpu)
+{
+	struct flow_cache_percpu *fcp;
+	int i;
+
+	fcp = per_cpu_ptr(fc->percpu, cpu);
+	for (i = 0; i < flow_cache_hash_size(fc); i++)
+		if (!hlist_empty(&fcp->hash_table[i]))
+			return 0;
+	return 1;
+}
+
 static void flow_cache_flush_per_cpu(void *data)
 {
 	struct flow_flush_info *info = data;
-	int cpu;
 	struct tasklet_struct *tasklet;
 
-	cpu = smp_processor_id();
-	tasklet = &per_cpu_ptr(info->cache->percpu, cpu)->flush_tasklet;
+	tasklet = &this_cpu_ptr(info->cache->percpu)->flush_tasklet;
 	tasklet->data = (unsigned long)info;
 	tasklet_schedule(tasklet);
 }
 
-void flow_cache_flush(void)
+void flow_cache_flush(struct net *net)
 {
 	struct flow_flush_info info;
-	static DEFINE_MUTEX(flow_flush_sem);
+	cpumask_var_t mask;
+	int i, self;
+
+	/* Track which cpus need flushing to avoid disturbing all cores. */
+	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
+		return;
+	cpumask_clear(mask);
 
 	/* Don't want cpus going down or up during this. */
 	get_online_cpus();
-	mutex_lock(&flow_flush_sem);
-	info.cache = &flow_cache_global;
-	atomic_set(&info.cpuleft, num_online_cpus());
+	mutex_lock(&net->xfrm.flow_flush_sem);
+	info.cache = &net->xfrm.flow_cache_global;
+	for_each_online_cpu(i)
+		if (!flow_cache_percpu_empty(info.cache, i))
+			cpumask_set_cpu(i, mask);
+	atomic_set(&info.cpuleft, cpumask_weight(mask));
+	if (atomic_read(&info.cpuleft) == 0)
+		goto done;
+
 	init_completion(&info.completion);
 
 	local_bh_disable();
-	smp_call_function(flow_cache_flush_per_cpu, &info, 0);
-	flow_cache_flush_tasklet((unsigned long)&info);
+	self = cpumask_test_and_clear_cpu(smp_processor_id(), mask);
+	on_each_cpu_mask(mask, flow_cache_flush_per_cpu, &info, 0);
+	if (self)
+		flow_cache_flush_tasklet((unsigned long)&info);
 	local_bh_enable();
 
 	wait_for_completion(&info.completion);
-	mutex_unlock(&flow_flush_sem);
+
+done:
+	mutex_unlock(&net->xfrm.flow_flush_sem);
 	put_online_cpus();
+	free_cpumask_var(mask);
 }
 
 static void flow_cache_flush_task(struct work_struct *work)
 {
-	flow_cache_flush();
+	struct netns_xfrm *xfrm = container_of(work, struct netns_xfrm,
+						flow_cache_gc_work);
+	struct net *net = container_of(xfrm, struct net, xfrm);
+
+	flow_cache_flush(net);
 }
 
-static DECLARE_WORK(flow_cache_flush_work, flow_cache_flush_task);
-
-void flow_cache_flush_deferred(void)
+void flow_cache_flush_deferred(struct net *net)
 {
-	schedule_work(&flow_cache_flush_work);
+	schedule_work(&net->xfrm.flow_cache_flush_work);
 }
 
-static int __cpuinit flow_cache_cpu_prepare(struct flow_cache *fc, int cpu)
+static int flow_cache_cpu_prepare(struct flow_cache *fc, int cpu)
 {
 	struct flow_cache_percpu *fcp = per_cpu_ptr(fc->percpu, cpu);
 	size_t sz = sizeof(struct hlist_head) * flow_cache_hash_size(fc);
@@ -388,11 +408,12 @@ static int __cpuinit flow_cache_cpu_prepare(struct flow_cache *fc, int cpu)
 	return 0;
 }
 
-static int __cpuinit flow_cache_cpu(struct notifier_block *nfb,
+static int flow_cache_cpu(struct notifier_block *nfb,
 			  unsigned long action,
 			  void *hcpu)
 {
-	struct flow_cache *fc = container_of(nfb, struct flow_cache, hotcpu_notifier);
+	struct flow_cache *fc = container_of(nfb, struct flow_cache,
+						hotcpu_notifier);
 	int res, cpu = (unsigned long) hcpu;
 	struct flow_cache_percpu *fcp = per_cpu_ptr(fc->percpu, cpu);
 
@@ -411,9 +432,20 @@ static int __cpuinit flow_cache_cpu(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static int __init flow_cache_init(struct flow_cache *fc)
+int flow_cache_init(struct net *net)
 {
 	int i;
+	struct flow_cache *fc = &net->xfrm.flow_cache_global;
+
+	if (!flow_cachep)
+		flow_cachep = kmem_cache_create("flow_cache",
+						sizeof(struct flow_cache_entry),
+						0, SLAB_PANIC, NULL);
+	spin_lock_init(&net->xfrm.flow_cache_gc_lock);
+	INIT_LIST_HEAD(&net->xfrm.flow_cache_gc_list);
+	INIT_WORK(&net->xfrm.flow_cache_gc_work, flow_cache_gc_task);
+	INIT_WORK(&net->xfrm.flow_cache_flush_work, flow_cache_flush_task);
+	mutex_init(&net->xfrm.flow_flush_sem);
 
 	fc->hash_shift = 10;
 	fc->low_watermark = 2 * flow_cache_hash_size(fc);
@@ -423,6 +455,8 @@ static int __init flow_cache_init(struct flow_cache *fc)
 	if (!fc->percpu)
 		return -ENOMEM;
 
+	cpu_notifier_register_begin();
+
 	for_each_online_cpu(i) {
 		if (flow_cache_cpu_prepare(fc, i))
 			goto err;
@@ -430,7 +464,9 @@ static int __init flow_cache_init(struct flow_cache *fc)
 	fc->hotcpu_notifier = (struct notifier_block){
 		.notifier_call = flow_cache_cpu,
 	};
-	register_hotcpu_notifier(&fc->hotcpu_notifier);
+	__register_hotcpu_notifier(&fc->hotcpu_notifier);
+
+	cpu_notifier_register_done();
 
 	setup_timer(&fc->rnd_timer, flow_cache_new_hashrnd,
 		    (unsigned long) fc);
@@ -446,19 +482,30 @@ err:
 		fcp->hash_table = NULL;
 	}
 
+	cpu_notifier_register_done();
+
 	free_percpu(fc->percpu);
 	fc->percpu = NULL;
 
 	return -ENOMEM;
 }
+EXPORT_SYMBOL(flow_cache_init);
 
-static int __init flow_cache_init_global(void)
+void flow_cache_fini(struct net *net)
 {
-	flow_cachep = kmem_cache_create("flow_cache",
-					sizeof(struct flow_cache_entry),
-					0, SLAB_PANIC, NULL);
+	int i;
+	struct flow_cache *fc = &net->xfrm.flow_cache_global;
 
-	return flow_cache_init(&flow_cache_global);
+	del_timer_sync(&fc->rnd_timer);
+	unregister_hotcpu_notifier(&fc->hotcpu_notifier);
+
+	for_each_possible_cpu(i) {
+		struct flow_cache_percpu *fcp = per_cpu_ptr(fc->percpu, i);
+		kfree(fcp->hash_table);
+		fcp->hash_table = NULL;
+	}
+
+	free_percpu(fc->percpu);
+	fc->percpu = NULL;
 }
-
-module_init(flow_cache_init_global);
+EXPORT_SYMBOL(flow_cache_fini);

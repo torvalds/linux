@@ -232,7 +232,7 @@ void rds_iw_send_cq_comp_handler(struct ib_cq *cq, void *context)
 		}
 
 		if (wc.wr_id == RDS_IW_ACK_WR_ID) {
-			if (ic->i_ack_queued + HZ/2 < jiffies)
+			if (time_after(jiffies, ic->i_ack_queued + HZ/2))
 				rds_iw_stats_inc(s_iw_tx_stalled);
 			rds_iw_ack_send_complete(ic);
 			continue;
@@ -267,7 +267,7 @@ void rds_iw_send_cq_comp_handler(struct ib_cq *cq, void *context)
 
 			send->s_wr.opcode = 0xdead;
 			send->s_wr.num_sge = 1;
-			if (send->s_queued + HZ/2 < jiffies)
+			if (time_after(jiffies, send->s_queued + HZ/2))
 				rds_iw_stats_inc(s_iw_tx_stalled);
 
 			/* If a RDMA operation produced an error, signal this right

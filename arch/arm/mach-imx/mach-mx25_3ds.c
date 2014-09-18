@@ -31,17 +31,18 @@
 #include <linux/platform_device.h>
 #include <linux/usb/otg.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
-#include <mach/mx25.h>
-#include <mach/iomux-mx25.h>
 
+#include "common.h"
 #include "devices-imx25.h"
+#include "ehci.h"
+#include "hardware.h"
+#include "iomux-mx25.h"
+#include "mx25.h"
 
 #define MX25PDK_CAN_PWDN	IMX_GPIO_NR(4, 6)
 
@@ -237,9 +238,9 @@ static void __init mx25pdk_init(void)
 	imx25_add_fsl_usb2_udc(&otg_device_pdata);
 	imx25_add_mxc_ehci_hs(&usbh2_pdata);
 	imx25_add_mxc_nand(&mx25pdk_nand_board_info);
-	imx25_add_imxdi_rtc(NULL);
+	imx25_add_imxdi_rtc();
 	imx25_add_imx_fb(&mx25pdk_fb_pdata);
-	imx25_add_imx2_wdt(NULL);
+	imx25_add_imx2_wdt();
 
 	mx25pdk_fec_reset();
 	imx25_add_fec(&mx25_fec_pdata);
@@ -249,7 +250,7 @@ static void __init mx25pdk_init(void)
 	imx25_add_imx_i2c0(&mx25_3ds_i2c0_data);
 
 	gpio_request_one(MX25PDK_CAN_PWDN, GPIOF_OUT_INIT_LOW, "can-pwdn");
-	imx25_add_flexcan0(NULL);
+	imx25_add_flexcan0();
 }
 
 static void __init mx25pdk_timer_init(void)
@@ -257,18 +258,13 @@ static void __init mx25pdk_timer_init(void)
 	mx25_clocks_init();
 }
 
-static struct sys_timer mx25pdk_timer = {
-	.init   = mx25pdk_timer_init,
-};
-
 MACHINE_START(MX25_3DS, "Freescale MX25PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.atag_offset = 0x100,
 	.map_io = mx25_map_io,
 	.init_early = imx25_init_early,
 	.init_irq = mx25_init_irq,
-	.handle_irq = imx25_handle_irq,
-	.timer = &mx25pdk_timer,
+	.init_time	= mx25pdk_timer_init,
 	.init_machine = mx25pdk_init,
 	.restart	= mxc_restart,
 MACHINE_END

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2014 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -54,7 +54,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	/* Received packets dropped when they don't pass the unicast or
 	 * multicast address filtering.
 	 */
-	{DRVSTAT_INFO(rx_address_mismatch_drops)},
+	{DRVSTAT_INFO(rx_address_filtered)},
 	/* Received packets dropped when IP packet length field is less than
 	 * the IP header length field.
 	 */
@@ -85,6 +85,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(tx_pauseframes)},
 	{DRVSTAT_INFO(tx_controlframes)},
 	{DRVSTAT_INFO(rx_priority_pause_frames)},
+	{DRVSTAT_INFO(tx_priority_pauseframes)},
 	/* Received packets dropped when an internal fifo going into
 	 * main packet buffer tank (PMEM) overflows.
 	 */
@@ -115,7 +116,12 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(rx_drops_mtu)},
 	/* Number of packets dropped due to random early drop function */
 	{DRVSTAT_INFO(eth_red_drops)},
-	{DRVSTAT_INFO(be_on_die_temperature)}
+	{DRVSTAT_INFO(be_on_die_temperature)},
+	{DRVSTAT_INFO(rx_roce_bytes_lsd)},
+	{DRVSTAT_INFO(rx_roce_bytes_msd)},
+	{DRVSTAT_INFO(rx_roce_frames)},
+	{DRVSTAT_INFO(roce_drops_payload_len)},
+	{DRVSTAT_INFO(roce_drops_crc)}
 };
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
 
@@ -126,6 +132,7 @@ static const struct be_ethtool_stat et_rx_stats[] = {
 	{DRVSTAT_RX_INFO(rx_bytes)},/* If moving this member see above note */
 	{DRVSTAT_RX_INFO(rx_pkts)}, /* If moving this member see above note */
 	{DRVSTAT_RX_INFO(rx_compl)},
+	{DRVSTAT_RX_INFO(rx_compl_err)},
 	{DRVSTAT_RX_INFO(rx_mcast_pkts)},
 	/* Number of page allocation failures while posting receive buffers
 	 * to HW.
@@ -154,7 +161,9 @@ static const struct be_ethtool_stat et_tx_stats[] = {
 	/* Number of times the TX queue was stopped due to lack
 	 * of spaces in the TXQ.
 	 */
-	{DRVSTAT_TX_INFO(tx_stops)}
+	{DRVSTAT_TX_INFO(tx_stops)},
+	/* Pkts dropped in the driver's transmit path */
+	{DRVSTAT_TX_INFO(tx_drv_drops)}
 };
 #define ETHTOOL_TXSTATS_NUM (ARRAY_SIZE(et_tx_stats))
 
@@ -173,22 +182,18 @@ static const char et_self_tests[][ETH_GSTRING_LEN] = {
 #define BE_NO_LOOPBACK 0xff
 
 static void be_get_drvinfo(struct net_device *netdev,
-				struct ethtool_drvinfo *drvinfo)
+			   struct ethtool_drvinfo *drvinfo)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	char fw_on_flash[FW_VER_LEN];
-
-	memset(fw_on_flash, 0 , sizeof(fw_on_flash));
-	be_cmd_get_fw_ver(adapter, adapter->fw_ver, fw_on_flash);
 
 	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, DRV_VER, sizeof(drvinfo->version));
-	strncpy(drvinfo->fw_version, adapter->fw_ver, FW_VER_LEN);
-	if (memcmp(adapter->fw_ver, fw_on_flash, FW_VER_LEN) != 0) {
-		strcat(drvinfo->fw_version, " [");
-		strcat(drvinfo->fw_version, fw_on_flash);
-		strcat(drvinfo->fw_version, "]");
-	}
+	if (!memcmp(adapter->fw_ver, adapter->fw_on_flash, FW_VER_LEN))
+		strlcpy(drvinfo->fw_version, adapter->fw_ver,
+			sizeof(drvinfo->fw_version));
+	else
+		snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+			 "%s [%s]", adapter->fw_ver, adapter->fw_on_flash);
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
@@ -197,8 +202,7 @@ static void be_get_drvinfo(struct net_device *netdev,
 	drvinfo->eedump_len = 0;
 }
 
-static u32
-lancer_cmd_get_file_len(struct be_adapter *adapter, u8 *file_name)
+static u32 lancer_cmd_get_file_len(struct be_adapter *adapter, u8 *file_name)
 {
 	u32 data_read = 0, eof;
 	u8 addn_status;
@@ -208,14 +212,14 @@ lancer_cmd_get_file_len(struct be_adapter *adapter, u8 *file_name)
 	memset(&data_len_cmd, 0, sizeof(data_len_cmd));
 	/* data_offset and data_size should be 0 to get reg len */
 	status = lancer_cmd_read_object(adapter, &data_len_cmd, 0, 0,
-				file_name, &data_read, &eof, &addn_status);
+					file_name, &data_read, &eof,
+					&addn_status);
 
 	return data_read;
 }
 
-static int
-lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
-		u32 buf_len, void *buf)
+static int lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
+				u32 buf_len, void *buf)
 {
 	struct be_dma_mem read_cmd;
 	u32 read_len = 0, total_read_len = 0, chunk_size;
@@ -225,11 +229,11 @@ lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
 
 	read_cmd.size = LANCER_READ_FILE_CHUNK;
 	read_cmd.va = pci_alloc_consistent(adapter->pdev, read_cmd.size,
-			&read_cmd.dma);
+					   &read_cmd.dma);
 
 	if (!read_cmd.va) {
 		dev_err(&adapter->pdev->dev,
-				"Memory allocation failure while reading dump\n");
+			"Memory allocation failure while reading dump\n");
 		return -ENOMEM;
 	}
 
@@ -238,8 +242,8 @@ lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
 				LANCER_READ_FILE_CHUNK);
 		chunk_size = ALIGN(chunk_size, 4);
 		status = lancer_cmd_read_object(adapter, &read_cmd, chunk_size,
-				total_read_len, file_name, &read_len,
-				&eof, &addn_status);
+						total_read_len, file_name,
+						&read_len, &eof, &addn_status);
 		if (!status) {
 			memcpy(buf + total_read_len, read_cmd.va, read_len);
 			total_read_len += read_len;
@@ -250,21 +254,23 @@ lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
 		}
 	}
 	pci_free_consistent(adapter->pdev, read_cmd.size, read_cmd.va,
-			read_cmd.dma);
+			    read_cmd.dma);
 
 	return status;
 }
 
-static int
-be_get_reg_len(struct net_device *netdev)
+static int be_get_reg_len(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	u32 log_size = 0;
 
+	if (!check_privilege(adapter, MAX_PRIVILEGES))
+		return 0;
+
 	if (be_physfn(adapter)) {
 		if (lancer_chip(adapter))
 			log_size = lancer_cmd_get_file_len(adapter,
-					LANCER_FW_DUMP_FILE);
+							   LANCER_FW_DUMP_FILE);
 		else
 			be_cmd_get_reg_len(adapter, &log_size);
 	}
@@ -280,7 +286,7 @@ be_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *buf)
 		memset(buf, 0, regs->len);
 		if (lancer_chip(adapter))
 			lancer_cmd_read_file(adapter, LANCER_FW_DUMP_FILE,
-					regs->len, buf);
+					     regs->len, buf);
 		else
 			be_cmd_get_regs(adapter, regs->len, buf);
 	}
@@ -290,19 +296,19 @@ static int be_get_coalesce(struct net_device *netdev,
 			   struct ethtool_coalesce *et)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_eq_obj *eqo = &adapter->eq_obj[0];
+	struct be_aic_obj *aic = &adapter->aic_obj[0];
 
 
-	et->rx_coalesce_usecs = eqo->cur_eqd;
-	et->rx_coalesce_usecs_high = eqo->max_eqd;
-	et->rx_coalesce_usecs_low = eqo->min_eqd;
+	et->rx_coalesce_usecs = aic->prev_eqd;
+	et->rx_coalesce_usecs_high = aic->max_eqd;
+	et->rx_coalesce_usecs_low = aic->min_eqd;
 
-	et->tx_coalesce_usecs = eqo->cur_eqd;
-	et->tx_coalesce_usecs_high = eqo->max_eqd;
-	et->tx_coalesce_usecs_low = eqo->min_eqd;
+	et->tx_coalesce_usecs = aic->prev_eqd;
+	et->tx_coalesce_usecs_high = aic->max_eqd;
+	et->tx_coalesce_usecs_low = aic->min_eqd;
 
-	et->use_adaptive_rx_coalesce = eqo->enable_aic;
-	et->use_adaptive_tx_coalesce = eqo->enable_aic;
+	et->use_adaptive_rx_coalesce = aic->enable;
+	et->use_adaptive_tx_coalesce = aic->enable;
 
 	return 0;
 }
@@ -314,22 +320,24 @@ static int be_set_coalesce(struct net_device *netdev,
 			   struct ethtool_coalesce *et)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_aic_obj *aic = &adapter->aic_obj[0];
 	struct be_eq_obj *eqo;
 	int i;
 
 	for_all_evt_queues(adapter, eqo, i) {
-		eqo->enable_aic = et->use_adaptive_rx_coalesce;
-		eqo->max_eqd = min(et->rx_coalesce_usecs_high, BE_MAX_EQD);
-		eqo->min_eqd = min(et->rx_coalesce_usecs_low, eqo->max_eqd);
-		eqo->eqd = et->rx_coalesce_usecs;
+		aic->enable = et->use_adaptive_rx_coalesce;
+		aic->max_eqd = min(et->rx_coalesce_usecs_high, BE_MAX_EQD);
+		aic->min_eqd = min(et->rx_coalesce_usecs_low, aic->max_eqd);
+		aic->et_eqd = min(et->rx_coalesce_usecs, aic->max_eqd);
+		aic->et_eqd = max(aic->et_eqd, aic->min_eqd);
+		aic++;
 	}
 
 	return 0;
 }
 
-static void
-be_get_ethtool_stats(struct net_device *netdev,
-		struct ethtool_stats *stats, uint64_t *data)
+static void be_get_ethtool_stats(struct net_device *netdev,
+				 struct ethtool_stats *stats, uint64_t *data)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_rx_obj *rxo;
@@ -347,10 +355,10 @@ be_get_ethtool_stats(struct net_device *netdev,
 		struct be_rx_stats *stats = rx_stats(rxo);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->sync);
+			start = u64_stats_fetch_begin_irq(&stats->sync);
 			data[base] = stats->rx_bytes;
 			data[base + 1] = stats->rx_pkts;
-		} while (u64_stats_fetch_retry_bh(&stats->sync, start));
+		} while (u64_stats_fetch_retry_irq(&stats->sync, start));
 
 		for (i = 2; i < ETHTOOL_RXSTATS_NUM; i++) {
 			p = (u8 *)stats + et_rx_stats[i].offset;
@@ -363,26 +371,25 @@ be_get_ethtool_stats(struct net_device *netdev,
 		struct be_tx_stats *stats = tx_stats(txo);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->sync_compl);
+			start = u64_stats_fetch_begin_irq(&stats->sync_compl);
 			data[base] = stats->tx_compl;
-		} while (u64_stats_fetch_retry_bh(&stats->sync_compl, start));
+		} while (u64_stats_fetch_retry_irq(&stats->sync_compl, start));
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->sync);
+			start = u64_stats_fetch_begin_irq(&stats->sync);
 			for (i = 1; i < ETHTOOL_TXSTATS_NUM; i++) {
 				p = (u8 *)stats + et_tx_stats[i].offset;
 				data[base + i] =
 					(et_tx_stats[i].size == sizeof(u64)) ?
 						*(u64 *)p : *(u32 *)p;
 			}
-		} while (u64_stats_fetch_retry_bh(&stats->sync, start));
+		} while (u64_stats_fetch_retry_irq(&stats->sync, start));
 		base += ETHTOOL_TXSTATS_NUM;
 	}
 }
 
-static void
-be_get_stat_strings(struct net_device *netdev, uint32_t stringset,
-		uint8_t *data)
+static void be_get_stat_strings(struct net_device *netdev, uint32_t stringset,
+				uint8_t *data)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int i, j;
@@ -433,102 +440,171 @@ static int be_get_sset_count(struct net_device *netdev, int stringset)
 	}
 }
 
+static u32 be_get_port_type(u32 phy_type, u32 dac_cable_len)
+{
+	u32 port;
+
+	switch (phy_type) {
+	case PHY_TYPE_BASET_1GB:
+	case PHY_TYPE_BASEX_1GB:
+	case PHY_TYPE_SGMII:
+		port = PORT_TP;
+		break;
+	case PHY_TYPE_SFP_PLUS_10GB:
+		port = dac_cable_len ? PORT_DA : PORT_FIBRE;
+		break;
+	case PHY_TYPE_XFP_10GB:
+	case PHY_TYPE_SFP_1GB:
+		port = PORT_FIBRE;
+		break;
+	case PHY_TYPE_BASET_10GB:
+		port = PORT_TP;
+		break;
+	default:
+		port = PORT_OTHER;
+	}
+
+	return port;
+}
+
+static u32 convert_to_et_setting(u32 if_type, u32 if_speeds)
+{
+	u32 val = 0;
+
+	switch (if_type) {
+	case PHY_TYPE_BASET_1GB:
+	case PHY_TYPE_BASEX_1GB:
+	case PHY_TYPE_SGMII:
+		val |= SUPPORTED_TP;
+		if (if_speeds & BE_SUPPORTED_SPEED_1GBPS)
+			val |= SUPPORTED_1000baseT_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_100MBPS)
+			val |= SUPPORTED_100baseT_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_10MBPS)
+			val |= SUPPORTED_10baseT_Full;
+		break;
+	case PHY_TYPE_KX4_10GB:
+		val |= SUPPORTED_Backplane;
+		if (if_speeds & BE_SUPPORTED_SPEED_1GBPS)
+			val |= SUPPORTED_1000baseKX_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_10GBPS)
+			val |= SUPPORTED_10000baseKX4_Full;
+		break;
+	case PHY_TYPE_KR_10GB:
+		val |= SUPPORTED_Backplane |
+				SUPPORTED_10000baseKR_Full;
+		break;
+	case PHY_TYPE_SFP_PLUS_10GB:
+	case PHY_TYPE_XFP_10GB:
+	case PHY_TYPE_SFP_1GB:
+		val |= SUPPORTED_FIBRE;
+		if (if_speeds & BE_SUPPORTED_SPEED_10GBPS)
+			val |= SUPPORTED_10000baseT_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_1GBPS)
+			val |= SUPPORTED_1000baseT_Full;
+		break;
+	case PHY_TYPE_BASET_10GB:
+		val |= SUPPORTED_TP;
+		if (if_speeds & BE_SUPPORTED_SPEED_10GBPS)
+			val |= SUPPORTED_10000baseT_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_1GBPS)
+			val |= SUPPORTED_1000baseT_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_100MBPS)
+			val |= SUPPORTED_100baseT_Full;
+		break;
+	default:
+		val |= SUPPORTED_TP;
+	}
+
+	return val;
+}
+
+bool be_pause_supported(struct be_adapter *adapter)
+{
+	return (adapter->phy.interface_type == PHY_TYPE_SFP_PLUS_10GB ||
+		adapter->phy.interface_type == PHY_TYPE_XFP_10GB) ?
+		false : true;
+}
+
 static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_phy_info phy_info;
-	u8 mac_speed = 0;
-	u16 link_speed = 0;
 	u8 link_status;
+	u16 link_speed = 0;
 	int status;
+	u32 auto_speeds;
+	u32 fixed_speeds;
+	u32 dac_cable_len;
+	u16 interface_type;
 
-	if ((adapter->link_speed < 0) || (!(netdev->flags & IFF_UP))) {
-		status = be_cmd_link_status_query(adapter, &mac_speed,
-						  &link_speed, &link_status, 0);
+	if (adapter->phy.link_speed < 0) {
+		status = be_cmd_link_status_query(adapter, &link_speed,
+						  &link_status, 0);
 		if (!status)
 			be_link_status_update(adapter, link_status);
+		ethtool_cmd_speed_set(ecmd, link_speed);
 
-		/* link_speed is in units of 10 Mbps */
-		if (link_speed) {
-			ethtool_cmd_speed_set(ecmd, link_speed*10);
-		} else {
-			switch (mac_speed) {
-			case PHY_LINK_SPEED_10MBPS:
-				ethtool_cmd_speed_set(ecmd, SPEED_10);
-				break;
-			case PHY_LINK_SPEED_100MBPS:
-				ethtool_cmd_speed_set(ecmd, SPEED_100);
-				break;
-			case PHY_LINK_SPEED_1GBPS:
-				ethtool_cmd_speed_set(ecmd, SPEED_1000);
-				break;
-			case PHY_LINK_SPEED_10GBPS:
-				ethtool_cmd_speed_set(ecmd, SPEED_10000);
-				break;
-			case PHY_LINK_SPEED_ZERO:
-				ethtool_cmd_speed_set(ecmd, 0);
-				break;
-			}
-		}
-
-		status = be_cmd_get_phy_info(adapter, &phy_info);
+		status = be_cmd_get_phy_info(adapter);
 		if (!status) {
-			switch (phy_info.interface_type) {
-			case PHY_TYPE_XFP_10GB:
-			case PHY_TYPE_SFP_1GB:
-			case PHY_TYPE_SFP_PLUS_10GB:
-				ecmd->port = PORT_FIBRE;
-				break;
-			default:
-				ecmd->port = PORT_TP;
-				break;
+			interface_type = adapter->phy.interface_type;
+			auto_speeds = adapter->phy.auto_speeds_supported;
+			fixed_speeds = adapter->phy.fixed_speeds_supported;
+			dac_cable_len = adapter->phy.dac_cable_len;
+
+			ecmd->supported =
+				convert_to_et_setting(interface_type,
+						      auto_speeds |
+						      fixed_speeds);
+			ecmd->advertising =
+				convert_to_et_setting(interface_type,
+						      auto_speeds);
+
+			ecmd->port = be_get_port_type(interface_type,
+						      dac_cable_len);
+
+			if (adapter->phy.auto_speeds_supported) {
+				ecmd->supported |= SUPPORTED_Autoneg;
+				ecmd->autoneg = AUTONEG_ENABLE;
+				ecmd->advertising |= ADVERTISED_Autoneg;
 			}
 
-			switch (phy_info.interface_type) {
+			ecmd->supported |= SUPPORTED_Pause;
+			if (be_pause_supported(adapter))
+				ecmd->advertising |= ADVERTISED_Pause;
+
+			switch (adapter->phy.interface_type) {
 			case PHY_TYPE_KR_10GB:
 			case PHY_TYPE_KX4_10GB:
-				ecmd->autoneg = AUTONEG_ENABLE;
-			ecmd->transceiver = XCVR_INTERNAL;
+				ecmd->transceiver = XCVR_INTERNAL;
 				break;
 			default:
-				ecmd->autoneg = AUTONEG_DISABLE;
 				ecmd->transceiver = XCVR_EXTERNAL;
 				break;
 			}
+		} else {
+			ecmd->port = PORT_OTHER;
+			ecmd->autoneg = AUTONEG_DISABLE;
+			ecmd->transceiver = XCVR_DUMMY1;
 		}
 
 		/* Save for future use */
-		adapter->link_speed = ethtool_cmd_speed(ecmd);
-		adapter->port_type = ecmd->port;
-		adapter->transceiver = ecmd->transceiver;
-		adapter->autoneg = ecmd->autoneg;
+		adapter->phy.link_speed = ethtool_cmd_speed(ecmd);
+		adapter->phy.port_type = ecmd->port;
+		adapter->phy.transceiver = ecmd->transceiver;
+		adapter->phy.autoneg = ecmd->autoneg;
+		adapter->phy.advertising = ecmd->advertising;
+		adapter->phy.supported = ecmd->supported;
 	} else {
-		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
-		ecmd->port = adapter->port_type;
-		ecmd->transceiver = adapter->transceiver;
-		ecmd->autoneg = adapter->autoneg;
+		ethtool_cmd_speed_set(ecmd, adapter->phy.link_speed);
+		ecmd->port = adapter->phy.port_type;
+		ecmd->transceiver = adapter->phy.transceiver;
+		ecmd->autoneg = adapter->phy.autoneg;
+		ecmd->advertising = adapter->phy.advertising;
+		ecmd->supported = adapter->phy.supported;
 	}
 
-	ecmd->duplex = DUPLEX_FULL;
+	ecmd->duplex = netif_carrier_ok(netdev) ? DUPLEX_FULL : DUPLEX_UNKNOWN;
 	ecmd->phy_address = adapter->port_num;
-	switch (ecmd->port) {
-	case PORT_FIBRE:
-		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
-		break;
-	case PORT_TP:
-		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_TP);
-		break;
-	case PORT_AUI:
-		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_AUI);
-		break;
-	}
-
-	if (ecmd->autoneg) {
-		ecmd->supported |= SUPPORTED_1000baseT_Full;
-		ecmd->supported |= SUPPORTED_Autoneg;
-		ecmd->advertising |= (ADVERTISED_10000baseT_Full |
-				ADVERTISED_1000baseT_Full);
-	}
 
 	return 0;
 }
@@ -548,7 +624,7 @@ be_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	be_cmd_get_flow_control(adapter, &ecmd->tx_pause, &ecmd->rx_pause);
-	ecmd->autoneg = 0;
+	ecmd->autoneg = adapter->phy.fc_autoneg;
 }
 
 static int
@@ -557,22 +633,21 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status;
 
-	if (ecmd->autoneg != 0)
+	if (ecmd->autoneg != adapter->phy.fc_autoneg)
 		return -EINVAL;
 	adapter->tx_fc = ecmd->tx_pause;
 	adapter->rx_fc = ecmd->rx_pause;
 
 	status = be_cmd_set_flow_control(adapter,
-					adapter->tx_fc, adapter->rx_fc);
+					 adapter->tx_fc, adapter->rx_fc);
 	if (status)
 		dev_warn(&adapter->pdev->dev, "Pause param set failed.\n");
 
-	return status;
+	return be_cmd_status(status);
 }
 
-static int
-be_set_phys_id(struct net_device *netdev,
-	       enum ethtool_phys_id_state state)
+static int be_set_phys_id(struct net_device *netdev,
+			  enum ethtool_phys_id_state state)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
@@ -600,43 +675,69 @@ be_set_phys_id(struct net_device *netdev,
 	return 0;
 }
 
+static int be_set_dump(struct net_device *netdev, struct ethtool_dump *dump)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->pdev->dev;
+	int status;
 
-static void
-be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+	if (!lancer_chip(adapter) ||
+	    !check_privilege(adapter, MAX_PRIVILEGES))
+		return -EOPNOTSUPP;
+
+	switch (dump->flag) {
+	case LANCER_INITIATE_FW_DUMP:
+		status = lancer_initiate_dump(adapter);
+		if (!status)
+			dev_info(dev, "FW dump initiated successfully\n");
+		break;
+	case LANCER_DELETE_FW_DUMP:
+		status = lancer_delete_dump(adapter);
+		if (!status)
+			dev_info(dev, "FW dump deleted successfully\n");
+	break;
+	default:
+		dev_err(dev, "Invalid dump level: 0x%x\n", dump->flag);
+		return -EINVAL;
+	}
+	return status;
+}
+
+static void be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	if (be_is_wol_supported(adapter)) {
+	if (adapter->wol_cap & BE_WOL_CAP) {
 		wol->supported |= WAKE_MAGIC;
-		wol->wolopts |= WAKE_MAGIC;
-	} else
+		if (adapter->wol_en)
+			wol->wolopts |= WAKE_MAGIC;
+	} else {
 		wol->wolopts = 0;
+	}
 	memset(&wol->sopass, 0, sizeof(wol->sopass));
 }
 
-static int
-be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+static int be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EOPNOTSUPP;
 
-	if (!be_is_wol_supported(adapter)) {
+	if (!(adapter->wol_cap & BE_WOL_CAP)) {
 		dev_warn(&adapter->pdev->dev, "WOL not supported\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (wol->wolopts & WAKE_MAGIC)
-		adapter->wol = true;
+		adapter->wol_en = true;
 	else
-		adapter->wol = false;
+		adapter->wol_en = false;
 
 	return 0;
 }
 
-static int
-be_test_ddr_dma(struct be_adapter *adapter)
+static int be_test_ddr_dma(struct be_adapter *adapter)
 {
 	int ret, i;
 	struct be_dma_mem ddrdma_cmd;
@@ -647,14 +748,12 @@ be_test_ddr_dma(struct be_adapter *adapter)
 	ddrdma_cmd.size = sizeof(struct be_cmd_req_ddrdma_test);
 	ddrdma_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, ddrdma_cmd.size,
 					   &ddrdma_cmd.dma, GFP_KERNEL);
-	if (!ddrdma_cmd.va) {
-		dev_err(&adapter->pdev->dev, "Memory allocation failure\n");
+	if (!ddrdma_cmd.va)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < 2; i++) {
 		ret = be_cmd_ddr_dma_test(adapter, pattern[i],
-					4096, &ddrdma_cmd);
+					  4096, &ddrdma_cmd);
 		if (ret != 0)
 			goto err;
 	}
@@ -662,88 +761,92 @@ be_test_ddr_dma(struct be_adapter *adapter)
 err:
 	dma_free_coherent(&adapter->pdev->dev, ddrdma_cmd.size, ddrdma_cmd.va,
 			  ddrdma_cmd.dma);
-	return ret;
+	return be_cmd_status(ret);
 }
 
 static u64 be_loopback_test(struct be_adapter *adapter, u8 loopback_type,
-				u64 *status)
+			    u64 *status)
 {
-	be_cmd_set_loopback(adapter, adapter->hba_port_num,
-				loopback_type, 1);
+	be_cmd_set_loopback(adapter, adapter->hba_port_num, loopback_type, 1);
 	*status = be_cmd_loopback_test(adapter, adapter->hba_port_num,
-				loopback_type, 1500,
-				2, 0xabc);
-	be_cmd_set_loopback(adapter, adapter->hba_port_num,
-				BE_NO_LOOPBACK, 1);
+				       loopback_type, 1500, 2, 0xabc);
+	be_cmd_set_loopback(adapter, adapter->hba_port_num, BE_NO_LOOPBACK, 1);
 	return *status;
 }
 
-static void
-be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
+static void be_self_test(struct net_device *netdev, struct ethtool_test *test,
+			 u64 *data)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	u8 mac_speed = 0;
-	u16 qos_link_speed = 0;
+	int status;
+	u8 link_status = 0;
+
+	if (adapter->function_caps & BE_FUNCTION_CAPS_SUPER_NIC) {
+		dev_err(&adapter->pdev->dev, "Self test not supported\n");
+		test->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
 
 	memset(data, 0, sizeof(u64) * ETHTOOL_TESTS_NUM);
 
 	if (test->flags & ETH_TEST_FL_OFFLINE) {
-		if (be_loopback_test(adapter, BE_MAC_LOOPBACK,
-						&data[0]) != 0) {
+		if (be_loopback_test(adapter, BE_MAC_LOOPBACK, &data[0]) != 0)
 			test->flags |= ETH_TEST_FL_FAILED;
-		}
-		if (be_loopback_test(adapter, BE_PHY_LOOPBACK,
-						&data[1]) != 0) {
+
+		if (be_loopback_test(adapter, BE_PHY_LOOPBACK, &data[1]) != 0)
 			test->flags |= ETH_TEST_FL_FAILED;
-		}
-		if (be_loopback_test(adapter, BE_ONE_PORT_EXT_LOOPBACK,
-						&data[2]) != 0) {
-			test->flags |= ETH_TEST_FL_FAILED;
+
+		if (test->flags & ETH_TEST_FL_EXTERNAL_LB) {
+			if (be_loopback_test(adapter, BE_ONE_PORT_EXT_LOOPBACK,
+					     &data[2]) != 0)
+				test->flags |= ETH_TEST_FL_FAILED;
+			test->flags |= ETH_TEST_FL_EXTERNAL_LB_DONE;
 		}
 	}
 
-	if (be_test_ddr_dma(adapter) != 0) {
+	if (!lancer_chip(adapter) && be_test_ddr_dma(adapter) != 0) {
 		data[3] = 1;
 		test->flags |= ETH_TEST_FL_FAILED;
 	}
 
-	if (be_cmd_link_status_query(adapter, &mac_speed,
-				     &qos_link_speed, NULL, 0) != 0) {
+	status = be_cmd_link_status_query(adapter, NULL, &link_status, 0);
+	if (status) {
 		test->flags |= ETH_TEST_FL_FAILED;
 		data[4] = -1;
-	} else if (!mac_speed) {
+	} else if (!link_status) {
 		test->flags |= ETH_TEST_FL_FAILED;
 		data[4] = 1;
 	}
 }
 
-static int
-be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
+static int be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	return be_load_fw(adapter, efl->data);
 }
 
-static int
-be_get_eeprom_len(struct net_device *netdev)
+static int be_get_eeprom_len(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (!check_privilege(adapter, MAX_PRIVILEGES))
+		return 0;
+
 	if (lancer_chip(adapter)) {
 		if (be_physfn(adapter))
 			return lancer_cmd_get_file_len(adapter,
-					LANCER_VPD_PF_FILE);
+						       LANCER_VPD_PF_FILE);
 		else
 			return lancer_cmd_get_file_len(adapter,
-					LANCER_VPD_VF_FILE);
+						       LANCER_VPD_VF_FILE);
 	} else {
 		return BE_READ_SEEPROM_LEN;
 	}
 }
 
-static int
-be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
-			uint8_t *data)
+static int be_read_eeprom(struct net_device *netdev,
+			  struct ethtool_eeprom *eeprom, uint8_t *data)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_dma_mem eeprom_cmd;
@@ -756,10 +859,10 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	if (lancer_chip(adapter)) {
 		if (be_physfn(adapter))
 			return lancer_cmd_read_file(adapter, LANCER_VPD_PF_FILE,
-					eeprom->len, data);
+						    eeprom->len, data);
 		else
 			return lancer_cmd_read_file(adapter, LANCER_VPD_VF_FILE,
-					eeprom->len, data);
+						    eeprom->len, data);
 	}
 
 	eeprom->magic = BE_VENDOR_ID | (adapter->pdev->device<<16);
@@ -769,11 +872,8 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	eeprom_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, eeprom_cmd.size,
 					   &eeprom_cmd.dma, GFP_KERNEL);
 
-	if (!eeprom_cmd.va) {
-		dev_err(&adapter->pdev->dev,
-			"Memory allocation failure. Could not read eeprom\n");
+	if (!eeprom_cmd.va)
 		return -ENOMEM;
-	}
 
 	status = be_cmd_get_seeprom_data(adapter, &eeprom_cmd);
 
@@ -784,7 +884,274 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	dma_free_coherent(&adapter->pdev->dev, eeprom_cmd.size, eeprom_cmd.va,
 			  eeprom_cmd.dma);
 
+	return be_cmd_status(status);
+}
+
+static u32 be_get_msg_level(struct net_device *netdev)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	return adapter->msg_enable;
+}
+
+static void be_set_msg_level(struct net_device *netdev, u32 level)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (adapter->msg_enable == level)
+		return;
+
+	if ((level & NETIF_MSG_HW) != (adapter->msg_enable & NETIF_MSG_HW))
+		if (BEx_chip(adapter))
+			be_cmd_set_fw_log_level(adapter, level & NETIF_MSG_HW ?
+						FW_LOG_LEVEL_DEFAULT :
+						FW_LOG_LEVEL_FATAL);
+	adapter->msg_enable = level;
+
+	return;
+}
+
+static u64 be_get_rss_hash_opts(struct be_adapter *adapter, u64 flow_type)
+{
+	u64 data = 0;
+
+	switch (flow_type) {
+	case TCP_V4_FLOW:
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_IPV4)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_TCP_IPV4)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case UDP_V4_FLOW:
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_IPV4)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_UDP_IPV4)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case TCP_V6_FLOW:
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_IPV6)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_TCP_IPV6)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case UDP_V6_FLOW:
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_IPV6)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_UDP_IPV6)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	}
+
+	return data;
+}
+
+static int be_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
+			u32 *rule_locs)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (!be_multi_rxq(adapter)) {
+		dev_info(&adapter->pdev->dev,
+			 "ethtool::get_rxnfc: RX flow hashing is disabled\n");
+		return -EINVAL;
+	}
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXFH:
+		cmd->data = be_get_rss_hash_opts(adapter, cmd->flow_type);
+		break;
+	case ETHTOOL_GRXRINGS:
+		cmd->data = adapter->num_rx_qs - 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int be_set_rss_hash_opts(struct be_adapter *adapter,
+				struct ethtool_rxnfc *cmd)
+{
+	struct be_rx_obj *rxo;
+	int status = 0, i, j;
+	u8 rsstable[128];
+	u32 rss_flags = adapter->rss_info.rss_flags;
+
+	if (cmd->data != L3_RSS_FLAGS &&
+	    cmd->data != (L3_RSS_FLAGS | L4_RSS_FLAGS))
+		return -EINVAL;
+
+	switch (cmd->flow_type) {
+	case TCP_V4_FLOW:
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_TCP_IPV4;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV4 |
+					RSS_ENABLE_TCP_IPV4;
+		break;
+	case TCP_V6_FLOW:
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_TCP_IPV6;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV6 |
+					RSS_ENABLE_TCP_IPV6;
+		break;
+	case UDP_V4_FLOW:
+		if ((cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS)) &&
+		    BEx_chip(adapter))
+			return -EINVAL;
+
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_UDP_IPV4;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV4 |
+					RSS_ENABLE_UDP_IPV4;
+		break;
+	case UDP_V6_FLOW:
+		if ((cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS)) &&
+		    BEx_chip(adapter))
+			return -EINVAL;
+
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_UDP_IPV6;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV6 |
+					RSS_ENABLE_UDP_IPV6;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (rss_flags == adapter->rss_info.rss_flags)
+		return status;
+
+	if (be_multi_rxq(adapter)) {
+		for (j = 0; j < 128; j += adapter->num_rx_qs - 1) {
+			for_all_rss_queues(adapter, rxo, i) {
+				if ((j + i) >= 128)
+					break;
+				rsstable[j + i] = rxo->rss_id;
+			}
+		}
+	}
+
+	status = be_cmd_rss_config(adapter, adapter->rss_info.rsstable,
+				   rss_flags, 128, adapter->rss_info.rss_hkey);
+	if (!status)
+		adapter->rss_info.rss_flags = rss_flags;
+
+	return be_cmd_status(status);
+}
+
+static int be_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int status = 0;
+
+	if (!be_multi_rxq(adapter)) {
+		dev_err(&adapter->pdev->dev,
+			"ethtool::set_rxnfc: RX flow hashing is disabled\n");
+		return -EINVAL;
+	}
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXFH:
+		status = be_set_rss_hash_opts(adapter, cmd);
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return status;
+}
+
+static void be_get_channels(struct net_device *netdev,
+			    struct ethtool_channels *ch)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	ch->combined_count = adapter->num_evt_qs;
+	ch->max_combined = be_max_qs(adapter);
+}
+
+static int be_set_channels(struct net_device  *netdev,
+			   struct ethtool_channels *ch)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int status;
+
+	if (ch->rx_count || ch->tx_count || ch->other_count ||
+	    !ch->combined_count || ch->combined_count > be_max_qs(adapter))
+		return -EINVAL;
+
+	adapter->cfg_num_qs = ch->combined_count;
+
+	status = be_update_queues(adapter);
+	return be_cmd_status(status);
+}
+
+static u32 be_get_rxfh_indir_size(struct net_device *netdev)
+{
+	return RSS_INDIR_TABLE_LEN;
+}
+
+static u32 be_get_rxfh_key_size(struct net_device *netdev)
+{
+	return RSS_HASH_KEY_LEN;
+}
+
+static int be_get_rxfh(struct net_device *netdev, u32 *indir, u8 *hkey)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int i;
+	struct rss_info *rss = &adapter->rss_info;
+
+	if (indir) {
+		for (i = 0; i < RSS_INDIR_TABLE_LEN; i++)
+			indir[i] = rss->rss_queue[i];
+	}
+
+	if (hkey)
+		memcpy(hkey, rss->rss_hkey, RSS_HASH_KEY_LEN);
+
+	return 0;
+}
+
+static int be_set_rxfh(struct net_device *netdev, const u32 *indir,
+		       const u8 *hkey)
+{
+	int rc = 0, i, j;
+	struct be_adapter *adapter = netdev_priv(netdev);
+	u8 rsstable[RSS_INDIR_TABLE_LEN];
+
+	if (indir) {
+		struct be_rx_obj *rxo;
+		for (i = 0; i < RSS_INDIR_TABLE_LEN; i++) {
+			j = indir[i];
+			rxo = &adapter->rx_obj[j];
+			rsstable[i] = rxo->rss_id;
+			adapter->rss_info.rss_queue[i] = j;
+		}
+	} else {
+		memcpy(rsstable, adapter->rss_info.rsstable,
+		       RSS_INDIR_TABLE_LEN);
+	}
+
+	if (!hkey)
+		hkey =  adapter->rss_info.rss_hkey;
+
+	rc = be_cmd_rss_config(adapter, rsstable,
+			adapter->rss_info.rss_flags,
+			RSS_INDIR_TABLE_LEN, hkey);
+	if (rc) {
+		adapter->rss_info.rss_flags = RSS_ENABLE_NONE;
+		return -EIO;
+	}
+	memcpy(adapter->rss_info.rss_hkey, hkey, RSS_HASH_KEY_LEN);
+	memcpy(adapter->rss_info.rsstable, rsstable,
+	       RSS_INDIR_TABLE_LEN);
+	return 0;
 }
 
 const struct ethtool_ops be_ethtool_ops = {
@@ -802,10 +1169,21 @@ const struct ethtool_ops be_ethtool_ops = {
 	.set_pauseparam = be_set_pauseparam,
 	.get_strings = be_get_stat_strings,
 	.set_phys_id = be_set_phys_id,
+	.set_dump = be_set_dump,
+	.get_msglevel = be_get_msg_level,
+	.set_msglevel = be_set_msg_level,
 	.get_sset_count = be_get_sset_count,
 	.get_ethtool_stats = be_get_ethtool_stats,
 	.get_regs_len = be_get_reg_len,
 	.get_regs = be_get_regs,
 	.flash_device = be_do_flash,
 	.self_test = be_self_test,
+	.get_rxnfc = be_get_rxnfc,
+	.set_rxnfc = be_set_rxnfc,
+	.get_rxfh_indir_size = be_get_rxfh_indir_size,
+	.get_rxfh_key_size = be_get_rxfh_key_size,
+	.get_rxfh = be_get_rxfh,
+	.set_rxfh = be_set_rxfh,
+	.get_channels = be_get_channels,
+	.set_channels = be_set_channels
 };

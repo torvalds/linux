@@ -1,7 +1,7 @@
 /*
  * Declarations for to Hexagon Virtal Machine.
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,35 +31,51 @@
  * for tracing/debugging.
  */
 
-/*
- * Lets make this stuff visible only if configured,
- * so we can unconditionally include the file.
- */
+#define HVM_TRAP1_VMVERSION		0
+#define HVM_TRAP1_VMRTE			1
+#define HVM_TRAP1_VMSETVEC		2
+#define HVM_TRAP1_VMSETIE		3
+#define HVM_TRAP1_VMGETIE		4
+#define HVM_TRAP1_VMINTOP		5
+#define HVM_TRAP1_VMCLRMAP		10
+#define HVM_TRAP1_VMNEWMAP		11
+#define HVM_TRAP1_FORMERLY_VMWIRE	12
+#define HVM_TRAP1_VMCACHE		13
+#define HVM_TRAP1_VMGETTIME		14
+#define HVM_TRAP1_VMSETTIME		15
+#define HVM_TRAP1_VMWAIT		16
+#define HVM_TRAP1_VMYIELD		17
+#define HVM_TRAP1_VMSTART		18
+#define HVM_TRAP1_VMSTOP		19
+#define HVM_TRAP1_VMVPID		20
+#define HVM_TRAP1_VMSETREGS		21
+#define HVM_TRAP1_VMGETREGS		22
+#define HVM_TRAP1_VMTIMEROP		24
 
 #ifndef __ASSEMBLY__
 
 enum VM_CACHE_OPS {
-	ickill,
-	dckill,
-	l2kill,
-	dccleaninva,
-	icinva,
-	idsync,
-	fetch_cfg
+	hvmc_ickill,
+	hvmc_dckill,
+	hvmc_l2kill,
+	hvmc_dccleaninva,
+	hvmc_icinva,
+	hvmc_idsync,
+	hvmc_fetch_cfg
 };
 
 enum VM_INT_OPS {
-	nop,
-	globen,
-	globdis,
-	locen,
-	locdis,
-	affinity,
-	get,
-	peek,
-	status,
-	post,
-	clear
+	hvmi_nop,
+	hvmi_globen,
+	hvmi_globdis,
+	hvmi_locen,
+	hvmi_locdis,
+	hvmi_affinity,
+	hvmi_get,
+	hvmi_peek,
+	hvmi_status,
+	hvmi_post,
+	hvmi_clear
 };
 
 extern void _K_VM_event_vector(void);
@@ -82,123 +98,111 @@ long __vmvpid(void);
 
 static inline long __vmcache_ickill(void)
 {
-	return __vmcache(ickill, 0, 0);
+	return __vmcache(hvmc_ickill, 0, 0);
 }
 
 static inline long __vmcache_dckill(void)
 {
-	return __vmcache(dckill, 0, 0);
+	return __vmcache(hvmc_dckill, 0, 0);
 }
 
 static inline long __vmcache_l2kill(void)
 {
-	return __vmcache(l2kill, 0, 0);
+	return __vmcache(hvmc_l2kill, 0, 0);
 }
 
 static inline long __vmcache_dccleaninva(unsigned long addr, unsigned long len)
 {
-	return __vmcache(dccleaninva, addr, len);
+	return __vmcache(hvmc_dccleaninva, addr, len);
 }
 
 static inline long __vmcache_icinva(unsigned long addr, unsigned long len)
 {
-	return __vmcache(icinva, addr, len);
+	return __vmcache(hvmc_icinva, addr, len);
 }
 
 static inline long __vmcache_idsync(unsigned long addr,
 					   unsigned long len)
 {
-	return __vmcache(idsync, addr, len);
+	return __vmcache(hvmc_idsync, addr, len);
 }
 
 static inline long __vmcache_fetch_cfg(unsigned long val)
 {
-	return __vmcache(fetch_cfg, val, 0);
+	return __vmcache(hvmc_fetch_cfg, val, 0);
 }
 
 /* interrupt operations  */
 
 static inline long __vmintop_nop(void)
 {
-	return __vmintop(nop, 0, 0, 0, 0);
+	return __vmintop(hvmi_nop, 0, 0, 0, 0);
 }
 
 static inline long __vmintop_globen(long i)
 {
-	return __vmintop(globen, i, 0, 0, 0);
+	return __vmintop(hvmi_globen, i, 0, 0, 0);
 }
 
 static inline long __vmintop_globdis(long i)
 {
-	return __vmintop(globdis, i, 0, 0, 0);
+	return __vmintop(hvmi_globdis, i, 0, 0, 0);
 }
 
 static inline long __vmintop_locen(long i)
 {
-	return __vmintop(locen, i, 0, 0, 0);
+	return __vmintop(hvmi_locen, i, 0, 0, 0);
 }
 
 static inline long __vmintop_locdis(long i)
 {
-	return __vmintop(locdis, i, 0, 0, 0);
+	return __vmintop(hvmi_locdis, i, 0, 0, 0);
 }
 
 static inline long __vmintop_affinity(long i, long cpu)
 {
-	return __vmintop(locdis, i, cpu, 0, 0);
+	return __vmintop(hvmi_affinity, i, cpu, 0, 0);
 }
 
 static inline long __vmintop_get(void)
 {
-	return __vmintop(get, 0, 0, 0, 0);
+	return __vmintop(hvmi_get, 0, 0, 0, 0);
 }
 
 static inline long __vmintop_peek(void)
 {
-	return __vmintop(peek, 0, 0, 0, 0);
+	return __vmintop(hvmi_peek, 0, 0, 0, 0);
 }
 
 static inline long __vmintop_status(long i)
 {
-	return __vmintop(status, i, 0, 0, 0);
+	return __vmintop(hvmi_status, i, 0, 0, 0);
 }
 
 static inline long __vmintop_post(long i)
 {
-	return __vmintop(post, i, 0, 0, 0);
+	return __vmintop(hvmi_post, i, 0, 0, 0);
 }
 
 static inline long __vmintop_clear(long i)
 {
-	return __vmintop(clear, i, 0, 0, 0);
+	return __vmintop(hvmi_clear, i, 0, 0, 0);
 }
 
 #else /* Only assembly code should reference these */
-
-#define HVM_TRAP1_VMRTE			1
-#define HVM_TRAP1_VMSETVEC		2
-#define HVM_TRAP1_VMSETIE		3
-#define HVM_TRAP1_VMGETIE		4
-#define HVM_TRAP1_VMINTOP		5
-#define HVM_TRAP1_VMCLRMAP		10
-#define HVM_TRAP1_VMNEWMAP		11
-#define HVM_TRAP1_FORMERLY_VMWIRE	12
-#define HVM_TRAP1_VMCACHE		13
-#define HVM_TRAP1_VMGETTIME		14
-#define HVM_TRAP1_VMSETTIME		15
-#define HVM_TRAP1_VMWAIT		16
-#define HVM_TRAP1_VMYIELD		17
-#define HVM_TRAP1_VMSTART		18
-#define HVM_TRAP1_VMSTOP		19
-#define HVM_TRAP1_VMVPID		20
-#define HVM_TRAP1_VMSETREGS		21
-#define HVM_TRAP1_VMGETREGS		22
 
 #endif /* __ASSEMBLY__ */
 
 /*
  * Constants for virtual instruction parameters and return values
  */
+
+/* vmnewmap arguments */
+
+#define VM_TRANS_TYPE_LINEAR 0
+#define VM_TRANS_TYPE_TABLE 1
+#define VM_TLB_INVALIDATE_FALSE 0
+#define VM_TLB_INVALIDATE_TRUE 1
 
 /* vmsetie arguments */
 
@@ -224,6 +228,8 @@ static inline long __vmintop_clear(long i)
 #define HVM_VMEST_UM_MSK	1
 #define HVM_VMEST_IE_SFT	30
 #define HVM_VMEST_IE_MSK	1
+#define HVM_VMEST_SS_SFT	29
+#define HVM_VMEST_SS_MSK	1
 #define HVM_VMEST_EVENTNUM_SFT	16
 #define HVM_VMEST_EVENTNUM_MSK	0xff
 #define HVM_VMEST_CAUSE_SFT	0
@@ -260,6 +266,8 @@ static inline long __vmintop_clear(long i)
 #define HVM_GE_C_INVI	0x15
 #define HVM_GE_C_PRIVI	0x1B
 #define HVM_GE_C_XMAL	0x1C
+#define HVM_GE_C_WREG	0x1D
+#define HVM_GE_C_PCAL	0x1E
 #define HVM_GE_C_RMAL	0x20
 #define HVM_GE_C_WMAL	0x21
 #define HVM_GE_C_RPROT	0x22

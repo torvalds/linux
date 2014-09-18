@@ -462,13 +462,6 @@ config AUDIT
 	  logging of avc messages output).  Does not do system-call
 	  auditing without CONFIG_AUDITSYSCALL.
 
-仍然被认为不够稳定的功能应该被定义为依赖于“EXPERIMENTAL”：
-
-config SLUB
-	depends on EXPERIMENTAL && !ARCH_USES_SLAB_PAGE_STRUCT
-	bool "SLUB (Unqueued Allocator)"
-	...
-
 而那些危险的功能（比如某些文件系统的写支持）应该在它们的提示字符串里显著的声明这
 一点：
 

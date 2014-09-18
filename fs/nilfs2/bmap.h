@@ -135,6 +135,13 @@ struct nilfs_bmap {
 /* state */
 #define NILFS_BMAP_DIRTY	0x00000001
 
+/**
+ * struct nilfs_bmap_store - shadow copy of bmap state
+ * @data: cached raw block mapping of on-disk inode
+ * @last_allocated_key: cached value of last allocated key for data block
+ * @last_allocated_ptr: cached value of last allocated ptr for data block
+ * @state: cached value of state field of bmap structure
+ */
 struct nilfs_bmap_store {
 	__le64 data[NILFS_BMAP_SIZE / sizeof(__le64)];
 	__u64 last_allocated_key;

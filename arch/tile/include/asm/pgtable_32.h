@@ -20,11 +20,12 @@
  * The level-1 index is defined by the huge page size.  A PGD is composed
  * of PTRS_PER_PGD pgd_t's and is the top level of the page table.
  */
-#define PGDIR_SHIFT	HV_LOG2_PAGE_SIZE_LARGE
-#define PGDIR_SIZE	HV_PAGE_SIZE_LARGE
+#define PGDIR_SHIFT	HPAGE_SHIFT
+#define PGDIR_SIZE	HPAGE_SIZE
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
-#define PTRS_PER_PGD	(1 << (32 - PGDIR_SHIFT))
-#define SIZEOF_PGD	(PTRS_PER_PGD * sizeof(pgd_t))
+#define PTRS_PER_PGD	_HV_L1_ENTRIES(HPAGE_SHIFT)
+#define PGD_INDEX(va)	_HV_L1_INDEX(va, HPAGE_SHIFT)
+#define SIZEOF_PGD	_HV_L1_SIZE(HPAGE_SHIFT)
 
 /*
  * The level-2 index is defined by the difference between the huge
@@ -33,8 +34,9 @@
  * Note that the hypervisor docs use PTE for what we call pte_t, so
  * this nomenclature is somewhat confusing.
  */
-#define PTRS_PER_PTE (1 << (HV_LOG2_PAGE_SIZE_LARGE - HV_LOG2_PAGE_SIZE_SMALL))
-#define SIZEOF_PTE	(PTRS_PER_PTE * sizeof(pte_t))
+#define PTRS_PER_PTE	_HV_L2_ENTRIES(HPAGE_SHIFT, PAGE_SHIFT)
+#define PTE_INDEX(va)	_HV_L2_INDEX(va, HPAGE_SHIFT, PAGE_SHIFT)
+#define SIZEOF_PTE	_HV_L2_SIZE(HPAGE_SHIFT, PAGE_SHIFT)
 
 #ifndef __ASSEMBLY__
 
@@ -53,17 +55,9 @@
 #define PKMAP_BASE   ((FIXADDR_BOOT_START - PAGE_SIZE*LAST_PKMAP) & PGDIR_MASK)
 
 #ifdef CONFIG_HIGHMEM
-# define __VMAPPING_END	(PKMAP_BASE & ~(HPAGE_SIZE-1))
+# define _VMALLOC_END	(PKMAP_BASE & ~(HPAGE_SIZE-1))
 #else
-# define __VMAPPING_END	(FIXADDR_START & ~(HPAGE_SIZE-1))
-#endif
-
-#ifdef CONFIG_HUGEVMAP
-#define HUGE_VMAP_END	__VMAPPING_END
-#define HUGE_VMAP_BASE	(HUGE_VMAP_END - CONFIG_NR_HUGE_VMAPS * HPAGE_SIZE)
-#define _VMALLOC_END	HUGE_VMAP_BASE
-#else
-#define _VMALLOC_END	__VMAPPING_END
+# define _VMALLOC_END	(FIXADDR_START & ~(HPAGE_SIZE-1))
 #endif
 
 /*
@@ -82,10 +76,12 @@ extern unsigned long VMALLOC_RESERVE /* = CONFIG_VMALLOC_RESERVE */;
 /* We have no pmd or pud since we are strictly a two-level page table */
 #include <asm-generic/pgtable-nopmd.h>
 
+static inline int pud_huge_page(pud_t pud)	{ return 0; }
+
 /* We don't define any pgds for these addresses. */
 static inline int pgd_addr_invalid(unsigned long addr)
 {
-	return addr >= MEM_HV_INTRPT;
+	return addr >= MEM_HV_START;
 }
 
 /*
@@ -111,24 +107,14 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 	return pte;
 }
 
-static inline void __set_pmd(pmd_t *pmdp, pmd_t pmdval)
-{
-	set_pte(&pmdp->pud.pgd, pmdval.pud.pgd);
-}
-
-/* Create a pmd from a PTFN. */
-static inline pmd_t ptfn_pmd(unsigned long ptfn, pgprot_t prot)
-{
-	return (pmd_t){ { hv_pte_set_ptfn(prot, ptfn) } };
-}
-
-/* Return the page-table frame number (ptfn) that a pmd_t points at. */
-#define pmd_ptfn(pmd) hv_pte_get_ptfn((pmd).pud.pgd)
-
-static inline void pmd_clear(pmd_t *pmdp)
-{
-	__pte_clear(&pmdp->pud.pgd);
-}
+/*
+ * pmds are wrappers around pgds, which are the same as ptes.
+ * It's often convenient to "cast" back and forth and use the pte methods,
+ * which are the methods supplied by the hypervisor.
+ */
+#define pmd_pte(pmd) ((pmd).pud.pgd)
+#define pmdp_ptep(pmdp) (&(pmdp)->pud.pgd)
+#define pte_pmd(pte) ((pmd_t){ { (pte) } })
 
 #endif /* __ASSEMBLY__ */
 

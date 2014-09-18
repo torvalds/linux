@@ -81,7 +81,7 @@ the application calls the <constant>VIDIOC_S_FMT</constant> ioctl
 with a pointer to a <structname>v4l2_format</structname> structure
 the driver checks
 and adjusts the parameters against hardware abilities. Drivers
-should not return an error code unless the input is ambiguous, this is
+should not return an error code unless the <structfield>type</structfield> field is invalid, this is
 a mechanism to fathom device capabilities and to approach parameters
 acceptable for both the application and driver. On success the driver
 may program the hardware, allocate resources and generally prepare for
@@ -107,6 +107,10 @@ disabling I/O or possibly time consuming hardware preparations.
 Although strongly recommended drivers are not required to implement
 this ioctl.</para>
 
+    <para>The format as returned by <constant>VIDIOC_TRY_FMT</constant>
+must be identical to what <constant>VIDIOC_S_FMT</constant> returns for
+the same input or output.</para>
+
     <table pgwide="1" frame="none" id="v4l2-format">
       <title>struct <structname>v4l2_format</structname></title>
       <tgroup cols="4">
@@ -116,7 +120,7 @@ this ioctl.</para>
 	<colspec colname="c4" />
 	<tbody valign="top">
 	  <row>
-	    <entry>&v4l2-buf-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry></entry>
 	    <entry>Type of the data stream, see <xref
@@ -168,11 +172,16 @@ capture and output devices.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>
+	    <entry>&v4l2-sdr-format;</entry>
+	    <entry><structfield>sdr</structfield></entry>
+	    <entry>Definition of a data format, see
+<xref linkend="pixfmt" />, used by SDR capture devices.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
 	    <entry>__u8</entry>
 	    <entry><structfield>raw_data</structfield>[200]</entry>
-	    <entry>Place holder for future extensions and custom
-(driver defined) formats with <structfield>type</structfield>
-<constant>V4L2_BUF_TYPE_PRIVATE</constant> and higher.</entry>
+	    <entry>Place holder for future extensions.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -187,8 +196,7 @@ capture and output devices.</entry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The &v4l2-format; <structfield>type</structfield>
-field is invalid, the requested buffer type not supported, or the
-format is not supported with this buffer type.</para>
+field is invalid or the requested buffer type not supported.</para>
 	</listitem>
       </varlistentry>
     </variablelist>

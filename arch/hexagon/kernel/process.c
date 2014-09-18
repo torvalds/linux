@@ -1,7 +1,7 @@
 /*
  * Process creation support for Hexagon
  *
- * Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -24,33 +24,7 @@
 #include <linux/tick.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
-
-/*
- * Kernel thread creation.  The desired kernel function is "wrapped"
- * in the kernel_thread_helper function, which does cleanup
- * afterwards.
- */
-static void __noreturn kernel_thread_helper(void *arg, int (*fn)(void *))
-{
-	do_exit(fn(arg));
-}
-
-int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-	/*
-	 * Yes, we're exploting illicit knowledge of the ABI here.
-	 */
-	regs.r00 = (unsigned long) arg;
-	regs.r01 = (unsigned long) fn;
-	pt_set_elr(&regs, (unsigned long)kernel_thread_helper);
-	pt_set_kmode(&regs);
-
-	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
+#include <linux/tracehook.h>
 
 /*
  * Program thread launch.  Often defined as a macro in processor.h,
@@ -78,28 +52,11 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
  *  If hardware or VM offer wait termination even though interrupts
  *  are disabled.
  */
-static void default_idle(void)
+void arch_cpu_idle(void)
 {
 	__vmwait();
-}
-
-void (*idle_sleep)(void) = default_idle;
-
-void cpu_idle(void)
-{
-	while (1) {
-		tick_nohz_idle_enter();
-		local_irq_disable();
-		while (!need_resched()) {
-			idle_sleep();
-			/*  interrupts wake us up, but aren't serviced  */
-			local_irq_enable();	/* service interrupt   */
-			local_irq_disable();
-		}
-		local_irq_enable();
-		tick_nohz_idle_exit();
-		schedule();
-	}
+	/*  interrupts wake us up, but irqs are still disabled */
+	local_irq_enable();
 }
 
 /*
@@ -114,8 +71,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
  * Copy architecture-specific thread state
  */
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long unused, struct task_struct *p,
-		struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct hexagon_switch_stack *ss;
@@ -125,61 +81,52 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	childregs = (struct pt_regs *) (((unsigned long) ti + THREAD_SIZE) -
 					sizeof(*childregs));
 
-	memcpy(childregs, regs, sizeof(*childregs));
 	ti->regs = childregs;
 
 	/*
 	 * Establish kernel stack pointer and initial PC for new thread
+	 * Note that unlike the usual situation, we do not copy the
+	 * parent's callee-saved here; those are in pt_regs and whatever
+	 * we leave here will be overridden on return to userland.
 	 */
 	ss = (struct hexagon_switch_stack *) ((unsigned long) childregs -
 						    sizeof(*ss));
 	ss->lr = (unsigned long)ret_from_fork;
 	p->thread.switch_sp = ss;
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		/* r24 <- fn, r25 <- arg */
+		ss->r24 = usp;
+		ss->r25 = arg;
+		pt_set_kmode(childregs);
+		return 0;
+	}
+	memcpy(childregs, current_pt_regs(), sizeof(*childregs));
+	ss->r2524 = 0;
 
-	/* If User mode thread, set pt_reg stack pointer as per parameter */
-	if (user_mode(childregs)) {
+	if (usp)
 		pt_set_rte_sp(childregs, usp);
 
-		/* Child sees zero return value */
-		childregs->r00 = 0;
-
-		/*
-		 * The clone syscall has the C signature:
-		 * int [r0] clone(int flags [r0],
-		 *           void *child_frame [r1],
-		 *           void *parent_tid [r2],
-		 *           void *child_tid [r3],
-		 *           void *thread_control_block [r4]);
-		 * ugp is used to provide TLS support.
-		 */
-		if (clone_flags & CLONE_SETTLS)
-			childregs->ugp = childregs->r04;
-
-		/*
-		 * Parent sees new pid -- not necessary, not even possible at
-		 * this point in the fork process
-		 * Might also want to set things like ti->addr_limit
-		 */
-	} else {
-		/*
-		 * If kernel thread, resume stack is kernel stack base.
-		 * Note that this is pointer arithmetic on pt_regs *
-		 */
-		pt_set_rte_sp(childregs, (unsigned long)(childregs + 1));
-		/*
-		 * We need the current thread_info fast path pointer
-		 * set up in pt_regs.  The register to be used is
-		 * parametric for assembler code, but the mechanism
-		 * doesn't drop neatly into C.  Needs to be fixed.
-		 */
-		childregs->THREADINFO_REG = (unsigned long) ti;
-	}
+	/* Child sees zero return value */
+	childregs->r00 = 0;
 
 	/*
-	 * thread_info pointer is pulled out of task_struct "stack"
-	 * field on switch_to.
+	 * The clone syscall has the C signature:
+	 * int [r0] clone(int flags [r0],
+	 *           void *child_frame [r1],
+	 *           void *parent_tid [r2],
+	 *           void *child_tid [r3],
+	 *           void *thread_control_block [r4]);
+	 * ugp is used to provide TLS support.
 	 */
-	p->stack = (void *)ti;
+	if (clone_flags & CLONE_SETTLS)
+		childregs->ugp = childregs->r04;
+
+	/*
+	 * Parent sees new pid -- not necessary, not even possible at
+	 * this point in the fork process
+	 * Might also want to set things like ti->addr_limit
+	 */
 
 	return 0;
 }
@@ -234,46 +181,47 @@ unsigned long get_wchan(struct task_struct *p)
 }
 
 /*
- * Borrowed from PowerPC -- basically allow smaller kernel stacks if we
- * go crazy with the page sizes.
- */
-#if THREAD_SHIFT < PAGE_SHIFT
-
-static struct kmem_cache *thread_info_cache;
-
-struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node)
-{
-	struct thread_info *ti;
-
-	ti = kmem_cache_alloc_node(thread_info_cache, GFP_KERNEL, node);
-	if (unlikely(ti == NULL))
-		return NULL;
-#ifdef CONFIG_DEBUG_STACK_USAGE
-	memset(ti, 0, THREAD_SIZE);
-#endif
-	return ti;
-}
-
-void free_thread_info(struct thread_info *ti)
-{
-	kmem_cache_free(thread_info_cache, ti);
-}
-
-/*  Weak symbol; called by init/main.c  */
-
-void thread_info_cache_init(void)
-{
-	thread_info_cache = kmem_cache_create("thread_info", THREAD_SIZE,
-					      THREAD_SIZE, 0, NULL);
-	BUG_ON(thread_info_cache == NULL);
-}
-
-#endif /* THREAD_SHIFT < PAGE_SHIFT */
-
-/*
  * Required placeholder.
  */
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 {
 	return 0;
+}
+
+
+/*
+ * Called on the exit path of event entry; see vm_entry.S
+ *
+ * Interrupts will already be disabled.
+ *
+ * Returns 0 if there's no need to re-check for more work.
+ */
+
+int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
+{
+	if (!(thread_info_flags & _TIF_WORK_MASK)) {
+		return 0;
+	}  /* shortcut -- no work to be done */
+
+	local_irq_enable();
+
+	if (thread_info_flags & _TIF_NEED_RESCHED) {
+		schedule();
+		return 1;
+	}
+
+	if (thread_info_flags & _TIF_SIGPENDING) {
+		do_signal(regs);
+		return 1;
+	}
+
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+		return 1;
+	}
+
+	/* Should not even reach here */
+	panic("%s: bad thread_info flags 0x%08x\n", __func__,
+		thread_info_flags);
 }

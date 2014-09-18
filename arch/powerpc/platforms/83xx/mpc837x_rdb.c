@@ -1,7 +1,7 @@
 /*
  * arch/powerpc/platforms/83xx/mpc837x_rdb.c
  *
- * Copyright (C) 2007 Freescale Semicondutor, Inc. All rights reserved.
+ * Copyright (C) 2007 Freescale Semiconductor, Inc. All rights reserved.
  *
  * MPC837x RDB board specific routines
  *
@@ -60,7 +60,7 @@ static void __init mpc837x_rdb_setup_arch(void)
 
 machine_device_initcall(mpc837x_rdb, mpc83xx_declare_of_platform_devices);
 
-static const char *board[] __initdata = {
+static const char * const board[] __initconst = {
 	"fsl,mpc8377rdb",
 	"fsl,mpc8378rdb",
 	"fsl,mpc8379rdb",

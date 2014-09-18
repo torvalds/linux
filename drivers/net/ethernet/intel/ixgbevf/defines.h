@@ -33,13 +33,17 @@
 #define IXGBE_DEV_ID_X540_VF            0x1515
 
 #define IXGBE_VF_IRQ_CLEAR_MASK         7
-#define IXGBE_VF_MAX_TX_QUEUES          1
-#define IXGBE_VF_MAX_RX_QUEUES          1
+#define IXGBE_VF_MAX_TX_QUEUES          8
+#define IXGBE_VF_MAX_RX_QUEUES          8
+
+/* DCB define */
+#define IXGBE_VF_MAX_TRAFFIC_CLASS	8
 
 /* Link speed */
 typedef u32 ixgbe_link_speed;
 #define IXGBE_LINK_SPEED_1GB_FULL       0x0020
 #define IXGBE_LINK_SPEED_10GB_FULL      0x0080
+#define IXGBE_LINK_SPEED_100_FULL	0x0008
 
 #define IXGBE_CTRL_RST              0x04000000 /* Reset (SW) */
 #define IXGBE_RXDCTL_ENABLE         0x02000000 /* Enable specific Rx Queue */
@@ -48,6 +52,7 @@ typedef u32 ixgbe_link_speed;
 #define IXGBE_LINKS_SPEED_82599     0x30000000
 #define IXGBE_LINKS_SPEED_10G_82599 0x30000000
 #define IXGBE_LINKS_SPEED_1G_82599  0x20000000
+#define IXGBE_LINKS_SPEED_100_82599 0x10000000
 
 /* Number of Transmit and Receive Descriptors must be a multiple of 8 */
 #define IXGBE_REQ_TX_DESCRIPTOR_MULTIPLE  8
@@ -178,6 +183,7 @@ typedef u32 ixgbe_link_speed;
 #define IXGBE_TXD_CMD_DEXT   0x20000000 /* Descriptor extension (0 = legacy) */
 #define IXGBE_TXD_CMD_VLE    0x40000000 /* Add VLAN tag */
 #define IXGBE_TXD_STAT_DD    0x00000001 /* Descriptor Done */
+#define IXGBE_TXD_CMD	     (IXGBE_TXD_CMD_EOP | IXGBE_TXD_CMD_RS)
 
 /* Transmit Descriptor - Advanced */
 union ixgbe_adv_tx_desc {
@@ -249,6 +255,7 @@ struct ixgbe_adv_tx_context_desc {
 #define IXGBE_ADVTXD_TUCMD_L4T_TCP   0x00000800  /* L4 Packet TYPE of TCP */
 #define IXGBE_ADVTXD_TUCMD_L4T_SCTP  0x00001000  /* L4 Packet TYPE of SCTP */
 #define IXGBE_ADVTXD_IDX_SHIFT  4 /* Adv desc Index shift */
+#define IXGBE_ADVTXD_CC		0x00000080 /* Check Context */
 #define IXGBE_ADVTXD_POPTS_SHIFT      8  /* Adv desc POPTS shift */
 #define IXGBE_ADVTXD_POPTS_IXSM (IXGBE_TXD_POPTS_IXSM << \
 				 IXGBE_ADVTXD_POPTS_SHIFT)
@@ -262,35 +269,30 @@ struct ixgbe_adv_tx_context_desc {
 
 /* Interrupt register bitmasks */
 
-/* Extended Interrupt Cause Read */
-#define IXGBE_EICR_RTX_QUEUE    0x0000FFFF /* RTx Queue Interrupt */
-#define IXGBE_EICR_MAILBOX      0x00080000 /* VF to PF Mailbox Interrupt */
-#define IXGBE_EICR_OTHER        0x80000000 /* Interrupt Cause Active */
-
-/* Extended Interrupt Cause Set */
-#define IXGBE_EICS_RTX_QUEUE    IXGBE_EICR_RTX_QUEUE /* RTx Queue Interrupt */
-#define IXGBE_EICS_MAILBOX      IXGBE_EICR_MAILBOX   /* VF to PF Mailbox Int */
-#define IXGBE_EICS_OTHER        IXGBE_EICR_OTHER     /* INT Cause Active */
-
-/* Extended Interrupt Mask Set */
-#define IXGBE_EIMS_RTX_QUEUE    IXGBE_EICR_RTX_QUEUE /* RTx Queue Interrupt */
-#define IXGBE_EIMS_MAILBOX      IXGBE_EICR_MAILBOX   /* VF to PF Mailbox Int */
-#define IXGBE_EIMS_OTHER        IXGBE_EICR_OTHER     /* INT Cause Active */
-
-/* Extended Interrupt Mask Clear */
-#define IXGBE_EIMC_RTX_QUEUE    IXGBE_EICR_RTX_QUEUE /* RTx Queue Interrupt */
-#define IXGBE_EIMC_MAILBOX      IXGBE_EICR_MAILBOX   /* VF to PF Mailbox Int */
-#define IXGBE_EIMC_OTHER        IXGBE_EICR_OTHER     /* INT Cause Active */
-
-#define IXGBE_EIMS_ENABLE_MASK ( \
-				IXGBE_EIMS_RTX_QUEUE       | \
-				IXGBE_EIMS_MAILBOX         | \
-				IXGBE_EIMS_OTHER)
-
 #define IXGBE_EITR_CNT_WDIS     0x80000000
+#define IXGBE_MAX_EITR		0x00000FF8
+#define IXGBE_MIN_EITR		8
 
 /* Error Codes */
 #define IXGBE_ERR_INVALID_MAC_ADDR              -1
 #define IXGBE_ERR_RESET_FAILED                  -2
+#define IXGBE_ERR_INVALID_ARGUMENT              -3
+
+/* Transmit Config masks */
+#define IXGBE_TXDCTL_ENABLE		0x02000000 /* Ena specific Tx Queue */
+#define IXGBE_TXDCTL_SWFLSH		0x04000000 /* Tx Desc. wr-bk flushing */
+#define IXGBE_TXDCTL_WTHRESH_SHIFT	16	   /* shift to WTHRESH bits */
+
+#define IXGBE_DCA_RXCTRL_DESC_DCA_EN	(1 << 5)  /* Rx Desc enable */
+#define IXGBE_DCA_RXCTRL_HEAD_DCA_EN	(1 << 6)  /* Rx Desc header ena */
+#define IXGBE_DCA_RXCTRL_DATA_DCA_EN	(1 << 7)  /* Rx Desc payload ena */
+#define IXGBE_DCA_RXCTRL_DESC_RRO_EN	(1 << 9)  /* Rx rd Desc Relax Order */
+#define IXGBE_DCA_RXCTRL_DATA_WRO_EN	(1 << 13) /* Rx wr data Relax Order */
+#define IXGBE_DCA_RXCTRL_HEAD_WRO_EN	(1 << 15) /* Rx wr header RO */
+
+#define IXGBE_DCA_TXCTRL_DESC_DCA_EN	(1 << 5)  /* DCA Tx Desc enable */
+#define IXGBE_DCA_TXCTRL_DESC_RRO_EN	(1 << 9)  /* Tx rd Desc Relax Order */
+#define IXGBE_DCA_TXCTRL_DESC_WRO_EN	(1 << 11) /* Tx Desc writeback RO bit */
+#define IXGBE_DCA_TXCTRL_DATA_RRO_EN	(1 << 13) /* Tx rd data Relax Order */
 
 #endif /* _IXGBEVF_DEFINES_H_ */

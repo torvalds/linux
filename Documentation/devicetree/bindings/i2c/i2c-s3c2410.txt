@@ -1,0 +1,59 @@
+* Samsung's I2C controller
+
+The Samsung's I2C controller is used to interface with I2C devices.
+
+Required properties:
+  - compatible: value should be either of the following.
+      (a) "samsung, s3c2410-i2c", for i2c compatible with s3c2410 i2c.
+      (b) "samsung, s3c2440-i2c", for i2c compatible with s3c2440 i2c.
+      (c) "samsung, s3c2440-hdmiphy-i2c", for s3c2440-like i2c used
+          inside HDMIPHY block found on several samsung SoCs
+      (d) "samsung, exynos5440-i2c", for s3c2440-like i2c used
+	   on EXYNOS5440 which does not need GPIO configuration.
+      (e) "samsung, exynos5-sata-phy-i2c", for s3c2440-like i2c used as
+	   a host to SATA PHY controller on an internal bus.
+  - reg: physical base address of the controller and length of memory mapped
+    region.
+  - interrupts: interrupt number to the cpu.
+  - samsung,i2c-sda-delay: Delay (in ns) applied to data line (SDA) edges.
+
+Required for all cases except "samsung,s3c2440-hdmiphy-i2c":
+  - Samsung GPIO variant (deprecated):
+    - gpios: The order of the gpios should be the following: <SDA, SCL>.
+      The gpio specifier depends on the gpio controller. Required in all
+      cases except for "samsung,s3c2440-hdmiphy-i2c" whose input/output
+      lines are permanently wired to the respective clienta
+  - Pinctrl variant (preferred, if available):
+    - pinctrl-0: Pin control group to be used for this controller.
+    - pinctrl-names: Should contain only one value - "default".
+
+Optional properties:
+  - samsung,i2c-slave-addr: Slave address in multi-master environment. If not
+    specified, default value is 0.
+  - samsung,i2c-max-bus-freq: Desired frequency in Hz of the bus. If not
+    specified, the default value in Hz is 100000.
+
+Example:
+
+	i2c@13870000 {
+		compatible = "samsung,s3c2440-i2c";
+		reg = <0x13870000 0x100>;
+		interrupts = <345>;
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <100000>;
+		/* Samsung GPIO variant begins here */
+		gpios = <&gpd1 2 0 /* SDA */
+			 &gpd1 3 0 /* SCL */>;
+		/* Samsung GPIO variant ends here */
+		/* Pinctrl variant begins here */
+		pinctrl-0 = <&i2c3_bus>;
+		pinctrl-names = "default";
+		/* Pinctrl variant ends here */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		wm8994@1a {
+			compatible = "wlf,wm8994";
+			reg = <0x1a>;
+		};
+	};

@@ -1,5 +1,5 @@
 # NXP STB225
 platform-$(CONFIG_SOC_PNX833X)	+= pnx833x/
-cflags-$(CONFIG_SOC_PNX833X)    += -Iarch/mips/include/asm/mach-pnx833x
+cflags-$(CONFIG_SOC_PNX833X)	+= -Iarch/mips/include/asm/mach-pnx833x
 load-$(CONFIG_NXP_STB220)	+= 0xffffffff80001000
 load-$(CONFIG_NXP_STB225)	+= 0xffffffff80001000

@@ -225,7 +225,11 @@ static struct snd_soc_dai_driver au1xi2s_dai_driver = {
 	.ops = &au1xi2s_dai_ops,
 };
 
-static int __devinit au1xi2s_drvprobe(struct platform_device *pdev)
+static const struct snd_soc_component_driver au1xi2s_component = {
+	.name		= "au1xi2s",
+};
+
+static int au1xi2s_drvprobe(struct platform_device *pdev)
 {
 	struct resource *iores, *dmares;
 	struct au1xpsc_audio_data *ctx;
@@ -260,14 +264,15 @@ static int __devinit au1xi2s_drvprobe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	return snd_soc_register_dai(&pdev->dev, &au1xi2s_dai_driver);
+	return snd_soc_register_component(&pdev->dev, &au1xi2s_component,
+					  &au1xi2s_dai_driver, 1);
 }
 
-static int __devexit au1xi2s_drvremove(struct platform_device *pdev)
+static int au1xi2s_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *ctx = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	WR(ctx, I2S_ENABLE, EN_D);	/* clock off, disable */
 
@@ -309,7 +314,7 @@ static struct platform_driver au1xi2s_driver = {
 		.pm	= AU1XI2SC_PMOPS,
 	},
 	.probe		= au1xi2s_drvprobe,
-	.remove		= __devexit_p(au1xi2s_drvremove),
+	.remove		= au1xi2s_drvremove,
 };
 
 module_platform_driver(au1xi2s_driver);

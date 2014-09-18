@@ -34,20 +34,18 @@ _GLOBAL(call_do_softirq)
 	std	r0,16(r1)
 	stdu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r3)
 	mr	r1,r3
-	bl	.__do_softirq
+	bl	__do_softirq
 	ld	r1,0(r1)
 	ld	r0,16(r1)
 	mtlr	r0
 	blr
 
-_GLOBAL(call_handle_irq)
-	ld	r8,0(r6)
+_GLOBAL(call_do_irq)
 	mflr	r0
 	std	r0,16(r1)
-	mtctr	r8
-	stdu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r5)
-	mr	r1,r5
-	bctrl
+	stdu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r4)
+	mr	r1,r4
+	bl	__do_irq
 	ld	r1,0(r1)
 	ld	r0,16(r1)
 	mtlr	r0
@@ -67,8 +65,11 @@ PPC64_CACHES:
  *   flush all bytes from start through stop-1 inclusive
  */
 
-_KPROBE(__flush_icache_range)
-
+_KPROBE(flush_icache_range)
+BEGIN_FTR_SECTION
+	PURGE_PREFETCHED_INS
+	blr
+END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 /*
  * Flush the data cache to memory 
  * 
@@ -211,6 +212,11 @@ _GLOBAL(__flush_dcache_icache)
  * Different systems have different cache line sizes
  */
 
+BEGIN_FTR_SECTION
+	PURGE_PREFETCHED_INS
+	blr
+END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
+
 /* Flush the dcache */
  	ld	r7,PPC64_CACHES@toc(r2)
 	clrrdi	r3,r3,PAGE_SHIFT           	    /* Page align */
@@ -234,8 +240,53 @@ _GLOBAL(__flush_dcache_icache)
 	isync
 	blr
 
+_GLOBAL(__bswapdi2)
+	srdi	r8,r3,32
+	rlwinm	r7,r3,8,0xffffffff
+	rlwimi	r7,r3,24,0,7
+	rlwinm	r9,r8,8,0xffffffff
+	rlwimi	r7,r3,24,16,23
+	rlwimi	r9,r8,24,0,7
+	rlwimi	r9,r8,24,16,23
+	sldi	r7,r7,32
+	or	r3,r7,r9
+	blr
+
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_BOOTX
+_GLOBAL(rmci_on)
+	sync
+	isync
+	li	r3,0x100
+	rldicl	r3,r3,32,0
+	mfspr	r5,SPRN_HID4
+	or	r5,r5,r3
+	sync
+	mtspr	SPRN_HID4,r5
+	isync
+	slbia
+	isync
+	sync
+	blr
+
+_GLOBAL(rmci_off)
+	sync
+	isync
+	li	r3,0x100
+	rldicl	r3,r3,32,0
+	mfspr	r5,SPRN_HID4
+	andc	r5,r5,r3
+	sync
+	mtspr	SPRN_HID4,r5
+	isync
+	slbia
+	isync
+	sync
+	blr
+#endif /* CONFIG_PPC_EARLY_DEBUG_BOOTX */
 
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE)
+
 /*
  * Do an IO access in real mode
  */
@@ -301,11 +352,6 @@ _GLOBAL(real_writeb)
 
 #ifdef CONFIG_PPC_PASEMI
 
-/* No support in all binutils for these yet, so use defines */
-#define LBZCIX(RT,RA,RB)  .long (0x7c0006aa|(RT<<21)|(RA<<16)|(RB << 11))
-#define STBCIX(RS,RA,RB)  .long (0x7c0007aa|(RS<<21)|(RA<<16)|(RB << 11))
-
-
 _GLOBAL(real_205_readb)
 	mfmsr	r7
 	ori	r0,r7,MSR_DR
@@ -314,7 +360,7 @@ _GLOBAL(real_205_readb)
 	mtmsrd	r0
 	sync
 	isync
-	LBZCIX(r3,0,r3)
+	LBZCIX(R3,R0,R3)
 	isync
 	mtmsrd	r7
 	sync
@@ -329,7 +375,7 @@ _GLOBAL(real_205_writeb)
 	mtmsrd	r0
 	sync
 	isync
-	STBCIX(r3,0,r4)
+	STBCIX(R3,R0,R4)
 	isync
 	mtmsrd	r7
 	sync
@@ -410,53 +456,6 @@ _GLOBAL(scom970_write)
 	blr
 #endif /* CONFIG_CPU_FREQ_PMAC64 || CONFIG_CPU_FREQ_MAPLE */
 
-
-/*
- * Create a kernel thread
- *   kernel_thread(fn, arg, flags)
- */
-_GLOBAL(kernel_thread)
-	std	r29,-24(r1)
-	std	r30,-16(r1)
-	stdu	r1,-STACK_FRAME_OVERHEAD(r1)
-	mr	r29,r3
-	mr	r30,r4
-	ori	r3,r5,CLONE_VM	/* flags */
-	oris	r3,r3,(CLONE_UNTRACED>>16)
-	li	r4,0		/* new sp (unused) */
-	li	r0,__NR_clone
-	sc
-	bns+	1f		/* did system call indicate error? */
-	neg	r3,r3		/* if so, make return code negative */
-1:	cmpdi	0,r3,0		/* parent or child? */
-	bne	2f		/* return if parent */
-	li	r0,0
-	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
-	ld	r2,8(r29)
-	ld	r29,0(r29)
-	mtlr	r29              /* fn addr in lr */
-	mr	r3,r30	        /* load arg and call fn */
-	blrl
-	li	r0,__NR_exit	/* exit after child exits */
-        li	r3,0
-	sc
-2:	addi	r1,r1,STACK_FRAME_OVERHEAD
-	ld	r29,-24(r1)
-	ld	r30,-16(r1)
-	blr
-
-/*
- * disable_kernel_fp()
- * Disable the FPU.
- */
-_GLOBAL(disable_kernel_fp)
-	mfmsr	r3
-	rldicl	r0,r3,(63-MSR_FP_LG),1
-	rldicl	r3,r0,(MSR_FP_LG+1),0
-	mtmsrd	r3			/* disable use of fpu now */
-	isync
-	blr
-
 /* kexec_wait(phys_cpu)
  *
  * wait for the flag to change, indicating this kernel is going away but
@@ -507,7 +506,7 @@ _GLOBAL(kexec_smp_wait)
 	stb	r4,PACAKEXECSTATE(r13)
 	SYNC
 
-	b	.kexec_wait
+	b	kexec_wait
 
 /*
  * switch to real mode (turn mmu off)
@@ -577,7 +576,7 @@ _GLOBAL(kexec_sequence)
 
 	/* copy dest pages, flush whole dest image */
 	mr	r3,r29
-	bl	.kexec_copy_flush	/* (image) */
+	bl	kexec_copy_flush	/* (image) */
 
 	/* turn off mmu */
 	bl	real_mode
@@ -587,7 +586,7 @@ _GLOBAL(kexec_sequence)
 	mr	r4,r30		/* start, aka phys mem offset */
 	li	r5,0x100
 	li	r6,0
-	bl	.copy_and_flush	/* (dest, src, copy limit, start offset) */
+	bl	copy_and_flush	/* (dest, src, copy limit, start offset) */
 1:	/* assume normal blr return */
 
 	/* release other cpus to the new kernel secondary start at 0x60 */
@@ -596,8 +595,12 @@ _GLOBAL(kexec_sequence)
 	stw	r6,kexec_flag-1b(5)
 
 	/* clear out hardware hash page table and tlb */
-	ld	r5,0(r27)		/* deref function descriptor */
-	mtctr	r5
+#if !defined(_CALL_ELF) || _CALL_ELF != 2
+	ld	r12,0(r27)		/* deref function descriptor */
+#else
+	mr	r12,r27
+#endif
+	mtctr	r12
 	bctrl				/* ppc_md.hpte_clear_all(void); */
 
 /*
@@ -631,3 +634,31 @@ _GLOBAL(kexec_sequence)
 	li	r5,0
 	blr	/* image->start(physid, image->start, 0); */
 #endif /* CONFIG_KEXEC */
+
+#ifdef CONFIG_MODULES
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+
+#ifdef CONFIG_MODVERSIONS
+.weak __crc_TOC.
+.section "___kcrctab+TOC.","a"
+.globl __kcrctab_TOC.
+__kcrctab_TOC.:
+	.llong	__crc_TOC.
+#endif
+
+/*
+ * Export a fake .TOC. since both modpost and depmod will complain otherwise.
+ * Both modpost and depmod strip the leading . so we do the same here.
+ */
+.section "__ksymtab_strings","a"
+__kstrtab_TOC.:
+	.asciz "TOC."
+
+.section "___ksymtab+TOC.","a"
+/* This symbol name is important: it's used by modpost to find exported syms */
+.globl __ksymtab_TOC.
+__ksymtab_TOC.:
+	.llong 0 /* .value */
+	.llong __kstrtab_TOC.
+#endif /* ELFv2 */
+#endif /* MODULES */

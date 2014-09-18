@@ -27,8 +27,8 @@
 #ifndef __DRM_ENCODER_SLAVE_H__
 #define __DRM_ENCODER_SLAVE_H__
 
-#include "drmP.h"
-#include "drm_crtc.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
 
 /**
  * struct drm_encoder_slave_funcs - Entry points exposed by a slave encoder driver
@@ -54,7 +54,7 @@ struct drm_encoder_slave_funcs {
 	void (*save)(struct drm_encoder *encoder);
 	void (*restore)(struct drm_encoder *encoder);
 	bool (*mode_fixup)(struct drm_encoder *encoder,
-			   struct drm_display_mode *mode,
+			   const struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode);
 	int (*mode_valid)(struct drm_encoder *encoder,
 			  struct drm_display_mode *mode);
@@ -158,5 +158,25 @@ static inline void drm_i2c_encoder_unregister(struct drm_i2c_encoder_driver *dri
 }
 
 void drm_i2c_encoder_destroy(struct drm_encoder *encoder);
+
+
+/*
+ * Wrapper fxns which can be plugged in to drm_encoder_helper_funcs:
+ */
+
+void drm_i2c_encoder_dpms(struct drm_encoder *encoder, int mode);
+bool drm_i2c_encoder_mode_fixup(struct drm_encoder *encoder,
+		const struct drm_display_mode *mode,
+		struct drm_display_mode *adjusted_mode);
+void drm_i2c_encoder_prepare(struct drm_encoder *encoder);
+void drm_i2c_encoder_commit(struct drm_encoder *encoder);
+void drm_i2c_encoder_mode_set(struct drm_encoder *encoder,
+		struct drm_display_mode *mode,
+		struct drm_display_mode *adjusted_mode);
+enum drm_connector_status drm_i2c_encoder_detect(struct drm_encoder *encoder,
+	    struct drm_connector *connector);
+void drm_i2c_encoder_save(struct drm_encoder *encoder);
+void drm_i2c_encoder_restore(struct drm_encoder *encoder);
+
 
 #endif

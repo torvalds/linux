@@ -12,8 +12,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, write to the Free Software Foundation, Inc.,   *
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.                 *
+ * with this program; if not, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -523,7 +522,7 @@ static const struct board_info t1_board[] = {
 
 };
 
-DEFINE_PCI_DEVICE_TABLE(t1_pci_tbl) = {
+const struct pci_device_id t1_pci_tbl[] = {
 	CH_DEVICE(8, 0, CH_BRD_T110_1CU),
 	CH_DEVICE(8, 1, CH_BRD_T110_1CU),
 	CH_DEVICE(7, 0, CH_BRD_N110_1F),
@@ -892,8 +891,8 @@ static void power_sequence_xpak(adapter_t* adapter)
 	}
 }
 
-int __devinit t1_get_board_rev(adapter_t *adapter, const struct board_info *bi,
-			       struct adapter_params *p)
+int t1_get_board_rev(adapter_t *adapter, const struct board_info *bi,
+		     struct adapter_params *p)
 {
 	p->chip_version = bi->chip_term;
 	p->is_asic = (p->chip_version != CHBT_TERM_FPGA);
@@ -992,7 +991,7 @@ out_err:
 /*
  * Determine a card's PCI mode.
  */
-static void __devinit get_pci_mode(adapter_t *adapter, struct chelsio_pci_params *p)
+static void get_pci_mode(adapter_t *adapter, struct chelsio_pci_params *p)
 {
 	static const unsigned short speed_map[] = { 33, 66, 100, 133 };
 	u32 pci_mode;
@@ -1028,8 +1027,8 @@ void t1_free_sw_modules(adapter_t *adapter)
 		t1_espi_destroy(adapter->espi);
 }
 
-static void __devinit init_link_config(struct link_config *lc,
-				       const struct board_info *bi)
+static void init_link_config(struct link_config *lc,
+			     const struct board_info *bi)
 {
 	lc->supported = bi->caps;
 	lc->requested_speed = lc->speed = SPEED_INVALID;
@@ -1049,8 +1048,7 @@ static void __devinit init_link_config(struct link_config *lc,
  * Allocate and initialize the data structures that hold the SW state of
  * the Terminator HW modules.
  */
-int __devinit t1_init_sw_modules(adapter_t *adapter,
-				 const struct board_info *bi)
+int t1_init_sw_modules(adapter_t *adapter, const struct board_info *bi)
 {
 	unsigned int i;
 

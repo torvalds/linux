@@ -188,10 +188,9 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 
 	ledtrig_ide_activity();
 
-	pr_debug("%s: %sing: block=%llu, sectors=%u, buffer=0x%08lx\n",
+	pr_debug("%s: %sing: block=%llu, sectors=%u\n",
 		 drive->name, rq_data_dir(rq) == READ ? "read" : "writ",
-		 (unsigned long long)block, blk_rq_sectors(rq),
-		 (unsigned long)rq->buffer);
+		 (unsigned long long)block, blk_rq_sectors(rq));
 
 	if (hwif->rw_disk)
 		hwif->rw_disk(drive, rq);

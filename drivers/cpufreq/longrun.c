@@ -33,7 +33,7 @@ static unsigned int longrun_low_freq, longrun_high_freq;
  * Reads the current LongRun policy by access to MSR_TMTA_LONGRUN_FLAGS
  * and MSR_TMTA_LONGRUN_CTRL
  */
-static void __cpuinit longrun_get_policy(struct cpufreq_policy *policy)
+static void longrun_get_policy(struct cpufreq_policy *policy)
 {
 	u32 msr_lo, msr_hi;
 
@@ -129,9 +129,7 @@ static int longrun_verify_policy(struct cpufreq_policy *policy)
 		return -EINVAL;
 
 	policy->cpu = 0;
-	cpufreq_verify_within_limits(policy,
-		policy->cpuinfo.min_freq,
-		policy->cpuinfo.max_freq);
+	cpufreq_verify_within_cpu_limits(policy);
 
 	if ((policy->policy != CPUFREQ_POLICY_POWERSAVE) &&
 	    (policy->policy != CPUFREQ_POLICY_PERFORMANCE))
@@ -163,7 +161,7 @@ static unsigned int longrun_get(unsigned int cpu)
  * TMTA rules:
  * performance_pctg = (target_freq - low_freq)/(high_freq - low_freq)
  */
-static int __cpuinit longrun_determine_freqs(unsigned int *low_freq,
+static int longrun_determine_freqs(unsigned int *low_freq,
 						      unsigned int *high_freq)
 {
 	u32 msr_lo, msr_hi;
@@ -256,7 +254,7 @@ static int __cpuinit longrun_determine_freqs(unsigned int *low_freq,
 }
 
 
-static int __cpuinit longrun_cpu_init(struct cpufreq_policy *policy)
+static int longrun_cpu_init(struct cpufreq_policy *policy)
 {
 	int result = 0;
 
@@ -286,7 +284,6 @@ static struct cpufreq_driver longrun_driver = {
 	.get		= longrun_get,
 	.init		= longrun_cpu_init,
 	.name		= "longrun",
-	.owner		= THIS_MODULE,
 };
 
 static const struct x86_cpu_id longrun_ids[] = {

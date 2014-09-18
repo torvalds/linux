@@ -29,7 +29,6 @@
 #define _OS_INTFS_C_
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/kthread.h>
 #include <linux/firmware.h>
 #include "osdep_service.h"
@@ -52,7 +51,7 @@ static int lbkmode = RTL8712_AIR_TRX;
 static int hci = RTL8712_USB;
 static int ampdu_enable = 1;/*for enable tx_ampdu*/
 
-/* The video_mode variable is for vedio mode.*/
+/* The video_mode variable is for video mode.*/
 /* It may be specify when inserting module with video_mode=1 parameter.*/
 static int video_mode = 1;   /* enable video mode*/
 
@@ -96,7 +95,7 @@ static char *initmac;
 /* if wifi_test = 1, driver will disable the turbo mode and pass it to
  * firmware private.
  */
-static int wifi_test = 0;
+static int wifi_test;
 
 module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
 module_param(wifi_test, int, 0644);
@@ -141,7 +140,7 @@ static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
 	registry_par->ssid.SsidLength = 3;
 	registry_par->channel = (u8)channel;
 	registry_par->wireless_mode = (u8)wireless_mode;
-	registry_par->vrtl_carrier_sense = (u8)vrtl_carrier_sense ;
+	registry_par->vrtl_carrier_sense = (u8)vrtl_carrier_sense;
 	registry_par->vcs_type = (u8)vcs_type;
 	registry_par->frag_thresh = (u16)frag_thresh;
 	registry_par->preamble = (u8)preamble;
@@ -224,8 +223,7 @@ struct net_device *r8712_init_netdev(void)
 	}
 	padapter = (struct _adapter *) netdev_priv(pnetdev);
 	padapter->pnetdev = pnetdev;
-	printk(KERN_INFO "r8712u: register rtl8712_netdev_ops to"
-	       " netdev_ops\n");
+	pr_info("r8712u: register rtl8712_netdev_ops to netdev_ops\n");
 	pnetdev->netdev_ops = &rtl8712_netdev_ops;
 	pnetdev->watchdog_timeo = HZ; /* 1 second timeout */
 	pnetdev->wireless_handlers = (struct iw_handler_def *)
@@ -239,16 +237,16 @@ struct net_device *r8712_init_netdev(void)
 
 static u32 start_drv_threads(struct _adapter *padapter)
 {
-	padapter->cmdThread = kthread_run(r8712_cmd_thread, padapter,
+	padapter->cmdThread = kthread_run(r8712_cmd_thread, padapter, "%s",
 			      padapter->pnetdev->name);
-	if (IS_ERR(padapter->cmdThread) < 0)
+	if (IS_ERR(padapter->cmdThread))
 		return _FAIL;
 	return _SUCCESS;
 }
 
 void r8712_stop_drv_threads(struct _adapter *padapter)
 {
-	/*Below is to termindate r8712_cmd_thread & event_thread...*/
+	/*Below is to terminate r8712_cmd_thread & event_thread...*/
 	up(&padapter->cmdpriv.cmd_queue_sema);
 	if (padapter->cmdThread)
 		_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
@@ -347,8 +345,7 @@ u8 r8712_free_drv_sw(struct _adapter *padapter)
 	r8712_free_mlme_priv(&padapter->mlmepriv);
 	r8712_free_io_queue(padapter);
 	_free_xmit_priv(&padapter->xmitpriv);
-	if (padapter->fw_found)
-		_r8712_free_sta_priv(&padapter->stapriv);
+	_r8712_free_sta_priv(&padapter->stapriv);
 	_r8712_free_recv_priv(&padapter->recvpriv);
 	mp871xdeinit(padapter);
 	if (pnetdev)

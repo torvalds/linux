@@ -219,13 +219,10 @@ static void spi_lm70llp_attach(struct parport *p)
 	}
 	pp = spi_master_get_devdata(master);
 
-	master->bus_num = -1;	/* dynamic alloc of a bus number */
-	master->num_chipselect = 1;
-
 	/*
 	 * SPI and bitbang hookup.
 	 */
-	pp->bitbang.master = spi_master_get(master);
+	pp->bitbang.master = master;
 	pp->bitbang.chipselect = lm70_chipselect;
 	pp->bitbang.txrx_word[SPI_MODE_0] = lm70_txrx;
 	pp->bitbang.flags = SPI_3WIRE;

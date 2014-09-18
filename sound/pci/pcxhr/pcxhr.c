@@ -91,10 +91,18 @@ enum {
 	PCI_ID_PCX924E,
 	PCI_ID_PCX924HRMIC,
 	PCI_ID_PCX924E_MIC,
+	PCI_ID_VX442HR,
+	PCI_ID_PCX442HR,
+	PCI_ID_VX442E,
+	PCI_ID_PCX442E,
+	PCI_ID_VX822HR,
+	PCI_ID_PCX822HR,
+	PCI_ID_VX822E,
+	PCI_ID_PCX822E,
 	PCI_ID_LAST
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pcxhr_ids) = {
+static const struct pci_device_id pcxhr_ids[] = {
 	{ 0x10b5, 0x9656, 0x1369, 0xb001, 0, 0, PCI_ID_VX882HR, },
 	{ 0x10b5, 0x9656, 0x1369, 0xb101, 0, 0, PCI_ID_PCX882HR, },
 	{ 0x10b5, 0x9656, 0x1369, 0xb201, 0, 0, PCI_ID_VX881HR, },
@@ -121,6 +129,14 @@ static DEFINE_PCI_DEVICE_TABLE(pcxhr_ids) = {
 	{ 0x10b5, 0x9056, 0x1369, 0xbb21, 0, 0, PCI_ID_PCX924E, },
 	{ 0x10b5, 0x9056, 0x1369, 0xbf01, 0, 0, PCI_ID_PCX924HRMIC, },
 	{ 0x10b5, 0x9056, 0x1369, 0xbf21, 0, 0, PCI_ID_PCX924E_MIC, },
+	{ 0x10b5, 0x9656, 0x1369, 0xd001, 0, 0, PCI_ID_VX442HR, },
+	{ 0x10b5, 0x9656, 0x1369, 0xd101, 0, 0, PCI_ID_PCX442HR, },
+	{ 0x10b5, 0x9056, 0x1369, 0xd021, 0, 0, PCI_ID_VX442E, },
+	{ 0x10b5, 0x9056, 0x1369, 0xd121, 0, 0, PCI_ID_PCX442E, },
+	{ 0x10b5, 0x9656, 0x1369, 0xd201, 0, 0, PCI_ID_VX822HR, },
+	{ 0x10b5, 0x9656, 0x1369, 0xd301, 0, 0, PCI_ID_PCX822HR, },
+	{ 0x10b5, 0x9056, 0x1369, 0xd221, 0, 0, PCI_ID_VX822E, },
+	{ 0x10b5, 0x9056, 0x1369, 0xd321, 0, 0, PCI_ID_PCX822E, },
 	{ 0, }
 };
 
@@ -160,6 +176,14 @@ static struct board_parameters pcxhr_board_params[] = {
 [PCI_ID_PCX924E] =      { "PCX924e",      1, 1, 5, 44 },
 [PCI_ID_PCX924HRMIC] =  { "PCX924HR-Mic", 1, 1, 5, 44 },
 [PCI_ID_PCX924E_MIC] =  { "PCX924e-Mic",  1, 1, 5, 44 },
+[PCI_ID_VX442HR] =      { "VX442HR",      2, 2, 0, 41 },
+[PCI_ID_PCX442HR] =     { "PCX442HR",     2, 2, 0, 41 },
+[PCI_ID_VX442E] =       { "VX442e",       2, 2, 1, 41 },
+[PCI_ID_PCX442E] =      { "PCX442e",      2, 2, 1, 41 },
+[PCI_ID_VX822HR] =      { "VX822HR",      4, 1, 2, 42 },
+[PCI_ID_PCX822HR] =     { "PCX822HR",     4, 1, 2, 42 },
+[PCI_ID_VX822E] =       { "VX822e",       4, 1, 3, 42 },
+[PCI_ID_PCX822E] =      { "PCX822e",      4, 1, 3, 42 },
 };
 
 /* boards without hw AES1 and SRC onboard are all using fw_file_set==4 */
@@ -260,7 +284,7 @@ static int pcxhr_get_clock_reg(struct pcxhr_mgr *mgr, unsigned int rate,
 			rmh.cmd_len = 3;
 			err = pcxhr_send_msg(mgr, &rmh);
 			if (err < 0) {
-				snd_printk(KERN_ERR
+				dev_err(&mgr->pci->dev,
 					   "error CMD_ACCESS_IO_WRITE "
 					   "for PLL register : %x!\n", err);
 				return err;
@@ -333,7 +357,7 @@ static int pcxhr_sub_set_clock(struct pcxhr_mgr *mgr,
 			return err;
 	}
 	/* set the new frequency */
-	snd_printdd("clock register : set %x\n", val);
+	dev_dbg(&mgr->pci->dev, "clock register : set %x\n", val);
 	err = pcxhr_write_io_num_reg_cont(mgr, PCXHR_FREQ_REG_MASK,
 					  val, changed);
 	if (err)
@@ -356,7 +380,7 @@ static int pcxhr_sub_set_clock(struct pcxhr_mgr *mgr,
 		mgr->codec_speed = speed;	/* save new codec speed */
 	}
 
-	snd_printdd("pcxhr_sub_set_clock to %dHz (realfreq=%d)\n",
+	dev_dbg(&mgr->pci->dev, "pcxhr_sub_set_clock to %dHz (realfreq=%d)\n",
 		    rate, realfreq);
 	return 0;
 }
@@ -456,7 +480,7 @@ static int pcxhr_sub_get_external_clock(struct pcxhr_mgr *mgr,
 	case REG_STATUS_SYNC_192000 :	rate = 192000; break;
 	default: rate = 0;
 	}
-	snd_printdd("External clock is at %d Hz\n", rate);
+	dev_dbg(&mgr->pci->dev, "External clock is at %d Hz\n", rate);
 	*sample_rate = rate;
 	return 0;
 }
@@ -513,8 +537,8 @@ static int pcxhr_set_stream_state(struct pcxhr_stream *stream)
 
 	err = pcxhr_send_msg(chip->mgr, &rmh);
 	if (err)
-		snd_printk(KERN_ERR "ERROR pcxhr_set_stream_state err=%x;\n",
-			   err);
+		dev_err(chip->card->dev,
+			"ERROR pcxhr_set_stream_state err=%x;\n", err);
 	stream->status =
 	  start ? PCXHR_STREAM_STATUS_STARTED : PCXHR_STREAM_STATUS_STOPPED;
 	return err;
@@ -604,7 +628,8 @@ static int pcxhr_set_format(struct pcxhr_stream *stream)
 	rmh.cmd[rmh.cmd_len++] = (header & 0xff) << 16;
 	err = pcxhr_send_msg(chip->mgr, &rmh);
 	if (err)
-		snd_printk(KERN_ERR "ERROR pcxhr_set_format err=%x;\n", err);
+		dev_err(chip->card->dev,
+			"ERROR pcxhr_set_format err=%x;\n", err);
 	return err;
 }
 
@@ -641,7 +666,7 @@ static int pcxhr_update_r_buffer(struct pcxhr_stream *stream)
 	rmh.cmd_len = 4;
 	err = pcxhr_send_msg(chip->mgr, &rmh);
 	if (err)
-		snd_printk(KERN_ERR
+		dev_err(chip->card->dev,
 			   "ERROR CMD_UPDATE_R_BUFFERS err=%x;\n", err);
 	return err;
 }
@@ -711,11 +736,11 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 	}
 	if (capture_mask == 0 && playback_mask == 0) {
 		mutex_unlock(&mgr->setup_mutex);
-		snd_printk(KERN_ERR "pcxhr_trigger_tasklet : no pipes\n");
+		dev_err(&mgr->pci->dev, "pcxhr_trigger_tasklet : no pipes\n");
 		return;
 	}
 
-	snd_printdd("pcxhr_trigger_tasklet : "
+	dev_dbg(&mgr->pci->dev, "pcxhr_trigger_tasklet : "
 		    "playback_mask=%x capture_mask=%x\n",
 		    playback_mask, capture_mask);
 
@@ -723,7 +748,7 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 	err = pcxhr_set_pipe_state(mgr,  playback_mask, capture_mask, 0);
 	if (err) {
 		mutex_unlock(&mgr->setup_mutex);
-		snd_printk(KERN_ERR "pcxhr_trigger_tasklet : "
+		dev_err(&mgr->pci->dev, "pcxhr_trigger_tasklet : "
 			   "error stop pipes (P%x C%x)\n",
 			   playback_mask, capture_mask);
 		return;
@@ -768,7 +793,7 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 	err = pcxhr_set_pipe_state(mgr, playback_mask, capture_mask, 1);
 	if (err) {
 		mutex_unlock(&mgr->setup_mutex);
-		snd_printk(KERN_ERR "pcxhr_trigger_tasklet : "
+		dev_err(&mgr->pci->dev, "pcxhr_trigger_tasklet : "
 			   "error start pipes (P%x C%x)\n",
 			   playback_mask, capture_mask);
 		return;
@@ -801,7 +826,7 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 	do_gettimeofday(&my_tv2);
-	snd_printdd("***TRIGGER TASKLET*** TIME = %ld (err = %x)\n",
+	dev_dbg(&mgr->pci->dev, "***TRIGGER TASKLET*** TIME = %ld (err = %x)\n",
 		    (long)(my_tv2.tv_usec - my_tv1.tv_usec), err);
 #endif
 }
@@ -878,7 +903,7 @@ static int pcxhr_hardware_timer(struct pcxhr_mgr *mgr, int start)
 	}
 	err = pcxhr_send_msg(mgr, &rmh);
 	if (err < 0)
-		snd_printk(KERN_ERR "error pcxhr_hardware_timer err(%x)\n",
+		dev_err(&mgr->pci->dev, "error pcxhr_hardware_timer err(%x)\n",
 			   err);
 	return err;
 }
@@ -892,7 +917,8 @@ static int pcxhr_prepare(struct snd_pcm_substream *subs)
 	struct pcxhr_mgr *mgr = chip->mgr;
 	int err = 0;
 
-	snd_printdd("pcxhr_prepare : period_size(%lx) periods(%x) buffer_size(%lx)\n",
+	dev_dbg(chip->card->dev,
+		"pcxhr_prepare : period_size(%lx) periods(%x) buffer_size(%lx)\n",
 		    subs->runtime->period_size, subs->runtime->periods,
 		    subs->runtime->buffer_size);
 
@@ -1001,11 +1027,11 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	runtime->hw = pcxhr_caps;
 
 	if( subs->stream == SNDRV_PCM_STREAM_PLAYBACK ) {
-		snd_printdd("pcxhr_open playback chip%d subs%d\n",
+		dev_dbg(chip->card->dev, "pcxhr_open playback chip%d subs%d\n",
 			    chip->chip_idx, subs->number);
 		stream = &chip->playback_stream[subs->number];
 	} else {
-		snd_printdd("pcxhr_open capture chip%d subs%d\n",
+		dev_dbg(chip->card->dev, "pcxhr_open capture chip%d subs%d\n",
 			    chip->chip_idx, subs->number);
 		if (mgr->mono_capture)
 			runtime->hw.channels_max = 1;
@@ -1015,7 +1041,7 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	}
 	if (stream->status != PCXHR_STREAM_STATUS_FREE){
 		/* streams in use */
-		snd_printk(KERN_ERR "pcxhr_open chip%d subs%d in use\n",
+		dev_err(chip->card->dev, "pcxhr_open chip%d subs%d in use\n",
 			   chip->chip_idx, subs->number);
 		mutex_unlock(&mgr->setup_mutex);
 		return -EBUSY;
@@ -1081,7 +1107,7 @@ static int pcxhr_close(struct snd_pcm_substream *subs)
 
 	mutex_lock(&mgr->setup_mutex);
 
-	snd_printdd("pcxhr_close chip%d subs%d\n",
+	dev_dbg(chip->card->dev, "pcxhr_close chip%d subs%d\n",
 		    chip->chip_idx, subs->number);
 
 	/* sample rate released */
@@ -1144,7 +1170,7 @@ int pcxhr_create_pcm(struct snd_pcxhr *chip)
 	if ((err = snd_pcm_new(chip->card, name, 0,
 			       chip->nb_streams_play,
 			       chip->nb_streams_capt, &pcm)) < 0) {
-		snd_printk(KERN_ERR "cannot create pcm %s\n", name);
+		dev_err(chip->card->dev, "cannot create pcm %s\n", name);
 		return err;
 	}
 	pcm->private_data = chip;
@@ -1179,8 +1205,8 @@ static int pcxhr_chip_dev_free(struct snd_device *device)
 
 /*
  */
-static int __devinit pcxhr_create(struct pcxhr_mgr *mgr,
-				  struct snd_card *card, int idx)
+static int pcxhr_create(struct pcxhr_mgr *mgr,
+			struct snd_card *card, int idx)
 {
 	int err;
 	struct snd_pcxhr *chip;
@@ -1190,7 +1216,7 @@ static int __devinit pcxhr_create(struct pcxhr_mgr *mgr,
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (! chip) {
-		snd_printk(KERN_ERR "cannot allocate chip\n");
+		dev_err(card->dev, "cannot allocate chip\n");
 		return -ENOMEM;
 	}
 
@@ -1215,7 +1241,6 @@ static int __devinit pcxhr_create(struct pcxhr_mgr *mgr,
 	}
 
 	mgr->chip[idx] = chip;
-	snd_card_set_dev(card, &mgr->pci->dev);
 
 	return 0;
 }
@@ -1368,7 +1393,68 @@ static void pcxhr_proc_gpo_write(struct snd_info_entry *entry,
 	}
 }
 
-static void __devinit pcxhr_proc_init(struct snd_pcxhr *chip)
+/* Access to the results of the CMD_GET_TIME_CODE RMH */
+#define TIME_CODE_VALID_MASK	0x00800000
+#define TIME_CODE_NEW_MASK	0x00400000
+#define TIME_CODE_BACK_MASK	0x00200000
+#define TIME_CODE_WAIT_MASK	0x00100000
+
+/* Values for the CMD_MANAGE_SIGNAL RMH */
+#define MANAGE_SIGNAL_TIME_CODE	0x01
+#define MANAGE_SIGNAL_MIDI	0x02
+
+/* linear time code read proc*/
+static void pcxhr_proc_ltc(struct snd_info_entry *entry,
+			   struct snd_info_buffer *buffer)
+{
+	struct snd_pcxhr *chip = entry->private_data;
+	struct pcxhr_mgr *mgr = chip->mgr;
+	struct pcxhr_rmh rmh;
+	unsigned int ltcHrs, ltcMin, ltcSec, ltcFrm;
+	int err;
+	/* commands available when embedded DSP is running */
+	if (!(mgr->dsp_loaded & (1 << PCXHR_FIRMWARE_DSP_MAIN_INDEX))) {
+		snd_iprintf(buffer, "no firmware loaded\n");
+		return;
+	}
+	if (!mgr->capture_ltc) {
+		pcxhr_init_rmh(&rmh, CMD_MANAGE_SIGNAL);
+		rmh.cmd[0] |= MANAGE_SIGNAL_TIME_CODE;
+		err = pcxhr_send_msg(mgr, &rmh);
+		if (err) {
+			snd_iprintf(buffer, "ltc not activated (%d)\n", err);
+			return;
+		}
+		if (mgr->is_hr_stereo)
+			hr222_manage_timecode(mgr, 1);
+		else
+			pcxhr_write_io_num_reg_cont(mgr, REG_CONT_VALSMPTE,
+						    REG_CONT_VALSMPTE, NULL);
+		mgr->capture_ltc = 1;
+	}
+	pcxhr_init_rmh(&rmh, CMD_GET_TIME_CODE);
+	err = pcxhr_send_msg(mgr, &rmh);
+	if (err) {
+		snd_iprintf(buffer, "ltc read error (err=%d)\n", err);
+		return ;
+	}
+	ltcHrs = 10*((rmh.stat[0] >> 8) & 0x3) + (rmh.stat[0] & 0xf);
+	ltcMin = 10*((rmh.stat[1] >> 16) & 0x7) + ((rmh.stat[1] >> 8) & 0xf);
+	ltcSec = 10*(rmh.stat[1] & 0x7) + ((rmh.stat[2] >> 16) & 0xf);
+	ltcFrm = 10*((rmh.stat[2] >> 8) & 0x3) + (rmh.stat[2] & 0xf);
+
+	snd_iprintf(buffer, "timecode: %02u:%02u:%02u-%02u\n",
+			    ltcHrs, ltcMin, ltcSec, ltcFrm);
+	snd_iprintf(buffer, "raw: 0x%04x%06x%06x\n", rmh.stat[0] & 0x00ffff,
+			    rmh.stat[1] & 0xffffff, rmh.stat[2] & 0xffffff);
+	/*snd_iprintf(buffer, "dsp ref time: 0x%06x%06x\n",
+			    rmh.stat[3] & 0xffffff, rmh.stat[4] & 0xffffff);*/
+	if (!(rmh.stat[0] & TIME_CODE_VALID_MASK)) {
+		snd_iprintf(buffer, "warning: linear timecode not valid\n");
+	}
+}
+
+static void pcxhr_proc_init(struct snd_pcxhr *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -1383,6 +1469,8 @@ static void __devinit pcxhr_proc_init(struct snd_pcxhr *chip)
 		entry->c.text.write = pcxhr_proc_gpo_write;
 		entry->mode |= S_IWUSR;
 	}
+	if (!snd_card_proc_new(chip->card, "ltc", &entry))
+		snd_info_set_text_ops(entry, chip, pcxhr_proc_ltc);
 }
 /* end of proc interface */
 
@@ -1401,7 +1489,7 @@ static int pcxhr_free(struct pcxhr_mgr *mgr)
 	/* reset board if some firmware was loaded */
 	if(mgr->dsp_loaded) {
 		pcxhr_reset_board(mgr);
-		snd_printdd("reset pcxhr !\n");
+		dev_dbg(&mgr->pci->dev, "reset pcxhr !\n");
 	}
 
 	/* release irq  */
@@ -1426,8 +1514,8 @@ static int pcxhr_free(struct pcxhr_mgr *mgr)
 /*
  *    probe function - creates the card manager
  */
-static int __devinit pcxhr_probe(struct pci_dev *pci,
-				 const struct pci_device_id *pci_id)
+static int pcxhr_probe(struct pci_dev *pci,
+		       const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct pcxhr_mgr *mgr;
@@ -1450,8 +1538,8 @@ static int __devinit pcxhr_probe(struct pci_dev *pci,
 
 	/* check if we can restrict PCI DMA transfers to 32 bits */
 	if (pci_set_dma_mask(pci, DMA_BIT_MASK(32)) < 0) {
-		snd_printk(KERN_ERR "architecture does not support "
-			   "32bit PCI busmaster DMA\n");
+		dev_err(&pci->dev,
+			"architecture does not support 32bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -1502,7 +1590,7 @@ static int __devinit pcxhr_probe(struct pci_dev *pci,
 
 	if (request_irq(pci->irq, pcxhr_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, mgr)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		dev_err(&pci->dev, "unable to grab IRQ %d\n", pci->irq);
 		pcxhr_free(mgr);
 		return -EBUSY;
 	}
@@ -1551,10 +1639,11 @@ static int __devinit pcxhr_probe(struct pci_dev *pci,
 
 		snprintf(tmpid, sizeof(tmpid), "%s-%d",
 			 id[dev] ? id[dev] : card_name, i);
-		err = snd_card_create(idx, tmpid, THIS_MODULE, 0, &card);
+		err = snd_card_new(&pci->dev, idx, tmpid, THIS_MODULE,
+				   0, &card);
 
 		if (err < 0) {
-			snd_printk(KERN_ERR "cannot allocate the card %d\n", i);
+			dev_err(card->dev, "cannot allocate the card %d\n", i);
 			pcxhr_free(mgr);
 			return err;
 		}
@@ -1601,28 +1690,16 @@ static int __devinit pcxhr_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit pcxhr_remove(struct pci_dev *pci)
+static void pcxhr_remove(struct pci_dev *pci)
 {
 	pcxhr_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver pcxhr_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = pcxhr_ids,
 	.probe = pcxhr_probe,
-	.remove = __devexit_p(pcxhr_remove),
+	.remove = pcxhr_remove,
 };
 
-static int __init pcxhr_module_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit pcxhr_module_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(pcxhr_module_init)
-module_exit(pcxhr_module_exit)
+module_pci_driver(pcxhr_driver);

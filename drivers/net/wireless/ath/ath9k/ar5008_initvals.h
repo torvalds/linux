@@ -466,7 +466,7 @@ static const u32 ar5416Bank0[][2] = {
 };
 
 static const u32 ar5416BB_RfGain[][3] = {
-	/* Addr      5G_HT20     5G_HT40   */
+	/* Addr      5G          2G        */
 	{0x00009a00, 0x00000000, 0x00000000},
 	{0x00009a04, 0x00000040, 0x00000040},
 	{0x00009a08, 0x00000080, 0x00000080},
@@ -546,12 +546,12 @@ static const u32 ar5416Bank2[][2] = {
 };
 
 static const u32 ar5416Bank3[][3] = {
-	/* Addr      5G_HT20     5G_HT40   */
+	/* Addr      5G          2G        */
 	{0x000098f0, 0x01400018, 0x01c00018},
 };
 
 static const u32 ar5416Bank6[][3] = {
-	/* Addr      5G_HT20     5G_HT40   */
+	/* Addr      5G          2G        */
 	{0x0000989c, 0x00000000, 0x00000000},
 	{0x0000989c, 0x00000000, 0x00000000},
 	{0x0000989c, 0x00000000, 0x00000000},
@@ -588,7 +588,7 @@ static const u32 ar5416Bank6[][3] = {
 };
 
 static const u32 ar5416Bank6TPC[][3] = {
-	/* Addr      5G_HT20     5G_HT40   */
+	/* Addr      5G          2G        */
 	{0x0000989c, 0x00000000, 0x00000000},
 	{0x0000989c, 0x00000000, 0x00000000},
 	{0x0000989c, 0x00000000, 0x00000000},

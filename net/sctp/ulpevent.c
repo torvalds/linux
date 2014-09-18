@@ -22,25 +22,18 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    Jon Grimm             <jgrimm@us.ibm.com>
  *    La Monte H.P. Yarroll <piggy@acm.org>
  *    Ardelle Fan	    <ardelle.fan@intel.com>
  *    Sridhar Samudrala     <sri@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/slab.h>
@@ -57,9 +50,9 @@ static void sctp_ulpevent_release_frag_data(struct sctp_ulpevent *event);
 
 
 /* Initialize an ULP event from an given skb.  */
-SCTP_STATIC void sctp_ulpevent_init(struct sctp_ulpevent *event,
-				    int msg_flags,
-				    unsigned int len)
+static void sctp_ulpevent_init(struct sctp_ulpevent *event,
+			       int msg_flags,
+			       unsigned int len)
 {
 	memset(event, 0, sizeof(struct sctp_ulpevent));
 	event->msg_flags = msg_flags;
@@ -67,8 +60,8 @@ SCTP_STATIC void sctp_ulpevent_init(struct sctp_ulpevent *event,
 }
 
 /* Create a new sctp_ulpevent.  */
-SCTP_STATIC struct sctp_ulpevent *sctp_ulpevent_new(int size, int msg_flags,
-						    gfp_t gfp)
+static struct sctp_ulpevent *sctp_ulpevent_new(int size, int msg_flags,
+					       gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sk_buff *skb;
@@ -348,7 +341,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
 	memcpy(&spc->spc_aaddr, aaddr, sizeof(struct sockaddr_storage));
 
 	/* Map ipv4 address into v4-mapped-on-v6 address.  */
-	sctp_get_pf_specific(asoc->base.sk->sk_family)->addr_v4map(
+	sctp_get_pf_specific(asoc->base.sk->sk_family)->addr_to_user(
 					sctp_sk(asoc->base.sk),
 					(union sctp_addr *)&spc->spc_aaddr);
 
@@ -373,9 +366,10 @@ fail:
  * specification [SCTP] and any extensions for a list of possible
  * error formats.
  */
-struct sctp_ulpevent *sctp_ulpevent_make_remote_error(
-	const struct sctp_association *asoc, struct sctp_chunk *chunk,
-	__u16 flags, gfp_t gfp)
+struct sctp_ulpevent *
+sctp_ulpevent_make_remote_error(const struct sctp_association *asoc,
+				struct sctp_chunk *chunk, __u16 flags,
+				gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_remote_error *sre;
@@ -394,8 +388,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_remote_error(
 	/* Copy the skb to a new skb with room for us to prepend
 	 * notification with.
 	 */
-	skb = skb_copy_expand(chunk->skb, sizeof(struct sctp_remote_error),
-			      0, gfp);
+	skb = skb_copy_expand(chunk->skb, sizeof(*sre), 0, gfp);
 
 	/* Pull off the rest of the cause TLV from the chunk.  */
 	skb_pull(chunk->skb, elen);
@@ -406,62 +399,21 @@ struct sctp_ulpevent *sctp_ulpevent_make_remote_error(
 	event = sctp_skb2event(skb);
 	sctp_ulpevent_init(event, MSG_NOTIFICATION, skb->truesize);
 
-	sre = (struct sctp_remote_error *)
-		skb_push(skb, sizeof(struct sctp_remote_error));
+	sre = (struct sctp_remote_error *) skb_push(skb, sizeof(*sre));
 
 	/* Trim the buffer to the right length.  */
-	skb_trim(skb, sizeof(struct sctp_remote_error) + elen);
+	skb_trim(skb, sizeof(*sre) + elen);
 
-	/* Socket Extensions for SCTP
-	 * 5.3.1.3 SCTP_REMOTE_ERROR
-	 *
-	 * sre_type:
-	 *   It should be SCTP_REMOTE_ERROR.
-	 */
+	/* RFC6458, Section 6.1.3. SCTP_REMOTE_ERROR */
+	memset(sre, 0, sizeof(*sre));
 	sre->sre_type = SCTP_REMOTE_ERROR;
-
-	/*
-	 * Socket Extensions for SCTP
-	 * 5.3.1.3 SCTP_REMOTE_ERROR
-	 *
-	 * sre_flags: 16 bits (unsigned integer)
-	 *   Currently unused.
-	 */
 	sre->sre_flags = 0;
-
-	/* Socket Extensions for SCTP
-	 * 5.3.1.3 SCTP_REMOTE_ERROR
-	 *
-	 * sre_length: sizeof (__u32)
-	 *
-	 * This field is the total length of the notification data,
-	 * including the notification header.
-	 */
 	sre->sre_length = skb->len;
-
-	/* Socket Extensions for SCTP
-	 * 5.3.1.3 SCTP_REMOTE_ERROR
-	 *
-	 * sre_error: 16 bits (unsigned integer)
-	 * This value represents one of the Operational Error causes defined in
-	 * the SCTP specification, in network byte order.
-	 */
 	sre->sre_error = cause;
-
-	/* Socket Extensions for SCTP
-	 * 5.3.1.3 SCTP_REMOTE_ERROR
-	 *
-	 * sre_assoc_id: sizeof (sctp_assoc_t)
-	 *
-	 * The association id field, holds the identifier for the association.
-	 * All notifications for a given association have the same association
-	 * identifier.  For TCP style socket, this field is ignored.
-	 */
 	sctp_ulpevent_set_owner(event, asoc);
 	sre->sre_assoc_id = sctp_assoc2id(asoc);
 
 	return event;
-
 fail:
 	return NULL;
 }
@@ -702,7 +654,8 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	if (rx_count >= asoc->base.sk->sk_rcvbuf) {
 
 		if ((asoc->base.sk->sk_userlocks & SOCK_RCVBUF_LOCK) ||
-		    (!sk_rmem_schedule(asoc->base.sk, chunk->skb->truesize)))
+		    (!sk_rmem_schedule(asoc->base.sk, chunk->skb,
+				       chunk->skb->truesize)))
 			goto fail;
 	}
 
@@ -715,7 +668,8 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	 * can mark it as received so the tsn_map is updated correctly.
 	 */
 	if (sctp_tsnmap_mark(&asoc->peer.tsn_map,
-			     ntohl(chunk->subh.data_hdr->tsn)))
+			     ntohl(chunk->subh.data_hdr->tsn),
+			     chunk->transport))
 		goto fail_mark;
 
 	/* First calculate the padding, so we don't inadvertently
@@ -904,7 +858,9 @@ __u16 sctp_ulpevent_get_notification_type(const struct sctp_ulpevent *event)
 	return notification->sn_header.sn_type;
 }
 
-/* Copy out the sndrcvinfo into a msghdr.  */
+/* RFC6458, Section 5.3.2. SCTP Header Information Structure
+ * (SCTP_SNDRCV, DEPRECATED)
+ */
 void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 				   struct msghdr *msghdr)
 {
@@ -913,74 +869,84 @@ void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 	if (sctp_ulpevent_is_notification(event))
 		return;
 
-	/* Sockets API Extensions for SCTP
-	 * Section 5.2.2 SCTP Header Information Structure (SCTP_SNDRCV)
-	 *
-	 * sinfo_stream: 16 bits (unsigned integer)
-	 *
-	 * For recvmsg() the SCTP stack places the message's stream number in
-	 * this value.
-	*/
+	memset(&sinfo, 0, sizeof(sinfo));
 	sinfo.sinfo_stream = event->stream;
-	/* sinfo_ssn: 16 bits (unsigned integer)
-	 *
-	 * For recvmsg() this value contains the stream sequence number that
-	 * the remote endpoint placed in the DATA chunk.  For fragmented
-	 * messages this is the same number for all deliveries of the message
-	 * (if more than one recvmsg() is needed to read the message).
-	 */
 	sinfo.sinfo_ssn = event->ssn;
-	/* sinfo_ppid: 32 bits (unsigned integer)
-	 *
-	 * In recvmsg() this value is
-	 * the same information that was passed by the upper layer in the peer
-	 * application.  Please note that byte order issues are NOT accounted
-	 * for and this information is passed opaquely by the SCTP stack from
-	 * one end to the other.
-	 */
 	sinfo.sinfo_ppid = event->ppid;
-	/* sinfo_flags: 16 bits (unsigned integer)
-	 *
-	 * This field may contain any of the following flags and is composed of
-	 * a bitwise OR of these values.
-	 *
-	 * recvmsg() flags:
-	 *
-	 * SCTP_UNORDERED - This flag is present when the message was sent
-	 *                 non-ordered.
-	 */
 	sinfo.sinfo_flags = event->flags;
-	/* sinfo_tsn: 32 bit (unsigned integer)
-	 *
-	 * For the receiving side, this field holds a TSN that was
-	 * assigned to one of the SCTP Data Chunks.
-	 */
 	sinfo.sinfo_tsn = event->tsn;
-	/* sinfo_cumtsn: 32 bit (unsigned integer)
-	 *
-	 * This field will hold the current cumulative TSN as
-	 * known by the underlying SCTP layer.  Note this field is
-	 * ignored when sending and only valid for a receive
-	 * operation when sinfo_flags are set to SCTP_UNORDERED.
-	 */
 	sinfo.sinfo_cumtsn = event->cumtsn;
-	/* sinfo_assoc_id: sizeof (sctp_assoc_t)
-	 *
-	 * The association handle field, sinfo_assoc_id, holds the identifier
-	 * for the association announced in the COMMUNICATION_UP notification.
-	 * All notifications for a given association have the same identifier.
-	 * Ignored for one-to-one style sockets.
-	 */
 	sinfo.sinfo_assoc_id = sctp_assoc2id(event->asoc);
-
-	/* context value that is set via SCTP_CONTEXT socket option. */
+	/* Context value that is set via SCTP_CONTEXT socket option. */
 	sinfo.sinfo_context = event->asoc->default_rcv_context;
-
 	/* These fields are not used while receiving. */
 	sinfo.sinfo_timetolive = 0;
 
 	put_cmsg(msghdr, IPPROTO_SCTP, SCTP_SNDRCV,
-		 sizeof(struct sctp_sndrcvinfo), (void *)&sinfo);
+		 sizeof(sinfo), &sinfo);
+}
+
+/* RFC6458, Section 5.3.5 SCTP Receive Information Structure
+ * (SCTP_SNDRCV)
+ */
+void sctp_ulpevent_read_rcvinfo(const struct sctp_ulpevent *event,
+				struct msghdr *msghdr)
+{
+	struct sctp_rcvinfo rinfo;
+
+	if (sctp_ulpevent_is_notification(event))
+		return;
+
+	memset(&rinfo, 0, sizeof(struct sctp_rcvinfo));
+	rinfo.rcv_sid = event->stream;
+	rinfo.rcv_ssn = event->ssn;
+	rinfo.rcv_ppid = event->ppid;
+	rinfo.rcv_flags = event->flags;
+	rinfo.rcv_tsn = event->tsn;
+	rinfo.rcv_cumtsn = event->cumtsn;
+	rinfo.rcv_assoc_id = sctp_assoc2id(event->asoc);
+	rinfo.rcv_context = event->asoc->default_rcv_context;
+
+	put_cmsg(msghdr, IPPROTO_SCTP, SCTP_RCVINFO,
+		 sizeof(rinfo), &rinfo);
+}
+
+/* RFC6458, Section 5.3.6. SCTP Next Receive Information Structure
+ * (SCTP_NXTINFO)
+ */
+static void __sctp_ulpevent_read_nxtinfo(const struct sctp_ulpevent *event,
+					 struct msghdr *msghdr,
+					 const struct sk_buff *skb)
+{
+	struct sctp_nxtinfo nxtinfo;
+
+	memset(&nxtinfo, 0, sizeof(nxtinfo));
+	nxtinfo.nxt_sid = event->stream;
+	nxtinfo.nxt_ppid = event->ppid;
+	nxtinfo.nxt_flags = event->flags;
+	if (sctp_ulpevent_is_notification(event))
+		nxtinfo.nxt_flags |= SCTP_NOTIFICATION;
+	nxtinfo.nxt_length = skb->len;
+	nxtinfo.nxt_assoc_id = sctp_assoc2id(event->asoc);
+
+	put_cmsg(msghdr, IPPROTO_SCTP, SCTP_NXTINFO,
+		 sizeof(nxtinfo), &nxtinfo);
+}
+
+void sctp_ulpevent_read_nxtinfo(const struct sctp_ulpevent *event,
+				struct msghdr *msghdr,
+				struct sock *sk)
+{
+	struct sk_buff *skb;
+	int err;
+
+	skb = sctp_skb_recv_datagram(sk, MSG_PEEK, 1, &err);
+	if (skb != NULL) {
+		__sctp_ulpevent_read_nxtinfo(sctp_skb2event(skb),
+					     msghdr, skb);
+		/* Just release refcount here. */
+		kfree_skb(skb);
+	}
 }
 
 /* Do accounting for bytes received and hold a reference to the association

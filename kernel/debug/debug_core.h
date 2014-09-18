@@ -26,6 +26,7 @@ struct kgdb_state {
 	unsigned long		threadid;
 	long			kgdb_usethreadid;
 	struct pt_regs		*linux_regs;
+	atomic_t		*send_ready;
 };
 
 /* Exception state values */
@@ -72,6 +73,8 @@ extern int dbg_kdb_mode;
 #ifdef CONFIG_KGDB_KDB
 extern int kdb_stub(struct kgdb_state *ks);
 extern int kdb_parse(const char *cmdstr);
+extern int kdb_common_init_state(struct kgdb_state *ks);
+extern int kdb_common_deinit_state(void);
 #else /* ! CONFIG_KGDB_KDB */
 static inline int kdb_stub(struct kgdb_state *ks)
 {

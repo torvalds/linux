@@ -1809,9 +1809,9 @@ static int u132_hcd_start(struct usb_hcd *hcd)
 		struct platform_device *pdev =
 			to_platform_device(hcd->self.controller);
 		u16 vendor = ((struct u132_platform_data *)
-			(pdev->dev.platform_data))->vendor;
+			dev_get_platdata(&pdev->dev))->vendor;
 		u16 device = ((struct u132_platform_data *)
-			(pdev->dev.platform_data))->device;
+			dev_get_platdata(&pdev->dev))->device;
 		mutex_lock(&u132->sw_lock);
 		msleep(10);
 		if (vendor == PCI_VENDOR_ID_AMD && device == 0x740c) {
@@ -2990,7 +2990,7 @@ static struct hc_driver u132_hc_driver = {
 * synchronously - but instead should immediately stop activity to the
 * device and asynchronously call usb_remove_hcd()
 */
-static int __devexit u132_remove(struct platform_device *pdev)
+static int u132_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	if (hcd) {
@@ -3034,7 +3034,7 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
 	int addrs = MAX_U132_ADDRS;
 	int udevs = MAX_U132_UDEVS;
 	int endps = MAX_U132_ENDPS;
-	u132->board = pdev->dev.platform_data;
+	u132->board = dev_get_platdata(&pdev->dev);
 	u132->platform_dev = pdev;
 	u132->power = 0;
 	u132->reset = 0;
@@ -3084,7 +3084,7 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
 	mutex_unlock(&u132->sw_lock);
 }
 
-static int __devinit u132_probe(struct platform_device *pdev)
+static int u132_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	int retval;
@@ -3133,6 +3133,7 @@ static int __devinit u132_probe(struct platform_device *pdev)
 			u132_u132_put_kref(u132);
 			return retval;
 		} else {
+			device_wakeup_enable(hcd->self.controller);
 			u132_monitor_queue_work(u132, 100);
 			return 0;
 		}
@@ -3141,10 +3142,11 @@ static int __devinit u132_probe(struct platform_device *pdev)
 
 
 #ifdef CONFIG_PM
-/* for this device there's no useful distinction between the controller
-* and its root hub, except that the root hub only gets direct PM calls
-* when CONFIG_USB_SUSPEND is enabled.
-*/
+/*
+ * for this device there's no useful distinction between the controller
+ * and its root hub, except that the root hub only gets direct PM calls
+ * when CONFIG_PM_RUNTIME is enabled.
+ */
 static int u132_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
@@ -3212,11 +3214,11 @@ static int u132_resume(struct platform_device *pdev)
 */
 static struct platform_driver u132_platform_driver = {
 	.probe = u132_probe,
-	.remove = __devexit_p(u132_remove),
+	.remove = u132_remove,
 	.suspend = u132_suspend,
 	.resume = u132_resume,
 	.driver = {
-		   .name = (char *)hcd_name,
+		   .name = hcd_name,
 		   .owner = THIS_MODULE,
 		   },
 };

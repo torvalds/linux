@@ -10,7 +10,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -112,22 +111,6 @@ static void nuc900_nand_write_buf(struct mtd_info *mtd,
 		write_data_reg(nand, buf[i]);
 }
 
-static int nuc900_verify_buf(struct mtd_info *mtd,
-			     const unsigned char *buf, int len)
-{
-	int i;
-	struct nuc900_nand *nand;
-
-	nand = container_of(mtd, struct nuc900_nand, mtd);
-
-	for (i = 0; i < len; i++) {
-		if (buf[i] != (unsigned char)read_data_reg(nand))
-			return -EFAULT;
-	}
-
-	return 0;
-}
-
 static int nuc900_check_rb(struct nuc900_nand *nand)
 {
 	unsigned int val;
@@ -168,7 +151,8 @@ static void nuc900_nand_command_lp(struct mtd_info *mtd, unsigned int command,
 	if (column != -1 || page_addr != -1) {
 
 		if (column != -1) {
-			if (chip->options & NAND_BUSWIDTH_16)
+			if (chip->options & NAND_BUSWIDTH_16 &&
+					!nand_opcode_8bits(command))
 				column >>= 1;
 			write_addr_reg(nand, column);
 			write_addr_reg(nand, column >> 8 | ENDADDR);
@@ -193,15 +177,6 @@ static void nuc900_nand_command_lp(struct mtd_info *mtd, unsigned int command,
 	case NAND_CMD_SEQIN:
 	case NAND_CMD_RNDIN:
 	case NAND_CMD_STATUS:
-	case NAND_CMD_DEPLETE1:
-		return;
-
-	case NAND_CMD_STATUS_ERROR:
-	case NAND_CMD_STATUS_ERROR0:
-	case NAND_CMD_STATUS_ERROR1:
-	case NAND_CMD_STATUS_ERROR2:
-	case NAND_CMD_STATUS_ERROR3:
-		udelay(chip->chip_delay);
 		return;
 
 	case NAND_CMD_RESET:
@@ -250,7 +225,7 @@ static void nuc900_nand_enable(struct nuc900_nand *nand)
 	val = __raw_readl(nand->reg + REG_FMICSR);
 
 	if (!(val & NAND_EN))
-		__raw_writel(val | NAND_EN, REG_FMICSR);
+		__raw_writel(val | NAND_EN, nand->reg + REG_FMICSR);
 
 	val = __raw_readl(nand->reg + REG_SMCSR);
 
@@ -262,16 +237,14 @@ static void nuc900_nand_enable(struct nuc900_nand *nand)
 	spin_unlock(&nand->lock);
 }
 
-static int __devinit nuc900_nand_probe(struct platform_device *pdev)
+static int nuc900_nand_probe(struct platform_device *pdev)
 {
 	struct nuc900_nand *nuc900_nand;
 	struct nand_chip *chip;
-	int retval;
 	struct resource *res;
 
-	retval = 0;
-
-	nuc900_nand = kzalloc(sizeof(struct nuc900_nand), GFP_KERNEL);
+	nuc900_nand = devm_kzalloc(&pdev->dev, sizeof(struct nuc900_nand),
+				   GFP_KERNEL);
 	if (!nuc900_nand)
 		return -ENOMEM;
 	chip = &(nuc900_nand->chip);
@@ -280,11 +253,9 @@ static int __devinit nuc900_nand_probe(struct platform_device *pdev)
 	nuc900_nand->mtd.owner	= THIS_MODULE;
 	spin_lock_init(&nuc900_nand->lock);
 
-	nuc900_nand->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(nuc900_nand->clk)) {
-		retval = -ENOENT;
-		goto fail1;
-	}
+	nuc900_nand->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(nuc900_nand->clk))
+		return -ENOENT;
 	clk_enable(nuc900_nand->clk);
 
 	chip->cmdfunc		= nuc900_nand_command_lp;
@@ -292,72 +263,41 @@ static int __devinit nuc900_nand_probe(struct platform_device *pdev)
 	chip->read_byte		= nuc900_nand_read_byte;
 	chip->write_buf		= nuc900_nand_write_buf;
 	chip->read_buf		= nuc900_nand_read_buf;
-	chip->verify_buf	= nuc900_verify_buf;
 	chip->chip_delay	= 50;
 	chip->options		= 0;
 	chip->ecc.mode		= NAND_ECC_SOFT;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		retval = -ENXIO;
-		goto fail1;
-	}
-
-	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
-		retval = -EBUSY;
-		goto fail1;
-	}
-
-	nuc900_nand->reg = ioremap(res->start, resource_size(res));
-	if (!nuc900_nand->reg) {
-		retval = -ENOMEM;
-		goto fail2;
-	}
+	nuc900_nand->reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(nuc900_nand->reg))
+		return PTR_ERR(nuc900_nand->reg);
 
 	nuc900_nand_enable(nuc900_nand);
 
-	if (nand_scan(&(nuc900_nand->mtd), 1)) {
-		retval = -ENXIO;
-		goto fail3;
-	}
+	if (nand_scan(&(nuc900_nand->mtd), 1))
+		return -ENXIO;
 
 	mtd_device_register(&(nuc900_nand->mtd), partitions,
 			    ARRAY_SIZE(partitions));
 
 	platform_set_drvdata(pdev, nuc900_nand);
 
-	return retval;
-
-fail3:	iounmap(nuc900_nand->reg);
-fail2:	release_mem_region(res->start, resource_size(res));
-fail1:	kfree(nuc900_nand);
-	return retval;
+	return 0;
 }
 
-static int __devexit nuc900_nand_remove(struct platform_device *pdev)
+static int nuc900_nand_remove(struct platform_device *pdev)
 {
 	struct nuc900_nand *nuc900_nand = platform_get_drvdata(pdev);
-	struct resource *res;
 
 	nand_release(&nuc900_nand->mtd);
-	iounmap(nuc900_nand->reg);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
 	clk_disable(nuc900_nand->clk);
-	clk_put(nuc900_nand->clk);
-
-	kfree(nuc900_nand);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
 static struct platform_driver nuc900_nand_driver = {
 	.probe		= nuc900_nand_probe,
-	.remove		= __devexit_p(nuc900_nand_remove),
+	.remove		= nuc900_nand_remove,
 	.driver		= {
 		.name	= "nuc900-fmi",
 		.owner	= THIS_MODULE,

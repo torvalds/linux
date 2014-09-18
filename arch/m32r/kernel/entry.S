@@ -125,6 +125,15 @@
 	and	\reg, sp
 	.endm
 
+ENTRY(ret_from_kernel_thread)
+	pop	r0
+	bl	schedule_tail
+	GET_THREAD_INFO(r8)
+	ld	r0, R0(r8)
+	ld	r1, R1(r8)
+	jl	r1
+	bra	syscall_exit
+
 ENTRY(ret_from_fork)
 	pop	r0
 	bl	schedule_tail
@@ -173,13 +182,7 @@ need_resched:
 	ld	r4, PSW(sp)		; interrupts off (exception path) ?
 	and3	r4, r4, #0x4000
 	beqz	r4, restore_all
-	LDIMM	(r4, PREEMPT_ACTIVE)
-	st	r4, @(TI_PRE_COUNT, r8)
-	ENABLE_INTERRUPTS(r4)
-	bl	schedule
-	ldi	r4, #0
-	st	r4, @(TI_PRE_COUNT, r8)
-	DISABLE_INTERRUPTS(r4)
+	bl	preempt_schedule_irq
 	bra	need_resched
 #endif
 

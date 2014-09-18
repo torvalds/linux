@@ -15,6 +15,7 @@
 #include <asm/octeon/cvmx-npi-defs.h>
 #include <asm/octeon/cvmx-pci-defs.h>
 #include <asm/octeon/cvmx-npei-defs.h>
+#include <asm/octeon/cvmx-sli-defs.h>
 #include <asm/octeon/cvmx-pexp-defs.h>
 #include <asm/octeon/pci-octeon.h>
 
@@ -150,6 +151,7 @@ msi_irq_allocated:
 		msg.address_lo =
 			((128ul << 20) + CVMX_PCI_MSI_RCV) & 0xffffffff;
 		msg.address_hi = ((128ul << 20) + CVMX_PCI_MSI_RCV) >> 32;
+		break;
 	case OCTEON_DMA_BAR_TYPE_BIG:
 		/* When using big bar, Bar 0 is based at 0 */
 		msg.address_lo = (0 + CVMX_PCI_MSI_RCV) & 0xffffffff;
@@ -160,6 +162,11 @@ msi_irq_allocated:
 		/* FIXME CVMX_NPEI_MSI_RCV* other than 0? */
 		msg.address_lo = (0 + CVMX_NPEI_PCIE_MSI_RCV) & 0xffffffff;
 		msg.address_hi = (0 + CVMX_NPEI_PCIE_MSI_RCV) >> 32;
+		break;
+	case OCTEON_DMA_BAR_TYPE_PCIE2:
+		/* When using PCIe2, Bar 0 is based at 0 */
+		msg.address_lo = (0 + CVMX_SLI_PCIE_MSI_RCV) & 0xffffffff;
+		msg.address_hi = (0 + CVMX_SLI_PCIE_MSI_RCV) >> 32;
 		break;
 	default:
 		panic("arch_setup_msi_irq: Invalid octeon_dma_bar_type");

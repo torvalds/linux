@@ -1,0 +1,33 @@
+LG.Philips LB035Q02 Panel
+=========================
+
+Required properties:
+- compatible: "lgphilips,lb035q02"
+- enable-gpios: panel enable gpio
+
+Optional properties:
+- label: a symbolic name for the panel
+
+Required nodes:
+- Video port for DPI input
+
+Example
+-------
+
+lcd-panel: panel@0 {
+	compatible = "lgphilips,lb035q02";
+	reg = <0>;
+	spi-max-frequency = <100000>;
+	spi-cpol;
+	spi-cpha;
+
+	label = "lcd";
+
+	enable-gpios = <&gpio7 7 0>;
+
+	port {
+		lcd_in: endpoint {
+			remote-endpoint = <&dpi_out>;
+		};
+	};
+};

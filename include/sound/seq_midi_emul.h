@@ -22,7 +22,7 @@
  *
  */
 
-#include "seq_kernel.h"
+#include <sound/seq_kernel.h>
 
 /*
  * This structure is used to keep track of the current state on each

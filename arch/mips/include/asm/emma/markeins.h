@@ -2,7 +2,7 @@
  *  Copyright (C) NEC Electronics Corporation 2005-2006
  *
  *  This file based on include/asm-mips/ddb5xxx/ddb5xxx.h
- *          Copyright 2001 MontaVista Software Inc.
+ *	    Copyright 2001 MontaVista Software Inc.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

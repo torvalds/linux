@@ -68,7 +68,9 @@ extern struct mn10300_cpuinfo cpu_data[];
 extern void identify_cpu(struct mn10300_cpuinfo *);
 extern void print_cpu_info(struct mn10300_cpuinfo *);
 extern void dodgy_tsc(void);
+
 #define cpu_relax() barrier()
+#define cpu_relax_lowlatency() cpu_relax()
 
 /*
  * User space process size: 1.75GB (default).
@@ -119,33 +121,18 @@ struct thread_struct {
 
 /*
  * do necessary setup to start up a newly executed thread
- * - need to discard the frame stacked by the kernel thread invoking the execve
- *   syscall (see RESTORE_ALL macro)
  */
 static inline void start_thread(struct pt_regs *regs,
 				unsigned long new_pc, unsigned long new_sp)
 {
-	struct thread_info *ti = current_thread_info();
-	struct pt_regs *frame0;
-
-	frame0 = thread_info_to_uregs(ti);
-	frame0->epsw = EPSW_nSL | EPSW_IE | EPSW_IM;
-	frame0->pc = new_pc;
-	frame0->sp = new_sp;
-	ti->frame = frame0;
+	regs->epsw = EPSW_nSL | EPSW_IE | EPSW_IM;
+	regs->pc = new_pc;
+	regs->sp = new_sp;
 }
 
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
-
-/* Prepare to copy thread state - unlazy all lazy status */
-extern void prepare_to_copy(struct task_struct *tsk);
-
-/*
- * create a kernel thread without removing it from tasklists
- */
-extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 /*
  * Return saved PC of a blocked thread.

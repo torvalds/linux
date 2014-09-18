@@ -24,8 +24,7 @@ struct net_device;
 struct iw_handler_def;
 struct iw_statistics;
 
-extern struct iw_handler_def r8192_wx_handlers_def;
-struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev);
+extern const struct iw_handler_def r8192_wx_handlers_def;
 u16 rtl8192_11n_user_show_rates(struct net_device *dev);
 
 #endif

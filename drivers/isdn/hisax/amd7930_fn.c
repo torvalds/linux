@@ -314,7 +314,7 @@ Amd7930_empty_Dfifo(struct IsdnCardState *cs, int flag)
 
 							t += sprintf(t, "Amd7930: empty_Dfifo cnt: %d |", cs->rcvidx);
 							QuickHex(t, cs->rcvbuf, cs->rcvidx);
-							debugl1(cs, cs->dlog);
+							debugl1(cs, "%s", cs->dlog);
 						}
 						/* moves received data in sk-buffer */
 						memcpy(skb_put(skb, cs->rcvidx), cs->rcvbuf, cs->rcvidx);
@@ -406,7 +406,7 @@ Amd7930_fill_Dfifo(struct IsdnCardState *cs)
 
 		t += sprintf(t, "Amd7930: fill_Dfifo cnt: %d |", count);
 		QuickHex(t, deb_ptr, count);
-		debugl1(cs, cs->dlog);
+		debugl1(cs, "%s", cs->dlog);
 	}
 	/* AMD interrupts on */
 	AmdIrqOn(cs);
@@ -628,7 +628,7 @@ Amd7930_l1hw(struct PStack *st, int pr, void *arg)
 		if ((cs->dc.amd7930.ph_state == 8)) {
 			/* b-channels off, PH-AR cleared
 			 * change to F3 */
-			Amd7930_ph_command(cs, 0x20, "HW_RESET REQEST"); //LMR1 bit 5
+			Amd7930_ph_command(cs, 0x20, "HW_RESET REQUEST"); //LMR1 bit 5
 			spin_unlock_irqrestore(&cs->lock, flags);
 		} else {
 			Amd7930_ph_command(cs, 0x40, "HW_RESET REQUEST");
@@ -786,8 +786,7 @@ void Amd7930_init(struct IsdnCardState *cs)
 	}
 }
 
-void __devinit
-setup_Amd7930(struct IsdnCardState *cs)
+void setup_Amd7930(struct IsdnCardState *cs)
 {
 	INIT_WORK(&cs->tqueue, Amd7930_bh);
 	cs->dbusytimer.function = (void *) dbusy_timer_handler;

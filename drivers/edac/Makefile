@@ -16,6 +16,7 @@ ifdef CONFIG_PCI
 edac_core-y	+= edac_pci.o edac_pci_sysfs.o
 endif
 
+obj-$(CONFIG_EDAC_GHES)			+= ghes_edac.o
 obj-$(CONFIG_EDAC_MCE_INJ)		+= mce_amd_inj.o
 
 edac_mce_amd-y				:= mce_amd.o
@@ -36,6 +37,7 @@ obj-$(CONFIG_EDAC_I82875P)		+= i82875p_edac.o
 obj-$(CONFIG_EDAC_I82975X)		+= i82975x_edac.o
 obj-$(CONFIG_EDAC_I3000)		+= i3000_edac.o
 obj-$(CONFIG_EDAC_I3200)		+= i3200_edac.o
+obj-$(CONFIG_EDAC_IE31200)		+= ie31200_edac.o
 obj-$(CONFIG_EDAC_X38)			+= x38_edac.o
 obj-$(CONFIG_EDAC_I82860)		+= i82860_edac.o
 obj-$(CONFIG_EDAC_R82600)		+= r82600_edac.o
@@ -55,3 +57,11 @@ obj-$(CONFIG_EDAC_AMD8111)		+= amd8111_edac.o
 obj-$(CONFIG_EDAC_AMD8131)		+= amd8131_edac.o
 
 obj-$(CONFIG_EDAC_TILE)			+= tile_edac.o
+
+obj-$(CONFIG_EDAC_HIGHBANK_MC)	+= highbank_mc_edac.o
+obj-$(CONFIG_EDAC_HIGHBANK_L2)	+= highbank_l2_edac.o
+
+obj-$(CONFIG_EDAC_OCTEON_PC)		+= octeon_edac-pc.o
+obj-$(CONFIG_EDAC_OCTEON_L2C)		+= octeon_edac-l2c.o
+obj-$(CONFIG_EDAC_OCTEON_LMC)		+= octeon_edac-lmc.o
+obj-$(CONFIG_EDAC_OCTEON_PCI)		+= octeon_edac-pci.o

@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 #include <sound/memalloc.h>
 
 
@@ -101,7 +102,7 @@ void *snd_malloc_sgbuf_pages(struct device *device,
 		if (snd_dma_alloc_pages_fallback(SNDRV_DMA_TYPE_DEV, device,
 						 chunk, &tmpb) < 0) {
 			if (!sgbuf->pages)
-				return NULL;
+				goto _failed;
 			if (!res_size)
 				goto _failed;
 			size = sgbuf->pages * PAGE_SIZE;
@@ -136,3 +137,29 @@ void *snd_malloc_sgbuf_pages(struct device *device,
 	snd_free_sgbuf_pages(dmab); /* free the table */
 	return NULL;
 }
+
+/*
+ * compute the max chunk size with continuous pages on sg-buffer
+ */
+unsigned int snd_sgbuf_get_chunk_size(struct snd_dma_buffer *dmab,
+				      unsigned int ofs, unsigned int size)
+{
+	struct snd_sg_buf *sg = dmab->private_data;
+	unsigned int start, end, pg;
+
+	start = ofs >> PAGE_SHIFT;
+	end = (ofs + size - 1) >> PAGE_SHIFT;
+	/* check page continuity */
+	pg = sg->table[start].addr >> PAGE_SHIFT;
+	for (;;) {
+		start++;
+		if (start > end)
+			break;
+		pg++;
+		if ((sg->table[start].addr >> PAGE_SHIFT) != pg)
+			return (start << PAGE_SHIFT) - ofs;
+	}
+	/* ok, all on continuous pages */
+	return size;
+}
+EXPORT_SYMBOL(snd_sgbuf_get_chunk_size);

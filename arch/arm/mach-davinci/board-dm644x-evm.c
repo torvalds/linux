@@ -15,7 +15,7 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -23,6 +23,7 @@
 #include <linux/phy.h>
 #include <linux/clk.h>
 #include <linux/videodev2.h>
+#include <linux/v4l2-dv-timings.h>
 #include <linux/export.h>
 
 #include <media/tvp514x.h>
@@ -31,13 +32,13 @@
 #include <asm/mach/arch.h>
 
 #include <mach/common.h>
-#include <mach/i2c.h>
+#include <linux/platform_data/i2c-davinci.h>
 #include <mach/serial.h>
 #include <mach/mux.h>
-#include <mach/nand.h>
-#include <mach/mmc.h>
-#include <mach/usb.h>
-#include <mach/aemif.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_data/usb-davinci.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
 
 #include "davinci.h"
 
@@ -152,6 +153,7 @@ static struct davinci_nand_pdata davinci_evm_nandflash_data = {
 	.parts		= davinci_evm_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_evm_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
+	.ecc_bits	= 1,
 	.bbt_options	= NAND_BBT_USE_FLASH,
 	.timing		= &davinci_evm_nandflash_timing,
 };
@@ -518,13 +520,11 @@ static int dm6444evm_msp430_get_pins(void)
 	char buf[4];
 	struct i2c_msg msg[2] = {
 		{
-			.addr = dm6446evm_msp->addr,
 			.flags = 0,
 			.len = 2,
 			.buf = (void __force *)txbuf,
 		},
 		{
-			.addr = dm6446evm_msp->addr,
 			.flags = I2C_M_RD,
 			.len = 4,
 			.buf = buf,
@@ -534,6 +534,9 @@ static int dm6444evm_msp430_get_pins(void)
 
 	if (!dm6446evm_msp)
 		return -ENXIO;
+
+	msg[0].addr = dm6446evm_msp->addr;
+	msg[1].addr = dm6446evm_msp->addr;
 
 	/* Command 4 == get input state, returns port 2 and port3 data
 	 *   S Addr W [A] len=2 [A] cmd=4 [A]
@@ -568,7 +571,6 @@ static struct davinci_mmc_config dm6446evm_mmc_config = {
 	.get_cd		= dm6444evm_mmc_get_cd,
 	.get_ro		= dm6444evm_mmc_get_ro,
 	.wires		= 4,
-	.version	= MMC_CTLR_VERSION_1
 };
 
 static struct i2c_board_info __initdata i2c_info[] =  {
@@ -620,7 +622,7 @@ static struct vpbe_enc_mode_info dm644xevm_enc_std_timing[] = {
 	{
 		.name		= "ntsc",
 		.timings_type	= VPBE_ENC_STD,
-		.timings	= {V4L2_STD_525_60},
+		.std_id		= V4L2_STD_NTSC,
 		.interlaced	= 1,
 		.xres		= 720,
 		.yres		= 480,
@@ -632,7 +634,7 @@ static struct vpbe_enc_mode_info dm644xevm_enc_std_timing[] = {
 	{
 		.name		= "pal",
 		.timings_type	= VPBE_ENC_STD,
-		.timings	= {V4L2_STD_625_50},
+		.std_id		= V4L2_STD_PAL,
 		.interlaced	= 1,
 		.xres		= 720,
 		.yres		= 576,
@@ -647,8 +649,8 @@ static struct vpbe_enc_mode_info dm644xevm_enc_std_timing[] = {
 static struct vpbe_enc_mode_info dm644xevm_enc_preset_timing[] = {
 	{
 		.name		= "480p59_94",
-		.timings_type	= VPBE_ENC_DV_PRESET,
-		.timings	= {V4L2_DV_480P59_94},
+		.timings_type	= VPBE_ENC_DV_TIMINGS,
+		.dv_timings	= V4L2_DV_BT_CEA_720X480P59_94,
 		.interlaced	= 0,
 		.xres		= 720,
 		.yres		= 480,
@@ -659,8 +661,8 @@ static struct vpbe_enc_mode_info dm644xevm_enc_preset_timing[] = {
 	},
 	{
 		.name		= "576p50",
-		.timings_type	= VPBE_ENC_DV_PRESET,
-		.timings	= {V4L2_DV_576P50},
+		.timings_type	= VPBE_ENC_DV_TIMINGS,
+		.dv_timings	= V4L2_DV_BT_CEA_720X576P50,
 		.interlaced	= 0,
 		.xres		= 720,
 		.yres		= 576,
@@ -688,7 +690,7 @@ static struct vpbe_output dm644xevm_vpbe_outputs[] = {
 			.std		= VENC_STD_ALL,
 			.capabilities	= V4L2_OUT_CAP_STD,
 		},
-		.subdev_name	= VPBE_VENC_SUBDEV_NAME,
+		.subdev_name	= DM644X_VPBE_VENC_SUBDEV_NAME,
 		.default_mode	= "ntsc",
 		.num_modes	= ARRAY_SIZE(dm644xevm_enc_std_timing),
 		.modes		= dm644xevm_enc_std_timing,
@@ -698,9 +700,9 @@ static struct vpbe_output dm644xevm_vpbe_outputs[] = {
 			.index		= 1,
 			.name		= "Component",
 			.type		= V4L2_OUTPUT_TYPE_ANALOG,
-			.capabilities	= V4L2_OUT_CAP_PRESETS,
+			.capabilities	= V4L2_OUT_CAP_DV_TIMINGS,
 		},
-		.subdev_name	= VPBE_VENC_SUBDEV_NAME,
+		.subdev_name	= DM644X_VPBE_VENC_SUBDEV_NAME,
 		.default_mode	= "480p59_94",
 		.num_modes	= ARRAY_SIZE(dm644xevm_enc_preset_timing),
 		.modes		= dm644xevm_enc_preset_timing,
@@ -711,10 +713,10 @@ static struct vpbe_config dm644xevm_display_cfg = {
 	.module_name	= "dm644x-vpbe-display",
 	.i2c_adapter_id	= 1,
 	.osd		= {
-		.module_name	= VPBE_OSD_SUBDEV_NAME,
+		.module_name	= DM644X_VPBE_OSD_SUBDEV_NAME,
 	},
 	.venc		= {
-		.module_name	= VPBE_VENC_SUBDEV_NAME,
+		.module_name	= DM644X_VPBE_VENC_SUBDEV_NAME,
 	},
 	.num_outputs	= ARRAY_SIZE(dm644xevm_vpbe_outputs),
 	.outputs	= dm644xevm_vpbe_outputs,
@@ -723,10 +725,6 @@ static struct vpbe_config dm644xevm_display_cfg = {
 static struct platform_device *davinci_evm_devices[] __initdata = {
 	&davinci_fb_device,
 	&rtc_dev,
-};
-
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
 };
 
 static void __init
@@ -748,34 +746,24 @@ static int davinci_phy_fixup(struct phy_device *phydev)
 	return 0;
 }
 
-#if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
-    defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
-#define HAS_ATA 1
-#else
-#define HAS_ATA 0
-#endif
+#define HAS_ATA		IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710)
 
-#if defined(CONFIG_MTD_PHYSMAP) || \
-    defined(CONFIG_MTD_PHYSMAP_MODULE)
-#define HAS_NOR 1
-#else
-#define HAS_NOR 0
-#endif
+#define HAS_NOR		IS_ENABLED(CONFIG_MTD_PHYSMAP)
 
-#if defined(CONFIG_MTD_NAND_DAVINCI) || \
-    defined(CONFIG_MTD_NAND_DAVINCI_MODULE)
-#define HAS_NAND 1
-#else
-#define HAS_NAND 0
-#endif
+#define HAS_NAND	IS_ENABLED(CONFIG_MTD_NAND_DAVINCI)
 
 static __init void davinci_evm_init(void)
 {
+	int ret;
 	struct clk *aemif_clk;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
+	ret = dm644x_gpio_register();
+	if (ret)
+		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
+
 	aemif_clk = clk_get(NULL, "aemif");
-	clk_enable(aemif_clk);
+	clk_prepare_enable(aemif_clk);
 
 	if (HAS_ATA) {
 		if (HAS_NAND || HAS_NOR)
@@ -790,6 +778,11 @@ static __init void davinci_evm_init(void)
 		/* only one device will be jumpered and detected */
 		if (HAS_NAND) {
 			platform_device_register(&davinci_evm_nandflash_device);
+
+			if (davinci_aemif_setup(&davinci_evm_nandflash_device))
+				pr_warn("%s: Cannot configure AEMIF.\n",
+					__func__);
+
 			evm_leds[7].default_trigger = "nand-disk";
 			if (HAS_NOR)
 				pr_warning("WARNING: both NAND and NOR flash "
@@ -805,17 +798,18 @@ static __init void davinci_evm_init(void)
 	davinci_setup_mmc(0, &dm6446evm_mmc_config);
 	dm644x_init_video(&dm644xevm_capture_cfg, &dm644xevm_display_cfg);
 
-	davinci_serial_init(&uart_config);
+	davinci_serial_init(dm644x_serial_device);
 	dm644x_init_asp(&dm644x_evm_snd_data);
 
 	/* irlml6401 switches over 1A, in under 8 msec */
 	davinci_setup_usb(1000, 8);
 
-	soc_info->emac_pdata->phy_id = DM644X_EVM_PHY_ID;
-	/* Register the fixup for PHY on DaVinci */
-	phy_register_fixup_for_uid(LXT971_PHY_ID, LXT971_PHY_MASK,
-					davinci_phy_fixup);
-
+	if (IS_BUILTIN(CONFIG_PHYLIB)) {
+		soc_info->emac_pdata->phy_id = DM644X_EVM_PHY_ID;
+		/* Register the fixup for PHY on DaVinci */
+		phy_register_fixup_for_uid(LXT971_PHY_ID, LXT971_PHY_MASK,
+						davinci_phy_fixup);
+	}
 }
 
 MACHINE_START(DAVINCI_EVM, "DaVinci DM644x EVM")
@@ -823,8 +817,9 @@ MACHINE_START(DAVINCI_EVM, "DaVinci DM644x EVM")
 	.atag_offset  = 0x100,
 	.map_io	      = davinci_evm_map_io,
 	.init_irq     = davinci_irq_init,
-	.timer	      = &davinci_timer,
+	.init_time	= davinci_timer_init,
 	.init_machine = davinci_evm_init,
+	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
 	.restart	= davinci_restart,
 MACHINE_END

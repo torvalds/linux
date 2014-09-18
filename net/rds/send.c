@@ -107,7 +107,7 @@ static int acquire_in_xmit(struct rds_connection *conn)
 static void release_in_xmit(struct rds_connection *conn)
 {
 	clear_bit(RDS_IN_XMIT, &conn->c_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	/*
 	 * We don't use wait_on_bit()/wake_up_bit() because our waking is in a
 	 * hot path and finding waiters is very rare.  We don't want to walk
@@ -661,7 +661,7 @@ void rds_send_drop_acked(struct rds_connection *conn, u64 ack,
 
 	/* order flag updates with spin locks */
 	if (!list_empty(&list))
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 
 	spin_unlock_irqrestore(&conn->c_lock, flags);
 
@@ -691,7 +691,7 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 	}
 
 	/* order flag updates with the rs lock */
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	spin_unlock_irqrestore(&rs->rs_lock, flags);
 
@@ -922,7 +922,7 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 {
 	struct sock *sk = sock->sk;
 	struct rds_sock *rs = rds_sk_to_rs(sk);
-	struct sockaddr_in *usin = (struct sockaddr_in *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_in *, usin, msg->msg_name);
 	__be32 daddr;
 	__be16 dport;
 	struct rds_message *rm = NULL;
@@ -1122,7 +1122,7 @@ rds_send_pong(struct rds_connection *conn, __be16 dport)
 	rds_stats_inc(s_send_pong);
 
 	if (!test_bit(RDS_LL_SEND_FULL, &conn->c_flags))
-		rds_send_xmit(conn);
+		queue_delayed_work(rds_wq, &conn->c_send_w, 0);
 
 	rds_message_put(rm);
 	return 0;

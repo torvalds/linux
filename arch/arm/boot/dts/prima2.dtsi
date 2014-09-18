@@ -1,0 +1,807 @@
+/*
+ * DTS file for CSR SiRFprimaII SoC
+ *
+ * Copyright (c) 2012 Cambridge Silicon Radio Limited, a CSR plc group company.
+ *
+ * Licensed under GPLv2 or later.
+ */
+
+/include/ "skeleton.dtsi"
+/ {
+	compatible = "sirf,prima2";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&intc>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0x0>;
+			d-cache-line-size = <32>;
+			i-cache-line-size = <32>;
+			d-cache-size = <32768>;
+			i-cache-size = <32768>;
+			/* from bootloader */
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+			clocks = <&clks 12>;
+			operating-points = <
+				/* kHz    uV */
+				200000  1025000
+				400000  1025000
+				664000  1050000
+				800000  1100000
+			>;
+			clock-latency = <150000>;
+		};
+	};
+
+	axi {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x40000000 0x40000000 0x80000000>;
+
+		l2-cache-controller@80040000 {
+			compatible = "arm,pl310-cache";
+			reg = <0x80040000 0x1000>;
+			interrupts = <59>;
+			arm,tag-latency = <1 1 1>;
+			arm,data-latency = <1 1 1>;
+			arm,filter-ranges = <0 0x40000000>;
+		};
+
+		intc: interrupt-controller@80020000 {
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			compatible = "sirf,prima2-intc";
+			reg = <0x80020000 0x1000>;
+		};
+
+		sys-iobg {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x88000000 0x88000000 0x40000>;
+
+			clks: clock-controller@88000000 {
+				compatible = "sirf,prima2-clkc";
+				reg = <0x88000000 0x1000>;
+				interrupts = <3>;
+				#clock-cells = <1>;
+			};
+
+			rstc: reset-controller@88010000 {
+				compatible = "sirf,prima2-rstc";
+				reg = <0x88010000 0x1000>;
+				#reset-cells = <1>;
+			};
+
+			rsc-controller@88020000 {
+				compatible = "sirf,prima2-rsc";
+				reg = <0x88020000 0x1000>;
+			};
+
+			cphifbg@88030000 {
+				compatible = "sirf,prima2-cphifbg";
+				reg = <0x88030000 0x1000>;
+				clocks = <&clks 42>;
+			};
+		};
+
+		mem-iobg {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x90000000 0x90000000 0x10000>;
+
+			memory-controller@90000000 {
+				compatible = "sirf,prima2-memc";
+				reg = <0x90000000 0x2000>;
+				interrupts = <27>;
+				clocks = <&clks 5>;
+			};
+
+			memc-monitor {
+				compatible = "sirf,prima2-memcmon";
+				reg = <0x90002000 0x200>;
+				interrupts = <4>;
+				clocks = <&clks 32>;
+			};
+		};
+
+		disp-iobg {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x90010000 0x90010000 0x30000>;
+
+			display@90010000 {
+				compatible = "sirf,prima2-lcd";
+				reg = <0x90010000 0x20000>;
+				interrupts = <30>;
+			};
+
+			vpp@90020000 {
+				compatible = "sirf,prima2-vpp";
+				reg = <0x90020000 0x10000>;
+				interrupts = <31>;
+				clocks = <&clks 35>;
+			};
+		};
+
+		graphics-iobg {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x98000000 0x98000000 0x8000000>;
+
+			graphics@98000000 {
+				compatible = "powervr,sgx531";
+				reg = <0x98000000 0x8000000>;
+				interrupts = <6>;
+				clocks = <&clks 32>;
+			};
+		};
+
+		multimedia-iobg {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0xa0000000 0xa0000000 0x8000000>;
+
+			multimedia@a0000000 {
+				compatible = "sirf,prima2-video-codec";
+				reg = <0xa0000000 0x8000000>;
+				interrupts = <5>;
+				clocks = <&clks 33>;
+			};
+		};
+
+		dsp-iobg {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0xa8000000 0xa8000000 0x2000000>;
+
+			dspif@a8000000 {
+				compatible = "sirf,prima2-dspif";
+				reg = <0xa8000000 0x10000>;
+				interrupts = <9>;
+			};
+
+			gps@a8010000 {
+				compatible = "sirf,prima2-gps";
+				reg = <0xa8010000 0x10000>;
+				interrupts = <7>;
+				clocks = <&clks 9>;
+			};
+
+			dsp@a9000000 {
+				compatible = "sirf,prima2-dsp";
+				reg = <0xa9000000 0x1000000>;
+				interrupts = <8>;
+				clocks = <&clks 8>;
+			};
+		};
+
+		peri-iobg {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0xb0000000 0xb0000000 0x180000>,
+			       <0x56000000 0x56000000 0x1b00000>;
+
+			timer@b0020000 {
+				compatible = "sirf,prima2-tick";
+				reg = <0xb0020000 0x1000>;
+				interrupts = <0>;
+				clocks = <&clks 11>;
+			};
+
+			nand@b0030000 {
+				compatible = "sirf,prima2-nand";
+				reg = <0xb0030000 0x10000>;
+				interrupts = <41>;
+				clocks = <&clks 26>;
+			};
+
+			audio@b0040000 {
+				compatible = "sirf,prima2-audio";
+				reg = <0xb0040000 0x10000>;
+				interrupts = <35>;
+				clocks = <&clks 27>;
+			};
+
+			uart0: uart@b0050000 {
+				cell-index = <0>;
+				compatible = "sirf,prima2-uart";
+				reg = <0xb0050000 0x1000>;
+				interrupts = <17>;
+				fifosize = <128>;
+				clocks = <&clks 13>;
+				dmas = <&dmac1 5>, <&dmac0 2>;
+				dma-names = "rx", "tx";
+			};
+
+			uart1: uart@b0060000 {
+				cell-index = <1>;
+				compatible = "sirf,prima2-uart";
+				reg = <0xb0060000 0x1000>;
+				interrupts = <18>;
+				fifosize = <32>;
+				clocks = <&clks 14>;
+			};
+
+			uart2: uart@b0070000 {
+				cell-index = <2>;
+				compatible = "sirf,prima2-uart";
+				reg = <0xb0070000 0x1000>;
+				interrupts = <19>;
+				fifosize = <128>;
+				clocks = <&clks 15>;
+				dmas = <&dmac0 6>, <&dmac0 7>;
+				dma-names = "rx", "tx";
+			};
+
+			usp0: usp@b0080000 {
+				cell-index = <0>;
+				compatible = "sirf,prima2-usp";
+				reg = <0xb0080000 0x10000>;
+				interrupts = <20>;
+				fifosize = <128>;
+				clocks = <&clks 28>;
+				dmas = <&dmac1 1>, <&dmac1 2>;
+				dma-names = "rx", "tx";
+			};
+
+			usp1: usp@b0090000 {
+				cell-index = <1>;
+				compatible = "sirf,prima2-usp";
+				reg = <0xb0090000 0x10000>;
+				interrupts = <21>;
+				fifosize = <128>;
+				clocks = <&clks 29>;
+				dmas = <&dmac0 14>, <&dmac0 15>;
+				dma-names = "rx", "tx";
+			};
+
+			usp2: usp@b00a0000 {
+				cell-index = <2>;
+				compatible = "sirf,prima2-usp";
+				reg = <0xb00a0000 0x10000>;
+				interrupts = <22>;
+				fifosize = <128>;
+				clocks = <&clks 30>;
+				dmas = <&dmac0 10>, <&dmac0 11>;
+				dma-names = "rx", "tx";
+			};
+
+			dmac0: dma-controller@b00b0000 {
+				cell-index = <0>;
+				compatible = "sirf,prima2-dmac";
+				reg = <0xb00b0000 0x10000>;
+				interrupts = <12>;
+				clocks = <&clks 24>;
+				#dma-cells = <1>;
+			};
+
+			dmac1: dma-controller@b0160000 {
+				cell-index = <1>;
+				compatible = "sirf,prima2-dmac";
+				reg = <0xb0160000 0x10000>;
+				interrupts = <13>;
+				clocks = <&clks 25>;
+				#dma-cells = <1>;
+			};
+
+			vip@b00C0000 {
+				compatible = "sirf,prima2-vip";
+				reg = <0xb00C0000 0x10000>;
+				clocks = <&clks 31>;
+				interrupts = <14>;
+				sirf,vip-dma-rx-channel = <16>;
+			};
+
+			spi0: spi@b00d0000 {
+				cell-index = <0>;
+				compatible = "sirf,prima2-spi";
+				reg = <0xb00d0000 0x10000>;
+				interrupts = <15>;
+				sirf,spi-num-chipselects = <1>;
+				dmas = <&dmac1 9>,
+				     <&dmac1 4>;
+				dma-names = "rx", "tx";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&clks 19>;
+				status = "disabled";
+			};
+
+			spi1: spi@b0170000 {
+				cell-index = <1>;
+				compatible = "sirf,prima2-spi";
+				reg = <0xb0170000 0x10000>;
+				interrupts = <16>;
+				sirf,spi-num-chipselects = <1>;
+				dmas = <&dmac0 12>,
+				     <&dmac0 13>;
+				dma-names = "rx", "tx";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&clks 20>;
+				status = "disabled";
+			};
+
+			i2c0: i2c@b00e0000 {
+				cell-index = <0>;
+				compatible = "sirf,prima2-i2c";
+				reg = <0xb00e0000 0x10000>;
+				interrupts = <24>;
+				clocks = <&clks 17>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			i2c1: i2c@b00f0000 {
+				cell-index = <1>;
+				compatible = "sirf,prima2-i2c";
+				reg = <0xb00f0000 0x10000>;
+				interrupts = <25>;
+				clocks = <&clks 18>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			tsc@b0110000 {
+				compatible = "sirf,prima2-tsc";
+				reg = <0xb0110000 0x10000>;
+				interrupts = <33>;
+				clocks = <&clks 16>;
+			};
+
+			gpio: pinctrl@b0120000 {
+				#gpio-cells = <2>;
+				#interrupt-cells = <2>;
+				compatible = "sirf,prima2-pinctrl";
+				reg = <0xb0120000 0x10000>;
+				interrupts = <43 44 45 46 47>;
+				gpio-controller;
+				interrupt-controller;
+
+				lcd_16pins_a: lcd0@0 {
+					lcd {
+						sirf,pins = "lcd_16bitsgrp";
+						sirf,function = "lcd_16bits";
+					};
+				};
+				lcd_18pins_a: lcd0@1 {
+					lcd {
+						sirf,pins = "lcd_18bitsgrp";
+						sirf,function = "lcd_18bits";
+					};
+				};
+				lcd_24pins_a: lcd0@2 {
+					lcd {
+						sirf,pins = "lcd_24bitsgrp";
+						sirf,function = "lcd_24bits";
+					};
+				};
+				lcdrom_pins_a: lcdrom0@0 {
+					lcd {
+						sirf,pins = "lcdromgrp";
+						sirf,function = "lcdrom";
+					};
+				};
+				uart0_pins_a: uart0@0 {
+					uart {
+						sirf,pins = "uart0grp";
+						sirf,function = "uart0";
+					};
+				};
+				uart0_noflow_pins_a: uart0@1 {
+					uart {
+						sirf,pins = "uart0_nostreamctrlgrp";
+						sirf,function = "uart0_nostreamctrl";
+					};
+				};
+				uart1_pins_a: uart1@0 {
+					uart {
+						sirf,pins = "uart1grp";
+						sirf,function = "uart1";
+					};
+				};
+				uart2_pins_a: uart2@0 {
+					uart {
+						sirf,pins = "uart2grp";
+						sirf,function = "uart2";
+					};
+				};
+				uart2_noflow_pins_a: uart2@1 {
+					uart {
+						sirf,pins = "uart2_nostreamctrlgrp";
+						sirf,function = "uart2_nostreamctrl";
+					};
+				};
+				spi0_pins_a: spi0@0 {
+					spi {
+						sirf,pins = "spi0grp";
+						sirf,function = "spi0";
+					};
+				};
+				spi1_pins_a: spi1@0 {
+					spi {
+						sirf,pins = "spi1grp";
+						sirf,function = "spi1";
+					};
+				};
+				i2c0_pins_a: i2c0@0 {
+					i2c {
+						sirf,pins = "i2c0grp";
+						sirf,function = "i2c0";
+					};
+				};
+				i2c1_pins_a: i2c1@0 {
+					i2c {
+						sirf,pins = "i2c1grp";
+						sirf,function = "i2c1";
+					};
+				};
+                                pwm0_pins_a: pwm0@0 {
+                                        pwm {
+                                                sirf,pins = "pwm0grp";
+                                                sirf,function = "pwm0";
+                                        };
+                                };
+                                pwm1_pins_a: pwm1@0 {
+                                        pwm {
+                                                sirf,pins = "pwm1grp";
+                                                sirf,function = "pwm1";
+                                        };
+                                };
+                                pwm2_pins_a: pwm2@0 {
+                                        pwm {
+                                                sirf,pins = "pwm2grp";
+                                                sirf,function = "pwm2";
+                                        };
+                                };
+                                pwm3_pins_a: pwm3@0 {
+                                        pwm {
+                                                sirf,pins = "pwm3grp";
+                                                sirf,function = "pwm3";
+                                        };
+                                };
+                                gps_pins_a: gps@0 {
+                                        gps {
+                                                sirf,pins = "gpsgrp";
+                                                sirf,function = "gps";
+                                        };
+                                };
+                                vip_pins_a: vip@0 {
+                                        vip {
+                                                sirf,pins = "vipgrp";
+                                                sirf,function = "vip";
+                                        };
+                                };
+                                sdmmc0_pins_a: sdmmc0@0 {
+                                        sdmmc0 {
+                                                sirf,pins = "sdmmc0grp";
+                                                sirf,function = "sdmmc0";
+                                        };
+                                };
+                                sdmmc1_pins_a: sdmmc1@0 {
+                                        sdmmc1 {
+                                                sirf,pins = "sdmmc1grp";
+                                                sirf,function = "sdmmc1";
+                                        };
+                                };
+                                sdmmc2_pins_a: sdmmc2@0 {
+                                        sdmmc2 {
+                                                sirf,pins = "sdmmc2grp";
+                                                sirf,function = "sdmmc2";
+                                        };
+                                };
+                                sdmmc3_pins_a: sdmmc3@0 {
+                                        sdmmc3 {
+                                                sirf,pins = "sdmmc3grp";
+                                                sirf,function = "sdmmc3";
+                                        };
+                                };
+                                sdmmc4_pins_a: sdmmc4@0 {
+                                        sdmmc4 {
+                                                sirf,pins = "sdmmc4grp";
+                                                sirf,function = "sdmmc4";
+                                        };
+                                };
+                                sdmmc5_pins_a: sdmmc5@0 {
+                                        sdmmc5 {
+                                                sirf,pins = "sdmmc5grp";
+                                                sirf,function = "sdmmc5";
+                                        };
+                                };
+                                i2s_pins_a: i2s@0 {
+                                        i2s {
+                                                sirf,pins = "i2sgrp";
+                                                sirf,function = "i2s";
+                                        };
+                                };
+                                ac97_pins_a: ac97@0 {
+                                        ac97 {
+                                                sirf,pins = "ac97grp";
+                                                sirf,function = "ac97";
+                                        };
+                                };
+                                nand_pins_a: nand@0 {
+                                        nand {
+                                                sirf,pins = "nandgrp";
+                                                sirf,function = "nand";
+                                        };
+                                };
+                                usp0_pins_a: usp0@0 {
+                                        usp0 {
+                                                sirf,pins = "usp0grp";
+                                                sirf,function = "usp0";
+                                        };
+                                };
+				usp0_uart_nostreamctrl_pins_a: usp0@1 {
+                                        usp0 {
+                                                sirf,pins =
+							"usp0_uart_nostreamctrl_grp";
+                                                sirf,function =
+							"usp0_uart_nostreamctrl";
+                                        };
+                                };
+                                usp0_only_utfs_pins_a: usp0@2 {
+                                        usp0 {
+                                                sirf,pins = "usp0_only_utfs_grp";
+                                                sirf,function = "usp0_only_utfs";
+                                        };
+                                };
+                                usp0_only_urfs_pins_a: usp0@3 {
+                                        usp0 {
+                                                sirf,pins = "usp0_only_urfs_grp";
+                                                sirf,function = "usp0_only_urfs";
+                                        };
+                                };
+                                usp1_pins_a: usp1@0 {
+                                        usp1 {
+                                                sirf,pins = "usp1grp";
+                                                sirf,function = "usp1";
+                                        };
+                                };
+				usp1_uart_nostreamctrl_pins_a: usp1@1 {
+                                        usp1 {
+                                                sirf,pins =
+							"usp1_uart_nostreamctrl_grp";
+                                                sirf,function =
+							"usp1_uart_nostreamctrl";
+                                        };
+                                };
+                                usp2_pins_a: usp2@0 {
+                                        usp2 {
+                                                sirf,pins = "usp2grp";
+                                                sirf,function = "usp2";
+                                        };
+                                };
+				usp2_uart_nostreamctrl_pins_a: usp2@1 {
+                                        usp2 {
+                                                sirf,pins =
+							"usp2_uart_nostreamctrl_grp";
+                                                sirf,function =
+							"usp2_uart_nostreamctrl";
+                                        };
+                                };
+                                usb0_utmi_drvbus_pins_a: usb0_utmi_drvbus@0 {
+                                        usb0_utmi_drvbus {
+                                                sirf,pins = "usb0_utmi_drvbusgrp";
+                                                sirf,function = "usb0_utmi_drvbus";
+                                        };
+                                };
+                                usb1_utmi_drvbus_pins_a: usb1_utmi_drvbus@0 {
+                                        usb1_utmi_drvbus {
+                                                sirf,pins = "usb1_utmi_drvbusgrp";
+                                                sirf,function = "usb1_utmi_drvbus";
+                                        };
+                                };
+                                usb1_dp_dn_pins_a: usb1_dp_dn@0 {
+                                        usb1_dp_dn {
+                                                sirf,pins = "usb1_dp_dngrp";
+                                                sirf,function = "usb1_dp_dn";
+                                        };
+                                };
+                                uart1_route_io_usb1_pins_a: uart1_route_io_usb1@0 {
+                                        uart1_route_io_usb1 {
+                                                sirf,pins = "uart1_route_io_usb1grp";
+                                                sirf,function = "uart1_route_io_usb1";
+                                        };
+                                };
+                                warm_rst_pins_a: warm_rst@0 {
+                                        warm_rst {
+                                                sirf,pins = "warm_rstgrp";
+                                                sirf,function = "warm_rst";
+                                        };
+                                };
+                                pulse_count_pins_a: pulse_count@0 {
+                                        pulse_count {
+                                                sirf,pins = "pulse_countgrp";
+                                                sirf,function = "pulse_count";
+                                        };
+                                };
+                                cko0_pins_a: cko0@0 {
+                                        cko0 {
+                                                sirf,pins = "cko0grp";
+                                                sirf,function = "cko0";
+                                        };
+                                };
+                                cko1_pins_a: cko1@0 {
+                                        cko1 {
+                                                sirf,pins = "cko1grp";
+                                                sirf,function = "cko1";
+                                        };
+                                };
+			};
+
+			pwm@b0130000 {
+				compatible = "sirf,prima2-pwm";
+				reg = <0xb0130000 0x10000>;
+				clocks = <&clks 21>;
+			};
+
+			efusesys@b0140000 {
+				compatible = "sirf,prima2-efuse";
+				reg = <0xb0140000 0x10000>;
+				clocks = <&clks 22>;
+			};
+
+			pulsec@b0150000 {
+				compatible = "sirf,prima2-pulsec";
+				reg = <0xb0150000 0x10000>;
+				interrupts = <48>;
+				clocks = <&clks 23>;
+			};
+
+			pci-iobg {
+				compatible = "sirf,prima2-pciiobg", "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x56000000 0x56000000 0x1b00000>;
+
+				sd0: sdhci@56000000 {
+					cell-index = <0>;
+					compatible = "sirf,prima2-sdhc";
+					reg = <0x56000000 0x100000>;
+					interrupts = <38>;
+					status = "disabled";
+					bus-width = <8>;
+					clocks = <&clks 36>;
+				};
+
+				sd1: sdhci@56100000 {
+					cell-index = <1>;
+					compatible = "sirf,prima2-sdhc";
+					reg = <0x56100000 0x100000>;
+					interrupts = <38>;
+					status = "disabled";
+					bus-width = <4>;
+					clocks = <&clks 36>;
+				};
+
+				sd2: sdhci@56200000 {
+					cell-index = <2>;
+					compatible = "sirf,prima2-sdhc";
+					reg = <0x56200000 0x100000>;
+					interrupts = <23>;
+					status = "disabled";
+					clocks = <&clks 37>;
+				};
+
+				sd3: sdhci@56300000 {
+					cell-index = <3>;
+					compatible = "sirf,prima2-sdhc";
+					reg = <0x56300000 0x100000>;
+					interrupts = <23>;
+					status = "disabled";
+					clocks = <&clks 37>;
+				};
+
+				sd4: sdhci@56400000 {
+					cell-index = <4>;
+					compatible = "sirf,prima2-sdhc";
+					reg = <0x56400000 0x100000>;
+					interrupts = <39>;
+					status = "disabled";
+					clocks = <&clks 38>;
+				};
+
+				sd5: sdhci@56500000 {
+					cell-index = <5>;
+					compatible = "sirf,prima2-sdhc";
+					reg = <0x56500000 0x100000>;
+					interrupts = <39>;
+					clocks = <&clks 38>;
+				};
+
+				pci-copy@57900000 {
+					compatible = "sirf,prima2-pcicp";
+					reg = <0x57900000 0x100000>;
+					interrupts = <40>;
+				};
+
+				rom-interface@57a00000 {
+					compatible = "sirf,prima2-romif";
+					reg = <0x57a00000 0x100000>;
+				};
+			};
+		};
+
+		rtc-iobg {
+			compatible = "sirf,prima2-rtciobg", "sirf-prima2-rtciobg-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x80030000 0x10000>;
+
+			gpsrtc@1000 {
+				compatible = "sirf,prima2-gpsrtc";
+				reg = <0x1000 0x1000>;
+				interrupts = <55 56 57>;
+			};
+
+			sysrtc@2000 {
+				compatible = "sirf,prima2-sysrtc";
+				reg = <0x2000 0x1000>;
+				interrupts = <52 53 54>;
+			};
+
+			minigpsrtc@2000 {
+				compatible = "sirf,prima2-minigpsrtc";
+				reg = <0x2000 0x1000>;
+				interrupts = <54>;
+			};
+
+			pwrc@3000 {
+				compatible = "sirf,prima2-pwrc";
+				reg = <0x3000 0x1000>;
+				interrupts = <32>;
+			};
+		};
+
+		uus-iobg {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0xb8000000 0xb8000000 0x40000>;
+
+			usb0: usb@b00e0000 {
+				compatible = "chipidea,ci13611a-prima2";
+				reg = <0xb8000000 0x10000>;
+				interrupts = <10>;
+				clocks = <&clks 40>;
+			};
+
+			usb1: usb@b00f0000 {
+				compatible = "chipidea,ci13611a-prima2";
+				reg = <0xb8010000 0x10000>;
+				interrupts = <11>;
+				clocks = <&clks 41>;
+			};
+
+			sata@b00f0000 {
+				compatible = "synopsys,dwc-ahsata";
+				reg = <0xb8020000 0x10000>;
+				interrupts = <37>;
+			};
+
+			security@b00f0000 {
+				compatible = "sirf,prima2-security";
+				reg = <0xb8030000 0x10000>;
+				interrupts = <42>;
+				clocks = <&clks 7>;
+			};
+		};
+	};
+};

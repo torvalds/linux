@@ -485,6 +485,20 @@
 #define   S_007D18_DC_HOT_PLUG_DETECT2_INT_EN(x)       (((x) & 0x1) << 16)
 #define   G_007D18_DC_HOT_PLUG_DETECT2_INT_EN(x)       (((x) >> 16) & 0x1)
 #define   C_007D18_DC_HOT_PLUG_DETECT2_INT_EN          0xFFFEFFFF
+#define R_007404_HDMI0_STATUS                          0x007404
+#define   S_007404_HDMI0_AZ_FORMAT_WTRIG(x)            (((x) & 0x1) << 28)
+#define   G_007404_HDMI0_AZ_FORMAT_WTRIG(x)            (((x) >> 28) & 0x1)
+#define   C_007404_HDMI0_AZ_FORMAT_WTRIG               0xEFFFFFFF
+#define   S_007404_HDMI0_AZ_FORMAT_WTRIG_INT(x)        (((x) & 0x1) << 29)
+#define   G_007404_HDMI0_AZ_FORMAT_WTRIG_INT(x)        (((x) >> 29) & 0x1)
+#define   C_007404_HDMI0_AZ_FORMAT_WTRIG_INT           0xDFFFFFFF
+#define R_007408_HDMI0_AUDIO_PACKET_CONTROL            0x007408
+#define   S_007408_HDMI0_AZ_FORMAT_WTRIG_MASK(x)       (((x) & 0x1) << 28)
+#define   G_007408_HDMI0_AZ_FORMAT_WTRIG_MASK(x)       (((x) >> 28) & 0x1)
+#define   C_007408_HDMI0_AZ_FORMAT_WTRIG_MASK          0xEFFFFFFF
+#define   S_007408_HDMI0_AZ_FORMAT_WTRIG_ACK(x)        (((x) & 0x1) << 29)
+#define   G_007408_HDMI0_AZ_FORMAT_WTRIG_ACK(x)        (((x) >> 29) & 0x1)
+#define   C_007408_HDMI0_AZ_FORMAT_WTRIG_ACK           0xDFFFFFFF
 
 /* MC registers */
 #define R_000000_MC_STATUS                           0x000000

@@ -282,9 +282,8 @@ static struct crypto_instance *crypto_cts_alloc(struct rtattr **tb)
 
 	alg = crypto_attr_alg(tb[1], CRYPTO_ALG_TYPE_BLKCIPHER,
 				  CRYPTO_ALG_TYPE_MASK);
-	err = PTR_ERR(alg);
 	if (IS_ERR(alg))
-		return ERR_PTR(err);
+		return ERR_CAST(alg);
 
 	inst = ERR_PTR(-EINVAL);
 	if (!is_power_of_2(alg->cra_blocksize))

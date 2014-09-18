@@ -1,9 +1,32 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2011 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
+
+#include "qla_target.h"
+/**
+ * qla24xx_calc_iocbs() - Determine number of Command Type 3 and
+ * Continuation Type 1 IOCBs to allocate.
+ *
+ * @dsds: number of data segment decriptors needed
+ *
+ * Returns the number of IOCB entries needed to store @dsds.
+ */
+static inline uint16_t
+qla24xx_calc_iocbs(scsi_qla_host_t *vha, uint16_t dsds)
+{
+	uint16_t iocbs;
+
+	iocbs = 1;
+	if (dsds > 1) {
+		iocbs += (dsds - 1) / 5;
+		if ((dsds - 1) % 5)
+			iocbs++;
+	}
+	return iocbs;
+}
 
 /*
  * qla2x00_debounce_register
@@ -37,7 +60,7 @@ qla2x00_poll(struct rsp_que *rsp)
 	unsigned long flags;
 	struct qla_hw_data *ha = rsp->hw;
 	local_irq_save(flags);
-	if (IS_QLA82XX(ha))
+	if (IS_P3P_TYPE(ha))
 		qla82xx_poll(0, rsp);
 	else
 		ha->isp_ops->intr_handler(0, rsp);
@@ -57,6 +80,31 @@ host_to_fcp_swap(uint8_t *fcp, uint32_t bsize)
        return fcp;
 }
 
+static inline void
+host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
+{
+	uint32_t *isrc = (uint32_t *) src;
+	__le32 *odest = (__le32 *) dst;
+	uint32_t iter = bsize >> 2;
+
+	for (; iter ; iter--)
+		*odest++ = cpu_to_le32(*isrc++);
+}
+
+static inline void
+qla2x00_set_reserved_loop_ids(struct qla_hw_data *ha)
+{
+	int i;
+
+	if (IS_FWI2_CAPABLE(ha))
+		return;
+
+	for (i = 0; i < SNS_FIRST_LOOP_ID; i++)
+		set_bit(i, ha->loop_id_map);
+	set_bit(MANAGEMENT_SERVER, ha->loop_id_map);
+	set_bit(BROADCAST, ha->loop_id_map);
+}
+
 static inline int
 qla2x00_is_reserved_id(scsi_qla_host_t *vha, uint16_t loop_id)
 {
@@ -69,12 +117,32 @@ qla2x00_is_reserved_id(scsi_qla_host_t *vha, uint16_t loop_id)
 }
 
 static inline void
-qla2x00_clean_dsd_pool(struct qla_hw_data *ha, srb_t *sp)
+qla2x00_clear_loop_id(fc_port_t *fcport) {
+	struct qla_hw_data *ha = fcport->vha->hw;
+
+	if (fcport->loop_id == FC_NO_LOOP_ID ||
+	    qla2x00_is_reserved_id(fcport->vha, fcport->loop_id))
+		return;
+
+	clear_bit(fcport->loop_id, ha->loop_id_map);
+	fcport->loop_id = FC_NO_LOOP_ID;
+}
+
+static inline void
+qla2x00_clean_dsd_pool(struct qla_hw_data *ha, srb_t *sp,
+	struct qla_tgt_cmd *tc)
 {
 	struct dsd_dma *dsd_ptr, *tdsd_ptr;
 	struct crc_context *ctx;
 
-	ctx = (struct crc_context *)GET_CMD_CTX_SP(sp);
+	if (sp)
+		ctx = (struct crc_context *)GET_CMD_CTX_SP(sp);
+	else if (tc)
+		ctx = (struct crc_context *)tc->ctx;
+	else {
+		BUG();
+		return;
+	}
 
 	/* clean up allocated prev pool */
 	list_for_each_entry_safe(dsd_ptr, tdsd_ptr,
@@ -172,6 +240,13 @@ done:
 }
 
 static inline void
+qla2x00_rel_sp(scsi_qla_host_t *vha, srb_t *sp)
+{
+	mempool_free(sp, vha->hw->srb_mempool);
+	QLA_VHA_MARK_NOT_BUSY(vha);
+}
+
+static inline void
 qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 {
 	init_timer(&sp->u.iocb_cmd.timer);
@@ -180,10 +255,27 @@ qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 	sp->u.iocb_cmd.timer.function = qla2x00_sp_timeout;
 	add_timer(&sp->u.iocb_cmd.timer);
 	sp->free = qla2x00_sp_free;
+	if ((IS_QLAFX00(sp->fcport->vha->hw)) &&
+	    (sp->type == SRB_FXIOCB_DCMD))
+		init_completion(&sp->u.iocb_cmd.u.fxiocb.fxiocb_comp);
 }
 
 static inline int
 qla2x00_gid_list_size(struct qla_hw_data *ha)
 {
-	return sizeof(struct gid_list_info) * ha->max_fibre_devices;
+	if (IS_QLAFX00(ha))
+		return sizeof(uint32_t) * 32;
+	else
+		return sizeof(struct gid_list_info) * ha->max_fibre_devices;
+}
+
+static inline void
+qla2x00_handle_mbx_completion(struct qla_hw_data *ha, int status)
+{
+	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
+	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
+		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+		clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
+		complete(&ha->mbx_intr_comp);
+	}
 }

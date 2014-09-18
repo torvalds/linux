@@ -30,7 +30,6 @@
 #define IOC3_NAME	"ioc3-eth"
 #define IOC3_VERSION	"2.6.3-4"
 
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -583,7 +582,7 @@ static inline void ioc3_rx(struct net_device *dev)
 	unsigned long *rxr;
 	u32 w0, err;
 
-	rxr = (unsigned long *) ip->rxr;		/* Ring base */
+	rxr = ip->rxr;		/* Ring base */
 	rx_entry = ip->rx_ci;				/* RX consume index */
 	n_entry = ip->rx_pi;
 
@@ -903,7 +902,7 @@ static void ioc3_alloc_rings(struct net_device *dev)
 	if (ip->rxr == NULL) {
 		/* Allocate and initialize rx ring.  4kb = 512 entries  */
 		ip->rxr = (unsigned long *) get_zeroed_page(GFP_ATOMIC);
-		rxr = (unsigned long *) ip->rxr;
+		rxr = ip->rxr;
 		if (!rxr)
 			printk("ioc3_alloc_rings(): get_zeroed_page() failed!\n");
 
@@ -1143,19 +1142,21 @@ static int ioc3_is_menet(struct pci_dev *pdev)
  * Can't use UPF_IOREMAP as the whole of IOC3 resources have already been
  * registered.
  */
-static void __devinit ioc3_8250_register(struct ioc3_uartregs __iomem *uart)
+static void ioc3_8250_register(struct ioc3_uartregs __iomem *uart)
 {
 #define COSMISC_CONSTANT 6
 
-	struct uart_port port = {
-		.irq		= 0,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 0,
-		.uartclk	= (22000000 << 1) / COSMISC_CONSTANT,
+	struct uart_8250_port port = {
+	        .port = {
+			.irq		= 0,
+			.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
+			.iotype		= UPIO_MEM,
+			.regshift	= 0,
+			.uartclk	= (22000000 << 1) / COSMISC_CONSTANT,
 
-		.membase	= (unsigned char __iomem *) uart,
-		.mapbase	= (unsigned long) uart,
+			.membase	= (unsigned char __iomem *) uart,
+			.mapbase	= (unsigned long) uart,
+                }
 	};
 	unsigned char lcr;
 
@@ -1164,10 +1165,10 @@ static void __devinit ioc3_8250_register(struct ioc3_uartregs __iomem *uart)
 	uart->iu_scr = COSMISC_CONSTANT,
 	uart->iu_lcr = lcr;
 	uart->iu_lcr;
-	serial8250_register_port(&port);
+	serial8250_register_8250_port(&port);
 }
 
-static void __devinit ioc3_serial_probe(struct pci_dev *pdev, struct ioc3 *ioc3)
+static void ioc3_serial_probe(struct pci_dev *pdev, struct ioc3 *ioc3)
 {
 	/*
 	 * We need to recognice and treat the fourth MENET serial as it
@@ -1227,8 +1228,7 @@ static const struct net_device_ops ioc3_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 };
 
-static int __devinit ioc3_probe(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	unsigned int sw_physid1, sw_physid2;
 	struct net_device *dev = NULL;
@@ -1366,7 +1366,7 @@ out:
 	return err;
 }
 
-static void __devexit ioc3_remove_one (struct pci_dev *pdev)
+static void ioc3_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct ioc3_private *ip = netdev_priv(dev);
@@ -1384,7 +1384,7 @@ static void __devexit ioc3_remove_one (struct pci_dev *pdev)
 	 */
 }
 
-static DEFINE_PCI_DEVICE_TABLE(ioc3_pci_tbl) = {
+static const struct pci_device_id ioc3_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SGI, PCI_DEVICE_ID_SGI_IOC3, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0 }
 };
@@ -1394,18 +1394,8 @@ static struct pci_driver ioc3_driver = {
 	.name		= "ioc3-eth",
 	.id_table	= ioc3_pci_tbl,
 	.probe		= ioc3_probe,
-	.remove		= __devexit_p(ioc3_remove_one),
+	.remove		= ioc3_remove_one,
 };
-
-static int __init ioc3_init_module(void)
-{
-	return pci_register_driver(&ioc3_driver);
-}
-
-static void __exit ioc3_cleanup_module(void)
-{
-	pci_unregister_driver(&ioc3_driver);
-}
 
 static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -1564,9 +1554,9 @@ static void ioc3_get_drvinfo (struct net_device *dev,
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 
-        strcpy (info->driver, IOC3_NAME);
-        strcpy (info->version, IOC3_VERSION);
-        strcpy (info->bus_info, pci_name(ip->pdev));
+	strlcpy(info->driver, IOC3_NAME, sizeof(info->driver));
+	strlcpy(info->version, IOC3_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(ip->pdev), sizeof(info->bus_info));
 }
 
 static int ioc3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -1676,9 +1666,7 @@ static void ioc3_set_multicast_list(struct net_device *dev)
 	netif_wake_queue(dev);			/* Let us get going again. */
 }
 
+module_pci_driver(ioc3_driver);
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
 MODULE_DESCRIPTION("SGI IOC3 Ethernet driver");
 MODULE_LICENSE("GPL");
-
-module_init(ioc3_init_module);
-module_exit(ioc3_cleanup_module);

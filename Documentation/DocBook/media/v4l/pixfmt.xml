@@ -25,7 +25,12 @@ capturing and output, for overlay frame buffer formats see also
 	<row>
 	  <entry>__u32</entry>
 	  <entry><structfield>height</structfield></entry>
-	  <entry>Image height in pixels.</entry>
+	  <entry>Image height in pixels. If <structfield>field</structfield> is
+	  one of <constant>V4L2_FIELD_TOP</constant>, <constant>V4L2_FIELD_BOTTOM</constant>
+	  or <constant>V4L2_FIELD_ALTERNATE</constant> then height refers to the
+	  number of lines in the field, otherwise it refers to the number of
+	  lines in the frame (which is twice the field height for interlaced
+	  formats).</entry>
 	</row>
 	<row>
 	  <entry spanname="hspan">Applications set these fields to
@@ -54,7 +59,7 @@ linkend="reserved-formats" /></entry>
 can request to capture or output only the top or bottom field, or both
 fields interlaced or sequentially stored in one buffer or alternating
 in separate buffers. Drivers return the actual field order selected.
-For details see <xref linkend="field-order" />.</entry>
+For more details on fields see <xref linkend="field-order" />.</entry>
 	</row>
 	<row>
 	  <entry>__u32</entry>
@@ -81,7 +86,10 @@ plane and is divided by the same factor as the
 example the Cb and Cr planes of a YUV 4:2:0 image have half as many
 padding bytes following each line as the Y plane. To avoid ambiguities
 drivers must return a <structfield>bytesperline</structfield> value
-rounded up to a multiple of the scale factor.</para></entry>
+rounded up to a multiple of the scale factor.</para>
+<para>For compressed formats the <structfield>bytesperline</structfield>
+value makes no sense. Applications and drivers must set this to 0 in
+that case.</para></entry>
 	</row>
 	<row>
 	  <entry>__u32</entry>
@@ -97,15 +105,41 @@ hold an image.</entry>
 	  <entry>&v4l2-colorspace;</entry>
 	  <entry><structfield>colorspace</structfield></entry>
 	  <entry>This information supplements the
-<structfield>pixelformat</structfield> and must be set by the driver,
+<structfield>pixelformat</structfield> and must be set by the driver for
+capture streams and by the application for output streams,
 see <xref linkend="colorspaces" />.</entry>
 	</row>
 	<row>
 	  <entry>__u32</entry>
 	  <entry><structfield>priv</structfield></entry>
-	  <entry>Reserved for custom (driver defined) additional
-information about formats. When not used drivers and applications must
-set this field to zero.</entry>
+	  <entry><para>This field indicates whether the remaining fields of the
+<structname>v4l2_pix_format</structname> structure, also called the extended
+fields, are valid. When set to <constant>V4L2_PIX_FMT_PRIV_MAGIC</constant>, it
+indicates that the extended fields have been correctly initialized. When set to
+any other value it indicates that the extended fields contain undefined values.
+</para>
+<para>Applications that wish to use the pixel format extended fields must first
+ensure that the feature is supported by querying the device for the
+<link linkend="querycap"><constant>V4L2_CAP_EXT_PIX_FORMAT</constant></link>
+capability. If the capability isn't set the pixel format extended fields are not
+supported and using the extended fields will lead to undefined results.</para>
+<para>To use the extended fields, applications must set the
+<structfield>priv</structfield> field to
+<constant>V4L2_PIX_FMT_PRIV_MAGIC</constant>, initialize all the extended fields
+and zero the unused bytes of the <structname>v4l2_format</structname>
+<structfield>raw_data</structfield> field.</para>
+<para>When the <structfield>priv</structfield> field isn't set to
+<constant>V4L2_PIX_FMT_PRIV_MAGIC</constant> drivers must act as if all the
+extended fields were set to zero. On return drivers must set the
+<structfield>priv</structfield> field to
+<constant>V4L2_PIX_FMT_PRIV_MAGIC</constant> and all the extended fields to
+applicable values.</para></entry>
+	</row>
+	<row>
+	  <entry>__u32</entry>
+	  <entry><structfield>flags</structfield></entry>
+	    <entry>Flags set by the application or driver, see <xref
+linkend="format-flags" />.</entry>
 	</row>
       </tbody>
     </tgroup>
@@ -135,7 +169,7 @@ set this field to zero.</entry>
           <entry>__u16</entry>
           <entry><structfield>bytesperline</structfield></entry>
           <entry>Distance in bytes between the leftmost pixels in two adjacent
-            lines.</entry>
+            lines. See &v4l2-pix-format;.</entry>
         </row>
         <row>
           <entry>__u16</entry>
@@ -154,12 +188,12 @@ set this field to zero.</entry>
         <row>
           <entry>__u32</entry>
           <entry><structfield>width</structfield></entry>
-          <entry>Image width in pixels.</entry>
+          <entry>Image width in pixels. See &v4l2-pix-format;.</entry>
         </row>
         <row>
           <entry>__u32</entry>
           <entry><structfield>height</structfield></entry>
-          <entry>Image height in pixels.</entry>
+          <entry>Image height in pixels. See &v4l2-pix-format;.</entry>
         </row>
         <row>
           <entry>__u32</entry>
@@ -192,9 +226,15 @@ codes can be used.</entry>
           and the number of valid entries in the
           <structfield>plane_fmt</structfield> array.</entry>
         </row>
+	<row>
+	  <entry>__u8</entry>
+	  <entry><structfield>flags</structfield></entry>
+	  <entry>Flags set by the application or driver, see <xref
+linkend="format-flags" />.</entry>
+	</row>
         <row>
           <entry>__u8</entry>
-          <entry><structfield>reserved[11]</structfield></entry>
+          <entry><structfield>reserved[10]</structfield></entry>
           <entry>Reserved for future extensions. Should be zeroed by the
            application.</entry>
         </row>
@@ -239,7 +279,7 @@ has just as many pad bytes after it as the other rows.</para>
 
     <para>In V4L2 each format has an identifier which looks like
 <constant>PIX_FMT_XXX</constant>, defined in the <link
-linkend="videodev">videodev.h</link> header file. These identifiers
+linkend="videodev">videodev2.h</link> header file. These identifiers
 represent <link linkend="v4l2-fourcc">four character (FourCC) codes</link>
 which are also listed below, however they are not the same as those
 used in the Windows world.</para>
@@ -391,9 +431,9 @@ clamp (double x)
 	else               return r;
 }
 
-y1 = (255 / 219.0) * (Y1 - 16);
-pb = (255 / 224.0) * (Cb - 128);
-pr = (255 / 224.0) * (Cr - 128);
+y1 = (Y1 - 16) / 219.0;
+pb = (Cb - 128) / 224.0;
+pr = (Cr - 128) / 224.0;
 
 r = 1.0 * y1 + 0     * pb + 1.402 * pr;
 g = 1.0 * y1 - 0.344 * pb - 0.714 * pr;
@@ -673,6 +713,8 @@ access the palette, this must be done with ioctls of the Linux framebuffer API.<
     &sub-srggb8;
     &sub-sbggr16;
     &sub-srggb10;
+    &sub-srggb10alaw8;
+    &sub-srggb10dpcm8;
     &sub-srggb12;
   </section>
 
@@ -700,6 +742,7 @@ information.</para>
     &sub-y12;
     &sub-y10b;
     &sub-y16;
+    &sub-uv8;
     &sub-yuyv;
     &sub-uyvy;
     &sub-yvyu;
@@ -707,6 +750,7 @@ information.</para>
     &sub-y41p;
     &sub-yuv420;
     &sub-yuv420m;
+    &sub-yvu420m;
     &sub-yuv410;
     &sub-yuv422p;
     &sub-yuv411p;
@@ -714,6 +758,7 @@ information.</para>
     &sub-nv12m;
     &sub-nv12mt;
     &sub-nv16;
+    &sub-nv16m;
     &sub-nv24;
     &sub-m420;
   </section>
@@ -756,6 +801,11 @@ extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
 		<entry>'AVC1'</entry>
 		<entry>H264 video elementary stream without start codes.</entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-H264-MVC">
+		<entry><constant>V4L2_PIX_FMT_H264_MVC</constant></entry>
+		<entry>'M264'</entry>
+		<entry>H264 MVC video elementary stream.</entry>
+	  </row>
 	  <row id="V4L2-PIX-FMT-H263">
 		<entry><constant>V4L2_PIX_FMT_H263</constant></entry>
 		<entry>'H263'</entry>
@@ -791,9 +841,28 @@ extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
 		<entry>'VC1L'</entry>
 		<entry>VC1, SMPTE 421M Annex L compliant stream.</entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-VP8">
+		<entry><constant>V4L2_PIX_FMT_VP8</constant></entry>
+		<entry>'VP80'</entry>
+		<entry>VP8 video elementary stream.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
+  </section>
+
+  <section id="sdr-formats">
+    <title>SDR Formats</title>
+
+    <para>These formats are used for <link linkend="sdr">SDR Capture</link>
+interface only.</para>
+
+    &sub-sdr-cu08;
+    &sub-sdr-cu16le;
+    &sub-sdr-cs08;
+    &sub-sdr-cs14le;
+    &sub-sdr-ru12le;
+
   </section>
 
   <section id="pixfmt-reserved">
@@ -875,11 +944,6 @@ kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm
 	    <entry><constant>V4L2_PIX_FMT_SPCA561</constant></entry>
 	    <entry>'S561'</entry>
 	    <entry>Compressed GBRG Bayer format used by the gspca driver.</entry>
-	  </row>
-	  <row id="V4L2-PIX-FMT-SGRBG10DPCM8">
-	    <entry><constant>V4L2_PIX_FMT_SGRBG10DPCM8</constant></entry>
-	    <entry>'DB10'</entry>
-	    <entry>10 bit raw Bayer DPCM compressed to 8 bits.</entry>
 	  </row>
 	  <row id="V4L2-PIX-FMT-PAC207">
 	    <entry><constant>V4L2_PIX_FMT_PAC207</constant></entry>
@@ -990,14 +1054,59 @@ http://www.thedirks.org/winnov/</ulink></para></entry>
 	  <row id="V4L2-PIX-FMT-Y4">
 	    <entry><constant>V4L2_PIX_FMT_Y4</constant></entry>
 	    <entry>'Y04 '</entry>
-	    <entry>Old 4-bit greyscale format. Only the least significant 4 bits of each byte are used,
+	    <entry>Old 4-bit greyscale format. Only the most significant 4 bits of each byte are used,
 the other bits are set to 0.</entry>
 	  </row>
 	  <row id="V4L2-PIX-FMT-Y6">
 	    <entry><constant>V4L2_PIX_FMT_Y6</constant></entry>
 	    <entry>'Y06 '</entry>
-	    <entry>Old 6-bit greyscale format. Only the least significant 6 bits of each byte are used,
+	    <entry>Old 6-bit greyscale format. Only the most significant 6 bits of each byte are used,
 the other bits are set to 0.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-S5C-UYVY-JPG">
+	    <entry><constant>V4L2_PIX_FMT_S5C_UYVY_JPG</constant></entry>
+	    <entry>'S5CI'</entry>
+	    <entry>Two-planar format used by Samsung S5C73MX cameras. The
+first plane contains interleaved JPEG and UYVY image data, followed by meta data
+in form of an array of offsets to the UYVY data blocks. The actual pointer array
+follows immediately the interleaved JPEG/UYVY data, the number of entries in
+this array equals the height of the UYVY image. Each entry is a 4-byte unsigned
+integer in big endian order and it's an offset to a single pixel line of the
+UYVY image. The first plane can start either with JPEG or UYVY data chunk. The
+size of a single UYVY block equals the UYVY image's width multiplied by 2. The
+size of a JPEG chunk depends on the image and can vary with each line.
+<para>The second plane, at an offset of 4084 bytes, contains a 4-byte offset to
+the pointer array in the first plane. This offset is followed by a 4-byte value
+indicating size of the pointer array. All numbers in the second plane are also
+in big endian order. Remaining data in the second plane is undefined. The
+information in the second plane allows to easily find location of the pointer
+array, which can be different for each frame. The size of the pointer array is
+constant for given UYVY image height.</para>
+<para>In order to extract UYVY and JPEG frames an application can initially set
+a data pointer to the start of first plane and then add an offset from the first
+entry of the pointers table. Such a pointer indicates start of an UYVY image
+pixel line. Whole UYVY line can be copied to a separate buffer. These steps
+should be repeated for each line, i.e. the number of entries in the pointer
+array. Anything what's in between the UYVY lines is JPEG data and should be
+concatenated to form the JPEG stream. </para>
+</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="format-flags">
+      <title>Format Flags</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_PIX_FMT_FLAG_PREMUL_ALPHA</constant></entry>
+	    <entry>0x00000001</entry>
+	    <entry>The color values are premultiplied by the alpha channel
+value. For example, if a light blue pixel with 50% transparency was described by
+RGBA values (128, 192, 255, 128), the same pixel described with premultiplied
+colors would be described by RGBA values (64, 96, 128, 128) </entry>
 	  </row>
 	</tbody>
       </tgroup>

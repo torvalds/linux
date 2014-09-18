@@ -13,18 +13,18 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
+#include <linux/dma-buf.h>
 
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 #include "udl_drv.h"
 
-#include "drm_fb_helper.h"
+#include <drm/drm_fb_helper.h>
 
-#define DL_DEFIO_WRITE_DELAY    5 /* fb_deferred_io.delay in jiffies */
+#define DL_DEFIO_WRITE_DELAY    (HZ/20) /* fb_deferred_io.delay in jiffies */
 
-static int fb_defio = 1;  /* Optionally enable experimental fb_defio mmap support */
+static int fb_defio = 0;  /* Optionally enable experimental fb_defio mmap support */
 static int fb_bpp = 16;
 
 module_param(fb_bpp, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
@@ -114,9 +114,10 @@ static void udlfb_dpy_deferred_io(struct fb_info *info,
 	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
 
 		if (udl_render_hline(dev, (ufbdev->ufb.base.bits_per_pixel / 8),
-				  &urb, (char *) info->fix.smem_start,
-				  &cmd, cur->index << PAGE_SHIFT,
-				  PAGE_SIZE, &bytes_identical, &bytes_sent))
+				     &urb, (char *) info->fix.smem_start,
+				     &cmd, cur->index << PAGE_SHIFT,
+				     cur->index << PAGE_SHIFT,
+				     PAGE_SIZE, &bytes_identical, &bytes_sent))
 			goto error;
 		bytes_rendered += PAGE_SIZE;
 	}
@@ -152,14 +153,24 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	struct urb *urb;
 	int aligned_x;
 	int bpp = (fb->base.bits_per_pixel / 8);
+	int x2, y2;
+	bool store_for_later = false;
+	unsigned long flags;
 
 	if (!fb->active_16)
 		return 0;
 
-	if (!fb->obj->vmapping)
-		udl_gem_vmap(fb->obj);
-
-	start_cycles = get_cycles();
+	if (!fb->obj->vmapping) {
+		ret = udl_gem_vmap(fb->obj);
+		if (ret == -ENOMEM) {
+			DRM_ERROR("failed to vmap fb\n");
+			return 0;
+		}
+		if (!fb->obj->vmapping) {
+			DRM_ERROR("failed to vmapping\n");
+			return 0;
+		}
+	}
 
 	aligned_x = DL_ALIGN_DOWN(x, sizeof(unsigned long));
 	width = DL_ALIGN_UP(width + (x-aligned_x), sizeof(unsigned long));
@@ -170,18 +181,53 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	    (y + height > fb->base.height))
 		return -EINVAL;
 
+	/* if we are in atomic just store the info
+	   can't test inside spin lock */
+	if (in_atomic())
+		store_for_later = true;
+
+	x2 = x + width - 1;
+	y2 = y + height - 1;
+
+	spin_lock_irqsave(&fb->dirty_lock, flags);
+
+	if (fb->y1 < y)
+		y = fb->y1;
+	if (fb->y2 > y2)
+		y2 = fb->y2;
+	if (fb->x1 < x)
+		x = fb->x1;
+	if (fb->x2 > x2)
+		x2 = fb->x2;
+
+	if (store_for_later) {
+		fb->x1 = x;
+		fb->x2 = x2;
+		fb->y1 = y;
+		fb->y2 = y2;
+		spin_unlock_irqrestore(&fb->dirty_lock, flags);
+		return 0;
+	}
+
+	fb->x1 = fb->y1 = INT_MAX;
+	fb->x2 = fb->y2 = 0;
+
+	spin_unlock_irqrestore(&fb->dirty_lock, flags);
+	start_cycles = get_cycles();
+
 	urb = udl_get_urb(dev);
 	if (!urb)
 		return 0;
 	cmd = urb->transfer_buffer;
 
-	for (i = y; i < y + height ; i++) {
+	for (i = y; i <= y2 ; i++) {
 		const int line_offset = fb->base.pitches[0] * i;
 		const int byte_offset = line_offset + (x * bpp);
-
+		const int dev_byte_offset = (fb->base.width * bpp * i) + (x * bpp);
 		if (udl_render_hline(dev, bpp, &urb,
 				     (char *) fb->obj->vmapping,
-				     &cmd, byte_offset, width * bpp,
+				     &cmd, byte_offset, dev_byte_offset,
+				     (x2 - x + 1) * bpp,
 				     &bytes_identical, &bytes_sent))
 			goto error;
 	}
@@ -234,7 +280,7 @@ static int udl_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 			size = 0;
 	}
 
-	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
+	/* VM_IO | VM_DONTEXPAND | VM_DONTDUMP are set by remap_pfn_range() */
 	return 0;
 }
 
@@ -347,19 +393,6 @@ static struct fb_ops udlfb_ops = {
 	.fb_release = udl_fb_release,
 };
 
-void udl_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-			   u16 blue, int regno)
-{
-}
-
-void udl_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-			     u16 *blue, int regno)
-{
-	*red = 0;
-	*green = 0;
-	*blue = 0;
-}
-
 static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 				      struct drm_file *file,
 				      unsigned flags, unsigned color,
@@ -368,16 +401,39 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 {
 	struct udl_framebuffer *ufb = to_udl_fb(fb);
 	int i;
+	int ret = 0;
+
+	drm_modeset_lock_all(fb->dev);
 
 	if (!ufb->active_16)
-		return 0;
+		goto unlock;
+
+	if (ufb->obj->base.import_attach) {
+		ret = dma_buf_begin_cpu_access(ufb->obj->base.import_attach->dmabuf,
+					       0, ufb->obj->base.size,
+					       DMA_FROM_DEVICE);
+		if (ret)
+			goto unlock;
+	}
 
 	for (i = 0; i < num_clips; i++) {
-		udl_handle_damage(ufb, clips[i].x1, clips[i].y1,
+		ret = udl_handle_damage(ufb, clips[i].x1, clips[i].y1,
 				  clips[i].x2 - clips[i].x1,
 				  clips[i].y2 - clips[i].y1);
+		if (ret)
+			break;
 	}
-	return 0;
+
+	if (ufb->obj->base.import_attach) {
+		dma_buf_end_cpu_access(ufb->obj->base.import_attach->dmabuf,
+				       0, ufb->obj->base.size,
+				       DMA_FROM_DEVICE);
+	}
+
+ unlock:
+	drm_modeset_unlock_all(fb->dev);
+
+	return ret;
 }
 
 static void udl_user_framebuffer_destroy(struct drm_framebuffer *fb)
@@ -394,7 +450,6 @@ static void udl_user_framebuffer_destroy(struct drm_framebuffer *fb)
 static const struct drm_framebuffer_funcs udlfb_funcs = {
 	.destroy = udl_user_framebuffer_destroy,
 	.dirty = udl_user_framebuffer_dirty,
-	.create_handle = NULL,
 };
 
 
@@ -406,19 +461,21 @@ udl_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 
+	spin_lock_init(&ufb->dirty_lock);
 	ufb->obj = obj;
-	ret = drm_framebuffer_init(dev, &ufb->base, &udlfb_funcs);
 	drm_helper_mode_fill_fb_struct(&ufb->base, mode_cmd);
+	ret = drm_framebuffer_init(dev, &ufb->base, &udlfb_funcs);
 	return ret;
 }
 
 
-static int udlfb_create(struct udl_fbdev *ufbdev,
+static int udlfb_create(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes)
 {
+	struct udl_fbdev *ufbdev = (struct udl_fbdev *)helper;
 	struct drm_device *dev = ufbdev->helper.dev;
 	struct fb_info *info;
-	struct device *device = &dev->usbdev->dev;
+	struct device *device = dev->dev;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct udl_gem_object *obj;
@@ -493,27 +550,8 @@ out:
 	return ret;
 }
 
-static int udl_fb_find_or_create_single(struct drm_fb_helper *helper,
-					struct drm_fb_helper_surface_size *sizes)
-{
-	struct udl_fbdev *ufbdev = (struct udl_fbdev *)helper;
-	int new_fb = 0;
-	int ret;
-
-	if (!helper->fb) {
-		ret = udlfb_create(ufbdev, sizes);
-		if (ret)
-			return ret;
-
-		new_fb = 1;
-	}
-	return new_fb;
-}
-
-static struct drm_fb_helper_funcs udl_fb_helper_funcs = {
-	.gamma_set = udl_crtc_fb_gamma_set,
-	.gamma_get = udl_crtc_fb_gamma_get,
-	.fb_probe = udl_fb_find_or_create_single,
+static const struct drm_fb_helper_funcs udl_fb_helper_funcs = {
+	.fb_probe = udlfb_create,
 };
 
 static void udl_fbdev_destroy(struct drm_device *dev,
@@ -528,6 +566,7 @@ static void udl_fbdev_destroy(struct drm_device *dev,
 		framebuffer_release(info);
 	}
 	drm_fb_helper_fini(&ufbdev->helper);
+	drm_framebuffer_unregister_private(&ufbdev->ufb.base);
 	drm_framebuffer_cleanup(&ufbdev->ufb.base);
 	drm_gem_object_unreference_unlocked(&ufbdev->ufb.obj->base);
 }
@@ -544,7 +583,8 @@ int udl_fbdev_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	udl->fbdev = ufbdev;
-	ufbdev->helper.funcs = &udl_fb_helper_funcs;
+
+	drm_fb_helper_prepare(dev, &ufbdev->helper, &udl_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, &ufbdev->helper,
 				 1, 1);
@@ -555,6 +595,10 @@ int udl_fbdev_init(struct drm_device *dev)
 	}
 
 	drm_fb_helper_single_add_all_connectors(&ufbdev->helper);
+
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
+
 	drm_fb_helper_initial_config(&ufbdev->helper, bpp_sel);
 	return 0;
 }
@@ -593,10 +637,19 @@ udl_fb_user_fb_create(struct drm_device *dev,
 	struct drm_gem_object *obj;
 	struct udl_framebuffer *ufb;
 	int ret;
+	uint32_t size;
 
 	obj = drm_gem_object_lookup(dev, file, mode_cmd->handles[0]);
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
+
+	size = mode_cmd->pitches[0] * mode_cmd->height;
+	size = ALIGN(size, PAGE_SIZE);
+
+	if (size > obj->size) {
+		DRM_ERROR("object size not sufficient for fb %d %zu %d %d\n", size, obj->size, mode_cmd->pitches[0], mode_cmd->height);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	ufb = kzalloc(sizeof(*ufb), GFP_KERNEL);
 	if (ufb == NULL)

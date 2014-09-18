@@ -7,6 +7,7 @@
 #define APEI_INTERNAL_H
 
 #include <linux/cper.h>
+#include <linux/acpi.h>
 
 struct apei_exec_context;
 
@@ -68,6 +69,13 @@ static inline int apei_exec_run_optional(struct apei_exec_context *ctx, u8 actio
 /* IP has been set in instruction function */
 #define APEI_EXEC_SET_IP	1
 
+int apei_map_generic_address(struct acpi_generic_address *reg);
+
+static inline void apei_unmap_generic_address(struct acpi_generic_address *reg)
+{
+	acpi_os_unmap_generic_address(reg);
+}
+
 int apei_read(u64 *val, struct acpi_generic_address *reg);
 int apei_write(u64 val, struct acpi_generic_address *reg);
 
@@ -117,7 +125,7 @@ struct dentry *apei_get_debugfs_dir(void);
 	     (void *)section - (void *)estatus < estatus->data_length;	\
 	     section = (void *)(section+1) + section->error_data_length)
 
-static inline u32 apei_estatus_len(struct acpi_hest_generic_status *estatus)
+static inline u32 cper_estatus_len(struct acpi_hest_generic_status *estatus)
 {
 	if (estatus->raw_data_length)
 		return estatus->raw_data_offset + \
@@ -126,10 +134,10 @@ static inline u32 apei_estatus_len(struct acpi_hest_generic_status *estatus)
 		return sizeof(*estatus) + estatus->data_length;
 }
 
-void apei_estatus_print(const char *pfx,
+void cper_estatus_print(const char *pfx,
 			const struct acpi_hest_generic_status *estatus);
-int apei_estatus_check_header(const struct acpi_hest_generic_status *estatus);
-int apei_estatus_check(const struct acpi_hest_generic_status *estatus);
+int cper_estatus_check_header(const struct acpi_hest_generic_status *estatus);
+int cper_estatus_check(const struct acpi_hest_generic_status *estatus);
 
 int apei_osc_setup(void);
 #endif

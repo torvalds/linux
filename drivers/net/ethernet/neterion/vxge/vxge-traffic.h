@@ -1918,9 +1918,6 @@ vxge_hw_ring_rxd_post_post(
 	struct __vxge_hw_ring *ring_handle,
 	void *rxdh);
 
-enum vxge_hw_status
-vxge_hw_ring_replenish(struct __vxge_hw_ring *ring_handle);
-
 void
 vxge_hw_ring_rxd_post_post_wmb(
 	struct __vxge_hw_ring *ring_handle,
@@ -2184,11 +2181,6 @@ enum vxge_hw_status
 vxge_hw_vpath_vid_add(
 	struct __vxge_hw_vpath_handle *vpath_handle,
 	u64			vid);
-
-enum vxge_hw_status
-vxge_hw_vpath_vid_get(
-	struct __vxge_hw_vpath_handle *vpath_handle,
-	u64			*vid);
 
 enum vxge_hw_status
 vxge_hw_vpath_vid_delete(

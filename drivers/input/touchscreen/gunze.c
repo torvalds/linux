@@ -32,7 +32,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/serio.h>
-#include <linux/init.h>
 
 #define DRIVER_DESC	"Gunze AHL-51S touchscreen driver"
 
@@ -186,19 +185,4 @@ static struct serio_driver gunze_drv = {
 	.disconnect	= gunze_disconnect,
 };
 
-/*
- * The functions for inserting/removing us as a module.
- */
-
-static int __init gunze_init(void)
-{
-	return serio_register_driver(&gunze_drv);
-}
-
-static void __exit gunze_exit(void)
-{
-	serio_unregister_driver(&gunze_drv);
-}
-
-module_init(gunze_init);
-module_exit(gunze_exit);
+module_serio_driver(gunze_drv);

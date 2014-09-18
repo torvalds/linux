@@ -4,7 +4,7 @@
 ///
 // Confidence: High
 // Comments:
-// Options: -no_includes -include_headers
+// Options: --no-includes --include-headers
 
 virtual patch
 virtual report

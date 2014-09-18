@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /* This file implements all the hardware specific functions for the ZD1211
@@ -1155,7 +1154,7 @@ int zd_chip_init_hw(struct zd_chip *chip)
 	if (r)
 		goto out;
 	/* Currently we support IEEE 802.11g for full and high speed USB.
-	 * It might be discussed, whether we should suppport pure b mode for
+	 * It might be discussed, whether we should support pure b mode for
 	 * full speed USB.
 	 */
 	r = set_mandatory_rates(chip, 1);

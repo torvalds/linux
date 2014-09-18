@@ -65,7 +65,7 @@ static struct snd_soc_card imote2 = {
 	.num_links = 1,
 };
 
-static int __devinit imote2_probe(struct platform_device *pdev)
+static int imote2_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &imote2;
 	int ret;
@@ -79,7 +79,7 @@ static int __devinit imote2_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit imote2_remove(struct platform_device *pdev)
+static int imote2_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -91,9 +91,10 @@ static struct platform_driver imote2_driver = {
 	.driver		= {
 		.name	= "imote2-audio",
 		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= imote2_probe,
-	.remove		= __devexit_p(imote2_remove),
+	.remove		= imote2_remove,
 };
 
 module_platform_driver(imote2_driver);

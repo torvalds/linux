@@ -1,7 +1,5 @@
 /*
- * linux/include/asm-s390/qdio.h
- *
- * Copyright 2000,2008 IBM Corp.
+ * Copyright IBM Corp. 2000, 2008
  * Author(s): Utz Bacher <utz.bacher@de.ibm.com>
  *	      Jan Glauber <jang@linux.vnet.ibm.com>
  *
@@ -258,11 +256,6 @@ struct slsb {
 	u8 val[QDIO_MAX_BUFFERS_PER_Q];
 } __attribute__ ((packed, aligned(256)));
 
-#define CHSC_AC2_MULTI_BUFFER_AVAILABLE	0x0080
-#define CHSC_AC2_MULTI_BUFFER_ENABLED	0x0040
-#define CHSC_AC2_DATA_DIV_AVAILABLE	0x0010
-#define CHSC_AC2_DATA_DIV_ENABLED	0x0002
-
 /**
  * struct qdio_outbuf_state - SBAL related asynchronous operation information
  *   (for communication with upper layer programs)
@@ -293,6 +286,8 @@ struct qdio_outbuf_state {
 #define AC1_SC_QEBSM_AVAILABLE		0x02	/* available for subchannel */
 #define AC1_SC_QEBSM_ENABLED		0x01	/* enabled for subchannel */
 
+#define CHSC_AC2_MULTI_BUFFER_AVAILABLE	0x0080
+#define CHSC_AC2_MULTI_BUFFER_ENABLED	0x0040
 #define CHSC_AC2_DATA_DIV_AVAILABLE	0x0010
 #define CHSC_AC2_DATA_DIV_ENABLED	0x0002
 
@@ -328,18 +323,20 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
 			    int, int, unsigned long);
 
 /* qdio errors reported to the upper-layer program */
-#define QDIO_ERROR_SIGA_TARGET			0x02
-#define QDIO_ERROR_SIGA_ACCESS_EXCEPTION	0x10
-#define QDIO_ERROR_SIGA_BUSY			0x20
-#define QDIO_ERROR_ACTIVATE_CHECK_CONDITION	0x40
-#define QDIO_ERROR_SLSB_STATE			0x80
+#define QDIO_ERROR_ACTIVATE			0x0001
+#define QDIO_ERROR_GET_BUF_STATE		0x0002
+#define QDIO_ERROR_SET_BUF_STATE		0x0004
+#define QDIO_ERROR_SLSB_STATE			0x0100
+
+#define QDIO_ERROR_FATAL			0x00ff
+#define QDIO_ERROR_TEMPORARY			0xff00
 
 /* for qdio_cleanup */
 #define QDIO_FLAG_CLEANUP_USING_CLEAR		0x01
 #define QDIO_FLAG_CLEANUP_USING_HALT		0x02
 
 /**
- * struct qdio_initialize - qdio initalization data
+ * struct qdio_initialize - qdio initialization data
  * @cdev: associated ccw device
  * @q_format: queue format
  * @adapter_name: name for the adapter
@@ -381,6 +378,34 @@ struct qdio_initialize {
 	struct qdio_outbuf_state *output_sbal_state_array;
 };
 
+/**
+ * enum qdio_brinfo_entry_type - type of address entry for qdio_brinfo_desc()
+ * @l3_ipv6_addr: entry contains IPv6 address
+ * @l3_ipv4_addr: entry contains IPv4 address
+ * @l2_addr_lnid: entry contains MAC address and VLAN ID
+ */
+enum qdio_brinfo_entry_type {l3_ipv6_addr, l3_ipv4_addr, l2_addr_lnid};
+
+/**
+ * struct qdio_brinfo_entry_XXX - Address entry for qdio_brinfo_desc()
+ * @nit:  Network interface token
+ * @addr: Address of one of the three types
+ *
+ * The struct is passed to the callback function by qdio_brinfo_desc()
+ */
+struct qdio_brinfo_entry_l3_ipv6 {
+	u64 nit;
+	struct { unsigned char _s6_addr[16]; } addr;
+} __packed;
+struct qdio_brinfo_entry_l3_ipv4 {
+	u64 nit;
+	struct { uint32_t _s_addr; } addr;
+} __packed;
+struct qdio_brinfo_entry_l2 {
+	u64 nit;
+	struct { u8 mac[6]; u16 lnid; } addr_lnid;
+} __packed;
+
 #define QDIO_STATE_INACTIVE		0x00000002 /* after qdio_cleanup */
 #define QDIO_STATE_ESTABLISHED		0x00000004 /* after qdio_establish */
 #define QDIO_STATE_ACTIVE		0x00000008 /* after qdio_activate */
@@ -389,6 +414,10 @@ struct qdio_initialize {
 #define QDIO_FLAG_SYNC_INPUT		0x01
 #define QDIO_FLAG_SYNC_OUTPUT		0x02
 #define QDIO_FLAG_PCI_OUT		0x10
+
+int qdio_alloc_buffers(struct qdio_buffer **buf, unsigned int count);
+void qdio_free_buffers(struct qdio_buffer **buf, unsigned int count);
+void qdio_reset_buffers(struct qdio_buffer **buf, unsigned int count);
 
 extern int qdio_allocate(struct qdio_initialize *);
 extern int qdio_establish(struct qdio_initialize *);
@@ -402,5 +431,10 @@ extern int qdio_get_next_buffers(struct ccw_device *, int, int *, int *);
 extern int qdio_shutdown(struct ccw_device *, int);
 extern int qdio_free(struct ccw_device *);
 extern int qdio_get_ssqd_desc(struct ccw_device *, struct qdio_ssqd_desc *);
+extern int qdio_pnso_brinfo(struct subchannel_id schid,
+		int cnc, u16 *response,
+		void (*cb)(void *priv, enum qdio_brinfo_entry_type type,
+				void *entry),
+		void *priv);
 
 #endif /* __QDIO_H__ */

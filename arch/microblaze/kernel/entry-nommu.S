@@ -124,6 +124,7 @@ ret_from_intr:
 	lwi	r11, r1, PT_MODE
 	bneid	r11, no_intr_resched
 
+3:
 	lwi	r6, r31, TS_THREAD_INFO	/* get thread info */
 	lwi	r19, r6, TI_FLAGS	/* get flags in thread info */
 				/* do an extra work if any bits are set */
@@ -132,12 +133,13 @@ ret_from_intr:
 	beqi	r11, 1f
 	bralid	r15, schedule
 	nop
-1:	andi	r11, r19, _TIF_SIGPENDING
+	bri	3b
+1:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
 	beqid	r11, no_intr_resched
 	addk	r5, r1, r0
-	addk	r7, r0, r0
-	bralid	r15, do_signal
+	bralid	r15, do_notify_resume
 	addk	r6, r0, r0
+	bri	3b
 
 no_intr_resched:
 	/* Disable interrupts, we are now committed to the state restore */
@@ -281,6 +283,7 @@ ENTRY(_user_exception)
 	/* Figure out which function to use for this system call. */
 	/* Note Microblaze barrel shift is optional, so don't rely on it */
 	add	r12, r12, r12			/* convert num -> ptr */
+	addik	r30, r0, 1			/* restarts allowed */
 	add	r12, r12, r12
 	lwi	r12, r12, sys_call_table	/* Get function pointer */
 	addik	r15, r0, ret_to_user-8		/* set return address */
@@ -292,8 +295,8 @@ ENTRY(_user_exception)
 
 /*
  * Debug traps are like a system call, but entered via brki r14, 0x60
- * All we need to do is send the SIGTRAP signal to current, ptrace and do_signal
- * will handle the rest
+ * All we need to do is send the SIGTRAP signal to current, ptrace and
+ * do_notify_resume will handle the rest
  */
 ENTRY(_debug_exception)
 	swi	r1, r0, PER_CPU(ENTRY_SP)	/* save the current sp */
@@ -370,6 +373,7 @@ ENTRY(_debug_exception)
 	bralid	r15, send_sig
 	add	r7, r0, r0			/* 3rd param zero */
 
+	addik	r30, r0, 1			/* restarts allowed ??? */
 	/* Restore r3/r4 to work around how ret_to_user works */
 	lwi	r3, r1, PT_R3
 	lwi	r4, r1, PT_R4
@@ -466,7 +470,6 @@ ENTRY(_switch_to)
 
 ENTRY(ret_from_fork)
 	addk	r5, r0, r3
-	addk	r6, r0, r1
 	brlid	r15, schedule_tail
 	nop
 	swi	r31, r1, PT_R31		/* save r31 in user context. */
@@ -475,20 +478,35 @@ ENTRY(ret_from_fork)
 	brid	ret_to_user
 	nop
 
-work_pending:
-	enable_irq
+ENTRY(ret_from_kernel_thread)
+	brlid	r15, schedule_tail
+	addk	r5, r0, r3
+	brald	r15, r20
+	addk	r5, r0, r19
+	brid	ret_to_user
+	addk	r3, r0, r0
 
+work_pending:
+	lwi	r11, r1, PT_MODE
+	bneid	r11, 2f
+3:
+	enable_irq
 	andi	r11, r19, _TIF_NEED_RESCHED
 	beqi	r11, 1f
 	bralid	r15, schedule
 	nop
-1:	andi	r11, r19, _TIF_SIGPENDING
+	bri	4f
+1:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
 	beqi	r11, no_work_pending
-	addk	r5, r1, r0
-	addik	r7, r0, 1
-	bralid	r15, do_signal
-	addk	r6, r0, r0
-	bri	no_work_pending
+	addk	r5, r30, r0
+	bralid	r15, do_notify_resume
+	addik	r6, r0, 1
+	addk	r30, r0, r0	/* no restarts from now on */
+4:
+	disable_irq
+	lwi	r6, r31, TS_THREAD_INFO /* get thread info */
+	lwi	r19, r6, TI_FLAGS /* get flags in thread info */
+	bri	3b
 
 ENTRY(ret_to_user)
 	disable_irq
@@ -502,6 +520,7 @@ ENTRY(ret_to_user)
 no_work_pending:
 	disable_irq
 
+2:
 	/* save r31 */
 	swi	r31, r0, PER_CPU(CURRENT_SAVE)
 	/* save mode indicator */
@@ -553,25 +572,10 @@ no_work_pending:
 	rtid	r14, 0
 	nop
 
-sys_vfork:
-	brid	microblaze_vfork
-	addk	r5, r1, r0
-
-sys_clone:
-	brid	microblaze_clone
-	addk	r7, r1, r0
-
-sys_execve:
-	brid	microblaze_execve
-	addk	r8, r1, r0
-
 sys_rt_sigreturn_wrapper:
+	addk	r30, r0, r0		/* no restarts for this one */
 	brid	sys_rt_sigreturn
 	addk	r5, r1, r0
-
-sys_rt_sigsuspend_wrapper:
-	brid	sys_rt_sigsuspend
-	addk	r7, r1, r0
 
 	/* Interrupt vector table */
 	.section	.init.ivt, "ax"

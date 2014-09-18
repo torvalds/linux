@@ -42,7 +42,6 @@
 #define AR9300_EEPMISC_WOW           0x02
 #define AR9300_CUSTOMER_DATA_SIZE    20
 
-#define FBIN2FREQ(x, y) ((y) ? (2300 + x) : (4800 + 5 * x))
 #define AR9300_MAX_CHAINS            3
 #define AR9300_ANT_16S               25
 #define AR9300_FUTURE_MODAL_SZ       6
@@ -52,6 +51,8 @@
 #define AR9300_PAPRD_SCALE_1_S		25
 #define AR9300_PAPRD_SCALE_2		0x70000000
 #define AR9300_PAPRD_SCALE_2_S		28
+
+#define AR9300_EEP_ANTDIV_CONTROL_DEFAULT_VALUE 0xc9
 
 /* Delta from which to start power to pdadc table */
 /* This offset is used in both open loop and closed loop power control
@@ -69,13 +70,16 @@
 #define AR9300_BASE_ADDR 0x3ff
 #define AR9300_BASE_ADDR_512 0x1ff
 
-#define AR9300_OTP_BASE			0x14000
-#define AR9300_OTP_STATUS		0x15f18
+#define AR9300_OTP_BASE \
+		((AR_SREV_9340(ah) || AR_SREV_9550(ah)) ? 0x30000 : 0x14000)
+#define AR9300_OTP_STATUS \
+		((AR_SREV_9340(ah) || AR_SREV_9550(ah)) ? 0x30018 : 0x15f18)
 #define AR9300_OTP_STATUS_TYPE		0x7
 #define AR9300_OTP_STATUS_VALID		0x4
 #define AR9300_OTP_STATUS_ACCESS_BUSY	0x2
 #define AR9300_OTP_STATUS_SM_BUSY	0x1
-#define AR9300_OTP_READ_DATA		0x15f1c
+#define AR9300_OTP_READ_DATA \
+		((AR_SREV_9340(ah) || AR_SREV_9550(ah)) ? 0x3001c : 0x15f1c)
 
 enum targetPowerHTRates {
 	HT_TARGET_RATE_0_8_16,
@@ -232,7 +236,8 @@ struct ar9300_modal_eep_header {
 	__le32 papdRateMaskHt20;
 	__le32 papdRateMaskHt40;
 	__le16 switchcomspdt;
-	u8 futureModal[8];
+	u8 xlna_bias_strength;
+	u8 futureModal[7];
 } __packed;
 
 struct ar9300_cal_data_per_freq_op_loop {
@@ -265,9 +270,20 @@ struct cal_ctl_data_5g {
 	u8 ctlEdges[AR9300_NUM_BAND_EDGES_5G];
 } __packed;
 
+#define MAX_BASE_EXTENSION_FUTURE 2
+
 struct ar9300_BaseExtension_1 {
 	u8 ant_div_control;
-	u8 future[11];
+	u8 future[MAX_BASE_EXTENSION_FUTURE];
+	/*
+	 * misc_enable:
+	 *
+	 * BIT 0   - TX Gain Cap enable.
+	 * BIT 1   - Uncompressed Checksum enable.
+	 * BIT 2/3 - MinCCApwr enable 2g/5g.
+	 */
+	u8 misc_enable;
+	int8_t tempslopextension[8];
 	int8_t quick_drop_low;
 	int8_t quick_drop_high;
 } __packed;
@@ -330,9 +346,14 @@ struct ar9300_eeprom {
 
 s32 ar9003_hw_get_tx_gain_idx(struct ath_hw *ah);
 s32 ar9003_hw_get_rx_gain_idx(struct ath_hw *ah);
+u32 ar9003_hw_ant_ctrl_common_get(struct ath_hw *ah, bool is2ghz);
+u32 ar9003_hw_ant_ctrl_common_2_get(struct ath_hw *ah, bool is2ghz);
 
 u8 *ar9003_get_spur_chan_ptr(struct ath_hw *ah, bool is_2ghz);
 
 unsigned int ar9003_get_paprd_scale_factor(struct ath_hw *ah,
 					   struct ath9k_channel *chan);
+
+void ar9003_hw_internal_regulator_apply(struct ath_hw *ah);
+
 #endif

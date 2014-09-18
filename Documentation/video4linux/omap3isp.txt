@@ -12,7 +12,7 @@ Introduction
 ============
 
 This file documents the Texas Instruments OMAP 3 Image Signal Processor (ISP)
-driver located under drivers/media/video/omap3isp. The original driver was
+driver located under drivers/media/platform/omap3isp. The original driver was
 written by Texas Instruments but since that it has been rewritten (twice) at
 Nokia.
 

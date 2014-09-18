@@ -1,0 +1,25 @@
+* MSM Serial UART
+
+The MSM serial UART hardware is designed for low-speed use cases where a
+dma-engine isn't needed. From a software perspective it's mostly compatible
+with the MSM serial UARTDM except that it only supports reading and writing one
+character at a time.
+
+Required properties:
+- compatible: Should contain "qcom,msm-uart"
+- reg: Should contain UART register location and length.
+- interrupts: Should contain UART interrupt.
+- clocks: Should contain the core clock.
+- clock-names: Should be "core".
+
+Example:
+
+A uart device at 0xa9c00000 with interrupt 11.
+
+serial@a9c00000 {
+	compatible = "qcom,msm-uart";
+	reg = <0xa9c00000 0x1000>;
+	interrupts = <11>;
+	clocks = <&uart_cxc>;
+	clock-names = "core";
+};

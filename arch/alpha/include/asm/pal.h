@@ -1,54 +1,8 @@
 #ifndef __ALPHA_PAL_H
 #define __ALPHA_PAL_H
 
-/*
- * Common PAL-code
- */
-#define PAL_halt	  0
-#define PAL_cflush	  1
-#define PAL_draina	  2
-#define PAL_bpt		128
-#define PAL_bugchk	129
-#define PAL_chmk	131
-#define PAL_callsys	131
-#define PAL_imb		134
-#define PAL_rduniq	158
-#define PAL_wruniq	159
-#define PAL_gentrap	170
-#define PAL_nphalt	190
+#include <uapi/asm/pal.h>
 
-/*
- * VMS specific PAL-code
- */
-#define PAL_swppal	10
-#define PAL_mfpr_vptb	41
-
-/*
- * OSF specific PAL-code
- */
-#define PAL_cserve	 9
-#define PAL_wripir	13
-#define PAL_rdmces	16
-#define PAL_wrmces	17
-#define PAL_wrfen	43
-#define PAL_wrvptptr	45
-#define PAL_jtopal	46
-#define PAL_swpctx	48
-#define PAL_wrval	49
-#define PAL_rdval	50
-#define PAL_tbi		51
-#define PAL_wrent	52
-#define PAL_swpipl	53
-#define PAL_rdps	54
-#define PAL_wrkgp	55
-#define PAL_wrusp	56
-#define PAL_wrperfmon	57
-#define PAL_rdusp	58
-#define PAL_whami	60
-#define PAL_retsys	61
-#define PAL_rti		63
-
-#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
 extern void halt(void) __attribute__((noreturn));
@@ -135,6 +89,7 @@ __CALL_PAL_W1(wrmces, unsigned long);
 __CALL_PAL_RW2(wrperfmon, unsigned long, unsigned long, unsigned long);
 __CALL_PAL_W1(wrusp, unsigned long);
 __CALL_PAL_W1(wrvptptr, unsigned long);
+__CALL_PAL_RW1(wtint, unsigned long, unsigned long);
 
 /*
  * TB routines..
@@ -157,7 +112,75 @@ __CALL_PAL_W1(wrvptptr, unsigned long);
 #define tbiap()		__tbi(-1, /* no second argument */)
 #define tbia()		__tbi(-2, /* no second argument */)
 
-#endif /* !__ASSEMBLY__ */
-#endif /* __KERNEL__ */
+/*
+ * QEMU Cserv routines..
+ */
 
+static inline unsigned long
+qemu_get_walltime(void)
+{
+	register unsigned long v0 __asm__("$0");
+	register unsigned long a0 __asm__("$16") = 3;
+
+	asm("call_pal %2 # cserve get_time"
+	    : "=r"(v0), "+r"(a0)
+	    : "i"(PAL_cserve)
+	    : "$17", "$18", "$19", "$20", "$21");
+
+	return v0;
+}
+
+static inline unsigned long
+qemu_get_alarm(void)
+{
+	register unsigned long v0 __asm__("$0");
+	register unsigned long a0 __asm__("$16") = 4;
+
+	asm("call_pal %2 # cserve get_alarm"
+	    : "=r"(v0), "+r"(a0)
+	    : "i"(PAL_cserve)
+	    : "$17", "$18", "$19", "$20", "$21");
+
+	return v0;
+}
+
+static inline void
+qemu_set_alarm_rel(unsigned long expire)
+{
+	register unsigned long a0 __asm__("$16") = 5;
+	register unsigned long a1 __asm__("$17") = expire;
+
+	asm volatile("call_pal %2 # cserve set_alarm_rel"
+		     : "+r"(a0), "+r"(a1)
+		     : "i"(PAL_cserve)
+		     : "$0", "$18", "$19", "$20", "$21");
+}
+
+static inline void
+qemu_set_alarm_abs(unsigned long expire)
+{
+	register unsigned long a0 __asm__("$16") = 6;
+	register unsigned long a1 __asm__("$17") = expire;
+
+	asm volatile("call_pal %2 # cserve set_alarm_abs"
+		     : "+r"(a0), "+r"(a1)
+		     : "i"(PAL_cserve)
+		     : "$0", "$18", "$19", "$20", "$21");
+}
+
+static inline unsigned long
+qemu_get_vmtime(void)
+{
+	register unsigned long v0 __asm__("$0");
+	register unsigned long a0 __asm__("$16") = 7;
+
+	asm("call_pal %2 # cserve get_time"
+	    : "=r"(v0), "+r"(a0)
+	    : "i"(PAL_cserve)
+	    : "$17", "$18", "$19", "$20", "$21");
+
+	return v0;
+}
+
+#endif /* !__ASSEMBLY__ */
 #endif /* __ALPHA_PAL_H */

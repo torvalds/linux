@@ -372,14 +372,14 @@ do {	if (vio->debug & VIO_DEBUG_##TYPE) \
 		       vio->vdev->channel_id, ## a); \
 } while (0)
 
-extern int __vio_register_driver(struct vio_driver *drv, struct module *owner,
+int __vio_register_driver(struct vio_driver *drv, struct module *owner,
 				 const char *mod_name);
 /*
  * vio_register_driver must be a macro so that KBUILD_MODNAME can be expanded
  */
 #define vio_register_driver(driver)		\
 	__vio_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
-extern void vio_unregister_driver(struct vio_driver *drv);
+void vio_unregister_driver(struct vio_driver *drv);
 
 static inline struct vio_driver *to_vio_driver(struct device_driver *drv)
 {
@@ -391,21 +391,21 @@ static inline struct vio_dev *to_vio_dev(struct device *dev)
 	return container_of(dev, struct vio_dev, dev);
 }
 
-extern int vio_ldc_send(struct vio_driver_state *vio, void *data, int len);
-extern void vio_link_state_change(struct vio_driver_state *vio, int event);
-extern void vio_conn_reset(struct vio_driver_state *vio);
-extern int vio_control_pkt_engine(struct vio_driver_state *vio, void *pkt);
-extern int vio_validate_sid(struct vio_driver_state *vio,
-			    struct vio_msg_tag *tp);
-extern u32 vio_send_sid(struct vio_driver_state *vio);
-extern int vio_ldc_alloc(struct vio_driver_state *vio,
-			 struct ldc_channel_config *base_cfg, void *event_arg);
-extern void vio_ldc_free(struct vio_driver_state *vio);
-extern int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
-			   u8 dev_class, struct vio_version *ver_table,
-			   int ver_table_size, struct vio_driver_ops *ops,
-			   char *name);
+int vio_ldc_send(struct vio_driver_state *vio, void *data, int len);
+void vio_link_state_change(struct vio_driver_state *vio, int event);
+void vio_conn_reset(struct vio_driver_state *vio);
+int vio_control_pkt_engine(struct vio_driver_state *vio, void *pkt);
+int vio_validate_sid(struct vio_driver_state *vio,
+		     struct vio_msg_tag *tp);
+u32 vio_send_sid(struct vio_driver_state *vio);
+int vio_ldc_alloc(struct vio_driver_state *vio,
+		  struct ldc_channel_config *base_cfg, void *event_arg);
+void vio_ldc_free(struct vio_driver_state *vio);
+int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
+		    u8 dev_class, struct vio_version *ver_table,
+		    int ver_table_size, struct vio_driver_ops *ops,
+		    char *name);
 
-extern void vio_port_up(struct vio_driver_state *vio);
+void vio_port_up(struct vio_driver_state *vio);
 
 #endif /* _SPARC64_VIO_H */

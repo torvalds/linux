@@ -30,6 +30,8 @@
  * IN THE SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/wait.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
@@ -205,13 +207,12 @@ int xb_init_comms(void)
 	struct xenstore_domain_interface *intf = xen_store_interface;
 
 	if (intf->req_prod != intf->req_cons)
-		printk(KERN_ERR "XENBUS request ring is not quiescent "
-		       "(%08x:%08x)!\n", intf->req_cons, intf->req_prod);
+		pr_err("request ring is not quiescent (%08x:%08x)!\n",
+		       intf->req_cons, intf->req_prod);
 
 	if (intf->rsp_prod != intf->rsp_cons) {
-		printk(KERN_WARNING "XENBUS response ring is not quiescent "
-		       "(%08x:%08x): fixing up\n",
-		       intf->rsp_cons, intf->rsp_prod);
+		pr_warn("response ring is not quiescent (%08x:%08x): fixing up\n",
+			intf->rsp_cons, intf->rsp_prod);
 		/* breaks kdump */
 		if (!reset_devices)
 			intf->rsp_cons = intf->rsp_prod;
@@ -224,8 +225,8 @@ int xb_init_comms(void)
 		int err;
 		err = bind_evtchn_to_irqhandler(xen_store_evtchn, wake_waiting,
 						0, "xenbus", &xb_waitq);
-		if (err <= 0) {
-			printk(KERN_ERR "XENBUS request irq failed %i\n", err);
+		if (err < 0) {
+			pr_err("request irq failed %i\n", err);
 			return err;
 		}
 
@@ -233,4 +234,10 @@ int xb_init_comms(void)
 	}
 
 	return 0;
+}
+
+void xb_deinit_comms(void)
+{
+	unbind_from_irqhandler(xenbus_irq, &xb_waitq);
+	xenbus_irq = 0;
 }

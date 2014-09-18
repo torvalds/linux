@@ -101,7 +101,8 @@ extern int css_driver_register(struct css_driver *);
 extern void css_driver_unregister(struct css_driver *);
 
 extern void css_sch_device_unregister(struct subchannel *);
-extern int css_probe_device(struct subchannel_id);
+extern int css_register_subchannel(struct subchannel *);
+extern struct subchannel *css_alloc_subchannel(struct subchannel_id);
 extern struct subchannel *get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
 extern int max_ssid;
@@ -109,11 +110,7 @@ int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
 			       int (*fn_unknown)(struct subchannel_id,
 			       void *), void *data);
 extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
-extern void css_reiterate_subchannels(void);
 void css_update_ssd_info(struct subchannel *sch);
-
-#define __MAX_SUBCHANNEL 65535
-#define __MAX_SSID 3
 
 struct channel_subsystem {
 	u8 cssid;
@@ -133,11 +130,10 @@ struct channel_subsystem {
 
 extern struct channel_subsystem *channel_subsystems[];
 
-void channel_subsystem_reinit(void);
-
 /* Helper functions to build lists for the slow path. */
 void css_schedule_eval(struct subchannel_id schid);
 void css_schedule_eval_all(void);
+void css_schedule_eval_all_unreg(unsigned long delay);
 int css_complete_work(void);
 
 int sch_is_pseudo_sch(struct subchannel *);

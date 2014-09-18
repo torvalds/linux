@@ -125,9 +125,6 @@ sa1100_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 		if (freqs->new < freqs->old)
 			sa1100_pcmcia_set_mecr(skt, freqs->new);
 		break;
-	case CPUFREQ_RESUMECHANGE:
-		sa1100_pcmcia_set_mecr(skt, freqs->new);
-		break;
 	}
 
 	return 0;

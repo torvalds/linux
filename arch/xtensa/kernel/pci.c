@@ -46,7 +46,6 @@
  * pcibios_fixups
  * pcibios_align_resource
  * pcibios_fixup_bus
- * pcibios_setup
  * pci_bus_add_device
  * pci_mmap_page_range
  */
@@ -78,9 +77,9 @@ pcibios_align_resource(void *data, const struct resource *res,
 
 	if (res->flags & IORESOURCE_IO) {
 		if (size > 0x100) {
-			printk(KERN_ERR "PCI: I/O Region %s/%d too large"
-			       " (%ld bytes)\n", pci_name(dev),
-			       dev->resource - res, size);
+			pr_err("PCI: I/O Region %s/%d too large (%u bytes)\n",
+					pci_name(dev), dev->resource - res,
+					size);
 		}
 
 		if (start & 0x300)
@@ -175,7 +174,7 @@ static int __init pcibios_init(void)
 	struct pci_controller *pci_ctrl;
 	struct list_head resources;
 	struct pci_bus *bus;
-	int next_busno = 0, i;
+	int next_busno = 0;
 
 	printk("PCI: Probing PCI hardware\n");
 
@@ -187,7 +186,7 @@ static int __init pcibios_init(void)
 		bus = pci_scan_root_bus(NULL, pci_ctrl->first_busno,
 					pci_ctrl->ops, pci_ctrl, &resources);
 		pci_ctrl->bus = bus;
-		pci_ctrl->last_busno = bus->subordinate;
+		pci_ctrl->last_busno = bus->busn_res.end;
 		if (next_busno <= pci_ctrl->last_busno)
 			next_busno = pci_ctrl->last_busno+1;
 	}
@@ -198,7 +197,7 @@ static int __init pcibios_init(void)
 
 subsys_initcall(pcibios_init);
 
-void __init pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	if (bus->parent) {
 		/* This is a subordinate bridge */
@@ -206,22 +205,9 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 	}
 }
 
-char __init *pcibios_setup(char *str)
-{
-	return str;
-}
-
 void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling */
-}
-
-/* the next one is stolen from the alpha port... */
-
-void __init
-pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
@@ -347,7 +333,7 @@ __pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vma,
 	int prot = pgprot_val(vma->vm_page_prot);
 
 	/* Set to write-through */
-	prot &= ~_PAGE_NO_CACHE;
+	prot = (prot & _PAGE_CA_MASK) | _PAGE_CA_WT;
 #if 0
 	if (!write_combine)
 		prot |= _PAGE_WRITETHRU;

@@ -10,16 +10,18 @@
 #include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/utsname.h>
+#include <linux/sched.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
+#include <asm/sections.h>
 #include <asm/setup.h>
-#include "as-layout.h"
-#include "arch.h"
-#include "init.h"
-#include "kern.h"
-#include "kern_util.h"
-#include "mem_user.h"
-#include "os.h"
+#include <as-layout.h>
+#include <arch.h>
+#include <init.h>
+#include <kern.h>
+#include <kern_util.h>
+#include <mem_user.h>
+#include <os.h>
 
 #define DEFAULT_COMMAND_LINE "root=98:0"
 
@@ -46,6 +48,10 @@ struct cpuinfo_um boot_cpu_data = {
 	.loops_per_jiffy	= 0,
 	.ipi_pipe		= { -1, -1 }
 };
+
+union thread_union cpu0_irqstack
+	__attribute__((__section__(".data..init_irqstack"))) =
+		{ INIT_THREAD_INFO(init_task) };
 
 unsigned long thread_saved_pc(struct task_struct *task)
 {
@@ -229,7 +235,6 @@ static int panic_exit(struct notifier_block *self, unsigned long unused1,
 		      void *unused2)
 {
 	bust_spinlocks(1);
-	show_regs(&(current->thread.regs));
 	bust_spinlocks(0);
 	uml_exitcode = 1;
 	os_dump_core();

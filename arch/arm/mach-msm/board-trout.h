@@ -4,7 +4,7 @@
 #ifndef __ARCH_ARM_MACH_MSM_BOARD_TROUT_H
 #define __ARCH_ARM_MACH_MSM_BOARD_TROUT_H
 
-#include <mach/board.h>
+#include "common.h"
 
 #define MSM_SMI_BASE		0x00000000
 #define MSM_SMI_SIZE		0x00800000
@@ -58,7 +58,7 @@
 #define TROUT_4_TP_LS_EN    19
 #define TROUT_5_TP_LS_EN    1
 
-#define TROUT_CPLD_BASE   0xE8100000
+#define TROUT_CPLD_BASE   IOMEM(0xE8100000)
 #define TROUT_CPLD_START  0x98000000
 #define TROUT_CPLD_SIZE   SZ_4K
 

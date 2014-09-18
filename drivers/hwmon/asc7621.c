@@ -138,7 +138,7 @@ static inline u8 read_byte(struct i2c_client *client, u8 reg)
 		dev_err(&client->dev,
 			"Unable to read from register 0x%02x.\n", reg);
 		return 0;
-	};
+	}
 	return res & 0xff;
 }
 
@@ -149,7 +149,7 @@ static inline int write_byte(struct i2c_client *client, u8 reg, u8 data)
 		dev_err(&client->dev,
 			"Unable to write value 0x%02x to register 0x%02x.\n",
 			data, reg);
-	};
+	}
 	return res;
 }
 
@@ -159,12 +159,12 @@ static inline int write_byte(struct i2c_client *client, u8 reg, u8 data)
  * and retrieval of like parameters.
  */
 
-#define SETUP_SHOW_data_param(d, a) \
+#define SETUP_SHOW_DATA_PARAM(d, a) \
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(a); \
 	struct asc7621_data *data = asc7621_update_device(d); \
 	struct asc7621_param *param = to_asc7621_param(sda)
 
-#define SETUP_STORE_data_param(d, a) \
+#define SETUP_STORE_DATA_PARAM(d, a) \
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(a); \
 	struct i2c_client *client = to_i2c_client(d); \
 	struct asc7621_data *data = i2c_get_clientdata(client); \
@@ -177,7 +177,7 @@ static inline int write_byte(struct i2c_client *client, u8 reg, u8 data)
 static ssize_t show_u8(struct device *dev, struct device_attribute *attr,
 		       char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 
 	return sprintf(buf, "%u\n", data->reg[param->msb[0]]);
 }
@@ -185,13 +185,13 @@ static ssize_t show_u8(struct device *dev, struct device_attribute *attr,
 static ssize_t store_u8(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	long reqval;
 
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	reqval = SENSORS_LIMIT(reqval, 0, 255);
+	reqval = clamp_val(reqval, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->reg[param->msb[0]] = reqval;
@@ -206,7 +206,7 @@ static ssize_t store_u8(struct device *dev, struct device_attribute *attr,
 static ssize_t show_bitmask(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 
 	return sprintf(buf, "%u\n",
 		       (data->reg[param->msb[0]] >> param->
@@ -217,14 +217,14 @@ static ssize_t store_bitmask(struct device *dev,
 			     struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	long reqval;
 	u8 currval;
 
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	reqval = SENSORS_LIMIT(reqval, 0, param->mask[0]);
+	reqval = clamp_val(reqval, 0, param->mask[0]);
 
 	reqval = (reqval & param->mask[0]) << param->shift[0];
 
@@ -246,7 +246,7 @@ static ssize_t store_bitmask(struct device *dev,
 static ssize_t show_fan16(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u16 regval;
 
 	mutex_lock(&data->update_lock);
@@ -262,7 +262,7 @@ static ssize_t store_fan16(struct device *dev,
 			   struct device_attribute *attr, const char *buf,
 			   size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	long reqval;
 
 	if (kstrtol(buf, 10, &reqval))
@@ -274,7 +274,7 @@ static ssize_t store_fan16(struct device *dev,
 	 * generating an alarm.
 	 */
 	reqval =
-	    (reqval <= 0 ? 0xffff : SENSORS_LIMIT(5400000 / reqval, 0, 0xfffe));
+	    (reqval <= 0 ? 0xffff : clamp_val(5400000 / reqval, 0, 0xfffe));
 
 	mutex_lock(&data->update_lock);
 	data->reg[param->msb[0]] = (reqval >> 8) & 0xff;
@@ -300,14 +300,14 @@ static ssize_t store_fan16(struct device *dev,
  * respectively. That doesn't mean that's what the motherboard provides. :)
  */
 
-static int asc7621_in_scaling[] = {
+static const int asc7621_in_scaling[] = {
 	2500, 2250, 3300, 5000, 12000
 };
 
 static ssize_t show_in10(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u16 regval;
 	u8 nr = sda->index;
 
@@ -325,7 +325,7 @@ static ssize_t show_in10(struct device *dev, struct device_attribute *attr,
 static ssize_t show_in8(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u8 nr = sda->index;
 
 	return sprintf(buf, "%u\n",
@@ -336,18 +336,18 @@ static ssize_t show_in8(struct device *dev, struct device_attribute *attr,
 static ssize_t store_in8(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	long reqval;
 	u8 nr = sda->index;
 
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	reqval = SENSORS_LIMIT(reqval, 0, 0xffff);
+	reqval = clamp_val(reqval, 0, 0xffff);
 
 	reqval = reqval * 0xc0 / asc7621_in_scaling[nr];
 
-	reqval = SENSORS_LIMIT(reqval, 0, 0xff);
+	reqval = clamp_val(reqval, 0, 0xff);
 
 	mutex_lock(&data->update_lock);
 	data->reg[param->msb[0]] = reqval;
@@ -360,7 +360,7 @@ static ssize_t store_in8(struct device *dev, struct device_attribute *attr,
 static ssize_t show_temp8(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 
 	return sprintf(buf, "%d\n", ((s8) data->reg[param->msb[0]]) * 1000);
 }
@@ -369,14 +369,14 @@ static ssize_t store_temp8(struct device *dev,
 			   struct device_attribute *attr, const char *buf,
 			   size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	long reqval;
 	s8 temp;
 
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	reqval = SENSORS_LIMIT(reqval, -127000, 127000);
+	reqval = clamp_val(reqval, -127000, 127000);
 
 	temp = reqval / 1000;
 
@@ -397,7 +397,7 @@ static ssize_t store_temp8(struct device *dev,
 static ssize_t show_temp10(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u8 msb, lsb;
 	int temp;
 
@@ -414,7 +414,7 @@ static ssize_t show_temp10(struct device *dev,
 static ssize_t show_temp62(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u8 regval = data->reg[param->msb[0]];
 	int temp = ((s8) (regval & 0xfc) * 1000) + ((regval & 0x03) * 250);
 
@@ -425,14 +425,14 @@ static ssize_t store_temp62(struct device *dev,
 			    struct device_attribute *attr, const char *buf,
 			    size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	long reqval, i, f;
 	s8 temp;
 
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	reqval = SENSORS_LIMIT(reqval, -32000, 31750);
+	reqval = clamp_val(reqval, -32000, 31750);
 	i = reqval / 1000;
 	f = reqval - (i * 1000);
 	temp = i << 2;
@@ -451,7 +451,7 @@ static ssize_t store_temp62(struct device *dev,
  * hwmon specs, we synthesize the auto_point_2 from them.
  */
 
-static u32 asc7621_range_map[] = {
+static const u32 asc7621_range_map[] = {
 	2000, 2500, 3330, 4000, 5000, 6670, 8000, 10000,
 	13330, 16000, 20000, 26670, 32000, 40000, 53330, 80000,
 };
@@ -459,7 +459,7 @@ static u32 asc7621_range_map[] = {
 static ssize_t show_ap2_temp(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 	long auto_point1;
 	u8 regval;
 	int temp;
@@ -468,7 +468,7 @@ static ssize_t show_ap2_temp(struct device *dev,
 	auto_point1 = ((s8) data->reg[param->msb[1]]) * 1000;
 	regval =
 	    ((data->reg[param->msb[0]] >> param->shift[0]) & param->mask[0]);
-	temp = auto_point1 + asc7621_range_map[SENSORS_LIMIT(regval, 0, 15)];
+	temp = auto_point1 + asc7621_range_map[clamp_val(regval, 0, 15)];
 	mutex_unlock(&data->update_lock);
 
 	return sprintf(buf, "%d\n", temp);
@@ -479,7 +479,7 @@ static ssize_t store_ap2_temp(struct device *dev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	long reqval, auto_point1;
 	int i;
 	u8 currval, newval = 0;
@@ -489,7 +489,7 @@ static ssize_t store_ap2_temp(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	auto_point1 = data->reg[param->msb[1]] * 1000;
-	reqval = SENSORS_LIMIT(reqval, auto_point1 + 2000, auto_point1 + 80000);
+	reqval = clamp_val(reqval, auto_point1 + 2000, auto_point1 + 80000);
 
 	for (i = ARRAY_SIZE(asc7621_range_map) - 1; i >= 0; i--) {
 		if (reqval >= auto_point1 + asc7621_range_map[i]) {
@@ -510,9 +510,9 @@ static ssize_t store_ap2_temp(struct device *dev,
 static ssize_t show_pwm_ac(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u8 config, altbit, regval;
-	u8 map[] = {
+	const u8 map[] = {
 		0x01, 0x02, 0x04, 0x1f, 0x00, 0x06, 0x07, 0x10,
 		0x08, 0x0f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f
 	};
@@ -523,17 +523,17 @@ static ssize_t show_pwm_ac(struct device *dev,
 	regval = config | (altbit << 3);
 	mutex_unlock(&data->update_lock);
 
-	return sprintf(buf, "%u\n", map[SENSORS_LIMIT(regval, 0, 15)]);
+	return sprintf(buf, "%u\n", map[clamp_val(regval, 0, 15)]);
 }
 
 static ssize_t store_pwm_ac(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	unsigned long reqval;
 	u8 currval, config, altbit, newval;
-	u16 map[] = {
+	const u16 map[] = {
 		0x04, 0x00, 0x01, 0xff, 0x02, 0xff, 0x05, 0x06,
 		0x08, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0f,
 		0x07, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -569,7 +569,7 @@ static ssize_t store_pwm_ac(struct device *dev,
 static ssize_t show_pwm_enable(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u8 config, altbit, minoff, val, newval;
 
 	mutex_lock(&data->update_lock);
@@ -599,7 +599,7 @@ static ssize_t store_pwm_enable(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	long reqval;
 	u8 currval, config, altbit, newval, minoff = 255;
 
@@ -651,7 +651,7 @@ static ssize_t store_pwm_enable(struct device *dev,
 	return count;
 }
 
-static u32 asc7621_pwm_freq_map[] = {
+static const u32 asc7621_pwm_freq_map[] = {
 	10, 15, 23, 30, 38, 47, 62, 94,
 	23000, 24000, 25000, 26000, 27000, 28000, 29000, 30000
 };
@@ -659,11 +659,11 @@ static u32 asc7621_pwm_freq_map[] = {
 static ssize_t show_pwm_freq(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u8 regval =
 	    (data->reg[param->msb[0]] >> param->shift[0]) & param->mask[0];
 
-	regval = SENSORS_LIMIT(regval, 0, 15);
+	regval = clamp_val(regval, 0, 15);
 
 	return sprintf(buf, "%u\n", asc7621_pwm_freq_map[regval]);
 }
@@ -672,7 +672,7 @@ static ssize_t store_pwm_freq(struct device *dev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	unsigned long reqval;
 	u8 currval, newval = 255;
 	int i;
@@ -700,18 +700,18 @@ static ssize_t store_pwm_freq(struct device *dev,
 	return count;
 }
 
-static u32 asc7621_pwm_auto_spinup_map[] =  {
+static const u32 asc7621_pwm_auto_spinup_map[] =  {
 	0, 100, 250, 400, 700, 1000, 2000, 4000
 };
 
 static ssize_t show_pwm_ast(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u8 regval =
 	    (data->reg[param->msb[0]] >> param->shift[0]) & param->mask[0];
 
-	regval = SENSORS_LIMIT(regval, 0, 7);
+	regval = clamp_val(regval, 0, 7);
 
 	return sprintf(buf, "%u\n", asc7621_pwm_auto_spinup_map[regval]);
 
@@ -721,7 +721,7 @@ static ssize_t store_pwm_ast(struct device *dev,
 			     struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	long reqval;
 	u8 currval, newval = 255;
 	u32 i;
@@ -749,17 +749,17 @@ static ssize_t store_pwm_ast(struct device *dev,
 	return count;
 }
 
-static u32 asc7621_temp_smoothing_time_map[] = {
+static const u32 asc7621_temp_smoothing_time_map[] = {
 	35000, 17600, 11800, 7000, 4400, 3000, 1600, 800
 };
 
 static ssize_t show_temp_st(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	SETUP_SHOW_data_param(dev, attr);
+	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u8 regval =
 	    (data->reg[param->msb[0]] >> param->shift[0]) & param->mask[0];
-	regval = SENSORS_LIMIT(regval, 0, 7);
+	regval = clamp_val(regval, 0, 7);
 
 	return sprintf(buf, "%u\n", asc7621_temp_smoothing_time_map[regval]);
 }
@@ -768,7 +768,7 @@ static ssize_t store_temp_st(struct device *dev,
 			     struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
-	SETUP_STORE_data_param(dev, attr);
+	SETUP_STORE_DATA_PARAM(dev, attr);
 	long reqval;
 	u8 currval, newval = 255;
 	u32 i;
@@ -1030,7 +1030,7 @@ static struct asc7621_data *asc7621_update_device(struct device *dev)
 			}
 		}
 		data->last_high_reading = jiffies;
-	};			/* last_reading */
+	}			/* last_reading */
 
 	/* Read all the low priority registers. */
 
@@ -1044,7 +1044,7 @@ static struct asc7621_data *asc7621_update_device(struct device *dev)
 			}
 		}
 		data->last_low_reading = jiffies;
-	};			/* last_reading */
+	}			/* last_reading */
 
 	data->valid = 1;
 
@@ -1084,11 +1084,11 @@ static void asc7621_init_client(struct i2c_client *client)
 		dev_err(&client->dev,
 			"Client (%d,0x%02x) config is locked.\n",
 			i2c_adapter_id(client->adapter), client->addr);
-	};
+	}
 	if (!(value & 0x04)) {
 		dev_err(&client->dev, "Client (%d,0x%02x) is not ready.\n",
 			i2c_adapter_id(client->adapter), client->addr);
-	};
+	}
 
 /*
  * Start monitoring
@@ -1109,12 +1109,12 @@ asc7621_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	data = kzalloc(sizeof(struct asc7621_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct asc7621_data),
+			    GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-	data->valid = 0;
 	mutex_init(&data->update_lock);
 
 	/* Initialize the asc7621 chip */
@@ -1143,7 +1143,6 @@ exit_remove:
 				   &(asc7621_params[i].sda.dev_attr));
 	}
 
-	kfree(data);
 	return err;
 }
 
@@ -1192,7 +1191,6 @@ static int asc7621_remove(struct i2c_client *client)
 				   &(asc7621_params[i].sda.dev_attr));
 	}
 
-	kfree(data);
 	return 0;
 }
 

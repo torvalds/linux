@@ -25,38 +25,38 @@
 #include <asm/exception-64s.h>
 
 #if defined(CONFIG_PPC_BOOK3S_64)
-
-#define ULONG_SIZE 		8
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+#define FUNC(name) 		name
+#else
 #define FUNC(name) 		GLUE(.,name)
+#endif
+#define GET_SHADOW_VCPU(reg)    addi	reg, r13, PACA_SVCPU
 
 #elif defined(CONFIG_PPC_BOOK3S_32)
-
-#define ULONG_SIZE              4
 #define FUNC(name)		name
+#define GET_SHADOW_VCPU(reg)	lwz     reg, (THREAD + THREAD_KVM_SVCPU)(r2)
 
 #endif /* CONFIG_PPC_BOOK3S_XX */
 
-
-#define VCPU_GPR(n)		(VCPU_GPRS + (n * ULONG_SIZE))
 #define VCPU_LOAD_NVGPRS(vcpu) \
-	PPC_LL	r14, VCPU_GPR(r14)(vcpu); \
-	PPC_LL	r15, VCPU_GPR(r15)(vcpu); \
-	PPC_LL	r16, VCPU_GPR(r16)(vcpu); \
-	PPC_LL	r17, VCPU_GPR(r17)(vcpu); \
-	PPC_LL	r18, VCPU_GPR(r18)(vcpu); \
-	PPC_LL	r19, VCPU_GPR(r19)(vcpu); \
-	PPC_LL	r20, VCPU_GPR(r20)(vcpu); \
-	PPC_LL	r21, VCPU_GPR(r21)(vcpu); \
-	PPC_LL	r22, VCPU_GPR(r22)(vcpu); \
-	PPC_LL	r23, VCPU_GPR(r23)(vcpu); \
-	PPC_LL	r24, VCPU_GPR(r24)(vcpu); \
-	PPC_LL	r25, VCPU_GPR(r25)(vcpu); \
-	PPC_LL	r26, VCPU_GPR(r26)(vcpu); \
-	PPC_LL	r27, VCPU_GPR(r27)(vcpu); \
-	PPC_LL	r28, VCPU_GPR(r28)(vcpu); \
-	PPC_LL	r29, VCPU_GPR(r29)(vcpu); \
-	PPC_LL	r30, VCPU_GPR(r30)(vcpu); \
-	PPC_LL	r31, VCPU_GPR(r31)(vcpu); \
+	PPC_LL	r14, VCPU_GPR(R14)(vcpu); \
+	PPC_LL	r15, VCPU_GPR(R15)(vcpu); \
+	PPC_LL	r16, VCPU_GPR(R16)(vcpu); \
+	PPC_LL	r17, VCPU_GPR(R17)(vcpu); \
+	PPC_LL	r18, VCPU_GPR(R18)(vcpu); \
+	PPC_LL	r19, VCPU_GPR(R19)(vcpu); \
+	PPC_LL	r20, VCPU_GPR(R20)(vcpu); \
+	PPC_LL	r21, VCPU_GPR(R21)(vcpu); \
+	PPC_LL	r22, VCPU_GPR(R22)(vcpu); \
+	PPC_LL	r23, VCPU_GPR(R23)(vcpu); \
+	PPC_LL	r24, VCPU_GPR(R24)(vcpu); \
+	PPC_LL	r25, VCPU_GPR(R25)(vcpu); \
+	PPC_LL	r26, VCPU_GPR(R26)(vcpu); \
+	PPC_LL	r27, VCPU_GPR(R27)(vcpu); \
+	PPC_LL	r28, VCPU_GPR(R28)(vcpu); \
+	PPC_LL	r29, VCPU_GPR(R29)(vcpu); \
+	PPC_LL	r30, VCPU_GPR(R30)(vcpu); \
+	PPC_LL	r31, VCPU_GPR(R31)(vcpu); \
 
 /*****************************************************************************
  *                                                                           *
@@ -95,11 +95,41 @@ kvm_start_entry:
 	VCPU_LOAD_NVGPRS(r4)
 
 kvm_start_lightweight:
+	/* Copy registers into shadow vcpu so we can access them in real mode */
+	GET_SHADOW_VCPU(r3)
+	bl	FUNC(kvmppc_copy_to_svcpu)
+	nop
+	REST_GPR(4, r1)
 
 #ifdef CONFIG_PPC_BOOK3S_64
+	/* Get the dcbz32 flag */
 	PPC_LL	r3, VCPU_HFLAGS(r4)
 	rldicl	r3, r3, 0, 63		/* r3 &= 1 */
 	stb	r3, HSTATE_RESTORE_HID5(r13)
+
+	/* Load up guest SPRG3 value, since it's user readable */
+	lwz	r3, VCPU_SHAREDBE(r4)
+	cmpwi	r3, 0
+	ld	r5, VCPU_SHARED(r4)
+	beq	sprg3_little_endian
+sprg3_big_endian:
+#ifdef __BIG_ENDIAN__
+	ld	r3, VCPU_SHARED_SPRG3(r5)
+#else
+	addi	r5, r5, VCPU_SHARED_SPRG3
+	ldbrx	r3, 0, r5
+#endif
+	b	after_sprg3_load
+sprg3_little_endian:
+#ifdef __LITTLE_ENDIAN__
+	ld	r3, VCPU_SHARED_SPRG3(r5)
+#else
+	addi	r5, r5, VCPU_SHARED_SPRG3
+	ldbrx	r3, 0, r5
+#endif
+
+after_sprg3_load:
+	mtspr	SPRN_SPRG3, r3
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 	PPC_LL	r4, VCPU_SHADOW_MSR(r4)	/* get shadow_msr */
@@ -114,9 +144,6 @@ kvm_start_lightweight:
  *
  */
 
-.global kvmppc_handler_highmem
-kvmppc_handler_highmem:
-
 	/*
 	 * Register usage at this point:
 	 *
@@ -125,37 +152,62 @@ kvmppc_handler_highmem:
 	 * R12      = exit handler id
 	 * R13      = PACA
 	 * SVCPU.*  = guest *
+	 * MSR.EE   = 1
 	 *
 	 */
+
+	PPC_LL	r3, GPR4(r1)		/* vcpu pointer */
+
+	/*
+	 * kvmppc_copy_from_svcpu can clobber volatile registers, save
+	 * the exit handler id to the vcpu and restore it from there later.
+	 */
+	stw	r12, VCPU_TRAP(r3)
+
+	/* Transfer reg values from shadow vcpu back to vcpu struct */
+	/* On 64-bit, interrupts are still off at this point */
+
+	GET_SHADOW_VCPU(r4)
+	bl	FUNC(kvmppc_copy_from_svcpu)
+	nop
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	/*
+	 * Reload kernel SPRG3 value.
+	 * No need to save guest value as usermode can't modify SPRG3.
+	 */
+	ld	r3, PACA_SPRG_VDSO(r13)
+	mtspr	SPRN_SPRG_VDSO_WRITE, r3
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 	/* R7 = vcpu */
 	PPC_LL	r7, GPR4(r1)
 
-	PPC_STL	r14, VCPU_GPR(r14)(r7)
-	PPC_STL	r15, VCPU_GPR(r15)(r7)
-	PPC_STL	r16, VCPU_GPR(r16)(r7)
-	PPC_STL	r17, VCPU_GPR(r17)(r7)
-	PPC_STL	r18, VCPU_GPR(r18)(r7)
-	PPC_STL	r19, VCPU_GPR(r19)(r7)
-	PPC_STL	r20, VCPU_GPR(r20)(r7)
-	PPC_STL	r21, VCPU_GPR(r21)(r7)
-	PPC_STL	r22, VCPU_GPR(r22)(r7)
-	PPC_STL	r23, VCPU_GPR(r23)(r7)
-	PPC_STL	r24, VCPU_GPR(r24)(r7)
-	PPC_STL	r25, VCPU_GPR(r25)(r7)
-	PPC_STL	r26, VCPU_GPR(r26)(r7)
-	PPC_STL	r27, VCPU_GPR(r27)(r7)
-	PPC_STL	r28, VCPU_GPR(r28)(r7)
-	PPC_STL	r29, VCPU_GPR(r29)(r7)
-	PPC_STL	r30, VCPU_GPR(r30)(r7)
-	PPC_STL	r31, VCPU_GPR(r31)(r7)
+	PPC_STL	r14, VCPU_GPR(R14)(r7)
+	PPC_STL	r15, VCPU_GPR(R15)(r7)
+	PPC_STL	r16, VCPU_GPR(R16)(r7)
+	PPC_STL	r17, VCPU_GPR(R17)(r7)
+	PPC_STL	r18, VCPU_GPR(R18)(r7)
+	PPC_STL	r19, VCPU_GPR(R19)(r7)
+	PPC_STL	r20, VCPU_GPR(R20)(r7)
+	PPC_STL	r21, VCPU_GPR(R21)(r7)
+	PPC_STL	r22, VCPU_GPR(R22)(r7)
+	PPC_STL	r23, VCPU_GPR(R23)(r7)
+	PPC_STL	r24, VCPU_GPR(R24)(r7)
+	PPC_STL	r25, VCPU_GPR(R25)(r7)
+	PPC_STL	r26, VCPU_GPR(R26)(r7)
+	PPC_STL	r27, VCPU_GPR(R27)(r7)
+	PPC_STL	r28, VCPU_GPR(R28)(r7)
+	PPC_STL	r29, VCPU_GPR(R29)(r7)
+	PPC_STL	r30, VCPU_GPR(R30)(r7)
+	PPC_STL	r31, VCPU_GPR(R31)(r7)
 
 	/* Pass the exit number as 3rd argument to kvmppc_handle_exit */
-	mr	r5, r12
+	lwz	r5, VCPU_TRAP(r7)
 
 	/* Restore r3 (kvm_run) and r4 (vcpu) */
 	REST_2GPRS(3, r1)
-	bl	FUNC(kvmppc_handle_exit)
+	bl	FUNC(kvmppc_handle_exit_pr)
 
 	/* If RESUME_GUEST, get back in the loop */
 	cmpwi	r3, RESUME_GUEST

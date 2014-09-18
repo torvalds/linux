@@ -3,7 +3,7 @@
  * The Internal Memory Map for devices with QE on them. This
  * is the superset of all QE devices (8360, etc.).
 
- * Copyright (C) 2006. Freescale Semicondutor, Inc. All rights reserved.
+ * Copyright (C) 2006. Freescale Semiconductor, Inc. All rights reserved.
  *
  * Authors: 	Shlomi Gridish <gridish@freescale.com>
  * 		Li Yang <leoli@freescale.com>
@@ -26,7 +26,9 @@
 struct qe_iram {
 	__be32	iadd;		/* I-RAM Address Register */
 	__be32	idata;		/* I-RAM Data Register */
-	u8	res0[0x78];
+	u8	res0[0x04];
+	__be32	iready;		/* I-RAM Ready Register */
+	u8	res1[0x70];
 } __attribute__ ((packed));
 
 /* QE Interrupt Controller */

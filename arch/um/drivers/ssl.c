@@ -3,19 +3,19 @@
  * Licensed under the GPL
  */
 
-#include "linux/fs.h"
-#include "linux/tty.h"
-#include "linux/tty_driver.h"
-#include "linux/major.h"
-#include "linux/mm.h"
-#include "linux/init.h"
-#include "linux/console.h"
-#include "asm/termbits.h"
-#include "asm/irq.h"
+#include <linux/fs.h>
+#include <linux/tty.h>
+#include <linux/tty_driver.h>
+#include <linux/major.h>
+#include <linux/mm.h>
+#include <linux/init.h>
+#include <linux/console.h>
+#include <asm/termbits.h>
+#include <asm/irq.h>
 #include "ssl.h"
 #include "chan.h"
-#include "init.h"
-#include "irq_user.h"
+#include <init.h>
+#include <irq_user.h>
 #include "mconsole_kern.h"
 
 static const int ssl_version = 1;
@@ -87,40 +87,13 @@ static int ssl_remove(int n, char **error_out)
 			   error_out);
 }
 
-static int ssl_open(struct tty_struct *tty, struct file *filp)
+static int ssl_install(struct tty_driver *driver, struct tty_struct *tty)
 {
-	int err = line_open(serial_lines, tty);
-
-	if (err)
-		printk(KERN_ERR "Failed to open serial line %d, err = %d\n",
-		       tty->index, err);
-
-	return err;
+	return line_install(driver, tty, &serial_lines[tty->index]);
 }
-
-#if 0
-static void ssl_flush_buffer(struct tty_struct *tty)
-{
-	return;
-}
-
-static void ssl_stop(struct tty_struct *tty)
-{
-	printk(KERN_ERR "Someone should implement ssl_stop\n");
-}
-
-static void ssl_start(struct tty_struct *tty)
-{
-	printk(KERN_ERR "Someone should implement ssl_start\n");
-}
-
-void ssl_hangup(struct tty_struct *tty)
-{
-}
-#endif
 
 static const struct tty_operations ssl_ops = {
-	.open 	 		= ssl_open,
+	.open 	 		= line_open,
 	.close 	 		= line_close,
 	.write 	 		= line_write,
 	.put_char 		= line_put_char,
@@ -129,14 +102,10 @@ static const struct tty_operations ssl_ops = {
 	.flush_buffer 		= line_flush_buffer,
 	.flush_chars 		= line_flush_chars,
 	.set_termios 		= line_set_termios,
-	.ioctl 	 		= line_ioctl,
 	.throttle 		= line_throttle,
 	.unthrottle 		= line_unthrottle,
-#if 0
-	.stop 	 		= ssl_stop,
-	.start 	 		= ssl_start,
-	.hangup 	 	= ssl_hangup,
-#endif
+	.install		= ssl_install,
+	.hangup			= line_hangup,
 };
 
 /* Changed by ssl_init and referenced by ssl_exit, which are both serialized

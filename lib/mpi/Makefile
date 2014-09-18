@@ -14,19 +14,9 @@ mpi-y = \
 	generic_mpih-add1.o		\
 	mpicoder.o			\
 	mpi-bit.o			\
+	mpi-cmp.o			\
 	mpih-cmp.o			\
 	mpih-div.o			\
 	mpih-mul.o			\
 	mpi-pow.o			\
 	mpiutil.o
-
-mpi-$(CONFIG_MPILIB_EXTRA) += \
-	mpi-add.o			\
-	mpi-div.o			\
-	mpi-cmp.o			\
-	mpi-gcd.o			\
-	mpi-inline.o			\
-	mpi-inv.o			\
-	mpi-mpow.o			\
-	mpi-mul.o			\
-	mpi-scan.o

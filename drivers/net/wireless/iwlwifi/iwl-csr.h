@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,13 +97,10 @@
 /*
  * Hardware revision info
  * Bit fields:
- * 31-8:  Reserved
- *  7-4:  Type of device:  see CSR_HW_REV_TYPE_xxx definitions
+ * 31-16:  Reserved
+ *  15-4:  Type of device:  see CSR_HW_REV_TYPE_xxx definitions
  *  3-2:  Revision step:  0 = A, 1 = B, 2 = C, 3 = D
  *  1-0:  "Dash" (-) value, as in A-1, etc.
- *
- * NOTE:  Revision step affects calculation of CCK txpower for 4965.
- * NOTE:  See also CSR_HW_REV_WA_REG (work-around for bug in 4965).
  */
 #define CSR_HW_REV              (CSR_BASE+0x028)
 
@@ -142,6 +139,13 @@
 #define CSR_ANA_PLL_CFG         (CSR_BASE+0x20c)
 
 /*
+ * CSR HW resources monitor registers
+ */
+#define CSR_MONITOR_CFG_REG		(CSR_BASE+0x214)
+#define CSR_MONITOR_STATUS_REG		(CSR_BASE+0x228)
+#define CSR_MONITOR_XTAL_RESOURCES	(0x00000010)
+
+/*
  * CSR Hardware Revision Workaround Register.  Indicates hardware rev;
  * "step" determines CCK backoff for txpower calculation.  Used for 4965 only.
  * See also CSR_HW_REV register.
@@ -155,15 +159,28 @@
 #define CSR_DBG_LINK_PWR_MGMT_REG	(CSR_BASE+0x250)
 
 /* Bits for CSR_HW_IF_CONFIG_REG */
-#define CSR_HW_IF_CONFIG_REG_MSK_BOARD_VER	(0x00000C00)
-#define CSR_HW_IF_CONFIG_REG_BIT_MAC_SI 	(0x00000100)
+#define CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH	(0x00000003)
+#define CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP	(0x0000000C)
+#define CSR_HW_IF_CONFIG_REG_MSK_BOARD_VER	(0x000000C0)
+#define CSR_HW_IF_CONFIG_REG_BIT_MAC_SI		(0x00000100)
 #define CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI	(0x00000200)
+#define CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE	(0x00000C00)
+#define CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH	(0x00003000)
+#define CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP	(0x0000C000)
+
+#define CSR_HW_IF_CONFIG_REG_POS_MAC_DASH	(0)
+#define CSR_HW_IF_CONFIG_REG_POS_MAC_STEP	(2)
+#define CSR_HW_IF_CONFIG_REG_POS_BOARD_VER	(6)
+#define CSR_HW_IF_CONFIG_REG_POS_PHY_TYPE	(10)
+#define CSR_HW_IF_CONFIG_REG_POS_PHY_DASH	(12)
+#define CSR_HW_IF_CONFIG_REG_POS_PHY_STEP	(14)
 
 #define CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A	(0x00080000)
 #define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM	(0x00200000)
 #define CSR_HW_IF_CONFIG_REG_BIT_NIC_READY	(0x00400000) /* PCI_OWN_SEM */
 #define CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE (0x02000000) /* ME_OWN */
 #define CSR_HW_IF_CONFIG_REG_PREPARE		  (0x08000000) /* WAKE_ME */
+#define CSR_HW_IF_CONFIG_REG_PERSIST_MODE	  (0x40000000) /* PERSISTENCE */
 
 #define CSR_INT_PERIODIC_DIS			(0x00) /* disable periodic int*/
 #define CSR_INT_PERIODIC_ENA			(0xFF) /* 255*32 usec ~ 8 msec*/
@@ -189,7 +206,8 @@
 				 CSR_INT_BIT_RF_KILL | \
 				 CSR_INT_BIT_SW_RX   | \
 				 CSR_INT_BIT_WAKEUP  | \
-				 CSR_INT_BIT_ALIVE)
+				 CSR_INT_BIT_ALIVE   | \
+				 CSR_INT_BIT_RX_PERIODIC)
 
 /* interrupt flags in FH (flow handler) (PCI busmaster DMA) */
 #define CSR_FH_INT_BIT_ERR       (1 << 31) /* Error */
@@ -230,6 +248,7 @@
  *         001 -- MAC power-down
  *         010 -- PHY (radio) power-down
  *         011 -- Error
+ *    10:  XTAL ON request
  *   9-6:  SYS_CONFIG
  *         Indicates current system configuration, reflecting pins on chip
  *         as forced high/low by device circuit board.
@@ -261,6 +280,7 @@
 #define CSR_GP_CNTRL_REG_FLAG_INIT_DONE              (0x00000004)
 #define CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ         (0x00000008)
 #define CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP         (0x00000010)
+#define CSR_GP_CNTRL_REG_FLAG_XTAL_ON		     (0x00000400)
 
 #define CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN           (0x00000001)
 
@@ -270,7 +290,10 @@
 
 
 /* HW REV */
-#define CSR_HW_REV_TYPE_MSK            (0x00001F0)
+#define CSR_HW_REV_DASH(_val)          (((_val) & 0x0000003) >> 0)
+#define CSR_HW_REV_STEP(_val)          (((_val) & 0x000000C) >> 2)
+
+#define CSR_HW_REV_TYPE_MSK            (0x000FFF0)
 #define CSR_HW_REV_TYPE_5300           (0x0000020)
 #define CSR_HW_REV_TYPE_5350           (0x0000030)
 #define CSR_HW_REV_TYPE_5100           (0x0000050)
@@ -369,8 +392,8 @@
 
 /* LED */
 #define CSR_LED_BSM_CTRL_MSK (0xFFFFFFDF)
-#define CSR_LED_REG_TRUN_ON (0x78)
-#define CSR_LED_REG_TRUN_OFF (0x38)
+#define CSR_LED_REG_TURN_ON (0x60)
+#define CSR_LED_REG_TURN_OFF (0x20)
 
 /* ANA_PLL */
 #define CSR50_ANA_PLL_CFG_VAL        (0x00880300)
@@ -381,6 +404,34 @@
 /* DRAM INT TABLE */
 #define CSR_DRAM_INT_TBL_ENABLE		(1 << 31)
 #define CSR_DRAM_INIT_TBL_WRAP_CHECK	(1 << 27)
+
+/*
+ * SHR target access (Shared block memory space)
+ *
+ * Shared internal registers can be accessed directly from PCI bus through SHR
+ * arbiter without need for the MAC HW to be powered up. This is possible due to
+ * indirect read/write via HEEP_CTRL_WRD_PCIEX_CTRL (0xEC) and
+ * HEEP_CTRL_WRD_PCIEX_DATA (0xF4) registers.
+ *
+ * Use iwl_write32()/iwl_read32() family to access these registers. The MAC HW
+ * need not be powered up so no "grab inc access" is required.
+ */
+
+/*
+ * Registers for accessing shared registers (e.g. SHR_APMG_GP1,
+ * SHR_APMG_XTAL_CFG). For example, to read from SHR_APMG_GP1 register (0x1DC),
+ * first, write to the control register:
+ * HEEP_CTRL_WRD_PCIEX_CTRL[15:0] = 0x1DC (offset of the SHR_APMG_GP1 register)
+ * HEEP_CTRL_WRD_PCIEX_CTRL[29:28] = 2 (read access)
+ * second, read from the data register HEEP_CTRL_WRD_PCIEX_DATA[31:0].
+ *
+ * To write the register, first, write to the data register
+ * HEEP_CTRL_WRD_PCIEX_DATA[31:0] and then:
+ * HEEP_CTRL_WRD_PCIEX_CTRL[15:0] = 0x1DC (offset of the SHR_APMG_GP1 register)
+ * HEEP_CTRL_WRD_PCIEX_CTRL[29:28] = 3 (write access)
+ */
+#define HEEP_CTRL_WRD_PCIEX_CTRL_REG	(CSR_BASE+0x0ec)
+#define HEEP_CTRL_WRD_PCIEX_DATA_REG	(CSR_BASE+0x0f4)
 
 /*
  * HBUS (Host-side Bus)
@@ -430,6 +481,9 @@
 #define HBUS_TARG_PRPH_WDAT     (HBUS_BASE+0x04c)
 #define HBUS_TARG_PRPH_RDAT     (HBUS_BASE+0x050)
 
+/* Used to enable DBGM */
+#define HBUS_TARG_TEST_REG	(HBUS_BASE+0x05c)
+
 /*
  * Per-Tx-queue write pointer (index, really!)
  * Indicates index to next TFD that driver will fill (1 past latest filled).
@@ -448,13 +502,29 @@
  * the CSR_INT_COALESCING is an 8 bit register in 32-usec unit
  *
  * default interrupt coalescing timer is 64 x 32 = 2048 usecs
- * default interrupt coalescing calibration timer is 16 x 32 = 512 usecs
  */
 #define IWL_HOST_INT_TIMEOUT_MAX	(0xFF)
 #define IWL_HOST_INT_TIMEOUT_DEF	(0x40)
 #define IWL_HOST_INT_TIMEOUT_MIN	(0x0)
-#define IWL_HOST_INT_CALIB_TIMEOUT_MAX	(0xFF)
-#define IWL_HOST_INT_CALIB_TIMEOUT_DEF	(0x10)
-#define IWL_HOST_INT_CALIB_TIMEOUT_MIN	(0x0)
+#define IWL_HOST_INT_OPER_MODE		BIT(31)
+
+/*****************************************************************************
+ *                        7000/3000 series SHR DTS addresses                 *
+ *****************************************************************************/
+
+/* Diode Results Register Structure: */
+enum dtd_diode_reg {
+	DTS_DIODE_REG_DIG_VAL			= 0x000000FF, /* bits [7:0] */
+	DTS_DIODE_REG_VREF_LOW			= 0x0000FF00, /* bits [15:8] */
+	DTS_DIODE_REG_VREF_HIGH			= 0x00FF0000, /* bits [23:16] */
+	DTS_DIODE_REG_VREF_ID			= 0x03000000, /* bits [25:24] */
+	DTS_DIODE_REG_PASS_ONCE			= 0x80000000, /* bits [31:31] */
+	DTS_DIODE_REG_FLAGS_MSK			= 0xFF000000, /* bits [31:24] */
+/* Those are the masks INSIDE the flags bit-field: */
+	DTS_DIODE_REG_FLAGS_VREFS_ID_POS	= 0,
+	DTS_DIODE_REG_FLAGS_VREFS_ID		= 0x00000003, /* bits [1:0] */
+	DTS_DIODE_REG_FLAGS_PASS_ONCE_POS	= 7,
+	DTS_DIODE_REG_FLAGS_PASS_ONCE		= 0x00000080, /* bits [7:7] */
+};
 
 #endif /* !__iwl_csr_h__ */

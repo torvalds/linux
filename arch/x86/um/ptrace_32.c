@@ -3,10 +3,10 @@
  * Licensed under the GPL
  */
 
-#include "linux/mm.h"
-#include "linux/sched.h"
-#include "asm/uaccess.h"
-#include "skas.h"
+#include <linux/mm.h>
+#include <linux/sched.h>
+#include <asm/uaccess.h>
+#include <skas.h>
 
 extern int arch_switch_tls(struct task_struct *to);
 

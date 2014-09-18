@@ -176,13 +176,12 @@ static int scoop_resume(struct platform_device *dev)
 #define scoop_resume	NULL
 #endif
 
-static int __devinit scoop_probe(struct platform_device *pdev)
+static int scoop_probe(struct platform_device *pdev)
 {
 	struct scoop_dev *devptr;
 	struct scoop_config *inf;
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int ret;
-	int temp;
 
 	if (!mem)
 		return -EINVAL;
@@ -232,8 +231,6 @@ static int __devinit scoop_probe(struct platform_device *pdev)
 
 	return 0;
 
-	if (devptr->gpio.base != -1)
-		temp = gpiochip_remove(&devptr->gpio);
 err_gpio:
 	platform_set_drvdata(pdev, NULL);
 err_ioremap:
@@ -243,7 +240,7 @@ err_ioremap:
 	return ret;
 }
 
-static int __devexit scoop_remove(struct platform_device *pdev)
+static int scoop_remove(struct platform_device *pdev)
 {
 	struct scoop_dev *sdev = platform_get_drvdata(pdev);
 	int ret;
@@ -268,7 +265,7 @@ static int __devexit scoop_remove(struct platform_device *pdev)
 
 static struct platform_driver scoop_driver = {
 	.probe		= scoop_probe,
-	.remove		= __devexit_p(scoop_remove),
+	.remove		= scoop_remove,
 	.suspend	= scoop_suspend,
 	.resume		= scoop_resume,
 	.driver		= {

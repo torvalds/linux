@@ -1,7 +1,7 @@
 /*
  * wm8741.c  --  WM8741 ALSA SoC Audio driver
  *
- * Copyright 2010 Wolfson Microelectronics plc
+ * Copyright 2010-1 Wolfson Microelectronics plc
  *
  * Author: Ian Lartey <ian@opensource.wolfsonmicro.com>
  *
@@ -18,6 +18,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
@@ -40,26 +41,43 @@ static const char *wm8741_supply_names[WM8741_NUM_SUPPLIES] = {
 
 /* codec private data */
 struct wm8741_priv {
-	enum snd_soc_control_type control_type;
+	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8741_NUM_SUPPLIES];
 	unsigned int sysclk;
-	struct snd_pcm_hw_constraint_list *sysclk_constraints;
+	const struct snd_pcm_hw_constraint_list *sysclk_constraints;
 };
 
-static const u16 wm8741_reg_defaults[WM8741_REGISTER_COUNT] = {
-	0x0000,     /* R0  - DACLLSB Attenuation */
-	0x0000,     /* R1  - DACLMSB Attenuation */
-	0x0000,     /* R2  - DACRLSB Attenuation */
-	0x0000,     /* R3  - DACRMSB Attenuation */
-	0x0000,     /* R4  - Volume Control */
-	0x000A,     /* R5  - Format Control */
-	0x0000,     /* R6  - Filter Control */
-	0x0000,     /* R7  - Mode Control 1 */
-	0x0002,     /* R8  - Mode Control 2 */
-	0x0000,	    /* R9  - Reset */
-	0x0002,     /* R32 - ADDITONAL_CONTROL_1 */
+static const struct reg_default wm8741_reg_defaults[] = {
+	{  0, 0x0000 },     /* R0  - DACLLSB Attenuation */
+	{  1, 0x0000 },     /* R1  - DACLMSB Attenuation */
+	{  2, 0x0000 },     /* R2  - DACRLSB Attenuation */
+	{  3, 0x0000 },     /* R3  - DACRMSB Attenuation */
+	{  4, 0x0000 },     /* R4  - Volume Control */
+	{  5, 0x000A },     /* R5  - Format Control */
+	{  6, 0x0000 },     /* R6  - Filter Control */
+	{  7, 0x0000 },     /* R7  - Mode Control 1 */
+	{  8, 0x0002 },     /* R8  - Mode Control 2 */
+	{ 32, 0x0002 },     /* R32 - ADDITONAL_CONTROL_1 */
 };
 
+static bool wm8741_readable(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case WM8741_DACLLSB_ATTENUATION:
+	case WM8741_DACLMSB_ATTENUATION:
+	case WM8741_DACRLSB_ATTENUATION:
+	case WM8741_DACRMSB_ATTENUATION:
+	case WM8741_VOLUME_CONTROL:
+	case WM8741_FORMAT_CONTROL:
+	case WM8741_FILTER_CONTROL:
+	case WM8741_MODE_CONTROL_1:
+	case WM8741_MODE_CONTROL_2:
+	case WM8741_ADDITIONAL_CONTROL_1:
+		return true;
+	default:
+		return false;
+	}
+}
 
 static int wm8741_reset(struct snd_soc_codec *codec)
 {
@@ -104,74 +122,74 @@ static struct {
 	{ 6, 768 },
 };
 
-static unsigned int rates_11289[] = {
+static const unsigned int rates_11289[] = {
 	44100, 88235,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_11289 = {
+static const struct snd_pcm_hw_constraint_list constraints_11289 = {
 	.count	= ARRAY_SIZE(rates_11289),
 	.list	= rates_11289,
 };
 
-static unsigned int rates_12288[] = {
+static const unsigned int rates_12288[] = {
 	32000, 48000, 96000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_12288 = {
+static const struct snd_pcm_hw_constraint_list constraints_12288 = {
 	.count	= ARRAY_SIZE(rates_12288),
 	.list	= rates_12288,
 };
 
-static unsigned int rates_16384[] = {
+static const unsigned int rates_16384[] = {
 	32000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_16384 = {
+static const struct snd_pcm_hw_constraint_list constraints_16384 = {
 	.count	= ARRAY_SIZE(rates_16384),
 	.list	= rates_16384,
 };
 
-static unsigned int rates_16934[] = {
+static const unsigned int rates_16934[] = {
 	44100, 88235,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_16934 = {
+static const struct snd_pcm_hw_constraint_list constraints_16934 = {
 	.count	= ARRAY_SIZE(rates_16934),
 	.list	= rates_16934,
 };
 
-static unsigned int rates_18432[] = {
+static const unsigned int rates_18432[] = {
 	48000, 96000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_18432 = {
+static const struct snd_pcm_hw_constraint_list constraints_18432 = {
 	.count	= ARRAY_SIZE(rates_18432),
 	.list	= rates_18432,
 };
 
-static unsigned int rates_22579[] = {
+static const unsigned int rates_22579[] = {
 	44100, 88235, 1764000
 };
 
-static struct snd_pcm_hw_constraint_list constraints_22579 = {
+static const struct snd_pcm_hw_constraint_list constraints_22579 = {
 	.count	= ARRAY_SIZE(rates_22579),
 	.list	= rates_22579,
 };
 
-static unsigned int rates_24576[] = {
+static const unsigned int rates_24576[] = {
 	32000, 48000, 96000, 192000
 };
 
-static struct snd_pcm_hw_constraint_list constraints_24576 = {
+static const struct snd_pcm_hw_constraint_list constraints_24576 = {
 	.count	= ARRAY_SIZE(rates_24576),
 	.list	= rates_24576,
 };
 
-static unsigned int rates_36864[] = {
+static const unsigned int rates_36864[] = {
 	48000, 96000, 19200
 };
 
-static struct snd_pcm_hw_constraint_list constraints_36864 = {
+static const struct snd_pcm_hw_constraint_list constraints_36864 = {
 	.count	= ARRAY_SIZE(rates_36864),
 	.list	= rates_36864,
 };
@@ -203,8 +221,7 @@ static int wm8741_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct wm8741_priv *wm8741 = snd_soc_codec_get_drvdata(codec);
 	u16 iface = snd_soc_read(codec, WM8741_FORMAT_CONTROL) & 0x1FC;
 	int i;
@@ -224,26 +241,26 @@ static int wm8741_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface |= 0x0001;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface |= 0x0002;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface |= 0x0003;
 		break;
 	default:
 		dev_dbg(codec->dev, "wm8741_hw_params:    Unsupported bit size param = %d",
-			params_format(params));
+			params_width(params));
 		return -EINVAL;
 	}
 
 	dev_dbg(codec->dev, "wm8741_hw_params:    bit size param = %d",
-		params_format(params));
+		params_width(params));
 
 	snd_soc_write(codec, WM8741_FORMAT_CONTROL, iface);
 	return 0;
@@ -404,29 +421,12 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 {
 	struct wm8741_priv *wm8741 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8741->supplies); i++)
-		wm8741->supplies[i].supply = wm8741_supply_names[i];
-
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8741->supplies),
-				 wm8741->supplies);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
-		goto err;
-	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8741->supplies),
 				    wm8741->supplies);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
 		goto err_get;
-	}
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8741->control_type);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		goto err_enable;
 	}
 
 	ret = wm8741_reset(codec);
@@ -451,8 +451,6 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
 err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
-err:
 	return ret;
 }
 
@@ -461,7 +459,6 @@ static int wm8741_remove(struct snd_soc_codec *codec)
 	struct wm8741_priv *wm8741 = snd_soc_codec_get_drvdata(codec);
 
 	regulator_bulk_disable(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
-	regulator_bulk_free(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
 
 	return 0;
 }
@@ -470,9 +467,6 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8741 = {
 	.probe =	wm8741_probe,
 	.remove =	wm8741_remove,
 	.resume =	wm8741_resume,
-	.reg_cache_size = ARRAY_SIZE(wm8741_reg_defaults),
-	.reg_word_size = sizeof(u16),
-	.reg_cache_default = wm8741_reg_defaults,
 
 	.controls = wm8741_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8741_snd_controls),
@@ -488,20 +482,48 @@ static const struct of_device_id wm8741_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wm8741_of_match);
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+static const struct regmap_config wm8741_regmap = {
+	.reg_bits = 7,
+	.val_bits = 9,
+	.max_register = WM8741_MAX_REGISTER,
+
+	.reg_defaults = wm8741_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(wm8741_reg_defaults),
+	.cache_type = REGCACHE_RBTREE,
+
+	.readable_reg = wm8741_readable,
+};
+
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8741_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm8741_priv *wm8741;
-	int ret;
+	int ret, i;
 
 	wm8741 = devm_kzalloc(&i2c->dev, sizeof(struct wm8741_priv),
 			      GFP_KERNEL);
 	if (wm8741 == NULL)
 		return -ENOMEM;
 
+	for (i = 0; i < ARRAY_SIZE(wm8741->supplies); i++)
+		wm8741->supplies[i].supply = wm8741_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8741->supplies),
+				      wm8741->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
+	wm8741->regmap = devm_regmap_init_i2c(i2c, &wm8741_regmap);
+	if (IS_ERR(wm8741->regmap)) {
+		ret = PTR_ERR(wm8741->regmap);
+		dev_err(&i2c->dev, "Failed to init regmap: %d\n", ret);
+		return ret;
+	}
+
 	i2c_set_clientdata(i2c, wm8741);
-	wm8741->control_type = SND_SOC_I2C;
 
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm8741, &wm8741_dai, 1);
@@ -534,17 +556,33 @@ static struct i2c_driver wm8741_i2c_driver = {
 #endif
 
 #if defined(CONFIG_SPI_MASTER)
-static int __devinit wm8741_spi_probe(struct spi_device *spi)
+static int wm8741_spi_probe(struct spi_device *spi)
 {
 	struct wm8741_priv *wm8741;
-	int ret;
+	int ret, i;
 
 	wm8741 = devm_kzalloc(&spi->dev, sizeof(struct wm8741_priv),
 			     GFP_KERNEL);
 	if (wm8741 == NULL)
 		return -ENOMEM;
 
-	wm8741->control_type = SND_SOC_SPI;
+	for (i = 0; i < ARRAY_SIZE(wm8741->supplies); i++)
+		wm8741->supplies[i].supply = wm8741_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&spi->dev, ARRAY_SIZE(wm8741->supplies),
+				      wm8741->supplies);
+	if (ret != 0) {
+		dev_err(&spi->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
+	wm8741->regmap = devm_regmap_init_spi(spi, &wm8741_regmap);
+	if (IS_ERR(wm8741->regmap)) {
+		ret = PTR_ERR(wm8741->regmap);
+		dev_err(&spi->dev, "Failed to init regmap: %d\n", ret);
+		return ret;
+	}
+
 	spi_set_drvdata(spi, wm8741);
 
 	ret = snd_soc_register_codec(&spi->dev,
@@ -552,7 +590,7 @@ static int __devinit wm8741_spi_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int __devexit wm8741_spi_remove(struct spi_device *spi)
+static int wm8741_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
 	return 0;
@@ -565,7 +603,7 @@ static struct spi_driver wm8741_spi_driver = {
 		.of_match_table = wm8741_of_match,
 	},
 	.probe		= wm8741_spi_probe,
-	.remove		= __devexit_p(wm8741_spi_remove),
+	.remove		= wm8741_spi_remove,
 };
 #endif /* CONFIG_SPI_MASTER */
 
@@ -573,7 +611,7 @@ static int __init wm8741_modinit(void)
 {
 	int ret = 0;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8741_i2c_driver);
 	if (ret != 0)
 		pr_err("Failed to register WM8741 I2C driver: %d\n", ret);
@@ -595,7 +633,7 @@ static void __exit wm8741_exit(void)
 #if defined(CONFIG_SPI_MASTER)
 	spi_unregister_driver(&wm8741_spi_driver);
 #endif
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8741_i2c_driver);
 #endif
 }

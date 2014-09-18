@@ -18,14 +18,15 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
+#include <linux/of_address.h>
 #include <asm/io.h>
 
 #include "emac.h"
 #include "core.h"
 
-int __devinit tah_attach(struct platform_device *ofdev, int channel)
+int tah_attach(struct platform_device *ofdev, int channel)
 {
-	struct tah_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct tah_instance *dev = platform_get_drvdata(ofdev);
 
 	mutex_lock(&dev->lock);
 	/* Reset has been done at probe() time... nothing else to do for now */
@@ -37,7 +38,7 @@ int __devinit tah_attach(struct platform_device *ofdev, int channel)
 
 void tah_detach(struct platform_device *ofdev, int channel)
 {
-	struct tah_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct tah_instance *dev = platform_get_drvdata(ofdev);
 
 	mutex_lock(&dev->lock);
 	--dev->users;
@@ -46,7 +47,7 @@ void tah_detach(struct platform_device *ofdev, int channel)
 
 void tah_reset(struct platform_device *ofdev)
 {
-	struct tah_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct tah_instance *dev = platform_get_drvdata(ofdev);
 	struct tah_regs __iomem *p = dev->base;
 	int n;
 
@@ -74,7 +75,7 @@ int tah_get_regs_len(struct platform_device *ofdev)
 
 void *tah_dump_regs(struct platform_device *ofdev, void *buf)
 {
-	struct tah_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct tah_instance *dev = platform_get_drvdata(ofdev);
 	struct emac_ethtool_regs_subhdr *hdr = buf;
 	struct tah_regs *regs = (struct tah_regs *)(hdr + 1);
 
@@ -87,7 +88,7 @@ void *tah_dump_regs(struct platform_device *ofdev, void *buf)
 	return regs + 1;
 }
 
-static int __devinit tah_probe(struct platform_device *ofdev)
+static int tah_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct tah_instance *dev;
@@ -118,7 +119,7 @@ static int __devinit tah_probe(struct platform_device *ofdev)
 		goto err_free;
 	}
 
-	dev_set_drvdata(&ofdev->dev, dev);
+	platform_set_drvdata(ofdev, dev);
 
 	/* Initialize TAH and enable IPv4 checksum verification, no TSO yet */
 	tah_reset(ofdev);
@@ -135,11 +136,9 @@ static int __devinit tah_probe(struct platform_device *ofdev)
 	return rc;
 }
 
-static int __devexit tah_remove(struct platform_device *ofdev)
+static int tah_remove(struct platform_device *ofdev)
 {
-	struct tah_instance *dev = dev_get_drvdata(&ofdev->dev);
-
-	dev_set_drvdata(&ofdev->dev, NULL);
+	struct tah_instance *dev = platform_get_drvdata(ofdev);
 
 	WARN_ON(dev->users != 0);
 

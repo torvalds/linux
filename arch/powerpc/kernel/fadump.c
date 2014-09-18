@@ -55,9 +55,9 @@ int crash_mem_ranges;
 int __init early_init_dt_scan_fw_dump(unsigned long node,
 			const char *uname, int depth, void *data)
 {
-	__be32 *sections;
+	const __be32 *sections;
 	int i, num_sections;
-	unsigned long size;
+	int size;
 	const int *token;
 
 	if (depth != 1 || strcmp(uname, "rtas") != 0)
@@ -69,7 +69,7 @@ int __init early_init_dt_scan_fw_dump(unsigned long node,
 	 */
 	token = of_get_flat_dt_prop(node, "ibm,configure-kernel-dump", NULL);
 	if (!token)
-		return 0;
+		return 1;
 
 	fw_dump.fadump_supported = 1;
 	fw_dump.ibm_configure_kernel_dump = *token;
@@ -92,7 +92,7 @@ int __init early_init_dt_scan_fw_dump(unsigned long node,
 					&size);
 
 	if (!sections)
-		return 0;
+		return 1;
 
 	num_sections = size / (3 * sizeof(u32));
 
@@ -110,6 +110,7 @@ int __init early_init_dt_scan_fw_dump(unsigned long node,
 			break;
 		}
 	}
+
 	return 1;
 }
 
@@ -289,8 +290,7 @@ int __init fadump_reserve_mem(void)
 		else
 			memory_limit = memblock_end_of_DRAM();
 		printk(KERN_INFO "Adjusted memory_limit for firmware-assisted"
-				" dump, now %#016llx\n",
-				(unsigned long long)memory_limit);
+				" dump, now %#016llx\n", memory_limit);
 	}
 	if (memory_limit)
 		memory_boundary = memory_limit;
@@ -646,7 +646,7 @@ static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
 		}
 		/* Lower 4 bytes of reg_value contains logical cpu id */
 		cpu = reg_entry->reg_value & FADUMP_CPU_ID_MASK;
-		if (!cpumask_test_cpu(cpu, &fdh->cpu_online_mask)) {
+		if (fdh && !cpumask_test_cpu(cpu, &fdh->cpu_online_mask)) {
 			SKIP_TO_NEXT_CPU(reg_entry);
 			continue;
 		}
@@ -663,9 +663,11 @@ static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
 	}
 	fadump_final_note(note_buf);
 
-	pr_debug("Updating elfcore header (%llx) with cpu notes\n",
+	if (fdh) {
+		pr_debug("Updating elfcore header (%llx) with cpu notes\n",
 							fdh->elfcorehdr_addr);
-	fadump_update_elfcore_header((char *)__va(fdh->elfcorehdr_addr));
+		fadump_update_elfcore_header((char *)__va(fdh->elfcorehdr_addr));
+	}
 	return 0;
 
 error_out:
@@ -1046,10 +1048,7 @@ static void fadump_release_memory(unsigned long begin, unsigned long end)
 		if (addr <= ra_end && ((addr + PAGE_SIZE) > ra_start))
 			continue;
 
-		ClearPageReserved(pfn_to_page(addr >> PAGE_SHIFT));
-		init_page_count(pfn_to_page(addr >> PAGE_SHIFT));
-		free_page((unsigned long)__va(addr));
-		totalram_pages++;
+		free_reserved_page(pfn_to_page(addr >> PAGE_SHIFT));
 	}
 }
 

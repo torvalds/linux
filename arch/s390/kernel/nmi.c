@@ -1,7 +1,7 @@
 /*
  *   Machine check handler
  *
- *    Copyright IBM Corp. 2000,2009
+ *    Copyright IBM Corp. 2000, 2009
  *    Author(s): Ingo Adlung <adlung@de.ibm.com>,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Cornelia Huck <cornelia.huck@de.ibm.com>,
@@ -55,7 +55,7 @@ void s390_handle_mcck(void)
 	local_mcck_disable();
 	mcck = __get_cpu_var(cpu_mcck);
 	memset(&__get_cpu_var(cpu_mcck), 0, sizeof(struct mcck_struct));
-	clear_thread_flag(TIF_MCCK_PENDING);
+	clear_cpu_flag(CIF_MCCK_PENDING);
 	local_mcck_enable();
 	local_irq_restore(flags);
 
@@ -214,10 +214,7 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 			: "0", "cc");
 #endif
 	/* Revalidate clock comparator register */
-	if (S390_lowcore.clock_comparator == -1)
-		set_clock_comparator(S390_lowcore.mcck_clock);
-	else
-		set_clock_comparator(S390_lowcore.clock_comparator);
+	set_clock_comparator(S390_lowcore.clock_comparator);
 	/* Check if old PSW is valid */
 	if (!mci->wp)
 		/*
@@ -254,7 +251,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	int umode;
 
 	nmi_enter();
-	kstat_cpu(smp_processor_id()).irqs[NMI_NMI]++;
+	inc_irq_stat(NMI_NMI);
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
 	mcck = &__get_cpu_var(cpu_mcck);
 	umode = user_mode(regs);
@@ -293,7 +290,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			 * retry this instruction.
 			 */
 			spin_lock(&ipd_lock);
-			tmp = get_clock();
+			tmp = get_tod_clock();
 			if (((tmp - last_ipd) >> 12) < MAX_IPD_TIME)
 				ipd_count++;
 			else
@@ -316,7 +313,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			 */
 			mcck->kill_task = 1;
 			mcck->mcck_code = *(unsigned long long *) mci;
-			set_thread_flag(TIF_MCCK_PENDING);
+			set_cpu_flag(CIF_MCCK_PENDING);
 		} else {
 			/*
 			 * Couldn't restore all register contents while in
@@ -355,12 +352,12 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	if (mci->cp) {
 		/* Channel report word pending */
 		mcck->channel_report = 1;
-		set_thread_flag(TIF_MCCK_PENDING);
+		set_cpu_flag(CIF_MCCK_PENDING);
 	}
 	if (mci->w) {
 		/* Warning pending */
 		mcck->warning = 1;
-		set_thread_flag(TIF_MCCK_PENDING);
+		set_cpu_flag(CIF_MCCK_PENDING);
 	}
 	nmi_exit();
 }

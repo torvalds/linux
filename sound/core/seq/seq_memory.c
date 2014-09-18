@@ -101,9 +101,9 @@ int snd_seq_dump_var_event(const struct snd_seq_event *event,
 			len -= size;
 		}
 		return 0;
-	} if (! (event->data.ext.len & SNDRV_SEQ_EXT_CHAINED)) {
-		return func(private_data, event->data.ext.ptr, len);
 	}
+	if (!(event->data.ext.len & SNDRV_SEQ_EXT_CHAINED))
+		return func(private_data, event->data.ext.ptr, len);
 
 	cell = (struct snd_seq_event_cell *)event->data.ext.ptr;
 	for (; len > 0 && cell; cell = cell->next) {
@@ -236,7 +236,7 @@ static int snd_seq_cell_alloc(struct snd_seq_pool *pool,
 	init_waitqueue_entry(&wait, current);
 	spin_lock_irqsave(&pool->lock, flags);
 	if (pool->ptr == NULL) {	/* not initialized */
-		snd_printd("seq: pool is not initialized\n");
+		pr_debug("ALSA: seq: pool is not initialized\n");
 		err = -EINVAL;
 		goto __error;
 	}
@@ -388,7 +388,7 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 
 	pool->ptr = vmalloc(sizeof(struct snd_seq_event_cell) * pool->size);
 	if (pool->ptr == NULL) {
-		snd_printd("seq: malloc for sequencer events failed\n");
+		pr_debug("ALSA: seq: malloc for sequencer events failed\n");
 		return -ENOMEM;
 	}
 
@@ -431,7 +431,7 @@ int snd_seq_pool_done(struct snd_seq_pool *pool)
 
 	while (atomic_read(&pool->counter) > 0) {
 		if (max_count == 0) {
-			snd_printk(KERN_WARNING "snd_seq_pool_done timeout: %d cells remain\n", atomic_read(&pool->counter));
+			pr_warn("ALSA: snd_seq_pool_done timeout: %d cells remain\n", atomic_read(&pool->counter));
 			break;
 		}
 		schedule_timeout_uninterruptible(1);
@@ -464,7 +464,7 @@ struct snd_seq_pool *snd_seq_pool_new(int poolsize)
 	/* create pool block */
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (pool == NULL) {
-		snd_printd("seq: malloc failed for pool\n");
+		pr_debug("ALSA: seq: malloc failed for pool\n");
 		return NULL;
 	}
 	spin_lock_init(&pool->lock);

@@ -56,7 +56,6 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, struct mlx4_en_priv *priv)
 		return PTR_ERR(mailbox);
 
 	filter = mailbox->buf;
-	memset(filter, 0, sizeof(*filter));
 	for (i = VLAN_FLTR_SIZE - 1; i >= 0; i--) {
 		entry = 0;
 		for (j = 0; j < 32; j++)
@@ -81,7 +80,6 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 	mailbox = mlx4_alloc_cmd_mailbox(mdev->dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
-	memset(mailbox->buf, 0, sizeof(*qport_context));
 	err = mlx4_cmd_box(mdev->dev, 0, mailbox->dma, port, 0,
 			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
 			   MLX4_CMD_WRAPPED);
@@ -127,7 +125,6 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	mailbox = mlx4_alloc_cmd_mailbox(mdev->dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
-	memset(mailbox->buf, 0, sizeof(*mlx4_en_stats));
 	err = mlx4_cmd_box(mdev->dev, 0, mailbox->dma, in_mod, 0,
 			   MLX4_CMD_DUMP_ETH_STATS, MLX4_CMD_TIME_CLASS_B,
 			   MLX4_CMD_WRAPPED);
@@ -143,18 +140,24 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	priv->port_stats.rx_chksum_good = 0;
 	priv->port_stats.rx_chksum_none = 0;
 	for (i = 0; i < priv->rx_ring_num; i++) {
-		stats->rx_packets += priv->rx_ring[i].packets;
-		stats->rx_bytes += priv->rx_ring[i].bytes;
-		priv->port_stats.rx_chksum_good += priv->rx_ring[i].csum_ok;
-		priv->port_stats.rx_chksum_none += priv->rx_ring[i].csum_none;
+		stats->rx_packets += priv->rx_ring[i]->packets;
+		stats->rx_bytes += priv->rx_ring[i]->bytes;
+		priv->port_stats.rx_chksum_good += priv->rx_ring[i]->csum_ok;
+		priv->port_stats.rx_chksum_none += priv->rx_ring[i]->csum_none;
 	}
 	stats->tx_packets = 0;
 	stats->tx_bytes = 0;
 	priv->port_stats.tx_chksum_offload = 0;
+	priv->port_stats.queue_stopped = 0;
+	priv->port_stats.wake_queue = 0;
+
 	for (i = 0; i < priv->tx_ring_num; i++) {
-		stats->tx_packets += priv->tx_ring[i].packets;
-		stats->tx_bytes += priv->tx_ring[i].bytes;
-		priv->port_stats.tx_chksum_offload += priv->tx_ring[i].tx_csum;
+		stats->tx_packets += priv->tx_ring[i]->packets;
+		stats->tx_bytes += priv->tx_ring[i]->bytes;
+		priv->port_stats.tx_chksum_offload += priv->tx_ring[i]->tx_csum;
+		priv->port_stats.queue_stopped +=
+			priv->tx_ring[i]->queue_stopped;
+		priv->port_stats.wake_queue += priv->tx_ring[i]->wake_queue;
 	}
 
 	stats->rx_errors = be64_to_cpu(mlx4_en_stats->PCS) +

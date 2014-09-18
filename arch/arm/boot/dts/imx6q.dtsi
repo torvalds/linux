@@ -1,24 +1,20 @@
+
 /*
- * Copyright 2011 Freescale Semiconductor, Inc.
- * Copyright 2011 Linaro Ltd.
+ * Copyright 2013 Freescale Semiconductor, Inc.
  *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "skeleton.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "imx6q-pinfunc.h"
+#include "imx6qdl.dtsi"
 
 / {
 	aliases {
-		serial0 = &uart1;
-		serial1 = &uart2;
-		serial2 = &uart3;
-		serial3 = &uart4;
-		serial4 = &uart5;
+		spi4 = &ecspi5;
 	};
 
 	cpus {
@@ -27,549 +23,288 @@
 
 		cpu@0 {
 			compatible = "arm,cortex-a9";
+			device_type = "cpu";
 			reg = <0>;
 			next-level-cache = <&L2>;
+			operating-points = <
+				/* kHz    uV */
+				1200000 1275000
+				996000  1250000
+				852000  1250000
+				792000  1150000
+				396000  975000
+			>;
+			fsl,soc-operating-points = <
+				/* ARM kHz  SOC-PU uV */
+				1200000 1275000
+				996000	1250000
+				852000	1250000
+				792000	1175000
+				396000	1175000
+			>;
+			clock-latency = <61036>; /* two CLK32 periods */
+			clocks = <&clks IMX6QDL_CLK_ARM>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD2_396M>,
+				 <&clks IMX6QDL_CLK_STEP>,
+				 <&clks IMX6QDL_CLK_PLL1_SW>,
+				 <&clks IMX6QDL_CLK_PLL1_SYS>;
+			clock-names = "arm", "pll2_pfd2_396m", "step",
+				      "pll1_sw", "pll1_sys";
+			arm-supply = <&reg_arm>;
+			pu-supply = <&reg_pu>;
+			soc-supply = <&reg_soc>;
 		};
 
 		cpu@1 {
 			compatible = "arm,cortex-a9";
+			device_type = "cpu";
 			reg = <1>;
 			next-level-cache = <&L2>;
 		};
 
 		cpu@2 {
 			compatible = "arm,cortex-a9";
+			device_type = "cpu";
 			reg = <2>;
 			next-level-cache = <&L2>;
 		};
 
 		cpu@3 {
 			compatible = "arm,cortex-a9";
+			device_type = "cpu";
 			reg = <3>;
 			next-level-cache = <&L2>;
 		};
 	};
 
-	intc: interrupt-controller@00a01000 {
-		compatible = "arm,cortex-a9-gic";
-		#interrupt-cells = <3>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		interrupt-controller;
-		reg = <0x00a01000 0x1000>,
-		      <0x00a00100 0x100>;
-	};
-
-	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		ckil {
-			compatible = "fsl,imx-ckil", "fixed-clock";
-			clock-frequency = <32768>;
-		};
-
-		ckih1 {
-			compatible = "fsl,imx-ckih1", "fixed-clock";
-			clock-frequency = <0>;
-		};
-
-		osc {
-			compatible = "fsl,imx-osc", "fixed-clock";
-			clock-frequency = <24000000>;
-		};
-	};
-
 	soc {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "simple-bus";
-		interrupt-parent = <&intc>;
-		ranges;
-
-		timer@00a00600 {
-			compatible = "arm,cortex-a9-twd-timer";
-			reg = <0x00a00600 0x20>;
-			interrupts = <1 13 0xf01>;
-		};
-
-		L2: l2-cache@00a02000 {
-			compatible = "arm,pl310-cache";
-			reg = <0x00a02000 0x1000>;
-			interrupts = <0 92 0x04>;
-			cache-unified;
-			cache-level = <2>;
+		ocram: sram@00900000 {
+			compatible = "mmio-sram";
+			reg = <0x00900000 0x40000>;
+			clocks = <&clks IMX6QDL_CLK_OCRAM>;
 		};
 
 		aips-bus@02000000 { /* AIPS1 */
-			compatible = "fsl,aips-bus", "simple-bus";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			reg = <0x02000000 0x100000>;
-			ranges;
-
 			spba-bus@02000000 {
-				compatible = "fsl,spba-bus", "simple-bus";
-				#address-cells = <1>;
-				#size-cells = <1>;
-				reg = <0x02000000 0x40000>;
-				ranges;
-
-				spdif@02004000 {
-					reg = <0x02004000 0x4000>;
-					interrupts = <0 52 0x04>;
-				};
-
-				ecspi@02008000 { /* eCSPI1 */
-					#address-cells = <1>;
-					#size-cells = <0>;
-					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
-					reg = <0x02008000 0x4000>;
-					interrupts = <0 31 0x04>;
-					status = "disabled";
-				};
-
-				ecspi@0200c000 { /* eCSPI2 */
-					#address-cells = <1>;
-					#size-cells = <0>;
-					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
-					reg = <0x0200c000 0x4000>;
-					interrupts = <0 32 0x04>;
-					status = "disabled";
-				};
-
-				ecspi@02010000 { /* eCSPI3 */
-					#address-cells = <1>;
-					#size-cells = <0>;
-					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
-					reg = <0x02010000 0x4000>;
-					interrupts = <0 33 0x04>;
-					status = "disabled";
-				};
-
-				ecspi@02014000 { /* eCSPI4 */
-					#address-cells = <1>;
-					#size-cells = <0>;
-					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
-					reg = <0x02014000 0x4000>;
-					interrupts = <0 34 0x04>;
-					status = "disabled";
-				};
-
-				ecspi@02018000 { /* eCSPI5 */
+				ecspi5: ecspi@02018000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
 					reg = <0x02018000 0x4000>;
-					interrupts = <0 35 0x04>;
+					interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>;
+					clocks = <&clks IMX6Q_CLK_ECSPI5>,
+						 <&clks IMX6Q_CLK_ECSPI5>;
+					clock-names = "ipg", "per";
 					status = "disabled";
 				};
+			};
 
-				uart1: uart@02020000 {
-					compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
-					reg = <0x02020000 0x4000>;
-					interrupts = <0 26 0x04>;
-					status = "disabled";
+			iomuxc: iomuxc@020e0000 {
+				compatible = "fsl,imx6q-iomuxc";
+
+				ipu2 {
+					pinctrl_ipu2_1: ipu2grp-1 {
+						fsl,pins = <
+							MX6QDL_PAD_DI0_DISP_CLK__IPU2_DI0_DISP_CLK 0x10
+							MX6QDL_PAD_DI0_PIN15__IPU2_DI0_PIN15       0x10
+							MX6QDL_PAD_DI0_PIN2__IPU2_DI0_PIN02        0x10
+							MX6QDL_PAD_DI0_PIN3__IPU2_DI0_PIN03        0x10
+							MX6QDL_PAD_DI0_PIN4__IPU2_DI0_PIN04        0x80000000
+							MX6QDL_PAD_DISP0_DAT0__IPU2_DISP0_DATA00   0x10
+							MX6QDL_PAD_DISP0_DAT1__IPU2_DISP0_DATA01   0x10
+							MX6QDL_PAD_DISP0_DAT2__IPU2_DISP0_DATA02   0x10
+							MX6QDL_PAD_DISP0_DAT3__IPU2_DISP0_DATA03   0x10
+							MX6QDL_PAD_DISP0_DAT4__IPU2_DISP0_DATA04   0x10
+							MX6QDL_PAD_DISP0_DAT5__IPU2_DISP0_DATA05   0x10
+							MX6QDL_PAD_DISP0_DAT6__IPU2_DISP0_DATA06   0x10
+							MX6QDL_PAD_DISP0_DAT7__IPU2_DISP0_DATA07   0x10
+							MX6QDL_PAD_DISP0_DAT8__IPU2_DISP0_DATA08   0x10
+							MX6QDL_PAD_DISP0_DAT9__IPU2_DISP0_DATA09   0x10
+							MX6QDL_PAD_DISP0_DAT10__IPU2_DISP0_DATA10  0x10
+							MX6QDL_PAD_DISP0_DAT11__IPU2_DISP0_DATA11  0x10
+							MX6QDL_PAD_DISP0_DAT12__IPU2_DISP0_DATA12  0x10
+							MX6QDL_PAD_DISP0_DAT13__IPU2_DISP0_DATA13  0x10
+							MX6QDL_PAD_DISP0_DAT14__IPU2_DISP0_DATA14  0x10
+							MX6QDL_PAD_DISP0_DAT15__IPU2_DISP0_DATA15  0x10
+							MX6QDL_PAD_DISP0_DAT16__IPU2_DISP0_DATA16  0x10
+							MX6QDL_PAD_DISP0_DAT17__IPU2_DISP0_DATA17  0x10
+							MX6QDL_PAD_DISP0_DAT18__IPU2_DISP0_DATA18  0x10
+							MX6QDL_PAD_DISP0_DAT19__IPU2_DISP0_DATA19  0x10
+							MX6QDL_PAD_DISP0_DAT20__IPU2_DISP0_DATA20  0x10
+							MX6QDL_PAD_DISP0_DAT21__IPU2_DISP0_DATA21  0x10
+							MX6QDL_PAD_DISP0_DAT22__IPU2_DISP0_DATA22  0x10
+							MX6QDL_PAD_DISP0_DAT23__IPU2_DISP0_DATA23  0x10
+						>;
+					};
 				};
-
-				esai@02024000 {
-					reg = <0x02024000 0x4000>;
-					interrupts = <0 51 0x04>;
-				};
-
-				ssi@02028000 { /* SSI1 */
-					reg = <0x02028000 0x4000>;
-					interrupts = <0 46 0x04>;
-				};
-
-				ssi@0202c000 { /* SSI2 */
-					reg = <0x0202c000 0x4000>;
-					interrupts = <0 47 0x04>;
-				};
-
-				ssi@02030000 { /* SSI3 */
-					reg = <0x02030000 0x4000>;
-					interrupts = <0 48 0x04>;
-				};
-
-				asrc@02034000 {
-					reg = <0x02034000 0x4000>;
-					interrupts = <0 50 0x04>;
-				};
-
-				spba@0203c000 {
-					reg = <0x0203c000 0x4000>;
-				};
-			};
-
-			vpu@02040000 {
-				reg = <0x02040000 0x3c000>;
-				interrupts = <0 3 0x04 0 12 0x04>;
-			};
-
-			aipstz@0207c000 { /* AIPSTZ1 */
-				reg = <0x0207c000 0x4000>;
-			};
-
-			pwm@02080000 { /* PWM1 */
-				reg = <0x02080000 0x4000>;
-				interrupts = <0 83 0x04>;
-			};
-
-			pwm@02084000 { /* PWM2 */
-				reg = <0x02084000 0x4000>;
-				interrupts = <0 84 0x04>;
-			};
-
-			pwm@02088000 { /* PWM3 */
-				reg = <0x02088000 0x4000>;
-				interrupts = <0 85 0x04>;
-			};
-
-			pwm@0208c000 { /* PWM4 */
-				reg = <0x0208c000 0x4000>;
-				interrupts = <0 86 0x04>;
-			};
-
-			flexcan@02090000 { /* CAN1 */
-				reg = <0x02090000 0x4000>;
-				interrupts = <0 110 0x04>;
-			};
-
-			flexcan@02094000 { /* CAN2 */
-				reg = <0x02094000 0x4000>;
-				interrupts = <0 111 0x04>;
-			};
-
-			gpt@02098000 {
-				compatible = "fsl,imx6q-gpt";
-				reg = <0x02098000 0x4000>;
-				interrupts = <0 55 0x04>;
-			};
-
-			gpio1: gpio@0209c000 {
-				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
-				reg = <0x0209c000 0x4000>;
-				interrupts = <0 66 0x04 0 67 0x04>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <1>;
-			};
-
-			gpio2: gpio@020a0000 {
-				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
-				reg = <0x020a0000 0x4000>;
-				interrupts = <0 68 0x04 0 69 0x04>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <1>;
-			};
-
-			gpio3: gpio@020a4000 {
-				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
-				reg = <0x020a4000 0x4000>;
-				interrupts = <0 70 0x04 0 71 0x04>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <1>;
-			};
-
-			gpio4: gpio@020a8000 {
-				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
-				reg = <0x020a8000 0x4000>;
-				interrupts = <0 72 0x04 0 73 0x04>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <1>;
-			};
-
-			gpio5: gpio@020ac000 {
-				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
-				reg = <0x020ac000 0x4000>;
-				interrupts = <0 74 0x04 0 75 0x04>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <1>;
-			};
-
-			gpio6: gpio@020b0000 {
-				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
-				reg = <0x020b0000 0x4000>;
-				interrupts = <0 76 0x04 0 77 0x04>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <1>;
-			};
-
-			gpio7: gpio@020b4000 {
-				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
-				reg = <0x020b4000 0x4000>;
-				interrupts = <0 78 0x04 0 79 0x04>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <1>;
-			};
-
-			kpp@020b8000 {
-				reg = <0x020b8000 0x4000>;
-				interrupts = <0 82 0x04>;
-			};
-
-			wdog@020bc000 { /* WDOG1 */
-				compatible = "fsl,imx6q-wdt", "fsl,imx21-wdt";
-				reg = <0x020bc000 0x4000>;
-				interrupts = <0 80 0x04>;
-				status = "disabled";
-			};
-
-			wdog@020c0000 { /* WDOG2 */
-				compatible = "fsl,imx6q-wdt", "fsl,imx21-wdt";
-				reg = <0x020c0000 0x4000>;
-				interrupts = <0 81 0x04>;
-				status = "disabled";
-			};
-
-			ccm@020c4000 {
-				compatible = "fsl,imx6q-ccm";
-				reg = <0x020c4000 0x4000>;
-				interrupts = <0 87 0x04 0 88 0x04>;
-			};
-
-			anatop@020c8000 {
-				compatible = "fsl,imx6q-anatop";
-				reg = <0x020c8000 0x1000>;
-				interrupts = <0 49 0x04 0 54 0x04 0 127 0x04>;
-			};
-
-			usbphy@020c9000 { /* USBPHY1 */
-				reg = <0x020c9000 0x1000>;
-				interrupts = <0 44 0x04>;
-			};
-
-			usbphy@020ca000 { /* USBPHY2 */
-				reg = <0x020ca000 0x1000>;
-				interrupts = <0 45 0x04>;
-			};
-
-			snvs@020cc000 {
-				reg = <0x020cc000 0x4000>;
-				interrupts = <0 19 0x04 0 20 0x04>;
-			};
-
-			epit@020d0000 { /* EPIT1 */
-				reg = <0x020d0000 0x4000>;
-				interrupts = <0 56 0x04>;
-			};
-
-			epit@020d4000 { /* EPIT2 */
-				reg = <0x020d4000 0x4000>;
-				interrupts = <0 57 0x04>;
-			};
-
-			src@020d8000 {
-				compatible = "fsl,imx6q-src";
-				reg = <0x020d8000 0x4000>;
-				interrupts = <0 91 0x04 0 96 0x04>;
-			};
-
-			gpc@020dc000 {
-				compatible = "fsl,imx6q-gpc";
-				reg = <0x020dc000 0x4000>;
-				interrupts = <0 89 0x04 0 90 0x04>;
-			};
-
-			iomuxc@020e0000 {
-				reg = <0x020e0000 0x4000>;
-			};
-
-			dcic@020e4000 { /* DCIC1 */
-				reg = <0x020e4000 0x4000>;
-				interrupts = <0 124 0x04>;
-			};
-
-			dcic@020e8000 { /* DCIC2 */
-				reg = <0x020e8000 0x4000>;
-				interrupts = <0 125 0x04>;
-			};
-
-			sdma@020ec000 {
-				compatible = "fsl,imx6q-sdma", "fsl,imx35-sdma";
-				reg = <0x020ec000 0x4000>;
-				interrupts = <0 2 0x04>;
 			};
 		};
 
-		aips-bus@02100000 { /* AIPS2 */
-			compatible = "fsl,aips-bus", "simple-bus";
+		sata: sata@02200000 {
+			compatible = "fsl,imx6q-ahci";
+			reg = <0x02200000 0x4000>;
+			interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6QDL_CLK_SATA>,
+				 <&clks IMX6QDL_CLK_SATA_REF_100M>,
+				 <&clks IMX6QDL_CLK_AHB>;
+			clock-names = "sata", "sata_ref", "ahb";
+			status = "disabled";
+		};
+
+		ipu2: ipu@02800000 {
 			#address-cells = <1>;
-			#size-cells = <1>;
-			reg = <0x02100000 0x100000>;
-			ranges;
+			#size-cells = <0>;
+			compatible = "fsl,imx6q-ipu";
+			reg = <0x02800000 0x400000>;
+			interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 7 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6QDL_CLK_IPU2>,
+				 <&clks IMX6QDL_CLK_IPU2_DI0>,
+				 <&clks IMX6QDL_CLK_IPU2_DI1>;
+			clock-names = "bus", "di0", "di1";
+			resets = <&src 4>;
 
-			caam@02100000 {
-				reg = <0x02100000 0x40000>;
-				interrupts = <0 105 0x04 0 106 0x04>;
+			ipu2_csi0: port@0 {
+				reg = <0>;
 			};
 
-			aipstz@0217c000 { /* AIPSTZ2 */
-				reg = <0x0217c000 0x4000>;
+			ipu2_csi1: port@1 {
+				reg = <1>;
 			};
 
-			enet@02188000 {
-				compatible = "fsl,imx6q-fec";
-				reg = <0x02188000 0x4000>;
-				interrupts = <0 118 0x04 0 119 0x04>;
-				status = "disabled";
-			};
-
-			mlb@0218c000 {
-				reg = <0x0218c000 0x4000>;
-				interrupts = <0 53 0x04 0 117 0x04 0 126 0x04>;
-			};
-
-			usdhc@02190000 { /* uSDHC1 */
-				compatible = "fsl,imx6q-usdhc";
-				reg = <0x02190000 0x4000>;
-				interrupts = <0 22 0x04>;
-				status = "disabled";
-			};
-
-			usdhc@02194000 { /* uSDHC2 */
-				compatible = "fsl,imx6q-usdhc";
-				reg = <0x02194000 0x4000>;
-				interrupts = <0 23 0x04>;
-				status = "disabled";
-			};
-
-			usdhc@02198000 { /* uSDHC3 */
-				compatible = "fsl,imx6q-usdhc";
-				reg = <0x02198000 0x4000>;
-				interrupts = <0 24 0x04>;
-				status = "disabled";
-			};
-
-			usdhc@0219c000 { /* uSDHC4 */
-				compatible = "fsl,imx6q-usdhc";
-				reg = <0x0219c000 0x4000>;
-				interrupts = <0 25 0x04>;
-				status = "disabled";
-			};
-
-			i2c@021a0000 { /* I2C1 */
+			ipu2_di0: port@2 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx6q-i2c", "fsl,imx1-i2c";
-				reg = <0x021a0000 0x4000>;
-				interrupts = <0 36 0x04>;
-				status = "disabled";
+				reg = <2>;
+
+				ipu2_di0_disp0: endpoint@0 {
+				};
+
+				ipu2_di0_hdmi: endpoint@1 {
+					remote-endpoint = <&hdmi_mux_2>;
+				};
+
+				ipu2_di0_mipi: endpoint@2 {
+				};
+
+				ipu2_di0_lvds0: endpoint@3 {
+					remote-endpoint = <&lvds0_mux_2>;
+				};
+
+				ipu2_di0_lvds1: endpoint@4 {
+					remote-endpoint = <&lvds1_mux_2>;
+				};
 			};
 
-			i2c@021a4000 { /* I2C2 */
+			ipu2_di1: port@3 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx6q-i2c", "fsl,imx1-i2c";
-				reg = <0x021a4000 0x4000>;
-				interrupts = <0 37 0x04>;
-				status = "disabled";
-			};
+				reg = <3>;
 
-			i2c@021a8000 { /* I2C3 */
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,imx6q-i2c", "fsl,imx1-i2c";
-				reg = <0x021a8000 0x4000>;
-				interrupts = <0 38 0x04>;
-				status = "disabled";
-			};
+				ipu2_di1_hdmi: endpoint@1 {
+					remote-endpoint = <&hdmi_mux_3>;
+				};
 
-			romcp@021ac000 {
-				reg = <0x021ac000 0x4000>;
-			};
+				ipu2_di1_mipi: endpoint@2 {
+				};
 
-			mmdc@021b0000 { /* MMDC0 */
-				compatible = "fsl,imx6q-mmdc";
-				reg = <0x021b0000 0x4000>;
-			};
+				ipu2_di1_lvds0: endpoint@3 {
+					remote-endpoint = <&lvds0_mux_3>;
+				};
 
-			mmdc@021b4000 { /* MMDC1 */
-				reg = <0x021b4000 0x4000>;
+				ipu2_di1_lvds1: endpoint@4 {
+					remote-endpoint = <&lvds1_mux_3>;
+				};
 			};
+		};
+	};
 
-			weim@021b8000 {
-				reg = <0x021b8000 0x4000>;
-				interrupts = <0 14 0x04>;
-			};
+	display-subsystem {
+		compatible = "fsl,imx-display-subsystem";
+		ports = <&ipu1_di0>, <&ipu1_di1>, <&ipu2_di0>, <&ipu2_di1>;
+	};
+};
 
-			ocotp@021bc000 {
-				reg = <0x021bc000 0x4000>;
-			};
+&hdmi {
+	compatible = "fsl,imx6q-hdmi";
 
-			ocotp@021c0000 {
-				reg = <0x021c0000 0x4000>;
-				interrupts = <0 21 0x04>;
-			};
+	port@2 {
+		reg = <2>;
 
-			tzasc@021d0000 { /* TZASC1 */
-				reg = <0x021d0000 0x4000>;
-				interrupts = <0 108 0x04>;
-			};
+		hdmi_mux_2: endpoint {
+			remote-endpoint = <&ipu2_di0_hdmi>;
+		};
+	};
 
-			tzasc@021d4000 { /* TZASC2 */
-				reg = <0x021d4000 0x4000>;
-				interrupts = <0 109 0x04>;
-			};
+	port@3 {
+		reg = <3>;
 
-			audmux@021d8000 {
-				reg = <0x021d8000 0x4000>;
-			};
+		hdmi_mux_3: endpoint {
+			remote-endpoint = <&ipu2_di1_hdmi>;
+		};
+	};
+};
 
-			mipi@021dc000 { /* MIPI-CSI */
-				reg = <0x021dc000 0x4000>;
-			};
+&ldb {
+	clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_IPU2_DI0_SEL>, <&clks IMX6QDL_CLK_IPU2_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_LDB_DI0>, <&clks IMX6QDL_CLK_LDB_DI1>;
+	clock-names = "di0_pll", "di1_pll",
+		      "di0_sel", "di1_sel", "di2_sel", "di3_sel",
+		      "di0", "di1";
 
-			mipi@021e0000 { /* MIPI-DSI */
-				reg = <0x021e0000 0x4000>;
-			};
+	lvds-channel@0 {
+		port@2 {
+			reg = <2>;
 
-			vdoa@021e4000 {
-				reg = <0x021e4000 0x4000>;
-				interrupts = <0 18 0x04>;
+			lvds0_mux_2: endpoint {
+				remote-endpoint = <&ipu2_di0_lvds0>;
 			};
+		};
 
-			uart2: uart@021e8000 {
-				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
-				reg = <0x021e8000 0x4000>;
-				interrupts = <0 27 0x04>;
-				status = "disabled";
-			};
+		port@3 {
+			reg = <3>;
 
-			uart3: uart@021ec000 {
-				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
-				reg = <0x021ec000 0x4000>;
-				interrupts = <0 28 0x04>;
-				status = "disabled";
+			lvds0_mux_3: endpoint {
+				remote-endpoint = <&ipu2_di1_lvds0>;
 			};
+		};
+	};
 
-			uart4: uart@021f0000 {
-				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
-				reg = <0x021f0000 0x4000>;
-				interrupts = <0 29 0x04>;
-				status = "disabled";
-			};
+	lvds-channel@1 {
+		port@2 {
+			reg = <2>;
 
-			uart5: uart@021f4000 {
-				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
-				reg = <0x021f4000 0x4000>;
-				interrupts = <0 30 0x04>;
-				status = "disabled";
+			lvds1_mux_2: endpoint {
+				remote-endpoint = <&ipu2_di0_lvds1>;
 			};
+		};
+
+		port@3 {
+			reg = <3>;
+
+			lvds1_mux_3: endpoint {
+				remote-endpoint = <&ipu2_di1_lvds1>;
+			};
+		};
+	};
+};
+
+&mipi_dsi {
+	port@2 {
+		reg = <2>;
+
+		mipi_mux_2: endpoint {
+			remote-endpoint = <&ipu2_di0_mipi>;
+		};
+	};
+
+	port@3 {
+		reg = <3>;
+
+		mipi_mux_3: endpoint {
+			remote-endpoint = <&ipu2_di1_mipi>;
 		};
 	};
 };

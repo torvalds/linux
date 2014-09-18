@@ -17,7 +17,7 @@ static loff_t get_pos(struct dnode *d, struct hpfs_dirent *fde)
 		if (de == fde) return ((loff_t) le32_to_cpu(d->self) << 4) | (loff_t)i;
 		i++;
 	}
-	printk("HPFS: get_pos: not_found\n");
+	pr_info("%s(): not_found\n", __func__);
 	return ((loff_t)le32_to_cpu(d->self) << 4) | (loff_t)1;
 }
 
@@ -32,7 +32,7 @@ void hpfs_add_pos(struct inode *inode, loff_t *pos)
 			if (hpfs_inode->i_rddir_off[i] == pos) return;
 	if (!(i&0x0f)) {
 		if (!(ppos = kmalloc((i+0x11) * sizeof(loff_t*), GFP_NOFS))) {
-			printk("HPFS: out of memory for position list\n");
+			pr_err("out of memory for position list\n");
 			return;
 		}
 		if (hpfs_inode->i_rddir_off) {
@@ -63,7 +63,8 @@ void hpfs_del_pos(struct inode *inode, loff_t *pos)
 	}
 	return;
 	not_f:
-	/*printk("HPFS: warning: position pointer %p->%08x not found\n", pos, (int)*pos);*/
+	/*pr_warn("position pointer %p->%08x not found\n",
+		  pos, (int)*pos);*/
 	return;
 }
 
@@ -92,8 +93,11 @@ static void hpfs_pos_ins(loff_t *p, loff_t d, loff_t c)
 {
 	if ((*p & ~0x3f) == (d & ~0x3f) && (*p & 0x3f) >= (d & 0x3f)) {
 		int n = (*p & 0x3f) + c;
-		if (n > 0x3f) printk("HPFS: hpfs_pos_ins: %08x + %d\n", (int)*p, (int)c >> 8);
-		else *p = (*p & ~0x3f) | n;
+		if (n > 0x3f)
+			pr_err("%s(): %08x + %d\n",
+				__func__, (int)*p, (int)c >> 8);
+		else
+			*p = (*p & ~0x3f) | n;
 	}
 }
 
@@ -101,8 +105,11 @@ static void hpfs_pos_del(loff_t *p, loff_t d, loff_t c)
 {
 	if ((*p & ~0x3f) == (d & ~0x3f) && (*p & 0x3f) >= (d & 0x3f)) {
 		int n = (*p & 0x3f) - c;
-		if (n < 1) printk("HPFS: hpfs_pos_ins: %08x - %d\n", (int)*p, (int)c >> 8);
-		else *p = (*p & ~0x3f) | n;
+		if (n < 1)
+			pr_err("%s(): %08x - %d\n",
+				__func__, (int)*p, (int)c >> 8);
+		else
+			*p = (*p & ~0x3f) | n;
 	}
 }
 
@@ -145,15 +152,15 @@ static void set_last_pointer(struct super_block *s, struct dnode *d, dnode_secno
 		}
 	}
 	if (ptr) {
-		d->first_free = cpu_to_le32(le32_to_cpu(d->first_free) + 4);
+		le32_add_cpu(&d->first_free, 4);
 		if (le32_to_cpu(d->first_free) > 2048) {
 			hpfs_error(s, "set_last_pointer: too long dnode %08x", le32_to_cpu(d->self));
-			d->first_free = cpu_to_le32(le32_to_cpu(d->first_free) - 4);
+			le32_add_cpu(&d->first_free, -4);
 			return;
 		}
 		de->length = cpu_to_le16(36);
 		de->down = 1;
-		*(dnode_secno *)((char *)de + 32) = cpu_to_le32(ptr);
+		*(__le32 *)((char *)de + 32) = cpu_to_le32(ptr);
 	}
 }
 
@@ -177,14 +184,14 @@ struct hpfs_dirent *hpfs_add_de(struct super_block *s, struct dnode *d,
 	memmove((char *)de + d_size, de, (char *)de_end - (char *)de);
 	memset(de, 0, d_size);
 	if (down_ptr) {
-		*(dnode_secno *)((char *)de + d_size - 4) = cpu_to_le32(down_ptr);
+		*(__le32 *)((char *)de + d_size - 4) = cpu_to_le32(down_ptr);
 		de->down = 1;
 	}
 	de->length = cpu_to_le16(d_size);
 	de->not_8x3 = hpfs_is_name_long(name, namelen);
 	de->namelen = namelen;
 	memcpy(de->name, name, namelen);
-	d->first_free = cpu_to_le32(le32_to_cpu(d->first_free) + d_size);
+	le32_add_cpu(&d->first_free, d_size);
 	return de;
 }
 
@@ -239,12 +246,12 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 	struct fnode *fnode;
 	int c1, c2 = 0;
 	if (!(nname = kmalloc(256, GFP_NOFS))) {
-		printk("HPFS: out of memory, can't add to dnode\n");
+		pr_err("out of memory, can't add to dnode\n");
 		return 1;
 	}
 	go_up:
 	if (namelen >= 256) {
-		hpfs_error(i->i_sb, "hpfs_add_to_dnode: namelen == %d", namelen);
+		hpfs_error(i->i_sb, "%s(): namelen == %d", __func__, namelen);
 		kfree(nd);
 		kfree(nname);
 		return 1;
@@ -281,7 +288,7 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 		   not be any error while splitting dnodes, otherwise the
 		   whole directory, not only file we're adding, would
 		   be lost. */
-		printk("HPFS: out of memory for dnode splitting\n");
+		pr_err("out of memory for dnode splitting\n");
 		hpfs_brelse4(&qbh);
 		kfree(nname);
 		return 1;
@@ -314,7 +321,7 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 	set_last_pointer(i->i_sb, ad, de->down ? de_down_pointer(de) : 0);
 	de = de_next_de(de);
 	memmove((char *)nd + 20, de, le32_to_cpu(nd->first_free) + (char *)nd - (char *)de);
-	nd->first_free = cpu_to_le32(le32_to_cpu(nd->first_free) - ((char *)de - (char *)nd - 20));
+	le32_add_cpu(&nd->first_free, -((char *)de - (char *)nd - 20));
 	memcpy(d, nd, le32_to_cpu(nd->first_free));
 	for_all_poss(i, hpfs_pos_del, (loff_t)dno << 4, pos);
 	fix_up_ptrs(i->i_sb, ad);
@@ -474,8 +481,8 @@ static secno move_to_top(struct inode *i, dnode_secno from, dnode_secno to)
 			hpfs_brelse4(&qbh);
 			return 0;
 		}
-		dnode->first_free = cpu_to_le32(le32_to_cpu(dnode->first_free) - 4);
-		de->length = cpu_to_le16(le16_to_cpu(de->length) - 4);
+		le32_add_cpu(&dnode->first_free, -4);
+		le16_add_cpu(&de->length, -4);
 		de->down = 0;
 		hpfs_mark_4buffers_dirty(&qbh);
 		dno = up;
@@ -538,12 +545,13 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 			struct dnode *d1;
 			struct quad_buffer_head qbh1;
 			if (hpfs_sb(i->i_sb)->sb_chk)
-			    if (up != i->i_ino) {
-				hpfs_error(i->i_sb,
-					"bad pointer to fnode, dnode %08x, pointing to %08x, should be %08lx",
-					dno, up, (unsigned long)i->i_ino);
-				return;
-			    }
+				if (up != i->i_ino) {
+					hpfs_error(i->i_sb,
+						   "bad pointer to fnode, dnode %08x, pointing to %08x, should be %08lx",
+						   dno, up,
+						   (unsigned long)i->i_ino);
+					return;
+				}
 			if ((d1 = hpfs_map_dnode(i->i_sb, down, &qbh1))) {
 				d1->up = cpu_to_le32(up);
 				d1->root_dnode = 1;
@@ -570,8 +578,8 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 		for_all_poss(i, hpfs_pos_subst, ((loff_t)dno << 4) | 1, ((loff_t)up << 4) | p);
 		if (!down) {
 			de->down = 0;
-			de->length = cpu_to_le16(le16_to_cpu(de->length) - 4);
-			dnode->first_free = cpu_to_le32(le32_to_cpu(dnode->first_free) - 4);
+			le16_add_cpu(&de->length, -4);
+			le32_add_cpu(&dnode->first_free, -4);
 			memmove(de_next_de(de), (char *)de_next_de(de) + 4,
 				(char *)dnode + le32_to_cpu(dnode->first_free) - (char *)de_next_de(de));
 		} else {
@@ -597,7 +605,7 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 		if (!de_next->down) goto endm;
 		ndown = de_down_pointer(de_next);
 		if (!(de_cp = kmalloc(le16_to_cpu(de->length), GFP_NOFS))) {
-			printk("HPFS: out of memory for dtree balancing\n");
+			pr_err("out of memory for dtree balancing\n");
 			goto endm;
 		}
 		memcpy(de_cp, de, le16_to_cpu(de->length));
@@ -612,7 +620,8 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 			hpfs_brelse4(&qbh1);
 		}
 		hpfs_add_to_dnode(i, ndown, de_cp->name, de_cp->namelen, de_cp, de_cp->down ? de_down_pointer(de_cp) : 0);
-		/*printk("UP-TO-DNODE: %08x (ndown = %08x, down = %08x, dno = %08x)\n", up, ndown, down, dno);*/
+		/*pr_info("UP-TO-DNODE: %08x (ndown = %08x, down = %08x, dno = %08x)\n",
+		  up, ndown, down, dno);*/
 		dno = up;
 		kfree(de_cp);
 		goto try_it_again;
@@ -637,29 +646,29 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 			if (!dlp && down) {
 				if (le32_to_cpu(d1->first_free) > 2044) {
 					if (hpfs_sb(i->i_sb)->sb_chk >= 2) {
-						printk("HPFS: warning: unbalanced dnode tree, see hpfs.txt 4 more info\n");
-						printk("HPFS: warning: terminating balancing operation\n");
+						pr_err("unbalanced dnode tree, see hpfs.txt 4 more info\n");
+						pr_err("terminating balancing operation\n");
 					}
 					hpfs_brelse4(&qbh1);
 					goto endm;
 				}
 				if (hpfs_sb(i->i_sb)->sb_chk >= 2) {
-					printk("HPFS: warning: unbalanced dnode tree, see hpfs.txt 4 more info\n");
-					printk("HPFS: warning: goin'on\n");
+					pr_err("unbalanced dnode tree, see hpfs.txt 4 more info\n");
+					pr_err("goin'on\n");
 				}
-				del->length = cpu_to_le16(le16_to_cpu(del->length) + 4);
+				le16_add_cpu(&del->length, 4);
 				del->down = 1;
-				d1->first_free = cpu_to_le32(le32_to_cpu(d1->first_free) + 4);
+				le32_add_cpu(&d1->first_free, 4);
 			}
 			if (dlp && !down) {
-				del->length = cpu_to_le16(le16_to_cpu(del->length) - 4);
+				le16_add_cpu(&del->length, -4);
 				del->down = 0;
-				d1->first_free = cpu_to_le32(le32_to_cpu(d1->first_free) - 4);
+				le32_add_cpu(&d1->first_free, -4);
 			} else if (down)
-				*(dnode_secno *) ((void *) del + le16_to_cpu(del->length) - 4) = cpu_to_le32(down);
+				*(__le32 *) ((void *) del + le16_to_cpu(del->length) - 4) = cpu_to_le32(down);
 		} else goto endm;
 		if (!(de_cp = kmalloc(le16_to_cpu(de_prev->length), GFP_NOFS))) {
-			printk("HPFS: out of memory for dtree balancing\n");
+			pr_err("out of memory for dtree balancing\n");
 			hpfs_brelse4(&qbh1);
 			goto endm;
 		}
@@ -668,11 +677,11 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 		memcpy(de_cp, de_prev, le16_to_cpu(de_prev->length));
 		hpfs_delete_de(i->i_sb, dnode, de_prev);
 		if (!de_prev->down) {
-			de_prev->length = cpu_to_le16(le16_to_cpu(de_prev->length) + 4);
+			le16_add_cpu(&de_prev->length, 4);
 			de_prev->down = 1;
-			dnode->first_free = cpu_to_le32(le32_to_cpu(dnode->first_free) + 4);
+			le32_add_cpu(&dnode->first_free, 4);
 		}
-		*(dnode_secno *) ((void *) de_prev + le16_to_cpu(de_prev->length) - 4) = cpu_to_le32(ndown);
+		*(__le32 *) ((void *) de_prev + le16_to_cpu(de_prev->length) - 4) = cpu_to_le32(ndown);
 		hpfs_mark_4buffers_dirty(&qbh);
 		hpfs_brelse4(&qbh);
 		for_all_poss(i, hpfs_pos_subst, ((loff_t)up << 4) | (p - 1), 4);
@@ -1000,7 +1009,7 @@ struct hpfs_dirent *map_fnode_dirent(struct super_block *s, fnode_secno fno,
 	int d1, d2 = 0;
 	name1 = f->name;
 	if (!(name2 = kmalloc(256, GFP_NOFS))) {
-		printk("HPFS: out of memory, can't map dirent\n");
+		pr_err("out of memory, can't map dirent\n");
 		return NULL;
 	}
 	if (f->len <= 15)
@@ -1015,7 +1024,7 @@ struct hpfs_dirent *map_fnode_dirent(struct super_block *s, fnode_secno fno,
 		kfree(name2);
 		return NULL;
 	}	
-	if (!upf->dirflag) {
+	if (!fnode_is_dir(upf)) {
 		brelse(bh);
 		hpfs_error(s, "fnode %08x has non-directory parent %08x", fno, le32_to_cpu(f->up));
 		kfree(name2);
@@ -1053,8 +1062,8 @@ struct hpfs_dirent *map_fnode_dirent(struct super_block *s, fnode_secno fno,
 		hpfs_brelse4(qbh);
 		if (hpfs_sb(s)->sb_chk)
 			if (hpfs_stop_cycles(s, dno, &c1, &c2, "map_fnode_dirent #1")) {
-			kfree(name2);
-			return NULL;
+				kfree(name2);
+				return NULL;
 		}
 		goto go_down;
 	}

@@ -899,4 +899,247 @@ typedef enum {
 <para>Invalid stc number.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
- </section></section>
+ </section>
+
+<section id="DMX_GET_PES_PIDS"
+role="subsection"><title>DMX_GET_PES_PIDS</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl is undocumented. Documentation is welcome.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(fd, int request = DMX_GET_PES_PIDS,
+ __u16[5]);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals DMX_GET_PES_PIDS for this command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>__u16[5]
+</para>
+</entry><entry
+ align="char">
+<para>Undocumented.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+</section>
+
+<section id="DMX_GET_CAPS"
+role="subsection"><title>DMX_GET_CAPS</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl is undocumented. Documentation is welcome.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(fd, int request = DMX_GET_CAPS,
+ dmx_caps_t *);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals DMX_GET_CAPS for this command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>dmx_caps_t *
+</para>
+</entry><entry
+ align="char">
+<para>Undocumented.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+</section>
+
+<section id="DMX_SET_SOURCE"
+role="subsection"><title>DMX_SET_SOURCE</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl is undocumented. Documentation is welcome.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(fd, int request = DMX_SET_SOURCE,
+ dmx_source_t *);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals DMX_SET_SOURCE for this command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>dmx_source_t *
+</para>
+</entry><entry
+ align="char">
+<para>Undocumented.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+</section>
+
+<section id="DMX_ADD_PID"
+role="subsection"><title>DMX_ADD_PID</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl call allows to add multiple PIDs to a transport stream filter
+previously set up with DMX_SET_PES_FILTER and output equal to DMX_OUT_TSDEMUX_TAP.
+</para></entry></row><row><entry align="char"><para>
+It is used by readers of /dev/dvb/adapterX/demuxY.
+</para></entry></row><row><entry align="char"><para>
+It may be called at any time, i.e. before or after the first filter on the
+shared file descriptor was started. It makes it possible to record multiple
+services without the need to de-multiplex or re-multiplex TS packets.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(fd, int request = DMX_ADD_PID,
+ __u16 *);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals DMX_ADD_PID for this command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>__u16 *
+</para>
+</entry><entry
+ align="char">
+<para>PID number to be filtered.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+</section>
+
+<section id="DMX_REMOVE_PID"
+role="subsection"><title>DMX_REMOVE_PID</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl call allows to remove a PID when multiple PIDs are set on a
+transport stream filter, e. g. a filter previously set up with output equal to
+DMX_OUT_TSDEMUX_TAP, created via either DMX_SET_PES_FILTER or DMX_ADD_PID.
+</para></entry></row><row><entry align="char"><para>
+It is used by readers of /dev/dvb/adapterX/demuxY.
+</para></entry></row><row><entry align="char"><para>
+It may be called at any time, i.e. before or after the first filter on the
+shared file descriptor was started. It makes it possible to record multiple
+services without the need to de-multiplex or re-multiplex TS packets.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(fd, int request = DMX_REMOVE_PID,
+ __u16 *);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals DMX_REMOVE_PID for this command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>__u16 *
+</para>
+</entry><entry
+ align="char">
+<para>PID of the PES filter to be removed.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+</section>
+
+
+</section>

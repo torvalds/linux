@@ -309,7 +309,7 @@ static void midc_descriptor_complete(struct intel_mid_dma_chan *midc,
 		callback_txd(param_txd);
 	}
 	if (midc->raw_tfr) {
-		desc->status = DMA_SUCCESS;
+		desc->status = DMA_COMPLETE;
 		if (desc->lli != NULL) {
 			pci_pool_free(desc->lli_pool, desc->lli,
 						desc->lli_phys);
@@ -394,11 +394,11 @@ static int midc_lli_fill_sg(struct intel_mid_dma_chan *midc,
 			}
 		}
 		/*Populate CTL_HI values*/
-		ctl_hi.ctlx.block_ts = get_block_ts(sg->length,
+		ctl_hi.ctlx.block_ts = get_block_ts(sg_dma_len(sg),
 							desc->width,
 							midc->dma->block_size);
 		/*Populate SAR and DAR values*/
-		sg_phy_addr = sg_phys(sg);
+		sg_phy_addr = sg_dma_address(sg);
 		if (desc->dirn ==  DMA_MEM_TO_DEV) {
 			lli_bloc_desc->sar  = sg_phy_addr;
 			lli_bloc_desc->dar  = mids->dma_slave.dst_addr;
@@ -427,7 +427,7 @@ DMA engine callback Functions*/
  * intel_mid_dma_tx_submit -	callback to submit DMA transaction
  * @tx: dma engine descriptor
  *
- * Submit the DMA trasaction for this descriptor, start if ch idle
+ * Submit the DMA transaction for this descriptor, start if ch idle
  */
 static dma_cookie_t intel_mid_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 {
@@ -481,7 +481,7 @@ static enum dma_status intel_mid_dma_tx_status(struct dma_chan *chan,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS) {
+	if (ret != DMA_COMPLETE) {
 		spin_lock_bh(&midc->lock);
 		midc_scan_descriptors(to_middma_device(chan->device), midc);
 		spin_unlock_bh(&midc->lock);
@@ -747,7 +747,7 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_slave_sg(
 			txd = intel_mid_dma_prep_memcpy(chan,
 						mids->dma_slave.dst_addr,
 						mids->dma_slave.src_addr,
-						sgl->length,
+						sg_dma_len(sgl),
 						flags);
 			return txd;
 		} else {
@@ -759,7 +759,7 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_slave_sg(
 	pr_debug("MDMA: SG Length = %d, direction = %d, Flags = %#lx\n",
 			sg_len, direction, flags);
 
-	txd = intel_mid_dma_prep_memcpy(chan, 0, 0, sgl->length, flags);
+	txd = intel_mid_dma_prep_memcpy(chan, 0, 0, sg_dma_len(sgl), flags);
 	if (NULL == txd) {
 		pr_err("MDMA: Prep memcpy failed\n");
 		return NULL;
@@ -1225,7 +1225,7 @@ static void middma_shutdown(struct pci_dev *pdev)
  * Initialize the PCI device, map BARs, query driver data.
  * Call setup_dma to complete contoller and chan initilzation
  */
-static int __devinit intel_mid_dma_probe(struct pci_dev *pdev,
+static int intel_mid_dma_probe(struct pci_dev *pdev,
 					const struct pci_device_id *id)
 {
 	struct middma_device *device;
@@ -1308,7 +1308,7 @@ err_enable_device:
  * Free up all resources and data
  * Call shutdown_dma to complete contoller and chan cleanup
  */
-static void __devexit intel_mid_dma_remove(struct pci_dev *pdev)
+static void intel_mid_dma_remove(struct pci_dev *pdev)
 {
 	struct middma_device *device = pci_get_drvdata(pdev);
 
@@ -1405,7 +1405,7 @@ static int dma_runtime_idle(struct device *dev)
 			return -EAGAIN;
 	}
 
-	return pm_schedule_suspend(dev, 0);
+	return 0;
 }
 
 /******************************************************************************
@@ -1432,7 +1432,7 @@ static struct pci_driver intel_mid_dma_pci_driver = {
 	.name		=	"Intel MID DMA",
 	.id_table	=	intel_mid_dma_ids,
 	.probe		=	intel_mid_dma_probe,
-	.remove		=	__devexit_p(intel_mid_dma_remove),
+	.remove		=	intel_mid_dma_remove,
 #ifdef CONFIG_PM
 	.driver = {
 		.pm = &intel_mid_dma_pm,

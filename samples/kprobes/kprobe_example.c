@@ -37,6 +37,11 @@ static int handler_pre(struct kprobe *p, struct pt_regs *regs)
 			" status = 0x%lx\n",
 		p->addr, regs->cp0_epc, regs->cp0_status);
 #endif
+#ifdef CONFIG_TILEGX
+	printk(KERN_INFO "pre_handler: p->addr = 0x%p, pc = 0x%lx,"
+			" ex1 = 0x%lx\n",
+		p->addr, regs->pc, regs->ex1);
+#endif
 
 	/* A dump_stack() here will give a stack backtrace */
 	return 0;
@@ -57,6 +62,10 @@ static void handler_post(struct kprobe *p, struct pt_regs *regs,
 #ifdef CONFIG_MIPS
 	printk(KERN_INFO "post_handler: p->addr = 0x%p, status = 0x%lx\n",
 		p->addr, regs->cp0_status);
+#endif
+#ifdef CONFIG_TILEGX
+	printk(KERN_INFO "post_handler: p->addr = 0x%p, ex1 = 0x%lx\n",
+		p->addr, regs->ex1);
 #endif
 }
 

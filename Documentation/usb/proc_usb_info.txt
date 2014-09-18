@@ -54,9 +54,12 @@ it and 002/048 sometime later.
 
 These files can be read as binary data.  The binary data consists
 of first the device descriptor, then the descriptors for each
-configuration of the device.  Multi-byte fields in the device and
-configuration descriptors, but not other descriptors, are converted
-to host endianness by the kernel.  This information is also shown
+configuration of the device.  Multi-byte fields in the device descriptor
+are converted to host endianness by the kernel.  The configuration
+descriptors are in bus endian format! The configuration descriptor
+are wTotalLength bytes apart. If a device returns less configuration
+descriptor data than indicated by wTotalLength there will be a hole in
+the file for the missing bytes.  This information is also shown
 in text form by the /proc/bus/usb/devices file, described later.
 
 These files may also be used to write user-level drivers for the USB

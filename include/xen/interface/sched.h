@@ -9,7 +9,7 @@
 #ifndef __XEN_PUBLIC_SCHED_H__
 #define __XEN_PUBLIC_SCHED_H__
 
-#include "event_channel.h"
+#include <xen/interface/event_channel.h>
 
 /*
  * The prototype for this hypercall is:

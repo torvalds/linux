@@ -14,7 +14,7 @@ TRACE_EVENT(oom_score_adj_update,
 	TP_STRUCT__entry(
 		__field(	pid_t,	pid)
 		__array(	char,	comm,	TASK_COMM_LEN )
-		__field(	 int,	oom_score_adj)
+		__field(	short,	oom_score_adj)
 	),
 
 	TP_fast_assign(
@@ -23,7 +23,7 @@ TRACE_EVENT(oom_score_adj_update,
 		__entry->oom_score_adj = task->signal->oom_score_adj;
 	),
 
-	TP_printk("pid=%d comm=%s oom_score_adj=%d",
+	TP_printk("pid=%d comm=%s oom_score_adj=%hd",
 		__entry->pid, __entry->comm, __entry->oom_score_adj)
 );
 

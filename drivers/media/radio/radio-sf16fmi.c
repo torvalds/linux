@@ -1,4 +1,4 @@
-/* SF16-FMI and SF16-FMP radio driver for Linux radio support
+/* SF16-FMI, SF16-FMP and SF16-FMD radio driver for Linux radio support
  * heavily based on rtrack driver...
  * (c) 1997 M. Kirkwood
  * (c) 1998 Petr Vandrovec, vandrove@vc.cvut.cz
@@ -11,7 +11,7 @@
  *
  *  Frequency control is done digitally -- ie out(port,encodefreq(95.8));
  *  No volume control - only mute/unmute - you have to use line volume
- *  control on SB-part of SF16-FMI/SF16-FMP
+ *  control on SB-part of SF16-FMI/SF16-FMP/SF16-FMD
  *
  * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
  */
@@ -27,9 +27,12 @@
 #include <linux/io.h>		/* outb, outb_p			*/
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
+#include "lm7000.h"
 
 MODULE_AUTHOR("Petr Vandrovec, vandrove@vc.cvut.cz and M. Kirkwood");
-MODULE_DESCRIPTION("A driver for the SF16-FMI and SF16-FMP radio.");
+MODULE_DESCRIPTION("A driver for the SF16-FMI, SF16-FMP and SF16-FMD radio.");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.0.3");
 
@@ -37,16 +40,17 @@ static int io = -1;
 static int radio_nr = -1;
 
 module_param(io, int, 0);
-MODULE_PARM_DESC(io, "I/O address of the SF16-FMI or SF16-FMP card (0x284 or 0x384)");
+MODULE_PARM_DESC(io, "I/O address of the SF16-FMI/SF16-FMP/SF16-FMD card (0x284 or 0x384)");
 module_param(radio_nr, int, 0);
 
 struct fmi
 {
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler hdl;
 	struct video_device vdev;
 	int io;
 	bool mute;
-	unsigned long curfreq; /* freq in kHz */
+	u32 curfreq; /* freq in kHz */
 	struct mutex lock;
 };
 
@@ -54,31 +58,33 @@ static struct fmi fmi_card;
 static struct pnp_dev *dev;
 bool pnp_attached;
 
-/* freq is in 1/16 kHz to internal number, hw precision is 50 kHz */
-/* It is only useful to give freq in interval of 800 (=0.05Mhz),
- * other bits will be truncated, e.g 92.7400016 -> 92.7, but
- * 92.7400017 -> 92.75
- */
-#define RSF16_ENCODE(x)	((x) / 800 + 214)
-#define RSF16_MINFREQ (87 * 16000)
-#define RSF16_MAXFREQ (108 * 16000)
+#define RSF16_MINFREQ (87U * 16000)
+#define RSF16_MAXFREQ (108U * 16000)
 
-static void outbits(int bits, unsigned int data, int io)
+#define FMI_BIT_TUN_CE		(1 << 0)
+#define FMI_BIT_TUN_CLK		(1 << 1)
+#define FMI_BIT_TUN_DATA	(1 << 2)
+#define FMI_BIT_VOL_SW		(1 << 3)
+#define FMI_BIT_TUN_STRQ	(1 << 4)
+
+static void fmi_set_pins(void *handle, u8 pins)
 {
-	while (bits--) {
-		if (data & 1) {
-			outb(5, io);
-			udelay(6);
-			outb(7, io);
-			udelay(6);
-		} else {
-			outb(1, io);
-			udelay(6);
-			outb(3, io);
-			udelay(6);
-		}
-		data >>= 1;
-	}
+	struct fmi *fmi = handle;
+	u8 bits = FMI_BIT_TUN_STRQ;
+
+	if (!fmi->mute)
+		bits |= FMI_BIT_VOL_SW;
+
+	if (pins & LM7000_DATA)
+		bits |= FMI_BIT_TUN_DATA;
+	if (pins & LM7000_CLK)
+		bits |= FMI_BIT_TUN_CLK;
+	if (pins & LM7000_CE)
+		bits |= FMI_BIT_TUN_CE;
+
+	mutex_lock(&fmi->lock);
+	outb_p(bits, fmi->io);
+	mutex_unlock(&fmi->lock);
 }
 
 static inline void fmi_mute(struct fmi *fmi)
@@ -93,20 +99,6 @@ static inline void fmi_unmute(struct fmi *fmi)
 	mutex_lock(&fmi->lock);
 	outb(0x08, fmi->io);
 	mutex_unlock(&fmi->lock);
-}
-
-static inline int fmi_setfreq(struct fmi *fmi, unsigned long freq)
-{
-	mutex_lock(&fmi->lock);
-	fmi->curfreq = freq;
-
-	outbits(16, RSF16_ENCODE(freq), fmi->io);
-	outbits(8, 0xC0, fmi->io);
-	msleep(143);		/* was schedule_timeout(HZ/7) */
-	mutex_unlock(&fmi->lock);
-	if (!fmi->mute)
-		fmi_unmute(fmi);
-	return 0;
 }
 
 static inline int fmi_getsigstr(struct fmi *fmi)
@@ -126,13 +118,22 @@ static inline int fmi_getsigstr(struct fmi *fmi)
 	return (res & 2) ? 0 : 0xFFFF;
 }
 
+static void fmi_set_freq(struct fmi *fmi)
+{
+	fmi->curfreq = clamp(fmi->curfreq, RSF16_MINFREQ, RSF16_MAXFREQ);
+	/* rounding in steps of 800 to match the freq
+	   that will be used */
+	lm7000_set_freq((fmi->curfreq / 800) * 800, fmi, fmi_set_pins);
+}
+
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *v)
 {
 	strlcpy(v->driver, "radio-sf16fmi", sizeof(v->driver));
-	strlcpy(v->card, "SF16-FMx radio", sizeof(v->card));
-	strlcpy(v->bus_info, "ISA", sizeof(v->bus_info));
-	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	strlcpy(v->card, "SF16-FMI/FMP/FMD radio", sizeof(v->card));
+	strlcpy(v->bus_info, "ISA:radio-sf16fmi", sizeof(v->bus_info));
+	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -156,24 +157,22 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *v)
+					const struct v4l2_tuner *v)
 {
 	return v->index ? -EINVAL : 0;
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-					struct v4l2_frequency *f)
+					const struct v4l2_frequency *f)
 {
 	struct fmi *fmi = video_drvdata(file);
 
 	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
-	if (f->frequency < RSF16_MINFREQ ||
-			f->frequency > RSF16_MAXFREQ)
-		return -EINVAL;
-	/* rounding in steps of 800 to match the freq
-	   that will be used */
-	fmi_setfreq(fmi, (f->frequency / 800) * 800);
+
+	fmi->curfreq = f->frequency;
+	fmi_set_freq(fmi);
+
 	return 0;
 }
 
@@ -189,74 +188,31 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_queryctrl(struct file *file, void *priv,
-					struct v4l2_queryctrl *qc)
+static int fmi_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	switch (qc->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
-	}
-	return -EINVAL;
-}
-
-static int vidioc_g_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
-{
-	struct fmi *fmi = video_drvdata(file);
+	struct fmi *fmi = container_of(ctrl->handler, struct fmi, hdl);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		ctrl->value = fmi->mute;
-		return 0;
-	}
-	return -EINVAL;
-}
-
-static int vidioc_s_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
-{
-	struct fmi *fmi = video_drvdata(file);
-
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		if (ctrl->value)
+		if (ctrl->val)
 			fmi_mute(fmi);
 		else
 			fmi_unmute(fmi);
-		fmi->mute = ctrl->value;
+		fmi->mute = ctrl->val;
 		return 0;
 	}
 	return -EINVAL;
 }
 
-static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
-{
-	*i = 0;
-	return 0;
-}
-
-static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
-{
-	return i ? -EINVAL : 0;
-}
-
-static int vidioc_g_audio(struct file *file, void *priv,
-					struct v4l2_audio *a)
-{
-	a->index = 0;
-	strlcpy(a->name, "Radio", sizeof(a->name));
-	a->capability = V4L2_AUDCAP_STEREO;
-	return 0;
-}
-
-static int vidioc_s_audio(struct file *file, void *priv,
-					struct v4l2_audio *a)
-{
-	return a->index ? -EINVAL : 0;
-}
+static const struct v4l2_ctrl_ops fmi_ctrl_ops = {
+	.s_ctrl = fmi_s_ctrl,
+};
 
 static const struct v4l2_file_operations fmi_fops = {
 	.owner		= THIS_MODULE,
+	.open		= v4l2_fh_open,
+	.release	= v4l2_fh_release,
+	.poll		= v4l2_ctrl_poll,
 	.unlocked_ioctl	= video_ioctl2,
 };
 
@@ -264,21 +220,21 @@ static const struct v4l2_ioctl_ops fmi_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
-	.vidioc_g_audio     = vidioc_g_audio,
-	.vidioc_s_audio     = vidioc_s_audio,
-	.vidioc_g_input     = vidioc_g_input,
-	.vidioc_s_input     = vidioc_s_input,
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
-	.vidioc_queryctrl   = vidioc_queryctrl,
-	.vidioc_g_ctrl      = vidioc_g_ctrl,
-	.vidioc_s_ctrl      = vidioc_s_ctrl,
+	.vidioc_log_status  = v4l2_ctrl_log_status,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 /* ladis: this is my card. does any other types exist? */
-static struct isapnp_device_id id_table[] __devinitdata = {
+static struct isapnp_device_id id_table[] = {
+		/* SF16-FMI */
 	{	ISAPNP_ANY_ID, ISAPNP_ANY_ID,
 		ISAPNP_VENDOR('M','F','R'), ISAPNP_FUNCTION(0xad10), 0},
+		/* SF16-FMD */
+	{	ISAPNP_ANY_ID, ISAPNP_ANY_ID,
+		ISAPNP_VENDOR('M','F','R'), ISAPNP_FUNCTION(0xad12), 0},
 	{	ISAPNP_CARD_END, },
 };
 
@@ -318,6 +274,7 @@ static int __init fmi_init(void)
 {
 	struct fmi *fmi = &fmi_card;
 	struct v4l2_device *v4l2_dev = &fmi->v4l2_dev;
+	struct v4l2_ctrl_handler *hdl = &fmi->hdl;
 	int res, i;
 	int probe_ports[] = { 0, 0x284, 0x384 };
 
@@ -370,6 +327,18 @@ static int __init fmi_init(void)
 		return res;
 	}
 
+	v4l2_ctrl_handler_init(hdl, 1);
+	v4l2_ctrl_new_std(hdl, &fmi_ctrl_ops,
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
+	v4l2_dev->ctrl_handler = hdl;
+	if (hdl->error) {
+		res = hdl->error;
+		v4l2_err(v4l2_dev, "Could not register controls\n");
+		v4l2_ctrl_handler_free(hdl);
+		v4l2_device_unregister(v4l2_dev);
+		return res;
+	}
+
 	strlcpy(fmi->vdev.name, v4l2_dev->name, sizeof(fmi->vdev.name));
 	fmi->vdev.v4l2_dev = v4l2_dev;
 	fmi->vdev.fops = &fmi_fops;
@@ -379,10 +348,13 @@ static int __init fmi_init(void)
 
 	mutex_init(&fmi->lock);
 
-	/* mute card - prevents noisy bootups */
-	fmi_mute(fmi);
+	/* mute card and set default frequency */
+	fmi->mute = 1;
+	fmi->curfreq = RSF16_MINFREQ;
+	fmi_set_freq(fmi);
 
 	if (video_register_device(&fmi->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
+		v4l2_ctrl_handler_free(hdl);
 		v4l2_device_unregister(v4l2_dev);
 		release_region(fmi->io, 2);
 		if (pnp_attached)
@@ -398,6 +370,7 @@ static void __exit fmi_exit(void)
 {
 	struct fmi *fmi = &fmi_card;
 
+	v4l2_ctrl_handler_free(&fmi->hdl);
 	video_unregister_device(&fmi->vdev);
 	v4l2_device_unregister(&fmi->v4l2_dev);
 	release_region(fmi->io, 2);

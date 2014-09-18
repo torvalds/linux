@@ -22,6 +22,11 @@
 #include <linux/irq.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/irqdomain.h>
+#include <linux/module.h>
 
 #include <mach/irqs.h>
 #include <mach/hardware.h>
@@ -43,6 +48,9 @@
 #define MIC_ATR_DEFAULT		0x00000000
 #define SIC1_ATR_DEFAULT	0x00026000
 #define SIC2_ATR_DEFAULT	0x00000000
+
+static struct irq_domain *lpc32xx_mic_domain;
+static struct device_node *lpc32xx_mic_np;
 
 struct lpc32xx_event_group_regs {
 	void __iomem *enab_reg;
@@ -203,7 +211,7 @@ static void lpc32xx_mask_irq(struct irq_data *d)
 {
 	unsigned int reg, ctrl, mask;
 
-	get_controller(d->irq, &ctrl, &mask);
+	get_controller(d->hwirq, &ctrl, &mask);
 
 	reg = __raw_readl(LPC32XX_INTC_MASK(ctrl)) & ~mask;
 	__raw_writel(reg, LPC32XX_INTC_MASK(ctrl));
@@ -213,7 +221,7 @@ static void lpc32xx_unmask_irq(struct irq_data *d)
 {
 	unsigned int reg, ctrl, mask;
 
-	get_controller(d->irq, &ctrl, &mask);
+	get_controller(d->hwirq, &ctrl, &mask);
 
 	reg = __raw_readl(LPC32XX_INTC_MASK(ctrl)) | mask;
 	__raw_writel(reg, LPC32XX_INTC_MASK(ctrl));
@@ -223,14 +231,14 @@ static void lpc32xx_ack_irq(struct irq_data *d)
 {
 	unsigned int ctrl, mask;
 
-	get_controller(d->irq, &ctrl, &mask);
+	get_controller(d->hwirq, &ctrl, &mask);
 
 	__raw_writel(mask, LPC32XX_INTC_RAW_STAT(ctrl));
 
 	/* Also need to clear pending wake event */
-	if (lpc32xx_events[d->irq].mask != 0)
-		__raw_writel(lpc32xx_events[d->irq].mask,
-			lpc32xx_events[d->irq].event_group->rawstat_reg);
+	if (lpc32xx_events[d->hwirq].mask != 0)
+		__raw_writel(lpc32xx_events[d->hwirq].mask,
+			lpc32xx_events[d->hwirq].event_group->rawstat_reg);
 }
 
 static void __lpc32xx_set_irq_type(unsigned int irq, int use_high_level,
@@ -274,31 +282,32 @@ static int lpc32xx_set_irq_type(struct irq_data *d, unsigned int type)
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
 		/* Rising edge sensitive */
-		__lpc32xx_set_irq_type(d->irq, 1, 1);
+		__lpc32xx_set_irq_type(d->hwirq, 1, 1);
+		__irq_set_handler_locked(d->hwirq, handle_edge_irq);
 		break;
 
 	case IRQ_TYPE_EDGE_FALLING:
 		/* Falling edge sensitive */
-		__lpc32xx_set_irq_type(d->irq, 0, 1);
+		__lpc32xx_set_irq_type(d->hwirq, 0, 1);
+		__irq_set_handler_locked(d->hwirq, handle_edge_irq);
 		break;
 
 	case IRQ_TYPE_LEVEL_LOW:
 		/* Low level sensitive */
-		__lpc32xx_set_irq_type(d->irq, 0, 0);
+		__lpc32xx_set_irq_type(d->hwirq, 0, 0);
+		__irq_set_handler_locked(d->hwirq, handle_level_irq);
 		break;
 
 	case IRQ_TYPE_LEVEL_HIGH:
 		/* High level sensitive */
-		__lpc32xx_set_irq_type(d->irq, 1, 0);
+		__lpc32xx_set_irq_type(d->hwirq, 1, 0);
+		__irq_set_handler_locked(d->hwirq, handle_level_irq);
 		break;
 
 	/* Other modes are not supported */
 	default:
 		return -EINVAL;
 	}
-
-	/* Ok to use the level handler for all types */
-	irq_set_handler(d->irq, handle_level_irq);
 
 	return 0;
 }
@@ -307,33 +316,33 @@ static int lpc32xx_irq_wake(struct irq_data *d, unsigned int state)
 {
 	unsigned long eventreg;
 
-	if (lpc32xx_events[d->irq].mask != 0) {
-		eventreg = __raw_readl(lpc32xx_events[d->irq].
+	if (lpc32xx_events[d->hwirq].mask != 0) {
+		eventreg = __raw_readl(lpc32xx_events[d->hwirq].
 			event_group->enab_reg);
 
 		if (state)
-			eventreg |= lpc32xx_events[d->irq].mask;
+			eventreg |= lpc32xx_events[d->hwirq].mask;
 		else {
-			eventreg &= ~lpc32xx_events[d->irq].mask;
+			eventreg &= ~lpc32xx_events[d->hwirq].mask;
 
 			/*
 			 * When disabling the wakeup, clear the latched
 			 * event
 			 */
-			__raw_writel(lpc32xx_events[d->irq].mask,
-				lpc32xx_events[d->irq].
+			__raw_writel(lpc32xx_events[d->hwirq].mask,
+				lpc32xx_events[d->hwirq].
 				event_group->rawstat_reg);
 		}
 
 		__raw_writel(eventreg,
-			lpc32xx_events[d->irq].event_group->enab_reg);
+			lpc32xx_events[d->hwirq].event_group->enab_reg);
 
 		return 0;
 	}
 
 	/* Clear event */
-	__raw_writel(lpc32xx_events[d->irq].mask,
-		lpc32xx_events[d->irq].event_group->rawstat_reg);
+	__raw_writel(lpc32xx_events[d->hwirq].mask,
+		lpc32xx_events[d->hwirq].event_group->rawstat_reg);
 
 	return -ENODEV;
 }
@@ -353,6 +362,7 @@ static void __init lpc32xx_set_default_mappings(unsigned int apr,
 }
 
 static struct irq_chip lpc32xx_irq_chip = {
+	.name = "MIC",
 	.irq_ack = lpc32xx_ack_irq,
 	.irq_mask = lpc32xx_mask_irq,
 	.irq_unmask = lpc32xx_unmask_irq,
@@ -385,6 +395,19 @@ static void lpc32xx_sic2_handler(unsigned int irq, struct irq_desc *desc)
 		generic_handle_irq(LPC32XX_SIC2_IRQ(irqno));
 	}
 }
+
+static int __init __lpc32xx_mic_of_init(struct device_node *node,
+					struct device_node *parent)
+{
+	lpc32xx_mic_np = node;
+
+	return 0;
+}
+
+static const struct of_device_id mic_of_match[] __initconst = {
+	{ .compatible = "nxp,lpc3220-mic", .data = __lpc32xx_mic_of_init },
+	{ }
+};
 
 void __init lpc32xx_init_irq(void)
 {
@@ -419,15 +442,6 @@ void __init lpc32xx_init_irq(void)
 	lpc32xx_set_default_mappings(SIC1_APR_DEFAULT, SIC1_ATR_DEFAULT, 32);
 	lpc32xx_set_default_mappings(SIC2_APR_DEFAULT, SIC2_ATR_DEFAULT, 64);
 
-	/* mask all interrupts except SUBIRQ */
-	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_MIC_BASE));
-	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_SIC1_BASE));
-	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_SIC2_BASE));
-
-	/* MIC SUBIRQx interrupts will route handling to the chain handlers */
-	irq_set_chained_handler(IRQ_LPC32XX_SUB1IRQ, lpc32xx_sic1_handler);
-	irq_set_chained_handler(IRQ_LPC32XX_SUB2IRQ, lpc32xx_sic2_handler);
-
 	/* Initially disable all wake events */
 	__raw_writel(0, LPC32XX_CLKPWR_P01_ER);
 	__raw_writel(0, LPC32XX_CLKPWR_INT_ER);
@@ -448,4 +462,16 @@ void __init lpc32xx_init_irq(void)
 		LPC32XX_CLKPWR_PIN_RS);
 	__raw_writel(__raw_readl(LPC32XX_CLKPWR_INT_RS),
 		LPC32XX_CLKPWR_INT_RS);
+
+	of_irq_init(mic_of_match);
+
+	lpc32xx_mic_domain = irq_domain_add_legacy(lpc32xx_mic_np, NR_IRQS,
+						   0, 0, &irq_domain_simple_ops,
+						   NULL);
+	if (!lpc32xx_mic_domain)
+		panic("Unable to add MIC irq domain\n");
+
+	/* MIC SUBIRQx interrupts will route handling to the chain handlers */
+	irq_set_chained_handler(IRQ_LPC32XX_SUB1IRQ, lpc32xx_sic1_handler);
+	irq_set_chained_handler(IRQ_LPC32XX_SUB2IRQ, lpc32xx_sic2_handler);
 }

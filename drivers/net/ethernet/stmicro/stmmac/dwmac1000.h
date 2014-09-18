@@ -19,6 +19,8 @@
 
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
+#ifndef __DWMAC1000_H__
+#define __DWMAC1000_H__
 
 #include <linux/phy.h>
 #include "common.h"
@@ -36,6 +38,7 @@
 
 #define GMAC_INT_STATUS		0x00000038	/* interrupt status register */
 enum dwmac1000_irq_status {
+	lpiis_irq = 0x400,
 	time_stamp_irq = 0x0200,
 	mmc_rx_csum_offload_irq = 0x0080,
 	mmc_tx_irq = 0x0040,
@@ -60,20 +63,71 @@ enum power_event {
 	power_down = 0x00000001,
 };
 
-/* GMAC HW ADDR regs */
-#define GMAC_ADDR_HIGH(reg)		(0x00000040+(reg * 8))
-#define GMAC_ADDR_LOW(reg)		(0x00000044+(reg * 8))
-#define GMAC_MAX_UNICAST_ADDRESSES	16
+/* Energy Efficient Ethernet (EEE)
+ *
+ * LPI status, timer and control register offset
+ */
+#define LPI_CTRL_STATUS	0x0030
+#define LPI_TIMER_CTRL	0x0034
 
+/* LPI control and status defines */
+#define LPI_CTRL_STATUS_LPITXA	0x00080000	/* Enable LPI TX Automate */
+#define LPI_CTRL_STATUS_PLSEN	0x00040000	/* Enable PHY Link Status */
+#define LPI_CTRL_STATUS_PLS	0x00020000	/* PHY Link Status */
+#define LPI_CTRL_STATUS_LPIEN	0x00010000	/* LPI Enable */
+#define LPI_CTRL_STATUS_RLPIST	0x00000200	/* Receive LPI state */
+#define LPI_CTRL_STATUS_TLPIST	0x00000100	/* Transmit LPI state */
+#define LPI_CTRL_STATUS_RLPIEX	0x00000008	/* Receive LPI Exit */
+#define LPI_CTRL_STATUS_RLPIEN	0x00000004	/* Receive LPI Entry */
+#define LPI_CTRL_STATUS_TLPIEX	0x00000002	/* Transmit LPI Exit */
+#define LPI_CTRL_STATUS_TLPIEN	0x00000001	/* Transmit LPI Entry */
+
+/* GMAC HW ADDR regs */
+#define GMAC_ADDR_HIGH(reg)	(((reg > 15) ? 0x00000800 : 0x00000040) + \
+				(reg * 8))
+#define GMAC_ADDR_LOW(reg)	(((reg > 15) ? 0x00000804 : 0x00000044) + \
+				(reg * 8))
+#define GMAC_MAX_PERFECT_ADDRESSES	1
+
+/* PCS registers (AN/TBI/SGMII/RGMII) offset */
 #define GMAC_AN_CTRL	0x000000c0	/* AN control */
 #define GMAC_AN_STATUS	0x000000c4	/* AN status */
 #define GMAC_ANE_ADV	0x000000c8	/* Auto-Neg. Advertisement */
-#define GMAC_ANE_LINK	0x000000cc	/* Auto-Neg. link partener ability */
+#define GMAC_ANE_LPA	0x000000cc	/* Auto-Neg. link partener ability */
 #define GMAC_ANE_EXP	0x000000d0	/* ANE expansion */
 #define GMAC_TBI	0x000000d4	/* TBI extend status */
-#define GMAC_GMII_STATUS 0x000000d8	/* S/R-GMII status */
+#define GMAC_S_R_GMII	0x000000d8	/* SGMII RGMII status */
+
+/* AN Configuration defines */
+#define GMAC_AN_CTRL_RAN	0x00000200	/* Restart Auto-Negotiation */
+#define GMAC_AN_CTRL_ANE	0x00001000	/* Auto-Negotiation Enable */
+#define GMAC_AN_CTRL_ELE	0x00004000	/* External Loopback Enable */
+#define GMAC_AN_CTRL_ECD	0x00010000	/* Enable Comma Detect */
+#define GMAC_AN_CTRL_LR		0x00020000	/* Lock to Reference */
+#define GMAC_AN_CTRL_SGMRAL	0x00040000	/* SGMII RAL Control */
+
+/* AN Status defines */
+#define GMAC_AN_STATUS_LS	0x00000004	/* Link Status 0:down 1:up */
+#define GMAC_AN_STATUS_ANA	0x00000008	/* Auto-Negotiation Ability */
+#define GMAC_AN_STATUS_ANC	0x00000020	/* Auto-Negotiation Complete */
+#define GMAC_AN_STATUS_ES	0x00000100	/* Extended Status */
+
+/* Register 54 (SGMII/RGMII status register) */
+#define GMAC_S_R_GMII_LINK		0x8
+#define GMAC_S_R_GMII_SPEED		0x5
+#define GMAC_S_R_GMII_SPEED_SHIFT	0x1
+#define GMAC_S_R_GMII_MODE		0x1
+#define GMAC_S_R_GMII_SPEED_125		2
+#define GMAC_S_R_GMII_SPEED_25		1
+
+/* Common ADV and LPA defines */
+#define GMAC_ANE_FD		(1 << 5)
+#define GMAC_ANE_HD		(1 << 6)
+#define GMAC_ANE_PSE		(3 << 7)
+#define GMAC_ANE_PSE_SHIFT	7
 
 /* GMAC Configuration defines */
+#define GMAC_CONTROL_2K 0x08000000	/* IEEE 802.3as 2K packets */
 #define GMAC_CONTROL_TC	0x01000000	/* Transmit Conf. in RGMII/SGMII */
 #define GMAC_CONTROL_WD	0x00800000	/* Disable Watchdog on receive */
 #define GMAC_CONTROL_JD	0x00400000	/* Jabber disable */
@@ -84,22 +138,22 @@ enum inter_frame_gap {
 	GMAC_CONTROL_IFG_80 = 0x00020000,
 	GMAC_CONTROL_IFG_40 = 0x000e0000,
 };
-#define GMAC_CONTROL_DCRS	0x00010000 /* Disable carrier sense during tx */
-#define GMAC_CONTROL_PS		0x00008000 /* Port Select 0:GMI 1:MII */
-#define GMAC_CONTROL_FES	0x00004000 /* Speed 0:10 1:100 */
-#define GMAC_CONTROL_DO		0x00002000 /* Disable Rx Own */
-#define GMAC_CONTROL_LM		0x00001000 /* Loop-back mode */
-#define GMAC_CONTROL_DM		0x00000800 /* Duplex Mode */
-#define GMAC_CONTROL_IPC	0x00000400 /* Checksum Offload */
-#define GMAC_CONTROL_DR		0x00000200 /* Disable Retry */
-#define GMAC_CONTROL_LUD	0x00000100 /* Link up/down */
-#define GMAC_CONTROL_ACS	0x00000080 /* Automatic Pad/FCS Stripping */
-#define GMAC_CONTROL_DC		0x00000010 /* Deferral Check */
-#define GMAC_CONTROL_TE		0x00000008 /* Transmitter Enable */
-#define GMAC_CONTROL_RE		0x00000004 /* Receiver Enable */
+#define GMAC_CONTROL_DCRS	0x00010000	/* Disable carrier sense */
+#define GMAC_CONTROL_PS		0x00008000	/* Port Select 0:GMI 1:MII */
+#define GMAC_CONTROL_FES	0x00004000	/* Speed 0:10 1:100 */
+#define GMAC_CONTROL_DO		0x00002000	/* Disable Rx Own */
+#define GMAC_CONTROL_LM		0x00001000	/* Loop-back mode */
+#define GMAC_CONTROL_DM		0x00000800	/* Duplex Mode */
+#define GMAC_CONTROL_IPC	0x00000400	/* Checksum Offload */
+#define GMAC_CONTROL_DR		0x00000200	/* Disable Retry */
+#define GMAC_CONTROL_LUD	0x00000100	/* Link up/down */
+#define GMAC_CONTROL_ACS	0x00000080	/* Auto Pad/FCS Stripping */
+#define GMAC_CONTROL_DC		0x00000010	/* Deferral Check */
+#define GMAC_CONTROL_TE		0x00000008	/* Transmitter Enable */
+#define GMAC_CONTROL_RE		0x00000004	/* Receiver Enable */
 
 #define GMAC_CORE_INIT (GMAC_CONTROL_JD | GMAC_CONTROL_PS | GMAC_CONTROL_ACS | \
-			GMAC_CONTROL_JE | GMAC_CONTROL_BE)
+			GMAC_CONTROL_BE | GMAC_CONTROL_DCRS)
 
 /* GMAC Frame Filter defines */
 #define GMAC_FRAME_FILTER_PR	0x00000001	/* Promiscuous Mode */
@@ -127,22 +181,24 @@ enum inter_frame_gap {
 #define DMA_BUS_MODE_SFT_RESET	0x00000001	/* Software Reset */
 #define DMA_BUS_MODE_DA		0x00000002	/* Arbitration scheme */
 #define DMA_BUS_MODE_DSL_MASK	0x0000007c	/* Descriptor Skip Length */
-#define DMA_BUS_MODE_DSL_SHIFT	2	/*   (in DWORDS)      */
+#define DMA_BUS_MODE_DSL_SHIFT	2		/*   (in DWORDS)      */
 /* Programmable burst length (passed thorugh platform)*/
 #define DMA_BUS_MODE_PBL_MASK	0x00003f00	/* Programmable Burst Len */
 #define DMA_BUS_MODE_PBL_SHIFT	8
+#define DMA_BUS_MODE_ATDS	0x00000080	/* Alternate Descriptor Size */
 
 enum rx_tx_priority_ratio {
-	double_ratio = 0x00004000,	/*2:1 */
-	triple_ratio = 0x00008000,	/*3:1 */
-	quadruple_ratio = 0x0000c000,	/*4:1 */
+	double_ratio = 0x00004000,	/* 2:1 */
+	triple_ratio = 0x00008000,	/* 3:1 */
+	quadruple_ratio = 0x0000c000,	/* 4:1 */
 };
 
 #define DMA_BUS_MODE_FB		0x00010000	/* Fixed burst */
+#define DMA_BUS_MODE_MB		0x04000000	/* Mixed burst */
 #define DMA_BUS_MODE_RPBL_MASK	0x003e0000	/* Rx-Programmable Burst Len */
 #define DMA_BUS_MODE_RPBL_SHIFT	17
 #define DMA_BUS_MODE_USP	0x00800000
-#define DMA_BUS_MODE_4PBL	0x01000000
+#define DMA_BUS_MODE_PBL	0x01000000
 #define DMA_BUS_MODE_AAL	0x02000000
 
 /* DMA CRS Control and Status Register Mapping */
@@ -154,9 +210,10 @@ enum rx_tx_priority_ratio {
 #define DMA_BUS_FB	  	  0x00010000	/* Fixed Burst */
 
 /* DMA operation mode defines (start/stop tx/rx are placed in common header)*/
-#define DMA_CONTROL_DT		0x04000000 /* Disable Drop TCP/IP csum error */
-#define DMA_CONTROL_RSF		0x02000000 /* Receive Store and Forward */
-#define DMA_CONTROL_DFF		0x01000000 /* Disaable flushing */
+/* Disable Drop TCP/IP csum error */
+#define DMA_CONTROL_DT		0x04000000
+#define DMA_CONTROL_RSF		0x02000000	/* Receive Store and Forward */
+#define DMA_CONTROL_DFF		0x01000000	/* Disaable flushing */
 /* Threshold for Activating the FC */
 enum rfa {
 	act_full_minus_1 = 0x00800000,
@@ -171,7 +228,7 @@ enum rfd {
 	deac_full_minus_3 = 0x00401000,
 	deac_full_minus_4 = 0x00401800,
 };
-#define DMA_CONTROL_TSF		0x00200000 /* Transmit  Store and Forward */
+#define DMA_CONTROL_TSF	0x00200000	/* Transmit  Store and Forward */
 
 enum ttc_control {
 	DMA_CONTROL_TTC_64 = 0x00000000,
@@ -204,5 +261,7 @@ enum rtc_control {
 #define GMAC_MMC_RX_INTR   0x104
 #define GMAC_MMC_TX_INTR   0x108
 #define GMAC_MMC_RX_CSUM_OFFLOAD   0x208
+#define GMAC_EXTHASH_BASE  0x500
 
 extern const struct stmmac_dma_ops dwmac1000_dma_ops;
+#endif /* __DWMAC1000_H__ */

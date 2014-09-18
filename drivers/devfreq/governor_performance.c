@@ -10,6 +10,8 @@
  */
 
 #include <linux/devfreq.h>
+#include <linux/module.h>
+#include "governor.h"
 
 static int devfreq_performance_func(struct devfreq *df,
 				    unsigned long *freq)
@@ -25,8 +27,41 @@ static int devfreq_performance_func(struct devfreq *df,
 	return 0;
 }
 
-const struct devfreq_governor devfreq_performance = {
+static int devfreq_performance_handler(struct devfreq *devfreq,
+				unsigned int event, void *data)
+{
+	int ret = 0;
+
+	if (event == DEVFREQ_GOV_START) {
+		mutex_lock(&devfreq->lock);
+		ret = update_devfreq(devfreq);
+		mutex_unlock(&devfreq->lock);
+	}
+
+	return ret;
+}
+
+static struct devfreq_governor devfreq_performance = {
 	.name = "performance",
 	.get_target_freq = devfreq_performance_func,
-	.no_central_polling = true,
+	.event_handler = devfreq_performance_handler,
 };
+
+static int __init devfreq_performance_init(void)
+{
+	return devfreq_add_governor(&devfreq_performance);
+}
+subsys_initcall(devfreq_performance_init);
+
+static void __exit devfreq_performance_exit(void)
+{
+	int ret;
+
+	ret = devfreq_remove_governor(&devfreq_performance);
+	if (ret)
+		pr_err("%s: failed remove governor %d\n", __func__, ret);
+
+	return;
+}
+module_exit(devfreq_performance_exit);
+MODULE_LICENSE("GPL");

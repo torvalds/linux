@@ -2059,13 +2059,17 @@ static int l3ni1_cmd_global(struct PStack *st, isdn_ctrl *ic)
 			memcpy(p, ic->parm.ni1_io.data, ic->parm.ni1_io.datalen); /* copy data */
 			l = (p - temp) + ic->parm.ni1_io.datalen; /* total length */
 
-			if (ic->parm.ni1_io.timeout > 0)
-				if (!(pc = ni1_new_l3_process(st, -1)))
-				{ free_invoke_id(st, id);
+			if (ic->parm.ni1_io.timeout > 0) {
+				pc = ni1_new_l3_process(st, -1);
+				if (!pc) {
+					free_invoke_id(st, id);
 					return (-2);
 				}
-			pc->prot.ni1.ll_id = ic->parm.ni1_io.ll_id; /* remember id */
-			pc->prot.ni1.proc = ic->parm.ni1_io.proc; /* and procedure */
+				/* remember id */
+				pc->prot.ni1.ll_id = ic->parm.ni1_io.ll_id;
+				/* and procedure */
+				pc->prot.ni1.proc = ic->parm.ni1_io.proc;
+			}
 
 			if (!(skb = l3_alloc_skb(l)))
 			{ free_invoke_id(st, id);

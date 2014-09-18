@@ -313,12 +313,10 @@ static void siu_break_ctl(struct uart_port *port, int ctl)
 
 static inline void receive_chars(struct uart_port *port, uint8_t *status)
 {
-	struct tty_struct *tty;
 	uint8_t lsr, ch;
 	char flag;
 	int max_count = RX_MAX_COUNT;
 
-	tty = port->state->port.tty;
 	lsr = *status;
 
 	do {
@@ -365,7 +363,7 @@ static inline void receive_chars(struct uart_port *port, uint8_t *status)
 		lsr = siu_read(port, UART_LSR);
 	} while ((lsr & UART_LSR_DR) && (max_count-- > 0));
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->state->port);
 
 	*status = lsr;
 }
@@ -561,7 +559,7 @@ static void siu_set_termios(struct uart_port *port, struct ktermios *new,
 	port->read_status_mask = UART_LSR_THRE | UART_LSR_OE | UART_LSR_DR;
 	if (c_iflag & INPCK)
 		port->read_status_mask |= UART_LSR_FE | UART_LSR_PE;
-	if (c_iflag & (BRKINT | PARMRK))
+	if (c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= UART_LSR_BI;
 
 	port->ignore_status_mask = 0;
@@ -707,7 +705,7 @@ static int siu_init_ports(struct platform_device *pdev)
 {
 	struct uart_port *port;
 	struct resource *res;
-	int *type = pdev->dev.platform_data;
+	int *type = dev_get_platdata(&pdev->dev);
 	int i;
 
 	if (!type)
@@ -823,7 +821,7 @@ static struct console siu_console = {
 	.data	= &siu_uart_driver,
 };
 
-static int __devinit siu_console_init(void)
+static int siu_console_init(void)
 {
 	struct uart_port *port;
 	int i;
@@ -867,7 +865,7 @@ static struct uart_driver siu_uart_driver = {
 	.cons		= SERIAL_VR41XX_CONSOLE,
 };
 
-static int __devinit siu_probe(struct platform_device *dev)
+static int siu_probe(struct platform_device *dev)
 {
 	struct uart_port *port;
 	int num, i, retval;
@@ -901,7 +899,7 @@ static int __devinit siu_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit siu_remove(struct platform_device *dev)
+static int siu_remove(struct platform_device *dev)
 {
 	struct uart_port *port;
 	int i;
@@ -952,7 +950,7 @@ static int siu_resume(struct platform_device *dev)
 
 static struct platform_driver siu_device_driver = {
 	.probe		= siu_probe,
-	.remove		= __devexit_p(siu_remove),
+	.remove		= siu_remove,
 	.suspend	= siu_suspend,
 	.resume		= siu_resume,
 	.driver		= {

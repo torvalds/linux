@@ -148,11 +148,9 @@ static unsigned long rfkill_ratelimit(const unsigned long last)
 
 static void rfkill_schedule_ratelimited(void)
 {
-	if (delayed_work_pending(&rfkill_op_work))
-		return;
-	schedule_delayed_work(&rfkill_op_work,
-			      rfkill_ratelimit(rfkill_last_scheduled));
-	rfkill_last_scheduled = jiffies;
+	if (schedule_delayed_work(&rfkill_op_work,
+				  rfkill_ratelimit(rfkill_last_scheduled)))
+		rfkill_last_scheduled = jiffies;
 }
 
 static void rfkill_schedule_global_op(enum rfkill_sched_op op)
@@ -164,8 +162,7 @@ static void rfkill_schedule_global_op(enum rfkill_sched_op op)
 	rfkill_op_pending = true;
 	if (op == RFKILL_GLOBAL_OP_EPO && !rfkill_is_epo_lock_active()) {
 		/* bypass the limiter for EPO */
-		cancel_delayed_work(&rfkill_op_work);
-		schedule_delayed_work(&rfkill_op_work, 0);
+		mod_delayed_work(system_wq, &rfkill_op_work, 0);
 		rfkill_last_scheduled = jiffies;
 	} else
 		rfkill_schedule_ratelimited();

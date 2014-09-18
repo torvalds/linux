@@ -19,22 +19,19 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to one of the
- * following email addresses:
+ * Please send any bug reports or fixes you make to the
+ * email address(es):
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
- * La Monte H.P. Yarroll <piggy@acm.org>
- * Karl Knutson <karl@athena.chicago.il.us>
- * Ardelle Fan <ardelle.fan@intel.com>
- * Sridhar Samudrala <sri@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
+ * Written or modified by:
+ *   La Monte H.P. Yarroll <piggy@acm.org>
+ *   Karl Knutson <karl@athena.chicago.il.us>
+ *   Ardelle Fan <ardelle.fan@intel.com>
+ *   Sridhar Samudrala <sri@us.ibm.com>
  */
-
 
 #ifndef __net_sctp_command_h__
 #define __net_sctp_command_h__
@@ -121,6 +118,7 @@ typedef enum {
 #define SCTP_MAX_NUM_COMMANDS 14
 
 typedef union {
+	void *zero_all;	/* Set to NULL to clear the entire union */
 	__s32 i32;
 	__u32 u32;
 	__be32 be32;
@@ -130,8 +128,6 @@ typedef union {
 	__be16 err;
 	sctp_state_t state;
 	sctp_event_timeout_t to;
-	unsigned long zero;
-	void *ptr;
 	struct sctp_chunk *chunk;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
@@ -154,23 +150,15 @@ typedef union {
  * which takes an __s32 and returns a sctp_arg_t containing the
  * __s32.  So, after foo = SCTP_I32(arg), foo.i32 == arg.
  */
-static inline sctp_arg_t SCTP_NULL(void)
-{
-	sctp_arg_t retval; retval.ptr = NULL; return retval;
-}
-static inline sctp_arg_t SCTP_NOFORCE(void)
-{
-	sctp_arg_t retval = {.zero = 0UL}; retval.i32 = 0; return retval;
-}
-static inline sctp_arg_t SCTP_FORCE(void)
-{
-	sctp_arg_t retval = {.zero = 0UL}; retval.i32 = 1; return retval;
-}
 
 #define SCTP_ARG_CONSTRUCTOR(name, type, elt) \
 static inline sctp_arg_t	\
 SCTP_## name (type arg)		\
-{ sctp_arg_t retval = {.zero = 0UL}; retval.elt = arg; return retval; }
+{ sctp_arg_t retval;\
+  retval.zero_all = NULL;\
+  retval.elt = arg;\
+  return retval;\
+}
 
 SCTP_ARG_CONSTRUCTOR(I32,	__s32, i32)
 SCTP_ARG_CONSTRUCTOR(U32,	__u32, u32)
@@ -181,7 +169,6 @@ SCTP_ARG_CONSTRUCTOR(ERROR,     int, error)
 SCTP_ARG_CONSTRUCTOR(PERR,      __be16, err)	/* protocol error */
 SCTP_ARG_CONSTRUCTOR(STATE,	sctp_state_t, state)
 SCTP_ARG_CONSTRUCTOR(TO,	sctp_event_timeout_t, to)
-SCTP_ARG_CONSTRUCTOR(PTR,	void *, ptr)
 SCTP_ARG_CONSTRUCTOR(CHUNK,	struct sctp_chunk *, chunk)
 SCTP_ARG_CONSTRUCTOR(ASOC,	struct sctp_association *, asoc)
 SCTP_ARG_CONSTRUCTOR(TRANSPORT,	struct sctp_transport *, transport)
@@ -192,6 +179,23 @@ SCTP_ARG_CONSTRUCTOR(PACKET,	struct sctp_packet *, packet)
 SCTP_ARG_CONSTRUCTOR(SACKH,	sctp_sackhdr_t *, sackh)
 SCTP_ARG_CONSTRUCTOR(DATAMSG,	struct sctp_datamsg *, msg)
 
+static inline sctp_arg_t SCTP_FORCE(void)
+{
+	return SCTP_I32(1);
+}
+
+static inline sctp_arg_t SCTP_NOFORCE(void)
+{
+	return SCTP_I32(0);
+}
+
+static inline sctp_arg_t SCTP_NULL(void)
+{
+	sctp_arg_t retval;
+	retval.zero_all = NULL;
+	return retval;
+}
+
 typedef struct {
 	sctp_arg_t obj;
 	sctp_verb_t verb;
@@ -199,27 +203,49 @@ typedef struct {
 
 typedef struct {
 	sctp_cmd_t cmds[SCTP_MAX_NUM_COMMANDS];
-	__u8 next_free_slot;
-	__u8 next_cmd;
+	sctp_cmd_t *last_used_slot;
+	sctp_cmd_t *next_cmd;
 } sctp_cmd_seq_t;
 
 
 /* Initialize a block of memory as a command sequence.
  * Return 0 if the initialization fails.
  */
-int sctp_init_cmd_seq(sctp_cmd_seq_t *seq);
+static inline int sctp_init_cmd_seq(sctp_cmd_seq_t *seq)
+{
+	/* cmds[] is filled backwards to simplify the overflow BUG() check */
+	seq->last_used_slot = seq->cmds + SCTP_MAX_NUM_COMMANDS;
+	seq->next_cmd = seq->last_used_slot;
+	return 1;		/* We always succeed.  */
+}
+
 
 /* Add a command to an sctp_cmd_seq_t.
  *
  * Use the SCTP_* constructors defined by SCTP_ARG_CONSTRUCTOR() above
  * to wrap data which goes in the obj argument.
  */
-void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb, sctp_arg_t obj);
+static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb,
+				   sctp_arg_t obj)
+{
+	sctp_cmd_t *cmd = seq->last_used_slot - 1;
+
+	BUG_ON(cmd < seq->cmds);
+
+	cmd->verb = verb;
+	cmd->obj = obj;
+	seq->last_used_slot = cmd;
+}
 
 /* Return the next command structure in an sctp_cmd_seq.
  * Return NULL at the end of the sequence.
  */
-sctp_cmd_t *sctp_next_cmd(sctp_cmd_seq_t *seq);
+static inline sctp_cmd_t *sctp_next_cmd(sctp_cmd_seq_t *seq)
+{
+	if (seq->next_cmd <= seq->last_used_slot)
+		return NULL;
+
+	return --seq->next_cmd;
+}
 
 #endif /* __net_sctp_command_h__ */
-

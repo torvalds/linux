@@ -28,7 +28,6 @@
 
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/timer.h>
 #include <linux/io.h>
@@ -112,23 +111,16 @@ static struct watchdog_device ep93xx_wdt_wdd = {
 	.ops		= &ep93xx_wdt_ops,
 };
 
-static int __devinit ep93xx_wdt_probe(struct platform_device *pdev)
+static int ep93xx_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	unsigned long val;
 	int err;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENXIO;
-
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), pdev->name))
-		return -EBUSY;
-
-	mmio_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!mmio_base)
-		return -ENXIO;
+	mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mmio_base))
+		return PTR_ERR(mmio_base);
 
 	if (timeout < 1 || timeout > 3600) {
 		timeout = WDT_TIMEOUT;
@@ -156,7 +148,7 @@ static int __devinit ep93xx_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ep93xx_wdt_remove(struct platform_device *pdev)
+static int ep93xx_wdt_remove(struct platform_device *pdev)
 {
 	watchdog_unregister_device(&ep93xx_wdt_wdd);
 	return 0;
@@ -168,15 +160,14 @@ static struct platform_driver ep93xx_wdt_driver = {
 		.name	= "ep93xx-wdt",
 	},
 	.probe		= ep93xx_wdt_probe,
-	.remove		= __devexit_p(ep93xx_wdt_remove),
+	.remove		= ep93xx_wdt_remove,
 };
 
 module_platform_driver(ep93xx_wdt_driver);
 
-MODULE_AUTHOR("Ray Lehtiniemi <rayl@mail.com>,"
-		"Alessandro Zummo <a.zummo@towertech.it>,"
-		"H Hartley Sweeten <hsweeten@visionengravers.com>");
+MODULE_AUTHOR("Ray Lehtiniemi <rayl@mail.com>");
+MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
+MODULE_AUTHOR("H Hartley Sweeten <hsweeten@visionengravers.com>");
 MODULE_DESCRIPTION("EP93xx Watchdog");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(WDT_VERSION);
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

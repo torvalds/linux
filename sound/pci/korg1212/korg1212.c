@@ -196,8 +196,8 @@ enum MonitorModeSelector {
 #define K1212_ADAT_BUF_SIZE	(K1212_ADAT_CHANNELS * 2 * kPlayBufferFrames * kNumBuffers)
 #define K1212_MAX_BUF_SIZE	(K1212_ANALOG_BUF_SIZE + K1212_ADAT_BUF_SIZE)
 
-#define k1212MinADCSens     0x7f
-#define k1212MaxADCSens     0x00
+#define k1212MinADCSens     0x00
+#define k1212MaxADCSens     0x7f
 #define k1212MaxVolume      0x7fff
 #define k1212MaxWaveVolume  0xffff
 #define k1212MinVolume      0x0000
@@ -418,7 +418,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Korg 1212 soundcard.");
 MODULE_AUTHOR("Haroldo Gamal <gamal@alternex.com.br>");
 
-static DEFINE_PCI_DEVICE_TABLE(snd_korg1212_ids) = {
+static const struct pci_device_id snd_korg1212_ids[] = {
 	{
 		.vendor	   = 0x10b5,
 		.device	   = 0x906d,
@@ -2083,7 +2083,7 @@ static void snd_korg1212_proc_read(struct snd_info_entry *entry,
         snd_iprintf(buffer, "    Error count: %ld\n", korg1212->totalerrorcnt);
 }
 
-static void __devinit snd_korg1212_proc_init(struct snd_korg1212 *korg1212)
+static void snd_korg1212_proc_init(struct snd_korg1212 *korg1212)
 {
 	struct snd_info_entry *entry;
 
@@ -2154,8 +2154,8 @@ static int snd_korg1212_dev_free(struct snd_device *device)
 	return snd_korg1212_free(korg1212);
 }
 
-static int __devinit snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
-                                         struct snd_korg1212 ** rchip)
+static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
+			       struct snd_korg1212 **rchip)
 
 {
         int err, rc;
@@ -2418,8 +2418,6 @@ static int __devinit snd_korg1212_create(struct snd_card *card, struct pci_dev *
 
         snd_korg1212_proc_init(korg1212);
         
-	snd_card_set_dev(card, &pci->dev);
-
         * rchip = korg1212;
 	return 0;
 
@@ -2429,7 +2427,7 @@ static int __devinit snd_korg1212_create(struct snd_card *card, struct pci_dev *
  * Card initialisation
  */
 
-static int __devinit
+static int
 snd_korg1212_probe(struct pci_dev *pci,
 		const struct pci_device_id *pci_id)
 {
@@ -2445,7 +2443,8 @@ snd_korg1212_probe(struct pci_dev *pci,
 		dev++;
 		return -ENOENT;
 	}
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
 
@@ -2470,28 +2469,16 @@ snd_korg1212_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_korg1212_remove(struct pci_dev *pci)
+static void snd_korg1212_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver korg1212_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_korg1212_ids,
 	.probe = snd_korg1212_probe,
-	.remove = __devexit_p(snd_korg1212_remove),
+	.remove = snd_korg1212_remove,
 };
 
-static int __init alsa_card_korg1212_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_korg1212_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_korg1212_init)
-module_exit(alsa_card_korg1212_exit)
+module_pci_driver(korg1212_driver);

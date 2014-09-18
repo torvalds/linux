@@ -40,6 +40,16 @@ struct lcd_ops {
 	/* Get the LCD panel power status (0: full on, 1..3: controller
 	   power on, flat panel power off, 4: full off), see FB_BLANK_XXX */
 	int (*get_power)(struct lcd_device *);
+	/*
+	 * Enable or disable power to the LCD(0: on; 4: off, see FB_BLANK_XXX)
+	 * and this callback would be called proir to fb driver's callback.
+	 *
+	 * P.S. note that if early_set_power is not NULL then early fb notifier
+	 *	would be registered.
+	 */
+	int (*early_set_power)(struct lcd_device *, int power);
+	/* revert the effects of the early blank event. */
+	int (*r_early_set_power)(struct lcd_device *, int power);
 	/* Enable or disable power to the LCD (0: on; 4: off, see FB_BLANK_XXX) */
 	int (*set_power)(struct lcd_device *, int power);
 	/* Get the current contrast setting (0-max_contrast) */
@@ -102,7 +112,12 @@ static inline void lcd_set_power(struct lcd_device *ld, int power)
 
 extern struct lcd_device *lcd_device_register(const char *name,
 	struct device *parent, void *devdata, struct lcd_ops *ops);
+extern struct lcd_device *devm_lcd_device_register(struct device *dev,
+	const char *name, struct device *parent,
+	void *devdata, struct lcd_ops *ops);
 extern void lcd_device_unregister(struct lcd_device *ld);
+extern void devm_lcd_device_unregister(struct device *dev,
+	struct lcd_device *ld);
 
 #define to_lcd_device(obj) container_of(obj, struct lcd_device, dev)
 

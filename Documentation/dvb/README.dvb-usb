@@ -30,7 +30,7 @@ with the device via the bus. The connection between the DVB-API-functionality
 is done via callbacks, assigned in a static device-description (struct
 dvb_usb_device) each device-driver has to have.
 
-For an example have a look in drivers/media/dvb/dvb-usb/vp7045*.
+For an example have a look in drivers/media/usb/dvb-usb/vp7045*.
 
 Objective is to migrate all the usb-devices (dibusb, cinergyT2, maybe the
 ttusb; flexcop-usb already benefits from the generic flexcop-device) to use

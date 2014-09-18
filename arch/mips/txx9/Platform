@@ -6,5 +6,5 @@ cflags-$(CONFIG_MACH_TX39XX)	+=					\
 cflags-$(CONFIG_MACH_TX49XX)	+=					\
 		 -I$(srctree)/arch/mips/include/asm/mach-tx49xx
 
-load-$(CONFIG_MACH_TX39XX)      += 0xffffffff80050000
-load-$(CONFIG_MACH_TX49XX)      += 0xffffffff80100000
+load-$(CONFIG_MACH_TX39XX)	+= 0xffffffff80050000
+load-$(CONFIG_MACH_TX49XX)	+= 0xffffffff80100000

@@ -23,7 +23,7 @@
 
 /* Note the full page bits must be in the same location as for normal
  * 4k pages as the same assembly will be used to insert 64K pages
- * wether the kernel has CONFIG_PPC_64K_PAGES or not
+ * whether the kernel has CONFIG_PPC_64K_PAGES or not
  */
 #define _PAGE_F_SECOND  0x00008000 /* full page: hidx bits */
 #define _PAGE_F_GIX     0x00007000 /* full page: hidx bits */
@@ -46,11 +46,31 @@
  * in order to deal with 64K made of 4K HW pages. Thus we override the
  * generic accessors and iterators here
  */
-#define __real_pte(e,p) 	((real_pte_t) { \
-			(e), ((e) & _PAGE_COMBO) ? \
-				(pte_val(*((p) + PTRS_PER_PTE))) : 0 })
-#define __rpte_to_hidx(r,index)	((pte_val((r).pte) & _PAGE_COMBO) ? \
-        (((r).hidx >> ((index)<<2)) & 0xf) : ((pte_val((r).pte) >> 12) & 0xf))
+#define __real_pte __real_pte
+static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep)
+{
+	real_pte_t rpte;
+
+	rpte.pte = pte;
+	rpte.hidx = 0;
+	if (pte_val(pte) & _PAGE_COMBO) {
+		/*
+		 * Make sure we order the hidx load against the _PAGE_COMBO
+		 * check. The store side ordering is done in __hash_page_4K
+		 */
+		smp_rmb();
+		rpte.hidx = pte_val(*((ptep) + PTRS_PER_PTE));
+	}
+	return rpte;
+}
+
+static inline unsigned long __rpte_to_hidx(real_pte_t rpte, unsigned long index)
+{
+	if ((pte_val(rpte.pte) & _PAGE_COMBO))
+		return (rpte.hidx >> (index<<2)) & 0xf;
+	return (pte_val(rpte.pte) >> 12) & 0xf;
+}
+
 #define __rpte_to_pte(r)	((r).pte)
 #define __rpte_sub_valid(rpte, index) \
 	(pte_val(rpte.pte) & (_PAGE_HPTE_SUB0 >> (index)))
@@ -58,14 +78,16 @@
 /* Trick: we set __end to va + 64k, which happens works for
  * a 16M page as well as we want only one iteration
  */
-#define pte_iterate_hashed_subpages(rpte, psize, va, index, shift)	    \
-        do {                                                                \
-                unsigned long __end = va + PAGE_SIZE;                       \
-                unsigned __split = (psize == MMU_PAGE_4K ||                 \
-				    psize == MMU_PAGE_64K_AP);              \
-                shift = mmu_psize_defs[psize].shift;                        \
-		for (index = 0; va < __end; index++, va += (1L << shift)) { \
-		        if (!__split || __rpte_sub_valid(rpte, index)) do { \
+#define pte_iterate_hashed_subpages(rpte, psize, vpn, index, shift)	\
+	do {								\
+		unsigned long __end = vpn + (1UL << (PAGE_SHIFT - VPN_SHIFT));	\
+		unsigned __split = (psize == MMU_PAGE_4K ||		\
+				    psize == MMU_PAGE_64K_AP);		\
+		shift = mmu_psize_defs[psize].shift;			\
+		for (index = 0; vpn < __end; index++,			\
+			     vpn += (1L << (shift - VPN_SHIFT))) {	\
+			if (!__split || __rpte_sub_valid(rpte, index))	\
+				do {
 
 #define pte_iterate_hashed_end() } while(0); } } while(0)
 
@@ -73,7 +95,8 @@
 	(((pte) & _PAGE_COMBO)? MMU_PAGE_4K: MMU_PAGE_64K)
 
 #define remap_4k_pfn(vma, addr, pfn, prot)				\
-	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE,		\
-			__pgprot(pgprot_val((prot)) | _PAGE_4K_PFN))
+	(WARN_ON(((pfn) >= (1UL << (64 - PTE_RPN_SHIFT)))) ? -EINVAL :	\
+		remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE,	\
+			__pgprot(pgprot_val((prot)) | _PAGE_4K_PFN)))
 
 #endif	/* __ASSEMBLY__ */

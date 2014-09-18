@@ -27,7 +27,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
@@ -37,6 +36,7 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <asm/intel_scu_ipc.h>
+#include <linux/device.h>
 
 /* PMIC Interrupt registers */
 #define PMIC_REG_ID1		0x00 /* PMIC ID1 register */
@@ -427,7 +427,7 @@ out:
 }
 
 /* Utility to read PMIC ID */
-static int __devinit mrstouch_read_pmic_id(uint *vendor, uint *rev)
+static int mrstouch_read_pmic_id(uint *vendor, uint *rev)
 {
 	int err;
 	u8 r;
@@ -446,7 +446,7 @@ static int __devinit mrstouch_read_pmic_id(uint *vendor, uint *rev)
  * Parse ADC channels to find end of the channel configured by other ADC user
  * NEC and MAXIM requires 4 channels and FreeScale needs 18 channels
  */
-static int __devinit mrstouch_chan_parse(struct mrstouch_dev *tsdev)
+static int mrstouch_chan_parse(struct mrstouch_dev *tsdev)
 {
 	int found = 0;
 	int err, i;
@@ -478,7 +478,7 @@ static int __devinit mrstouch_chan_parse(struct mrstouch_dev *tsdev)
 /*
  * Writes touch screen channels to ADC address selection registers
  */
-static int __devinit mrstouch_ts_chan_set(uint offset)
+static int mrstouch_ts_chan_set(uint offset)
 {
 	u16 chan;
 
@@ -494,7 +494,7 @@ static int __devinit mrstouch_ts_chan_set(uint offset)
 }
 
 /* Initialize ADC */
-static int __devinit mrstouch_adc_init(struct mrstouch_dev *tsdev)
+static int mrstouch_adc_init(struct mrstouch_dev *tsdev)
 {
 	int err, start;
 	u8 ra, rm;
@@ -568,7 +568,7 @@ static int __devinit mrstouch_adc_init(struct mrstouch_dev *tsdev)
 
 
 /* Probe function for touch screen driver */
-static int __devinit mrstouch_probe(struct platform_device *pdev)
+static int mrstouch_probe(struct platform_device *pdev)
 {
 	struct mrstouch_dev *tsdev;
 	struct input_dev *input;
@@ -581,12 +581,17 @@ static int __devinit mrstouch_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	tsdev = kzalloc(sizeof(struct mrstouch_dev), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!tsdev || !input) {
+	tsdev = devm_kzalloc(&pdev->dev, sizeof(struct mrstouch_dev),
+			     GFP_KERNEL);
+	if (!tsdev) {
 		dev_err(&pdev->dev, "unable to allocate memory\n");
-		err = -ENOMEM;
-		goto err_free_mem;
+		return -ENOMEM;
+	}
+
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input) {
+		dev_err(&pdev->dev, "unable to allocate input device\n");
+		return -ENOMEM;
 	}
 
 	tsdev->dev = &pdev->dev;
@@ -599,7 +604,7 @@ static int __devinit mrstouch_probe(struct platform_device *pdev)
 	err = mrstouch_adc_init(tsdev);
 	if (err) {
 		dev_err(&pdev->dev, "ADC initialization failed\n");
-		goto err_free_mem;
+		return err;
 	}
 
 	input->name = "mrst_touchscreen";
@@ -619,39 +624,19 @@ static int __devinit mrstouch_probe(struct platform_device *pdev)
 	input_set_abs_params(tsdev->input, ABS_PRESSURE,
 			     MRST_PRESSURE_MIN, MRST_PRESSURE_MAX, 0, 0);
 
-	err = request_threaded_irq(tsdev->irq, NULL, mrstouch_pendet_irq,
-				   0, "mrstouch", tsdev);
+	err = devm_request_threaded_irq(&pdev->dev, tsdev->irq, NULL,
+					mrstouch_pendet_irq, IRQF_ONESHOT,
+					"mrstouch", tsdev);
 	if (err) {
 		dev_err(tsdev->dev, "unable to allocate irq\n");
-		goto err_free_mem;
+		return err;
 	}
 
 	err = input_register_device(tsdev->input);
 	if (err) {
 		dev_err(tsdev->dev, "unable to register input device\n");
-		goto err_free_irq;
+		return err;
 	}
-
-	platform_set_drvdata(pdev, tsdev);
-	return 0;
-
-err_free_irq:
-	free_irq(tsdev->irq, tsdev);
-err_free_mem:
-	input_free_device(input);
-	kfree(tsdev);
-	return err;
-}
-
-static int __devexit mrstouch_remove(struct platform_device *pdev)
-{
-	struct mrstouch_dev *tsdev = platform_get_drvdata(pdev);
-
-	free_irq(tsdev->irq, tsdev);
-	input_unregister_device(tsdev->input);
-	kfree(tsdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -662,7 +647,6 @@ static struct platform_driver mrstouch_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= mrstouch_probe,
-	.remove		= __devexit_p(mrstouch_remove),
 };
 module_platform_driver(mrstouch_driver);
 

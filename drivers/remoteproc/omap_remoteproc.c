@@ -27,9 +27,9 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/remoteproc.h>
+#include <linux/omap-mailbox.h>
 
-#include <plat/mailbox.h>
-#include <plat/remoteproc.h>
+#include <linux/platform_data/remoteproc-omap.h>
 
 #include "omap_remoteproc.h"
 #include "remoteproc_internal.h"
@@ -66,7 +66,7 @@ static int omap_rproc_mbox_callback(struct notifier_block *this,
 {
 	mbox_msg_t msg = (mbox_msg_t) data;
 	struct omap_rproc *oproc = container_of(this, struct omap_rproc, nb);
-	struct device *dev = oproc->rproc->dev;
+	struct device *dev = oproc->rproc->dev.parent;
 	const char *name = oproc->rproc->name;
 
 	dev_dbg(dev, "mbox msg: 0x%x\n", msg);
@@ -92,12 +92,13 @@ static int omap_rproc_mbox_callback(struct notifier_block *this,
 static void omap_rproc_kick(struct rproc *rproc, int vqid)
 {
 	struct omap_rproc *oproc = rproc->priv;
+	struct device *dev = rproc->dev.parent;
 	int ret;
 
 	/* send the index of the triggered virtqueue in the mailbox payload */
 	ret = omap_mbox_msg_send(oproc->mbox, vqid);
 	if (ret)
-		dev_err(rproc->dev, "omap_mbox_msg_send failed: %d\n", ret);
+		dev_err(dev, "omap_mbox_msg_send failed: %d\n", ret);
 }
 
 /*
@@ -110,9 +111,13 @@ static void omap_rproc_kick(struct rproc *rproc, int vqid)
 static int omap_rproc_start(struct rproc *rproc)
 {
 	struct omap_rproc *oproc = rproc->priv;
-	struct platform_device *pdev = to_platform_device(rproc->dev);
+	struct device *dev = rproc->dev.parent;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	int ret;
+
+	if (pdata->set_bootaddr)
+		pdata->set_bootaddr(rproc->bootaddr);
 
 	oproc->nb.notifier_call = omap_rproc_mbox_callback;
 
@@ -120,7 +125,7 @@ static int omap_rproc_start(struct rproc *rproc)
 	oproc->mbox = omap_mbox_get(pdata->mbox_name, &oproc->nb);
 	if (IS_ERR(oproc->mbox)) {
 		ret = PTR_ERR(oproc->mbox);
-		dev_err(rproc->dev, "omap_mbox_get failed: %d\n", ret);
+		dev_err(dev, "omap_mbox_get failed: %d\n", ret);
 		return ret;
 	}
 
@@ -133,13 +138,13 @@ static int omap_rproc_start(struct rproc *rproc)
 	 */
 	ret = omap_mbox_msg_send(oproc->mbox, RP_MBOX_ECHO_REQUEST);
 	if (ret) {
-		dev_err(rproc->dev, "omap_mbox_get failed: %d\n", ret);
+		dev_err(dev, "omap_mbox_get failed: %d\n", ret);
 		goto put_mbox;
 	}
 
 	ret = pdata->device_enable(pdev);
 	if (ret) {
-		dev_err(rproc->dev, "omap_device_enable failed: %d\n", ret);
+		dev_err(dev, "omap_device_enable failed: %d\n", ret);
 		goto put_mbox;
 	}
 
@@ -153,7 +158,8 @@ put_mbox:
 /* power off the remote processor */
 static int omap_rproc_stop(struct rproc *rproc)
 {
-	struct platform_device *pdev = to_platform_device(rproc->dev);
+	struct device *dev = rproc->dev.parent;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	struct omap_rproc *oproc = rproc->priv;
 	int ret;
@@ -173,7 +179,7 @@ static struct rproc_ops omap_rproc_ops = {
 	.kick		= omap_rproc_kick,
 };
 
-static int __devinit omap_rproc_probe(struct platform_device *pdev)
+static int omap_rproc_probe(struct platform_device *pdev)
 {
 	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	struct omap_rproc *oproc;
@@ -182,7 +188,7 @@ static int __devinit omap_rproc_probe(struct platform_device *pdev)
 
 	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(pdev->dev.parent, "dma_set_coherent_mask: %d\n", ret);
+		dev_err(&pdev->dev, "dma_set_coherent_mask: %d\n", ret);
 		return ret;
 	}
 
@@ -196,27 +202,30 @@ static int __devinit omap_rproc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rproc);
 
-	ret = rproc_register(rproc);
+	ret = rproc_add(rproc);
 	if (ret)
 		goto free_rproc;
 
 	return 0;
 
 free_rproc:
-	rproc_free(rproc);
+	rproc_put(rproc);
 	return ret;
 }
 
-static int __devexit omap_rproc_remove(struct platform_device *pdev)
+static int omap_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 
-	return rproc_unregister(rproc);
+	rproc_del(rproc);
+	rproc_put(rproc);
+
+	return 0;
 }
 
 static struct platform_driver omap_rproc_driver = {
 	.probe = omap_rproc_probe,
-	.remove = __devexit_p(omap_rproc_remove),
+	.remove = omap_rproc_remove,
 	.driver = {
 		.name = "omap-rproc",
 		.owner = THIS_MODULE,

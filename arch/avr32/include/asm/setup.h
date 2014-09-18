@@ -11,9 +11,8 @@
 #ifndef __ASM_AVR32_SETUP_H__
 #define __ASM_AVR32_SETUP_H__
 
-#define COMMAND_LINE_SIZE 256
+#include <uapi/asm/setup.h>
 
-#ifdef __KERNEL__
 
 /* Magic number indicating that a tag table is present */
 #define ATAG_MAGIC	0xa2a25441
@@ -141,7 +140,5 @@ extern u32 board_number;
 void setup_processor(void);
 
 #endif /* !__ASSEMBLY__ */
-
-#endif  /*  __KERNEL__  */
 
 #endif /* __ASM_AVR32_SETUP_H__ */

@@ -289,7 +289,7 @@ static struct miscdevice nv_tco_miscdev = {
  * register a pci_driver, because someone else might one day
  * want to register another driver on the same PCI id.
  */
-static DEFINE_PCI_DEVICE_TABLE(tco_pci_tbl) = {
+static const struct pci_device_id tco_pci_tbl[] = {
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SMBUS,
 	  PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SMBUS,
@@ -302,7 +302,7 @@ MODULE_DEVICE_TABLE(pci, tco_pci_tbl);
  *	Init & exit routines
  */
 
-static unsigned char __devinit nv_tco_getdevice(void)
+static unsigned char nv_tco_getdevice(void)
 {
 	struct pci_dev *dev = NULL;
 	u32 val;
@@ -376,7 +376,7 @@ out:
 	return 0;
 }
 
-static int __devinit nv_tco_init(struct platform_device *dev)
+static int nv_tco_init(struct platform_device *dev)
 {
 	int ret;
 
@@ -423,7 +423,7 @@ unreg_region:
 	return ret;
 }
 
-static void __devexit nv_tco_cleanup(void)
+static void nv_tco_cleanup(void)
 {
 	u32 val;
 
@@ -445,7 +445,7 @@ static void __devexit nv_tco_cleanup(void)
 	release_region(tcobase, 0x10);
 }
 
-static int __devexit nv_tco_remove(struct platform_device *dev)
+static int nv_tco_remove(struct platform_device *dev)
 {
 	if (tcobase)
 		nv_tco_cleanup();
@@ -468,7 +468,7 @@ static void nv_tco_shutdown(struct platform_device *dev)
 
 static struct platform_driver nv_tco_driver = {
 	.probe		= nv_tco_init,
-	.remove		= __devexit_p(nv_tco_remove),
+	.remove		= nv_tco_remove,
 	.shutdown	= nv_tco_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
@@ -513,4 +513,3 @@ module_exit(nv_tco_cleanup_module);
 MODULE_AUTHOR("Mike Waychison");
 MODULE_DESCRIPTION("TCO timer driver for NV chipsets");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

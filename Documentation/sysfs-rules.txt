@@ -47,7 +47,7 @@ versions of the sysfs interface.
         at device creation and removal
       - the unique key to the device at that point in time
       - the kernel's path to the device directory without the leading
-        /sys, and always starting with with a slash
+        /sys, and always starting with a slash
       - all elements of a devpath must be real directories. Symlinks
         pointing to /sys/devices must always be resolved to their real
         target and the target path must be used to access the device.

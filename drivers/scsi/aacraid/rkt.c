@@ -79,7 +79,7 @@ static int aac_rkt_ioremap(struct aac_dev * dev, u32 size)
 		iounmap(dev->regs.rkt);
 		return 0;
 	}
-	dev->base = dev->regs.rkt = ioremap(dev->scsi_host_ptr->base, size);
+	dev->base = dev->regs.rkt = ioremap(dev->base_start, size);
 	if (dev->base == NULL)
 		return -1;
 	dev->IndexRegs = &dev->regs.rkt->IndexRegs;

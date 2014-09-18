@@ -34,26 +34,25 @@ enum {
 	PM8606_ID_MAX,
 };
 
-enum {
-	PM8606_BACKLIGHT1 = 0,
-	PM8606_BACKLIGHT2,
-	PM8606_BACKLIGHT3,
-};
-
-enum {
-	PM8606_LED1_RED = 0,
-	PM8606_LED1_GREEN,
-	PM8606_LED1_BLUE,
-	PM8606_LED2_RED,
-	PM8606_LED2_GREEN,
-	PM8606_LED2_BLUE,
-	PM8607_LED_VIBRATOR,
-};
-
 
 /* 8606 Registers */
 #define PM8606_DCM_BOOST		(0x00)
 #define PM8606_PWM			(0x01)
+
+#define PM8607_MISC2			(0x42)
+
+/* Power Up Log Register */
+#define PM8607_POWER_UP_LOG		(0x3F)
+
+/* Charger Control Registers */
+#define PM8607_CCNT			(0x47)
+#define PM8607_CHG_CTRL1		(0x48)
+#define PM8607_CHG_CTRL2		(0x49)
+#define PM8607_CHG_CTRL3		(0x4A)
+#define PM8607_CHG_CTRL4		(0x4B)
+#define PM8607_CHG_CTRL5		(0x4C)
+#define PM8607_CHG_CTRL6		(0x4D)
+#define PM8607_CHG_CTRL7		(0x4E)
 
 /* Backlight Registers */
 #define PM8606_WLED1A			(0x02)
@@ -136,6 +135,7 @@ enum {
 	PM8607_ID_LDO13,
 	PM8607_ID_LDO14,
 	PM8607_ID_LDO15,
+	PM8606_ID_PREG,
 
 	PM8607_ID_RG_MAX,
 };
@@ -203,6 +203,71 @@ enum {
 #define PM8607_TSI_PREBIAS		(0x55)	/* prebias time */
 #define PM8607_PD_PREBIAS		(0x56)	/* prebias time */
 #define PM8607_GPADC_MISC1		(0x57)
+
+/* bit definitions of  MEAS_EN1*/
+#define PM8607_MEAS_EN1_VBAT		(1 << 0)
+#define PM8607_MEAS_EN1_VCHG		(1 << 1)
+#define PM8607_MEAS_EN1_VSYS		(1 << 2)
+#define PM8607_MEAS_EN1_TINT		(1 << 3)
+#define PM8607_MEAS_EN1_RFTMP		(1 << 4)
+#define PM8607_MEAS_EN1_TBAT		(1 << 5)
+#define PM8607_MEAS_EN1_GPADC2		(1 << 6)
+#define PM8607_MEAS_EN1_GPADC3		(1 << 7)
+
+/* Battery Monitor Registers */
+#define PM8607_GP_BIAS2			(0x5A)
+#define PM8607_VBAT_LOWTH		(0x5B)
+#define PM8607_VCHG_LOWTH		(0x5C)
+#define PM8607_VSYS_LOWTH		(0x5D)
+#define PM8607_TINT_LOWTH		(0x5E)
+#define PM8607_GPADC0_LOWTH		(0x5F)
+#define PM8607_GPADC1_LOWTH		(0x60)
+#define PM8607_GPADC2_LOWTH		(0x61)
+#define PM8607_GPADC3_LOWTH		(0x62)
+#define PM8607_VBAT_HIGHTH		(0x63)
+#define PM8607_VCHG_HIGHTH		(0x64)
+#define PM8607_VSYS_HIGHTH		(0x65)
+#define PM8607_TINT_HIGHTH		(0x66)
+#define PM8607_GPADC0_HIGHTH		(0x67)
+#define PM8607_GPADC1_HIGHTH		(0x68)
+#define PM8607_GPADC2_HIGHTH		(0x69)
+#define PM8607_GPADC3_HIGHTH		(0x6A)
+#define PM8607_IBAT_MEAS1		(0x6B)
+#define PM8607_IBAT_MEAS2		(0x6C)
+#define PM8607_VBAT_MEAS1		(0x6D)
+#define PM8607_VBAT_MEAS2		(0x6E)
+#define PM8607_VCHG_MEAS1		(0x6F)
+#define PM8607_VCHG_MEAS2		(0x70)
+#define PM8607_VSYS_MEAS1		(0x71)
+#define PM8607_VSYS_MEAS2		(0x72)
+#define PM8607_TINT_MEAS1		(0x73)
+#define PM8607_TINT_MEAS2		(0x74)
+#define PM8607_GPADC0_MEAS1		(0x75)
+#define PM8607_GPADC0_MEAS2		(0x76)
+#define PM8607_GPADC1_MEAS1		(0x77)
+#define PM8607_GPADC1_MEAS2		(0x78)
+#define PM8607_GPADC2_MEAS1		(0x79)
+#define PM8607_GPADC2_MEAS2		(0x7A)
+#define PM8607_GPADC3_MEAS1		(0x7B)
+#define PM8607_GPADC3_MEAS2		(0x7C)
+#define PM8607_CCNT_MEAS1		(0x95)
+#define PM8607_CCNT_MEAS2		(0x96)
+#define PM8607_VBAT_AVG			(0x97)
+#define PM8607_VCHG_AVG			(0x98)
+#define PM8607_VSYS_AVG			(0x99)
+#define PM8607_VBAT_MIN			(0x9A)
+#define PM8607_VCHG_MIN			(0x9B)
+#define PM8607_VSYS_MIN			(0x9C)
+#define PM8607_VBAT_MAX			(0x9D)
+#define PM8607_VCHG_MAX			(0x9E)
+#define PM8607_VSYS_MAX			(0x9F)
+
+#define PM8607_GPADC_MISC2		(0x59)
+#define PM8607_GPADC0_GP_BIAS_A0	(1 << 0)
+#define PM8607_GPADC1_GP_BIAS_A1	(1 << 1)
+#define PM8607_GPADC2_GP_BIAS_A2	(1 << 2)
+#define PM8607_GPADC3_GP_BIAS_A3	(1 << 3)
+#define PM8607_GPADC2_GP_BIAS_OUT2	(1 << 6)
 
 /* RTC Control Registers */
 #define PM8607_RTC1			(0xA0)
@@ -321,7 +386,7 @@ struct pm860x_chip {
 	struct regmap           *regmap_companion;
 
 	int			buck3_double;	/* DVC ramp slope double */
-	unsigned short		companion_addr;
+	int			companion_addr;
 	unsigned short		osc_vote;
 	int			id;
 	int			irq_mode;
@@ -339,16 +404,12 @@ enum {
 };
 
 struct pm860x_backlight_pdata {
-	int		id;
 	int		pwm;
 	int		iset;
-	unsigned long	flags;
 };
 
 struct pm860x_led_pdata {
-	int		id;
 	int		iset;
-	unsigned long	flags;
 };
 
 struct pm860x_rtc_pdata {
@@ -369,7 +430,8 @@ struct pm860x_touch_pdata {
 };
 
 struct pm860x_power_pdata {
-	unsigned	fast_charge;	/* charge current */
+	int		max_capacity;
+	int		resistor;
 };
 
 struct pm860x_platform_data {
@@ -378,15 +440,30 @@ struct pm860x_platform_data {
 	struct pm860x_rtc_pdata		*rtc;
 	struct pm860x_touch_pdata	*touch;
 	struct pm860x_power_pdata	*power;
-	struct regulator_init_data	*regulator;
+	struct regulator_init_data	*buck1;
+	struct regulator_init_data	*buck2;
+	struct regulator_init_data	*buck3;
+	struct regulator_init_data	*ldo1;
+	struct regulator_init_data	*ldo2;
+	struct regulator_init_data	*ldo3;
+	struct regulator_init_data	*ldo4;
+	struct regulator_init_data	*ldo5;
+	struct regulator_init_data	*ldo6;
+	struct regulator_init_data	*ldo7;
+	struct regulator_init_data	*ldo8;
+	struct regulator_init_data	*ldo9;
+	struct regulator_init_data	*ldo10;
+	struct regulator_init_data	*ldo12;
+	struct regulator_init_data	*ldo_vibrator;
+	struct regulator_init_data	*ldo14;
+	struct charger_desc		*chg_desc;
 
-	unsigned short	companion_addr;	/* I2C address of companion chip */
+	int 		companion_addr;	/* I2C address of companion chip */
 	int		i2c_port;	/* Controlled by GI2C or PI2C */
 	int		irq_mode;	/* Clear interrupt by read/write(0/1) */
 	int		irq_base;	/* IRQ base number of 88pm860x */
 	int		num_leds;
 	int		num_backlights;
-	int		num_regulators;
 };
 
 extern int pm8606_osc_enable(struct pm860x_chip *, unsigned short);
@@ -406,9 +483,5 @@ extern int pm860x_page_bulk_write(struct i2c_client *, int, int,
 				  unsigned char *);
 extern int pm860x_page_set_bits(struct i2c_client *, int, unsigned char,
 				unsigned char);
-
-extern int pm860x_device_init(struct pm860x_chip *chip,
-			      struct pm860x_platform_data *pdata) __devinit ;
-extern void pm860x_device_exit(struct pm860x_chip *chip) __devexit ;
 
 #endif /* __LINUX_MFD_88PM860X_H */

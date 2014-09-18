@@ -130,7 +130,7 @@ static int rx_submit(struct usbpn_dev *pnd, struct urb *req, gfp_t gfp_flags)
 	struct page *page;
 	int err;
 
-	page = alloc_page(gfp_flags);
+	page = __skb_alloc_page(gfp_flags | __GFP_NOMEMALLOC, NULL);
 	if (!page)
 		return -ENOMEM;
 
@@ -232,6 +232,7 @@ static int usbpn_open(struct net_device *dev)
 		struct urb *req = usb_alloc_urb(0, GFP_KERNEL);
 
 		if (!req || rx_submit(pnd, req, GFP_KERNEL | __GFP_COLD)) {
+			usb_free_urb(req);
 			usbpn_close(dev);
 			return -ENOMEM;
 		}
@@ -327,7 +328,7 @@ MODULE_DEVICE_TABLE(usb, usbpn_ids);
 
 static struct usb_driver usbpn_driver;
 
-int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	static const char ifname[] = "usbpn%d";
 	const struct usb_cdc_union_desc *union_header = NULL;
@@ -386,7 +387,7 @@ int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		return -EINVAL;
 
 	dev = alloc_netdev(sizeof(*pnd) + sizeof(pnd->urbs[0]) * rxq_size,
-				ifname, usbpn_setup);
+			   ifname, NET_NAME_UNKNOWN, usbpn_setup);
 	if (!dev)
 		return -ENOMEM;
 
@@ -394,7 +395,7 @@ int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	SET_NETDEV_DEV(dev, &intf->dev);
 
 	pnd->dev = dev;
-	pnd->usb = usb_get_dev(usbdev);
+	pnd->usb = usbdev;
 	pnd->intf = intf;
 	pnd->data_intf = data_intf;
 	spin_lock_init(&pnd->tx_lock);
@@ -440,7 +441,6 @@ out:
 static void usbpn_disconnect(struct usb_interface *intf)
 {
 	struct usbpn_dev *pnd = usb_get_intfdata(intf);
-	struct usb_device *usb = pnd->usb;
 
 	if (pnd->disconnected)
 		return;
@@ -449,7 +449,6 @@ static void usbpn_disconnect(struct usb_interface *intf)
 	usb_driver_release_interface(&usbpn_driver,
 			(pnd->intf == intf) ? pnd->data_intf : pnd->intf);
 	unregister_netdev(pnd->dev);
-	usb_put_dev(usb);
 }
 
 static struct usb_driver usbpn_driver = {
@@ -457,6 +456,7 @@ static struct usb_driver usbpn_driver = {
 	.probe =	usbpn_probe,
 	.disconnect =	usbpn_disconnect,
 	.id_table =	usbpn_ids,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(usbpn_driver);

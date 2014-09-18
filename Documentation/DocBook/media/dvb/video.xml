@@ -15,6 +15,10 @@ the audio and video device as well as the video4linux device.
 <para>The ioctls that deal with SPUs (sub picture units) and navigation packets are only
 supported on some MPEG decoders made for DVD playback.
 </para>
+<para>
+These ioctls were also used by V4L2 to control MPEG decoders implemented in V4L2. The use
+of these ioctls for that purpose has been made obsolete and proper V4L2 ioctls or controls
+have been created to replace that functionality.</para>
 <section id="video_types">
 <title>Video Data Types</title>
 
@@ -55,7 +59,7 @@ typedef enum {
 </section>
 
 <section id="video-stream-source-t">
-<title>video stream source</title>
+<title>video_stream_source_t</title>
 <para>The video stream source is set through the VIDEO_SELECT_SOURCE call and can take
 the following values, depending on whether we are replaying from an internal (demuxer) or
 external (user write) source.
@@ -76,7 +80,7 @@ call.
 </section>
 
 <section id="video-play-state-t">
-<title>video play state</title>
+<title>video_play_state_t</title>
 <para>The following values can be returned by the VIDEO_GET_STATUS call representing the
 state of video playback.
 </para>
@@ -90,9 +94,9 @@ typedef enum {
 </section>
 
 <section id="video-command">
+<title>struct video_command</title>
 <para>The structure must be zeroed before use by the application
 This ensures it can be extended safely in the future.</para>
-<title>struct video-command</title>
 <programlisting>
 struct video_command {
 	__u32 cmd;
@@ -121,7 +125,7 @@ struct video_command {
 </section>
 
 <section id="video-size-t">
-<title>struct video_size-t</title>
+<title>video_size_t</title>
 <programlisting>
 typedef struct {
 	int w;
@@ -217,7 +221,7 @@ bits set according to the hardwares capabilities.
 </section>
 
 <section id="video-system">
-<title>video system</title>
+<title>video_system_t</title>
 <para>A call to VIDEO_SET_SYSTEM sets the desired video system for TV output. The
 following system types can be set:
 </para>
@@ -263,7 +267,7 @@ call expects the following format for that information:
 
 </section>
 <section id="video-spu">
-<title>video SPU</title>
+<title>struct video_spu</title>
 <para>Calling VIDEO_SET_SPU deactivates or activates SPU decoding, according to the
 following format:
 </para>
@@ -277,12 +281,12 @@ following format:
 
 </section>
 <section id="video-spu-palette">
-<title>video SPU palette</title>
+<title>struct video_spu_palette</title>
 <para>The following structure is used to set the SPU palette by calling VIDEO_SPU_PALETTE:
 </para>
 <programlisting>
  typedef
- struct video_spu_palette{
+ struct video_spu_palette {
 	 int length;
 	 uint8_t &#x22C6;palette;
  } video_spu_palette_t;
@@ -290,13 +294,13 @@ following format:
 
 </section>
 <section id="video-navi-pack">
-<title>video NAVI pack</title>
+<title>struct video_navi_pack</title>
 <para>In order to get the navigational data the following structure has to be passed to the ioctl
 VIDEO_GET_NAVI:
 </para>
 <programlisting>
  typedef
- struct video_navi_pack{
+ struct video_navi_pack {
 	 int length;         /&#x22C6; 0 ... 1024 &#x22C6;/
 	 uint8_t data[1024];
  } video_navi_pack_t;
@@ -305,7 +309,7 @@ VIDEO_GET_NAVI:
 
 
 <section id="video-attributes-t">
-<title>video attributes</title>
+<title>video_attributes_t</title>
 <para>The following attributes can be set by a call to VIDEO_SET_ATTRIBUTES:
 </para>
 <programlisting>
@@ -541,6 +545,8 @@ VIDEO_GET_NAVI:
 role="subsection"><title>VIDEO_STOP</title>
 <para>DESCRIPTION
 </para>
+<para>This ioctl is for DVB devices only. To control a V4L2 decoder use the V4L2
+&VIDIOC-DECODER-CMD; instead.</para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>This ioctl call asks the Video Device to stop playing the current stream.
@@ -598,6 +604,8 @@ role="subsection"><title>VIDEO_STOP</title>
 role="subsection"><title>VIDEO_PLAY</title>
 <para>DESCRIPTION
 </para>
+<para>This ioctl is for DVB devices only. To control a V4L2 decoder use the V4L2
+&VIDIOC-DECODER-CMD; instead.</para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>This ioctl call asks the Video Device to start playing a video stream from the
@@ -634,6 +642,8 @@ role="subsection"><title>VIDEO_PLAY</title>
 role="subsection"><title>VIDEO_FREEZE</title>
 <para>DESCRIPTION
 </para>
+<para>This ioctl is for DVB devices only. To control a V4L2 decoder use the V4L2
+&VIDIOC-DECODER-CMD; instead.</para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>This ioctl call suspends the live video stream being played. Decoding
@@ -674,6 +684,8 @@ role="subsection"><title>VIDEO_FREEZE</title>
 role="subsection"><title>VIDEO_CONTINUE</title>
 <para>DESCRIPTION
 </para>
+<para>This ioctl is for DVB devices only. To control a V4L2 decoder use the V4L2
+&VIDIOC-DECODER-CMD; instead.</para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>This ioctl call restarts decoding and playing processes of the video stream
@@ -710,6 +722,9 @@ role="subsection"><title>VIDEO_CONTINUE</title>
 role="subsection"><title>VIDEO_SELECT_SOURCE</title>
 <para>DESCRIPTION
 </para>
+<para>This ioctl is for DVB devices only. This ioctl was also supported by the
+V4L2 ivtv driver, but that has been replaced by the ivtv-specific
+<constant>IVTV_IOC_PASSTHROUGH_MODE</constant> ioctl.</para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>This ioctl call informs the video device which source shall be used for the input
@@ -845,10 +860,160 @@ role="subsection"><title>VIDEO_GET_STATUS</title>
  </row></tbody></tgroup></informaltable>
 &return-value-dvb;
 
+</section><section id="VIDEO_GET_FRAME_COUNT"
+role="subsection"><title>VIDEO_GET_FRAME_COUNT</title>
+<para>DESCRIPTION
+</para>
+<para>This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders this
+ioctl has been replaced by the <constant>V4L2_CID_MPEG_VIDEO_DEC_FRAME</constant> control.</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl call asks the Video Device to return the number of displayed frames
+since the decoder was started.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(int fd, int request =
+ VIDEO_GET_FRAME_COUNT, __u64 *pts);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals VIDEO_GET_FRAME_COUNT for this
+ command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>__u64 *pts
+</para>
+</entry><entry
+ align="char">
+<para>Returns the number of frames displayed since the decoder was started.
+</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+
+</section><section id="VIDEO_GET_PTS"
+role="subsection"><title>VIDEO_GET_PTS</title>
+<para>DESCRIPTION
+</para>
+<para>This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders this
+ioctl has been replaced by the <constant>V4L2_CID_MPEG_VIDEO_DEC_PTS</constant> control.</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl call asks the Video Device to return the current PTS timestamp.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(int fd, int request =
+ VIDEO_GET_PTS, __u64 *pts);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals VIDEO_GET_PTS for this
+ command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>__u64 *pts
+</para>
+</entry><entry
+ align="char">
+<para>Returns the 33-bit timestamp as defined in ITU T-REC-H.222.0 / ISO/IEC 13818-1.
+</para>
+<para>
+The PTS should belong to the currently played
+frame if possible, but may also be a value close to it
+like the PTS of the last decoded frame or the last PTS
+extracted by the PES parser.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+
+</section><section id="VIDEO_GET_FRAME_RATE"
+role="subsection"><title>VIDEO_GET_FRAME_RATE</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl call asks the Video Device to return the current framerate.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(int fd, int request =
+ VIDEO_GET_FRAME_RATE, unsigned int *rate);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals VIDEO_GET_FRAME_RATE for this
+ command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>unsigned int *rate
+</para>
+</entry><entry
+ align="char">
+<para>Returns the framerate in number of frames per 1000 seconds.
+</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+
 </section><section id="VIDEO_GET_EVENT"
 role="subsection"><title>VIDEO_GET_EVENT</title>
 <para>DESCRIPTION
 </para>
+<para>This ioctl is for DVB devices only. To get events from a V4L2 decoder use the V4L2
+&VIDIOC-DQEVENT; ioctl instead.</para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>This ioctl call returns an event of type video_event if available. If an event is
@@ -913,6 +1078,152 @@ role="subsection"><title>VIDEO_GET_EVENT</title>
 <para>Overflow in event queue - one or more events were lost.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
+
+</section><section id="VIDEO_COMMAND"
+role="subsection"><title>VIDEO_COMMAND</title>
+<para>DESCRIPTION
+</para>
+<para>This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders this
+ioctl has been replaced by the &VIDIOC-DECODER-CMD; ioctl.</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl commands the decoder. The <constant>video_command</constant> struct
+is a subset of the <constant>v4l2_decoder_cmd</constant> struct, so refer to the
+&VIDIOC-DECODER-CMD; documentation for more information.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(int fd, int request =
+ VIDEO_COMMAND, struct video_command *cmd);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals VIDEO_COMMAND for this
+ command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>struct video_command *cmd
+</para>
+</entry><entry
+ align="char">
+<para>Commands the decoder.
+</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+
+</section><section id="VIDEO_TRY_COMMAND"
+role="subsection"><title>VIDEO_TRY_COMMAND</title>
+<para>DESCRIPTION
+</para>
+<para>This ioctl is obsolete. Do not use in new drivers. For V4L2 decoders this
+ioctl has been replaced by the &VIDIOC-TRY-DECODER-CMD; ioctl.</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl tries a decoder command. The <constant>video_command</constant> struct
+is a subset of the <constant>v4l2_decoder_cmd</constant> struct, so refer to the
+&VIDIOC-TRY-DECODER-CMD; documentation for more information.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(int fd, int request =
+ VIDEO_TRY_COMMAND, struct video_command *cmd);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals VIDEO_TRY_COMMAND for this
+ command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>struct video_command *cmd
+</para>
+</entry><entry
+ align="char">
+<para>Try a decoder command.
+</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+
+</section><section id="VIDEO_GET_SIZE"
+role="subsection"><title>VIDEO_GET_SIZE</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl returns the size and aspect ratio.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(int fd, int request =
+ VIDEO_GET_SIZE, video_size_t *size);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals VIDEO_GET_SIZE for this
+ command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>video_size_t *size
+</para>
+</entry><entry
+ align="char">
+<para>Returns the size and aspect ratio.
+</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
 
 </section><section id="VIDEO_SET_DISPLAY_FORMAT"
 role="subsection"><title>VIDEO_SET_DISPLAY_FORMAT</title>

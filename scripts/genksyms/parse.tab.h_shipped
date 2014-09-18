@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 2.5.  */
+/* A Bison parser, made by GNU Bison 2.5.1.  */
 
 /* Bison interface for Yacc-like parsers in C
    
-      Copyright (C) 1984, 1989-1990, 2000-2011 Free Software Foundation, Inc.
+      Copyright (C) 1984, 1989-1990, 2000-2012 Free Software Foundation, Inc.
    
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,18 +66,19 @@
      EXPORT_SYMBOL_KEYW = 284,
      ASM_PHRASE = 285,
      ATTRIBUTE_PHRASE = 286,
-     BRACE_PHRASE = 287,
-     BRACKET_PHRASE = 288,
-     EXPRESSION_PHRASE = 289,
-     CHAR = 290,
-     DOTS = 291,
-     IDENT = 292,
-     INT = 293,
-     REAL = 294,
-     STRING = 295,
-     TYPE = 296,
-     OTHER = 297,
-     FILENAME = 298
+     TYPEOF_PHRASE = 287,
+     BRACE_PHRASE = 288,
+     BRACKET_PHRASE = 289,
+     EXPRESSION_PHRASE = 290,
+     CHAR = 291,
+     DOTS = 292,
+     IDENT = 293,
+     INT = 294,
+     REAL = 295,
+     STRING = 296,
+     TYPE = 297,
+     OTHER = 298,
+     FILENAME = 299
    };
 #endif
 

@@ -25,7 +25,7 @@
  *
  **************************************************************************/
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "vmwgfx_drv.h"
 
 int vmw_mmap(struct file *filp, struct vm_area_struct *vma)

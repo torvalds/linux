@@ -20,7 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <scsi/scsi_host.h>
@@ -621,21 +620,10 @@ static struct pci_driver hpt3x2n_pci_driver = {
 	.remove		= ata_pci_remove_one
 };
 
-static int __init hpt3x2n_init(void)
-{
-	return pci_register_driver(&hpt3x2n_pci_driver);
-}
-
-static void __exit hpt3x2n_exit(void)
-{
-	pci_unregister_driver(&hpt3x2n_pci_driver);
-}
+module_pci_driver(hpt3x2n_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for the Highpoint HPT3xxN");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, hpt3x2n);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(hpt3x2n_init);
-module_exit(hpt3x2n_exit);

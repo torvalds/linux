@@ -1,0 +1,116 @@
+What:		/sys/bus/fcoe/
+Date:		August 2012
+KernelVersion:	TBD
+Contact:	Robert Love <robert.w.love@intel.com>, devel@open-fcoe.org
+Description:	The FCoE bus. Attributes in this directory are control interfaces.
+Attributes:
+
+	ctlr_create: 'FCoE Controller' instance creation interface. Writing an
+		     <ifname> to this file will allocate and populate sysfs with a
+		     fcoe_ctlr_device (ctlr_X). The user can then configure any
+		     per-port settings and finally write to the fcoe_ctlr_device's
+		     'start' attribute to begin the kernel's discovery and login
+		     process.
+
+	ctlr_destroy: 'FCoE Controller' instance removal interface. Writing a
+		       fcoe_ctlr_device's sysfs name to this file will log the
+		       fcoe_ctlr_device out of the fabric or otherwise connected
+		       FCoE devices. It will also free all kernel memory allocated
+		       for this fcoe_ctlr_device and any structures associated
+		       with it, this includes the scsi_host.
+
+What:		/sys/bus/fcoe/devices/ctlr_X
+Date:		March 2012
+KernelVersion:	TBD
+Contact:	Robert Love <robert.w.love@intel.com>, devel@open-fcoe.org
+Description:	'FCoE Controller' instances on the fcoe bus.
+		The FCoE Controller now has a three stage creation process.
+		1) Write interface name to ctlr_create 2) Configure the FCoE
+		Controller (ctlr_X) 3) Enable the FCoE Controller to begin
+		discovery and login. The FCoE Controller is destroyed by
+		writing it's name, i.e. ctlr_X to the ctlr_delete file.
+
+Attributes:
+
+	fcf_dev_loss_tmo: Device loss timeout peroid (see below). Changing
+			  this value will change the dev_loss_tmo for all
+			  FCFs discovered by this controller.
+
+	mode:		  Display or change the FCoE Controller's mode. Possible
+			  modes are 'Fabric' and 'VN2VN'. If a FCoE Controller
+			  is started in 'Fabric' mode then FIP FCF discovery is
+			  initiated and ultimately a fabric login is attempted.
+			  If a FCoE Controller is started in 'VN2VN' mode then
+			  FIP VN2VN discovery and login is performed. A FCoE
+			  Controller only supports one mode at a time.
+
+	enabled:	  Whether an FCoE controller is enabled or disabled.
+			  0 if disabled, 1 if enabled. Writing either 0 or 1
+			  to this file will enable or disable the FCoE controller.
+
+	lesb/link_fail:   Link Error Status Block (LESB) link failure count.
+
+	lesb/vlink_fail:  Link Error Status Block (LESB) virtual link
+			  failure count.
+
+	lesb/miss_fka:    Link Error Status Block (LESB) missed FCoE
+			  Initialization Protocol (FIP) Keep-Alives (FKA).
+
+	lesb/symb_err:    Link Error Status Block (LESB) symbolic error count.
+
+	lesb/err_block:   Link Error Status Block (LESB) block error count.
+
+	lesb/fcs_error:   Link Error Status Block (LESB) Fibre Channel
+			  Serivces error count.
+
+Notes: ctlr_X (global increment starting at 0)
+
+What:		/sys/bus/fcoe/devices/fcf_X
+Date:		March 2012
+KernelVersion:	TBD
+Contact:	Robert Love <robert.w.love@intel.com>, devel@open-fcoe.org
+Description:	'FCoE FCF' instances on the fcoe bus. A FCF is a Fibre Channel
+		Forwarder, which is a FCoE switch that can accept FCoE
+		(Ethernet) packets, unpack them, and forward the embedded
+		Fibre Channel frames into a FC fabric. It can also take
+		outbound FC frames and pack them in Ethernet packets to
+		be sent to their destination on the Ethernet segment.
+Attributes:
+
+	fabric_name: Identifies the fabric that the FCF services.
+
+	switch_name: Identifies the FCF.
+
+	priority:    The switch's priority amongst other FCFs on the same
+		     fabric.
+
+	selected:    1 indicates that the switch has been selected for use;
+		     0 indicates that the swich will not be used.
+
+	fc_map:      The Fibre Channel MAP
+
+	vfid:	     The Virtual Fabric ID
+
+	mac:         The FCF's MAC address
+
+	fka_peroid:  The FIP Keep-Alive peroid
+
+	fabric_state: The internal kernel state
+		      "Unknown" - Initialization value
+		      "Disconnected" - No link to the FCF/fabric
+		      "Connected" - Host is connected to the FCF
+		      "Deleted" - FCF is being removed from the system
+
+	dev_loss_tmo: The device loss timeout peroid for this FCF.
+
+Notes: A device loss infrastructre similar to the FC Transport's
+       is present in fcoe_sysfs. It is nice to have so that a
+       link flapping adapter doesn't continually advance the count
+       used to identify the discovered FCF. FCFs will exist in a
+       "Disconnected" state until either the timer expires and the
+       FCF becomes "Deleted" or the FCF is rediscovered and becomes
+       "Connected."
+
+
+Users: The first user of this interface will be the fcoeadm application,
+       which is commonly packaged in the fcoe-utils package.

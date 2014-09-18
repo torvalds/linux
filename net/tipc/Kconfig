@@ -3,8 +3,8 @@
 #
 
 menuconfig TIPC
-	tristate "The TIPC Protocol (EXPERIMENTAL)"
-	depends on INET && EXPERIMENTAL
+	tristate "The TIPC Protocol"
+	depends on INET
 	---help---
 	  The Transparent Inter Process Communication (TIPC) protocol is
 	  specially designed for intra cluster communication. This protocol
@@ -20,18 +20,9 @@ menuconfig TIPC
 
 	  If in doubt, say N.
 
-if TIPC
-
-config TIPC_ADVANCED
-	bool "Advanced TIPC configuration"
-	default n
-	help
-	  Saying Y here will open some advanced configuration for TIPC.
-	  Most users do not need to bother; if unsure, just say N.
-
 config TIPC_PORTS
 	int "Maximum number of ports in a node"
-	depends on TIPC_ADVANCED
+	depends on TIPC
 	range 127 65535
 	default "8191"
 	help
@@ -41,29 +32,9 @@ config TIPC_PORTS
 	  Setting this to a smaller value saves some memory,
 	  setting it to higher allows for more ports.
 
-config TIPC_LOG
-	int "Size of log buffer"
-	depends on TIPC_ADVANCED
-	range 0 32768
-	default "0"
+config TIPC_MEDIA_IB
+	bool "InfiniBand media type support"
+	depends on TIPC && INFINIBAND_IPOIB
 	help
-	  Size (in bytes) of TIPC's internal log buffer, which records the
-	  occurrence of significant events.  Can range from 0 to 32768 bytes;
-	  default is 0.
-
-	  There is no need to enable the log buffer unless the node will be
-	  managed remotely via TIPC.
-
-config TIPC_DEBUG
-	bool "Enable debugging support"
-	default n
-	help
-	  Saying Y here enables TIPC debugging capabilities used by developers.
-	  Most users do not need to bother; if unsure, just say N.
-
-	  Enabling debugging support causes TIPC to display data about its
-	  internal state when certain abnormal conditions occur. It also
-	  makes it easy for developers to capture additional information of
-	  interest using the dbg() or msg_dbg() macros.
-
-endif # TIPC
+	  Saying Y here will enable support for running TIPC on
+	  IP-over-InfiniBand devices.

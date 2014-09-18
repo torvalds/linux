@@ -18,7 +18,7 @@ processing. Support for such hardware has not been very good in Linux,
 mostly because of a lack of a generic API available in the mainline
 kernel.
 
-Rather than requiring a compability break with an API change of the
+Rather than requiring a compatibility break with an API change of the
 ALSA PCM interface, a new 'Compressed Data' API is introduced to
 provide a control and data-streaming interface for audio DSPs.
 
@@ -73,7 +73,7 @@ The main requirements are:
 
 Design
 
-The new API shares a number of concepts with with the PCM API for flow
+The new API shares a number of concepts with the PCM API for flow
 control. Start, pause, resume, drain and stop commands have the same
 semantics no matter what the content is.
 
@@ -130,7 +130,7 @@ the settings should remain the exception.
 The timestamp becomes a multiple field structure. It lists the number
 of bytes transferred, the number of samples processed and the number
 of samples rendered/grabbed. All these values can be used to determine
-the avarage bitrate, figure out if the ring buffer needs to be
+the average bitrate, figure out if the ring buffer needs to be
 refilled or the delay due to decoding/encoding/io on the DSP.
 
 Note that the list of codecs/profiles/modes was derived from the
@@ -144,6 +144,52 @@ Modifications include:
 - Addition of format information for WMA
 - Addition of encoding options when required (derived from OpenMAX IL)
 - Addition of rateControlSupported (missing in OpenMAX AL)
+
+Gapless Playback
+================
+When playing thru an album, the decoders have the ability to skip the encoder
+delay and padding and directly move from one track content to another. The end
+user can perceive this as gapless playback as we dont have silence while
+switching from one track to another
+
+Also, there might be low-intensity noises due to encoding. Perfect gapless is
+difficult to reach with all types of compressed data, but works fine with most
+music content. The decoder needs to know the encoder delay and encoder padding.
+So we need to pass this to DSP. This metadata is extracted from ID3/MP4 headers
+and are not present by default in the bitstream, hence the need for a new
+interface to pass this information to the DSP. Also DSP and userspace needs to
+switch from one track to another and start using data for second track.
+
+The main additions are:
+
+- set_metadata
+This routine sets the encoder delay and encoder padding. This can be used by
+decoder to strip the silence. This needs to be set before the data in the track
+is written.
+
+- set_next_track
+This routine tells DSP that metadata and write operation sent after this would
+correspond to subsequent track
+
+- partial drain
+This is called when end of file is reached. The userspace can inform DSP that
+EOF is reached and now DSP can start skipping padding delay. Also next write
+data would belong to next track
+
+Sequence flow for gapless would be:
+- Open
+- Get caps / codec caps
+- Set params
+- Set metadata of the first track
+- Fill data of the first track
+- Trigger start
+- User-space finished sending all,
+- Indicaite next track data by sending set_next_track
+- Set metadata of the next track
+- then call partial_drain to flush most of buffer in DSP
+- Fill data of the next track
+- DSP switches to second track
+(note: order for partial_drain and write for next track can be reversed as well)
 
 Not supported:
 
@@ -171,12 +217,12 @@ Not supported:
   would be enabled with ALSA kcontrols.
 
 - Audio policy/resource management. This API does not provide any
-  hooks to query the utilization of the audio DSP, nor any premption
+  hooks to query the utilization of the audio DSP, nor any preemption
   mechanisms.
 
-- No notion of underun/overrun. Since the bytes written are compressed
+- No notion of underrun/overrun. Since the bytes written are compressed
   in nature and data written/read doesn't translate directly to
-  rendered output in time, this does not deal with underrun/overun and
+  rendered output in time, this does not deal with underrun/overrun and
   maybe dealt in user-library
 
 Credits:

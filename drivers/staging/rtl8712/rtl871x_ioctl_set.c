@@ -62,8 +62,8 @@ static u8 do_join(struct _adapter *padapter)
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 	struct  __queue	*queue	= &(pmlmepriv->scanned_queue);
 
-	phead = get_list_head(queue);
-	plist = get_next(phead);
+	phead = &queue->queue;
+	plist = phead->next;
 	pmlmepriv->cur_network.join_res = -2;
 	pmlmepriv->fw_state |= _FW_UNDER_LINKING;
 	pmlmepriv->pscanned = plist;
@@ -71,7 +71,7 @@ static u8 do_join(struct _adapter *padapter)
 
 	/* adhoc mode will start with an empty queue, but skip checking */
 	if (!check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) &&
-	    _queue_empty(queue)) {
+	    list_empty(&queue->queue)) {
 		if (pmlmepriv->fw_state & _FW_UNDER_LINKING)
 			pmlmepriv->fw_state ^= _FW_UNDER_LINKING;
 		/* when set_ssid/set_bssid for do_join(), but scanning queue
@@ -97,8 +97,6 @@ static u8 do_join(struct _adapter *padapter)
 				pmlmepriv->fw_state = WIFI_ADHOC_MASTER_STATE;
 				pibss = padapter->registrypriv.dev_network.
 					MacAddress;
-				memset(&pdev_network->Ssid, 0,
-					sizeof(struct ndis_802_11_ssid));
 				memcpy(&pdev_network->Ssid,
 					&pmlmepriv->assoc_ssid,
 					sizeof(struct ndis_802_11_ssid));
@@ -131,10 +129,7 @@ u8 r8712_set_802_11_bssid(struct _adapter *padapter, u8 *bssid)
 	u8 status = true;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	if ((bssid[0] == 0x00 && bssid[1] == 0x00 && bssid[2] == 0x00 &&
-	     bssid[3] == 0x00 && bssid[4] == 0x00 && bssid[5] == 0x00) ||
-	    (bssid[0] == 0xFF && bssid[1] == 0xFF && bssid[2] == 0xFF &&
-	     bssid[3] == 0xFF && bssid[4] == 0xFF && bssid[5] == 0xFF)) {
+	if (is_zero_ether_addr(bssid) || is_broadcast_ether_addr(bssid)) {
 		status = false;
 		return status;
 	}
@@ -264,7 +259,7 @@ void r8712_set_802_11_infrastructure_mode(struct _adapter *padapter,
 		    (*pold_state == Ndis802_11Infrastructure) ||
 		    (*pold_state == Ndis802_11IBSS)) {
 			/* will clr Linked_state before this function,
-			 * we must have chked whether issue dis-assoc_cmd or
+			 * we must have checked whether issue dis-assoc_cmd or
 			 * not */
 			r8712_ind_disconnect(padapter);
 		}

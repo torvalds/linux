@@ -91,17 +91,13 @@ static int ath9k_hw_def_get_eeprom_rev(struct ath_hw *ah)
 
 static bool __ath9k_hw_def_fill_eeprom(struct ath_hw *ah)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eep_data = (u16 *)&ah->eeprom.def;
 	int addr, ar5416_eep_start_loc = 0x100;
 
 	for (addr = 0; addr < SIZE_EEPROM_DEF; addr++) {
-		if (!ath9k_hw_nvram_read(common, addr + ar5416_eep_start_loc,
-					 eep_data)) {
-			ath_err(ath9k_hw_common(ah),
-				"Unable to read eeprom region\n");
+		if (!ath9k_hw_nvram_read(ah, addr + ar5416_eep_start_loc,
+					 eep_data))
 			return false;
-		}
 		eep_data++;
 	}
 	return true;
@@ -209,13 +205,13 @@ static u32 ath9k_hw_def_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	struct base_eep_header *pBase = &eep->baseEepHeader;
 
 	if (!dump_base_hdr) {
-		len += snprintf(buf + len, size - len,
-				"%20s :\n", "2GHz modal Header");
-		len += ath9k_def_dump_modal_eeprom(buf, len, size,
+		len += scnprintf(buf + len, size - len,
+				 "%20s :\n", "2GHz modal Header");
+		len = ath9k_def_dump_modal_eeprom(buf, len, size,
 						   &eep->modalHeader[0]);
-		len += snprintf(buf + len, size - len,
-				"%20s :\n", "5GHz modal Header");
-		len += ath9k_def_dump_modal_eeprom(buf, len, size,
+		len += scnprintf(buf + len, size - len,
+				 "%20s :\n", "5GHz modal Header");
+		len = ath9k_def_dump_modal_eeprom(buf, len, size,
 						   &eep->modalHeader[1]);
 		goto out;
 	}
@@ -244,8 +240,8 @@ static u32 ath9k_hw_def_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	PR_EEP("Cal Bin Build", (pBase->binBuildNumber >> 8) & 0xFF);
 	PR_EEP("OpenLoop Power Ctrl", pBase->openLoopPwrCntl);
 
-	len += snprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
-			pBase->macAddr);
+	len += scnprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
+			 pBase->macAddr);
 
 out:
 	if (len > size)
@@ -264,15 +260,14 @@ static u32 ath9k_hw_def_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 
 static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 {
-	struct ar5416_eeprom_def *eep =
-		(struct ar5416_eeprom_def *) &ah->eeprom.def;
+	struct ar5416_eeprom_def *eep = &ah->eeprom.def;
 	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eepdata, temp, magic, magic2;
 	u32 sum = 0, el;
 	bool need_swap = false;
 	int i, addr, size;
 
-	if (!ath9k_hw_nvram_read(common, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
+	if (!ath9k_hw_nvram_read(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
 		ath_err(common, "Reading Magic # failed\n");
 		return false;
 	}
@@ -991,9 +986,6 @@ static void ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 						  u16 antenna_reduction,
 						  u16 powerLimit)
 {
-#define REDUCE_SCALED_POWER_BY_TWO_CHAIN     6  /* 10*log10(2)*2 */
-#define REDUCE_SCALED_POWER_BY_THREE_CHAIN   9 /* 10*log10(3)*2 */
-
 	struct ar5416_eeprom_def *pEepData = &ah->eeprom.def;
 	u16 twiceMaxEdgePower;
 	int i;
@@ -1027,24 +1019,8 @@ static void ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 
-	scaledPower = powerLimit - antenna_reduction;
-
-	switch (ar5416_get_ntxchains(tx_chainmask)) {
-	case 1:
-		break;
-	case 2:
-		if (scaledPower > REDUCE_SCALED_POWER_BY_TWO_CHAIN)
-			scaledPower -= REDUCE_SCALED_POWER_BY_TWO_CHAIN;
-		else
-			scaledPower = 0;
-		break;
-	case 3:
-		if (scaledPower > REDUCE_SCALED_POWER_BY_THREE_CHAIN)
-			scaledPower -= REDUCE_SCALED_POWER_BY_THREE_CHAIN;
-		else
-			scaledPower = 0;
-		break;
-	}
+	scaledPower = ath9k_hw_get_scaled_power(ah, powerLimit,
+						antenna_reduction);
 
 	if (IS_CHAN_2GHZ(chan)) {
 		numCtlModes = ARRAY_SIZE(ctlModesFor11g) -
@@ -1263,20 +1239,7 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 			regulatory->max_power_level = ratesArray[i];
 	}
 
-	switch(ar5416_get_ntxchains(ah->txchainmask)) {
-	case 1:
-		break;
-	case 2:
-		regulatory->max_power_level += INCREASE_MAXPOW_BY_TWO_CHAIN;
-		break;
-	case 3:
-		regulatory->max_power_level += INCREASE_MAXPOW_BY_THREE_CHAIN;
-		break;
-	default:
-		ath_dbg(ath9k_hw_common(ah), EEPROM,
-			"Invalid chainmask configuration\n");
-		break;
-	}
+	ath9k_hw_update_regulatory_maxpower(ah);
 
 	if (test)
 		return;
@@ -1385,31 +1348,7 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 
 static u16 ath9k_hw_def_get_spur_channel(struct ath_hw *ah, u16 i, bool is2GHz)
 {
-#define EEP_DEF_SPURCHAN \
-	(ah->eeprom.def.modalHeader[is2GHz].spurChans[i].spurChan)
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	u16 spur_val = AR_NO_SPUR;
-
-	ath_dbg(common, ANI, "Getting spur idx:%d is2Ghz:%d val:%x\n",
-		i, is2GHz, ah->config.spurchans[i][is2GHz]);
-
-	switch (ah->config.spurmode) {
-	case SPUR_DISABLE:
-		break;
-	case SPUR_ENABLE_IOCTL:
-		spur_val = ah->config.spurchans[i][is2GHz];
-		ath_dbg(common, ANI, "Getting spur val from new loc. %d\n",
-			spur_val);
-		break;
-	case SPUR_ENABLE_EEPROM:
-		spur_val = EEP_DEF_SPURCHAN;
-		break;
-	}
-
-	return spur_val;
-
-#undef EEP_DEF_SPURCHAN
+	return ah->eeprom.def.modalHeader[is2GHz].spurChans[i].spurChan;
 }
 
 const struct eeprom_ops eep_def_ops = {

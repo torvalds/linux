@@ -72,15 +72,19 @@ print_ports(const struct sk_buff *skb, uint8_t protocol, int offset)
 }
 
 static void
-ebt_log_packet(u_int8_t pf, unsigned int hooknum,
-   const struct sk_buff *skb, const struct net_device *in,
-   const struct net_device *out, const struct nf_loginfo *loginfo,
-   const char *prefix)
+ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
+	       const struct sk_buff *skb, const struct net_device *in,
+	       const struct net_device *out, const struct nf_loginfo *loginfo,
+	       const char *prefix)
 {
 	unsigned int bitmask;
 
+	/* FIXME: Disabled from containers until syslog ns is supported */
+	if (!net_eq(net, &init_net))
+		return;
+
 	spin_lock_bh(&ebt_log_lock);
-	printk("<%c>%s IN=%s OUT=%s MAC source = %pM MAC dest = %pM proto = 0x%04x",
+	printk(KERN_SOH "%c%s IN=%s OUT=%s MAC source = %pM MAC dest = %pM proto = 0x%04x",
 	       '0' + loginfo->u.log.level, prefix,
 	       in ? in->name : "", out ? out->name : "",
 	       eth_hdr(skb)->h_source, eth_hdr(skb)->h_dest,
@@ -92,7 +96,7 @@ ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 		bitmask = NF_LOG_MASK;
 
 	if ((bitmask & EBT_LOG_IP) && eth_hdr(skb)->h_proto ==
-	   htons(ETH_P_IP)){
+	   htons(ETH_P_IP)) {
 		const struct iphdr *ih;
 		struct iphdr _iph;
 
@@ -176,17 +180,22 @@ ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_log_info *info = par->targinfo;
 	struct nf_loginfo li;
+	struct net *net = dev_net(par->in ? par->in : par->out);
 
 	li.type = NF_LOG_TYPE_LOG;
 	li.u.log.level = info->loglevel;
 	li.u.log.logflags = info->bitmask;
 
+	/* Remember that we have to use ebt_log_packet() not to break backward
+	 * compatibility. We cannot use the default bridge packet logger via
+	 * nf_log_packet() with NFT_LOG_TYPE_LOG here. --Pablo
+	 */
 	if (info->bitmask & EBT_LOG_NFLOG)
-		nf_log_packet(NFPROTO_BRIDGE, par->hooknum, skb, par->in,
-		              par->out, &li, "%s", info->prefix);
+		nf_log_packet(net, NFPROTO_BRIDGE, par->hooknum, skb,
+			      par->in, par->out, &li, "%s", info->prefix);
 	else
-		ebt_log_packet(NFPROTO_BRIDGE, par->hooknum, skb, par->in,
-		               par->out, &li, info->prefix);
+		ebt_log_packet(net, NFPROTO_BRIDGE, par->hooknum, skb, par->in,
+			       par->out, &li, info->prefix);
 	return EBT_CONTINUE;
 }
 
@@ -200,26 +209,13 @@ static struct xt_target ebt_log_tg_reg __read_mostly = {
 	.me		= THIS_MODULE,
 };
 
-static struct nf_logger ebt_log_logger __read_mostly = {
-	.name 		= "ebt_log",
-	.logfn		= &ebt_log_packet,
-	.me		= THIS_MODULE,
-};
-
 static int __init ebt_log_init(void)
 {
-	int ret;
-
-	ret = xt_register_target(&ebt_log_tg_reg);
-	if (ret < 0)
-		return ret;
-	nf_log_register(NFPROTO_BRIDGE, &ebt_log_logger);
-	return 0;
+	return xt_register_target(&ebt_log_tg_reg);
 }
 
 static void __exit ebt_log_fini(void)
 {
-	nf_log_unregister(&ebt_log_logger);
 	xt_unregister_target(&ebt_log_tg_reg);
 }
 

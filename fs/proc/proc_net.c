@@ -26,6 +26,10 @@
 
 #include "internal.h"
 
+static inline struct net *PDE_NET(struct proc_dir_entry *pde)
+{
+	return pde->parent->data;
+}
 
 static struct net *get_proc_net(const struct inode *inode)
 {
@@ -109,9 +113,11 @@ static struct net *get_proc_task_net(struct inode *dir)
 	rcu_read_lock();
 	task = pid_task(proc_pid(dir), PIDTYPE_PID);
 	if (task != NULL) {
-		ns = task_nsproxy(task);
+		task_lock(task);
+		ns = task->nsproxy;
 		if (ns != NULL)
 			net = get_net(ns->net_ns);
+		task_unlock(task);
 	}
 	rcu_read_unlock();
 
@@ -119,7 +125,7 @@ static struct net *get_proc_task_net(struct inode *dir)
 }
 
 static struct dentry *proc_tgid_net_lookup(struct inode *dir,
-		struct dentry *dentry, struct nameidata *nd)
+		struct dentry *dentry, unsigned int flags)
 {
 	struct dentry *de;
 	struct net *net;
@@ -156,16 +162,15 @@ const struct inode_operations proc_net_inode_operations = {
 	.getattr	= proc_tgid_net_getattr,
 };
 
-static int proc_tgid_net_readdir(struct file *filp, void *dirent,
-		filldir_t filldir)
+static int proc_tgid_net_readdir(struct file *file, struct dir_context *ctx)
 {
 	int ret;
 	struct net *net;
 
 	ret = -EINVAL;
-	net = get_proc_task_net(filp->f_path.dentry->d_inode);
+	net = get_proc_task_net(file_inode(file));
 	if (net != NULL) {
-		ret = proc_readdir_de(net->proc_net, filp, dirent, filldir);
+		ret = proc_readdir_de(net->proc_net, file, ctx);
 		put_net(net);
 	}
 	return ret;
@@ -174,22 +179,8 @@ static int proc_tgid_net_readdir(struct file *filp, void *dirent,
 const struct file_operations proc_net_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= proc_tgid_net_readdir,
+	.iterate	= proc_tgid_net_readdir,
 };
-
-
-struct proc_dir_entry *proc_net_fops_create(struct net *net,
-	const char *name, umode_t mode, const struct file_operations *fops)
-{
-	return proc_create(name, mode, net->proc_net, fops);
-}
-EXPORT_SYMBOL_GPL(proc_net_fops_create);
-
-void proc_net_remove(struct net *net, const char *name)
-{
-	remove_proc_entry(name, net->proc_net);
-}
-EXPORT_SYMBOL_GPL(proc_net_remove);
 
 static __net_init int proc_net_ns_init(struct net *net)
 {

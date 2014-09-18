@@ -36,8 +36,7 @@ cost.
       Note: to use this function you should already have a valid rproc
       handle. There are several ways to achieve that cleanly (devres, pdata,
       the way remoteproc_rpmsg.c does this, or, if this becomes prevalent, we
-      might also consider using dev_archdata for this). See also
-      rproc_get_by_name() below.
+      might also consider using dev_archdata for this).
 
   void rproc_shutdown(struct rproc *rproc)
     - Power off a remote processor (previously booted with rproc_boot()).
@@ -51,30 +50,6 @@ cost.
         which means that the @rproc handle stays valid even after
         rproc_shutdown() returns, and users can still use it with a subsequent
         rproc_boot(), if needed.
-      - don't call rproc_shutdown() to unroll rproc_get_by_name(), exactly
-        because rproc_shutdown() _does not_ decrement the refcount of @rproc.
-        To decrement the refcount of @rproc, use rproc_put() (but _only_ if
-        you acquired @rproc using rproc_get_by_name()).
-
-  struct rproc *rproc_get_by_name(const char *name)
-    - Find an rproc handle using the remote processor's name, and then
-      boot it. If it's already powered on, then just immediately return
-      (successfully). Returns the rproc handle on success, and NULL on failure.
-      This function increments the remote processor's refcount, so always
-      use rproc_put() to decrement it back once rproc isn't needed anymore.
-      Note: currently rproc_get_by_name() and rproc_put() are not used anymore
-      by the rpmsg bus and its drivers. We need to scrutinize the use cases
-      that still need them, and see if we can migrate them to use the non
-      name-based boot/shutdown interface.
-
-  void rproc_put(struct rproc *rproc)
-    - Decrement @rproc's power refcount and shut it down if it reaches zero
-      (essentially by just calling rproc_shutdown), and then decrement @rproc's
-      validity refcount too.
-      After this function returns, @rproc may _not_ be used anymore, and its
-      handle should be considered invalid.
-      This function should be called _iff_ the @rproc handle was grabbed by
-      calling rproc_get_by_name().
 
 3. Typical usage
 
@@ -115,21 +90,21 @@ int dummy_rproc_example(struct rproc *my_rproc)
       This function should be used by rproc implementations during
       initialization of the remote processor.
       After creating an rproc handle using this function, and when ready,
-      implementations should then call rproc_register() to complete
+      implementations should then call rproc_add() to complete
       the registration of the remote processor.
       On success, the new rproc is returned, and on failure, NULL.
 
       Note: _never_ directly deallocate @rproc, even if it was not registered
-      yet. Instead, if you just need to unroll rproc_alloc(), use rproc_free().
+      yet. Instead, when you need to unroll rproc_alloc(), use rproc_put().
 
-  void rproc_free(struct rproc *rproc)
+  void rproc_put(struct rproc *rproc)
     - Free an rproc handle that was allocated by rproc_alloc.
-      This function should _only_ be used if @rproc was only allocated,
-      but not registered yet.
-      If @rproc was already successfully registered (by calling
-      rproc_register()), then use rproc_unregister() instead.
+      This function essentially unrolls rproc_alloc(), by decrementing the
+      rproc's refcount. It doesn't directly free rproc; that would happen
+      only if there are no other references to rproc and its refcount now
+      dropped to zero.
 
-  int rproc_register(struct rproc *rproc)
+  int rproc_add(struct rproc *rproc)
     - Register @rproc with the remoteproc framework, after it has been
       allocated with rproc_alloc().
       This is called by the platform-specific rproc implementation, whenever
@@ -142,22 +117,24 @@ int dummy_rproc_example(struct rproc *my_rproc)
       of registering this remote processor, additional virtio drivers might get
       probed.
 
-  int rproc_unregister(struct rproc *rproc)
-    - Unregister a remote processor, and decrement its refcount.
-      If its refcount drops to zero, then @rproc will be freed. If not,
-      it will be freed later once the last reference is dropped.
-
+  int rproc_del(struct rproc *rproc)
+    - Unroll rproc_add().
       This function should be called when the platform specific rproc
       implementation decides to remove the rproc device. it should
-      _only_ be called if a previous invocation of rproc_register()
+      _only_ be called if a previous invocation of rproc_add()
       has completed successfully.
 
-      After rproc_unregister() returns, @rproc is _not_ valid anymore and
-      it shouldn't be used. More specifically, don't call rproc_free()
-      or try to directly free @rproc after rproc_unregister() returns;
-      none of these are needed, and calling them is a bug.
+      After rproc_del() returns, @rproc is still valid, and its
+      last refcount should be decremented by calling rproc_put().
 
       Returns 0 on success and -EINVAL if @rproc isn't valid.
+
+  void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type)
+    - Report a crash in a remoteproc
+      This function must be called every time a crash is detected by the
+      platform specific rproc implementation. This should not be called from a
+      non-remoteproc driver. This function can be called from atomic/interrupt
+      context.
 
 5. Implementation callbacks
 

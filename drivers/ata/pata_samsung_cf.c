@@ -23,15 +23,37 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <plat/ata.h>
-#include <plat/regs-ata.h>
+#include <linux/platform_data/ata-samsung_cf.h>
 
 #define DRV_NAME "pata_samsung_cf"
 #define DRV_VERSION "0.1"
 
+#define S3C_CFATA_REG(x)	(x)
+#define S3C_CFATA_MUX		S3C_CFATA_REG(0x0)
+#define S3C_ATA_CTRL		S3C_CFATA_REG(0x0)
+#define S3C_ATA_CMD		S3C_CFATA_REG(0x8)
+#define S3C_ATA_IRQ		S3C_CFATA_REG(0x10)
+#define S3C_ATA_IRQ_MSK		S3C_CFATA_REG(0x14)
+#define S3C_ATA_CFG		S3C_CFATA_REG(0x18)
+
+#define S3C_ATA_PIO_TIME	S3C_CFATA_REG(0x2c)
+#define S3C_ATA_PIO_DTR		S3C_CFATA_REG(0x54)
+#define S3C_ATA_PIO_FED		S3C_CFATA_REG(0x58)
+#define S3C_ATA_PIO_SCR		S3C_CFATA_REG(0x5c)
+#define S3C_ATA_PIO_LLR		S3C_CFATA_REG(0x60)
+#define S3C_ATA_PIO_LMR		S3C_CFATA_REG(0x64)
+#define S3C_ATA_PIO_LHR		S3C_CFATA_REG(0x68)
+#define S3C_ATA_PIO_DVR		S3C_CFATA_REG(0x6c)
+#define S3C_ATA_PIO_CSD		S3C_CFATA_REG(0x70)
+#define S3C_ATA_PIO_DAD		S3C_CFATA_REG(0x74)
+#define S3C_ATA_PIO_RDATA	S3C_CFATA_REG(0x7c)
+
+#define S3C_CFATA_MUX_TRUEIDE	0x01
+#define S3C_ATA_CFG_SWAP	0x40
+#define S3C_ATA_CFG_IORDYEN	0x02
+
 enum s3c_cpu_type {
 	TYPE_S3C64XX,
-	TYPE_S5PC100,
 	TYPE_S5PV210,
 };
 
@@ -241,8 +263,8 @@ static u8 pata_s3c_check_altstatus(struct ata_port *ap)
 /*
  * pata_s3c_data_xfer - Transfer data by PIO
  */
-unsigned int pata_s3c_data_xfer(struct ata_device *dev, unsigned char *buf,
-				unsigned int buflen, int rw)
+static unsigned int pata_s3c_data_xfer(struct ata_device *dev,
+				unsigned char *buf, unsigned int buflen, int rw)
 {
 	struct ata_port *ap = dev->link->ap;
 	struct s3c_ide_info *info = ap->host->private_data;
@@ -338,7 +360,7 @@ static int pata_s3c_wait_after_reset(struct ata_link *link,
 /*
  * pata_s3c_bus_softreset - PATA device software reset
  */
-static unsigned int pata_s3c_bus_softreset(struct ata_port *ap,
+static int pata_s3c_bus_softreset(struct ata_port *ap,
 		unsigned long deadline)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
@@ -418,7 +440,7 @@ static struct ata_port_operations pata_s5p_port_ops = {
 	.set_piomode		= pata_s3c_set_piomode,
 };
 
-static void pata_s3c_enable(void *s3c_ide_regbase, bool state)
+static void pata_s3c_enable(void __iomem *s3c_ide_regbase, bool state)
 {
 	u32 temp = readl(s3c_ide_regbase + S3C_ATA_CTRL);
 	temp = state ? (temp | 1) : (temp & ~1);
@@ -453,10 +475,6 @@ static void pata_s3c_hwinit(struct s3c_ide_info *info,
 		writel(0x1b, info->ide_addr + S3C_ATA_IRQ_MSK);
 		break;
 
-	case TYPE_S5PC100:
-		pata_s3c_cfg_mode(info->sfr_addr);
-		/* FALLTHROUGH */
-
 	case TYPE_S5PV210:
 		/* Configure as little endian */
 		pata_s3c_set_endian(info->ide_addr, 0);
@@ -475,7 +493,7 @@ static void pata_s3c_hwinit(struct s3c_ide_info *info,
 
 static int __init pata_s3c_probe(struct platform_device *pdev)
 {
-	struct s3c_ide_platdata *pdata = pdev->dev.platform_data;
+	struct s3c_ide_platdata *pdata = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct s3c_ide_info *info;
 	struct resource *res;
@@ -495,24 +513,12 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 	info->irq = platform_get_irq(pdev, 0);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(dev, "failed to get mem resource\n");
-		return -EINVAL;
-	}
 
-	if (!devm_request_mem_region(dev, res->start,
-				resource_size(res), DRV_NAME)) {
-		dev_err(dev, "error requesting register region\n");
-		return -EBUSY;
-	}
+	info->ide_addr = devm_ioremap_resource(dev, res);
+	if (IS_ERR(info->ide_addr))
+		return PTR_ERR(info->ide_addr);
 
-	info->ide_addr = devm_ioremap(dev, res->start, resource_size(res));
-	if (!info->ide_addr) {
-		dev_err(dev, "failed to map IO base address\n");
-		return -ENOMEM;
-	}
-
-	info->clk = clk_get(&pdev->dev, "cfcon");
+	info->clk = devm_clk_get(&pdev->dev, "cfcon");
 	if (IS_ERR(info->clk)) {
 		dev_err(dev, "failed to get access to cf controller clock\n");
 		ret = PTR_ERR(info->clk);
@@ -538,11 +544,6 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 		info->sfr_addr = info->ide_addr + 0x1800;
 		info->ide_addr += 0x1900;
 		info->fifo_status_reg = 0x94;
-	} else if (cpu_type == TYPE_S5PC100) {
-		ap->ops = &pata_s5p_port_ops;
-		info->sfr_addr = info->ide_addr + 0x1800;
-		info->ide_addr += 0x1900;
-		info->fifo_status_reg = 0x84;
 	} else {
 		ap->ops = &pata_s5p_port_ops;
 		info->fifo_status_reg = 0x84;
@@ -583,13 +584,16 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	return ata_host_activate(host, info->irq,
-			info->irq ? pata_s3c_irq : NULL,
-			0, &pata_s3c_sht);
+	ret = ata_host_activate(host, info->irq,
+				info->irq ? pata_s3c_irq : NULL,
+				0, &pata_s3c_sht);
+	if (ret)
+		goto stop_clk;
+
+	return 0;
 
 stop_clk:
 	clk_disable(info->clk);
-	clk_put(info->clk);
 	return ret;
 }
 
@@ -601,12 +605,11 @@ static int __exit pata_s3c_remove(struct platform_device *pdev)
 	ata_host_detach(host);
 
 	clk_disable(info->clk);
-	clk_put(info->clk);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int pata_s3c_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -619,7 +622,7 @@ static int pata_s3c_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ata_host *host = platform_get_drvdata(pdev);
-	struct s3c_ide_platdata *pdata = pdev->dev.platform_data;
+	struct s3c_ide_platdata *pdata = dev_get_platdata(&pdev->dev);
 	struct s3c_ide_info *info = host->private_data;
 
 	pata_s3c_hwinit(info, pdata);
@@ -640,9 +643,6 @@ static struct platform_device_id pata_s3c_driver_ids[] = {
 		.name		= "s3c64xx-pata",
 		.driver_data	= TYPE_S3C64XX,
 	}, {
-		.name		= "s5pc100-pata",
-		.driver_data	= TYPE_S5PC100,
-	}, {
 		.name		= "s5pv210-pata",
 		.driver_data	= TYPE_S5PV210,
 	},
@@ -657,24 +657,13 @@ static struct platform_driver pata_s3c_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 		.pm	= &pata_s3c_pm_ops,
 #endif
 	},
 };
 
-static int __init pata_s3c_init(void)
-{
-	return platform_driver_probe(&pata_s3c_driver, pata_s3c_probe);
-}
-
-static void __exit pata_s3c_exit(void)
-{
-	platform_driver_unregister(&pata_s3c_driver);
-}
-
-module_init(pata_s3c_init);
-module_exit(pata_s3c_exit);
+module_platform_driver_probe(pata_s3c_driver, pata_s3c_probe);
 
 MODULE_AUTHOR("Abhilash Kesavan, <a.kesavan@samsung.com>");
 MODULE_DESCRIPTION("low-level driver for Samsung PATA controller");

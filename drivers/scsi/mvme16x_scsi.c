@@ -34,8 +34,7 @@ static struct scsi_host_template mvme16x_scsi_driver_template = {
 
 static struct platform_device *mvme16x_scsi_device;
 
-static __devinit int
-mvme16x_probe(struct platform_device *dev)
+static int mvme16x_probe(struct platform_device *dev)
 {
 	struct Scsi_Host * host = NULL;
 	struct NCR_700_Host_Parameters *hostdata;
@@ -103,8 +102,7 @@ mvme16x_probe(struct platform_device *dev)
 	return -ENODEV;
 }
 
-static __devexit int
-mvme16x_device_remove(struct platform_device *dev)
+static int mvme16x_device_remove(struct platform_device *dev)
 {
 	struct Scsi_Host *host = platform_get_drvdata(dev);
 	struct NCR_700_Host_Parameters *hostdata = shost_priv(host);
@@ -131,7 +129,7 @@ static struct platform_driver mvme16x_scsi_driver = {
 		.owner          = THIS_MODULE,
 	},
 	.probe          = mvme16x_probe,
-	.remove         = __devexit_p(mvme16x_device_remove),
+	.remove         = mvme16x_device_remove,
 };
 
 static int __init mvme16x_scsi_init(void)

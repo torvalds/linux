@@ -158,8 +158,8 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 					       "zisofs: zisofs_inflate returned"
 					       " %d, inode = %lu,"
 					       " page idx = %d, bh idx = %d,"
-					       " avail_in = %d,"
-					       " avail_out = %d\n",
+					       " avail_in = %ld,"
+					       " avail_out = %ld\n",
 					       zerr, inode->i_ino, curpage,
 					       curbh, stream.avail_in,
 					       stream.avail_out);
@@ -296,7 +296,7 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
  */
 static int zisofs_readpage(struct file *file, struct page *page)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct address_space *mapping = inode->i_mapping;
 	int err;
 	int i, pcount, full_page;

@@ -13,8 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/firmware.h>
@@ -150,7 +149,7 @@ int softing_load_fw(const char *file, struct softing *card,
 	const uint8_t *mem, *end, *dat;
 	uint16_t type, len;
 	uint32_t addr;
-	uint8_t *buf = NULL;
+	uint8_t *buf = NULL, *new_buf;
 	int buflen = 0;
 	int8_t type_end = 0;
 
@@ -199,11 +198,12 @@ int softing_load_fw(const char *file, struct softing *card,
 		if (len > buflen) {
 			/* align buflen */
 			buflen = (len + (1024-1)) & ~(1024-1);
-			buf = krealloc(buf, buflen, GFP_KERNEL);
-			if (!buf) {
+			new_buf = krealloc(buf, buflen, GFP_KERNEL);
+			if (!new_buf) {
 				ret = -ENOMEM;
 				goto failed;
 			}
+			buf = new_buf;
 		}
 		/* verify record data */
 		memcpy_fromio(buf, &dpram[addr + offset], len);

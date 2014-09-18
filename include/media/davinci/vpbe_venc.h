@@ -20,7 +20,9 @@
 #include <media/v4l2-subdev.h>
 #include <media/davinci/vpbe_types.h>
 
-#define VPBE_VENC_SUBDEV_NAME "vpbe-venc"
+#define DM644X_VPBE_VENC_SUBDEV_NAME	"dm644x,vpbe-venc"
+#define DM365_VPBE_VENC_SUBDEV_NAME	"dm365,vpbe-venc"
+#define DM355_VPBE_VENC_SUBDEV_NAME	"dm355,vpbe-venc"
 
 /* venc events */
 #define VENC_END_OF_FRAME	BIT(0)
@@ -28,11 +30,10 @@
 #define VENC_SECOND_FIELD	BIT(2)
 
 struct venc_platform_data {
-	enum vpbe_version venc_type;
 	int (*setup_pinmux)(enum v4l2_mbus_pixelcode if_type,
 			    int field);
 	int (*setup_clock)(enum vpbe_enc_timings_type type,
-			   unsigned int mode);
+			   unsigned int pixclock);
 	int (*setup_if_config)(enum v4l2_mbus_pixelcode pixcode);
 	/* Number of LCD outputs supported */
 	int num_lcd_outputs;

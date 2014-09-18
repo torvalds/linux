@@ -17,7 +17,7 @@
 #ifdef CONFIG_MTD_UCLINUX
 #include <linux/mtd/map.h>
 #include <linux/ext2_fs.h>
-#include <linux/cramfs_fs.h>
+#include <uapi/linux/cramfs_fs.h>
 #include <linux/romfs_fs.h>
 #endif
 
@@ -25,12 +25,19 @@
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
 #include <asm/cplbinit.h>
+#include <asm/clocks.h>
 #include <asm/div64.h>
 #include <asm/cpu.h>
 #include <asm/fixed_code.h>
 #include <asm/early_printk.h>
 #include <asm/irq_handler.h>
 #include <asm/pda.h>
+#ifdef CONFIG_BF60x
+#include <mach/pm.h>
+#endif
+#ifdef CONFIG_SCB_PRIORITY
+#include <asm/scb.h>
+#endif
 
 u16 _bfin_swrst;
 EXPORT_SYMBOL(_bfin_swrst);
@@ -48,7 +55,6 @@ EXPORT_SYMBOL(reserved_mem_dcache_on);
 #ifdef CONFIG_MTD_UCLINUX
 extern struct map_info uclinux_ram_map;
 unsigned long memory_mtd_end, memory_mtd_start, mtd_size;
-unsigned long _ebss;
 EXPORT_SYMBOL(memory_mtd_end);
 EXPORT_SYMBOL(memory_mtd_start);
 EXPORT_SYMBOL(mtd_size);
@@ -96,7 +102,7 @@ void __init generate_cplb_tables(void)
 }
 #endif
 
-void __cpuinit bfin_setup_caches(unsigned int cpu)
+void bfin_setup_caches(unsigned int cpu)
 {
 #ifdef CONFIG_BFIN_ICACHE
 	bfin_icache_init(icplb_tbl[cpu]);
@@ -162,7 +168,7 @@ void __cpuinit bfin_setup_caches(unsigned int cpu)
 #endif
 }
 
-void __cpuinit bfin_setup_cpudata(unsigned int cpu)
+void bfin_setup_cpudata(unsigned int cpu)
 {
 	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, cpu);
 
@@ -550,7 +556,6 @@ static __init void memory_setup(void)
 {
 #ifdef CONFIG_MTD_UCLINUX
 	unsigned long mtd_phys = 0;
-	unsigned long n;
 #endif
 	unsigned long max_mem;
 
@@ -594,9 +599,9 @@ static __init void memory_setup(void)
 	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 8)));
 
 # if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
-	n = ext2_image_size((void *)(mtd_phys + 0x400));
-	if (n)
-		mtd_size = PAGE_ALIGN(n * 1024);
+	if (*((unsigned short *)(mtd_phys + 0x438)) == EXT2_SUPER_MAGIC)
+		mtd_size =
+		    PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x404)) << 10);
 # endif
 
 # if defined(CONFIG_CRAMFS)
@@ -612,7 +617,8 @@ static __init void memory_setup(void)
 
 		/* ROM_FS is XIP, so if we found it, we need to limit memory */
 		if (memory_end > max_mem) {
-			pr_info("Limiting kernel memory to %liMB due to anomaly 05000263\n", max_mem >> 20);
+			pr_info("Limiting kernel memory to %liMB due to anomaly 05000263\n",
+				(max_mem - CONFIG_PHY_RAM_BASE_ADDRESS) >> 20);
 			memory_end = max_mem;
 		}
 	}
@@ -642,7 +648,8 @@ static __init void memory_setup(void)
 	 * doesn't exist, or we don't need to - then dont.
 	 */
 	if (memory_end > max_mem) {
-		pr_info("Limiting kernel memory to %liMB due to anomaly 05000263\n", max_mem >> 20);
+		pr_info("Limiting kernel memory to %liMB due to anomaly 05000263\n",
+				(max_mem - CONFIG_PHY_RAM_BASE_ADDRESS) >> 20);
 		memory_end = max_mem;
 	}
 
@@ -661,8 +668,8 @@ static __init void memory_setup(void)
 	init_mm.end_data = (unsigned long)_edata;
 	init_mm.brk = (unsigned long)0;
 
-	printk(KERN_INFO "Board Memory: %ldMB\n", physical_mem_end >> 20);
-	printk(KERN_INFO "Kernel Managed Memory: %ldMB\n", _ramend >> 20);
+	printk(KERN_INFO "Board Memory: %ldMB\n", (physical_mem_end - CONFIG_PHY_RAM_BASE_ADDRESS) >> 20);
+	printk(KERN_INFO "Kernel Managed Memory: %ldMB\n", (_ramend - CONFIG_PHY_RAM_BASE_ADDRESS) >> 20);
 
 	printk(KERN_INFO "Memory map:\n"
 	       "  fixedcode = 0x%p-0x%p\n"
@@ -705,7 +712,7 @@ void __init find_min_max_pfn(void)
 	int i;
 
 	max_pfn = 0;
-	min_low_pfn = memory_end;
+	min_low_pfn = PFN_DOWN(memory_end);
 
 	for (i = 0; i < bfin_memmap.nr_map; i++) {
 		unsigned long start, end;
@@ -748,8 +755,7 @@ static __init void setup_bootmem_allocator(void)
 	/* pfn of the first usable page frame after kernel image*/
 	if (min_low_pfn < memory_start >> PAGE_SHIFT)
 		min_low_pfn = memory_start >> PAGE_SHIFT;
-
-	start_pfn = PAGE_OFFSET >> PAGE_SHIFT;
+	start_pfn = CONFIG_PHY_RAM_BASE_ADDRESS >> PAGE_SHIFT;
 	end_pfn = memory_end >> PAGE_SHIFT;
 
 	/*
@@ -794,8 +800,8 @@ static __init void setup_bootmem_allocator(void)
 	}
 
 	/* reserve memory before memory_start, including bootmap */
-	reserve_bootmem(PAGE_OFFSET,
-		memory_start + bootmap_size + PAGE_SIZE - 1 - PAGE_OFFSET,
+	reserve_bootmem(CONFIG_PHY_RAM_BASE_ADDRESS,
+		memory_start + bootmap_size + PAGE_SIZE - 1 - CONFIG_PHY_RAM_BASE_ADDRESS,
 		BOOTMEM_DEFAULT);
 }
 
@@ -844,12 +850,39 @@ static inline int __init get_mem_size(void)
 		break;
 	}
 	switch (ddrctl & 0x30000) {
-		case DEVWD_4:  ret *= 2;
-		case DEVWD_8:  ret *= 2;
-		case DEVWD_16: break;
+	case DEVWD_4:
+		ret *= 2;
+	case DEVWD_8:
+		ret *= 2;
+	case DEVWD_16:
+		break;
 	}
 	if ((ddrctl & 0xc000) == 0x4000)
 		ret *= 2;
+	return ret;
+#elif defined(CONFIG_BF60x)
+	u32 ddrctl = bfin_read_DMC0_CFG();
+	int ret;
+	switch (ddrctl & 0xf00) {
+	case DEVSZ_64:
+		ret = 64 / 8;
+		break;
+	case DEVSZ_128:
+		ret = 128 / 8;
+		break;
+	case DEVSZ_256:
+		ret = 256 / 8;
+		break;
+	case DEVSZ_512:
+		ret = 512 / 8;
+		break;
+	case DEVSZ_1G:
+		ret = 1024 / 8;
+		break;
+	case DEVSZ_2G:
+		ret = 2048 / 8;
+		break;
+	}
 	return ret;
 #endif
 	BUG();
@@ -859,6 +892,22 @@ __attribute__((weak))
 void __init native_machine_early_platform_add_devices(void)
 {
 }
+
+#ifdef CONFIG_BF60x
+static inline u_long bfin_get_clk(char *name)
+{
+	struct clk *clk;
+	u_long clk_rate;
+
+	clk = clk_get(NULL, name);
+	if (IS_ERR(clk))
+		return 0;
+
+	clk_rate = clk_get_rate(clk);
+	clk_put(clk);
+	return clk_rate;
+}
+#endif
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -870,6 +919,7 @@ void __init setup_arch(char **cmdline_p)
 	enable_shadow_console();
 
 	/* Check to make sure we are running on the right processor */
+	mmr =  bfin_cpuid();
 	if (unlikely(CPUID != bfin_cpuid()))
 		printk(KERN_ERR "ERROR: Not running on ADSP-%s: unknown CPUID 0x%04x Rev 0.%d\n",
 			CPU, bfin_cpuid(), bfin_revid());
@@ -890,6 +940,10 @@ void __init setup_arch(char **cmdline_p)
 
 	memset(&bfin_memmap, 0, sizeof(bfin_memmap));
 
+#ifdef CONFIG_BF60x
+	/* Should init clock device before parse command early */
+	clk_init();
+#endif
 	/* If the user does not specify things on the command line, use
 	 * what the bootloader set things up as
 	 */
@@ -904,6 +958,7 @@ void __init setup_arch(char **cmdline_p)
 
 	memory_setup();
 
+#ifndef CONFIG_BF60x
 	/* Initialize Async memory banks */
 	bfin_write_EBIU_AMBCTL0(AMBCTL0VAL);
 	bfin_write_EBIU_AMBCTL1(AMBCTL1VAL);
@@ -912,6 +967,7 @@ void __init setup_arch(char **cmdline_p)
 	bfin_write_EBIU_MBSCTL(CONFIG_EBIU_MBSCTLVAL);
 	bfin_write_EBIU_MODE(CONFIG_EBIU_MODEVAL);
 	bfin_write_EBIU_FCTL(CONFIG_EBIU_FCTLVAL);
+#endif
 #endif
 #ifdef CONFIG_BFIN_HYSTERESIS_CONTROL
 	bfin_write_PORTF_HYSTERESIS(HYST_PORTF_0_15);
@@ -938,7 +994,7 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Hardware Trace %s and %sabled\n",
 		(mmr & 0x1) ? "active" : "off",
 		(mmr & 0x2) ? "en" : "dis");
-
+#ifndef CONFIG_BF60x
 	mmr = bfin_read_SYSCR();
 	printk(KERN_INFO "Boot Mode: %i\n", mmr & 0xF);
 
@@ -980,7 +1036,7 @@ void __init setup_arch(char **cmdline_p)
 		printk(KERN_INFO "Recovering from Watchdog event\n");
 	else if (_bfin_swrst & RESET_SOFTWARE)
 		printk(KERN_NOTICE "Reset caused by Software reset\n");
-
+#endif
 	printk(KERN_INFO "Blackfin support (C) 2004-2010 Analog Devices, Inc.\n");
 	if (bfin_compiled_revid() == 0xffff)
 		printk(KERN_INFO "Compiled for ADSP-%s Rev any, running on 0.%d\n", CPU, bfin_revid());
@@ -1008,8 +1064,13 @@ void __init setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
+#ifdef CONFIG_BF60x
+	printk(KERN_INFO "Processor Speed: %lu MHz core clock, %lu MHz SCLk, %lu MHz SCLK0, %lu MHz SCLK1 and %lu MHz DCLK\n",
+		cclk / 1000000, bfin_get_clk("SYSCLK") / 1000000, get_sclk0() / 1000000, get_sclk1() / 1000000, get_dclk() / 1000000);
+#else
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu MHz System Clock\n",
 	       cclk / 1000000, sclk / 1000000);
+#endif
 
 	setup_bootmem_allocator();
 
@@ -1043,6 +1104,9 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	init_exception_vectors();
 	bfin_cache_init();	/* Initialize caches for the boot CPU */
+#ifdef CONFIG_SCB_PRIORITY
+	init_scb();
+#endif
 }
 
 static int __init topology_init(void)
@@ -1060,10 +1124,12 @@ subsys_initcall(topology_init);
 
 /* Get the input clock frequency */
 static u_long cached_clkin_hz = CONFIG_CLKIN_HZ;
+#ifndef CONFIG_BF60x
 static u_long get_clkin_hz(void)
 {
 	return cached_clkin_hz;
 }
+#endif
 static int __init early_init_clkin_hz(char *buf)
 {
 	cached_clkin_hz = simple_strtoul(buf, NULL, 0);
@@ -1075,6 +1141,7 @@ static int __init early_init_clkin_hz(char *buf)
 }
 early_param("clkin_hz=", early_init_clkin_hz);
 
+#ifndef CONFIG_BF60x
 /* Get the voltage input multiplier */
 static u_long get_vco(void)
 {
@@ -1097,10 +1164,14 @@ static u_long get_vco(void)
 	cached_vco *= msel;
 	return cached_vco;
 }
+#endif
 
 /* Get the Core clock */
 u_long get_cclk(void)
 {
+#ifdef CONFIG_BF60x
+	return bfin_get_clk("CCLK");
+#else
 	static u_long cached_cclk_pll_div, cached_cclk;
 	u_long csel, ssel;
 
@@ -1120,12 +1191,39 @@ u_long get_cclk(void)
 	else
 		cached_cclk = get_vco() >> csel;
 	return cached_cclk;
+#endif
 }
 EXPORT_SYMBOL(get_cclk);
 
-/* Get the System clock */
+#ifdef CONFIG_BF60x
+/* Get the bf60x clock of SCLK0 domain */
+u_long get_sclk0(void)
+{
+	return bfin_get_clk("SCLK0");
+}
+EXPORT_SYMBOL(get_sclk0);
+
+/* Get the bf60x clock of SCLK1 domain */
+u_long get_sclk1(void)
+{
+	return bfin_get_clk("SCLK1");
+}
+EXPORT_SYMBOL(get_sclk1);
+
+/* Get the bf60x DRAM clock */
+u_long get_dclk(void)
+{
+	return bfin_get_clk("DCLK");
+}
+EXPORT_SYMBOL(get_dclk);
+#endif
+
+/* Get the default system clock */
 u_long get_sclk(void)
 {
+#ifdef CONFIG_BF60x
+	return get_sclk0();
+#else
 	static u_long cached_sclk;
 	u_long ssel;
 
@@ -1146,6 +1244,7 @@ u_long get_sclk(void)
 
 	cached_sclk = get_vco() / ssel;
 	return cached_sclk;
+#endif
 }
 EXPORT_SYMBOL(get_sclk);
 
@@ -1221,7 +1320,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			seq_printf(m, "(Compiled for Rev %d)", bfin_compiled_revid());
 	}
 
-	seq_printf(m, "\ncpu MHz\t\t: %lu.%03lu/%lu.%03lu\n",
+	seq_printf(m, "\ncpu MHz\t\t: %lu.%06lu/%lu.%06lu\n",
 		cclk/1000000, cclk%1000000,
 		sclk/1000000, sclk%1000000);
 	seq_printf(m, "bogomips\t: %lu.%02lu\n"

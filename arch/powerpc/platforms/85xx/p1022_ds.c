@@ -18,7 +18,6 @@
 
 #include <linux/pci.h>
 #include <linux/of_platform.h>
-#include <linux/memblock.h>
 #include <asm/div64.h>
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
@@ -27,6 +26,7 @@
 #include <sysdev/fsl_pci.h>
 #include <asm/udbg.h>
 #include <asm/fsl_guts.h>
+#include <asm/fsl_lbc.h>
 #include "smp.h"
 
 #include "mpc85xx.h"
@@ -106,84 +106,182 @@
 	(c2 << AD_COMP_2_SHIFT) | (c1 << AD_COMP_1_SHIFT) | \
 	(c0 << AD_COMP_0_SHIFT) | (size << AD_PIXEL_S_SHIFT))
 
-/**
- * p1022ds_get_pixel_format: return the Area Descriptor for a given pixel depth
- *
- * The Area Descriptor is a 32-bit value that determine which bits in each
- * pixel are to be used for each color.
- */
-static u32 p1022ds_get_pixel_format(enum fsl_diu_monitor_port port,
-				    unsigned int bits_per_pixel)
-{
-	switch (bits_per_pixel) {
-	case 32:
-		/* 0x88883316 */
-		return MAKE_AD(3, 2, 0, 1, 3, 8, 8, 8, 8);
-	case 24:
-		/* 0x88082219 */
-		return MAKE_AD(4, 0, 1, 2, 2, 0, 8, 8, 8);
-	case 16:
-		/* 0x65053118 */
-		return MAKE_AD(4, 2, 1, 0, 1, 5, 6, 5, 0);
-	default:
-		pr_err("fsl-diu: unsupported pixel depth %u\n", bits_per_pixel);
-		return 0;
-	}
-}
+struct fsl_law {
+	u32	lawbar;
+	u32	reserved1;
+	u32	lawar;
+	u32	reserved[5];
+};
 
-/**
- * p1022ds_set_gamma_table: update the gamma table, if necessary
+#define LAWBAR_MASK	0x00F00000
+#define LAWBAR_SHIFT	12
+
+#define LAWAR_EN	0x80000000
+#define LAWAR_TGT_MASK	0x01F00000
+#define LAW_TRGT_IF_LBC	(0x04 << 20)
+
+#define LAWAR_MASK	(LAWAR_EN | LAWAR_TGT_MASK)
+#define LAWAR_MATCH	(LAWAR_EN | LAW_TRGT_IF_LBC)
+
+#define BR_BA		0xFFFF8000
+
+/*
+ * Map a BRx value to a physical address
  *
- * On some boards, the gamma table for some ports may need to be modified.
- * This is not the case on the P1022DS, so we do nothing.
-*/
-static void p1022ds_set_gamma_table(enum fsl_diu_monitor_port port,
-				    char *gamma_table_base)
+ * The localbus BRx registers only store the lower 32 bits of the address.  To
+ * obtain the upper four bits, we need to scan the LAW table.  The entry which
+ * maps to the localbus will contain the upper four bits.
+ */
+static phys_addr_t lbc_br_to_phys(const void *ecm, unsigned int count, u32 br)
 {
+#ifndef CONFIG_PHYS_64BIT
+	/*
+	 * If we only have 32-bit addressing, then the BRx address *is* the
+	 * physical address.
+	 */
+	return br & BR_BA;
+#else
+	const struct fsl_law *law = ecm + 0xc08;
+	unsigned int i;
+
+	for (i = 0; i < count; i++) {
+		u64 lawbar = in_be32(&law[i].lawbar);
+		u32 lawar = in_be32(&law[i].lawar);
+
+		if ((lawar & LAWAR_MASK) == LAWAR_MATCH)
+			/* Extract the upper four bits */
+			return (br & BR_BA) | ((lawbar & LAWBAR_MASK) << 12);
+	}
+
+	return 0;
+#endif
 }
 
 /**
  * p1022ds_set_monitor_port: switch the output to a different monitor port
- *
  */
 static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 {
 	struct device_node *guts_node;
-	struct device_node *indirect_node = NULL;
+	struct device_node *lbc_node = NULL;
+	struct device_node *law_node = NULL;
 	struct ccsr_guts __iomem *guts;
+	struct fsl_lbc_regs *lbc = NULL;
+	void *ecm = NULL;
 	u8 __iomem *lbc_lcs0_ba = NULL;
 	u8 __iomem *lbc_lcs1_ba = NULL;
+	phys_addr_t cs0_addr, cs1_addr;
+	u32 br0, or0, br1, or1;
+	const __be32 *iprop;
+	unsigned int num_laws;
 	u8 b;
 
 	/* Map the global utilities registers. */
 	guts_node = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_node) {
-		pr_err("p1022ds: missing global utilties device node\n");
+		pr_err("p1022ds: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_node, 0);
 	if (!guts) {
-		pr_err("p1022ds: could not map global utilties device\n");
+		pr_err("p1022ds: could not map global utilities device\n");
 		goto exit;
 	}
 
-	indirect_node = of_find_compatible_node(NULL, NULL,
-					     "fsl,p1022ds-indirect-pixis");
-	if (!indirect_node) {
-		pr_err("p1022ds: missing pixis indirect mode node\n");
+	lbc_node = of_find_compatible_node(NULL, NULL, "fsl,p1022-elbc");
+	if (!lbc_node) {
+		pr_err("p1022ds: missing localbus node\n");
 		goto exit;
 	}
 
-	lbc_lcs0_ba = of_iomap(indirect_node, 0);
+	lbc = of_iomap(lbc_node, 0);
+	if (!lbc) {
+		pr_err("p1022ds: could not map localbus node\n");
+		goto exit;
+	}
+
+	law_node = of_find_compatible_node(NULL, NULL, "fsl,ecm-law");
+	if (!law_node) {
+		pr_err("p1022ds: missing local access window node\n");
+		goto exit;
+	}
+
+	ecm = of_iomap(law_node, 0);
+	if (!ecm) {
+		pr_err("p1022ds: could not map local access window node\n");
+		goto exit;
+	}
+
+	iprop = of_get_property(law_node, "fsl,num-laws", NULL);
+	if (!iprop) {
+		pr_err("p1022ds: LAW node is missing fsl,num-laws property\n");
+		goto exit;
+	}
+	num_laws = be32_to_cpup(iprop);
+
+	/*
+	 * Indirect mode requires both BR0 and BR1 to be set to "GPCM",
+	 * otherwise writes to these addresses won't actually appear on the
+	 * local bus, and so the PIXIS won't see them.
+	 *
+	 * In FCM mode, writes go to the NAND controller, which does not pass
+	 * them to the localbus directly.  So we force BR0 and BR1 into GPCM
+	 * mode, since we don't care about what's behind the localbus any
+	 * more.
+	 */
+	br0 = in_be32(&lbc->bank[0].br);
+	br1 = in_be32(&lbc->bank[1].br);
+	or0 = in_be32(&lbc->bank[0].or);
+	or1 = in_be32(&lbc->bank[1].or);
+
+	/* Make sure CS0 and CS1 are programmed */
+	if (!(br0 & BR_V) || !(br1 & BR_V)) {
+		pr_err("p1022ds: CS0 and/or CS1 is not programmed\n");
+		goto exit;
+	}
+
+	/*
+	 * Use the existing BRx/ORx values if it's already GPCM. Otherwise,
+	 * force the values to simple 32KB GPCM windows with the most
+	 * conservative timing.
+	 */
+	if ((br0 & BR_MSEL) != BR_MS_GPCM) {
+		br0 = (br0 & BR_BA) | BR_V;
+		or0 = 0xFFFF8000 | 0xFF7;
+		out_be32(&lbc->bank[0].br, br0);
+		out_be32(&lbc->bank[0].or, or0);
+	}
+	if ((br1 & BR_MSEL) != BR_MS_GPCM) {
+		br1 = (br1 & BR_BA) | BR_V;
+		or1 = 0xFFFF8000 | 0xFF7;
+		out_be32(&lbc->bank[1].br, br1);
+		out_be32(&lbc->bank[1].or, or1);
+	}
+
+	cs0_addr = lbc_br_to_phys(ecm, num_laws, br0);
+	if (!cs0_addr) {
+		pr_err("p1022ds: could not determine physical address for CS0"
+		       " (BR0=%08x)\n", br0);
+		goto exit;
+	}
+	cs1_addr = lbc_br_to_phys(ecm, num_laws, br1);
+	if (!cs1_addr) {
+		pr_err("p1022ds: could not determine physical address for CS1"
+		       " (BR1=%08x)\n", br1);
+		goto exit;
+	}
+
+	lbc_lcs0_ba = ioremap(cs0_addr, 1);
 	if (!lbc_lcs0_ba) {
-		pr_err("p1022ds: could not map localbus chip select 0\n");
+		pr_err("p1022ds: could not ioremap CS0 address %llx\n",
+		       (unsigned long long)cs0_addr);
 		goto exit;
 	}
-
-	lbc_lcs1_ba = of_iomap(indirect_node, 1);
+	lbc_lcs1_ba = ioremap(cs1_addr, 1);
 	if (!lbc_lcs1_ba) {
-		pr_err("p1022ds: could not map localbus chip select 1\n");
+		pr_err("p1022ds: could not ioremap CS1 address %llx\n",
+		       (unsigned long long)cs1_addr);
 		goto exit;
 	}
 
@@ -254,10 +352,15 @@ exit:
 		iounmap(lbc_lcs1_ba);
 	if (lbc_lcs0_ba)
 		iounmap(lbc_lcs0_ba);
+	if (lbc)
+		iounmap(lbc);
+	if (ecm)
+		iounmap(ecm);
 	if (guts)
 		iounmap(guts);
 
-	of_node_put(indirect_node);
+	of_node_put(law_node);
+	of_node_put(lbc_node);
 	of_node_put(guts_node);
 }
 
@@ -277,14 +380,14 @@ void p1022ds_set_pixel_clock(unsigned int pixclock)
 	/* Map the global utilities registers. */
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_np) {
-		pr_err("p1022ds: missing global utilties device node\n");
+		pr_err("p1022ds: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_np, 0);
 	of_node_put(guts_np);
 	if (!guts) {
-		pr_err("p1022ds: could not map global utilties device\n");
+		pr_err("p1022ds: could not map global utilities device\n");
 		return;
 	}
 
@@ -339,24 +442,6 @@ void __init p1022_ds_pic_init(void)
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 
-/*
- * Disables a node in the device tree.
- *
- * This function is called before kmalloc() is available, so the 'new' object
- * should be allocated in the global area.  The easiest way is to do that is
- * to allocate one static local variable for each call to this function.
- */
-static void __init disable_one_node(struct device_node *np, struct property *new)
-{
-	struct property *old;
-
-	old = of_find_property(np, new->name, NULL);
-	if (old)
-		prom_update_property(np, new, old);
-	else
-		prom_add_property(np, new);
-}
-
 /* TRUE if there is a "video=fslfb" command-line parameter. */
 static bool fslfb;
 
@@ -385,62 +470,67 @@ early_param("video", early_video_setup);
  */
 static void __init p1022_ds_setup_arch(void)
 {
-#ifdef CONFIG_PCI
-	struct device_node *np;
-#endif
-	dma_addr_t max = 0xffffffff;
-
 	if (ppc_md.progress)
 		ppc_md.progress("p1022_ds_setup_arch()", 0);
 
-#ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,p1022-pcie") {
-		struct resource rsrc;
-		struct pci_controller *hose;
-
-		of_address_to_resource(np, 0, &rsrc);
-
-		if ((rsrc.start & 0xfffff) == 0x8000)
-			fsl_add_bridge(np, 1);
-		else
-			fsl_add_bridge(np, 0);
-
-		hose = pci_find_hose_for_OF_device(np);
-		max = min(max, hose->dma_window_base_cur +
-			  hose->dma_window_size);
-	}
-#endif
-
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
-	diu_ops.get_pixel_format	= p1022ds_get_pixel_format;
-	diu_ops.set_gamma_table		= p1022ds_set_gamma_table;
 	diu_ops.set_monitor_port	= p1022ds_set_monitor_port;
 	diu_ops.set_pixel_clock		= p1022ds_set_pixel_clock;
 	diu_ops.valid_monitor_port	= p1022ds_valid_monitor_port;
 
 	/*
-	 * Disable the NOR flash node if there is video=fslfb... command-line
-	 * parameter.  When the DIU is active, NOR flash is unavailable, so we
-	 * have to disable the node before the MTD driver loads.
+	 * Disable the NOR and NAND flash nodes if there is video=fslfb...
+	 * command-line parameter.  When the DIU is active, the localbus is
+	 * unavailable, so we have to disable these nodes before the MTD
+	 * driver loads.
 	 */
 	if (fslfb) {
 		struct device_node *np =
 			of_find_compatible_node(NULL, NULL, "fsl,p1022-elbc");
 
 		if (np) {
-			np = of_find_compatible_node(np, NULL, "cfi-flash");
-			if (np) {
+			struct device_node *np2;
+
+			of_node_get(np);
+			np2 = of_find_compatible_node(np, NULL, "cfi-flash");
+			if (np2) {
 				static struct property nor_status = {
 					.name = "status",
 					.value = "disabled",
 					.length = sizeof("disabled"),
 				};
 
+				/*
+				 * of_update_property() is called before
+				 * kmalloc() is available, so the 'new' object
+				 * should be allocated in the global area.
+				 * The easiest way is to do that is to
+				 * allocate one static local variable for each
+				 * call to this function.
+				 */
 				pr_info("p1022ds: disabling %s node",
-					np->full_name);
-				disable_one_node(np, &nor_status);
-				of_node_put(np);
+					np2->full_name);
+				of_update_property(np2, &nor_status);
+				of_node_put(np2);
 			}
+
+			of_node_get(np);
+			np2 = of_find_compatible_node(np, NULL,
+						      "fsl,elbc-fcm-nand");
+			if (np2) {
+				static struct property nand_status = {
+					.name = "status",
+					.value = "disabled",
+					.length = sizeof("disabled"),
+				};
+
+				pr_info("p1022ds: disabling %s node",
+					np2->full_name);
+				of_update_property(np2, &nand_status);
+				of_node_put(np2);
+			}
+
+			of_node_put(np);
 		}
 
 	}
@@ -449,18 +539,14 @@ static void __init p1022_ds_setup_arch(void)
 
 	mpc85xx_smp_init();
 
-#ifdef CONFIG_SWIOTLB
-	if (memblock_end_of_DRAM() > max) {
-		ppc_swiotlb_enable = 1;
-		set_pci_dma_ops(&swiotlb_dma_ops);
-		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
-	}
-#endif
+	fsl_pci_assign_primary();
+
+	swiotlb_detect_4g();
 
 	pr_info("Freescale P1022 DS reference board\n");
 }
 
-machine_device_initcall(p1022_ds, mpc85xx_common_publish_devices);
+machine_arch_initcall(p1022_ds, mpc85xx_common_publish_devices);
 
 machine_arch_initcall(p1022_ds, swiotlb_setup_bus_notifier);
 
@@ -481,6 +567,7 @@ define_machine(p1022_ds) {
 	.init_IRQ		= p1022_ds_pic_init,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+	.pcibios_fixup_phb	= fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
 	.restart		= fsl_rstcr_restart,

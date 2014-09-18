@@ -1,7 +1,7 @@
 /*
  * Remote Controller core raw events header
  *
- * Copyright (C) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (C) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,7 +39,6 @@ struct ir_raw_event_ctrl {
 	ktime_t				last_event;	/* when last event occurred */
 	enum raw_event_type		last_type;	/* last event type */
 	struct rc_dev			*dev;		/* pointer to the parent rc_dev */
-	u64				enabled_protocols; /* enabled raw protocol decoders */
 
 	/* raw decoder state follows */
 	struct ir_raw_event prev_ev;
@@ -55,7 +54,7 @@ struct ir_raw_event_ctrl {
 		int state;
 		u32 bits;
 		unsigned count;
-		unsigned wanted_bits;
+		bool is_rc5x;
 	} rc5;
 	struct rc6_dec {
 		int state;
@@ -78,17 +77,17 @@ struct ir_raw_event_ctrl {
 		bool first;
 		bool toggle;
 	} jvc;
-	struct rc5_sz_dec {
-		int state;
-		u32 bits;
-		unsigned count;
-		unsigned wanted_bits;
-	} rc5_sz;
 	struct sanyo_dec {
 		int state;
 		unsigned count;
 		u64 bits;
 	} sanyo;
+	struct sharp_dec {
+		int state;
+		unsigned count;
+		u32 bits;
+		unsigned int pulse_len;
+	} sharp;
 	struct mce_kbd_dec {
 		struct input_dev *idev;
 		struct timer_list rx_timeout;
@@ -111,6 +110,11 @@ struct ir_raw_event_ctrl {
 		bool send_timeout_reports;
 
 	} lirc;
+	struct xmp_dec {
+		int state;
+		unsigned count;
+		u32 durations[16];
+	} xmp;
 };
 
 /* macros for IR decoders */
@@ -165,58 +169,72 @@ void ir_raw_init(void);
 
 /* from ir-nec-decoder.c */
 #ifdef CONFIG_IR_NEC_DECODER_MODULE
-#define load_nec_decode()	request_module("ir-nec-decoder")
+#define load_nec_decode()	request_module_nowait("ir-nec-decoder")
 #else
 static inline void load_nec_decode(void) { }
 #endif
 
 /* from ir-rc5-decoder.c */
 #ifdef CONFIG_IR_RC5_DECODER_MODULE
-#define load_rc5_decode()	request_module("ir-rc5-decoder")
+#define load_rc5_decode()	request_module_nowait("ir-rc5-decoder")
 #else
 static inline void load_rc5_decode(void) { }
 #endif
 
 /* from ir-rc6-decoder.c */
 #ifdef CONFIG_IR_RC6_DECODER_MODULE
-#define load_rc6_decode()	request_module("ir-rc6-decoder")
+#define load_rc6_decode()	request_module_nowait("ir-rc6-decoder")
 #else
 static inline void load_rc6_decode(void) { }
 #endif
 
 /* from ir-jvc-decoder.c */
 #ifdef CONFIG_IR_JVC_DECODER_MODULE
-#define load_jvc_decode()	request_module("ir-jvc-decoder")
+#define load_jvc_decode()	request_module_nowait("ir-jvc-decoder")
 #else
 static inline void load_jvc_decode(void) { }
 #endif
 
 /* from ir-sony-decoder.c */
 #ifdef CONFIG_IR_SONY_DECODER_MODULE
-#define load_sony_decode()	request_module("ir-sony-decoder")
+#define load_sony_decode()	request_module_nowait("ir-sony-decoder")
 #else
 static inline void load_sony_decode(void) { }
 #endif
 
 /* from ir-sanyo-decoder.c */
 #ifdef CONFIG_IR_SANYO_DECODER_MODULE
-#define load_sanyo_decode()	request_module("ir-sanyo-decoder")
+#define load_sanyo_decode()	request_module_nowait("ir-sanyo-decoder")
 #else
 static inline void load_sanyo_decode(void) { }
 #endif
 
+/* from ir-sharp-decoder.c */
+#ifdef CONFIG_IR_SHARP_DECODER_MODULE
+#define load_sharp_decode()	request_module_nowait("ir-sharp-decoder")
+#else
+static inline void load_sharp_decode(void) { }
+#endif
+
 /* from ir-mce_kbd-decoder.c */
 #ifdef CONFIG_IR_MCE_KBD_DECODER_MODULE
-#define load_mce_kbd_decode()	request_module("ir-mce_kbd-decoder")
+#define load_mce_kbd_decode()	request_module_nowait("ir-mce_kbd-decoder")
 #else
 static inline void load_mce_kbd_decode(void) { }
 #endif
 
 /* from ir-lirc-codec.c */
 #ifdef CONFIG_IR_LIRC_CODEC_MODULE
-#define load_lirc_codec()	request_module("ir-lirc-codec")
+#define load_lirc_codec()	request_module_nowait("ir-lirc-codec")
 #else
 static inline void load_lirc_codec(void) { }
+#endif
+
+/* from ir-xmp-decoder.c */
+#ifdef CONFIG_IR_XMP_DECODER_MODULE
+#define load_xmp_decode()      request_module_nowait("ir-xmp-decoder")
+#else
+static inline void load_xmp_decode(void) { }
 #endif
 
 

@@ -8,8 +8,8 @@ reason, the kernel code must instantiate I2C devices explicitly. There are
 several ways to achieve this, depending on the context and requirements.
 
 
-Method 1: Declare the I2C devices by bus number
------------------------------------------------
+Method 1a: Declare the I2C devices by bus number
+------------------------------------------------
 
 This method is appropriate when the I2C bus is a system bus as is the case
 for many embedded systems. On such systems, each I2C bus has a number
@@ -19,7 +19,7 @@ i2c_board_info which is registered by calling i2c_register_board_info().
 
 Example (from omap2 h4):
 
-static struct i2c_board_info __initdata h4_i2c_board_info[] = {
+static struct i2c_board_info h4_i2c_board_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("isp1301_omap", 0x2d),
 		.irq		= OMAP_GPIO_IRQ(125),
@@ -49,6 +49,43 @@ by i2c-core.
 
 The devices will be automatically unbound and destroyed when the I2C bus
 they sit on goes away (if ever.)
+
+
+Method 1b: Declare the I2C devices via devicetree
+-------------------------------------------------
+
+This method has the same implications as method 1a. The declaration of I2C
+devices is here done via devicetree as subnodes of the master controller.
+
+Example:
+
+	i2c1: i2c@400a0000 {
+		/* ... master properties skipped ... */
+		clock-frequency = <100000>;
+
+		flash@50 {
+			compatible = "atmel,24c256";
+			reg = <0x50>;
+		};
+
+		pca9532: gpio@60 {
+			compatible = "nxp,pca9532";
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <0x60>;
+		};
+	};
+
+Here, two devices are attached to the bus using a speed of 100kHz. For
+additional properties which might be needed to set up the device, please refer
+to its devicetree documentation in Documentation/devicetree/bindings/.
+
+
+Method 1c: Declare the I2C devices via ACPI
+-------------------------------------------
+
+ACPI can also describe I2C devices. There is special documentation for this
+which is currently located at Documentation/acpi/enumeration.txt.
 
 
 Method 2: Instantiate the devices explicitly
@@ -91,7 +128,7 @@ Example (from the nxp OHCI driver):
 
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
-static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
+static int usb_hcd_nxp_probe(struct platform_device *pdev)
 {
 	(...)
 	struct i2c_adapter *i2c_adap;

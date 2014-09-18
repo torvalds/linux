@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 2007,2011
+ *    Copyright IBM Corp. 2007, 2011
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
@@ -10,6 +10,7 @@
 #include <linux/bootmem.h>
 #include <linux/cpuset.h>
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -17,6 +18,7 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
+#include <asm/sysinfo.h>
 
 #define PTF_HORIZONTAL	(0UL)
 #define PTF_VERTICAL	(1UL)
@@ -28,83 +30,70 @@ struct mask_info {
 	cpumask_t mask;
 };
 
-static int topology_enabled = 1;
+static void set_topology_timer(void);
 static void topology_work_fn(struct work_struct *work);
 static struct sysinfo_15_1_x *tl_info;
-static void set_topology_timer(void);
+
+static int topology_enabled = 1;
 static DECLARE_WORK(topology_work, topology_work_fn);
-/* topology_lock protects the core linked list */
+
+/* topology_lock protects the socket and book linked lists */
 static DEFINE_SPINLOCK(topology_lock);
-
-static struct mask_info core_info;
-cpumask_t cpu_core_map[NR_CPUS];
-unsigned char cpu_core_id[NR_CPUS];
-
+static struct mask_info socket_info;
 static struct mask_info book_info;
-cpumask_t cpu_book_map[NR_CPUS];
-unsigned char cpu_book_id[NR_CPUS];
 
-/* smp_cpu_state_mutex must be held when accessing this array */
-int cpu_polarization[NR_CPUS];
+struct cpu_topology_s390 cpu_topology[NR_CPUS];
+EXPORT_SYMBOL_GPL(cpu_topology);
 
 static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 {
 	cpumask_t mask;
 
-	cpumask_clear(&mask);
-	if (!topology_enabled || !MACHINE_HAS_TOPOLOGY) {
-		cpumask_copy(&mask, cpumask_of(cpu));
+	cpumask_copy(&mask, cpumask_of(cpu));
+	if (!topology_enabled || !MACHINE_HAS_TOPOLOGY)
 		return mask;
+	for (; info; info = info->next) {
+		if (cpumask_test_cpu(cpu, &info->mask))
+			return info->mask;
 	}
-	while (info) {
-		if (cpumask_test_cpu(cpu, &info->mask)) {
-			mask = info->mask;
-			break;
-		}
-		info = info->next;
-	}
-	if (cpumask_empty(&mask))
-		cpumask_copy(&mask, cpumask_of(cpu));
 	return mask;
 }
 
 static struct mask_info *add_cpus_to_mask(struct topology_cpu *tl_cpu,
 					  struct mask_info *book,
-					  struct mask_info *core,
-					  int one_core_per_cpu)
+					  struct mask_info *socket,
+					  int one_socket_per_cpu)
 {
 	unsigned int cpu;
 
-	for (cpu = find_first_bit(&tl_cpu->mask[0], TOPOLOGY_CPU_BITS);
-	     cpu < TOPOLOGY_CPU_BITS;
-	     cpu = find_next_bit(&tl_cpu->mask[0], TOPOLOGY_CPU_BITS, cpu + 1))
-	{
+	for_each_set_bit(cpu, &tl_cpu->mask[0], TOPOLOGY_CPU_BITS) {
 		unsigned int rcpu;
 		int lcpu;
 
 		rcpu = TOPOLOGY_CPU_BITS - 1 - cpu + tl_cpu->origin;
 		lcpu = smp_find_processor_id(rcpu);
-		if (lcpu >= 0) {
-			cpumask_set_cpu(lcpu, &book->mask);
-			cpu_book_id[lcpu] = book->id;
-			cpumask_set_cpu(lcpu, &core->mask);
-			if (one_core_per_cpu) {
-				cpu_core_id[lcpu] = rcpu;
-				core = core->next;
-			} else {
-				cpu_core_id[lcpu] = core->id;
-			}
-			cpu_set_polarization(lcpu, tl_cpu->pp);
+		if (lcpu < 0)
+			continue;
+		cpumask_set_cpu(lcpu, &book->mask);
+		cpu_topology[lcpu].book_id = book->id;
+		cpumask_set_cpu(lcpu, &socket->mask);
+		cpu_topology[lcpu].core_id = rcpu;
+		if (one_socket_per_cpu) {
+			cpu_topology[lcpu].socket_id = rcpu;
+			socket = socket->next;
+		} else {
+			cpu_topology[lcpu].socket_id = socket->id;
 		}
+		smp_cpu_set_polarization(lcpu, tl_cpu->pp);
 	}
-	return core;
+	return socket;
 }
 
 static void clear_masks(void)
 {
 	struct mask_info *info;
 
-	info = &core_info;
+	info = &socket_info;
 	while (info) {
 		cpumask_clear(&info->mask);
 		info = info->next;
@@ -123,9 +112,9 @@ static union topology_entry *next_tle(union topology_entry *tle)
 	return (union topology_entry *)((struct topology_container *)tle + 1);
 }
 
-static void __tl_to_cores_generic(struct sysinfo_15_1_x *info)
+static void __tl_to_masks_generic(struct sysinfo_15_1_x *info)
 {
-	struct mask_info *core = &core_info;
+	struct mask_info *socket = &socket_info;
 	struct mask_info *book = &book_info;
 	union topology_entry *tle, *end;
 
@@ -138,11 +127,11 @@ static void __tl_to_cores_generic(struct sysinfo_15_1_x *info)
 			book->id = tle->container.id;
 			break;
 		case 1:
-			core = core->next;
-			core->id = tle->container.id;
+			socket = socket->next;
+			socket->id = tle->container.id;
 			break;
 		case 0:
-			add_cpus_to_mask(&tle->cpu, book, core, 0);
+			add_cpus_to_mask(&tle->cpu, book, socket, 0);
 			break;
 		default:
 			clear_masks();
@@ -152,9 +141,9 @@ static void __tl_to_cores_generic(struct sysinfo_15_1_x *info)
 	}
 }
 
-static void __tl_to_cores_z10(struct sysinfo_15_1_x *info)
+static void __tl_to_masks_z10(struct sysinfo_15_1_x *info)
 {
-	struct mask_info *core = &core_info;
+	struct mask_info *socket = &socket_info;
 	struct mask_info *book = &book_info;
 	union topology_entry *tle, *end;
 
@@ -167,7 +156,7 @@ static void __tl_to_cores_z10(struct sysinfo_15_1_x *info)
 			book->id = tle->container.id;
 			break;
 		case 0:
-			core = add_cpus_to_mask(&tle->cpu, book, core, 1);
+			socket = add_cpus_to_mask(&tle->cpu, book, socket, 1);
 			break;
 		default:
 			clear_masks();
@@ -177,20 +166,20 @@ static void __tl_to_cores_z10(struct sysinfo_15_1_x *info)
 	}
 }
 
-static void tl_to_cores(struct sysinfo_15_1_x *info)
+static void tl_to_masks(struct sysinfo_15_1_x *info)
 {
 	struct cpuid cpu_id;
 
-	get_cpu_id(&cpu_id);
 	spin_lock_irq(&topology_lock);
+	get_cpu_id(&cpu_id);
 	clear_masks();
 	switch (cpu_id.machine) {
 	case 0x2097:
 	case 0x2098:
-		__tl_to_cores_z10(info);
+		__tl_to_masks_z10(info);
 		break;
 	default:
-		__tl_to_cores_generic(info);
+		__tl_to_masks_generic(info);
 	}
 	spin_unlock_irq(&topology_lock);
 }
@@ -201,7 +190,7 @@ static void topology_update_polarization_simple(void)
 
 	mutex_lock(&smp_cpu_state_mutex);
 	for_each_possible_cpu(cpu)
-		cpu_set_polarization(cpu, POLARIZATION_HRZ);
+		smp_cpu_set_polarization(cpu, POLARIZATION_HRZ);
 	mutex_unlock(&smp_cpu_state_mutex);
 }
 
@@ -231,31 +220,34 @@ int topology_set_cpu_management(int fc)
 	if (rc)
 		return -EBUSY;
 	for_each_possible_cpu(cpu)
-		cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 	return rc;
 }
 
-static void update_cpu_core_map(void)
+static void update_cpu_masks(void)
 {
 	unsigned long flags;
 	int cpu;
 
 	spin_lock_irqsave(&topology_lock, flags);
 	for_each_possible_cpu(cpu) {
-		cpu_core_map[cpu] = cpu_group_map(&core_info, cpu);
-		cpu_book_map[cpu] = cpu_group_map(&book_info, cpu);
+		cpu_topology[cpu].core_mask = cpu_group_map(&socket_info, cpu);
+		cpu_topology[cpu].book_mask = cpu_group_map(&book_info, cpu);
+		if (!MACHINE_HAS_TOPOLOGY) {
+			cpu_topology[cpu].core_id = cpu;
+			cpu_topology[cpu].socket_id = cpu;
+			cpu_topology[cpu].book_id = cpu;
+		}
 	}
 	spin_unlock_irqrestore(&topology_lock, flags);
 }
 
 void store_topology(struct sysinfo_15_1_x *info)
 {
-	int rc;
-
-	rc = stsi(info, 15, 1, 3);
-	if (rc != -ENOSYS)
-		return;
-	stsi(info, 15, 1, 2);
+	if (topology_max_mnest >= 3)
+		stsi(info, 15, 1, 3);
+	else
+		stsi(info, 15, 1, 2);
 }
 
 int arch_update_cpu_topology(void)
@@ -265,13 +257,13 @@ int arch_update_cpu_topology(void)
 	int cpu;
 
 	if (!MACHINE_HAS_TOPOLOGY) {
-		update_cpu_core_map();
+		update_cpu_masks();
 		topology_update_polarization_simple();
 		return 0;
 	}
 	store_topology(info);
-	tl_to_cores(info);
-	update_cpu_core_map();
+	tl_to_masks(info);
+	update_cpu_masks();
 	for_each_online_cpu(cpu) {
 		dev = get_cpu_device(cpu);
 		kobject_uevent(&dev->kobj, KOBJ_CHANGE);
@@ -341,7 +333,9 @@ static void __init alloc_masks(struct sysinfo_15_1_x *info,
 		nr_masks *= info->mag[TOPOLOGY_NR_MAG - offset - 1 - i];
 	nr_masks = max(nr_masks, 1);
 	for (i = 0; i < nr_masks; i++) {
-		mask->next = alloc_bootmem(sizeof(struct mask_info));
+		mask->next = alloc_bootmem_align(
+			roundup_pow_of_two(sizeof(struct mask_info)),
+			roundup_pow_of_two(sizeof(struct mask_info)));
 		mask = mask->next;
 	}
 }
@@ -360,7 +354,7 @@ void __init s390_init_cpu_topology(void)
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
 		printk(KERN_CONT " %d", info->mag[i]);
 	printk(KERN_CONT " / %d\n", info->mnest);
-	alloc_masks(info, &core_info, 1);
+	alloc_masks(info, &socket_info, 1);
 	alloc_masks(info, &book_info, 2);
 }
 
@@ -415,7 +409,7 @@ static ssize_t cpu_polarization_show(struct device *dev,
 	ssize_t count;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	switch (cpu_read_polarization(cpu)) {
+	switch (smp_cpu_get_polarization(cpu)) {
 	case POLARIZATION_HRZ:
 		count = sprintf(buf, "horizontal\n");
 		break;
@@ -451,6 +445,23 @@ int topology_cpu_init(struct cpu *cpu)
 	return sysfs_create_group(&cpu->dev.kobj, &topology_cpu_attr_group);
 }
 
+const struct cpumask *cpu_coregroup_mask(int cpu)
+{
+	return &cpu_topology[cpu].core_mask;
+}
+
+static const struct cpumask *cpu_book_mask(int cpu)
+{
+	return &cpu_topology[cpu].book_mask;
+}
+
+static struct sched_domain_topology_level s390_topology[] = {
+	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
+	{ cpu_book_mask, SD_INIT_NAME(BOOK) },
+	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
+	{ NULL, },
+};
+
 static int __init topology_init(void)
 {
 	if (!MACHINE_HAS_TOPOLOGY) {
@@ -459,7 +470,9 @@ static int __init topology_init(void)
 	}
 	set_topology_timer();
 out:
-	update_cpu_core_map();
+
+	set_sched_topology(s390_topology);
+
 	return device_create_file(cpu_subsys.dev_root, &dev_attr_dispatching);
 }
 device_initcall(topology_init);

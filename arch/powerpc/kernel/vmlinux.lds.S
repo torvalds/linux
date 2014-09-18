@@ -38,9 +38,6 @@ jiffies = jiffies_64 + 4;
 #endif
 SECTIONS
 {
-	. = 0;
-	reloc_start = .;
-
 	. = KERNELBASE;
 
 /*
@@ -218,6 +215,11 @@ SECTIONS
 
 	.got : AT(ADDR(.got) - LOAD_OFFSET) {
 		__toc_start = .;
+#ifndef CONFIG_RELOCATABLE
+		__prom_init_toc_start = .;
+		arch/powerpc/kernel/prom_init.o*(.toc .got)
+		__prom_init_toc_end = .;
+#endif
 		*(.got)
 		*(.toc)
 	}

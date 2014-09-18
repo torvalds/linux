@@ -44,6 +44,13 @@ enum mode_set_atomic {
 	ENTER_ATOMIC_MODE_SET,
 };
 
+/**
+ * drm_crtc_helper_funcs - helper operations for CRTCs
+ * @mode_fixup: try to fixup proposed mode for this connector
+ * @mode_set: set this mode
+ *
+ * The helper operations are called by the mid-layer CRTC helper.
+ */
 struct drm_crtc_helper_funcs {
 	/*
 	 * Control power levels on the CRTC.  If the mode passed in is
@@ -55,7 +62,7 @@ struct drm_crtc_helper_funcs {
 
 	/* Provider can fixup or change mode timings before modeset occurs */
 	bool (*mode_fixup)(struct drm_crtc *crtc,
-			   struct drm_display_mode *mode,
+			   const struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode);
 	/* Actually set the mode */
 	int (*mode_set)(struct drm_crtc *crtc, struct drm_display_mode *mode,
@@ -76,13 +83,20 @@ struct drm_crtc_helper_funcs {
 	void (*disable)(struct drm_crtc *crtc);
 };
 
+/**
+ * drm_encoder_helper_funcs - helper operations for encoders
+ * @mode_fixup: try to fixup proposed mode for this connector
+ * @mode_set: set this mode
+ *
+ * The helper operations are called by the mid-layer CRTC helper.
+ */
 struct drm_encoder_helper_funcs {
 	void (*dpms)(struct drm_encoder *encoder, int mode);
 	void (*save)(struct drm_encoder *encoder);
 	void (*restore)(struct drm_encoder *encoder);
 
 	bool (*mode_fixup)(struct drm_encoder *encoder,
-			   struct drm_display_mode *mode,
+			   const struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode);
 	void (*prepare)(struct drm_encoder *encoder);
 	void (*commit)(struct drm_encoder *encoder);
@@ -97,14 +111,20 @@ struct drm_encoder_helper_funcs {
 	void (*disable)(struct drm_encoder *encoder);
 };
 
+/**
+ * drm_connector_helper_funcs - helper operations for connectors
+ * @get_modes: get mode list for this connector
+ * @mode_valid (optional): is this mode valid on the given connector?
+ *
+ * The helper operations are called by the mid-layer CRTC helper.
+ */
 struct drm_connector_helper_funcs {
 	int (*get_modes)(struct drm_connector *connector);
-	int (*mode_valid)(struct drm_connector *connector,
-			  struct drm_display_mode *mode);
+	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
+					   struct drm_display_mode *mode);
 	struct drm_encoder *(*best_encoder)(struct drm_connector *connector);
 };
 
-extern int drm_helper_probe_single_connector_modes(struct drm_connector *connector, uint32_t maxX, uint32_t maxY);
 extern void drm_helper_disable_unused_functions(struct drm_device *dev);
 extern int drm_crtc_helper_set_config(struct drm_mode_set *set);
 extern bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
@@ -116,8 +136,10 @@ extern bool drm_helper_encoder_in_use(struct drm_encoder *encoder);
 
 extern void drm_helper_connector_dpms(struct drm_connector *connector, int mode);
 
-extern int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
-					  struct drm_mode_fb_cmd2 *mode_cmd);
+extern void drm_helper_move_panel_connectors_to_head(struct drm_device *);
+
+extern void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
+					   struct drm_mode_fb_cmd2 *mode_cmd);
 
 static inline void drm_crtc_helper_add(struct drm_crtc *crtc,
 				       const struct drm_crtc_helper_funcs *funcs)
@@ -137,14 +159,22 @@ static inline void drm_connector_helper_add(struct drm_connector *connector,
 	connector->helper_private = (void *)funcs;
 }
 
-extern int drm_helper_resume_force_mode(struct drm_device *dev);
+extern void drm_helper_resume_force_mode(struct drm_device *dev);
+
+/* drm_probe_helper.c */
+extern int drm_helper_probe_single_connector_modes(struct drm_connector
+						   *connector, uint32_t maxX,
+						   uint32_t maxY);
+extern int drm_helper_probe_single_connector_modes_nomerge(struct drm_connector
+							   *connector,
+							   uint32_t maxX,
+							   uint32_t maxY);
 extern void drm_kms_helper_poll_init(struct drm_device *dev);
 extern void drm_kms_helper_poll_fini(struct drm_device *dev);
-extern void drm_helper_hpd_irq_event(struct drm_device *dev);
+extern bool drm_helper_hpd_irq_event(struct drm_device *dev);
+extern void drm_kms_helper_hotplug_event(struct drm_device *dev);
 
 extern void drm_kms_helper_poll_disable(struct drm_device *dev);
 extern void drm_kms_helper_poll_enable(struct drm_device *dev);
-
-extern int drm_format_num_planes(uint32_t format);
 
 #endif

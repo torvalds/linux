@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-exynos4/include/mach/memory.h
- *
+/*
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
@@ -15,8 +14,13 @@
 
 #define PLAT_PHYS_OFFSET		UL(0x40000000)
 
+#ifndef CONFIG_ARM_LPAE
 /* Maximum of 256MiB in one bank */
 #define MAX_PHYSMEM_BITS	32
 #define SECTION_SIZE_BITS	28
+#else
+#define MAX_PHYSMEM_BITS	36
+#define SECTION_SIZE_BITS	31
+#endif
 
 #endif /* __ASM_ARCH_MEMORY_H */

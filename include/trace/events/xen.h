@@ -377,6 +377,14 @@ DECLARE_EVENT_CLASS(xen_mmu_pgd,
 DEFINE_XEN_MMU_PGD_EVENT(xen_mmu_pgd_pin);
 DEFINE_XEN_MMU_PGD_EVENT(xen_mmu_pgd_unpin);
 
+TRACE_EVENT(xen_mmu_flush_tlb_all,
+	    TP_PROTO(int x),
+	    TP_ARGS(x),
+	    TP_STRUCT__entry(__array(char, x, 0)),
+	    TP_fast_assign((void)x),
+	    TP_printk("%s", "")
+	);
+
 TRACE_EVENT(xen_mmu_flush_tlb,
 	    TP_PROTO(int x),
 	    TP_ARGS(x),
@@ -397,18 +405,20 @@ TRACE_EVENT(xen_mmu_flush_tlb_single,
 
 TRACE_EVENT(xen_mmu_flush_tlb_others,
 	    TP_PROTO(const struct cpumask *cpus, struct mm_struct *mm,
-		     unsigned long addr),
-	    TP_ARGS(cpus, mm, addr),
+		     unsigned long addr, unsigned long end),
+	    TP_ARGS(cpus, mm, addr, end),
 	    TP_STRUCT__entry(
 		    __field(unsigned, ncpus)
 		    __field(struct mm_struct *, mm)
 		    __field(unsigned long, addr)
+		    __field(unsigned long, end)
 		    ),
 	    TP_fast_assign(__entry->ncpus = cpumask_weight(cpus);
 			   __entry->mm = mm;
-			   __entry->addr = addr),
-	    TP_printk("ncpus %d mm %p addr %lx",
-		      __entry->ncpus, __entry->mm, __entry->addr)
+			   __entry->addr = addr,
+			   __entry->end = end),
+	    TP_printk("ncpus %d mm %p addr %lx, end %lx",
+		      __entry->ncpus, __entry->mm, __entry->addr, __entry->end)
 	);
 
 TRACE_EVENT(xen_mmu_write_cr3,

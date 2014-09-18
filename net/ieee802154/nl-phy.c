@@ -35,8 +35,8 @@
 
 #include "ieee802154.h"
 
-static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 pid,
-	u32 seq, int flags, struct wpan_phy *phy)
+static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
+				  u32 seq, int flags, struct wpan_phy *phy)
 {
 	void *hdr;
 	int i, pages = 0;
@@ -48,23 +48,23 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 pid,
 		return -EMSGSIZE;
 
 	hdr = genlmsg_put(msg, 0, seq, &nl802154_family, flags,
-		IEEE802154_LIST_PHY);
+			  IEEE802154_LIST_PHY);
 	if (!hdr)
 		goto out;
 
 	mutex_lock(&phy->pib_lock);
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy));
-
-	NLA_PUT_U8(msg, IEEE802154_ATTR_PAGE, phy->current_page);
-	NLA_PUT_U8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel);
+	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_PAGE, phy->current_page) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel))
+		goto nla_put_failure;
 	for (i = 0; i < 32; i++) {
 		if (phy->channels_supported[i])
 			buf[pages++] = phy->channels_supported[i] | (i << 27);
 	}
-	if (pages)
-		NLA_PUT(msg, IEEE802154_ATTR_CHANNEL_PAGE_LIST,
-				pages * sizeof(uint32_t), buf);
-
+	if (pages &&
+	    nla_put(msg, IEEE802154_ATTR_CHANNEL_PAGE_LIST,
+		    pages * sizeof(uint32_t), buf))
+		goto nla_put_failure;
 	mutex_unlock(&phy->pib_lock);
 	kfree(buf);
 	return genlmsg_end(msg, hdr);
@@ -77,11 +77,11 @@ out:
 	return -EMSGSIZE;
 }
 
-static int ieee802154_list_phy(struct sk_buff *skb,
-	struct genl_info *info)
+int ieee802154_list_phy(struct sk_buff *skb, struct genl_info *info)
 {
 	/* Request for interface name, index, type, IEEE address,
-	   PAN Id, short address */
+	 * PAN Id, short address
+	 */
 	struct sk_buff *msg;
 	struct wpan_phy *phy;
 	const char *name;
@@ -101,12 +101,12 @@ static int ieee802154_list_phy(struct sk_buff *skb,
 	if (!phy)
 		return -ENODEV;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
 		goto out_dev;
 
-	rc = ieee802154_nl_fill_phy(msg, info->snd_pid, info->snd_seq,
-			0, phy);
+	rc = ieee802154_nl_fill_phy(msg, info->snd_portid, info->snd_seq,
+				    0, phy);
 	if (rc < 0)
 		goto out_free;
 
@@ -118,7 +118,6 @@ out_free:
 out_dev:
 	wpan_phy_put(phy);
 	return rc;
-
 }
 
 struct dump_phy_data {
@@ -138,10 +137,10 @@ static int ieee802154_dump_phy_iter(struct wpan_phy *phy, void *_data)
 		return 0;
 
 	rc = ieee802154_nl_fill_phy(data->skb,
-			NETLINK_CB(data->cb->skb).pid,
-			data->cb->nlh->nlmsg_seq,
-			NLM_F_MULTI,
-			phy);
+				    NETLINK_CB(data->cb->skb).portid,
+				    data->cb->nlh->nlmsg_seq,
+				    NLM_F_MULTI,
+				    phy);
 
 	if (rc < 0) {
 		data->idx--;
@@ -151,8 +150,7 @@ static int ieee802154_dump_phy_iter(struct wpan_phy *phy, void *_data)
 	return 0;
 }
 
-static int ieee802154_dump_phy(struct sk_buff *skb,
-	struct netlink_callback *cb)
+int ieee802154_dump_phy(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct dump_phy_data data = {
 		.cb = cb,
@@ -170,8 +168,7 @@ static int ieee802154_dump_phy(struct sk_buff *skb,
 	return skb->len;
 }
 
-static int ieee802154_add_iface(struct sk_buff *skb,
-		struct genl_info *info)
+int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 {
 	struct sk_buff *msg;
 	struct wpan_phy *phy;
@@ -179,6 +176,7 @@ static int ieee802154_add_iface(struct sk_buff *skb,
 	const char *devname;
 	int rc = -ENOBUFS;
 	struct net_device *dev;
+	int type = __IEEE802154_DEV_INVALID;
 
 	pr_debug("%s\n", __func__);
 
@@ -221,7 +219,15 @@ static int ieee802154_add_iface(struct sk_buff *skb,
 		goto nla_put_failure;
 	}
 
-	dev = phy->add_iface(phy, devname);
+	if (info->attrs[IEEE802154_ATTR_DEV_TYPE]) {
+		type = nla_get_u8(info->attrs[IEEE802154_ATTR_DEV_TYPE]);
+		if (type >= __IEEE802154_DEV_MAX) {
+			rc = -EINVAL;
+			goto nla_put_failure;
+		}
+	}
+
+	dev = phy->add_iface(phy, devname, type);
 	if (IS_ERR(dev)) {
 		rc = PTR_ERR(dev);
 		goto nla_put_failure;
@@ -232,10 +238,9 @@ static int ieee802154_add_iface(struct sk_buff *skb,
 
 		addr.sa_family = ARPHRD_IEEE802154;
 		nla_memcpy(&addr.sa_data, info->attrs[IEEE802154_ATTR_HW_ADDR],
-				IEEE802154_ADDR_LEN);
+			   IEEE802154_ADDR_LEN);
 
-		/*
-		 * strangely enough, some callbacks (inetdev_event) from
+		/* strangely enough, some callbacks (inetdev_event) from
 		 * dev_set_mac_address require RTNL_LOCK
 		 */
 		rtnl_lock();
@@ -245,9 +250,9 @@ static int ieee802154_add_iface(struct sk_buff *skb,
 			goto dev_unregister;
 	}
 
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy));
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_DEV_NAME, dev->name);
-
+	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
+	    nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name))
+		goto nla_put_failure;
 	dev_put(dev);
 
 	wpan_phy_put(phy);
@@ -266,8 +271,7 @@ out_dev:
 	return rc;
 }
 
-static int ieee802154_del_iface(struct sk_buff *skb,
-		struct genl_info *info)
+int ieee802154_del_iface(struct sk_buff *skb, struct genl_info *info)
 {
 	struct sk_buff *msg;
 	struct wpan_phy *phy;
@@ -333,10 +337,9 @@ static int ieee802154_del_iface(struct sk_buff *skb,
 
 	rtnl_unlock();
 
-
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy));
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_DEV_NAME, name);
-
+	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
+	    nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, name))
+		goto nla_put_failure;
 	wpan_phy_put(phy);
 
 	return ieee802154_nl_reply(msg, info);
@@ -349,29 +352,4 @@ out_dev:
 		dev_put(dev);
 
 	return rc;
-}
-
-static struct genl_ops ieee802154_phy_ops[] = {
-	IEEE802154_DUMP(IEEE802154_LIST_PHY, ieee802154_list_phy,
-							ieee802154_dump_phy),
-	IEEE802154_OP(IEEE802154_ADD_IFACE, ieee802154_add_iface),
-	IEEE802154_OP(IEEE802154_DEL_IFACE, ieee802154_del_iface),
-};
-
-/*
- * No need to unregister as family unregistration will do it.
- */
-int nl802154_phy_register(void)
-{
-	int i;
-	int rc;
-
-	for (i = 0; i < ARRAY_SIZE(ieee802154_phy_ops); i++) {
-		rc = genl_register_ops(&nl802154_family,
-				&ieee802154_phy_ops[i]);
-		if (rc)
-			return rc;
-	}
-
-	return 0;
 }

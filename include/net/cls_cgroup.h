@@ -16,55 +16,42 @@
 #include <linux/cgroup.h>
 #include <linux/hardirq.h>
 #include <linux/rcupdate.h>
+#include <net/sock.h>
 
-#ifdef CONFIG_CGROUPS
-struct cgroup_cls_state
-{
+#ifdef CONFIG_CGROUP_NET_CLASSID
+struct cgroup_cls_state {
 	struct cgroup_subsys_state css;
 	u32 classid;
 };
 
-#ifdef CONFIG_NET_CLS_CGROUP
+struct cgroup_cls_state *task_cls_state(struct task_struct *p);
+
 static inline u32 task_cls_classid(struct task_struct *p)
 {
-	int classid;
+	u32 classid;
 
 	if (in_interrupt())
 		return 0;
 
 	rcu_read_lock();
-	classid = container_of(task_subsys_state(p, net_cls_subsys_id),
+	classid = container_of(task_css(p, net_cls_cgrp_id),
 			       struct cgroup_cls_state, css)->classid;
 	rcu_read_unlock();
 
 	return classid;
 }
-#else
-extern int net_cls_subsys_id;
 
-static inline u32 task_cls_classid(struct task_struct *p)
+static inline void sock_update_classid(struct sock *sk)
 {
-	int id;
-	u32 classid = 0;
+	u32 classid;
 
-	if (in_interrupt())
-		return 0;
-
-	rcu_read_lock();
-	id = rcu_dereference_index_check(net_cls_subsys_id,
-					 rcu_read_lock_held());
-	if (id >= 0)
-		classid = container_of(task_subsys_state(p, id),
-				       struct cgroup_cls_state, css)->classid;
-	rcu_read_unlock();
-
-	return classid;
+	classid = task_cls_classid(current);
+	if (classid != sk->sk_classid)
+		sk->sk_classid = classid;
 }
-#endif
-#else
-static inline u32 task_cls_classid(struct task_struct *p)
+#else /* !CONFIG_CGROUP_NET_CLASSID */
+static inline void sock_update_classid(struct sock *sk)
 {
-	return 0;
 }
-#endif
+#endif /* CONFIG_CGROUP_NET_CLASSID */
 #endif  /* _NET_CLS_CGROUP_H */

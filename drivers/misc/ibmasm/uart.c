@@ -33,7 +33,7 @@
 
 void ibmasm_register_uart(struct service_processor *sp)
 {
-	struct uart_port uport;
+	struct uart_8250_port uart;
 	void __iomem *iomem_base;
 
 	iomem_base = sp->base_address + SCOUT_COM_B_BASE;
@@ -47,14 +47,14 @@ void ibmasm_register_uart(struct service_processor *sp)
 		return;
 	}
 
-	memset(&uport, 0, sizeof(struct uart_port));
-	uport.irq	= sp->irq;
-	uport.uartclk	= 3686400;
-	uport.flags	= UPF_SHARE_IRQ;
-	uport.iotype	= UPIO_MEM;
-	uport.membase	= iomem_base;
+	memset(&uart, 0, sizeof(uart));
+	uart.port.irq		= sp->irq;
+	uart.port.uartclk	= 3686400;
+	uart.port.flags		= UPF_SHARE_IRQ;
+	uart.port.iotype	= UPIO_MEM;
+	uart.port.membase	= iomem_base;
 
-	sp->serial_line = serial8250_register_port(&uport);
+	sp->serial_line = serial8250_register_8250_port(&uart);
 	if (sp->serial_line < 0) {
 		dev_err(sp->dev, "Failed to register serial port\n");
 		return;

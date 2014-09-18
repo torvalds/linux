@@ -36,7 +36,8 @@
 	#address-cells = <2>;
 	#size-cells = <1>;
 	compatible = "fsl,p1023-elbc", "fsl,elbc", "simple-bus";
-	interrupts = <19 2 0 0>;
+	interrupts = <19 2 0 0>,
+		     <16 2 0 0>;
 };
 
 /* controller at 0xa000 */
@@ -148,6 +149,7 @@
 
 	crypto: crypto@300000 {
 		compatible = "fsl,sec-v4.2", "fsl,sec-v4.0";
+		fsl,sec-era = <3>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x30000 0x10000>;

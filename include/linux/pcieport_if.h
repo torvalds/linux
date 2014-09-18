@@ -23,7 +23,7 @@
 #define PCIE_PORT_SERVICE_VC		(1 << PCIE_PORT_SERVICE_VC_SHIFT)
 
 struct pcie_device {
-	int 		irq;	    /* Service IRQ/MSI/MSI-X Vector */
+	int		irq;	    /* Service IRQ/MSI/MSI-X Vector */
 	struct pci_dev *port;	    /* Root/Upstream/Downstream Port */
 	u32		service;    /* Port service this device represents */
 	void		*priv_data; /* Service Private Data */
@@ -49,7 +49,7 @@ struct pcie_port_service_driver {
 	int (*resume) (struct pcie_device *dev);
 
 	/* Service Error Recovery Handler */
-	struct pci_error_handlers *err_handler;
+	const struct pci_error_handlers *err_handler;
 
 	/* Link Reset Capability - AER service driver specific */
 	pci_ers_result_t (*reset_link) (struct pci_dev *dev);
@@ -62,7 +62,7 @@ struct pcie_port_service_driver {
 #define to_service_driver(d) \
 	container_of(d, struct pcie_port_service_driver, driver)
 
-extern int pcie_port_service_register(struct pcie_port_service_driver *new);
-extern void pcie_port_service_unregister(struct pcie_port_service_driver *new);
+int pcie_port_service_register(struct pcie_port_service_driver *new);
+void pcie_port_service_unregister(struct pcie_port_service_driver *new);
 
 #endif /* _PCIEPORT_IF_H_ */

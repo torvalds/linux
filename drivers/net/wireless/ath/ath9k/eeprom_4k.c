@@ -32,16 +32,12 @@ static int ath9k_hw_4k_get_eeprom_rev(struct ath_hw *ah)
 
 static bool __ath9k_hw_4k_fill_eeprom(struct ath_hw *ah)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eep_data = (u16 *)&ah->eeprom.map4k;
 	int addr, eep_start_loc = 64;
 
 	for (addr = 0; addr < SIZE_EEPROM_4K; addr++) {
-		if (!ath9k_hw_nvram_read(common, addr + eep_start_loc, eep_data)) {
-			ath_dbg(common, EEPROM,
-				"Unable to read eeprom region\n");
+		if (!ath9k_hw_nvram_read(ah, addr + eep_start_loc, eep_data))
 			return false;
-		}
 		eep_data++;
 	}
 
@@ -133,10 +129,10 @@ static u32 ath9k_hw_4k_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	struct base_eep_header_4k *pBase = &eep->baseEepHeader;
 
 	if (!dump_base_hdr) {
-		len += snprintf(buf + len, size - len,
-				"%20s :\n", "2GHz modal Header");
-		len += ath9k_dump_4k_modal_eeprom(buf, len, size,
-						  &eep->modalHeader);
+		len += scnprintf(buf + len, size - len,
+				 "%20s :\n", "2GHz modal Header");
+		len = ath9k_dump_4k_modal_eeprom(buf, len, size,
+						 &eep->modalHeader);
 		goto out;
 	}
 
@@ -164,8 +160,8 @@ static u32 ath9k_hw_4k_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	PR_EEP("Cal Bin Build", (pBase->binBuildNumber >> 8) & 0xFF);
 	PR_EEP("TX Gain type", pBase->txGainType);
 
-	len += snprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
-			pBase->macAddr);
+	len += scnprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
+			 pBase->macAddr);
 
 out:
 	if (len > size)
@@ -188,8 +184,7 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 {
 #define EEPROM_4K_SIZE (sizeof(struct ar5416_eeprom_4k) / sizeof(u16))
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ar5416_eeprom_4k *eep =
-		(struct ar5416_eeprom_4k *) &ah->eeprom.map4k;
+	struct ar5416_eeprom_4k *eep = &ah->eeprom.map4k;
 	u16 *eepdata, temp, magic, magic2;
 	u32 sum = 0, el;
 	bool need_swap = false;
@@ -197,7 +192,7 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 
 
 	if (!ath9k_hw_use_flash(ah)) {
-		if (!ath9k_hw_nvram_read(common, AR5416_EEPROM_MAGIC_OFFSET,
+		if (!ath9k_hw_nvram_read(ah, AR5416_EEPROM_MAGIC_OFFSET,
 					 &magic)) {
 			ath_err(common, "Reading Magic # failed\n");
 			return false;
@@ -817,6 +812,7 @@ static void ath9k_hw_4k_set_gain(struct ath_hw *ah,
 static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 					 struct ath9k_channel *chan)
 {
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct modal_eep_4k_header *pModal;
 	struct ar5416_eeprom_4k *eep = &ah->eeprom.map4k;
 	struct base_eep_header_4k *pBase = &eep->baseEepHeader;
@@ -863,6 +859,24 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 
 		REG_WRITE(ah, AR_PHY_CCK_DETECT, regVal);
 		regVal = REG_READ(ah, AR_PHY_CCK_DETECT);
+
+		if (pCap->hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) {
+			/*
+			 * If diversity combining is enabled,
+			 * set MAIN to LNA1 and ALT to LNA2 initially.
+			 */
+			regVal = REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+			regVal &= (~(AR_PHY_9285_ANT_DIV_MAIN_LNACONF |
+				     AR_PHY_9285_ANT_DIV_ALT_LNACONF));
+
+			regVal |= (ATH_ANT_DIV_COMB_LNA1 <<
+				   AR_PHY_9285_ANT_DIV_MAIN_LNACONF_S);
+			regVal |= (ATH_ANT_DIV_COMB_LNA2 <<
+				   AR_PHY_9285_ANT_DIV_ALT_LNACONF_S);
+			regVal &= (~(AR_PHY_9285_FAST_DIV_BIAS));
+			regVal |= (0 << AR_PHY_9285_FAST_DIV_BIAS_S);
+			REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regVal);
+		}
 	}
 
 	if (pModal->version >= 2) {
@@ -1071,31 +1085,7 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 
 static u16 ath9k_hw_4k_get_spur_channel(struct ath_hw *ah, u16 i, bool is2GHz)
 {
-#define EEP_MAP4K_SPURCHAN \
-	(ah->eeprom.map4k.modalHeader.spurChans[i].spurChan)
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	u16 spur_val = AR_NO_SPUR;
-
-	ath_dbg(common, ANI, "Getting spur idx:%d is2Ghz:%d val:%x\n",
-		i, is2GHz, ah->config.spurchans[i][is2GHz]);
-
-	switch (ah->config.spurmode) {
-	case SPUR_DISABLE:
-		break;
-	case SPUR_ENABLE_IOCTL:
-		spur_val = ah->config.spurchans[i][is2GHz];
-		ath_dbg(common, ANI, "Getting spur val from new loc. %d\n",
-			spur_val);
-		break;
-	case SPUR_ENABLE_EEPROM:
-		spur_val = EEP_MAP4K_SPURCHAN;
-		break;
-	}
-
-	return spur_val;
-
-#undef EEP_MAP4K_SPURCHAN
+	return ah->eeprom.map4k.modalHeader.spurChans[i].spurChan;
 }
 
 const struct eeprom_ops eep_4k_ops = {

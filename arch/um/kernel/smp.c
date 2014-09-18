@@ -3,24 +3,24 @@
  * Licensed under the GPL
  */
 
-#include "linux/percpu.h"
-#include "asm/pgalloc.h"
-#include "asm/tlb.h"
+#include <linux/percpu.h>
+#include <asm/pgalloc.h>
+#include <asm/tlb.h>
 
 #ifdef CONFIG_SMP
 
-#include "linux/sched.h"
-#include "linux/module.h"
-#include "linux/threads.h"
-#include "linux/interrupt.h"
-#include "linux/err.h"
-#include "linux/hardirq.h"
-#include "asm/smp.h"
-#include "asm/processor.h"
-#include "asm/spinlock.h"
-#include "kern.h"
-#include "irq_user.h"
-#include "os.h"
+#include <linux/sched.h>
+#include <linux/module.h>
+#include <linux/threads.h>
+#include <linux/interrupt.h>
+#include <linux/err.h>
+#include <linux/hardirq.h>
+#include <asm/smp.h>
+#include <asm/processor.h>
+#include <asm/spinlock.h>
+#include <kern.h>
+#include <irq_user.h>
+#include <os.h>
 
 /* Per CPU bogomips and other parameters
  * The only piece used here is the ipi pipe, which is set before SMP is
@@ -140,7 +140,7 @@ void smp_prepare_boot_cpu(void)
 	set_cpu_online(smp_processor_id(), true);
 }
 
-int __cpu_up(unsigned int cpu)
+int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	cpu_set(cpu, smp_commenced_mask);
 	while (!cpu_online(cpu))

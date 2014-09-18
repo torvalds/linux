@@ -198,10 +198,10 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova)
 
 /**
  * alloc_iova - allocates an iova
- * @iovad - iova domain in question
- * @size - size of page frames to allocate
- * @limit_pfn - max limit address
- * @size_aligned - set if size_aligned address range is required
+ * @iovad: - iova domain in question
+ * @size: - size of page frames to allocate
+ * @limit_pfn: - max limit address
+ * @size_aligned: - set if size_aligned address range is required
  * This function allocates an iova in the range limit_pfn to IOVA_START_PFN
  * looking from limit_pfn instead from IOVA_START_PFN. If the size_aligned
  * flag is set then the allocated address iova->pfn_lo will be naturally
@@ -238,8 +238,8 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 
 /**
  * find_iova - find's an iova for a given pfn
- * @iovad - iova domain in question.
- * pfn - page frame number
+ * @iovad: - iova domain in question.
+ * @pfn: - page frame number
  * This function finds and returns an iova belonging to the
  * given doamin which matches the given pfn.
  */
@@ -260,7 +260,7 @@ struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn)
 			/* We are not holding the lock while this iova
 			 * is referenced by the caller as the same thread
 			 * which called this function also calls __free_iova()
-			 * and it is by desing that only one thread can possibly
+			 * and it is by design that only one thread can possibly
 			 * reference a particular iova and hence no conflict.
 			 */
 			return iova;
@@ -342,19 +342,30 @@ __is_range_overlap(struct rb_node *node,
 	return 0;
 }
 
+static inline struct iova *
+alloc_and_init_iova(unsigned long pfn_lo, unsigned long pfn_hi)
+{
+	struct iova *iova;
+
+	iova = alloc_iova_mem();
+	if (iova) {
+		iova->pfn_lo = pfn_lo;
+		iova->pfn_hi = pfn_hi;
+	}
+
+	return iova;
+}
+
 static struct iova *
 __insert_new_range(struct iova_domain *iovad,
 	unsigned long pfn_lo, unsigned long pfn_hi)
 {
 	struct iova *iova;
 
-	iova = alloc_iova_mem();
-	if (!iova)
-		return iova;
+	iova = alloc_and_init_iova(pfn_lo, pfn_hi);
+	if (iova)
+		iova_insert_rbtree(&iovad->rbroot, iova);
 
-	iova->pfn_hi = pfn_hi;
-	iova->pfn_lo = pfn_lo;
-	iova_insert_rbtree(&iovad->rbroot, iova);
 	return iova;
 }
 
@@ -432,4 +443,45 @@ copy_reserved_iova(struct iova_domain *from, struct iova_domain *to)
 				iova->pfn_lo, iova->pfn_lo);
 	}
 	spin_unlock_irqrestore(&from->iova_rbtree_lock, flags);
+}
+
+struct iova *
+split_and_remove_iova(struct iova_domain *iovad, struct iova *iova,
+		      unsigned long pfn_lo, unsigned long pfn_hi)
+{
+	unsigned long flags;
+	struct iova *prev = NULL, *next = NULL;
+
+	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+	if (iova->pfn_lo < pfn_lo) {
+		prev = alloc_and_init_iova(iova->pfn_lo, pfn_lo - 1);
+		if (prev == NULL)
+			goto error;
+	}
+	if (iova->pfn_hi > pfn_hi) {
+		next = alloc_and_init_iova(pfn_hi + 1, iova->pfn_hi);
+		if (next == NULL)
+			goto error;
+	}
+
+	__cached_rbnode_delete_update(iovad, iova);
+	rb_erase(&iova->node, &iovad->rbroot);
+
+	if (prev) {
+		iova_insert_rbtree(&iovad->rbroot, prev);
+		iova->pfn_lo = pfn_lo;
+	}
+	if (next) {
+		iova_insert_rbtree(&iovad->rbroot, next);
+		iova->pfn_hi = pfn_hi;
+	}
+	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+
+	return iova;
+
+error:
+	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+	if (prev)
+		free_iova_mem(prev);
+	return NULL;
 }

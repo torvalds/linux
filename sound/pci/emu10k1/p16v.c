@@ -168,7 +168,7 @@ static void snd_p16v_pcm_free_substream(struct snd_pcm_runtime *runtime)
 	struct snd_emu10k1_pcm *epcm = runtime->private_data;
   
 	if (epcm) {
-        	/* snd_printk(KERN_DEBUG "epcm free: %p\n", epcm); */
+		/* dev_dbg(emu->card->dev, "epcm free: %p\n", epcm); */
 		kfree(epcm);
 	}
 }
@@ -183,14 +183,14 @@ static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substrea
 	int err;
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
-        /* snd_printk(KERN_DEBUG "epcm kcalloc: %p\n", epcm); */
+	/* dev_dbg(emu->card->dev, "epcm kcalloc: %p\n", epcm); */
 
 	if (epcm == NULL)
 		return -ENOMEM;
 	epcm->emu = emu;
 	epcm->substream = substream;
 	/*
-	snd_printk(KERN_DEBUG "epcm device=%d, channel_id=%d\n",
+	dev_dbg(emu->card->dev, "epcm device=%d, channel_id=%d\n",
 		   substream->pcm->device, channel_id);
 	*/
 	runtime->private_data = epcm;
@@ -203,10 +203,10 @@ static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substrea
 
         channel->use=1;
 #if 0 /* debug */
-	snd_printk(KERN_DEBUG
+	dev_dbg(emu->card->dev,
 		   "p16v: open channel_id=%d, channel=%p, use=0x%x\n",
 		   channel_id, channel, channel->use);
-	printk(KERN_DEBUG "open:channel_id=%d, chip=%p, channel=%p\n",
+	dev_dbg(emu->card->dev, "open:channel_id=%d, chip=%p, channel=%p\n",
 	       channel_id, chip, channel);
 #endif /* debug */
 	/* channel->interrupt = snd_p16v_pcm_channel_interrupt; */
@@ -231,14 +231,14 @@ static int snd_p16v_pcm_open_capture_channel(struct snd_pcm_substream *substream
 	int err;
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
-	/* snd_printk(KERN_DEBUG "epcm kcalloc: %p\n", epcm); */
+	/* dev_dbg(emu->card->dev, "epcm kcalloc: %p\n", epcm); */
 
 	if (epcm == NULL)
 		return -ENOMEM;
 	epcm->emu = emu;
 	epcm->substream = substream;
 	/*
-	snd_printk(KERN_DEBUG "epcm device=%d, channel_id=%d\n",
+	dev_dbg(emu->card->dev, "epcm device=%d, channel_id=%d\n",
 		   substream->pcm->device, channel_id);
 	*/
 	runtime->private_data = epcm;
@@ -251,10 +251,10 @@ static int snd_p16v_pcm_open_capture_channel(struct snd_pcm_substream *substream
 
 	channel->use=1;
 #if 0 /* debug */
-	snd_printk(KERN_DEBUG
+	dev_dbg(emu->card->dev,
 		   "p16v: open channel_id=%d, channel=%p, use=0x%x\n",
 		   channel_id, channel, channel->use);
-	printk(KERN_DEBUG "open:channel_id=%d, chip=%p, channel=%p\n",
+	dev_dbg(emu->card->dev, "open:channel_id=%d, chip=%p, channel=%p\n",
 	       channel_id, chip, channel);
 #endif /* debug */
 	/* channel->interrupt = snd_p16v_pcm_channel_interrupt; */
@@ -349,15 +349,18 @@ static int snd_p16v_pcm_prepare_playback(struct snd_pcm_substream *substream)
 	u32 tmp;
 	
 #if 0 /* debug */
-	snd_printk(KERN_DEBUG "prepare:channel_number=%d, rate=%d, "
+	dev_dbg(emu->card->dev,
+		"prepare:channel_number=%d, rate=%d, "
 		   "format=0x%x, channels=%d, buffer_size=%ld, "
 		   "period_size=%ld, periods=%u, frames_to_bytes=%d\n",
 		   channel, runtime->rate, runtime->format, runtime->channels,
 		   runtime->buffer_size, runtime->period_size,
 		   runtime->periods, frames_to_bytes(runtime, 1));
-	snd_printk(KERN_DEBUG "dma_addr=%x, dma_area=%p, table_base=%p\n",
+	dev_dbg(emu->card->dev,
+		"dma_addr=%x, dma_area=%p, table_base=%p\n",
 		   runtime->dma_addr, runtime->dma_area, table_base);
-	snd_printk(KERN_DEBUG "dma_addr=%x, dma_area=%p, dma_bytes(size)=%x\n",
+	dev_dbg(emu->card->dev,
+		"dma_addr=%x, dma_area=%p, dma_bytes(size)=%x\n",
 		   emu->p16v_buffer.addr, emu->p16v_buffer.area,
 		   emu->p16v_buffer.bytes);
 #endif /* debug */
@@ -405,7 +408,7 @@ static int snd_p16v_pcm_prepare_capture(struct snd_pcm_substream *substream)
 	u32 tmp;
 
 	/*
-	printk(KERN_DEBUG "prepare capture:channel_number=%d, rate=%d, "
+	dev_dbg(emu->card->dev, "prepare capture:channel_number=%d, rate=%d, "
 	       "format=0x%x, channels=%d, buffer_size=%ld, period_size=%ld, "
 	       "frames_to_bytes=%d\n",
 	       channel, runtime->rate, runtime->format, runtime->channels,
@@ -491,13 +494,13 @@ static int snd_p16v_pcm_trigger_playback(struct snd_pcm_substream *substream,
 		runtime = s->runtime;
 		epcm = runtime->private_data;
 		channel = substream->pcm->device-emu->p16v_device_offset;
-		/* snd_printk(KERN_DEBUG "p16v channel=%d\n", channel); */
+		/* dev_dbg(emu->card->dev, "p16v channel=%d\n", channel); */
 		epcm->running = running;
 		basic |= (0x1<<channel);
 		inte |= (INTE2_PLAYBACK_CH_0_LOOP<<channel);
                 snd_pcm_trigger_done(s, substream);
         }
-	/* snd_printk(KERN_DEBUG "basic=0x%x, inte=0x%x\n", basic, inte); */
+	/* dev_dbg(emu->card->dev, "basic=0x%x, inte=0x%x\n", basic, inte); */
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -588,10 +591,10 @@ snd_p16v_pcm_pointer_capture(struct snd_pcm_substream *substream)
 	ptr=ptr2;
 	if (ptr >= runtime->buffer_size) {
 		ptr -= runtime->buffer_size;
-		printk(KERN_WARNING "buffer capture limited!\n");
+		dev_warn(emu->card->dev, "buffer capture limited!\n");
 	}
 	/*
-	printk(KERN_DEBUG "ptr1 = 0x%lx, ptr2=0x%lx, ptr=0x%lx, "
+	dev_dbg(emu->card->dev, "ptr1 = 0x%lx, ptr2=0x%lx, ptr=0x%lx, "
 	       "buffer_size = 0x%x, period_size = 0x%x, bits=%d, rate=%d\n",
 	       ptr1, ptr2, ptr, (int)runtime->buffer_size,
 	       (int)runtime->period_size, (int)runtime->frame_bits,
@@ -630,21 +633,21 @@ int snd_p16v_free(struct snd_emu10k1 *chip)
 	if (chip->p16v_buffer.area) {
 		snd_dma_free_pages(&chip->p16v_buffer);
 		/*
-		snd_printk(KERN_DEBUG "period lables free: %p\n",
+		dev_dbg(chip->card->dev, "period lables free: %p\n",
 			   &chip->p16v_buffer);
 		*/
 	}
 	return 0;
 }
 
-int __devinit snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
+int snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *substream;
 	int err;
         int capture=1;
   
-	/* snd_printk(KERN_DEBUG "snd_p16v_pcm called. device=%d\n", device); */
+	/* dev_dbg(emu->card->dev, "snd_p16v_pcm called. device=%d\n", device); */
 	emu->p16v_device_offset = device;
 	if (rpcm)
 		*rpcm = NULL;
@@ -672,7 +675,7 @@ int __devinit snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm *
 							 ((65536 - 64) * 8), ((65536 - 64) * 8))) < 0) 
 			return err;
 		/*
-		snd_printk(KERN_DEBUG
+		dev_dbg(emu->card->dev,
 			   "preallocate playback substream: err=%d\n", err);
 		*/
 	}
@@ -686,7 +689,7 @@ int __devinit snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm *
 	                                           65536 - 64, 65536 - 64)) < 0)
 			return err;
 		/*
-		snd_printk(KERN_DEBUG
+		dev_dbg(emu->card->dev,
 			   "preallocate capture substream: err=%d\n", err);
 		*/
 	}
@@ -854,7 +857,7 @@ static const DECLARE_TLV_DB_SCALE(snd_p16v_db_scale1, -5175, 25, 1);
 	.private_value = ((xreg) | ((xhl) << 8)) \
 }
 
-static struct snd_kcontrol_new p16v_mixer_controls[] __devinitdata = {
+static struct snd_kcontrol_new p16v_mixer_controls[] = {
 	P16V_VOL("HD Analog Front Playback Volume", PLAYBACK_VOLUME_MIXER9, 0),
 	P16V_VOL("HD Analog Rear Playback Volume", PLAYBACK_VOLUME_MIXER10, 1),
 	P16V_VOL("HD Analog Center/LFE Playback Volume", PLAYBACK_VOLUME_MIXER9, 1),
@@ -880,7 +883,7 @@ static struct snd_kcontrol_new p16v_mixer_controls[] __devinitdata = {
 };
 
 
-int __devinit snd_p16v_mixer(struct snd_emu10k1 *emu)
+int snd_p16v_mixer(struct snd_emu10k1 *emu)
 {
 	int i, err;
         struct snd_card *card = emu->card;
@@ -893,11 +896,11 @@ int __devinit snd_p16v_mixer(struct snd_emu10k1 *emu)
         return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 #define NUM_CHS	1	/* up to 4, but only first channel is used */
 
-int __devinit snd_p16v_alloc_pm_buffer(struct snd_emu10k1 *emu)
+int snd_p16v_alloc_pm_buffer(struct snd_emu10k1 *emu)
 {
 	emu->p16v_saved = vmalloc(NUM_CHS * 4 * 0x80);
 	if (! emu->p16v_saved)

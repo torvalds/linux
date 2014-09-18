@@ -1,7 +1,7 @@
 /*
  * Mini SCLP driver.
  *
- * Copyright IBM Corp. 2004,2009
+ * Copyright IBM Corp. 2004, 2009
  *
  *   Author(s):	Peter Oberparleiter <Peter.Oberparleiter@de.ibm.com>,
  *		Heiko Carstens <heiko.carstens@de.ibm.com>,
@@ -9,6 +9,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/irq.h>
 
 LC_EXT_NEW_PSW		= 0x58			# addr of ext int handler
 LC_EXT_NEW_PSW_64	= 0x1b0			# addr of ext int handler 64 bit
@@ -44,6 +45,12 @@ _sclp_wait_int:
 #endif
 	mvc	.LoldpswS1-.LbaseS1(16,%r13),0(%r8)
 	mvc	0(16,%r8),0(%r9)
+#ifdef CONFIG_64BIT
+	epsw	%r6,%r7				# set current addressing mode
+	nill	%r6,0x1				# in new psw (31 or 64 bit mode)
+	nilh	%r7,0x8000
+	stm	%r6,%r7,0(%r8)
+#endif
 	lhi	%r6,0x0200			# cr mask for ext int (cr0.54)
 	ltr	%r2,%r2
 	jz	.LsetctS1
@@ -67,9 +74,9 @@ _sclp_wait_int:
 	lpsw	.LwaitpswS1-.LbaseS1(%r13)	# wait until interrupt
 .LwaitS1:
 	lh	%r7,LC_EXT_INT_CODE
-	chi	%r7,0x1004			# timeout?
+	chi	%r7,EXT_IRQ_CLK_COMP		# timeout?
 	je	.LtimeoutS1
-	chi	%r7,0x2401			# service int?
+	chi	%r7,EXT_IRQ_SERVICE_SIG		# service int?
 	jne	.LloopS1
 	sr	%r2,%r2
 	l	%r3,LC_EXT_INT_PARAM
@@ -87,7 +94,7 @@ _sclp_wait_int:
 	.long	0x00080000, 0x80000000+.LwaitS1	# PSW to handle ext int
 #ifdef CONFIG_64BIT
 .LextpswS1_64:
-	.quad	0x0000000180000000, .LwaitS1	# PSW to handle ext int, 64 bit
+	.quad	0, .LwaitS1			# PSW to handle ext int, 64 bit
 #endif
 .LwaitpswS1:
 	.long	0x010a0000, 0x00000000+.LloopS1	# PSW to wait for ext int
@@ -219,7 +226,7 @@ _sclp_print:
 	ahi	%r2,1
 	ltr	%r0,%r0				# end of string?
 	jz	.LfinalizemtoS4
-	chi	%r0,0x15			# end of line (NL)?
+	chi	%r0,0x0a			# end of line (NL)?
 	jz	.LfinalizemtoS4
 	stc	%r0,0(%r6,%r7)			# copy to mto
 	la	%r11,0(%r6,%r7)

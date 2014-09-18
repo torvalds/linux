@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i8253.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
 #include <linux/timex.h>
@@ -63,7 +62,7 @@ static int pcspkr_event(struct input_dev *dev, unsigned int type, unsigned int c
 	return 0;
 }
 
-static int __devinit pcspkr_probe(struct platform_device *dev)
+static int pcspkr_probe(struct platform_device *dev)
 {
 	struct input_dev *pcspkr_dev;
 	int err;
@@ -95,12 +94,11 @@ static int __devinit pcspkr_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit pcspkr_remove(struct platform_device *dev)
+static int pcspkr_remove(struct platform_device *dev)
 {
 	struct input_dev *pcspkr_dev = platform_get_drvdata(dev);
 
 	input_unregister_device(pcspkr_dev);
-	platform_set_drvdata(dev, NULL);
 	/* turn off the speaker */
 	pcspkr_event(NULL, EV_SND, SND_BELL, 0);
 
@@ -131,7 +129,7 @@ static struct platform_driver pcspkr_platform_driver = {
 		.pm	= &pcspkr_pm_ops,
 	},
 	.probe		= pcspkr_probe,
-	.remove		= __devexit_p(pcspkr_remove),
+	.remove		= pcspkr_remove,
 	.shutdown	= pcspkr_shutdown,
 };
 module_platform_driver(pcspkr_platform_driver);

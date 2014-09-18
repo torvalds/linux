@@ -1,0 +1,35 @@
+TI EDMA
+
+Required properties:
+- compatible : "ti,edma3"
+- #dma-cells: Should be set to <1>
+              Clients should use a single channel number per DMA request.
+- reg: Memory map for accessing module
+- interrupt-parent: Interrupt controller the interrupt is routed through
+- interrupts: Exactly 3 interrupts need to be specified in the order:
+              1. Transfer completion interrupt.
+              2. Memory protection interrupt.
+              3. Error interrupt.
+Optional properties:
+- ti,hwmods: Name of the hwmods associated to the EDMA
+- ti,edma-xbar-event-map: Crossbar event to channel map
+
+Deprecated properties:
+Listed here in case one wants to boot an old kernel with new DTB. These
+properties might need to be added to the new DTS files.
+- ti,edma-regions: Number of regions
+- ti,edma-slots: Number of slots
+- dma-channels: Specify total DMA channels per CC
+
+Example:
+
+edma: edma@49000000 {
+	reg = <0x49000000 0x10000>;
+	interrupt-parent = <&intc>;
+	interrupts = <12 13 14>;
+	compatible = "ti,edma3";
+	ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
+	#dma-cells = <1>;
+	ti,edma-xbar-event-map = /bits/ 16 <1 12
+					    2 13>;
+};

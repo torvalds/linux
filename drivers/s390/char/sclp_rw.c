@@ -463,7 +463,7 @@ sclp_emit_buffer(struct sclp_buffer *buffer,
 		/* Use write priority message */
 		sccb->msg_buf.header.type = EVTYP_PMSGCMD;
 	else
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 	buffer->request.command = SCLP_CMDW_WRITE_EVENT_DATA;
 	buffer->request.status = SCLP_REQ_FILLED;
 	buffer->request.callback = sclp_writedata_callback;

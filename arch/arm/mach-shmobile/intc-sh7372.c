@@ -19,13 +19,13 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/sh_intc.h>
-#include <mach/intc.h>
-#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include "intc.h"
+#include "irqs.h"
 
 enum {
 	UNUSED_INTCA = 0,
@@ -305,13 +305,15 @@ static DECLARE_INTC_DESC(intca_desc, "sh7372-intca",
 			 intca_mask_registers, intca_prio_registers,
 			 NULL);
 
-INTC_IRQ_PINS_32(intca_irq_pins, 0xe6900000,
-		 INTC_VECT, "sh7372-intca-irq-pins");
+INTC_IRQ_PINS_16(intca_irq_pins_lo, 0xe6900000,
+		 INTC_VECT, "sh7372-intca-irq-lo");
+
+INTC_IRQ_PINS_16H(intca_irq_pins_hi, 0xe6900000,
+		 INTC_VECT, "sh7372-intca-irq-hi");
+
 enum {
 	UNUSED_INTCS = 0,
 	ENABLED_INTCS,
-
-	INTCS,
 
 	/* interrupt sources INTCS */
 
@@ -426,8 +428,6 @@ static struct intc_vect intcs_vectors[] = {
 	INTCS_VECT(CPORTS2R, 0x1a20),
 	/* CEC */
 	INTCS_VECT(JPU6E, 0x1a80),
-
-	INTC_VECT(INTCS, 0xf80),
 };
 
 static struct intc_group intcs_groups[] __initdata = {
@@ -490,9 +490,6 @@ static struct intc_mask_reg intcs_mask_registers[] = {
 	{ 0xffd5019c, 0xffd501dc, 8, /* IMR7SA3 / IMCR7SA3 */
 	  { MFIS2_INTCS, CPORTS2R, 0, 0,
 	    JPU6E, 0, 0, 0 } },
-	{ 0xffd20104, 0, 16, /* INTAMASK */
-	  { 0, 0, 0, 0, 0, 0, 0, 0,
-	    0, 0, 0, 0, 0, 0, 0, INTCS } },
 };
 
 /* Priority is needed for INTCA to receive the INTCS interrupt */
@@ -557,18 +554,30 @@ static void __iomem *intcs_ffd5;
 void __init sh7372_init_irq(void)
 {
 	void __iomem *intevtsa;
+	int n;
 
 	intcs_ffd2 = ioremap_nocache(0xffd20000, PAGE_SIZE);
 	intevtsa = intcs_ffd2 + 0x100;
 	intcs_ffd5 = ioremap_nocache(0xffd50000, PAGE_SIZE);
 
 	register_intc_controller(&intca_desc);
-	register_intc_controller(&intca_irq_pins_desc);
+	register_intc_controller(&intca_irq_pins_lo_desc);
+	register_intc_controller(&intca_irq_pins_hi_desc);
 	register_intc_controller(&intcs_desc);
 
+	/* setup dummy cascade chip for INTCS */
+	n = evt2irq(0xf80);
+	irq_alloc_desc_at(n, numa_node_id());
+	irq_set_chip_and_handler_name(n, &dummy_irq_chip,
+				      handle_level_irq, "level");
+	set_irq_flags(n, IRQF_VALID); /* yuck */
+
 	/* demux using INTEVTSA */
-	irq_set_handler_data(evt2irq(0xf80), (void *)intevtsa);
-	irq_set_chained_handler(evt2irq(0xf80), intcs_demux);
+	irq_set_handler_data(n, (void *)intevtsa);
+	irq_set_chained_handler(n, intcs_demux);
+
+	/* unmask INTCS in INTAMASK */
+	iowrite16(0, intcs_ffd2 + 0x104);
 }
 
 static unsigned short ffd2[0x200];
@@ -614,6 +623,9 @@ void sh7372_intcs_resume(void)
 		__raw_writeb(ffd5[k], intcs_ffd5 + k);
 }
 
+#define E694_BASE IOMEM(0xe6940000)
+#define E695_BASE IOMEM(0xe6950000)
+
 static unsigned short e694[0x200];
 static unsigned short e695[0x200];
 
@@ -622,22 +634,22 @@ void sh7372_intca_suspend(void)
 	int k;
 
 	for (k = 0x00; k <= 0x38; k += 4)
-		e694[k] = __raw_readw(0xe6940000 + k);
+		e694[k] = __raw_readw(E694_BASE + k);
 
 	for (k = 0x80; k <= 0xb4; k += 4)
-		e694[k] = __raw_readb(0xe6940000 + k);
+		e694[k] = __raw_readb(E694_BASE + k);
 
 	for (k = 0x180; k <= 0x1b4; k += 4)
-		e694[k] = __raw_readb(0xe6940000 + k);
+		e694[k] = __raw_readb(E694_BASE + k);
 
 	for (k = 0x00; k <= 0x50; k += 4)
-		e695[k] = __raw_readw(0xe6950000 + k);
+		e695[k] = __raw_readw(E695_BASE + k);
 
 	for (k = 0x80; k <= 0xa8; k += 4)
-		e695[k] = __raw_readb(0xe6950000 + k);
+		e695[k] = __raw_readb(E695_BASE + k);
 
 	for (k = 0x180; k <= 0x1a8; k += 4)
-		e695[k] = __raw_readb(0xe6950000 + k);
+		e695[k] = __raw_readb(E695_BASE + k);
 }
 
 void sh7372_intca_resume(void)
@@ -645,20 +657,20 @@ void sh7372_intca_resume(void)
 	int k;
 
 	for (k = 0x00; k <= 0x38; k += 4)
-		__raw_writew(e694[k], 0xe6940000 + k);
+		__raw_writew(e694[k], E694_BASE + k);
 
 	for (k = 0x80; k <= 0xb4; k += 4)
-		__raw_writeb(e694[k], 0xe6940000 + k);
+		__raw_writeb(e694[k], E694_BASE + k);
 
 	for (k = 0x180; k <= 0x1b4; k += 4)
-		__raw_writeb(e694[k], 0xe6940000 + k);
+		__raw_writeb(e694[k], E694_BASE + k);
 
 	for (k = 0x00; k <= 0x50; k += 4)
-		__raw_writew(e695[k], 0xe6950000 + k);
+		__raw_writew(e695[k], E695_BASE + k);
 
 	for (k = 0x80; k <= 0xa8; k += 4)
-		__raw_writeb(e695[k], 0xe6950000 + k);
+		__raw_writeb(e695[k], E695_BASE + k);
 
 	for (k = 0x180; k <= 0x1a8; k += 4)
-		__raw_writeb(e695[k], 0xe6950000 + k);
+		__raw_writeb(e695[k], E695_BASE + k);
 }

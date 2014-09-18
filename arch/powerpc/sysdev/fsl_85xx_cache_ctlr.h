@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2010 Freescale Semiconductor, Inc
+ * Copyright 2009-2010, 2012 Freescale Semiconductor, Inc
  *
  * QorIQ based Cache Controller Memory Mapped Registers
  *
@@ -91,7 +91,7 @@ struct mpc85xx_l2ctlr {
 
 struct sram_parameters {
 	unsigned int sram_size;
-	uint64_t sram_offset;
+	phys_addr_t sram_offset;
 };
 
 extern int instantiate_cache_sram(struct platform_device *dev,

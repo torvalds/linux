@@ -57,11 +57,11 @@ extern int cvmx_helper_dump_packet(cvmx_wqe_t *work);
  *
  * @queue:  Input queue to setup RED on (0-7)
  * @pass_thresh:
- *               Packets will begin slowly dropping when there are less than
- *               this many packet buffers free in FPA 0.
+ *		 Packets will begin slowly dropping when there are less than
+ *		 this many packet buffers free in FPA 0.
  * @drop_thresh:
- *               All incomming packets will be dropped when there are less
- *               than this many free packet buffers in FPA 0.
+ *		 All incoming packets will be dropped when there are less
+ *		 than this many free packet buffers in FPA 0.
  * Returns Zero on success. Negative on failure
  */
 extern int cvmx_helper_setup_red_queue(int queue, int pass_thresh,
@@ -71,11 +71,11 @@ extern int cvmx_helper_setup_red_queue(int queue, int pass_thresh,
  * Setup Random Early Drop to automatically begin dropping packets.
  *
  * @pass_thresh:
- *               Packets will begin slowly dropping when there are less than
- *               this many packet buffers free in FPA 0.
+ *		 Packets will begin slowly dropping when there are less than
+ *		 this many packet buffers free in FPA 0.
  * @drop_thresh:
- *               All incomming packets will be dropped when there are less
- *               than this many free packet buffers in FPA 0.
+ *		 All incoming packets will be dropped when there are less
+ *		 than this many free packet buffers in FPA 0.
  * Returns Zero on success. Negative on failure
  */
 extern int cvmx_helper_setup_red(int pass_thresh, int drop_thresh);
@@ -84,7 +84,7 @@ extern int cvmx_helper_setup_red(int pass_thresh, int drop_thresh);
  * Get the version of the CVMX libraries.
  *
  * Returns Version string. Note this buffer is allocated statically
- *         and will be shared by all callers.
+ *	   and will be shared by all callers.
  */
 extern const char *cvmx_helper_get_version(void);
 

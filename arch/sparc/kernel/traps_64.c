@@ -1,6 +1,6 @@
 /* arch/sparc64/kernel/traps.c
  *
- * Copyright (C) 1995,1997,2008,2009 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 1995,1997,2008,2009,2012 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997,1999,2000 Jakub Jelinek (jakub@redhat.com)
  */
 
@@ -18,7 +18,9 @@
 #include <linux/init.h>
 #include <linux/kdebug.h>
 #include <linux/ftrace.h>
+#include <linux/reboot.h>
 #include <linux/gfp.h>
+#include <linux/context_tracking.h>
 
 #include <asm/smp.h>
 #include <asm/delay.h>
@@ -41,8 +43,10 @@
 #include <asm/prom.h>
 #include <asm/memctrl.h>
 #include <asm/cacheflush.h>
+#include <asm/setup.h>
 
 #include "entry.h"
+#include "kernel.h"
 #include "kstack.h"
 
 /* When an irrecoverable trap occurs at tl > 0, the trap entry
@@ -185,11 +189,12 @@ EXPORT_SYMBOL_GPL(unregister_dimm_printer);
 
 void spitfire_insn_access_exception(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {
+	enum ctx_state prev_state = exception_enter();
 	siginfo_t info;
 
 	if (notify_die(DIE_TRAP, "instruction access exception", regs,
 		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
-		return;
+		goto out;
 
 	if (regs->tstate & TSTATE_PRIV) {
 		printk("spitfire_insn_access_exception: SFSR[%016lx] "
@@ -206,6 +211,8 @@ void spitfire_insn_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 	info.si_addr = (void __user *)regs->tpc;
 	info.si_trapno = 0;
 	force_sig_info(SIGSEGV, &info, current);
+out:
+	exception_exit(prev_state);
 }
 
 void spitfire_insn_access_exception_tl1(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
@@ -259,11 +266,12 @@ void sun4v_insn_access_exception_tl1(struct pt_regs *regs, unsigned long addr, u
 
 void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {
+	enum ctx_state prev_state = exception_enter();
 	siginfo_t info;
 
 	if (notify_die(DIE_TRAP, "data access exception", regs,
 		       0, 0x30, SIGTRAP) == NOTIFY_STOP)
-		return;
+		goto out;
 
 	if (regs->tstate & TSTATE_PRIV) {
 		/* Test if this comes from uaccess places. */
@@ -279,7 +287,7 @@ void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 #endif
 			regs->tpc = entry->fixup;
 			regs->tnpc = regs->tpc + 4;
-			return;
+			goto out;
 		}
 		/* Shit... */
 		printk("spitfire_data_access_exception: SFSR[%016lx] "
@@ -293,6 +301,8 @@ void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 	info.si_addr = (void __user *)sfar;
 	info.si_trapno = 0;
 	force_sig_info(SIGSEGV, &info, current);
+out:
+	exception_exit(prev_state);
 }
 
 void spitfire_data_access_exception_tl1(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
@@ -850,7 +860,7 @@ void __init cheetah_ecache_flush_init(void)
 	ecache_flush_physbase = find_ecache_flush_span(ecache_flush_size);
 
 	if (ecache_flush_physbase == ~0UL) {
-		prom_printf("cheetah_ecache_flush_init: Cannot find %d byte "
+		prom_printf("cheetah_ecache_flush_init: Cannot find %ld byte "
 			    "contiguous physical memory.\n",
 			    ecache_flush_size);
 		prom_halt();
@@ -1760,85 +1770,223 @@ void cheetah_plus_parity_error(int type, struct pt_regs *regs)
 }
 
 struct sun4v_error_entry {
-	u64		err_handle;
-	u64		err_stick;
+	/* Unique error handle */
+/*0x00*/u64		err_handle;
 
-	u32		err_type;
+	/* %stick value at the time of the error */
+/*0x08*/u64		err_stick;
+
+/*0x10*/u8		reserved_1[3];
+
+	/* Error type */
+/*0x13*/u8		err_type;
 #define SUN4V_ERR_TYPE_UNDEFINED	0
 #define SUN4V_ERR_TYPE_UNCORRECTED_RES	1
 #define SUN4V_ERR_TYPE_PRECISE_NONRES	2
 #define SUN4V_ERR_TYPE_DEFERRED_NONRES	3
-#define SUN4V_ERR_TYPE_WARNING_RES	4
+#define SUN4V_ERR_TYPE_SHUTDOWN_RQST	4
+#define SUN4V_ERR_TYPE_DUMP_CORE	5
+#define SUN4V_ERR_TYPE_SP_STATE_CHANGE	6
+#define SUN4V_ERR_TYPE_NUM		7
 
-	u32		err_attrs;
+	/* Error attributes */
+/*0x14*/u32		err_attrs;
 #define SUN4V_ERR_ATTRS_PROCESSOR	0x00000001
 #define SUN4V_ERR_ATTRS_MEMORY		0x00000002
 #define SUN4V_ERR_ATTRS_PIO		0x00000004
 #define SUN4V_ERR_ATTRS_INT_REGISTERS	0x00000008
 #define SUN4V_ERR_ATTRS_FPU_REGISTERS	0x00000010
-#define SUN4V_ERR_ATTRS_USER_MODE	0x01000000
-#define SUN4V_ERR_ATTRS_PRIV_MODE	0x02000000
+#define SUN4V_ERR_ATTRS_SHUTDOWN_RQST	0x00000020
+#define SUN4V_ERR_ATTRS_ASR		0x00000040
+#define SUN4V_ERR_ATTRS_ASI		0x00000080
+#define SUN4V_ERR_ATTRS_PRIV_REG	0x00000100
+#define SUN4V_ERR_ATTRS_SPSTATE_MSK	0x00000600
+#define SUN4V_ERR_ATTRS_SPSTATE_SHFT	9
+#define SUN4V_ERR_ATTRS_MODE_MSK	0x03000000
+#define SUN4V_ERR_ATTRS_MODE_SHFT	24
 #define SUN4V_ERR_ATTRS_RES_QUEUE_FULL	0x80000000
 
-	u64		err_raddr;
-	u32		err_size;
-	u16		err_cpu;
-	u16		err_pad;
+#define SUN4V_ERR_SPSTATE_FAULTED	0
+#define SUN4V_ERR_SPSTATE_AVAILABLE	1
+#define SUN4V_ERR_SPSTATE_NOT_PRESENT	2
+
+#define SUN4V_ERR_MODE_USER		1
+#define SUN4V_ERR_MODE_PRIV		2
+
+	/* Real address of the memory region or PIO transaction */
+/*0x18*/u64		err_raddr;
+
+	/* Size of the operation triggering the error, in bytes */
+/*0x20*/u32		err_size;
+
+	/* ID of the CPU */
+/*0x24*/u16		err_cpu;
+
+	/* Grace periof for shutdown, in seconds */
+/*0x26*/u16		err_secs;
+
+	/* Value of the %asi register */
+/*0x28*/u8		err_asi;
+
+/*0x29*/u8		reserved_2;
+
+	/* Value of the ASR register number */
+/*0x2a*/u16		err_asr;
+#define SUN4V_ERR_ASR_VALID		0x8000
+
+/*0x2c*/u32		reserved_3;
+/*0x30*/u64		reserved_4;
+/*0x38*/u64		reserved_5;
 };
 
 static atomic_t sun4v_resum_oflow_cnt = ATOMIC_INIT(0);
 static atomic_t sun4v_nonresum_oflow_cnt = ATOMIC_INIT(0);
 
-static const char *sun4v_err_type_to_str(u32 type)
+static const char *sun4v_err_type_to_str(u8 type)
 {
-	switch (type) {
-	case SUN4V_ERR_TYPE_UNDEFINED:
-		return "undefined";
-	case SUN4V_ERR_TYPE_UNCORRECTED_RES:
-		return "uncorrected resumable";
-	case SUN4V_ERR_TYPE_PRECISE_NONRES:
-		return "precise nonresumable";
-	case SUN4V_ERR_TYPE_DEFERRED_NONRES:
-		return "deferred nonresumable";
-	case SUN4V_ERR_TYPE_WARNING_RES:
-		return "warning resumable";
-	default:
-		return "unknown";
-	}
+	static const char *types[SUN4V_ERR_TYPE_NUM] = {
+		"undefined",
+		"uncorrected resumable",
+		"precise nonresumable",
+		"deferred nonresumable",
+		"shutdown request",
+		"dump core",
+		"SP state change",
+	};
+
+	if (type < SUN4V_ERR_TYPE_NUM)
+		return types[type];
+
+	return "unknown";
 }
 
-static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent, int cpu, const char *pfx, atomic_t *ocnt)
+static void sun4v_emit_err_attr_strings(u32 attrs)
 {
+	static const char *attr_names[] = {
+		"processor",
+		"memory",
+		"PIO",
+		"int-registers",
+		"fpu-registers",
+		"shutdown-request",
+		"ASR",
+		"ASI",
+		"priv-reg",
+	};
+	static const char *sp_states[] = {
+		"sp-faulted",
+		"sp-available",
+		"sp-not-present",
+		"sp-state-reserved",
+	};
+	static const char *modes[] = {
+		"mode-reserved0",
+		"user",
+		"priv",
+		"mode-reserved1",
+	};
+	u32 sp_state, mode;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(attr_names); i++) {
+		if (attrs & (1U << i)) {
+			const char *s = attr_names[i];
+
+			pr_cont("%s ", s);
+		}
+	}
+
+	sp_state = ((attrs & SUN4V_ERR_ATTRS_SPSTATE_MSK) >>
+		    SUN4V_ERR_ATTRS_SPSTATE_SHFT);
+	pr_cont("%s ", sp_states[sp_state]);
+
+	mode = ((attrs & SUN4V_ERR_ATTRS_MODE_MSK) >>
+		SUN4V_ERR_ATTRS_MODE_SHFT);
+	pr_cont("%s ", modes[mode]);
+
+	if (attrs & SUN4V_ERR_ATTRS_RES_QUEUE_FULL)
+		pr_cont("res-queue-full ");
+}
+
+/* When the report contains a real-address of "-1" it means that the
+ * hardware did not provide the address.  So we compute the effective
+ * address of the load or store instruction at regs->tpc and report
+ * that.  Usually when this happens it's a PIO and in such a case we
+ * are using physical addresses with bypass ASIs anyways, so what we
+ * report here is exactly what we want.
+ */
+static void sun4v_report_real_raddr(const char *pfx, struct pt_regs *regs)
+{
+	unsigned int insn;
+	u64 addr;
+
+	if (!(regs->tstate & TSTATE_PRIV))
+		return;
+
+	insn = *(unsigned int *) regs->tpc;
+
+	addr = compute_effective_address(regs, insn, 0);
+
+	printk("%s: insn effective address [0x%016llx]\n",
+	       pfx, addr);
+}
+
+static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent,
+			    int cpu, const char *pfx, atomic_t *ocnt)
+{
+	u64 *raw_ptr = (u64 *) ent;
+	u32 attrs;
 	int cnt;
 
 	printk("%s: Reporting on cpu %d\n", pfx, cpu);
-	printk("%s: err_handle[%llx] err_stick[%llx] err_type[%08x:%s]\n",
-	       pfx,
-	       ent->err_handle, ent->err_stick,
-	       ent->err_type,
-	       sun4v_err_type_to_str(ent->err_type));
-	printk("%s: err_attrs[%08x:%s %s %s %s %s %s %s %s]\n",
-	       pfx,
-	       ent->err_attrs,
-	       ((ent->err_attrs & SUN4V_ERR_ATTRS_PROCESSOR) ?
-		"processor" : ""),
-	       ((ent->err_attrs & SUN4V_ERR_ATTRS_MEMORY) ?
-		"memory" : ""),
-	       ((ent->err_attrs & SUN4V_ERR_ATTRS_PIO) ?
-		"pio" : ""),
-	       ((ent->err_attrs & SUN4V_ERR_ATTRS_INT_REGISTERS) ?
-		"integer-regs" : ""),
-	       ((ent->err_attrs & SUN4V_ERR_ATTRS_FPU_REGISTERS) ?
-		"fpu-regs" : ""),
-	       ((ent->err_attrs & SUN4V_ERR_ATTRS_USER_MODE) ?
-		"user" : ""),
-	       ((ent->err_attrs & SUN4V_ERR_ATTRS_PRIV_MODE) ?
-		"privileged" : ""),
-	       ((ent->err_attrs & SUN4V_ERR_ATTRS_RES_QUEUE_FULL) ?
-		"queue-full" : ""));
-	printk("%s: err_raddr[%016llx] err_size[%u] err_cpu[%u]\n",
-	       pfx,
-	       ent->err_raddr, ent->err_size, ent->err_cpu);
+	printk("%s: TPC [0x%016lx] <%pS>\n",
+	       pfx, regs->tpc, (void *) regs->tpc);
+
+	printk("%s: RAW [%016llx:%016llx:%016llx:%016llx\n",
+	       pfx, raw_ptr[0], raw_ptr[1], raw_ptr[2], raw_ptr[3]);
+	printk("%s:      %016llx:%016llx:%016llx:%016llx]\n",
+	       pfx, raw_ptr[4], raw_ptr[5], raw_ptr[6], raw_ptr[7]);
+
+	printk("%s: handle [0x%016llx] stick [0x%016llx]\n",
+	       pfx, ent->err_handle, ent->err_stick);
+
+	printk("%s: type [%s]\n", pfx, sun4v_err_type_to_str(ent->err_type));
+
+	attrs = ent->err_attrs;
+	printk("%s: attrs [0x%08x] < ", pfx, attrs);
+	sun4v_emit_err_attr_strings(attrs);
+	pr_cont(">\n");
+
+	/* Various fields in the error report are only valid if
+	 * certain attribute bits are set.
+	 */
+	if (attrs & (SUN4V_ERR_ATTRS_MEMORY |
+		     SUN4V_ERR_ATTRS_PIO |
+		     SUN4V_ERR_ATTRS_ASI)) {
+		printk("%s: raddr [0x%016llx]\n", pfx, ent->err_raddr);
+
+		if (ent->err_raddr == ~(u64)0)
+			sun4v_report_real_raddr(pfx, regs);
+	}
+
+	if (attrs & (SUN4V_ERR_ATTRS_MEMORY | SUN4V_ERR_ATTRS_ASI))
+		printk("%s: size [0x%x]\n", pfx, ent->err_size);
+
+	if (attrs & (SUN4V_ERR_ATTRS_PROCESSOR |
+		     SUN4V_ERR_ATTRS_INT_REGISTERS |
+		     SUN4V_ERR_ATTRS_FPU_REGISTERS |
+		     SUN4V_ERR_ATTRS_PRIV_REG))
+		printk("%s: cpu[%u]\n", pfx, ent->err_cpu);
+
+	if (attrs & SUN4V_ERR_ATTRS_ASI)
+		printk("%s: asi [0x%02x]\n", pfx, ent->err_asi);
+
+	if ((attrs & (SUN4V_ERR_ATTRS_INT_REGISTERS |
+		      SUN4V_ERR_ATTRS_FPU_REGISTERS |
+		      SUN4V_ERR_ATTRS_PRIV_REG)) &&
+	    (ent->err_asr & SUN4V_ERR_ASR_VALID) != 0)
+		printk("%s: reg [0x%04x]\n",
+		       pfx, ent->err_asr & ~SUN4V_ERR_ASR_VALID);
 
 	show_regs(regs);
 
@@ -1855,6 +2003,7 @@ static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent,
  */
 void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
 {
+	enum ctx_state prev_state = exception_enter();
 	struct sun4v_error_entry *ent, local_copy;
 	struct trap_per_cpu *tb;
 	unsigned long paddr;
@@ -1874,19 +2023,23 @@ void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
 
 	put_cpu();
 
-	if (ent->err_type == SUN4V_ERR_TYPE_WARNING_RES) {
-		/* If err_type is 0x4, it's a powerdown request.  Do
-		 * not do the usual resumable error log because that
-		 * makes it look like some abnormal error.
+	if (local_copy.err_type == SUN4V_ERR_TYPE_SHUTDOWN_RQST) {
+		/* We should really take the seconds field of
+		 * the error report and use it for the shutdown
+		 * invocation, but for now do the same thing we
+		 * do for a DS shutdown request.
 		 */
-		printk(KERN_INFO "Power down request...\n");
-		kill_cad_pid(SIGINT, 1);
-		return;
+		pr_info("Shutdown request, %u seconds...\n",
+			local_copy.err_secs);
+		orderly_poweroff(true);
+		goto out;
 	}
 
 	sun4v_log_error(regs, &local_copy, cpu,
 			KERN_ERR "RESUMABLE ERROR",
 			&sun4v_resum_oflow_cnt);
+out:
+	exception_exit(prev_state);
 }
 
 /* If we try to printk() we'll probably make matters worse, by trying
@@ -2011,7 +2164,7 @@ void hypervisor_tlbop_error_xcall(unsigned long err, unsigned long op)
 	       err, op);
 }
 
-void do_fpe_common(struct pt_regs *regs)
+static void do_fpe_common(struct pt_regs *regs)
 {
 	if (regs->tstate & TSTATE_PRIV) {
 		regs->tpc = regs->tnpc;
@@ -2047,42 +2200,48 @@ void do_fpe_common(struct pt_regs *regs)
 
 void do_fpieee(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
+
 	if (notify_die(DIE_TRAP, "fpu exception ieee", regs,
 		       0, 0x24, SIGFPE) == NOTIFY_STOP)
-		return;
+		goto out;
 
 	do_fpe_common(regs);
+out:
+	exception_exit(prev_state);
 }
-
-extern int do_mathemu(struct pt_regs *, struct fpustate *);
 
 void do_fpother(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
 	struct fpustate *f = FPUSTATE;
 	int ret = 0;
 
 	if (notify_die(DIE_TRAP, "fpu exception other", regs,
 		       0, 0x25, SIGFPE) == NOTIFY_STOP)
-		return;
+		goto out;
 
 	switch ((current_thread_info()->xfsr[0] & 0x1c000)) {
 	case (2 << 14): /* unfinished_FPop */
 	case (3 << 14): /* unimplemented_FPop */
-		ret = do_mathemu(regs, f);
+		ret = do_mathemu(regs, f, false);
 		break;
 	}
 	if (ret)
-		return;
+		goto out;
 	do_fpe_common(regs);
+out:
+	exception_exit(prev_state);
 }
 
 void do_tof(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
 	siginfo_t info;
 
 	if (notify_die(DIE_TRAP, "tagged arithmetic overflow", regs,
 		       0, 0x26, SIGEMT) == NOTIFY_STOP)
-		return;
+		goto out;
 
 	if (regs->tstate & TSTATE_PRIV)
 		die_if_kernel("Penguin overflow trap from kernel mode", regs);
@@ -2096,15 +2255,18 @@ void do_tof(struct pt_regs *regs)
 	info.si_addr = (void __user *)regs->tpc;
 	info.si_trapno = 0;
 	force_sig_info(SIGEMT, &info, current);
+out:
+	exception_exit(prev_state);
 }
 
 void do_div0(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
 	siginfo_t info;
 
 	if (notify_die(DIE_TRAP, "integer division by zero", regs,
 		       0, 0x28, SIGFPE) == NOTIFY_STOP)
-		return;
+		goto out;
 
 	if (regs->tstate & TSTATE_PRIV)
 		die_if_kernel("TL0: Kernel divide by zero.", regs);
@@ -2118,6 +2280,8 @@ void do_div0(struct pt_regs *regs)
 	info.si_addr = (void __user *)regs->tpc;
 	info.si_trapno = 0;
 	force_sig_info(SIGFPE, &info, current);
+out:
+	exception_exit(prev_state);
 }
 
 static void instruction_dump(unsigned int *pc)
@@ -2209,13 +2373,6 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 	} while (++count < 16);
 }
 
-void dump_stack(void)
-{
-	show_stack(current, NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
 static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
 {
 	unsigned long fp = rw->ins[6];
@@ -2226,7 +2383,7 @@ static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
 	return (struct reg_window *) (fp + STACK_BIAS);
 }
 
-void die_if_kernel(char *str, struct pt_regs *regs)
+void __noreturn die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
 	int count = 0;
@@ -2242,7 +2399,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 	notify_die(DIE_OOPS, str, regs, 0, 255, SIGSEGV);
 	__asm__ __volatile__("flushw");
 	show_regs(regs);
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	if (regs->tstate & TSTATE_PRIV) {
 		struct thread_info *tp = current_thread_info();
 		struct reg_window *rw = (struct reg_window *)
@@ -2276,11 +2433,9 @@ EXPORT_SYMBOL(die_if_kernel);
 #define VIS_OPCODE_MASK	((0x3 << 30) | (0x3f << 19))
 #define VIS_OPCODE_VAL	((0x2 << 30) | (0x36 << 19))
 
-extern int handle_popc(u32 insn, struct pt_regs *regs);
-extern int handle_ldf_stq(u32 insn, struct pt_regs *regs);
-
 void do_illegal_instruction(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
 	unsigned long pc = regs->tpc;
 	unsigned long tstate = regs->tstate;
 	u32 insn;
@@ -2288,7 +2443,7 @@ void do_illegal_instruction(struct pt_regs *regs)
 
 	if (notify_die(DIE_TRAP, "illegal instruction", regs,
 		       0, 0x10, SIGILL) == NOTIFY_STOP)
-		return;
+		goto out;
 
 	if (tstate & TSTATE_PRIV)
 		die_if_kernel("Kernel illegal instruction", regs);
@@ -2297,22 +2452,24 @@ void do_illegal_instruction(struct pt_regs *regs)
 	if (get_user(insn, (u32 __user *) pc) != -EFAULT) {
 		if ((insn & 0xc1ffc000) == 0x81700000) /* POPC */ {
 			if (handle_popc(insn, regs))
-				return;
+				goto out;
 		} else if ((insn & 0xc1580000) == 0xc1100000) /* LDQ/STQ */ {
 			if (handle_ldf_stq(insn, regs))
-				return;
+				goto out;
 		} else if (tlb_type == hypervisor) {
 			if ((insn & VIS_OPCODE_MASK) == VIS_OPCODE_VAL) {
 				if (!vis_emul(regs, insn))
-					return;
+					goto out;
 			} else {
 				struct fpustate *f = FPUSTATE;
 
-				/* XXX maybe verify XFSR bits like
-				 * XXX do_fpother() does?
+				/* On UltraSPARC T2 and later, FPU insns which
+				 * are not implemented in HW signal an illegal
+				 * instruction trap and do not set the FP Trap
+				 * Trap in the %fsr to unimplemented_FPop.
 				 */
-				if (do_mathemu(regs, f))
-					return;
+				if (do_mathemu(regs, f, true))
+					goto out;
 			}
 		}
 	}
@@ -2322,21 +2479,22 @@ void do_illegal_instruction(struct pt_regs *regs)
 	info.si_addr = (void __user *)pc;
 	info.si_trapno = 0;
 	force_sig_info(SIGILL, &info, current);
+out:
+	exception_exit(prev_state);
 }
-
-extern void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn);
 
 void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr)
 {
+	enum ctx_state prev_state = exception_enter();
 	siginfo_t info;
 
 	if (notify_die(DIE_TRAP, "memory address unaligned", regs,
 		       0, 0x34, SIGSEGV) == NOTIFY_STOP)
-		return;
+		goto out;
 
 	if (regs->tstate & TSTATE_PRIV) {
 		kernel_unaligned_trap(regs, *((unsigned int *)regs->tpc));
-		return;
+		goto out;
 	}
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
@@ -2344,6 +2502,8 @@ void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned lo
 	info.si_addr = (void __user *)sfar;
 	info.si_trapno = 0;
 	force_sig_info(SIGBUS, &info, current);
+out:
+	exception_exit(prev_state);
 }
 
 void sun4v_do_mna(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
@@ -2368,11 +2528,12 @@ void sun4v_do_mna(struct pt_regs *regs, unsigned long addr, unsigned long type_c
 
 void do_privop(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
 	siginfo_t info;
 
 	if (notify_die(DIE_TRAP, "privileged operation", regs,
 		       0, 0x11, SIGILL) == NOTIFY_STOP)
-		return;
+		goto out;
 
 	if (test_thread_flag(TIF_32BIT)) {
 		regs->tpc &= 0xffffffff;
@@ -2384,6 +2545,8 @@ void do_privop(struct pt_regs *regs)
 	info.si_addr = (void __user *)regs->tpc;
 	info.si_trapno = 0;
 	force_sig_info(SIGILL, &info, current);
+out:
+	exception_exit(prev_state);
 }
 
 void do_privact(struct pt_regs *regs)
@@ -2394,99 +2557,116 @@ void do_privact(struct pt_regs *regs)
 /* Trap level 1 stuff or other traps we should never see... */
 void do_cee(struct pt_regs *regs)
 {
+	exception_enter();
 	die_if_kernel("TL0: Cache Error Exception", regs);
 }
 
 void do_cee_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: Cache Error Exception", regs);
 }
 
 void do_dae_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: Data Access Exception", regs);
 }
 
 void do_iae_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: Instruction Access Exception", regs);
 }
 
 void do_div0_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: DIV0 Exception", regs);
 }
 
 void do_fpdis_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: FPU Disabled", regs);
 }
 
 void do_fpieee_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: FPU IEEE Exception", regs);
 }
 
 void do_fpother_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: FPU Other Exception", regs);
 }
 
 void do_ill_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: Illegal Instruction Exception", regs);
 }
 
 void do_irq_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: IRQ Exception", regs);
 }
 
 void do_lddfmna_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: LDDF Exception", regs);
 }
 
 void do_stdfmna_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: STDF Exception", regs);
 }
 
 void do_paw(struct pt_regs *regs)
 {
+	exception_enter();
 	die_if_kernel("TL0: Phys Watchpoint Exception", regs);
 }
 
 void do_paw_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: Phys Watchpoint Exception", regs);
 }
 
 void do_vaw(struct pt_regs *regs)
 {
+	exception_enter();
 	die_if_kernel("TL0: Virt Watchpoint Exception", regs);
 }
 
 void do_vaw_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: Virt Watchpoint Exception", regs);
 }
 
 void do_tof_tl1(struct pt_regs *regs)
 {
+	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: Tag Overflow Exception", regs);
 }
@@ -2545,8 +2725,8 @@ void __init trap_init(void)
 		     TI_PRE_COUNT != offsetof(struct thread_info,
 					      preempt_count) ||
 		     TI_NEW_CHILD != offsetof(struct thread_info, new_child) ||
-		     TI_SYS_NOERROR != offsetof(struct thread_info,
-						syscall_noerror) ||
+		     TI_CURRENT_DS != offsetof(struct thread_info,
+						current_ds) ||
 		     TI_RESTART_BLOCK != offsetof(struct thread_info,
 						  restart_block) ||
 		     TI_KUNA_REGS != offsetof(struct thread_info,

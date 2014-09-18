@@ -12,13 +12,10 @@
  *   more details.
  */
 
-#include <arch/chip.h>
-
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/module.h>
-
-#undef memset
+#include <arch/chip.h>
 
 void *memset(void *s, int c, size_t n)
 {
@@ -26,11 +23,7 @@ void *memset(void *s, int c, size_t n)
 	int n32;
 	uint32_t v16, v32;
 	uint8_t *out8 = s;
-#if !CHIP_HAS_WH64()
-	int ahead32;
-#else
 	int to_align32;
-#endif
 
 	/* Experimentation shows that a trivial tight loop is a win up until
 	 * around a size of 20, where writing a word at a time starts to win.
@@ -61,21 +54,6 @@ void *memset(void *s, int c, size_t n)
 		return s;
 	}
 
-#if !CHIP_HAS_WH64()
-	/* Use a spare issue slot to start prefetching the first cache
-	 * line early. This instruction is free as the store can be buried
-	 * in otherwise idle issue slots doing ALU ops.
-	 */
-	__insn_prefetch(out8);
-
-	/* We prefetch the end so that a short memset that spans two cache
-	 * lines gets some prefetching benefit. Again we believe this is free
-	 * to issue.
-	 */
-	__insn_prefetch(&out8[n - 1]);
-#endif /* !CHIP_HAS_WH64() */
-
-
 	/* Align 'out8'. We know n >= 3 so this won't write past the end. */
 	while (((uintptr_t) out8 & 3) != 0) {
 		*out8++ = c;
@@ -95,90 +73,6 @@ void *memset(void *s, int c, size_t n)
 
 	/* This must be at least 8 or the following loop doesn't work. */
 #define CACHE_LINE_SIZE_IN_WORDS (CHIP_L2_LINE_SIZE() / 4)
-
-#if !CHIP_HAS_WH64()
-
-	ahead32 = CACHE_LINE_SIZE_IN_WORDS;
-
-	/* We already prefetched the first and last cache lines, so
-	 * we only need to do more prefetching if we are storing
-	 * to more than two cache lines.
-	 */
-	if (n32 > CACHE_LINE_SIZE_IN_WORDS * 2) {
-		int i;
-
-		/* Prefetch the next several cache lines.
-		 * This is the setup code for the software-pipelined
-		 * loop below.
-		 */
-#define MAX_PREFETCH 5
-		ahead32 = n32 & -CACHE_LINE_SIZE_IN_WORDS;
-		if (ahead32 > MAX_PREFETCH * CACHE_LINE_SIZE_IN_WORDS)
-			ahead32 = MAX_PREFETCH * CACHE_LINE_SIZE_IN_WORDS;
-
-		for (i = CACHE_LINE_SIZE_IN_WORDS;
-		     i < ahead32; i += CACHE_LINE_SIZE_IN_WORDS)
-			__insn_prefetch(&out32[i]);
-	}
-
-	if (n32 > ahead32) {
-		while (1) {
-			int j;
-
-			/* Prefetch by reading one word several cache lines
-			 * ahead.  Since loads are non-blocking this will
-			 * cause the full cache line to be read while we are
-			 * finishing earlier cache lines.  Using a store
-			 * here causes microarchitectural performance
-			 * problems where a victimizing store miss goes to
-			 * the head of the retry FIFO and locks the pipe for
-			 * a few cycles.  So a few subsequent stores in this
-			 * loop go into the retry FIFO, and then later
-			 * stores see other stores to the same cache line
-			 * are already in the retry FIFO and themselves go
-			 * into the retry FIFO, filling it up and grinding
-			 * to a halt waiting for the original miss to be
-			 * satisfied.
-			 */
-			__insn_prefetch(&out32[ahead32]);
-
-#if CACHE_LINE_SIZE_IN_WORDS % 4 != 0
-#error "Unhandled CACHE_LINE_SIZE_IN_WORDS"
-#endif
-
-			n32 -= CACHE_LINE_SIZE_IN_WORDS;
-
-			/* Save icache space by only partially unrolling
-			 * this loop.
-			 */
-			for (j = CACHE_LINE_SIZE_IN_WORDS / 4; j > 0; j--) {
-				*out32++ = v32;
-				*out32++ = v32;
-				*out32++ = v32;
-				*out32++ = v32;
-			}
-
-			/* To save compiled code size, reuse this loop even
-			 * when we run out of prefetching to do by dropping
-			 * ahead32 down.
-			 */
-			if (n32 <= ahead32) {
-				/* Not even a full cache line left,
-				 * so stop now.
-				 */
-				if (n32 < CACHE_LINE_SIZE_IN_WORDS)
-					break;
-
-				/* Choose a small enough value that we don't
-				 * prefetch past the end.  There's no sense
-				 * in touching cache lines we don't have to.
-				 */
-				ahead32 = CACHE_LINE_SIZE_IN_WORDS - 1;
-			}
-		}
-	}
-
-#else /* CHIP_HAS_WH64() */
 
 	/* Determine how many words we need to emit before the 'out32'
 	 * pointer becomes aligned modulo the cache line size.
@@ -235,8 +129,6 @@ void *memset(void *s, int c, size_t n)
 		 */
 		n32 &= CACHE_LINE_SIZE_IN_WORDS - 1;
 	}
-
-#endif /* CHIP_HAS_WH64() */
 
 	/* Now handle any leftover values. */
 	if (n32 != 0) {

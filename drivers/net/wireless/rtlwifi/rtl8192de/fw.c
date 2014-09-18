@@ -120,7 +120,7 @@ static void _rtl92d_write_fw(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u8 *bufferPtr = (u8 *) buffer;
+	u8 *bufferPtr = buffer;
 	u32 pagenums, remainSize;
 	u32 page, offset;
 
@@ -256,8 +256,8 @@ int rtl92d_download_fw(struct ieee80211_hw *hw)
 	if (rtlpriv->max_fw_size == 0 || !rtlhal->pfirmware)
 		return 1;
 	fwsize = rtlhal->fwsize;
-	pfwheader = (u8 *) rtlhal->pfirmware;
-	pfwdata = (u8 *) rtlhal->pfirmware;
+	pfwheader = rtlhal->pfirmware;
+	pfwdata = rtlhal->pfirmware;
 	rtlhal->fw_version = (u16) GET_FIRMWARE_HDR_VERSION(pfwheader);
 	rtlhal->fw_subversion = (u16) GET_FIRMWARE_HDR_SUB_VER(pfwheader);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
@@ -365,7 +365,7 @@ static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
 	u8 u1b_tmp;
 	bool isfw_read = false;
 	u8 buf_index = 0;
-	bool bwrite_sucess = false;
+	bool bwrite_success = false;
 	u8 wait_h2c_limmit = 100;
 	u8 wait_writeh2c_limmit = 100;
 	u8 boxcontent[4], boxextcontent[2];
@@ -408,7 +408,7 @@ static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
 			break;
 		}
 	}
-	while (!bwrite_sucess) {
+	while (!bwrite_success) {
 		wait_writeh2c_limmit--;
 		if (wait_writeh2c_limmit == 0) {
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -515,7 +515,7 @@ static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
 				 "switch case not processed\n");
 			break;
 		}
-		bwrite_sucess = true;
+		bwrite_success = true;
 		rtlhal->last_hmeboxnum = boxnum + 1;
 		if (rtlhal->last_hmeboxnum == 4)
 			rtlhal->last_hmeboxnum = 0;
@@ -570,8 +570,7 @@ static bool _rtl92d_cmd_send_packet(struct ieee80211_hw *hw,
 
 	ring = &rtlpci->tx_ring[BEACON_QUEUE];
 	pskb = __skb_dequeue(&ring->queue);
-	if (pskb)
-		kfree_skb(pskb);
+	kfree_skb(pskb);
 	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
 	pdesc = &ring->desc[idx];
 	/* discard output from call below */

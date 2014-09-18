@@ -38,6 +38,13 @@
 #define elf_addr_t	Elf32_Addr
 
 /*
+ * Some data types as stored in coredump.
+ */
+#define user_long_t		compat_long_t
+#define user_siginfo_t		compat_siginfo_t
+#define copy_siginfo_to_user	copy_siginfo_to_user32
+
+/*
  * The machine-dependent core note format types are defined in elfcore-compat.h,
  * which requires asm/elf.h to define compat_elf_gregset_t et al.
  */
@@ -79,6 +86,11 @@ static void cputime_to_compat_timeval(const cputime_t cputime,
 #ifdef	COMPAT_ELF_HWCAP
 #undef	ELF_HWCAP
 #define	ELF_HWCAP		COMPAT_ELF_HWCAP
+#endif
+
+#ifdef	COMPAT_ELF_HWCAP2
+#undef	ELF_HWCAP2
+#define	ELF_HWCAP2		COMPAT_ELF_HWCAP2
 #endif
 
 #ifdef	COMPAT_ARCH_DLINFO

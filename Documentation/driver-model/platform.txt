@@ -48,7 +48,7 @@ struct platform_driver {
 	struct device_driver driver;
 };
 
-Note that probe() should general verify that the specified device hardware
+Note that probe() should in general verify that the specified device hardware
 actually exists; sometimes platform setup code can't be sure.  The probing
 can use device resources, including clocks, and device platform_data.
 

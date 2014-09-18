@@ -12,12 +12,15 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/pci_ids.h>
+#include <drm/i915_drm.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
+#include <asm/hpet.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
+#include <asm/irq_remapping.h>
 
 static void __init fix_hypertransport_config(int num, int slot, int func)
 {
@@ -192,6 +195,377 @@ static void __init ati_bugs_contd(int num, int slot, int func)
 }
 #endif
 
+static void __init intel_remapping_check(int num, int slot, int func)
+{
+	u8 revision;
+	u16 device;
+
+	device = read_pci_config_16(num, slot, func, PCI_DEVICE_ID);
+	revision = read_pci_config_byte(num, slot, func, PCI_REVISION_ID);
+
+	/*
+	 * Revision <= 13 of all triggering devices id in this quirk
+	 * have a problem draining interrupts when irq remapping is
+	 * enabled, and should be flagged as broken. Additionally
+	 * revision 0x22 of device id 0x3405 has this problem.
+	 */
+	if (revision <= 0x13)
+		set_irq_remapping_broken();
+	else if (device == 0x3405 && revision == 0x22)
+		set_irq_remapping_broken();
+}
+
+/*
+ * Systems with Intel graphics controllers set aside memory exclusively
+ * for gfx driver use.  This memory is not marked in the E820 as reserved
+ * or as RAM, and so is subject to overlap from E820 manipulation later
+ * in the boot process.  On some systems, MMIO space is allocated on top,
+ * despite the efforts of the "RAM buffer" approach, which simply rounds
+ * memory boundaries up to 64M to try to catch space that may decode
+ * as RAM and so is not suitable for MMIO.
+ *
+ * And yes, so far on current devices the base addr is always under 4G.
+ */
+static u32 __init intel_stolen_base(int num, int slot, int func, size_t stolen_size)
+{
+	u32 base;
+
+	/*
+	 * For the PCI IDs in this quirk, the stolen base is always
+	 * in 0x5c, aka the BDSM register (yes that's really what
+	 * it's called).
+	 */
+	base = read_pci_config(num, slot, func, 0x5c);
+	base &= ~((1<<20) - 1);
+
+	return base;
+}
+
+#define KB(x)	((x) * 1024UL)
+#define MB(x)	(KB (KB (x)))
+#define GB(x)	(MB (KB (x)))
+
+static size_t __init i830_tseg_size(void)
+{
+	u8 tmp = read_pci_config_byte(0, 0, 0, I830_ESMRAMC);
+
+	if (!(tmp & TSEG_ENABLE))
+		return 0;
+
+	if (tmp & I830_TSEG_SIZE_1M)
+		return MB(1);
+	else
+		return KB(512);
+}
+
+static size_t __init i845_tseg_size(void)
+{
+	u8 tmp = read_pci_config_byte(0, 0, 0, I845_ESMRAMC);
+
+	if (!(tmp & TSEG_ENABLE))
+		return 0;
+
+	switch (tmp & I845_TSEG_SIZE_MASK) {
+	case I845_TSEG_SIZE_512K:
+		return KB(512);
+	case I845_TSEG_SIZE_1M:
+		return MB(1);
+	default:
+		WARN_ON(1);
+		return 0;
+	}
+}
+
+static size_t __init i85x_tseg_size(void)
+{
+	u8 tmp = read_pci_config_byte(0, 0, 0, I85X_ESMRAMC);
+
+	if (!(tmp & TSEG_ENABLE))
+		return 0;
+
+	return MB(1);
+}
+
+static size_t __init i830_mem_size(void)
+{
+	return read_pci_config_byte(0, 0, 0, I830_DRB3) * MB(32);
+}
+
+static size_t __init i85x_mem_size(void)
+{
+	return read_pci_config_byte(0, 0, 1, I85X_DRB3) * MB(32);
+}
+
+/*
+ * On 830/845/85x the stolen memory base isn't available in any
+ * register. We need to calculate it as TOM-TSEG_SIZE-stolen_size.
+ */
+static u32 __init i830_stolen_base(int num, int slot, int func, size_t stolen_size)
+{
+	return i830_mem_size() - i830_tseg_size() - stolen_size;
+}
+
+static u32 __init i845_stolen_base(int num, int slot, int func, size_t stolen_size)
+{
+	return i830_mem_size() - i845_tseg_size() - stolen_size;
+}
+
+static u32 __init i85x_stolen_base(int num, int slot, int func, size_t stolen_size)
+{
+	return i85x_mem_size() - i85x_tseg_size() - stolen_size;
+}
+
+static u32 __init i865_stolen_base(int num, int slot, int func, size_t stolen_size)
+{
+	/*
+	 * FIXME is the graphics stolen memory region
+	 * always at TOUD? Ie. is it always the last
+	 * one to be allocated by the BIOS?
+	 */
+	return read_pci_config_16(0, 0, 0, I865_TOUD) << 16;
+}
+
+static size_t __init i830_stolen_size(int num, int slot, int func)
+{
+	size_t stolen_size;
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(0, 0, 0, I830_GMCH_CTRL);
+
+	switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
+	case I830_GMCH_GMS_STOLEN_512:
+		stolen_size = KB(512);
+		break;
+	case I830_GMCH_GMS_STOLEN_1024:
+		stolen_size = MB(1);
+		break;
+	case I830_GMCH_GMS_STOLEN_8192:
+		stolen_size = MB(8);
+		break;
+	case I830_GMCH_GMS_LOCAL:
+		/* local memory isn't part of the normal address space */
+		stolen_size = 0;
+		break;
+	default:
+		return 0;
+	}
+
+	return stolen_size;
+}
+
+static size_t __init gen3_stolen_size(int num, int slot, int func)
+{
+	size_t stolen_size;
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(0, 0, 0, I830_GMCH_CTRL);
+
+	switch (gmch_ctrl & I855_GMCH_GMS_MASK) {
+	case I855_GMCH_GMS_STOLEN_1M:
+		stolen_size = MB(1);
+		break;
+	case I855_GMCH_GMS_STOLEN_4M:
+		stolen_size = MB(4);
+		break;
+	case I855_GMCH_GMS_STOLEN_8M:
+		stolen_size = MB(8);
+		break;
+	case I855_GMCH_GMS_STOLEN_16M:
+		stolen_size = MB(16);
+		break;
+	case I855_GMCH_GMS_STOLEN_32M:
+		stolen_size = MB(32);
+		break;
+	case I915_GMCH_GMS_STOLEN_48M:
+		stolen_size = MB(48);
+		break;
+	case I915_GMCH_GMS_STOLEN_64M:
+		stolen_size = MB(64);
+		break;
+	case G33_GMCH_GMS_STOLEN_128M:
+		stolen_size = MB(128);
+		break;
+	case G33_GMCH_GMS_STOLEN_256M:
+		stolen_size = MB(256);
+		break;
+	case INTEL_GMCH_GMS_STOLEN_96M:
+		stolen_size = MB(96);
+		break;
+	case INTEL_GMCH_GMS_STOLEN_160M:
+		stolen_size = MB(160);
+		break;
+	case INTEL_GMCH_GMS_STOLEN_224M:
+		stolen_size = MB(224);
+		break;
+	case INTEL_GMCH_GMS_STOLEN_352M:
+		stolen_size = MB(352);
+		break;
+	default:
+		stolen_size = 0;
+		break;
+	}
+
+	return stolen_size;
+}
+
+static size_t __init gen6_stolen_size(int num, int slot, int func)
+{
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(num, slot, func, SNB_GMCH_CTRL);
+	gmch_ctrl >>= SNB_GMCH_GMS_SHIFT;
+	gmch_ctrl &= SNB_GMCH_GMS_MASK;
+
+	return gmch_ctrl << 25; /* 32 MB units */
+}
+
+static size_t __init gen8_stolen_size(int num, int slot, int func)
+{
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(num, slot, func, SNB_GMCH_CTRL);
+	gmch_ctrl >>= BDW_GMCH_GMS_SHIFT;
+	gmch_ctrl &= BDW_GMCH_GMS_MASK;
+	return gmch_ctrl << 25; /* 32 MB units */
+}
+
+static size_t __init chv_stolen_size(int num, int slot, int func)
+{
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(num, slot, func, SNB_GMCH_CTRL);
+	gmch_ctrl >>= SNB_GMCH_GMS_SHIFT;
+	gmch_ctrl &= SNB_GMCH_GMS_MASK;
+
+	/*
+	 * 0x0  to 0x10: 32MB increments starting at 0MB
+	 * 0x11 to 0x16: 4MB increments starting at 8MB
+	 * 0x17 to 0x1d: 4MB increments start at 36MB
+	 */
+	if (gmch_ctrl < 0x11)
+		return gmch_ctrl << 25;
+	else if (gmch_ctrl < 0x17)
+		return (gmch_ctrl - 0x11 + 2) << 22;
+	else
+		return (gmch_ctrl - 0x17 + 9) << 22;
+}
+
+struct intel_stolen_funcs {
+	size_t (*size)(int num, int slot, int func);
+	u32 (*base)(int num, int slot, int func, size_t size);
+};
+
+static const struct intel_stolen_funcs i830_stolen_funcs __initconst = {
+	.base = i830_stolen_base,
+	.size = i830_stolen_size,
+};
+
+static const struct intel_stolen_funcs i845_stolen_funcs __initconst = {
+	.base = i845_stolen_base,
+	.size = i830_stolen_size,
+};
+
+static const struct intel_stolen_funcs i85x_stolen_funcs __initconst = {
+	.base = i85x_stolen_base,
+	.size = gen3_stolen_size,
+};
+
+static const struct intel_stolen_funcs i865_stolen_funcs __initconst = {
+	.base = i865_stolen_base,
+	.size = gen3_stolen_size,
+};
+
+static const struct intel_stolen_funcs gen3_stolen_funcs __initconst = {
+	.base = intel_stolen_base,
+	.size = gen3_stolen_size,
+};
+
+static const struct intel_stolen_funcs gen6_stolen_funcs __initconst = {
+	.base = intel_stolen_base,
+	.size = gen6_stolen_size,
+};
+
+static const struct intel_stolen_funcs gen8_stolen_funcs __initconst = {
+	.base = intel_stolen_base,
+	.size = gen8_stolen_size,
+};
+
+static const struct intel_stolen_funcs chv_stolen_funcs __initconst = {
+	.base = intel_stolen_base,
+	.size = chv_stolen_size,
+};
+
+static const struct pci_device_id intel_stolen_ids[] __initconst = {
+	INTEL_I830_IDS(&i830_stolen_funcs),
+	INTEL_I845G_IDS(&i845_stolen_funcs),
+	INTEL_I85X_IDS(&i85x_stolen_funcs),
+	INTEL_I865G_IDS(&i865_stolen_funcs),
+	INTEL_I915G_IDS(&gen3_stolen_funcs),
+	INTEL_I915GM_IDS(&gen3_stolen_funcs),
+	INTEL_I945G_IDS(&gen3_stolen_funcs),
+	INTEL_I945GM_IDS(&gen3_stolen_funcs),
+	INTEL_VLV_M_IDS(&gen6_stolen_funcs),
+	INTEL_VLV_D_IDS(&gen6_stolen_funcs),
+	INTEL_PINEVIEW_IDS(&gen3_stolen_funcs),
+	INTEL_I965G_IDS(&gen3_stolen_funcs),
+	INTEL_G33_IDS(&gen3_stolen_funcs),
+	INTEL_I965GM_IDS(&gen3_stolen_funcs),
+	INTEL_GM45_IDS(&gen3_stolen_funcs),
+	INTEL_G45_IDS(&gen3_stolen_funcs),
+	INTEL_IRONLAKE_D_IDS(&gen3_stolen_funcs),
+	INTEL_IRONLAKE_M_IDS(&gen3_stolen_funcs),
+	INTEL_SNB_D_IDS(&gen6_stolen_funcs),
+	INTEL_SNB_M_IDS(&gen6_stolen_funcs),
+	INTEL_IVB_M_IDS(&gen6_stolen_funcs),
+	INTEL_IVB_D_IDS(&gen6_stolen_funcs),
+	INTEL_HSW_D_IDS(&gen6_stolen_funcs),
+	INTEL_HSW_M_IDS(&gen6_stolen_funcs),
+	INTEL_BDW_M_IDS(&gen8_stolen_funcs),
+	INTEL_BDW_D_IDS(&gen8_stolen_funcs),
+	INTEL_CHV_IDS(&chv_stolen_funcs),
+};
+
+static void __init intel_graphics_stolen(int num, int slot, int func)
+{
+	size_t size;
+	int i;
+	u32 start;
+	u16 device, subvendor, subdevice;
+
+	device = read_pci_config_16(num, slot, func, PCI_DEVICE_ID);
+	subvendor = read_pci_config_16(num, slot, func,
+				       PCI_SUBSYSTEM_VENDOR_ID);
+	subdevice = read_pci_config_16(num, slot, func, PCI_SUBSYSTEM_ID);
+
+	for (i = 0; i < ARRAY_SIZE(intel_stolen_ids); i++) {
+		if (intel_stolen_ids[i].device == device) {
+			const struct intel_stolen_funcs *stolen_funcs =
+				(const struct intel_stolen_funcs *)intel_stolen_ids[i].driver_data;
+			size = stolen_funcs->size(num, slot, func);
+			start = stolen_funcs->base(num, slot, func, size);
+			if (size && start) {
+				printk(KERN_INFO "Reserving Intel graphics stolen memory at 0x%x-0x%x\n",
+				       start, start + (u32)size - 1);
+				/* Mark this space as reserved */
+				e820_add_region(start, size, E820_RESERVED);
+				sanitize_e820_map(e820.map,
+						  ARRAY_SIZE(e820.map),
+						  &e820.nr_map);
+			}
+			return;
+		}
+	}
+}
+
+static void __init force_disable_hpet(int num, int slot, int func)
+{
+#ifdef CONFIG_HPET_TIMER
+	boot_hpet_disable = 1;
+	pr_info("x86/hpet: Will disable the HPET for this platform because it's not reliable\n");
+#endif
+}
+
+
 #define QFLAG_APPLY_ONCE 	0x1
 #define QFLAG_APPLIED		0x2
 #define QFLAG_DONE		(QFLAG_APPLY_ONCE|QFLAG_APPLIED)
@@ -221,6 +595,20 @@ static struct chipset early_qrk[] __initdata = {
 	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs },
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
 	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs_contd },
+	{ PCI_VENDOR_ID_INTEL, 0x3403, PCI_CLASS_BRIDGE_HOST,
+	  PCI_BASE_CLASS_BRIDGE, 0, intel_remapping_check },
+	{ PCI_VENDOR_ID_INTEL, 0x3405, PCI_CLASS_BRIDGE_HOST,
+	  PCI_BASE_CLASS_BRIDGE, 0, intel_remapping_check },
+	{ PCI_VENDOR_ID_INTEL, 0x3406, PCI_CLASS_BRIDGE_HOST,
+	  PCI_BASE_CLASS_BRIDGE, 0, intel_remapping_check },
+	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA, PCI_ANY_ID,
+	  QFLAG_APPLY_ONCE, intel_graphics_stolen },
+	/*
+	 * HPET on current version of Baytrail platform has accuracy
+	 * problems, disable it for now:
+	 */
+	{ PCI_VENDOR_ID_INTEL, 0x0f00,
+		PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, force_disable_hpet},
 	{}
 };
 

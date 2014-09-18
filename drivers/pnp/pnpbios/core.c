@@ -91,8 +91,6 @@ struct pnp_dev_node_info node_info;
  *
  */
 
-#ifdef CONFIG_HOTPLUG
-
 static struct completion unload_sem;
 
 /*
@@ -198,8 +196,6 @@ static int pnp_dock_thread(void *unused)
 	}
 	complete_and_exit(&unload_sem, 0);
 }
-
-#endif				/* CONFIG_HOTPLUG */
 
 static int pnpbios_get_resources(struct pnp_dev *dev)
 {
@@ -316,18 +312,19 @@ static int __init insert_device(struct pnp_bios_node *node)
 	struct list_head *pos;
 	struct pnp_dev *dev;
 	char id[8];
+	int error;
 
 	/* check if the device is already added */
 	list_for_each(pos, &pnpbios_protocol.devices) {
 		dev = list_entry(pos, struct pnp_dev, protocol_list);
 		if (dev->number == node->handle)
-			return -1;
+			return -EEXIST;
 	}
 
 	pnp_eisa_id_to_string(node->eisa_id & PNP_EISA_ID_MASK, id);
 	dev = pnp_alloc_dev(&pnpbios_protocol, node->handle, id);
 	if (!dev)
-		return -1;
+		return -ENOMEM;
 
 	pnpbios_parse_data_stream(dev, node);
 	dev->active = pnp_is_active(dev);
@@ -346,7 +343,12 @@ static int __init insert_device(struct pnp_bios_node *node)
 	if (!dev->active)
 		pnp_init_resources(dev);
 
-	pnp_add_device(dev);
+	error = pnp_add_device(dev);
+	if (error) {
+		put_device(&dev->dev);
+		return error;
+	}
+
 	pnpbios_interface_attach_device(node);
 
 	return 0;
@@ -517,10 +519,6 @@ static int __init pnpbios_init(void)
 {
 	int ret;
 
-#if defined(CONFIG_PPC)
-	if (check_legacy_ioport(PNPBIOS_BASE))
-		return -ENODEV;
-#endif
 	if (pnpbios_disabled || dmi_check_system(pnpbios_dmi_table) ||
 	    paravirt_enabled()) {
 		printk(KERN_INFO "PnPBIOS: Disabled\n");
@@ -573,21 +571,16 @@ fs_initcall(pnpbios_init);
 
 static int __init pnpbios_thread_init(void)
 {
-#if defined(CONFIG_PPC)
-	if (check_legacy_ioport(PNPBIOS_BASE))
-		return 0;
-#endif
+	struct task_struct *task;
+
 	if (pnpbios_disabled)
 		return 0;
-#ifdef CONFIG_HOTPLUG
-	{
-		struct task_struct *task;
-		init_completion(&unload_sem);
-		task = kthread_run(pnp_dock_thread, NULL, "kpnpbiosd");
-		if (IS_ERR(task))
-			return PTR_ERR(task);
-	}
-#endif
+
+	init_completion(&unload_sem);
+	task = kthread_run(pnp_dock_thread, NULL, "kpnpbiosd");
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+
 	return 0;
 }
 

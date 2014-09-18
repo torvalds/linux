@@ -1,0 +1,19 @@
+ST-Ericsson COH 901 327 Watchdog timer
+
+Required properties:
+- compatible: must be "stericsson,coh901327".
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- interrupts: the interrupt used for the watchdog timeout warning.
+
+Optional properties:
+- timeout-sec: contains the watchdog timeout in seconds.
+
+Example:
+
+watchdog: watchdog@c0012000 {
+	compatible = "stericsson,coh901327";
+	reg = <0xc0012000 0x1000>;
+	interrupts = <3>;
+	timeout-sec = <60>;
+};

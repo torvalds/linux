@@ -27,8 +27,13 @@
 #ifndef __NOUVEAU_CONNECTOR_H__
 #define __NOUVEAU_CONNECTOR_H__
 
-#include "drm_edid.h"
-#include "nouveau_i2c.h"
+#include <nvif/notify.h>
+
+#include <drm/drm_edid.h>
+#include <drm/drm_dp_helper.h>
+#include "nouveau_crtc.h"
+
+struct nouveau_i2c_port;
 
 enum nouveau_underscan_type {
 	UNDERSCAN_OFF,
@@ -59,7 +64,10 @@ struct nouveau_connector {
 	enum dcb_connector_type type;
 	u8 index;
 	u8 *dcb;
-	u8 hpd;
+
+	struct nvif_notify hpd;
+
+	struct drm_dp_aux aux;
 
 	int dithering_mode;
 	int dithering_depth;
@@ -79,10 +87,22 @@ static inline struct nouveau_connector *nouveau_connector(
 	return container_of(con, struct nouveau_connector, base);
 }
 
+static inline struct nouveau_connector *
+nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
+{
+	struct drm_device *dev = nv_crtc->base.dev;
+	struct drm_connector *connector;
+	struct drm_crtc *crtc = to_drm_crtc(nv_crtc);
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->encoder && connector->encoder->crtc == crtc)
+			return nouveau_connector(connector);
+	}
+
+	return NULL;
+}
+
 struct drm_connector *
 nouveau_connector_create(struct drm_device *, int index);
-
-int
-nouveau_connector_bpp(struct drm_connector *);
 
 #endif /* __NOUVEAU_CONNECTOR_H__ */

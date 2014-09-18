@@ -18,23 +18,24 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/time.h>
-#include <linux/fsl/mxs-dma.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/saif.h>
-#include <asm/mach-types.h>
-#include <mach/hardware.h>
-#include <mach/mxs.h>
 
 #include "mxs-saif.h"
+
+#define MXS_SET_ADDR	0x4
+#define MXS_CLR_ADDR	0x8
 
 static struct mxs_saif *mxs_saif[2];
 
@@ -49,9 +50,9 @@ static struct mxs_saif *mxs_saif[2];
  * This also means that both SAIFs must operate at the same sample rate.
  *
  * We abstract this as each saif has a master, the master could be
- * himself or other saifs. In the generic saif driver, saif does not need
- * to know the different clkmux. Saif only needs to know who is his master
- * and operating his master to generate the proper clock rate for him.
+ * itself or other saifs. In the generic saif driver, saif does not need
+ * to know the different clkmux. Saif only needs to know who is its master
+ * and operating its master to generate the proper clock rate for it.
  * The master id is provided in mach-specific layer according to different
  * clkmux setting.
  */
@@ -75,7 +76,7 @@ static int mxs_saif_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
  * Since SAIF may work on EXTMASTER mode, IOW, it's working BITCLK&LRCLK
  * is provided by other SAIF, we provide a interface here to get its master
  * from its master_id.
- * Note that the master could be himself.
+ * Note that the master could be itself.
  */
 static inline struct mxs_saif *mxs_saif_get_master(struct mxs_saif * saif)
 {
@@ -226,6 +227,7 @@ int mxs_saif_put_mclk(unsigned int saif_id)
 	saif->mclk_in_use = 0;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mxs_saif_put_mclk);
 
 /*
  * Get MCLK and set clock rate, then enable it
@@ -279,6 +281,7 @@ int mxs_saif_get_mclk(unsigned int saif_id, unsigned int mclk,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mxs_saif_get_mclk);
 
 /*
  * SAIF DAI format configuration.
@@ -365,7 +368,6 @@ static int mxs_saif_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *cpu_dai)
 {
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
-	snd_soc_dai_set_dma_data(cpu_dai, substream, &saif->dma_param);
 
 	/* clear error status to 0 for each re-open */
 	saif->fifo_underrun = 0;
@@ -391,8 +393,13 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *cpu_dai)
 {
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
+	struct mxs_saif *master_saif;
 	u32 scr, stat;
 	int ret;
+
+	master_saif = mxs_saif_get_master(saif);
+	if (!master_saif)
+		return -EINVAL;
 
 	/* mclk should already be set */
 	if (!saif->mclk && saif->mclk_in_use) {
@@ -415,6 +422,25 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 	if (ret) {
 		dev_err(cpu_dai->dev, "unable to get proper clk\n");
 		return ret;
+	}
+
+	/* prepare clk in hw_param, enable in trigger */
+	clk_prepare(saif->clk);
+	if (saif != master_saif) {
+		/*
+		* Set an initial clock rate for the saif internal logic to work
+		* properly. This is important when working in EXTMASTER mode
+		* that uses the other saif's BITCLK&LRCLK but it still needs a
+		* basic clock which should be fast enough for the internal
+		* logic.
+		*/
+		clk_enable(saif->clk);
+		ret = clk_set_rate(saif->clk, 24000000);
+		clk_disable(saif->clk);
+		if (ret)
+			return ret;
+
+		clk_prepare(master_saif->clk);
 	}
 
 	scr = __raw_readl(saif->base + SAIF_CTRL);
@@ -468,6 +494,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
 	struct mxs_saif *master_saif;
 	u32 delay;
+	int ret;
 
 	master_saif = mxs_saif_get_master(saif);
 	if (!master_saif)
@@ -477,38 +504,61 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (saif->state == MXS_SAIF_STATE_RUNNING)
+			return 0;
+
 		dev_dbg(cpu_dai->dev, "start\n");
 
-		clk_enable(master_saif->clk);
-		if (!master_saif->mclk_in_use)
-			__raw_writel(BM_SAIF_CTRL_RUN,
-				master_saif->base + SAIF_CTRL + MXS_SET_ADDR);
+		ret = clk_enable(master_saif->clk);
+		if (ret) {
+			dev_err(saif->dev, "Failed to enable master clock\n");
+			return ret;
+		}
 
 		/*
-		 * If the saif's master is not himself, we also need to enable
+		 * If the saif's master is not itself, we also need to enable
 		 * itself clk for its internal basic logic to work.
 		 */
 		if (saif != master_saif) {
-			clk_enable(saif->clk);
+			ret = clk_enable(saif->clk);
+			if (ret) {
+				dev_err(saif->dev, "Failed to enable master clock\n");
+				clk_disable(master_saif->clk);
+				return ret;
+			}
+
 			__raw_writel(BM_SAIF_CTRL_RUN,
 				saif->base + SAIF_CTRL + MXS_SET_ADDR);
 		}
 
+		if (!master_saif->mclk_in_use)
+			__raw_writel(BM_SAIF_CTRL_RUN,
+				master_saif->base + SAIF_CTRL + MXS_SET_ADDR);
+
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/*
-			 * write a data to saif data register to trigger
-			 * the transfer
+			 * write data to saif data register to trigger
+			 * the transfer.
+			 * For 24-bit format the 32-bit FIFO register stores
+			 * only one channel, so we need to write twice.
+			 * This is also safe for the other non 24-bit formats.
 			 */
+			__raw_writel(0, saif->base + SAIF_DATA);
 			__raw_writel(0, saif->base + SAIF_DATA);
 		} else {
 			/*
-			 * read a data from saif data register to trigger
-			 * the receive
+			 * read data from saif data register to trigger
+			 * the receive.
+			 * For 24-bit format the 32-bit FIFO register stores
+			 * only one channel, so we need to read twice.
+			 * This is also safe for the other non 24-bit formats.
 			 */
+			__raw_readl(saif->base + SAIF_DATA);
 			__raw_readl(saif->base + SAIF_DATA);
 		}
 
 		master_saif->ongoing = 1;
+		saif->state = MXS_SAIF_STATE_RUNNING;
 
 		dev_dbg(saif->dev, "CTRL 0x%x STAT 0x%x\n",
 			__raw_readl(saif->base + SAIF_CTRL),
@@ -521,6 +571,9 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (saif->state == MXS_SAIF_STATE_STOPPED)
+			return 0;
+
 		dev_dbg(cpu_dai->dev, "stop\n");
 
 		/* wait a while for the current sample to complete */
@@ -541,6 +594,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 		}
 
 		master_saif->ongoing = 0;
+		saif->state = MXS_SAIF_STATE_STOPPED;
 
 		break;
 	default:
@@ -591,6 +645,10 @@ static struct snd_soc_dai_driver mxs_saif_dai = {
 	.ops = &mxs_saif_dai_ops,
 };
 
+static const struct snd_soc_component_driver mxs_saif_component = {
+	.name		= "mxs-saif",
+};
+
 static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 {
 	struct mxs_saif *saif = dev_id;
@@ -620,37 +678,78 @@ static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int mxs_saif_mclk_init(struct platform_device *pdev)
+{
+	struct mxs_saif *saif = platform_get_drvdata(pdev);
+	struct device_node *np = pdev->dev.of_node;
+	struct clk *clk;
+	int ret;
+
+	clk = clk_register_divider(&pdev->dev, "mxs_saif_mclk",
+				   __clk_get_name(saif->clk), 0,
+				   saif->base + SAIF_CTRL,
+				   BP_SAIF_CTRL_BITCLK_MULT_RATE, 3,
+				   0, NULL);
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		if (ret == -EEXIST)
+			return 0;
+		dev_err(&pdev->dev, "failed to register mclk: %d\n", ret);
+		return PTR_ERR(clk);
+	}
+
+	ret = of_clk_add_provider(np, of_clk_src_simple_get, clk);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int mxs_saif_probe(struct platform_device *pdev)
 {
-	struct resource *iores, *dmares;
+	struct device_node *np = pdev->dev.of_node;
+	struct resource *iores;
 	struct mxs_saif *saif;
-	struct mxs_saif_platform_data *pdata;
 	int ret = 0;
+	struct device_node *master;
 
-	if (pdev->id >= ARRAY_SIZE(mxs_saif))
+	if (!np)
 		return -EINVAL;
 
 	saif = devm_kzalloc(&pdev->dev, sizeof(*saif), GFP_KERNEL);
 	if (!saif)
 		return -ENOMEM;
 
-	mxs_saif[pdev->id] = saif;
-	saif->id = pdev->id;
+	ret = of_alias_get_id(np, "saif");
+	if (ret < 0)
+		return ret;
+	else
+		saif->id = ret;
 
-	pdata = pdev->dev.platform_data;
-	if (pdata && !pdata->master_mode) {
-		saif->master_id = pdata->master_id;
-		if (saif->master_id < 0 ||
-			saif->master_id >= ARRAY_SIZE(mxs_saif) ||
-			saif->master_id == saif->id) {
-			dev_err(&pdev->dev, "get wrong master id\n");
-			return -EINVAL;
-		}
-	} else {
+	/*
+	 * If there is no "fsl,saif-master" phandle, it's a saif
+	 * master.  Otherwise, it's a slave and its phandle points
+	 * to the master.
+	 */
+	master = of_parse_phandle(np, "fsl,saif-master", 0);
+	if (!master) {
 		saif->master_id = saif->id;
+	} else {
+		ret = of_alias_get_id(master, "saif");
+		if (ret < 0)
+			return ret;
+		else
+			saif->master_id = ret;
 	}
 
-	saif->clk = clk_get(&pdev->dev, NULL);
+	if (saif->master_id >= ARRAY_SIZE(mxs_saif)) {
+		dev_err(&pdev->dev, "get wrong master id\n");
+		return -EINVAL;
+	}
+
+	mxs_saif[saif->id] = saif;
+
+	saif->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(saif->clk)) {
 		ret = PTR_ERR(saif->clk);
 		dev_err(&pdev->dev, "Cannot get the clock: %d\n",
@@ -660,28 +759,16 @@ static int mxs_saif_probe(struct platform_device *pdev)
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	saif->base = devm_request_and_ioremap(&pdev->dev, iores);
-	if (!saif->base) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENODEV;
-		goto failed_get_resource;
-	}
-
-	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!dmares) {
-		ret = -ENODEV;
-		dev_err(&pdev->dev, "failed to get dma resource: %d\n",
-			ret);
-		goto failed_get_resource;
-	}
-	saif->dma_param.chan_num = dmares->start;
+	saif->base = devm_ioremap_resource(&pdev->dev, iores);
+	if (IS_ERR(saif->base))
+		return PTR_ERR(saif->base);
 
 	saif->irq = platform_get_irq(pdev, 0);
 	if (saif->irq < 0) {
 		ret = saif->irq;
 		dev_err(&pdev->dev, "failed to get irq resource: %d\n",
 			ret);
-		goto failed_get_resource;
+		return ret;
 	}
 
 	saif->dev = &pdev->dev;
@@ -689,69 +776,47 @@ static int mxs_saif_probe(struct platform_device *pdev)
 			       "mxs-saif", saif);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
-		goto failed_get_resource;
-	}
-
-	saif->dma_param.chan_irq = platform_get_irq(pdev, 1);
-	if (saif->dma_param.chan_irq < 0) {
-		ret = saif->dma_param.chan_irq;
-		dev_err(&pdev->dev, "failed to get dma irq resource: %d\n",
-			ret);
-		goto failed_get_resource;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, saif);
 
-	ret = snd_soc_register_dai(&pdev->dev, &mxs_saif_dai);
+	/* We only support saif0 being tx and clock master */
+	if (saif->id == 0) {
+		ret = mxs_saif_mclk_init(pdev);
+		if (ret)
+			dev_warn(&pdev->dev, "failed to init clocks\n");
+	}
+
+	ret = devm_snd_soc_register_component(&pdev->dev, &mxs_saif_component,
+					      &mxs_saif_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "register DAI failed\n");
-		goto failed_get_resource;
+		return ret;
 	}
 
-	saif->soc_platform_pdev = platform_device_alloc(
-					"mxs-pcm-audio", pdev->id);
-	if (!saif->soc_platform_pdev) {
-		ret = -ENOMEM;
-		goto failed_pdev_alloc;
-	}
-
-	platform_set_drvdata(saif->soc_platform_pdev, saif);
-	ret = platform_device_add(saif->soc_platform_pdev);
+	ret = mxs_pcm_platform_register(&pdev->dev);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to add soc platform device\n");
-		goto failed_pdev_add;
+		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
+		return ret;
 	}
 
 	return 0;
-
-failed_pdev_add:
-	platform_device_put(saif->soc_platform_pdev);
-failed_pdev_alloc:
-	snd_soc_unregister_dai(&pdev->dev);
-failed_get_resource:
-	clk_put(saif->clk);
-
-	return ret;
 }
 
-static int __devexit mxs_saif_remove(struct platform_device *pdev)
-{
-	struct mxs_saif *saif = platform_get_drvdata(pdev);
-
-	platform_device_unregister(saif->soc_platform_pdev);
-	snd_soc_unregister_dai(&pdev->dev);
-	clk_put(saif->clk);
-
-	return 0;
-}
+static const struct of_device_id mxs_saif_dt_ids[] = {
+	{ .compatible = "fsl,imx28-saif", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_saif_dt_ids);
 
 static struct platform_driver mxs_saif_driver = {
 	.probe = mxs_saif_probe,
-	.remove = __devexit_p(mxs_saif_remove),
 
 	.driver = {
 		.name = "mxs-saif",
 		.owner = THIS_MODULE,
+		.of_match_table = mxs_saif_dt_ids,
 	},
 };
 
@@ -760,3 +825,4 @@ module_platform_driver(mxs_saif_driver);
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MXS ASoC SAIF driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mxs-saif");

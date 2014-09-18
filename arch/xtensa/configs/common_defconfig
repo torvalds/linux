@@ -8,7 +8,6 @@ CONFIG_XTENSA=y
 # CONFIG_UID16 is not set
 CONFIG_RWSEM_XCHGADD_ALGORITHM=y
 CONFIG_HAVE_DEC_LOCK=y
-CONFIG_GENERIC_HARDIRQS=y
 
 #
 # Code maturity level options
@@ -67,7 +66,6 @@ CONFIG_XTENSA_ARCH_LINUX_BE=y
 CONFIG_MMU=y
 # CONFIG_XTENSA_UNALIGNED_USER is not set
 # CONFIG_PREEMPT is not set
-# CONFIG_MATH_EMULATION is not set
 # CONFIG_HIGHMEM is not set
 
 #
@@ -331,11 +329,6 @@ CONFIG_XT2000_SONIC=y
 #
 # CONFIG_IXGB is not set
 # CONFIG_S2IO is not set
-
-#
-# Token Ring devices
-#
-# CONFIG_TR is not set
 
 #
 # Wireless LAN (non-hamradio)

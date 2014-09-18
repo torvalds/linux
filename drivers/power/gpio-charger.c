@@ -28,6 +28,7 @@
 struct gpio_charger {
 	const struct gpio_charger_platform_data *pdata;
 	unsigned int irq;
+	bool wakeup_enabled;
 
 	struct power_supply charger;
 };
@@ -54,7 +55,7 @@ static int gpio_charger_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = gpio_get_value(pdata->gpio);
+		val->intval = gpio_get_value_cansleep(pdata->gpio);
 		val->intval ^= pdata->gpio_active_low;
 		break;
 	default:
@@ -68,7 +69,7 @@ static enum power_supply_property gpio_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
-static int __devinit gpio_charger_probe(struct platform_device *pdev)
+static int gpio_charger_probe(struct platform_device *pdev)
 {
 	const struct gpio_charger_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_charger *gpio_charger;
@@ -86,7 +87,8 @@ static int __devinit gpio_charger_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	gpio_charger = kzalloc(sizeof(*gpio_charger), GFP_KERNEL);
+	gpio_charger = devm_kzalloc(&pdev->dev, sizeof(*gpio_charger),
+					GFP_KERNEL);
 	if (!gpio_charger) {
 		dev_err(&pdev->dev, "Failed to alloc driver structure\n");
 		return -ENOMEM;
@@ -135,16 +137,17 @@ static int __devinit gpio_charger_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gpio_charger);
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	return 0;
 
 err_gpio_free:
 	gpio_free(pdata->gpio);
 err_free:
-	kfree(gpio_charger);
 	return ret;
 }
 
-static int __devexit gpio_charger_remove(struct platform_device *pdev)
+static int gpio_charger_remove(struct platform_device *pdev)
 {
 	struct gpio_charger *gpio_charger = platform_get_drvdata(pdev);
 
@@ -155,29 +158,40 @@ static int __devexit gpio_charger_remove(struct platform_device *pdev)
 
 	gpio_free(gpio_charger->pdata->gpio);
 
-	platform_set_drvdata(pdev, NULL);
-	kfree(gpio_charger);
-
 	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
+static int gpio_charger_suspend(struct device *dev)
+{
+	struct gpio_charger *gpio_charger = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		gpio_charger->wakeup_enabled =
+			enable_irq_wake(gpio_charger->irq);
+
+	return 0;
+}
+
 static int gpio_charger_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_charger *gpio_charger = platform_get_drvdata(pdev);
 
+	if (gpio_charger->wakeup_enabled)
+		disable_irq_wake(gpio_charger->irq);
 	power_supply_changed(&gpio_charger->charger);
 
 	return 0;
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(gpio_charger_pm_ops, NULL, gpio_charger_resume);
+static SIMPLE_DEV_PM_OPS(gpio_charger_pm_ops,
+		gpio_charger_suspend, gpio_charger_resume);
 
 static struct platform_driver gpio_charger_driver = {
 	.probe = gpio_charger_probe,
-	.remove = __devexit_p(gpio_charger_remove),
+	.remove = gpio_charger_remove,
 	.driver = {
 		.name = "gpio-charger",
 		.owner = THIS_MODULE,

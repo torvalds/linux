@@ -1,0 +1,96 @@
+* Marvell Armada 370 SoC pinctrl driver for mpp
+
+Please refer to marvell,mvebu-pinctrl.txt in this directory for common binding
+part and usage.
+
+Required properties:
+- compatible: "marvell,88f6710-pinctrl"
+- reg: register specifier of MPP registers
+
+Available mpp pins/groups and functions:
+Note: brackets (x) are not part of the mpp name for marvell,function and given
+only for more detailed description in this document.
+
+name          pins     functions
+================================================================================
+mpp0          0        gpio, uart0(rxd)
+mpp1          1        gpo, uart0(txd)
+mpp2          2        gpio, i2c0(sck), uart0(txd)
+mpp3          3        gpio, i2c0(sda), uart0(rxd)
+mpp4          4        gpio, cpu_pd(vdd)
+mpp5          5        gpo, ge0(txclko), uart1(txd), spi1(clk), audio(mclk)
+mpp6          6        gpio, ge0(txd0), sata0(prsnt), tdm(rst), audio(sdo)
+mpp7          7        gpo, ge0(txd1), tdm(tdx), audio(lrclk)
+mpp8          8        gpio, ge0(txd2), uart0(rts), tdm(drx), audio(bclk)
+mpp9          9        gpo, ge0(txd3), uart1(txd), sd0(clk), audio(spdifo)
+mpp10         10       gpio, ge0(txctl), uart0(cts), tdm(fsync), audio(sdi)
+mpp11         11       gpio, ge0(rxd0), uart1(rxd), sd0(cmd), spi0(cs1),
+                       sata1(prsnt), spi1(cs1)
+mpp12         12       gpio, ge0(rxd1), i2c1(sda), sd0(d0), spi1(cs0),
+                       audio(spdifi)
+mpp13         13       gpio, ge0(rxd2), i2c1(sck), sd0(d1), tdm(pclk),
+                       audio(rmclk)
+mpp14         14       gpio, ge0(rxd3), pcie(clkreq0), sd0(d2), spi1(mosi),
+                       spi0(cs2)
+mpp15         15       gpio, ge0(rxctl), pcie(clkreq1), sd0(d3), spi1(miso),
+                       spi0(cs3)
+mpp16         16       gpio, ge0(rxclk), uart1(rxd), tdm(int), audio(extclk)
+mpp17         17       gpo, ge(mdc)
+mpp18         18       gpio, ge(mdio)
+mpp19         19       gpio, ge0(txclk), ge1(txclkout), tdm(pclk)
+mpp20         20       gpo, ge0(txd4), ge1(txd0)
+mpp21         21       gpo, ge0(txd5), ge1(txd1), uart1(txd)
+mpp22         22       gpo, ge0(txd6), ge1(txd2), uart0(rts)
+mpp23         23       gpo, ge0(txd7), ge1(txd3), spi1(mosi)
+mpp24         24       gpio, ge0(col), ge1(txctl), spi1(cs0)
+mpp25         25       gpio, ge0(rxerr), ge1(rxd0), uart1(rxd)
+mpp26         26       gpio, ge0(crs), ge1(rxd1), spi1(miso)
+mpp27         27       gpio, ge0(rxd4), ge1(rxd2), uart0(cts)
+mpp28         28       gpio, ge0(rxd5), ge1(rxd3)
+mpp29         29       gpio, ge0(rxd6), ge1(rxctl), i2c1(sda)
+mpp30         30       gpio, ge0(rxd7), ge1(rxclk), i2c1(sck)
+mpp31         31       gpio, tclk, ge0(txerr)
+mpp32         32       gpio, spi0(cs0)
+mpp33         33       gpio, dev(bootcs), spi0(cs0)
+mpp34         34       gpo, dev(wen0), spi0(mosi)
+mpp35         35       gpo, dev(oen), spi0(sck)
+mpp36         36       gpo, dev(a1), spi0(miso)
+mpp37         37       gpo, dev(a0), sata0(prsnt)
+mpp38         38       gpio, dev(ready), uart1(cts), uart0(cts)
+mpp39         39       gpo, dev(ad0), audio(spdifo)
+mpp40         40       gpio, dev(ad1), uart1(rts), uart0(rts)
+mpp41         41       gpio, dev(ad2), uart1(rxd)
+mpp42         42       gpo, dev(ad3), uart1(txd)
+mpp43         43       gpo, dev(ad4), audio(bclk)
+mpp44         44       gpo, dev(ad5), audio(mclk)
+mpp45         45       gpo, dev(ad6), audio(lrclk)
+mpp46         46       gpo, dev(ad7), audio(sdo)
+mpp47         47       gpo, dev(ad8), sd0(clk), audio(spdifo)
+mpp48         48       gpio, dev(ad9), uart0(rts), sd0(cmd), sata1(prsnt),
+                       spi0(cs1)
+mpp49         49       gpio, dev(ad10), pcie(clkreq1), sd0(d0), spi1(cs0),
+                       audio(spdifi)
+mpp50         50       gpio, dev(ad11), uart0(cts), sd0(d1), spi1(miso),
+                       audio(rmclk)
+mpp51         51       gpio, dev(ad12), i2c1(sda), sd0(d2), spi1(mosi)
+mpp52         52       gpio, dev(ad13), i2c1(sck), sd0(d3), spi1(sck)
+mpp53         53       gpio, dev(ad14), sd0(clk), tdm(pclk), spi0(cs2),
+                       pcie(clkreq1)
+mpp54         54       gpo, dev(ad15), tdm(dtx)
+mpp55         55       gpio, dev(cs1), uart1(txd), tdm(rst), sata1(prsnt),
+                       sata0(prsnt)
+mpp56         56       gpio, dev(cs2), uart1(cts), uart0(cts), spi0(cs3),
+                       pcie(clkreq0), spi1(cs1)
+mpp57         57       gpio, dev(cs3), uart1(rxd), tdm(fsync), sata0(prsnt),
+                       audio(sdo)
+mpp58         58       gpio, dev(cs0), uart1(rts), tdm(int), audio(extclk),
+                       uart0(rts)
+mpp59         59       gpo, dev(ale0), uart1(rts), uart0(rts), audio(bclk)
+mpp60         60       gpio, dev(ale1), uart1(rxd), sata0(prsnt), pcie(rst-out),
+                       audio(sdi)
+mpp61         61       gpo, dev(wen1), uart1(txd), audio(rclk)
+mpp62         62       gpio, dev(a2), uart1(cts), tdm(drx), pcie(clkreq0),
+                       audio(mclk), uart0(cts)
+mpp63         63       gpo, spi0(sck), tclk
+mpp64         64       gpio, spi0(miso), spi0-1(cs1)
+mpp65         65       gpio, spi0(mosi), spi0-1(cs2)

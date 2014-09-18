@@ -64,11 +64,10 @@ static int hw_queue_ctor(struct hw_queue *queue, const u32 nr_of_pages,
 	}
 
 	queue->queue_length = nr_of_pages * pagesize;
-	queue->queue_pages = kmalloc(nr_of_pages * sizeof(void *), GFP_KERNEL);
-	if (!queue->queue_pages) {
-		pr_err("no mem for queue_pages\n");
+	queue->queue_pages = kmalloc_array(nr_of_pages, sizeof(void *),
+					   GFP_KERNEL);
+	if (!queue->queue_pages)
 		return -ENOMEM;
-	}
 
 	/*
 	 * allocate pages for queue:
@@ -104,11 +103,13 @@ out_nomem:
 
 static void hw_queue_dtor(struct hw_queue *queue)
 {
-	int pages_per_kpage = PAGE_SIZE / queue->pagesize;
+	int pages_per_kpage;
 	int i, nr_pages;
 
 	if (!queue || !queue->queue_pages)
 		return;
+
+	pages_per_kpage = PAGE_SIZE / queue->pagesize;
 
 	nr_pages = queue->queue_length / queue->pagesize;
 
@@ -129,10 +130,8 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 	void *vpage;
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq) {
-		pr_err("no mem for cq\n");
+	if (!cq)
 		goto out_nomem;
-	}
 
 	cq->attr.max_nr_of_cqes = nr_of_cqe;
 	cq->attr.cq_token = cq_token;
@@ -163,7 +162,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 			goto out_kill_hwq;
 		}
 
-		rpage = virt_to_abs(vpage);
+		rpage = __pa(vpage);
 		hret = ehea_h_register_rpage(adapter->handle,
 					     0, EHEA_CQ_REGISTER_ORIG,
 					     cq->fw_handle, rpage, 1);
@@ -257,10 +256,8 @@ struct ehea_eq *ehea_create_eq(struct ehea_adapter *adapter,
 	struct ehea_eq *eq;
 
 	eq = kzalloc(sizeof(*eq), GFP_KERNEL);
-	if (!eq) {
-		pr_err("no mem for eq\n");
+	if (!eq)
 		return NULL;
-	}
 
 	eq->adapter = adapter;
 	eq->attr.type = type;
@@ -290,7 +287,7 @@ struct ehea_eq *ehea_create_eq(struct ehea_adapter *adapter,
 			goto out_kill_hwq;
 		}
 
-		rpage = virt_to_abs(vpage);
+		rpage = __pa(vpage);
 
 		hret = ehea_h_register_rpage(adapter->handle, 0,
 					     EHEA_EQ_REGISTER_ORIG,
@@ -376,9 +373,7 @@ int ehea_destroy_eq(struct ehea_eq *eq)
 	return 0;
 }
 
-/**
- * allocates memory for a queue and registers pages in phyp
- */
+/* allocates memory for a queue and registers pages in phyp */
 static int ehea_qp_alloc_register(struct ehea_qp *qp, struct hw_queue *hw_queue,
 			   int nr_pages, int wqe_size, int act_nr_sges,
 			   struct ehea_adapter *adapter, int h_call_q_selector)
@@ -397,7 +392,7 @@ static int ehea_qp_alloc_register(struct ehea_qp *qp, struct hw_queue *hw_queue,
 			pr_err("hw_qpageit_get_inc failed\n");
 			goto out_kill_hwq;
 		}
-		rpage = virt_to_abs(vpage);
+		rpage = __pa(vpage);
 		hret = ehea_h_register_rpage(adapter->handle,
 					     0, h_call_q_selector,
 					     qp->fw_handle, rpage, 1);
@@ -430,10 +425,8 @@ struct ehea_qp *ehea_create_qp(struct ehea_adapter *adapter,
 
 
 	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
-	if (!qp) {
-		pr_err("no mem for qp\n");
+	if (!qp)
 		return NULL;
-	}
 
 	qp->adapter = adapter;
 
@@ -792,7 +785,7 @@ u64 ehea_map_vaddr(void *caddr)
 	if (!ehea_bmap)
 		return EHEA_INVAL_ADDR;
 
-	index = virt_to_abs(caddr) >> SECTION_SIZE_BITS;
+	index = __pa(caddr) >> SECTION_SIZE_BITS;
 	top = (index >> EHEA_TOP_INDEX_SHIFT) & EHEA_INDEX_MASK;
 	if (!ehea_bmap->top[top])
 		return EHEA_INVAL_ADDR;
@@ -814,7 +807,7 @@ static inline void *ehea_calc_sectbase(int top, int dir, int idx)
 	unsigned long ret = idx;
 	ret |= dir << EHEA_DIR_INDEX_SHIFT;
 	ret |= top << EHEA_TOP_INDEX_SHIFT;
-	return abs_to_virt(ret << SECTION_SIZE_BITS);
+	return __va(ret << SECTION_SIZE_BITS);
 }
 
 static u64 ehea_reg_mr_section(int top, int dir, int idx, u64 *pt,
@@ -824,7 +817,7 @@ static u64 ehea_reg_mr_section(int top, int dir, int idx, u64 *pt,
 	void *pg;
 	u64 j, m, hret;
 	unsigned long k = 0;
-	u64 pt_abs = virt_to_abs(pt);
+	u64 pt_abs = __pa(pt);
 
 	void *sectbase = ehea_calc_sectbase(top, dir, idx);
 
@@ -832,7 +825,7 @@ static u64 ehea_reg_mr_section(int top, int dir, int idx, u64 *pt,
 
 		for (m = 0; m < EHEA_MAX_RPAGE; m++) {
 			pg = sectbase + ((k++) * EHEA_PAGESIZE);
-			pt[m] = virt_to_abs(pg);
+			pt[m] = __pa(pg);
 		}
 		hret = ehea_h_register_rpage_mr(adapter->handle, mr->handle, 0,
 						0, pt_abs, EHEA_MAX_RPAGE);

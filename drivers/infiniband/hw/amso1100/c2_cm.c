@@ -46,6 +46,10 @@ int c2_llp_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 	struct c2wr_qp_connect_req *wr;	/* variable size needs a malloc. */
 	struct c2_vq_req *vq_req;
 	int err;
+	struct sockaddr_in *raddr = (struct sockaddr_in *)&cm_id->remote_addr;
+
+	if (cm_id->remote_addr.ss_family != AF_INET)
+		return -ENOSYS;
 
 	ibqp = c2_get_qp(cm_id->device, iw_param->qpn);
 	if (!ibqp)
@@ -91,8 +95,8 @@ int c2_llp_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 	wr->rnic_handle = c2dev->adapter_handle;
 	wr->qp_handle = qp->adapter_handle;
 
-	wr->remote_addr = cm_id->remote_addr.sin_addr.s_addr;
-	wr->remote_port = cm_id->remote_addr.sin_port;
+	wr->remote_addr = raddr->sin_addr.s_addr;
+	wr->remote_port = raddr->sin_port;
 
 	/*
 	 * Move any private data from the callers's buf into
@@ -135,6 +139,10 @@ int c2_llp_service_create(struct iw_cm_id *cm_id, int backlog)
 	struct c2wr_ep_listen_create_rep *reply;
 	struct c2_vq_req *vq_req;
 	int err;
+	struct sockaddr_in *laddr = (struct sockaddr_in *)&cm_id->local_addr;
+
+	if (cm_id->local_addr.ss_family != AF_INET)
+		return -ENOSYS;
 
 	c2dev = to_c2dev(cm_id->device);
 	if (c2dev == NULL)
@@ -153,8 +161,8 @@ int c2_llp_service_create(struct iw_cm_id *cm_id, int backlog)
 	c2_wr_set_id(&wr, CCWR_EP_LISTEN_CREATE);
 	wr.hdr.context = (u64) (unsigned long) vq_req;
 	wr.rnic_handle = c2dev->adapter_handle;
-	wr.local_addr = cm_id->local_addr.sin_addr.s_addr;
-	wr.local_port = cm_id->local_addr.sin_port;
+	wr.local_addr = laddr->sin_addr.s_addr;
+	wr.local_port = laddr->sin_port;
 	wr.backlog = cpu_to_be32(backlog);
 	wr.user_context = (u64) (unsigned long) cm_id;
 

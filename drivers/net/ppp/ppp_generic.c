@@ -94,6 +94,18 @@ struct ppp_file {
 #define PF_TO_CHANNEL(pf)	PF_TO_X(pf, struct channel)
 
 /*
+ * Data structure to hold primary network stats for which
+ * we want to use 64 bit storage.  Other network stats
+ * are stored in dev->stats of the ppp strucute.
+ */
+struct ppp_link_stats {
+	u64 rx_packets;
+	u64 tx_packets;
+	u64 rx_bytes;
+	u64 tx_bytes;
+};
+
+/*
  * Data structure describing one ppp unit.
  * A ppp unit corresponds to a ppp network interface device
  * and represents a multilink bundle.
@@ -131,11 +143,11 @@ struct ppp {
 	struct sk_buff_head mrq;	/* MP: receive reconstruction queue */
 #endif /* CONFIG_PPP_MULTILINK */
 #ifdef CONFIG_PPP_FILTER
-	struct sock_filter *pass_filter;	/* filter for packets to pass */
-	struct sock_filter *active_filter;/* filter for pkts to reset idle */
-	unsigned pass_len, active_len;
+	struct bpf_prog *pass_filter;	/* filter for packets to pass */
+	struct bpf_prog *active_filter; /* filter for pkts to reset idle */
 #endif /* CONFIG_PPP_FILTER */
 	struct net	*ppp_net;	/* the net we belong to */
+	struct ppp_link_stats stats64;	/* 64 bit network stats */
 };
 
 /*
@@ -527,7 +539,7 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 {
 	struct sock_fprog uprog;
 	struct sock_filter *code = NULL;
-	int len, err;
+	int len;
 
 	if (copy_from_user(&uprog, arg, sizeof(uprog)))
 		return -EFAULT;
@@ -541,12 +553,6 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 	code = memdup_user(uprog.filter, len);
 	if (IS_ERR(code))
 		return PTR_ERR(code);
-
-	err = sk_chk_filter(code, uprog.len);
-	if (err) {
-		kfree(code);
-		return err;
-	}
 
 	*p = code;
 	return uprog.len;
@@ -649,6 +655,10 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		ppp_lock(ppp);
 		cflags = ppp->flags & ~val;
+#ifdef CONFIG_PPP_MULTILINK
+		if (!(ppp->flags & SC_MULTILINK) && (val & SC_MULTILINK))
+			ppp->nextseq = 0;
+#endif
 		ppp->flags = val & SC_FLAG_BITS;
 		ppp_unlock(ppp);
 		if (cflags & SC_CCP_OPEN)
@@ -742,28 +752,52 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case PPPIOCSPASS:
 	{
 		struct sock_filter *code;
+
 		err = get_filter(argp, &code);
 		if (err >= 0) {
+			struct sock_fprog_kern fprog = {
+				.len = err,
+				.filter = code,
+			};
+
 			ppp_lock(ppp);
-			kfree(ppp->pass_filter);
-			ppp->pass_filter = code;
-			ppp->pass_len = err;
+			if (ppp->pass_filter) {
+				bpf_prog_destroy(ppp->pass_filter);
+				ppp->pass_filter = NULL;
+			}
+			if (fprog.filter != NULL)
+				err = bpf_prog_create(&ppp->pass_filter,
+						      &fprog);
+			else
+				err = 0;
+			kfree(code);
 			ppp_unlock(ppp);
-			err = 0;
 		}
 		break;
 	}
 	case PPPIOCSACTIVE:
 	{
 		struct sock_filter *code;
+
 		err = get_filter(argp, &code);
 		if (err >= 0) {
+			struct sock_fprog_kern fprog = {
+				.len = err,
+				.filter = code,
+			};
+
 			ppp_lock(ppp);
-			kfree(ppp->active_filter);
-			ppp->active_filter = code;
-			ppp->active_len = err;
+			if (ppp->active_filter) {
+				bpf_prog_destroy(ppp->active_filter);
+				ppp->active_filter = NULL;
+			}
+			if (fprog.filter != NULL)
+				err = bpf_prog_create(&ppp->active_filter,
+						      &fprog);
+			else
+				err = 0;
+			kfree(code);
 			ppp_unlock(ppp);
-			err = 0;
 		}
 		break;
 	}
@@ -1021,9 +1055,42 @@ ppp_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return err;
 }
 
+static struct rtnl_link_stats64*
+ppp_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats64)
+{
+	struct ppp *ppp = netdev_priv(dev);
+
+	ppp_recv_lock(ppp);
+	stats64->rx_packets = ppp->stats64.rx_packets;
+	stats64->rx_bytes   = ppp->stats64.rx_bytes;
+	ppp_recv_unlock(ppp);
+
+	ppp_xmit_lock(ppp);
+	stats64->tx_packets = ppp->stats64.tx_packets;
+	stats64->tx_bytes   = ppp->stats64.tx_bytes;
+	ppp_xmit_unlock(ppp);
+
+	stats64->rx_errors        = dev->stats.rx_errors;
+	stats64->tx_errors        = dev->stats.tx_errors;
+	stats64->rx_dropped       = dev->stats.rx_dropped;
+	stats64->tx_dropped       = dev->stats.tx_dropped;
+	stats64->rx_length_errors = dev->stats.rx_length_errors;
+
+	return stats64;
+}
+
+static struct lock_class_key ppp_tx_busylock;
+static int ppp_dev_init(struct net_device *dev)
+{
+	dev->qdisc_tx_busylock = &ppp_tx_busylock;
+	return 0;
+}
+
 static const struct net_device_ops ppp_netdev_ops = {
-	.ndo_start_xmit = ppp_start_xmit,
-	.ndo_do_ioctl   = ppp_net_ioctl,
+	.ndo_init	 = ppp_dev_init,
+	.ndo_start_xmit  = ppp_start_xmit,
+	.ndo_do_ioctl    = ppp_net_ioctl,
+	.ndo_get_stats64 = ppp_get_stats64,
 };
 
 static void ppp_setup(struct net_device *dev)
@@ -1092,13 +1159,13 @@ pad_compress_skb(struct ppp *ppp, struct sk_buff *skb)
 				   new_skb->data, skb->len + 2,
 				   compressor_skb_size);
 	if (len > 0 && (ppp->flags & SC_CCP_UP)) {
-		kfree_skb(skb);
+		consume_skb(skb);
 		skb = new_skb;
 		skb_put(skb, len);
 		skb_pull(skb, 2);	/* pull off A/C bytes */
 	} else if (len == 0) {
 		/* didn't compress, or CCP not up yet */
-		kfree_skb(new_skb);
+		consume_skb(new_skb);
 		new_skb = skb;
 	} else {
 		/*
@@ -1112,7 +1179,7 @@ pad_compress_skb(struct ppp *ppp, struct sk_buff *skb)
 		if (net_ratelimit())
 			netdev_err(ppp->dev, "ppp: compressor dropped pkt\n");
 		kfree_skb(skb);
-		kfree_skb(new_skb);
+		consume_skb(new_skb);
 		new_skb = NULL;
 	}
 	return new_skb;
@@ -1138,7 +1205,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		   a four-byte PPP header on each packet */
 		*skb_push(skb, 2) = 1;
 		if (ppp->pass_filter &&
-		    sk_run_filter(skb, ppp->pass_filter) == 0) {
+		    BPF_PROG_RUN(ppp->pass_filter, skb) == 0) {
 			if (ppp->debug & 1)
 				netdev_printk(KERN_DEBUG, ppp->dev,
 					      "PPP: outbound frame "
@@ -1148,7 +1215,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		}
 		/* if this packet passes the active filter, record the time */
 		if (!(ppp->active_filter &&
-		      sk_run_filter(skb, ppp->active_filter) == 0))
+		      BPF_PROG_RUN(ppp->active_filter, skb) == 0))
 			ppp->last_xmit = jiffies;
 		skb_pull(skb, 2);
 #else
@@ -1157,8 +1224,8 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 #endif /* CONFIG_PPP_FILTER */
 	}
 
-	++ppp->dev->stats.tx_packets;
-	ppp->dev->stats.tx_bytes += skb->len - 2;
+	++ppp->stats64.tx_packets;
+	ppp->stats64.tx_bytes += skb->len - 2;
 
 	switch (proto) {
 	case PPP_IP:
@@ -1178,7 +1245,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 				    !(ppp->flags & SC_NO_TCP_CCID));
 		if (cp == skb->data + 2) {
 			/* didn't compress */
-			kfree_skb(new_skb);
+			consume_skb(new_skb);
 		} else {
 			if (cp[0] & SL_TYPE_COMPRESSED_TCP) {
 				proto = PPP_VJC_COMP;
@@ -1187,7 +1254,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 				proto = PPP_VJC_UNCOMP;
 				cp[0] = skb->data[2];
 			}
-			kfree_skb(skb);
+			consume_skb(skb);
 			skb = new_skb;
 			cp = skb_put(skb, len + 2);
 			cp[0] = 0;
@@ -1703,7 +1770,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 			}
 			skb_reserve(ns, 2);
 			skb_copy_bits(skb, 0, skb_put(ns, skb->len), skb->len);
-			kfree_skb(skb);
+			consume_skb(skb);
 			skb = ns;
 		}
 		else
@@ -1745,8 +1812,8 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 		break;
 	}
 
-	++ppp->dev->stats.rx_packets;
-	ppp->dev->stats.rx_bytes += skb->len - 2;
+	++ppp->stats64.rx_packets;
+	ppp->stats64.rx_bytes += skb->len - 2;
 
 	npi = proto_to_npindex(proto);
 	if (npi < 0) {
@@ -1767,13 +1834,12 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 		/* the filter instructions are constructed assuming
 		   a four-byte PPP header on each packet */
 		if (ppp->pass_filter || ppp->active_filter) {
-			if (skb_cloned(skb) &&
-			    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+			if (skb_unclone(skb, GFP_ATOMIC))
 				goto err;
 
 			*skb_push(skb, 2) = 0;
 			if (ppp->pass_filter &&
-			    sk_run_filter(skb, ppp->pass_filter) == 0) {
+			    BPF_PROG_RUN(ppp->pass_filter, skb) == 0) {
 				if (ppp->debug & 1)
 					netdev_printk(KERN_DEBUG, ppp->dev,
 						      "PPP: inbound frame "
@@ -1782,7 +1848,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 				return;
 			}
 			if (!(ppp->active_filter &&
-			      sk_run_filter(skb, ppp->active_filter) == 0))
+			      BPF_PROG_RUN(ppp->active_filter, skb) == 0))
 				ppp->last_recv = jiffies;
 			__skb_pull(skb, 2);
 		} else
@@ -1851,7 +1917,7 @@ ppp_decompress_frame(struct ppp *ppp, struct sk_buff *skb)
 			goto err;
 		}
 
-		kfree_skb(skb);
+		consume_skb(skb);
 		skb = ns;
 		skb_put(skb, len);
 		skb_pull(skb, 2);	/* pull off the A/C bytes */
@@ -2570,12 +2636,12 @@ ppp_get_stats(struct ppp *ppp, struct ppp_stats *st)
 	struct slcompress *vj = ppp->vj;
 
 	memset(st, 0, sizeof(*st));
-	st->p.ppp_ipackets = ppp->dev->stats.rx_packets;
+	st->p.ppp_ipackets = ppp->stats64.rx_packets;
 	st->p.ppp_ierrors = ppp->dev->stats.rx_errors;
-	st->p.ppp_ibytes = ppp->dev->stats.rx_bytes;
-	st->p.ppp_opackets = ppp->dev->stats.tx_packets;
+	st->p.ppp_ibytes = ppp->stats64.rx_bytes;
+	st->p.ppp_opackets = ppp->stats64.tx_packets;
 	st->p.ppp_oerrors = ppp->dev->stats.tx_errors;
-	st->p.ppp_obytes = ppp->dev->stats.tx_bytes;
+	st->p.ppp_obytes = ppp->stats64.tx_bytes;
 	if (!vj)
 		return;
 	st->vj.vjs_packets = vj->sls_o_compressed + vj->sls_o_uncompressed;
@@ -2607,7 +2673,8 @@ ppp_create_interface(struct net *net, int unit, int *retp)
 	int ret = -ENOMEM;
 	int i;
 
-	dev = alloc_netdev(sizeof(struct ppp), "", ppp_setup);
+	dev = alloc_netdev(sizeof(struct ppp), "", NET_NAME_UNKNOWN,
+			   ppp_setup);
 	if (!dev)
 		goto out1;
 
@@ -2627,6 +2694,10 @@ ppp_create_interface(struct net *net, int unit, int *retp)
 	ppp->minseq = -1;
 	skb_queue_head_init(&ppp->mrq);
 #endif /* CONFIG_PPP_MULTILINK */
+#ifdef CONFIG_PPP_FILTER
+	ppp->pass_filter = NULL;
+	ppp->active_filter = NULL;
+#endif /* CONFIG_PPP_FILTER */
 
 	/*
 	 * drum roll: don't forget to set
@@ -2757,10 +2828,15 @@ static void ppp_destroy_interface(struct ppp *ppp)
 	skb_queue_purge(&ppp->mrq);
 #endif /* CONFIG_PPP_MULTILINK */
 #ifdef CONFIG_PPP_FILTER
-	kfree(ppp->pass_filter);
-	ppp->pass_filter = NULL;
-	kfree(ppp->active_filter);
-	ppp->active_filter = NULL;
+	if (ppp->pass_filter) {
+		bpf_prog_destroy(ppp->pass_filter);
+		ppp->pass_filter = NULL;
+	}
+
+	if (ppp->active_filter) {
+		bpf_prog_destroy(ppp->active_filter);
+		ppp->active_filter = NULL;
+	}
 #endif /* CONFIG_PPP_FILTER */
 
 	kfree_skb(ppp->xmit_pending);
@@ -2908,46 +2984,21 @@ static void __exit ppp_cleanup(void)
  * by holding all_ppp_mutex
  */
 
-static int __unit_alloc(struct idr *p, void *ptr, int n)
-{
-	int unit, err;
-
-again:
-	if (!idr_pre_get(p, GFP_KERNEL)) {
-		pr_err("PPP: No free memory for idr\n");
-		return -ENOMEM;
-	}
-
-	err = idr_get_new_above(p, ptr, n, &unit);
-	if (err < 0) {
-		if (err == -EAGAIN)
-			goto again;
-		return err;
-	}
-
-	return unit;
-}
-
 /* associate pointer with specified number */
 static int unit_set(struct idr *p, void *ptr, int n)
 {
 	int unit;
 
-	unit = __unit_alloc(p, ptr, n);
-	if (unit < 0)
-		return unit;
-	else if (unit != n) {
-		idr_remove(p, unit);
-		return -EINVAL;
-	}
-
+	unit = idr_alloc(p, ptr, n, n + 1, GFP_KERNEL);
+	if (unit == -ENOSPC)
+		unit = -EINVAL;
 	return unit;
 }
 
 /* get new free unit number and associate pointer with it */
 static int unit_get(struct idr *p, void *ptr)
 {
-	return __unit_alloc(p, ptr, 0);
+	return idr_alloc(p, ptr, 0, 0, GFP_KERNEL);
 }
 
 /* put unit number back to a pool */

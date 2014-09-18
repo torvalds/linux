@@ -82,7 +82,7 @@ static int debug = -1;	/* defaults above */
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
-static DEFINE_PCI_DEVICE_TABLE(skge_id_table) = {
+static const struct pci_device_id skge_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_3COM, 0x1700) },	  /* 3Com 3C940 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_3COM, 0x80EB) },	  /* 3Com 3C940B */
 #ifdef CONFIG_SKGE_GENESIS
@@ -931,17 +931,20 @@ static int skge_ring_alloc(struct skge_ring *ring, void *vaddr, u32 base)
 }
 
 /* Allocate and setup a new buffer for receiving */
-static void skge_rx_setup(struct skge_port *skge, struct skge_element *e,
-			  struct sk_buff *skb, unsigned int bufsize)
+static int skge_rx_setup(struct skge_port *skge, struct skge_element *e,
+			 struct sk_buff *skb, unsigned int bufsize)
 {
 	struct skge_rx_desc *rd = e->desc;
-	u64 map;
+	dma_addr_t map;
 
 	map = pci_map_single(skge->hw->pdev, skb->data, bufsize,
 			     PCI_DMA_FROMDEVICE);
 
-	rd->dma_lo = map;
-	rd->dma_hi = map >> 32;
+	if (pci_dma_mapping_error(skge->hw->pdev, map))
+		return -1;
+
+	rd->dma_lo = lower_32_bits(map);
+	rd->dma_hi = upper_32_bits(map);
 	e->skb = skb;
 	rd->csum1_start = ETH_HLEN;
 	rd->csum2_start = ETH_HLEN;
@@ -953,6 +956,7 @@ static void skge_rx_setup(struct skge_port *skge, struct skge_element *e,
 	rd->control = BMU_OWN | BMU_STF | BMU_IRQ_EOF | BMU_TCP_CHECK | bufsize;
 	dma_unmap_addr_set(e, mapaddr, map);
 	dma_unmap_len_set(e, maplen, bufsize);
+	return 0;
 }
 
 /* Resume receiving using existing skb,
@@ -1014,7 +1018,10 @@ static int skge_rx_fill(struct net_device *dev)
 			return -ENOMEM;
 
 		skb_reserve(skb, NET_IP_ALIGN);
-		skge_rx_setup(skge, e, skb, skge->rx_buf_size);
+		if (skge_rx_setup(skge, e, skb, skge->rx_buf_size) < 0) {
+			dev_kfree_skb(skb);
+			return -EIO;
+		}
 	} while ((e = e->next) != ring->start);
 
 	ring->to_clean = ring->start;
@@ -2544,7 +2551,7 @@ static int skge_up(struct net_device *dev)
 
 	BUG_ON(skge->dma & 7);
 
-	if ((u64)skge->dma >> 32 != ((u64) skge->dma + skge->mem_size) >> 32) {
+	if (upper_32_bits(skge->dma) != upper_32_bits(skge->dma + skge->mem_size)) {
 		dev_err(&hw->pdev->dev, "pci_alloc_consistent region crosses 4G boundary\n");
 		err = -EINVAL;
 		goto free_pci_mem;
@@ -2729,7 +2736,7 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 	struct skge_tx_desc *td;
 	int i;
 	u32 control, len;
-	u64 map;
+	dma_addr_t map;
 
 	if (skb_padto(skb, ETH_ZLEN))
 		return NETDEV_TX_OK;
@@ -2743,11 +2750,14 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 	e->skb = skb;
 	len = skb_headlen(skb);
 	map = pci_map_single(hw->pdev, skb->data, len, PCI_DMA_TODEVICE);
+	if (pci_dma_mapping_error(hw->pdev, map))
+		goto mapping_error;
+
 	dma_unmap_addr_set(e, mapaddr, map);
 	dma_unmap_len_set(e, maplen, len);
 
-	td->dma_lo = map;
-	td->dma_hi = map >> 32;
+	td->dma_lo = lower_32_bits(map);
+	td->dma_hi = upper_32_bits(map);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const int offset = skb_checksum_start_offset(skb);
@@ -2778,14 +2788,16 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 
 			map = skb_frag_dma_map(&hw->pdev->dev, frag, 0,
 					       skb_frag_size(frag), DMA_TO_DEVICE);
+			if (dma_mapping_error(&hw->pdev->dev, map))
+				goto mapping_unwind;
 
 			e = e->next;
 			e->skb = skb;
 			tf = e->desc;
 			BUG_ON(tf->control & BMU_OWN);
 
-			tf->dma_lo = map;
-			tf->dma_hi = (u64) map >> 32;
+			tf->dma_lo = lower_32_bits(map);
+			tf->dma_hi = upper_32_bits(map);
 			dma_unmap_addr_set(e, mapaddr, map);
 			dma_unmap_len_set(e, maplen, skb_frag_size(frag));
 
@@ -2814,6 +2826,26 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 		netif_stop_queue(dev);
 	}
 
+	return NETDEV_TX_OK;
+
+mapping_unwind:
+	e = skge->tx_ring.to_use;
+	pci_unmap_single(hw->pdev,
+			 dma_unmap_addr(e, mapaddr),
+			 dma_unmap_len(e, maplen),
+			 PCI_DMA_TODEVICE);
+	while (i-- > 0) {
+		e = e->next;
+		pci_unmap_page(hw->pdev,
+			       dma_unmap_addr(e, mapaddr),
+			       dma_unmap_len(e, maplen),
+			       PCI_DMA_TODEVICE);
+	}
+
+mapping_error:
+	if (net_ratelimit())
+		dev_warn(&hw->pdev->dev, "%s: tx mapping error\n", dev->name);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -3045,26 +3077,36 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 
 		pci_dma_sync_single_for_cpu(skge->hw->pdev,
 					    dma_unmap_addr(e, mapaddr),
-					    len, PCI_DMA_FROMDEVICE);
+					    dma_unmap_len(e, maplen),
+					    PCI_DMA_FROMDEVICE);
 		skb_copy_from_linear_data(e->skb, skb->data, len);
 		pci_dma_sync_single_for_device(skge->hw->pdev,
 					       dma_unmap_addr(e, mapaddr),
-					       len, PCI_DMA_FROMDEVICE);
+					       dma_unmap_len(e, maplen),
+					       PCI_DMA_FROMDEVICE);
 		skge_rx_reuse(e, skge->rx_buf_size);
 	} else {
+		struct skge_element ee;
 		struct sk_buff *nskb;
 
 		nskb = netdev_alloc_skb_ip_align(dev, skge->rx_buf_size);
 		if (!nskb)
 			goto resubmit;
 
-		pci_unmap_single(skge->hw->pdev,
-				 dma_unmap_addr(e, mapaddr),
-				 dma_unmap_len(e, maplen),
-				 PCI_DMA_FROMDEVICE);
-		skb = e->skb;
+		ee = *e;
+
+		skb = ee.skb;
 		prefetch(skb->data);
-		skge_rx_setup(skge, e, nskb, skge->rx_buf_size);
+
+		if (skge_rx_setup(skge, e, nskb, skge->rx_buf_size) < 0) {
+			dev_kfree_skb(nskb);
+			goto resubmit;
+		}
+
+		pci_unmap_single(skge->hw->pdev,
+				 dma_unmap_addr(&ee, mapaddr),
+				 dma_unmap_len(&ee, maplen),
+				 PCI_DMA_FROMDEVICE);
 	}
 
 	skb_put(skb, len);
@@ -3130,7 +3172,7 @@ static void skge_tx_done(struct net_device *dev)
 			pkts_compl++;
 			bytes_compl += e->skb->len;
 
-			dev_kfree_skb(e->skb);
+			dev_consume_skb_any(e->skb);
 		}
 	}
 	netdev_completed_queue(dev, pkts_compl, bytes_compl);
@@ -3189,7 +3231,7 @@ static int skge_poll(struct napi_struct *napi, int to_do)
 	if (work_done < to_do) {
 		unsigned long flags;
 
-		napi_gro_flush(napi);
+		napi_gro_flush(napi, false);
 		spin_lock_irqsave(&hw->hw_lock, flags);
 		__napi_complete(napi);
 		hw->intr_mask |= napimask[skge->port];
@@ -3706,7 +3748,7 @@ static const struct file_operations skge_debug_fops = {
 static int skge_device_event(struct notifier_block *unused,
 			     unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct skge_port *skge;
 	struct dentry *d;
 
@@ -3855,12 +3897,11 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 
 	/* read the mac address */
 	memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port*8, ETH_ALEN);
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	return dev;
 }
 
-static void __devinit skge_show_addr(struct net_device *dev)
+static void skge_show_addr(struct net_device *dev)
 {
 	const struct skge_port *skge = netdev_priv(dev);
 
@@ -3869,8 +3910,7 @@ static void __devinit skge_show_addr(struct net_device *dev)
 
 static int only_32bit_dma;
 
-static int __devinit skge_probe(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev, *dev1;
 	struct skge_hw *hw;
@@ -3918,10 +3958,9 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	/* space for skge@pci:0000:04:00.0 */
 	hw = kzalloc(sizeof(*hw) + strlen(DRV_NAME "@pci:")
 		     + strlen(pci_name(pdev)) + 1, GFP_KERNEL);
-	if (!hw) {
-		dev_err(&pdev->dev, "cannot allocate hardware struct\n");
+	if (!hw)
 		goto err_out_free_regions;
-	}
+
 	sprintf(hw->irq_name, DRV_NAME "@pci:%s", pci_name(pdev));
 
 	hw->pdev = pdev;
@@ -3945,8 +3984,10 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 		skge_board_name(hw), hw->chip_rev);
 
 	dev = skge_devinit(hw, 0, using_dac);
-	if (!dev)
+	if (!dev) {
+		err = -ENOMEM;
 		goto err_out_led_off;
+	}
 
 	/* Some motherboards are broken and has zero in ROM. */
 	if (!is_valid_ether_addr(dev->dev_addr))
@@ -4005,12 +4046,11 @@ err_out_free_regions:
 	pci_release_regions(pdev);
 err_out_disable_pdev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 err_out:
 	return err;
 }
 
-static void __devexit skge_remove(struct pci_dev *pdev)
+static void skge_remove(struct pci_dev *pdev)
 {
 	struct skge_hw *hw  = pci_get_drvdata(pdev);
 	struct net_device *dev0, *dev1;
@@ -4024,7 +4064,7 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 	dev0 = hw->dev[0];
 	unregister_netdev(dev0);
 
-	tasklet_disable(&hw->phy_task);
+	tasklet_kill(&hw->phy_task);
 
 	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask = 0;
@@ -4049,7 +4089,6 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 
 	iounmap(hw->regs);
 	kfree(hw);
-	pci_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -4140,7 +4179,7 @@ static struct pci_driver skge_driver = {
 	.name =         DRV_NAME,
 	.id_table =     skge_id_table,
 	.probe =        skge_probe,
-	.remove =       __devexit_p(skge_remove),
+	.remove =       skge_remove,
 	.shutdown =	skge_shutdown,
 	.driver.pm =	SKGE_PM_OPS,
 };
@@ -4151,6 +4190,20 @@ static struct dmi_system_id skge_32bit_dma_boards[] = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co"),
 			DMI_MATCH(DMI_BOARD_NAME, "nForce"),
+		},
+	},
+	{
+		.ident = "ASUS P5NSLI",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "P5NSLI")
+		},
+	},
+	{
+		.ident = "FUJITSU SIEMENS A8NE-FM",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTek Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "A8NE-FM")
 		},
 	},
 	{}

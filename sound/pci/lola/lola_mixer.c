@@ -28,8 +28,8 @@
 #include <sound/tlv.h>
 #include "lola.h"
 
-static int __devinit lola_init_pin(struct lola *chip, struct lola_pin *pin,
-				   int dir, int nid)
+static int lola_init_pin(struct lola *chip, struct lola_pin *pin,
+			 int dir, int nid)
 {
 	unsigned int val;
 	int err;
@@ -37,7 +37,7 @@ static int __devinit lola_init_pin(struct lola *chip, struct lola_pin *pin,
 	pin->nid = nid;
 	err = lola_read_param(chip, nid, LOLA_PAR_AUDIO_WIDGET_CAP, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read wcaps for 0x%x\n", nid);
+		dev_err(chip->card->dev, "Can't read wcaps for 0x%x\n", nid);
 		return err;
 	}
 	val &= 0x00f00fff; /* test TYPE and bits 0..11 */
@@ -48,7 +48,7 @@ static int __devinit lola_init_pin(struct lola *chip, struct lola_pin *pin,
 	else if (val == 0x0040000c && dir == PLAY) /* Dig=0, OutAmp/ovrd */
 		pin->is_analog = true;
 	else {
-		printk(KERN_ERR SFX "Invalid wcaps 0x%x for 0x%x\n", val, nid);
+		dev_err(chip->card->dev, "Invalid wcaps 0x%x for 0x%x\n", val, nid);
 		return -EINVAL;
 	}
 
@@ -62,7 +62,7 @@ static int __devinit lola_init_pin(struct lola *chip, struct lola_pin *pin,
 	else
 		err = lola_read_param(chip, nid, LOLA_PAR_AMP_IN_CAP, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read AMP-caps for 0x%x\n", nid);
+		dev_err(chip->card->dev, "Can't read AMP-caps for 0x%x\n", nid);
 		return err;
 	}
 
@@ -79,7 +79,7 @@ static int __devinit lola_init_pin(struct lola *chip, struct lola_pin *pin,
 	err = lola_codec_read(chip, nid, LOLA_VERB_GET_MAX_LEVEL, 0, 0, &val,
 			      NULL);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't get MAX_LEVEL 0x%x\n", nid);
+		dev_err(chip->card->dev, "Can't get MAX_LEVEL 0x%x\n", nid);
 		return err;
 	}
 	pin->max_level = val & 0x3ff;   /* 10 bits */
@@ -91,7 +91,7 @@ static int __devinit lola_init_pin(struct lola *chip, struct lola_pin *pin,
 	return 0;
 }
 
-int __devinit lola_init_pins(struct lola *chip, int dir, int *nidp)
+int lola_init_pins(struct lola *chip, int dir, int *nidp)
 {
 	int i, err, nid;
 	nid = *nidp;
@@ -112,19 +112,19 @@ void lola_free_mixer(struct lola *chip)
 		vfree(chip->mixer.array_saved);
 }
 
-int __devinit lola_init_mixer_widget(struct lola *chip, int nid)
+int lola_init_mixer_widget(struct lola *chip, int nid)
 {
 	unsigned int val;
 	int err;
 
 	err = lola_read_param(chip, nid, LOLA_PAR_AUDIO_WIDGET_CAP, &val);
 	if (err < 0) {
-		printk(KERN_ERR SFX "Can't read wcaps for 0x%x\n", nid);
+		dev_err(chip->card->dev, "Can't read wcaps for 0x%x\n", nid);
 		return err;
 	}
 
 	if ((val & 0xfff00000) != 0x02f00000) { /* test SubType and Type */
-		snd_printdd("No valid mixer widget\n");
+		dev_dbg(chip->card->dev, "No valid mixer widget\n");
 		return 0;
 	}
 
@@ -202,7 +202,7 @@ int __devinit lola_init_mixer_widget(struct lola *chip, int nid)
 	 */
 	if (chip->mixer.src_stream_out_ofs > MAX_AUDIO_INOUT_COUNT ||
 	    chip->mixer.dest_phys_out_ofs > MAX_STREAM_IN_COUNT) {
-		printk(KERN_ERR SFX "Invalid mixer widget size\n");
+		dev_err(chip->card->dev, "Invalid mixer widget size\n");
 		return -EINVAL;
 	}
 
@@ -213,7 +213,7 @@ int __devinit lola_init_mixer_widget(struct lola *chip, int nid)
 		(((1U << chip->mixer.dest_phys_outs) - 1)
 		 << chip->mixer.dest_phys_out_ofs);
 
-	snd_printdd("Mixer src_mask=%x, dest_mask=%x\n",
+	dev_dbg(chip->card->dev, "Mixer src_mask=%x, dest_mask=%x\n",
 		    chip->mixer.src_mask, chip->mixer.dest_mask);
 
 	return 0;
@@ -236,7 +236,8 @@ static int lola_mixer_set_src_gain(struct lola *chip, unsigned int id,
 	    (gain == readw(&chip->mixer.array->src_gain[id])))
 		return 0;
 
-	snd_printdd("lola_mixer_set_src_gain (id=%d, gain=%d) enable=%x\n",
+	dev_dbg(chip->card->dev,
+		"lola_mixer_set_src_gain (id=%d, gain=%d) enable=%x\n",
 			id, gain, val);
 	writew(gain, &chip->mixer.array->src_gain[id]);
 	writel(val, &chip->mixer.array->src_gain_enable);
@@ -409,7 +410,8 @@ static int set_analog_volume(struct lola *chip, int dir,
 		return 0;
 	if (external_call)
 		lola_codec_flush(chip);
-	snd_printdd("set_analog_volume (dir=%d idx=%d, volume=%d)\n",
+	dev_dbg(chip->card->dev,
+		"set_analog_volume (dir=%d idx=%d, volume=%d)\n",
 			dir, idx, val);
 	err = lola_codec_write(chip, pin->nid,
 			       LOLA_VERB_SET_AMP_GAIN_MUTE, val, 0);
@@ -579,7 +581,7 @@ static int lola_analog_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	return 0;
 }
 
-static struct snd_kcontrol_new lola_analog_mixer __devinitdata = {
+static struct snd_kcontrol_new lola_analog_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_READ |
@@ -590,7 +592,7 @@ static struct snd_kcontrol_new lola_analog_mixer __devinitdata = {
 	.tlv.c = lola_analog_vol_tlv,
 };
 
-static int __devinit create_analog_mixer(struct lola *chip, int dir, char *name)
+static int create_analog_mixer(struct lola *chip, int dir, char *name)
 {
 	if (!chip->pin[dir].num_pins)
 		return 0;
@@ -644,7 +646,7 @@ static int lola_input_src_put(struct snd_kcontrol *kcontrol,
 	return lola_set_src_config(chip, mask, true);
 }
 
-static struct snd_kcontrol_new lola_input_src_mixer __devinitdata = {
+static struct snd_kcontrol_new lola_input_src_mixer = {
 	.name = "Digital SRC Capture Switch",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = lola_input_src_info,
@@ -656,7 +658,7 @@ static struct snd_kcontrol_new lola_input_src_mixer __devinitdata = {
  * Lola16161 or Lola881 can have Hardware sample rate converters
  * on its digital input pins
  */
-static int __devinit create_input_src_mixer(struct lola *chip)
+static int create_input_src_mixer(struct lola *chip)
 {
 	if (!chip->input_src_caps_mask)
 		return 0;
@@ -726,7 +728,7 @@ static int lola_src_gain_put(struct snd_kcontrol *kcontrol,
 /* raw value: 0 = -84dB, 336 = 0dB, 408=18dB, incremented 1 for mute */
 static const DECLARE_TLV_DB_SCALE(lola_src_gain_tlv, -8425, 25, 1);
 
-static struct snd_kcontrol_new lola_src_gain_mixer __devinitdata = {
+static struct snd_kcontrol_new lola_src_gain_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -736,8 +738,8 @@ static struct snd_kcontrol_new lola_src_gain_mixer __devinitdata = {
 	.tlv.p = lola_src_gain_tlv,
 };
 
-static int __devinit create_src_gain_mixer(struct lola *chip,
-					   int num, int ofs, char *name)
+static int create_src_gain_mixer(struct lola *chip,
+				 int num, int ofs, char *name)
 {
 	lola_src_gain_mixer.name = name;
 	lola_src_gain_mixer.private_value = ofs + (num << 8);
@@ -813,7 +815,7 @@ static int lola_dest_gain_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(lola_dest_gain_tlv, -8425, 25, 1);
 
-static struct snd_kcontrol_new lola_dest_gain_mixer __devinitdata = {
+static struct snd_kcontrol_new lola_dest_gain_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -823,9 +825,9 @@ static struct snd_kcontrol_new lola_dest_gain_mixer __devinitdata = {
 	.tlv.p = lola_dest_gain_tlv,
 };
 
-static int __devinit create_dest_gain_mixer(struct lola *chip,
-					    int src_num, int src_ofs,
-					    int num, int ofs, char *name)
+static int create_dest_gain_mixer(struct lola *chip,
+				  int src_num, int src_ofs,
+				  int num, int ofs, char *name)
 {
 	lola_dest_gain_mixer.count = num;
 	lola_dest_gain_mixer.name = name;
@@ -838,7 +840,7 @@ static int __devinit create_dest_gain_mixer(struct lola *chip,
 
 /*
  */
-int __devinit lola_create_mixer(struct lola *chip)
+int lola_create_mixer(struct lola *chip)
 {
 	int err;
 

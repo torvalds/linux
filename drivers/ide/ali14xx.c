@@ -52,13 +52,13 @@
 
 /* port addresses for auto-detection */
 #define ALI_NUM_PORTS 4
-static const int ports[ALI_NUM_PORTS] __initdata =
+static const int ports[ALI_NUM_PORTS] __initconst =
 	{ 0x074, 0x0f4, 0x034, 0x0e4 };
 
 /* register initialization data */
 typedef struct { u8 reg, data; } RegInitializer;
 
-static const RegInitializer initData[] __initdata = {
+static const RegInitializer initData[] __initconst = {
 	{0x01, 0x0f}, {0x02, 0x00}, {0x03, 0x00}, {0x04, 0x00},
 	{0x05, 0x00}, {0x06, 0x00}, {0x07, 0x2b}, {0x0a, 0x0f},
 	{0x25, 0x00}, {0x26, 0x00}, {0x27, 0x00}, {0x28, 0x00},

@@ -2085,8 +2085,8 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int hw_suspend(struct hw *hw, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int hw_suspend(struct hw *hw)
 {
 	struct pci_dev *pci = hw->pci;
 
@@ -2099,7 +2099,7 @@ static int hw_suspend(struct hw *hw, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 
 	return 0;
 }
@@ -2171,7 +2171,7 @@ static void hw_write_pci(struct hw *hw, u32 reg, u32 data)
 		&container_of(hw, struct hw20k1, hw)->reg_pci_lock, flags);
 }
 
-static struct hw ct20k1_preset __devinitdata = {
+static struct hw ct20k1_preset = {
 	.irq = -1,
 
 	.card_init = hw_card_init,
@@ -2180,7 +2180,7 @@ static struct hw ct20k1_preset __devinitdata = {
 	.is_adc_source_selected = hw_is_adc_input_selected,
 	.select_adc_source = hw_adc_input_select,
 	.capabilities = hw_capabilities,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend = hw_suspend,
 	.resume = hw_resume,
 #endif
@@ -2275,7 +2275,7 @@ static struct hw ct20k1_preset __devinitdata = {
 	.get_wc = get_wc,
 };
 
-int __devinit create_20k1_hw_obj(struct hw **rhw)
+int create_20k1_hw_obj(struct hw **rhw)
 {
 	struct hw20k1 *hw20k1;
 

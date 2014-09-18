@@ -17,15 +17,15 @@
 #include <linux/serial_8250.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#ifdef CONFIG_LEDS_CLASS
 #include <linux/leds.h>
-#endif
 
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
+
+#include <mach/hardware.h>
 
 static struct resource omixp_flash_resources[] = {
 	{
@@ -245,7 +245,7 @@ MACHINE_START(DEVIXP, "Omicron DEVIXP")
 	.map_io		= ixp4xx_map_io,
 	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
-	.timer          = &ixp4xx_timer,
+	.init_time	= ixp4xx_timer_init,
 	.init_machine	= omixp_init,
 	.restart	= ixp4xx_restart,
 MACHINE_END
@@ -257,7 +257,7 @@ MACHINE_START(MICCPT, "Omicron MICCPT")
 	.map_io		= ixp4xx_map_io,
 	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
-	.timer          = &ixp4xx_timer,
+	.init_time	= ixp4xx_timer_init,
 	.init_machine	= omixp_init,
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,
@@ -272,7 +272,7 @@ MACHINE_START(MIC256, "Omicron MIC256")
 	.map_io		= ixp4xx_map_io,
 	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
-	.timer          = &ixp4xx_timer,
+	.init_time	= ixp4xx_timer_init,
 	.init_machine	= omixp_init,
 	.restart	= ixp4xx_restart,
 MACHINE_END

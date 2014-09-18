@@ -15,7 +15,6 @@
 #include <linux/path.h> /* struct path */
 #include <linux/spinlock.h>
 #include <linux/types.h>
-
 #include <linux/atomic.h>
 
 /*
@@ -60,7 +59,7 @@
 #define FS_EVENTS_POSS_ON_CHILD   (FS_ACCESS | FS_MODIFY | FS_ATTRIB |\
 				   FS_CLOSE_WRITE | FS_CLOSE_NOWRITE | FS_OPEN |\
 				   FS_MOVED_FROM | FS_MOVED_TO | FS_CREATE |\
-				   FS_DELETE)
+				   FS_DELETE | FS_OPEN_PERM | FS_ACCESS_PERM)
 
 #define FS_MOVE			(FS_MOVED_FROM | FS_MOVED_TO)
 
@@ -79,6 +78,7 @@ struct fsnotify_group;
 struct fsnotify_event;
 struct fsnotify_mark;
 struct fsnotify_event_private_data;
+struct fsnotify_fname;
 
 /*
  * Each group much define these ops.  The fsnotify infrastructure will call
@@ -88,22 +88,33 @@ struct fsnotify_event_private_data;
  *		if the group is interested in this event.
  * handle_event - main call for a group to handle an fs event
  * free_group_priv - called when a group refcnt hits 0 to clean up the private union
- * freeing-mark - this means that a mark has been flagged to die when everything
- *		finishes using it.  The function is supplied with what must be a
- *		valid group and inode to use to clean up.
+ * freeing_mark - called when a mark is being destroyed for some reason.  The group
+ * 		MUST be holding a reference on each mark and that reference must be
+ * 		dropped in this function.  inotify uses this function to send
+ * 		userspace messages that marks have been removed.
  */
 struct fsnotify_ops {
-	bool (*should_send_event)(struct fsnotify_group *group, struct inode *inode,
-				  struct fsnotify_mark *inode_mark,
-				  struct fsnotify_mark *vfsmount_mark,
-				  __u32 mask, void *data, int data_type);
 	int (*handle_event)(struct fsnotify_group *group,
+			    struct inode *inode,
 			    struct fsnotify_mark *inode_mark,
 			    struct fsnotify_mark *vfsmount_mark,
-			    struct fsnotify_event *event);
+			    u32 mask, void *data, int data_type,
+			    const unsigned char *file_name, u32 cookie);
 	void (*free_group_priv)(struct fsnotify_group *group);
 	void (*freeing_mark)(struct fsnotify_mark *mark, struct fsnotify_group *group);
-	void (*free_event_priv)(struct fsnotify_event_private_data *priv);
+	void (*free_event)(struct fsnotify_event *event);
+};
+
+/*
+ * all of the information about the original object we want to now send to
+ * a group.  If you want to carry more info from the accessing task to the
+ * listener this structure is where you need to be adding fields.
+ */
+struct fsnotify_event {
+	struct list_head list;
+	/* inode may ONLY be dereferenced during handle_event(). */
+	struct inode *inode;	/* either the inode the event happened to or its parent */
+	u32 mask;		/* the type of access, bitwise OR for FS_* event types */
 };
 
 /*
@@ -141,11 +152,17 @@ struct fsnotify_group {
 	unsigned int priority;
 
 	/* stores all fastpath marks assoc with this group so they can be cleaned on unregister */
-	spinlock_t mark_lock;		/* protect marks_list */
+	struct mutex mark_mutex;	/* protect marks_list */
 	atomic_t num_marks;		/* 1 for each mark and 1 for not being
 					 * past the point of no return when freeing
 					 * a group */
 	struct list_head marks_list;	/* all inode marks for this group */
+
+	struct fasync_struct *fsn_fa;    /* async notification */
+
+	struct fsnotify_event *overflow_event;	/* Event we queue when the
+						 * notification list is too
+						 * full */
 
 	/* groups can define private fields here or use the void *private */
 	union {
@@ -154,8 +171,6 @@ struct fsnotify_group {
 		struct inotify_group_private_data {
 			spinlock_t	idr_lock;
 			struct idr      idr;
-			u32             last_wd;
-			struct fasync_struct    *fa;    /* async notification */
 			struct user_struct      *user;
 		} inotify_data;
 #endif
@@ -163,7 +178,7 @@ struct fsnotify_group {
 		struct fanotify_group_private_data {
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 			/* allows a group to block waiting for a userspace response */
-			struct mutex access_mutex;
+			spinlock_t access_lock;
 			struct list_head access_list;
 			wait_queue_head_t access_waitq;
 			atomic_t bypass_perm;
@@ -176,76 +191,10 @@ struct fsnotify_group {
 	};
 };
 
-/*
- * A single event can be queued in multiple group->notification_lists.
- *
- * each group->notification_list will point to an event_holder which in turns points
- * to the actual event that needs to be sent to userspace.
- *
- * Seemed cheaper to create a refcnt'd event and a small holder for every group
- * than create a different event for every group
- *
- */
-struct fsnotify_event_holder {
-	struct fsnotify_event *event;
-	struct list_head event_list;
-};
-
-/*
- * Inotify needs to tack data onto an event.  This struct lets us later find the
- * correct private data of the correct group.
- */
-struct fsnotify_event_private_data {
-	struct fsnotify_group *group;
-	struct list_head event_list;
-};
-
-/*
- * all of the information about the original object we want to now send to
- * a group.  If you want to carry more info from the accessing task to the
- * listener this structure is where you need to be adding fields.
- */
-struct fsnotify_event {
-	/*
-	 * If we create an event we are also likely going to need a holder
-	 * to link to a group.  So embed one holder in the event.  Means only
-	 * one allocation for the common case where we only have one group
-	 */
-	struct fsnotify_event_holder holder;
-	spinlock_t lock;	/* protection for the associated event_holder and private_list */
-	/* to_tell may ONLY be dereferenced during handle_event(). */
-	struct inode *to_tell;	/* either the inode the event happened to or its parent */
-	/*
-	 * depending on the event type we should have either a path or inode
-	 * We hold a reference on path, but NOT on inode.  Since we have the ref on
-	 * the path, it may be dereferenced at any point during this object's
-	 * lifetime.  That reference is dropped when this object's refcnt hits
-	 * 0.  If this event contains an inode instead of a path, the inode may
-	 * ONLY be used during handle_event().
-	 */
-	union {
-		struct path path;
-		struct inode *inode;
-	};
 /* when calling fsnotify tell it if the data is a path or inode */
 #define FSNOTIFY_EVENT_NONE	0
 #define FSNOTIFY_EVENT_PATH	1
 #define FSNOTIFY_EVENT_INODE	2
-	int data_type;		/* which of the above union we have */
-	atomic_t refcnt;	/* how many groups still are using/need to send this event */
-	__u32 mask;		/* the type of access, bitwise OR for FS_* event types */
-
-	u32 sync_cookie;	/* used to corrolate events, namely inotify mv events */
-	const unsigned char *file_name;
-	size_t name_len;
-	struct pid *tgid;
-
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	__u32 response;	/* userspace answer to question */
-#endif /* CONFIG_FANOTIFY_ACCESS_PERMISSIONS */
-
-	struct list_head private_data_list;	/* groups can store private data here */
-};
 
 /*
  * Inode specific fields in an fsnotify_mark
@@ -287,7 +236,6 @@ struct fsnotify_mark {
 		struct fsnotify_inode_mark i;
 		struct fsnotify_vfsmount_mark m;
 	};
-	struct list_head free_g_list;	/* tmp list used when freeing this mark */
 	__u32 ignored_mask;		/* events types to ignore */
 #define FSNOTIFY_MARK_FLAG_INODE		0x01
 #define FSNOTIFY_MARK_FLAG_VFSMOUNT		0x02
@@ -360,30 +308,32 @@ static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode 
 
 /* called from fsnotify listeners, such as fanotify or dnotify */
 
-/* get a reference to an existing or create a new group */
+/* create a new group */
 extern struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops);
+/* get reference to a group */
+extern void fsnotify_get_group(struct fsnotify_group *group);
 /* drop reference on a group from fsnotify_alloc_group */
 extern void fsnotify_put_group(struct fsnotify_group *group);
-
-/* take a reference to an event */
-extern void fsnotify_get_event(struct fsnotify_event *event);
-extern void fsnotify_put_event(struct fsnotify_event *event);
-/* find private data previously attached to an event and unlink it */
-extern struct fsnotify_event_private_data *fsnotify_remove_priv_from_event(struct fsnotify_group *group,
-									   struct fsnotify_event *event);
-
+/* destroy group */
+extern void fsnotify_destroy_group(struct fsnotify_group *group);
+/* fasync handler function */
+extern int fsnotify_fasync(int fd, struct file *file, int on);
+/* Free event from memory */
+extern void fsnotify_destroy_event(struct fsnotify_group *group,
+				   struct fsnotify_event *event);
 /* attach the event to the group notification queue */
-extern struct fsnotify_event *fsnotify_add_notify_event(struct fsnotify_group *group,
-							struct fsnotify_event *event,
-							struct fsnotify_event_private_data *priv,
-							struct fsnotify_event *(*merge)(struct list_head *,
-											struct fsnotify_event *));
+extern int fsnotify_add_event(struct fsnotify_group *group,
+			      struct fsnotify_event *event,
+			      int (*merge)(struct list_head *,
+					   struct fsnotify_event *));
+/* Remove passed event from groups notification queue */
+extern void fsnotify_remove_event(struct fsnotify_group *group, struct fsnotify_event *event);
 /* true if the group notification queue is empty */
 extern bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group);
 /* return, but do not dequeue the first event on the notification queue */
-extern struct fsnotify_event *fsnotify_peek_notify_event(struct fsnotify_group *group);
+extern struct fsnotify_event *fsnotify_peek_first_event(struct fsnotify_group *group);
 /* return AND dequeue the first event on the notification queue */
-extern struct fsnotify_event *fsnotify_remove_notify_event(struct fsnotify_group *group);
+extern struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group *group);
 
 /* functions used to manipulate the marks attached to inodes */
 
@@ -405,8 +355,13 @@ extern void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask
 /* attach the mark to both the group and the inode */
 extern int fsnotify_add_mark(struct fsnotify_mark *mark, struct fsnotify_group *group,
 			     struct inode *inode, struct vfsmount *mnt, int allow_dups);
-/* given a mark, flag it to be freed when all references are dropped */
-extern void fsnotify_destroy_mark(struct fsnotify_mark *mark);
+extern int fsnotify_add_mark_locked(struct fsnotify_mark *mark, struct fsnotify_group *group,
+				    struct inode *inode, struct vfsmount *mnt, int allow_dups);
+/* given a group and a mark, flag mark to be freed when all references are dropped */
+extern void fsnotify_destroy_mark(struct fsnotify_mark *mark,
+				  struct fsnotify_group *group);
+extern void fsnotify_destroy_mark_locked(struct fsnotify_mark *mark,
+					 struct fsnotify_group *group);
 /* run all the marks in a group, and clear all of the vfsmount marks */
 extern void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group);
 /* run all the marks in a group, and clear all of the inode marks */
@@ -420,15 +375,8 @@ extern void fsnotify_put_mark(struct fsnotify_mark *mark);
 extern void fsnotify_unmount_inodes(struct list_head *list);
 
 /* put here because inotify does some weird stuff when destroying watches */
-extern struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask,
-						    void *data, int data_is,
-						    const unsigned char *name,
-						    u32 cookie, gfp_t gfp);
-
-/* fanotify likes to change events after they are on lists... */
-extern struct fsnotify_event *fsnotify_clone_event(struct fsnotify_event *old_event);
-extern int fsnotify_replace_event(struct fsnotify_event_holder *old_holder,
-				  struct fsnotify_event *new_event);
+extern void fsnotify_init_event(struct fsnotify_event *event,
+				struct inode *to_tell, u32 mask);
 
 #else
 

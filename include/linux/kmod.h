@@ -66,47 +66,16 @@ struct subprocess_info {
 	void *data;
 };
 
-/* Allocate a subprocess_info structure */
-struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
-						  char **envp, gfp_t gfp_mask);
+extern int
+call_usermodehelper(char *path, char **argv, char **envp, int wait);
 
-/* Set various pieces of state into the subprocess_info structure */
-void call_usermodehelper_setfns(struct subprocess_info *info,
-		    int (*init)(struct subprocess_info *info, struct cred *new),
-		    void (*cleanup)(struct subprocess_info *info),
-		    void *data);
+extern struct subprocess_info *
+call_usermodehelper_setup(char *path, char **argv, char **envp, gfp_t gfp_mask,
+			  int (*init)(struct subprocess_info *info, struct cred *new),
+			  void (*cleanup)(struct subprocess_info *), void *data);
 
-/* Actually execute the sub-process */
-int call_usermodehelper_exec(struct subprocess_info *info, int wait);
-
-/* Free the subprocess_info. This is only needed if you're not going
-   to call call_usermodehelper_exec */
-void call_usermodehelper_freeinfo(struct subprocess_info *info);
-
-static inline int
-call_usermodehelper_fns(char *path, char **argv, char **envp, int wait,
-			int (*init)(struct subprocess_info *info, struct cred *new),
-			void (*cleanup)(struct subprocess_info *), void *data)
-{
-	struct subprocess_info *info;
-	gfp_t gfp_mask = (wait == UMH_NO_WAIT) ? GFP_ATOMIC : GFP_KERNEL;
-
-	info = call_usermodehelper_setup(path, argv, envp, gfp_mask);
-
-	if (info == NULL)
-		return -ENOMEM;
-
-	call_usermodehelper_setfns(info, init, cleanup, data);
-
-	return call_usermodehelper_exec(info, wait);
-}
-
-static inline int
-call_usermodehelper(char *path, char **argv, char **envp, int wait)
-{
-	return call_usermodehelper_fns(path, argv, envp, wait,
-				       NULL, NULL, NULL);
-}
+extern int
+call_usermodehelper_exec(struct subprocess_info *info, int wait);
 
 extern struct ctl_table usermodehelper_table[];
 

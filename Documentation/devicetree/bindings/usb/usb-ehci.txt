@@ -1,19 +1,21 @@
 USB EHCI controllers
 
 Required properties:
-  - compatible : should be "usb-ehci".
+  - compatible : should be "generic-ehci".
   - reg : should contain at least address and length of the standard EHCI
     register set for the device. Optional platform-dependent registers
     (debug-port or other) can be also specified here, but only after
     definition of standard EHCI registers.
   - interrupts : one EHCI interrupt should be described here.
-If device registers are implemented in big endian mode, the device
-node should have "big-endian-regs" property.
-If controller implementation operates with big endian descriptors,
-"big-endian-desc" property should be specified.
-If both big endian registers and descriptors are used by the controller
-implementation, "big-endian" property can be specified instead of having
-both "big-endian-regs" and "big-endian-desc".
+
+Optional properties:
+ - big-endian-regs : boolean, set this for hcds with big-endian registers
+ - big-endian-desc : boolean, set this for hcds with big-endian descriptors
+ - big-endian : boolean, for hcds with big-endian-regs + big-endian-desc
+ - clocks : a list of phandle + clock specifier pairs
+ - phys : phandle + phy specifier pair
+ - phy-names : "usb"
+ - resets : phandle + reset specifier pair
 
 Example (Sequoia 440EPx):
     ehci@e0000300 {
@@ -22,4 +24,14 @@ Example (Sequoia 440EPx):
 	   interrupts = <1a 4>;
 	   reg = <0 e0000300 90 0 e0000390 70>;
 	   big-endian;
+   };
+
+Example (Allwinner sun4i A10 SoC):
+   ehci0: usb@01c14000 {
+	   compatible = "allwinner,sun4i-a10-ehci", "generic-ehci";
+	   reg = <0x01c14000 0x100>;
+	   interrupts = <39>;
+	   clocks = <&ahb_gates 1>;
+	   phys = <&usbphy 1>;
+	   phy-names = "usb";
    };

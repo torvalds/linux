@@ -671,7 +671,7 @@ printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
 
   <sect1 id="routines-local-irqs">
    <title><function>local_irq_save()</function>/<function>local_irq_restore()</function>
-    <filename class="headerfile">include/asm/system.h</filename>
+    <filename class="headerfile">include/linux/irqflags.h</filename>
    </title>
 
    <para>
@@ -850,16 +850,6 @@ printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
     <returnvalue>-ERESTARTSYS</returnvalue> if a signal is received.
     The <function>wait_event()</function> version ignores signals.
    </para>
-   <para>
-   Do not use the <function>sleep_on()</function> function family -
-   it is very easy to accidentally introduce races; almost certainly
-   one of the <function>wait_event()</function> family will do, or a
-   loop around <function>schedule_timeout()</function>. If you choose
-   to loop around <function>schedule_timeout()</function> remember
-   you must set the task state (with 
-   <function>set_current_state()</function>) on each iteration to avoid
-   busy-looping.
-   </para>
  
   </sect1>
 
@@ -945,7 +935,7 @@ printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
 
   <sect1 id="sym-exportsymbols">
    <title><function>EXPORT_SYMBOL()</function>
-    <filename class="headerfile">include/linux/module.h</filename></title>
+    <filename class="headerfile">include/linux/export.h</filename></title>
 
    <para>
     This is the classic method of exporting a symbol: dynamically
@@ -955,7 +945,7 @@ printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
 
   <sect1 id="sym-exportsymbols-gpl">
    <title><function>EXPORT_SYMBOL_GPL()</function>
-    <filename class="headerfile">include/linux/module.h</filename></title>
+    <filename class="headerfile">include/linux/export.h</filename></title>
 
    <para>
     Similar to <function>EXPORT_SYMBOL()</function> except that the
@@ -1185,13 +1175,6 @@ static struct block_device_operations opt_fops = {
     </para>
 
     <para>
-     You may well want to make your CONFIG option only visible if
-     <symbol>CONFIG_EXPERIMENTAL</symbol> is enabled: this serves as a
-     warning to users.  There many other fancy things you can do: see
-     the various <filename>Kconfig</filename> files for ideas.
-    </para>
-
-    <para>
      In your description of the option, make sure you address both the
      expert user and the user who knows nothing about your feature.  Mention
      incompatibilities and issues here.  <emphasis> Definitely
@@ -1289,7 +1272,7 @@ static struct block_device_operations opt_fops = {
  * Sparc assembly will do this to ya.
  */
 C_LABEL(cputypvar):
-        .asciz "compatability"
+        .asciz "compatibility"
 
 /* Tested on SS-5, SS-10. Probably someone at Sun applied a spell-checker. */
         .align 4

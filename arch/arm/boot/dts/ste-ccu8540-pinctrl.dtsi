@@ -1,0 +1,196 @@
+/*
+ * Copyright 2012 ST-Ericsson
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+#include "ste-nomadik-pinctrl.dtsi"
+
+/ {
+	soc {
+		pinctrl {
+			uart0 {
+				uart0_default_mux: uart0_mux {
+					default_mux {
+						ste,function = "u0";
+						ste,pins = "u0_a_1";
+					};
+				};
+
+				uart0_default_mode: uart0_default {
+					default_cfg1 {
+						ste,pins = "GPIO0", "GPIO2";
+						ste,config = <&in_pu>;
+					};
+
+					default_cfg2 {
+						ste,pins = "GPIO1", "GPIO3";
+						ste,config = <&out_hi>;
+					};
+				};
+
+				uart0_sleep_mode: uart0_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO0", "GPIO2";
+						ste,config = <&slpm_in_pu>;
+					};
+
+					sleep_cfg2 {
+						ste,pins = "GPIO1", "GPIO3";
+						ste,config = <&slpm_out_hi>;
+					};
+				};
+			};
+
+			uart2 {
+				uart2_default_mode: uart2_default {
+					default_mux {
+						ste,function = "u2";
+						ste,pins = "u2txrx_a_1";
+					};
+
+					default_cfg1 {
+						ste,pins = "GPIO120";
+						ste,config = <&in_pu>;
+					};
+
+					default_cfg2 {
+						ste,pins = "GPIO121";
+						ste,config = <&out_hi>;
+					};
+				};
+
+				uart2_sleep_mode: uart2_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO120";
+						ste,config = <&slpm_in_pu>;
+					};
+
+					sleep_cfg2 {
+						ste,pins = "GPIO121";
+						ste,config = <&slpm_out_hi>;
+					};
+				};
+			};
+
+			i2c0 {
+				i2c0_default_mux: i2c_mux {
+					default_mux {
+						ste,function = "i2c0";
+						ste,pins = "i2c0_a_1";
+					};
+				};
+
+				i2c0_default_mode: i2c_default {
+					default_cfg1 {
+						ste,pins = "GPIO147", "GPIO148";
+						ste,config = <&in_pu>;
+					};
+				};
+
+				i2c0_sleep_mode: i2c_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO147", "GPIO148";
+						ste,config = <&slpm_in_pu>;
+					};
+				};
+			};
+
+			i2c1 {
+				i2c1_default_mux: i2c_mux {
+					default_mux {
+						ste,function = "i2c1";
+						ste,pins = "i2c1_b_2";
+					};
+				};
+
+				i2c1_default_mode: i2c_default {
+					default_cfg1 {
+						ste,pins = "GPIO16", "GPIO17";
+						ste,config = <&in_pu>;
+					};
+				};
+
+				i2c1_sleep_mode: i2c_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO16", "GPIO17";
+						ste,config = <&slpm_in_pu>;
+					};
+				};
+			};
+
+			i2c2 {
+				i2c2_default_mux: i2c_mux {
+					default_mux {
+						ste,function = "i2c2";
+						ste,pins = "i2c2_b_2";
+					};
+				};
+
+				i2c2_default_mode: i2c_default {
+					default_cfg1 {
+						ste,pins = "GPIO10", "GPIO11";
+						ste,config = <&in_pu>;
+					};
+				};
+
+				i2c2_sleep_mode: i2c_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO11", "GPIO11";
+						ste,config = <&slpm_in_pu>;
+					};
+				};
+			};
+
+			i2c4 {
+				i2c4_default_mux: i2c_mux {
+					default_mux {
+						ste,function = "i2c4";
+						ste,pins = "i2c4_b_2";
+					};
+				};
+
+				i2c4_default_mode: i2c_default {
+					default_cfg1 {
+						ste,pins = "GPIO122", "GPIO123";
+						ste,config = <&in_pu>;
+					};
+				};
+
+				i2c4_sleep_mode: i2c_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO122", "GPIO123";
+						ste,config = <&slpm_in_pu>;
+					};
+				};
+			};
+
+			i2c5 {
+				i2c5_default_mux: i2c_mux {
+					default_mux {
+						ste,function = "i2c5";
+						ste,pins = "i2c5_c_2";
+					};
+				};
+
+				i2c5_default_mode: i2c_default {
+					default_cfg1 {
+						ste,pins = "GPIO118", "GPIO119";
+						ste,config = <&in_pu>;
+					};
+				};
+
+				i2c5_sleep_mode: i2c_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO118", "GPIO119";
+						ste,config = <&slpm_in_pu>;
+					};
+				};
+			};
+		};
+	};
+};

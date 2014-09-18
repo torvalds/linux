@@ -4,7 +4,6 @@ comment "Linux Kernel Configuration for Hexagon"
 config HEXAGON
 	def_bool y
 	select HAVE_OPROFILE
-	select USE_GENERIC_SMP_HELPERS if SMP
 	# Other pending projects/to-do items.
 	# select HAVE_REGS_AND_STACK_ACCESS_API
 	# select HAVE_HW_BREAKPOINT if PERF_EVENTS
@@ -12,37 +11,31 @@ config HEXAGON
 	# select ARCH_WANT_OPTIONAL_GPIOLIB
 	# select ARCH_REQUIRE_GPIOLIB
 	# select HAVE_CLK
-	# select IRQ_PER_CPU
-	select HAVE_IRQ_WORK
 	# select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_ATOMIC64
 	select HAVE_PERF_EVENTS
-	select HAVE_GENERIC_HARDIRQS
-	select GENERIC_HARDIRQS_NO__DO_IRQ
-	select GENERIC_HARDIRQS_NO_DEPRECATED
 	# GENERIC_ALLOCATOR is used by dma_alloc_coherent()
 	select GENERIC_ALLOCATOR
 	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select GENERIC_IOMAP
-	# mostly generic routines, with some accelerated ones
+	select GENERIC_SMP_IDLE_THREAD
+	select STACKTRACE_SUPPORT
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CLOCKEVENTS_BROADCAST
+	select MODULES_USE_ELF_RELA
+	select GENERIC_CPU_DEVICES
+	select HAVE_DMA_ATTRS
 	---help---
 	  Qualcomm Hexagon is a processor architecture designed for high
 	  performance and low power across a wide variety of applications.
 
-config HEXAGON_ARCH_V1
-	bool
-
-config HEXAGON_ARCH_V2
-	bool
-
-config HEXAGON_ARCH_V3
-	bool
-
-config HEXAGON_ARCH_V4
-	bool
+config HEXAGON_PHYS_OFFSET
+	def_bool y
+	---help---
+	  Platforms that don't load the kernel at zero set this.
 
 config FRAME_POINTER
 	def_bool y
@@ -54,9 +47,6 @@ config PCI
 	def_bool n
 
 config EARLY_PRINTK
-	def_bool y
-
-config KTIME_SCALAR
 	def_bool y
 
 config MMU
@@ -74,15 +64,6 @@ config GENERIC_CSUM
 config GENERIC_IRQ_PROBE
 	def_bool y
 
-#config ZONE_DMA
-#	bool
-#	default y
-
-config HAS_DMA
-	bool
-	select HAVE_DMA_ATTRS
-	default y
-
 config NEED_SG_DMA_LENGTH
 	def_bool y
 
@@ -92,19 +73,7 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
 
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
 config GENERIC_HWEIGHT
-	def_bool y
-
-config GENERIC_TIME
-	def_bool y
-
-config GENERIC_CLOCKEVENTS
-	def_bool y
-
-config GENERIC_CLOCKEVENTS_BROADCAST
 	def_bool y
 
 config STACKTRACE_SUPPORT
@@ -115,25 +84,22 @@ config GENERIC_BUG
 	def_bool y
 	depends on BUG
 
-config BUG
-	def_bool y
-
 menu "Machine selection"
 
 choice
 	prompt "System type"
-	default HEXAGON_ARCH_V2
+	default HEXAGON_COMET
 
 config HEXAGON_COMET
 	bool "Comet Board"
-	select HEXAGON_ARCH_V2
 	---help---
 	  Support for the Comet platform.
 
 endchoice
 
-config HEXAGON_VM
-	def_bool y
+config HEXAGON_ARCH_VERSION
+	int "Architecture version"
+	default 2
 
 config CMDLINE
 	string "Default kernel command string"
@@ -144,12 +110,6 @@ config CMDLINE
 	  command-line options at build time by entering them here.  At a
 	  minimum, you should specify the memory size and the root device
 	  (e.g., mem=64M root=/dev/nfs).
-
-config HEXAGON_ANGEL_TRAPS
-	bool "Use Angel Traps"
-	default n
-	---help---
-	  Enable angel debug traps (for printk's).
 
 config SMP
 	bool "Multi-Processing support"
@@ -192,15 +152,11 @@ endchoice
 source "mm/Kconfig"
 
 source "kernel/Kconfig.hz"
-source "kernel/time/Kconfig"
-
-config GENERIC_GPIO
-	bool "Generic GPIO support"
-	default n
 
 endmenu
 
 source "init/Kconfig"
+source "kernel/Kconfig.freezer"
 source "drivers/Kconfig"
 source "fs/Kconfig"
 

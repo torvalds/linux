@@ -21,14 +21,46 @@
 #include <mach/irqs.h>
 #include <mach/msm_iomap.h>
 #include <mach/dma.h>
-#include <mach/board.h>
 
 #include "devices.h"
+#include "common.h"
 
 #include <asm/mach/flash.h>
 
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-msm_sdcc.h>
+#include "clock.h"
 #include "clock-pcom.h"
+
+static struct resource msm_gpio_resources[] = {
+	{
+		.start	= 64 + 165 + 9,
+		.end	= 64 + 165 + 9,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= 64 + 165 + 10,
+		.end	= 64 + 165 + 10,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= 0xa9000800,
+		.end	= 0xa9000800 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+		.name  = "gpio1"
+	},
+	{
+		.start	= 0xa9100C00,
+		.end	= 0xa9100C00 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+		.name  = "gpio2"
+	},
+};
+
+struct platform_device msm_device_gpio_8x50 = {
+	.name	= "gpio-msm-8x50",
+	.num_resources	= ARRAY_SIZE(msm_gpio_resources),
+	.resource	= msm_gpio_resources,
+};
 
 static struct resource resources_uart3[] = {
 	{
@@ -291,7 +323,7 @@ int __init msm_add_sdcc(unsigned int controller,
 	return platform_device_register(pdev);
 }
 
-struct clk_lookup msm_clocks_8x50[] = {
+static struct clk_pcom_desc msm_clocks_8x50[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("ce_clk",	CE_CLK,		NULL, 0),
 	CLK_PCOM("ebi1_clk",	EBI1_CLK,	NULL, CLK_MIN),
@@ -326,9 +358,9 @@ struct clk_lookup msm_clocks_8x50[] = {
 	CLK_PCOM("tsif_ref_clk",	TSIF_REF_CLK,	NULL, 0),
 	CLK_PCOM("tv_dac_clk",	TV_DAC_CLK,	NULL, 0),
 	CLK_PCOM("tv_enc_clk",	TV_ENC_CLK,	NULL, 0),
-	CLK_PCOM("uart_clk",	UART1_CLK,	NULL, OFF),
-	CLK_PCOM("uart_clk",	UART2_CLK,	NULL, 0),
-	CLK_PCOM("uart_clk",	UART3_CLK,	"msm_serial.2", OFF),
+	CLK_PCOM("core",	UART1_CLK,	NULL, OFF),
+	CLK_PCOM("core",	UART2_CLK,	NULL, 0),
+	CLK_PCOM("core",	UART3_CLK,	"msm_serial.2", OFF),
 	CLK_PCOM("uartdm_clk",	UART1DM_CLK,	NULL, OFF),
 	CLK_PCOM("uartdm_clk",	UART2DM_CLK,	NULL, 0),
 	CLK_PCOM("usb_hs_clk",	USB_HS_CLK,	NULL, OFF),
@@ -345,5 +377,12 @@ struct clk_lookup msm_clocks_8x50[] = {
 	CLK_PCOM("usb_phy_clk",	USB_PHY_CLK,	NULL, 0),
 };
 
-unsigned msm_num_clocks_8x50 = ARRAY_SIZE(msm_clocks_8x50);
+static struct pcom_clk_pdata msm_clock_8x50_pdata = {
+	.lookup = msm_clocks_8x50,
+	.num_lookups = ARRAY_SIZE(msm_clocks_8x50),
+};
 
+struct platform_device msm_clock_8x50 = {
+	.name = "msm-clock-pcom",
+	.dev.platform_data = &msm_clock_8x50_pdata,
+};

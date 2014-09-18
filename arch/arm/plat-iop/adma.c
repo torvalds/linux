@@ -192,12 +192,10 @@ static int __init iop3xx_adma_cap_init(void)
 
 	#ifdef CONFIG_ARCH_IOP32X /* the 32x AAU does not perform zero sum */
 	dma_cap_set(DMA_XOR, iop3xx_aau_data.cap_mask);
-	dma_cap_set(DMA_MEMSET, iop3xx_aau_data.cap_mask);
 	dma_cap_set(DMA_INTERRUPT, iop3xx_aau_data.cap_mask);
 	#else
 	dma_cap_set(DMA_XOR, iop3xx_aau_data.cap_mask);
 	dma_cap_set(DMA_XOR_VAL, iop3xx_aau_data.cap_mask);
-	dma_cap_set(DMA_MEMSET, iop3xx_aau_data.cap_mask);
 	dma_cap_set(DMA_INTERRUPT, iop3xx_aau_data.cap_mask);
 	#endif
 

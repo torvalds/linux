@@ -5,4 +5,15 @@ Contact:	"Ike Panhc <ike.pan@canonical.com>"
 Description:
 		Control the power of camera module. 1 means on, 0 means off.
 
+What:		/sys/devices/platform/ideapad/fan_mode
+Date:		June 2012
+KernelVersion:	3.6
+Contact:	"Maxim Mikityanskiy <maxtram95@gmail.com>"
+Description:
+		Change fan mode
+		There are four available modes:
+			* 0 -> Super Silent Mode
+			* 1 -> Standard Mode
+			* 2 -> Dust Cleaning
+			* 4 -> Efficient Thermal Dissipation Mode
 

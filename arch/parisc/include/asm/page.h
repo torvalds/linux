@@ -21,15 +21,16 @@
 #include <asm/types.h>
 #include <asm/cache.h>
 
-#define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
-#define copy_page(to,from)      copy_user_page_asm((void *)(to), (void *)(from))
+#define clear_page(page)	clear_page_asm((void *)(page))
+#define copy_page(to, from)	copy_page_asm((void *)(to), (void *)(from))
 
 struct page;
 
-void copy_user_page_asm(void *to, void *from);
+void clear_page_asm(void *page);
+void copy_page_asm(void *to, void *from);
+#define clear_user_page(vto, vaddr, page) clear_page_asm(vto)
 void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
-			   struct page *pg);
-void clear_user_page(void *page, unsigned long vaddr, struct page *pg);
+			struct page *pg);
 
 /*
  * These are used to make use of C type-checking..
@@ -160,5 +161,11 @@ extern int npmem_ranges;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+#include <asm/pdc.h>
+
+#define PAGE0   ((struct zeropage *)__PAGE_OFFSET)
+
+/* DEFINITION OF THE ZERO-PAGE (PAG0) */
+/* based on work by Jason Eckhardt (jason@equator.com) */
 
 #endif /* _PARISC_PAGE_H */

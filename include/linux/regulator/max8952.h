@@ -122,13 +122,13 @@ struct max8952_platform_data {
 	int gpio_vid1;
 	int gpio_en;
 
-	u8 default_mode;
-	u8 dvs_mode[MAX8952_NUM_DVS_MODE]; /* MAX8952_DVS_MODEx_XXXXmV */
+	u32 default_mode;
+	u32 dvs_mode[MAX8952_NUM_DVS_MODE]; /* MAX8952_DVS_MODEx_XXXXmV */
 
-	u8 sync_freq;
-	u8 ramp_speed;
+	u32 sync_freq;
+	u32 ramp_speed;
 
-	struct regulator_init_data reg_data;
+	struct regulator_init_data *reg_data;
 };
 
 

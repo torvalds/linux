@@ -23,7 +23,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -318,18 +317,4 @@ static struct pcmcia_driver orinoco_driver = {
 	.resume		= spectrum_cs_resume,
 	.id_table       = spectrum_cs_ids,
 };
-
-static int __init
-init_spectrum_cs(void)
-{
-	return pcmcia_register_driver(&orinoco_driver);
-}
-
-static void __exit
-exit_spectrum_cs(void)
-{
-	pcmcia_unregister_driver(&orinoco_driver);
-}
-
-module_init(init_spectrum_cs);
-module_exit(exit_spectrum_cs);
+module_pcmcia_driver(orinoco_driver);

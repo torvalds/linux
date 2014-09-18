@@ -26,6 +26,7 @@
 #include <linux/export.h>
 #include <linux/omapfb.h>
 #include <linux/io.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <media/soc_camera.h>
 
@@ -34,15 +35,14 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board-ams-delta.h>
-#include <plat/keypad.h>
-#include <plat/mux.h>
-#include <plat/usb.h>
-#include <plat/board.h>
+#include <mach/board-ams-delta.h>
+#include <linux/platform_data/keypad-omap.h>
+#include <mach/mux.h>
 
 #include <mach/hardware.h>
 #include <mach/ams-delta-fiq.h>
 #include <mach/camera.h>
+#include <mach/usb.h>
 
 #include "iomap.h"
 #include "common.h"
@@ -160,7 +160,7 @@ static struct omap_lcd_config ams_delta_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_usb_config ams_delta_usb_config = {
+static struct omap_usb_config ams_delta_usb_config __initdata = {
 	.register_host	= 1,
 	.hmc_mode	= 16,
 	.pins[0]	= 2,
@@ -444,16 +444,28 @@ static struct omap1_cam_platform_data ams_delta_camera_platform_data = {
 	.lclk_khz_max	= 1334,		/* results in 5fps CIF, 10fps QCIF */
 };
 
+static struct platform_device ams_delta_audio_device = {
+	.name   = "ams-delta-audio",
+	.id     = -1,
+};
+
+static struct platform_device cx20442_codec_device = {
+	.name   = "cx20442-codec",
+	.id     = -1,
+};
+
 static struct platform_device *ams_delta_devices[] __initdata = {
 	&latch1_gpio_device,
 	&latch2_gpio_device,
 	&ams_delta_kp_device,
 	&ams_delta_camera_device,
+	&ams_delta_audio_device,
 };
 
 static struct platform_device *late_devices[] __initdata = {
 	&ams_delta_nand_device,
 	&ams_delta_lcd_device,
+	&cx20442_codec_device,
 };
 
 static void __init ams_delta_init(void)
@@ -595,7 +607,12 @@ gpio_free:
 	gpio_free(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
 	return err;
 }
-late_initcall(late_init);
+
+static void __init ams_delta_init_late(void)
+{
+	omap1_init_late();
+	late_init();
+}
 
 static void __init ams_delta_map_io(void)
 {
@@ -608,9 +625,9 @@ MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	.atag_offset	= 0x100,
 	.map_io		= ams_delta_map_io,
 	.init_early	= omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= ams_delta_init,
-	.timer		= &omap1_timer,
+	.init_late	= ams_delta_init_late,
+	.init_time	= omap1_timer_init,
 	.restart	= omap1_restart,
 MACHINE_END

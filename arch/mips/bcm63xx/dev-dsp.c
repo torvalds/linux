@@ -31,7 +31,7 @@ static struct resource voip_dsp_resources[] = {
 
 static struct platform_device bcm63xx_voip_dsp_device = {
 	.name		= "bcm63xx-voip-dsp",
-	.id		= 0,
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(voip_dsp_resources),
 	.resource	= voip_dsp_resources,
 };

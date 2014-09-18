@@ -1,0 +1,77 @@
+config IMX_HAVE_PLATFORM_FEC
+	bool
+	default y if SOC_IMX25 || SOC_IMX27 || SOC_IMX35
+
+config IMX_HAVE_PLATFORM_FLEXCAN
+	bool
+
+config IMX_HAVE_PLATFORM_FSL_USB2_UDC
+	bool
+
+config IMX_HAVE_PLATFORM_GPIO_KEYS
+	bool
+
+config IMX_HAVE_PLATFORM_IMX21_HCD
+	bool
+
+config IMX_HAVE_PLATFORM_IMX27_CODA
+	bool
+	default y if SOC_IMX27
+
+config IMX_HAVE_PLATFORM_IMX2_WDT
+	bool
+
+config IMX_HAVE_PLATFORM_IMXDI_RTC
+	bool
+
+config IMX_HAVE_PLATFORM_IMX_FB
+	bool
+
+config IMX_HAVE_PLATFORM_IMX_I2C
+	bool
+
+config IMX_HAVE_PLATFORM_IMX_KEYPAD
+	bool
+
+config IMX_HAVE_PLATFORM_PATA_IMX
+	bool
+
+config IMX_HAVE_PLATFORM_IMX_SSI
+	bool
+
+config IMX_HAVE_PLATFORM_IMX_UART
+	bool
+
+config IMX_HAVE_PLATFORM_IPU_CORE
+	bool
+
+config IMX_HAVE_PLATFORM_MX2_CAMERA
+	bool
+
+config IMX_HAVE_PLATFORM_MX2_EMMA
+	bool
+
+config IMX_HAVE_PLATFORM_MXC_EHCI
+	bool
+
+config IMX_HAVE_PLATFORM_MXC_MMC
+	bool
+
+config IMX_HAVE_PLATFORM_MXC_NAND
+	bool
+
+config IMX_HAVE_PLATFORM_MXC_RNGA
+	bool
+	select ARCH_HAS_RNGA
+
+config IMX_HAVE_PLATFORM_MXC_RTC
+	bool
+
+config IMX_HAVE_PLATFORM_MXC_W1
+	bool
+
+config IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	bool
+
+config IMX_HAVE_PLATFORM_SPI_IMX
+	bool

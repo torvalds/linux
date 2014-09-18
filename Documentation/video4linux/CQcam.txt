@@ -18,7 +18,7 @@ Table of Contents
 
 1.0 Introduction
 
-  The file ../../drivers/media/video/c-qcam.c is a device driver for
+  The file ../../drivers/media/parport/c-qcam.c is a device driver for
 the Logitech (nee Connectix) parallel port interface color CCD camera.
 This is a fairly inexpensive device for capturing images.  Logitech
 does not currently provide information for developers, but many people

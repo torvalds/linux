@@ -48,6 +48,7 @@ struct virtio_pci_device
 	int msix_enabled;
 	int intx_enabled;
 	struct msix_entry *msix_entries;
+	cpumask_var_t *msix_affinity_masks;
 	/* Name strings for interrupts. This size should be enough,
 	 * and I'm too lazy to allocate each name separately. */
 	char (*msix_names)[256];
@@ -79,9 +80,6 @@ struct virtio_pci_vq_info
 	/* the number of entries in the queue */
 	int num;
 
-	/* the index of the queue */
-	int queue_index;
-
 	/* the virtual address of the ring queue */
 	void *queue;
 
@@ -93,9 +91,9 @@ struct virtio_pci_vq_info
 };
 
 /* Qumranet donated their vendor ID for devices 0x1000 thru 0x10FF. */
-static struct pci_device_id virtio_pci_id_table[] = {
-	{ 0x1af4, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0 },
+static const struct pci_device_id virtio_pci_id_table[] = {
+	{ PCI_DEVICE(0x1af4, PCI_ANY_ID) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, virtio_pci_id_table);
@@ -199,14 +197,14 @@ static void vp_reset(struct virtio_device *vdev)
 }
 
 /* the notify function used when creating a virt queue */
-static void vp_notify(struct virtqueue *vq)
+static bool vp_notify(struct virtqueue *vq)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
-	struct virtio_pci_vq_info *info = vq->priv;
 
 	/* we write the queue's selector into the notification register to
 	 * signal the other end */
-	iowrite16(info->queue_index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_NOTIFY);
+	iowrite16(vq->index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_NOTIFY);
+	return true;
 }
 
 /* Handle a configuration change: Tell driver if it wants to know. */
@@ -279,6 +277,10 @@ static void vp_free_vectors(struct virtio_device *vdev)
 	for (i = 0; i < vp_dev->msix_used_vectors; ++i)
 		free_irq(vp_dev->msix_entries[i].vector, vp_dev);
 
+	for (i = 0; i < vp_dev->msix_vectors; i++)
+		if (vp_dev->msix_affinity_masks[i])
+			free_cpumask_var(vp_dev->msix_affinity_masks[i]);
+
 	if (vp_dev->msix_enabled) {
 		/* Disable the vector used for configuration */
 		iowrite16(VIRTIO_MSI_NO_VECTOR,
@@ -288,14 +290,16 @@ static void vp_free_vectors(struct virtio_device *vdev)
 
 		pci_disable_msix(vp_dev->pci_dev);
 		vp_dev->msix_enabled = 0;
-		vp_dev->msix_vectors = 0;
 	}
 
+	vp_dev->msix_vectors = 0;
 	vp_dev->msix_used_vectors = 0;
 	kfree(vp_dev->msix_names);
 	vp_dev->msix_names = NULL;
 	kfree(vp_dev->msix_entries);
 	vp_dev->msix_entries = NULL;
+	kfree(vp_dev->msix_affinity_masks);
+	vp_dev->msix_affinity_masks = NULL;
 }
 
 static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
@@ -306,6 +310,8 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 	unsigned i, v;
 	int err = -ENOMEM;
 
+	vp_dev->msix_vectors = nvectors;
+
 	vp_dev->msix_entries = kmalloc(nvectors * sizeof *vp_dev->msix_entries,
 				       GFP_KERNEL);
 	if (!vp_dev->msix_entries)
@@ -314,17 +320,23 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 				     GFP_KERNEL);
 	if (!vp_dev->msix_names)
 		goto error;
+	vp_dev->msix_affinity_masks
+		= kzalloc(nvectors * sizeof *vp_dev->msix_affinity_masks,
+			  GFP_KERNEL);
+	if (!vp_dev->msix_affinity_masks)
+		goto error;
+	for (i = 0; i < nvectors; ++i)
+		if (!alloc_cpumask_var(&vp_dev->msix_affinity_masks[i],
+					GFP_KERNEL))
+			goto error;
 
 	for (i = 0; i < nvectors; ++i)
 		vp_dev->msix_entries[i].entry = i;
 
-	/* pci_enable_msix returns positive if we can't get this many. */
-	err = pci_enable_msix(vp_dev->pci_dev, vp_dev->msix_entries, nvectors);
-	if (err > 0)
-		err = -ENOSPC;
+	err = pci_enable_msix_exact(vp_dev->pci_dev,
+				    vp_dev->msix_entries, nvectors);
 	if (err)
 		goto error;
-	vp_dev->msix_vectors = nvectors;
 	vp_dev->msix_enabled = 1;
 
 	/* Set the vector used for configuration */
@@ -402,7 +414,6 @@ static struct virtqueue *setup_vq(struct virtio_device *vdev, unsigned index,
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
-	info->queue_index = index;
 	info->num = num;
 	info->msix_vector = msix_vec;
 
@@ -418,7 +429,7 @@ static struct virtqueue *setup_vq(struct virtio_device *vdev, unsigned index,
 		  vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN);
 
 	/* create the vring */
-	vq = vring_new_virtqueue(info->num, VIRTIO_PCI_VRING_ALIGN, vdev,
+	vq = vring_new_virtqueue(index, info->num, VIRTIO_PCI_VRING_ALIGN, vdev,
 				 true, info->queue, vp_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
@@ -467,7 +478,7 @@ static void vp_del_vq(struct virtqueue *vq)
 	list_del(&info->node);
 	spin_unlock_irqrestore(&vp_dev->lock, flags);
 
-	iowrite16(info->queue_index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_SEL);
+	iowrite16(vq->index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_SEL);
 
 	if (vp_dev->msix_enabled) {
 		iowrite16(VIRTIO_MSI_NO_VECTOR,
@@ -542,7 +553,10 @@ static int vp_try_to_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	vp_dev->per_vq_vectors = per_vq_vectors;
 	allocated_vectors = vp_dev->msix_used_vectors;
 	for (i = 0; i < nvqs; ++i) {
-		if (!callbacks[i] || !vp_dev->msix_enabled)
+		if (!names[i]) {
+			vqs[i] = NULL;
+			continue;
+		} else if (!callbacks[i] || !vp_dev->msix_enabled)
 			msix_vec = VIRTIO_MSI_NO_VECTOR;
 		else if (vp_dev->per_vq_vectors)
 			msix_vec = allocated_vectors++;
@@ -609,7 +623,36 @@ static const char *vp_bus_name(struct virtio_device *vdev)
 	return pci_name(vp_dev->pci_dev);
 }
 
-static struct virtio_config_ops virtio_pci_config_ops = {
+/* Setup the affinity for a virtqueue:
+ * - force the affinity for per vq vector
+ * - OR over all affinities for shared MSI
+ * - ignore the affinity request if we're using INTX
+ */
+static int vp_set_vq_affinity(struct virtqueue *vq, int cpu)
+{
+	struct virtio_device *vdev = vq->vdev;
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	struct virtio_pci_vq_info *info = vq->priv;
+	struct cpumask *mask;
+	unsigned int irq;
+
+	if (!vq->callback)
+		return -EINVAL;
+
+	if (vp_dev->msix_enabled) {
+		mask = vp_dev->msix_affinity_masks[info->msix_vector];
+		irq = vp_dev->msix_entries[info->msix_vector].vector;
+		if (cpu == -1)
+			irq_set_affinity_hint(irq, NULL);
+		else {
+			cpumask_set_cpu(cpu, mask);
+			irq_set_affinity_hint(irq, mask);
+		}
+	}
+	return 0;
+}
+
+static const struct virtio_config_ops virtio_pci_config_ops = {
 	.get		= vp_get,
 	.set		= vp_set,
 	.get_status	= vp_get_status,
@@ -620,6 +663,7 @@ static struct virtio_config_ops virtio_pci_config_ops = {
 	.get_features	= vp_get_features,
 	.finalize_features = vp_finalize_features,
 	.bus_name	= vp_bus_name,
+	.set_vq_affinity = vp_set_vq_affinity,
 };
 
 static void virtio_pci_release_dev(struct device *_d)
@@ -632,8 +676,8 @@ static void virtio_pci_release_dev(struct device *_d)
 }
 
 /* the PCI probing function */
-static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
-				      const struct pci_device_id *id)
+static int virtio_pci_probe(struct pci_dev *pci_dev,
+			    const struct pci_device_id *id)
 {
 	struct virtio_pci_device *vp_dev;
 	int err;
@@ -673,8 +717,10 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 		goto out_enable_device;
 
 	vp_dev->ioaddr = pci_iomap(pci_dev, 0, 0);
-	if (vp_dev->ioaddr == NULL)
+	if (vp_dev->ioaddr == NULL) {
+		err = -ENOMEM;
 		goto out_req_regions;
+	}
 
 	pci_set_drvdata(pci_dev, vp_dev);
 	pci_set_master(pci_dev);
@@ -694,7 +740,6 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 	return 0;
 
 out_set_drvdata:
-	pci_set_drvdata(pci_dev, NULL);
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
 out_req_regions:
 	pci_release_regions(pci_dev);
@@ -705,21 +750,20 @@ out:
 	return err;
 }
 
-static void __devexit virtio_pci_remove(struct pci_dev *pci_dev)
+static void virtio_pci_remove(struct pci_dev *pci_dev)
 {
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
 
 	unregister_virtio_device(&vp_dev->vdev);
 
 	vp_del_vqs(&vp_dev->vdev);
-	pci_set_drvdata(pci_dev, NULL);
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
 	kfree(vp_dev);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int virtio_pci_freeze(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
@@ -776,22 +820,10 @@ static struct pci_driver virtio_pci_driver = {
 	.name		= "virtio-pci",
 	.id_table	= virtio_pci_id_table,
 	.probe		= virtio_pci_probe,
-	.remove		= __devexit_p(virtio_pci_remove),
-#ifdef CONFIG_PM
+	.remove		= virtio_pci_remove,
+#ifdef CONFIG_PM_SLEEP
 	.driver.pm	= &virtio_pci_pm_ops,
 #endif
 };
 
-static int __init virtio_pci_init(void)
-{
-	return pci_register_driver(&virtio_pci_driver);
-}
-
-module_init(virtio_pci_init);
-
-static void __exit virtio_pci_exit(void)
-{
-	pci_unregister_driver(&virtio_pci_driver);
-}
-
-module_exit(virtio_pci_exit);
+module_pci_driver(virtio_pci_driver);

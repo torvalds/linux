@@ -18,195 +18,20 @@
  * Author: Artem Bityutskiy (Битюцкий Артём)
  */
 
-/*
- * Here we keep all the UBI debugging stuff which should normally be disabled
- * and compiled-out, but it is extremely helpful when hunting bugs or doing big
- * changes.
- */
-
-#ifdef CONFIG_MTD_UBI_DEBUG
-
 #include "ubi.h"
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 
-/**
- * ubi_dbg_dump_ec_hdr - dump an erase counter header.
- * @ec_hdr: the erase counter header to dump
- */
-void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
-{
-	printk(KERN_DEBUG "Erase counter header dump:\n");
-	printk(KERN_DEBUG "\tmagic          %#08x\n",
-	       be32_to_cpu(ec_hdr->magic));
-	printk(KERN_DEBUG "\tversion        %d\n", (int)ec_hdr->version);
-	printk(KERN_DEBUG "\tec             %llu\n",
-	       (long long)be64_to_cpu(ec_hdr->ec));
-	printk(KERN_DEBUG "\tvid_hdr_offset %d\n",
-	       be32_to_cpu(ec_hdr->vid_hdr_offset));
-	printk(KERN_DEBUG "\tdata_offset    %d\n",
-	       be32_to_cpu(ec_hdr->data_offset));
-	printk(KERN_DEBUG "\timage_seq      %d\n",
-	       be32_to_cpu(ec_hdr->image_seq));
-	printk(KERN_DEBUG "\thdr_crc        %#08x\n",
-	       be32_to_cpu(ec_hdr->hdr_crc));
-	printk(KERN_DEBUG "erase counter header hexdump:\n");
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
-		       ec_hdr, UBI_EC_HDR_SIZE, 1);
-}
 
 /**
- * ubi_dbg_dump_vid_hdr - dump a volume identifier header.
- * @vid_hdr: the volume identifier header to dump
- */
-void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
-{
-	printk(KERN_DEBUG "Volume identifier header dump:\n");
-	printk(KERN_DEBUG "\tmagic     %08x\n", be32_to_cpu(vid_hdr->magic));
-	printk(KERN_DEBUG "\tversion   %d\n",  (int)vid_hdr->version);
-	printk(KERN_DEBUG "\tvol_type  %d\n",  (int)vid_hdr->vol_type);
-	printk(KERN_DEBUG "\tcopy_flag %d\n",  (int)vid_hdr->copy_flag);
-	printk(KERN_DEBUG "\tcompat    %d\n",  (int)vid_hdr->compat);
-	printk(KERN_DEBUG "\tvol_id    %d\n",  be32_to_cpu(vid_hdr->vol_id));
-	printk(KERN_DEBUG "\tlnum      %d\n",  be32_to_cpu(vid_hdr->lnum));
-	printk(KERN_DEBUG "\tdata_size %d\n",  be32_to_cpu(vid_hdr->data_size));
-	printk(KERN_DEBUG "\tused_ebs  %d\n",  be32_to_cpu(vid_hdr->used_ebs));
-	printk(KERN_DEBUG "\tdata_pad  %d\n",  be32_to_cpu(vid_hdr->data_pad));
-	printk(KERN_DEBUG "\tsqnum     %llu\n",
-		(unsigned long long)be64_to_cpu(vid_hdr->sqnum));
-	printk(KERN_DEBUG "\thdr_crc   %08x\n", be32_to_cpu(vid_hdr->hdr_crc));
-	printk(KERN_DEBUG "Volume identifier header hexdump:\n");
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
-		       vid_hdr, UBI_VID_HDR_SIZE, 1);
-}
-
-/**
- * ubi_dbg_dump_vol_info- dump volume information.
- * @vol: UBI volume description object
- */
-void ubi_dbg_dump_vol_info(const struct ubi_volume *vol)
-{
-	printk(KERN_DEBUG "Volume information dump:\n");
-	printk(KERN_DEBUG "\tvol_id          %d\n", vol->vol_id);
-	printk(KERN_DEBUG "\treserved_pebs   %d\n", vol->reserved_pebs);
-	printk(KERN_DEBUG "\talignment       %d\n", vol->alignment);
-	printk(KERN_DEBUG "\tdata_pad        %d\n", vol->data_pad);
-	printk(KERN_DEBUG "\tvol_type        %d\n", vol->vol_type);
-	printk(KERN_DEBUG "\tname_len        %d\n", vol->name_len);
-	printk(KERN_DEBUG "\tusable_leb_size %d\n", vol->usable_leb_size);
-	printk(KERN_DEBUG "\tused_ebs        %d\n", vol->used_ebs);
-	printk(KERN_DEBUG "\tused_bytes      %lld\n", vol->used_bytes);
-	printk(KERN_DEBUG "\tlast_eb_bytes   %d\n", vol->last_eb_bytes);
-	printk(KERN_DEBUG "\tcorrupted       %d\n", vol->corrupted);
-	printk(KERN_DEBUG "\tupd_marker      %d\n", vol->upd_marker);
-
-	if (vol->name_len <= UBI_VOL_NAME_MAX &&
-	    strnlen(vol->name, vol->name_len + 1) == vol->name_len) {
-		printk(KERN_DEBUG "\tname            %s\n", vol->name);
-	} else {
-		printk(KERN_DEBUG "\t1st 5 characters of name: %c%c%c%c%c\n",
-		       vol->name[0], vol->name[1], vol->name[2],
-		       vol->name[3], vol->name[4]);
-	}
-}
-
-/**
- * ubi_dbg_dump_vtbl_record - dump a &struct ubi_vtbl_record object.
- * @r: the object to dump
- * @idx: volume table index
- */
-void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
-{
-	int name_len = be16_to_cpu(r->name_len);
-
-	printk(KERN_DEBUG "Volume table record %d dump:\n", idx);
-	printk(KERN_DEBUG "\treserved_pebs   %d\n",
-	       be32_to_cpu(r->reserved_pebs));
-	printk(KERN_DEBUG "\talignment       %d\n", be32_to_cpu(r->alignment));
-	printk(KERN_DEBUG "\tdata_pad        %d\n", be32_to_cpu(r->data_pad));
-	printk(KERN_DEBUG "\tvol_type        %d\n", (int)r->vol_type);
-	printk(KERN_DEBUG "\tupd_marker      %d\n", (int)r->upd_marker);
-	printk(KERN_DEBUG "\tname_len        %d\n", name_len);
-
-	if (r->name[0] == '\0') {
-		printk(KERN_DEBUG "\tname            NULL\n");
-		return;
-	}
-
-	if (name_len <= UBI_VOL_NAME_MAX &&
-	    strnlen(&r->name[0], name_len + 1) == name_len) {
-		printk(KERN_DEBUG "\tname            %s\n", &r->name[0]);
-	} else {
-		printk(KERN_DEBUG "\t1st 5 characters of name: %c%c%c%c%c\n",
-			r->name[0], r->name[1], r->name[2], r->name[3],
-			r->name[4]);
-	}
-	printk(KERN_DEBUG "\tcrc             %#08x\n", be32_to_cpu(r->crc));
-}
-
-/**
- * ubi_dbg_dump_sv - dump a &struct ubi_scan_volume object.
- * @sv: the object to dump
- */
-void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv)
-{
-	printk(KERN_DEBUG "Volume scanning information dump:\n");
-	printk(KERN_DEBUG "\tvol_id         %d\n", sv->vol_id);
-	printk(KERN_DEBUG "\thighest_lnum   %d\n", sv->highest_lnum);
-	printk(KERN_DEBUG "\tleb_count      %d\n", sv->leb_count);
-	printk(KERN_DEBUG "\tcompat         %d\n", sv->compat);
-	printk(KERN_DEBUG "\tvol_type       %d\n", sv->vol_type);
-	printk(KERN_DEBUG "\tused_ebs       %d\n", sv->used_ebs);
-	printk(KERN_DEBUG "\tlast_data_size %d\n", sv->last_data_size);
-	printk(KERN_DEBUG "\tdata_pad       %d\n", sv->data_pad);
-}
-
-/**
- * ubi_dbg_dump_seb - dump a &struct ubi_scan_leb object.
- * @seb: the object to dump
- * @type: object type: 0 - not corrupted, 1 - corrupted
- */
-void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type)
-{
-	printk(KERN_DEBUG "eraseblock scanning information dump:\n");
-	printk(KERN_DEBUG "\tec       %d\n", seb->ec);
-	printk(KERN_DEBUG "\tpnum     %d\n", seb->pnum);
-	if (type == 0) {
-		printk(KERN_DEBUG "\tlnum     %d\n", seb->lnum);
-		printk(KERN_DEBUG "\tscrub    %d\n", seb->scrub);
-		printk(KERN_DEBUG "\tsqnum    %llu\n", seb->sqnum);
-	}
-}
-
-/**
- * ubi_dbg_dump_mkvol_req - dump a &struct ubi_mkvol_req object.
- * @req: the object to dump
- */
-void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req)
-{
-	char nm[17];
-
-	printk(KERN_DEBUG "Volume creation request dump:\n");
-	printk(KERN_DEBUG "\tvol_id    %d\n",   req->vol_id);
-	printk(KERN_DEBUG "\talignment %d\n",   req->alignment);
-	printk(KERN_DEBUG "\tbytes     %lld\n", (long long)req->bytes);
-	printk(KERN_DEBUG "\tvol_type  %d\n",   req->vol_type);
-	printk(KERN_DEBUG "\tname_len  %d\n",   req->name_len);
-
-	memcpy(nm, req->name, 16);
-	nm[16] = 0;
-	printk(KERN_DEBUG "\t1st 16 characters of name: %s\n", nm);
-}
-
-/**
- * ubi_dbg_dump_flash - dump a region of flash.
+ * ubi_dump_flash - dump a region of flash.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to dump
  * @offset: the starting offset within the physical eraseblock to dump
  * @len: the length of the region to dump
  */
-void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len)
+void ubi_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len)
 {
 	int err;
 	size_t read;
@@ -218,12 +43,12 @@ void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len)
 		return;
 	err = mtd_read(ubi->mtd, addr, len, &read, buf);
 	if (err && err != -EUCLEAN) {
-		ubi_err("error %d while reading %d bytes from PEB %d:%d, "
-			"read %zd bytes", err, len, pnum, offset, read);
+		ubi_err("error %d while reading %d bytes from PEB %d:%d, read %zd bytes",
+			err, len, pnum, offset, read);
 		goto out;
 	}
 
-	dbg_msg("dumping %d bytes of data from PEB %d, offset %d",
+	ubi_msg("dumping %d bytes of data from PEB %d, offset %d",
 		len, pnum, offset);
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1, buf, len, 1);
 out:
@@ -232,29 +57,164 @@ out:
 }
 
 /**
- * ubi_debugging_init_dev - initialize debugging for an UBI device.
- * @ubi: UBI device description object
- *
- * This function initializes debugging-related data for UBI device @ubi.
- * Returns zero in case of success and a negative error code in case of
- * failure.
+ * ubi_dump_ec_hdr - dump an erase counter header.
+ * @ec_hdr: the erase counter header to dump
  */
-int ubi_debugging_init_dev(struct ubi_device *ubi)
+void ubi_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 {
-	ubi->dbg = kzalloc(sizeof(struct ubi_debug_info), GFP_KERNEL);
-	if (!ubi->dbg)
-		return -ENOMEM;
-
-	return 0;
+	pr_err("Erase counter header dump:\n");
+	pr_err("\tmagic          %#08x\n", be32_to_cpu(ec_hdr->magic));
+	pr_err("\tversion        %d\n", (int)ec_hdr->version);
+	pr_err("\tec             %llu\n", (long long)be64_to_cpu(ec_hdr->ec));
+	pr_err("\tvid_hdr_offset %d\n", be32_to_cpu(ec_hdr->vid_hdr_offset));
+	pr_err("\tdata_offset    %d\n", be32_to_cpu(ec_hdr->data_offset));
+	pr_err("\timage_seq      %d\n", be32_to_cpu(ec_hdr->image_seq));
+	pr_err("\thdr_crc        %#08x\n", be32_to_cpu(ec_hdr->hdr_crc));
+	pr_err("erase counter header hexdump:\n");
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+		       ec_hdr, UBI_EC_HDR_SIZE, 1);
 }
 
 /**
- * ubi_debugging_exit_dev - free debugging data for an UBI device.
- * @ubi: UBI device description object
+ * ubi_dump_vid_hdr - dump a volume identifier header.
+ * @vid_hdr: the volume identifier header to dump
  */
-void ubi_debugging_exit_dev(struct ubi_device *ubi)
+void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
 {
-	kfree(ubi->dbg);
+	pr_err("Volume identifier header dump:\n");
+	pr_err("\tmagic     %08x\n", be32_to_cpu(vid_hdr->magic));
+	pr_err("\tversion   %d\n",  (int)vid_hdr->version);
+	pr_err("\tvol_type  %d\n",  (int)vid_hdr->vol_type);
+	pr_err("\tcopy_flag %d\n",  (int)vid_hdr->copy_flag);
+	pr_err("\tcompat    %d\n",  (int)vid_hdr->compat);
+	pr_err("\tvol_id    %d\n",  be32_to_cpu(vid_hdr->vol_id));
+	pr_err("\tlnum      %d\n",  be32_to_cpu(vid_hdr->lnum));
+	pr_err("\tdata_size %d\n",  be32_to_cpu(vid_hdr->data_size));
+	pr_err("\tused_ebs  %d\n",  be32_to_cpu(vid_hdr->used_ebs));
+	pr_err("\tdata_pad  %d\n",  be32_to_cpu(vid_hdr->data_pad));
+	pr_err("\tsqnum     %llu\n",
+		(unsigned long long)be64_to_cpu(vid_hdr->sqnum));
+	pr_err("\thdr_crc   %08x\n", be32_to_cpu(vid_hdr->hdr_crc));
+	pr_err("Volume identifier header hexdump:\n");
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+		       vid_hdr, UBI_VID_HDR_SIZE, 1);
+}
+
+/**
+ * ubi_dump_vol_info - dump volume information.
+ * @vol: UBI volume description object
+ */
+void ubi_dump_vol_info(const struct ubi_volume *vol)
+{
+	pr_err("Volume information dump:\n");
+	pr_err("\tvol_id          %d\n", vol->vol_id);
+	pr_err("\treserved_pebs   %d\n", vol->reserved_pebs);
+	pr_err("\talignment       %d\n", vol->alignment);
+	pr_err("\tdata_pad        %d\n", vol->data_pad);
+	pr_err("\tvol_type        %d\n", vol->vol_type);
+	pr_err("\tname_len        %d\n", vol->name_len);
+	pr_err("\tusable_leb_size %d\n", vol->usable_leb_size);
+	pr_err("\tused_ebs        %d\n", vol->used_ebs);
+	pr_err("\tused_bytes      %lld\n", vol->used_bytes);
+	pr_err("\tlast_eb_bytes   %d\n", vol->last_eb_bytes);
+	pr_err("\tcorrupted       %d\n", vol->corrupted);
+	pr_err("\tupd_marker      %d\n", vol->upd_marker);
+
+	if (vol->name_len <= UBI_VOL_NAME_MAX &&
+	    strnlen(vol->name, vol->name_len + 1) == vol->name_len) {
+		pr_err("\tname            %s\n", vol->name);
+	} else {
+		pr_err("\t1st 5 characters of name: %c%c%c%c%c\n",
+		       vol->name[0], vol->name[1], vol->name[2],
+		       vol->name[3], vol->name[4]);
+	}
+}
+
+/**
+ * ubi_dump_vtbl_record - dump a &struct ubi_vtbl_record object.
+ * @r: the object to dump
+ * @idx: volume table index
+ */
+void ubi_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx)
+{
+	int name_len = be16_to_cpu(r->name_len);
+
+	pr_err("Volume table record %d dump:\n", idx);
+	pr_err("\treserved_pebs   %d\n", be32_to_cpu(r->reserved_pebs));
+	pr_err("\talignment       %d\n", be32_to_cpu(r->alignment));
+	pr_err("\tdata_pad        %d\n", be32_to_cpu(r->data_pad));
+	pr_err("\tvol_type        %d\n", (int)r->vol_type);
+	pr_err("\tupd_marker      %d\n", (int)r->upd_marker);
+	pr_err("\tname_len        %d\n", name_len);
+
+	if (r->name[0] == '\0') {
+		pr_err("\tname            NULL\n");
+		return;
+	}
+
+	if (name_len <= UBI_VOL_NAME_MAX &&
+	    strnlen(&r->name[0], name_len + 1) == name_len) {
+		pr_err("\tname            %s\n", &r->name[0]);
+	} else {
+		pr_err("\t1st 5 characters of name: %c%c%c%c%c\n",
+			r->name[0], r->name[1], r->name[2], r->name[3],
+			r->name[4]);
+	}
+	pr_err("\tcrc             %#08x\n", be32_to_cpu(r->crc));
+}
+
+/**
+ * ubi_dump_av - dump a &struct ubi_ainf_volume object.
+ * @av: the object to dump
+ */
+void ubi_dump_av(const struct ubi_ainf_volume *av)
+{
+	pr_err("Volume attaching information dump:\n");
+	pr_err("\tvol_id         %d\n", av->vol_id);
+	pr_err("\thighest_lnum   %d\n", av->highest_lnum);
+	pr_err("\tleb_count      %d\n", av->leb_count);
+	pr_err("\tcompat         %d\n", av->compat);
+	pr_err("\tvol_type       %d\n", av->vol_type);
+	pr_err("\tused_ebs       %d\n", av->used_ebs);
+	pr_err("\tlast_data_size %d\n", av->last_data_size);
+	pr_err("\tdata_pad       %d\n", av->data_pad);
+}
+
+/**
+ * ubi_dump_aeb - dump a &struct ubi_ainf_peb object.
+ * @aeb: the object to dump
+ * @type: object type: 0 - not corrupted, 1 - corrupted
+ */
+void ubi_dump_aeb(const struct ubi_ainf_peb *aeb, int type)
+{
+	pr_err("eraseblock attaching information dump:\n");
+	pr_err("\tec       %d\n", aeb->ec);
+	pr_err("\tpnum     %d\n", aeb->pnum);
+	if (type == 0) {
+		pr_err("\tlnum     %d\n", aeb->lnum);
+		pr_err("\tscrub    %d\n", aeb->scrub);
+		pr_err("\tsqnum    %llu\n", aeb->sqnum);
+	}
+}
+
+/**
+ * ubi_dump_mkvol_req - dump a &struct ubi_mkvol_req object.
+ * @req: the object to dump
+ */
+void ubi_dump_mkvol_req(const struct ubi_mkvol_req *req)
+{
+	char nm[17];
+
+	pr_err("Volume creation request dump:\n");
+	pr_err("\tvol_id    %d\n",   req->vol_id);
+	pr_err("\talignment %d\n",   req->alignment);
+	pr_err("\tbytes     %lld\n", (long long)req->bytes);
+	pr_err("\tvol_type  %d\n",   req->vol_type);
+	pr_err("\tname_len  %d\n",   req->name_len);
+
+	memcpy(nm, req->name, 16);
+	nm[16] = 0;
+	pr_err("\t1st 16 characters of name: %s\n", nm);
 }
 
 /*
@@ -271,6 +231,9 @@ static struct dentry *dfs_rootdir;
  */
 int ubi_debugfs_init(void)
 {
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return 0;
+
 	dfs_rootdir = debugfs_create_dir("ubi", NULL);
 	if (IS_ERR_OR_NULL(dfs_rootdir)) {
 		int err = dfs_rootdir ? -ENODEV : PTR_ERR(dfs_rootdir);
@@ -288,7 +251,8 @@ int ubi_debugfs_init(void)
  */
 void ubi_debugfs_exit(void)
 {
-	debugfs_remove(dfs_rootdir);
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		debugfs_remove(dfs_rootdir);
 }
 
 /* Read an UBI debugfs file */
@@ -305,7 +269,7 @@ static ssize_t dfs_file_read(struct file *file, char __user *user_buf,
 	ubi = ubi_get_device(ubi_num);
 	if (!ubi)
 		return -ENODEV;
-	d = ubi->dbg;
+	d = &ubi->dbg;
 
 	if (dent == d->dfs_chk_gen)
 		val = d->chk_gen;
@@ -351,7 +315,7 @@ static ssize_t dfs_file_write(struct file *file, const char __user *user_buf,
 	ubi = ubi_get_device(ubi_num);
 	if (!ubi)
 		return -ENODEV;
-	d = ubi->dbg;
+	d = &ubi->dbg;
 
 	buf_size = min_t(size_t, count, (sizeof(buf) - 1));
 	if (copy_from_user(buf, user_buf, buf_size)) {
@@ -408,7 +372,10 @@ int ubi_debugfs_init_dev(struct ubi_device *ubi)
 	unsigned long ubi_num = ubi->ubi_num;
 	const char *fname;
 	struct dentry *dent;
-	struct ubi_debug_info *d = ubi->dbg;
+	struct ubi_debug_info *d = &ubi->dbg;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return 0;
 
 	n = snprintf(d->dfs_dir_name, UBI_DFS_DIR_LEN + 1, UBI_DFS_DIR_NAME,
 		     ubi->ubi_num);
@@ -477,7 +444,6 @@ out:
  */
 void ubi_debugfs_exit_dev(struct ubi_device *ubi)
 {
-	debugfs_remove_recursive(ubi->dbg->dfs_dir);
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		debugfs_remove_recursive(ubi->dbg.dfs_dir);
 }
-
-#endif /* CONFIG_MTD_UBI_DEBUG */

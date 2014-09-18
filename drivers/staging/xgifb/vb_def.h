@@ -1,18 +1,13 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/xgi/initdef.h
- * ,v 1.4 2000/12/02 01:16:17 dawes Exp $*/
 #ifndef _VB_DEF_
 #define _VB_DEF_
-#include "../../video/sis/initdef.h"
+#include "../../video/fbdev/sis/initdef.h"
 
 #define VB_XGI301C      0x0020 /* for 301C */
-#define VB_YPbPr1080i   0x03
 
-#define LVDSCRT1Len     15
 #define SupportCRT2in301C       0x0100  /* for 301C */
 #define SetCHTVOverScan         0x8000
 
 #define Panel_320x480            0x07 /*fstn*/
-/* [ycchen] 02/12/03 Modify for Multi-Sync. LCD Support */
 #define PanelResInfo            0x1F /* CR36 Panel Type/LCDResInfo */
 #define Panel_1024x768x75        0x22
 #define Panel_1280x1024x75       0x23
@@ -25,15 +20,6 @@
 
 #define XGI_CRT2_PORT_00        (0x00 - 0x030)
 
-/* =============================================================
-   for 310
-============================================================== */
-#define ModeSoftSetting              0x04
-
-/* ---------------- SetMode Stack */
-#define CRT1Len           15
-#define VCLKLen           4
-
 #define SupportAllCRT2      0x0078
 #define NoSupportTV         0x0070
 #define NoSupportHiVisionTV 0x0060
@@ -44,11 +30,6 @@
 #define SetCRT2ToDualEdge   0x8000
 
 #define ReserveTVOption     0x0008
-#define GatingCRT           0x0800
-#define DisableChB          0x1000
-#define EnableChB           0x2000
-#define DisableChA          0x4000
-#define EnableChA           0x8000
 
 #define SetTVLowResolution   0x0400
 #define TVSimuMode           0x0800
@@ -63,12 +44,10 @@
 #define SetLCDtoNonExpanding 0x0010
 #define SetLCDDualLink       0x0100
 #define SetLCDLowResolution  0x0200
-#define SetLCDStdMode        0x0400
 
 /* LCD Capability shampoo */
 #define DefaultLCDCap        0x80ea
 #define EnableLCD24bpp       0x0004 /* default */
-#define DisableLCD24bpp      0x0000
 #define LCDPolarity          0x00c0 /* default: SyncNN */
 #define XGI_LCDDualLink      0x0100
 #define EnableSpectrum       0x0200
@@ -76,10 +55,6 @@
 #define EnableVBCLKDRVLOW    0x4000
 #define EnablePLLSPLOW       0x8000
 
-#define LCDBToA              0x20   /* LCD SetFlag */
-#define StLCDBToA            0x40
-#define LockLCDBToA          0x80
-#define   LCDToFull          0x10
 #define AVIDEOSense          0x01   /* CR32 */
 #define SVIDEOSense          0x02
 #define SCARTSense           0x04
@@ -117,16 +92,6 @@
 #define ActiveSCART           0x04
 #define ActiveHiTV            0x08
 #define ActiveYPbPr           0x10
-
-/* --------------------------------------------------------- */
-/* translated from asm code 301def.h */
-/*  */
-/* --------------------------------------------------------- */
-#define LVDSCRT1Len_H        8
-#define LVDSCRT1Len_V        7
-#define LCDDesDataLen        6
-#define LVDSDesDataLen2      8
-#define LCDDesDataLen2       8
 
 #define NTSC1024x768HT       1908
 
@@ -263,5 +228,31 @@
 #define RES1280x960x75       0x45
 #define RES1280x960x85       0x46
 #define RES1280x960x120      0x47
+
+
+#define XG27_CR8F 0x0C
+#define XG27_SR36 0x30
+#define XG27_SR40 0x04
+#define XG27_SR41 0x00
+#define XG40_CRCF 0x13
+#define XGI330_CRT2Data_1_2 0
+#define XGI330_CRT2Data_4_D 0
+#define XGI330_CRT2Data_4_E 0
+#define XGI330_CRT2Data_4_10 0x80
+#define XGI330_SR07 0x18
+#define XGI330_SR1F 0
+#define XGI330_SR23 0xf6
+#define XGI330_SR24 0x0d
+#define XGI330_SR31 0xc0
+#define XGI330_SR32 0x11
+#define XGI330_SR33 0
+
+extern const struct XGI_ExtStruct XGI330_EModeIDTable[];
+extern const struct XGI_Ext2Struct XGI330_RefIndex[];
+extern const struct XGI_CRT1TableStruct XGI_CRT1Table[];
+extern const struct XGI_ECLKDataStruct XGI340_ECLKData[];
+extern const struct SiS_VCLKData XGI_VCLKData[];
+extern const unsigned char XGI340_CR6B[][4];
+extern const unsigned char XGI340_AGPReg[];
 
 #endif

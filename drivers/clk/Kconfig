@@ -12,6 +12,7 @@ config HAVE_MACH_CLKDEV
 config COMMON_CLK
 	bool
 	select HAVE_CLK_PREPARE
+	select CLKDEV_LOOKUP
 	---help---
 	  The common clock framework is a single definition of struct
 	  clk, useful across many platforms, as well as an
@@ -22,26 +23,97 @@ config COMMON_CLK
 menu "Common Clock Framework"
 	depends on COMMON_CLK
 
-config COMMON_CLK_DISABLE_UNUSED
-	bool "Disabled unused clocks at boot"
-	depends on COMMON_CLK
+config COMMON_CLK_WM831X
+	tristate "Clock driver for WM831x/2x PMICs"
+	depends on MFD_WM831X
 	---help---
-	  Traverses the entire clock tree and disables any clocks that are
-	  enabled in hardware but have not been enabled by any device drivers.
-	  This saves power and keeps the software model of the clock in line
-	  with reality.
+          Supports the clocking subsystem of the WM831x/2x series of
+	  PMICs from Wolfson Microlectronics.
 
-	  If in doubt, say "N".
+source "drivers/clk/versatile/Kconfig"
 
-config COMMON_CLK_DEBUG
-	bool "DebugFS representation of clock tree"
-	depends on COMMON_CLK
-	select DEBUG_FS
+config COMMON_CLK_MAX77686
+	tristate "Clock driver for Maxim 77686 MFD"
+	depends on MFD_MAX77686
 	---help---
-	  Creates a directory hierchy in debugfs for visualizing the clk
-	  tree structure.  Each directory contains read-only members
-	  that export information specific to that clk node: clk_rate,
-	  clk_flags, clk_prepare_count, clk_enable_count &
-	  clk_notifier_count.
+	  This driver supports Maxim 77686 crystal oscillator clock. 
+
+config COMMON_CLK_SI5351
+	tristate "Clock driver for SiLabs 5351A/B/C"
+	depends on I2C
+	select REGMAP_I2C
+	select RATIONAL
+	---help---
+	  This driver supports Silicon Labs 5351A/B/C programmable clock
+	  generators.
+
+config COMMON_CLK_SI570
+	tristate "Clock driver for SiLabs 570 and compatible devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports Silicon Labs 570/571/598/599 programmable
+	  clock generators.
+
+config COMMON_CLK_S2MPS11
+	tristate "Clock driver for S2MPS1X/S5M8767 MFD"
+	depends on MFD_SEC_CORE
+	---help---
+	  This driver supports S2MPS11/S2MPS14/S5M8767 crystal oscillator
+	  clock. These multi-function devices have two (S2MPS14) or three
+	  (S2MPS11, S5M8767) fixed-rate oscillators, clocked at 32KHz each.
+
+config CLK_TWL6040
+	tristate "External McPDM functional clock from twl6040"
+	depends on TWL6040_CORE
+	---help---
+	  Enable the external functional clock support on OMAP4+ platforms for
+	  McPDM. McPDM module is using the external bit clock on the McPDM bus
+	  as functional clock.
+
+config COMMON_CLK_AXI_CLKGEN
+	tristate "AXI clkgen driver"
+	depends on ARCH_ZYNQ || MICROBLAZE
+	help
+	---help---
+	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
+	  FPGAs. It is commonly used in Analog Devices' reference designs.
+
+config CLK_PPC_CORENET
+	bool "Clock driver for PowerPC corenet platforms"
+	depends on PPC_E500MC && OF
+	---help---
+	  This adds the clock driver support for Freescale PowerPC corenet
+	  platforms using common clock framework.
+
+config COMMON_CLK_XGENE
+	bool "Clock driver for APM XGene SoC"
+	default y
+	depends on ARM64
+	---help---
+	  Sypport for the APM X-Gene SoC reference, PLL, and device clocks.
+
+config COMMON_CLK_KEYSTONE
+	tristate "Clock drivers for Keystone based SOCs"
+	depends on ARCH_KEYSTONE && OF
+	---help---
+          Supports clock drivers for Keystone based SOCs. These SOCs have local
+	  a power sleep control module that gate the clock to the IPs and PLLs.
+
+config COMMON_CLK_PALMAS
+	tristate "Clock driver for TI Palmas devices"
+	depends on MFD_PALMAS
+	---help---
+	  This driver supports TI Palmas devices 32KHz output KG and KG_AUDIO
+	  using common clock framework.
+
+source "drivers/clk/qcom/Kconfig"
 
 endmenu
+
+source "drivers/clk/bcm/Kconfig"
+source "drivers/clk/mvebu/Kconfig"
+
+source "drivers/clk/samsung/Kconfig"

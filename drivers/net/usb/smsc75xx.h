@@ -13,8 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  *****************************************************************************/
 
@@ -388,6 +387,7 @@
 #define PHY_INT_SRC_ANEG_COMP		((u16)0x0040)
 #define PHY_INT_SRC_REMOTE_FAULT	((u16)0x0020)
 #define PHY_INT_SRC_LINK_DOWN		((u16)0x0010)
+#define PHY_INT_SRC_CLEAR_ALL		((u16)0xffff)
 
 #define PHY_INT_MASK			(30)
 #define PHY_INT_MASK_ENERGY_ON		((u16)0x0080)

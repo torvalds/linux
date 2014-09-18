@@ -68,8 +68,17 @@ void bcm63xx_machine_reboot(void)
 
 	/* mask and clear all external irq */
 	switch (bcm63xx_get_cpu_id()) {
+	case BCM3368_CPU_ID:
+		perf_regs[0] = PERF_EXTIRQ_CFG_REG_3368;
+		break;
+	case BCM6328_CPU_ID:
+		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6328;
+		break;
 	case BCM6338_CPU_ID:
 		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6338;
+		break;
+	case BCM6345_CPU_ID:
+		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6345;
 		break;
 	case BCM6348_CPU_ID:
 		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6348;
@@ -77,9 +86,15 @@ void bcm63xx_machine_reboot(void)
 	case BCM6358_CPU_ID:
 		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6358;
 		break;
+	case BCM6362_CPU_ID:
+		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6362;
+		break;
 	}
 
 	for (i = 0; i < 2; i++) {
+		if (!perf_regs[i])
+			break;
+
 		reg = bcm_perf_readl(perf_regs[i]);
 		if (BCMCPU_IS_6348()) {
 			reg &= ~EXTIRQ_CFG_MASK_ALL_6348;
@@ -95,9 +110,13 @@ void bcm63xx_machine_reboot(void)
 		bcm6348_a1_reboot();
 
 	printk(KERN_INFO "triggering watchdog soft-reset...\n");
-	reg = bcm_perf_readl(PERF_SYS_PLL_CTL_REG);
-	reg |= SYS_PLL_SOFT_RESET;
-	bcm_perf_writel(reg, PERF_SYS_PLL_CTL_REG);
+	if (BCMCPU_IS_6328()) {
+		bcm_wdt_writel(1, WDT_SOFTRESET_REG);
+	} else {
+		reg = bcm_perf_readl(PERF_SYS_PLL_CTL_REG);
+		reg |= SYS_PLL_SOFT_RESET;
+		bcm_perf_writel(reg, PERF_SYS_PLL_CTL_REG);
+	}
 	while (1)
 		;
 }
@@ -113,7 +132,7 @@ static void __bcm63xx_machine_reboot(char *p)
 const char *get_system_type(void)
 {
 	static char buf[128];
-	snprintf(buf, sizeof(buf), "bcm63xx/%s (0x%04x/0x%04X)",
+	snprintf(buf, sizeof(buf), "bcm63xx/%s (0x%04x/0x%02X)",
 		 board_get_name(),
 		 bcm63xx_get_cpu_id(), bcm63xx_get_cpu_rev());
 	return buf;
@@ -144,4 +163,4 @@ int __init bcm63xx_register_devices(void)
 	return board_register_devices();
 }
 
-device_initcall(bcm63xx_register_devices);
+arch_initcall(bcm63xx_register_devices);

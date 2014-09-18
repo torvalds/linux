@@ -25,6 +25,8 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CM2_44XX_H
 #define __ARCH_ARM_MACH_OMAP2_CM2_44XX_H
 
+#include "cm_44xx_54xx.h"
+
 /* CM2 base address */
 #define OMAP4430_CM2_BASE		0x4a008000
 
@@ -448,10 +450,5 @@
 #define OMAP4430_CM_CEFUSE_CLKSTCTRL			OMAP44XX_CM2_REGADDR(OMAP4430_CM2_CEFUSE_INST, 0x0000)
 #define OMAP4_CM_CEFUSE_CEFUSE_CLKCTRL_OFFSET		0x0020
 #define OMAP4430_CM_CEFUSE_CEFUSE_CLKCTRL		OMAP44XX_CM2_REGADDR(OMAP4430_CM2_CEFUSE_INST, 0x0020)
-
-/* Function prototypes */
-extern u32 omap4_cm2_read_inst_reg(s16 inst, u16 idx);
-extern void omap4_cm2_write_inst_reg(u32 val, s16 inst, u16 idx);
-extern u32 omap4_cm2_rmw_inst_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx);
 
 #endif

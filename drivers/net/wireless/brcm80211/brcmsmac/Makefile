@@ -21,7 +21,7 @@ ccflags-y := \
 	-Idrivers/net/wireless/brcm80211/brcmsmac/phy \
 	-Idrivers/net/wireless/brcm80211/include
 
-BRCMSMAC_OFILES := \
+brcmsmac-y := \
 	mac80211_if.o \
 	ucode_loader.o \
 	ampdu.o \
@@ -39,13 +39,10 @@ BRCMSMAC_OFILES := \
 	phy/phytbl_lcn.o \
 	phy/phytbl_n.o \
 	phy/phy_qmath.o \
-	otp.o \
-	srom.o \
 	dma.o \
-	nicpci.o \
-	brcms_trace_events.o
+	brcms_trace_events.o \
+	debug.o
 
-MODULEPFX := brcmsmac
+brcmsmac-$(CONFIG_BCMA_DRIVER_GPIO) += led.o
 
-obj-$(CONFIG_BRCMSMAC)	+= $(MODULEPFX).o
-$(MODULEPFX)-objs	= $(BRCMSMAC_OFILES)
+obj-$(CONFIG_BRCMSMAC)	+= brcmsmac.o

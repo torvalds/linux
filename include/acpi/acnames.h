@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,27 +46,29 @@
 
 /* Method names - these methods can appear anywhere in the namespace */
 
-#define METHOD_NAME__SB_        "_SB_"
-#define METHOD_NAME__HID        "_HID"
-#define METHOD_NAME__CID        "_CID"
-#define METHOD_NAME__UID        "_UID"
 #define METHOD_NAME__ADR        "_ADR"
-#define METHOD_NAME__INI        "_INI"
-#define METHOD_NAME__STA        "_STA"
-#define METHOD_NAME__REG        "_REG"
-#define METHOD_NAME__SEG        "_SEG"
-#define METHOD_NAME__BBN        "_BBN"
-#define METHOD_NAME__PRT        "_PRT"
-#define METHOD_NAME__CRS        "_CRS"
-#define METHOD_NAME__PRS        "_PRS"
 #define METHOD_NAME__AEI        "_AEI"
+#define METHOD_NAME__BBN        "_BBN"
+#define METHOD_NAME__CBA        "_CBA"
+#define METHOD_NAME__CID        "_CID"
+#define METHOD_NAME__CRS        "_CRS"
+#define METHOD_NAME__HID        "_HID"
+#define METHOD_NAME__INI        "_INI"
+#define METHOD_NAME__PLD        "_PLD"
+#define METHOD_NAME__DSD        "_DSD"
+#define METHOD_NAME__PRS        "_PRS"
+#define METHOD_NAME__PRT        "_PRT"
 #define METHOD_NAME__PRW        "_PRW"
+#define METHOD_NAME__REG        "_REG"
+#define METHOD_NAME__SB_        "_SB_"
+#define METHOD_NAME__SEG        "_SEG"
 #define METHOD_NAME__SRS        "_SRS"
+#define METHOD_NAME__STA        "_STA"
+#define METHOD_NAME__SUB        "_SUB"
+#define METHOD_NAME__UID        "_UID"
 
 /* Method names - these methods must appear at the namespace root */
 
-#define METHOD_PATHNAME__BFS    "\\_BFS"
-#define METHOD_PATHNAME__GTS    "\\_GTS"
 #define METHOD_PATHNAME__PTS    "\\_PTS"
 #define METHOD_PATHNAME__SST    "\\_SI._SST"
 #define METHOD_PATHNAME__WAK    "\\_WAK"

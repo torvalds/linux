@@ -14,7 +14,7 @@
 /*
  * Possible status responses for a board_be_handler backend.
  */
-#define MIPS_BE_DISCARD	0		/* return with no action */
+#define MIPS_BE_DISCARD 0		/* return with no action */
 #define MIPS_BE_FIXUP	1		/* return to the fixup code */
 #define MIPS_BE_FATAL	2		/* treat as an unrecoverable error */
 
@@ -25,6 +25,7 @@ extern void (*board_nmi_handler_setup)(void);
 extern void (*board_ejtag_handler_setup)(void);
 extern void (*board_bind_eic_interrupt)(int irq, int regset);
 extern void (*board_ebase_setup)(void);
+extern void (*board_cache_error_setup)(void);
 
 extern int register_nmi_notifier(struct notifier_block *nb);
 

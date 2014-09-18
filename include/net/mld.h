@@ -63,13 +63,48 @@ struct mld2_query {
 #define mld2q_mrc		mld2q_hdr.icmp6_maxdelay
 #define mld2q_resv1		mld2q_hdr.icmp6_dataun.un_data16[1]
 
-/* Max Response Code */
-#define MLDV2_MASK(value, nb) ((nb)>=32 ? (value) : ((1<<(nb))-1) & (value))
-#define MLDV2_EXP(thresh, nbmant, nbexp, value) \
-	((value) < (thresh) ? (value) : \
-	((MLDV2_MASK(value, nbmant) | (1<<(nbmant))) << \
-	(MLDV2_MASK((value) >> (nbmant), nbexp) + (nbexp))))
+/* RFC3810, 5.1.3. Maximum Response Code:
+ *
+ * If Maximum Response Code >= 32768, Maximum Response Code represents a
+ * floating-point value as follows:
+ *
+ *  0 1 2 3 4 5 6 7 8 9 A B C D E F
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |1| exp |          mant         |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+#define MLDV2_MRC_EXP(value)	(((value) >> 12) & 0x0007)
+#define MLDV2_MRC_MAN(value)	((value) & 0x0fff)
 
-#define MLDV2_MRC(value) MLDV2_EXP(0x8000, 12, 3, value)
+/* RFC3810, 5.1.9. QQIC (Querier's Query Interval Code):
+ *
+ * If QQIC >= 128, QQIC represents a floating-point value as follows:
+ *
+ *  0 1 2 3 4 5 6 7
+ * +-+-+-+-+-+-+-+-+
+ * |1| exp | mant  |
+ * +-+-+-+-+-+-+-+-+
+ */
+#define MLDV2_QQIC_EXP(value)	(((value) >> 4) & 0x07)
+#define MLDV2_QQIC_MAN(value)	((value) & 0x0f)
+
+static inline unsigned long mldv2_mrc(const struct mld2_query *mlh2)
+{
+	/* RFC3810, 5.1.3. Maximum Response Code */
+	unsigned long ret, mc_mrc = ntohs(mlh2->mld2q_mrc);
+
+	if (mc_mrc < 32768) {
+		ret = mc_mrc;
+	} else {
+		unsigned long mc_man, mc_exp;
+
+		mc_exp = MLDV2_MRC_EXP(mc_mrc);
+		mc_man = MLDV2_MRC_MAN(mc_mrc);
+
+		ret = (mc_man | 0x1000) << (mc_exp + 3);
+	}
+
+	return ret;
+}
 
 #endif

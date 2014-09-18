@@ -41,7 +41,7 @@
 #include "ubi-media.h"
 
 #define err_msg(fmt, ...)                                   \
-	printk(KERN_DEBUG "gluebi (pid %d): %s: " fmt "\n", \
+	pr_err("gluebi (pid %d): %s: " fmt "\n",            \
 	       current->pid, __func__, ##__VA_ARGS__)
 
 /**
@@ -171,17 +171,17 @@ static void gluebi_put_device(struct mtd_info *mtd)
 static int gluebi_read(struct mtd_info *mtd, loff_t from, size_t len,
 		       size_t *retlen, unsigned char *buf)
 {
-	int err = 0, lnum, offs, total_read;
+	int err = 0, lnum, offs, bytes_left;
 	struct gluebi_device *gluebi;
 
 	gluebi = container_of(mtd, struct gluebi_device, mtd);
 	lnum = div_u64_rem(from, mtd->erasesize, &offs);
-	total_read = len;
-	while (total_read) {
+	bytes_left = len;
+	while (bytes_left) {
 		size_t to_read = mtd->erasesize - offs;
 
-		if (to_read > total_read)
-			to_read = total_read;
+		if (to_read > bytes_left)
+			to_read = bytes_left;
 
 		err = ubi_read(gluebi->desc, lnum, buf, offs, to_read);
 		if (err)
@@ -189,11 +189,11 @@ static int gluebi_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 		lnum += 1;
 		offs = 0;
-		total_read -= to_read;
+		bytes_left -= to_read;
 		buf += to_read;
 	}
 
-	*retlen = len - total_read;
+	*retlen = len - bytes_left;
 	return err;
 }
 
@@ -211,7 +211,7 @@ static int gluebi_read(struct mtd_info *mtd, loff_t from, size_t len,
 static int gluebi_write(struct mtd_info *mtd, loff_t to, size_t len,
 			size_t *retlen, const u_char *buf)
 {
-	int err = 0, lnum, offs, total_written;
+	int err = 0, lnum, offs, bytes_left;
 	struct gluebi_device *gluebi;
 
 	gluebi = container_of(mtd, struct gluebi_device, mtd);
@@ -220,24 +220,24 @@ static int gluebi_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if (len % mtd->writesize || offs % mtd->writesize)
 		return -EINVAL;
 
-	total_written = len;
-	while (total_written) {
+	bytes_left = len;
+	while (bytes_left) {
 		size_t to_write = mtd->erasesize - offs;
 
-		if (to_write > total_written)
-			to_write = total_written;
+		if (to_write > bytes_left)
+			to_write = bytes_left;
 
-		err = ubi_write(gluebi->desc, lnum, buf, offs, to_write);
+		err = ubi_leb_write(gluebi->desc, lnum, buf, offs, to_write);
 		if (err)
 			break;
 
 		lnum += 1;
 		offs = 0;
-		total_written -= to_write;
+		bytes_left -= to_write;
 		buf += to_write;
 	}
 
-	*retlen = len - total_written;
+	*retlen = len - bytes_left;
 	return err;
 }
 
@@ -341,9 +341,8 @@ static int gluebi_create(struct ubi_device_info *di,
 	mutex_lock(&devices_mutex);
 	g = find_gluebi_nolock(vi->ubi_num, vi->vol_id);
 	if (g)
-		err_msg("gluebi MTD device %d form UBI device %d volume %d "
-			"already exists", g->mtd.index, vi->ubi_num,
-			vi->vol_id);
+		err_msg("gluebi MTD device %d form UBI device %d volume %d already exists",
+			g->mtd.index, vi->ubi_num, vi->vol_id);
 	mutex_unlock(&devices_mutex);
 
 	if (mtd_device_register(mtd, NULL, 0)) {
@@ -376,8 +375,8 @@ static int gluebi_remove(struct ubi_volume_info *vi)
 	mutex_lock(&devices_mutex);
 	gluebi = find_gluebi_nolock(vi->ubi_num, vi->vol_id);
 	if (!gluebi) {
-		err_msg("got remove notification for unknown UBI device %d "
-			"volume %d", vi->ubi_num, vi->vol_id);
+		err_msg("got remove notification for unknown UBI device %d volume %d",
+			vi->ubi_num, vi->vol_id);
 		err = -ENOENT;
 	} else if (gluebi->refcnt)
 		err = -EBUSY;
@@ -390,9 +389,8 @@ static int gluebi_remove(struct ubi_volume_info *vi)
 	mtd = &gluebi->mtd;
 	err = mtd_device_unregister(mtd);
 	if (err) {
-		err_msg("cannot remove fake MTD device %d, UBI device %d, "
-			"volume %d, error %d", mtd->index, gluebi->ubi_num,
-			gluebi->vol_id, err);
+		err_msg("cannot remove fake MTD device %d, UBI device %d, volume %d, error %d",
+			mtd->index, gluebi->ubi_num, gluebi->vol_id, err);
 		mutex_lock(&devices_mutex);
 		list_add_tail(&gluebi->list, &gluebi_devices);
 		mutex_unlock(&devices_mutex);
@@ -422,8 +420,8 @@ static int gluebi_updated(struct ubi_volume_info *vi)
 	gluebi = find_gluebi_nolock(vi->ubi_num, vi->vol_id);
 	if (!gluebi) {
 		mutex_unlock(&devices_mutex);
-		err_msg("got update notification for unknown UBI device %d "
-			"volume %d", vi->ubi_num, vi->vol_id);
+		err_msg("got update notification for unknown UBI device %d volume %d",
+			vi->ubi_num, vi->vol_id);
 		return -ENOENT;
 	}
 
@@ -449,8 +447,8 @@ static int gluebi_resized(struct ubi_volume_info *vi)
 	gluebi = find_gluebi_nolock(vi->ubi_num, vi->vol_id);
 	if (!gluebi) {
 		mutex_unlock(&devices_mutex);
-		err_msg("got update notification for unknown UBI device %d "
-			"volume %d", vi->ubi_num, vi->vol_id);
+		err_msg("got update notification for unknown UBI device %d volume %d",
+			vi->ubi_num, vi->vol_id);
 		return -ENOENT;
 	}
 	gluebi->mtd.size = vi->used_bytes;
@@ -507,9 +505,9 @@ static void __exit ubi_gluebi_exit(void)
 
 		err = mtd_device_unregister(mtd);
 		if (err)
-			err_msg("error %d while removing gluebi MTD device %d, "
-				"UBI device %d, volume %d - ignoring", err,
-				mtd->index, gluebi->ubi_num, gluebi->vol_id);
+			err_msg("error %d while removing gluebi MTD device %d, UBI device %d, volume %d - ignoring",
+				err, mtd->index, gluebi->ubi_num,
+				gluebi->vol_id);
 		kfree(mtd->name);
 		kfree(gluebi);
 	}

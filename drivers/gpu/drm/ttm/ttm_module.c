@@ -31,11 +31,11 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/sched.h>
-#include "ttm/ttm_module.h"
-#include "drm_sysfs.h"
+#include <drm/ttm/ttm_module.h>
+#include <drm/drm_sysfs.h>
 
 static DECLARE_WAIT_QUEUE_HEAD(exit_q);
-atomic_t device_released;
+static atomic_t device_released;
 
 static struct device_type ttm_drm_class_type = {
 	.name = "ttm",

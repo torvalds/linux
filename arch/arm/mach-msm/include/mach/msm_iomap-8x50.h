@@ -122,8 +122,4 @@
 #define MSM_SDC4_PHYS          0xA0600000
 #define MSM_SDC4_SIZE          SZ_4K
 
-#ifndef __ASSEMBLY__
-extern void msm_map_qsd8x50_io(void);
-#endif
-
 #endif

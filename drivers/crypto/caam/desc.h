@@ -8,6 +8,16 @@
 #ifndef DESC_H
 #define DESC_H
 
+struct sec4_sg_entry {
+	u64 ptr;
+#define SEC4_SG_LEN_FIN 0x40000000
+#define SEC4_SG_LEN_EXT 0x80000000
+	u32 len;
+	u8 reserved;
+	u8 buf_pool_id;
+	u16 offset;
+};
+
 /* Max size of any CAAM descriptor in 32-bit words, inclusive of header */
 #define MAX_CAAM_DESCSIZE	64
 
@@ -221,7 +231,12 @@
 #define LDST_SRCDST_WORD_PKHA_B_SZ	(0x11 << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_PKHA_N_SZ	(0x12 << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_PKHA_E_SZ	(0x13 << LDST_SRCDST_SHIFT)
+#define LDST_SRCDST_WORD_CLASS_CTX	(0x20 << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_DESCBUF	(0x40 << LDST_SRCDST_SHIFT)
+#define LDST_SRCDST_WORD_DESCBUF_JOB	(0x41 << LDST_SRCDST_SHIFT)
+#define LDST_SRCDST_WORD_DESCBUF_SHARED	(0x42 << LDST_SRCDST_SHIFT)
+#define LDST_SRCDST_WORD_DESCBUF_JOB_WE	(0x45 << LDST_SRCDST_SHIFT)
+#define LDST_SRCDST_WORD_DESCBUF_SHARED_WE (0x46 << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_INFO_FIFO	(0x7a << LDST_SRCDST_SHIFT)
 
 /* Offset in source/destination */
@@ -306,7 +321,6 @@
 /* Continue - Not the last FIFO store to come */
 #define FIFOST_CONT_SHIFT	23
 #define FIFOST_CONT_MASK	(1 << FIFOST_CONT_SHIFT)
-#define FIFOST_CONT_MASK	(1 << FIFOST_CONT_SHIFT)
 
 /*
  * Extended Length - use 32-bit extended length that
@@ -356,6 +370,7 @@
 #define FIFOLD_TYPE_LAST2FLUSH1 (0x05 << FIFOLD_TYPE_SHIFT)
 #define FIFOLD_TYPE_LASTBOTH	(0x06 << FIFOLD_TYPE_SHIFT)
 #define FIFOLD_TYPE_LASTBOTHFL	(0x07 << FIFOLD_TYPE_SHIFT)
+#define FIFOLD_TYPE_NOINFOFIFO	(0x0F << FIFOLD_TYPE_SHIFT)
 
 #define FIFOLDST_LEN_MASK	0xffff
 #define FIFOLDST_EXT_LEN_MASK	0xffffffff
@@ -1139,8 +1154,15 @@
 
 /* randomizer AAI set */
 #define OP_ALG_AAI_RNG		(0x00 << OP_ALG_AAI_SHIFT)
-#define OP_ALG_AAI_RNG_NOZERO	(0x10 << OP_ALG_AAI_SHIFT)
-#define OP_ALG_AAI_RNG_ODD	(0x20 << OP_ALG_AAI_SHIFT)
+#define OP_ALG_AAI_RNG_NZB	(0x10 << OP_ALG_AAI_SHIFT)
+#define OP_ALG_AAI_RNG_OBP	(0x20 << OP_ALG_AAI_SHIFT)
+
+/* RNG4 AAI set */
+#define OP_ALG_AAI_RNG4_SH_0	(0x00 << OP_ALG_AAI_SHIFT)
+#define OP_ALG_AAI_RNG4_SH_1	(0x01 << OP_ALG_AAI_SHIFT)
+#define OP_ALG_AAI_RNG4_PS	(0x40 << OP_ALG_AAI_SHIFT)
+#define OP_ALG_AAI_RNG4_AI	(0x80 << OP_ALG_AAI_SHIFT)
+#define OP_ALG_AAI_RNG4_SK	(0x100 << OP_ALG_AAI_SHIFT)
 
 /* hmac/smac AAI set */
 #define OP_ALG_AAI_HASH		(0x00 << OP_ALG_AAI_SHIFT)
@@ -1161,7 +1183,6 @@
 #define OP_ALG_AAI_F9		(0xc8 << OP_ALG_AAI_SHIFT)
 #define OP_ALG_AAI_GSM		(0x10 << OP_ALG_AAI_SHIFT)
 #define OP_ALG_AAI_EDGE		(0x20 << OP_ALG_AAI_SHIFT)
-
 
 #define OP_ALG_AS_SHIFT		2
 #define OP_ALG_AS_MASK		(0x3 << OP_ALG_AS_SHIFT)
@@ -1279,10 +1300,10 @@
 #define SQOUT_SGF	0x01000000
 
 /* Appends to a previous pointer */
-#define SQOUT_PRE	0x00800000
+#define SQOUT_PRE	SQIN_PRE
 
 /* Restore sequence with pointer/length */
-#define SQOUT_RTO	0x00200000
+#define SQOUT_RTO	 SQIN_RTO
 
 /* Use extended length following pointer */
 #define SQOUT_EXT	0x00400000
@@ -1344,6 +1365,7 @@
 #define MOVE_DEST_MATH3		(0x07 << MOVE_DEST_SHIFT)
 #define MOVE_DEST_CLASS1INFIFO	(0x08 << MOVE_DEST_SHIFT)
 #define MOVE_DEST_CLASS2INFIFO	(0x09 << MOVE_DEST_SHIFT)
+#define MOVE_DEST_INFIFO_NOINFO (0x0a << MOVE_DEST_SHIFT)
 #define MOVE_DEST_PK_A		(0x0c << MOVE_DEST_SHIFT)
 #define MOVE_DEST_CLASS1KEY	(0x0d << MOVE_DEST_SHIFT)
 #define MOVE_DEST_CLASS2KEY	(0x0e << MOVE_DEST_SHIFT)
@@ -1396,6 +1418,7 @@
 #define MATH_SRC0_REG2		(0x02 << MATH_SRC0_SHIFT)
 #define MATH_SRC0_REG3		(0x03 << MATH_SRC0_SHIFT)
 #define MATH_SRC0_IMM		(0x04 << MATH_SRC0_SHIFT)
+#define MATH_SRC0_DPOVRD	(0x07 << MATH_SRC0_SHIFT)
 #define MATH_SRC0_SEQINLEN	(0x08 << MATH_SRC0_SHIFT)
 #define MATH_SRC0_SEQOUTLEN	(0x09 << MATH_SRC0_SHIFT)
 #define MATH_SRC0_VARSEQINLEN	(0x0a << MATH_SRC0_SHIFT)
@@ -1410,6 +1433,7 @@
 #define MATH_SRC1_REG2		(0x02 << MATH_SRC1_SHIFT)
 #define MATH_SRC1_REG3		(0x03 << MATH_SRC1_SHIFT)
 #define MATH_SRC1_IMM		(0x04 << MATH_SRC1_SHIFT)
+#define MATH_SRC1_DPOVRD	(0x07 << MATH_SRC0_SHIFT)
 #define MATH_SRC1_INFIFO	(0x0a << MATH_SRC1_SHIFT)
 #define MATH_SRC1_OUTFIFO	(0x0b << MATH_SRC1_SHIFT)
 #define MATH_SRC1_ONE		(0x0c << MATH_SRC1_SHIFT)
@@ -1585,20 +1609,13 @@
 #define NFIFOENTRY_PLEN_SHIFT	0
 #define NFIFOENTRY_PLEN_MASK	(0xFF << NFIFOENTRY_PLEN_SHIFT)
 
-/*
- * PDB internal definitions
- */
+/* Append Load Immediate Command */
+#define FD_CMD_APPEND_LOAD_IMMEDIATE			0x80000000
 
-/* IPSec ESP CBC Encap/Decap Options */
-#define PDBOPTS_ESPCBC_ARSNONE	0x00	/* no antireplay window	*/
-#define PDBOPTS_ESPCBC_ARS32	0x40	/* 32-entry antireplay window */
-#define PDBOPTS_ESPCBC_ARS64	0xc0	/* 64-entry antireplay window */
-#define PDBOPTS_ESPCBC_IVSRC	0x20	/* IV comes from internal random gen */
-#define PDBOPTS_ESPCBC_ESN	0x10	/* extended sequence included */
-#define PDBOPTS_ESPCBC_OUTFMT	0x08	/* output only decapsulation (decap) */
-#define PDBOPTS_ESPCBC_IPHDRSRC 0x08	/* IP header comes from PDB (encap) */
-#define PDBOPTS_ESPCBC_INCIPHDR 0x04	/* Prepend IP header to output frame */
-#define PDBOPTS_ESPCBC_IPVSN	0x02	/* process IPv6 header */
-#define PDBOPTS_ESPCBC_TUNNEL	0x01	/* tunnel mode next-header byte */
+/* Set SEQ LIODN equal to the Non-SEQ LIODN for the job */
+#define FD_CMD_SET_SEQ_LIODN_EQUAL_NONSEQ_LIODN		0x40000000
+
+/* Frame Descriptor Command for Replacement Job Descriptor */
+#define FD_CMD_REPLACE_JOB_DESC				0x20000000
 
 #endif /* DESC_H */

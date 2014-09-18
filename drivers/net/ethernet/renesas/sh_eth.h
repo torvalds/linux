@@ -1,5 +1,4 @@
-/*
- *  SuperH Ethernet device driver
+/*  SuperH Ethernet device driver
  *
  *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
  *  Copyright (C) 2008-2012 Renesas Solutions Corp.
@@ -12,9 +11,6 @@
  *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  *  more details.
- *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  The full GNU General Public License is included in this distribution in
  *  the file called "COPYING".
@@ -27,8 +23,11 @@
 #define TX_TIMEOUT	(5*HZ)
 #define TX_RING_SIZE	64	/* Tx ring size */
 #define RX_RING_SIZE	64	/* Rx ring size */
-#define ETHERSMALL		60
-#define PKT_BUF_SZ		1538
+#define TX_RING_MIN	64
+#define RX_RING_MIN	64
+#define TX_RING_MAX	1024
+#define RX_RING_MAX	1024
+#define PKT_BUF_SZ	1538
 #define SH_ETH_TSU_TIMEOUT_MS	500
 #define SH_ETH_TSU_CAM_ENTRIES	32
 
@@ -56,6 +55,7 @@ enum {
 	EDOCR,
 	TFUCR,
 	RFOCR,
+	RMIIMODE,
 	FCFTR,
 	RPADIR,
 	TRIMD,
@@ -152,247 +152,33 @@ enum {
 	SH_ETH_MAX_REGISTER_OFFSET,
 };
 
-static const u16 sh_eth_offset_gigabit[SH_ETH_MAX_REGISTER_OFFSET] = {
-	[EDSR]	= 0x0000,
-	[EDMR]	= 0x0400,
-	[EDTRR]	= 0x0408,
-	[EDRRR]	= 0x0410,
-	[EESR]	= 0x0428,
-	[EESIPR]	= 0x0430,
-	[TDLAR]	= 0x0010,
-	[TDFAR]	= 0x0014,
-	[TDFXR]	= 0x0018,
-	[TDFFR]	= 0x001c,
-	[RDLAR]	= 0x0030,
-	[RDFAR]	= 0x0034,
-	[RDFXR]	= 0x0038,
-	[RDFFR]	= 0x003c,
-	[TRSCER]	= 0x0438,
-	[RMFCR]	= 0x0440,
-	[TFTR]	= 0x0448,
-	[FDR]	= 0x0450,
-	[RMCR]	= 0x0458,
-	[RPADIR]	= 0x0460,
-	[FCFTR]	= 0x0468,
-	[CSMR] = 0x04E4,
-
-	[ECMR]	= 0x0500,
-	[ECSR]	= 0x0510,
-	[ECSIPR]	= 0x0518,
-	[PIR]	= 0x0520,
-	[PSR]	= 0x0528,
-	[PIPR]	= 0x052c,
-	[RFLR]	= 0x0508,
-	[APR]	= 0x0554,
-	[MPR]	= 0x0558,
-	[PFTCR]	= 0x055c,
-	[PFRCR]	= 0x0560,
-	[TPAUSER]	= 0x0564,
-	[GECMR]	= 0x05b0,
-	[BCULR]	= 0x05b4,
-	[MAHR]	= 0x05c0,
-	[MALR]	= 0x05c8,
-	[TROCR]	= 0x0700,
-	[CDCR]	= 0x0708,
-	[LCCR]	= 0x0710,
-	[CEFCR]	= 0x0740,
-	[FRECR]	= 0x0748,
-	[TSFRCR]	= 0x0750,
-	[TLFRCR]	= 0x0758,
-	[RFCR]	= 0x0760,
-	[CERCR]	= 0x0768,
-	[CEECR]	= 0x0770,
-	[MAFCR]	= 0x0778,
-	[RMII_MII] =  0x0790,
-
-	[ARSTR]	= 0x0000,
-	[TSU_CTRST]	= 0x0004,
-	[TSU_FWEN0]	= 0x0010,
-	[TSU_FWEN1]	= 0x0014,
-	[TSU_FCM]	= 0x0018,
-	[TSU_BSYSL0]	= 0x0020,
-	[TSU_BSYSL1]	= 0x0024,
-	[TSU_PRISL0]	= 0x0028,
-	[TSU_PRISL1]	= 0x002c,
-	[TSU_FWSL0]	= 0x0030,
-	[TSU_FWSL1]	= 0x0034,
-	[TSU_FWSLC]	= 0x0038,
-	[TSU_QTAG0]	= 0x0040,
-	[TSU_QTAG1]	= 0x0044,
-	[TSU_FWSR]	= 0x0050,
-	[TSU_FWINMK]	= 0x0054,
-	[TSU_ADQT0]	= 0x0048,
-	[TSU_ADQT1]	= 0x004c,
-	[TSU_VTAG0]	= 0x0058,
-	[TSU_VTAG1]	= 0x005c,
-	[TSU_ADSBSY]	= 0x0060,
-	[TSU_TEN]	= 0x0064,
-	[TSU_POST1]	= 0x0070,
-	[TSU_POST2]	= 0x0074,
-	[TSU_POST3]	= 0x0078,
-	[TSU_POST4]	= 0x007c,
-	[TSU_ADRH0]	= 0x0100,
-	[TSU_ADRL0]	= 0x0104,
-	[TSU_ADRH31]	= 0x01f8,
-	[TSU_ADRL31]	= 0x01fc,
-
-	[TXNLCR0]	= 0x0080,
-	[TXALCR0]	= 0x0084,
-	[RXNLCR0]	= 0x0088,
-	[RXALCR0]	= 0x008c,
-	[FWNLCR0]	= 0x0090,
-	[FWALCR0]	= 0x0094,
-	[TXNLCR1]	= 0x00a0,
-	[TXALCR1]	= 0x00a0,
-	[RXNLCR1]	= 0x00a8,
-	[RXALCR1]	= 0x00ac,
-	[FWNLCR1]	= 0x00b0,
-	[FWALCR1]	= 0x00b4,
-};
-
-static const u16 sh_eth_offset_fast_sh4[SH_ETH_MAX_REGISTER_OFFSET] = {
-	[ECMR]	= 0x0100,
-	[RFLR]	= 0x0108,
-	[ECSR]	= 0x0110,
-	[ECSIPR]	= 0x0118,
-	[PIR]	= 0x0120,
-	[PSR]	= 0x0128,
-	[RDMLR]	= 0x0140,
-	[IPGR]	= 0x0150,
-	[APR]	= 0x0154,
-	[MPR]	= 0x0158,
-	[TPAUSER]	= 0x0164,
-	[RFCF]	= 0x0160,
-	[TPAUSECR]	= 0x0168,
-	[BCFRR]	= 0x016c,
-	[MAHR]	= 0x01c0,
-	[MALR]	= 0x01c8,
-	[TROCR]	= 0x01d0,
-	[CDCR]	= 0x01d4,
-	[LCCR]	= 0x01d8,
-	[CNDCR]	= 0x01dc,
-	[CEFCR]	= 0x01e4,
-	[FRECR]	= 0x01e8,
-	[TSFRCR]	= 0x01ec,
-	[TLFRCR]	= 0x01f0,
-	[RFCR]	= 0x01f4,
-	[MAFCR]	= 0x01f8,
-	[RTRATE]	= 0x01fc,
-
-	[EDMR]	= 0x0000,
-	[EDTRR]	= 0x0008,
-	[EDRRR]	= 0x0010,
-	[TDLAR]	= 0x0018,
-	[RDLAR]	= 0x0020,
-	[EESR]	= 0x0028,
-	[EESIPR]	= 0x0030,
-	[TRSCER]	= 0x0038,
-	[RMFCR]	= 0x0040,
-	[TFTR]	= 0x0048,
-	[FDR]	= 0x0050,
-	[RMCR]	= 0x0058,
-	[TFUCR]	= 0x0064,
-	[RFOCR]	= 0x0068,
-	[FCFTR]	= 0x0070,
-	[RPADIR]	= 0x0078,
-	[TRIMD]	= 0x007c,
-	[RBWAR]	= 0x00c8,
-	[RDFAR]	= 0x00cc,
-	[TBRAR]	= 0x00d4,
-	[TDFAR]	= 0x00d8,
-};
-
-static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
-	[ECMR]	= 0x0160,
-	[ECSR]	= 0x0164,
-	[ECSIPR]	= 0x0168,
-	[PIR]	= 0x016c,
-	[MAHR]	= 0x0170,
-	[MALR]	= 0x0174,
-	[RFLR]	= 0x0178,
-	[PSR]	= 0x017c,
-	[TROCR]	= 0x0180,
-	[CDCR]	= 0x0184,
-	[LCCR]	= 0x0188,
-	[CNDCR]	= 0x018c,
-	[CEFCR]	= 0x0194,
-	[FRECR]	= 0x0198,
-	[TSFRCR]	= 0x019c,
-	[TLFRCR]	= 0x01a0,
-	[RFCR]	= 0x01a4,
-	[MAFCR]	= 0x01a8,
-	[IPGR]	= 0x01b4,
-	[APR]	= 0x01b8,
-	[MPR]	= 0x01bc,
-	[TPAUSER]	= 0x01c4,
-	[BCFR]	= 0x01cc,
-
-	[ARSTR]	= 0x0000,
-	[TSU_CTRST]	= 0x0004,
-	[TSU_FWEN0]	= 0x0010,
-	[TSU_FWEN1]	= 0x0014,
-	[TSU_FCM]	= 0x0018,
-	[TSU_BSYSL0]	= 0x0020,
-	[TSU_BSYSL1]	= 0x0024,
-	[TSU_PRISL0]	= 0x0028,
-	[TSU_PRISL1]	= 0x002c,
-	[TSU_FWSL0]	= 0x0030,
-	[TSU_FWSL1]	= 0x0034,
-	[TSU_FWSLC]	= 0x0038,
-	[TSU_QTAGM0]	= 0x0040,
-	[TSU_QTAGM1]	= 0x0044,
-	[TSU_ADQT0]	= 0x0048,
-	[TSU_ADQT1]	= 0x004c,
-	[TSU_FWSR]	= 0x0050,
-	[TSU_FWINMK]	= 0x0054,
-	[TSU_ADSBSY]	= 0x0060,
-	[TSU_TEN]	= 0x0064,
-	[TSU_POST1]	= 0x0070,
-	[TSU_POST2]	= 0x0074,
-	[TSU_POST3]	= 0x0078,
-	[TSU_POST4]	= 0x007c,
-
-	[TXNLCR0]	= 0x0080,
-	[TXALCR0]	= 0x0084,
-	[RXNLCR0]	= 0x0088,
-	[RXALCR0]	= 0x008c,
-	[FWNLCR0]	= 0x0090,
-	[FWALCR0]	= 0x0094,
-	[TXNLCR1]	= 0x00a0,
-	[TXALCR1]	= 0x00a0,
-	[RXNLCR1]	= 0x00a8,
-	[RXALCR1]	= 0x00ac,
-	[FWNLCR1]	= 0x00b0,
-	[FWALCR1]	= 0x00b4,
-
-	[TSU_ADRH0]	= 0x0100,
-	[TSU_ADRL0]	= 0x0104,
-	[TSU_ADRL31]	= 0x01fc,
-
+enum {
+	SH_ETH_REG_GIGABIT,
+	SH_ETH_REG_FAST_RZ,
+	SH_ETH_REG_FAST_RCAR,
+	SH_ETH_REG_FAST_SH4,
+	SH_ETH_REG_FAST_SH3_SH2
 };
 
 /* Driver's parameters */
-#if defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 #define SH4_SKB_RX_ALIGN	32
 #else
 #define SH2_SH3_SKB_RX_ALIGN	2
 #endif
 
-/*
- * Register's bits
+/* Register's bits
  */
-#if defined(CONFIG_CPU_SUBTYPE_SH7734) || defined(CONFIG_CPU_SUBTYPE_SH7763)
-/* EDSR */
+/* EDSR : sh7734, sh7757, sh7763, r8a7740, and r7s72100 only */
 enum EDSR_BIT {
 	EDSR_ENT = 0x01, EDSR_ENR = 0x02,
 };
 #define EDSR_ENALL (EDSR_ENT|EDSR_ENR)
 
-/* GECMR */
+/* GECMR : sh7734, sh7763 and r8a7740 only */
 enum GECMR_BIT {
 	GECMR_10 = 0x0, GECMR_100 = 0x04, GECMR_1000 = 0x01,
 };
-#endif
 
 /* EDMR */
 enum DMAC_M_BIT {
@@ -408,7 +194,7 @@ enum DMAC_T_BIT {
 	EDTRR_TRNS_ETHER = 0x01,
 };
 
-/* EDRRR*/
+/* EDRRR */
 enum EDRRR_R_BIT {
 	EDRRR_R = 0x01,
 };
@@ -465,13 +251,19 @@ enum EESR_BIT {
 	EESR_CERF	= 0x00000001,
 };
 
+#define EESR_RX_CHECK		(EESR_FRC  | /* Frame recv */		\
+				 EESR_RMAF | /* Multicast address recv */ \
+				 EESR_RRF  | /* Bit frame recv */	\
+				 EESR_RTLF | /* Long frame recv */	\
+				 EESR_RTSF | /* Short frame recv */	\
+				 EESR_PRE  | /* PHY-LSI recv error */	\
+				 EESR_CERF)  /* Recv frame CRC error */
+
 #define DEFAULT_TX_CHECK	(EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | \
 				 EESR_RTO)
-#define DEFAULT_EESR_ERR_CHECK	(EESR_TWB | EESR_TABT | EESR_RABT | \
+#define DEFAULT_EESR_ERR_CHECK	(EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE | \
 				 EESR_RDE | EESR_RFRMER | EESR_ADE | \
 				 EESR_TFE | EESR_TDE | EESR_ECI)
-#define DEFAULT_TX_ERROR_CHECK	(EESR_TWB | EESR_TABT | EESR_ADE | EESR_TDE | \
-				 EESR_TFE)
 
 /* EESIPR */
 enum DMAC_IM_BIT {
@@ -513,18 +305,20 @@ enum FCFTR_BIT {
 #define DEFAULT_FIFO_F_D_RFF	(FCFTR_RFF2 | FCFTR_RFF1 | FCFTR_RFF0)
 #define DEFAULT_FIFO_F_D_RFD	(FCFTR_RFD2 | FCFTR_RFD1 | FCFTR_RFD0)
 
-/* Transfer descriptor bit */
+/* Transmit descriptor bit */
 enum TD_STS_BIT {
-	TD_TACT = 0x80000000,
-	TD_TDLE = 0x40000000, TD_TFP1 = 0x20000000,
-	TD_TFP0 = 0x10000000,
+	TD_TACT = 0x80000000, TD_TDLE = 0x40000000,
+	TD_TFP1 = 0x20000000, TD_TFP0 = 0x10000000,
+	TD_TFE  = 0x08000000, TD_TWBI = 0x04000000,
 };
 #define TDF1ST	TD_TFP1
 #define TDFEND	TD_TFP0
 #define TD_TFP	(TD_TFP1|TD_TFP0)
 
 /* RMCR */
-#define DEFAULT_RMCR_VALUE	0x00000000
+enum RMCR_BIT {
+	RMCR_RNC = 0x00000001,
+};
 
 /* ECMR */
 enum FELIC_MODE_BIT {
@@ -584,71 +378,6 @@ enum RPADIR_BIT {
 /* FDR */
 #define DEFAULT_FDR_INIT	0x00000707
 
-enum phy_offsets {
-	PHY_CTRL = 0, PHY_STAT = 1, PHY_IDT1 = 2, PHY_IDT2 = 3,
-	PHY_ANA = 4, PHY_ANL = 5, PHY_ANE = 6,
-	PHY_16 = 16,
-};
-
-/* PHY_CTRL */
-enum PHY_CTRL_BIT {
-	PHY_C_RESET = 0x8000, PHY_C_LOOPBK = 0x4000, PHY_C_SPEEDSL = 0x2000,
-	PHY_C_ANEGEN = 0x1000, PHY_C_PWRDN = 0x0800, PHY_C_ISO = 0x0400,
-	PHY_C_RANEG = 0x0200, PHY_C_DUPLEX = 0x0100, PHY_C_COLT = 0x0080,
-};
-#define DM9161_PHY_C_ANEGEN 0	/* auto nego special */
-
-/* PHY_STAT */
-enum PHY_STAT_BIT {
-	PHY_S_100T4 = 0x8000, PHY_S_100X_F = 0x4000, PHY_S_100X_H = 0x2000,
-	PHY_S_10T_F = 0x1000, PHY_S_10T_H = 0x0800, PHY_S_ANEGC = 0x0020,
-	PHY_S_RFAULT = 0x0010, PHY_S_ANEGA = 0x0008, PHY_S_LINK = 0x0004,
-	PHY_S_JAB = 0x0002, PHY_S_EXTD = 0x0001,
-};
-
-/* PHY_ANA */
-enum PHY_ANA_BIT {
-	PHY_A_NP = 0x8000, PHY_A_ACK = 0x4000, PHY_A_RF = 0x2000,
-	PHY_A_FCS = 0x0400, PHY_A_T4 = 0x0200, PHY_A_FDX = 0x0100,
-	PHY_A_HDX = 0x0080, PHY_A_10FDX = 0x0040, PHY_A_10HDX = 0x0020,
-	PHY_A_SEL = 0x001e,
-};
-/* PHY_ANL */
-enum PHY_ANL_BIT {
-	PHY_L_NP = 0x8000, PHY_L_ACK = 0x4000, PHY_L_RF = 0x2000,
-	PHY_L_FCS = 0x0400, PHY_L_T4 = 0x0200, PHY_L_FDX = 0x0100,
-	PHY_L_HDX = 0x0080, PHY_L_10FDX = 0x0040, PHY_L_10HDX = 0x0020,
-	PHY_L_SEL = 0x001f,
-};
-
-/* PHY_ANE */
-enum PHY_ANE_BIT {
-	PHY_E_PDF = 0x0010, PHY_E_LPNPA = 0x0008, PHY_E_NPA = 0x0004,
-	PHY_E_PRX = 0x0002, PHY_E_LPANEGA = 0x0001,
-};
-
-/* DM9161 */
-enum PHY_16_BIT {
-	PHY_16_BP4B45 = 0x8000, PHY_16_BPSCR = 0x4000, PHY_16_BPALIGN = 0x2000,
-	PHY_16_BP_ADPOK = 0x1000, PHY_16_Repeatmode = 0x0800,
-	PHY_16_TXselect = 0x0400,
-	PHY_16_Rsvd = 0x0200, PHY_16_RMIIEnable = 0x0100,
-	PHY_16_Force100LNK = 0x0080,
-	PHY_16_APDLED_CTL = 0x0040, PHY_16_COLLED_CTL = 0x0020,
-	PHY_16_RPDCTR_EN = 0x0010,
-	PHY_16_ResetStMch = 0x0008, PHY_16_PreamSupr = 0x0004,
-	PHY_16_Sleepmode = 0x0002,
-	PHY_16_RemoteLoopOut = 0x0001,
-};
-
-#define POST_RX		0x08
-#define POST_FW		0x04
-#define POST0_RX	(POST_RX)
-#define POST0_FW	(POST_FW)
-#define POST1_RX	(POST_RX >> 2)
-#define POST1_FW	(POST_FW >> 2)
-#define POST_ALL	(POST0_RX | POST0_FW | POST1_RX | POST1_FW)
-
 /* ARSTR */
 enum ARSTR_BIT { ARSTR_ARSTR = 0x00000001, };
 
@@ -687,8 +416,7 @@ enum TSU_FWSLC_BIT {
 #define TSU_VTAG_ENABLE		0x80000000
 #define TSU_VTAG_VID_MASK	0x00000fff
 
-/*
- * The sh ether Tx buffer descriptors.
+/* The sh ether Tx buffer descriptors.
  * This structure should be 20 bytes.
  */
 struct sh_eth_txdesc {
@@ -702,10 +430,9 @@ struct sh_eth_txdesc {
 #endif
 	u32 addr;		/* TD2 */
 	u32 pad1;		/* padding data */
-} __attribute__((aligned(2), packed));
+} __aligned(2) __packed;
 
-/*
- * The sh ether Rx buffer descriptors.
+/* The sh ether Rx buffer descriptors.
  * This structure should be 20 bytes.
  */
 struct sh_eth_rxdesc {
@@ -719,7 +446,7 @@ struct sh_eth_rxdesc {
 #endif
 	u32 addr;		/* RD2 */
 	u32 pad0;		/* padding data */
-} __attribute__((aligned(2), packed));
+} __aligned(2) __packed;
 
 /* This structure is used by each CPU dependency handling. */
 struct sh_eth_cpu_data {
@@ -729,6 +456,7 @@ struct sh_eth_cpu_data {
 	void (*set_rate)(struct net_device *ndev);
 
 	/* mandatory initialize value */
+	int register_type;
 	unsigned long eesipr_value;
 
 	/* optional initialize value */
@@ -737,25 +465,27 @@ struct sh_eth_cpu_data {
 	unsigned long fdr_value;
 	unsigned long fcftr_value;
 	unsigned long rpadir_value;
-	unsigned long rmcr_value;
 
 	/* interrupt checking mask */
 	unsigned long tx_check;
 	unsigned long eesr_err_check;
-	unsigned long tx_error_check;
 
 	/* hardware features */
-	unsigned no_psr:1;		/* EtherC DO NOT have PSR */
-	unsigned apr:1;			/* EtherC have APR */
-	unsigned mpr:1;			/* EtherC have MPR */
-	unsigned tpauser:1;		/* EtherC have TPAUSER */
-	unsigned bculr:1;		/* EtherC have BCULR */
-	unsigned tsu:1;			/* EtherC have TSU */
-	unsigned hw_swap:1;		/* E-DMAC have DE bit in EDMR */
-	unsigned rpadir:1;		/* E-DMAC have RPADIR */
-	unsigned no_trimd:1;		/* E-DMAC DO NOT have TRIMD */
+	unsigned long irq_flags; /* IRQ configuration flags */
+	unsigned no_psr:1;	/* EtherC DO NOT have PSR */
+	unsigned apr:1;		/* EtherC have APR */
+	unsigned mpr:1;		/* EtherC have MPR */
+	unsigned tpauser:1;	/* EtherC have TPAUSER */
+	unsigned bculr:1;	/* EtherC have BCULR */
+	unsigned tsu:1;		/* EtherC have TSU */
+	unsigned hw_swap:1;	/* E-DMAC have DE bit in EDMR */
+	unsigned rpadir:1;	/* E-DMAC have RPADIR */
+	unsigned no_trimd:1;	/* E-DMAC DO NOT have TRIMD */
 	unsigned no_ade:1;	/* E-DMAC DO NOT have ADE bit in EESR */
 	unsigned hw_crc:1;	/* E-DMAC have CSMR */
+	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
+	unsigned shift_rd0:1;	/* shift Rx descriptor word 0 right by 16 */
+	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
 };
 
 struct sh_eth_private {
@@ -764,33 +494,31 @@ struct sh_eth_private {
 	const u16 *reg_offset;
 	void __iomem *addr;
 	void __iomem *tsu_addr;
+	u32 num_rx_ring;
+	u32 num_tx_ring;
 	dma_addr_t rx_desc_dma;
 	dma_addr_t tx_desc_dma;
 	struct sh_eth_rxdesc *rx_ring;
 	struct sh_eth_txdesc *tx_ring;
 	struct sk_buff **rx_skbuff;
 	struct sk_buff **tx_skbuff;
-	struct timer_list timer;
-	spinlock_t lock;
-	u32 cur_rx, dirty_rx;	/* Producer/consumer ring indices */
+	spinlock_t lock;		/* Register access lock */
+	u32 cur_rx, dirty_rx;		/* Producer/consumer ring indices */
 	u32 cur_tx, dirty_tx;
-	u32 rx_buf_sz;		/* Based on MTU+slack. */
+	u32 rx_buf_sz;			/* Based on MTU+slack. */
 	int edmac_endian;
+	struct napi_struct napi;
 	/* MII transceiver section. */
-	u32 phy_id;					/* PHY ID */
+	u32 phy_id;			/* PHY ID */
 	struct mii_bus *mii_bus;	/* MDIO bus control */
 	struct phy_device *phydev;	/* PHY device control */
-	enum phy_state link;
+	int link;
 	phy_interface_t phy_interface;
 	int msg_enable;
 	int speed;
 	int duplex;
-	u32 rx_int_var, tx_int_var;	/* interrupt control variables */
-	char post_rx;		/* POST receive */
-	char post_fw;		/* POST forward */
-	struct net_device_stats tsu_stats;	/* TSU forward status */
-	int port;		/* for TSU */
-	int vlan_num_ids;	/* for VLAN tag filter */
+	int port;			/* for TSU */
+	int vlan_num_ids;		/* for VLAN tag filter */
 
 	unsigned no_ether_link:1;
 	unsigned ether_link_active_low:1;

@@ -275,13 +275,17 @@ static u32 atl1_check_link(struct atl1_adapter *adapter);
 #define ISR_DIS_SMB				0x20000000
 #define ISR_DIS_DMA				0x40000000
 
-/* Normal Interrupt mask  */
-#define IMR_NORMAL_MASK	(\
+/* Normal Interrupt mask without RX/TX enabled */
+#define IMR_NORXTX_MASK	(\
 	ISR_SMB		|\
 	ISR_GPHY	|\
 	ISR_PHY_LINKDOWN|\
 	ISR_DMAR_TO_RST	|\
-	ISR_DMAW_TO_RST	|\
+	ISR_DMAW_TO_RST)
+
+/* Normal Interrupt mask  */
+#define IMR_NORMAL_MASK	(\
+	IMR_NORXTX_MASK	|\
 	ISR_CMB_TX	|\
 	ISR_CMB_RX)
 
@@ -662,6 +666,7 @@ struct atl1_sft_stats {
 	u64 rx_errors;
 	u64 rx_length_errors;
 	u64 rx_crc_errors;
+	u64 rx_dropped;
 	u64 rx_frame_errors;
 	u64 rx_fifo_errors;
 	u64 rx_missed_errors;
@@ -758,6 +763,7 @@ struct atl1_adapter {
 	u16 link_speed;
 	u16 link_duplex;
 	spinlock_t lock;
+	struct napi_struct napi;
 	struct work_struct reset_dev_task;
 	struct work_struct link_chg_task;
 
@@ -780,6 +786,12 @@ struct atl1_adapter {
 	u16 imt;		/* interrupt moderator timer (2us resolution) */
 	u16 ict;		/* interrupt clear timer (2us resolution */
 	struct mii_if_info mii;	/* MII interface info */
+
+	/*
+	 * Use this value to check is napi handler allowed to
+	 * enable ints or not
+	 */
+	bool int_enabled;
 
 	u32 bd_number;		/* board number */
 	bool pci_using_64;

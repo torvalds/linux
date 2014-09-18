@@ -11,6 +11,11 @@
 #ifndef _ASM_GICREGS_H
 #define _ASM_GICREGS_H
 
+#include <linux/bitmap.h>
+#include <linux/threads.h>
+
+#include <irq.h>
+
 #undef	GICISBYTELITTLEENDIAN
 
 /* Constants */
@@ -18,8 +23,6 @@
 #define GIC_POL_NEG			0
 #define GIC_TRIG_EDGE			1
 #define GIC_TRIG_LEVEL			0
-
-#define GIC_NUM_INTRS			(24 + NR_CPUS * 2)
 
 #define MSK(n) ((1 << (n)) - 1)
 #define REG32(addr)		(*(volatile unsigned int *) (addr))
@@ -33,25 +36,24 @@
 	REG32(_gic_base + segment##_##SECTION_OFS + offset)
 
 #define GIC_ABS_REG(segment, offset) \
-       (_gic_base + segment##_##SECTION_OFS + offset##_##OFS)
+	(_gic_base + segment##_##SECTION_OFS + offset##_##OFS)
 #define GIC_REG_ABS_ADDR(segment, offset) \
-       (_gic_base + segment##_##SECTION_OFS + offset)
+	(_gic_base + segment##_##SECTION_OFS + offset)
 
 #ifdef GICISBYTELITTLEENDIAN
-#define GICREAD(reg, data)	(data) = (reg), (data) = le32_to_cpu(data)
-#define GICWRITE(reg, data)	(reg) = cpu_to_le32(data)
-#define GICBIS(reg, bits)			\
-	({unsigned int data;			\
-		GICREAD(reg, data);		\
-		data |= bits;			\
-		GICWRITE(reg, data);		\
-	})
-
+#define GICREAD(reg, data)	((data) = (reg), (data) = le32_to_cpu(data))
+#define GICWRITE(reg, data)	((reg) = cpu_to_le32(data))
 #else
-#define GICREAD(reg, data)	(data) = (reg)
-#define GICWRITE(reg, data)	(reg) = (data)
-#define GICBIS(reg, bits)	(reg) |= (bits)
+#define GICREAD(reg, data)	((data) = (reg))
+#define GICWRITE(reg, data)	((reg) = (data))
 #endif
+#define GICBIS(reg, mask, bits)			\
+	do { u32 data;				\
+		GICREAD(reg, data);		\
+		data &= ~(mask);		\
+		data |= ((bits) & (mask));	\
+		GICWRITE((reg), data);		\
+	} while (0)
 
 
 /* GIC Address Space */
@@ -66,7 +68,7 @@
 
 /* Register Map for Shared Section */
 
-#define	GIC_SH_CONFIG_OFS		0x0000
+#define GIC_SH_CONFIG_OFS		0x0000
 
 /* Shared Global Counter */
 #define GIC_SH_COUNTER_31_00_OFS	0x0010
@@ -146,13 +148,13 @@
 #define GIC_SH_PEND_223_192_OFS		0x0498
 #define GIC_SH_PEND_255_224_OFS		0x049c
 
-#define GIC_SH_INTR_MAP_TO_PIN_BASE_OFS	0x0500
+#define GIC_SH_INTR_MAP_TO_PIN_BASE_OFS 0x0500
 
 /* Maps Interrupt X to a Pin */
 #define GIC_SH_MAP_TO_PIN(intr) \
 	(GIC_SH_INTR_MAP_TO_PIN_BASE_OFS + (4 * intr))
 
-#define GIC_SH_INTR_MAP_TO_VPE_BASE_OFS	0x2000
+#define GIC_SH_INTR_MAP_TO_VPE_BASE_OFS 0x2000
 
 /* Maps Interrupt X to a VPE */
 #define GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe) \
@@ -167,13 +169,15 @@
 #define GIC_SH_SET_POLARITY_OFS		0x0100
 #define GIC_SET_POLARITY(intr, pol) \
 	GICBIS(GIC_REG_ADDR(SHARED, GIC_SH_SET_POLARITY_OFS + \
-		GIC_INTR_OFS(intr)), (pol) << GIC_INTR_BIT(intr))
+		GIC_INTR_OFS(intr)), (1 << GIC_INTR_BIT(intr)), \
+		(pol) << GIC_INTR_BIT(intr))
 
 /* Triggering : Reset Value is always 0 */
 #define GIC_SH_SET_TRIGGER_OFS		0x0180
 #define GIC_SET_TRIGGER(intr, trig) \
 	GICBIS(GIC_REG_ADDR(SHARED, GIC_SH_SET_TRIGGER_OFS + \
-		GIC_INTR_OFS(intr)), (trig) << GIC_INTR_BIT(intr))
+		GIC_INTR_OFS(intr)), (1 << GIC_INTR_BIT(intr)), \
+		(trig) << GIC_INTR_BIT(intr))
 
 /* Mask manipulation */
 #define GIC_SH_SMASK_OFS		0x0380
@@ -202,11 +206,11 @@
 #define GIC_VPE_WD_COUNT0_OFS		0x0094
 #define GIC_VPE_WD_INITIAL0_OFS		0x0098
 #define GIC_VPE_COMPARE_LO_OFS		0x00a0
-#define GIC_VPE_COMPARE_HI		0x00a4
+#define GIC_VPE_COMPARE_HI_OFS		0x00a4
 
 #define GIC_VPE_EIC_SHADOW_SET_BASE	0x0100
 #define GIC_VPE_EIC_SS(intr) \
-	(GIC_EIC_SHADOW_SET_BASE + (4 * intr))
+	(GIC_VPE_EIC_SHADOW_SET_BASE + (4 * intr))
 
 #define GIC_VPE_EIC_VEC_BASE		0x0800
 #define GIC_VPE_EIC_VEC(intr) \
@@ -303,18 +307,6 @@
 	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe)), \
 		 GIC_SH_MAP_TO_VPE_REG_BIT(vpe))
 
-struct gic_pcpu_mask {
-       DECLARE_BITMAP(pcpu_mask, GIC_NUM_INTRS);
-};
-
-struct gic_pending_regs {
-       DECLARE_BITMAP(pending, GIC_NUM_INTRS);
-};
-
-struct gic_intrmask_regs {
-       DECLARE_BITMAP(intrmask, GIC_NUM_INTRS);
-};
-
 /*
  * Interrupt Meta-data specification. The ipiflag helps
  * in building ipi_map.
@@ -326,17 +318,67 @@ struct gic_intr_map {
 	unsigned int polarity;	/* Polarity : +/-	*/
 	unsigned int trigtype;	/* Trigger  : Edge/Levl */
 	unsigned int flags;	/* Misc flags	*/
-#define GIC_FLAG_IPI           0x01
-#define GIC_FLAG_TRANSPARENT   0x02
+#define GIC_FLAG_TRANSPARENT   0x01
 };
+
+/*
+ * This is only used in EIC mode. This helps to figure out which
+ * shared interrupts we need to process when we get a vector interrupt.
+ */
+#define GIC_MAX_SHARED_INTR  0x5
+struct gic_shared_intr_map {
+	unsigned int num_shared_intr;
+	unsigned int intr_list[GIC_MAX_SHARED_INTR];
+	unsigned int local_intr_mask;
+};
+
+/* GIC nomenclature for Core Interrupt Pins. */
+#define GIC_CPU_INT0		0 /* Core Interrupt 2 */
+#define GIC_CPU_INT1		1 /* .		      */
+#define GIC_CPU_INT2		2 /* .		      */
+#define GIC_CPU_INT3		3 /* .		      */
+#define GIC_CPU_INT4		4 /* .		      */
+#define GIC_CPU_INT5		5 /* Core Interrupt 7 */
+
+/* Local GIC interrupts. */
+#define GIC_INT_TMR		(GIC_CPU_INT5)
+#define GIC_INT_PERFCTR		(GIC_CPU_INT5)
+
+/* Add 2 to convert non-EIC hardware interrupt to EIC vector number. */
+#define GIC_CPU_TO_VEC_OFFSET	(2)
+
+/* Mapped interrupt to pin X, then GIC will generate the vector (X+1). */
+#define GIC_PIN_TO_VEC_OFFSET	(1)
+
+#include <linux/clocksource.h>
+#include <linux/irq.h>
+
+extern unsigned int gic_present;
+extern unsigned int gic_frequency;
+extern unsigned long _gic_base;
+extern unsigned int gic_irq_base;
+extern unsigned int gic_irq_flags[];
+extern struct gic_shared_intr_map gic_shared_intr_map[];
 
 extern void gic_init(unsigned long gic_base_addr,
 	unsigned long gic_addrspace_size, struct gic_intr_map *intrmap,
 	unsigned int intrmap_size, unsigned int irqbase);
-
-extern unsigned int gic_get_int(void);
+extern void gic_clocksource_init(unsigned int);
+extern unsigned int gic_compare_int (void);
+extern cycle_t gic_read_count(void);
+extern cycle_t gic_read_compare(void);
+extern void gic_write_compare(cycle_t cnt);
+extern void gic_write_cpu_compare(cycle_t cnt, int cpu);
 extern void gic_send_ipi(unsigned int intr);
 extern unsigned int plat_ipi_call_int_xlate(unsigned int);
 extern unsigned int plat_ipi_resched_int_xlate(unsigned int);
-
+extern void gic_bind_eic_interrupt(int irq, int set);
+extern unsigned int gic_get_timer_pending(void);
+extern void gic_get_int_mask(unsigned long *dst, const unsigned long *src);
+extern unsigned int gic_get_int(void);
+extern void gic_enable_interrupt(int irq_vec);
+extern void gic_disable_interrupt(int irq_vec);
+extern void gic_irq_ack(struct irq_data *d);
+extern void gic_finish_irq(struct irq_data *d);
+extern void gic_platform_init(int irqs, struct irq_chip *irq_controller);
 #endif /* _ASM_GICREGS_H */

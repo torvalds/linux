@@ -72,7 +72,6 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 
@@ -470,7 +469,7 @@ static ssize_t sysfs_set_reg(struct device *dev,
 		!test_bit(DPOT_RDAC_MASK & reg, data->otp_en_mask))
 		return -EPERM;
 
-	err = strict_strtoul(buf, 10, &value);
+	err = kstrtoul(buf, 10, &value);
 	if (err)
 		return err;
 
@@ -641,7 +640,7 @@ static const struct attribute_group ad525x_group_commands = {
 	.attrs = ad525x_attributes_commands,
 };
 
-__devinit int ad_dpot_add_files(struct device *dev,
+static int ad_dpot_add_files(struct device *dev,
 		unsigned features, unsigned rdac)
 {
 	int err = sysfs_create_file(&dev->kobj,
@@ -666,7 +665,7 @@ __devinit int ad_dpot_add_files(struct device *dev,
 	return err;
 }
 
-inline void ad_dpot_remove_files(struct device *dev,
+static inline void ad_dpot_remove_files(struct device *dev,
 		unsigned features, unsigned rdac)
 {
 	sysfs_remove_file(&dev->kobj,
@@ -685,7 +684,7 @@ inline void ad_dpot_remove_files(struct device *dev,
 	}
 }
 
-int __devinit ad_dpot_probe(struct device *dev,
+int ad_dpot_probe(struct device *dev,
 		struct ad_dpot_bus_data *bdata, unsigned long devid,
 			    const char *name)
 {
@@ -749,7 +748,7 @@ exit:
 }
 EXPORT_SYMBOL(ad_dpot_probe);
 
-__devexit int ad_dpot_remove(struct device *dev)
+int ad_dpot_remove(struct device *dev)
 {
 	struct dpot_data *data = dev_get_drvdata(dev);
 	int i;

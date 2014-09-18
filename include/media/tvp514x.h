@@ -96,12 +96,9 @@ enum tvp514x_output {
 
 /**
  * struct tvp514x_platform_data - Platform data values and access functions.
- * @power_set: Power state access function, zero is off, non-zero is on.
- * @ifparm: Interface parameters access function.
- * @priv_data_set: Device private data (pointer) access function.
  * @clk_polarity: Clock polarity of the current interface.
- * @ hs_polarity: HSYNC Polarity configuration for current interface.
- * @ vs_polarity: VSYNC Polarity configuration for current interface.
+ * @hs_polarity: HSYNC Polarity configuration for current interface.
+ * @vs_polarity: VSYNC Polarity configuration for current interface.
  */
 struct tvp514x_platform_data {
 	/* Interface control params */

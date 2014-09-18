@@ -62,10 +62,10 @@ int ext2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
  */
 const struct file_operations ext2_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= do_sync_read,
-	.write		= do_sync_write,
-	.aio_read	= generic_file_aio_read,
-	.aio_write	= generic_file_aio_write,
+	.read		= new_sync_read,
+	.write		= new_sync_write,
+	.read_iter	= generic_file_read_iter,
+	.write_iter	= generic_file_write_iter,
 	.unlocked_ioctl = ext2_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ext2_compat_ioctl,
@@ -75,7 +75,7 @@ const struct file_operations ext2_file_operations = {
 	.release	= ext2_release_file,
 	.fsync		= ext2_fsync,
 	.splice_read	= generic_file_splice_read,
-	.splice_write	= generic_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 };
 
 #ifdef CONFIG_EXT2_FS_XIP
@@ -103,5 +103,6 @@ const struct inode_operations ext2_file_inode_operations = {
 #endif
 	.setattr	= ext2_setattr,
 	.get_acl	= ext2_get_acl,
+	.set_acl	= ext2_set_acl,
 	.fiemap		= ext2_fiemap,
 };

@@ -1,13 +1,12 @@
 /*
- *  arch/s390/kernel/reipl.S
- *
  *  S390 version
- *    Copyright (C) 2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2000
  *    Author(s): Holger Smolinski (Holger.Smolinski@de.ibm.com)
  */
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+#include <asm/sigp.h>
 
 #
 # store_status: Empty implementation until kdump is supported on 31 bit
@@ -60,7 +59,7 @@ ENTRY(do_reipl_asm)
 		bas	%r14,.Ldisab-.Lpg0(%r13)
 .L003:		st	%r1,__LC_SUBCHANNEL_ID
 		lpsw	0
-		sigp	0,0,0(6)
+		sigp	0,0,SIGP_RESTART
 .Ldisab:	st	%r14,.Ldispsw+4-.Lpg0(%r13)
 		lpsw	.Ldispsw-.Lpg0(%r13)
 		.align	8

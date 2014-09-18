@@ -74,7 +74,7 @@ static int system_mmc_id;
 
 static u32 pasemi_edac_get_error_info(struct mem_ctl_info *mci)
 {
-	struct pci_dev *pdev = to_pci_dev(mci->dev);
+	struct pci_dev *pdev = to_pci_dev(mci->pdev);
 	u32 tmp;
 
 	pci_read_config_dword(pdev, MCDEBUG_ERRSTA,
@@ -95,7 +95,7 @@ static u32 pasemi_edac_get_error_info(struct mem_ctl_info *mci)
 
 static void pasemi_edac_process_error_info(struct mem_ctl_info *mci, u32 errsta)
 {
-	struct pci_dev *pdev = to_pci_dev(mci->dev);
+	struct pci_dev *pdev = to_pci_dev(mci->pdev);
 	u32 errlog1a;
 	u32 cs;
 
@@ -110,15 +110,16 @@ static void pasemi_edac_process_error_info(struct mem_ctl_info *mci, u32 errsta)
 	/* uncorrectable/multi-bit errors */
 	if (errsta & (MCDEBUG_ERRSTA_MBE_STATUS |
 		      MCDEBUG_ERRSTA_RFL_STATUS)) {
-		edac_mc_handle_ue(mci, mci->csrows[cs].first_page, 0,
-				  cs, mci->ctl_name);
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
+				     mci->csrows[cs]->first_page, 0, 0,
+				     cs, 0, -1, mci->ctl_name, "");
 	}
 
 	/* correctable/single-bit errors */
-	if (errsta & MCDEBUG_ERRSTA_SBE_STATUS) {
-		edac_mc_handle_ce(mci, mci->csrows[cs].first_page, 0,
-				  0, cs, 0, mci->ctl_name);
-	}
+	if (errsta & MCDEBUG_ERRSTA_SBE_STATUS)
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
+				     mci->csrows[cs]->first_page, 0, 0,
+				     cs, 0, -1, mci->ctl_name, "");
 }
 
 static void pasemi_edac_check(struct mem_ctl_info *mci)
@@ -135,11 +136,13 @@ static int pasemi_edac_init_csrows(struct mem_ctl_info *mci,
 				   enum edac_type edac_mode)
 {
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 	u32 rankcfg;
 	int index;
 
 	for (index = 0; index < mci->nr_csrows; index++) {
-		csrow = &mci->csrows[index];
+		csrow = mci->csrows[index];
+		dimm = csrow->channels[0]->dimm;
 
 		pci_read_config_dword(pdev,
 				      MCDRAM_RANKCFG + (index * 12),
@@ -151,20 +154,20 @@ static int pasemi_edac_init_csrows(struct mem_ctl_info *mci,
 		switch ((rankcfg & MCDRAM_RANKCFG_TYPE_SIZE_M) >>
 			MCDRAM_RANKCFG_TYPE_SIZE_S) {
 		case 0:
-			csrow->nr_pages = 128 << (20 - PAGE_SHIFT);
+			dimm->nr_pages = 128 << (20 - PAGE_SHIFT);
 			break;
 		case 1:
-			csrow->nr_pages = 256 << (20 - PAGE_SHIFT);
+			dimm->nr_pages = 256 << (20 - PAGE_SHIFT);
 			break;
 		case 2:
 		case 3:
-			csrow->nr_pages = 512 << (20 - PAGE_SHIFT);
+			dimm->nr_pages = 512 << (20 - PAGE_SHIFT);
 			break;
 		case 4:
-			csrow->nr_pages = 1024 << (20 - PAGE_SHIFT);
+			dimm->nr_pages = 1024 << (20 - PAGE_SHIFT);
 			break;
 		case 5:
-			csrow->nr_pages = 2048 << (20 - PAGE_SHIFT);
+			dimm->nr_pages = 2048 << (20 - PAGE_SHIFT);
 			break;
 		default:
 			edac_mc_printk(mci, KERN_ERR,
@@ -174,21 +177,22 @@ static int pasemi_edac_init_csrows(struct mem_ctl_info *mci,
 		}
 
 		csrow->first_page = last_page_in_mmc;
-		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
-		last_page_in_mmc += csrow->nr_pages;
+		csrow->last_page = csrow->first_page + dimm->nr_pages - 1;
+		last_page_in_mmc += dimm->nr_pages;
 		csrow->page_mask = 0;
-		csrow->grain = PASEMI_EDAC_ERROR_GRAIN;
-		csrow->mtype = MEM_DDR;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = edac_mode;
+		dimm->grain = PASEMI_EDAC_ERROR_GRAIN;
+		dimm->mtype = MEM_DDR;
+		dimm->dtype = DEV_UNKNOWN;
+		dimm->edac_mode = edac_mode;
 	}
 	return 0;
 }
 
-static int __devinit pasemi_edac_probe(struct pci_dev *pdev,
-		const struct pci_device_id *ent)
+static int pasemi_edac_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *ent)
 {
 	struct mem_ctl_info *mci = NULL;
+	struct edac_mc_layer layers[2];
 	u32 errctl1, errcor, scrub, mcen;
 
 	pci_read_config_dword(pdev, MCCFG_MCEN, &mcen);
@@ -205,9 +209,14 @@ static int __devinit pasemi_edac_probe(struct pci_dev *pdev,
 		MCDEBUG_ERRCTL1_RFL_LOG_EN;
 	pci_write_config_dword(pdev, MCDEBUG_ERRCTL1, errctl1);
 
-	mci = edac_mc_alloc(0, PASEMI_EDAC_NR_CSROWS, PASEMI_EDAC_NR_CHANS,
-				system_mmc_id++);
-
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = PASEMI_EDAC_NR_CSROWS;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = PASEMI_EDAC_NR_CHANS;
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(system_mmc_id++, ARRAY_SIZE(layers), layers,
+			    0);
 	if (mci == NULL)
 		return -ENOMEM;
 
@@ -216,7 +225,7 @@ static int __devinit pasemi_edac_probe(struct pci_dev *pdev,
 		MCCFG_ERRCOR_ECC_GEN_EN |
 		MCCFG_ERRCOR_ECC_CRR_EN;
 
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR | MEM_FLAG_RDDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->edac_cap = (errcor & MCCFG_ERRCOR_ECC_GEN_EN) ?
@@ -257,7 +266,7 @@ fail:
 	return -ENODEV;
 }
 
-static void __devexit pasemi_edac_remove(struct pci_dev *pdev)
+static void pasemi_edac_remove(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci = edac_mc_del_mc(&pdev->dev);
 
@@ -278,7 +287,7 @@ MODULE_DEVICE_TABLE(pci, pasemi_edac_pci_tbl);
 static struct pci_driver pasemi_edac_driver = {
 	.name = MODULE_NAME,
 	.probe = pasemi_edac_probe,
-	.remove = __devexit_p(pasemi_edac_remove),
+	.remove = pasemi_edac_remove,
 	.id_table = pasemi_edac_pci_tbl,
 };
 

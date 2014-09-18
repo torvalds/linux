@@ -14,7 +14,9 @@
 #define ILO_NAME "hpilo"
 
 /* max number of open channel control blocks per device, hw limited to 32 */
-#define MAX_CCB		8
+#define MAX_CCB	       24
+/* min number of open channel control blocks per device, hw limited to 32 */
+#define MIN_CCB		8
 /* max number of supported devices */
 #define MAX_ILO_DEV	1
 /* max number of files */

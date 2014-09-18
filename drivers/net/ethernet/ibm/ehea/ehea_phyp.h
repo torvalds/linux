@@ -39,26 +39,6 @@
  * hcp_*  - structures, variables and functions releated to Hypervisor Calls
  */
 
-static inline u32 get_longbusy_msecs(int long_busy_ret_code)
-{
-	switch (long_busy_ret_code) {
-	case H_LONG_BUSY_ORDER_1_MSEC:
-		return 1;
-	case H_LONG_BUSY_ORDER_10_MSEC:
-		return 10;
-	case H_LONG_BUSY_ORDER_100_MSEC:
-		return 100;
-	case H_LONG_BUSY_ORDER_1_SEC:
-		return 1000;
-	case H_LONG_BUSY_ORDER_10_SEC:
-		return 10000;
-	case H_LONG_BUSY_ORDER_100_SEC:
-		return 100000;
-	default:
-		return 1;
-	}
-}
-
 /* Number of pages which can be registered at once by H_REGISTER_HEA_RPAGES */
 #define EHEA_MAX_RPAGE 512
 
@@ -450,7 +430,7 @@ u64 ehea_h_modify_ehea_port(const u64 adapter_handle, const u16 port_num,
 			    void *cb_addr);
 
 #define H_REGBCMC_PN            EHEA_BMASK_IBM(48, 63)
-#define H_REGBCMC_REGTYPE       EHEA_BMASK_IBM(61, 63)
+#define H_REGBCMC_REGTYPE       EHEA_BMASK_IBM(60, 63)
 #define H_REGBCMC_MACADDR       EHEA_BMASK_IBM(16, 63)
 #define H_REGBCMC_VLANID        EHEA_BMASK_IBM(52, 63)
 

@@ -71,7 +71,7 @@ static char *speakup_default_msgs[MSG_LAST_INDEX] = {
 	[MSG_CTL_SHIFT] = "shift",
 	[MSG_CTL_ALTGR] = "altgr",
 	[MSG_CTL_CONTROL] = "control",
-	[MSG_CTL_ALT] = "ault",
+	[MSG_CTL_ALT] = "alt",
 	[MSG_CTL_LSHIFT] = "l shift",
 	[MSG_CTL_SPEAKUP] = "speakup",
 	[MSG_CTL_LCONTROL] = "l control",
@@ -390,7 +390,7 @@ static struct msg_group_t all_groups[] = {
 
 static const  int num_groups = sizeof(all_groups) / sizeof(struct msg_group_t);
 
-char *msg_get(enum msg_index_t index)
+char *spk_msg_get(enum msg_index_t index)
 {
 	char *ch;
 
@@ -540,7 +540,7 @@ static int fmt_validate(char *template, char *user)
  * -EINVAL -  Invalid format specifiers in formatted message or illegal index.
  * -ENOMEM -  Unable to allocate memory.
 */
-ssize_t msg_set(enum msg_index_t index, char *text, size_t length)
+ssize_t spk_msg_set(enum msg_index_t index, char *text, size_t length)
 {
 	int rc = 0;
 	char *newstr = NULL;
@@ -555,13 +555,14 @@ ssize_t msg_set(enum msg_index_t index, char *text, size_t length)
 			&& index <= MSG_FORMATTED_END)
 				&& !fmt_validate(speakup_default_msgs[index],
 				newstr)) {
+				kfree(newstr);
 				return -EINVAL;
 			}
-			spk_lock(flags);
+			spin_lock_irqsave(&speakup_info.spinlock, flags);
 			if (speakup_msgs[index] != speakup_default_msgs[index])
 				kfree(speakup_msgs[index]);
 			speakup_msgs[index] = newstr;
-			spk_unlock(flags);
+			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		} else {
 			rc = -ENOMEM;
 		}
@@ -575,7 +576,7 @@ ssize_t msg_set(enum msg_index_t index, char *text, size_t length)
  * Find a message group, given its name.  Return a pointer to the structure
  * if found, or NULL otherwise.
 */
-struct msg_group_t *find_msg_group(const char *group_name)
+struct msg_group_t *spk_find_msg_group(const char *group_name)
 {
 	struct msg_group_t *group = NULL;
 	int i;
@@ -589,40 +590,40 @@ struct msg_group_t *find_msg_group(const char *group_name)
 	return group;
 }
 
-void reset_msg_group(struct msg_group_t *group)
+void spk_reset_msg_group(struct msg_group_t *group)
 {
 	unsigned long flags;
 	enum msg_index_t i;
 
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 
 	for (i = group->start; i <= group->end; i++) {
 		if (speakup_msgs[i] != speakup_default_msgs[i])
 			kfree(speakup_msgs[i]);
 		speakup_msgs[i] = speakup_default_msgs[i];
 	}
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
 /* Called at initialization time, to establish default messages. */
-void initialize_msgs(void)
+void spk_initialize_msgs(void)
 {
 	memcpy(speakup_msgs, speakup_default_msgs,
 		sizeof(speakup_default_msgs));
 }
 
 /* Free user-supplied strings when module is unloaded: */
-void free_user_msgs(void)
+void spk_free_user_msgs(void)
 {
 	enum msg_index_t index;
 	unsigned long flags;
 
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	for (index = MSG_FIRST_INDEX; index < MSG_LAST_INDEX; index++) {
 		if (speakup_msgs[index] != speakup_default_msgs[index]) {
 			kfree(speakup_msgs[index]);
 			speakup_msgs[index] = speakup_default_msgs[index];
 		}
 	}
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }

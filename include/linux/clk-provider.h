@@ -12,21 +12,9 @@
 #define __LINUX_CLK_PROVIDER_H
 
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #ifdef CONFIG_COMMON_CLK
-
-/**
- * struct clk_hw - handle for traversing from a struct clk to its corresponding
- * hardware-specific structure.  struct clk_hw should be declared within struct
- * clk_foo and then referenced by the struct clk instance that uses struct
- * clk_foo's clk_ops
- *
- * clk: pointer to the struct clk instance that points back to this struct
- * clk_hw instance
- */
-struct clk_hw {
-	struct clk *clk;
-};
 
 /*
  * flags used across common struct clk.  these flags should only affect the
@@ -38,6 +26,13 @@ struct clk_hw {
 #define CLK_SET_RATE_PARENT	BIT(2) /* propagate rate change up one level */
 #define CLK_IGNORE_UNUSED	BIT(3) /* do not gate even if unused */
 #define CLK_IS_ROOT		BIT(4) /* root clk, has no parent */
+#define CLK_IS_BASIC		BIT(5) /* Basic clk, can't do a to_clk_foo() */
+#define CLK_GET_RATE_NOCACHE	BIT(6) /* do not use the cached clk rate */
+#define CLK_SET_RATE_NO_REPARENT BIT(7) /* don't re-parent on rate change */
+#define CLK_GET_ACCURACY_NOCACHE BIT(8) /* do not use the cached clk accuracy */
+
+struct clk_hw;
+struct dentry;
 
 /**
  * struct clk_ops -  Callback operations for hardware clocks; these are to
@@ -45,68 +40,112 @@ struct clk_hw {
  * through the clk_* api.
  *
  * @prepare:	Prepare the clock for enabling. This must not return until
- * 		the clock is fully prepared, and it's safe to call clk_enable.
- * 		This callback is intended to allow clock implementations to
- * 		do any initialisation that may sleep. Called with
- * 		prepare_lock held.
+ *		the clock is fully prepared, and it's safe to call clk_enable.
+ *		This callback is intended to allow clock implementations to
+ *		do any initialisation that may sleep. Called with
+ *		prepare_lock held.
  *
  * @unprepare:	Release the clock from its prepared state. This will typically
- * 		undo any work done in the @prepare callback. Called with
- * 		prepare_lock held.
+ *		undo any work done in the @prepare callback. Called with
+ *		prepare_lock held.
+ *
+ * @is_prepared: Queries the hardware to determine if the clock is prepared.
+ *		This function is allowed to sleep. Optional, if this op is not
+ *		set then the prepare count will be used.
+ *
+ * @unprepare_unused: Unprepare the clock atomically.  Only called from
+ *		clk_disable_unused for prepare clocks with special needs.
+ *		Called with prepare mutex held. This function may sleep.
  *
  * @enable:	Enable the clock atomically. This must not return until the
- * 		clock is generating a valid clock signal, usable by consumer
- * 		devices. Called with enable_lock held. This function must not
- * 		sleep.
+ *		clock is generating a valid clock signal, usable by consumer
+ *		devices. Called with enable_lock held. This function must not
+ *		sleep.
  *
  * @disable:	Disable the clock atomically. Called with enable_lock held.
- * 		This function must not sleep.
+ *		This function must not sleep.
  *
- * @recalc_rate	Recalculate the rate of this clock, by quering hardware.  The
- * 		parent rate is an input parameter.  It is up to the caller to
- * 		insure that the prepare_mutex is held across this call.
- * 		Returns the calculated rate.  Optional, but recommended - if
- * 		this op is not set then clock rate will be initialized to 0.
+ * @is_enabled:	Queries the hardware to determine if the clock is enabled.
+ *		This function must not sleep. Optional, if this op is not
+ *		set then the enable count will be used.
+ *
+ * @disable_unused: Disable the clock atomically.  Only called from
+ *		clk_disable_unused for gate clocks with special needs.
+ *		Called with enable_lock held.  This function must not
+ *		sleep.
+ *
+ * @recalc_rate	Recalculate the rate of this clock, by querying hardware. The
+ *		parent rate is an input parameter.  It is up to the caller to
+ *		ensure that the prepare_mutex is held across this call.
+ *		Returns the calculated rate.  Optional, but recommended - if
+ *		this op is not set then clock rate will be initialized to 0.
  *
  * @round_rate:	Given a target rate as input, returns the closest rate actually
- * 		supported by the clock.
+ *		supported by the clock. The parent rate is an input/output
+ *		parameter.
  *
- * @get_parent:	Queries the hardware to determine the parent of a clock.  The
- * 		return value is a u8 which specifies the index corresponding to
- * 		the parent clock.  This index can be applied to either the
- * 		.parent_names or .parents arrays.  In short, this function
- * 		translates the parent value read from hardware into an array
- * 		index.  Currently only called when the clock is initialized by
- * 		__clk_init.  This callback is mandatory for clocks with
- * 		multiple parents.  It is optional (and unnecessary) for clocks
- * 		with 0 or 1 parents.
+ * @determine_rate: Given a target rate as input, returns the closest rate
+ *		actually supported by the clock, and optionally the parent clock
+ *		that should be used to provide the clock rate.
  *
  * @set_parent:	Change the input source of this clock; for clocks with multiple
- * 		possible parents specify a new parent by passing in the index
- * 		as a u8 corresponding to the parent in either the .parent_names
- * 		or .parents arrays.  This function in affect translates an
- * 		array index into the value programmed into the hardware.
- * 		Returns 0 on success, -EERROR otherwise.
+ *		possible parents specify a new parent by passing in the index
+ *		as a u8 corresponding to the parent in either the .parent_names
+ *		or .parents arrays.  This function in affect translates an
+ *		array index into the value programmed into the hardware.
+ *		Returns 0 on success, -EERROR otherwise.
  *
- * @set_rate:	Change the rate of this clock. If this callback returns
- * 		CLK_SET_RATE_PARENT, the rate change will be propagated to the
- * 		parent clock (which may propagate again if the parent clock
- * 		also sets this flag). The requested rate of the parent is
- * 		passed back from the callback in the second 'unsigned long *'
- * 		argument.  Note that it is up to the hardware clock's set_rate
- * 		implementation to insure that clocks do not run out of spec
- * 		when propgating the call to set_rate up to the parent.  One way
- * 		to do this is to gate the clock (via clk_disable and/or
- * 		clk_unprepare) before calling clk_set_rate, then ungating it
- * 		afterward.  If your clock also has the CLK_GATE_SET_RATE flag
- * 		set then this will insure safety.  Returns 0 on success,
- * 		-EERROR otherwise.
+ * @get_parent:	Queries the hardware to determine the parent of a clock.  The
+ *		return value is a u8 which specifies the index corresponding to
+ *		the parent clock.  This index can be applied to either the
+ *		.parent_names or .parents arrays.  In short, this function
+ *		translates the parent value read from hardware into an array
+ *		index.  Currently only called when the clock is initialized by
+ *		__clk_init.  This callback is mandatory for clocks with
+ *		multiple parents.  It is optional (and unnecessary) for clocks
+ *		with 0 or 1 parents.
+ *
+ * @set_rate:	Change the rate of this clock. The requested rate is specified
+ *		by the second argument, which should typically be the return
+ *		of .round_rate call.  The third argument gives the parent rate
+ *		which is likely helpful for most .set_rate implementation.
+ *		Returns 0 on success, -EERROR otherwise.
+ *
+ * @set_rate_and_parent: Change the rate and the parent of this clock. The
+ *		requested rate is specified by the second argument, which
+ *		should typically be the return of .round_rate call.  The
+ *		third argument gives the parent rate which is likely helpful
+ *		for most .set_rate_and_parent implementation. The fourth
+ *		argument gives the parent index. This callback is optional (and
+ *		unnecessary) for clocks with 0 or 1 parents as well as
+ *		for clocks that can tolerate switching the rate and the parent
+ *		separately via calls to .set_parent and .set_rate.
+ *		Returns 0 on success, -EERROR otherwise.
+ *
+ * @recalc_accuracy: Recalculate the accuracy of this clock. The clock accuracy
+ *		is expressed in ppb (parts per billion). The parent accuracy is
+ *		an input parameter.
+ *		Returns the calculated accuracy.  Optional - if	this op is not
+ *		set then clock accuracy will be initialized to parent accuracy
+ *		or 0 (perfect clock) if clock has no parent.
+ *
+ * @init:	Perform platform-specific initialization magic.
+ *		This is not not used by any of the basic clock types.
+ *		Please consider other ways of solving initialization problems
+ *		before using this callback, as its use is discouraged.
+ *
+ * @debug_init:	Set up type-specific debugfs entries for this clock.  This
+ *		is called once, after the debugfs directory entry for this
+ *		clock has been created.  The dentry pointer representing that
+ *		directory is provided as an argument.  Called with
+ *		prepare_lock held.  Returns 0 on success, -EERROR otherwise.
+ *
  *
  * The clk_enable/clk_disable and clk_prepare/clk_unprepare pairs allow
  * implementations to split any work between atomic (enable) and sleepable
  * (prepare) contexts.  If enabling a clock requires code that might sleep,
  * this must be done in clk_prepare.  Clock enable code that will never be
- * called in a sleepable context may be implement in clk_enable.
+ * called in a sleepable context may be implemented in clk_enable.
  *
  * Typically, drivers will call clk_prepare when a clock may be needed later
  * (eg. when a device is opened), and clk_enable when the clock is actually
@@ -116,17 +155,65 @@ struct clk_hw {
 struct clk_ops {
 	int		(*prepare)(struct clk_hw *hw);
 	void		(*unprepare)(struct clk_hw *hw);
+	int		(*is_prepared)(struct clk_hw *hw);
+	void		(*unprepare_unused)(struct clk_hw *hw);
 	int		(*enable)(struct clk_hw *hw);
 	void		(*disable)(struct clk_hw *hw);
 	int		(*is_enabled)(struct clk_hw *hw);
+	void		(*disable_unused)(struct clk_hw *hw);
 	unsigned long	(*recalc_rate)(struct clk_hw *hw,
 					unsigned long parent_rate);
-	long		(*round_rate)(struct clk_hw *hw, unsigned long,
-					unsigned long *);
+	long		(*round_rate)(struct clk_hw *hw, unsigned long rate,
+					unsigned long *parent_rate);
+	long		(*determine_rate)(struct clk_hw *hw, unsigned long rate,
+					unsigned long *best_parent_rate,
+					struct clk **best_parent_clk);
 	int		(*set_parent)(struct clk_hw *hw, u8 index);
 	u8		(*get_parent)(struct clk_hw *hw);
-	int		(*set_rate)(struct clk_hw *hw, unsigned long);
+	int		(*set_rate)(struct clk_hw *hw, unsigned long rate,
+				    unsigned long parent_rate);
+	int		(*set_rate_and_parent)(struct clk_hw *hw,
+				    unsigned long rate,
+				    unsigned long parent_rate, u8 index);
+	unsigned long	(*recalc_accuracy)(struct clk_hw *hw,
+					   unsigned long parent_accuracy);
 	void		(*init)(struct clk_hw *hw);
+	int		(*debug_init)(struct clk_hw *hw, struct dentry *dentry);
+};
+
+/**
+ * struct clk_init_data - holds init data that's common to all clocks and is
+ * shared between the clock provider and the common clock framework.
+ *
+ * @name: clock name
+ * @ops: operations this clock supports
+ * @parent_names: array of string names for all possible parents
+ * @num_parents: number of possible parents
+ * @flags: framework-level hints and quirks
+ */
+struct clk_init_data {
+	const char		*name;
+	const struct clk_ops	*ops;
+	const char		**parent_names;
+	u8			num_parents;
+	unsigned long		flags;
+};
+
+/**
+ * struct clk_hw - handle for traversing from a struct clk to its corresponding
+ * hardware-specific structure.  struct clk_hw should be declared within struct
+ * clk_foo and then referenced by the struct clk instance that uses struct
+ * clk_foo's clk_ops
+ *
+ * @clk: pointer to the struct clk instance that points back to this struct
+ * clk_hw instance
+ *
+ * @init: pointer to struct clk_init_data that contains the init data shared
+ * with the common clock framework.
+ */
+struct clk_hw {
+	struct clk *clk;
+	const struct clk_init_data *init;
 };
 
 /*
@@ -146,12 +233,19 @@ struct clk_ops {
 struct clk_fixed_rate {
 	struct		clk_hw hw;
 	unsigned long	fixed_rate;
+	unsigned long	fixed_accuracy;
 	u8		flags;
 };
 
+extern const struct clk_ops clk_fixed_rate_ops;
 struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		unsigned long fixed_rate);
+struct clk *clk_register_fixed_rate_with_accuracy(struct device *dev,
+		const char *name, const char *parent_name, unsigned long flags,
+		unsigned long fixed_rate, unsigned long fixed_accuracy);
+
+void of_fixed_clk_setup(struct device_node *np);
 
 /**
  * struct clk_gate - gating clock
@@ -165,9 +259,13 @@ struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
  * Clock which can gate its output.  Implements .enable & .disable
  *
  * Flags:
- * CLK_GATE_SET_DISABLE - by default this clock sets the bit at bit_idx to
- * 	enable the clock.  Setting this flag does the opposite: setting the bit
- * 	disable the clock and clearing it enables the clock
+ * CLK_GATE_SET_TO_DISABLE - by default this clock sets the bit at bit_idx to
+ *	enable the clock.  Setting this flag does the opposite: setting the bit
+ *	disable the clock and clearing it enables the clock
+ * CLK_GATE_HIWORD_MASK - The gate settings are only in lower 16-bit
+ *	of this register, and mask of gate bits are in higher 16-bit of this
+ *	register.  While setting the gate bits, higher 16-bit should also be
+ *	updated to indicate changing gate bits.
  */
 struct clk_gate {
 	struct clk_hw hw;
@@ -175,15 +273,21 @@ struct clk_gate {
 	u8		bit_idx;
 	u8		flags;
 	spinlock_t	*lock;
-	char		*parent[1];
 };
 
 #define CLK_GATE_SET_TO_DISABLE		BIT(0)
+#define CLK_GATE_HIWORD_MASK		BIT(1)
 
+extern const struct clk_ops clk_gate_ops;
 struct clk *clk_register_gate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		void __iomem *reg, u8 bit_idx,
 		u8 clk_gate_flags, spinlock_t *lock);
+
+struct clk_div_table {
+	unsigned int	val;
+	unsigned int	div;
+};
 
 /**
  * struct clk_divider - adjustable divider clock
@@ -192,6 +296,7 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
  * @reg:	register containing the divider
  * @shift:	shift to the divider bit field
  * @width:	width of the divider bit field
+ * @table:	array of value/divider pairs, last entry should have div = 0
  * @lock:	register lock
  *
  * Clock with an adjustable divider affecting its output frequency.  Implements
@@ -199,11 +304,24 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
  *
  * Flags:
  * CLK_DIVIDER_ONE_BASED - by default the divisor is the value read from the
- * 	register plus one.  If CLK_DIVIDER_ONE_BASED is set then the divider is
- * 	the raw value read from the register, with the value of zero considered
- * 	invalid
+ *	register plus one.  If CLK_DIVIDER_ONE_BASED is set then the divider is
+ *	the raw value read from the register, with the value of zero considered
+ *	invalid, unless CLK_DIVIDER_ALLOW_ZERO is set.
  * CLK_DIVIDER_POWER_OF_TWO - clock divisor is 2 raised to the value read from
- * 	the hardware register
+ *	the hardware register
+ * CLK_DIVIDER_ALLOW_ZERO - Allow zero divisors.  For dividers which have
+ *	CLK_DIVIDER_ONE_BASED set, it is possible to end up with a zero divisor.
+ *	Some hardware implementations gracefully handle this case and allow a
+ *	zero divisor by not modifying their input clock
+ *	(divide by one / bypass).
+ * CLK_DIVIDER_HIWORD_MASK - The divider settings are only in lower 16-bit
+ *	of this register, and mask of divider bits are in higher 16-bit of this
+ *	register.  While setting the divider bits, higher 16-bit should also be
+ *	updated to indicate changing divider bits.
+ * CLK_DIVIDER_ROUND_CLOSEST - Makes the best calculated divider to be rounded
+ *	to the closest integer instead of the up one.
+ * CLK_DIVIDER_READ_ONLY - The divider settings are preconfigured and should
+ *	not be changed by the clock framework.
  */
 struct clk_divider {
 	struct clk_hw	hw;
@@ -211,17 +329,28 @@ struct clk_divider {
 	u8		shift;
 	u8		width;
 	u8		flags;
+	const struct clk_div_table	*table;
 	spinlock_t	*lock;
-	char		*parent[1];
 };
 
 #define CLK_DIVIDER_ONE_BASED		BIT(0)
 #define CLK_DIVIDER_POWER_OF_TWO	BIT(1)
+#define CLK_DIVIDER_ALLOW_ZERO		BIT(2)
+#define CLK_DIVIDER_HIWORD_MASK		BIT(3)
+#define CLK_DIVIDER_ROUND_CLOSEST	BIT(4)
+#define CLK_DIVIDER_READ_ONLY		BIT(5)
 
+extern const struct clk_ops clk_divider_ops;
+extern const struct clk_ops clk_divider_ro_ops;
 struct clk *clk_register_divider(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		void __iomem *reg, u8 shift, u8 width,
 		u8 clk_divider_flags, spinlock_t *lock);
+struct clk *clk_register_divider_table(struct device *dev, const char *name,
+		const char *parent_name, unsigned long flags,
+		void __iomem *reg, u8 shift, u8 width,
+		u8 clk_divider_flags, const struct clk_div_table *table,
+		spinlock_t *lock);
 
 /**
  * struct clk_mux - multiplexer clock
@@ -230,7 +359,7 @@ struct clk *clk_register_divider(struct device *dev, const char *name,
  * @reg:	register controlling multiplexer
  * @shift:	shift to multiplexer bit field
  * @width:	width of mutliplexer bit field
- * @num_clks:	number of parent clocks
+ * @flags:	hardware-specific flags
  * @lock:	register lock
  *
  * Clock with multiple selectable parents.  Implements .get_parent, .set_parent
@@ -238,55 +367,161 @@ struct clk *clk_register_divider(struct device *dev, const char *name,
  *
  * Flags:
  * CLK_MUX_INDEX_ONE - register index starts at 1, not 0
- * CLK_MUX_INDEX_BITWISE - register index is a single bit (power of two)
+ * CLK_MUX_INDEX_BIT - register index is a single bit (power of two)
+ * CLK_MUX_HIWORD_MASK - The mux settings are only in lower 16-bit of this
+ *	register, and mask of mux bits are in higher 16-bit of this register.
+ *	While setting the mux bits, higher 16-bit should also be updated to
+ *	indicate changing mux bits.
  */
 struct clk_mux {
 	struct clk_hw	hw;
 	void __iomem	*reg;
+	u32		*table;
+	u32		mask;
 	u8		shift;
-	u8		width;
 	u8		flags;
 	spinlock_t	*lock;
 };
 
 #define CLK_MUX_INDEX_ONE		BIT(0)
 #define CLK_MUX_INDEX_BIT		BIT(1)
+#define CLK_MUX_HIWORD_MASK		BIT(2)
+#define CLK_MUX_READ_ONLY	BIT(3) /* mux setting cannot be changed */
+
+extern const struct clk_ops clk_mux_ops;
+extern const struct clk_ops clk_mux_ro_ops;
 
 struct clk *clk_register_mux(struct device *dev, const char *name,
-		char **parent_names, u8 num_parents, unsigned long flags,
+		const char **parent_names, u8 num_parents, unsigned long flags,
 		void __iomem *reg, u8 shift, u8 width,
 		u8 clk_mux_flags, spinlock_t *lock);
+
+struct clk *clk_register_mux_table(struct device *dev, const char *name,
+		const char **parent_names, u8 num_parents, unsigned long flags,
+		void __iomem *reg, u8 shift, u32 mask,
+		u8 clk_mux_flags, u32 *table, spinlock_t *lock);
+
+void of_fixed_factor_clk_setup(struct device_node *node);
+
+/**
+ * struct clk_fixed_factor - fixed multiplier and divider clock
+ *
+ * @hw:		handle between common and hardware-specific interfaces
+ * @mult:	multiplier
+ * @div:	divider
+ *
+ * Clock with a fixed multiplier and divider. The output frequency is the
+ * parent clock rate divided by div and multiplied by mult.
+ * Implements .recalc_rate, .set_rate and .round_rate
+ */
+
+struct clk_fixed_factor {
+	struct clk_hw	hw;
+	unsigned int	mult;
+	unsigned int	div;
+};
+
+extern struct clk_ops clk_fixed_factor_ops;
+struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
+		const char *parent_name, unsigned long flags,
+		unsigned int mult, unsigned int div);
+
+/**
+ * struct clk_fractional_divider - adjustable fractional divider clock
+ *
+ * @hw:		handle between common and hardware-specific interfaces
+ * @reg:	register containing the divider
+ * @mshift:	shift to the numerator bit field
+ * @mwidth:	width of the numerator bit field
+ * @nshift:	shift to the denominator bit field
+ * @nwidth:	width of the denominator bit field
+ * @lock:	register lock
+ *
+ * Clock with adjustable fractional divider affecting its output frequency.
+ */
+
+struct clk_fractional_divider {
+	struct clk_hw	hw;
+	void __iomem	*reg;
+	u8		mshift;
+	u32		mmask;
+	u8		nshift;
+	u32		nmask;
+	u8		flags;
+	spinlock_t	*lock;
+};
+
+extern const struct clk_ops clk_fractional_divider_ops;
+struct clk *clk_register_fractional_divider(struct device *dev,
+		const char *name, const char *parent_name, unsigned long flags,
+		void __iomem *reg, u8 mshift, u8 mwidth, u8 nshift, u8 nwidth,
+		u8 clk_divider_flags, spinlock_t *lock);
+
+/***
+ * struct clk_composite - aggregate clock of mux, divider and gate clocks
+ *
+ * @hw:		handle between common and hardware-specific interfaces
+ * @mux_hw:	handle between composite and hardware-specific mux clock
+ * @rate_hw:	handle between composite and hardware-specific rate clock
+ * @gate_hw:	handle between composite and hardware-specific gate clock
+ * @mux_ops:	clock ops for mux
+ * @rate_ops:	clock ops for rate
+ * @gate_ops:	clock ops for gate
+ */
+struct clk_composite {
+	struct clk_hw	hw;
+	struct clk_ops	ops;
+
+	struct clk_hw	*mux_hw;
+	struct clk_hw	*rate_hw;
+	struct clk_hw	*gate_hw;
+
+	const struct clk_ops	*mux_ops;
+	const struct clk_ops	*rate_ops;
+	const struct clk_ops	*gate_ops;
+};
+
+struct clk *clk_register_composite(struct device *dev, const char *name,
+		const char **parent_names, int num_parents,
+		struct clk_hw *mux_hw, const struct clk_ops *mux_ops,
+		struct clk_hw *rate_hw, const struct clk_ops *rate_ops,
+		struct clk_hw *gate_hw, const struct clk_ops *gate_ops,
+		unsigned long flags);
 
 /**
  * clk_register - allocate a new clock, register it and return an opaque cookie
  * @dev: device that is registering this clock
- * @name: clock name
- * @ops: operations this clock supports
  * @hw: link to hardware-specific clock data
- * @parent_names: array of string names for all possible parents
- * @num_parents: number of possible parents
- * @flags: framework-level hints and quirks
  *
  * clk_register is the primary interface for populating the clock tree with new
  * clock nodes.  It returns a pointer to the newly allocated struct clk which
  * cannot be dereferenced by driver code but may be used in conjuction with the
- * rest of the clock API.
+ * rest of the clock API.  In the event of an error clk_register will return an
+ * error code; drivers must test for an error code after calling clk_register.
  */
-struct clk *clk_register(struct device *dev, const char *name,
-		const struct clk_ops *ops, struct clk_hw *hw,
-		char **parent_names, u8 num_parents, unsigned long flags);
+struct clk *clk_register(struct device *dev, struct clk_hw *hw);
+struct clk *devm_clk_register(struct device *dev, struct clk_hw *hw);
+
+void clk_unregister(struct clk *clk);
+void devm_clk_unregister(struct device *dev, struct clk *clk);
 
 /* helper functions */
 const char *__clk_get_name(struct clk *clk);
 struct clk_hw *__clk_get_hw(struct clk *clk);
 u8 __clk_get_num_parents(struct clk *clk);
 struct clk *__clk_get_parent(struct clk *clk);
-inline int __clk_get_enable_count(struct clk *clk);
-inline int __clk_get_prepare_count(struct clk *clk);
+struct clk *clk_get_parent_by_index(struct clk *clk, u8 index);
+unsigned int __clk_get_enable_count(struct clk *clk);
+unsigned int __clk_get_prepare_count(struct clk *clk);
 unsigned long __clk_get_rate(struct clk *clk);
+unsigned long __clk_get_accuracy(struct clk *clk);
 unsigned long __clk_get_flags(struct clk *clk);
-int __clk_is_enabled(struct clk *clk);
+bool __clk_is_prepared(struct clk *clk);
+bool __clk_is_enabled(struct clk *clk);
 struct clk *__clk_lookup(const char *name);
+long __clk_mux_determine_rate(struct clk_hw *hw, unsigned long rate,
+			      unsigned long *best_parent_rate,
+			      struct clk **best_parent_p);
 
 /*
  * FIXME clock api without lock protection
@@ -295,6 +530,99 @@ int __clk_prepare(struct clk *clk);
 void __clk_unprepare(struct clk *clk);
 void __clk_reparent(struct clk *clk, struct clk *new_parent);
 unsigned long __clk_round_rate(struct clk *clk, unsigned long rate);
+
+struct of_device_id;
+
+typedef void (*of_clk_init_cb_t)(struct device_node *);
+
+struct clk_onecell_data {
+	struct clk **clks;
+	unsigned int clk_num;
+};
+
+extern struct of_device_id __clk_of_table;
+
+#define CLK_OF_DECLARE(name, compat, fn) OF_DECLARE_1(clk, name, compat, fn)
+
+#ifdef CONFIG_OF
+int of_clk_add_provider(struct device_node *np,
+			struct clk *(*clk_src_get)(struct of_phandle_args *args,
+						   void *data),
+			void *data);
+void of_clk_del_provider(struct device_node *np);
+struct clk *of_clk_src_simple_get(struct of_phandle_args *clkspec,
+				  void *data);
+struct clk *of_clk_src_onecell_get(struct of_phandle_args *clkspec, void *data);
+int of_clk_get_parent_count(struct device_node *np);
+const char *of_clk_get_parent_name(struct device_node *np, int index);
+
+void of_clk_init(const struct of_device_id *matches);
+
+#else /* !CONFIG_OF */
+
+static inline int of_clk_add_provider(struct device_node *np,
+			struct clk *(*clk_src_get)(struct of_phandle_args *args,
+						   void *data),
+			void *data)
+{
+	return 0;
+}
+#define of_clk_del_provider(np) \
+	{ while (0); }
+static inline struct clk *of_clk_src_simple_get(
+	struct of_phandle_args *clkspec, void *data)
+{
+	return ERR_PTR(-ENOENT);
+}
+static inline struct clk *of_clk_src_onecell_get(
+	struct of_phandle_args *clkspec, void *data)
+{
+	return ERR_PTR(-ENOENT);
+}
+static inline const char *of_clk_get_parent_name(struct device_node *np,
+						 int index)
+{
+	return NULL;
+}
+#define of_clk_init(matches) \
+	{ while (0); }
+#endif /* CONFIG_OF */
+
+/*
+ * wrap access to peripherals in accessor routines
+ * for improved portability across platforms
+ */
+
+#if IS_ENABLED(CONFIG_PPC)
+
+static inline u32 clk_readl(u32 __iomem *reg)
+{
+	return ioread32be(reg);
+}
+
+static inline void clk_writel(u32 val, u32 __iomem *reg)
+{
+	iowrite32be(val, reg);
+}
+
+#else	/* platform dependent I/O accessors */
+
+static inline u32 clk_readl(u32 __iomem *reg)
+{
+	return readl(reg);
+}
+
+static inline void clk_writel(u32 val, u32 __iomem *reg)
+{
+	writel(val, reg);
+}
+
+#endif	/* platform dependent I/O accessors */
+
+#ifdef CONFIG_DEBUG_FS
+struct dentry *clk_debugfs_add_file(struct clk *clk, char *name, umode_t mode,
+				void *data, const struct file_operations *fops);
+#endif
 
 #endif /* CONFIG_COMMON_CLK */
 #endif /* CLK_PROVIDER_H */

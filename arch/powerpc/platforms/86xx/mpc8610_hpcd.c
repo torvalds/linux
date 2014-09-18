@@ -91,6 +91,9 @@ static struct of_device_id __initdata mpc8610_ids[] = {
 	{ .compatible = "simple-bus", },
 	/* So that the DMA channel nodes can be probed individually: */
 	{ .compatible = "fsl,eloplus-dma", },
+	/* PCI controllers */
+	{ .compatible = "fsl,mpc8610-pci", },
+	{ .compatible = "fsl,mpc8641-pcie", },
 	{}
 };
 
@@ -107,7 +110,7 @@ static int __init mpc8610_declare_of_platform_devices(void)
 
 	return 0;
 }
-machine_device_initcall(mpc86xx_hpcd, mpc8610_declare_of_platform_devices);
+machine_arch_initcall(mpc86xx_hpcd, mpc8610_declare_of_platform_devices);
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 
@@ -233,14 +236,14 @@ void mpc8610hpcd_set_pixel_clock(unsigned int pixclock)
 	/* Map the global utilities registers. */
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,mpc8610-guts");
 	if (!guts_np) {
-		pr_err("mpc8610hpcd: missing global utilties device node\n");
+		pr_err("mpc8610hpcd: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_np, 0);
 	of_node_put(guts_np);
 	if (!guts) {
-		pr_err("mpc8610hpcd: could not map global utilties device\n");
+		pr_err("mpc8610hpcd: could not map global utilities device\n");
 		return;
 	}
 
@@ -278,25 +281,13 @@ mpc8610hpcd_valid_monitor_port(enum fsl_diu_monitor_port port)
 static void __init mpc86xx_hpcd_setup_arch(void)
 {
 	struct resource r;
-	struct device_node *np;
 	unsigned char *pixis;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc86xx_hpcd_setup_arch()", 0);
 
-#ifdef CONFIG_PCI
-	for_each_node_by_type(np, "pci") {
-		if (of_device_is_compatible(np, "fsl,mpc8610-pci")
-		    || of_device_is_compatible(np, "fsl,mpc8641-pcie")) {
-			struct resource rsrc;
-			of_address_to_resource(np, 0, &rsrc);
-			if ((rsrc.start & 0xfffff) == 0xa000)
-				fsl_add_bridge(np, 1);
-			else
-				fsl_add_bridge(np, 0);
-		}
-        }
-#endif
+	fsl_pci_assign_primary();
+
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 	diu_ops.get_pixel_format	= mpc8610hpcd_get_pixel_format;
 	diu_ops.set_gamma_table		= mpc8610hpcd_set_gamma_table;
@@ -362,5 +353,7 @@ define_machine(mpc86xx_hpcd) {
 	.time_init		= mpc86xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
+#ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+#endif
 };

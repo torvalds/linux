@@ -24,8 +24,8 @@ CHECKFLAGS	+= -D__s390__ -msize-long
 else
 LD_BFD		:= elf64-s390
 LDFLAGS		:= -m elf64_s390
-KBUILD_AFLAGS_MODULE += -fpic -D__PIC__
-KBUILD_CFLAGS_MODULE += -fpic -D__PIC__
+KBUILD_AFLAGS_MODULE += -fPIC
+KBUILD_CFLAGS_MODULE += -fPIC
 KBUILD_CFLAGS	+= -m64
 KBUILD_AFLAGS	+= -m64
 UTS_MACHINE	:= s390x
@@ -35,12 +35,21 @@ endif
 
 export LD_BFD
 
-cflags-$(CONFIG_MARCH_G5)   += $(call cc-option,-march=g5)
-cflags-$(CONFIG_MARCH_Z900) += $(call cc-option,-march=z900)
-cflags-$(CONFIG_MARCH_Z990) += $(call cc-option,-march=z990)
-cflags-$(CONFIG_MARCH_Z9_109) += $(call cc-option,-march=z9-109)
-cflags-$(CONFIG_MARCH_Z10) += $(call cc-option,-march=z10)
-cflags-$(CONFIG_MARCH_Z196) += $(call cc-option,-march=z196)
+cflags-$(CONFIG_MARCH_G5)     += -march=g5
+cflags-$(CONFIG_MARCH_Z900)   += -march=z900
+cflags-$(CONFIG_MARCH_Z990)   += -march=z990
+cflags-$(CONFIG_MARCH_Z9_109) += -march=z9-109
+cflags-$(CONFIG_MARCH_Z10)    += -march=z10
+cflags-$(CONFIG_MARCH_Z196)   += -march=z196
+cflags-$(CONFIG_MARCH_ZEC12)  += -march=zEC12
+
+cflags-$(CONFIG_MARCH_G5_TUNE)		+= -mtune=g5
+cflags-$(CONFIG_MARCH_Z900_TUNE)	+= -mtune=z900
+cflags-$(CONFIG_MARCH_Z990_TUNE)	+= -mtune=z990
+cflags-$(CONFIG_MARCH_Z9_109_TUNE)	+= -mtune=z9-109
+cflags-$(CONFIG_MARCH_Z10_TUNE)		+= -mtune=z10
+cflags-$(CONFIG_MARCH_Z196_TUNE)	+= -mtune=z196
+cflags-$(CONFIG_MARCH_ZEC12_TUNE)	+= -mtune=zEC12
 
 #KBUILD_IMAGE is necessary for make rpm
 KBUILD_IMAGE	:=arch/s390/boot/image
@@ -54,22 +63,12 @@ cflags-$(CONFIG_FRAME_POINTER) += -fno-optimize-sibling-calls
 ifeq ($(call cc-option-yn,-mkernel-backchain),y)
 cflags-$(CONFIG_PACK_STACK)  += -mkernel-backchain -D__PACK_STACK
 aflags-$(CONFIG_PACK_STACK)  += -D__PACK_STACK
-cflags-$(CONFIG_SMALL_STACK) += -D__SMALL_STACK
-aflags-$(CONFIG_SMALL_STACK) += -D__SMALL_STACK
-ifdef CONFIG_SMALL_STACK
-STACK_SIZE := $(shell echo $$(($(STACK_SIZE)/2)) )
-endif
 endif
 
 # new style option for packed stacks
 ifeq ($(call cc-option-yn,-mpacked-stack),y)
 cflags-$(CONFIG_PACK_STACK)  += -mpacked-stack -D__PACK_STACK
 aflags-$(CONFIG_PACK_STACK)  += -D__PACK_STACK
-cflags-$(CONFIG_SMALL_STACK) += -D__SMALL_STACK
-aflags-$(CONFIG_SMALL_STACK) += -D__SMALL_STACK
-ifdef CONFIG_SMALL_STACK
-STACK_SIZE := $(shell echo $$(($(STACK_SIZE)/2)) )
-endif
 endif
 
 ifeq ($(call cc-option-yn,-mstack-size=8192 -mstack-guard=128),y)
@@ -91,7 +90,6 @@ OBJCOPYFLAGS	:= -O binary
 
 head-y		:= arch/s390/kernel/head.o
 head-y		+= arch/s390/kernel/$(if $(CONFIG_64BIT),head64.o,head31.o)
-head-y		+= arch/s390/kernel/init_task.o
 
 # See arch/s390/Kbuild for content of core part of the kernel
 core-y		+= arch/s390/

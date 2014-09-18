@@ -641,13 +641,11 @@ alloc_scq(struct idt77252_dev *card, int class)
 	scq = kzalloc(sizeof(struct scq_info), GFP_KERNEL);
 	if (!scq)
 		return NULL;
-	scq->base = pci_alloc_consistent(card->pcidev, SCQ_SIZE,
-					 &scq->paddr);
+	scq->base = pci_zalloc_consistent(card->pcidev, SCQ_SIZE, &scq->paddr);
 	if (scq->base == NULL) {
 		kfree(scq);
 		return NULL;
 	}
-	memset(scq->base, 0, SCQ_SIZE);
 
 	scq->next = scq->base;
 	scq->last = scq->base + (SCQ_ENTRIES - 1);
@@ -972,13 +970,12 @@ init_rsq(struct idt77252_dev *card)
 {
 	struct rsq_entry *rsqe;
 
-	card->rsq.base = pci_alloc_consistent(card->pcidev, RSQSIZE,
-					      &card->rsq.paddr);
+	card->rsq.base = pci_zalloc_consistent(card->pcidev, RSQSIZE,
+					       &card->rsq.paddr);
 	if (card->rsq.base == NULL) {
 		printk("%s: can't allocate RSQ.\n", card->name);
 		return -1;
 	}
-	memset(card->rsq.base, 0, RSQSIZE);
 
 	card->rsq.last = card->rsq.base + RSQ_NUM_ENTRIES - 1;
 	card->rsq.next = card->rsq.last;
@@ -1258,7 +1255,7 @@ idt77252_rx_raw(struct idt77252_dev *card)
 	tail = readl(SAR_REG_RAWCT);
 
 	pci_dma_sync_single_for_cpu(card->pcidev, IDT77252_PRV_PADDR(queue),
-				    skb_end_pointer(queue) - queue->head - 16,
+				    skb_end_offset(queue) - 16,
 				    PCI_DMA_FROMDEVICE);
 
 	while (head != tail) {
@@ -2551,12 +2548,12 @@ done:
 		timeout = 5 * 1000;
 		while (atomic_read(&vc->scq->used) > 0) {
 			timeout = msleep_interruptible(timeout);
-			if (!timeout)
+			if (!timeout) {
+				pr_warn("%s: SCQ drain timeout: %u used\n",
+					card->name, atomic_read(&vc->scq->used));
 				break;
+			}
 		}
-		if (!timeout)
-			printk("%s: SCQ drain timeout: %u used\n",
-			       card->name, atomic_read(&vc->scq->used));
 
 		writel(TCMDQ_HALT | vc->index, SAR_REG_TCMDQ);
 		clear_scd(card, vc->scq, vc->class);
@@ -3109,8 +3106,7 @@ deinit_card(struct idt77252_dev *card)
 }
 
 
-static void __devinit
-init_sram(struct idt77252_dev *card)
+static void init_sram(struct idt77252_dev *card)
 {
 	int i;
 
@@ -3257,8 +3253,7 @@ init_sram(struct idt77252_dev *card)
 	IPRINTK("%s: SRAM initialization complete.\n", card->name);
 }
 
-static int __devinit
-init_card(struct atm_dev *dev)
+static int init_card(struct atm_dev *dev)
 {
 	struct idt77252_dev *card = dev->dev_data;
 	struct pci_dev *pcidev = card->pcidev;
@@ -3402,14 +3397,14 @@ init_card(struct atm_dev *dev)
 	writel(0, SAR_REG_GP);
 
 	/* Initialize RAW Cell Handle Register  */
-	card->raw_cell_hnd = pci_alloc_consistent(card->pcidev, 2 * sizeof(u32),
-						  &card->raw_cell_paddr);
+	card->raw_cell_hnd = pci_zalloc_consistent(card->pcidev,
+						   2 * sizeof(u32),
+						   &card->raw_cell_paddr);
 	if (!card->raw_cell_hnd) {
 		printk("%s: memory allocation failure.\n", card->name);
 		deinit_card(card);
 		return -1;
 	}
-	memset(card->raw_cell_hnd, 0, 2 * sizeof(u32));
 	writel(card->raw_cell_paddr, SAR_REG_RAWHND);
 	IPRINTK("%s: raw cell handle is at 0x%p.\n", card->name,
 		card->raw_cell_hnd);
@@ -3513,7 +3508,7 @@ init_card(struct atm_dev *dev)
 	tmp = dev_get_by_name(&init_net, tname);	/* jhs: was "tmp = dev_get(tname);" */
 	if (tmp) {
 		memcpy(card->atmdev->esi, tmp->dev_addr, 6);
-
+		dev_put(tmp);
 		printk("%s: ESI %pM\n", card->name, card->atmdev->esi);
 	}
 	/*
@@ -3537,8 +3532,7 @@ init_card(struct atm_dev *dev)
 /*****************************************************************************/
 
 
-static int __devinit
-idt77252_preset(struct idt77252_dev *card)
+static int idt77252_preset(struct idt77252_dev *card)
 {
 	u16 pci_command;
 
@@ -3579,8 +3573,7 @@ idt77252_preset(struct idt77252_dev *card)
 }
 
 
-static unsigned long __devinit
-probe_sram(struct idt77252_dev *card)
+static unsigned long probe_sram(struct idt77252_dev *card)
 {
 	u32 data, addr;
 
@@ -3601,8 +3594,8 @@ probe_sram(struct idt77252_dev *card)
 	return addr * sizeof(u32);
 }
 
-static int __devinit
-idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
+static int idt77252_init_one(struct pci_dev *pcidev,
+			     const struct pci_device_id *id)
 {
 	static struct idt77252_dev **last = &idt77252_chain;
 	static int index = 0;

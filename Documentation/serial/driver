@@ -133,6 +133,16 @@ hardware.
 	Interrupts: locally disabled.
 	This call must not sleep
 
+  send_xchar(port,ch)
+	Transmit a high priority character, even if the port is stopped.
+	This is used to implement XON/XOFF flow control and tcflow().  If
+	the serial driver does not implement this function, the tty core
+	will append the character to the circular buffer and then call
+	start_tx() / stop_tx() to flush the data out.
+
+	Locking: none.
+	Interrupts: caller dependent.
+
   stop_rx(port)
 	Stop receiving characters; the port is in the process of
 	being closed.
@@ -242,9 +252,8 @@ hardware.
 
   pm(port,state,oldstate)
 	Perform any power management related activities on the specified
-	port.  State indicates the new state (defined by ACPI D0-D3),
-	oldstate indicates the previous state.  Essentially, D0 means
-	fully on, D3 means powered down.
+	port.  State indicates the new state (defined by
+	enum uart_pm_state), oldstate indicates the previous state.
 
 	This function should not be used to grab any resources.
 
@@ -306,6 +315,31 @@ hardware.
 
 	Locking: none.
 	Interrupts: caller dependent.
+
+  poll_init(port)
+	Called by kgdb to perform the minimal hardware initialization needed
+	to support poll_put_char() and poll_get_char().  Unlike ->startup()
+	this should not request interrupts.
+
+	Locking: tty_mutex and tty_port->mutex taken.
+	Interrupts: n/a.
+
+  poll_put_char(port,ch)
+	Called by kgdb to write a single character directly to the serial
+	port.  It can and should block until there is space in the TX FIFO.
+
+	Locking: none.
+	Interrupts: caller dependent.
+	This call must not sleep
+
+  poll_get_char(port)
+	Called by kgdb to read a single character directly from the serial
+	port.  If data is available, it should be returned; otherwise
+	the function should return NO_POLL_CHAR immediately.
+
+	Locking: none.
+	Interrupts: caller dependent.
+	This call must not sleep
 
 Other functions
 ---------------
@@ -395,3 +429,28 @@ thus:
 		struct uart_port	port;
 		int			my_stuff;
 	};
+
+Modem control lines via GPIO
+----------------------------
+
+Some helpers are provided in order to set/get modem control lines via GPIO.
+
+mctrl_gpio_init(dev, idx):
+	This will get the {cts,rts,...}-gpios from device tree if they are
+	present and request them, set direction etc, and return an
+	allocated structure. devm_* functions are used, so there's no need
+	to call mctrl_gpio_free().
+
+mctrl_gpio_free(dev, gpios):
+	This will free the requested gpios in mctrl_gpio_init().
+	As devm_* function are used, there's generally no need to call
+	this function.
+
+mctrl_gpio_to_gpiod(gpios, gidx)
+	This returns the gpio structure associated to the modem line index.
+
+mctrl_gpio_set(gpios, mctrl):
+	This will sets the gpios according to the mctrl state.
+
+mctrl_gpio_get(gpios, mctrl):
+	This will update mctrl with the gpios values.

@@ -431,8 +431,8 @@ static const struct oxygen_model model_xonar_d1 = {
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
-int __devinit get_xonar_cs43xx_model(struct oxygen *chip,
-				     const struct pci_device_id *id)
+int get_xonar_cs43xx_model(struct oxygen *chip,
+			   const struct pci_device_id *id)
 {
 	switch (id->subdevice) {
 	case 0x834f:

@@ -41,7 +41,7 @@
 
 /* controller at 0x9000 */
 &pci0 {
-	compatible = "fsl,p1010-pcie", "fsl,qoriq-pcie-v2.3", "fsl,qoriq-pcie-v2.2";
+	compatible = "fsl,p1010-pcie", "fsl,qoriq-pcie-v2.3";
 	device_type = "pci";
 	#size-cells = <2>;
 	#address-cells = <3>;
@@ -69,7 +69,7 @@
 
 /* controller at 0xa000 */
 &pci1 {
-	compatible = "fsl,p1010-pcie", "fsl,qoriq-pcie-v2.3", "fsl,qoriq-pcie-v2.2";
+	compatible = "fsl,p1010-pcie", "fsl,qoriq-pcie-v2.3";
 	device_type = "pci";
 	#size-cells = <2>;
 	#address-cells = <3>;

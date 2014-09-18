@@ -4,7 +4,7 @@
  * Copyright (C) ST Microelectronics SA 2011
  *
  * License Terms: GNU General Public License, version 2
- * Author: Viresh Kumar <viresh.kumar@st.com> for ST Microelectronics
+ * Author: Viresh Kumar <viresh.linux@gmail.com> for ST Microelectronics
  */
 
 #include <linux/spi/spi.h>
@@ -82,7 +82,7 @@ static struct stmpe_client_info spi_ci = {
 	.init = spi_init,
 };
 
-static int __devinit
+static int
 stmpe_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -101,9 +101,9 @@ stmpe_spi_probe(struct spi_device *spi)
 	return stmpe_probe(&spi_ci, id->driver_data);
 }
 
-static int __devexit stmpe_spi_remove(struct spi_device *spi)
+static int stmpe_spi_remove(struct spi_device *spi)
 {
-	struct stmpe *stmpe = dev_get_drvdata(&spi->dev);
+	struct stmpe *stmpe = spi_get_drvdata(spi);
 
 	return stmpe_remove(stmpe);
 }
@@ -122,14 +122,13 @@ MODULE_DEVICE_TABLE(spi, stmpe_id);
 static struct spi_driver stmpe_spi_driver = {
 	.driver = {
 		.name	= "stmpe-spi",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &stmpe_dev_pm_ops,
 #endif
 	},
 	.probe		= stmpe_spi_probe,
-	.remove		= __devexit_p(stmpe_spi_remove),
+	.remove		= stmpe_spi_remove,
 	.id_table	= stmpe_spi_id,
 };
 
@@ -147,4 +146,4 @@ module_exit(stmpe_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("STMPE MFD SPI Interface Driver");
-MODULE_AUTHOR("Viresh Kumar <viresh.kumar@st.com>");
+MODULE_AUTHOR("Viresh Kumar <viresh.linux@gmail.com>");

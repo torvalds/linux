@@ -179,7 +179,7 @@ CONFIG_ALPHA_JENSEN or CONFIG_EISA_VLB_PRIMING are set.
 
 Converting an EISA driver to the new API mostly involves *deleting*
 code (since probing is now in the core EISA code). Unfortunately, most
-drivers share their probing routine between ISA, MCA and EISA. Special
+drivers share their probing routine between ISA, and EISA. Special
 care must be taken when ripping out the EISA code, so other busses
 won't suffer from these surgical strikes...
 

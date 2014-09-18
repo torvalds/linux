@@ -8,7 +8,6 @@
 
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/if.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -61,7 +60,7 @@ struct hostap_plx_priv {
 
 #define PLXDEV(vendor,dev,str) { vendor, dev, PCI_ANY_ID, PCI_ANY_ID }
 
-static DEFINE_PCI_DEVICE_TABLE(prism2_plx_id_table) = {
+static const struct pci_device_id prism2_plx_id_table[] = {
 	PLXDEV(0x10b7, 0x7770, "3Com AirConnect PCI 777A"),
 	PLXDEV(0x111a, 0x1023, "Siemens SpeedStream SS1023"),
 	PLXDEV(0x126c, 0x8030, "Nortel emobility"),
@@ -616,18 +615,4 @@ static struct pci_driver prism2_plx_driver = {
 	.remove		= prism2_plx_remove,
 };
 
-
-static int __init init_prism2_plx(void)
-{
-	return pci_register_driver(&prism2_plx_driver);
-}
-
-
-static void __exit exit_prism2_plx(void)
-{
-	pci_unregister_driver(&prism2_plx_driver);
-}
-
-
-module_init(init_prism2_plx);
-module_exit(exit_prism2_plx);
+module_pci_driver(prism2_plx_driver);

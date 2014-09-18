@@ -1,5 +1,4 @@
 /*
- *  linux/arch/arm/mach-exynos4/headsmp.S
  *
  *  Cloned from linux/arch/arm/mach-realview/headsmp.S
  *
@@ -12,8 +11,6 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
-
-	__CPUINIT
 
 /*
  * exynos4 specific entry point for secondary CPUs.  This provides

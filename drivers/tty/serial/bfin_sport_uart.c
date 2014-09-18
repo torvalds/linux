@@ -149,7 +149,7 @@ static int sport_uart_setup(struct sport_uart_port *up, int size, int baud_rate)
 static irqreturn_t sport_uart_rx_irq(int irq, void *dev_id)
 {
 	struct sport_uart_port *up = dev_id;
-	struct tty_struct *tty = up->port.state->port.tty;
+	struct tty_port *port = &up->port.state->port;
 	unsigned int ch;
 
 	spin_lock(&up->port.lock);
@@ -159,11 +159,13 @@ static irqreturn_t sport_uart_rx_irq(int irq, void *dev_id)
 		up->port.icount.rx++;
 
 		if (!uart_handle_sysrq_char(&up->port, ch))
-			tty_insert_flip_char(tty, ch, TTY_NORMAL);
+			tty_insert_flip_char(port, ch, TTY_NORMAL);
 	}
-	tty_flip_buffer_push(tty);
 
 	spin_unlock(&up->port.lock);
+
+	/* XXX this won't deadlock with lowlat? */
+	tty_flip_buffer_push(port);
 
 	return IRQ_HANDLED;
 }
@@ -182,7 +184,6 @@ static irqreturn_t sport_uart_tx_irq(int irq, void *dev_id)
 static irqreturn_t sport_uart_err_irq(int irq, void *dev_id)
 {
 	struct sport_uart_port *up = dev_id;
-	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned int stat = SPORT_GET_STAT(up);
 
 	spin_lock(&up->port.lock);
@@ -190,7 +191,7 @@ static irqreturn_t sport_uart_err_irq(int irq, void *dev_id)
 	/* Overflow in RX FIFO */
 	if (stat & ROVF) {
 		up->port.icount.overrun++;
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(&up->port.state->port, 0, TTY_OVERRUN);
 		SPORT_PUT_STAT(up, ROVF); /* Clear ROVF bit */
 	}
 	/* These should not happen */
@@ -205,6 +206,8 @@ static irqreturn_t sport_uart_err_irq(int irq, void *dev_id)
 	SSYNC();
 
 	spin_unlock(&up->port.lock);
+	/* XXX we don't push the overrun bit to TTY? */
+
 	return IRQ_HANDLED;
 }
 
@@ -423,11 +426,6 @@ static void sport_stop_rx(struct uart_port *port)
 	SSYNC();
 }
 
-static void sport_enable_ms(struct uart_port *port)
-{
-	pr_debug("%s enter\n", __func__);
-}
-
 static void sport_break_ctl(struct uart_port *port, int break_state)
 {
 	pr_debug("%s enter\n", __func__);
@@ -496,6 +494,13 @@ static void sport_set_termios(struct uart_port *port,
 	int i;
 
 	pr_debug("%s enter, c_cflag:%08x\n", __func__, termios->c_cflag);
+
+#ifdef CONFIG_SERIAL_BFIN_SPORT_CTSRTS
+	if (old == NULL && up->cts_pin != -1)
+		termios->c_cflag |= CRTSCTS;
+	else if (up->cts_pin == -1)
+		termios->c_cflag &= ~CRTSCTS;
+#endif
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS8:
@@ -584,7 +589,6 @@ struct uart_ops sport_uart_ops = {
 	.stop_tx	= sport_stop_tx,
 	.start_tx	= sport_start_tx,
 	.stop_rx	= sport_stop_rx,
-	.enable_ms	= sport_enable_ms,
 	.break_ctl	= sport_break_ctl,
 	.startup	= sport_startup,
 	.shutdown	= sport_shutdown,
@@ -740,7 +744,7 @@ static struct dev_pm_ops bfin_sport_uart_dev_pm_ops = {
 };
 #endif
 
-static int __devinit sport_uart_probe(struct platform_device *pdev)
+static int sport_uart_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct sport_uart_port *sport;
@@ -763,8 +767,8 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 			return -ENOMEM;
 		}
 
-		ret = peripheral_request_list(
-			(unsigned short *)pdev->dev.platform_data, DRV_NAME);
+		ret = peripheral_request_list(dev_get_platdata(&pdev->dev),
+						DRV_NAME);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"Fail to request SPORT peripherals\n");
@@ -810,10 +814,8 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 		if (res == NULL)
 			sport->cts_pin = -1;
-		else {
+		else
 			sport->cts_pin = res->start;
-			sport->port.flags |= ASYNC_CTS_FLOW;
-		}
 
 		res = platform_get_resource(pdev, IORESOURCE_IO, 1);
 		if (res == NULL)
@@ -840,8 +842,7 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 out_error_unmap:
 		iounmap(sport->port.membase);
 out_error_free_peripherals:
-		peripheral_free_list(
-			(unsigned short *)pdev->dev.platform_data);
+		peripheral_free_list(dev_get_platdata(&pdev->dev));
 out_error_free_mem:
 		kfree(sport);
 		bfin_sport_uart_ports[pdev->id] = NULL;
@@ -850,7 +851,7 @@ out_error_free_mem:
 	return ret;
 }
 
-static int __devexit sport_uart_remove(struct platform_device *pdev)
+static int sport_uart_remove(struct platform_device *pdev)
 {
 	struct sport_uart_port *sport = platform_get_drvdata(pdev);
 
@@ -860,8 +861,7 @@ static int __devexit sport_uart_remove(struct platform_device *pdev)
 	if (sport) {
 		uart_remove_one_port(&sport_uart_reg, &sport->port);
 		iounmap(sport->port.membase);
-		peripheral_free_list(
-			(unsigned short *)pdev->dev.platform_data);
+		peripheral_free_list(dev_get_platdata(&pdev->dev));
 		kfree(sport);
 		bfin_sport_uart_ports[pdev->id] = NULL;
 	}
@@ -871,7 +871,7 @@ static int __devexit sport_uart_remove(struct platform_device *pdev)
 
 static struct platform_driver sport_uart_driver = {
 	.probe		= sport_uart_probe,
-	.remove		= __devexit_p(sport_uart_remove),
+	.remove		= sport_uart_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 #ifdef CONFIG_PM
@@ -881,7 +881,7 @@ static struct platform_driver sport_uart_driver = {
 };
 
 #ifdef CONFIG_SERIAL_BFIN_SPORT_CONSOLE
-static __initdata struct early_platform_driver early_sport_uart_driver = {
+static struct early_platform_driver early_sport_uart_driver __initdata = {
 	.class_str = CLASS_BFIN_SPORT_CONSOLE,
 	.pdrv = &sport_uart_driver,
 	.requested_id = EARLY_PLATFORM_ID_UNSET,

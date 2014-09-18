@@ -1,28 +1,40 @@
 What:		/sys/power/
 Date:		August 2006
-Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power directory will contain files that will
 		provide a unified interface to the power management
 		subsystem.
 
 What:		/sys/power/state
-Date:		August 2006
-Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Date:		May 2014
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
-		The /sys/power/state file controls the system power state.
-		Reading from this file returns what states are supported,
-		which is hard-coded to 'standby' (Power-On Suspend), 'mem'
-		(Suspend-to-RAM), and 'disk' (Suspend-to-Disk).
+		The /sys/power/state file controls system sleep states.
+		Reading from this file returns the available sleep state
+		labels, which may be "mem", "standby", "freeze" and "disk"
+		(hibernation).  The meanings of the first three labels depend on
+		the relative_sleep_states command line argument as follows:
+		 1) relative_sleep_states = 1
+		    "mem", "standby", "freeze" represent non-hibernation sleep
+		    states from the deepest ("mem", always present) to the
+		    shallowest ("freeze").  "standby" and "freeze" may or may
+		    not be present depending on the capabilities of the
+		    platform.  "freeze" can only be present if "standby" is
+		    present.
+		 2) relative_sleep_states = 0 (default)
+		    "mem" - "suspend-to-RAM", present if supported.
+		    "standby" - "power-on suspend", present if supported.
+		    "freeze" - "suspend-to-idle", always present.
 
 		Writing to this file one of these strings causes the system to
-		transition into that state. Please see the file
-		Documentation/power/states.txt for a description of each of
-		these states.
+		transition into the corresponding state, if available.  See
+		Documentation/power/states.txt for a description of what
+		"suspend-to-RAM", "power-on suspend" and "suspend-to-idle" mean.
 
 What:		/sys/power/disk
 Date:		September 2006
-Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/disk file controls the operating mode of the
 		suspend-to-disk mechanism.  Reading from this file returns
@@ -67,7 +79,7 @@ Description:
 
 What:		/sys/power/image_size
 Date:		August 2006
-Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/image_size file controls the size of the image
 		created by the suspend-to-disk mechanism.  It can be written a
@@ -84,7 +96,7 @@ Description:
 
 What:		/sys/power/pm_trace
 Date:		August 2006
-Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/pm_trace file controls the code which saves the
 		last PM event point in the RTC across reboots, so that you can
@@ -133,7 +145,7 @@ Description:
 
 What:		/sys/power/pm_async
 Date:		January 2009
-Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/pm_async file controls the switch allowing the
 		user space to enable or disable asynchronous suspend and resume
@@ -146,7 +158,7 @@ Description:
 
 What:		/sys/power/wakeup_count
 Date:		July 2010
-Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/wakeup_count file allows user space to put the
 		system into a sleep state while taking into account the
@@ -161,7 +173,7 @@ Description:
 
 What:		/sys/power/reserved_size
 Date:		May 2011
-Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/reserved_size file allows user space to control
 		the amount of memory reserved for allocations made by device
@@ -172,3 +184,75 @@ Description:
 
 		Reading from this file will display the current value, which is
 		set to 1 MB by default.
+
+What:		/sys/power/autosleep
+Date:		April 2012
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		The /sys/power/autosleep file can be written one of the strings
+		returned by reads from /sys/power/state.  If that happens, a
+		work item attempting to trigger a transition of the system to
+		the sleep state represented by that string is queued up.  This
+		attempt will only succeed if there are no active wakeup sources
+		in the system at that time.  After every execution, regardless
+		of whether or not the attempt to put the system to sleep has
+		succeeded, the work item requeues itself until user space
+		writes "off" to /sys/power/autosleep.
+
+		Reading from this file causes the last string successfully
+		written to it to be returned.
+
+What:		/sys/power/wake_lock
+Date:		February 2012
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		The /sys/power/wake_lock file allows user space to create
+		wakeup source objects and activate them on demand (if one of
+		those wakeup sources is active, reads from the
+		/sys/power/wakeup_count file block or return false).  When a
+		string without white space is written to /sys/power/wake_lock,
+		it will be assumed to represent a wakeup source name.  If there
+		is a wakeup source object with that name, it will be activated
+		(unless active already).  Otherwise, a new wakeup source object
+		will be registered, assigned the given name and activated.
+		If a string written to /sys/power/wake_lock contains white
+		space, the part of the string preceding the white space will be
+		regarded as a wakeup source name and handled as descrived above.
+		The other part of the string will be regarded as a timeout (in
+		nanoseconds) such that the wakeup source will be automatically
+		deactivated after it has expired.  The timeout, if present, is
+		set regardless of the current state of the wakeup source object
+		in question.
+
+		Reads from this file return a string consisting of the names of
+		wakeup sources created with the help of it that are active at
+		the moment, separated with spaces.
+
+
+What:		/sys/power/wake_unlock
+Date:		February 2012
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		The /sys/power/wake_unlock file allows user space to deactivate
+		wakeup sources created with the help of /sys/power/wake_lock.
+		When a string is written to /sys/power/wake_unlock, it will be
+		assumed to represent the name of a wakeup source to deactivate.
+		If a wakeup source object of that name exists and is active at
+		the moment, it will be deactivated.
+
+		Reads from this file return a string consisting of the names of
+		wakeup sources created with the help of /sys/power/wake_lock
+		that are inactive at the moment, separated with spaces.
+
+What:		/sys/power/pm_print_times
+Date:		May 2012
+Contact:	Sameer Nanda <snanda@chromium.org>
+Description:
+		The /sys/power/pm_print_times file allows user space to
+		control whether the time taken by devices to suspend and
+		resume is printed.  These prints are useful for hunting down
+		devices that take too long to suspend or resume.
+
+		Writing a "1" enables this printing while writing a "0"
+		disables it.  The default value is "0".  Reading from this file
+		will display the current value.

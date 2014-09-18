@@ -41,6 +41,8 @@ int main(void)
 	DEFINE(PT_SAR, offsetof (struct pt_regs, sar));
 	DEFINE(PT_ICOUNTLEVEL, offsetof (struct pt_regs, icountlevel));
 	DEFINE(PT_SYSCALL, offsetof (struct pt_regs, syscall));
+	DEFINE(PT_SCOMPARE1, offsetof(struct pt_regs, scompare1));
+	DEFINE(PT_THREADPTR, offsetof(struct pt_regs, threadptr));
 	DEFINE(PT_AREG, offsetof (struct pt_regs, areg[0]));
 	DEFINE(PT_AREG0, offsetof (struct pt_regs, areg[0]));
 	DEFINE(PT_AREG1, offsetof (struct pt_regs, areg[1]));
@@ -91,7 +93,8 @@ int main(void)
 #endif
 	DEFINE(THREAD_XTREGS_USER, offsetof (struct thread_info, xtregs_user));
 	DEFINE(XTREGS_USER_SIZE, sizeof(xtregs_user_t));
-	DEFINE(THREAD_CURRENT_DS, offsetof (struct task_struct, thread.current_ds));
+	DEFINE(THREAD_CURRENT_DS, offsetof (struct task_struct, \
+	       thread.current_ds));
 
 	/* struct mm_struct */
 	DEFINE(MM_USERS, offsetof(struct mm_struct, mm_users));
@@ -108,4 +111,3 @@ int main(void)
 
 	return 0;
 }
-

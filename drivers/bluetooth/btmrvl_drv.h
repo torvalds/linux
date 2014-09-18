@@ -59,6 +59,8 @@ struct btmrvl_device {
 };
 
 struct btmrvl_adapter {
+	void *hw_regs_buf;
+	u8 *hw_regs;
 	u32 int_count;
 	struct sk_buff_head tx_queue;
 	u8 psmode;
@@ -66,7 +68,9 @@ struct btmrvl_adapter {
 	u8 hs_state;
 	u8 wakeup_tries;
 	wait_queue_head_t cmd_wait_q;
+	wait_queue_head_t event_hs_wait_q;
 	u8 cmd_complete;
+	bool is_suspended;
 };
 
 struct btmrvl_private {
@@ -85,11 +89,14 @@ struct btmrvl_private {
 
 #define MRVL_VENDOR_PKT			0xFE
 
-/* Bluetooth commands  */
-#define BT_CMD_AUTO_SLEEP_MODE		0x23
-#define BT_CMD_HOST_SLEEP_CONFIG	0x59
-#define BT_CMD_HOST_SLEEP_ENABLE	0x5A
-#define BT_CMD_MODULE_CFG_REQ		0x5B
+/* Vendor specific Bluetooth commands */
+#define BT_CMD_PSCAN_WIN_REPORT_ENABLE	0xFC03
+#define BT_CMD_SET_BDADDR		0xFC22
+#define BT_CMD_AUTO_SLEEP_MODE		0xFC23
+#define BT_CMD_HOST_SLEEP_CONFIG	0xFC59
+#define BT_CMD_HOST_SLEEP_ENABLE	0xFC5A
+#define BT_CMD_MODULE_CFG_REQ		0xFC5B
+#define BT_CMD_LOAD_CONFIG_DATA		0xFC61
 
 /* Sub-commands: Module Bringup/Shutdown Request/Response */
 #define MODULE_BRINGUP_REQ		0xF1
@@ -98,14 +105,17 @@ struct btmrvl_private {
 
 #define MODULE_SHUTDOWN_REQ		0xF2
 
+/* Vendor specific Bluetooth events */
+#define BT_EVENT_AUTO_SLEEP_MODE	0x23
+#define BT_EVENT_HOST_SLEEP_CONFIG	0x59
+#define BT_EVENT_HOST_SLEEP_ENABLE	0x5A
+#define BT_EVENT_MODULE_CFG_REQ		0x5B
 #define BT_EVENT_POWER_STATE		0x20
 
 /* Bluetooth Power States */
 #define BT_PS_ENABLE			0x02
 #define BT_PS_DISABLE			0x03
 #define BT_PS_SLEEP			0x01
-
-#define OGF				0x3F
 
 /* Host Sleep states */
 #define HS_ACTIVATED			0x01
@@ -115,11 +125,8 @@ struct btmrvl_private {
 #define PS_SLEEP			0x01
 #define PS_AWAKE			0x00
 
-struct btmrvl_cmd {
-	__le16 ocf_ogf;
-	u8 length;
-	u8 data[4];
-} __packed;
+#define BT_CAL_HDR_LEN			4
+#define BT_CAL_DATA_SIZE		28
 
 struct btmrvl_event {
 	u8 ec;		/* event counter */
@@ -135,12 +142,15 @@ int btmrvl_remove_card(struct btmrvl_private *priv);
 
 void btmrvl_interrupt(struct btmrvl_private *priv);
 
-void btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb);
+bool btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb);
 int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb);
 
-int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd);
+int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, u8 subcmd);
+int btmrvl_pscan_window_reporting(struct btmrvl_private *priv, u8 subcmd);
+int btmrvl_send_hscfg_cmd(struct btmrvl_private *priv);
 int btmrvl_enable_ps(struct btmrvl_private *priv);
 int btmrvl_prepare_command(struct btmrvl_private *priv);
+int btmrvl_enable_hs(struct btmrvl_private *priv);
 
 #ifdef CONFIG_DEBUG_FS
 void btmrvl_debugfs_init(struct hci_dev *hdev);

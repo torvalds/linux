@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,9 @@
  *
  *****************************************************************************/
 #include <linux/sched.h>
+#include <linux/export.h>
 
+#include "iwl-drv.h"
 #include "iwl-notif-wait.h"
 
 
@@ -71,52 +73,81 @@ void iwl_notification_wait_init(struct iwl_notif_wait_data *notif_wait)
 	INIT_LIST_HEAD(&notif_wait->notif_waits);
 	init_waitqueue_head(&notif_wait->notif_waitq);
 }
+IWL_EXPORT_SYMBOL(iwl_notification_wait_init);
 
 void iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_wait,
 				  struct iwl_rx_packet *pkt)
 {
+	bool triggered = false;
+
 	if (!list_empty(&notif_wait->notif_waits)) {
 		struct iwl_notification_wait *w;
 
 		spin_lock(&notif_wait->notif_wait_lock);
 		list_for_each_entry(w, &notif_wait->notif_waits, list) {
-			if (w->cmd != pkt->hdr.cmd)
+			int i;
+			bool found = false;
+
+			/*
+			 * If it already finished (triggered) or has been
+			 * aborted then don't evaluate it again to avoid races,
+			 * Otherwise the function could be called again even
+			 * though it returned true before
+			 */
+			if (w->triggered || w->aborted)
 				continue;
-			w->triggered = true;
-			if (w->fn)
-				w->fn(notif_wait, pkt, w->fn_data);
+
+			for (i = 0; i < w->n_cmds; i++) {
+				if (w->cmds[i] == pkt->hdr.cmd) {
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				continue;
+
+			if (!w->fn || w->fn(notif_wait, pkt, w->fn_data)) {
+				w->triggered = true;
+				triggered = true;
+			}
 		}
 		spin_unlock(&notif_wait->notif_wait_lock);
 
-		wake_up_all(&notif_wait->notif_waitq);
 	}
+
+	if (triggered)
+		wake_up_all(&notif_wait->notif_waitq);
 }
+IWL_EXPORT_SYMBOL(iwl_notification_wait_notify);
 
 void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_wait)
 {
-	unsigned long flags;
 	struct iwl_notification_wait *wait_entry;
 
-	spin_lock_irqsave(&notif_wait->notif_wait_lock, flags);
+	spin_lock(&notif_wait->notif_wait_lock);
 	list_for_each_entry(wait_entry, &notif_wait->notif_waits, list)
 		wait_entry->aborted = true;
-	spin_unlock_irqrestore(&notif_wait->notif_wait_lock, flags);
+	spin_unlock(&notif_wait->notif_wait_lock);
 
 	wake_up_all(&notif_wait->notif_waitq);
 }
-
+IWL_EXPORT_SYMBOL(iwl_abort_notification_waits);
 
 void
 iwl_init_notification_wait(struct iwl_notif_wait_data *notif_wait,
 			   struct iwl_notification_wait *wait_entry,
-			   u8 cmd,
-			   void (*fn)(struct iwl_notif_wait_data *notif_wait,
+			   const u8 *cmds, int n_cmds,
+			   bool (*fn)(struct iwl_notif_wait_data *notif_wait,
 				      struct iwl_rx_packet *pkt, void *data),
 			   void *fn_data)
 {
+	if (WARN_ON(n_cmds > MAX_NOTIF_CMDS))
+		n_cmds = MAX_NOTIF_CMDS;
+
 	wait_entry->fn = fn;
 	wait_entry->fn_data = fn_data;
-	wait_entry->cmd = cmd;
+	wait_entry->n_cmds = n_cmds;
+	memcpy(wait_entry->cmds, cmds, n_cmds);
 	wait_entry->triggered = false;
 	wait_entry->aborted = false;
 
@@ -124,6 +155,7 @@ iwl_init_notification_wait(struct iwl_notif_wait_data *notif_wait,
 	list_add(&wait_entry->list, &notif_wait->notif_waits);
 	spin_unlock_bh(&notif_wait->notif_wait_lock);
 }
+IWL_EXPORT_SYMBOL(iwl_init_notification_wait);
 
 int iwl_wait_notification(struct iwl_notif_wait_data *notif_wait,
 			  struct iwl_notification_wait *wait_entry,
@@ -147,6 +179,7 @@ int iwl_wait_notification(struct iwl_notif_wait_data *notif_wait,
 		return -ETIMEDOUT;
 	return 0;
 }
+IWL_EXPORT_SYMBOL(iwl_wait_notification);
 
 void iwl_remove_notification(struct iwl_notif_wait_data *notif_wait,
 			     struct iwl_notification_wait *wait_entry)
@@ -155,3 +188,4 @@ void iwl_remove_notification(struct iwl_notif_wait_data *notif_wait,
 	list_del(&wait_entry->list);
 	spin_unlock_bh(&notif_wait->notif_wait_lock);
 }
+IWL_EXPORT_SYMBOL(iwl_remove_notification);

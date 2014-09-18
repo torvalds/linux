@@ -28,7 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <scsi/scsi_host.h>
@@ -224,27 +223,16 @@ static struct pci_driver mpiix_pci_driver = {
 	.id_table	= mpiix,
 	.probe 		= mpiix_init_one,
 	.remove		= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend	= ata_pci_device_suspend,
 	.resume		= ata_pci_device_resume,
 #endif
 };
 
-static int __init mpiix_init(void)
-{
-	return pci_register_driver(&mpiix_pci_driver);
-}
-
-static void __exit mpiix_exit(void)
-{
-	pci_unregister_driver(&mpiix_pci_driver);
-}
+module_pci_driver(mpiix_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Intel MPIIX");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, mpiix);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(mpiix_init);
-module_exit(mpiix_exit);

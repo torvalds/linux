@@ -16,6 +16,11 @@
 /* cats host-specific stuff */
 static int irqmap_cats[] __initdata = { IRQ_PCI, IRQ_IN0, IRQ_IN1, IRQ_IN3 };
 
+static u8 cats_no_swizzle(struct pci_dev *dev, u8 *pin)
+{
+	return 0;
+}
+
 static int __init cats_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if (dev->irq >= 255)
@@ -39,11 +44,11 @@ static int __init cats_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
  * cards being used (ie, pci-pci bridge based cards)?
  */
 static struct hw_pci cats_pci __initdata = {
-	.swizzle		= NULL,
+	.swizzle		= cats_no_swizzle,
 	.map_irq		= cats_map_irq,
 	.nr_controllers		= 1,
+	.ops			= &dc21285_ops,
 	.setup			= dc21285_setup,
-	.scan			= dc21285_scan_bus,
 	.preinit		= dc21285_preinit,
 	.postinit		= dc21285_postinit,
 };

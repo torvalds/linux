@@ -131,7 +131,7 @@ snd_emu8000_dma_chan(struct snd_emu8000 *emu, int ch, int mode)
 
 /*
  */
-static void __devinit
+static void
 snd_emu8000_read_wait(struct snd_emu8000 *emu)
 {
 	while ((EMU8000_SMALR_READ(emu) & 0x80000000) != 0) {
@@ -143,7 +143,7 @@ snd_emu8000_read_wait(struct snd_emu8000 *emu)
 
 /*
  */
-static void __devinit
+static void
 snd_emu8000_write_wait(struct snd_emu8000 *emu)
 {
 	while ((EMU8000_SMALW_READ(emu) & 0x80000000) != 0) {
@@ -156,7 +156,7 @@ snd_emu8000_write_wait(struct snd_emu8000 *emu)
 /*
  * detect a card at the given port
  */
-static int __devinit
+static int
 snd_emu8000_detect(struct snd_emu8000 *emu)
 {
 	/* Initialise */
@@ -182,7 +182,7 @@ snd_emu8000_detect(struct snd_emu8000 *emu)
 /*
  * intiailize audio channels
  */
-static void __devinit
+static void
 init_audio(struct snd_emu8000 *emu)
 {
 	int ch;
@@ -223,7 +223,7 @@ init_audio(struct snd_emu8000 *emu)
 /*
  * initialize DMA address
  */
-static void __devinit
+static void
 init_dma(struct snd_emu8000 *emu)
 {
 	EMU8000_SMALR_WRITE(emu, 0);
@@ -235,7 +235,7 @@ init_dma(struct snd_emu8000 *emu)
 /*
  * initialization arrays; from ADIP
  */
-static unsigned short init1[128] /*__devinitdata*/ = {
+static unsigned short init1[128] = {
 	0x03ff, 0x0030,  0x07ff, 0x0130, 0x0bff, 0x0230,  0x0fff, 0x0330,
 	0x13ff, 0x0430,  0x17ff, 0x0530, 0x1bff, 0x0630,  0x1fff, 0x0730,
 	0x23ff, 0x0830,  0x27ff, 0x0930, 0x2bff, 0x0a30,  0x2fff, 0x0b30,
@@ -257,7 +257,7 @@ static unsigned short init1[128] /*__devinitdata*/ = {
 	0xf3ff, 0x0c30,  0xf7ff, 0x0d30, 0xfbff, 0x0e30,  0xffff, 0x0f30,
 };
 
-static unsigned short init2[128] /*__devinitdata*/ = {
+static unsigned short init2[128] = {
 	0x03ff, 0x8030, 0x07ff, 0x8130, 0x0bff, 0x8230, 0x0fff, 0x8330,
 	0x13ff, 0x8430, 0x17ff, 0x8530, 0x1bff, 0x8630, 0x1fff, 0x8730,
 	0x23ff, 0x8830, 0x27ff, 0x8930, 0x2bff, 0x8a30, 0x2fff, 0x8b30,
@@ -279,7 +279,7 @@ static unsigned short init2[128] /*__devinitdata*/ = {
 	0xf3ff, 0x8c30, 0xf7ff, 0x8d30, 0xfbff, 0x8e30, 0xffff, 0x8f30,
 };
 
-static unsigned short init3[128] /*__devinitdata*/ = {
+static unsigned short init3[128] = {
 	0x0C10, 0x8470, 0x14FE, 0xB488, 0x167F, 0xA470, 0x18E7, 0x84B5,
 	0x1B6E, 0x842A, 0x1F1D, 0x852A, 0x0DA3, 0x8F7C, 0x167E, 0xF254,
 	0x0000, 0x842A, 0x0001, 0x852A, 0x18E6, 0x8BAA, 0x1B6D, 0xF234,
@@ -301,7 +301,7 @@ static unsigned short init3[128] /*__devinitdata*/ = {
 	0x1342, 0xD36E, 0x3EC7, 0xB3FF, 0x0000, 0x8365, 0x1420, 0x9570,
 };
 
-static unsigned short init4[128] /*__devinitdata*/ = {
+static unsigned short init4[128] = {
 	0x0C10, 0x8470, 0x14FE, 0xB488, 0x167F, 0xA470, 0x18E7, 0x84B5,
 	0x1B6E, 0x842A, 0x1F1D, 0x852A, 0x0DA3, 0x0F7C, 0x167E, 0x7254,
 	0x0000, 0x842A, 0x0001, 0x852A, 0x18E6, 0x0BAA, 0x1B6D, 0x7234,
@@ -327,7 +327,7 @@ static unsigned short init4[128] /*__devinitdata*/ = {
  * Taken from the oss driver, not obvious from the doc how this
  * is meant to work
  */
-static void __devinit
+static void
 send_array(struct snd_emu8000 *emu, unsigned short *data, int size)
 {
 	int i;
@@ -349,7 +349,7 @@ send_array(struct snd_emu8000 *emu, unsigned short *data, int size)
  * Send initialization arrays to start up, this just follows the
  * initialisation sequence in the adip.
  */
-static void __devinit
+static void
 init_arrays(struct snd_emu8000 *emu)
 {
 	send_array(emu, init1, ARRAY_SIZE(init1)/4);
@@ -375,7 +375,7 @@ init_arrays(struct snd_emu8000 *emu)
  * seems that the only way to do this is to use the one channel and keep
  * reallocating between read and write.
  */
-static void __devinit
+static void
 size_dram(struct snd_emu8000 *emu)
 {
 	int i, size, detected_size;
@@ -417,9 +417,6 @@ size_dram(struct snd_emu8000 *emu)
 		EMU8000_SMLD_READ(emu); /* discard stale data  */
 		if (EMU8000_SMLD_READ(emu) != UNIQUE_ID2)
 			break; /* no memory at this address */
-
-		detected_size = size;
-
 		snd_emu8000_read_wait(emu);
 
 		/*
@@ -432,6 +429,18 @@ size_dram(struct snd_emu8000 *emu)
 		if (EMU8000_SMLD_READ(emu) != UNIQUE_ID1)
 			break; /* we must have wrapped around */
 		snd_emu8000_read_wait(emu);
+
+		/* Otherwise, it's valid memory. */
+		detected_size = size + 512 * 1024;
+	}
+
+	/* Distinguish 512 KiB from 0. */
+	if (detected_size == 0) {
+		snd_emu8000_read_wait(emu);
+		EMU8000_SMALR_WRITE(emu, EMU8000_DRAM_OFFSET);
+		EMU8000_SMLD_READ(emu); /* discard stale data  */
+		if (EMU8000_SMLD_READ(emu) == UNIQUE_ID1)
+			detected_size = 512 * 1024;
 	}
 
 	/* wait until FULL bit in SMAxW register is false */
@@ -503,7 +512,7 @@ snd_emu8000_init_fm(struct snd_emu8000 *emu)
 /*
  * The main initialization routine.
  */
-static void __devinit
+static void
 snd_emu8000_init_hw(struct snd_emu8000 *emu)
 {
 	int i;
@@ -1022,7 +1031,7 @@ static struct snd_kcontrol_new *mixer_defs[EMU8000_NUM_CONTROLS] = {
 /*
  * create and attach mixer elements for WaveTable treble/bass controls
  */
-static int __devinit
+static int
 snd_emu8000_create_mixer(struct snd_card *card, struct snd_emu8000 *emu)
 {
 	int i, err = 0;
@@ -1073,7 +1082,7 @@ static int snd_emu8000_dev_free(struct snd_device *device)
 /*
  * initialize and register emu8000 synth device.
  */
-int __devinit
+int
 snd_emu8000_new(struct snd_card *card, int index, long port, int seq_ports,
 		struct snd_seq_device **awe_ret)
 {

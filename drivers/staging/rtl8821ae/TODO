@@ -1,0 +1,10 @@
+Realtek 8821AE PCI wifi driver TODO:
+  - remove built-in btcoexist module when the "real" one gets upstream
+  - remove built-in rtlwifi code by porting driver to use the "real" one
+    in the drivers/net/ directory.
+  - fix up coding style issues
+
+Please send any patches for this driver to:
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+and the <devel@driverdev.osuosl.org> mailing list.
+

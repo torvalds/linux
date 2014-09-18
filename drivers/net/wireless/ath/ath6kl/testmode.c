@@ -55,8 +55,9 @@ void ath6kl_tm_rx_event(struct ath6kl *ar, void *buf, size_t buf_len)
 		ath6kl_warn("failed to allocate testmode rx skb!\n");
 		return;
 	}
-	NLA_PUT_U32(skb, ATH6KL_TM_ATTR_CMD, ATH6KL_TM_CMD_TCMD);
-	NLA_PUT(skb, ATH6KL_TM_ATTR_DATA, buf_len, buf);
+	if (nla_put_u32(skb, ATH6KL_TM_ATTR_CMD, ATH6KL_TM_CMD_TCMD) ||
+	    nla_put(skb, ATH6KL_TM_ATTR_DATA, buf_len, buf))
+		goto nla_put_failure;
 	cfg80211_testmode_event(skb, GFP_KERNEL);
 	return;
 
@@ -65,7 +66,8 @@ nla_put_failure:
 	ath6kl_warn("nla_put failed on testmode rx skb!\n");
 }
 
-int ath6kl_tm_cmd(struct wiphy *wiphy, void *data, int len)
+int ath6kl_tm_cmd(struct wiphy *wiphy, struct wireless_dev *wdev,
+		  void *data, int len)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
 	struct nlattr *tb[ATH6KL_TM_ATTR_MAX + 1];

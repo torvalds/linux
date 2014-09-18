@@ -68,9 +68,17 @@ isl1208_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[],
 {
 	u8 reg_addr[1] = { reg };
 	struct i2c_msg msgs[2] = {
-		{client->addr, 0, sizeof(reg_addr), reg_addr}
-		,
-		{client->addr, I2C_M_RD, len, buf}
+		{
+			.addr = client->addr,
+			.len = sizeof(reg_addr),
+			.buf = reg_addr
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = buf
+		}
 	};
 	int ret;
 
@@ -90,7 +98,11 @@ isl1208_i2c_set_regs(struct i2c_client *client, u8 reg, u8 const buf[],
 {
 	u8 i2c_buf[ISL1208_REG_USR2 + 2];
 	struct i2c_msg msgs[1] = {
-		{client->addr, 0, len + 1, i2c_buf}
+		{
+			.addr = client->addr,
+			.len = len + 1,
+			.buf = i2c_buf
+		}
 	};
 	int ret;
 
@@ -106,7 +118,7 @@ isl1208_i2c_set_regs(struct i2c_client *client, u8 reg, u8 const buf[],
 	return ret;
 }
 
-/* simple check to see wether we have a isl1208 */
+/* simple check to see whether we have a isl1208 */
 static int
 isl1208_i2c_validate_client(struct i2c_client *client)
 {
@@ -132,11 +144,7 @@ isl1208_i2c_validate_client(struct i2c_client *client)
 static int
 isl1208_i2c_get_sr(struct i2c_client *client)
 {
-	int sr = i2c_smbus_read_byte_data(client, ISL1208_REG_SR);
-	if (sr < 0)
-		return -EIO;
-
-	return sr;
+	return i2c_smbus_read_byte_data(client, ISL1208_REG_SR);
 }
 
 static int
@@ -494,6 +502,7 @@ isl1208_rtc_interrupt(int irq, void *data)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	struct i2c_client *client = data;
+	struct rtc_device *rtc = i2c_get_clientdata(client);
 	int handled = 0, sr, err;
 
 	/*
@@ -515,6 +524,8 @@ isl1208_rtc_interrupt(int irq, void *data)
 
 	if (sr & ISL1208_REG_SR_ALM) {
 		dev_dbg(&client->dev, "alarm!\n");
+
+		rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
 
 		/* Clear the alarm */
 		sr &= ~ISL1208_REG_SR_ALM;
@@ -632,10 +643,11 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 "chip found, driver version " DRV_VERSION "\n");
 
 	if (client->irq > 0) {
-		rc = request_threaded_irq(client->irq, NULL,
-					  isl1208_rtc_interrupt,
-					  IRQF_SHARED,
-					  isl1208_driver.driver.name, client);
+		rc = devm_request_threaded_irq(&client->dev, client->irq, NULL,
+					       isl1208_rtc_interrupt,
+					       IRQF_SHARED,
+					       isl1208_driver.driver.name,
+					       client);
 		if (!rc) {
 			device_init_wakeup(&client->dev, 1);
 			enable_irq_wake(client->irq);
@@ -647,20 +659,18 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 	}
 
-	rtc = rtc_device_register(isl1208_driver.driver.name,
-				  &client->dev, &isl1208_rtc_ops,
+	rtc = devm_rtc_device_register(&client->dev, isl1208_driver.driver.name,
+				  &isl1208_rtc_ops,
 				  THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		rc = PTR_ERR(rtc);
-		goto exit_free_irq;
-	}
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
 
 	i2c_set_clientdata(client, rtc);
 
 	rc = isl1208_i2c_get_sr(client);
 	if (rc < 0) {
 		dev_err(&client->dev, "reading status failed\n");
-		goto exit_unregister;
+		return rc;
 	}
 
 	if (rc & ISL1208_REG_SR_RTCF)
@@ -669,34 +679,22 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	rc = sysfs_create_group(&client->dev.kobj, &isl1208_rtc_sysfs_files);
 	if (rc)
-		goto exit_unregister;
+		return rc;
 
 	return 0;
-
-exit_unregister:
-	rtc_device_unregister(rtc);
-exit_free_irq:
-	if (client->irq)
-		free_irq(client->irq, client);
-
-	return rc;
 }
 
 static int
 isl1208_remove(struct i2c_client *client)
 {
-	struct rtc_device *rtc = i2c_get_clientdata(client);
-
 	sysfs_remove_group(&client->dev.kobj, &isl1208_rtc_sysfs_files);
-	rtc_device_unregister(rtc);
-	if (client->irq)
-		free_irq(client->irq, client);
 
 	return 0;
 }
 
 static const struct i2c_device_id isl1208_id[] = {
 	{ "isl1208", 0 },
+	{ "isl1218", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl1208_id);

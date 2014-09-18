@@ -21,6 +21,8 @@
 * EEPROM access functions and helpers *
 \*************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/slab.h>
 
 #include "ath5k.h"
@@ -1480,7 +1482,7 @@ ath5k_eeprom_read_target_rate_pwr_info(struct ath5k_hw *ah, unsigned int mode)
 	case AR5K_EEPROM_MODE_11A:
 		offset += AR5K_EEPROM_TARGET_PWR_OFF_11A(ee->ee_version);
 		rate_pcal_info = ee->ee_rate_tpwr_a;
-		ee->ee_rate_target_pwr_num[mode] = AR5K_EEPROM_N_5GHZ_CHAN;
+		ee->ee_rate_target_pwr_num[mode] = AR5K_EEPROM_N_5GHZ_RATE_CHAN;
 		break;
 	case AR5K_EEPROM_MODE_11B:
 		offset += AR5K_EEPROM_TARGET_PWR_OFF_11B(ee->ee_version);
@@ -1777,7 +1779,8 @@ ath5k_eeprom_detach(struct ath5k_hw *ah)
 }
 
 int
-ath5k_eeprom_mode_from_channel(struct ieee80211_channel *channel)
+ath5k_eeprom_mode_from_channel(struct ath5k_hw *ah,
+		struct ieee80211_channel *channel)
 {
 	switch (channel->hw_value) {
 	case AR5K_MODE_11A:
@@ -1787,6 +1790,7 @@ ath5k_eeprom_mode_from_channel(struct ieee80211_channel *channel)
 	case AR5K_MODE_11B:
 		return AR5K_EEPROM_MODE_11B;
 	default:
-		return -1;
+		ATH5K_WARN(ah, "channel is not A/B/G!");
+		return AR5K_EEPROM_MODE_11A;
 	}
 }

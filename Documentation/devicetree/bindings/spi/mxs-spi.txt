@@ -1,0 +1,26 @@
+* Freescale MX233/MX28 SSP/SPI
+
+Required properties:
+- compatible: Should be "fsl,<soc>-spi", where soc is "imx23" or "imx28"
+- reg: Offset and length of the register set for the device
+- interrupts: Should contain SSP ERROR interrupt
+- dmas: DMA specifier, consisting of a phandle to DMA controller node
+  and SSP DMA channel ID.
+  Refer to dma.txt and fsl-mxs-dma.txt for details.
+- dma-names: Must be "rx-tx".
+
+Optional properties:
+- clock-frequency : Input clock frequency to the SPI block in Hz.
+		    Default is 160000000 Hz.
+
+Example:
+
+ssp0: ssp@80010000 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "fsl,imx28-spi";
+	reg = <0x80010000 0x2000>;
+	interrupts = <96>;
+	dmas = <&dma_apbh 0>;
+	dma-names = "rx-tx";
+};

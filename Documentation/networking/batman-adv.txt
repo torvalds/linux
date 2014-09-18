@@ -1,5 +1,3 @@
-[state: 21-08-2011]
-
 BATMAN-ADV
 ----------
 
@@ -67,18 +65,18 @@ To deactivate an interface you have  to  write  "none"  into  its
 All  mesh  wide  settings  can be found in batman's own interface
 folder:
 
-#  ls  /sys/class/net/bat0/mesh/
-# aggregated_ogms   fragmentation gw_sel_class   vis_mode
-# ap_isolation      gw_bandwidth  hop_penalty
-# bonding           gw_mode       orig_interval
-
+# ls /sys/class/net/bat0/mesh/
+#aggregated_ogms        distributed_arp_table  gw_sel_class    orig_interval
+#ap_isolation           fragmentation          hop_penalty     routing_algo
+#bonding                gw_bandwidth           isolation_mark  vlan0
+#bridge_loop_avoidance  gw_mode                log_level
 
 There is a special folder for debugging information:
 
-#  ls /sys/kernel/debug/batman_adv/bat0/
-#  gateways     socket        transtable_global  vis_data
-#  originators  softif_neigh  transtable_local
-
+# ls /sys/kernel/debug/batman_adv/bat0/
+# bla_backbone_table  log                 transtable_global
+# bla_claim_table     originators         transtable_local
+# gateways            socket
 
 Some of the files contain all sort of status information  regard-
 ing  the  mesh  network.  For  example, you can view the table of
@@ -127,51 +125,6 @@ ously assigned to interfaces now used by batman advanced, e.g.
 # ifconfig eth0 0.0.0.0
 
 
-VISUALIZATION
--------------
-
-If you want topology visualization, at least one mesh  node  must
-be configured as VIS-server:
-
-# echo "server" > /sys/class/net/bat0/mesh/vis_mode
-
-Each  node  is  either configured as "server" or as "client" (de-
-fault: "client").  Clients send their topology data to the server
-next to them, and server synchronize with other servers. If there
-is no server configured (default) within the  mesh,  no  topology
-information   will  be  transmitted.  With  these  "synchronizing
-servers", there can be 1 or more vis servers sharing the same (or
-at least very similar) data.
-
-When  configured  as  server,  you can get a topology snapshot of
-your mesh:
-
-# cat /sys/kernel/debug/batman_adv/bat0/vis_data
-
-This raw output is intended to be easily parsable and convertable
-with  other tools. Have a look at the batctl README if you want a
-vis output in dot or json format for instance and how those  out-
-puts could then be visualised in an image.
-
-The raw format consists of comma separated values per entry where
-each entry is giving information about a  certain  source  inter-
-face.  Each  entry can/has to have the following values:
--> "mac" - mac address of an originator's source interface
-           (each line begins with it)
--> "TQ mac  value"  -  src mac's link quality towards mac address
-                       of a neighbor originator's interface which
-                       is being used for routing
--> "TT mac" - TT announced by source mac
--> "PRIMARY" - this  is a primary interface
--> "SEC mac" - secondary mac address of source
-               (requires preceding PRIMARY)
-
-The TQ value has a range from 4 to 255 with 255 being  the  best.
-The TT entries are showing which hosts are connected to the mesh
-via bat0 or being bridged into the mesh network.  The PRIMARY/SEC
-values are only applied on primary interfaces
-
-
 LOGGING/DEBUGGING
 -----------------
 
@@ -202,14 +155,21 @@ abled  during run time. Following log_levels are defined:
 1 - Enable messages related to routing / flooding / broadcasting
 2 - Enable messages related to route added / changed / deleted
 4 - Enable messages related to translation table operations
-7 - Enable all messages
+8 - Enable messages related to bridge loop avoidance
+16 - Enable messaged related to DAT, ARP snooping and parsing
+31 - Enable all messages
 
 The debug output can be changed at runtime  using  the  file
 /sys/class/net/bat0/mesh/log_level. e.g.
 
-# echo 2 > /sys/class/net/bat0/mesh/log_level
+# echo 6 > /sys/class/net/bat0/mesh/log_level
 
 will enable debug messages for when routes change.
+
+Counters for different types of packets entering and leaving the
+batman-adv module are available through ethtool:
+
+# ethtool --statistics bat0
 
 
 BATCTL
@@ -238,5 +198,5 @@ Mailing-list:   b.a.t.m.a.n@open-mesh.org (optional  subscription
 
 You can also contact the Authors:
 
-Marek  Lindner  <lindner_marek@yahoo.de>
-Simon  Wunderlich  <siwu@hrz.tu-chemnitz.de>
+Marek  Lindner  <mareklindner@neomailbox.ch>
+Simon  Wunderlich  <sw@simonwunderlich.de>

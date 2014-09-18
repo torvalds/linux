@@ -18,13 +18,13 @@
 	#size-cells = <1>;
 
 	cpus {
-		#address-cells = <1>;
+		#address-cells = <0>;
 		#size-cells = <0>;
 
-		cpu@0 {
-			compatible = "arm,1176jz-s";
+		cpu {
+			compatible = "arm,arm1176jz-s";
+			device_type = "cpu";
 			cpu-clock = <&arm_clk>, "cpu";
-			reg = <0>;
 			d-cache-line-size = <32>;
 			d-cache-size = <32768>;
 			i-cache-line-size = <32>;

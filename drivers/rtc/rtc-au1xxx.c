@@ -32,7 +32,7 @@ static int au1xtoy_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned long t;
 
-	t = au_readl(SYS_TOYREAD);
+	t = alchemy_rdsys(AU1000_SYS_TOYREAD);
 
 	rtc_time_to_tm(t, tm);
 
@@ -45,13 +45,12 @@ static int au1xtoy_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	rtc_tm_to_time(tm, &t);
 
-	au_writel(t, SYS_TOYWRITE);
-	au_sync();
+	alchemy_wrsys(t, AU1000_SYS_TOYWRITE);
 
 	/* wait for the pending register write to succeed.  This can
 	 * take up to 6 seconds...
 	 */
-	while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C0S)
+	while (alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_C0S)
 		msleep(1);
 
 	return 0;
@@ -62,13 +61,13 @@ static struct rtc_class_ops au1xtoy_rtc_ops = {
 	.set_time	= au1xtoy_rtc_set_time,
 };
 
-static int __devinit au1xtoy_rtc_probe(struct platform_device *pdev)
+static int au1xtoy_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtcdev;
 	unsigned long t;
 	int ret;
 
-	t = au_readl(SYS_COUNTER_CNTRL);
+	t = alchemy_rdsys(AU1000_SYS_CNTRCTRL);
 	if (!(t & CNTR_OK)) {
 		dev_err(&pdev->dev, "counters not working; aborting.\n");
 		ret = -ENODEV;
@@ -78,10 +77,10 @@ static int __devinit au1xtoy_rtc_probe(struct platform_device *pdev)
 	ret = -ETIMEDOUT;
 
 	/* set counter0 tickrate to 1Hz if necessary */
-	if (au_readl(SYS_TOYTRIM) != 32767) {
+	if (alchemy_rdsys(AU1000_SYS_TOYTRIM) != 32767) {
 		/* wait until hardware gives access to TRIM register */
 		t = 0x00100000;
-		while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_T0S) && --t)
+		while ((alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_T0S) && --t)
 			msleep(1);
 
 		if (!t) {
@@ -93,15 +92,14 @@ static int __devinit au1xtoy_rtc_probe(struct platform_device *pdev)
 		}
 
 		/* set 1Hz TOY tick rate */
-		au_writel(32767, SYS_TOYTRIM);
-		au_sync();
+		alchemy_wrsys(32767, AU1000_SYS_TOYTRIM);
 	}
 
 	/* wait until the hardware allows writes to the counter reg */
-	while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C0S)
+	while (alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_C0S)
 		msleep(1);
 
-	rtcdev = rtc_device_register("rtc-au1xxx", &pdev->dev,
+	rtcdev = devm_rtc_device_register(&pdev->dev, "rtc-au1xxx",
 				     &au1xtoy_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtcdev)) {
 		ret = PTR_ERR(rtcdev);
@@ -116,36 +114,14 @@ out_err:
 	return ret;
 }
 
-static int __devexit au1xtoy_rtc_remove(struct platform_device *pdev)
-{
-	struct rtc_device *rtcdev = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtcdev);
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
-}
-
 static struct platform_driver au1xrtc_driver = {
 	.driver		= {
 		.name	= "rtc-au1xxx",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __devexit_p(au1xtoy_rtc_remove),
 };
 
-static int __init au1xtoy_rtc_init(void)
-{
-	return platform_driver_probe(&au1xrtc_driver, au1xtoy_rtc_probe);
-}
-
-static void __exit au1xtoy_rtc_exit(void)
-{
-	platform_driver_unregister(&au1xrtc_driver);
-}
-
-module_init(au1xtoy_rtc_init);
-module_exit(au1xtoy_rtc_exit);
+module_platform_driver_probe(au1xrtc_driver, au1xtoy_rtc_probe);
 
 MODULE_DESCRIPTION("Au1xxx TOY-counter-based RTC driver");
 MODULE_AUTHOR("Manuel Lauss <manuel.lauss@gmail.com>");

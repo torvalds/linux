@@ -56,7 +56,7 @@
 		ranges = <0x0 0x0 0xffe00000 0x100000>;
 	};
 
-	pci0: pcie@ffe08000 {
+	pci2: pcie@ffe08000 {
 		reg = <0 0xffe08000 0 0x1000>;
 		status = "disabled";
 	};
@@ -76,7 +76,7 @@
 		};
 	};
 
-	pci2: pcie@ffe0a000 {
+	pci0: pcie@ffe0a000 {
 		reg = <0 0xffe0a000 0 0x1000>;
 		ranges = <0x2000000 0x0 0xe0000000 0 0x80000000 0x0 0x20000000
 			  0x1000000 0x0 0x00000000 0 0xffc00000 0x0 0x10000>;

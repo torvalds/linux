@@ -10,7 +10,8 @@
  * option) any later version.
  */
 
-#include <linux/version.h>
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -20,8 +21,8 @@
 #include <linux/ctype.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/vme.h>
 
-#include "../vme.h"
 #include "vme_pio2.h"
 
 
@@ -41,8 +42,8 @@ static int variant_num;
 static bool loopback;
 
 static int pio2_match(struct vme_dev *);
-static int __devinit pio2_probe(struct vme_dev *);
-static int __devexit pio2_remove(struct vme_dev *);
+static int pio2_probe(struct vme_dev *);
+static int pio2_remove(struct vme_dev *);
 
 static int pio2_get_led(struct pio2_card *card)
 {
@@ -155,37 +156,25 @@ static struct vme_driver pio2_driver = {
 	.name = driver_name,
 	.match = pio2_match,
 	.probe = pio2_probe,
-	.remove = __devexit_p(pio2_remove),
+	.remove = pio2_remove,
 };
 
 
 static int __init pio2_init(void)
 {
-	int retval = 0;
-
 	if (bus_num == 0) {
-		printk(KERN_ERR "%s: No cards, skipping registration\n",
-			driver_name);
-		goto err_nocard;
+		pr_err("No cards, skipping registration\n");
+		return -ENODEV;
 	}
 
 	if (bus_num > PIO2_CARDS_MAX) {
-		printk(KERN_ERR
-			"%s: Driver only able to handle %d PIO2 Cards\n",
-			driver_name, PIO2_CARDS_MAX);
+		pr_err("Driver only able to handle %d PIO2 Cards\n",
+		       PIO2_CARDS_MAX);
 		bus_num = PIO2_CARDS_MAX;
 	}
 
 	/* Register the PIO2 driver */
-	retval = vme_register_driver(&pio2_driver, bus_num);
-	if (retval != 0)
-		goto err_reg;
-
-	return retval;
-
-err_reg:
-err_nocard:
-	return retval;
+	return  vme_register_driver(&pio2_driver, bus_num);
 }
 
 static int pio2_match(struct vme_dev *vdev)
@@ -193,37 +182,37 @@ static int pio2_match(struct vme_dev *vdev)
 
 	if (vdev->num >= bus_num) {
 		dev_err(&vdev->dev,
-			"The enumeration of the VMEbus to which the board is connected must be specified");
+			"The enumeration of the VMEbus to which the board is connected must be specified\n");
 		return 0;
 	}
 
 	if (vdev->num >= base_num) {
 		dev_err(&vdev->dev,
-			"The VME address for the cards registers must be specified");
+			"The VME address for the cards registers must be specified\n");
 		return 0;
 	}
 
 	if (vdev->num >= vector_num) {
 		dev_err(&vdev->dev,
-			"The IRQ vector used by the card must be specified");
+			"The IRQ vector used by the card must be specified\n");
 		return 0;
 	}
 
 	if (vdev->num >= level_num) {
 		dev_err(&vdev->dev,
-			"The IRQ level used by the card must be specified");
+			"The IRQ level used by the card must be specified\n");
 		return 0;
 	}
 
 	if (vdev->num >= variant_num) {
-		dev_err(&vdev->dev, "The variant of the card must be specified");
+		dev_err(&vdev->dev, "The variant of the card must be specified\n");
 		return 0;
 	}
 
 	return 1;
 }
 
-static int __devinit pio2_probe(struct vme_dev *vdev)
+static int pio2_probe(struct vme_dev *vdev)
 {
 	struct pio2_card *card;
 	int retval;
@@ -233,7 +222,6 @@ static int __devinit pio2_probe(struct vme_dev *vdev)
 
 	card = kzalloc(sizeof(struct pio2_card), GFP_KERNEL);
 	if (card == NULL) {
-		dev_err(&vdev->dev, "Unable to allocate card structure\n");
 		retval = -ENOMEM;
 		goto err_struct;
 	}
@@ -336,7 +324,7 @@ static int __devinit pio2_probe(struct vme_dev *vdev)
 	retval = pio2_reset_card(card);
 	if (retval) {
 		dev_err(&card->vdev->dev,
-			"Failed to reset card, is location valid?");
+			"Failed to reset card, is location valid?\n");
 		retval = -ENODEV;
 		goto err_reset;
 	}
@@ -456,7 +444,7 @@ err_struct:
 	return retval;
 }
 
-static int __devexit pio2_remove(struct vme_dev *vdev)
+static int pio2_remove(struct vme_dev *vdev)
 {
 	int vec;
 	int i;

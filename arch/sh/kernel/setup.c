@@ -172,7 +172,7 @@ disable:
 #endif
 }
 
-void __cpuinit calibrate_delay(void)
+void calibrate_delay(void)
 {
 	struct clk *clk = clk_get(NULL, "cpu_clk");
 
@@ -230,8 +230,8 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	pmb_bolt_mapping((unsigned long)__va(start), start, end - start,
 			 PAGE_KERNEL);
 
-	memblock_set_node(PFN_PHYS(start_pfn),
-			  PFN_PHYS(end_pfn - start_pfn), nid);
+	memblock_set_node(PFN_PHYS(start_pfn), PFN_PHYS(end_pfn - start_pfn),
+			  &memblock.memory, nid);
 }
 
 void __init __weak plat_early_device_setup(void)
@@ -273,7 +273,7 @@ void __init setup_arch(char **cmdline_p)
 	data_resource.start = virt_to_phys(_etext);
 	data_resource.end = virt_to_phys(_edata)-1;
 	bss_resource.start = virt_to_phys(__bss_start);
-	bss_resource.end = virt_to_phys(_ebss)-1;
+	bss_resource.end = virt_to_phys(__bss_stop)-1;
 
 #ifdef CONFIG_CMDLINE_OVERWRITE
 	strlcpy(command_line, CONFIG_CMDLINE, sizeof(command_line));

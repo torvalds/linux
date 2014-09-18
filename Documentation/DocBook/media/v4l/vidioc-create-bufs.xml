@@ -6,7 +6,8 @@
 
   <refnamediv>
     <refname>VIDIOC_CREATE_BUFS</refname>
-    <refpurpose>Create buffers for Memory Mapped or User Pointer I/O</refpurpose>
+    <refpurpose>Create buffers for Memory Mapped or User Pointer or DMA Buffer
+    I/O</refpurpose>
   </refnamediv>
 
   <refsynopsisdiv>
@@ -48,25 +49,42 @@
   <refsect1>
     <title>Description</title>
 
-    <para>This ioctl is used to create buffers for <link linkend="mmap">memory
-mapped</link> or <link linkend="userp">user pointer</link>
-I/O. It can be used as an alternative or in addition to the
-<constant>VIDIOC_REQBUFS</constant> ioctl, when a tighter control over buffers
-is required. This ioctl can be called multiple times to create buffers of
-different sizes.</para>
+    <note>
+      <title>Experimental</title>
+      <para>This is an <link linkend="experimental"> experimental </link>
+      interface and may change in the future.</para>
+    </note>
 
-    <para>To allocate device buffers applications initialize relevant fields of
-the <structname>v4l2_create_buffers</structname> structure. They set the
-<structfield>type</structfield> field in the
-<structname>v4l2_format</structname> structure, embedded in this
-structure, to the respective stream or buffer type.
-<structfield>count</structfield> must be set to the number of required buffers.
-<structfield>memory</structfield> specifies the required I/O method. The
-<structfield>format</structfield> field shall typically be filled in using
-either the <constant>VIDIOC_TRY_FMT</constant> or
-<constant>VIDIOC_G_FMT</constant> ioctl(). Additionally, applications can adjust
-<structfield>sizeimage</structfield> fields to fit their specific needs. The
-<structfield>reserved</structfield> array must be zeroed.</para>
+    <para>This ioctl is used to create buffers for <link linkend="mmap">memory
+mapped</link> or <link linkend="userp">user pointer</link> or <link
+linkend="dmabuf">DMA buffer</link> I/O. It can be used as an alternative or in
+addition to the <constant>VIDIOC_REQBUFS</constant> ioctl, when a tighter
+control over buffers is required. This ioctl can be called multiple times to
+create buffers of different sizes.</para>
+
+    <para>To allocate the device buffers applications must initialize the
+relevant fields of the <structname>v4l2_create_buffers</structname> structure.
+The <structfield>count</structfield> field must be set to the number of
+requested buffers, the <structfield>memory</structfield> field specifies the
+requested I/O method and the <structfield>reserved</structfield> array must be
+zeroed.</para>
+
+    <para>The <structfield>format</structfield> field specifies the image format
+that the buffers must be able to handle. The application has to fill in this
+&v4l2-format;. Usually this will be done using the
+<constant>VIDIOC_TRY_FMT</constant> or <constant>VIDIOC_G_FMT</constant> ioctl()
+to ensure that the requested format is supported by the driver. Unsupported
+formats will result in an error.</para>
+
+    <para>The buffers created by this ioctl will have as minimum size the size
+defined by the <structfield>format.pix.sizeimage</structfield> field. If the
+<structfield>format.pix.sizeimage</structfield> field is less than the minimum
+required for the given format, then <structfield>sizeimage</structfield> will be
+increased by the driver to that minimum to allocate the buffers. If it is
+larger, then the value will be used as-is. The same applies to the
+<structfield>sizeimage</structfield> field of the
+<structname>v4l2_plane_pix_format</structname> structure in the case of
+multiplanar formats.</para>
 
     <para>When the ioctl is called with a pointer to this structure the driver
 will attempt to allocate up to the requested number of buffers and store the
@@ -91,14 +109,22 @@ information.</para>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>count</structfield></entry>
-	    <entry>The number of buffers requested or granted.</entry>
+	    <entry>The number of buffers requested or granted. If count == 0, then
+	    <constant>VIDIOC_CREATE_BUFS</constant> will set <structfield>index</structfield>
+	    to the current number of created buffers, and it will check the validity of
+	    <structfield>memory</structfield> and <structfield>format.type</structfield>.
+	    If those are invalid -1 is returned and errno is set to &EINVAL;,
+	    otherwise <constant>VIDIOC_CREATE_BUFS</constant> returns 0. It will
+	    never set errno to &EBUSY; in this particular case.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-memory;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>memory</structfield></entry>
 	    <entry>Applications set this field to
-<constant>V4L2_MEMORY_MMAP</constant> or
-<constant>V4L2_MEMORY_USERPTR</constant>.</entry>
+<constant>V4L2_MEMORY_MMAP</constant>,
+<constant>V4L2_MEMORY_DMABUF</constant> or
+<constant>V4L2_MEMORY_USERPTR</constant>. See <xref linkend="v4l2-memory"
+/></entry>
 	  </row>
 	  <row>
 	    <entry>&v4l2-format;</entry>
@@ -129,9 +155,9 @@ mapped</link> I/O.</para>
       <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
-	  <para>The buffer type (<structfield>type</structfield> field) or the
-requested I/O method (<structfield>memory</structfield>) is not
-supported.</para>
+	  <para>The buffer type (<structfield>format.type</structfield> field),
+requested I/O method (<structfield>memory</structfield>) or format
+(<structfield>format</structfield> field) is not valid.</para>
 	</listitem>
       </varlistentry>
     </variablelist>

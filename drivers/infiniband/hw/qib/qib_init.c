@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012, 2013 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -38,9 +38,21 @@
 #include <linux/delay.h>
 #include <linux/idr.h>
 #include <linux/module.h>
+#include <linux/printk.h>
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+#include <linux/dca.h>
+#endif
 
 #include "qib.h"
 #include "qib_common.h"
+#include "qib_mad.h"
+#ifdef CONFIG_DEBUG_FS
+#include "qib_debugfs.h"
+#include "qib_verbs.h"
+#endif
+
+#undef pr_fmt
+#define pr_fmt(fmt) QIB_DRV_NAME ": " fmt
 
 /*
  * min buffers we want to have per context, after driver
@@ -59,6 +71,11 @@ ushort qib_cfgctxts;
 module_param_named(cfgctxts, qib_cfgctxts, ushort, S_IRUGO);
 MODULE_PARM_DESC(cfgctxts, "Set max number of contexts to use");
 
+unsigned qib_numa_aware;
+module_param_named(numa_aware, qib_numa_aware, uint, S_IRUGO);
+MODULE_PARM_DESC(numa_aware,
+	"0 -> PSM allocation close to HCA, 1 -> PSM allocation local to process");
+
 /*
  * If set, do not write to any regs if avoidable, hack to allow
  * check for deranged default register values.
@@ -71,6 +88,9 @@ unsigned qib_n_krcv_queues;
 module_param_named(krcvqs, qib_n_krcv_queues, uint, S_IRUGO);
 MODULE_PARM_DESC(krcvqs, "number of kernel receive queues per IB port");
 
+unsigned qib_cc_table_size;
+module_param_named(cc_table_size, qib_cc_table_size, uint, S_IRUGO);
+MODULE_PARM_DESC(cc_table_size, "Congestion control table entries 0 (CCA disabled - default), min = 128, max = 1984");
 /*
  * qib_wc_pat parameter:
  *      0 is WC via MTRR
@@ -80,8 +100,6 @@ MODULE_PARM_DESC(krcvqs, "number of kernel receive queues per IB port");
 unsigned qib_wc_pat = 1; /* default (1) is to use PAT, not MTRR */
 module_param_named(wc_pat, qib_wc_pat, uint, S_IRUGO);
 MODULE_PARM_DESC(wc_pat, "enable write-combining via PAT mechanism");
-
-struct workqueue_struct *qib_cq_wq;
 
 static void verify_interrupt(unsigned long);
 
@@ -102,6 +120,8 @@ void qib_set_ctxtcnt(struct qib_devdata *dd)
 		dd->cfgctxts = qib_cfgctxts;
 	else
 		dd->cfgctxts = dd->ctxtcnt;
+	dd->freectxts = (dd->first_user_ctxt > dd->cfgctxts) ? 0 :
+		dd->cfgctxts - dd->first_user_ctxt;
 }
 
 /*
@@ -110,7 +130,11 @@ void qib_set_ctxtcnt(struct qib_devdata *dd)
 int qib_create_ctxts(struct qib_devdata *dd)
 {
 	unsigned i;
-	int ret;
+	int local_node_id = pcibus_to_node(dd->pcidev->bus);
+
+	if (local_node_id < 0)
+		local_node_id = numa_node_id();
+	dd->assigned_node_id = local_node_id;
 
 	/*
 	 * Allocate full ctxtcnt array, rather than just cfgctxts, because
@@ -118,10 +142,9 @@ int qib_create_ctxts(struct qib_devdata *dd)
 	 */
 	dd->rcd = kzalloc(sizeof(*dd->rcd) * dd->ctxtcnt, GFP_KERNEL);
 	if (!dd->rcd) {
-		qib_dev_err(dd, "Unable to allocate ctxtdata array, "
-			    "failing\n");
-		ret = -ENOMEM;
-		goto done;
+		qib_dev_err(dd,
+			"Unable to allocate ctxtdata array, failing\n");
+		return -ENOMEM;
 	}
 
 	/* create (one or more) kctxt */
@@ -133,38 +156,51 @@ int qib_create_ctxts(struct qib_devdata *dd)
 			continue;
 
 		ppd = dd->pport + (i % dd->num_pports);
-		rcd = qib_create_ctxtdata(ppd, i);
+
+		rcd = qib_create_ctxtdata(ppd, i, dd->assigned_node_id);
 		if (!rcd) {
-			qib_dev_err(dd, "Unable to allocate ctxtdata"
-				    " for Kernel ctxt, failing\n");
-			ret = -ENOMEM;
-			goto done;
+			qib_dev_err(dd,
+				"Unable to allocate ctxtdata for Kernel ctxt, failing\n");
+			kfree(dd->rcd);
+			dd->rcd = NULL;
+			return -ENOMEM;
 		}
 		rcd->pkeys[0] = QIB_DEFAULT_P_KEY;
 		rcd->seq_cnt = 1;
 	}
-	ret = 0;
-done:
-	return ret;
+	return 0;
 }
 
 /*
  * Common code for user and kernel context setup.
  */
-struct qib_ctxtdata *qib_create_ctxtdata(struct qib_pportdata *ppd, u32 ctxt)
+struct qib_ctxtdata *qib_create_ctxtdata(struct qib_pportdata *ppd, u32 ctxt,
+	int node_id)
 {
 	struct qib_devdata *dd = ppd->dd;
 	struct qib_ctxtdata *rcd;
 
-	rcd = kzalloc(sizeof(*rcd), GFP_KERNEL);
+	rcd = kzalloc_node(sizeof(*rcd), GFP_KERNEL, node_id);
 	if (rcd) {
 		INIT_LIST_HEAD(&rcd->qp_wait_list);
+		rcd->node_id = node_id;
 		rcd->ppd = ppd;
 		rcd->dd = dd;
 		rcd->cnt = 1;
 		rcd->ctxt = ctxt;
 		dd->rcd[ctxt] = rcd;
-
+#ifdef CONFIG_DEBUG_FS
+		if (ctxt < dd->first_user_ctxt) { /* N/A for PSM contexts */
+			rcd->opstats = kzalloc_node(sizeof(*rcd->opstats),
+				GFP_KERNEL, node_id);
+			if (!rcd->opstats) {
+				kfree(rcd);
+				qib_dev_err(dd,
+					"Unable to allocate per ctxt stats buffer\n");
+				return NULL;
+			}
+		}
+#endif
 		dd->f_init_ctxt(rcd);
 
 		/*
@@ -194,20 +230,101 @@ struct qib_ctxtdata *qib_create_ctxtdata(struct qib_pportdata *ppd, u32 ctxt)
 /*
  * Common code for initializing the physical port structure.
  */
-void qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
+int qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 			u8 hw_pidx, u8 port)
 {
+	int size;
 	ppd->dd = dd;
 	ppd->hw_pidx = hw_pidx;
 	ppd->port = port; /* IB port number, not index */
 
 	spin_lock_init(&ppd->sdma_lock);
 	spin_lock_init(&ppd->lflags_lock);
+	spin_lock_init(&ppd->cc_shadow_lock);
 	init_waitqueue_head(&ppd->state_wait);
 
 	init_timer(&ppd->symerr_clear_timer);
 	ppd->symerr_clear_timer.function = qib_clear_symerror_on_linkup;
 	ppd->symerr_clear_timer.data = (unsigned long)ppd;
+
+	ppd->qib_wq = NULL;
+	ppd->ibport_data.pmastats =
+		alloc_percpu(struct qib_pma_counters);
+	if (!ppd->ibport_data.pmastats)
+		return -ENOMEM;
+
+	if (qib_cc_table_size < IB_CCT_MIN_ENTRIES)
+		goto bail;
+
+	ppd->cc_supported_table_entries = min(max_t(int, qib_cc_table_size,
+		IB_CCT_MIN_ENTRIES), IB_CCT_ENTRIES*IB_CC_TABLE_CAP_DEFAULT);
+
+	ppd->cc_max_table_entries =
+		ppd->cc_supported_table_entries/IB_CCT_ENTRIES;
+
+	size = IB_CC_TABLE_CAP_DEFAULT * sizeof(struct ib_cc_table_entry)
+		* IB_CCT_ENTRIES;
+	ppd->ccti_entries = kzalloc(size, GFP_KERNEL);
+	if (!ppd->ccti_entries) {
+		qib_dev_err(dd,
+		  "failed to allocate congestion control table for port %d!\n",
+		  port);
+		goto bail;
+	}
+
+	size = IB_CC_CCS_ENTRIES * sizeof(struct ib_cc_congestion_entry);
+	ppd->congestion_entries = kzalloc(size, GFP_KERNEL);
+	if (!ppd->congestion_entries) {
+		qib_dev_err(dd,
+		 "failed to allocate congestion setting list for port %d!\n",
+		 port);
+		goto bail_1;
+	}
+
+	size = sizeof(struct cc_table_shadow);
+	ppd->ccti_entries_shadow = kzalloc(size, GFP_KERNEL);
+	if (!ppd->ccti_entries_shadow) {
+		qib_dev_err(dd,
+		 "failed to allocate shadow ccti list for port %d!\n",
+		 port);
+		goto bail_2;
+	}
+
+	size = sizeof(struct ib_cc_congestion_setting_attr);
+	ppd->congestion_entries_shadow = kzalloc(size, GFP_KERNEL);
+	if (!ppd->congestion_entries_shadow) {
+		qib_dev_err(dd,
+		 "failed to allocate shadow congestion setting list for port %d!\n",
+		 port);
+		goto bail_3;
+	}
+
+	return 0;
+
+bail_3:
+	kfree(ppd->ccti_entries_shadow);
+	ppd->ccti_entries_shadow = NULL;
+bail_2:
+	kfree(ppd->congestion_entries);
+	ppd->congestion_entries = NULL;
+bail_1:
+	kfree(ppd->ccti_entries);
+	ppd->ccti_entries = NULL;
+bail:
+	/* User is intentionally disabling the congestion control agent */
+	if (!qib_cc_table_size)
+		return 0;
+
+	if (qib_cc_table_size < IB_CCT_MIN_ENTRIES) {
+		qib_cc_table_size = 0;
+		qib_dev_err(dd,
+		 "Congestion Control table size %d less than minimum %d for port %d\n",
+		 qib_cc_table_size, IB_CCT_MIN_ENTRIES, port);
+	}
+
+	qib_dev_err(dd, "Congestion Control Agent disabled for port %d\n",
+		port);
+	return 0;
 }
 
 static int init_pioavailregs(struct qib_devdata *dd)
@@ -219,8 +336,8 @@ static int init_pioavailregs(struct qib_devdata *dd)
 		&dd->pcidev->dev, PAGE_SIZE, &dd->pioavailregs_phys,
 		GFP_KERNEL);
 	if (!dd->pioavailregs_dma) {
-		qib_dev_err(dd, "failed to allocate PIOavail reg area "
-			    "in memory\n");
+		qib_dev_err(dd,
+			"failed to allocate PIOavail reg area in memory\n");
 		ret = -ENOMEM;
 		goto done;
 	}
@@ -275,15 +392,15 @@ static void init_shadow_tids(struct qib_devdata *dd)
 
 	pages = vzalloc(dd->cfgctxts * dd->rcvtidcnt * sizeof(struct page *));
 	if (!pages) {
-		qib_dev_err(dd, "failed to allocate shadow page * "
-			    "array, no expected sends!\n");
+		qib_dev_err(dd,
+			"failed to allocate shadow page * array, no expected sends!\n");
 		goto bail;
 	}
 
 	addrs = vzalloc(dd->cfgctxts * dd->rcvtidcnt * sizeof(dma_addr_t));
 	if (!addrs) {
-		qib_dev_err(dd, "failed to allocate shadow dma handle "
-			    "array, no expected sends!\n");
+		qib_dev_err(dd,
+			"failed to allocate shadow dma handle array, no expected sends!\n");
 		goto bail_free;
 	}
 
@@ -307,13 +424,13 @@ static int loadtime_init(struct qib_devdata *dd)
 
 	if (((dd->revision >> QLOGIC_IB_R_SOFTWARE_SHIFT) &
 	     QLOGIC_IB_R_SOFTWARE_MASK) != QIB_CHIP_SWVERSION) {
-		qib_dev_err(dd, "Driver only handles version %d, "
-			    "chip swversion is %d (%llx), failng\n",
-			    QIB_CHIP_SWVERSION,
-			    (int)(dd->revision >>
+		qib_dev_err(dd,
+			"Driver only handles version %d, chip swversion is %d (%llx), failng\n",
+			QIB_CHIP_SWVERSION,
+			(int)(dd->revision >>
 				QLOGIC_IB_R_SOFTWARE_SHIFT) &
-			    QLOGIC_IB_R_SOFTWARE_MASK,
-			    (unsigned long long) dd->revision);
+				QLOGIC_IB_R_SOFTWARE_MASK,
+			(unsigned long long) dd->revision);
 		ret = -ENOSYS;
 		goto done;
 	}
@@ -341,6 +458,7 @@ static int loadtime_init(struct qib_devdata *dd)
 	dd->intrchk_timer.function = verify_interrupt;
 	dd->intrchk_timer.data = (unsigned long) dd;
 
+	ret = qib_cq_init(dd);
 done:
 	return ret;
 }
@@ -402,12 +520,12 @@ static void enable_chip(struct qib_devdata *dd)
 		if (rcd)
 			dd->f_rcvctrl(rcd->ppd, rcvmask, i);
 	}
-	dd->freectxts = dd->cfgctxts - dd->first_user_ctxt;
 }
 
 static void verify_interrupt(unsigned long opaque)
 {
 	struct qib_devdata *dd = (struct qib_devdata *) opaque;
+	u64 int_counter;
 
 	if (!dd)
 		return; /* being torn down */
@@ -416,10 +534,11 @@ static void verify_interrupt(unsigned long opaque)
 	 * If we don't have a lid or any interrupts, let the user know and
 	 * don't bother checking again.
 	 */
-	if (dd->int_counter == 0) {
+	int_counter = qib_int_counter(dd) - dd->z_int_counter;
+	if (int_counter == 0) {
 		if (!dd->f_intr_fallback(dd))
-			dev_err(&dd->pcidev->dev, "No interrupts detected, "
-				"not usable.\n");
+			dev_err(&dd->pcidev->dev,
+				"No interrupts detected, not usable.\n");
 		else /* re-arm the timer to see if fallback works */
 			mod_timer(&dd->intrchk_timer, jiffies + HZ/2);
 	}
@@ -479,6 +598,47 @@ static void init_piobuf_state(struct qib_devdata *dd)
 	qib_chg_pioavailkernel(dd, 0, dd->piobcnt2k + dd->piobcnt4k,
 			       TXCHK_CHG_TYPE_KERN, NULL);
 	dd->f_initvl15_bufs(dd);
+}
+
+/**
+ * qib_create_workqueues - create per port workqueues
+ * @dd: the qlogic_ib device
+ */
+static int qib_create_workqueues(struct qib_devdata *dd)
+{
+	int pidx;
+	struct qib_pportdata *ppd;
+
+	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
+		ppd = dd->pport + pidx;
+		if (!ppd->qib_wq) {
+			char wq_name[8]; /* 3 + 2 + 1 + 1 + 1 */
+			snprintf(wq_name, sizeof(wq_name), "qib%d_%d",
+				dd->unit, pidx);
+			ppd->qib_wq =
+				create_singlethread_workqueue(wq_name);
+			if (!ppd->qib_wq)
+				goto wq_error;
+		}
+	}
+	return 0;
+wq_error:
+	pr_err("create_singlethread_workqueue failed for port %d\n",
+		pidx + 1);
+	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
+		ppd = dd->pport + pidx;
+		if (ppd->qib_wq) {
+			destroy_workqueue(ppd->qib_wq);
+			ppd->qib_wq = NULL;
+		}
+	}
+	return -ENOMEM;
+}
+
+static void qib_free_pportdata(struct qib_pportdata *ppd)
+{
+	free_percpu(ppd->ibport_data.pmastats);
+	ppd->ibport_data.pmastats = NULL;
 }
 
 /**
@@ -546,8 +706,8 @@ int qib_init(struct qib_devdata *dd, int reinit)
 		if (!lastfail)
 			lastfail = qib_setup_eagerbufs(rcd);
 		if (lastfail) {
-			qib_dev_err(dd, "failed to allocate kernel ctxt's "
-				    "rcvhdrq and/or egr bufs\n");
+			qib_dev_err(dd,
+				"failed to allocate kernel ctxt's rcvhdrq and/or egr bufs\n");
 			continue;
 		}
 	}
@@ -763,6 +923,12 @@ static void qib_shutdown_device(struct qib_devdata *dd)
 		 * We can't count on interrupts since we are stopping.
 		 */
 		dd->f_quiet_serdes(ppd);
+
+		if (ppd->qib_wq) {
+			destroy_workqueue(ppd->qib_wq);
+			ppd->qib_wq = NULL;
+		}
+		qib_free_pportdata(ppd);
 	}
 
 	qib_update_eeprom_log(dd);
@@ -817,6 +983,10 @@ void qib_free_ctxtdata(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
 	vfree(rcd->subctxt_uregbase);
 	vfree(rcd->subctxt_rcvegrbuf);
 	vfree(rcd->subctxt_rcvhdr_base);
+#ifdef CONFIG_DEBUG_FS
+	kfree(rcd->opstats);
+	rcd->opstats = NULL;
+#endif
 	kfree(rcd);
 }
 
@@ -892,8 +1062,7 @@ static void qib_verify_pioperf(struct qib_devdata *dd)
 	/* 1 GiB/sec, slightly over IB SDR line rate */
 	if (lcnt < (emsecs * 1024U))
 		qib_dev_err(dd,
-			    "Performance problem: bandwidth to PIO buffers is "
-			    "only %u MiB/sec\n",
+			    "Performance problem: bandwidth to PIO buffers is only %u MiB/sec\n",
 			    lcnt / (u32) emsecs);
 
 	preempt_enable();
@@ -907,7 +1076,6 @@ done:
 	dd->f_set_armlaunch(dd, 1);
 }
 
-
 void qib_free_devdata(struct qib_devdata *dd)
 {
 	unsigned long flags;
@@ -917,7 +1085,35 @@ void qib_free_devdata(struct qib_devdata *dd)
 	list_del(&dd->list);
 	spin_unlock_irqrestore(&qib_devs_lock, flags);
 
+#ifdef CONFIG_DEBUG_FS
+	qib_dbg_ibdev_exit(&dd->verbs_dev);
+#endif
+	free_percpu(dd->int_counter);
 	ib_dealloc_device(&dd->verbs_dev.ibdev);
+}
+
+u64 qib_int_counter(struct qib_devdata *dd)
+{
+	int cpu;
+	u64 int_counter = 0;
+
+	for_each_possible_cpu(cpu)
+		int_counter += *per_cpu_ptr(dd->int_counter, cpu);
+	return int_counter;
+}
+
+u64 qib_sps_ints(void)
+{
+	unsigned long flags;
+	struct qib_devdata *dd;
+	u64 sps_ints = 0;
+
+	spin_lock_irqsave(&qib_devs_lock, flags);
+	list_for_each_entry(dd, &qib_dev_list, list) {
+		sps_ints += qib_int_counter(dd);
+	}
+	spin_unlock_irqrestore(&qib_devs_lock, flags);
+	return sps_ints;
 }
 
 /*
@@ -934,28 +1130,34 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	struct qib_devdata *dd;
 	int ret;
 
-	if (!idr_pre_get(&qib_unit_table, GFP_KERNEL)) {
-		dd = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
-
 	dd = (struct qib_devdata *) ib_alloc_device(sizeof(*dd) + extra);
-	if (!dd) {
-		dd = ERR_PTR(-ENOMEM);
-		goto bail;
+	if (!dd)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&dd->list);
+
+	idr_preload(GFP_KERNEL);
+	spin_lock_irqsave(&qib_devs_lock, flags);
+
+	ret = idr_alloc(&qib_unit_table, dd, 0, 0, GFP_NOWAIT);
+	if (ret >= 0) {
+		dd->unit = ret;
+		list_add(&dd->list, &qib_dev_list);
 	}
 
-	spin_lock_irqsave(&qib_devs_lock, flags);
-	ret = idr_get_new(&qib_unit_table, dd, &dd->unit);
-	if (ret >= 0)
-		list_add(&dd->list, &qib_dev_list);
 	spin_unlock_irqrestore(&qib_devs_lock, flags);
+	idr_preload_end();
 
 	if (ret < 0) {
 		qib_early_err(&pdev->dev,
 			      "Could not allocate unit ID: error %d\n", -ret);
-		ib_dealloc_device(&dd->verbs_dev.ibdev);
-		dd = ERR_PTR(ret);
+		goto bail;
+	}
+	dd->int_counter = alloc_percpu(u64);
+	if (!dd->int_counter) {
+		ret = -ENOMEM;
+		qib_early_err(&pdev->dev,
+			      "Could not allocate per-cpu int_counter\n");
 		goto bail;
 	}
 
@@ -966,12 +1168,18 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 		if (qib_cpulist)
 			qib_cpulist_count = count;
 		else
-			qib_early_err(&pdev->dev, "Could not alloc cpulist "
-				      "info, cpu affinity might be wrong\n");
+			qib_early_err(&pdev->dev,
+				"Could not alloc cpulist info, cpu affinity might be wrong\n");
 	}
-
-bail:
+#ifdef CONFIG_DEBUG_FS
+	qib_dbg_ibdev_init(&dd->verbs_dev);
+#endif
 	return dd;
+bail:
+	if (!list_empty(&dd->list))
+		list_del_init(&dd->list);
+	ib_dealloc_device(&dd->verbs_dev.ibdev);
+	return ERR_PTR(ret);;
 }
 
 /*
@@ -1008,14 +1216,13 @@ void qib_disable_after_error(struct qib_devdata *dd)
 		*dd->devstatusp |= QIB_STATUS_HWERROR;
 }
 
-static void __devexit qib_remove_one(struct pci_dev *);
-static int __devinit qib_init_one(struct pci_dev *,
-				  const struct pci_device_id *);
+static void qib_remove_one(struct pci_dev *);
+static int qib_init_one(struct pci_dev *, const struct pci_device_id *);
 
-#define DRIVER_LOAD_MSG "QLogic " QIB_DRV_NAME " loaded: "
+#define DRIVER_LOAD_MSG "Intel " QIB_DRV_NAME " loaded: "
 #define PFX QIB_DRV_NAME ": "
 
-static DEFINE_PCI_DEVICE_TABLE(qib_pci_tbl) = {
+static const struct pci_device_id qib_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PATHSCALE, PCI_DEVICE_ID_QLOGIC_IB_6120) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_IB_7220) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_IB_7322) },
@@ -1024,19 +1231,48 @@ static DEFINE_PCI_DEVICE_TABLE(qib_pci_tbl) = {
 
 MODULE_DEVICE_TABLE(pci, qib_pci_tbl);
 
-struct pci_driver qib_driver = {
+static struct pci_driver qib_driver = {
 	.name = QIB_DRV_NAME,
 	.probe = qib_init_one,
-	.remove = __devexit_p(qib_remove_one),
+	.remove = qib_remove_one,
 	.id_table = qib_pci_tbl,
 	.err_handler = &qib_pci_err_handler,
 };
+
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+
+static int qib_notify_dca(struct notifier_block *, unsigned long, void *);
+static struct notifier_block dca_notifier = {
+	.notifier_call  = qib_notify_dca,
+	.next           = NULL,
+	.priority       = 0
+};
+
+static int qib_notify_dca_device(struct device *device, void *data)
+{
+	struct qib_devdata *dd = dev_get_drvdata(device);
+	unsigned long event = *(unsigned long *)data;
+
+	return dd->f_notify_dca(dd, event);
+}
+
+static int qib_notify_dca(struct notifier_block *nb, unsigned long event,
+					  void *p)
+{
+	int rval;
+
+	rval = driver_for_each_device(&qib_driver.driver, NULL,
+				      &event, qib_notify_dca_device);
+	return rval ? NOTIFY_BAD : NOTIFY_DONE;
+}
+
+#endif
 
 /*
  * Do all the generic driver unit- and chip-independent memory
  * allocation and initialization.
  */
-static int __init qlogic_ib_init(void)
+static int __init qib_ib_init(void)
 {
 	int ret;
 
@@ -1044,63 +1280,64 @@ static int __init qlogic_ib_init(void)
 	if (ret)
 		goto bail;
 
-	qib_cq_wq = create_singlethread_workqueue("qib_cq");
-	if (!qib_cq_wq) {
-		ret = -ENOMEM;
-		goto bail_dev;
-	}
-
 	/*
 	 * These must be called before the driver is registered with
 	 * the PCI subsystem.
 	 */
 	idr_init(&qib_unit_table);
-	if (!idr_pre_get(&qib_unit_table, GFP_KERNEL)) {
-		printk(KERN_ERR QIB_DRV_NAME ": idr_pre_get() failed\n");
-		ret = -ENOMEM;
-		goto bail_cq_wq;
-	}
 
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	dca_register_notify(&dca_notifier);
+#endif
+#ifdef CONFIG_DEBUG_FS
+	qib_dbg_init();
+#endif
 	ret = pci_register_driver(&qib_driver);
 	if (ret < 0) {
-		printk(KERN_ERR QIB_DRV_NAME
-		       ": Unable to register driver: error %d\n", -ret);
-		goto bail_unit;
+		pr_err("Unable to register driver: error %d\n", -ret);
+		goto bail_dev;
 	}
 
 	/* not fatal if it doesn't work */
 	if (qib_init_qibfs())
-		printk(KERN_ERR QIB_DRV_NAME ": Unable to register ipathfs\n");
+		pr_err("Unable to register ipathfs\n");
 	goto bail; /* all OK */
 
-bail_unit:
-	idr_destroy(&qib_unit_table);
-bail_cq_wq:
-	destroy_workqueue(qib_cq_wq);
 bail_dev:
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	dca_unregister_notify(&dca_notifier);
+#endif
+#ifdef CONFIG_DEBUG_FS
+	qib_dbg_exit();
+#endif
+	idr_destroy(&qib_unit_table);
 	qib_dev_cleanup();
 bail:
 	return ret;
 }
 
-module_init(qlogic_ib_init);
+module_init(qib_ib_init);
 
 /*
  * Do the non-unit driver cleanup, memory free, etc. at unload.
  */
-static void __exit qlogic_ib_cleanup(void)
+static void __exit qib_ib_cleanup(void)
 {
 	int ret;
 
 	ret = qib_exit_qibfs();
 	if (ret)
-		printk(KERN_ERR QIB_DRV_NAME ": "
-			"Unable to cleanup counter filesystem: "
-			"error %d\n", -ret);
+		pr_err(
+			"Unable to cleanup counter filesystem: error %d\n",
+			-ret);
 
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	dca_unregister_notify(&dca_notifier);
+#endif
 	pci_unregister_driver(&qib_driver);
-
-	destroy_workqueue(qib_cq_wq);
+#ifdef CONFIG_DEBUG_FS
+	qib_dbg_exit();
+#endif
 
 	qib_cpulist_count = 0;
 	kfree(qib_cpulist);
@@ -1109,7 +1346,7 @@ static void __exit qlogic_ib_cleanup(void)
 	qib_dev_cleanup();
 }
 
-module_exit(qlogic_ib_cleanup);
+module_exit(qib_ib_cleanup);
 
 /* this can only be called after a successful initialization */
 static void cleanup_device_data(struct qib_devdata *dd)
@@ -1120,9 +1357,23 @@ static void cleanup_device_data(struct qib_devdata *dd)
 	unsigned long flags;
 
 	/* users can't do anything more with chip */
-	for (pidx = 0; pidx < dd->num_pports; ++pidx)
+	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		if (dd->pport[pidx].statusp)
 			*dd->pport[pidx].statusp &= ~QIB_STATUS_CHIP_PRESENT;
+
+		spin_lock(&dd->pport[pidx].cc_shadow_lock);
+
+		kfree(dd->pport[pidx].congestion_entries);
+		dd->pport[pidx].congestion_entries = NULL;
+		kfree(dd->pport[pidx].ccti_entries);
+		dd->pport[pidx].ccti_entries = NULL;
+		kfree(dd->pport[pidx].ccti_entries_shadow);
+		dd->pport[pidx].ccti_entries_shadow = NULL;
+		kfree(dd->pport[pidx].congestion_entries_shadow);
+		dd->pport[pidx].congestion_entries_shadow = NULL;
+
+		spin_unlock(&dd->pport[pidx].cc_shadow_lock);
+	}
 
 	if (!qib_wc_pat)
 		qib_disable_wc(dd);
@@ -1137,7 +1388,7 @@ static void cleanup_device_data(struct qib_devdata *dd)
 	if (dd->pageshadow) {
 		struct page **tmpp = dd->pageshadow;
 		dma_addr_t *tmpd = dd->physshadow;
-		int i, cnt = 0;
+		int i;
 
 		for (ctxt = 0; ctxt < dd->cfgctxts; ctxt++) {
 			int ctxt_tidbase = ctxt * dd->rcvtidcnt;
@@ -1150,13 +1401,13 @@ static void cleanup_device_data(struct qib_devdata *dd)
 					       PAGE_SIZE, PCI_DMA_FROMDEVICE);
 				qib_release_user_pages(&tmpp[i], 1);
 				tmpp[i] = NULL;
-				cnt++;
 			}
 		}
 
-		tmpp = dd->pageshadow;
 		dd->pageshadow = NULL;
 		vfree(tmpp);
+		dd->physshadow = NULL;
+		vfree(tmpd);
 	}
 
 	/*
@@ -1178,6 +1429,7 @@ static void cleanup_device_data(struct qib_devdata *dd)
 	}
 	kfree(tmp);
 	kfree(dd->boardname);
+	qib_cq_exit(dd);
 }
 
 /*
@@ -1203,8 +1455,7 @@ static void qib_postinit_cleanup(struct qib_devdata *dd)
 	qib_free_devdata(dd);
 }
 
-static int __devinit qib_init_one(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int qib_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret, j, pidx, initfail;
 	struct qib_devdata *dd = NULL;
@@ -1222,9 +1473,9 @@ static int __devinit qib_init_one(struct pci_dev *pdev,
 #ifdef CONFIG_PCI_MSI
 		dd = qib_init_iba6120_funcs(pdev, ent);
 #else
-		qib_early_err(&pdev->dev, "QLogic PCIE device 0x%x cannot "
-		      "work if CONFIG_PCI_MSI is not enabled\n",
-		      ent->device);
+		qib_early_err(&pdev->dev,
+			"Intel PCIE device 0x%x cannot work if CONFIG_PCI_MSI is not enabled\n",
+			ent->device);
 		dd = ERR_PTR(-ENODEV);
 #endif
 		break;
@@ -1238,8 +1489,9 @@ static int __devinit qib_init_one(struct pci_dev *pdev,
 		break;
 
 	default:
-		qib_early_err(&pdev->dev, "Failing on unknown QLogic "
-			      "deviceid 0x%x\n", ent->device);
+		qib_early_err(&pdev->dev,
+			"Failing on unknown Intel deviceid 0x%x\n",
+			ent->device);
 		ret = -ENODEV;
 	}
 
@@ -1247,6 +1499,10 @@ static int __devinit qib_init_one(struct pci_dev *pdev,
 		ret = PTR_ERR(dd);
 	if (ret)
 		goto bail; /* error already printed */
+
+	ret = qib_create_workqueues(dd);
+	if (ret)
+		goto bail;
 
 	/* do the generic initialization */
 	initfail = qib_init(dd, 0);
@@ -1292,9 +1548,9 @@ static int __devinit qib_init_one(struct pci_dev *pdev,
 	if (!qib_wc_pat) {
 		ret = qib_enable_wc(dd);
 		if (ret) {
-			qib_dev_err(dd, "Write combining not enabled "
-				    "(err %d): performance may be poor\n",
-				    -ret);
+			qib_dev_err(dd,
+				"Write combining not enabled (err %d): performance may be poor\n",
+				-ret);
 			ret = 0;
 		}
 	}
@@ -1304,7 +1560,7 @@ bail:
 	return ret;
 }
 
-static void __devexit qib_remove_one(struct pci_dev *pdev)
+static void qib_remove_one(struct pci_dev *pdev)
 {
 	struct qib_devdata *dd = pci_get_drvdata(pdev);
 	int ret;
@@ -1346,6 +1602,7 @@ static void __devexit qib_remove_one(struct pci_dev *pdev)
 int qib_create_rcvhdrq(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
 {
 	unsigned amt;
+	int old_node_id;
 
 	if (!rcd->rcvhdrq) {
 		dma_addr_t phys_hdrqtail;
@@ -1355,14 +1612,18 @@ int qib_create_rcvhdrq(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
 			    sizeof(u32), PAGE_SIZE);
 		gfp_flags = (rcd->ctxt >= dd->first_user_ctxt) ?
 			GFP_USER : GFP_KERNEL;
+
+		old_node_id = dev_to_node(&dd->pcidev->dev);
+		set_dev_node(&dd->pcidev->dev, rcd->node_id);
 		rcd->rcvhdrq = dma_alloc_coherent(
 			&dd->pcidev->dev, amt, &rcd->rcvhdrq_phys,
 			gfp_flags | __GFP_COMP);
+		set_dev_node(&dd->pcidev->dev, old_node_id);
 
 		if (!rcd->rcvhdrq) {
-			qib_dev_err(dd, "attempt to allocate %d bytes "
-				    "for ctxt %u rcvhdrq failed\n",
-				    amt, rcd->ctxt);
+			qib_dev_err(dd,
+				"attempt to allocate %d bytes for ctxt %u rcvhdrq failed\n",
+				amt, rcd->ctxt);
 			goto bail;
 		}
 
@@ -1373,9 +1634,11 @@ int qib_create_rcvhdrq(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
 		}
 
 		if (!(dd->flags & QIB_NODMA_RTAIL)) {
+			set_dev_node(&dd->pcidev->dev, rcd->node_id);
 			rcd->rcvhdrtail_kvaddr = dma_alloc_coherent(
 				&dd->pcidev->dev, PAGE_SIZE, &phys_hdrqtail,
 				gfp_flags);
+			set_dev_node(&dd->pcidev->dev, old_node_id);
 			if (!rcd->rcvhdrtail_kvaddr)
 				goto bail_free;
 			rcd->rcvhdrqtailaddr_phys = phys_hdrqtail;
@@ -1391,8 +1654,9 @@ int qib_create_rcvhdrq(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
 	return 0;
 
 bail_free:
-	qib_dev_err(dd, "attempt to allocate 1 page for ctxt %u "
-		    "rcvhdrqtailaddr failed\n", rcd->ctxt);
+	qib_dev_err(dd,
+		"attempt to allocate 1 page for ctxt %u rcvhdrqtailaddr failed\n",
+		rcd->ctxt);
 	vfree(rcd->user_event_mask);
 	rcd->user_event_mask = NULL;
 bail_free_hdrq:
@@ -1418,6 +1682,7 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 	unsigned e, egrcnt, egrperchunk, chunk, egrsize, egroff;
 	size_t size;
 	gfp_t gfp_flags;
+	int old_node_id;
 
 	/*
 	 * GFP_USER, but without GFP_FS, so buffer cache can be
@@ -1436,25 +1701,29 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 	size = rcd->rcvegrbuf_size;
 	if (!rcd->rcvegrbuf) {
 		rcd->rcvegrbuf =
-			kzalloc(chunk * sizeof(rcd->rcvegrbuf[0]),
-				GFP_KERNEL);
+			kzalloc_node(chunk * sizeof(rcd->rcvegrbuf[0]),
+				GFP_KERNEL, rcd->node_id);
 		if (!rcd->rcvegrbuf)
 			goto bail;
 	}
 	if (!rcd->rcvegrbuf_phys) {
 		rcd->rcvegrbuf_phys =
-			kmalloc(chunk * sizeof(rcd->rcvegrbuf_phys[0]),
-				GFP_KERNEL);
+			kmalloc_node(chunk * sizeof(rcd->rcvegrbuf_phys[0]),
+				GFP_KERNEL, rcd->node_id);
 		if (!rcd->rcvegrbuf_phys)
 			goto bail_rcvegrbuf;
 	}
 	for (e = 0; e < rcd->rcvegrbuf_chunks; e++) {
 		if (rcd->rcvegrbuf[e])
 			continue;
+
+		old_node_id = dev_to_node(&dd->pcidev->dev);
+		set_dev_node(&dd->pcidev->dev, rcd->node_id);
 		rcd->rcvegrbuf[e] =
 			dma_alloc_coherent(&dd->pcidev->dev, size,
 					   &rcd->rcvegrbuf_phys[e],
 					   gfp_flags);
+		set_dev_node(&dd->pcidev->dev, old_node_id);
 		if (!rcd->rcvegrbuf[e])
 			goto bail_rcvegrbuf_phys;
 	}

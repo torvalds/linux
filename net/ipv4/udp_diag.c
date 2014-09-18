@@ -24,7 +24,9 @@ static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
 	if (!inet_diag_bc_sk(bc, sk))
 		return 0;
 
-	return inet_sk_diag_fill(sk, NULL, skb, req, NETLINK_CB(cb->skb).pid,
+	return inet_sk_diag_fill(sk, NULL, skb, req,
+			sk_user_ns(NETLINK_CB(cb->skb).sk),
+			NETLINK_CB(cb->skb).portid,
 			cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh);
 }
 
@@ -34,15 +36,16 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 	int err = -EINVAL;
 	struct sock *sk;
 	struct sk_buff *rep;
+	struct net *net = sock_net(in_skb->sk);
 
 	if (req->sdiag_family == AF_INET)
-		sk = __udp4_lib_lookup(&init_net,
+		sk = __udp4_lib_lookup(net,
 				req->id.idiag_src[0], req->id.idiag_sport,
 				req->id.idiag_dst[0], req->id.idiag_dport,
 				req->id.idiag_if, tbl);
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (req->sdiag_family == AF_INET6)
-		sk = __udp6_lib_lookup(&init_net,
+		sk = __udp6_lib_lookup(net,
 				(struct in6_addr *)req->id.idiag_src,
 				req->id.idiag_sport,
 				(struct in6_addr *)req->id.idiag_dst,
@@ -61,21 +64,22 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 		goto out;
 
 	err = -ENOMEM;
-	rep = alloc_skb(NLMSG_SPACE((sizeof(struct inet_diag_msg) +
-				     sizeof(struct inet_diag_meminfo) +
-				     64)), GFP_KERNEL);
+	rep = nlmsg_new(sizeof(struct inet_diag_msg) +
+			sizeof(struct inet_diag_meminfo) + 64,
+			GFP_KERNEL);
 	if (!rep)
 		goto out;
 
 	err = inet_sk_diag_fill(sk, NULL, rep, req,
-			   NETLINK_CB(in_skb).pid,
+			   sk_user_ns(NETLINK_CB(in_skb).sk),
+			   NETLINK_CB(in_skb).portid,
 			   nlh->nlmsg_seq, 0, nlh);
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(rep);
 		goto out;
 	}
-	err = netlink_unicast(sock_diag_nlsk, rep, NETLINK_CB(in_skb).pid,
+	err = netlink_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).portid,
 			      MSG_DONTWAIT);
 	if (err > 0)
 		err = 0;
@@ -90,6 +94,7 @@ static void udp_dump(struct udp_table *table, struct sk_buff *skb, struct netlin
 		struct inet_diag_req_v2 *r, struct nlattr *bc)
 {
 	int num, s_num, slot, s_slot;
+	struct net *net = sock_net(skb->sk);
 
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
@@ -106,6 +111,8 @@ static void udp_dump(struct udp_table *table, struct sk_buff *skb, struct netlin
 		sk_nulls_for_each(sk, node, &hslot->head) {
 			struct inet_sock *inet = inet_sk(sk);
 
+			if (!net_eq(sock_net(sk), net))
+				continue;
 			if (num < s_num)
 				goto next;
 			if (!(r->idiag_states & (1 << sk->sk_state)))
@@ -146,9 +153,17 @@ static int udp_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
 	return udp_dump_one(&udp_table, in_skb, nlh, req);
 }
 
+static void udp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
+		void *info)
+{
+	r->idiag_rqueue = sk_rmem_alloc_get(sk);
+	r->idiag_wqueue = sk_wmem_alloc_get(sk);
+}
+
 static const struct inet_diag_handler udp_diag_handler = {
 	.dump		 = udp_diag_dump,
 	.dump_one	 = udp_diag_dump_one,
+	.idiag_get_info  = udp_diag_get_info,
 	.idiag_type	 = IPPROTO_UDP,
 };
 
@@ -167,6 +182,7 @@ static int udplite_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *
 static const struct inet_diag_handler udplite_diag_handler = {
 	.dump		 = udplite_diag_dump,
 	.dump_one	 = udplite_diag_dump_one,
+	.idiag_get_info  = udp_diag_get_info,
 	.idiag_type	 = IPPROTO_UDPLITE,
 };
 

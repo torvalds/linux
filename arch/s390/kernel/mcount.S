@@ -1,5 +1,5 @@
 /*
- * Copyright IBM Corp. 2008,2009
+ * Copyright IBM Corp. 2008, 2009
  *
  *   Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
  *
@@ -7,6 +7,7 @@
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+#include <asm/ftrace.h>
 
 	.section .kprobes.text, "ax"
 
@@ -20,19 +21,16 @@ ENTRY(_mcount)
 ENTRY(ftrace_caller)
 #endif
 	stm	%r2,%r5,16(%r15)
-	bras	%r1,2f
+	bras	%r1,1f
 0:	.long	ftrace_trace_function
-1:	.long	function_trace_stop
-2:	l	%r2,1b-0b(%r1)
-	icm	%r2,0xf,0(%r2)
-	jnz	3f
-	st	%r14,56(%r15)
+1:	st	%r14,56(%r15)
 	lr	%r0,%r15
 	ahi	%r15,-96
 	l	%r3,100(%r15)
 	la	%r2,0(%r14)
 	st	%r0,__SF_BACKCHAIN(%r15)
 	la	%r3,0(%r3)
+	ahi	%r2,-MCOUNT_INSN_SIZE
 	l	%r14,0b-0b(%r1)
 	l	%r14,0(%r14)
 	basr	%r14,%r14
@@ -48,7 +46,7 @@ ENTRY(ftrace_graph_caller)
 #endif
 	ahi	%r15,96
 	l	%r14,56(%r15)
-3:	lm	%r2,%r5,16(%r15)
+	lm	%r2,%r5,16(%r15)
 	br	%r14
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER

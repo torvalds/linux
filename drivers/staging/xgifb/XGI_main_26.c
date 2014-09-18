@@ -6,36 +6,13 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-/* #include <linux/config.h> */
+#include <linux/sizes.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/kernel.h>
-#include <linux/spinlock.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/tty.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/fb.h>
-#include <linux/console.h>
-#include <linux/selection.h>
-#include <linux/ioport.h>
-#include <linux/init.h>
-#include <linux/pci.h>
-#include <linux/vt_kern.h>
-#include <linux/capability.h>
-#include <linux/fs.h>
-#include <linux/types.h>
-#include <linux/proc_fs.h>
 
-#include <linux/io.h>
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
 #endif
 
-#include "XGIfb.h"
-#include "vgatypes.h"
 #include "XGI_main.h"
 #include "vb_init.h"
 #include "vb_util.h"
@@ -54,86 +31,24 @@ static unsigned int refresh_rate;
 
 /* -------------------- Macro definitions ---------------------------- */
 
-#undef XGIFBDEBUG
-
-#ifdef XGIFBDEBUG
-#define DPRINTK(fmt, args...) pr_debug("%s: " fmt, __func__ , ## args)
-#else
-#define DPRINTK(fmt, args...)
-#endif
-
-#ifdef XGIFBDEBUG
+#ifdef DEBUG
 static void dumpVGAReg(void)
 {
 	u8 i, reg;
 
 	xgifb_reg_set(XGISR, 0x05, 0x86);
-	/*
-	xgifb_reg_set(XGISR, 0x08, 0x4f);
-	xgifb_reg_set(XGISR, 0x0f, 0x20);
-	xgifb_reg_set(XGISR, 0x11, 0x4f);
-	xgifb_reg_set(XGISR, 0x13, 0x45);
-	xgifb_reg_set(XGISR, 0x14, 0x51);
-	xgifb_reg_set(XGISR, 0x1e, 0x41);
-	xgifb_reg_set(XGISR, 0x1f, 0x0);
-	xgifb_reg_set(XGISR, 0x20, 0xa1);
-	xgifb_reg_set(XGISR, 0x22, 0xfb);
-	xgifb_reg_set(XGISR, 0x26, 0x22);
-	xgifb_reg_set(XGISR, 0x3e, 0x07);
-	*/
-
-	/* xgifb_reg_set(XGICR, 0x19, 0x00); */
-	/* xgifb_reg_set(XGICR, 0x1a, 0x3C); */
-	/* xgifb_reg_set(XGICR, 0x22, 0xff); */
-	/* xgifb_reg_set(XGICR, 0x3D, 0x10); */
-
-	/* xgifb_reg_set(XGICR, 0x4a, 0xf3); */
-
-	/* xgifb_reg_set(XGICR, 0x57, 0x0); */
-	/* xgifb_reg_set(XGICR, 0x7a, 0x2c); */
-
-	/* xgifb_reg_set(XGICR, 0x82, 0xcc); */
-	/* xgifb_reg_set(XGICR, 0x8c, 0x0); */
-	/*
-	xgifb_reg_set(XGICR, 0x99, 0x1);
-	xgifb_reg_set(XGICR, 0x41, 0x40);
-	*/
 
 	for (i = 0; i < 0x4f; i++) {
 		reg = xgifb_reg_get(XGISR, i);
-		printk("\no 3c4 %x", i);
-		printk("\ni 3c5 => %x", reg);
+		pr_debug("o 3c4 %x\n", i);
+		pr_debug("i 3c5 => %x\n", reg);
 	}
 
 	for (i = 0; i < 0xF0; i++) {
 		reg = xgifb_reg_get(XGICR, i);
-		printk("\no 3d4 %x", i);
-		printk("\ni 3d5 => %x", reg);
+		pr_debug("o 3d4 %x\n", i);
+		pr_debug("i 3d5 => %x\n", reg);
 	}
-	/*
-	xgifb_reg_set(XGIPART1,0x2F,1);
-	for (i=1; i < 0x50; i++) {
-		reg = xgifb_reg_get(XGIPART1, i);
-		printk("\no d004 %x", i);
-		printk("\ni d005 => %x", reg);
-	}
-
-	for (i=0; i < 0x50; i++) {
-		 reg = xgifb_reg_get(XGIPART2, i);
-		 printk("\no d010 %x", i);
-		 printk("\ni d011 => %x", reg);
-	}
-	for (i=0; i < 0x50; i++) {
-		reg = xgifb_reg_get(XGIPART3, i);
-		printk("\no d012 %x",i);
-		printk("\ni d013 => %x",reg);
-	}
-	for (i=0; i < 0x50; i++) {
-		reg = xgifb_reg_get(XGIPART4, i);
-		printk("\no d014 %x",i);
-		printk("\ni d015 => %x",reg);
-	}
-	*/
 }
 #else
 static inline void dumpVGAReg(void)
@@ -141,109 +56,69 @@ static inline void dumpVGAReg(void)
 }
 #endif
 
-#if 1
-#define DEBUGPRN(x)
-#else
-#define DEBUGPRN(x) pr_info(x "\n");
-#endif
-
 /* --------------- Hardware Access Routines -------------------------- */
 
 static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 		struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned char modeno, unsigned char rateindex)
+		unsigned char modeno)
 {
 	unsigned short ModeNo = modeno;
 	unsigned short ModeIdIndex = 0, ClockIndex = 0;
 	unsigned short RefreshRateTableIndex = 0;
-
-	/* unsigned long  temp = 0; */
 	int Clock;
+
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
+
+	XGI_SearchModeID(ModeNo, &ModeIdIndex);
 
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
 
-	/*
-	temp = XGI_SearchModeID(ModeNo , &ModeIdIndex,  XGI_Pr) ;
-	if (!temp) {
-		printk(KERN_ERR "Could not find mode %x\n", ModeNo);
-		return 65000;
-	}
+	ClockIndex = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 
-	RefreshRateTableIndex = XGI_Pr->EModeIDTable[ModeIdIndex].REFindex;
-	RefreshRateTableIndex += (rateindex - 1);
-
-	*/
-	ClockIndex = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
-
-	Clock = XGI_Pr->VCLKData[ClockIndex].CLOCK * 1000;
+	Clock = XGI_VCLKData[ClockIndex].CLOCK * 1000;
 
 	return Clock;
 }
 
 static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 		struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned char modeno, unsigned char rateindex,
+		unsigned char modeno,
 		u32 *left_margin, u32 *right_margin, u32 *upper_margin,
 		u32 *lower_margin, u32 *hsync_len, u32 *vsync_len, u32 *sync,
 		u32 *vmode)
 {
 	unsigned short ModeNo = modeno;
-	unsigned short ModeIdIndex = 0, index = 0;
+	unsigned short ModeIdIndex, index = 0;
 	unsigned short RefreshRateTableIndex = 0;
 
-	unsigned short VRE, VBE, VRS, VBS, VDE, VT;
-	unsigned short HRE, HBE, HRS, HBS, HDE, HT;
+	unsigned short VRE, VBE, VRS, VDE;
+	unsigned short HRE, HBE, HRS, HDE;
 	unsigned char sr_data, cr_data, cr_data2;
-	unsigned long cr_data3;
-	int A, B, C, D, E, F, temp, j;
+	int B, C, D, F, temp, j;
+
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
+	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex))
+		return 0;
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
-	/*
-	temp = XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr);
-	if (!temp)
-		return 0;
+	index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
 
-	RefreshRateTableIndex = XGI_Pr->EModeIDTable[ModeIdIndex].REFindex;
-	RefreshRateTableIndex += (rateindex - 1);
-	*/
-	index = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
+	sr_data = XGI_CRT1Table[index].CR[5];
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[5];
+	HDE = (XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3);
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[0];
-
-	/* Horizontal total */
-	HT = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x03) << 8);
-	A = HT + 5;
-
-	/*
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[1];
-
-	Horizontal display enable end
-	HDE = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x0C) << 6);
-	*/
-	HDE = (XGI_Pr->RefIndex[RefreshRateTableIndex].XRes >> 3) - 1;
-	E = HDE + 1;
-
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[3];
+	cr_data = XGI_CRT1Table[index].CR[3];
 
 	/* Horizontal retrace (=sync) start */
 	HRS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0xC0) << 2);
-	F = HRS - E - 3;
+	F = HRS - HDE - 3;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[1];
+	sr_data = XGI_CRT1Table[index].CR[6];
 
-	/* Horizontal blank start */
-	HBS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x30) << 4);
+	cr_data = XGI_CRT1Table[index].CR[2];
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[6];
-
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[2];
-
-	cr_data2 = XGI_Pr->XGINEWUB_CRT1Table[index].CR[4];
+	cr_data2 = XGI_CRT1Table[index].CR[4];
 
 	/* Horizontal blank end */
 	HBE = (cr_data & 0x1f) | ((unsigned short) (cr_data2 & 0x80) >> 2)
@@ -252,10 +127,10 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	/* Horizontal retrace (=sync) end */
 	HRE = (cr_data2 & 0x1f) | ((sr_data & 0x04) << 3);
 
-	temp = HBE - ((E - 1) & 255);
+	temp = HBE - ((HDE - 1) & 255);
 	B = (temp > 0) ? temp : (temp + 256);
 
-	temp = HRE - ((E + F + 3) & 63);
+	temp = HRE - ((HDE + F + 3) & 63);
 	C = (temp > 0) ? temp : (temp + 64);
 
 	D = B - F - C;
@@ -264,59 +139,32 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	*right_margin = F * 8;
 	*hsync_len = C * 8;
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[14];
+	sr_data = XGI_CRT1Table[index].CR[14];
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[8];
+	cr_data2 = XGI_CRT1Table[index].CR[9];
 
-	cr_data2 = XGI_Pr->XGINEWUB_CRT1Table[index].CR[9];
+	VDE = XGI330_RefIndex[RefreshRateTableIndex].YRes;
 
-	/* Vertical total */
-	VT = (cr_data & 0xFF) | ((unsigned short) (cr_data2 & 0x01) << 8)
-			| ((unsigned short) (cr_data2 & 0x20) << 4)
-			| ((unsigned short) (sr_data & 0x01) << 10);
-	A = VT + 2;
-
-	/* cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[10]; */
-
-	/* Vertical display enable end */
-	/*
-	VDE = (cr_data & 0xff) |
-		((unsigned short) (cr_data2 & 0x02) << 7) |
-		((unsigned short) (cr_data2 & 0x40) << 3) |
-		((unsigned short) (sr_data & 0x02) << 9);
-	*/
-	VDE = XGI_Pr->RefIndex[RefreshRateTableIndex].YRes - 1;
-	E = VDE + 1;
-
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[10];
+	cr_data = XGI_CRT1Table[index].CR[10];
 
 	/* Vertical retrace (=sync) start */
 	VRS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x04) << 6)
 			| ((unsigned short) (cr_data2 & 0x80) << 2)
 			| ((unsigned short) (sr_data & 0x08) << 7);
-	F = VRS + 1 - E;
+	F = VRS + 1 - VDE;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[12];
-
-	cr_data3 = (XGI_Pr->XGINEWUB_CRT1Table[index].CR[14] & 0x80) << 5;
-
-	/* Vertical blank start */
-	VBS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x08) << 5)
-			| ((unsigned short) (cr_data3 & 0x20) << 4)
-			| ((unsigned short) (sr_data & 0x04) << 8);
-
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[13];
+	cr_data = XGI_CRT1Table[index].CR[13];
 
 	/* Vertical blank end */
 	VBE = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x10) << 4);
-	temp = VBE - ((E - 1) & 511);
+	temp = VBE - ((VDE - 1) & 511);
 	B = (temp > 0) ? temp : (temp + 512);
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[11];
+	cr_data = XGI_CRT1Table[index].CR[11];
 
 	/* Vertical retrace (=sync) end */
 	VRE = (cr_data & 0x0f) | ((sr_data & 0x20) >> 1);
-	temp = VRE - ((E + F - 1) & 31);
+	temp = VRE - ((VDE + F - 1) & 31);
 	C = (temp > 0) ? temp : (temp + 32);
 
 	D = B - F - C;
@@ -325,25 +173,25 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	*lower_margin = F;
 	*vsync_len = C;
 
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x8000)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x8000)
 		*sync &= ~FB_SYNC_VERT_HIGH_ACT;
 	else
 		*sync |= FB_SYNC_VERT_HIGH_ACT;
 
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x4000)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x4000)
 		*sync &= ~FB_SYNC_HOR_HIGH_ACT;
 	else
 		*sync |= FB_SYNC_HOR_HIGH_ACT;
 
 	*vmode = FB_VMODE_NONINTERLACED;
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x0080)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x0080)
 		*vmode = FB_VMODE_INTERLACED;
 	else {
 		j = 0;
-		while (XGI_Pr->EModeIDTable[j].Ext_ModeID != 0xff) {
-			if (XGI_Pr->EModeIDTable[j].Ext_ModeID ==
-			    XGI_Pr->RefIndex[RefreshRateTableIndex].ModeID) {
-				if (XGI_Pr->EModeIDTable[j].Ext_ModeFlag &
+		while (XGI330_EModeIDTable[j].Ext_ModeID != 0xff) {
+			if (XGI330_EModeIDTable[j].Ext_ModeID ==
+			    XGI330_RefIndex[RefreshRateTableIndex].ModeID) {
+				if (XGI330_EModeIDTable[j].Ext_ModeFlag &
 				    DoubleScanMode) {
 					*vmode = FB_VMODE_DOUBLE;
 				}
@@ -356,20 +204,21 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	return 1;
 }
 
-static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
+void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 {
-	XGI_Pr->RelIO = BaseAddr;
 	XGI_Pr->P3c4 = BaseAddr + 0x14;
 	XGI_Pr->P3d4 = BaseAddr + 0x24;
 	XGI_Pr->P3c0 = BaseAddr + 0x10;
 	XGI_Pr->P3ce = BaseAddr + 0x1e;
 	XGI_Pr->P3c2 = BaseAddr + 0x12;
+	XGI_Pr->P3cc = BaseAddr + 0x1c;
 	XGI_Pr->P3ca = BaseAddr + 0x1a;
 	XGI_Pr->P3c6 = BaseAddr + 0x16;
 	XGI_Pr->P3c7 = BaseAddr + 0x17;
 	XGI_Pr->P3c8 = BaseAddr + 0x18;
 	XGI_Pr->P3c9 = BaseAddr + 0x19;
 	XGI_Pr->P3da = BaseAddr + 0x2A;
+	XGI_Pr->Part0Port = BaseAddr + XGI_CRT2_PORT_00;
 	/* Digital video interface registers (LCD) */
 	XGI_Pr->Part1Port = BaseAddr + SIS_CRT2_PORT_04;
 	/* 301 TV Encoder registers */
@@ -387,52 +236,50 @@ static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 
 static int XGIfb_GetXG21DefaultLVDSModeIdx(struct xgifb_video_info *xgifb_info)
 {
+	int i = 0;
 
-	int found_mode = 0;
-	int XGIfb_mode_idx = 0;
-
-	found_mode = 0;
-	while ((XGIbios_mode[XGIfb_mode_idx].mode_no != 0)
-			&& (XGIbios_mode[XGIfb_mode_idx].xres
-					<= xgifb_info->lvds_data.LVDSHDE)) {
-		if ((XGIbios_mode[XGIfb_mode_idx].xres
-				== xgifb_info->lvds_data.LVDSHDE)
-				&& (XGIbios_mode[XGIfb_mode_idx].yres
-					== xgifb_info->lvds_data.LVDSVDE)
-				&& (XGIbios_mode[XGIfb_mode_idx].bpp == 8)) {
-			found_mode = 1;
-			break;
+	while ((XGIbios_mode[i].mode_no != 0)
+	       && (XGIbios_mode[i].xres <= xgifb_info->lvds_data.LVDSHDE)) {
+		if ((XGIbios_mode[i].xres == xgifb_info->lvds_data.LVDSHDE)
+		    && (XGIbios_mode[i].yres == xgifb_info->lvds_data.LVDSVDE)
+		    && (XGIbios_mode[i].bpp == 8)) {
+			return i;
 		}
-		XGIfb_mode_idx++;
+		i++;
 	}
-	if (!found_mode)
-		XGIfb_mode_idx = -1;
 
-	return XGIfb_mode_idx;
+	return -1;
 }
 
 static void XGIfb_search_mode(struct xgifb_video_info *xgifb_info,
 			      const char *name)
 {
-	int i = 0, j = 0, l;
+	unsigned int xres;
+	unsigned int yres;
+	unsigned int bpp;
+	int i;
 
-	while (XGIbios_mode[i].mode_no != 0) {
-		l = min(strlen(name), strlen(XGIbios_mode[i].name));
-		if (!strncmp(name, XGIbios_mode[i].name, l)) {
+	if (sscanf(name, "%ux%ux%u", &xres, &yres, &bpp) != 3)
+		goto invalid_mode;
+
+	if (bpp == 24)
+		bpp = 32; /* That's for people who mix up color and fb depth. */
+
+	for (i = 0; XGIbios_mode[i].mode_no != 0; i++)
+		if (XGIbios_mode[i].xres == xres &&
+		    XGIbios_mode[i].yres == yres &&
+		    XGIbios_mode[i].bpp == bpp) {
 			xgifb_info->mode_idx = i;
-			j = 1;
-			break;
+			return;
 		}
-		i++;
-	}
-	if (!j)
-		pr_info("Invalid mode '%s'\n", name);
+invalid_mode:
+	pr_info("Invalid mode '%s'\n", name);
 }
 
 static void XGIfb_search_vesamode(struct xgifb_video_info *xgifb_info,
 				  unsigned int vesamode)
 {
-	int i = 0, j = 0;
+	int i = 0;
 
 	if (vesamode == 0)
 		goto invalid;
@@ -443,21 +290,20 @@ static void XGIfb_search_vesamode(struct xgifb_video_info *xgifb_info,
 		if ((XGIbios_mode[i].vesa_mode_no_1 == vesamode) ||
 		    (XGIbios_mode[i].vesa_mode_no_2 == vesamode)) {
 			xgifb_info->mode_idx = i;
-			j = 1;
-			break;
+			return;
 		}
 		i++;
 	}
 
 invalid:
-	if (!j)
-		pr_info("Invalid VESA mode 0x%x'\n", vesamode);
+	pr_info("Invalid VESA mode 0x%x'\n", vesamode);
 }
 
 static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 {
 	u16 xres, yres;
 	struct xgi_hw_device_info *hw_info = &xgifb_info->hw_info;
+	unsigned long required_mem;
 
 	if (xgifb_info->chip == XG21) {
 		if (xgifb_info->display2 == XGIFB_DISP_LCD) {
@@ -474,13 +320,13 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 			}
 
 		}
-		return myindex;
+		goto check_memory;
 
 	}
 
 	/* FIXME: for now, all is valid on XG27 */
 	if (xgifb_info->chip == XG27)
-		return myindex;
+		goto check_memory;
 
 	if (!(XGIbios_mode[myindex].chipset & MD_XGI315))
 		return -1;
@@ -645,7 +491,7 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 				if (XGIbios_mode[myindex].yres != 576)
 					return -1;
 			}
-			/*  TW: LVDS/CHRONTEL does not support 720 */
+			/* LVDS/CHRONTEL does not support 720 */
 			if (xgifb_info->hasVB == HASVB_LVDS_CHRONTEL ||
 			    xgifb_info->hasVB == HASVB_CHRONTEL) {
 				return -1;
@@ -668,6 +514,12 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 	case XGIFB_DISP_NONE:
 		break;
 	}
+
+check_memory:
+	required_mem = XGIbios_mode[myindex].xres * XGIbios_mode[myindex].yres *
+		       XGIbios_mode[myindex].bpp / 8;
+	if (required_mem > xgifb_info->video_size)
+		return -1;
 	return myindex;
 
 }
@@ -709,8 +561,8 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 				break;
 			} else if (XGIfb_vrate[i].refresh > rate) {
 				if ((XGIfb_vrate[i].refresh - rate) <= 3) {
-					DPRINTK("XGIfb: Adjusting rate from %d up to %d\n",
-						rate, XGIfb_vrate[i].refresh);
+					pr_debug("Adjusting rate from %d up to %d\n",
+						 rate, XGIfb_vrate[i].refresh);
 					xgifb_info->rate_idx =
 						XGIfb_vrate[i].idx;
 					xgifb_info->refresh_rate =
@@ -718,8 +570,9 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 				} else if (((rate - XGIfb_vrate[i - 1].refresh)
 						<= 2) && (XGIfb_vrate[i].idx
 						!= 1)) {
-					DPRINTK("XGIfb: Adjusting rate from %d down to %d\n",
-						rate, XGIfb_vrate[i-1].refresh);
+					pr_debug("Adjusting rate from %d down to %d\n",
+						 rate,
+						 XGIfb_vrate[i-1].refresh);
 					xgifb_info->rate_idx =
 						XGIfb_vrate[i - 1].idx;
 					xgifb_info->refresh_rate =
@@ -727,8 +580,8 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 				}
 				break;
 			} else if ((rate - XGIfb_vrate[i].refresh) <= 2) {
-				DPRINTK("XGIfb: Adjusting rate from %d down to %d\n",
-					rate, XGIfb_vrate[i].refresh);
+				pr_debug("Adjusting rate from %d down to %d\n",
+					 rate, XGIfb_vrate[i].refresh);
 				xgifb_info->rate_idx = XGIfb_vrate[i].idx;
 				break;
 			}
@@ -849,26 +702,25 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 {
 	u8 reg;
 	unsigned char doit = 1;
-	/*
-	xgifb_reg_set(XGISR,IND_SIS_PASSWORD,SIS_PASSWORD);
-	xgifb_reg_set(XGICR, 0x13, 0x00);
-	xgifb_reg_and_or(XGISR,0x0E, 0xF0, 0x01);
-	*test*
-	*/
+
 	if (xgifb_info->video_bpp == 8) {
-		/* TW: We can't switch off CRT1 on LVDS/Chrontel
-		 * in 8bpp Modes */
+		/*
+		 * We can't switch off CRT1 on LVDS/Chrontel
+		 * in 8bpp Modes
+		 */
 		if ((xgifb_info->hasVB == HASVB_LVDS) ||
 		    (xgifb_info->hasVB == HASVB_LVDS_CHRONTEL)) {
 			doit = 0;
 		}
-		/* TW: We can't switch off CRT1 on 301B-DH
-		 * in 8bpp Modes if using LCD */
+		/*
+		 * We can't switch off CRT1 on 301B-DH
+		 * in 8bpp Modes if using LCD
+		 */
 		if (xgifb_info->display2 == XGIFB_DISP_LCD)
 			doit = 0;
 	}
 
-	/* TW: We can't switch off CRT1 if bridge is in slave mode */
+	/* We can't switch off CRT1 if bridge is in slave mode */
 	if (xgifb_info->hasVB != HASVB_NONE) {
 		reg = xgifb_reg_get(XGIPART1, 0x00);
 
@@ -1042,17 +894,10 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 			}
 
 			if ((filter >= 0) && (filter <= 7)) {
-				DPRINTK("FilterTable[%d]-%d: %02x %02x %02x %02x\n",
-					filter_tb, filter,
-					XGI_TV_filter[filter_tb].
-						filter[filter][0],
-					XGI_TV_filter[filter_tb].
-						filter[filter][1],
-					XGI_TV_filter[filter_tb].
-						filter[filter][2],
-					XGI_TV_filter[filter_tb].
-						filter[filter][3]
-				);
+				pr_debug("FilterTable[%d]-%d: %*ph\n",
+					 filter_tb, filter,
+					 4, XGI_TV_filter[filter_tb].
+						   filter[filter]);
 				xgifb_reg_set(
 					XGIPART2,
 					0x35,
@@ -1088,15 +933,11 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	unsigned int vtotal = var->upper_margin + var->yres + var->lower_margin
 			+ var->vsync_len;
 #if defined(__powerpc__)
-	u8 sr_data, cr_data;
+	u8 cr_data;
 #endif
 	unsigned int drate = 0, hrate = 0;
 	int found_mode = 0;
 	int old_mode;
-	/* unsigned char reg, reg1; */
-
-	DEBUGPRN("Inside do_set_var");
-	/* printk(KERN_DEBUG "XGIfb:var->yres=%d, var->upper_margin=%d, var->lower_margin=%d, var->vsync_len=%d\n", var->yres, var->upper_margin, var->lower_margin, var->vsync_len); */
 
 	info->var.xres_virtual = var->xres_virtual;
 	info->var.yres_virtual = var->yres_virtual;
@@ -1106,13 +947,9 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		vtotal <<= 1;
 	else if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_DOUBLE)
 		vtotal <<= 2;
-	else if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) {
-		/* vtotal <<= 1; */
-		/* var->yres <<= 1; */
-	}
 
 	if (!htotal || !vtotal) {
-		DPRINTK("XGIfb: Invalid 'var' information\n");
+		pr_debug("Invalid 'var' information\n");
 		return -EINVAL;
 	} pr_debug("var->pixclock=%d, htotal=%d, vtotal=%d\n",
 			var->pixclock, htotal, vtotal);
@@ -1162,8 +999,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 
 	if (XGIfb_search_refresh_rate(xgifb_info,
 				      xgifb_info->refresh_rate) == 0) {
-		xgifb_info->rate_idx =
-			XGIbios_mode[xgifb_info->mode_idx].rate_idx;
+		xgifb_info->rate_idx = 1;
 		xgifb_info->refresh_rate = 60;
 	}
 
@@ -1189,11 +1025,11 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 
 		XGIfb_post_setmode(xgifb_info);
 
-		DPRINTK("XGIfb: Set new mode: %dx%dx%d-%d\n",
-				XGIbios_mode[xgifb_info->mode_idx].xres,
-				XGIbios_mode[xgifb_info->mode_idx].yres,
-				XGIbios_mode[xgifb_info->mode_idx].bpp,
-				xgifb_info->refresh_rate);
+		pr_debug("Set new mode: %dx%dx%d-%d\n",
+			 XGIbios_mode[xgifb_info->mode_idx].xres,
+			 XGIbios_mode[xgifb_info->mode_idx].yres,
+			 XGIbios_mode[xgifb_info->mode_idx].bpp,
+			 xgifb_info->refresh_rate);
 
 		xgifb_info->video_bpp = XGIbios_mode[xgifb_info->mode_idx].bpp;
 		xgifb_info->video_vwidth = info->var.xres_virtual;
@@ -1235,13 +1071,12 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 			break;
 		default:
 			xgifb_info->video_cmap_len = 16;
-			pr_err("Unsupported depth %d",
+			pr_err("Unsupported depth %d\n",
 			       xgifb_info->video_bpp);
 			break;
 		}
 	}
 	XGIfb_bpp_to_var(xgifb_info, var); /*update ARGB info*/
-	DEBUGPRN("End of do_set_var");
 
 	dumpVGAReg();
 	return 0;
@@ -1251,8 +1086,6 @@ static int XGIfb_pan_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct xgifb_video_info *xgifb_info = info->par;
 	unsigned int base;
-
-	/* printk("Inside pan_var"); */
 
 	base = var->yoffset * info->var.xres_virtual + var->xoffset;
 
@@ -1287,7 +1120,6 @@ static int XGIfb_pan_var(struct fb_var_screeninfo *var, struct fb_info *info)
 				 0x7F,
 				 ((base >> 24) & 0x01) << 7);
 	}
-	/* printk("End of pan_var"); */
 	return 0;
 }
 
@@ -1301,22 +1133,10 @@ static int XGIfb_release(struct fb_info *info, int user)
 	return 0;
 }
 
+/* similar to sisfb_get_cmap_len */
 static int XGIfb_get_cmap_len(const struct fb_var_screeninfo *var)
 {
-	int rc = 16;
-
-	switch (var->bits_per_pixel) {
-	case 8:
-		rc = 256;
-		break;
-	case 16:
-		rc = 16;
-		break;
-	case 32:
-		rc = 16;
-		break;
-	}
-	return rc;
+	return (var->bits_per_pixel == 8) ? 256 : 16;
 }
 
 static int XGIfb_setcolreg(unsigned regno, unsigned red, unsigned green,
@@ -1363,12 +1183,20 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 {
 	struct xgifb_video_info *xgifb_info = info->par;
 
-	DEBUGPRN("inside get_fix");
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
 
-	fix->smem_start = xgifb_info->video_base;
+	strncpy(fix->id, "XGI", sizeof(fix->id) - 1);
 
+	/* if register_framebuffer has been called, we must lock */
+	if (atomic_read(&info->count))
+		mutex_lock(&info->mm_lock);
+
+	fix->smem_start = xgifb_info->video_base;
 	fix->smem_len = xgifb_info->video_size;
+
+	/* if register_framebuffer has been called, we can unlock */
+	if (atomic_read(&info->count))
+		mutex_unlock(&info->mm_lock);
 
 	fix->type = FB_TYPE_PACKED_PIXELS;
 	fix->type_aux = 0;
@@ -1385,7 +1213,6 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 	fix->mmio_len = xgifb_info->mmio_size;
 	fix->accel = FB_ACCEL_SIS_XABRE;
 
-	DEBUGPRN("end of get_fix");
 	return 0;
 }
 
@@ -1393,12 +1220,10 @@ static int XGIfb_set_par(struct fb_info *info)
 {
 	int err;
 
-	/* printk("XGIfb: inside set_par\n"); */
 	err = XGIfb_do_set_var(&info->var, 1, info);
 	if (err)
 		return err;
 	XGIfb_get_fix(&info->fix, -1, info);
-	/* printk("XGIfb: end of set_par\n"); */
 	return 0;
 }
 
@@ -1411,8 +1236,6 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	unsigned int drate = 0, hrate = 0;
 	int found_mode = 0;
 	int refresh_rate, search_idx;
-
-	DEBUGPRN("Inside check_var");
 
 	if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_NONINTERLACED) {
 		vtotal = var->upper_margin + var->yres + var->lower_margin
@@ -1429,8 +1252,10 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		vtotal = var->upper_margin + var->yres + var->lower_margin
 				+ var->vsync_len;
 
-	if (!(htotal) || !(vtotal))
-		XGIFAIL("XGIfb: no valid timing data");
+	if (!(htotal) || !(vtotal)) {
+		pr_debug("No valid timing data\n");
+		return -EINVAL;
+	}
 
 	if (var->pixclock && htotal && vtotal) {
 		drate = 1000000000 / var->pixclock;
@@ -1446,16 +1271,7 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		xgifb_info->refresh_rate = 60;
 	}
 
-	/*
-	if ((var->pixclock) && (htotal)) {
-		drate = 1E12 / var->pixclock;
-		hrate = drate / htotal;
-		refresh_rate = (unsigned int) (hrate / vtotal * 2 + 0.5);
-	} else {
-		refresh_rate = 60;
-	}
-	*/
-	/* TW: Calculation wrong for 1024x600 - force it to 60Hz */
+	/* Calculation wrong for 1024x600 - force it to 60Hz */
 	if ((var->xres == 1024) && (var->yres == 600))
 		refresh_rate = 60;
 
@@ -1504,32 +1320,15 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		}
 	}
 
-	/* TW: TODO: Check the refresh rate */
-
 	/* Adapt RGB settings */
 	XGIfb_bpp_to_var(xgifb_info, var);
-
-	/* Sanity check for offsets */
-	if (var->xoffset < 0)
-		var->xoffset = 0;
-	if (var->yoffset < 0)
-		var->yoffset = 0;
 
 	if (!XGIfb_ypan) {
 		if (var->xres != var->xres_virtual)
 			var->xres_virtual = var->xres;
 		if (var->yres != var->yres_virtual)
 			var->yres_virtual = var->yres;
-	} /* else { */
-		/* TW: Now patch yres_virtual if we use panning */
-		/* May I do this? */
-		/* var->yres_virtual = xgifb_info->heapstart /
-			(var->xres * (var->bits_per_pixel >> 3)); */
-		/* if (var->yres_virtual <= var->yres) { */
-		/* TW: Paranoia check */
-		/* var->yres_virtual = var->yres; */
-		/* } */
-	/* } */
+	}
 
 	/* Truncate offsets to maximum if too high */
 	if (var->xoffset > var->xres_virtual - var->xres)
@@ -1544,7 +1343,6 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->blue.msb_right =
 	var->transp.offset = var->transp.length = var->transp.msb_right = 0;
 
-	DEBUGPRN("end of check_var");
 	return 0;
 }
 
@@ -1553,22 +1351,18 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 {
 	int err;
 
-	/* printk("\nInside pan_display:\n"); */
-
 	if (var->xoffset > (info->var.xres_virtual - info->var.xres))
 		return -EINVAL;
 	if (var->yoffset > (info->var.yres_virtual - info->var.yres))
 		return -EINVAL;
 
 	if (var->vmode & FB_VMODE_YWRAP) {
-		if (var->yoffset < 0 || var->yoffset >= info->var.yres_virtual
-				|| var->xoffset)
+		if (var->yoffset >= info->var.yres_virtual || var->xoffset)
 			return -EINVAL;
-	} else {
-		if (var->xoffset + info->var.xres > info->var.xres_virtual
+	} else if (var->xoffset + info->var.xres > info->var.xres_virtual
 				|| var->yoffset + info->var.yres
-						> info->var.yres_virtual)
-			return -EINVAL;
+						> info->var.yres_virtual) {
+		return -EINVAL;
 	}
 	err = XGIfb_pan_var(var, info);
 	if (err < 0)
@@ -1581,7 +1375,6 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 	else
 		info->var.vmode &= ~FB_VMODE_YWRAP;
 
-	/* printk("End of pan_display\n"); */
 	return 0;
 }
 
@@ -1615,7 +1408,6 @@ static struct fb_ops XGIfb_ops = {
 	.fb_fillrect = cfb_fillrect,
 	.fb_copyarea = cfb_copyarea,
 	.fb_imageblit = cfb_imageblit,
-	/* .fb_mmap = XGIfb_mmap, */
 };
 
 /* ---------------- Chip generation dependent routines ---------------- */
@@ -1633,6 +1425,9 @@ static int XGIfb_get_dram_size(struct xgifb_video_info *xgifb_info)
 		xgifb_reg_set(XGISR, IND_SIS_DRAM_SIZE, 0x51);
 
 	reg = xgifb_reg_get(XGISR, IND_SIS_DRAM_SIZE);
+	if (!reg)
+		return -1;
+
 	switch ((reg & XGI_DRAM_SIZE_MASK) >> 4) {
 	case XGI_DRAM_SIZE_1MB:
 		xgifb_info->video_size = 0x100000;
@@ -1680,17 +1475,6 @@ static int XGIfb_get_dram_size(struct xgifb_video_info *xgifb_info)
 			ChannelNum = 1;
 		break;
 
-	case XG45:
-		if (tmp == 1)
-			ChannelNum = 2;
-		else if (tmp == 2)
-			ChannelNum = 3;
-		else if (tmp == 3)
-			ChannelNum = 4;
-		else
-			ChannelNum = 1;
-		break;
-
 	case XG40:
 	default:
 		if (tmp == 2)
@@ -1703,9 +1487,6 @@ static int XGIfb_get_dram_size(struct xgifb_video_info *xgifb_info)
 	}
 
 	xgifb_info->video_size = xgifb_info->video_size * ChannelNum;
-	/* PLiad fixed for benchmarking and fb set */
-	/* xgifb_info->video_size = 0x200000; */ /* 1024x768x16 */
-	/* xgifb_info->video_size = 0x1000000; */ /* benchmark */
 
 	pr_info("SR14=%x DramSzie %x ChannelNum %x\n",
 	       reg,
@@ -1719,16 +1500,6 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 	u8 cr32, temp = 0;
 
 	xgifb_info->TV_plug = xgifb_info->TV_type = 0;
-
-	switch (xgifb_info->hasVB) {
-	case HASVB_LVDS_CHRONTEL:
-	case HASVB_CHRONTEL:
-		break;
-	case HASVB_301:
-	case HASVB_302:
-		/* XGI_Sense30x(); */ /* Yi-Lin TV Sense? */
-		break;
-	}
 
 	cr32 = xgifb_reg_get(XGICR, IND_XGI_SCRATCH_REG_CR32);
 
@@ -1753,7 +1524,7 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 	}
 
 	if (XGIfb_tvplug != -1)
-		/* PR/TW: Override with option */
+		/* Override with option */
 		xgifb_info->TV_plug = XGIfb_tvplug;
 	else if (cr32 & SIS_VB_HIVISION) {
 		xgifb_info->TV_type = TVMODE_HIVISION;
@@ -1773,7 +1544,7 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 			xgifb_info->TV_type = TVMODE_NTSC;
 	}
 
-	/* TW: Copy forceCRT1 option to CRT1off if option is given */
+	/* Copy forceCRT1 option to CRT1off if option is given */
 	if (XGIfb_forcecrt1 != -1) {
 		if (XGIfb_forcecrt1)
 			XGIfb_crt1off = 0;
@@ -1825,7 +1596,7 @@ static int __init xgifb_optval(char *fullopt, int validx)
 	unsigned long lres;
 
 	if (kstrtoul(fullopt + validx, 0, &lres) < 0 || lres > INT_MAX) {
-		pr_err("xgifb: invalid value for option: %s\n", fullopt);
+		pr_err("Invalid value for option: %s\n", fullopt);
 		return 0;
 	}
 	return lres;
@@ -1838,7 +1609,7 @@ static int __init XGIfb_setup(char *options)
 	if (!options || !*options)
 		return 0;
 
-	pr_info("xgifb: options: %s\n", options);
+	pr_info("Options: %s\n", options);
 
 	while ((this_opt = strsep(&options, ",")) != NULL) {
 
@@ -1867,7 +1638,7 @@ static int __init XGIfb_setup(char *options)
 			XGIfb_search_tvstd(this_opt + 7);
 		} else if (!strncmp(this_opt, "dstn", 4)) {
 			enable_dstn = 1;
-			/* TW: DSTN overrules forcecrt2type */
+			/* DSTN overrules forcecrt2type */
 			XGIfb_crt2type = XGIFB_DISP_LCD;
 		} else if (!strncmp(this_opt, "noypan", 6)) {
 			XGIfb_ypan = 0;
@@ -1878,7 +1649,7 @@ static int __init XGIfb_setup(char *options)
 	return 0;
 }
 
-static int __devinit xgifb_probe(struct pci_dev *pdev,
+static int xgifb_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	u8 reg, reg1;
@@ -1887,6 +1658,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	struct fb_info *fb_info;
 	struct xgifb_video_info *xgifb_info;
 	struct xgi_hw_device_info *hw_info;
+	unsigned long video_size_max;
 
 	fb_info = framebuffer_alloc(sizeof(*xgifb_info), &pdev->dev);
 	if (!fb_info)
@@ -1907,15 +1679,14 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	xgifb_info->subsysvendor = pdev->subsystem_vendor;
 	xgifb_info->subsysdevice = pdev->subsystem_device;
 
+	video_size_max = pci_resource_len(pdev, 0);
 	xgifb_info->video_base = pci_resource_start(pdev, 0);
 	xgifb_info->mmio_base = pci_resource_start(pdev, 1);
 	xgifb_info->mmio_size = pci_resource_len(pdev, 1);
 	xgifb_info->vga_base = pci_resource_start(pdev, 2) + 0x30;
-	hw_info->pjIOAddress = (unsigned char *)xgifb_info->vga_base;
-	/* XGI_Pr.RelIO  = ioremap(pci_resource_start(pdev, 2), 128) + 0x30; */
-	pr_info("Relocate IO address: %lx [%08lx]\n",
-	       (unsigned long)pci_resource_start(pdev, 2),
-	       xgifb_info->dev_info.RelIO);
+	dev_info(&pdev->dev, "Relocate IO address: %Lx [%08lx]\n",
+		 (u64) pci_resource_start(pdev, 2),
+		 xgifb_info->vga_base);
 
 	if (pci_enable_device(pdev)) {
 		ret = -EIO;
@@ -1927,15 +1698,15 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		xgifb_info->display2_force = true;
 	}
 
-	XGIRegInit(&xgifb_info->dev_info, (unsigned long)hw_info->pjIOAddress);
+	XGIRegInit(&xgifb_info->dev_info, xgifb_info->vga_base);
 
 	xgifb_reg_set(XGISR, IND_SIS_PASSWORD, SIS_PASSWORD);
 	reg1 = xgifb_reg_get(XGISR, IND_SIS_PASSWORD);
 
 	if (reg1 != 0xa1) { /*I/O error */
-		pr_err("I/O error!!!");
+		dev_err(&pdev->dev, "I/O error\n");
 		ret = -EIO;
-		goto error;
+		goto error_disable;
 	}
 
 	switch (xgifb_info->chip_id) {
@@ -1950,9 +1721,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	case PCI_DEVICE_ID_XGI_40:
 		xgifb_info->chip = XG40;
 		break;
-	case PCI_DEVICE_ID_XGI_41:
-		xgifb_info->chip = XG41;
-		break;
 	case PCI_DEVICE_ID_XGI_42:
 		xgifb_info->chip = XG42;
 		break;
@@ -1961,16 +1729,17 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		break;
 	default:
 		ret = -ENODEV;
-		goto error;
+		goto error_disable;
 	}
 
-	pr_info("chipid = %x\n", xgifb_info->chip);
+	dev_info(&pdev->dev, "chipid = %x\n", xgifb_info->chip);
 	hw_info->jChipType = xgifb_info->chip;
 
 	if (XGIfb_get_dram_size(xgifb_info)) {
-		pr_err("Fatal error: Unable to determine RAM size.\n");
-		ret = -ENODEV;
-		goto error;
+		xgifb_info->video_size = min_t(unsigned long, video_size_max,
+						SZ_16M);
+	} else if (xgifb_info->video_size > video_size_max) {
+		xgifb_info->video_size = video_size_max;
 	}
 
 	/* Enable PCI_LINEAR_ADDRESSING and MMIO_ENABLE  */
@@ -1985,18 +1754,19 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (!request_mem_region(xgifb_info->video_base,
 				xgifb_info->video_size,
 				"XGIfb FB")) {
-		pr_err("unable request memory size %x\n",
+		dev_err(&pdev->dev, "Unable request memory size %x\n",
 		       xgifb_info->video_size);
-		pr_err("Fatal error: Unable to reserve frame buffer memory\n");
-		pr_err("Is there another framebuffer driver active?\n");
+		dev_err(&pdev->dev,
+			"Fatal error: Unable to reserve frame buffer memory. Is there another framebuffer driver active?\n");
 		ret = -ENODEV;
-		goto error;
+		goto error_disable;
 	}
 
 	if (!request_mem_region(xgifb_info->mmio_base,
 				xgifb_info->mmio_size,
 				"XGIfb MMIO")) {
-		pr_err("Fatal error: Unable to reserve MMIO region\n");
+		dev_err(&pdev->dev,
+			"Fatal error: Unable to reserve MMIO region\n");
 		ret = -ENODEV;
 		goto error_0;
 	}
@@ -2006,20 +1776,22 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	xgifb_info->mmio_vbase = ioremap(xgifb_info->mmio_base,
 					    xgifb_info->mmio_size);
 
-	pr_info("Framebuffer at 0x%lx, mapped to 0x%p, size %dk\n",
-	       xgifb_info->video_base,
-	       xgifb_info->video_vbase,
-	       xgifb_info->video_size / 1024);
+	dev_info(&pdev->dev,
+		 "Framebuffer at 0x%Lx, mapped to 0x%p, size %dk\n",
+		 (u64) xgifb_info->video_base,
+		 xgifb_info->video_vbase,
+		 xgifb_info->video_size / 1024);
 
-	pr_info("MMIO at 0x%lx, mapped to 0x%p, size %ldk\n",
-	       xgifb_info->mmio_base, xgifb_info->mmio_vbase,
-	       xgifb_info->mmio_size / 1024);
+	dev_info(&pdev->dev,
+		 "MMIO at 0x%Lx, mapped to 0x%p, size %ldk\n",
+		 (u64) xgifb_info->mmio_base, xgifb_info->mmio_vbase,
+		 xgifb_info->mmio_size / 1024);
 
 	pci_set_drvdata(pdev, xgifb_info);
 	if (!XGIInitNew(pdev))
-		pr_err("XGIInitNew() failed!\n");
+		dev_err(&pdev->dev, "XGIInitNew() failed!\n");
 
-	xgifb_info->mtrr = (unsigned int) 0;
+	xgifb_info->mtrr = -1;
 
 	xgifb_info->hasVB = HASVB_NONE;
 	if ((xgifb_info->chip == XG20) ||
@@ -2046,29 +1818,31 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		reg = xgifb_reg_get(XGIPART4, 0x01);
 		if (reg >= 0xE0) {
 			hw_info->ujVBChipID = VB_CHIP_302LV;
-			pr_info("XGI302LV bridge detected (revision 0x%02x)\n", reg);
+			dev_info(&pdev->dev,
+				 "XGI302LV bridge detected (revision 0x%02x)\n",
+				 reg);
 		} else if (reg >= 0xD0) {
 			hw_info->ujVBChipID = VB_CHIP_301LV;
-			pr_info("XGI301LV bridge detected (revision 0x%02x)\n", reg);
-		}
-		/* else if (reg >= 0xB0) {
-			hw_info->ujVBChipID = VB_CHIP_301B;
-			reg1 = xgifb_reg_get(XGIPART4, 0x23);
-			printk("XGIfb: XGI301B bridge detected\n");
-		} */
-		else {
+			dev_info(&pdev->dev,
+				 "XGI301LV bridge detected (revision 0x%02x)\n",
+				 reg);
+		} else {
 			hw_info->ujVBChipID = VB_CHIP_301;
-			pr_info("XGI301 bridge detected\n");
+			dev_info(&pdev->dev, "XGI301 bridge detected\n");
 		}
 		break;
 	case HASVB_302:
 		reg = xgifb_reg_get(XGIPART4, 0x01);
 		if (reg >= 0xE0) {
 			hw_info->ujVBChipID = VB_CHIP_302LV;
-			pr_info("XGI302LV bridge detected (revision 0x%02x)\n", reg);
+			dev_info(&pdev->dev,
+				 "XGI302LV bridge detected (revision 0x%02x)\n",
+				 reg);
 		} else if (reg >= 0xD0) {
 			hw_info->ujVBChipID = VB_CHIP_301LV;
-			pr_info("XGI302LV bridge detected (revision 0x%02x)\n", reg);
+			dev_info(&pdev->dev,
+				 "XGI302LV bridge detected (revision 0x%02x)\n",
+				 reg);
 		} else if (reg >= 0xB0) {
 			reg1 = xgifb_reg_get(XGIPART4, 0x23);
 
@@ -2076,27 +1850,28 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 		} else {
 			hw_info->ujVBChipID = VB_CHIP_302;
-			pr_info("XGI302 bridge detected\n");
+			dev_info(&pdev->dev, "XGI302 bridge detected\n");
 		}
 		break;
 	case HASVB_LVDS:
 		hw_info->ulExternalChip = 0x1;
-		pr_info("LVDS transmitter detected\n");
+		dev_info(&pdev->dev, "LVDS transmitter detected\n");
 		break;
 	case HASVB_TRUMPION:
 		hw_info->ulExternalChip = 0x2;
-		pr_info("Trumpion Zurac LVDS scaler detected\n");
+		dev_info(&pdev->dev, "Trumpion Zurac LVDS scaler detected\n");
 		break;
 	case HASVB_CHRONTEL:
 		hw_info->ulExternalChip = 0x4;
-		pr_info("Chrontel TV encoder detected\n");
+		dev_info(&pdev->dev, "Chrontel TV encoder detected\n");
 		break;
 	case HASVB_LVDS_CHRONTEL:
 		hw_info->ulExternalChip = 0x5;
-		pr_info("LVDS transmitter and Chrontel TV encoder detected\n");
+		dev_info(&pdev->dev,
+			 "LVDS transmitter and Chrontel TV encoder detected\n");
 		break;
 	default:
-		pr_info("No or unknown bridge type detected\n");
+		dev_info(&pdev->dev, "No or unknown bridge type detected\n");
 		break;
 	}
 
@@ -2111,36 +1886,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			reg &= 0x0f;
 			hw_info->ulCRT2LCDType = XGI310paneltype[reg];
 		}
-	}
-
-	if ((hw_info->ujVBChipID == VB_CHIP_302B) ||
-			(hw_info->ujVBChipID == VB_CHIP_301LV) ||
-			(hw_info->ujVBChipID == VB_CHIP_302LV)) {
-		int tmp;
-		tmp = xgifb_reg_get(XGICR, 0x34);
-		if (tmp <= 0x13) {
-			/* Currently on LCDA?
-			 *(Some BIOSes leave CR38) */
-			tmp = xgifb_reg_get(XGICR, 0x38);
-			if ((tmp & 0x03) == 0x03) {
-				/* XGI_Pr.XGI_UseLCDA = 1; */
-			} else {
-				/* Currently on LCDA?
-				 *(Some newer BIOSes set D0 in CR35) */
-				tmp = xgifb_reg_get(XGICR, 0x35);
-				if (tmp & 0x01) {
-					/* XGI_Pr.XGI_UseLCDA = 1; */
-				} else {
-					tmp = xgifb_reg_get(XGICR,
-							    0x30);
-					if (tmp & 0x20) {
-						tmp = xgifb_reg_get(
-							XGIPART1, 0x13);
-					}
-				}
-			}
-		}
-
 	}
 
 	xgifb_info->mode_idx = -1;
@@ -2164,18 +1909,18 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	}
 
 	if (xgifb_info->mode_idx < 0) {
-		dev_err(&pdev->dev, "no supported video mode found\n");
+		dev_err(&pdev->dev, "No supported video mode found\n");
+		ret = -EINVAL;
 		goto error_1;
 	}
 
-	/* yilin set default refresh rate */
+	/* set default refresh rate */
 	xgifb_info->refresh_rate = refresh_rate;
 	if (xgifb_info->refresh_rate == 0)
 		xgifb_info->refresh_rate = 60;
 	if (XGIfb_search_refresh_rate(xgifb_info,
 			xgifb_info->refresh_rate) == 0) {
-		xgifb_info->rate_idx =
-			XGIbios_mode[xgifb_info->mode_idx].rate_idx;
+		xgifb_info->rate_idx = 1;
 		xgifb_info->refresh_rate = 60;
 	}
 
@@ -2237,12 +1982,10 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	fb_info->var.pixclock = (u32) (1000000000 /
 			XGIfb_mode_rate_to_dclock(&xgifb_info->dev_info,
 				hw_info,
-				XGIbios_mode[xgifb_info->mode_idx].mode_no,
-				xgifb_info->rate_idx));
+				XGIbios_mode[xgifb_info->mode_idx].mode_no));
 
 	if (XGIfb_mode_rate_to_ddata(&xgifb_info->dev_info, hw_info,
 		XGIbios_mode[xgifb_info->mode_idx].mode_no,
-		xgifb_info->rate_idx,
 		&fb_info->var.left_margin,
 		&fb_info->var.right_margin,
 		&fb_info->var.upper_margin,
@@ -2265,11 +2008,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	}
 
-	strncpy(fb_info->fix.id, "XGI", sizeof(fb_info->fix.id) - 1);
-	fb_info->fix.type	= FB_TYPE_PACKED_PIXELS;
-	fb_info->fix.xpanstep	= 1;
-	fb_info->fix.ypanstep	= 1;
-
 	fb_info->flags = FBINFO_FLAG_DEFAULT;
 	fb_info->screen_base = xgifb_info->video_vbase;
 	fb_info->fbops = &XGIfb_ops;
@@ -2282,7 +2020,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	xgifb_info->mtrr = mtrr_add(xgifb_info->video_base,
 		xgifb_info->video_size, MTRR_TYPE_WRCOMB, 1);
 	if (xgifb_info->mtrr >= 0)
-		dev_info(&pdev->dev, "added MTRR\n");
+		dev_info(&pdev->dev, "Added MTRR\n");
 #endif
 
 	if (register_framebuffer(fb_info) < 0) {
@@ -2306,6 +2044,8 @@ error_1:
 	release_mem_region(xgifb_info->mmio_base, xgifb_info->mmio_size);
 error_0:
 	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
+error_disable:
+	pci_disable_device(pdev);
 error:
 	framebuffer_release(fb_info);
 	return ret;
@@ -2315,7 +2055,7 @@ error:
 /*                PCI DEVICE HANDLING                */
 /*****************************************************/
 
-static void __devexit xgifb_remove(struct pci_dev *pdev)
+static void xgifb_remove(struct pci_dev *pdev)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	struct fb_info *fb_info = xgifb_info->fb_info;
@@ -2330,16 +2070,38 @@ static void __devexit xgifb_remove(struct pci_dev *pdev)
 	iounmap(xgifb_info->video_vbase);
 	release_mem_region(xgifb_info->mmio_base, xgifb_info->mmio_size);
 	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
+	pci_disable_device(pdev);
 	framebuffer_release(fb_info);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_driver xgifb_driver = {
 	.name = "xgifb",
 	.id_table = xgifb_pci_table,
 	.probe = xgifb_probe,
-	.remove = __devexit_p(xgifb_remove)
+	.remove = xgifb_remove
 };
+
+
+
+/*****************************************************/
+/*                      MODULE                       */
+/*****************************************************/
+
+module_param(mode, charp, 0);
+MODULE_PARM_DESC(mode,
+	"Selects the desired default display mode in the format XxYxDepth (eg. 1024x768x16).");
+
+module_param(forcecrt2type, charp, 0);
+MODULE_PARM_DESC(forcecrt2type,
+	"Force the second display output type. Possible values are NONE, LCD, TV, VGA, SVIDEO or COMPOSITE.");
+
+module_param(vesa, int, 0);
+MODULE_PARM_DESC(vesa,
+	"Selects the desired default display mode by VESA mode number (eg. 0x117).");
+
+module_param(filter, int, 0);
+MODULE_PARM_DESC(filter,
+	"Selects TV flicker filter type (only for systems with a SiS301 video bridge). Possible values 0-7. Default: [no filter]).");
 
 static int __init xgifb_init(void)
 {
@@ -2354,45 +2116,14 @@ static int __init xgifb_init(void)
 	return pci_register_driver(&xgifb_driver);
 }
 
-module_init(xgifb_init);
-
-/*****************************************************/
-/*                      MODULE                       */
-/*****************************************************/
-
-#ifdef MODULE
-
-MODULE_DESCRIPTION("Z7 Z9 Z9S Z11 framebuffer device driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("XGITECH , Others");
-
-module_param(mode, charp, 0);
-module_param(vesa, int, 0);
-module_param(filter, int, 0);
-module_param(forcecrt2type, charp, 0);
-
-MODULE_PARM_DESC(forcecrt2type,
-	"\nForce the second display output type. Possible values are NONE,\n"
-	"LCD, TV, VGA, SVIDEO or COMPOSITE.\n");
-
-MODULE_PARM_DESC(mode,
-	"\nSelects the desired default display mode in the format XxYxDepth,\n"
-	"eg. 1024x768x16.\n");
-
-MODULE_PARM_DESC(vesa,
-	"\nSelects the desired default display mode by VESA mode number, eg.\n"
-	"0x117.\n");
-
-MODULE_PARM_DESC(filter,
-		"\nSelects TV flicker filter type (only for systems with a SiS301 video bridge).\n"
-		"(Possible values 0-7, default: [no filter])\n");
-
 static void __exit xgifb_remove_module(void)
 {
 	pci_unregister_driver(&xgifb_driver);
 	pr_debug("Module unloaded\n");
 }
 
+MODULE_DESCRIPTION("Z7 Z9 Z9S Z11 framebuffer device driver");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("XGITECH , Others");
+module_init(xgifb_init);
 module_exit(xgifb_remove_module);
-
-#endif	/*  /MODULE  */

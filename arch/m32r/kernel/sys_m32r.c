@@ -88,24 +88,3 @@ asmlinkage int sys_cachectl(char *addr, int nbytes, int op)
 	/* Not implemented yet. */
 	return -ENOSYS;
 }
-
-/*
- * Do a system call from kernel instead of calling sys_execve so we
- * end up with proper pt_regs.
- */
-int kernel_execve(const char *filename,
-		  const char *const argv[],
-		  const char *const envp[])
-{
-	register long __scno __asm__ ("r7") = __NR_execve;
-	register long __arg3 __asm__ ("r2") = (long)(envp);
-	register long __arg2 __asm__ ("r1") = (long)(argv);
-	register long __res __asm__ ("r0") = (long)(filename);
-	__asm__ __volatile__ (
-		"trap #" SYSCALL_VECTOR "|| nop"
-		: "=r" (__res)
-		: "r" (__scno), "0" (__res), "r" (__arg2),
-			"r" (__arg3)
-		: "memory");
-	return __res;
-}

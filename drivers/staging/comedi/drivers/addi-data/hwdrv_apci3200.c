@@ -15,10 +15,6 @@ This program is free software; you can redistribute it and/or modify it under th
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-You should also find the complete GPL in the COPYING file accompanying this source code.
-
 @endverbatim
 */
 /*
@@ -51,17 +47,128 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-/*
-  +----------------------------------------------------------------------------+
-  |                               Included files                               |
-  +----------------------------------------------------------------------------+
-*/
-#include "hwdrv_apci3200.h"
-/* Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-#include "addi_amcc_S5920.h"
-/* #define PRINT_INFO */
+/* Card Specific information */
+/* #define APCI3200_ADDRESS_RANGE	264 */
 
-/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
+/* Analog Input related Defines */
+#define APCI3200_AI_OFFSET_GAIN		0
+#define APCI3200_AI_SC_TEST		4
+#define APCI3200_AI_IRQ			8
+#define APCI3200_AI_AUTOCAL		12
+#define APCI3200_RELOAD_CONV_TIME_VAL	32
+#define APCI3200_CONV_TIME_TIME_BASE	36
+#define APCI3200_RELOAD_DELAY_TIME_VAL	40
+#define APCI3200_DELAY_TIME_TIME_BASE	44
+#define APCI3200_AI_MODULE1		0
+#define APCI3200_AI_MODULE2		64
+#define APCI3200_AI_MODULE3		128
+#define APCI3200_AI_MODULE4		192
+#define TRUE				1
+#define FALSE				0
+#define APCI3200_AI_EOSIRQ		16
+#define APCI3200_AI_EOS			20
+#define APCI3200_AI_CHAN_ID		24
+#define APCI3200_AI_CHAN_VAL		28
+#define ANALOG_INPUT			0
+#define TEMPERATURE			1
+#define RESISTANCE			2
+
+#define ENABLE_EXT_TRIG			1
+#define ENABLE_EXT_GATE			2
+#define ENABLE_EXT_TRIG_GATE		3
+
+#define APCI3200_MAXVOLT		2.5
+#define ADDIDATA_GREATER_THAN_TEST	0
+#define ADDIDATA_LESS_THAN_TEST		1
+
+#define ADDIDATA_UNIPOLAR		1
+#define ADDIDATA_BIPOLAR		2
+
+#define MAX_MODULE			4
+
+/* ANALOG INPUT RANGE */
+static const struct comedi_lrange range_apci3200_ai = {
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1)
+	}
+};
+
+static const struct comedi_lrange range_apci3300_ai = {
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1)
+	}
+};
+
+int MODULE_NO;
+struct {
+	int i_Gain;
+	int i_Polarity;
+	int i_OffsetRange;
+	int i_Coupling;
+	int i_SingleDiff;
+	int i_AutoCalibration;
+	unsigned int ui_ReloadValue;
+	unsigned int ui_TimeUnitReloadVal;
+	int i_Interrupt;
+	int i_ModuleSelection;
+} Config_Parameters_Module1, Config_Parameters_Module2,
+    Config_Parameters_Module3, Config_Parameters_Module4;
+
+
+struct str_ADDIDATA_RTDStruct {
+	unsigned int ul_NumberOfValue;
+	unsigned int *pul_ResistanceValue;
+	unsigned int *pul_TemperatureValue;
+};
+
+struct str_Module {
+	unsigned long ul_CurrentSourceCJC;
+	unsigned long ul_CurrentSource[5];
+	unsigned long ul_GainFactor[8];	/*  Gain Factor */
+	unsigned int w_GainValue[10];
+};
+
+struct str_BoardInfos {
+
+	int i_CJCAvailable;
+	int i_CJCPolarity;
+	int i_CJCGain;
+	int i_InterruptFlag;
+	int i_ADDIDATAPolarity;
+	int i_ADDIDATAGain;
+	int i_AutoCalibration;
+	int i_ADDIDATAConversionTime;
+	int i_ADDIDATAConversionTimeUnit;
+	int i_ADDIDATAType;
+	int i_ChannelNo;
+	int i_ChannelCount;
+	int i_ScanType;
+	int i_FirstChannel;
+	int i_LastChannel;
+	int i_Sum;
+	int i_Offset;
+	unsigned int ui_Channel_num;
+	int i_Count;
+	int i_Initialised;
+	unsigned int ui_InterruptChannelValue[144];	/* Buffer */
+	unsigned char b_StructInitialized;
+	/* 7 is the maximal number of channels */
+	unsigned int ui_ScanValueArray[7 + 12];	
+
+	int i_ConnectionType;
+	int i_NbrOfModule;
+	struct str_Module s_Module[MAX_MODULE];
+};
 
 /* BEGIN JK 06.07.04: Management of sevrals boards */
 /*
@@ -90,29 +197,17 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 struct str_BoardInfos s_BoardInfos[100];	/*  100 will be the max number of boards to be used */
 /* END JK 06.07.04: Management of sevrals boards */
 
-/* Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
+#define AMCC_OP_REG_MCSR	0x3c
+#define EEPROM_BUSY		0x80000000
+#define NVCMD_LOAD_LOW		(0x4 << 5)	/* nvRam load low command */
+#define NVCMD_LOAD_HIGH		(0x5 << 5)	/* nvRam load high command */
+#define NVCMD_BEGIN_READ	(0x7 << 5)	/* nvRam begin read command */
+#define NVCMD_BEGIN_WRITE	(0x6 << 5)	/* EEPROM begin write command */
 
-/*+----------------------------------------------------------------------------+*/
-/*| Function   Name   : int i_AddiHeaderRW_ReadEeprom                          |*/
-/*|                               (int    i_NbOfWordsToRead,                   |*/
-/*|                                unsigned int dw_PCIBoardEepromAddress,             |*/
-/*|                                unsigned short   w_EepromStartAddress,                |*/
-/*|                                unsigned short * pw_DataRead)                          |*/
-/*+----------------------------------------------------------------------------+*/
-/*| Task              : Read word from the 5920 eeprom.                        |*/
-/*+----------------------------------------------------------------------------+*/
-/*| Input Parameters  : int    i_NbOfWordsToRead : Nbr. of word to read        |*/
-/*|                     unsigned int dw_PCIBoardEepromAddress : Address of the eeprom |*/
-/*|                     unsigned short   w_EepromStartAddress : Eeprom start address     |*/
-/*+----------------------------------------------------------------------------+*/
-/*| Output Parameters : unsigned short * pw_DataRead : Read data                          |*/
-/*+----------------------------------------------------------------------------+*/
-/*| Return Value      : -                                                      |*/
-/*+----------------------------------------------------------------------------+*/
-
-int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
-	unsigned int dw_PCIBoardEepromAddress,
-	unsigned short w_EepromStartAddress, unsigned short *pw_DataRead)
+static int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
+				     unsigned int dw_PCIBoardEepromAddress,
+				     unsigned short w_EepromStartAddress,
+				     unsigned short *pw_DataRead)
 {
 	unsigned int dw_eeprom_busy = 0;
 	int i_Counter = 0;
@@ -239,20 +334,8 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 	return 0;
 }
 
-/*+----------------------------------------------------------------------------+*/
-/*| Function   Name   : void v_GetAPCI3200EepromCalibrationValue (void)        |*/
-/*+----------------------------------------------------------------------------+*/
-/*| Task              : Read calibration value from the APCI-3200 eeprom.      |*/
-/*+----------------------------------------------------------------------------+*/
-/*| Input Parameters  : -                                                      |*/
-/*+----------------------------------------------------------------------------+*/
-/*| Output Parameters : -                                                      |*/
-/*+----------------------------------------------------------------------------+*/
-/*| Return Value      : -                                                      |*/
-/*+----------------------------------------------------------------------------+*/
-
-void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAddress,
-	struct str_BoardInfos *BoardInformations)
+static void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAddress,
+						struct str_BoardInfos *BoardInformations)
 {
 	unsigned short w_AnalogInputMainHeaderAddress;
 	unsigned short w_AnalogInputComponentAddress;
@@ -370,12 +453,6 @@ void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAddress,
 			BoardInformations->s_Module[w_ModulCounter].
 				w_GainValue[w_GainIndex] = w_GainValue;
 
-#             ifdef PRINT_INFO
-			printk("\n Gain value = %d",
-				BoardInformations->s_Module[w_ModulCounter].
-				w_GainValue[w_GainIndex]);
-#             endif
-
 	  /*************************************/
 	  /** Read gain factor for the module **/
 	  /*************************************/
@@ -387,12 +464,6 @@ void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAddress,
 				ul_GainFactor[w_GainIndex] =
 				(w_GainFactorValue[1] << 16) +
 				w_GainFactorValue[0];
-
-#             ifdef PRINT_INFO
-			printk("\n w_GainFactorValue [%d] = %lu", w_GainIndex,
-				BoardInformations->s_Module[w_ModulCounter].
-				ul_GainFactor[w_GainIndex]);
-#             endif
 		}
 
       /***************************************************************/
@@ -414,12 +485,6 @@ void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAddress,
 				ul_CurrentSource[w_Input] =
 				(w_CurrentSources[0] +
 				((w_CurrentSources[1] & 0xFFF) << 16));
-
-#             ifdef PRINT_INFO
-			printk("\n Current sources [%d] = %lu", w_Input,
-				BoardInformations->s_Module[w_ModulCounter].
-				ul_CurrentSource[w_Input]);
-#             endif
 		}
 
       /***************************************/
@@ -437,25 +502,17 @@ void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAddress,
 			ul_CurrentSourceCJC =
 			(w_CurrentSources[0] +
 			((w_CurrentSources[1] & 0xFFF) << 16));
-
-#          ifdef PRINT_INFO
-		printk("\n Current sources CJC = %lu",
-			BoardInformations->s_Module[w_ModulCounter].
-			ul_CurrentSourceCJC);
-#          endif
 	}
 }
 
-int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
-	unsigned int ui_Channel_num, unsigned int *CJCCurrentSource,
-	unsigned int *ChannelCurrentSource, unsigned int *ChannelGainFactor)
+static int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
+						 unsigned int ui_Channel_num,
+						 unsigned int *CJCCurrentSource,
+						 unsigned int *ChannelCurrentSource,
+						 unsigned int *ChannelGainFactor)
 {
 	int i_DiffChannel = 0;
 	int i_Module = 0;
-
-#ifdef PRINT_INFO
-	printk("\n Channel = %u", ui_Channel_num);
-#endif
 
 	/* Test if single or differential mode */
 	if (s_BoardInfos[dev->minor].i_ConnectionType == 1) {
@@ -493,16 +550,10 @@ int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 	/* Test if thermocouple or RTD mode */
 	*CJCCurrentSource =
 		s_BoardInfos[dev->minor].s_Module[i_Module].ul_CurrentSourceCJC;
-#ifdef PRINT_INFO
-	printk("\n CJCCurrentSource = %lu", *CJCCurrentSource);
-#endif
 
 	*ChannelCurrentSource =
 		s_BoardInfos[dev->minor].s_Module[i_Module].
 		ul_CurrentSource[i_DiffChannel];
-#ifdef PRINT_INFO
-	printk("\n ChannelCurrentSource = %lu", *ChannelCurrentSource);
-#endif
 	/*       } */
 	/*    } */
 
@@ -510,852 +561,671 @@ int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 	*ChannelGainFactor =
 		s_BoardInfos[dev->minor].s_Module[i_Module].
 		ul_GainFactor[s_BoardInfos[dev->minor].i_ADDIDATAGain];
-#ifdef PRINT_INFO
-	printk("\n ChannelGainFactor = %lu", *ChannelGainFactor);
-#endif
 	/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 
 	return 0;
 }
 
-/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_ReadDigitalInput                       |
-  |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-  |                      struct comedi_insn *insn,unsigned int *data)                     |
-  +----------------------------------------------------------------------------+
-  | Task              : Read  value  of the selected channel or port           |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     unsigned int ui_NoOfChannels    : No Of Channels To read  for Port
-  Channel Numberfor single channel
-  |                     unsigned int data[0]            : 0: Read single channel
-  1: Read port value
-  data[1]              Port number
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--	data[0] :Read status value
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-
-int i_APCI3200_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int apci3200_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	unsigned int ui_Temp = 0;
-	unsigned int ui_NoOfChannel = 0;
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	ui_Temp = data[0];
-	*data = inl(devpriv->i_IobaseReserved);
+	struct addi_private *devpriv = dev->private;
 
-	if (ui_Temp == 0) {
-		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			/* if  (ui_Temp==0) */
-	else {
-		if (ui_Temp == 1) {
-			if (data[1] < 0 || data[1] > 1) {
-				printk("\nThe port number is in error\n");
-				return -EINVAL;
-			}	/* if(data[1] < 0 || data[1] >1) */
-			switch (ui_NoOfChannel) {
+	data[1] = inl(devpriv->i_IobaseReserved) & 0xf;
 
-			case 2:
-				*data = (*data >> (2 * data[1])) & 0x3;
-				break;
-			case 3:
-				*data = (*data & 15);
-				break;
-			default:
-				comedi_error(dev, " chan spec wrong");
-				return -EINVAL;	/*  "sorry channel spec wrong " */
-
-			}	/* switch(ui_NoOfChannels) */
-		}		/* if  (ui_Temp==1) */
-		else {
-			printk("\nSpecified channel not supported \n");
-		}		/* elseif  (ui_Temp==1) */
-	}
 	return insn->n;
 }
 
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_ConfigDigitalOutput                     |
-  |			  (struct comedi_device *dev,struct comedi_subdevice *s,				 |
-  |                      struct comedi_insn *insn,unsigned int *data)                     |
-  +----------------------------------------------------------------------------+
-  | Task              : Configures The Digital Output Subdevice.               |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-  |			  data[0]  :1  Memory enable
-  0  Memory Disable
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error			 |
-  |																	 |
-  +----------------------------------------------------------------------------+
-*/
-int i_APCI3200_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int apci3200_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 
-	if ((data[0] != 0) && (data[0] != 1)) {
-		comedi_error(dev,
-			"Not a valid Data !!! ,Data should be 1 or 0\n");
-		return -EINVAL;
-	}			/* if  ( (data[0]!=0) && (data[0]!=1) ) */
-	if (data[0]) {
-		devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
-	}			/*  if  (data[0]) */
-	else {
-		devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
-	}			/* else if  (data[0]) */
+	s->state = inl(devpriv->i_IobaseAddon) & 0xf;
+
+	if (comedi_dio_update_state(s, data))
+		outl(s->state, devpriv->i_IobaseAddon);
+
+	data[1] = s->state;
+
 	return insn->n;
 }
 
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_WriteDigitalOutput                      |
-  |			  (struct comedi_device *dev,struct comedi_subdevice *s,				 |
-  |                      struct comedi_insn *insn,unsigned int *data)                     |
-  +----------------------------------------------------------------------------+
-  | Task              : writes To the digital Output Subdevice                 |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     struct comedi_subdevice *s     : Subdevice Pointer            |
-  |                     struct comedi_insn *insn       : Insn Structure Pointer       |
-  |                     unsigned int *data          : Data Pointer contains        |
-  |                                          configuration parameters as below |
-  |                     data[0]             :Value to output
-  data[1]             : 0 o/p single channel
-  1 o/p port
-  data[2]             : port no
-  data[3]             :0 set the digital o/p on
-  1 set the digital o/p off
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error	     	 |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-int i_APCI3200_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
+					      struct comedi_subdevice *s,
+					      struct comedi_insn *insn,
+					      unsigned int *data)
 {
-	unsigned int ui_Temp = 0, ui_Temp1 = 0;
-	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
-	if (devpriv->b_OutputMemoryStatus) {
-		ui_Temp = inl(devpriv->i_IobaseAddon);
-
-	}			/* if(devpriv->b_OutputMemoryStatus ) */
-	else {
-		ui_Temp = 0;
-	}			/* if(devpriv->b_OutputMemoryStatus ) */
-	if (data[3] == 0) {
-		if (data[1] == 0) {
-			data[0] = (data[0] << ui_NoOfChannel) | ui_Temp;
-			outl(data[0], devpriv->i_IobaseAddon);
-		}		/* if(data[1]==0) */
-		else {
-			if (data[1] == 1) {
-				switch (ui_NoOfChannel) {
-
-				case 2:
-					data[0] =
-						(data[0] << (2 *
-							data[2])) | ui_Temp;
-					break;
-				case 3:
-					data[0] = (data[0] | ui_Temp);
-					break;
-				}	/* switch(ui_NoOfChannels) */
-
-				outl(data[0], devpriv->i_IobaseAddon);
-			}	/*  if(data[1]==1) */
-			else {
-				printk("\nSpecified channel not supported\n");
-			}	/* else if(data[1]==1) */
-		}		/* elseif(data[1]==0) */
-	}			/* if(data[3]==0) */
-	else {
-		if (data[3] == 1) {
-			if (data[1] == 0) {
-				data[0] = ~data[0] & 0x1;
-				ui_Temp1 = 1;
-				ui_Temp1 = ui_Temp1 << ui_NoOfChannel;
-				ui_Temp = ui_Temp | ui_Temp1;
-				data[0] = (data[0] << ui_NoOfChannel) ^ 0xf;
-				data[0] = data[0] & ui_Temp;
-				outl(data[0], devpriv->i_IobaseAddon);
-			}	/* if(data[1]==0) */
-			else {
-				if (data[1] == 1) {
-					switch (ui_NoOfChannel) {
-
-					case 2:
-						data[0] = ~data[0] & 0x3;
-						ui_Temp1 = 3;
-						ui_Temp1 =
-							ui_Temp1 << 2 * data[2];
-						ui_Temp = ui_Temp | ui_Temp1;
-						data[0] =
-							((data[0] << (2 *
-									data
-									[2])) ^
-							0xf) & ui_Temp;
-
-						break;
-					case 3:
-						break;
-
-					default:
-						comedi_error(dev,
-							" chan spec wrong");
-						return -EINVAL;	/*  "sorry channel spec wrong " */
-					}	/* switch(ui_NoOfChannels) */
-
-					outl(data[0], devpriv->i_IobaseAddon);
-				}	/*  if(data[1]==1) */
-				else {
-					printk("\nSpecified channel not supported\n");
-				}	/* else if(data[1]==1) */
-			}	/* elseif(data[1]==0) */
-		}		/* if(data[3]==1); */
-		else {
-			printk("\nSpecified functionality does not exist\n");
-			return -EINVAL;
-		}		/* if else data[3]==1) */
-	}			/* if else data[3]==0) */
-	return insn->n;
-}
-
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_ReadDigitalOutput                       |
-  |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-  |                      struct comedi_insn *insn,unsigned int *data)                     |
-  +----------------------------------------------------------------------------+
-  | Task              : Read  value  of the selected channel or port           |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
-  |                     unsigned int *data              : Data Pointer to read status  |
-  data[0]                 :0 read single channel
-  1 read port value
-  data[1]                  port no
-
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-int i_APCI3200_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
-{
-	unsigned int ui_Temp;
-	unsigned int ui_NoOfChannel;
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	ui_Temp = data[0];
-	*data = inl(devpriv->i_IobaseAddon);
-	if (ui_Temp == 0) {
-		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			/*  if  (ui_Temp==0) */
-	else {
-		if (ui_Temp == 1) {
-			if (data[1] < 0 || data[1] > 1) {
-				printk("\nThe port selection is in error\n");
-				return -EINVAL;
-			}	/* if(data[1] <0 ||data[1] >1) */
-			switch (ui_NoOfChannel) {
-			case 2:
-				*data = (*data >> (2 * data[1])) & 3;
-				break;
-
-			case 3:
-				break;
-
-			default:
-				comedi_error(dev, " chan spec wrong");
-				return -EINVAL;	/*  "sorry channel spec wrong " */
-				break;
-			}	/*  switch(ui_NoOfChannels) */
-		}		/*  if  (ui_Temp==1) */
-		else {
-			printk("\nSpecified channel not supported \n");
-		}		/*  else if (ui_Temp==1) */
-	}			/*  else if  (ui_Temp==0) */
-	return insn->n;
-}
-
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_ConfigAnalogInput                       |
-  |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-  |                      struct comedi_insn *insn,unsigned int *data)                     |
-  +----------------------------------------------------------------------------+
-  | Task              : Configures The Analog Input Subdevice                  |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     struct comedi_subdevice *s     : Subdevice Pointer            |
-  |                     struct comedi_insn *insn       : Insn Structure Pointer       |
-  |                     unsigned int *data          : Data Pointer contains        |
-  |                                          configuration parameters as below |
-  |                                                                            |
-  |					data[0]
-  |                                               0:Normal AI                  |
-  |                                               1:RTD                        |
-  |                                               2:THERMOCOUPLE               |
-  |				    data[1]            : Gain To Use                 |
-  |                                                                            |
-  |                           data[2]            : Polarity
-  |                                                0:Bipolar                   |
-  |                                                1:Unipolar                  |
-  |															    	 |
-  |                           data[3]            : Offset Range
-  |                                                                            |
-  |                           data[4]            : Coupling
-  |                                                0:DC Coupling               |
-  |                                                1:AC Coupling               |
-  |                                                                            |
-  |                           data[5]            :Differential/Single
-  |                                                0:Single                    |
-  |                                                1:Differential              |
-  |                                                                            |
-  |                           data[6]            :TimerReloadValue
-  |                                                                            |
-  |                           data[7]            :ConvertingTimeUnit
-  |                                                                            |
-  |                           data[8]             :0 Analog voltage measurement
-  1 Resistance measurement
-  2 Temperature measurement
-  |                           data[9]            :Interrupt
-  |                                              0:Disable
-  |                                              1:Enable
-  data[10]           :Type of Thermocouple
-  |                          data[11]           : 0: single channel
-  Module Number
-  |
-  |                          data[12]
-  |                                             0:Single Read
-  |                                             1:Read more channel
-  2:Single scan
-  |                                             3:Continuous Scan
-  data[13]          :Number of channels to read
-  |                          data[14]          :RTD connection type
-  :0:RTD not used
-  1:RTD 2 wire connection
-  2:RTD 3 wire connection
-  3:RTD 4 wire connection
-  |                                                                            |
-  |                                                                            |
-  |                                                                            |
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
-{
-
-	unsigned int ul_Config = 0, ul_Temp = 0;
+	struct addi_private *devpriv = dev->private;
+	unsigned int ui_EOC = 0;
 	unsigned int ui_ChannelNo = 0;
-	unsigned int ui_Dummy = 0;
-	int i_err = 0;
-
-	/* Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-
-#ifdef PRINT_INFO
-	int i = 0, i2 = 0;
-#endif
-	/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
+	unsigned int ui_CommandRegister = 0;
 
 	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/*  Initialize the structure */
-	if (s_BoardInfos[dev->minor].b_StructInitialized != 1) {
-		s_BoardInfos[dev->minor].i_CJCAvailable = 1;
-		s_BoardInfos[dev->minor].i_CJCPolarity = 0;
-		s_BoardInfos[dev->minor].i_CJCGain = 2;	/* changed from 0 to 2 */
-		s_BoardInfos[dev->minor].i_InterruptFlag = 0;
-		s_BoardInfos[dev->minor].i_AutoCalibration = 0;	/* : auto calibration */
-		s_BoardInfos[dev->minor].i_ChannelCount = 0;
-		s_BoardInfos[dev->minor].i_Sum = 0;
-		s_BoardInfos[dev->minor].ui_Channel_num = 0;
-		s_BoardInfos[dev->minor].i_Count = 0;
-		s_BoardInfos[dev->minor].i_Initialised = 0;
-		s_BoardInfos[dev->minor].b_StructInitialized = 1;
+	/* ui_ChannelNo=i_ChannelNo; */
+	ui_ChannelNo = s_BoardInfos[dev->minor].i_ChannelNo;
 
-		/* Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-		s_BoardInfos[dev->minor].i_ConnectionType = 0;
-		/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-
-		/* Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-		memset(s_BoardInfos[dev->minor].s_Module, 0,
-			sizeof(s_BoardInfos[dev->minor].s_Module[MAX_MODULE]));
-
-		v_GetAPCI3200EepromCalibrationValue(devpriv->i_IobaseAmcc,
-			&s_BoardInfos[dev->minor]);
-
-#ifdef PRINT_INFO
-		for (i = 0; i < MAX_MODULE; i++) {
-			printk("\n s_Module[%i].ul_CurrentSourceCJC = %lu", i,
-				s_BoardInfos[dev->minor].s_Module[i].
-				ul_CurrentSourceCJC);
-
-			for (i2 = 0; i2 < 5; i2++) {
-				printk("\n s_Module[%i].ul_CurrentSource [%i] = %lu", i, i2, s_BoardInfos[dev->minor].s_Module[i].ul_CurrentSource[i2]);
-			}
-
-			for (i2 = 0; i2 < 8; i2++) {
-				printk("\n s_Module[%i].ul_GainFactor [%i] = %lu", i, i2, s_BoardInfos[dev->minor].s_Module[i].ul_GainFactor[i2]);
-			}
-
-			for (i2 = 0; i2 < 8; i2++) {
-				printk("\n s_Module[%i].w_GainValue [%i] = %u",
-					i, i2,
-					s_BoardInfos[dev->minor].s_Module[i].
-					w_GainValue[i2]);
-			}
-		}
-#endif
-		/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-	}
-
-	if (data[0] != 0 && data[0] != 1 && data[0] != 2) {
-		printk("\nThe selection of acquisition type is in error\n");
-		i_err++;
-	}			/* if(data[0]!=0 && data[0]!=1 && data[0]!=2) */
-	if (data[0] == 1) {
-		if (data[14] != 0 && data[14] != 1 && data[14] != 2
-			&& data[14] != 4) {
-			printk("\n Error in selection of RTD connection type\n");
-			i_err++;
-		}		/* if(data[14]!=0 && data[14]!=1 && data[14]!=2 && data[14]!=4) */
-	}			/* if(data[0]==1 ) */
-	if (data[1] < 0 || data[1] > 7) {
-		printk("\nThe selection of gain is in error\n");
-		i_err++;
-	}			/*  if(data[1]<0 || data[1]>7) */
-	if (data[2] != 0 && data[2] != 1) {
-		printk("\nThe selection of polarity is in error\n");
-		i_err++;
-	}			/* if(data[2]!=0 &&  data[2]!=1) */
-	if (data[3] != 0) {
-		printk("\nThe selection of offset range  is in error\n");
-		i_err++;
-	}			/*  if(data[3]!=0) */
-	if (data[4] != 0 && data[4] != 1) {
-		printk("\nThe selection of coupling is in error\n");
-		i_err++;
-	}			/* if(data[4]!=0 &&  data[4]!=1) */
-	if (data[5] != 0 && data[5] != 1) {
-		printk("\nThe selection of single/differential mode is in error\n");
-		i_err++;
-	}			/* if(data[5]!=0 &&  data[5]!=1) */
-	if (data[8] != 0 && data[8] != 1 && data[2] != 2) {
-		printk("\nError in selection of functionality\n");
-	}			/* if(data[8]!=0 && data[8]!=1 && data[2]!=2) */
-	if (data[12] == 0 || data[12] == 1) {
-		if (data[6] != 20 && data[6] != 40 && data[6] != 80
-			&& data[6] != 160) {
-			printk("\nThe selection of conversion time reload value is in error\n");
-			i_err++;
-		}		/*  if (data[6]!=20 && data[6]!=40 && data[6]!=80 && data[6]!=160 ) */
-		if (data[7] != 2) {
-			printk("\nThe selection of conversion time unit  is in error\n");
-			i_err++;
-		}		/*  if(data[7]!=2) */
-	}
-	if (data[9] != 0 && data[9] != 1) {
-		printk("\nThe selection of interrupt enable is in error\n");
-		i_err++;
-	}			/* if(data[9]!=0 &&  data[9]!=1) */
-	if (data[11] < 0 || data[11] > 4) {
-		printk("\nThe selection of module is in error\n");
-		i_err++;
-	}			/* if(data[11] <0 ||  data[11]>1) */
-	if (data[12] < 0 || data[12] > 3) {
-		printk("\nThe selection of singlechannel/scan selection is in error\n");
-		i_err++;
-	}			/* if(data[12] < 0 ||  data[12]> 3) */
-	if (data[13] < 0 || data[13] > 16) {
-		printk("\nThe selection of number of channels is in error\n");
-		i_err++;
-	}			/*  if(data[13] <0 ||data[13] >15) */
-
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/*
-	   i_ChannelCount=data[13];
-	   i_ScanType=data[12];
-	   i_ADDIDATAPolarity = data[2];
-	   i_ADDIDATAGain=data[1];
-	   i_ADDIDATAConversionTime=data[6];
-	   i_ADDIDATAConversionTimeUnit=data[7];
-	   i_ADDIDATAType=data[0];
-	 */
-
-	/*  Save acquisition configuration for the actual board */
-	s_BoardInfos[dev->minor].i_ChannelCount = data[13];
-	s_BoardInfos[dev->minor].i_ScanType = data[12];
-	s_BoardInfos[dev->minor].i_ADDIDATAPolarity = data[2];
-	s_BoardInfos[dev->minor].i_ADDIDATAGain = data[1];
-	s_BoardInfos[dev->minor].i_ADDIDATAConversionTime = data[6];
-	s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit = data[7];
-	s_BoardInfos[dev->minor].i_ADDIDATAType = data[0];
-	/* Begin JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-	s_BoardInfos[dev->minor].i_ConnectionType = data[5];
-	/* End JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-	/* END JK 06.07.04: Management of sevrals boards */
-
-	/* Begin JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-	memset(s_BoardInfos[dev->minor].ui_ScanValueArray, 0, (7 + 12) * sizeof(unsigned int));	/*  7 is the maximal number of channels */
-	/* End JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-
-	/* BEGIN JK 02.07.04 : This while can't be do, it block the process when using severals boards */
-	/* while(i_InterruptFlag==1) */
-	while (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
-#ifndef MSXBOX
-		udelay(1);
-#else
-		/*  In the case where the driver is compiled for the MSX-Box */
-		/*  we used a printk to have a little delay because udelay */
-		/*  seems to be broken under the MSX-Box. */
-		/*  This solution hat to be studied. */
-		printk("");
-#endif
-	}
-	/* END JK 02.07.04 : This while can't be do, it block the process when using severals boards */
-
-	ui_ChannelNo = CR_CHAN(insn->chanspec);	/*  get the channel */
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/* i_ChannelNo=ui_ChannelNo; */
-	/* ui_Channel_num =ui_ChannelNo; */
-
-	s_BoardInfos[dev->minor].i_ChannelNo = ui_ChannelNo;
-	s_BoardInfos[dev->minor].ui_Channel_num = ui_ChannelNo;
-
-	/* END JK 06.07.04: Management of sevrals boards */
-
-	if (data[5] == 0) {
-		if (ui_ChannelNo < 0 || ui_ChannelNo > 15) {
-			printk("\nThe Selection of the channel is in error\n");
-			i_err++;
-		}		/*  if(ui_ChannelNo<0 || ui_ChannelNo>15) */
-	}			/* if(data[5]==0) */
-	else {
-		if (data[14] == 2) {
-			if (ui_ChannelNo < 0 || ui_ChannelNo > 3) {
-				printk("\nThe Selection of the channel is in error\n");
-				i_err++;
-			}	/*  if(ui_ChannelNo<0 || ui_ChannelNo>3) */
-		}		/* if(data[14]==2) */
-		else {
-			if (ui_ChannelNo < 0 || ui_ChannelNo > 7) {
-				printk("\nThe Selection of the channel is in error\n");
-				i_err++;
-			}	/*  if(ui_ChannelNo<0 || ui_ChannelNo>7) */
-		}		/* elseif(data[14]==2) */
-	}			/* elseif(data[5]==0) */
-	if (data[12] == 0 || data[12] == 1) {
-		switch (data[5]) {
-		case 0:
-			if (ui_ChannelNo >= 0 && ui_ChannelNo <= 3) {
-				/* BEGIN JK 06.07.04: Management of sevrals boards */
-				/* i_Offset=0; */
-				s_BoardInfos[dev->minor].i_Offset = 0;
-				/* END JK 06.07.04: Management of sevrals boards */
-			}	/* if(ui_ChannelNo >=0 && ui_ChannelNo <=3) */
-			if (ui_ChannelNo >= 4 && ui_ChannelNo <= 7) {
-				/* BEGIN JK 06.07.04: Management of sevrals boards */
-				/* i_Offset=64; */
-				s_BoardInfos[dev->minor].i_Offset = 64;
-				/* END JK 06.07.04: Management of sevrals boards */
-			}	/* if(ui_ChannelNo >=4 && ui_ChannelNo <=7) */
-			if (ui_ChannelNo >= 8 && ui_ChannelNo <= 11) {
-				/* BEGIN JK 06.07.04: Management of sevrals boards */
-				/* i_Offset=128; */
-				s_BoardInfos[dev->minor].i_Offset = 128;
-				/* END JK 06.07.04: Management of sevrals boards */
-			}	/* if(ui_ChannelNo >=8 && ui_ChannelNo <=11) */
-			if (ui_ChannelNo >= 12 && ui_ChannelNo <= 15) {
-				/* BEGIN JK 06.07.04: Management of sevrals boards */
-				/* i_Offset=192; */
-				s_BoardInfos[dev->minor].i_Offset = 192;
-				/* END JK 06.07.04: Management of sevrals boards */
-			}	/* if(ui_ChannelNo >=12 && ui_ChannelNo <=15) */
-			break;
-		case 1:
-			if (data[14] == 2) {
-				if (ui_ChannelNo == 0) {
-					/* BEGIN JK 06.07.04: Management of sevrals boards */
-					/* i_Offset=0; */
-					s_BoardInfos[dev->minor].i_Offset = 0;
-					/* END JK 06.07.04: Management of sevrals boards */
-				}	/* if(ui_ChannelNo ==0 ) */
-				if (ui_ChannelNo == 1) {
-					/* BEGIN JK 06.07.04: Management of sevrals boards */
-					/* i_Offset=0; */
-					s_BoardInfos[dev->minor].i_Offset = 64;
-					/* END JK 06.07.04: Management of sevrals boards */
-				}	/*  if(ui_ChannelNo ==1) */
-				if (ui_ChannelNo == 2) {
-					/* BEGIN JK 06.07.04: Management of sevrals boards */
-					/* i_Offset=128; */
-					s_BoardInfos[dev->minor].i_Offset = 128;
-					/* END JK 06.07.04: Management of sevrals boards */
-				}	/* if(ui_ChannelNo ==2 ) */
-				if (ui_ChannelNo == 3) {
-					/* BEGIN JK 06.07.04: Management of sevrals boards */
-					/* i_Offset=192; */
-					s_BoardInfos[dev->minor].i_Offset = 192;
-					/* END JK 06.07.04: Management of sevrals boards */
-				}	/* if(ui_ChannelNo ==3) */
-
-				/* BEGIN JK 06.07.04: Management of sevrals boards */
-				/* i_ChannelNo=0; */
-				s_BoardInfos[dev->minor].i_ChannelNo = 0;
-				/* END JK 06.07.04: Management of sevrals boards */
-				ui_ChannelNo = 0;
-				break;
-			}	/* if(data[14]==2) */
-			if (ui_ChannelNo >= 0 && ui_ChannelNo <= 1) {
-				/* BEGIN JK 06.07.04: Management of sevrals boards */
-				/* i_Offset=0; */
-				s_BoardInfos[dev->minor].i_Offset = 0;
-				/* END JK 06.07.04: Management of sevrals boards */
-			}	/* if(ui_ChannelNo >=0 && ui_ChannelNo <=1) */
-			if (ui_ChannelNo >= 2 && ui_ChannelNo <= 3) {
-				/* BEGIN JK 06.07.04: Management of sevrals boards */
-				/* i_ChannelNo=i_ChannelNo-2; */
-				/* i_Offset=64; */
-				s_BoardInfos[dev->minor].i_ChannelNo =
-					s_BoardInfos[dev->minor].i_ChannelNo -
-					2;
-				s_BoardInfos[dev->minor].i_Offset = 64;
-				/* END JK 06.07.04: Management of sevrals boards */
-				ui_ChannelNo = ui_ChannelNo - 2;
-			}	/* if(ui_ChannelNo >=2 && ui_ChannelNo <=3) */
-			if (ui_ChannelNo >= 4 && ui_ChannelNo <= 5) {
-				/* BEGIN JK 06.07.04: Management of sevrals boards */
-				/* i_ChannelNo=i_ChannelNo-4; */
-				/* i_Offset=128; */
-				s_BoardInfos[dev->minor].i_ChannelNo =
-					s_BoardInfos[dev->minor].i_ChannelNo -
-					4;
-				s_BoardInfos[dev->minor].i_Offset = 128;
-				/* END JK 06.07.04: Management of sevrals boards */
-				ui_ChannelNo = ui_ChannelNo - 4;
-			}	/* if(ui_ChannelNo >=4 && ui_ChannelNo <=5) */
-			if (ui_ChannelNo >= 6 && ui_ChannelNo <= 7) {
-				/* BEGIN JK 06.07.04: Management of sevrals boards */
-				/* i_ChannelNo=i_ChannelNo-6; */
-				/* i_Offset=192; */
-				s_BoardInfos[dev->minor].i_ChannelNo =
-					s_BoardInfos[dev->minor].i_ChannelNo -
-					6;
-				s_BoardInfos[dev->minor].i_Offset = 192;
-				/* END JK 06.07.04: Management of sevrals boards */
-				ui_ChannelNo = ui_ChannelNo - 6;
-			}	/* if(ui_ChannelNo >=6 && ui_ChannelNo <=7) */
-			break;
-
-		default:
-			printk("\n This selection of polarity does not exist\n");
-			i_err++;
-		}		/* switch(data[2]) */
-	}			/* if(data[12]==0 || data[12]==1) */
-	else {
-		switch (data[11]) {
-		case 1:
-			/* BEGIN JK 06.07.04: Management of sevrals boards */
-			/* i_Offset=0; */
-			s_BoardInfos[dev->minor].i_Offset = 0;
-			/* END JK 06.07.04: Management of sevrals boards */
-			break;
-		case 2:
-			/* BEGIN JK 06.07.04: Management of sevrals boards */
-			/* i_Offset=64; */
-			s_BoardInfos[dev->minor].i_Offset = 64;
-			/* END JK 06.07.04: Management of sevrals boards */
-			break;
-		case 3:
-			/* BEGIN JK 06.07.04: Management of sevrals boards */
-			/* i_Offset=128; */
-			s_BoardInfos[dev->minor].i_Offset = 128;
-			/* END JK 06.07.04: Management of sevrals boards */
-			break;
-		case 4:
-			/* BEGIN JK 06.07.04: Management of sevrals boards */
-			/* i_Offset=192; */
-			s_BoardInfos[dev->minor].i_Offset = 192;
-			/* END JK 06.07.04: Management of sevrals boards */
-			break;
-		default:
-			printk("\nError in module selection\n");
-			i_err++;
-		}		/*  switch(data[11]) */
-	}			/*  elseif(data[12]==0 || data[12]==1) */
-	if (i_err) {
-		i_APCI3200_Reset(dev);
-		return -EINVAL;
-	}
-	/* if(i_ScanType!=1) */
-	if (s_BoardInfos[dev->minor].i_ScanType != 1) {
-		/* BEGIN JK 06.07.04: Management of sevrals boards */
-		/* i_Count=0; */
-		/* i_Sum=0; */
-		s_BoardInfos[dev->minor].i_Count = 0;
-		s_BoardInfos[dev->minor].i_Sum = 0;
-		/* END JK 06.07.04: Management of sevrals boards */
-	}			/* if(i_ScanType!=1) */
-
-	ul_Config =
-		data[1] | (data[2] << 6) | (data[5] << 7) | (data[3] << 8) |
-		(data[4] << 9);
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
 	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
 	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
 					12) >> 19) & 1) != 1) ;
-	/* END JK 06.07.04: Management of sevrals boards */
   /*********************************/
 	/* Write the channel to configure */
   /*********************************/
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/* outl(0 | ui_ChannelNo , devpriv->iobase+i_Offset + 0x4); */
-	outl(0 | ui_ChannelNo,
+	/* Begin JK 20.10.2004: Bad channel value is used when using differential mode */
+	/* outl(0 | ui_Channel_num , devpriv->iobase+i_Offset + 0x4); */
+	/* outl(0 | s_BoardInfos [dev->minor].ui_Channel_num , devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 0x4); */
+	outl(0 | s_BoardInfos[dev->minor].i_ChannelNo,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 0x4);
-	/* END JK 06.07.04: Management of sevrals boards */
+	/* End JK 20.10.2004: Bad channel value is used when using differential mode */
 
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
+  /*******************************/
+	/* Set the convert timing unit */
+  /*******************************/
 	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
 	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
 					12) >> 19) & 1) != 1) ;
-	/* END JK 06.07.04: Management of sevrals boards */
+
+	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
+
   /**************************/
-	/* Reset the configuration */
+	/* Set the convert timing */
   /**************************/
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/* outl(0 , devpriv->iobase+i_Offset + 0x0); */
-	outl(0, devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 0x0);
-	/* END JK 06.07.04: Management of sevrals boards */
-
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
 	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
 	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
 					12) >> 19) & 1) != 1) ;
-	/* END JK 06.07.04: Management of sevrals boards */
 
-  /***************************/
-	/* Write the configuration */
-  /***************************/
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/* outl(ul_Config , devpriv->iobase+i_Offset + 0x0); */
-	outl(ul_Config,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 0x0);
-	/* END JK 06.07.04: Management of sevrals boards */
+	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
 
-  /***************************/
-	/*Reset the calibration bit */
-  /***************************/
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/* ul_Temp = inl(devpriv->iobase+i_Offset + 12); */
-	ul_Temp = inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
-	/* END JK 06.07.04: Management of sevrals boards */
+  /**************************************************************************/
+	/* Set the start end stop index to the selected channel and set the start */
+  /**************************************************************************/
 
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* END JK 06.07.04: Management of sevrals boards */
+	ui_CommandRegister = ui_ChannelNo | (ui_ChannelNo << 8) | 0x80000;
 
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/* outl((ul_Temp & 0xFFF9FFFF) , devpriv->iobase+.i_Offset + 12); */
-	outl((ul_Temp & 0xFFF9FFFF),
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
-	/* END JK 06.07.04: Management of sevrals boards */
-
-	if (data[9] == 1) {
-		devpriv->tsk_Current = current;
-		/* BEGIN JK 06.07.04: Management of sevrals boards */
-		/* i_InterruptFlag=1; */
-		s_BoardInfos[dev->minor].i_InterruptFlag = 1;
-		/* END JK 06.07.04: Management of sevrals boards */
-	}			/*  if(data[9]==1) */
-	else {
-		/* BEGIN JK 06.07.04: Management of sevrals boards */
-		/* i_InterruptFlag=0; */
-		s_BoardInfos[dev->minor].i_InterruptFlag = 0;
-		/* END JK 06.07.04: Management of sevrals boards */
-	}			/* else  if(data[9]==1) */
-
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/* i_Initialised=1; */
-	s_BoardInfos[dev->minor].i_Initialised = 1;
-	/* END JK 06.07.04: Management of sevrals boards */
-
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/* if(i_ScanType==1) */
-	if (s_BoardInfos[dev->minor].i_ScanType == 1)
-		/* END JK 06.07.04: Management of sevrals boards */
-	{
-		/* BEGIN JK 06.07.04: Management of sevrals boards */
-		/* i_Sum=i_Sum+1; */
-		s_BoardInfos[dev->minor].i_Sum =
-			s_BoardInfos[dev->minor].i_Sum + 1;
-		/* END JK 06.07.04: Management of sevrals boards */
-
-		insn->unused[0] = 0;
-		i_APCI3200_ReadAnalogInput(dev, s, insn, &ui_Dummy);
+	/*Test if the interrupt is enable */
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
+		/* Enable the interrupt */
+		ui_CommandRegister = ui_CommandRegister | 0x00100000;
 	}
 
-	return insn->n;
+  /******************************/
+	/* Write the command register */
+  /******************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+
+	/* outl(ui_CommandRegister, devpriv->iobase+i_Offset + 8); */
+	outl(ui_CommandRegister,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
+
+	/*Test if interrupt is enable */
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
+		do {
+	  /*************************/
+			/*Read the EOC Status bit */
+	  /*************************/
+
+			/* ui_EOC = inl(devpriv->iobase+i_Offset + 20) & 1; */
+			ui_EOC = inl(devpriv->iobase +
+				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
+
+		} while (ui_EOC != 1);
+
+      /***************************************/
+		/* Read the digital value of the input */
+      /***************************************/
+
+		/* data[0] = inl (devpriv->iobase+i_Offset + 28); */
+		data[0] =
+			inl(devpriv->iobase +
+			s_BoardInfos[dev->minor].i_Offset + 28);
+		/* END JK 06.07.04: Management of sevrals boards */
+
+	}
+	return 0;
+}
+
+static int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev,
+						 unsigned int *data)
+{
+	struct addi_private *devpriv = dev->private;
+	unsigned int ui_Temp = 0, ui_EOC = 0;
+	unsigned int ui_CommandRegister = 0;
+
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+  /*********************************/
+	/* Write the channel to configure */
+  /*********************************/
+	/* Begin JK 20.10.2004: This seems not necessary ! */
+	/* outl(0 | ui_Channel_num , devpriv->iobase+i_Offset + 0x4); */
+	/* outl(0 | s_BoardInfos [dev->minor].ui_Channel_num , devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 0x4); */
+	/* End JK 20.10.2004: This seems not necessary ! */
+
+  /*******************************/
+	/* Set the convert timing unit */
+  /*******************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
+  /**************************/
+	/* Set the convert timing */
+  /**************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
+  /*****************************/
+	/*Read the calibration offset */
+  /*****************************/
+	/* ui_Temp = inl(devpriv->iobase+i_Offset + 12); */
+	ui_Temp = inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
+
+  /*********************************/
+	/*Configure the Offset Conversion */
+  /*********************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl((ui_Temp | 0x00020000), devpriv->iobase+i_Offset + 12); */
+	outl((ui_Temp | 0x00020000),
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
+  /*******************************/
+	/*Initialise ui_CommandRegister */
+  /*******************************/
+
+	ui_CommandRegister = 0;
+
+	/*Test if the interrupt is enable */
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
+		/*Enable the interrupt */
+		ui_CommandRegister = ui_CommandRegister | 0x00100000;
+	}
+
+  /**********************/
+	/*Start the conversion */
+  /**********************/
+	ui_CommandRegister = ui_CommandRegister | 0x00080000;
+
+  /***************************/
+	/*Write the command regiter */
+  /***************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(ui_CommandRegister, devpriv->iobase+i_Offset + 8); */
+	outl(ui_CommandRegister,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
+
+	/*Test if interrupt is enable */
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
+		do {
+	  /*******************/
+			/*Read the EOC flag */
+	  /*******************/
+
+			/* ui_EOC = inl (devpriv->iobase+i_Offset + 20) & 1; */
+			ui_EOC = inl(devpriv->iobase +
+				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
+
+		} while (ui_EOC != 1);
+
+      /**************************************************/
+		/*Read the digital value of the calibration Offset */
+      /**************************************************/
+
+		/* data[0] = inl(devpriv->iobase+i_Offset+ 28); */
+		data[0] =
+			inl(devpriv->iobase +
+			s_BoardInfos[dev->minor].i_Offset + 28);
+	}
+	return 0;
+}
+
+static int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev,
+					       unsigned int *data)
+{
+	struct addi_private *devpriv = dev->private;
+	unsigned int ui_EOC = 0;
+	int ui_CommandRegister = 0;
+
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+  /*********************************/
+	/* Write the channel to configure */
+  /*********************************/
+	/* Begin JK 20.10.2004: This seems not necessary ! */
+	/* outl(0 | ui_Channel_num , devpriv->iobase+i_Offset + 0x4); */
+	/* outl(0 | s_BoardInfos [dev->minor].ui_Channel_num , devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 0x4); */
+	/* End JK 20.10.2004: This seems not necessary ! */
+
+  /***************************/
+	/*Read the calibration gain */
+  /***************************/
+  /*******************************/
+	/* Set the convert timing unit */
+  /*******************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
+  /**************************/
+	/* Set the convert timing */
+  /**************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
+  /*******************************/
+	/*Configure the Gain Conversion */
+  /*******************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(0x00040000 , devpriv->iobase+i_Offset + 12); */
+	outl(0x00040000,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
+
+  /*******************************/
+	/*Initialise ui_CommandRegister */
+  /*******************************/
+
+	ui_CommandRegister = 0;
+
+	/*Test if the interrupt is enable */
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
+		/*Enable the interrupt */
+		ui_CommandRegister = ui_CommandRegister | 0x00100000;
+	}
+
+  /**********************/
+	/*Start the conversion */
+  /**********************/
+
+	ui_CommandRegister = ui_CommandRegister | 0x00080000;
+  /***************************/
+	/*Write the command regiter */
+  /***************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(ui_CommandRegister , devpriv->iobase+i_Offset + 8); */
+	outl(ui_CommandRegister,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
+
+	/*Test if interrupt is enable */
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
+		do {
+
+	  /*******************/
+			/*Read the EOC flag */
+	  /*******************/
+
+			/* ui_EOC = inl(devpriv->iobase+i_Offset + 20) & 1; */
+			ui_EOC = inl(devpriv->iobase +
+				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
+
+		} while (ui_EOC != 1);
+
+      /************************************************/
+		/*Read the digital value of the calibration Gain */
+      /************************************************/
+
+		/* data[0] = inl(devpriv->iobase+i_Offset + 28); */
+		data[0] =
+			inl(devpriv->iobase +
+			s_BoardInfos[dev->minor].i_Offset + 28);
+
+	}
+	return 0;
+}
+
+static int i_APCI3200_ReadCJCValue(struct comedi_device *dev,
+				   unsigned int *data)
+{
+	struct addi_private *devpriv = dev->private;
+	unsigned int ui_EOC = 0;
+	int ui_CommandRegister = 0;
+
+  /******************************/
+	/*Set the converting time unit */
+  /******************************/
+
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+
+	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
+  /**************************/
+	/* Set the convert timing */
+  /**************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+
+	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
+
+  /******************************/
+	/*Configure the CJC Conversion */
+  /******************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+
+	/* outl( 0x00000400 , devpriv->iobase+i_Offset + 4); */
+	outl(0x00000400,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 4);
+  /*******************************/
+	/*Initialise dw_CommandRegister */
+  /*******************************/
+	ui_CommandRegister = 0;
+	/*Test if the interrupt is enable */
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
+		/*Enable the interrupt */
+		ui_CommandRegister = ui_CommandRegister | 0x00100000;
+	}
+
+  /**********************/
+	/*Start the conversion */
+  /**********************/
+
+	ui_CommandRegister = ui_CommandRegister | 0x00080000;
+
+  /***************************/
+	/*Write the command regiter */
+  /***************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(ui_CommandRegister , devpriv->iobase+i_Offset + 8); */
+	outl(ui_CommandRegister,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
+
+	/*Test if interrupt is enable */
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
+		do {
+
+	  /*******************/
+			/*Read the EOC flag */
+	  /*******************/
+
+			/* ui_EOC = inl(devpriv->iobase+i_Offset + 20) & 1; */
+			ui_EOC = inl(devpriv->iobase +
+				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
+
+		} while (ui_EOC != 1);
+
+      /***********************************/
+		/*Read the digital value of the CJC */
+      /***********************************/
+
+		/* data[0] = inl(devpriv->iobase+i_Offset + 28); */
+		data[0] =
+			inl(devpriv->iobase +
+			s_BoardInfos[dev->minor].i_Offset + 28);
+	}
+	return 0;
+}
+
+static int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev,
+				       unsigned int *data)
+{
+	struct addi_private *devpriv = dev->private;
+	unsigned int ui_EOC = 0;
+	int ui_CommandRegister = 0;
+
+  /*******************************************/
+	/*Read calibration offset value for the CJC */
+  /*******************************************/
+  /*******************************/
+	/* Set the convert timing unit */
+  /*******************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
+  /**************************/
+	/* Set the convert timing */
+  /**************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
+  /******************************/
+	/*Configure the CJC Conversion */
+  /******************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(0x00000400 , devpriv->iobase+i_Offset + 4); */
+	outl(0x00000400,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 4);
+  /*********************************/
+	/*Configure the Offset Conversion */
+  /*********************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(0x00020000, devpriv->iobase+i_Offset + 12); */
+	outl(0x00020000,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
+  /*******************************/
+	/*Initialise ui_CommandRegister */
+  /*******************************/
+	ui_CommandRegister = 0;
+	/*Test if the interrupt is enable */
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
+		/*Enable the interrupt */
+		ui_CommandRegister = ui_CommandRegister | 0x00100000;
+	}
+
+  /**********************/
+	/*Start the conversion */
+  /**********************/
+	ui_CommandRegister = ui_CommandRegister | 0x00080000;
+  /***************************/
+	/*Write the command regiter */
+  /***************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(ui_CommandRegister,devpriv->iobase+i_Offset + 8); */
+	outl(ui_CommandRegister,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
+		do {
+	  /*******************/
+			/*Read the EOC flag */
+	  /*******************/
+			/* ui_EOC = inl(devpriv->iobase+i_Offset + 20) & 1; */
+			ui_EOC = inl(devpriv->iobase +
+				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
+		} while (ui_EOC != 1);
+
+      /**************************************************/
+		/*Read the digital value of the calibration Offset */
+      /**************************************************/
+		/* data[0] = inl(devpriv->iobase+i_Offset + 28); */
+		data[0] =
+			inl(devpriv->iobase +
+			s_BoardInfos[dev->minor].i_Offset + 28);
+	}
+	return 0;
+}
+
+static int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev,
+				     unsigned int *data)
+{
+	struct addi_private *devpriv = dev->private;
+	unsigned int ui_EOC = 0;
+	int ui_CommandRegister = 0;
+
+  /*******************************/
+	/* Set the convert timing unit */
+  /*******************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
+  /**************************/
+	/* Set the convert timing */
+  /**************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
+	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
+  /******************************/
+	/*Configure the CJC Conversion */
+  /******************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(0x00000400,devpriv->iobase+i_Offset + 4); */
+	outl(0x00000400,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 4);
+  /*******************************/
+	/*Configure the Gain Conversion */
+  /*******************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(0x00040000,devpriv->iobase+i_Offset + 12); */
+	outl(0x00040000,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
+
+  /*******************************/
+	/*Initialise dw_CommandRegister */
+  /*******************************/
+	ui_CommandRegister = 0;
+	/*Test if the interrupt is enable */
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
+		/*Enable the interrupt */
+		ui_CommandRegister = ui_CommandRegister | 0x00100000;
+	}
+  /**********************/
+	/*Start the conversion */
+  /**********************/
+	ui_CommandRegister = ui_CommandRegister | 0x00080000;
+  /***************************/
+	/*Write the command regiter */
+  /***************************/
+	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
+	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
+					12) >> 19) & 1) != 1) ;
+	/* outl(ui_CommandRegister ,devpriv->iobase+i_Offset + 8); */
+	outl(ui_CommandRegister,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
+		do {
+	  /*******************/
+			/*Read the EOC flag */
+	  /*******************/
+			/* ui_EOC = inl(devpriv->iobase+i_Offset + 20) & 1; */
+			ui_EOC = inl(devpriv->iobase +
+				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
+		} while (ui_EOC != 1);
+      /************************************************/
+		/*Read the digital value of the calibration Gain */
+      /************************************************/
+		/* data[0] = inl (devpriv->iobase+i_Offset + 28); */
+		data[0] =
+			inl(devpriv->iobase +
+			s_BoardInfos[dev->minor].i_Offset + 28);
+	}
+	return 0;
+}
+
+static int apci3200_reset(struct comedi_device *dev)
+{
+	struct addi_private *devpriv = dev->private;
+	int i_Temp;
+	unsigned int dw_Dummy;
+
+	/* i_InterruptFlag=0; */
+	/* i_Initialised==0; */
+	/* i_Count=0; */
+	/* i_Sum=0; */
+
+	s_BoardInfos[dev->minor].i_InterruptFlag = 0;
+	s_BoardInfos[dev->minor].i_Initialised = 0;
+	s_BoardInfos[dev->minor].i_Count = 0;
+	s_BoardInfos[dev->minor].i_Sum = 0;
+	s_BoardInfos[dev->minor].b_StructInitialized = 0;
+
+	outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
+
+	/*  Enable the interrupt for the controller */
+	dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
+	outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
+	outl(0, devpriv->i_IobaseAddon);	/* Resets the output */
+  /***************/
+	/*Empty the buffer */
+  /**************/
+	for (i_Temp = 0; i_Temp <= 95; i_Temp++) {
+		/* ui_InterruptChannelValue[i_Temp]=0; */
+		s_BoardInfos[dev->minor].ui_InterruptChannelValue[i_Temp] = 0;
+	}			/* for(i_Temp=0;i_Temp<=95;i_Temp++) */
+  /*****************************/
+	/*Reset the START and IRQ bit */
+  /*****************************/
+	for (i_Temp = 0; i_Temp <= 192;) {
+		while (((inl(devpriv->iobase + i_Temp + 12) >> 19) & 1) != 1) ;
+		outl(0, devpriv->iobase + i_Temp + 8);
+		i_Temp = i_Temp + 64;
+	}			/* for(i_Temp=0;i_Temp<=192;i_Temp+64) */
+	return 0;
 }
 
 /*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_ReadAnalogInput                         |
-  |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     struct comedi_insn *insn,unsigned int *data)                      |
-  +----------------------------------------------------------------------------+
-  | Task              : Read  value  of the selected channel			         |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
-  |                     unsigned int *data              : Data Pointer to read status  |
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  |				data[0]  : Digital Value Of Input             |
-  |				data[1]  : Calibration Offset Value           |
-  |				data[2]  : Calibration Gain Value
-  |				data[3]  : CJC value
-  |				data[4]  : CJC offset value
-  |				data[5]  : CJC gain value
-  | Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
-  |				data[6] : CJC current source from eeprom
-  |				data[7] : Channel current source from eeprom
-  |				data[8] : Channle gain factor from eeprom
-  | End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-int i_APCI3200_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+ * Read value of the selected channel
+ *
+ * data[0]  : Digital Value Of Input
+ * data[1]  : Calibration Offset Value
+ * data[2]  : Calibration Gain Value
+ * data[3]  : CJC value
+ * data[4]  : CJC offset value
+ * data[5]  : CJC gain value
+ * data[6] : CJC current source from eeprom
+ * data[7] : Channel current source from eeprom
+ * data[8] : Channle gain factor from eeprom
+ */
+static int apci3200_ai_read(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
 	unsigned int ui_DummyValue = 0;
 	int i_ConvertCJCCalibration;
@@ -1366,13 +1236,9 @@ int i_APCI3200_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevic
 	if (s_BoardInfos[dev->minor].i_Initialised == 0)
 		/* END JK 06.07.04: Management of sevrals boards */
 	{
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* if(i_Initialised==0); */
-
-#ifdef PRINT_INFO
-	printk("\n insn->unused[0] = %i", insn->unused[0]);
-#endif
 
 	switch (insn->unused[0]) {
 	case 0:
@@ -1398,15 +1264,6 @@ int i_APCI3200_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevic
 			&s_BoardInfos[dev->minor].
 			ui_InterruptChannelValue[s_BoardInfos[dev->minor].
 				i_Count + 8]);
-
-#ifdef PRINT_INFO
-		printk("\n s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count+6] = %lu", s_BoardInfos[dev->minor].ui_InterruptChannelValue[s_BoardInfos[dev->minor].i_Count + 6]);
-
-		printk("\n s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count+7] = %lu", s_BoardInfos[dev->minor].ui_InterruptChannelValue[s_BoardInfos[dev->minor].i_Count + 7]);
-
-		printk("\n s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count+8] = %lu", s_BoardInfos[dev->minor].ui_InterruptChannelValue[s_BoardInfos[dev->minor].i_Count + 8]);
-#endif
-
 		/* End JK 25.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 
 		/* BEGIN JK 06.07.04: Management of sevrals boards */
@@ -1562,9 +1419,6 @@ int i_APCI3200_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevic
 			   data[4]= ui_InterruptChannelValue[4];
 			   data[5]= ui_InterruptChannelValue[5];
 			 */
-#ifdef PRINT_INFO
-			printk("\n data[0]= s_BoardInfos [dev->minor].ui_InterruptChannelValue[0];");
-#endif
 			data[0] =
 				s_BoardInfos[dev->minor].
 				ui_InterruptChannelValue[0];
@@ -1585,7 +1439,6 @@ int i_APCI3200_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevic
 				ui_InterruptChannelValue[5];
 
 			/* Begin JK 22.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-			/* printk("\n 0 - i_APCI3200_GetChannelCalibrationValue data [6] = %lu, data [7] = %lu, data [8] = %lu", data [6], data [7], data [8]); */
 			i_APCI3200_GetChannelCalibrationValue(dev,
 				s_BoardInfos[dev->minor].ui_Channel_num,
 				&data[6], &data[7], &data[8]);
@@ -1616,7 +1469,7 @@ int i_APCI3200_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevic
 		break;
 	default:
 		printk("\nThe parameters passed are in error\n");
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* switch(insn->unused[0]) */
 
@@ -1624,793 +1477,495 @@ int i_APCI3200_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevic
 }
 
 /*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_Read1AnalogInputChannel                 |
-  |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     struct comedi_insn *insn,unsigned int *data)                      |
-  +----------------------------------------------------------------------------+
-  | Task              : Read  value  of the selected channel			         |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     unsigned int ui_NoOfChannel    : Channel No to read            |
-  |                     unsigned int *data              : Data Pointer to read status  |
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  |			          data[0]  : Digital Value read                   |
-  |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+ * Configures The Analog Input Subdevice
+ *
+ * data[0]  = 0  Normal AI
+ *	    = 1  RTD
+ *	    = 2  THERMOCOUPLE
+ * data[1]  = Gain To Use
+ * data[2]  = 0  Bipolar
+ *	    = 1  Unipolar
+ * data[3]  = Offset Range
+ * data[4]  = 0  DC Coupling
+ *	    = 1  AC Coupling
+ * data[5]  = 0  Single
+ *	    = 1  Differential
+ * data[6]  = TimerReloadValue
+ * data[7]  = ConvertingTimeUnit
+ * data[8]  = 0  Analog voltage measurement
+ *	    = 1  Resistance measurement
+ *	    = 2  Temperature measurement
+ * data[9]  = 0  Interrupt Disable
+ *	    = 1  INterrupt Enable
+ * data[10] = Type of Thermocouple
+ * data[11] = single channel Module Number
+ * data[12] = 0  Single Read
+ *	    = 1  Read more channel
+ *	    = 2  Single scan
+ *	    = 3  Continuous Scan
+ * data[13] = Number of channels to read
+ * data[14] = 0  RTD not used
+ *	    = 1  RTD 2 wire connection
+ *	    = 2  RTD 3 wire connection
+ *	    = 3  RTD 4 wire connection
+ */
+static int apci3200_ai_config(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	unsigned int ui_EOC = 0;
+	struct addi_private *devpriv = dev->private;
+	unsigned int ul_Config = 0, ul_Temp = 0;
 	unsigned int ui_ChannelNo = 0;
-	unsigned int ui_CommandRegister = 0;
+	unsigned int ui_Dummy = 0;
+	int i_err = 0;
 
 	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/* ui_ChannelNo=i_ChannelNo; */
-	ui_ChannelNo = s_BoardInfos[dev->minor].i_ChannelNo;
+	/*  Initialize the structure */
+	if (s_BoardInfos[dev->minor].b_StructInitialized != 1) {
+		s_BoardInfos[dev->minor].i_CJCAvailable = 1;
+		s_BoardInfos[dev->minor].i_CJCPolarity = 0;
+		s_BoardInfos[dev->minor].i_CJCGain = 2;	/* changed from 0 to 2 */
+		s_BoardInfos[dev->minor].i_InterruptFlag = 0;
+		s_BoardInfos[dev->minor].i_AutoCalibration = 0;	/* : auto calibration */
+		s_BoardInfos[dev->minor].i_ChannelCount = 0;
+		s_BoardInfos[dev->minor].i_Sum = 0;
+		s_BoardInfos[dev->minor].ui_Channel_num = 0;
+		s_BoardInfos[dev->minor].i_Count = 0;
+		s_BoardInfos[dev->minor].i_Initialised = 0;
+		s_BoardInfos[dev->minor].b_StructInitialized = 1;
 
+		/* Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
+		s_BoardInfos[dev->minor].i_ConnectionType = 0;
+		/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
+
+		/* Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
+		memset(s_BoardInfos[dev->minor].s_Module, 0,
+			sizeof(s_BoardInfos[dev->minor].s_Module[MAX_MODULE]));
+
+		v_GetAPCI3200EepromCalibrationValue(devpriv->i_IobaseAmcc,
+			&s_BoardInfos[dev->minor]);
+		/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
+	}
+
+	if (data[0] != 0 && data[0] != 1 && data[0] != 2) {
+		printk("\nThe selection of acquisition type is in error\n");
+		i_err++;
+	}			/* if(data[0]!=0 && data[0]!=1 && data[0]!=2) */
+	if (data[0] == 1) {
+		if (data[14] != 0 && data[14] != 1 && data[14] != 2
+			&& data[14] != 4) {
+			printk("\n Error in selection of RTD connection type\n");
+			i_err++;
+		}		/* if(data[14]!=0 && data[14]!=1 && data[14]!=2 && data[14]!=4) */
+	}			/* if(data[0]==1 ) */
+	if (data[1] < 0 || data[1] > 7) {
+		printk("\nThe selection of gain is in error\n");
+		i_err++;
+	}			/*  if(data[1]<0 || data[1]>7) */
+	if (data[2] != 0 && data[2] != 1) {
+		printk("\nThe selection of polarity is in error\n");
+		i_err++;
+	}			/* if(data[2]!=0 &&  data[2]!=1) */
+	if (data[3] != 0) {
+		printk("\nThe selection of offset range  is in error\n");
+		i_err++;
+	}			/*  if(data[3]!=0) */
+	if (data[4] != 0 && data[4] != 1) {
+		printk("\nThe selection of coupling is in error\n");
+		i_err++;
+	}			/* if(data[4]!=0 &&  data[4]!=1) */
+	if (data[5] != 0 && data[5] != 1) {
+		printk("\nThe selection of single/differential mode is in error\n");
+		i_err++;
+	}			/* if(data[5]!=0 &&  data[5]!=1) */
+	if (data[8] != 0 && data[8] != 1 && data[2] != 2) {
+		printk("\nError in selection of functionality\n");
+	}			/* if(data[8]!=0 && data[8]!=1 && data[2]!=2) */
+	if (data[12] == 0 || data[12] == 1) {
+		if (data[6] != 20 && data[6] != 40 && data[6] != 80
+			&& data[6] != 160) {
+			printk("\nThe selection of conversion time reload value is in error\n");
+			i_err++;
+		}		/*  if (data[6]!=20 && data[6]!=40 && data[6]!=80 && data[6]!=160 ) */
+		if (data[7] != 2) {
+			printk("\nThe selection of conversion time unit  is in error\n");
+			i_err++;
+		}		/*  if(data[7]!=2) */
+	}
+	if (data[9] != 0 && data[9] != 1) {
+		printk("\nThe selection of interrupt enable is in error\n");
+		i_err++;
+	}			/* if(data[9]!=0 &&  data[9]!=1) */
+	if (data[11] < 0 || data[11] > 4) {
+		printk("\nThe selection of module is in error\n");
+		i_err++;
+	}			/* if(data[11] <0 ||  data[11]>1) */
+	if (data[12] < 0 || data[12] > 3) {
+		printk("\nThe selection of singlechannel/scan selection is in error\n");
+		i_err++;
+	}			/* if(data[12] < 0 ||  data[12]> 3) */
+	if (data[13] < 0 || data[13] > 16) {
+		printk("\nThe selection of number of channels is in error\n");
+		i_err++;
+	}			/*  if(data[13] <0 ||data[13] >15) */
+
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
+	/*
+	   i_ChannelCount=data[13];
+	   i_ScanType=data[12];
+	   i_ADDIDATAPolarity = data[2];
+	   i_ADDIDATAGain=data[1];
+	   i_ADDIDATAConversionTime=data[6];
+	   i_ADDIDATAConversionTimeUnit=data[7];
+	   i_ADDIDATAType=data[0];
+	 */
+
+	/*  Save acquisition configuration for the actual board */
+	s_BoardInfos[dev->minor].i_ChannelCount = data[13];
+	s_BoardInfos[dev->minor].i_ScanType = data[12];
+	s_BoardInfos[dev->minor].i_ADDIDATAPolarity = data[2];
+	s_BoardInfos[dev->minor].i_ADDIDATAGain = data[1];
+	s_BoardInfos[dev->minor].i_ADDIDATAConversionTime = data[6];
+	s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit = data[7];
+	s_BoardInfos[dev->minor].i_ADDIDATAType = data[0];
+	/* Begin JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+	s_BoardInfos[dev->minor].i_ConnectionType = data[5];
+	/* End JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+	/* END JK 06.07.04: Management of sevrals boards */
+
+	/* Begin JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+	memset(s_BoardInfos[dev->minor].ui_ScanValueArray, 0, (7 + 12) * sizeof(unsigned int));	/*  7 is the maximal number of channels */
+	/* End JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+
+	/* BEGIN JK 02.07.04 : This while can't be do, it block the process when using severals boards */
+	/* while(i_InterruptFlag==1) */
+	while (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
+#ifndef MSXBOX
+		udelay(1);
+#else
+		/*  In the case where the driver is compiled for the MSX-Box */
+		/*  we used a printk to have a little delay because udelay */
+		/*  seems to be broken under the MSX-Box. */
+		/*  This solution hat to be studied. */
+		printk("");
+#endif
+	}
+	/* END JK 02.07.04 : This while can't be do, it block the process when using severals boards */
+
+	ui_ChannelNo = CR_CHAN(insn->chanspec);	/*  get the channel */
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
+	/* i_ChannelNo=ui_ChannelNo; */
+	/* ui_Channel_num =ui_ChannelNo; */
+
+	s_BoardInfos[dev->minor].i_ChannelNo = ui_ChannelNo;
+	s_BoardInfos[dev->minor].ui_Channel_num = ui_ChannelNo;
+
+	/* END JK 06.07.04: Management of sevrals boards */
+
+	if (data[5] == 0) {
+		if (ui_ChannelNo > 15) {
+			printk("\nThe Selection of the channel is in error\n");
+			i_err++;
+		}		/*  if(ui_ChannelNo>15) */
+	}			/* if(data[5]==0) */
+	else {
+		if (data[14] == 2) {
+			if (ui_ChannelNo > 3) {
+				printk("\nThe Selection of the channel is in error\n");
+				i_err++;
+			}	/*  if(ui_ChannelNo>3) */
+		}		/* if(data[14]==2) */
+		else {
+			if (ui_ChannelNo > 7) {
+				printk("\nThe Selection of the channel is in error\n");
+				i_err++;
+			}	/*  if(ui_ChannelNo>7) */
+		}		/* elseif(data[14]==2) */
+	}			/* elseif(data[5]==0) */
+	if (data[12] == 0 || data[12] == 1) {
+		switch (data[5]) {
+		case 0:
+			if (ui_ChannelNo <= 3) {
+				/* BEGIN JK 06.07.04: Management of sevrals boards */
+				/* i_Offset=0; */
+				s_BoardInfos[dev->minor].i_Offset = 0;
+				/* END JK 06.07.04: Management of sevrals boards */
+			}	/* if(ui_ChannelNo <=3) */
+			if (ui_ChannelNo >= 4 && ui_ChannelNo <= 7) {
+				/* BEGIN JK 06.07.04: Management of sevrals boards */
+				/* i_Offset=64; */
+				s_BoardInfos[dev->minor].i_Offset = 64;
+				/* END JK 06.07.04: Management of sevrals boards */
+			}	/* if(ui_ChannelNo >=4 && ui_ChannelNo <=7) */
+			if (ui_ChannelNo >= 8 && ui_ChannelNo <= 11) {
+				/* BEGIN JK 06.07.04: Management of sevrals boards */
+				/* i_Offset=128; */
+				s_BoardInfos[dev->minor].i_Offset = 128;
+				/* END JK 06.07.04: Management of sevrals boards */
+			}	/* if(ui_ChannelNo >=8 && ui_ChannelNo <=11) */
+			if (ui_ChannelNo >= 12 && ui_ChannelNo <= 15) {
+				/* BEGIN JK 06.07.04: Management of sevrals boards */
+				/* i_Offset=192; */
+				s_BoardInfos[dev->minor].i_Offset = 192;
+				/* END JK 06.07.04: Management of sevrals boards */
+			}	/* if(ui_ChannelNo >=12 && ui_ChannelNo <=15) */
+			break;
+		case 1:
+			if (data[14] == 2) {
+				if (ui_ChannelNo == 0) {
+					/* BEGIN JK 06.07.04: Management of sevrals boards */
+					/* i_Offset=0; */
+					s_BoardInfos[dev->minor].i_Offset = 0;
+					/* END JK 06.07.04: Management of sevrals boards */
+				}	/* if(ui_ChannelNo ==0 ) */
+				if (ui_ChannelNo == 1) {
+					/* BEGIN JK 06.07.04: Management of sevrals boards */
+					/* i_Offset=0; */
+					s_BoardInfos[dev->minor].i_Offset = 64;
+					/* END JK 06.07.04: Management of sevrals boards */
+				}	/*  if(ui_ChannelNo ==1) */
+				if (ui_ChannelNo == 2) {
+					/* BEGIN JK 06.07.04: Management of sevrals boards */
+					/* i_Offset=128; */
+					s_BoardInfos[dev->minor].i_Offset = 128;
+					/* END JK 06.07.04: Management of sevrals boards */
+				}	/* if(ui_ChannelNo ==2 ) */
+				if (ui_ChannelNo == 3) {
+					/* BEGIN JK 06.07.04: Management of sevrals boards */
+					/* i_Offset=192; */
+					s_BoardInfos[dev->minor].i_Offset = 192;
+					/* END JK 06.07.04: Management of sevrals boards */
+				}	/* if(ui_ChannelNo ==3) */
+
+				/* BEGIN JK 06.07.04: Management of sevrals boards */
+				/* i_ChannelNo=0; */
+				s_BoardInfos[dev->minor].i_ChannelNo = 0;
+				/* END JK 06.07.04: Management of sevrals boards */
+				ui_ChannelNo = 0;
+				break;
+			}	/* if(data[14]==2) */
+			if (ui_ChannelNo <= 1) {
+				/* BEGIN JK 06.07.04: Management of sevrals boards */
+				/* i_Offset=0; */
+				s_BoardInfos[dev->minor].i_Offset = 0;
+				/* END JK 06.07.04: Management of sevrals boards */
+			}	/* if(ui_ChannelNo <=1) */
+			if (ui_ChannelNo >= 2 && ui_ChannelNo <= 3) {
+				/* BEGIN JK 06.07.04: Management of sevrals boards */
+				/* i_ChannelNo=i_ChannelNo-2; */
+				/* i_Offset=64; */
+				s_BoardInfos[dev->minor].i_ChannelNo =
+					s_BoardInfos[dev->minor].i_ChannelNo -
+					2;
+				s_BoardInfos[dev->minor].i_Offset = 64;
+				/* END JK 06.07.04: Management of sevrals boards */
+				ui_ChannelNo = ui_ChannelNo - 2;
+			}	/* if(ui_ChannelNo >=2 && ui_ChannelNo <=3) */
+			if (ui_ChannelNo >= 4 && ui_ChannelNo <= 5) {
+				/* BEGIN JK 06.07.04: Management of sevrals boards */
+				/* i_ChannelNo=i_ChannelNo-4; */
+				/* i_Offset=128; */
+				s_BoardInfos[dev->minor].i_ChannelNo =
+					s_BoardInfos[dev->minor].i_ChannelNo -
+					4;
+				s_BoardInfos[dev->minor].i_Offset = 128;
+				/* END JK 06.07.04: Management of sevrals boards */
+				ui_ChannelNo = ui_ChannelNo - 4;
+			}	/* if(ui_ChannelNo >=4 && ui_ChannelNo <=5) */
+			if (ui_ChannelNo >= 6 && ui_ChannelNo <= 7) {
+				/* BEGIN JK 06.07.04: Management of sevrals boards */
+				/* i_ChannelNo=i_ChannelNo-6; */
+				/* i_Offset=192; */
+				s_BoardInfos[dev->minor].i_ChannelNo =
+					s_BoardInfos[dev->minor].i_ChannelNo -
+					6;
+				s_BoardInfos[dev->minor].i_Offset = 192;
+				/* END JK 06.07.04: Management of sevrals boards */
+				ui_ChannelNo = ui_ChannelNo - 6;
+			}	/* if(ui_ChannelNo >=6 && ui_ChannelNo <=7) */
+			break;
+
+		default:
+			printk("\n This selection of polarity does not exist\n");
+			i_err++;
+		}		/* switch(data[2]) */
+	}			/* if(data[12]==0 || data[12]==1) */
+	else {
+		switch (data[11]) {
+		case 1:
+			/* BEGIN JK 06.07.04: Management of sevrals boards */
+			/* i_Offset=0; */
+			s_BoardInfos[dev->minor].i_Offset = 0;
+			/* END JK 06.07.04: Management of sevrals boards */
+			break;
+		case 2:
+			/* BEGIN JK 06.07.04: Management of sevrals boards */
+			/* i_Offset=64; */
+			s_BoardInfos[dev->minor].i_Offset = 64;
+			/* END JK 06.07.04: Management of sevrals boards */
+			break;
+		case 3:
+			/* BEGIN JK 06.07.04: Management of sevrals boards */
+			/* i_Offset=128; */
+			s_BoardInfos[dev->minor].i_Offset = 128;
+			/* END JK 06.07.04: Management of sevrals boards */
+			break;
+		case 4:
+			/* BEGIN JK 06.07.04: Management of sevrals boards */
+			/* i_Offset=192; */
+			s_BoardInfos[dev->minor].i_Offset = 192;
+			/* END JK 06.07.04: Management of sevrals boards */
+			break;
+		default:
+			printk("\nError in module selection\n");
+			i_err++;
+		}		/*  switch(data[11]) */
+	}			/*  elseif(data[12]==0 || data[12]==1) */
+	if (i_err) {
+		apci3200_reset(dev);
+		return -EINVAL;
+	}
+	/* if(i_ScanType!=1) */
+	if (s_BoardInfos[dev->minor].i_ScanType != 1) {
+		/* BEGIN JK 06.07.04: Management of sevrals boards */
+		/* i_Count=0; */
+		/* i_Sum=0; */
+		s_BoardInfos[dev->minor].i_Count = 0;
+		s_BoardInfos[dev->minor].i_Sum = 0;
+		/* END JK 06.07.04: Management of sevrals boards */
+	}			/* if(i_ScanType!=1) */
+
+	ul_Config =
+		data[1] | (data[2] << 6) | (data[5] << 7) | (data[3] << 8) |
+		(data[4] << 9);
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
 	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
 	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
 					12) >> 19) & 1) != 1) ;
+	/* END JK 06.07.04: Management of sevrals boards */
   /*********************************/
 	/* Write the channel to configure */
   /*********************************/
-	/* Begin JK 20.10.2004: Bad channel value is used when using differential mode */
-	/* outl(0 | ui_Channel_num , devpriv->iobase+i_Offset + 0x4); */
-	/* outl(0 | s_BoardInfos [dev->minor].ui_Channel_num , devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 0x4); */
-	outl(0 | s_BoardInfos[dev->minor].i_ChannelNo,
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
+	/* outl(0 | ui_ChannelNo , devpriv->iobase+i_Offset + 0x4); */
+	outl(0 | ui_ChannelNo,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 0x4);
-	/* End JK 20.10.2004: Bad channel value is used when using differential mode */
+	/* END JK 06.07.04: Management of sevrals boards */
 
-  /*******************************/
-	/* Set the convert timing unit */
-  /*******************************/
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
 	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
 	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
 					12) >> 19) & 1) != 1) ;
-
-	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
-
+	/* END JK 06.07.04: Management of sevrals boards */
   /**************************/
-	/* Set the convert timing */
+	/* Reset the configuration */
   /**************************/
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
+	/* outl(0 , devpriv->iobase+i_Offset + 0x0); */
+	outl(0, devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 0x0);
+	/* END JK 06.07.04: Management of sevrals boards */
+
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
 	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
 	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
 					12) >> 19) & 1) != 1) ;
+	/* END JK 06.07.04: Management of sevrals boards */
 
-	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
+  /***************************/
+	/* Write the configuration */
+  /***************************/
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
+	/* outl(ul_Config , devpriv->iobase+i_Offset + 0x0); */
+	outl(ul_Config,
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 0x0);
+	/* END JK 06.07.04: Management of sevrals boards */
 
-  /**************************************************************************/
-	/* Set the start end stop index to the selected channel and set the start */
-  /**************************************************************************/
+  /***************************/
+	/*Reset the calibration bit */
+  /***************************/
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
+	/* ul_Temp = inl(devpriv->iobase+i_Offset + 12); */
+	ul_Temp = inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
+	/* END JK 06.07.04: Management of sevrals boards */
 
-	ui_CommandRegister = ui_ChannelNo | (ui_ChannelNo << 8) | 0x80000;
-
-  /*********************************/
-	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /************************/
-		/* Enable the interrupt */
-      /************************/
-		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-	}			/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-
-  /******************************/
-	/* Write the command register */
-  /******************************/
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
 	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
 	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
 					12) >> 19) & 1) != 1) ;
+	/* END JK 06.07.04: Management of sevrals boards */
 
-	/* outl(ui_CommandRegister, devpriv->iobase+i_Offset + 8); */
-	outl(ui_CommandRegister,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
+	/* outl((ul_Temp & 0xFFF9FFFF) , devpriv->iobase+.i_Offset + 12); */
+	outl((ul_Temp & 0xFFF9FFFF),
+		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
+	/* END JK 06.07.04: Management of sevrals boards */
 
-  /*****************************/
-	/*Test if interrupt is enable */
-  /*****************************/
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
-		do {
-	  /*************************/
-			/*Read the EOC Status bit */
-	  /*************************/
+	if (data[9] == 1) {
+		devpriv->tsk_Current = current;
+		/* BEGIN JK 06.07.04: Management of sevrals boards */
+		/* i_InterruptFlag=1; */
+		s_BoardInfos[dev->minor].i_InterruptFlag = 1;
+		/* END JK 06.07.04: Management of sevrals boards */
+	}			/*  if(data[9]==1) */
+	else {
+		/* BEGIN JK 06.07.04: Management of sevrals boards */
+		/* i_InterruptFlag=0; */
+		s_BoardInfos[dev->minor].i_InterruptFlag = 0;
+		/* END JK 06.07.04: Management of sevrals boards */
+	}			/* else  if(data[9]==1) */
 
-			/* ui_EOC = inl(devpriv->iobase+i_Offset + 20) & 1; */
-			ui_EOC = inl(devpriv->iobase +
-				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
+	/* i_Initialised=1; */
+	s_BoardInfos[dev->minor].i_Initialised = 1;
+	/* END JK 06.07.04: Management of sevrals boards */
 
-		} while (ui_EOC != 1);
-
-      /***************************************/
-		/* Read the digital value of the input */
-      /***************************************/
-
-		/* data[0] = inl (devpriv->iobase+i_Offset + 28); */
-		data[0] =
-			inl(devpriv->iobase +
-			s_BoardInfos[dev->minor].i_Offset + 28);
+	/* BEGIN JK 06.07.04: Management of sevrals boards */
+	/* if(i_ScanType==1) */
+	if (s_BoardInfos[dev->minor].i_ScanType == 1)
+		/* END JK 06.07.04: Management of sevrals boards */
+	{
+		/* BEGIN JK 06.07.04: Management of sevrals boards */
+		/* i_Sum=i_Sum+1; */
+		s_BoardInfos[dev->minor].i_Sum =
+			s_BoardInfos[dev->minor].i_Sum + 1;
 		/* END JK 06.07.04: Management of sevrals boards */
 
-	}			/*  if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	return 0;
-}
-
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_ReadCalibrationOffsetValue              |
-  |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     struct comedi_insn *insn,unsigned int *data)                      |
-  +----------------------------------------------------------------------------+
-  | Task              : Read calibration offset  value  of the selected channel|
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     unsigned int *data              : Data Pointer to read status  |
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  |			          data[0]  : Calibration offset Value   |
-  |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev, unsigned int *data)
-{
-	unsigned int ui_Temp = 0, ui_EOC = 0;
-	unsigned int ui_CommandRegister = 0;
-
-	/* BEGIN JK 06.07.04: Management of sevrals boards */
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-  /*********************************/
-	/* Write the channel to configure */
-  /*********************************/
-	/* Begin JK 20.10.2004: This seems not necessary ! */
-	/* outl(0 | ui_Channel_num , devpriv->iobase+i_Offset + 0x4); */
-	/* outl(0 | s_BoardInfos [dev->minor].ui_Channel_num , devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 0x4); */
-	/* End JK 20.10.2004: This seems not necessary ! */
-
-  /*******************************/
-	/* Set the convert timing unit */
-  /*******************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
-  /**************************/
-	/* Set the convert timing */
-  /**************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
-  /*****************************/
-	/*Read the calibration offset */
-  /*****************************/
-	/* ui_Temp = inl(devpriv->iobase+i_Offset + 12); */
-	ui_Temp = inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
-
-  /*********************************/
-	/*Configure the Offset Conversion */
-  /*********************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl((ui_Temp | 0x00020000), devpriv->iobase+i_Offset + 12); */
-	outl((ui_Temp | 0x00020000),
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
-  /*******************************/
-	/*Initialise ui_CommandRegister */
-  /*******************************/
-
-	ui_CommandRegister = 0;
-
-  /*********************************/
-	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-
-      /**********************/
-		/*Enable the interrupt */
-      /**********************/
-
-		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-
-	}			/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-
-  /**********************/
-	/*Start the conversion */
-  /**********************/
-	ui_CommandRegister = ui_CommandRegister | 0x00080000;
-
-  /***************************/
-	/*Write the command regiter */
-  /***************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(ui_CommandRegister, devpriv->iobase+i_Offset + 8); */
-	outl(ui_CommandRegister,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
-
-  /*****************************/
-	/*Test if interrupt is enable */
-  /*****************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
-
-		do {
-	  /*******************/
-			/*Read the EOC flag */
-	  /*******************/
-
-			/* ui_EOC = inl (devpriv->iobase+i_Offset + 20) & 1; */
-			ui_EOC = inl(devpriv->iobase +
-				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
-
-		} while (ui_EOC != 1);
-
-      /**************************************************/
-		/*Read the digital value of the calibration Offset */
-      /**************************************************/
-
-		/* data[0] = inl(devpriv->iobase+i_Offset+ 28); */
-		data[0] =
-			inl(devpriv->iobase +
-			s_BoardInfos[dev->minor].i_Offset + 28);
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	return 0;
-}
-
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_ReadCalibrationGainValue                |
-  |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     struct comedi_insn *insn,unsigned int *data)                      |
-  +----------------------------------------------------------------------------+
-  | Task              : Read calibration gain  value  of the selected channel  |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     unsigned int *data              : Data Pointer to read status  |
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  |			          data[0]  : Calibration gain Value Of Input     |
-  |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev, unsigned int *data)
-{
-	unsigned int ui_EOC = 0;
-	int ui_CommandRegister = 0;
-
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-  /*********************************/
-	/* Write the channel to configure */
-  /*********************************/
-	/* Begin JK 20.10.2004: This seems not necessary ! */
-	/* outl(0 | ui_Channel_num , devpriv->iobase+i_Offset + 0x4); */
-	/* outl(0 | s_BoardInfos [dev->minor].ui_Channel_num , devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 0x4); */
-	/* End JK 20.10.2004: This seems not necessary ! */
-
-  /***************************/
-	/*Read the calibration gain */
-  /***************************/
-  /*******************************/
-	/* Set the convert timing unit */
-  /*******************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
-  /**************************/
-	/* Set the convert timing */
-  /**************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
-  /*******************************/
-	/*Configure the Gain Conversion */
-  /*******************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(0x00040000 , devpriv->iobase+i_Offset + 12); */
-	outl(0x00040000,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
-
-  /*******************************/
-	/*Initialise ui_CommandRegister */
-  /*******************************/
-
-	ui_CommandRegister = 0;
-
-  /*********************************/
-	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-
-      /**********************/
-		/*Enable the interrupt */
-      /**********************/
-
-		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-
-	}			/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-
-  /**********************/
-	/*Start the conversion */
-  /**********************/
-
-	ui_CommandRegister = ui_CommandRegister | 0x00080000;
-  /***************************/
-	/*Write the command regiter */
-  /***************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(ui_CommandRegister , devpriv->iobase+i_Offset + 8); */
-	outl(ui_CommandRegister,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
-
-  /*****************************/
-	/*Test if interrupt is enable */
-  /*****************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
-
-		do {
-
-	  /*******************/
-			/*Read the EOC flag */
-	  /*******************/
-
-			/* ui_EOC = inl(devpriv->iobase+i_Offset + 20) & 1; */
-			ui_EOC = inl(devpriv->iobase +
-				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
-
-		} while (ui_EOC != 1);
-
-      /************************************************/
-		/*Read the digital value of the calibration Gain */
-      /************************************************/
-
-		/* data[0] = inl(devpriv->iobase+i_Offset + 28); */
-		data[0] =
-			inl(devpriv->iobase +
-			s_BoardInfos[dev->minor].i_Offset + 28);
-
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	return 0;
-}
-
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_ReadCJCValue                            |
-  |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     struct comedi_insn *insn,unsigned int *data)                      |
-  +----------------------------------------------------------------------------+
-  | Task              : Read CJC  value  of the selected channel               |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     unsigned int *data              : Data Pointer to read status  |
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  |			          data[0]  : CJC Value                           |
-  |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-
-int i_APCI3200_ReadCJCValue(struct comedi_device *dev, unsigned int *data)
-{
-	unsigned int ui_EOC = 0;
-	int ui_CommandRegister = 0;
-
-  /******************************/
-	/*Set the converting time unit */
-  /******************************/
-
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-
-	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
-  /**************************/
-	/* Set the convert timing */
-  /**************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-
-	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
-
-  /******************************/
-	/*Configure the CJC Conversion */
-  /******************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-
-	/* outl( 0x00000400 , devpriv->iobase+i_Offset + 4); */
-	outl(0x00000400,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 4);
-  /*******************************/
-	/*Initialise dw_CommandRegister */
-  /*******************************/
-	ui_CommandRegister = 0;
-  /*********************************/
-	/*Test if the interrupt is enable */
-  /*********************************/
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /**********************/
-		/*Enable the interrupt */
-      /**********************/
-		ui_CommandRegister = ui_CommandRegister | 0x00100000;
+		insn->unused[0] = 0;
+		apci3200_ai_read(dev, s, insn, &ui_Dummy);
 	}
 
-  /**********************/
-	/*Start the conversion */
-  /**********************/
-
-	ui_CommandRegister = ui_CommandRegister | 0x00080000;
-
-  /***************************/
-	/*Write the command regiter */
-  /***************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(ui_CommandRegister , devpriv->iobase+i_Offset + 8); */
-	outl(ui_CommandRegister,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
-
-  /*****************************/
-	/*Test if interrupt is enable */
-  /*****************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
-		do {
-
-	  /*******************/
-			/*Read the EOC flag */
-	  /*******************/
-
-			/* ui_EOC = inl(devpriv->iobase+i_Offset + 20) & 1; */
-			ui_EOC = inl(devpriv->iobase +
-				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
-
-		} while (ui_EOC != 1);
-
-      /***********************************/
-		/*Read the digital value of the CJC */
-      /***********************************/
-
-		/* data[0] = inl(devpriv->iobase+i_Offset + 28); */
-		data[0] =
-			inl(devpriv->iobase +
-			s_BoardInfos[dev->minor].i_Offset + 28);
-
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	return 0;
+	return insn->n;
 }
 
 /*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_ReadCJCCalOffset                        |
-  |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     struct comedi_insn *insn,unsigned int *data)                      |
-  +----------------------------------------------------------------------------+
-  | Task              : Read CJC calibration offset  value  of the selected channel
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     unsigned int *data              : Data Pointer to read status  |
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  |			          data[0]  : CJC calibration offset Value
-  |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev, unsigned int *data)
+ * Tests the Selected Anlog Input Channel
+ *
+ * data[0] = 0  TestAnalogInputShortCircuit
+ *	   = 1  TestAnalogInputConnection
+ *
+ * data[0] : Digital value obtained
+ * data[1] : calibration offset
+ * data[2] : calibration gain
+ */
+static int apci3200_ai_bits_test(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	unsigned int ui_EOC = 0;
-	int ui_CommandRegister = 0;
-  /*******************************************/
-	/*Read calibration offset value for the CJC */
-  /*******************************************/
-  /*******************************/
-	/* Set the convert timing unit */
-  /*******************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
-  /**************************/
-	/* Set the convert timing */
-  /**************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
-  /******************************/
-	/*Configure the CJC Conversion */
-  /******************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(0x00000400 , devpriv->iobase+i_Offset + 4); */
-	outl(0x00000400,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 4);
-  /*********************************/
-	/*Configure the Offset Conversion */
-  /*********************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(0x00020000, devpriv->iobase+i_Offset + 12); */
-	outl(0x00020000,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
-  /*******************************/
-	/*Initialise ui_CommandRegister */
-  /*******************************/
-	ui_CommandRegister = 0;
-  /*********************************/
-	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /**********************/
-		/*Enable the interrupt */
-      /**********************/
-		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-
-	}
-
-  /**********************/
-	/*Start the conversion */
-  /**********************/
-	ui_CommandRegister = ui_CommandRegister | 0x00080000;
-  /***************************/
-	/*Write the command regiter */
-  /***************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(ui_CommandRegister,devpriv->iobase+i_Offset + 8); */
-	outl(ui_CommandRegister,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
-		do {
-	  /*******************/
-			/*Read the EOC flag */
-	  /*******************/
-			/* ui_EOC = inl(devpriv->iobase+i_Offset + 20) & 1; */
-			ui_EOC = inl(devpriv->iobase +
-				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
-		} while (ui_EOC != 1);
-
-      /**************************************************/
-		/*Read the digital value of the calibration Offset */
-      /**************************************************/
-		/* data[0] = inl(devpriv->iobase+i_Offset + 28); */
-		data[0] =
-			inl(devpriv->iobase +
-			s_BoardInfos[dev->minor].i_Offset + 28);
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	return 0;
-}
-
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_ReadCJCGainValue                        |
-  |			          (struct comedi_device *dev,struct comedi_subdevice *s,       |
-  |                     struct comedi_insn *insn,unsigned int *data)                      |
-  +----------------------------------------------------------------------------+
-  | Task              : Read CJC calibration gain value
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
-  |                     unsigned int *data              : Data Pointer to read status  |
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  |			          data[0]  : CJC calibration gain value
-  |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev, unsigned int *data)
-{
-	unsigned int ui_EOC = 0;
-	int ui_CommandRegister = 0;
-  /*******************************/
-	/* Set the convert timing unit */
-  /*******************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(i_ADDIDATAConversionTimeUnit , devpriv->iobase+i_Offset + 36); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTimeUnit,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 36);
-  /**************************/
-	/* Set the convert timing */
-  /**************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(i_ADDIDATAConversionTime , devpriv->iobase+i_Offset + 32); */
-	outl(s_BoardInfos[dev->minor].i_ADDIDATAConversionTime,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 32);
-  /******************************/
-	/*Configure the CJC Conversion */
-  /******************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(0x00000400,devpriv->iobase+i_Offset + 4); */
-	outl(0x00000400,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 4);
-  /*******************************/
-	/*Configure the Gain Conversion */
-  /*******************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(0x00040000,devpriv->iobase+i_Offset + 12); */
-	outl(0x00040000,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
-
-  /*******************************/
-	/*Initialise dw_CommandRegister */
-  /*******************************/
-	ui_CommandRegister = 0;
-  /*********************************/
-	/*Test if the interrupt is enable */
-  /*********************************/
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /**********************/
-		/*Enable the interrupt */
-      /**********************/
-		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-	}
-  /**********************/
-	/*Start the conversion */
-  /**********************/
-	ui_CommandRegister = ui_CommandRegister | 0x00080000;
-  /***************************/
-	/*Write the command regiter */
-  /***************************/
-	/* while (((inl(devpriv->iobase+i_Offset+12)>>19) & 1) != 1); */
-	while (((inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset +
-					12) >> 19) & 1) != 1) ;
-	/* outl(ui_CommandRegister ,devpriv->iobase+i_Offset + 8); */
-	outl(ui_CommandRegister,
-		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
-		do {
-	  /*******************/
-			/*Read the EOC flag */
-	  /*******************/
-			/* ui_EOC = inl(devpriv->iobase+i_Offset + 20) & 1; */
-			ui_EOC = inl(devpriv->iobase +
-				s_BoardInfos[dev->minor].i_Offset + 20) & 1;
-		} while (ui_EOC != 1);
-      /************************************************/
-		/*Read the digital value of the calibration Gain */
-      /************************************************/
-		/* data[0] = inl (devpriv->iobase+i_Offset + 28); */
-		data[0] =
-			inl(devpriv->iobase +
-			s_BoardInfos[dev->minor].i_Offset + 28);
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	return 0;
-}
-
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_InsnBits_AnalogInput_Test               |
-  |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-  |                      struct comedi_insn *insn,unsigned int *data)                     |
-  +----------------------------------------------------------------------------+
-  | Task              : Tests the Selected Anlog Input Channel                 |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     struct comedi_subdevice *s     : Subdevice Pointer            |
-  |                     struct comedi_insn *insn       : Insn Structure Pointer       |
-  |                     unsigned int *data          : Data Pointer contains        |
-  |                                          configuration parameters as below |
-  |
-  |
-  |                           data[0]            : 0 TestAnalogInputShortCircuit
-  |									     1 TestAnalogInputConnection							 														                        |
-
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  |			        data[0]            : Digital value obtained      |
-  |                           data[1]            : calibration offset          |
-  |                           data[2]            : calibration gain            |
-  |			                                                         |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-
-int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
-{
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Configuration = 0;
 	int i_Temp;		/* ,i_TimeUnit; */
+
 	/* if(i_Initialised==0) */
 
 	if (s_BoardInfos[dev->minor].i_Initialised == 0) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* if(i_Initialised==0); */
 	if (data[0] != 0 && data[0] != 1) {
 		printk("\nError in selection of functionality\n");
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* if(data[0]!=0 && data[0]!=1) */
 
@@ -2434,8 +1989,7 @@ int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 		   i_ADDIDATAConversionTimeUnit= 1; */
 		/* i_Temp= i_InterruptFlag ; */
 		i_Temp = s_BoardInfos[dev->minor].i_InterruptFlag;
-		/* i_InterruptFlag = ADDIDATA_DISABLE; */
-		s_BoardInfos[dev->minor].i_InterruptFlag = ADDIDATA_DISABLE;
+		s_BoardInfos[dev->minor].i_InterruptFlag = 0;
 		i_APCI3200_Read1AnalogInputChannel(dev, s, insn, data);
 		/* if(i_AutoCalibration == FALSE) */
 		if (s_BoardInfos[dev->minor].i_AutoCalibration == FALSE) {
@@ -2474,8 +2028,7 @@ int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 		   i_ADDIDATAConversionTimeUnit= 1; */
 		/* i_Temp= i_InterruptFlag ; */
 		i_Temp = s_BoardInfos[dev->minor].i_InterruptFlag;
-		/* i_InterruptFlag = ADDIDATA_DISABLE; */
-		s_BoardInfos[dev->minor].i_InterruptFlag = ADDIDATA_DISABLE;
+		s_BoardInfos[dev->minor].i_InterruptFlag = 0;
 		i_APCI3200_Read1AnalogInputChannel(dev, s, insn, data);
 		/* if(i_AutoCalibration == FALSE) */
 		if (s_BoardInfos[dev->minor].i_AutoCalibration == FALSE) {
@@ -2496,146 +2049,90 @@ int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 	}
 	/* i_InterruptFlag=i_Temp ; */
 	s_BoardInfos[dev->minor].i_InterruptFlag = i_Temp;
-	/* printk("\ni_InterruptFlag=%d\n",i_InterruptFlag); */
 	return insn->n;
 }
 
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : int i_APCI3200_InsnWriteReleaseAnalogInput             |
-  |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-  |                      struct comedi_insn *insn,unsigned int *data)                     |
-  +----------------------------------------------------------------------------+
-  | Task              :  Resets the channels                                                      |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-  |                     struct comedi_subdevice *s     : Subdevice Pointer            |
-  |                     struct comedi_insn *insn       : Insn Structure Pointer       |
-  |                     unsigned int *data          : Data Pointer
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error          |
-  |			                                                         |
-  +----------------------------------------------------------------------------+
-*/
-
-int i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int apci3200_ai_write(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
-	i_APCI3200_Reset(dev);
+	apci3200_reset(dev);
 	return insn->n;
 }
 
-/*
-  +----------------------------------------------------------------------------+
-  | Function name     :int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev|
-  |			,struct comedi_subdevice *s,struct comedi_cmd *cmd)			         |
-  |                                        									 |
-  +----------------------------------------------------------------------------+
-  | Task              : Test validity for a command for cyclic anlog input     |
-  |                       acquisition  						     			 |
-  |                     										                 |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev									 |
-  |                     struct comedi_subdevice *s									 |
-  |                     struct comedi_cmd *cmd              					         |
-  |                     										                 |
-  |
-  |                     										                 |
-  |                     										                 |
-  |                     										                 |
-  +----------------------------------------------------------------------------+
-  | Return Value      :0              					                     |
-  |                    													     |
-  +----------------------------------------------------------------------------+
-*/
-
-int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int apci3200_ai_cmdtest(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_cmd *cmd)
 {
 
 	int err = 0;
-	int tmp;		/*  divisor1,divisor2; */
 	unsigned int ui_ConvertTime = 0;
 	unsigned int ui_ConvertTimeBase = 0;
 	unsigned int ui_DelayTime = 0;
 	unsigned int ui_DelayTimeBase = 0;
-	int i_Triggermode = 0;
-	int i_TriggerEdge = 0;
 	int i_NbrOfChannel = 0;
 	int i_Cpt = 0;
 	double d_ConversionTimeForAllChannels = 0.0;
 	double d_SCANTimeNewUnit = 0.0;
-	/*  step 1: make sure trigger sources are trivially valid */
+	unsigned int arg;
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
-	/* if(i_InterruptFlag==0) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
-		err++;
-		/*           printk("\nThe interrupt should be enabled\n"); */
-	}
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0)
+		err |= -EINVAL;
+
 	if (err) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return 1;
 	}
 
-	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT) {
-		err++;
-	}
-	if (cmd->start_src == TRIG_EXT) {
-		i_TriggerEdge = cmd->start_arg & 0xFFFF;
-		i_Triggermode = cmd->start_arg >> 16;
-		if (i_TriggerEdge < 1 || i_TriggerEdge > 3) {
-			err++;
-			printk("\nThe trigger edge selection is in error\n");
-		}
-		if (i_Triggermode != 2) {
-			err++;
-			printk("\nThe trigger mode selection is in error\n");
-		}
-	}
+	/* Step 2a : make sure trigger sources are unique */
 
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_FOLLOW)
-		err++;
+	err |= cfc_check_trigger_is_unique(&cmd->start_src);
+	err |= cfc_check_trigger_is_unique(&cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(&cmd->stop_src);
 
-	if (cmd->convert_src != TRIG_TIMER)
-		err++;
-
-	if (cmd->scan_end_src != TRIG_COUNT) {
-		cmd->scan_end_src = TRIG_COUNT;
-		err++;
-	}
-
-	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
-		err++;
+	/* Step 2b : and mutually compatible */
 
 	if (err) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return 2;
 	}
+
+	/* Step 3: check if arguments are trivially valid */
+
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		/* validate the trigger edge selection */
+		arg = cmd->start_arg & 0xffff;
+		if (arg < 1 || arg > 3) {
+			cmd->start_arg &= ~0xffff;
+			cmd->start_arg |= 1;
+			err |= -EINVAL;
+		}
+		/* validate the trigger mode selection */
+		arg = cmd->start_arg >> 16;
+		if (arg != 2) {
+			cmd->start_arg &= ~(0xffff << 16);
+			cmd->start_arg |= (2 << 16);
+			err |= -EINVAL;
+		}
+		break;
+	}
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
 	/* i_FirstChannel=cmd->chanlist[0]; */
 	s_BoardInfos[dev->minor].i_FirstChannel = cmd->chanlist[0];
 	/* i_LastChannel=cmd->chanlist[1]; */
@@ -2674,7 +2171,7 @@ int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_s
 			printk("\nThe Delay time value is in error\n");
 		}
 		if (err) {
-			i_APCI3200_Reset(dev);
+			apci3200_reset(dev);
 			return 3;
 		}
 		fpu_begin();
@@ -2732,34 +2229,19 @@ int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_s
 	}			/* else if(cmd->scan_begin_src==TRIG_FOLLOW) */
 
 	if (err) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return 4;
 	}
 
 	return 0;
 }
 
-/*
-  +----------------------------------------------------------------------------+
-  | Function name     :int i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev,|
-  | 											     struct comedi_subdevice *s)|
-  |                                        									 |
-  +----------------------------------------------------------------------------+
-  | Task              : Stop the  acquisition  						     |
-  |                     										                 |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev									 |
-  |                     struct comedi_subdevice *s									 |
-  |                                                 					         |
-  +----------------------------------------------------------------------------+
-  | Return Value      :0              					                     |
-  |                    													     |
-  +----------------------------------------------------------------------------+
-*/
-
-int i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_subdevice *s)
+static int apci3200_cancel(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Configuration = 0;
+
 	/* i_InterruptFlag=0; */
 	/* i_Initialised=0; */
 	/* i_Count=0; */
@@ -2788,27 +2270,13 @@ int i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev, struct comedi_su
 }
 
 /*
-  +----------------------------------------------------------------------------+
-  | Function name     : int i_APCI3200_CommandAnalogInput(struct comedi_device *dev,  |
-  |												struct comedi_subdevice *s) |
-  |                                        									 |
-  +----------------------------------------------------------------------------+
-  | Task              : Does asynchronous acquisition                          |
-  |                     Determines the mode 1 or 2.						     |
-  |                     										                 |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev									 |
-  |                     struct comedi_subdevice *s									 |
-  |                     														 |
-  |                     														 |
-  +----------------------------------------------------------------------------+
-  | Return Value      :              					                         |
-  |                    													     |
-  +----------------------------------------------------------------------------+
-*/
-
-int i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s)
+ * Does asynchronous acquisition
+ * Determines the mode 1 or 2.
+ */
+static int apci3200_ai_cmd(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
+	struct addi_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int ui_Configuration = 0;
 	/* INT  i_CurrentSource = 0; */
@@ -2821,6 +2289,7 @@ int i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subde
 	unsigned int ui_DelayTime = 0;
 	unsigned int ui_DelayTimeBase = 0;
 	unsigned int ui_DelayMode = 0;
+
 	/* i_FirstChannel=cmd->chanlist[0]; */
 	/* i_LastChannel=cmd->chanlist[1]; */
 	s_BoardInfos[dev->minor].i_FirstChannel = cmd->chanlist[0];
@@ -2851,8 +2320,6 @@ int i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subde
 		ui_DelayTimeBase = cmd->scan_begin_arg >> 16;
 		ui_DelayMode = 1;
 	}			/* else if(cmd->scan_begin_src==TRIG_FOLLOW) */
-	/*         printk("\nui_DelayTime=%u\n",ui_DelayTime); */
-	/*         printk("\nui_DelayTimeBase=%u\n",ui_DelayTimeBase); */
 	if (cmd->convert_src == TRIG_TIMER) {
 		ui_ConvertTime = cmd->convert_arg & 0xFFFF;
 		ui_ConvertTimeBase = cmd->convert_arg >> 16;
@@ -2880,13 +2347,6 @@ int i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subde
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
 	/*  } */
 	ui_Configuration = 0;
-	/*      printk("\nfirstchannel=%u\n",i_FirstChannel); */
-	/*      printk("\nlastchannel=%u\n",i_LastChannel); */
-	/*      printk("\nui_Trigger=%u\n",ui_Trigger); */
-	/*      printk("\nui_TriggerEdge=%u\n",ui_TriggerEdge); */
-	/*      printk("\nui_Triggermode=%u\n",ui_Triggermode); */
-	/*       printk("\nui_DelayMode=%u\n",ui_DelayMode); */
-	/*      printk("\nui_ScanMode=%u\n",ui_ScanMode); */
 
 	/* ui_Configuration = i_FirstChannel |(i_LastChannel << 8)| 0x00100000 | */
 	ui_Configuration =
@@ -2979,80 +2439,153 @@ int i_APCI3200_CommandAnalogInput(struct comedi_device *dev, struct comedi_subde
 }
 
 /*
-  +----------------------------------------------------------------------------+
-  | Function   Name   :  int i_APCI3200_Reset(struct comedi_device *dev)			     |
-  |							                                         |
-  +----------------------------------------------------------------------------+
-  | Task              :Resets the registers of the card                        |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  :                                                        |
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  +----------------------------------------------------------------------------+
-  | Return Value      :                                                        |
-  |					                                                 |
-  +----------------------------------------------------------------------------+
-*/
-
-int i_APCI3200_Reset(struct comedi_device *dev)
+ * This function copies the acquired data(from FIFO) to Comedi buffer.
+ */
+static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 {
-	int i_Temp;
-	unsigned int dw_Dummy;
+	struct addi_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
+	unsigned int ui_StatusRegister = 0;
+
+	/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+	/* comedi_async *async = s->async; */
+	/* UINT *data; */
+	/* data=async->data+async->buf_int_ptr;//new samples added from here onwards */
+	int n = 0, i = 0;
+	/* END JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+
+  /************************************/
+	/*Read the interrupt status register */
+  /************************************/
+	/* ui_StatusRegister = inl(devpriv->iobase+i_Offset + 16); */
+	ui_StatusRegister =
+		inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 16);
+
+  /*************************/
+	/*Test if interrupt occur */
+  /*************************/
+
+	if ((ui_StatusRegister & 0x2) == 0x2) {
+      /*************************/
+		/*Read the channel number */
+      /*************************/
+		/* ui_ChannelNumber = inl(devpriv->iobase+i_Offset + 24); */
+		/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+		/* This value is not used */
+		/* ui_ChannelNumber = inl(devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 24); */
+		/* END JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+
+      /*************************************/
+		/*Read the digital Analog Input value */
+      /*************************************/
+
+		/* data[i_Count] = inl(devpriv->iobase+i_Offset + 28); */
+		/* Begin JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+		/* data[s_BoardInfos [dev->minor].i_Count] = inl(devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 28); */
+		s_BoardInfos[dev->minor].ui_ScanValueArray[s_BoardInfos[dev->
+				minor].i_Count] =
+			inl(devpriv->iobase +
+			s_BoardInfos[dev->minor].i_Offset + 28);
+		/* End JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+
+		/* if((i_Count == (i_LastChannel-i_FirstChannel+3))) */
+		if ((s_BoardInfos[dev->minor].i_Count ==
+				(s_BoardInfos[dev->minor].i_LastChannel -
+					s_BoardInfos[dev->minor].
+					i_FirstChannel + 3))) {
+
+			/* Begin JK 22.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
+			s_BoardInfos[dev->minor].i_Count++;
+
+			for (i = s_BoardInfos[dev->minor].i_FirstChannel;
+				i <= s_BoardInfos[dev->minor].i_LastChannel;
+				i++) {
+				i_APCI3200_GetChannelCalibrationValue(dev, i,
+					&s_BoardInfos[dev->minor].
+					ui_ScanValueArray[s_BoardInfos[dev->
+							minor].i_Count + ((i -
+								s_BoardInfos
+								[dev->minor].
+								i_FirstChannel)
+							* 3)],
+					&s_BoardInfos[dev->minor].
+					ui_ScanValueArray[s_BoardInfos[dev->
+							minor].i_Count + ((i -
+								s_BoardInfos
+								[dev->minor].
+								i_FirstChannel)
+							* 3) + 1],
+					&s_BoardInfos[dev->minor].
+					ui_ScanValueArray[s_BoardInfos[dev->
+							minor].i_Count + ((i -
+								s_BoardInfos
+								[dev->minor].
+								i_FirstChannel)
+							* 3) + 2]);
+			}
+
+			/* End JK 22.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
+
+			/* i_Count=-1; */
+
+			s_BoardInfos[dev->minor].i_Count = -1;
+
+			/* async->buf_int_count+=(i_LastChannel-i_FirstChannel+4)*sizeof(unsigned int); */
+			/* Begin JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+			/* async->buf_int_count+=(s_BoardInfos [dev->minor].i_LastChannel-s_BoardInfos [dev->minor].i_FirstChannel+4)*sizeof(unsigned int); */
+			/* End JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+			/* async->buf_int_ptr+=(i_LastChannel-i_FirstChannel+4)*sizeof(unsigned int); */
+			/* Begin JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+			/* async->buf_int_ptr+=(s_BoardInfos [dev->minor].i_LastChannel-s_BoardInfos [dev->minor].i_FirstChannel+4)*sizeof(unsigned int); */
+			/* comedi_eos(dev,s); */
+
+			/*  Set the event type (Comedi Buffer End Of Scan) */
+			s->async->events |= COMEDI_CB_EOS;
+
+			/*  Test if enougth memory is available and allocate it for 7 values */
+			n = comedi_buf_write_alloc(s,
+				(7 + 12) * sizeof(unsigned int));
+
+			/*  If not enough memory available, event is set to Comedi Buffer Error */
+			if (n > ((7 + 12) * sizeof(unsigned int))) {
+				printk("\ncomedi_buf_write_alloc n = %i", n);
+				s->async->events |= COMEDI_CB_ERROR;
+			}
+			/*  Write all 7 scan values in the comedi buffer */
+			comedi_buf_memcpy_to(s, 0,
+				(unsigned int *) s_BoardInfos[dev->minor].
+				ui_ScanValueArray, (7 + 12) * sizeof(unsigned int));
+
+			/*  Update comedi buffer pinters indexes */
+			comedi_buf_write_free(s,
+				(7 + 12) * sizeof(unsigned int));
+
+			/*  Send events */
+			comedi_event(dev, s);
+			/* End JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+
+			/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+			/*  */
+			/* if (s->async->buf_int_ptr>=s->async->data_len) //  for buffer rool over */
+			/*   { */
+			/*     /* buffer rollover */ */
+			/*     s->async->buf_int_ptr=0; */
+			/*     comedi_eobuf(dev,s); */
+			/*   } */
+			/* End JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
+		}
+		/* i_Count++; */
+		s_BoardInfos[dev->minor].i_Count++;
+	}
 	/* i_InterruptFlag=0; */
-	/* i_Initialised==0; */
-	/* i_Count=0; */
-	/* i_Sum=0; */
-
 	s_BoardInfos[dev->minor].i_InterruptFlag = 0;
-	s_BoardInfos[dev->minor].i_Initialised = 0;
-	s_BoardInfos[dev->minor].i_Count = 0;
-	s_BoardInfos[dev->minor].i_Sum = 0;
-	s_BoardInfos[dev->minor].b_StructInitialized = 0;
-
-	outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
-
-	/*  Enable the interrupt for the controller */
-	dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
-	outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
-	outl(0, devpriv->i_IobaseAddon);	/* Resets the output */
-  /***************/
-	/*Empty the buffer */
-  /**************/
-	for (i_Temp = 0; i_Temp <= 95; i_Temp++) {
-		/* ui_InterruptChannelValue[i_Temp]=0; */
-		s_BoardInfos[dev->minor].ui_InterruptChannelValue[i_Temp] = 0;
-	}			/* for(i_Temp=0;i_Temp<=95;i_Temp++) */
-  /*****************************/
-	/*Reset the START and IRQ bit */
-  /*****************************/
-	for (i_Temp = 0; i_Temp <= 192;) {
-		while (((inl(devpriv->iobase + i_Temp + 12) >> 19) & 1) != 1) ;
-		outl(0, devpriv->iobase + i_Temp + 8);
-		i_Temp = i_Temp + 64;
-	}			/* for(i_Temp=0;i_Temp<=192;i_Temp+64) */
 	return 0;
 }
 
-/*
-  +----------------------------------------------------------------------------+
-  | Function   Name   : static void v_APCI3200_Interrupt					     |
-  |					  (int irq , void *d)				 |
-  +----------------------------------------------------------------------------+
-  | Task              : Interrupt processing Routine                           |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : int irq                 : irq number                   |
-  |                     void *d                 : void pointer                 |
-  +----------------------------------------------------------------------------+
-  | Output Parameters :	--													 |
-  +----------------------------------------------------------------------------+
-  | Return Value      : TRUE  : No error occur                                 |
-  |		            : FALSE : Error occur. Return the error					 |
-  |					                                                         |
-  +----------------------------------------------------------------------------+
-*/
-void v_APCI3200_Interrupt(int irq, void *d)
+static void apci3200_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_StatusRegister = 0;
 	unsigned int ui_ChannelNumber = 0;
 	int i_CalibrationFlag = 0;
@@ -3061,12 +2594,9 @@ void v_APCI3200_Interrupt(int irq, void *d)
 	unsigned int ui_DigitalTemperature = 0;
 	unsigned int ui_DigitalInput = 0;
 	int i_ConvertCJCCalibration;
-
 	/* BEGIN JK TEST */
 	int i_ReturnValue = 0;
 	/* END JK TEST */
-
-	/* printk ("\n i_ScanType = %i i_ADDIDATAType = %i", s_BoardInfos [dev->minor].i_ScanType, s_BoardInfos [dev->minor].i_ADDIDATAType); */
 
 	/* switch(i_ScanType) */
 	switch (s_BoardInfos[dev->minor].i_ScanType) {
@@ -3118,7 +2648,6 @@ void v_APCI3200_Interrupt(int irq, void *d)
 
 					/* Begin JK 22.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 					/*
-					   printk("\n 1 - i_APCI3200_GetChannelCalibrationValue (dev, s_BoardInfos %i", ui_ChannelNumber);
 					   i_APCI3200_GetChannelCalibrationValue (dev, s_BoardInfos [dev->minor].ui_Channel_num,
 					   &s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count + 6],
 					   &s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count + 7],
@@ -3471,165 +3000,4 @@ void v_APCI3200_Interrupt(int irq, void *d)
 		break;
 	}			/* switch(i_ScanType) */
 	return;
-}
-
-/*
-  +----------------------------------------------------------------------------+
-  | Function name     :int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)   |
-  |                                        									 |
-  |                                            						         |
-  +----------------------------------------------------------------------------+
-  | Task              : .                   |
-  |                     This function copies the acquired data(from FIFO)      |
-  |				to Comedi buffer.		 							 |
-  |                     										                 |
-  +----------------------------------------------------------------------------+
-  | Input Parameters  : struct comedi_device *dev									 |
-  |                     														 |
-  |                                                 					         |
-  +----------------------------------------------------------------------------+
-  | Return Value      : 0            					                         |
-  |                    													     |
-  +----------------------------------------------------------------------------+
-*/
-int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
-{
-	unsigned int ui_StatusRegister = 0;
-	struct comedi_subdevice *s = dev->subdevices + 0;
-
-	/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-	/* comedi_async *async = s->async; */
-	/* UINT *data; */
-	/* data=async->data+async->buf_int_ptr;//new samples added from here onwards */
-	int n = 0, i = 0;
-	/* END JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-
-  /************************************/
-	/*Read the interrupt status register */
-  /************************************/
-	/* ui_StatusRegister = inl(devpriv->iobase+i_Offset + 16); */
-	ui_StatusRegister =
-		inl(devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 16);
-
-  /*************************/
-	/*Test if interrupt occur */
-  /*************************/
-
-	if ((ui_StatusRegister & 0x2) == 0x2) {
-      /*************************/
-		/*Read the channel number */
-      /*************************/
-		/* ui_ChannelNumber = inl(devpriv->iobase+i_Offset + 24); */
-		/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-		/* This value is not used */
-		/* ui_ChannelNumber = inl(devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 24); */
-		s->async->events = 0;
-		/* END JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-
-      /*************************************/
-		/*Read the digital Analog Input value */
-      /*************************************/
-
-		/* data[i_Count] = inl(devpriv->iobase+i_Offset + 28); */
-		/* Begin JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-		/* data[s_BoardInfos [dev->minor].i_Count] = inl(devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 28); */
-		s_BoardInfos[dev->minor].ui_ScanValueArray[s_BoardInfos[dev->
-				minor].i_Count] =
-			inl(devpriv->iobase +
-			s_BoardInfos[dev->minor].i_Offset + 28);
-		/* End JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-
-		/* if((i_Count == (i_LastChannel-i_FirstChannel+3))) */
-		if ((s_BoardInfos[dev->minor].i_Count ==
-				(s_BoardInfos[dev->minor].i_LastChannel -
-					s_BoardInfos[dev->minor].
-					i_FirstChannel + 3))) {
-
-			/* Begin JK 22.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-			s_BoardInfos[dev->minor].i_Count++;
-
-			for (i = s_BoardInfos[dev->minor].i_FirstChannel;
-				i <= s_BoardInfos[dev->minor].i_LastChannel;
-				i++) {
-				i_APCI3200_GetChannelCalibrationValue(dev, i,
-					&s_BoardInfos[dev->minor].
-					ui_ScanValueArray[s_BoardInfos[dev->
-							minor].i_Count + ((i -
-								s_BoardInfos
-								[dev->minor].
-								i_FirstChannel)
-							* 3)],
-					&s_BoardInfos[dev->minor].
-					ui_ScanValueArray[s_BoardInfos[dev->
-							minor].i_Count + ((i -
-								s_BoardInfos
-								[dev->minor].
-								i_FirstChannel)
-							* 3) + 1],
-					&s_BoardInfos[dev->minor].
-					ui_ScanValueArray[s_BoardInfos[dev->
-							minor].i_Count + ((i -
-								s_BoardInfos
-								[dev->minor].
-								i_FirstChannel)
-							* 3) + 2]);
-			}
-
-			/* End JK 22.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-
-			/* i_Count=-1; */
-
-			s_BoardInfos[dev->minor].i_Count = -1;
-
-			/* async->buf_int_count+=(i_LastChannel-i_FirstChannel+4)*sizeof(unsigned int); */
-			/* Begin JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-			/* async->buf_int_count+=(s_BoardInfos [dev->minor].i_LastChannel-s_BoardInfos [dev->minor].i_FirstChannel+4)*sizeof(unsigned int); */
-			/* End JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-			/* async->buf_int_ptr+=(i_LastChannel-i_FirstChannel+4)*sizeof(unsigned int); */
-			/* Begin JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-			/* async->buf_int_ptr+=(s_BoardInfos [dev->minor].i_LastChannel-s_BoardInfos [dev->minor].i_FirstChannel+4)*sizeof(unsigned int); */
-			/* comedi_eos(dev,s); */
-
-			/*  Set the event type (Comedi Buffer End Of Scan) */
-			s->async->events |= COMEDI_CB_EOS;
-
-			/*  Test if enougth memory is available and allocate it for 7 values */
-			/* n = comedi_buf_write_alloc(s->async, 7*sizeof(unsigned int)); */
-			n = comedi_buf_write_alloc(s->async,
-				(7 + 12) * sizeof(unsigned int));
-
-			/*  If not enough memory available, event is set to Comedi Buffer Error */
-			if (n > ((7 + 12) * sizeof(unsigned int))) {
-				printk("\ncomedi_buf_write_alloc n = %i", n);
-				s->async->events |= COMEDI_CB_ERROR;
-			}
-			/*  Write all 7 scan values in the comedi buffer */
-			comedi_buf_memcpy_to(s->async, 0,
-				(unsigned int *) s_BoardInfos[dev->minor].
-				ui_ScanValueArray, (7 + 12) * sizeof(unsigned int));
-
-			/*  Update comedi buffer pinters indexes */
-			comedi_buf_write_free(s->async,
-				(7 + 12) * sizeof(unsigned int));
-
-			/*  Send events */
-			comedi_event(dev, s);
-			/* End JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-
-			/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-			/*  */
-			/* if (s->async->buf_int_ptr>=s->async->data_len) //  for buffer rool over */
-			/*   { */
-			/*     /* buffer rollover */ */
-			/*     s->async->buf_int_ptr=0; */
-			/*     comedi_eobuf(dev,s); */
-			/*   } */
-			/* End JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
-		}
-		/* i_Count++; */
-		s_BoardInfos[dev->minor].i_Count++;
-	}
-	/* i_InterruptFlag=0; */
-	s_BoardInfos[dev->minor].i_InterruptFlag = 0;
-	return 0;
 }

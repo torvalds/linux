@@ -27,32 +27,11 @@ struct fdtable {
 	unsigned long *close_on_exec;
 	unsigned long *open_fds;
 	struct rcu_head rcu;
-	struct fdtable *next;
 };
-
-static inline void __set_close_on_exec(int fd, struct fdtable *fdt)
-{
-	__set_bit(fd, fdt->close_on_exec);
-}
-
-static inline void __clear_close_on_exec(int fd, struct fdtable *fdt)
-{
-	__clear_bit(fd, fdt->close_on_exec);
-}
 
 static inline bool close_on_exec(int fd, const struct fdtable *fdt)
 {
 	return test_bit(fd, fdt->close_on_exec);
-}
-
-static inline void __set_open_fd(int fd, struct fdtable *fdt)
-{
-	__set_bit(fd, fdt->open_fds);
-}
-
-static inline void __clear_open_fd(int fd, struct fdtable *fdt)
-{
-	__clear_bit(fd, fdt->open_fds);
 }
 
 static inline bool fd_is_open(int fd, const struct fdtable *fdt)
@@ -80,36 +59,34 @@ struct files_struct {
 	struct file __rcu * fd_array[NR_OPEN_DEFAULT];
 };
 
-#define rcu_dereference_check_fdtable(files, fdtfd) \
-	(rcu_dereference_check((fdtfd), \
-			       lockdep_is_held(&(files)->file_lock) || \
-			       atomic_read(&(files)->count) == 1 || \
-			       rcu_my_thread_group_empty()))
-
-#define files_fdtable(files) \
-		(rcu_dereference_check_fdtable((files), (files)->fdt))
-
 struct file_operations;
 struct vfsmount;
 struct dentry;
 
-extern int expand_files(struct files_struct *, int nr);
-extern void free_fdtable_rcu(struct rcu_head *rcu);
-extern void __init files_defer_init(void);
+#define rcu_dereference_check_fdtable(files, fdtfd) \
+	rcu_dereference_check((fdtfd), lockdep_is_held(&(files)->file_lock))
 
-static inline void free_fdtable(struct fdtable *fdt)
-{
-	call_rcu(&fdt->rcu, free_fdtable_rcu);
-}
+#define files_fdtable(files) \
+	rcu_dereference_check_fdtable((files), (files)->fdt)
 
-static inline struct file * fcheck_files(struct files_struct *files, unsigned int fd)
+/*
+ * The caller must ensure that fd table isn't shared or hold rcu or file lock
+ */
+static inline struct file *__fcheck_files(struct files_struct *files, unsigned int fd)
 {
-	struct file * file = NULL;
-	struct fdtable *fdt = files_fdtable(files);
+	struct fdtable *fdt = rcu_dereference_raw(files->fdt);
 
 	if (fd < fdt->max_fds)
-		file = rcu_dereference_check_fdtable(files, fdt->fd[fd]);
-	return file;
+		return rcu_dereference_raw(fdt->fd[fd]);
+	return NULL;
+}
+
+static inline struct file *fcheck_files(struct files_struct *files, unsigned int fd)
+{
+	rcu_lockdep_assert(rcu_read_lock_held() ||
+			   lockdep_is_held(&files->file_lock),
+			   "suspicious rcu_dereference_check() usage");
+	return __fcheck_files(files, fd);
 }
 
 /*
@@ -124,6 +101,17 @@ void put_files_struct(struct files_struct *fs);
 void reset_files_struct(struct files_struct *);
 int unshare_files(struct files_struct **);
 struct files_struct *dup_fd(struct files_struct *, int *);
+void do_close_on_exec(struct files_struct *);
+int iterate_fd(struct files_struct *, unsigned,
+		int (*)(const void *, struct file *, unsigned),
+		const void *);
+
+extern int __alloc_fd(struct files_struct *files,
+		      unsigned start, unsigned end, unsigned flags);
+extern void __fd_install(struct files_struct *files,
+		      unsigned int fd, struct file *file);
+extern int __close_fd(struct files_struct *files,
+		      unsigned int fd);
 
 extern struct kmem_cache *files_cachep;
 

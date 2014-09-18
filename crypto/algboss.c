@@ -11,6 +11,7 @@
  */
 
 #include <crypto/internal/aead.h>
+#include <linux/completion.h>
 #include <linux/ctype.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -44,8 +45,9 @@ struct cryptomgr_param {
 		} nu32;
 	} attrs[CRYPTO_MAX_ATTRS];
 
-	char larval[CRYPTO_MAX_ALG_NAME];
 	char template[CRYPTO_MAX_ALG_NAME];
+
+	struct crypto_larval *larval;
 
 	u32 otype;
 	u32 omask;
@@ -66,7 +68,7 @@ static int cryptomgr_probe(void *data)
 
 	tmpl = crypto_lookup_template(param->template);
 	if (!tmpl)
-		goto err;
+		goto out;
 
 	do {
 		if (tmpl->create) {
@@ -83,16 +85,11 @@ static int cryptomgr_probe(void *data)
 
 	crypto_tmpl_put(tmpl);
 
-	if (err)
-		goto err;
-
 out:
+	complete_all(&param->larval->completion);
+	crypto_alg_put(&param->larval->alg);
 	kfree(param);
 	module_put_and_exit(0);
-
-err:
-	crypto_larval_error(param->larval, param->otype, param->omask);
-	goto out;
 }
 
 static int cryptomgr_schedule_probe(struct crypto_larval *larval)
@@ -190,14 +187,19 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	param->otype = larval->alg.cra_flags;
 	param->omask = larval->mask;
 
-	memcpy(param->larval, larval->alg.cra_name, CRYPTO_MAX_ALG_NAME);
+	crypto_alg_get(&larval->alg);
+	param->larval = larval;
 
 	thread = kthread_run(cryptomgr_probe, param, "cryptomgr_probe");
 	if (IS_ERR(thread))
-		goto err_free_param;
+		goto err_put_larval;
+
+	wait_for_completion_interruptible(&larval->completion);
 
 	return NOTIFY_STOP;
 
+err_put_larval:
+	crypto_alg_put(&larval->alg);
 err_free_param:
 	kfree(param);
 err_put_module:

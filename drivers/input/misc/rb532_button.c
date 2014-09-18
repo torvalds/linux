@@ -51,7 +51,7 @@ static void rb532_button_poll(struct input_polled_dev *poll_dev)
 	input_sync(poll_dev->input);
 }
 
-static int __devinit rb532_button_probe(struct platform_device *pdev)
+static int rb532_button_probe(struct platform_device *pdev)
 {
 	struct input_polled_dev *poll_dev;
 	int error;
@@ -81,20 +81,19 @@ static int __devinit rb532_button_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit rb532_button_remove(struct platform_device *pdev)
+static int rb532_button_remove(struct platform_device *pdev)
 {
 	struct input_polled_dev *poll_dev = dev_get_drvdata(&pdev->dev);
 
 	input_unregister_polled_device(poll_dev);
 	input_free_polled_device(poll_dev);
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
 }
 
 static struct platform_driver rb532_button_driver = {
 	.probe = rb532_button_probe,
-	.remove = __devexit_p(rb532_button_remove),
+	.remove = rb532_button_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

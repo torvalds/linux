@@ -36,12 +36,10 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <mach/clock.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx3.h>
-
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
 
 #define KZM_ARM11_IO_ADDRESS(x) (IOMEM(					\
 	IMX_IO_P2V_MODULE(x, MX31_CS4) ?:				\
@@ -73,7 +71,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 	{
 		.membase	= KZM_ARM11_IO_ADDRESS(KZM_ARM11_16550),
 		.mapbase	= KZM_ARM11_16550,
-		.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_1),
+		/* irq number is run-time assigned */
 		.irqflags	= IRQ_TYPE_EDGE_RISING,
 		.uartclk	= 14745600,
 		.regshift	= 0,
@@ -91,8 +89,7 @@ static struct resource serial8250_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_1),
-		.end	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_1),
+		/* irq number is run-time assigned */
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -125,6 +122,13 @@ static int __init kzm_init_ext_uart(void)
 	tmp |= 0x2;
 	__raw_writeb(tmp, KZM_ARM11_IO_ADDRESS(KZM_ARM11_CTL1));
 
+	serial_platform_data[0].irq =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_1));
+	serial8250_resources[1].start =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_1));
+	serial8250_resources[1].end =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_1));
+
 	return platform_device_register(&serial_device);
 }
 #else
@@ -152,8 +156,7 @@ static struct resource kzm_smsc9118_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_2),
-		.end	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_2),
+		/* irq number is run-time assigned */
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
@@ -183,6 +186,11 @@ static int __init kzm_init_smsc9118(void)
 	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO1_2));
 
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
+	kzm_smsc9118_resources[1].start =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_2));
+	kzm_smsc9118_resources[1].end =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_2));
 
 	return platform_device_register(&kzm_smsc9118_device);
 }
@@ -249,13 +257,13 @@ static void __init kzm_board_init(void)
  */
 static struct map_desc kzm_io_desc[] __initdata = {
 	{
-		.virtual	= MX31_CS4_BASE_ADDR_VIRT,
+		.virtual	= (unsigned long)MX31_CS4_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(MX31_CS4_BASE_ADDR),
 		.length		= MX31_CS4_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= MX31_CS5_BASE_ADDR_VIRT,
+		.virtual	= (unsigned long)MX31_CS5_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(MX31_CS5_BASE_ADDR),
 		.length		= MX31_CS5_SIZE,
 		.type		= MT_DEVICE
@@ -276,17 +284,12 @@ static void __init kzm_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer kzm_timer = {
-	.init = kzm_timer_init,
-};
-
 MACHINE_START(KZM_ARM11_01, "Kyoto Microcomputer Co., Ltd. KZM-ARM11-01")
 	.atag_offset = 0x100,
 	.map_io = kzm_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.handle_irq = imx31_handle_irq,
-	.timer = &kzm_timer,
+	.init_time	= kzm_timer_init,
 	.init_machine = kzm_board_init,
 	.restart	= mxc_restart,
 MACHINE_END

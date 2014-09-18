@@ -1,6 +1,12 @@
 #ifndef _UFS_UFS_H
 #define _UFS_UFS_H 1
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define UFS_MAX_GROUP_LOADED 8
 #define UFS_CGNO_EMPTY ((unsigned)-1)
 
@@ -20,6 +26,10 @@ struct ufs_sb_info {
 	unsigned s_mount_opt;
 	struct mutex mutex;
 	struct task_struct *mutex_owner;
+	struct super_block *sb;
+	int work_queued; /* non-zero if the delayed work is queued */
+	struct delayed_work sync_work; /* FS sync delayed work */
+	spinlock_t work_lock; /* protects sync_work and work_queued */
 };
 
 struct ufs_inode_info {
@@ -67,9 +77,9 @@ struct ufs_inode_info {
  */
 #ifdef CONFIG_UFS_DEBUG
 #	define UFSD(f, a...)	{					\
-		printk ("UFSD (%s, %d): %s:",				\
+		pr_debug("UFSD (%s, %d): %s:",				\
 			__FILE__, __LINE__, __func__);		\
-		printk (f, ## a);					\
+		pr_debug(f, ## a);					\
 	}
 #else
 #	define UFSD(f, a...)	/**/
@@ -123,6 +133,7 @@ extern __printf(3, 4)
 void ufs_error(struct super_block *, const char *, const char *, ...);
 extern __printf(3, 4)
 void ufs_panic(struct super_block *, const char *, const char *, ...);
+void ufs_mark_sb_dirty(struct super_block *sb);
 
 /* symlink.c */
 extern const struct inode_operations ufs_fast_symlink_inode_operations;

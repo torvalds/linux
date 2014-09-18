@@ -98,32 +98,8 @@ static int ps3flash_fetch(struct ps3_storage_device *dev, u64 start_sector)
 static loff_t ps3flash_llseek(struct file *file, loff_t offset, int origin)
 {
 	struct ps3_storage_device *dev = ps3flash_dev;
-	loff_t res;
-
-	mutex_lock(&file->f_mapping->host->i_mutex);
-	switch (origin) {
-	case 0:
-		break;
-	case 1:
-		offset += file->f_pos;
-		break;
-	case 2:
-		offset += dev->regions[dev->region_idx].size*dev->blk_size;
-		break;
-	default:
-		offset = -1;
-	}
-	if (offset < 0) {
-		res = -EINVAL;
-		goto out;
-	}
-
-	file->f_pos = offset;
-	res = file->f_pos;
-
-out:
-	mutex_unlock(&file->f_mapping->host->i_mutex);
-	return res;
+	return generic_file_llseek_size(file, offset, origin, MAX_LFS_FILESIZE,
+			dev->regions[dev->region_idx].size*dev->blk_size);
 }
 
 static ssize_t ps3flash_read(char __user *userbuf, void *kernelbuf,
@@ -312,7 +288,7 @@ static int ps3flash_flush(struct file *file, fl_owner_t id)
 
 static int ps3flash_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	int err;
 	mutex_lock(&inode->i_mutex);
 	err = ps3flash_writeback(ps3flash_dev);
@@ -363,7 +339,7 @@ static struct miscdevice ps3flash_misc = {
 	.fops	= &ps3flash_fops,
 };
 
-static int __devinit ps3flash_probe(struct ps3_system_bus_device *_dev)
+static int ps3flash_probe(struct ps3_system_bus_device *_dev)
 {
 	struct ps3_storage_device *dev = to_ps3_storage_device(&_dev->core);
 	struct ps3flash_private *priv;

@@ -32,24 +32,25 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mmc/host.h>
 #include <linux/can/platform/ti_hecc.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
 #include "common.h"
-#include <plat/usb.h>
-#include <plat/nand.h>
-#include <plat/gpmc.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
+#include "gpmc.h"
 
-#include <mach/am35xx.h>
+#include "am35xx.h"
 
 #include "mux.h"
 #include "control.h"
+#include "hsmmc.h"
 #include "common-board-devices.h"
 #include "am35xx-emac.h"
+#include "gpmc-nand.h"
 
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
 static struct gpio_led cm_t3517_leds[] = {
@@ -90,8 +91,7 @@ static struct resource cm_t3517_hecc_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= INT_35XX_HECC0_IRQ,
-		.end	= INT_35XX_HECC0_IRQ,
+		.start	= 24 + OMAP_INTC_START,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -121,6 +121,26 @@ static void cm_t3517_init_hecc(void)
 }
 #else
 static inline void cm_t3517_init_hecc(void) {}
+#endif
+
+#if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
+static struct omap2_hsmmc_info cm_t3517_mmc[] = {
+	{
+		.mmc		= 1,
+		.caps		= MMC_CAP_4_BIT_DATA,
+		.gpio_cd	= 144,
+		.gpio_wp	= 59,
+	},
+	{
+		.mmc		= 2,
+		.caps		= MMC_CAP_4_BIT_DATA,
+		.gpio_cd	= -EINVAL,
+		.gpio_wp	= -EINVAL,
+	},
+	{}	/* Terminator */
+};
+#else
+#define cm_t3517_mmc NULL
 #endif
 
 #if defined(CONFIG_RTC_DRV_V3020) || defined(CONFIG_RTC_DRV_V3020_MODULE)
@@ -168,15 +188,22 @@ static inline void cm_t3517_init_rtc(void) {}
 #define HSUSB2_RESET_GPIO	(147)
 #define USB_HUB_RESET_GPIO	(152)
 
-static struct usbhs_omap_board_data cm_t3517_ehci_pdata __initdata = {
+static struct usbhs_phy_data phy_data[] __initdata = {
+	{
+		.port = 1,
+		.reset_gpio = HSUSB1_RESET_GPIO,
+		.vcc_gpio = -EINVAL,
+	},
+	{
+		.port = 2,
+		.reset_gpio = HSUSB2_RESET_GPIO,
+		.vcc_gpio = -EINVAL,
+	},
+};
+
+static struct usbhs_omap_platform_data cm_t3517_ehci_pdata __initdata = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
-	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
-
-	.phy_reset  = true,
-	.reset_gpio_port[0]  = HSUSB1_RESET_GPIO,
-	.reset_gpio_port[1]  = HSUSB2_RESET_GPIO,
-	.reset_gpio_port[2]  = -EINVAL,
 };
 
 static int __init cm_t3517_init_usbh(void)
@@ -193,6 +220,7 @@ static int __init cm_t3517_init_usbh(void)
 		msleep(1);
 	}
 
+	usbhs_init_phys(phy_data, ARRAY_SIZE(phy_data));
 	usbhs_init(&cm_t3517_ehci_pdata);
 
 	return 0;
@@ -242,15 +270,12 @@ static struct omap_nand_platform_data cm_t3517_nand_data = {
 
 static void __init cm_t3517_init_nand(void)
 {
-	if (gpmc_nand_init(&cm_t3517_nand_data) < 0)
+	if (gpmc_nand_init(&cm_t3517_nand_data, NULL) < 0)
 		pr_err("CM-T3517: NAND initialization failed\n");
 }
 #else
 static inline void cm_t3517_init_nand(void) {}
 #endif
-
-static struct omap_board_config_kernel cm_t3517_config[] __initdata = {
-};
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
@@ -276,6 +301,10 @@ static struct omap_board_mux board_mux[] __initdata = {
 	/* CM-T3517 USB HUB nRESET */
 	OMAP3_MUX(MCBSP4_CLKX, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 
+	/* CD - GPIO144 and WP - GPIO59 for MMC1 - SB-T35 */
+	OMAP3_MUX(UART2_CTS, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP),
+	OMAP3_MUX(GPMC_CLK, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP),
+
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #endif
@@ -285,14 +314,13 @@ static void __init cm_t3517_init(void)
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
-	omap_board_config = cm_t3517_config;
-	omap_board_config_size = ARRAY_SIZE(cm_t3517_config);
 	cm_t3517_init_leds();
 	cm_t3517_init_nand();
 	cm_t3517_init_rtc();
 	cm_t3517_init_usbh();
 	cm_t3517_init_hecc();
 	am35xx_emac_init(AM35XX_DEFAULT_MDIO_FREQUENCY, 1);
+	omap_hsmmc_init(cm_t3517_mmc);
 }
 
 MACHINE_START(CM_T3517, "Compulab CM-T3517")
@@ -303,6 +331,7 @@ MACHINE_START(CM_T3517, "Compulab CM-T3517")
 	.init_irq	= omap3_init_irq,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= cm_t3517_init,
-	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.init_late	= am35xx_init_late,
+	.init_time	= omap3_gptimer_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END

@@ -45,10 +45,10 @@ struct sas_phy_data {
 	struct mutex event_lock;
 	int hard_reset;
 	int reset_result;
-	struct work_struct reset_work;
+	struct sas_work reset_work;
 	int enable;
 	int enable_result;
-	struct work_struct enable_work;
+	struct sas_work enable_work;
 };
 
 void sas_scsi_recover_host(struct Scsi_Host *shost);
@@ -80,7 +80,7 @@ void sas_porte_broadcast_rcvd(struct work_struct *work);
 void sas_porte_link_reset_err(struct work_struct *work);
 void sas_porte_timer_event(struct work_struct *work);
 void sas_porte_hard_reset(struct work_struct *work);
-void sas_queue_work(struct sas_ha_struct *ha, struct work_struct *work);
+void sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw);
 
 int sas_notify_lldd_dev_found(struct domain_device *);
 void sas_notify_lldd_dev_gone(struct domain_device *);
@@ -89,6 +89,7 @@ int sas_smp_phy_control(struct domain_device *dev, int phy_id,
 			enum phy_func phy_func, struct sas_phy_linkrates *);
 int sas_smp_get_phy_events(struct sas_phy *phy);
 
+void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event);
 void sas_device_set_phy(struct domain_device *dev, struct sas_port *port);
 struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy);
 struct domain_device *sas_ex_to_ata(struct domain_device *ex_dev, int phy_id);
@@ -130,16 +131,16 @@ static inline void sas_fill_in_rphy(struct domain_device *dev,
 	rphy->identify.initiator_port_protocols = dev->iproto;
 	rphy->identify.target_port_protocols = dev->tproto;
 	switch (dev->dev_type) {
-	case SATA_DEV:
+	case SAS_SATA_DEV:
 		/* FIXME: need sata device type */
-	case SAS_END_DEV:
-	case SATA_PENDING:
+	case SAS_END_DEVICE:
+	case SAS_SATA_PENDING:
 		rphy->identify.device_type = SAS_END_DEVICE;
 		break;
-	case EDGE_DEV:
+	case SAS_EDGE_EXPANDER_DEVICE:
 		rphy->identify.device_type = SAS_EDGE_EXPANDER_DEVICE;
 		break;
-	case FANOUT_DEV:
+	case SAS_FANOUT_EXPANDER_DEVICE:
 		rphy->identify.device_type = SAS_FANOUT_EXPANDER_DEVICE;
 		break;
 	default:

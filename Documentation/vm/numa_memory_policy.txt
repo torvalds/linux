@@ -174,7 +174,6 @@ Components of Memory Policies
 	allocation fails, the kernel will search other nodes, in order of
 	increasing distance from the preferred node based on information
 	provided by the platform firmware.
-	containing the cpu where the allocation takes place.
 
 	    Internally, the Preferred policy uses a single node--the
 	    preferred_node member of struct mempolicy.  When the internal
@@ -275,9 +274,9 @@ Components of Memory Policies
 	    For example, consider a task that is attached to a cpuset with
 	    mems 2-5 that sets an Interleave policy over the same set with
 	    MPOL_F_RELATIVE_NODES.  If the cpuset's mems change to 3-7, the
-	    interleave now occurs over nodes 3,5-6.  If the cpuset's mems
+	    interleave now occurs over nodes 3,5-7.  If the cpuset's mems
 	    then change to 0,2-3,5, then the interleave occurs over nodes
-	    0,3,5.
+	    0,2-3,5.
 
 	    Thanks to the consistent remapping, applications preparing
 	    nodemasks to specify memory policies using this flag should

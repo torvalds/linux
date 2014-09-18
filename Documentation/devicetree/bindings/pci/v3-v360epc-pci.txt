@@ -1,0 +1,15 @@
+V3 Semiconductor V360 EPC PCI bridge
+
+This bridge is found in the ARM Integrator/AP (Application Platform)
+
+Integrator-specific notes:
+
+- syscon: should contain a link to the syscon device node (since
+  on the Integrator, some registers in the syscon are required to
+  operate the V3).
+
+V360 EPC specific notes:
+
+- reg: should contain the base address of the V3 adapter.
+- interrupts: should contain a reference to the V3 error interrupt
+  as routed on the system.

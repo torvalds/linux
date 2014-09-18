@@ -1,15 +1,17 @@
-/* bnx2i.h: Broadcom NetXtreme II iSCSI driver.
+/* bnx2i.h: QLogic NetXtreme II iSCSI driver.
  *
- * Copyright (c) 2006 - 2011 Broadcom Corporation
+ * Copyright (c) 2006 - 2013 Broadcom Corporation
  * Copyright (c) 2007, 2008 Red Hat, Inc.  All rights reserved.
  * Copyright (c) 2007, 2008 Mike Christie
+ * Copyright (c) 2014, QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
  * Written by: Anil Veerabhadrappa (anilgv@broadcom.com)
- * Maintained by: Eddie Wai (eddie.wai@broadcom.com)
+ * Previously Maintained by: Eddie Wai (eddie.wai@broadcom.com)
+ * Maintained by: QLogic-Storage-Upstream@qlogic.com
  */
 
 #ifndef _BNX2I_H_
@@ -44,6 +46,8 @@
 #include "57xx_iscsi_hsi.h"
 #include "57xx_iscsi_constants.h"
 
+#include "../../net/ethernet/broadcom/bnx2x/bnx2x_mfw_req.h"
+
 #define BNX2_ISCSI_DRIVER_NAME		"bnx2i"
 
 #define BNX2I_MAX_ADAPTERS		8
@@ -62,7 +66,7 @@
 #define MAX_PAGES_PER_CTRL_STRUCT_POOL	8
 #define BNX2I_RESERVED_SLOW_PATH_CMD_SLOTS	4
 
-#define BNX2I_5771X_DBELL_PAGE_SIZE	128
+#define BNX2X_DB_SHIFT			3
 
 /* 5706/08 hardware has limit on maximum buffer size per BD it can handle */
 #define MAX_BD_LENGTH			65535
@@ -126,6 +130,43 @@
 #define REG_WR(__hba, offset, val)			\
 		writel(val, __hba->regview + offset)
 
+#ifdef CONFIG_32BIT
+#define GET_STATS_64(__hba, dst, field)				\
+	do {							\
+		spin_lock_bh(&__hba->stat_lock);		\
+		dst->field##_lo = __hba->stats.field##_lo;	\
+		dst->field##_hi = __hba->stats.field##_hi;	\
+		spin_unlock_bh(&__hba->stat_lock);		\
+	} while (0)
+
+#define ADD_STATS_64(__hba, field, len)				\
+	do {							\
+		if (spin_trylock(&__hba->stat_lock)) {		\
+			if (__hba->stats.field##_lo + len <	\
+			    __hba->stats.field##_lo)		\
+				__hba->stats.field##_hi++;	\
+			__hba->stats.field##_lo += len;		\
+			spin_unlock(&__hba->stat_lock);		\
+		}						\
+	} while (0)
+
+#else
+#define GET_STATS_64(__hba, dst, field)				\
+	do {							\
+		u64 val, *out;					\
+								\
+		val = __hba->bnx2i_stats.field;			\
+		out = (u64 *)&__hba->stats.field##_lo;		\
+		*out = cpu_to_le64(val);			\
+		out = (u64 *)&dst->field##_lo;			\
+		*out = cpu_to_le64(val);			\
+	} while (0)
+
+#define ADD_STATS_64(__hba, field, len)				\
+	do {							\
+		__hba->bnx2i_stats.field += len;		\
+	} while (0)
+#endif
 
 /**
  * struct generic_pdu_resc - login pdu resource structure
@@ -288,6 +329,15 @@ struct iscsi_cid_queue {
 	struct bnx2i_conn **conn_cid_tbl;
 };
 
+
+struct bnx2i_stats_info {
+	u64 rx_pdus;
+	u64 rx_bytes;
+	u64 tx_pdus;
+	u64 tx_bytes;
+};
+
+
 /**
  * struct bnx2i_hba - bnx2i adapter structure
  *
@@ -341,6 +391,8 @@ struct iscsi_cid_queue {
  * @ctx_ccell_tasks:       captures number of ccells and tasks supported by
  *                         currently offloaded connection, used to decode
  *                         context memory
+ * @stat_lock:		   spin lock used by the statistic collector (32 bit)
+ * @stats:		   local iSCSI statistic collection place holder
  *
  * Adapter Data Structure
  */
@@ -350,6 +402,7 @@ struct bnx2i_hba {
 	struct pci_dev *pcidev;
 	struct net_device *netdev;
 	void __iomem *regview;
+	resource_size_t reg_base;
 
 	u32 age;
 	unsigned long cnic_dev_type;
@@ -426,6 +479,12 @@ struct bnx2i_hba {
 	u32 num_sess_opened;
 	u32 num_conn_opened;
 	unsigned int ctx_ccell_tasks;
+
+#ifdef CONFIG_32BIT
+	spinlock_t stat_lock;
+#endif
+	struct bnx2i_stats_info bnx2i_stats;
+	struct iscsi_stats_info stats;
 };
 
 
@@ -523,8 +582,8 @@ struct bnx2i_5771x_dbell {
  * @sq_mem_size:        SQ size
  * @sq_prod_qe:         SQ producer entry pointer
  * @sq_cons_qe:         SQ consumer entry pointer
- * @sq_first_qe:        virtaul address of first entry in SQ
- * @sq_last_qe:         virtaul address of last entry in SQ
+ * @sq_first_qe:        virtual address of first entry in SQ
+ * @sq_last_qe:         virtual address of last entry in SQ
  * @sq_prod_idx:        SQ producer index
  * @sq_cons_idx:        SQ consumer index
  * @sqe_left:           number sq entry left
@@ -536,8 +595,8 @@ struct bnx2i_5771x_dbell {
  * @cq_mem_size:        CQ size
  * @cq_prod_qe:         CQ producer entry pointer
  * @cq_cons_qe:         CQ consumer entry pointer
- * @cq_first_qe:        virtaul address of first entry in CQ
- * @cq_last_qe:         virtaul address of last entry in CQ
+ * @cq_first_qe:        virtual address of first entry in CQ
+ * @cq_last_qe:         virtual address of last entry in CQ
  * @cq_prod_idx:        CQ producer index
  * @cq_cons_idx:        CQ consumer index
  * @cqe_left:           number cq entry left
@@ -551,8 +610,8 @@ struct bnx2i_5771x_dbell {
  * @rq_mem_size:        RQ size
  * @rq_prod_qe:         RQ producer entry pointer
  * @rq_cons_qe:         RQ consumer entry pointer
- * @rq_first_qe:        virtaul address of first entry in RQ
- * @rq_last_qe:         virtaul address of last entry in RQ
+ * @rq_first_qe:        virtual address of first entry in RQ
+ * @rq_last_qe:         virtual address of last entry in RQ
  * @rq_prod_idx:        RQ producer index
  * @rq_cons_idx:        RQ consumer index
  * @rqe_left:           number rq entry left
@@ -743,12 +802,14 @@ extern struct device_attribute *bnx2i_dev_attributes[];
 /*
  * Function Prototypes
  */
-extern void bnx2i_identify_device(struct bnx2i_hba *hba);
+extern void bnx2i_identify_device(struct bnx2i_hba *hba, struct cnic_dev *dev);
 
 extern void bnx2i_ulp_init(struct cnic_dev *dev);
 extern void bnx2i_ulp_exit(struct cnic_dev *dev);
 extern void bnx2i_start(void *handle);
 extern void bnx2i_stop(void *handle);
+extern int bnx2i_get_stats(void *handle);
+
 extern struct bnx2i_hba *get_adapter_list_head(void);
 
 struct bnx2i_conn *bnx2i_get_conn_from_id(struct bnx2i_hba *hba,

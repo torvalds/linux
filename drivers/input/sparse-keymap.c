@@ -180,11 +180,11 @@ int sparse_keymap_setup(struct input_dev *dev,
 	for (e = keymap; e->type != KE_END; e++)
 		map_size++;
 
-	map = kcalloc(map_size, sizeof (struct key_entry), GFP_KERNEL);
+	map = kcalloc(map_size, sizeof(struct key_entry), GFP_KERNEL);
 	if (!map)
 		return -ENOMEM;
 
-	memcpy(map, keymap, map_size * sizeof (struct key_entry));
+	memcpy(map, keymap, map_size * sizeof(struct key_entry));
 
 	for (i = 0; i < map_size; i++) {
 		entry = &map[i];
@@ -236,7 +236,7 @@ EXPORT_SYMBOL(sparse_keymap_setup);
  * in an input device that was set up by sparse_keymap_setup().
  * NOTE: It is safe to cal this function while input device is
  * still registered (however the drivers should care not to try to
- * use freed keymap and thus have to shut off interrups/polling
+ * use freed keymap and thus have to shut off interrupts/polling
  * before freeing the keymap).
  */
 void sparse_keymap_free(struct input_dev *dev)

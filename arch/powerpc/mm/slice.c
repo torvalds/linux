@@ -34,6 +34,11 @@
 #include <asm/mmu.h>
 #include <asm/spu.h>
 
+/* some sanity checks */
+#if (PGTABLE_RANGE >> 43) > SLICE_MASK_SIZE
+#error PGTABLE_RANGE exceeds slice_mask high_slices size
+#endif
+
 static DEFINE_SPINLOCK(slice_convert_lock);
 
 
@@ -42,7 +47,7 @@ int _slice_debug = 1;
 
 static void slice_print_mask(const char *label, struct slice_mask mask)
 {
-	char	*p, buf[16 + 3 + 16 + 1];
+	char	*p, buf[16 + 3 + 64 + 1];
 	int	i;
 
 	if (!_slice_debug)
@@ -54,7 +59,7 @@ static void slice_print_mask(const char *label, struct slice_mask mask)
 	*(p++) = '-';
 	*(p++) = ' ';
 	for (i = 0; i < SLICE_NUM_HIGH; i++)
-		*(p++) = (mask.high_slices & (1 << i)) ? '1' : '0';
+		*(p++) = (mask.high_slices & (1ul << i)) ? '1' : '0';
 	*(p++) = 0;
 
 	printk(KERN_DEBUG "%s:%s\n", label, buf);
@@ -84,8 +89,8 @@ static struct slice_mask slice_range_to_mask(unsigned long start,
 	}
 
 	if ((start + len) > SLICE_LOW_TOP)
-		ret.high_slices = (1u << (GET_HIGH_SLICE_INDEX(end) + 1))
-			- (1u << GET_HIGH_SLICE_INDEX(start));
+		ret.high_slices = (1ul << (GET_HIGH_SLICE_INDEX(end) + 1))
+			- (1ul << GET_HIGH_SLICE_INDEX(start));
 
 	return ret;
 }
@@ -135,26 +140,31 @@ static struct slice_mask slice_mask_for_free(struct mm_struct *mm)
 
 	for (i = 0; i < SLICE_NUM_HIGH; i++)
 		if (!slice_high_has_vma(mm, i))
-			ret.high_slices |= 1u << i;
+			ret.high_slices |= 1ul << i;
 
 	return ret;
 }
 
 static struct slice_mask slice_mask_for_size(struct mm_struct *mm, int psize)
 {
+	unsigned char *hpsizes;
+	int index, mask_index;
 	struct slice_mask ret = { 0, 0 };
 	unsigned long i;
-	u64 psizes;
+	u64 lpsizes;
 
-	psizes = mm->context.low_slices_psize;
+	lpsizes = mm->context.low_slices_psize;
 	for (i = 0; i < SLICE_NUM_LOW; i++)
-		if (((psizes >> (i * 4)) & 0xf) == psize)
+		if (((lpsizes >> (i * 4)) & 0xf) == psize)
 			ret.low_slices |= 1u << i;
 
-	psizes = mm->context.high_slices_psize;
-	for (i = 0; i < SLICE_NUM_HIGH; i++)
-		if (((psizes >> (i * 4)) & 0xf) == psize)
-			ret.high_slices |= 1u << i;
+	hpsizes = mm->context.high_slices_psize;
+	for (i = 0; i < SLICE_NUM_HIGH; i++) {
+		mask_index = i & 0x1;
+		index = i >> 1;
+		if (((hpsizes[index] >> (mask_index * 4)) & 0xf) == psize)
+			ret.high_slices |= 1ul << i;
+	}
 
 	return ret;
 }
@@ -183,8 +193,10 @@ static void slice_flush_segments(void *parm)
 
 static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psize)
 {
+	int index, mask_index;
 	/* Write the new slice psize bits */
-	u64 lpsizes, hpsizes;
+	unsigned char *hpsizes;
+	u64 lpsizes;
 	unsigned long i, flags;
 
 	slice_dbg("slice_convert(mm=%p, psize=%d)\n", mm, psize);
@@ -201,14 +213,18 @@ static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psiz
 			lpsizes = (lpsizes & ~(0xful << (i * 4))) |
 				(((unsigned long)psize) << (i * 4));
 
-	hpsizes = mm->context.high_slices_psize;
-	for (i = 0; i < SLICE_NUM_HIGH; i++)
-		if (mask.high_slices & (1u << i))
-			hpsizes = (hpsizes & ~(0xful << (i * 4))) |
-				(((unsigned long)psize) << (i * 4));
-
+	/* Assign the value back */
 	mm->context.low_slices_psize = lpsizes;
-	mm->context.high_slices_psize = hpsizes;
+
+	hpsizes = mm->context.high_slices_psize;
+	for (i = 0; i < SLICE_NUM_HIGH; i++) {
+		mask_index = i & 0x1;
+		index = i >> 1;
+		if (mask.high_slices & (1ul << i))
+			hpsizes[index] = (hpsizes[index] &
+					  ~(0xf << (mask_index * 4))) |
+				(((unsigned long)psize) << (mask_index * 4));
+	}
 
 	slice_dbg(" lsps=%lx, hsps=%lx\n",
 		  mm->context.low_slices_psize,
@@ -221,134 +237,112 @@ static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psiz
 #endif
 }
 
+/*
+ * Compute which slice addr is part of;
+ * set *boundary_addr to the start or end boundary of that slice
+ * (depending on 'end' parameter);
+ * return boolean indicating if the slice is marked as available in the
+ * 'available' slice_mark.
+ */
+static bool slice_scan_available(unsigned long addr,
+				 struct slice_mask available,
+				 int end,
+				 unsigned long *boundary_addr)
+{
+	unsigned long slice;
+	if (addr < SLICE_LOW_TOP) {
+		slice = GET_LOW_SLICE_INDEX(addr);
+		*boundary_addr = (slice + end) << SLICE_LOW_SHIFT;
+		return !!(available.low_slices & (1u << slice));
+	} else {
+		slice = GET_HIGH_SLICE_INDEX(addr);
+		*boundary_addr = (slice + end) ?
+			((slice + end) << SLICE_HIGH_SHIFT) : SLICE_LOW_TOP;
+		return !!(available.high_slices & (1ul << slice));
+	}
+}
+
 static unsigned long slice_find_area_bottomup(struct mm_struct *mm,
 					      unsigned long len,
 					      struct slice_mask available,
-					      int psize, int use_cache)
+					      int psize)
 {
-	struct vm_area_struct *vma;
-	unsigned long start_addr, addr;
-	struct slice_mask mask;
 	int pshift = max_t(int, mmu_psize_defs[psize].shift, PAGE_SHIFT);
+	unsigned long addr, found, next_end;
+	struct vm_unmapped_area_info info;
 
-	if (use_cache) {
-		if (len <= mm->cached_hole_size) {
-			start_addr = addr = TASK_UNMAPPED_BASE;
-			mm->cached_hole_size = 0;
-		} else
-			start_addr = addr = mm->free_area_cache;
-	} else
-		start_addr = addr = TASK_UNMAPPED_BASE;
+	info.flags = 0;
+	info.length = len;
+	info.align_mask = PAGE_MASK & ((1ul << pshift) - 1);
+	info.align_offset = 0;
 
-full_search:
-	for (;;) {
-		addr = _ALIGN_UP(addr, 1ul << pshift);
-		if ((TASK_SIZE - len) < addr)
-			break;
-		vma = find_vma(mm, addr);
-		BUG_ON(vma && (addr >= vma->vm_end));
-
-		mask = slice_range_to_mask(addr, len);
-		if (!slice_check_fit(mask, available)) {
-			if (addr < SLICE_LOW_TOP)
-				addr = _ALIGN_UP(addr + 1,  1ul << SLICE_LOW_SHIFT);
-			else
-				addr = _ALIGN_UP(addr + 1,  1ul << SLICE_HIGH_SHIFT);
+	addr = TASK_UNMAPPED_BASE;
+	while (addr < TASK_SIZE) {
+		info.low_limit = addr;
+		if (!slice_scan_available(addr, available, 1, &addr))
 			continue;
+
+ next_slice:
+		/*
+		 * At this point [info.low_limit; addr) covers
+		 * available slices only and ends at a slice boundary.
+		 * Check if we need to reduce the range, or if we can
+		 * extend it to cover the next available slice.
+		 */
+		if (addr >= TASK_SIZE)
+			addr = TASK_SIZE;
+		else if (slice_scan_available(addr, available, 1, &next_end)) {
+			addr = next_end;
+			goto next_slice;
 		}
-		if (!vma || addr + len <= vma->vm_start) {
-			/*
-			 * Remember the place where we stopped the search:
-			 */
-			if (use_cache)
-				mm->free_area_cache = addr + len;
-			return addr;
-		}
-		if (use_cache && (addr + mm->cached_hole_size) < vma->vm_start)
-		        mm->cached_hole_size = vma->vm_start - addr;
-		addr = vma->vm_end;
+		info.high_limit = addr;
+
+		found = vm_unmapped_area(&info);
+		if (!(found & ~PAGE_MASK))
+			return found;
 	}
 
-	/* Make sure we didn't miss any holes */
-	if (use_cache && start_addr != TASK_UNMAPPED_BASE) {
-		start_addr = addr = TASK_UNMAPPED_BASE;
-		mm->cached_hole_size = 0;
-		goto full_search;
-	}
 	return -ENOMEM;
 }
 
 static unsigned long slice_find_area_topdown(struct mm_struct *mm,
 					     unsigned long len,
 					     struct slice_mask available,
-					     int psize, int use_cache)
+					     int psize)
 {
-	struct vm_area_struct *vma;
-	unsigned long addr;
-	struct slice_mask mask;
 	int pshift = max_t(int, mmu_psize_defs[psize].shift, PAGE_SHIFT);
+	unsigned long addr, found, prev;
+	struct vm_unmapped_area_info info;
 
-	/* check if free_area_cache is useful for us */
-	if (use_cache) {
-		if (len <= mm->cached_hole_size) {
-			mm->cached_hole_size = 0;
-			mm->free_area_cache = mm->mmap_base;
-		}
-
-		/* either no address requested or can't fit in requested
-		 * address hole
-		 */
-		addr = mm->free_area_cache;
-
-		/* make sure it can fit in the remaining address space */
-		if (addr > len) {
-			addr = _ALIGN_DOWN(addr - len, 1ul << pshift);
-			mask = slice_range_to_mask(addr, len);
-			if (slice_check_fit(mask, available) &&
-			    slice_area_is_free(mm, addr, len))
-					/* remember the address as a hint for
-					 * next time
-					 */
-					return (mm->free_area_cache = addr);
-		}
-	}
+	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
+	info.length = len;
+	info.align_mask = PAGE_MASK & ((1ul << pshift) - 1);
+	info.align_offset = 0;
 
 	addr = mm->mmap_base;
-	while (addr > len) {
-		/* Go down by chunk size */
-		addr = _ALIGN_DOWN(addr - len, 1ul << pshift);
-
-		/* Check for hit with different page size */
-		mask = slice_range_to_mask(addr, len);
-		if (!slice_check_fit(mask, available)) {
-			if (addr < SLICE_LOW_TOP)
-				addr = _ALIGN_DOWN(addr, 1ul << SLICE_LOW_SHIFT);
-			else if (addr < (1ul << SLICE_HIGH_SHIFT))
-				addr = SLICE_LOW_TOP;
-			else
-				addr = _ALIGN_DOWN(addr, 1ul << SLICE_HIGH_SHIFT);
+	while (addr > PAGE_SIZE) {
+		info.high_limit = addr;
+		if (!slice_scan_available(addr - 1, available, 0, &addr))
 			continue;
-		}
 
+ prev_slice:
 		/*
-		 * Lookup failure means no vma is above this address,
-		 * else if new region fits below vma->vm_start,
-		 * return with success:
+		 * At this point [addr; info.high_limit) covers
+		 * available slices only and starts at a slice boundary.
+		 * Check if we need to reduce the range, or if we can
+		 * extend it to cover the previous available slice.
 		 */
-		vma = find_vma(mm, addr);
-		if (!vma || (addr + len) <= vma->vm_start) {
-			/* remember the address as a hint for next time */
-			if (use_cache)
-				mm->free_area_cache = addr;
-			return addr;
+		if (addr < PAGE_SIZE)
+			addr = PAGE_SIZE;
+		else if (slice_scan_available(addr - 1, available, 0, &prev)) {
+			addr = prev;
+			goto prev_slice;
 		}
+		info.low_limit = addr;
 
-		/* remember the largest hole we saw so far */
-		if (use_cache && (addr + mm->cached_hole_size) < vma->vm_start)
-		        mm->cached_hole_size = vma->vm_start - addr;
-
-		/* try just below the current vma->vm_start */
-		addr = vma->vm_start;
+		found = vm_unmapped_area(&info);
+		if (!(found & ~PAGE_MASK))
+			return found;
 	}
 
 	/*
@@ -357,28 +351,18 @@ static unsigned long slice_find_area_topdown(struct mm_struct *mm,
 	 * can happen with large stack limits and large mmap()
 	 * allocations.
 	 */
-	addr = slice_find_area_bottomup(mm, len, available, psize, 0);
-
-	/*
-	 * Restore the topdown base:
-	 */
-	if (use_cache) {
-		mm->free_area_cache = mm->mmap_base;
-		mm->cached_hole_size = ~0UL;
-	}
-
-	return addr;
+	return slice_find_area_bottomup(mm, len, available, psize);
 }
 
 
 static unsigned long slice_find_area(struct mm_struct *mm, unsigned long len,
 				     struct slice_mask mask, int psize,
-				     int topdown, int use_cache)
+				     int topdown)
 {
 	if (topdown)
-		return slice_find_area_topdown(mm, len, mask, psize, use_cache);
+		return slice_find_area_topdown(mm, len, mask, psize);
 	else
-		return slice_find_area_bottomup(mm, len, mask, psize, use_cache);
+		return slice_find_area_bottomup(mm, len, mask, psize);
 }
 
 #define or_mask(dst, src)	do {			\
@@ -399,7 +383,7 @@ static unsigned long slice_find_area(struct mm_struct *mm, unsigned long len,
 
 unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 				      unsigned long flags, unsigned int psize,
-				      int topdown, int use_cache)
+				      int topdown)
 {
 	struct slice_mask mask = {0, 0};
 	struct slice_mask good_mask;
@@ -414,8 +398,8 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	BUG_ON(mm->task_size == 0);
 
 	slice_dbg("slice_get_unmapped_area(mm=%p, psize=%d...\n", mm, psize);
-	slice_dbg(" addr=%lx, len=%lx, flags=%lx, topdown=%d, use_cache=%d\n",
-		  addr, len, flags, topdown, use_cache);
+	slice_dbg(" addr=%lx, len=%lx, flags=%lx, topdown=%d\n",
+		  addr, len, flags, topdown);
 
 	if (len > mm->task_size)
 		return -ENOMEM;
@@ -424,7 +408,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	if (fixed && (addr & ((1ul << pshift) - 1)))
 		return -EINVAL;
 	if (fixed && addr > (mm->task_size - len))
-		return -EINVAL;
+		return -ENOMEM;
 
 	/* If hint, make sure it matches our alignment restrictions */
 	if (!fixed && addr) {
@@ -487,8 +471,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 		/* Now let's see if we can find something in the existing
 		 * slices for that size
 		 */
-		newaddr = slice_find_area(mm, len, good_mask, psize, topdown,
-					  use_cache);
+		newaddr = slice_find_area(mm, len, good_mask, psize, topdown);
 		if (newaddr != -ENOMEM) {
 			/* Found within the good mask, we don't have to setup,
 			 * we thus return directly
@@ -520,8 +503,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	 * anywhere in the good area.
 	 */
 	if (addr) {
-		addr = slice_find_area(mm, len, good_mask, psize, topdown,
-				       use_cache);
+		addr = slice_find_area(mm, len, good_mask, psize, topdown);
 		if (addr != -ENOMEM) {
 			slice_dbg(" found area at 0x%lx\n", addr);
 			return addr;
@@ -531,15 +513,14 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	/* Now let's see if we can find something in the existing slices
 	 * for that size plus free slices
 	 */
-	addr = slice_find_area(mm, len, potential_mask, psize, topdown,
-			       use_cache);
+	addr = slice_find_area(mm, len, potential_mask, psize, topdown);
 
 #ifdef CONFIG_PPC_64K_PAGES
 	if (addr == -ENOMEM && psize == MMU_PAGE_64K) {
 		/* retry the search with 4k-page slices included */
 		or_mask(potential_mask, compat_mask);
 		addr = slice_find_area(mm, len, potential_mask, psize,
-				       topdown, use_cache);
+				       topdown);
 	}
 #endif
 
@@ -570,8 +551,7 @@ unsigned long arch_get_unmapped_area(struct file *filp,
 				     unsigned long flags)
 {
 	return slice_get_unmapped_area(addr, len, flags,
-				       current->mm->context.user_psize,
-				       0, 1);
+				       current->mm->context.user_psize, 0);
 }
 
 unsigned long arch_get_unmapped_area_topdown(struct file *filp,
@@ -581,24 +561,24 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp,
 					     const unsigned long flags)
 {
 	return slice_get_unmapped_area(addr0, len, flags,
-				       current->mm->context.user_psize,
-				       1, 1);
+				       current->mm->context.user_psize, 1);
 }
 
 unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
 {
-	u64 psizes;
-	int index;
+	unsigned char *hpsizes;
+	int index, mask_index;
 
 	if (addr < SLICE_LOW_TOP) {
-		psizes = mm->context.low_slices_psize;
+		u64 lpsizes;
+		lpsizes = mm->context.low_slices_psize;
 		index = GET_LOW_SLICE_INDEX(addr);
-	} else {
-		psizes = mm->context.high_slices_psize;
-		index = GET_HIGH_SLICE_INDEX(addr);
+		return (lpsizes >> (index * 4)) & 0xf;
 	}
-
-	return (psizes >> (index * 4)) & 0xf;
+	hpsizes = mm->context.high_slices_psize;
+	index = GET_HIGH_SLICE_INDEX(addr);
+	mask_index = index & 0x1;
+	return (hpsizes[index >> 1] >> (mask_index * 4)) & 0xf;
 }
 EXPORT_SYMBOL_GPL(get_slice_psize);
 
@@ -618,7 +598,9 @@ EXPORT_SYMBOL_GPL(get_slice_psize);
  */
 void slice_set_user_psize(struct mm_struct *mm, unsigned int psize)
 {
-	unsigned long flags, lpsizes, hpsizes;
+	int index, mask_index;
+	unsigned char *hpsizes;
+	unsigned long flags, lpsizes;
 	unsigned int old_psize;
 	int i;
 
@@ -639,15 +621,21 @@ void slice_set_user_psize(struct mm_struct *mm, unsigned int psize)
 		if (((lpsizes >> (i * 4)) & 0xf) == old_psize)
 			lpsizes = (lpsizes & ~(0xful << (i * 4))) |
 				(((unsigned long)psize) << (i * 4));
+	/* Assign the value back */
+	mm->context.low_slices_psize = lpsizes;
 
 	hpsizes = mm->context.high_slices_psize;
-	for (i = 0; i < SLICE_NUM_HIGH; i++)
-		if (((hpsizes >> (i * 4)) & 0xf) == old_psize)
-			hpsizes = (hpsizes & ~(0xful << (i * 4))) |
-				(((unsigned long)psize) << (i * 4));
+	for (i = 0; i < SLICE_NUM_HIGH; i++) {
+		mask_index = i & 0x1;
+		index = i >> 1;
+		if (((hpsizes[index] >> (mask_index * 4)) & 0xf) == old_psize)
+			hpsizes[index] = (hpsizes[index] &
+					  ~(0xf << (mask_index * 4))) |
+				(((unsigned long)psize) << (mask_index * 4));
+	}
 
-	mm->context.low_slices_psize = lpsizes;
-	mm->context.high_slices_psize = hpsizes;
+
+
 
 	slice_dbg(" lsps=%lx, hsps=%lx\n",
 		  mm->context.low_slices_psize,
@@ -660,18 +648,27 @@ void slice_set_user_psize(struct mm_struct *mm, unsigned int psize)
 void slice_set_psize(struct mm_struct *mm, unsigned long address,
 		     unsigned int psize)
 {
+	unsigned char *hpsizes;
 	unsigned long i, flags;
-	u64 *p;
+	u64 *lpsizes;
 
 	spin_lock_irqsave(&slice_convert_lock, flags);
 	if (address < SLICE_LOW_TOP) {
 		i = GET_LOW_SLICE_INDEX(address);
-		p = &mm->context.low_slices_psize;
+		lpsizes = &mm->context.low_slices_psize;
+		*lpsizes = (*lpsizes & ~(0xful << (i * 4))) |
+			((unsigned long) psize << (i * 4));
 	} else {
+		int index, mask_index;
 		i = GET_HIGH_SLICE_INDEX(address);
-		p = &mm->context.high_slices_psize;
+		hpsizes = mm->context.high_slices_psize;
+		mask_index = i & 0x1;
+		index = i >> 1;
+		hpsizes[index] = (hpsizes[index] &
+				  ~(0xf << (mask_index * 4))) |
+			(((unsigned long)psize) << (mask_index * 4));
 	}
-	*p = (*p & ~(0xful << (i * 4))) | ((unsigned long) psize << (i * 4));
+
 	spin_unlock_irqrestore(&slice_convert_lock, flags);
 
 #ifdef CONFIG_SPU_BASE
@@ -688,7 +685,7 @@ void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 }
 
 /*
- * is_hugepage_only_range() is used by generic code to verify wether
+ * is_hugepage_only_range() is used by generic code to verify whether
  * a normal mmap mapping (non hugetlbfs) is valid on a given area.
  *
  * until the generic code provides a more generic hook and/or starts
