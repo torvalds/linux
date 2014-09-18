@@ -121,22 +121,20 @@ void read_persistent_clock(struct timespec *ts)
 	ts->tv_nsec = 0;
 }
 
-static void __init plat_perf_setup(void)
+int get_c0_perfcount_int(void)
 {
-#ifdef MSC01E_INT_BASE
 	if (cpu_has_veic) {
 		set_vi_handler(MSC01E_INT_PERFCTR, mips_perf_dispatch);
 		mips_cpu_perf_irq = MSC01E_INT_BASE + MSC01E_INT_PERFCTR;
-	} else
-#endif
-	if (cp0_perfcount_irq >= 0) {
+	} else if (cp0_perfcount_irq >= 0) {
 		if (cpu_has_vint)
 			set_vi_handler(cp0_perfcount_irq, mips_perf_dispatch);
 		mips_cpu_perf_irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
-#ifdef CONFIG_SMP
-		irq_set_handler(mips_cpu_perf_irq, handle_percpu_irq);
-#endif
+	} else {
+		mips_cpu_perf_irq = -1;
 	}
+
+	return mips_cpu_perf_irq;
 }
 
 unsigned int get_c0_compare_int(void)
@@ -201,6 +199,4 @@ void __init plat_time_init(void)
 #endif
 	}
 #endif
-
-	plat_perf_setup();
 }

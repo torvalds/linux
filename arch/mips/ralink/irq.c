@@ -45,6 +45,7 @@
 #define RALINK_INTC_IRQ_PERFC   (RALINK_INTC_IRQ_BASE + 9)
 
 static void __iomem *rt_intc_membase;
+static int rt_perfcount_irq;
 
 static inline void rt_intc_w32(u32 val, unsigned reg)
 {
@@ -72,6 +73,11 @@ static struct irq_chip ralink_intc_irq_chip = {
 	.irq_mask	= ralink_intc_irq_mask,
 	.irq_mask_ack	= ralink_intc_irq_mask,
 };
+
+int get_c0_perfcount_int(void)
+{
+	return rt_perfcount_irq;
+}
 
 unsigned int get_c0_compare_int(void)
 {
@@ -167,7 +173,7 @@ static int __init intc_of_init(struct device_node *node,
 	irq_set_handler_data(irq, domain);
 
 	/* tell the kernel which irq is used for performance monitoring */
-	cp0_perfcount_irq = irq_create_mapping(domain, 9);
+	rt_perfcount_irq = irq_create_mapping(domain, 9);
 
 	return 0;
 }

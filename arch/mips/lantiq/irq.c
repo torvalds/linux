@@ -70,6 +70,7 @@ static struct resource ltq_eiu_irq[MAX_EIU];
 static void __iomem *ltq_icu_membase[MAX_IM];
 static void __iomem *ltq_eiu_membase;
 static struct irq_domain *ltq_domain;
+static int ltq_perfcount_irq;
 
 int ltq_eiu_get_irq(int exin)
 {
@@ -449,7 +450,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 #endif
 
 	/* tell oprofile which irq to use */
-	cp0_perfcount_irq = irq_create_mapping(ltq_domain, LTQ_PERF_IRQ);
+	ltq_perfcount_irq = irq_create_mapping(ltq_domain, LTQ_PERF_IRQ);
 
 	/*
 	 * if the timer irq is not one of the mips irqs we need to
@@ -459,6 +460,11 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 		irq_create_mapping(ltq_domain, MIPS_CPU_TIMER_IRQ);
 
 	return 0;
+}
+
+int get_c0_perfcount_int(void)
+{
+	return ltq_perfcount_irq;
 }
 
 unsigned int get_c0_compare_int(void)

@@ -1613,22 +1613,13 @@ init_hw_perf_events(void)
 		counters = counters_total_to_per_cpu(counters);
 #endif
 
-#ifdef MSC01E_INT_BASE
-	if (cpu_has_veic) {
-		/*
-		 * Using platform specific interrupt controller defines.
-		 */
-		irq = MSC01E_INT_BASE + MSC01E_INT_PERFCTR;
-	} else {
-#endif
-		if ((cp0_perfcount_irq >= 0) &&
-				(cp0_compare_irq != cp0_perfcount_irq))
-			irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
-		else
-			irq = -1;
-#ifdef MSC01E_INT_BASE
-	}
-#endif
+	if (get_c0_perfcount_int)
+		irq = get_c0_perfcount_int();
+	else if ((cp0_perfcount_irq >= 0) &&
+		 (cp0_compare_irq != cp0_perfcount_irq))
+		irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
+	else
+		irq = -1;
 
 	mipspmu.map_raw_event = mipsxx_pmu_map_raw_event;
 
