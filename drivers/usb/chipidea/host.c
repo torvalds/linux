@@ -291,6 +291,13 @@ static int host_start(struct ci_hdrc *ci)
 		}
 	}
 
+	if (ci_otg_is_fsm_mode(ci)) {
+		if (ci->fsm.id && ci->fsm.otg->state <= OTG_STATE_B_HOST)
+			hcd->self.is_b_host = 1;
+		else
+			hcd->self.is_b_host = 0;
+	}
+
 	ret = usb_add_hcd(hcd, 0, 0);
 	if (ret) {
 		goto disable_reg;
@@ -333,6 +340,8 @@ static void host_stop(struct ci_hdrc *ci)
 		if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci) &&
 			(ci->platdata->flags & CI_HDRC_TURN_VBUS_EARLY_ON))
 				regulator_disable(ci->platdata->reg_vbus);
+		if (hcd->self.is_b_host)
+			hcd->self.is_b_host = 0;
 	}
 	ci->hcd = NULL;
 }
