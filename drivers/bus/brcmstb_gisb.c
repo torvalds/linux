@@ -160,12 +160,6 @@ static int brcmstb_bus_error_handler(unsigned long addr, unsigned int fsr,
 	return ret;
 }
 
-void __init brcmstb_hook_fault_code(void)
-{
-	hook_fault_code(22, brcmstb_bus_error_handler, SIGBUS, 0,
-			"imprecise external abort");
-}
-
 static irqreturn_t brcmstb_gisb_timeout_handler(int irq, void *dev_id)
 {
 	brcmstb_gisb_arb_decode_addr(dev_id, "timeout");
@@ -260,6 +254,9 @@ static int brcmstb_gisb_arb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gdev);
 
 	list_add_tail(&gdev->next, &brcmstb_gisb_arb_device_list);
+
+	hook_fault_code(22, brcmstb_bus_error_handler, SIGBUS, 0,
+			"imprecise external abort");
 
 	dev_info(&pdev->dev, "registered mem: %p, irqs: %d, %d\n",
 			gdev->base, timeout_irq, tea_irq);
