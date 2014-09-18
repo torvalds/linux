@@ -220,7 +220,7 @@ static irqreturn_t atmio16d_interrupt(int irq, void *d)
 
 	comedi_buf_put(s, inw(dev->iobase + AD_FIFO_REG));
 
-	comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
