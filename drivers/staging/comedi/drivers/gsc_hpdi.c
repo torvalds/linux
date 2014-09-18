@@ -272,7 +272,7 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	if (devpriv->dio_count == 0)
 		async->events |= COMEDI_CB_EOA;
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
