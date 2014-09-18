@@ -548,7 +548,8 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 
 		r = radeon_bo_create(rdev, RADEON_VM_PTE_COUNT * 8,
 				     RADEON_GPU_PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &pt);
+				     RADEON_GEM_DOMAIN_VRAM, 0,
+				     NULL, NULL, &pt);
 		if (r)
 			return r;
 
@@ -1127,7 +1128,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 
 	r = radeon_bo_create(rdev, pd_size, align, true,
 			     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
-			     &vm->page_directory);
+			     NULL, &vm->page_directory);
 	if (r)
 		return r;
 

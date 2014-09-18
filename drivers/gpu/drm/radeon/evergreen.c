@@ -4022,7 +4022,7 @@ int sumo_rlc_init(struct radeon_device *rdev)
 		if (rdev->rlc.save_restore_obj == NULL) {
 			r = radeon_bo_create(rdev, dws * 4, PAGE_SIZE, true,
 					     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
-					     &rdev->rlc.save_restore_obj);
+					     NULL, &rdev->rlc.save_restore_obj);
 			if (r) {
 				dev_warn(rdev->dev, "(%d) create RLC sr bo failed\n", r);
 				return r;
@@ -4101,7 +4101,7 @@ int sumo_rlc_init(struct radeon_device *rdev)
 		if (rdev->rlc.clear_state_obj == NULL) {
 			r = radeon_bo_create(rdev, dws * 4, PAGE_SIZE, true,
 					     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
-					     &rdev->rlc.clear_state_obj);
+					     NULL, &rdev->rlc.clear_state_obj);
 			if (r) {
 				dev_warn(rdev->dev, "(%d) create RLC c bo failed\n", r);
 				sumo_rlc_fini(rdev);
@@ -4178,7 +4178,7 @@ int sumo_rlc_init(struct radeon_device *rdev)
 			r = radeon_bo_create(rdev, rdev->rlc.cp_table_size,
 					     PAGE_SIZE, true,
 					     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
-					     &rdev->rlc.cp_table_obj);
+					     NULL, &rdev->rlc.cp_table_obj);
 			if (r) {
 				dev_warn(rdev->dev, "(%d) create RLC cp table bo failed\n", r);
 				sumo_rlc_fini(rdev);
