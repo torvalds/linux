@@ -1,6 +1,6 @@
 config IMX_IPUV3_CORE
 	tristate "IPUv3 core support"
-	depends on SOC_IMX5 || SOC_IMX6Q || SOC_IMX6SL || ARCH_MULTIPLATFORM
+	depends on SOC_IMX5 || SOC_IMX6Q || ARCH_MULTIPLATFORM
 	depends on RESET_CONTROLLER
 	select GENERIC_IRQ_CHIP
 	help
