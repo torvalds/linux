@@ -609,6 +609,40 @@ static struct wmi_cmd_map wmi_10_2_cmd_map = {
 	.gpio_output_cmdid = WMI_10_2_GPIO_OUTPUT_CMDID,
 };
 
+static void
+ath10k_wmi_put_wmi_channel(struct wmi_channel *ch,
+			   const struct wmi_channel_arg *arg)
+{
+	u32 flags = 0;
+
+	memset(ch, 0, sizeof(*ch));
+
+	if (arg->passive)
+		flags |= WMI_CHAN_FLAG_PASSIVE;
+	if (arg->allow_ibss)
+		flags |= WMI_CHAN_FLAG_ADHOC_ALLOWED;
+	if (arg->allow_ht)
+		flags |= WMI_CHAN_FLAG_ALLOW_HT;
+	if (arg->allow_vht)
+		flags |= WMI_CHAN_FLAG_ALLOW_VHT;
+	if (arg->ht40plus)
+		flags |= WMI_CHAN_FLAG_HT40_PLUS;
+	if (arg->chan_radar)
+		flags |= WMI_CHAN_FLAG_DFS;
+
+	ch->mhz = __cpu_to_le32(arg->freq);
+	ch->band_center_freq1 = __cpu_to_le32(arg->band_center_freq1);
+	ch->band_center_freq2 = 0;
+	ch->min_power = arg->min_power;
+	ch->max_power = arg->max_power;
+	ch->reg_power = arg->max_reg_power;
+	ch->antenna_max = arg->max_antenna_gain;
+
+	/* mode & flags share storage */
+	ch->mode = arg->mode;
+	ch->flags |= __cpu_to_le32(flags);
+}
+
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar)
 {
 	int ret;
@@ -3510,7 +3544,6 @@ ath10k_wmi_vdev_start_restart(struct ath10k *ar,
 	struct sk_buff *skb;
 	const char *cmdname;
 	u32 flags = 0;
-	u32 ch_flags = 0;
 
 	if (cmd_id != ar->wmi.cmd->vdev_start_request_cmdid &&
 	    cmd_id != ar->wmi.cmd->vdev_restart_request_cmdid)
@@ -3537,8 +3570,6 @@ ath10k_wmi_vdev_start_restart(struct ath10k *ar,
 		flags |= WMI_VDEV_START_HIDDEN_SSID;
 	if (arg->pmf_enabled)
 		flags |= WMI_VDEV_START_PMF_ENABLED;
-	if (arg->channel.chan_radar)
-		ch_flags |= WMI_CHAN_FLAG_DFS;
 
 	cmd = (struct wmi_vdev_start_request_cmd *)skb->data;
 	cmd->vdev_id         = __cpu_to_le32(arg->vdev_id);
@@ -3554,18 +3585,7 @@ ath10k_wmi_vdev_start_restart(struct ath10k *ar,
 		memcpy(cmd->ssid.ssid, arg->ssid, arg->ssid_len);
 	}
 
-	cmd->chan.mhz = __cpu_to_le32(arg->channel.freq);
-
-	cmd->chan.band_center_freq1 =
-		__cpu_to_le32(arg->channel.band_center_freq1);
-
-	cmd->chan.mode = arg->channel.mode;
-	cmd->chan.flags |= __cpu_to_le32(ch_flags);
-	cmd->chan.min_power = arg->channel.min_power;
-	cmd->chan.max_power = arg->channel.max_power;
-	cmd->chan.reg_power = arg->channel.max_reg_power;
-	cmd->chan.reg_classid = arg->channel.reg_class_id;
-	cmd->chan.antenna_max = arg->channel.max_antenna_gain;
+	ath10k_wmi_put_wmi_channel(&cmd->chan, &arg->channel);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi vdev %s id 0x%x flags: 0x%0X, freq %d, mode %d, ch_flags: 0x%0X, max_power: %d\n",
@@ -3946,35 +3966,10 @@ int ath10k_wmi_scan_chan_list(struct ath10k *ar,
 	cmd->num_scan_chans = __cpu_to_le32(arg->n_channels);
 
 	for (i = 0; i < arg->n_channels; i++) {
-		u32 flags = 0;
-
 		ch = &arg->channels[i];
 		ci = &cmd->chan_info[i];
 
-		if (ch->passive)
-			flags |= WMI_CHAN_FLAG_PASSIVE;
-		if (ch->allow_ibss)
-			flags |= WMI_CHAN_FLAG_ADHOC_ALLOWED;
-		if (ch->allow_ht)
-			flags |= WMI_CHAN_FLAG_ALLOW_HT;
-		if (ch->allow_vht)
-			flags |= WMI_CHAN_FLAG_ALLOW_VHT;
-		if (ch->ht40plus)
-			flags |= WMI_CHAN_FLAG_HT40_PLUS;
-		if (ch->chan_radar)
-			flags |= WMI_CHAN_FLAG_DFS;
-
-		ci->mhz               = __cpu_to_le32(ch->freq);
-		ci->band_center_freq1 = __cpu_to_le32(ch->freq);
-		ci->band_center_freq2 = 0;
-		ci->min_power         = ch->min_power;
-		ci->max_power         = ch->max_power;
-		ci->reg_power         = ch->max_reg_power;
-		ci->antenna_max       = ch->max_antenna_gain;
-
-		/* mode & flags share storage */
-		ci->mode              = ch->mode;
-		ci->flags            |= __cpu_to_le32(flags);
+		ath10k_wmi_put_wmi_channel(ci, ch);
 	}
 
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->scan_chan_list_cmdid);
