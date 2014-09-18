@@ -382,7 +382,7 @@ static bool mlx4_en_process_tx_cq(struct net_device *dev,
 		return true;
 
 	index = cons_index & size_mask;
-	cqe = &buf[(index << factor) + factor];
+	cqe = mlx4_en_get_cqe(buf, index, priv->cqe_size) + factor;
 	ring_index = ring->cons & size_mask;
 	stamp_index = ring_index;
 
@@ -430,7 +430,7 @@ static bool mlx4_en_process_tx_cq(struct net_device *dev,
 
 		++cons_index;
 		index = cons_index & size_mask;
-		cqe = &buf[(index << factor) + factor];
+		cqe = mlx4_en_get_cqe(buf, index, priv->cqe_size) + factor;
 	}
 
 
