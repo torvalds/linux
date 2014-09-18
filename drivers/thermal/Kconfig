@@ -84,6 +84,16 @@ config THERMAL_GOV_STEP_WISE
 	  Enable this to manage platform thermals using a simple linear
 	  governor.
 
+config THERMAL_GOV_BANG_BANG
+	bool "Bang Bang thermal governor"
+	default n
+	help
+	  Enable this to manage platform thermals using bang bang governor.
+
+	  Say 'Y' here if you want to use two point temperature regulation
+	  used for fans without throttling.  Some fan drivers depend on this
+	  governor to be enabled (e.g. acerhdf).
+
 config THERMAL_GOV_USER_SPACE
 	bool "User_space thermal governor"
 	help
