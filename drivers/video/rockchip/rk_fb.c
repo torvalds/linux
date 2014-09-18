@@ -1221,7 +1221,7 @@ static int rk_fb_set_ext_win_buffer(struct rk_lcdc_win *ext_win,
 	/* rotate mode */
 	if (!iommu_en) {
 		if (ext_win->id == 0) {
-			ext_win->area[0].smem_start = ext_info->fix.smem_start;
+			ext_win->area[0].smem_start = rk_fb->ext_fb_phy_base;
 			ext_win->area[0].y_offset = (get_rotate_fb_size() >> 1) * fb_index;
 			if ((++fb_index) > 1)
 				fb_index = 0;
@@ -1395,8 +1395,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	dev_drv->ops->pan_display(dev_drv, win_id);
 
 	if (rk_fb->disp_mode == DUAL) {
-		if (extend_win->state &&
-		    (hdmi_switch_complete & (1 << extend_win_id))) {
+		if (extend_win->state && hdmi_switch_complete) {
 			rk_fb_set_ext_win_buffer(extend_win, win,
 						 extend_dev_drv->rotate_mode,
 						 extend_dev_drv->iommu_enabled);
@@ -1526,7 +1525,7 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 					area_data->ion_handle);
 			freed_addr[freed_index++] = area_data->smem_start;
 		}
-		if (rk_fb->disp_mode == DUAL && hdmi_switch_complete == 0xff) {
+		if (rk_fb->disp_mode == DUAL && hdmi_switch_complete) {
 			if (ext_dev_drv->iommu_enabled)
 				ion_unmap_iommu(ext_dev_drv->dev,
 						rk_fb->ion_client,
@@ -1835,7 +1834,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 
 	if ((rk_fb->disp_mode == DUAL)
 	    && (hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
-	    && (hdmi_switch_complete == 0xff)) {
+	    && hdmi_switch_complete) {
                 ext_dev_drv = rk_get_extend_lcdc_drv();
                 if (!ext_dev_drv) {
                         printk(KERN_ERR "hdmi lcdc driver not found!\n");
@@ -2618,7 +2617,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		}
 #endif
 	case RK_FBIOSET_CLEAR_FB:
-		memset(info->screen_base, 0, get_fb_size());
+		memset(info->screen_base, 0, info->fix.smem_len);
 		break;
 	case RK_FBIOSET_CONFIG_DONE:
 		{
@@ -2883,6 +2882,15 @@ static int rk_fb_update_ext_info(struct fb_info *ext_info,
 	ext_win = ext_dev_drv->win[ext_win_id];
 
 	rk_fb_update_ext_win(ext_dev_drv, dev_drv, ext_win, win);
+	rk_fb_set_ext_win_buffer(ext_win, win, ext_dev_drv->rotate_mode,
+				 ext_dev_drv->iommu_enabled);
+
+	/* update extend info display address */
+	ext_info->fix.smem_start = win->area[0].smem_start;
+	ext_info->fix.mmio_start = win->area[0].cbr_start;
+
+	if (ext_dev_drv->rotate_mode > X_Y_MIRROR)
+		rk_fb_rotate(ext_info, info);
 
 	/* update extend info */
 	ext_info->var.xres = ext_win->area[0].xact;
@@ -3076,7 +3084,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	win->g_alpha_val = 0;
 
 	if (rk_fb->disp_mode == DUAL) {
-		if (extend_win->state && (hdmi_switch_complete == 0xff)) {
+		if (extend_win->state && hdmi_switch_complete) {
 			if (info != extend_info) {
 				rk_fb_update_ext_win(extend_dev_drv, dev_drv,
 						     extend_win, win);
@@ -3363,21 +3371,15 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 					load_screen = 1;
 				}
 				info->var.activate |= FB_ACTIVATE_FORCE;
-				if (rk_fb->disp_mode == DUAL) {
+				if (rk_fb->disp_mode == DUAL)
 					rk_fb_update_ext_info(info, pmy_info);
-					info->fbops->fb_set_par(info);
-					hdmi_switch_complete |= (1 << win_id);
-					pmy_info->fbops->fb_pan_display(&pmy_info->var,
-									pmy_info);
-				} else {
-					info->fbops->fb_set_par(info);
-					info->fbops->fb_pan_display(&info->var, info);
-				}
+				info->fbops->fb_set_par(info);
+				info->fbops->fb_pan_display(&info->var, info);
 			}
 		}
 	}
 
-	hdmi_switch_complete = 0xff;
+	hdmi_switch_complete = 1;
 	if (rk_fb->disp_mode == ONE_DUAL) {
 		if (dev_drv->ops->set_screen_scaler)
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 1);
@@ -3510,6 +3512,10 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 	}
 	fbi->fix.smem_start = phy_addr;
 	fbi->fix.smem_len = len;
+	if (dev_drv->prop == PRMRY)
+		rk_fb->fb_phy_base = phy_addr;
+	else
+		rk_fb->ext_fb_phy_base = phy_addr;
 	printk(KERN_INFO "alloc_buffer:ion_phy_addr=0x%lx\n", phy_addr);
 	return 0;
 
@@ -3554,6 +3560,7 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		fbi->fix.smem_len = fb_mem_size;
 		fbi->fix.smem_start = fb_mem_phys;
 		fbi->screen_base = fb_mem_virt;
+		rk_fb->fb_phy_base = fb_mem_phys;
 #endif
 		memset(fbi->screen_base, 0, fbi->fix.smem_len);
 		printk(KERN_INFO "fb%d:phy:%lx>>vir:%p>>len:0x%x\n", fb_id,
@@ -3579,11 +3586,13 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 			fbi->fix.smem_len = fb_mem_size;
 			fbi->fix.smem_start = fb_mem_phys;
 			fbi->screen_base = fb_mem_virt;
+			rk_fb->ext_fb_phy_base = fb_mem_phys;
 #endif
 		} else {
 			fbi->fix.smem_start = rk_fb->fb[0]->fix.smem_start;
 			fbi->fix.smem_len = rk_fb->fb[0]->fix.smem_len;
 			fbi->screen_base = rk_fb->fb[0]->screen_base;
+			rk_fb->ext_fb_phy_base = rk_fb->fb_phy_base;
 		}
 
 		printk(KERN_INFO "fb%d:phy:%lx>>vir:%p>>len:0x%x\n", fb_id,

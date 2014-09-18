@@ -607,7 +607,9 @@ struct rk_fb {
 	struct rk29fb_info *mach_info;
 	struct fb_info *fb[RK_MAX_FB_SUPPORT*2];
 	int num_fb;
-
+	unsigned long fb_phy_base;		/* Start of fb address */
+	unsigned long ext_fb_phy_base;		/* Start of extend fb address */
+						/* (physical address) */
 	struct rk_lcdc_driver *lcdc_dev_drv[RK30_MAX_LCDC_SUPPORT];
 	int num_lcdc;
 
