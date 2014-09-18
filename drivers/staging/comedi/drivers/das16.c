@@ -586,7 +586,7 @@ static void das16_interrupt(struct comedi_device *dev)
 	cfc_write_array_to_buffer(s,
 				  devpriv->dma_buffer[buffer_index], num_bytes);
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static void das16_timer_interrupt(unsigned long arg)
