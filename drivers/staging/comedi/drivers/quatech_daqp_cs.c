@@ -247,7 +247,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 
 		s->async->events |= COMEDI_CB_BLOCK;
 
-		cfc_handle_events(dev, s);
+		comedi_handle_events(dev, s);
 	}
 	return IRQ_HANDLED;
 }
