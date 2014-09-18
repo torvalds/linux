@@ -496,6 +496,19 @@ config IOSF_MBI
 
 	  You should say Y if you are running a kernel on one of these SoC's.
 
+config IOSF_MBI_DEBUG
+	bool "Enable IOSF sideband access through debugfs"
+	depends on IOSF_MBI && DEBUG_FS
+	---help---
+	  Select this option to expose the IOSF sideband access registers (MCR,
+	  MDR, MCRX) through debugfs to write and read register information from
+	  different units on the SoC. This is most useful for obtaining device
+	  state information for debug and analysis. As this is a general access
+	  mechanism, users of this option would have specific knowledge of the
+	  device they want to access.
+
+	  If you don't require the option or are in doubt, say N.
+
 config X86_RDC321X
 	bool "RDC R-321x SoC"
 	depends on X86_32

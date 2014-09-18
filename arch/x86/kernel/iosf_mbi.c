@@ -190,7 +190,7 @@ bool iosf_mbi_available(void)
 }
 EXPORT_SYMBOL(iosf_mbi_available);
 
-/********************** debugfs begin ****************************/
+#ifdef CONFIG_IOSF_MBI_DEBUG
 static u32	dbg_mdr;
 static u32	dbg_mcr;
 static u32	dbg_mcrx;
@@ -229,6 +229,7 @@ static int mcr_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(iosf_mcr_fops, mcr_get, mcr_set , "%llx\n");
 
 static struct dentry *iosf_dbg;
+
 static void iosf_sideband_debug_init(void)
 {
 	struct dentry *d;
@@ -257,7 +258,20 @@ static void iosf_sideband_debug_init(void)
 cleanup:
 	debugfs_remove_recursive(d);
 }
-/********************** debugfs end ****************************/
+
+static void iosf_debugfs_init(void)
+{
+	iosf_sideband_debug_init();
+}
+
+static void iosf_debugfs_remove(void)
+{
+	debugfs_remove_recursive(iosf_dbg);
+}
+#else
+static inline void iosf_debugfs_init(void) { }
+static inline void iosf_debugfs_remove(void) { }
+#endif /* CONFIG_IOSF_MBI_DEBUG */
 
 static int iosf_mbi_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *unused)
@@ -290,13 +304,14 @@ static struct pci_driver iosf_mbi_pci_driver = {
 
 static int __init iosf_mbi_init(void)
 {
-	iosf_sideband_debug_init();
+	iosf_debugfs_init();
+
 	return pci_register_driver(&iosf_mbi_pci_driver);
 }
 
 static void __exit iosf_mbi_exit(void)
 {
-	debugfs_remove_recursive(iosf_dbg);
+	iosf_debugfs_remove();
 
 	pci_unregister_driver(&iosf_mbi_pci_driver);
 	if (mbi_pdev) {
