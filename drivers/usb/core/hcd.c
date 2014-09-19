@@ -2386,7 +2386,7 @@ void usb_hc_died (struct usb_hcd *hcd)
 		/* make khubd clean up old urbs and devices */
 		usb_set_device_state (hcd->self.root_hub,
 				USB_STATE_NOTATTACHED);
-		usb_kick_khubd (hcd->self.root_hub);
+		usb_kick_hub_wq(hcd->self.root_hub);
 	}
 	if (usb_hcd_is_primary_hcd(hcd) && hcd->shared_hcd) {
 		hcd = hcd->shared_hcd;
@@ -2396,7 +2396,7 @@ void usb_hc_died (struct usb_hcd *hcd)
 			/* make khubd clean up old urbs and devices */
 			usb_set_device_state(hcd->self.root_hub,
 					USB_STATE_NOTATTACHED);
-			usb_kick_khubd(hcd->self.root_hub);
+			usb_kick_hub_wq(hcd->self.root_hub);
 		}
 	}
 	spin_unlock_irqrestore (&hcd_root_hub_lock, flags);
