@@ -2285,12 +2285,12 @@ void dm_CheckRfCtrlGPIO(void *data)
 
 	if (priv->bHwRadioOff && (eRfPowerStateToSet == eRfOn)) {
 		RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio ON\n");
-		printk(KERN_INFO "gpiochangeRF  - HW Radio ON\n");
+		netdev_info(dev, "gpiochangeRF  - HW Radio ON\n");
 		priv->bHwRadioOff = false;
 		bActuallySet = true;
 	} else if (!priv->bHwRadioOff && (eRfPowerStateToSet == eRfOff)) {
 		RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio OFF\n");
-		printk(KERN_INFO "gpiochangeRF  - HW Radio OFF\n");
+		netdev_info(dev, "gpiochangeRF  - HW Radio OFF\n");
 		priv->bHwRadioOff = true;
 		bActuallySet = true;
 	}
