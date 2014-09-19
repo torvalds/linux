@@ -384,22 +384,14 @@ int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 }
 EXPORT_SYMBOL_GPL(kvmppc_ld);
 
-int kvm_arch_hardware_enable(void *garbage)
+int kvm_arch_hardware_enable(void)
 {
 	return 0;
-}
-
-void kvm_arch_hardware_disable(void *garbage)
-{
 }
 
 int kvm_arch_hardware_setup(void)
 {
 	return 0;
-}
-
-void kvm_arch_hardware_unsetup(void)
-{
 }
 
 void kvm_arch_check_processor_compat(void *rtn)
@@ -460,10 +452,6 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 
 	/* drop the module reference */
 	module_put(kvm->arch.kvm_ops->owner);
-}
-
-void kvm_arch_sync_events(struct kvm *kvm)
-{
 }
 
 int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
@@ -608,10 +596,6 @@ int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 	return kvmppc_core_create_memslot(kvm, slot, npages);
 }
 
-void kvm_arch_memslots_updated(struct kvm *kvm)
-{
-}
-
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot,
 				   struct kvm_userspace_memory_region *mem,
@@ -626,10 +610,6 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				   enum kvm_mr_change change)
 {
 	kvmppc_core_commit_memory_region(kvm, mem, old);
-}
-
-void kvm_arch_flush_shadow_all(struct kvm *kvm)
-{
 }
 
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
@@ -718,10 +698,6 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
 	kvmppc_mmu_destroy(vcpu);
 	kvmppc_subarch_vcpu_uninit(vcpu);
-}
-
-void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu)
-{
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -1345,11 +1321,6 @@ EXPORT_SYMBOL_GPL(kvmppc_init_lpid);
 int kvm_arch_init(void *opaque)
 {
 	return 0;
-}
-
-void kvm_arch_exit(void)
-{
-
 }
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_ppc_instr);

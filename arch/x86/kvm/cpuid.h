@@ -88,6 +88,14 @@ static inline bool guest_cpuid_has_x2apic(struct kvm_vcpu *vcpu)
 	return best && (best->ecx & bit(X86_FEATURE_X2APIC));
 }
 
+static inline bool guest_cpuid_is_amd(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 0, 0);
+	return best && best->ebx == X86EMUL_CPUID_VENDOR_AuthenticAMD_ebx;
+}
+
 static inline bool guest_cpuid_has_gbpages(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best;
