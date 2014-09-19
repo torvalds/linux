@@ -4087,14 +4087,19 @@ int dw_mci_resume(struct dw_mci *host)
 	u32 regs;
         struct dw_mci_slot *slot;
     
-        if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO){
+        if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) {
                 slot = mmc_priv(host->mmc);
+                if (!test_bit(DW_MMC_CARD_PRESENT, &slot->flags)) {
+			/* edmac contains exit function call when suspend*/
+			if(host->use_dma && host->dma_ops->init && host->dma_ops->exit)
+				host->dma_ops->init(host);
 
-                if(!test_bit(DW_MMC_CARD_PRESENT, &slot->flags))
-                        return 0;
+			return 0;
+		}
         }
+
     	/*only for sdmmc controller*/
-	if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
+	if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
                 /* Soc rk3126 already in gpio_cd mode */
                 if (!(cpu_is_rk312x() && soc_is_rk3126())) {
                         disable_irq_wake(host->mmc->slot.cd_irq);
