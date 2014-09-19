@@ -435,7 +435,7 @@ static void rk_hsic_clock_enable(void *pdata, int enable)
 static void rk_hsic_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
 {
 	struct rkehci_platform_data *usbpdata = pdata;
-	struct reset_control *rst_hsic_h, rst_hsic_a, rst_hsic_p;
+	struct reset_control *rst_hsic_h, *rst_hsic_a, *rst_hsic_p;
 
 	rst_hsic_h = devm_reset_control_get(usbpdata->dev, "hsic_ahb");
 	rst_hsic_a = devm_reset_control_get(usbpdata->dev, "hsic_aux");
