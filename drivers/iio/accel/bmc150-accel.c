@@ -1,5 +1,12 @@
 /*
- * BMC150 3-axis accelerometer driver
+ * 3-axis accelerometer driver supporting following Bosch-Sensortec chips:
+ *  - BMC150
+ *  - BMI055
+ *  - BMA255
+ *  - BMA250E
+ *  - BMA222E
+ *  - BMA280
+ *
  * Copyright (c) 2014, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -34,7 +41,6 @@
 #define BMC150_ACCEL_GPIO_NAME			"bmc150_accel_int"
 
 #define BMC150_ACCEL_REG_CHIP_ID		0x00
-#define BMC150_ACCEL_CHIP_ID_VAL		0xFA
 
 #define BMC150_ACCEL_REG_INT_STATUS_2		0x0B
 #define BMC150_ACCEL_ANY_MOTION_MASK		0x07
@@ -126,6 +132,18 @@ enum bmc150_power_modes {
 	BMC150_ACCEL_SLEEP_MODE_SUSPEND = 0x04,
 };
 
+struct bmc150_scale_info {
+	int scale;
+	u8 reg_range;
+};
+
+struct bmc150_accel_chip_info {
+	u8 chip_id;
+	const struct iio_chan_spec *channels;
+	int num_channels;
+	const struct bmc150_scale_info scale_table[4];
+};
+
 struct bmc150_accel_data {
 	struct i2c_client *client;
 	struct iio_trigger *dready_trig;
@@ -140,6 +158,7 @@ struct bmc150_accel_data {
 	bool dready_trigger_on;
 	bool motion_trigger_on;
 	int64_t timestamp;
+	const struct bmc150_accel_chip_info *chip_info;
 };
 
 static const struct {
@@ -168,16 +187,8 @@ static const struct {
 				     {0x0F, 1} };
 
 static const struct {
-	int scale;
-	int range;
-} bmc150_accel_scale_table[] = { {9610, BMC150_ACCEL_DEF_RANGE_2G},
-				 {19122, BMC150_ACCEL_DEF_RANGE_4G},
-				 {38344, BMC150_ACCEL_DEF_RANGE_8G},
-				 {77057, BMC150_ACCEL_DEF_RANGE_16G} };
-
-static const struct {
 	int sleep_dur;
-	int reg_value;
+	u8 reg_value;
 } bmc150_accel_sleep_value_table[] = { {0, 0},
 				       {500, BMC150_ACCEL_SLEEP_500_MICRO},
 				       {1000, BMC150_ACCEL_SLEEP_1_MS},
@@ -267,7 +278,7 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 	}
 
 	dev_dbg(&data->client->dev, "Chip Id %x\n", ret);
-	if (ret != BMC150_ACCEL_CHIP_ID_VAL) {
+	if (ret != data->chip_info->chip_id) {
 		dev_err(&data->client->dev, "Invalid chip %x\n", ret);
 		return -ENODEV;
 	}
@@ -499,6 +510,7 @@ static int bmc150_accel_get_bw(struct bmc150_accel_data *data, int *val,
 	return -EINVAL;
 }
 
+#ifdef CONFIG_PM_RUNTIME
 static int bmc150_accel_get_startup_times(struct bmc150_accel_data *data)
 {
 	int i;
@@ -529,24 +541,30 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 
 	return 0;
 }
+#else
+static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
+{
+	return 0;
+}
+#endif
 
 static int bmc150_accel_set_scale(struct bmc150_accel_data *data, int val)
 {
 	int ret, i;
 
-	for (i = 0; i < ARRAY_SIZE(bmc150_accel_scale_table); ++i) {
-		if (bmc150_accel_scale_table[i].scale == val) {
+	for (i = 0; i < ARRAY_SIZE(data->chip_info->scale_table); ++i) {
+		if (data->chip_info->scale_table[i].scale == val) {
 			ret = i2c_smbus_write_byte_data(
-					data->client,
-					BMC150_ACCEL_REG_PMU_RANGE,
-					bmc150_accel_scale_table[i].range);
+				     data->client,
+				     BMC150_ACCEL_REG_PMU_RANGE,
+				     data->chip_info->scale_table[i].reg_range);
 			if (ret < 0) {
 				dev_err(&data->client->dev,
 					"Error writing pmu_range\n");
 				return ret;
 			}
 
-			data->range = bmc150_accel_scale_table[i].range;
+			data->range = data->chip_info->scale_table[i].reg_range;
 			return 0;
 		}
 	}
@@ -573,10 +591,12 @@ static int bmc150_accel_get_temp(struct bmc150_accel_data *data, int *val)
 	return IIO_VAL_INT;
 }
 
-static int bmc150_accel_get_axis(struct bmc150_accel_data *data, int axis,
+static int bmc150_accel_get_axis(struct bmc150_accel_data *data,
+				 struct iio_chan_spec const *chan,
 				 int *val)
 {
 	int ret;
+	int axis = chan->scan_index;
 
 	mutex_lock(&data->mutex);
 	ret = bmc150_accel_set_power_state(data, true);
@@ -593,7 +613,8 @@ static int bmc150_accel_get_axis(struct bmc150_accel_data *data, int axis,
 		mutex_unlock(&data->mutex);
 		return ret;
 	}
-	*val = sign_extend32(ret >> 4, 11);
+	*val = sign_extend32(ret >> chan->scan_type.shift,
+			     chan->scan_type.realbits - 1);
 	ret = bmc150_accel_set_power_state(data, false);
 	mutex_unlock(&data->mutex);
 	if (ret < 0)
@@ -618,9 +639,7 @@ static int bmc150_accel_read_raw(struct iio_dev *indio_dev,
 			if (iio_buffer_enabled(indio_dev))
 				return -EBUSY;
 			else
-				return bmc150_accel_get_axis(data,
-							     chan->scan_index,
-							     val);
+				return bmc150_accel_get_axis(data, chan, val);
 		default:
 			return -EINVAL;
 		}
@@ -639,13 +658,13 @@ static int bmc150_accel_read_raw(struct iio_dev *indio_dev,
 		case IIO_ACCEL:
 		{
 			int i;
+			const struct bmc150_scale_info *si;
+			int st_size = ARRAY_SIZE(data->chip_info->scale_table);
 
-			for (i = 0; i < ARRAY_SIZE(bmc150_accel_scale_table);
-									 ++i) {
-				if (bmc150_accel_scale_table[i].range ==
-								data->range) {
-					*val2 =
-					bmc150_accel_scale_table[i].scale;
+			for (i = 0; i < st_size; ++i) {
+				si = &data->chip_info->scale_table[i];
+				if (si->reg_range == data->range) {
+					*val2 = si->scale;
 					return IIO_VAL_INT_PLUS_MICRO;
 				}
 			}
@@ -833,7 +852,7 @@ static const struct iio_event_spec bmc150_accel_event = {
 				 BIT(IIO_EV_INFO_PERIOD)
 };
 
-#define BMC150_ACCEL_CHANNEL(_axis) {					\
+#define BMC150_ACCEL_CHANNEL(_axis, bits) {				\
 	.type = IIO_ACCEL,						\
 	.modified = 1,							\
 	.channel2 = IIO_MOD_##_axis,					\
@@ -843,26 +862,101 @@ static const struct iio_event_spec bmc150_accel_event = {
 	.scan_index = AXIS_##_axis,					\
 	.scan_type = {							\
 		.sign = 's',						\
-		.realbits = 12,					\
+		.realbits = (bits),					\
 		.storagebits = 16,					\
-		.shift = 4,						\
+		.shift = 16 - (bits),					\
 	},								\
 	.event_spec = &bmc150_accel_event,				\
 	.num_event_specs = 1						\
 }
 
-static const struct iio_chan_spec bmc150_accel_channels[] = {
-	{
-		.type = IIO_TEMP,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-				      BIT(IIO_CHAN_INFO_SCALE) |
-				      BIT(IIO_CHAN_INFO_OFFSET),
-		.scan_index = -1,
+#define BMC150_ACCEL_CHANNELS(bits) {					\
+	{								\
+		.type = IIO_TEMP,					\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+				      BIT(IIO_CHAN_INFO_SCALE) |	\
+				      BIT(IIO_CHAN_INFO_OFFSET),	\
+		.scan_index = -1,					\
+	},								\
+	BMC150_ACCEL_CHANNEL(X, bits),					\
+	BMC150_ACCEL_CHANNEL(Y, bits),					\
+	BMC150_ACCEL_CHANNEL(Z, bits),					\
+	IIO_CHAN_SOFT_TIMESTAMP(3),					\
+}
+
+static const struct iio_chan_spec bma222e_accel_channels[] =
+	BMC150_ACCEL_CHANNELS(8);
+static const struct iio_chan_spec bma250e_accel_channels[] =
+	BMC150_ACCEL_CHANNELS(10);
+static const struct iio_chan_spec bmc150_accel_channels[] =
+	BMC150_ACCEL_CHANNELS(12);
+static const struct iio_chan_spec bma280_accel_channels[] =
+	BMC150_ACCEL_CHANNELS(14);
+
+enum {
+	bmc150,
+	bmi055,
+	bma255,
+	bma250e,
+	bma222e,
+	bma280,
+};
+
+static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
+	[bmc150] = {
+		.chip_id = 0xFA,
+		.channels = bmc150_accel_channels,
+		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
+		.scale_table = { {9610, BMC150_ACCEL_DEF_RANGE_2G},
+				 {19122, BMC150_ACCEL_DEF_RANGE_4G},
+				 {38344, BMC150_ACCEL_DEF_RANGE_8G},
+				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
-	BMC150_ACCEL_CHANNEL(X),
-	BMC150_ACCEL_CHANNEL(Y),
-	BMC150_ACCEL_CHANNEL(Z),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	[bmi055] = {
+		.chip_id = 0xFA,
+		.channels = bmc150_accel_channels,
+		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
+		.scale_table = { {9610, BMC150_ACCEL_DEF_RANGE_2G},
+				 {19122, BMC150_ACCEL_DEF_RANGE_4G},
+				 {38344, BMC150_ACCEL_DEF_RANGE_8G},
+				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
+	},
+	[bma255] = {
+		.chip_id = 0xFA,
+		.channels = bmc150_accel_channels,
+		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
+		.scale_table = { {9610, BMC150_ACCEL_DEF_RANGE_2G},
+				 {19122, BMC150_ACCEL_DEF_RANGE_4G},
+				 {38344, BMC150_ACCEL_DEF_RANGE_8G},
+				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
+	},
+	[bma250e] = {
+		.chip_id = 0xF9,
+		.channels = bma250e_accel_channels,
+		.num_channels = ARRAY_SIZE(bma250e_accel_channels),
+		.scale_table = { {38344, BMC150_ACCEL_DEF_RANGE_2G},
+				 {76590, BMC150_ACCEL_DEF_RANGE_4G},
+				 {153277, BMC150_ACCEL_DEF_RANGE_8G},
+				 {306457, BMC150_ACCEL_DEF_RANGE_16G} },
+	},
+	[bma222e] = {
+		.chip_id = 0xF8,
+		.channels = bma222e_accel_channels,
+		.num_channels = ARRAY_SIZE(bma222e_accel_channels),
+		.scale_table = { {153277, BMC150_ACCEL_DEF_RANGE_2G},
+				 {306457, BMC150_ACCEL_DEF_RANGE_4G},
+				 {612915, BMC150_ACCEL_DEF_RANGE_8G},
+				 {1225831, BMC150_ACCEL_DEF_RANGE_16G} },
+	},
+	[bma280] = {
+		.chip_id = 0xFB,
+		.channels = bma280_accel_channels,
+		.num_channels = ARRAY_SIZE(bma280_accel_channels),
+		.scale_table = { {2392, BMC150_ACCEL_DEF_RANGE_2G},
+				 {4785, BMC150_ACCEL_DEF_RANGE_4G},
+				 {9581, BMC150_ACCEL_DEF_RANGE_8G},
+				 {19152, BMC150_ACCEL_DEF_RANGE_16G} },
+	},
 };
 
 static const struct iio_info bmc150_accel_info = {
@@ -1033,10 +1127,23 @@ static irqreturn_t bmc150_accel_data_rdy_trig_poll(int irq, void *private)
 		return IRQ_HANDLED;
 }
 
-static int bmc150_accel_acpi_gpio_probe(struct i2c_client *client,
-					struct bmc150_accel_data *data)
+static const char *bmc150_accel_match_acpi_device(struct device *dev, int *data)
 {
 	const struct acpi_device_id *id;
+
+	id = acpi_match_device(dev->driver->acpi_match_table, dev);
+
+	if (!id)
+		return NULL;
+
+	*data = (int) id->driver_data;
+
+	return dev_name(dev);
+}
+
+static int bmc150_accel_gpio_probe(struct i2c_client *client,
+					struct bmc150_accel_data *data)
+{
 	struct device *dev;
 	struct gpio_desc *gpio;
 	int ret;
@@ -1045,17 +1152,11 @@ static int bmc150_accel_acpi_gpio_probe(struct i2c_client *client,
 		return -EINVAL;
 
 	dev = &client->dev;
-	if (!ACPI_HANDLE(dev))
-		return -ENODEV;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return -ENODEV;
 
 	/* data ready gpio interrupt pin */
 	gpio = devm_gpiod_get_index(dev, BMC150_ACCEL_GPIO_NAME, 0);
 	if (IS_ERR(gpio)) {
-		dev_err(dev, "Failed: acpi gpio get index\n");
+		dev_err(dev, "Failed: gpio get index\n");
 		return PTR_ERR(gpio);
 	}
 
@@ -1076,6 +1177,8 @@ static int bmc150_accel_probe(struct i2c_client *client,
 	struct bmc150_accel_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
+	const char *name = NULL;
+	int chip_id = 0;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -1085,6 +1188,16 @@ static int bmc150_accel_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
+	if (id) {
+		name = id->name;
+		chip_id = id->driver_data;
+	}
+
+	if (ACPI_HANDLE(&client->dev))
+		name = bmc150_accel_match_acpi_device(&client->dev, &chip_id);
+
+	data->chip_info = &bmc150_accel_chip_info_tbl[chip_id];
+
 	ret = bmc150_accel_chip_init(data);
 	if (ret < 0)
 		return ret;
@@ -1092,14 +1205,14 @@ static int bmc150_accel_probe(struct i2c_client *client,
 	mutex_init(&data->mutex);
 
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->channels = bmc150_accel_channels;
-	indio_dev->num_channels = ARRAY_SIZE(bmc150_accel_channels);
-	indio_dev->name = BMC150_ACCEL_DRV_NAME;
+	indio_dev->channels = data->chip_info->channels;
+	indio_dev->num_channels = data->chip_info->num_channels;
+	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmc150_accel_info;
 
 	if (client->irq < 0)
-		client->irq = bmc150_accel_acpi_gpio_probe(client, data);
+		client->irq = bmc150_accel_gpio_probe(client, data);
 
 	if (client->irq >= 0) {
 		ret = devm_request_threaded_irq(
@@ -1277,14 +1390,24 @@ static const struct dev_pm_ops bmc150_accel_pm_ops = {
 };
 
 static const struct acpi_device_id bmc150_accel_acpi_match[] = {
-	{"BSBA0150", 0},
-	{"BMC150A", 0},
+	{"BSBA0150",	bmc150},
+	{"BMC150A",	bmc150},
+	{"BMI055A",	bmi055},
+	{"BMA0255",	bma255},
+	{"BMA250E",	bma250e},
+	{"BMA222E",	bma222e},
+	{"BMA0280",	bma280},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bmc150_accel_acpi_match);
 
 static const struct i2c_device_id bmc150_accel_id[] = {
-	{"bmc150_accel", 0},
+	{"bmc150_accel",	bmc150},
+	{"bmi055_accel",	bmi055},
+	{"bma255",		bma255},
+	{"bma250e",		bma250e},
+	{"bma222e",		bma222e},
+	{"bma280",		bma280},
 	{}
 };
 

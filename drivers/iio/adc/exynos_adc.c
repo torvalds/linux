@@ -723,7 +723,6 @@ static struct platform_driver exynos_adc_driver = {
 	.remove		= exynos_adc_remove,
 	.driver		= {
 		.name	= "exynos-adc",
-		.owner	= THIS_MODULE,
 		.of_match_table = exynos_adc_match,
 		.pm	= &exynos_adc_pm_ops,
 	},

@@ -141,7 +141,6 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	struct resource	*mem;
 	int ret;
 	int irq;
-	u32 rate;
 
 	if (!np)
 		return -ENODEV;
