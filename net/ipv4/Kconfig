@@ -311,6 +311,16 @@ config NET_UDP_TUNNEL
 	tristate
 	default n
 
+config NET_FOU
+	tristate "IP: Foo (IP protocols) over UDP"
+	select XFRM
+	select NET_UDP_TUNNEL
+	---help---
+	  Foo over UDP allows any IP protocol to be directly encapsulated
+	  over UDP include tunnels (IPIP, GRE, SIT). By encapsulating in UDP
+	  network mechanisms and optimizations for UDP (such as ECMP
+	  and RSS) can be leveraged to provide better service.
+
 config INET_AH
 	tristate "IP: AH transformation"
 	select XFRM_ALGO
