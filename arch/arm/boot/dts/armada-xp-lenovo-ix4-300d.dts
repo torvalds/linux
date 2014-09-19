@@ -66,12 +66,16 @@
 			};
 
 			ethernet@70000 {
+				pinctrl-0 = <&pmx_ge0_rgmii>;
+				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
 			};
 
 			ethernet@74000 {
+				pinctrl-0 = <&pmx_ge1_rgmii>;
+				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy1>;
 				phy-mode = "rgmii-id";
