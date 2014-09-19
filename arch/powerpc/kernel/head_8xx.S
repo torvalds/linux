@@ -447,14 +447,8 @@ DataStoreTLBMiss:
 	and	r11, r11, r10
 	rlwimi	r10, r11, 0, _PAGE_PRESENT
 #endif
-	/* Honour kernel RO, User NA */
-	/* 0x200 == Extended encoding, bit 22 */
-	rlwimi	r10, r10, 32-2, 0x200 /* Copy USER to bit 22, 0x200 */
-	/* r11 =  (r10 & _PAGE_RW) >> 1 */
-	rlwinm	r11, r10, 32-1, 0x200
-	or	r10, r11, r10
-	/* invert RW and 0x200 bits */
-	xori	r10, r10, _PAGE_RW | 0x200
+	/* invert RW */
+	xori	r10, r10, _PAGE_RW
 
 	/* The Linux PTE won't go exactly into the MMU TLB.
 	 * Software indicator bits 22 and 28 must be clear.
