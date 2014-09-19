@@ -181,9 +181,6 @@ static int ni6501_send_command(struct comedi_device *dev, int command,
 	u8 *tx = devpriv->usb_tx_buf;
 	int ret;
 
-	if (!tx || !port)
-		return -EINVAL;
-
 	if (command != SET_PORT_DIR && !bitmap)
 		return -EINVAL;
 
