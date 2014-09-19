@@ -7358,33 +7358,39 @@ void intel_fini_runtime_pm(struct drm_i915_private *dev_priv)
 	pm_runtime_disable(device);
 }
 
+static void intel_init_fbc(struct drm_i915_private *dev_priv)
+{
+	if (!HAS_FBC(dev_priv))
+		return;
+
+	if (INTEL_INFO(dev_priv)->gen >= 7) {
+		dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
+		dev_priv->display.enable_fbc = gen7_enable_fbc;
+		dev_priv->display.disable_fbc = ironlake_disable_fbc;
+	} else if (INTEL_INFO(dev_priv)->gen >= 5) {
+		dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
+		dev_priv->display.enable_fbc = ironlake_enable_fbc;
+		dev_priv->display.disable_fbc = ironlake_disable_fbc;
+	} else if (IS_GM45(dev_priv)) {
+		dev_priv->display.fbc_enabled = g4x_fbc_enabled;
+		dev_priv->display.enable_fbc = g4x_enable_fbc;
+		dev_priv->display.disable_fbc = g4x_disable_fbc;
+	} else {
+		dev_priv->display.fbc_enabled = i8xx_fbc_enabled;
+		dev_priv->display.enable_fbc = i8xx_enable_fbc;
+		dev_priv->display.disable_fbc = i8xx_disable_fbc;
+
+		/* This value was pulled out of someone's hat */
+		I915_WRITE(FBC_CONTROL, 500 << FBC_CTL_INTERVAL_SHIFT);
+	}
+}
+
 /* Set up chip specific power management-related functions */
 void intel_init_pm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (HAS_FBC(dev)) {
-		if (INTEL_INFO(dev)->gen >= 7) {
-			dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
-			dev_priv->display.enable_fbc = gen7_enable_fbc;
-			dev_priv->display.disable_fbc = ironlake_disable_fbc;
-		} else if (INTEL_INFO(dev)->gen >= 5) {
-			dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
-			dev_priv->display.enable_fbc = ironlake_enable_fbc;
-			dev_priv->display.disable_fbc = ironlake_disable_fbc;
-		} else if (IS_GM45(dev)) {
-			dev_priv->display.fbc_enabled = g4x_fbc_enabled;
-			dev_priv->display.enable_fbc = g4x_enable_fbc;
-			dev_priv->display.disable_fbc = g4x_disable_fbc;
-		} else {
-			dev_priv->display.fbc_enabled = i8xx_fbc_enabled;
-			dev_priv->display.enable_fbc = i8xx_enable_fbc;
-			dev_priv->display.disable_fbc = i8xx_disable_fbc;
-
-			/* This value was pulled out of someone's hat */
-			I915_WRITE(FBC_CONTROL, 500 << FBC_CTL_INTERVAL_SHIFT);
-		}
-	}
+	intel_init_fbc(dev_priv);
 
 	/* For cxsr */
 	if (IS_PINEVIEW(dev))
