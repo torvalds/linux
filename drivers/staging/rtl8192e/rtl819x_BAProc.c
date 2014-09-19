@@ -206,7 +206,6 @@ static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
 			     " %s()\n", __func__);
 	}
-	return;
 }
 
 static void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
@@ -220,7 +219,6 @@ static void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
 	else
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
 			     " %s()\n", __func__);
-	return;
 }
 
 static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
@@ -235,7 +233,6 @@ static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
 	else
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
 			     " %s()\n", __func__);
-	return ;
 }
 
 int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
@@ -566,5 +563,4 @@ void RxBaInactTimeout(unsigned long data)
 	rtllib_send_DELBA(ieee, pRxTs->TsCommonInfo.Addr,
 			  &pRxTs->RxAdmittedBARecord, RX_DIR,
 			  DELBA_REASON_TIMEOUT);
-	return ;
 }
