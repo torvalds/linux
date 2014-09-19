@@ -329,14 +329,6 @@ bool cgroup_is_descendant(struct cgroup *cgrp, struct cgroup *ancestor)
 	return false;
 }
 
-static int cgroup_is_releasable(const struct cgroup *cgrp)
-{
-	const int bits =
-		(1 << CGRP_RELEASABLE) |
-		(1 << CGRP_NOTIFY_ON_RELEASE);
-	return (cgrp->flags & bits) == bits;
-}
-
 static int notify_on_release(const struct cgroup *cgrp)
 {
 	return test_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
@@ -491,7 +483,7 @@ static unsigned long css_set_hash(struct cgroup_subsys_state *css[])
 	return key;
 }
 
-static void put_css_set_locked(struct css_set *cset, bool taskexit)
+static void put_css_set_locked(struct css_set *cset)
 {
 	struct cgrp_cset_link *link, *tmp_link;
 	struct cgroup_subsys *ss;
@@ -517,11 +509,7 @@ static void put_css_set_locked(struct css_set *cset, bool taskexit)
 		/* @cgrp can't go away while we're holding css_set_rwsem */
 		if (list_empty(&cgrp->cset_links)) {
 			cgroup_update_populated(cgrp, false);
-			if (notify_on_release(cgrp)) {
-				if (taskexit)
-					set_bit(CGRP_RELEASABLE, &cgrp->flags);
-				check_for_release(cgrp);
-			}
+			check_for_release(cgrp);
 		}
 
 		kfree(link);
@@ -530,7 +518,7 @@ static void put_css_set_locked(struct css_set *cset, bool taskexit)
 	kfree_rcu(cset, rcu_head);
 }
 
-static void put_css_set(struct css_set *cset, bool taskexit)
+static void put_css_set(struct css_set *cset)
 {
 	/*
 	 * Ensure that the refcount doesn't hit zero while any readers
@@ -541,7 +529,7 @@ static void put_css_set(struct css_set *cset, bool taskexit)
 		return;
 
 	down_write(&css_set_rwsem);
-	put_css_set_locked(cset, taskexit);
+	put_css_set_locked(cset);
 	up_write(&css_set_rwsem);
 }
 
@@ -2037,8 +2025,7 @@ static void cgroup_task_migrate(struct cgroup *old_cgrp,
 	 * task. As trading it for new_cset is protected by cgroup_mutex,
 	 * we're safe to drop it here; it will be freed under RCU.
 	 */
-	set_bit(CGRP_RELEASABLE, &old_cgrp->flags);
-	put_css_set_locked(old_cset, false);
+	put_css_set_locked(old_cset);
 }
 
 /**
@@ -2059,7 +2046,7 @@ static void cgroup_migrate_finish(struct list_head *preloaded_csets)
 		cset->mg_src_cgrp = NULL;
 		cset->mg_dst_cset = NULL;
 		list_del_init(&cset->mg_preload_node);
-		put_css_set_locked(cset, false);
+		put_css_set_locked(cset);
 	}
 	up_write(&css_set_rwsem);
 }
@@ -2153,8 +2140,8 @@ static int cgroup_migrate_prepare_dst(struct cgroup *dst_cgrp,
 		if (src_cset == dst_cset) {
 			src_cset->mg_src_cgrp = NULL;
 			list_del_init(&src_cset->mg_preload_node);
-			put_css_set(src_cset, false);
-			put_css_set(dst_cset, false);
+			put_css_set(src_cset);
+			put_css_set(dst_cset);
 			continue;
 		}
 
@@ -2163,7 +2150,7 @@ static int cgroup_migrate_prepare_dst(struct cgroup *dst_cgrp,
 		if (list_empty(&dst_cset->mg_preload_node))
 			list_add(&dst_cset->mg_preload_node, &csets);
 		else
-			put_css_set(dst_cset, false);
+			put_css_set(dst_cset);
 	}
 
 	list_splice_tail(&csets, preloaded_csets);
@@ -4159,7 +4146,6 @@ static u64 cgroup_read_notify_on_release(struct cgroup_subsys_state *css,
 static int cgroup_write_notify_on_release(struct cgroup_subsys_state *css,
 					  struct cftype *cft, u64 val)
 {
-	clear_bit(CGRP_RELEASABLE, &css->cgroup->flags);
 	if (val)
 		set_bit(CGRP_NOTIFY_ON_RELEASE, &css->cgroup->flags);
 	else
@@ -4806,7 +4792,6 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 */
 	kernfs_remove(cgrp->kn);
 
-	set_bit(CGRP_RELEASABLE, &cgroup_parent(cgrp)->flags);
 	check_for_release(cgroup_parent(cgrp));
 
 	/* put the base reference */
@@ -5244,12 +5229,12 @@ void cgroup_exit(struct task_struct *tsk)
 	}
 
 	if (put_cset)
-		put_css_set(cset, true);
+		put_css_set(cset);
 }
 
 static void check_for_release(struct cgroup *cgrp)
 {
-	if (cgroup_is_releasable(cgrp) && !cgroup_has_tasks(cgrp) &&
+	if (notify_on_release(cgrp) && !cgroup_has_tasks(cgrp) &&
 	    !css_has_online_children(&cgrp->self) && !cgroup_is_dead(cgrp))
 		schedule_work(&cgrp->release_agent_work);
 }
@@ -5496,7 +5481,8 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 
 static u64 releasable_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
-	return test_bit(CGRP_RELEASABLE, &css->cgroup->flags);
+	return (!cgroup_has_tasks(css->cgroup) &&
+		!css_has_online_children(&css->cgroup->self));
 }
 
 static struct cftype debug_files[] =  {
