@@ -1783,8 +1783,8 @@ err:
 /* set the EQ delay interval of an EQ to specified value
  * Uses async mcc
  */
-int __be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *set_eqd,
-			int num)
+static int __be_cmd_modify_eqd(struct be_adapter *adapter,
+			       struct be_set_eqd *set_eqd, int num)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_modify_eq_delay *req;
