@@ -2159,11 +2159,15 @@ static void max98090_jack_work(struct work_struct *work)
 
 static irqreturn_t max98090_interrupt(int irq, void *data)
 {
-	struct snd_soc_codec *codec = data;
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct max98090_priv *max98090 = data;
+	struct snd_soc_codec *codec = max98090->codec;
 	int ret;
 	unsigned int mask;
 	unsigned int active;
+
+	/* Treat interrupt before codec is initialized as spurious */
+	if (codec == NULL)
+		return IRQ_NONE;
 
 	dev_dbg(codec->dev, "***** max98090_interrupt *****\n");
 
@@ -2367,17 +2371,6 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, M98090_REG_JACK_DETECT,
 		M98090_JDETEN_MASK | M98090_JDEB_25MS);
 
-	/* Register for interrupts */
-	dev_dbg(codec->dev, "irq = %d\n", max98090->irq);
-
-	ret = devm_request_threaded_irq(codec->dev, max98090->irq, NULL,
-		max98090_interrupt, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-		"max98090_interrupt", codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "request_irq failed: %d\n",
-			ret);
-	}
-
 	/*
 	 * Clear any old interrupts.
 	 * An old interrupt ocurring prior to installing the ISR
@@ -2417,6 +2410,7 @@ static int max98090_remove(struct snd_soc_codec *codec)
 	cancel_delayed_work_sync(&max98090->pll_det_enable_work);
 	cancel_work_sync(&max98090->pll_det_disable_work);
 	cancel_work_sync(&max98090->pll_work);
+	max98090->codec = NULL;
 
 	return 0;
 }
@@ -2476,6 +2470,15 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 		ret = PTR_ERR(max98090->regmap);
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
 		goto err_enable;
+	}
+
+	ret = devm_request_threaded_irq(&i2c->dev, max98090->irq, NULL,
+		max98090_interrupt, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+		"max98090_interrupt", max98090);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "request_irq failed: %d\n",
+			ret);
+		return ret;
 	}
 
 	ret = snd_soc_register_codec(&i2c->dev,
