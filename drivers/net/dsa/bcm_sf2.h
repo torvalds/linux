@@ -70,6 +70,9 @@ struct bcm_sf2_priv {
 	struct bcm_sf2_hw_params	hw_params;
 
 	struct bcm_sf2_port_status	port_sts[DSA_MAX_PORTS];
+
+	/* Mask of ports enabled for Wake-on-LAN */
+	u32				wol_ports_mask;
 };
 
 struct bcm_sf2_hw_stats {
