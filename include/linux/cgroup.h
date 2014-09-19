@@ -532,13 +532,10 @@ static inline bool cgroup_has_tasks(struct cgroup *cgrp)
 	return !list_empty(&cgrp->cset_links);
 }
 
-/* returns ino associated with a cgroup, 0 indicates unmounted root */
+/* returns ino associated with a cgroup */
 static inline ino_t cgroup_ino(struct cgroup *cgrp)
 {
-	if (cgrp->kn)
-		return cgrp->kn->ino;
-	else
-		return 0;
+	return cgrp->kn->ino;
 }
 
 /* cft/css accessors for cftype->write() operation */
