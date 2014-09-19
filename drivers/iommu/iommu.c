@@ -30,6 +30,7 @@
 #include <linux/notifier.h>
 #include <linux/err.h>
 #include <linux/pci.h>
+#include <linux/bitops.h>
 #include <trace/events/iommu.h>
 
 static struct kset *iommu_group_kset;
@@ -519,6 +520,9 @@ int iommu_group_id(struct iommu_group *group)
 }
 EXPORT_SYMBOL_GPL(iommu_group_id);
 
+static struct iommu_group *get_pci_alias_group(struct pci_dev *pdev,
+					       unsigned long *devfns);
+
 /*
  * To consider a PCI device isolated, we require ACS to support Source
  * Validation, Request Redirection, Completer Redirection, and Upstream
@@ -528,6 +532,86 @@ EXPORT_SYMBOL_GPL(iommu_group_id);
  * bridge where the target device is downstream.
  */
 #define REQ_ACS_FLAGS   (PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF)
+
+/*
+ * For multifunction devices which are not isolated from each other, find
+ * all the other non-isolated functions and look for existing groups.  For
+ * each function, we also need to look for aliases to or from other devices
+ * that may already have a group.
+ */
+static struct iommu_group *get_pci_function_alias_group(struct pci_dev *pdev,
+							unsigned long *devfns)
+{
+	struct pci_dev *tmp = NULL;
+	struct iommu_group *group;
+
+	if (!pdev->multifunction || pci_acs_enabled(pdev, REQ_ACS_FLAGS))
+		return NULL;
+
+	for_each_pci_dev(tmp) {
+		if (tmp == pdev || tmp->bus != pdev->bus ||
+		    PCI_SLOT(tmp->devfn) != PCI_SLOT(pdev->devfn) ||
+		    pci_acs_enabled(tmp, REQ_ACS_FLAGS))
+			continue;
+
+		group = get_pci_alias_group(tmp, devfns);
+		if (group) {
+			pci_dev_put(tmp);
+			return group;
+		}
+	}
+
+	return NULL;
+}
+
+/*
+ * Look for aliases to or from the given device for exisiting groups.  The
+ * dma_alias_devfn only supports aliases on the same bus, therefore the search
+ * space is quite small (especially since we're really only looking at pcie
+ * device, and therefore only expect multiple slots on the root complex or
+ * downstream switch ports).  It's conceivable though that a pair of
+ * multifunction devices could have aliases between them that would cause a
+ * loop.  To prevent this, we use a bitmap to track where we've been.
+ */
+static struct iommu_group *get_pci_alias_group(struct pci_dev *pdev,
+					       unsigned long *devfns)
+{
+	struct pci_dev *tmp = NULL;
+	struct iommu_group *group;
+
+	if (test_and_set_bit(pdev->devfn & 0xff, devfns))
+		return NULL;
+
+	group = iommu_group_get(&pdev->dev);
+	if (group)
+		return group;
+
+	for_each_pci_dev(tmp) {
+		if (tmp == pdev || tmp->bus != pdev->bus)
+			continue;
+
+		/* We alias them or they alias us */
+		if (((pdev->dev_flags & PCI_DEV_FLAGS_DMA_ALIAS_DEVFN) &&
+		     pdev->dma_alias_devfn == tmp->devfn) ||
+		    ((tmp->dev_flags & PCI_DEV_FLAGS_DMA_ALIAS_DEVFN) &&
+		     tmp->dma_alias_devfn == pdev->devfn)) {
+
+			group = get_pci_alias_group(tmp, devfns);
+			if (group) {
+				pci_dev_put(tmp);
+				return group;
+			}
+
+			group = get_pci_function_alias_group(tmp, devfns);
+			if (group) {
+				pci_dev_put(tmp);
+				return group;
+			}
+		}
+	}
+
+	return NULL;
+}
 
 struct group_for_pci_data {
 	struct pci_dev *pdev;
@@ -557,7 +641,7 @@ static struct iommu_group *iommu_group_get_for_pci_dev(struct pci_dev *pdev)
 	struct group_for_pci_data data;
 	struct pci_bus *bus;
 	struct iommu_group *group = NULL;
-	struct pci_dev *tmp;
+	u64 devfns[4] = { 0 };
 
 	/*
 	 * Find the upstream DMA alias for the device.  A device must not
@@ -591,76 +675,21 @@ static struct iommu_group *iommu_group_get_for_pci_dev(struct pci_dev *pdev)
 	}
 
 	/*
-	 * Next we need to consider DMA alias quirks.  If one device aliases
-	 * to another, they should be grouped together.  It's theoretically
-	 * possible that aliases could create chains of devices where each
-	 * device aliases another device.  If we then factor in multifunction
-	 * ACS grouping requirements, each alias could incorporate a new slot
-	 * with multiple functions, each with aliases.  This is all extremely
-	 * unlikely as DMA alias quirks are typically only used for PCIe
-	 * devices where we usually have a single slot per bus.  Furthermore,
-	 * the alias quirk is usually to another function within the slot
-	 * (and ACS multifunction is not supported) or to a different slot
-	 * that doesn't physically exist.  The likely scenario is therefore
-	 * that everything on the bus gets grouped together.  To reduce the
-	 * problem space, share the IOMMU group for all devices on the bus
-	 * if a DMA alias quirk is present on the bus.
+	 * Look for existing groups on device aliases.  If we alias another
+	 * device or another device aliases us, use the same group.
 	 */
-	tmp = NULL;
-	for_each_pci_dev(tmp) {
-		if (tmp->bus != pdev->bus ||
-		    !(tmp->dev_flags & PCI_DEV_FLAGS_DMA_ALIAS_DEVFN))
-			continue;
-
-		pci_dev_put(tmp);
-		tmp = NULL;
-
-		/* We have an alias quirk, search for an existing group */
-		for_each_pci_dev(tmp) {
-			struct iommu_group *group_tmp;
-
-			if (tmp->bus != pdev->bus)
-				continue;
-
-			group_tmp = iommu_group_get(&tmp->dev);
-			if (!group) {
-				group = group_tmp;
-				continue;
-			}
-
-			if (group_tmp) {
-				WARN_ON(group != group_tmp);
-				iommu_group_put(group_tmp);
-			}
-		}
-
-		return group ? group : iommu_group_alloc();
-	}
+	group = get_pci_alias_group(pdev, (unsigned long *)devfns);
+	if (group)
+		return group;
 
 	/*
-	 * Non-multifunction devices or multifunction devices supporting
-	 * ACS get their own group.
+	 * Look for existing groups on non-isolated functions on the same
+	 * slot and aliases of those funcions, if any.  No need to clear
+	 * the search bitmap, the tested devfns are still valid.
 	 */
-	if (!pdev->multifunction || pci_acs_enabled(pdev, REQ_ACS_FLAGS))
-		return iommu_group_alloc();
-
-	/*
-	 * Multifunction devices not supporting ACS share a group with other
-	 * similar devices in the same slot.
-	 */
-	tmp = NULL;
-	for_each_pci_dev(tmp) {
-		if (tmp == pdev || tmp->bus != pdev->bus ||
-		    PCI_SLOT(tmp->devfn) !=  PCI_SLOT(pdev->devfn) ||
-		    pci_acs_enabled(tmp, REQ_ACS_FLAGS))
-			continue;
-
-		group = iommu_group_get(&tmp->dev);
-		if (group) {
-			pci_dev_put(tmp);
-			return group;
-		}
-	}
+	group = get_pci_function_alias_group(pdev, (unsigned long *)devfns);
+	if (group)
+		return group;
 
 	/* No shared group found, allocate new */
 	return iommu_group_alloc();
