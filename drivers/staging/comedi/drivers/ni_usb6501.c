@@ -193,8 +193,7 @@ static int ni6501_send_command(struct comedi_device *dev, int command,
 	case READ_PORT:
 
 		request_size = sizeof(READ_PORT_REQUEST);
-		 /* 4 additional bytes for READ_PORT request */
-		response_size = sizeof(GENERIC_RESPONSE) + 4;
+		response_size = sizeof(READ_PORT_RESPONSE);
 
 		memcpy(tx, READ_PORT_REQUEST, request_size);
 
