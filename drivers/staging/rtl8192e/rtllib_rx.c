@@ -917,12 +917,10 @@ static int rtllib_rx_check_duplicate(struct rtllib_device *ieee,
 		if (GetTs(ieee, (struct ts_common_info **) &pRxTS, hdr->addr2,
 			(u8)Frame_QoSTID((u8 *)(skb->data)), RX_DIR, true)) {
 			if ((fc & (1<<11)) && (frag == pRxTS->RxLastFragNum) &&
-			    (WLAN_GET_SEQ_SEQ(sc) == pRxTS->RxLastSeqNum)) {
+			    (WLAN_GET_SEQ_SEQ(sc) == pRxTS->RxLastSeqNum))
 				return -1;
-			} else {
-				pRxTS->RxLastFragNum = frag;
-				pRxTS->RxLastSeqNum = WLAN_GET_SEQ_SEQ(sc);
-			}
+			pRxTS->RxLastFragNum = frag;
+			pRxTS->RxLastSeqNum = WLAN_GET_SEQ_SEQ(sc);
 		} else {
 			RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR!!%s(): No TS!! Skip"
 				     " the check!!\n", __func__);
