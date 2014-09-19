@@ -1433,7 +1433,7 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 			skb_copy_to_linear_data(skb, data, (2 * ETH_ALEN));
 			if (vlan_packet_rcvd)
 				payload_offset = (2 * ETH_ALEN) + VLAN_HLEN;
-				skb_copy_to_linear_data_offset(skb, (2 * ETH_ALEN),
+			skb_copy_to_linear_data_offset(skb, (2 * ETH_ALEN),
 						       data + payload_offset,
 						       pkt_len - 4 - (2 * ETH_ALEN));
 
