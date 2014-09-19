@@ -56,6 +56,8 @@ struct seq_file;
  *	as the chip access may sleep when e.g. reading out the IRQ status
  *	registers.
  * @exported: flags if the gpiochip is exported for use from sysfs. Private.
+ * @irq_not_threaded: flag must be set if @can_sleep is set but the
+ *	IRQs don't need to be threaded
  *
  * A gpio_chip can help platforms abstract various sources of GPIOs so
  * they can all be accessed through a common programing interface.
@@ -101,6 +103,7 @@ struct gpio_chip {
 	struct gpio_desc	*desc;
 	const char		*const *names;
 	bool			can_sleep;
+	bool			irq_not_threaded;
 	bool			exported;
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
