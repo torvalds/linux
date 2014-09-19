@@ -197,6 +197,7 @@ static ssize_t ad2s1210_show_fclkin(struct device *dev,
 				    char *buf)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
+
 	return sprintf(buf, "%d\n", st->fclkin);
 }
 
@@ -235,6 +236,7 @@ static ssize_t ad2s1210_show_fexcit(struct device *dev,
 				    char *buf)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
+
 	return sprintf(buf, "%d\n", st->fexcit);
 }
 
@@ -271,6 +273,7 @@ static ssize_t ad2s1210_show_control(struct device *dev,
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	int ret;
+
 	mutex_lock(&st->lock);
 	ret = ad2s1210_config_read(st, AD2S1210_REG_CONTROL);
 	mutex_unlock(&st->lock);
@@ -328,6 +331,7 @@ static ssize_t ad2s1210_show_resolution(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
+
 	return sprintf(buf, "%d\n", st->resolution);
 }
 
