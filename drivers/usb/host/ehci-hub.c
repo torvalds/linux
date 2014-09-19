@@ -656,7 +656,7 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 
 		/*
 		 * Return status information even for ports with OWNER set.
-		 * Otherwise khubd wouldn't see the disconnect event when a
+		 * Otherwise hub_wq wouldn't see the disconnect event when a
 		 * high-speed device is switched over to the companion
 		 * controller by the user.
 		 */
@@ -902,7 +902,7 @@ int ehci_hub_control(
 
 		/*
 		 * Even if OWNER is set, so the port is owned by the
-		 * companion controller, khubd needs to be able to clear
+		 * companion controller, hub_wq needs to be able to clear
 		 * the port-change status bits (especially
 		 * USB_PORT_STAT_C_CONNECTION).
 		 */
@@ -1000,7 +1000,7 @@ int ehci_hub_control(
 			 * However, not all EHCI implementations do this
 			 * automatically, even if they _do_ support per-port
 			 * power switching; they're allowed to just limit the
-			 * current.  khubd will turn the power back on.
+			 * current.  hub_wq will turn the power back on.
 			 */
 			if (((temp & PORT_OC) || (ehci->need_oc_pp_cycle))
 					&& HCS_PPC(ehci->hcs_params)) {
@@ -1085,7 +1085,7 @@ int ehci_hub_control(
 		}
 
 		/*
-		 * Even if OWNER is set, there's no harm letting khubd
+		 * Even if OWNER is set, there's no harm letting hub_wq
 		 * see the wPortStatus values (they should all be 0 except
 		 * for PORT_POWER anyway).
 		 */

@@ -627,7 +627,7 @@ static int ehci_start_port_reset(struct usb_hcd *hcd, unsigned port)
 	if (!(status & PORT_CONNECT))
 		return -ENODEV;
 
-	/* khubd will finish the reset later */
+	/* hub_wq will finish the reset later */
 	if (ehci_is_TDI(ehci)) {
 		writel(PORT_RESET |
 		       (status & ~(PORT_CSC | PORT_PEC | PORT_OCC)),

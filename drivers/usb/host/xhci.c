@@ -3760,8 +3760,8 @@ disable_slot:
 /*
  * Issue an Address Device command and optionally send a corresponding
  * SetAddress request to the device.
- * We should be protected by the usb_address0_mutex in khubd's hub_port_init, so
- * we should only issue and wait on one address command at the same time.
+ * We should be protected by the usb_address0_mutex in hub_wq's hub_port_init,
+ * so we should only issue and wait on one address command at the same time.
  */
 static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 			     enum xhci_setup_dev setup)

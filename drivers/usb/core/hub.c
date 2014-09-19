@@ -652,7 +652,7 @@ static void hub_irq(struct urb *urb)
 		hub->error = status;
 		/* FALL THROUGH */
 
-	/* let khubd handle things */
+	/* let hub_wq handle things */
 	case 0:			/* we got data:  port status changed */
 		bits = 0;
 		for (i = 0; i < urb->actual_length; ++i)
@@ -664,7 +664,7 @@ static void hub_irq(struct urb *urb)
 
 	hub->nerrors = 0;
 
-	/* Something happened, let khubd figure it out */
+	/* Something happened, let hub_wq figure it out */
 	kick_hub_wq(hub);
 
 resubmit:
@@ -695,7 +695,7 @@ hub_clear_tt_buffer (struct usb_device *hdev, u16 devinfo, u16 tt)
 }
 
 /*
- * enumeration blocks khubd for a long time. we use keventd instead, since
+ * enumeration blocks hub_wq for a long time. we use keventd instead, since
  * long blocking there is the exception, not the rule.  accordingly, HCDs
  * talking to TTs must queue control transfers (not just bulk and iso), so
  * both can talk to the same hub concurrently.
@@ -961,7 +961,7 @@ static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
 
 /*
  * Disable a port and mark a logical connect-change event, so that some
- * time later khubd will disconnect() any existing usb_device on the port
+ * time later hub_wq will disconnect() any existing usb_device on the port
  * and will re-enumerate if there actually is a device attached.
  */
 static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
@@ -974,7 +974,7 @@ static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
 	 *  - SRP saves power that way
 	 *  - ... new call, TBD ...
 	 * That's easy if this hub can switch power per-port, and
-	 * khubd reactivates the port later (timer, SRP, etc).
+	 * hub_wq reactivates the port later (timer, SRP, etc).
 	 * Powerdown must be optional, because of reset/DFU.
 	 */
 
@@ -987,7 +987,7 @@ static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
  * @udev: device to be disabled and removed
  * Context: @udev locked, must be able to sleep.
  *
- * After @udev's port has been disabled, khubd is notified and it will
+ * After @udev's port has been disabled, hub_wq is notified and it will
  * see that the device has been disconnected.  When the device is
  * physically unplugged and something is plugged in, the events will
  * be received and processed normally.
@@ -1107,7 +1107,7 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
  init2:
 
 	/*
-	 * Check each port and set hub->change_bits to let khubd know
+	 * Check each port and set hub->change_bits to let hub_wq know
 	 * which ports need attention.
 	 */
 	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
@@ -1174,7 +1174,7 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 			clear_bit(port1, hub->removed_bits);
 
 		if (!udev || udev->state == USB_STATE_NOTATTACHED) {
-			/* Tell khubd to disconnect the device or
+			/* Tell hub_wq to disconnect the device or
 			 * check for a new connection
 			 */
 			if (udev || (portstatus & USB_PORT_STAT_CONNECTION) ||
@@ -1187,7 +1187,7 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 				USB_SS_PORT_LS_U0;
 			/* The power session apparently survived the resume.
 			 * If there was an overcurrent or suspend change
-			 * (i.e., remote wakeup request), have khubd
+			 * (i.e., remote wakeup request), have hub_wq
 			 * take care of it.  Look at the port link state
 			 * for USB 3.0 hubs, since they don't have a suspend
 			 * change bit, and they don't set the port link change
@@ -1208,7 +1208,7 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 				set_bit(port1, hub->change_bits);
 
 		} else {
-			/* The power session is gone; tell khubd */
+			/* The power session is gone; tell hub_wq */
 			usb_set_device_state(udev, USB_STATE_NOTATTACHED);
 			set_bit(port1, hub->change_bits);
 		}
@@ -1216,10 +1216,10 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 
 	/* If no port-status-change flags were set, we don't need any
 	 * debouncing.  If flags were set we can try to debounce the
-	 * ports all at once right now, instead of letting khubd do them
+	 * ports all at once right now, instead of letting hub_wq do them
 	 * one at a time later on.
 	 *
-	 * If any port-status changes do occur during this delay, khubd
+	 * If any port-status changes do occur during this delay, hub_wq
 	 * will see them later and handle them normally.
 	 */
 	if (need_debounce_delay) {
@@ -1280,7 +1280,7 @@ static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 
 	cancel_delayed_work_sync(&hub->init_work);
 
-	/* khubd and related activity won't re-trigger */
+	/* hub_wq and related activity won't re-trigger */
 	hub->quiescing = 1;
 
 	if (type != HUB_SUSPEND) {
@@ -1291,7 +1291,7 @@ static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 		}
 	}
 
-	/* Stop khubd and related activity */
+	/* Stop hub_wq and related activity */
 	usb_kill_urb(hub->urb);
 	if (hub->has_indicators)
 		cancel_delayed_work_sync(&hub->leds);
@@ -1613,7 +1613,7 @@ static int hub_configure(struct usb_hub *hub,
 	if (ret < 0)
 		goto fail;
 
-	/* Update the HCD's internal representation of this hub before khubd
+	/* Update the HCD's internal representation of this hub before hub_wq
 	 * starts getting port status changes for devices under the hub.
 	 */
 	if (hcd->driver->update_hub_device) {
@@ -2045,7 +2045,7 @@ static void choose_devnum(struct usb_device *udev)
 	int		devnum;
 	struct usb_bus	*bus = udev->bus;
 
-	/* If khubd ever becomes multithreaded, this will need a lock */
+	/* If hub_wq ever becomes multithreaded, this will need a lock */
 	if (udev->wusb) {
 		devnum = udev->portnum + 1;
 		BUG_ON(test_bit(devnum, bus->devmap.devicemap));
@@ -3074,7 +3074,7 @@ static unsigned wakeup_enabled_descendants(struct usb_device *udev)
  * Once VBUS drop breaks the circuit, the port it's using has to go through
  * normal re-enumeration procedures, starting with enabling VBUS power.
  * Other than re-initializing the hub (plug/unplug, except for root hubs),
- * Linux (2.6) currently has NO mechanisms to initiate that:  no khubd
+ * Linux (2.6) currently has NO mechanisms to initiate that:  no hub_wq
  * timer, no SRP, no requests through sysfs.
  *
  * If Runtime PM isn't enabled or used, non-SuperSpeed devices may not get
@@ -3216,7 +3216,7 @@ static int finish_port_resume(struct usb_device *udev)
 	/* usb ch9 identifies four variants of SUSPENDED, based on what
 	 * state the device resumes to.  Linux currently won't see the
 	 * first two on the host side; they'd be inside hub_port_init()
-	 * during many timeouts, but khubd can't suspend until later.
+	 * during many timeouts, but hub_wq can't suspend until later.
 	 */
 	usb_set_device_state(udev, udev->actconfig
 			? USB_STATE_CONFIGURED
@@ -3581,7 +3581,7 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 
 	dev_dbg(&intf->dev, "%s\n", __func__);
 
-	/* stop khubd and related activity */
+	/* stop hub_wq and related activity */
 	hub_quiesce(hub, HUB_SUSPEND);
 	return 0;
 }
@@ -4977,10 +4977,10 @@ static void port_event(struct usb_hub *hub, int port1)
 	 * On disconnect USB3 protocol ports transit from U0 to
 	 * SS.Inactive to Rx.Detect. If this happens a warm-
 	 * reset is not needed, but a (re)connect may happen
-	 * before khubd runs and sees the disconnect, and the
+	 * before hub_wq runs and sees the disconnect, and the
 	 * device may be an unknown state.
 	 *
-	 * If the port went through SS.Inactive without khubd
+	 * If the port went through SS.Inactive without hub_wq
 	 * seeing it the C_LINK_STATE change flag will be set,
 	 * and we reset the dev to put it in a known state.
 	 */
@@ -5290,7 +5290,7 @@ static int descriptors_changed(struct usb_device *udev,
  * former operating configuration.  If the reset fails, or the device's
  * descriptors change from their values before the reset, or the original
  * configuration and altsettings cannot be restored, a flag will be set
- * telling khubd to pretend the device has been disconnected and then
+ * telling hub_wq to pretend the device has been disconnected and then
  * re-connected.  All drivers will be unbound, and the device will be
  * re-enumerated and probed all over again.
  *

@@ -2031,7 +2031,7 @@ static int test_unaligned_bulk(
  *
  * WARNING:  Because usbfs grabs udev->dev.sem before calling this ioctl(),
  * it locks out usbcore in certain code paths.  Notably, if you disconnect
- * the device-under-test, khubd will wait block forever waiting for the
+ * the device-under-test, hub_wq will wait block forever waiting for the
  * ioctl to complete ... so that usb_disconnect() can abort the pending
  * urbs and then call usbtest_disconnect().  To abort a test, you're best
  * off just killing the userspace task and waiting for it to exit.

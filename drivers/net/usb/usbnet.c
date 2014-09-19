@@ -69,8 +69,9 @@
 // reawaken network queue this soon after stopping; else watchdog barks
 #define TX_TIMEOUT_JIFFIES	(5*HZ)
 
-// throttle rx/tx briefly after some faults, so khubd might disconnect()
-// us (it polls at HZ/4 usually) before we report too many false errors.
+/* throttle rx/tx briefly after some faults, so hub_wq might disconnect()
+ * us (it polls at HZ/4 usually) before we report too many false errors.
+ */
 #define THROTTLE_JIFFIES	(HZ/8)
 
 // between wakeups
@@ -595,9 +596,9 @@ static void rx_complete (struct urb *urb)
 			  "rx shutdown, code %d\n", urb_status);
 		goto block;
 
-	/* we get controller i/o faults during khubd disconnect() delays.
+	/* we get controller i/o faults during hub_wq disconnect() delays.
 	 * throttle down resubmits, to avoid log floods; just temporarily,
-	 * so we still recover when the fault isn't a khubd delay.
+	 * so we still recover when the fault isn't a hub_wq delay.
 	 */
 	case -EPROTO:
 	case -ETIME:
@@ -1185,8 +1186,9 @@ static void tx_complete (struct urb *urb)
 		case -ESHUTDOWN:		// hardware gone
 			break;
 
-		// like rx, tx gets controller i/o faults during khubd delays
-		// and so it uses the same throttling mechanism.
+		/* like rx, tx gets controller i/o faults during hub_wq
+		 * delays and so it uses the same throttling mechanism.
+		 */
 		case -EPROTO:
 		case -ETIME:
 		case -EILSEQ:

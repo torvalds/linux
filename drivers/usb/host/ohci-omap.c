@@ -283,7 +283,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 		ohci_to_hcd(ohci)->power_budget = 0;
 	}
 
-	/* FIXME khubd hub requests should manage power switching */
+	/* FIXME hub_wq hub requests should manage power switching */
 	omap_ohci_transceiver_power(1);
 
 	/* board init will have already handled HMC and mux setup.

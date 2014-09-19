@@ -308,7 +308,7 @@ HC picks the /DN_Connect/ out (nep module sends to notif.c for delivery
 into /devconnect/). This process starts the authentication process for
 the device. First we allocate a /fake port/ and assign an
 unauthenticated address (128 to 255--what we really do is
-0x80 | fake_port_idx). We fiddle with the fake port status and /khubd/
+0x80 | fake_port_idx). We fiddle with the fake port status and /hub_wq/
 sees a new connection, so he moves on to enable the fake port with a reset.
 
 So now we are in the reset path -- we know we have a non-yet enumerated
@@ -317,7 +317,7 @@ device with an unauthorized address; we ask user space to authenticate
 exchange (FIXME: not yet done) and issue a /set address 0/ to bring the
 device to the default state. Device is authenticated.
 
-From here, the USB stack takes control through the usb_hcd ops. khubd
+From here, the USB stack takes control through the usb_hcd ops. hub_wq
 has seen the port status changes, as we have been toggling them. It will
 start enumerating and doing transfers through usb_hcd->urb_enqueue() to
 read descriptors and move our data.
@@ -331,7 +331,7 @@ Keep Alive IE; it responds with a /DN_Alive/ pong during the DNTS (this
 arrives to us as a notification through
 devconnect.c:wusb_handle_dn_alive(). If a device times out, we
 disconnect it from the system (cleaning up internal information and
-toggling the bits in the fake hub port, which kicks khubd into removing
+toggling the bits in the fake hub port, which kicks hub_wq into removing
 the rest of the stuff).
 
 This is done through devconnect:__wusb_check_devs(), which will scan the

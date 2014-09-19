@@ -899,7 +899,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			/*
 			 * Turn on ports, even if there isn't per-port switching.
 			 * HC will report connect events even before this is set.
-			 * However, khubd will ignore the roothub events until
+			 * However, hub_wq will ignore the roothub events until
 			 * the roothub is registered.
 			 */
 			writel(temp | PORT_POWER, port_array[wIndex]);
