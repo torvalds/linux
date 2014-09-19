@@ -84,14 +84,14 @@
 			};
 
 			ethernet@70000 {
-				pinctrl-0 = <&pmx_ge0>;
+				pinctrl-0 = <&pmx_ge0_rgmii>;
 				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
 			};
 			ethernet@74000 {
-				pinctrl-0 = <&pmx_ge1>;
+				pinctrl-0 = <&pmx_ge1_rgmii>;
 				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy1>;
@@ -132,20 +132,6 @@
 &pinctrl {
 	pinctrl-0 = <&pmx_phy_int>;
 	pinctrl-names = "default";
-
-	pmx_ge0: pmx-ge0 {
-		marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3",
-			       "mpp4", "mpp5", "mpp6", "mpp7",
-			       "mpp8", "mpp9", "mpp10", "mpp11";
-		marvell,function = "ge0";
-	};
-
-	pmx_ge1: pmx-ge1 {
-		marvell,pins = "mpp12", "mpp13", "mpp14", "mpp15",
-			       "mpp16", "mpp17", "mpp18", "mpp19",
-			       "mpp20", "mpp21", "mpp22", "mpp23";
-		marvell,function = "ge1";
-	};
 
 	pmx_keys: pmx-keys {
 		marvell,pins = "mpp33";

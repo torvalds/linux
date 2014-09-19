@@ -75,6 +75,22 @@
 			pinctrl: pin-ctrl@18000 {
 				reg = <0x18000 0x38>;
 
+				pmx_ge0_rgmii: pmx-ge0-rgmii {
+					marvell,pins =
+					     "mpp0", "mpp1", "mpp2", "mpp3",
+					     "mpp4", "mpp5", "mpp6", "mpp7",
+					     "mpp8", "mpp9", "mpp10", "mpp11";
+					marvell,function = "ge0";
+				};
+
+				pmx_ge1_rgmii: pmx-ge1-rgmii {
+					marvell,pins =
+					     "mpp12", "mpp13", "mpp14", "mpp15",
+					     "mpp16", "mpp17", "mpp18", "mpp19",
+					     "mpp20", "mpp21", "mpp22", "mpp23";
+					marvell,function = "ge1";
+				};
+
 				sdio_pins: sdio-pins {
 					marvell,pins = "mpp30", "mpp31", "mpp32",
 						       "mpp33", "mpp34", "mpp35";
