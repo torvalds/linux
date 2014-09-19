@@ -1616,8 +1616,14 @@ static int rk_fb_update_ext_win(struct rk_lcdc_driver *ext_dev_drv,
 	} else {
 		ext_win->area[0].xact = win->area[0].xact;
 		ext_win->area[0].yact = win->area[0].yact;
-		ext_win->area[0].xvir = win->area[0].xvir;
-		ext_win->area[0].yvir = win->area[0].yvir;
+		if (win->area[0].xvir == 0)
+			ext_win->area[0].xvir = win->area[0].xact;
+		else
+			ext_win->area[0].xvir = win->area[0].xvir;
+		if (win->area[0].yvir == 0)
+			ext_win->area[0].yvir = win->area[0].yact;
+		else
+			ext_win->area[0].yvir = win->area[0].yvir;
 		ext_win->area[0].y_vir_stride = win->area[0].y_vir_stride;
 		if (is_yuv)
 			ext_win->area[0].uv_vir_stride = win->area[0].uv_vir_stride;
@@ -3881,9 +3887,11 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 
 		rk_fb_alloc_buffer(main_fbi, 0);	/* only alloc memory for main fb */
 		if (support_uboot_display()) {
-			rk_fb_copy_from_loader(main_fbi);
-			dev_drv->ops->direct_set_addr(dev_drv, 0,
+			if (dev_drv->iommu_enabled) {
+				rk_fb_copy_from_loader(main_fbi);
+				dev_drv->ops->direct_set_addr(dev_drv, 0,
 					main_fbi->fix.smem_start);
+			}
 			return 0;
 		}
 		main_fbi->fbops->fb_set_par(main_fbi);

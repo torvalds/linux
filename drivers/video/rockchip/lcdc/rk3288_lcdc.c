@@ -312,6 +312,24 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 				win0->fmt_10 = (val & m_WIN0_FMT_10) >> 4;
 				win0->format = win0->fmt_cfg;
 				break;
+			case WIN0_VIR:
+				win0->area[0].y_vir_stride =
+					val & m_WIN0_VIR_STRIDE;
+				win0->area[0].uv_vir_stride =
+					(val & m_WIN0_VIR_STRIDE_UV) >> 16;
+				if (win0->format == ARGB888)
+					win0->area[0].xvir =
+						win0->area[0].y_vir_stride;
+				else if (win0->format == RGB888)
+					win0->area[0].xvir =
+						win0->area[0].y_vir_stride * 4 / 3;
+				else if (win0->format == RGB565)
+					win0->area[0].xvir =
+						2 * win0->area[0].y_vir_stride;
+				else /* YUV */
+					win0->area[0].xvir =
+						4 * win0->area[0].y_vir_stride;
+				break;
 			case WIN0_YRGB_MST:
 				win0->area[0].smem_start = val;
 				break;
