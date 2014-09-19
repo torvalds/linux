@@ -167,10 +167,6 @@
 		};
 
 		internal-regs {
-			pinctrl: pin-ctrl@18000 {
-				compatible = "marvell,mv78230-pinctrl";
-			};
-
 			gpio0: gpio@18100 {
 				compatible = "marvell,orion-gpio";
 				reg = <0x18100 0x40>;
@@ -194,4 +190,8 @@
 			};
 		};
 	};
+};
+
+&pinctrl {
+	compatible = "marvell,mv78230-pinctrl";
 };
