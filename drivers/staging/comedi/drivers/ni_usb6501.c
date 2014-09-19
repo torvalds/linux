@@ -188,41 +188,26 @@ static int ni6501_send_command(struct comedi_device *dev, int command,
 
 	switch (command) {
 	case READ_PORT:
-
 		request_size = sizeof(READ_PORT_REQUEST);
 		response_size = sizeof(READ_PORT_RESPONSE);
-
 		memcpy(tx, READ_PORT_REQUEST, request_size);
-
 		tx[14] = port[0];
-
 		break;
-
 	case WRITE_PORT:
-
 		request_size = sizeof(WRITE_PORT_REQUEST);
 		response_size = sizeof(GENERIC_RESPONSE);
-
 		memcpy(tx, WRITE_PORT_REQUEST, request_size);
-
 		tx[14] = port[0];
 		tx[17] = bitmap[0];
-
 		break;
-
 	case SET_PORT_DIR:
-
 		request_size = sizeof(SET_PORT_DIR_REQUEST);
 		response_size = sizeof(GENERIC_RESPONSE);
-
 		memcpy(tx, SET_PORT_DIR_REQUEST, request_size);
-
 		tx[14] = port[0];
 		tx[15] = port[1];
 		tx[16] = port[2];
-
 		break;
-
 	default:
 		ret = -EINVAL;
 		goto end;
