@@ -333,7 +333,6 @@ static int be_get_coalesce(struct net_device *netdev,
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_aic_obj *aic = &adapter->aic_obj[0];
 
-
 	et->rx_coalesce_usecs = aic->prev_eqd;
 	et->rx_coalesce_usecs_high = aic->max_eqd;
 	et->rx_coalesce_usecs_low = aic->min_eqd;

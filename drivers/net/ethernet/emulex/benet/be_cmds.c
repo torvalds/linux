@@ -676,7 +676,6 @@ int be_fw_wait_ready(struct be_adapter *adapter)
 	return -1;
 }
 
-
 static inline struct be_sge *nonembedded_sgl(struct be_mcc_wrb *wrb)
 {
 	return &wrb->payload.sgl[0];
