@@ -1408,6 +1408,7 @@ static int arm_smmu_alloc_init_pmd(struct arm_smmu_device *smmu, pud_t *pud,
 		ret = arm_smmu_alloc_init_pte(smmu, pmd, addr, next, pfn,
 					      prot, stage);
 		phys += next - addr;
+		pfn = __phys_to_pfn(phys);
 	} while (pmd++, addr = next, addr < end);
 
 	return ret;
