@@ -3526,7 +3526,7 @@ static int bond_xmit_roundrobin(struct sk_buff *skb, struct net_device *bond_dev
 	 */
 	if (iph->protocol == IPPROTO_IGMP && skb->protocol == htons(ETH_P_IP)) {
 		slave = rcu_dereference(bond->curr_active_slave);
-		if (slave && bond_slave_can_tx(slave))
+		if (slave)
 			bond_dev_queue_xmit(bond, skb, slave->dev);
 		else
 			bond_xmit_slave_id(bond, skb, 0);
