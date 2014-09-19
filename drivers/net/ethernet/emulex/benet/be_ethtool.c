@@ -130,6 +130,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(roce_drops_payload_len)},
 	{DRVSTAT_INFO(roce_drops_crc)}
 };
+
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
 
 /* Stats related to multi RX queues: get_stats routine assumes bytes, pkts
@@ -152,6 +153,7 @@ static const struct be_ethtool_stat et_rx_stats[] = {
 	 */
 	{DRVSTAT_RX_INFO(rx_drops_no_frags)}
 };
+
 #define ETHTOOL_RXSTATS_NUM (ARRAY_SIZE(et_rx_stats))
 
 /* Stats related to multi TX queues: get_stats routine assumes compl is the
@@ -200,6 +202,7 @@ static const struct be_ethtool_stat et_tx_stats[] = {
 	/* Pkts dropped in the driver's transmit path */
 	{DRVSTAT_TX_INFO(tx_drv_drops)}
 };
+
 #define ETHTOOL_TXSTATS_NUM (ARRAY_SIZE(et_tx_stats))
 
 static const char et_self_tests[][ETH_GSTRING_LEN] = {
