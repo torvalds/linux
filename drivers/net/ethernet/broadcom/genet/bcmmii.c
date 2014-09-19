@@ -296,7 +296,6 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device_node *dn = priv->pdev->dev.of_node;
 	struct phy_device *phydev;
-	unsigned int phy_flags;
 	int ret;
 
 	if (priv->phydev) {
@@ -338,15 +337,6 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 		return ret;
 	}
 
-	phy_flags = PHY_BRCM_100MBPS_WAR;
-
-	/* workarounds are only needed for 100Mpbs PHYs, and
-	 * never on GENET V1 hardware
-	 */
-	if ((phydev->supported & PHY_GBIT_FEATURES) || GENET_IS_V1(priv))
-		phy_flags = 0;
-
-	phydev->dev_flags |= phy_flags;
 	phydev->advertising = phydev->supported;
 
 	/* The internal PHY has its link interrupts routed to the
