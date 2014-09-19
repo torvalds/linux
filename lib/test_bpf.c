@@ -1738,7 +1738,7 @@ static struct bpf_test tests[] = {
 	{
 		"load 64-bit immediate",
 		.u.insns_int = {
-			BPF_LD_IMM64(R1, 0x567800001234L),
+			BPF_LD_IMM64(R1, 0x567800001234LL),
 			BPF_MOV64_REG(R2, R1),
 			BPF_MOV64_REG(R3, R2),
 			BPF_ALU64_IMM(BPF_RSH, R2, 32),
@@ -1894,7 +1894,7 @@ static int __run_one(const struct bpf_prog *fp, const void *data,
 		     int runs, u64 *duration)
 {
 	u64 start, finish;
-	int ret, i;
+	int ret = 0, i;
 
 	start = ktime_to_us(ktime_get());
 
