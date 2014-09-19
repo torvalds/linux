@@ -582,13 +582,20 @@ static int tilcdc_pm_suspend(struct device *dev)
 
 	drm_kms_helper_poll_disable(ddev);
 
+	/* Select sleep pin state */
+	pinctrl_pm_select_sleep_state(dev);
+
+	if (pm_runtime_suspended(dev)) {
+		priv->ctx_valid = false;
+		return 0;
+	}
+
 	/* Save register state: */
 	for (i = 0; i < ARRAY_SIZE(registers); i++)
 		if (registers[i].save && (priv->rev >= registers[i].rev))
 			priv->saved_register[n++] = tilcdc_read(ddev, registers[i].reg);
 
-	/* Select sleep pin state */
-	pinctrl_pm_select_sleep_state(dev);
+	priv->ctx_valid = true;
 
 	return 0;
 }
@@ -602,10 +609,14 @@ static int tilcdc_pm_resume(struct device *dev)
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(dev);
 
-	/* Restore register state: */
-	for (i = 0; i < ARRAY_SIZE(registers); i++)
-		if (registers[i].save && (priv->rev >= registers[i].rev))
-			tilcdc_write(ddev, registers[i].reg, priv->saved_register[n++]);
+	if (priv->ctx_valid == true) {
+		/* Restore register state: */
+		for (i = 0; i < ARRAY_SIZE(registers); i++)
+			if (registers[i].save &&
+			    (priv->rev >= registers[i].rev))
+				tilcdc_write(ddev, registers[i].reg,
+					     priv->saved_register[n++]);
+	}
 
 	drm_kms_helper_poll_enable(ddev);
 

@@ -67,6 +67,7 @@ struct tilcdc_drm_private {
 
 	/* register contents saved across suspend/resume: */
 	u32 saved_register[12];
+	bool ctx_valid;
 
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block freq_transition;
