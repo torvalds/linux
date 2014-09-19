@@ -1193,6 +1193,7 @@ static int be_set_rxfh(struct net_device *netdev, const u32 *indir,
 
 	if (indir) {
 		struct be_rx_obj *rxo;
+
 		for (i = 0; i < RSS_INDIR_TABLE_LEN; i++) {
 			j = indir[i];
 			rxo = &adapter->rx_obj[j];
