@@ -281,8 +281,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 
 	if (pRet && &pRet->List  != psearch_list)
 		return pRet ;
-	else
-		return NULL;
+	return NULL;
 }
 
 static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
