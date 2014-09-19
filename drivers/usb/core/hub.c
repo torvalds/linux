@@ -2045,7 +2045,8 @@ static void choose_devnum(struct usb_device *udev)
 	int		devnum;
 	struct usb_bus	*bus = udev->bus;
 
-	/* If hub_wq ever becomes multithreaded, this will need a lock */
+	/* be safe when more hub events are proceed in parallel */
+	mutex_lock(&bus->usb_address0_mutex);
 	if (udev->wusb) {
 		devnum = udev->portnum + 1;
 		BUG_ON(test_bit(devnum, bus->devmap.devicemap));
@@ -2063,6 +2064,7 @@ static void choose_devnum(struct usb_device *udev)
 		set_bit(devnum, bus->devmap.devicemap);
 		udev->devnum = devnum;
 	}
+	mutex_unlock(&bus->usb_address0_mutex);
 }
 
 static void release_devnum(struct usb_device *udev)
@@ -5164,11 +5166,8 @@ int usb_hub_init(void)
 	 * USB-PERSIST port handover. Otherwise it might see that a full-speed
 	 * device was gone before the EHCI controller had handed its port
 	 * over to the companion full-speed controller.
-	 *
-	 * Also we use ordered workqueue because the code is not ready
-	 * for parallel execution of hub events, see choose_devnum().
 	 */
-	hub_wq = alloc_ordered_workqueue("usb_hub_wq", WQ_FREEZABLE);
+	hub_wq = alloc_workqueue("usb_hub_wq", WQ_FREEZABLE, 0);
 	if (hub_wq)
 		return 0;
 
