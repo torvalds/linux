@@ -3860,7 +3860,7 @@ _scsih_setup_direct_io(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	struct _raid_device *raid_device, Mpi2SCSIIORequest_t *mpi_request,
 	u16 smid)
 {
-	sector_t v_lba, p_lba, stripe_off, stripe_unit, column, io_size;
+	sector_t v_lba, p_lba, stripe_off, column, io_size;
 	u32 stripe_sz, stripe_exp;
 	u8 num_pds, cmd = scmd->cmnd[0];
 
@@ -3888,9 +3888,9 @@ _scsih_setup_direct_io(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 
 	num_pds = raid_device->num_pds;
 	p_lba = v_lba >> stripe_exp;
-	stripe_unit = p_lba / num_pds;
-	column = p_lba % num_pds;
-	p_lba = (stripe_unit << stripe_exp) + stripe_off;
+	column = sector_div(p_lba, num_pds);
+	p_lba = (p_lba << stripe_exp) + stripe_off;
+
 	mpi_request->DevHandle = cpu_to_le16(raid_device->pd_handle[column]);
 
 	if (cmd == READ_10 || cmd == WRITE_10)
