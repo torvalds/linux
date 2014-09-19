@@ -475,8 +475,11 @@ InstructionTLBError1:
 	EXCEPTION_PROLOG_2
 	mr	r4,r12
 	mr	r5,r9
+	andis.	r10,r5,0x4000
+	beq+	1f
+	tlbie	r4
 	/* 0x400 is InstructionAccess exception, needed by bad_page_fault() */
-	EXC_XFER_LITE(0x400, handle_page_fault)
+1:	EXC_XFER_LITE(0x400, handle_page_fault)
 
 /* This is the data TLB error on the MPC8xx.  This could be due to
  * many reasons, including a dirty update to a pte.  We bail out to
@@ -492,11 +495,13 @@ DataTLBError:
 DARFixed:/* Return from dcbx instruction bug workaround */
 	EXCEPTION_PROLOG_1
 	EXCEPTION_PROLOG_2
-	mfspr	r10,SPRN_DSISR
-	stw	r10,_DSISR(r11)
-	mr	r5,r10
+	mfspr	r5,SPRN_DSISR
+	stw	r5,_DSISR(r11)
 	mfspr	r4,SPRN_DAR
-	li	r10,RPN_PATTERN
+	andis.	r10,r5,0x4000
+	beq+	1f
+	tlbie	r4
+1:	li	r10,RPN_PATTERN
 	mtspr	SPRN_DAR,r10	/* Tag DAR, to be used in DTLB Error */
 	/* 0x300 is DataAccess exception, needed by bad_page_fault() */
 	EXC_XFER_LITE(0x300, handle_page_fault)
