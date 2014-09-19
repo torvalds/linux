@@ -1529,7 +1529,6 @@ struct max98090_priv {
 	unsigned int bclk;
 	unsigned int lrclk;
 	struct max98090_cdata dai[1];
-	int irq;
 	int jack_state;
 	struct delayed_work jack_work;
 	struct delayed_work pll_det_enable_work;

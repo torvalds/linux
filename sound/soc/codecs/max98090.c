@@ -2463,7 +2463,6 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 	max98090->devtype = driver_data;
 	i2c_set_clientdata(i2c, max98090);
 	max98090->pdata = i2c->dev.platform_data;
-	max98090->irq = i2c->irq;
 
 	max98090->regmap = devm_regmap_init_i2c(i2c, &max98090_regmap);
 	if (IS_ERR(max98090->regmap)) {
@@ -2472,7 +2471,7 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 		goto err_enable;
 	}
 
-	ret = devm_request_threaded_irq(&i2c->dev, max98090->irq, NULL,
+	ret = devm_request_threaded_irq(&i2c->dev, i2c->irq, NULL,
 		max98090_interrupt, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 		"max98090_interrupt", max98090);
 	if (ret < 0) {
