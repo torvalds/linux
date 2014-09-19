@@ -29,17 +29,6 @@
 #include "em28xx.h"
 #include "em28xx-v4l.h"
 
-static unsigned int vbibufs = 5;
-module_param(vbibufs, int, 0644);
-MODULE_PARM_DESC(vbibufs, "number of vbi buffers, range 2-32");
-
-static unsigned int vbi_debug;
-module_param(vbi_debug, int, 0644);
-MODULE_PARM_DESC(vbi_debug, "enable debug messages [vbi]");
-
-#define dprintk(level, fmt, arg...)	if (vbi_debug >= level) \
-	printk(KERN_DEBUG "%s: " fmt, dev->core->name , ## arg)
-
 /* ------------------------------------------------------------------ */
 
 static int vbi_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
