@@ -1219,9 +1219,18 @@ static void imx_shutdown(struct uart_port *port)
 	unsigned long flags;
 
 	if (sport->dma_is_enabled) {
+		int ret;
+
 		/* We have to wait for the DMA to finish. */
-		wait_event(sport->dma_wait,
+		ret = wait_event_interruptible(sport->dma_wait,
 			!sport->dma_is_rxing && !sport->dma_is_txing);
+		if (ret != 0) {
+			sport->dma_is_rxing = 0;
+			sport->dma_is_txing = 0;
+			dmaengine_terminate_all(sport->dma_chan_tx);
+			dmaengine_terminate_all(sport->dma_chan_rx);
+		}
+		imx_stop_tx(port);
 		imx_stop_rx(port);
 		imx_disable_dma(sport);
 		imx_uart_dma_exit(sport);
