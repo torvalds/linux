@@ -2061,7 +2061,8 @@ static void be_rx_cq_clean(struct be_rx_obj *rxo)
 		memset(page_info, 0, sizeof(*page_info));
 	}
 	BUG_ON(atomic_read(&rxq->used));
-	rxq->tail = rxq->head = 0;
+	rxq->tail = 0;
+	rxq->head = 0;
 }
 
 static void be_tx_compl_clean(struct be_adapter *adapter)
@@ -4923,7 +4924,8 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 
 	INIT_DELAYED_WORK(&adapter->work, be_worker);
 	INIT_DELAYED_WORK(&adapter->func_recovery_work, be_func_recovery_task);
-	adapter->rx_fc = adapter->tx_fc = true;
+	adapter->rx_fc = true;
+	adapter->tx_fc = true;
 
 	status = be_setup(adapter);
 	if (status)

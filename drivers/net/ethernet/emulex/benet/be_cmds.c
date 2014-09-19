@@ -1910,8 +1910,8 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 					    BE_IF_FLAGS_VLAN_PROMISCUOUS |
 					    BE_IF_FLAGS_MCAST_PROMISCUOUS);
 	} else if (flags & IFF_ALLMULTI) {
-		req->if_flags_mask = req->if_flags =
-				cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
+		req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
+		req->if_flags =	cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
 	} else if (flags & BE_FLAGS_VLAN_PROMISC) {
 		req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_VLAN_PROMISCUOUS);
 
@@ -1922,8 +1922,8 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 		struct netdev_hw_addr *ha;
 		int i = 0;
 
-		req->if_flags_mask = req->if_flags =
-				cpu_to_le32(BE_IF_FLAGS_MULTICAST);
+		req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_MULTICAST);
+		req->if_flags =	cpu_to_le32(BE_IF_FLAGS_MULTICAST);
 
 		/* Reset mcast promisc mode if already set by setting mask
 		 * and not setting flags field
