@@ -316,7 +316,7 @@ struct bufdesc_ex {
  * the skbuffer directly.
  */
 
-#define FEC_ENET_RX_PAGES	8
+#define FEC_ENET_RX_PAGES	256
 #define FEC_ENET_RX_FRSIZE	2048
 #define FEC_ENET_RX_FRPPG	(PAGE_SIZE / FEC_ENET_RX_FRSIZE)
 #define RX_RING_SIZE		(FEC_ENET_RX_FRPPG * FEC_ENET_RX_PAGES)
@@ -354,6 +354,14 @@ struct bufdesc_ex {
 
 #define FEC_DEFAULT_IMASK (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII | FEC_ENET_TS_TIMER)
 #define FEC_RX_DISABLED_IMASK (FEC_DEFAULT_IMASK & (~FEC_ENET_RXF))
+
+/* ENET interrupt coalescing macro define */
+#define FEC_ITR_CLK_SEL		(0x1 << 30)
+#define FEC_ITR_EN		(0x1 << 31)
+#define FEC_ITR_ICFT(X)		((X & 0xFF) << 20)
+#define FEC_ITR_ICTT(X)		((X) & 0xFFFF)
+#define FEC_ITR_ICFT_DEFAULT	200  /* Set 200 frame count threshold */
+#define FEC_ITR_ICTT_DEFAULT	1000 /* Set 1000us timer threshold */
 
 #define FEC_VLAN_TAG_LEN       0x04
 #define FEC_ETHTYPE_LEN                0x02
@@ -466,6 +474,13 @@ struct fec_enet_private {
 
 	unsigned int tx_align;
 	unsigned int rx_align;
+
+	/* hw interrupt coalesce */
+	unsigned int rx_pkts_itr;
+	unsigned int rx_time_itr;
+	unsigned int tx_pkts_itr;
+	unsigned int tx_time_itr;
+	unsigned int itr_clk_rate;
 };
 
 void fec_ptp_init(struct platform_device *pdev);

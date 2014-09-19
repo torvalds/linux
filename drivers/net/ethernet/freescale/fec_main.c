@@ -63,6 +63,7 @@
 #include "fec.h"
 
 static void set_multicast_list(struct net_device *ndev);
+static void fec_enet_itr_coal_init(struct net_device *ndev);
 
 #define DRIVER_NAME	"fec"
 
@@ -110,6 +111,12 @@ static void set_multicast_list(struct net_device *ndev);
  *   independent rings
  */
 #define FEC_QUIRK_HAS_AVB		(1 << 8)
+/* There is a TDAR race condition for mutliQ when the software sets TDAR
+ * and the UDMA clears TDAR simultaneously or in a small window (2-4 cycles).
+ * This will cause the udma_tx and udma_tx_arbiter state machines to hang.
+ * The issue exist at i.MX6SX enet IP.
+ */
+#define FEC_QUIRK_ERR007885		(1 << 9)
 
 static struct platform_device_id fec_devtype[] = {
 	{
@@ -138,7 +145,7 @@ static struct platform_device_id fec_devtype[] = {
 		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_HAS_GBIT |
 				FEC_QUIRK_HAS_BUFDESC_EX | FEC_QUIRK_HAS_CSUM |
 				FEC_QUIRK_HAS_VLAN | FEC_QUIRK_ERR006358 |
-				FEC_QUIRK_HAS_AVB,
+				FEC_QUIRK_HAS_AVB | FEC_QUIRK_ERR007885,
 	}, {
 		/* sentinel */
 	}
@@ -708,6 +715,8 @@ static int fec_enet_txq_submit_tso(struct fec_enet_priv_tx_q *txq,
 	struct tso_t tso;
 	unsigned int index = 0;
 	int ret;
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(fep->pdev);
 
 	if (tso_count_descs(skb) >= fec_enet_get_free_txdesc_num(fep, txq)) {
 		dev_kfree_skb_any(skb);
@@ -769,7 +778,12 @@ static int fec_enet_txq_submit_tso(struct fec_enet_priv_tx_q *txq,
 	txq->cur_tx = bdp;
 
 	/* Trigger transmission start */
-	writel(0, fep->hwp + FEC_X_DES_ACTIVE(queue));
+	if (!(id_entry->driver_data & FEC_QUIRK_ERR007885) ||
+	    !readl(fep->hwp + FEC_X_DES_ACTIVE(queue)) ||
+	    !readl(fep->hwp + FEC_X_DES_ACTIVE(queue)) ||
+	    !readl(fep->hwp + FEC_X_DES_ACTIVE(queue)) ||
+	    !readl(fep->hwp + FEC_X_DES_ACTIVE(queue)))
+		writel(0, fep->hwp + FEC_X_DES_ACTIVE(queue));
 
 	return 0;
 
@@ -1095,6 +1109,10 @@ fec_restart(struct net_device *ndev)
 
 	/* Enable interrupts we wish to service */
 	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
+
+	/* Init the interrupt coalescing */
+	fec_enet_itr_coal_init(ndev);
+
 }
 
 static void
@@ -2234,12 +2252,141 @@ static int fec_enet_nway_reset(struct net_device *dev)
 	return genphy_restart_aneg(phydev);
 }
 
+/* ITR clock source is enet system clock (clk_ahb).
+ * TCTT unit is cycle_ns * 64 cycle
+ * So, the ICTT value = X us / (cycle_ns * 64)
+ */
+static int fec_enet_us_to_itr_clock(struct net_device *ndev, int us)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+
+	return us * (fep->itr_clk_rate / 64000) / 1000;
+}
+
+/* Set threshold for interrupt coalescing */
+static void fec_enet_itr_coal_set(struct net_device *ndev)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(fep->pdev);
+	int rx_itr, tx_itr;
+
+	if (!(id_entry->driver_data & FEC_QUIRK_HAS_AVB))
+		return;
+
+	/* Must be greater than zero to avoid unpredictable behavior */
+	if (!fep->rx_time_itr || !fep->rx_pkts_itr ||
+	    !fep->tx_time_itr || !fep->tx_pkts_itr)
+		return;
+
+	/* Select enet system clock as Interrupt Coalescing
+	 * timer Clock Source
+	 */
+	rx_itr = FEC_ITR_CLK_SEL;
+	tx_itr = FEC_ITR_CLK_SEL;
+
+	/* set ICFT and ICTT */
+	rx_itr |= FEC_ITR_ICFT(fep->rx_pkts_itr);
+	rx_itr |= FEC_ITR_ICTT(fec_enet_us_to_itr_clock(ndev, fep->rx_time_itr));
+	tx_itr |= FEC_ITR_ICFT(fep->tx_pkts_itr);
+	tx_itr |= FEC_ITR_ICTT(fec_enet_us_to_itr_clock(ndev, fep->tx_time_itr));
+
+	rx_itr |= FEC_ITR_EN;
+	tx_itr |= FEC_ITR_EN;
+
+	writel(tx_itr, fep->hwp + FEC_TXIC0);
+	writel(rx_itr, fep->hwp + FEC_RXIC0);
+	writel(tx_itr, fep->hwp + FEC_TXIC1);
+	writel(rx_itr, fep->hwp + FEC_RXIC1);
+	writel(tx_itr, fep->hwp + FEC_TXIC2);
+	writel(rx_itr, fep->hwp + FEC_RXIC2);
+}
+
+static int
+fec_enet_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *ec)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(fep->pdev);
+
+	if (!(id_entry->driver_data & FEC_QUIRK_HAS_AVB))
+		return -EOPNOTSUPP;
+
+	ec->rx_coalesce_usecs = fep->rx_time_itr;
+	ec->rx_max_coalesced_frames = fep->rx_pkts_itr;
+
+	ec->tx_coalesce_usecs = fep->tx_time_itr;
+	ec->tx_max_coalesced_frames = fep->tx_pkts_itr;
+
+	return 0;
+}
+
+static int
+fec_enet_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *ec)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(fep->pdev);
+
+	unsigned int cycle;
+
+	if (!(id_entry->driver_data & FEC_QUIRK_HAS_AVB))
+		return -EOPNOTSUPP;
+
+	if (ec->rx_max_coalesced_frames > 255) {
+		pr_err("Rx coalesced frames exceed hardware limiation");
+		return -EINVAL;
+	}
+
+	if (ec->tx_max_coalesced_frames > 255) {
+		pr_err("Tx coalesced frame exceed hardware limiation");
+		return -EINVAL;
+	}
+
+	cycle = fec_enet_us_to_itr_clock(ndev, fep->rx_time_itr);
+	if (cycle > 0xFFFF) {
+		pr_err("Rx coalesed usec exceeed hardware limiation");
+		return -EINVAL;
+	}
+
+	cycle = fec_enet_us_to_itr_clock(ndev, fep->tx_time_itr);
+	if (cycle > 0xFFFF) {
+		pr_err("Rx coalesed usec exceeed hardware limiation");
+		return -EINVAL;
+	}
+
+	fep->rx_time_itr = ec->rx_coalesce_usecs;
+	fep->rx_pkts_itr = ec->rx_max_coalesced_frames;
+
+	fep->tx_time_itr = ec->tx_coalesce_usecs;
+	fep->tx_pkts_itr = ec->tx_max_coalesced_frames;
+
+	fec_enet_itr_coal_set(ndev);
+
+	return 0;
+}
+
+static void fec_enet_itr_coal_init(struct net_device *ndev)
+{
+	struct ethtool_coalesce ec;
+
+	ec.rx_coalesce_usecs = FEC_ITR_ICTT_DEFAULT;
+	ec.rx_max_coalesced_frames = FEC_ITR_ICFT_DEFAULT;
+
+	ec.tx_coalesce_usecs = FEC_ITR_ICTT_DEFAULT;
+	ec.tx_max_coalesced_frames = FEC_ITR_ICFT_DEFAULT;
+
+	fec_enet_set_coalesce(ndev, &ec);
+}
+
 static const struct ethtool_ops fec_enet_ethtool_ops = {
 	.get_settings		= fec_enet_get_settings,
 	.set_settings		= fec_enet_set_settings,
 	.get_drvinfo		= fec_enet_get_drvinfo,
 	.nway_reset		= fec_enet_nway_reset,
 	.get_link		= ethtool_op_get_link,
+	.get_coalesce		= fec_enet_get_coalesce,
+	.set_coalesce		= fec_enet_set_coalesce,
 #ifndef CONFIG_M5272
 	.get_pauseparam		= fec_enet_get_pauseparam,
 	.set_pauseparam		= fec_enet_set_pauseparam,
@@ -2890,23 +3037,23 @@ fec_enet_get_queue_num(struct platform_device *pdev, int *num_tx, int *num_rx)
 
 	/* parse the num of tx and rx queues */
 	err = of_property_read_u32(np, "fsl,num-tx-queues", num_tx);
-	err |= of_property_read_u32(np, "fsl,num-rx-queues", num_rx);
-	if (err) {
+	if (err)
 		*num_tx = 1;
+
+	err = of_property_read_u32(np, "fsl,num-rx-queues", num_rx);
+	if (err)
 		*num_rx = 1;
-		return;
-	}
 
 	if (*num_tx < 1 || *num_tx > FEC_ENET_MAX_TX_QS) {
-		dev_err(&pdev->dev, "Invalidate num_tx(=%d), fail back to 1\n",
-			*num_tx);
+		dev_warn(&pdev->dev, "Invalid num_tx(=%d), fall back to 1\n",
+			 *num_tx);
 		*num_tx = 1;
 		return;
 	}
 
 	if (*num_rx < 1 || *num_rx > FEC_ENET_MAX_RX_QS) {
-		dev_err(&pdev->dev, "Invalidate num_rx(=%d), fail back to 1\n",
-			*num_rx);
+		dev_warn(&pdev->dev, "Invalid num_rx(=%d), fall back to 1\n",
+			 *num_rx);
 		*num_rx = 1;
 		return;
 	}
@@ -2924,8 +3071,8 @@ fec_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	static int dev_id;
 	struct device_node *np = pdev->dev.of_node, *phy_node;
-	int num_tx_qs = 1;
-	int num_rx_qs = 1;
+	int num_tx_qs;
+	int num_rx_qs;
 
 	of_id = of_match_device(fec_dt_ids, &pdev->dev);
 	if (of_id)
@@ -3005,6 +3152,8 @@ fec_probe(struct platform_device *pdev)
 		ret = PTR_ERR(fep->clk_ahb);
 		goto failed_clk;
 	}
+
+	fep->itr_clk_rate = clk_get_rate(fep->clk_ahb);
 
 	/* enet_out is optional, depends on board */
 	fep->clk_enet_out = devm_clk_get(&pdev->dev, "enet_out");
