@@ -330,6 +330,8 @@ ceph_get_mds_session(struct ceph_mds_session *s)
 	return s;
 }
 
+extern const char *ceph_session_state_name(int s);
+
 extern void ceph_put_mds_session(struct ceph_mds_session *s);
 
 extern int ceph_send_msg_mds(struct ceph_mds_client *mdsc,

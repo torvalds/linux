@@ -335,7 +335,7 @@ static void destroy_reply_info(struct ceph_mds_reply_info_parsed *info)
 /*
  * sessions
  */
-static const char *session_state_name(int s)
+const char *ceph_session_state_name(int s)
 {
 	switch (s) {
 	case CEPH_MDS_SESSION_NEW: return "new";
@@ -1235,7 +1235,7 @@ static int send_flushmsg_ack(struct ceph_mds_client *mdsc,
 	struct ceph_msg *msg;
 
 	dout("send_flushmsg_ack to mds%d (%s)s seq %lld\n",
-	     session->s_mds, session_state_name(session->s_state), seq);
+	     session->s_mds, ceph_session_state_name(session->s_state), seq);
 	msg = create_session_msg(CEPH_SESSION_FLUSHMSG_ACK, seq);
 	if (!msg)
 		return -ENOMEM;
@@ -1287,7 +1287,7 @@ static int request_close_session(struct ceph_mds_client *mdsc,
 	struct ceph_msg *msg;
 
 	dout("request_close_session mds%d state %s seq %lld\n",
-	     session->s_mds, session_state_name(session->s_state),
+	     session->s_mds, ceph_session_state_name(session->s_state),
 	     session->s_seq);
 	msg = create_session_msg(CEPH_SESSION_REQUEST_CLOSE, session->s_seq);
 	if (!msg)
@@ -2080,7 +2080,7 @@ static int __do_request(struct ceph_mds_client *mdsc,
 	req->r_session = get_session(session);
 
 	dout("do_request mds%d session %p state %s\n", mds, session,
-	     session_state_name(session->s_state));
+	     ceph_session_state_name(session->s_state));
 	if (session->s_state != CEPH_MDS_SESSION_OPEN &&
 	    session->s_state != CEPH_MDS_SESSION_HUNG) {
 		if (session->s_state == CEPH_MDS_SESSION_NEW ||
@@ -2518,7 +2518,7 @@ static void handle_session(struct ceph_mds_session *session,
 
 	dout("handle_session mds%d %s %p state %s seq %llu\n",
 	     mds, ceph_session_op_name(op), session,
-	     session_state_name(session->s_state), seq);
+	     ceph_session_state_name(session->s_state), seq);
 
 	if (session->s_state == CEPH_MDS_SESSION_HUNG) {
 		session->s_state = CEPH_MDS_SESSION_OPEN;
@@ -2771,7 +2771,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	session->s_seq = 0;
 
 	dout("session %p state %s\n", session,
-	     session_state_name(session->s_state));
+	     ceph_session_state_name(session->s_state));
 
 	spin_lock(&session->s_gen_ttl_lock);
 	session->s_cap_gen++;
@@ -2904,7 +2904,7 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 		     ceph_mdsmap_is_laggy(oldmap, i) ? " (laggy)" : "",
 		     ceph_mds_state_name(newstate),
 		     ceph_mdsmap_is_laggy(newmap, i) ? " (laggy)" : "",
-		     session_state_name(s->s_state));
+		     ceph_session_state_name(s->s_state));
 
 		if (i >= newmap->m_max_mds ||
 		    memcmp(ceph_mdsmap_get_addr(oldmap, i),
