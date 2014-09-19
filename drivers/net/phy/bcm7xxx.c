@@ -196,13 +196,22 @@ static int bcm7xxx_eee_enable(struct phy_device *phydev)
 
 static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 {
-	int ret;
+	u8 rev = PHY_BRCM_7XXX_REV(phydev->dev_flags);
+	u8 patch = PHY_BRCM_7XXX_PATCH(phydev->dev_flags);
+	int ret = 0;
 
-	ret = bcm7445_config_init(phydev);
-	if (ret)
-		return ret;
+	dev_info(&phydev->dev, "PHY revision: 0x%02x, patch: %d\n", rev, patch);
 
-	ret = bcm7xxx_28nm_afe_config_init(phydev);
+	switch (rev) {
+	case 0xa0:
+	case 0xb0:
+		ret = bcm7445_config_init(phydev);
+		break;
+	default:
+		ret = bcm7xxx_28nm_afe_config_init(phydev);
+		break;
+	}
+
 	if (ret)
 		return ret;
 
