@@ -237,17 +237,15 @@ static int camsys_mrv_iommu_cb(void *ptr,camsys_sysctrl_t *devctl)
     struct ion_client *client = NULL;
     struct ion_handle *handle = NULL;
     camsys_iommu_t *iommu = NULL;
-    int ret = 0;
+    int ret = 0,iommu_enabled = 0;
     camsys_dev_t * camsys_dev = (camsys_dev_t *)ptr;
 
-#if 0
     of_property_read_u32(camsys_dev->pdev->dev.of_node, "rockchip,isp,iommu_enable", &iommu_enabled);
     if(iommu_enabled != 1){
         camsys_err("isp iommu have not been enabled!\n");
         ret = -1;
         goto iommu_end;
     }
-#endif
     iommu_dev = rockchip_get_sysmmu_device_by_compatible(ISP_IOMMU_COMPATIBLE_NAME);
     if(!iommu_dev){
         camsys_err("get iommu device erro!\n");

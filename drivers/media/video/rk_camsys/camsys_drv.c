@@ -790,8 +790,17 @@ static long camsys_ioctl(struct file *filp,unsigned int cmd, unsigned long arg)
 	    {
             int iommu_enabled = 0;
             #ifdef CONFIG_ROCKCHIP_IOMMU
-                //of_property_read_u32(camsys_dev->pdev->dev.of_node, "rockchip,isp,iommu_enable", &iommu_enabled);
-            	iommu_enabled = 1;
+				struct device_node * vpu_node =NULL;
+				int vpu_iommu_enabled = 0;
+                vpu_node = of_find_compatible_node(NULL,NULL, "vpu_service");
+				if(vpu_node){
+					of_property_read_u32(vpu_node, "iommu_enabled", &vpu_iommu_enabled);
+					of_property_read_u32(camsys_dev->pdev->dev.of_node, "rockchip,isp,iommu_enable", &iommu_enabled);
+					if(iommu_enabled != vpu_iommu_enabled){
+						camsys_err("iommu status not consistent,check the dts file ! isp:%d,vpu:%d",iommu_enabled,vpu_iommu_enabled);
+						return -EFAULT;
+					}
+				}
 			#endif
             if (copy_to_user((void __user *)arg,(void*)&iommu_enabled, sizeof(iommu_enabled)))
                 return -EFAULT;
@@ -1036,7 +1045,6 @@ static int camsys_platform_probe(struct platform_device *pdev){
         goto fail_end;
     }
 
- 
     //map irqs
     irq_id = irq_of_parse_and_map(dev->of_node, 0);
     if (irq_id < 0) {

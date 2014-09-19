@@ -101,8 +101,10 @@
          1) check extdev name when dev_id has been registered;
 *v0.0x16.0:
 		 1) enable or disable IOMMU just depending on CONFIG_ROCKCHIP_IOMMU. 
+*v0.0x17.0:
+		 1) isp iommu status depend on vpu iommu status.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x16,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x17,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
