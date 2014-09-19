@@ -72,6 +72,16 @@
 				status = "disabled";
 			};
 
+			pinctrl {
+				reg = <0x18000 0x38>;
+
+				sdio_pins: sdio-pins {
+					marvell,pins = "mpp30", "mpp31", "mpp32",
+						       "mpp33", "mpp34", "mpp35";
+					marvell,function = "sd0";
+				};
+			};
+
 			system-controller@18200 {
 				compatible = "marvell,armada-370-xp-system-controller";
 				reg = <0x18200 0x500>;
