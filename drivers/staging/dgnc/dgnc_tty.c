@@ -2286,7 +2286,6 @@ static inline int dgnc_get_mstat(struct channel_t *ch)
 static int dgnc_get_modem_info(struct channel_t *ch, unsigned int  __user *value)
 {
 	int result;
-	int rc;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return -ENXIO;
@@ -2296,9 +2295,7 @@ static int dgnc_get_modem_info(struct channel_t *ch, unsigned int  __user *value
 	if (result < 0)
 		return -ENXIO;
 
-	rc = put_user(result, value);
-
-	return rc;
+	return put_user(result, value);
 }
 
 
