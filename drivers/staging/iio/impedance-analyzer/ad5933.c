@@ -193,6 +193,7 @@ static int ad5933_cmd(struct ad5933_state *st, unsigned char cmd)
 static int ad5933_reset(struct ad5933_state *st)
 {
 	unsigned char dat = st->ctrl_lb | AD5933_CTRL_RESET;
+
 	return ad5933_i2c_write(st->client,
 			AD5933_REG_CONTROL_LB, 1, &dat);
 }
