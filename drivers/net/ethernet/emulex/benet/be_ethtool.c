@@ -975,8 +975,6 @@ static void be_set_msg_level(struct net_device *netdev, u32 level)
 						FW_LOG_LEVEL_DEFAULT :
 						FW_LOG_LEVEL_FATAL);
 	adapter->msg_enable = level;
-
-	return;
 }
 
 static u64 be_get_rss_hash_opts(struct be_adapter *adapter, u64 flow_type)
