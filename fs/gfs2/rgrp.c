@@ -577,6 +577,13 @@ struct gfs2_rgrpd *gfs2_rgrpd_get_next(struct gfs2_rgrpd *rgd)
 	return rgd;
 }
 
+void check_and_update_goal(struct gfs2_inode *ip)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	if (!ip->i_goal || gfs2_blk2rgrpd(sdp, ip->i_goal, 1) == NULL)
+		ip->i_goal = ip->i_no_addr;
+}
+
 void gfs2_free_clones(struct gfs2_rgrpd *rgd)
 {
 	int x;
@@ -1910,6 +1917,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *a
 	} else if (ip->i_rgd && rgrp_contains_block(ip->i_rgd, ip->i_goal)) {
 		rs->rs_rbm.rgd = begin = ip->i_rgd;
 	} else {
+		check_and_update_goal(ip);
 		rs->rs_rbm.rgd = begin = gfs2_blk2rgrpd(sdp, ip->i_goal, 1);
 	}
 	if (S_ISDIR(ip->i_inode.i_mode) && (ap->aflags & GFS2_AF_ORLOV))

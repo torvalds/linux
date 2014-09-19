@@ -672,6 +672,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	gfs2_set_inode_blocks(inode, 1);
 	munge_mode_uid_gid(dip, inode);
+	check_and_update_goal(dip);
 	ip->i_goal = dip->i_goal;
 	ip->i_diskflags = 0;
 	ip->i_eattr = 0;
