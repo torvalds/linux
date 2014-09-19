@@ -333,12 +333,6 @@ int smp_vcpu_scheduled(int cpu)
 	return pcpu_running(pcpu_devices + cpu);
 }
 
-void smp_yield(void)
-{
-	if (MACHINE_HAS_DIAG44)
-		asm volatile("diag 0,0,0x44");
-}
-
 void smp_yield_cpu(int cpu)
 {
 	if (MACHINE_HAS_DIAG9C)

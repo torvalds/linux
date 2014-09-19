@@ -37,10 +37,16 @@ _raw_compare_and_swap(unsigned int *lock, unsigned int old, unsigned int new)
  * (the type definitions are in asm/spinlock_types.h)
  */
 
+void arch_lock_relax(unsigned int cpu);
+
 void arch_spin_lock_wait(arch_spinlock_t *);
 int arch_spin_trylock_retry(arch_spinlock_t *);
-void arch_spin_relax(arch_spinlock_t *);
 void arch_spin_lock_wait_flags(arch_spinlock_t *, unsigned long flags);
+
+static inline void arch_spin_relax(arch_spinlock_t *lock)
+{
+	arch_lock_relax(lock->lock);
+}
 
 static inline u32 arch_spin_lockval(int cpu)
 {
@@ -170,17 +176,21 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	if (!arch_write_trylock_once(rw))
 		_raw_write_lock_wait(rw);
+	rw->owner = SPINLOCK_LOCKVAL;
 }
 
 static inline void arch_write_lock_flags(arch_rwlock_t *rw, unsigned long flags)
 {
 	if (!arch_write_trylock_once(rw))
 		_raw_write_lock_wait_flags(rw, flags);
+	rw->owner = SPINLOCK_LOCKVAL;
 }
 
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
 	typecheck(unsigned int, rw->lock);
+
+	rw->owner = 0;
 	asm volatile(
 		__ASM_BARRIER
 		"st	%1,%0\n"
@@ -198,12 +208,20 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 
 static inline int arch_write_trylock(arch_rwlock_t *rw)
 {
-	if (!arch_write_trylock_once(rw))
-		return _raw_write_trylock_retry(rw);
+	if (!arch_write_trylock_once(rw) && !_raw_write_trylock_retry(rw))
+		return 0;
+	rw->owner = SPINLOCK_LOCKVAL;
 	return 1;
 }
 
-#define arch_read_relax(lock)	cpu_relax()
-#define arch_write_relax(lock)	cpu_relax()
+static inline void arch_read_relax(arch_rwlock_t *rw)
+{
+	arch_lock_relax(rw->owner);
+}
+
+static inline void arch_write_relax(arch_rwlock_t *rw)
+{
+	arch_lock_relax(rw->owner);
+}
 
 #endif /* __ASM_SPINLOCK_H */
