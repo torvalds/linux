@@ -1005,8 +1005,8 @@ struct be_cmd_resp_link_status {
 /*    Identifies the type of port attached to NIC     */
 struct be_cmd_req_port_type {
 	struct be_cmd_req_hdr hdr;
-	u32 page_num;
-	u32 port;
+	__le32 page_num;
+	__le32 port;
 };
 
 enum {
