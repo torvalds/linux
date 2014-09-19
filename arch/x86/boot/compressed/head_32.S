@@ -30,6 +30,33 @@
 #include <asm/boot.h>
 #include <asm/asm-offsets.h>
 
+/*
+ * Adjust our own GOT
+ *
+ * The relocation base must be in %ebx
+ *
+ * It is safe to call this macro more than once, because in some of the
+ * code paths multiple invocations are inevitable, e.g. via the efi*
+ * entry points.
+ *
+ * Relocation is only performed the first time.
+ */
+.macro FIXUP_GOT
+	cmpb	$1, got_fixed(%ebx)
+	je	2f
+
+	leal	_got(%ebx), %edx
+	leal	_egot(%ebx), %ecx
+1:
+	cmpl	%ecx, %edx
+	jae	2f
+	addl	%ebx, (%edx)
+	addl	$4, %edx
+	jmp	1b
+2:
+	movb	$1, got_fixed(%ebx)
+.endm
+
 	__HEAD
 ENTRY(startup_32)
 #ifdef CONFIG_EFI_STUB
@@ -56,6 +83,9 @@ ENTRY(efi_pe_entry)
 	add	%esi, 88(%eax)
 	pushl	%eax
 
+	movl	%esi, %ebx
+	FIXUP_GOT
+
 	call	make_boot_params
 	cmpl	$0, %eax
 	je	fail
@@ -81,6 +111,10 @@ ENTRY(efi32_stub_entry)
 	leal	efi32_config(%esi), %eax
 	add	%esi, 88(%eax)
 	pushl	%eax
+
+	movl	%esi, %ebx
+	FIXUP_GOT
+
 2:
 	call	efi_main
 	cmpl	$0, %eax
@@ -190,19 +224,7 @@ relocated:
 	shrl	$2, %ecx
 	rep	stosl
 
-/*
- * Adjust our own GOT
- */
-	leal	_got(%ebx), %edx
-	leal	_egot(%ebx), %ecx
-1:
-	cmpl	%ecx, %edx
-	jae	2f
-	addl	%ebx, (%edx)
-	addl	$4, %edx
-	jmp	1b
-2:
-
+	FIXUP_GOT
 /*
  * Do the decompression, and jump to the new kernel..
  */
@@ -225,8 +247,12 @@ relocated:
 	xorl	%ebx, %ebx
 	jmp	*%eax
 
-#ifdef CONFIG_EFI_STUB
 	.data
+/* Have we relocated the GOT? */
+got_fixed:
+	.byte 0
+
+#ifdef CONFIG_EFI_STUB
 efi32_config:
 	.fill 11,8,0
 	.long efi_call_phys
