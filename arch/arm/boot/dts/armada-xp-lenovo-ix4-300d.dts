@@ -98,6 +98,11 @@
 					reg = <0x2e>;
 				};
 
+				eeprom@50 {
+					compatible = "atmel,24c64";
+					reg = <0x50>;
+				};
+
 				pcf8563@51 {
 					compatible = "nxp,pcf8563";
 					reg = <0x51>;
