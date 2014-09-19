@@ -611,9 +611,7 @@ struct ixgbe_adapter {
 	 * thus the additional *_CAPABLE flags.
 	 */
 	u32 flags;
-#define IXGBE_FLAG_MSI_CAPABLE                  (u32)(1 << 0)
 #define IXGBE_FLAG_MSI_ENABLED                  (u32)(1 << 1)
-#define IXGBE_FLAG_MSIX_CAPABLE                 (u32)(1 << 2)
 #define IXGBE_FLAG_MSIX_ENABLED                 (u32)(1 << 3)
 #define IXGBE_FLAG_RX_1BUF_CAPABLE              (u32)(1 << 4)
 #define IXGBE_FLAG_RX_PS_CAPABLE                (u32)(1 << 5)
@@ -727,8 +725,6 @@ struct ixgbe_adapter {
 #endif /* IXGBE_FCOE */
 	u8 __iomem *io_addr; /* Mainly for iounmap use */
 	u32 wol;
-
-	u16 bd_number;
 
 	u16 eeprom_verh;
 	u16 eeprom_verl;
