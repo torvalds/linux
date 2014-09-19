@@ -14,28 +14,23 @@
 #include <asm/msi_bitmap.h>
 #include <asm/setup.h>
 
-int msi_bitmap_alloc_hwirqs_from_offset(struct msi_bitmap *bmp, int offset,
-					int num)
-{
-	unsigned long flags;
-	int index;
-	int order = get_count_order(num);
-
-	spin_lock_irqsave(&bmp->lock, flags);
-	index = bitmap_find_next_zero_area(bmp->bitmap, bmp->irq_count,
-					   offset, num, (1 << order) - 1);
-	bitmap_set(bmp->bitmap, index, num);
-	spin_unlock_irqrestore(&bmp->lock, flags);
-
-	pr_debug("msi_bitmap: found %d free bits starting from offset %d at index %d\n",
-		 num, offset, index);
-
-	return index;
-}
-
 int msi_bitmap_alloc_hwirqs(struct msi_bitmap *bmp, int num)
 {
-	return msi_bitmap_alloc_hwirqs_from_offset(bmp, 0, num);
+	unsigned long flags;
+	int offset, order = get_count_order(num);
+
+	spin_lock_irqsave(&bmp->lock, flags);
+	/*
+	 * This is fast, but stricter than we need. We might want to add
+	 * a fallback routine which does a linear search with no alignment.
+	 */
+	offset = bitmap_find_free_region(bmp->bitmap, bmp->irq_count, order);
+	spin_unlock_irqrestore(&bmp->lock, flags);
+
+	pr_debug("msi_bitmap: allocated 0x%x (2^%d) at offset 0x%x\n",
+		 num, order, offset);
+
+	return offset;
 }
 
 void msi_bitmap_free_hwirqs(struct msi_bitmap *bmp, unsigned int offset,

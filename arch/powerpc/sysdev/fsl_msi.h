@@ -15,7 +15,6 @@
 
 #include <linux/of.h>
 #include <asm/msi_bitmap.h>
-#include <asm/atomic.h>
 
 #define NR_MSI_REG_MSIIR	8  /* MSIIR can index 8 MSI registers */
 #define NR_MSI_REG_MSIIR1	16 /* MSIIR1 can index 16 MSI registers */
@@ -28,8 +27,6 @@
 #define FSL_PIC_IP_IPIC   0x00000002
 #define FSL_PIC_IP_VMPIC  0x00000003
 
-#define FSL_PIC_FTR_MPIC_4_3 0x00000010
-
 struct fsl_msi_cascade_data;
 
 struct fsl_msi {
@@ -40,8 +37,6 @@ struct fsl_msi {
 	u32 msiir_offset; /* Offset of MSIIR, relative to start of CCSR */
 	u32 ibs_shift; /* Shift of interrupt bit select */
 	u32 srs_shift; /* Shift of the shared interrupt register select */
-	u32 msir_num; /* Number of available MSIR regs */
-	atomic_t msi_alloc_cnt; /* Counter for MSI hwirq allocations */
 	void __iomem *msi_regs;
 	u32 feature;
 	struct fsl_msi_cascade_data *cascade_array[NR_MSI_REG_MAX];

@@ -213,8 +213,6 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		 * available interrupt.
 		 */
 		list_for_each_entry(msi_data, &msi_head, list) {
-			int off;
-
 			/*
 			 * If the PCI node has an fsl,msi property, then we
 			 * restrict our search to the corresponding MSI node.
@@ -226,28 +224,7 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			if (phandle && (phandle != msi_data->phandle))
 				continue;
 
-			/*
-			 * Allocate the msi message so that it fits on distinct
-			 * MSIR registers. Obviously, since MSIR registers are
-			 * limited they will overlap at one point.
-			 *
-			 * Due to the format of the newly introduced MSIIR1 in
-			 * mpic 4.3, consecutive msi message values map to
-			 * distinct MSIRs, thus distinct msi irq cascades, so
-			 * nothing special needs to be done in this case.
-			 * On older mpic versions the chose distinct SRS
-			 * values by aligning the msi message value to the
-			 * SRS field shift.
-			 */
-			if (msi_data->feature & FSL_PIC_FTR_MPIC_4_3) {
-				off = 0;
-			} else {
-				off = atomic_inc_return(&msi_data->msi_alloc_cnt) %
-					msi_data->msir_num;
-				off <<= msi_data->srs_shift;
-			}
-			hwirq = msi_bitmap_alloc_hwirqs_from_offset(
-						&msi_data->bitmap, off, 1);
+			hwirq = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
 			if (hwirq >= 0)
 				break;
 		}
@@ -487,17 +464,12 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 		goto error_out;
 	}
 
-	atomic_set(&msi->msi_alloc_cnt, -1);
-
 	p = of_get_property(dev->dev.of_node, "msi-available-ranges", &len);
 
 	if (of_device_is_compatible(dev->dev.of_node, "fsl,mpic-msi-v4.3") ||
 	    of_device_is_compatible(dev->dev.of_node, "fsl,vmpic-msi-v4.3")) {
 		msi->srs_shift = MSIIR1_SRS_SHIFT;
 		msi->ibs_shift = MSIIR1_IBS_SHIFT;
-		msi->msir_num = NR_MSI_REG_MSIIR1;
-		msi->feature |= FSL_PIC_FTR_MPIC_4_3;
-
 		if (p)
 			dev_warn(&dev->dev, "%s: dose not support msi-available-ranges property\n",
 				__func__);
@@ -515,7 +487,6 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 
 		msi->srs_shift = MSIIR_SRS_SHIFT;
 		msi->ibs_shift = MSIIR_IBS_SHIFT;
-		msi->msir_num = NR_MSI_REG_MSIIR;
 
 		if (p && len % (2 * sizeof(u32)) != 0) {
 			dev_err(&dev->dev, "%s: Malformed msi-available-ranges property\n",
