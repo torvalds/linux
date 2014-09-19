@@ -17,7 +17,7 @@
 #include "usbdev_rk.h"
 
 char *bc_string[USB_BC_TYPE_MAX] = {"DISCONNECT",
-				    "Starder Downstream Port",
+				    "Stander Downstream Port",
 				    "Dedicated Charging Port",
 				    "Charging Downstream Port",
 				    "UNKNOW"};
