@@ -360,8 +360,14 @@ static void nfs_direct_read_completion(struct nfs_pgio_header *hdr)
 	spin_lock(&dreq->lock);
 	if (test_bit(NFS_IOHDR_ERROR, &hdr->flags) && (hdr->good_bytes == 0))
 		dreq->error = hdr->error;
-	else
-		dreq->count += hdr->good_bytes;
+	else {
+		/*
+		 * FIXME: right now this only accounts for bytes written
+		 *        to the first mirror
+		 */
+		if (hdr->pgio_mirror_idx == 0)
+			dreq->count += hdr->good_bytes;
+	}
 	spin_unlock(&dreq->lock);
 
 	while (!list_empty(&hdr->pages)) {
@@ -724,7 +730,12 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 		dreq->error = hdr->error;
 	}
 	if (dreq->error == 0) {
-		dreq->count += hdr->good_bytes;
+		/*
+		 * FIXME: right now this only accounts for bytes written
+		 *        to the first mirror
+		 */
+		if (hdr->pgio_mirror_idx == 0)
+			dreq->count += hdr->good_bytes;
 		if (nfs_write_need_commit(hdr)) {
 			if (dreq->flags == NFS_ODIRECT_RESCHED_WRITES)
 				request_commit = true;

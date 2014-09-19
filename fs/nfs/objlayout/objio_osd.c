@@ -537,11 +537,12 @@ int objio_write_pagelist(struct nfs_pgio_header *hdr, int how)
 static size_t objio_pg_test(struct nfs_pageio_descriptor *pgio,
 			  struct nfs_page *prev, struct nfs_page *req)
 {
+	struct nfs_pgio_mirror *mirror = &pgio->pg_mirrors[pgio->pg_mirror_idx];
 	unsigned int size;
 
 	size = pnfs_generic_pg_test(pgio, prev, req);
 
-	if (!size || pgio->pg_count + req->wb_bytes >
+	if (!size || mirror->pg_count + req->wb_bytes >
 	    (unsigned long)pgio->pg_layout_private)
 		return 0;
 

@@ -58,6 +58,8 @@ struct nfs_pageio_ops {
 	size_t	(*pg_test)(struct nfs_pageio_descriptor *, struct nfs_page *,
 			   struct nfs_page *);
 	int	(*pg_doio)(struct nfs_pageio_descriptor *);
+	unsigned int	(*pg_get_mirror_count)(struct nfs_pageio_descriptor *,
+				       struct nfs_page *);
 	void	(*pg_cleanup)(struct nfs_pageio_descriptor *);
 };
 
@@ -74,15 +76,17 @@ struct nfs_rw_ops {
 			    struct rpc_task_setup *, int);
 };
 
-struct nfs_pageio_descriptor {
+struct nfs_pgio_mirror {
 	struct list_head	pg_list;
 	unsigned long		pg_bytes_written;
 	size_t			pg_count;
 	size_t			pg_bsize;
 	unsigned int		pg_base;
-	unsigned char		pg_moreio : 1,
-				pg_recoalesce : 1;
+	unsigned char		pg_recoalesce : 1;
+};
 
+struct nfs_pageio_descriptor {
+	unsigned char		pg_moreio : 1;
 	struct inode		*pg_inode;
 	const struct nfs_pageio_ops *pg_ops;
 	const struct nfs_rw_ops *pg_rw_ops;
@@ -93,7 +97,17 @@ struct nfs_pageio_descriptor {
 	struct pnfs_layout_segment *pg_lseg;
 	struct nfs_direct_req	*pg_dreq;
 	void			*pg_layout_private;
+	unsigned int		pg_bsize;	/* default bsize for mirrors */
+
+	u32			pg_mirror_count;
+	struct nfs_pgio_mirror	*pg_mirrors;
+	struct nfs_pgio_mirror	pg_mirrors_static[1];
+	struct nfs_pgio_mirror	*pg_mirrors_dynamic;
+	u32			pg_mirror_idx;	/* current mirror */
 };
+
+/* arbitrarily selected limit to number of mirrors */
+#define NFS_PAGEIO_DESCRIPTOR_MIRROR_MAX 16
 
 #define NFS_WBACK_BUSY(req)	(test_bit(PG_BUSY,&(req)->wb_flags))
 
