@@ -538,6 +538,13 @@ static u32 convert_to_et_setting(struct be_adapter *adapter, u32 if_speeds)
 		val |= SUPPORTED_Backplane |
 				SUPPORTED_10000baseKR_Full;
 		break;
+	case PHY_TYPE_KR4_40GB:
+		val |= SUPPORTED_Backplane;
+		if (if_speeds & BE_SUPPORTED_SPEED_10GBPS)
+			val |= SUPPORTED_10000baseKR_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_40GBPS)
+			val |= SUPPORTED_40000baseKR4_Full;
+		break;
 	case PHY_TYPE_QSFP:
 		if (if_speeds & BE_SUPPORTED_SPEED_40GBPS) {
 			switch (adapter->phy.cable_type) {
