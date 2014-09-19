@@ -19,6 +19,7 @@ enum functionfs_flags {
 	FUNCTIONFS_HAS_HS_DESC = 2,
 	FUNCTIONFS_HAS_SS_DESC = 4,
 	FUNCTIONFS_HAS_MS_OS_DESC = 8,
+	FUNCTIONFS_VIRTUAL_ADDR = 16,
 };
 
 /* Descriptor of an non-audio endpoint */
@@ -30,6 +31,16 @@ struct usb_endpoint_descriptor_no_audio {
 	__u8  bmAttributes;
 	__le16 wMaxPacketSize;
 	__u8  bInterval;
+} __attribute__((packed));
+
+struct usb_functionfs_descs_head_v2 {
+	__le32 magic;
+	__le32 length;
+	__le32 flags;
+	/*
+	 * __le32 fs_count, hs_count, fs_count; must be included manually in
+	 * the structure taking flags into consideration.
+	 */
 } __attribute__((packed));
 
 /* Legacy format, deprecated as of 3.14. */
@@ -92,7 +103,7 @@ struct usb_ext_prop_desc {
  * structure.  Any flags that are not recognised cause the whole block to be
  * rejected with -ENOSYS.
  *
- * Legacy descriptors format:
+ * Legacy descriptors format (deprecated as of 3.14):
  *
  * | off | name      | type         | description                          |
  * |-----+-----------+--------------+--------------------------------------|
@@ -264,6 +275,12 @@ struct usb_functionfs_event {
  * active returns -ENODEV.
  */
 #define	FUNCTIONFS_ENDPOINT_REVMAP	_IO('g', 129)
+
+/*
+ * Returns endpoint descriptor. If function is not active returns -ENODEV.
+ */
+#define	FUNCTIONFS_ENDPOINT_DESC	_IOR('g', 130, \
+					     struct usb_endpoint_descriptor)
 
 
 

@@ -481,10 +481,8 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	}
 
 	omap = devm_kzalloc(dev, sizeof(*omap), GFP_KERNEL);
-	if (!omap) {
-		dev_err(dev, "not enough memory\n");
+	if (!omap)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, omap);
 

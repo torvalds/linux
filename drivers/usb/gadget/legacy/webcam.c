@@ -12,23 +12,31 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/usb/video.h>
 
-#include "f_uvc.h"
-
-/*
- * Kbuild is not very cooperative with respect to linking separately
- * compiled library objects into one module.  So for now we won't use
- * separate compilation ... ensuring init/exit sections work to shrink
- * the runtime footprint, and giving us at least some parts of what
- * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
- */
-#include "uvc_queue.c"
-#include "uvc_video.c"
-#include "uvc_v4l2.c"
-#include "f_uvc.c"
+#include "u_uvc.h"
 
 USB_GADGET_COMPOSITE_OPTIONS();
+
+/*-------------------------------------------------------------------------*/
+
+/* module parameters specific to the Video streaming endpoint */
+static unsigned int streaming_interval = 1;
+module_param(streaming_interval, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(streaming_interval, "1 - 16");
+
+static unsigned int streaming_maxpacket = 1024;
+module_param(streaming_maxpacket, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(streaming_maxpacket, "1 - 1023 (FS), 1 - 3072 (hs/ss)");
+
+static unsigned int streaming_maxburst;
+module_param(streaming_maxburst, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(streaming_maxburst, "0 - 15 (ss only)");
+
+static unsigned int trace;
+module_param(trace, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(trace, "Trace level bitmask");
 /* --------------------------------------------------------------------------
  * Device descriptor
  */
@@ -62,6 +70,9 @@ static struct usb_gadget_strings *webcam_device_strings[] = {
 	&webcam_stringtab,
 	NULL,
 };
+
+static struct usb_function_instance *fi_uvc;
+static struct usb_function *f_uvc;
 
 static struct usb_device_descriptor webcam_device_descriptor = {
 	.bLength		= USB_DT_DEVICE_SIZE,
@@ -326,9 +337,17 @@ static const struct uvc_descriptor_header * const uvc_ss_streaming_cls[] = {
 static int __init
 webcam_config_bind(struct usb_configuration *c)
 {
-	return uvc_bind_config(c, uvc_fs_control_cls, uvc_ss_control_cls,
-		uvc_fs_streaming_cls, uvc_hs_streaming_cls,
-		uvc_ss_streaming_cls);
+	int status = 0;
+
+	f_uvc = usb_get_function(fi_uvc);
+	if (IS_ERR(f_uvc))
+		return PTR_ERR(f_uvc);
+
+	status = usb_add_function(c, f_uvc);
+	if (status < 0)
+		usb_put_function(f_uvc);
+
+	return status;
 }
 
 static struct usb_configuration webcam_config_driver = {
@@ -342,13 +361,35 @@ static struct usb_configuration webcam_config_driver = {
 static int /* __init_or_exit */
 webcam_unbind(struct usb_composite_dev *cdev)
 {
+	if (!IS_ERR_OR_NULL(f_uvc))
+		usb_put_function(f_uvc);
+	if (!IS_ERR_OR_NULL(fi_uvc))
+		usb_put_function_instance(fi_uvc);
 	return 0;
 }
 
 static int __init
 webcam_bind(struct usb_composite_dev *cdev)
 {
+	struct f_uvc_opts *uvc_opts;
 	int ret;
+
+	fi_uvc = usb_get_function_instance("uvc");
+	if (IS_ERR(fi_uvc))
+		return PTR_ERR(fi_uvc);
+
+	uvc_opts = container_of(fi_uvc, struct f_uvc_opts, func_inst);
+
+	uvc_opts->streaming_interval = streaming_interval;
+	uvc_opts->streaming_maxpacket = streaming_maxpacket;
+	uvc_opts->streaming_maxburst = streaming_maxburst;
+	uvc_set_trace_param(trace);
+
+	uvc_opts->fs_control = uvc_fs_control_cls;
+	uvc_opts->ss_control = uvc_ss_control_cls;
+	uvc_opts->fs_streaming = uvc_fs_streaming_cls;
+	uvc_opts->hs_streaming = uvc_hs_streaming_cls;
+	uvc_opts->ss_streaming = uvc_ss_streaming_cls;
 
 	/* Allocate string descriptor numbers ... note that string contents
 	 * can be overridden by the composite_dev glue.
@@ -373,7 +414,7 @@ webcam_bind(struct usb_composite_dev *cdev)
 	return 0;
 
 error:
-	webcam_unbind(cdev);
+	usb_put_function_instance(fi_uvc);
 	return ret;
 }
 

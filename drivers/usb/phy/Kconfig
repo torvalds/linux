@@ -78,22 +78,6 @@ config SAMSUNG_USBPHY
 	  This driver provides common interface to interact, for Samsung USB 2.0 PHY
 	  driver and later for Samsung USB 3.0 PHY driver.
 
-config SAMSUNG_USB2PHY
-	tristate "Samsung USB 2.0 PHY controller Driver"
-	select SAMSUNG_USBPHY
-	select USB_PHY
-	help
-	  Enable this to support Samsung USB 2.0 (High Speed) PHY controller
-	  driver for Samsung SoCs.
-
-config SAMSUNG_USB3PHY
-	tristate "Samsung USB 3.0 PHY controller Driver"
-	select SAMSUNG_USBPHY
-	select USB_PHY
-	help
-	  Enable this to support Samsung USB 3.0 (Super Speed) phy controller
-	  for samsung SoCs.
-
 config TWL6030_USB
 	tristate "TWL6030 USB Transceiver Driver"
 	depends on TWL4030_CORE && OMAP_USB2 && USB_MUSB_OMAP2PLUS
