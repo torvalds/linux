@@ -277,7 +277,7 @@ static int lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
 
 	while ((total_read_len < buf_len) && !eof) {
 		chunk_size = min_t(u32, (buf_len - total_read_len),
-				LANCER_READ_FILE_CHUNK);
+				   LANCER_READ_FILE_CHUNK);
 		chunk_size = ALIGN(chunk_size, 4);
 		status = lancer_cmd_read_object(adapter, &read_cmd, chunk_size,
 						total_read_len, file_name,
@@ -1213,8 +1213,8 @@ static int be_set_rxfh(struct net_device *netdev, const u32 *indir,
 		hkey =  adapter->rss_info.rss_hkey;
 
 	rc = be_cmd_rss_config(adapter, rsstable,
-			adapter->rss_info.rss_flags,
-			RSS_INDIR_TABLE_LEN, hkey);
+			       adapter->rss_info.rss_flags,
+			       RSS_INDIR_TABLE_LEN, hkey);
 	if (rc) {
 		adapter->rss_info.rss_flags = RSS_ENABLE_NONE;
 		return -EIO;

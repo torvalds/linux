@@ -1034,7 +1034,8 @@ int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, int pmac_id, u32 dom)
 	req = embedded_payload(wrb);
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-		OPCODE_COMMON_NTWK_PMAC_DEL, sizeof(*req), wrb, NULL);
+			       OPCODE_COMMON_NTWK_PMAC_DEL, sizeof(*req),
+			       wrb, NULL);
 
 	req->hdr.domain = dom;
 	req->if_id = cpu_to_le32(if_id);
@@ -1709,7 +1710,7 @@ int be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf)
 					      &get_fat_cmd.dma);
 	if (!get_fat_cmd.va) {
 		dev_err(&adapter->pdev->dev,
-		"Memory allocation failure while retrieving FAT data\n");
+			"Memory allocation failure while reading FAT data\n");
 		return -ENOMEM;
 	}
 
@@ -2471,7 +2472,7 @@ err_unlock:
 }
 
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
-			  u16 optype, int offset)
+			 u16 optype, int offset)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_read_flash_crc *req;
@@ -2645,7 +2646,7 @@ int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
 
 		resp = cmd->va;
 		if ((memcmp(resp->rcv_buff, req->snd_buff, byte_cnt) != 0) ||
-				resp->snd_err) {
+		    resp->snd_err) {
 			status = -1;
 		}
 	}
