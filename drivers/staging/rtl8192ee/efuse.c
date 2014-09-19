@@ -136,9 +136,8 @@ u8 stg_efuse_read_1byte(struct ieee80211_hw *hw, u16 address)
 		}
 		data = rtl_read_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_CTRL]);
 		return data;
-	} else {
-		return 0xFF;
 	}
+	return 0xFF;
 }
 EXPORT_SYMBOL(stg_efuse_read_1byte);
 
@@ -751,8 +750,7 @@ static int efuse_pg_packet_read(struct ieee80211_hw *hw, u8 offset, u8 *data)
 	    (data[4] == 0xff) && (data[5] == 0xff) &&
 	    (data[6] == 0xff) && (data[7] == 0xff))
 		return false;
-	else
-		return true;
+	return true;
 }
 
 static void efuse_write_data_case1(struct ieee80211_hw *hw, u16 *efuse_addr,
