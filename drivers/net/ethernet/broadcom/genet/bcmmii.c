@@ -296,6 +296,7 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device_node *dn = priv->pdev->dev.of_node;
 	struct phy_device *phydev;
+	u32 phy_flags;
 	int ret;
 
 	if (priv->phydev) {
@@ -314,8 +315,11 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 		priv->phy_dn = of_node_get(dn);
 	}
 
-	phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup, 0,
-				priv->phy_interface);
+	/* Communicate the integrated PHY revision */
+	phy_flags = priv->gphy_rev;
+
+	phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup,
+				phy_flags, priv->phy_interface);
 	if (!phydev) {
 		pr_err("could not attach to PHY\n");
 		return -ENODEV;
