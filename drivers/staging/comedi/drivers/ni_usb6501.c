@@ -172,7 +172,7 @@ struct ni6501_private {
 	u8 *usb_tx_buf;
 };
 
-static int ni6501_send_command(struct comedi_device *dev, int command,
+static int ni6501_port_command(struct comedi_device *dev, int command,
 			       const u8 *port, u8 *bitmap)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
@@ -270,7 +270,7 @@ static int ni6501_dio_insn_config(struct comedi_device *dev,
 	port[1] = (s->io_bits >> 8) & 0xff;
 	port[2] = (s->io_bits >> 16) & 0xff;
 
-	ret = ni6501_send_command(dev, SET_PORT_DIR, port, NULL);
+	ret = ni6501_port_command(dev, SET_PORT_DIR, port, NULL);
 	if (ret)
 		return ret;
 
@@ -292,7 +292,7 @@ static int ni6501_dio_insn_bits(struct comedi_device *dev,
 	for (port = 0; port < 3; port++) {
 		if (mask & (0xFF << port * 8)) {
 			bitmap = (s->state >> port * 8) & 0xFF;
-			ret = ni6501_send_command(dev, WRITE_PORT,
+			ret = ni6501_port_command(dev, WRITE_PORT,
 						  &port, &bitmap);
 			if (ret)
 				return ret;
@@ -302,7 +302,7 @@ static int ni6501_dio_insn_bits(struct comedi_device *dev,
 	data[1] = 0;
 
 	for (port = 0; port < 3; port++) {
-		ret = ni6501_send_command(dev, READ_PORT, &port, &bitmap);
+		ret = ni6501_port_command(dev, READ_PORT, &port, &bitmap);
 		if (ret)
 			return ret;
 		data[1] |= bitmap << port * 8;
