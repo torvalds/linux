@@ -1342,7 +1342,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct em28xx *dev = video_drvdata(file);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
-	if (v4l2->streaming_users > 0)
+	if (vb2_is_busy(&v4l2->vb_vidq))
 		return -EBUSY;
 
 	vidioc_try_fmt_vid_cap(file, priv, f);
