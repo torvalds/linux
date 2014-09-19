@@ -186,7 +186,6 @@
 				regulator-name = "VCC_RMII";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
 			};
 
 			vccio_wl: REG10 {
