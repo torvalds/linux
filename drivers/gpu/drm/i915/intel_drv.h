@@ -801,11 +801,7 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 			 struct intel_crtc_config *pipe_config);
 void intel_ddi_set_vc_payload_alloc(struct drm_crtc *crtc, bool state);
 
-/* intel_display.c */
-const char *intel_output_name(int output);
-bool intel_has_pending_fb_unpin(struct drm_device *dev);
-int intel_pch_rawclk(struct drm_device *dev);
-void intel_mark_busy(struct drm_device *dev);
+/* intel_frontbuffer.c */
 void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 			     struct intel_engine_cs *ring);
 void intel_frontbuffer_flip_prepare(struct drm_device *dev,
@@ -833,6 +829,13 @@ void intel_frontbuffer_flip(struct drm_device *dev,
 }
 
 void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
+
+
+/* intel_display.c */
+const char *intel_output_name(int output);
+bool intel_has_pending_fb_unpin(struct drm_device *dev);
+int intel_pch_rawclk(struct drm_device *dev);
+void intel_mark_busy(struct drm_device *dev);
 void intel_mark_idle(struct drm_device *dev);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
 void intel_crtc_control(struct drm_crtc *crtc, bool enable);
@@ -891,6 +894,8 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc);
 void intel_put_shared_dpll(struct intel_crtc *crtc);
 
 /* modesetting asserts */
+void assert_panel_unlocked(struct drm_i915_private *dev_priv,
+			   enum pipe pipe);
 void assert_pll(struct drm_i915_private *dev_priv,
 		enum pipe pipe, bool state);
 #define assert_pll_enabled(d, p) assert_pll(d, p, true)

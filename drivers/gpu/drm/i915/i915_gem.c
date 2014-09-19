@@ -5077,6 +5077,15 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 	return ret;
 }
 
+/**
+ * i915_gem_track_fb - update frontbuffer tracking
+ * old: current GEM buffer for the frontbuffer slots
+ * new: new GEM buffer for the frontbuffer slots
+ * frontbuffer_bits: bitmask of frontbuffer slots
+ *
+ * This updates the frontbuffer tracking bits @frontbuffer_bits by clearing them
+ * from @old and setting them in @new. Both @old and @new can be NULL.
+ */
 void i915_gem_track_fb(struct drm_i915_gem_object *old,
 		       struct drm_i915_gem_object *new,
 		       unsigned frontbuffer_bits)
