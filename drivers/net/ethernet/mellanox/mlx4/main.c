@@ -104,7 +104,8 @@ module_param(enable_64b_cqe_eqe, bool, 0444);
 MODULE_PARM_DESC(enable_64b_cqe_eqe,
 		 "Enable 64 byte CQEs/EQEs when the FW supports this (default: True)");
 
-#define PF_CONTEXT_BEHAVIOUR_MASK	MLX4_FUNC_CAP_64B_EQE_CQE
+#define PF_CONTEXT_BEHAVIOUR_MASK	(MLX4_FUNC_CAP_64B_EQE_CQE | \
+					 MLX4_FUNC_CAP_EQE_CQE_STRIDE)
 
 static char mlx4_version[] =
 	DRV_NAME ": Mellanox ConnectX core driver v"
@@ -194,6 +195,40 @@ static void mlx4_set_port_mask(struct mlx4_dev *dev)
 
 	for (i = 1; i <= dev->caps.num_ports; ++i)
 		dev->caps.port_mask[i] = dev->caps.port_type[i];
+}
+
+static void mlx4_enable_cqe_eqe_stride(struct mlx4_dev *dev)
+{
+	struct mlx4_caps *dev_cap = &dev->caps;
+
+	/* FW not supporting or cancelled by user */
+	if (!(dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_EQE_STRIDE) ||
+	    !(dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_CQE_STRIDE))
+		return;
+
+	/* Must have 64B CQE_EQE enabled by FW to use bigger stride
+	 * When FW has NCSI it may decide not to report 64B CQE/EQEs
+	 */
+	if (!(dev_cap->flags & MLX4_DEV_CAP_FLAG_64B_EQE) ||
+	    !(dev_cap->flags & MLX4_DEV_CAP_FLAG_64B_CQE)) {
+		dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_CQE_STRIDE;
+		dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_EQE_STRIDE;
+		return;
+	}
+
+	if (cache_line_size() == 128 || cache_line_size() == 256) {
+		mlx4_dbg(dev, "Enabling CQE stride cacheLine supported\n");
+		/* Changing the real data inside CQE size to 32B */
+		dev_cap->flags &= ~MLX4_DEV_CAP_FLAG_64B_CQE;
+		dev_cap->flags &= ~MLX4_DEV_CAP_FLAG_64B_EQE;
+
+		if (mlx4_is_master(dev))
+			dev_cap->function_caps |= MLX4_FUNC_CAP_EQE_CQE_STRIDE;
+	} else {
+		mlx4_dbg(dev, "Disabling CQE stride cacheLine unsupported\n");
+		dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_CQE_STRIDE;
+		dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_EQE_STRIDE;
+	}
 }
 
 static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
@@ -390,12 +425,23 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			dev->caps.flags &= ~MLX4_DEV_CAP_FLAG_64B_CQE;
 			dev->caps.flags &= ~MLX4_DEV_CAP_FLAG_64B_EQE;
 		}
+
+		if (dev_cap->flags2 &
+		    (MLX4_DEV_CAP_FLAG2_CQE_STRIDE |
+		     MLX4_DEV_CAP_FLAG2_EQE_STRIDE)) {
+			mlx4_warn(dev, "Disabling EQE/CQE stride per user request\n");
+			dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_CQE_STRIDE;
+			dev_cap->flags2 &= ~MLX4_DEV_CAP_FLAG2_EQE_STRIDE;
+		}
 	}
 
 	if ((dev->caps.flags &
 	    (MLX4_DEV_CAP_FLAG_64B_CQE | MLX4_DEV_CAP_FLAG_64B_EQE)) &&
 	    mlx4_is_master(dev))
 		dev->caps.function_caps |= MLX4_FUNC_CAP_64B_EQE_CQE;
+
+	if (!mlx4_is_slave(dev))
+		mlx4_enable_cqe_eqe_stride(dev);
 
 	return 0;
 }
@@ -724,9 +770,20 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 
 	if (hca_param.dev_cap_enabled & MLX4_DEV_CAP_64B_CQE_ENABLED) {
 		dev->caps.cqe_size   = 64;
-		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_64B_CQE;
+		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_LARGE_CQE;
 	} else {
 		dev->caps.cqe_size   = 32;
+	}
+
+	if (hca_param.dev_cap_enabled & MLX4_DEV_CAP_EQE_STRIDE_ENABLED) {
+		dev->caps.eqe_size = hca_param.eqe_size;
+		dev->caps.eqe_factor = 0;
+	}
+
+	if (hca_param.dev_cap_enabled & MLX4_DEV_CAP_CQE_STRIDE_ENABLED) {
+		dev->caps.cqe_size = hca_param.cqe_size;
+		/* User still need to know when CQE > 32B */
+		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_LARGE_CQE;
 	}
 
 	dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_TS;

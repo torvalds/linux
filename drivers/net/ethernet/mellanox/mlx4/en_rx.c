@@ -671,7 +671,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	 * descriptor offset can be deduced from the CQE index instead of
 	 * reading 'cqe->index' */
 	index = cq->mcq.cons_index & ring->size_mask;
-	cqe = &cq->buf[(index << factor) + factor];
+	cqe = mlx4_en_get_cqe(cq->buf, index, priv->cqe_size) + factor;
 
 	/* Process all completed CQEs */
 	while (XNOR(cqe->owner_sr_opcode & MLX4_CQE_OWNER_MASK,
@@ -858,7 +858,7 @@ next:
 
 		++cq->mcq.cons_index;
 		index = (cq->mcq.cons_index) & ring->size_mask;
-		cqe = &cq->buf[(index << factor) + factor];
+		cqe = mlx4_en_get_cqe(cq->buf, index, priv->cqe_size) + factor;
 		if (++polled == budget)
 			goto out;
 	}
