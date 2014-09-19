@@ -4061,67 +4061,6 @@ static void tcp_sack_remove(struct tcp_sock *tp)
 	tp->rx_opt.num_sacks = num_sacks;
 }
 
-/* This one checks to see if we can put data from the
- * out_of_order queue into the receive_queue.
- */
-static void tcp_ofo_queue(struct sock *sk)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	__u32 dsack_high = tp->rcv_nxt;
-	struct sk_buff *skb;
-
-	while ((skb = skb_peek(&tp->out_of_order_queue)) != NULL) {
-		if (after(TCP_SKB_CB(skb)->seq, tp->rcv_nxt))
-			break;
-
-		if (before(TCP_SKB_CB(skb)->seq, dsack_high)) {
-			__u32 dsack = dsack_high;
-			if (before(TCP_SKB_CB(skb)->end_seq, dsack_high))
-				dsack_high = TCP_SKB_CB(skb)->end_seq;
-			tcp_dsack_extend(sk, TCP_SKB_CB(skb)->seq, dsack);
-		}
-
-		if (!after(TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt)) {
-			SOCK_DEBUG(sk, "ofo packet was already received\n");
-			__skb_unlink(skb, &tp->out_of_order_queue);
-			__kfree_skb(skb);
-			continue;
-		}
-		SOCK_DEBUG(sk, "ofo requeuing : rcv_next %X seq %X - %X\n",
-			   tp->rcv_nxt, TCP_SKB_CB(skb)->seq,
-			   TCP_SKB_CB(skb)->end_seq);
-
-		__skb_unlink(skb, &tp->out_of_order_queue);
-		__skb_queue_tail(&sk->sk_receive_queue, skb);
-		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
-			tcp_fin(sk);
-	}
-}
-
-static bool tcp_prune_ofo_queue(struct sock *sk);
-static int tcp_prune_queue(struct sock *sk);
-
-static int tcp_try_rmem_schedule(struct sock *sk, struct sk_buff *skb,
-				 unsigned int size)
-{
-	if (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf ||
-	    !sk_rmem_schedule(sk, skb, size)) {
-
-		if (tcp_prune_queue(sk) < 0)
-			return -1;
-
-		if (!sk_rmem_schedule(sk, skb, size)) {
-			if (!tcp_prune_ofo_queue(sk))
-				return -1;
-
-			if (!sk_rmem_schedule(sk, skb, size))
-				return -1;
-		}
-	}
-	return 0;
-}
-
 /**
  * tcp_try_coalesce - try to merge skb to prior one
  * @sk: socket
@@ -4158,6 +4097,72 @@ static bool tcp_try_coalesce(struct sock *sk,
 	TCP_SKB_CB(to)->ack_seq = TCP_SKB_CB(from)->ack_seq;
 	TCP_SKB_CB(to)->tcp_flags |= TCP_SKB_CB(from)->tcp_flags;
 	return true;
+}
+
+/* This one checks to see if we can put data from the
+ * out_of_order queue into the receive_queue.
+ */
+static void tcp_ofo_queue(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	__u32 dsack_high = tp->rcv_nxt;
+	struct sk_buff *skb, *tail;
+	bool fragstolen, eaten;
+
+	while ((skb = skb_peek(&tp->out_of_order_queue)) != NULL) {
+		if (after(TCP_SKB_CB(skb)->seq, tp->rcv_nxt))
+			break;
+
+		if (before(TCP_SKB_CB(skb)->seq, dsack_high)) {
+			__u32 dsack = dsack_high;
+			if (before(TCP_SKB_CB(skb)->end_seq, dsack_high))
+				dsack_high = TCP_SKB_CB(skb)->end_seq;
+			tcp_dsack_extend(sk, TCP_SKB_CB(skb)->seq, dsack);
+		}
+
+		__skb_unlink(skb, &tp->out_of_order_queue);
+		if (!after(TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt)) {
+			SOCK_DEBUG(sk, "ofo packet was already received\n");
+			__kfree_skb(skb);
+			continue;
+		}
+		SOCK_DEBUG(sk, "ofo requeuing : rcv_next %X seq %X - %X\n",
+			   tp->rcv_nxt, TCP_SKB_CB(skb)->seq,
+			   TCP_SKB_CB(skb)->end_seq);
+
+		tail = skb_peek_tail(&sk->sk_receive_queue);
+		eaten = tail && tcp_try_coalesce(sk, tail, skb, &fragstolen);
+		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+		if (!eaten)
+			__skb_queue_tail(&sk->sk_receive_queue, skb);
+		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
+			tcp_fin(sk);
+		if (eaten)
+			kfree_skb_partial(skb, fragstolen);
+	}
+}
+
+static bool tcp_prune_ofo_queue(struct sock *sk);
+static int tcp_prune_queue(struct sock *sk);
+
+static int tcp_try_rmem_schedule(struct sock *sk, struct sk_buff *skb,
+				 unsigned int size)
+{
+	if (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf ||
+	    !sk_rmem_schedule(sk, skb, size)) {
+
+		if (tcp_prune_queue(sk) < 0)
+			return -1;
+
+		if (!sk_rmem_schedule(sk, skb, size)) {
+			if (!tcp_prune_ofo_queue(sk))
+				return -1;
+
+			if (!sk_rmem_schedule(sk, skb, size))
+				return -1;
+		}
+	}
+	return 0;
 }
 
 static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
