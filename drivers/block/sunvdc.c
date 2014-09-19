@@ -33,7 +33,7 @@ MODULE_DESCRIPTION("Sun LDOM virtual disk client driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
-#define VDC_TX_RING_SIZE	256
+#define VDC_TX_RING_SIZE	512
 
 #define WAITING_FOR_LINK_UP	0x01
 #define WAITING_FOR_TX_SPACE	0x02
@@ -283,7 +283,9 @@ static void vdc_end_one(struct vdc_port *port, struct vio_dring_state *dr,
 
 	__blk_end_request(req, (desc->status ? -EIO : 0), desc->size);
 
-	if (blk_queue_stopped(port->disk->queue))
+	/* restart blk queue when ring is half emptied */
+	if (blk_queue_stopped(port->disk->queue) &&
+	    vdc_tx_dring_avail(dr) * 100 / VDC_TX_RING_SIZE >= 50)
 		blk_start_queue(port->disk->queue);
 }
 
@@ -435,12 +437,6 @@ static int __send_request(struct request *req)
 	for (i = 0; i < nsg; i++)
 		len += sg[i].length;
 
-	if (unlikely(vdc_tx_dring_avail(dr) < 1)) {
-		blk_stop_queue(port->disk->queue);
-		err = -ENOMEM;
-		goto out;
-	}
-
 	desc = vio_dring_cur(dr);
 
 	err = ldc_map_sg(port->vio.lp, sg, nsg,
@@ -480,21 +476,32 @@ static int __send_request(struct request *req)
 		port->req_id++;
 		dr->prod = (dr->prod + 1) & (VDC_TX_RING_SIZE - 1);
 	}
-out:
 
 	return err;
 }
 
-static void do_vdc_request(struct request_queue *q)
+static void do_vdc_request(struct request_queue *rq)
 {
-	while (1) {
-		struct request *req = blk_fetch_request(q);
+	struct request *req;
 
-		if (!req)
+	while ((req = blk_peek_request(rq)) != NULL) {
+		struct vdc_port *port;
+		struct vio_dring_state *dr;
+
+		port = req->rq_disk->private_data;
+		dr = &port->vio.drings[VIO_DRIVER_TX_RING];
+		if (unlikely(vdc_tx_dring_avail(dr) < 1))
+			goto wait;
+
+		blk_start_request(req);
+
+		if (__send_request(req) < 0) {
+			blk_requeue_request(rq, req);
+wait:
+			/* Avoid pointless unplugs. */
+			blk_stop_queue(rq);
 			break;
-
-		if (__send_request(req) < 0)
-			__blk_end_request_all(req, -EIO);
+		}
 	}
 }
 
