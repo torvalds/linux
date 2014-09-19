@@ -264,4 +264,56 @@ static inline void pm_genpd_syscore_poweroff(struct device *dev) {}
 static inline void pm_genpd_syscore_poweron(struct device *dev) {}
 #endif
 
+/* OF PM domain providers */
+struct of_device_id;
+
+struct genpd_onecell_data {
+	struct generic_pm_domain **domains;
+	unsigned int num_domains;
+};
+
+typedef struct generic_pm_domain *(*genpd_xlate_t)(struct of_phandle_args *args,
+						void *data);
+
+#ifdef CONFIG_PM_GENERIC_DOMAINS_OF
+int __of_genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
+			void *data);
+void of_genpd_del_provider(struct device_node *np);
+
+struct generic_pm_domain *__of_genpd_xlate_simple(
+					struct of_phandle_args *genpdspec,
+					void *data);
+struct generic_pm_domain *__of_genpd_xlate_onecell(
+					struct of_phandle_args *genpdspec,
+					void *data);
+
+int genpd_dev_pm_attach(struct device *dev);
+#else /* !CONFIG_PM_GENERIC_DOMAINS_OF */
+static inline int __of_genpd_add_provider(struct device_node *np,
+					genpd_xlate_t xlate, void *data)
+{
+	return 0;
+}
+static inline void of_genpd_del_provider(struct device_node *np) {}
+
+#define __of_genpd_xlate_simple		NULL
+#define __of_genpd_xlate_onecell	NULL
+
+static inline int genpd_dev_pm_attach(struct device *dev)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_PM_GENERIC_DOMAINS_OF */
+
+static inline int of_genpd_add_provider_simple(struct device_node *np,
+					struct generic_pm_domain *genpd)
+{
+	return __of_genpd_add_provider(np, __of_genpd_xlate_simple, genpd);
+}
+static inline int of_genpd_add_provider_onecell(struct device_node *np,
+					struct genpd_onecell_data *data)
+{
+	return __of_genpd_add_provider(np, __of_genpd_xlate_onecell, data);
+}
+
 #endif /* _LINUX_PM_DOMAIN_H */

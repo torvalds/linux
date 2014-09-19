@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_qos.h>
@@ -1933,3 +1934,291 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	list_add(&genpd->gpd_list_node, &gpd_list);
 	mutex_unlock(&gpd_list_lock);
 }
+
+#ifdef CONFIG_PM_GENERIC_DOMAINS_OF
+/*
+ * Device Tree based PM domain providers.
+ *
+ * The code below implements generic device tree based PM domain providers that
+ * bind device tree nodes with generic PM domains registered in the system.
+ *
+ * Any driver that registers generic PM domains and needs to support binding of
+ * devices to these domains is supposed to register a PM domain provider, which
+ * maps a PM domain specifier retrieved from the device tree to a PM domain.
+ *
+ * Two simple mapping functions have been provided for convenience:
+ *  - __of_genpd_xlate_simple() for 1:1 device tree node to PM domain mapping.
+ *  - __of_genpd_xlate_onecell() for mapping of multiple PM domains per node by
+ *    index.
+ */
+
+/**
+ * struct of_genpd_provider - PM domain provider registration structure
+ * @link: Entry in global list of PM domain providers
+ * @node: Pointer to device tree node of PM domain provider
+ * @xlate: Provider-specific xlate callback mapping a set of specifier cells
+ *         into a PM domain.
+ * @data: context pointer to be passed into @xlate callback
+ */
+struct of_genpd_provider {
+	struct list_head link;
+	struct device_node *node;
+	genpd_xlate_t xlate;
+	void *data;
+};
+
+/* List of registered PM domain providers. */
+static LIST_HEAD(of_genpd_providers);
+/* Mutex to protect the list above. */
+static DEFINE_MUTEX(of_genpd_mutex);
+
+/**
+ * __of_genpd_xlate_simple() - Xlate function for direct node-domain mapping
+ * @genpdspec: OF phandle args to map into a PM domain
+ * @data: xlate function private data - pointer to struct generic_pm_domain
+ *
+ * This is a generic xlate function that can be used to model PM domains that
+ * have their own device tree nodes. The private data of xlate function needs
+ * to be a valid pointer to struct generic_pm_domain.
+ */
+struct generic_pm_domain *__of_genpd_xlate_simple(
+					struct of_phandle_args *genpdspec,
+					void *data)
+{
+	if (genpdspec->args_count != 0)
+		return ERR_PTR(-EINVAL);
+	return data;
+}
+EXPORT_SYMBOL_GPL(__of_genpd_xlate_simple);
+
+/**
+ * __of_genpd_xlate_onecell() - Xlate function using a single index.
+ * @genpdspec: OF phandle args to map into a PM domain
+ * @data: xlate function private data - pointer to struct genpd_onecell_data
+ *
+ * This is a generic xlate function that can be used to model simple PM domain
+ * controllers that have one device tree node and provide multiple PM domains.
+ * A single cell is used as an index into an array of PM domains specified in
+ * the genpd_onecell_data struct when registering the provider.
+ */
+struct generic_pm_domain *__of_genpd_xlate_onecell(
+					struct of_phandle_args *genpdspec,
+					void *data)
+{
+	struct genpd_onecell_data *genpd_data = data;
+	unsigned int idx = genpdspec->args[0];
+
+	if (genpdspec->args_count != 1)
+		return ERR_PTR(-EINVAL);
+
+	if (idx >= genpd_data->num_domains) {
+		pr_err("%s: invalid domain index %u\n", __func__, idx);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (!genpd_data->domains[idx])
+		return ERR_PTR(-ENOENT);
+
+	return genpd_data->domains[idx];
+}
+EXPORT_SYMBOL_GPL(__of_genpd_xlate_onecell);
+
+/**
+ * __of_genpd_add_provider() - Register a PM domain provider for a node
+ * @np: Device node pointer associated with the PM domain provider.
+ * @xlate: Callback for decoding PM domain from phandle arguments.
+ * @data: Context pointer for @xlate callback.
+ */
+int __of_genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
+			void *data)
+{
+	struct of_genpd_provider *cp;
+
+	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
+	if (!cp)
+		return -ENOMEM;
+
+	cp->node = of_node_get(np);
+	cp->data = data;
+	cp->xlate = xlate;
+
+	mutex_lock(&of_genpd_mutex);
+	list_add(&cp->link, &of_genpd_providers);
+	mutex_unlock(&of_genpd_mutex);
+	pr_debug("Added domain provider from %s\n", np->full_name);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__of_genpd_add_provider);
+
+/**
+ * of_genpd_del_provider() - Remove a previously registered PM domain provider
+ * @np: Device node pointer associated with the PM domain provider
+ */
+void of_genpd_del_provider(struct device_node *np)
+{
+	struct of_genpd_provider *cp;
+
+	mutex_lock(&of_genpd_mutex);
+	list_for_each_entry(cp, &of_genpd_providers, link) {
+		if (cp->node == np) {
+			list_del(&cp->link);
+			of_node_put(cp->node);
+			kfree(cp);
+			break;
+		}
+	}
+	mutex_unlock(&of_genpd_mutex);
+}
+EXPORT_SYMBOL_GPL(of_genpd_del_provider);
+
+/**
+ * of_genpd_get_from_provider() - Look-up PM domain
+ * @genpdspec: OF phandle args to use for look-up
+ *
+ * Looks for a PM domain provider under the node specified by @genpdspec and if
+ * found, uses xlate function of the provider to map phandle args to a PM
+ * domain.
+ *
+ * Returns a valid pointer to struct generic_pm_domain on success or ERR_PTR()
+ * on failure.
+ */
+static struct generic_pm_domain *of_genpd_get_from_provider(
+					struct of_phandle_args *genpdspec)
+{
+	struct generic_pm_domain *genpd = ERR_PTR(-ENOENT);
+	struct of_genpd_provider *provider;
+
+	mutex_lock(&of_genpd_mutex);
+
+	/* Check if we have such a provider in our array */
+	list_for_each_entry(provider, &of_genpd_providers, link) {
+		if (provider->node == genpdspec->np)
+			genpd = provider->xlate(genpdspec, provider->data);
+		if (!IS_ERR(genpd))
+			break;
+	}
+
+	mutex_unlock(&of_genpd_mutex);
+
+	return genpd;
+}
+
+/**
+ * genpd_dev_pm_detach - Detach a device from its PM domain.
+ * @dev: Device to attach.
+ * @power_off: Currently not used
+ *
+ * Try to locate a corresponding generic PM domain, which the device was
+ * attached to previously. If such is found, the device is detached from it.
+ */
+static void genpd_dev_pm_detach(struct device *dev, bool power_off)
+{
+	struct generic_pm_domain *pd = NULL, *gpd;
+	int ret = 0;
+
+	if (!dev->pm_domain)
+		return;
+
+	mutex_lock(&gpd_list_lock);
+	list_for_each_entry(gpd, &gpd_list, gpd_list_node) {
+		if (&gpd->domain == dev->pm_domain) {
+			pd = gpd;
+			break;
+		}
+	}
+	mutex_unlock(&gpd_list_lock);
+
+	if (!pd)
+		return;
+
+	dev_dbg(dev, "removing from PM domain %s\n", pd->name);
+
+	while (1) {
+		ret = pm_genpd_remove_device(pd, dev);
+		if (ret != -EAGAIN)
+			break;
+		cond_resched();
+	}
+
+	if (ret < 0) {
+		dev_err(dev, "failed to remove from PM domain %s: %d",
+			pd->name, ret);
+		return;
+	}
+
+	/* Check if PM domain can be powered off after removing this device. */
+	genpd_queue_power_off_work(pd);
+}
+
+/**
+ * genpd_dev_pm_attach - Attach a device to its PM domain using DT.
+ * @dev: Device to attach.
+ *
+ * Parse device's OF node to find a PM domain specifier. If such is found,
+ * attaches the device to retrieved pm_domain ops.
+ *
+ * Both generic and legacy Samsung-specific DT bindings are supported to keep
+ * backwards compatibility with existing DTBs.
+ *
+ * Returns 0 on successfully attached PM domain or negative error code.
+ */
+int genpd_dev_pm_attach(struct device *dev)
+{
+	struct of_phandle_args pd_args;
+	struct generic_pm_domain *pd;
+	int ret;
+
+	if (!dev->of_node)
+		return -ENODEV;
+
+	if (dev->pm_domain)
+		return -EEXIST;
+
+	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
+					"#power-domain-cells", 0, &pd_args);
+	if (ret < 0) {
+		if (ret != -ENOENT)
+			return ret;
+
+		/*
+		 * Try legacy Samsung-specific bindings
+		 * (for backwards compatibility of DT ABI)
+		 */
+		pd_args.args_count = 0;
+		pd_args.np = of_parse_phandle(dev->of_node,
+						"samsung,power-domain", 0);
+		if (!pd_args.np)
+			return -ENOENT;
+	}
+
+	pd = of_genpd_get_from_provider(&pd_args);
+	if (IS_ERR(pd)) {
+		dev_dbg(dev, "%s() failed to find PM domain: %ld\n",
+			__func__, PTR_ERR(pd));
+		of_node_put(dev->of_node);
+		return PTR_ERR(pd);
+	}
+
+	dev_dbg(dev, "adding to PM domain %s\n", pd->name);
+
+	while (1) {
+		ret = pm_genpd_add_device(pd, dev);
+		if (ret != -EAGAIN)
+			break;
+		cond_resched();
+	}
+
+	if (ret < 0) {
+		dev_err(dev, "failed to add to PM domain %s: %d",
+			pd->name, ret);
+		of_node_put(dev->of_node);
+		return ret;
+	}
+
+	dev->pm_domain->detach = genpd_dev_pm_detach;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
+#endif
