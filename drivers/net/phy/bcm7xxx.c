@@ -196,13 +196,22 @@ static int bcm7xxx_eee_enable(struct phy_device *phydev)
 
 static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 {
-	int ret;
+	u8 rev = PHY_BRCM_7XXX_REV(phydev->dev_flags);
+	u8 patch = PHY_BRCM_7XXX_PATCH(phydev->dev_flags);
+	int ret = 0;
 
-	ret = bcm7445_config_init(phydev);
-	if (ret)
-		return ret;
+	dev_info(&phydev->dev, "PHY revision: 0x%02x, patch: %d\n", rev, patch);
 
-	ret = bcm7xxx_28nm_afe_config_init(phydev);
+	switch (rev) {
+	case 0xa0:
+	case 0xb0:
+		ret = bcm7445_config_init(phydev);
+		break;
+	default:
+		ret = bcm7xxx_28nm_afe_config_init(phydev);
+		break;
+	}
+
 	if (ret)
 		return ret;
 
@@ -257,8 +266,8 @@ static int bcm7xxx_config_init(struct phy_device *phydev)
 	phy_write(phydev, MII_BCM7XXX_AUX_MODE, MII_BCM7XX_64CLK_MDIO);
 	phy_read(phydev, MII_BCM7XXX_AUX_MODE);
 
-	/* Workaround only required for 100Mbits/sec */
-	if (!(phydev->dev_flags & PHY_BRCM_100MBPS_WAR))
+	/* Workaround only required for 100Mbits/sec capable PHYs */
+	if (phydev->supported & PHY_GBIT_FEATURES)
 		return 0;
 
 	/* set shadow mode 2 */

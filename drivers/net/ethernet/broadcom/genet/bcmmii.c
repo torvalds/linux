@@ -296,7 +296,7 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device_node *dn = priv->pdev->dev.of_node;
 	struct phy_device *phydev;
-	unsigned int phy_flags;
+	u32 phy_flags;
 	int ret;
 
 	if (priv->phydev) {
@@ -315,8 +315,11 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 		priv->phy_dn = of_node_get(dn);
 	}
 
-	phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup, 0,
-				priv->phy_interface);
+	/* Communicate the integrated PHY revision */
+	phy_flags = priv->gphy_rev;
+
+	phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup,
+				phy_flags, priv->phy_interface);
 	if (!phydev) {
 		pr_err("could not attach to PHY\n");
 		return -ENODEV;
@@ -338,15 +341,6 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 		return ret;
 	}
 
-	phy_flags = PHY_BRCM_100MBPS_WAR;
-
-	/* workarounds are only needed for 100Mpbs PHYs, and
-	 * never on GENET V1 hardware
-	 */
-	if ((phydev->supported & PHY_GBIT_FEATURES) || GENET_IS_V1(priv))
-		phy_flags = 0;
-
-	phydev->dev_flags |= phy_flags;
 	phydev->advertising = phydev->supported;
 
 	/* The internal PHY has its link interrupts routed to the

@@ -40,7 +40,8 @@
 #define PHY_BRCM_CLEAR_RGMII_MODE	0x00004000
 #define PHY_BRCM_DIS_TXCRXC_NOENRGY	0x00008000
 /* Broadcom BCM7xxx specific workarounds */
-#define PHY_BRCM_100MBPS_WAR		0x00010000
+#define PHY_BRCM_7XXX_REV(x)		(((x) >> 8) & 0xff)
+#define PHY_BRCM_7XXX_PATCH(x)		((x) & 0xff)
 #define PHY_BCM_FLAGS_VALID		0x80000000
 
 /* Broadcom BCM54XX register definitions, common to most Broadcom PHYs */

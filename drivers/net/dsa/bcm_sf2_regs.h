@@ -25,6 +25,7 @@
 #define  SWITCH_TOP_REV_MASK		0xffff
 
 #define REG_PHY_REVISION		0x1C
+#define  PHY_REVISION_MASK		0xffff
 
 #define REG_SPHY_CNTRL			0x2C
 #define  IDDQ_BIAS			(1 << 0)

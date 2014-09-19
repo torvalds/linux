@@ -2432,6 +2432,13 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	dev_info(&priv->pdev->dev, "GENET " GENET_VER_FMT,
 		 major, (reg >> 16) & 0x0f, reg & 0xffff);
 
+	/* Store the integrated PHY revision for the MDIO probing function
+	 * to pass this information to the PHY driver. The PHY driver expects
+	 * to find the PHY major revision in bits 15:8 while the GENET register
+	 * stores that information in bits 7:0, account for that.
+	 */
+	priv->gphy_rev = (reg & 0xffff) << 8;
+
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (!(params->flags & GENET_HAS_40BITS))
 		pr_warn("GENET does not support 40-bits PA\n");

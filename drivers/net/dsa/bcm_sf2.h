@@ -26,6 +26,7 @@
 struct bcm_sf2_hw_params {
 	u16	top_rev;
 	u16	core_rev;
+	u16	gphy_rev;
 	u32	num_gphy;
 	u8	num_acb_queue;
 	u8	num_rgmii;

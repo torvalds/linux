@@ -376,6 +376,9 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 					SWITCH_TOP_REV_MASK;
 	priv->hw_params.core_rev = (rev & SF2_REV_MASK);
 
+	rev = reg_readl(priv, REG_PHY_REVISION);
+	priv->hw_params.gphy_rev = rev & PHY_REVISION_MASK;
+
 	pr_info("Starfighter 2 top: %x.%02x, core: %x.%02x base: 0x%p, IRQs: %d, %d\n",
 		priv->hw_params.top_rev >> 8, priv->hw_params.top_rev & 0xff,
 		priv->hw_params.core_rev >> 8, priv->hw_params.core_rev & 0xff,
@@ -397,6 +400,18 @@ out_unmap:
 static int bcm_sf2_sw_set_addr(struct dsa_switch *ds, u8 *addr)
 {
 	return 0;
+}
+
+static u32 bcm_sf2_sw_get_phy_flags(struct dsa_switch *ds, int port)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+
+	/* The BCM7xxx PHY driver expects to find the integrated PHY revision
+	 * in bits 15:8 and the patch level in bits 7:0 which is exactly what
+	 * the REG_PHY_REVISION register layout is.
+	 */
+
+	return priv->hw_params.gphy_rev;
 }
 
 static int bcm_sf2_sw_indir_rw(struct dsa_switch *ds, int op, int addr,
@@ -597,6 +612,7 @@ static struct dsa_switch_driver bcm_sf2_switch_driver = {
 	.probe			= bcm_sf2_sw_probe,
 	.setup			= bcm_sf2_sw_setup,
 	.set_addr		= bcm_sf2_sw_set_addr,
+	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,
 	.phy_read		= bcm_sf2_sw_phy_read,
 	.phy_write		= bcm_sf2_sw_phy_write,
 	.get_strings		= bcm_sf2_sw_get_strings,
