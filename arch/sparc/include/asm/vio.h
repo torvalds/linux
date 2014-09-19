@@ -278,7 +278,7 @@ static inline u32 vio_dring_avail(struct vio_dring_state *dr,
 				  unsigned int ring_size)
 {
 	return (dr->pending -
-		((dr->prod - dr->cons) & (ring_size - 1)));
+		((dr->prod - dr->cons) & (ring_size - 1)) - 1);
 }
 
 #define VIO_MAX_TYPE_LEN	32
