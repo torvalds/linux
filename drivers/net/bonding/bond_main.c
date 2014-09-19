@@ -3586,7 +3586,6 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 						    bond_dev->name, __func__);
 				continue;
 			}
-			/* bond_dev_queue_xmit always returns 0 */
 			bond_dev_queue_xmit(bond, skb2, slave->dev);
 		}
 	}
