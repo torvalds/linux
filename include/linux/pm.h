@@ -622,6 +622,17 @@ struct dev_pm_domain {
 	void (*detach)(struct device *dev, bool power_off);
 };
 
+#ifdef CONFIG_PM
+extern int dev_pm_domain_attach(struct device *dev, bool power_on);
+extern void dev_pm_domain_detach(struct device *dev, bool power_off);
+#else
+static inline int dev_pm_domain_attach(struct device *dev, bool power_on)
+{
+	return -ENODEV;
+}
+static inline void dev_pm_domain_detach(struct device *dev, bool power_off) {}
+#endif
+
 /*
  * The PM_EVENT_ messages are also used by drivers implementing the legacy
  * suspend framework, based on the ->suspend() and ->resume() callbacks common
