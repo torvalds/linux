@@ -238,6 +238,49 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 {
 }
 
+static int dsa_switch_suspend(struct dsa_switch *ds)
+{
+	int i, ret = 0;
+
+	/* Suspend slave network devices */
+	for (i = 0; i < DSA_MAX_PORTS; i++) {
+		if (!(ds->phys_port_mask & (1 << i)))
+			continue;
+
+		ret = dsa_slave_suspend(ds->ports[i]);
+		if (ret)
+			return ret;
+	}
+
+	if (ds->drv->suspend)
+		ret = ds->drv->suspend(ds);
+
+	return ret;
+}
+
+static int dsa_switch_resume(struct dsa_switch *ds)
+{
+	int i, ret = 0;
+
+	if (ds->drv->resume)
+		ret = ds->drv->resume(ds);
+
+	if (ret)
+		return ret;
+
+	/* Resume slave network devices */
+	for (i = 0; i < DSA_MAX_PORTS; i++) {
+		if (!(ds->phys_port_mask & (1 << i)))
+			continue;
+
+		ret = dsa_slave_resume(ds->ports[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 
 /* link polling *************************************************************/
 static void dsa_link_poll_work(struct work_struct *ugly)
@@ -650,6 +693,42 @@ static struct packet_type dsa_pack_type __read_mostly = {
 	.func	= dsa_switch_rcv,
 };
 
+#ifdef CONFIG_PM_SLEEP
+static int dsa_suspend(struct device *d)
+{
+	struct platform_device *pdev = to_platform_device(d);
+	struct dsa_switch_tree *dst = platform_get_drvdata(pdev);
+	int i, ret = 0;
+
+	for (i = 0; i < dst->pd->nr_chips; i++) {
+		struct dsa_switch *ds = dst->ds[i];
+
+		if (ds != NULL)
+			ret = dsa_switch_suspend(ds);
+	}
+
+	return ret;
+}
+
+static int dsa_resume(struct device *d)
+{
+	struct platform_device *pdev = to_platform_device(d);
+	struct dsa_switch_tree *dst = platform_get_drvdata(pdev);
+	int i, ret = 0;
+
+	for (i = 0; i < dst->pd->nr_chips; i++) {
+		struct dsa_switch *ds = dst->ds[i];
+
+		if (ds != NULL)
+			ret = dsa_switch_resume(ds);
+	}
+
+	return ret;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(dsa_pm_ops, dsa_suspend, dsa_resume);
+
 static const struct of_device_id dsa_of_match_table[] = {
 	{ .compatible = "brcm,bcm7445-switch-v4.0" },
 	{ .compatible = "marvell,dsa", },
@@ -665,6 +744,7 @@ static struct platform_driver dsa_driver = {
 		.name	= "dsa",
 		.owner	= THIS_MODULE,
 		.of_match_table = dsa_of_match_table,
+		.pm	= &dsa_pm_ops,
 	},
 };
 
