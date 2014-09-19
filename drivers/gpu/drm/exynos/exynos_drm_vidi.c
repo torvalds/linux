@@ -631,7 +631,6 @@ static int vidi_remove(struct platform_device *pdev)
 	struct exynos_drm_manager *mgr = platform_get_drvdata(pdev);
 	struct vidi_context *ctx = mgr->ctx;
 	struct drm_encoder *encoder = ctx->encoder;
-	struct drm_crtc *crtc = mgr->crtc;
 
 	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
 		kfree(ctx->raw_edid);
@@ -640,7 +639,6 @@ static int vidi_remove(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	crtc->funcs->destroy(crtc);
 	encoder->funcs->destroy(encoder);
 	drm_connector_cleanup(&ctx->connector);
 

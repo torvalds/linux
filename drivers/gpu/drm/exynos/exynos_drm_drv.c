@@ -85,8 +85,9 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 		struct drm_plane *plane;
 		unsigned long possible_crtcs = (1 << MAX_CRTC) - 1;
 
-		plane = exynos_plane_init(dev, possible_crtcs, false);
-		if (!plane)
+		plane = exynos_plane_init(dev, possible_crtcs,
+					  DRM_PLANE_TYPE_OVERLAY);
+		if (IS_ERR(plane))
 			goto err_mode_config_cleanup;
 	}
 
