@@ -464,6 +464,10 @@
 		pinctrl-0 = <&i2c2_bus>;
 	};
 
+	isp-power-domain@10023CA0 {
+		domain-always-on;
+	};
+
 	i2c@138E0000 {
 		status = "okay";
 	};
