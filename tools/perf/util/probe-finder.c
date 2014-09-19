@@ -609,14 +609,18 @@ static int convert_to_trace_point(Dwarf_Die *sp_die, Dwfl_Module *mod,
 		return -EINVAL;
 	}
 
-	/* Get an appropriate symbol from symtab */
-	symbol = dwfl_module_addrsym(mod, paddr, &sym, NULL);
+	symbol = dwarf_diename(sp_die);
 	if (!symbol) {
-		pr_warning("Failed to find symbol at 0x%lx\n",
-			   (unsigned long)paddr);
-		return -ENOENT;
+		/* Try to get the symbol name from symtab */
+		symbol = dwfl_module_addrsym(mod, paddr, &sym, NULL);
+		if (!symbol) {
+			pr_warning("Failed to find symbol at 0x%lx\n",
+				   (unsigned long)paddr);
+			return -ENOENT;
+		}
+		eaddr = sym.st_value;
 	}
-	tp->offset = (unsigned long)(paddr - sym.st_value);
+	tp->offset = (unsigned long)(paddr - eaddr);
 	tp->address = (unsigned long)paddr;
 	tp->symbol = strdup(symbol);
 	if (!tp->symbol)

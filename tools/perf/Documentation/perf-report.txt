@@ -276,6 +276,9 @@ OPTIONS
 	Demangle symbol names to human readable form. It's enabled by default,
 	disable with --no-demangle.
 
+--demangle-kernel::
+	Demangle kernel symbol names to human readable form (for C++ kernels).
+
 --mem-mode::
 	Use the data addresses of samples in addition to instruction addresses
 	to build the histograms.  To generate meaningful output, the perf.data

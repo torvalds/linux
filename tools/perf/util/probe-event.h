@@ -128,7 +128,8 @@ extern int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 				 bool force_add);
 extern int del_perf_probe_events(struct strlist *dellist);
 extern int show_perf_probe_events(void);
-extern int show_line_range(struct line_range *lr, const char *module);
+extern int show_line_range(struct line_range *lr, const char *module,
+			   bool user);
 extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
 			       int max_probe_points, const char *module,
 			       struct strfilter *filter, bool externs);

@@ -132,7 +132,7 @@ endef
 #
 # Usage: bool-value = $(call is-absolute,path)
 #
-is-absolute = $(shell echo $(shell-sq) | grep ^/ -q && echo y)
+is-absolute = $(shell echo $(shell-sq) | grep -q ^/ && echo y)
 
 # lookup
 #

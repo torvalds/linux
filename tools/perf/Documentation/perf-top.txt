@@ -98,6 +98,9 @@ Default is to monitor all CPUS.
 --hide_user_symbols::
         Hide user symbols.
 
+--demangle-kernel::
+        Demangle kernel symbols.
+
 -D::
 --dump-symtab::
         Dump the symbol table used for profiling.

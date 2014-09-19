@@ -1446,12 +1446,47 @@ static const char *get_default_sort_order(void)
 	return default_sort_orders[sort__mode];
 }
 
+static int setup_sort_order(void)
+{
+	char *new_sort_order;
+
+	/*
+	 * Append '+'-prefixed sort order to the default sort
+	 * order string.
+	 */
+	if (!sort_order || is_strict_order(sort_order))
+		return 0;
+
+	if (sort_order[1] == '\0') {
+		error("Invalid --sort key: `+'");
+		return -EINVAL;
+	}
+
+	/*
+	 * We allocate new sort_order string, but we never free it,
+	 * because it's checked over the rest of the code.
+	 */
+	if (asprintf(&new_sort_order, "%s,%s",
+		     get_default_sort_order(), sort_order + 1) < 0) {
+		error("Not enough memory to set up --sort");
+		return -ENOMEM;
+	}
+
+	sort_order = new_sort_order;
+	return 0;
+}
+
 static int __setup_sorting(void)
 {
 	char *tmp, *tok, *str;
-	const char *sort_keys = sort_order;
+	const char *sort_keys;
 	int ret = 0;
 
+	ret = setup_sort_order();
+	if (ret)
+		return ret;
+
+	sort_keys = sort_order;
 	if (sort_keys == NULL) {
 		if (is_strict_order(field_order)) {
 			/*

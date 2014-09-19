@@ -152,7 +152,7 @@ int test__pmu(void)
 		if (ret)
 			break;
 
-		ret = perf_pmu__config_terms(&formats, &attr, terms);
+		ret = perf_pmu__config_terms(&formats, &attr, terms, false);
 		if (ret)
 			break;
 
