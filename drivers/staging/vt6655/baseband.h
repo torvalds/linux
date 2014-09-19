@@ -34,14 +34,14 @@
 #include "tether.h"
 #include "device.h"
 
-//
-// Registers in the BASEBAND
-//
+/*
+ * Registers in the BASEBAND
+ */
 #define BB_MAX_CONTEXT_SIZE 256
 
-//
-// Baseband RF pair definition in eeprom (Bits 6..0)
-//
+/*
+ * Baseband RF pair definition in eeprom (Bits 6..0)
+ */
 
 #define PREAMBLE_LONG   0
 #define PREAMBLE_SHORT  1
@@ -90,7 +90,7 @@ bool BBbIsRegBitsOn(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned cha
 bool BBbIsRegBitsOff(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byTestBits);
 void BBvSetVGAGainOffset(struct vnt_private *pDevice, unsigned char byData);
 
-// VT3253 Baseband
+/* VT3253 Baseband */
 bool BBbVT3253Init(struct vnt_private *pDevice);
 void BBvSoftwareReset(void __iomem *dwIoBase);
 void BBvPowerSaveModeON(void __iomem *dwIoBase);
@@ -100,7 +100,7 @@ void BBvSetRxAntennaMode(void __iomem *dwIoBase, unsigned char byAntennaMode);
 void BBvSetDeepSleep(void __iomem *dwIoBase, unsigned char byLocalID);
 void BBvExitDeepSleep(void __iomem *dwIoBase, unsigned char byLocalID);
 
-// timer for antenna diversity
+/* timer for antenna diversity */
 
 void
 TimerSQ3CallBack(
@@ -117,4 +117,4 @@ void BBvAntennaDiversity(struct vnt_private *pDevice,
 void
 BBvClearAntDivSQ3Value(struct vnt_private *pDevice);
 
-#endif // __BASEBAND_H__
+#endif /* __BASEBAND_H__ */
