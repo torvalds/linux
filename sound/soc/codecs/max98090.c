@@ -2333,7 +2333,6 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	max98090->lin_state = 0;
 	max98090->pa1en = 0;
 	max98090->pa2en = 0;
-	max98090->extmic_mux = 0;
 
 	ret = snd_soc_read(codec, M98090_REG_REVISION_ID);
 	if (ret < 0) {

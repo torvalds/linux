@@ -1541,7 +1541,6 @@ struct max98090_priv {
 	u8 lin_state;
 	unsigned int pa1en;
 	unsigned int pa2en;
-	unsigned int extmic_mux;
 	unsigned int sidetone;
 	bool master;
 };
