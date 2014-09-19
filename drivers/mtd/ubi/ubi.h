@@ -439,7 +439,8 @@ struct ubi_debug_info {
  *	     @move_to, @move_to_put @erase_pending, @wl_scheduled, @works,
  *	     @erroneous, and @erroneous_peb_count fields
  * @move_mutex: serializes eraseblock moves
- * @work_sem: synchronizes the WL worker with use tasks
+ * @work_sem: used to wait for all the scheduled works to finish and prevent
+ * new works from being submitted
  * @wl_scheduled: non-zero if the wear-leveling was scheduled
  * @lookuptbl: a table to quickly find a &struct ubi_wl_entry object for any
  *             physical eraseblock
