@@ -202,23 +202,23 @@ static const struct apll_clk_set rk3036_apll_table[] = {
 	_RK3036_APLL_SET_CLKS(984, 1, 82, 2, 1, 1, 0, 81, 41, 41, 21, 21),
 	_RK3036_APLL_SET_CLKS(960, 1, 80, 2, 1, 1, 0, 81, 41, 41, 21, 21),
 	_RK3036_APLL_SET_CLKS(936, 1, 78, 2, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(912, 1, 76, 2, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(900, 4, 300, 2, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(888, 1, 74, 2, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(864, 1, 72, 2, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(840, 1, 70, 2, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(816, 1, 68, 2, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(800, 6, 400, 2, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(700, 6, 350, 2, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(696, 1, 58, 2, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(600, 1, 75, 3, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(504, 1, 63, 3, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(500, 6, 250, 2, 1, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(408, 1, 68, 2, 2, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(312, 1, 52, 2, 2, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(216, 1, 72, 4, 2, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(96, 1, 64, 4, 4, 1, 0, 81, 41, 41, 21, 21),
-	_RK3036_APLL_SET_CLKS(0, 1, 0, 1, 1, 1, 0, 81, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(912, 1, 76, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(900, 4, 300, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(888, 1, 74, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(864, 1, 72, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(840, 1, 70, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(816, 1, 68, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(800, 6, 400, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(700, 6, 350, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(696, 1, 58, 2, 1, 1, 0, 41, 41, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(600, 1, 75, 3, 1, 1, 0, 41, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(504, 1, 63, 3, 1, 1, 0, 41, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(500, 6, 250, 2, 1, 1, 0, 41, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(408, 1, 68, 2, 2, 1, 0, 41, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(312, 1, 52, 2, 2, 1, 0, 41, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(216, 1, 72, 4, 2, 1, 0, 41, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(96, 1, 64, 4, 4, 1, 0, 21, 21, 41, 21, 21),
+	_RK3036_APLL_SET_CLKS(0, 1, 0, 1, 1, 1, 0, 21, 21, 41, 21, 21),
 };
 
 static const struct pll_clk_set rk3036plus_pll_com_table[] = {
@@ -1632,9 +1632,11 @@ static int clk_pll_set_rate_3036_apll(struct clk_hw *hw, unsigned long rate,
 	if (ps->rate == rate) {
 		clk_debug("apll get a rate\n");
 
-		/*enter slowmode*/
 		local_irq_save(flags);
-		cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);
+		/************select gpll_div2******************/
+		cru_writel(RK3036_CORE_SEL_PLL(1), RK3036_CRU_CLKSELS_CON(0));
+		/**************enter slow mode 24M***********/
+		/*cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);*/
 		loops_per_jiffy = LPJ_24M;
 
 		cru_writel(ps->pllcon0, pll->reg + RK3188_PLL_CON(0));
@@ -1653,8 +1655,10 @@ static int clk_pll_set_rate_3036_apll(struct clk_hw *hw, unsigned long rate,
 		udelay(ps->rst_dly);
 		rk3036_pll_wait_lock(hw);
 
-		/*return form slow*/
-		cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift), pll->mode_offset);
+		/************select apll******************/
+		cru_writel(RK3036_CORE_SEL_PLL(0), RK3036_CRU_CLKSELS_CON(0));
+		/**************return slow mode***********/
+		/*cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift), pll->mode_offset);*/
 		loops_per_jiffy = ps->lpj;
 		local_irq_restore(flags);
 	} else {
