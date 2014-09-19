@@ -130,6 +130,9 @@ struct rt_bandwidth {
 	u64			rt_runtime;
 	struct hrtimer		rt_period_timer;
 };
+
+void __dl_clear_params(struct task_struct *p);
+
 /*
  * To keep the bandwidth of -deadline tasks and groups under control
  * we need some place where:

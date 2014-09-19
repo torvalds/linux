@@ -1809,6 +1809,20 @@ int wake_up_state(struct task_struct *p, unsigned int state)
 }
 
 /*
+ * This function clears the sched_dl_entity static params.
+ */
+void __dl_clear_params(struct task_struct *p)
+{
+	struct sched_dl_entity *dl_se = &p->dl;
+
+	dl_se->dl_runtime = 0;
+	dl_se->dl_deadline = 0;
+	dl_se->dl_period = 0;
+	dl_se->flags = 0;
+	dl_se->dl_bw = 0;
+}
+
+/*
  * Perform scheduler related setup for a newly forked process p.
  * p is forked by current.
  *
@@ -1832,10 +1846,7 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 
 	RB_CLEAR_NODE(&p->dl.rb_node);
 	hrtimer_init(&p->dl.dl_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	p->dl.dl_runtime = p->dl.runtime = 0;
-	p->dl.dl_deadline = p->dl.deadline = 0;
-	p->dl.dl_period = 0;
-	p->dl.flags = 0;
+	__dl_clear_params(p);
 
 	INIT_LIST_HEAD(&p->rt.run_list);
 
