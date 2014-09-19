@@ -1227,14 +1227,12 @@ static int rtl_op_ampdu_action(struct ieee80211_hw *hw,
 		RT_TRACE(COMP_MAC80211, DBG_TRACE,
 			 "IEEE80211_AMPDU_TX_START: TID:%d\n", tid);
 		return rtl92e_tx_agg_start(hw, vif, sta, tid, ssn);
-		break;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		RT_TRACE(COMP_MAC80211, DBG_TRACE,
 			 "IEEE80211_AMPDU_TX_STOP: TID:%d\n", tid);
 		return rtl92e_tx_agg_stop(hw, vif, sta, tid);
-		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		RT_TRACE(COMP_MAC80211, DBG_TRACE,
 			 "IEEE80211_AMPDU_TX_OPERATIONAL:TID:%d\n", tid);
@@ -1244,12 +1242,10 @@ static int rtl_op_ampdu_action(struct ieee80211_hw *hw,
 		RT_TRACE(COMP_MAC80211, DBG_TRACE,
 			 "IEEE80211_AMPDU_RX_START:TID:%d\n", tid);
 		return rtl92e_rx_agg_start(hw, sta, tid);
-		break;
 	case IEEE80211_AMPDU_RX_STOP:
 		RT_TRACE(COMP_MAC80211, DBG_TRACE,
 			 "IEEE80211_AMPDU_RX_STOP:TID:%d\n", tid);
 		return rtl92e_rx_agg_stop(hw, sta, tid);
-		break;
 	default:
 		RT_TRACE(COMP_ERR, DBG_EMERG,
 			 "IEEE80211_AMPDU_ERR!!!!:\n");
