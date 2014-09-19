@@ -2009,6 +2009,7 @@ F:	drivers/net/ethernet/broadcom/bnx2x/
 BROADCOM BCM281XX/BCM11XXX/BCM216XX ARM ARCHITECTURE
 M:	Christian Daudt <bcm@fixthebug.org>
 M:	Matt Porter <mporter@linaro.org>
+M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	bcm-kernel-feedback-list@broadcom.com
 T:	git git://github.com/broadcom/mach-bcm
 S:	Maintained
