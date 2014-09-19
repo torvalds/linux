@@ -418,8 +418,8 @@ static int ni6501_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 24;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
-	s->insn_bits = ni6501_dio_insn_bits;
-	s->insn_config = ni6501_dio_insn_config;
+	s->insn_bits	= ni6501_dio_insn_bits;
+	s->insn_config	= ni6501_dio_insn_config;
 
 	return 0;
 }
