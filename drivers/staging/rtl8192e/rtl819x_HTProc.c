@@ -1054,7 +1054,7 @@ void HTSetConnectBwMode(struct rtllib_device *ieee,
 		Bandwidth = HT_CHANNEL_WIDTH_20;
 
 	if (pHTInfo->bSwBwInProgress) {
-		printk(KERN_INFO "%s: bSwBwInProgress!!\n", __func__);
+		pr_info("%s: bSwBwInProgress!!\n", __func__);
 		return;
 	}
 	if (Bandwidth == HT_CHANNEL_WIDTH_20_40) {
@@ -1074,7 +1074,7 @@ void HTSetConnectBwMode(struct rtllib_device *ieee,
 		pHTInfo->CurSTAExtChnlOffset = HT_EXTCHNL_OFFSET_NO_EXT;
 	}
 
-	printk(KERN_INFO "%s():pHTInfo->bCurBW40MHz:%x\n", __func__,
+	pr_info("%s():pHTInfo->bCurBW40MHz:%x\n", __func__,
 	       pHTInfo->bCurBW40MHz);
 
 	pHTInfo->bSwBwInProgress = true;
