@@ -70,7 +70,11 @@ static ssize_t dgnc_driver_debug_show(struct device_driver *ddp, char *buf)
 
 static ssize_t dgnc_driver_debug_store(struct device_driver *ddp, const char *buf, size_t count)
 {
-	sscanf(buf, "0x%x\n", &dgnc_debug);
+	int ret;
+
+	ret = sscanf(buf, "0x%x\n", &dgnc_debug);
+	if (ret != 1)
+		return -EINVAL;
 	return count;
 }
 static DRIVER_ATTR(debug, (S_IRUSR | S_IWUSR), dgnc_driver_debug_show, dgnc_driver_debug_store);
@@ -83,7 +87,11 @@ static ssize_t dgnc_driver_rawreadok_show(struct device_driver *ddp, char *buf)
 
 static ssize_t dgnc_driver_rawreadok_store(struct device_driver *ddp, const char *buf, size_t count)
 {
-	sscanf(buf, "0x%x\n", &dgnc_rawreadok);
+	int ret;
+
+	ret = sscanf(buf, "0x%x\n", &dgnc_rawreadok);
+	if (ret != 1)
+		return -EINVAL;
 	return count;
 }
 static DRIVER_ATTR(rawreadok, (S_IRUSR | S_IWUSR), dgnc_driver_rawreadok_show, dgnc_driver_rawreadok_store);
@@ -96,7 +104,11 @@ static ssize_t dgnc_driver_pollrate_show(struct device_driver *ddp, char *buf)
 
 static ssize_t dgnc_driver_pollrate_store(struct device_driver *ddp, const char *buf, size_t count)
 {
-	sscanf(buf, "%d\n", &dgnc_poll_tick);
+	int ret;
+
+	ret = sscanf(buf, "%d\n", &dgnc_poll_tick);
+	if (ret != 1)
+		return -EINVAL;
 	return count;
 }
 static DRIVER_ATTR(pollrate, (S_IRUSR | S_IWUSR), dgnc_driver_pollrate_show, dgnc_driver_pollrate_store);
