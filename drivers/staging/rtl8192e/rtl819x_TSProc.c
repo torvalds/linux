@@ -280,7 +280,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 	}
 
 	if (pRet && &pRet->List  != psearch_list)
-		return pRet ;
+		return pRet;
 	return NULL;
 }
 
