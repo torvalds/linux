@@ -209,7 +209,6 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 
 	if (base_status != MCC_STATUS_SUCCESS &&
 	    !be_skip_err_log(opcode, base_status, addl_status)) {
-
 		if (base_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
 			dev_warn(&adapter->pdev->dev,
 				 "VF is not privileged to issue opcode %d-%d\n",
@@ -1522,7 +1521,6 @@ err:
 int lancer_cmd_get_pport_stats(struct be_adapter *adapter,
 			       struct be_dma_mem *nonemb_cmd)
 {
-
 	struct be_mcc_wrb *wrb;
 	struct lancer_cmd_req_pport_stats *req;
 	int status = 0;
@@ -3038,7 +3036,6 @@ out:
 int be_cmd_get_active_mac(struct be_adapter *adapter, u32 curr_pmac_id,
 			  u8 *mac, u32 if_handle, bool active, u32 domain)
 {
-
 	if (!active)
 		be_cmd_get_mac_from_list(adapter, mac, &active, &curr_pmac_id,
 					 if_handle, domain);

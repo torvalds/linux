@@ -493,7 +493,6 @@ static void populate_be_v2_stats(struct be_adapter *adapter)
 
 static void populate_lancer_stats(struct be_adapter *adapter)
 {
-
 	struct be_drv_stats *drvs = &adapter->drv_stats;
 	struct lancer_pport_stats *pport_stats = pport_stats_from_cmd(adapter);
 
@@ -4741,7 +4740,6 @@ static void be_func_recovery_task(struct work_struct *work)
 	be_detect_error(adapter);
 
 	if (adapter->hw_error && lancer_chip(adapter)) {
-
 		rtnl_lock();
 		netif_device_detach(adapter->netdev);
 		rtnl_unlock();
