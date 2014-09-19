@@ -322,6 +322,16 @@ static int sst_platform_init_stream(struct snd_pcm_substream *substream)
 
 }
 
+static int power_up_sst(struct sst_runtime_stream *stream)
+{
+	return stream->ops->power(sst->dev, true);
+}
+
+static void power_down_sst(struct sst_runtime_stream *stream)
+{
+	stream->ops->power(sst->dev, false);
+}
+
 static int sst_media_open(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
@@ -351,6 +361,10 @@ static int sst_media_open(struct snd_pcm_substream *substream,
 	/* allocate memory for SST API set */
 	runtime->private_data = stream;
 
+	ret_val = power_up_sst(stream);
+	if (ret_val < 0)
+		return ret_val;
+
 	/* Make sure, that the period size is always even */
 	snd_pcm_hw_constraint_step(substream->runtime, 0,
 			   SNDRV_PCM_HW_PARAM_PERIODS, 2);
@@ -370,6 +384,8 @@ static void sst_media_close(struct snd_pcm_substream *substream,
 	int ret_val = 0, str_id;
 
 	stream = substream->runtime->private_data;
+	power_down_sst(stream);
+
 	str_id = stream->stream_info.str_id;
 	if (str_id)
 		ret_val = stream->ops->close(sst->dev, str_id);
