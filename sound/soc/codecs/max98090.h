@@ -11,11 +11,6 @@
 #ifndef _MAX98090_H
 #define _MAX98090_H
 
-#include <linux/version.h>
-
-/* One can override the Linux version here with an explicit version number */
-#define M98090_LINUX_VERSION LINUX_VERSION_CODE
-
 /*
  * MAX98090 Register Definitions
  */
