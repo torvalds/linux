@@ -316,7 +316,7 @@ static void be_async_dbg_evt_process(struct be_adapter *adapter,
 				     struct be_mcc_compl *cmp)
 {
 	u8 event_type = 0;
-	struct be_async_event_qnq *evt = (struct be_async_event_qnq *) cmp;
+	struct be_async_event_qnq *evt = (struct be_async_event_qnq *)cmp;
 
 	event_type = (cmp->flags >> ASYNC_EVENT_TYPE_SHIFT) &
 			ASYNC_EVENT_TYPE_MASK;
@@ -956,7 +956,7 @@ int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 	if (permanent) {
 		req->permanent = 1;
 	} else {
-		req->if_id = cpu_to_le16((u16) if_handle);
+		req->if_id = cpu_to_le16((u16)if_handle);
 		req->pmac_id = cpu_to_le32(pmac_id);
 		req->permanent = 0;
 	}
@@ -3280,7 +3280,7 @@ int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter)
 	if (!status) {
 		struct be_cmd_resp_acpi_wol_magic_config_v1 *resp;
 
-		resp = (struct be_cmd_resp_acpi_wol_magic_config_v1 *) cmd.va;
+		resp = (struct be_cmd_resp_acpi_wol_magic_config_v1 *)cmd.va;
 
 		adapter->wol_cap = resp->wol_settings;
 		if (adapter->wol_cap & BE_WOL_CAP)
@@ -4127,7 +4127,7 @@ int be_roce_mcc_cmd(void *netdev_handle, void *wrb_payload,
 {
 	struct be_adapter *adapter = netdev_priv(netdev_handle);
 	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_hdr *hdr = (struct be_cmd_req_hdr *) wrb_payload;
+	struct be_cmd_req_hdr *hdr = (struct be_cmd_req_hdr *)wrb_payload;
 	struct be_cmd_req_hdr *req;
 	struct be_cmd_resp_hdr *resp;
 	int status;

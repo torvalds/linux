@@ -918,7 +918,7 @@ static bool be_ipv6_exthdr_check(struct sk_buff *skb)
 		if (ip6h->nexthdr != NEXTHDR_TCP &&
 		    ip6h->nexthdr != NEXTHDR_UDP) {
 			struct ipv6_opt_hdr *ehdr =
-				(struct ipv6_opt_hdr *) (skb->data + offset);
+				(struct ipv6_opt_hdr *)(skb->data + offset);
 
 			/* offending pkt: 2nd byte following IPv6 hdr is 0xff */
 			if (ehdr->hdrlen == 0xff)
