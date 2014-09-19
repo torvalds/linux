@@ -21,10 +21,9 @@
  * Description: National Instruments USB-6501 module
  * Devices: [National Instruments] USB-6501 (ni_usb6501)
  * Author: Luca Ellero <luca.ellero@brickedbrain.com>
- * Updated: 5 Aug 2014
+ * Updated: 8 Sep 2014
  * Status: works
  *
- * This driver works, but counter device is not implemented yet.
  *
  * Configuration Options:
  * none
@@ -38,7 +37,7 @@
  *	- response (in)
  *
  * Every packet is at least 12 bytes long, here is the meaning of
- *	every field (all values are hex):
+ * every field (all values are hex):
  *
  *	byte 0 is always 00
  *	byte 1 is always 01
@@ -55,11 +54,12 @@
  *	byte 10 is always 00
  *	byte 11 is 00 (request) or 02 (response)
  *
+ * PORT PACKETS
  *
  *	CMD: 0xE READ_PORT
  *	REQ: 00 01 00 10 00 0C 01 0E 02 10 00 00 00 03 <PORT> 00
  *	RES: 00 01 00 10 00 0C 01 00 00 00 00 02 00 03 <BMAP> 00
-
+ *
  *	CMD: 0xF WRITE_PORT
  *	REQ: 00 01 00 14 00 10 01 0F 02 10 00 00 00 03 <PORT> 00 03 <BMAP> 00 00
  *	RES: 00 01 00 0C 00 08 01 00 00 00 00 02
@@ -68,6 +68,29 @@
  *	REQ: 00 01 00 18 00 14 01 12 02 10 00 00
  *	     00 05 <PORT 0> <PORT 1> <PORT 2> 00 05 00 00 00 00 00
  *	RES: 00 01 00 0C 00 08 01 00 00 00 00 02
+ *
+ * COUNTER PACKETS
+ *
+ *	CMD 0x9: START_COUNTER
+ *	REQ: 00 01 00 0C 00 08 01 09 02 20 00 00
+ *	RES: 00 01 00 0C 00 08 01 00 00 00 00 02
+ *
+ *	CMD 0xC: STOP_COUNTER
+ *	REQ: 00 01 00 0C 00 08 01 0C 02 20 00 00
+ *	RES: 00 01 00 0C 00 08 01 00 00 00 00 02
+ *
+ *	CMD 0xE: READ_COUNTER
+ *	REQ: 00 01 00 0C 00 08 01 0E 02 20 00 00
+ *	RES: 00 01 00 10 00 0C 01 00 00 00 00 02 <u32 counter value, Big Endian>
+ *
+ *	CMD 0xF: WRITE_COUNTER
+ *	REQ: 00 01 00 10 00 0C 01 0F 02 20 00 00 <u32 counter value, Big Endian>
+ *	RES: 00 01 00 0C 00 08 01 00 00 00 00 02
+ *
+ *
+ *	Please  visit http://www.brickedbrain.com if you need
+ *	additional information or have any questions.
+ *
  */
 
 #include <linux/kernel.h>
