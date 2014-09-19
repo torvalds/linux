@@ -2694,10 +2694,12 @@ struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device *dev)
 		struct sk_buff *segs;
 
 		segs = skb_gso_segment(skb, features);
-		kfree_skb(skb);
-		if (IS_ERR(segs))
+		if (IS_ERR(segs)) {
 			segs = NULL;
-		skb = segs;
+		} else if (segs) {
+			consume_skb(skb);
+			skb = segs;
+		}
 	} else {
 		if (skb_needs_linearize(skb, features) &&
 		    __skb_linearize(skb))
