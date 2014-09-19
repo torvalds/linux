@@ -254,6 +254,96 @@ end:
 	return ret;
 }
 
+static int ni6501_counter_command(struct comedi_device *dev, int command,
+				  u32 *val)
+{
+	struct usb_device *usb = comedi_to_usb_dev(dev);
+	struct ni6501_private *devpriv = dev->private;
+	int request_size, response_size;
+	u8 *tx = devpriv->usb_tx_buf;
+	int ret;
+
+	if ((command == READ_COUNTER || command ==  WRITE_COUNTER) && !val)
+		return -EINVAL;
+
+	down(&devpriv->sem);
+
+	switch (command) {
+	case START_COUNTER:
+		request_size = sizeof(START_COUNTER_REQUEST);
+		response_size = sizeof(GENERIC_RESPONSE);
+		memcpy(tx, START_COUNTER_REQUEST, request_size);
+		break;
+	case STOP_COUNTER:
+		request_size = sizeof(STOP_COUNTER_REQUEST);
+		response_size = sizeof(GENERIC_RESPONSE);
+		memcpy(tx, STOP_COUNTER_REQUEST, request_size);
+		break;
+	case READ_COUNTER:
+		request_size = sizeof(READ_COUNTER_REQUEST);
+		response_size = sizeof(READ_COUNTER_RESPONSE);
+		memcpy(tx, READ_COUNTER_REQUEST, request_size);
+		break;
+	case WRITE_COUNTER:
+		request_size = sizeof(WRITE_COUNTER_REQUEST);
+		response_size = sizeof(GENERIC_RESPONSE);
+		memcpy(tx, WRITE_COUNTER_REQUEST, request_size);
+		/* Setup tx packet: bytes 12,13,14,15 hold the */
+		/* u32 counter value (Big Endian)	       */
+		*((__be32 *)&tx[12]) = cpu_to_be32(*val);
+		break;
+	default:
+		ret = -EINVAL;
+		goto end;
+	}
+
+	ret = usb_bulk_msg(usb,
+			   usb_sndbulkpipe(usb,
+					   devpriv->ep_tx->bEndpointAddress),
+			   devpriv->usb_tx_buf,
+			   request_size,
+			   NULL,
+			   NI6501_TIMEOUT);
+	if (ret)
+		goto end;
+
+	ret = usb_bulk_msg(usb,
+			   usb_rcvbulkpipe(usb,
+					   devpriv->ep_rx->bEndpointAddress),
+			   devpriv->usb_rx_buf,
+			   response_size,
+			   NULL,
+			   NI6501_TIMEOUT);
+	if (ret)
+		goto end;
+
+	/* Check if results are valid */
+
+	if (command == READ_COUNTER) {
+		int i;
+
+		/* Read counter value: bytes 12,13,14,15 of rx packet */
+		/* hold the u32 counter value (Big Endian)	      */
+		*val = be32_to_cpu(*((__be32 *)&devpriv->usb_rx_buf[12]));
+
+		/* mask counter value for comparing */
+		for (i = 12; i < sizeof(READ_COUNTER_RESPONSE); ++i)
+			devpriv->usb_rx_buf[i] = 0x00;
+
+		if (memcmp(devpriv->usb_rx_buf, READ_COUNTER_RESPONSE,
+			   sizeof(READ_COUNTER_RESPONSE))) {
+			ret = -EINVAL;
+		}
+	} else if (memcmp(devpriv->usb_rx_buf, GENERIC_RESPONSE,
+			  sizeof(GENERIC_RESPONSE))) {
+		ret = -EINVAL;
+	}
+end:
+	up(&devpriv->sem);
+
+	return ret;
+}
+
 static int ni6501_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn,
@@ -306,6 +396,71 @@ static int ni6501_dio_insn_bits(struct comedi_device *dev,
 		if (ret)
 			return ret;
 		data[1] |= bitmap << port * 8;
+	}
+
+	return insn->n;
+}
+
+static int ni6501_cnt_insn_config(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	int ret;
+	u32 val = 0;
+
+	switch (data[0]) {
+	case INSN_CONFIG_ARM:
+		ret = ni6501_counter_command(dev, START_COUNTER, NULL);
+		break;
+	case INSN_CONFIG_DISARM:
+		ret = ni6501_counter_command(dev, STOP_COUNTER, NULL);
+		break;
+	case INSN_CONFIG_RESET:
+		ret = ni6501_counter_command(dev, STOP_COUNTER, NULL);
+		if (ret)
+			break;
+		ret = ni6501_counter_command(dev, WRITE_COUNTER, &val);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret ? ret : insn->n;
+}
+
+static int ni6501_cnt_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
+{
+	int ret;
+	u32 val;
+	unsigned int i;
+
+	for (i = 0; i < insn->n; i++) {
+		ret = ni6501_counter_command(dev, READ_COUNTER,	&val);
+		if (ret)
+			return ret;
+		data[i] = val;
+	}
+
+	return insn->n;
+}
+
+static int ni6501_cnt_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	int ret;
+
+	if (insn->n) {
+		u32 val = data[insn->n - 1];
+
+		ret = ni6501_counter_command(dev, WRITE_COUNTER, &val);
+		if (ret)
+			return ret;
 	}
 
 	return insn->n;
@@ -389,7 +544,7 @@ static int ni6501_auto_attach(struct comedi_device *dev,
 	sema_init(&devpriv->sem, 1);
 	usb_set_intfdata(intf, devpriv);
 
-	ret = comedi_alloc_subdevices(dev, 1);
+	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
 		return ret;
 
@@ -402,6 +557,16 @@ static int ni6501_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= ni6501_dio_insn_bits;
 	s->insn_config	= ni6501_dio_insn_config;
+
+	/* Counter subdevice */
+	s = &dev->subdevices[1];
+	s->type		= COMEDI_SUBD_COUNTER;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE | SDF_LSAMPL;
+	s->n_chan	= 1;
+	s->maxdata	= 0xffffffff;
+	s->insn_read	= ni6501_cnt_insn_read;
+	s->insn_write	= ni6501_cnt_insn_write;
+	s->insn_config	= ni6501_cnt_insn_config;
 
 	return 0;
 }
