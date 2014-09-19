@@ -662,6 +662,10 @@ struct i915_fbc {
 
 	bool false_color;
 
+	/* Tracks whether the HW is actually enabled, not whether the feature is
+	 * possible. */
+	bool enabled;
+
 	struct intel_fbc_work {
 		struct delayed_work work;
 		struct drm_crtc *crtc;
