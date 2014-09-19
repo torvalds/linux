@@ -354,6 +354,7 @@ struct ath_chanctx {
 	bool switch_after_beacon;
 
 	short nvifs;
+	short nvifs_assigned;
 	unsigned int rxfilter;
 };
 

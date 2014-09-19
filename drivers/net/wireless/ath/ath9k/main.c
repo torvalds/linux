@@ -940,6 +940,34 @@ static void ath9k_vif_iter(struct ath9k_vif_iter_data *iter_data,
 	}
 }
 
+static void ath9k_update_bssid_mask(struct ath_softc *sc,
+				    struct ath_chanctx *ctx,
+				    struct ath9k_vif_iter_data *iter_data)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_vif *avp;
+	int i;
+
+	if (!ath9k_is_chanctx_enabled())
+		return;
+
+	list_for_each_entry(avp, &ctx->vifs, list) {
+		if (ctx->nvifs_assigned != 1)
+			continue;
+
+		if (!avp->vif->p2p || !iter_data->has_hw_macaddr)
+			continue;
+
+		ether_addr_copy(common->curbssid, avp->bssid);
+
+		/* perm_addr will be used as the p2p device address. */
+		for (i = 0; i < ETH_ALEN; i++)
+			iter_data->mask[i] &=
+				~(iter_data->hw_macaddr[i] ^
+				  sc->hw->wiphy->perm_addr[i]);
+	}
+}
+
 /* Called with sc->mutex held. */
 void ath9k_calculate_iter_data(struct ath_softc *sc,
 			       struct ath_chanctx *ctx,
@@ -958,6 +986,8 @@ void ath9k_calculate_iter_data(struct ath_softc *sc,
 
 	list_for_each_entry(avp, &ctx->vifs, list)
 		ath9k_vif_iter(iter_data, avp->vif->addr, avp->vif);
+
+	ath9k_update_bssid_mask(sc, ctx, iter_data);
 }
 
 static void ath9k_set_assoc_state(struct ath_softc *sc,
@@ -1121,6 +1151,10 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 		set_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags);
 	else
 		clear_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags);
+
+	ath_dbg(common, CONFIG,
+		"macaddr: %pM, bssid: %pM, bssidmask: %pM\n",
+		common->macaddr, common->curbssid, common->bssidmask);
 
 	ath9k_ps_restore(sc);
 }
@@ -2356,6 +2390,7 @@ static int ath9k_assign_vif_chanctx(struct ieee80211_hw *hw,
 		conf->def.chan->center_freq);
 
 	avp->chanctx = ctx;
+	ctx->nvifs_assigned++;
 	list_add_tail(&avp->list, &ctx->vifs);
 	ath9k_calculate_summary_state(sc, ctx);
 	for (i = 0; i < IEEE80211_NUM_ACS; i++)
@@ -2384,6 +2419,7 @@ static void ath9k_unassign_vif_chanctx(struct ieee80211_hw *hw,
 		conf->def.chan->center_freq);
 
 	avp->chanctx = NULL;
+	ctx->nvifs_assigned--;
 	list_del(&avp->list);
 	ath9k_calculate_summary_state(sc, ctx);
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
