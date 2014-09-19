@@ -156,6 +156,7 @@ static const u8 cckswing_table_ch14[CCK_TABLE_SIZE][8] = {
 static void rtl92ee_dm_diginit(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	dm_dig.cur_igvalue = rtl_get_bbreg(hw, DM_REG_IGI_A_11N,
 						DM_BIT_IGI_11N);
 	dm_dig.rssi_lowthresh = DM_DIG_THRESH_LOW;
@@ -271,6 +272,7 @@ static void rtl92ee_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 cur_cck_cca_thresh;
+
 	if (rtlpriv->mac80211.link_state >= MAC80211_LINKED) {
 		if (dm_dig.rssi_val_min > 25) {
 			cur_cck_cca_thresh = 0xcd;
@@ -434,6 +436,7 @@ static void rtl92ee_dm_dig(struct ieee80211_hw *hw)
 void rtl92ee_dm_write_cck_cca_thres(struct ieee80211_hw *hw, u8 cur_thres)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	if (dm_dig.cur_cck_cca_thres != cur_thres)
 		rtl_write_byte(rtlpriv, DM_REG_CCK_CCA_11N, cur_thres);
 
@@ -444,6 +447,7 @@ void rtl92ee_dm_write_cck_cca_thres(struct ieee80211_hw *hw, u8 cur_thres)
 void rtl92ee_dm_write_dig(struct ieee80211_hw *hw, u8 current_igi)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	if (dm_dig.stop_dig)
 		return;
 
@@ -459,6 +463,7 @@ void rtl92ee_dm_write_dig(struct ieee80211_hw *hw, u8 current_igi)
 static void rtl92ee_rssi_dump_to_register(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	rtl_write_byte(rtlpriv, RA_RSSIDUMP,
 		       rtlpriv->stats.rx_rssi_percentage[0]);
 	rtl_write_byte(rtlpriv, RB_RSSIDUMP,
@@ -540,6 +545,7 @@ static void rtl92ee_dm_check_rssi_monitor(struct ieee80211_hw *hw)
 		spin_lock_bh(&rtlpriv->locks.entry_list_lock);
 		list_for_each_entry(drv_priv, &rtlpriv->entry_list, list) {
 			struct rssi_sta *stat = &(drv_priv->rssi_stat);
+
 			if (stat->undecorated_smoothed_pwdb < min)
 				min = stat->undecorated_smoothed_pwdb;
 			if (stat->undecorated_smoothed_pwdb > max)
@@ -660,6 +666,7 @@ static void rtl92ee_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	} else {
 		if (rtlpriv->dm.bcurrent_turbo_edca) {
 			u8 tmp = AC0_BE;
+
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_AC_PARAM,
 						      (u8 *) (&tmp));
 		}
