@@ -678,6 +678,17 @@
 		usb_bc{
 			compatible = "inno,phy";
 			regbase = &dwc_control_usb;
+			rk_usb,bvalid     = <0x14c  5 1>;
+			rk_usb,iddig      = <0x14c  8 1>;
+			rk_usb,vdmsrcen   = <0x184 12 1>;
+			rk_usb,vdpsrcen   = <0x184 11 1>;
+			rk_usb,rdmpden    = <0x184 10 1>;
+			rk_usb,idpsrcen   = <0x184  9 1>;
+			rk_usb,idmsinken  = <0x184  8 1>;
+			rk_usb,idpsinken  = <0x184  7 1>;
+			rk_usb,dpattach   = <0x2c0  7 1>;
+			rk_usb,cpdet      = <0x2c0  6 1>;
+			rk_usb,dcpattach  = <0x2c0  5 1>;
 		};
 	};
 
