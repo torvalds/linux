@@ -538,6 +538,11 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 
 	chip->vendor.priv = devm_kzalloc(dev, sizeof(struct priv_data),
 					 GFP_KERNEL);
+	if (!chip->vendor.priv) {
+		rc = -ENOMEM;
+		goto out_err;
+	}
+
 	init_waitqueue_head(&chip->vendor.read_queue);
 	init_waitqueue_head(&chip->vendor.int_queue);
 
