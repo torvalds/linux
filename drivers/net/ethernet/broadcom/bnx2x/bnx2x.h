@@ -1448,6 +1448,12 @@ struct bnx2x_fp_stats {
 	struct bnx2x_eth_q_stats_old eth_q_stats_old;
 };
 
+enum {
+	SUB_MF_MODE_UNKNOWN = 0,
+	SUB_MF_MODE_UFP,
+	SUB_MF_MODE_NPAR1_DOT_5,
+};
+
 struct bnx2x {
 	/* Fields used in the tx and intr/napi performance paths
 	 * are grouped together in the beginning of the structure
@@ -1659,6 +1665,9 @@ struct bnx2x {
 #define IS_MF_SI(bp)		(bp->mf_mode == MULTI_FUNCTION_SI)
 #define IS_MF_SD(bp)		(bp->mf_mode == MULTI_FUNCTION_SD)
 #define IS_MF_AFEX(bp)		(bp->mf_mode == MULTI_FUNCTION_AFEX)
+	u8			mf_sub_mode;
+#define IS_MF_UFP(bp)		(IS_MF_SD(bp) && \
+				 bp->mf_sub_mode == SUB_MF_MODE_UFP)
 
 	u8			wol;
 
@@ -2361,7 +2370,7 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 #define ATTN_HARD_WIRED_MASK		0xff00
 #define ATTENTION_ID			4
 
-#define IS_MF_STORAGE_ONLY(bp) (IS_MF_STORAGE_SD(bp) || \
+#define IS_MF_STORAGE_ONLY(bp) (IS_MF_STORAGE_PERSONALITY_ONLY(bp) || \
 				 IS_MF_FCOE_AFEX(bp))
 
 /* stuff added to make the code fit 80Col */
@@ -2537,14 +2546,44 @@ void bnx2x_notify_link_changed(struct bnx2x *bp);
 
 #define IS_MF_ISCSI_SD(bp) (IS_MF_SD(bp) && BNX2X_IS_MF_SD_PROTOCOL_ISCSI(bp))
 #define IS_MF_FCOE_SD(bp) (IS_MF_SD(bp) && BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp))
+#define IS_MF_ISCSI_SI(bp) (IS_MF_SI(bp) && BNX2X_IS_MF_EXT_PROTOCOL_ISCSI(bp))
 
-#define BNX2X_MF_EXT_PROTOCOL_FCOE(bp)  ((bp)->mf_ext_config & \
-					 MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD)
+#define IS_MF_ISCSI_ONLY(bp)    (IS_MF_ISCSI_SD(bp) ||  IS_MF_ISCSI_SI(bp))
 
-#define IS_MF_FCOE_AFEX(bp) (IS_MF_AFEX(bp) && BNX2X_MF_EXT_PROTOCOL_FCOE(bp))
-#define IS_MF_STORAGE_SD(bp) (IS_MF_SD(bp) && \
-				(BNX2X_IS_MF_SD_PROTOCOL_ISCSI(bp) || \
-				 BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)))
+#define BNX2X_MF_EXT_PROTOCOL_MASK					\
+				(MACP_FUNC_CFG_FLAGS_ETHERNET |		\
+				 MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD |	\
+				 MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD)
+
+#define BNX2X_MF_EXT_PROT(bp)	((bp)->mf_ext_config &			\
+				 BNX2X_MF_EXT_PROTOCOL_MASK)
+
+#define BNX2X_HAS_MF_EXT_PROTOCOL_FCOE(bp)				\
+		(BNX2X_MF_EXT_PROT(bp) & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD)
+
+#define BNX2X_IS_MF_EXT_PROTOCOL_FCOE(bp)				\
+		(BNX2X_MF_EXT_PROT(bp) == MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD)
+
+#define BNX2X_IS_MF_EXT_PROTOCOL_ISCSI(bp)				\
+		(BNX2X_MF_EXT_PROT(bp) == MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD)
+
+#define IS_MF_FCOE_AFEX(bp)						\
+		(IS_MF_AFEX(bp) && BNX2X_IS_MF_EXT_PROTOCOL_FCOE(bp))
+
+#define IS_MF_SD_STORAGE_PERSONALITY_ONLY(bp)				\
+				(IS_MF_SD(bp) &&			\
+				 (BNX2X_IS_MF_SD_PROTOCOL_ISCSI(bp) ||	\
+				  BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)))
+
+#define IS_MF_SI_STORAGE_PERSONALITY_ONLY(bp)				\
+				(IS_MF_SI(bp) &&			\
+				 (BNX2X_IS_MF_EXT_PROTOCOL_ISCSI(bp) ||	\
+				  BNX2X_IS_MF_EXT_PROTOCOL_FCOE(bp)))
+
+#define IS_MF_STORAGE_PERSONALITY_ONLY(bp)				\
+			(IS_MF_SD_STORAGE_PERSONALITY_ONLY(bp) ||	\
+			 IS_MF_SI_STORAGE_PERSONALITY_ONLY(bp))
+
 
 #define SET_FLAG(value, mask, flag) \
 	do {\
