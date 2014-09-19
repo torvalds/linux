@@ -272,7 +272,7 @@ static int produce_free_peb(struct ubi_device *ubi)
 {
 	int err;
 
-	while (!ubi->free.rb_node) {
+	while (!ubi->free.rb_node && ubi->works_count) {
 		spin_unlock(&ubi->wl_lock);
 
 		dbg_wl("do one work synchronously");
