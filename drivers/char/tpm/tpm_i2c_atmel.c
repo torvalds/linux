@@ -168,6 +168,10 @@ static int i2c_atmel_probe(struct i2c_client *client,
 
 	chip->vendor.priv = devm_kzalloc(dev, sizeof(struct priv_data),
 					 GFP_KERNEL);
+	if (!chip->vendor.priv) {
+		rc = -ENOMEM;
+		goto out_err;
+	}
 
 	/* Default timeouts */
 	chip->vendor.timeout_a = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
