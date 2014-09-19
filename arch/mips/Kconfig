@@ -546,6 +546,7 @@ config SGI_IP28
 	# select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select MIPS_L1_CACHE_SHIFT_7
       help
         This is the SGI Indigo2 with R10000 processor.  To compile a Linux
         kernel that runs on these, say Y here.
@@ -2029,7 +2030,9 @@ config MIPS_CMP
 	bool "MIPS CMP framework support (DEPRECATED)"
 	depends on SYS_SUPPORTS_MIPS_CMP
 	select MIPS_GIC_IPI
+	select SMP
 	select SYNC_R4K
+	select SYS_SUPPORTS_SMP
 	select WEAK_ORDERING
 	default n
 	help
