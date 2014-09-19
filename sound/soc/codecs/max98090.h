@@ -1497,9 +1497,6 @@
 #define M98090_REVID_WIDTH		8
 #define M98090_REVID_NUM		(1<<M98090_REVID_WIDTH)
 
-#define M98090_BYTE1(w) ((w >> 8) & 0xff)
-#define M98090_BYTE0(w) (w & 0xff)
-
 /* Silicon revision number */
 #define M98090_REVA			0x40
 #define M98091_REVA			0x50
