@@ -212,6 +212,14 @@ struct dsa_switch_driver {
 	int	(*get_sset_count)(struct dsa_switch *ds);
 
 	/*
+	 * ethtool Wake-on-LAN
+	 */
+	void	(*get_wol)(struct dsa_switch *ds, int port,
+			   struct ethtool_wolinfo *w);
+	int	(*set_wol)(struct dsa_switch *ds, int port,
+			   struct ethtool_wolinfo *w);
+
+	/*
 	 * Suspend and resume
 	 */
 	int	(*suspend)(struct dsa_switch *ds);
