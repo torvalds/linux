@@ -260,17 +260,13 @@ static bool check_device(struct device *dev)
 	return true;
 }
 
-static int init_iommu_group(struct device *dev)
+static void init_iommu_group(struct device *dev)
 {
 	struct iommu_group *group;
 
 	group = iommu_group_get_for_dev(dev);
-
-	if (IS_ERR(group))
-		return PTR_ERR(group);
-
-	iommu_group_put(group);
-	return 0;
+	if (!IS_ERR(group))
+		iommu_group_put(group);
 }
 
 static int __last_alias(struct pci_dev *pdev, u16 alias, void *data)
@@ -340,7 +336,6 @@ static int iommu_init_device(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct iommu_dev_data *dev_data;
 	u16 alias;
-	int ret;
 
 	if (dev->archdata.iommu)
 		return 0;
@@ -362,12 +357,6 @@ static int iommu_init_device(struct device *dev)
 			return -ENOTSUPP;
 		}
 		dev_data->alias_data = alias_data;
-	}
-
-	ret = init_iommu_group(dev);
-	if (ret) {
-		free_dev_data(dev_data);
-		return ret;
 	}
 
 	if (pci_iommuv2_capable(pdev)) {
@@ -453,6 +442,15 @@ int __init amd_iommu_init_devices(void)
 			iommu_ignore_device(&pdev->dev);
 		else if (ret)
 			goto out_free;
+	}
+
+	/*
+	 * Initialize IOMMU groups only after iommu_init_device() has
+	 * had a chance to populate any IVRS defined aliases.
+	 */
+	for_each_pci_dev(pdev) {
+		if (check_device(&pdev->dev))
+			init_iommu_group(&pdev->dev);
 	}
 
 	return 0;
@@ -2415,6 +2413,7 @@ static int device_change_notifier(struct notifier_block *nb,
 	case BUS_NOTIFY_ADD_DEVICE:
 
 		iommu_init_device(dev);
+		init_iommu_group(dev);
 
 		/*
 		 * dev_data is still NULL and
