@@ -167,7 +167,7 @@
 		};
 
 		internal-regs {
-			pinctrl {
+			pinctrl: pin-ctrl@18000 {
 				compatible = "marvell,mv78230-pinctrl";
 			};
 

@@ -72,7 +72,7 @@
 				status = "disabled";
 			};
 
-			pinctrl {
+			pinctrl: pin-ctrl@18000 {
 				reg = <0x18000 0x38>;
 
 				sdio_pins: sdio-pins {

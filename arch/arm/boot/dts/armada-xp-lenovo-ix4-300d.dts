@@ -51,7 +51,7 @@
 		};
 
 		internal-regs {
-			pinctrl {
+			pinctrl: pin-ctrl@18000 {
 				poweroff_pin: poweroff-pin {
 					marvell,pins = "mpp24";
 					marvell,function = "gpio";

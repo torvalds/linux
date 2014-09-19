@@ -77,7 +77,7 @@
 			serial@12100 {
 				status = "okay";
 			};
-			pinctrl {
+			pinctrl: pin-ctrl@18000 {
 				led_pins: led-pins-0 {
 					marvell,pins = "mpp49", "mpp51", "mpp53";
 					marvell,function = "gpio";
