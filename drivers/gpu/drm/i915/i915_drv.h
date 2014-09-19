@@ -2139,8 +2139,6 @@ struct drm_i915_cmd_table {
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
 #define HAS_LOGICAL_RING_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 8)
-#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >= 6)
-#define HAS_PPGTT(dev)		(INTEL_INFO(dev)->gen >= 7 && !IS_GEN8(dev))
 #define USES_PPGTT(dev)		(i915.enable_ppgtt)
 #define USES_FULL_PPGTT(dev)	(i915.enable_ppgtt == 2)
 
