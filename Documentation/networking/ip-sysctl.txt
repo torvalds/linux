@@ -769,7 +769,20 @@ icmp_ratelimit - INTEGER
 	icmp_ratemask (see below) to specific targets.
 	0 to disable any limiting,
 	otherwise the minimal space between responses in milliseconds.
+	Note that another sysctl, icmp_msgs_per_sec limits the number
+	of ICMP packets	sent on all targets.
 	Default: 1000
+
+icmp_msgs_per_sec - INTEGER
+	Limit maximal number of ICMP packets sent per second from this host.
+	Only messages whose type matches icmp_ratemask (see below) are
+	controlled by this limit.
+	Default: 1000
+
+icmp_msgs_burst - INTEGER
+	icmp_msgs_per_sec controls number of ICMP packets sent per second,
+	while icmp_msgs_burst controls the burst size of these packets.
+	Default: 50
 
 icmp_ratemask - INTEGER
 	Mask made of ICMP types for which rates are being limited.
