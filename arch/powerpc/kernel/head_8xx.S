@@ -45,7 +45,11 @@
  * Value for the bits that have fixed value in RPN entries.
  * Also used for tagging DAR for DTLBerror.
  */
+#ifdef CONFIG_PPC_16K_PAGES
+#define RPN_PATTERN	(0x00f0 | MD_SPS16K)
+#else
 #define RPN_PATTERN	0x00f0
+#endif
 
 	__HEAD
 _ENTRY(_stext);
