@@ -1,0 +1,61 @@
+
+&act8931{
+
+	compatible = "act,act8931";
+
+	regulators {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		regulator@0{
+			reg = <0>;
+			regulator-compatible= "act_dcdc1";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		regulator@1 {
+			reg = <1>;
+			regulator-compatible = "act_dcdc2";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		regulator@2 {
+			reg = <2>;
+			regulator-compatible = "act_dcdc3";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		regulator@3 {
+			reg = <3>;
+			regulator-compatible= "act_ldo1";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		regulator@4 {
+			reg = <4>;
+			regulator-compatible = "act_ldo2";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		regulator@5 {
+			reg = <5>;
+			regulator-compatible = "act_ldo3";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		regulator@6 {
+			reg = <6>;
+			regulator-compatible = "act_ldo4";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+	};
+
+};

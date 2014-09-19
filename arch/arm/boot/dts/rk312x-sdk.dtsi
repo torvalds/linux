@@ -169,6 +169,10 @@
 		reg = <0x1c>;
 		status = "okay";
 	};
+	act8931: act8931@5b {
+		reg = <0x5b>;
+		status = "okay";
+	};
 	rt5025: rt5025@35 {
 			compatible = "rt,rt5025";
 			reg = <0x35>;
@@ -613,6 +617,62 @@
                 max_charge_voltagemV = <4260>;
                 max_bat_voltagemV = <4200>;
         };
+
+};
+
+/include/ "act8931.dtsi"
+&act8931 {
+	/* gpio: 0-irq, 1-pwr_hold */
+	gpios = <&gpio2 GPIO_B1 GPIO_ACTIVE_HIGH>, <&gpio1 GPIO_A2 GPIO_ACTIVE_HIGH>;
+	act8931,system-power-controller;
+
+	regulators {
+
+		act8931_dcdc1_reg: regulator@0{
+			regulator-name= "vccio";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-initial-mode = <0x2>;
+		};
+
+		act8931_dcdc2_reg: regulator@1 {
+			regulator-name= "act_dcdc2";
+			regulator-min-microvolt = <1500000>;
+			regulator-max-microvolt = <1500000>;
+			regulator-initial-mode = <0x2>;
+		};
+
+		act8931_dcdc3_reg: regulator@2 {
+			regulator-name= "vdd_arm";
+			regulator-min-microvolt = <700000>;
+			regulator-max-microvolt = <1500000>;
+			regulator-initial-mode = <0x2>;
+		};
+
+		act8931_ldo1_reg:regulator@3 {
+			regulator-name= "act_ldo1";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+		};
+
+		act8931_ldo2_reg: regulator@4 {
+			regulator-name= "act_ldo2";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		act8931_ldo3_reg: regulator@5 {
+			regulator-name= "act_ldo3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		act8931_ldo4_reg: regulator@6 {
+			regulator-name= "act_ldo4";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+	};
 
 };
 
