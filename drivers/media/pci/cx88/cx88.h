@@ -61,7 +61,8 @@
 #define FORMAT_FLAGS_PACKED       0x01
 #define FORMAT_FLAGS_PLANAR       0x02
 
-#define VBI_LINE_COUNT              17
+#define VBI_LINE_PAL_COUNT              18
+#define VBI_LINE_NTSC_COUNT             12
 #define VBI_LINE_LENGTH           2048
 
 #define AUD_RDS_LINES		     4
