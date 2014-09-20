@@ -288,11 +288,6 @@ int tcp_gro_complete(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(tcp_gro_complete);
 
-static int tcp_v4_gso_send_check(struct sk_buff *skb)
-{
-	return 0;
-}
-
 static struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
 	/* Don't bother verifying checksum if we're going to flush anyway. */
@@ -320,7 +315,6 @@ static int tcp4_gro_complete(struct sk_buff *skb, int thoff)
 
 static const struct net_offload tcpv4_offload = {
 	.callbacks = {
-		.gso_send_check	=	tcp_v4_gso_send_check,
 		.gso_segment	=	tcp4_gso_segment,
 		.gro_receive	=	tcp4_gro_receive,
 		.gro_complete	=	tcp4_gro_complete,

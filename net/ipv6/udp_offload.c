@@ -17,11 +17,6 @@
 #include <net/ip6_checksum.h>
 #include "ip6_offload.h"
 
-static int udp6_ufo_send_check(struct sk_buff *skb)
-{
-	return 0;
-}
-
 static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 					 netdev_features_t features)
 {
@@ -166,7 +161,6 @@ static int udp6_gro_complete(struct sk_buff *skb, int nhoff)
 
 static const struct net_offload udpv6_offload = {
 	.callbacks = {
-		.gso_send_check =	udp6_ufo_send_check,
 		.gso_segment	=	udp6_ufo_fragment,
 		.gro_receive	=	udp6_gro_receive,
 		.gro_complete	=	udp6_gro_complete,

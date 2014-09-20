@@ -25,11 +25,6 @@ struct udp_offload_priv {
 	struct udp_offload_priv __rcu *next;
 };
 
-static int udp4_ufo_send_check(struct sk_buff *skb)
-{
-	return 0;
-}
-
 struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 				       netdev_features_t features)
 {
@@ -346,7 +341,6 @@ static int udp4_gro_complete(struct sk_buff *skb, int nhoff)
 
 static const struct net_offload udpv4_offload = {
 	.callbacks = {
-		.gso_send_check = udp4_ufo_send_check,
 		.gso_segment = udp4_ufo_fragment,
 		.gro_receive  =	udp4_gro_receive,
 		.gro_complete =	udp4_gro_complete,

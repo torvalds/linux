@@ -15,11 +15,6 @@
 #include <net/ip6_checksum.h>
 #include "ip6_offload.h"
 
-static int tcp_v6_gso_send_check(struct sk_buff *skb)
-{
-	return 0;
-}
-
 static struct sk_buff **tcp6_gro_receive(struct sk_buff **head,
 					 struct sk_buff *skb)
 {
@@ -71,7 +66,6 @@ struct sk_buff *tcp6_gso_segment(struct sk_buff *skb,
 }
 static const struct net_offload tcpv6_offload = {
 	.callbacks = {
-		.gso_send_check	=	tcp_v6_gso_send_check,
 		.gso_segment	=	tcp6_gso_segment,
 		.gro_receive	=	tcp6_gro_receive,
 		.gro_complete	=	tcp6_gro_complete,
