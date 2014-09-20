@@ -423,6 +423,7 @@ lnet_create_interface_cookie (void)
 	 * easily good enough. */
 	struct timeval tv;
 	__u64	  cookie;
+
 	do_gettimeofday(&tv);
 	cookie = tv.tv_sec;
 	cookie *= 1000000;
