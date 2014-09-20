@@ -27,23 +27,6 @@ struct udp_offload_priv {
 
 static int udp4_ufo_send_check(struct sk_buff *skb)
 {
-	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
-		return -EINVAL;
-
-	if (likely(!skb->encapsulation)) {
-		const struct iphdr *iph;
-		struct udphdr *uh;
-
-		iph = ip_hdr(skb);
-		uh = udp_hdr(skb);
-
-		uh->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr, skb->len,
-				IPPROTO_UDP, 0);
-		skb->csum_start = skb_transport_header(skb) - skb->head;
-		skb->csum_offset = offsetof(struct udphdr, check);
-		skb->ip_summed = CHECKSUM_PARTIAL;
-	}
-
 	return 0;
 }
 
@@ -128,8 +111,9 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	unsigned int mss;
-	int offset;
 	__wsum csum;
+	struct udphdr *uh;
+	struct iphdr *iph;
 
 	if (skb->encapsulation &&
 	    (skb_shinfo(skb)->gso_type &
@@ -137,6 +121,9 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 		segs = skb_udp_tunnel_segment(skb, features);
 		goto out;
 	}
+
+	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
+		goto out;
 
 	mss = skb_shinfo(skb)->gso_size;
 	if (unlikely(skb->len <= mss))
@@ -165,10 +152,16 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 	 * HW cannot do checksum of UDP packets sent as multiple
 	 * IP fragments.
 	 */
-	offset = skb_checksum_start_offset(skb);
-	csum = skb_checksum(skb, offset, skb->len - offset, 0);
-	offset += skb->csum_offset;
-	*(__sum16 *)(skb->data + offset) = csum_fold(csum);
+
+	uh = udp_hdr(skb);
+	iph = ip_hdr(skb);
+
+	uh->check = 0;
+	csum = skb_checksum(skb, 0, skb->len, 0);
+	uh->check = udp_v4_check(skb->len, iph->saddr, iph->daddr, csum);
+	if (uh->check == 0)
+		uh->check = CSUM_MANGLED_0;
+
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Fragment the skb. IP headers of the fragments are updated in
