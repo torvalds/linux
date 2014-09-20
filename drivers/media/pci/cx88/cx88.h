@@ -379,6 +379,8 @@ struct cx88_core {
 	/* state info */
 	struct task_struct         *kthread;
 	v4l2_std_id                tvnorm;
+	unsigned		   width, height;
+	unsigned		   field;
 	enum cx88_tvaudio          tvaudio;
 	u32                        audiomode_manual;
 	u32                        audiomode_current;
@@ -479,8 +481,6 @@ struct cx8800_dev {
 	unsigned char              pci_rev,pci_lat;
 
 	const struct cx8800_fmt    *fmt;
-	unsigned int               width, height;
-	unsigned		   field;
 
 	/* capture queues */
 	struct cx88_dmaqueue       vidq;
@@ -557,9 +557,6 @@ struct cx8802_dev {
 #if IS_ENABLED(CONFIG_VIDEO_CX88_BLACKBIRD)
 	struct video_device        *mpeg_dev;
 	u32                        mailbox;
-	int                        width;
-	int                        height;
-	unsigned                   field;
 	unsigned char              mpeg_active; /* nonzero if mpeg encoder is active */
 
 	/* mpeg params */
@@ -721,7 +718,7 @@ extern void cx88_i2c_init_ir(struct cx88_core *core);
 /* cx88-mpeg.c                                                 */
 
 int cx8802_buf_prepare(struct vb2_queue *q, struct cx8802_dev *dev,
-			struct cx88_buffer *buf, enum v4l2_field field);
+			struct cx88_buffer *buf);
 void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf);
 void cx8802_cancel_buffers(struct cx8802_dev *dev);
 int cx8802_start_dma(struct cx8802_dev    *dev,

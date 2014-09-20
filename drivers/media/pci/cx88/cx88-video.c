@@ -365,7 +365,7 @@ static int start_video_dma(struct cx8800_dev    *dev,
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH21],
 				buf->bpl, buf->risc.dma);
-	cx88_set_scale(core, dev->width, dev->height, dev->field);
+	cx88_set_scale(core, core->width, core->height, core->field);
 	cx_write(MO_COLOR_CTRL, dev->fmt->cxformat | ColorFormatGamma);
 
 	/* reset counter */
@@ -436,9 +436,10 @@ static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct cx8800_dev *dev = q->drv_priv;
+	struct cx88_core *core = dev->core;
 
 	*num_planes = 1;
-	sizes[0] = (dev->fmt->depth * dev->width * dev->height) >> 3;
+	sizes[0] = (dev->fmt->depth * core->width * core->height) >> 3;
 	return 0;
 }
 
@@ -450,52 +451,52 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 	int rc;
 
-	buf->bpl = dev->width * dev->fmt->depth >> 3;
+	buf->bpl = core->width * dev->fmt->depth >> 3;
 
-	if (vb2_plane_size(vb, 0) < dev->height * buf->bpl)
+	if (vb2_plane_size(vb, 0) < core->height * buf->bpl)
 		return -EINVAL;
-	vb2_set_plane_payload(vb, 0, dev->height * buf->bpl);
+	vb2_set_plane_payload(vb, 0, core->height * buf->bpl);
 
 	rc = dma_map_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
 	if (!rc)
 		return -EIO;
 
-	switch (dev->field) {
+	switch (core->field) {
 	case V4L2_FIELD_TOP:
 		cx88_risc_buffer(dev->pci, &buf->risc,
 				 sgt->sgl, 0, UNSET,
-				 buf->bpl, 0, dev->height);
+				 buf->bpl, 0, core->height);
 		break;
 	case V4L2_FIELD_BOTTOM:
 		cx88_risc_buffer(dev->pci, &buf->risc,
 				 sgt->sgl, UNSET, 0,
-				 buf->bpl, 0, dev->height);
+				 buf->bpl, 0, core->height);
 		break;
 	case V4L2_FIELD_SEQ_TB:
 		cx88_risc_buffer(dev->pci, &buf->risc,
 				 sgt->sgl,
-				 0, buf->bpl * (dev->height >> 1),
+				 0, buf->bpl * (core->height >> 1),
 				 buf->bpl, 0,
-				 dev->height >> 1);
+				 core->height >> 1);
 		break;
 	case V4L2_FIELD_SEQ_BT:
 		cx88_risc_buffer(dev->pci, &buf->risc,
 				 sgt->sgl,
-				 buf->bpl * (dev->height >> 1), 0,
+				 buf->bpl * (core->height >> 1), 0,
 				 buf->bpl, 0,
-				 dev->height >> 1);
+				 core->height >> 1);
 		break;
 	case V4L2_FIELD_INTERLACED:
 	default:
 		cx88_risc_buffer(dev->pci, &buf->risc,
 				 sgt->sgl, 0, buf->bpl,
 				 buf->bpl, buf->bpl,
-				 dev->height >> 1);
+				 core->height >> 1);
 		break;
 	}
 	dprintk(2,"[%p/%d] buffer_prepare - %dx%d %dbpp \"%s\" - dma=0x%08lx\n",
 		buf, buf->vb.v4l2_buf.index,
-		dev->width, dev->height, dev->fmt->depth, dev->fmt->name,
+		core->width, core->height, dev->fmt->depth, dev->fmt->name,
 		(unsigned long)buf->risc.dma);
 	return 0;
 }
@@ -723,10 +724,11 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct cx8800_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 
-	f->fmt.pix.width        = dev->width;
-	f->fmt.pix.height       = dev->height;
-	f->fmt.pix.field        = dev->field;
+	f->fmt.pix.width        = core->width;
+	f->fmt.pix.height       = core->height;
+	f->fmt.pix.field        = core->field;
 	f->fmt.pix.pixelformat  = dev->fmt->fourcc;
 	f->fmt.pix.bytesperline =
 		(f->fmt.pix.width * dev->fmt->depth) >> 3;
@@ -749,30 +751,30 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	if (NULL == fmt)
 		return -EINVAL;
 
-	field = f->fmt.pix.field;
-	maxw  = norm_maxw(core->tvnorm);
-	maxh  = norm_maxh(core->tvnorm);
+	maxw = norm_maxw(core->tvnorm);
+	maxh = norm_maxh(core->tvnorm);
 
-	if (V4L2_FIELD_ANY == field) {
-		field = (f->fmt.pix.height > maxh/2)
-			? V4L2_FIELD_INTERLACED
-			: V4L2_FIELD_BOTTOM;
-	}
+	field = f->fmt.pix.field;
 
 	switch (field) {
 	case V4L2_FIELD_TOP:
 	case V4L2_FIELD_BOTTOM:
-		maxh = maxh / 2;
-		break;
 	case V4L2_FIELD_INTERLACED:
+	case V4L2_FIELD_SEQ_BT:
+	case V4L2_FIELD_SEQ_TB:
 		break;
 	default:
-		return -EINVAL;
+		field = (f->fmt.pix.height > maxh / 2)
+			? V4L2_FIELD_INTERLACED
+			: V4L2_FIELD_BOTTOM;
+		break;
 	}
+	if (V4L2_FIELD_HAS_T_OR_B(field))
+		maxh /= 2;
 
-	f->fmt.pix.field = field;
 	v4l_bound_align_image(&f->fmt.pix.width, 48, maxw, 2,
 			      &f->fmt.pix.height, 32, maxh, 0, 0);
+	f->fmt.pix.field = field;
 	f->fmt.pix.bytesperline =
 		(f->fmt.pix.width * fmt->depth) >> 3;
 	f->fmt.pix.sizeimage =
@@ -785,14 +787,15 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct cx8800_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 	int err = vidioc_try_fmt_vid_cap (file,priv,f);
 
 	if (0 != err)
 		return err;
-	dev->fmt        = format_by_fourcc(f->fmt.pix.pixelformat);
-	dev->width      = f->fmt.pix.width;
-	dev->height     = f->fmt.pix.height;
-	dev->field = f->fmt.pix.field;
+	dev->fmt = format_by_fourcc(f->fmt.pix.pixelformat);
+	core->width = f->fmt.pix.width;
+	core->height = f->fmt.pix.height;
+	core->field = f->fmt.pix.field;
 	return 0;
 }
 
@@ -1343,7 +1346,6 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* initialize driver struct */
 	spin_lock_init(&dev->slock);
-	core->tvnorm = V4L2_STD_NTSC_M;
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
@@ -1438,10 +1440,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	/* Sets device info at pci_dev */
 	pci_set_drvdata(pci_dev, dev);
 
-	dev->width   = 320;
-	dev->height  = 240;
-	dev->field   = V4L2_FIELD_INTERLACED;
-	dev->fmt     = format_by_fourcc(V4L2_PIX_FMT_BGR24);
+	dev->fmt = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 
 	/* initial device configuration */
 	mutex_lock(&core->lock);

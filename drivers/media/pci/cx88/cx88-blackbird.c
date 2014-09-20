@@ -515,12 +515,14 @@ DB* DVD | MPEG2 | 720x576PAL | CBR     | 600 :Good    | 6000 Kbps  | 25fps   | M
 
 static void blackbird_codec_settings(struct cx8802_dev *dev)
 {
+	struct cx88_core *core = dev->core;
+
 	/* assign frame size */
 	blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_SIZE, 2, 0,
-				dev->height, dev->width);
+				core->height, core->width);
 
-	dev->cxhdl.width = dev->width;
-	dev->cxhdl.height = dev->height;
+	dev->cxhdl.width = core->width;
+	dev->cxhdl.height = core->height;
 	cx2341x_handler_set_50hz(&dev->cxhdl, dev->core->tvnorm & V4L2_STD_625_50);
 	cx2341x_handler_setup(&dev->cxhdl);
 }
@@ -658,7 +660,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	struct cx8802_dev *dev = vb->vb2_queue->drv_priv;
 	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
 
-	return cx8802_buf_prepare(vb->vb2_queue, dev, buf, dev->field);
+	return cx8802_buf_prepare(vb->vb2_queue, dev, buf);
 }
 
 static void buffer_finish(struct vb2_buffer *vb)
@@ -796,55 +798,75 @@ static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_vid_cap (struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
 	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count;
 	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
-	f->fmt.pix.width        = dev->width;
-	f->fmt.pix.height       = dev->height;
-	f->fmt.pix.field        = dev->field;
-	dprintk(1, "VIDIOC_G_FMT: w: %d, h: %d, f: %d\n",
-		dev->width, dev->height, dev->field);
+	f->fmt.pix.width        = core->width;
+	f->fmt.pix.height       = core->height;
+	f->fmt.pix.field        = core->field;
 	return 0;
 }
 
-static int vidioc_try_fmt_vid_cap (struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct cx8802_dev *dev = video_drvdata(file);
+	struct cx88_core *core = dev->core;
+	unsigned maxw, maxh;
+	enum v4l2_field field;
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
 	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count;
 	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
-	dprintk(1, "VIDIOC_TRY_FMT: w: %d, h: %d, f: %d\n",
-		dev->width, dev->height, dev->field);
+
+	maxw = norm_maxw(core->tvnorm);
+	maxh = norm_maxh(core->tvnorm);
+
+	field = f->fmt.pix.field;
+
+	switch (field) {
+	case V4L2_FIELD_TOP:
+	case V4L2_FIELD_BOTTOM:
+	case V4L2_FIELD_INTERLACED:
+	case V4L2_FIELD_SEQ_BT:
+	case V4L2_FIELD_SEQ_TB:
+		break;
+	default:
+		field = (f->fmt.pix.height > maxh / 2)
+			? V4L2_FIELD_INTERLACED
+			: V4L2_FIELD_BOTTOM;
+		break;
+	}
+	if (V4L2_FIELD_HAS_T_OR_B(field))
+		maxh /= 2;
+
+	v4l_bound_align_image(&f->fmt.pix.width, 48, maxw, 2,
+			      &f->fmt.pix.height, 32, maxh, 0, 0);
+	f->fmt.pix.field = field;
 	return 0;
 }
 
-static int vidioc_s_fmt_vid_cap (struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core  *core = dev->core;
 
-	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count;
-	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
-	dev->width              = f->fmt.pix.width;
-	dev->height             = f->fmt.pix.height;
-	dev->field         = f->fmt.pix.field;
+	vidioc_try_fmt_vid_cap(file, priv, f);
+	core->width = f->fmt.pix.width;
+	core->height = f->fmt.pix.height;
+	core->field = f->fmt.pix.field;
 	cx88_set_scale(core, f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.field);
 	blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_SIZE, 2, 0,
 				f->fmt.pix.height, f->fmt.pix.width);
-	dprintk(1, "VIDIOC_S_FMT: w: %d, h: %d, f: %d\n",
-		f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.field );
 	return 0;
 }
 
@@ -863,8 +885,8 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 
 	cx88_set_freq (core,f);
 	blackbird_initialize_codec(dev);
-	cx88_set_scale(dev->core, dev->width, dev->height,
-			dev->field);
+	cx88_set_scale(core, core->width, core->height,
+			core->field);
 	return 0;
 }
 
@@ -1128,16 +1150,9 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	if (!(core->board.mpeg & CX88_MPEG_BLACKBIRD))
 		goto fail_core;
 
-	dev->width = 720;
-	if (core->tvnorm & V4L2_STD_525_60) {
-		dev->height = 480;
-	} else {
-		dev->height = 576;
-	}
-	dev->field = V4L2_FIELD_INTERLACED;
 	dev->cxhdl.port = CX2341X_PORT_STREAMING;
-	dev->cxhdl.width = dev->width;
-	dev->cxhdl.height = dev->height;
+	dev->cxhdl.width = core->width;
+	dev->cxhdl.height = core->height;
 	dev->cxhdl.func = blackbird_mbox_func;
 	dev->cxhdl.priv = dev;
 	err = cx2341x_handler_init(&dev->cxhdl, 36);
@@ -1156,7 +1171,7 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 //	init_controls(core);
 	cx88_set_tvnorm(core,core->tvnorm);
 	cx88_video_mux(core,0);
-	cx2341x_handler_set_50hz(&dev->cxhdl, dev->height == 576);
+	cx2341x_handler_set_50hz(&dev->cxhdl, core->height == 576);
 	cx2341x_handler_setup(&dev->cxhdl);
 
 	q = &dev->vb2_mpegq;

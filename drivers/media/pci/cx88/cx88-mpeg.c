@@ -93,7 +93,7 @@ int cx8802_start_dma(struct cx8802_dev    *dev,
 	struct cx88_core *core = dev->core;
 
 	dprintk(1, "cx8802_start_dma w: %d, h: %d, f: %d\n",
-		dev->width, dev->height, dev->field);
+		core->width, core->height, core->field);
 
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH28],
@@ -224,7 +224,7 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 /* ------------------------------------------------------------------ */
 
 int cx8802_buf_prepare(struct vb2_queue *q, struct cx8802_dev *dev,
-			struct cx88_buffer *buf, enum v4l2_field field)
+			struct cx88_buffer *buf)
 {
 	int size = dev->ts_packet_size * dev->ts_packet_count;
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(&buf->vb, 0);

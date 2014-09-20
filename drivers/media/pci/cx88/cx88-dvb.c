@@ -101,7 +101,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	struct cx8802_dev *dev = vb->vb2_queue->drv_priv;
 	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
 
-	return cx8802_buf_prepare(vb->vb2_queue, dev, buf, dev->field);
+	return cx8802_buf_prepare(vb->vb2_queue, dev, buf);
 }
 
 static void buffer_finish(struct vb2_buffer *vb)
