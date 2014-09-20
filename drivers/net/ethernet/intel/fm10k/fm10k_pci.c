@@ -87,6 +87,51 @@ static int fm10k_hw_ready(struct fm10k_intfc *interface)
 	return FM10K_REMOVED(hw->hw_addr) ? -ENODEV : 0;
 }
 
+void fm10k_up(struct fm10k_intfc *interface)
+{
+	struct fm10k_hw *hw = &interface->hw;
+
+	/* Enable Tx/Rx DMA */
+	hw->mac.ops.start_hw(hw);
+
+	/* configure interrupts */
+	hw->mac.ops.update_int_moderator(hw);
+
+	/* clear down bit to indicate we are ready to go */
+	clear_bit(__FM10K_DOWN, &interface->state);
+
+	/* re-establish Rx filters */
+	fm10k_restore_rx_state(interface);
+
+	/* enable transmits */
+	netif_tx_start_all_queues(interface->netdev);
+}
+
+void fm10k_down(struct fm10k_intfc *interface)
+{
+	struct net_device *netdev = interface->netdev;
+	struct fm10k_hw *hw = &interface->hw;
+
+	/* signal that we are down to the interrupt handler and service task */
+	set_bit(__FM10K_DOWN, &interface->state);
+
+	/* call carrier off first to avoid false dev_watchdog timeouts */
+	netif_carrier_off(netdev);
+
+	/* disable transmits */
+	netif_tx_stop_all_queues(netdev);
+	netif_tx_disable(netdev);
+
+	/* reset Rx filters */
+	fm10k_reset_rx_state(interface);
+
+	/* allow 10ms for device to quiesce */
+	usleep_range(10000, 20000);
+
+	/* Disable DMA engine for Tx/Rx */
+	hw->mac.ops.stop_hw(hw);
+}
+
 /**
  * fm10k_sw_init - Initialize general software structures
  * @interface: host interface private structure to initialize

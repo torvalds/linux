@@ -20,6 +20,72 @@
 
 #include "fm10k.h"
 
+/**
+ * fm10k_request_glort_range - Request GLORTs for use in configuring rules
+ * @interface: board private structure
+ *
+ * This function allocates a range of glorts for this inteface to use.
+ **/
+static void fm10k_request_glort_range(struct fm10k_intfc *interface)
+{
+	struct fm10k_hw *hw = &interface->hw;
+	u16 mask = (~hw->mac.dglort_map) >> FM10K_DGLORTMAP_MASK_SHIFT;
+
+	/* establish GLORT base */
+	interface->glort = hw->mac.dglort_map & FM10K_DGLORTMAP_NONE;
+	interface->glort_count = 0;
+
+	/* nothing we can do until mask is allocated */
+	if (hw->mac.dglort_map == FM10K_DGLORTMAP_NONE)
+		return;
+
+	interface->glort_count = mask + 1;
+}
+
+/**
+ * fm10k_open - Called when a network interface is made active
+ * @netdev: network interface device structure
+ *
+ * Returns 0 on success, negative value on failure
+ *
+ * The open entry point is called when a network interface is made
+ * active by the system (IFF_UP).  At this point all resources needed
+ * for transmit and receive operations are allocated, the interrupt
+ * handler is registered with the OS, the watchdog timer is started,
+ * and the stack is notified that the interface is ready.
+ **/
+int fm10k_open(struct net_device *netdev)
+{
+	struct fm10k_intfc *interface = netdev_priv(netdev);
+
+	/* setup GLORT assignment for this port */
+	fm10k_request_glort_range(interface);
+
+	fm10k_up(interface);
+
+	return 0;
+}
+
+/**
+ * fm10k_close - Disables a network interface
+ * @netdev: network interface device structure
+ *
+ * Returns 0, this is not allowed to fail
+ *
+ * The close entry point is called when an interface is de-activated
+ * by the OS.  The hardware is still under the drivers control, but
+ * needs to be disabled.  A global MAC reset is issued to stop the
+ * hardware, and all transmit and receive resources are freed.
+ **/
+int fm10k_close(struct net_device *netdev)
+{
+	struct fm10k_intfc *interface = netdev_priv(netdev);
+
+	fm10k_down(interface);
+
+	return 0;
+}
+
 static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
 	dev_kfree_skb_any(skb);
@@ -398,6 +464,8 @@ void fm10k_reset_rx_state(struct fm10k_intfc *interface)
 }
 
 static const struct net_device_ops fm10k_netdev_ops = {
+	.ndo_open		= fm10k_open,
+	.ndo_stop		= fm10k_close,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_start_xmit		= fm10k_xmit_frame,
 	.ndo_set_mac_address	= fm10k_set_mac,

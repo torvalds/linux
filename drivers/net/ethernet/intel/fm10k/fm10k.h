@@ -130,9 +130,13 @@ extern const char fm10k_driver_version[];
 /* PCI */
 int fm10k_register_pci_driver(void);
 void fm10k_unregister_pci_driver(void);
+void fm10k_up(struct fm10k_intfc *interface);
+void fm10k_down(struct fm10k_intfc *interface);
 
 /* Netdev */
 struct net_device *fm10k_alloc_netdev(void);
 void fm10k_restore_rx_state(struct fm10k_intfc *);
 void fm10k_reset_rx_state(struct fm10k_intfc *);
+int fm10k_open(struct net_device *netdev);
+int fm10k_close(struct net_device *netdev);
 #endif /* _FM10K_H_ */
