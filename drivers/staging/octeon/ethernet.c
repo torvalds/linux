@@ -785,8 +785,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			if (!dev->netdev_ops) {
 				free_netdev(dev);
 			} else if (register_netdev(dev) < 0) {
-				pr_err("Failed to register ethernet device "
-					 "for interface %d, port %d\n",
+				pr_err("Failed to register ethernet device for interface %d, port %d\n",
 					 interface, priv->port);
 				free_netdev(dev);
 			} else {
