@@ -70,7 +70,7 @@ static int adis16220_capture(struct iio_dev *indio_dev)
 	if (ret)
 		dev_err(&indio_dev->dev, "problem beginning capture");
 
-	msleep(10); /* delay for capture to finish */
+	usleep_range(10000, 11000); /* delay for capture to finish */
 
 	return ret;
 }
