@@ -133,4 +133,6 @@ void fm10k_unregister_pci_driver(void);
 
 /* Netdev */
 struct net_device *fm10k_alloc_netdev(void);
+void fm10k_restore_rx_state(struct fm10k_intfc *);
+void fm10k_reset_rx_state(struct fm10k_intfc *);
 #endif /* _FM10K_H_ */
