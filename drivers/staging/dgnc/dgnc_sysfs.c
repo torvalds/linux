@@ -122,6 +122,7 @@ void dgnc_create_driver_sysfiles(struct pci_driver *dgnc_driver)
 void dgnc_remove_driver_sysfiles(struct pci_driver *dgnc_driver)
 {
 	struct device_driver *driverfs = &dgnc_driver->driver;
+
 	driver_remove_file(driverfs, &driver_attr_version);
 	driver_remove_file(driverfs, &driver_attr_boards);
 	driver_remove_file(driverfs, &driver_attr_maxboards);
