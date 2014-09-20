@@ -668,23 +668,21 @@ static int eeepc_register_rfkill_notifier(struct eeepc_laptop *eeepc,
 
 	status = acpi_get_handle(NULL, node, &handle);
 
-	if (ACPI_SUCCESS(status)) {
-		status = acpi_install_notify_handler(handle,
-						     ACPI_SYSTEM_NOTIFY,
-						     eeepc_rfkill_notify,
-						     eeepc);
-		if (ACPI_FAILURE(status))
-			pr_warn("Failed to register notify on %s\n", node);
-
-		/*
-		 * Refresh pci hotplug in case the rfkill state was
-		 * changed during setup.
-		 */
-		eeepc_rfkill_hotplug(eeepc, handle);
-	} else {
+	if (ACPI_FAILURE(status))
 		return -ENODEV;
-	}
 
+	status = acpi_install_notify_handler(handle,
+					     ACPI_SYSTEM_NOTIFY,
+					     eeepc_rfkill_notify,
+					     eeepc);
+	if (ACPI_FAILURE(status))
+		pr_warn("Failed to register notify on %s\n", node);
+
+	/*
+	 * Refresh pci hotplug in case the rfkill state was
+	 * changed during setup.
+	 */
+	eeepc_rfkill_hotplug(eeepc, handle);
 	return 0;
 }
 
@@ -696,20 +694,21 @@ static void eeepc_unregister_rfkill_notifier(struct eeepc_laptop *eeepc,
 
 	status = acpi_get_handle(NULL, node, &handle);
 
-	if (ACPI_SUCCESS(status)) {
-		status = acpi_remove_notify_handler(handle,
-						     ACPI_SYSTEM_NOTIFY,
-						     eeepc_rfkill_notify);
-		if (ACPI_FAILURE(status))
-			pr_err("Error removing rfkill notify handler %s\n",
-				node);
-			/*
-			 * Refresh pci hotplug in case the rfkill
-			 * state was changed after
-			 * eeepc_unregister_rfkill_notifier()
-			 */
-		eeepc_rfkill_hotplug(eeepc, handle);
-	}
+	if (ACPI_FAILURE(status))
+		return;
+
+	status = acpi_remove_notify_handler(handle,
+					     ACPI_SYSTEM_NOTIFY,
+					     eeepc_rfkill_notify);
+	if (ACPI_FAILURE(status))
+		pr_err("Error removing rfkill notify handler %s\n",
+			node);
+		/*
+		 * Refresh pci hotplug in case the rfkill
+		 * state was changed after
+		 * eeepc_unregister_rfkill_notifier()
+		 */
+	eeepc_rfkill_hotplug(eeepc, handle);
 }
 
 static int eeepc_get_adapter_status(struct hotplug_slot *hotplug_slot,
