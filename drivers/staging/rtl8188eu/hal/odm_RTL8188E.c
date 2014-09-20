@@ -370,18 +370,3 @@ void rtl88eu_dm_antenna_diversity(struct odm_dm_struct *dm_odm)
 	    (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV))
 		rtl88eu_dm_hw_ant_div(dm_odm);
 }
-
-/* 3============================================================ */
-/* 3 Dynamic Primary CCA */
-/* 3============================================================ */
-
-void odm_PrimaryCCA_Init(struct odm_dm_struct *dm_odm)
-{
-	struct dyn_primary_cca *PrimaryCCA = &(dm_odm->DM_PriCCA);
-
-	PrimaryCCA->DupRTS_flag = 0;
-	PrimaryCCA->intf_flag = 0;
-	PrimaryCCA->intf_type = 0;
-	PrimaryCCA->Monitor_flag = 0;
-	PrimaryCCA->PriCCA_flag = 0;
-}
