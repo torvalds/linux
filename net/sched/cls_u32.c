@@ -363,6 +363,9 @@ static int u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n)
 #ifdef CONFIG_CLS_U32_PERF
 	free_percpu(n->pf);
 #endif
+#ifdef CONFIG_CLS_U32_MARK
+	free_percpu(n->pcpu_success);
+#endif
 	kfree(n);
 	return 0;
 }
@@ -693,6 +696,10 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 
 #ifdef CONFIG_CLS_U32_MARK
 	n->pcpu_success = alloc_percpu(u32);
+	if (!n->pcpu_success) {
+		err = -ENOMEM;
+		goto errout;
+	}
 
 	if (tb[TCA_U32_MARK]) {
 		struct tc_u32_mark *mark;
@@ -720,6 +727,12 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		*arg = (unsigned long)n;
 		return 0;
 	}
+
+#ifdef CONFIG_CLS_U32_MARK
+	free_percpu(n->pcpu_success);
+#endif
+
+errout:
 #ifdef CONFIG_CLS_U32_PERF
 	free_percpu(n->pf);
 #endif
