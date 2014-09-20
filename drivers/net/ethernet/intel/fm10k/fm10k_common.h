@@ -39,6 +39,14 @@ do { \
 		writel((val), &hw_addr[(reg)]); \
 } while (0)
 
+/* Switch register write operations, index using DWORDS */
+#define fm10k_write_sw_reg(hw, reg, val) \
+do { \
+	u32 __iomem *sw_addr = ACCESS_ONCE((hw)->sw_addr); \
+	if (!FM10K_REMOVED(sw_addr)) \
+		writel((val), &sw_addr[(reg)]); \
+} while (0)
+
 /* read ctrl register which has no clear on read fields as PCIe flush */
 #define fm10k_write_flush(hw) fm10k_read_reg((hw), FM10K_CTRL)
 s32 fm10k_get_bus_info_generic(struct fm10k_hw *hw);

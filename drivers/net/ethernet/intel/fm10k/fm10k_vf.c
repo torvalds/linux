@@ -431,6 +431,13 @@ static s32 fm10k_update_xcast_mode_vf(struct fm10k_hw *hw, u16 glort, u8 mode)
 	return mbx->ops.enqueue_tx(hw, mbx, msg);
 }
 
+const struct fm10k_tlv_attr fm10k_1588_msg_attr[] = {
+	FM10K_TLV_ATTR_U64(FM10K_1588_MSG_TIMESTAMP),
+	FM10K_TLV_ATTR_LAST
+};
+
+/* currently there is no shared 1588 timestamp handler */
+
 /**
  *  fm10k_update_hw_stats_vf - Updates hardware related statistics of VF
  *  @hw: pointer to hardware structure
@@ -482,6 +489,52 @@ static s32 fm10k_configure_dglort_map_vf(struct fm10k_hw *hw,
 	return 0;
 }
 
+/**
+ *  fm10k_adjust_systime_vf - Adjust systime frequency
+ *  @hw: pointer to hardware structure
+ *  @ppb: adjustment rate in parts per billion
+ *
+ *  This function takes an adjustment rate in parts per billion and will
+ *  verify that this value is 0 as the VF cannot support adjusting the
+ *  systime clock.
+ *
+ *  If the ppb value is non-zero the return is ERR_PARAM else success
+ **/
+static s32 fm10k_adjust_systime_vf(struct fm10k_hw *hw, s32 ppb)
+{
+	/* The VF cannot adjust the clock frequency, however it should
+	 * already have a syntonic clock with whichever host interface is
+	 * running as the master for the host interface clock domain so
+	 * there should be not frequency adjustment necessary.
+	 */
+	return ppb ? FM10K_ERR_PARAM : 0;
+}
+
+/**
+ *  fm10k_read_systime_vf - Reads value of systime registers
+ *  @hw: pointer to the hardware structure
+ *
+ *  Function reads the content of 2 registers, combined to represent a 64 bit
+ *  value measured in nanosecods.  In order to guarantee the value is accurate
+ *  we check the 32 most significant bits both before and after reading the
+ *  32 least significant bits to verify they didn't change as we were reading
+ *  the registers.
+ **/
+static u64 fm10k_read_systime_vf(struct fm10k_hw *hw)
+{
+	u32 systime_l, systime_h, systime_tmp;
+
+	systime_h = fm10k_read_reg(hw, FM10K_VFSYSTIME + 1);
+
+	do {
+		systime_tmp = systime_h;
+		systime_l = fm10k_read_reg(hw, FM10K_VFSYSTIME);
+		systime_h = fm10k_read_reg(hw, FM10K_VFSYSTIME + 1);
+	} while (systime_tmp != systime_h);
+
+	return ((u64)systime_h << 32) | systime_l;
+}
+
 static const struct fm10k_msg_data fm10k_msg_data_vf[] = {
 	FM10K_TLV_MSG_TEST_HANDLER(fm10k_tlv_msg_test),
 	FM10K_VF_MSG_MAC_VLAN_HANDLER(fm10k_msg_mac_vlan_vf),
@@ -507,6 +560,8 @@ static struct fm10k_mac_ops mac_ops_vf = {
 	.rebind_hw_stats	= &fm10k_rebind_hw_stats_vf,
 	.configure_dglort_map	= &fm10k_configure_dglort_map_vf,
 	.get_host_state		= &fm10k_get_host_state_generic,
+	.adjust_systime		= &fm10k_adjust_systime_vf,
+	.read_systime		= &fm10k_read_systime_vf,
 };
 
 static s32 fm10k_get_invariants_vf(struct fm10k_hw *hw)

@@ -1123,6 +1123,19 @@ static void fm10k_iov_update_stats_pf(struct fm10k_hw *hw,
 	fm10k_update_hw_stats_q(hw, q, idx, qpp);
 }
 
+static s32 fm10k_iov_report_timestamp_pf(struct fm10k_hw *hw,
+					 struct fm10k_vf_info *vf_info,
+					 u64 timestamp)
+{
+	u32 msg[4];
+
+	/* generate port state response to notify VF it is not ready */
+	fm10k_tlv_msg_init(msg, FM10K_VF_MSG_ID_1588);
+	fm10k_tlv_attr_put_u64(msg, FM10K_1588_MSG_TIMESTAMP, timestamp);
+
+	return vf_info->mbx.ops.enqueue_tx(hw, &vf_info->mbx, msg);
+}
+
 /**
  *  fm10k_iov_msg_msix_pf - Message handler for MSI-X request from VF
  *  @hw: Pointer to hardware structure
@@ -1723,6 +1736,89 @@ s32 fm10k_msg_err_pf(struct fm10k_hw *hw, u32 **results,
 	return 0;
 }
 
+const struct fm10k_tlv_attr fm10k_1588_timestamp_msg_attr[] = {
+	FM10K_TLV_ATTR_LE_STRUCT(FM10K_PF_ATTR_ID_1588_TIMESTAMP,
+				 sizeof(struct fm10k_swapi_1588_timestamp)),
+	FM10K_TLV_ATTR_LAST
+};
+
+/* currently there is no shared 1588 timestamp handler */
+
+/**
+ *  fm10k_adjust_systime_pf - Adjust systime frequency
+ *  @hw: pointer to hardware structure
+ *  @ppb: adjustment rate in parts per billion
+ *
+ *  This function will adjust the SYSTIME_CFG register contained in BAR 4
+ *  if this function is supported for BAR 4 access.  The adjustment amount
+ *  is based on the parts per billion value provided and adjusted to a
+ *  value based on parts per 2^48 clock cycles.
+ *
+ *  If adjustment is not supported or the requested value is too large
+ *  we will return an error.
+ **/
+static s32 fm10k_adjust_systime_pf(struct fm10k_hw *hw, s32 ppb)
+{
+	u64 systime_adjust;
+
+	/* if sw_addr is not set we don't have switch register access */
+	if (!hw->sw_addr)
+		return ppb ? FM10K_ERR_PARAM : 0;
+
+	/* we must convert the value from parts per billion to parts per
+	 * 2^48 cycles.  In addition I have opted to only use the 30 most
+	 * significant bits of the adjustment value as the 8 least
+	 * significant bits are located in another register and represent
+	 * a value significantly less than a part per billion, the result
+	 * of dropping the 8 least significant bits is that the adjustment
+	 * value is effectively multiplied by 2^8 when we write it.
+	 *
+	 * As a result of all this the math for this breaks down as follows:
+	 *	ppb / 10^9 == adjust * 2^8 / 2^48
+	 * If we solve this for adjust, and simplify it comes out as:
+	 *	ppb * 2^31 / 5^9 == adjust
+	 */
+	systime_adjust = (ppb < 0) ? -ppb : ppb;
+	systime_adjust <<= 31;
+	do_div(systime_adjust, 1953125);
+
+	/* verify the requested adjustment value is in range */
+	if (systime_adjust > FM10K_SW_SYSTIME_ADJUST_MASK)
+		return FM10K_ERR_PARAM;
+
+	if (ppb < 0)
+		systime_adjust |= FM10K_SW_SYSTIME_ADJUST_DIR_NEGATIVE;
+
+	fm10k_write_sw_reg(hw, FM10K_SW_SYSTIME_ADJUST, (u32)systime_adjust);
+
+	return 0;
+}
+
+/**
+ *  fm10k_read_systime_pf - Reads value of systime registers
+ *  @hw: pointer to the hardware structure
+ *
+ *  Function reads the content of 2 registers, combined to represent a 64 bit
+ *  value measured in nanosecods.  In order to guarantee the value is accurate
+ *  we check the 32 most significant bits both before and after reading the
+ *  32 least significant bits to verify they didn't change as we were reading
+ *  the registers.
+ **/
+static u64 fm10k_read_systime_pf(struct fm10k_hw *hw)
+{
+	u32 systime_l, systime_h, systime_tmp;
+
+	systime_h = fm10k_read_reg(hw, FM10K_SYSTIME + 1);
+
+	do {
+		systime_tmp = systime_h;
+		systime_l = fm10k_read_reg(hw, FM10K_SYSTIME);
+		systime_h = fm10k_read_reg(hw, FM10K_SYSTIME + 1);
+	} while (systime_tmp != systime_h);
+
+	return ((u64)systime_h << 32) | systime_l;
+}
+
 static const struct fm10k_msg_data fm10k_msg_data_pf[] = {
 	FM10K_PF_MSG_ERR_HANDLER(XCAST_MODES, fm10k_msg_err_pf),
 	FM10K_PF_MSG_ERR_HANDLER(UPDATE_MAC_FWD_RULE, fm10k_msg_err_pf),
@@ -1753,6 +1849,8 @@ static struct fm10k_mac_ops mac_ops_pf = {
 	.set_dma_mask		= &fm10k_set_dma_mask_pf,
 	.get_fault		= &fm10k_get_fault_pf,
 	.get_host_state		= &fm10k_get_host_state_pf,
+	.adjust_systime		= &fm10k_adjust_systime_pf,
+	.read_systime		= &fm10k_read_systime_pf,
 };
 
 static struct fm10k_iov_ops iov_ops_pf = {
@@ -1764,6 +1862,7 @@ static struct fm10k_iov_ops iov_ops_pf = {
 	.set_lport			= &fm10k_iov_set_lport_pf,
 	.reset_lport			= &fm10k_iov_reset_lport_pf,
 	.update_stats			= &fm10k_iov_update_stats_pf,
+	.report_timestamp		= &fm10k_iov_report_timestamp_pf,
 };
 
 static s32 fm10k_get_invariants_pf(struct fm10k_hw *hw)

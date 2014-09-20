@@ -224,6 +224,11 @@ struct fm10k_hw;
 #define FM10K_STATS_LOOPBACK_DROP	0x3806
 #define FM10K_STATS_NODESC_DROP		0x3807
 
+/* Timesync registers */
+#define FM10K_SYSTIME		0x3814
+#define FM10K_SYSTIME_CFG	0x3818
+#define FM10K_SYSTIME_CFG_STEP_MASK		0x0000000F
+
 /* PCIe state registers */
 #define FM10K_PHYADDR		0x381C
 
@@ -357,6 +362,12 @@ struct fm10k_hw;
 #define FM10K_VFINT_MAP		0x00030
 #define FM10K_VFSYSTIME		0x00040
 #define FM10K_VFITR(_n)		((_n) + 0x00060)
+
+/* Registers contained in BAR 4 for Switch management */
+#define FM10K_SW_SYSTIME_ADJUST	0x0224D
+#define FM10K_SW_SYSTIME_ADJUST_MASK		0x3FFFFFFF
+#define FM10K_SW_SYSTIME_ADJUST_DIR_NEGATIVE	0x80000000
+#define FM10K_SW_SYSTIME_PULSE(_n)	((_n) + 0x02252)
 
 enum fm10k_int_source {
 	fm10k_int_Mailbox	= 0,
@@ -524,6 +535,7 @@ struct fm10k_mac_ops {
 	s32 (*get_fault)(struct fm10k_hw *, int, struct fm10k_fault *);
 	void (*request_lport_map)(struct fm10k_hw *);
 	s32 (*adjust_systime)(struct fm10k_hw *, s32 ppb);
+	u64 (*read_systime)(struct fm10k_hw *);
 };
 
 enum fm10k_mac_type {
@@ -614,6 +626,7 @@ struct fm10k_iov_ops {
 	s32 (*set_lport)(struct fm10k_hw *, struct fm10k_vf_info *, u16, u8);
 	void (*reset_lport)(struct fm10k_hw *, struct fm10k_vf_info *);
 	void (*update_stats)(struct fm10k_hw *, struct fm10k_hw_stats_q *, u16);
+	s32 (*report_timestamp)(struct fm10k_hw *, struct fm10k_vf_info *, u64);
 };
 
 struct fm10k_iov_info {
@@ -637,6 +650,7 @@ struct fm10k_info {
 
 struct fm10k_hw {
 	u32 __iomem *hw_addr;
+	u32 __iomem *sw_addr;
 	void *back;
 	struct fm10k_mac_info mac;
 	struct fm10k_bus_info bus;
