@@ -567,6 +567,62 @@ enum fm10k_xcast_modes {
 	FM10K_XCAST_MODE_DISABLE	= 4
 };
 
+#define FM10K_VF_TC_MAX		100000	/* 100,000 Mb/s aka 100Gb/s */
+#define FM10K_VF_TC_MIN		1	/* 1 Mb/s is the slowest rate */
+
+struct fm10k_vf_info {
+	/* mbx must be first field in struct unless all default IOV message
+	 * handlers are redone as the assumption is that vf_info starts
+	 * at the same offset as the mailbox
+	 */
+	struct fm10k_mbx_info	mbx;		/* PF side of VF mailbox */
+	int			rate;		/* Tx BW cap as defined by OS */
+	u16			glort;		/* resource tag for this VF */
+	u16			sw_vid;		/* Switch API assigned VLAN */
+	u16			pf_vid;		/* PF assigned Default VLAN */
+	u8			mac[ETH_ALEN];	/* PF Default MAC address */
+	u8			vsi;		/* VSI idenfifier */
+	u8			vf_idx;		/* which VF this is */
+	u8			vf_flags;	/* flags indicating what modes
+						 * are supported for the port
+						 */
+};
+
+#define FM10K_VF_FLAG_ALLMULTI_CAPABLE	((u8)1 << FM10K_XCAST_MODE_ALLMULTI)
+#define FM10K_VF_FLAG_MULTI_CAPABLE	((u8)1 << FM10K_XCAST_MODE_MULTI)
+#define FM10K_VF_FLAG_PROMISC_CAPABLE	((u8)1 << FM10K_XCAST_MODE_PROMISC)
+#define FM10K_VF_FLAG_NONE_CAPABLE	((u8)1 << FM10K_XCAST_MODE_NONE)
+#define FM10K_VF_FLAG_CAPABLE(vf_info)	((vf_info)->vf_flags & (u8)0xF)
+#define FM10K_VF_FLAG_ENABLED(vf_info)	((vf_info)->vf_flags >> 4)
+#define FM10K_VF_FLAG_SET_MODE(mode)	((u8)0x10 << (mode))
+#define FM10K_VF_FLAG_SET_MODE_NONE \
+	FM10K_VF_FLAG_SET_MODE(FM10K_XCAST_MODE_NONE)
+#define FM10K_VF_FLAG_MULTI_ENABLED \
+	(FM10K_VF_FLAG_SET_MODE(FM10K_XCAST_MODE_ALLMULTI) | \
+	 FM10K_VF_FLAG_SET_MODE(FM10K_XCAST_MODE_MULTI) | \
+	 FM10K_VF_FLAG_SET_MODE(FM10K_XCAST_MODE_PROMISC))
+
+struct fm10k_iov_ops {
+	/* IOV related bring-up and tear-down */
+	s32 (*assign_resources)(struct fm10k_hw *, u16, u16);
+	s32 (*configure_tc)(struct fm10k_hw *, u16, int);
+	s32 (*assign_int_moderator)(struct fm10k_hw *, u16);
+	s32 (*assign_default_mac_vlan)(struct fm10k_hw *,
+				       struct fm10k_vf_info *);
+	s32 (*reset_resources)(struct fm10k_hw *,
+			       struct fm10k_vf_info *);
+	s32 (*set_lport)(struct fm10k_hw *, struct fm10k_vf_info *, u16, u8);
+	void (*reset_lport)(struct fm10k_hw *, struct fm10k_vf_info *);
+	void (*update_stats)(struct fm10k_hw *, struct fm10k_hw_stats_q *, u16);
+};
+
+struct fm10k_iov_info {
+	struct fm10k_iov_ops ops;
+	u16 total_vfs;
+	u16 num_vfs;
+	u16 num_pools;
+};
+
 enum fm10k_devices {
 	fm10k_device_pf,
 	fm10k_device_vf,
@@ -576,6 +632,7 @@ struct fm10k_info {
 	enum fm10k_mac_type	mac;
 	s32			(*get_invariants)(struct fm10k_hw *);
 	struct fm10k_mac_ops	*mac_ops;
+	struct fm10k_iov_ops	*iov_ops;
 };
 
 struct fm10k_hw {
@@ -584,6 +641,7 @@ struct fm10k_hw {
 	struct fm10k_mac_info mac;
 	struct fm10k_bus_info bus;
 	struct fm10k_bus_info bus_caps;
+	struct fm10k_iov_info iov;
 	struct fm10k_mbx_info mbx;
 	struct fm10k_swapi_info swapi;
 	u16 device_id;

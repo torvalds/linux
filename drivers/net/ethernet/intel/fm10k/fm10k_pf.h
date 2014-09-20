@@ -25,6 +25,8 @@
 #include "fm10k_common.h"
 
 bool fm10k_glort_valid_pf(struct fm10k_hw *hw, u16 glort);
+u16 fm10k_queues_per_pool(struct fm10k_hw *hw);
+u16 fm10k_vf_queue_index(struct fm10k_hw *hw, u16 vf_idx);
 
 enum fm10k_pf_tlv_msg_id_v1 {
 	FM10K_PF_MSG_ID_TEST			= 0x000, /* msg ID reserved */
@@ -121,6 +123,13 @@ extern const struct fm10k_tlv_attr fm10k_1588_timestamp_msg_attr[];
 #define FM10K_PF_MSG_1588_TIMESTAMP_HANDLER(func) \
 	FM10K_MSG_HANDLER(FM10K_PF_MSG_ID_1588_TIMESTAMP, \
 			  fm10k_1588_timestamp_msg_attr, func)
+
+s32 fm10k_iov_msg_msix_pf(struct fm10k_hw *, u32 **, struct fm10k_mbx_info *);
+s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *, u32 **,
+			      struct fm10k_mbx_info *);
+s32 fm10k_iov_msg_lport_state_pf(struct fm10k_hw *, u32 **,
+				 struct fm10k_mbx_info *);
+extern const struct fm10k_msg_data fm10k_iov_msg_data_pf[];
 
 extern struct fm10k_info fm10k_pf_info;
 #endif /* _FM10K_PF_H */
