@@ -176,24 +176,24 @@ struct channel_t;
  * Per board operations structure				       *
  ************************************************************************/
 struct board_ops {
-	void (*tasklet) (unsigned long data);
-	irqreturn_t (*intr) (int irq, void *voidbrd);
-	void (*uart_init) (struct channel_t *ch);
-	void (*uart_off) (struct channel_t *ch);
-	int  (*drain) (struct tty_struct *tty, uint seconds);
-	void (*param) (struct tty_struct *tty);
-	void (*vpd) (struct dgnc_board *brd);
-	void (*assert_modem_signals) (struct channel_t *ch);
-	void (*flush_uart_write) (struct channel_t *ch);
-	void (*flush_uart_read) (struct channel_t *ch);
-	void (*disable_receiver) (struct channel_t *ch);
-	void (*enable_receiver) (struct channel_t *ch);
-	void (*send_break) (struct channel_t *ch, int);
-	void (*send_start_character) (struct channel_t *ch);
-	void (*send_stop_character) (struct channel_t *ch);
-	void (*copy_data_from_queue_to_uart) (struct channel_t *ch);
-	uint (*get_uart_bytes_left) (struct channel_t *ch);
-	void (*send_immediate_char) (struct channel_t *ch, unsigned char);
+	void (*tasklet)(unsigned long data);
+	irqreturn_t (*intr)(int irq, void *voidbrd);
+	void (*uart_init)(struct channel_t *ch);
+	void (*uart_off)(struct channel_t *ch);
+	int  (*drain)(struct tty_struct *tty, uint seconds);
+	void (*param)(struct tty_struct *tty);
+	void (*vpd)(struct dgnc_board *brd);
+	void (*assert_modem_signals)(struct channel_t *ch);
+	void (*flush_uart_write)(struct channel_t *ch);
+	void (*flush_uart_read)(struct channel_t *ch);
+	void (*disable_receiver)(struct channel_t *ch);
+	void (*enable_receiver)(struct channel_t *ch);
+	void (*send_break)(struct channel_t *ch, int);
+	void (*send_start_character)(struct channel_t *ch);
+	void (*send_stop_character)(struct channel_t *ch);
+	void (*copy_data_from_queue_to_uart)(struct channel_t *ch);
+	uint (*get_uart_bytes_left)(struct channel_t *ch);
+	void (*send_immediate_char)(struct channel_t *ch, unsigned char);
 };
 
 /************************************************************************
