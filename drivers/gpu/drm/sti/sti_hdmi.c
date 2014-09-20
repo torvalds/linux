@@ -298,7 +298,6 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD2(HDMI_IFRAME_SLOT_AVI));
 
 	val = frame[0xC];
-	val |= frame[0xD] << 8;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD3(HDMI_IFRAME_SLOT_AVI));
 
 	/* Enable transmission slot for AVI infoframe

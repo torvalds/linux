@@ -83,7 +83,7 @@
  *            CIK: 1D and linear tiling modes contain valid PIPE_CONFIG
  *   2.39.0 - Add INFO query for number of active CUs
  *   2.40.0 - Add RADEON_GEM_GTT_WC/UC, flush HDP cache before submitting
- *            CS to GPU
+ *            CS to GPU on >= r600
  */
 #define KMS_DRIVER_MAJOR	2
 #define KMS_DRIVER_MINOR	40
