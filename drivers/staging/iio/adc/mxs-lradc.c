@@ -1280,7 +1280,7 @@ static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 	if (!ret)
 		return -EBUSY;
 
-	lradc->buffer = kmalloc(len * sizeof(*lradc->buffer), GFP_KERNEL);
+	lradc->buffer = kmalloc_array(len, sizeof(*lradc->buffer), GFP_KERNEL);
 	if (!lradc->buffer) {
 		ret = -ENOMEM;
 		goto err_mem;
