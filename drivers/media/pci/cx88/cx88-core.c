@@ -76,10 +76,15 @@ static DEFINE_MUTEX(devlist);
 static __le32* cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
 			    unsigned int offset, u32 sync_line,
 			    unsigned int bpl, unsigned int padding,
-			    unsigned int lines, unsigned int lpi)
+			    unsigned int lines, unsigned int lpi, bool jump)
 {
 	struct scatterlist *sg;
 	unsigned int line,todo,sol;
+
+	if (jump) {
+		(*rp++) = cpu_to_le32(RISC_JUMP);
+		(*rp++) = 0;
+	}
 
 	/* sync instruction */
 	if (sync_line != NO_SYNC_LINE)
@@ -147,7 +152,7 @@ int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	   can cause next bpl to start close to a page border.  First DMA
 	   region may be smaller than PAGE_SIZE */
 	instructions  = fields * (1 + ((bpl + padding) * lines) / PAGE_SIZE + lines);
-	instructions += 2;
+	instructions += 4;
 	if ((rc = btcx_riscmem_alloc(pci,risc,instructions*8)) < 0)
 		return rc;
 
@@ -155,10 +160,10 @@ int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	rp = risc->cpu;
 	if (UNSET != top_offset)
 		rp = cx88_risc_field(rp, sglist, top_offset, 0,
-				     bpl, padding, lines, 0);
+				     bpl, padding, lines, 0, true);
 	if (UNSET != bottom_offset)
 		rp = cx88_risc_field(rp, sglist, bottom_offset, 0x200,
-				     bpl, padding, lines, 0);
+				     bpl, padding, lines, 0, top_offset == UNSET);
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
@@ -179,13 +184,13 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	   there is no padding and no sync.  First DMA region may be smaller
 	   than PAGE_SIZE */
 	instructions  = 1 + (bpl * lines) / PAGE_SIZE + lines;
-	instructions += 1;
+	instructions += 3;
 	if ((rc = btcx_riscmem_alloc(pci,risc,instructions*8)) < 0)
 		return rc;
 
 	/* write risc instructions */
 	rp = risc->cpu;
-	rp = cx88_risc_field(rp, sglist, 0, NO_SYNC_LINE, bpl, 0, lines, lpi);
+	rp = cx88_risc_field(rp, sglist, 0, NO_SYNC_LINE, bpl, 0, lines, lpi, !lpi);
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
@@ -193,37 +198,10 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	return 0;
 }
 
-int cx88_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
-		      u32 reg, u32 mask, u32 value)
-{
-	__le32 *rp;
-	int rc;
-
-	if ((rc = btcx_riscmem_alloc(pci, risc, 4*16)) < 0)
-		return rc;
-
-	/* write risc instructions */
-	rp = risc->cpu;
-	*(rp++) = cpu_to_le32(RISC_WRITECR  | RISC_IRQ2 | RISC_IMM);
-	*(rp++) = cpu_to_le32(reg);
-	*(rp++) = cpu_to_le32(value);
-	*(rp++) = cpu_to_le32(mask);
-	*(rp++) = cpu_to_le32(RISC_JUMP);
-	*(rp++) = cpu_to_le32(risc->dma);
-	return 0;
-}
-
 void
-cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf)
+cx88_free_buffer(struct vb2_queue *q, struct cx88_buffer *buf)
 {
-	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
-
-	BUG_ON(in_interrupt());
-	videobuf_waiton(q, &buf->vb, 0, 0);
-	videobuf_dma_unmap(q->dev, dma);
-	videobuf_dma_free(dma);
-	btcx_riscmem_free(to_pci_dev(q->dev), &buf->risc);
-	buf->vb.state = VIDEOBUF_NEEDS_INIT;
+	btcx_riscmem_free(to_pci_dev(q->drv_priv), &buf->risc);
 }
 
 /* ------------------------------------------------------------------ */
@@ -539,33 +517,12 @@ void cx88_wakeup(struct cx88_core *core,
 		 struct cx88_dmaqueue *q, u32 count)
 {
 	struct cx88_buffer *buf;
-	int bc;
 
-	for (bc = 0;; bc++) {
-		if (list_empty(&q->active))
-			break;
-		buf = list_entry(q->active.next,
-				 struct cx88_buffer, vb.queue);
-		/* count comes from the hw and is is 16bit wide --
-		 * this trick handles wrap-arounds correctly for
-		 * up to 32767 buffers in flight... */
-		if ((s16) (count - buf->count) < 0)
-			break;
-		v4l2_get_timestamp(&buf->vb.ts);
-		dprintk(2,"[%p/%d] wakeup reg=%d buf=%d\n",buf,buf->vb.i,
-			count, buf->count);
-		buf->vb.state = VIDEOBUF_DONE;
-		list_del(&buf->vb.queue);
-		wake_up(&buf->vb.done);
-	}
-	if (list_empty(&q->active)) {
-		del_timer(&q->timeout);
-	} else {
-		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
-	}
-	if (bc != 1)
-		dprintk(2, "%s: %d buffers handled (should be 1)\n",
-			__func__, bc);
+	buf = list_entry(q->active.next,
+			 struct cx88_buffer, list);
+	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
+	list_del(&buf->list);
+	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
 }
 
 void cx88_shutdown(struct cx88_core *core)
@@ -1043,6 +1000,7 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 	vfd->v4l2_dev = &core->v4l2_dev;
 	vfd->dev_parent = &pci->dev;
 	vfd->release = video_device_release;
+	vfd->lock = &core->lock;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 core->name, type, core->board.name);
 	return vfd;
@@ -1114,7 +1072,6 @@ EXPORT_SYMBOL(cx88_shutdown);
 
 EXPORT_SYMBOL(cx88_risc_buffer);
 EXPORT_SYMBOL(cx88_risc_databuffer);
-EXPORT_SYMBOL(cx88_risc_stopper);
 EXPORT_SYMBOL(cx88_free_buffer);
 
 EXPORT_SYMBOL(cx88_sram_channels);
