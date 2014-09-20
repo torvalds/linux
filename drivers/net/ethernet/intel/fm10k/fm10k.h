@@ -422,6 +422,7 @@ void fm10k_unmap_and_free_tx_resource(struct fm10k_ring *,
 				      struct fm10k_tx_buffer *);
 void fm10k_restore_rx_state(struct fm10k_intfc *);
 void fm10k_reset_rx_state(struct fm10k_intfc *);
+int fm10k_setup_tc(struct net_device *dev, u8 tc);
 int fm10k_open(struct net_device *netdev);
 int fm10k_close(struct net_device *netdev);
 

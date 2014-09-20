@@ -973,6 +973,46 @@ static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
 	return stats;
 }
 
+int fm10k_setup_tc(struct net_device *dev, u8 tc)
+{
+	struct fm10k_intfc *interface = netdev_priv(dev);
+
+	/* Currently only the PF supports priority classes */
+	if (tc && (interface->hw.mac.type != fm10k_mac_pf))
+		return -EINVAL;
+
+	/* Hardware supports up to 8 traffic classes */
+	if (tc > 8)
+		return -EINVAL;
+
+	/* Hardware has to reinitialize queues to match packet
+	 * buffer alignment. Unfortunately, the hardware is not
+	 * flexible enough to do this dynamically.
+	 */
+	if (netif_running(dev))
+		fm10k_close(dev);
+
+	fm10k_mbx_free_irq(interface);
+
+	fm10k_clear_queueing_scheme(interface);
+
+	/* we expect the prio_tc map to be repopulated later */
+	netdev_reset_tc(dev);
+	netdev_set_num_tc(dev, tc);
+
+	fm10k_init_queueing_scheme(interface);
+
+	fm10k_mbx_request_irq(interface);
+
+	if (netif_running(dev))
+		fm10k_open(dev);
+
+	/* flag to indicate SWPRI has yet to be updated */
+	interface->flags |= FM10K_FLAG_SWPRI_CONFIG;
+
+	return 0;
+}
+
 static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_open		= fm10k_open,
 	.ndo_stop		= fm10k_close,
@@ -985,6 +1025,7 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= fm10k_vlan_rx_kill_vid,
 	.ndo_set_rx_mode	= fm10k_set_rx_mode,
 	.ndo_get_stats64	= fm10k_get_stats64,
+	.ndo_setup_tc		= fm10k_setup_tc,
 };
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3

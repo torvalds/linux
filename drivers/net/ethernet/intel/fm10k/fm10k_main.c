@@ -1086,6 +1086,81 @@ static int fm10k_poll(struct napi_struct *napi, int budget)
 }
 
 /**
+ * fm10k_set_qos_queues: Allocate queues for a QOS-enabled device
+ * @interface: board private structure to initialize
+ *
+ * When QoS (Quality of Service) is enabled, allocate queues for
+ * each traffic class.  If multiqueue isn't available,then abort QoS
+ * initialization.
+ *
+ * This function handles all combinations of Qos and RSS.
+ *
+ **/
+static bool fm10k_set_qos_queues(struct fm10k_intfc *interface)
+{
+	struct net_device *dev = interface->netdev;
+	struct fm10k_ring_feature *f;
+	int rss_i, i;
+	int pcs;
+
+	/* Map queue offset and counts onto allocated tx queues */
+	pcs = netdev_get_num_tc(dev);
+
+	if (pcs <= 1)
+		return false;
+
+	/* set QoS mask and indices */
+	f = &interface->ring_feature[RING_F_QOS];
+	f->indices = pcs;
+	f->mask = (1 << fls(pcs - 1)) - 1;
+
+	/* determine the upper limit for our current DCB mode */
+	rss_i = interface->hw.mac.max_queues / pcs;
+	rss_i = 1 << (fls(rss_i) - 1);
+
+	/* set RSS mask and indices */
+	f = &interface->ring_feature[RING_F_RSS];
+	rss_i = min_t(u16, rss_i, f->limit);
+	f->indices = rss_i;
+	f->mask = (1 << fls(rss_i - 1)) - 1;
+
+	/* configure pause class to queue mapping */
+	for (i = 0; i < pcs; i++)
+		netdev_set_tc_queue(dev, i, rss_i, rss_i * i);
+
+	interface->num_rx_queues = rss_i * pcs;
+	interface->num_tx_queues = rss_i * pcs;
+
+	return true;
+}
+
+/**
+ * fm10k_set_rss_queues: Allocate queues for RSS
+ * @interface: board private structure to initialize
+ *
+ * This is our "base" multiqueue mode.  RSS (Receive Side Scaling) will try
+ * to allocate one Rx queue per CPU, and if available, one Tx queue per CPU.
+ *
+ **/
+static bool fm10k_set_rss_queues(struct fm10k_intfc *interface)
+{
+	struct fm10k_ring_feature *f;
+	u16 rss_i;
+
+	f = &interface->ring_feature[RING_F_RSS];
+	rss_i = min_t(u16, interface->hw.mac.max_queues, f->limit);
+
+	/* record indices and power of 2 mask for RSS */
+	f->indices = rss_i;
+	f->mask = (1 << fls(rss_i - 1)) - 1;
+
+	interface->num_rx_queues = rss_i;
+	interface->num_tx_queues = rss_i;
+
+	return true;
+}
+
+/**
  * fm10k_set_num_queues: Allocate queues for device, feature dependent
  * @interface: board private structure to initialize
  *
@@ -1101,6 +1176,11 @@ static void fm10k_set_num_queues(struct fm10k_intfc *interface)
 	/* Start with base case */
 	interface->num_rx_queues = 1;
 	interface->num_tx_queues = 1;
+
+	if (fm10k_set_qos_queues(interface))
+		return;
+
+	fm10k_set_rss_queues(interface);
 }
 
 /**
@@ -1381,6 +1461,71 @@ static int fm10k_init_msix_capability(struct fm10k_intfc *interface)
 	return 0;
 }
 
+/**
+ * fm10k_cache_ring_qos - Descriptor ring to register mapping for QoS
+ * @interface: Interface structure continaining rings and devices
+ *
+ * Cache the descriptor ring offsets for Qos
+ **/
+static bool fm10k_cache_ring_qos(struct fm10k_intfc *interface)
+{
+	struct net_device *dev = interface->netdev;
+	int pc, offset, rss_i, i, q_idx;
+	u16 pc_stride = interface->ring_feature[RING_F_QOS].mask + 1;
+	u8 num_pcs = netdev_get_num_tc(dev);
+
+	if (num_pcs <= 1)
+		return false;
+
+	rss_i = interface->ring_feature[RING_F_RSS].indices;
+
+	for (pc = 0, offset = 0; pc < num_pcs; pc++, offset += rss_i) {
+		q_idx = pc;
+		for (i = 0; i < rss_i; i++) {
+			interface->tx_ring[offset + i]->reg_idx = q_idx;
+			interface->tx_ring[offset + i]->qos_pc = pc;
+			interface->rx_ring[offset + i]->reg_idx = q_idx;
+			interface->rx_ring[offset + i]->qos_pc = pc;
+			q_idx += pc_stride;
+		}
+	}
+
+	return true;
+}
+
+/**
+ * fm10k_cache_ring_rss - Descriptor ring to register mapping for RSS
+ * @interface: Interface structure continaining rings and devices
+ *
+ * Cache the descriptor ring offsets for RSS
+ **/
+static void fm10k_cache_ring_rss(struct fm10k_intfc *interface)
+{
+	int i;
+
+	for (i = 0; i < interface->num_rx_queues; i++)
+		interface->rx_ring[i]->reg_idx = i;
+
+	for (i = 0; i < interface->num_tx_queues; i++)
+		interface->tx_ring[i]->reg_idx = i;
+}
+
+/**
+ * fm10k_assign_rings - Map rings to network devices
+ * @interface: Interface structure containing rings and devices
+ *
+ * This function is meant to go though and configure both the network
+ * devices so that they contain rings, and configure the rings so that
+ * they function with their network devices.
+ **/
+static void fm10k_assign_rings(struct fm10k_intfc *interface)
+{
+	if (fm10k_cache_ring_qos(interface))
+		return;
+
+	fm10k_cache_ring_rss(interface);
+}
+
 static void fm10k_init_reta(struct fm10k_intfc *interface)
 {
 	u16 i, rss_i = interface->ring_feature[RING_F_RSS].indices;
@@ -1447,6 +1592,9 @@ int fm10k_init_queueing_scheme(struct fm10k_intfc *interface)
 	err = fm10k_alloc_q_vectors(interface);
 	if (err)
 		return err;
+
+	/* Map rings to devices, and map devices to physical queues */
+	fm10k_assign_rings(interface);
 
 	/* Initialize RSS redirection table */
 	fm10k_init_reta(interface);

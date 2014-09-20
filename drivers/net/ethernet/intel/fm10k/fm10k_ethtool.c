@@ -838,6 +838,61 @@ static int fm10k_set_rssh(struct net_device *netdev, const u32 *indir,
 	return 0;
 }
 
+static unsigned int fm10k_max_channels(struct net_device *dev)
+{
+	struct fm10k_intfc *interface = netdev_priv(dev);
+	unsigned int max_combined = interface->hw.mac.max_queues;
+	u8 tcs = netdev_get_num_tc(dev);
+
+	/* For QoS report channels per traffic class */
+	if (tcs > 1)
+		max_combined = 1 << (fls(max_combined / tcs) - 1);
+
+	return max_combined;
+}
+
+static void fm10k_get_channels(struct net_device *dev,
+			       struct ethtool_channels *ch)
+{
+	struct fm10k_intfc *interface = netdev_priv(dev);
+	struct fm10k_hw *hw = &interface->hw;
+
+	/* report maximum channels */
+	ch->max_combined = fm10k_max_channels(dev);
+
+	/* report info for other vector */
+	ch->max_other = NON_Q_VECTORS(hw);
+	ch->other_count = ch->max_other;
+
+	/* record RSS queues */
+	ch->combined_count = interface->ring_feature[RING_F_RSS].indices;
+}
+
+static int fm10k_set_channels(struct net_device *dev,
+			      struct ethtool_channels *ch)
+{
+	struct fm10k_intfc *interface = netdev_priv(dev);
+	unsigned int count = ch->combined_count;
+	struct fm10k_hw *hw = &interface->hw;
+
+	/* verify they are not requesting separate vectors */
+	if (!count || ch->rx_count || ch->tx_count)
+		return -EINVAL;
+
+	/* verify other_count has not changed */
+	if (ch->other_count != NON_Q_VECTORS(hw))
+		return -EINVAL;
+
+	/* verify the number of channels does not exceed hardware limits */
+	if (count > fm10k_max_channels(dev))
+		return -EINVAL;
+
+	interface->ring_feature[RING_F_RSS].limit = count;
+
+	/* use setup TC to update any traffic class queue mapping */
+	return fm10k_setup_tc(dev, netdev_get_num_tc(dev));
+}
+
 static const struct ethtool_ops fm10k_ethtool_ops = {
 	.get_strings		= fm10k_get_strings,
 	.get_sset_count		= fm10k_get_sset_count,
@@ -860,6 +915,8 @@ static const struct ethtool_ops fm10k_ethtool_ops = {
 	.get_rxfh_key_size	= fm10k_get_rssrk_size,
 	.get_rxfh		= fm10k_get_rssh,
 	.set_rxfh		= fm10k_set_rssh,
+	.get_channels		= fm10k_get_channels,
+	.set_channels		= fm10k_set_channels,
 };
 
 void fm10k_set_ethtool_ops(struct net_device *dev)
