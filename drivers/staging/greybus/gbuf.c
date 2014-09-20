@@ -112,10 +112,9 @@ struct gbuf *greybus_get_gbuf(struct gbuf *gbuf)
 }
 EXPORT_SYMBOL_GPL(greybus_get_gbuf);
 
-int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t mem_flags)
+int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 {
-	// FIXME - implement
-	return -ENOMEM;
+	return gbuf->gdev->hd->driver->submit_gbuf(gbuf, gbuf->gdev->hd, gfp_mask);
 }
 
 int greybus_kill_gbuf(struct gbuf *gbuf)
@@ -123,13 +122,6 @@ int greybus_kill_gbuf(struct gbuf *gbuf)
 	// FIXME - implement
 	return -ENOMEM;
 }
-
-/* Can be called in interrupt context, do the work and get out of here */
-void greybus_gbuf_finished(struct gbuf *gbuf)
-{
-	// FIXME - implement
-}
-EXPORT_SYMBOL_GPL(greybus_gbuf_finished);
 
 #define MAX_CPORTS	1024
 struct gb_cport_handler {
@@ -235,6 +227,21 @@ void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
 	queue_work(cport_workqueue, &cm->event);
 }
 EXPORT_SYMBOL_GPL(greybus_cport_in_data);
+
+/* Can be called in interrupt context, do the work and get out of here */
+void greybus_gbuf_finished(struct gbuf *gbuf)
+{
+	struct cport_msg *cm;
+
+	/* Again with the slow allocate... */
+	cm = kmalloc(sizeof(*cm), GFP_ATOMIC);
+	cm->gbuf = gbuf;
+	INIT_WORK(&cm->event, cport_process_event);
+	queue_work(cport_workqueue, &cm->event);
+
+	// FIXME - implement
+}
+EXPORT_SYMBOL_GPL(greybus_gbuf_finished);
 
 int gb_gbuf_init(void)
 {

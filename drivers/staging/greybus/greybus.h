@@ -107,9 +107,10 @@ struct greybus_host_driver {
 
 	int (*alloc_gbuf)(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask);
 	void (*free_gbuf)(struct gbuf *gbuf);
-	int (*send_svc_msg)(struct svc_msg *svc_msg, struct greybus_host_device *hd);
-	int (*send_gbuf)(struct gbuf *gbuf, struct greybus_host_device *hd,
-			gfp_t gfp_mask);
+	int (*send_svc_msg)(struct svc_msg *svc_msg,
+			    struct greybus_host_device *hd);
+	int (*submit_gbuf)(struct gbuf *gbuf, struct greybus_host_device *hd,
+			   gfp_t gfp_mask);
 };
 
 struct greybus_host_device {

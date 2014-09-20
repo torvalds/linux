@@ -96,7 +96,7 @@ static int alloc_gbuf(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 	u8 *buffer;
 
 	if (size > ES1_GBUF_MSG_SIZE) {
-		pr_err("guf was asked to be bigger than %d!\n",
+		pr_err("guf was asked to be bigger than %ld!\n",
 		       ES1_GBUF_MSG_SIZE);
 	}
 
@@ -189,8 +189,8 @@ static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 	return urb;
 }
 
-static int send_gbuf(struct gbuf *gbuf, struct greybus_host_device *hd,
-		     gfp_t gfp_mask)
+static int submit_gbuf(struct gbuf *gbuf, struct greybus_host_device *hd,
+		       gfp_t gfp_mask)
 {
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct usb_device *udev = es1->usb_dev;
@@ -216,11 +216,11 @@ static int send_gbuf(struct gbuf *gbuf, struct greybus_host_device *hd,
 }
 
 static struct greybus_host_driver es1_driver = {
-	.hd_priv_size = sizeof(struct es1_ap_dev),
-	.alloc_gbuf = alloc_gbuf,
-	.free_gbuf = free_gbuf,
-	.send_svc_msg = send_svc_msg,
-	.send_gbuf = send_gbuf,
+	.hd_priv_size	= sizeof(struct es1_ap_dev),
+	.alloc_gbuf	= alloc_gbuf,
+	.free_gbuf	= free_gbuf,
+	.send_svc_msg	= send_svc_msg,
+	.submit_gbuf	= submit_gbuf,
 };
 
 /* Callback for when we get a SVC message */
