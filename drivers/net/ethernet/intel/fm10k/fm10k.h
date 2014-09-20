@@ -31,6 +31,45 @@
 
 #define FM10K_MAX_JUMBO_FRAME_SIZE	15358	/* Maximum supported size 15K */
 
+struct fm10k_ring_container {
+	unsigned int total_bytes;	/* total bytes processed this int */
+	unsigned int total_packets;	/* total packets processed this int */
+	u16 work_limit;			/* total work allowed per interrupt */
+	u16 itr;			/* interrupt throttle rate value */
+	u8 count;			/* total number of rings in vector */
+};
+
+#define FM10K_ITR_MAX		0x0FFF	/* maximum value for ITR */
+#define FM10K_ITR_10K		100	/* 100us */
+#define FM10K_ITR_20K		50	/* 50us */
+#define FM10K_ITR_ADAPTIVE	0x8000	/* adaptive interrupt moderation flag */
+
+#define FM10K_ITR_ENABLE	(FM10K_ITR_AUTOMASK | FM10K_ITR_MASK_CLEAR)
+
+#define MAX_Q_VECTORS 256
+#define MIN_Q_VECTORS	1
+enum fm10k_non_q_vectors {
+	FM10K_MBX_VECTOR,
+	NON_Q_VECTORS_PF
+};
+
+#define NON_Q_VECTORS(hw)	(((hw)->mac.type == fm10k_mac_pf) ? \
+						NON_Q_VECTORS_PF : \
+						0)
+#define MIN_MSIX_COUNT(hw)	(MIN_Q_VECTORS + NON_Q_VECTORS(hw))
+
+struct fm10k_q_vector {
+	struct fm10k_intfc *interface;
+	u32 __iomem *itr;	/* pointer to ITR register for this vector */
+	u16 v_idx;		/* index of q_vector within interface array */
+	struct fm10k_ring_container rx, tx;
+
+	struct napi_struct napi;
+	char name[IFNAMSIZ + 9];
+
+	struct rcu_head rcu;	/* to avoid race with update stats on free */
+};
+
 enum fm10k_ring_f_enum {
 	RING_F_RSS,
 	RING_F_QOS,
@@ -66,15 +105,29 @@ struct fm10k_intfc {
 #define FM10K_FLAG_SWPRI_CONFIG			(u32)(1 << 4)
 	int xcast_mode;
 
+	/* Tx fast path data */
+	int num_tx_queues;
+	u16 tx_itr;
+
+	/* Rx fast path data */
+	int num_rx_queues;
+	u16 rx_itr;
+
 	u64 rx_overrun_pf;
 	u64 rx_overrun_vf;
 
+	/* Queueing vectors */
+	struct fm10k_q_vector *q_vector[MAX_Q_VECTORS];
+	struct msix_entry *msix_entries;
+	int num_q_vectors;	/* current number of q_vectors for device */
 	struct fm10k_ring_feature ring_feature[RING_F_ARRAY_SIZE];
 
 	struct fm10k_hw_stats stats;
 	struct fm10k_hw hw;
 	u32 __iomem *uc_addr;
 	u16 msg_enable;
+	u16 tx_ring_count;
+	u16 rx_ring_count;
 
 	u32 reta[FM10K_RETA_SIZE];
 	u32 rssrk[FM10K_RSSRK_SIZE];
@@ -126,8 +179,14 @@ static inline int fm10k_mbx_trylock(struct fm10k_intfc *interface)
 /* main */
 extern char fm10k_driver_name[];
 extern const char fm10k_driver_version[];
+int fm10k_init_queueing_scheme(struct fm10k_intfc *interface);
+void fm10k_clear_queueing_scheme(struct fm10k_intfc *interface);
 
 /* PCI */
+void fm10k_mbx_free_irq(struct fm10k_intfc *);
+int fm10k_mbx_request_irq(struct fm10k_intfc *);
+void fm10k_qv_free_irq(struct fm10k_intfc *interface);
+int fm10k_qv_request_irq(struct fm10k_intfc *interface);
 int fm10k_register_pci_driver(void);
 void fm10k_unregister_pci_driver(void);
 void fm10k_up(struct fm10k_intfc *interface);

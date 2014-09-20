@@ -57,6 +57,12 @@ static void fm10k_request_glort_range(struct fm10k_intfc *interface)
 int fm10k_open(struct net_device *netdev)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
+	int err;
+
+	/* allocate interrupt resources */
+	err = fm10k_qv_request_irq(interface);
+	if (err)
+		goto err_req_irq;
 
 	/* setup GLORT assignment for this port */
 	fm10k_request_glort_range(interface);
@@ -64,6 +70,9 @@ int fm10k_open(struct net_device *netdev)
 	fm10k_up(interface);
 
 	return 0;
+
+err_req_irq:
+	return err;
 }
 
 /**
@@ -82,6 +91,8 @@ int fm10k_close(struct net_device *netdev)
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 
 	fm10k_down(interface);
+
+	fm10k_qv_free_irq(interface);
 
 	return 0;
 }
