@@ -99,6 +99,39 @@ enum fm10k_mbx_state {
 	FM10K_STATE_DISCONNECT,
 };
 
+/* PF/VF Mailbox header format
+ *    3			  2		      1			  0
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |        Size/Err_no/CRC        | Rsvd0 | Head  | Tail  | Type  |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ * The layout above describes the format for the header used in the PF/VF
+ * mailbox.  The header is broken out into the following fields:
+ * Type: There are 4 supported message types
+ *		0x8: Data header - used to transport message data
+ *		0xC: Connect header - used to establish connection
+ *		0xD: Disconnect header - used to tear down a connection
+ *		0xE: Error header - used to address message exceptions
+ * Tail: Tail index for local FIFO
+ *		Tail index actually consists of two parts.  The MSB of
+ *		the head is a loop tracker, it is 0 on an even numbered
+ *		loop through the FIFO, and 1 on the odd numbered loops.
+ *		To get the actual mailbox offset based on the tail it
+ *		is necessary to add bit 3 to bit 0 and clear bit 3.  This
+ *		gives us a valid range of 0x1 - 0xE.
+ * Head: Head index for remote FIFO
+ *		Head index follows the same format as the tail index.
+ * Rsvd0: Reserved 0 portion of the mailbox header
+ * CRC: Running CRC for all data since connect plus current message header
+ * Size: Maximum message size - Applies only to connect headers
+ *		The maximum message size is provided during connect to avoid
+ *		jamming the mailbox with messages that do not fit.
+ * Err_no: Error number - Applies only to error headers
+ *		The error number provides a indication of the type of error
+ *		experienced.
+ */
+
 /* macros for retriving and setting header values */
 #define FM10K_MSG_HDR_MASK(name) \
 	((0x1u << FM10K_MSG_##name##_SIZE) - 1)
@@ -106,6 +139,35 @@ enum fm10k_mbx_state {
 	(((u32)(value) & FM10K_MSG_HDR_MASK(name)) << FM10K_MSG_##name##_SHIFT)
 #define FM10K_MSG_HDR_FIELD_GET(value, name) \
 	((u16)((value) >> FM10K_MSG_##name##_SHIFT) & FM10K_MSG_HDR_MASK(name))
+
+/* offsets shared between all headers */
+#define FM10K_MSG_TYPE_SHIFT			0
+#define FM10K_MSG_TYPE_SIZE			4
+#define FM10K_MSG_TAIL_SHIFT			4
+#define FM10K_MSG_TAIL_SIZE			4
+#define FM10K_MSG_HEAD_SHIFT			8
+#define FM10K_MSG_HEAD_SIZE			4
+#define FM10K_MSG_RSVD0_SHIFT			12
+#define FM10K_MSG_RSVD0_SIZE			4
+
+/* offsets for data/disconnect headers */
+#define FM10K_MSG_CRC_SHIFT			16
+#define FM10K_MSG_CRC_SIZE			16
+
+/* offsets for connect headers */
+#define FM10K_MSG_CONNECT_SIZE_SHIFT		16
+#define FM10K_MSG_CONNECT_SIZE_SIZE		16
+
+/* offsets for error headers */
+#define FM10K_MSG_ERR_NO_SHIFT			16
+#define FM10K_MSG_ERR_NO_SIZE			16
+
+enum fm10k_msg_type {
+	FM10K_MSG_DATA			= 0x8,
+	FM10K_MSG_CONNECT		= 0xC,
+	FM10K_MSG_DISCONNECT		= 0xD,
+	FM10K_MSG_ERROR			= 0xE,
+};
 
 /* HNI/SM Mailbox FIFO format
  *    3                   2                   1                   0
@@ -237,6 +299,8 @@ struct fm10k_mbx_info {
 	u32 buffer[FM10K_MBX_BUFFER_SIZE];
 };
 
+s32 fm10k_pfvf_mbx_init(struct fm10k_hw *, struct fm10k_mbx_info *,
+			const struct fm10k_msg_data *, u8);
 s32 fm10k_sm_mbx_init(struct fm10k_hw *, struct fm10k_mbx_info *,
 		      const struct fm10k_msg_data *);
 
