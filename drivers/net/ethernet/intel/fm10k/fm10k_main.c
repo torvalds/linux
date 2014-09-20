@@ -342,6 +342,59 @@ static struct sk_buff *fm10k_fetch_rx_buffer(struct fm10k_ring *rx_ring,
 	return skb;
 }
 
+static inline void fm10k_rx_checksum(struct fm10k_ring *ring,
+				     union fm10k_rx_desc *rx_desc,
+				     struct sk_buff *skb)
+{
+	skb_checksum_none_assert(skb);
+
+	/* Rx checksum disabled via ethtool */
+	if (!(ring->netdev->features & NETIF_F_RXCSUM))
+		return;
+
+	/* TCP/UDP checksum error bit is set */
+	if (fm10k_test_staterr(rx_desc,
+			       FM10K_RXD_STATUS_L4E |
+			       FM10K_RXD_STATUS_L4E2 |
+			       FM10K_RXD_STATUS_IPE |
+			       FM10K_RXD_STATUS_IPE2)) {
+		ring->rx_stats.csum_err++;
+		return;
+	}
+
+	/* It must be a TCP or UDP packet with a valid checksum */
+	if (fm10k_test_staterr(rx_desc, FM10K_RXD_STATUS_L4CS2))
+		skb->encapsulation = true;
+	else if (!fm10k_test_staterr(rx_desc, FM10K_RXD_STATUS_L4CS))
+		return;
+
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+}
+
+#define FM10K_RSS_L4_TYPES_MASK \
+	((1ul << FM10K_RSSTYPE_IPV4_TCP) | \
+	 (1ul << FM10K_RSSTYPE_IPV4_UDP) | \
+	 (1ul << FM10K_RSSTYPE_IPV6_TCP) | \
+	 (1ul << FM10K_RSSTYPE_IPV6_UDP))
+
+static inline void fm10k_rx_hash(struct fm10k_ring *ring,
+				 union fm10k_rx_desc *rx_desc,
+				 struct sk_buff *skb)
+{
+	u16 rss_type;
+
+	if (!(ring->netdev->features & NETIF_F_RXHASH))
+		return;
+
+	rss_type = le16_to_cpu(rx_desc->w.pkt_info) & FM10K_RXD_RSSTYPE_MASK;
+	if (!rss_type)
+		return;
+
+	skb_set_hash(skb, le32_to_cpu(rx_desc->d.rss),
+		     (FM10K_RSS_L4_TYPES_MASK & (1ul << rss_type)) ?
+		     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
+}
+
 /**
  * fm10k_process_skb_fields - Populate skb header fields from Rx descriptor
  * @rx_ring: rx descriptor ring packet is being transacted on
@@ -357,6 +410,10 @@ static unsigned int fm10k_process_skb_fields(struct fm10k_ring *rx_ring,
 					     struct sk_buff *skb)
 {
 	unsigned int len = skb->len;
+
+	fm10k_rx_hash(rx_ring, rx_desc, skb);
+
+	fm10k_rx_checksum(rx_ring, rx_desc, skb);
 
 	FM10K_CB(skb)->fi.w.vlan = rx_desc->w.vlan;
 
@@ -569,6 +626,240 @@ static bool fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
 	return total_packets < budget;
 }
 
+#define VXLAN_HLEN (sizeof(struct udphdr) + 8)
+static struct ethhdr *fm10k_port_is_vxlan(struct sk_buff *skb)
+{
+	struct fm10k_intfc *interface = netdev_priv(skb->dev);
+	struct fm10k_vxlan_port *vxlan_port;
+
+	/* we can only offload a vxlan if we recognize it as such */
+	vxlan_port = list_first_entry_or_null(&interface->vxlan_port,
+					      struct fm10k_vxlan_port, list);
+
+	if (!vxlan_port)
+		return NULL;
+	if (vxlan_port->port != udp_hdr(skb)->dest)
+		return NULL;
+
+	/* return offset of udp_hdr plus 8 bytes for VXLAN header */
+	return (struct ethhdr *)(skb_transport_header(skb) + VXLAN_HLEN);
+}
+
+#define FM10K_NVGRE_RESERVED0_FLAGS htons(0x9FFF)
+#define NVGRE_TNI htons(0x2000)
+struct fm10k_nvgre_hdr {
+	__be16 flags;
+	__be16 proto;
+	__be32 tni;
+};
+
+static struct ethhdr *fm10k_gre_is_nvgre(struct sk_buff *skb)
+{
+	struct fm10k_nvgre_hdr *nvgre_hdr;
+	int hlen = ip_hdrlen(skb);
+
+	/* currently only IPv4 is supported due to hlen above */
+	if (vlan_get_protocol(skb) != htons(ETH_P_IP))
+		return NULL;
+
+	/* our transport header should be NVGRE */
+	nvgre_hdr = (struct fm10k_nvgre_hdr *)(skb_network_header(skb) + hlen);
+
+	/* verify all reserved flags are 0 */
+	if (nvgre_hdr->flags & FM10K_NVGRE_RESERVED0_FLAGS)
+		return NULL;
+
+	/* verify protocol is transparent Ethernet bridging */
+	if (nvgre_hdr->proto != htons(ETH_P_TEB))
+		return NULL;
+
+	/* report start of ethernet header */
+	if (nvgre_hdr->flags & NVGRE_TNI)
+		return (struct ethhdr *)(nvgre_hdr + 1);
+
+	return (struct ethhdr *)(&nvgre_hdr->tni);
+}
+
+static __be16 fm10k_tx_encap_offload(struct sk_buff *skb)
+{
+	struct ethhdr *eth_hdr;
+	u8 l4_hdr = 0;
+
+	switch (vlan_get_protocol(skb)) {
+	case htons(ETH_P_IP):
+		l4_hdr = ip_hdr(skb)->protocol;
+		break;
+	case htons(ETH_P_IPV6):
+		l4_hdr = ipv6_hdr(skb)->nexthdr;
+		break;
+	default:
+		return 0;
+	}
+
+	switch (l4_hdr) {
+	case IPPROTO_UDP:
+		eth_hdr = fm10k_port_is_vxlan(skb);
+		break;
+	case IPPROTO_GRE:
+		eth_hdr = fm10k_gre_is_nvgre(skb);
+		break;
+	default:
+		return 0;
+	}
+
+	if (!eth_hdr)
+		return 0;
+
+	switch (eth_hdr->h_proto) {
+	case htons(ETH_P_IP):
+	case htons(ETH_P_IPV6):
+		break;
+	default:
+		return 0;
+	}
+
+	return eth_hdr->h_proto;
+}
+
+static int fm10k_tso(struct fm10k_ring *tx_ring,
+		     struct fm10k_tx_buffer *first)
+{
+	struct sk_buff *skb = first->skb;
+	struct fm10k_tx_desc *tx_desc;
+	unsigned char *th;
+	u8 hdrlen;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
+
+	if (!skb_is_gso(skb))
+		return 0;
+
+	/* compute header lengths */
+	if (skb->encapsulation) {
+		if (!fm10k_tx_encap_offload(skb))
+			goto err_vxlan;
+		th = skb_inner_transport_header(skb);
+	} else {
+		th = skb_transport_header(skb);
+	}
+
+	/* compute offset from SOF to transport header and add header len */
+	hdrlen = (th - skb->data) + (((struct tcphdr *)th)->doff << 2);
+
+	first->tx_flags |= FM10K_TX_FLAGS_CSUM;
+
+	/* update gso size and bytecount with header size */
+	first->gso_segs = skb_shinfo(skb)->gso_segs;
+	first->bytecount += (first->gso_segs - 1) * hdrlen;
+
+	/* populate Tx descriptor header size and mss */
+	tx_desc = FM10K_TX_DESC(tx_ring, tx_ring->next_to_use);
+	tx_desc->hdrlen = hdrlen;
+	tx_desc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
+
+	return 1;
+err_vxlan:
+	tx_ring->netdev->features &= ~NETIF_F_GSO_UDP_TUNNEL;
+	if (!net_ratelimit())
+		netdev_err(tx_ring->netdev,
+			   "TSO requested for unsupported tunnel, disabling offload\n");
+	return -1;
+}
+
+static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
+			  struct fm10k_tx_buffer *first)
+{
+	struct sk_buff *skb = first->skb;
+	struct fm10k_tx_desc *tx_desc;
+	union {
+		struct iphdr *ipv4;
+		struct ipv6hdr *ipv6;
+		u8 *raw;
+	} network_hdr;
+	__be16 protocol;
+	u8 l4_hdr = 0;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		goto no_csum;
+
+	if (skb->encapsulation) {
+		protocol = fm10k_tx_encap_offload(skb);
+		if (!protocol) {
+			if (skb_checksum_help(skb)) {
+				dev_warn(tx_ring->dev,
+					 "failed to offload encap csum!\n");
+				tx_ring->tx_stats.csum_err++;
+			}
+			goto no_csum;
+		}
+		network_hdr.raw = skb_inner_network_header(skb);
+	} else {
+		protocol = vlan_get_protocol(skb);
+		network_hdr.raw = skb_network_header(skb);
+	}
+
+	switch (protocol) {
+	case htons(ETH_P_IP):
+		l4_hdr = network_hdr.ipv4->protocol;
+		break;
+	case htons(ETH_P_IPV6):
+		l4_hdr = network_hdr.ipv6->nexthdr;
+		break;
+	default:
+		if (unlikely(net_ratelimit())) {
+			dev_warn(tx_ring->dev,
+				 "partial checksum but ip version=%x!\n",
+				 protocol);
+		}
+		tx_ring->tx_stats.csum_err++;
+		goto no_csum;
+	}
+
+	switch (l4_hdr) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+		break;
+	case IPPROTO_GRE:
+		if (skb->encapsulation)
+			break;
+	default:
+		if (unlikely(net_ratelimit())) {
+			dev_warn(tx_ring->dev,
+				 "partial checksum but l4 proto=%x!\n",
+				 l4_hdr);
+		}
+		tx_ring->tx_stats.csum_err++;
+		goto no_csum;
+	}
+
+	/* update TX checksum flag */
+	first->tx_flags |= FM10K_TX_FLAGS_CSUM;
+
+no_csum:
+	/* populate Tx descriptor header size and mss */
+	tx_desc = FM10K_TX_DESC(tx_ring, tx_ring->next_to_use);
+	tx_desc->hdrlen = 0;
+	tx_desc->mss = 0;
+}
+
+#define FM10K_SET_FLAG(_input, _flag, _result) \
+	((_flag <= _result) ? \
+	 ((u32)(_input & _flag) * (_result / _flag)) : \
+	 ((u32)(_input & _flag) / (_flag / _result)))
+
+static u8 fm10k_tx_desc_flags(struct sk_buff *skb, u32 tx_flags)
+{
+	/* set type for advanced descriptor with frame checksum insertion */
+	u32 desc_flags = 0;
+
+	/* set checksum offload bits */
+	desc_flags |= FM10K_SET_FLAG(tx_flags, FM10K_TX_FLAGS_CSUM,
+				     FM10K_TXD_FLAG_CSUM);
+
+	return desc_flags;
+}
+
 static bool fm10k_tx_desc_push(struct fm10k_ring *tx_ring,
 			       struct fm10k_tx_desc *tx_desc, u16 i,
 			       dma_addr_t dma, unsigned int size, u8 desc_flags)
@@ -596,8 +887,9 @@ static void fm10k_tx_map(struct fm10k_ring *tx_ring,
 	unsigned char *data;
 	dma_addr_t dma;
 	unsigned int data_len, size;
+	u32 tx_flags = first->tx_flags;
 	u16 i = tx_ring->next_to_use;
-	u8 flags = 0;
+	u8 flags = fm10k_tx_desc_flags(skb, tx_flags);
 
 	tx_desc = FM10K_TX_DESC(tx_ring, i);
 
@@ -732,6 +1024,7 @@ netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
 				  struct fm10k_ring *tx_ring)
 {
 	struct fm10k_tx_buffer *first;
+	int tso;
 	u32 tx_flags = 0;
 #if PAGE_SIZE > FM10K_MAX_DATA_PER_TXD
 	unsigned short f;
@@ -763,9 +1056,21 @@ netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
 	/* record initial flags and protocol */
 	first->tx_flags = tx_flags;
 
+	tso = fm10k_tso(tx_ring, first);
+	if (tso < 0)
+		goto out_drop;
+	else if (!tso)
+		fm10k_tx_csum(tx_ring, first);
+
 	fm10k_tx_map(tx_ring, first);
 
 	fm10k_maybe_stop_tx(tx_ring, DESC_NEEDED);
+
+	return NETDEV_TX_OK;
+
+out_drop:
+	dev_kfree_skb_any(first->skb);
+	first->skb = NULL;
 
 	return NETDEV_TX_OK;
 }
