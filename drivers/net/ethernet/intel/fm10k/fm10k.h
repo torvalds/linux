@@ -391,6 +391,11 @@ extern char fm10k_driver_name[];
 extern const char fm10k_driver_version[];
 int fm10k_init_queueing_scheme(struct fm10k_intfc *interface);
 void fm10k_clear_queueing_scheme(struct fm10k_intfc *interface);
+netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
+				  struct fm10k_ring *tx_ring);
+void fm10k_tx_timeout_reset(struct fm10k_intfc *interface);
+bool fm10k_check_tx_hang(struct fm10k_ring *tx_ring);
+void fm10k_alloc_rx_buffers(struct fm10k_ring *rx_ring, u16 cleaned_count);
 
 /* PCI */
 void fm10k_mbx_free_irq(struct fm10k_intfc *);

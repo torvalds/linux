@@ -451,8 +451,66 @@ int fm10k_close(struct net_device *netdev)
 
 static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
-	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
+	struct fm10k_intfc *interface = netdev_priv(dev);
+	unsigned int r_idx = 0;
+	int err;
+
+	if ((skb->protocol ==  htons(ETH_P_8021Q)) &&
+	    !vlan_tx_tag_present(skb)) {
+		/* FM10K only supports hardware tagging, any tags in frame
+		 * are considered 2nd level or "outer" tags
+		 */
+		struct vlan_hdr *vhdr;
+		__be16 proto;
+
+		/* make sure skb is not shared */
+		skb = skb_share_check(skb, GFP_ATOMIC);
+		if (!skb)
+			return NETDEV_TX_OK;
+
+		/* make sure there is enough room to move the ethernet header */
+		if (unlikely(!pskb_may_pull(skb, VLAN_ETH_HLEN)))
+			return NETDEV_TX_OK;
+
+		/* verify the skb head is not shared */
+		err = skb_cow_head(skb, 0);
+		if (err)
+			return NETDEV_TX_OK;
+
+		/* locate vlan header */
+		vhdr = (struct vlan_hdr *)(skb->data + ETH_HLEN);
+
+		/* pull the 2 key pieces of data out of it */
+		__vlan_hwaccel_put_tag(skb,
+				       htons(ETH_P_8021Q),
+				       ntohs(vhdr->h_vlan_TCI));
+		proto = vhdr->h_vlan_encapsulated_proto;
+		skb->protocol = (ntohs(proto) >= 1536) ? proto :
+							 htons(ETH_P_802_2);
+
+		/* squash it by moving the ethernet addresses up 4 bytes */
+		memmove(skb->data + VLAN_HLEN, skb->data, 12);
+		__skb_pull(skb, VLAN_HLEN);
+		skb_reset_mac_header(skb);
+	}
+
+	/* The minimum packet size for a single buffer is 17B so pad the skb
+	 * in order to meet this minimum size requirement.
+	 */
+	if (unlikely(skb->len < 17)) {
+		int pad_len = 17 - skb->len;
+
+		if (skb_pad(skb, pad_len))
+			return NETDEV_TX_OK;
+		__skb_put(skb, pad_len);
+	}
+
+	if (r_idx >= interface->num_tx_queues)
+		r_idx %= interface->num_tx_queues;
+
+	err = fm10k_xmit_frame_ring(skb, interface->tx_ring[r_idx]);
+
+	return err;
 }
 
 static int fm10k_change_mtu(struct net_device *dev, int new_mtu)
@@ -463,6 +521,37 @@ static int fm10k_change_mtu(struct net_device *dev, int new_mtu)
 	dev->mtu = new_mtu;
 
 	return 0;
+}
+
+/**
+ * fm10k_tx_timeout - Respond to a Tx Hang
+ * @netdev: network interface device structure
+ **/
+static void fm10k_tx_timeout(struct net_device *netdev)
+{
+	struct fm10k_intfc *interface = netdev_priv(netdev);
+	bool real_tx_hang = false;
+	int i;
+
+#define TX_TIMEO_LIMIT 16000
+	for (i = 0; i < interface->num_tx_queues; i++) {
+		struct fm10k_ring *tx_ring = interface->tx_ring[i];
+
+		if (check_for_tx_hang(tx_ring) && fm10k_check_tx_hang(tx_ring))
+			real_tx_hang = true;
+	}
+
+	if (real_tx_hang) {
+		fm10k_tx_timeout_reset(interface);
+	} else {
+		netif_info(interface, drv, netdev,
+			   "Fake Tx hang detected with timeout of %d seconds\n",
+			   netdev->watchdog_timeo/HZ);
+
+		/* fake Tx hang - increase the kernel timeout */
+		if (netdev->watchdog_timeo < TX_TIMEO_LIMIT)
+			netdev->watchdog_timeo *= 2;
+	}
 }
 
 static int fm10k_uc_vlan_unsync(struct net_device *netdev,
@@ -891,6 +980,7 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_start_xmit		= fm10k_xmit_frame,
 	.ndo_set_mac_address	= fm10k_set_mac,
 	.ndo_change_mtu		= fm10k_change_mtu,
+	.ndo_tx_timeout		= fm10k_tx_timeout,
 	.ndo_vlan_rx_add_vid	= fm10k_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= fm10k_vlan_rx_kill_vid,
 	.ndo_set_rx_mode	= fm10k_set_rx_mode,

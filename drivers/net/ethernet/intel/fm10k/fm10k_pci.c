@@ -661,6 +661,9 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 
 	/* enable queue */
 	fm10k_write_reg(hw, FM10K_RXQCTL(reg_idx), rxqctl);
+
+	/* place buffers on ring for receive data */
+	fm10k_alloc_rx_buffers(ring, fm10k_desc_unused(ring));
 }
 
 /**
