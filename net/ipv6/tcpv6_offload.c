@@ -17,18 +17,6 @@
 
 static int tcp_v6_gso_send_check(struct sk_buff *skb)
 {
-	const struct ipv6hdr *ipv6h;
-	struct tcphdr *th;
-
-	if (!pskb_may_pull(skb, sizeof(*th)))
-		return -EINVAL;
-
-	ipv6h = ipv6_hdr(skb);
-	th = tcp_hdr(skb);
-
-	th->check = 0;
-	skb->ip_summed = CHECKSUM_PARTIAL;
-	__tcp_v6_send_check(skb, &ipv6h->saddr, &ipv6h->daddr);
 	return 0;
 }
 
@@ -58,10 +46,33 @@ static int tcp6_gro_complete(struct sk_buff *skb, int thoff)
 	return tcp_gro_complete(skb);
 }
 
+struct sk_buff *tcp6_gso_segment(struct sk_buff *skb,
+				 netdev_features_t features)
+{
+	struct tcphdr *th;
+
+	if (!pskb_may_pull(skb, sizeof(*th)))
+		return ERR_PTR(-EINVAL);
+
+	if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL)) {
+		const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
+		struct tcphdr *th = tcp_hdr(skb);
+
+		/* Set up pseudo header, usually expect stack to have done
+		 * this.
+		 */
+
+		th->check = 0;
+		skb->ip_summed = CHECKSUM_PARTIAL;
+		__tcp_v6_send_check(skb, &ipv6h->saddr, &ipv6h->daddr);
+	}
+
+	return tcp_gso_segment(skb, features);
+}
 static const struct net_offload tcpv6_offload = {
 	.callbacks = {
 		.gso_send_check	=	tcp_v6_gso_send_check,
-		.gso_segment	=	tcp_gso_segment,
+		.gso_segment	=	tcp6_gso_segment,
 		.gro_receive	=	tcp6_gro_receive,
 		.gro_complete	=	tcp6_gro_complete,
 	},
