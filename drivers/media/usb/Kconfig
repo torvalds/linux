@@ -27,6 +27,7 @@ source "drivers/media/usb/hdpvr/Kconfig"
 source "drivers/media/usb/tlg2300/Kconfig"
 source "drivers/media/usb/usbvision/Kconfig"
 source "drivers/media/usb/stk1160/Kconfig"
+source "drivers/media/usb/go7007/Kconfig"
 endif
 
 if (MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT)
@@ -50,6 +51,12 @@ endif
 if (MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT)
 	comment "Webcam, TV (analog/digital) USB devices"
 source "drivers/media/usb/em28xx/Kconfig"
+endif
+
+if MEDIA_SDR_SUPPORT
+	comment "Software defined radio USB devices"
+source "drivers/media/usb/msi2500/Kconfig"
+source "drivers/media/usb/airspy/Kconfig"
 endif
 
 endif #MEDIA_USB_SUPPORT

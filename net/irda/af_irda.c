@@ -674,7 +674,6 @@ static int irda_discover_daddr_and_lsap_sel(struct irda_sock *self, char *name)
 			self->daddr = DEV_ADDR_ANY;
 			kfree(discoveries);
 			return -EHOSTUNREACH;
-			break;
 		}
 	}
 	/* Cleanup our copy of the discovery log */

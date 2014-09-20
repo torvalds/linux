@@ -463,14 +463,14 @@ static int rtsx_control_thread(void *__dev)
 		else if (chip->srb->device->id) {
 			dev_err(&dev->pci->dev, "Bad target number (%d:%d)\n",
 				chip->srb->device->id,
-				chip->srb->device->lun);
+				(u8)chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
 		}
 
 		else if (chip->srb->device->lun > chip->max_lun) {
 			dev_err(&dev->pci->dev, "Bad LUN (%d:%d)\n",
 				chip->srb->device->id,
-				chip->srb->device->lun);
+				(u8)chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
 		}
 

@@ -497,10 +497,10 @@ static struct at91_pinctrl_mux_ops at91sam9x5_ops = {
 static void at91_pin_dbg(const struct device *dev, const struct at91_pmx_pin *pin)
 {
 	if (pin->mux) {
-		dev_dbg(dev, "pio%c%d configured as periph%c with conf = 0x%lu\n",
+		dev_dbg(dev, "pio%c%d configured as periph%c with conf = 0x%lx\n",
 			pin->bank + 'A', pin->pin, pin->mux - 1 + 'A', pin->conf);
 	} else {
-		dev_dbg(dev, "pio%c%d configured as gpio with conf = 0x%lu\n",
+		dev_dbg(dev, "pio%c%d configured as gpio with conf = 0x%lx\n",
 			pin->bank + 'A', pin->pin, pin->conf);
 	}
 }
@@ -611,26 +611,6 @@ static int at91_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static void at91_pmx_disable(struct pinctrl_dev *pctldev, unsigned selector,
-			   unsigned group)
-{
-	struct at91_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
-	const struct at91_pmx_pin *pins_conf = info->groups[group].pins_conf;
-	const struct at91_pmx_pin *pin;
-	uint32_t npins = info->groups[group].npins;
-	int i;
-	unsigned mask;
-	void __iomem *pio;
-
-	for (i = 0; i < npins; i++) {
-		pin = &pins_conf[i];
-		at91_pin_dbg(info->dev, pin);
-		pio = pin_to_controller(info, pin->bank);
-		mask = pin_to_mask(pin->pin);
-		at91_mux_gpio_enable(pio, mask, 1);
-	}
-}
-
 static int at91_pmx_get_funcs_count(struct pinctrl_dev *pctldev)
 {
 	struct at91_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
@@ -705,7 +685,6 @@ static const struct pinmux_ops at91_pmx_ops = {
 	.get_function_name	= at91_pmx_get_func_name,
 	.get_function_groups	= at91_pmx_get_groups,
 	.enable			= at91_pmx_enable,
-	.disable		= at91_pmx_disable,
 	.gpio_request_enable	= at91_gpio_request_enable,
 	.gpio_disable_free	= at91_gpio_disable_free,
 };
@@ -793,9 +772,9 @@ static void at91_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 				   struct seq_file *s, unsigned pin_id)
 {
 	unsigned long config;
-	int ret, val, num_conf = 0;
+	int val, num_conf = 0;
 
-	ret = at91_pinconf_get(pctldev, pin_id, &config);
+	at91_pinconf_get(pctldev, pin_id, &config);
 
 	DBG_SHOW_FLAG(MULTI_DRIVE);
 	DBG_SHOW_FLAG(PULL_UP);
@@ -945,7 +924,7 @@ static int at91_pinctrl_parse_functions(struct device_node *np,
 	/* Initialise function */
 	func->name = np->name;
 	func->ngroups = of_get_child_count(np);
-	if (func->ngroups <= 0) {
+	if (func->ngroups == 0) {
 		dev_err(info->dev, "no groups defined\n");
 		return -EINVAL;
 	}

@@ -70,11 +70,6 @@
 #define SERVER_NAME_LENGTH 40
 #define SERVER_NAME_LEN_WITH_NULL     (SERVER_NAME_LENGTH + 1)
 
-/* used to define string lengths for reversing unicode strings */
-/*         (256+1)*2 = 514                                     */
-/*           (max path length + 1 for null) * 2 for unicode    */
-#define MAX_NAME 514
-
 /* SMB echo "timeout" -- FIXME: tunable? */
 #define SMB_ECHO_INTERVAL (60 * HZ)
 
@@ -404,6 +399,15 @@ struct smb_version_operations {
 			const struct cifs_fid *, u32 *);
 	int (*set_acl)(struct cifs_ntsd *, __u32, struct inode *, const char *,
 			int);
+	/* writepages retry size */
+	unsigned int (*wp_retry_size)(struct inode *);
+	/* get mtu credits */
+	int (*wait_mtu_credits)(struct TCP_Server_Info *, unsigned int,
+				unsigned int *, unsigned int *);
+	/* check if we need to issue closedir */
+	bool (*dir_needs_close)(struct cifsFileInfo *);
+	long (*fallocate)(struct file *, struct cifs_tcon *, int, loff_t,
+			  loff_t);
 };
 
 struct smb_version_values {
@@ -640,6 +644,16 @@ add_credits(struct TCP_Server_Info *server, const unsigned int add,
 }
 
 static inline void
+add_credits_and_wake_if(struct TCP_Server_Info *server, const unsigned int add,
+			const int optype)
+{
+	if (add) {
+		server->ops->add_credits(server, add, optype);
+		wake_up(&server->request_q);
+	}
+}
+
+static inline void
 set_credits(struct TCP_Server_Info *server, const int val)
 {
 	server->ops->set_credits(server, val);
@@ -868,6 +882,7 @@ struct cifs_tcon {
 				for this mount even if server would support */
 	bool local_lease:1; /* check leases (only) on local system not remote */
 	bool broken_posix_open; /* e.g. Samba server versions < 3.3.2, 3.2.9 */
+	bool broken_sparse_sup; /* if server or share does not support sparse */
 	bool need_reconnect:1; /* connection reset, tid now invalid */
 #ifdef CONFIG_CIFS_SMB2
 	bool print:1;		/* set if connection to printer share */
@@ -1044,6 +1059,7 @@ struct cifs_readdata {
 	struct address_space		*mapping;
 	__u64				offset;
 	unsigned int			bytes;
+	unsigned int			got_bytes;
 	pid_t				pid;
 	int				result;
 	struct work_struct		work;
@@ -1053,6 +1069,7 @@ struct cifs_readdata {
 	struct kvec			iov;
 	unsigned int			pagesz;
 	unsigned int			tailsz;
+	unsigned int			credits;
 	unsigned int			nr_pages;
 	struct page			*pages[];
 };
@@ -1073,6 +1090,7 @@ struct cifs_writedata {
 	int				result;
 	unsigned int			pagesz;
 	unsigned int			tailsz;
+	unsigned int			credits;
 	unsigned int			nr_pages;
 	struct page			*pages[];
 };
@@ -1398,6 +1416,7 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   CIFS_OBREAK_OP   0x0100    /* oplock break request */
 #define   CIFS_NEG_OP      0x0200    /* negotiate request */
 #define   CIFS_OP_MASK     0x0380    /* mask request type */
+#define   CIFS_HAS_CREDITS 0x0400    /* already has credits */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001

@@ -148,7 +148,8 @@ struct cee_pfc {
  *
  * @selector: protocol identifier type
  * @protocol: protocol of type indicated
- * @priority: 3-bit unsigned integer indicating priority
+ * @priority: 3-bit unsigned integer indicating priority for IEEE
+ *            8-bit 802.1p user priority bitmap for CEE
  *
  * ----
  *  Selector field values

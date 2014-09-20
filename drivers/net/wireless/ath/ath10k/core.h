@@ -290,6 +290,9 @@ struct ath10k_debug {
 	struct ath_dfs_pool_stats dfs_pool_stats;
 
 	u32 fw_dbglog_mask;
+
+	u8 htt_max_amsdu;
+	u8 htt_max_ampdu;
 };
 
 enum ath10k_state {

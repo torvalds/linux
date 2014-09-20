@@ -741,6 +741,12 @@ UNUSUAL_DEV(  0x059b, 0x0001, 0x0100, 0x0100,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
+UNUSUAL_DEV(  0x059b, 0x0040, 0x0100, 0x0100,
+		"Iomega",
+		"Jaz USB Adapter",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
+
 /* Reported by <Hendryk.Pfeiffer@gmx.de> */
 UNUSUAL_DEV(  0x059f, 0x0643, 0x0000, 0x0000,
 		"LaCie",
@@ -921,6 +927,12 @@ UNUSUAL_DEV(  0x069b, 0x3004, 0x0001, 0x0001,
 		"RCA RD1080 MP3 Player",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
+
+UNUSUAL_DEV(  0x06ca, 0x2003, 0x0100, 0x0100,
+		"Newer Technology",
+		"uSCSI",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
 
 /* Reported by Adrian Pilchowiec <adi1981@epf.pl> */
 UNUSUAL_DEV(  0x071b, 0x3203, 0x0000, 0x0000,

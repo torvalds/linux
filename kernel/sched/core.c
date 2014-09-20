@@ -2393,6 +2393,13 @@ unsigned long nr_iowait_cpu(int cpu)
 	return atomic_read(&this->nr_iowait);
 }
 
+void get_iowait_load(unsigned long *nr_waiters, unsigned long *load)
+{
+	struct rq *this = this_rq();
+	*nr_waiters = atomic_read(&this->nr_iowait);
+	*load = this->cpu_load[0];
+}
+
 #ifdef CONFIG_SMP
 
 /*

@@ -16,7 +16,7 @@
 #include "db8500-regs.h"
 #include "id.h"
 
-const static struct of_device_id prcmu_timer_of_match[] __initconst = {
+static const struct of_device_id prcmu_timer_of_match[] __initconst = {
 	{ .compatible = "stericsson,db8500-prcmu-timer-4", },
 	{ },
 };

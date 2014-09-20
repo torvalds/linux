@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/time.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "reiserfs.h"
 #include "acl.h"
 #include "xattr.h"
@@ -100,7 +100,11 @@ void reiserfs_schedule_old_flush(struct super_block *s)
 	struct reiserfs_sb_info *sbi = REISERFS_SB(s);
 	unsigned long delay;
 
-	if (s->s_flags & MS_RDONLY)
+	/*
+	 * Avoid scheduling flush when sb is being shut down. It can race
+	 * with journal shutdown and free still queued delayed work.
+	 */
+	if (s->s_flags & MS_RDONLY || !(s->s_flags & MS_ACTIVE))
 		return;
 
 	spin_lock(&sbi->old_work_lock);
@@ -331,7 +335,7 @@ static int finish_unfinished(struct super_block *s)
 			 * not completed truncate found. New size was
 			 * committed together with "save" link
 			 */
-			reiserfs_info(s, "Truncating %k to %Ld ..",
+			reiserfs_info(s, "Truncating %k to %lld ..",
 				      INODE_PKEY(inode), inode->i_size);
 
 			/* don't update modification time */
@@ -1577,7 +1581,7 @@ static int read_super_block(struct super_block *s, int offset)
 	rs = (struct reiserfs_super_block *)bh->b_data;
 	if (sb_blocksize(rs) != s->s_blocksize) {
 		reiserfs_warning(s, "sh-2011", "can't find a reiserfs "
-				 "filesystem on (dev %s, block %Lu, size %lu)",
+				 "filesystem on (dev %s, block %llu, size %lu)",
 				 s->s_id,
 				 (unsigned long long)bh->b_blocknr,
 				 s->s_blocksize);
@@ -2441,8 +2445,7 @@ static ssize_t reiserfs_quota_write(struct super_block *sb, int type,
 	struct buffer_head tmp_bh, *bh;
 
 	if (!current->journal_info) {
-		printk(KERN_WARNING "reiserfs: Quota write (off=%Lu, len=%Lu)"
-			" cancelled because transaction is not started.\n",
+		printk(KERN_WARNING "reiserfs: Quota write (off=%llu, len=%llu) cancelled because transaction is not started.\n",
 			(unsigned long long)off, (unsigned long long)len);
 		return -EIO;
 	}

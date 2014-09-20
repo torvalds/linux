@@ -444,9 +444,7 @@ static int pcf857x_remove(struct i2c_client *client)
 	if (client->irq)
 		pcf857x_irq_domain_cleanup(gpio);
 
-	status = gpiochip_remove(&gpio->chip);
-	if (status)
-		dev_err(&client->dev, "%s --> %d\n", "remove", status);
+	gpiochip_remove(&gpio->chip);
 	return status;
 }
 

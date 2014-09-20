@@ -393,6 +393,22 @@ config XILINX_VDMA
 	  channels, Memory Mapped to Stream (MM2S) and Stream to
 	  Memory Mapped (S2MM) for the data transfers.
 
+config DMA_SUN6I
+	tristate "Allwinner A31 SoCs DMA support"
+	depends on MACH_SUN6I || COMPILE_TEST
+	depends on RESET_CONTROLLER
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support for the DMA engine for Allwinner A31 SoCs.
+
+config NBPFAXI_DMA
+	tristate "Renesas Type-AXI NBPF DMA support"
+	select DMA_ENGINE
+	depends on ARM || COMPILE_TEST
+	help
+	  Support for "Type-AXI" NBPF DMA IPs from Renesas
+
 config DMA_ENGINE
 	bool
 
@@ -406,6 +422,7 @@ config DMA_ACPI
 config DMA_OF
 	def_bool y
 	depends on OF
+	select DMA_ENGINE
 
 comment "DMA Clients"
 	depends on DMA_ENGINE

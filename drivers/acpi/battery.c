@@ -35,7 +35,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
-#include <linux/delay.h>
 #include <asm/unaligned.h>
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
@@ -533,20 +532,6 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 		battery->rate_now = abs((s16)battery->rate_now);
 		printk_once(KERN_WARNING FW_BUG "battery: (dis)charge rate"
 			" invalid.\n");
-	}
-
-	/*
-	 * When fully charged, some batteries wrongly report
-	 * capacity_now = design_capacity instead of = full_charge_capacity
-	 */
-	if (battery->capacity_now > battery->full_charge_capacity
-	    && battery->full_charge_capacity != ACPI_BATTERY_VALUE_UNKNOWN) {
-		battery->capacity_now = battery->full_charge_capacity;
-		if (battery->capacity_now != battery->design_capacity)
-			printk_once(KERN_WARNING FW_BUG
-				"battery: reported current charge level (%d) "
-				"is higher than reported maximum charge level (%d).\n",
-				battery->capacity_now, battery->full_charge_capacity);
 	}
 
 	if (test_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags)

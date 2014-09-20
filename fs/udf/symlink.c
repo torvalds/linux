@@ -20,7 +20,7 @@
  */
 
 #include "udfdecl.h"
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/time.h>

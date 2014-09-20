@@ -461,6 +461,7 @@ static inline void mm_init_cpumask(struct mm_struct *mm)
 #ifdef CONFIG_CPUMASK_OFFSTACK
 	mm->cpu_vm_mask_var = &mm->cpumask_allocation;
 #endif
+	cpumask_clear(mm->cpu_vm_mask_var);
 }
 
 /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */

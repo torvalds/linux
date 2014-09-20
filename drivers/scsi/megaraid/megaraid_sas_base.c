@@ -2038,9 +2038,9 @@ int megasas_sriov_start_heartbeat(struct megasas_instance *instance,
 
 	if (initial) {
 		instance->hb_host_mem =
-			pci_alloc_consistent(instance->pdev,
-					     sizeof(struct MR_CTRL_HB_HOST_MEM),
-					     &instance->hb_host_mem_h);
+			pci_zalloc_consistent(instance->pdev,
+					      sizeof(struct MR_CTRL_HB_HOST_MEM),
+					      &instance->hb_host_mem_h);
 		if (!instance->hb_host_mem) {
 			printk(KERN_DEBUG "megasas: SR-IOV: Couldn't allocate"
 			       " memory for heartbeat host memory for "
@@ -2048,8 +2048,6 @@ int megasas_sriov_start_heartbeat(struct megasas_instance *instance,
 			retval = -ENOMEM;
 			goto out;
 		}
-		memset(instance->hb_host_mem, 0,
-		       sizeof(struct MR_CTRL_HB_HOST_MEM));
 	}
 
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);

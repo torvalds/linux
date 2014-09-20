@@ -111,6 +111,12 @@ static const struct of_device_id samsung_usb2_phy_of_match[] = {
 		.data = &exynos5250_usb2_phy_config,
 	},
 #endif
+#ifdef CONFIG_PHY_S5PV210_USB2
+	{
+		.compatible = "samsung,s5pv210-usb2-phy",
+		.data = &s5pv210_usb2_phy_config,
+	},
+#endif
 	{ },
 };
 MODULE_DEVICE_TABLE(of, samsung_usb2_phy_of_match);

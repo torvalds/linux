@@ -375,7 +375,7 @@ static struct vortex_chip_info {
 };
 
 
-static DEFINE_PCI_DEVICE_TABLE(vortex_pci_tbl) = {
+static const struct pci_device_id vortex_pci_tbl[] = {
 	{ 0x10B7, 0x5900, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C590 },
 	{ 0x10B7, 0x5920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C592 },
 	{ 0x10B7, 0x5970, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_3C597 },
@@ -2177,10 +2177,10 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 			vp->tx_ring[entry].frag[i+1].addr =
-					cpu_to_le32(pci_map_single(
-						VORTEX_PCI(vp),
-						(void *)skb_frag_address(frag),
-						skb_frag_size(frag), PCI_DMA_TODEVICE));
+					cpu_to_le32(skb_frag_dma_map(
+						&VORTEX_PCI(vp)->dev,
+						frag,
+						frag->page_offset, frag->size, DMA_TO_DEVICE));
 
 			if (i == skb_shinfo(skb)->nr_frags-1)
 					vp->tx_ring[entry].frag[i+1].length = cpu_to_le32(skb_frag_size(frag)|LAST_FRAG);

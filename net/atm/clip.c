@@ -520,7 +520,8 @@ static int clip_create(int number)
 			if (PRIV(dev)->number >= number)
 				number = PRIV(dev)->number + 1;
 	}
-	dev = alloc_netdev(sizeof(struct clip_priv), "", clip_setup);
+	dev = alloc_netdev(sizeof(struct clip_priv), "", NET_NAME_UNKNOWN,
+			   clip_setup);
 	if (!dev)
 		return -ENOMEM;
 	clip_priv = PRIV(dev);

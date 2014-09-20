@@ -56,32 +56,81 @@
 
 #define MAX_LEDS 4
 
-static const u8 sixaxis_rdesc_fixup[] = {
-	0x95, 0x13, 0x09, 0x01, 0x81, 0x02, 0x95, 0x0C,
-	0x81, 0x01, 0x75, 0x10, 0x95, 0x04, 0x26, 0xFF,
-	0x03, 0x46, 0xFF, 0x03, 0x09, 0x01, 0x81, 0x02
-};
-
-static const u8 sixaxis_rdesc_fixup2[] = {
-	0x05, 0x01, 0x09, 0x04, 0xa1, 0x01, 0xa1, 0x02,
-	0x85, 0x01, 0x75, 0x08, 0x95, 0x01, 0x15, 0x00,
-	0x26, 0xff, 0x00, 0x81, 0x03, 0x75, 0x01, 0x95,
-	0x13, 0x15, 0x00, 0x25, 0x01, 0x35, 0x00, 0x45,
-	0x01, 0x05, 0x09, 0x19, 0x01, 0x29, 0x13, 0x81,
-	0x02, 0x75, 0x01, 0x95, 0x0d, 0x06, 0x00, 0xff,
-	0x81, 0x03, 0x15, 0x00, 0x26, 0xff, 0x00, 0x05,
-	0x01, 0x09, 0x01, 0xa1, 0x00, 0x75, 0x08, 0x95,
-	0x04, 0x35, 0x00, 0x46, 0xff, 0x00, 0x09, 0x30,
-	0x09, 0x31, 0x09, 0x32, 0x09, 0x35, 0x81, 0x02,
-	0xc0, 0x05, 0x01, 0x95, 0x13, 0x09, 0x01, 0x81,
-	0x02, 0x95, 0x0c, 0x81, 0x01, 0x75, 0x10, 0x95,
-	0x04, 0x26, 0xff, 0x03, 0x46, 0xff, 0x03, 0x09,
-	0x01, 0x81, 0x02, 0xc0, 0xa1, 0x02, 0x85, 0x02,
-	0x75, 0x08, 0x95, 0x30, 0x09, 0x01, 0xb1, 0x02,
-	0xc0, 0xa1, 0x02, 0x85, 0xee, 0x75, 0x08, 0x95,
-	0x30, 0x09, 0x01, 0xb1, 0x02, 0xc0, 0xa1, 0x02,
-	0x85, 0xef, 0x75, 0x08, 0x95, 0x30, 0x09, 0x01,
-	0xb1, 0x02, 0xc0, 0xc0,
+static __u8 sixaxis_rdesc[] = {
+	0x05, 0x01,         /*  Usage Page (Desktop),               */
+	0x09, 0x04,         /*  Usage (Joystik),                    */
+	0xA1, 0x01,         /*  Collection (Application),           */
+	0xA1, 0x02,         /*      Collection (Logical),           */
+	0x85, 0x01,         /*          Report ID (1),              */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x15, 0x00,         /*          Logical Minimum (0),        */
+	0x26, 0xFF, 0x00,   /*          Logical Maximum (255),      */
+	0x81, 0x03,         /*          Input (Constant, Variable), */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x13,         /*          Report Count (19),          */
+	0x15, 0x00,         /*          Logical Minimum (0),        */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x35, 0x00,         /*          Physical Minimum (0),       */
+	0x45, 0x01,         /*          Physical Maximum (1),       */
+	0x05, 0x09,         /*          Usage Page (Button),        */
+	0x19, 0x01,         /*          Usage Minimum (01h),        */
+	0x29, 0x13,         /*          Usage Maximum (13h),        */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x0D,         /*          Report Count (13),          */
+	0x06, 0x00, 0xFF,   /*          Usage Page (FF00h),         */
+	0x81, 0x03,         /*          Input (Constant, Variable), */
+	0x15, 0x00,         /*          Logical Minimum (0),        */
+	0x26, 0xFF, 0x00,   /*          Logical Maximum (255),      */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x09, 0x01,         /*          Usage (Pointer),            */
+	0xA1, 0x00,         /*          Collection (Physical),      */
+	0x75, 0x08,         /*              Report Size (8),        */
+	0x95, 0x04,         /*              Report Count (4),       */
+	0x35, 0x00,         /*              Physical Minimum (0),   */
+	0x46, 0xFF, 0x00,   /*              Physical Maximum (255), */
+	0x09, 0x30,         /*              Usage (X),              */
+	0x09, 0x31,         /*              Usage (Y),              */
+	0x09, 0x32,         /*              Usage (Z),              */
+	0x09, 0x35,         /*              Usage (Rz),             */
+	0x81, 0x02,         /*              Input (Variable),       */
+	0xC0,               /*          End Collection,             */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x95, 0x13,         /*          Report Count (19),          */
+	0x09, 0x01,         /*          Usage (Pointer),            */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x95, 0x0C,         /*          Report Count (12),          */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0x75, 0x10,         /*          Report Size (16),           */
+	0x95, 0x04,         /*          Report Count (4),           */
+	0x26, 0xFF, 0x03,   /*          Logical Maximum (1023),     */
+	0x46, 0xFF, 0x03,   /*          Physical Maximum (1023),    */
+	0x09, 0x01,         /*          Usage (Pointer),            */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0xC0,               /*      End Collection,                 */
+	0xA1, 0x02,         /*      Collection (Logical),           */
+	0x85, 0x02,         /*          Report ID (2),              */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x30,         /*          Report Count (48),          */
+	0x09, 0x01,         /*          Usage (Pointer),            */
+	0xB1, 0x02,         /*          Feature (Variable),         */
+	0xC0,               /*      End Collection,                 */
+	0xA1, 0x02,         /*      Collection (Logical),           */
+	0x85, 0xEE,         /*          Report ID (238),            */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x30,         /*          Report Count (48),          */
+	0x09, 0x01,         /*          Usage (Pointer),            */
+	0xB1, 0x02,         /*          Feature (Variable),         */
+	0xC0,               /*      End Collection,                 */
+	0xA1, 0x02,         /*      Collection (Logical),           */
+	0x85, 0xEF,         /*          Report ID (239),            */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x30,         /*          Report Count (48),          */
+	0x09, 0x01,         /*          Usage (Pointer),            */
+	0xB1, 0x02,         /*          Feature (Variable),         */
+	0xC0,               /*      End Collection,                 */
+	0xC0                /*  End Collection                      */
 };
 
 /*
@@ -778,6 +827,13 @@ struct sony_sc {
 	__u8 led_count;
 };
 
+static __u8 *sixaxis_fixup(struct hid_device *hdev, __u8 *rdesc,
+			     unsigned int *rsize)
+{
+	*rsize = sizeof(sixaxis_rdesc);
+	return sixaxis_rdesc;
+}
+
 static __u8 *ps3remote_fixup(struct hid_device *hdev, __u8 *rdesc,
 			     unsigned int *rsize)
 {
@@ -819,8 +875,6 @@ static int ps3remote_mapping(struct hid_device *hdev, struct hid_input *hi,
 	return 1;
 }
 
-
-/* Sony Vaio VGX has wrongly mouse pointer declared as constant */
 static __u8 *sony_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
@@ -857,20 +911,8 @@ static __u8 *sony_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		*rsize = sizeof(dualshock4_bt_rdesc);
 	}
 
-	/* The HID descriptor exposed over BT has a trailing zero byte */
-	if ((((sc->quirks & SIXAXIS_CONTROLLER_USB) && *rsize == 148) ||
-			((sc->quirks & SIXAXIS_CONTROLLER_BT) && *rsize == 149)) &&
-			rdesc[83] == 0x75) {
-		hid_info(hdev, "Fixing up Sony Sixaxis report descriptor\n");
-		memcpy((void *)&rdesc[83], (void *)&sixaxis_rdesc_fixup,
-			sizeof(sixaxis_rdesc_fixup));
-	} else if (sc->quirks & SIXAXIS_CONTROLLER_USB &&
-		   *rsize > sizeof(sixaxis_rdesc_fixup2)) {
-		hid_info(hdev, "Sony Sixaxis clone detected. Using original report descriptor (size: %d clone; %d new)\n",
-			 *rsize, (int)sizeof(sixaxis_rdesc_fixup2));
-		*rsize = sizeof(sixaxis_rdesc_fixup2);
-		memcpy(rdesc, &sixaxis_rdesc_fixup2, *rsize);
-	}
+	if (sc->quirks & SIXAXIS_CONTROLLER)
+		return sixaxis_fixup(hdev, rdesc, rsize);
 
 	if (sc->quirks & PS3REMOTE)
 		return ps3remote_fixup(hdev, rdesc, rsize);
@@ -1307,7 +1349,7 @@ static int sony_leds_init(struct sony_sc *sc)
 	static const char * const ds4_name_str[] = { "red", "green", "blue",
 						  "global" };
 	__u8 initial_values[MAX_LEDS] = { 0 };
-	__u8 max_brightness[MAX_LEDS] = { 1 };
+	__u8 max_brightness[MAX_LEDS] = { [0 ... (MAX_LEDS - 1)] = 1 };
 	__u8 use_hw_blink[MAX_LEDS] = { 0 };
 
 	BUG_ON(!(sc->quirks & SONY_LED_SUPPORT));
@@ -1830,9 +1872,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (sc->quirks & VAIO_RDESC_CONSTANT)
 		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
-	else if (sc->quirks & SIXAXIS_CONTROLLER_USB)
-		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
-	else if (sc->quirks & SIXAXIS_CONTROLLER_BT)
+	else if (sc->quirks & SIXAXIS_CONTROLLER)
 		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
 
 	ret = hid_hw_start(hdev, connect_mask);

@@ -572,7 +572,6 @@ static s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 		break;
 	default:
 		return -E1000_ERR_PHY;
-		break;
 	}
 
 	return 0;
@@ -2445,7 +2444,7 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 			return ret_val;
 		e1e_rphy(hw, PHY_REG(776, 20), &data);
 		data &= ~(0x3FF << 2);
-		data |= (0x1A << 2);
+		data |= (E1000_TX_PTR_GAP << 2);
 		ret_val = e1e_wphy(hw, PHY_REG(776, 20), data);
 		if (ret_val)
 			return ret_val;
@@ -4606,14 +4605,23 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 
 			/* Disable LPLU if both link partners support 100BaseT
 			 * EEE and 100Full is advertised on both ends of the
-			 * link.
+			 * link, and enable Auto Enable LPI since there will
+			 * be no driver to enable LPI while in Sx.
 			 */
 			if ((eee_advert & I82579_EEE_100_SUPPORTED) &&
 			    (dev_spec->eee_lp_ability &
 			     I82579_EEE_100_SUPPORTED) &&
-			    (hw->phy.autoneg_advertised & ADVERTISE_100_FULL))
+			    (hw->phy.autoneg_advertised & ADVERTISE_100_FULL)) {
 				phy_ctrl &= ~(E1000_PHY_CTRL_D0A_LPLU |
 					      E1000_PHY_CTRL_NOND0A_LPLU);
+
+				/* Set Auto Enable LPI after link up */
+				e1e_rphy_locked(hw,
+						I217_LPI_GPIO_CTRL, &phy_reg);
+				phy_reg |= I217_LPI_GPIO_CTRL_AUTO_EN_LPI;
+				e1e_wphy_locked(hw,
+						I217_LPI_GPIO_CTRL, phy_reg);
+			}
 		}
 
 		/* For i217 Intel Rapid Start Technology support,
@@ -4709,6 +4717,11 @@ void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 			e_dbg("Failed to setup iRST\n");
 			return;
 		}
+
+		/* Clear Auto Enable LPI after link up */
+		e1e_rphy_locked(hw, I217_LPI_GPIO_CTRL, &phy_reg);
+		phy_reg &= ~I217_LPI_GPIO_CTRL_AUTO_EN_LPI;
+		e1e_wphy_locked(hw, I217_LPI_GPIO_CTRL, phy_reg);
 
 		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
 			/* Restore clear on SMB if no manageability engine

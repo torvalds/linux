@@ -144,16 +144,6 @@ config TCIC
 	  "Bridge" is the name used for the hardware inside your computer that
 	  PCMCIA cards are plugged into. If unsure, say N.
 
-config PCMCIA_M8XX
-	tristate "MPC8xx PCMCIA support"
-	depends on PCCARD && PPC && 8xx
-	select PCCARD_IODYN if PCMCIA != n
-	help
-	  Say Y here to include support for PowerPC 8xx series PCMCIA
-	  controller.
-
-	  This driver is also available as a module called m8xx_pcmcia.
-
 config PCMCIA_ALCHEMY_DEVBOARD
 	tristate "Alchemy Db/Pb1xxx PCMCIA socket services"
 	depends on MIPS_ALCHEMY && PCMCIA

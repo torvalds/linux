@@ -439,22 +439,21 @@ static void _read_done(struct ore_io_state *ios, void *private)
 	objlayout_read_done(&objios->oir, status, objios->sync);
 }
 
-int objio_read_pagelist(struct nfs_pgio_data *rdata)
+int objio_read_pagelist(struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_header *hdr = rdata->header;
 	struct objio_state *objios;
 	int ret;
 
 	ret = objio_alloc_io_state(NFS_I(hdr->inode)->layout, true,
-			hdr->lseg, rdata->args.pages, rdata->args.pgbase,
-			rdata->args.offset, rdata->args.count, rdata,
+			hdr->lseg, hdr->args.pages, hdr->args.pgbase,
+			hdr->args.offset, hdr->args.count, hdr,
 			GFP_KERNEL, &objios);
 	if (unlikely(ret))
 		return ret;
 
 	objios->ios->done = _read_done;
 	dprintk("%s: offset=0x%llx length=0x%x\n", __func__,
-		rdata->args.offset, rdata->args.count);
+		hdr->args.offset, hdr->args.count);
 	ret = ore_read(objios->ios);
 	if (unlikely(ret))
 		objio_free_result(&objios->oir);
@@ -487,11 +486,11 @@ static void _write_done(struct ore_io_state *ios, void *private)
 static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 {
 	struct objio_state *objios = priv;
-	struct nfs_pgio_data *wdata = objios->oir.rpcdata;
-	struct address_space *mapping = wdata->header->inode->i_mapping;
+	struct nfs_pgio_header *hdr = objios->oir.rpcdata;
+	struct address_space *mapping = hdr->inode->i_mapping;
 	pgoff_t index = offset / PAGE_SIZE;
 	struct page *page;
-	loff_t i_size = i_size_read(wdata->header->inode);
+	loff_t i_size = i_size_read(hdr->inode);
 
 	if (offset >= i_size) {
 		*uptodate = true;
@@ -531,15 +530,14 @@ static const struct _ore_r4w_op _r4w_op = {
 	.put_page = &__r4w_put_page,
 };
 
-int objio_write_pagelist(struct nfs_pgio_data *wdata, int how)
+int objio_write_pagelist(struct nfs_pgio_header *hdr, int how)
 {
-	struct nfs_pgio_header *hdr = wdata->header;
 	struct objio_state *objios;
 	int ret;
 
 	ret = objio_alloc_io_state(NFS_I(hdr->inode)->layout, false,
-			hdr->lseg, wdata->args.pages, wdata->args.pgbase,
-			wdata->args.offset, wdata->args.count, wdata, GFP_NOFS,
+			hdr->lseg, hdr->args.pages, hdr->args.pgbase,
+			hdr->args.offset, hdr->args.count, hdr, GFP_NOFS,
 			&objios);
 	if (unlikely(ret))
 		return ret;
@@ -551,7 +549,7 @@ int objio_write_pagelist(struct nfs_pgio_data *wdata, int how)
 		objios->ios->done = _write_done;
 
 	dprintk("%s: offset=0x%llx length=0x%x\n", __func__,
-		wdata->args.offset, wdata->args.count);
+		hdr->args.offset, hdr->args.count);
 	ret = ore_write(objios->ios);
 	if (unlikely(ret)) {
 		objio_free_result(&objios->oir);

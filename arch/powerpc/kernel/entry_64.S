@@ -482,16 +482,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_STCX_CHECKS_ADDRESS)
 	ld	r8,KSP(r4)	/* new stack pointer */
 #ifdef CONFIG_PPC_BOOK3S
 BEGIN_FTR_SECTION
-  BEGIN_FTR_SECTION_NESTED(95)
 	clrrdi	r6,r8,28	/* get its ESID */
 	clrrdi	r9,r1,28	/* get current sp ESID */
-  FTR_SECTION_ELSE_NESTED(95)
+FTR_SECTION_ELSE
 	clrrdi	r6,r8,40	/* get its 1T ESID */
 	clrrdi	r9,r1,40	/* get current sp 1T ESID */
-  ALT_MMU_FTR_SECTION_END_NESTED_IFCLR(MMU_FTR_1T_SEGMENT, 95)
-FTR_SECTION_ELSE
-	b	2f
-ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_SLB)
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_1T_SEGMENT)
 	clrldi.	r0,r6,2		/* is new ESID c00000000? */
 	cmpd	cr1,r6,r9	/* or is new ESID the same as current ESID? */
 	cror	eq,4*cr1+eq,eq
@@ -918,6 +914,11 @@ restore_check_irq_replay:
 	bne	1f
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
  	bl	do_IRQ
+	b	ret_from_except
+1:	cmpwi	cr0,r3,0xe60
+	bne	1f
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+	bl	handle_hmi_exception
 	b	ret_from_except
 1:	cmpwi	cr0,r3,0x900
 	bne	1f

@@ -884,13 +884,15 @@ static int cpsw_set_coalesce(struct net_device *ndev,
 	u32 addnl_dvdr = 1;
 	u32 coal_intvl = 0;
 
-	if (!coal->rx_coalesce_usecs)
-		return -EINVAL;
-
 	coal_intvl = coal->rx_coalesce_usecs;
 
 	int_ctrl =  readl(&priv->wr_regs->int_control);
 	prescale = priv->bus_freq_mhz * 4;
+
+	if (!coal->rx_coalesce_usecs) {
+		int_ctrl &= ~(CPSW_INTPRESCALE_MASK | CPSW_INTPACEEN);
+		goto update_return;
+	}
 
 	if (coal_intvl < CPSW_CMINTMIN_INTVL)
 		coal_intvl = CPSW_CMINTMIN_INTVL;
@@ -919,6 +921,8 @@ static int cpsw_set_coalesce(struct net_device *ndev,
 	int_ctrl |= CPSW_INTPACEEN;
 	int_ctrl &= (~CPSW_INTPRESCALE_MASK);
 	int_ctrl |= (prescale & CPSW_INTPRESCALE_MASK);
+
+update_return:
 	writel(int_ctrl, &priv->wr_regs->int_control);
 
 	cpsw_notice(priv, timer, "Set coalesce to %d usecs.\n", coal_intvl);
@@ -997,17 +1001,6 @@ static void cpsw_get_ethtool_stats(struct net_device *ndev,
 			break;
 		}
 	}
-}
-
-static inline int __show_stat(char *buf, int maxlen, const char *name, u32 val)
-{
-	static char *leader = "........................................";
-
-	if (!val)
-		return 0;
-	else
-		return snprintf(buf, maxlen, "%s %s %10d\n", name,
-				leader + strlen(name), val);
 }
 
 static int cpsw_common_res_usage_state(struct cpsw_priv *priv)
@@ -1671,14 +1664,34 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= cpsw_ndo_vlan_rx_kill_vid,
 };
 
+static int cpsw_get_regs_len(struct net_device *ndev)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+
+	return priv->data.ale_entries * ALE_ENTRY_WORDS * sizeof(u32);
+}
+
+static void cpsw_get_regs(struct net_device *ndev,
+			  struct ethtool_regs *regs, void *p)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	u32 *reg = p;
+
+	/* update CPSW IP version */
+	regs->version = priv->version;
+
+	cpsw_ale_dump(priv->ale, reg);
+}
+
 static void cpsw_get_drvinfo(struct net_device *ndev,
 			     struct ethtool_drvinfo *info)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 
-	strlcpy(info->driver, "TI CPSW Driver v1.0", sizeof(info->driver));
+	strlcpy(info->driver, "cpsw", sizeof(info->driver));
 	strlcpy(info->version, "1.0", sizeof(info->version));
 	strlcpy(info->bus_info, priv->pdev->name, sizeof(info->bus_info));
+	info->regdump_len = cpsw_get_regs_len(ndev);
 }
 
 static u32 cpsw_get_msglevel(struct net_device *ndev)
@@ -1786,6 +1799,8 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 	.get_ethtool_stats	= cpsw_get_ethtool_stats,
 	.get_wol	= cpsw_get_wol,
 	.set_wol	= cpsw_set_wol,
+	.get_regs_len	= cpsw_get_regs_len,
+	.get_regs	= cpsw_get_regs,
 };
 
 static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv,

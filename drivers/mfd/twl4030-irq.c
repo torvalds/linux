@@ -297,7 +297,7 @@ static irqreturn_t handle_twl4030_pih(int irq, void *devid)
 	ret = twl_i2c_read_u8(TWL_MODULE_PIH, &pih_isr,
 			      REG_PIH_ISR_P1);
 	if (ret) {
-		pr_warning("twl4030: I2C error %d reading PIH ISR\n", ret);
+		pr_warn("twl4030: I2C error %d reading PIH ISR\n", ret);
 		return IRQ_NONE;
 	}
 
@@ -338,7 +338,7 @@ static int twl4030_init_sih_modules(unsigned line)
 	irq_line = line;
 
 	/* disable all interrupts on our line */
-	memset(buf, 0xff, sizeof buf);
+	memset(buf, 0xff, sizeof(buf));
 	sih = sih_modules;
 	for (i = 0; i < nr_sih_modules; i++, sih++) {
 		/* skip USB -- it's funky */
@@ -646,7 +646,7 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 	if (status < 0)
 		return status;
 
-	agent = kzalloc(sizeof *agent, GFP_KERNEL);
+	agent = kzalloc(sizeof(*agent), GFP_KERNEL);
 	if (!agent)
 		return -ENOMEM;
 

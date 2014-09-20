@@ -1,6 +1,4 @@
 /*
- *  linux/arch/arm/common/gic.c
- *
  *  Copyright (C) 2002 ARM Limited, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -869,7 +867,7 @@ static int gic_routable_irq_domain_xlate(struct irq_domain *d,
 	return 0;
 }
 
-const struct irq_domain_ops gic_default_routable_irq_domain_ops = {
+static const struct irq_domain_ops gic_default_routable_irq_domain_ops = {
 	.map = gic_routable_irq_domain_map,
 	.unmap = gic_routable_irq_domain_unmap,
 	.xlate = gic_routable_irq_domain_xlate,

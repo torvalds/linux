@@ -39,6 +39,7 @@
 
 #include "common.h"
 #include "devices-imx25.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx25.h"
 #include "mx25.h"

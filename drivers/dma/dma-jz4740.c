@@ -362,8 +362,9 @@ static void jz4740_dma_chan_irq(struct jz4740_dmaengine_chan *chan)
 			vchan_cyclic_callback(&chan->desc->vdesc);
 		} else {
 			if (chan->next_sg == chan->desc->num_sgs) {
-				chan->desc = NULL;
+				list_del(&chan->desc->vdesc.node);
 				vchan_cookie_complete(&chan->desc->vdesc);
+				chan->desc = NULL;
 			}
 		}
 	}
@@ -433,7 +434,7 @@ static struct dma_async_tx_descriptor *jz4740_dma_prep_slave_sg(
 static struct dma_async_tx_descriptor *jz4740_dma_prep_dma_cyclic(
 	struct dma_chan *c, dma_addr_t buf_addr, size_t buf_len,
 	size_t period_len, enum dma_transfer_direction direction,
-	unsigned long flags, void *context)
+	unsigned long flags)
 {
 	struct jz4740_dmaengine_chan *chan = to_jz4740_dma_chan(c);
 	struct jz4740_dma_desc *desc;
@@ -614,4 +615,4 @@ module_platform_driver(jz4740_dma_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("JZ4740 DMA driver");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");

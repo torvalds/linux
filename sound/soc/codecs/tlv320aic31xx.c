@@ -189,46 +189,57 @@ static const struct aic31xx_rate_divs aic31xx_divs[] = {
 	/* mclk      rate  pll: p  j	 d     dosr ndac mdac  aors nadc madc */
 	/* 8k rate */
 	{12000000,   8000,	1, 8, 1920,	128,  48,  2,	128,  48,  2},
+	{12000000,   8000,	1, 8, 1920,	128,  32,  3,	128,  32,  3},
 	{24000000,   8000,	2, 8, 1920,	128,  48,  2,	128,  48,  2},
 	{25000000,   8000,	2, 7, 8643,	128,  48,  2,	128,  48,  2},
 	/* 11.025k rate */
 	{12000000,  11025,	1, 7, 5264,	128,  32,  2,	128,  32,  2},
+	{12000000,  11025,	1, 8, 4672,	128,  24,  3,	128,  24,  3},
 	{24000000,  11025,	2, 7, 5264,	128,  32,  2,	128,  32,  2},
 	{25000000,  11025,	2, 7, 2253,	128,  32,  2,	128,  32,  2},
 	/* 16k rate */
 	{12000000,  16000,	1, 8, 1920,	128,  24,  2,	128,  24,  2},
+	{12000000,  16000,	1, 8, 1920,	128,  16,  3,	128,  16,  3},
 	{24000000,  16000,	2, 8, 1920,	128,  24,  2,	128,  24,  2},
 	{25000000,  16000,	2, 7, 8643,	128,  24,  2,	128,  24,  2},
 	/* 22.05k rate */
 	{12000000,  22050,	1, 7, 5264,	128,  16,  2,	128,  16,  2},
+	{12000000,  22050,	1, 8, 4672,	128,  12,  3,	128,  12,  3},
 	{24000000,  22050,	2, 7, 5264,	128,  16,  2,	128,  16,  2},
 	{25000000,  22050,	2, 7, 2253,	128,  16,  2,	128,  16,  2},
 	/* 32k rate */
 	{12000000,  32000,	1, 8, 1920,	128,  12,  2,	128,  12,  2},
+	{12000000,  32000,	1, 8, 1920,	128,   8,  3,	128,   8,  3},
 	{24000000,  32000,	2, 8, 1920,	128,  12,  2,	128,  12,  2},
 	{25000000,  32000,	2, 7, 8643,	128,  12,  2,	128,  12,  2},
 	/* 44.1k rate */
 	{12000000,  44100,	1, 7, 5264,	128,   8,  2,	128,   8,  2},
+	{12000000,  44100,	1, 8, 4672,	128,   6,  3,	128,   6,  3},
 	{24000000,  44100,	2, 7, 5264,	128,   8,  2,	128,   8,  2},
 	{25000000,  44100,	2, 7, 2253,	128,   8,  2,	128,   8,  2},
 	/* 48k rate */
 	{12000000,  48000,	1, 8, 1920,	128,   8,  2,	128,   8,  2},
+	{12000000,  48000,	1, 7, 6800,	 96,   5,  4,	 96,   5,  4},
 	{24000000,  48000,	2, 8, 1920,	128,   8,  2,	128,   8,  2},
 	{25000000,  48000,	2, 7, 8643,	128,   8,  2,	128,   8,  2},
 	/* 88.2k rate */
 	{12000000,  88200,	1, 7, 5264,	 64,   8,  2,	 64,   8,  2},
+	{12000000,  88200,	1, 8, 4672,	 64,   6,  3,	 64,   6,  3},
 	{24000000,  88200,	2, 7, 5264,	 64,   8,  2,	 64,   8,  2},
 	{25000000,  88200,	2, 7, 2253,	 64,   8,  2,	 64,   8,  2},
 	/* 96k rate */
 	{12000000,  96000,	1, 8, 1920,	 64,   8,  2,	 64,   8,  2},
+	{12000000,  96000,	1, 7, 6800,	 48,   5,  4,	 48,   5,  4},
 	{24000000,  96000,	2, 8, 1920,	 64,   8,  2,	 64,   8,  2},
 	{25000000,  96000,	2, 7, 8643,	 64,   8,  2,	 64,   8,  2},
 	/* 176.4k rate */
 	{12000000, 176400,	1, 7, 5264,	 32,   8,  2,	 32,   8,  2},
+	{12000000, 176400,	1, 8, 4672,	 32,   6,  3,	 32,   6,  3},
 	{24000000, 176400,	2, 7, 5264,	 32,   8,  2,	 32,   8,  2},
 	{25000000, 176400,	2, 7, 2253,	 32,   8,  2,	 32,   8,  2},
 	/* 192k rate */
 	{12000000, 192000,	1, 8, 1920,	 32,   8,  2,	 32,   8,  2},
+	{12000000, 192000,	1, 7, 6800,	 24,   5,  4,	 24,   5,  4},
 	{24000000, 192000,	2, 8, 1920,	 32,   8,  2,	 32,   8,  2},
 	{25000000, 192000,	2, 7, 8643,	 32,   8,  2,	 32,   8,  2},
 };
@@ -249,17 +260,16 @@ static const char * const mic_select_text[] = {
 	"Off", "FFR 10 Ohm", "FFR 20 Ohm", "FFR 40 Ohm"
 };
 
-static const
-SOC_ENUM_SINGLE_DECL(mic1lp_p_enum, AIC31XX_MICPGAPI, 6, mic_select_text);
-static const
-SOC_ENUM_SINGLE_DECL(mic1rp_p_enum, AIC31XX_MICPGAPI, 4, mic_select_text);
-static const
-SOC_ENUM_SINGLE_DECL(mic1lm_p_enum, AIC31XX_MICPGAPI, 2, mic_select_text);
+static SOC_ENUM_SINGLE_DECL(mic1lp_p_enum, AIC31XX_MICPGAPI, 6,
+	mic_select_text);
+static SOC_ENUM_SINGLE_DECL(mic1rp_p_enum, AIC31XX_MICPGAPI, 4,
+	mic_select_text);
+static SOC_ENUM_SINGLE_DECL(mic1lm_p_enum, AIC31XX_MICPGAPI, 2,
+	mic_select_text);
 
-static const
-SOC_ENUM_SINGLE_DECL(cm_m_enum, AIC31XX_MICPGAMI, 6, mic_select_text);
-static const
-SOC_ENUM_SINGLE_DECL(mic1lm_m_enum, AIC31XX_MICPGAMI, 4, mic_select_text);
+static SOC_ENUM_SINGLE_DECL(cm_m_enum, AIC31XX_MICPGAMI, 6, mic_select_text);
+static SOC_ENUM_SINGLE_DECL(mic1lm_m_enum, AIC31XX_MICPGAMI, 4,
+	mic_select_text);
 
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -6350, 50, 0);
 static const DECLARE_TLV_DB_SCALE(adc_fgain_tlv, 0, 10, 0);
@@ -329,6 +339,7 @@ static int aic31xx_wait_bits(struct aic31xx_priv *aic31xx, unsigned int reg,
 	unsigned int bits;
 	int counter = count;
 	int ret = regmap_read(aic31xx->regmap, reg, &bits);
+
 	while ((bits & mask) != wbits && counter && !ret) {
 		usleep_range(sleep, sleep * 2);
 		ret = regmap_read(aic31xx->regmap, reg, &bits);
@@ -435,6 +446,7 @@ static int mic_bias_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
+
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		/* change mic bias voltage to user defined */
@@ -679,7 +691,9 @@ static int aic31xx_setup_pll(struct snd_soc_codec *codec,
 			     struct snd_pcm_hw_params *params)
 {
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
+	int bclk_score = snd_soc_params_to_frame_size(params);
 	int bclk_n = 0;
+	int match = -1;
 	int i;
 
 	/* Use PLL as CODEC_CLKIN and DAC_CLK as BDIV_CLKIN */
@@ -690,15 +704,37 @@ static int aic31xx_setup_pll(struct snd_soc_codec *codec,
 
 	for (i = 0; i < ARRAY_SIZE(aic31xx_divs); i++) {
 		if (aic31xx_divs[i].rate == params_rate(params) &&
-		    aic31xx_divs[i].mclk == aic31xx->sysclk)
-			break;
+		    aic31xx_divs[i].mclk == aic31xx->sysclk) {
+			int s =	(aic31xx_divs[i].dosr * aic31xx_divs[i].mdac) %
+				snd_soc_params_to_frame_size(params);
+			int bn = (aic31xx_divs[i].dosr * aic31xx_divs[i].mdac) /
+				snd_soc_params_to_frame_size(params);
+			if (s < bclk_score && bn > 0) {
+				match = i;
+				bclk_n = bn;
+				bclk_score = s;
+			}
+		}
 	}
 
-	if (i == ARRAY_SIZE(aic31xx_divs)) {
-		dev_err(codec->dev, "%s: Sampling rate %u not supported\n",
+	if (match == -1) {
+		dev_err(codec->dev,
+			"%s: Sample rate (%u) and format not supported\n",
 			__func__, params_rate(params));
+		/* See bellow for details how fix this. */
 		return -EINVAL;
 	}
+	if (bclk_score != 0) {
+		dev_warn(codec->dev, "Can not produce exact bitclock");
+		/* This is fine if using dsp format, but if using i2s
+		   there may be trouble. To fix the issue edit the
+		   aic31xx_divs table for your mclk and sample
+		   rate. Details can be found from:
+		   http://www.ti.com/lit/ds/symlink/tlv320aic3100.pdf
+		   Section: 5.6 CLOCK Generation and PLL
+		*/
+	}
+	i = match;
 
 	/* PLL configuration */
 	snd_soc_update_bits(codec, AIC31XX_PLLPR, AIC31XX_PLL_MASK,
@@ -728,14 +764,6 @@ static int aic31xx_setup_pll(struct snd_soc_codec *codec,
 	snd_soc_write(codec, AIC31XX_AOSR, aic31xx_divs[i].aosr);
 
 	/* Bit clock divider configuration. */
-	bclk_n = (aic31xx_divs[i].dosr * aic31xx_divs[i].mdac)
-		/ snd_soc_params_to_frame_size(params);
-	if (bclk_n == 0) {
-		dev_err(codec->dev, "%s: Not enough BLCK bandwidth\n",
-			__func__);
-		return -EINVAL;
-	}
-
 	snd_soc_update_bits(codec, AIC31XX_BCLKN,
 			    AIC31XX_PLL_MASK, bclk_n);
 
@@ -759,8 +787,8 @@ static int aic31xx_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	u8 data = 0;
 
-	dev_dbg(codec->dev, "## %s: format %d width %d rate %d\n",
-		__func__, params_format(params), params_width(params),
+	dev_dbg(codec->dev, "## %s: width %d rate %d\n",
+		__func__, params_width(params),
 		params_rate(params));
 
 	switch (params_width(params)) {
@@ -779,8 +807,8 @@ static int aic31xx_hw_params(struct snd_pcm_substream *substream,
 			AIC31XX_IFACE1_DATALEN_SHIFT);
 		break;
 	default:
-		dev_err(codec->dev, "%s: Unsupported format %d\n",
-			__func__, params_format(params));
+		dev_err(codec->dev, "%s: Unsupported width %d\n",
+			__func__, params_width(params));
 		return -EINVAL;
 	}
 
@@ -1178,7 +1206,7 @@ static void aic31xx_pdata_from_of(struct aic31xx_priv *aic31xx)
 }
 #endif /* CONFIG_OF */
 
-static void aic31xx_device_init(struct aic31xx_priv *aic31xx)
+static int aic31xx_device_init(struct aic31xx_priv *aic31xx)
 {
 	int ret, i;
 
@@ -1197,7 +1225,7 @@ static void aic31xx_device_init(struct aic31xx_priv *aic31xx)
 					    "aic31xx-reset-pin");
 		if (ret < 0) {
 			dev_err(aic31xx->dev, "not able to acquire gpio\n");
-			return;
+			return ret;
 		}
 	}
 
@@ -1210,6 +1238,7 @@ static void aic31xx_device_init(struct aic31xx_priv *aic31xx)
 	if (ret != 0)
 		dev_err(aic31xx->dev, "Failed to request supplies: %d\n", ret);
 
+	return ret;
 }
 
 static int aic31xx_i2c_probe(struct i2c_client *i2c,
@@ -1239,7 +1268,9 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 
 	aic31xx->pdata.codec_type = id->driver_data;
 
-	aic31xx_device_init(aic31xx);
+	ret = aic31xx_device_init(aic31xx);
+	if (ret)
+		return ret;
 
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_driver_aic31xx,
 				     aic31xx_dai_driver,

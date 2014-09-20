@@ -70,11 +70,6 @@ static int lv5207lp_backlight_update_status(struct backlight_device *backlight)
 	return 0;
 }
 
-static int lv5207lp_backlight_get_brightness(struct backlight_device *backlight)
-{
-	return backlight->props.brightness;
-}
-
 static int lv5207lp_backlight_check_fb(struct backlight_device *backlight,
 				       struct fb_info *info)
 {
@@ -86,7 +81,6 @@ static int lv5207lp_backlight_check_fb(struct backlight_device *backlight,
 static const struct backlight_ops lv5207lp_backlight_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 	.update_status	= lv5207lp_backlight_update_status,
-	.get_brightness	= lv5207lp_backlight_get_brightness,
 	.check_fb	= lv5207lp_backlight_check_fb,
 };
 

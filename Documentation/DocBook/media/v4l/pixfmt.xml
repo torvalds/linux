@@ -112,9 +112,34 @@ see <xref linkend="colorspaces" />.</entry>
 	<row>
 	  <entry>__u32</entry>
 	  <entry><structfield>priv</structfield></entry>
-	  <entry>Reserved for custom (driver defined) additional
-information about formats. When not used drivers and applications must
-set this field to zero.</entry>
+	  <entry><para>This field indicates whether the remaining fields of the
+<structname>v4l2_pix_format</structname> structure, also called the extended
+fields, are valid. When set to <constant>V4L2_PIX_FMT_PRIV_MAGIC</constant>, it
+indicates that the extended fields have been correctly initialized. When set to
+any other value it indicates that the extended fields contain undefined values.
+</para>
+<para>Applications that wish to use the pixel format extended fields must first
+ensure that the feature is supported by querying the device for the
+<link linkend="querycap"><constant>V4L2_CAP_EXT_PIX_FORMAT</constant></link>
+capability. If the capability isn't set the pixel format extended fields are not
+supported and using the extended fields will lead to undefined results.</para>
+<para>To use the extended fields, applications must set the
+<structfield>priv</structfield> field to
+<constant>V4L2_PIX_FMT_PRIV_MAGIC</constant>, initialize all the extended fields
+and zero the unused bytes of the <structname>v4l2_format</structname>
+<structfield>raw_data</structfield> field.</para>
+<para>When the <structfield>priv</structfield> field isn't set to
+<constant>V4L2_PIX_FMT_PRIV_MAGIC</constant> drivers must act as if all the
+extended fields were set to zero. On return drivers must set the
+<structfield>priv</structfield> field to
+<constant>V4L2_PIX_FMT_PRIV_MAGIC</constant> and all the extended fields to
+applicable values.</para></entry>
+	</row>
+	<row>
+	  <entry>__u32</entry>
+	  <entry><structfield>flags</structfield></entry>
+	    <entry>Flags set by the application or driver, see <xref
+linkend="format-flags" />.</entry>
 	</row>
       </tbody>
     </tgroup>
@@ -201,9 +226,15 @@ codes can be used.</entry>
           and the number of valid entries in the
           <structfield>plane_fmt</structfield> array.</entry>
         </row>
+	<row>
+	  <entry>__u8</entry>
+	  <entry><structfield>flags</structfield></entry>
+	  <entry>Flags set by the application or driver, see <xref
+linkend="format-flags" />.</entry>
+	</row>
         <row>
           <entry>__u8</entry>
-          <entry><structfield>reserved[11]</structfield></entry>
+          <entry><structfield>reserved[10]</structfield></entry>
           <entry>Reserved for future extensions. Should be zeroed by the
            application.</entry>
         </row>
@@ -248,7 +279,7 @@ has just as many pad bytes after it as the other rows.</para>
 
     <para>In V4L2 each format has an identifier which looks like
 <constant>PIX_FMT_XXX</constant>, defined in the <link
-linkend="videodev">videodev.h</link> header file. These identifiers
+linkend="videodev">videodev2.h</link> header file. These identifiers
 represent <link linkend="v4l2-fourcc">four character (FourCC) codes</link>
 which are also listed below, however they are not the same as those
 used in the Windows world.</para>
@@ -828,6 +859,9 @@ interface only.</para>
 
     &sub-sdr-cu08;
     &sub-sdr-cu16le;
+    &sub-sdr-cs08;
+    &sub-sdr-cs14le;
+    &sub-sdr-ru12le;
 
   </section>
 
@@ -1056,6 +1090,23 @@ should be repeated for each line, i.e. the number of entries in the pointer
 array. Anything what's in between the UYVY lines is JPEG data and should be
 concatenated to form the JPEG stream. </para>
 </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="format-flags">
+      <title>Format Flags</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_PIX_FMT_FLAG_PREMUL_ALPHA</constant></entry>
+	    <entry>0x00000001</entry>
+	    <entry>The color values are premultiplied by the alpha channel
+value. For example, if a light blue pixel with 50% transparency was described by
+RGBA values (128, 192, 255, 128), the same pixel described with premultiplied
+colors would be described by RGBA values (64, 96, 128, 128) </entry>
 	  </row>
 	</tbody>
       </tgroup>

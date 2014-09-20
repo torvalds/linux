@@ -1746,7 +1746,6 @@ static int uvc_register_video(struct uvc_device *dev,
 	vdev->fops = &uvc_fops;
 	vdev->release = uvc_release;
 	vdev->prio = &stream->chain->prio;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vdev->flags);
 	if (stream->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		vdev->vfl_dir = VFL_DIR_TX;
 	strlcpy(vdev->name, dev->name, sizeof vdev->name);

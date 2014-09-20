@@ -31,20 +31,14 @@ int show_unhandled_signals = 1;
 /*
  * Allocate space for the signal frame
  */
-void __user * get_sigframe(struct k_sigaction *ka, unsigned long sp,
+void __user *get_sigframe(struct ksignal *ksig, unsigned long sp,
 			   size_t frame_size, int is_32)
 {
         unsigned long oldsp, newsp;
 
         /* Default to using normal stack */
         oldsp = get_clean_sp(sp, is_32);
-
-	/* Check for alt stack */
-	if ((ka->sa.sa_flags & SA_ONSTACK) &&
-	    current->sas_ss_size && !on_sig_stack(oldsp))
-		oldsp = (current->sas_ss_sp + current->sas_ss_size);
-
-	/* Get aligned frame */
+	oldsp = sigsp(oldsp, ksig);
 	newsp = (oldsp - frame_size) & ~0xFUL;
 
 	/* Check access */
@@ -105,25 +99,23 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 	}
 }
 
-static int do_signal(struct pt_regs *regs)
+static void do_signal(struct pt_regs *regs)
 {
 	sigset_t *oldset = sigmask_to_save();
-	siginfo_t info;
-	int signr;
-	struct k_sigaction ka;
+	struct ksignal ksig;
 	int ret;
 	int is32 = is_32bit_task();
 
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
+	get_signal(&ksig);
 
 	/* Is there any syscall restart business here ? */
-	check_syscall_restart(regs, &ka, signr > 0);
+	check_syscall_restart(regs, &ksig.ka, ksig.sig > 0);
 
-	if (signr <= 0) {
+	if (ksig.sig <= 0) {
 		/* No signal to deliver -- put the saved sigmask back */
 		restore_saved_sigmask();
 		regs->trap = 0;
-		return 0;               /* no signals delivered */
+		return;               /* no signals delivered */
 	}
 
 #ifndef CONFIG_PPC_ADV_DEBUG_REGS
@@ -140,23 +132,16 @@ static int do_signal(struct pt_regs *regs)
 	thread_change_pc(current, regs);
 
 	if (is32) {
-        	if (ka.sa.sa_flags & SA_SIGINFO)
-			ret = handle_rt_signal32(signr, &ka, &info, oldset,
-					regs);
+        	if (ksig.ka.sa.sa_flags & SA_SIGINFO)
+			ret = handle_rt_signal32(&ksig, oldset, regs);
 		else
-			ret = handle_signal32(signr, &ka, &info, oldset,
-					regs);
+			ret = handle_signal32(&ksig, oldset, regs);
 	} else {
-		ret = handle_rt_signal64(signr, &ka, &info, oldset, regs);
+		ret = handle_rt_signal64(&ksig, oldset, regs);
 	}
 
 	regs->trap = 0;
-	if (ret) {
-		signal_delivered(signr, &info, &ka, regs,
-					 test_thread_flag(TIF_SINGLESTEP));
-	}
-
-	return ret;
+	signal_setup_done(ret, &ksig, test_thread_flag(TIF_SINGLESTEP));
 }
 
 void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)

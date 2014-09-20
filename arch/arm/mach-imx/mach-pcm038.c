@@ -36,6 +36,7 @@
 #include "board-pcm038.h"
 #include "common.h"
 #include "devices-imx27.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx27.h"
 #include "ulpi.h"

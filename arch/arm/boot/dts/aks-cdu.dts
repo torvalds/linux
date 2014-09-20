@@ -16,6 +16,12 @@
 		bootargs = "console=ttyS0,115200 ubi.mtd=4 root=ubi0:rootfs rootfstype=ubifs";
 	};
 
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+	};
+
 	ahb {
 		apb {
 			usart0: serial@fffb0000 {

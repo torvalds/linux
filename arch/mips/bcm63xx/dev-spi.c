@@ -18,7 +18,6 @@
 #include <bcm63xx_dev_spi.h>
 #include <bcm63xx_regs.h>
 
-#ifdef BCMCPU_RUNTIME_DETECT
 /*
  * register offsets
  */
@@ -41,9 +40,6 @@ static __init void bcm63xx_spi_regs_init(void)
 		BCMCPU_IS_6362() || BCMCPU_IS_6368())
 		bcm63xx_regs_spi = bcm6358_regs_spi;
 }
-#else
-static __init void bcm63xx_spi_regs_init(void) { }
-#endif
 
 static struct resource spi_resources[] = {
 	{

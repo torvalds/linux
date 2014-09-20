@@ -85,6 +85,21 @@ struct vnic_rq {
 	struct vnic_rq_buf *to_clean;
 	void *os_buf_head;
 	unsigned int pkts_outstanding;
+#ifdef CONFIG_NET_RX_BUSY_POLL
+#define ENIC_POLL_STATE_IDLE		0
+#define ENIC_POLL_STATE_NAPI		(1 << 0) /* NAPI owns this poll */
+#define ENIC_POLL_STATE_POLL		(1 << 1) /* poll owns this poll */
+#define ENIC_POLL_STATE_NAPI_YIELD	(1 << 2) /* NAPI yielded this poll */
+#define ENIC_POLL_STATE_POLL_YIELD	(1 << 3) /* poll yielded this poll */
+#define ENIC_POLL_YIELD			(ENIC_POLL_STATE_NAPI_YIELD |	\
+					 ENIC_POLL_STATE_POLL_YIELD)
+#define ENIC_POLL_LOCKED		(ENIC_POLL_STATE_NAPI |		\
+					 ENIC_POLL_STATE_POLL)
+#define ENIC_POLL_USER_PEND		(ENIC_POLL_STATE_POLL |		\
+					 ENIC_POLL_STATE_POLL_YIELD)
+	unsigned int bpoll_state;
+	spinlock_t bpoll_lock;
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 };
 
 static inline unsigned int vnic_rq_desc_avail(struct vnic_rq *rq)
@@ -196,6 +211,113 @@ static inline int vnic_rq_fill(struct vnic_rq *rq,
 
 	return 0;
 }
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static inline void enic_busy_poll_init_lock(struct vnic_rq *rq)
+{
+	spin_lock_init(&rq->bpoll_lock);
+	rq->bpoll_state = ENIC_POLL_STATE_IDLE;
+}
+
+static inline bool enic_poll_lock_napi(struct vnic_rq *rq)
+{
+	bool rc = true;
+
+	spin_lock(&rq->bpoll_lock);
+	if (rq->bpoll_state & ENIC_POLL_LOCKED) {
+		WARN_ON(rq->bpoll_state & ENIC_POLL_STATE_NAPI);
+		rq->bpoll_state |= ENIC_POLL_STATE_NAPI_YIELD;
+		rc = false;
+	} else {
+		rq->bpoll_state = ENIC_POLL_STATE_NAPI;
+	}
+	spin_unlock(&rq->bpoll_lock);
+
+	return rc;
+}
+
+static inline bool enic_poll_unlock_napi(struct vnic_rq *rq)
+{
+	bool rc = false;
+
+	spin_lock(&rq->bpoll_lock);
+	WARN_ON(rq->bpoll_state &
+		(ENIC_POLL_STATE_POLL | ENIC_POLL_STATE_NAPI_YIELD));
+	if (rq->bpoll_state & ENIC_POLL_STATE_POLL_YIELD)
+		rc = true;
+	rq->bpoll_state = ENIC_POLL_STATE_IDLE;
+	spin_unlock(&rq->bpoll_lock);
+
+	return rc;
+}
+
+static inline bool enic_poll_lock_poll(struct vnic_rq *rq)
+{
+	bool rc = true;
+
+	spin_lock_bh(&rq->bpoll_lock);
+	if (rq->bpoll_state & ENIC_POLL_LOCKED) {
+		rq->bpoll_state |= ENIC_POLL_STATE_POLL_YIELD;
+		rc = false;
+	} else {
+		rq->bpoll_state |= ENIC_POLL_STATE_POLL;
+	}
+	spin_unlock_bh(&rq->bpoll_lock);
+
+	return rc;
+}
+
+static inline bool enic_poll_unlock_poll(struct vnic_rq *rq)
+{
+	bool rc = false;
+
+	spin_lock_bh(&rq->bpoll_lock);
+	WARN_ON(rq->bpoll_state & ENIC_POLL_STATE_NAPI);
+	if (rq->bpoll_state & ENIC_POLL_STATE_POLL_YIELD)
+		rc = true;
+	rq->bpoll_state = ENIC_POLL_STATE_IDLE;
+	spin_unlock_bh(&rq->bpoll_lock);
+
+	return rc;
+}
+
+static inline bool enic_poll_busy_polling(struct vnic_rq *rq)
+{
+	WARN_ON(!(rq->bpoll_state & ENIC_POLL_LOCKED));
+	return rq->bpoll_state & ENIC_POLL_USER_PEND;
+}
+
+#else
+
+static inline void enic_busy_poll_init_lock(struct vnic_rq *rq)
+{
+}
+
+static inline bool enic_poll_lock_napi(struct vnic_rq *rq)
+{
+	return true;
+}
+
+static inline bool enic_poll_unlock_napi(struct vnic_rq *rq)
+{
+	return false;
+}
+
+static inline bool enic_poll_lock_poll(struct vnic_rq *rq)
+{
+	return false;
+}
+
+static inline bool enic_poll_unlock_poll(struct vnic_rq *rq)
+{
+	return false;
+}
+
+static inline bool enic_poll_ll_polling(struct vnic_rq *rq)
+{
+	return false;
+}
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 void vnic_rq_free(struct vnic_rq *rq);
 int vnic_rq_alloc(struct vnic_dev *vdev, struct vnic_rq *rq, unsigned int index,

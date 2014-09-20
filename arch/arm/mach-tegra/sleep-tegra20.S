@@ -78,7 +78,7 @@ ENTRY(tegra20_hotplug_shutdown)
 	/* Put this CPU down */
 	cpu_id	r0
 	bl	tegra20_cpu_shutdown
-	mov	pc, lr			@ should never get here
+	ret	lr			@ should never get here
 ENDPROC(tegra20_hotplug_shutdown)
 
 /*
@@ -96,7 +96,7 @@ ENDPROC(tegra20_hotplug_shutdown)
  */
 ENTRY(tegra20_cpu_shutdown)
 	cmp	r0, #0
-	moveq	pc, lr			@ must not be called for CPU 0
+	reteq	lr			@ must not be called for CPU 0
 	mov32	r1, TEGRA_PMC_VIRT + PMC_SCRATCH41
 	mov	r12, #CPU_RESETTABLE
 	str	r12, [r1]
@@ -117,7 +117,7 @@ ENTRY(tegra20_cpu_shutdown)
 	cpu_id	r3
 	cmp	r3, r0
 	beq	.
-	mov	pc, lr
+	ret	lr
 ENDPROC(tegra20_cpu_shutdown)
 #endif
 
@@ -164,7 +164,7 @@ ENTRY(tegra_pen_lock)
 	cmpeq	r12, r0			@ !turn == cpu?
 	beq	1b			@ while !turn == cpu && flag[!cpu] == 1
 
-	mov	pc, lr			@ locked
+	ret	lr			@ locked
 ENDPROC(tegra_pen_lock)
 
 ENTRY(tegra_pen_unlock)
@@ -176,7 +176,7 @@ ENTRY(tegra_pen_unlock)
 	addne	r2, r3, #PMC_SCRATCH39
 	mov	r12, #0
 	str	r12, [r2]
-	mov     pc, lr
+	ret     lr
 ENDPROC(tegra_pen_unlock)
 
 /*
@@ -189,7 +189,7 @@ ENTRY(tegra20_cpu_clear_resettable)
 	mov32	r1, TEGRA_PMC_VIRT + PMC_SCRATCH41
 	mov	r12, #CPU_NOT_RESETTABLE
 	str	r12, [r1]
-	mov	pc, lr
+	ret	lr
 ENDPROC(tegra20_cpu_clear_resettable)
 
 /*
@@ -202,7 +202,7 @@ ENTRY(tegra20_cpu_set_resettable_soon)
 	mov32	r1, TEGRA_PMC_VIRT + PMC_SCRATCH41
 	mov	r12, #CPU_RESETTABLE_SOON
 	str	r12, [r1]
-	mov	pc, lr
+	ret	lr
 ENDPROC(tegra20_cpu_set_resettable_soon)
 
 /*
@@ -217,7 +217,7 @@ ENTRY(tegra20_cpu_is_resettable_soon)
 	cmp	r12, #CPU_RESETTABLE_SOON
 	moveq	r0, #1
 	movne	r0, #0
-	mov	pc, lr
+	ret	lr
 ENDPROC(tegra20_cpu_is_resettable_soon)
 
 /*
@@ -239,7 +239,7 @@ ENTRY(tegra20_sleep_core_finish)
 	mov32	r1, TEGRA_IRAM_LPx_RESUME_AREA
 	add	r0, r0, r1
 
-	mov	pc, r3
+	ret	r3
 ENDPROC(tegra20_sleep_core_finish)
 
 /*
@@ -402,7 +402,7 @@ exit_selfrefresh_loop:
 
 	mov32	r0, TEGRA_PMC_BASE
 	ldr	r0, [r0, #PMC_SCRATCH41]
-	mov	pc, r0			@ jump to tegra_resume
+	ret	r0			@ jump to tegra_resume
 ENDPROC(tegra20_lp1_reset)
 
 /*
@@ -455,7 +455,7 @@ tegra20_switch_cpu_to_clk32k:
 	mov	r0, #0	/* brust policy = 32KHz */
 	str	r0, [r5, #CLK_RESET_SCLK_BURST]
 
-	mov	pc, lr
+	ret	lr
 
 /*
  * tegra20_enter_sleep
@@ -535,7 +535,7 @@ padsave_done:
 	adr	r2, tegra20_sclk_save
 	str	r0, [r2]
 	dsb
-	mov	pc, lr
+	ret	lr
 
 tegra20_sdram_pad_address:
 	.word	TEGRA_APB_MISC_BASE + APB_MISC_XM2CFGCPADCTRL

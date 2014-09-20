@@ -261,3 +261,29 @@ void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 
 	ctxt->ref--;
 }
+
+static void iwl_mvm_binding_iterator(void *_data, u8 *mac,
+				     struct ieee80211_vif *vif)
+{
+	unsigned long *data = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (!mvmvif->phy_ctxt)
+		return;
+
+	if (vif->type == NL80211_IFTYPE_STATION ||
+	    vif->type == NL80211_IFTYPE_AP)
+		__set_bit(mvmvif->phy_ctxt->id, data);
+}
+
+int iwl_mvm_phy_ctx_count(struct iwl_mvm *mvm)
+{
+	unsigned long phy_ctxt_counter = 0;
+
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_binding_iterator,
+						   &phy_ctxt_counter);
+
+	return hweight8(phy_ctxt_counter);
+}

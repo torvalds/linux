@@ -910,8 +910,7 @@ static int __mlx4_ib_default_rules_match(struct ib_qp *qp,
 	const struct default_rules *pdefault_rules = default_table;
 	u8 link_layer = rdma_port_get_link_layer(qp->device, flow_attr->port);
 
-	for (i = 0; i < sizeof(default_table)/sizeof(default_table[0]); i++,
-	     pdefault_rules++) {
+	for (i = 0; i < ARRAY_SIZE(default_table); i++, pdefault_rules++) {
 		__u32 field_types[IB_FLOW_SPEC_SUPPORT_LAYERS];
 		memset(&field_types, 0, sizeof(field_types));
 
@@ -965,8 +964,7 @@ static int __mlx4_ib_create_default_rules(
 	int size = 0;
 	int i;
 
-	for (i = 0; i < sizeof(pdefault_rules->rules_create_list)/
-			sizeof(pdefault_rules->rules_create_list[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(pdefault_rules->rules_create_list); i++) {
 		int ret;
 		union ib_flow_spec ib_spec;
 		switch (pdefault_rules->rules_create_list[i]) {
@@ -1091,6 +1089,30 @@ static int __mlx4_ib_destroy_flow(struct mlx4_dev *dev, u64 reg_id)
 	return err;
 }
 
+static int mlx4_ib_tunnel_steer_add(struct ib_qp *qp, struct ib_flow_attr *flow_attr,
+				    u64 *reg_id)
+{
+	void *ib_flow;
+	union ib_flow_spec *ib_spec;
+	struct mlx4_dev	*dev = to_mdev(qp->device)->dev;
+	int err = 0;
+
+	if (dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
+		return 0; /* do nothing */
+
+	ib_flow = flow_attr + 1;
+	ib_spec = (union ib_flow_spec *)ib_flow;
+
+	if (ib_spec->type !=  IB_FLOW_SPEC_ETH || flow_attr->num_of_specs != 1)
+		return 0; /* do nothing */
+
+	err = mlx4_tunnel_steer_add(to_mdev(qp->device)->dev, ib_spec->eth.val.dst_mac,
+				    flow_attr->port, qp->qp_num,
+				    MLX4_DOMAIN_UVERBS | (flow_attr->priority & 0xff),
+				    reg_id);
+	return err;
+}
+
 static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 				    struct ib_flow_attr *flow_attr,
 				    int domain)
@@ -1136,6 +1158,12 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 		if (err)
 			goto err_free;
 		i++;
+	}
+
+	if (i < ARRAY_SIZE(type) && flow_attr->type == IB_FLOW_ATTR_NORMAL) {
+		err = mlx4_ib_tunnel_steer_add(qp, flow_attr, &mflow->reg_id[i]);
+		if (err)
+			goto err_free;
 	}
 
 	return &mflow->ibflow;
@@ -2007,6 +2035,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		(1ull << IB_USER_VERBS_CMD_ALLOC_PD)		|
 		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)		|
 		(1ull << IB_USER_VERBS_CMD_REG_MR)		|
+		(1ull << IB_USER_VERBS_CMD_REREG_MR)		|
 		(1ull << IB_USER_VERBS_CMD_DEREG_MR)		|
 		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL)	|
 		(1ull << IB_USER_VERBS_CMD_CREATE_CQ)		|
@@ -2059,6 +2088,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.req_notify_cq	= mlx4_ib_arm_cq;
 	ibdev->ib_dev.get_dma_mr	= mlx4_ib_get_dma_mr;
 	ibdev->ib_dev.reg_user_mr	= mlx4_ib_reg_user_mr;
+	ibdev->ib_dev.rereg_user_mr	= mlx4_ib_rereg_user_mr;
 	ibdev->ib_dev.dereg_mr		= mlx4_ib_dereg_mr;
 	ibdev->ib_dev.alloc_fast_reg_mr = mlx4_ib_alloc_fast_reg_mr;
 	ibdev->ib_dev.alloc_fast_reg_page_list = mlx4_ib_alloc_fast_reg_page_list;

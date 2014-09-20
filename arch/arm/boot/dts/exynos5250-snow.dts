@@ -137,7 +137,7 @@
 				sbs,poll-retry-count = <1>;
 			};
 
-			ec: embedded-controller {
+			cros_ec: embedded-controller {
 				compatible = "google,cros-ec-i2c";
 				reg = <0x1e>;
 				interrupts = <6 0>;
@@ -145,95 +145,6 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&ec_irq>;
 				wakeup-source;
-
-				keyboard-controller {
-				        compatible = "google,cros-ec-keyb";
-				        keypad,num-rows = <8>;
-				        keypad,num-columns = <13>;
-				        google,needs-ghost-filter;
-					linux,keymap = <0x0001007d	/* L_META */
-							0x0002003b	/* F1 */
-							0x00030030	/* B */
-							0x00040044	/* F10 */
-							0x00060031	/* N */
-							0x0008000d	/* = */
-							0x000a0064	/* R_ALT */
-
-							0x01010001	/* ESC */
-							0x0102003e	/* F4 */
-							0x01030022	/* G */
-							0x01040041	/* F7 */
-							0x01060023	/* H */
-							0x01080028	/* ' */
-							0x01090043	/* F9 */
-							0x010b000e	/* BKSPACE */
-
-							0x0200001d	/* L_CTRL */
-							0x0201000f	/* TAB */
-							0x0202003d	/* F3 */
-							0x02030014	/* T */
-							0x02040040	/* F6 */
-							0x0205001b	/* ] */
-							0x02060015	/* Y */
-							0x02070056	/* 102ND */
-							0x0208001a	/* [ */
-							0x02090042	/* F8 */
-
-							0x03010029	/* GRAVE */
-							0x0302003c	/* F2 */
-							0x03030006	/* 5 */
-							0x0304003f	/* F5 */
-							0x03060007	/* 6 */
-							0x0308000c	/* - */
-							0x030b002b	/* \ */
-
-							0x04000061	/* R_CTRL */
-							0x0401001e	/* A */
-							0x04020020	/* D */
-							0x04030021	/* F */
-							0x0404001f	/* S */
-							0x04050025	/* K */
-							0x04060024	/* J */
-							0x04080027	/* ; */
-							0x04090026	/* L */
-							0x040a002b	/* \ */
-							0x040b001c	/* ENTER */
-
-							0x0501002c	/* Z */
-							0x0502002e	/* C */
-							0x0503002f	/* V */
-							0x0504002d	/* X */
-							0x05050033	/* , */
-							0x05060032	/* M */
-							0x0507002a	/* L_SHIFT */
-							0x05080035	/* / */
-							0x05090034	/* . */
-							0x050B0039	/* SPACE */
-
-							0x06010002	/* 1 */
-							0x06020004	/* 3 */
-							0x06030005	/* 4 */
-							0x06040003	/* 2 */
-							0x06050009	/* 8 */
-							0x06060008	/* 7 */
-							0x0608000b	/* 0 */
-							0x0609000a	/* 9 */
-							0x060a0038	/* L_ALT */
-							0x060b006c	/* DOWN */
-							0x060c006a	/* RIGHT */
-
-							0x07010010	/* Q */
-							0x07020012	/* E */
-							0x07030013	/* R */
-							0x07040011	/* W */
-							0x07050017	/* I */
-							0x07060016	/* U */
-							0x07070036	/* R_SHIFT */
-							0x07080019	/* P */
-							0x07090018	/* O */
-							0x070b0067	/* UP */
-							0x070c0069>;	/* LEFT */
-				};
 			};
 
 			power-regulator {
@@ -351,6 +262,7 @@
 	sound {
 		compatible = "google,snow-audio-max98095";
 
+		samsung,model = "Snow-I2S-MAX98095";
 		samsung,i2s-controller = <&i2s0>;
 		samsung,audio-codec = <&max98095>;
 	};
@@ -431,3 +343,170 @@
 		};
 	};
 };
+
+&i2c_0 {
+	max77686@09 {
+		compatible = "maxim,max77686";
+		interrupt-parent = <&gpx3>;
+		interrupts = <2 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max77686_irq>;
+		wakeup-source;
+		reg = <0x09>;
+		#clock-cells = <1>;
+
+		voltage-regulators {
+			ldo1_reg: LDO1 {
+				regulator-name = "P1.0V_LDO_OUT1";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-always-on;
+			};
+
+			ldo2_reg: LDO2 {
+				regulator-name = "P1.8V_LDO_OUT2";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			ldo3_reg: LDO3 {
+				regulator-name = "P1.8V_LDO_OUT3";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			ldo7_reg: LDO7 {
+				regulator-name = "P1.1V_LDO_OUT7";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
+			};
+
+			ldo8_reg: LDO8 {
+				regulator-name = "P1.0V_LDO_OUT8";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-always-on;
+			};
+
+			ldo10_reg: LDO10 {
+				regulator-name = "P1.8V_LDO_OUT10";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			ldo12_reg: LDO12 {
+				regulator-name = "P3.0V_LDO_OUT12";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-always-on;
+			};
+
+			ldo14_reg: LDO14 {
+				regulator-name = "P1.8V_LDO_OUT14";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			ldo15_reg: LDO15 {
+				regulator-name = "P1.0V_LDO_OUT15";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-always-on;
+			};
+
+			ldo16_reg: LDO16 {
+				regulator-name = "P1.8V_LDO_OUT16";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			buck1_reg: BUCK1 {
+				regulator-name = "vdd_mif";
+				regulator-min-microvolt = <950000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			buck2_reg: BUCK2 {
+				regulator-name = "vdd_arm";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			buck3_reg: BUCK3 {
+				regulator-name = "vdd_int";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			buck4_reg: BUCK4 {
+				regulator-name = "vdd_g3d";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			buck5_reg: BUCK5 {
+				regulator-name = "P1.8V_BUCK_OUT5";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			buck6_reg: BUCK6 {
+				regulator-name = "P1.35V_BUCK_OUT6";
+				regulator-min-microvolt = <1350000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+			};
+
+			buck7_reg: BUCK7 {
+				regulator-name = "P2.0V_BUCK_OUT7";
+				regulator-min-microvolt = <2000000>;
+				regulator-max-microvolt = <2000000>;
+				regulator-always-on;
+			};
+
+			buck8_reg: BUCK8 {
+				regulator-name = "P2.85V_BUCK_OUT8";
+				regulator-min-microvolt = <2850000>;
+				regulator-max-microvolt = <2850000>;
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&i2c_1 {
+	trackpad {
+		reg = <0x67>;
+		compatible = "cypress,cyapa";
+		interrupts = <2 0>;
+		interrupt-parent = <&gpx1>;
+		wakeup-source;
+	};
+};
+
+&pinctrl_0 {
+	max77686_irq: max77686-irq {
+		samsung,pins = "gpx3-2";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+};
+
+#include "cros-ec-keyboard.dtsi"

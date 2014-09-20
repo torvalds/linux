@@ -86,7 +86,7 @@ struct mlx5_reg_pcap {
 	__be32			caps_31_0;
 };
 
-int mlx5_set_port_caps(struct mlx5_core_dev *dev, int port_num, u32 caps)
+int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps)
 {
 	struct mlx5_reg_pcap in;
 	struct mlx5_reg_pcap out;

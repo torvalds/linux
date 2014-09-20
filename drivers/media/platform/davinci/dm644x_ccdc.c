@@ -581,13 +581,8 @@ void ccdc_config_raw(void)
 	     config_params->alaw.enable)
 		syn_mode |= CCDC_DATA_PACK_ENABLE;
 
-#ifdef CONFIG_DM644X_VIDEO_PORT_ENABLE
-	/* enable video port */
-	val = CCDC_ENABLE_VIDEO_PORT;
-#else
 	/* disable video port */
 	val = CCDC_DISABLE_VIDEO_PORT;
-#endif
 
 	if (config_params->data_sz == CCDC_DATA_8BITS)
 		val |= (CCDC_DATA_10BITS & CCDC_FMTCFG_VPIN_MASK)

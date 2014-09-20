@@ -140,13 +140,9 @@ static int setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 /*
  * Determine which stack to use..
  */
-static void __user *get_sigframe(struct k_sigaction *ka, unsigned long sp,
-				 size_t frame_size)
+static void __user *get_sigframe(struct ksignal *ksig, unsigned long sp)
 {
-	/* Meta stacks grows upwards */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags(sp) == 0))
-		sp = current->sas_ss_sp;
-
+	sp = sigsp(sp, ksig);
 	sp = (sp + 7) & ~7;			/* 8byte align stack */
 
 	return (void __user *)sp;
@@ -159,7 +155,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	int err;
 	unsigned long code;
 
-	frame = get_sigframe(&ksig->ka, regs->REG_SP, sizeof(*frame));
+	frame = get_sigframe(ksig, regs->REG_SP);
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
 

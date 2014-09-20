@@ -25,11 +25,13 @@
 #include <linux/sh_eth.h>
 #include <linux/spi/rspi.h>
 #include <linux/spi/spi.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
-#include <mach/r7s72100.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+
+#include "common.h"
+#include "irqs.h"
+#include "r7s72100.h"
 
 /* Ether */
 static const struct sh_eth_plat_data ether_pdata __initconst = {
@@ -153,7 +155,7 @@ static const char * const genmai_boards_compat_dt[] __initconst = {
 };
 
 DT_MACHINE_START(GENMAI_DT, "genmai")
-	.init_early	= r7s72100_init_early,
+	.init_early	= shmobile_init_delay,
 	.init_machine	= genmai_add_standard_devices,
 	.dt_compat	= genmai_boards_compat_dt,
 MACHINE_END

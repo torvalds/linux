@@ -27,6 +27,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
+#include "rl6231.h"
 #include "rt5677.h"
 
 #define RT5677_DEVICE_ID 0x6327
@@ -604,19 +605,19 @@ static const struct snd_kcontrol_new rt5677_snd_controls[] = {
 		adc_vol_tlv),
 
 	/* ADC Boost Volume Control */
-	SOC_DOUBLE_TLV("STO1 ADC Boost Gain", RT5677_STO1_2_ADC_BST,
+	SOC_DOUBLE_TLV("STO1 ADC Boost Volume", RT5677_STO1_2_ADC_BST,
 		RT5677_STO1_ADC_L_BST_SFT, RT5677_STO1_ADC_R_BST_SFT, 3, 0,
 		adc_bst_tlv),
-	SOC_DOUBLE_TLV("STO2 ADC Boost Gain", RT5677_STO1_2_ADC_BST,
+	SOC_DOUBLE_TLV("STO2 ADC Boost Volume", RT5677_STO1_2_ADC_BST,
 		RT5677_STO2_ADC_L_BST_SFT, RT5677_STO2_ADC_R_BST_SFT, 3, 0,
 		adc_bst_tlv),
-	SOC_DOUBLE_TLV("STO3 ADC Boost Gain", RT5677_STO3_4_ADC_BST,
+	SOC_DOUBLE_TLV("STO3 ADC Boost Volume", RT5677_STO3_4_ADC_BST,
 		RT5677_STO3_ADC_L_BST_SFT, RT5677_STO3_ADC_R_BST_SFT, 3, 0,
 		adc_bst_tlv),
-	SOC_DOUBLE_TLV("STO4 ADC Boost Gain", RT5677_STO3_4_ADC_BST,
+	SOC_DOUBLE_TLV("STO4 ADC Boost Volume", RT5677_STO3_4_ADC_BST,
 		RT5677_STO4_ADC_L_BST_SFT, RT5677_STO4_ADC_R_BST_SFT, 3, 0,
 		adc_bst_tlv),
-	SOC_DOUBLE_TLV("Mono ADC Boost Gain", RT5677_ADC_BST_CTRL2,
+	SOC_DOUBLE_TLV("Mono ADC Boost Volume", RT5677_ADC_BST_CTRL2,
 		RT5677_MONO_ADC_L_BST_SFT, RT5677_MONO_ADC_R_BST_SFT, 3, 0,
 		adc_bst_tlv),
 };
@@ -636,21 +637,7 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
-	int div[] = {2, 3, 4, 6, 8, 12}, idx = -EINVAL, i;
-	int rate, red, bound, temp;
-
-	rate = rt5677->sysclk;
-	red = 3000000 * 12;
-	for (i = 0; i < ARRAY_SIZE(div); i++) {
-		bound = div[i] * 3000000;
-		if (rate > bound)
-			continue;
-		temp = bound - rate;
-		if (temp < red) {
-			red = temp;
-			idx = i;
-		}
-	}
+	int idx = rl6231_calc_dmic_clk(rt5677->sysclk);
 
 	if (idx < 0)
 		dev_err(codec->dev, "Failed to set DMIC clock\n");
@@ -951,7 +938,7 @@ static const struct snd_kcontrol_new rt5677_ob_7_mix[] = {
 
 
 /* Mux */
-/* DAC1 L/R source */ /* MX-29 [10:8] */
+/* DAC1 L/R Source */ /* MX-29 [10:8] */
 static const char * const rt5677_dac1_src[] = {
 	"IF1 DAC 01", "IF2 DAC 01", "IF3 DAC LR", "IF4 DAC LR", "SLB DAC 01",
 	"OB 01"
@@ -962,9 +949,9 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_DAC1_L_SEL_SFT, rt5677_dac1_src);
 
 static const struct snd_kcontrol_new rt5677_dac1_mux =
-	SOC_DAPM_ENUM("DAC1 source", rt5677_dac1_enum);
+	SOC_DAPM_ENUM("DAC1 Source", rt5677_dac1_enum);
 
-/* ADDA1 L/R source */ /* MX-29 [1:0] */
+/* ADDA1 L/R Source */ /* MX-29 [1:0] */
 static const char * const rt5677_adda1_src[] = {
 	"STO1 ADC MIX", "STO2 ADC MIX", "OB 67",
 };
@@ -974,10 +961,10 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_ADDA1_SEL_SFT, rt5677_adda1_src);
 
 static const struct snd_kcontrol_new rt5677_adda1_mux =
-	SOC_DAPM_ENUM("ADDA1 source", rt5677_adda1_enum);
+	SOC_DAPM_ENUM("ADDA1 Source", rt5677_adda1_enum);
 
 
-/*DAC2 L/R source*/ /* MX-1B [6:4] [2:0] */
+/*DAC2 L/R Source*/ /* MX-1B [6:4] [2:0] */
 static const char * const rt5677_dac2l_src[] = {
 	"IF1 DAC 2", "IF2 DAC 2", "IF3 DAC L", "IF4 DAC L", "SLB DAC 2",
 	"OB 2",
@@ -988,7 +975,7 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_DAC2_L_SRC_SFT, rt5677_dac2l_src);
 
 static const struct snd_kcontrol_new rt5677_dac2_l_mux =
-	SOC_DAPM_ENUM("DAC2 L source", rt5677_dac2l_enum);
+	SOC_DAPM_ENUM("DAC2 L Source", rt5677_dac2l_enum);
 
 static const char * const rt5677_dac2r_src[] = {
 	"IF1 DAC 3", "IF2 DAC 3", "IF3 DAC R", "IF4 DAC R", "SLB DAC 3",
@@ -1000,9 +987,9 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_DAC2_R_SRC_SFT, rt5677_dac2r_src);
 
 static const struct snd_kcontrol_new rt5677_dac2_r_mux =
-	SOC_DAPM_ENUM("DAC2 R source", rt5677_dac2r_enum);
+	SOC_DAPM_ENUM("DAC2 R Source", rt5677_dac2r_enum);
 
-/*DAC3 L/R source*/ /* MX-16 [6:4] [2:0] */
+/*DAC3 L/R Source*/ /* MX-16 [6:4] [2:0] */
 static const char * const rt5677_dac3l_src[] = {
 	"IF1 DAC 4", "IF2 DAC 4", "IF3 DAC L", "IF4 DAC L",
 	"SLB DAC 4", "OB 4"
@@ -1013,7 +1000,7 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_DAC3_L_SRC_SFT, rt5677_dac3l_src);
 
 static const struct snd_kcontrol_new rt5677_dac3_l_mux =
-	SOC_DAPM_ENUM("DAC3 L source", rt5677_dac3l_enum);
+	SOC_DAPM_ENUM("DAC3 L Source", rt5677_dac3l_enum);
 
 static const char * const rt5677_dac3r_src[] = {
 	"IF1 DAC 5", "IF2 DAC 5", "IF3 DAC R", "IF4 DAC R",
@@ -1025,9 +1012,9 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_DAC3_R_SRC_SFT, rt5677_dac3r_src);
 
 static const struct snd_kcontrol_new rt5677_dac3_r_mux =
-	SOC_DAPM_ENUM("DAC3 R source", rt5677_dac3r_enum);
+	SOC_DAPM_ENUM("DAC3 R Source", rt5677_dac3r_enum);
 
-/*DAC4 L/R source*/ /* MX-16 [14:12] [10:8] */
+/*DAC4 L/R Source*/ /* MX-16 [14:12] [10:8] */
 static const char * const rt5677_dac4l_src[] = {
 	"IF1 DAC 6", "IF2 DAC 6", "IF3 DAC L", "IF4 DAC L",
 	"SLB DAC 6", "OB 6"
@@ -1038,7 +1025,7 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_DAC4_L_SRC_SFT, rt5677_dac4l_src);
 
 static const struct snd_kcontrol_new rt5677_dac4_l_mux =
-	SOC_DAPM_ENUM("DAC4 L source", rt5677_dac4l_enum);
+	SOC_DAPM_ENUM("DAC4 L Source", rt5677_dac4l_enum);
 
 static const char * const rt5677_dac4r_src[] = {
 	"IF1 DAC 7", "IF2 DAC 7", "IF3 DAC R", "IF4 DAC R",
@@ -1050,7 +1037,7 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_DAC4_R_SRC_SFT, rt5677_dac4r_src);
 
 static const struct snd_kcontrol_new rt5677_dac4_r_mux =
-	SOC_DAPM_ENUM("DAC4 R source", rt5677_dac4r_enum);
+	SOC_DAPM_ENUM("DAC4 R Source", rt5677_dac4r_enum);
 
 /* In/OutBound Source Pass SRC */ /* MX-A5 [3] [4] [0] [1] [2] */
 static const char * const rt5677_iob_bypass_src[] = {
@@ -1062,35 +1049,35 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_SRC_OB01_SFT, rt5677_iob_bypass_src);
 
 static const struct snd_kcontrol_new rt5677_ob01_bypass_src_mux =
-	SOC_DAPM_ENUM("OB01 Bypass source", rt5677_ob01_bypass_src_enum);
+	SOC_DAPM_ENUM("OB01 Bypass Source", rt5677_ob01_bypass_src_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_ob23_bypass_src_enum, RT5677_DSP_IN_OUTB_CTRL,
 	RT5677_SEL_SRC_OB23_SFT, rt5677_iob_bypass_src);
 
 static const struct snd_kcontrol_new rt5677_ob23_bypass_src_mux =
-	SOC_DAPM_ENUM("OB23 Bypass source", rt5677_ob23_bypass_src_enum);
+	SOC_DAPM_ENUM("OB23 Bypass Source", rt5677_ob23_bypass_src_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_ib01_bypass_src_enum, RT5677_DSP_IN_OUTB_CTRL,
 	RT5677_SEL_SRC_IB01_SFT, rt5677_iob_bypass_src);
 
 static const struct snd_kcontrol_new rt5677_ib01_bypass_src_mux =
-	SOC_DAPM_ENUM("IB01 Bypass source", rt5677_ib01_bypass_src_enum);
+	SOC_DAPM_ENUM("IB01 Bypass Source", rt5677_ib01_bypass_src_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_ib23_bypass_src_enum, RT5677_DSP_IN_OUTB_CTRL,
 	RT5677_SEL_SRC_IB23_SFT, rt5677_iob_bypass_src);
 
 static const struct snd_kcontrol_new rt5677_ib23_bypass_src_mux =
-	SOC_DAPM_ENUM("IB23 Bypass source", rt5677_ib23_bypass_src_enum);
+	SOC_DAPM_ENUM("IB23 Bypass Source", rt5677_ib23_bypass_src_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_ib45_bypass_src_enum, RT5677_DSP_IN_OUTB_CTRL,
 	RT5677_SEL_SRC_IB45_SFT, rt5677_iob_bypass_src);
 
 static const struct snd_kcontrol_new rt5677_ib45_bypass_src_mux =
-	SOC_DAPM_ENUM("IB45 Bypass source", rt5677_ib45_bypass_src_enum);
+	SOC_DAPM_ENUM("IB45 Bypass Source", rt5677_ib45_bypass_src_enum);
 
 /* Stereo ADC Source 2 */ /* MX-27 MX26  MX25 [11:10] */
 static const char * const rt5677_stereo_adc2_src[] = {
@@ -1102,21 +1089,21 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_STO1_ADC2_SFT, rt5677_stereo_adc2_src);
 
 static const struct snd_kcontrol_new rt5677_sto1_adc2_mux =
-	SOC_DAPM_ENUM("Stereo1 ADC2 source", rt5677_stereo1_adc2_enum);
+	SOC_DAPM_ENUM("Stereo1 ADC2 Source", rt5677_stereo1_adc2_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_stereo2_adc2_enum, RT5677_STO2_ADC_MIXER,
 	RT5677_SEL_STO2_ADC2_SFT, rt5677_stereo_adc2_src);
 
 static const struct snd_kcontrol_new rt5677_sto2_adc2_mux =
-	SOC_DAPM_ENUM("Stereo2 ADC2 source", rt5677_stereo2_adc2_enum);
+	SOC_DAPM_ENUM("Stereo2 ADC2 Source", rt5677_stereo2_adc2_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_stereo3_adc2_enum, RT5677_STO3_ADC_MIXER,
 	RT5677_SEL_STO3_ADC2_SFT, rt5677_stereo_adc2_src);
 
 static const struct snd_kcontrol_new rt5677_sto3_adc2_mux =
-	SOC_DAPM_ENUM("Stereo3 ADC2 source", rt5677_stereo3_adc2_enum);
+	SOC_DAPM_ENUM("Stereo3 ADC2 Source", rt5677_stereo3_adc2_enum);
 
 /* DMIC Source */ /* MX-28 [9:8][1:0] MX-27 MX-26 MX-25 MX-24 [9:8] */
 static const char * const rt5677_dmic_src[] = {
@@ -1128,44 +1115,44 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_MONO_DMIC_L_SFT, rt5677_dmic_src);
 
 static const struct snd_kcontrol_new rt5677_mono_dmic_l_mux =
-	SOC_DAPM_ENUM("Mono DMIC L source", rt5677_mono_dmic_l_enum);
+	SOC_DAPM_ENUM("Mono DMIC L Source", rt5677_mono_dmic_l_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_mono_dmic_r_enum, RT5677_MONO_ADC_MIXER,
 	RT5677_SEL_MONO_DMIC_R_SFT, rt5677_dmic_src);
 
 static const struct snd_kcontrol_new rt5677_mono_dmic_r_mux =
-	SOC_DAPM_ENUM("Mono DMIC R source", rt5677_mono_dmic_r_enum);
+	SOC_DAPM_ENUM("Mono DMIC R Source", rt5677_mono_dmic_r_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_stereo1_dmic_enum, RT5677_STO1_ADC_MIXER,
 	RT5677_SEL_STO1_DMIC_SFT, rt5677_dmic_src);
 
 static const struct snd_kcontrol_new rt5677_sto1_dmic_mux =
-	SOC_DAPM_ENUM("Stereo1 DMIC source", rt5677_stereo1_dmic_enum);
+	SOC_DAPM_ENUM("Stereo1 DMIC Source", rt5677_stereo1_dmic_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_stereo2_dmic_enum, RT5677_STO2_ADC_MIXER,
 	RT5677_SEL_STO2_DMIC_SFT, rt5677_dmic_src);
 
 static const struct snd_kcontrol_new rt5677_sto2_dmic_mux =
-	SOC_DAPM_ENUM("Stereo2 DMIC source", rt5677_stereo2_dmic_enum);
+	SOC_DAPM_ENUM("Stereo2 DMIC Source", rt5677_stereo2_dmic_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_stereo3_dmic_enum, RT5677_STO3_ADC_MIXER,
 	RT5677_SEL_STO3_DMIC_SFT, rt5677_dmic_src);
 
 static const struct snd_kcontrol_new rt5677_sto3_dmic_mux =
-	SOC_DAPM_ENUM("Stereo3 DMIC source", rt5677_stereo3_dmic_enum);
+	SOC_DAPM_ENUM("Stereo3 DMIC Source", rt5677_stereo3_dmic_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_stereo4_dmic_enum, RT5677_STO4_ADC_MIXER,
 	RT5677_SEL_STO4_DMIC_SFT, rt5677_dmic_src);
 
 static const struct snd_kcontrol_new rt5677_sto4_dmic_mux =
-	SOC_DAPM_ENUM("Stereo4 DMIC source", rt5677_stereo4_dmic_enum);
+	SOC_DAPM_ENUM("Stereo4 DMIC Source", rt5677_stereo4_dmic_enum);
 
-/* Stereo2 ADC source */ /* MX-26 [0] */
+/* Stereo2 ADC Source */ /* MX-26 [0] */
 static const char * const rt5677_stereo2_adc_lr_src[] = {
 	"L", "LR"
 };
@@ -1175,7 +1162,7 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_STO2_LR_MIX_SFT, rt5677_stereo2_adc_lr_src);
 
 static const struct snd_kcontrol_new rt5677_sto2_adc_lr_mux =
-	SOC_DAPM_ENUM("Stereo2 ADC LR source", rt5677_stereo2_adc_lr_enum);
+	SOC_DAPM_ENUM("Stereo2 ADC LR Source", rt5677_stereo2_adc_lr_enum);
 
 /* Stereo1 ADC Source 1 */ /* MX-27 MX26  MX25 [13:12] */
 static const char * const rt5677_stereo_adc1_src[] = {
@@ -1187,23 +1174,23 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_STO1_ADC1_SFT, rt5677_stereo_adc1_src);
 
 static const struct snd_kcontrol_new rt5677_sto1_adc1_mux =
-	SOC_DAPM_ENUM("Stereo1 ADC1 source", rt5677_stereo1_adc1_enum);
+	SOC_DAPM_ENUM("Stereo1 ADC1 Source", rt5677_stereo1_adc1_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_stereo2_adc1_enum, RT5677_STO2_ADC_MIXER,
 	RT5677_SEL_STO2_ADC1_SFT, rt5677_stereo_adc1_src);
 
 static const struct snd_kcontrol_new rt5677_sto2_adc1_mux =
-	SOC_DAPM_ENUM("Stereo2 ADC1 source", rt5677_stereo2_adc1_enum);
+	SOC_DAPM_ENUM("Stereo2 ADC1 Source", rt5677_stereo2_adc1_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_stereo3_adc1_enum, RT5677_STO3_ADC_MIXER,
 	RT5677_SEL_STO3_ADC1_SFT, rt5677_stereo_adc1_src);
 
 static const struct snd_kcontrol_new rt5677_sto3_adc1_mux =
-	SOC_DAPM_ENUM("Stereo3 ADC1 source", rt5677_stereo3_adc1_enum);
+	SOC_DAPM_ENUM("Stereo3 ADC1 Source", rt5677_stereo3_adc1_enum);
 
-/* Mono ADC Left source 2 */ /* MX-28 [11:10] */
+/* Mono ADC Left Source 2 */ /* MX-28 [11:10] */
 static const char * const rt5677_mono_adc2_l_src[] = {
 	"DD MIX1L", "DMIC", "MONO DAC MIXL"
 };
@@ -1213,9 +1200,9 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_MONO_ADC_L2_SFT, rt5677_mono_adc2_l_src);
 
 static const struct snd_kcontrol_new rt5677_mono_adc2_l_mux =
-	SOC_DAPM_ENUM("Mono ADC2 L source", rt5677_mono_adc2_l_enum);
+	SOC_DAPM_ENUM("Mono ADC2 L Source", rt5677_mono_adc2_l_enum);
 
-/* Mono ADC Left source 1 */ /* MX-28 [13:12] */
+/* Mono ADC Left Source 1 */ /* MX-28 [13:12] */
 static const char * const rt5677_mono_adc1_l_src[] = {
 	"DD MIX1L", "ADC1", "MONO DAC MIXL"
 };
@@ -1225,9 +1212,9 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_MONO_ADC_L1_SFT, rt5677_mono_adc1_l_src);
 
 static const struct snd_kcontrol_new rt5677_mono_adc1_l_mux =
-	SOC_DAPM_ENUM("Mono ADC1 L source", rt5677_mono_adc1_l_enum);
+	SOC_DAPM_ENUM("Mono ADC1 L Source", rt5677_mono_adc1_l_enum);
 
-/* Mono ADC Right source 2 */ /* MX-28 [3:2] */
+/* Mono ADC Right Source 2 */ /* MX-28 [3:2] */
 static const char * const rt5677_mono_adc2_r_src[] = {
 	"DD MIX1R", "DMIC", "MONO DAC MIXR"
 };
@@ -1237,9 +1224,9 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_MONO_ADC_R2_SFT, rt5677_mono_adc2_r_src);
 
 static const struct snd_kcontrol_new rt5677_mono_adc2_r_mux =
-	SOC_DAPM_ENUM("Mono ADC2 R source", rt5677_mono_adc2_r_enum);
+	SOC_DAPM_ENUM("Mono ADC2 R Source", rt5677_mono_adc2_r_enum);
 
-/* Mono ADC Right source 1 */ /* MX-28 [5:4] */
+/* Mono ADC Right Source 1 */ /* MX-28 [5:4] */
 static const char * const rt5677_mono_adc1_r_src[] = {
 	"DD MIX1R", "ADC2", "MONO DAC MIXR"
 };
@@ -1249,7 +1236,7 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_MONO_ADC_R1_SFT, rt5677_mono_adc1_r_src);
 
 static const struct snd_kcontrol_new rt5677_mono_adc1_r_mux =
-	SOC_DAPM_ENUM("Mono ADC1 R source", rt5677_mono_adc1_r_enum);
+	SOC_DAPM_ENUM("Mono ADC1 R Source", rt5677_mono_adc1_r_enum);
 
 /* Stereo4 ADC Source 2 */ /* MX-24 [11:10] */
 static const char * const rt5677_stereo4_adc2_src[] = {
@@ -1261,7 +1248,7 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_STO4_ADC2_SFT, rt5677_stereo4_adc2_src);
 
 static const struct snd_kcontrol_new rt5677_sto4_adc2_mux =
-	SOC_DAPM_ENUM("Stereo4 ADC2 source", rt5677_stereo4_adc2_enum);
+	SOC_DAPM_ENUM("Stereo4 ADC2 Source", rt5677_stereo4_adc2_enum);
 
 
 /* Stereo4 ADC Source 1 */ /* MX-24 [13:12] */
@@ -1274,7 +1261,7 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_STO4_ADC1_SFT, rt5677_stereo4_adc1_src);
 
 static const struct snd_kcontrol_new rt5677_sto4_adc1_mux =
-	SOC_DAPM_ENUM("Stereo4 ADC1 source", rt5677_stereo4_adc1_enum);
+	SOC_DAPM_ENUM("Stereo4 ADC1 Source", rt5677_stereo4_adc1_enum);
 
 /* InBound0/1 Source */ /* MX-A3 [14:12] */
 static const char * const rt5677_inbound01_src[] = {
@@ -1416,7 +1403,7 @@ static SOC_ENUM_SINGLE_DECL(
 static const struct snd_kcontrol_new rt5677_dac3_mux =
 	SOC_DAPM_ENUM("Analog DAC3 Source", rt5677_dac3_enum);
 
-/* PDM channel source */ /* MX-31 [13:12][9:8][5:4][1:0] */
+/* PDM channel Source */ /* MX-31 [13:12][9:8][5:4][1:0] */
 static const char * const rt5677_pdm_src[] = {
 	"STO1 DAC MIX", "MONO DAC MIX", "DD MIX1", "DD MIX2"
 };
@@ -1426,28 +1413,28 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_SEL_PDM1_L_SFT, rt5677_pdm_src);
 
 static const struct snd_kcontrol_new rt5677_pdm1_l_mux =
-	SOC_DAPM_ENUM("PDM1 source", rt5677_pdm1_l_enum);
+	SOC_DAPM_ENUM("PDM1 Source", rt5677_pdm1_l_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_pdm2_l_enum, RT5677_PDM_OUT_CTRL,
 	RT5677_SEL_PDM2_L_SFT, rt5677_pdm_src);
 
 static const struct snd_kcontrol_new rt5677_pdm2_l_mux =
-	SOC_DAPM_ENUM("PDM2 source", rt5677_pdm2_l_enum);
+	SOC_DAPM_ENUM("PDM2 Source", rt5677_pdm2_l_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_pdm1_r_enum, RT5677_PDM_OUT_CTRL,
 	RT5677_SEL_PDM1_R_SFT, rt5677_pdm_src);
 
 static const struct snd_kcontrol_new rt5677_pdm1_r_mux =
-	SOC_DAPM_ENUM("PDM1 source", rt5677_pdm1_r_enum);
+	SOC_DAPM_ENUM("PDM1 Source", rt5677_pdm1_r_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_pdm2_r_enum, RT5677_PDM_OUT_CTRL,
 	RT5677_SEL_PDM2_R_SFT, rt5677_pdm_src);
 
 static const struct snd_kcontrol_new rt5677_pdm2_r_mux =
-	SOC_DAPM_ENUM("PDM2 source", rt5677_pdm2_r_enum);
+	SOC_DAPM_ENUM("PDM2 Source", rt5677_pdm2_r_enum);
 
 /* TDM IF1/2 SLB ADC1 Data Selection */ /* MX-3C MX-41 [5:4] MX-08 [1:0]*/
 static const char * const rt5677_if12_adc1_src[] = {
@@ -1459,21 +1446,21 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_IF1_ADC1_SFT, rt5677_if12_adc1_src);
 
 static const struct snd_kcontrol_new rt5677_if1_adc1_mux =
-	SOC_DAPM_ENUM("IF1 ADC1 source", rt5677_if1_adc1_enum);
+	SOC_DAPM_ENUM("IF1 ADC1 Source", rt5677_if1_adc1_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_if2_adc1_enum, RT5677_TDM2_CTRL2,
 	RT5677_IF2_ADC1_SFT, rt5677_if12_adc1_src);
 
 static const struct snd_kcontrol_new rt5677_if2_adc1_mux =
-	SOC_DAPM_ENUM("IF2 ADC1 source", rt5677_if2_adc1_enum);
+	SOC_DAPM_ENUM("IF2 ADC1 Source", rt5677_if2_adc1_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_slb_adc1_enum, RT5677_SLIMBUS_RX,
 	RT5677_SLB_ADC1_SFT, rt5677_if12_adc1_src);
 
 static const struct snd_kcontrol_new rt5677_slb_adc1_mux =
-	SOC_DAPM_ENUM("SLB ADC1 source", rt5677_slb_adc1_enum);
+	SOC_DAPM_ENUM("SLB ADC1 Source", rt5677_slb_adc1_enum);
 
 /* TDM IF1/2 SLB ADC2 Data Selection */ /* MX-3C MX-41 [7:6] MX-08 [3:2] */
 static const char * const rt5677_if12_adc2_src[] = {
@@ -1485,21 +1472,21 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_IF1_ADC2_SFT, rt5677_if12_adc2_src);
 
 static const struct snd_kcontrol_new rt5677_if1_adc2_mux =
-	SOC_DAPM_ENUM("IF1 ADC2 source", rt5677_if1_adc2_enum);
+	SOC_DAPM_ENUM("IF1 ADC2 Source", rt5677_if1_adc2_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_if2_adc2_enum, RT5677_TDM2_CTRL2,
 	RT5677_IF2_ADC2_SFT, rt5677_if12_adc2_src);
 
 static const struct snd_kcontrol_new rt5677_if2_adc2_mux =
-	SOC_DAPM_ENUM("IF2 ADC2 source", rt5677_if2_adc2_enum);
+	SOC_DAPM_ENUM("IF2 ADC2 Source", rt5677_if2_adc2_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_slb_adc2_enum, RT5677_SLIMBUS_RX,
 	RT5677_SLB_ADC2_SFT, rt5677_if12_adc2_src);
 
 static const struct snd_kcontrol_new rt5677_slb_adc2_mux =
-	SOC_DAPM_ENUM("SLB ADC2 source", rt5677_slb_adc2_enum);
+	SOC_DAPM_ENUM("SLB ADC2 Source", rt5677_slb_adc2_enum);
 
 /* TDM IF1/2 SLB ADC3 Data Selection */ /* MX-3C MX-41 [9:8] MX-08 [5:4] */
 static const char * const rt5677_if12_adc3_src[] = {
@@ -1511,21 +1498,21 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_IF1_ADC3_SFT, rt5677_if12_adc3_src);
 
 static const struct snd_kcontrol_new rt5677_if1_adc3_mux =
-	SOC_DAPM_ENUM("IF1 ADC3 source", rt5677_if1_adc3_enum);
+	SOC_DAPM_ENUM("IF1 ADC3 Source", rt5677_if1_adc3_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_if2_adc3_enum, RT5677_TDM2_CTRL2,
 	RT5677_IF2_ADC3_SFT, rt5677_if12_adc3_src);
 
 static const struct snd_kcontrol_new rt5677_if2_adc3_mux =
-	SOC_DAPM_ENUM("IF2 ADC3 source", rt5677_if2_adc3_enum);
+	SOC_DAPM_ENUM("IF2 ADC3 Source", rt5677_if2_adc3_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_slb_adc3_enum, RT5677_SLIMBUS_RX,
 	RT5677_SLB_ADC3_SFT, rt5677_if12_adc3_src);
 
 static const struct snd_kcontrol_new rt5677_slb_adc3_mux =
-	SOC_DAPM_ENUM("SLB ADC3 source", rt5677_slb_adc3_enum);
+	SOC_DAPM_ENUM("SLB ADC3 Source", rt5677_slb_adc3_enum);
 
 /* TDM IF1/2 SLB ADC4 Data Selection */ /* MX-3C MX-41 [11:10]  MX-08 [7:6] */
 static const char * const rt5677_if12_adc4_src[] = {
@@ -1537,21 +1524,21 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_IF1_ADC4_SFT, rt5677_if12_adc4_src);
 
 static const struct snd_kcontrol_new rt5677_if1_adc4_mux =
-	SOC_DAPM_ENUM("IF1 ADC4 source", rt5677_if1_adc4_enum);
+	SOC_DAPM_ENUM("IF1 ADC4 Source", rt5677_if1_adc4_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_if2_adc4_enum, RT5677_TDM2_CTRL2,
 	RT5677_IF2_ADC4_SFT, rt5677_if12_adc4_src);
 
 static const struct snd_kcontrol_new rt5677_if2_adc4_mux =
-	SOC_DAPM_ENUM("IF2 ADC4 source", rt5677_if2_adc4_enum);
+	SOC_DAPM_ENUM("IF2 ADC4 Source", rt5677_if2_adc4_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_slb_adc4_enum, RT5677_SLIMBUS_RX,
 	RT5677_SLB_ADC4_SFT, rt5677_if12_adc4_src);
 
 static const struct snd_kcontrol_new rt5677_slb_adc4_mux =
-	SOC_DAPM_ENUM("SLB ADC4 source", rt5677_slb_adc4_enum);
+	SOC_DAPM_ENUM("SLB ADC4 Source", rt5677_slb_adc4_enum);
 
 /* Interface3/4 ADC Data Input */ /* MX-2F [3:0] MX-30 [7:4]*/
 static const char * const rt5677_if34_adc_src[] = {
@@ -1564,14 +1551,14 @@ static SOC_ENUM_SINGLE_DECL(
 	RT5677_IF3_ADC_IN_SFT, rt5677_if34_adc_src);
 
 static const struct snd_kcontrol_new rt5677_if3_adc_mux =
-	SOC_DAPM_ENUM("IF3 ADC source", rt5677_if3_adc_enum);
+	SOC_DAPM_ENUM("IF3 ADC Source", rt5677_if3_adc_enum);
 
 static SOC_ENUM_SINGLE_DECL(
 	rt5677_if4_adc_enum, RT5677_IF4_DATA,
 	RT5677_IF4_ADC_IN_SFT, rt5677_if34_adc_src);
 
 static const struct snd_kcontrol_new rt5677_if4_adc_mux =
-	SOC_DAPM_ENUM("IF4 ADC source", rt5677_if4_adc_enum);
+	SOC_DAPM_ENUM("IF4 ADC Source", rt5677_if4_adc_enum);
 
 static int rt5677_bst1_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
@@ -1670,6 +1657,13 @@ static int rt5677_set_micbias1_event(struct snd_soc_dapm_widget *w,
 			RT5677_PWR_CLK_MB, RT5677_PWR_CLK_MB1 |
 			RT5677_PWR_PP_MB1 | RT5677_PWR_CLK_MB);
 		break;
+
+	case SND_SOC_DAPM_PRE_PMD:
+		regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG2,
+			RT5677_PWR_CLK_MB1 | RT5677_PWR_PP_MB1 |
+			RT5677_PWR_CLK_MB, 0);
+		break;
+
 	default:
 		return 0;
 	}
@@ -1685,8 +1679,9 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 
 	/* Input Side */
 	/* micbias */
-	SND_SOC_DAPM_SUPPLY("micbias1", RT5677_PWR_ANLG2, RT5677_PWR_MB1_BIT,
-		0, rt5677_set_micbias1_event, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_SUPPLY("MICBIAS1", RT5677_PWR_ANLG2, RT5677_PWR_MB1_BIT,
+		0, rt5677_set_micbias1_event, SND_SOC_DAPM_PRE_PMD |
+		SND_SOC_DAPM_POST_PMU),
 
 	/* Input Lines */
 	SND_SOC_DAPM_INPUT("DMIC L1"),
@@ -2140,10 +2135,10 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "BST2", NULL, "IN2P" },
 	{ "BST2", NULL, "IN2N" },
 
-	{ "IN1P", NULL, "micbias1" },
-	{ "IN1N", NULL, "micbias1" },
-	{ "IN2P", NULL, "micbias1" },
-	{ "IN2N", NULL, "micbias1" },
+	{ "IN1P", NULL, "MICBIAS1" },
+	{ "IN1N", NULL, "MICBIAS1" },
+	{ "IN2P", NULL, "MICBIAS1" },
+	{ "IN2N", NULL, "MICBIAS1" },
 
 	{ "ADC 1", NULL, "BST1" },
 	{ "ADC 1", NULL, "ADC 1 power" },
@@ -2798,21 +2793,6 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "PDM2R", NULL, "PDM2 R Mux" },
 };
 
-static int get_clk_info(int sclk, int rate)
-{
-	int i, pd[] = {1, 2, 3, 4, 6, 8, 12, 16};
-
-	if (sclk <= 0 || rate <= 0)
-		return -EINVAL;
-
-	rate = rate << 8;
-	for (i = 0; i < ARRAY_SIZE(pd); i++)
-		if (sclk == rate * pd[i])
-			return i;
-
-	return -EINVAL;
-}
-
 static int rt5677_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
@@ -2822,7 +2802,7 @@ static int rt5677_hw_params(struct snd_pcm_substream *substream,
 	int pre_div, bclk_ms, frame_size;
 
 	rt5677->lrck[dai->id] = params_rate(params);
-	pre_div = get_clk_info(rt5677->sysclk, rt5677->lrck[dai->id]);
+	pre_div = rl6231_get_clk_info(rt5677->sysclk, rt5677->lrck[dai->id]);
 	if (pre_div < 0) {
 		dev_err(codec->dev, "Unsupported clock setting\n");
 		return -EINVAL;
@@ -3016,62 +2996,12 @@ static int rt5677_set_dai_sysclk(struct snd_soc_dai *dai,
  * Returns 0 for success or negative error code.
  */
 static int rt5677_pll_calc(const unsigned int freq_in,
-	const unsigned int freq_out, struct rt5677_pll_code *pll_code)
+	const unsigned int freq_out, struct rl6231_pll_code *pll_code)
 {
-	int max_n = RT5677_PLL_N_MAX, max_m = RT5677_PLL_M_MAX;
-	int k, red, n_t, pll_out, in_t;
-	int n = 0, m = 0, m_t = 0;
-	int out_t, red_t = abs(freq_out - freq_in);
-	bool m_bp = false, k_bp = false;
-
-	if (RT5677_PLL_INP_MAX < freq_in || RT5677_PLL_INP_MIN > freq_in)
+	if (RT5677_PLL_INP_MIN > freq_in)
 		return -EINVAL;
 
-	k = 100000000 / freq_out - 2;
-	if (k > RT5677_PLL_K_MAX)
-		k = RT5677_PLL_K_MAX;
-	for (n_t = 0; n_t <= max_n; n_t++) {
-		in_t = freq_in / (k + 2);
-		pll_out = freq_out / (n_t + 2);
-		if (in_t < 0)
-			continue;
-		if (in_t == pll_out) {
-			m_bp = true;
-			n = n_t;
-			goto code_find;
-		}
-		red = abs(in_t - pll_out);
-		if (red < red_t) {
-			m_bp = true;
-			n = n_t;
-			m = m_t;
-			if (red == 0)
-				goto code_find;
-			red_t = red;
-		}
-		for (m_t = 0; m_t <= max_m; m_t++) {
-			out_t = in_t / (m_t + 2);
-			red = abs(out_t - pll_out);
-			if (red < red_t) {
-				m_bp = false;
-				n = n_t;
-				m = m_t;
-				if (red == 0)
-					goto code_find;
-				red_t = red;
-			}
-		}
-	}
-	pr_debug("Only get approximation about PLL\n");
-
-code_find:
-
-	pll_code->m_bp = m_bp;
-	pll_code->k_bp = k_bp;
-	pll_code->m_code = m;
-	pll_code->n_code = n;
-	pll_code->k_code = k;
-	return 0;
+	return rl6231_pll_calc(freq_in, freq_out, pll_code);
 }
 
 static int rt5677_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
@@ -3079,7 +3009,7 @@ static int rt5677_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
-	struct rt5677_pll_code pll_code;
+	struct rl6231_pll_code pll_code;
 	int ret;
 
 	if (source == rt5677->pll_src && freq_in == rt5677->pll_in &&
@@ -3137,15 +3067,12 @@ static int rt5677_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		return ret;
 	}
 
-	dev_dbg(codec->dev, "m_bypass=%d k_bypass=%d m=%d n=%d k=%d\n",
-		pll_code.m_bp, pll_code.k_bp,
-		(pll_code.m_bp ? 0 : pll_code.m_code), pll_code.n_code,
-		(pll_code.k_bp ? 0 : pll_code.k_code));
+	dev_dbg(codec->dev, "m_bypass=%d m=%d n=%d k=%d\n",
+		pll_code.m_bp, (pll_code.m_bp ? 0 : pll_code.m_code),
+		pll_code.n_code, pll_code.k_code);
 
 	regmap_write(rt5677->regmap, RT5677_PLL1_CTRL1,
-		pll_code.n_code << RT5677_PLL_N_SFT |
-		pll_code.k_bp << RT5677_PLL_K_BP_SFT |
-		(pll_code.k_bp ? 0 : pll_code.k_code));
+		pll_code.n_code << RT5677_PLL_N_SFT | pll_code.k_code);
 	regmap_write(rt5677->regmap, RT5677_PLL1_CTRL2,
 		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5677_PLL_M_SFT |
 		pll_code.m_bp << RT5677_PLL_M_BP_SFT);
@@ -3197,7 +3124,7 @@ static int rt5677_set_bias_level(struct snd_soc_codec *codec,
 		regmap_update_bits(rt5677->regmap, RT5677_DIG_MISC, 0x1, 0x0);
 		regmap_write(rt5677->regmap, RT5677_PWR_DIG1, 0x0000);
 		regmap_write(rt5677->regmap, RT5677_PWR_DIG2, 0x0000);
-		regmap_write(rt5677->regmap, RT5677_PWR_ANLG1, 0x0000);
+		regmap_write(rt5677->regmap, RT5677_PWR_ANLG1, 0x0022);
 		regmap_write(rt5677->regmap, RT5677_PWR_ANLG2, 0x0000);
 		regmap_update_bits(rt5677->regmap,
 			RT5677_PR_BASE + RT5677_BIAS_CUR4, 0x0f00, 0x0000);
@@ -3454,14 +3381,8 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5677->regmap, RT5677_IN1,
 					RT5677_IN_DF2, RT5677_IN_DF2);
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5677,
-			rt5677_dai, ARRAY_SIZE(rt5677_dai));
-	if (ret < 0)
-		goto err;
-
-	return 0;
-err:
-	return ret;
+	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5677,
+				      rt5677_dai, ARRAY_SIZE(rt5677_dai));
 }
 
 static int rt5677_i2c_remove(struct i2c_client *i2c)
@@ -3480,18 +3401,7 @@ static struct i2c_driver rt5677_i2c_driver = {
 	.remove   = rt5677_i2c_remove,
 	.id_table = rt5677_i2c_id,
 };
-
-static int __init rt5677_modinit(void)
-{
-	return i2c_add_driver(&rt5677_i2c_driver);
-}
-module_init(rt5677_modinit);
-
-static void __exit rt5677_modexit(void)
-{
-	i2c_del_driver(&rt5677_i2c_driver);
-}
-module_exit(rt5677_modexit);
+module_i2c_driver(rt5677_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC RT5677 driver");
 MODULE_AUTHOR("Oder Chiou <oder_chiou@realtek.com>");

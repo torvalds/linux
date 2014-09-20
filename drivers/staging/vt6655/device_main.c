@@ -1111,24 +1111,16 @@ static bool device_init_rings(PSDevice pDevice)
 	void *vir_pool;
 
 	/*allocate all RD/TD rings a single pool*/
-	vir_pool = pci_alloc_consistent(pDevice->pcid,
-					pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc) +
-					pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc) +
-					pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc) +
-					pDevice->sOpts.nTxDescs[1] * sizeof(STxDesc),
-					&pDevice->pool_dma);
-
+	vir_pool = pci_zalloc_consistent(pDevice->pcid,
+					 pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc) +
+					 pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc) +
+					 pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc) +
+					 pDevice->sOpts.nTxDescs[1] * sizeof(STxDesc),
+					 &pDevice->pool_dma);
 	if (vir_pool == NULL) {
 		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR "%s : allocate desc dma memory failed\n", pDevice->dev->name);
 		return false;
 	}
-
-	memset(vir_pool, 0,
-	       pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc) +
-	       pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc) +
-	       pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc) +
-	       pDevice->sOpts.nTxDescs[1] * sizeof(STxDesc)
-		);
 
 	pDevice->aRD0Ring = vir_pool;
 	pDevice->aRD1Ring = vir_pool +
@@ -1138,13 +1130,12 @@ static bool device_init_rings(PSDevice pDevice)
 	pDevice->rd1_pool_dma = pDevice->rd0_pool_dma +
 		pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc);
 
-	pDevice->tx0_bufs = pci_alloc_consistent(pDevice->pcid,
-						 pDevice->sOpts.nTxDescs[0] * PKT_BUF_SZ +
-						 pDevice->sOpts.nTxDescs[1] * PKT_BUF_SZ +
-						 CB_BEACON_BUF_SIZE +
-						 CB_MAX_BUF_SIZE,
-						 &pDevice->tx_bufs_dma0);
-
+	pDevice->tx0_bufs = pci_zalloc_consistent(pDevice->pcid,
+						  pDevice->sOpts.nTxDescs[0] * PKT_BUF_SZ +
+						  pDevice->sOpts.nTxDescs[1] * PKT_BUF_SZ +
+						  CB_BEACON_BUF_SIZE +
+						  CB_MAX_BUF_SIZE,
+						  &pDevice->tx_bufs_dma0);
 	if (pDevice->tx0_bufs == NULL) {
 		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR "%s: allocate buf dma memory failed\n", pDevice->dev->name);
 		pci_free_consistent(pDevice->pcid,
@@ -1156,13 +1147,6 @@ static bool device_init_rings(PSDevice pDevice)
 			);
 		return false;
 	}
-
-	memset(pDevice->tx0_bufs, 0,
-	       pDevice->sOpts.nTxDescs[0] * PKT_BUF_SZ +
-	       pDevice->sOpts.nTxDescs[1] * PKT_BUF_SZ +
-	       CB_BEACON_BUF_SIZE +
-	       CB_MAX_BUF_SIZE
-		);
 
 	pDevice->td0_pool_dma = pDevice->rd1_pool_dma +
 		pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc);

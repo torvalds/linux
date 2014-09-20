@@ -48,6 +48,10 @@ void nouveau_object_destroy(struct nouveau_object *);
 int  nouveau_object_init(struct nouveau_object *);
 int  nouveau_object_fini(struct nouveau_object *, bool suspend);
 
+int _nouveau_object_ctor(struct nouveau_object *, struct nouveau_object *,
+			 struct nouveau_oclass *, void *, u32,
+			 struct nouveau_object **);
+
 extern struct nouveau_ofuncs nouveau_object_ofuncs;
 
 /* Don't allocate dynamically, because lockdep needs lock_class_keys to be in
@@ -78,6 +82,7 @@ struct nouveau_omthds {
 	int (*call)(struct nouveau_object *, u32, void *, u32);
 };
 
+struct nvkm_event;
 struct nouveau_ofuncs {
 	int  (*ctor)(struct nouveau_object *, struct nouveau_object *,
 		     struct nouveau_oclass *, void *data, u32 size,
@@ -85,6 +90,9 @@ struct nouveau_ofuncs {
 	void (*dtor)(struct nouveau_object *);
 	int  (*init)(struct nouveau_object *);
 	int  (*fini)(struct nouveau_object *, bool suspend);
+	int  (*mthd)(struct nouveau_object *, u32, void *, u32);
+	int  (*ntfy)(struct nouveau_object *, u32, struct nvkm_event **);
+	int  (* map)(struct nouveau_object *, u64 *, u32 *);
 	u8   (*rd08)(struct nouveau_object *, u64 offset);
 	u16  (*rd16)(struct nouveau_object *, u64 offset);
 	u32  (*rd32)(struct nouveau_object *, u64 offset);
@@ -106,10 +114,6 @@ void nouveau_object_ref(struct nouveau_object *, struct nouveau_object **);
 int nouveau_object_inc(struct nouveau_object *);
 int nouveau_object_dec(struct nouveau_object *, bool suspend);
 
-int nouveau_object_new(struct nouveau_object *, u32 parent, u32 handle,
-		       u16 oclass, void *data, u32 size,
-		       struct nouveau_object **);
-int nouveau_object_del(struct nouveau_object *, u32 parent, u32 handle);
 void nouveau_object_debug(void);
 
 static inline int
@@ -197,6 +201,23 @@ nv_memcmp(void *obj, u32 addr, const char *str, u32 len)
 			return c1 - c2;
 	}
 	return 0;
+}
+
+#include <core/handle.h>
+
+static inline int
+nouveau_object_new(struct nouveau_object *client, u32 parent, u32 handle,
+		   u16 oclass, void *data, u32 size,
+		   struct nouveau_object **pobject)
+{
+	return nouveau_handle_new(client, parent, handle, oclass,
+				  data, size, pobject);
+}
+
+static inline int
+nouveau_object_del(struct nouveau_object *client, u32 parent, u32 handle)
+{
+	return nouveau_handle_del(client, parent, handle);
 }
 
 #endif

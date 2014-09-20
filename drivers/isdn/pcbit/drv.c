@@ -1035,14 +1035,14 @@ static void pcbit_set_msn(struct pcbit_dev *dev, char *list)
 		}
 		ptr->next = NULL;
 
-		ptr->msn = kmalloc(len, GFP_ATOMIC);
+		ptr->msn = kmalloc(len + 1, GFP_ATOMIC);
 		if (!ptr->msn) {
 			printk(KERN_WARNING "kmalloc failed\n");
 			kfree(ptr);
 			return;
 		}
 
-		memcpy(ptr->msn, sp, len - 1);
+		memcpy(ptr->msn, sp, len);
 		ptr->msn[len] = 0;
 
 #ifdef DEBUG

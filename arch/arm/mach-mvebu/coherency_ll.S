@@ -46,7 +46,7 @@ ENTRY(ll_get_coherency_base)
 	ldr	r1, =coherency_base
 	ldr	r1, [r1]
 2:
-	mov	pc, lr
+	ret	lr
 ENDPROC(ll_get_coherency_base)
 
 /*
@@ -63,7 +63,7 @@ ENTRY(ll_get_coherency_cpumask)
 	mov	r2, #(1 << 24)
 	lsl	r3, r2, r3
 ARM_BE8(rev	r3, r3)
-	mov	pc, lr
+	ret	lr
 ENDPROC(ll_get_coherency_cpumask)
 
 /*
@@ -94,7 +94,7 @@ ENTRY(ll_add_cpu_to_smp_group)
 	strex	r1, r2, [r0]
 	cmp	r1, #0
 	bne	1b
-	mov	pc, lr
+	ret	lr
 ENDPROC(ll_add_cpu_to_smp_group)
 
 ENTRY(ll_enable_coherency)
@@ -118,7 +118,7 @@ ENTRY(ll_enable_coherency)
 	bne	1b
 	dsb
 	mov	r0, #0
-	mov	pc, lr
+	ret	lr
 ENDPROC(ll_enable_coherency)
 
 ENTRY(ll_disable_coherency)
@@ -141,7 +141,7 @@ ENTRY(ll_disable_coherency)
 	cmp	r1, #0
 	bne	1b
 	dsb
-	mov	pc, lr
+	ret	lr
 ENDPROC(ll_disable_coherency)
 
 	.align 2

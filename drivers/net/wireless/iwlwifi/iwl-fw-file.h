@@ -128,6 +128,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_CSCHEME		= 28,
 	IWL_UCODE_TLV_API_CHANGES_SET	= 29,
 	IWL_UCODE_TLV_ENABLED_CAPABILITIES	= 30,
+	IWL_UCODE_TLV_N_SCAN_CHANNELS		= 31,
 };
 
 struct iwl_ucode_tlv {
@@ -136,7 +137,8 @@ struct iwl_ucode_tlv {
 	u8 data[0];
 };
 
-#define IWL_TLV_UCODE_MAGIC	0x0a4c5749
+#define IWL_TLV_UCODE_MAGIC		0x0a4c5749
+#define FW_VER_HUMAN_READABLE_SZ	64
 
 struct iwl_tlv_ucode_header {
 	/*
@@ -147,7 +149,7 @@ struct iwl_tlv_ucode_header {
 	 */
 	__le32 zero;
 	__le32 magic;
-	u8 human_readable[64];
+	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
 	__le32 ver;		/* major/minor/API/serial */
 	__le32 build;
 	__le64 ignore;

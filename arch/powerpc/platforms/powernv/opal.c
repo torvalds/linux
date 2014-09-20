@@ -22,6 +22,8 @@
 #include <linux/kobject.h>
 #include <linux/delay.h>
 #include <linux/memblock.h>
+
+#include <asm/machdep.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 #include <asm/mce.h>
@@ -192,16 +194,12 @@ static int __init opal_register_exception_handlers(void)
 	 * fwnmi area at 0x7000 to provide the glue space to OPAL
 	 */
 	glue = 0x7000;
-	opal_register_exception_handler(OPAL_HYPERVISOR_MAINTENANCE_HANDLER,
-					0, glue);
-	glue += 128;
 	opal_register_exception_handler(OPAL_SOFTPATCH_HANDLER, 0, glue);
 #endif
 
 	return 0;
 }
-
-early_initcall(opal_register_exception_handlers);
+machine_early_initcall(powernv, opal_register_exception_handlers);
 
 int opal_notifier_register(struct notifier_block *nb)
 {
@@ -368,7 +366,7 @@ static int __init opal_message_init(void)
 	}
 	return 0;
 }
-early_initcall(opal_message_init);
+machine_early_initcall(powernv, opal_message_init);
 
 int opal_get_chars(uint32_t vtermno, char *buf, int count)
 {
@@ -513,6 +511,46 @@ int opal_machine_check(struct pt_regs *regs)
 	return 0;
 }
 
+/* Early hmi handler called in real mode. */
+int opal_hmi_exception_early(struct pt_regs *regs)
+{
+	s64 rc;
+
+	/*
+	 * call opal hmi handler. Pass paca address as token.
+	 * The return value OPAL_SUCCESS is an indication that there is
+	 * an HMI event generated waiting to pull by Linux.
+	 */
+	rc = opal_handle_hmi();
+	if (rc == OPAL_SUCCESS) {
+		local_paca->hmi_event_available = 1;
+		return 1;
+	}
+	return 0;
+}
+
+/* HMI exception handler called in virtual mode during check_irq_replay. */
+int opal_handle_hmi_exception(struct pt_regs *regs)
+{
+	s64 rc;
+	__be64 evt = 0;
+
+	/*
+	 * Check if HMI event is available.
+	 * if Yes, then call opal_poll_events to pull opal messages and
+	 * process them.
+	 */
+	if (!local_paca->hmi_event_available)
+		return 0;
+
+	local_paca->hmi_event_available = 0;
+	rc = opal_poll_events(&evt);
+	if (rc == OPAL_SUCCESS && evt)
+		opal_do_notifier(be64_to_cpu(evt));
+
+	return 1;
+}
+
 static uint64_t find_recovery_address(uint64_t nip)
 {
 	int i;
@@ -567,6 +605,24 @@ static int opal_sysfs_init(void)
 	return 0;
 }
 
+static void __init opal_dump_region_init(void)
+{
+	void *addr;
+	uint64_t size;
+	int rc;
+
+	/* Register kernel log buffer */
+	addr = log_buf_addr_get();
+	size = log_buf_len_get();
+	rc = opal_register_dump_region(OPAL_DUMP_REGION_LOG_BUF,
+				       __pa(addr), size);
+	/* Don't warn if this is just an older OPAL that doesn't
+	 * know about that call
+	 */
+	if (rc && rc != OPAL_UNSUPPORTED)
+		pr_warn("DUMP: Failed to register kernel log buffer. "
+			"rc = %d\n", rc);
+}
 static int __init opal_init(void)
 {
 	struct device_node *np, *consoles;
@@ -616,6 +672,8 @@ static int __init opal_init(void)
 	/* Create "opal" kobject under /sys/firmware */
 	rc = opal_sysfs_init();
 	if (rc == 0) {
+		/* Setup dump region interface */
+		opal_dump_region_init();
 		/* Setup error log interface */
 		rc = opal_elog_init();
 		/* Setup code update interface */
@@ -630,7 +688,7 @@ static int __init opal_init(void)
 
 	return 0;
 }
-subsys_initcall(opal_init);
+machine_subsys_initcall(powernv, opal_init);
 
 void opal_shutdown(void)
 {
@@ -656,6 +714,9 @@ void opal_shutdown(void)
 		else
 			mdelay(10);
 	}
+
+	/* Unregister memory dump region */
+	opal_unregister_dump_region(OPAL_DUMP_REGION_LOG_BUF);
 }
 
 /* Export this so that test modules can use it */

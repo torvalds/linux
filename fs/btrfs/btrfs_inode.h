@@ -84,12 +84,6 @@ struct btrfs_inode {
 	 */
 	struct list_head delalloc_inodes;
 
-	/*
-	 * list for tracking inodes that must be sent to disk before a
-	 * rename or truncate commit
-	 */
-	struct list_head ordered_operations;
-
 	/* node for the red-black tree that links inodes in subvolume root */
 	struct rb_node rb_node;
 
@@ -240,8 +234,17 @@ static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
 	    BTRFS_I(inode)->last_sub_trans <=
 	    BTRFS_I(inode)->last_log_commit &&
 	    BTRFS_I(inode)->last_sub_trans <=
-	    BTRFS_I(inode)->root->last_log_commit)
-		return 1;
+	    BTRFS_I(inode)->root->last_log_commit) {
+		/*
+		 * After a ranged fsync we might have left some extent maps
+		 * (that fall outside the fsync's range). So return false
+		 * here if the list isn't empty, to make sure btrfs_log_inode()
+		 * will be called and process those extent maps.
+		 */
+		smp_mb();
+		if (list_empty(&BTRFS_I(inode)->extent_tree.modified_extents))
+			return 1;
+	}
 	return 0;
 }
 

@@ -84,6 +84,12 @@ static inline long regs_return_value(struct pt_regs *regs)
 
 #define instruction_pointer(regs)	(regs)->ARM_pc
 
+#ifdef CONFIG_THUMB2_KERNEL
+#define frame_pointer(regs) (regs)->ARM_r7
+#else
+#define frame_pointer(regs) (regs)->ARM_fp
+#endif
+
 static inline void instruction_pointer_set(struct pt_regs *regs,
 					   unsigned long val)
 {

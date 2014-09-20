@@ -835,7 +835,7 @@ static void qxl_conn_destroy(struct drm_connector *connector)
 	struct qxl_output *qxl_output =
 		drm_connector_to_qxl_output(connector);
 
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(qxl_output);
 }
@@ -902,7 +902,7 @@ static int qdev_output_init(struct drm_device *dev, int num_output)
 
 	drm_object_attach_property(&connector->base,
 				   qdev->hotplug_mode_update_property, 0);
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 	return 0;
 }
 

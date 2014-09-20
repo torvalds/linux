@@ -32,7 +32,7 @@ static const struct snd_pcm_hardware sst_byt_pcm_hardware = {
 				  SNDRV_PCM_INFO_PAUSE |
 				  SNDRV_PCM_INFO_RESUME,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
-				  SNDRV_PCM_FORMAT_S24_LE,
+				  SNDRV_PCM_FMTBIT_S24_LE,
 	.period_bytes_min	= 384,
 	.period_bytes_max	= 48000,
 	.periods_min		= 2,
@@ -59,6 +59,9 @@ struct sst_byt_priv_data {
 
 	/* DAI data */
 	struct sst_byt_pcm_data pcm[BYT_PCM_COUNT];
+
+	/* flag indicating is stream context restore needed after suspend */
+	bool restore_stream;
 };
 
 /* this may get called several times by oss emulation */
@@ -184,7 +187,10 @@ static int sst_byt_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		sst_byt_stream_start(byt, pcm_data->stream, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
-		schedule_work(&pcm_data->work);
+		if (pdata->restore_stream == true)
+			schedule_work(&pcm_data->work);
+		else
+			sst_byt_stream_resume(byt, pcm_data->stream);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		sst_byt_stream_resume(byt, pcm_data->stream);
@@ -193,6 +199,7 @@ static int sst_byt_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		sst_byt_stream_stop(byt, pcm_data->stream);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		pdata->restore_stream = false;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		sst_byt_stream_pause(byt, pcm_data->stream);
 		break;
@@ -404,26 +411,10 @@ static const struct snd_soc_component_driver byt_dai_component = {
 };
 
 #ifdef CONFIG_PM
-static int sst_byt_pcm_dev_suspend_noirq(struct device *dev)
-{
-	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
-	int ret;
-
-	dev_dbg(dev, "suspending noirq\n");
-
-	/* at this point all streams will be stopped and context saved */
-	ret = sst_byt_dsp_suspend_noirq(dev, sst_pdata);
-	if (ret < 0) {
-		dev_err(dev, "failed to suspend %d\n", ret);
-		return ret;
-	}
-
-	return ret;
-}
-
 static int sst_byt_pcm_dev_suspend_late(struct device *dev)
 {
 	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
+	struct sst_byt_priv_data *priv_data = dev_get_drvdata(dev);
 	int ret;
 
 	dev_dbg(dev, "suspending late\n");
@@ -434,34 +425,30 @@ static int sst_byt_pcm_dev_suspend_late(struct device *dev)
 		return ret;
 	}
 
+	priv_data->restore_stream = true;
+
 	return ret;
 }
 
 static int sst_byt_pcm_dev_resume_early(struct device *dev)
 {
 	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
+	int ret;
 
 	dev_dbg(dev, "resume early\n");
 
 	/* load fw and boot DSP */
-	return sst_byt_dsp_boot(dev, sst_pdata);
-}
-
-static int sst_byt_pcm_dev_resume(struct device *dev)
-{
-	struct sst_pdata *sst_pdata = dev_get_platdata(dev);
-
-	dev_dbg(dev, "resume\n");
+	ret = sst_byt_dsp_boot(dev, sst_pdata);
+	if (ret)
+		return ret;
 
 	/* wait for FW to finish booting */
 	return sst_byt_dsp_wait_for_ready(dev, sst_pdata);
 }
 
 static const struct dev_pm_ops sst_byt_pm_ops = {
-	.suspend_noirq = sst_byt_pcm_dev_suspend_noirq,
 	.suspend_late = sst_byt_pcm_dev_suspend_late,
 	.resume_early = sst_byt_pcm_dev_resume_early,
-	.resume = sst_byt_pcm_dev_resume,
 };
 
 #define SST_BYT_PM_OPS	(&sst_byt_pm_ops)

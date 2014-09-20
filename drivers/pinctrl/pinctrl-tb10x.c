@@ -738,22 +738,6 @@ static int tb10x_pctl_enable(struct pinctrl_dev *pctl,
 	return 0;
 }
 
-static void tb10x_pctl_disable(struct pinctrl_dev *pctl,
-			unsigned func_selector, unsigned group_selector)
-{
-	struct tb10x_pinctrl *state = pinctrl_dev_get_drvdata(pctl);
-	const struct tb10x_pinfuncgrp *grp = &state->pingroups[group_selector];
-
-	if (grp->port < 0)
-		return;
-
-	mutex_lock(&state->mutex);
-
-	state->ports[grp->port].count--;
-
-	mutex_unlock(&state->mutex);
-}
-
 static struct pinmux_ops tb10x_pinmux_ops = {
 	.get_functions_count = tb10x_get_functions_count,
 	.get_function_name = tb10x_get_function_name,
@@ -761,7 +745,6 @@ static struct pinmux_ops tb10x_pinmux_ops = {
 	.gpio_request_enable = tb10x_gpio_request_enable,
 	.gpio_disable_free = tb10x_gpio_disable_free,
 	.enable = tb10x_pctl_enable,
-	.disable = tb10x_pctl_disable,
 };
 
 static struct pinctrl_desc tb10x_pindesc = {

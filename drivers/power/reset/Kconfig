@@ -20,6 +20,17 @@ config POWER_RESET_AXXIA
 
 	  Say Y if you have an Axxia family SoC.
 
+config POWER_RESET_BRCMSTB
+	bool "Broadcom STB reset driver" if COMPILE_TEST
+	depends on POWER_RESET && ARM
+	default ARCH_BRCMSTB
+	help
+	  This driver provides restart support for ARM-based Broadcom STB
+	  boards.
+
+	  Say Y here if you have an ARM-based Broadcom STB board and you wish
+	  to have restart support.
+
 config POWER_RESET_GPIO
 	bool "GPIO power-off driver"
 	depends on OF_GPIO && POWER_RESET
@@ -27,6 +38,12 @@ config POWER_RESET_GPIO
 	  This driver supports turning off your board via a GPIO line.
 	  If your board needs a GPIO high/low to power down, say Y and
 	  create a binding in your devicetree.
+
+config POWER_RESET_HISI
+	bool "Hisilicon power-off driver"
+	depends on POWER_RESET && ARCH_HISI
+	help
+	  Reboot support for Hisilicon boards.
 
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"

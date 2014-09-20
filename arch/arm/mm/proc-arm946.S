@@ -38,7 +38,7 @@
  */
 ENTRY(cpu_arm946_proc_init)
 ENTRY(cpu_arm946_switch_mm)
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_arm946_proc_fin()
@@ -48,7 +48,7 @@ ENTRY(cpu_arm946_proc_fin)
 	bic	r0, r0, #0x00001000		@ i-cache
 	bic	r0, r0, #0x00000004		@ d-cache
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_arm946_reset(loc)
@@ -65,7 +65,7 @@ ENTRY(cpu_arm946_reset)
 	bic	ip, ip, #0x00000005		@ .............c.p
 	bic	ip, ip, #0x00001000		@ i-cache
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
-	mov	pc, r0
+	ret	r0
 ENDPROC(cpu_arm946_reset)
 	.popsection
 
@@ -75,7 +75,7 @@ ENDPROC(cpu_arm946_reset)
 	.align	5
 ENTRY(cpu_arm946_do_idle)
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
-	mov	pc, lr
+	ret	lr
 
 /*
  *	flush_icache_all()
@@ -85,7 +85,7 @@ ENTRY(cpu_arm946_do_idle)
 ENTRY(arm946_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
-	mov	pc, lr
+	ret	lr
 ENDPROC(arm946_flush_icache_all)
 
 /*
@@ -117,7 +117,7 @@ __flush_whole_cache:
 	tst	r2, #VM_EXEC
 	mcrne	p15, 0, ip, c7, c5, 0		@ flush I cache
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	flush_user_cache_range(start, end, flags)
@@ -156,7 +156,7 @@ ENTRY(arm946_flush_user_cache_range)
 	blo	1b
 	tst	r2, #VM_EXEC
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	coherent_kern_range(start, end)
@@ -191,7 +191,7 @@ ENTRY(arm946_coherent_user_range)
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	mov	r0, #0
-	mov	pc, lr
+	ret	lr
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -212,7 +212,7 @@ ENTRY(arm946_flush_kern_dcache_area)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_inv_range(start, end)
@@ -239,7 +239,7 @@ arm946_dma_inv_range:
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_clean_range(start, end)
@@ -260,7 +260,7 @@ arm946_dma_clean_range:
 	blo	1b
 #endif
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_flush_range(start, end)
@@ -284,7 +284,7 @@ ENTRY(arm946_dma_flush_range)
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 /*
  *	dma_map_area(start, size, dir)
@@ -307,7 +307,7 @@ ENDPROC(arm946_dma_map_area)
  *	- dir	- DMA direction
  */
 ENTRY(arm946_dma_unmap_area)
-	mov	pc, lr
+	ret	lr
 ENDPROC(arm946_dma_unmap_area)
 
 	.globl	arm946_flush_kern_cache_louis
@@ -324,7 +324,7 @@ ENTRY(cpu_arm946_dcache_clean_area)
 	bhi	1b
 #endif
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
-	mov	pc, lr
+	ret	lr
 
 	.type	__arm946_setup, #function
 __arm946_setup:
@@ -392,7 +392,7 @@ __arm946_setup:
 #ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
 	orr	r0, r0, #0x00004000		@ .1.. .... .... ....
 #endif
-	mov	pc, lr
+	ret	lr
 
 	.size	__arm946_setup, . - __arm946_setup
 

@@ -44,6 +44,8 @@
 		max77686@09 {
 			compatible = "maxim,max77686";
 			reg = <0x09>;
+			interrupt-parent = <&gpx3>;
+			interrupts = <2 0>;
 
 			voltage-regulators {
 				ldo1_reg: LDO1 {
@@ -316,6 +318,7 @@
 	};
 
 	spi_1: spi@12d30000 {
+		cs-gpios = <&gpa2 5 0>;
 		status = "okay";
 
 		w25q80bw@0 {
@@ -326,7 +329,6 @@
 			spi-max-frequency = <1000000>;
 
 			controller-data {
-				cs-gpio = <&gpa2 5 0>;
 				samsung,spi-feedback-delay = <0>;
 			};
 

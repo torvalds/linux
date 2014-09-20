@@ -148,6 +148,7 @@ static int __init x86_xsave_setup(char *s)
 {
 	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
 	setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
+	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
 	setup_clear_cpu_cap(X86_FEATURE_AVX);
 	setup_clear_cpu_cap(X86_FEATURE_AVX2);
 	return 1;
@@ -160,6 +161,13 @@ static int __init x86_xsaveopt_setup(char *s)
 	return 1;
 }
 __setup("noxsaveopt", x86_xsaveopt_setup);
+
+static int __init x86_xsaves_setup(char *s)
+{
+	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
+	return 1;
+}
+__setup("noxsaves", x86_xsaves_setup);
 
 #ifdef CONFIG_X86_32
 static int cachesize_override = -1;

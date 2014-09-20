@@ -50,7 +50,11 @@ static void i40e_unmap_and_free_tx_resource(struct i40e_ring *ring,
 					    struct i40e_tx_buffer *tx_buffer)
 {
 	if (tx_buffer->skb) {
-		dev_kfree_skb_any(tx_buffer->skb);
+		if (tx_buffer->tx_flags & I40E_TX_FLAGS_FD_SB)
+			kfree(tx_buffer->raw_buf);
+		else
+			dev_kfree_skb_any(tx_buffer->skb);
+
 		if (dma_unmap_len(tx_buffer, len))
 			dma_unmap_single(ring->dev,
 					 dma_unmap_addr(tx_buffer, dma),
@@ -769,8 +773,6 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 
 	/* likely incorrect csum if alternate IP extension headers found */
 	if (ipv6 &&
-	    decoded.inner_prot == I40E_RX_PTYPE_INNER_PROT_TCP &&
-	    rx_error & (1 << I40E_RX_DESC_ERROR_L4E_SHIFT) &&
 	    rx_status & (1 << I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT))
 		/* don't increment checksum err here, non-fatal err */
 		return;
@@ -1336,6 +1338,7 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 	/* cpu_to_le32 and assign to struct fields */
 	context_desc->tunneling_params = cpu_to_le32(cd_tunneling);
 	context_desc->l2tag2 = cpu_to_le16(cd_l2tag2);
+	context_desc->rsvd = cpu_to_le16(0);
 	context_desc->type_cmd_tso_mss = cpu_to_le64(cd_type_cmd_tso_mss);
 }
 
@@ -1594,7 +1597,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 		goto out_drop;
 
 	/* obtain protocol of skb */
-	protocol = skb->protocol;
+	protocol = vlan_get_protocol(skb);
 
 	/* record the location of the first descriptor for this packet */
 	first = &tx_ring->tx_bi[tx_ring->next_to_use];

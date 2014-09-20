@@ -120,7 +120,8 @@ static void _be_roce_dev_open(struct be_adapter *adapter)
 {
 	if (ocrdma_drv && adapter->ocrdma_dev &&
 	    ocrdma_drv->state_change_handler)
-		ocrdma_drv->state_change_handler(adapter->ocrdma_dev, 0);
+		ocrdma_drv->state_change_handler(adapter->ocrdma_dev,
+						 BE_DEV_UP);
 }
 
 void be_roce_dev_open(struct be_adapter *adapter)
@@ -136,7 +137,8 @@ static void _be_roce_dev_close(struct be_adapter *adapter)
 {
 	if (ocrdma_drv && adapter->ocrdma_dev &&
 	    ocrdma_drv->state_change_handler)
-		ocrdma_drv->state_change_handler(adapter->ocrdma_dev, 1);
+		ocrdma_drv->state_change_handler(adapter->ocrdma_dev,
+						 BE_DEV_DOWN);
 }
 
 void be_roce_dev_close(struct be_adapter *adapter)
@@ -144,6 +146,18 @@ void be_roce_dev_close(struct be_adapter *adapter)
 	if (be_roce_supported(adapter)) {
 		mutex_lock(&be_adapter_list_lock);
 		_be_roce_dev_close(adapter);
+		mutex_unlock(&be_adapter_list_lock);
+	}
+}
+
+void be_roce_dev_shutdown(struct be_adapter *adapter)
+{
+	if (be_roce_supported(adapter)) {
+		mutex_lock(&be_adapter_list_lock);
+		if (ocrdma_drv && adapter->ocrdma_dev &&
+		    ocrdma_drv->state_change_handler)
+			ocrdma_drv->state_change_handler(adapter->ocrdma_dev,
+							 BE_DEV_SHUTDOWN);
 		mutex_unlock(&be_adapter_list_lock);
 	}
 }

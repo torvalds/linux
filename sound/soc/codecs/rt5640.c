@@ -2059,6 +2059,7 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5640 = {
 static const struct regmap_config rt5640_regmap = {
 	.reg_bits = 8,
 	.val_bits = 16,
+	.use_single_rw = true,
 
 	.max_register = RT5640_VENDOR_ID2 + 1 + (ARRAY_SIZE(rt5640_ranges) *
 					       RT5640_PR_SPACING),
@@ -2215,14 +2216,8 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 
 	rt5640->hp_mute = 1;
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5640,
-			rt5640_dai, ARRAY_SIZE(rt5640_dai));
-	if (ret < 0)
-		goto err;
-
-	return 0;
-err:
-	return ret;
+	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5640,
+				      rt5640_dai, ARRAY_SIZE(rt5640_dai));
 }
 
 static int rt5640_i2c_remove(struct i2c_client *i2c)

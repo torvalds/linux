@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2010 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -144,6 +144,58 @@ void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
 }
 
 /*
+ * Read a 32-bit PCI Configuration Space register via the PCI-E backdoor
+ * mechanism.  This guarantees that we get the real value even if we're
+ * operating within a Virtual Machine and the Hypervisor is trapping our
+ * Configuration Space accesses.
+ */
+void t4_hw_pci_read_cfg4(struct adapter *adap, int reg, u32 *val)
+{
+	u32 req = ENABLE | FUNCTION(adap->fn) | reg;
+
+	if (is_t4(adap->params.chip))
+		req |= F_LOCALCFG;
+
+	t4_write_reg(adap, PCIE_CFG_SPACE_REQ, req);
+	*val = t4_read_reg(adap, PCIE_CFG_SPACE_DATA);
+
+	/* Reset ENABLE to 0 so reads of PCIE_CFG_SPACE_DATA won't cause a
+	 * Configuration Space read.  (None of the other fields matter when
+	 * ENABLE is 0 so a simple register write is easier than a
+	 * read-modify-write via t4_set_reg_field().)
+	 */
+	t4_write_reg(adap, PCIE_CFG_SPACE_REQ, 0);
+}
+
+/*
+ * t4_report_fw_error - report firmware error
+ * @adap: the adapter
+ *
+ * The adapter firmware can indicate error conditions to the host.
+ * If the firmware has indicated an error, print out the reason for
+ * the firmware error.
+ */
+static void t4_report_fw_error(struct adapter *adap)
+{
+	static const char *const reason[] = {
+		"Crash",                        /* PCIE_FW_EVAL_CRASH */
+		"During Device Preparation",    /* PCIE_FW_EVAL_PREP */
+		"During Device Configuration",  /* PCIE_FW_EVAL_CONF */
+		"During Device Initialization", /* PCIE_FW_EVAL_INIT */
+		"Unexpected Event",             /* PCIE_FW_EVAL_UNEXPECTEDEVENT */
+		"Insufficient Airflow",         /* PCIE_FW_EVAL_OVERHEAT */
+		"Device Shutdown",              /* PCIE_FW_EVAL_DEVICESHUTDOWN */
+		"Reserved",                     /* reserved */
+	};
+	u32 pcie_fw;
+
+	pcie_fw = t4_read_reg(adap, MA_PCIE_FW);
+	if (pcie_fw & FW_PCIE_FW_ERR)
+		dev_err(adap->pdev_dev, "Firmware reports adapter error: %s\n",
+			reason[FW_PCIE_FW_EVAL_GET(pcie_fw)]);
+}
+
+/*
  * Get the reply to a mailbox command and store it in @rpl in big-endian order.
  */
 static void get_mbox_rpl(struct adapter *adap, __be64 *rpl, int nflit,
@@ -276,6 +328,7 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	dump_mbox(adap, mbox, data_reg);
 	dev_err(adap->pdev_dev, "command %#x in mailbox %d timed out\n",
 		*(const u8 *)cmd, mbox);
+	t4_report_fw_error(adap);
 	return -ETIMEDOUT;
 }
 
@@ -389,78 +442,41 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	return 0;
 }
 
-/*
- *	t4_mem_win_rw - read/write memory through PCIE memory window
- *	@adap: the adapter
- *	@addr: address of first byte requested
- *	@data: MEMWIN0_APERTURE bytes of data containing the requested address
- *	@dir: direction of transfer 1 => read, 0 => write
- *
- *	Read/write MEMWIN0_APERTURE bytes of data from MC starting at a
- *	MEMWIN0_APERTURE-byte-aligned address that covers the requested
- *	address @addr.
- */
-static int t4_mem_win_rw(struct adapter *adap, u32 addr, __be32 *data, int dir)
-{
-	int i;
-	u32 win_pf = is_t4(adap->params.chip) ? 0 : V_PFNUM(adap->fn);
-
-	/*
-	 * Setup offset into PCIE memory window.  Address must be a
-	 * MEMWIN0_APERTURE-byte-aligned address.  (Read back MA register to
-	 * ensure that changes propagate before we attempt to use the new
-	 * values.)
-	 */
-	t4_write_reg(adap, PCIE_MEM_ACCESS_OFFSET,
-		     (addr & ~(MEMWIN0_APERTURE - 1)) | win_pf);
-	t4_read_reg(adap, PCIE_MEM_ACCESS_OFFSET);
-
-	/* Collecting data 4 bytes at a time upto MEMWIN0_APERTURE */
-	for (i = 0; i < MEMWIN0_APERTURE; i = i+0x4) {
-		if (dir)
-			*data++ = (__force __be32) t4_read_reg(adap,
-							(MEMWIN0_BASE + i));
-		else
-			t4_write_reg(adap, (MEMWIN0_BASE + i),
-				     (__force u32) *data++);
-	}
-
-	return 0;
-}
-
 /**
  *	t4_memory_rw - read/write EDC 0, EDC 1 or MC via PCIE memory window
  *	@adap: the adapter
+ *	@win: PCI-E Memory Window to use
  *	@mtype: memory type: MEM_EDC0, MEM_EDC1 or MEM_MC
  *	@addr: address within indicated memory type
  *	@len: amount of memory to transfer
  *	@buf: host memory buffer
- *	@dir: direction of transfer 1 => read, 0 => write
+ *	@dir: direction of transfer T4_MEMORY_READ (1) or T4_MEMORY_WRITE (0)
  *
  *	Reads/writes an [almost] arbitrary memory region in the firmware: the
- *	firmware memory address, length and host buffer must be aligned on
- *	32-bit boudaries.  The memory is transferred as a raw byte sequence
- *	from/to the firmware's memory.  If this memory contains data
- *	structures which contain multi-byte integers, it's the callers
- *	responsibility to perform appropriate byte order conversions.
+ *	firmware memory address and host buffer must be aligned on 32-bit
+ *	boudaries; the length may be arbitrary.  The memory is transferred as
+ *	a raw byte sequence from/to the firmware's memory.  If this memory
+ *	contains data structures which contain multi-byte integers, it's the
+ *	caller's responsibility to perform appropriate byte order conversions.
  */
-static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
-			__be32 *buf, int dir)
+int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
+		 u32 len, __be32 *buf, int dir)
 {
-	u32 pos, start, end, offset, memoffset;
-	u32 edc_size, mc_size;
-	int ret = 0;
-	__be32 *data;
+	u32 pos, offset, resid, memoffset;
+	u32 edc_size, mc_size, win_pf, mem_reg, mem_aperture, mem_base;
 
-	/*
-	 * Argument sanity checks ...
+	/* Argument sanity checks ...
 	 */
-	if ((addr & 0x3) || (len & 0x3))
+	if (addr & 0x3)
 		return -EINVAL;
 
-	data = vmalloc(MEMWIN0_APERTURE);
-	if (!data)
-		return -ENOMEM;
+	/* It's convenient to be able to handle lengths which aren't a
+	 * multiple of 32-bits because we often end up transferring files to
+	 * the firmware.  So we'll handle that by normalizing the length here
+	 * and then handling any residual transfer at the end.
+	 */
+	resid = len & 0x3;
+	len -= resid;
 
 	/* Offset into the region of memory which is being accessed
 	 * MEM_EDC0 = 0
@@ -481,72 +497,105 @@ static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
 	/* Determine the PCIE_MEM_ACCESS_OFFSET */
 	addr = addr + memoffset;
 
-	/*
-	 * The underlaying EDC/MC read routines read MEMWIN0_APERTURE bytes
-	 * at a time so we need to round down the start and round up the end.
-	 * We'll start copying out of the first line at (addr - start) a word
-	 * at a time.
+	/* Each PCI-E Memory Window is programmed with a window size -- or
+	 * "aperture" -- which controls the granularity of its mapping onto
+	 * adapter memory.  We need to grab that aperture in order to know
+	 * how to use the specified window.  The window is also programmed
+	 * with the base address of the Memory Window in BAR0's address
+	 * space.  For T4 this is an absolute PCI-E Bus Address.  For T5
+	 * the address is relative to BAR0.
 	 */
-	start = addr & ~(MEMWIN0_APERTURE-1);
-	end = (addr + len + MEMWIN0_APERTURE-1) & ~(MEMWIN0_APERTURE-1);
-	offset = (addr - start)/sizeof(__be32);
+	mem_reg = t4_read_reg(adap,
+			      PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN,
+						  win));
+	mem_aperture = 1 << (GET_WINDOW(mem_reg) + 10);
+	mem_base = GET_PCIEOFST(mem_reg) << 10;
+	if (is_t4(adap->params.chip))
+		mem_base -= adap->t4_bar0;
+	win_pf = is_t4(adap->params.chip) ? 0 : V_PFNUM(adap->fn);
 
-	for (pos = start; pos < end; pos += MEMWIN0_APERTURE, offset = 0) {
+	/* Calculate our initial PCI-E Memory Window Position and Offset into
+	 * that Window.
+	 */
+	pos = addr & ~(mem_aperture-1);
+	offset = addr - pos;
 
-		/*
-		 * If we're writing, copy the data from the caller's memory
-		 * buffer
+	/* Set up initial PCI-E Memory Window to cover the start of our
+	 * transfer.  (Read it back to ensure that changes propagate before we
+	 * attempt to use the new value.)
+	 */
+	t4_write_reg(adap,
+		     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, win),
+		     pos | win_pf);
+	t4_read_reg(adap,
+		    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, win));
+
+	/* Transfer data to/from the adapter as long as there's an integral
+	 * number of 32-bit transfers to complete.
+	 */
+	while (len > 0) {
+		if (dir == T4_MEMORY_READ)
+			*buf++ = (__force __be32) t4_read_reg(adap,
+							mem_base + offset);
+		else
+			t4_write_reg(adap, mem_base + offset,
+				     (__force u32) *buf++);
+		offset += sizeof(__be32);
+		len -= sizeof(__be32);
+
+		/* If we've reached the end of our current window aperture,
+		 * move the PCI-E Memory Window on to the next.  Note that
+		 * doing this here after "len" may be 0 allows us to set up
+		 * the PCI-E Memory Window for a possible final residual
+		 * transfer below ...
 		 */
-		if (!dir) {
-			/*
-			 * If we're doing a partial write, then we need to do
-			 * a read-modify-write ...
-			 */
-			if (offset || len < MEMWIN0_APERTURE) {
-				ret = t4_mem_win_rw(adap, pos, data, 1);
-				if (ret)
-					break;
-			}
-			while (offset < (MEMWIN0_APERTURE/sizeof(__be32)) &&
-			       len > 0) {
-				data[offset++] = *buf++;
-				len -= sizeof(__be32);
-			}
+		if (offset == mem_aperture) {
+			pos += mem_aperture;
+			offset = 0;
+			t4_write_reg(adap,
+				     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET,
+							 win), pos | win_pf);
+			t4_read_reg(adap,
+				    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET,
+							win));
 		}
-
-		/*
-		 * Transfer a block of memory and bail if there's an error.
-		 */
-		ret = t4_mem_win_rw(adap, pos, data, dir);
-		if (ret)
-			break;
-
-		/*
-		 * If we're reading, copy the data into the caller's memory
-		 * buffer.
-		 */
-		if (dir)
-			while (offset < (MEMWIN0_APERTURE/sizeof(__be32)) &&
-			       len > 0) {
-				*buf++ = data[offset++];
-				len -= sizeof(__be32);
-			}
 	}
 
-	vfree(data);
-	return ret;
-}
+	/* If the original transfer had a length which wasn't a multiple of
+	 * 32-bits, now's where we need to finish off the transfer of the
+	 * residual amount.  The PCI-E Memory Window has already been moved
+	 * above (if necessary) to cover this final transfer.
+	 */
+	if (resid) {
+		union {
+			__be32 word;
+			char byte[4];
+		} last;
+		unsigned char *bp;
+		int i;
 
-int t4_memory_write(struct adapter *adap, int mtype, u32 addr, u32 len,
-		    __be32 *buf)
-{
-	return t4_memory_rw(adap, mtype, addr, len, buf, 0);
+		if (dir == T4_MEMORY_READ) {
+			last.word = (__force __be32) t4_read_reg(adap,
+							mem_base + offset);
+			for (bp = (unsigned char *)buf, i = resid; i < 4; i++)
+				bp[i] = last.byte[i];
+		} else {
+			last.word = *buf;
+			for (i = resid; i < 4; i++)
+				last.byte[i] = 0;
+			t4_write_reg(adap, mem_base + offset,
+				     (__force u32) last.word);
+		}
+	}
+
+	return 0;
 }
 
 #define EEPROM_STAT_ADDR   0x7bfc
 #define VPD_BASE           0x400
 #define VPD_BASE_OLD       0
 #define VPD_LEN            1024
+#define CHELSIO_VPD_UNIQUE_ID 0x82
 
 /**
  *	t4_seeprom_wp - enable/disable EEPROM write protection
@@ -584,7 +633,14 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	ret = pci_read_vpd(adapter->pdev, VPD_BASE, sizeof(u32), vpd);
 	if (ret < 0)
 		goto out;
-	addr = *vpd == 0x82 ? VPD_BASE : VPD_BASE_OLD;
+
+	/* The VPD shall have a unique identifier specified by the PCI SIG.
+	 * For chelsio adapters, the identifier is 0x82. The first byte of a VPD
+	 * shall be CHELSIO_VPD_UNIQUE_ID (0x82). The VPD programming software
+	 * is expected to automatically put this entry at the
+	 * beginning of the VPD.
+	 */
+	addr = *vpd == CHELSIO_VPD_UNIQUE_ID ? VPD_BASE : VPD_BASE_OLD;
 
 	ret = pci_read_vpd(adapter->pdev, addr, VPD_LEN, vpd);
 	if (ret < 0)
@@ -648,6 +704,7 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	i = pci_vpd_info_field_size(vpd + sn - PCI_VPD_INFO_FLD_HDR_SIZE);
 	memcpy(p->sn, vpd + sn, min(i, SERNUM_LEN));
 	strim(p->sn);
+	i = pci_vpd_info_field_size(vpd + pn - PCI_VPD_INFO_FLD_HDR_SIZE);
 	memcpy(p->pn, vpd + pn, min(i, PN_LEN));
 	strim(p->pn);
 
@@ -1375,15 +1432,18 @@ static void pcie_intr_handler(struct adapter *adapter)
 
 	int fat;
 
-	fat = t4_handle_intr_status(adapter,
-				    PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
-				    sysbus_intr_info) +
-	      t4_handle_intr_status(adapter,
-				    PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
-				    pcie_port_intr_info) +
-	      t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
-				    is_t4(adapter->params.chip) ?
-				    pcie_intr_info : t5_pcie_intr_info);
+	if (is_t4(adapter->params.chip))
+		fat = t4_handle_intr_status(adapter,
+					    PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
+					    sysbus_intr_info) +
+			t4_handle_intr_status(adapter,
+					      PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
+					      pcie_port_intr_info) +
+			t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
+					      pcie_intr_info);
+	else
+		fat = t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
+					    t5_pcie_intr_info);
 
 	if (fat)
 		t4_fatal_err(adapter);
@@ -1501,6 +1561,9 @@ static void cim_intr_handler(struct adapter *adapter)
 	};
 
 	int fat;
+
+	if (t4_read_reg(adapter, MA_PCIE_FW) & FW_PCIE_FW_ERR)
+		t4_report_fw_error(adapter);
 
 	fat = t4_handle_intr_status(adapter, CIM_HOST_INT_CAUSE,
 				    cim_intr_info) +
@@ -1700,16 +1763,24 @@ static void mps_intr_handler(struct adapter *adapter)
  */
 static void mem_intr_handler(struct adapter *adapter, int idx)
 {
-	static const char name[3][5] = { "EDC0", "EDC1", "MC" };
+	static const char name[4][7] = { "EDC0", "EDC1", "MC/MC0", "MC1" };
 
 	unsigned int addr, cnt_addr, v;
 
 	if (idx <= MEM_EDC1) {
 		addr = EDC_REG(EDC_INT_CAUSE, idx);
 		cnt_addr = EDC_REG(EDC_ECC_STATUS, idx);
+	} else if (idx == MEM_MC) {
+		if (is_t4(adapter->params.chip)) {
+			addr = MC_INT_CAUSE;
+			cnt_addr = MC_ECC_STATUS;
+		} else {
+			addr = MC_P_INT_CAUSE;
+			cnt_addr = MC_P_ECC_STATUS;
+		}
 	} else {
-		addr = MC_INT_CAUSE;
-		cnt_addr = MC_ECC_STATUS;
+		addr = MC_REG(MC_P_INT_CAUSE, 1);
+		cnt_addr = MC_REG(MC_P_ECC_STATUS, 1);
 	}
 
 	v = t4_read_reg(adapter, addr) & MEM_INT_MASK;
@@ -1741,10 +1812,16 @@ static void ma_intr_handler(struct adapter *adap)
 {
 	u32 v, status = t4_read_reg(adap, MA_INT_CAUSE);
 
-	if (status & MEM_PERR_INT_CAUSE)
+	if (status & MEM_PERR_INT_CAUSE) {
 		dev_alert(adap->pdev_dev,
 			  "MA parity error, parity status %#x\n",
 			  t4_read_reg(adap, MA_PARITY_ERROR_STATUS));
+		if (is_t5(adap->params.chip))
+			dev_alert(adap->pdev_dev,
+				  "MA parity error, parity status %#x\n",
+				  t4_read_reg(adap,
+					      MA_PARITY_ERROR_STATUS2));
+	}
 	if (status & MEM_WRAP_INT_CAUSE) {
 		v = t4_read_reg(adap, MA_INT_WRAP_STATUS);
 		dev_alert(adap->pdev_dev, "MA address wrap-around error by "
@@ -1873,6 +1950,8 @@ int t4_slow_intr_handler(struct adapter *adapter)
 		pcie_intr_handler(adapter);
 	if (cause & MC)
 		mem_intr_handler(adapter, MEM_MC);
+	if (!is_t4(adapter->params.chip) && (cause & MC1))
+		mem_intr_handler(adapter, MEM_MC1);
 	if (cause & EDC0)
 		mem_intr_handler(adapter, MEM_EDC0);
 	if (cause & EDC1)
@@ -2505,39 +2584,6 @@ int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 }
 
 /**
- *     t4_mem_win_read_len - read memory through PCIE memory window
- *     @adap: the adapter
- *     @addr: address of first byte requested aligned on 32b.
- *     @data: len bytes to hold the data read
- *     @len: amount of data to read from window.  Must be <=
- *            MEMWIN0_APERATURE after adjusting for 16B for T4 and
- *            128B for T5 alignment requirements of the the memory window.
- *
- *     Read len bytes of data from MC starting at @addr.
- */
-int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len)
-{
-	int i, off;
-	u32 win_pf = is_t4(adap->params.chip) ? 0 : V_PFNUM(adap->fn);
-
-	/* Align on a 2KB boundary.
-	 */
-	off = addr & MEMWIN0_APERTURE;
-	if ((addr & 3) || (len + off) > MEMWIN0_APERTURE)
-		return -EINVAL;
-
-	t4_write_reg(adap, PCIE_MEM_ACCESS_OFFSET,
-		     (addr & ~MEMWIN0_APERTURE) | win_pf);
-	t4_read_reg(adap, PCIE_MEM_ACCESS_OFFSET);
-
-	for (i = 0; i < len; i += 4)
-		*data++ = (__force __be32) t4_read_reg(adap,
-						(MEMWIN0_BASE + off + i));
-
-	return 0;
-}
-
-/**
  *	t4_mdio_rd - read a PHY register through MDIO
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -2737,12 +2783,16 @@ retry:
 	/*
 	 * Issue the HELLO command to the firmware.  If it's not successful
 	 * but indicates that we got a "busy" or "timeout" condition, retry
-	 * the HELLO until we exhaust our retry limit.
+	 * the HELLO until we exhaust our retry limit.  If we do exceed our
+	 * retry limit, check to see if the firmware left us any error
+	 * information and report that if so.
 	 */
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret < 0) {
 		if ((ret == -EBUSY || ret == -ETIMEDOUT) && retries-- > 0)
 			goto retry;
+		if (t4_read_reg(adap, MA_PCIE_FW) & FW_PCIE_FW_ERR)
+			t4_report_fw_error(adap);
 		return ret;
 	}
 
@@ -3175,6 +3225,46 @@ int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 }
 
 /**
+ *      t4_set_params_nosleep - sets FW or device parameters
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @pf: the PF
+ *      @vf: the VF
+ *      @nparams: the number of parameters
+ *      @params: the parameter names
+ *      @val: the parameter values
+ *
+ *	 Does not ever sleep
+ *      Sets the value of FW or device parameters.  Up to 7 parameters can be
+ *      specified at once.
+ */
+int t4_set_params_nosleep(struct adapter *adap, unsigned int mbox,
+			  unsigned int pf, unsigned int vf,
+			  unsigned int nparams, const u32 *params,
+			  const u32 *val)
+{
+	struct fw_params_cmd c;
+	__be32 *p = &c.param[0].mnem;
+
+	if (nparams > 7)
+		return -EINVAL;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_PARAMS_CMD) |
+				FW_CMD_REQUEST | FW_CMD_WRITE |
+				FW_PARAMS_CMD_PFN(pf) |
+				FW_PARAMS_CMD_VFN(vf));
+	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
+
+	while (nparams--) {
+		*p++ = cpu_to_be32(*params++);
+		*p++ = cpu_to_be32(*val++);
+	}
+
+	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
  *	t4_set_params - sets FW or device parameters
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -3499,6 +3589,33 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 }
 
 /**
+ *      t4_enable_vi_params - enable/disable a virtual interface
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @viid: the VI id
+ *      @rx_en: 1=enable Rx, 0=disable Rx
+ *      @tx_en: 1=enable Tx, 0=disable Tx
+ *      @dcb_en: 1=enable delivery of Data Center Bridging messages.
+ *
+ *      Enables/disables a virtual interface.  Note that setting DCB Enable
+ *      only makes sense when enabling a Virtual Interface ...
+ */
+int t4_enable_vi_params(struct adapter *adap, unsigned int mbox,
+			unsigned int viid, bool rx_en, bool tx_en, bool dcb_en)
+{
+	struct fw_vi_enable_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = htonl(FW_CMD_OP(FW_VI_ENABLE_CMD) | FW_CMD_REQUEST |
+			     FW_CMD_EXEC | FW_VI_ENABLE_CMD_VIID(viid));
+
+	c.ien_to_len16 = htonl(FW_VI_ENABLE_CMD_IEN(rx_en) |
+			       FW_VI_ENABLE_CMD_EEN(tx_en) | FW_LEN16(c) |
+			       FW_VI_ENABLE_CMD_DCB_INFO(dcb_en));
+	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
  *	t4_enable_vi - enable/disable a virtual interface
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -3511,14 +3628,7 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		 bool rx_en, bool tx_en)
 {
-	struct fw_vi_enable_cmd c;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_viid = htonl(FW_CMD_OP(FW_VI_ENABLE_CMD) | FW_CMD_REQUEST |
-			     FW_CMD_EXEC | FW_VI_ENABLE_CMD_VIID(viid));
-	c.ien_to_len16 = htonl(FW_VI_ENABLE_CMD_IEN(rx_en) |
-			       FW_VI_ENABLE_CMD_EEN(tx_en) | FW_LEN16(c));
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+	return t4_enable_vi_params(adap, mbox, viid, rx_en, tx_en, 0);
 }
 
 /**
@@ -3686,6 +3796,7 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 			lc->link_ok = link_ok;
 			lc->speed = speed;
 			lc->fc = fc;
+			lc->supported = be16_to_cpu(p->u.info.pcap);
 			t4_os_link_changed(adap, port, link_ok);
 		}
 		if (mod != pi->mod_type) {

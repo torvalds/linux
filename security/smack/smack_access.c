@@ -457,19 +457,16 @@ int smk_netlbl_mls(int level, char *catset, struct netlbl_lsm_secattr *sap,
 
 	sap->flags |= NETLBL_SECATTR_MLS_CAT;
 	sap->attr.mls.lvl = level;
-	sap->attr.mls.cat = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
-	if (!sap->attr.mls.cat)
-		return -ENOMEM;
-	sap->attr.mls.cat->startbit = 0;
+	sap->attr.mls.cat = NULL;
 
 	for (cat = 1, cp = catset, byte = 0; byte < len; cp++, byte++)
 		for (m = 0x80; m != 0; m >>= 1, cat++) {
 			if ((m & *cp) == 0)
 				continue;
-			rc = netlbl_secattr_catmap_setbit(sap->attr.mls.cat,
-							  cat, GFP_ATOMIC);
+			rc = netlbl_catmap_setbit(&sap->attr.mls.cat,
+						  cat, GFP_ATOMIC);
 			if (rc < 0) {
-				netlbl_secattr_catmap_free(sap->attr.mls.cat);
+				netlbl_catmap_free(sap->attr.mls.cat);
 				return rc;
 			}
 		}

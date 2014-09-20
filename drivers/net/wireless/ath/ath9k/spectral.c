@@ -253,7 +253,7 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 
 	if (strncmp("trigger", buf, 7) == 0) {
 		ath9k_spectral_scan_trigger(sc->hw);
-	} else if (strncmp("background", buf, 9) == 0) {
+	} else if (strncmp("background", buf, 10) == 0) {
 		ath9k_spectral_scan_config(sc->hw, SPECTRAL_BACKGROUND);
 		ath_dbg(common, CONFIG, "spectral scan: background mode enabled\n");
 	} else if (strncmp("chanscan", buf, 8) == 0) {
@@ -313,7 +313,7 @@ static ssize_t write_file_spectral_short_repeat(struct file *file,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < 0 || val > 1)
+	if (val > 1)
 		return -EINVAL;
 
 	sc->spec_config.short_repeat = val;
@@ -361,7 +361,7 @@ static ssize_t write_file_spectral_count(struct file *file,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < 0 || val > 255)
+	if (val > 255)
 		return -EINVAL;
 
 	sc->spec_config.count = val;
@@ -409,7 +409,7 @@ static ssize_t write_file_spectral_period(struct file *file,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < 0 || val > 255)
+	if (val > 255)
 		return -EINVAL;
 
 	sc->spec_config.period = val;
@@ -457,7 +457,7 @@ static ssize_t write_file_spectral_fft_period(struct file *file,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < 0 || val > 15)
+	if (val > 15)
 		return -EINVAL;
 
 	sc->spec_config.fft_period = val;

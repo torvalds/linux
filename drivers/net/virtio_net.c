@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/average.h>
+#include <net/busy_poll.h>
 
 static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
@@ -521,6 +522,8 @@ static void receive_buf(struct receive_queue *rq, void *buf, unsigned int len)
 		skb_shinfo(skb)->gso_segs = 0;
 	}
 
+	skb_mark_napi_id(skb, &rq->napi);
+
 	netif_receive_skb(skb);
 	return;
 
@@ -725,15 +728,12 @@ static void refill_work(struct work_struct *work)
 	}
 }
 
-static int virtnet_poll(struct napi_struct *napi, int budget)
+static int virtnet_receive(struct receive_queue *rq, int budget)
 {
-	struct receive_queue *rq =
-		container_of(napi, struct receive_queue, napi);
 	struct virtnet_info *vi = rq->vq->vdev->priv;
+	unsigned int len, received = 0;
 	void *buf;
-	unsigned int r, len, received = 0;
 
-again:
 	while (received < budget &&
 	       (buf = virtqueue_get_buf(rq->vq, &len)) != NULL) {
 		receive_buf(rq, buf, len);
@@ -744,6 +744,18 @@ again:
 		if (!try_fill_recv(rq, GFP_ATOMIC))
 			schedule_delayed_work(&vi->refill, 0);
 	}
+
+	return received;
+}
+
+static int virtnet_poll(struct napi_struct *napi, int budget)
+{
+	struct receive_queue *rq =
+		container_of(napi, struct receive_queue, napi);
+	unsigned int r, received = 0;
+
+again:
+	received += virtnet_receive(rq, budget - received);
 
 	/* Out of packets? */
 	if (received < budget) {
@@ -759,6 +771,43 @@ again:
 
 	return received;
 }
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+/* must be called with local_bh_disable()d */
+static int virtnet_busy_poll(struct napi_struct *napi)
+{
+	struct receive_queue *rq =
+		container_of(napi, struct receive_queue, napi);
+	struct virtnet_info *vi = rq->vq->vdev->priv;
+	int r, received = 0, budget = 4;
+
+	if (!(vi->status & VIRTIO_NET_S_LINK_UP))
+		return LL_FLUSH_FAILED;
+
+	if (!napi_schedule_prep(napi))
+		return LL_FLUSH_BUSY;
+
+	virtqueue_disable_cb(rq->vq);
+
+again:
+	received += virtnet_receive(rq, budget);
+
+	r = virtqueue_enable_cb_prepare(rq->vq);
+	clear_bit(NAPI_STATE_SCHED, &napi->state);
+	if (unlikely(virtqueue_poll(rq->vq, r)) &&
+	    napi_schedule_prep(napi)) {
+		virtqueue_disable_cb(rq->vq);
+		if (received < budget) {
+			budget -= received;
+			goto again;
+		} else {
+			__napi_schedule(napi);
+		}
+	}
+
+	return received;
+}
+#endif	/* CONFIG_NET_RX_BUSY_POLL */
 
 static int virtnet_open(struct net_device *dev)
 {
@@ -1347,6 +1396,9 @@ static const struct net_device_ops virtnet_netdev = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = virtnet_netpoll,
 #endif
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	.ndo_busy_poll		= virtnet_busy_poll,
+#endif
 };
 
 static void virtnet_config_changed_work(struct work_struct *work)
@@ -1552,6 +1604,7 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 		vi->rq[i].pages = NULL;
 		netif_napi_add(vi->dev, &vi->rq[i].napi, virtnet_poll,
 			       napi_weight);
+		napi_hash_add(&vi->rq[i].napi);
 
 		sg_init_table(vi->rq[i].sg, ARRAY_SIZE(vi->rq[i].sg));
 		ewma_init(&vi->rq[i].mrg_avg_pkt_len, 1, RECEIVE_AVG_WEIGHT);
@@ -1853,11 +1906,13 @@ static int virtnet_freeze(struct virtio_device *vdev)
 	netif_device_detach(vi->dev);
 	cancel_delayed_work_sync(&vi->refill);
 
-	if (netif_running(vi->dev))
+	if (netif_running(vi->dev)) {
 		for (i = 0; i < vi->max_queue_pairs; i++) {
 			napi_disable(&vi->rq[i].napi);
+			napi_hash_del(&vi->rq[i].napi);
 			netif_napi_del(&vi->rq[i].napi);
 		}
+	}
 
 	remove_vq_common(vi);
 

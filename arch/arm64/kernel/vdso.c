@@ -195,31 +195,12 @@ up_fail:
 }
 
 /*
- * We define AT_SYSINFO_EHDR, so we need these function stubs to keep
- * Linux happy.
- */
-int in_gate_area_no_mm(unsigned long addr)
-{
-	return 0;
-}
-
-int in_gate_area(struct mm_struct *mm, unsigned long addr)
-{
-	return 0;
-}
-
-struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
-{
-	return NULL;
-}
-
-/*
  * Update the vDSO data page to keep in sync with kernel timekeeping.
  */
 void update_vsyscall(struct timekeeper *tk)
 {
 	struct timespec xtime_coarse;
-	u32 use_syscall = strcmp(tk->clock->name, "arch_sys_counter");
+	u32 use_syscall = strcmp(tk->tkr.clock->name, "arch_sys_counter");
 
 	++vdso_data->tb_seq_count;
 	smp_wmb();
@@ -232,11 +213,11 @@ void update_vsyscall(struct timekeeper *tk)
 	vdso_data->wtm_clock_nsec		= tk->wall_to_monotonic.tv_nsec;
 
 	if (!use_syscall) {
-		vdso_data->cs_cycle_last	= tk->clock->cycle_last;
+		vdso_data->cs_cycle_last	= tk->tkr.cycle_last;
 		vdso_data->xtime_clock_sec	= tk->xtime_sec;
-		vdso_data->xtime_clock_nsec	= tk->xtime_nsec;
-		vdso_data->cs_mult		= tk->mult;
-		vdso_data->cs_shift		= tk->shift;
+		vdso_data->xtime_clock_nsec	= tk->tkr.xtime_nsec;
+		vdso_data->cs_mult		= tk->tkr.mult;
+		vdso_data->cs_shift		= tk->tkr.shift;
 	}
 
 	smp_wmb();

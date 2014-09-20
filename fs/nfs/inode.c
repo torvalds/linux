@@ -1002,6 +1002,15 @@ int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 }
 EXPORT_SYMBOL_GPL(nfs_revalidate_inode);
 
+int nfs_revalidate_inode_rcu(struct nfs_server *server, struct inode *inode)
+{
+	if (!(NFS_I(inode)->cache_validity &
+			(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_LABEL))
+			&& !nfs_attribute_cache_expired(inode))
+		return NFS_STALE(inode) ? -ESTALE : 0;
+	return -ECHILD;
+}
+
 static int nfs_invalidate_mapping(struct inode *inode, struct address_space *mapping)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
@@ -1840,11 +1849,12 @@ EXPORT_SYMBOL_GPL(nfs_net_id);
 static int nfs_net_init(struct net *net)
 {
 	nfs_clients_init(net);
-	return 0;
+	return nfs_fs_proc_net_init(net);
 }
 
 static void nfs_net_exit(struct net *net)
 {
+	nfs_fs_proc_net_exit(net);
 	nfs_cleanup_cb_ident_idr(net);
 }
 

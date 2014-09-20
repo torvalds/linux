@@ -335,6 +335,12 @@
 		interrupt-controller;
 	};
 
+	apbmisc@70000800 {
+		compatible = "nvidia,tegra30-apbmisc", "nvidia,tegra20-apbmisc";
+		reg = <0x70000800 0x64   /* Chip revision */
+		       0x70000008 0x04>; /* Strapping options */
+	};
+
 	pinmux: pinmux@70000868 {
 		compatible = "nvidia,tegra30-pinmux";
 		reg = <0x70000868 0xd4    /* Pad control registers */
@@ -629,6 +635,15 @@
 		nvidia,#asids = <4>;		/* # of ASIDs */
 		dma-window = <0 0x40000000>;	/* IOVA start & length */
 		nvidia,ahb = <&ahb>;
+	};
+
+	fuse@7000f800 {
+		compatible = "nvidia,tegra30-efuse";
+		reg = <0x7000f800 0x400>;
+		clocks = <&tegra_car TEGRA30_CLK_FUSE>;
+		clock-names = "fuse";
+		resets = <&tegra_car 39>;
+		reset-names = "fuse";
 	};
 
 	ahub@70080000 {

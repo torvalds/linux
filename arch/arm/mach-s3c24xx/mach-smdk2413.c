@@ -43,7 +43,6 @@
 #include <mach/gpio-samsung.h>
 #include <mach/fb.h>
 
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/samsung-time.h>

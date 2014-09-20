@@ -22,6 +22,7 @@
 #include <linux/kprobes.h>
 #include <linux/cache.h>
 #include <linux/sort.h>
+#include <linux/ioport.h>
 #include <linux/percpu.h>
 #include <linux/memblock.h>
 #include <linux/mmzone.h>
@@ -350,6 +351,10 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *
 	}
 
 	mm = vma->vm_mm;
+
+	/* Don't insert a non-valid PTE into the TSB, we'll deadlock.  */
+	if (!pte_accessible(mm, pte))
+		return;
 
 	spin_lock_irqsave(&mm->context.lock, flags);
 
@@ -2619,6 +2624,10 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 
 	pte = pmd_val(entry);
 
+	/* Don't insert a non-valid PMD into the TSB, we'll deadlock.  */
+	if (!(pte & _PAGE_VALID))
+		return;
+
 	/* We are fabricating 8MB pages using 4MB real hw pages.  */
 	pte |= (addr & (1UL << REAL_HPAGE_SHIFT));
 
@@ -2699,3 +2708,90 @@ void hugetlb_setup(struct pt_regs *regs)
 	}
 }
 #endif
+
+static struct resource code_resource = {
+	.name	= "Kernel code",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static struct resource data_resource = {
+	.name	= "Kernel data",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static struct resource bss_resource = {
+	.name	= "Kernel bss",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static inline resource_size_t compute_kern_paddr(void *addr)
+{
+	return (resource_size_t) (addr - KERNBASE + kern_base);
+}
+
+static void __init kernel_lds_init(void)
+{
+	code_resource.start = compute_kern_paddr(_text);
+	code_resource.end   = compute_kern_paddr(_etext - 1);
+	data_resource.start = compute_kern_paddr(_etext);
+	data_resource.end   = compute_kern_paddr(_edata - 1);
+	bss_resource.start  = compute_kern_paddr(__bss_start);
+	bss_resource.end    = compute_kern_paddr(_end - 1);
+}
+
+static int __init report_memory(void)
+{
+	int i;
+	struct resource *res;
+
+	kernel_lds_init();
+
+	for (i = 0; i < pavail_ents; i++) {
+		res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+
+		if (!res) {
+			pr_warn("Failed to allocate source.\n");
+			break;
+		}
+
+		res->name = "System RAM";
+		res->start = pavail[i].phys_addr;
+		res->end = pavail[i].phys_addr + pavail[i].reg_size - 1;
+		res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
+
+		if (insert_resource(&iomem_resource, res) < 0) {
+			pr_warn("Resource insertion failed.\n");
+			break;
+		}
+
+		insert_resource(res, &code_resource);
+		insert_resource(res, &data_resource);
+		insert_resource(res, &bss_resource);
+	}
+
+	return 0;
+}
+device_initcall(report_memory);
+
+#ifdef CONFIG_SMP
+#define do_flush_tlb_kernel_range	smp_flush_tlb_kernel_range
+#else
+#define do_flush_tlb_kernel_range	__flush_tlb_kernel_range
+#endif
+
+void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	if (start < HI_OBP_ADDRESS && end > LOW_OBP_ADDRESS) {
+		if (start < LOW_OBP_ADDRESS) {
+			flush_tsb_kernel_range(start, LOW_OBP_ADDRESS);
+			do_flush_tlb_kernel_range(start, LOW_OBP_ADDRESS);
+		}
+		if (end > HI_OBP_ADDRESS) {
+			flush_tsb_kernel_range(end, HI_OBP_ADDRESS);
+			do_flush_tlb_kernel_range(end, HI_OBP_ADDRESS);
+		}
+	} else {
+		flush_tsb_kernel_range(start, end);
+		do_flush_tlb_kernel_range(start, end);
+	}
+}

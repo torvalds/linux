@@ -751,7 +751,7 @@ static int batadv_softif_init_late(struct net_device *dev)
 	atomic_set(&bat_priv->gw.bandwidth_down, 100);
 	atomic_set(&bat_priv->gw.bandwidth_up, 20);
 	atomic_set(&bat_priv->orig_interval, 1000);
-	atomic_set(&bat_priv->hop_penalty, 15);
+	atomic_set(&bat_priv->hop_penalty, 30);
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 	atomic_set(&bat_priv->log_level, 0);
 #endif
@@ -927,7 +927,7 @@ struct net_device *batadv_softif_create(const char *name)
 	int ret;
 
 	soft_iface = alloc_netdev(sizeof(struct batadv_priv), name,
-				  batadv_softif_init_early);
+				  NET_NAME_UNKNOWN, batadv_softif_init_early);
 	if (!soft_iface)
 		return NULL;
 

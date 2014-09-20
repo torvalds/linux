@@ -81,6 +81,16 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 		/* Send fixed rate */
 		frame_desc[3] = cpu_to_le16(RATE_INFO_ENABLE);
 		frame_desc[4] = cpu_to_le16(common->min_rate);
+
+		if (conf_is_ht40(&common->priv->hw->conf))
+			frame_desc[5] = cpu_to_le16(FULL40M_ENABLE);
+
+		if (common->vif_info[0].sgi) {
+			if (common->min_rate & 0x100) /* Only MCS rates */
+				frame_desc[4] |=
+					cpu_to_le16(ENABLE_SHORTGI_RATE);
+		}
+
 	}
 
 	frame_desc[6] |= cpu_to_le16(seq_num & 0xfff);
@@ -116,6 +126,8 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 	struct ieee80211_hdr *wh = NULL;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_bss_conf *bss = NULL;
+	struct ieee80211_hw *hw = adapter->hw;
+	struct ieee80211_conf *conf = &hw->conf;
 	struct skb_info *tx_params;
 	int status = -E2BIG;
 	__le16 *msg = NULL;
@@ -174,6 +186,11 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 		msg[4] = cpu_to_le16(RSI_11B_MODE);
 	else
 		msg[4] = cpu_to_le16((RSI_RATE_6 & 0x0f) | RSI_11G_MODE);
+
+	if (conf_is_ht40(conf)) {
+		msg[4] = cpu_to_le16(0xB | RSI_11G_MODE);
+		msg[5] = cpu_to_le16(0x6);
+	}
 
 	/* Indicate to firmware to give cfm */
 	if ((skb->data[16] == IEEE80211_STYPE_PROBE_REQ) && (!bss->assoc)) {

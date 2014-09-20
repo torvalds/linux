@@ -431,7 +431,7 @@ void ubifs_prep_grp_node(struct ubifs_info *c, void *node, int len, int last)
 
 /**
  * wbuf_timer_callback - write-buffer timer callback function.
- * @data: timer data (write-buffer descriptor)
+ * @timer: timer data (write-buffer descriptor)
  *
  * This function is called when the write-buffer timer expires.
  */

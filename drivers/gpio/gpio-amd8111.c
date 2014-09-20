@@ -232,8 +232,7 @@ out:
 
 static void __exit amd_gpio_exit(void)
 {
-	int err = gpiochip_remove(&gp.chip);
-	WARN_ON(err);
+	gpiochip_remove(&gp.chip);
 	ioport_unmap(gp.pm);
 	release_region(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
 }

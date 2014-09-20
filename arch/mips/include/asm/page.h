@@ -37,7 +37,7 @@
 
 /*
  * This is used for calculating the real page sizes
- * for FTLB or VTLB + FTLB confugrations.
+ * for FTLB or VTLB + FTLB configurations.
  */
 static inline unsigned int page_size_ftlb(unsigned int mmuextdef)
 {
@@ -223,7 +223,8 @@ static inline int pfn_valid(unsigned long pfn)
 
 #endif
 
-#define virt_to_page(kaddr)	pfn_to_page(PFN_DOWN(virt_to_phys(kaddr)))
+#define virt_to_page(kaddr)	pfn_to_page(PFN_DOWN(virt_to_phys((void *)     \
+								  (kaddr))))
 
 extern int __virt_addr_valid(const volatile void *kaddr);
 #define virt_addr_valid(kaddr)						\

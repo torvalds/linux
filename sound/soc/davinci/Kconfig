@@ -1,12 +1,29 @@
 config SND_DAVINCI_SOC
-	tristate "SoC Audio for TI DAVINCI or AM33XX/AM43XX chips"
-	depends on ARCH_DAVINCI || SOC_AM33XX || SOC_AM43XX
+	tristate "SoC Audio for TI DAVINCI"
+	depends on ARCH_DAVINCI
+
+config SND_EDMA_SOC
+	tristate "SoC Audio for Texas Instruments chips using eDMA (AM33XX/43XX)"
+	depends on SOC_AM33XX || SOC_AM43XX
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M here if you want audio support for TI SoC which uses eDMA.
+	  The following line of SoCs are supported by this platform driver:
+	  - AM335x
+	  - AM437x/AM438x
 
 config SND_DAVINCI_SOC_I2S
 	tristate
 
 config SND_DAVINCI_SOC_MCASP
-	tristate
+	tristate "Multichannel Audio Serial Port (McASP) support"
+	depends on SND_DAVINCI_SOC || SND_OMAP_SOC || SND_EDMA_SOC
+	help
+	  Say Y or M here if you want to have support for McASP IP found in
+	  various Texas Instruments SoCs like:
+	  - daVinci devices
+	  - Sitara line of SoCs (AM335x, AM438x, etc)
+	  - DRA7x devices
 
 config SND_DAVINCI_SOC_VCIF
 	tristate
@@ -18,7 +35,7 @@ config SND_DAVINCI_SOC_GENERIC_EVM
 
 config SND_AM33XX_SOC_EVM
 	tristate "SoC Audio for the AM33XX chip based boards"
-	depends on SND_DAVINCI_SOC && SOC_AM33XX && I2C
+	depends on SND_EDMA_SOC && SOC_AM33XX && I2C
 	select SND_DAVINCI_SOC_GENERIC_EVM
 	help
 	  Say Y or M if you want to add support for SoC audio on AM33XX

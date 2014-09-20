@@ -8,7 +8,7 @@ Required properties:
 
 Optional properties:
 - gpio-controller: allows lines to be used as output-only GPIOs.
-- #gpio-cells: if present, must be 0.
+- #gpio-cells: if present, must not be 0.
 
 Each led is represented as a sub-node of the ti,tca6507 device.
 

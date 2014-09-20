@@ -25,6 +25,7 @@
 #include <linux/list.h>
 #include <linux/string.h>
 #include <linux/time.h>
+#include <linux/atomic.h>
 
 struct pci_dev;
 struct pci_bus;
@@ -33,10 +34,11 @@ struct device_node;
 #ifdef CONFIG_EEH
 
 /* EEH subsystem flags */
-#define EEH_ENABLED		0x1	/* EEH enabled		*/
-#define EEH_FORCE_DISABLED	0x2	/* EEH disabled		*/
-#define EEH_PROBE_MODE_DEV	0x4	/* From PCI device	*/
-#define EEH_PROBE_MODE_DEVTREE	0x8	/* From device tree	*/
+#define EEH_ENABLED		0x01	/* EEH enabled		*/
+#define EEH_FORCE_DISABLED	0x02	/* EEH disabled		*/
+#define EEH_PROBE_MODE_DEV	0x04	/* From PCI device	*/
+#define EEH_PROBE_MODE_DEVTREE	0x08	/* From device tree	*/
+#define EEH_ENABLE_IO_FOR_LOG	0x10	/* Enable IO for log	*/
 
 /*
  * Delay for PE reset, all in ms
@@ -84,7 +86,9 @@ struct eeh_pe {
 	int freeze_count;		/* Times of froze up		*/
 	struct timeval tstamp;		/* Time on first-time freeze	*/
 	int false_positives;		/* Times of reported #ff's	*/
+	atomic_t pass_dev_cnt;		/* Count of passed through devs	*/
 	struct eeh_pe *parent;		/* Parent PE			*/
+	void *data;			/* PE auxillary data		*/
 	struct list_head child_list;	/* Link PE to the child list	*/
 	struct list_head edevs;		/* Link list of EEH devices	*/
 	struct list_head child;		/* Child PEs			*/
@@ -92,6 +96,11 @@ struct eeh_pe {
 
 #define eeh_pe_for_each_dev(pe, edev, tmp) \
 		list_for_each_entry_safe(edev, tmp, &pe->edevs, list)
+
+static inline bool eeh_pe_passed(struct eeh_pe *pe)
+{
+	return pe ? !!atomic_read(&pe->pass_dev_cnt) : false;
+}
 
 /*
  * The struct is used to trace EEH state for the associated
@@ -165,6 +174,11 @@ enum {
 #define EEH_STATE_DMA_ACTIVE	(1 << 4)	/* Active DMA		*/
 #define EEH_STATE_MMIO_ENABLED	(1 << 5)	/* MMIO enabled		*/
 #define EEH_STATE_DMA_ENABLED	(1 << 6)	/* DMA enabled		*/
+#define EEH_PE_STATE_NORMAL		0	/* Normal state		*/
+#define EEH_PE_STATE_RESET		1	/* PE reset asserted	*/
+#define EEH_PE_STATE_STOPPED_IO_DMA	2	/* Frozen PE		*/
+#define EEH_PE_STATE_STOPPED_DMA	4	/* Stopped DMA, Enabled IO */
+#define EEH_PE_STATE_UNAVAIL		5	/* Unavailable		*/
 #define EEH_RESET_DEACTIVATE	0	/* Deactivate the PE reset	*/
 #define EEH_RESET_HOT		1	/* Hot reset			*/
 #define EEH_RESET_FUNDAMENTAL	3	/* Fundamental reset		*/
@@ -194,36 +208,28 @@ extern int eeh_subsystem_flags;
 extern struct eeh_ops *eeh_ops;
 extern raw_spinlock_t confirm_error_lock;
 
-static inline bool eeh_enabled(void)
-{
-	if ((eeh_subsystem_flags & EEH_FORCE_DISABLED) ||
-	    !(eeh_subsystem_flags & EEH_ENABLED))
-		return false;
-
-	return true;
-}
-
-static inline void eeh_set_enable(bool mode)
-{
-	if (mode)
-		eeh_subsystem_flags |= EEH_ENABLED;
-	else
-		eeh_subsystem_flags &= ~EEH_ENABLED;
-}
-
-static inline void eeh_probe_mode_set(int flag)
+static inline void eeh_add_flag(int flag)
 {
 	eeh_subsystem_flags |= flag;
 }
 
-static inline int eeh_probe_mode_devtree(void)
+static inline void eeh_clear_flag(int flag)
 {
-	return (eeh_subsystem_flags & EEH_PROBE_MODE_DEVTREE);
+	eeh_subsystem_flags &= ~flag;
 }
 
-static inline int eeh_probe_mode_dev(void)
+static inline bool eeh_has_flag(int flag)
 {
-	return (eeh_subsystem_flags & EEH_PROBE_MODE_DEV);
+        return !!(eeh_subsystem_flags & flag);
+}
+
+static inline bool eeh_enabled(void)
+{
+	if (eeh_has_flag(EEH_FORCE_DISABLED) ||
+	    !eeh_has_flag(EEH_ENABLED))
+		return false;
+
+	return true;
 }
 
 static inline void eeh_serialize_lock(unsigned long *flags)
@@ -243,6 +249,7 @@ static inline void eeh_serialize_unlock(unsigned long flags)
 #define EEH_MAX_ALLOWED_FREEZES 5
 
 typedef void *(*eeh_traverse_func)(void *data, void *flag);
+void eeh_set_pe_aux_size(int size);
 int eeh_phb_pe_create(struct pci_controller *phb);
 struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb);
 struct eeh_pe *eeh_pe_get(struct eeh_dev *edev);
@@ -272,6 +279,13 @@ void eeh_add_device_late(struct pci_dev *);
 void eeh_add_device_tree_late(struct pci_bus *);
 void eeh_add_sysfs_files(struct pci_bus *);
 void eeh_remove_device(struct pci_dev *);
+int eeh_dev_open(struct pci_dev *pdev);
+void eeh_dev_release(struct pci_dev *pdev);
+struct eeh_pe *eeh_iommu_group_to_pe(struct iommu_group *group);
+int eeh_pe_set_option(struct eeh_pe *pe, int option);
+int eeh_pe_get_state(struct eeh_pe *pe);
+int eeh_pe_reset(struct eeh_pe *pe, int option);
+int eeh_pe_configure(struct eeh_pe *pe);
 
 /**
  * EEH_POSSIBLE_ERROR() -- test for possible MMIO failure.
@@ -294,8 +308,6 @@ static inline bool eeh_enabled(void)
 {
         return false;
 }
-
-static inline void eeh_set_enable(bool mode) { }
 
 static inline int eeh_init(void)
 {

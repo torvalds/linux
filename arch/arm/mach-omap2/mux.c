@@ -681,28 +681,18 @@ static ssize_t omap_mux_dbg_signal_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	char buf[OMAP_MUX_MAX_ARG_CHAR];
 	struct seq_file *seqf;
 	struct omap_mux *m;
-	unsigned long val;
-	int buf_size, ret;
+	u16 val;
+	int ret;
 	struct omap_mux_partition *partition;
 
 	if (count > OMAP_MUX_MAX_ARG_CHAR)
 		return -EINVAL;
 
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) - 1);
-
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	ret = strict_strtoul(buf, 0x10, &val);
+	ret = kstrtou16_from_user(user_buf, count, 0x10, &val);
 	if (ret < 0)
 		return ret;
-
-	if (val > 0xffff)
-		return -EINVAL;
 
 	seqf = file->private_data;
 	m = seqf->private;
@@ -711,7 +701,7 @@ static ssize_t omap_mux_dbg_signal_write(struct file *file,
 	if (!partition)
 		return -ENODEV;
 
-	omap_mux_write(partition, (u16)val, m->reg_offset);
+	omap_mux_write(partition, val, m->reg_offset);
 	*ppos += count;
 
 	return count;
@@ -917,14 +907,14 @@ static void __init omap_mux_set_cmdline_signals(void)
 
 	while ((token = strsep(&next_opt, ",")) != NULL) {
 		char *keyval, *name;
-		unsigned long val;
+		u16 val;
 
 		keyval = token;
 		name = strsep(&keyval, "=");
 		if (name) {
 			int res;
 
-			res = strict_strtoul(keyval, 0x10, &val);
+			res = kstrtou16(keyval, 0x10, &val);
 			if (res < 0)
 				continue;
 

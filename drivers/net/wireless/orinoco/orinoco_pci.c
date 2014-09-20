@@ -210,7 +210,7 @@ static void orinoco_pci_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(orinoco_pci_id_table) = {
+static const struct pci_device_id orinoco_pci_id_table[] = {
 	/* Intersil Prism 3 */
 	{0x1260, 0x3872, PCI_ANY_ID, PCI_ANY_ID,},
 	/* Intersil Prism 2.5 */

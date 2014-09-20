@@ -22,9 +22,6 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include <core/object.h>
-#include <core/class.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nv10_fence.h"
@@ -53,14 +50,18 @@ nv10_fence_sync(struct nouveau_fence *fence,
 u32
 nv10_fence_read(struct nouveau_channel *chan)
 {
-	return nv_ro32(chan->object, 0x0048);
+	return nvif_rd32(chan, 0x0048);
 }
 
 void
 nv10_fence_context_del(struct nouveau_channel *chan)
 {
 	struct nv10_fence_chan *fctx = chan->fence;
+	int i;
 	nouveau_fence_context_del(&fctx->base);
+	for (i = 0; i < ARRAY_SIZE(fctx->head); i++)
+		nvif_object_fini(&fctx->head[i]);
+	nvif_object_fini(&fctx->sema);
 	chan->fence = NULL;
 	kfree(fctx);
 }

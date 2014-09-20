@@ -453,7 +453,7 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 		base = dt_mem_next_cell(dt_root_addr_cells, &prop);
 		size = dt_mem_next_cell(dt_root_size_cells, &prop);
 
-		if (base && size &&
+		if (size &&
 		    early_init_dt_reserve_memory_arch(base, size, nomap) == 0)
 			pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %ld MiB\n",
 				uname, &base, (unsigned long)size / SZ_1M);
@@ -923,24 +923,24 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 }
 
 #ifdef CONFIG_HAVE_MEMBLOCK
+#define MAX_PHYS_ADDR	((phys_addr_t)~0)
+
 void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	const u64 phys_offset = __pa(PAGE_OFFSET);
 	base &= PAGE_MASK;
 	size &= PAGE_MASK;
 
-	if (sizeof(phys_addr_t) < sizeof(u64)) {
-		if (base > ULONG_MAX) {
-			pr_warning("Ignoring memory block 0x%llx - 0x%llx\n",
-					base, base + size);
-			return;
-		}
+	if (base > MAX_PHYS_ADDR) {
+		pr_warning("Ignoring memory block 0x%llx - 0x%llx\n",
+				base, base + size);
+		return;
+	}
 
-		if (base + size > ULONG_MAX) {
-			pr_warning("Ignoring memory range 0x%lx - 0x%llx\n",
-					ULONG_MAX, base + size);
-			size = ULONG_MAX - base;
-		}
+	if (base + size > MAX_PHYS_ADDR) {
+		pr_warning("Ignoring memory range 0x%lx - 0x%llx\n",
+				ULONG_MAX, base + size);
+		size = MAX_PHYS_ADDR - base;
 	}
 
 	if (base + size < phys_offset) {

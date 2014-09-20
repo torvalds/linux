@@ -36,8 +36,8 @@ static struct nouveau_oclass
 gm107_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0xa140, &nouveau_object_ofuncs },
-	{ 0xb097, &nouveau_object_ofuncs },
-	{ 0xb0c0, &nouveau_object_ofuncs },
+	{ MAXWELL_A, &nvc0_fermi_ofuncs, nvc0_graph_9097_omthds },
+	{ MAXWELL_COMPUTE_A, &nouveau_object_ofuncs, nvc0_graph_90c0_omthds },
 	{}
 };
 
@@ -425,6 +425,9 @@ gm107_graph_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x400134, 0xffffffff);
 
 	nv_wr32(priv, 0x400054, 0x2c350f63);
+
+	nvc0_graph_zbc_init(priv);
+
 	return nvc0_graph_init_ctxctl(priv);
 }
 
@@ -462,4 +465,5 @@ gm107_graph_oclass = &(struct nvc0_graph_oclass) {
 	.mmio = gm107_graph_pack_mmio,
 	.fecs.ucode = 0 ? &gm107_graph_fecs_ucode : NULL,
 	.gpccs.ucode = &gm107_graph_gpccs_ucode,
+	.ppc_nr = 2,
 }.base;

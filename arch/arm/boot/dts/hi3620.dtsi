@@ -33,6 +33,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "hisilicon,hi3620-smp";
 
 		cpu@0 {
 			device_type = "cpu";

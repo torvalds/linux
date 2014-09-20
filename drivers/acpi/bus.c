@@ -177,16 +177,6 @@ void acpi_bus_detach_private_data(acpi_handle handle)
 }
 EXPORT_SYMBOL_GPL(acpi_bus_detach_private_data);
 
-void acpi_bus_no_hotplug(acpi_handle handle)
-{
-	struct acpi_device *adev = NULL;
-
-	acpi_bus_get_device(handle, &adev);
-	if (adev)
-		adev->flags.no_hotplug = true;
-}
-EXPORT_SYMBOL_GPL(acpi_bus_no_hotplug);
-
 static void acpi_print_osc_error(acpi_handle handle,
 	struct acpi_osc_context *context, char *error)
 {
@@ -476,9 +466,6 @@ static int __init acpi_bus_init_irq(void)
 
 	return 0;
 }
-
-u8 acpi_gbl_permanent_mmap;
-
 
 void __init acpi_early_init(void)
 {

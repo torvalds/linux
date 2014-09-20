@@ -2,9 +2,9 @@
 # USB gadget drivers
 #
 
-ccflags-y			:= -I$(PWD)/drivers/usb/gadget/
-ccflags-y			+= -I$(PWD)/drivers/usb/gadget/udc/
-ccflags-y			+= -I$(PWD)/drivers/usb/gadget/function/
+ccflags-y			:= -Idrivers/usb/gadget/
+ccflags-y			+= -Idrivers/usb/gadget/udc/
+ccflags-y			+= -Idrivers/usb/gadget/function/
 
 g_zero-y			:= zero.o
 g_audio-y			:= audio.o

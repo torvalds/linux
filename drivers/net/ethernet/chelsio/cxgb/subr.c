@@ -522,7 +522,7 @@ static const struct board_info t1_board[] = {
 
 };
 
-DEFINE_PCI_DEVICE_TABLE(t1_pci_tbl) = {
+const struct pci_device_id t1_pci_tbl[] = {
 	CH_DEVICE(8, 0, CH_BRD_T110_1CU),
 	CH_DEVICE(8, 1, CH_BRD_T110_1CU),
 	CH_DEVICE(7, 0, CH_BRD_N110_1F),

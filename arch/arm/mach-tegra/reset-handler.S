@@ -14,14 +14,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/linkage.h>
 
-#include <asm/cache.h>
+#include <soc/tegra/fuse.h>
+
 #include <asm/asm-offsets.h>
+#include <asm/cache.h>
 
 #include "flowctrl.h"
-#include "fuse.h"
 #include "iomap.h"
 #include "reset.h"
 #include "sleep.h"

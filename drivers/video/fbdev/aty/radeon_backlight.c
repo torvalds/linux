@@ -123,13 +123,7 @@ static int radeon_bl_update_status(struct backlight_device *bd)
 	return 0;
 }
 
-static int radeon_bl_get_brightness(struct backlight_device *bd)
-{
-	return bd->props.brightness;
-}
-
 static const struct backlight_ops radeon_bl_data = {
-	.get_brightness = radeon_bl_get_brightness,
 	.update_status	= radeon_bl_update_status,
 };
 

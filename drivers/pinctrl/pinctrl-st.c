@@ -930,11 +930,6 @@ static int st_pmx_enable(struct pinctrl_dev *pctldev, unsigned fselector,
 	return 0;
 }
 
-static void st_pmx_disable(struct pinctrl_dev *pctldev, unsigned selector,
-		unsigned group)
-{
-}
-
 static int st_pmx_set_gpio_direction(struct pinctrl_dev *pctldev,
 			struct pinctrl_gpio_range *range, unsigned gpio,
 			bool input)
@@ -957,7 +952,6 @@ static struct pinmux_ops st_pmxops = {
 	.get_function_name	= st_pmx_get_fname,
 	.get_function_groups	= st_pmx_get_groups,
 	.enable			= st_pmx_enable,
-	.disable		= st_pmx_disable,
 	.gpio_set_direction	= st_pmx_set_gpio_direction,
 };
 
@@ -1178,9 +1172,7 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 	const __be32 *list;
 	struct property *pp;
 	struct st_pinconf *conf;
-	phandle phandle;
 	struct device_node *pins;
-	u32 pin;
 	int i = 0, npins = 0, nr_props;
 
 	pins = of_get_child_by_name(np, "st,pins");
@@ -1218,8 +1210,8 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 		conf = &grp->pin_conf[i];
 
 		/* bank & offset */
-		phandle = be32_to_cpup(list++);
-		pin = be32_to_cpup(list++);
+		be32_to_cpup(list++);
+		be32_to_cpup(list++);
 		conf->pin = of_get_named_gpio(pins, pp->name, 0);
 		conf->name = pp->name;
 		grp->pins[i] = conf->pin;
@@ -1256,7 +1248,7 @@ static int st_pctl_parse_functions(struct device_node *np,
 	func = &info->functions[index];
 	func->name = np->name;
 	func->ngroups = of_get_child_count(np);
-	if (func->ngroups <= 0) {
+	if (func->ngroups == 0) {
 		dev_err(info->dev, "No groups defined\n");
 		return -EINVAL;
 	}
@@ -1454,6 +1446,7 @@ static struct irq_chip st_gpio_irqchip = {
 	.irq_mask	= st_gpio_irq_mask,
 	.irq_unmask	= st_gpio_irq_unmask,
 	.irq_set_type	= st_gpio_irq_set_type,
+	.flags		= IRQCHIP_SKIP_SET_WAKE,
 };
 
 static int st_gpiolib_register_bank(struct st_pinctrl *info,

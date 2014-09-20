@@ -273,7 +273,7 @@ static int mmu_audit_set(const char *val, const struct kernel_param *kp)
 	int ret;
 	unsigned long enable;
 
-	ret = strict_strtoul(val, 10, &enable);
+	ret = kstrtoul(val, 10, &enable);
 	if (ret < 0)
 		return -EINVAL;
 

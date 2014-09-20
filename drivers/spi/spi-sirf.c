@@ -312,6 +312,8 @@ static int spi_sirfsoc_cmd_transfer(struct spi_device *spi,
 	u32 cmd;
 
 	sspi = spi_master_get_devdata(spi->master);
+	writel(SIRFSOC_SPI_FIFO_RESET, sspi->base + SIRFSOC_SPI_TXFIFO_OP);
+	writel(SIRFSOC_SPI_FIFO_START, sspi->base + SIRFSOC_SPI_TXFIFO_OP);
 	memcpy(&cmd, sspi->tx, t->len);
 	if (sspi->word_width == 1 && !(spi->mode & SPI_LSB_FIRST))
 		cmd = cpu_to_be32(cmd) >>
@@ -438,7 +440,8 @@ static void spi_sirfsoc_pio_transfer(struct spi_device *spi,
 			sspi->tx_word(sspi);
 		writel(SIRFSOC_SPI_TXFIFO_EMPTY_INT_EN |
 			SIRFSOC_SPI_TX_UFLOW_INT_EN |
-			SIRFSOC_SPI_RX_OFLOW_INT_EN,
+			SIRFSOC_SPI_RX_OFLOW_INT_EN |
+			SIRFSOC_SPI_RX_IO_DMA_INT_EN,
 			sspi->base + SIRFSOC_SPI_INT_EN);
 		writel(SIRFSOC_SPI_RX_EN | SIRFSOC_SPI_TX_EN,
 			sspi->base + SIRFSOC_SPI_TX_RX_EN);

@@ -20,25 +20,6 @@
 
 static void (*exynos_enter_aftr)(void);
 
-static int idle_finisher(unsigned long flags)
-{
-	exynos_enter_aftr();
-	cpu_do_idle();
-
-	return 1;
-}
-
-static int exynos_enter_core0_aftr(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv,
-				int index)
-{
-	cpu_pm_enter();
-	cpu_suspend(0, idle_finisher);
-	cpu_pm_exit();
-
-	return index;
-}
-
 static int exynos_enter_lowpower(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
@@ -51,8 +32,10 @@ static int exynos_enter_lowpower(struct cpuidle_device *dev,
 
 	if (new_index == 0)
 		return arm_cpuidle_simple_enter(dev, drv, new_index);
-	else
-		return exynos_enter_core0_aftr(dev, drv, new_index);
+
+	exynos_enter_aftr();
+
+	return new_index;
 }
 
 static struct cpuidle_driver exynos_idle_driver = {

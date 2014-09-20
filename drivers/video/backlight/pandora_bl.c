@@ -100,15 +100,9 @@ done:
 	return 0;
 }
 
-static int pandora_backlight_get_brightness(struct backlight_device *bl)
-{
-	return bl->props.brightness;
-}
-
 static const struct backlight_ops pandora_backlight_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 	.update_status	= pandora_backlight_update_status,
-	.get_brightness	= pandora_backlight_get_brightness,
 };
 
 static int pandora_backlight_probe(struct platform_device *pdev)

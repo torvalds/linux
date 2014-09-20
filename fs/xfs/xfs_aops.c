@@ -240,7 +240,7 @@ xfs_end_io(
 
 done:
 	if (error)
-		ioend->io_error = -error;
+		ioend->io_error = error;
 	xfs_destroy_ioend(ioend);
 }
 
@@ -308,14 +308,14 @@ xfs_map_blocks(
 	int			nimaps = 1;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return -XFS_ERROR(EIO);
+		return -EIO;
 
 	if (type == XFS_IO_UNWRITTEN)
 		bmapi_flags |= XFS_BMAPI_IGSTATE;
 
 	if (!xfs_ilock_nowait(ip, XFS_ILOCK_SHARED)) {
 		if (nonblocking)
-			return -XFS_ERROR(EAGAIN);
+			return -EAGAIN;
 		xfs_ilock(ip, XFS_ILOCK_SHARED);
 	}
 
@@ -332,14 +332,14 @@ xfs_map_blocks(
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 	if (error)
-		return -XFS_ERROR(error);
+		return error;
 
 	if (type == XFS_IO_DELALLOC &&
 	    (!nimaps || isnullstartblock(imap->br_startblock))) {
 		error = xfs_iomap_write_allocate(ip, offset, imap);
 		if (!error)
 			trace_xfs_map_blocks_alloc(ip, offset, count, type, imap);
-		return -XFS_ERROR(error);
+		return error;
 	}
 
 #ifdef DEBUG
@@ -502,7 +502,7 @@ xfs_submit_ioend(
 		 * time.
 		 */
 		if (fail) {
-			ioend->io_error = -fail;
+			ioend->io_error = fail;
 			xfs_finish_ioend(ioend);
 			continue;
 		}
@@ -1253,7 +1253,7 @@ __xfs_get_blocks(
 	int			new = 0;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return -XFS_ERROR(EIO);
+		return -EIO;
 
 	offset = (xfs_off_t)iblock << inode->i_blkbits;
 	ASSERT(bh_result->b_size >= (1 << inode->i_blkbits));
@@ -1302,7 +1302,7 @@ __xfs_get_blocks(
 			error = xfs_iomap_write_direct(ip, offset, size,
 						       &imap, nimaps);
 			if (error)
-				return -error;
+				return error;
 			new = 1;
 		} else {
 			/*
@@ -1415,7 +1415,7 @@ __xfs_get_blocks(
 
 out_unlock:
 	xfs_iunlock(ip, lockmode);
-	return -error;
+	return error;
 }
 
 int
@@ -1753,11 +1753,72 @@ xfs_vm_readpages(
 	return mpage_readpages(mapping, pages, nr_pages, xfs_get_blocks);
 }
 
+/*
+ * This is basically a copy of __set_page_dirty_buffers() with one
+ * small tweak: buffers beyond EOF do not get marked dirty. If we mark them
+ * dirty, we'll never be able to clean them because we don't write buffers
+ * beyond EOF, and that means we can't invalidate pages that span EOF
+ * that have been marked dirty. Further, the dirty state can leak into
+ * the file interior if the file is extended, resulting in all sorts of
+ * bad things happening as the state does not match the underlying data.
+ *
+ * XXX: this really indicates that bufferheads in XFS need to die. Warts like
+ * this only exist because of bufferheads and how the generic code manages them.
+ */
+STATIC int
+xfs_vm_set_page_dirty(
+	struct page		*page)
+{
+	struct address_space	*mapping = page->mapping;
+	struct inode		*inode = mapping->host;
+	loff_t			end_offset;
+	loff_t			offset;
+	int			newly_dirty;
+
+	if (unlikely(!mapping))
+		return !TestSetPageDirty(page);
+
+	end_offset = i_size_read(inode);
+	offset = page_offset(page);
+
+	spin_lock(&mapping->private_lock);
+	if (page_has_buffers(page)) {
+		struct buffer_head *head = page_buffers(page);
+		struct buffer_head *bh = head;
+
+		do {
+			if (offset < end_offset)
+				set_buffer_dirty(bh);
+			bh = bh->b_this_page;
+			offset += 1 << inode->i_blkbits;
+		} while (bh != head);
+	}
+	newly_dirty = !TestSetPageDirty(page);
+	spin_unlock(&mapping->private_lock);
+
+	if (newly_dirty) {
+		/* sigh - __set_page_dirty() is static, so copy it here, too */
+		unsigned long flags;
+
+		spin_lock_irqsave(&mapping->tree_lock, flags);
+		if (page->mapping) {	/* Race with truncate? */
+			WARN_ON_ONCE(!PageUptodate(page));
+			account_page_dirtied(page, mapping);
+			radix_tree_tag_set(&mapping->page_tree,
+					page_index(page), PAGECACHE_TAG_DIRTY);
+		}
+		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+	}
+	return newly_dirty;
+}
+
 const struct address_space_operations xfs_address_space_operations = {
 	.readpage		= xfs_vm_readpage,
 	.readpages		= xfs_vm_readpages,
 	.writepage		= xfs_vm_writepage,
 	.writepages		= xfs_vm_writepages,
+	.set_page_dirty		= xfs_vm_set_page_dirty,
 	.releasepage		= xfs_vm_releasepage,
 	.invalidatepage		= xfs_vm_invalidatepage,
 	.write_begin		= xfs_vm_write_begin,
