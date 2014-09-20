@@ -1000,6 +1000,7 @@ struct net_device *fm10k_alloc_netdev(void)
 
 	/* set net device and ethtool ops */
 	dev->netdev_ops = &fm10k_netdev_ops;
+	fm10k_set_ethtool_ops(dev);
 
 	/* configure default debug level */
 	interface = netdev_priv(dev);

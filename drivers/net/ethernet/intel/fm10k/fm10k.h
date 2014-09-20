@@ -424,4 +424,7 @@ void fm10k_restore_rx_state(struct fm10k_intfc *);
 void fm10k_reset_rx_state(struct fm10k_intfc *);
 int fm10k_open(struct net_device *netdev);
 int fm10k_close(struct net_device *netdev);
+
+/* Ethtool */
+void fm10k_set_ethtool_ops(struct net_device *dev);
 #endif /* _FM10K_H_ */
