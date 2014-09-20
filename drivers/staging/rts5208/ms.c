@@ -862,8 +862,8 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 					0, 0, buf, 64 * 512);
 		if (retval == STATUS_SUCCESS)
 			break;
-		else
-			rtsx_clear_ms_error(chip);
+
+		rtsx_clear_ms_error(chip);
 	}
 	if (retval != STATUS_SUCCESS) {
 		kfree(buf);
