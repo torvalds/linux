@@ -13,6 +13,11 @@
 #include "greybus.h"
 #include "svc_msg.h"
 
+/* Memory sizes for the buffers sent to/from the ES1 controller */
+#define ES1_SVC_MSG_SIZE	2048
+#define ES1_GBUF_MSG_SIZE	PAGE_SIZE
+
+
 static const struct usb_device_id id_table[] = {
 	/* Made up numbers for the SVC USB Bridge in ES1 */
 	{ USB_DEVICE(0xffff, 0x0001) },
@@ -89,6 +94,11 @@ static int alloc_gbuf(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 {
 	struct es1_ap_dev *es1 = hd_to_es1(gbuf->gdev->hd);
 	u8 *buffer;
+
+	if (size > ES1_GBUF_MSG_SIZE) {
+		pr_err("guf was asked to be bigger than %d!\n",
+		       ES1_GBUF_MSG_SIZE);
+	}
 
 	/* For ES2 we need to figure out what cport is going to what endpoint,
 	 * but for ES1, it's so dirt simple, we don't have a choice...
@@ -371,7 +381,6 @@ static int ap_probe(struct usb_interface *interface,
 	bool bulk_out_found = false;
 	int retval = -ENOMEM;
 	int i;
-	int buffer_size = 0;
 	u8 svc_interval = 0;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
@@ -398,7 +407,6 @@ static int ap_probe(struct usb_interface *interface,
 
 		if (usb_endpoint_is_int_in(endpoint)) {
 			es1->svc_endpoint = endpoint->bEndpointAddress;
-			buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
 			svc_interval = endpoint->bInterval;
 			int_in_found = true;
 		} else if (usb_endpoint_is_bulk_in(endpoint)) {
@@ -421,7 +429,7 @@ static int ap_probe(struct usb_interface *interface,
 	}
 
 	/* Create our buffer and URB to get SVC messages, and start it up */
-	es1->svc_buffer = kmalloc(buffer_size, GFP_KERNEL);
+	es1->svc_buffer = kmalloc(ES1_SVC_MSG_SIZE, GFP_KERNEL);
 	if (!es1->svc_buffer)
 		goto error;
 
@@ -431,7 +439,7 @@ static int ap_probe(struct usb_interface *interface,
 
 	usb_fill_int_urb(es1->svc_urb, udev,
 			 usb_rcvintpipe(udev, es1->svc_endpoint),
-			 es1->svc_buffer, buffer_size, svc_callback,
+			 es1->svc_buffer, ES1_SVC_MSG_SIZE, svc_callback,
 			 es1, svc_interval);
 	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
 	if (retval)
@@ -445,7 +453,7 @@ static int ap_probe(struct usb_interface *interface,
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
 			goto error_bulk_in_urb;
-		buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
+		buffer = kmalloc(ES1_GBUF_MSG_SIZE, GFP_KERNEL);
 		if (!buffer)
 			goto error_bulk_in_urb;
 
