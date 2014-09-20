@@ -1095,6 +1095,7 @@ struct dvb_frontend *cx24123_attach(const struct cx24123_config *config,
 		sizeof(state->tuner_i2c_adapter.name));
 	state->tuner_i2c_adapter.algo      = &cx24123_tuner_i2c_algo;
 	state->tuner_i2c_adapter.algo_data = NULL;
+	state->tuner_i2c_adapter.dev.parent = i2c->dev.parent;
 	i2c_set_adapdata(&state->tuner_i2c_adapter, state);
 	if (i2c_add_adapter(&state->tuner_i2c_adapter) < 0) {
 		err("tuner i2c bus could not be initialized\n");
