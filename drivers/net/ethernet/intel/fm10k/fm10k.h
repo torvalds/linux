@@ -199,6 +199,9 @@ struct fm10k_q_vector {
 	struct napi_struct napi;
 	char name[IFNAMSIZ + 9];
 
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *dbg_q_vector;
+#endif /* CONFIG_DEBUG_FS */
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 
 	/* for dynamic allocation of rings associated with this q_vector */
@@ -307,6 +310,10 @@ struct fm10k_intfc {
 	/* VXLAN port tracking information */
 	struct list_head vxlan_port;
 
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *dbg_intfc;
+
+#endif /* CONFIG_DEBUG_FS */
 #ifdef CONFIG_DCB
 	u8 pfc_en;
 #endif
@@ -467,6 +474,23 @@ int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx, int rate,
 			int unused);
 int fm10k_ndo_get_vf_config(struct net_device *netdev,
 			    int vf_idx, struct ifla_vf_info *ivi);
+
+/* DebugFS */
+#ifdef CONFIG_DEBUG_FS
+void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector);
+void fm10k_dbg_q_vector_exit(struct fm10k_q_vector *q_vector);
+void fm10k_dbg_intfc_init(struct fm10k_intfc *interface);
+void fm10k_dbg_intfc_exit(struct fm10k_intfc *interface);
+void fm10k_dbg_init(void);
+void fm10k_dbg_exit(void);
+#else
+static inline void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector) {}
+static inline void fm10k_dbg_q_vector_exit(struct fm10k_q_vector *q_vector) {}
+static inline void fm10k_dbg_intfc_init(struct fm10k_intfc *interface) {}
+static inline void fm10k_dbg_intfc_exit(struct fm10k_intfc *interface) {}
+static inline void fm10k_dbg_init(void) {}
+static inline void fm10k_dbg_exit(void) {}
+#endif /* CONFIG_DEBUG_FS */
 
 /* DCB */
 void fm10k_dcbnl_set_ops(struct net_device *dev);

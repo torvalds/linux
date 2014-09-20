@@ -1690,6 +1690,9 @@ static int fm10k_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_sw_init;
 
+	/* enable debugfs support */
+	fm10k_dbg_intfc_init(interface);
+
 	err = fm10k_init_queueing_scheme(interface);
 	if (err)
 		goto err_sw_init;
@@ -1785,6 +1788,9 @@ static void fm10k_remove(struct pci_dev *pdev)
 
 	/* free interrupts */
 	fm10k_clear_queueing_scheme(interface);
+
+	/* remove any debugfs interfaces */
+	fm10k_dbg_intfc_exit(interface);
 
 	iounmap(interface->uc_addr);
 

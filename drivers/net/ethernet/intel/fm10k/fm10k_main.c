@@ -52,6 +52,8 @@ static int __init fm10k_init_module(void)
 	pr_info("%s - version %s\n", fm10k_driver_string, fm10k_driver_version);
 	pr_info("%s\n", fm10k_copyright);
 
+	fm10k_dbg_init();
+
 	return fm10k_register_pci_driver();
 }
 module_init(fm10k_init_module);
@@ -65,6 +67,8 @@ module_init(fm10k_init_module);
 static void __exit fm10k_exit_module(void)
 {
 	fm10k_unregister_pci_driver();
+
+	fm10k_dbg_exit();
 }
 module_exit(fm10k_exit_module);
 
@@ -1617,6 +1621,8 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 		ring++;
 	}
 
+	fm10k_dbg_q_vector_init(q_vector);
+
 	return 0;
 }
 
@@ -1633,6 +1639,8 @@ static void fm10k_free_q_vector(struct fm10k_intfc *interface, int v_idx)
 {
 	struct fm10k_q_vector *q_vector = interface->q_vector[v_idx];
 	struct fm10k_ring *ring;
+
+	fm10k_dbg_q_vector_exit(q_vector);
 
 	fm10k_for_each_ring(ring, q_vector->tx)
 		interface->tx_ring[ring->queue_index] = NULL;
