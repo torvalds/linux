@@ -1237,7 +1237,7 @@ static void mld_update_qri(struct inet6_dev *idev,
 }
 
 static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
-			  unsigned long *max_delay)
+			  unsigned long *max_delay, bool v1_query)
 {
 	unsigned long mldv1_md;
 
@@ -1245,11 +1245,32 @@ static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
 	if (mld_in_v2_mode_only(idev))
 		return -EINVAL;
 
-	/* MLDv1 router present */
 	mldv1_md = ntohs(mld->mld_maxdelay);
+
+	/* When in MLDv1 fallback and a MLDv2 router start-up being
+	 * unaware of current MLDv1 operation, the MRC == MRD mapping
+	 * only works when the exponential algorithm is not being
+	 * used (as MLDv1 is unaware of such things).
+	 *
+	 * According to the RFC author, the MLDv2 implementations
+	 * he's aware of all use a MRC < 32768 on start up queries.
+	 *
+	 * Thus, should we *ever* encounter something else larger
+	 * than that, just assume the maximum possible within our
+	 * reach.
+	 */
+	if (!v1_query)
+		mldv1_md = min(mldv1_md, MLDV1_MRD_MAX_COMPAT);
+
 	*max_delay = max(msecs_to_jiffies(mldv1_md), 1UL);
 
-	mld_set_v1_mode(idev);
+	/* MLDv1 router present: we need to go into v1 mode *only*
+	 * when an MLDv1 query is received as per section 9.12. of
+	 * RFC3810! And we know from RFC2710 section 3.7 that MLDv1
+	 * queries MUST be of exactly 24 octets.
+	 */
+	if (v1_query)
+		mld_set_v1_mode(idev);
 
 	/* cancel MLDv2 report timer */
 	mld_gq_stop_timer(idev);
@@ -1264,10 +1285,6 @@ static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
 static int mld_process_v2(struct inet6_dev *idev, struct mld2_query *mld,
 			  unsigned long *max_delay)
 {
-	/* hosts need to stay in MLDv1 mode, discard MLDv2 queries */
-	if (mld_in_v1_mode(idev))
-		return -EINVAL;
-
 	*max_delay = max(msecs_to_jiffies(mldv2_mrc(mld)), 1UL);
 
 	mld_update_qrv(idev, mld);
@@ -1324,8 +1341,11 @@ int igmp6_event_query(struct sk_buff *skb)
 	    !(group_type&IPV6_ADDR_MULTICAST))
 		return -EINVAL;
 
-	if (len == MLD_V1_QUERY_LEN) {
-		err = mld_process_v1(idev, mld, &max_delay);
+	if (len < MLD_V1_QUERY_LEN) {
+		return -EINVAL;
+	} else if (len == MLD_V1_QUERY_LEN || mld_in_v1_mode(idev)) {
+		err = mld_process_v1(idev, mld, &max_delay,
+				     len == MLD_V1_QUERY_LEN);
 		if (err < 0)
 			return err;
 	} else if (len >= MLD_V2_QUERY_LEN_MIN) {
@@ -1357,8 +1377,9 @@ int igmp6_event_query(struct sk_buff *skb)
 			mlh2 = (struct mld2_query *)skb_transport_header(skb);
 			mark = 1;
 		}
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	read_lock_bh(&idev->lock);
 	if (group_type == IPV6_ADDR_ANY) {
