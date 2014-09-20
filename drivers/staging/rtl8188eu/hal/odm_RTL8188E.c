@@ -222,25 +222,18 @@ void rtl88eu_dm_update_rx_idle_ant(struct odm_dm_struct *dm_odm, u8 ant)
 	dm_fat_tbl->RxIdleAnt = ant;
 }
 
-static void odm_UpdateTxAnt_88E(struct odm_dm_struct *dm_odm, u8 Ant, u32 MacId)
+static void update_tx_ant_88eu(struct odm_dm_struct *dm_odm, u8 ant, u32 mac_id)
 {
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
-	u8	TargetAnt;
+	u8 target_ant;
 
-	if (Ant == MAIN_ANT)
-		TargetAnt = MAIN_ANT_CG_TRX;
+	if (ant == MAIN_ANT)
+		target_ant = MAIN_ANT_CG_TRX;
 	else
-		TargetAnt = AUX_ANT_CG_TRX;
-	dm_fat_tbl->antsel_a[MacId] = TargetAnt&BIT0;
-	dm_fat_tbl->antsel_b[MacId] = (TargetAnt&BIT1)>>1;
-	dm_fat_tbl->antsel_c[MacId] = (TargetAnt&BIT2)>>2;
-
-	ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
-		     ("Tx from TxInfo, TargetAnt=%s\n",
-		     (Ant == MAIN_ANT) ? "MAIN_ANT" : "AUX_ANT"));
-	ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
-		     ("antsel_tr_mux=3'b%d%d%d\n",
-		     dm_fat_tbl->antsel_c[MacId], dm_fat_tbl->antsel_b[MacId], dm_fat_tbl->antsel_a[MacId]));
+		target_ant = AUX_ANT_CG_TRX;
+	dm_fat_tbl->antsel_a[mac_id] = target_ant&BIT0;
+	dm_fat_tbl->antsel_b[mac_id] = (target_ant&BIT1)>>1;
+	dm_fat_tbl->antsel_c[mac_id] = (target_ant&BIT2)>>2;
 }
 
 void ODM_SetTxAntByTxInfo_88E(struct odm_dm_struct *dm_odm, u8 *pDesc, u8 macId)
@@ -322,7 +315,7 @@ static void odm_HWAntDiv(struct odm_dm_struct *dm_odm)
 			}
 			/* 2 Select TRX Antenna */
 			if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV)
-				odm_UpdateTxAnt_88E(dm_odm, TargetAnt, i);
+				update_tx_ant_88eu(dm_odm, TargetAnt, i);
 		}
 		dm_fat_tbl->MainAnt_Sum[i] = 0;
 		dm_fat_tbl->AuxAnt_Sum[i] = 0;
