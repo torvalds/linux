@@ -15,12 +15,11 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <linux/pm.h>
 #include <linux/regulator/consumer.h>
@@ -136,7 +135,7 @@ struct mt9p031 {
 	struct aptina_pll pll;
 	unsigned int clk_div;
 	bool use_pll;
-	int reset;
+	struct gpio_desc *reset;
 
 	struct v4l2_ctrl_handler ctrls;
 	struct v4l2_ctrl *blc_auto;
@@ -309,9 +308,9 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 {
 	int ret;
 
-	/* Ensure RESET_BAR is low */
-	if (gpio_is_valid(mt9p031->reset)) {
-		gpio_set_value(mt9p031->reset, 0);
+	/* Ensure RESET_BAR is active */
+	if (mt9p031->reset) {
+		gpiod_set_value(mt9p031->reset, 1);
 		usleep_range(1000, 2000);
 	}
 
@@ -332,8 +331,8 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 	}
 
 	/* Now RESET_BAR must be high */
-	if (gpio_is_valid(mt9p031->reset)) {
-		gpio_set_value(mt9p031->reset, 1);
+	if (mt9p031->reset) {
+		gpiod_set_value(mt9p031->reset, 0);
 		usleep_range(1000, 2000);
 	}
 
@@ -342,8 +341,8 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 
 static void mt9p031_power_off(struct mt9p031 *mt9p031)
 {
-	if (gpio_is_valid(mt9p031->reset)) {
-		gpio_set_value(mt9p031->reset, 0);
+	if (mt9p031->reset) {
+		gpiod_set_value(mt9p031->reset, 1);
 		usleep_range(1000, 2000);
 	}
 
@@ -1023,7 +1022,6 @@ mt9p031_get_pdata(struct i2c_client *client)
 	if (!pdata)
 		goto done;
 
-	pdata->reset = of_get_named_gpio(client->dev.of_node, "reset-gpios", 0);
 	of_property_read_u32(np, "input-clock-frequency", &pdata->ext_freq);
 	of_property_read_u32(np, "pixel-clock-frequency", &pdata->target_freq);
 
@@ -1060,7 +1058,6 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->output_control	= MT9P031_OUTPUT_CONTROL_DEF;
 	mt9p031->mode2 = MT9P031_READ_MODE_2_ROW_BLC;
 	mt9p031->model = did->driver_data;
-	mt9p031->reset = -1;
 
 	mt9p031->regulators[0].supply = "vdd";
 	mt9p031->regulators[1].supply = "vdd_io";
@@ -1136,14 +1133,8 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->format.field = V4L2_FIELD_NONE;
 	mt9p031->format.colorspace = V4L2_COLORSPACE_SRGB;
 
-	if (gpio_is_valid(pdata->reset)) {
-		ret = devm_gpio_request_one(&client->dev, pdata->reset,
-					    GPIOF_OUT_INIT_LOW, "mt9p031_rst");
-		if (ret < 0)
-			goto done;
-
-		mt9p031->reset = pdata->reset;
-	}
+	mt9p031->reset = devm_gpiod_get_optional(&client->dev, "reset",
+						 GPIOD_OUT_HIGH);
 
 	ret = mt9p031_clk_setup(mt9p031);
 	if (ret)
