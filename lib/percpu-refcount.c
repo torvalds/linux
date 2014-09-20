@@ -25,15 +25,15 @@
  * works.
  *
  * Converting to non percpu mode is done with some RCUish stuff in
- * percpu_ref_kill. Additionally, we need a bias value so that the atomic_t
- * can't hit 0 before we've added up all the percpu refs.
+ * percpu_ref_kill. Additionally, we need a bias value so that the
+ * atomic_long_t can't hit 0 before we've added up all the percpu refs.
  */
 
-#define PCPU_COUNT_BIAS		(1U << 31)
+#define PCPU_COUNT_BIAS		(1LU << (BITS_PER_LONG - 1))
 
-static unsigned __percpu *pcpu_count_ptr(struct percpu_ref *ref)
+static unsigned long __percpu *pcpu_count_ptr(struct percpu_ref *ref)
 {
-	return (unsigned __percpu *)(ref->pcpu_count_ptr & ~PCPU_REF_DEAD);
+	return (unsigned long __percpu *)(ref->pcpu_count_ptr & ~PCPU_REF_DEAD);
 }
 
 /**
@@ -43,7 +43,7 @@ static unsigned __percpu *pcpu_count_ptr(struct percpu_ref *ref)
  * @gfp: allocation mask to use
  *
  * Initializes the refcount in single atomic counter mode with a refcount of 1;
- * analagous to atomic_set(ref, 1).
+ * analagous to atomic_long_set(ref, 1).
  *
  * Note that @release must not sleep - it may potentially be called from RCU
  * callback context by percpu_ref_kill().
@@ -51,9 +51,9 @@ static unsigned __percpu *pcpu_count_ptr(struct percpu_ref *ref)
 int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release,
 		    gfp_t gfp)
 {
-	atomic_set(&ref->count, 1 + PCPU_COUNT_BIAS);
+	atomic_long_set(&ref->count, 1 + PCPU_COUNT_BIAS);
 
-	ref->pcpu_count_ptr = (unsigned long)alloc_percpu_gfp(unsigned, gfp);
+	ref->pcpu_count_ptr = (unsigned long)alloc_percpu_gfp(unsigned long, gfp);
 	if (!ref->pcpu_count_ptr)
 		return -ENOMEM;
 
@@ -75,13 +75,13 @@ EXPORT_SYMBOL_GPL(percpu_ref_init);
  */
 void percpu_ref_reinit(struct percpu_ref *ref)
 {
-	unsigned __percpu *pcpu_count = pcpu_count_ptr(ref);
+	unsigned long __percpu *pcpu_count = pcpu_count_ptr(ref);
 	int cpu;
 
 	BUG_ON(!pcpu_count);
 	WARN_ON(!percpu_ref_is_zero(ref));
 
-	atomic_set(&ref->count, 1 + PCPU_COUNT_BIAS);
+	atomic_long_set(&ref->count, 1 + PCPU_COUNT_BIAS);
 
 	/*
 	 * Restore per-cpu operation.  smp_store_release() is paired with
@@ -109,7 +109,7 @@ EXPORT_SYMBOL_GPL(percpu_ref_reinit);
  */
 void percpu_ref_exit(struct percpu_ref *ref)
 {
-	unsigned __percpu *pcpu_count = pcpu_count_ptr(ref);
+	unsigned long __percpu *pcpu_count = pcpu_count_ptr(ref);
 
 	if (pcpu_count) {
 		free_percpu(pcpu_count);
@@ -121,14 +121,15 @@ EXPORT_SYMBOL_GPL(percpu_ref_exit);
 static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 {
 	struct percpu_ref *ref = container_of(rcu, struct percpu_ref, rcu);
-	unsigned __percpu *pcpu_count = pcpu_count_ptr(ref);
-	unsigned count = 0;
+	unsigned long __percpu *pcpu_count = pcpu_count_ptr(ref);
+	unsigned long count = 0;
 	int cpu;
 
 	for_each_possible_cpu(cpu)
 		count += *per_cpu_ptr(pcpu_count, cpu);
 
-	pr_debug("global %i pcpu %i", atomic_read(&ref->count), (int) count);
+	pr_debug("global %ld pcpu %ld",
+		 atomic_long_read(&ref->count), (long)count);
 
 	/*
 	 * It's crucial that we sum the percpu counters _before_ adding the sum
@@ -143,11 +144,11 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 	 * time is equivalent and saves us atomic operations:
 	 */
 
-	atomic_add((int) count - PCPU_COUNT_BIAS, &ref->count);
+	atomic_long_add((long)count - PCPU_COUNT_BIAS, &ref->count);
 
-	WARN_ONCE(atomic_read(&ref->count) <= 0,
-		  "percpu ref (%pf) <= 0 (%i) after killed",
-		  ref->release, atomic_read(&ref->count));
+	WARN_ONCE(atomic_long_read(&ref->count) <= 0,
+		  "percpu ref (%pf) <= 0 (%ld) after killed",
+		  ref->release, atomic_long_read(&ref->count));
 
 	/* @ref is viewed as dead on all CPUs, send out kill confirmation */
 	if (ref->confirm_kill)
