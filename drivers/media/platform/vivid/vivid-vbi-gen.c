@@ -57,6 +57,27 @@ static void vivid_vbi_gen_wss_raw(const struct v4l2_sliced_vbi_data *data,
 	}
 }
 
+static void vivid_vbi_gen_teletext_raw(const struct v4l2_sliced_vbi_data *data,
+		u8 *buf, unsigned sampling_rate)
+{
+	const unsigned rate = 6937500 / 10;	/* Teletext has a 6.9375 MHz transmission rate */
+	u8 teletext[45] = { 0x55, 0x55, 0x27 };
+	unsigned bit = 0;
+	int i;
+
+	memcpy(teletext + 3, data->data, sizeof(teletext) - 3);
+	/* prevents 32 bit overflow */
+	sampling_rate /= 10;
+
+	for (i = 0, bit = 0; bit < sizeof(teletext) * 8; bit++) {
+		unsigned n = ((bit + 1) * sampling_rate) / rate;
+		u8 val = (teletext[bit / 8] & (1 << (bit & 7))) ? 0xc0 : 0x10;
+
+		while (i < n)
+			buf[i++] = val;
+	}
+}
+
 static void cc_insert(u8 *cc, u8 ch)
 {
 	unsigned tot = 0;
@@ -102,7 +123,7 @@ void vivid_vbi_gen_raw(const struct vivid_vbi_gen_data *vbi,
 {
 	unsigned idx;
 
-	for (idx = 0; idx < 2; idx++) {
+	for (idx = 0; idx < 25; idx++) {
 		const struct v4l2_sliced_vbi_data *data = vbi->data + idx;
 		unsigned start_2nd_field;
 		unsigned line = data->line;
@@ -123,6 +144,8 @@ void vivid_vbi_gen_raw(const struct vivid_vbi_gen_data *vbi,
 			vivid_vbi_gen_cc_raw(data, linebuf, vbi_fmt->sampling_rate);
 		else if (data->id == V4L2_SLICED_WSS_625)
 			vivid_vbi_gen_wss_raw(data, linebuf, vbi_fmt->sampling_rate);
+		else if (data->id == V4L2_SLICED_TELETEXT_B)
+			vivid_vbi_gen_teletext_raw(data, linebuf, vbi_fmt->sampling_rate);
 	}
 }
 
@@ -197,6 +220,41 @@ static void vivid_vbi_gen_set_time_of_day(u8 *packet)
 	packet[15] = calc_parity(0x100 - checksum);
 }
 
+static const u8 hamming[16] = {
+	0x15, 0x02, 0x49, 0x5e, 0x64, 0x73, 0x38, 0x2f,
+	0xd0, 0xc7, 0x8c, 0x9b, 0xa1, 0xb6, 0xfd, 0xea
+};
+
+static void vivid_vbi_gen_teletext(u8 *packet, unsigned line, unsigned frame)
+{
+	unsigned offset = 2;
+	unsigned i;
+
+	packet[0] = hamming[1 + ((line & 1) << 3)];
+	packet[1] = hamming[line >> 1];
+	memset(packet + 2, 0x20, 40);
+	if (line == 0) {
+		/* subcode */
+		packet[2] = hamming[frame % 10];
+		packet[3] = hamming[frame / 10];
+		packet[4] = hamming[0];
+		packet[5] = hamming[0];
+		packet[6] = hamming[0];
+		packet[7] = hamming[0];
+		packet[8] = hamming[0];
+		packet[9] = hamming[1];
+		offset = 10;
+	}
+	packet += offset;
+	memcpy(packet, "Page: 100 Row: 10", 17);
+	packet[7] = '0' + frame / 10;
+	packet[8] = '0' + frame % 10;
+	packet[15] = '0' + line / 10;
+	packet[16] = '0' + line % 10;
+	for (i = 0; i < 42 - offset; i++)
+		packet[i] = calc_parity(packet[i]);
+}
+
 void vivid_vbi_gen_sliced(struct vivid_vbi_gen_data *vbi,
 		bool is_60hz, unsigned seqnr)
 {
@@ -207,10 +265,26 @@ void vivid_vbi_gen_sliced(struct vivid_vbi_gen_data *vbi,
 	memset(vbi->data, 0, sizeof(vbi->data));
 
 	if (!is_60hz) {
+		unsigned i;
+
+		for (i = 0; i <= 11; i++) {
+			data0->id = V4L2_SLICED_TELETEXT_B;
+			data0->line = 7 + i;
+			vivid_vbi_gen_teletext(data0->data, i, frame);
+			data0++;
+		}
 		data0->id = V4L2_SLICED_WSS_625;
 		data0->line = 23;
 		/* 4x3 video aspect ratio */
 		data0->data[0] = 0x08;
+		data0++;
+		for (i = 0; i <= 11; i++) {
+			data0->id = V4L2_SLICED_TELETEXT_B;
+			data0->field = 1;
+			data0->line = 7 + i;
+			vivid_vbi_gen_teletext(data0->data, 12 + i, frame);
+			data0++;
+		}
 		return;
 	}
 

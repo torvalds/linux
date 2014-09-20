@@ -21,7 +21,7 @@
 #define _VIVID_VBI_GEN_H_
 
 struct vivid_vbi_gen_data {
-	struct v4l2_sliced_vbi_data data[2];
+	struct v4l2_sliced_vbi_data data[25];
 	u8 time_of_day_packet[16];
 };
 

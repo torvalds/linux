@@ -422,7 +422,7 @@ generate Closed Caption and XDS data. The closed caption stream will
 alternate between "Hello world!" and "Closed captions test" every second.
 The XDS stream will give the current time once a minute. For 50 Hz standards
 it will generate the Wide Screen Signal which is based on the actual Video
-Aspect Ratio control setting.
+Aspect Ratio control setting and teletext pages 100-159, one page per frame.
 
 The VBI device will only work for the S-Video and TV inputs, it will give
 back an error if the current input is a webcam or HDMI.
@@ -435,8 +435,8 @@ There are three types of VBI output devices: those that only support raw
 (undecoded) VBI, those that only support sliced (decoded) VBI and those that
 support both. This is determined by the node_types module option.
 
-The sliced VBI output supports the Wide Screen Signal for 50 Hz standards
-and Closed Captioning + XDS for 60 Hz standards.
+The sliced VBI output supports the Wide Screen Signal and the teletext signal
+for 50 Hz standards and Closed Captioning + XDS for 60 Hz standards.
 
 The VBI device will only work for the S-Video output, it will give
 back an error if the current output is HDMI.
@@ -910,7 +910,8 @@ capture device.
 
 For VBI looping to work all of the above must be valid and in addition the vbi
 output must be configured for sliced VBI. The VBI capture side can be configured
-for either raw or sliced VBI.
+for either raw or sliced VBI. Note that at the moment only CC/XDS (60 Hz formats)
+and WSS (50 Hz formats) VBI data is looped. Teletext VBI data is not looped.
 
 
 Section 10.2: Radio & RDS Looping
@@ -1090,6 +1091,7 @@ Just as a reminder and in no particular order:
 - Add virtual sub-devices and media controller support
 - Some support for testing compressed video
 - Add support to loop raw VBI output to raw VBI input
+- Add support to loop teletext sliced VBI output to VBI input
 - Fix sequence/field numbering when looping of video with alternate fields
 - Add support for V4L2_CID_BG_COLOR for video outputs
 - Add ARGB888 overlay support: better testing of the alpha channel

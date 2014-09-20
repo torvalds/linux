@@ -234,7 +234,7 @@ void vivid_update_format_out(struct vivid_dev *dev)
 		} else {
 			dev->sink_rect.height = 576;
 			dev->timeperframe_vid_out = (struct v4l2_fract) { 1000, 25000 };
-			dev->service_set_out = V4L2_SLICED_WSS_625;
+			dev->service_set_out = V4L2_SLICED_WSS_625 | V4L2_SLICED_TELETEXT_B;
 		}
 		dev->colorspace_out = V4L2_COLORSPACE_SMPTE170M;
 		break;

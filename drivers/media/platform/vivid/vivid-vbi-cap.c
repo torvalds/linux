@@ -37,25 +37,25 @@ static void vivid_sliced_vbi_cap_fill(struct vivid_dev *dev, unsigned seqnr)
 	if (!is_60hz) {
 		if (dev->loop_video) {
 			if (dev->vbi_out_have_wss) {
-				vbi_gen->data[0].data[0] = dev->vbi_out_wss[0];
-				vbi_gen->data[0].data[1] = dev->vbi_out_wss[1];
+				vbi_gen->data[12].data[0] = dev->vbi_out_wss[0];
+				vbi_gen->data[12].data[1] = dev->vbi_out_wss[1];
 			} else {
-				vbi_gen->data[0].id = 0;
+				vbi_gen->data[12].id = 0;
 			}
 		} else {
 			switch (tpg_g_video_aspect(&dev->tpg)) {
 			case TPG_VIDEO_ASPECT_14X9_CENTRE:
-				vbi_gen->data[0].data[0] = 0x01;
+				vbi_gen->data[12].data[0] = 0x01;
 				break;
 			case TPG_VIDEO_ASPECT_16X9_CENTRE:
-				vbi_gen->data[0].data[0] = 0x0b;
+				vbi_gen->data[12].data[0] = 0x0b;
 				break;
 			case TPG_VIDEO_ASPECT_16X9_ANAMORPHIC:
-				vbi_gen->data[0].data[0] = 0x07;
+				vbi_gen->data[12].data[0] = 0x07;
 				break;
 			case TPG_VIDEO_ASPECT_4X3:
 			default:
-				vbi_gen->data[0].data[0] = 0x08;
+				vbi_gen->data[12].data[0] = 0x08;
 				break;
 			}
 		}
@@ -83,8 +83,8 @@ static void vivid_g_fmt_vbi_cap(struct vivid_dev *dev, struct v4l2_vbi_format *v
 	vbi->offset = 24;
 	vbi->samples_per_line = 1440;
 	vbi->sample_format = V4L2_PIX_FMT_GREY;
-	vbi->start[0] = is_60hz ? 10 : 6;
-	vbi->start[1] = is_60hz ? 273 : 318;
+	vbi->start[0] = is_60hz ? V4L2_VBI_ITU_525_F1_START + 9 : V4L2_VBI_ITU_625_F1_START + 5;
+	vbi->start[1] = is_60hz ? V4L2_VBI_ITU_525_F2_START + 9 : V4L2_VBI_ITU_625_F2_START + 5;
 	vbi->count[0] = vbi->count[1] = is_60hz ? 12 : 18;
 	vbi->flags = dev->vbi_cap_interlaced ? V4L2_VBI_INTERLACED : 0;
 	vbi->reserved[0] = 0;
@@ -125,8 +125,10 @@ void vivid_sliced_vbi_cap_process(struct vivid_dev *dev, struct vivid_buffer *bu
 
 	memset(vbuf, 0, vb2_plane_size(&buf->vb, 0));
 	if (!VIVID_INVALID_SIGNAL(dev->std_signal_mode)) {
-		vbuf[0] = dev->vbi_gen.data[0];
-		vbuf[1] = dev->vbi_gen.data[1];
+		unsigned i;
+
+		for (i = 0; i < 25; i++)
+			vbuf[i] = dev->vbi_gen.data[i];
 	}
 
 	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
@@ -280,8 +282,14 @@ void vivid_fill_service_lines(struct v4l2_sliced_vbi_format *vbi, u32 service_se
 		vbi->service_lines[0][21] = V4L2_SLICED_CAPTION_525;
 		vbi->service_lines[1][21] = V4L2_SLICED_CAPTION_525;
 	}
-	if (vbi->service_set & V4L2_SLICED_WSS_625)
+	if (vbi->service_set & V4L2_SLICED_WSS_625) {
+		unsigned i;
+
+		for (i = 7; i <= 18; i++)
+			vbi->service_lines[0][i] =
+			vbi->service_lines[1][i] = V4L2_SLICED_TELETEXT_B;
 		vbi->service_lines[0][23] = V4L2_SLICED_WSS_625;
+	}
 }
 
 int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_format *fmt)
@@ -306,7 +314,8 @@ int vidioc_try_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_forma
 	if (!vivid_is_sdtv_cap(dev) || !dev->has_sliced_vbi_cap)
 		return -EINVAL;
 
-	service_set &= is_60hz ? V4L2_SLICED_CAPTION_525 : V4L2_SLICED_WSS_625;
+	service_set &= is_60hz ? V4L2_SLICED_CAPTION_525 :
+				 V4L2_SLICED_WSS_625 | V4L2_SLICED_TELETEXT_B;
 	vivid_fill_service_lines(vbi, service_set);
 	return 0;
 }
@@ -345,11 +354,17 @@ int vidioc_g_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_sliced_vbi_
 			return -EINVAL;
 	}
 
-	cap->service_set = is_60hz ? V4L2_SLICED_CAPTION_525 : V4L2_SLICED_WSS_625;
+	cap->service_set = is_60hz ? V4L2_SLICED_CAPTION_525 :
+				     V4L2_SLICED_WSS_625 | V4L2_SLICED_TELETEXT_B;
 	if (is_60hz) {
 		cap->service_lines[0][21] = V4L2_SLICED_CAPTION_525;
 		cap->service_lines[1][21] = V4L2_SLICED_CAPTION_525;
 	} else {
+		unsigned i;
+
+		for (i = 7; i <= 18; i++)
+			cap->service_lines[0][i] =
+			cap->service_lines[1][i] = V4L2_SLICED_TELETEXT_B;
 		cap->service_lines[0][23] = V4L2_SLICED_WSS_625;
 	}
 	return 0;

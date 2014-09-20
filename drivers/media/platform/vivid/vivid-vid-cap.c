@@ -419,7 +419,7 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 		} else {
 			dev->src_rect.height = 576;
 			dev->timeperframe_vid_cap = (struct v4l2_fract) { 1000, 25000 };
-			dev->service_set_cap = V4L2_SLICED_WSS_625;
+			dev->service_set_cap = V4L2_SLICED_WSS_625 | V4L2_SLICED_TELETEXT_B;
 		}
 		tpg_s_rgb_range(&dev->tpg, V4L2_DV_RGB_RANGE_AUTO);
 		break;

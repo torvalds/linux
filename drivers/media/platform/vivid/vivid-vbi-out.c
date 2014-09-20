@@ -149,8 +149,8 @@ int vidioc_g_fmt_vbi_out(struct file *file, void *priv,
 	vbi->offset = 24;
 	vbi->samples_per_line = 1440;
 	vbi->sample_format = V4L2_PIX_FMT_GREY;
-	vbi->start[0] = is_60hz ? 10 : 6;
-	vbi->start[1] = is_60hz ? 273 : 318;
+	vbi->start[0] = is_60hz ? V4L2_VBI_ITU_525_F1_START + 9 : V4L2_VBI_ITU_625_F1_START + 5;
+	vbi->start[1] = is_60hz ? V4L2_VBI_ITU_525_F2_START + 9 : V4L2_VBI_ITU_625_F2_START + 5;
 	vbi->count[0] = vbi->count[1] = is_60hz ? 12 : 18;
 	vbi->flags = dev->vbi_cap_interlaced ? V4L2_VBI_INTERLACED : 0;
 	vbi->reserved[0] = 0;
@@ -195,7 +195,8 @@ int vidioc_try_fmt_sliced_vbi_out(struct file *file, void *fh, struct v4l2_forma
 	if (!vivid_is_svid_out(dev) || !dev->has_sliced_vbi_out)
 		return -EINVAL;
 
-	service_set &= is_60hz ? V4L2_SLICED_CAPTION_525 : V4L2_SLICED_WSS_625;
+	service_set &= is_60hz ? V4L2_SLICED_CAPTION_525 :
+				 V4L2_SLICED_WSS_625 | V4L2_SLICED_TELETEXT_B;
 	vivid_fill_service_lines(vbi, service_set);
 	return 0;
 }
