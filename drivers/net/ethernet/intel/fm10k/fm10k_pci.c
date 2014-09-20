@@ -756,6 +756,8 @@ static void fm10k_configure_dglort(struct fm10k_intfc *interface)
 	dglort.pc_l = fls(interface->ring_feature[RING_F_QOS].mask);
 	/* configure DGLORT mapping for RSS/DCB */
 	dglort.idx = fm10k_dglort_pf_rss;
+	if (interface->l2_accel)
+		dglort.shared_l = fls(interface->l2_accel->size);
 	hw->mac.ops.configure_dglort_map(hw, &dglort);
 }
 

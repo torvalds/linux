@@ -1148,6 +1148,155 @@ int fm10k_setup_tc(struct net_device *dev, u8 tc)
 	return 0;
 }
 
+static void fm10k_assign_l2_accel(struct fm10k_intfc *interface,
+				  struct fm10k_l2_accel *l2_accel)
+{
+	struct fm10k_ring *ring;
+	int i;
+
+	for (i = 0; i < interface->num_rx_queues; i++) {
+		ring = interface->rx_ring[i];
+		rcu_assign_pointer(ring->l2_accel, l2_accel);
+	}
+
+	interface->l2_accel = l2_accel;
+}
+
+static void *fm10k_dfwd_add_station(struct net_device *dev,
+				    struct net_device *sdev)
+{
+	struct fm10k_intfc *interface = netdev_priv(dev);
+	struct fm10k_l2_accel *l2_accel = interface->l2_accel;
+	struct fm10k_l2_accel *old_l2_accel = NULL;
+	struct fm10k_dglort_cfg dglort = { 0 };
+	struct fm10k_hw *hw = &interface->hw;
+	int size = 0, i;
+	u16 glort;
+
+	/* allocate l2 accel structure if it is not available */
+	if (!l2_accel) {
+		/* verify there is enough free GLORTs to support l2_accel */
+		if (interface->glort_count < 7)
+			return ERR_PTR(-EBUSY);
+
+		size = offsetof(struct fm10k_l2_accel, macvlan[7]);
+		l2_accel = kzalloc(size, GFP_KERNEL);
+		if (!l2_accel)
+			return ERR_PTR(-ENOMEM);
+
+		l2_accel->size = 7;
+		l2_accel->dglort = interface->glort;
+
+		/* update pointers */
+		fm10k_assign_l2_accel(interface, l2_accel);
+	/* do not expand if we are at our limit */
+	} else if ((l2_accel->count == FM10K_MAX_STATIONS) ||
+		   (l2_accel->count == (interface->glort_count - 1))) {
+		return ERR_PTR(-EBUSY);
+	/* expand if we have hit the size limit */
+	} else if (l2_accel->count == l2_accel->size) {
+		old_l2_accel = l2_accel;
+		size = offsetof(struct fm10k_l2_accel,
+				macvlan[(l2_accel->size * 2) + 1]);
+		l2_accel = kzalloc(size, GFP_KERNEL);
+		if (!l2_accel)
+			return ERR_PTR(-ENOMEM);
+
+		memcpy(l2_accel, old_l2_accel,
+		       offsetof(struct fm10k_l2_accel,
+				macvlan[old_l2_accel->size]));
+
+		l2_accel->size = (old_l2_accel->size * 2) + 1;
+
+		/* update pointers */
+		fm10k_assign_l2_accel(interface, l2_accel);
+		kfree_rcu(old_l2_accel, rcu);
+	}
+
+	/* add macvlan to accel table, and record GLORT for position */
+	for (i = 0; i < l2_accel->size; i++) {
+		if (!l2_accel->macvlan[i])
+			break;
+	}
+
+	/* record station */
+	l2_accel->macvlan[i] = sdev;
+	l2_accel->count++;
+
+	/* configure default DGLORT mapping for RSS/DCB */
+	dglort.idx = fm10k_dglort_pf_rss;
+	dglort.inner_rss = 1;
+	dglort.rss_l = fls(interface->ring_feature[RING_F_RSS].mask);
+	dglort.pc_l = fls(interface->ring_feature[RING_F_QOS].mask);
+	dglort.glort = interface->glort;
+	dglort.shared_l = fls(l2_accel->size);
+	hw->mac.ops.configure_dglort_map(hw, &dglort);
+
+	/* Add rules for this specific dglort to the switch */
+	fm10k_mbx_lock(interface);
+
+	glort = l2_accel->dglort + 1 + i;
+	hw->mac.ops.update_xcast_mode(hw, glort, FM10K_XCAST_MODE_MULTI);
+	hw->mac.ops.update_uc_addr(hw, glort, sdev->dev_addr, 0, true, 0);
+
+	fm10k_mbx_unlock(interface);
+
+	return sdev;
+}
+
+static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
+{
+	struct fm10k_intfc *interface = netdev_priv(dev);
+	struct fm10k_l2_accel *l2_accel = ACCESS_ONCE(interface->l2_accel);
+	struct fm10k_dglort_cfg dglort = { 0 };
+	struct fm10k_hw *hw = &interface->hw;
+	struct net_device *sdev = priv;
+	int i;
+	u16 glort;
+
+	if (!l2_accel)
+		return;
+
+	/* search table for matching interface */
+	for (i = 0; i < l2_accel->size; i++) {
+		if (l2_accel->macvlan[i] == sdev)
+			break;
+	}
+
+	/* exit if macvlan not found */
+	if (i == l2_accel->size)
+		return;
+
+	/* Remove any rules specific to this dglort */
+	fm10k_mbx_lock(interface);
+
+	glort = l2_accel->dglort + 1 + i;
+	hw->mac.ops.update_xcast_mode(hw, glort, FM10K_XCAST_MODE_NONE);
+	hw->mac.ops.update_uc_addr(hw, glort, sdev->dev_addr, 0, false, 0);
+
+	fm10k_mbx_unlock(interface);
+
+	/* record removal */
+	l2_accel->macvlan[i] = NULL;
+	l2_accel->count--;
+
+	/* configure default DGLORT mapping for RSS/DCB */
+	dglort.idx = fm10k_dglort_pf_rss;
+	dglort.inner_rss = 1;
+	dglort.rss_l = fls(interface->ring_feature[RING_F_RSS].mask);
+	dglort.pc_l = fls(interface->ring_feature[RING_F_QOS].mask);
+	dglort.glort = interface->glort;
+	if (l2_accel)
+		dglort.shared_l = fls(l2_accel->size);
+	hw->mac.ops.configure_dglort_map(hw, &dglort);
+
+	/* If table is empty remove it */
+	if (l2_accel->count == 0) {
+		fm10k_assign_l2_accel(interface, NULL);
+		kfree_rcu(l2_accel, rcu);
+	}
+}
+
 static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_open		= fm10k_open,
 	.ndo_stop		= fm10k_close,
@@ -1163,6 +1312,8 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_setup_tc		= fm10k_setup_tc,
 	.ndo_add_vxlan_port	= fm10k_add_vxlan_port,
 	.ndo_del_vxlan_port	= fm10k_del_vxlan_port,
+	.ndo_dfwd_add_station	= fm10k_dfwd_add_station,
+	.ndo_dfwd_del_station	= fm10k_dfwd_del_station,
 };
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
@@ -1197,6 +1348,9 @@ struct net_device *fm10k_alloc_netdev(void)
 
 	/* all features defined to this point should be changeable */
 	dev->hw_features |= dev->features;
+
+	/* allow user to enable L2 forwarding acceleration */
+	dev->hw_features |= NETIF_F_HW_L2FW_DOFFLOAD;
 
 	/* configure VLAN features */
 	dev->vlan_features |= dev->features;

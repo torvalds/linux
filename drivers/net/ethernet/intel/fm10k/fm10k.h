@@ -54,6 +54,15 @@
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define FM10K_RX_BUFFER_WRITE	16	/* Must be power of 2 */
 
+#define FM10K_MAX_STATIONS	63
+struct fm10k_l2_accel {
+	int size;
+	u16 count;
+	u16 dglort;
+	struct rcu_head rcu;
+	struct net_device *macvlan[0];
+};
+
 enum fm10k_ring_state_t {
 	__FM10K_TX_DETECT_HANG,
 	__FM10K_HANG_CHECK_ARMED,
@@ -104,6 +113,7 @@ struct fm10k_ring {
 	struct fm10k_q_vector *q_vector;/* backpointer to host q_vector */
 	struct net_device *netdev;	/* netdev ring belongs to */
 	struct device *dev;		/* device for DMA mapping */
+	struct fm10k_l2_accel __rcu *l2_accel;	/* L2 acceleration list */
 	void *desc;			/* descriptor ring memory */
 	union {
 		struct fm10k_tx_buffer *tx_buffer;
@@ -217,6 +227,7 @@ struct fm10k_vxlan_port {
 struct fm10k_intfc {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct net_device *netdev;
+	struct fm10k_l2_accel *l2_accel; /* pointer to L2 acceleration list */
 	struct pci_dev *pdev;
 	unsigned long state;
 

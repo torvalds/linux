@@ -395,6 +395,35 @@ static inline void fm10k_rx_hash(struct fm10k_ring *ring,
 		     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
 }
 
+static void fm10k_type_trans(struct fm10k_ring *rx_ring,
+			     union fm10k_rx_desc *rx_desc,
+			     struct sk_buff *skb)
+{
+	struct net_device *dev = rx_ring->netdev;
+	struct fm10k_l2_accel *l2_accel = rcu_dereference_bh(rx_ring->l2_accel);
+
+	/* check to see if DGLORT belongs to a MACVLAN */
+	if (l2_accel) {
+		u16 idx = le16_to_cpu(FM10K_CB(skb)->fi.w.dglort) - 1;
+
+		idx -= l2_accel->dglort;
+		if (idx < l2_accel->size && l2_accel->macvlan[idx])
+			dev = l2_accel->macvlan[idx];
+		else
+			l2_accel = NULL;
+	}
+
+	skb->protocol = eth_type_trans(skb, dev);
+
+	if (!l2_accel)
+		return;
+
+	/* update MACVLAN statistics */
+	macvlan_count_rx(netdev_priv(dev), skb->len + ETH_HLEN, 1,
+			 !!(rx_desc->w.hdr_info &
+			    cpu_to_le16(FM10K_RXD_HDR_INFO_XC_MASK)));
+}
+
 /**
  * fm10k_process_skb_fields - Populate skb header fields from Rx descriptor
  * @rx_ring: rx descriptor ring packet is being transacted on
@@ -428,7 +457,7 @@ static unsigned int fm10k_process_skb_fields(struct fm10k_ring *rx_ring,
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 	}
 
-	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+	fm10k_type_trans(rx_ring, rx_desc, skb);
 
 	return len;
 }
@@ -1568,6 +1597,7 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 		/* assign generic ring traits */
 		ring->dev = &interface->pdev->dev;
 		ring->netdev = interface->netdev;
+		rcu_assign_pointer(ring->l2_accel, interface->l2_accel);
 
 		/* configure backlink on ring */
 		ring->q_vector = q_vector;
