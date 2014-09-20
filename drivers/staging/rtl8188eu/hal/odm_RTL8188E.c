@@ -52,42 +52,47 @@ static void dm_rx_hw_antena_div_init(struct odm_dm_struct *dm_odm)
 	phy_set_bb_reg(adapter, ODM_REG_ANT_MAPPING1_11N, 0xFFFF, 0x0201);
 }
 
-static void odm_TRX_HWAntDivInit(struct odm_dm_struct *dm_odm)
+static void dm_trx_hw_antenna_div_init(struct odm_dm_struct *dm_odm)
 {
 	struct adapter *adapter = dm_odm->Adapter;
 	u32	value32;
 
 	if (*(dm_odm->mp_mode) == 1) {
 		dm_odm->AntDivType = CGCS_RX_SW_ANTDIV;
-		phy_set_bb_reg(adapter, ODM_REG_IGI_A_11N, BIT7, 0); /*  disable HW AntDiv */
-		phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N, BIT5|BIT4|BIT3, 0); /* Default RX   (0/1) */
+		phy_set_bb_reg(adapter, ODM_REG_IGI_A_11N, BIT7, 0);
+		phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N,
+			       BIT5|BIT4|BIT3, 0);
 		return;
 	}
-	ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("odm_TRX_HWAntDivInit()\n"));
 
 	/* MAC Setting */
 	value32 = phy_query_bb_reg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
-	phy_set_bb_reg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord, value32|(BIT23|BIT25)); /* Reg4C[25]=1, Reg4C[23]=1 for pin output */
+	phy_set_bb_reg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord,
+		       value32|(BIT23|BIT25));
 	/* Pin Settings */
-	phy_set_bb_reg(adapter, ODM_REG_PIN_CTRL_11N, BIT9|BIT8, 0);/* Reg870[8]=1'b0, Reg870[9]=1'b0		antsel antselb by HW */
-	phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N, BIT10, 0);	/* Reg864[10]=1'b0	antsel2 by HW */
-	phy_set_bb_reg(adapter, ODM_REG_LNA_SWITCH_11N, BIT22, 0);	/* Regb2c[22]=1'b0	disable CS/CG switch */
-	phy_set_bb_reg(adapter, ODM_REG_LNA_SWITCH_11N, BIT31, 1);	/* Regb2c[31]=1'b1	output at CG only */
+	phy_set_bb_reg(adapter, ODM_REG_PIN_CTRL_11N, BIT9|BIT8, 0);
+	phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N, BIT10, 0);
+	phy_set_bb_reg(adapter, ODM_REG_LNA_SWITCH_11N, BIT22, 0);
+	phy_set_bb_reg(adapter, ODM_REG_LNA_SWITCH_11N, BIT31, 1);
 	/* OFDM Settings */
-	phy_set_bb_reg(adapter, ODM_REG_ANTDIV_PARA1_11N, bMaskDWord, 0x000000a0);
+	phy_set_bb_reg(adapter, ODM_REG_ANTDIV_PARA1_11N, bMaskDWord,
+		       0x000000a0);
 	/* CCK Settings */
-	phy_set_bb_reg(adapter, ODM_REG_BB_PWR_SAV4_11N, BIT7, 1); /* Fix CCK PHY status report issue */
-	phy_set_bb_reg(adapter, ODM_REG_CCK_ANTDIV_PARA2_11N, BIT4, 1); /* CCK complete HW AntDiv within 64 samples */
+	phy_set_bb_reg(adapter, ODM_REG_BB_PWR_SAV4_11N, BIT7, 1);
+	phy_set_bb_reg(adapter, ODM_REG_CCK_ANTDIV_PARA2_11N, BIT4, 1);
 	/* Tx Settings */
-	phy_set_bb_reg(adapter, ODM_REG_TX_ANT_CTRL_11N, BIT21, 0); /* Reg80c[21]=1'b0		from TX Reg */
+	phy_set_bb_reg(adapter, ODM_REG_TX_ANT_CTRL_11N, BIT21, 0);
 	ODM_UpdateRxIdleAnt_88E(dm_odm, MAIN_ANT);
 
 	/* antenna mapping table */
 	if (!dm_odm->bIsMPChip) { /* testchip */
-		phy_set_bb_reg(adapter, ODM_REG_RX_DEFUALT_A_11N, BIT10|BIT9|BIT8, 1);	/* Reg858[10:8]=3'b001 */
-		phy_set_bb_reg(adapter, ODM_REG_RX_DEFUALT_A_11N, BIT13|BIT12|BIT11, 2);	/* Reg858[13:11]=3'b010 */
+		phy_set_bb_reg(adapter, ODM_REG_RX_DEFUALT_A_11N,
+			       BIT10|BIT9|BIT8, 1);
+		phy_set_bb_reg(adapter, ODM_REG_RX_DEFUALT_A_11N,
+			       BIT13|BIT12|BIT11, 2);
 	} else { /* MPchip */
-		phy_set_bb_reg(adapter, ODM_REG_ANT_MAPPING1_11N, bMaskDWord, 0x0201);	/* Reg914=3'b010, Reg915=3'b001 */
+		phy_set_bb_reg(adapter, ODM_REG_ANT_MAPPING1_11N, bMaskDWord,
+			       0x0201);
 	}
 }
 
@@ -180,7 +185,7 @@ void ODM_AntennaDiversityInit_88E(struct odm_dm_struct *dm_odm)
 	if (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)
 		dm_rx_hw_antena_div_init(dm_odm);
 	else if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV)
-		odm_TRX_HWAntDivInit(dm_odm);
+		dm_trx_hw_antenna_div_init(dm_odm);
 	else if (dm_odm->AntDivType == CG_TRX_SMART_ANTDIV)
 		odm_FastAntTrainingInit(dm_odm);
 }
