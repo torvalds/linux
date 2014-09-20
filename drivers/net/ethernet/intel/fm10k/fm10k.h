@@ -218,6 +218,13 @@ struct fm10k_ring_feature {
 	u16 offset;	/* offset to start of feature */
 };
 
+struct fm10k_iov_data {
+	unsigned int		num_vfs;
+	unsigned int		next_vf_mbx;
+	struct rcu_head		rcu;
+	struct fm10k_vf_info	vf_info[0];
+};
+
 #define fm10k_vxlan_port_for_each(vp, intfc) \
 	list_for_each_entry(vp, &(intfc)->vxlan_port, list)
 struct fm10k_vxlan_port {
@@ -276,6 +283,9 @@ struct fm10k_intfc {
 	struct msix_entry *msix_entries;
 	int num_q_vectors;	/* current number of q_vectors for device */
 	struct fm10k_ring_feature ring_feature[RING_F_ARRAY_SIZE];
+
+	/* SR-IOV information management structure */
+	struct fm10k_iov_data *iov_data;
 
 	struct fm10k_hw_stats stats;
 	struct fm10k_hw hw;
@@ -441,4 +451,20 @@ int fm10k_close(struct net_device *netdev);
 
 /* Ethtool */
 void fm10k_set_ethtool_ops(struct net_device *dev);
+
+/* IOV */
+s32 fm10k_iov_event(struct fm10k_intfc *interface);
+s32 fm10k_iov_mbx(struct fm10k_intfc *interface);
+void fm10k_iov_suspend(struct pci_dev *pdev);
+int fm10k_iov_resume(struct pci_dev *pdev);
+void fm10k_iov_disable(struct pci_dev *pdev);
+int fm10k_iov_configure(struct pci_dev *pdev, int num_vfs);
+s32 fm10k_iov_update_pvid(struct fm10k_intfc *interface, u16 glort, u16 pvid);
+int fm10k_ndo_set_vf_mac(struct net_device *netdev, int vf_idx, u8 *mac);
+int fm10k_ndo_set_vf_vlan(struct net_device *netdev,
+			  int vf_idx, u16 vid, u8 qos);
+int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx, int rate,
+			int unused);
+int fm10k_ndo_get_vf_config(struct net_device *netdev,
+			    int vf_idx, struct ifla_vf_info *ivi);
 #endif /* _FM10K_H_ */

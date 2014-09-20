@@ -368,7 +368,21 @@ static void fm10k_request_glort_range(struct fm10k_intfc *interface)
 	if (hw->mac.dglort_map == FM10K_DGLORTMAP_NONE)
 		return;
 
-	interface->glort_count = mask + 1;
+	/* we support 3 possible GLORT configurations.
+	 * 1: VFs consume all but the last 1
+	 * 2: VFs and PF split glorts with possible gap between
+	 * 3: VFs allocated first 64, all others belong to PF
+	 */
+	if (mask <= hw->iov.total_vfs) {
+		interface->glort_count = 1;
+		interface->glort += mask;
+	} else if (mask < 64) {
+		interface->glort_count = (mask + 1) / 2;
+		interface->glort += interface->glort_count;
+	} else {
+		interface->glort_count = mask - 63;
+		interface->glort += 64;
+	}
 }
 
 /**
@@ -1325,6 +1339,10 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_set_rx_mode	= fm10k_set_rx_mode,
 	.ndo_get_stats64	= fm10k_get_stats64,
 	.ndo_setup_tc		= fm10k_setup_tc,
+	.ndo_set_vf_mac		= fm10k_ndo_set_vf_mac,
+	.ndo_set_vf_vlan	= fm10k_ndo_set_vf_vlan,
+	.ndo_set_vf_rate	= fm10k_ndo_set_vf_bw,
+	.ndo_get_vf_config	= fm10k_ndo_get_vf_config,
 	.ndo_add_vxlan_port	= fm10k_add_vxlan_port,
 	.ndo_del_vxlan_port	= fm10k_del_vxlan_port,
 	.ndo_dfwd_add_station	= fm10k_dfwd_add_station,
