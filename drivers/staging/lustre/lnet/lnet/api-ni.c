@@ -73,8 +73,7 @@ lnet_get_networks(void)
 	int     rc;
 
 	if (*networks != 0 && *ip2nets != 0) {
-		LCONSOLE_ERROR_MSG(0x101, "Please specify EITHER 'networks' or "
-				   "'ip2nets' but not both at once\n");
+		LCONSOLE_ERROR_MSG(0x101, "Please specify EITHER 'networks' or 'ip2nets' but not both at once\n");
 		return NULL;
 	}
 
@@ -1097,8 +1096,7 @@ lnet_startup_lndnis (void)
 		LNET_MUTEX_UNLOCK(&the_lnet.ln_lnd_mutex);
 
 		if (rc != 0) {
-			LCONSOLE_ERROR_MSG(0x105, "Error %d starting up LNI %s"
-					   "\n",
+			LCONSOLE_ERROR_MSG(0x105, "Error %d starting up LNI %s\n",
 					   rc, libcfs_lnd2str(lnd->lnd_type));
 			lnet_net_lock(LNET_LOCK_EX);
 			lnd->lnd_refcount--;
@@ -1154,8 +1152,7 @@ lnet_startup_lndnis (void)
 
 	if (the_lnet.ln_eq_waitni != NULL && nicount > 1) {
 		lnd_type = the_lnet.ln_eq_waitni->ni_lnd->lnd_type;
-		LCONSOLE_ERROR_MSG(0x109, "LND %s can only run single-network"
-				   "\n",
+		LCONSOLE_ERROR_MSG(0x109, "LND %s can only run single-network\n",
 				   libcfs_lnd2str(lnd_type));
 		goto failed;
 	}
@@ -1201,8 +1198,7 @@ LNetInit(void)
 	LASSERT(the_lnet.ln_cpt_number > 0);
 	if (the_lnet.ln_cpt_number > LNET_CPT_MAX) {
 		/* we are under risk of consuming all lh_cookie */
-		CERROR("Can't have %d CPTs for LNet (max allowed is %d), "
-		       "please change setting of CPT-table and retry\n",
+		CERROR("Can't have %d CPTs for LNet (max allowed is %d), please change setting of CPT-table and retry\n",
 		       the_lnet.ln_cpt_number, LNET_CPT_MAX);
 		return -1;
 	}
