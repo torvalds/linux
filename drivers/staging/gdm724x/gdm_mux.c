@@ -517,6 +517,7 @@ static int gdm_mux_probe(struct usb_interface *intf,
 	int ret;
 	int i;
 	struct usb_device *usbdev = interface_to_usbdev(intf);
+
 	bInterfaceNumber = intf->cur_altsetting->desc.bInterfaceNumber;
 
 	idVendor = __le16_to_cpu(usbdev->descriptor.idVendor);
