@@ -265,16 +265,16 @@ static int ks8695_gpio_show(struct seq_file *s, void *unused)
 				seq_printf(s, "EXT%i ", i);
 
 				switch ((ctrl & intmask[i]) >> (4 * i)) {
-					case IOPC_TM_LOW:
-						seq_printf(s, "(Low)");		break;
-					case IOPC_TM_HIGH:
-						seq_printf(s, "(High)");	break;
-					case IOPC_TM_RISING:
-						seq_printf(s, "(Rising)");	break;
-					case IOPC_TM_FALLING:
-						seq_printf(s, "(Falling)");	break;
-					case IOPC_TM_EDGE:
-						seq_printf(s, "(Edges)");	break;
+				case IOPC_TM_LOW:
+					seq_printf(s, "(Low)");		break;
+				case IOPC_TM_HIGH:
+					seq_printf(s, "(High)");	break;
+				case IOPC_TM_RISING:
+					seq_printf(s, "(Rising)");	break;
+				case IOPC_TM_FALLING:
+					seq_printf(s, "(Falling)");	break;
+				case IOPC_TM_EDGE:
+					seq_printf(s, "(Edges)");	break;
 				}
 			}
 			else
