@@ -3173,6 +3173,8 @@ static irqreturn_t dw_mci_gpio_cd_irqt(int irq, void *dev_id)
         mmc_detect_change(mmc, msecs_to_jiffies(200));
         #endif
 
+        /* wakeup system whether gpio debounce or not */
+        rk_send_wakeup_key();
         queue_work(host->card_workqueue, &host->card_work);
         return IRQ_HANDLED;
 }
