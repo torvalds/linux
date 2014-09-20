@@ -40,7 +40,8 @@ MODULE_DESCRIPTION("Intel(R) Ethernet Switch Host Interface Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
-/** fm10k_init_module - Driver Registration Routine
+/**
+ * fm10k_init_module - Driver Registration Routine
  *
  * fm10k_init_module is the first routine called when the driver is
  * loaded.  All it does is register with the PCI subsystem.
