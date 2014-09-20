@@ -109,6 +109,7 @@ struct acpi_sbs {
 	u8 batteries_supported:4;
 	u8 manager_present:1;
 	u8 charger_present:1;
+	u8 charger_exists:1;
 };
 
 #define to_acpi_sbs(x) container_of(x, struct acpi_sbs, charger)
@@ -429,9 +430,19 @@ static int acpi_ac_get_present(struct acpi_sbs *sbs)
 
 	result = acpi_smbus_read(sbs->hc, SMBUS_READ_WORD, ACPI_SBS_CHARGER,
 				 0x13, (u8 *) & status);
-	if (!result)
-		sbs->charger_present = (status >> 15) & 0x1;
-	return result;
+
+	if (result)
+		return result;
+
+	/*
+	 * The spec requires that bit 4 always be 1. If it's not set, assume
+	 * that the implementation doesn't support an SBS charger
+	 */
+	if (!(status >> 4) & 0x1)
+		return -ENODEV;
+
+	sbs->charger_present = (status >> 15) & 0x1;
+	return 0;
 }
 
 static ssize_t acpi_battery_alarm_show(struct device *dev,
@@ -554,6 +565,7 @@ static int acpi_charger_add(struct acpi_sbs *sbs)
 	if (result)
 		goto end;
 
+	sbs->charger_exists = 1;
 	sbs->charger.name = "sbs-charger";
 	sbs->charger.type = POWER_SUPPLY_TYPE_MAINS;
 	sbs->charger.properties = sbs_ac_props;
@@ -580,9 +592,12 @@ static void acpi_sbs_callback(void *context)
 	struct acpi_battery *bat;
 	u8 saved_charger_state = sbs->charger_present;
 	u8 saved_battery_state;
-	acpi_ac_get_present(sbs);
-	if (sbs->charger_present != saved_charger_state)
-		kobject_uevent(&sbs->charger.dev->kobj, KOBJ_CHANGE);
+
+	if (sbs->charger_exists) {
+		acpi_ac_get_present(sbs);
+		if (sbs->charger_present != saved_charger_state)
+			kobject_uevent(&sbs->charger.dev->kobj, KOBJ_CHANGE);
+	}
 
 	if (sbs->manager_present) {
 		for (id = 0; id < MAX_SBS_BAT; ++id) {
@@ -619,7 +634,7 @@ static int acpi_sbs_add(struct acpi_device *device)
 	device->driver_data = sbs;
 
 	result = acpi_charger_add(sbs);
-	if (result)
+	if (result && result != -ENODEV)
 		goto end;
 
 	result = acpi_manager_get_info(sbs);
