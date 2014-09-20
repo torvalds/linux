@@ -36,7 +36,7 @@ void ODM_AntennaDiversity_88E(struct odm_dm_struct *pDM_Odm);
 void ODM_SetTxAntByTxInfo_88E(struct odm_dm_struct *pDM_Odm, u8 *pDesc,
 			      u8 macId);
 
-void ODM_UpdateRxIdleAnt_88E(struct odm_dm_struct *pDM_Odm, u8 Ant);
+void rtl88eu_dm_update_rx_idle_ant(struct odm_dm_struct *dm_odm, u8 ant);
 
 void ODM_AntselStatistics_88E(struct odm_dm_struct *pDM_Odm, u8	antsel_tr_mux,
 			      u32 MacId, u8 RxPWDBAll);

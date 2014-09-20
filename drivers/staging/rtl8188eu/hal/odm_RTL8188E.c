@@ -48,7 +48,7 @@ static void dm_rx_hw_antena_div_init(struct odm_dm_struct *dm_odm)
 	/* CCK Settings */
 	phy_set_bb_reg(adapter, ODM_REG_BB_PWR_SAV4_11N, BIT7, 1);
 	phy_set_bb_reg(adapter, ODM_REG_CCK_ANTDIV_PARA2_11N, BIT4, 1);
-	ODM_UpdateRxIdleAnt_88E(dm_odm, MAIN_ANT);
+	rtl88eu_dm_update_rx_idle_ant(dm_odm, MAIN_ANT);
 	phy_set_bb_reg(adapter, ODM_REG_ANT_MAPPING1_11N, 0xFFFF, 0x0201);
 }
 
@@ -82,7 +82,7 @@ static void dm_trx_hw_antenna_div_init(struct odm_dm_struct *dm_odm)
 	phy_set_bb_reg(adapter, ODM_REG_CCK_ANTDIV_PARA2_11N, BIT4, 1);
 	/* Tx Settings */
 	phy_set_bb_reg(adapter, ODM_REG_TX_ANT_CTRL_11N, BIT21, 0);
-	ODM_UpdateRxIdleAnt_88E(dm_odm, MAIN_ANT);
+	rtl88eu_dm_update_rx_idle_ant(dm_odm, MAIN_ANT);
 
 	/* antenna mapping table */
 	if (!dm_odm->bIsMPChip) { /* testchip */
@@ -184,35 +184,42 @@ void rtl88eu_dm_antenna_div_init(struct odm_dm_struct *dm_odm)
 		dm_fast_training_init(dm_odm);
 }
 
-void ODM_UpdateRxIdleAnt_88E(struct odm_dm_struct *dm_odm, u8 Ant)
+void rtl88eu_dm_update_rx_idle_ant(struct odm_dm_struct *dm_odm, u8 ant)
 {
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
 	struct adapter *adapter = dm_odm->Adapter;
-	u32	DefaultAnt, OptionalAnt;
+	u32 default_ant, optional_ant;
 
-	if (dm_fat_tbl->RxIdleAnt != Ant) {
-		ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("Need to Update Rx Idle Ant\n"));
-		if (Ant == MAIN_ANT) {
-			DefaultAnt = (dm_odm->AntDivType == CG_TRX_HW_ANTDIV) ? MAIN_ANT_CG_TRX : MAIN_ANT_CGCS_RX;
-			OptionalAnt = (dm_odm->AntDivType == CG_TRX_HW_ANTDIV) ? AUX_ANT_CG_TRX : AUX_ANT_CGCS_RX;
+	if (dm_fat_tbl->RxIdleAnt != ant) {
+		if (ant == MAIN_ANT) {
+			default_ant = (dm_odm->AntDivType == CG_TRX_HW_ANTDIV) ?
+				       MAIN_ANT_CG_TRX : MAIN_ANT_CGCS_RX;
+			optional_ant = (dm_odm->AntDivType == CG_TRX_HW_ANTDIV) ?
+					AUX_ANT_CG_TRX : AUX_ANT_CGCS_RX;
 		} else {
-			DefaultAnt = (dm_odm->AntDivType == CG_TRX_HW_ANTDIV) ? AUX_ANT_CG_TRX : AUX_ANT_CGCS_RX;
-			OptionalAnt = (dm_odm->AntDivType == CG_TRX_HW_ANTDIV) ? MAIN_ANT_CG_TRX : MAIN_ANT_CGCS_RX;
+			default_ant = (dm_odm->AntDivType == CG_TRX_HW_ANTDIV) ?
+				       AUX_ANT_CG_TRX : AUX_ANT_CGCS_RX;
+			optional_ant = (dm_odm->AntDivType == CG_TRX_HW_ANTDIV) ?
+					MAIN_ANT_CG_TRX : MAIN_ANT_CGCS_RX;
 		}
 
 		if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV) {
-			phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N, BIT5|BIT4|BIT3, DefaultAnt);	/* Default RX */
-			phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N, BIT8|BIT7|BIT6, OptionalAnt);		/* Optional RX */
-			phy_set_bb_reg(adapter, ODM_REG_ANTSEL_CTRL_11N, BIT14|BIT13|BIT12, DefaultAnt);	/* Default TX */
-			phy_set_bb_reg(adapter, ODM_REG_RESP_TX_11N, BIT6|BIT7, DefaultAnt);	/* Resp Tx */
+			phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N,
+				       BIT5|BIT4|BIT3, default_ant);
+			phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N,
+				       BIT8|BIT7|BIT6, optional_ant);
+			phy_set_bb_reg(adapter, ODM_REG_ANTSEL_CTRL_11N,
+				       BIT14|BIT13|BIT12, default_ant);
+			phy_set_bb_reg(adapter, ODM_REG_RESP_TX_11N,
+				       BIT6|BIT7, default_ant);
 		} else if (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV) {
-			phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N, BIT5|BIT4|BIT3, DefaultAnt);	/* Default RX */
-			phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N, BIT8|BIT7|BIT6, OptionalAnt);		/* Optional RX */
+			phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N,
+				       BIT5|BIT4|BIT3, default_ant);
+			phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N,
+				       BIT8|BIT7|BIT6, optional_ant);
 		}
 	}
-	dm_fat_tbl->RxIdleAnt = Ant;
-	ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("RxIdleAnt=%s\n", (Ant == MAIN_ANT) ? "MAIN_ANT" : "AUX_ANT"));
-	pr_info("RxIdleAnt=%s\n", (Ant == MAIN_ANT) ? "MAIN_ANT" : "AUX_ANT");
+	dm_fat_tbl->RxIdleAnt = ant;
 }
 
 static void odm_UpdateTxAnt_88E(struct odm_dm_struct *dm_odm, u8 Ant, u32 MacId)
@@ -324,7 +331,7 @@ static void odm_HWAntDiv(struct odm_dm_struct *dm_odm)
 	}
 
 	/* 2 Set RX Idle Antenna */
-	ODM_UpdateRxIdleAnt_88E(dm_odm, RxIdleAnt);
+	rtl88eu_dm_update_rx_idle_ant(dm_odm, RxIdleAnt);
 
 	pDM_DigTable->AntDiv_RSSI_max = AntDivMaxRSSI;
 	pDM_DigTable->RSSI_max = MaxRSSI;

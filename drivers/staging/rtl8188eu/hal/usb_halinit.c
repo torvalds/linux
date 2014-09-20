@@ -1745,7 +1745,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			/* switch antenna to Optimum_antenna */
 			if (haldata->CurAntenna !=  Optimum_antenna) {
 				Ant = (Optimum_antenna == 2) ? MAIN_ANT : AUX_ANT;
-				ODM_UpdateRxIdleAnt_88E(&haldata->odmpriv, Ant);
+				rtl88eu_dm_update_rx_idle_ant(&haldata->odmpriv, Ant);
 
 				haldata->CurAntenna = Optimum_antenna;
 			}
