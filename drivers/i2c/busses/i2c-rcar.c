@@ -195,7 +195,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv,
 	 */
 	rate = clk_get_rate(priv->clk);
 	cdf = rate / 20000000;
-	if (cdf >= 1 << cdf_width) {
+	if (cdf >= 1U << cdf_width) {
 		dev_err(dev, "Input clock %lu too high\n", rate);
 		return -EIO;
 	}
