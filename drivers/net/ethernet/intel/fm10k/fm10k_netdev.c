@@ -67,10 +67,19 @@ int fm10k_open(struct net_device *netdev)
 	/* setup GLORT assignment for this port */
 	fm10k_request_glort_range(interface);
 
+	/* Notify the stack of the actual queue counts */
+
+	err = netif_set_real_num_rx_queues(netdev,
+					   interface->num_rx_queues);
+	if (err)
+		goto err_set_queues;
+
 	fm10k_up(interface);
 
 	return 0;
 
+err_set_queues:
+	fm10k_qv_free_irq(interface);
 err_req_irq:
 	return err;
 }
@@ -474,6 +483,64 @@ void fm10k_reset_rx_state(struct fm10k_intfc *interface)
 	__dev_mc_unsync(netdev, NULL);
 }
 
+/**
+ * fm10k_get_stats64 - Get System Network Statistics
+ * @netdev: network interface device structure
+ * @stats: storage space for 64bit statistics
+ *
+ * Returns 64bit statistics, for use in the ndo_get_stats64 callback. This
+ * function replaces fm10k_get_stats for kernels which support it.
+ */
+static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
+						   struct rtnl_link_stats64 *stats)
+{
+	struct fm10k_intfc *interface = netdev_priv(netdev);
+	struct fm10k_ring *ring;
+	unsigned int start, i;
+	u64 bytes, packets;
+
+	rcu_read_lock();
+
+	for (i = 0; i < interface->num_rx_queues; i++) {
+		ring = ACCESS_ONCE(interface->rx_ring[i]);
+
+		if (!ring)
+			continue;
+
+		do {
+			start = u64_stats_fetch_begin_irq(&ring->syncp);
+			packets = ring->stats.packets;
+			bytes   = ring->stats.bytes;
+		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
+
+		stats->rx_packets += packets;
+		stats->rx_bytes   += bytes;
+	}
+
+	for (i = 0; i < interface->num_tx_queues; i++) {
+		ring = ACCESS_ONCE(interface->rx_ring[i]);
+
+		if (!ring)
+			continue;
+
+		do {
+			start = u64_stats_fetch_begin_irq(&ring->syncp);
+			packets = ring->stats.packets;
+			bytes   = ring->stats.bytes;
+		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
+
+		stats->tx_packets += packets;
+		stats->tx_bytes   += bytes;
+	}
+
+	rcu_read_unlock();
+
+	/* following stats updated by fm10k_service_task() */
+	stats->rx_missed_errors	= netdev->stats.rx_missed_errors;
+
+	return stats;
+}
+
 static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_open		= fm10k_open,
 	.ndo_stop		= fm10k_close,
@@ -484,6 +551,7 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= fm10k_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= fm10k_vlan_rx_kill_vid,
 	.ndo_set_rx_mode	= fm10k_set_rx_mode,
+	.ndo_get_stats64	= fm10k_get_stats64,
 };
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
@@ -493,7 +561,7 @@ struct net_device *fm10k_alloc_netdev(void)
 	struct fm10k_intfc *interface;
 	struct net_device *dev;
 
-	dev = alloc_etherdev(sizeof(struct fm10k_intfc));
+	dev = alloc_etherdev_mq(sizeof(struct fm10k_intfc), MAX_QUEUES);
 	if (!dev)
 		return NULL;
 

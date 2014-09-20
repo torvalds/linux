@@ -31,7 +31,118 @@
 
 #define FM10K_MAX_JUMBO_FRAME_SIZE	15358	/* Maximum supported size 15K */
 
+#define MAX_QUEUES	FM10K_MAX_QUEUES_PF
+
+#define FM10K_MIN_RXD		 128
+#define FM10K_MAX_RXD		4096
+#define FM10K_DEFAULT_RXD	 256
+
+#define FM10K_MIN_TXD		 128
+#define FM10K_MAX_TXD		4096
+#define FM10K_DEFAULT_TXD	 256
+#define FM10K_DEFAULT_TX_WORK	 256
+
+#define FM10K_RXBUFFER_256	  256
+#define FM10K_RXBUFFER_16384	16384
+#define FM10K_RX_HDR_LEN	FM10K_RXBUFFER_256
+#if PAGE_SIZE <= FM10K_RXBUFFER_16384
+#define FM10K_RX_BUFSZ		(PAGE_SIZE / 2)
+#else
+#define FM10K_RX_BUFSZ		FM10K_RXBUFFER_16384
+#endif
+
+/* How many Rx Buffers do we bundle into one write to the hardware ? */
+#define FM10K_RX_BUFFER_WRITE	16	/* Must be power of 2 */
+
+enum fm10k_ring_state_t {
+	__FM10K_TX_DETECT_HANG,
+	__FM10K_HANG_CHECK_ARMED,
+};
+
+#define check_for_tx_hang(ring) \
+	test_bit(__FM10K_TX_DETECT_HANG, &(ring)->state)
+#define set_check_for_tx_hang(ring) \
+	set_bit(__FM10K_TX_DETECT_HANG, &(ring)->state)
+#define clear_check_for_tx_hang(ring) \
+	clear_bit(__FM10K_TX_DETECT_HANG, &(ring)->state)
+
+struct fm10k_tx_buffer {
+	struct fm10k_tx_desc *next_to_watch;
+	struct sk_buff *skb;
+	unsigned int bytecount;
+	u16 gso_segs;
+	u16 tx_flags;
+	DEFINE_DMA_UNMAP_ADDR(dma);
+	DEFINE_DMA_UNMAP_LEN(len);
+};
+
+struct fm10k_rx_buffer {
+	dma_addr_t dma;
+	struct page *page;
+	u32 page_offset;
+};
+
+struct fm10k_queue_stats {
+	u64 packets;
+	u64 bytes;
+};
+
+struct fm10k_tx_queue_stats {
+	u64 restart_queue;
+	u64 csum_err;
+	u64 tx_busy;
+	u64 tx_done_old;
+};
+
+struct fm10k_rx_queue_stats {
+	u64 alloc_failed;
+	u64 csum_err;
+	u64 errors;
+};
+
+struct fm10k_ring {
+	struct fm10k_q_vector *q_vector;/* backpointer to host q_vector */
+	struct net_device *netdev;	/* netdev ring belongs to */
+	struct device *dev;		/* device for DMA mapping */
+	void *desc;			/* descriptor ring memory */
+	union {
+		struct fm10k_tx_buffer *tx_buffer;
+		struct fm10k_rx_buffer *rx_buffer;
+	};
+	u32 __iomem *tail;
+	unsigned long state;
+	dma_addr_t dma;			/* phys. address of descriptor ring */
+	unsigned int size;		/* length in bytes */
+
+	u8 queue_index;			/* needed for queue management */
+	u8 reg_idx;			/* holds the special value that gets
+					 * the hardware register offset
+					 * associated with this ring, which is
+					 * different for DCB and RSS modes
+					 */
+	u8 qos_pc;			/* priority class of queue */
+	u16 vid;			/* default vlan ID of queue */
+	u16 count;			/* amount of descriptors */
+
+	u16 next_to_alloc;
+	u16 next_to_use;
+	u16 next_to_clean;
+
+	struct fm10k_queue_stats stats;
+	struct u64_stats_sync syncp;
+	union {
+		/* Tx */
+		struct fm10k_tx_queue_stats tx_stats;
+		/* Rx */
+		struct {
+			struct fm10k_rx_queue_stats rx_stats;
+			struct sk_buff *skb;
+		};
+	};
+} ____cacheline_internodealigned_in_smp;
+
 struct fm10k_ring_container {
+	struct fm10k_ring *ring;	/* pointer to linked list of rings */
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_packets;	/* total packets processed this int */
 	u16 work_limit;			/* total work allowed per interrupt */
@@ -45,6 +156,15 @@ struct fm10k_ring_container {
 #define FM10K_ITR_ADAPTIVE	0x8000	/* adaptive interrupt moderation flag */
 
 #define FM10K_ITR_ENABLE	(FM10K_ITR_AUTOMASK | FM10K_ITR_MASK_CLEAR)
+
+static inline struct netdev_queue *txring_txq(const struct fm10k_ring *ring)
+{
+	return &ring->netdev->_tx[ring->queue_index];
+}
+
+/* iterator for handling rings in ring container */
+#define fm10k_for_each_ring(pos, head) \
+	for (pos = &(head).ring[(head).count]; (--pos) >= (head).ring;)
 
 #define MAX_Q_VECTORS 256
 #define MIN_Q_VECTORS	1
@@ -68,6 +188,9 @@ struct fm10k_q_vector {
 	char name[IFNAMSIZ + 9];
 
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
+
+	/* for dynamic allocation of rings associated with this q_vector */
+	struct fm10k_ring ring[0] ____cacheline_internodealigned_in_smp;
 };
 
 enum fm10k_ring_f_enum {
@@ -113,8 +236,14 @@ struct fm10k_intfc {
 	int num_rx_queues;
 	u16 rx_itr;
 
+	/* TX */
+	struct fm10k_ring *tx_ring[MAX_QUEUES] ____cacheline_aligned_in_smp;
+
 	u64 rx_overrun_pf;
 	u64 rx_overrun_vf;
+
+	/* RX */
+	struct fm10k_ring *rx_ring[MAX_QUEUES];
 
 	/* Queueing vectors */
 	struct fm10k_q_vector *q_vector[MAX_Q_VECTORS];
@@ -175,6 +304,65 @@ static inline int fm10k_mbx_trylock(struct fm10k_intfc *interface)
 {
 	return !test_and_set_bit(__FM10K_MBX_LOCK, &interface->state);
 }
+
+/* fm10k_test_staterr - test bits in Rx descriptor status and error fields */
+static inline __le32 fm10k_test_staterr(union fm10k_rx_desc *rx_desc,
+					const u32 stat_err_bits)
+{
+	return rx_desc->d.staterr & cpu_to_le32(stat_err_bits);
+}
+
+/* fm10k_desc_unused - calculate if we have unused descriptors */
+static inline u16 fm10k_desc_unused(struct fm10k_ring *ring)
+{
+	s16 unused = ring->next_to_clean - ring->next_to_use - 1;
+
+	return likely(unused < 0) ? unused + ring->count : unused;
+}
+
+#define FM10K_TX_DESC(R, i)	\
+	(&(((struct fm10k_tx_desc *)((R)->desc))[i]))
+#define FM10K_RX_DESC(R, i)	\
+	 (&(((union fm10k_rx_desc *)((R)->desc))[i]))
+
+#define FM10K_MAX_TXD_PWR	14
+#define FM10K_MAX_DATA_PER_TXD	(1 << FM10K_MAX_TXD_PWR)
+
+/* Tx Descriptors needed, worst case */
+#define TXD_USE_COUNT(S)	DIV_ROUND_UP((S), FM10K_MAX_DATA_PER_TXD)
+#define DESC_NEEDED	(MAX_SKB_FRAGS + 4)
+
+enum fm10k_tx_flags {
+	/* Tx offload flags */
+	FM10K_TX_FLAGS_CSUM	= 0x01,
+};
+
+/* This structure is stored as little endian values as that is the native
+ * format of the Rx descriptor.  The ordering of these fields is reversed
+ * from the actual ftag header to allow for a single bswap to take care
+ * of placing all of the values in network order
+ */
+union fm10k_ftag_info {
+	__le64 ftag;
+	struct {
+		/* dglort and sglort combined into a single 32bit desc read */
+		__le32 glort;
+		/* upper 16 bits of vlan are reserved 0 for swpri_type_user */
+		__le32 vlan;
+	} d;
+	struct {
+		__le16 dglort;
+		__le16 sglort;
+		__le16 vlan;
+		__le16 swpri_type_user;
+	} w;
+};
+
+struct fm10k_cb {
+	union fm10k_ftag_info fi;
+};
+
+#define FM10K_CB(skb) ((struct fm10k_cb *)(skb)->cb)
 
 /* main */
 extern char fm10k_driver_name[];

@@ -183,10 +183,12 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 				unsigned int rxr_count, unsigned int rxr_idx)
 {
 	struct fm10k_q_vector *q_vector;
+	struct fm10k_ring *ring;
 	int ring_count, size;
 
 	ring_count = txr_count + rxr_count;
-	size = sizeof(struct fm10k_q_vector);
+	size = sizeof(struct fm10k_q_vector) +
+	       (sizeof(struct fm10k_ring) * ring_count);
 
 	/* allocate q_vector and rings */
 	q_vector = kzalloc(size, GFP_KERNEL);
@@ -202,13 +204,65 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 	q_vector->interface = interface;
 	q_vector->v_idx = v_idx;
 
+	/* initialize pointer to rings */
+	ring = q_vector->ring;
+
 	/* save Tx ring container info */
+	q_vector->tx.ring = ring;
+	q_vector->tx.work_limit = FM10K_DEFAULT_TX_WORK;
 	q_vector->tx.itr = interface->tx_itr;
 	q_vector->tx.count = txr_count;
 
+	while (txr_count) {
+		/* assign generic ring traits */
+		ring->dev = &interface->pdev->dev;
+		ring->netdev = interface->netdev;
+
+		/* configure backlink on ring */
+		ring->q_vector = q_vector;
+
+		/* apply Tx specific ring traits */
+		ring->count = interface->tx_ring_count;
+		ring->queue_index = txr_idx;
+
+		/* assign ring to interface */
+		interface->tx_ring[txr_idx] = ring;
+
+		/* update count and index */
+		txr_count--;
+		txr_idx += v_count;
+
+		/* push pointer to next ring */
+		ring++;
+	}
+
 	/* save Rx ring container info */
+	q_vector->rx.ring = ring;
 	q_vector->rx.itr = interface->rx_itr;
 	q_vector->rx.count = rxr_count;
+
+	while (rxr_count) {
+		/* assign generic ring traits */
+		ring->dev = &interface->pdev->dev;
+		ring->netdev = interface->netdev;
+
+		/* configure backlink on ring */
+		ring->q_vector = q_vector;
+
+		/* apply Rx specific ring traits */
+		ring->count = interface->rx_ring_count;
+		ring->queue_index = rxr_idx;
+
+		/* assign ring to interface */
+		interface->rx_ring[rxr_idx] = ring;
+
+		/* update count and index */
+		rxr_count--;
+		rxr_idx += v_count;
+
+		/* push pointer to next ring */
+		ring++;
+	}
 
 	return 0;
 }
@@ -225,6 +279,13 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 static void fm10k_free_q_vector(struct fm10k_intfc *interface, int v_idx)
 {
 	struct fm10k_q_vector *q_vector = interface->q_vector[v_idx];
+	struct fm10k_ring *ring;
+
+	fm10k_for_each_ring(ring, q_vector->tx)
+		interface->tx_ring[ring->queue_index] = NULL;
+
+	fm10k_for_each_ring(ring, q_vector->rx)
+		interface->rx_ring[ring->queue_index] = NULL;
 
 	interface->q_vector[v_idx] = NULL;
 	netif_napi_del(&q_vector->napi);

@@ -707,6 +707,10 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 		netdev->hw_features &= ~NETIF_F_GSO_UDP_TUNNEL;
 	}
 
+	/* set default ring sizes */
+	interface->tx_ring_count = FM10K_DEFAULT_TXD;
+	interface->rx_ring_count = FM10K_DEFAULT_RXD;
+
 	/* set default interrupt moderation */
 	interface->tx_itr = FM10K_ITR_10K;
 	interface->rx_itr = FM10K_ITR_ADAPTIVE | FM10K_ITR_20K;
