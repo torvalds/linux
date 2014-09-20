@@ -3764,6 +3764,17 @@ static void dw_mci_dto_timeout(unsigned long host_data)
 
 	enable_irq(host->irq);
 }
+
+
+void resume_rescan_enable(struct work_struct *work)
+{
+	struct dw_mci *host =
+		container_of(work, struct dw_mci, resume_rescan.work);
+	host->mmc->rescan_disable = 0;
+	mmc_detect_change(host->mmc, 10);
+}
+
+
 int dw_mci_probe(struct dw_mci *host)
 {
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
@@ -3852,7 +3863,7 @@ int dw_mci_probe(struct dw_mci *host)
 
 	spin_lock_init(&host->lock);
 	INIT_LIST_HEAD(&host->queue);
-
+	INIT_DELAYED_WORK(&host->resume_rescan, resume_rescan_enable);
 	/*
 	 * Get the host data width - this assumes that HCON has been set with
 	 * the correct values.
@@ -4010,6 +4021,7 @@ void dw_mci_remove(struct dw_mci *host)
 	int i;
 
 	del_timer_sync(&host->dto_timer);
+	cancel_delayed_work(&host->resume_rescan);
 
         mci_writel(host, RINTSTS, 0xFFFFFFFF);
         mci_writel(host, INTMASK, 0); /* disable all mmc interrupt first */
@@ -4102,7 +4114,7 @@ int dw_mci_resume(struct dw_mci *host)
 		if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
                         MMC_DBG_ERR_FUNC(host->mmc, "Default pinctrl setting failed! [%s]",
                                                 mmc_hostname(host->mmc));
-		host->mmc->rescan_disable = 0;
+		host->mmc->rescan_disable = 1;
 		/* Disable jtag*/
 		if(cpu_is_rk3288())
                         grf_writel(((1 << 12) << 16) | (0 << 12), RK3288_GRF_SOC_CON0);
@@ -4160,7 +4172,7 @@ int dw_mci_resume(struct dw_mci *host)
 			dw_mci_setup_bus(slot, true);
 		}
 	}
-
+	schedule_delayed_work(&host->resume_rescan, msecs_to_jiffies(2000));
 	return 0;
 }
 EXPORT_SYMBOL(dw_mci_resume);
