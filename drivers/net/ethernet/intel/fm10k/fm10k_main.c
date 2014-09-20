@@ -399,6 +399,19 @@ static inline void fm10k_rx_hash(struct fm10k_ring *ring,
 		     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
 }
 
+static void fm10k_rx_hwtstamp(struct fm10k_ring *rx_ring,
+			      union fm10k_rx_desc *rx_desc,
+			      struct sk_buff *skb)
+{
+	struct fm10k_intfc *interface = rx_ring->q_vector->interface;
+
+	FM10K_CB(skb)->tstamp = rx_desc->q.timestamp;
+
+	if (unlikely(interface->flags & FM10K_FLAG_RX_TS_ENABLED))
+		fm10k_systime_to_hwtstamp(interface, skb_hwtstamps(skb),
+					  le64_to_cpu(rx_desc->q.timestamp));
+}
+
 static void fm10k_type_trans(struct fm10k_ring *rx_ring,
 			     union fm10k_rx_desc *rx_desc,
 			     struct sk_buff *skb)
@@ -447,6 +460,8 @@ static unsigned int fm10k_process_skb_fields(struct fm10k_ring *rx_ring,
 	fm10k_rx_hash(rx_ring, rx_desc, skb);
 
 	fm10k_rx_checksum(rx_ring, rx_desc, skb);
+
+	fm10k_rx_hwtstamp(rx_ring, rx_desc, skb);
 
 	FM10K_CB(skb)->fi.w.vlan = rx_desc->w.vlan;
 
@@ -885,6 +900,11 @@ static u8 fm10k_tx_desc_flags(struct sk_buff *skb, u32 tx_flags)
 {
 	/* set type for advanced descriptor with frame checksum insertion */
 	u32 desc_flags = 0;
+
+	/* set timestamping bits */
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+	    likely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS))
+			desc_flags |= FM10K_TXD_FLAG_TIME;
 
 	/* set checksum offload bits */
 	desc_flags |= FM10K_SET_FLAG(tx_flags, FM10K_TX_FLAGS_CSUM,

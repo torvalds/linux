@@ -91,6 +91,8 @@ static const struct fm10k_stats fm10k_gstrings_stats[] = {
 	FM10K_STAT("mbx_rx_messages", hw.mbx.rx_messages),
 	FM10K_STAT("mbx_rx_dwords", hw.mbx.rx_dwords),
 	FM10K_STAT("mbx_rx_parse_err", hw.mbx.rx_parse_err),
+
+	FM10K_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
 };
 
 #define FM10K_GLOBAL_STATS_LEN ARRAY_SIZE(fm10k_gstrings_stats)
@@ -1006,6 +1008,33 @@ static int fm10k_set_channels(struct net_device *dev,
 	return fm10k_setup_tc(dev, netdev_get_num_tc(dev));
 }
 
+static int fm10k_get_ts_info(struct net_device *dev,
+			   struct ethtool_ts_info *info)
+{
+	struct fm10k_intfc *interface = netdev_priv(dev);
+
+	info->so_timestamping =
+		SOF_TIMESTAMPING_TX_SOFTWARE |
+		SOF_TIMESTAMPING_RX_SOFTWARE |
+		SOF_TIMESTAMPING_SOFTWARE |
+		SOF_TIMESTAMPING_TX_HARDWARE |
+		SOF_TIMESTAMPING_RX_HARDWARE |
+		SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	if (interface->ptp_clock)
+		info->phc_index = ptp_clock_index(interface->ptp_clock);
+	else
+		info->phc_index = -1;
+
+	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
+			 (1 << HWTSTAMP_TX_ON);
+
+	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+			   (1 << HWTSTAMP_FILTER_ALL);
+
+	return 0;
+}
+
 static const struct ethtool_ops fm10k_ethtool_ops = {
 	.get_strings		= fm10k_get_strings,
 	.get_sset_count		= fm10k_get_sset_count,
@@ -1031,6 +1060,7 @@ static const struct ethtool_ops fm10k_ethtool_ops = {
 	.set_rxfh		= fm10k_set_rssh,
 	.get_channels		= fm10k_get_channels,
 	.set_channels		= fm10k_set_channels,
+	.get_ts_info            = fm10k_get_ts_info,
 };
 
 void fm10k_set_ethtool_ops(struct net_device *dev)

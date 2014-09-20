@@ -243,6 +243,9 @@ void fm10k_clean_all_tx_rings(struct fm10k_intfc *interface)
 
 	for (i = 0; i < interface->num_tx_queues; i++)
 		fm10k_clean_tx_ring(interface->tx_ring[i]);
+
+	/* remove any stale timestamp buffers and free them */
+	skb_queue_purge(&interface->ts_tx_skb_queue);
 }
 
 /**
@@ -650,6 +653,10 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_OK;
 		__skb_put(skb, pad_len);
 	}
+
+	/* prepare packet for hardware time stamping */
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+		fm10k_ts_tx_enqueue(interface, skb);
 
 	if (r_idx >= interface->num_tx_queues)
 		r_idx %= interface->num_tx_queues;
@@ -1177,6 +1184,18 @@ int fm10k_setup_tc(struct net_device *dev, u8 tc)
 	return 0;
 }
 
+static int fm10k_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+{
+	switch (cmd) {
+	case SIOCGHWTSTAMP:
+		return fm10k_get_ts_config(netdev, ifr);
+	case SIOCSHWTSTAMP:
+		return fm10k_set_ts_config(netdev, ifr);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static void fm10k_assign_l2_accel(struct fm10k_intfc *interface,
 				  struct fm10k_l2_accel *l2_accel)
 {
@@ -1345,6 +1364,7 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_get_vf_config	= fm10k_ndo_get_vf_config,
 	.ndo_add_vxlan_port	= fm10k_add_vxlan_port,
 	.ndo_del_vxlan_port	= fm10k_del_vxlan_port,
+	.ndo_do_ioctl		= fm10k_ioctl,
 	.ndo_dfwd_add_station	= fm10k_dfwd_add_station,
 	.ndo_dfwd_del_station	= fm10k_dfwd_del_station,
 };
