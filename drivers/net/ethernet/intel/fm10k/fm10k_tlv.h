@@ -21,6 +21,9 @@
 #ifndef _FM10K_TLV_H_
 #define _FM10K_TLV_H_
 
+/* forward declaration */
+struct fm10k_msg_data;
+
 #include "fm10k_type.h"
 
 /* Message / Argument header format
@@ -93,6 +96,15 @@ struct fm10k_tlv_attr {
 #define FM10K_TLV_ATTR_NESTED(id)	    { id, FM10K_TLV_NESTED }
 #define FM10K_TLV_ATTR_LAST		    { FM10K_TLV_ERROR }
 
+struct fm10k_msg_data {
+	unsigned int		    id;
+	const struct fm10k_tlv_attr *attr;
+	s32			    (*func)(struct fm10k_hw *, u32 **,
+					    struct fm10k_mbx_info *);
+};
+
+#define FM10K_MSG_HANDLER(id, attr, func) { id, attr, func }
+
 s32 fm10k_tlv_msg_init(u32 *, u16);
 s32 fm10k_tlv_attr_put_null_string(u32 *, u16, const unsigned char *);
 s32 fm10k_tlv_attr_get_null_string(u32 *, unsigned char *);
@@ -138,4 +150,37 @@ s32 fm10k_tlv_attr_get_le_struct(u32 *, void *, u32);
 u32 *fm10k_tlv_attr_nest_start(u32 *, u16);
 s32 fm10k_tlv_attr_nest_stop(u32 *);
 s32 fm10k_tlv_attr_parse(u32 *, u32 **, const struct fm10k_tlv_attr *);
+s32 fm10k_tlv_msg_parse(struct fm10k_hw *, u32 *, struct fm10k_mbx_info *,
+			const struct fm10k_msg_data *);
+s32 fm10k_tlv_msg_error(struct fm10k_hw *hw, u32 **results,
+			struct fm10k_mbx_info *);
+
+#define FM10K_TLV_MSG_ID_TEST	0
+
+enum fm10k_tlv_test_attr_id {
+	FM10K_TEST_MSG_UNSET,
+	FM10K_TEST_MSG_STRING,
+	FM10K_TEST_MSG_MAC_ADDR,
+	FM10K_TEST_MSG_U8,
+	FM10K_TEST_MSG_U16,
+	FM10K_TEST_MSG_U32,
+	FM10K_TEST_MSG_U64,
+	FM10K_TEST_MSG_S8,
+	FM10K_TEST_MSG_S16,
+	FM10K_TEST_MSG_S32,
+	FM10K_TEST_MSG_S64,
+	FM10K_TEST_MSG_LE_STRUCT,
+	FM10K_TEST_MSG_NESTED,
+	FM10K_TEST_MSG_RESULT,
+	FM10K_TEST_MSG_MAX
+};
+
+extern const struct fm10k_tlv_attr fm10k_tlv_msg_test_attr[];
+void fm10k_tlv_msg_test_create(u32 *, u32);
+s32 fm10k_tlv_msg_test(struct fm10k_hw *, u32 **, struct fm10k_mbx_info *);
+
+#define FM10K_TLV_MSG_TEST_HANDLER(func) \
+	FM10K_MSG_HANDLER(FM10K_TLV_MSG_ID_TEST, fm10k_tlv_msg_test_attr, func)
+#define FM10K_TLV_MSG_ERROR_HANDLER(func) \
+	FM10K_MSG_HANDLER(FM10K_TLV_ERROR, NULL, func)
 #endif /* _FM10K_MSG_H_ */

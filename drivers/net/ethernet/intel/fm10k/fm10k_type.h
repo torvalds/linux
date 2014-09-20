@@ -28,6 +28,8 @@ struct fm10k_hw;
 #include <asm/byteorder.h>
 #include <linux/etherdevice.h>
 
+#include "fm10k_mbx.h"
+
 #define FM10K_DEV_ID_PF			0x15A4
 #define FM10K_DEV_ID_VF			0x15A5
 
@@ -573,6 +575,7 @@ struct fm10k_hw {
 	struct fm10k_mac_info mac;
 	struct fm10k_bus_info bus;
 	struct fm10k_bus_info bus_caps;
+	struct fm10k_mbx_info mbx;
 	struct fm10k_swapi_info swapi;
 	u16 device_id;
 	u16 vendor_id;

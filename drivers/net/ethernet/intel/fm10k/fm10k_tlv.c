@@ -541,3 +541,323 @@ s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 
 	return 0;
 }
+
+/**
+ *  fm10k_tlv_msg_parse - Parses message header and calls function handler
+ *  @hw: Pointer to hardware structure
+ *  @msg: Pointer to message
+ *  @mbx: Pointer to mailbox information structure
+ *  @func: Function array containing list of message handling functions
+ *
+ *  This function should be the first function called upon receiving a
+ *  message.  The handler will identify the message type and call the correct
+ *  handler for the given message.  It will return the value from the function
+ *  call on a recognized message type, otherwise it will return
+ *  FM10K_NOT_IMPLEMENTED on an unrecognized type.
+ **/
+s32 fm10k_tlv_msg_parse(struct fm10k_hw *hw, u32 *msg,
+			struct fm10k_mbx_info *mbx,
+			const struct fm10k_msg_data *data)
+{
+	u32 *results[FM10K_TLV_RESULTS_MAX];
+	u32 msg_id;
+	s32 err;
+
+	/* verify pointer is not NULL */
+	if (!msg || !data)
+		return FM10K_ERR_PARAM;
+
+	/* verify this is a message and not an attribute */
+	if (!(*msg & (FM10K_TLV_FLAGS_MSG << FM10K_TLV_FLAGS_SHIFT)))
+		return FM10K_ERR_PARAM;
+
+	/* grab message ID */
+	msg_id = *msg & FM10K_TLV_ID_MASK;
+
+	while (data->id < msg_id)
+		data++;
+
+	/* if we didn't find it then pass it up as an error */
+	if (data->id != msg_id) {
+		while (data->id != FM10K_TLV_ERROR)
+			data++;
+	}
+
+	/* parse the attributes into the results list */
+	err = fm10k_tlv_attr_parse(msg, results, data->attr);
+	if (err < 0)
+		return err;
+
+	return data->func(hw, results, mbx);
+}
+
+/**
+ *  fm10k_tlv_msg_error - Default handler for unrecognized TLV message IDs
+ *  @hw: Pointer to hardware structure
+ *  @results: Pointer array to message, results[0] is pointer to message
+ *  @mbx: Unused mailbox pointer
+ *
+ *  This function is a default handler for unrecognized messages.  At a
+ *  a minimum it just indicates that the message requested was
+ *  unimplemented.
+ **/
+s32 fm10k_tlv_msg_error(struct fm10k_hw *hw, u32 **results,
+			struct fm10k_mbx_info *mbx)
+{
+	return FM10K_NOT_IMPLEMENTED;
+}
+
+static const unsigned char test_str[] =	"fm10k";
+static const unsigned char test_mac[ETH_ALEN] = { 0x12, 0x34, 0x56,
+						  0x78, 0x9a, 0xbc };
+static const u16 test_vlan = 0x0FED;
+static const u64 test_u64 = 0xfedcba9876543210ull;
+static const u32 test_u32 = 0x87654321;
+static const u16 test_u16 = 0x8765;
+static const u8  test_u8  = 0x87;
+static const s64 test_s64 = -0x123456789abcdef0ll;
+static const s32 test_s32 = -0x1235678;
+static const s16 test_s16 = -0x1234;
+static const s8  test_s8  = -0x12;
+static const __le32 test_le[2] = { cpu_to_le32(0x12345678),
+				   cpu_to_le32(0x9abcdef0)};
+
+/* The message below is meant to be used as a test message to demonstrate
+ * how to use the TLV interface and to test the types.  Normally this code
+ * be compiled out by stripping the code wrapped in FM10K_TLV_TEST_MSG
+ */
+const struct fm10k_tlv_attr fm10k_tlv_msg_test_attr[] = {
+	FM10K_TLV_ATTR_NULL_STRING(FM10K_TEST_MSG_STRING, 80),
+	FM10K_TLV_ATTR_MAC_ADDR(FM10K_TEST_MSG_MAC_ADDR),
+	FM10K_TLV_ATTR_U8(FM10K_TEST_MSG_U8),
+	FM10K_TLV_ATTR_U16(FM10K_TEST_MSG_U16),
+	FM10K_TLV_ATTR_U32(FM10K_TEST_MSG_U32),
+	FM10K_TLV_ATTR_U64(FM10K_TEST_MSG_U64),
+	FM10K_TLV_ATTR_S8(FM10K_TEST_MSG_S8),
+	FM10K_TLV_ATTR_S16(FM10K_TEST_MSG_S16),
+	FM10K_TLV_ATTR_S32(FM10K_TEST_MSG_S32),
+	FM10K_TLV_ATTR_S64(FM10K_TEST_MSG_S64),
+	FM10K_TLV_ATTR_LE_STRUCT(FM10K_TEST_MSG_LE_STRUCT, 8),
+	FM10K_TLV_ATTR_NESTED(FM10K_TEST_MSG_NESTED),
+	FM10K_TLV_ATTR_S32(FM10K_TEST_MSG_RESULT),
+	FM10K_TLV_ATTR_LAST
+};
+
+/**
+ *  fm10k_tlv_msg_test_generate_data - Stuff message with data
+ *  @msg: Pointer to message
+ *  @attr_flags: List of flags indicating what attributes to add
+ *
+ *  This function is meant to load a message buffer with attribute data
+ **/
+static void fm10k_tlv_msg_test_generate_data(u32 *msg, u32 attr_flags)
+{
+	if (attr_flags & (1 << FM10K_TEST_MSG_STRING))
+		fm10k_tlv_attr_put_null_string(msg, FM10K_TEST_MSG_STRING,
+					       test_str);
+	if (attr_flags & (1 << FM10K_TEST_MSG_MAC_ADDR))
+		fm10k_tlv_attr_put_mac_vlan(msg, FM10K_TEST_MSG_MAC_ADDR,
+					    test_mac, test_vlan);
+	if (attr_flags & (1 << FM10K_TEST_MSG_U8))
+		fm10k_tlv_attr_put_u8(msg, FM10K_TEST_MSG_U8,  test_u8);
+	if (attr_flags & (1 << FM10K_TEST_MSG_U16))
+		fm10k_tlv_attr_put_u16(msg, FM10K_TEST_MSG_U16, test_u16);
+	if (attr_flags & (1 << FM10K_TEST_MSG_U32))
+		fm10k_tlv_attr_put_u32(msg, FM10K_TEST_MSG_U32, test_u32);
+	if (attr_flags & (1 << FM10K_TEST_MSG_U64))
+		fm10k_tlv_attr_put_u64(msg, FM10K_TEST_MSG_U64, test_u64);
+	if (attr_flags & (1 << FM10K_TEST_MSG_S8))
+		fm10k_tlv_attr_put_s8(msg, FM10K_TEST_MSG_S8,  test_s8);
+	if (attr_flags & (1 << FM10K_TEST_MSG_S16))
+		fm10k_tlv_attr_put_s16(msg, FM10K_TEST_MSG_S16, test_s16);
+	if (attr_flags & (1 << FM10K_TEST_MSG_S32))
+		fm10k_tlv_attr_put_s32(msg, FM10K_TEST_MSG_S32, test_s32);
+	if (attr_flags & (1 << FM10K_TEST_MSG_S64))
+		fm10k_tlv_attr_put_s64(msg, FM10K_TEST_MSG_S64, test_s64);
+	if (attr_flags & (1 << FM10K_TEST_MSG_LE_STRUCT))
+		fm10k_tlv_attr_put_le_struct(msg, FM10K_TEST_MSG_LE_STRUCT,
+					     test_le, 8);
+}
+
+/**
+ *  fm10k_tlv_msg_test_create - Create a test message testing all attributes
+ *  @msg: Pointer to message
+ *  @attr_flags: List of flags indicating what attributes to add
+ *
+ *  This function is meant to load a message buffer with all attribute types
+ *  including a nested attribute.
+ **/
+void fm10k_tlv_msg_test_create(u32 *msg, u32 attr_flags)
+{
+	u32 *nest = NULL;
+
+	fm10k_tlv_msg_init(msg, FM10K_TLV_MSG_ID_TEST);
+
+	fm10k_tlv_msg_test_generate_data(msg, attr_flags);
+
+	/* check for nested attributes */
+	attr_flags >>= FM10K_TEST_MSG_NESTED;
+
+	if (attr_flags) {
+		nest = fm10k_tlv_attr_nest_start(msg, FM10K_TEST_MSG_NESTED);
+
+		fm10k_tlv_msg_test_generate_data(nest, attr_flags);
+
+		fm10k_tlv_attr_nest_stop(msg);
+	}
+}
+
+/**
+ *  fm10k_tlv_msg_test - Validate all results on test message receive
+ *  @hw: Pointer to hardware structure
+ *  @results: Pointer array to attributes in the mesage
+ *  @mbx: Pointer to mailbox information structure
+ *
+ *  This function does a check to verify all attributes match what the test
+ *  message placed in the message buffer.  It is the default handler
+ *  for TLV test messages.
+ **/
+s32 fm10k_tlv_msg_test(struct fm10k_hw *hw, u32 **results,
+		       struct fm10k_mbx_info *mbx)
+{
+	u32 *nest_results[FM10K_TLV_RESULTS_MAX];
+	unsigned char result_str[80];
+	unsigned char result_mac[ETH_ALEN];
+	s32 err = 0;
+	__le32 result_le[2];
+	u16 result_vlan;
+	u64 result_u64;
+	u32 result_u32;
+	u16 result_u16;
+	u8  result_u8;
+	s64 result_s64;
+	s32 result_s32;
+	s16 result_s16;
+	s8  result_s8;
+	u32 reply[3];
+
+	/* retrieve results of a previous test */
+	if (!!results[FM10K_TEST_MSG_RESULT])
+		return fm10k_tlv_attr_get_s32(results[FM10K_TEST_MSG_RESULT],
+					      &mbx->test_result);
+
+parse_nested:
+	if (!!results[FM10K_TEST_MSG_STRING]) {
+		err = fm10k_tlv_attr_get_null_string(
+					results[FM10K_TEST_MSG_STRING],
+					result_str);
+		if (!err && memcmp(test_str, result_str, sizeof(test_str)))
+			err = FM10K_ERR_INVALID_VALUE;
+		if (err)
+			goto report_result;
+	}
+	if (!!results[FM10K_TEST_MSG_MAC_ADDR]) {
+		err = fm10k_tlv_attr_get_mac_vlan(
+					results[FM10K_TEST_MSG_MAC_ADDR],
+					result_mac, &result_vlan);
+		if (!err && memcmp(test_mac, result_mac, ETH_ALEN))
+			err = FM10K_ERR_INVALID_VALUE;
+		if (!err && test_vlan != result_vlan)
+			err = FM10K_ERR_INVALID_VALUE;
+		if (err)
+			goto report_result;
+	}
+	if (!!results[FM10K_TEST_MSG_U8]) {
+		err = fm10k_tlv_attr_get_u8(results[FM10K_TEST_MSG_U8],
+					    &result_u8);
+		if (!err && test_u8 != result_u8)
+			err = FM10K_ERR_INVALID_VALUE;
+		if (err)
+			goto report_result;
+	}
+	if (!!results[FM10K_TEST_MSG_U16]) {
+		err = fm10k_tlv_attr_get_u16(results[FM10K_TEST_MSG_U16],
+					     &result_u16);
+		if (!err && test_u16 != result_u16)
+			err = FM10K_ERR_INVALID_VALUE;
+		if (err)
+			goto report_result;
+	}
+	if (!!results[FM10K_TEST_MSG_U32]) {
+		err = fm10k_tlv_attr_get_u32(results[FM10K_TEST_MSG_U32],
+					     &result_u32);
+		if (!err && test_u32 != result_u32)
+			err = FM10K_ERR_INVALID_VALUE;
+		if (err)
+			goto report_result;
+	}
+	if (!!results[FM10K_TEST_MSG_U64]) {
+		err = fm10k_tlv_attr_get_u64(results[FM10K_TEST_MSG_U64],
+					     &result_u64);
+		if (!err && test_u64 != result_u64)
+			err = FM10K_ERR_INVALID_VALUE;
+		if (err)
+			goto report_result;
+	}
+	if (!!results[FM10K_TEST_MSG_S8]) {
+		err = fm10k_tlv_attr_get_s8(results[FM10K_TEST_MSG_S8],
+					    &result_s8);
+		if (!err && test_s8 != result_s8)
+			err = FM10K_ERR_INVALID_VALUE;
+		if (err)
+			goto report_result;
+	}
+	if (!!results[FM10K_TEST_MSG_S16]) {
+		err = fm10k_tlv_attr_get_s16(results[FM10K_TEST_MSG_S16],
+					     &result_s16);
+		if (!err && test_s16 != result_s16)
+			err = FM10K_ERR_INVALID_VALUE;
+		if (err)
+			goto report_result;
+	}
+	if (!!results[FM10K_TEST_MSG_S32]) {
+		err = fm10k_tlv_attr_get_s32(results[FM10K_TEST_MSG_S32],
+					     &result_s32);
+		if (!err && test_s32 != result_s32)
+			err = FM10K_ERR_INVALID_VALUE;
+		if (err)
+			goto report_result;
+	}
+	if (!!results[FM10K_TEST_MSG_S64]) {
+		err = fm10k_tlv_attr_get_s64(results[FM10K_TEST_MSG_S64],
+					     &result_s64);
+		if (!err && test_s64 != result_s64)
+			err = FM10K_ERR_INVALID_VALUE;
+		if (err)
+			goto report_result;
+	}
+	if (!!results[FM10K_TEST_MSG_LE_STRUCT]) {
+		err = fm10k_tlv_attr_get_le_struct(
+					results[FM10K_TEST_MSG_LE_STRUCT],
+					result_le,
+					sizeof(result_le));
+		if (!err && memcmp(test_le, result_le, sizeof(test_le)))
+			err = FM10K_ERR_INVALID_VALUE;
+		if (err)
+			goto report_result;
+	}
+
+	if (!!results[FM10K_TEST_MSG_NESTED]) {
+		/* clear any pointers */
+		memset(nest_results, 0, sizeof(nest_results));
+
+		/* parse the nested attributes into the nest results list */
+		err = fm10k_tlv_attr_parse(results[FM10K_TEST_MSG_NESTED],
+					   nest_results,
+					   fm10k_tlv_msg_test_attr);
+		if (err)
+			goto report_result;
+
+		/* loop back through to the start */
+		results = nest_results;
+		goto parse_nested;
+	}
+
+report_result:
+	/* generate reply with test result */
+	fm10k_tlv_msg_init(reply, FM10K_TLV_MSG_ID_TEST);
+	fm10k_tlv_attr_put_s32(reply, FM10K_TEST_MSG_RESULT, err);
+
+	/* load onto outgoing mailbox */
+	return mbx->ops.enqueue_tx(hw, mbx, reply);
+}
