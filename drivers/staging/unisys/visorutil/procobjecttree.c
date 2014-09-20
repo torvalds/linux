@@ -250,9 +250,8 @@ MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
 		}
 		strcpy(obj->name, name);
 		obj->procDir = createProcDir(obj->name, type->procDir);
-		if (obj->procDir == NULL) {
+		if (obj->procDir == NULL)
 			goto Away;
-		}
 	}
 	obj->procDirPropertyContexts =
 		kzalloc((type->nProperties + 1) * sizeof(PROCDIRENTRYCONTEXT),
