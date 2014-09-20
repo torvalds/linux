@@ -29,7 +29,7 @@
 
 void ODM_DIG_LowerBound_88E(struct odm_dm_struct *pDM_Odm);
 
-void ODM_AntennaDiversityInit_88E(struct odm_dm_struct *pDM_Odm);
+void rtl88eu_dm_antenna_div_init(struct odm_dm_struct *dm_odm);
 
 void ODM_AntennaDiversity_88E(struct odm_dm_struct *pDM_Odm);
 

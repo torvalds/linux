@@ -174,11 +174,8 @@ static void dm_fast_training_init(struct odm_dm_struct *dm_odm)
 	phy_set_bb_reg(adapter, 0xc50, BIT7, 1);
 }
 
-void ODM_AntennaDiversityInit_88E(struct odm_dm_struct *dm_odm)
+void rtl88eu_dm_antenna_div_init(struct odm_dm_struct *dm_odm)
 {
-	ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("dm_odm->AntDivType=%d\n", dm_odm->AntDivType));
-	ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("dm_odm->bIsMPChip=%s\n", (dm_odm->bIsMPChip ? "true" : "false")));
-
 	if (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)
 		dm_rx_hw_antena_div_init(dm_odm);
 	else if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV)
