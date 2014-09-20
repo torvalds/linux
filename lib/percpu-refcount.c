@@ -145,8 +145,9 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 
 	atomic_add((int) count - PCPU_COUNT_BIAS, &ref->count);
 
-	WARN_ONCE(atomic_read(&ref->count) <= 0, "percpu ref <= 0 (%i)",
-		  atomic_read(&ref->count));
+	WARN_ONCE(atomic_read(&ref->count) <= 0,
+		  "percpu ref (%pf) <= 0 (%i) after killed",
+		  ref->release, atomic_read(&ref->count));
 
 	/* @ref is viewed as dead on all CPUs, send out kill confirmation */
 	if (ref->confirm_kill)
@@ -178,7 +179,8 @@ void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill)
 {
 	WARN_ONCE(ref->pcpu_count_ptr & PCPU_REF_DEAD,
-		  "percpu_ref_kill() called more than once!\n");
+		  "percpu_ref_kill() called more than once on %pf!",
+		  ref->release);
 
 	ref->pcpu_count_ptr |= PCPU_REF_DEAD;
 	ref->confirm_kill = confirm_kill;
