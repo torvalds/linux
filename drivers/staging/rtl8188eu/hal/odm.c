@@ -23,6 +23,7 @@
 #include "odm_precomp.h"
 #include "phy.h"
 
+u32 GlobalDebugLevel;
 static const u16 dB_Invert_Table[8][12] = {
 	{1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4},
 	{4, 5, 6, 6, 7, 8, 9, 10, 11, 13, 14, 16},
@@ -171,6 +172,13 @@ u8 CCKSwingTable_Ch14[CCK_TABLE_SIZE][8] = {
 
 #define		RxDefaultAnt1		0x65a9
 #define	RxDefaultAnt2		0x569a
+
+void ODM_InitDebugSetting(struct odm_dm_struct *pDM_Odm)
+{
+	pDM_Odm->DebugLevel = ODM_DBG_TRACE;
+
+	pDM_Odm->DebugComponents = 0;
+}
 
 /* 3 Export Interface */
 

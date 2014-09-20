@@ -27,7 +27,6 @@ r8188eu-y :=				\
 		hal/hal_intf.o		\
 		hal/hal_com.o		\
 		hal/odm.o		\
-		hal/odm_debug.o		\
 		hal/odm_HWConfig.o	\
 		hal/odm_RTL8188E.o	\
 		hal/rtl8188e_cmd.o	\
