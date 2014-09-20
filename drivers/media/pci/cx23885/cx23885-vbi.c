@@ -54,14 +54,14 @@ int cx23885_vbi_fmt(struct file *file, void *priv,
 	f->fmt.vbi.flags = 0;
 	if (dev->tvnorm & V4L2_STD_525_60) {
 		/* ntsc */
-		f->fmt.vbi.start[0] = 10;
-		f->fmt.vbi.start[1] = 272;
+		f->fmt.vbi.start[0] = V4L2_VBI_ITU_525_F1_START + 9;
+		f->fmt.vbi.start[1] = V4L2_VBI_ITU_525_F2_START + 9;
 		f->fmt.vbi.count[0] = VBI_NTSC_LINE_COUNT;
 		f->fmt.vbi.count[1] = VBI_NTSC_LINE_COUNT;
 	} else if (dev->tvnorm & V4L2_STD_625_50) {
 		/* pal */
-		f->fmt.vbi.start[0] = 6;
-		f->fmt.vbi.start[1] = 318;
+		f->fmt.vbi.start[0] = V4L2_VBI_ITU_625_F1_START + 5;
+		f->fmt.vbi.start[1] = V4L2_VBI_ITU_625_F2_START + 5;
 		f->fmt.vbi.count[0] = VBI_PAL_LINE_COUNT;
 		f->fmt.vbi.count[1] = VBI_PAL_LINE_COUNT;
 	}

@@ -1228,11 +1228,11 @@ int cx23885_risc_vbibuffer(struct pci_dev *pci, struct cx23885_riscmem *risc,
 	/* Sync to line 6, so US CC line 21 will appear in line '12'
 	 * in the userland vbi payload */
 	if (UNSET != top_offset)
-		rp = cx23885_risc_field(rp, sglist, top_offset, 6,
+		rp = cx23885_risc_field(rp, sglist, top_offset, 0,
 					bpl, padding, lines, 0, true);
 
 	if (UNSET != bottom_offset)
-		rp = cx23885_risc_field(rp, sglist, bottom_offset, 0x207,
+		rp = cx23885_risc_field(rp, sglist, bottom_offset, 0x200,
 					bpl, padding, lines, 0, UNSET == top_offset);
 
 
