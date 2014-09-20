@@ -33,8 +33,8 @@ void rtl88eu_dm_antenna_div_init(struct odm_dm_struct *dm_odm);
 
 void ODM_AntennaDiversity_88E(struct odm_dm_struct *pDM_Odm);
 
-void ODM_SetTxAntByTxInfo_88E(struct odm_dm_struct *pDM_Odm, u8 *pDesc,
-			      u8 macId);
+void rtl88eu_dm_set_tx_ant_by_tx_info(struct odm_dm_struct *dm_odm, u8 *desc,
+				      u8 mac_id);
 
 void rtl88eu_dm_update_rx_idle_ant(struct odm_dm_struct *dm_odm, u8 ant);
 
