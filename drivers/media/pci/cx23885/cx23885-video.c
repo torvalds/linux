@@ -1154,7 +1154,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	dev->tvnorm = V4L2_STD_NTSC_M;
 	dev->fmt = format_by_fourcc(V4L2_PIX_FMT_YUYV);
 	dev->field = V4L2_FIELD_INTERLACED;
-	dev->width = norm_maxw(dev->tvnorm);
+	dev->width = 720;
 	dev->height = norm_maxh(dev->tvnorm);
 
 	/* init video dma queues */
