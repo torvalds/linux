@@ -5291,7 +5291,10 @@ static void cgroup_release_agent(struct work_struct *work)
 
 	mutex_unlock(&cgroup_mutex);
 	call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
+	goto out_free;
 out:
+	mutex_unlock(&cgroup_mutex);
+out_free:
 	kfree(agentbuf);
 	kfree(pathbuf);
 }
