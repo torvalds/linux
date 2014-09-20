@@ -1275,7 +1275,7 @@ void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm)
 		return;
 	}
 
-	ODM_AntennaDiversity_88E(pDM_Odm);
+	rtl88eu_dm_antenna_diversity(pDM_Odm);
 }
 
 /* EDCA Turbo */
