@@ -709,6 +709,7 @@ static int sasem_probe(struct usb_interface *interface,
 		struct usb_endpoint_descriptor *ep;
 		int ep_dir;
 		int ep_type;
+
 		ep = &iface_desc->endpoint [i].desc;
 		ep_dir = ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK;
 		ep_type = ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
