@@ -258,7 +258,6 @@ static void release_ir_rx(struct kref *ref)
 	/* Don't put_ir_device(rx->ir) here; lock can't be freed yet */
 	ir->rx = NULL;
 	/* Don't do the kfree(rx) here; we still need to kill the poll thread */
-	return;
 }
 
 static int put_ir_rx(struct IR_rx *rx, bool ir_devices_lock_held)
@@ -512,7 +511,6 @@ static int set_use_inc(void *data)
 
 static void set_use_dec(void *data)
 {
-	return;
 }
 
 /* safe read of a uint32 (always network byte order) */
