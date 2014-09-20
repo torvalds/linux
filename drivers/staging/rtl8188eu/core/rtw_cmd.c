@@ -69,7 +69,7 @@ exit:
 	return _SUCCESS;
 }
 
-struct	cmd_obj	* rtw_dequeue_cmd(struct __queue *queue)
+struct	cmd_obj	*rtw_dequeue_cmd(struct __queue *queue)
 {
 	unsigned long irqL;
 	struct cmd_obj *obj;
