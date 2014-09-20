@@ -2776,8 +2776,6 @@ void mspro_polling_format_status(struct rtsx_chip *chip)
 				break;
 		}
 	}
-
-	return;
 }
 
 int mspro_format(struct scsi_cmnd *srb, struct rtsx_chip *chip,
