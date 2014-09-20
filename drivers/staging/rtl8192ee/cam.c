@@ -325,6 +325,5 @@ void stg_rtl_cam_del_entry(struct ieee80211_hw *hw, u8 *sta_addr)
 			pr_info("&&&&&&&&&del entry %d\n", i);
 		}
 	}
-	return;
 }
 EXPORT_SYMBOL(stg_rtl_cam_del_entry);
