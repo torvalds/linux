@@ -37,7 +37,6 @@
 #include "odm.h"
 #include "odm_HWConfig.h"
 #include "odm_debug.h"
-#include "odm_RegDefine11AC.h"
 #include "odm_RegDefine11N.h"
 
 #include "Hal8188ERateAdaptive.h"/* for  RA,Power training */
