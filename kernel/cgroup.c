@@ -1694,7 +1694,6 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	struct dentry *dentry;
 	int ret;
 	int i;
-	bool new_sb;
 
 	/*
 	 * The first time anyone tries to mount a cgroup, enable the list
@@ -1785,7 +1784,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		 * path is super cold.  Let's just sleep a bit and retry.
 		 */
 		pinned_sb = kernfs_pin_sb(root->kf_root, NULL);
-		if (IS_ERR(pinned_sb) ||
+		if (IS_ERR_OR_NULL(pinned_sb) ||
 		    !percpu_ref_tryget_live(&root->cgrp.self.refcnt)) {
 			mutex_unlock(&cgroup_mutex);
 			if (!IS_ERR_OR_NULL(pinned_sb))
@@ -1831,18 +1830,16 @@ out_free:
 		return ERR_PTR(ret);
 
 	dentry = kernfs_mount(fs_type, flags, root->kf_root,
-				CGROUP_SUPER_MAGIC, &new_sb);
-	if (IS_ERR(dentry) || !new_sb)
+				CGROUP_SUPER_MAGIC, NULL);
+	if (IS_ERR(dentry) || pinned_sb)
 		cgroup_put(&root->cgrp);
 
 	/*
 	 * If @pinned_sb, we're reusing an existing root and holding an
 	 * extra ref on its sb.  Mount is complete.  Put the extra ref.
 	 */
-	if (pinned_sb) {
-		WARN_ON(new_sb);
+	if (pinned_sb)
 		deactivate_super(pinned_sb);
-	}
 
 	return dentry;
 }
