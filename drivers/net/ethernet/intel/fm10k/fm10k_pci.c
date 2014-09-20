@@ -38,6 +38,36 @@ static const struct pci_device_id fm10k_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, fm10k_pci_tbl);
 
+u16 fm10k_read_pci_cfg_word(struct fm10k_hw *hw, u32 reg)
+{
+	struct fm10k_intfc *interface = hw->back;
+	u16 value = 0;
+
+	if (FM10K_REMOVED(hw->hw_addr))
+		return ~value;
+
+	pci_read_config_word(interface->pdev, reg, &value);
+	if (value == 0xFFFF)
+		fm10k_write_flush(hw);
+
+	return value;
+}
+
+u32 fm10k_read_reg(struct fm10k_hw *hw, int reg)
+{
+	u32 __iomem *hw_addr = ACCESS_ONCE(hw->hw_addr);
+	u32 value = 0;
+
+	if (FM10K_REMOVED(hw_addr))
+		return ~value;
+
+	value = readl(&hw_addr[reg]);
+	if (!(~value) && (!reg || !(~readl(hw_addr))))
+		hw->hw_addr = NULL;
+
+	return value;
+}
+
 /**
  * fm10k_probe - Device Initialization Routine
  * @pdev: PCI device information struct

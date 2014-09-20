@@ -18,29 +18,27 @@
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  */
 
-#ifndef _FM10K_H_
-#define _FM10K_H_
+#ifndef _FM10K_COMMON_H_
+#define _FM10K_COMMON_H_
 
-#include <linux/types.h>
-#include <linux/etherdevice.h>
-#include <linux/rtnetlink.h>
-#include <linux/if_vlan.h>
-#include <linux/pci.h>
+#include "fm10k_type.h"
 
-#include "fm10k_common.h"
+#define FM10K_REMOVED(hw_addr) unlikely(!(hw_addr))
 
-struct fm10k_intfc {
-	struct pci_dev *pdev;
+/* PCI configuration read */
+u16 fm10k_read_pci_cfg_word(struct fm10k_hw *hw, u32 reg);
 
-	struct fm10k_hw hw;
-	u32 __iomem *uc_addr;
-};
+/* read operations, indexed using DWORDS */
+u32 fm10k_read_reg(struct fm10k_hw *hw, int reg);
 
-/* main */
-extern char fm10k_driver_name[];
-extern const char fm10k_driver_version[];
+/* write operations, indexed using DWORDS */
+#define fm10k_write_reg(hw, reg, val) \
+do { \
+	u32 __iomem *hw_addr = ACCESS_ONCE((hw)->hw_addr); \
+	if (!FM10K_REMOVED(hw_addr)) \
+		writel((val), &hw_addr[(reg)]); \
+} while (0)
 
-/* PCI */
-int fm10k_register_pci_driver(void);
-void fm10k_unregister_pci_driver(void);
-#endif /* _FM10K_H_ */
+/* read ctrl register which has no clear on read fields as PCIe flush */
+#define fm10k_write_flush(hw) fm10k_read_reg((hw), FM10K_CTRL)
+#endif /* _FM10K_COMMON_H_ */
