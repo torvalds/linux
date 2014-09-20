@@ -1105,7 +1105,6 @@ virthba_slave_destroy(struct scsi_device *scsidev)
 			return;
 		}
 	}
-	return;
 }
 
 /*****************************************************/
