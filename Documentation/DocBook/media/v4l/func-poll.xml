@@ -44,10 +44,18 @@ Capture devices set the <constant>POLLIN</constant> and
 flags. When the function timed out it returns a value of zero, on
 failure it returns <returnvalue>-1</returnvalue> and the
 <varname>errno</varname> variable is set appropriately. When the
-application did not call &VIDIOC-QBUF; or &VIDIOC-STREAMON; yet the
+application did not call &VIDIOC-STREAMON; the
 <function>poll()</function> function succeeds, but sets the
 <constant>POLLERR</constant> flag in the
-<structfield>revents</structfield> field.</para>
+<structfield>revents</structfield> field. When the
+application has called &VIDIOC-STREAMON; for a capture device but hasn't
+yet called &VIDIOC-QBUF;, the <function>poll()</function> function
+succeeds and sets the <constant>POLLERR</constant> flag in the
+<structfield>revents</structfield> field. For output devices this
+same situation will cause <function>poll()</function> to succeed
+as well, but it sets the <constant>POLLOUT</constant> and
+<constant>POLLWRNORM</constant> flags in the <structfield>revents</structfield>
+field.</para>
 
     <para>When use of the <function>read()</function> function has
 been negotiated and the driver does not capture yet, the
