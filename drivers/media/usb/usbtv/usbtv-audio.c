@@ -311,6 +311,7 @@ static int snd_usbtv_card_trigger(struct snd_pcm_substream *substream, int cmd)
 static snd_pcm_uframes_t snd_usbtv_pointer(struct snd_pcm_substream *substream)
 {
 	struct usbtv *chip = snd_pcm_substream_chip(substream);
+
 	return chip->snd_buffer_pos;
 }
 

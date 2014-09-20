@@ -108,6 +108,7 @@ usbtv_video_fail:
 static void usbtv_disconnect(struct usb_interface *intf)
 {
 	struct usbtv *usbtv = usb_get_intfdata(intf);
+
 	usb_set_intfdata(intf, NULL);
 
 	if (!usbtv)
