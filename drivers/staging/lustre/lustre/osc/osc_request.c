@@ -237,7 +237,7 @@ static int osc_getattr_interpret(const struct lu_env *env,
 	struct ost_body *body;
 
 	if (rc != 0)
-		GOTO(out, rc);
+		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
 	if (body) {
@@ -313,11 +313,13 @@ static int osc_getattr(const struct lu_env *env, struct obd_export *exp,
 
 	rc = ptlrpc_queue_wait(req);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
-	if (body == NULL)
-		GOTO(out, rc = -EPROTO);
+	if (body == NULL) {
+		rc = -EPROTO;
+		goto out;
+	}
 
 	CDEBUG(D_INODE, "mode: %o\n", body->oa.o_mode);
 	lustre_get_wire_obdo(&req->rq_import->imp_connect_data, oinfo->oi_oa,
@@ -357,11 +359,13 @@ static int osc_setattr(const struct lu_env *env, struct obd_export *exp,
 
 	rc = ptlrpc_queue_wait(req);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
-	if (body == NULL)
-		GOTO(out, rc = -EPROTO);
+	if (body == NULL) {
+		rc = -EPROTO;
+		goto out;
+	}
 
 	lustre_get_wire_obdo(&req->rq_import->imp_connect_data, oinfo->oi_oa,
 			     &body->oa);
@@ -378,11 +382,13 @@ static int osc_setattr_interpret(const struct lu_env *env,
 	struct ost_body *body;
 
 	if (rc != 0)
-		GOTO(out, rc);
+		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
-	if (body == NULL)
-		GOTO(out, rc = -EPROTO);
+	if (body == NULL) {
+		rc = -EPROTO;
+		goto out;
+	}
 
 	lustre_get_wire_obdo(&req->rq_import->imp_connect_data, sa->sa_oa,
 			     &body->oa);
@@ -468,13 +474,15 @@ int osc_real_create(struct obd_export *exp, struct obdo *oa,
 	}
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_CREATE);
-	if (req == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (req == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_CREATE);
 	if (rc) {
 		ptlrpc_request_free(req);
-		GOTO(out, rc);
+		goto out;
 	}
 
 	body = req_capsule_client_get(&req->rq_pill, &RMF_OST_BODY);
@@ -494,11 +502,13 @@ int osc_real_create(struct obd_export *exp, struct obdo *oa,
 
 	rc = ptlrpc_queue_wait(req);
 	if (rc)
-		GOTO(out_req, rc);
+		goto out_req;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
-	if (body == NULL)
-		GOTO(out_req, rc = -EPROTO);
+	if (body == NULL) {
+		rc = -EPROTO;
+		goto out_req;
+	}
 
 	CDEBUG(D_INFO, "oa flags %x\n", oa->o_flags);
 	lustre_get_wire_obdo(&req->rq_import->imp_connect_data, oa, &body->oa);
@@ -585,12 +595,13 @@ static int osc_sync_interpret(const struct lu_env *env,
 	struct ost_body *body;
 
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
 	if (body == NULL) {
 		CERROR ("can't unpack ost_body\n");
-		GOTO(out, rc = -EPROTO);
+		rc = -EPROTO;
+		goto out;
 	}
 
 	*fa->fa_oi->oi_oa = body->oa;
@@ -891,7 +902,7 @@ static int osc_shrink_grant_interpret(const struct lu_env *env,
 
 	if (rc != 0) {
 		__osc_update_grant(cli, oa->o_grant);
-		GOTO(out, rc);
+		goto out;
 	}
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
@@ -1294,8 +1305,10 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 		opc == OST_WRITE ? BULK_GET_SOURCE : BULK_PUT_SINK,
 		OST_BULK_PORTAL);
 
-	if (desc == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (desc == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 	/* NB request now owns desc and will free it when it gets freed */
 
 	body = req_capsule_client_get(pill, &RMF_OST_BODY);
@@ -1540,15 +1553,17 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 		rc = check_write_rcs(req, aa->aa_requested_nob,
 				     aa->aa_nio_count,
 				     aa->aa_page_count, aa->aa_ppga);
-		GOTO(out, rc);
+		goto out;
 	}
 
 	/* The rest of this function executes only for OST_READs */
 
 	/* if unwrap_bulk failed, return -EAGAIN to retry */
 	rc = sptlrpc_cli_unwrap_bulk_read(req, req->rq_bulk, rc);
-	if (rc < 0)
-		GOTO(out, rc = -EAGAIN);
+	if (rc < 0) {
+		rc = -EAGAIN;
+		goto out;
+	}
 
 	if (rc > aa->aa_requested_nob) {
 		CERROR("Unexpected rc %d (%d requested)\n", rc,
@@ -1898,16 +1913,22 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 		mpflag = cfs_memory_pressure_get_and_set();
 
 	OBD_ALLOC(crattr, sizeof(*crattr));
-	if (crattr == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (crattr == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	OBD_ALLOC(pga, sizeof(*pga) * page_count);
-	if (pga == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (pga == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	OBDO_ALLOC(oa);
-	if (oa == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (oa == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	i = 0;
 	list_for_each_entry(oap, &rpc_list, oap_rpc_item) {
@@ -1915,8 +1936,10 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 		if (clerq == NULL) {
 			clerq = cl_req_alloc(env, page, crt,
 					     1 /* only 1-object rpcs for now */);
-			if (IS_ERR(clerq))
-				GOTO(out, rc = PTR_ERR(clerq));
+			if (IS_ERR(clerq)) {
+				rc = PTR_ERR(clerq);
+				goto out;
+			}
 			lock = oap->oap_ldlm_lock;
 		}
 		if (mem_tight)
@@ -1942,7 +1965,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	rc = cl_req_prep(env, clerq);
 	if (rc != 0) {
 		CERROR("cl_req_prep failed: %d\n", rc);
-		GOTO(out, rc);
+		goto out;
 	}
 
 	sort_brw_pages(pga, page_count);
@@ -1950,7 +1973,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 			pga, &req, crattr->cra_capa, 1, 0);
 	if (rc != 0) {
 		CERROR("prep_req failed: %d\n", rc);
-		GOTO(out, rc);
+		goto out;
 	}
 
 	req->rq_interpret_reply = brw_interpret;
@@ -2435,15 +2458,18 @@ static int osc_statfs_interpret(const struct lu_env *env,
 		 return rc;
 
 	if ((rc == -ENOTCONN || rc == -EAGAIN) &&
-	    (aa->aa_oi->oi_flags & OBD_STATFS_NODELAY))
-		GOTO(out, rc = 0);
+	    (aa->aa_oi->oi_flags & OBD_STATFS_NODELAY)) {
+		rc = 0;
+		goto out;
+	}
 
 	if (rc != 0)
-		GOTO(out, rc);
+		goto out;
 
 	msfs = req_capsule_server_get(&req->rq_pill, &RMF_OBD_STATFS);
 	if (msfs == NULL) {
-		GOTO(out, rc = -EPROTO);
+		rc = -EPROTO;
+		goto out;
 	}
 
 	*aa->aa_oi->oi_osfs = *msfs;
@@ -2543,11 +2569,12 @@ static int osc_statfs(const struct lu_env *env, struct obd_export *exp,
 
 	rc = ptlrpc_queue_wait(req);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	msfs = req_capsule_server_get(&req->rq_pill, &RMF_OBD_STATFS);
 	if (msfs == NULL) {
-		GOTO(out, rc = -EPROTO);
+		rc = -EPROTO;
+		goto out;
 	}
 
 	*osfs = *msfs;
@@ -2639,19 +2666,23 @@ static int osc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		buf = NULL;
 		len = 0;
-		if (obd_ioctl_getdata(&buf, &len, (void *)uarg))
-			GOTO(out, err = -EINVAL);
+		if (obd_ioctl_getdata(&buf, &len, (void *)uarg)) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		data = (struct obd_ioctl_data *)buf;
 
 		if (sizeof(*desc) > data->ioc_inllen1) {
 			obd_ioctl_freedata(buf, len);
-			GOTO(out, err = -EINVAL);
+			err = -EINVAL;
+			goto out;
 		}
 
 		if (data->ioc_inllen2 < sizeof(uuid)) {
 			obd_ioctl_freedata(buf, len);
-			GOTO(out, err = -EINVAL);
+			err = -EINVAL;
+			goto out;
 		}
 
 		desc = (struct lov_desc *)data->ioc_inlbuf1;
@@ -2669,36 +2700,37 @@ static int osc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		if (err)
 			err = -EFAULT;
 		obd_ioctl_freedata(buf, len);
-		GOTO(out, err);
+		goto out;
 	}
 	case LL_IOC_LOV_SETSTRIPE:
 		err = obd_alloc_memmd(exp, karg);
 		if (err > 0)
 			err = 0;
-		GOTO(out, err);
+		goto out;
 	case LL_IOC_LOV_GETSTRIPE:
 		err = osc_getstripe(karg, uarg);
-		GOTO(out, err);
+		goto out;
 	case OBD_IOC_CLIENT_RECOVER:
 		err = ptlrpc_recover_import(obd->u.cli.cl_import,
 					    data->ioc_inlbuf1, 0);
 		if (err > 0)
 			err = 0;
-		GOTO(out, err);
+		goto out;
 	case IOC_OSC_SET_ACTIVE:
 		err = ptlrpc_set_import_active(obd->u.cli.cl_import,
 					       data->ioc_offset);
-		GOTO(out, err);
+		goto out;
 	case OBD_IOC_POLL_QUOTACHECK:
 		err = osc_quota_poll_check(exp, (struct if_quotacheck *)karg);
-		GOTO(out, err);
+		goto out;
 	case OBD_IOC_PING_TARGET:
 		err = ptlrpc_obd_ping(obd);
-		GOTO(out, err);
+		goto out;
 	default:
 		CDEBUG(D_INODE, "unrecognised ioctl %#x by %s\n",
 		       cmd, current_comm());
-		GOTO(out, err = -ENOTTY);
+		err = -ENOTTY;
+		goto out;
 	}
 out:
 	module_put(THIS_MODULE);
@@ -2743,11 +2775,13 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 		ptlrpc_request_set_replen(req);
 		rc = ptlrpc_queue_wait(req);
 		if (rc)
-			GOTO(out, rc);
+			goto out;
 
 		reply = req_capsule_server_get(&req->rq_pill, &RMF_OBD_ID);
-		if (reply == NULL)
-			GOTO(out, rc = -EPROTO);
+		if (reply == NULL) {
+			rc = -EPROTO;
+			goto out;
+		}
 
 		*((u64 *)val) = *reply;
 	out:
@@ -2798,8 +2832,10 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 skip_locking:
 		req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 					   &RQF_OST_GET_INFO_FIEMAP);
-		if (req == NULL)
-			GOTO(drop_lock, rc = -ENOMEM);
+		if (req == NULL) {
+			rc = -ENOMEM;
+			goto drop_lock;
+		}
 
 		req_capsule_set_size(&req->rq_pill, &RMF_FIEMAP_KEY,
 				     RCL_CLIENT, keylen);
@@ -2811,7 +2847,7 @@ skip_locking:
 		rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_GET_INFO);
 		if (rc) {
 			ptlrpc_request_free(req);
-			GOTO(drop_lock, rc);
+			goto drop_lock;
 		}
 
 		tmp = req_capsule_client_get(&req->rq_pill, &RMF_FIEMAP_KEY);
@@ -2822,11 +2858,13 @@ skip_locking:
 		ptlrpc_request_set_replen(req);
 		rc = ptlrpc_queue_wait(req);
 		if (rc)
-			GOTO(fini_req, rc);
+			goto fini_req;
 
 		reply = req_capsule_server_get(&req->rq_pill, &RMF_FIEMAP_VAL);
-		if (reply == NULL)
-			GOTO(fini_req, rc = -EPROTO);
+		if (reply == NULL) {
+			rc = -EPROTO;
+			goto fini_req;
+		}
 
 		memcpy(val, reply, *vallen);
 fini_req:
@@ -3133,16 +3171,18 @@ int osc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	rc = client_obd_setup(obd, lcfg);
 	if (rc)
-		GOTO(out_ptlrpcd, rc);
+		goto out_ptlrpcd;
 
 	handler = ptlrpcd_alloc_work(cli->cl_import, brw_queue_work, cli);
-	if (IS_ERR(handler))
-		GOTO(out_client_setup, rc = PTR_ERR(handler));
+	if (IS_ERR(handler)) {
+		rc = PTR_ERR(handler);
+		goto out_client_setup;
+	}
 	cli->cl_writeback_work = handler;
 
 	rc = osc_quota_setup(obd);
 	if (rc)
-		GOTO(out_ptlrpcd_work, rc);
+		goto out_ptlrpcd_work;
 
 	cli->cl_grant_shrink_interval = GRANT_SHRINK_INTERVAL;
 	lprocfs_osc_init_vars(&lvars);
