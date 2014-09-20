@@ -2144,7 +2144,6 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 		break;
 	case IEEE_PARAM_AUTH_ALGS:
 		return wpa_set_auth_algs(dev, value);
-		break;
 	case IEEE_PARAM_IEEE_802_1X:
 		break;
 	case IEEE_PARAM_WPAX_SELECT:
