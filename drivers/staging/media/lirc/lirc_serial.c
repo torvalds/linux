@@ -496,6 +496,7 @@ static long send_pulse_homebrew_softcarrier(unsigned long length)
 {
 	int flag;
 	unsigned long actual, target, d;
+
 	length <<= 8;
 
 	actual = 0; target = 0; flag = 0;
