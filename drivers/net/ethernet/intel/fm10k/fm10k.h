@@ -307,7 +307,7 @@ struct fm10k_intfc {
 	/* VXLAN port tracking information */
 	struct list_head vxlan_port;
 
-#if defined(HAVE_DCBNL_IEEE) && defined(CONFIG_DCB)
+#ifdef CONFIG_DCB
 	u8 pfc_en;
 #endif
 	u8 rx_pause;
@@ -467,4 +467,7 @@ int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx, int rate,
 			int unused);
 int fm10k_ndo_get_vf_config(struct net_device *netdev,
 			    int vf_idx, struct ifla_vf_info *ivi);
+
+/* DCB */
+void fm10k_dcbnl_set_ops(struct net_device *dev);
 #endif /* _FM10K_H_ */

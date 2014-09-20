@@ -649,7 +649,7 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 	fm10k_write_reg(hw, FM10K_SRRCTL(reg_idx), srrctl);
 
 	/* Enable drop on empty */
-#if defined(HAVE_DCBNL_IEEE) && defined(CONFIG_DCB)
+#ifdef CONFIG_DCB
 	if (interface->pfc_en)
 		rx_pause = interface->pfc_en;
 #endif
@@ -688,7 +688,7 @@ void fm10k_update_rx_drop_en(struct fm10k_intfc *interface)
 	u8 rx_pause = interface->rx_pause;
 	int i;
 
-#if defined(HAVE_DCBNL_IEEE) && defined(CONFIG_DCB)
+#ifdef CONFIG_DCB
 	if (interface->pfc_en)
 		rx_pause = interface->pfc_en;
 
@@ -1555,6 +1555,9 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 		netdev->features &= ~NETIF_F_GSO_UDP_TUNNEL;
 		netdev->hw_features &= ~NETIF_F_GSO_UDP_TUNNEL;
 	}
+
+	/* initialize DCBNL interface */
+	fm10k_dcbnl_set_ops(netdev);
 
 	/* Initialize service timer and service task */
 	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
