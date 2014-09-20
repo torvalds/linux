@@ -85,7 +85,7 @@ int ade7758_probe_trigger(struct iio_dev *indio_dev)
 	ret = iio_trigger_register(st->trig);
 
 	/* select default trigger */
-	indio_dev->trig = st->trig;
+	indio_dev->trig = iio_trigger_get(st->trig);
 	if (ret)
 		goto error_free_irq;
 
