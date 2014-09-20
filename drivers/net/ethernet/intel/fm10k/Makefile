@@ -28,4 +28,4 @@
 obj-$(CONFIG_FM10K) += fm10k.o
 
 fm10k-objs := fm10k_main.o fm10k_pci.o \
-	      fm10k_tlv.o
+	      fm10k_mbx.o fm10k_tlv.o

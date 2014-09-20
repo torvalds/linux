@@ -237,4 +237,7 @@ struct fm10k_mbx_info {
 	u32 buffer[FM10K_MBX_BUFFER_SIZE];
 };
 
+s32 fm10k_sm_mbx_init(struct fm10k_hw *, struct fm10k_mbx_info *,
+		      const struct fm10k_msg_data *);
+
 #endif /* _FM10K_MBX_H_ */
