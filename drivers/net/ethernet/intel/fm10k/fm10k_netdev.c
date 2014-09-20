@@ -19,6 +19,332 @@
  */
 
 #include "fm10k.h"
+#include <linux/vmalloc.h>
+
+/**
+ * fm10k_setup_tx_resources - allocate Tx resources (Descriptors)
+ * @tx_ring:    tx descriptor ring (for a specific queue) to setup
+ *
+ * Return 0 on success, negative on failure
+ **/
+int fm10k_setup_tx_resources(struct fm10k_ring *tx_ring)
+{
+	struct device *dev = tx_ring->dev;
+	int size;
+
+	size = sizeof(struct fm10k_tx_buffer) * tx_ring->count;
+
+	tx_ring->tx_buffer = vzalloc(size);
+	if (!tx_ring->tx_buffer)
+		goto err;
+
+	u64_stats_init(&tx_ring->syncp);
+
+	/* round up to nearest 4K */
+	tx_ring->size = tx_ring->count * sizeof(struct fm10k_tx_desc);
+	tx_ring->size = ALIGN(tx_ring->size, 4096);
+
+	tx_ring->desc = dma_alloc_coherent(dev, tx_ring->size,
+					   &tx_ring->dma, GFP_KERNEL);
+	if (!tx_ring->desc)
+		goto err;
+
+	return 0;
+
+err:
+	vfree(tx_ring->tx_buffer);
+	tx_ring->tx_buffer = NULL;
+	return -ENOMEM;
+}
+
+/**
+ * fm10k_setup_all_tx_resources - allocate all queues Tx resources
+ * @interface: board private structure
+ *
+ * If this function returns with an error, then it's possible one or
+ * more of the rings is populated (while the rest are not).  It is the
+ * callers duty to clean those orphaned rings.
+ *
+ * Return 0 on success, negative on failure
+ **/
+static int fm10k_setup_all_tx_resources(struct fm10k_intfc *interface)
+{
+	int i, err = 0;
+
+	for (i = 0; i < interface->num_tx_queues; i++) {
+		err = fm10k_setup_tx_resources(interface->tx_ring[i]);
+		if (!err)
+			continue;
+
+		netif_err(interface, probe, interface->netdev,
+			  "Allocation for Tx Queue %u failed\n", i);
+		goto err_setup_tx;
+	}
+
+	return 0;
+err_setup_tx:
+	/* rewind the index freeing the rings as we go */
+	while (i--)
+		fm10k_free_tx_resources(interface->tx_ring[i]);
+	return err;
+}
+
+/**
+ * fm10k_setup_rx_resources - allocate Rx resources (Descriptors)
+ * @rx_ring:    rx descriptor ring (for a specific queue) to setup
+ *
+ * Returns 0 on success, negative on failure
+ **/
+int fm10k_setup_rx_resources(struct fm10k_ring *rx_ring)
+{
+	struct device *dev = rx_ring->dev;
+	int size;
+
+	size = sizeof(struct fm10k_rx_buffer) * rx_ring->count;
+
+	rx_ring->rx_buffer = vzalloc(size);
+	if (!rx_ring->rx_buffer)
+		goto err;
+
+	u64_stats_init(&rx_ring->syncp);
+
+	/* Round up to nearest 4K */
+	rx_ring->size = rx_ring->count * sizeof(union fm10k_rx_desc);
+	rx_ring->size = ALIGN(rx_ring->size, 4096);
+
+	rx_ring->desc = dma_alloc_coherent(dev, rx_ring->size,
+					   &rx_ring->dma, GFP_KERNEL);
+	if (!rx_ring->desc)
+		goto err;
+
+	return 0;
+err:
+	vfree(rx_ring->rx_buffer);
+	rx_ring->rx_buffer = NULL;
+	return -ENOMEM;
+}
+
+/**
+ * fm10k_setup_all_rx_resources - allocate all queues Rx resources
+ * @interface: board private structure
+ *
+ * If this function returns with an error, then it's possible one or
+ * more of the rings is populated (while the rest are not).  It is the
+ * callers duty to clean those orphaned rings.
+ *
+ * Return 0 on success, negative on failure
+ **/
+static int fm10k_setup_all_rx_resources(struct fm10k_intfc *interface)
+{
+	int i, err = 0;
+
+	for (i = 0; i < interface->num_rx_queues; i++) {
+		err = fm10k_setup_rx_resources(interface->rx_ring[i]);
+		if (!err)
+			continue;
+
+		netif_err(interface, probe, interface->netdev,
+			  "Allocation for Rx Queue %u failed\n", i);
+		goto err_setup_rx;
+	}
+
+	return 0;
+err_setup_rx:
+	/* rewind the index freeing the rings as we go */
+	while (i--)
+		fm10k_free_rx_resources(interface->rx_ring[i]);
+	return err;
+}
+
+void fm10k_unmap_and_free_tx_resource(struct fm10k_ring *ring,
+				      struct fm10k_tx_buffer *tx_buffer)
+{
+	if (tx_buffer->skb) {
+		dev_kfree_skb_any(tx_buffer->skb);
+		if (dma_unmap_len(tx_buffer, len))
+			dma_unmap_single(ring->dev,
+					 dma_unmap_addr(tx_buffer, dma),
+					 dma_unmap_len(tx_buffer, len),
+					 DMA_TO_DEVICE);
+	} else if (dma_unmap_len(tx_buffer, len)) {
+		dma_unmap_page(ring->dev,
+			       dma_unmap_addr(tx_buffer, dma),
+			       dma_unmap_len(tx_buffer, len),
+			       DMA_TO_DEVICE);
+	}
+	tx_buffer->next_to_watch = NULL;
+	tx_buffer->skb = NULL;
+	dma_unmap_len_set(tx_buffer, len, 0);
+	/* tx_buffer must be completely set up in the transmit path */
+}
+
+/**
+ * fm10k_clean_tx_ring - Free Tx Buffers
+ * @tx_ring: ring to be cleaned
+ **/
+static void fm10k_clean_tx_ring(struct fm10k_ring *tx_ring)
+{
+	struct fm10k_tx_buffer *tx_buffer;
+	unsigned long size;
+	u16 i;
+
+	/* ring already cleared, nothing to do */
+	if (!tx_ring->tx_buffer)
+		return;
+
+	/* Free all the Tx ring sk_buffs */
+	for (i = 0; i < tx_ring->count; i++) {
+		tx_buffer = &tx_ring->tx_buffer[i];
+		fm10k_unmap_and_free_tx_resource(tx_ring, tx_buffer);
+	}
+
+	/* reset BQL values */
+	netdev_tx_reset_queue(txring_txq(tx_ring));
+
+	size = sizeof(struct fm10k_tx_buffer) * tx_ring->count;
+	memset(tx_ring->tx_buffer, 0, size);
+
+	/* Zero out the descriptor ring */
+	memset(tx_ring->desc, 0, tx_ring->size);
+}
+
+/**
+ * fm10k_free_tx_resources - Free Tx Resources per Queue
+ * @tx_ring: Tx descriptor ring for a specific queue
+ *
+ * Free all transmit software resources
+ **/
+void fm10k_free_tx_resources(struct fm10k_ring *tx_ring)
+{
+	fm10k_clean_tx_ring(tx_ring);
+
+	vfree(tx_ring->tx_buffer);
+	tx_ring->tx_buffer = NULL;
+
+	/* if not set, then don't free */
+	if (!tx_ring->desc)
+		return;
+
+	dma_free_coherent(tx_ring->dev, tx_ring->size,
+			  tx_ring->desc, tx_ring->dma);
+	tx_ring->desc = NULL;
+}
+
+/**
+ * fm10k_clean_all_tx_rings - Free Tx Buffers for all queues
+ * @interface: board private structure
+ **/
+void fm10k_clean_all_tx_rings(struct fm10k_intfc *interface)
+{
+	int i;
+
+	for (i = 0; i < interface->num_tx_queues; i++)
+		fm10k_clean_tx_ring(interface->tx_ring[i]);
+}
+
+/**
+ * fm10k_free_all_tx_resources - Free Tx Resources for All Queues
+ * @interface: board private structure
+ *
+ * Free all transmit software resources
+ **/
+static void fm10k_free_all_tx_resources(struct fm10k_intfc *interface)
+{
+	int i = interface->num_tx_queues;
+
+	while (i--)
+		fm10k_free_tx_resources(interface->tx_ring[i]);
+}
+
+/**
+ * fm10k_clean_rx_ring - Free Rx Buffers per Queue
+ * @rx_ring: ring to free buffers from
+ **/
+static void fm10k_clean_rx_ring(struct fm10k_ring *rx_ring)
+{
+	unsigned long size;
+	u16 i;
+
+	if (!rx_ring->rx_buffer)
+		return;
+
+	if (rx_ring->skb)
+		dev_kfree_skb(rx_ring->skb);
+	rx_ring->skb = NULL;
+
+	/* Free all the Rx ring sk_buffs */
+	for (i = 0; i < rx_ring->count; i++) {
+		struct fm10k_rx_buffer *buffer = &rx_ring->rx_buffer[i];
+		/* clean-up will only set page pointer to NULL */
+		if (!buffer->page)
+			continue;
+
+		dma_unmap_page(rx_ring->dev, buffer->dma,
+			       PAGE_SIZE, DMA_FROM_DEVICE);
+		__free_page(buffer->page);
+
+		buffer->page = NULL;
+	}
+
+	size = sizeof(struct fm10k_rx_buffer) * rx_ring->count;
+	memset(rx_ring->rx_buffer, 0, size);
+
+	/* Zero out the descriptor ring */
+	memset(rx_ring->desc, 0, rx_ring->size);
+
+	rx_ring->next_to_alloc = 0;
+	rx_ring->next_to_clean = 0;
+	rx_ring->next_to_use = 0;
+}
+
+/**
+ * fm10k_free_rx_resources - Free Rx Resources
+ * @rx_ring: ring to clean the resources from
+ *
+ * Free all receive software resources
+ **/
+void fm10k_free_rx_resources(struct fm10k_ring *rx_ring)
+{
+	fm10k_clean_rx_ring(rx_ring);
+
+	vfree(rx_ring->rx_buffer);
+	rx_ring->rx_buffer = NULL;
+
+	/* if not set, then don't free */
+	if (!rx_ring->desc)
+		return;
+
+	dma_free_coherent(rx_ring->dev, rx_ring->size,
+			  rx_ring->desc, rx_ring->dma);
+
+	rx_ring->desc = NULL;
+}
+
+/**
+ * fm10k_clean_all_rx_rings - Free Rx Buffers for all queues
+ * @interface: board private structure
+ **/
+void fm10k_clean_all_rx_rings(struct fm10k_intfc *interface)
+{
+	int i;
+
+	for (i = 0; i < interface->num_rx_queues; i++)
+		fm10k_clean_rx_ring(interface->rx_ring[i]);
+}
+
+/**
+ * fm10k_free_all_rx_resources - Free Rx Resources for All Queues
+ * @interface: board private structure
+ *
+ * Free all receive software resources
+ **/
+static void fm10k_free_all_rx_resources(struct fm10k_intfc *interface)
+{
+	int i = interface->num_rx_queues;
+
+	while (i--)
+		fm10k_free_rx_resources(interface->rx_ring[i]);
+}
 
 /**
  * fm10k_request_glort_range - Request GLORTs for use in configuring rules
@@ -59,6 +385,16 @@ int fm10k_open(struct net_device *netdev)
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	int err;
 
+	/* allocate transmit descriptors */
+	err = fm10k_setup_all_tx_resources(interface);
+	if (err)
+		goto err_setup_tx;
+
+	/* allocate receive descriptors */
+	err = fm10k_setup_all_rx_resources(interface);
+	if (err)
+		goto err_setup_rx;
+
 	/* allocate interrupt resources */
 	err = fm10k_qv_request_irq(interface);
 	if (err)
@@ -81,6 +417,10 @@ int fm10k_open(struct net_device *netdev)
 err_set_queues:
 	fm10k_qv_free_irq(interface);
 err_req_irq:
+	fm10k_free_all_rx_resources(interface);
+err_setup_rx:
+	fm10k_free_all_tx_resources(interface);
+err_setup_tx:
 	return err;
 }
 
@@ -102,6 +442,9 @@ int fm10k_close(struct net_device *netdev)
 	fm10k_down(interface);
 
 	fm10k_qv_free_irq(interface);
+
+	fm10k_free_all_tx_resources(interface);
+	fm10k_free_all_rx_resources(interface);
 
 	return 0;
 }

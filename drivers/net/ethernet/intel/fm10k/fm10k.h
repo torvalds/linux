@@ -407,6 +407,14 @@ void fm10k_update_rx_drop_en(struct fm10k_intfc *interface);
 
 /* Netdev */
 struct net_device *fm10k_alloc_netdev(void);
+int fm10k_setup_rx_resources(struct fm10k_ring *);
+int fm10k_setup_tx_resources(struct fm10k_ring *);
+void fm10k_free_rx_resources(struct fm10k_ring *);
+void fm10k_free_tx_resources(struct fm10k_ring *);
+void fm10k_clean_all_rx_rings(struct fm10k_intfc *);
+void fm10k_clean_all_tx_rings(struct fm10k_intfc *);
+void fm10k_unmap_and_free_tx_resource(struct fm10k_ring *,
+				      struct fm10k_tx_buffer *);
 void fm10k_restore_rx_state(struct fm10k_intfc *);
 void fm10k_reset_rx_state(struct fm10k_intfc *);
 int fm10k_open(struct net_device *netdev);
