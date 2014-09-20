@@ -1517,6 +1517,10 @@ s32 fm10k_pfvf_mbx_init(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx,
 {
 	/* initialize registers */
 	switch (hw->mac.type) {
+	case fm10k_mac_vf:
+		mbx->mbx_reg = FM10K_VFMBX;
+		mbx->mbmem_reg = FM10K_VFMBMEM(FM10K_VFMBMEM_VF_XOR);
+		break;
 	case fm10k_mac_pf:
 		/* there are only 64 VF <-> PF mailboxes */
 		if (id < 64) {

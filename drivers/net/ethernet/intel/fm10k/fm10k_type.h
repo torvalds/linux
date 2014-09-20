@@ -351,6 +351,13 @@ struct fm10k_hw;
 #define FM10K_QUEUE_DISABLE_TIMEOUT		100
 #define FM10K_RESET_TIMEOUT			100
 
+/* VF registers */
+#define FM10K_VFCTRL		0x00000
+#define FM10K_VFCTRL_RST			0x00000008
+#define FM10K_VFINT_MAP		0x00030
+#define FM10K_VFSYSTIME		0x00040
+#define FM10K_VFITR(_n)		((_n) + 0x00060)
+
 enum fm10k_int_source {
 	fm10k_int_Mailbox	= 0,
 	fm10k_int_PCIeFault	= 1,
@@ -522,6 +529,7 @@ struct fm10k_mac_ops {
 enum fm10k_mac_type {
 	fm10k_mac_unknown = 0,
 	fm10k_mac_pf,
+	fm10k_mac_vf,
 	fm10k_num_macs
 };
 
@@ -561,6 +569,7 @@ enum fm10k_xcast_modes {
 
 enum fm10k_devices {
 	fm10k_device_pf,
+	fm10k_device_vf,
 };
 
 struct fm10k_info {

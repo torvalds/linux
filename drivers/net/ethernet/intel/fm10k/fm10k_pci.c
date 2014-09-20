@@ -25,6 +25,7 @@
 
 static const struct fm10k_info *fm10k_info_tbl[] = {
 	[fm10k_device_pf] = &fm10k_pf_info,
+	[fm10k_device_vf] = &fm10k_vf_info,
 };
 
 /**
@@ -38,6 +39,7 @@ static const struct fm10k_info *fm10k_info_tbl[] = {
  */
 static const struct pci_device_id fm10k_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, FM10K_DEV_ID_PF), fm10k_device_pf },
+	{ PCI_VDEVICE(INTEL, FM10K_DEV_ID_VF), fm10k_device_vf },
 	/* required last entry */
 	{ 0, }
 };
@@ -805,6 +807,28 @@ static irqreturn_t fm10k_msix_clean_rings(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t fm10k_msix_mbx_vf(int irq, void *data)
+{
+	struct fm10k_intfc *interface = data;
+	struct fm10k_hw *hw = &interface->hw;
+	struct fm10k_mbx_info *mbx = &hw->mbx;
+
+	/* re-enable mailbox interrupt and indicate 20us delay */
+	fm10k_write_reg(hw, FM10K_VFITR(FM10K_MBX_VECTOR),
+			FM10K_ITR_ENABLE | FM10K_MBX_INT_DELAY);
+
+	/* service upstream mailbox */
+	if (fm10k_mbx_trylock(interface)) {
+		mbx->ops.process(hw, mbx);
+		fm10k_mbx_unlock(interface);
+	}
+
+	hw->mac.get_host_state = 1;
+	fm10k_service_event_schedule(interface);
+
+	return IRQ_HANDLED;
+}
+
 #define FM10K_ERR_MSG(type) case (type): error = #type; break
 static void fm10k_print_fault(struct fm10k_intfc *interface, int type,
 			      struct fm10k_fault *fault)
@@ -996,11 +1020,40 @@ void fm10k_mbx_free_irq(struct fm10k_intfc *interface)
 				FM10K_EIMR_DISABLE(VFLR) |
 				FM10K_EIMR_DISABLE(MAXHOLDTIME));
 		itr_reg = FM10K_ITR(FM10K_MBX_VECTOR);
+	} else {
+		itr_reg = FM10K_VFITR(FM10K_MBX_VECTOR);
 	}
 
 	fm10k_write_reg(hw, itr_reg, FM10K_ITR_MASK_SET);
 
 	free_irq(entry->vector, interface);
+}
+
+static s32 fm10k_mbx_mac_addr(struct fm10k_hw *hw, u32 **results,
+			      struct fm10k_mbx_info *mbx)
+{
+	bool vlan_override = hw->mac.vlan_override;
+	u16 default_vid = hw->mac.default_vid;
+	struct fm10k_intfc *interface;
+	s32 err;
+
+	err = fm10k_msg_mac_vlan_vf(hw, results, mbx);
+	if (err)
+		return err;
+
+	interface = container_of(hw, struct fm10k_intfc, hw);
+
+	/* MAC was changed so we need reset */
+	if (is_valid_ether_addr(hw->mac.perm_addr) &&
+	    memcmp(hw->mac.perm_addr, hw->mac.addr, ETH_ALEN))
+		interface->flags |= FM10K_FLAG_RESET_REQUESTED;
+
+	/* VLAN override was changed, or default VLAN changed */
+	if ((vlan_override != hw->mac.vlan_override) ||
+	    (default_vid != hw->mac.default_vid))
+		interface->flags |= FM10K_FLAG_RESET_REQUESTED;
+
+	return 0;
 }
 
 /* generic error handler for mailbox issues */
@@ -1015,6 +1068,46 @@ static s32 fm10k_mbx_error(struct fm10k_hw *hw, u32 **results,
 
 	dev_err(&pdev->dev, "Unknown message ID %u\n",
 		**results & FM10K_TLV_ID_MASK);
+
+	return 0;
+}
+
+static const struct fm10k_msg_data vf_mbx_data[] = {
+	FM10K_TLV_MSG_TEST_HANDLER(fm10k_tlv_msg_test),
+	FM10K_VF_MSG_MAC_VLAN_HANDLER(fm10k_mbx_mac_addr),
+	FM10K_VF_MSG_LPORT_STATE_HANDLER(fm10k_msg_lport_state_vf),
+	FM10K_TLV_MSG_ERROR_HANDLER(fm10k_mbx_error),
+};
+
+static int fm10k_mbx_request_irq_vf(struct fm10k_intfc *interface)
+{
+	struct msix_entry *entry = &interface->msix_entries[FM10K_MBX_VECTOR];
+	struct net_device *dev = interface->netdev;
+	struct fm10k_hw *hw = &interface->hw;
+	int err;
+
+	/* Use timer0 for interrupt moderation on the mailbox */
+	u32 itr = FM10K_INT_MAP_TIMER0 | entry->entry;
+
+	/* register mailbox handlers */
+	err = hw->mbx.ops.register_handlers(&hw->mbx, vf_mbx_data);
+	if (err)
+		return err;
+
+	/* request the IRQ */
+	err = request_irq(entry->vector, fm10k_msix_mbx_vf, 0,
+			  dev->name, interface);
+	if (err) {
+		netif_err(interface, probe, dev,
+			  "request_irq for msix_mbx failed: %d\n", err);
+		return err;
+	}
+
+	/* map all of the interrupt sources */
+	fm10k_write_reg(hw, FM10K_VFINT_MAP, itr);
+
+	/* enable interrupt */
+	fm10k_write_reg(hw, FM10K_VFITR(entry->entry), FM10K_ITR_ENABLE);
 
 	return 0;
 }
@@ -1142,7 +1235,10 @@ int fm10k_mbx_request_irq(struct fm10k_intfc *interface)
 	int err;
 
 	/* enable Mailbox cause */
-	err = fm10k_mbx_request_irq_pf(interface);
+	if (hw->mac.type == fm10k_mac_pf)
+		err = fm10k_mbx_request_irq_pf(interface);
+	else
+		err = fm10k_mbx_request_irq_vf(interface);
 
 	/* connect mailbox */
 	if (!err)
@@ -1220,7 +1316,9 @@ int fm10k_qv_request_irq(struct fm10k_intfc *interface)
 		}
 
 		/* Assign ITR register to q_vector */
-		q_vector->itr = &interface->uc_addr[FM10K_ITR(entry->entry)];
+		q_vector->itr = (hw->mac.type == fm10k_mac_pf) ?
+				&interface->uc_addr[FM10K_ITR(entry->entry)] :
+				&interface->uc_addr[FM10K_VFITR(entry->entry)];
 
 		/* request the IRQ */
 		err = request_irq(entry->vector, &fm10k_msix_clean_rings, 0,

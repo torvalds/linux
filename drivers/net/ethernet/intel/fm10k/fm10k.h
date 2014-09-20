@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 
 #include "fm10k_pf.h"
+#include "fm10k_vf.h"
 
 #define FM10K_MAX_JUMBO_FRAME_SIZE	15358	/* Maximum supported size 15K */
 
@@ -180,12 +181,13 @@ static inline struct netdev_queue *txring_txq(const struct fm10k_ring *ring)
 #define MIN_Q_VECTORS	1
 enum fm10k_non_q_vectors {
 	FM10K_MBX_VECTOR,
+#define NON_Q_VECTORS_VF NON_Q_VECTORS_PF
 	NON_Q_VECTORS_PF
 };
 
 #define NON_Q_VECTORS(hw)	(((hw)->mac.type == fm10k_mac_pf) ? \
 						NON_Q_VECTORS_PF : \
-						0)
+						NON_Q_VECTORS_VF)
 #define MIN_MSIX_COUNT(hw)	(MIN_Q_VECTORS + NON_Q_VECTORS(hw))
 
 struct fm10k_q_vector {

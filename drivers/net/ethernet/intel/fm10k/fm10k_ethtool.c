@@ -102,6 +102,17 @@ static const struct fm10k_stats fm10k_gstrings_stats[] = {
 			 FM10K_NETDEV_STATS_LEN + \
 			 FM10K_QUEUE_STATS_LEN)
 
+static const char fm10k_gstrings_test[][ETH_GSTRING_LEN] = {
+	"Mailbox test (on/offline)"
+};
+
+#define FM10K_TEST_LEN (sizeof(fm10k_gstrings_test) / ETH_GSTRING_LEN)
+
+enum fm10k_self_test_types {
+	FM10K_TEST_MBX,
+	FM10K_TEST_MAX = FM10K_TEST_LEN
+};
+
 static void fm10k_get_strings(struct net_device *dev, u32 stringset,
 			      u8 *data)
 {
@@ -109,6 +120,10 @@ static void fm10k_get_strings(struct net_device *dev, u32 stringset,
 	int i;
 
 	switch (stringset) {
+	case ETH_SS_TEST:
+		memcpy(data, *fm10k_gstrings_test,
+		       FM10K_TEST_LEN * ETH_GSTRING_LEN);
+		break;
 	case ETH_SS_STATS:
 		for (i = 0; i < FM10K_NETDEV_STATS_LEN; i++) {
 			memcpy(p, fm10k_gstrings_net_stats[i].stat_string,
@@ -138,6 +153,8 @@ static void fm10k_get_strings(struct net_device *dev, u32 stringset,
 static int fm10k_get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
+	case ETH_SS_TEST:
+		return FM10K_TEST_LEN;
 	case ETH_SS_STATS:
 		return FM10K_STATS_LEN;
 	default:
@@ -288,6 +305,28 @@ static void fm10k_get_regs(struct net_device *netdev,
 			*(buff++) = fm10k_read_reg(hw, FM10K_ITR(i));
 
 		break;
+	case fm10k_mac_vf:
+		/* General VF registers */
+		*(buff++) = fm10k_read_reg(hw, FM10K_VFCTRL);
+		*(buff++) = fm10k_read_reg(hw, FM10K_VFINT_MAP);
+		*(buff++) = fm10k_read_reg(hw, FM10K_VFSYSTIME);
+
+		/* Interrupt Throttling Registers */
+		for (i = 0; i < 8; i++)
+			*(buff++) = fm10k_read_reg(hw, FM10K_VFITR(i));
+
+		fm10k_get_reg_vsi(hw, buff, 0);
+		buff += FM10K_REGS_LEN_VSI;
+
+		for (i = 0; i < FM10K_MAX_QUEUES_POOL; i++) {
+			if (i < hw->mac.max_queues)
+				fm10k_get_reg_q(hw, buff, i);
+			else
+				memset(buff, 0, sizeof(u32) * FM10K_REGS_LEN_Q);
+			buff += FM10K_REGS_LEN_Q;
+		}
+
+		break;
 	default:
 		return;
 	}
@@ -296,6 +335,8 @@ static void fm10k_get_regs(struct net_device *netdev,
 /* If function above adds more registers these define need to be updated */
 #define FM10K_REGS_LEN_PF \
 (162 + (65 * FM10K_REGS_LEN_VSI) + (FM10K_MAX_QUEUES_PF * FM10K_REGS_LEN_Q))
+#define FM10K_REGS_LEN_VF \
+(11 + FM10K_REGS_LEN_VSI + (FM10K_MAX_QUEUES_POOL * FM10K_REGS_LEN_Q))
 
 static int fm10k_get_regs_len(struct net_device *netdev)
 {
@@ -305,6 +346,8 @@ static int fm10k_get_regs_len(struct net_device *netdev)
 	switch (hw->mac.type) {
 	case fm10k_mac_pf:
 		return FM10K_REGS_LEN_PF * sizeof(u32);
+	case fm10k_mac_vf:
+		return FM10K_REGS_LEN_VF * sizeof(u32);
 	default:
 		return 0;
 	}
@@ -734,6 +777,76 @@ static int fm10k_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	return ret;
 }
 
+static int fm10k_mbx_test(struct fm10k_intfc *interface, u64 *data)
+{
+	struct fm10k_hw *hw = &interface->hw;
+	struct fm10k_mbx_info *mbx = &hw->mbx;
+	u32 attr_flag, test_msg[6];
+	unsigned long timeout;
+	int err;
+
+	/* For now this is a VF only feature */
+	if (hw->mac.type != fm10k_mac_vf)
+		return 0;
+
+	/* loop through both nested and unnested attribute types */
+	for (attr_flag = (1 << FM10K_TEST_MSG_UNSET);
+	     attr_flag < (1 << (2 * FM10K_TEST_MSG_NESTED));
+	     attr_flag += attr_flag) {
+		/* generate message to be tested */
+		fm10k_tlv_msg_test_create(test_msg, attr_flag);
+
+		fm10k_mbx_lock(interface);
+		mbx->test_result = FM10K_NOT_IMPLEMENTED;
+		err = mbx->ops.enqueue_tx(hw, mbx, test_msg);
+		fm10k_mbx_unlock(interface);
+
+		/* wait up to 1 second for response */
+		timeout = jiffies + HZ;
+		do {
+			if (err < 0)
+				goto err_out;
+
+			usleep_range(500, 1000);
+
+			fm10k_mbx_lock(interface);
+			mbx->ops.process(hw, mbx);
+			fm10k_mbx_unlock(interface);
+
+			err = mbx->test_result;
+			if (!err)
+				break;
+		} while (time_is_after_jiffies(timeout));
+
+		/* reporting errors */
+		if (err)
+			goto err_out;
+	}
+
+err_out:
+	*data = err < 0 ? (attr_flag) : (err > 0);
+	return err;
+}
+
+static void fm10k_self_test(struct net_device *dev,
+			    struct ethtool_test *eth_test, u64 *data)
+{
+	struct fm10k_intfc *interface = netdev_priv(dev);
+	struct fm10k_hw *hw = &interface->hw;
+
+	memset(data, 0, sizeof(*data) * FM10K_TEST_LEN);
+
+	if (FM10K_REMOVED(hw)) {
+		netif_err(interface, drv, dev,
+			  "Interface removed - test blocked\n");
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
+
+	if (fm10k_mbx_test(interface, &data[FM10K_TEST_MBX]))
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+}
+
 static u32 fm10k_get_reta_size(struct net_device *netdev)
 {
 	return FM10K_RETA_SIZE * FM10K_RETA_ENTRIES_PER_REG;
@@ -911,6 +1024,7 @@ static const struct ethtool_ops fm10k_ethtool_ops = {
 	.set_rxnfc		= fm10k_set_rxnfc,
 	.get_regs               = fm10k_get_regs,
 	.get_regs_len           = fm10k_get_regs_len,
+	.self_test		= fm10k_self_test,
 	.get_rxfh_indir_size	= fm10k_get_reta_size,
 	.get_rxfh_key_size	= fm10k_get_rssrk_size,
 	.get_rxfh		= fm10k_get_rssh,
