@@ -239,8 +239,21 @@ struct fm10k_intfc {
 	/* TX */
 	struct fm10k_ring *tx_ring[MAX_QUEUES] ____cacheline_aligned_in_smp;
 
+	u64 restart_queue;
+	u64 tx_busy;
+	u64 tx_csum_errors;
+	u64 alloc_failed;
+	u64 rx_csum_errors;
+	u64 rx_errors;
+
+	u64 tx_bytes_nic;
+	u64 tx_packets_nic;
+	u64 rx_bytes_nic;
+	u64 rx_packets_nic;
+	u64 rx_drops_nic;
 	u64 rx_overrun_pf;
 	u64 rx_overrun_vf;
+	u32 tx_timeout_count;
 
 	/* RX */
 	struct fm10k_ring *rx_ring[MAX_QUEUES];
@@ -257,6 +270,13 @@ struct fm10k_intfc {
 	u16 msg_enable;
 	u16 tx_ring_count;
 	u16 rx_ring_count;
+	struct timer_list service_timer;
+	struct work_struct service_task;
+	unsigned long next_stats_update;
+	unsigned long next_tx_hang_check;
+	unsigned long last_reset;
+	unsigned long link_down_event;
+	bool host_ready;
 
 	u32 reta[FM10K_RETA_SIZE];
 	u32 rssrk[FM10K_RSSRK_SIZE];
@@ -280,6 +300,8 @@ struct fm10k_intfc {
 enum fm10k_state_t {
 	__FM10K_RESETTING,
 	__FM10K_DOWN,
+	__FM10K_SERVICE_SCHED,
+	__FM10K_SERVICE_DISABLE,
 	__FM10K_MBX_LOCK,
 	__FM10K_LINK_DOWN,
 };
@@ -379,6 +401,9 @@ int fm10k_register_pci_driver(void);
 void fm10k_unregister_pci_driver(void);
 void fm10k_up(struct fm10k_intfc *interface);
 void fm10k_down(struct fm10k_intfc *interface);
+void fm10k_update_stats(struct fm10k_intfc *interface);
+void fm10k_service_event_schedule(struct fm10k_intfc *interface);
+void fm10k_update_rx_drop_en(struct fm10k_intfc *interface);
 
 /* Netdev */
 struct net_device *fm10k_alloc_netdev(void);
