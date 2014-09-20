@@ -606,7 +606,7 @@ struct Scsi_Host {
 	/*
 	 * These three parameters can be used to allow for wide scsi,
 	 * and for host adapters that support multiple busses
-	 * The first two should be set to 1 more than the actual max id
+	 * The last two should be set to 1 more than the actual max id
 	 * or lun (e.g. 8 for SCSI parallel systems).
 	 */
 	unsigned int max_channel;
