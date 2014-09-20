@@ -25,6 +25,8 @@ Optional properties:
 	clock frequencies table is used)
 - usb3503-gpio-waittime: Some boards need a longer delay on 'reset' and 'connect' GPIO.
 	Use this to set extra wait time (in milliseconds).
+- ext-supply: Optional property to specify a regulator that is switched
+	on during probe and off when the device is shutdown.
 
 Examples:
 	usb3503@08 {
