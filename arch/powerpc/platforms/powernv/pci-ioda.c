@@ -42,12 +42,11 @@
 #include "pci.h"
 
 #define define_pe_printk_level(func, kern_level)		\
-static int func(const struct pnv_ioda_pe *pe, const char *fmt, ...)	\
+static void func(const struct pnv_ioda_pe *pe, const char *fmt, ...)	\
 {								\
 	struct va_format vaf;					\
 	va_list args;						\
 	char pfix[32];						\
-	int r;							\
 								\
 	va_start(args, fmt);					\
 								\
@@ -61,12 +60,10 @@ static int func(const struct pnv_ioda_pe *pe, const char *fmt, ...)	\
 		sprintf(pfix, "%04x:%02x     ",			\
 			pci_domain_nr(pe->pbus),		\
 			pe->pbus->number);			\
-	r = printk(kern_level "pci %s: [PE# %.3d] %pV",		\
-		   pfix, pe->pe_number, &vaf);			\
+	printk(kern_level "pci %s: [PE# %.3d] %pV",		\
+	       pfix, pe->pe_number, &vaf);			\
 								\
 	va_end(args);						\
-								\
-	return r;						\
 }								\
 
 define_pe_printk_level(pe_err, KERN_ERR);
