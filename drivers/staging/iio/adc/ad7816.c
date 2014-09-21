@@ -442,6 +442,5 @@ static struct spi_driver ad7816_driver = {
 module_spi_driver(ad7816_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
-MODULE_DESCRIPTION("Analog Devices AD7816/7/8 digital"
-			" temperature sensor driver");
+MODULE_DESCRIPTION("Analog Devices AD7816/7/8 digital temperature sensor driver");
 MODULE_LICENSE("GPL v2");
