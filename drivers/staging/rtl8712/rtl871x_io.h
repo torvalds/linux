@@ -166,7 +166,7 @@ struct reg_protocol_rd {
 	u32 Byte4Access:1;
 	u32 Byte2Access:1;
 	u32 Byte1Access:1;
-	u32 BurstMode:1 ;
+	u32 BurstMode:1;
 	u32 FixOrContinuous:1;
 	u32 Reserved4:16;
 	/*DW3*/
