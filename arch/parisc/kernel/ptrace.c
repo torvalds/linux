@@ -17,6 +17,7 @@
 #include <linux/user.h>
 #include <linux/personality.h>
 #include <linux/security.h>
+#include <linux/seccomp.h>
 #include <linux/compat.h>
 #include <linux/signal.h>
 #include <linux/audit.h>
@@ -271,10 +272,7 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 	long ret = 0;
 
 	/* Do the secure computing check first. */
-	if (secure_computing(regs->gr[20])) {
-		/* seccomp failures shouldn't expose any additional code. */
-		return -1;
-	}
+	secure_computing_strict(regs->gr[20]);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
