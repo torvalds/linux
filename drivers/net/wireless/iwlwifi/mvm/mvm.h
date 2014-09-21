@@ -937,6 +937,8 @@ int iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 				    struct iwl_device_cmd *cmd);
 void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
+unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *exclude_vif);
 
 /* Bindings */
 int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
