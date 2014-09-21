@@ -635,7 +635,6 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 	 * Reset usb port for sitesurvey fail issue. */
 	if (udev->state != USB_STATE_NOTATTACHED)
 		usb_reset_device(udev);
-	return;
 }
 
 static int __init r8712u_drv_entry(void)
