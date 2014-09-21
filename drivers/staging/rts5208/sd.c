@@ -476,6 +476,7 @@ static int sd_check_csd(struct rtsx_chip *chip, char check_wp)
 		if ((!CHK_SD_HCXC(sd_card)) || (csd_ver == 0)) {
 			u8 blk_size, c_size_mult;
 			u16 c_size;
+
 			blk_size = rsp[6] & 0x0F;
 			c_size =  ((u16)(rsp[7] & 0x03) << 10)
 					+ ((u16)rsp[8] << 2)
@@ -487,6 +488,7 @@ static int sd_check_csd(struct rtsx_chip *chip, char check_wp)
 				<< (blk_size - 9);
 		} else {
 			u32 total_sector = 0;
+
 			total_sector = (((u32)rsp[8] & 0x3f) << 16) |
 				((u32)rsp[9] << 8) | (u32)rsp[10];
 			sd_card->capacity = (total_sector + 1) << 10;
@@ -1078,6 +1080,7 @@ static int sd_check_switch_mode(struct rtsx_chip *chip, u8 mode,
 		 * acceptable; bit[511:496] = 0x0000 means some error happened.
 		 */
 		u16 cc = ((u16)buf[0] << 8) | buf[1];
+
 		dev_dbg(rtsx_dev(chip), "Maximum current consumption: %dmA\n",
 			cc);
 		if ((cc == 0) || (cc > 800))
@@ -1550,6 +1553,7 @@ static u8 sd_search_final_phase(struct rtsx_chip *chip, u32 phase_map,
 			new_block = 1;
 			if (cont_path_cnt) {
 				int idx = cont_path_cnt - 1;
+
 				path[idx].len = path[idx].end -
 					path[idx].start + 1;
 				path[idx].mid = path[idx].start +
@@ -1563,6 +1567,7 @@ static u8 sd_search_final_phase(struct rtsx_chip *chip, u32 phase_map,
 		goto Search_Finish;
 	} else {
 		int idx = cont_path_cnt - 1;
+
 		path[idx].len = path[idx].end - path[idx].start + 1;
 		path[idx].mid = path[idx].start + path[idx].len / 2;
 	}
@@ -2180,6 +2185,7 @@ Switch_Fail:
 						SD_RSP_TYPE_R4, rsp, 5);
 			if (retval == STATUS_SUCCESS) {
 				int func_num = (rsp[1] >> 4) & 0x07;
+
 				if (func_num) {
 					dev_dbg(rtsx_dev(chip), "SD_IO card (Function number: %d)!\n",
 						func_num);
