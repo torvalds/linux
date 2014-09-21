@@ -38,8 +38,6 @@
 #define GPIO_BIT_OFFSET(x)	(x % XGENE_GPIOS_PER_BANK)
 #define GPIO_BANK_OFFSET(x)	((x / XGENE_GPIOS_PER_BANK) * GPIO_BANK_STRIDE)
 
-struct xgene_gpio;
-
 struct xgene_gpio {
 	struct gpio_chip	chip;
 	void __iomem		*base;
