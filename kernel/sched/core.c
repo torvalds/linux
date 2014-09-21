@@ -7441,7 +7441,7 @@ static inline int tg_has_rt_tasks(struct task_group *tg)
 	struct task_struct *g, *p;
 
 	for_each_process_thread(g, p) {
-		if (rt_task(p) && task_rq(p)->rt.tg == tg)
+		if (rt_task(p) && task_group(p) == tg)
 			return 1;
 	}
 
