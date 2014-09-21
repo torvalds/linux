@@ -955,8 +955,8 @@ static void alloc_hwxmits(struct _adapter *padapter)
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
 	pxmitpriv->hwxmit_entry = HWXMIT_ENTRY;
-	pxmitpriv->hwxmits = kmalloc(sizeof(struct hw_xmit) * pxmitpriv->hwxmit_entry,
-				     GFP_ATOMIC);
+	pxmitpriv->hwxmits = kmalloc_array(pxmitpriv->hwxmit_entry,
+				sizeof(struct hw_xmit), GFP_ATOMIC);
 	if (pxmitpriv->hwxmits == NULL)
 		return;
 	hwxmits = pxmitpriv->hwxmits;
