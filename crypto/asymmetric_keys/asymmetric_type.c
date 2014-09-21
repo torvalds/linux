@@ -90,15 +90,12 @@ EXPORT_SYMBOL_GPL(asymmetric_match_key_ids);
 struct asymmetric_key_id *asymmetric_key_hex_to_key_id(const char *id)
 {
 	struct asymmetric_key_id *match_id;
-	const char *p;
-	ptrdiff_t hexlen;
+	size_t hexlen;
+	int ret;
 
 	if (!*id)
 		return ERR_PTR(-EINVAL);
-	for (p = id; *p; p++)
-		if (!isxdigit(*p))
-			return ERR_PTR(-EINVAL);
-	hexlen = p - id;
+	hexlen = strlen(id);
 	if (hexlen & 1)
 		return ERR_PTR(-EINVAL);
 
@@ -107,7 +104,11 @@ struct asymmetric_key_id *asymmetric_key_hex_to_key_id(const char *id)
 	if (!match_id)
 		return ERR_PTR(-ENOMEM);
 	match_id->len = hexlen / 2;
-	(void)hex2bin(match_id->data, id, hexlen / 2);
+	ret = hex2bin(match_id->data, id, hexlen / 2);
+	if (ret < 0) {
+		kfree(match_id);
+		return ERR_PTR(-EINVAL);
+	}
 	return match_id;
 }
 
