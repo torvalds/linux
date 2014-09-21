@@ -172,18 +172,26 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 				i++;
 			}
 
-			bcm47xxpart_add_part(&parts[curr_part++], "linux",
-					     offset + trx->offset[i], 0);
-			i++;
+			if (trx->offset[i]) {
+				bcm47xxpart_add_part(&parts[curr_part++],
+						     "linux",
+						     offset + trx->offset[i],
+						     0);
+				i++;
+			}
 
 			/*
 			 * Pure rootfs size is known and can be calculated as:
 			 * trx->length - trx->offset[i]. We don't fill it as
 			 * we want to have jffs2 (overlay) in the same mtd.
 			 */
-			bcm47xxpart_add_part(&parts[curr_part++], "rootfs",
-					     offset + trx->offset[i], 0);
-			i++;
+			if (trx->offset[i]) {
+				bcm47xxpart_add_part(&parts[curr_part++],
+						     "rootfs",
+						     offset + trx->offset[i],
+						     0);
+				i++;
+			}
 
 			last_trx_part = curr_part - 1;
 
