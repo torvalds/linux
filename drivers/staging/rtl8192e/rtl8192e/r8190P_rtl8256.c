@@ -85,12 +85,9 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev,
 bool PHY_RF8256_Config(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	bool rtStatus = true;
 
 	priv->NumTotalRFPath = RTL819X_TOTAL_RF_PATH;
-	rtStatus = phy_RF8256_Config_ParaFile(dev);
-
-	return rtStatus;
+	return phy_RF8256_Config_ParaFile(dev);
 }
 
 bool phy_RF8256_Config_ParaFile(struct net_device *dev)
