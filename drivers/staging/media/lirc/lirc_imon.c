@@ -614,8 +614,8 @@ static void imon_incoming_packet(struct imon_context *context,
 		return;
 
 	if (len != 8) {
-		dev_warn(dev, "imon %s: invalid incoming packet "
-			 "size (len = %d, intf%d)\n", __func__, len, intf);
+		dev_warn(dev, "imon %s: invalid incoming packet size (len = %d, intf%d)\n",
+			__func__, len, intf);
 		return;
 	}
 
@@ -924,9 +924,8 @@ static int imon_probe(struct usb_interface *interface,
 		}
 	}
 
-	dev_info(dev, "iMON device (%04x:%04x, intf%d) on "
-		 "usb<%d:%d> initialized\n", vendor, product, ifnum,
-		 usbdev->bus->busnum, usbdev->devnum);
+	dev_info(dev, "iMON device (%04x:%04x, intf%d) on usb<%d:%d> initialized\n",
+		vendor, product, ifnum, usbdev->bus->busnum, usbdev->devnum);
 
 unlock:
 	mutex_unlock(&context->ctx_lock);
