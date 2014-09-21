@@ -421,6 +421,7 @@ static void csi2_irq_ctx_set(struct iss_csi2_device *csi2, int enable)
 static void csi2_irq_complexio1_set(struct iss_csi2_device *csi2, int enable)
 {
 	u32 reg;
+
 	reg = CSI2_COMPLEXIO_IRQ_STATEALLULPMEXIT |
 		CSI2_COMPLEXIO_IRQ_STATEALLULPMENTER |
 		CSI2_COMPLEXIO_IRQ_STATEULPM5 |
@@ -464,6 +465,7 @@ static void csi2_irq_complexio1_set(struct iss_csi2_device *csi2, int enable)
 static void csi2_irq_status_set(struct iss_csi2_device *csi2, int enable)
 {
 	u32 reg;
+
 	reg = CSI2_IRQ_OCP_ERR |
 		CSI2_IRQ_SHORT_PACKET |
 		CSI2_IRQ_ECC_CORRECTION |
