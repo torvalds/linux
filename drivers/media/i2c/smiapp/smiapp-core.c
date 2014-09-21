@@ -1282,19 +1282,12 @@ static int smiapp_set_power(struct v4l2_subdev *subdev, int on)
 
 	mutex_lock(&sensor->power_mutex);
 
-	/*
-	 * If the power count is modified from 0 to != 0 or from != 0
-	 * to 0, update the power state.
-	 */
-	if (!sensor->power_count == !on)
-		goto out;
-
-	if (on) {
+	if (on && !sensor->power_count) {
 		/* Power on and perform initialisation. */
 		ret = smiapp_power_on(sensor);
 		if (ret < 0)
 			goto out;
-	} else {
+	} else if (!on && sensor->power_count == 1) {
 		smiapp_power_off(sensor);
 	}
 
@@ -2572,7 +2565,7 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 
 		this->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 		this->sd.internal_ops = &smiapp_internal_ops;
-		this->sd.owner = NULL;
+		this->sd.owner = THIS_MODULE;
 		v4l2_set_subdevdata(&this->sd, client);
 
 		rval = media_entity_init(&this->sd.entity,
