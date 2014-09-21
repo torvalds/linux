@@ -194,12 +194,11 @@ static int af9035_wr_reg_mask(struct dvb_usb_device *d, u32 reg, u8 val,
 }
 
 static int af9035_add_i2c_dev(struct dvb_usb_device *d, char *type, u8 addr,
-		void *platform_data)
+		void *platform_data, struct i2c_adapter *adapter)
 {
 	int ret, num;
 	struct state *state = d_to_priv(d);
 	struct i2c_client *client;
-	struct i2c_adapter *adapter = &d->i2c_adap;
 	struct i2c_board_info board_info = {
 		.addr = addr,
 		.platform_data = platform_data,
@@ -1091,7 +1090,7 @@ static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 	state->af9033_config[adap->id].fe = &adap->fe[0];
 	state->af9033_config[adap->id].ops = &state->ops;
 	ret = af9035_add_i2c_dev(d, "af9033", state->af9033_i2c_addr[adap->id],
-			&state->af9033_config[adap->id]);
+			&state->af9033_config[adap->id], &d->i2c_adap);
 	if (ret)
 		goto err;
 
@@ -1382,7 +1381,7 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 
 		ret = af9035_add_i2c_dev(d, "it913x",
 				state->af9033_i2c_addr[adap->id] >> 1,
-				&it913x_config);
+				&it913x_config, &d->i2c_adap);
 		if (ret)
 			goto err;
 
@@ -1407,7 +1406,7 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 
 		ret = af9035_add_i2c_dev(d, "it913x",
 				state->af9033_i2c_addr[adap->id] >> 1,
-				&it913x_config);
+				&it913x_config, &d->i2c_adap);
 		if (ret)
 			goto err;
 
