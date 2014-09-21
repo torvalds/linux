@@ -2445,8 +2445,11 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		u32 hwc_phy[1];
 		if (copy_from_user(hwc_phy, argp, 4))
 			return -EFAULT;
+#ifdef CONFIG_ROCKCHIP_IOMMU
 		if (!dev_drv->iommu_enabled) {
+#endif
 			fix->smem_start = hwc_phy[0];
+#ifdef CONFIG_ROCKCHIP_IOMMU
 		} else {
 			int usr_fd;
 			struct ion_handle *hdl;
@@ -2483,6 +2486,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			fix->smem_start = phy_addr;
 			ion_hwc[0] = hdl;
 		}
+#endif
 		break;
 	}
 	case RK_FBIOSET_YUV_ADDR:
