@@ -146,8 +146,8 @@ static int hostap_disable_hostapd(struct vnt_private *pDevice, int rtnl_locked)
 	pDevice->bEnableHostWEP = false;
 	pDevice->bEncryptionEnable = false;
 
-//4.2007-0118-03,<Add> by EinsnLiu
-//execute some clear work
+/* 4.2007-0118-03,<Add> by EinsnLiu */
+/* execute some clear work */
 	pDevice->pMgmt->byCSSPK = KEY_CTL_NONE;
 	pDevice->pMgmt->byCSSGK = KEY_CTL_NONE;
 	KeyvInitTable(&pDevice->sKey, pDevice->PortOffset);
@@ -237,16 +237,16 @@ static int hostap_add_sta(struct vnt_private *pDevice,
 	memcpy(pMgmt->sNodeDBTable[uNodeIndex].abyMACAddr, param->sta_addr, WLAN_ADDR_LEN);
 	pMgmt->sNodeDBTable[uNodeIndex].eNodeState = NODE_ASSOC;
 	pMgmt->sNodeDBTable[uNodeIndex].wCapInfo = param->u.add_sta.capability;
-// TODO listenInterval
+/* TODO listenInterval */
 	pMgmt->sNodeDBTable[uNodeIndex].bPSEnable = false;
 	pMgmt->sNodeDBTable[uNodeIndex].bySuppRate = param->u.add_sta.tx_supp_rates;
 
-	// set max tx rate
+	/* set max tx rate */
 	pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate =
 		pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate;
-	// set max basic rate
+	/* set max basic rate */
 	pMgmt->sNodeDBTable[uNodeIndex].wMaxBasicRate = RATE_2M;
-	// Todo: check sta preamble, if ap can't support, set status code
+	/* Todo: check sta preamble, if ap can't support, set status code */
 	pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble =
 		WLAN_GET_CAP_INFO_SHORTPREAMBLE(pMgmt->sNodeDBTable[uNodeIndex].wCapInfo);
 
@@ -353,12 +353,12 @@ static int hostap_set_generic_element(struct vnt_private *pDevice,
 
 	pr_debug("pMgmt->wWPAIELen = %d\n", pMgmt->wWPAIELen);
 
-	// disable wpa
+	/* disable wpa */
 	if (pMgmt->wWPAIELen == 0) {
 		pMgmt->eAuthenMode = WMAC_AUTH_OPEN;
 		pr_debug(" No WPAIE, Disable WPA\n");
 	} else  {
-		// enable wpa
+		/* enable wpa */
 		if ((pMgmt->abyWPAIE[0] == WLAN_EID_RSN_WPA) ||
 		    (pMgmt->abyWPAIE[0] == WLAN_EID_RSN)) {
 			pMgmt->eAuthenMode = WMAC_AUTH_WPANONE;
@@ -385,7 +385,7 @@ static int hostap_set_generic_element(struct vnt_private *pDevice,
 
 static void hostap_flush_sta(struct vnt_private *pDevice)
 {
-	// reserved node index =0 for multicast node.
+	/* reserved node index =0 for multicast node. */
 	BSSvClearNodeDBTable(pDevice, 1);
 	pDevice->uAssocCount = 0;
 }
@@ -470,7 +470,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 	}
 
 	memcpy(abyKey, param->u.crypt.key, param->u.crypt.key_len);
-	// copy to node key tbl
+	/* copy to node key tbl */
 	pMgmt->sNodeDBTable[iNodeIndex].byKeyIndex = param->u.crypt.idx;
 	pMgmt->sNodeDBTable[iNodeIndex].uWepKeyLength = param->u.crypt.key_len;
 	memcpy(&pMgmt->sNodeDBTable[iNodeIndex].abyWepKey[0],
@@ -497,8 +497,8 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 					  pDevice->byLocalID);
 
 		} else {
-			// 8021x enable, individual key
-			dwKeyIndex |= (1 << 30); // set pairwise key
+			/* 8021x enable, individual key */
+			dwKeyIndex |= (1 << 30); /* set pairwise key */
 			if (KeybSetKey(&(pDevice->sKey),
 				       &param->sta_addr[0],
 				       dwKeyIndex & ~(USE_KEYRSC),
@@ -511,7 +511,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 				pMgmt->sNodeDBTable[iNodeIndex].bOnFly = true;
 
 			} else {
-				// Key Table Full
+				/* Key Table Full */
 				pMgmt->sNodeDBTable[iNodeIndex].bOnFly = false;
 				bKeyTableFull = true;
 			}
@@ -565,7 +565,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 		pMgmt->sNodeDBTable[iNodeIndex].bOnFly = true;
 
 	} else {
-		dwKeyIndex |= (1 << 30); // set pairwise key
+		dwKeyIndex |= (1 << 30); /* set pairwise key */
 		if (KeybSetKey(&(pDevice->sKey),
 			       &param->sta_addr[0],
 			       dwKeyIndex,
@@ -578,7 +578,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 			pMgmt->sNodeDBTable[iNodeIndex].bOnFly = true;
 
 		} else {
-			// Key Table Full
+			/* Key Table Full */
 			pMgmt->sNodeDBTable[iNodeIndex].bOnFly = false;
 			bKeyTableFull = true;
 			pr_debug(" Key Table Full\n");
@@ -587,11 +587,11 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 	}
 
 	if (bKeyTableFull) {
-		wKeyCtl &= 0x7F00;              // clear all key control filed
+		wKeyCtl &= 0x7F00;              /* clear all key control filed */
 		wKeyCtl |= (byKeyDecMode << 4);
 		wKeyCtl |= (byKeyDecMode);
-		wKeyCtl |= 0x0044;              // use group key for all address
-		wKeyCtl |= 0x4000;              // disable KeyTable[MAX_KEY_TABLE-1] on-fly to genernate rx int
+		wKeyCtl |= 0x0044;              /* use group key for all address */
+		wKeyCtl |= 0x4000;              /* disable KeyTable[MAX_KEY_TABLE-1] on-fly to genernate rx int */
 		MACvSetDefaultKeyCtl(pDevice->PortOffset, wKeyCtl, MAX_KEY_TABLE-1, pDevice->byLocalID);
 	}
 
@@ -605,7 +605,7 @@ static int hostap_set_encryption(struct vnt_private *pDevice,
 		 pMgmt->sNodeDBTable[iNodeIndex].abyWepKey[3],
 		 pMgmt->sNodeDBTable[iNodeIndex].abyWepKey[4]);
 
-	// set wep key
+	/* set wep key */
 	pDevice->bEncryptionEnable = true;
 	pMgmt->sNodeDBTable[iNodeIndex].byCipherSuite = byKeyDecMode;
 	pMgmt->sNodeDBTable[iNodeIndex].dwKeyIndex = dwKeyIndex;
