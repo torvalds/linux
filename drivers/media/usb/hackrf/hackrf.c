@@ -61,7 +61,7 @@ static const struct v4l2_frequency_band bands_rf[] = {
 		.index = 0,
 		.capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS,
 		.rangelow   =          1,
-		.rangehigh  = 4294967294, /* max u32, hw goes over 7GHz */
+		.rangehigh  = 4294967294LL, /* max u32, hw goes over 7GHz */
 	},
 };
 
