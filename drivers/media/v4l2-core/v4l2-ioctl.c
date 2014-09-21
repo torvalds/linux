@@ -562,7 +562,7 @@ static void v4l_print_ext_controls(const void *arg, bool write_only)
 	pr_cont("class=0x%x, count=%d, error_idx=%d",
 			p->ctrl_class, p->count, p->error_idx);
 	for (i = 0; i < p->count; i++) {
-		if (p->controls[i].size)
+		if (!p->controls[i].size)
 			pr_cont(", id/val=0x%x/0x%x",
 				p->controls[i].id, p->controls[i].value);
 		else
