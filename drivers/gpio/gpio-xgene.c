@@ -220,13 +220,11 @@ static int xgene_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id xgene_gpio_of_match[] = {
 	{ .compatible = "apm,xgene-gpio", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, xgene_gpio_of_match);
-#endif
 
 static struct platform_driver xgene_gpio_driver = {
 	.driver = {
