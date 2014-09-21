@@ -948,7 +948,6 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 	case LIRC_GET_LENGTH:
 		return -ENOIOCTLCMD;
-		break;
 
 	case LIRC_SET_SEND_DUTY_CYCLE:
 		dprintk("SET_SEND_DUTY_CYCLE\n");
@@ -961,7 +960,6 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		if (value <= 0 || value > 100)
 			return -EINVAL;
 		return init_timing_params(value, freq);
-		break;
 
 	case LIRC_SET_SEND_CARRIER:
 		dprintk("SET_SEND_CARRIER\n");
@@ -974,7 +972,6 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		if (value > 500000 || value < 20000)
 			return -EINVAL;
 		return init_timing_params(duty_cycle, value);
-		break;
 
 	default:
 		return lirc_dev_fop_ioctl(filep, cmd, arg);
