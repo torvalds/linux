@@ -876,6 +876,7 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	iwl_mvm_reset_phy_ctxts(mvm);
 	memset(mvm->fw_key_table, 0, sizeof(mvm->fw_key_table));
 	memset(mvm->sta_drained, 0, sizeof(mvm->sta_drained));
+	memset(mvm->tfd_drained, 0, sizeof(mvm->tfd_drained));
 	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
 	memset(&mvm->last_bt_notif_old, 0, sizeof(mvm->last_bt_notif_old));
 	memset(&mvm->last_bt_ci_cmd, 0, sizeof(mvm->last_bt_ci_cmd));
@@ -3113,31 +3114,44 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif;
 	struct iwl_mvm_sta *mvmsta;
+	struct ieee80211_sta *sta;
+	int i;
+	u32 msk = 0;
 
 	if (!vif || vif->type != NL80211_IFTYPE_STATION)
 		return;
 
 	mutex_lock(&mvm->mutex);
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, mvmvif->ap_sta_id);
 
-	if (WARN_ON_ONCE(!mvmsta)) {
-		mutex_unlock(&mvm->mutex);
-		return;
+	/* flush the AP-station and all TDLS peers */
+	for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
+		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
+						lockdep_is_held(&mvm->mutex));
+		if (IS_ERR_OR_NULL(sta))
+			continue;
+
+		mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		if (mvmsta->vif != vif)
+			continue;
+
+		/* make sure only TDLS peers or the AP are flushed */
+		WARN_ON(i != mvmvif->ap_sta_id && !sta->tdls);
+
+		msk |= mvmsta->tfd_queue_msk;
 	}
 
 	if (drop) {
-		if (iwl_mvm_flush_tx_path(mvm, mvmsta->tfd_queue_msk, true))
+		if (iwl_mvm_flush_tx_path(mvm, msk, true))
 			IWL_ERR(mvm, "flush request fail\n");
 		mutex_unlock(&mvm->mutex);
 	} else {
-		u32 tfd_queue_msk = mvmsta->tfd_queue_msk;
 		mutex_unlock(&mvm->mutex);
 
 		/* this can take a while, and we may need/want other operations
 		 * to succeed while doing this, so do it without the mutex held
 		 */
-		iwl_trans_wait_tx_queue_empty(mvm->trans, tfd_queue_msk);
+		iwl_trans_wait_tx_queue_empty(mvm->trans, msk);
 	}
 }
 

@@ -288,6 +288,7 @@ static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
  * struct iwl_mvm_sta - representation of a station in the driver
  * @sta_id: the index of the station in the fw (will be replaced by id_n_color)
  * @tfd_queue_msk: the tfd queues used by the station
+ * @hw_queue: per-AC mapping of the TFD queues used by station
  * @mac_id_n_color: the MAC context this station is linked to
  * @tid_disable_agg: bitmap: if bit(tid) is set, the fw won't send ampdus for
  *	tid.
@@ -311,6 +312,7 @@ static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
 struct iwl_mvm_sta {
 	u32 sta_id;
 	u32 tfd_queue_msk;
+	u8 hw_queue[IEEE80211_NUM_ACS];
 	u32 mac_id_n_color;
 	u16 tid_disable_agg;
 	u8 max_agg_bufsize;

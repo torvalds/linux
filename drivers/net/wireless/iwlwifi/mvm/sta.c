@@ -204,6 +204,56 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	return ret;
 }
 
+static int iwl_mvm_tdls_sta_init(struct iwl_mvm *mvm,
+				 struct ieee80211_sta *sta)
+{
+	unsigned long used_hw_queues;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	u32 ac;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	used_hw_queues = iwl_mvm_get_used_hw_queues(mvm, NULL);
+
+	/* Find available queues, and allocate them to the ACs */
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		u8 queue = find_first_zero_bit(&used_hw_queues,
+					       mvm->first_agg_queue);
+
+		if (queue >= mvm->first_agg_queue) {
+			IWL_ERR(mvm, "Failed to allocate STA queue\n");
+			return -EBUSY;
+		}
+
+		__set_bit(queue, &used_hw_queues);
+		mvmsta->hw_queue[ac] = queue;
+	}
+
+	/* Found a place for all queues - enable them */
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		iwl_mvm_enable_ac_txq(mvm, mvmsta->hw_queue[ac],
+				      iwl_mvm_ac_to_tx_fifo[ac]);
+		mvmsta->tfd_queue_msk |= BIT(mvmsta->hw_queue[ac]);
+	}
+
+	return 0;
+}
+
+static void iwl_mvm_tdls_sta_deinit(struct iwl_mvm *mvm,
+				    struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	unsigned long sta_msk;
+	int i;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* disable the TDLS STA-specific queues */
+	sta_msk = mvmsta->tfd_queue_msk;
+	for_each_set_bit(i, &sta_msk, sizeof(sta_msk))
+		iwl_mvm_disable_txq(mvm, i);
+}
+
 int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		    struct ieee80211_vif *vif,
 		    struct ieee80211_sta *sta)
@@ -237,9 +287,17 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	atomic_set(&mvm->pending_frames[sta_id], 0);
 	mvm_sta->tid_disable_agg = 0;
 	mvm_sta->tfd_queue_msk = 0;
-	for (i = 0; i < IEEE80211_NUM_ACS; i++)
-		if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
-			mvm_sta->tfd_queue_msk |= BIT(vif->hw_queue[i]);
+
+	/* allocate new queues for a TDLS station */
+	if (sta->tdls) {
+		ret = iwl_mvm_tdls_sta_init(mvm, sta);
+		if (ret)
+			return ret;
+	} else {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++)
+			if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
+				mvm_sta->tfd_queue_msk |= BIT(vif->hw_queue[i]);
+	}
 
 	/* for HW restart - reset everything but the sequence number */
 	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
@@ -251,7 +309,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, false);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		if (!sta->tdls) {
@@ -265,6 +323,10 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
 
 	return 0;
+
+err:
+	iwl_mvm_tdls_sta_deinit(mvm, sta);
+	return ret;
 }
 
 int iwl_mvm_update_sta(struct iwl_mvm *mvm,
@@ -398,6 +460,17 @@ void iwl_mvm_sta_drained_wk(struct work_struct *wk)
 		}
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta_id], NULL);
 		clear_bit(sta_id, mvm->sta_drained);
+
+		if (mvm->tfd_drained[sta_id]) {
+			unsigned long i, msk = mvm->tfd_drained[sta_id];
+
+			for_each_set_bit(i, &msk, sizeof(msk))
+				iwl_mvm_disable_txq(mvm, i);
+
+			mvm->tfd_drained[sta_id] = 0;
+			IWL_DEBUG_TDLS(mvm, "Drained sta %d, with queues %ld\n",
+				       sta_id, msk);
+		}
 	}
 
 	mutex_unlock(&mvm->mutex);
@@ -443,9 +516,22 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id],
 				   ERR_PTR(-EBUSY));
 		spin_unlock_bh(&mvm_sta->lock);
+
+		/* disable TDLS sta queues on drain complete */
+		if (sta->tdls) {
+			mvm->tfd_drained[mvm_sta->sta_id] =
+							mvm_sta->tfd_queue_msk;
+			IWL_DEBUG_TDLS(mvm, "Draining TDLS sta %d\n",
+				       mvm_sta->sta_id);
+		}
+
 		ret = iwl_mvm_drain_sta(mvm, mvm_sta, true);
 	} else {
 		spin_unlock_bh(&mvm_sta->lock);
+
+		if (sta->tdls)
+			iwl_mvm_tdls_sta_deinit(mvm, sta);
+
 		ret = iwl_mvm_rm_sta_common(mvm, mvm_sta->sta_id);
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[mvm_sta->sta_id], NULL);
 	}

@@ -424,6 +424,13 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
 
+	if (sta->tdls) {
+		/* default to TID 0 for non-QoS packets */
+		u8 tdls_tid = tid == IWL_MAX_TID_COUNT ? 0 : tid;
+
+		txq_id = mvmsta->hw_queue[tid_to_mac80211_ac[tdls_tid]];
+	}
+
 	if (is_ampdu) {
 		if (WARN_ON_ONCE(mvmsta->tid_data[tid].state != IWL_AGG_ON))
 			goto drop_unlock_sta;
