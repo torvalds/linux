@@ -1161,8 +1161,7 @@ inline int SecIsInPMKIDList(struct rtllib_device *ieee, u8 *bssid)
 		if ((ieee->PMKIDList[i].bUsed) &&
 		   (memcmp(ieee->PMKIDList[i].Bssid, bssid, ETH_ALEN) == 0))
 			break;
-		else
-			i++;
+		i++;
 	} while (i < NUM_PMKID_CACHE);
 
 	if (i == NUM_PMKID_CACHE)
@@ -2261,14 +2260,13 @@ inline int rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 							network, rx_stats)) {
 					kfree(network);
 					return 1;
-				} else {
-					memcpy(ieee->pHTInfo->PeerHTCapBuf,
-					       network->bssht.bdHTCapBuf,
-					       network->bssht.bdHTCapLen);
-					memcpy(ieee->pHTInfo->PeerHTInfoBuf,
-					       network->bssht.bdHTInfoBuf,
-					       network->bssht.bdHTInfoLen);
 				}
+				memcpy(ieee->pHTInfo->PeerHTCapBuf,
+				       network->bssht.bdHTCapBuf,
+				       network->bssht.bdHTCapLen);
+				memcpy(ieee->pHTInfo->PeerHTInfoBuf,
+				       network->bssht.bdHTInfoBuf,
+				       network->bssht.bdHTInfoLen);
 				if (ieee->handle_assoc_response != NULL)
 					ieee->handle_assoc_response(ieee->dev,
 						 (struct rtllib_assoc_response_frame *)header,
