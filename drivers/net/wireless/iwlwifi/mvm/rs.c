@@ -1225,7 +1225,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	IWL_DEBUG_RATE(mvm, "reduced txpower: %d\n", reduced_txp);
 done:
 	/* See if there's a better rate or modulation mode to try. */
-	if (sta && sta->supp_rates[info->band])
+	if (sta->supp_rates[info->band])
 		rs_rate_scale_perform(mvm, sta, lq_sta, tid);
 }
 
