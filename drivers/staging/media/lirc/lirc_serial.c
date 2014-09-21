@@ -529,11 +529,10 @@ static long send_pulse_homebrew(unsigned long length)
 
 	if (softcarrier)
 		return send_pulse_homebrew_softcarrier(length);
-	else {
-		on();
-		safe_udelay(length);
-		return 0;
-	}
+
+	on();
+	safe_udelay(length);
+	return 0;
 }
 
 static void send_space_irdeo(long length)
