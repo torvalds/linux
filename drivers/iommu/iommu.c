@@ -799,18 +799,26 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block iommu_bus_nb = {
-	.notifier_call = iommu_bus_notifier,
-};
-
-static void iommu_bus_init(struct bus_type *bus, const struct iommu_ops *ops)
+static int iommu_bus_init(struct bus_type *bus, const struct iommu_ops *ops)
 {
+	int err;
+	struct notifier_block *nb;
 	struct iommu_callback_data cb = {
 		.ops = ops,
 	};
 
-	bus_register_notifier(bus, &iommu_bus_nb);
-	bus_for_each_dev(bus, NULL, &cb, add_iommu_group);
+	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
+	if (!nb)
+		return -ENOMEM;
+
+	nb->notifier_call = iommu_bus_notifier;
+
+	err = bus_register_notifier(bus, nb);
+	if (err) {
+		kfree(nb);
+		return err;
+	}
+	return bus_for_each_dev(bus, NULL, &cb, add_iommu_group);
 }
 
 /**
@@ -834,9 +842,7 @@ int bus_set_iommu(struct bus_type *bus, const struct iommu_ops *ops)
 	bus->iommu_ops = ops;
 
 	/* Do IOMMU specific setup for this bus-type */
-	iommu_bus_init(bus, ops);
-
-	return 0;
+	return iommu_bus_init(bus, ops);
 }
 EXPORT_SYMBOL_GPL(bus_set_iommu);
 
