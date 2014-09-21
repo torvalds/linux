@@ -1083,8 +1083,6 @@ int vnt_beacon_make(struct vnt_private *priv, struct ieee80211_vif *vif)
 int vnt_beacon_enable(struct vnt_private *priv, struct ieee80211_vif *vif,
 	struct ieee80211_bss_conf *conf)
 {
-	int ret;
-
 	vnt_mac_reg_bits_off(priv, MAC_REG_TCR, TCR_AUTOBCNTX);
 
 	vnt_mac_reg_bits_off(priv, MAC_REG_TFTCTL, TFTCTL_TSFCNTREN);
@@ -1097,7 +1095,5 @@ int vnt_beacon_enable(struct vnt_private *priv, struct ieee80211_vif *vif,
 
 	vnt_reset_next_tbtt(priv, conf->beacon_int);
 
-	ret = vnt_beacon_make(priv, vif);
-
-	return ret;
+	return vnt_beacon_make(priv, vif);
 }
