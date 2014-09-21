@@ -491,7 +491,7 @@ static sint make_wlanhdr(struct _adapter *padapter , u8 *hdr,
 				ETH_ALEN);
 			memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
 			memcpy(pwlanhdr->addr3, pattrib->dst, ETH_ALEN);
-		} else if ((check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)) {
+		} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
 			/* to_ds = 0, fr_ds = 1; */
 			SetFrDs(fctrl);
 			memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
