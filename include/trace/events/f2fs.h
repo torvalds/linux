@@ -72,7 +72,8 @@
 #define show_cpreason(type)						\
 	__print_symbolic(type,						\
 		{ CP_UMOUNT,	"Umount" },				\
-		{ CP_SYNC,	"Sync" })
+		{ CP_SYNC,	"Sync" },				\
+		{ CP_DISCARD,	"Discard" })
 
 struct victim_sel_policy;
 

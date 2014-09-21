@@ -99,10 +99,15 @@ enum {
 enum {
 	CP_UMOUNT,
 	CP_SYNC,
+	CP_DISCARD,
 };
 
 struct cp_control {
 	int reason;
+	__u64 trim_start;
+	__u64 trim_end;
+	__u64 trim_minlen;
+	__u64 trimmed;
 };
 
 /*
@@ -1276,9 +1281,11 @@ void destroy_flush_cmd_control(struct f2fs_sb_info *);
 void invalidate_blocks(struct f2fs_sb_info *, block_t);
 void refresh_sit_entry(struct f2fs_sb_info *, block_t, block_t);
 void clear_prefree_segments(struct f2fs_sb_info *);
+void release_discard_addrs(struct f2fs_sb_info *);
 void discard_next_dnode(struct f2fs_sb_info *, block_t);
 int npages_for_summary_flush(struct f2fs_sb_info *);
 void allocate_new_segments(struct f2fs_sb_info *);
+int f2fs_trim_fs(struct f2fs_sb_info *, struct fstrim_range *);
 struct page *get_sum_page(struct f2fs_sb_info *, unsigned int);
 void write_meta_page(struct f2fs_sb_info *, struct page *);
 void write_node_page(struct f2fs_sb_info *, struct page *,
@@ -1295,7 +1302,7 @@ void write_data_summaries(struct f2fs_sb_info *, block_t);
 void write_node_summaries(struct f2fs_sb_info *, block_t);
 int lookup_journal_in_cursum(struct f2fs_summary_block *,
 					int, unsigned int, int);
-void flush_sit_entries(struct f2fs_sb_info *);
+void flush_sit_entries(struct f2fs_sb_info *, struct cp_control *);
 int build_segment_manager(struct f2fs_sb_info *);
 void destroy_segment_manager(struct f2fs_sb_info *);
 int __init create_segment_manager_caches(void);
