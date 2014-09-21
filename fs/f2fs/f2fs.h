@@ -96,6 +96,15 @@ enum {
 	SIT_BITMAP
 };
 
+enum {
+	CP_UMOUNT,
+	CP_SYNC,
+};
+
+struct cp_control {
+	int reason;
+};
+
 /*
  * For CP/NAT/SIT/SSA readahead
  */
@@ -1314,7 +1323,7 @@ void update_dirty_page(struct inode *, struct page *);
 void add_dirty_dir_inode(struct inode *);
 void remove_dirty_dir_inode(struct inode *);
 void sync_dirty_dir_inodes(struct f2fs_sb_info *);
-void write_checkpoint(struct f2fs_sb_info *, bool);
+void write_checkpoint(struct f2fs_sb_info *, struct cp_control *);
 void init_ino_entry_info(struct f2fs_sb_info *);
 int __init create_checkpoint_caches(void);
 void destroy_checkpoint_caches(void);

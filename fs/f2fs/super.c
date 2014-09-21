@@ -434,8 +434,12 @@ static void f2fs_put_super(struct super_block *sb)
 	stop_gc_thread(sbi);
 
 	/* We don't need to do checkpoint when it's clean */
-	if (sbi->s_dirty)
-		write_checkpoint(sbi, true);
+	if (sbi->s_dirty) {
+		struct cp_control cpc = {
+			.reason = CP_UMOUNT,
+		};
+		write_checkpoint(sbi, &cpc);
+	}
 
 	/*
 	 * normally superblock is clean, so we need to release this.
@@ -466,8 +470,11 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 	trace_f2fs_sync_fs(sb, sync);
 
 	if (sync) {
+		struct cp_control cpc = {
+			.reason = CP_SYNC,
+		};
 		mutex_lock(&sbi->gc_mutex);
-		write_checkpoint(sbi, false);
+		write_checkpoint(sbi, &cpc);
 		mutex_unlock(&sbi->gc_mutex);
 	} else {
 		f2fs_balance_fs(sbi);
