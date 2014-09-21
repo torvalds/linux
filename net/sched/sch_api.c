@@ -586,7 +586,7 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 
 void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc)
 {
-	hrtimer_init(&wd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&wd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);
 	wd->timer.function = qdisc_watchdog;
 	wd->qdisc = qdisc;
 }
@@ -602,7 +602,7 @@ void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires)
 
 	hrtimer_start(&wd->timer,
 		      ns_to_ktime(expires),
-		      HRTIMER_MODE_ABS);
+		      HRTIMER_MODE_ABS_PINNED);
 }
 EXPORT_SYMBOL(qdisc_watchdog_schedule_ns);
 

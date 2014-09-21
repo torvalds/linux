@@ -932,7 +932,7 @@ ok:
 			ktime_t time = ns_to_ktime(next_event);
 			qdisc_throttled(q->watchdog.qdisc);
 			hrtimer_start(&q->watchdog.timer, time,
-				      HRTIMER_MODE_ABS);
+				      HRTIMER_MODE_ABS_PINNED);
 		}
 	} else {
 		schedule_work(&q->work);
