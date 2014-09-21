@@ -226,7 +226,7 @@ static int max8907_regulator_parse_dt(struct platform_device *pdev)
 	struct device_node *np, *regulators;
 	int ret;
 
-	np = of_node_get(pdev->dev.parent->of_node);
+	np = pdev->dev.parent->of_node;
 	if (!np)
 		return 0;
 

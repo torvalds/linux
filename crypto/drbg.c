@@ -1922,9 +1922,6 @@ static inline int __init drbg_healthcheck_sanity(void)
 	/* overflow max addtllen with personalization string */
 	ret = drbg_instantiate(drbg, &addtl, coreref, pr);
 	BUG_ON(0 == ret);
-	/* test uninstantated DRBG */
-	len = drbg_generate(drbg, buf, (max_request_bytes + 1), NULL);
-	BUG_ON(0 < len);
 	/* all tests passed */
 	rc = 0;
 

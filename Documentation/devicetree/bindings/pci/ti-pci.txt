@@ -1,0 +1,59 @@
+TI PCI Controllers
+
+PCIe Designware Controller
+ - compatible: Should be "ti,dra7-pcie""
+ - reg : Two register ranges as listed in the reg-names property
+ - reg-names : The first entry must be "ti-conf" for the TI specific registers
+	       The second entry must be "rc-dbics" for the designware pcie
+	       registers
+	       The third entry must be "config" for the PCIe configuration space
+ - phys : list of PHY specifiers (used by generic PHY framework)
+ - phy-names : must be "pcie-phy0", "pcie-phy1", "pcie-phyN".. based on the
+	       number of PHYs as specified in *phys* property.
+ - ti,hwmods : Name of the hwmod associated to the pcie, "pcie<X>",
+	       where <X> is the instance number of the pcie from the HW spec.
+ - interrupts : Two interrupt entries must be specified. The first one is for
+		main interrupt line and the second for MSI interrupt line.
+ - #address-cells,
+   #size-cells,
+   #interrupt-cells,
+   device_type,
+   ranges,
+   num-lanes,
+   interrupt-map-mask,
+   interrupt-map : as specified in ../designware-pcie.txt
+
+Example:
+axi {
+	compatible = "simple-bus";
+	#size-cells = <1>;
+	#address-cells = <1>;
+	ranges = <0x51000000 0x51000000 0x3000
+		  0x0	     0x20000000 0x10000000>;
+	pcie@51000000 {
+		compatible = "ti,dra7-pcie";
+		reg = <0x51000000 0x2000>, <0x51002000 0x14c>, <0x1000 0x2000>;
+		reg-names = "rc_dbics", "ti_conf", "config";
+		interrupts = <0 232 0x4>, <0 233 0x4>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x81000000 0 0          0x03000 0 0x00010000
+			  0x82000000 0 0x20013000 0x13000 0 0xffed000>;
+		#interrupt-cells = <1>;
+		num-lanes = <1>;
+		ti,hwmods = "pcie1";
+		phys = <&pcie1_phy>;
+		phy-names = "pcie-phy0";
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0 0 0 1 &pcie_intc 1>,
+				<0 0 0 2 &pcie_intc 2>,
+				<0 0 0 3 &pcie_intc 3>,
+				<0 0 0 4 &pcie_intc 4>;
+		pcie_intc: interrupt-controller {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+		};
+	};
+};

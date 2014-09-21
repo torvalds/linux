@@ -16,8 +16,6 @@ struct device;
  */
 struct gpio_desc;
 
-#ifdef CONFIG_GPIOLIB
-
 #define GPIOD_FLAGS_BIT_DIR_SET		BIT(0)
 #define GPIOD_FLAGS_BIT_DIR_OUT		BIT(1)
 #define GPIOD_FLAGS_BIT_DIR_VAL		BIT(2)
@@ -34,64 +32,38 @@ enum gpiod_flags {
 			  GPIOD_FLAGS_BIT_DIR_VAL,
 };
 
+#ifdef CONFIG_GPIOLIB
+
 /* Acquire and dispose GPIOs */
 struct gpio_desc *__must_check __gpiod_get(struct device *dev,
 					 const char *con_id,
 					 enum gpiod_flags flags);
-#define __gpiod_get(dev, con_id, flags, ...) __gpiod_get(dev, con_id, flags)
-#define gpiod_get(varargs...) __gpiod_get(varargs, 0)
 struct gpio_desc *__must_check __gpiod_get_index(struct device *dev,
 					       const char *con_id,
 					       unsigned int idx,
 					       enum gpiod_flags flags);
-#define __gpiod_get_index(dev, con_id, index, flags, ...)		\
-	__gpiod_get_index(dev, con_id, index, flags)
-#define gpiod_get_index(varargs...) __gpiod_get_index(varargs, 0)
 struct gpio_desc *__must_check __gpiod_get_optional(struct device *dev,
 						  const char *con_id,
 						  enum gpiod_flags flags);
-#define __gpiod_get_optional(dev, con_id, flags, ...)			\
-	__gpiod_get_optional(dev, con_id, flags)
-#define gpiod_get_optional(varargs...) __gpiod_get_optional(varargs, 0)
 struct gpio_desc *__must_check __gpiod_get_index_optional(struct device *dev,
 							const char *con_id,
 							unsigned int index,
 							enum gpiod_flags flags);
-#define __gpiod_get_index_optional(dev, con_id, index, flags, ...)	\
-	__gpiod_get_index_optional(dev, con_id, index, flags)
-#define gpiod_get_index_optional(varargs...)				\
-	__gpiod_get_index_optional(varargs, 0)
-
 void gpiod_put(struct gpio_desc *desc);
 
 struct gpio_desc *__must_check __devm_gpiod_get(struct device *dev,
 					      const char *con_id,
 					      enum gpiod_flags flags);
-#define __devm_gpiod_get(dev, con_id, flags, ...)			\
-	__devm_gpiod_get(dev, con_id, flags)
-#define devm_gpiod_get(varargs...) __devm_gpiod_get(varargs, 0)
 struct gpio_desc *__must_check __devm_gpiod_get_index(struct device *dev,
 						    const char *con_id,
 						    unsigned int idx,
 						    enum gpiod_flags flags);
-#define __devm_gpiod_get_index(dev, con_id, index, flags, ...)		\
-	__devm_gpiod_get_index(dev, con_id, index, flags)
-#define devm_gpiod_get_index(varargs...) __devm_gpiod_get_index(varargs, 0)
 struct gpio_desc *__must_check __devm_gpiod_get_optional(struct device *dev,
 						       const char *con_id,
 						       enum gpiod_flags flags);
-#define __devm_gpiod_get_optional(dev, con_id, flags, ...)		\
-	__devm_gpiod_get_optional(dev, con_id, flags)
-#define devm_gpiod_get_optional(varargs...)				\
-	__devm_gpiod_get_optional(varargs, 0)
 struct gpio_desc *__must_check
 __devm_gpiod_get_index_optional(struct device *dev, const char *con_id,
 			      unsigned int index, enum gpiod_flags flags);
-#define __devm_gpiod_get_index_optional(dev, con_id, index, flags, ...)	\
-	__devm_gpiod_get_index_optional(dev, con_id, index, flags)
-#define devm_gpiod_get_index_optional(varargs...)			\
-	__devm_gpiod_get_index_optional(varargs, 0)
-
 void devm_gpiod_put(struct device *dev, struct gpio_desc *desc);
 
 int gpiod_get_direction(const struct gpio_desc *desc);
@@ -124,27 +96,31 @@ int desc_to_gpio(const struct gpio_desc *desc);
 
 #else /* CONFIG_GPIOLIB */
 
-static inline struct gpio_desc *__must_check gpiod_get(struct device *dev,
-						       const char *con_id)
+static inline struct gpio_desc *__must_check __gpiod_get(struct device *dev,
+						const char *con_id,
+						enum gpiod_flags flags)
 {
 	return ERR_PTR(-ENOSYS);
 }
-static inline struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
-							     const char *con_id,
-							     unsigned int idx)
+static inline struct gpio_desc *__must_check
+__gpiod_get_index(struct device *dev,
+		  const char *con_id,
+		  unsigned int idx,
+		  enum gpiod_flags flags)
 {
 	return ERR_PTR(-ENOSYS);
 }
 
 static inline struct gpio_desc *__must_check
-gpiod_get_optional(struct device *dev, const char *con_id)
+__gpiod_get_optional(struct device *dev, const char *con_id,
+		     enum gpiod_flags flags)
 {
 	return ERR_PTR(-ENOSYS);
 }
 
 static inline struct gpio_desc *__must_check
-gpiod_get_index_optional(struct device *dev, const char *con_id,
-			 unsigned int index)
+__gpiod_get_index_optional(struct device *dev, const char *con_id,
+			   unsigned int index, enum gpiod_flags flags)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -157,28 +133,33 @@ static inline void gpiod_put(struct gpio_desc *desc)
 	WARN_ON(1);
 }
 
-static inline struct gpio_desc *__must_check devm_gpiod_get(struct device *dev,
-							    const char *con_id)
+static inline struct gpio_desc *__must_check
+__devm_gpiod_get(struct device *dev,
+		 const char *con_id,
+		 enum gpiod_flags flags)
 {
 	return ERR_PTR(-ENOSYS);
 }
 static inline
-struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
-						    const char *con_id,
-						    unsigned int idx)
+struct gpio_desc *__must_check
+__devm_gpiod_get_index(struct device *dev,
+		       const char *con_id,
+		       unsigned int idx,
+		       enum gpiod_flags flags)
 {
 	return ERR_PTR(-ENOSYS);
 }
 
 static inline struct gpio_desc *__must_check
-devm_gpiod_get_optional(struct device *dev, const char *con_id)
+__devm_gpiod_get_optional(struct device *dev, const char *con_id,
+			  enum gpiod_flags flags)
 {
 	return ERR_PTR(-ENOSYS);
 }
 
 static inline struct gpio_desc *__must_check
-devm_gpiod_get_index_optional(struct device *dev, const char *con_id,
-			      unsigned int index)
+__devm_gpiod_get_index_optional(struct device *dev, const char *con_id,
+				unsigned int index, enum gpiod_flags flags)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -303,8 +284,42 @@ static inline int desc_to_gpio(const struct gpio_desc *desc)
 	return -EINVAL;
 }
 
-
 #endif /* CONFIG_GPIOLIB */
+
+/*
+ * Vararg-hacks! This is done to transition the kernel to always pass
+ * the options flags argument to the below functions. During a transition
+ * phase these vararg macros make both old-and-newstyle code compile,
+ * but when all calls to the elder API are removed, these should go away
+ * and the __gpiod_get() etc functions above be renamed just gpiod_get()
+ * etc.
+ */
+#define __gpiod_get(dev, con_id, flags, ...) __gpiod_get(dev, con_id, flags)
+#define gpiod_get(varargs...) __gpiod_get(varargs, 0)
+#define __gpiod_get_index(dev, con_id, index, flags, ...)		\
+	__gpiod_get_index(dev, con_id, index, flags)
+#define gpiod_get_index(varargs...) __gpiod_get_index(varargs, 0)
+#define __gpiod_get_optional(dev, con_id, flags, ...)			\
+	__gpiod_get_optional(dev, con_id, flags)
+#define gpiod_get_optional(varargs...) __gpiod_get_optional(varargs, 0)
+#define __gpiod_get_index_optional(dev, con_id, index, flags, ...)	\
+	__gpiod_get_index_optional(dev, con_id, index, flags)
+#define gpiod_get_index_optional(varargs...)				\
+	__gpiod_get_index_optional(varargs, 0)
+#define __devm_gpiod_get(dev, con_id, flags, ...)			\
+	__devm_gpiod_get(dev, con_id, flags)
+#define devm_gpiod_get(varargs...) __devm_gpiod_get(varargs, 0)
+#define __devm_gpiod_get_index(dev, con_id, index, flags, ...)		\
+	__devm_gpiod_get_index(dev, con_id, index, flags)
+#define devm_gpiod_get_index(varargs...) __devm_gpiod_get_index(varargs, 0)
+#define __devm_gpiod_get_optional(dev, con_id, flags, ...)		\
+	__devm_gpiod_get_optional(dev, con_id, flags)
+#define devm_gpiod_get_optional(varargs...)				\
+	__devm_gpiod_get_optional(varargs, 0)
+#define __devm_gpiod_get_index_optional(dev, con_id, index, flags, ...)	\
+	__devm_gpiod_get_index_optional(dev, con_id, index, flags)
+#define devm_gpiod_get_index_optional(varargs...)			\
+	__devm_gpiod_get_index_optional(varargs, 0)
 
 #if IS_ENABLED(CONFIG_GPIOLIB) && IS_ENABLED(CONFIG_GPIO_SYSFS)
 

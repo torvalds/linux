@@ -2922,7 +2922,7 @@ static int fetch_block(struct stripe_head *sh, struct stripe_head_state *s,
 	      (!test_bit(R5_Insync, &dev->flags) || test_bit(STRIPE_PREREAD_ACTIVE, &sh->state)) &&
 	      !test_bit(R5_OVERWRITE, &fdev[0]->flags)) ||
 	     (sh->raid_conf->level == 6 && s->failed && s->to_write &&
-	      s->to_write < sh->raid_conf->raid_disks - 2 &&
+	      s->to_write - s->non_overwrite < sh->raid_conf->raid_disks - 2 &&
 	      (!test_bit(R5_Insync, &dev->flags) || test_bit(STRIPE_PREREAD_ACTIVE, &sh->state))))) {
 		/* we would like to get this block, possibly by computing it,
 		 * otherwise read it if the backing disk is insync
@@ -3816,6 +3816,8 @@ static void handle_stripe(struct stripe_head *sh)
 				pr_debug("Writing block %d\n", i);
 				set_bit(R5_Wantwrite, &dev->flags);
 				if (prexor)
+					continue;
+				if (s.failed > 1)
 					continue;
 				if (!test_bit(R5_Insync, &dev->flags) ||
 				    ((i == sh->pd_idx || i == sh->qd_idx)  &&

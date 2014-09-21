@@ -195,6 +195,7 @@ static struct zpool_driver zbud_zpool_driver = {
 	.total_size =	zbud_zpool_total_size,
 };
 
+MODULE_ALIAS("zpool-zbud");
 #endif /* CONFIG_ZPOOL */
 
 /*****************

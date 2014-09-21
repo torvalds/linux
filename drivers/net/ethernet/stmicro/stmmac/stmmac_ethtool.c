@@ -175,7 +175,7 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_octetcount_g),
 	STMMAC_MMC_STAT(mmc_rx_broadcastframe_g),
 	STMMAC_MMC_STAT(mmc_rx_multicastframe_g),
-	STMMAC_MMC_STAT(mmc_rx_crc_errror),
+	STMMAC_MMC_STAT(mmc_rx_crc_error),
 	STMMAC_MMC_STAT(mmc_rx_align_error),
 	STMMAC_MMC_STAT(mmc_rx_run_error),
 	STMMAC_MMC_STAT(mmc_rx_jabber_error),

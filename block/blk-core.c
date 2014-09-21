@@ -1252,7 +1252,6 @@ void blk_rq_set_block_pc(struct request *rq)
 	rq->__sector = (sector_t) -1;
 	rq->bio = rq->biotail = NULL;
 	memset(rq->__cmd, 0, sizeof(rq->__cmd));
-	rq->cmd = rq->__cmd;
 }
 EXPORT_SYMBOL(blk_rq_set_block_pc);
 

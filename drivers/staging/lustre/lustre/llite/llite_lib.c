@@ -568,7 +568,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (sb->s_root == NULL) {
 		CERROR("%s: can't make root dentry\n",
 			ll_get_fsname(sb, NULL, 0));
-		GOTO(out_root, err = -ENOMEM);
+		GOTO(out_lock_cn_cb, err = -ENOMEM);
 	}
 
 	sbi->ll_sdev_orig = sb->s_dev;

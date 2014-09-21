@@ -124,15 +124,6 @@ int r600_dma_resume(struct radeon_device *rdev)
 	u32 rb_bufsz;
 	int r;
 
-	/* Reset dma */
-	if (rdev->family >= CHIP_RV770)
-		WREG32(SRBM_SOFT_RESET, RV770_SOFT_RESET_DMA);
-	else
-		WREG32(SRBM_SOFT_RESET, SOFT_RESET_DMA);
-	RREG32(SRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(SRBM_SOFT_RESET, 0);
-
 	WREG32(DMA_SEM_INCOMPLETE_TIMER_CNTL, 0);
 	WREG32(DMA_SEM_WAIT_FAIL_TIMER_CNTL, 0);
 
@@ -261,7 +252,7 @@ int r600_dma_ring_test(struct radeon_device *rdev,
 	radeon_ring_write(ring, rdev->vram_scratch.gpu_addr & 0xfffffffc);
 	radeon_ring_write(ring, upper_32_bits(rdev->vram_scratch.gpu_addr) & 0xff);
 	radeon_ring_write(ring, 0xDEADBEEF);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = readl(ptr);
@@ -368,7 +359,7 @@ int r600_dma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	ib.ptr[3] = 0xDEADBEEF;
 	ib.length_dw = 4;
 
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 		radeon_ib_free(rdev, &ib);
 		DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
@@ -493,7 +484,7 @@ int r600_copy_dma(struct radeon_device *rdev,
 		return r;
 	}
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 	radeon_semaphore_free(rdev, &sem, *fence);
 
 	return r;

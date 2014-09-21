@@ -397,36 +397,33 @@ static int davinci_spi_setup(struct spi_device *spi)
 	struct spi_master *master = spi->master;
 	struct device_node *np = spi->dev.of_node;
 	bool internal_cs = true;
-	unsigned long flags = GPIOF_DIR_OUT;
 
 	dspi = spi_master_get_devdata(spi->master);
 	pdata = &dspi->pdata;
 
-	flags |= (spi->mode & SPI_CS_HIGH) ? GPIOF_INIT_LOW : GPIOF_INIT_HIGH;
-
 	if (!(spi->mode & SPI_NO_CS)) {
 		if (np && (master->cs_gpios != NULL) && (spi->cs_gpio >= 0)) {
-			retval = gpio_request_one(spi->cs_gpio,
-						  flags, dev_name(&spi->dev));
+			retval = gpio_direction_output(
+				      spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 			internal_cs = false;
 		} else if (pdata->chip_sel &&
 			   spi->chip_select < pdata->num_chipselect &&
 			   pdata->chip_sel[spi->chip_select] != SPI_INTERN_CS) {
 			spi->cs_gpio = pdata->chip_sel[spi->chip_select];
-			retval = gpio_request_one(spi->cs_gpio,
-						  flags, dev_name(&spi->dev));
+			retval = gpio_direction_output(
+				      spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 			internal_cs = false;
 		}
-	}
 
-	if (retval) {
-		dev_err(&spi->dev, "GPIO %d setup failed (%d)\n",
-			spi->cs_gpio, retval);
-		return retval;
-	}
+		if (retval) {
+			dev_err(&spi->dev, "GPIO %d setup failed (%d)\n",
+				spi->cs_gpio, retval);
+			return retval;
+		}
 
-	if (internal_cs)
-		set_io_bits(dspi->base + SPIPC0, 1 << spi->chip_select);
+		if (internal_cs)
+			set_io_bits(dspi->base + SPIPC0, 1 << spi->chip_select);
+	}
 
 	if (spi->mode & SPI_READY)
 		set_io_bits(dspi->base + SPIPC0, SPIPC0_SPIENA_MASK);
@@ -437,12 +434,6 @@ static int davinci_spi_setup(struct spi_device *spi)
 		clear_io_bits(dspi->base + SPIGCR1, SPIGCR1_LOOPBACK_MASK);
 
 	return retval;
-}
-
-static void davinci_spi_cleanup(struct spi_device *spi)
-{
-	if (spi->cs_gpio >= 0)
-		gpio_free(spi->cs_gpio);
 }
 
 static int davinci_spi_check_error(struct davinci_spi *dspi, int int_status)
@@ -956,7 +947,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	master->num_chipselect = pdata->num_chipselect;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(2, 16);
 	master->setup = davinci_spi_setup;
-	master->cleanup = davinci_spi_cleanup;
 
 	dspi->bitbang.chipselect = davinci_spi_chipselect;
 	dspi->bitbang.setup_transfer = davinci_spi_setup_transfer;
@@ -966,6 +956,27 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	dspi->bitbang.flags = SPI_NO_CS | SPI_LSB_FIRST | SPI_LOOP;
 	if (dspi->version == SPI_VERSION_2)
 		dspi->bitbang.flags |= SPI_READY;
+
+	if (pdev->dev.of_node) {
+		int i;
+
+		for (i = 0; i < pdata->num_chipselect; i++) {
+			int cs_gpio = of_get_named_gpio(pdev->dev.of_node,
+							"cs-gpios", i);
+
+			if (cs_gpio == -EPROBE_DEFER) {
+				ret = cs_gpio;
+				goto free_clk;
+			}
+
+			if (gpio_is_valid(cs_gpio)) {
+				ret = devm_gpio_request(&pdev->dev, cs_gpio,
+							dev_name(&pdev->dev));
+				if (ret)
+					goto free_clk;
+			}
+		}
+	}
 
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (r)

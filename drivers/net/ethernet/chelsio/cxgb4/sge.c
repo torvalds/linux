@@ -2303,7 +2303,8 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 			    FW_EQ_ETH_CMD_PFN(adap->fn) | FW_EQ_ETH_CMD_VFN(0));
 	c.alloc_to_len16 = htonl(FW_EQ_ETH_CMD_ALLOC |
 				 FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
-	c.viid_pkd = htonl(FW_EQ_ETH_CMD_VIID(pi->viid));
+	c.viid_pkd = htonl(FW_EQ_ETH_CMD_AUTOEQUEQE |
+			   FW_EQ_ETH_CMD_VIID(pi->viid));
 	c.fetchszm_to_iqid = htonl(FW_EQ_ETH_CMD_HOSTFCMODE(2) |
 				   FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) |
 				   FW_EQ_ETH_CMD_FETCHRO(1) |

@@ -184,6 +184,7 @@ enum hpd_pin {
 		if ((1 << (domain)) & (mask))
 
 struct drm_i915_private;
+struct i915_mm_struct;
 struct i915_mmu_object;
 
 enum intel_dpll_id {
@@ -1458,7 +1459,7 @@ struct drm_i915_private {
 		} hpd_mark;
 	} hpd_stats[HPD_NUM_PINS];
 	u32 hpd_event_bits;
-	struct timer_list hotplug_reenable_timer;
+	struct delayed_work hotplug_reenable_work;
 
 	struct i915_fbc fbc;
 	struct i915_drrs drrs;
@@ -1506,9 +1507,8 @@ struct drm_i915_private {
 	struct i915_gtt gtt; /* VM representing the global address space */
 
 	struct i915_gem_mm mm;
-#if defined(CONFIG_MMU_NOTIFIER)
-	DECLARE_HASHTABLE(mmu_notifiers, 7);
-#endif
+	DECLARE_HASHTABLE(mm_structs, 7);
+	struct mutex mm_lock;
 
 	/* Kernel Modesetting */
 
@@ -1814,8 +1814,8 @@ struct drm_i915_gem_object {
 			unsigned workers :4;
 #define I915_GEM_USERPTR_MAX_WORKERS 15
 
-			struct mm_struct *mm;
-			struct i915_mmu_object *mn;
+			struct i915_mm_struct *mm;
+			struct i915_mmu_object *mmu_object;
 			struct work_struct *work;
 		} userptr;
 	};
@@ -2178,6 +2178,7 @@ extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
 extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
+void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
 
 extern void intel_console_resume(struct work_struct *work);
 

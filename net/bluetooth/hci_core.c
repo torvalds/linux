@@ -2536,8 +2536,13 @@ static void hci_pend_le_actions_clear(struct hci_dev *hdev)
 {
 	struct hci_conn_params *p;
 
-	list_for_each_entry(p, &hdev->le_conn_params, list)
+	list_for_each_entry(p, &hdev->le_conn_params, list) {
+		if (p->conn) {
+			hci_conn_drop(p->conn);
+			p->conn = NULL;
+		}
 		list_del_init(&p->action);
+	}
 
 	BT_DBG("All LE pending actions cleared");
 }
@@ -2578,8 +2583,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 
 	hci_dev_lock(hdev);
 	hci_inquiry_cache_flush(hdev);
-	hci_conn_hash_flush(hdev);
 	hci_pend_le_actions_clear(hdev);
+	hci_conn_hash_flush(hdev);
 	hci_dev_unlock(hdev);
 
 	hci_notify(hdev, HCI_DEV_DOWN);
@@ -3727,6 +3732,9 @@ void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 	if (!params)
 		return;
 
+	if (params->conn)
+		hci_conn_drop(params->conn);
+
 	list_del(&params->action);
 	list_del(&params->list);
 	kfree(params);
@@ -3757,6 +3765,8 @@ void hci_conn_params_clear_all(struct hci_dev *hdev)
 	struct hci_conn_params *params, *tmp;
 
 	list_for_each_entry_safe(params, tmp, &hdev->le_conn_params, list) {
+		if (params->conn)
+			hci_conn_drop(params->conn);
 		list_del(&params->action);
 		list_del(&params->list);
 		kfree(params);

@@ -17,12 +17,12 @@
 #define IPL_PARM_BLK_FCP_LEN (sizeof(struct ipl_list_hdr) + \
 			      sizeof(struct ipl_block_fcp))
 
-#define IPL_PARM_BLK0_FCP_LEN (sizeof(struct ipl_block_fcp) + 8)
+#define IPL_PARM_BLK0_FCP_LEN (sizeof(struct ipl_block_fcp) + 16)
 
 #define IPL_PARM_BLK_CCW_LEN (sizeof(struct ipl_list_hdr) + \
 			      sizeof(struct ipl_block_ccw))
 
-#define IPL_PARM_BLK0_CCW_LEN (sizeof(struct ipl_block_ccw) + 8)
+#define IPL_PARM_BLK0_CCW_LEN (sizeof(struct ipl_block_ccw) + 16)
 
 #define IPL_MAX_SUPPORTED_VERSION (0)
 
@@ -38,10 +38,11 @@ struct ipl_list_hdr {
 	u8  pbt;
 	u8  flags;
 	u16 reserved2;
+	u8  loadparm[8];
 } __attribute__((packed));
 
 struct ipl_block_fcp {
-	u8  reserved1[313-1];
+	u8  reserved1[305-1];
 	u8  opt;
 	u8  reserved2[3];
 	u16 reserved3;
@@ -62,7 +63,6 @@ struct ipl_block_fcp {
 				 offsetof(struct ipl_block_fcp, scp_data)))
 
 struct ipl_block_ccw {
-	u8  load_parm[8];
 	u8  reserved1[84];
 	u8  reserved2[2];
 	u16 devno;

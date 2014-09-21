@@ -182,14 +182,12 @@ extern void vga_put(struct pci_dev *pdev, unsigned int rsrc);
  *     vga_get()...
  */
 
-#ifndef __ARCH_HAS_VGA_DEFAULT_DEVICE
 #ifdef CONFIG_VGA_ARB
 extern struct pci_dev *vga_default_device(void);
 extern void vga_set_default_device(struct pci_dev *pdev);
 #else
 static inline struct pci_dev *vga_default_device(void) { return NULL; };
 static inline void vga_set_default_device(struct pci_dev *pdev) { };
-#endif
 #endif
 
 /**

@@ -234,8 +234,17 @@ static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
 	    BTRFS_I(inode)->last_sub_trans <=
 	    BTRFS_I(inode)->last_log_commit &&
 	    BTRFS_I(inode)->last_sub_trans <=
-	    BTRFS_I(inode)->root->last_log_commit)
-		return 1;
+	    BTRFS_I(inode)->root->last_log_commit) {
+		/*
+		 * After a ranged fsync we might have left some extent maps
+		 * (that fall outside the fsync's range). So return false
+		 * here if the list isn't empty, to make sure btrfs_log_inode()
+		 * will be called and process those extent maps.
+		 */
+		smp_mb();
+		if (list_empty(&BTRFS_I(inode)->extent_tree.modified_extents))
+			return 1;
+	}
 	return 0;
 }
 

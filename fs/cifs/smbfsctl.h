@@ -63,7 +63,7 @@
 #define FSCTL_SET_OBJECT_ID_EXTENDED 0x000900BC /* BB add struct */
 #define FSCTL_CREATE_OR_GET_OBJECT_ID 0x000900C0 /* BB add struct */
 #define FSCTL_SET_SPARSE             0x000900C4 /* BB add struct */
-#define FSCTL_SET_ZERO_DATA          0x000900C8 /* BB add struct */
+#define FSCTL_SET_ZERO_DATA          0x000980C8
 #define FSCTL_SET_ENCRYPTION         0x000900D7 /* BB add struct */
 #define FSCTL_ENCRYPTION_FSCTL_IO    0x000900DB /* BB add struct */
 #define FSCTL_WRITE_RAW_ENCRYPTED    0x000900DF /* BB add struct */

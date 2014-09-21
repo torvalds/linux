@@ -801,7 +801,7 @@ static void pch_enable_backlight(struct intel_connector *connector)
 
 	cpu_ctl2 = I915_READ(BLC_PWM_CPU_CTL2);
 	if (cpu_ctl2 & BLM_PWM_ENABLE) {
-		WARN(1, "cpu backlight already enabled\n");
+		DRM_DEBUG_KMS("cpu backlight already enabled\n");
 		cpu_ctl2 &= ~BLM_PWM_ENABLE;
 		I915_WRITE(BLC_PWM_CPU_CTL2, cpu_ctl2);
 	}
@@ -845,7 +845,7 @@ static void i9xx_enable_backlight(struct intel_connector *connector)
 
 	ctl = I915_READ(BLC_PWM_CTL);
 	if (ctl & BACKLIGHT_DUTY_CYCLE_MASK_PNV) {
-		WARN(1, "backlight already enabled\n");
+		DRM_DEBUG_KMS("backlight already enabled\n");
 		I915_WRITE(BLC_PWM_CTL, 0);
 	}
 
@@ -876,7 +876,7 @@ static void i965_enable_backlight(struct intel_connector *connector)
 
 	ctl2 = I915_READ(BLC_PWM_CTL2);
 	if (ctl2 & BLM_PWM_ENABLE) {
-		WARN(1, "backlight already enabled\n");
+		DRM_DEBUG_KMS("backlight already enabled\n");
 		ctl2 &= ~BLM_PWM_ENABLE;
 		I915_WRITE(BLC_PWM_CTL2, ctl2);
 	}
@@ -910,7 +910,7 @@ static void vlv_enable_backlight(struct intel_connector *connector)
 
 	ctl2 = I915_READ(VLV_BLC_PWM_CTL2(pipe));
 	if (ctl2 & BLM_PWM_ENABLE) {
-		WARN(1, "backlight already enabled\n");
+		DRM_DEBUG_KMS("backlight already enabled\n");
 		ctl2 &= ~BLM_PWM_ENABLE;
 		I915_WRITE(VLV_BLC_PWM_CTL2(pipe), ctl2);
 	}

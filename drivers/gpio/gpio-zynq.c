@@ -95,6 +95,9 @@ struct zynq_gpio {
 	struct clk *clk;
 };
 
+static struct irq_chip zynq_gpio_level_irqchip;
+static struct irq_chip zynq_gpio_edge_irqchip;
+
 /**
  * zynq_gpio_get_bank_pin - Get the bank number and pin number within that bank
  * for a given pin in the GPIO device
@@ -410,6 +413,15 @@ static int zynq_gpio_set_irq_type(struct irq_data *irq_data, unsigned int type)
 		       gpio->base_addr + ZYNQ_GPIO_INTPOL_OFFSET(bank_num));
 	writel_relaxed(int_any,
 		       gpio->base_addr + ZYNQ_GPIO_INTANY_OFFSET(bank_num));
+
+	if (type & IRQ_TYPE_LEVEL_MASK) {
+		__irq_set_chip_handler_name_locked(irq_data->irq,
+			&zynq_gpio_level_irqchip, handle_fasteoi_irq, NULL);
+	} else {
+		__irq_set_chip_handler_name_locked(irq_data->irq,
+			&zynq_gpio_edge_irqchip, handle_level_irq, NULL);
+	}
+
 	return 0;
 }
 
@@ -424,9 +436,21 @@ static int zynq_gpio_set_wake(struct irq_data *data, unsigned int on)
 }
 
 /* irq chip descriptor */
-static struct irq_chip zynq_gpio_irqchip = {
+static struct irq_chip zynq_gpio_level_irqchip = {
 	.name		= DRIVER_NAME,
 	.irq_enable	= zynq_gpio_irq_enable,
+	.irq_eoi	= zynq_gpio_irq_ack,
+	.irq_mask	= zynq_gpio_irq_mask,
+	.irq_unmask	= zynq_gpio_irq_unmask,
+	.irq_set_type	= zynq_gpio_set_irq_type,
+	.irq_set_wake	= zynq_gpio_set_wake,
+	.flags		= IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED,
+};
+
+static struct irq_chip zynq_gpio_edge_irqchip = {
+	.name		= DRIVER_NAME,
+	.irq_enable	= zynq_gpio_irq_enable,
+	.irq_ack	= zynq_gpio_irq_ack,
 	.irq_mask	= zynq_gpio_irq_mask,
 	.irq_unmask	= zynq_gpio_irq_unmask,
 	.irq_set_type	= zynq_gpio_set_irq_type,
@@ -469,10 +493,6 @@ static void zynq_gpio_irqhandler(unsigned int irq, struct irq_desc *desc)
 							offset);
 				generic_handle_irq(gpio_irq);
 			}
-
-			/* clear IRQ in HW */
-			writel_relaxed(int_sts, gpio->base_addr +
-					ZYNQ_GPIO_INTSTS_OFFSET(bank_num));
 		}
 	}
 
@@ -610,14 +630,14 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 		writel_relaxed(ZYNQ_GPIO_IXR_DISABLE_ALL, gpio->base_addr +
 			       ZYNQ_GPIO_INTDIS_OFFSET(bank_num));
 
-	ret = gpiochip_irqchip_add(chip, &zynq_gpio_irqchip, 0,
-				   handle_simple_irq, IRQ_TYPE_NONE);
+	ret = gpiochip_irqchip_add(chip, &zynq_gpio_edge_irqchip, 0,
+				   handle_level_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add irq chip\n");
 		goto err_rm_gpiochip;
 	}
 
-	gpiochip_set_chained_irqchip(chip, &zynq_gpio_irqchip, irq,
+	gpiochip_set_chained_irqchip(chip, &zynq_gpio_edge_irqchip, irq,
 				     zynq_gpio_irqhandler);
 
 	pm_runtime_set_active(&pdev->dev);

@@ -36,7 +36,7 @@
 struct gic_chip_data {
 	void __iomem		*dist_base;
 	void __iomem		**redist_base;
-	void __percpu __iomem	**rdist;
+	void __iomem * __percpu	*rdist;
 	struct irq_domain	*domain;
 	u64			redist_stride;
 	u32			redist_regions;
@@ -104,7 +104,7 @@ static void gic_redist_wait_for_rwp(void)
 }
 
 /* Low level accessors */
-static u64 gic_read_iar(void)
+static u64 __maybe_unused gic_read_iar(void)
 {
 	u64 irqstat;
 
@@ -112,24 +112,24 @@ static u64 gic_read_iar(void)
 	return irqstat;
 }
 
-static void gic_write_pmr(u64 val)
+static void __maybe_unused gic_write_pmr(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_PMR_EL1) ", %0" : : "r" (val));
 }
 
-static void gic_write_ctlr(u64 val)
+static void __maybe_unused gic_write_ctlr(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_CTLR_EL1) ", %0" : : "r" (val));
 	isb();
 }
 
-static void gic_write_grpen1(u64 val)
+static void __maybe_unused gic_write_grpen1(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_GRPEN1_EL1) ", %0" : : "r" (val));
 	isb();
 }
 
-static void gic_write_sgi1r(u64 val)
+static void __maybe_unused gic_write_sgi1r(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_SGI1R_EL1) ", %0" : : "r" (val));
 }
@@ -198,19 +198,6 @@ static void gic_poke_irq(struct irq_data *d, u32 offset)
 
 	writel_relaxed(mask, base + offset + (gic_irq(d) / 32) * 4);
 	rwp_wait();
-}
-
-static int gic_peek_irq(struct irq_data *d, u32 offset)
-{
-	u32 mask = 1 << (gic_irq(d) % 32);
-	void __iomem *base;
-
-	if (gic_irq_in_rdist(d))
-		base = gic_data_rdist_sgi_base();
-	else
-		base = gic_data.dist_base;
-
-	return !!(readl_relaxed(base + offset + (gic_irq(d) / 32) * 4) & mask);
 }
 
 static void gic_mask_irq(struct irq_data *d)
@@ -401,6 +388,19 @@ static void gic_cpu_init(void)
 }
 
 #ifdef CONFIG_SMP
+static int gic_peek_irq(struct irq_data *d, u32 offset)
+{
+	u32 mask = 1 << (gic_irq(d) % 32);
+	void __iomem *base;
+
+	if (gic_irq_in_rdist(d))
+		base = gic_data_rdist_sgi_base();
+	else
+		base = gic_data.dist_base;
+
+	return !!(readl_relaxed(base + offset + (gic_irq(d) / 32) * 4) & mask);
+}
+
 static int gic_secondary_init(struct notifier_block *nfb,
 			      unsigned long action, void *hcpu)
 {

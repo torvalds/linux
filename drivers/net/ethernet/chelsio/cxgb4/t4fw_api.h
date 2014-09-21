@@ -1227,6 +1227,7 @@ struct fw_eq_eth_cmd {
 #define FW_EQ_ETH_CMD_CIDXFTHRESH(x) ((x) << 16)
 #define FW_EQ_ETH_CMD_EQSIZE(x) ((x) << 0)
 
+#define FW_EQ_ETH_CMD_AUTOEQUEQE (1U << 30)
 #define FW_EQ_ETH_CMD_VIID(x) ((x) << 16)
 
 struct fw_eq_ctrl_cmd {
@@ -2227,6 +2228,10 @@ struct fw_debug_cmd {
 #define FW_PCIE_FW_MASTER(x)     ((x) << FW_PCIE_FW_MASTER_SHIFT)
 #define FW_PCIE_FW_MASTER_GET(x) (((x) >> FW_PCIE_FW_MASTER_SHIFT) & \
 				 FW_PCIE_FW_MASTER_MASK)
+#define FW_PCIE_FW_EVAL_MASK   0x7
+#define FW_PCIE_FW_EVAL_SHIFT  24
+#define FW_PCIE_FW_EVAL_GET(x) (((x) >> FW_PCIE_FW_EVAL_SHIFT) & \
+				 FW_PCIE_FW_EVAL_MASK)
 
 struct fw_hdr {
 	u8 ver;

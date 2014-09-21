@@ -99,6 +99,10 @@ __do_hyp_init:
 	mrc	p15, 0, r0, c10, c2, 1
 	mcr	p15, 4, r0, c10, c2, 1
 
+	@ Invalidate the stale TLBs from Bootloader
+	mcr	p15, 4, r0, c8, c7, 0	@ TLBIALLH
+	dsb	ish
+
 	@ Set the HSCTLR to:
 	@  - ARM/THUMB exceptions: Kernel config (Thumb-2 kernel)
 	@  - Endianness: Kernel config
