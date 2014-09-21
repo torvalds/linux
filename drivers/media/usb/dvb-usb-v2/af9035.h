@@ -31,6 +31,8 @@
 #include "tda18218.h"
 #include "fc2580.h"
 #include "it913x.h"
+#include "si2168.h"
+#include "si2157.h"
 
 struct reg_val {
 	u32 reg;
@@ -66,6 +68,7 @@ struct state {
 	struct af9033_ops ops;
 	#define AF9035_I2C_CLIENT_MAX 4
 	struct i2c_client *i2c_client[AF9035_I2C_CLIENT_MAX];
+	struct i2c_adapter *i2c_adapter_demod;
 };
 
 static const u32 clock_lut_af9035[] = {
@@ -99,6 +102,7 @@ static const u32 clock_lut_it9135[] = {
 #define AF9035_FIRMWARE_AF9035 "dvb-usb-af9035-02.fw"
 #define AF9035_FIRMWARE_IT9135_V1 "dvb-usb-it9135-01.fw"
 #define AF9035_FIRMWARE_IT9135_V2 "dvb-usb-it9135-02.fw"
+#define AF9035_FIRMWARE_IT9303 "dvb-usb-it9303-01.fw"
 
 /*
  * eeprom is memory mapped as read only. Writing that memory mapped address
@@ -140,5 +144,7 @@ static const u32 clock_lut_it9135[] = {
 #define CMD_FW_DL_BEGIN             0x24
 #define CMD_FW_DL_END               0x25
 #define CMD_FW_SCATTER_WR           0x29
+#define CMD_GENERIC_I2C_RD          0x2a
+#define CMD_GENERIC_I2C_WR          0x2b
 
 #endif
