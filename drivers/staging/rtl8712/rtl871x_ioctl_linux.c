@@ -425,8 +425,8 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
 			pwep = kmalloc((u32)(wep_key_len +
-				       FIELD_OFFSET(struct NDIS_802_11_WEP, KeyMaterial)),
-				       GFP_ATOMIC);
+				FIELD_OFFSET(struct NDIS_802_11_WEP,
+				KeyMaterial)), GFP_ATOMIC);
 			if (pwep == NULL)
 				return -ENOMEM;
 			memset(pwep, 0, sizeof(struct NDIS_802_11_WEP));
@@ -1563,7 +1563,8 @@ static int r8711_wx_set_enc(struct net_device *dev,
 		authmode = Ndis802_11AuthModeOpen;
 		padapter->securitypriv.ndisauthtype = authmode;
 	} else if (erq->flags & IW_ENCODE_RESTRICTED) {
-		netdev_info(dev, "r8712u: %s: IW_ENCODE_RESTRICTED\n", __func__);
+		netdev_info(dev,
+				"r8712u: %s: IW_ENCODE_RESTRICTED\n", __func__);
 		padapter->securitypriv.ndisencryptstatus =
 				 Ndis802_11Encryption1Enabled;
 		padapter->securitypriv.AuthAlgrthm = 1; /* shared system */

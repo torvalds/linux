@@ -382,7 +382,8 @@ static void usb_write_port_complete(struct urb *purb)
 	case 0:
 		break;
 	default:
-		netdev_warn(padapter->pnetdev, "r8712u: pipe error: (%d)\n", purb->status);
+		netdev_warn(padapter->pnetdev,
+				"r8712u: pipe error: (%d)\n", purb->status);
 		break;
 	}
 	/* not to consider tx fragment */

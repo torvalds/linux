@@ -54,8 +54,8 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 	_init_queue(&pmp_priv->free_mp_xmitqueue);
 	pmp_priv->pallocated_mp_xmitframe_buf = NULL;
 	pmp_priv->pallocated_mp_xmitframe_buf = kmalloc(NR_MP_XMITFRAME *
-							sizeof(struct mp_xmit_frame) + 4,
-							GFP_ATOMIC);
+				sizeof(struct mp_xmit_frame) + 4,
+				GFP_ATOMIC);
 	if (pmp_priv->pallocated_mp_xmitframe_buf == NULL) {
 		res = _FAIL;
 		goto _exit_init_mp_priv;
