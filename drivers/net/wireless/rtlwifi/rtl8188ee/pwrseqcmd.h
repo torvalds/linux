@@ -30,22 +30,22 @@
 /*---------------------------------------------*/
 /* The value of cmd: 4 bits */
 /*---------------------------------------------*/
-#define PWR_CMD_READ		0x00
-#define PWR_CMD_WRITE		0x01
-#define PWR_CMD_POLLING		0x02
-#define PWR_CMD_DELAY		0x03
-#define PWR_CMD_END		0x04
+#define  PWR_CMD_READ		0x00
+#define    PWR_CMD_WRITE	0x01
+#define    PWR_CMD_POLLING	0x02
+#define    PWR_CMD_DELAY	0x03
+#define    PWR_CMD_END		0x04
 
 /* define the base address of each block */
-#define PWR_BASEADDR_MAC	0x00
-#define PWR_BASEADDR_USB	0x01
-#define PWR_BASEADDR_PCIE	0x02
-#define PWR_BASEADDR_SDIO	0x03
+#define   PWR_BASEADDR_MAC	0x00
+#define   PWR_BASEADDR_USB	0x01
+#define   PWR_BASEADDR_PCIE	0x02
+#define   PWR_BASEADDR_SDIO	0x03
 
-#define PWR_INTF_SDIO_MSK	BIT(0)
-#define PWR_INTF_USB_MSK	BIT(1)
-#define PWR_INTF_PCI_MSK	BIT(2)
-#define PWR_INTF_ALL_MSK	(BIT(0)|BIT(1)|BIT(2)|BIT(3))
+#define	PWR_INTF_SDIO_MSK	BIT(0)
+#define	PWR_INTF_USB_MSK	BIT(1)
+#define	PWR_INTF_PCI_MSK	BIT(2)
+#define	PWR_INTF_ALL_MSK	(BIT(0)|BIT(1)|BIT(2)|BIT(3))
 
 #define	PWR_FAB_TSMC_MSK	BIT(0)
 #define	PWR_FAB_UMC_MSK		BIT(1)
@@ -75,19 +75,20 @@ struct wlan_pwr_cfg {
 	u8 cmd:4;
 	u8 msk;
 	u8 value;
+
 };
 
-#define	GET_PWR_CFG_OFFSET(__PWR)	(__PWR.offset)
-#define	GET_PWR_CFG_CUT_MASK(__PWR)	(__PWR.cut_msk)
-#define	GET_PWR_CFG_FAB_MASK(__PWR)	(__PWR.fab_msk)
-#define	GET_PWR_CFG_INTF_MASK(__PWR)	(__PWR.interface_msk)
-#define	GET_PWR_CFG_BASE(__PWR)		(__PWR.base)
-#define	GET_PWR_CFG_CMD(__PWR)		(__PWR.cmd)
-#define	GET_PWR_CFG_MASK(__PWR)		(__PWR.msk)
-#define	GET_PWR_CFG_VALUE(__PWR)	(__PWR.value)
+#define	GET_PWR_CFG_OFFSET(__PWR_CMD)	__PWR_CMD.offset
+#define	GET_PWR_CFG_CUT_MASK(__PWR_CMD)	__PWR_CMD.cut_msk
+#define	GET_PWR_CFG_FAB_MASK(__PWR_CMD)	__PWR_CMD.fab_msk
+#define	GET_PWR_CFG_INTF_MASK(__PWR_CMD)	__PWR_CMD.interface_msk
+#define	GET_PWR_CFG_BASE(__PWR_CMD)	__PWR_CMD.base
+#define	GET_PWR_CFG_CMD(__PWR_CMD)	__PWR_CMD.cmd
+#define	GET_PWR_CFG_MASK(__PWR_CMD)	__PWR_CMD.msk
+#define	GET_PWR_CFG_VALUE(__PWR_CMD)	__PWR_CMD.value
 
-bool rtl88_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
-				u8 fab_version, u8 interface_type,
-				struct wlan_pwr_cfg pwrcfgcmd[]);
+bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
+			      u8 fab_version, u8 interface_type,
+			struct wlan_pwr_cfg pwrcfgcmd[]);
 
 #endif

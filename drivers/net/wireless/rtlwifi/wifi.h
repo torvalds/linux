@@ -1160,6 +1160,8 @@ struct rtl_phy {
 
 	u8 pwrgroup_cnt;
 	u8 cck_high_power;
+	/* this is for 88E & 8723A */
+	u32 mcs_txpwrlevel_origoffset[MAX_PG_GROUP][16];
 	/* MAX_PG_GROUP groups of pwr diff by rates */
 	u32 mcs_offset[MAX_PG_GROUP][16];
 	u32 tx_power_by_rate_offset[TX_PWR_BY_RATE_NUM_BAND]
@@ -1890,6 +1892,7 @@ struct rtl_stats {
 	bool rx_is40Mhzpacket;
 	u32 rx_pwdb_all;
 	u8 rx_mimo_signalstrength[4];	/*in 0~100 index */
+	s8 rx_mimo_signalquality[4];
 	u8 rx_mimo_evm_dbm[4];
 	u16 cfo_short[4];		/* per-path's Cfo_short */
 	u16 cfo_tail[4];
@@ -1966,7 +1969,7 @@ struct rtl_tcb_desc {
 	u8 empkt_num;
 	/* The max value by HW */
 	u32 empkt_len[10];
-	bool btx_enable_sw_calc_duration;
+	bool tx_enable_sw_calc_duration;
 };
 
 struct rtl92c_firmware_header;

@@ -732,7 +732,7 @@ void rtl8723be_tx_fill_desc(struct ieee80211_hw *hw,
 			 (ptcb_desc->rts_use_shortpreamble ? 1 : 0) :
 			 (ptcb_desc->rts_use_shortgi ? 1 : 0)));
 
-		if (ptcb_desc->btx_enable_sw_calc_duration)
+		if (ptcb_desc->tx_enable_sw_calc_duration)
 			SET_TX_DESC_NAV_USE_HDR(pdesc, 1);
 
 		if (bw_40) {
