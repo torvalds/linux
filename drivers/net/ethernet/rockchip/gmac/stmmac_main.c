@@ -2912,6 +2912,8 @@ int stmmac_suspend(struct net_device *ndev)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	unsigned long flags;
+	bool pwr_off_phy = false;
+	struct bsp_priv * bsp_priv = NULL;
 
 	if (!ndev || !netif_running(ndev))
 		return 0;
@@ -2939,18 +2941,21 @@ int stmmac_suspend(struct net_device *ndev)
 		stmmac_set_mac(priv->ioaddr, false);
 		/* Disable clock in case of PWM is off */
 		if ((priv->plat) && (priv->plat->bsp_priv)) {
-			struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
-			if (bsp_priv) {
-				if (bsp_priv->gmac_clk_enable) {
-					bsp_priv->gmac_clk_enable(false);
-				}
-				if (bsp_priv->phy_power_on) {
-					bsp_priv->phy_power_on(false);
-				}
+			bsp_priv = priv->plat->bsp_priv;
+			pwr_off_phy = true;
+			if (bsp_priv && bsp_priv->gmac_clk_enable) {
+				bsp_priv->gmac_clk_enable(false);
 			}
 		}
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (pwr_off_phy && bsp_priv) {
+		if (bsp_priv->phy_power_on) {
+			bsp_priv->phy_power_on(false);
+		}
+	}
+
 	return 0;
 }
 
@@ -2958,6 +2963,8 @@ int stmmac_resume(struct net_device *ndev)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	unsigned long flags;
+	bool pwr_on_phy = false;
+	struct bsp_priv * bsp_priv = NULL;
 
 	if (!netif_running(ndev))
 		return 0;
@@ -2974,16 +2981,13 @@ int stmmac_resume(struct net_device *ndev)
 		priv->hw->mac->pmt(priv->ioaddr, 0);
 	else {
 		/* enable the clk prevously disabled */
-		if ((priv->plat) && (priv->plat->bsp_priv)) {
-			struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
-			if (bsp_priv) {
-				if (bsp_priv->gmac_clk_enable) {
-					bsp_priv->gmac_clk_enable(true);
-				}
-				if (bsp_priv->phy_power_on) {
-					bsp_priv->phy_power_on(true);
-				}
+		if (priv->plat && (priv->plat->bsp_priv)) {
+			bsp_priv = priv->plat->bsp_priv;
+			if (bsp_priv && bsp_priv->gmac_clk_enable) {
+				bsp_priv->gmac_clk_enable(true);
 			}
+
+			pwr_on_phy = true;
 		}
 	}
 
@@ -2999,6 +3003,12 @@ int stmmac_resume(struct net_device *ndev)
 	netif_start_queue(ndev);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (pwr_on_phy && bsp_priv) {
+		if (bsp_priv->phy_power_on) {
+			bsp_priv->phy_power_on(true);
+		}
+	}
 
 	if (priv->phydev)
 		phy_start(priv->phydev);
