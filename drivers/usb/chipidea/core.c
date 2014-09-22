@@ -662,7 +662,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		goto deinit_phy;
 	}
 
-	if (ci->is_otg) {
+	if (ci->is_otg && ci->roles[CI_ROLE_GADGET]) {
 		/* Disable and clear all OTG irq */
 		hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
 							OTGSC_INT_STATUS_BITS);
