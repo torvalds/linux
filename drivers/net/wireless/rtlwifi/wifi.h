@@ -181,6 +181,31 @@ enum rf_tx_num {
 #define PACKET_ARP			2
 #define PACKET_EAPOL			3
 
+#define	MAX_SUPPORT_WOL_PATTERN_NUM	16
+#define	RSVD_WOL_PATTERN_NUM		1
+#define	WKFMCAM_ADDR_NUM		6
+#define	WKFMCAM_SIZE			24
+
+#define	MAX_WOL_BIT_MASK_SIZE		16
+/* MIN LEN keeps 13 here */
+#define	MIN_WOL_PATTERN_SIZE		13
+#define	MAX_WOL_PATTERN_SIZE		128
+
+#define	WAKE_ON_MAGIC_PACKET		BIT(0)
+#define	WAKE_ON_PATTERN_MATCH		BIT(1)
+
+#define	WOL_REASON_PTK_UPDATE		BIT(0)
+#define	WOL_REASON_GTK_UPDATE		BIT(1)
+#define	WOL_REASON_DISASSOC		BIT(2)
+#define	WOL_REASON_DEAUTH		BIT(3)
+#define	WOL_REASON_AP_LOST		BIT(4)
+#define	WOL_REASON_MAGIC_PKT		BIT(5)
+#define	WOL_REASON_UNICAST_PKT		BIT(6)
+#define	WOL_REASON_PATTERN_PKT		BIT(7)
+#define	WOL_REASON_RTD3_SSID_MATCH	BIT(8)
+#define	WOL_REASON_REALWOW_V2_WAKEUPPKT	BIT(9)
+#define	WOL_REASON_REALWOW_V2_ACKLOST	BIT(10)
+
 struct txpower_info_2g {
 	u8 index_cck_base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
 	u8 index_bw40_base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
@@ -811,6 +836,14 @@ enum rt_polarity_ctl {
 	RT_POLARITY_HIGH_ACT = 1,
 };
 
+enum wolpattern_type {
+	UNICAST_PATTERN = 0,
+	MULTICAST_PATTERN = 1,
+	BROADCAST_PATTERN = 2,
+	DONT_CARE_DA = 3,
+	UNKNOWN_TYPE = 4,
+};
+
 struct octet_string {
 	u8 *octet;
 	u16 length;
@@ -1262,6 +1295,17 @@ struct rtl_mac {
 	/* skb wait queue */
 	struct sk_buff_head skb_waitq[MAX_TID_COUNT];
 
+	u8 ht_stbc_cap;
+	u8 ht_cur_stbc;
+
+	/*vht support*/
+	u8 vht_enable;
+	u8 bw_80;
+	u8 vht_cur_ldpc;
+	u8 vht_cur_stbc;
+	u8 vht_stbc_cap;
+	u8 vht_ldpc_cap;
+
 	/*RDG*/
 	bool rdg_en;
 
@@ -1426,6 +1470,20 @@ struct rtl_hal {
 
 	u16 rx_tag;/*for 92ee*/
 	u8 rts_en;
+
+	/*for wowlan*/
+	bool wow_enable;
+	bool enter_pnp_sleep;
+	bool wake_from_pnp_sleep;
+	bool wow_enabled;
+	__kernel_time_t last_suspend_sec;
+	u32 wowlan_fwsize;
+	u8 *wowlan_firmware;
+
+	u8 hw_rof_enable; /*Enable GPIO[9] as WL RF HW PDn source*/
+
+	bool real_wow_v2_enable;
+	bool re_init_llt_table;
 };
 
 struct rtl_security {
@@ -1772,6 +1830,15 @@ struct rtl_ps_ctl {
 	struct rtl_p2p_ps_info p2p_ps_info;
 	u8 pwr_mode;
 	u8 smart_ps;
+
+	/* wake up on line */
+	u8 wo_wlan_mode;
+	u8 arp_offload_enable;
+	u8 gtk_offload_enable;
+	/* Used for WOL, indicates the reason for waking event.*/
+	u32 wakeup_reason;
+	/* Record the last waking time for comparison with setting key. */
+	u64 last_wakeup_time;
 };
 
 struct rtl_stats {
@@ -1892,6 +1959,12 @@ struct rtl_tcb_desc {
 
 struct rtl92c_firmware_header;
 
+struct rtl_wow_pattern {
+	u8 type;
+	u16 crc;
+	u32 mask[4];
+};
+
 struct rtl_hal_ops {
 	int (*init_sw_vars) (struct ieee80211_hw *hw);
 	void (*deinit_sw_vars) (struct ieee80211_hw *hw);
@@ -1999,6 +2072,9 @@ struct rtl_hal_ops {
 	bool (*is_fw_header) (struct rtl92c_firmware_header *hdr);
 	u32 (*rx_command_packet)(struct ieee80211_hw *hw,
 				 struct rtl_stats status, struct sk_buff *skb);
+	void (*add_wowlan_pattern)(struct ieee80211_hw *hw,
+				   struct rtl_wow_pattern *rtl_pattern,
+				   u8 index);
 };
 
 struct rtl_intf_ops {
