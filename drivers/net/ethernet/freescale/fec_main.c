@@ -2851,17 +2851,10 @@ static int fec_set_features(struct net_device *netdev,
 	return 0;
 }
 
-u16 fec_enet_select_queue(struct net_device *ndev, struct sk_buff *skb,
-			  void *accel_priv, select_queue_fallback_t fallback)
-{
-	return skb_tx_hash(ndev, skb);
-}
-
 static const struct net_device_ops fec_netdev_ops = {
 	.ndo_open		= fec_enet_open,
 	.ndo_stop		= fec_enet_close,
 	.ndo_start_xmit		= fec_enet_start_xmit,
-	.ndo_select_queue       = fec_enet_select_queue,
 	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
