@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -148,6 +144,11 @@
 #define EM_HDR_LEN			8
 
 #define MAX_TX_COUNT			4
+#define MAX_REGULATION_NUM		4
+#define MAX_RF_PATH_NUM			4
+#define MAX_RATE_SECTION_NUM		6
+#define MAX_2_4G_BANDWITH_NUM		4
+#define MAX_5G_BANDWITH_NUM		4
 #define	MAX_RF_PATH			4
 #define	MAX_CHNL_GROUP_24G		6
 #define	MAX_CHNL_GROUP_5G		14
@@ -247,6 +248,15 @@ enum radio_path {
 	RF90_PATH_B = 1,
 	RF90_PATH_C = 2,
 	RF90_PATH_D = 3,
+};
+
+enum regulation_txpwr_lmt {
+	TXPWR_LMT_FCC = 0,
+	TXPWR_LMT_MKK = 1,
+	TXPWR_LMT_ETSI = 2,
+	TXPWR_LMT_WW = 3,
+
+	TXPWR_LMT_MAX_REGULATION_NUM = 4
 };
 
 enum rt_eeprom_type {
@@ -376,6 +386,7 @@ enum hw_variables {
 	HW_VAR_DEFAULTKEY2,
 	HW_VAR_DEFAULTKEY3,
 	HW_VAR_SIFS,
+	HW_VAR_R2T_SIFS,
 	HW_VAR_DIFS,
 	HW_VAR_EIFS,
 	HW_VAR_SLOT_TIME,
@@ -427,6 +438,7 @@ enum hw_variables {
 	HW_VAR_H2C_FW_MEDIASTATUSRPT,
 	HW_VAR_H2C_FW_P2P_PS_OFFLOAD,
 	HW_VAR_FW_PSMODE_STATUS,
+	HW_VAR_INIT_RTS_RATE,
 	HW_VAR_RESUME_CLK_ON,
 	HW_VAR_FW_LPS_ACTION,
 	HW_VAR_1X1_RECV_COMBINE,
@@ -789,7 +801,9 @@ enum wireless_mode {
 	WIRELESS_MODE_N_24G = 0x10,
 	WIRELESS_MODE_N_5G = 0x20,
 	WIRELESS_MODE_AC_5G = 0x40,
-	WIRELESS_MODE_AC_24G  = 0x80
+	WIRELESS_MODE_AC_24G  = 0x80,
+	WIRELESS_MODE_AC_ONLY = 0x100,
+	WIRELESS_MODE_MAX = 0x800
 };
 
 #define IS_WIRELESS_MODE_A(wirelessmode)	\
@@ -841,6 +855,22 @@ enum ba_action {
 enum rt_polarity_ctl {
 	RT_POLARITY_LOW_ACT = 0,
 	RT_POLARITY_HIGH_ACT = 1,
+};
+
+/* After 8188E, we use V2 reason define. 88C/8723A use V1 reason. */
+enum fw_wow_reason_v2 {
+	FW_WOW_V2_PTK_UPDATE_EVENT = 0x01,
+	FW_WOW_V2_GTK_UPDATE_EVENT = 0x02,
+	FW_WOW_V2_DISASSOC_EVENT = 0x04,
+	FW_WOW_V2_DEAUTH_EVENT = 0x08,
+	FW_WOW_V2_FW_DISCONNECT_EVENT = 0x10,
+	FW_WOW_V2_MAGIC_PKT_EVENT = 0x21,
+	FW_WOW_V2_UNICAST_PKT_EVENT = 0x22,
+	FW_WOW_V2_PATTERN_PKT_EVENT = 0x23,
+	FW_WOW_V2_RTD3_SSID_MATCH_EVENT = 0x24,
+	FW_WOW_V2_REALWOW_V2_WAKEUPPKT = 0x30,
+	FW_WOW_V2_REALWOW_V2_ACKLOST = 0x31,
+	FW_WOW_V2_REASON_MAX = 0xff,
 };
 
 enum wolpattern_type {
@@ -1182,6 +1212,17 @@ struct rtl_phy {
 	u8 cur_bw20_txpwridx;
 	u8 cur_bw40_txpwridx;
 
+	char txpwr_limit_2_4g[MAX_REGULATION_NUM]
+			     [MAX_2_4G_BANDWITH_NUM]
+			     [MAX_RATE_SECTION_NUM]
+			     [CHANNEL_MAX_NUMBER_2G]
+			     [MAX_RF_PATH_NUM];
+	char txpwr_limit_5g[MAX_REGULATION_NUM]
+			   [MAX_5G_BANDWITH_NUM]
+			   [MAX_RATE_SECTION_NUM]
+			   [CHANNEL_MAX_NUMBER_5G]
+			   [MAX_RF_PATH_NUM];
+
 	u32 rfreg_chnlval[2];
 	bool apk_done;
 	u32 reg_rf3c[2];	/* pathA / pathB  */
@@ -1425,6 +1466,18 @@ struct rtl_hal {
 	u32 version;		/*version of chip */
 	u8 state;		/*stop 0, start 1 */
 	u8 board_type;
+	u8 external_pa;
+
+	u8 pa_mode;
+	u8 pa_type_2g;
+	u8 pa_type_5g;
+	u8 lna_type_2g;
+	u8 lna_type_5g;
+	u8 external_pa_2g;
+	u8 external_lna_2g;
+	u8 external_pa_5g;
+	u8 external_lna_5g;
+	u8 rfe_type;
 
 	/*firmware */
 	u32 fwsize;
@@ -1884,12 +1937,14 @@ struct rtl_stats {
 	u16 wakeup:1;
 	u32 timestamp_low;
 	u32 timestamp_high;
+	bool shift;
 
 	u8 rx_drvinfo_size;
 	u8 rx_bufshift;
 	bool isampdu;
 	bool isfirst_ampdu;
 	bool rx_is40Mhzpacket;
+	u8 rx_packet_bw;
 	u32 rx_pwdb_all;
 	u8 rx_mimo_signalstrength[4];	/*in 0~100 index */
 	s8 rx_mimo_signalquality[4];
@@ -1900,12 +1955,18 @@ struct rtl_stats {
 	s8 rx_mimo_sig_qual[4];
 	u8 rx_pwr[4]; /* per-path's pwdb */
 	u8 rx_snr[4]; /* per-path's SNR */
+	u8 bandwidth;
+	u8 bt_coex_pwr_adjust;
 	bool packet_matchbssid;
 	bool is_cck;
 	bool is_ht;
 	bool packet_toself;
 	bool packet_beacon;	/*for rssi */
 	char cck_adc_pwdb[4];	/*for rx path selection */
+
+	bool is_vht;
+	bool is_short_gi;
+	u8 vht_nss;
 
 	u8 packet_report_type;
 
@@ -2447,6 +2508,8 @@ struct proxim {
 
 struct rtl_priv {
 	struct ieee80211_hw *hw;
+	/* Used to load a second firmware */
+	void (*rtl_fw_second_cb)(struct rtl_priv *rtlpriv);
 	struct completion firmware_loading_complete;
 	struct list_head list;
 	struct rtl_priv *buddy_priv;
@@ -2772,6 +2835,26 @@ value to host byte ordering.*/
 	((des)[0] = (src)[0], (des)[1] = (src)[1],\
 	(des)[2] = (src)[2], (des)[3] = (src)[3],\
 	(des)[4] = (src)[4], (des)[5] = (src)[5])
+
+#define	LDPC_HT_ENABLE_RX			BIT(0)
+#define	LDPC_HT_ENABLE_TX			BIT(1)
+#define	LDPC_HT_TEST_TX_ENABLE			BIT(2)
+#define	LDPC_HT_CAP_TX				BIT(3)
+
+#define	STBC_HT_ENABLE_RX			BIT(0)
+#define	STBC_HT_ENABLE_TX			BIT(1)
+#define	STBC_HT_TEST_TX_ENABLE			BIT(2)
+#define	STBC_HT_CAP_TX				BIT(3)
+
+#define	LDPC_VHT_ENABLE_RX			BIT(0)
+#define	LDPC_VHT_ENABLE_TX			BIT(1)
+#define	LDPC_VHT_TEST_TX_ENABLE			BIT(2)
+#define	LDPC_VHT_CAP_TX				BIT(3)
+
+#define	STBC_VHT_ENABLE_RX			BIT(0)
+#define	STBC_VHT_ENABLE_TX			BIT(1)
+#define	STBC_VHT_TEST_TX_ENABLE			BIT(2)
+#define	STBC_VHT_CAP_TX				BIT(3)
 
 static inline u8 rtl_read_byte(struct rtl_priv *rtlpriv, u32 addr)
 {

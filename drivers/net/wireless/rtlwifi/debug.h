@@ -104,6 +104,7 @@
 #define COMP_USB			BIT(29)
 #define COMP_EASY_CONCURRENT	COMP_USB /* reuse of this bit is OK */
 #define COMP_BT_COEXIST			BIT(30)
+#define COMP_IQK			BIT(31)
 
 /*--------------------------------------------------------------
 		Define the rt_print components
