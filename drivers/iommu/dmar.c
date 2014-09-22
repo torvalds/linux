@@ -178,17 +178,33 @@ static bool dmar_match_pci_path(struct dmar_pci_notify_info *info, int bus,
 	int i;
 
 	if (info->bus != bus)
-		return false;
+		goto fallback;
 	if (info->level != count)
-		return false;
+		goto fallback;
 
 	for (i = 0; i < count; i++) {
 		if (path[i].device != info->path[i].device ||
 		    path[i].function != info->path[i].function)
-			return false;
+			goto fallback;
 	}
 
 	return true;
+
+fallback:
+
+	if (count != 1)
+		return false;
+
+	i = info->level - 1;
+	if (bus              == info->path[i].bus &&
+	    path[0].device   == info->path[i].device &&
+	    path[0].function == info->path[i].function) {
+		pr_info(FW_BUG "RMRR entry for device %02x:%02x.%x is broken - applying workaround\n",
+			bus, path[0].device, path[0].function);
+		return true;
+	}
+
+	return false;
 }
 
 /* Return: > 0 if match found, 0 if no match found, < 0 if error happens */
