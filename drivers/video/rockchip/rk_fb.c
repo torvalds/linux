@@ -1391,7 +1391,6 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	win->area[0].cbr_start = fix->mmio_start;
 	win->area[0].state = 1;
 	win->area_num = 1;
-	win->state = 1;
 
 	dev_drv->ops->pan_display(dev_drv, win_id);
 
