@@ -31,7 +31,7 @@ config SCSI_QLA_FC
 config TCM_QLA2XXX
 	tristate "TCM_QLA2XXX fabric module for Qlogic 2xxx series target mode HBAs"
 	depends on SCSI_QLA_FC && TARGET_CORE
-	select LIBFC
+	depends on LIBFC
 	select BTREE
 	default n
 	---help---

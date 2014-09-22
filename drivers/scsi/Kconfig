@@ -592,21 +592,21 @@ config LIBFC
 
 config LIBFCOE
 	tristate "LibFCoE module"
-	select LIBFC
+	depends on LIBFC
 	---help---
 	  Library for Fibre Channel over Ethernet module
 
 config FCOE
 	tristate "FCoE module"
 	depends on PCI
-	select LIBFCOE
+	depends on LIBFCOE
 	---help---
 	  Fibre Channel over Ethernet module
 
 config FCOE_FNIC
 	tristate "Cisco FNIC Driver"
 	depends on PCI && X86
-	select LIBFCOE
+	depends on LIBFCOE
 	help
 	  This is support for the Cisco PCI-Express FCoE HBA.
 
