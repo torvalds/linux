@@ -810,6 +810,8 @@ irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci)
 				fsm->b_sess_vld = 0;
 				if (fsm->id)
 					ci_otg_add_timer(ci, B_SSEND_SRP);
+				if (fsm->b_bus_req)
+					fsm->b_bus_req = 0;
 			}
 		} else if (otg_int_src & OTGSC_AVVIS) {
 			hw_write_otgsc(ci, OTGSC_AVVIS, OTGSC_AVVIS);
