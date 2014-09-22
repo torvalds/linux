@@ -76,5 +76,12 @@
 				usb-phy = <&usb1_phy>, <&usb1_phy>;
 			};
 		};
+
+		dspgpio0: keystone_dsp_gpio@02620240 {
+			compatible = "ti,keystone-dsp-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio,syscon-dev = <&devctrl 0x240>;
+		};
 	};
 };
