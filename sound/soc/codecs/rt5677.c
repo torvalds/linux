@@ -2135,10 +2135,10 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "BST2", NULL, "IN2P" },
 	{ "BST2", NULL, "IN2N" },
 
-	{ "IN1P", NULL, "micbias1" },
-	{ "IN1N", NULL, "micbias1" },
-	{ "IN2P", NULL, "micbias1" },
-	{ "IN2N", NULL, "micbias1" },
+	{ "IN1P", NULL, "MICBIAS1" },
+	{ "IN1N", NULL, "MICBIAS1" },
+	{ "IN2P", NULL, "MICBIAS1" },
+	{ "IN2N", NULL, "MICBIAS1" },
 
 	{ "ADC 1", NULL, "BST1" },
 	{ "ADC 1", NULL, "ADC 1 power" },

@@ -2032,7 +2032,8 @@ static int create_speaker_out_ctls(struct hda_codec *codec)
  * independent HP controls
  */
 
-static void call_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *jack);
+static void call_hp_automute(struct hda_codec *codec,
+			     struct hda_jack_callback *jack);
 static int indep_hp_info(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_info *uinfo)
 {
@@ -3948,7 +3949,8 @@ static void call_update_outputs(struct hda_codec *codec)
 }
 
 /* standard HP-automute helper */
-void snd_hda_gen_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
+void snd_hda_gen_hp_automute(struct hda_codec *codec,
+			     struct hda_jack_callback *jack)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	hda_nid_t *pins = spec->autocfg.hp_pins;
@@ -3968,7 +3970,8 @@ void snd_hda_gen_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
 EXPORT_SYMBOL_GPL(snd_hda_gen_hp_automute);
 
 /* standard line-out-automute helper */
-void snd_hda_gen_line_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
+void snd_hda_gen_line_automute(struct hda_codec *codec,
+			       struct hda_jack_callback *jack)
 {
 	struct hda_gen_spec *spec = codec->spec;
 
@@ -3988,7 +3991,8 @@ void snd_hda_gen_line_automute(struct hda_codec *codec, struct hda_jack_tbl *jac
 EXPORT_SYMBOL_GPL(snd_hda_gen_line_automute);
 
 /* standard mic auto-switch helper */
-void snd_hda_gen_mic_autoswitch(struct hda_codec *codec, struct hda_jack_tbl *jack)
+void snd_hda_gen_mic_autoswitch(struct hda_codec *codec,
+				struct hda_jack_callback *jack)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	int i;
@@ -4011,7 +4015,8 @@ void snd_hda_gen_mic_autoswitch(struct hda_codec *codec, struct hda_jack_tbl *ja
 EXPORT_SYMBOL_GPL(snd_hda_gen_mic_autoswitch);
 
 /* call appropriate hooks */
-static void call_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
+static void call_hp_automute(struct hda_codec *codec,
+			     struct hda_jack_callback *jack)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	if (spec->hp_automute_hook)
@@ -4021,7 +4026,7 @@ static void call_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
 }
 
 static void call_line_automute(struct hda_codec *codec,
-			       struct hda_jack_tbl *jack)
+			       struct hda_jack_callback *jack)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	if (spec->line_automute_hook)
@@ -4031,7 +4036,7 @@ static void call_line_automute(struct hda_codec *codec,
 }
 
 static void call_mic_autoswitch(struct hda_codec *codec,
-				struct hda_jack_tbl *jack)
+				struct hda_jack_callback *jack)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	if (spec->mic_autoswitch_hook)
@@ -4180,7 +4185,7 @@ static int check_auto_mute_availability(struct hda_codec *codec)
 		if (!is_jack_detectable(codec, nid))
 			continue;
 		codec_dbg(codec, "Enable HP auto-muting on NID 0x%x\n", nid);
-		snd_hda_jack_detect_enable_callback(codec, nid, HDA_GEN_HP_EVENT,
+		snd_hda_jack_detect_enable_callback(codec, nid,
 						    call_hp_automute);
 		spec->detect_hp = 1;
 	}
@@ -4193,7 +4198,6 @@ static int check_auto_mute_availability(struct hda_codec *codec)
 					continue;
 				codec_dbg(codec, "Enable Line-Out auto-muting on NID 0x%x\n", nid);
 				snd_hda_jack_detect_enable_callback(codec, nid,
-								    HDA_GEN_FRONT_EVENT,
 								    call_line_automute);
 				spec->detect_lo = 1;
 			}
@@ -4235,7 +4239,6 @@ static bool auto_mic_check_imux(struct hda_codec *codec)
 	for (i = 1; i < spec->am_num_entries; i++)
 		snd_hda_jack_detect_enable_callback(codec,
 						    spec->am_entry[i].pin,
-						    HDA_GEN_MIC_EVENT,
 						    call_mic_autoswitch);
 	return true;
 }

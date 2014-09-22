@@ -1070,6 +1070,11 @@ static int mp_map_pin_to_irq(u32 gsi, int idx, int ioapic, int pin,
 	}
 
 	if (flags & IOAPIC_MAP_ALLOC) {
+		/* special handling for legacy IRQs */
+		if (irq < nr_legacy_irqs() && info->count == 1 &&
+		    mp_irqdomain_map(domain, irq, pin) != 0)
+			irq = -1;
+
 		if (irq > 0)
 			info->count++;
 		else if (info->count == 0)
@@ -3896,7 +3901,15 @@ int mp_irqdomain_map(struct irq_domain *domain, unsigned int virq,
 			info->polarity = 1;
 		}
 		info->node = NUMA_NO_NODE;
-		info->set = 1;
+
+		/*
+		 * setup_IO_APIC_irqs() programs all legacy IRQs with default
+		 * trigger and polarity attributes. Don't set the flag for that
+		 * case so the first legacy IRQ user could reprogram the pin
+		 * with real trigger and polarity attributes.
+		 */
+		if (virq >= nr_legacy_irqs() || info->count)
+			info->set = 1;
 	}
 	set_io_apic_irq_attr(&attr, ioapic, hwirq, info->trigger,
 			     info->polarity);
@@ -3944,6 +3957,18 @@ int mp_set_gsi_attr(u32 gsi, int trigger, int polarity, int node)
 	mutex_unlock(&ioapic_mutex);
 
 	return ret;
+}
+
+bool mp_should_keep_irq(struct device *dev)
+{
+	if (dev->power.is_prepared)
+		return true;
+#ifdef	CONFIG_PM_RUNTIME
+	if (dev->power.runtime_status == RPM_SUSPENDING)
+		return true;
+#endif
+
+	return false;
 }
 
 /* Enable IOAPIC early just for system timer */

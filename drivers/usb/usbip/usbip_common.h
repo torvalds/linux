@@ -29,7 +29,7 @@
 #include <linux/types.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
-#include "uapi/usbip.h"
+#include <uapi/linux/usbip.h>
 
 #define USBIP_VERSION "1.0.0"
 

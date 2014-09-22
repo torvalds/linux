@@ -1256,7 +1256,7 @@ static int pirq_enable_irq(struct pci_dev *dev)
 
 static void pirq_disable_irq(struct pci_dev *dev)
 {
-	if (io_apic_assign_pci_irqs && !dev->dev.power.is_prepared &&
+	if (io_apic_assign_pci_irqs && !mp_should_keep_irq(&dev->dev) &&
 	    dev->irq) {
 		mp_unmap_irq(dev->irq);
 		dev->irq = 0;

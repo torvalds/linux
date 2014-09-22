@@ -135,8 +135,6 @@ enum {
 #define CS421X_IDX_DAC_CFG	0x03
 #define CS421X_IDX_SPK_CTL	0x04
 
-#define SPDIF_EVENT		0x04
-
 /* Cirrus Logic CS4213 is like CS4210 but does not have SPDIF input/output */
 #define CS4213_VENDOR_NID	0x09
 
@@ -984,7 +982,7 @@ static void cs4210_pinmux_init(struct hda_codec *codec)
 }
 
 static void cs4210_spdif_automute(struct hda_codec *codec,
-				  struct hda_jack_tbl *tbl)
+				  struct hda_jack_callback *tbl)
 {
 	struct cs_spec *spec = codec->spec;
 	bool spdif_present = false;
@@ -1019,7 +1017,6 @@ static void parse_cs421x_digital(struct hda_codec *codec)
 		if (get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP) {
 			spec->spdif_detect = 1;
 			snd_hda_jack_detect_enable_callback(codec, nid,
-							    SPDIF_EVENT,
 							    cs4210_spdif_automute);
 		}
 	}

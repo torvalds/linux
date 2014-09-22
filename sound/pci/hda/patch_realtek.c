@@ -40,9 +40,6 @@
 /* keep halting ALC5505 DSP, for power saving */
 #define HALT_REALTEK_ALC5505
 
-/* unsol event tags */
-#define ALC_DCVOL_EVENT		0x08
-
 /* for GPIO Poll */
 #define GPIO_MASK	0x03
 
@@ -267,7 +264,8 @@ static void alc_fix_pll_init(struct hda_codec *codec, hda_nid_t nid,
 }
 
 /* update the master volume per volume-knob's unsol event */
-static void alc_update_knob_master(struct hda_codec *codec, struct hda_jack_tbl *jack)
+static void alc_update_knob_master(struct hda_codec *codec,
+				   struct hda_jack_callback *jack)
 {
 	unsigned int val;
 	struct snd_kcontrol *kctl;
@@ -279,7 +277,7 @@ static void alc_update_knob_master(struct hda_codec *codec, struct hda_jack_tbl 
 	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (!uctl)
 		return;
-	val = snd_hda_codec_read(codec, jack->nid, 0,
+	val = snd_hda_codec_read(codec, jack->tbl->nid, 0,
 				 AC_VERB_GET_VOLUME_KNOB_CONTROL, 0);
 	val &= HDA_AMP_VOLMASK;
 	uctl->value.integer.value[0] = val;
@@ -373,6 +371,7 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 		case 0x10ec0885:
 		case 0x10ec0887:
 		/*case 0x10ec0889:*/ /* this causes an SPDIF problem */
+		case 0x10ec0900:
 			alc889_coef_init(codec);
 			break;
 		case 0x10ec0888:
@@ -1129,7 +1128,8 @@ static void alc880_fixup_vol_knob(struct hda_codec *codec,
 				  const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PROBE)
-		snd_hda_jack_detect_enable_callback(codec, 0x21, ALC_DCVOL_EVENT, alc_update_knob_master);
+		snd_hda_jack_detect_enable_callback(codec, 0x21,
+						    alc_update_knob_master);
 }
 
 static const struct hda_fixup alc880_fixups[] = {
@@ -1592,7 +1592,7 @@ static void alc260_fixup_gpio1_toggle(struct hda_codec *codec,
 		spec->gen.detect_hp = 1;
 		spec->gen.automute_speaker = 1;
 		spec->gen.autocfg.hp_pins[0] = 0x0f; /* copy it for automute */
-		snd_hda_jack_detect_enable_callback(codec, 0x0f, HDA_GEN_HP_EVENT,
+		snd_hda_jack_detect_enable_callback(codec, 0x0f,
 						    snd_hda_gen_hp_automute);
 		snd_hda_add_verbs(codec, alc_gpio1_init_verbs);
 	}
@@ -2346,6 +2346,7 @@ static int patch_alc882(struct hda_codec *codec)
 	switch (codec->vendor_id) {
 	case 0x10ec0882:
 	case 0x10ec0885:
+	case 0x10ec0900:
 		break;
 	default:
 		/* ALC883 and variants */
@@ -3272,7 +3273,7 @@ static void alc269_fixup_quanta_mute(struct hda_codec *codec,
 }
 
 static void alc269_x101_hp_automute_hook(struct hda_codec *codec,
-					 struct hda_jack_tbl *jack)
+					 struct hda_jack_callback *jack)
 {
 	struct alc_spec *spec = codec->spec;
 	int vref;
@@ -3926,7 +3927,8 @@ static void alc_update_headset_mode_hook(struct hda_codec *codec,
 	alc_update_headset_mode(codec);
 }
 
-static void alc_update_headset_jack_cb(struct hda_codec *codec, struct hda_jack_tbl *jack)
+static void alc_update_headset_jack_cb(struct hda_codec *codec,
+				       struct hda_jack_callback *jack)
 {
 	struct alc_spec *spec = codec->spec;
 	spec->current_headset_type = ALC_HEADSET_TYPE_UNKNOWN;
@@ -4166,7 +4168,7 @@ static void alc269_fixup_limit_int_mic_boost(struct hda_codec *codec,
 }
 
 static void alc283_hp_automute_hook(struct hda_codec *codec,
-				    struct hda_jack_tbl *jack)
+				    struct hda_jack_callback *jack)
 {
 	struct alc_spec *spec = codec->spec;
 	int vref;
@@ -4252,7 +4254,6 @@ static void alc282_fixup_asus_tx300(struct hda_codec *codec,
 		spec->gen.auto_mute_via_amp = 1;
 		spec->gen.automute_hook = asus_tx300_automute;
 		snd_hda_jack_detect_enable_callback(codec, 0x1b,
-						    HDA_GEN_HP_EVENT,
 						    snd_hda_gen_hp_automute);
 		break;
 	case HDA_FIXUP_ACT_BUILD:
@@ -4353,6 +4354,7 @@ enum {
 	ALC292_FIXUP_TPT440_DOCK,
 	ALC283_FIXUP_BXBT2807_MIC,
 	ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED,
+	ALC282_FIXUP_ASPIRE_V5_PINS,
 };
 
 static const struct hda_fixup alc269_fixups[] = {
@@ -4800,6 +4802,22 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained_before = true,
 		.chain_id = ALC255_FIXUP_DELL1_MIC_NO_PRESENCE
 	},
+	[ALC282_FIXUP_ASPIRE_V5_PINS] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x12, 0x90a60130 },
+			{ 0x14, 0x90170110 },
+			{ 0x17, 0x40000008 },
+			{ 0x18, 0x411111f0 },
+			{ 0x19, 0x411111f0 },
+			{ 0x1a, 0x411111f0 },
+			{ 0x1b, 0x411111f0 },
+			{ 0x1d, 0x40f89b2d },
+			{ 0x1e, 0x411111f0 },
+			{ 0x21, 0x0321101f },
+			{ },
+		},
+	},
 
 };
 
@@ -4811,6 +4829,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0740, "Acer AO725", ALC271_FIXUP_HP_GATE_MIC_JACK),
 	SND_PCI_QUIRK(0x1025, 0x0742, "Acer AO756", ALC271_FIXUP_HP_GATE_MIC_JACK),
 	SND_PCI_QUIRK(0x1025, 0x0775, "Acer Aspire E1-572", ALC271_FIXUP_HP_GATE_MIC_JACK_E1_572),
+	SND_PCI_QUIRK(0x1025, 0x079b, "Acer Aspire V5-573G", ALC282_FIXUP_ASPIRE_V5_PINS),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
 	SND_PCI_QUIRK(0x1028, 0x05da, "Dell Vostro 5460", ALC290_FIXUP_SUBWOOFER),
 	SND_PCI_QUIRK(0x1028, 0x05f4, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
