@@ -77,6 +77,7 @@ enum svc_function_hotplug_event {
 struct svc_function_hotplug {
 	__u8	hotplug_event;	/* enum svc_function_hotplug_event */
 	__u8	module_id;
+	__u8	data[0];
 };
 
 enum svc_function_ddb_type {
