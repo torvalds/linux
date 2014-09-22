@@ -446,7 +446,6 @@ struct ce_stats {
 	u32		rx_code_violations;
 	u32		rx_other_errs;
 
-	u32		synchronous_iterations;
 	u32		interrupt_status;
 };
 
