@@ -1189,6 +1189,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 			tmio_mmc_host_remove(_host);
 			return ret;
 		}
+		mmc_gpiod_request_cd_irq(mmc);
 	}
 
 	*host = _host;

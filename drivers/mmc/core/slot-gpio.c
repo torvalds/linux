@@ -221,8 +221,6 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
 	ctx->override_cd_active_level = true;
 	ctx->cd_gpio = gpio_to_desc(gpio);
 
-	mmc_gpiod_request_cd_irq(host);
-
 	return 0;
 }
 EXPORT_SYMBOL(mmc_gpio_request_cd);

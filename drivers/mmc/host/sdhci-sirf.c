@@ -116,6 +116,7 @@ static int sdhci_sirf_probe(struct platform_device *pdev)
 				ret);
 			goto err_request_cd;
 		}
+		mmc_gpiod_request_cd_irq(host->mmc);
 	}
 
 	return 0;
