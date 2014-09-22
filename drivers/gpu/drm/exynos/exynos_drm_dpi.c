@@ -342,8 +342,12 @@ int exynos_dpi_remove(struct device *dev)
 	struct exynos_dpi *ctx = exynos_dpi_display.ctx;
 
 	exynos_dpi_dpms(&exynos_dpi_display, DRM_MODE_DPMS_OFF);
+
+	exynos_dpi_connector_destroy(&ctx->connector);
 	encoder->funcs->destroy(encoder);
-	drm_connector_cleanup(&ctx->connector);
+
+	if (ctx->panel)
+		drm_panel_detach(ctx->panel);
 
 	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
 
