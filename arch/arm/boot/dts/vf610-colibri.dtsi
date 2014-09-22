@@ -25,6 +25,11 @@
 		};
 	};
 
+	bl: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm0 0 5000000 0>;
+		status = "disabled";
+	};
 };
 
 &esdhc1 {
