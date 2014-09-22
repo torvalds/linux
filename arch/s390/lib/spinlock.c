@@ -149,9 +149,10 @@ EXPORT_SYMBOL(_raw_read_trylock_retry);
 
 void _raw_write_lock_wait(arch_rwlock_t *rw)
 {
-	unsigned int owner, old;
+	unsigned int owner, old, prev;
 	int count = spin_retry;
 
+	prev = 0x80000000;
 	owner = 0;
 	while (1) {
 		if (count-- <= 0) {
@@ -161,10 +162,13 @@ void _raw_write_lock_wait(arch_rwlock_t *rw)
 		}
 		old = ACCESS_ONCE(rw->lock);
 		owner = ACCESS_ONCE(rw->owner);
-		if (old)
-			continue;
-		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000))
-			return;
+		if ((int) old >= 0 &&
+		    _raw_compare_and_swap(&rw->lock, old, old | 0x80000000))
+			prev = old;
+		else
+			smp_rmb();
+		if ((old & 0x7fffffff) == 0 && (int) prev >= 0)
+			break;
 	}
 }
 EXPORT_SYMBOL(_raw_write_lock_wait);
