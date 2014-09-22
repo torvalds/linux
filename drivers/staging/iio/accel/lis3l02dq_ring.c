@@ -34,8 +34,8 @@ irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private)
 	if (st->trigger_on) {
 		iio_trigger_poll(st->trig);
 		return IRQ_HANDLED;
-	} else
-		return IRQ_WAKE_THREAD;
+	}
+	return IRQ_WAKE_THREAD;
 }
 
 static const u8 read_all_tx_array[] = {
