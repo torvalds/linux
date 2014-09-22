@@ -875,6 +875,7 @@ static void __bcmgenet_tx_reclaim(struct net_device *dev,
 	int last_tx_cn, last_c_index, num_tx_bds;
 	struct enet_cb *tx_cb_ptr;
 	struct netdev_queue *txq;
+	unsigned int bds_compl;
 	unsigned int c_index;
 
 	/* Compute how many buffers are transmitted since last xmit call */
@@ -899,7 +900,9 @@ static void __bcmgenet_tx_reclaim(struct net_device *dev,
 	/* Reclaim transmitted buffers */
 	while (last_tx_cn-- > 0) {
 		tx_cb_ptr = ring->cbs + last_c_index;
+		bds_compl = 0;
 		if (tx_cb_ptr->skb) {
+			bds_compl = skb_shinfo(tx_cb_ptr->skb)->nr_frags + 1;
 			dev->stats.tx_bytes += tx_cb_ptr->skb->len;
 			dma_unmap_single(&dev->dev,
 					 dma_unmap_addr(tx_cb_ptr, dma_addr),
@@ -916,7 +919,7 @@ static void __bcmgenet_tx_reclaim(struct net_device *dev,
 			dma_unmap_addr_set(tx_cb_ptr, dma_addr, 0);
 		}
 		dev->stats.tx_packets++;
-		ring->free_bds += 1;
+		ring->free_bds += bds_compl;
 
 		last_c_index++;
 		last_c_index &= (num_tx_bds - 1);
