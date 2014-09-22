@@ -808,7 +808,8 @@ static int hyp_init_cpu_notify(struct notifier_block *self,
 	switch (action) {
 	case CPU_STARTING:
 	case CPU_STARTING_FROZEN:
-		cpu_init_hyp_mode(NULL);
+		if (__hyp_get_vectors() == hyp_default_vectors)
+			cpu_init_hyp_mode(NULL);
 		break;
 	}
 
