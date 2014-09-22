@@ -288,6 +288,9 @@ const u8 *greybus_string(struct greybus_device *gdev, int id);
 
 /* Internal functions to gb module, move to internal .h file eventually. */
 
+void gb_add_module(struct greybus_host_device *hd, u8 module_id, u8 *data);
+void gb_remove_module(struct greybus_host_device *hd, u8 module_id);
+
 int gb_new_ap_msg(u8 *data, int length, struct greybus_host_device *hd);
 int gb_ap_init(void);
 void gb_ap_exit(void);
