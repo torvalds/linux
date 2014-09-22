@@ -128,6 +128,7 @@ struct mmc_data;
  */
 struct dw_mci {
 	spinlock_t		lock;
+	spinlock_t		slock;
 	void __iomem		*regs;
 
 	struct scatterlist	*sg;
