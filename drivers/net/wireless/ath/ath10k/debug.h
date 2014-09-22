@@ -40,9 +40,9 @@ enum ath10k_debug_mask {
 
 extern unsigned int ath10k_debug_mask;
 
-__printf(2, 3) int ath10k_info(struct ath10k *ar, const char *fmt, ...);
-__printf(2, 3) int ath10k_err(struct ath10k *ar, const char *fmt, ...);
-__printf(2, 3) int ath10k_warn(struct ath10k *ar, const char *fmt, ...);
+__printf(2, 3) void ath10k_info(struct ath10k *ar, const char *fmt, ...);
+__printf(2, 3) void ath10k_err(struct ath10k *ar, const char *fmt, ...);
+__printf(2, 3) void ath10k_warn(struct ath10k *ar, const char *fmt, ...);
 void ath10k_print_driver_info(struct ath10k *ar);
 
 #ifdef CONFIG_ATH10K_DEBUGFS

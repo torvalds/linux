@@ -107,21 +107,18 @@ struct ath10k_dump_file_data {
 	u8 data[0];
 } __packed;
 
-int ath10k_info(struct ath10k *ar, const char *fmt, ...)
+void ath10k_info(struct ath10k *ar, const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
 	};
 	va_list args;
-	int ret;
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = dev_info(ar->dev, "%pV", &vaf);
+	dev_info(ar->dev, "%pV", &vaf);
 	trace_ath10k_log_info(ar, &vaf);
 	va_end(args);
-
-	return ret;
 }
 EXPORT_SYMBOL(ath10k_info);
 
@@ -148,25 +145,22 @@ void ath10k_print_driver_info(struct ath10k *ar)
 }
 EXPORT_SYMBOL(ath10k_print_driver_info);
 
-int ath10k_err(struct ath10k *ar, const char *fmt, ...)
+void ath10k_err(struct ath10k *ar, const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
 	};
 	va_list args;
-	int ret;
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = dev_err(ar->dev, "%pV", &vaf);
+	dev_err(ar->dev, "%pV", &vaf);
 	trace_ath10k_log_err(ar, &vaf);
 	va_end(args);
-
-	return ret;
 }
 EXPORT_SYMBOL(ath10k_err);
 
-int ath10k_warn(struct ath10k *ar, const char *fmt, ...)
+void ath10k_warn(struct ath10k *ar, const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
@@ -179,8 +173,6 @@ int ath10k_warn(struct ath10k *ar, const char *fmt, ...)
 	trace_ath10k_log_warn(ar, &vaf);
 
 	va_end(args);
-
-	return 0;
 }
 EXPORT_SYMBOL(ath10k_warn);
 
