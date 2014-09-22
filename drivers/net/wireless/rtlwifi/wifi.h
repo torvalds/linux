@@ -951,6 +951,7 @@ struct wireless_stats {
 	long last_sigstrength_inpercent;
 
 	u32 rssi_calculate_cnt;
+	u32 pwdb_all_cnt;
 
 	/*Transformed, in dbm. Beautified signal
 	   strength for UI, not correct. */
@@ -1889,6 +1890,10 @@ struct rtl_stats {
 	bool rx_is40Mhzpacket;
 	u32 rx_pwdb_all;
 	u8 rx_mimo_signalstrength[4];	/*in 0~100 index */
+	u8 rx_mimo_evm_dbm[4];
+	u16 cfo_short[4];		/* per-path's Cfo_short */
+	u16 cfo_tail[4];
+
 	s8 rx_mimo_sig_qual[4];
 	u8 rx_pwr[4]; /* per-path's pwdb */
 	u8 rx_snr[4]; /* per-path's SNR */
