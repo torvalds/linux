@@ -61,9 +61,16 @@ static int svc_msg_send(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 
 
 static void svc_handshake(struct svc_function_handshake *handshake,
-			  struct greybus_host_device *hd)
+			  int payload_length, struct greybus_host_device *hd)
 {
 	struct svc_msg *svc_msg;
+
+	if (payload_length != sizeof(struct svc_function_handshake)) {
+		dev_err(hd->parent,
+			"Illegal size of svc handshake message %d\n",
+			payload_length);
+		return;
+	}
 
 	/* A new SVC communication channel, let's verify a supported version */
 	if ((handshake->version_major != GREYBUS_VERSION_MAJOR) &&
@@ -91,8 +98,15 @@ static void svc_handshake(struct svc_function_handshake *handshake,
 }
 
 static void svc_management(struct svc_function_unipro_management *management,
-			   struct greybus_host_device *hd)
+			   int payload_length, struct greybus_host_device *hd)
 {
+	if (payload_length != sizeof(struct svc_function_unipro_management)) {
+		dev_err(hd->parent,
+			"Illegal size of svc management message %d\n",
+			payload_length);
+		return;
+	}
+
 	/* What?  An AP should not get this message */
 	dev_err(hd->parent, "Got an svc management message???\n");
 }
@@ -104,13 +118,15 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 
 	switch (hotplug->hotplug_event) {
 	case SVC_HOTPLUG_EVENT:
+		/* Add a new module to the system */
 		dev_dbg(hd->parent, "module id %d added\n", module_id);
-		// FIXME - add the module to the system
+		gb_add_module(hd, module_id, hotplug->data);
 		break;
 
 	case SVC_HOTUNPLUG_EVENT:
+		/* Remove a module from the system */
 		dev_dbg(hd->parent, "module id %d removed\n", module_id);
-		// FIXME - remove the module from the system
+		gb_remove_module(hd, module_id);
 		break;
 
 	default:
@@ -160,15 +176,27 @@ static void svc_suspend(struct svc_function_suspend *suspend,
 	dev_err(hd->parent, "Got an suspend message???\n");
 }
 
-static struct svc_msg *convert_ap_message(struct ap_msg *ap_msg)
+static struct svc_msg *convert_ap_message(struct ap_msg *ap_msg,
+					  struct greybus_host_device *hd)
 {
 	struct svc_msg *svc_msg;
-
-	// FIXME - validate message, right now we are trusting the size and data
-	// from the AP, what could go wrong?  :)
-	// for now, just cast the pointer and run away...
+	struct svc_msg_header *header;
 
 	svc_msg = (struct svc_msg *)ap_msg->data;
+	header = &svc_msg->header;
+
+	/* Validate the message type */
+	if (header->message_type != SVC_MSG_DATA) {
+		dev_err(hd->parent, "message type %d received?\n",
+			header->message_type);
+		return NULL;
+	}
+
+	/*
+	 * The validation of the size of the message buffer happens in each
+	 * svc_* function, due to the different types of messages, keeping the
+	 * logic for each message only in one place.
+	 */
 
 	return svc_msg;
 }
@@ -178,24 +206,25 @@ static void ap_process_event(struct work_struct *work)
 	struct svc_msg *svc_msg;
 	struct greybus_host_device *hd;
 	struct ap_msg *ap_msg;
+	int payload_length;
 
 	ap_msg = container_of(work, struct ap_msg, event);
 	hd = ap_msg->hd;
 
 	/* Turn the "raw" data into a real message */
-	svc_msg = convert_ap_message(ap_msg);
-	if (!svc_msg) {
-		// FIXME log an error???
+	svc_msg = convert_ap_message(ap_msg, hd);
+	if (!svc_msg)
 		return;
-	}
+
+	payload_length = le16_to_cpu(svc_msg->header.payload_length);
 
 	/* Look at the message to figure out what to do with it */
 	switch (svc_msg->header.function_id) {
 	case SVC_FUNCTION_HANDSHAKE:
-		svc_handshake(&svc_msg->handshake, hd);
+		svc_handshake(&svc_msg->handshake, payload_length, hd);
 		break;
 	case SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT:
-		svc_management(&svc_msg->management, hd);
+		svc_management(&svc_msg->management, payload_length, hd);
 		break;
 	case SVC_FUNCTION_HOTPLUG:
 		svc_hotplug(&svc_msg->hotplug, hd);
