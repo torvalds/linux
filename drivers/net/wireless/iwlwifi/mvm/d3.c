@@ -1741,7 +1741,9 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 	int remaining_time = 10;
 
 	mvm->d3_test_active = false;
+	rtnl_lock();
 	__iwl_mvm_resume(mvm, true);
+	rtnl_unlock();
 	iwl_abort_notification_waits(&mvm->notif_wait);
 	ieee80211_restart_hw(mvm->hw);
 
