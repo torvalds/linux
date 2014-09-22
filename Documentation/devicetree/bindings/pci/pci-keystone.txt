@@ -13,9 +13,7 @@ Required Properties:-
 
 compatibility: "ti,keystone-pcie"
 reg:	index 1 is the base address and length of DW application registers.
-	index 2 is the base address and length of PCI mode configuration
-	register.
-	index 3 is the base address and length of PCI device ID register.
+	index 2 is the base address and length of PCI device ID register.
 
 pcie_msi_intc : Interrupt controller device node for MSI IRQ chip
 	interrupt-cells: should be set to 1
@@ -63,6 +61,3 @@ Designware DT Properties not applicable for Keystone PCI
 
 1. pcie_bus clock-names not used.  Instead, a phandle to phys is used.
 
-Note for PCI driver usage
-=========================
-Driver requires pci=pcie_bus_perf in the bootargs for proper functioning.

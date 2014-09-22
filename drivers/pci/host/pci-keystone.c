@@ -35,14 +35,55 @@
 #define MAX_MSI_HOST_IRQS		8
 #define MAX_LEGACY_HOST_IRQS		4
 
-/* RC mode settings masks */
-#define PCIE_RC_MODE		BIT(2)
-#define PCIE_MODE_MASK		(BIT(1) | BIT(2))
-
 /* DEV_STAT_CTRL */
 #define PCIE_CAP_BASE		0x70
 
+/* PCIE controller device IDs */
+#define PCIE_RC_K2HK		0xb008
+#define PCIE_RC_K2E		0xb009
+#define PCIE_RC_K2L		0xb00a
+
 #define to_keystone_pcie(x)	container_of(x, struct keystone_pcie, pp)
+
+static void quirk_limit_mrrs(struct pci_dev *dev)
+{
+	struct pci_bus *bus = dev->bus;
+	struct pci_dev *bridge = bus->self;
+	static const struct pci_device_id rc_pci_devids[] = {
+		{ PCI_DEVICE(PCI_VENDOR_ID_TI, PCIE_RC_K2HK),
+		 .class = PCI_CLASS_BRIDGE_PCI << 8, .class_mask = ~0, },
+		{ PCI_DEVICE(PCI_VENDOR_ID_TI, PCIE_RC_K2E),
+		 .class = PCI_CLASS_BRIDGE_PCI << 8, .class_mask = ~0, },
+		{ PCI_DEVICE(PCI_VENDOR_ID_TI, PCIE_RC_K2L),
+		 .class = PCI_CLASS_BRIDGE_PCI << 8, .class_mask = ~0, },
+		{ 0, },
+	};
+
+	if (pci_is_root_bus(bus))
+		return;
+
+	/* look for the host bridge */
+	while (!pci_is_root_bus(bus)) {
+		bridge = bus->self;
+		bus = bus->parent;
+	}
+
+	if (bridge) {
+		/*
+		 * Keystone PCI controller has a h/w limitation of
+		 * 256 bytes maximum read request size.  It can't handle
+		 * anything higher than this.  So force this limit on
+		 * all downstream devices.
+		 */
+		if (pci_match_id(rc_pci_devids, bridge)) {
+			if (pcie_get_readrq(dev) > 256) {
+				dev_info(&dev->dev, "limiting MRRS to 256\n");
+				pcie_set_readrq(dev, 256);
+			}
+		}
+	}
+}
+DECLARE_PCI_FIXUP_ENABLE(PCI_ANY_ID, PCI_ANY_ID, quirk_limit_mrrs);
 
 static int ks_pcie_establish_link(struct keystone_pcie *ks_pcie)
 {
@@ -212,8 +253,8 @@ static int keystone_pcie_fault(unsigned long addr, unsigned int fsr,
 
 static void __init ks_pcie_host_init(struct pcie_port *pp)
 {
-	u32 vendor_device_id, val;
 	struct keystone_pcie *ks_pcie = to_keystone_pcie(pp);
+	u32 val;
 
 	ks_pcie_establish_link(ks_pcie);
 	ks_dw_pcie_setup_rc_app_regs(ks_pcie);
@@ -222,8 +263,7 @@ static void __init ks_pcie_host_init(struct pcie_port *pp)
 			pp->dbi_base + PCI_IO_BASE);
 
 	/* update the Vendor ID */
-	vendor_device_id = readl(ks_pcie->va_reg_pciid);
-	writew((vendor_device_id >> 16), pp->dbi_base + PCI_DEVICE_ID);
+	writew(ks_pcie->device_id, pp->dbi_base + PCI_DEVICE_ID);
 
 	/* update the DEV_STAT_CTRL to publish right mrrs */
 	val = readl(pp->dbi_base + PCIE_CAP_BASE + PCI_EXP_DEVCTL);
@@ -310,7 +350,6 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	void __iomem *reg_p;
 	struct phy *phy;
 	int ret = 0;
-	u32 val;
 
 	ks_pcie = devm_kzalloc(&pdev->dev, sizeof(*ks_pcie),
 				GFP_KERNEL);
@@ -320,18 +359,6 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	}
 	pp = &ks_pcie->pp;
 
-	/* index 2 is the devcfg register for RC mode settings */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	reg_p = devm_ioremap_resource(dev, res);
-	if (IS_ERR(reg_p))
-		return PTR_ERR(reg_p);
-
-	/* enable RC mode in devcfg */
-	val = readl(reg_p);
-	val &= ~PCIE_MODE_MASK;
-	val |= PCIE_RC_MODE;
-	writel(val, reg_p);
-
 	/* initialize SerDes Phy if present */
 	phy = devm_phy_get(dev, "pcie-phy");
 	if (!IS_ERR_OR_NULL(phy)) {
@@ -340,12 +367,14 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	/* index 3 is to read PCI DEVICE_ID */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+	/* index 2 is to read PCI DEVICE_ID */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	reg_p = devm_ioremap_resource(dev, res);
 	if (IS_ERR(reg_p))
 		return PTR_ERR(reg_p);
-	ks_pcie->va_reg_pciid = reg_p;
+	ks_pcie->device_id = readl(reg_p) >> 16;
+	devm_iounmap(dev, reg_p);
+	devm_release_mem_region(dev, res->start, resource_size(res));
 
 	pp->dev = dev;
 	platform_set_drvdata(pdev, ks_pcie);

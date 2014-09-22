@@ -19,8 +19,8 @@
 struct keystone_pcie {
 	struct	clk		*clk;
 	struct	pcie_port	pp;
-	void __iomem		*va_reg_pciid;
-
+	/* PCI Device ID */
+	u32			device_id;
 	int			num_legacy_host_irqs;
 	int			legacy_host_irqs[MAX_LEGACY_HOST_IRQS];
 	struct			device_node *legacy_intc_np;
