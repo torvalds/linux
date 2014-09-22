@@ -1911,19 +1911,18 @@ static int rtl8192_handle_beacon(struct net_device *dev,
 static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 					struct ieee80211_network *network)
 {
-	int ret = 0;
 	unsigned long flags;
 	u32 size = sizeof(struct ieee80211_qos_parameters);
 	int set_qos_param = 0;
 
 	if ((priv == NULL) || (network == NULL))
-		return ret;
+		return 0;
 
 	if (priv->ieee80211->state != IEEE80211_LINKED)
-		return ret;
+		return 0;
 
 	if ((priv->ieee80211->iw_mode != IW_MODE_INFRA))
-		return ret;
+		return 0;
 
 	spin_lock_irqsave(&priv->ieee80211->lock, flags);
 	if (network->flags & NETWORK_HAS_QOS_PARAMETERS) {
@@ -1952,7 +1951,7 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 		queue_work(priv->priv_wq, &priv->qos_activate);
 
 
-	return ret;
+	return 0;
 }
 
 
