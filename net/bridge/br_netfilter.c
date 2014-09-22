@@ -245,14 +245,6 @@ static inline void nf_bridge_save_header(struct sk_buff *skb)
 					 skb->nf_bridge->data, header_size);
 }
 
-static inline void nf_bridge_update_protocol(struct sk_buff *skb)
-{
-	if (skb->nf_bridge->mask & BRNF_8021Q)
-		skb->protocol = htons(ETH_P_8021Q);
-	else if (skb->nf_bridge->mask & BRNF_PPPoE)
-		skb->protocol = htons(ETH_P_PPP_SES);
-}
-
 /* When handing a packet over to the IP layer
  * check whether we have a skb that is in the
  * expected format
@@ -318,26 +310,6 @@ inhdr_error:
 	IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INHDRERRORS);
 drop:
 	return -1;
-}
-
-/* Fill in the header for fragmented IP packets handled by
- * the IPv4 connection tracking code.
- */
-int nf_bridge_copy_header(struct sk_buff *skb)
-{
-	int err;
-	unsigned int header_size;
-
-	nf_bridge_update_protocol(skb);
-	header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
-	err = skb_cow_head(skb, header_size);
-	if (err)
-		return err;
-
-	skb_copy_to_linear_data_offset(skb, -header_size,
-				       skb->nf_bridge->data, header_size);
-	__skb_push(skb, nf_bridge_encap_header_len(skb));
-	return 0;
 }
 
 /* PF_BRIDGE/PRE_ROUTING *********************************************/

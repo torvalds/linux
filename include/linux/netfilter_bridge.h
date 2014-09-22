@@ -24,16 +24,6 @@ enum nf_br_hook_priorities {
 #define BRNF_8021Q			0x10
 #define BRNF_PPPoE			0x20
 
-/* Only used in br_forward.c */
-int nf_bridge_copy_header(struct sk_buff *skb);
-static inline int nf_bridge_maybe_copy_header(struct sk_buff *skb)
-{
-	if (skb->nf_bridge &&
-	    skb->nf_bridge->mask & (BRNF_BRIDGED | BRNF_BRIDGED_DNAT))
-		return nf_bridge_copy_header(skb);
-  	return 0;
-}
-
 static inline unsigned int nf_bridge_encap_header_len(const struct sk_buff *skb)
 {
 	switch (skb->protocol) {
@@ -44,6 +34,44 @@ static inline unsigned int nf_bridge_encap_header_len(const struct sk_buff *skb)
 	default:
 		return 0;
 	}
+}
+
+static inline void nf_bridge_update_protocol(struct sk_buff *skb)
+{
+	if (skb->nf_bridge->mask & BRNF_8021Q)
+		skb->protocol = htons(ETH_P_8021Q);
+	else if (skb->nf_bridge->mask & BRNF_PPPoE)
+		skb->protocol = htons(ETH_P_PPP_SES);
+}
+
+/* Fill in the header for fragmented IP packets handled by
+ * the IPv4 connection tracking code.
+ *
+ * Only used in br_forward.c
+ */
+static inline int nf_bridge_copy_header(struct sk_buff *skb)
+{
+	int err;
+	unsigned int header_size;
+
+	nf_bridge_update_protocol(skb);
+	header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
+	err = skb_cow_head(skb, header_size);
+	if (err)
+		return err;
+
+	skb_copy_to_linear_data_offset(skb, -header_size,
+				       skb->nf_bridge->data, header_size);
+	__skb_push(skb, nf_bridge_encap_header_len(skb));
+	return 0;
+}
+
+static inline int nf_bridge_maybe_copy_header(struct sk_buff *skb)
+{
+	if (skb->nf_bridge &&
+	    skb->nf_bridge->mask & (BRNF_BRIDGED | BRNF_BRIDGED_DNAT))
+		return nf_bridge_copy_header(skb);
+  	return 0;
 }
 
 static inline unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
