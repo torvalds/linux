@@ -27,12 +27,6 @@
 #include <linux/rockchip/grf.h>
 #include "rk31xx_lvds.h"
 
-#ifdef CONFIG_OF
-#include <linux/of.h>
-#include <linux/of_platform.h>
-#include <linux/of_gpio.h>
-#endif
-
 
 #define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
 #define grf_writel(v,offset)                                    \
@@ -112,44 +106,6 @@ static int rk31xx_lvds_pwr_off(void)
         return 0;
 }
 
-static int rk31xx_lvds_pull_down_io(void)
-{
-	int gpio;
-	int i = 0, gpio_nums = 0, val = 0;
-	enum of_gpio_flags flags;
-	char gpio_name[20] = {0};
-	struct rk_lvds_device *lvds = rk31xx_lvds;
-	static bool pull_down = false;
-
-        if (unlikely(!lvds) || !lvds->sys_state)
-                return 0;
-
-	if (pull_down)
-		return 0;
-
-	gpio_nums = of_gpio_named_count(lvds->dev->of_node, "lcdc-gpios");
-	if (gpio_nums > 0) {
-		for (i = 0; i < gpio_nums; i++) {
-			gpio = of_get_named_gpio_flags(lvds->dev->of_node,
-						       "lcdc-gpios", i, &flags);
-			if (!gpio_is_valid(gpio))
-				continue;
-			val = !(flags & OF_GPIO_ACTIVE_LOW);
-			sprintf(gpio_name, "lcdc-gpio%d", i);
-			if (!gpio_request(gpio, gpio_name)) {
-				gpio_direction_output(gpio, val);
-				msleep(1);
-			} else {
-				dev_err(lvds->dev, "request %s gpio fail!\n",
-					gpio_name);
-			}
-		}
-	}
-	pull_down = true;
-
-	return 0;
-}
-
 static int rk31xx_lvds_disable(void)
 {
 	struct rk_lvds_device *lvds = rk31xx_lvds;
@@ -171,7 +127,6 @@ static int rk31xx_lvds_disable(void)
                         pinctrl_select_state(lvds->pins->p,
                                              lvds->pins->sleep_state);
                 }
-		rk31xx_lvds_pull_down_io();
         }
 #endif
         lvds->sys_state = false;

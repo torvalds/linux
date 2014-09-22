@@ -36,14 +36,6 @@
 	pinctrl-names = "lcdc", "sleep";
 	pinctrl-0 = <&lcdc0_lcdc_d>;
 	pinctrl-1 = <&lcdc0_lcdc_gpio>;
-	lcdc-gpios = <&gpio2 GPIO_B4 GPIO_ACTIVE_LOW
-                        &gpio2 GPIO_B5 GPIO_ACTIVE_LOW
-                        &gpio2 GPIO_B6 GPIO_ACTIVE_LOW
-                        &gpio2 GPIO_B7 GPIO_ACTIVE_LOW
-                        &gpio2 GPIO_C0 GPIO_ACTIVE_LOW
-                        &gpio2 GPIO_C1 GPIO_ACTIVE_LOW
-                        &gpio2 GPIO_C2 GPIO_ACTIVE_LOW
-                        &gpio2 GPIO_C3 GPIO_ACTIVE_LOW>;
 };
 
 &lcdc {
