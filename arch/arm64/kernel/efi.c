@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
@@ -435,13 +434,6 @@ static int __init arm64_enter_virtual_mode(void)
 		goto err_unmap;
 	}
 	set_bit(EFI_SYSTEM_TABLES, &efi.flags);
-
-	/*
-	 * DMI depends on EFI on arm64, and dmi_scan_machine() needs to be
-	 * called early because dmi_id_init(), which is an arch_initcall itself,
-	 * depends on dmi_scan_machine() having been called already.
-	 */
-	dmi_scan_machine();
 
 	local_irq_save(flags);
 	cpu_switch_mm(idmap_pg_dir, &init_mm);
