@@ -152,7 +152,69 @@ static int hdmi_set_debug(struct rk_display_device *device, int cmd)
 
 	return 0;
 }
+//CEA 861-E: Audio Coding Type
+//sync width enum hdmi_audio_type
+static const char* const sAudioFormatStr[] = {
+	"",
+	"LPCM",		//HDMI_AUDIO_LPCM = 1,
+	"AC3",		//HDMI_AUDIO_AC3,
+	"MPEG1",	//HDMI_AUDIO_MPEG1,
+	"MP3",		//HDMI_AUDIO_MP3,
+	"MPEG2",	//HDMI_AUDIO_MPEG2,
+	"AAC-LC",	//HDMI_AUDIO_AAC_LC,		//AAC
+	"DTS",		//HDMI_AUDIO_DTS,
+	"ATARC",	//HDMI_AUDIO_ATARC,
+	"DSD",		//HDMI_AUDIO_DSD,			//One bit Audio
+	"E-AC3",	//HDMI_AUDIO_E_AC3,
+	"DTS-HD",	//HDMI_AUDIO_DTS_HD,
+	"MLP",		//HDMI_AUDIO_MLP,
+	"DST",		//HDMI_AUDIO_DST,
+	"WMA-PRO",	//HDMI_AUDIO_WMA_PRO
+};
 
+static int hdmi_get_edidaudioinfo(struct rk_display_device *device, char *audioinfo, int len)
+{
+	struct hdmi *hdmi = device->priv_data;
+	int i=0;
+	int size=0;
+	struct hdmi_audio *audio;
+	if(!hdmi)
+		return -1;
+
+	memset(audioinfo, 0x00, len);
+	mutex_lock(&hdmi->lock);
+	//printk("hdmi:edid: audio_num: %d\n", hdmi->edid.audio_num);
+	for(i = 0; i < hdmi->edid.audio_num; i++)
+	{
+		audio = &(hdmi->edid.audio[i]);
+		if(audio->type<1 || audio->type>HDMI_AUDIO_WMA_PRO){
+			printk("audio type: unsupported.");
+			continue;
+		}
+		size = strlen(sAudioFormatStr[audio->type]);
+		//printk("size: %d, type: %s\n", size, sAudioFormatStr[audio->type]);
+		memcpy(audioinfo, sAudioFormatStr[audio->type], size);
+		audioinfo[size]=',';
+		audioinfo += (size+1);
+	}
+	mutex_unlock(&hdmi->lock);
+	return 0;
+}
+
+
+static int hdmi_get_monspecs(struct rk_display_device *device, struct fb_monspecs *monspecs)
+{
+	struct hdmi *hdmi = device->priv_data;
+
+	if (!hdmi)
+		return -1;
+
+	mutex_lock(&hdmi->lock);
+	if(hdmi->edid.specs)
+		*monspecs = *(hdmi->edid.specs);
+	mutex_unlock(&hdmi->lock);
+	return 0;
+}
 
 struct rk_display_ops hdmi_display_ops = {
 	.setenable = hdmi_set_enable,
@@ -164,6 +226,8 @@ struct rk_display_ops hdmi_display_ops = {
 	.setscale = hdmi_set_scale,
 	.getscale = hdmi_get_scale,
 	.setdebug = hdmi_set_debug,
+	.getedidaudioinfo = hdmi_get_edidaudioinfo,
+	.getmonspecs = hdmi_get_monspecs,
 };
 
 #if 1

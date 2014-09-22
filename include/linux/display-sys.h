@@ -38,6 +38,8 @@ struct rk_display_ops {
 	int (*setscale)(struct rk_display_device *, int, int);
 	int (*getscale)(struct rk_display_device *, int);
 	int (*setdebug)(struct rk_display_device *, int);
+	int (*getedidaudioinfo)(struct rk_display_device *, char *audioinfo, int len);
+	int (*getmonspecs)(struct rk_display_device *, struct fb_monspecs *monspecs);
 };
 
 struct rk_display_device {

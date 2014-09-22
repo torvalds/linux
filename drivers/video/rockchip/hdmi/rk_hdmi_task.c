@@ -61,6 +61,7 @@ int hdmi_sys_init(struct hdmi *hdmi)
 
 	memset(&hdmi->edid, 0, sizeof(struct hdmi_edid));
 	INIT_LIST_HEAD(&hdmi->edid.modelist);
+	mutex_init(&hdmi->lock);
 	return 0;
 }
 

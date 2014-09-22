@@ -210,6 +210,41 @@ static ssize_t display_store_debug(struct device *dev,
 	return -EINVAL;
 }
 
+static ssize_t display_show_sinkaudioinfo(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct rk_display_device *dsp = dev_get_drvdata(dev);
+	char audioinfo[200];
+	int ret=0;
+
+	if(dsp->ops && dsp->ops->getedidaudioinfo) {
+		ret = dsp->ops->getedidaudioinfo(dsp, audioinfo, 200);
+		if(!ret){
+			return snprintf(buf, PAGE_SIZE, "%s\n", audioinfo);
+		}
+	}
+	return -EINVAL;
+}
+
+
+
+static ssize_t display_show_monspecs(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct rk_display_device *dsp = dev_get_drvdata(dev);
+	struct fb_monspecs monspecs;
+	int ret = 0;
+	if(dsp->ops && dsp->ops->getmonspecs) {
+		ret = dsp->ops->getmonspecs(dsp,&monspecs);
+		if(!ret) {
+			memcpy(buf, &monspecs, sizeof(struct fb_monspecs));
+			return sizeof(struct fb_monspecs);//snprintf(buf, PAGE_SIZE, "%s\n", monspecs.monitor);
+		}
+	}
+	return -EINVAL;
+}
+
+
 static struct device_attribute display_attrs[] = {
 	__ATTR(name, S_IRUGO, display_show_name, NULL),
 	__ATTR(type, S_IRUGO, display_show_type, NULL),
@@ -219,6 +254,8 @@ static struct device_attribute display_attrs[] = {
 	__ATTR(mode, 0664, display_show_mode, display_store_mode),
 	__ATTR(scale, 0664, display_show_scale, display_store_scale),
 	__ATTR(debug, 0664, display_show_debug, display_store_debug),
+	__ATTR(audioinfo, S_IRUGO, display_show_sinkaudioinfo, NULL),
+	__ATTR(monspecs, S_IRUGO, display_show_monspecs, NULL),
 	__ATTR_NULL
 };
 
