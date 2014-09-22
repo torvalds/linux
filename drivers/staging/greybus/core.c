@@ -346,7 +346,8 @@ static int create_cport(struct greybus_device *gdev,
  * Pass in a buffer that _should_ contain a Greybus module manifest
  * and spit out a greybus device structure.
  */
-void gb_add_module(struct greybus_host_device *hd, u8 module_id, u8 *data)
+void gb_add_module(struct greybus_host_device *hd, u8 module_id,
+		   u8 *data, int size)
 {
 	// FIXME - should be the new module call...
 }

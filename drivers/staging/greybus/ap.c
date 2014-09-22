@@ -112,46 +112,83 @@ static void svc_management(struct svc_function_unipro_management *management,
 }
 
 static void svc_hotplug(struct svc_function_hotplug *hotplug,
-			struct greybus_host_device *hd)
+			int payload_length, struct greybus_host_device *hd)
 {
 	u8 module_id = hotplug->module_id;
 
 	switch (hotplug->hotplug_event) {
 	case SVC_HOTPLUG_EVENT:
 		/* Add a new module to the system */
+		if (payload_length < 0x03) {
+			/* Hotplug message is at lest 3 bytes big */
+			dev_err(hd->parent,
+				"Illegal size of svc hotplug message %d\n",
+				payload_length);
+			return;
+		}
 		dev_dbg(hd->parent, "module id %d added\n", module_id);
-		gb_add_module(hd, module_id, hotplug->data);
+		gb_add_module(hd, module_id, hotplug->data,
+			      payload_length - 0x02);
 		break;
 
 	case SVC_HOTUNPLUG_EVENT:
 		/* Remove a module from the system */
+		if (payload_length != 0x02) {
+			/* Hotunplug message is only 2 bytes big */
+			dev_err(hd->parent,
+				"Illegal size of svc hotunplug message %d\n",
+				payload_length);
+			return;
+		}
 		dev_dbg(hd->parent, "module id %d removed\n", module_id);
 		gb_remove_module(hd, module_id);
 		break;
 
 	default:
 		dev_err(hd->parent,
-			"received invalid hotplug message type %d\n",
+			"Received invalid hotplug message type %d\n",
 			hotplug->hotplug_event);
 		break;
 	}
 }
 
 static void svc_ddb(struct svc_function_ddb *ddb,
-		    struct greybus_host_device *hd)
+		    int payload_length, struct greybus_host_device *hd)
 {
+	/*
+	 * Need to properly validate payload_length once we start
+	 * to handle ddb messages, but for now, we don't, so no need to check
+	 * anything.
+	 */
+
 	/* What?  An AP should not get this message */
 	dev_err(hd->parent, "Got an svc DDB message???\n");
 }
 
 static void svc_power(struct svc_function_power *power,
-		      struct greybus_host_device *hd)
+		      int payload_length, struct greybus_host_device *hd)
 {
 	u8 module_id = power->module_id;
 
+	/*
+	 * The AP is only allowed to get a Battery Status message, not a Battery
+	 * Status Request
+	 */
 	if (power->power_type != SVC_POWER_BATTERY_STATUS) {
-		dev_err(hd->parent, "received invalid power type %d\n",
+		dev_err(hd->parent, "Received invalid power type %d\n",
 			power->power_type);
+		return;
+	}
+
+	/*
+	 * As struct struct svc_function_power_battery_status_request is 0 bytes
+	 * big, we can just check the union of the whole structure to validate
+	 * the size of this message.
+	 */
+	if (payload_length != sizeof(struct svc_function_power)) {
+		dev_err(hd->parent,
+			"Illegal size of svc power message %d\n",
+			payload_length);
 		return;
 	}
 
@@ -163,14 +200,14 @@ static void svc_power(struct svc_function_power *power,
 }
 
 static void svc_epm(struct svc_function_epm *epm,
-		    struct greybus_host_device *hd)
+		    int payload_length, struct greybus_host_device *hd)
 {
 	/* What?  An AP should not get this message */
 	dev_err(hd->parent, "Got an EPM message???\n");
 }
 
 static void svc_suspend(struct svc_function_suspend *suspend,
-			struct greybus_host_device *hd)
+			int payload_length, struct greybus_host_device *hd)
 {
 	/* What?  An AP should not get this message */
 	dev_err(hd->parent, "Got an suspend message???\n");
@@ -227,19 +264,19 @@ static void ap_process_event(struct work_struct *work)
 		svc_management(&svc_msg->management, payload_length, hd);
 		break;
 	case SVC_FUNCTION_HOTPLUG:
-		svc_hotplug(&svc_msg->hotplug, hd);
+		svc_hotplug(&svc_msg->hotplug, payload_length, hd);
 		break;
 	case SVC_FUNCTION_DDB:
-		svc_ddb(&svc_msg->ddb, hd);
+		svc_ddb(&svc_msg->ddb, payload_length, hd);
 		break;
 	case SVC_FUNCTION_POWER:
-		svc_power(&svc_msg->power, hd);
+		svc_power(&svc_msg->power, payload_length, hd);
 		break;
 	case SVC_FUNCTION_EPM:
-		svc_epm(&svc_msg->epm, hd);
+		svc_epm(&svc_msg->epm, payload_length, hd);
 		break;
 	case SVC_FUNCTION_SUSPEND:
-		svc_suspend(&svc_msg->suspend, hd);
+		svc_suspend(&svc_msg->suspend, payload_length, hd);
 		break;
 	default:
 		dev_err(hd->parent, "received invalid SVC function ID %d\n",
