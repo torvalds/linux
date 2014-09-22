@@ -2494,9 +2494,10 @@ static int et131x_handle_recv_pkts(struct et131x_adapter *adapter, int budget)
 		rx_ring->unfinished_receives = true;
 		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &adapter->regs->global.watchdog_timer);
-	} else
+	} else {
 		/* Watchdog timer will disable itself if appropriate. */
 		rx_ring->unfinished_receives = false;
+	}
 
 	return count;
 }
@@ -2679,9 +2680,10 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 		} else { /* Last element */
 			desc[frag - 1].flags = TXDESC_FLAG_LASTPKT;
 		}
-	} else
+	} else {
 		desc[frag - 1].flags =
 				    TXDESC_FLAG_INTPROC | TXDESC_FLAG_LASTPKT;
+	}
 
 	desc[0].flags |= TXDESC_FLAG_FIRSTPKT;
 
