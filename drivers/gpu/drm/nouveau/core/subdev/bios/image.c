@@ -24,10 +24,14 @@
 
 #include <subdev/bios.h>
 #include <subdev/bios/image.h>
+#include <subdev/bios/pcir.h>
 
 static bool
 nvbios_imagen(struct nouveau_bios *bios, struct nvbios_image *image)
 {
+	struct nvbios_pcirT pcir;
+	u8  ver;
+	u16 hdr;
 	u32 data;
 
 	switch ((data = nv_ro16(bios, image->base + 0x00))) {
@@ -39,8 +43,10 @@ nvbios_imagen(struct nouveau_bios *bios, struct nvbios_image *image)
 		return false;
 	}
 
-	image->size = nv_ro08(bios, image->base + 0x02) * 512;
-	image->type = 0x00;
+	if (!(data = nvbios_pcirTp(bios, image->base, &ver, &hdr, &pcir)))
+		return false;
+	image->size = pcir.image_size;
+	image->type = pcir.image_type;
 	image->last = true;
 	return true;
 }
