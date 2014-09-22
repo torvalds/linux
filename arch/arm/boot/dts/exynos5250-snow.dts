@@ -27,6 +27,7 @@
 	};
 
 	chosen {
+		bootargs = "console=tty1";
 	};
 
 	gpio-keys {
