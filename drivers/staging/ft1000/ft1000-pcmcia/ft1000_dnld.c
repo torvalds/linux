@@ -37,12 +37,6 @@
 #include "ft1000.h"
 #include "boot.h"
 
-#ifdef FT_DEBUG
-#define DEBUG(n, args...) printk(KERN_DEBUG args);
-#else
-#define DEBUG(n, args...)
-#endif
-
 #define  MAX_DSP_WAIT_LOOPS      100
 #define  DSP_WAIT_SLEEP_TIME     1	/* 1 millisecond */
 
@@ -127,7 +121,7 @@ void card_bootload(struct net_device *dev)
 	u32 i;
 	u32 templong;
 
-	DEBUG(0, "card_bootload is called\n");
+	netdev_dbg(dev, "card_bootload is called\n");
 
 	pdata = (u32 *) bootimage;
 	size = sizeof(bootimage);
@@ -436,7 +430,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 				request = get_request_type(dev);
 				switch (request) {
 				case REQUEST_FILE_CHECKSUM:
-					DEBUG(0,
+					netdev_dbg(dev,
 						  "ft1000_dnld: REQUEST_FOR_CHECKSUM\n");
 					put_request_value(dev, image_chksum);
 					break;
@@ -651,7 +645,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 								(u32)
 								pDspImageInfoV6->
 								checksum;
-							DEBUG(0,
+							netdev_dbg(dev,
 								  "ft1000_dnld: image_chksum = 0x%8x\n",
 								  (unsigned
 								   int)
@@ -694,11 +688,11 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 				|| pHdr->portsrc == 0x10 /* FMM */)) {
 				uiState = STATE_SECTION_PROV;
 			} else {
-				DEBUG(1,
+				netdev_dbg(dev,
 					  "FT1000:download:Download error: Bad Port IDs in Pseudo Record\n");
-				DEBUG(1, "\t Port Source = 0x%2.2x\n",
+				netdev_dbg(dev, "\t Port Source = 0x%2.2x\n",
 					  pHdr->portsrc);
-				DEBUG(1, "\t Port Destination = 0x%2.2x\n",
+				netdev_dbg(dev, "\t Port Destination = 0x%2.2x\n",
 					  pHdr->portdest);
 				Status = FAILURE;
 			}
