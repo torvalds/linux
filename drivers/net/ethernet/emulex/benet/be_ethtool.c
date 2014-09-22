@@ -130,6 +130,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(roce_drops_payload_len)},
 	{DRVSTAT_INFO(roce_drops_crc)}
 };
+
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
 
 /* Stats related to multi RX queues: get_stats routine assumes bytes, pkts
@@ -152,6 +153,7 @@ static const struct be_ethtool_stat et_rx_stats[] = {
 	 */
 	{DRVSTAT_RX_INFO(rx_drops_no_frags)}
 };
+
 #define ETHTOOL_RXSTATS_NUM (ARRAY_SIZE(et_rx_stats))
 
 /* Stats related to multi TX queues: get_stats routine assumes compl is the
@@ -200,6 +202,7 @@ static const struct be_ethtool_stat et_tx_stats[] = {
 	/* Pkts dropped in the driver's transmit path */
 	{DRVSTAT_TX_INFO(tx_drv_drops)}
 };
+
 #define ETHTOOL_TXSTATS_NUM (ARRAY_SIZE(et_tx_stats))
 
 static const char et_self_tests[][ETH_GSTRING_LEN] = {
@@ -274,7 +277,7 @@ static int lancer_cmd_read_file(struct be_adapter *adapter, u8 *file_name,
 
 	while ((total_read_len < buf_len) && !eof) {
 		chunk_size = min_t(u32, (buf_len - total_read_len),
-				LANCER_READ_FILE_CHUNK);
+				   LANCER_READ_FILE_CHUNK);
 		chunk_size = ALIGN(chunk_size, 4);
 		status = lancer_cmd_read_object(adapter, &read_cmd, chunk_size,
 						total_read_len, file_name,
@@ -332,7 +335,6 @@ static int be_get_coalesce(struct net_device *netdev,
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_aic_obj *aic = &adapter->aic_obj[0];
-
 
 	et->rx_coalesce_usecs = aic->prev_eqd;
 	et->rx_coalesce_usecs_high = aic->max_eqd;
@@ -534,9 +536,23 @@ static u32 convert_to_et_setting(struct be_adapter *adapter, u32 if_speeds)
 		if (if_speeds & BE_SUPPORTED_SPEED_10GBPS)
 			val |= SUPPORTED_10000baseKX4_Full;
 		break;
+	case PHY_TYPE_KR2_20GB:
+		val |= SUPPORTED_Backplane;
+		if (if_speeds & BE_SUPPORTED_SPEED_10GBPS)
+			val |= SUPPORTED_10000baseKR_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_20GBPS)
+			val |= SUPPORTED_20000baseKR2_Full;
+		break;
 	case PHY_TYPE_KR_10GB:
 		val |= SUPPORTED_Backplane |
 				SUPPORTED_10000baseKR_Full;
+		break;
+	case PHY_TYPE_KR4_40GB:
+		val |= SUPPORTED_Backplane;
+		if (if_speeds & BE_SUPPORTED_SPEED_10GBPS)
+			val |= SUPPORTED_10000baseKR_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_40GBPS)
+			val |= SUPPORTED_40000baseKR4_Full;
 		break;
 	case PHY_TYPE_QSFP:
 		if (if_speeds & BE_SUPPORTED_SPEED_40GBPS) {
@@ -668,8 +684,10 @@ static void be_get_ringparam(struct net_device *netdev,
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	ring->rx_max_pending = ring->rx_pending = adapter->rx_obj[0].q.len;
-	ring->tx_max_pending = ring->tx_pending = adapter->tx_obj[0].q.len;
+	ring->rx_max_pending = adapter->rx_obj[0].q.len;
+	ring->rx_pending = adapter->rx_obj[0].q.len;
+	ring->tx_max_pending = adapter->tx_obj[0].q.len;
+	ring->tx_pending = adapter->tx_obj[0].q.len;
 }
 
 static void
@@ -961,8 +979,6 @@ static void be_set_msg_level(struct net_device *netdev, u32 level)
 						FW_LOG_LEVEL_DEFAULT :
 						FW_LOG_LEVEL_FATAL);
 	adapter->msg_enable = level;
-
-	return;
 }
 
 static u64 be_get_rss_hash_opts(struct be_adapter *adapter, u64 flow_type)
@@ -1181,6 +1197,7 @@ static int be_set_rxfh(struct net_device *netdev, const u32 *indir,
 
 	if (indir) {
 		struct be_rx_obj *rxo;
+
 		for (i = 0; i < RSS_INDIR_TABLE_LEN; i++) {
 			j = indir[i];
 			rxo = &adapter->rx_obj[j];
@@ -1196,8 +1213,8 @@ static int be_set_rxfh(struct net_device *netdev, const u32 *indir,
 		hkey =  adapter->rss_info.rss_hkey;
 
 	rc = be_cmd_rss_config(adapter, rsstable,
-			adapter->rss_info.rss_flags,
-			RSS_INDIR_TABLE_LEN, hkey);
+			       adapter->rss_info.rss_flags,
+			       RSS_INDIR_TABLE_LEN, hkey);
 	if (rc) {
 		adapter->rss_info.rss_flags = RSS_ENABLE_NONE;
 		return -EIO;

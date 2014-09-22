@@ -1005,8 +1005,8 @@ struct be_cmd_resp_link_status {
 /*    Identifies the type of port attached to NIC     */
 struct be_cmd_req_port_type {
 	struct be_cmd_req_hdr hdr;
-	u32 page_num;
-	u32 port;
+	__le32 page_num;
+	__le32 port;
 };
 
 enum {
@@ -1374,6 +1374,7 @@ enum {
 #define BE_SUPPORTED_SPEED_100MBPS	2
 #define BE_SUPPORTED_SPEED_1GBPS	4
 #define BE_SUPPORTED_SPEED_10GBPS	8
+#define BE_SUPPORTED_SPEED_20GBPS	0x10
 #define BE_SUPPORTED_SPEED_40GBPS	0x20
 
 #define BE_AN_EN			0x2

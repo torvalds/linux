@@ -86,6 +86,7 @@ static const char * const ue_status_low_desc[] = {
 	"JTAG ",
 	"MPU_INTPEND "
 };
+
 /* UE Status High CSR */
 static const char * const ue_status_hi_desc[] = {
 	"LPCMEMHOST",
@@ -122,10 +123,10 @@ static const char * const ue_status_hi_desc[] = {
 	"Unknown"
 };
 
-
 static void be_queue_free(struct be_adapter *adapter, struct be_queue_info *q)
 {
 	struct be_dma_mem *mem = &q->dma_mem;
+
 	if (mem->va) {
 		dma_free_coherent(&adapter->pdev->dev, mem->size, mem->va,
 				  mem->dma);
@@ -187,6 +188,7 @@ static void be_intr_set(struct be_adapter *adapter, bool enable)
 static void be_rxq_notify(struct be_adapter *adapter, u16 qid, u16 posted)
 {
 	u32 val = 0;
+
 	val |= qid & DB_RQ_RING_ID_MASK;
 	val |= posted << DB_RQ_NUM_POSTED_SHIFT;
 
@@ -198,6 +200,7 @@ static void be_txq_notify(struct be_adapter *adapter, struct be_tx_obj *txo,
 			  u16 posted)
 {
 	u32 val = 0;
+
 	val |= txo->q.id & DB_TXULP_RING_ID_MASK;
 	val |= (posted & DB_TXULP_NUM_POSTED_MASK) << DB_TXULP_NUM_POSTED_SHIFT;
 
@@ -209,6 +212,7 @@ static void be_eq_notify(struct be_adapter *adapter, u16 qid,
 			 bool arm, bool clear_int, u16 num_popped)
 {
 	u32 val = 0;
+
 	val |= qid & DB_EQ_RING_ID_MASK;
 	val |= ((qid & DB_EQ_RING_ID_EXT_MASK) << DB_EQ_RING_ID_EXT_MASK_SHIFT);
 
@@ -227,6 +231,7 @@ static void be_eq_notify(struct be_adapter *adapter, u16 qid,
 void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 {
 	u32 val = 0;
+
 	val |= qid & DB_CQ_RING_ID_MASK;
 	val |= ((qid & DB_CQ_RING_ID_EXT_MASK) <<
 			DB_CQ_RING_ID_EXT_MASK_SHIFT);
@@ -488,7 +493,6 @@ static void populate_be_v2_stats(struct be_adapter *adapter)
 
 static void populate_lancer_stats(struct be_adapter *adapter)
 {
-
 	struct be_drv_stats *drvs = &adapter->drv_stats;
 	struct lancer_pport_stats *pport_stats = pport_stats_from_cmd(adapter);
 
@@ -588,6 +592,7 @@ static struct rtnl_link_stats64 *be_get_stats64(struct net_device *netdev,
 
 	for_all_rx_queues(adapter, rxo, i) {
 		const struct be_rx_stats *rx_stats = rx_stats(rxo);
+
 		do {
 			start = u64_stats_fetch_begin_irq(&rx_stats->sync);
 			pkts = rx_stats(rxo)->rx_pkts;
@@ -602,6 +607,7 @@ static struct rtnl_link_stats64 *be_get_stats64(struct net_device *netdev,
 
 	for_all_tx_queues(adapter, txo, i) {
 		const struct be_tx_stats *tx_stats = tx_stats(txo);
+
 		do {
 			start = u64_stats_fetch_begin_irq(&tx_stats->sync);
 			pkts = tx_stats(txo)->tx_pkts;
@@ -807,6 +813,7 @@ static int make_tx_wrbs(struct be_adapter *adapter, struct be_queue_info *txq,
 
 	if (skb->len > skb->data_len) {
 		int len = skb_headlen(skb);
+
 		busaddr = dma_map_single(dev, skb->data, len, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, busaddr))
 			goto dma_err;
@@ -820,6 +827,7 @@ static int make_tx_wrbs(struct be_adapter *adapter, struct be_queue_info *txq,
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+
 		busaddr = skb_frag_dma_map(dev, frag, 0,
 					   skb_frag_size(frag), DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, busaddr))
@@ -910,7 +918,7 @@ static bool be_ipv6_exthdr_check(struct sk_buff *skb)
 		if (ip6h->nexthdr != NEXTHDR_TCP &&
 		    ip6h->nexthdr != NEXTHDR_UDP) {
 			struct ipv6_opt_hdr *ehdr =
-				(struct ipv6_opt_hdr *) (skb->data + offset);
+				(struct ipv6_opt_hdr *)(skb->data + offset);
 
 			/* offending pkt: 2nd byte following IPv6 hdr is 0xff */
 			if (ehdr->hdrlen == 0xff)
@@ -974,8 +982,8 @@ static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
 	 * skip HW tagging is not enabled by FW.
 	 */
 	if (unlikely(be_ipv6_tx_stall_chk(adapter, skb) &&
-	    (adapter->pvid || adapter->qnq_vid) &&
-	    !qnq_async_evt_rcvd(adapter)))
+		     (adapter->pvid || adapter->qnq_vid) &&
+		     !qnq_async_evt_rcvd(adapter)))
 		goto tx_drop;
 
 	/* Manual VLAN tag insertion to prevent:
@@ -1416,6 +1424,7 @@ err:
 		max_tx_rate, vf);
 	return be_cmd_status(status);
 }
+
 static int be_set_vf_link_state(struct net_device *netdev, int vf,
 				int link_state)
 {
@@ -1480,7 +1489,6 @@ static void be_eqd_update(struct be_adapter *adapter)
 			start = u64_stats_fetch_begin_irq(&txo->stats.sync);
 			tx_pkts = txo->stats.tx_reqs;
 		} while (u64_stats_fetch_retry_irq(&txo->stats.sync, start));
-
 
 		/* Skip, if wrapped around or first calculation */
 		now = jiffies;
@@ -2053,7 +2061,8 @@ static void be_rx_cq_clean(struct be_rx_obj *rxo)
 		memset(page_info, 0, sizeof(*page_info));
 	}
 	BUG_ON(atomic_read(&rxq->used));
-	rxq->tail = rxq->head = 0;
+	rxq->tail = 0;
+	rxq->head = 0;
 }
 
 static void be_tx_compl_clean(struct be_adapter *adapter)
@@ -3716,8 +3725,6 @@ static void be_netpoll(struct net_device *netdev)
 		be_eq_notify(eqo->adapter, eqo->q.id, false, true, 0);
 		napi_schedule(&eqo->napi);
 	}
-
-	return;
 }
 #endif
 
@@ -4395,7 +4402,6 @@ static void be_add_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
 	return;
 err:
 	be_disable_vxlan_offloads(adapter);
-	return;
 }
 
 static void be_del_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
@@ -4735,7 +4741,6 @@ static void be_func_recovery_task(struct work_struct *work)
 	be_detect_error(adapter);
 
 	if (adapter->hw_error && lancer_chip(adapter)) {
-
 		rtnl_lock();
 		netif_device_detach(adapter->netdev);
 		rtnl_unlock();
@@ -4772,7 +4777,7 @@ static void be_worker(struct work_struct *work)
 	if (!adapter->stats_cmd_sent) {
 		if (lancer_chip(adapter))
 			lancer_cmd_get_pport_stats(adapter,
-						&adapter->stats_cmd);
+						   &adapter->stats_cmd);
 		else
 			be_cmd_get_stats(adapter, &adapter->stats_cmd);
 	}
@@ -4919,7 +4924,8 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 
 	INIT_DELAYED_WORK(&adapter->work, be_worker);
 	INIT_DELAYED_WORK(&adapter->func_recovery_work, be_func_recovery_task);
-	adapter->rx_fc = adapter->tx_fc = true;
+	adapter->rx_fc = true;
+	adapter->tx_fc = true;
 
 	status = be_setup(adapter);
 	if (status)
