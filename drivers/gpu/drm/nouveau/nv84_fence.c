@@ -120,6 +120,7 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 		nouveau_bo_vma_del(bo, &fctx->dispc_vma[i]);
 	}
 
+	nouveau_bo_wr32(priv->bo, chan->chid * 16 / 4, fctx->base.sequence);
 	nouveau_bo_vma_del(priv->bo, &fctx->vma_gart);
 	nouveau_bo_vma_del(priv->bo, &fctx->vma);
 	nouveau_fence_context_del(&fctx->base);
@@ -158,8 +159,6 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 		struct nouveau_bo *bo = nv50_display_crtc_sema(chan->drm->dev, i);
 		ret = nouveau_bo_vma_add(bo, cli->vm, &fctx->dispc_vma[i]);
 	}
-
-	nouveau_bo_wr32(priv->bo, chan->chid * 16/4, 0x00000000);
 
 	if (ret)
 		nv84_fence_context_del(chan);
