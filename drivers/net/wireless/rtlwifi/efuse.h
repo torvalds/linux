@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -32,7 +28,6 @@
 
 #define EFUSE_IC_ID_OFFSET		506
 
-#define EFUSE_MAP_LEN			128
 #define EFUSE_MAX_WORD_UNIT		4
 
 #define EFUSE_INIT_MAP			0
@@ -107,12 +102,14 @@ struct efuse_priv {
 void read_efuse_byte(struct ieee80211_hw *hw, u16 _offset, u8 *pbuf);
 void efuse_initialize(struct ieee80211_hw *hw);
 u8 efuse_read_1byte(struct ieee80211_hw *hw, u16 address);
+int efuse_one_byte_read(struct ieee80211_hw *hw, u16 addr, u8 *data);
 void efuse_write_1byte(struct ieee80211_hw *hw, u16 address, u8 value);
-void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf);
-void efuse_shadow_read(struct ieee80211_hw *hw, u8 type, u16 offset,
-		       u32 *value);
-void efuse_shadow_write(struct ieee80211_hw *hw, u8 type, u16 offset,
-			u32 value);
+void read_efuse(struct ieee80211_hw *hw, u16 _offset,
+		u16 _size_byte, u8 *pbuf);
+void efuse_shadow_read(struct ieee80211_hw *hw, u8 type,
+		       u16 offset, u32 *value);
+void efuse_shadow_write(struct ieee80211_hw *hw, u8 type,
+			u16 offset, u32 value);
 bool efuse_shadow_update(struct ieee80211_hw *hw);
 bool efuse_shadow_update_chk(struct ieee80211_hw *hw);
 void rtl_efuse_shadow_map_update(struct ieee80211_hw *hw);
