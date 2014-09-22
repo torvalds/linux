@@ -4091,8 +4091,17 @@ int dw_mci_suspend(struct dw_mci *host)
         /*only for sdmmc controller*/
         if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
                 host->mmc->rescan_disable = 1;
-                if (cancel_delayed_work_sync(&host->mmc->detect))
-			wake_unlock(&host->mmc->detect_wake_lock);
+                if (!(cpu_is_rk312x() || cpu_is_rk3036())) {
+                        if (cancel_delayed_work_sync(&host->mmc->detect))
+			        wake_unlock(&host->mmc->detect_wake_lock);
+                } else {
+                        /* we find dpm suspend timeout for mmc cancel this work sync way,
+                           actually just workaround this for low end platform with
+                           gpio-debounce detect method.
+                        */
+                        if (cancel_delayed_work(&host->mmc->detect))
+                                wake_unlock(&host->mmc->detect_wake_lock);
+                }
 
                 disable_irq(host->irq);
                 if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
