@@ -35,7 +35,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
-
+#include <linux/rtc.h>
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -4616,6 +4616,7 @@ static int ricoh619_battery_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+struct timeval  ts_suspend;
 static int ricoh619_battery_suspend(struct device *dev)
 {
 	struct ricoh619_battery_info *info = dev_get_drvdata(dev);
@@ -4625,6 +4626,7 @@ static int ricoh619_battery_suspend(struct device *dev)
 	int cc_cap = 0;
 	bool is_charging = true;
 	int displayed_soc_temp;
+	do_gettimeofday(&ts_suspend);
 
 	if (g_fg_on_mode
 		 && (info->soca->status == RICOH619_SOCA_STABLE)) {
@@ -4774,6 +4776,36 @@ static int ricoh619_battery_resume(struct device *dev)
 	bool is_charging = true;
 	bool is_jeita_updated;
 	int i;
+	int err;
+	struct rtc_time tm;
+	struct timespec tv = {
+			.tv_nsec = NSEC_PER_SEC >> 1,
+	};
+	struct rtc_device *rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
+
+	err = rtc_read_time(rtc, &tm);
+	if (err) {
+			dev_err(rtc->dev.parent,
+					"hctosys: unable to read the hardware clock\n");	
+	}
+
+	err = rtc_valid_tm(&tm);
+	if (err) {
+			dev_err(rtc->dev.parent,
+					"hctosys: invalid date/time\n");
+	}
+
+	rtc_tm_to_time(&tm, &tv.tv_sec);
+	
+	/*printk("suspend time: %d sec\n", ts_suspend.tv_sec);*/
+	/*printk("resume  time: %d sec\n", tv.tv_sec);*/
+
+	if(info->chg_complete_rd_flag == 2){
+		printk("chg_complete_rd_cnt suspend: %d\n", info->chg_complete_rd_cnt);
+		info->chg_complete_rd_cnt += (tv.tv_sec - ts_suspend.tv_sec);
+		printk("chg_complete_rd_cnt resume: %d\n", info->chg_complete_rd_cnt);
+		cancel_delayed_work(&info->charge_complete_ready);
+	}
 
 	RICOH_FG_DBG(KERN_INFO "PMU: %s: \n", __func__);
 
