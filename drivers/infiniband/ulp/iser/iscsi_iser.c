@@ -344,7 +344,6 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 		     int is_leading)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct iscsi_session *session;
 	struct iser_conn *ib_conn;
 	struct iscsi_endpoint *ep;
 	int error;
@@ -363,9 +362,17 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	}
 	ib_conn = ep->dd_data;
 
-	session = conn->session;
-	if (iser_alloc_rx_descriptors(ib_conn, session))
-		return -ENOMEM;
+	mutex_lock(&ib_conn->state_mutex);
+	if (ib_conn->state != ISER_CONN_UP) {
+		error = -EINVAL;
+		iser_err("iser_conn %p state is %d, teardown started\n",
+			 ib_conn, ib_conn->state);
+		goto out;
+	}
+
+	error = iser_alloc_rx_descriptors(ib_conn, conn->session);
+	if (error)
+		goto out;
 
 	/* binds the iSER connection retrieved from the previously
 	 * connected ep_handle to the iSCSI layer connection. exchanges
@@ -375,7 +382,9 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	conn->dd_data = ib_conn;
 	ib_conn->iscsi_conn = conn;
 
-	return 0;
+out:
+	mutex_unlock(&ib_conn->state_mutex);
+	return error;
 }
 
 static int

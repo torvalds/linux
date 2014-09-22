@@ -101,7 +101,7 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 	attr->max_srq_sge = dev->attr.max_srq_sge;
 	attr->max_srq_wr = dev->attr.max_rqe;
 	attr->local_ca_ack_delay = dev->attr.local_ca_ack_delay;
-	attr->max_fast_reg_page_list_len = 0;
+	attr->max_fast_reg_page_list_len = dev->attr.max_pages_per_frmr;
 	attr->max_pkeys = 1;
 	return 0;
 }
@@ -2846,11 +2846,9 @@ int ocrdma_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags cq_flags)
 	if (cq->first_arm) {
 		ocrdma_ring_cq_db(dev, cq_id, arm_needed, sol_needed, 0);
 		cq->first_arm = false;
-		goto skip_defer;
 	}
-	cq->deferred_arm = true;
 
-skip_defer:
+	cq->deferred_arm = true;
 	cq->deferred_sol = sol_needed;
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 
