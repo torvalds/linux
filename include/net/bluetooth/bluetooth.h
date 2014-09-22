@@ -120,9 +120,9 @@ struct bt_voice {
 #define BT_RCVMTU		13
 
 __printf(1, 2)
-int bt_info(const char *fmt, ...);
+void bt_info(const char *fmt, ...);
 __printf(1, 2)
-int bt_err(const char *fmt, ...);
+void bt_err(const char *fmt, ...);
 
 #define BT_INFO(fmt, ...)	bt_info(fmt "\n", ##__VA_ARGS__)
 #define BT_ERR(fmt, ...)	bt_err(fmt "\n", ##__VA_ARGS__)
