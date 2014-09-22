@@ -851,9 +851,9 @@ int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
 	return kvm->arch.kvm_ops->unmap_hva_range(kvm, start, end);
 }
 
-int kvm_age_hva(struct kvm *kvm, unsigned long hva)
+int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end)
 {
-	return kvm->arch.kvm_ops->age_hva(kvm, hva);
+	return kvm->arch.kvm_ops->age_hva(kvm, start, end);
 }
 
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)

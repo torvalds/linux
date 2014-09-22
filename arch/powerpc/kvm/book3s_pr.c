@@ -295,7 +295,8 @@ static int kvm_unmap_hva_range_pr(struct kvm *kvm, unsigned long start,
 	return 0;
 }
 
-static int kvm_age_hva_pr(struct kvm *kvm, unsigned long hva)
+static int kvm_age_hva_pr(struct kvm *kvm, unsigned long start,
+			  unsigned long end)
 {
 	/* XXX could be more clever ;) */
 	return 0;

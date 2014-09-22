@@ -243,7 +243,7 @@ struct kvmppc_ops {
 	int (*unmap_hva)(struct kvm *kvm, unsigned long hva);
 	int (*unmap_hva_range)(struct kvm *kvm, unsigned long start,
 			   unsigned long end);
-	int (*age_hva)(struct kvm *kvm, unsigned long hva);
+	int (*age_hva)(struct kvm *kvm, unsigned long start, unsigned long end);
 	int (*test_age_hva)(struct kvm *kvm, unsigned long hva);
 	void (*set_spte_hva)(struct kvm *kvm, unsigned long hva, pte_t pte);
 	void (*mmu_destroy)(struct kvm_vcpu *vcpu);

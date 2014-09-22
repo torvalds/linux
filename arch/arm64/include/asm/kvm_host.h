@@ -180,7 +180,8 @@ int kvm_unmap_hva_range(struct kvm *kvm,
 void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
 
 /* We do not have shadow page tables, hence the empty hooks */
-static inline int kvm_age_hva(struct kvm *kvm, unsigned long hva)
+static inline int kvm_age_hva(struct kvm *kvm, unsigned long start,
+			      unsigned long end)
 {
 	return 0;
 }
