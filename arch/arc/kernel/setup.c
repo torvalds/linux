@@ -30,6 +30,8 @@
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
+unsigned int intr_to_DE_cnt;
+
 /* Part of U-boot ABI: see head.S */
 int __initdata uboot_tag;
 char __initdata *uboot_arg;

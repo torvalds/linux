@@ -163,6 +163,9 @@ END(EV_TLBProtV)
 ;####### Return from Intr #######
 
 debug_marker_l1:
+	bbit1.nt r0, STATUS_DE_BIT, .Lintr_ret_to_delay_slot
+
+.Lisr_ret_fast_path:
 	; Handle special case #1: (Entry via Exception, Return via IRQ)
 	;
 	; Exception in U mode, preempted in kernel, Intr taken (K mode), orig
@@ -184,6 +187,53 @@ debug_marker_l1:
 
 debug_marker_syscall:
 	EXCEPTION_EPILOGUE
+	rtie
+
+;####### Return from Intr to insn in delay slot #######
+
+; Handle special case #2: (Entry via Exception in Delay Slot, Return via IRQ)
+;
+; Intr returning to a Delay Slot (DS) insn
+; (since IRQ NOT allowed in DS in ARCv2, this can only happen if orig
+; entry was via Exception in DS which got preempted in kernel).
+;
+; IRQ RTIE won't reliably restore DE bit and/or BTA, needs handling
+.Lintr_ret_to_delay_slot:
+debug_marker_ds:
+
+	ld	r2, [@intr_to_DE_cnt]
+	add	r2, r2, 1
+	st	r2, [@intr_to_DE_cnt]
+
+	ld	r2, [sp, PT_ret]
+	ld	r3, [sp, PT_status32]
+
+	bic  	r0, r3, STATUS_U_MASK|STATUS_DE_MASK|STATUS_IE_MASK|STATUS_L_MASK
+	st	r0, [sp, PT_status32]
+
+	mov	r1, .Lintr_ret_to_delay_slot_2
+	st	r1, [sp, PT_ret]
+
+	st	r2, [sp, 0]
+	st	r3, [sp, 4]
+
+	b	.Lisr_ret_fast_path
+
+.Lintr_ret_to_delay_slot_2:
+	sub	sp, sp, SZ_PT_REGS
+	st	r9, [sp, -4]
+
+	ld	r9, [sp, 0]
+	sr	r9, [eret]
+
+	ld	r9, [sp, 4]
+	sr	r9, [erstatus]
+
+	ld	r9, [sp, 8]
+	sr	r9, [erbta]
+
+	ld	r9, [sp, -4]
+	add	sp, sp, SZ_PT_REGS
 	rtie
 
 END(ret_from_exception)
