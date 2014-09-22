@@ -2044,6 +2044,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	int err = -1, i;
 	unsigned long before;
 	const bool forks = argc > 0;
+	bool draining = false;
 	char sbuf[STRERR_BUFSIZE];
 
 	trace->live = true;
@@ -2171,8 +2172,12 @@ next_event:
 	if (trace->nr_events == before) {
 		int timeout = done ? 100 : -1;
 
-		if (perf_evlist__poll(evlist, timeout) > 0)
+		if (!draining && perf_evlist__poll(evlist, timeout) > 0) {
+			if (perf_evlist__filter_pollfd(evlist, POLLERR | POLLHUP) == 0)
+				draining = true;
+
 			goto again;
+		}
 	} else {
 		goto again;
 	}
