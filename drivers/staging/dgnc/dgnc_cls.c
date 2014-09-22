@@ -367,16 +367,16 @@ static inline void cls_set_no_input_flow_control(struct channel_t *ch)
  */
 static inline void cls_clear_break(struct channel_t *ch, int force)
 {
-	ulong lock_flags;
+	unsigned long flags;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
 
-	DGNC_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, flags);
 
 	/* Bail if we aren't currently sending a break. */
 	if (!ch->ch_stop_sending_break) {
-		DGNC_UNLOCK(ch->ch_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		return;
 	}
 
@@ -390,7 +390,7 @@ static inline void cls_clear_break(struct channel_t *ch, int force)
 			ch->ch_stop_sending_break = 0;
 		}
 	}
-	DGNC_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
 
@@ -399,7 +399,7 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 {
 	struct channel_t *ch;
 	uchar isr = 0;
-	ulong lock_flags;
+	unsigned long flags;
 
 	/*
 	 * No need to verify board pointer, it was already
@@ -434,11 +434,11 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 		/* Transmit Hold register empty pending */
 		if (isr & UART_IIR_THRI) {
 			/* Transfer data (if any) from Write Queue -> UART. */
-			DGNC_LOCK(ch->ch_lock, lock_flags);
+			spin_lock_irqsave(&ch->ch_lock, flags);
 			ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 			brd->intr_tx++;
 			ch->ch_intr_tx++;
-			DGNC_UNLOCK(ch->ch_lock, lock_flags);
+			spin_unlock_irqrestore(&ch->ch_lock, flags);
 			cls_copy_data_from_queue_to_uart(ch);
 		}
 
@@ -719,7 +719,7 @@ static void cls_tasklet(unsigned long data)
 {
 	struct dgnc_board *bd = (struct dgnc_board *) data;
 	struct channel_t *ch;
-	ulong  lock_flags;
+	unsigned long flags;
 	int i;
 	int state = 0;
 	int ports = 0;
@@ -730,16 +730,16 @@ static void cls_tasklet(unsigned long data)
 	}
 
 	/* Cache a couple board values */
-	DGNC_LOCK(bd->bd_lock, lock_flags);
+	spin_lock_irqsave(&bd->bd_lock, flags);
 	state = bd->state;
 	ports = bd->nasync;
-	DGNC_UNLOCK(bd->bd_lock, lock_flags);
+	spin_unlock_irqrestore(&bd->bd_lock, flags);
 
 	/*
 	 * Do NOT allow the interrupt routine to read the intr registers
 	 * Until we release this lock.
 	 */
-	DGNC_LOCK(bd->bd_intr_lock, lock_flags);
+	spin_lock_irqsave(&bd->bd_intr_lock, flags);
 
 	/*
 	 * If board is ready, parse deeper to see if there is anything to do.
@@ -782,7 +782,7 @@ static void cls_tasklet(unsigned long data)
 		}
 	}
 
-	DGNC_UNLOCK(bd->bd_intr_lock, lock_flags);
+	spin_unlock_irqrestore(&bd->bd_intr_lock, flags);
 
 }
 
@@ -797,7 +797,7 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 	struct dgnc_board *brd = (struct dgnc_board *) voidbrd;
 	uint i = 0;
 	uchar poll_reg;
-	unsigned long lock_flags;
+	unsigned long flags;
 
 	if (!brd) {
 		APR(("Received interrupt (%d) with null board associated\n",
@@ -814,7 +814,7 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 		return IRQ_NONE;
 	}
 
-	DGNC_LOCK(brd->bd_intr_lock, lock_flags);
+	spin_lock_irqsave(&brd->bd_intr_lock, flags);
 
 	brd->intr_count++;
 
@@ -826,7 +826,7 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 
 	/* If 0, no interrupts pending */
 	if (!poll_reg) {
-		DGNC_UNLOCK(brd->bd_intr_lock, lock_flags);
+		spin_unlock_irqrestore(&brd->bd_intr_lock, flags);
 		return IRQ_NONE;
 	}
 
@@ -839,7 +839,7 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 	 */
 	tasklet_schedule(&brd->helper_tasklet);
 
-	DGNC_UNLOCK(brd->bd_intr_lock, lock_flags);
+	spin_unlock_irqrestore(&brd->bd_intr_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -870,12 +870,12 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 	uchar error_mask = 0;
 	ushort head;
 	ushort tail;
-	ulong lock_flags;
+	unsigned long flags;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
 
-	DGNC_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, flags);
 
 	/* cache head and tail of queue */
 	head = ch->ch_r_head;
@@ -951,7 +951,7 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 	ch->ch_r_head = head & RQUEUEMASK;
 	ch->ch_e_head = head & EQUEUEMASK;
 
-	DGNC_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
 
@@ -961,7 +961,7 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
  */
 static int cls_drain(struct tty_struct *tty, uint seconds)
 {
-	ulong lock_flags;
+	unsigned long flags;
 	struct channel_t *ch;
 	struct un_t *un;
 	int rc = 0;
@@ -977,9 +977,9 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return -ENXIO;
 
-	DGNC_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, flags);
 	un->un_flags |= UN_EMPTY;
-	DGNC_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
 	/*
 	 * NOTE: Do something with time passed in.
@@ -1035,28 +1035,28 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 	int n;
 	int qlen;
 	uint len_written = 0;
-	ulong lock_flags;
+	unsigned long flags;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
 
-	DGNC_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, flags);
 
 	/* No data to write to the UART */
 	if (ch->ch_w_tail == ch->ch_w_head) {
-		DGNC_UNLOCK(ch->ch_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		return;
 	}
 
 	/* If port is "stopped", don't send any data to the UART */
 	if ((ch->ch_flags & CH_FORCED_STOP) ||
 				 (ch->ch_flags & CH_BREAK_SENDING)) {
-		DGNC_UNLOCK(ch->ch_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		return;
 	}
 
 	if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM))) {
-		DGNC_UNLOCK(ch->ch_lock, lock_flags);
+		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		return;
 	}
 
@@ -1110,14 +1110,14 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 	if (len_written > 0)
 		ch->ch_flags &= ~(CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 
-	DGNC_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
 
 static void cls_parse_modem(struct channel_t *ch, uchar signals)
 {
 	uchar msignals = signals;
-	ulong lock_flags;
+	unsigned long flags;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
@@ -1126,7 +1126,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 	 * Do altpin switching. Altpin switches DCD and DSR.
 	 * This prolly breaks DSRPACE, so we should be more clever here.
 	 */
-	DGNC_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, flags);
 	if (ch->ch_digi.digi_flags & DIGI_ALTPIN) {
 		uchar mswap = signals;
 
@@ -1147,7 +1147,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 			msignals |= UART_MSR_DCD;
 		}
 	}
-	DGNC_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
 	/*
 	 * Scrub off lower bits. They signify delta's, which I don't
@@ -1155,7 +1155,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 	 */
 	signals &= 0xf0;
 
-	DGNC_LOCK(ch->ch_lock, lock_flags);
+	spin_lock_irqsave(&ch->ch_lock, flags);
 	if (msignals & UART_MSR_DCD)
 		ch->ch_mistat |= UART_MSR_DCD;
 	else
@@ -1175,7 +1175,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 		ch->ch_mistat |= UART_MSR_CTS;
 	else
 		ch->ch_mistat &= ~UART_MSR_CTS;
-	DGNC_UNLOCK(ch->ch_lock, lock_flags);
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
 
