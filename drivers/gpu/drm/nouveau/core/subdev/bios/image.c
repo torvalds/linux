@@ -38,6 +38,7 @@ nvbios_imagen(struct nouveau_bios *bios, struct nvbios_image *image)
 
 	switch ((data = nv_ro16(bios, image->base + 0x00))) {
 	case 0xaa55:
+	case 0x4e56: /* NV */
 		break;
 	default:
 		nv_debug(bios, "%08x: ROM signature (%04x) unknown\n",
