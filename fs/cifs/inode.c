@@ -412,7 +412,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	      struct cifs_sb_info *cifs_sb, unsigned int xid)
 {
 	int rc;
-	int oplock = 0;
+	__u32 oplock;
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
 	struct cifs_fid fid;
@@ -451,8 +451,13 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = CIFS_open(xid, &oparms, &oplock, NULL);
+	if (tcon->ses->server->oplocks)
+		oplock = REQ_OPLOCK;
+	else
+		oplock = 0;
+	rc = tcon->ses->server->ops->open(xid, &oparms, &oplock, NULL);
 	if (rc) {
+		cifs_dbg(FYI, "check sfu type of %s, open rc = %d\n", path, rc);
 		cifs_put_tlink(tlink);
 		return rc;
 	}
@@ -464,7 +469,8 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	io_parms.offset = 0;
 	io_parms.length = 24;
 
-	rc = CIFSSMBRead(xid, &io_parms, &bytes_read, &pbuf, &buf_type);
+	rc = tcon->ses->server->ops->sync_read(xid, &fid, &io_parms,
+					&bytes_read, &pbuf, &buf_type);
 	if ((rc == 0) && (bytes_read >= 8)) {
 		if (memcmp("IntxBLK", pbuf, 8) == 0) {
 			cifs_dbg(FYI, "Block device\n");
@@ -504,7 +510,8 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 		fattr->cf_dtype = DT_REG;
 		rc = -EOPNOTSUPP; /* or some unknown SFU type */
 	}
-	CIFSSMBClose(xid, tcon, fid.netfid);
+
+	tcon->ses->server->ops->close(xid, tcon, &fid);
 	cifs_put_tlink(tlink);
 	return rc;
 }

@@ -749,21 +749,21 @@ cifs_flush_file(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 static int
-cifs_sync_read(const unsigned int xid, struct cifsFileInfo *cfile,
+cifs_sync_read(const unsigned int xid, struct cifs_fid *pfid,
 	       struct cifs_io_parms *parms, unsigned int *bytes_read,
 	       char **buf, int *buf_type)
 {
-	parms->netfid = cfile->fid.netfid;
+	parms->netfid = pfid->netfid;
 	return CIFSSMBRead(xid, parms, bytes_read, buf, buf_type);
 }
 
 static int
-cifs_sync_write(const unsigned int xid, struct cifsFileInfo *cfile,
+cifs_sync_write(const unsigned int xid, struct cifs_fid *pfid,
 		struct cifs_io_parms *parms, unsigned int *written,
 		struct kvec *iov, unsigned long nr_segs)
 {
 
-	parms->netfid = cfile->fid.netfid;
+	parms->netfid = pfid->netfid;
 	return CIFSSMBWrite2(xid, parms, written, iov, nr_segs);
 }
 
