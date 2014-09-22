@@ -1660,12 +1660,8 @@ static void exynos_dsi_unbind(struct device *dev, struct device *master,
 				void *data)
 {
 	struct exynos_dsi *dsi = exynos_dsi_display.ctx;
-	struct drm_encoder *encoder = dsi->encoder;
 
 	exynos_dsi_dpms(&exynos_dsi_display, DRM_MODE_DPMS_OFF);
-
-	exynos_dsi_connector_destroy(&dsi->connector);
-	encoder->funcs->destroy(encoder);
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);
 }
