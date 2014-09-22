@@ -288,7 +288,7 @@ struct rx_ring {
 	void *ps_ring_virtaddr;
 	dma_addr_t ps_ring_physaddr;
 	u32 local_psr_full;
-	u32 psr_num_entries;
+	u32 psr_entries;
 
 	struct rx_status_block *rx_status_block;
 	dma_addr_t rx_status_bus;
@@ -1650,7 +1650,7 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 	 */
 	writel(upper_32_bits(rx_local->ps_ring_physaddr), &rx_dma->psr_base_hi);
 	writel(lower_32_bits(rx_local->ps_ring_physaddr), &rx_dma->psr_base_lo);
-	writel(rx_local->psr_num_entries - 1, &rx_dma->psr_num_des);
+	writel(rx_local->psr_entries - 1, &rx_dma->psr_num_des);
 	writel(0, &rx_dma->psr_full_offset);
 
 	psr_num_des = readl(&rx_dma->psr_num_des) & ET_RXDMA_PSR_NUM_DES_MASK;
@@ -1999,7 +1999,7 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	u8 id;
 	u32 i, j;
 	u32 bufsize;
-	u32 pktstat_ringsize;
+	u32 psr_size;
 	u32 fbr_chunksize;
 	struct rx_ring *rx_ring = &adapter->rx_ring;
 	struct fbr_lookup *fbr;
@@ -2046,8 +2046,8 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		rx_ring->fbr[1]->num_entries = 128;
 	}
 
-	rx_ring->psr_num_entries = rx_ring->fbr[0]->num_entries +
-				   rx_ring->fbr[1]->num_entries;
+	rx_ring->psr_entries = rx_ring->fbr[0]->num_entries +
+			       rx_ring->fbr[1]->num_entries;
 
 	for (id = 0; id < NUM_FBRS; id++) {
 		fbr = rx_ring->fbr[id];
@@ -2106,11 +2106,10 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	}
 
 	/* Allocate an area of memory for FIFO of Packet Status ring entries */
-	pktstat_ringsize =
-		sizeof(struct pkt_stat_desc) * rx_ring->psr_num_entries;
+	psr_size = sizeof(struct pkt_stat_desc) * rx_ring->psr_entries;
 
 	rx_ring->ps_ring_virtaddr = dma_alloc_coherent(&adapter->pdev->dev,
-						  pktstat_ringsize,
+						  psr_size,
 						  &rx_ring->ps_ring_physaddr,
 						  GFP_KERNEL);
 
@@ -2149,9 +2148,9 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 {
 	u8 id;
-	u32 index;
+	u32 ii;
 	u32 bufsize;
-	u32 pktstat_ringsize;
+	u32 psr_size;
 	struct rfd *rfd;
 	struct rx_ring *rx_ring = &adapter->rx_ring;
 	struct fbr_lookup *fbr;
@@ -2176,18 +2175,16 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 			continue;
 
 		/* First the packet memory */
-		for (index = 0;
-		     index < fbr->num_entries / FBR_CHUNKS;
-		     index++) {
-			if (fbr->mem_virtaddrs[index]) {
+		for (ii = 0; ii < fbr->num_entries / FBR_CHUNKS; ii++) {
+			if (fbr->mem_virtaddrs[ii]) {
 				bufsize = fbr->buffsize * FBR_CHUNKS;
 
 				dma_free_coherent(&adapter->pdev->dev,
 						  bufsize,
-						  fbr->mem_virtaddrs[index],
-						  fbr->mem_physaddrs[index]);
+						  fbr->mem_virtaddrs[ii],
+						  fbr->mem_physaddrs[ii]);
 
-				fbr->mem_virtaddrs[index] = NULL;
+				fbr->mem_virtaddrs[ii] = NULL;
 			}
 		}
 
@@ -2203,10 +2200,9 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 	/* Free Packet Status Ring */
 	if (rx_ring->ps_ring_virtaddr) {
-		pktstat_ringsize = sizeof(struct pkt_stat_desc) *
-					rx_ring->psr_num_entries;
+		psr_size = sizeof(struct pkt_stat_desc) * rx_ring->psr_entries;
 
-		dma_free_coherent(&adapter->pdev->dev, pktstat_ringsize,
+		dma_free_coherent(&adapter->pdev->dev, psr_size,
 				  rx_ring->ps_ring_virtaddr,
 				  rx_ring->ps_ring_physaddr);
 
@@ -2377,8 +2373,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	/* Indicate that we have used this PSR entry. */
 	/* FIXME wrap 12 */
 	add_12bit(&rx_local->local_psr_full, 1);
-	if (
-	  (rx_local->local_psr_full & 0xFFF) > rx_local->psr_num_entries - 1) {
+	if ((rx_local->local_psr_full & 0xFFF) > rx_local->psr_entries - 1) {
 		/* Clear psr full and toggle the wrap bit */
 		rx_local->local_psr_full &=  ~0xFFF;
 		rx_local->local_psr_full ^= 0x1000;
