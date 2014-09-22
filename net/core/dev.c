@@ -7066,53 +7066,45 @@ const char *netdev_drivername(const struct net_device *dev)
 	return empty;
 }
 
-static int __netdev_printk(const char *level, const struct net_device *dev,
-			   struct va_format *vaf)
+static void __netdev_printk(const char *level, const struct net_device *dev,
+			    struct va_format *vaf)
 {
-	int r;
-
 	if (dev && dev->dev.parent) {
-		r = dev_printk_emit(level[1] - '0',
-				    dev->dev.parent,
-				    "%s %s %s%s: %pV",
-				    dev_driver_string(dev->dev.parent),
-				    dev_name(dev->dev.parent),
-				    netdev_name(dev), netdev_reg_state(dev),
-				    vaf);
+		dev_printk_emit(level[1] - '0',
+				dev->dev.parent,
+				"%s %s %s%s: %pV",
+				dev_driver_string(dev->dev.parent),
+				dev_name(dev->dev.parent),
+				netdev_name(dev), netdev_reg_state(dev),
+				vaf);
 	} else if (dev) {
-		r = printk("%s%s%s: %pV", level, netdev_name(dev),
-			   netdev_reg_state(dev), vaf);
+		printk("%s%s%s: %pV",
+		       level, netdev_name(dev), netdev_reg_state(dev), vaf);
 	} else {
-		r = printk("%s(NULL net_device): %pV", level, vaf);
+		printk("%s(NULL net_device): %pV", level, vaf);
 	}
-
-	return r;
 }
 
-int netdev_printk(const char *level, const struct net_device *dev,
-		  const char *format, ...)
+void netdev_printk(const char *level, const struct net_device *dev,
+		   const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	int r;
 
 	va_start(args, format);
 
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	r = __netdev_printk(level, dev, &vaf);
+	__netdev_printk(level, dev, &vaf);
 
 	va_end(args);
-
-	return r;
 }
 EXPORT_SYMBOL(netdev_printk);
 
 #define define_netdev_printk_level(func, level)			\
-int func(const struct net_device *dev, const char *fmt, ...)	\
+void func(const struct net_device *dev, const char *fmt, ...)	\
 {								\
-	int r;							\
 	struct va_format vaf;					\
 	va_list args;						\
 								\
@@ -7121,11 +7113,9 @@ int func(const struct net_device *dev, const char *fmt, ...)	\
 	vaf.fmt = fmt;						\
 	vaf.va = &args;						\
 								\
-	r = __netdev_printk(level, dev, &vaf);			\
+	__netdev_printk(level, dev, &vaf);			\
 								\
 	va_end(args);						\
-								\
-	return r;						\
 }								\
 EXPORT_SYMBOL(func);
 
