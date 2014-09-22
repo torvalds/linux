@@ -91,7 +91,7 @@ static int debug = -1;
 module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
 
-int phyaddr = 1;
+int phyaddr = -1;
 module_param(phyaddr, int, S_IRUGO);
 MODULE_PARM_DESC(phyaddr, "Physical device address");
 
@@ -2784,6 +2784,8 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 
 	/* Verify driver arguments */
 	stmmac_verify_args();
+
+	priv->plat->phy_addr = -1;
 
 	/* Override with kernel parameters if supplied XXX CRS XXX
 	 * this needs to have multiple instances
