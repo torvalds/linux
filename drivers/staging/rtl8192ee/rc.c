@@ -239,7 +239,7 @@ static void *rtl_rate_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 
 static void rtl_rate_free(void *rtlpriv)
 {
-	return;
+
 }
 
 static void *rtl_rate_alloc_sta(void *ppriv,
