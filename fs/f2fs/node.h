@@ -43,6 +43,7 @@ enum {
 	IS_CHECKPOINTED,	/* is it checkpointed before? */
 	HAS_FSYNCED_INODE,	/* is the inode fsynced before? */
 	HAS_LAST_FSYNC,		/* has the latest node fsync mark? */
+	IS_DIRTY,		/* this nat entry is dirty? */
 };
 
 struct nat_entry {
@@ -60,10 +61,6 @@ struct nat_entry {
 #define nat_get_version(nat)		(nat->ni.version)
 #define nat_set_version(nat, v)		(nat->ni.version = v)
 
-#define __set_nat_cache_dirty(nm_i, ne)					\
-		list_move_tail(&ne->list, &nm_i->dirty_nat_entries);
-#define __clear_nat_cache_dirty(nm_i, ne)				\
-		list_move_tail(&ne->list, &nm_i->nat_entries);
 #define inc_node_version(version)	(++version)
 
 static inline void set_nat_flag(struct nat_entry *ne,
@@ -113,9 +110,9 @@ enum mem_type {
 };
 
 struct nat_entry_set {
-	struct list_head set_list;	/* link with all nat sets */
+	struct list_head set_list;	/* link with other nat sets */
 	struct list_head entry_list;	/* link with dirty nat entries */
-	nid_t start_nid;		/* start nid of nats in set */
+	nid_t set;			/* set number*/
 	unsigned int entry_cnt;		/* the # of nat entries in set */
 };
 

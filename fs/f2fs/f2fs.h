@@ -164,6 +164,9 @@ struct fsync_inode_entry {
 #define sit_in_journal(sum, i)		(sum->sit_j.entries[i].se)
 #define segno_in_journal(sum, i)	(sum->sit_j.entries[i].segno)
 
+#define MAX_NAT_JENTRIES(sum)	(NAT_JOURNAL_ENTRIES - nats_in_cursum(sum))
+#define MAX_SIT_JENTRIES(sum)	(SIT_JOURNAL_ENTRIES - sits_in_cursum(sum))
+
 static inline int update_nats_in_cursum(struct f2fs_summary_block *rs, int i)
 {
 	int before = nats_in_cursum(rs);
@@ -182,9 +185,8 @@ static inline bool __has_cursum_space(struct f2fs_summary_block *sum, int size,
 								int type)
 {
 	if (type == NAT_JOURNAL)
-		return nats_in_cursum(sum) + size <= NAT_JOURNAL_ENTRIES;
-
-	return sits_in_cursum(sum) + size <= SIT_JOURNAL_ENTRIES;
+		return size <= MAX_NAT_JENTRIES(sum);
+	return size <= MAX_SIT_JENTRIES(sum);
 }
 
 /*
@@ -292,11 +294,10 @@ struct f2fs_nm_info {
 
 	/* NAT cache management */
 	struct radix_tree_root nat_root;/* root of the nat entry cache */
+	struct radix_tree_root nat_set_root;/* root of the nat set cache */
 	rwlock_t nat_tree_lock;		/* protect nat_tree_lock */
-	unsigned int nat_cnt;		/* the # of cached nat entries */
 	struct list_head nat_entries;	/* cached nat entry list (clean) */
-	struct list_head dirty_nat_entries; /* cached nat entry list (dirty) */
-	struct list_head nat_entry_set;	/* nat entry set list */
+	unsigned int nat_cnt;		/* the # of cached nat entries */
 	unsigned int dirty_nat_cnt;	/* total num of nat entries in set */
 
 	/* free node ids management */

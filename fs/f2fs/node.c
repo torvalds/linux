@@ -123,6 +123,57 @@ static void __del_from_nat_cache(struct f2fs_nm_info *nm_i, struct nat_entry *e)
 	kmem_cache_free(nat_entry_slab, e);
 }
 
+static void __set_nat_cache_dirty(struct f2fs_nm_info *nm_i,
+						struct nat_entry *ne)
+{
+	nid_t set = NAT_BLOCK_OFFSET(ne->ni.nid);
+	struct nat_entry_set *head;
+
+	if (get_nat_flag(ne, IS_DIRTY))
+		return;
+retry:
+	head = radix_tree_lookup(&nm_i->nat_set_root, set);
+	if (!head) {
+		head = f2fs_kmem_cache_alloc(nat_entry_set_slab, GFP_ATOMIC);
+
+		INIT_LIST_HEAD(&head->entry_list);
+		INIT_LIST_HEAD(&head->set_list);
+		head->set = set;
+		head->entry_cnt = 0;
+
+		if (radix_tree_insert(&nm_i->nat_set_root, set, head)) {
+			cond_resched();
+			goto retry;
+		}
+	}
+	list_move_tail(&ne->list, &head->entry_list);
+	nm_i->dirty_nat_cnt++;
+	head->entry_cnt++;
+	set_nat_flag(ne, IS_DIRTY, true);
+}
+
+static void __clear_nat_cache_dirty(struct f2fs_nm_info *nm_i,
+						struct nat_entry *ne)
+{
+	nid_t set = ne->ni.nid / NAT_ENTRY_PER_BLOCK;
+	struct nat_entry_set *head;
+
+	head = radix_tree_lookup(&nm_i->nat_set_root, set);
+	if (head) {
+		list_move_tail(&ne->list, &nm_i->nat_entries);
+		set_nat_flag(ne, IS_DIRTY, false);
+		head->entry_cnt--;
+		nm_i->dirty_nat_cnt--;
+	}
+}
+
+static unsigned int __gang_lookup_nat_set(struct f2fs_nm_info *nm_i,
+		nid_t start, unsigned int nr, struct nat_entry_set **ep)
+{
+	return radix_tree_gang_lookup(&nm_i->nat_set_root, (void **)ep,
+							start, nr);
+}
+
 bool is_checkpointed_node(struct f2fs_sb_info *sbi, nid_t nid)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
@@ -1739,79 +1790,6 @@ skip:
 	return err;
 }
 
-static struct nat_entry_set *grab_nat_entry_set(void)
-{
-	struct nat_entry_set *nes =
-			f2fs_kmem_cache_alloc(nat_entry_set_slab, GFP_ATOMIC);
-
-	nes->entry_cnt = 0;
-	INIT_LIST_HEAD(&nes->set_list);
-	INIT_LIST_HEAD(&nes->entry_list);
-	return nes;
-}
-
-static void release_nat_entry_set(struct nat_entry_set *nes,
-						struct f2fs_nm_info *nm_i)
-{
-	nm_i->dirty_nat_cnt -= nes->entry_cnt;
-	list_del(&nes->set_list);
-	kmem_cache_free(nat_entry_set_slab, nes);
-}
-
-static void adjust_nat_entry_set(struct nat_entry_set *nes,
-						struct list_head *head)
-{
-	struct nat_entry_set *next = nes;
-
-	if (list_is_last(&nes->set_list, head))
-		return;
-
-	list_for_each_entry_continue(next, head, set_list)
-		if (nes->entry_cnt <= next->entry_cnt)
-			break;
-
-	list_move_tail(&nes->set_list, &next->set_list);
-}
-
-static void add_nat_entry(struct nat_entry *ne, struct list_head *head)
-{
-	struct nat_entry_set *nes;
-	nid_t start_nid = START_NID(ne->ni.nid);
-
-	list_for_each_entry(nes, head, set_list) {
-		if (nes->start_nid == start_nid) {
-			list_move_tail(&ne->list, &nes->entry_list);
-			nes->entry_cnt++;
-			adjust_nat_entry_set(nes, head);
-			return;
-		}
-	}
-
-	nes = grab_nat_entry_set();
-
-	nes->start_nid = start_nid;
-	list_move_tail(&ne->list, &nes->entry_list);
-	nes->entry_cnt++;
-	list_add(&nes->set_list, head);
-}
-
-static void merge_nats_in_set(struct f2fs_sb_info *sbi)
-{
-	struct f2fs_nm_info *nm_i = NM_I(sbi);
-	struct list_head *dirty_list = &nm_i->dirty_nat_entries;
-	struct list_head *set_list = &nm_i->nat_entry_set;
-	struct nat_entry *ne, *tmp;
-
-	write_lock(&nm_i->nat_tree_lock);
-	list_for_each_entry_safe(ne, tmp, dirty_list, list) {
-		if (nat_get_blkaddr(ne) == NEW_ADDR)
-			continue;
-		add_nat_entry(ne, set_list);
-		nm_i->dirty_nat_cnt++;
-	}
-	write_unlock(&nm_i->nat_tree_lock);
-}
-
 static void remove_nats_in_journal(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
@@ -1846,6 +1824,91 @@ found:
 	mutex_unlock(&curseg->curseg_mutex);
 }
 
+static void __adjust_nat_entry_set(struct nat_entry_set *nes,
+						struct list_head *head, int max)
+{
+	struct nat_entry_set *cur;
+
+	if (nes->entry_cnt >= max)
+		goto add_out;
+
+	list_for_each_entry(cur, head, set_list) {
+		if (cur->entry_cnt >= nes->entry_cnt) {
+			list_add(&nes->set_list, cur->set_list.prev);
+			return;
+		}
+	}
+add_out:
+	list_add_tail(&nes->set_list, head);
+}
+
+static void __flush_nat_entry_set(struct f2fs_sb_info *sbi,
+					struct nat_entry_set *set)
+{
+	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
+	struct f2fs_summary_block *sum = curseg->sum_blk;
+	nid_t start_nid = set->set * NAT_ENTRY_PER_BLOCK;
+	bool to_journal = true;
+	struct f2fs_nat_block *nat_blk;
+	struct nat_entry *ne, *cur;
+	struct page *page = NULL;
+
+	/*
+	 * there are two steps to flush nat entries:
+	 * #1, flush nat entries to journal in current hot data summary block.
+	 * #2, flush nat entries to nat page.
+	 */
+	if (!__has_cursum_space(sum, set->entry_cnt, NAT_JOURNAL))
+		to_journal = false;
+
+	if (to_journal) {
+		mutex_lock(&curseg->curseg_mutex);
+	} else {
+		page = get_next_nat_page(sbi, start_nid);
+		nat_blk = page_address(page);
+		f2fs_bug_on(sbi, !nat_blk);
+	}
+
+	/* flush dirty nats in nat entry set */
+	list_for_each_entry_safe(ne, cur, &set->entry_list, list) {
+		struct f2fs_nat_entry *raw_ne;
+		nid_t nid = nat_get_nid(ne);
+		int offset;
+
+		if (nat_get_blkaddr(ne) == NEW_ADDR)
+			continue;
+
+		if (to_journal) {
+			offset = lookup_journal_in_cursum(sum,
+							NAT_JOURNAL, nid, 1);
+			f2fs_bug_on(sbi, offset < 0);
+			raw_ne = &nat_in_journal(sum, offset);
+			nid_in_journal(sum, offset) = cpu_to_le32(nid);
+		} else {
+			raw_ne = &nat_blk->entries[nid - start_nid];
+		}
+		raw_nat_from_node_info(raw_ne, &ne->ni);
+
+		write_lock(&NM_I(sbi)->nat_tree_lock);
+		nat_reset_flag(ne);
+		__clear_nat_cache_dirty(NM_I(sbi), ne);
+		write_unlock(&NM_I(sbi)->nat_tree_lock);
+
+		if (nat_get_blkaddr(ne) == NULL_ADDR)
+			add_free_nid(sbi, nid, false);
+	}
+
+	if (to_journal)
+		mutex_unlock(&curseg->curseg_mutex);
+	else
+		f2fs_put_page(page, 1);
+
+	if (!set->entry_cnt) {
+		radix_tree_delete(&NM_I(sbi)->nat_set_root, set->set);
+		kmem_cache_free(nat_entry_set_slab, set);
+	}
+}
+
 /*
  * This function is called during the checkpointing process.
  */
@@ -1854,93 +1917,36 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
 	struct f2fs_summary_block *sum = curseg->sum_blk;
-	struct nat_entry_set *nes, *tmp;
-	struct list_head *head = &nm_i->nat_entry_set;
-	bool to_journal = true;
-
-	/* merge nat entries of dirty list to nat entry set temporarily */
-	merge_nats_in_set(sbi);
+	struct nat_entry_set *setvec[NATVEC_SIZE];
+	struct nat_entry_set *set, *tmp;
+	unsigned int found;
+	nid_t set_idx = 0;
+	LIST_HEAD(sets);
 
 	/*
 	 * if there are no enough space in journal to store dirty nat
 	 * entries, remove all entries from journal and merge them
 	 * into nat entry set.
 	 */
-	if (!__has_cursum_space(sum, nm_i->dirty_nat_cnt, NAT_JOURNAL)) {
+	if (!__has_cursum_space(sum, nm_i->dirty_nat_cnt, NAT_JOURNAL))
 		remove_nats_in_journal(sbi);
-
-		/*
-		 * merge nat entries of dirty list to nat entry set temporarily
-		 */
-		merge_nats_in_set(sbi);
-	}
 
 	if (!nm_i->dirty_nat_cnt)
 		return;
 
-	/*
-	 * there are two steps to flush nat entries:
-	 * #1, flush nat entries to journal in current hot data summary block.
-	 * #2, flush nat entries to nat page.
-	 */
-	list_for_each_entry_safe(nes, tmp, head, set_list) {
-		struct f2fs_nat_block *nat_blk;
-		struct nat_entry *ne, *cur;
-		struct page *page;
-		nid_t start_nid = nes->start_nid;
-
-		if (to_journal &&
-			!__has_cursum_space(sum, nes->entry_cnt, NAT_JOURNAL))
-			to_journal = false;
-
-		if (to_journal) {
-			mutex_lock(&curseg->curseg_mutex);
-		} else {
-			page = get_next_nat_page(sbi, start_nid);
-			nat_blk = page_address(page);
-			f2fs_bug_on(sbi, !nat_blk);
-		}
-
-		/* flush dirty nats in nat entry set */
-		list_for_each_entry_safe(ne, cur, &nes->entry_list, list) {
-			struct f2fs_nat_entry *raw_ne;
-			nid_t nid = nat_get_nid(ne);
-			int offset;
-
-			if (to_journal) {
-				offset = lookup_journal_in_cursum(sum,
-							NAT_JOURNAL, nid, 1);
-				f2fs_bug_on(sbi, offset < 0);
-				raw_ne = &nat_in_journal(sum, offset);
-				nid_in_journal(sum, offset) = cpu_to_le32(nid);
-			} else {
-				raw_ne = &nat_blk->entries[nid - start_nid];
-			}
-			raw_nat_from_node_info(raw_ne, &ne->ni);
-
-			if (nat_get_blkaddr(ne) == NULL_ADDR &&
-				add_free_nid(sbi, nid, false) <= 0) {
-				write_lock(&nm_i->nat_tree_lock);
-				__del_from_nat_cache(nm_i, ne);
-				write_unlock(&nm_i->nat_tree_lock);
-			} else {
-				write_lock(&nm_i->nat_tree_lock);
-				nat_reset_flag(ne);
-				__clear_nat_cache_dirty(nm_i, ne);
-				write_unlock(&nm_i->nat_tree_lock);
-			}
-		}
-
-		if (to_journal)
-			mutex_unlock(&curseg->curseg_mutex);
-		else
-			f2fs_put_page(page, 1);
-
-		f2fs_bug_on(sbi, !list_empty(&nes->entry_list));
-		release_nat_entry_set(nes, nm_i);
+	while ((found = __gang_lookup_nat_set(nm_i,
+					set_idx, NATVEC_SIZE, setvec))) {
+		unsigned idx;
+		set_idx = setvec[found - 1]->set + 1;
+		for (idx = 0; idx < found; idx++)
+			__adjust_nat_entry_set(setvec[idx], &sets,
+							MAX_NAT_JENTRIES(sum));
 	}
 
-	f2fs_bug_on(sbi, !list_empty(head));
+	/* flush dirty nats in nat entry set */
+	list_for_each_entry_safe(set, tmp, &sets, set_list)
+		__flush_nat_entry_set(sbi, set);
+
 	f2fs_bug_on(sbi, nm_i->dirty_nat_cnt);
 }
 
@@ -1968,9 +1974,8 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	INIT_RADIX_TREE(&nm_i->free_nid_root, GFP_ATOMIC);
 	INIT_LIST_HEAD(&nm_i->free_nid_list);
 	INIT_RADIX_TREE(&nm_i->nat_root, GFP_ATOMIC);
+	INIT_RADIX_TREE(&nm_i->nat_set_root, GFP_ATOMIC);
 	INIT_LIST_HEAD(&nm_i->nat_entries);
-	INIT_LIST_HEAD(&nm_i->dirty_nat_entries);
-	INIT_LIST_HEAD(&nm_i->nat_entry_set);
 
 	mutex_init(&nm_i->build_lock);
 	spin_lock_init(&nm_i->free_nid_list_lock);
