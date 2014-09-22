@@ -19,6 +19,9 @@
 
 #include "greybus.h"
 
+
+static struct kmem_cache *gbuf_head_cache;
+
 static struct gbuf *__alloc_gbuf(struct greybus_device *gdev,
 				struct gdev_cport *cport,
 				gbuf_complete_t complete,
@@ -27,11 +30,7 @@ static struct gbuf *__alloc_gbuf(struct greybus_device *gdev,
 {
 	struct gbuf *gbuf;
 
-	/*
-	 * change this to a slab allocation if it's too slow, but for now, let's
-	 * be dumb and simple.
-	 */
-	gbuf = kzalloc(sizeof(*gbuf), gfp_mask);
+	gbuf = kmem_cache_zalloc(gbuf_head_cache, gfp_mask);
 	if (!gbuf)
 		return NULL;
 
@@ -73,10 +72,12 @@ struct gbuf *greybus_alloc_gbuf(struct greybus_device *gdev,
 	if (!gbuf)
 		return NULL;
 
+	gbuf->direction = GBUF_DIRECTION_OUT;
+
 	/* Host controller specific allocation for the actual buffer */
-	retval = gbuf->gdev->hd->driver->alloc_gbuf(gbuf, size, gfp_mask);
+	retval = gbuf->gdev->hd->driver->alloc_gbuf_data(gbuf, size, gfp_mask);
 	if (retval) {
-		kfree(gbuf);
+		greybus_free_gbuf(gbuf);
 		return NULL;
 	}
 
@@ -90,10 +91,15 @@ static void free_gbuf(struct kref *kref)
 {
 	struct gbuf *gbuf = container_of(kref, struct gbuf, kref);
 
-	/* let the host controller free what it wants to */
-	gbuf->gdev->hd->driver->free_gbuf(gbuf);
+	/* If the direction is "out" then the host controller frees the data */
+	if (gbuf->direction == GBUF_DIRECTION_OUT) {
+		gbuf->gdev->hd->driver->free_gbuf_data(gbuf);
+	} else {
+		/* we "own" this in data, so free it ourselves */
+		kfree(gbuf->transfer_buffer);
+	}
 
-	kfree(gbuf);
+	kmem_cache_free(gbuf_head_cache, gbuf);
 }
 
 void greybus_free_gbuf(struct gbuf *gbuf)
@@ -121,6 +127,43 @@ int greybus_kill_gbuf(struct gbuf *gbuf)
 {
 	// FIXME - implement
 	return -ENOMEM;
+}
+
+struct cport_msg {
+	struct gbuf *gbuf;
+	struct work_struct event;
+};
+
+static struct workqueue_struct *cport_workqueue;
+
+static void cport_process_event(struct work_struct *work)
+{
+	struct cport_msg *cm;
+	struct gbuf *gbuf;
+
+	cm = container_of(work, struct cport_msg, event);
+
+	gbuf = cm->gbuf;
+
+	/* call the gbuf handler */
+	gbuf->complete(gbuf);
+
+	/* free all the memory */
+	greybus_free_gbuf(gbuf);
+	kfree(cm);
+}
+
+static void cport_create_event(struct gbuf *gbuf)
+{
+	struct cport_msg *cm;
+
+	/* Slow alloc, does it matter??? */
+	cm = kmalloc(sizeof(*cm), GFP_ATOMIC);
+
+	/* Queue up the cport message to be handled in user context */
+	cm->gbuf = gbuf;
+	INIT_WORK(&cm->event, cport_process_event);
+	queue_work(cport_workqueue, &cm->event);
 }
 
 #define MAX_CPORTS	1024
@@ -153,37 +196,11 @@ void gb_deregister_cport_complete(int cport)
 	cport_handler[cport].handler = NULL;
 }
 
-struct cport_msg {
-	struct gbuf *gbuf;
-	struct work_struct event;
-};
-
-static struct workqueue_struct *cport_workqueue;
-
-static void cport_process_event(struct work_struct *work)
-{
-	struct cport_msg *cm;
-	struct gbuf *gbuf;
-
-	cm = container_of(work, struct cport_msg, event);
-
-	gbuf = cm->gbuf;
-
-	/* call the gbuf handler */
-	gbuf->complete(gbuf);
-
-	/* free all the memory */
-	kfree(gbuf->transfer_buffer);
-	kfree(gbuf);
-	kfree(cm);
-}
-
 void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
 			   size_t length)
 {
 	struct gb_cport_handler *ch;
 	struct gbuf *gbuf;
-	struct cport_msg *cm;
 
 	/* first check to see if we have a cport handler for this cport */
 	ch = &cport_handler[cport];
@@ -203,6 +220,7 @@ void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
 		return;
 	}
 	gbuf->hdpriv = hd;
+	gbuf->direction = GBUF_DIRECTION_IN;
 
 	/*
 	 * FIXME:
@@ -217,29 +235,16 @@ void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
 	}
 	memcpy(gbuf->transfer_buffer, data, length);
 	gbuf->transfer_buffer_length = length;
+	gbuf->actual_length = length;
 
-	/* Again with the slow allocate... */
-	cm = kmalloc(sizeof(*cm), GFP_ATOMIC);
-
-	/* Queue up the cport message to be handled in user context */
-	cm->gbuf = gbuf;
-	INIT_WORK(&cm->event, cport_process_event);
-	queue_work(cport_workqueue, &cm->event);
+	cport_create_event(gbuf);
 }
 EXPORT_SYMBOL_GPL(greybus_cport_in_data);
 
 /* Can be called in interrupt context, do the work and get out of here */
 void greybus_gbuf_finished(struct gbuf *gbuf)
 {
-	struct cport_msg *cm;
-
-	/* Again with the slow allocate... */
-	cm = kmalloc(sizeof(*cm), GFP_ATOMIC);
-	cm->gbuf = gbuf;
-	INIT_WORK(&cm->event, cport_process_event);
-	queue_work(cport_workqueue, &cm->event);
-
-	// FIXME - implement
+	cport_create_event(gbuf);
 }
 EXPORT_SYMBOL_GPL(greybus_gbuf_finished);
 
@@ -249,10 +254,13 @@ int gb_gbuf_init(void)
 	if (!cport_workqueue)
 		return -ENOMEM;
 
+	gbuf_head_cache = kmem_cache_create("gbuf_head_cache",
+					    sizeof(struct gbuf), 0, 0, NULL);
 	return 0;
 }
 
 void gb_gbuf_exit(void)
 {
 	destroy_workqueue(cport_workqueue);
+	kmem_cache_destroy(gbuf_head_cache);
 }

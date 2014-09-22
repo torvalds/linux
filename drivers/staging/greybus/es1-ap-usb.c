@@ -90,7 +90,7 @@ static void cport_out_callback(struct urb *urb);
  *	void *transfer_buffer;
  *	u32 transfer_buffer_length;
  */
-static int alloc_gbuf(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
+static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 {
 	struct es1_ap_dev *es1 = hd_to_es1(gbuf->gdev->hd);
 	u8 *buffer;
@@ -116,6 +116,7 @@ static int alloc_gbuf(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 	buffer[0] = gbuf->cport->number;
 	gbuf->transfer_buffer = &buffer[1];
 	gbuf->transfer_buffer_length = size;
+	gbuf->actual_length = size;
 
 	/* When we send the gbuf, we need this pointer to be here */
 	gbuf->hdpriv = es1;
@@ -124,14 +125,17 @@ static int alloc_gbuf(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 }
 
 /* Free the memory we allocated with a gbuf */
-static void free_gbuf(struct gbuf *gbuf)
+static void free_gbuf_data(struct gbuf *gbuf)
 {
 	u8 *transfer_buffer;
 	u8 *buffer;
 
 	transfer_buffer = gbuf->transfer_buffer;
-	buffer = &transfer_buffer[-1];	/* yes, we mean -1 */
-	kfree(buffer);
+	/* Can be called with a NULL transfer_buffer on some error paths */
+	if (transfer_buffer) {
+		buffer = &transfer_buffer[-1];	/* yes, we mean -1 */
+		kfree(buffer);
+	}
 }
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
@@ -216,11 +220,11 @@ static int submit_gbuf(struct gbuf *gbuf, struct greybus_host_device *hd,
 }
 
 static struct greybus_host_driver es1_driver = {
-	.hd_priv_size	= sizeof(struct es1_ap_dev),
-	.alloc_gbuf	= alloc_gbuf,
-	.free_gbuf	= free_gbuf,
-	.send_svc_msg	= send_svc_msg,
-	.submit_gbuf	= submit_gbuf,
+	.hd_priv_size		= sizeof(struct es1_ap_dev),
+	.alloc_gbuf_data	= alloc_gbuf_data,
+	.free_gbuf_data		= free_gbuf_data,
+	.send_svc_msg		= send_svc_msg,
+	.submit_gbuf		= submit_gbuf,
 };
 
 /* Callback for when we get a SVC message */
