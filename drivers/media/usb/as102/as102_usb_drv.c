@@ -145,7 +145,7 @@ static int as102_send_ep1(struct as10x_bus_adapter_t *bus_adap,
 			  int send_buf_len,
 			  int swap32)
 {
-	int ret = 0, actual_len;
+	int ret, actual_len;
 
 	ret = usb_bulk_msg(bus_adap->usb_dev,
 			   usb_sndbulkpipe(bus_adap->usb_dev, 1),
@@ -161,13 +161,13 @@ static int as102_send_ep1(struct as10x_bus_adapter_t *bus_adap,
 			actual_len, send_buf_len);
 		return -1;
 	}
-	return ret ? ret : actual_len;
+	return actual_len;
 }
 
 static int as102_read_ep2(struct as10x_bus_adapter_t *bus_adap,
 		   unsigned char *recv_buf, int recv_buf_len)
 {
-	int ret = 0, actual_len;
+	int ret, actual_len;
 
 	if (recv_buf == NULL)
 		return -EINVAL;
@@ -186,7 +186,7 @@ static int as102_read_ep2(struct as10x_bus_adapter_t *bus_adap,
 			actual_len, recv_buf_len);
 		return -1;
 	}
-	return ret ? ret : actual_len;
+	return actual_len;
 }
 
 static struct as102_priv_ops_t as102_priv_ops = {
