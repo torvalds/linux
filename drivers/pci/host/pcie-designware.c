@@ -430,7 +430,7 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 
 		/* Find the untranslated configuration space address */
 		index = of_property_match_string(np, "reg-names", "config");
-		addrp = of_get_address(np, index, false, false);
+		addrp = of_get_address(np, index, NULL, NULL);
 		pp->cfg0_mod_base = of_read_number(addrp, ns);
 		pp->cfg1_mod_base = pp->cfg0_mod_base + pp->cfg0_size;
 	} else {
