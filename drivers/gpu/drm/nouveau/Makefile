@@ -48,6 +48,7 @@ nouveau-y += core/subdev/bios/npde.o
 nouveau-y += core/subdev/bios/pcir.o
 nouveau-y += core/subdev/bios/perf.o
 nouveau-y += core/subdev/bios/pll.o
+nouveau-y += core/subdev/bios/pmu.o
 nouveau-y += core/subdev/bios/ramcfg.o
 nouveau-y += core/subdev/bios/rammap.o
 nouveau-y += core/subdev/bios/shadow.o
