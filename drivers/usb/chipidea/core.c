@@ -139,6 +139,8 @@ static int hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 /**
  * hw_read_intr_enable: returns interrupt enable register
  *
+ * @ci: the controller
+ *
  * This function returns register data
  */
 u32 hw_read_intr_enable(struct ci_hdrc *ci)
@@ -148,6 +150,8 @@ u32 hw_read_intr_enable(struct ci_hdrc *ci)
 
 /**
  * hw_read_intr_status: returns interrupt status register
+ *
+ * @ci: the controller
  *
  * This function returns register data
  */
@@ -175,6 +179,8 @@ int hw_port_test_set(struct ci_hdrc *ci, u8 mode)
 
 /**
  * hw_port_test_get: reads port test mode value
+ *
+ * @ci: the controller
  *
  * This function returns port test mode value
  */
@@ -295,7 +301,7 @@ static void hw_phymode_configure(struct ci_hdrc *ci)
 /**
  * ci_usb_phy_init: initialize phy according to different phy type
  * @ci: the controller
-  *
+ *
  * This function returns an error code if usb_phy_init has failed
  */
 static int ci_usb_phy_init(struct ci_hdrc *ci)
