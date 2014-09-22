@@ -503,13 +503,6 @@ struct et131x_adapter {
 	 */
 	u8 boot_coma;
 
-	/* Next two used to save power information at power down. This
-	 * information will be used during power up to set up parts of Power
-	 * Management in JAGCore
-	 */
-	u16 pdown_speed;
-	u8 pdown_duplex;
-
 	/* Tx Memory Variables */
 	struct tx_ring tx_ring;
 
