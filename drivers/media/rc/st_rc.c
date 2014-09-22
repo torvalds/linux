@@ -376,8 +376,9 @@ static int st_rc_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(st_rc_pm_ops, st_rc_suspend, st_rc_resume);
 #endif
+
+static SIMPLE_DEV_PM_OPS(st_rc_pm_ops, st_rc_suspend, st_rc_resume);
 
 #ifdef CONFIG_OF
 static struct of_device_id st_rc_match[] = {
@@ -393,9 +394,7 @@ static struct platform_driver st_rc_driver = {
 		.name = IR_ST_NAME,
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(st_rc_match),
-#ifdef CONFIG_PM
 		.pm     = &st_rc_pm_ops,
-#endif
 	},
 	.probe = st_rc_probe,
 	.remove = st_rc_remove,
