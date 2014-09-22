@@ -131,31 +131,6 @@ void _raw_read_lock_wait(arch_rwlock_t *rw)
 }
 EXPORT_SYMBOL(_raw_read_lock_wait);
 
-void _raw_read_lock_wait_flags(arch_rwlock_t *rw, unsigned long flags)
-{
-	unsigned int owner, old;
-	int count = spin_retry;
-
-	local_irq_restore(flags);
-	owner = 0;
-	while (1) {
-		if (count-- <= 0) {
-			if (owner && !smp_vcpu_scheduled(~owner))
-				smp_yield_cpu(~owner);
-			count = spin_retry;
-		}
-		old = ACCESS_ONCE(rw->lock);
-		owner = ACCESS_ONCE(rw->owner);
-		if ((int) old < 0)
-			continue;
-		local_irq_disable();
-		if (_raw_compare_and_swap(&rw->lock, old, old + 1))
-			return;
-		local_irq_restore(flags);
-	}
-}
-EXPORT_SYMBOL(_raw_read_lock_wait_flags);
-
 int _raw_read_trylock_retry(arch_rwlock_t *rw)
 {
 	unsigned int old;
@@ -193,31 +168,6 @@ void _raw_write_lock_wait(arch_rwlock_t *rw)
 	}
 }
 EXPORT_SYMBOL(_raw_write_lock_wait);
-
-void _raw_write_lock_wait_flags(arch_rwlock_t *rw, unsigned long flags)
-{
-	unsigned int owner, old;
-	int count = spin_retry;
-
-	local_irq_restore(flags);
-	owner = 0;
-	while (1) {
-		if (count-- <= 0) {
-			if (owner && !smp_vcpu_scheduled(~owner))
-				smp_yield_cpu(~owner);
-			count = spin_retry;
-		}
-		old = ACCESS_ONCE(rw->lock);
-		owner = ACCESS_ONCE(rw->owner);
-		if (old)
-			continue;
-		local_irq_disable();
-		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000))
-			return;
-		local_irq_restore(flags);
-	}
-}
-EXPORT_SYMBOL(_raw_write_lock_wait_flags);
 
 int _raw_write_trylock_retry(arch_rwlock_t *rw)
 {

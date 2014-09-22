@@ -131,11 +131,12 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 #define arch_write_can_lock(x) ((x)->lock == 0)
 
 extern void _raw_read_lock_wait(arch_rwlock_t *lp);
-extern void _raw_read_lock_wait_flags(arch_rwlock_t *lp, unsigned long flags);
-extern int _raw_read_trylock_retry(arch_rwlock_t *lp);
 extern void _raw_write_lock_wait(arch_rwlock_t *lp);
-extern void _raw_write_lock_wait_flags(arch_rwlock_t *lp, unsigned long flags);
+extern int _raw_read_trylock_retry(arch_rwlock_t *lp);
 extern int _raw_write_trylock_retry(arch_rwlock_t *lp);
+
+#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
+#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
 static inline int arch_read_trylock_once(arch_rwlock_t *rw)
 {
@@ -157,12 +158,6 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 		_raw_read_lock_wait(rw);
 }
 
-static inline void arch_read_lock_flags(arch_rwlock_t *rw, unsigned long flags)
-{
-	if (!arch_read_trylock_once(rw))
-		_raw_read_lock_wait_flags(rw, flags);
-}
-
 static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned int old;
@@ -176,13 +171,6 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	if (!arch_write_trylock_once(rw))
 		_raw_write_lock_wait(rw);
-	rw->owner = SPINLOCK_LOCKVAL;
-}
-
-static inline void arch_write_lock_flags(arch_rwlock_t *rw, unsigned long flags)
-{
-	if (!arch_write_trylock_once(rw))
-		_raw_write_lock_wait_flags(rw, flags);
 	rw->owner = SPINLOCK_LOCKVAL;
 }
 
