@@ -145,7 +145,7 @@ extern void copy_page(void *to, void *from);
  * some extra work
  */
 
-#if DCACHE_WAY_SIZE > PAGE_SIZE
+#if defined(CONFIG_MMU) && DCACHE_WAY_SIZE > PAGE_SIZE
 extern void clear_page_alias(void *vaddr, unsigned long paddr);
 extern void copy_page_alias(void *to, void *from,
 			    unsigned long to_paddr, unsigned long from_paddr);
