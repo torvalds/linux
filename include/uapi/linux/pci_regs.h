@@ -552,6 +552,7 @@
 #define  PCI_EXP_RTCTL_PMEIE	0x0008	/* PME Interrupt Enable */
 #define  PCI_EXP_RTCTL_CRSSVE	0x0010	/* CRS Software Visibility Enable */
 #define PCI_EXP_RTCAP		30	/* Root Capabilities */
+#define  PCI_EXP_RTCAP_CRSVIS	0x0001	/* CRS Software Visibility capability */
 #define PCI_EXP_RTSTA		32	/* Root Status */
 #define PCI_EXP_RTSTA_PME	0x00010000 /* PME status */
 #define PCI_EXP_RTSTA_PENDING	0x00020000 /* PME pending */
