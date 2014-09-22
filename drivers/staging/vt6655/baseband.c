@@ -1700,8 +1700,9 @@ static unsigned char byVT3253B0_AGC[CB_VT3253B0_AGC][2] = {
 	{0xF0, 0x00},
 };
 
-static const unsigned short awcFrameTime[MAX_RATE] =
-{10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216};
+static const unsigned short awcFrameTime[MAX_RATE] = {
+		10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216
+};
 
 /*---------------------  Static Functions  --------------------------*/
 
