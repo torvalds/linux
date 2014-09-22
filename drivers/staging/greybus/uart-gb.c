@@ -257,7 +257,7 @@ static int set_serial_info(struct gb_tty *gb_tty,
 	struct serial_struct new_serial;
 	unsigned int closing_wait;
 	unsigned int close_delay;
-	int retval;
+	int retval = 0;
 
 	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
 		return -EFAULT;

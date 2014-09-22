@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
-#include <linux/gpio.h>
 #include "greybus.h"
 
 struct gb_gpio_device {

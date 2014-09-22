@@ -77,7 +77,7 @@ struct es1_ap_dev {
 
 static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
 {
-	return (struct es1_ap_dev *)(hd->hd_priv);
+	return (struct es1_ap_dev *)&hd->hd_priv;
 }
 
 static void cport_out_callback(struct urb *urb);
@@ -370,7 +370,7 @@ exit:
  * 1 Control - usual USB stuff + AP -> SVC messages
  * 1 Interrupt IN - SVC -> AP messages
  * 1 Bulk IN - CPort data in
- * 1 Bulk OUT - CPorta data out
+ * 1 Bulk OUT - CPort data out
  */
 static int ap_probe(struct usb_interface *interface,
 		    const struct usb_device_id *id)
