@@ -392,7 +392,6 @@ MODULE_DEVICE_TABLE(of, st_rc_match);
 static struct platform_driver st_rc_driver = {
 	.driver = {
 		.name = IR_ST_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(st_rc_match),
 		.pm     = &st_rc_pm_ops,
 	},
