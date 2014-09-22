@@ -748,7 +748,7 @@ static int bma180_probe(struct i2c_client *client,
 		data->trig->dev.parent = &client->dev;
 		data->trig->ops = &bma180_trigger_ops;
 		iio_trigger_set_drvdata(data->trig, indio_dev);
-		indio_dev->trig = data->trig;
+		indio_dev->trig = iio_trigger_get(trig);
 
 		ret = iio_trigger_register(data->trig);
 		if (ret)

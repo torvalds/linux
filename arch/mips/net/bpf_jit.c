@@ -793,6 +793,7 @@ static int build_body(struct jit_ctx *ctx)
 	const struct sock_filter *inst;
 	unsigned int i, off, load_order, condt;
 	u32 k, b_off __maybe_unused;
+	int tmp;
 
 	for (i = 0; i < prog->len; i++) {
 		u16 code;
@@ -1332,9 +1333,9 @@ jmp_cmp:
 		case BPF_ANC | SKF_AD_PKTTYPE:
 			ctx->flags |= SEEN_SKB;
 
-			off = pkt_type_offset();
+			tmp = off = pkt_type_offset();
 
-			if (off < 0)
+			if (tmp < 0)
 				return -1;
 			emit_load_byte(r_tmp, r_skb, off, ctx);
 			/* Keep only the last 3 bits */

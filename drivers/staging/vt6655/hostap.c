@@ -341,6 +341,9 @@ static int hostap_set_generic_element(struct vnt_private *pDevice,
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 
+	if (param->u.generic_elem.len > sizeof(pMgmt->abyWPAIE))
+		return -EINVAL;
+
 	memcpy(pMgmt->abyWPAIE,
 	       param->u.generic_elem.data,
 	       param->u.generic_elem.len

@@ -396,6 +396,7 @@ struct dvb_frontend *it913x_attach(struct dvb_frontend *fe,
 		struct i2c_adapter *i2c_adap, u8 i2c_addr, u8 config)
 {
 	struct it913x_state *state = NULL;
+	int ret;
 
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct it913x_state), GFP_KERNEL);
@@ -424,6 +425,11 @@ struct dvb_frontend *it913x_attach(struct dvb_frontend *fe,
 
 	state->tuner_type = config;
 	state->firmware_ver = 1;
+
+	/* tuner RF initial */
+	ret = it913x_wr_reg(state, PRO_DMOD, 0xec4c, 0x68);
+	if (ret < 0)
+		goto error;
 
 	fe->tuner_priv = state;
 	memcpy(&fe->ops.tuner_ops, &it913x_tuner_ops,

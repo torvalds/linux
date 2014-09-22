@@ -4,7 +4,7 @@
  * sound/soc/spear/spear_pcm.c
  *
  * Copyright (C) 2012 ST Microelectronics
- * Rajeev Kumar<rajeev-dlh.kumar@st.com>
+ * Rajeev Kumar<rajeevkumar.linux@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -50,6 +50,6 @@ int devm_spear_pcm_platform_register(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_spear_pcm_platform_register);
 
-MODULE_AUTHOR("Rajeev Kumar <rajeev-dlh.kumar@st.com>");
+MODULE_AUTHOR("Rajeev Kumar <rajeevkumar.linux@gmail.com>");
 MODULE_DESCRIPTION("SPEAr PCM DMA module");
 MODULE_LICENSE("GPL");
