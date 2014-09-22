@@ -264,7 +264,12 @@ static void s5p_mfc_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err)
 	unsigned int frame_type;
 
 	dspl_y_addr = s5p_mfc_hw_call(dev->mfc_ops, get_dspl_y_adr, dev);
-	frame_type = s5p_mfc_hw_call(dev->mfc_ops, get_disp_frame_type, ctx);
+	if (IS_MFCV6_PLUS(dev))
+		frame_type = s5p_mfc_hw_call(dev->mfc_ops,
+			get_disp_frame_type, ctx);
+	else
+		frame_type = s5p_mfc_hw_call(dev->mfc_ops,
+			get_dec_frame_type, dev);
 
 	/* If frame is same as previous then skip and do not dequeue */
 	if (frame_type == S5P_FIMV_DECODE_FRAME_SKIPPED) {
