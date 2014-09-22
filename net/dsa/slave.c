@@ -301,6 +301,27 @@ static int dsa_slave_get_sset_count(struct net_device *dev, int sset)
 	return -EOPNOTSUPP;
 }
 
+static void dsa_slave_get_wol(struct net_device *dev, struct ethtool_wolinfo *w)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+
+	if (ds->drv->get_wol)
+		ds->drv->get_wol(ds, p->port, w);
+}
+
+static int dsa_slave_set_wol(struct net_device *dev, struct ethtool_wolinfo *w)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+	int ret = -EOPNOTSUPP;
+
+	if (ds->drv->set_wol)
+		ret = ds->drv->set_wol(ds, p->port, w);
+
+	return ret;
+}
+
 static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_settings		= dsa_slave_get_settings,
 	.set_settings		= dsa_slave_set_settings,
@@ -310,6 +331,8 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_strings		= dsa_slave_get_strings,
 	.get_ethtool_stats	= dsa_slave_get_ethtool_stats,
 	.get_sset_count		= dsa_slave_get_sset_count,
+	.set_wol		= dsa_slave_set_wol,
+	.get_wol		= dsa_slave_get_wol,
 };
 
 static const struct net_device_ops dsa_slave_netdev_ops = {
@@ -410,6 +433,37 @@ static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 	else
 		pr_info("attached PHY at address %d [%s]\n",
 			p->phy->addr, p->phy->drv->name);
+}
+
+int dsa_slave_suspend(struct net_device *slave_dev)
+{
+	struct dsa_slave_priv *p = netdev_priv(slave_dev);
+
+	netif_device_detach(slave_dev);
+
+	if (p->phy) {
+		phy_stop(p->phy);
+		p->old_pause = -1;
+		p->old_link = -1;
+		p->old_duplex = -1;
+		phy_suspend(p->phy);
+	}
+
+	return 0;
+}
+
+int dsa_slave_resume(struct net_device *slave_dev)
+{
+	struct dsa_slave_priv *p = netdev_priv(slave_dev);
+
+	netif_device_attach(slave_dev);
+
+	if (p->phy) {
+		phy_resume(p->phy);
+		phy_start(p->phy);
+	}
+
+	return 0;
 }
 
 struct net_device *

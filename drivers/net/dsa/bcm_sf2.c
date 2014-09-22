@@ -22,6 +22,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <net/dsa.h>
+#include <linux/ethtool.h>
 
 #include "bcm_sf2.h"
 #include "bcm_sf2_regs.h"
@@ -241,6 +242,9 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 	u32 off, reg;
+
+	if (priv->wol_ports_mask & (1 << port))
+		return;
 
 	if (dsa_is_cpu_port(ds, port))
 		off = CORE_IMP_CTL;
@@ -606,6 +610,141 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 		status->pause = 1;
 }
 
+static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	unsigned int port;
+
+	intrl2_0_writel(priv, 0xffffffff, INTRL2_CPU_MASK_SET);
+	intrl2_0_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
+	intrl2_0_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
+	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_MASK_SET);
+	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
+	intrl2_1_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
+
+	/* Disable all ports physically present including the IMP
+	 * port, the other ones have already been disabled during
+	 * bcm_sf2_sw_setup
+	 */
+	for (port = 0; port < DSA_MAX_PORTS; port++) {
+		if ((1 << port) & ds->phys_port_mask ||
+		    dsa_is_cpu_port(ds, port))
+			bcm_sf2_port_disable(ds, port);
+	}
+
+	return 0;
+}
+
+static int bcm_sf2_sw_rst(struct bcm_sf2_priv *priv)
+{
+	unsigned int timeout = 1000;
+	u32 reg;
+
+	reg = core_readl(priv, CORE_WATCHDOG_CTRL);
+	reg |= SOFTWARE_RESET | EN_CHIP_RST | EN_SW_RESET;
+	core_writel(priv, reg, CORE_WATCHDOG_CTRL);
+
+	do {
+		reg = core_readl(priv, CORE_WATCHDOG_CTRL);
+		if (!(reg & SOFTWARE_RESET))
+			break;
+
+		usleep_range(1000, 2000);
+	} while (timeout-- > 0);
+
+	if (timeout == 0)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+static int bcm_sf2_sw_resume(struct dsa_switch *ds)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	unsigned int port;
+	u32 reg;
+	int ret;
+
+	ret = bcm_sf2_sw_rst(priv);
+	if (ret) {
+		pr_err("%s: failed to software reset switch\n", __func__);
+		return ret;
+	}
+
+	/* Reinitialize the single GPHY */
+	if (priv->hw_params.num_gphy == 1) {
+		reg = reg_readl(priv, REG_SPHY_CNTRL);
+		reg |= PHY_RESET;
+		reg &= ~(EXT_PWR_DOWN | IDDQ_BIAS);
+		reg_writel(priv, reg, REG_SPHY_CNTRL);
+		udelay(21);
+		reg = reg_readl(priv, REG_SPHY_CNTRL);
+		reg &= ~PHY_RESET;
+		reg_writel(priv, reg, REG_SPHY_CNTRL);
+	}
+
+	for (port = 0; port < DSA_MAX_PORTS; port++) {
+		if ((1 << port) & ds->phys_port_mask)
+			bcm_sf2_port_setup(ds, port);
+		else if (dsa_is_cpu_port(ds, port))
+			bcm_sf2_imp_setup(ds, port);
+	}
+
+	return 0;
+}
+
+static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
+			       struct ethtool_wolinfo *wol)
+{
+	struct net_device *p = ds->dst[ds->index].master_netdev;
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	struct ethtool_wolinfo pwol;
+
+	/* Get the parent device WoL settings */
+	p->ethtool_ops->get_wol(p, &pwol);
+
+	/* Advertise the parent device supported settings */
+	wol->supported = pwol.supported;
+	memset(&wol->sopass, 0, sizeof(wol->sopass));
+
+	if (pwol.wolopts & WAKE_MAGICSECURE)
+		memcpy(&wol->sopass, pwol.sopass, sizeof(wol->sopass));
+
+	if (priv->wol_ports_mask & (1 << port))
+		wol->wolopts = pwol.wolopts;
+	else
+		wol->wolopts = 0;
+}
+
+static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
+			      struct ethtool_wolinfo *wol)
+{
+	struct net_device *p = ds->dst[ds->index].master_netdev;
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	s8 cpu_port = ds->dst[ds->index].cpu_port;
+	struct ethtool_wolinfo pwol;
+
+	p->ethtool_ops->get_wol(p, &pwol);
+	if (wol->wolopts & ~pwol.supported)
+		return -EINVAL;
+
+	if (wol->wolopts)
+		priv->wol_ports_mask |= (1 << port);
+	else
+		priv->wol_ports_mask &= ~(1 << port);
+
+	/* If we have at least one port enabled, make sure the CPU port
+	 * is also enabled. If the CPU port is the last one enabled, we disable
+	 * it since this configuration does not make sense.
+	 */
+	if (priv->wol_ports_mask && priv->wol_ports_mask != (1 << cpu_port))
+		priv->wol_ports_mask |= (1 << cpu_port);
+	else
+		priv->wol_ports_mask &= ~(1 << cpu_port);
+
+	return p->ethtool_ops->set_wol(p, wol);
+}
+
 static struct dsa_switch_driver bcm_sf2_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_BRCM,
 	.priv_size		= sizeof(struct bcm_sf2_priv),
@@ -620,6 +759,10 @@ static struct dsa_switch_driver bcm_sf2_switch_driver = {
 	.get_sset_count		= bcm_sf2_sw_get_sset_count,
 	.adjust_link		= bcm_sf2_sw_adjust_link,
 	.fixed_link_update	= bcm_sf2_sw_fixed_link_update,
+	.suspend		= bcm_sf2_sw_suspend,
+	.resume			= bcm_sf2_sw_resume,
+	.get_wol		= bcm_sf2_sw_get_wol,
+	.set_wol		= bcm_sf2_sw_set_wol,
 };
 
 static int __init bcm_sf2_init(void)
