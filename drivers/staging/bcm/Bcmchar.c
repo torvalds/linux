@@ -564,9 +564,8 @@ static int bcm_char_ioctl_gpio_set_request(void __user *argp,
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"GPIO_MODE_REGISTER read failed");
 		return status;
-	} else {
-		status = STATUS_SUCCESS;
 	}
+	status = STATUS_SUCCESS;
 
 	/* Set the gpio mode register to output */
 	*(UINT *)reset_val |= (1<<bit);
@@ -673,9 +672,8 @@ static int bcm_char_ioctl_gpio_status_request(void __user *argp,
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 				"RDM Failed\n");
 		return status;
-	} else {
-		status = STATUS_SUCCESS;
 	}
+	status = STATUS_SUCCESS;
 	return status;
 }
 
@@ -766,9 +764,8 @@ static int bcm_char_ioctl_gpio_multi_request(void __user *argp,
 			BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 					"RDM to GPIO_PIN_STATE_REGISTER Failed.");
 			return status;
-		} else {
-			status = STATUS_SUCCESS;
 		}
+		status = STATUS_SUCCESS;
 
 		pgpio_multi_info[WIMAX_IDX].uiGPIOValue =
 			(*(UINT *)reset_val &
@@ -822,9 +819,8 @@ static int bcm_char_ioctl_gpio_mode_request(void __user *argp,
 		BCM_DEBUG_PRINT(ad, DBG_TYPE_PRINTK, 0, 0,
 			"Read of GPIO_MODE_REGISTER failed");
 		return status;
-	} else {
-		status = STATUS_SUCCESS;
 	}
+	status = STATUS_SUCCESS;
 
 	/* Validating the request */
 	if (IsReqGpioIsLedInNVM(ad, pgpio_multi_mode[WIMAX_IDX].uiGPIOMask)
@@ -1079,10 +1075,9 @@ static int bcm_char_ioctl_buffer_download_stop(void __user *argp,
 		up(&ad->fw_download_sema);
 		up(&ad->NVMRdmWrmLock);
 		return status;
-	} else {
-		BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG,
-				DBG_LVL_ALL, "Firm Download Over...\n");
 	}
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_OTHERS, OSAL_DBG,
+			DBG_LVL_ALL, "Firm Download Over...\n");
 
 	mdelay(10);
 
