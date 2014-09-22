@@ -93,6 +93,12 @@ static void svc_handshake(struct svc_function_handshake *handshake,
 	if (!svc_msg)
 		return;
 
+	svc_msg->header.function_id = SVC_FUNCTION_HANDSHAKE;
+	svc_msg->header.message_type = SVC_MSG_DATA;
+	svc_msg->header.payload_length =
+		cpu_to_le16(sizeof(struct svc_function_handshake));
+	svc_msg->handshake.version_major = GREYBUS_VERSION_MAJOR;
+	svc_msg->handshake.version_minor = GREYBUS_VERSION_MINOR;
 	svc_msg->handshake.handshake_type = SVC_HANDSHAKE_AP_HELLO;
 	svc_msg_send(svc_msg, hd);
 }
