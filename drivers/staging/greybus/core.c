@@ -346,6 +346,11 @@ static int create_cport(struct greybus_device *gdev,
  * Pass in a buffer that _should_ contain a Greybus module manifest
  * and spit out a greybus device structure.
  */
+void gb_add_module(struct greybus_host_device *hd, u8 module_id, u8 *data)
+{
+	// FIXME - should be the new module call...
+}
+
 struct greybus_device *greybus_new_module(struct device *parent,
 					  int module_number, u8 *data, int size)
 {
@@ -464,6 +469,11 @@ error:
 	put_device(&gdev->dev);
 	greybus_module_release(&gdev->dev);
 	return NULL;
+}
+
+void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
+{
+	// FIXME should be the remove_device call...
 }
 
 void greybus_remove_device(struct greybus_device *gdev)
