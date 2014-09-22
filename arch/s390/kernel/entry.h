@@ -45,6 +45,7 @@ void transaction_exception(struct pt_regs *regs);
 void translation_exception(struct pt_regs *regs);
 
 void do_per_trap(struct pt_regs *regs);
+void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str);
 void syscall_trace(struct pt_regs *regs, int entryexit);
 void kernel_stack_overflow(struct pt_regs * regs);
 void do_signal(struct pt_regs *regs);

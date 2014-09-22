@@ -84,7 +84,8 @@ void update_cr_regs(struct task_struct *task)
 	new.end = thread->per_user.end;
 
 	/* merge TIF_SINGLE_STEP into user specified PER registers. */
-	if (test_tsk_thread_flag(task, TIF_SINGLE_STEP)) {
+	if (test_tsk_thread_flag(task, TIF_SINGLE_STEP) ||
+	    test_tsk_thread_flag(task, TIF_UPROBE_SINGLESTEP)) {
 		if (test_tsk_thread_flag(task, TIF_BLOCK_STEP))
 			new.control |= PER_EVENT_BRANCH;
 		else
@@ -93,6 +94,8 @@ void update_cr_regs(struct task_struct *task)
 		new.control |= PER_CONTROL_SUSPENSION;
 		new.control |= PER_EVENT_TRANSACTION_END;
 #endif
+		if (test_tsk_thread_flag(task, TIF_UPROBE_SINGLESTEP))
+			new.control |= PER_EVENT_IFETCH;
 		new.start = 0;
 		new.end = PSW_ADDR_INSN;
 	}

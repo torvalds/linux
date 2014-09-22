@@ -58,14 +58,9 @@ int is_valid_bugaddr(unsigned long addr)
 	return 1;
 }
 
-static void __kprobes do_trap(struct pt_regs *regs,
-			      int si_signo, int si_code, char *str)
+void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
 {
 	siginfo_t info;
-
-	if (notify_die(DIE_TRAP, str, regs, 0,
-		       regs->int_code, si_signo) == NOTIFY_STOP)
-		return;
 
 	if (user_mode(regs)) {
 		info.si_signo = si_signo;
@@ -88,6 +83,15 @@ static void __kprobes do_trap(struct pt_regs *regs,
 			die(regs, str);
 		}
         }
+}
+
+static void __kprobes do_trap(struct pt_regs *regs, int si_signo, int si_code,
+			      char *str)
+{
+	if (notify_die(DIE_TRAP, str, regs, 0,
+		       regs->int_code, si_signo) == NOTIFY_STOP)
+		return;
+	do_report_trap(regs, si_signo, si_code, str);
 }
 
 void __kprobes do_per_trap(struct pt_regs *regs)
@@ -178,6 +182,7 @@ void __kprobes illegal_op(struct pt_regs *regs)
 	siginfo_t info;
         __u8 opcode[6];
 	__u16 __user *location;
+	int is_uprobe_insn = 0;
 	int signal = 0;
 
 	location = get_trap_ip(regs);
@@ -194,6 +199,10 @@ void __kprobes illegal_op(struct pt_regs *regs)
 				force_sig_info(SIGTRAP, &info, current);
 			} else
 				signal = SIGILL;
+#ifdef CONFIG_UPROBES
+		} else if (*((__u16 *) opcode) == UPROBE_SWBP_INSN) {
+			is_uprobe_insn = 1;
+#endif
 #ifdef CONFIG_MATHEMU
 		} else if (opcode[0] == 0xb3) {
 			if (get_user(*((__u16 *) (opcode+2)), location+1))
@@ -219,11 +228,13 @@ void __kprobes illegal_op(struct pt_regs *regs)
 #endif
 		} else
 			signal = SIGILL;
-	} else {
-		/*
-		 * If we get an illegal op in kernel mode, send it through the
-		 * kprobes notifier. If kprobes doesn't pick it up, SIGILL
-		 */
+	}
+	/*
+	 * We got either an illegal op in kernel mode, or user space trapped
+	 * on a uprobes illegal instruction. See if kprobes or uprobes picks
+	 * it up. If not, SIGILL.
+	 */
+	if (is_uprobe_insn || !user_mode(regs)) {
 		if (notify_die(DIE_BPT, "bpt", regs, 0,
 			       3, SIGTRAP) != NOTIFY_STOP)
 			signal = SIGILL;
