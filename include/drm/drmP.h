@@ -124,7 +124,7 @@ extern __printf(2, 3)
 void drm_ut_debug_printk(const char *function_name,
 			 const char *format, ...);
 extern __printf(2, 3)
-int drm_err(const char *func, const char *format, ...);
+void drm_err(const char *func, const char *format, ...);
 
 /***********************************************************************/
 /** \name DRM template customization defaults */
