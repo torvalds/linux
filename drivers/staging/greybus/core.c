@@ -341,19 +341,13 @@ static int create_cport(struct greybus_device *gdev,
 }
 
 /**
- * greybus_new_module:
+ * gb_add_module
  *
  * Pass in a buffer that _should_ contain a Greybus module manifest
- * and spit out a greybus device structure.
+ * and register a greybus device structure with the kernel core.
  */
 void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		   u8 *data, int size)
-{
-	// FIXME - should be the new module call...
-}
-
-struct greybus_device *greybus_new_module(struct device *parent,
-					  int module_number, u8 *data, int size)
 {
 	struct greybus_device *gdev;
 	struct greybus_manifest *manifest;
@@ -364,26 +358,26 @@ struct greybus_device *greybus_new_module(struct device *parent,
 
 	/* we have to have at _least_ the manifest header */
 	if (size <= sizeof(manifest->header))
-		return NULL;
+		return;
 
 	gdev = kzalloc(sizeof(*gdev), GFP_KERNEL);
 	if (!gdev)
-		return NULL;
+		return;
 
-	gdev->module_number = module_number;
-	gdev->dev.parent = parent;
+	gdev->module_number = module_id;
+	gdev->dev.parent = hd->parent;
 	gdev->dev.driver = NULL;
 	gdev->dev.bus = &greybus_bus_type;
 	gdev->dev.type = &greybus_module_type;
 	gdev->dev.groups = greybus_module_groups;
-	gdev->dev.dma_mask = parent->dma_mask;
+	gdev->dev.dma_mask = hd->parent->dma_mask;
 	device_initialize(&gdev->dev);
-	dev_set_name(&gdev->dev, "%d", module_number);
+	dev_set_name(&gdev->dev, "%d", module_id);
 
 	manifest = (struct greybus_manifest *)data;
 	overall_size = le16_to_cpu(manifest->header.size);
 	if (overall_size != size) {
-		dev_err(parent, "size != manifest header size, %d != %d\n",
+		dev_err(hd->parent, "size != manifest header size, %d != %d\n",
 			size, overall_size);
 		goto error;
 	}
@@ -394,7 +388,7 @@ struct greybus_device *greybus_new_module(struct device *parent,
 	/* Validate major/minor number */
 	if ((version_major != GREYBUS_VERSION_MAJOR) ||
 	    (version_minor != GREYBUS_VERSION_MINOR)) {
-		dev_err(parent,
+		dev_err(hd->parent,
 			"Invalid greybus versions, expected %d.%d, got %d.%d\n",
 			GREYBUS_VERSION_MAJOR, GREYBUS_VERSION_MINOR,
 			version_major, version_minor);
@@ -409,13 +403,14 @@ struct greybus_device *greybus_new_module(struct device *parent,
 		size_t data_size;
 
 		if (size < sizeof(desc->header)) {
-			dev_err(parent, "remaining size %d too small\n", size);
+			dev_err(hd->parent, "remaining size %d too small\n",
+				size);
 			goto error;
 		}
 		desc = (struct greybus_descriptor *)data;
 		desc_size = le16_to_cpu(desc->header.size);
 		if (size < desc_size) {
-			dev_err(parent, "descriptor size %d too big\n",
+			dev_err(hd->parent, "descriptor size %d too big\n",
 				desc_size);
 			goto error;
 		}
@@ -448,7 +443,7 @@ struct greybus_device *greybus_new_module(struct device *parent,
 
 		case GREYBUS_TYPE_INVALID:
 		default:
-			dev_err(parent, "invalid descriptor type %d\n",
+			dev_err(hd->parent, "invalid descriptor type %d\n",
 				desc->header.type);
 			goto error;
 		}
@@ -464,12 +459,11 @@ struct greybus_device *greybus_new_module(struct device *parent,
 
 	// FIXME device_add(&gdev->dev);
 
-
-	return gdev;
+	//return gdev;
+	return;
 error:
 	put_device(&gdev->dev);
 	greybus_module_release(&gdev->dev);
-	return NULL;
 }
 
 void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
