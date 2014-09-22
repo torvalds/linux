@@ -691,6 +691,13 @@ enum rtl_var_map {
 	RTL_RC_HT_RATEMCS7,
 	RTL_RC_HT_RATEMCS15,
 
+	RTL_RC_VHT_RATE_1SS_MCS7,
+	RTL_RC_VHT_RATE_1SS_MCS8,
+	RTL_RC_VHT_RATE_1SS_MCS9,
+	RTL_RC_VHT_RATE_2SS_MCS7,
+	RTL_RC_VHT_RATE_2SS_MCS8,
+	RTL_RC_VHT_RATE_2SS_MCS9,
+
 	/*keep it last */
 	RTL_VAR_MAP_MAX,
 };
@@ -1924,7 +1931,7 @@ struct rt_link_detect {
 };
 
 struct rtl_tcb_desc {
-	u8 packet_bw:1;
+	u8 packet_bw:2;
 	u8 multicast:1;
 	u8 broadcast:1;
 
@@ -2118,9 +2125,13 @@ struct rtl_mod_params {
 	/* default: 1 = using linked fw power save */
 	bool fwctrl_lps;
 
-	/* default: 0 = not using MSI interrupts mode */
-	/* submodules should set their own defalut value */
+	/* default: 0 = not using MSI interrupts mode
+	 * submodules should set their own default value
+	 */
 	bool msi_support;
+
+	/* default 0: 1 means disable */
+	bool disable_watchdog;
 };
 
 struct rtl_hal_usbint_cfg {
@@ -2503,6 +2514,9 @@ struct rtl_priv {
 	 */
 	bool use_new_trx_flow;
 
+#ifdef CONFIG_PM
+	struct wiphy_wowlan_support wowlan;
+#endif
 	/*This must be the last item so
 	   that it points to the data allocated
 	   beyond  this structure like:
