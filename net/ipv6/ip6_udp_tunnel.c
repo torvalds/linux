@@ -103,3 +103,5 @@ int udp_tunnel6_xmit_skb(struct socket *sock, struct dst_entry *dst,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(udp_tunnel6_xmit_skb);
+
+MODULE_LICENSE("GPL");
