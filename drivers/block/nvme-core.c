@@ -2787,7 +2787,7 @@ static int nvme_dev_start(struct nvme_dev *dev)
 
 	if (start_thread) {
 		nvme_thread = kthread_run(nvme_kthread, NULL, "nvme");
-		wake_up(&nvme_kthread_wait);
+		wake_up_all(&nvme_kthread_wait);
 	} else
 		wait_event_killable(nvme_kthread_wait, nvme_thread);
 
