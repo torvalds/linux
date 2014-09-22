@@ -149,6 +149,7 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	}
 
 	ndev->netdev_ops = &wil_netdev_ops;
+	wil_set_ethtoolops(ndev);
 	ndev->ieee80211_ptr = wdev;
 	ndev->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
 			    NETIF_F_SG | NETIF_F_GRO;

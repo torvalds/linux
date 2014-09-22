@@ -33,6 +33,11 @@ static bool no_fw_load = true;
 module_param(no_fw_load, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(no_fw_load, " do not download FW, use one in on-card flash.");
 
+static unsigned int itr_trsh = WIL6210_ITR_TRSH_DEFAULT;
+
+module_param(itr_trsh, uint, S_IRUGO);
+MODULE_PARM_DESC(itr_trsh, " Interrupt moderation threshold, usecs.");
+
 #define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
 #define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
 
@@ -309,6 +314,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	}
 
 	wil->last_fw_recovery = jiffies;
+	wil->itr_trsh = itr_trsh;
 
 	return 0;
 }
@@ -435,6 +441,26 @@ static int wil_target_reset(struct wil6210_priv *wil)
 
 	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
 	return 0;
+}
+
+/**
+ * wil_set_itr_trsh: - apply interrupt coalescing params
+ */
+void wil_set_itr_trsh(struct wil6210_priv *wil)
+{
+	/* disable, use usec resolution */
+	W(RGF_DMA_ITR_CNT_CRL, BIT_DMA_ITR_CNT_CRL_EXT_TICK);
+
+	/* disable interrupt moderation for monitor
+	 * to get better timestamp precision
+	 */
+	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR)
+		return;
+
+	wil_info(wil, "set ITR_TRSH = %d usec\n", wil->itr_trsh);
+	W(RGF_DMA_ITR_CNT_TRSH, wil->itr_trsh);
+	W(RGF_DMA_ITR_CNT_CRL, BIT_DMA_ITR_CNT_CRL_EN |
+	  BIT_DMA_ITR_CNT_CRL_EXT_TICK); /* start it */
 }
 
 #undef R

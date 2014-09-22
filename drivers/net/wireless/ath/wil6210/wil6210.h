@@ -52,7 +52,9 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
 #define WIL6210_MAX_CID		(8) /* HW limit */
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
-#define WIL6210_ITR_TRSH	(10000) /* arbitrary - about 15 IRQs/msec */
+/* Max supported by wil6210 value for interrupt threshold is 5sec. */
+#define WIL6210_ITR_TRSH_MAX (5000000)
+#define WIL6210_ITR_TRSH_DEFAULT	(300) /* usec */
 #define WIL6210_FW_RECOVERY_RETRIES	(5) /* try to recover this many times */
 #define WIL6210_FW_RECOVERY_TO	msecs_to_jiffies(5000)
 #define WIL6210_SCAN_TO		msecs_to_jiffies(10000)
@@ -393,6 +395,7 @@ struct wil6210_priv {
 	u32 monitor_flags;
 	u32 secure_pcp; /* create secure PCP? */
 	int sinfo_gen;
+	u32 itr_trsh;
 	/* cached ISR registers */
 	u32 isr_misc;
 	/* mailbox related */
@@ -502,6 +505,7 @@ void wil_if_remove(struct wil6210_priv *wil);
 int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
 int wil_reset(struct wil6210_priv *wil);
+void wil_set_itr_trsh(struct wil6210_priv *wil);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_link_on(struct wil6210_priv *wil);
 void wil_link_off(struct wil6210_priv *wil);
@@ -511,6 +515,7 @@ int wil_down(struct wil6210_priv *wil);
 int __wil_down(struct wil6210_priv *wil);
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r);
 int wil_find_cid(struct wil6210_priv *wil, const u8 *mac);
+void wil_set_ethtoolops(struct net_device *ndev);
 
 void __iomem *wmi_buffer(struct wil6210_priv *wil, __le32 ptr);
 void __iomem *wmi_addr(struct wil6210_priv *wil, u32 ptr);

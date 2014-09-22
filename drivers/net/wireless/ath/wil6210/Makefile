@@ -14,6 +14,7 @@ wil6210-y += fw.o
 wil6210-$(CONFIG_WIL6210_TRACING) += trace.o
 wil6210-y += wil_platform.o
 wil6210-$(CONFIG_WIL6210_PLATFORM_MSM) += wil_platform_msm.o
+wil6210-y += ethtool.o
 
 # for tracing framework to find trace.h
 CFLAGS_trace.o := -I$(src)
