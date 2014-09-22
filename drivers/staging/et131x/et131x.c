@@ -2070,7 +2070,7 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		fbr_chunksize = (FBR_CHUNKS * fbr->buffsize);
 
 		for (i = 0; i < fbr->num_entries / FBR_CHUNKS; i++) {
-			dma_addr_t fbr_tmp_physaddr;
+			dma_addr_t fbr_physaddr;
 
 			fbr->mem_virtaddrs[i] = dma_alloc_coherent(
 					&adapter->pdev->dev, fbr_chunksize,
@@ -2084,26 +2084,23 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 			}
 
 			/* See NOTE in "Save Physical Address" comment above */
-			fbr_tmp_physaddr = fbr->mem_physaddrs[i];
+			fbr_physaddr = fbr->mem_physaddrs[i];
 
 			for (j = 0; j < FBR_CHUNKS; j++) {
-				u32 index = (i * FBR_CHUNKS) + j;
+				u32 k = (i * FBR_CHUNKS) + j;
 
 				/* Save the Virtual address of this index for
 				 * quick access later
 				 */
-				fbr->virt[index] = (u8 *)fbr->mem_virtaddrs[i] +
+				fbr->virt[k] = (u8 *)fbr->mem_virtaddrs[i] +
 						   (j * fbr->buffsize);
 
 				/* now store the physical address in the
 				 * descriptor so the device can access it
 				 */
-				fbr->bus_high[index] =
-						upper_32_bits(fbr_tmp_physaddr);
-				fbr->bus_low[index] =
-						lower_32_bits(fbr_tmp_physaddr);
-
-				fbr_tmp_physaddr += fbr->buffsize;
+				fbr->bus_high[k] = upper_32_bits(fbr_physaddr);
+				fbr->bus_low[k] = lower_32_bits(fbr_physaddr);
+				fbr_physaddr += fbr->buffsize;
 			}
 		}
 	}
