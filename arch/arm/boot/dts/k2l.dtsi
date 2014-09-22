@@ -81,3 +81,17 @@
 		};
 	};
 };
+
+&spi0 {
+       ti,davinci-spi-num-cs = <5>;
+};
+
+&spi1 {
+       ti,davinci-spi-num-cs = <3>;
+};
+
+&spi2 {
+       ti,davinci-spi-num-cs = <5>;
+       /* Pin muxed. Enabled and configured by Bootloader */
+       status = "disabled";
+};
