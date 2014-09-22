@@ -481,6 +481,7 @@ struct lcdc_device {
 	spinlock_t  reg_lock;	/* one time only one process allowed to
 				   config the register*/
 
+	int __iomem *hwc_lut_addr_base;
 	int __iomem *dsp_lut_addr_base;
 
 
