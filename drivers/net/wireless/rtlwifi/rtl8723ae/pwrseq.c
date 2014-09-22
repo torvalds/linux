@@ -27,7 +27,7 @@
  *
  *****************************************************************************/
 
-#include "pwrseqcmd.h"
+#include "../pwrseqcmd.h"
 #include "pwrseq.h"
 
 /* drivers should parse arrays below and do the corresponding actions */

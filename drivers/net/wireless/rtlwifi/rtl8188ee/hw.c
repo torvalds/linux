@@ -37,7 +37,6 @@
 #include "fw.h"
 #include "led.h"
 #include "hw.h"
-#include "pwrseqcmd.h"
 #include "pwrseq.h"
 
 #define LLT_CONFIG		5
@@ -850,7 +849,7 @@ static bool _rtl88ee_init_mac(struct ieee80211_hw *hw)
 	/* HW Power on sequence */
 	if (!rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK,
 				      PWR_FAB_ALL_MSK, PWR_INTF_PCI_MSK,
-				      RTL8188E_NIC_ENABLE_FLOW)) {
+				      RTL8188EE_NIC_ENABLE_FLOW)) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 			 "init MAC Fail as rtl_hal_pwrseqcmdparsing\n");
 		return false;
@@ -1422,7 +1421,7 @@ static void _rtl88ee_poweroff_adapter(struct ieee80211_hw *hw)
 
 	rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
 				 PWR_INTF_PCI_MSK,
-				 RTL8188E_NIC_LPS_ENTER_FLOW);
+				 RTL8188EE_NIC_LPS_ENTER_FLOW);
 
 	rtl_write_byte(rtlpriv, REG_RF_CTRL, 0x00);
 
@@ -1437,7 +1436,7 @@ static void _rtl88ee_poweroff_adapter(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, REG_32K_CTRL, (u1b_tmp & (~BIT(0))));
 
 	rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
-				 PWR_INTF_PCI_MSK, RTL8188E_NIC_DISABLE_FLOW);
+				 PWR_INTF_PCI_MSK, RTL8188EE_NIC_DISABLE_FLOW);
 
 	u1b_tmp = rtl_read_byte(rtlpriv, REG_RSV_CTRL+1);
 	rtl_write_byte(rtlpriv, REG_RSV_CTRL+1, (u1b_tmp & (~BIT(3))));

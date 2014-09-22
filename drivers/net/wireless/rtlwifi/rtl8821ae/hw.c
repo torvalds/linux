@@ -43,13 +43,6 @@
 
 #define LLT_CONFIG	5
 
-bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
-			      u8 faversion, u8 interface_type,
-			      struct wlan_pwr_cfg pwrcfgcmd[])
-{
-	return false;
-}
-
 static void _rtl8821ae_return_beacon_queue_skb(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);

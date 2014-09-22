@@ -43,7 +43,7 @@
 #include "../rtl8723com/fw_common.h"
 #include "led.h"
 #include "hw.h"
-#include "pwrseqcmd.h"
+#include "../pwrseqcmd.h"
 #include "pwrseq.h"
 #include "btc.h"
 

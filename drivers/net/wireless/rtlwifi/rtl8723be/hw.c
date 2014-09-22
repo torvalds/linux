@@ -39,7 +39,7 @@
 #include "../rtl8723com/fw_common.h"
 #include "led.h"
 #include "hw.h"
-#include "pwrseqcmd.h"
+#include "../pwrseqcmd.h"
 #include "pwrseq.h"
 #include "../btcoexist/rtl_btc.h"
 
@@ -815,9 +815,9 @@ static bool _rtl8723be_init_mac(struct ieee80211_hw *hw)
 		mac_func_enable = false;
 
 	/* HW Power on sequence */
-	if (!rtlbe_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK,
-					PWR_FAB_ALL_MSK, PWR_INTF_PCI_MSK,
-					RTL8723_NIC_ENABLE_FLOW)) {
+	if (!rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK,
+				      PWR_FAB_ALL_MSK, PWR_INTF_PCI_MSK,
+				      RTL8723_NIC_ENABLE_FLOW)) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 			 "init MAC Fail as power on failure\n");
 		return false;
@@ -1306,8 +1306,8 @@ static void _rtl8723be_poweroff_adapter(struct ieee80211_hw *hw)
 
 	/* Combo (PCIe + USB) Card and PCIe-MF Card */
 	/* 1. Run LPS WL RFOFF flow */
-	rtlbe_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
-				   PWR_INTF_PCI_MSK, RTL8723_NIC_LPS_ENTER_FLOW);
+	rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
+				 PWR_INTF_PCI_MSK, RTL8723_NIC_LPS_ENTER_FLOW);
 
 	/* 2. 0x1F[7:0] = 0 */
 	/* turn off RF */
@@ -1325,8 +1325,8 @@ static void _rtl8723be_poweroff_adapter(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, REG_MCUFWDL, 0x00);
 
 	/* HW card disable configuration. */
-	rtlbe_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
-				   PWR_INTF_PCI_MSK, RTL8723_NIC_DISABLE_FLOW);
+	rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
+				 PWR_INTF_PCI_MSK, RTL8723_NIC_DISABLE_FLOW);
 
 	/* Reset MCU IO Wrapper */
 	u1b_tmp = rtl_read_byte(rtlpriv, REG_RSV_CTRL + 1);

@@ -8,7 +8,6 @@ rtl8723be-objs :=		\
 		led.o		\
 		phy.o		\
 		pwrseq.o	\
-		pwrseqcmd.o	\
 		rf.o		\
 		sw.o		\
 		table.o		\
