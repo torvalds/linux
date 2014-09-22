@@ -6878,7 +6878,7 @@ F:	arch/x86/kernel/quirks.c
 
 PCI DRIVER FOR IMX6
 M:	Richard Zhu <r65037@freescale.com>
-M:	Shawn Guo <shawn.guo@freescale.com>
+M:	Lucas Stach <l.stach@pengutronix.de>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained

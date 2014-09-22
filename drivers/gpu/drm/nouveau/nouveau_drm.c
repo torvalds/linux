@@ -627,6 +627,7 @@ int nouveau_pmops_suspend(struct device *dev)
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
+	pci_ignore_hotplug(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
 	return 0;
 }
