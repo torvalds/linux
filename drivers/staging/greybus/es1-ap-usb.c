@@ -149,7 +149,7 @@ static int send_svc_msg(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 				 usb_sndctrlpipe(es1->usb_dev,
 						 es1->control_endpoint),
 				 0x01,	/* vendor request AP message */
-				 USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_OTHER,
+				 USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				 0x00, 0x00,
 				 (char *)svc_msg,
 				 sizeof(*svc_msg),
