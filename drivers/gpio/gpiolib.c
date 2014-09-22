@@ -1674,7 +1674,7 @@ struct gpio_desc *__must_check __gpiod_get_index(struct device *dev,
 		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
 
 	/* No particular flag request, return here... */
-	if (flags & GPIOD_FLAGS_BIT_DIR_SET)
+	if (!(flags & GPIOD_FLAGS_BIT_DIR_SET))
 		return desc;
 
 	/* Process flags */
