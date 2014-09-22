@@ -449,6 +449,18 @@ config REGULATOR_PFUZE100
 	  Say y here to support the regulators found on the Freescale
 	  PFUZE100/PFUZE200 PMIC.
 
+config REGULATOR_QCOM_RPM
+	tristate "Qualcomm RPM regulator driver"
+	depends on MFD_QCOM_RPM
+	help
+	  If you say yes to this option, support will be included for the
+	  regulators exposed by the Resource Power Manager found in Qualcomm
+	  8660, 8960 and 8064 based devices.
+
+	  Say M here if you want to include support for the regulators on the
+	  Qualcomm RPM as a module. The module will be named
+	  "qcom_rpm-regulator".
+
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
 	depends on MFD_RC5T583
