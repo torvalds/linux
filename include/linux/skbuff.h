@@ -1083,6 +1083,7 @@ static inline int skb_header_cloned(const struct sk_buff *skb)
  *	Drop a reference to the header part of the buffer.  This is done
  *	by acquiring a payload reference.  You must not read from the header
  *	part of skb->data after this.
+ *	Note : Check if you can use __skb_header_release() instead.
  */
 static inline void skb_header_release(struct sk_buff *skb)
 {
@@ -1090,6 +1091,20 @@ static inline void skb_header_release(struct sk_buff *skb)
 	skb->nohdr = 1;
 	atomic_add(1 << SKB_DATAREF_SHIFT, &skb_shinfo(skb)->dataref);
 }
+
+/**
+ *	__skb_header_release - release reference to header
+ *	@skb: buffer to operate on
+ *
+ *	Variant of skb_header_release() assuming skb is private to caller.
+ *	We can avoid one atomic operation.
+ */
+static inline void __skb_header_release(struct sk_buff *skb)
+{
+	skb->nohdr = 1;
+	atomic_set(&skb_shinfo(skb)->dataref, 1 + (1 << SKB_DATAREF_SHIFT));
+}
+
 
 /**
  *	skb_shared - is the buffer shared

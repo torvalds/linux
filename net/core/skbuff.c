@@ -3179,7 +3179,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	skb_shinfo(nskb)->frag_list = p;
 	skb_shinfo(nskb)->gso_size = pinfo->gso_size;
 	pinfo->gso_size = 0;
-	skb_header_release(p);
+	__skb_header_release(p);
 	NAPI_GRO_CB(nskb)->last = p;
 
 	nskb->data_len += p->len;
@@ -3211,7 +3211,7 @@ merge:
 	else
 		NAPI_GRO_CB(p)->last->next = skb;
 	NAPI_GRO_CB(p)->last = skb;
-	skb_header_release(skb);
+	__skb_header_release(skb);
 	lp = p;
 
 done:
