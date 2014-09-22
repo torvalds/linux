@@ -77,7 +77,7 @@ This message indicates that CPU 5 detected that it was causing a stall,
 and that the stall was affecting RCU-sched.  This message will normally be
 followed by a stack dump of the offending CPU.  On TREE_RCU kernel builds,
 RCU and RCU-sched are implemented by the same underlying mechanism,
-while on TREE_PREEMPT_RCU kernel builds, RCU is instead implemented
+while on PREEMPT_RCU kernel builds, RCU is instead implemented
 by rcu_preempt_state.
 
 On the other hand, if the offending CPU fails to print out a stall-warning
@@ -89,7 +89,7 @@ INFO: rcu_bh_state detected stalls on CPUs/tasks: { 3 5 } (detected by 2, 2502 j
 This message indicates that CPU 2 detected that CPUs 3 and 5 were both
 causing stalls, and that the stall was affecting RCU-bh.  This message
 will normally be followed by stack dumps for each CPU.  Please note that
-TREE_PREEMPT_RCU builds can be stalled by tasks as well as by CPUs,
+PREEMPT_RCU builds can be stalled by tasks as well as by CPUs,
 and that the tasks will be indicated by PID, for example, "P3421".
 It is even possible for a rcu_preempt_state stall to be caused by both
 CPUs -and- tasks, in which case the offending CPUs and tasks will all
@@ -205,10 +205,10 @@ o	A CPU-bound real-time task in a CONFIG_PREEMPT kernel, which might
 o	A CPU-bound real-time task in a CONFIG_PREEMPT_RT kernel that
 	is running at a higher priority than the RCU softirq threads.
 	This will prevent RCU callbacks from ever being invoked,
-	and in a CONFIG_TREE_PREEMPT_RCU kernel will further prevent
+	and in a CONFIG_PREEMPT_RCU kernel will further prevent
 	RCU grace periods from ever completing.  Either way, the
 	system will eventually run out of memory and hang.  In the
-	CONFIG_TREE_PREEMPT_RCU case, you might see stall-warning
+	CONFIG_PREEMPT_RCU case, you might see stall-warning
 	messages.
 
 o	A hardware or software issue shuts off the scheduler-clock

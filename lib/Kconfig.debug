@@ -1252,7 +1252,7 @@ config RCU_CPU_STALL_VERBOSE
 
 config RCU_CPU_STALL_INFO
 	bool "Print additional diagnostics on RCU CPU stall"
-	depends on (TREE_RCU || TREE_PREEMPT_RCU) && DEBUG_KERNEL
+	depends on (TREE_RCU || PREEMPT_RCU) && DEBUG_KERNEL
 	default n
 	help
 	  For each stalled CPU that is aware of the current RCU grace

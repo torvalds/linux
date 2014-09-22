@@ -477,7 +477,7 @@ config TREE_RCU
 	  thousands of CPUs.  It also scales down nicely to
 	  smaller systems.
 
-config TREE_PREEMPT_RCU
+config PREEMPT_RCU
 	bool "Preemptible tree-based hierarchical RCU"
 	depends on PREEMPT
 	select IRQ_WORK
@@ -501,12 +501,6 @@ config TINY_RCU
 
 endchoice
 
-config PREEMPT_RCU
-	def_bool TREE_PREEMPT_RCU
-	help
-	  This option enables preemptible-RCU code that is common between
-	  TREE_PREEMPT_RCU and, in the old days, TINY_PREEMPT_RCU.
-
 config TASKS_RCU
 	bool "Task_based RCU implementation using voluntary context switch"
 	default n
@@ -518,7 +512,7 @@ config TASKS_RCU
 	  If unsure, say N.
 
 config RCU_STALL_COMMON
-	def_bool ( TREE_RCU || TREE_PREEMPT_RCU || RCU_TRACE )
+	def_bool ( TREE_RCU || PREEMPT_RCU || RCU_TRACE )
 	help
 	  This option enables RCU CPU stall code that is common between
 	  the TINY and TREE variants of RCU.  The purpose is to allow
@@ -576,7 +570,7 @@ config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
 	range 2 64 if 64BIT
 	range 2 32 if !64BIT
-	depends on TREE_RCU || TREE_PREEMPT_RCU
+	depends on TREE_RCU || PREEMPT_RCU
 	default 64 if 64BIT
 	default 32 if !64BIT
 	help
@@ -596,7 +590,7 @@ config RCU_FANOUT_LEAF
 	int "Tree-based hierarchical RCU leaf-level fanout value"
 	range 2 RCU_FANOUT if 64BIT
 	range 2 RCU_FANOUT if !64BIT
-	depends on TREE_RCU || TREE_PREEMPT_RCU
+	depends on TREE_RCU || PREEMPT_RCU
 	default 16
 	help
 	  This option controls the leaf-level fanout of hierarchical
@@ -621,7 +615,7 @@ config RCU_FANOUT_LEAF
 
 config RCU_FANOUT_EXACT
 	bool "Disable tree-based hierarchical RCU auto-balancing"
-	depends on TREE_RCU || TREE_PREEMPT_RCU
+	depends on TREE_RCU || PREEMPT_RCU
 	default n
 	help
 	  This option forces use of the exact RCU_FANOUT value specified,
@@ -652,11 +646,11 @@ config RCU_FAST_NO_HZ
 	  Say N if you are unsure.
 
 config TREE_RCU_TRACE
-	def_bool RCU_TRACE && ( TREE_RCU || TREE_PREEMPT_RCU )
+	def_bool RCU_TRACE && ( TREE_RCU || PREEMPT_RCU )
 	select DEBUG_FS
 	help
 	  This option provides tracing for the TREE_RCU and
-	  TREE_PREEMPT_RCU implementations, permitting Makefile to
+	  PREEMPT_RCU implementations, permitting Makefile to
 	  trivially select kernel/rcutree_trace.c.
 
 config RCU_BOOST
@@ -716,7 +710,7 @@ config RCU_BOOST_DELAY
 
 config RCU_NOCB_CPU
 	bool "Offload RCU callback processing from boot-selected CPUs"
-	depends on TREE_RCU || TREE_PREEMPT_RCU
+	depends on TREE_RCU || PREEMPT_RCU
 	default n
 	help
 	  Use this option to reduce OS jitter for aggressive HPC or

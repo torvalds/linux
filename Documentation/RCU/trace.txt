@@ -8,7 +8,7 @@ The following sections describe the debugfs files and formats, first
 for rcutree and next for rcutiny.
 
 
-CONFIG_TREE_RCU and CONFIG_TREE_PREEMPT_RCU debugfs Files and Formats
+CONFIG_TREE_RCU and CONFIG_PREEMPT_RCU debugfs Files and Formats
 
 These implementations of RCU provide several debugfs directories under the
 top-level directory "rcu":
@@ -18,7 +18,7 @@ rcu/rcu_preempt
 rcu/rcu_sched
 
 Each directory contains files for the corresponding flavor of RCU.
-Note that rcu/rcu_preempt is only present for CONFIG_TREE_PREEMPT_RCU.
+Note that rcu/rcu_preempt is only present for CONFIG_PREEMPT_RCU.
 For CONFIG_TREE_RCU, the RCU flavor maps onto the RCU-sched flavor,
 so that activity for both appears in rcu/rcu_sched.
 
