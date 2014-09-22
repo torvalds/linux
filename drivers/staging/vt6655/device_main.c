@@ -331,8 +331,7 @@ static void vt6655_remove(struct pci_dev *pcid)
 	device_free_info(pDevice);
 }
 
-static void device_get_options(struct vnt_private *pDevice,
-			       char *devname)
+static void device_get_options(struct vnt_private *pDevice)
 {
 	POPTIONS pOpts = &(pDevice->sOpts);
 
@@ -923,7 +922,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	MACvInitialize(pDevice->PortOffset);
 	MACvReadEtherAddress(pDevice->PortOffset, dev->dev_addr);
 
-	device_get_options(pDevice, dev->name);
+	device_get_options(pDevice);
 	device_set_options(pDevice);
 	//Mask out the options cannot be set to the chip
 	pDevice->sOpts.flags &= pChip_info->flags;
