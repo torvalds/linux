@@ -350,14 +350,14 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 	if (uuid_le_cmp(expectedTypeGuid, NULL_UUID_LE) != 0) {
 		uuid_le guid;
 
-		ioread8_rep(&((CHANNEL_HEADER __iomem *)(pChannel))->Type,
-			&guid, sizeof(guid));
+		memcpy_fromio(&guid,
+			      &((CHANNEL_HEADER __iomem *)(pChannel))->Type,
+			      sizeof(guid));
 		/* caller wants us to verify type GUID */
 		if (uuid_le_cmp(guid, expectedTypeGuid) != 0) {
 			CHANNEL_GUID_MISMATCH(expectedTypeGuid, channelName,
 					      "type", expectedTypeGuid,
-					      ((CHANNEL_HEADER __iomem *)
-					       (pChannel))->Type, fileName,
+					      guid, fileName,
 					      lineNumber, logCtx);
 			return 0;
 		}
