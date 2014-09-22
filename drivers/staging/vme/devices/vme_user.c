@@ -482,11 +482,9 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 				return -EFAULT;
 			}
 
-			retval = vme_irq_generate(vme_user_bridge,
+			return vme_irq_generate(vme_user_bridge,
 						  irq_req.level,
 						  irq_req.statid);
-
-			return retval;
 		}
 		break;
 	case MASTER_MINOR:
