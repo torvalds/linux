@@ -1267,7 +1267,7 @@ struct rtl_mac {
 	u8 sgi_40;
 	u8 sgi_20;
 	u8 bw_40;
-	u8 mode;		/* wireless mode */
+	u16 mode;		/* wireless mode */
 	u8 slot_time;
 	u8 short_preamble;
 	u8 use_cts_protect;
