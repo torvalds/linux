@@ -28,6 +28,7 @@
 
 #include <asm/opal.h>
 #include <asm/cputable.h>
+#include <asm/machdep.h>
 
 static int opal_hmi_handler_nb_init;
 struct OpalHmiEvtNode {
@@ -185,4 +186,4 @@ static int __init opal_hmi_handler_init(void)
 	}
 	return 0;
 }
-subsys_initcall(opal_hmi_handler_init);
+machine_subsys_initcall(powernv, opal_hmi_handler_init);

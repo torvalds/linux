@@ -56,6 +56,7 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 	bool is_pm_resume;
 
 	WARN_ON(irqs_disabled());
+	WARN_ON(rq->cmd_type == REQ_TYPE_FS);
 
 	rq->rq_disk = bd_disk;
 	rq->end_io = done;
