@@ -875,6 +875,7 @@ static void __bcmgenet_tx_reclaim(struct net_device *dev,
 	int last_tx_cn, last_c_index, num_tx_bds;
 	struct enet_cb *tx_cb_ptr;
 	struct netdev_queue *txq;
+	unsigned int bds_compl;
 	unsigned int c_index;
 
 	/* Compute how many buffers are transmitted since last xmit call */
@@ -899,7 +900,9 @@ static void __bcmgenet_tx_reclaim(struct net_device *dev,
 	/* Reclaim transmitted buffers */
 	while (last_tx_cn-- > 0) {
 		tx_cb_ptr = ring->cbs + last_c_index;
+		bds_compl = 0;
 		if (tx_cb_ptr->skb) {
+			bds_compl = skb_shinfo(tx_cb_ptr->skb)->nr_frags + 1;
 			dev->stats.tx_bytes += tx_cb_ptr->skb->len;
 			dma_unmap_single(&dev->dev,
 					 dma_unmap_addr(tx_cb_ptr, dma_addr),
@@ -916,7 +919,7 @@ static void __bcmgenet_tx_reclaim(struct net_device *dev,
 			dma_unmap_addr_set(tx_cb_ptr, dma_addr, 0);
 		}
 		dev->stats.tx_packets++;
-		ring->free_bds += 1;
+		ring->free_bds += bds_compl;
 
 		last_c_index++;
 		last_c_index &= (num_tx_bds - 1);
@@ -1741,13 +1744,63 @@ static void bcmgenet_init_multiq(struct net_device *dev)
 	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
 }
 
+static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
+{
+	int ret = 0;
+	int timeout = 0;
+	u32 reg;
+
+	/* Disable TDMA to stop add more frames in TX DMA */
+	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
+	reg &= ~DMA_EN;
+	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
+
+	/* Check TDMA status register to confirm TDMA is disabled */
+	while (timeout++ < DMA_TIMEOUT_VAL) {
+		reg = bcmgenet_tdma_readl(priv, DMA_STATUS);
+		if (reg & DMA_DISABLED)
+			break;
+
+		udelay(1);
+	}
+
+	if (timeout == DMA_TIMEOUT_VAL) {
+		netdev_warn(priv->dev, "Timed out while disabling TX DMA\n");
+		ret = -ETIMEDOUT;
+	}
+
+	/* Wait 10ms for packet drain in both tx and rx dma */
+	usleep_range(10000, 20000);
+
+	/* Disable RDMA */
+	reg = bcmgenet_rdma_readl(priv, DMA_CTRL);
+	reg &= ~DMA_EN;
+	bcmgenet_rdma_writel(priv, reg, DMA_CTRL);
+
+	timeout = 0;
+	/* Check RDMA status register to confirm RDMA is disabled */
+	while (timeout++ < DMA_TIMEOUT_VAL) {
+		reg = bcmgenet_rdma_readl(priv, DMA_STATUS);
+		if (reg & DMA_DISABLED)
+			break;
+
+		udelay(1);
+	}
+
+	if (timeout == DMA_TIMEOUT_VAL) {
+		netdev_warn(priv->dev, "Timed out while disabling RX DMA\n");
+		ret = -ETIMEDOUT;
+	}
+
+	return ret;
+}
+
 static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 {
 	int i;
 
 	/* disable DMA */
-	bcmgenet_rdma_writel(priv, 0, DMA_CTRL);
-	bcmgenet_tdma_writel(priv, 0, DMA_CTRL);
+	bcmgenet_dma_teardown(priv);
 
 	for (i = 0; i < priv->num_tx_bds; i++) {
 		if (priv->tx_cbs[i].skb != NULL) {
@@ -2103,57 +2156,6 @@ err_fini_dma:
 err_clk_disable:
 	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);
-	return ret;
-}
-
-static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
-{
-	int ret = 0;
-	int timeout = 0;
-	u32 reg;
-
-	/* Disable TDMA to stop add more frames in TX DMA */
-	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
-	reg &= ~DMA_EN;
-	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
-
-	/* Check TDMA status register to confirm TDMA is disabled */
-	while (timeout++ < DMA_TIMEOUT_VAL) {
-		reg = bcmgenet_tdma_readl(priv, DMA_STATUS);
-		if (reg & DMA_DISABLED)
-			break;
-
-		udelay(1);
-	}
-
-	if (timeout == DMA_TIMEOUT_VAL) {
-		netdev_warn(priv->dev, "Timed out while disabling TX DMA\n");
-		ret = -ETIMEDOUT;
-	}
-
-	/* Wait 10ms for packet drain in both tx and rx dma */
-	usleep_range(10000, 20000);
-
-	/* Disable RDMA */
-	reg = bcmgenet_rdma_readl(priv, DMA_CTRL);
-	reg &= ~DMA_EN;
-	bcmgenet_rdma_writel(priv, reg, DMA_CTRL);
-
-	timeout = 0;
-	/* Check RDMA status register to confirm RDMA is disabled */
-	while (timeout++ < DMA_TIMEOUT_VAL) {
-		reg = bcmgenet_rdma_readl(priv, DMA_STATUS);
-		if (reg & DMA_DISABLED)
-			break;
-
-		udelay(1);
-	}
-
-	if (timeout == DMA_TIMEOUT_VAL) {
-		netdev_warn(priv->dev, "Timed out while disabling RX DMA\n");
-		ret = -ETIMEDOUT;
-	}
-
 	return ret;
 }
 
