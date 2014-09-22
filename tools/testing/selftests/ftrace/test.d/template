@@ -1,0 +1,4 @@
+#!/bin/sh
+# description: %HERE DESCRIBE WHAT THIS DOES%
+# you have to add ".tc" extention for your testcase file
+exit 0 # Return 0 if the test is passed, otherwise return !0
