@@ -17,7 +17,7 @@ obj-$(CONFIG_VIDEO_OMAP3)	+= omap3isp/
 obj-$(CONFIG_VIDEO_VIU) += fsl-viu.o
 
 obj-$(CONFIG_VIDEO_VIVID)		+= vivid/
-obj-$(CONFIG_VIDEO_MEM2MEM_TESTDEV) += mem2mem_testdev.o
+obj-$(CONFIG_VIDEO_VIM2M)		+= vim2m.o
 
 obj-$(CONFIG_VIDEO_TI_VPE)		+= ti-vpe/
 
