@@ -313,14 +313,14 @@ extern struct wlan_pwr_cfg rtl8188e_leave_lps_flow
 		RTL8188E_TRANS_END_STEPS];
 
 /* RTL8723 Power Configuration CMDs for PCIe interface */
-#define Rtl8188E_NIC_PWR_ON_FLOW	rtl8188e_power_on_flow
-#define Rtl8188E_NIC_RF_OFF_FLOW	rtl8188e_radio_off_flow
-#define Rtl8188E_NIC_DISABLE_FLOW	rtl8188e_card_disable_flow
-#define Rtl8188E_NIC_ENABLE_FLOW	rtl8188e_card_enable_flow
-#define Rtl8188E_NIC_SUSPEND_FLOW	rtl8188e_suspend_flow
-#define Rtl8188E_NIC_RESUME_FLOW	rtl8188e_resume_flow
-#define Rtl8188E_NIC_PDN_FLOW		rtl8188e_hwpdn_flow
-#define Rtl8188E_NIC_LPS_ENTER_FLOW	rtl8188e_enter_lps_flow
-#define Rtl8188E_NIC_LPS_LEAVE_FLOW	rtl8188e_leave_lps_flow
+#define RTL8188E_NIC_PWR_ON_FLOW	rtl8188e_power_on_flow
+#define RTL8188E_NIC_RF_OFF_FLOW	rtl8188e_radio_off_flow
+#define RTL8188E_NIC_DISABLE_FLOW	rtl8188e_card_disable_flow
+#define RTL8188E_NIC_ENABLE_FLOW	rtl8188e_card_enable_flow
+#define RTL8188E_NIC_SUSPEND_FLOW	rtl8188e_suspend_flow
+#define RTL8188E_NIC_RESUME_FLOW	rtl8188e_resume_flow
+#define RTL8188E_NIC_PDN_FLOW		rtl8188e_hwpdn_flow
+#define RTL8188E_NIC_LPS_ENTER_FLOW	rtl8188e_enter_lps_flow
+#define RTL8188E_NIC_LPS_LEAVE_FLOW	rtl8188e_leave_lps_flow
 
 #endif
