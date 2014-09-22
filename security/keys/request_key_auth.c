@@ -44,12 +44,12 @@ struct key_type key_type_request_key_auth = {
 	.read		= request_key_auth_read,
 };
 
-int request_key_auth_preparse(struct key_preparsed_payload *prep)
+static int request_key_auth_preparse(struct key_preparsed_payload *prep)
 {
 	return 0;
 }
 
-void request_key_auth_free_preparse(struct key_preparsed_payload *prep)
+static void request_key_auth_free_preparse(struct key_preparsed_payload *prep)
 {
 }
 
@@ -246,9 +246,9 @@ struct key *key_get_instantiation_authkey(key_serial_t target_id)
 		.index_key.type		= &key_type_request_key_auth,
 		.index_key.description	= description,
 		.cred			= current_cred(),
-		.match			= user_match,
-		.match_data		= description,
-		.flags			= KEYRING_SEARCH_LOOKUP_DIRECT,
+		.match_data.cmp		= key_default_cmp,
+		.match_data.raw_data	= description,
+		.match_data.lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
 	};
 	struct key *authkey;
 	key_ref_t authkey_ref;

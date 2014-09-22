@@ -46,7 +46,8 @@ void x509_free_certificate(struct x509_certificate *cert)
 		public_key_destroy(cert->pub);
 		kfree(cert->issuer);
 		kfree(cert->subject);
-		kfree(cert->fingerprint);
+		kfree(cert->id);
+		kfree(cert->skid);
 		kfree(cert->authority);
 		kfree(cert->sig.digest);
 		mpi_free(cert->sig.rsa.s);
@@ -62,6 +63,7 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 {
 	struct x509_certificate *cert;
 	struct x509_parse_context *ctx;
+	struct asymmetric_key_id *kid;
 	long ret;
 
 	ret = -ENOMEM;
@@ -88,6 +90,17 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 			       ctx->key, ctx->key_size);
 	if (ret < 0)
 		goto error_decode;
+
+	/* Generate cert issuer + serial number key ID */
+	kid = asymmetric_key_generate_id(cert->raw_serial,
+					 cert->raw_serial_size,
+					 cert->raw_issuer,
+					 cert->raw_issuer_size);
+	if (IS_ERR(kid)) {
+		ret = PTR_ERR(kid);
+		goto error_decode;
+	}
+	cert->id = kid;
 
 	kfree(ctx);
 	return cert;
@@ -407,36 +420,34 @@ int x509_process_extension(void *context, size_t hdrlen,
 			   const void *value, size_t vlen)
 {
 	struct x509_parse_context *ctx = context;
+	struct asymmetric_key_id *kid;
 	const unsigned char *v = value;
-	char *f;
 	int i;
 
 	pr_debug("Extension: %u\n", ctx->last_oid);
 
 	if (ctx->last_oid == OID_subjectKeyIdentifier) {
 		/* Get hold of the key fingerprint */
-		if (vlen < 3)
+		if (ctx->cert->skid || vlen < 3)
 			return -EBADMSG;
 		if (v[0] != ASN1_OTS || v[1] != vlen - 2)
 			return -EBADMSG;
 		v += 2;
 		vlen -= 2;
 
-		f = kmalloc(vlen * 2 + 1, GFP_KERNEL);
-		if (!f)
-			return -ENOMEM;
-		for (i = 0; i < vlen; i++)
-			sprintf(f + i * 2, "%02x", v[i]);
-		pr_debug("fingerprint %s\n", f);
-		ctx->cert->fingerprint = f;
+		kid = asymmetric_key_generate_id(v, vlen,
+						 ctx->cert->raw_subject,
+						 ctx->cert->raw_subject_size);
+		if (IS_ERR(kid))
+			return PTR_ERR(kid);
+		ctx->cert->skid = kid;
+		pr_debug("subjkeyid %*phN\n", kid->len, kid->data);
 		return 0;
 	}
 
 	if (ctx->last_oid == OID_authorityKeyIdentifier) {
-		size_t key_len;
-
 		/* Get hold of the CA key fingerprint */
-		if (vlen < 5)
+		if (ctx->cert->authority || vlen < 5)
 			return -EBADMSG;
 
 		/* Authority Key Identifier must be a Constructed SEQUENCE */
@@ -454,7 +465,7 @@ int x509_process_extension(void *context, size_t hdrlen,
 			    v[3] > vlen - 4)
 				return -EBADMSG;
 
-			key_len = v[3];
+			vlen = v[3];
 			v += 4;
 		} else {
 			/* Long Form length */
@@ -476,17 +487,17 @@ int x509_process_extension(void *context, size_t hdrlen,
 			    v[sub + 1] > vlen - 4 - sub)
 				return -EBADMSG;
 
-			key_len = v[sub + 1];
+			vlen = v[sub + 1];
 			v += (sub + 2);
 		}
 
-		f = kmalloc(key_len * 2 + 1, GFP_KERNEL);
-		if (!f)
-			return -ENOMEM;
-		for (i = 0; i < key_len; i++)
-			sprintf(f + i * 2, "%02x", v[i]);
-		pr_debug("authority   %s\n", f);
-		ctx->cert->authority = f;
+		kid = asymmetric_key_generate_id(v, vlen,
+						 ctx->cert->raw_issuer,
+						 ctx->cert->raw_issuer_size);
+		if (IS_ERR(kid))
+			return PTR_ERR(kid);
+		pr_debug("authkeyid %*phN\n", kid->len, kid->data);
+		ctx->cert->authority = kid;
 		return 0;
 	}
 
