@@ -12,7 +12,37 @@ enum {
 	OUTPUT_DVI = 0,
 	OUTPUT_HDMI
 };
-//#define AUTO_DEFINE_CSC
+
+/* C0 C2 Change */
+enum {
+	C0_C2_CHANGE_ENABLE,	/* enable c0 c2 change*/
+	C0_C2_CHANGE_DISABLE	/* disable c0 c2 change*/
+};
+
+/* Auto CSC mode enable */
+enum {
+	AUTO_CSC_DISABLE,	/* disable auto csc*/
+	AUTO_CSC_ENABLE	/* enable auto csc*/
+};
+
+
+/* Color Limit Range */
+enum {
+	COLOR_LIMIT_RANGE_0_255,	/* Color Limit Range 0 To 255*/
+	COLOR_LIMIT_RANGE_16_235,	/* Color Limit Range 16 To 235*/
+};
+/* Color Space Convertion Mode */
+enum {
+	CSC_ITU601_16_235_TO_RGB_0_255_8BIT,	/* YCbCr 16-235 input to RGB 0-255 output according BT601 that is 8bit clolor depth */
+	CSC_ITU601_0_255_TO_RGB_0_255_8BIT,	/* YCbCr 0-255 input to RGB 0-255 output according BT601 that is 8bit clolor depth */
+	CSC_ITU709_16_235_TO_RGB_0_255_8BIT,	/* YCbCr 16-235 input to RGB 0-255 output according BT709 that is 8bit clolor depth */
+	CSC_RGB_0_255_TO_ITU601_16_235_8BIT,	/* RGB 0-255 input to YCbCr 16-235 output according BT601 that is 8bit clolor depth */
+	CSC_RGB_0_255_TO_ITU709_16_235_8BIT,	/* RGB 0-255 input to YCbCr 16-235 output accroding BT709 that is 8bit clolor depth */
+	CSC_RGB_0_255_TO_RGB_16_235_8BIT,	/* RGB 0-255 input to RGB 16-235 output that is 8bit clolor depth */
+};
+
+
+#define AUTO_DEFINE_CSC
 #ifdef RK616_USE_MCLK_12M
 #define HDMI_SYS_FREG_CLK        12000000
 #else
