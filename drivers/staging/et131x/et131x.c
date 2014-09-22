@@ -488,7 +488,7 @@ struct et131x_adapter {
 	u32 registry_jumbo_packet;	/* Max supported ethernet packet size */
 
 	/* Derived from the registry: */
-	u8 flowcontrol;		/* flow control validated by the far-end */
+	u8 flow;		/* flow control validated by the far-end */
 
 	/* Minimize init-time */
 	struct timer_list error_timer;
@@ -949,8 +949,7 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 							ET_MAC_CFG1_TX_FLOW;
 	/* Initialize loop back to off */
 	cfg1 &= ~(ET_MAC_CFG1_LOOPBACK | ET_MAC_CFG1_RX_FLOW);
-	if (adapter->flowcontrol == FLOW_RXONLY ||
-	    adapter->flowcontrol == FLOW_BOTH)
+	if (adapter->flow == FLOW_RXONLY || adapter->flow == FLOW_BOTH)
 		cfg1 |= ET_MAC_CFG1_RX_FLOW;
 	writel(cfg1, &mac->cfg1);
 
@@ -1219,7 +1218,7 @@ static void et1310_config_txmac_regs(struct et131x_adapter *adapter)
 	 * cfpt - control frame pause timer set to 64 (0x40)
 	 * cfep - control frame extended pause timer set to 0x0
 	 */
-	if (adapter->flowcontrol == FLOW_NONE)
+	if (adapter->flow == FLOW_NONE)
 		writel(0, &txmac->cf_param);
 	else
 		writel(0x40, &txmac->cf_param);
@@ -1400,7 +1399,7 @@ static void et1310_config_flow_control(struct et131x_adapter *adapter)
 	struct phy_device *phydev = adapter->phydev;
 
 	if (phydev->duplex == DUPLEX_HALF) {
-		adapter->flowcontrol = FLOW_NONE;
+		adapter->flow = FLOW_NONE;
 	} else {
 		char remote_pause, remote_async_pause;
 
@@ -1408,19 +1407,19 @@ static void et1310_config_flow_control(struct et131x_adapter *adapter)
 		et1310_phy_read_mii_bit(adapter, 5, 11, &remote_async_pause);
 
 		if (remote_pause && remote_async_pause) {
-			adapter->flowcontrol = adapter->wanted_flow;
+			adapter->flow = adapter->wanted_flow;
 		} else if (remote_pause && !remote_async_pause) {
 			if (adapter->wanted_flow == FLOW_BOTH)
-				adapter->flowcontrol = FLOW_BOTH;
+				adapter->flow = FLOW_BOTH;
 			else
-				adapter->flowcontrol = FLOW_NONE;
+				adapter->flow = FLOW_NONE;
 		} else if (!remote_pause && !remote_async_pause) {
-			adapter->flowcontrol = FLOW_NONE;
+			adapter->flow = FLOW_NONE;
 		} else {
 			if (adapter->wanted_flow == FLOW_BOTH)
-				adapter->flowcontrol = FLOW_RXONLY;
+				adapter->flow = FLOW_RXONLY;
 			else
-				adapter->flowcontrol = FLOW_NONE;
+				adapter->flow = FLOW_NONE;
 		}
 	}
 }
@@ -1807,8 +1806,7 @@ static void et131x_enable_interrupts(struct et131x_adapter *adapter)
 	u32 mask;
 
 	/* Enable all global interrupts */
-	if (adapter->flowcontrol == FLOW_TXONLY ||
-	    adapter->flowcontrol == FLOW_BOTH)
+	if (adapter->flow == FLOW_TXONLY || adapter->flow == FLOW_BOTH)
 		mask = INT_MASK_ENABLE;
 	else
 		mask = INT_MASK_ENABLE_NO_FLOW;
@@ -3651,12 +3649,10 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 	 */
 	status = readl(&adapter->regs->global.int_status);
 
-	if (adapter->flowcontrol == FLOW_TXONLY ||
-	    adapter->flowcontrol == FLOW_BOTH) {
+	if (adapter->flow == FLOW_TXONLY || adapter->flow == FLOW_BOTH)
 		status &= ~INT_MASK_ENABLE;
-	} else {
+	else
 		status &= ~INT_MASK_ENABLE_NO_FLOW;
-	}
 
 	/* Make sure this is our interrupt */
 	if (!status) {
@@ -3718,8 +3714,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 		/*  If the user has flow control on, then we will
 		 * send a pause packet, otherwise just exit
 		 */
-		if (adapter->flowcontrol == FLOW_TXONLY ||
-		    adapter->flowcontrol == FLOW_BOTH) {
+		if (adapter->flow == FLOW_TXONLY || adapter->flow == FLOW_BOTH) {
 			u32 pm_csr;
 
 			/* Tell the device to send a pause packet via the back
