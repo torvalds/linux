@@ -127,4 +127,9 @@ static inline int ubi_dbg_chk_gen(const struct ubi_device *ubi)
 {
 	return ubi->dbg.chk_gen;
 }
+
+static inline int ubi_dbg_chk_fastmap(const struct ubi_device *ubi)
+{
+	return ubi->dbg.chk_fastmap;
+}
 #endif /* !__UBI_DEBUG_H__ */

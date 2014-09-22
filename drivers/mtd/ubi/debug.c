@@ -275,6 +275,8 @@ static ssize_t dfs_file_read(struct file *file, char __user *user_buf,
 		val = d->chk_gen;
 	else if (dent == d->dfs_chk_io)
 		val = d->chk_io;
+	else if (dent == d->dfs_chk_fastmap)
+		val = d->chk_fastmap;
 	else if (dent == d->dfs_disable_bgt)
 		val = d->disable_bgt;
 	else if (dent == d->dfs_emulate_bitflips)
@@ -336,6 +338,8 @@ static ssize_t dfs_file_write(struct file *file, const char __user *user_buf,
 		d->chk_gen = val;
 	else if (dent == d->dfs_chk_io)
 		d->chk_io = val;
+	else if (dent == d->dfs_chk_fastmap)
+		d->chk_fastmap = val;
 	else if (dent == d->dfs_disable_bgt)
 		d->disable_bgt = val;
 	else if (dent == d->dfs_emulate_bitflips)
@@ -405,6 +409,13 @@ int ubi_debugfs_init_dev(struct ubi_device *ubi)
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_chk_io = dent;
+
+	fname = "chk_fastmap";
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_chk_fastmap = dent;
 
 	fname = "tst_disable_bgt";
 	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
