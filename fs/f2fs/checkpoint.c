@@ -83,8 +83,7 @@ struct page *get_meta_page_ra(struct f2fs_sb_info *sbi, pgoff_t index)
 	f2fs_put_page(page, 0);
 
 	if (readahead)
-		ra_meta_pages(sbi, index,
-				MAX_BIO_BLOCKS(max_hw_blocks(sbi)), META_POR);
+		ra_meta_pages(sbi, index, MAX_BIO_BLOCKS(sbi), META_POR);
 	return get_meta_page(sbi, index);
 }
 

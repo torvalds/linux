@@ -93,8 +93,8 @@
 	(((sector_t)blk_addr) << (sbi)->log_sectors_per_block)
 #define SECTOR_TO_BLOCK(sbi, sectors)					\
 	(sectors >> (sbi)->log_sectors_per_block)
-#define MAX_BIO_BLOCKS(max_hw_blocks)					\
-	(min((int)max_hw_blocks, BIO_MAX_PAGES))
+#define MAX_BIO_BLOCKS(sbi)						\
+	((int)min((int)max_hw_blocks(sbi), BIO_MAX_PAGES))
 
 /*
  * indicate a block allocation direction: RIGHT and LEFT.
@@ -728,7 +728,7 @@ static inline int nr_pages_to_skip(struct f2fs_sb_info *sbi, int type)
 	else if (type == NODE)
 		return 3 * sbi->blocks_per_seg;
 	else if (type == META)
-		return MAX_BIO_BLOCKS(max_hw_blocks(sbi));
+		return MAX_BIO_BLOCKS(sbi);
 	else
 		return 0;
 }
@@ -751,7 +751,7 @@ static inline long nr_pages_to_write(struct f2fs_sb_info *sbi, int type,
 	else if (type == NODE)
 		desired = 3 * max_hw_blocks(sbi);
 	else
-		desired = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
+		desired = MAX_BIO_BLOCKS(sbi);
 
 	wbc->nr_to_write = desired;
 	return desired - nr_to_write;

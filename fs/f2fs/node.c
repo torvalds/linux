@@ -1697,7 +1697,7 @@ int restore_node_summary(struct f2fs_sb_info *sbi,
 	struct f2fs_summary *sum_entry;
 	struct inode *inode = sbi->sb->s_bdev->bd_inode;
 	block_t addr;
-	int bio_blocks = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
+	int bio_blocks = MAX_BIO_BLOCKS(sbi);
 	struct page *pages[bio_blocks];
 	int i, idx, last_offset, nrpages, err = 0;
 
