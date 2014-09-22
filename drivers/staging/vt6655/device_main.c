@@ -1043,8 +1043,7 @@ static bool device_init_rings(struct vnt_private *pDevice)
 					 pDevice->sOpts.nTxDescs[1] * sizeof(STxDesc),
 					 &pDevice->pool_dma);
 	if (vir_pool == NULL) {
-		pr_err("%s : allocate desc dma memory failed\n",
-		       pDevice->dev->name);
+		dev_err(&pDevice->pcid->dev, "allocate desc dma memory failed\n");
 		return false;
 	}
 
@@ -1063,8 +1062,8 @@ static bool device_init_rings(struct vnt_private *pDevice)
 						  CB_MAX_BUF_SIZE,
 						  &pDevice->tx_bufs_dma0);
 	if (pDevice->tx0_bufs == NULL) {
-		pr_err("%s: allocate buf dma memory failed\n",
-		       pDevice->dev->name);
+		dev_err(&pDevice->pcid->dev, "allocate buf dma memory failed\n");
+
 		pci_free_consistent(pDevice->pcid,
 				    pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc) +
 				    pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc) +
@@ -1141,10 +1140,9 @@ static void device_init_rd0_ring(struct vnt_private *pDevice)
 		pDesc = &(pDevice->aRD0Ring[i]);
 		pDesc->pRDInfo = alloc_rd_info();
 		ASSERT(pDesc->pRDInfo);
-		if (!device_alloc_rx_buf(pDevice, pDesc)) {
-			pr_err("%s: can not alloc rx bufs\n",
-			       pDevice->dev->name);
-		}
+		if (!device_alloc_rx_buf(pDevice, pDesc))
+			dev_err(&pDevice->pcid->dev, "can not alloc rx bufs\n");
+
 		pDesc->next = &(pDevice->aRD0Ring[(i+1) % pDevice->sOpts.nRxDescs0]);
 		pDesc->pRDInfo->curr_desc = cpu_to_le32(curr);
 		pDesc->next_desc = cpu_to_le32(curr + sizeof(SRxDesc));
@@ -1166,10 +1164,9 @@ static void device_init_rd1_ring(struct vnt_private *pDevice)
 		pDesc = &(pDevice->aRD1Ring[i]);
 		pDesc->pRDInfo = alloc_rd_info();
 		ASSERT(pDesc->pRDInfo);
-		if (!device_alloc_rx_buf(pDevice, pDesc)) {
-			pr_err("%s: can not alloc rx bufs\n",
-			       pDevice->dev->name);
-		}
+		if (!device_alloc_rx_buf(pDevice, pDesc))
+			dev_err(&pDevice->pcid->dev, "can not alloc rx bufs\n");
+
 		pDesc->next = &(pDevice->aRD1Ring[(i+1) % pDevice->sOpts.nRxDescs1]);
 		pDesc->pRDInfo->curr_desc = cpu_to_le32(curr);
 		pDesc->next_desc = cpu_to_le32(curr + sizeof(SRxDesc));
@@ -1188,10 +1185,8 @@ static void device_init_defrag_cb(struct vnt_private *pDevice)
 	/* Init the fragment ctl entries */
 	for (i = 0; i < CB_MAX_RX_FRAG; i++) {
 		pDeF = &(pDevice->sRxDFCB[i]);
-		if (!device_alloc_frag_buf(pDevice, pDeF)) {
-			pr_err("%s: can not alloc frag bufs\n",
-			       pDevice->dev->name);
-		}
+		if (!device_alloc_frag_buf(pDevice, pDeF))
+			dev_err(&pDevice->pcid->dev, "can not alloc frag bufs\n");
 	}
 	pDevice->cbDFCB = CB_MAX_RX_FRAG;
 	pDevice->cbFreeDFCB = pDevice->cbDFCB;
@@ -1348,8 +1343,8 @@ static int device_rx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 			break;
 		if (device_receive_frame(pDevice, pRD)) {
 			if (!device_alloc_rx_buf(pDevice, pRD)) {
-				pr_err("%s: can not allocate rx buf\n",
-				       pDevice->dev->name);
+				dev_err(&pDevice->pcid->dev,
+					"can not allocate rx buf\n");
 				break;
 			}
 		}
@@ -1525,7 +1520,8 @@ static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 static void device_error(struct vnt_private *pDevice, unsigned short status)
 {
 	if (status & ISR_FETALERR) {
-		pr_err("%s: Hardware fatal error\n", pDevice->dev->name);
+		dev_err(&pDevice->pcid->dev, "Hardware fatal error\n");
+
 		netif_stop_queue(pDevice->dev);
 		del_timer(&pDevice->sTimerCommand);
 		del_timer(&(pDevice->pMgmt->sTimerSecondCallback));
