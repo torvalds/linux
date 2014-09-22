@@ -611,12 +611,8 @@ static void iwl_mvm_d3_iface_iterator(void *_data, u8 *mac,
 				      struct ieee80211_vif *vif)
 {
 	struct iwl_d3_iter_data *data = _data;
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
-		return;
-
-	if (mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT)
 		return;
 
 	if (data->vif) {
@@ -1029,7 +1025,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	/* see if there's only a single BSS vif and it's associated */
+	/* see if there's only a single BSS vif */
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_d3_iface_iterator, &suspend_iter_data);
@@ -1042,27 +1038,33 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	vif = suspend_iter_data.vif;
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	ap_sta = rcu_dereference_protected(
-		mvm->fw_id_to_mac_id[mvmvif->ap_sta_id],
-		lockdep_is_held(&mvm->mutex));
-	if (IS_ERR_OR_NULL(ap_sta)) {
-		ret = -EINVAL;
+	/* if we're associated, this is wowlan */
+	if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
+		ap_sta = rcu_dereference_protected(
+			mvm->fw_id_to_mac_id[mvmvif->ap_sta_id],
+			lockdep_is_held(&mvm->mutex));
+		if (IS_ERR_OR_NULL(ap_sta)) {
+			ret = -EINVAL;
+			goto out_noreset;
+		}
+
+		ret = iwl_mvm_get_wowlan_config(mvm, wowlan, &wowlan_config_cmd,
+						vif, mvmvif, ap_sta);
+		if (ret)
+			goto out_noreset;
+
+		ret = iwl_mvm_switch_to_d3(mvm);
+		if (ret)
+			goto out;
+
+		ret = iwl_mvm_wowlan_config(mvm, wowlan, &wowlan_config_cmd,
+					    vif, mvmvif, ap_sta);
+		if (ret)
+			goto out;
+	} else {
+		ret = 1;
 		goto out_noreset;
 	}
-
-	ret = iwl_mvm_get_wowlan_config(mvm, wowlan, &wowlan_config_cmd, vif,
-					mvmvif, ap_sta);
-	if (ret)
-		goto out_noreset;
-
-	ret = iwl_mvm_switch_to_d3(mvm);
-	if (ret)
-		goto out;
-
-	ret = iwl_mvm_wowlan_config(mvm, wowlan, &wowlan_config_cmd,
-				    vif, mvmvif, ap_sta);
-	if (ret)
-		goto out;
 
 	ret = iwl_mvm_power_update_device(mvm);
 	if (ret)
