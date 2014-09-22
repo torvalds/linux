@@ -182,9 +182,8 @@
 &lvds {
 	status = "okay";
 
-	pinctrl-names = "lcdc", "sleep";
+	pinctrl-names = "lcdc";
 	pinctrl-0 = <&lcdc0_lcdc_d>;
-	pinctrl-1 = <&lcdc0_lcdc_gpio>;
 };
 
 &lcdc {
