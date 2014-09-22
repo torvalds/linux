@@ -7,6 +7,7 @@
 #include <linux/fault-inject.h>
 
 #include "blk.h"
+#include "blk-mq.h"
 
 #ifdef CONFIG_FAIL_IO_TIMEOUT
 
@@ -158,7 +159,10 @@ void blk_abort_request(struct request *req)
 	if (blk_mark_rq_complete(req))
 		return;
 	blk_delete_timer(req);
-	blk_rq_timed_out(req);
+	if (req->q->mq_ops)
+		blk_mq_rq_timed_out(req, false);
+	else
+		blk_rq_timed_out(req);
 }
 EXPORT_SYMBOL_GPL(blk_abort_request);
 
