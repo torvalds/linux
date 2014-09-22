@@ -372,6 +372,5 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 
 	if (!memcmp(abyMIC, abyTmp, 8))
 		return true;
-	else
-		return false;
+	return false;
 }
