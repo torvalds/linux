@@ -24,8 +24,6 @@
 
 #include <core/option.h>
 
-#include <subdev/bios.h>
-#include <subdev/bios/init.h>
 #include <subdev/vga.h>
 
 #include "priv.h"
@@ -56,7 +54,7 @@ _nouveau_devinit_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
-	ret = nvbios_init(&devinit->base, devinit->post);
+	ret = impl->post(&devinit->base, devinit->post);
 	if (ret)
 		return ret;
 
