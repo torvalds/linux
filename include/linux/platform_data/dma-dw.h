@@ -56,37 +56,6 @@ struct dw_dma_platform_data {
 	unsigned char	data_width[4];
 };
 
-/* bursts size */
-enum dw_dma_msize {
-	DW_DMA_MSIZE_1,
-	DW_DMA_MSIZE_4,
-	DW_DMA_MSIZE_8,
-	DW_DMA_MSIZE_16,
-	DW_DMA_MSIZE_32,
-	DW_DMA_MSIZE_64,
-	DW_DMA_MSIZE_128,
-	DW_DMA_MSIZE_256,
-};
-
-/* Platform-configurable bits in CFG_HI */
-#define DWC_CFGH_FCMODE		(1 << 0)
-#define DWC_CFGH_FIFO_MODE	(1 << 1)
-#define DWC_CFGH_PROTCTL(x)	((x) << 2)
-#define DWC_CFGH_SRC_PER(x)	((x) << 7)
-#define DWC_CFGH_DST_PER(x)	((x) << 11)
-
-/* Platform-configurable bits in CFG_LO */
-#define DWC_CFGL_LOCK_CH_XFER	(0 << 12)	/* scope of LOCK_CH */
-#define DWC_CFGL_LOCK_CH_BLOCK	(1 << 12)
-#define DWC_CFGL_LOCK_CH_XACT	(2 << 12)
-#define DWC_CFGL_LOCK_BUS_XFER	(0 << 14)	/* scope of LOCK_BUS */
-#define DWC_CFGL_LOCK_BUS_BLOCK	(1 << 14)
-#define DWC_CFGL_LOCK_BUS_XACT	(2 << 14)
-#define DWC_CFGL_LOCK_CH	(1 << 15)	/* channel lockout */
-#define DWC_CFGL_LOCK_BUS	(1 << 16)	/* busmaster lockout */
-#define DWC_CFGL_HS_DST_POL	(1 << 18)	/* dst handshake active low */
-#define DWC_CFGL_HS_SRC_POL	(1 << 19)	/* src handshake active low */
-
 /* DMA API extensions */
 struct dw_cyclic_desc {
 	struct dw_desc	**desc;
