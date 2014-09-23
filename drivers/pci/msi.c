@@ -810,7 +810,10 @@ static int pci_msi_check_device(struct pci_dev *dev, int nvec)
 	struct pci_bus *bus;
 
 	/* MSI must be globally enabled and supported by the device */
-	if (!pci_msi_enable || !dev || dev->no_msi)
+	if (!pci_msi_enable)
+		return -EINVAL;
+
+	if (!dev || dev->no_msi || dev->current_state != PCI_D0)
 		return -EINVAL;
 
 	/*
@@ -934,12 +937,12 @@ int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec)
 	int status, nr_entries;
 	int i, j;
 
-	if (!entries || !dev->msix_cap || dev->current_state != PCI_D0)
-		return -EINVAL;
-
 	status = pci_msi_check_device(dev, nvec);
 	if (status)
 		return status;
+
+	if (!entries)
+		return -EINVAL;
 
 	nr_entries = pci_msix_vec_count(dev);
 	if (nr_entries < 0)
@@ -1047,8 +1050,9 @@ int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec)
 	int nvec;
 	int rc;
 
-	if (dev->current_state != PCI_D0)
-		return -EINVAL;
+	rc = pci_msi_check_device(dev, minvec);
+	if (rc)
+		return rc;
 
 	WARN_ON(!!dev->msi_enabled);
 
@@ -1069,17 +1073,6 @@ int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec)
 		return -EINVAL;
 	else if (nvec > maxvec)
 		nvec = maxvec;
-
-	do {
-		rc = pci_msi_check_device(dev, nvec);
-		if (rc < 0) {
-			return rc;
-		} else if (rc > 0) {
-			if (rc < minvec)
-				return -ENOSPC;
-			nvec = rc;
-		}
-	} while (rc);
 
 	do {
 		rc = msi_capability_init(dev, nvec);
