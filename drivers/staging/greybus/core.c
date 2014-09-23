@@ -282,7 +282,7 @@ static int create_string(struct greybus_module *gmod,
 	int string_size;
 	struct gmod_string *gmod_string;
 
-	if ((gmod->num_strings + 1) >= MAX_STRINGS_PER_MODULE) {
+	if (gmod->num_strings == MAX_STRINGS_PER_MODULE) {
 		dev_err(gmod->dev.parent,
 			"too many strings for this module!\n");
 		return -EINVAL;
@@ -315,7 +315,7 @@ static int create_cport(struct greybus_module *gmod,
 {
 	struct gmod_cport *gmod_cport;
 
-	if ((gmod->num_cports + 1) >= MAX_CPORTS_PER_MODULE) {
+	if (gmod->num_cports == MAX_CPORTS_PER_MODULE) {
 		dev_err(gmod->dev.parent, "too many cports for this module!\n");
 		return -EINVAL;
 	}
