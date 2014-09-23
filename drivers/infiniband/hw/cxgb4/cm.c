@@ -675,6 +675,7 @@ static int send_connect(struct c4iw_ep *ep)
 	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
 		opt2 |= T5_OPT_2_VALID;
 		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
 	}
 	t4_set_arp_err_handler(skb, ep, act_open_req_arp_failure);
 
@@ -720,8 +721,6 @@ static int send_connect(struct c4iw_ep *ep)
 	} else {
 		u32 isn = (prandom_u32() & ~7UL) - 1;
 
-		opt2 |= T5_OPT_2_VALID;
-		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
 		if (peer2peer)
 			isn += 4;
 
@@ -763,10 +762,10 @@ static int send_connect(struct c4iw_ep *ep)
 			t5_req6->peer_ip_lo = *((__be64 *)
 						(ra6->sin6_addr.s6_addr + 8));
 			t5_req6->opt0 = cpu_to_be64(opt0);
-			t5_req6->params = (__force __be64)cpu_to_be32(
+			t5_req6->params = cpu_to_be64(V_FILTER_TUPLE(
 							cxgb4_select_ntuple(
 						ep->com.dev->rdev.lldi.ports[0],
-						ep->l2t));
+						ep->l2t)));
 			t5_req6->rsvd = cpu_to_be32(isn);
 			PDBG("%s snd_isn %u\n", __func__,
 			     be32_to_cpu(t5_req6->rsvd));
