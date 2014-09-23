@@ -156,9 +156,15 @@ static struct attribute *serial_number_attrs[] = {
 	NULL,
 };
 
+static umode_t serial_number_is_visible(struct kobject *kobj,
+					struct attribute *a, int n)
+{
+	return a->mode;
+}
+
 static struct attribute_group serial_number_attr_grp = {
 	.attrs =	serial_number_attrs,
-	.is_visible =	function_attrs_are_visible,
+	.is_visible =	serial_number_is_visible,
 };
 
 
