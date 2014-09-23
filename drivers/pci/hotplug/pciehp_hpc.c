@@ -160,7 +160,7 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	    ctrl->slot_ctrl & PCI_EXP_SLTCTL_CCIE)
 		rc = wait_event_timeout(ctrl->queue, !ctrl->cmd_busy, timeout);
 	else
-		rc = pcie_poll_cmd(ctrl, timeout);
+		rc = pcie_poll_cmd(ctrl, jiffies_to_msecs(timeout));
 
 	/*
 	 * Controllers with errata like Intel CF118 don't generate
