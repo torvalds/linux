@@ -417,6 +417,7 @@ static struct dst_entry *find_route(struct c4iw_dev *dev, __be32 local_ip,
 		return NULL;
 	if (!our_interface(dev, n->dev) &&
 	    !(n->dev->flags & IFF_LOOPBACK)) {
+		neigh_release(n);
 		dst_release(&rt->dst);
 		return NULL;
 	}
