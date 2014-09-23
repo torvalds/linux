@@ -62,6 +62,8 @@ int drm_gem_name_info(struct seq_file *m, void *data);
 /* drm_irq.c */
 int drm_control(struct drm_device *dev, void *data,
 		struct drm_file *file_priv);
+int drm_modeset_ctl(struct drm_device *dev, void *data,
+		    struct drm_file *file_priv);
 
 /* drm_auth.c */
 int drm_getmagic(struct drm_device *dev, void *data,
@@ -93,3 +95,10 @@ int drm_gem_open_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 void drm_gem_open(struct drm_device *dev, struct drm_file *file_private);
 void drm_gem_release(struct drm_device *dev, struct drm_file *file_private);
+
+/* drm_drv.c */
+int drm_setmaster_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+struct drm_master *drm_master_create(struct drm_minor *minor);
