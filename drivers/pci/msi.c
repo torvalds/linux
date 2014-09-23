@@ -796,25 +796,24 @@ out_free:
 }
 
 /**
- * pci_msi_check_device - check whether MSI may be enabled on a device
+ * pci_msi_supported - check whether MSI may be enabled on a device
  * @dev: pointer to the pci_dev data structure of MSI device function
  * @nvec: how many MSIs have been requested ?
- * @type: are we checking for MSI or MSI-X ?
  *
  * Look at global flags, the device itself, and its parent buses
  * to determine if MSI/-X are supported for the device. If MSI/-X is
- * supported return 0, else return an error code.
+ * supported return 1, else return 0.
  **/
-static int pci_msi_check_device(struct pci_dev *dev, int nvec)
+static int pci_msi_supported(struct pci_dev *dev, int nvec)
 {
 	struct pci_bus *bus;
 
 	/* MSI must be globally enabled and supported by the device */
 	if (!pci_msi_enable)
-		return -EINVAL;
+		return 0;
 
 	if (!dev || dev->no_msi || dev->current_state != PCI_D0)
-		return -EINVAL;
+		return 0;
 
 	/*
 	 * You can't ask to have 0 or less MSIs configured.
@@ -822,7 +821,7 @@ static int pci_msi_check_device(struct pci_dev *dev, int nvec)
 	 *  b) the list manipulation code assumes nvec >= 1.
 	 */
 	if (nvec < 1)
-		return -ERANGE;
+		return 0;
 
 	/*
 	 * Any bridge which does NOT route MSI transactions from its
@@ -833,9 +832,9 @@ static int pci_msi_check_device(struct pci_dev *dev, int nvec)
 	 */
 	for (bus = dev->bus; bus; bus = bus->parent)
 		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
-			return -EINVAL;
+			return 0;
 
-	return 0;
+	return 1;
 }
 
 /**
@@ -937,9 +936,8 @@ int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec)
 	int status, nr_entries;
 	int i, j;
 
-	status = pci_msi_check_device(dev, nvec);
-	if (status)
-		return status;
+	if (!pci_msi_supported(dev, nvec))
+		return -EINVAL;
 
 	if (!entries)
 		return -EINVAL;
@@ -1050,9 +1048,8 @@ int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec)
 	int nvec;
 	int rc;
 
-	rc = pci_msi_check_device(dev, minvec);
-	if (rc)
-		return rc;
+	if (!pci_msi_supported(dev, minvec))
+		return -EINVAL;
 
 	WARN_ON(!!dev->msi_enabled);
 
