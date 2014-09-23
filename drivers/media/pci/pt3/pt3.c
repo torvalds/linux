@@ -859,7 +859,7 @@ static const struct pci_device_id pt3_id_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, pt3_id_table);
 
-SIMPLE_DEV_PM_OPS(pt3_pm_ops, pt3_suspend, pt3_resume);
+static SIMPLE_DEV_PM_OPS(pt3_pm_ops, pt3_suspend, pt3_resume);
 
 static struct pci_driver pt3_driver = {
 	.name		= DRV_NAME,
