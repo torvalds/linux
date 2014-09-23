@@ -264,7 +264,7 @@ static void vsyscall_set_cpu(int cpu)
 	d = (struct desc_struct) {
 		.limit0 = cpu | ((node & 0xf) << 12),
 		.limit = node >> 4,
-		.type = 4,		/* RO data, expand down */
+		.type = 5,		/* RO data, expand down, accessed */
 		.dpl = 3,		/* Visible to user code */
 		.s = 1,			/* Not a system segment */
 		.p = 1,			/* Present */
