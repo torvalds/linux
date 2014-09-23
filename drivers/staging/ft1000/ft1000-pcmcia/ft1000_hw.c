@@ -62,8 +62,8 @@ static struct timer_list poll_timer = {
 
 static u16 cmdbuffer[1024];
 static u8 tempbuffer[1600];
-static u8 ft1000_card_present = 0;
-static u8 flarion_ft1000_cnt = 0;
+static u8 ft1000_card_present;
+static u8 flarion_ft1000_cnt;
 
 static irqreturn_t ft1000_interrupt(int irq, void *dev_id);
 static void ft1000_enable_interrupts(struct net_device *dev);
