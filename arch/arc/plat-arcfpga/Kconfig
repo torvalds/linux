@@ -18,17 +18,6 @@ menuconfig ARC_PLAT_FPGA_LEGACY
 
 if ARC_PLAT_FPGA_LEGACY
 
-config ARC_BOARD_ANGEL4
-	bool "ARC Angel4"
-	default y
-	help
-	  ARC Angel4 FPGA Ref Platform (Xilinx Virtex Based)
-
-config ARC_BOARD_ML509
-	bool "ML509"
-	help
-	  ARC ML509 FPGA Ref Platform (Xilinx Virtex-5 Based)
-
 config ISS_SMP_EXTN
 	bool "ARC SMP Extensions (ISS Models only)"
 	default n
