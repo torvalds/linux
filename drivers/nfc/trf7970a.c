@@ -920,7 +920,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 					TRF7970A_SPECIAL_FCN_REG1,
 					TRF7970A_SPECIAL_FCN_REG1_14_ANTICOLL);
 				if (ret)
-					return ret;
+					goto err_unlock_exit;
 
 				trf->special_fcn_reg1 =
 					TRF7970A_SPECIAL_FCN_REG1_14_ANTICOLL;
@@ -933,7 +933,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 				ret = trf7970a_write(trf, TRF7970A_ISO_CTRL,
 						iso_ctrl);
 				if (ret)
-					return ret;
+					goto err_unlock_exit;
 
 				trf->iso_ctrl = iso_ctrl;
 			}
@@ -975,6 +975,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 				__func__, trf->state);
 	}
 
+err_unlock_exit:
 	mutex_unlock(&trf->lock);
 	return IRQ_HANDLED;
 }
