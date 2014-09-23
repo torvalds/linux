@@ -226,6 +226,7 @@
 		power-supply = <&fet6>;
 		backlight = <&backlight>;
 	};
+};
 
 &dp {
 	status = "okay";
