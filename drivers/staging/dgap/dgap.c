@@ -683,17 +683,7 @@ static void dgap_cleanup_board(struct board_t *brd)
 
 	tasklet_kill(&brd->helper_tasklet);
 
-	if (brd->re_map_port) {
-		release_mem_region(brd->membase + 0x200000, 0x200000);
-		iounmap(brd->re_map_port);
-		brd->re_map_port = NULL;
-	}
-
-	if (brd->re_map_membase) {
-		release_mem_region(brd->membase, 0x200000);
-		iounmap(brd->re_map_membase);
-		brd->re_map_membase = NULL;
-	}
+	dgap_release_remap(brd);
 
 	/* Free all allocated channels structs */
 	for (i = 0; i < MAXPORTS ; i++)
@@ -1023,10 +1013,15 @@ static int dgap_do_remap(struct board_t *brd)
 
 static void dgap_release_remap(struct board_t *brd)
 {
-	release_mem_region(brd->membase, 0x200000);
-	release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
-	iounmap(brd->re_map_membase);
-	iounmap(brd->re_map_port);
+	if (brd->re_map_membase) {
+		release_mem_region(brd->membase, 0x200000);
+		iounmap(brd->re_map_membase);
+	}
+
+	if (brd->re_map_port) {
+		release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
+		iounmap(brd->re_map_port);
+	}
 }
 /*****************************************************************************
 *
