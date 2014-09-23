@@ -572,7 +572,6 @@ struct board_t {
 	u8 __iomem	*re_map_port;	/* Remapped io port of the card */
 	u8 __iomem	*re_map_membase;/* Remapped memory of the card */
 
-	u8		runwait;	/* # Processes waiting for FEP  */
 	u8		inhibit_poller; /* Tells the poller to leave us alone */
 
 	struct channel_t *channels[MAXPORTS]; /* array of pointers to our */

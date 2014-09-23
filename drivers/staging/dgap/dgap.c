@@ -742,7 +742,6 @@ static struct board_t *dgap_found_board(struct pci_dev *pdev, int id,
 
 	spin_lock_init(&brd->bd_lock);
 
-	brd->runwait		= 0;
 	brd->inhibit_poller	= FALSE;
 	brd->wait_for_bios	= 0;
 	brd->wait_for_fep	= 0;
