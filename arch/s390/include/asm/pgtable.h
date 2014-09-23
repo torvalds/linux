@@ -1053,6 +1053,22 @@ static inline void __ptep_ipte_local(unsigned long address, pte_t *ptep)
 		: "=m" (*ptep) : "m" (*ptep), "a" (pto), "a" (address));
 }
 
+static inline void __ptep_ipte_range(unsigned long address, int nr, pte_t *ptep)
+{
+	unsigned long pto = (unsigned long) ptep;
+
+#ifndef CONFIG_64BIT
+	/* pto in ESA mode must point to the start of the segment table */
+	pto &= 0x7ffffc00;
+#endif
+	/* Invalidate a range of ptes + global TLB flush of the ptes */
+	do {
+		asm volatile(
+			"	.insn rrf,0xb2210000,%2,%0,%1,0"
+			: "+a" (address), "+a" (nr) : "a" (pto) : "memory");
+	} while (nr != 255);
+}
+
 static inline void ptep_flush_direct(struct mm_struct *mm,
 				     unsigned long address, pte_t *ptep)
 {
