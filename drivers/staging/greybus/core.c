@@ -30,14 +30,14 @@ int greybus_disabled(void)
 }
 EXPORT_SYMBOL_GPL(greybus_disabled);
 
-static int greybus_match_one_id(struct greybus_device *gdev,
+static int greybus_match_one_id(struct greybus_module *gmod,
 				const struct greybus_module_id *id)
 {
 	struct greybus_descriptor_module_id *module_id;
 	struct greybus_descriptor_serial_number *serial_num;
 
-	module_id = &gdev->module_id;
-	serial_num = &gdev->serial_number;
+	module_id = &gmod->module_id;
+	serial_num = &gmod->serial_number;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_VENDOR) &&
 	    (id->vendor != le16_to_cpu(module_id->vendor)))
@@ -55,7 +55,7 @@ static int greybus_match_one_id(struct greybus_device *gdev,
 }
 
 static const struct greybus_module_id *greybus_match_id(
-		struct greybus_device *gdev,
+		struct greybus_module *gmod,
 		const struct greybus_module_id *id)
 {
 	if (id == NULL)
@@ -63,20 +63,20 @@ static const struct greybus_module_id *greybus_match_id(
 
 	for (; id->vendor || id->product || id->serial_number ||
 	       id->driver_info ; id++) {
-		if (greybus_match_one_id(gdev, id))
+		if (greybus_match_one_id(gmod, id))
 			return id;
 	}
 
 	return NULL;
 }
 
-static int greybus_device_match(struct device *dev, struct device_driver *drv)
+static int greybus_module_match(struct device *dev, struct device_driver *drv)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
-	struct greybus_device *gdev = to_greybus_device(dev);
+	struct greybus_module *gmod = to_greybus_module(dev);
 	const struct greybus_module_id *id;
 
-	id = greybus_match_id(gdev, driver->id_table);
+	id = greybus_match_id(gmod, driver->id_table);
 	if (id)
 		return 1;
 	/* FIXME - Dyanmic ids? */
@@ -85,7 +85,7 @@ static int greybus_device_match(struct device *dev, struct device_driver *drv)
 
 static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	/* struct greybus_device *gdev = to_greybus_device(dev); */
+	/* struct greybus_module *gmod = to_greybus_module(dev); */
 
 	/* FIXME - add some uevents here... */
 	return 0;
@@ -93,23 +93,23 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static struct bus_type greybus_bus_type = {
 	.name =		"greybus",
-	.match =	greybus_device_match,
+	.match =	greybus_module_match,
 	.uevent =	greybus_uevent,
 };
 
 static int greybus_probe(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
-	struct greybus_device *gdev = to_greybus_device(dev);
+	struct greybus_module *gmod = to_greybus_module(dev);
 	const struct greybus_module_id *id;
 	int retval;
 
 	/* match id */
-	id = greybus_match_id(gdev, driver->id_table);
+	id = greybus_match_id(gmod, driver->id_table);
 	if (!id)
 		return -ENODEV;
 
-	retval = driver->probe(gdev, id);
+	retval = driver->probe(gmod, id);
 	if (retval)
 		return retval;
 
@@ -119,9 +119,9 @@ static int greybus_probe(struct device *dev)
 static int greybus_remove(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
-	struct greybus_device *gdev = to_greybus_device(dev);
+	struct greybus_module *gmod = to_greybus_module(dev);
 
-	driver->disconnect(gdev);
+	driver->disconnect(gmod);
 	return 0;
 }
 
@@ -157,27 +157,27 @@ EXPORT_SYMBOL_GPL(greybus_deregister);
 
 static void greybus_module_release(struct device *dev)
 {
-	struct greybus_device *gdev = to_greybus_device(dev);
+	struct greybus_module *gmod = to_greybus_module(dev);
 	int i;
 
-	for (i = 0; i < gdev->num_strings; ++i)
-		kfree(gdev->string[i]);
-	for (i = 0; i < gdev->num_cports; ++i)
-		kfree(gdev->cport[i]);
-	kfree(gdev);
+	for (i = 0; i < gmod->num_strings; ++i)
+		kfree(gmod->string[i]);
+	for (i = 0; i < gmod->num_cports; ++i)
+		kfree(gmod->cport[i]);
+	kfree(gmod);
 }
 
 
-const u8 *greybus_string(struct greybus_device *gdev, int id)
+const u8 *greybus_string(struct greybus_module *gmod, int id)
 {
 	int i;
-	struct gdev_string *string;
+	struct gmod_string *string;
 
-	if (!gdev)
+	if (!gmod)
 		return NULL;
 
-	for (i = 0; i < gdev->num_strings; ++i) {
-		string = gdev->string[i];
+	for (i = 0; i < gmod->num_strings; ++i) {
+		string = gmod->string[i];
 		if (string->id == id)
 			return &string->string[0];
 	}
@@ -189,44 +189,44 @@ static struct device_type greybus_module_type = {
 	.release =	greybus_module_release,
 };
 
-static int gb_init_subdevs(struct greybus_device *gdev,
+static int gb_init_subdevs(struct greybus_module *gmod,
 			   const struct greybus_module_id *id)
 {
 	int retval;
 
 	/* Allocate all of the different "sub device types" for this device */
-	retval = gb_i2c_probe(gdev, id);
+	retval = gb_i2c_probe(gmod, id);
 	if (retval)
 		goto error_i2c;
 
-	retval = gb_gpio_probe(gdev, id);
+	retval = gb_gpio_probe(gmod, id);
 	if (retval)
 		goto error_gpio;
 
-	retval = gb_sdio_probe(gdev, id);
+	retval = gb_sdio_probe(gmod, id);
 	if (retval)
 		goto error_sdio;
 
-	retval = gb_tty_probe(gdev, id);
+	retval = gb_tty_probe(gmod, id);
 	if (retval)
 		goto error_tty;
 
-	retval = gb_battery_probe(gdev, id);
+	retval = gb_battery_probe(gmod, id);
 	if (retval)
 		goto error_battery;
 	return 0;
 
 error_battery:
-	gb_tty_disconnect(gdev);
+	gb_tty_disconnect(gmod);
 
 error_tty:
-	gb_sdio_disconnect(gdev);
+	gb_sdio_disconnect(gmod);
 
 error_sdio:
-	gb_gpio_disconnect(gdev);
+	gb_gpio_disconnect(gmod);
 
 error_gpio:
-	gb_i2c_disconnect(gdev);
+	gb_i2c_disconnect(gmod);
 
 error_i2c:
 	return retval;
@@ -236,106 +236,106 @@ static const struct greybus_module_id fake_gb_id = {
 	GREYBUS_DEVICE(0x42, 0x42)
 };
 
-static int create_function(struct greybus_device *gdev,
+static int create_function(struct greybus_module *gmod,
 			   struct greybus_descriptor_function *function,
 			   size_t desc_size)
 {
 	if (desc_size != sizeof(*function)) {
-		dev_err(gdev->dev.parent, "invalid function header size %zu\n",
+		dev_err(gmod->dev.parent, "invalid function header size %zu\n",
 			desc_size);
 		return -EINVAL;
 	}
-	memcpy(&gdev->function, function, desc_size);
+	memcpy(&gmod->function, function, desc_size);
 	return 0;
 }
 
-static int create_module_id(struct greybus_device *gdev,
+static int create_module_id(struct greybus_module *gmod,
 			    struct greybus_descriptor_module_id *module_id,
 			    size_t desc_size)
 {
 	if (desc_size != sizeof(*module_id)) {
-		dev_err(gdev->dev.parent, "invalid module header size %zu\n",
+		dev_err(gmod->dev.parent, "invalid module header size %zu\n",
 			desc_size);
 		return -EINVAL;
 	}
-	memcpy(&gdev->module_id, module_id, desc_size);
+	memcpy(&gmod->module_id, module_id, desc_size);
 	return 0;
 }
 
-static int create_serial_number(struct greybus_device *gdev,
+static int create_serial_number(struct greybus_module *gmod,
 			        struct greybus_descriptor_serial_number *serial_num,
 			        size_t desc_size)
 {
 	if (desc_size != sizeof(*serial_num)) {
-		dev_err(gdev->dev.parent, "invalid serial number header size %zu\n",
+		dev_err(gmod->dev.parent, "invalid serial number header size %zu\n",
 			desc_size);
 		return -EINVAL;
 	}
-	memcpy(&gdev->serial_number, serial_num, desc_size);
+	memcpy(&gmod->serial_number, serial_num, desc_size);
 	return 0;
 }
 
-static int create_string(struct greybus_device *gdev,
+static int create_string(struct greybus_module *gmod,
 			 struct greybus_descriptor_string *string,
 			 size_t desc_size)
 {
 	int string_size;
-	struct gdev_string *gdev_string;
+	struct gmod_string *gmod_string;
 
-	if ((gdev->num_strings + 1) >= MAX_STRINGS_PER_MODULE) {
-		dev_err(gdev->dev.parent,
+	if ((gmod->num_strings + 1) >= MAX_STRINGS_PER_MODULE) {
+		dev_err(gmod->dev.parent,
 			"too many strings for this module!\n");
 		return -EINVAL;
 	}
 
 	if (desc_size < sizeof(*string)) {
-		dev_err(gdev->dev.parent, "invalid string header size %zu\n",
+		dev_err(gmod->dev.parent, "invalid string header size %zu\n",
 			desc_size);
 		return -EINVAL;
 	}
 
 	string_size = le16_to_cpu(string->length);
-	gdev_string = kzalloc(sizeof(*gdev_string) + string_size + 1, GFP_KERNEL);
-	if (!gdev_string)
+	gmod_string = kzalloc(sizeof(*gmod_string) + string_size + 1, GFP_KERNEL);
+	if (!gmod_string)
 		return -ENOMEM;
 
-	gdev_string->length = string_size;
-	gdev_string->id = string->id;
-	memcpy(&gdev_string->string, &string->string, string_size);
+	gmod_string->length = string_size;
+	gmod_string->id = string->id;
+	memcpy(&gmod_string->string, &string->string, string_size);
 
-	gdev->string[gdev->num_strings] = gdev_string;
-	gdev->num_strings++;
+	gmod->string[gmod->num_strings] = gmod_string;
+	gmod->num_strings++;
 
 	return 0;
 }
 
-static int create_cport(struct greybus_device *gdev,
+static int create_cport(struct greybus_module *gmod,
 			struct greybus_descriptor_cport *cport,
 			size_t desc_size)
 {
-	struct gdev_cport *gdev_cport;
+	struct gmod_cport *gmod_cport;
 
-	if ((gdev->num_cports + 1) >= MAX_CPORTS_PER_MODULE) {
-		dev_err(gdev->dev.parent, "too many cports for this module!\n");
+	if ((gmod->num_cports + 1) >= MAX_CPORTS_PER_MODULE) {
+		dev_err(gmod->dev.parent, "too many cports for this module!\n");
 		return -EINVAL;
 	}
 
 	if (desc_size != sizeof(*cport)) {
-		dev_err(gdev->dev.parent,
+		dev_err(gmod->dev.parent,
 			"invalid serial number header size %zu\n", desc_size);
 		return -EINVAL;
 	}
 
-	gdev_cport = kzalloc(sizeof(*gdev_cport), GFP_KERNEL);
-	if (!gdev_cport)
+	gmod_cport = kzalloc(sizeof(*gmod_cport), GFP_KERNEL);
+	if (!gmod_cport)
 		return -ENOMEM;
 
-	gdev_cport->number = le16_to_cpu(cport->number);
-	gdev_cport->size = le16_to_cpu(cport->size);
-	gdev_cport->speed = cport->speed;
+	gmod_cport->number = le16_to_cpu(cport->number);
+	gmod_cport->size = le16_to_cpu(cport->size);
+	gmod_cport->speed = cport->speed;
 
-	gdev->cport[gdev->num_cports] = gdev_cport;
-	gdev->num_cports++;
+	gmod->cport[gmod->num_cports] = gmod_cport;
+	gmod->num_cports++;
 
 	return 0;
 }
@@ -349,7 +349,7 @@ static int create_cport(struct greybus_device *gdev,
 void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		   u8 *data, int size)
 {
-	struct greybus_device *gdev;
+	struct greybus_module *gmod;
 	struct greybus_manifest *manifest;
 	int retval;
 	int overall_size;
@@ -360,19 +360,19 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	if (size <= sizeof(manifest->header))
 		return;
 
-	gdev = kzalloc(sizeof(*gdev), GFP_KERNEL);
-	if (!gdev)
+	gmod = kzalloc(sizeof(*gmod), GFP_KERNEL);
+	if (!gmod)
 		return;
 
-	gdev->module_number = module_id;
-	gdev->dev.parent = hd->parent;
-	gdev->dev.driver = NULL;
-	gdev->dev.bus = &greybus_bus_type;
-	gdev->dev.type = &greybus_module_type;
-	gdev->dev.groups = greybus_module_groups;
-	gdev->dev.dma_mask = hd->parent->dma_mask;
-	device_initialize(&gdev->dev);
-	dev_set_name(&gdev->dev, "%d", module_id);
+	gmod->module_number = module_id;
+	gmod->dev.parent = hd->parent;
+	gmod->dev.driver = NULL;
+	gmod->dev.bus = &greybus_bus_type;
+	gmod->dev.type = &greybus_module_type;
+	gmod->dev.groups = greybus_module_groups;
+	gmod->dev.dma_mask = hd->parent->dma_mask;
+	device_initialize(&gmod->dev);
+	dev_set_name(&gmod->dev, "%d", module_id);
 
 	manifest = (struct greybus_manifest *)data;
 	overall_size = le16_to_cpu(manifest->header.size);
@@ -418,27 +418,27 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 
 		switch (le16_to_cpu(desc->header.type)) {
 		case GREYBUS_TYPE_FUNCTION:
-			retval = create_function(gdev, &desc->function,
+			retval = create_function(gmod, &desc->function,
 						 data_size);
 			break;
 
 		case GREYBUS_TYPE_MODULE_ID:
-			retval = create_module_id(gdev, &desc->module_id,
+			retval = create_module_id(gmod, &desc->module_id,
 						  data_size);
 			break;
 
 		case GREYBUS_TYPE_SERIAL_NUMBER:
-			retval = create_serial_number(gdev,
+			retval = create_serial_number(gmod,
 						      &desc->serial_number,
 						      data_size);
 			break;
 
 		case GREYBUS_TYPE_STRING:
-			retval = create_string(gdev, &desc->string, data_size);
+			retval = create_string(gmod, &desc->string, data_size);
 			break;
 
 		case GREYBUS_TYPE_CPORT:
-			retval = create_cport(gdev, &desc->cport, data_size);
+			retval = create_cport(gmod, &desc->cport, data_size);
 			break;
 
 		case GREYBUS_TYPE_INVALID:
@@ -453,17 +453,17 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		data += desc_size;
 	}
 
-	retval = gb_init_subdevs(gdev, &fake_gb_id);
+	retval = gb_init_subdevs(gmod, &fake_gb_id);
 	if (retval)
 		goto error;
 
-	// FIXME device_add(&gdev->dev);
+	// FIXME device_add(&gmod->dev);
 
-	//return gdev;
+	//return gmod;
 	return;
 error:
-	put_device(&gdev->dev);
-	greybus_module_release(&gdev->dev);
+	put_device(&gmod->dev);
+	greybus_module_release(&gmod->dev);
 }
 
 void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
@@ -471,16 +471,16 @@ void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
 	// FIXME should be the remove_device call...
 }
 
-void greybus_remove_device(struct greybus_device *gdev)
+void greybus_remove_device(struct greybus_module *gmod)
 {
 	/* tear down all of the "sub device types" for this device */
-	gb_i2c_disconnect(gdev);
-	gb_gpio_disconnect(gdev);
-	gb_sdio_disconnect(gdev);
-	gb_tty_disconnect(gdev);
-	gb_battery_disconnect(gdev);
+	gb_i2c_disconnect(gmod);
+	gb_gpio_disconnect(gmod);
+	gb_sdio_disconnect(gmod);
+	gb_tty_disconnect(gmod);
+	gb_battery_disconnect(gmod);
 
-	// FIXME - device_remove(&gdev->dev);
+	// FIXME - device_remove(&gmod->dev);
 }
 
 static DEFINE_MUTEX(hd_mutex);

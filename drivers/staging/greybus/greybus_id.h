@@ -19,7 +19,7 @@ struct greybus_module_id {
 		__attribute__((aligned(sizeof(kernel_ulong_t))));
 };
 
-/* Used to match the greybus_device_id */
+/* Used to match the greybus_module_id */
 #define GREYBUS_DEVICE_ID_MATCH_VENDOR		BIT(0)
 #define GREYBUS_DEVICE_ID_MATCH_PRODUCT		BIT(1)
 #define GREYBUS_DEVICE_ID_MATCH_SERIAL		BIT(2)

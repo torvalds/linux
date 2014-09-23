@@ -33,7 +33,7 @@
 
 struct gb_tty {
 	struct tty_port port;
-	struct greybus_device *gdev;
+	struct greybus_module *gmod;
 	int cport;
 	unsigned int minor;
 	unsigned char clocal;
@@ -384,7 +384,7 @@ static const struct tty_operations gb_ops = {
 };
 
 
-int gb_tty_probe(struct greybus_device *gdev,
+int gb_tty_probe(struct greybus_module *gmod,
 		 const struct greybus_module_id *id)
 {
 	struct gb_tty *gb_tty;
@@ -399,14 +399,14 @@ int gb_tty_probe(struct greybus_device *gdev,
 	minor = alloc_minor(gb_tty);
 	if (minor < 0) {
 		if (minor == -ENOSPC) {
-			dev_err(&gdev->dev, "no more free minor numbers\n");
+			dev_err(&gmod->dev, "no more free minor numbers\n");
 			return -ENODEV;
 		}
 		return minor;
 	}
 
 	gb_tty->minor = minor;
-	gb_tty->gdev = gdev;
+	gb_tty->gmod = gmod;
 	spin_lock_init(&gb_tty->write_lock);
 	spin_lock_init(&gb_tty->read_lock);
 	init_waitqueue_head(&gb_tty->wioctl);
@@ -414,10 +414,10 @@ int gb_tty_probe(struct greybus_device *gdev,
 
 	/* FIXME - allocate gb buffers */
 
-	gdev->gb_tty = gb_tty;
+	gmod->gb_tty = gb_tty;
 
 	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, minor,
-					   &gdev->dev);
+					   &gmod->dev);
 	if (IS_ERR(tty_dev)) {
 		retval = PTR_ERR(tty_dev);
 		goto error;
@@ -425,14 +425,14 @@ int gb_tty_probe(struct greybus_device *gdev,
 
 	return 0;
 error:
-	gdev->gb_tty = NULL;
+	gmod->gb_tty = NULL;
 	release_minor(gb_tty);
 	return retval;
 }
 
-void gb_tty_disconnect(struct greybus_device *gdev)
+void gb_tty_disconnect(struct greybus_module *gmod)
 {
-	struct gb_tty *gb_tty = gdev->gb_tty;
+	struct gb_tty *gb_tty = gmod->gb_tty;
 	struct tty_struct *tty;
 
 	if (!gb_tty)
@@ -442,7 +442,7 @@ void gb_tty_disconnect(struct greybus_device *gdev)
 	gb_tty->disconnected = true;
 
 	wake_up_all(&gb_tty->wioctl);
-	gdev->gb_tty = NULL;
+	gmod->gb_tty = NULL;
 	mutex_unlock(&gb_tty->mutex);
 
 	tty = tty_port_tty_get(&gb_tty->port);

@@ -22,8 +22,8 @@
 
 static struct kmem_cache *gbuf_head_cache;
 
-static struct gbuf *__alloc_gbuf(struct greybus_device *gdev,
-				struct gdev_cport *cport,
+static struct gbuf *__alloc_gbuf(struct greybus_module *gmod,
+				struct gmod_cport *cport,
 				gbuf_complete_t complete,
 				gfp_t gfp_mask,
 				void *context)
@@ -35,7 +35,7 @@ static struct gbuf *__alloc_gbuf(struct greybus_device *gdev,
 		return NULL;
 
 	kref_init(&gbuf->kref);
-	gbuf->gdev = gdev;
+	gbuf->gmod = gmod;
 	gbuf->cport = cport;
 	gbuf->complete = complete;
 	gbuf->context = context;
@@ -46,7 +46,7 @@ static struct gbuf *__alloc_gbuf(struct greybus_device *gdev,
 /**
  * greybus_alloc_gbuf - allocate a greybus buffer
  *
- * @gdev: greybus device that wants to allocate this
+ * @gmod: greybus device that wants to allocate this
  * @cport: cport to send the data to
  * @complete: callback when the gbuf is finished with
  * @size: size of the buffer
@@ -58,8 +58,8 @@ static struct gbuf *__alloc_gbuf(struct greybus_device *gdev,
  * that the driver can then fill up with the data to be sent out.  Curse
  * hardware designers for this issue...
  */
-struct gbuf *greybus_alloc_gbuf(struct greybus_device *gdev,
-				struct gdev_cport *cport,
+struct gbuf *greybus_alloc_gbuf(struct greybus_module *gmod,
+				struct gmod_cport *cport,
 				gbuf_complete_t complete,
 				unsigned int size,
 				gfp_t gfp_mask,
@@ -68,14 +68,14 @@ struct gbuf *greybus_alloc_gbuf(struct greybus_device *gdev,
 	struct gbuf *gbuf;
 	int retval;
 
-	gbuf = __alloc_gbuf(gdev, cport, complete, gfp_mask, context);
+	gbuf = __alloc_gbuf(gmod, cport, complete, gfp_mask, context);
 	if (!gbuf)
 		return NULL;
 
 	gbuf->direction = GBUF_DIRECTION_OUT;
 
 	/* Host controller specific allocation for the actual buffer */
-	retval = gbuf->gdev->hd->driver->alloc_gbuf_data(gbuf, size, gfp_mask);
+	retval = gbuf->gmod->hd->driver->alloc_gbuf_data(gbuf, size, gfp_mask);
 	if (retval) {
 		greybus_free_gbuf(gbuf);
 		return NULL;
@@ -93,7 +93,7 @@ static void free_gbuf(struct kref *kref)
 
 	/* If the direction is "out" then the host controller frees the data */
 	if (gbuf->direction == GBUF_DIRECTION_OUT) {
-		gbuf->gdev->hd->driver->free_gbuf_data(gbuf);
+		gbuf->gmod->hd->driver->free_gbuf_data(gbuf);
 	} else {
 		/* we "own" this in data, so free it ourselves */
 		kfree(gbuf->transfer_buffer);
@@ -120,7 +120,7 @@ EXPORT_SYMBOL_GPL(greybus_get_gbuf);
 
 int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 {
-	return gbuf->gdev->hd->driver->submit_gbuf(gbuf, gbuf->gdev->hd, gfp_mask);
+	return gbuf->gmod->hd->driver->submit_gbuf(gbuf, gbuf->gmod->hd, gfp_mask);
 }
 
 int greybus_kill_gbuf(struct gbuf *gbuf)
@@ -169,8 +169,8 @@ static void cport_create_event(struct gbuf *gbuf)
 #define MAX_CPORTS	1024
 struct gb_cport_handler {
 	gbuf_complete_t handler;
-	struct gdev_cport cport;
-	struct greybus_device *gdev;
+	struct gmod_cport cport;
+	struct greybus_module *gmod;
 	void *context;
 };
 
@@ -178,14 +178,14 @@ static struct gb_cport_handler cport_handler[MAX_CPORTS];
 // FIXME - use a lock for this list of handlers, but really, for now we don't
 // need it, we don't have a dynamic system...
 
-int gb_register_cport_complete(struct greybus_device *gdev,
+int gb_register_cport_complete(struct greybus_module *gmod,
 			       gbuf_complete_t handler, int cport,
 			       void *context)
 {
 	if (cport_handler[cport].handler)
 		return -EINVAL;
 	cport_handler[cport].context = context;
-	cport_handler[cport].gdev = gdev;
+	cport_handler[cport].gmod = gmod;
 	cport_handler[cport].cport.number = cport;
 	cport_handler[cport].handler = handler;
 	return 0;
@@ -212,7 +212,7 @@ void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
 		return;
 	}
 
-	gbuf = __alloc_gbuf(ch->gdev, &ch->cport, ch->handler, GFP_ATOMIC,
+	gbuf = __alloc_gbuf(ch->gmod, &ch->cport, ch->handler, GFP_ATOMIC,
 			ch->context);
 	if (!gbuf) {
 		/* Again, something bad went wrong, log it... */

@@ -45,13 +45,13 @@ static const struct mmc_host_ops gb_sd_ops = {
 	.get_ro		= gb_sd_get_ro,
 };
 
-int gb_sdio_probe(struct greybus_device *gdev,
+int gb_sdio_probe(struct greybus_module *gmod,
 		  const struct greybus_module_id *id)
 {
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
 
-	mmc = mmc_alloc_host(sizeof(struct gb_sdio_host), &gdev->dev);
+	mmc = mmc_alloc_host(sizeof(struct gb_sdio_host), &gmod->dev);
 	if (!mmc)
 		return -ENOMEM;
 
@@ -61,16 +61,16 @@ int gb_sdio_probe(struct greybus_device *gdev,
 	mmc->ops = &gb_sd_ops;
 	// FIXME - set up size limits we can handle.
 
-	gdev->gb_sdio_host = host;
+	gmod->gb_sdio_host = host;
 	return 0;
 }
 
-void gb_sdio_disconnect(struct greybus_device *gdev)
+void gb_sdio_disconnect(struct greybus_module *gmod)
 {
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
 
-	host = gdev->gb_sdio_host;
+	host = gmod->gb_sdio_host;
 	mmc = host->mmc;
 
 	mmc_remove_host(mmc);

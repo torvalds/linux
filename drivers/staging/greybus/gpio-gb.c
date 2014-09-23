@@ -14,7 +14,7 @@
 
 struct gb_gpio_device {
 	struct gpio_chip chip;
-	struct greybus_device *gdev;
+	struct greybus_module *gmod;
 	struct gpio_chip *gpio;
 	// FIXME - some lock?
 };
@@ -49,18 +49,18 @@ static void gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 	// FIXME - do something there
 }
 
-int gb_gpio_probe(struct greybus_device *gdev,
+int gb_gpio_probe(struct greybus_module *gmod,
 		  const struct greybus_module_id *id)
 {
 	struct gb_gpio_device *gb_gpio;
 	struct gpio_chip *gpio;
-	struct device *dev = &gdev->dev;
+	struct device *dev = &gmod->dev;
 	int retval;
 
 	gb_gpio = kzalloc(sizeof(*gb_gpio), GFP_KERNEL);
 	if (!gb_gpio)
 		return -ENOMEM;
-	gb_gpio->gdev = gdev;
+	gb_gpio->gmod = gmod;
 
 	gpio = &gb_gpio->chip;
 
@@ -75,7 +75,7 @@ int gb_gpio_probe(struct greybus_device *gdev,
 	gpio->ngpio = 42;		// FIXME!!!
 	gpio->can_sleep = false;	// FIXME!!!
 
-	gdev->gb_gpio_dev = gb_gpio;
+	gmod->gb_gpio_dev = gb_gpio;
 
 	retval = gpiochip_add(gpio);
 	if (retval) {
@@ -86,12 +86,12 @@ int gb_gpio_probe(struct greybus_device *gdev,
 	return 0;
 }
 
-void gb_gpio_disconnect(struct greybus_device *gdev)
+void gb_gpio_disconnect(struct greybus_module *gmod)
 {
 	struct gb_gpio_device *gb_gpio_dev;
 	int retval;
 
-	gb_gpio_dev = gdev->gb_gpio_dev;
+	gb_gpio_dev = gmod->gb_gpio_dev;
 
 	retval = gpiochip_remove(&gb_gpio_dev->chip);
 	kfree(gb_gpio_dev);

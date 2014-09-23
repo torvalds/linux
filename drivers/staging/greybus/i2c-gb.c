@@ -14,7 +14,7 @@
 
 struct gb_i2c_device {
 	struct i2c_adapter *adapter;
-	struct greybus_device *gdev;
+	struct greybus_module *gmod;
 };
 
 static const struct greybus_module_id id_table[] = {
@@ -33,10 +33,10 @@ static s32 i2c_gb_access(struct i2c_adapter *adap, u16 addr,
 			 int size, union i2c_smbus_data *data)
 {
 	struct gb_i2c_device *gb_i2c_dev;
-	struct greybus_device *gdev;
+	struct greybus_module *gmod;
 
 	gb_i2c_dev = i2c_get_adapdata(adap);
-	gdev = gb_i2c_dev->gdev;
+	gmod = gb_i2c_dev->gmod;
 
 	// FIXME - do the actual work of sending a i2c message here...
 	switch (size) {
@@ -50,7 +50,7 @@ static s32 i2c_gb_access(struct i2c_adapter *adap, u16 addr,
 	case I2C_SMBUS_BLOCK_PROC_CALL:
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 	default:
-		dev_err(&gdev->dev, "Unsupported transaction %d\n", size);
+		dev_err(&gmod->dev, "Unsupported transaction %d\n", size);
 		return -EOPNOTSUPP;
 	}
 
@@ -75,7 +75,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= i2c_gb_func,
 };
 
-int gb_i2c_probe(struct greybus_device *gdev,
+int gb_i2c_probe(struct greybus_module *gmod,
 		 const struct greybus_module_id *id)
 {
 	struct gb_i2c_device *gb_i2c_dev;
@@ -95,19 +95,19 @@ int gb_i2c_probe(struct greybus_device *gdev,
 	adapter->owner = THIS_MODULE;
 	adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adapter->algo = &smbus_algorithm;
-	adapter->dev.parent = &gdev->dev;
+	adapter->dev.parent = &gmod->dev;
 	adapter->retries = 3;	/* we have to pick something... */
 	snprintf(adapter->name, sizeof(adapter->name), "Greybus i2c adapter");
 	retval = i2c_add_adapter(adapter);
 	if (retval) {
-		dev_err(&gdev->dev, "Can not add SMBus adapter\n");
+		dev_err(&gmod->dev, "Can not add SMBus adapter\n");
 		goto error;
 	}
 
-	gb_i2c_dev->gdev = gdev;
+	gb_i2c_dev->gmod = gmod;
 	gb_i2c_dev->adapter = adapter;
 
-	gdev->gb_i2c_dev = gb_i2c_dev;
+	gmod->gb_i2c_dev = gb_i2c_dev;
 	return 0;
 error:
 	kfree(adapter);
@@ -115,11 +115,11 @@ error:
 	return retval;
 }
 
-void gb_i2c_disconnect(struct greybus_device *gdev)
+void gb_i2c_disconnect(struct greybus_module *gmod)
 {
 	struct gb_i2c_device *gb_i2c_dev;
 
-	gb_i2c_dev = gdev->gb_i2c_dev;
+	gb_i2c_dev = gmod->gb_i2c_dev;
 	i2c_del_adapter(gb_i2c_dev->adapter);
 	kfree(gb_i2c_dev->adapter);
 	kfree(gb_i2c_dev);

@@ -26,8 +26,8 @@ static ssize_t function_##field##_show(struct device *dev,		\
 				       struct device_attribute *attr,	\
 				       char *buf)			\
 {									\
-	struct greybus_device *gdev = to_greybus_device(dev);		\
-	return sprintf(buf, "%d\n", gdev->function.field);		\
+	struct greybus_module *gmod = to_greybus_module(dev);		\
+	return sprintf(buf, "%d\n", gmod->function.field);		\
 }									\
 static DEVICE_ATTR_RO(function_##field)
 
@@ -49,15 +49,15 @@ static struct attribute *function_attrs[] = {
 static umode_t function_attrs_are_visible(struct kobject *kobj,
 					  struct attribute *a, int n)
 {
-	struct greybus_device *gdev = to_greybus_device(kobj_to_dev(kobj));
+	struct greybus_module *gmod = to_greybus_module(kobj_to_dev(kobj));
 
 	// FIXME - make this a dynamic structure to "know" if it really is here
 	// or not easier?
-	if (gdev->function.number ||
-	    gdev->function.cport ||
-	    gdev->function.class ||
-	    gdev->function.subclass ||
-	    gdev->function.protocol)
+	if (gmod->function.number ||
+	    gmod->function.cport ||
+	    gmod->function.class ||
+	    gmod->function.subclass ||
+	    gmod->function.protocol)
 		return a->mode;
 	return 0;
 }
@@ -73,8 +73,8 @@ static ssize_t module_##field##_show(struct device *dev,		\
 				     struct device_attribute *attr,	\
 				     char *buf)				\
 {									\
-	struct greybus_device *gdev = to_greybus_device(dev);		\
-	return sprintf(buf, "%x\n", gdev->module_id.field);		\
+	struct greybus_module *gmod = to_greybus_module(dev);		\
+	return sprintf(buf, "%x\n", gmod->module_id.field);		\
 }									\
 static DEVICE_ATTR_RO(module_##field)
 
@@ -86,10 +86,10 @@ static ssize_t module_vendor_string_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct greybus_device *gdev = to_greybus_device(dev);
+	struct greybus_module *gmod = to_greybus_module(dev);
 
 	return sprintf(buf, "%s",
-		       greybus_string(gdev, gdev->module_id.vendor_stringid));
+		       greybus_string(gmod, gmod->module_id.vendor_stringid));
 }
 static DEVICE_ATTR_RO(module_vendor_string);
 
@@ -97,10 +97,10 @@ static ssize_t module_product_string_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct greybus_device *gdev = to_greybus_device(dev);
+	struct greybus_module *gmod = to_greybus_module(dev);
 
 	return sprintf(buf, "%s",
-		       greybus_string(gdev, gdev->module_id.product_stringid));
+		       greybus_string(gmod, gmod->module_id.product_stringid));
 }
 static DEVICE_ATTR_RO(module_product_string);
 
@@ -116,20 +116,20 @@ static struct attribute *module_attrs[] = {
 static umode_t module_attrs_are_visible(struct kobject *kobj,
 					struct attribute *a, int n)
 {
-	struct greybus_device *gdev = to_greybus_device(kobj_to_dev(kobj));
+	struct greybus_module *gmod = to_greybus_module(kobj_to_dev(kobj));
 
 	if ((a == &dev_attr_module_vendor_string.attr) &&
-	    (gdev->module_id.vendor_stringid))
+	    (gmod->module_id.vendor_stringid))
 		return a->mode;
 	if ((a == &dev_attr_module_product_string.attr) &&
-	    (gdev->module_id.product_stringid))
+	    (gmod->module_id.product_stringid))
 		return a->mode;
 
 	// FIXME - make this a dynamic structure to "know" if it really is here
 	// or not easier?
-	if (gdev->module_id.vendor ||
-	    gdev->module_id.product ||
-	    gdev->module_id.version)
+	if (gmod->module_id.vendor ||
+	    gmod->module_id.product ||
+	    gmod->module_id.version)
 		return a->mode;
 	return 0;
 }
@@ -144,10 +144,10 @@ static struct attribute_group module_attr_grp = {
 static ssize_t serial_number_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct greybus_device *gdev = to_greybus_device(dev);
+	struct greybus_module *gmod = to_greybus_module(dev);
 
 	return sprintf(buf, "%llX\n",
-		      (unsigned long long)le64_to_cpu(gdev->serial_number.serial_number));
+		      (unsigned long long)le64_to_cpu(gmod->serial_number.serial_number));
 }
 static DEVICE_ATTR_RO(serial_number);
 

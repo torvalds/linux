@@ -92,7 +92,7 @@ static void cport_out_callback(struct urb *urb);
  */
 static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 {
-	struct es1_ap_dev *es1 = hd_to_es1(gbuf->gdev->hd);
+	struct es1_ap_dev *es1 = hd_to_es1(gbuf->gmod->hd);
 	u8 *buffer;
 
 	if (size > ES1_GBUF_MSG_SIZE) {
