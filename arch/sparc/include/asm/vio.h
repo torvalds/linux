@@ -298,6 +298,7 @@ struct vio_dev {
 
 	unsigned int		tx_irq;
 	unsigned int		rx_irq;
+	u64			rx_ino;
 
 	struct device		dev;
 };
@@ -453,5 +454,6 @@ int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
 		    char *name);
 
 void vio_port_up(struct vio_driver_state *vio);
+int vio_set_intr(unsigned long dev_ino, int state);
 
 #endif /* _SPARC64_VIO_H */
