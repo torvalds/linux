@@ -1456,18 +1456,18 @@ xfs_collapse_file_space(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	int			error;
-	xfs_extnum_t		current_ext = 0;
 	struct xfs_bmap_free	free_list;
 	xfs_fsblock_t		first_block;
 	int			committed;
 	xfs_fileoff_t		start_fsb;
+	xfs_fileoff_t		next_fsb;
 	xfs_fileoff_t		shift_fsb;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 
 	trace_xfs_collapse_file_space(ip);
 
-	start_fsb = XFS_B_TO_FSB(mp, offset + len);
+	next_fsb = XFS_B_TO_FSB(mp, offset + len);
 	shift_fsb = XFS_B_TO_FSB(mp, len);
 
 	/*
@@ -1525,10 +1525,10 @@ xfs_collapse_file_space(
 		 * We are using the write transaction in which max 2 bmbt
 		 * updates are allowed
 		 */
-		error = xfs_bmap_shift_extents(tp, ip, &done, start_fsb,
-					       shift_fsb, &current_ext,
-					       &first_block, &free_list,
-					       XFS_BMAP_MAX_SHIFT_EXTENTS);
+		start_fsb = next_fsb;
+		error = xfs_bmap_shift_extents(tp, ip, start_fsb, shift_fsb,
+				&done, &next_fsb, &first_block, &free_list,
+				XFS_BMAP_MAX_SHIFT_EXTENTS);
 		if (error)
 			goto out;
 

@@ -5406,20 +5406,21 @@ error0:
 /*
  * Shift extent records to the left to cover a hole.
  *
- * The maximum number of extents to be shifted in a single operation
- * is @num_exts, and @current_ext keeps track of the current extent
- * index we have shifted. @offset_shift_fsb is the length by which each
- * extent is shifted. If there is no hole to shift the extents
- * into, this will be considered invalid operation and we abort immediately.
+ * The maximum number of extents to be shifted in a single operation is
+ * @num_exts. @start_fsb specifies the file offset to start the shift and the
+ * file offset where we've left off is returned in @next_fsb. @offset_shift_fsb
+ * is the length by which each extent is shifted. If there is no hole to shift
+ * the extents into, this will be considered invalid operation and we abort
+ * immediately.
  */
 int
 xfs_bmap_shift_extents(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
-	int			*done,
 	xfs_fileoff_t		start_fsb,
 	xfs_fileoff_t		offset_shift_fsb,
-	xfs_extnum_t		*current_ext,
+	int			*done,
+	xfs_fileoff_t		*next_fsb,
 	xfs_fsblock_t		*firstblock,
 	struct xfs_bmap_free	*flist,
 	int			num_exts)
@@ -5431,6 +5432,7 @@ xfs_bmap_shift_extents(
 	struct xfs_mount		*mp = ip->i_mount;
 	struct xfs_ifork		*ifp;
 	xfs_extnum_t			nexts = 0;
+	xfs_extnum_t			current_ext;
 	xfs_fileoff_t			startoff;
 	int				error = 0;
 	int				i;
@@ -5451,7 +5453,8 @@ xfs_bmap_shift_extents(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	ASSERT(current_ext != NULL);
+	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
@@ -5462,20 +5465,18 @@ xfs_bmap_shift_extents(
 	}
 
 	/*
-	 * If *current_ext is 0, we would need to lookup the extent
-	 * from where we would start shifting and store it in gotp.
+	 * Look up the extent index for the fsb where we start shifting. We can
+	 * henceforth iterate with current_ext as extent list changes are locked
+	 * out via ilock.
+	 *
+	 * gotp can be null in 2 cases: 1) if there are no extents or 2)
+	 * start_fsb lies in a hole beyond which there are no extents. Either
+	 * way, we are done.
 	 */
-	if (!*current_ext) {
-		gotp = xfs_iext_bno_to_ext(ifp, start_fsb, current_ext);
-		/*
-		 * gotp can be null in 2 cases: 1) if there are no extents
-		 * or 2) start_fsb lies in a hole beyond which there are
-		 * no extents. Either way, we are done.
-		 */
-		if (!gotp) {
-			*done = 1;
-			return 0;
-		}
+	gotp = xfs_iext_bno_to_ext(ifp, start_fsb, &current_ext);
+	if (!gotp) {
+		*done = 1;
+		return 0;
 	}
 
 	if (ifp->if_flags & XFS_IFBROOT) {
@@ -5487,36 +5488,32 @@ xfs_bmap_shift_extents(
 
 	/*
 	 * There may be delalloc extents in the data fork before the range we
-	 * are collapsing out, so we cannot
-	 * use the count of real extents here. Instead we have to calculate it
-	 * from the incore fork.
+	 * are collapsing out, so we cannot use the count of real extents here.
+	 * Instead we have to calculate it from the incore fork.
 	 */
 	total_extents = ifp->if_bytes / sizeof(xfs_bmbt_rec_t);
-	while (nexts++ < num_exts && *current_ext < total_extents) {
+	while (nexts++ < num_exts && current_ext < total_extents) {
 
-		gotp = xfs_iext_get_ext(ifp, *current_ext);
+		gotp = xfs_iext_get_ext(ifp, current_ext);
 		xfs_bmbt_get_all(gotp, &got);
 		startoff = got.br_startoff - offset_shift_fsb;
 
 		/*
-		 * Before shifting extent into hole, make sure that the hole
-		 * is large enough to accomodate the shift.
+		 * Before shifting extent into hole, make sure that the hole is
+		 * large enough to accommodate the shift.
 		 */
-		if (*current_ext) {
-			xfs_bmbt_get_all(xfs_iext_get_ext(ifp,
-						*current_ext - 1), &left);
-
+		if (current_ext > 0) {
+			xfs_bmbt_get_all(xfs_iext_get_ext(ifp, current_ext - 1),
+					 &left);
 			if (startoff < left.br_startoff + left.br_blockcount)
 				error = -EINVAL;
 		} else if (offset_shift_fsb > got.br_startoff) {
 			/*
-			 * When first extent is shifted, offset_shift_fsb
-			 * should be less than the stating offset of
-			 * the first extent.
+			 * When first extent is shifted, offset_shift_fsb should
+			 * be less than the stating offset of the first extent.
 			 */
 			error = -EINVAL;
 		}
-
 		if (error)
 			goto del_cursor;
 
@@ -5531,7 +5528,7 @@ xfs_bmap_shift_extents(
 		}
 
 		/* Check if we can merge 2 adjacent extents */
-		if (*current_ext &&
+		if (current_ext &&
 		    left.br_startoff + left.br_blockcount == startoff &&
 		    left.br_startblock + left.br_blockcount ==
 				got.br_startblock &&
@@ -5539,7 +5536,7 @@ xfs_bmap_shift_extents(
 		    left.br_blockcount + got.br_blockcount <= MAXEXTLEN) {
 			blockcount = left.br_blockcount +
 				got.br_blockcount;
-			xfs_iext_remove(ip, *current_ext, 1, 0);
+			xfs_iext_remove(ip, current_ext, 1, 0);
 			logflags |= XFS_ILOG_CORE;
 			if (cur) {
 				error = xfs_btree_delete(cur, &i);
@@ -5551,7 +5548,7 @@ xfs_bmap_shift_extents(
 			}
 			XFS_IFORK_NEXT_SET(ip, whichfork,
 				XFS_IFORK_NEXTENTS(ip, whichfork) - 1);
-			gotp = xfs_iext_get_ext(ifp, --*current_ext);
+			gotp = xfs_iext_get_ext(ifp, --current_ext);
 			xfs_bmbt_get_all(gotp, &got);
 
 			/* Make cursor point to the extent we will update */
@@ -5585,13 +5582,18 @@ xfs_bmap_shift_extents(
 			logflags |= XFS_ILOG_DEXT;
 		}
 
-		(*current_ext)++;
+		current_ext++;
 		total_extents = ifp->if_bytes / sizeof(xfs_bmbt_rec_t);
 	}
 
 	/* Check if we are done */
-	if (*current_ext == total_extents)
+	if (current_ext == total_extents)
 		*done = 1;
+	else if (next_fsb) {
+		gotp = xfs_iext_get_ext(ifp, current_ext);
+		xfs_bmbt_get_all(gotp, &got);
+		*next_fsb = got.br_startoff;
+	}
 
 del_cursor:
 	if (cur)
@@ -5600,5 +5602,6 @@ del_cursor:
 
 	if (logflags)
 		xfs_trans_log_inode(tp, ip, logflags);
+
 	return error;
 }
