@@ -2009,8 +2009,7 @@ static inline void _nbu2ss_epn_in_int(
 		result = _nbu2ss_epn_in_transfer(udc, ep, req);
 
 	} else {
-		if ((req->zero != 0)
-		&& ((req->req.actual % ep->ep.maxpacket) == 0)) {
+		if (req->zero && ((req->req.actual % ep->ep.maxpacket) == 0)) {
 
 			status =
 			_nbu2ss_readl(&preg->EP_REGS[ep->epnum-1].EP_STATUS);
@@ -2097,8 +2096,7 @@ static inline void _nbu2ss_epn_out_dma_int(
 	num = ep->epnum - 1;
 
 	if (req->req.actual == req->req.length) {
-		if ((req->req.length % ep->ep.maxpacket)
-				&& (req->zero == 0)) {
+		if ((req->req.length % ep->ep.maxpacket) && !req->zero) {
 			req->div_len = 0;
 			req->dma_flag = FALSE;
 			_nbu2ss_ep_done(ep, req, 0);
