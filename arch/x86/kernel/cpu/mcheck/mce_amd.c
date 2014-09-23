@@ -217,7 +217,7 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		for (block = 0; block < NR_BLOCKS; ++block) {
 			if (block == 0)
-				address = MSR_IA32_MC0_MISC + bank * 4;
+				address = MSR_IA32_MCx_MISC(bank);
 			else if (block == 1) {
 				address = (low & MASK_BLKPTR_LO) >> 21;
 				if (!address)
@@ -281,7 +281,7 @@ static void amd_threshold_interrupt(void)
 			continue;
 		for (block = 0; block < NR_BLOCKS; ++block) {
 			if (block == 0) {
-				address = MSR_IA32_MC0_MISC + bank * 4;
+				address = MSR_IA32_MCx_MISC(bank);
 			} else if (block == 1) {
 				address = (low & MASK_BLKPTR_LO) >> 21;
 				if (!address)
@@ -314,8 +314,7 @@ static void amd_threshold_interrupt(void)
 
 			if (high & MASK_OVERFLOW_HI) {
 				rdmsrl(address, m.misc);
-				rdmsrl(MSR_IA32_MC0_STATUS + bank * 4,
-				       m.status);
+				rdmsrl(MSR_IA32_MCx_STATUS(bank), m.status);
 				m.bank = K8_MCE_THRESHOLD_BASE
 				       + bank * NR_BLOCKS
 				       + block;
@@ -617,8 +616,7 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		}
 	}
 
-	err = allocate_threshold_blocks(cpu, bank, 0,
-					MSR_IA32_MC0_MISC + bank * 4);
+	err = allocate_threshold_blocks(cpu, bank, 0, MSR_IA32_MCx_MISC(bank));
 	if (!err)
 		goto out;
 
