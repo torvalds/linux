@@ -103,7 +103,8 @@ static int find_index(struct mlx4_dev *dev,
 	int i;
 
 	for (i = 0; i < MLX4_MAX_MAC_NUM; i++) {
-		if ((mac & MLX4_MAC_MASK) ==
+		if (table->refs[i] &&
+		    (MLX4_MAC_MASK & mac) ==
 		    (MLX4_MAC_MASK & be64_to_cpu(table->entries[i])))
 			return i;
 	}
@@ -165,12 +166,14 @@ int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 
 	mutex_lock(&table->mutex);
 	for (i = 0; i < MLX4_MAX_MAC_NUM; i++) {
-		if (free < 0 && !table->entries[i]) {
-			free = i;
+		if (!table->refs[i]) {
+			if (free < 0)
+				free = i;
 			continue;
 		}
 
-		if (mac == (MLX4_MAC_MASK & be64_to_cpu(table->entries[i]))) {
+		if ((MLX4_MAC_MASK & mac) ==
+		     (MLX4_MAC_MASK & be64_to_cpu(table->entries[i]))) {
 			/* MAC already registered, increment ref count */
 			err = i;
 			++table->refs[i];
