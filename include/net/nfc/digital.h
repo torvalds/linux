@@ -225,6 +225,7 @@ struct nfc_digital_dev {
 	u8 curr_protocol;
 	u8 curr_rf_tech;
 	u8 curr_nfc_dep_pni;
+	u8 did;
 
 	u16 target_fsc;
 

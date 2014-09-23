@@ -32,6 +32,8 @@
 #define DIGITAL_ATR_REQ_MIN_SIZE 16
 #define DIGITAL_ATR_REQ_MAX_SIZE 64
 
+#define DIGITAL_DID_MAX	14
+
 #define DIGITAL_LR_BITS_PAYLOAD_SIZE_254B 0x30
 #define DIGITAL_FSL_BITS_PAYLOAD_SIZE_254B \
 				(DIGITAL_LR_BITS_PAYLOAD_SIZE_254B >> 4)
@@ -40,12 +42,13 @@
 #define DIGITAL_NFC_DEP_PFB_TYPE(pfb) ((pfb) & 0xE0)
 
 #define DIGITAL_NFC_DEP_PFB_TIMEOUT_BIT 0x10
+#define DIGITAL_NFC_DEP_PFB_DID_BIT	0x04
 
 #define DIGITAL_NFC_DEP_PFB_IS_TIMEOUT(pfb) \
 				((pfb) & DIGITAL_NFC_DEP_PFB_TIMEOUT_BIT)
 #define DIGITAL_NFC_DEP_MI_BIT_SET(pfb)  ((pfb) & 0x10)
 #define DIGITAL_NFC_DEP_NAD_BIT_SET(pfb) ((pfb) & 0x08)
-#define DIGITAL_NFC_DEP_DID_BIT_SET(pfb) ((pfb) & 0x04)
+#define DIGITAL_NFC_DEP_DID_BIT_SET(pfb) ((pfb) & DIGITAL_NFC_DEP_PFB_DID_BIT)
 #define DIGITAL_NFC_DEP_PFB_PNI(pfb)     ((pfb) & 0x03)
 
 #define DIGITAL_NFC_DEP_PFB_I_PDU          0x00
@@ -557,8 +560,17 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 
 	pfb = dep_req->pfb;
 
-	if (DIGITAL_NFC_DEP_DID_BIT_SET(pfb))
-		size++;
+	if (DIGITAL_NFC_DEP_DID_BIT_SET(pfb)) {
+		if (ddev->did && (ddev->did == resp->data[3])) {
+			size++;
+		} else {
+			rc = -EIO;
+			goto exit;
+		}
+	} else if (ddev->did) {
+		rc = -EIO;
+		goto exit;
+	}
 
 	if (size > resp->len) {
 		rc = -EIO;
@@ -599,6 +611,13 @@ int digital_tg_send_dep_res(struct nfc_digital_dev *ddev, struct sk_buff *skb)
 	dep_res->dir = DIGITAL_NFC_DEP_FRAME_DIR_IN;
 	dep_res->cmd = DIGITAL_CMD_DEP_RES;
 	dep_res->pfb = ddev->curr_nfc_dep_pni;
+
+	if (ddev->did) {
+		dep_res->pfb |= DIGITAL_NFC_DEP_PFB_DID_BIT;
+
+		memcpy(skb_put(skb, sizeof(ddev->did)), &ddev->did,
+		       sizeof(ddev->did));
+	}
 
 	digital_skb_push_dep_sod(ddev, skb);
 
@@ -828,10 +847,13 @@ void digital_tg_recv_atr_req(struct nfc_digital_dev *ddev, void *arg,
 	atr_req = (struct digital_atr_req *)resp->data;
 
 	if (atr_req->dir != DIGITAL_NFC_DEP_FRAME_DIR_OUT ||
-	    atr_req->cmd != DIGITAL_CMD_ATR_REQ) {
+	    atr_req->cmd != DIGITAL_CMD_ATR_REQ ||
+	    atr_req->did > DIGITAL_DID_MAX) {
 		rc = -EINVAL;
 		goto exit;
 	}
+
+	ddev->did = atr_req->did;
 
 	rc = digital_tg_configure_hw(ddev, NFC_DIGITAL_CONFIG_FRAMING,
 				     NFC_DIGITAL_FRAMING_NFC_DEP_ACTIVATED);
