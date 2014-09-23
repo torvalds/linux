@@ -198,6 +198,7 @@ static int digital_in_send_psl_req(struct nfc_digital_dev *ddev,
 {
 	struct sk_buff *skb;
 	struct digital_psl_req *psl_req;
+	int rc;
 
 	skb = digital_skb_alloc(ddev, sizeof(*psl_req));
 	if (!skb)
@@ -217,8 +218,12 @@ static int digital_in_send_psl_req(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	return digital_in_send_cmd(ddev, skb, 500, digital_in_recv_psl_res,
-				   target);
+	rc = digital_in_send_cmd(ddev, skb, 500, digital_in_recv_psl_res,
+				 target);
+	if (rc)
+		kfree_skb(skb);
+
+	return rc;
 }
 
 static void digital_in_recv_atr_res(struct nfc_digital_dev *ddev, void *arg,
@@ -286,6 +291,7 @@ int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
 	struct sk_buff *skb;
 	struct digital_atr_req *atr_req;
 	uint size;
+	int rc;
 
 	size = DIGITAL_ATR_REQ_MIN_SIZE + gb_len;
 
@@ -325,8 +331,12 @@ int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	return digital_in_send_cmd(ddev, skb, 500, digital_in_recv_atr_res,
-				   target);
+	rc = digital_in_send_cmd(ddev, skb, 500, digital_in_recv_atr_res,
+				 target);
+	if (rc)
+		kfree_skb(skb);
+
+	return rc;
 }
 
 static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
@@ -357,6 +367,8 @@ static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 
 	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
 				 data_exch);
+	if (rc)
+		kfree_skb(skb);
 
 	return rc;
 }
@@ -634,7 +646,6 @@ static int digital_tg_send_psl_res(struct nfc_digital_dev *ddev, u8 did,
 
 	rc = digital_tg_send_cmd(ddev, skb, 0, digital_tg_send_psl_res_complete,
 				 (void *)(unsigned long)rf_tech);
-
 	if (rc)
 		kfree_skb(skb);
 
@@ -758,10 +769,8 @@ static int digital_tg_send_atr_res(struct nfc_digital_dev *ddev,
 
 	rc = digital_tg_send_cmd(ddev, skb, 999,
 				 digital_tg_send_atr_res_complete, NULL);
-	if (rc) {
+	if (rc)
 		kfree_skb(skb);
-		return rc;
-	}
 
 	return rc;
 }
