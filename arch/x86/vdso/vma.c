@@ -268,6 +268,7 @@ static void vsyscall_set_cpu(int cpu)
 		.dpl = 3,		/* Visible to user code */
 		.s = 1,			/* Not a system segment */
 		.p = 1,			/* Present */
+		.d = 1,			/* 32-bit */
 	};
 
 	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
