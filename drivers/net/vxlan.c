@@ -1778,11 +1778,11 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
 		ttl = ttl ? : ip4_dst_hoplimit(&rt->dst);
 
-		err = udp_tunnel_xmit_skb(vxlan->vn_sock->sock, rt, skb,
-					  fl4.saddr, dst->sin.sin_addr.s_addr,
-					  tos, ttl, df, src_port, dst_port,
-					  !net_eq(vxlan->net,
-						  dev_net(vxlan->dev)));
+		err = vxlan_xmit_skb(vxlan->vn_sock, rt, skb,
+				     fl4.saddr, dst->sin.sin_addr.s_addr,
+				     tos, ttl, df, src_port, dst_port,
+				     htonl(vni << 8),
+				     !net_eq(vxlan->net, dev_net(vxlan->dev)));
 
 		if (err < 0)
 			goto rt_tx_error;
