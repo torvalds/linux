@@ -108,18 +108,12 @@
 		};
 	};
 
-	usb_hub_bus {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	// SMSC USB3503 connected in hardware only mode as a PHY
+	usb_hub: usb-hub {
+		compatible = "smsc,usb3503a";
 
-		// SMSC USB3503 connected in hardware only mode as a PHY
-		usb_hub: usb_hub {
-			compatible = "smsc,usb3503a";
-
-			reset-gpios = <&gpx3 5 GPIO_ACTIVE_LOW>;
-			connect-gpios = <&gpd1 7 GPIO_ACTIVE_LOW>;
-		};
+		reset-gpios = <&gpx3 5 GPIO_ACTIVE_LOW>;
+		connect-gpios = <&gpd1 7 GPIO_ACTIVE_LOW>;
 	};
 };
 
