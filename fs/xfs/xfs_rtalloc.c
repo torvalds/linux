@@ -46,7 +46,7 @@
  * Keeps track of a current summary block, so we don't keep reading
  * it from the buffer cache.
  */
-int
+static int
 xfs_rtget_summary(
 	xfs_mount_t	*mp,		/* file system mount structure */
 	xfs_trans_t	*tp,		/* transaction pointer */
