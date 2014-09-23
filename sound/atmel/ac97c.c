@@ -32,6 +32,7 @@
 #include <sound/memalloc.h>
 
 #include <linux/platform_data/dma-dw.h>
+#include <linux/dma/dw.h>
 
 #include <mach/cpu.h>
 
