@@ -23,15 +23,23 @@
 struct can_rx_offload {
 	struct net_device *dev;
 
-	unsigned int (*mailbox_read)(struct can_rx_offload *offload, struct can_frame *cf, unsigned int mb);
+	unsigned int (*mailbox_read)(struct can_rx_offload *offload, struct can_frame *cf,
+				     u32 *timestamp, unsigned int mb);
 
 	struct sk_buff_head skb_queue;
 	u32 skb_queue_len_max;
 
+	unsigned int mb_first;
+	unsigned int mb_last;
+
 	struct napi_struct napi;
+
+	bool inc;
 };
 
+int can_rx_offload_add_timestamp(struct net_device *dev, struct can_rx_offload *offload);
 int can_rx_offload_add_fifo(struct net_device *dev, struct can_rx_offload *offload, unsigned int weight);
+int can_rx_offload_irq_offload_timestamp(struct can_rx_offload *offload, u64 reg);
 int can_rx_offload_irq_offload_fifo(struct can_rx_offload *offload);
 int can_rx_offload_irq_queue_err_skb(struct can_rx_offload *offload, struct sk_buff *skb);
 void can_rx_offload_reset(struct can_rx_offload *offload);
