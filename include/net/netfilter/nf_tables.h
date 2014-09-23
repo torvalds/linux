@@ -241,6 +241,7 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@dtype: data type (verdict or numeric type defined by userspace)
  * 	@size: maximum set size
  * 	@nelems: number of elements
+ *	@policy: set parameterization (see enum nft_set_policies)
  * 	@ops: set ops
  * 	@flags: set flags
  * 	@klen: key length
@@ -255,6 +256,7 @@ struct nft_set {
 	u32				dtype;
 	u32				size;
 	u32				nelems;
+	u16				policy;
 	/* runtime data below here */
 	const struct nft_set_ops	*ops ____cacheline_aligned;
 	u16				flags;
