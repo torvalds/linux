@@ -454,7 +454,7 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 			pp->io.end = min_t(resource_size_t,
 					   IO_SPACE_LIMIT,
 					   range.pci_addr + range.size
-					   + global_io_offset);
+					   + global_io_offset - 1);
 			pp->io_size = resource_size(&pp->io);
 			pp->io_bus_addr = range.pci_addr;
 			pp->io_base = range.cpu_addr;
