@@ -703,7 +703,7 @@ tc90522_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	return (ret == j) ? num : ret;
 }
 
-u32 tc90522_functionality(struct i2c_adapter *adap)
+static u32 tc90522_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C;
 }
