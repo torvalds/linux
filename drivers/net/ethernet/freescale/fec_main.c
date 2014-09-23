@@ -2675,6 +2675,8 @@ fec_enet_open(struct net_device *ndev)
 	ret = fec_enet_mii_probe(ndev);
 	if (ret) {
 		fec_enet_free_buffers(ndev);
+		fec_enet_clk_enable(ndev, false);
+		pinctrl_pm_select_sleep_state(&fep->pdev->dev);
 		return ret;
 	}
 
