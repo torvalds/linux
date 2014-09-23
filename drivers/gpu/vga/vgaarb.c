@@ -41,6 +41,7 @@
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
+#include <linux/screen_info.h>
 
 #include <linux/uaccess.h>
 
@@ -112,10 +113,8 @@ both:
 	return 1;
 }
 
-#ifndef __ARCH_HAS_VGA_DEFAULT_DEVICE
 /* this is only used a cookie - it should not be dereferenced */
 static struct pci_dev *vga_default;
-#endif
 
 static void vga_arb_device_card_gone(struct pci_dev *pdev);
 
@@ -131,7 +130,6 @@ static struct vga_device *vgadev_find(struct pci_dev *pdev)
 }
 
 /* Returns the default VGA device (vgacon's babe) */
-#ifndef __ARCH_HAS_VGA_DEFAULT_DEVICE
 struct pci_dev *vga_default_device(void)
 {
 	return vga_default;
@@ -147,7 +145,6 @@ void vga_set_default_device(struct pci_dev *pdev)
 	pci_dev_put(vga_default);
 	vga_default = pci_dev_get(pdev);
 }
-#endif
 
 static inline void vga_irq_set_state(struct vga_device *vgadev, bool state)
 {
@@ -583,11 +580,12 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 	/* Deal with VGA default device. Use first enabled one
 	 * by default if arch doesn't have it's own hook
 	 */
-#ifndef __ARCH_HAS_VGA_DEFAULT_DEVICE
 	if (vga_default == NULL &&
-	    ((vgadev->owns & VGA_RSRC_LEGACY_MASK) == VGA_RSRC_LEGACY_MASK))
+	    ((vgadev->owns & VGA_RSRC_LEGACY_MASK) == VGA_RSRC_LEGACY_MASK)) {
+		pr_info("vgaarb: setting as boot device: PCI:%s\n",
+			pci_name(pdev));
 		vga_set_default_device(pdev);
-#endif
+	}
 
 	vga_arbiter_check_bridge_sharing(vgadev);
 
@@ -621,10 +619,8 @@ static bool vga_arbiter_del_pci_device(struct pci_dev *pdev)
 		goto bail;
 	}
 
-#ifndef __ARCH_HAS_VGA_DEFAULT_DEVICE
 	if (vga_default == pdev)
 		vga_set_default_device(NULL);
-#endif
 
 	if (vgadev->decodes & (VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM))
 		vga_decode_count--;
@@ -1320,6 +1316,38 @@ static int __init vga_arb_device_init(void)
 	pr_info("vgaarb: loaded\n");
 
 	list_for_each_entry(vgadev, &vga_list, list) {
+#if defined(CONFIG_X86) || defined(CONFIG_IA64)
+		/* Override I/O based detection done by vga_arbiter_add_pci_device()
+		 * as it may take the wrong device (e.g. on Apple system under EFI).
+		 *
+		 * Select the device owning the boot framebuffer if there is one.
+		 */
+		resource_size_t start, end;
+		int i;
+
+		/* Does firmware framebuffer belong to us? */
+		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+			if (!(pci_resource_flags(vgadev->pdev, i) & IORESOURCE_MEM))
+				continue;
+
+			start = pci_resource_start(vgadev->pdev, i);
+			end  = pci_resource_end(vgadev->pdev, i);
+
+			if (!start || !end)
+				continue;
+
+			if (screen_info.lfb_base < start ||
+			    (screen_info.lfb_base + screen_info.lfb_size) >= end)
+				continue;
+			if (!vga_default_device())
+				pr_info("vgaarb: setting as boot device: PCI:%s\n",
+					pci_name(vgadev->pdev));
+			else if (vgadev->pdev != vga_default_device())
+				pr_info("vgaarb: overriding boot device: PCI:%s\n",
+					pci_name(vgadev->pdev));
+			vga_set_default_device(vgadev->pdev);
+		}
+#endif
 		if (vgadev->bridge_has_one_vga)
 			pr_info("vgaarb: bridge control possible %s\n", pci_name(vgadev->pdev));
 		else

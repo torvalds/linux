@@ -2657,6 +2657,7 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 	struct xdr_stream *xdr = cd->xdr;
 	int start_offset = xdr->buf->len;
 	int cookie_offset;
+	u32 name_and_cookie;
 	int entry_bytes;
 	__be32 nfserr = nfserr_toosmall;
 	__be64 wire_offset;
@@ -2718,7 +2719,14 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 	cd->rd_maxcount -= entry_bytes;
 	if (!cd->rd_dircount)
 		goto fail;
-	cd->rd_dircount--;
+	/*
+	 * RFC 3530 14.2.24 describes rd_dircount as only a "hint", so
+	 * let's always let through the first entry, at least:
+	 */
+	name_and_cookie = 4 * XDR_QUADLEN(namlen) + 8;
+	if (name_and_cookie > cd->rd_dircount && cd->cookie_offset)
+		goto fail;
+	cd->rd_dircount -= min(cd->rd_dircount, name_and_cookie);
 	cd->cookie_offset = cookie_offset;
 skip_entry:
 	cd->common.err = nfs_ok;
@@ -3320,6 +3328,10 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 		goto err_no_verf;
 	}
 	maxcount = min_t(int, maxcount-16, bytes_left);
+
+	/* RFC 3530 14.2.24 allows us to ignore dircount when it's 0: */
+	if (!readdir->rd_dircount)
+		readdir->rd_dircount = INT_MAX;
 
 	readdir->xdr = xdr;
 	readdir->rd_maxcount = maxcount;

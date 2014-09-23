@@ -80,10 +80,10 @@ static void __tunnel_dst_set(struct ip_tunnel_dst *idst,
 	idst->saddr = saddr;
 }
 
-static void tunnel_dst_set(struct ip_tunnel *t,
+static noinline void tunnel_dst_set(struct ip_tunnel *t,
 			   struct dst_entry *dst, __be32 saddr)
 {
-	__tunnel_dst_set(this_cpu_ptr(t->dst_cache), dst, saddr);
+	__tunnel_dst_set(raw_cpu_ptr(t->dst_cache), dst, saddr);
 }
 
 static void tunnel_dst_reset(struct ip_tunnel *t)
@@ -107,7 +107,7 @@ static struct rtable *tunnel_rtable_get(struct ip_tunnel *t,
 	struct dst_entry *dst;
 
 	rcu_read_lock();
-	idst = this_cpu_ptr(t->dst_cache);
+	idst = raw_cpu_ptr(t->dst_cache);
 	dst = rcu_dereference(idst->dst);
 	if (dst && !atomic_inc_not_zero(&dst->__refcnt))
 		dst = NULL;

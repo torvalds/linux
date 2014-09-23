@@ -52,7 +52,7 @@ module_param(reglog, bool, 0600);
 #define reglog 0
 #endif
 
-static char *vram;
+static char *vram = "16m";
 MODULE_PARM_DESC(vram, "Configure VRAM size (for devices without IOMMU/GPUMMU");
 module_param(vram, charp, 0);
 

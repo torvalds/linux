@@ -1682,7 +1682,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 					MLX4_IB_LINK_TYPE_ETH;
 		if (dev->dev->caps.tunnel_offload_mode ==  MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) {
 			/* set QP to receive both tunneled & non-tunneled packets */
-			if (!(context->flags & (1 << MLX4_RSS_QPC_FLAG_OFFSET)))
+			if (!(context->flags & cpu_to_be32(1 << MLX4_RSS_QPC_FLAG_OFFSET)))
 				context->srqn = cpu_to_be32(7 << 28);
 		}
 	}

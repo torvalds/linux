@@ -163,6 +163,7 @@ enum miphy_sata_gen {
 };
 
 static u8 rx_tx_spd[] = {
+	0, /* GEN0 doesn't exist. */
 	TX_SPDSEL_GEN1_VAL | RX_SPDSEL_GEN1_VAL,
 	TX_SPDSEL_GEN2_VAL | RX_SPDSEL_GEN2_VAL,
 	TX_SPDSEL_GEN3_VAL | RX_SPDSEL_GEN3_VAL

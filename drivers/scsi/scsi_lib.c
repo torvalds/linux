@@ -733,12 +733,13 @@ static bool scsi_end_request(struct request *req, int error,
 	} else {
 		unsigned long flags;
 
+		if (bidi_bytes)
+			scsi_release_bidi_buffers(cmd);
+
 		spin_lock_irqsave(q->queue_lock, flags);
 		blk_finish_request(req, error);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 
-		if (bidi_bytes)
-			scsi_release_bidi_buffers(cmd);
 		scsi_release_buffers(cmd);
 		scsi_next_command(cmd);
 	}

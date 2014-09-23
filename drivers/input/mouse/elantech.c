@@ -1331,6 +1331,13 @@ static bool elantech_is_signature_valid(const unsigned char *param)
 	if (param[1] == 0)
 		return true;
 
+	/*
+	 * Some models have a revision higher then 20. Meaning param[2] may
+	 * be 10 or 20, skip the rates check for these.
+	 */
+	if (param[0] == 0x46 && (param[1] & 0xef) == 0x0f && param[2] < 40)
+		return true;
+
 	for (i = 0; i < ARRAY_SIZE(rates); i++)
 		if (param[2] == rates[i])
 			return false;
@@ -1607,6 +1614,10 @@ int elantech_init(struct psmouse *psmouse)
 		tp_dev->keybit[BIT_WORD(BTN_LEFT)] =
 			BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_MIDDLE) |
 			BIT_MASK(BTN_RIGHT);
+
+		__set_bit(INPUT_PROP_POINTER, tp_dev->propbit);
+		__set_bit(INPUT_PROP_POINTING_STICK, tp_dev->propbit);
+
 		error = input_register_device(etd->tp_dev);
 		if (error < 0)
 			goto init_fail_tp_reg;

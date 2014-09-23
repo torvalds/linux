@@ -2050,7 +2050,7 @@ static int rtl8153_enable(struct r8152 *tp)
 	return rtl_enable(tp);
 }
 
-static void rtl8152_disable(struct r8152 *tp)
+static void rtl_disable(struct r8152 *tp)
 {
 	u32 ocp_data;
 	int i;
@@ -2291,6 +2291,13 @@ static inline void r8152b_enable_aldps(struct r8152 *tp)
 					    LINKENA | DIS_SDSAVE);
 }
 
+static void rtl8152_disable(struct r8152 *tp)
+{
+	r8152b_disable_aldps(tp);
+	rtl_disable(tp);
+	r8152b_enable_aldps(tp);
+}
+
 static void r8152b_hw_phy_cfg(struct r8152 *tp)
 {
 	u16 data;
@@ -2301,11 +2308,8 @@ static void r8152b_hw_phy_cfg(struct r8152 *tp)
 		r8152_mdio_write(tp, MII_BMCR, data);
 	}
 
-	r8152b_disable_aldps(tp);
-
 	rtl_clear_bp(tp);
 
-	r8152b_enable_aldps(tp);
 	set_bit(PHY_RESET, &tp->flags);
 }
 
@@ -2313,9 +2317,6 @@ static void r8152b_exit_oob(struct r8152 *tp)
 {
 	u32 ocp_data;
 	int i;
-
-	if (test_bit(RTL8152_UNPLUG, &tp->flags))
-		return;
 
 	ocp_data = ocp_read_dword(tp, MCU_TYPE_PLA, PLA_RCR);
 	ocp_data &= ~RCR_ACPT_ALL;
@@ -2404,7 +2405,7 @@ static void r8152b_enter_oob(struct r8152 *tp)
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RXFIFO_CTRL1, RXFIFO_THR2_OOB);
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RXFIFO_CTRL2, RXFIFO_THR3_OOB);
 
-	rtl8152_disable(tp);
+	rtl_disable(tp);
 
 	for (i = 0; i < 1000; i++) {
 		ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL);
@@ -2540,9 +2541,6 @@ static void r8153_first_init(struct r8152 *tp)
 	u32 ocp_data;
 	int i;
 
-	if (test_bit(RTL8152_UNPLUG, &tp->flags))
-		return;
-
 	rxdy_gated_en(tp, true);
 	r8153_teredo_off(tp);
 
@@ -2613,7 +2611,7 @@ static void r8153_enter_oob(struct r8152 *tp)
 	ocp_data &= ~NOW_IS_OOB;
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL, ocp_data);
 
-	rtl8152_disable(tp);
+	rtl_disable(tp);
 
 	for (i = 0; i < 1000; i++) {
 		ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_OOB_CTRL);
@@ -2673,6 +2671,13 @@ static void r8153_enable_aldps(struct r8152 *tp)
 	data = ocp_reg_read(tp, OCP_POWER_CFG);
 	data |= EN_ALDPS;
 	ocp_reg_write(tp, OCP_POWER_CFG, data);
+}
+
+static void rtl8153_disable(struct r8152 *tp)
+{
+	r8153_disable_aldps(tp);
+	rtl_disable(tp);
+	r8153_enable_aldps(tp);
 }
 
 static int rtl8152_set_speed(struct r8152 *tp, u8 autoneg, u16 speed, u8 duplex)
@@ -2765,6 +2770,16 @@ out:
 	return ret;
 }
 
+static void rtl8152_up(struct r8152 *tp)
+{
+	if (test_bit(RTL8152_UNPLUG, &tp->flags))
+		return;
+
+	r8152b_disable_aldps(tp);
+	r8152b_exit_oob(tp);
+	r8152b_enable_aldps(tp);
+}
+
 static void rtl8152_down(struct r8152 *tp)
 {
 	if (test_bit(RTL8152_UNPLUG, &tp->flags)) {
@@ -2776,6 +2791,16 @@ static void rtl8152_down(struct r8152 *tp)
 	r8152b_disable_aldps(tp);
 	r8152b_enter_oob(tp);
 	r8152b_enable_aldps(tp);
+}
+
+static void rtl8153_up(struct r8152 *tp)
+{
+	if (test_bit(RTL8152_UNPLUG, &tp->flags))
+		return;
+
+	r8153_disable_aldps(tp);
+	r8153_first_init(tp);
+	r8153_enable_aldps(tp);
 }
 
 static void rtl8153_down(struct r8152 *tp)
@@ -2996,6 +3021,8 @@ static void r8152b_init(struct r8152 *tp)
 	if (test_bit(RTL8152_UNPLUG, &tp->flags))
 		return;
 
+	r8152b_disable_aldps(tp);
+
 	if (tp->version == RTL_VER_01) {
 		ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_LED_FEATURE);
 		ocp_data &= ~LED_MODE_MASK;
@@ -3034,6 +3061,7 @@ static void r8153_init(struct r8152 *tp)
 	if (test_bit(RTL8152_UNPLUG, &tp->flags))
 		return;
 
+	r8153_disable_aldps(tp);
 	r8153_u1u2en(tp, false);
 
 	for (i = 0; i < 500; i++) {
@@ -3444,7 +3472,7 @@ static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
 			ops->init		= r8152b_init;
 			ops->enable		= rtl8152_enable;
 			ops->disable		= rtl8152_disable;
-			ops->up			= r8152b_exit_oob;
+			ops->up			= rtl8152_up;
 			ops->down		= rtl8152_down;
 			ops->unload		= rtl8152_unload;
 			ret = 0;
@@ -3452,8 +3480,8 @@ static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
 		case PRODUCT_ID_RTL8153:
 			ops->init		= r8153_init;
 			ops->enable		= rtl8153_enable;
-			ops->disable		= rtl8152_disable;
-			ops->up			= r8153_first_init;
+			ops->disable		= rtl8153_disable;
+			ops->up			= rtl8153_up;
 			ops->down		= rtl8153_down;
 			ops->unload		= rtl8153_unload;
 			ret = 0;
@@ -3468,8 +3496,8 @@ static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
 		case PRODUCT_ID_SAMSUNG:
 			ops->init		= r8153_init;
 			ops->enable		= rtl8153_enable;
-			ops->disable		= rtl8152_disable;
-			ops->up			= r8153_first_init;
+			ops->disable		= rtl8153_disable;
+			ops->up			= rtl8153_up;
 			ops->down		= rtl8153_down;
 			ops->unload		= rtl8153_unload;
 			ret = 0;

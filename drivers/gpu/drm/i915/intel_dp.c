@@ -1631,6 +1631,10 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 
 	pipe_config->adjusted_mode.flags |= flags;
 
+	if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev) &&
+	    tmp & DP_COLOR_RANGE_16_235)
+		pipe_config->limited_color_range = true;
+
 	pipe_config->has_dp_encoder = true;
 
 	intel_dp_get_m_n(crtc, pipe_config);

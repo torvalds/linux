@@ -26,25 +26,14 @@ static inline void xen_dma_map_page(struct device *hwdev, struct page *page,
 	__generic_dma_ops(hwdev)->map_page(hwdev, page, offset, size, dir, attrs);
 }
 
-static inline void xen_dma_unmap_page(struct device *hwdev, dma_addr_t handle,
+void xen_dma_unmap_page(struct device *hwdev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir,
-		struct dma_attrs *attrs)
-{
-	if (__generic_dma_ops(hwdev)->unmap_page)
-		__generic_dma_ops(hwdev)->unmap_page(hwdev, handle, size, dir, attrs);
-}
+		struct dma_attrs *attrs);
 
-static inline void xen_dma_sync_single_for_cpu(struct device *hwdev,
-		dma_addr_t handle, size_t size, enum dma_data_direction dir)
-{
-	if (__generic_dma_ops(hwdev)->sync_single_for_cpu)
-		__generic_dma_ops(hwdev)->sync_single_for_cpu(hwdev, handle, size, dir);
-}
+void xen_dma_sync_single_for_cpu(struct device *hwdev,
+		dma_addr_t handle, size_t size, enum dma_data_direction dir);
 
-static inline void xen_dma_sync_single_for_device(struct device *hwdev,
-		dma_addr_t handle, size_t size, enum dma_data_direction dir)
-{
-	if (__generic_dma_ops(hwdev)->sync_single_for_device)
-		__generic_dma_ops(hwdev)->sync_single_for_device(hwdev, handle, size, dir);
-}
+void xen_dma_sync_single_for_device(struct device *hwdev,
+		dma_addr_t handle, size_t size, enum dma_data_direction dir);
+
 #endif /* _ASM_ARM_XEN_PAGE_COHERENT_H */

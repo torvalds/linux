@@ -1,6 +1,9 @@
 #ifndef __ASMARM_TLS_H
 #define __ASMARM_TLS_H
 
+#include <linux/compiler.h>
+#include <asm/thread_info.h>
+
 #ifdef __ASSEMBLY__
 #include <asm/asm-offsets.h>
 	.macro switch_tls_none, base, tp, tpuser, tmp1, tmp2
@@ -50,6 +53,47 @@
 #endif
 
 #ifndef __ASSEMBLY__
+
+static inline void set_tls(unsigned long val)
+{
+	struct thread_info *thread;
+
+	thread = current_thread_info();
+
+	thread->tp_value[0] = val;
+
+	/*
+	 * This code runs with preemption enabled and therefore must
+	 * be reentrant with respect to switch_tls.
+	 *
+	 * We need to ensure ordering between the shadow state and the
+	 * hardware state, so that we don't corrupt the hardware state
+	 * with a stale shadow state during context switch.
+	 *
+	 * If we're preempted here, switch_tls will load TPIDRURO from
+	 * thread_info upon resuming execution and the following mcr
+	 * is merely redundant.
+	 */
+	barrier();
+
+	if (!tls_emu) {
+		if (has_tls_reg) {
+			asm("mcr p15, 0, %0, c13, c0, 3"
+			    : : "r" (val));
+		} else {
+			/*
+			 * User space must never try to access this
+			 * directly.  Expect your app to break
+			 * eventually if you do so.  The user helper
+			 * at 0xffff0fe0 must be used instead.  (see
+			 * entry-armv.S for details)
+			 */
+			*((unsigned int *)0xffff0ff0) = val;
+		}
+
+	}
+}
+
 static inline unsigned long get_tpuser(void)
 {
 	unsigned long reg = 0;
@@ -59,5 +103,23 @@ static inline unsigned long get_tpuser(void)
 
 	return reg;
 }
+
+static inline void set_tpuser(unsigned long val)
+{
+	/* Since TPIDRURW is fully context-switched (unlike TPIDRURO),
+	 * we need not update thread_info.
+	 */
+	if (has_tls_reg && !tls_emu) {
+		asm("mcr p15, 0, %0, c13, c0, 2"
+		    : : "r" (val));
+	}
+}
+
+static inline void flush_tls(void)
+{
+	set_tls(0);
+	set_tpuser(0);
+}
+
 #endif
 #endif	/* __ASMARM_TLS_H */

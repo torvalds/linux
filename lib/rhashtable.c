@@ -23,7 +23,6 @@
 #include <linux/hash.h>
 #include <linux/random.h>
 #include <linux/rhashtable.h>
-#include <linux/log2.h>
 
 #define HASH_DEFAULT_SIZE	64UL
 #define HASH_MIN_SIZE		4UL
