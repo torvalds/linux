@@ -113,15 +113,39 @@ struct samsung_pin_bank_type {
 };
 
 /**
- * struct samsung_pin_bank: represent a controller pin-bank.
+ * struct samsung_pin_bank_data: represent a controller pin-bank (init data).
  * @type: type of the bank (register offsets and bitfield widths)
  * @pctl_offset: starting offset of the pin-bank registers.
- * @pin_base: starting pin number of the bank.
  * @nr_pins: number of pins included in this bank.
  * @eint_func: function to set in CON register to configure pin as EINT.
  * @eint_type: type of the external interrupt supported by the bank.
  * @eint_mask: bit mask of pins which support EINT function.
+ * @eint_offset: SoC-specific EINT register or interrupt offset of bank.
  * @name: name to be prefixed for each pin in this pin bank.
+ */
+struct samsung_pin_bank_data {
+	const struct samsung_pin_bank_type *type;
+	u32		pctl_offset;
+	u8		nr_pins;
+	u8		eint_func;
+	enum eint_type	eint_type;
+	u32		eint_mask;
+	u32		eint_offset;
+	const char	*name;
+};
+
+/**
+ * struct samsung_pin_bank: represent a controller pin-bank.
+ * @type: type of the bank (register offsets and bitfield widths)
+ * @pctl_offset: starting offset of the pin-bank registers.
+ * @nr_pins: number of pins included in this bank.
+ * @eint_func: function to set in CON register to configure pin as EINT.
+ * @eint_type: type of the external interrupt supported by the bank.
+ * @eint_mask: bit mask of pins which support EINT function.
+ * @eint_offset: SoC-specific EINT register or interrupt offset of bank.
+ * @name: name to be prefixed for each pin in this pin bank.
+ * @pin_base: starting pin number of the bank.
+ * @soc_priv: per-bank private data for SoC-specific code.
  * @of_node: OF node of the bank.
  * @drvdata: link to controller driver data
  * @irq_domain: IRQ domain of the bank.
@@ -133,13 +157,14 @@ struct samsung_pin_bank_type {
 struct samsung_pin_bank {
 	const struct samsung_pin_bank_type *type;
 	u32		pctl_offset;
-	u32		pin_base;
 	u8		nr_pins;
 	u8		eint_func;
 	enum eint_type	eint_type;
 	u32		eint_mask;
 	u32		eint_offset;
-	char		*name;
+	const char	*name;
+
+	u32		pin_base;
 	void		*soc_priv;
 	struct device_node *of_node;
 	struct samsung_pinctrl_drv_data *drvdata;
@@ -161,7 +186,7 @@ struct samsung_pin_bank {
  *	interrupts for the controller.
  */
 struct samsung_pin_ctrl {
-	struct samsung_pin_bank	*pin_banks;
+	const struct samsung_pin_bank_data *pin_banks;
 	u32		nr_banks;
 
 	int		(*eint_gpio_init)(struct samsung_pinctrl_drv_data *);

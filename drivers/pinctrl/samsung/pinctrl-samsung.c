@@ -973,6 +973,7 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 	const struct of_device_id *match;
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *np;
+	const struct samsung_pin_bank_data *bdata;
 	const struct samsung_pin_ctrl *ctrl;
 	struct samsung_pin_bank *bank;
 	int i;
@@ -987,11 +988,24 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 
 	d->suspend = ctrl->suspend;
 	d->resume = ctrl->resume;
-	d->pin_banks = ctrl->pin_banks;
 	d->nr_banks = ctrl->nr_banks;
+	d->pin_banks = devm_kcalloc(&pdev->dev, d->nr_banks,
+					sizeof(*d->pin_banks), GFP_KERNEL);
+	if (!d->pin_banks)
+		return ERR_PTR(-ENOMEM);
 
 	bank = d->pin_banks;
-	for (i = 0; i < d->nr_banks; ++i, ++bank) {
+	bdata = ctrl->pin_banks;
+	for (i = 0; i < ctrl->nr_banks; ++i, ++bdata, ++bank) {
+		bank->type = bdata->type;
+		bank->pctl_offset = bdata->pctl_offset;
+		bank->nr_pins = bdata->nr_pins;
+		bank->eint_func = bdata->eint_func;
+		bank->eint_type = bdata->eint_type;
+		bank->eint_mask = bdata->eint_mask;
+		bank->eint_offset = bdata->eint_offset;
+		bank->name = bdata->name;
+
 		spin_lock_init(&bank->slock);
 		bank->drvdata = d;
 		bank->pin_base = d->nr_pins;

@@ -561,7 +561,7 @@ static int s3c24xx_eint_init(struct samsung_pinctrl_drv_data *d)
 	return 0;
 }
 
-static struct samsung_pin_bank s3c2412_pin_banks[] = {
+static const struct samsung_pin_bank_data s3c2412_pin_banks[] __initconst = {
 	PIN_BANK_A(23, 0x000, "gpa"),
 	PIN_BANK_2BIT(11, 0x010, "gpb"),
 	PIN_BANK_2BIT(16, 0x020, "gpc"),
@@ -581,7 +581,7 @@ const struct samsung_pin_ctrl s3c2412_pin_ctrl[] __initconst = {
 	},
 };
 
-static struct samsung_pin_bank s3c2416_pin_banks[] = {
+static const struct samsung_pin_bank_data s3c2416_pin_banks[] __initconst = {
 	PIN_BANK_A(27, 0x000, "gpa"),
 	PIN_BANK_2BIT(11, 0x010, "gpb"),
 	PIN_BANK_2BIT(16, 0x020, "gpc"),
@@ -603,7 +603,7 @@ const struct samsung_pin_ctrl s3c2416_pin_ctrl[] __initconst = {
 	},
 };
 
-static struct samsung_pin_bank s3c2440_pin_banks[] = {
+static const struct samsung_pin_bank_data s3c2440_pin_banks[] __initconst = {
 	PIN_BANK_A(25, 0x000, "gpa"),
 	PIN_BANK_2BIT(11, 0x010, "gpb"),
 	PIN_BANK_2BIT(16, 0x020, "gpc"),
@@ -623,7 +623,7 @@ const struct samsung_pin_ctrl s3c2440_pin_ctrl[] __initconst = {
 	},
 };
 
-static struct samsung_pin_bank s3c2450_pin_banks[] = {
+static const struct samsung_pin_bank_data s3c2450_pin_banks[] __initconst = {
 	PIN_BANK_A(28, 0x000, "gpa"),
 	PIN_BANK_2BIT(11, 0x010, "gpb"),
 	PIN_BANK_2BIT(16, 0x020, "gpc"),

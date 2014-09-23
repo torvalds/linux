@@ -780,7 +780,7 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 }
 
 /* pin banks of s3c64xx pin-controller 0 */
-static struct samsung_pin_bank s3c64xx_pin_banks0[] = {
+static const struct samsung_pin_bank_data s3c64xx_pin_banks0[] __initconst = {
 	PIN_BANK_4BIT_EINTG(8, 0x000, "gpa", 0),
 	PIN_BANK_4BIT_EINTG(7, 0x020, "gpb", 8),
 	PIN_BANK_4BIT_EINTG(8, 0x040, "gpc", 16),
