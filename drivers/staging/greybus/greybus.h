@@ -133,6 +133,7 @@ struct gbuf {
 	unsigned int	direction : 1;	/* 0 is out, 1 is in */
 
 	void *context;
+	struct work_struct event;
 	gbuf_complete_t complete;
 };
 

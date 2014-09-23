@@ -19,8 +19,12 @@
 
 #include "greybus.h"
 
+static void cport_process_event(struct work_struct *work);
 
 static struct kmem_cache *gbuf_head_cache;
+
+/* Workqueue to handle Greybus buffer completions. */
+static struct workqueue_struct *gbuf_workqueue;
 
 static struct gbuf *__alloc_gbuf(struct greybus_module *gmod,
 				struct gmod_cport *cport,
@@ -37,6 +41,7 @@ static struct gbuf *__alloc_gbuf(struct greybus_module *gmod,
 	kref_init(&gbuf->kref);
 	gbuf->gmod = gmod;
 	gbuf->cport = cport;
+	INIT_WORK(&gbuf->event, cport_process_event);
 	gbuf->complete = complete;
 	gbuf->context = context;
 
@@ -129,41 +134,13 @@ int greybus_kill_gbuf(struct gbuf *gbuf)
 	return -ENOMEM;
 }
 
-struct cport_msg {
-	struct gbuf *gbuf;
-	struct work_struct event;
-};
-
-static struct workqueue_struct *cport_workqueue;
-
 static void cport_process_event(struct work_struct *work)
 {
-	struct cport_msg *cm;
-	struct gbuf *gbuf;
+	struct gbuf *gbuf = container_of(work, struct gbuf, event);
 
-	cm = container_of(work, struct cport_msg, event);
-
-	gbuf = cm->gbuf;
-
-	/* call the gbuf handler */
-	gbuf->complete(gbuf);
-
-	/* free all the memory */
-	greybus_free_gbuf(gbuf);
-	kfree(cm);
-}
-
-static void cport_create_event(struct gbuf *gbuf)
-{
-	struct cport_msg *cm;
-
-	/* Slow alloc, does it matter??? */
-	cm = kmalloc(sizeof(*cm), GFP_ATOMIC);
-
-	/* Queue up the cport message to be handled in user context */
-	cm->gbuf = gbuf;
-	INIT_WORK(&cm->event, cport_process_event);
-	queue_work(cport_workqueue, &cm->event);
+	/* Call the completion handler, then drop our reference */
+ 	gbuf->complete(gbuf);
+ 	greybus_put_gbuf(gbuf);
 }
 
 #define MAX_CPORTS	1024
@@ -237,21 +214,21 @@ void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
 	gbuf->transfer_buffer_length = length;
 	gbuf->actual_length = length;
 
-	cport_create_event(gbuf);
+	queue_work(gbuf_workqueue, &gbuf->event);
 }
 EXPORT_SYMBOL_GPL(greybus_cport_in_data);
 
 /* Can be called in interrupt context, do the work and get out of here */
 void greybus_gbuf_finished(struct gbuf *gbuf)
 {
-	cport_create_event(gbuf);
+	queue_work(gbuf_workqueue, &gbuf->event);
 }
 EXPORT_SYMBOL_GPL(greybus_gbuf_finished);
 
 int gb_gbuf_init(void)
 {
-	cport_workqueue = alloc_workqueue("greybus_gbuf", 0, 1);
-	if (!cport_workqueue)
+	gbuf_workqueue = alloc_workqueue("greybus_gbuf", 0, 1);
+	if (!gbuf_workqueue)
 		return -ENOMEM;
 
 	gbuf_head_cache = kmem_cache_create("gbuf_head_cache",
@@ -261,6 +238,6 @@ int gb_gbuf_init(void)
 
 void gb_gbuf_exit(void)
 {
-	destroy_workqueue(cport_workqueue);
+	destroy_workqueue(gbuf_workqueue);
 	kmem_cache_destroy(gbuf_head_cache);
 }
