@@ -255,10 +255,14 @@ static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 	case ADC_DEBOUNCE_TIME_10MS:
 	case ADC_DEBOUNCE_TIME_25MS:
 	case ADC_DEBOUNCE_TIME_38_62MS:
-		ret = regmap_update_bits(info->max77693->regmap_muic,
-					  MAX77693_MUIC_REG_CTRL3,
-					  CONTROL3_ADCDBSET_MASK,
-					  time << CONTROL3_ADCDBSET_SHIFT);
+		/*
+		 * Don't touch BTLDset, JIGset when you want to change adc
+		 * debounce time. If it writes other than 0 to BTLDset, JIGset
+		 * muic device will be reset and loose current state.
+		 */
+		ret = regmap_write(info->max77693->regmap_muic,
+				  MAX77693_MUIC_REG_CTRL3,
+				  time << CONTROL3_ADCDBSET_SHIFT);
 		if (ret) {
 			dev_err(info->dev, "failed to set ADC debounce time\n");
 			return ret;
@@ -1155,13 +1159,11 @@ static int max77693_muic_probe(struct platform_device *pdev)
 
 		virq = regmap_irq_get_virq(max77693->irq_data_muic,
 					muic_irq->irq);
-		if (!virq) {
-			ret = -EINVAL;
-			goto err_irq;
-		}
+		if (!virq)
+			return -EINVAL;
 		muic_irq->virq = virq;
 
-		ret = request_threaded_irq(virq, NULL,
+		ret = devm_request_threaded_irq(&pdev->dev, virq, NULL,
 				max77693_muic_irq_handler,
 				IRQF_NO_SUSPEND,
 				muic_irq->name, info);
@@ -1170,7 +1172,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 				"failed: irq request (IRQ: %d,"
 				" error :%d)\n",
 				muic_irq->irq, ret);
-			goto err_irq;
+			return ret;
 		}
 	}
 
@@ -1179,15 +1181,14 @@ static int max77693_muic_probe(struct platform_device *pdev)
 					      max77693_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
-		ret = -ENOMEM;
-		goto err_irq;
+		return -ENOMEM;
 	}
 	info->edev->name = DEV_NAME;
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
-		goto err_irq;
+		return ret;
 	}
 
 	/* Initialize MUIC register by using platform data or default data */
@@ -1265,7 +1266,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 			MAX77693_MUIC_REG_ID, &id);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to read revision number\n");
-		goto err_irq;
+		return ret;
 	}
 	dev_info(info->dev, "device ID : 0x%x\n", id);
 
@@ -1285,20 +1286,12 @@ static int max77693_muic_probe(struct platform_device *pdev)
 			delay_jiffies);
 
 	return ret;
-
-err_irq:
-	while (--i >= 0)
-		free_irq(muic_irqs[i].virq, info);
-	return ret;
 }
 
 static int max77693_muic_remove(struct platform_device *pdev)
 {
 	struct max77693_muic_info *info = platform_get_drvdata(pdev);
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++)
-		free_irq(muic_irqs[i].virq, info);
 	cancel_work_sync(&info->irq_work);
 	input_unregister_device(info->dock);
 
