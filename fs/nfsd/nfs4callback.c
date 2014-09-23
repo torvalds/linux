@@ -874,24 +874,21 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 		return;
 	switch (task->tk_status) {
 	case 0:
-		cb->cb_done = true;
-		return;
+		break;
 	case -EBADHANDLE:
 	case -NFS4ERR_BAD_STATEID:
 		/* Race: client probably got cb_recall
 		 * before open reply granting delegation */
-		break;
+		if (dp->dl_retries--) {
+			rpc_delay(task, 2*HZ);
+			task->tk_status = 0;
+			rpc_restart_call_prepare(task);
+			return;
+		}
 	default:
 		/* Network partition? */
 		nfsd4_mark_cb_down(clp, task->tk_status);
 	}
-	if (dp->dl_retries--) {
-		rpc_delay(task, 2*HZ);
-		task->tk_status = 0;
-		rpc_restart_call_prepare(task);
-		return;
-	}
-	nfsd4_mark_cb_down(clp, task->tk_status);
 	cb->cb_done = true;
 }
 
