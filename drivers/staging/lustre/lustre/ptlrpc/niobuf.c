@@ -442,8 +442,7 @@ int ptlrpc_reply(struct ptlrpc_request *req)
 {
 	if (req->rq_no_reply)
 		return 0;
-	else
-		return ptlrpc_send_reply(req, 0);
+	return ptlrpc_send_reply(req, 0);
 }
 EXPORT_SYMBOL(ptlrpc_reply);
 
