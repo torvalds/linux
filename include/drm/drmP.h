@@ -961,7 +961,6 @@ extern ssize_t drm_read(struct file *filp, char __user *buffer,
 extern int drm_release(struct inode *inode, struct file *filp);
 
 				/* Mapping support (drm_vm.h) */
-extern void drm_vm_open_locked(struct drm_device *dev, struct vm_area_struct *vma);
 extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
 /* Misc. IOCTL support (drm_ioctl.c) */
