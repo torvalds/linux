@@ -1026,6 +1026,7 @@ static void dgap_release_remap(struct board_t *brd)
 	release_mem_region(brd->membase, 0x200000);
 	release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
 	iounmap(brd->re_map_membase);
+	iounmap(brd->re_map_port);
 }
 /*****************************************************************************
 *
