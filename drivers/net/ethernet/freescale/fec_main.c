@@ -426,6 +426,8 @@ fec_enet_txq_submit_frag_skb(struct fec_enet_priv_tx_q *txq,
 		}
 
 		if (fep->bufdesc_ex) {
+			if (id_entry->driver_data & FEC_QUIRK_HAS_AVB)
+				estatus |= FEC_TX_BD_FTYPE(queue);
 			if (skb->ip_summed == CHECKSUM_PARTIAL)
 				estatus |= BD_ENET_TX_PINS | BD_ENET_TX_IINS;
 			ebdp->cbd_bdu = 0;
@@ -555,6 +557,9 @@ static int fec_enet_txq_submit_skb(struct fec_enet_priv_tx_q *txq,
 			fep->hwts_tx_en))
 			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
+		if (id_entry->driver_data & FEC_QUIRK_HAS_AVB)
+			estatus |= FEC_TX_BD_FTYPE(queue);
+
 		if (skb->ip_summed == CHECKSUM_PARTIAL)
 			estatus |= BD_ENET_TX_PINS | BD_ENET_TX_IINS;
 
@@ -599,6 +604,7 @@ fec_enet_txq_put_data_tso(struct fec_enet_priv_tx_q *txq, struct sk_buff *skb,
 	const struct platform_device_id *id_entry =
 				platform_get_device_id(fep->pdev);
 	struct bufdesc_ex *ebdp = container_of(bdp, struct bufdesc_ex, desc);
+	unsigned short queue = skb_get_queue_mapping(skb);
 	unsigned short status;
 	unsigned int estatus = 0;
 	dma_addr_t addr;
@@ -629,6 +635,8 @@ fec_enet_txq_put_data_tso(struct fec_enet_priv_tx_q *txq, struct sk_buff *skb,
 	bdp->cbd_bufaddr = addr;
 
 	if (fep->bufdesc_ex) {
+		if (id_entry->driver_data & FEC_QUIRK_HAS_AVB)
+			estatus |= FEC_TX_BD_FTYPE(queue);
 		if (skb->ip_summed == CHECKSUM_PARTIAL)
 			estatus |= BD_ENET_TX_PINS | BD_ENET_TX_IINS;
 		ebdp->cbd_bdu = 0;
@@ -659,6 +667,7 @@ fec_enet_txq_put_hdr_tso(struct fec_enet_priv_tx_q *txq,
 				platform_get_device_id(fep->pdev);
 	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 	struct bufdesc_ex *ebdp = container_of(bdp, struct bufdesc_ex, desc);
+	unsigned short queue = skb_get_queue_mapping(skb);
 	void *bufaddr;
 	unsigned long dmabuf;
 	unsigned short status;
@@ -692,6 +701,8 @@ fec_enet_txq_put_hdr_tso(struct fec_enet_priv_tx_q *txq,
 	bdp->cbd_datlen = hdr_len;
 
 	if (fep->bufdesc_ex) {
+		if (id_entry->driver_data & FEC_QUIRK_HAS_AVB)
+			estatus |= FEC_TX_BD_FTYPE(queue);
 		if (skb->ip_summed == CHECKSUM_PARTIAL)
 			estatus |= BD_ENET_TX_PINS | BD_ENET_TX_IINS;
 		ebdp->cbd_bdu = 0;
