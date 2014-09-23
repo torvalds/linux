@@ -2065,7 +2065,7 @@ static void _reconfigure_io_chain(void)
 
 	spin_lock_irqsave(&io_chain_lock, flags);
 
-	if (cpu_is_omap34xx() && omap3_has_io_chain_ctrl())
+	if (cpu_is_omap34xx())
 		omap3xxx_prm_reconfigure_io_chain();
 	else if (cpu_is_omap44xx())
 		omap44xx_prm_reconfigure_io_chain();
