@@ -2115,7 +2115,6 @@ int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 	if (codec->ac97->bus == NULL) {
 		kfree(codec->ac97);
 		codec->ac97 = NULL;
-		mutex_unlock(&codec->mutex);
 		return -ENOMEM;
 	}
 
