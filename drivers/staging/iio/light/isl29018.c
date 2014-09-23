@@ -563,7 +563,7 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 		return status;
 	}
 
-	msleep(1);	/* per data sheet, page 10 */
+	usleep_range(1000, 2000);	/* per data sheet, page 10 */
 
 	/* set defaults */
 	status = isl29018_set_range(chip, chip->range, &new_range);
