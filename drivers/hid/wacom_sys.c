@@ -109,6 +109,7 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_features *features = &wacom->wacom_wac.features;
+	struct hid_data *hid_data = &wacom->wacom_wac.hid_data;
 	u8 *data;
 	int ret;
 
@@ -127,6 +128,16 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 				features->touch_max = data[1];
 			kfree(data);
 		}
+		break;
+	case HID_DG_INPUTMODE:
+		/* Ignore if value index is out of bounds. */
+		if (usage->usage_index >= field->report_count) {
+			dev_err(&hdev->dev, "HID_DG_INPUTMODE out of range\n");
+			break;
+		}
+
+		hid_data->inputmode = field->report->id;
+		hid_data->inputmode_index = usage->usage_index;
 		break;
 	}
 }
@@ -255,6 +266,25 @@ static void wacom_parse_hid(struct hid_device *hdev,
 	}
 }
 
+static int wacom_hid_set_device_mode(struct hid_device *hdev)
+{
+	struct wacom *wacom = hid_get_drvdata(hdev);
+	struct hid_data *hid_data = &wacom->wacom_wac.hid_data;
+	struct hid_report *r;
+	struct hid_report_enum *re;
+
+	if (hid_data->inputmode < 0)
+		return 0;
+
+	re = &(hdev->report_enum[HID_FEATURE_REPORT]);
+	r = re->report_id_hash[hid_data->inputmode];
+	if (r) {
+		r->field[0]->value[hid_data->inputmode_index] = 2;
+		hid_hw_request(hdev, r, HID_REQ_SET_REPORT);
+	}
+	return 0;
+}
+
 static int wacom_set_device_mode(struct hid_device *hdev, int report_id,
 		int length, int mode)
 {
@@ -346,6 +376,9 @@ static int wacom_query_tablet_data(struct hid_device *hdev,
 {
 	if (hdev->bus == BUS_BLUETOOTH)
 		return wacom_bt_query_tablet_data(hdev, 1, features);
+
+	if (features->type == HID_GENERIC)
+		return wacom_hid_set_device_mode(hdev);
 
 	if (features->device_type == BTN_TOOL_FINGER) {
 		if (features->type > TABLETPC) {
@@ -1451,9 +1484,6 @@ static int wacom_probe(struct hid_device *hdev,
 				 error);
 	}
 
-	/* Note that if query fails it is not a hard failure */
-	wacom_query_tablet_data(hdev, features);
-
 	if (features->type == HID_GENERIC)
 		connect_mask |= HID_CONNECT_DRIVER;
 
@@ -1463,6 +1493,9 @@ static int wacom_probe(struct hid_device *hdev,
 		hid_err(hdev, "hw start failed\n");
 		goto fail_hw_start;
 	}
+
+	/* Note that if query fails it is not a hard failure */
+	wacom_query_tablet_data(hdev, features);
 
 	if (features->quirks & WACOM_QUIRK_MONITOR)
 		error = hid_hw_open(hdev);
