@@ -1215,6 +1215,54 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 	return root;
 }
 
+static int parse_security_options(char *orig_opts,
+				  struct security_mnt_opts *sec_opts)
+{
+	char *secdata = NULL;
+	int ret = 0;
+
+	secdata = alloc_secdata();
+	if (!secdata)
+		return -ENOMEM;
+	ret = security_sb_copy_data(orig_opts, secdata);
+	if (ret) {
+		free_secdata(secdata);
+		return ret;
+	}
+	ret = security_sb_parse_opts_str(secdata, sec_opts);
+	free_secdata(secdata);
+	return ret;
+}
+
+static int setup_security_options(struct btrfs_fs_info *fs_info,
+				  struct super_block *sb,
+				  struct security_mnt_opts *sec_opts)
+{
+	int ret = 0;
+
+	/*
+	 * Call security_sb_set_mnt_opts() to check whether new sec_opts
+	 * is valid.
+	 */
+	ret = security_sb_set_mnt_opts(sb, sec_opts, 0, NULL);
+	if (ret)
+		return ret;
+
+	if (!fs_info->security_opts.num_mnt_opts) {
+		/* first time security setup, copy sec_opts to fs_info */
+		memcpy(&fs_info->security_opts, sec_opts, sizeof(*sec_opts));
+	} else {
+		/*
+		 * Since SELinux(the only one supports security_mnt_opts) does
+		 * NOT support changing context during remount/mount same sb,
+		 * This must be the same or part of the same security options,
+		 * just free it.
+		 */
+		security_free_mnt_opts(sec_opts);
+	}
+	return ret;
+}
+
 /*
  * Find a superblock for the given device / mount point.
  *
@@ -1229,6 +1277,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	struct dentry *root;
 	struct btrfs_fs_devices *fs_devices = NULL;
 	struct btrfs_fs_info *fs_info = NULL;
+	struct security_mnt_opts new_sec_opts;
 	fmode_t mode = FMODE_READ;
 	char *subvol_name = NULL;
 	u64 subvol_objectid = 0;
@@ -1251,9 +1300,16 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 		return root;
 	}
 
+	security_init_mnt_opts(&new_sec_opts);
+	if (data) {
+		error = parse_security_options(data, &new_sec_opts);
+		if (error)
+			return ERR_PTR(error);
+	}
+
 	error = btrfs_scan_one_device(device_name, mode, fs_type, &fs_devices);
 	if (error)
-		return ERR_PTR(error);
+		goto error_sec_opts;
 
 	/*
 	 * Setup a dummy root and fs_info for test/set super.  This is because
@@ -1262,13 +1318,16 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	 * then open_ctree will properly initialize everything later.
 	 */
 	fs_info = kzalloc(sizeof(struct btrfs_fs_info), GFP_NOFS);
-	if (!fs_info)
-		return ERR_PTR(-ENOMEM);
+	if (!fs_info) {
+		error = -ENOMEM;
+		goto error_sec_opts;
+	}
 
 	fs_info->fs_devices = fs_devices;
 
 	fs_info->super_copy = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_NOFS);
 	fs_info->super_for_commit = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_NOFS);
+	security_init_mnt_opts(&fs_info->security_opts);
 	if (!fs_info->super_copy || !fs_info->super_for_commit) {
 		error = -ENOMEM;
 		goto error_fs_info;
@@ -1306,8 +1365,19 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	}
 
 	root = !error ? get_default_root(s, subvol_objectid) : ERR_PTR(error);
-	if (IS_ERR(root))
+	if (IS_ERR(root)) {
 		deactivate_locked_super(s);
+		error = PTR_ERR(root);
+		goto error_sec_opts;
+	}
+
+	fs_info = btrfs_sb(s);
+	error = setup_security_options(fs_info, s, &new_sec_opts);
+	if (error) {
+		dput(root);
+		deactivate_locked_super(s);
+		goto error_sec_opts;
+	}
 
 	return root;
 
@@ -1315,6 +1385,8 @@ error_close_devices:
 	btrfs_close_devices(fs_devices);
 error_fs_info:
 	free_fs_info(fs_info);
+error_sec_opts:
+	security_free_mnt_opts(&new_sec_opts);
 	return ERR_PTR(error);
 }
 
@@ -1395,6 +1467,21 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 
 	sync_filesystem(sb);
 	btrfs_remount_prepare(fs_info);
+
+	if (data) {
+		struct security_mnt_opts new_sec_opts;
+
+		security_init_mnt_opts(&new_sec_opts);
+		ret = parse_security_options(data, &new_sec_opts);
+		if (ret)
+			goto restore;
+		ret = setup_security_options(fs_info, sb,
+					     &new_sec_opts);
+		if (ret) {
+			security_free_mnt_opts(&new_sec_opts);
+			goto restore;
+		}
+	}
 
 	ret = btrfs_parse_options(root, data);
 	if (ret) {
@@ -1775,7 +1862,7 @@ static struct file_system_type btrfs_fs_type = {
 	.name		= "btrfs",
 	.mount		= btrfs_mount,
 	.kill_sb	= btrfs_kill_super,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.fs_flags	= FS_REQUIRES_DEV | FS_BINARY_MOUNTDATA,
 };
 MODULE_ALIAS_FS("btrfs");
 

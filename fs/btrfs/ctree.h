@@ -34,6 +34,7 @@
 #include <linux/pagemap.h>
 #include <linux/btrfs.h>
 #include <linux/workqueue.h>
+#include <linux/security.h>
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"
@@ -1725,6 +1726,9 @@ struct btrfs_fs_info {
 
 	spinlock_t unused_bgs_lock;
 	struct list_head unused_bgs;
+
+	/* For btrfs to record security options */
+	struct security_mnt_opts security_opts;
 };
 
 struct btrfs_subvolume_writers {
@@ -3591,6 +3595,7 @@ static inline void free_fs_info(struct btrfs_fs_info *fs_info)
 	kfree(fs_info->uuid_root);
 	kfree(fs_info->super_copy);
 	kfree(fs_info->super_for_commit);
+	security_free_mnt_opts(&fs_info->security_opts);
 	kfree(fs_info);
 }
 
