@@ -400,16 +400,26 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		goto exit;
 	}
 
+	size = sizeof(struct digital_dep_req_res);
 	dep_res = (struct digital_dep_req_res *)resp->data;
 
-	if (resp->len < sizeof(struct digital_dep_req_res) ||
-	    dep_res->dir != DIGITAL_NFC_DEP_FRAME_DIR_IN ||
+	if (resp->len < size || dep_res->dir != DIGITAL_NFC_DEP_FRAME_DIR_IN ||
 	    dep_res->cmd != DIGITAL_CMD_DEP_RES) {
 		rc = -EIO;
 		goto error;
 	}
 
 	pfb = dep_res->pfb;
+
+	if (DIGITAL_NFC_DEP_DID_BIT_SET(pfb))
+		size++;
+
+	if (size > resp->len) {
+		rc = -EIO;
+		goto error;
+	}
+
+	skb_pull(resp, size);
 
 	switch (DIGITAL_NFC_DEP_PFB_TYPE(pfb)) {
 	case DIGITAL_NFC_DEP_PFB_I_PDU:
@@ -435,7 +445,7 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 			goto error;
 		}
 
-		rc = digital_in_send_rtox(ddev, data_exch, resp->data[3]);
+		rc = digital_in_send_rtox(ddev, data_exch, resp->data[0]);
 		if (rc)
 			goto error;
 
@@ -448,18 +458,6 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		rc = -EIO;
 		goto error;
 	}
-
-	size = sizeof(struct digital_dep_req_res);
-
-	if (DIGITAL_NFC_DEP_DID_BIT_SET(pfb))
-		size++;
-
-	if (size > resp->len) {
-		rc = -EIO;
-		goto error;
-	}
-
-	skb_pull(resp, size);
 
 exit:
 	data_exch->cb(data_exch->cb_context, resp, rc);
@@ -524,6 +522,7 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 {
 	int rc;
 	struct digital_dep_req_res *dep_req;
+	u8 pfb;
 	size_t size;
 
 	if (IS_ERR(resp)) {
@@ -553,18 +552,22 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 		goto exit;
 	}
 
-	if (DIGITAL_NFC_DEP_DID_BIT_SET(dep_req->pfb))
+	pfb = dep_req->pfb;
+
+	if (DIGITAL_NFC_DEP_DID_BIT_SET(pfb))
 		size++;
 
-	if (resp->len < size) {
+	if (size > resp->len) {
 		rc = -EIO;
 		goto exit;
 	}
 
-	switch (DIGITAL_NFC_DEP_PFB_TYPE(dep_req->pfb)) {
+	skb_pull(resp, size);
+
+	switch (DIGITAL_NFC_DEP_PFB_TYPE(pfb)) {
 	case DIGITAL_NFC_DEP_PFB_I_PDU:
 		pr_debug("DIGITAL_NFC_DEP_PFB_I_PDU\n");
-		ddev->curr_nfc_dep_pni = DIGITAL_NFC_DEP_PFB_PNI(dep_req->pfb);
+		ddev->curr_nfc_dep_pni = DIGITAL_NFC_DEP_PFB_PNI(pfb);
 		break;
 	case DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU:
 		pr_err("Received a ACK/NACK PDU\n");
@@ -575,8 +578,6 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 		rc = -EINVAL;
 		goto exit;
 	}
-
-	skb_pull(resp, size);
 
 	rc = nfc_tm_data_received(ddev->nfc_dev, resp);
 
