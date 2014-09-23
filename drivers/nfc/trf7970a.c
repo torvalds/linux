@@ -2139,7 +2139,7 @@ static int trf7970a_resume(struct device *dev)
 {
 	struct spi_device *spi = container_of(dev, struct spi_device, dev);
 	struct trf7970a *trf = spi_get_drvdata(spi);
-	int ret = 0;
+	int ret;
 
 	dev_dbg(dev, "Resume\n");
 
