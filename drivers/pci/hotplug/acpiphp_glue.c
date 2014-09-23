@@ -61,7 +61,6 @@ static DEFINE_MUTEX(bridge_mutex);
 static int acpiphp_hotplug_notify(struct acpi_device *adev, u32 type);
 static void acpiphp_post_dock_fixup(struct acpi_device *adev);
 static void acpiphp_sanitize_bus(struct pci_bus *bus);
-static void acpiphp_set_hpp_values(struct pci_bus *bus);
 static void hotplug_event(u32 type, struct acpiphp_context *context);
 static void free_bridge(struct kref *kref);
 
@@ -510,7 +509,7 @@ static void enable_slot(struct acpiphp_slot *slot)
 	__pci_bus_assign_resources(bus, &add_list, NULL);
 
 	acpiphp_sanitize_bus(bus);
-	acpiphp_set_hpp_values(bus);
+	pcie_bus_configure_settings(bus);
 	acpiphp_set_acpi_region(slot);
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -700,14 +699,6 @@ static void acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 			disable_slot(slot);
 		}
 	}
-}
-
-static void acpiphp_set_hpp_values(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-
-	list_for_each_entry(dev, &bus->devices, bus_list)
-		pci_configure_slot(dev);
 }
 
 /*
