@@ -244,12 +244,12 @@ static void saa7134_go7007_irq_ts_done(struct saa7134_dev *dev,
 		dma_sync_single_for_cpu(&dev->pci->dev,
 					saa->bottom_dma, PAGE_SIZE, DMA_FROM_DEVICE);
 		go7007_parse_video_stream(go, saa->bottom, PAGE_SIZE);
-		saa_writel(SAA7134_RS_BA2(5), cpu_to_le32(saa->bottom_dma));
+		saa_writel(SAA7134_RS_BA2(5), saa->bottom_dma);
 	} else {
 		dma_sync_single_for_cpu(&dev->pci->dev,
 					saa->top_dma, PAGE_SIZE, DMA_FROM_DEVICE);
 		go7007_parse_video_stream(go, saa->top, PAGE_SIZE);
-		saa_writel(SAA7134_RS_BA1(5), cpu_to_le32(saa->top_dma));
+		saa_writel(SAA7134_RS_BA1(5), saa->top_dma);
 	}
 }
 
@@ -296,8 +296,8 @@ static int saa7134_go7007_stream_start(struct go7007 *go)
 	/* Enable video streaming mode */
 	saa_writeb(SAA7134_GPIO_GPSTATUS2, GPIO_COMMAND_VIDEO);
 
-	saa_writel(SAA7134_RS_BA1(5), cpu_to_le32(saa->top_dma));
-	saa_writel(SAA7134_RS_BA2(5), cpu_to_le32(saa->bottom_dma));
+	saa_writel(SAA7134_RS_BA1(5), saa->top_dma);
+	saa_writel(SAA7134_RS_BA2(5), saa->bottom_dma);
 	saa_writel(SAA7134_RS_PITCH(5), 128);
 	saa_writel(SAA7134_RS_CONTROL(5), SAA7134_RS_CONTROL_BURST_MAX);
 
