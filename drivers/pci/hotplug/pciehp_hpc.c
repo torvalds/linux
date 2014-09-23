@@ -173,7 +173,7 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	if (!rc)
 		ctrl_info(ctrl, "Timeout on hotplug command %#06x (issued %u msec ago)\n",
 			  ctrl->slot_ctrl,
-			  jiffies_to_msecs(now - ctrl->cmd_started));
+			  jiffies_to_msecs(jiffies - ctrl->cmd_started));
 }
 
 /**
