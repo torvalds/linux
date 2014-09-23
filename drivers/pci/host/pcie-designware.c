@@ -510,7 +510,6 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 	pp->mem_base = pp->mem.start;
 
 	if (!pp->va_cfg0_base) {
-		pp->cfg0_base = pp->cfg.start;
 		pp->va_cfg0_base = devm_ioremap(pp->dev, pp->cfg0_base,
 						pp->cfg0_size);
 		if (!pp->va_cfg0_base) {
@@ -520,7 +519,6 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 	}
 
 	if (!pp->va_cfg1_base) {
-		pp->cfg1_base = pp->cfg.start + pp->cfg0_size;
 		pp->va_cfg1_base = devm_ioremap(pp->dev, pp->cfg1_base,
 						pp->cfg1_size);
 		if (!pp->va_cfg1_base) {
