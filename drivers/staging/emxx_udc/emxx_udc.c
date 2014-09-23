@@ -705,7 +705,7 @@ static int _nbu2ss_ep0_in_transfer(
 	if (req->req.actual == req->req.length) {
 		if ((req->req.actual % EP0_PACKETSIZE) == 0) {
 			if (req->zero) {
-				req->zero = 0;
+				req->zero = false;
 				EP0_send_NULL(udc, FALSE);
 				return 1;
 			}
@@ -795,7 +795,7 @@ static int _nbu2ss_ep0_out_transfer(
 	if (req->req.actual == req->req.length) {
 		if ((req->req.actual % EP0_PACKETSIZE) == 0) {
 			if (req->zero) {
-				req->zero = 0;
+				req->zero = false;
 				EP0_receive_NULL(udc, FALSE);
 				return 1;
 			}
@@ -1019,7 +1019,7 @@ static int _nbu2ss_epn_out_transfer(
 	if (result == 0) {
 		if ((req->req.actual % ep->ep.maxpacket) == 0) {
 			if (req->zero) {
-				req->zero = 0;
+				req->zero = false;
 				return 1;
 			}
 		}
@@ -1246,12 +1246,12 @@ static int _nbu2ss_start_transfer(
 	req->div_len = 0;
 
 	if (req->req.length == 0)
-		req->zero = 0;
+		req->zero = false;
 	else {
 		if ((req->req.length % ep->ep.maxpacket) == 0)
 			req->zero = req->req.zero;
 		else
-			req->zero = 0;
+			req->zero = false;
 	}
 
 	if (ep->epnum == 0) {
@@ -2017,7 +2017,7 @@ static inline void _nbu2ss_epn_in_int(
 			if ((status & EPn_IN_FULL) == 0) {
 				/*-----------------------------------------*/
 				/* 0 Length Packet */
-				req->zero = 0;
+				req->zero = false;
 				_nbu2ss_zero_len_pkt(udc, ep->epnum);
 			}
 			return;
