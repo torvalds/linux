@@ -24,7 +24,7 @@
 
 #include "nv50.h"
 
-static u64
+u64
 gm107_devinit_disable(struct nouveau_devinit *devinit)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;
