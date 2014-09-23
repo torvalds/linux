@@ -1680,7 +1680,7 @@ static void mlx4_ib_update_qps(struct mlx4_ib_dev *ibdev,
 			goto unlock;
 
 		update_params.smac_index = new_smac_index;
-		if (mlx4_update_qp(ibdev->dev, &qp->mqp, MLX4_UPDATE_QP_SMAC,
+		if (mlx4_update_qp(ibdev->dev, qp->mqp.qpn, MLX4_UPDATE_QP_SMAC,
 				   &update_params)) {
 			release_mac = new_smac;
 			goto unlock;
