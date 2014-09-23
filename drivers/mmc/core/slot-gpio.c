@@ -390,7 +390,7 @@ void mmc_gpiod_free_cd(struct mmc_host *host)
 		host->slot.cd_irq = -EINVAL;
 	}
 
-	devm_gpiod_put(&host->class_dev, ctx->cd_gpio);
+	devm_gpiod_put(host->parent, ctx->cd_gpio);
 
 	ctx->cd_gpio = NULL;
 }
