@@ -1,7 +1,8 @@
 /*
- * Set up the VMAs to tell the VM about the vDSO.
  * Copyright 2007 Andi Kleen, SUSE Labs.
  * Subject to the GPL, v.2
+ *
+ * This contains most of the x86 vDSO kernel-side code.
  */
 #include <linux/mm.h>
 #include <linux/err.h>
@@ -11,18 +12,16 @@
 #include <linux/random.h>
 #include <linux/elf.h>
 #include <linux/cpu.h>
-#include <asm/vsyscall.h>
 #include <asm/vgtod.h>
 #include <asm/proto.h>
 #include <asm/vdso.h>
+#include <asm/vvar.h>
 #include <asm/page.h>
 #include <asm/hpet.h>
 #include <asm/desc.h>
 
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso64_enabled = 1;
-
-extern unsigned short vdso_sync_cpuid;
 #endif
 
 void __init init_vdso_image(const struct vdso_image *image)
@@ -39,20 +38,6 @@ void __init init_vdso_image(const struct vdso_image *image)
 			   (struct alt_instr *)(image->data + image->alt +
 						image->alt_len));
 }
-
-#if defined(CONFIG_X86_64)
-static int __init init_vdso(void)
-{
-	init_vdso_image(&vdso_image_64);
-
-#ifdef CONFIG_X86_X32_ABI
-	init_vdso_image(&vdso_image_x32);
-#endif
-
-	return 0;
-}
-subsys_initcall(init_vdso);
-#endif
 
 struct linux_binprm;
 
@@ -242,12 +227,9 @@ __setup("vdso=", vdso_setup);
 #endif
 
 #ifdef CONFIG_X86_64
-/*
- * Assume __initcall executes before all user space. Hopefully kmod
- * doesn't violate that. We'll find out if it does.
- */
-static void vsyscall_set_cpu(int cpu)
+static void vgetcpu_cpu_init(void *arg)
 {
+	int cpu = smp_processor_id();
 	struct desc_struct d;
 	unsigned long node = 0;
 #ifdef CONFIG_NUMA
@@ -274,34 +256,34 @@ static void vsyscall_set_cpu(int cpu)
 	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
 }
 
-static void cpu_vsyscall_init(void *arg)
-{
-	/* preemption should be already off */
-	vsyscall_set_cpu(raw_smp_processor_id());
-}
-
 static int
-cpu_vsyscall_notifier(struct notifier_block *n, unsigned long action, void *arg)
+vgetcpu_cpu_notifier(struct notifier_block *n, unsigned long action, void *arg)
 {
 	long cpu = (long)arg;
 
 	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN)
-		smp_call_function_single(cpu, cpu_vsyscall_init, NULL, 1);
+		smp_call_function_single(cpu, vgetcpu_cpu_init, NULL, 1);
 
 	return NOTIFY_DONE;
 }
 
-static int __init vsyscall_init(void)
+static int __init init_vdso(void)
 {
+	init_vdso_image(&vdso_image_64);
+
+#ifdef CONFIG_X86_X32_ABI
+	init_vdso_image(&vdso_image_x32);
+#endif
+
 	cpu_notifier_register_begin();
 
-	on_each_cpu(cpu_vsyscall_init, NULL, 1);
+	on_each_cpu(vgetcpu_cpu_init, NULL, 1);
 	/* notifier priority > KVM */
-	__hotcpu_notifier(cpu_vsyscall_notifier, 30);
+	__hotcpu_notifier(vgetcpu_cpu_notifier, 30);
 
 	cpu_notifier_register_done();
 
 	return 0;
 }
-__initcall(vsyscall_init);
-#endif
+subsys_initcall(init_vdso);
+#endif /* CONFIG_X86_64 */
