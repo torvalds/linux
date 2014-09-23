@@ -3677,6 +3677,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 	if (unlikely(ret)) {
 		for (; i < num_pages; i++) {
 			struct page *p = extent_buffer_page(eb, i);
+			clear_page_dirty_for_io(p);
 			unlock_page(p);
 		}
 	}
