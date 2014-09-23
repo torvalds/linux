@@ -180,9 +180,12 @@ TRACE_EVENT(rcu_grace_period_init,
  * argument is a string as follows:
  *
  *	"WakeEmpty": Wake rcuo kthread, first CB to empty list.
+ *	"WakeEmptyIsDeferred": Wake rcuo kthread later, first CB to empty list.
  *	"WakeOvf": Wake rcuo kthread, CB list is huge.
+ *	"WakeOvfIsDeferred": Wake rcuo kthread later, CB list is huge.
  *	"WakeNot": Don't wake rcuo kthread.
  *	"WakeNotPoll": Don't wake rcuo kthread because it is polling.
+ *	"DeferredWake": Carried out the "IsDeferred" wakeup.
  *	"Poll": Start of new polling cycle for rcu_nocb_poll.
  *	"Sleep": Sleep waiting for CBs for !rcu_nocb_poll.
  *	"WokeEmpty": rcuo kthread woke to find empty list.
