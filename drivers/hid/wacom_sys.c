@@ -1357,6 +1357,12 @@ static int wacom_probe(struct hid_device *hdev,
 	mutex_init(&wacom->lock);
 	INIT_WORK(&wacom->work, wacom_wireless_work);
 
+	if (!(features->quirks & WACOM_QUIRK_NO_INPUT)) {
+		error = wacom_allocate_inputs(wacom);
+		if (error)
+			goto fail_allocate_inputs;
+	}
+
 	/* set the default size in case we do not get them from hid */
 	wacom_set_default_phy(features);
 
@@ -1429,8 +1435,7 @@ static int wacom_probe(struct hid_device *hdev,
 	}
 
 	if (!(features->quirks & WACOM_QUIRK_NO_INPUT)) {
-		error = wacom_allocate_inputs(wacom) ||
-			wacom_register_inputs(wacom);
+		error = wacom_register_inputs(wacom);
 		if (error)
 			goto fail_register_inputs;
 	}
@@ -1464,7 +1469,6 @@ static int wacom_probe(struct hid_device *hdev,
 	return 0;
 
 fail_hw_start:
-	wacom_clean_inputs(wacom);
 	if (hdev->bus == BUS_BLUETOOTH)
 		device_remove_file(&hdev->dev, &dev_attr_speed);
 fail_register_inputs:
@@ -1473,6 +1477,8 @@ fail_register_inputs:
 fail_battery:
 	wacom_remove_shared_data(wacom_wac);
 fail_shared_data:
+	wacom_clean_inputs(wacom);
+fail_allocate_inputs:
 fail_type:
 fail_pktlen:
 fail_parse:
