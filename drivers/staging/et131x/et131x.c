@@ -3624,7 +3624,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 {
 	bool handled = true;
 	bool enable_interrupts = true;
-	struct net_device *netdev = (struct net_device *)dev_id;
+	struct net_device *netdev = dev_id;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct address_map __iomem *iomem = adapter->regs;
 	struct rx_ring *rx_ring = &adapter->rx_ring;
