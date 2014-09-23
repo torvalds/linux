@@ -35,7 +35,6 @@ struct vport_parms;
 
 /* The following definitions are for users of the vport subsytem: */
 
-/* The following definitions are for users of the vport subsytem: */
 struct vport_net {
 	struct vport __rcu *gre_vport;
 };
