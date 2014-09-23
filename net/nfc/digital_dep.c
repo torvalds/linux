@@ -17,6 +17,8 @@
 
 #include "digital.h"
 
+#define DIGITAL_NFC_DEP_N_RETRY_NACK	2
+
 #define DIGITAL_NFC_DEP_FRAME_DIR_OUT 0xD4
 #define DIGITAL_NFC_DEP_FRAME_DIR_IN  0xD5
 
@@ -529,6 +531,38 @@ static int digital_in_send_ack(struct nfc_digital_dev *ddev,
 	return rc;
 }
 
+static int digital_in_send_nack(struct nfc_digital_dev *ddev,
+				struct digital_data_exch *data_exch)
+{
+	struct digital_dep_req_res *dep_req;
+	struct sk_buff *skb;
+	int rc;
+
+	skb = digital_skb_alloc(ddev, 1);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_push(skb, sizeof(struct digital_dep_req_res));
+
+	dep_req = (struct digital_dep_req_res *)skb->data;
+
+	dep_req->dir = DIGITAL_NFC_DEP_FRAME_DIR_OUT;
+	dep_req->cmd = DIGITAL_CMD_DEP_REQ;
+	dep_req->pfb = DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU |
+		       DIGITAL_NFC_DEP_PFB_NACK_BIT | ddev->curr_nfc_dep_pni;
+
+	digital_skb_push_dep_sod(ddev, skb);
+
+	ddev->skb_add_crc(skb);
+
+	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
+				 data_exch);
+	if (rc)
+		kfree_skb(skb);
+
+	return rc;
+}
+
 static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 				struct digital_data_exch *data_exch, u8 rtox)
 {
@@ -575,13 +609,17 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
 		resp = NULL;
-		goto exit;
-	}
 
-	rc = ddev->skb_check_crc(resp);
-	if (rc) {
-		PROTOCOL_ERR("14.4.1.6");
-		goto error;
+		if ((rc != -ETIMEDOUT) &&
+		    (ddev->nack_count++ < DIGITAL_NFC_DEP_N_RETRY_NACK)) {
+			rc = digital_in_send_nack(ddev, data_exch);
+			if (rc)
+				goto error;
+
+			return;
+		}
+
+		goto exit;
 	}
 
 	rc = digital_skb_pull_dep_sod(ddev, resp);
@@ -589,6 +627,25 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		PROTOCOL_ERR("14.4.1.2");
 		goto exit;
 	}
+
+	rc = ddev->skb_check_crc(resp);
+	if (rc) {
+		if ((resp->len >= 4) &&
+		    (ddev->nack_count++ < DIGITAL_NFC_DEP_N_RETRY_NACK)) {
+			rc = digital_in_send_nack(ddev, data_exch);
+			if (rc)
+				goto error;
+
+			kfree_skb(resp);
+
+			return;
+		}
+
+		PROTOCOL_ERR("14.4.1.6");
+		goto error;
+	}
+
+	ddev->nack_count = 0;
 
 	if (resp->len > ddev->local_payload_max) {
 		rc = -EMSGSIZE;
@@ -720,6 +777,8 @@ int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
 	dep_req->dir = DIGITAL_NFC_DEP_FRAME_DIR_OUT;
 	dep_req->cmd = DIGITAL_CMD_DEP_REQ;
 	dep_req->pfb = ddev->curr_nfc_dep_pni;
+
+	ddev->nack_count = 0;
 
 	chaining_skb = ddev->chaining_skb;
 
