@@ -519,18 +519,6 @@ static unsigned int amp_val_replace_channels(unsigned int val, unsigned int chs)
 	return val;
 }
 
-/* check whether the widget has the given amp capability for the direction */
-static bool check_amp_caps(struct hda_codec *codec, hda_nid_t nid,
-			   int dir, unsigned int bits)
-{
-	if (!nid)
-		return false;
-	if (get_wcaps(codec, nid) & (1 << (dir + 1)))
-		if (query_amp_caps(codec, nid, dir) & bits)
-			return true;
-	return false;
-}
-
 static bool same_amp_caps(struct hda_codec *codec, hda_nid_t nid1,
 			  hda_nid_t nid2, int dir)
 {
@@ -539,11 +527,6 @@ static bool same_amp_caps(struct hda_codec *codec, hda_nid_t nid1,
 	return (query_amp_caps(codec, nid1, dir) ==
 		query_amp_caps(codec, nid2, dir));
 }
-
-#define nid_has_mute(codec, nid, dir) \
-	check_amp_caps(codec, nid, dir, (AC_AMPCAP_MUTE | AC_AMPCAP_MIN_MUTE))
-#define nid_has_volume(codec, nid, dir) \
-	check_amp_caps(codec, nid, dir, AC_AMPCAP_NUM_STEPS)
 
 /* look for a widget suitable for assigning a mute switch in the path */
 static hda_nid_t look_for_out_mute_nid(struct hda_codec *codec,
