@@ -888,7 +888,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 					   vma_pages(vma));
 	if (!node) {
 		mutex_unlock(&dev->struct_mutex);
-		return drm_mmap(filp, vma);
+		return -EINVAL;
 	} else if (!drm_vma_node_is_allowed(node, filp)) {
 		mutex_unlock(&dev->struct_mutex);
 		return -EACCES;
