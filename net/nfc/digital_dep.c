@@ -34,9 +34,12 @@
 
 #define DIGITAL_DID_MAX	14
 
-#define DIGITAL_LR_BITS_PAYLOAD_SIZE_254B 0x30
-#define DIGITAL_FSL_BITS_PAYLOAD_SIZE_254B \
-				(DIGITAL_LR_BITS_PAYLOAD_SIZE_254B >> 4)
+#define DIGITAL_PAYLOAD_SIZE_MAX	254
+#define DIGITAL_PAYLOAD_BITS_TO_PP(s)	(((s) & 0x3) << 4)
+#define DIGITAL_PAYLOAD_PP_TO_BITS(s)	(((s) >> 4) & 0x3)
+#define DIGITAL_PAYLOAD_BITS_TO_FSL(s)	((s) & 0x3)
+#define DIGITAL_PAYLOAD_FSL_TO_BITS(s)	((s) & 0x3)
+
 #define DIGITAL_GB_BIT	0x02
 
 #define DIGITAL_NFC_DEP_PFB_TYPE(pfb) ((pfb) & 0xE0)
@@ -100,6 +103,32 @@ struct digital_dep_req_res {
 
 static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 				    struct sk_buff *resp);
+
+static const u8 digital_payload_bits_map[4] = {
+	[0] = 64,
+	[1] = 128,
+	[2] = 192,
+	[3] = 254
+};
+
+static u8 digital_payload_bits_to_size(u8 payload_bits)
+{
+	if (payload_bits >= ARRAY_SIZE(digital_payload_bits_map))
+		return 0;
+
+	return digital_payload_bits_map[payload_bits];
+}
+
+static u8 digital_payload_size_to_bits(u8 payload_size)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(digital_payload_bits_map); i++)
+		if (digital_payload_bits_map[i] == payload_size)
+			return i;
+
+	return 0xff;
+}
 
 static void digital_skb_push_dep_sod(struct nfc_digital_dev *ddev,
 				     struct sk_buff *skb)
@@ -202,6 +231,7 @@ static int digital_in_send_psl_req(struct nfc_digital_dev *ddev,
 	struct sk_buff *skb;
 	struct digital_psl_req *psl_req;
 	int rc;
+	u8 payload_size, payload_bits;
 
 	skb = digital_skb_alloc(ddev, sizeof(*psl_req));
 	if (!skb)
@@ -215,7 +245,13 @@ static int digital_in_send_psl_req(struct nfc_digital_dev *ddev,
 	psl_req->cmd = DIGITAL_CMD_PSL_REQ;
 	psl_req->did = 0;
 	psl_req->brs = (0x2 << 3) | 0x2; /* 424F both directions */
-	psl_req->fsl = DIGITAL_FSL_BITS_PAYLOAD_SIZE_254B;
+
+	payload_size = min(ddev->local_payload_max, ddev->remote_payload_max);
+	payload_bits = digital_payload_size_to_bits(payload_size);
+	psl_req->fsl = DIGITAL_PAYLOAD_BITS_TO_FSL(payload_bits);
+
+	ddev->local_payload_max = payload_size;
+	ddev->remote_payload_max = payload_size;
 
 	digital_skb_push_dep_sod(ddev, skb);
 
@@ -234,7 +270,7 @@ static void digital_in_recv_atr_res(struct nfc_digital_dev *ddev, void *arg,
 {
 	struct nfc_target *target = arg;
 	struct digital_atr_res *atr_res;
-	u8 gb_len;
+	u8 gb_len, payload_bits;
 	int rc;
 
 	if (IS_ERR(resp)) {
@@ -263,6 +299,14 @@ static void digital_in_recv_atr_res(struct nfc_digital_dev *ddev, void *arg,
 	gb_len = resp->len - sizeof(struct digital_atr_res);
 
 	atr_res = (struct digital_atr_res *)resp->data;
+
+	payload_bits = DIGITAL_PAYLOAD_PP_TO_BITS(atr_res->pp);
+	ddev->remote_payload_max = digital_payload_bits_to_size(payload_bits);
+
+	if (!ddev->remote_payload_max) {
+		rc = -EINVAL;
+		goto exit;
+	}
 
 	rc = nfc_set_remote_general_bytes(ddev->nfc_dev, atr_res->gb, gb_len);
 	if (rc)
@@ -295,6 +339,7 @@ int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
 	struct digital_atr_req *atr_req;
 	uint size;
 	int rc;
+	u8 payload_bits;
 
 	size = DIGITAL_ATR_REQ_MIN_SIZE + gb_len;
 
@@ -323,7 +368,9 @@ int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
 	atr_req->bs = 0;
 	atr_req->br = 0;
 
-	atr_req->pp = DIGITAL_LR_BITS_PAYLOAD_SIZE_254B;
+	ddev->local_payload_max = DIGITAL_PAYLOAD_SIZE_MAX;
+	payload_bits = digital_payload_size_to_bits(ddev->local_payload_max);
+	atr_req->pp = DIGITAL_PAYLOAD_BITS_TO_PP(payload_bits);
 
 	if (gb_len) {
 		atr_req->pp |= DIGITAL_GB_BIT;
@@ -400,6 +447,11 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 	rc = digital_skb_pull_dep_sod(ddev, resp);
 	if (rc) {
 		PROTOCOL_ERR("14.4.1.2");
+		goto exit;
+	}
+
+	if (resp->len > ddev->local_payload_max) {
+		rc = -EMSGSIZE;
 		goto exit;
 	}
 
@@ -498,6 +550,9 @@ int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
 
 	skb_push(skb, sizeof(struct digital_dep_req_res));
 
+	if (skb->len > ddev->remote_payload_max)
+		return -EMSGSIZE;
+
 	dep_req = (struct digital_dep_req_res *)skb->data;
 	dep_req->dir = DIGITAL_NFC_DEP_FRAME_DIR_OUT;
 	dep_req->cmd = DIGITAL_CMD_DEP_REQ;
@@ -561,6 +616,11 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 	rc = digital_skb_pull_dep_sod(ddev, resp);
 	if (rc) {
 		PROTOCOL_ERR("14.4.1.2");
+		goto exit;
+	}
+
+	if (resp->len > ddev->local_payload_max) {
+		rc = -EMSGSIZE;
 		goto exit;
 	}
 
@@ -639,6 +699,10 @@ int digital_tg_send_dep_res(struct nfc_digital_dev *ddev, struct sk_buff *skb)
 	struct digital_dep_req_res *dep_res;
 
 	skb_push(skb, sizeof(struct digital_dep_req_res));
+
+	if (skb->len > ddev->remote_payload_max)
+		return -EMSGSIZE;
+
 	dep_res = (struct digital_dep_req_res *)skb->data;
 
 	dep_res->dir = DIGITAL_NFC_DEP_FRAME_DIR_IN;
@@ -719,7 +783,7 @@ static void digital_tg_recv_psl_req(struct nfc_digital_dev *ddev, void *arg,
 	int rc;
 	struct digital_psl_req *psl_req;
 	u8 rf_tech;
-	u8 dsi;
+	u8 dsi, payload_size, payload_bits;
 
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
@@ -764,6 +828,18 @@ static void digital_tg_recv_psl_req(struct nfc_digital_dev *ddev, void *arg,
 		goto exit;
 	}
 
+	payload_bits = DIGITAL_PAYLOAD_FSL_TO_BITS(psl_req->fsl);
+	payload_size = digital_payload_bits_to_size(payload_bits);
+
+	if (!payload_size || (payload_size > min(ddev->local_payload_max,
+						 ddev->remote_payload_max))) {
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	ddev->local_payload_max = payload_size;
+	ddev->remote_payload_max = payload_size;
+
 	rc = digital_tg_send_psl_res(ddev, psl_req->did, rf_tech);
 
 exit:
@@ -795,7 +871,7 @@ static int digital_tg_send_atr_res(struct nfc_digital_dev *ddev,
 {
 	struct digital_atr_res *atr_res;
 	struct sk_buff *skb;
-	u8 *gb;
+	u8 *gb, payload_bits;
 	size_t gb_len;
 	int rc;
 
@@ -816,7 +892,11 @@ static int digital_tg_send_atr_res(struct nfc_digital_dev *ddev,
 	atr_res->cmd = DIGITAL_CMD_ATR_RES;
 	memcpy(atr_res->nfcid3, atr_req->nfcid3, sizeof(atr_req->nfcid3));
 	atr_res->to = 8;
-	atr_res->pp = DIGITAL_LR_BITS_PAYLOAD_SIZE_254B;
+
+	ddev->local_payload_max = DIGITAL_PAYLOAD_SIZE_MAX;
+	payload_bits = digital_payload_size_to_bits(ddev->local_payload_max);
+	atr_res->pp = DIGITAL_PAYLOAD_BITS_TO_PP(payload_bits);
+
 	if (gb_len) {
 		skb_put(skb, gb_len);
 
@@ -844,7 +924,7 @@ void digital_tg_recv_atr_req(struct nfc_digital_dev *ddev, void *arg,
 	int rc;
 	struct digital_atr_req *atr_req;
 	size_t gb_len, min_size;
-	u8 poll_tech_count;
+	u8 poll_tech_count, payload_bits;
 
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
@@ -889,6 +969,14 @@ void digital_tg_recv_atr_req(struct nfc_digital_dev *ddev, void *arg,
 	if (atr_req->dir != DIGITAL_NFC_DEP_FRAME_DIR_OUT ||
 	    atr_req->cmd != DIGITAL_CMD_ATR_REQ ||
 	    atr_req->did > DIGITAL_DID_MAX) {
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	payload_bits = DIGITAL_PAYLOAD_PP_TO_BITS(atr_req->pp);
+	ddev->remote_payload_max = digital_payload_bits_to_size(payload_bits);
+
+	if (!ddev->remote_payload_max) {
 		rc = -EINVAL;
 		goto exit;
 	}

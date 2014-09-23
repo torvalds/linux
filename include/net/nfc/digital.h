@@ -227,6 +227,9 @@ struct nfc_digital_dev {
 	u8 curr_nfc_dep_pni;
 	u8 did;
 
+	u8 local_payload_max;
+	u8 remote_payload_max;
+
 	u16 target_fsc;
 
 	int (*skb_check_crc)(struct sk_buff *skb);
