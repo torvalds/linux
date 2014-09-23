@@ -109,6 +109,49 @@ int parse_callchain_record_opt(const char *arg)
 	return ret;
 }
 
+static int parse_callchain_mode(const char *value)
+{
+	if (!strncmp(value, "graph", strlen(value))) {
+		callchain_param.mode = CHAIN_GRAPH_ABS;
+		return 0;
+	}
+	if (!strncmp(value, "flat", strlen(value))) {
+		callchain_param.mode = CHAIN_FLAT;
+		return 0;
+	}
+	if (!strncmp(value, "fractal", strlen(value))) {
+		callchain_param.mode = CHAIN_GRAPH_REL;
+		return 0;
+	}
+	return -1;
+}
+
+static int parse_callchain_order(const char *value)
+{
+	if (!strncmp(value, "caller", strlen(value))) {
+		callchain_param.order = ORDER_CALLER;
+		return 0;
+	}
+	if (!strncmp(value, "callee", strlen(value))) {
+		callchain_param.order = ORDER_CALLEE;
+		return 0;
+	}
+	return -1;
+}
+
+static int parse_callchain_sort_key(const char *value)
+{
+	if (!strncmp(value, "function", strlen(value))) {
+		callchain_param.key = CCKEY_FUNCTION;
+		return 0;
+	}
+	if (!strncmp(value, "address", strlen(value))) {
+		callchain_param.key = CCKEY_ADDRESS;
+		return 0;
+	}
+	return -1;
+}
+
 int
 parse_callchain_report_opt(const char *arg)
 {
@@ -128,25 +171,12 @@ parse_callchain_report_opt(const char *arg)
 			return 0;
 		}
 
-		/* try to get the output mode */
-		if (!strncmp(tok, "graph", strlen(tok)))
-			callchain_param.mode = CHAIN_GRAPH_ABS;
-		else if (!strncmp(tok, "flat", strlen(tok)))
-			callchain_param.mode = CHAIN_FLAT;
-		else if (!strncmp(tok, "fractal", strlen(tok)))
-			callchain_param.mode = CHAIN_GRAPH_REL;
-		/* try to get the call chain order */
-		else if (!strncmp(tok, "caller", strlen(tok)))
-			callchain_param.order = ORDER_CALLER;
-		else if (!strncmp(tok, "callee", strlen(tok)))
-			callchain_param.order = ORDER_CALLEE;
-		/* try to get the sort key */
-		else if (!strncmp(tok, "function", strlen(tok)))
-			callchain_param.key = CCKEY_FUNCTION;
-		else if (!strncmp(tok, "address", strlen(tok)))
-			callchain_param.key = CCKEY_ADDRESS;
-		/* try to get the min percent */
-		else if (!minpcnt_set) {
+		if (!parse_callchain_mode(tok) ||
+		    !parse_callchain_order(tok) ||
+		    !parse_callchain_sort_key(tok)) {
+			/* parsing ok - move on to the next */
+		} else if (!minpcnt_set) {
+			/* try to get the min percent */
 			callchain_param.min_percent = strtod(tok, &endptr);
 			if (tok == endptr)
 				return -1;
@@ -165,6 +195,47 @@ parse_callchain_report_opt(const char *arg)
 		pr_err("Can't register callchain params\n");
 		return -1;
 	}
+	return 0;
+}
+
+int perf_callchain_config(const char *var, const char *value)
+{
+	char *endptr;
+
+	if (prefixcmp(var, "call-graph."))
+		return 0;
+	var += sizeof("call-graph.") - 1;
+
+	if (!strcmp(var, "record-mode"))
+		return parse_callchain_record_opt(value);
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+	if (!strcmp(var, "dump-size")) {
+		unsigned long size = 0;
+		int ret;
+
+		ret = get_stack_size(value, &size);
+		callchain_param.dump_size = size;
+
+		return ret;
+	}
+#endif
+	if (!strcmp(var, "print-type"))
+		return parse_callchain_mode(value);
+	if (!strcmp(var, "order"))
+		return parse_callchain_order(value);
+	if (!strcmp(var, "sort-key"))
+		return parse_callchain_sort_key(value);
+	if (!strcmp(var, "threshold")) {
+		callchain_param.min_percent = strtod(value, &endptr);
+		if (value == endptr)
+			return -1;
+	}
+	if (!strcmp(var, "print-limit")) {
+		callchain_param.print_limit = strtod(value, &endptr);
+		if (value == endptr)
+			return -1;
+	}
+
 	return 0;
 }
 

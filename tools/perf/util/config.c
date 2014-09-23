@@ -396,6 +396,9 @@ int perf_default_config(const char *var, const char *value,
 	if (!prefixcmp(var, "ui."))
 		return perf_ui_config(var, value);
 
+	if (!prefixcmp(var, "call-graph."))
+		return perf_callchain_config(var, value);
+
 	/* Add other config variables here. */
 	return 0;
 }
