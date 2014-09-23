@@ -1470,27 +1470,33 @@ xfs_collapse_file_space(
 	next_fsb = XFS_B_TO_FSB(mp, offset + len);
 	shift_fsb = XFS_B_TO_FSB(mp, len);
 
-	/*
-	 * Writeback the entire file and force remove any post-eof blocks. The
-	 * writeback prevents changes to the extent list via concurrent
-	 * writeback and the eofblocks trim prevents the extent shift algorithm
-	 * from running into a post-eof delalloc extent.
-	 *
-	 * XXX: This is a temporary fix until the extent shift loop below is
-	 * converted to use offsets and lookups within the ILOCK rather than
-	 * carrying around the index into the extent list for the next
-	 * iteration.
-	 */
-	error = filemap_write_and_wait(VFS_I(ip)->i_mapping);
+	error = xfs_free_file_space(ip, offset, len);
 	if (error)
 		return error;
+
+	/*
+	 * Trim eofblocks to avoid shifting uninitialized post-eof preallocation
+	 * into the accessible region of the file.
+	 */
 	if (xfs_can_free_eofblocks(ip, true)) {
 		error = xfs_free_eofblocks(mp, ip, false);
 		if (error)
 			return error;
 	}
 
-	error = xfs_free_file_space(ip, offset, len);
+	/*
+	 * Writeback and invalidate cache for the remainder of the file as we're
+	 * about to shift down every extent from the collapse range to EOF. The
+	 * free of the collapse range above might have already done some of
+	 * this, but we shouldn't rely on it to do anything outside of the range
+	 * that was freed.
+	 */
+	error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
+					     offset + len, -1);
+	if (error)
+		return error;
+	error = invalidate_inode_pages2_range(VFS_I(ip)->i_mapping,
+					(offset + len) >> PAGE_CACHE_SHIFT, -1);
 	if (error)
 		return error;
 

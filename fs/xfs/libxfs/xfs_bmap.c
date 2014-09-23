@@ -5543,6 +5543,10 @@ xfs_bmse_shift_one(
 	xfs_bmbt_get_all(gotp, &got);
 	startoff = got.br_startoff - offset_shift_fsb;
 
+	/* delalloc extents should be prevented by caller */
+	XFS_WANT_CORRUPTED_GOTO(!isnullstartblock(got.br_startblock),
+				out_error);
+
 	/*
 	 * If this is the first extent in the file, make sure there's enough
 	 * room at the start of the file and jump right to the shift as there's
