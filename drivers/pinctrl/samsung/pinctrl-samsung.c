@@ -366,7 +366,7 @@ static void samsung_pinmux_setup(struct pinctrl_dev *pctldev, unsigned selector,
 					unsigned group, bool enable)
 {
 	struct samsung_pinctrl_drv_data *drvdata;
-	struct samsung_pin_bank_type *type;
+	const struct samsung_pin_bank_type *type;
 	struct samsung_pin_bank *bank;
 	void __iomem *reg;
 	u32 mask, shift, data, pin_offset;
@@ -422,7 +422,7 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 				unsigned long *config, bool set)
 {
 	struct samsung_pinctrl_drv_data *drvdata;
-	struct samsung_pin_bank_type *type;
+	const struct samsung_pin_bank_type *type;
 	struct samsung_pin_bank *bank;
 	void __iomem *reg_base;
 	enum pincfg_type cfg_type = PINCFG_UNPACK_TYPE(*config);
@@ -528,7 +528,7 @@ static const struct pinconf_ops samsung_pinconf_ops = {
 static void samsung_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 {
 	struct samsung_pin_bank *bank = gc_to_pin_bank(gc);
-	struct samsung_pin_bank_type *type = bank->type;
+	const struct samsung_pin_bank_type *type = bank->type;
 	unsigned long flags;
 	void __iomem *reg;
 	u32 data;
@@ -552,7 +552,7 @@ static int samsung_gpio_get(struct gpio_chip *gc, unsigned offset)
 	void __iomem *reg;
 	u32 data;
 	struct samsung_pin_bank *bank = gc_to_pin_bank(gc);
-	struct samsung_pin_bank_type *type = bank->type;
+	const struct samsung_pin_bank_type *type = bank->type;
 
 	reg = bank->drvdata->virt_base + bank->pctl_offset;
 
@@ -569,7 +569,7 @@ static int samsung_gpio_get(struct gpio_chip *gc, unsigned offset)
 static int samsung_gpio_set_direction(struct gpio_chip *gc,
 					     unsigned offset, bool input)
 {
-	struct samsung_pin_bank_type *type;
+	const struct samsung_pin_bank_type *type;
 	struct samsung_pin_bank *bank;
 	struct samsung_pinctrl_drv_data *drvdata;
 	void __iomem *reg;
@@ -1089,9 +1089,8 @@ static void samsung_pinctrl_suspend_dev(
 	for (i = 0; i < ctrl->nr_banks; i++) {
 		struct samsung_pin_bank *bank = &ctrl->pin_banks[i];
 		void __iomem *reg = virt_base + bank->pctl_offset;
-
-		u8 *offs = bank->type->reg_offset;
-		u8 *widths = bank->type->fld_width;
+		const u8 *offs = bank->type->reg_offset;
+		const u8 *widths = bank->type->fld_width;
 		enum pincfg_type type;
 
 		/* Registers without a powerdown config aren't lost */
@@ -1140,9 +1139,8 @@ static void samsung_pinctrl_resume_dev(struct samsung_pinctrl_drv_data *drvdata)
 	for (i = 0; i < ctrl->nr_banks; i++) {
 		struct samsung_pin_bank *bank = &ctrl->pin_banks[i];
 		void __iomem *reg = virt_base + bank->pctl_offset;
-
-		u8 *offs = bank->type->reg_offset;
-		u8 *widths = bank->type->fld_width;
+		const u8 *offs = bank->type->reg_offset;
+		const u8 *widths = bank->type->fld_width;
 		enum pincfg_type type;
 
 		/* Registers without a powerdown config aren't lost */

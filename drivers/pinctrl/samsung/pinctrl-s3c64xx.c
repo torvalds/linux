@@ -68,32 +68,32 @@
 #define EINT_CON_MASK		0xF
 #define EINT_CON_LEN		4
 
-static struct samsung_pin_bank_type bank_type_4bit_off = {
+static const struct samsung_pin_bank_type bank_type_4bit_off = {
 	.fld_width = { 4, 1, 2, 0, 2, 2, },
 	.reg_offset = { 0x00, 0x04, 0x08, 0, 0x0c, 0x10, },
 };
 
-static struct samsung_pin_bank_type bank_type_4bit_alive = {
+static const struct samsung_pin_bank_type bank_type_4bit_alive = {
 	.fld_width = { 4, 1, 2, },
 	.reg_offset = { 0x00, 0x04, 0x08, },
 };
 
-static struct samsung_pin_bank_type bank_type_4bit2_off = {
+static const struct samsung_pin_bank_type bank_type_4bit2_off = {
 	.fld_width = { 4, 1, 2, 0, 2, 2, },
 	.reg_offset = { 0x00, 0x08, 0x0c, 0, 0x10, 0x14, },
 };
 
-static struct samsung_pin_bank_type bank_type_4bit2_alive = {
+static const struct samsung_pin_bank_type bank_type_4bit2_alive = {
 	.fld_width = { 4, 1, 2, },
 	.reg_offset = { 0x00, 0x08, 0x0c, },
 };
 
-static struct samsung_pin_bank_type bank_type_2bit_off = {
+static const struct samsung_pin_bank_type bank_type_2bit_off = {
 	.fld_width = { 2, 1, 2, 0, 2, 2, },
 	.reg_offset = { 0x00, 0x04, 0x08, 0, 0x0c, 0x10, },
 };
 
-static struct samsung_pin_bank_type bank_type_2bit_alive = {
+static const struct samsung_pin_bank_type bank_type_2bit_alive = {
 	.fld_width = { 2, 1, 2, },
 	.reg_offset = { 0x00, 0x04, 0x08, },
 };
@@ -272,7 +272,7 @@ static void s3c64xx_irq_set_handler(unsigned int irq, unsigned int type)
 static void s3c64xx_irq_set_function(struct samsung_pinctrl_drv_data *d,
 					struct samsung_pin_bank *bank, int pin)
 {
-	struct samsung_pin_bank_type *bank_type = bank->type;
+	const struct samsung_pin_bank_type *bank_type = bank->type;
 	unsigned long flags;
 	void __iomem *reg;
 	u8 shift;

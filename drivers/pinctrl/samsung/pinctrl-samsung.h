@@ -131,7 +131,7 @@ struct samsung_pin_bank_type {
  * @pm_save: saved register values during suspend
  */
 struct samsung_pin_bank {
-	struct samsung_pin_bank_type *type;
+	const struct samsung_pin_bank_type *type;
 	u32		pctl_offset;
 	u32		pin_base;
 	u8		nr_pins;
