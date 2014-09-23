@@ -281,6 +281,7 @@ struct sh_hdmi {
 	u8 edid_block_addr;
 	u8 edid_segment_nr;
 	u8 edid_blocks;
+	int irq;
 	struct clk *hdmi_clk;
 	struct device *dev;
 	struct delayed_work edid_work;
@@ -1299,6 +1300,7 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 	hdmi->dev = &pdev->dev;
 	hdmi->entity.owner = THIS_MODULE;
 	hdmi->entity.ops = &sh_hdmi_ops;
+	hdmi->irq = irq;
 
 	hdmi->hdmi_clk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(hdmi->hdmi_clk)) {
@@ -1415,12 +1417,11 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 {
 	struct sh_hdmi *hdmi = entity_to_sh_hdmi(platform_get_drvdata(pdev));
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	int irq = platform_get_irq(pdev, 0);
 
 	snd_soc_unregister_codec(&pdev->dev);
 
 	/* No new work will be scheduled, wait for running ISR */
-	free_irq(irq, hdmi);
+	free_irq(hdmi->irq, hdmi);
 	/* Wait for already scheduled work */
 	cancel_delayed_work_sync(&hdmi->edid_work);
 	pm_runtime_put(&pdev->dev);
@@ -1435,10 +1436,49 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int sh_hdmi_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_hdmi *hdmi = entity_to_sh_hdmi(platform_get_drvdata(pdev));
+
+	disable_irq(hdmi->irq);
+	/* Wait for already scheduled work */
+	cancel_delayed_work_sync(&hdmi->edid_work);
+	return 0;
+}
+
+static int sh_hdmi_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_mobile_hdmi_info *pdata = dev_get_platdata(dev);
+	struct sh_hdmi *hdmi = entity_to_sh_hdmi(platform_get_drvdata(pdev));
+
+	/* Re-init interrupt polarity */
+	if (pdata->flags & HDMI_OUTPUT_PUSH_PULL)
+		hdmi_bit_set(hdmi, 0x02, 0x02, HDMI_SYSTEM_CTRL);
+
+	if (pdata->flags & HDMI_OUTPUT_POLARITY_HI)
+		hdmi_bit_set(hdmi, 0x01, 0x01, HDMI_SYSTEM_CTRL);
+
+	/* Re-init htop1 */
+	if (hdmi->htop1)
+		sh_hdmi_htop1_init(hdmi);
+
+	/* Now it's safe to enable interrupts again */
+	enable_irq(hdmi->irq);
+	return 0;
+}
+
+static const struct dev_pm_ops sh_hdmi_pm_ops = {
+	.suspend	= sh_hdmi_suspend,
+	.resume		= sh_hdmi_resume,
+};
+
 static struct platform_driver sh_hdmi_driver = {
 	.remove		= __exit_p(sh_hdmi_remove),
 	.driver = {
 		.name	= "sh-mobile-hdmi",
+		.pm	= &sh_hdmi_pm_ops,
 	},
 };
 
