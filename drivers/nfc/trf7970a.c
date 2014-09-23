@@ -1728,22 +1728,22 @@ static int _trf7970a_tg_listen(struct nfc_digital_dev *ddev, u16 timeout,
 			TRF7970A_RX_SPECIAL_SETTINGS_C424 |
 			TRF7970A_RX_SPECIAL_SETTINGS_C212);
 	if (ret)
-		return ret;
+		goto out_err;
 
 	ret = trf7970a_write(trf, TRF7970A_REG_IO_CTRL,
 			TRF7970A_REG_IO_CTRL_VRS(0x1));
 	if (ret)
-		return ret;
+		goto out_err;
 
 	ret = trf7970a_write(trf, TRF7970A_NFC_LOW_FIELD_LEVEL,
 			TRF7970A_NFC_LOW_FIELD_LEVEL_RFDET(0x3));
 	if (ret)
-		return ret;
+		goto out_err;
 
 	ret = trf7970a_write(trf, TRF7970A_NFC_TARGET_LEVEL,
 			TRF7970A_NFC_TARGET_LEVEL_RFDET(0x7));
 	if (ret)
-		return ret;
+		goto out_err;
 
 	trf->ddev = ddev;
 	trf->cb = cb;
