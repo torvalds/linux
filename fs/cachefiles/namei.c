@@ -779,7 +779,8 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	    !subdir->d_inode->i_op->lookup ||
 	    !subdir->d_inode->i_op->mkdir ||
 	    !subdir->d_inode->i_op->create ||
-	    !subdir->d_inode->i_op->rename ||
+	    (!subdir->d_inode->i_op->rename &&
+	     !subdir->d_inode->i_op->rename2) ||
 	    !subdir->d_inode->i_op->rmdir ||
 	    !subdir->d_inode->i_op->unlink)
 		goto check_error;
