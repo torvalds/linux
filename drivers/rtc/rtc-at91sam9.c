@@ -21,6 +21,8 @@
 #include <linux/slab.h>
 #include <linux/platform_data/atmel.h>
 #include <linux/io.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 /*
  * This driver uses two configurable hardware resources that live in the
@@ -72,7 +74,8 @@ struct sam9_rtc {
 	void __iomem		*rtt;
 	struct rtc_device	*rtcdev;
 	u32			imr;
-	void __iomem		*gpbr;
+	struct regmap		*gpbr;
+	unsigned int		gpbr_offset;
 	int 			irq;
 };
 
@@ -81,10 +84,19 @@ struct sam9_rtc {
 #define rtt_writel(rtc, field, val) \
 	writel((val), (rtc)->rtt + AT91_RTT_ ## field)
 
-#define gpbr_readl(rtc) \
-	readl((rtc)->gpbr)
-#define gpbr_writel(rtc, val) \
-	writel((val), (rtc)->gpbr)
+static inline unsigned int gpbr_readl(struct sam9_rtc *rtc)
+{
+	unsigned int val;
+
+	regmap_read(rtc->gpbr, rtc->gpbr_offset, &val);
+
+	return val;
+}
+
+static inline void gpbr_writel(struct sam9_rtc *rtc, unsigned int val)
+{
+	regmap_write(rtc->gpbr, rtc->gpbr_offset, val);
+}
 
 /*
  * Read current time and date in RTC
@@ -301,6 +313,12 @@ static const struct rtc_class_ops at91_rtc_ops = {
 	.alarm_irq_enable = at91_rtc_alarm_irq_enable,
 };
 
+static struct regmap_config gpbr_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+};
+
 /*
  * Initialize and install RTC driver
  */
@@ -334,10 +352,38 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->rtt))
 		return PTR_ERR(rtc->rtt);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	rtc->gpbr = devm_ioremap_resource(&pdev->dev, r);
-	if (IS_ERR(rtc->gpbr))
-		return PTR_ERR(rtc->rtt);
+	if (!pdev->dev.of_node) {
+		/*
+		 * TODO: Remove this code chunk when removing non DT board
+		 * support. Remember to remove the gpbr_regmap_config
+		 * variable too.
+		 */
+		void __iomem *gpbr;
+
+		r = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		gpbr = devm_ioremap_resource(&pdev->dev, r);
+		if (IS_ERR(gpbr))
+			return PTR_ERR(gpbr);
+
+		rtc->gpbr = regmap_init_mmio(NULL, gpbr,
+					     &gpbr_regmap_config);
+	} else {
+		struct of_phandle_args args;
+
+		ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
+						"atmel,rtt-rtc-time-reg", 1, 0,
+						&args);
+		if (ret)
+			return ret;
+
+		rtc->gpbr = syscon_node_to_regmap(args.np);
+		rtc->gpbr_offset = args.args[0];
+	}
+
+	if (IS_ERR(rtc->gpbr)) {
+		dev_err(&pdev->dev, "failed to retrieve gpbr regmap, aborting.\n");
+		return -ENOMEM;
+	}
 
 	mr = rtt_readl(rtc, MR);
 
