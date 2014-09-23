@@ -7,7 +7,6 @@
 
 #include <linux/kernel.h>
 #include <linux/getcpu.h>
-#include <linux/jiffies.h>
 #include <linux/time.h>
 #include <asm/vsyscall.h>
 #include <asm/vgtod.h>
