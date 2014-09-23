@@ -420,6 +420,11 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		goto error;
 	}
 
+	if (DIGITAL_NFC_DEP_NAD_BIT_SET(pfb)) {
+		rc = -EIO;
+		goto exit;
+	}
+
 	if (size > resp->len) {
 		rc = -EIO;
 		goto error;
@@ -568,6 +573,11 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 			goto exit;
 		}
 	} else if (ddev->did) {
+		rc = -EIO;
+		goto exit;
+	}
+
+	if (DIGITAL_NFC_DEP_NAD_BIT_SET(pfb)) {
 		rc = -EIO;
 		goto exit;
 	}
