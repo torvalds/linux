@@ -1099,6 +1099,13 @@ UNUSUAL_DEV( 0x0840, 0x0085, 0x0001, 0x0001,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
+/* Supplied with some Castlewood ORB removable drives */
+UNUSUAL_DEV(  0x084b, 0xa001, 0x0000, 0x9999,
+		"Castlewood Systems",
+		"USB to SCSI cable",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
+
 /* Entry and supporting patch by Theodore Kilgore <kilgota@auburn.edu>.
  * Flag will support Bulk devices which use a standards-violating 32-byte
  * Command Block Wrapper. Here, the "DC2MEGA" cameras (several brands) with
@@ -2062,6 +2069,13 @@ UNUSUAL_DEV( 0x1e74, 0x4621, 0x0000, 0x0000,
 		"MP3 Player",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_BULK_IGNORE_TAG | US_FL_MAX_SECTORS_64 ),
+
+/* Supplied with some Castlewood ORB removable drives */
+UNUSUAL_DEV(  0x2027, 0xa001, 0x0000, 0x9999,
+		"Double-H Technology",
+		"USB to SCSI Intelligent Cable",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
 
 UNUSUAL_DEV( 0x2116, 0x0320, 0x0001, 0x0001,
 		"ST",
