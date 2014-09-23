@@ -113,6 +113,7 @@ enum {
 	MTSCREEN,
 	MTTPC,
 	MTTPC_B,
+	HID_GENERIC,
 	MAX_TYPE
 };
 
@@ -154,6 +155,12 @@ struct wacom_shared {
 	struct input_dev *touch_input;
 };
 
+struct hid_data {
+	bool inrange_state;
+	bool invert_state;
+	bool tipswitch;
+};
+
 struct wacom_wac {
 	char name[WACOM_NAME_MAX];
 	char pad_name[WACOM_NAME_MAX];
@@ -175,6 +182,7 @@ struct wacom_wac {
 	int ps_connected;
 	u8 bt_features;
 	u8 bt_high_speed;
+	struct hid_data hid_data;
 };
 
 #endif

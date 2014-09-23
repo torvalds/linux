@@ -13,7 +13,6 @@
 
 #include "wacom_wac.h"
 #include "wacom.h"
-#include <linux/hid.h>
 
 #define WAC_MSG_RETRIES		5
 
@@ -215,6 +214,9 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 			features->pressure_max = field->logical_maximum;
 		break;
 	}
+
+	if (features->type == HID_GENERIC)
+		wacom_wac_usage_mapping(hdev, field, usage);
 }
 
 static void wacom_parse_hid(struct hid_device *hdev,
@@ -1318,6 +1320,7 @@ static int wacom_probe(struct hid_device *hdev,
 	struct wacom_wac *wacom_wac;
 	struct wacom_features *features;
 	int error;
+	unsigned int connect_mask = HID_CONNECT_HIDRAW;
 
 	if (!id->driver_data)
 		return -EINVAL;
@@ -1451,8 +1454,11 @@ static int wacom_probe(struct hid_device *hdev,
 	/* Note that if query fails it is not a hard failure */
 	wacom_query_tablet_data(hdev, features);
 
+	if (features->type == HID_GENERIC)
+		connect_mask |= HID_CONNECT_DRIVER;
+
 	/* Regular HID work starts now */
-	error = hid_hw_start(hdev, HID_CONNECT_HIDRAW);
+	error = hid_hw_start(hdev, connect_mask);
 	if (error) {
 		hid_err(hdev, "hw start failed\n");
 		goto fail_hw_start;
@@ -1532,6 +1538,8 @@ static struct hid_driver wacom_driver = {
 	.id_table =	wacom_ids,
 	.probe =	wacom_probe,
 	.remove =	wacom_remove,
+	.event =	wacom_wac_event,
+	.report =	wacom_wac_report,
 #ifdef CONFIG_PM
 	.resume =	wacom_resume,
 	.reset_resume =	wacom_reset_resume,
