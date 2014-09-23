@@ -1687,35 +1687,23 @@ int dw_dma_remove(struct dw_dma_chip *chip)
 }
 EXPORT_SYMBOL_GPL(dw_dma_remove);
 
-void dw_dma_shutdown(struct dw_dma_chip *chip)
-{
-	struct dw_dma *dw = chip->dw;
-
-	dw_dma_off(dw);
-}
-EXPORT_SYMBOL_GPL(dw_dma_shutdown);
-
-#ifdef CONFIG_PM_SLEEP
-
-int dw_dma_suspend(struct dw_dma_chip *chip)
+int dw_dma_disable(struct dw_dma_chip *chip)
 {
 	struct dw_dma *dw = chip->dw;
 
 	dw_dma_off(dw);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dw_dma_suspend);
+EXPORT_SYMBOL_GPL(dw_dma_disable);
 
-int dw_dma_resume(struct dw_dma_chip *chip)
+int dw_dma_enable(struct dw_dma_chip *chip)
 {
 	struct dw_dma *dw = chip->dw;
 
 	dw_dma_on(dw);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dw_dma_resume);
-
-#endif /* CONFIG_PM_SLEEP */
+EXPORT_SYMBOL_GPL(dw_dma_enable);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Synopsys DesignWare DMA Controller core driver");

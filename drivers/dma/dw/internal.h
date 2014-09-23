@@ -38,14 +38,8 @@ struct dw_dma_chip {
 int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata);
 int dw_dma_remove(struct dw_dma_chip *chip);
 
-void dw_dma_shutdown(struct dw_dma_chip *chip);
-
-#ifdef CONFIG_PM_SLEEP
-
-int dw_dma_suspend(struct dw_dma_chip *chip);
-int dw_dma_resume(struct dw_dma_chip *chip);
-
-#endif /* CONFIG_PM_SLEEP */
+int dw_dma_disable(struct dw_dma_chip *chip);
+int dw_dma_enable(struct dw_dma_chip *chip);
 
 extern bool dw_dma_filter(struct dma_chan *chan, void *param);
 
