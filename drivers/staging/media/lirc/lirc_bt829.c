@@ -387,11 +387,9 @@ static unsigned char do_get_bits(void)
 static unsigned int read_index(unsigned char index)
 {
 	unsigned char __iomem *addr;
-	unsigned int value;
 	/*  addr = pci_addr_lin + DATA_PCI_OFF + ((index & 0xFF) << 2); */
 	addr = pci_addr_lin + ((index & 0xFF) << 2);
-	value = readl(addr);
-	return value;
+	return readl(addr);
 }
 
 static void write_index(unsigned char index, unsigned int reg_val)
