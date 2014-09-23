@@ -213,12 +213,11 @@ struct obd_capa *capa_add(struct hlist_head *hash, struct lustre_capa *capa)
 			capa_delete_lru(list);
 		spin_unlock(&capa_lock);
 		return ocapa;
-	} else {
-		capa_get(old);
-		spin_unlock(&capa_lock);
-		capa_put(ocapa);
-		return old;
 	}
+	capa_get(old);
+	spin_unlock(&capa_lock);
+	capa_put(ocapa);
+	return old;
 }
 EXPORT_SYMBOL(capa_add);
 
