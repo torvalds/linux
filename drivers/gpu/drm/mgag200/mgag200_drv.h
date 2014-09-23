@@ -22,6 +22,8 @@
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>
 
+#include <drm/drm_gem.h>
+
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 

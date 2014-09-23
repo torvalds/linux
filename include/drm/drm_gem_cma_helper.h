@@ -2,6 +2,7 @@
 #define __DRM_GEM_CMA_HELPER_H__
 
 #include <drm/drmP.h>
+#include <drm/drm_gem.h>
 
 struct drm_gem_cma_object {
 	struct drm_gem_object base;

@@ -12,6 +12,8 @@
 #ifndef _EXYNOS_DRM_GEM_H_
 #define _EXYNOS_DRM_GEM_H_
 
+#include <drm/drm_gem.h>
+
 #define to_exynos_gem_obj(x)	container_of(x,\
 			struct exynos_drm_gem_obj, base)
 

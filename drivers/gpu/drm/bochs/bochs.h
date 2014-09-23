@@ -7,6 +7,8 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 
+#include <drm/drm_gem.h>
+
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_page_alloc.h>
 

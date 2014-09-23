@@ -38,6 +38,8 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
+#include <drm/drm_gem.h>
+
 #include "drm_crtc_helper.h"
 /*
  * KMS wrapper.

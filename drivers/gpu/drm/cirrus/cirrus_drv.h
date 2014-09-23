@@ -21,6 +21,8 @@
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>
 
+#include <drm/drm_gem.h>
+
 #define DRIVER_AUTHOR		"Matthew Garrett"
 
 #define DRIVER_NAME		"cirrus"
