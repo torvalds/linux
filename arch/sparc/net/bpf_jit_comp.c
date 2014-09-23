@@ -624,7 +624,12 @@ void bpf_jit_compile(struct bpf_prog *fp)
 					emit_and(r_A, r_TMP, r_A);
 				}
 				break;
-
+			case BPF_LD | BPF_W | BPF_LEN:
+				emit_skb_load32(len, r_A);
+				break;
+			case BPF_LDX | BPF_W | BPF_LEN:
+				emit_skb_load32(len, r_X);
+				break;
 			case BPF_LD | BPF_IMM:
 				emit_loadimm(K, r_A);
 				break;
