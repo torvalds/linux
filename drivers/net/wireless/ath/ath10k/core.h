@@ -482,7 +482,7 @@ struct ath10k {
 	/* current operating channel definition */
 	struct cfg80211_chan_def chandef;
 
-	int free_vdev_map;
+	unsigned long long free_vdev_map;
 	bool monitor;
 	int monitor_vdev_id;
 	bool monitor_started;
