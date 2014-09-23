@@ -891,6 +891,10 @@
 	status = "okay";
 };
 
+&pcie {
+	status = "okay";
+};
+
 &spdif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spdif>;
