@@ -47,8 +47,6 @@ struct msi_desc {
 
 	/* Last set MSI message */
 	struct msi_msg msg;
-
-	struct kobject kobj;
 };
 
 /*

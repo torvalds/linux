@@ -374,17 +374,6 @@ static void free_msi_irqs(struct pci_dev *dev)
 				iounmap(entry->mask_base);
 		}
 
-		/*
-		 * Its possible that we get into this path
-		 * When populate_msi_sysfs fails, which means the entries
-		 * were not registered with sysfs.  In that case don't
-		 * unregister them.
-		 */
-		if (entry->kobj.parent) {
-			kobject_del(&entry->kobj);
-			kobject_put(&entry->kobj);
-		}
-
 		list_del(&entry->list);
 		kfree(entry);
 	}
