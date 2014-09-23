@@ -122,9 +122,7 @@ static inline __wsum csum_partial_ext(const void *buff, int len, __wsum sum)
 
 static inline void csum_replace4(__sum16 *sum, __be32 from, __be32 to)
 {
-	__be32 diff[] = { ~from, to };
-
-	*sum = csum_fold(csum_partial(diff, sizeof(diff), ~csum_unfold(*sum)));
+	*sum = csum_fold(csum_add(csum_sub(~csum_unfold(*sum), from), to));
 }
 
 /* Implements RFC 1624 (Incremental Internet Checksum)
