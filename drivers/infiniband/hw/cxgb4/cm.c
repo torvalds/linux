@@ -236,10 +236,12 @@ static void release_tid(struct c4iw_rdev *rdev, u32 hwtid, struct sk_buff *skb)
 static void set_emss(struct c4iw_ep *ep, u16 opt)
 {
 	ep->emss = ep->com.dev->rdev.lldi.mtus[GET_TCPOPT_MSS(opt)] -
-		   sizeof(struct iphdr) - sizeof(struct tcphdr);
+		   ((AF_INET == ep->com.remote_addr.ss_family) ?
+		    sizeof(struct iphdr) : sizeof(struct ipv6hdr)) -
+		   sizeof(struct tcphdr);
 	ep->mss = ep->emss;
 	if (GET_TCPOPT_TSTAMP(opt))
-		ep->emss -= 12;
+		ep->emss -= round_up(TCPOLEN_TIMESTAMP, 4);
 	if (ep->emss < 128)
 		ep->emss = 128;
 	if (ep->emss & 7)
@@ -581,11 +583,14 @@ static void c4iw_record_pm_msg(struct c4iw_ep *ep,
 }
 
 static void best_mtu(const unsigned short *mtus, unsigned short mtu,
-		     unsigned int *idx, int use_ts)
+		     unsigned int *idx, int use_ts, int ipv6)
 {
-	unsigned short hdr_size = sizeof(struct iphdr) +
+	unsigned short hdr_size = (ipv6 ?
+				   sizeof(struct ipv6hdr) :
+				   sizeof(struct iphdr)) +
 				  sizeof(struct tcphdr) +
-				  (use_ts ? 12 : 0);
+				  (use_ts ?
+				   round_up(TCPOLEN_TIMESTAMP, 4) : 0);
 	unsigned short data_size = mtu - hdr_size;
 
 	cxgb4_best_aligned_mtu(mtus, hdr_size, data_size, 8, idx);
@@ -634,7 +639,8 @@ static int send_connect(struct c4iw_ep *ep)
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, ep->ctrlq_idx);
 
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
-		 enable_tcp_timestamps);
+		 enable_tcp_timestamps,
+		 (AF_INET == ep->com.remote_addr.ss_family) ? 0 : 1);
 	wscale = compute_wscale(rcv_win);
 
 	/*
@@ -1763,7 +1769,8 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	req->tcb.tx_max = (__force __be32) jiffies;
 	req->tcb.rcv_adv = htons(1);
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
-		 enable_tcp_timestamps);
+		 enable_tcp_timestamps,
+		 (AF_INET == ep->com.remote_addr.ss_family) ? 0 : 1);
 	wscale = compute_wscale(rcv_win);
 
 	/*
@@ -2162,7 +2169,8 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 						    ep->hwtid));
 
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
-		 enable_tcp_timestamps && req->tcpopt.tstamp);
+		 enable_tcp_timestamps && req->tcpopt.tstamp,
+		 (AF_INET == ep->com.remote_addr.ss_family) ? 0 : 1);
 	wscale = compute_wscale(rcv_win);
 
 	/*
