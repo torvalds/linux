@@ -147,6 +147,16 @@ struct kvm_pit_config {
 
 #define KVM_PIT_SPEAKER_DUMMY     1
 
+struct kvm_s390_skeys {
+	__u64 start_gfn;
+	__u64 count;
+	__u64 skeydata_addr;
+	__u32 flags;
+	__u32 reserved[9];
+};
+#define KVM_S390_GET_SKEYS_NONE   1
+#define KVM_S390_SKEYS_MAX        1048576
+
 #define KVM_EXIT_UNKNOWN          0
 #define KVM_EXIT_EXCEPTION        1
 #define KVM_EXIT_IO               2
@@ -791,6 +801,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_S390_VECTOR_REGISTERS 107
 #define KVM_CAP_S390_MEM_OP 108
 #define KVM_CAP_S390_USER_STSI 109
+#define KVM_CAP_S390_SKEYS 110
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -1168,6 +1179,9 @@ struct kvm_s390_ucas_mapping {
 #define KVM_GET_REG_LIST	  _IOWR(KVMIO, 0xb0, struct kvm_reg_list)
 /* Available with KVM_CAP_S390_MEM_OP */
 #define KVM_S390_MEM_OP		  _IOW(KVMIO,  0xb1, struct kvm_s390_mem_op)
+/* Available with KVM_CAP_S390_SKEYS */
+#define KVM_S390_GET_SKEYS      _IOW(KVMIO, 0xb2, struct kvm_s390_skeys)
+#define KVM_S390_SET_SKEYS      _IOW(KVMIO, 0xb3, struct kvm_s390_skeys)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 #define KVM_DEV_ASSIGN_PCI_2_3		(1 << 1)
