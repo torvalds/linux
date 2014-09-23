@@ -233,6 +233,7 @@ struct nfc_digital_dev {
 	struct sk_buff *chaining_skb;
 	struct digital_data_exch *data_exch;
 
+	int atn_count;
 	int nack_count;
 
 	struct sk_buff *saved_skb;

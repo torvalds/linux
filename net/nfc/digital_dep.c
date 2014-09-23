@@ -18,6 +18,7 @@
 #include "digital.h"
 
 #define DIGITAL_NFC_DEP_N_RETRY_NACK	2
+#define DIGITAL_NFC_DEP_N_RETRY_ATN	2
 
 #define DIGITAL_NFC_DEP_FRAME_DIR_OUT 0xD4
 #define DIGITAL_NFC_DEP_FRAME_DIR_IN  0xD5
@@ -523,10 +524,16 @@ static int digital_in_send_ack(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
+	ddev->saved_skb = skb_get(skb);
+	ddev->saved_skb_len = skb->len;
+
 	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
 				 data_exch);
-	if (rc)
+	if (rc) {
 		kfree_skb(skb);
+		kfree_skb(ddev->saved_skb);
+		ddev->saved_skb = NULL;
+	}
 
 	return rc;
 }
@@ -550,6 +557,37 @@ static int digital_in_send_nack(struct nfc_digital_dev *ddev,
 	dep_req->cmd = DIGITAL_CMD_DEP_REQ;
 	dep_req->pfb = DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU |
 		       DIGITAL_NFC_DEP_PFB_NACK_BIT | ddev->curr_nfc_dep_pni;
+
+	digital_skb_push_dep_sod(ddev, skb);
+
+	ddev->skb_add_crc(skb);
+
+	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
+				 data_exch);
+	if (rc)
+		kfree_skb(skb);
+
+	return rc;
+}
+
+static int digital_in_send_atn(struct nfc_digital_dev *ddev,
+			       struct digital_data_exch *data_exch)
+{
+	struct digital_dep_req_res *dep_req;
+	struct sk_buff *skb;
+	int rc;
+
+	skb = digital_skb_alloc(ddev, 1);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_push(skb, sizeof(struct digital_dep_req_res));
+
+	dep_req = (struct digital_dep_req_res *)skb->data;
+
+	dep_req->dir = DIGITAL_NFC_DEP_FRAME_DIR_OUT;
+	dep_req->cmd = DIGITAL_CMD_DEP_REQ;
+	dep_req->pfb = DIGITAL_NFC_DEP_PFB_SUPERVISOR_PDU;
 
 	digital_skb_push_dep_sod(ddev, skb);
 
@@ -589,12 +627,28 @@ static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
+	ddev->saved_skb = skb_get(skb);
+	ddev->saved_skb_len = skb->len;
+
 	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
 				 data_exch);
-	if (rc)
+	if (rc) {
 		kfree_skb(skb);
+		kfree_skb(ddev->saved_skb);
+		ddev->saved_skb = NULL;
+	}
 
 	return rc;
+}
+
+static int digital_in_send_saved_skb(struct nfc_digital_dev *ddev,
+				     struct digital_data_exch *data_exch)
+{
+	skb_get(ddev->saved_skb);
+	skb_push(ddev->saved_skb, ddev->saved_skb_len);
+
+	return digital_in_send_cmd(ddev, ddev->saved_skb, 1500,
+				   digital_in_recv_dep_res, data_exch);
 }
 
 static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
@@ -610,9 +664,20 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		rc = PTR_ERR(resp);
 		resp = NULL;
 
-		if ((rc != -ETIMEDOUT) &&
+		if (((rc != -ETIMEDOUT) || ddev->nack_count) &&
 		    (ddev->nack_count++ < DIGITAL_NFC_DEP_N_RETRY_NACK)) {
+			ddev->atn_count = 0;
+
 			rc = digital_in_send_nack(ddev, data_exch);
+			if (rc)
+				goto error;
+
+			return;
+		} else if ((rc == -ETIMEDOUT) &&
+			   (ddev->atn_count++ < DIGITAL_NFC_DEP_N_RETRY_ATN)) {
+			ddev->nack_count = 0;
+
+			rc = digital_in_send_atn(ddev, data_exch);
 			if (rc)
 				goto error;
 
@@ -632,6 +697,8 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 	if (rc) {
 		if ((resp->len >= 4) &&
 		    (ddev->nack_count++ < DIGITAL_NFC_DEP_N_RETRY_NACK)) {
+			ddev->atn_count = 0;
+
 			rc = digital_in_send_nack(ddev, data_exch);
 			if (rc)
 				goto error;
@@ -645,6 +712,7 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		goto error;
 	}
 
+	ddev->atn_count = 0;
 	ddev->nack_count = 0;
 
 	if (resp->len > ddev->local_payload_max) {
@@ -692,6 +760,9 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		ddev->curr_nfc_dep_pni =
 			DIGITAL_NFC_DEP_PFB_PNI(ddev->curr_nfc_dep_pni + 1);
 
+		kfree_skb(ddev->saved_skb);
+		ddev->saved_skb = NULL;
+
 		resp = digital_recv_dep_data_gather(ddev, pfb, resp,
 						    digital_in_send_ack,
 						    data_exch);
@@ -722,6 +793,9 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 			DIGITAL_NFC_DEP_PFB_PNI(ddev->curr_nfc_dep_pni + 1);
 
 		if (ddev->chaining_skb && !DIGITAL_NFC_DEP_NACK_BIT_SET(pfb)) {
+			kfree_skb(ddev->saved_skb);
+			ddev->saved_skb = NULL;
+
 			rc = digital_in_send_dep_req(ddev, NULL,
 						     ddev->chaining_skb,
 						     ddev->data_exch);
@@ -736,10 +810,18 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		goto exit;
 
 	case DIGITAL_NFC_DEP_PFB_SUPERVISOR_PDU:
-		if (!DIGITAL_NFC_DEP_PFB_IS_TIMEOUT(pfb)) {
-			rc = -EINVAL;
-			goto error;
+		if (!DIGITAL_NFC_DEP_PFB_IS_TIMEOUT(pfb)) { /* ATN */
+			rc = digital_in_send_saved_skb(ddev, data_exch);
+			if (rc) {
+				kfree_skb(ddev->saved_skb);
+				goto error;
+			}
+
+			return;
 		}
+
+		kfree_skb(ddev->saved_skb);
+		ddev->saved_skb = NULL;
 
 		rc = digital_in_send_rtox(ddev, data_exch, resp->data[0]);
 		if (rc)
@@ -757,6 +839,9 @@ error:
 
 	kfree_skb(ddev->chaining_skb);
 	ddev->chaining_skb = NULL;
+
+	kfree_skb(ddev->saved_skb);
+	ddev->saved_skb = NULL;
 
 	if (rc)
 		kfree_skb(resp);
@@ -778,6 +863,7 @@ int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
 	dep_req->cmd = DIGITAL_CMD_DEP_REQ;
 	dep_req->pfb = ddev->curr_nfc_dep_pni;
 
+	ddev->atn_count = 0;
 	ddev->nack_count = 0;
 
 	chaining_skb = ddev->chaining_skb;
@@ -790,6 +876,9 @@ int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(tmp_skb);
 
+	ddev->saved_skb = skb_get(tmp_skb);
+	ddev->saved_skb_len = tmp_skb->len;
+
 	rc = digital_in_send_cmd(ddev, tmp_skb, 1500, digital_in_recv_dep_res,
 				 data_exch);
 	if (rc) {
@@ -798,6 +887,9 @@ int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
 
 		kfree_skb(chaining_skb);
 		ddev->chaining_skb = NULL;
+
+		kfree_skb(ddev->saved_skb);
+		ddev->saved_skb = NULL;
 	}
 
 	return rc;
