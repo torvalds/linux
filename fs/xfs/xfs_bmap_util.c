@@ -1646,7 +1646,7 @@ xfs_swap_extents_check_format(
 	return 0;
 }
 
-int
+static int
 xfs_swap_extent_flush(
 	struct xfs_inode	*ip)
 {

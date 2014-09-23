@@ -501,7 +501,7 @@ xfs_buf_item_unpin(
  * buffer being bad..
  */
 
-DEFINE_RATELIMIT_STATE(xfs_buf_write_fail_rl_state, 30 * HZ, 10);
+static DEFINE_RATELIMIT_STATE(xfs_buf_write_fail_rl_state, 30 * HZ, 10);
 
 STATIC uint
 xfs_buf_item_push(
