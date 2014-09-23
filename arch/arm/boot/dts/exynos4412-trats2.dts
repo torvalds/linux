@@ -14,6 +14,7 @@
 
 /dts-v1/;
 #include "exynos4412.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Samsung Trats 2 based on Exynos4412";
@@ -22,6 +23,7 @@
 	aliases {
 		i2c9 = &i2c_ak8975;
 		i2c10 = &i2c_cm36651;
+		i2c11 = &i2c_max77693;
 	};
 
 	memory {
@@ -509,6 +511,36 @@
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1200000>;
 					regulator-mem-off;
+				};
+			};
+		};
+	};
+
+	i2c_max77693: i2c-gpio-1 {
+		compatible = "i2c-gpio";
+		gpios = <&gpm2 0 GPIO_ACTIVE_HIGH>, <&gpm2 1 GPIO_ACTIVE_HIGH>;
+		i2c-gpio,delay-us = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		max77693@66 {
+			compatible = "maxim,max77693";
+			interrupt-parent = <&gpx1>;
+			interrupts = <5 2>;
+			reg = <0x66>;
+
+			regulators {
+				esafeout1_reg: ESAFEOUT1@1 {
+					regulator-name = "ESAFEOUT1";
+				};
+				esafeout2_reg: ESAFEOUT2@2 {
+					regulator-name = "ESAFEOUT2";
+				};
+				charger_reg: CHARGER@0 {
+					regulator-name = "CHARGER";
+					regulator-min-microamp = <60000>;
+					regulator-max-microamp = <2580000>;
 				};
 			};
 		};
