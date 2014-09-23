@@ -98,7 +98,7 @@ static inline block_t get_max_meta_blks(struct f2fs_sb_info *sbi, int type)
 	case META_CP:
 		return 0;
 	case META_POR:
-		return SM_I(sbi)->seg0_blkaddr + TOTAL_BLKS(sbi);
+		return MAX_BLKADDR(sbi);
 	default:
 		BUG();
 	}
@@ -113,7 +113,6 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages, int type
 	struct page *page;
 	block_t blkno = start;
 	block_t max_blks = get_max_meta_blks(sbi, type);
-	block_t min_blks = SM_I(sbi)->seg0_blkaddr;
 
 	struct f2fs_io_info fio = {
 		.type = META,
@@ -146,7 +145,7 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages, int type
 		case META_POR:
 			if (unlikely(blkno >= max_blks))
 				goto out;
-			if (unlikely(blkno < min_blks))
+			if (unlikely(blkno < SEG0_BLKADDR(sbi)))
 				goto out;
 			blk_addr = blkno;
 			break;

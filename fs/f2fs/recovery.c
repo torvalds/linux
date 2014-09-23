@@ -173,8 +173,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 	while (1) {
 		struct fsync_inode_entry *entry;
 
-		if (blkaddr < SM_I(sbi)->main_blkaddr ||
-			blkaddr >= (SM_I(sbi)->seg0_blkaddr + TOTAL_BLKS(sbi)))
+		if (blkaddr < MAIN_BLKADDR(sbi) || blkaddr >= MAX_BLKADDR(sbi))
 			return 0;
 
 		page = get_meta_page_ra(sbi, blkaddr);
@@ -434,8 +433,7 @@ static int recover_data(struct f2fs_sb_info *sbi,
 	while (1) {
 		struct fsync_inode_entry *entry;
 
-		if (blkaddr < SM_I(sbi)->main_blkaddr ||
-			blkaddr >= (SM_I(sbi)->seg0_blkaddr + TOTAL_BLKS(sbi)))
+		if (blkaddr < MAIN_BLKADDR(sbi) || blkaddr >= MAX_BLKADDR(sbi))
 			break;
 
 		page = get_meta_page_ra(sbi, blkaddr);
@@ -525,7 +523,7 @@ out:
 
 	/* truncate meta pages to be used by the recovery */
 	truncate_inode_pages_range(META_MAPPING(sbi),
-		SM_I(sbi)->main_blkaddr << PAGE_CACHE_SHIFT, -1);
+			MAIN_BLKADDR(sbi) << PAGE_CACHE_SHIFT, -1);
 
 	if (err) {
 		truncate_inode_pages_final(NODE_MAPPING(sbi));

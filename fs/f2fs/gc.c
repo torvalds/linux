@@ -193,7 +193,7 @@ static unsigned int check_bg_victims(struct f2fs_sb_info *sbi)
 	 * selected by background GC before.
 	 * Those segments guarantee they have small valid blocks.
 	 */
-	for_each_set_bit(secno, dirty_i->victim_secmap, TOTAL_SECS(sbi)) {
+	for_each_set_bit(secno, dirty_i->victim_secmap, MAIN_SECS(sbi)) {
 		if (sec_usage_check(sbi, secno))
 			continue;
 		clear_bit(secno, dirty_i->victim_secmap);
@@ -281,9 +281,8 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 		unsigned long cost;
 		unsigned int segno;
 
-		segno = find_next_bit(p.dirty_segmap,
-						TOTAL_SEGS(sbi), p.offset);
-		if (segno >= TOTAL_SEGS(sbi)) {
+		segno = find_next_bit(p.dirty_segmap, MAIN_SEGS(sbi), p.offset);
+		if (segno >= MAIN_SEGS(sbi)) {
 			if (sbi->last_victim[p.gc_mode]) {
 				sbi->last_victim[p.gc_mode] = 0;
 				p.offset = 0;
