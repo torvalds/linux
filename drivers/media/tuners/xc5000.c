@@ -70,6 +70,8 @@ struct xc5000_priv {
 
 	struct dvb_frontend *fe;
 	struct delayed_work timer_sleep;
+
+	const struct firmware   *firmware;
 };
 
 /* Misc Defines */
@@ -1136,20 +1138,23 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 	if (!force && xc5000_is_firmware_loaded(fe) == 0)
 		return 0;
 
-	ret = request_firmware(&fw, desired_fw->name,
-			       priv->i2c_props.adap->dev.parent);
-	if (ret) {
-		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
-		return ret;
-	}
+	if (!priv->firmware) {
+		ret = request_firmware(&fw, desired_fw->name,
+					priv->i2c_props.adap->dev.parent);
+		if (ret) {
+			pr_err("xc5000: Upload failed. rc %d\n", ret);
+			return ret;
+		}
+		dprintk(1, "firmware read %Zu bytes.\n", fw->size);
 
-	dprintk(1, "firmware read %Zu bytes.\n", fw->size);
-
-	if (fw->size != desired_fw->size) {
-		printk(KERN_ERR "xc5000: Firmware file with incorrect size\n");
-		ret = -EINVAL;
-		goto err;
-	}
+		if (fw->size != desired_fw->size) {
+			pr_err("xc5000: Firmware file with incorrect size\n");
+			release_firmware(fw);
+			return -EINVAL;
+		}
+		priv->firmware = fw;
+	} else
+		fw = priv->firmware;
 
 	/* Try up to 5 times to load firmware */
 	for (i = 0; i < 5; i++) {
@@ -1232,7 +1237,6 @@ err:
 	else
 		printk(KERN_CONT " - too many retries. Giving up\n");
 
-	release_firmware(fw);
 	return ret;
 }
 
@@ -1316,6 +1320,8 @@ static int xc5000_release(struct dvb_frontend *fe)
 	if (priv) {
 		cancel_delayed_work(&priv->timer_sleep);
 		hybrid_tuner_release_state(priv);
+		if (priv->firmware)
+			release_firmware(priv->firmware);
 	}
 
 	mutex_unlock(&xc5000_list_mutex);
