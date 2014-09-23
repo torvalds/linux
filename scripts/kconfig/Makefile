@@ -104,6 +104,23 @@ endif
 %_defconfig: $(obj)/conf
 	$(Q)$< --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig)
 
+configfiles=$(wildcard $(srctree)/kernel/configs/$(1).config $(srctree)/arch/$(SRCARCH)/configs/$(1).config)
+
+define mergeconfig
+$(if $(wildcard $(objtree)/.config),, $(error You need an existing .config for this target))
+$(if $(call configfiles,$(1)),, $(error No configuration exists for this target on this architecture))
+$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh -m -O $(objtree) $(objtree)/.config $(call configfiles,$(1))
+$(Q)yes "" | $(MAKE) -f $(srctree)/Makefile oldconfig
+endef
+
+PHONY += kvmconfig
+kvmconfig:
+	$(call mergeconfig,kvm_guest)
+
+PHONY += tinyconfig
+tinyconfig: allnoconfig
+	$(call mergeconfig,tiny)
+
 # Help text used by make help
 help:
 	@echo  '  config	  - Update current config utilising a line-oriented program'
@@ -124,6 +141,8 @@ help:
 	@echo  '  randconfig	  - New config with random answer to all options'
 	@echo  '  listnewconfig   - List new options'
 	@echo  '  olddefconfig	  - Same as silentoldconfig but sets new symbols to their default value'
+	@echo  '  kvmconfig	  - Enable additional options for guest kernel support'
+	@echo  '  tinyconfig	  - Configure the tiniest possible kernel'
 
 # lxdialog stuff
 check-lxdialog  := $(srctree)/$(src)/lxdialog/check-lxdialog.sh
