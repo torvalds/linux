@@ -3607,12 +3607,9 @@ static int et131x_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(et131x_pm_ops, et131x_suspend, et131x_resume);
-#define ET131X_PM_OPS (&et131x_pm_ops)
-#else
-#define ET131X_PM_OPS NULL
-#endif
 
 /* et131x_isr - The Interrupt Service Routine for the driver.
  * @irq: the IRQ on which the interrupt was received.
@@ -4406,7 +4403,7 @@ static struct pci_driver et131x_driver = {
 	.id_table	= et131x_pci_table,
 	.probe		= et131x_pci_setup,
 	.remove		= et131x_pci_remove,
-	.driver.pm	= ET131X_PM_OPS,
+	.driver.pm	= &et131x_pm_ops,
 };
 
 module_pci_driver(et131x_driver);
