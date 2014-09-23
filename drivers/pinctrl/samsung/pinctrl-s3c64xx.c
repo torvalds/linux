@@ -811,6 +811,5 @@ struct samsung_pin_ctrl s3c64xx_pin_ctrl[] = {
 		.nr_banks	= ARRAY_SIZE(s3c64xx_pin_banks0),
 		.eint_gpio_init = s3c64xx_eint_gpio_init,
 		.eint_wkup_init = s3c64xx_eint_eint0_init,
-		.label		= "S3C64xx-GPIO",
 	},
 };

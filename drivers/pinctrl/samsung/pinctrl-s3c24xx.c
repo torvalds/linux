@@ -578,7 +578,6 @@ struct samsung_pin_ctrl s3c2412_pin_ctrl[] = {
 		.pin_banks	= s3c2412_pin_banks,
 		.nr_banks	= ARRAY_SIZE(s3c2412_pin_banks),
 		.eint_wkup_init = s3c24xx_eint_init,
-		.label		= "S3C2412-GPIO",
 	},
 };
 
@@ -601,7 +600,6 @@ struct samsung_pin_ctrl s3c2416_pin_ctrl[] = {
 		.pin_banks	= s3c2416_pin_banks,
 		.nr_banks	= ARRAY_SIZE(s3c2416_pin_banks),
 		.eint_wkup_init = s3c24xx_eint_init,
-		.label		= "S3C2416-GPIO",
 	},
 };
 
@@ -622,7 +620,6 @@ struct samsung_pin_ctrl s3c2440_pin_ctrl[] = {
 		.pin_banks	= s3c2440_pin_banks,
 		.nr_banks	= ARRAY_SIZE(s3c2440_pin_banks),
 		.eint_wkup_init = s3c24xx_eint_init,
-		.label		= "S3C2440-GPIO",
 	},
 };
 
@@ -646,6 +643,5 @@ struct samsung_pin_ctrl s3c2450_pin_ctrl[] = {
 		.pin_banks	= s3c2450_pin_banks,
 		.nr_banks	= ARRAY_SIZE(s3c2450_pin_banks),
 		.eint_wkup_init = s3c24xx_eint_init,
-		.label		= "S3C2450-GPIO",
 	},
 };

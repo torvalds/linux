@@ -161,7 +161,6 @@ struct samsung_pin_bank {
  *	interrupts for the controller.
  * @eint_wkup_init: platform specific callback to setup the external wakeup
  *	interrupts for the controller.
- * @label: for debug information.
  */
 struct samsung_pin_ctrl {
 	struct samsung_pin_bank	*pin_banks;
@@ -174,8 +173,6 @@ struct samsung_pin_ctrl {
 	int		(*eint_wkup_init)(struct samsung_pinctrl_drv_data *);
 	void		(*suspend)(struct samsung_pinctrl_drv_data *);
 	void		(*resume)(struct samsung_pinctrl_drv_data *);
-
-	char		*label;
 };
 
 /**
