@@ -286,7 +286,6 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev, enum rf90_radio_path eRFPath,
 static u32 phy_FwRFSerialRead(struct net_device *dev,
 			      enum rf90_radio_path eRFPath, u32 Offset)
 {
-	u32		retValue = 0;
 	u32		Data = 0;
 	u8		time = 0;
 
@@ -306,9 +305,7 @@ static u32 phy_FwRFSerialRead(struct net_device *dev,
 		else
 			return 0;
 	}
-	retValue = read_nic_dword(dev, RF_DATA);
-
-	return	retValue;
+	return read_nic_dword(dev, RF_DATA);
 
 }	/* phy_FwRFSerialRead */
 
@@ -606,11 +603,8 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 }
 bool rtl8192_BBConfig(struct net_device *dev)
 {
-	bool rtStatus = true;
-
 	rtl8192_InitBBRFRegDef(dev);
-	rtStatus = rtl8192_BB_Config_ParaFile(dev);
-	return rtStatus;
+	return rtl8192_BB_Config_ParaFile(dev);
 }
 
 void rtl8192_phy_getTxPower(struct net_device *dev)
