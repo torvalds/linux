@@ -144,7 +144,6 @@ static int saa7134_go7007_interface_reset(struct go7007 *go)
 {
 	struct saa7134_go7007 *saa = go->hpi_context;
 	struct saa7134_dev *dev = saa->dev;
-	u32 status;
 	u16 intr_val, intr_data;
 	int count = 20;
 
@@ -162,8 +161,8 @@ static int saa7134_go7007_interface_reset(struct go7007 *go)
 	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 
-	status = saa_readb(SAA7134_GPIO_GPSTATUS2);
-	/*pr_debug("status is %s\n", status & 0x40 ? "OK" : "not OK"); */
+	saa_readb(SAA7134_GPIO_GPSTATUS2);
+	/*pr_debug("status is %s\n", saa_readb(SAA7134_GPIO_GPSTATUS2) & 0x40 ? "OK" : "not OK"); */
 
 	/* enter command mode...(?) */
 	saa_writeb(SAA7134_GPIO_GPSTATUS2, GPIO_COMMAND_REQ1);
@@ -172,7 +171,7 @@ static int saa7134_go7007_interface_reset(struct go7007 *go)
 	do {
 		saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 		saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
-		status = saa_readb(SAA7134_GPIO_GPSTATUS2);
+		saa_readb(SAA7134_GPIO_GPSTATUS2);
 		/*pr_info("gpio is %08x\n", saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2)); */
 	} while (--count > 0);
 
