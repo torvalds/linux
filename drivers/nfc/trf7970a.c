@@ -2123,7 +2123,6 @@ static int trf7970a_suspend(struct device *dev)
 {
 	struct spi_device *spi = container_of(dev, struct spi_device, dev);
 	struct trf7970a *trf = spi_get_drvdata(spi);
-	int ret = 0;
 
 	dev_dbg(dev, "Suspend\n");
 
@@ -2133,7 +2132,7 @@ static int trf7970a_suspend(struct device *dev)
 
 	mutex_unlock(&trf->lock);
 
-	return ret;
+	return 0;
 }
 
 static int trf7970a_resume(struct device *dev)
