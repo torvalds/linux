@@ -2377,7 +2377,7 @@ static int __init atmci_probe(struct platform_device *pdev)
 	struct resource			*regs;
 	unsigned int			nr_slots;
 	int				irq;
-	int				ret;
+	int				ret, i;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
@@ -2483,7 +2483,7 @@ static int __init atmci_probe(struct platform_device *pdev)
 		if (!host->buffer) {
 			ret = -ENOMEM;
 			dev_err(&pdev->dev, "buffer allocation failed\n");
-			goto err_init_slot;
+			goto err_dma_alloc;
 		}
 	}
 
@@ -2493,7 +2493,13 @@ static int __init atmci_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_dma_alloc:
+	for (i = 0; i < ATMCI_MAX_NR_SLOTS; i++) {
+		if (host->slot[i])
+			atmci_cleanup_slot(host->slot[i], i);
+	}
 err_init_slot:
+	del_timer_sync(&host->timer);
 	if (host->dma.chan)
 		dma_release_channel(host->dma.chan);
 	free_irq(irq, host);
@@ -2520,6 +2526,7 @@ static int __exit atmci_remove(struct platform_device *pdev)
 	atmci_readl(host, ATMCI_SR);
 	clk_disable_unprepare(host->mck);
 
+	del_timer_sync(&host->timer);
 	if (host->dma.chan)
 		dma_release_channel(host->dma.chan);
 
