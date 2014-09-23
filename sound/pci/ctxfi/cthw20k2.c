@@ -2045,8 +2045,8 @@ static int hw_card_start(struct hw *hw)
 			goto error1;
 
 		hw->io_base = pci_resource_start(hw->pci, 2);
-		hw->mem_base = (unsigned long)ioremap(hw->io_base,
-					pci_resource_len(hw->pci, 2));
+		hw->mem_base = ioremap(hw->io_base,
+				       pci_resource_len(hw->pci, 2));
 		if (!hw->mem_base) {
 			err = -ENOENT;
 			goto error2;
@@ -2106,9 +2106,9 @@ static int hw_card_shutdown(struct hw *hw)
 	hw->irq	= -1;
 
 	if (hw->mem_base)
-		iounmap((void *)hw->mem_base);
+		iounmap(hw->mem_base);
 
-	hw->mem_base = (unsigned long)NULL;
+	hw->mem_base = NULL;
 
 	if (hw->io_base)
 		pci_release_regions(hw->pci);
@@ -2228,12 +2228,12 @@ static int hw_resume(struct hw *hw, struct card_conf *info)
 
 static u32 hw_read_20kx(struct hw *hw, u32 reg)
 {
-	return readl((void *)(hw->mem_base + reg));
+	return readl(hw->mem_base + reg);
 }
 
 static void hw_write_20kx(struct hw *hw, u32 reg, u32 data)
 {
-	writel(data, (void *)(hw->mem_base + reg));
+	writel(data, hw->mem_base + reg);
 }
 
 static struct hw ct20k2_preset = {

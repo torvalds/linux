@@ -186,7 +186,7 @@ struct hw {
 	struct pci_dev *pci;	/* the pci kernel structure of this card */
 	int irq;
 	unsigned long io_base;
-	unsigned long mem_base;
+	void __iomem *mem_base;
 
 	enum CHIPTYP chip_type;
 	enum CTCARDS model;
