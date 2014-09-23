@@ -230,6 +230,9 @@ struct nfc_digital_dev {
 	u8 local_payload_max;
 	u8 remote_payload_max;
 
+	struct sk_buff *chaining_skb;
+	struct digital_data_exch *data_exch;
+
 	u16 target_fsc;
 
 	int (*skb_check_crc)(struct sk_buff *skb);
