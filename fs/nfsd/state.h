@@ -502,6 +502,7 @@ struct nfs4_file {
 	bool			fi_had_conflict;
 #ifdef CONFIG_NFSD_PNFS
 	struct list_head	fi_lo_states;
+	atomic_t		fi_lo_recalls;
 #endif
 };
 
@@ -542,6 +543,10 @@ struct nfs4_layout_stateid {
 	spinlock_t			ls_lock;
 	struct list_head		ls_layouts;
 	u32				ls_layout_type;
+	struct file			*ls_file;
+	struct nfsd4_callback		ls_recall;
+	stateid_t			ls_recall_sid;
+	bool				ls_recalled;
 };
 
 static inline struct nfs4_layout_stateid *layoutstateid(struct nfs4_stid *s)
@@ -556,6 +561,7 @@ static inline struct nfs4_layout_stateid *layoutstateid(struct nfs4_stid *s)
 enum nfsd4_cb_op {
 	NFSPROC4_CLNT_CB_NULL = 0,
 	NFSPROC4_CLNT_CB_RECALL,
+	NFSPROC4_CLNT_CB_LAYOUT,
 	NFSPROC4_CLNT_CB_SEQUENCE,
 };
 

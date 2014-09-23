@@ -1301,6 +1301,10 @@ nfsd4_layoutget(struct svc_rqst *rqstp,
 	if (nfserr)
 		goto out;
 
+	nfserr = nfserr_recallconflict;
+	if (atomic_read(&ls->ls_stid.sc_file->fi_lo_recalls))
+		goto out_put_stid;
+
 	nfserr = ops->proc_layoutget(current_fh->fh_dentry->d_inode,
 				     current_fh, lgp);
 	if (nfserr)

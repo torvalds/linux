@@ -1,8 +1,11 @@
 /*
  * Copyright (c) 2014 Christoph Hellwig.
  */
+#include <linux/kmod.h>
+#include <linux/file.h>
 #include <linux/jhash.h>
 #include <linux/sched.h>
+#include <linux/sunrpc/addr.h>
 
 #include "pnfs.h"
 #include "netns.h"
@@ -17,6 +20,9 @@ struct nfs4_layout {
 
 static struct kmem_cache *nfs4_layout_cache;
 static struct kmem_cache *nfs4_layout_stateid_cache;
+
+static struct nfsd4_callback_ops nfsd4_cb_layout_ops;
+static const struct lock_manager_operations nfsd4_layouts_lm_ops;
 
 const struct nfsd4_layout_ops *nfsd4_layout_ops[LAYOUT_TYPE_MAX] =  {
 };
@@ -127,7 +133,40 @@ nfsd4_free_layout_stateid(struct nfs4_stid *stid)
 	list_del_init(&ls->ls_perfile);
 	spin_unlock(&fp->fi_lock);
 
+	vfs_setlease(ls->ls_file, F_UNLCK, NULL, (void **)&ls);
+	fput(ls->ls_file);
+
+	if (ls->ls_recalled)
+		atomic_dec(&ls->ls_stid.sc_file->fi_lo_recalls);
+
 	kmem_cache_free(nfs4_layout_stateid_cache, ls);
+}
+
+static int
+nfsd4_layout_setlease(struct nfs4_layout_stateid *ls)
+{
+	struct file_lock *fl;
+	int status;
+
+	fl = locks_alloc_lock();
+	if (!fl)
+		return -ENOMEM;
+	locks_init_lock(fl);
+	fl->fl_lmops = &nfsd4_layouts_lm_ops;
+	fl->fl_flags = FL_LAYOUT;
+	fl->fl_type = F_RDLCK;
+	fl->fl_end = OFFSET_MAX;
+	fl->fl_owner = ls;
+	fl->fl_pid = current->tgid;
+	fl->fl_file = ls->ls_file;
+
+	status = vfs_setlease(fl->fl_file, fl->fl_type, &fl, NULL);
+	if (status) {
+		locks_free_lock(fl);
+		return status;
+	}
+	BUG_ON(fl != NULL);
+	return 0;
 }
 
 static struct nfs4_layout_stateid *
@@ -152,6 +191,20 @@ nfsd4_alloc_layout_stateid(struct nfsd4_compound_state *cstate,
 	spin_lock_init(&ls->ls_lock);
 	INIT_LIST_HEAD(&ls->ls_layouts);
 	ls->ls_layout_type = layout_type;
+	nfsd4_init_cb(&ls->ls_recall, clp, &nfsd4_cb_layout_ops,
+			NFSPROC4_CLNT_CB_LAYOUT);
+
+	if (parent->sc_type == NFS4_DELEG_STID)
+		ls->ls_file = get_file(fp->fi_deleg_file);
+	else
+		ls->ls_file = find_any_file(fp);
+	BUG_ON(!ls->ls_file);
+
+	if (nfsd4_layout_setlease(ls)) {
+		put_nfs4_file(fp);
+		kmem_cache_free(nfs4_layout_stateid_cache, ls);
+		return NULL;
+	}
 
 	spin_lock(&clp->cl_lock);
 	stp->sc_type = NFS4_LAYOUT_STID;
@@ -215,6 +268,27 @@ out:
 	return status;
 }
 
+static void
+nfsd4_recall_file_layout(struct nfs4_layout_stateid *ls)
+{
+	spin_lock(&ls->ls_lock);
+	if (ls->ls_recalled)
+		goto out_unlock;
+
+	ls->ls_recalled = true;
+	atomic_inc(&ls->ls_stid.sc_file->fi_lo_recalls);
+	if (list_empty(&ls->ls_layouts))
+		goto out_unlock;
+
+	atomic_inc(&ls->ls_stid.sc_count);
+	update_stateid(&ls->ls_stid.sc_stateid);
+	memcpy(&ls->ls_recall_sid, &ls->ls_stid.sc_stateid, sizeof(stateid_t));
+	nfsd4_run_cb(&ls->ls_recall);
+
+out_unlock:
+	spin_unlock(&ls->ls_lock);
+}
+
 static inline u64
 layout_end(struct nfsd4_layout_seg *seg)
 {
@@ -258,18 +332,44 @@ layouts_try_merge(struct nfsd4_layout_seg *lo, struct nfsd4_layout_seg *new)
 	return true;
 }
 
+static __be32
+nfsd4_recall_conflict(struct nfs4_layout_stateid *ls)
+{
+	struct nfs4_file *fp = ls->ls_stid.sc_file;
+	struct nfs4_layout_stateid *l, *n;
+	__be32 nfserr = nfs_ok;
+
+	assert_spin_locked(&fp->fi_lock);
+
+	list_for_each_entry_safe(l, n, &fp->fi_lo_states, ls_perfile) {
+		if (l != ls) {
+			nfsd4_recall_file_layout(l);
+			nfserr = nfserr_recallconflict;
+		}
+	}
+
+	return nfserr;
+}
+
 __be32
 nfsd4_insert_layout(struct nfsd4_layoutget *lgp, struct nfs4_layout_stateid *ls)
 {
 	struct nfsd4_layout_seg *seg = &lgp->lg_seg;
+	struct nfs4_file *fp = ls->ls_stid.sc_file;
 	struct nfs4_layout *lp, *new = NULL;
+	__be32 nfserr;
 
+	spin_lock(&fp->fi_lock);
+	nfserr = nfsd4_recall_conflict(ls);
+	if (nfserr)
+		goto out;
 	spin_lock(&ls->ls_lock);
 	list_for_each_entry(lp, &ls->ls_layouts, lo_perstate) {
 		if (layouts_try_merge(&lp->lo_seg, seg))
 			goto done;
 	}
 	spin_unlock(&ls->ls_lock);
+	spin_unlock(&fp->fi_lock);
 
 	new = kmem_cache_alloc(nfs4_layout_cache, GFP_KERNEL);
 	if (!new)
@@ -277,6 +377,10 @@ nfsd4_insert_layout(struct nfsd4_layoutget *lgp, struct nfs4_layout_stateid *ls)
 	memcpy(&new->lo_seg, seg, sizeof(lp->lo_seg));
 	new->lo_state = ls;
 
+	spin_lock(&fp->fi_lock);
+	nfserr = nfsd4_recall_conflict(ls);
+	if (nfserr)
+		goto out;
 	spin_lock(&ls->ls_lock);
 	list_for_each_entry(lp, &ls->ls_layouts, lo_perstate) {
 		if (layouts_try_merge(&lp->lo_seg, seg))
@@ -290,9 +394,11 @@ done:
 	update_stateid(&ls->ls_stid.sc_stateid);
 	memcpy(&lgp->lg_sid, &ls->ls_stid.sc_stateid, sizeof(stateid_t));
 	spin_unlock(&ls->ls_lock);
+out:
+	spin_unlock(&fp->fi_lock);
 	if (new)
 		kmem_cache_free(nfs4_layout_cache, new);
-	return nfs_ok;
+	return nfserr;
 }
 
 static void
@@ -447,6 +553,112 @@ nfsd4_return_all_file_layouts(struct nfs4_client *clp, struct nfs4_file *fp)
 
 	nfsd4_free_layouts(&reaplist);
 }
+
+static void
+nfsd4_cb_layout_fail(struct nfs4_layout_stateid *ls)
+{
+	struct nfs4_client *clp = ls->ls_stid.sc_client;
+	char addr_str[INET6_ADDRSTRLEN];
+	static char *envp[] = {
+		"HOME=/",
+		"TERM=linux",
+		"PATH=/sbin:/usr/sbin:/bin:/usr/bin",
+		NULL
+	};
+	char *argv[8];
+	int error;
+
+	rpc_ntop((struct sockaddr *)&clp->cl_addr, addr_str, sizeof(addr_str));
+
+	printk(KERN_WARNING
+		"nfsd: client %s failed to respond to layout recall. "
+		"  Fencing..\n", addr_str);
+
+	argv[0] = "/sbin/nfsd-recall-failed";
+	argv[1] = addr_str;
+	argv[2] = ls->ls_file->f_path.mnt->mnt_sb->s_id;
+	argv[3] = NULL;
+
+	error = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+	if (error) {
+		printk(KERN_ERR "nfsd: fence failed for client %s: %d!\n",
+			addr_str, error);
+	}
+}
+
+static int
+nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
+{
+	struct nfs4_layout_stateid *ls =
+		container_of(cb, struct nfs4_layout_stateid, ls_recall);
+	LIST_HEAD(reaplist);
+
+	switch (task->tk_status) {
+	case 0:
+		return 1;
+	case -NFS4ERR_NOMATCHING_LAYOUT:
+		task->tk_status = 0;
+		return 1;
+	case -NFS4ERR_DELAY:
+		/* Poll the client until it's done with the layout */
+		/* FIXME: cap number of retries.
+		 * The pnfs standard states that we need to only expire
+		 * the client after at-least "lease time" .eg lease-time * 2
+		 * when failing to communicate a recall
+		 */
+		rpc_delay(task, HZ/100); /* 10 mili-seconds */
+		return 0;
+	default:
+		/*
+		 * Unknown error or non-responding client, we'll need to fence.
+		 */
+		nfsd4_cb_layout_fail(ls);
+		return -1;
+	}
+}
+
+static void
+nfsd4_cb_layout_release(struct nfsd4_callback *cb)
+{
+	struct nfs4_layout_stateid *ls =
+		container_of(cb, struct nfs4_layout_stateid, ls_recall);
+	LIST_HEAD(reaplist);
+
+	nfsd4_return_all_layouts(ls, &reaplist);
+	nfsd4_free_layouts(&reaplist);
+	nfs4_put_stid(&ls->ls_stid);
+}
+
+static struct nfsd4_callback_ops nfsd4_cb_layout_ops = {
+	.done		= nfsd4_cb_layout_done,
+	.release	= nfsd4_cb_layout_release,
+};
+
+static bool
+nfsd4_layout_lm_break(struct file_lock *fl)
+{
+	/*
+	 * We don't want the locks code to timeout the lease for us;
+	 * we'll remove it ourself if a layout isn't returned
+	 * in time:
+	 */
+	fl->fl_break_time = 0;
+	nfsd4_recall_file_layout(fl->fl_owner);
+	return false;
+}
+
+static int
+nfsd4_layout_lm_change(struct file_lock *onlist, int arg,
+		struct list_head *dispose)
+{
+	BUG_ON(!(arg & F_UNLCK));
+	return lease_modify(onlist, arg, dispose);
+}
+
+static const struct lock_manager_operations nfsd4_layouts_lm_ops = {
+	.lm_break	= nfsd4_layout_lm_break,
+	.lm_change	= nfsd4_layout_lm_change,
+};
 
 int
 nfsd4_init_pnfs(void)
