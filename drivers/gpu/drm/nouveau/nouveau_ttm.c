@@ -281,7 +281,7 @@ nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct nouveau_drm *drm = nouveau_drm(file_priv->minor->dev);
 
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return drm_mmap(filp, vma);
+		return -EINVAL;
 
 	return ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
 }

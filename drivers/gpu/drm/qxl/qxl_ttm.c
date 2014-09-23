@@ -127,7 +127,7 @@ int qxl_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET)) {
 		pr_info("%s: vma->vm_pgoff (%ld) < DRM_FILE_PAGE_OFFSET\n",
 			__func__, vma->vm_pgoff);
-		return drm_mmap(filp, vma);
+		return -EINVAL;
 	}
 
 	file_priv = filp->private_data;

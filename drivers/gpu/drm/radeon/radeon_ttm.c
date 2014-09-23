@@ -963,7 +963,7 @@ int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
 	int r;
 
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET)) {
-		return drm_mmap(filp, vma);
+		return -EINVAL;
 	}
 
 	file_priv = filp->private_data;
