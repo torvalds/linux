@@ -1205,6 +1205,7 @@ xfs_free_file_space(
 	xfs_bmap_free_t		free_list;
 	xfs_bmbt_irec_t		imap;
 	xfs_off_t		ioffset;
+	xfs_off_t		iendoffset;
 	xfs_extlen_t		mod=0;
 	xfs_mount_t		*mp;
 	int			nimap;
@@ -1233,12 +1234,13 @@ xfs_free_file_space(
 	inode_dio_wait(VFS_I(ip));
 
 	rounding = max_t(xfs_off_t, 1 << mp->m_sb.sb_blocklog, PAGE_CACHE_SIZE);
-	ioffset = offset & ~(rounding - 1);
-	error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-					      ioffset, -1);
+	ioffset = round_down(offset, rounding);
+	iendoffset = round_up(offset + len, rounding) - 1;
+	error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping, ioffset,
+					     iendoffset);
 	if (error)
 		goto out;
-	truncate_pagecache_range(VFS_I(ip), ioffset, -1);
+	truncate_pagecache_range(VFS_I(ip), ioffset, iendoffset);
 
 	/*
 	 * Need to zero the stuff we're not freeing, on disk.
