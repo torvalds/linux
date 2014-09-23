@@ -109,6 +109,8 @@ struct digital_dep_req_res {
 
 static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 				    struct sk_buff *resp);
+static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
+				    struct sk_buff *resp);
 
 static const u8 digital_payload_bits_map[4] = {
 	[0] = 64,
@@ -199,6 +201,72 @@ digital_send_dep_data_prep(struct nfc_digital_dev *ddev, struct sk_buff *skb,
 	}
 
 	return new_skb;
+}
+
+static struct sk_buff *
+digital_recv_dep_data_gather(struct nfc_digital_dev *ddev, u8 pfb,
+			     struct sk_buff *resp,
+			     int (*send_ack)(struct nfc_digital_dev *ddev,
+					     struct digital_data_exch
+							     *data_exch),
+			     struct digital_data_exch *data_exch)
+{
+	struct sk_buff *new_skb;
+	int rc;
+
+	if (DIGITAL_NFC_DEP_MI_BIT_SET(pfb) && (!ddev->chaining_skb)) {
+		ddev->chaining_skb =
+			nfc_alloc_recv_skb(8 * ddev->local_payload_max,
+					   GFP_KERNEL);
+		if (!ddev->chaining_skb) {
+			rc = -ENOMEM;
+			goto error;
+		}
+	}
+
+	if (ddev->chaining_skb) {
+		if (resp->len > skb_tailroom(ddev->chaining_skb)) {
+			new_skb = skb_copy_expand(ddev->chaining_skb,
+						  skb_headroom(
+							  ddev->chaining_skb),
+						  8 * ddev->local_payload_max,
+						  GFP_KERNEL);
+			if (!new_skb) {
+				rc = -ENOMEM;
+				goto error;
+			}
+
+			kfree_skb(ddev->chaining_skb);
+			ddev->chaining_skb = new_skb;
+		}
+
+		memcpy(skb_put(ddev->chaining_skb, resp->len), resp->data,
+		       resp->len);
+
+		kfree_skb(resp);
+		resp = NULL;
+
+		if (DIGITAL_NFC_DEP_MI_BIT_SET(pfb)) {
+			rc = send_ack(ddev, data_exch);
+			if (rc)
+				goto error;
+
+			return NULL;
+		}
+
+		resp = ddev->chaining_skb;
+		ddev->chaining_skb = NULL;
+	}
+
+	return resp;
+
+error:
+	kfree_skb(resp);
+
+	kfree_skb(ddev->chaining_skb);
+	ddev->chaining_skb = NULL;
+
+	return ERR_PTR(rc);
 }
 
 static void digital_in_recv_psl_res(struct nfc_digital_dev *ddev, void *arg,
@@ -429,6 +497,38 @@ int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
 	return rc;
 }
 
+static int digital_in_send_ack(struct nfc_digital_dev *ddev,
+			       struct digital_data_exch *data_exch)
+{
+	struct digital_dep_req_res *dep_req;
+	struct sk_buff *skb;
+	int rc;
+
+	skb = digital_skb_alloc(ddev, 1);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_push(skb, sizeof(struct digital_dep_req_res));
+
+	dep_req = (struct digital_dep_req_res *)skb->data;
+
+	dep_req->dir = DIGITAL_NFC_DEP_FRAME_DIR_OUT;
+	dep_req->cmd = DIGITAL_CMD_DEP_REQ;
+	dep_req->pfb = DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU |
+		       ddev->curr_nfc_dep_pni;
+
+	digital_skb_push_dep_sod(ddev, skb);
+
+	ddev->skb_add_crc(skb);
+
+	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
+				 data_exch);
+	if (rc)
+		kfree_skb(skb);
+
+	return rc;
+}
+
 static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 				struct digital_data_exch *data_exch, u8 rtox)
 {
@@ -534,6 +634,23 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 
 		ddev->curr_nfc_dep_pni =
 			DIGITAL_NFC_DEP_PFB_PNI(ddev->curr_nfc_dep_pni + 1);
+
+		resp = digital_recv_dep_data_gather(ddev, pfb, resp,
+						    digital_in_send_ack,
+						    data_exch);
+		if (IS_ERR(resp)) {
+			rc = PTR_ERR(resp);
+			resp = NULL;
+			goto error;
+		}
+
+		/* If resp is NULL then we're still chaining so return and
+		 * wait for the next part of the PDU.  Else, the PDU is
+		 * complete so pass it up.
+		 */
+		if (!resp)
+			return;
+
 		rc = 0;
 		break;
 
@@ -573,12 +690,6 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 
 		kfree_skb(resp);
 		return;
-	}
-
-	if (DIGITAL_NFC_DEP_MI_BIT_SET(pfb)) {
-		pr_err("MI bit set. Chained PDU not supported\n");
-		rc = -EIO;
-		goto error;
 	}
 
 exit:
@@ -660,6 +771,48 @@ static void digital_tg_set_rf_tech(struct nfc_digital_dev *ddev, u8 rf_tech)
 	}
 }
 
+static int digital_tg_send_ack(struct nfc_digital_dev *ddev,
+			       struct digital_data_exch *data_exch)
+{
+	struct digital_dep_req_res *dep_res;
+	struct sk_buff *skb;
+	int rc;
+
+	skb = digital_skb_alloc(ddev, 1);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_push(skb, sizeof(struct digital_dep_req_res));
+
+	dep_res = (struct digital_dep_req_res *)skb->data;
+
+	dep_res->dir = DIGITAL_NFC_DEP_FRAME_DIR_IN;
+	dep_res->cmd = DIGITAL_CMD_DEP_RES;
+	dep_res->pfb = DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU |
+		       ddev->curr_nfc_dep_pni;
+
+	if (ddev->did) {
+		dep_res->pfb |= DIGITAL_NFC_DEP_PFB_DID_BIT;
+
+		memcpy(skb_put(skb, sizeof(ddev->did)), &ddev->did,
+		       sizeof(ddev->did));
+	}
+
+	ddev->curr_nfc_dep_pni =
+		DIGITAL_NFC_DEP_PFB_PNI(ddev->curr_nfc_dep_pni + 1);
+
+	digital_skb_push_dep_sod(ddev, skb);
+
+	ddev->skb_add_crc(skb);
+
+	rc = digital_tg_send_cmd(ddev, skb, 1500, digital_tg_recv_dep_req,
+				 data_exch);
+	if (rc)
+		kfree_skb(skb);
+
+	return rc;
+}
+
 static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 				    struct sk_buff *resp)
 {
@@ -735,6 +888,21 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 			rc = -EIO;
 			goto exit;
 		}
+
+		resp = digital_recv_dep_data_gather(ddev, pfb, resp,
+						    digital_tg_send_ack, NULL);
+		if (IS_ERR(resp)) {
+			rc = PTR_ERR(resp);
+			resp = NULL;
+			goto exit;
+		}
+
+		/* If resp is NULL then we're still chaining so return and
+		 * wait for the next part of the PDU.  Else, the PDU is
+		 * complete so pass it up.
+		 */
+		if (!resp)
+			return;
 
 		rc = 0;
 		break;
