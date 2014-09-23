@@ -16,6 +16,7 @@
  */
 
 #include <linux/linkage.h>
+#include "smc.h"
 
 #define CPU_MASK	0xff0ffff0
 #define CPU_CORTEX_A9	0x410fc090
@@ -55,3 +56,30 @@ ENTRY(exynos_cpu_resume)
 #endif
 	b	cpu_resume
 ENDPROC(exynos_cpu_resume)
+
+	.align
+
+ENTRY(exynos_cpu_resume_ns)
+	mrc	p15, 0, r0, c0, c0, 0
+	ldr	r1, =CPU_MASK
+	and	r0, r0, r1
+	ldr	r1, =CPU_CORTEX_A9
+	cmp	r0, r1
+	bne	skip_cp15
+
+	adr	r0, cp15_save_power
+	ldr	r1, [r0]
+	adr	r0, cp15_save_diag
+	ldr	r2, [r0]
+	mov	r0, #SMC_CMD_C15RESUME
+	dsb
+	smc	#0
+skip_cp15:
+	b	cpu_resume
+ENDPROC(exynos_cpu_resume_ns)
+	.globl cp15_save_diag
+cp15_save_diag:
+	.long	0	@ cp15 diagnostic
+	.globl cp15_save_power
+cp15_save_power:
+	.long	0	@ cp15 power control
