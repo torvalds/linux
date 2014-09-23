@@ -12,6 +12,8 @@
 #ifndef __SOUND_HDA_JACK_H
 #define __SOUND_HDA_JACK_H
 
+#include <linux/err.h>
+
 struct auto_pin_cfg;
 struct hda_jack_tbl;
 struct hda_jack_callback;
