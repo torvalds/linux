@@ -201,6 +201,8 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("t0_clk", "atmel_tcb.0", &tcb_clk),
 	CLKDEV_CON_DEV_ID(NULL, "i2c-at91sam9260.0", &twi_clk),
 	CLKDEV_CON_DEV_ID(NULL, "at91sam9rl-pwm", &pwm_clk),
+	CLKDEV_CON_DEV_ID(NULL, "rtc-at91sam9.0", &clk32k),
+	CLKDEV_CON_DEV_ID(NULL, "rtc-at91sam9.1", &clk32k),
 	/* fake hclk clock */
 	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &ohci_clk),
 	CLKDEV_CON_ID("pioA", &pioA_clk),
@@ -227,6 +229,8 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID(NULL, "fffff800.gpio", &pioCDE_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffffa00.gpio", &pioCDE_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffb8000.pwm", &pwm_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffffd20.rtc", &clk32k),
+	CLKDEV_CON_DEV_ID(NULL, "fffffd50.rtc", &clk32k),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {

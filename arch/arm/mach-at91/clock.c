@@ -115,7 +115,7 @@ static u32 at91_pllb_usb_init;
  * 48 MHz (unless no USB function clocks are needed).  The main clock and
  * both PLLs are turned off to run in "slow clock mode" (system suspend).
  */
-static struct clk clk32k = {
+struct clk clk32k = {
 	.name		= "clk32k",
 	.rate_hz	= AT91_SLOW_CLOCK,
 	.users		= 1,		/* always on */
