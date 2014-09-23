@@ -468,8 +468,8 @@ static int s3c64xx_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 	}
 
 	nr_domains = 0;
-	bank = d->ctrl->pin_banks;
-	for (i = 0; i < d->ctrl->nr_banks; ++i, ++bank) {
+	bank = d->pin_banks;
+	for (i = 0; i < d->nr_banks; ++i, ++bank) {
 		unsigned int nr_eints;
 		unsigned int mask;
 
@@ -497,9 +497,9 @@ static int s3c64xx_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 	}
 	data->drvdata = d;
 
-	bank = d->ctrl->pin_banks;
+	bank = d->pin_banks;
 	nr_domains = 0;
-	for (i = 0; i < d->ctrl->nr_banks; ++i, ++bank) {
+	for (i = 0; i < d->nr_banks; ++i, ++bank) {
 		if (bank->eint_type != EINT_TYPE_GPIO)
 			continue;
 
@@ -735,8 +735,8 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 		irq_set_handler_data(irq, data);
 	}
 
-	bank = d->ctrl->pin_banks;
-	for (i = 0; i < d->ctrl->nr_banks; ++i, ++bank) {
+	bank = d->pin_banks;
+	for (i = 0; i < d->nr_banks; ++i, ++bank) {
 		struct s3c64xx_eint0_domain_data *ddata;
 		unsigned int nr_eints;
 		unsigned int mask;
@@ -804,7 +804,7 @@ static struct samsung_pin_bank s3c64xx_pin_banks0[] = {
  * Samsung pinctrl driver data for S3C64xx SoC. S3C64xx SoC includes
  * one gpio/pin-mux/pinconfig controller.
  */
-struct samsung_pin_ctrl s3c64xx_pin_ctrl[] = {
+const struct samsung_pin_ctrl s3c64xx_pin_ctrl[] __initconst = {
 	{
 		/* pin-controller instance 1 data */
 		.pin_banks	= s3c64xx_pin_banks0,
