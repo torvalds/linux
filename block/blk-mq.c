@@ -119,7 +119,16 @@ void blk_mq_freeze_queue(struct request_queue *q)
 	spin_unlock_irq(q->queue_lock);
 
 	if (freeze) {
-		percpu_ref_kill(&q->mq_usage_counter);
+		/*
+		 * XXX: Temporary kludge to work around SCSI blk-mq stall.
+		 * SCSI synchronously creates and destroys many queues
+		 * back-to-back during probe leading to lengthy stalls.
+		 * This will be fixed by keeping ->mq_usage_counter in
+		 * atomic mode until genhd registration, but, for now,
+		 * let's work around using expedited synchronization.
+		 */
+		__percpu_ref_kill_expedited(&q->mq_usage_counter);
+
 		blk_mq_run_queues(q, false);
 	}
 	wait_event(q->mq_freeze_wq, percpu_ref_is_zero(&q->mq_usage_counter));

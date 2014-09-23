@@ -71,6 +71,7 @@ void percpu_ref_reinit(struct percpu_ref *ref);
 void percpu_ref_exit(struct percpu_ref *ref);
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill);
+void __percpu_ref_kill_expedited(struct percpu_ref *ref);
 
 /**
  * percpu_ref_kill - drop the initial ref
