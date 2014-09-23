@@ -308,7 +308,7 @@ static const struct file_operations radeon_driver_old_fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_mmap,
+	.mmap = drm_legacy_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
 #ifdef CONFIG_COMPAT

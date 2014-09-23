@@ -537,7 +537,7 @@ static resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
  * according to the mapping type and remaps the pages. Finally sets the file
  * pointer and calls vm_open().
  */
-int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
+static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
@@ -651,7 +651,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-int drm_mmap(struct file *filp, struct vm_area_struct *vma)
+int drm_legacy_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
@@ -666,7 +666,7 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	return ret;
 }
-EXPORT_SYMBOL(drm_mmap);
+EXPORT_SYMBOL(drm_legacy_mmap);
 
 void drm_legacy_vma_flush(struct drm_device *dev)
 {

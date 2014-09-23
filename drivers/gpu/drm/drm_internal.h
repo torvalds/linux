@@ -37,7 +37,6 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 
 /* drm_vm.c */
 int drm_vma_info(struct seq_file *m, void *data);
-int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma);
 void drm_vm_close_locked(struct drm_device *dev, struct vm_area_struct *vma);
 
 /* drm_prime.c */
