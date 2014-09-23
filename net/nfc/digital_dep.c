@@ -411,8 +411,11 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 
 	pfb = dep_res->pfb;
 
-	if (DIGITAL_NFC_DEP_DID_BIT_SET(pfb))
-		size++;
+	if (DIGITAL_NFC_DEP_DID_BIT_SET(pfb)) {
+		PROTOCOL_ERR("14.8.2.1");
+		rc = -EIO;
+		goto error;
+	}
 
 	if (size > resp->len) {
 		rc = -EIO;
