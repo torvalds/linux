@@ -422,9 +422,9 @@ void pciehp_set_attention_status(struct slot *slot, u8 value)
 	default:
 		return;
 	}
+	pcie_write_cmd(ctrl, slot_cmd, PCI_EXP_SLTCTL_AIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
-	pcie_write_cmd(ctrl, slot_cmd, PCI_EXP_SLTCTL_AIC);
 }
 
 void pciehp_green_led_on(struct slot *slot)
@@ -602,6 +602,8 @@ void pcie_enable_notification(struct controller *ctrl)
 		PCI_EXP_SLTCTL_DLLSCE);
 
 	pcie_write_cmd(ctrl, cmd, mask);
+	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
+		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, cmd);
 }
 
 static void pcie_disable_notification(struct controller *ctrl)
@@ -613,6 +615,8 @@ static void pcie_disable_notification(struct controller *ctrl)
 		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE |
 		PCI_EXP_SLTCTL_DLLSCE);
 	pcie_write_cmd(ctrl, 0, mask);
+	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
+		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, 0);
 }
 
 /*
@@ -640,6 +644,8 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 	stat_mask |= PCI_EXP_SLTSTA_DLLSC;
 
 	pcie_write_cmd(ctrl, 0, ctrl_mask);
+	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
+		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, 0);
 	if (pciehp_poll_mode)
 		del_timer_sync(&ctrl->poll_timer);
 
@@ -647,6 +653,8 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, stat_mask);
 	pcie_write_cmd(ctrl, ctrl_mask, ctrl_mask);
+	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
+		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, ctrl_mask);
 	if (pciehp_poll_mode)
 		int_poll_timeout(ctrl->poll_timer.data);
 
