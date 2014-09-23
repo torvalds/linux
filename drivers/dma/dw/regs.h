@@ -281,6 +281,7 @@ struct dw_dma {
 	/* channels */
 	struct dw_dma_chan	*chan;
 	u8			all_chan_mask;
+	u8			in_use;
 
 	/* hardware configuration */
 	unsigned char		nr_masters;
