@@ -1470,6 +1470,11 @@ static void dw_dma_off(struct dw_dma *dw)
 		dw->chan[i].initialized = false;
 }
 
+static void dw_dma_on(struct dw_dma *dw)
+{
+	dma_writel(dw, CFG, DW_CFG_DMA_EN);
+}
+
 int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 {
 	struct dw_dma		*dw;
@@ -1643,7 +1648,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	dw->dma.device_tx_status = dwc_tx_status;
 	dw->dma.device_issue_pending = dwc_issue_pending;
 
-	dma_writel(dw, CFG, DW_CFG_DMA_EN);
+	dw_dma_on(dw);
 
 	err = dma_async_device_register(&dw->dma);
 	if (err)
@@ -1705,7 +1710,7 @@ int dw_dma_resume(struct dw_dma_chip *chip)
 {
 	struct dw_dma *dw = chip->dw;
 
-	dma_writel(dw, CFG, DW_CFG_DMA_EN);
+	dw_dma_on(dw);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dw_dma_resume);
