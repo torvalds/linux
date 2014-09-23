@@ -1037,23 +1037,12 @@ extern unsigned int drm_debug;
 
 				/* Debugfs support */
 #if defined(CONFIG_DEBUG_FS)
-extern int drm_debugfs_init(struct drm_minor *minor, int minor_id,
-			    struct dentry *root);
 extern int drm_debugfs_create_files(const struct drm_info_list *files,
 				    int count, struct dentry *root,
 				    struct drm_minor *minor);
 extern int drm_debugfs_remove_files(const struct drm_info_list *files,
 				    int count, struct drm_minor *minor);
-extern int drm_debugfs_cleanup(struct drm_minor *minor);
-extern int drm_debugfs_connector_add(struct drm_connector *connector);
-extern void drm_debugfs_connector_remove(struct drm_connector *connector);
 #else
-static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
-				   struct dentry *root)
-{
-	return 0;
-}
-
 static inline int drm_debugfs_create_files(const struct drm_info_list *files,
 					   int count, struct dentry *root,
 					   struct drm_minor *minor)
@@ -1066,20 +1055,6 @@ static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
 {
 	return 0;
 }
-
-static inline int drm_debugfs_cleanup(struct drm_minor *minor)
-{
-	return 0;
-}
-
-static inline int drm_debugfs_connector_add(struct drm_connector *connector)
-{
-	return 0;
-}
-static inline void drm_debugfs_connector_remove(struct drm_connector *connector)
-{
-}
-
 #endif
 
 extern struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
