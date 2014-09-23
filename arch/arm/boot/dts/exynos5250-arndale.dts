@@ -155,7 +155,7 @@
 };
 
 &hdmi {
-	hpd-gpio = <&gpx3 7 2>;
+	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_LOW>;
 	vdd_osc-supply = <&ldo10_reg>;
 	vdd_pll-supply = <&ldo8_reg>;
 	vdd-supply = <&ldo8_reg>;
