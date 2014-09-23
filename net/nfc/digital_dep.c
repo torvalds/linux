@@ -447,8 +447,18 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 
 	case DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU:
 		pr_err("Received a ACK/NACK PDU\n");
-		rc = -EIO;
-		goto error;
+
+		if (DIGITAL_NFC_DEP_PFB_PNI(pfb) != ddev->curr_nfc_dep_pni) {
+			PROTOCOL_ERR("14.12.3.3");
+			rc = -EIO;
+			goto exit;
+		}
+
+		ddev->curr_nfc_dep_pni =
+			DIGITAL_NFC_DEP_PFB_PNI(ddev->curr_nfc_dep_pni + 1);
+
+		rc = -EINVAL;
+		goto exit;
 
 	case DIGITAL_NFC_DEP_PFB_SUPERVISOR_PDU:
 		if (!DIGITAL_NFC_DEP_PFB_IS_TIMEOUT(pfb)) {
@@ -592,9 +602,22 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 	switch (DIGITAL_NFC_DEP_PFB_TYPE(pfb)) {
 	case DIGITAL_NFC_DEP_PFB_I_PDU:
 		pr_debug("DIGITAL_NFC_DEP_PFB_I_PDU\n");
-		ddev->curr_nfc_dep_pni = DIGITAL_NFC_DEP_PFB_PNI(pfb);
+
+		if (DIGITAL_NFC_DEP_PFB_PNI(pfb) != ddev->curr_nfc_dep_pni) {
+			PROTOCOL_ERR("14.12.3.4");
+			rc = -EIO;
+			goto exit;
+		}
+
+		rc = 0;
 		break;
 	case DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU:
+		if (DIGITAL_NFC_DEP_PFB_PNI(pfb) != ddev->curr_nfc_dep_pni) {
+			PROTOCOL_ERR("14.12.3.4");
+			rc = -EIO;
+			goto exit;
+		}
+
 		pr_err("Received a ACK/NACK PDU\n");
 		rc = -EINVAL;
 		goto exit;
@@ -628,6 +651,9 @@ int digital_tg_send_dep_res(struct nfc_digital_dev *ddev, struct sk_buff *skb)
 		memcpy(skb_put(skb, sizeof(ddev->did)), &ddev->did,
 		       sizeof(ddev->did));
 	}
+
+	ddev->curr_nfc_dep_pni =
+		DIGITAL_NFC_DEP_PFB_PNI(ddev->curr_nfc_dep_pni + 1);
 
 	digital_skb_push_dep_sod(ddev, skb);
 
@@ -676,6 +702,8 @@ static int digital_tg_send_psl_res(struct nfc_digital_dev *ddev, u8 did,
 	digital_skb_push_dep_sod(ddev, skb);
 
 	ddev->skb_add_crc(skb);
+
+	ddev->curr_nfc_dep_pni = 0;
 
 	rc = digital_tg_send_cmd(ddev, skb, 0, digital_tg_send_psl_res_complete,
 				 (void *)(unsigned long)rf_tech);
@@ -799,6 +827,8 @@ static int digital_tg_send_atr_res(struct nfc_digital_dev *ddev,
 	digital_skb_push_dep_sod(ddev, skb);
 
 	ddev->skb_add_crc(skb);
+
+	ddev->curr_nfc_dep_pni = 0;
 
 	rc = digital_tg_send_cmd(ddev, skb, 999,
 				 digital_tg_send_atr_res_complete, NULL);
