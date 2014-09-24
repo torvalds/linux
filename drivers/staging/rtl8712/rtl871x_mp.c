@@ -146,6 +146,7 @@ u32 r8712_bb_reg_read(struct _adapter *pAdapter, u16 offset)
 	bb_val = fw_iocmd_read(pAdapter, iocmd);
 	if (shift != 0) {
 		u32 bb_val2 = 0;
+
 		bb_val >>= (shift * 8);
 		iocmd.value += 4;
 		bb_val2 = fw_iocmd_read(pAdapter, iocmd);
@@ -316,6 +317,7 @@ static void SetOFDMTxPower(struct _adapter *pAdapter, u8 TxPower)
 void r8712_SetTxPower(struct _adapter *pAdapter)
 {
 	u8 TxPower = pAdapter->mppriv.curr_txpoweridx;
+
 	SetCCKTxPower(pAdapter, TxPower);
 	SetOFDMTxPower(pAdapter, TxPower);
 }
@@ -544,6 +546,7 @@ void r8712_SetSingleCarrierTx(struct _adapter *pAdapter, u8 bStart)
 void r8712_SetSingleToneTx(struct _adapter *pAdapter, u8 bStart)
 {
 	u8 rfPath = pAdapter->mppriv.curr_rfpath;
+
 	switch (pAdapter->mppriv.antenna_tx) {
 	case ANTENNA_B:
 		rfPath = RF_PATH_B;

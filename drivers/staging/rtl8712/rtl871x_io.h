@@ -235,6 +235,7 @@ struct io_queue {
 static inline u32 _RND4(u32 sz)
 {
 	u32	val;
+
 	val = ((sz >> 2) + ((sz & 3) ? 1 : 0)) << 2;
 	return val;
 }

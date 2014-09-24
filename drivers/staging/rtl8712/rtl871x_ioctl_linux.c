@@ -241,6 +241,7 @@ static inline char *translate_scan(struct _adapter *padapter,
 	{
 		/*  check legal index */
 		u8 dsconfig = pnetwork->network.Configuration.DSConfig;
+
 		if (dsconfig >= 1 && dsconfig <= sizeof(
 		    ieee80211_wlan_frequencies) / sizeof(long))
 			iwe.u.freq.m = (s32)(ieee80211_wlan_frequencies[
@@ -287,6 +288,7 @@ static inline char *translate_scan(struct _adapter *padapter,
 		u16 wpa_len = 0, rsn_len = 0;
 		int n;
 		sint out_len = 0;
+
 		out_len = r8712_get_sec_ie(pnetwork->network.IEs,
 					   pnetwork->network.
 					   IELength, rsn_ie, &rsn_len,
@@ -697,6 +699,7 @@ static int r8711_wx_set_freq(struct net_device *dev,
 	  (fwrq->m <= (int) 2.487e8)) {
 		int f = fwrq->m / 100000;
 		int c = 0;
+
 		while ((c < 14) && (f != frequency_list[c]))
 			c++;
 		fwrq->e = 0;
@@ -707,6 +710,7 @@ static int r8711_wx_set_freq(struct net_device *dev,
 		rc = -EOPNOTSUPP;
 	else {
 		int channel = fwrq->m;
+
 		if ((channel < 1) || (channel > 14))
 			rc = -EINVAL;
 		else {
@@ -999,12 +1003,14 @@ static int r871x_wx_set_priv(struct net_device *dev,
 		/*Set scan type to active */
 		/*OK if successful */
 		struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+
 		pmlmepriv->passive_mode = 1;
 		sprintf(ext, "OK");
 	} else if (0 == strcasecmp(ext, "SCAN-PASSIVE")) {
 		/*Set scan type to passive */
 		/*OK if successful */
 		struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+
 		pmlmepriv->passive_mode = 0;
 		sprintf(ext, "OK");
 	} else if (0 == strncmp(ext, "DCE-E", 5)) {
@@ -1179,10 +1185,12 @@ static int r8711_wx_set_scan(struct net_device *dev,
 		return 0;
 	if (wrqu->data.length == sizeof(struct iw_scan_req)) {
 		struct iw_scan_req *req = (struct iw_scan_req *)extra;
+
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 			struct ndis_802_11_ssid ssid;
 			unsigned long irqL;
 			u32 len = min_t(u8, req->essid_len, IW_ESSID_MAX_SIZE);
+
 			memset((unsigned char *)&ssid, 0,
 				 sizeof(struct ndis_802_11_ssid));
 			memcpy(ssid.Ssid, req->essid, len);

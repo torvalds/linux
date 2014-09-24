@@ -78,8 +78,8 @@ void r8712_write16(struct _adapter *adapter, u32 addr, u16 val)
 {
 	struct io_queue *pio_queue = (struct io_queue *)adapter->pio_queue;
 	struct intf_hdl *pintfhdl = &(pio_queue->intf);
-
 	void (*_write16)(struct intf_hdl *pintfhdl, u32 addr, u16 val);
+
 	_write16 = pintfhdl->io_ops._write16;
 	_write16(pintfhdl, addr, val);
 }
@@ -90,6 +90,7 @@ void r8712_write32(struct _adapter *adapter, u32 addr, u32 val)
 	struct intf_hdl *pintfhdl = (struct intf_hdl *)(&(pio_queue->intf));
 
 	void (*_write32)(struct intf_hdl *pintfhdl, u32 addr, u32 val);
+
 	_write32 = pintfhdl->io_ops._write32;
 	_write32(pintfhdl, addr, val);
 }

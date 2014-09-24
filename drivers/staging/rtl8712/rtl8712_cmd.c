@@ -350,6 +350,7 @@ _next:
 			struct dvobj_priv *pdvobj = (struct dvobj_priv *)
 						    &padapter->dvobjpriv;
 			u8 blnPending = 0;
+
 			pcmdpriv->cmd_issued_cnt++;
 			cmdsz = round_up(pcmd->cmdsz, 8);
 			wr_sz = TXDESC_SIZE + 8 + cmdsz;
