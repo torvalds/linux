@@ -33,6 +33,7 @@
 #include <linux/magic.h>
 #include <linux/ratelimit.h>
 #include <linux/context_tracking.h>
+#include <linux/hugetlb.h>
 
 #include <asm/firmware.h>
 #include <asm/page.h>
@@ -118,6 +119,7 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address,
 		     unsigned int fault)
 {
 	siginfo_t info;
+	unsigned int lsb = 0;
 
 	up_read(&current->mm->mmap_sem);
 
@@ -135,7 +137,13 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address,
 			current->comm, current->pid, address);
 		info.si_code = BUS_MCEERR_AR;
 	}
+
+	if (fault & VM_FAULT_HWPOISON_LARGE)
+		lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault));
+	if (fault & VM_FAULT_HWPOISON)
+		lsb = PAGE_SHIFT;
 #endif
+	info.si_addr_lsb = lsb;
 	force_sig_info(SIGBUS, &info, current);
 	return MM_FAULT_RETURN;
 }
