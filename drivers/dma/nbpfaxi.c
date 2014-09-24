@@ -1500,7 +1500,6 @@ static const struct dev_pm_ops nbpf_pm_ops = {
 
 static struct platform_driver nbpf_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "dma-nbpf",
 		.of_match_table = nbpf_match,
 		.pm = &nbpf_pm_ops,

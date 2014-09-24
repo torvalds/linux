@@ -1092,7 +1092,6 @@ static struct platform_driver mpc_dma_driver = {
 	.remove		= mpc_dma_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table	= mpc_dma_match,
 	},
 };
