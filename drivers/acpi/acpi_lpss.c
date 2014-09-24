@@ -196,6 +196,17 @@ static struct lpss_device_desc byt_i2c_dev_desc = {
 	.setup = lpss_i2c_setup,
 };
 
+static struct lpss_shared_clock bsw_pwm_clock = {
+	.name = "pwm_clk",
+	.rate = 19200000,
+};
+
+static struct lpss_device_desc bsw_pwm_dev_desc = {
+	.clk_required = true,
+	.save_ctx = true,
+	.shared_clock = &bsw_pwm_clock,
+};
+
 #else
 
 #define LPSS_ADDR(desc) (0UL)
@@ -224,6 +235,12 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "80860F41", LPSS_ADDR(byt_i2c_dev_desc) },
 	{ "INT33B2", },
 	{ "INT33FC", },
+
+	/* Braswell LPSS devices */
+	{ "80862288", LPSS_ADDR(bsw_pwm_dev_desc) },
+	{ "8086228A", LPSS_ADDR(byt_uart_dev_desc) },
+	{ "8086228E", LPSS_ADDR(byt_spi_dev_desc) },
+	{ "808622C1", LPSS_ADDR(byt_i2c_dev_desc) },
 
 	{ "INT3430", LPSS_ADDR(lpt_dev_desc) },
 	{ "INT3431", LPSS_ADDR(lpt_dev_desc) },

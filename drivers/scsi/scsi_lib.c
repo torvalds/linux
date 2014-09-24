@@ -1808,7 +1808,6 @@ static int scsi_mq_prep_fn(struct request *req)
 
 	cmd->tag = req->tag;
 
-	req->cmd = req->__cmd;
 	cmd->cmnd = req->cmd;
 	cmd->prot_op = SCSI_PROT_NORMAL;
 
