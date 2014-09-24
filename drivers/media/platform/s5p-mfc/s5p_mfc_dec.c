@@ -1202,7 +1202,7 @@ void s5p_mfc_dec_init(struct s5p_mfc_ctx *ctx)
 	else
 		f.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12MT;
 	ctx->dst_fmt = find_format(&f, MFC_FMT_RAW);
-	mfc_debug(2, "Default src_fmt is %x, dest_fmt is %x\n",
-			(unsigned int)ctx->src_fmt, (unsigned int)ctx->dst_fmt);
+	mfc_debug(2, "Default src_fmt is %p, dest_fmt is %p\n",
+			ctx->src_fmt, ctx->dst_fmt);
 }
 

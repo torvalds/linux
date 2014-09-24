@@ -189,12 +189,12 @@ static inline void s5p_mfc_init_memctrl(struct s5p_mfc_dev *dev)
 {
 	if (IS_MFCV6_PLUS(dev)) {
 		mfc_write(dev, dev->bank1, S5P_FIMV_RISC_BASE_ADDRESS_V6);
-		mfc_debug(2, "Base Address : %08x\n", dev->bank1);
+		mfc_debug(2, "Base Address : %pad\n", &dev->bank1);
 	} else {
 		mfc_write(dev, dev->bank1, S5P_FIMV_MC_DRAMBASE_ADR_A);
 		mfc_write(dev, dev->bank2, S5P_FIMV_MC_DRAMBASE_ADR_B);
-		mfc_debug(2, "Bank1: %08x, Bank2: %08x\n",
-				dev->bank1, dev->bank2);
+		mfc_debug(2, "Bank1: %pad, Bank2: %pad\n",
+				&dev->bank1, &dev->bank2);
 	}
 }
 

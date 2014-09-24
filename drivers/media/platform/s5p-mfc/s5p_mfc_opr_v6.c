@@ -100,7 +100,7 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 						mb_width, mb_height),
 						S5P_FIMV_ME_BUFFER_ALIGN_V6);
 
-		mfc_debug(2, "recon luma size: %zd chroma size: %zd\n",
+		mfc_debug(2, "recon luma size: %zu chroma size: %zu\n",
 			  ctx->luma_dpb_size, ctx->chroma_dpb_size);
 	} else {
 		return -EINVAL;

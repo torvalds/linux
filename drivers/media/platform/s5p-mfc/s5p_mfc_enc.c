@@ -1750,13 +1750,13 @@ static int check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 	for (i = 0; i < fmt->num_planes; i++) {
-		if (!vb2_dma_contig_plane_dma_addr(vb, i)) {
+		dma_addr_t dma = vb2_dma_contig_plane_dma_addr(vb, i);
+		if (!dma) {
 			mfc_err("failed to get plane cookie\n");
 			return -EINVAL;
 		}
-		mfc_debug(2, "index: %d, plane[%d] cookie: 0x%08zx\n",
-			  vb->v4l2_buf.index, i,
-			  vb2_dma_contig_plane_dma_addr(vb, i));
+		mfc_debug(2, "index: %d, plane[%d] cookie: %pad\n",
+			  vb->v4l2_buf.index, i, &dma);
 	}
 	return 0;
 }
@@ -1876,7 +1876,7 @@ static int s5p_mfc_buf_prepare(struct vb2_buffer *vb)
 		ret = check_vb_with_fmt(ctx->dst_fmt, vb);
 		if (ret < 0)
 			return ret;
-		mfc_debug(2, "plane size: %ld, dst size: %d\n",
+		mfc_debug(2, "plane size: %ld, dst size: %zu\n",
 			vb2_plane_size(vb, 0), ctx->enc_dst_buf_size);
 		if (vb2_plane_size(vb, 0) < ctx->enc_dst_buf_size) {
 			mfc_err("plane size is too small for capture\n");
