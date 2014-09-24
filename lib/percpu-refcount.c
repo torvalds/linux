@@ -189,19 +189,3 @@ void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 	call_rcu_sched(&ref->rcu, percpu_ref_kill_rcu);
 }
 EXPORT_SYMBOL_GPL(percpu_ref_kill_and_confirm);
-
-/*
- * XXX: Temporary kludge to work around SCSI blk-mq stall.  Used only by
- * block/blk-mq.c::blk_mq_freeze_queue().  Will be removed during v3.18
- * devel cycle.  Do not use anywhere else.
- */
-void __percpu_ref_kill_expedited(struct percpu_ref *ref)
-{
-	WARN_ONCE(ref->pcpu_count_ptr & PCPU_REF_DEAD,
-		  "percpu_ref_kill() called more than once on %pf!",
-		  ref->release);
-
-	ref->pcpu_count_ptr |= PCPU_REF_DEAD;
-	synchronize_sched_expedited();
-	percpu_ref_kill_rcu(&ref->rcu);
-}
