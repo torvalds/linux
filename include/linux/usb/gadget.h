@@ -1023,6 +1023,14 @@ extern void usb_gadget_udc_reset(struct usb_gadget *gadget,
 
 /*-------------------------------------------------------------------------*/
 
+/* utility to give requests back to the gadget layer */
+
+extern void usb_gadget_giveback_request(struct usb_ep *ep,
+		struct usb_request *req);
+
+
+/*-------------------------------------------------------------------------*/
+
 /* utility wrapping a simple endpoint selection policy */
 
 extern struct usb_ep *usb_ep_autoconfig(struct usb_gadget *,

@@ -106,6 +106,22 @@ EXPORT_SYMBOL_GPL(usb_gadget_unmap_request);
 
 /* ------------------------------------------------------------------------- */
 
+/**
+ * usb_gadget_giveback_request - give the request back to the gadget layer
+ * Context: in_interrupt()
+ *
+ * This is called by device controller drivers in order to return the
+ * completed request back to the gadget layer.
+ */
+void usb_gadget_giveback_request(struct usb_ep *ep,
+		struct usb_request *req)
+{
+	req->complete(ep, req);
+}
+EXPORT_SYMBOL_GPL(usb_gadget_giveback_request);
+
+/* ------------------------------------------------------------------------- */
+
 static void usb_gadget_state_work(struct work_struct *work)
 {
 	struct usb_gadget	*gadget = work_to_gadget(work);
