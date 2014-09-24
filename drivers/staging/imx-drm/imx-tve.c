@@ -432,8 +432,7 @@ static long clk_tve_di_round_rate(struct clk_hw *hw, unsigned long rate,
 		return *prate / 4;
 	else if (div >= 2)
 		return *prate / 2;
-	else
-		return *prate;
+	return *prate;
 }
 
 static int clk_tve_di_set_rate(struct clk_hw *hw, unsigned long rate,
