@@ -2513,7 +2513,7 @@ int Config_FileOperation(struct vnt_private *pDevice,
 		goto error1;
 	}
 
-	if (Config_FileGetParameter("ZONETYPE",tmpbuffer,buffer)!=true) {
+	if (Config_FileGetParameter("ZONETYPE", tmpbuffer, buffer) != true) {
 		pr_err("get parameter error?\n");
 		result = -1;
 		goto error1;
