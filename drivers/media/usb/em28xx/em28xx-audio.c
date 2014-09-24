@@ -268,7 +268,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	nonblock = !!(substream->f_flags & O_NONBLOCK);
 	if (nonblock) {
 		if (!mutex_trylock(&dev->lock))
-		return -EAGAIN;
+			return -EAGAIN;
 	} else
 		mutex_lock(&dev->lock);
 
