@@ -78,9 +78,11 @@ struct percpu_ref {
 int __must_check percpu_ref_init(struct percpu_ref *ref,
 				 percpu_ref_func_t *release, gfp_t gfp);
 void percpu_ref_exit(struct percpu_ref *ref);
+void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
+				 percpu_ref_func_t *confirm_switch);
+void percpu_ref_reinit(struct percpu_ref *ref);
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill);
-void percpu_ref_reinit(struct percpu_ref *ref);
 
 /**
  * percpu_ref_kill - drop the initial ref
@@ -111,7 +113,7 @@ static inline bool __ref_is_percpu(struct percpu_ref *ref,
 	/* paired with smp_store_release() in percpu_ref_reinit() */
 	smp_read_barrier_depends();
 
-	if (unlikely(percpu_ptr & __PERCPU_REF_ATOMIC_DEAD))
+	if (unlikely(percpu_ptr & __PERCPU_REF_ATOMIC))
 		return false;
 
 	*percpu_countp = (unsigned long __percpu *)percpu_ptr;
@@ -193,6 +195,8 @@ static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 	if (__ref_is_percpu(ref, &percpu_count)) {
 		this_cpu_inc(*percpu_count);
 		ret = true;
+	} else if (!(ACCESS_ONCE(ref->percpu_count_ptr) & __PERCPU_REF_DEAD)) {
+		ret = atomic_long_inc_not_zero(&ref->count);
 	}
 
 	rcu_read_unlock_sched();
