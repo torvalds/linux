@@ -2791,6 +2791,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	u32 caps[2] = {0, 0};
 	u32 max_current_caps;
 	unsigned int ocr_avail;
+	unsigned int override_timeout_clk;
 	int ret;
 
 	WARN_ON(host == NULL);
@@ -2803,6 +2804,8 @@ int sdhci_add_host(struct sdhci_host *host)
 		host->quirks = debug_quirks;
 	if (debug_quirks2)
 		host->quirks2 = debug_quirks2;
+
+	override_timeout_clk = host->timeout_clk;
 
 	sdhci_do_reset(host, SDHCI_RESET_ALL);
 
@@ -2969,6 +2972,9 @@ int sdhci_add_host(struct sdhci_host *host)
 			host->ops->get_max_timeout_count(host) : 1 << 27;
 		mmc->max_busy_timeout /= host->timeout_clk;
 	}
+
+	if (override_timeout_clk)
+		host->timeout_clk = override_timeout_clk;
 
 	mmc->caps |= MMC_CAP_SDIO_IRQ | MMC_CAP_ERASE | MMC_CAP_CMD23;
 	mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
