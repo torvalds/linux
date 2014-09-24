@@ -268,18 +268,20 @@ void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
 
 		offset = offsetof(typeof(*out), output_string);
 		output_string = efi_early->text_output + offset;
+		out = (typeof(out))(unsigned long)efi_early->text_output;
 		func = (u64 *)output_string;
 
-		efi_early->call(*func, efi_early->text_output, str);
+		efi_early->call(*func, out, str);
 	} else {
 		struct efi_simple_text_output_protocol_32 *out;
 		u32 *func;
 
 		offset = offsetof(typeof(*out), output_string);
 		output_string = efi_early->text_output + offset;
+		out = (typeof(out))(unsigned long)efi_early->text_output;
 		func = (u32 *)output_string;
 
-		efi_early->call(*func, efi_early->text_output, str);
+		efi_early->call(*func, out, str);
 	}
 }
 
