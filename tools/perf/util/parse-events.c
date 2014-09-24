@@ -634,10 +634,9 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 			 char *name, struct list_head *head_config)
 {
 	struct perf_event_attr attr;
+	struct perf_pmu_info info;
 	struct perf_pmu *pmu;
 	struct perf_evsel *evsel;
-	const char *unit;
-	double scale;
 
 	pmu = perf_pmu__find(name);
 	if (!pmu)
@@ -656,7 +655,7 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 		return evsel ? 0 : -ENOMEM;
 	}
 
-	if (perf_pmu__check_alias(pmu, head_config, &unit, &scale))
+	if (perf_pmu__check_alias(pmu, head_config, &info))
 		return -EINVAL;
 
 	/*
@@ -671,8 +670,8 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 	evsel = __add_event(list, idx, &attr, pmu_event_name(head_config),
 			    pmu->cpus);
 	if (evsel) {
-		evsel->unit = unit;
-		evsel->scale = scale;
+		evsel->unit = info.unit;
+		evsel->scale = info.scale;
 	}
 
 	return evsel ? 0 : -ENOMEM;

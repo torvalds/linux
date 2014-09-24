@@ -210,6 +210,19 @@ static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FI
 	return 0;
 }
 
+static inline bool pmu_alias_info_file(char *name)
+{
+	size_t len;
+
+	len = strlen(name);
+	if (len > 5 && !strcmp(name + len - 5, ".unit"))
+		return true;
+	if (len > 6 && !strcmp(name + len - 6, ".scale"))
+		return true;
+
+	return false;
+}
+
 /*
  * Process all the sysfs attributes located under the directory
  * specified in 'dir' parameter.
@@ -218,7 +231,6 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 {
 	struct dirent *evt_ent;
 	DIR *event_dir;
-	size_t len;
 	int ret = 0;
 
 	event_dir = opendir(dir);
@@ -234,13 +246,9 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 			continue;
 
 		/*
-		 * skip .unit and .scale info files
-		 * parsed in perf_pmu__new_alias()
+		 * skip info files parsed in perf_pmu__new_alias()
 		 */
-		len = strlen(name);
-		if (len > 5 && !strcmp(name + len - 5, ".unit"))
-			continue;
-		if (len > 6 && !strcmp(name + len - 6, ".scale"))
+		if (pmu_alias_info_file(name))
 			continue;
 
 		snprintf(path, PATH_MAX, "%s/%s", dir, name);
@@ -645,7 +653,7 @@ static int check_unit_scale(struct perf_pmu_alias *alias,
  * defined for the alias
  */
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
-			  const char **unit, double *scale)
+			  struct perf_pmu_info *info)
 {
 	struct parse_events_term *term, *h;
 	struct perf_pmu_alias *alias;
@@ -655,8 +663,8 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 	 * Mark unit and scale as not set
 	 * (different from default values, see below)
 	 */
-	*unit   = NULL;
-	*scale  = 0.0;
+	info->unit   = NULL;
+	info->scale  = 0.0;
 
 	list_for_each_entry_safe(term, h, head_terms, list) {
 		alias = pmu_find_alias(pmu, term);
@@ -666,7 +674,7 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 		if (ret)
 			return ret;
 
-		ret = check_unit_scale(alias, unit, scale);
+		ret = check_unit_scale(alias, &info->unit, &info->scale);
 		if (ret)
 			return ret;
 
@@ -679,11 +687,11 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 	 * set defaults as for evsel
 	 * unit cannot left to NULL
 	 */
-	if (*unit == NULL)
-		*unit   = "";
+	if (info->unit == NULL)
+		info->unit   = "";
 
-	if (*scale == 0.0)
-		*scale  = 1.0;
+	if (info->scale == 0.0)
+		info->scale  = 1.0;
 
 	return 0;
 }
