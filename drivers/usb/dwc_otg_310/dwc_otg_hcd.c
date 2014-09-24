@@ -281,6 +281,7 @@ static int32_t dwc_otg_hcd_disconnect_cb(void *p)
 	dwc_otg_hcd->non_periodic_qh_ptr = &dwc_otg_hcd->non_periodic_sched_active;
 	dwc_otg_hcd->non_periodic_channels = 0;
 	dwc_otg_hcd->periodic_channels = 0;
+	dwc_otg_hcd->frame_number =0;
 
 	hprt0.d32 = DWC_READ_REG32(dwc_otg_hcd->core_if->host_if->hprt0);
 	/* In some case, we don't disconnect a usb device, but
