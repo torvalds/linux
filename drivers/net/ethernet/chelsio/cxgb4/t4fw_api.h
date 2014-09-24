@@ -1227,6 +1227,7 @@ struct fw_eq_eth_cmd {
 #define FW_EQ_ETH_CMD_CIDXFTHRESH(x) ((x) << 16)
 #define FW_EQ_ETH_CMD_EQSIZE(x) ((x) << 0)
 
+#define FW_EQ_ETH_CMD_AUTOEQUEQE (1U << 30)
 #define FW_EQ_ETH_CMD_VIID(x) ((x) << 16)
 
 struct fw_eq_ctrl_cmd {

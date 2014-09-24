@@ -332,7 +332,7 @@ config USB_GOKU
 	   gadget drivers to also be dynamically linked.
 
 config USB_EG20T
-	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7831) UDC"
+	tristate "Intel QUARK X1000/EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7831) UDC"
 	depends on PCI
 	help
 	  This is a USB device driver for EG20T PCH.
@@ -353,6 +353,7 @@ config USB_EG20T
 	  ML7213/ML7831 is companion chip for Intel Atom E6xx series.
 	  ML7213/ML7831 is completely compatible for Intel EG20T PCH.
 
+	  This driver can be used with Intel's Quark X1000 SOC platform
 #
 # LAST -- dummy/emulated controller
 #

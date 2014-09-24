@@ -405,7 +405,7 @@ static void pdata_quirks_check(struct pdata_init *quirks)
 	}
 }
 
-void __init pdata_quirks_init(struct of_device_id *omap_dt_match_table)
+void __init pdata_quirks_init(const struct of_device_id *omap_dt_match_table)
 {
 	omap_sdrc_init(NULL, NULL);
 	pdata_quirks_check(auxdata_quirks);

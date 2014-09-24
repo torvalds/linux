@@ -232,6 +232,9 @@ struct usb_phy *usb_get_phy_dev(struct device *dev, u8 index)
 	phy = __usb_find_phy_dev(dev, &phy_bind_list, index);
 	if (IS_ERR(phy) || !try_module_get(phy->dev->driver->owner)) {
 		dev_dbg(dev, "unable to find transceiver\n");
+		if (!IS_ERR(phy))
+			phy = ERR_PTR(-ENODEV);
+
 		goto err0;
 	}
 

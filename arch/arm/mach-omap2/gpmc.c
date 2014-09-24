@@ -1244,7 +1244,7 @@ int gpmc_cs_program_settings(int cs, struct gpmc_settings *p)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id gpmc_dt_ids[] = {
+static const struct of_device_id gpmc_dt_ids[] = {
 	{ .compatible = "ti,omap2420-gpmc" },
 	{ .compatible = "ti,omap2430-gpmc" },
 	{ .compatible = "ti,omap3430-gpmc" },	/* omap3430 & omap3630 */
@@ -1403,8 +1403,11 @@ static int gpmc_probe_nand_child(struct platform_device *pdev,
 		pr_err("%s: ti,nand-ecc-opt not found\n", __func__);
 		return -ENODEV;
 	}
-	if (!strcmp(s, "ham1") || !strcmp(s, "sw") ||
-		!strcmp(s, "hw") || !strcmp(s, "hw-romcode"))
+
+	if (!strcmp(s, "sw"))
+		gpmc_nand_data->ecc_opt = OMAP_ECC_HAM1_CODE_SW;
+	else if (!strcmp(s, "ham1") ||
+		 !strcmp(s, "hw") || !strcmp(s, "hw-romcode"))
 		gpmc_nand_data->ecc_opt =
 				OMAP_ECC_HAM1_CODE_HW;
 	else if (!strcmp(s, "bch4"))

@@ -8,9 +8,6 @@
 #include "elpida_ecb240abacn.dtsi"
 
 / {
-	model = "TI OMAP4 PandaBoard";
-	compatible = "ti,omap4-panda", "ti,omap4430", "ti,omap4";
-
 	memory {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>; /* 1 GB */

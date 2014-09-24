@@ -596,7 +596,7 @@ int cik_copy_dma(struct radeon_device *rdev,
 		return r;
 	}
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 	radeon_semaphore_free(rdev, &sem, *fence);
 
 	return r;
@@ -638,7 +638,7 @@ int cik_sdma_ring_test(struct radeon_device *rdev,
 	radeon_ring_write(ring, upper_32_bits(rdev->vram_scratch.gpu_addr));
 	radeon_ring_write(ring, 1); /* number of DWs to follow */
 	radeon_ring_write(ring, 0xDEADBEEF);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = readl(ptr);
@@ -695,7 +695,7 @@ int cik_sdma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	ib.ptr[4] = 0xDEADBEEF;
 	ib.length_dw = 5;
 
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 		radeon_ib_free(rdev, &ib);
 		DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
