@@ -390,6 +390,11 @@ static int otg_handle_role_switch(struct otg_fsm *fsm, struct usb_device *udev)
 				fsm->a_set_b_hnp_en = 1;
 		}
 		fsm->a_bus_req = 0;
+		if (fsm->tst_maint) {
+			fsm->tst_maint = 0;
+			fsm->otg_vbus_off = 0;
+			otg_del_timer(fsm, A_TST_MAINT);
+		}
 		return HOST_REQUEST_FLAG;
 	} else if (state == OTG_STATE_B_HOST) {
 		fsm->b_bus_req = 0;
