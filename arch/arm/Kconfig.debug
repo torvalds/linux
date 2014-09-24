@@ -223,13 +223,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on HI3716 UART.
 
-	config DEBUG_HIX5HD2_UART
-		bool "Hisilicon Hix5hd2 Debug UART"
-		depends on ARCH_HIX5HD2
+	config DEBUG_HIGHBANK_UART
+		bool "Kernel low-level debugging messages via Highbank UART"
+		depends on ARCH_HIGHBANK
 		select DEBUG_UART_PL01X
 		help
-		  Say Y here if you want kernel low-level debugging support
-		  on Hix5hd2 UART.
+		  Say Y here if you want the debug print routines to direct
+		  their output to the UART on Highbank based devices.
 
 	config DEBUG_HIP04_UART
 		bool "Hisilicon HiP04 Debug UART"
@@ -239,13 +239,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on HIP04 UART.
 
-	config DEBUG_HIGHBANK_UART
-		bool "Kernel low-level debugging messages via Highbank UART"
-		depends on ARCH_HIGHBANK
+	config DEBUG_HIX5HD2_UART
+		bool "Hisilicon Hix5hd2 Debug UART"
+		depends on ARCH_HIX5HD2
 		select DEBUG_UART_PL01X
 		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the UART on Highbank based devices.
+		  Say Y here if you want kernel low-level debugging support
+		  on Hix5hd2 UART.
 
 	config DEBUG_IMX1_UART
 		bool "i.MX1 Debug UART"
