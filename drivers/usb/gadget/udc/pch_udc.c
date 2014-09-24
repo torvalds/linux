@@ -1490,7 +1490,7 @@ static void complete_req(struct pch_udc_ep *ep, struct pch_udc_request *req,
 	spin_unlock(&dev->lock);
 	if (!ep->in)
 		pch_udc_ep_clear_rrdy(ep);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&dev->lock);
 	ep->halted = halted;
 }

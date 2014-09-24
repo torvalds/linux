@@ -876,7 +876,7 @@ static void done(struct fusb300_ep *ep, struct fusb300_request *req,
 		req->req.status = status;
 
 	spin_unlock(&ep->fusb300->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&ep->fusb300->lock);
 
 	if (ep->epnum) {

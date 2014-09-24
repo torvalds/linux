@@ -118,10 +118,7 @@ static void done(struct qe_ep *ep, struct qe_req *req, int status)
 	ep->stopped = 1;
 	spin_unlock(&udc->lock);
 
-	/* this complete() should a func implemented by gadget layer,
-	 * eg fsg->bulk_in_complete() */
-	if (req->req.complete)
-		req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 
 	spin_lock(&udc->lock);
 
@@ -2728,4 +2725,3 @@ module_platform_driver(udc_driver);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_LICENSE("GPL");
-

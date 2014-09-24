@@ -925,7 +925,7 @@ __acquires(r8a66597->lock)
 		sudmac_free_channel(ep->r8a66597, ep, req);
 
 	spin_unlock(&ep->r8a66597->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&ep->r8a66597->lock);
 
 	if (restart) {

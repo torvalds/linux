@@ -463,7 +463,7 @@ static void receive_data(struct usba_ep *ep)
 			list_del_init(&req->queue);
 			usba_ep_writel(ep, CTL_DIS, USBA_RX_BK_RDY);
 			spin_unlock(&udc->lock);
-			req->req.complete(&ep->ep, &req->req);
+			usb_gadget_giveback_request(&ep->ep, &req->req);
 			spin_lock(&udc->lock);
 		}
 
@@ -495,7 +495,7 @@ request_complete(struct usba_ep *ep, struct usba_request *req, int status)
 		ep->ep.name, req, req->req.status, req->req.actual);
 
 	spin_unlock(&udc->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&udc->lock);
 }
 

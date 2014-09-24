@@ -1004,8 +1004,8 @@ static int s3c_hsotg_process_req_feature(struct s3c_hsotg *hsotg,
 					hs_req = ep->req;
 					ep->req = NULL;
 					list_del_init(&hs_req->queue);
-					hs_req->req.complete(&ep->ep,
-							     &hs_req->req);
+					usb_gadget_giveback_request(&ep->ep,
+								    &hs_req->req);
 				}
 
 				/* If we have pending request, then start it */
@@ -1262,7 +1262,7 @@ static void s3c_hsotg_complete_request(struct s3c_hsotg *hsotg,
 
 	if (hs_req->req.complete) {
 		spin_unlock(&hsotg->lock);
-		hs_req->req.complete(&hs_ep->ep, &hs_req->req);
+		usb_gadget_giveback_request(&hs_ep->ep, &hs_req->req);
 		spin_lock(&hsotg->lock);
 	}
 
