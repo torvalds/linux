@@ -52,7 +52,7 @@ struct device_attribute;
 	#define ARCMSR_MAX_FREECCB_NUM	320
 #define ARCMSR_MAX_OUTSTANDING_CMD	255
 #endif
-#define ARCMSR_DRIVER_VERSION		"v1.30.00.04-20140428"
+#define ARCMSR_DRIVER_VERSION		"v1.30.00.04-20140919"
 #define ARCMSR_SCSI_INITIATOR_ID						255
 #define ARCMSR_MAX_XFER_SECTORS							512
 #define ARCMSR_MAX_XFER_SECTORS_B						4096
@@ -107,10 +107,11 @@ struct CMD_MESSAGE
 **        IOP Message Transfer Data for user space
 *******************************************************************************
 */
+#define	ARCMSR_API_DATA_BUFLEN	1032
 struct CMD_MESSAGE_FIELD
 {
     struct CMD_MESSAGE			cmdmessage;
-    uint8_t				messagedatabuffer[1032];
+    uint8_t				messagedatabuffer[ARCMSR_API_DATA_BUFLEN];
 };
 /* IOP message transfer */
 #define ARCMSR_MESSAGE_FAIL			0x0001
@@ -678,15 +679,15 @@ struct AdapterControlBlock
 	unsigned int				uncache_size;
 	uint8_t				rqbuffer[ARCMSR_MAX_QBUFFER];
 	/* data collection buffer for read from 80331 */
-	int32_t				rqbuf_firstindex;
+	int32_t				rqbuf_getIndex;
 	/* first of read buffer  */
-	int32_t				rqbuf_lastindex;
+	int32_t				rqbuf_putIndex;
 	/* last of read buffer   */
 	uint8_t				wqbuffer[ARCMSR_MAX_QBUFFER];
 	/* data collection buffer for write to 80331  */
-	int32_t				wqbuf_firstindex;
+	int32_t				wqbuf_getIndex;
 	/* first of write buffer */
-	int32_t				wqbuf_lastindex;
+	int32_t				wqbuf_putIndex;
 	/* last of write buffer  */
 	uint8_t				devstate[ARCMSR_MAX_TARGETID][ARCMSR_MAX_TARGETLUN];
 	/* id0 ..... id15, lun0...lun7 */
