@@ -56,7 +56,7 @@ struct fmi
 
 static struct fmi fmi_card;
 static struct pnp_dev *dev;
-bool pnp_attached;
+static bool pnp_attached;
 
 #define RSF16_MINFREQ (87U * 16000)
 #define RSF16_MAXFREQ (108U * 16000)
