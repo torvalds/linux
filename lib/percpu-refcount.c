@@ -206,40 +206,54 @@ void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 	__percpu_ref_switch_to_atomic(ref, confirm_switch);
 }
 
-/**
- * percpu_ref_reinit - re-initialize a percpu refcount
- * @ref: perpcu_ref to re-initialize
- *
- * Re-initialize @ref so that it's in the same state as when it finished
- * percpu_ref_init().  @ref must have been initialized successfully, killed
- * and reached 0 but not exited.
- *
- * Note that percpu_ref_tryget[_live]() are safe to perform on @ref while
- * this function is in progress.
- */
-void percpu_ref_reinit(struct percpu_ref *ref)
+static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
 {
 	unsigned long __percpu *percpu_count = percpu_count_ptr(ref);
 	int cpu;
 
 	BUG_ON(!percpu_count);
-	WARN_ON_ONCE(!percpu_ref_is_zero(ref));
 
-	atomic_long_set(&ref->count, 1 + PERCPU_COUNT_BIAS);
+	if (!(ref->percpu_count_ptr & __PERCPU_REF_ATOMIC))
+		return;
+
+	wait_event(percpu_ref_switch_waitq, !ref->confirm_switch);
+
+	atomic_long_add(PERCPU_COUNT_BIAS, &ref->count);
 
 	/*
 	 * Restore per-cpu operation.  smp_store_release() is paired with
 	 * smp_read_barrier_depends() in __ref_is_percpu() and guarantees
 	 * that the zeroing is visible to all percpu accesses which can see
-	 * the following __PERCPU_REF_ATOMIC_DEAD clearing.
+	 * the following __PERCPU_REF_ATOMIC clearing.
 	 */
 	for_each_possible_cpu(cpu)
 		*per_cpu_ptr(percpu_count, cpu) = 0;
 
 	smp_store_release(&ref->percpu_count_ptr,
-			  ref->percpu_count_ptr & ~__PERCPU_REF_ATOMIC_DEAD);
+			  ref->percpu_count_ptr & ~__PERCPU_REF_ATOMIC);
 }
-EXPORT_SYMBOL_GPL(percpu_ref_reinit);
+
+/**
+ * percpu_ref_switch_to_percpu - switch a percpu_ref to percpu mode
+ * @ref: percpu_ref to switch to percpu mode
+ *
+ * There's no reason to use this function for the usual reference counting.
+ * To re-use an expired ref, use percpu_ref_reinit().
+ *
+ * Switch @ref to percpu mode.  This function may be invoked concurrently
+ * with all the get/put operations and can safely be mixed with kill and
+ * reinit operations.
+ *
+ * This function normally doesn't block and can be called from any context
+ * but it may block if @ref is in the process of switching to atomic mode
+ * by percpu_ref_switch_atomic().
+ */
+void percpu_ref_switch_to_percpu(struct percpu_ref *ref)
+{
+	/* a dying or dead ref can't be switched to percpu mode w/o reinit */
+	if (!(ref->percpu_count_ptr & __PERCPU_REF_DEAD))
+		__percpu_ref_switch_to_percpu(ref);
+}
 
 /**
  * percpu_ref_kill_and_confirm - drop the initial ref and schedule confirmation
@@ -253,8 +267,8 @@ EXPORT_SYMBOL_GPL(percpu_ref_reinit);
  * percpu_ref_tryget_live() for details.
  *
  * This function normally doesn't block and can be called from any context
- * but it may block if @confirm_kill is specified and @ref is already in
- * the process of switching to atomic mode by percpu_ref_switch_atomic().
+ * but it may block if @confirm_kill is specified and @ref is in the
+ * process of switching to atomic mode by percpu_ref_switch_atomic().
  *
  * Due to the way percpu_ref is implemented, @confirm_switch will be called
  * after at least one full sched RCU grace period has passed but this is an
@@ -271,3 +285,24 @@ void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 	percpu_ref_put(ref);
 }
 EXPORT_SYMBOL_GPL(percpu_ref_kill_and_confirm);
+
+/**
+ * percpu_ref_reinit - re-initialize a percpu refcount
+ * @ref: perpcu_ref to re-initialize
+ *
+ * Re-initialize @ref so that it's in the same state as when it finished
+ * percpu_ref_init().  @ref must have been initialized successfully and
+ * reached 0 but not exited.
+ *
+ * Note that percpu_ref_tryget[_live]() are safe to perform on @ref while
+ * this function is in progress.
+ */
+void percpu_ref_reinit(struct percpu_ref *ref)
+{
+	WARN_ON_ONCE(!percpu_ref_is_zero(ref));
+
+	ref->percpu_count_ptr &= ~__PERCPU_REF_DEAD;
+	percpu_ref_get(ref);
+	__percpu_ref_switch_to_percpu(ref);
+}
+EXPORT_SYMBOL_GPL(percpu_ref_reinit);
