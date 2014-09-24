@@ -121,7 +121,7 @@ int as10x_cmd_set_tune(struct as10x_bus_adapter_t *adap,
 
 	/* fill command */
 	preq->body.set_tune.req.proc_id = cpu_to_le16(CONTROL_PROC_SETTUNE);
-	preq->body.set_tune.req.args.freq = cpu_to_le32(ptune->freq);
+	preq->body.set_tune.req.args.freq = (__force __u32)cpu_to_le32(ptune->freq);
 	preq->body.set_tune.req.args.bandwidth = ptune->bandwidth;
 	preq->body.set_tune.req.args.hier_select = ptune->hier_select;
 	preq->body.set_tune.req.args.modulation = ptune->modulation;
@@ -199,9 +199,9 @@ int as10x_cmd_get_tune_status(struct as10x_bus_adapter_t *adap,
 	/* Response OK -> get response data */
 	pstatus->tune_state = prsp->body.get_tune_status.rsp.sts.tune_state;
 	pstatus->signal_strength  =
-		le16_to_cpu(prsp->body.get_tune_status.rsp.sts.signal_strength);
-	pstatus->PER = le16_to_cpu(prsp->body.get_tune_status.rsp.sts.PER);
-	pstatus->BER = le16_to_cpu(prsp->body.get_tune_status.rsp.sts.BER);
+		le16_to_cpu((__force __le16)prsp->body.get_tune_status.rsp.sts.signal_strength);
+	pstatus->PER = le16_to_cpu((__force __le16)prsp->body.get_tune_status.rsp.sts.PER);
+	pstatus->BER = le16_to_cpu((__force __le16)prsp->body.get_tune_status.rsp.sts.BER);
 
 out:
 	return error;
@@ -259,7 +259,7 @@ int as10x_cmd_get_tps(struct as10x_bus_adapter_t *adap, struct as10x_tps *ptps)
 	ptps->transmission_mode  = prsp->body.get_tps.rsp.tps.transmission_mode;
 	ptps->DVBH_mask_HP = prsp->body.get_tps.rsp.tps.DVBH_mask_HP;
 	ptps->DVBH_mask_LP = prsp->body.get_tps.rsp.tps.DVBH_mask_LP;
-	ptps->cell_ID = le16_to_cpu(prsp->body.get_tps.rsp.tps.cell_ID);
+	ptps->cell_ID = le16_to_cpu((__force __le16)prsp->body.get_tps.rsp.tps.cell_ID);
 
 out:
 	return error;
@@ -310,13 +310,13 @@ int as10x_cmd_get_demod_stats(struct as10x_bus_adapter_t *adap,
 
 	/* Response OK -> get response data */
 	pdemod_stats->frame_count =
-		le32_to_cpu(prsp->body.get_demod_stats.rsp.stats.frame_count);
+		le32_to_cpu((__force __le32)prsp->body.get_demod_stats.rsp.stats.frame_count);
 	pdemod_stats->bad_frame_count =
-		le32_to_cpu(prsp->body.get_demod_stats.rsp.stats.bad_frame_count);
+		le32_to_cpu((__force __le32)prsp->body.get_demod_stats.rsp.stats.bad_frame_count);
 	pdemod_stats->bytes_fixed_by_rs =
-		le32_to_cpu(prsp->body.get_demod_stats.rsp.stats.bytes_fixed_by_rs);
+		le32_to_cpu((__force __le32)prsp->body.get_demod_stats.rsp.stats.bytes_fixed_by_rs);
 	pdemod_stats->mer =
-		le16_to_cpu(prsp->body.get_demod_stats.rsp.stats.mer);
+		le16_to_cpu((__force __le16)prsp->body.get_demod_stats.rsp.stats.mer);
 	pdemod_stats->has_started =
 		prsp->body.get_demod_stats.rsp.stats.has_started;
 

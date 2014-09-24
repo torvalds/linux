@@ -69,7 +69,7 @@ int as10x_cmd_get_context(struct as10x_bus_adapter_t *adap, uint16_t tag,
 
 	if (error == 0) {
 		/* Response OK -> get response data */
-		*pvalue = le32_to_cpu(prsp->body.context.rsp.reg_val.u.value32);
+		*pvalue = le32_to_cpu((__force __le32)prsp->body.context.rsp.reg_val.u.value32);
 		/* value returned is always a 32-bit value */
 	}
 
@@ -101,7 +101,7 @@ int as10x_cmd_set_context(struct as10x_bus_adapter_t *adap, uint16_t tag,
 	/* fill command */
 	pcmd->body.context.req.proc_id = cpu_to_le16(CONTROL_PROC_CONTEXT);
 	/* pcmd->body.context.req.reg_val.mode initialization is not required */
-	pcmd->body.context.req.reg_val.u.value32 = cpu_to_le32(value);
+	pcmd->body.context.req.reg_val.u.value32 = (__force u32)cpu_to_le32(value);
 	pcmd->body.context.req.tag = cpu_to_le16(tag);
 	pcmd->body.context.req.type = cpu_to_le16(SET_CONTEXT_DATA);
 

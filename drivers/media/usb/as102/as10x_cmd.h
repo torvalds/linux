@@ -92,12 +92,12 @@ union as10x_turn_on {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* error */
 		uint8_t error;
 	} __packed rsp;
@@ -107,12 +107,12 @@ union as10x_turn_off {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* error */
 		uint8_t err;
 	} __packed rsp;
@@ -122,14 +122,14 @@ union as10x_set_tune {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* tune params */
 		struct as10x_tune_args args;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* response error */
 		uint8_t error;
 	} __packed rsp;
@@ -139,12 +139,12 @@ union as10x_get_tune_status {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* response error */
 		uint8_t error;
 		/* tune status */
@@ -156,12 +156,12 @@ union as10x_get_tps {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* response error */
 		uint8_t error;
 		/* tps details */
@@ -173,12 +173,12 @@ union as10x_common {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t  proc_id;
+		__le16  proc_id;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* response error */
 		uint8_t error;
 	} __packed rsp;
@@ -188,9 +188,9 @@ union as10x_add_pid_filter {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t  proc_id;
+		__le16  proc_id;
 		/* PID to filter */
-		uint16_t  pid;
+		__le16  pid;
 		/* stream type (MPE, PSI/SI or PES )*/
 		uint8_t stream_type;
 		/* PID index in filter table */
@@ -199,7 +199,7 @@ union as10x_add_pid_filter {
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* response error */
 		uint8_t error;
 		/* Filter id */
@@ -211,14 +211,14 @@ union as10x_del_pid_filter {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t  proc_id;
+		__le16  proc_id;
 		/* PID to remove */
-		uint16_t  pid;
+		__le16  pid;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* response error */
 		uint8_t error;
 	} __packed rsp;
@@ -228,12 +228,12 @@ union as10x_start_streaming {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* error */
 		uint8_t error;
 	} __packed rsp;
@@ -243,12 +243,12 @@ union as10x_stop_streaming {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* error */
 		uint8_t error;
 	} __packed rsp;
@@ -258,12 +258,12 @@ union as10x_get_demod_stats {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* error */
 		uint8_t error;
 		/* demod stats */
@@ -275,12 +275,12 @@ union as10x_get_impulse_resp {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* error */
 		uint8_t error;
 		/* impulse response ready */
@@ -292,22 +292,22 @@ union as10x_fw_context {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* value to write (for set context)*/
 		struct as10x_register_value reg_val;
 		/* context tag */
-		uint16_t tag;
+		__le16 tag;
 		/* context request type */
-		uint16_t type;
+		__le16 type;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* value read (for get context) */
 		struct as10x_register_value reg_val;
 		/* context request type */
-		uint16_t type;
+		__le16 type;
 		/* error */
 		uint8_t error;
 	} __packed rsp;
@@ -317,7 +317,7 @@ union as10x_set_register {
 	/* request */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* register description */
 		struct as10x_register_addr reg_addr;
 		/* register content */
@@ -326,7 +326,7 @@ union as10x_set_register {
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* error */
 		uint8_t error;
 	} __packed rsp;
@@ -336,14 +336,14 @@ union as10x_get_register {
 	/* request */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* register description */
 		struct as10x_register_addr reg_addr;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* error */
 		uint8_t error;
 		/* register content */
@@ -355,24 +355,24 @@ union as10x_cfg_change_mode {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* mode */
 		uint8_t mode;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* error */
 		uint8_t error;
 	} __packed rsp;
 } __packed;
 
 struct as10x_cmd_header_t {
-	uint16_t req_id;
-	uint16_t prog;
-	uint16_t version;
-	uint16_t data_len;
+	__le16 req_id;
+	__le16 prog;
+	__le16 version;
+	__le16 data_len;
 } __packed;
 
 #define DUMP_BLOCK_SIZE 16
@@ -381,18 +381,18 @@ union as10x_dump_memory {
 	/* request */
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* dump memory type request */
 		uint8_t dump_req;
 		/* register description */
 		struct as10x_register_addr reg_addr;
 		/* nb blocks to read */
-		uint16_t num_blocks;
+		__le16 num_blocks;
 	} __packed req;
 	/* response */
 	struct {
 		/* response identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* error */
 		uint8_t error;
 		/* dump response */
@@ -400,8 +400,8 @@ union as10x_dump_memory {
 		/* data */
 		union {
 			uint8_t  data8[DUMP_BLOCK_SIZE];
-			uint16_t data16[DUMP_BLOCK_SIZE / sizeof(uint16_t)];
-			uint32_t data32[DUMP_BLOCK_SIZE / sizeof(uint32_t)];
+			__le16 data16[DUMP_BLOCK_SIZE / sizeof(__le16)];
+			__le32 data32[DUMP_BLOCK_SIZE / sizeof(__le32)];
 		} __packed u;
 	} __packed rsp;
 } __packed;
@@ -409,13 +409,13 @@ union as10x_dump_memory {
 union as10x_dumplog_memory {
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* dump memory type request */
 		uint8_t dump_req;
 	} __packed req;
 	struct {
 		/* request identifier */
-		uint16_t proc_id;
+		__le16 proc_id;
 		/* error */
 		uint8_t error;
 		/* dump response */
@@ -428,13 +428,13 @@ union as10x_dumplog_memory {
 union as10x_raw_data {
 	/* request */
 	struct {
-		uint16_t proc_id;
+		__le16 proc_id;
 		uint8_t data[64 - sizeof(struct as10x_cmd_header_t)
 			     - 2 /* proc_id */];
 	} __packed req;
 	/* response */
 	struct {
-		uint16_t proc_id;
+		__le16 proc_id;
 		uint8_t error;
 		uint8_t data[64 - sizeof(struct as10x_cmd_header_t)
 			     - 2 /* proc_id */ - 1 /* rc */];
