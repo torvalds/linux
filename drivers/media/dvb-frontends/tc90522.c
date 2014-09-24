@@ -28,6 +28,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/math64.h>
 #include <linux/dvb/frontend.h>
 #include "dvb_math.h"
 #include "tc90522.h"
@@ -275,7 +276,7 @@ static int tc90522s_get_frontend(struct dvb_frontend *fe)
 		/* cn = cnr << 3 */
 		p = int_sqrt(cndat << 16);
 		p4 = cndat * cndat;
-		cn = (-16346LL * p4 * p / 10) >> 35;
+		cn = div64_s64(-16346LL * p4 * p, 10) >> 35;
 		cn += (14341LL * p4) >> 21;
 		cn -= (50259LL * cndat * p) >> 23;
 		cn += (88977LL * cndat) >> 9;
@@ -434,13 +435,13 @@ static int tc90522t_get_frontend(struct dvb_frontend *fe)
 		p *= 10;
 
 		cn = 24772;
-		cn += ((43827LL * p) / 10) >> 24;
+		cn += div64_s64(43827LL * p, 10) >> 24;
 		tmp = p >> 8;
-		cn += ((3184LL * tmp * tmp) / 10) >> 32;
+		cn += div64_s64(3184LL * tmp * tmp, 10) >> 32;
 		tmp = p >> 13;
-		cn -= ((128LL * tmp * tmp * tmp) / 10) >> 33;
+		cn -= div64_s64(128LL * tmp * tmp * tmp, 10) >> 33;
 		tmp = p >> 18;
-		cn += ((192LL * tmp * tmp * tmp * tmp) / 1000) >> 24;
+		cn += div64_s64(192LL * tmp * tmp * tmp * tmp, 1000) >> 24;
 
 		stats->stat[0].svalue = cn >> 3;
 		stats->stat[0].scale = FE_SCALE_DECIBEL;
