@@ -125,7 +125,7 @@ static ssize_t sysfs_kf_bin_write(struct kernfs_open_file *of, char *buf,
 
 	if (size) {
 		if (size <= pos)
-			return 0;
+			return -EFBIG;
 		count = min_t(ssize_t, count, size - pos);
 	}
 	if (!count)
