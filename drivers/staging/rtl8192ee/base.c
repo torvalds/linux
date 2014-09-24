@@ -622,8 +622,6 @@ static void _rtl_qurey_shortpreamble_mode(struct ieee80211_hw *hw,
 		return;
 	else if (rate_flag & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 		tcb_desc->use_shortpreamble = true;
-
-	return;
 }
 
 static void _rtl_query_shortgi(struct ieee80211_hw *hw,
