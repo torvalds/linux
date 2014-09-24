@@ -517,6 +517,13 @@ static inline struct nfs4_ol_stateid *openlockstateid(struct nfs4_stid *s)
 #define RD_STATE	        0x00000010
 #define WR_STATE	        0x00000020
 
+enum nfsd4_cb_op {
+	NFSPROC4_CLNT_CB_NULL = 0,
+	NFSPROC4_CLNT_CB_RECALL,
+	NFSPROC4_CLNT_CB_SEQUENCE,
+};
+
+
 struct nfsd4_compound_state;
 struct nfsd_net;
 
@@ -536,7 +543,8 @@ void nfsd4_run_cb_recall(struct work_struct *w);
 extern void nfsd4_probe_callback(struct nfs4_client *clp);
 extern void nfsd4_probe_callback_sync(struct nfs4_client *clp);
 extern void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *);
-extern void nfsd4_cb_recall(struct nfs4_delegation *dp);
+extern void nfsd4_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
+		enum nfsd4_cb_op op);
 extern int nfsd4_create_callback_queue(void);
 extern void nfsd4_destroy_callback_queue(void);
 extern void nfsd4_shutdown_callback(struct nfs4_client *);

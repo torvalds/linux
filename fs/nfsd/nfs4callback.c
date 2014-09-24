@@ -49,12 +49,6 @@ static void nfsd4_mark_cb_fault(struct nfs4_client *, int reason);
 
 /* Index of predefined Linux callback client operations */
 
-enum {
-	NFSPROC4_CLNT_CB_NULL = 0,
-	NFSPROC4_CLNT_CB_RECALL,
-	NFSPROC4_CLNT_CB_SEQUENCE,
-};
-
 #define to_delegation(cb) \
 	container_of(cb, struct nfs4_delegation, dl_recall)
 
@@ -749,24 +743,9 @@ static const struct rpc_call_ops nfsd4_cb_probe_ops = {
 
 static struct workqueue_struct *callback_wq;
 
-static void run_nfsd4_cb(struct nfsd4_callback *cb)
-{
-	queue_work(callback_wq, &cb->cb_work);
-}
-
 static void do_probe_callback(struct nfs4_client *clp)
 {
-	struct nfsd4_callback *cb = &clp->cl_cb_null;
-
-	cb->cb_clp = clp;
-
-	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL];
-	cb->cb_msg.rpc_argp = NULL;
-	cb->cb_msg.rpc_resp = NULL;
-
-	cb->cb_ops = &nfsd4_cb_probe_ops;
-
-	run_nfsd4_cb(cb);
+	return nfsd4_cb(&clp->cl_cb_null, clp, NFSPROC4_CLNT_CB_NULL);
 }
 
 /*
@@ -1005,7 +984,7 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	}
 	/* Yay, the callback channel's back! Restart any callbacks: */
 	list_for_each_entry(cb, &clp->cl_callbacks, cb_per_client)
-		run_nfsd4_cb(cb);
+		queue_work(callback_wq, &cb->cb_work);
 }
 
 static void
@@ -1046,21 +1025,19 @@ nfsd4_run_cb_recall(struct work_struct *w)
 	nfsd4_run_callback_rpc(cb);
 }
 
-void nfsd4_cb_recall(struct nfs4_delegation *dp)
+void nfsd4_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
+		enum nfsd4_cb_op op)
 {
-	struct nfsd4_callback *cb = &dp->dl_recall;
-	struct nfs4_client *clp = dp->dl_stid.sc_client;
-
-	dp->dl_retries = 1;
 	cb->cb_clp = clp;
-	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL];
+	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[op];
 	cb->cb_msg.rpc_argp = cb;
 	cb->cb_msg.rpc_resp = cb;
-
-	cb->cb_ops = &nfsd4_cb_recall_ops;
-
+	if (op == NFSPROC4_CLNT_CB_NULL)
+		cb->cb_ops = &nfsd4_cb_probe_ops;
+	else
+		cb->cb_ops = &nfsd4_cb_recall_ops;
 	INIT_LIST_HEAD(&cb->cb_per_client);
 	cb->cb_done = true;
 
-	run_nfsd4_cb(&dp->dl_recall);
+	queue_work(callback_wq, &cb->cb_work);
 }

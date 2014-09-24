@@ -3388,7 +3388,9 @@ static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 	 * it's safe to take a reference.
 	 */
 	atomic_inc(&dp->dl_stid.sc_count);
-	nfsd4_cb_recall(dp);
+	dp->dl_retries = 1;
+	nfsd4_cb(&dp->dl_recall, dp->dl_stid.sc_client,
+		 NFSPROC4_CLNT_CB_RECALL);
 }
 
 /* Called from break_lease() with i_lock held. */
