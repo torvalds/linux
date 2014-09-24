@@ -157,7 +157,7 @@ struct knav_dma_desc {
 	u32	pad[4];
 } ____cacheline_aligned;
 
-#ifdef CONFIG_KEYSTONE_NAVIGATOR_DMA
+#if IS_ENABLED(CONFIG_KEYSTONE_NAVIGATOR_DMA)
 void *knav_dma_open_channel(struct device *dev, const char *name,
 				struct knav_dma_cfg *config);
 void knav_dma_close_channel(void *channel);
