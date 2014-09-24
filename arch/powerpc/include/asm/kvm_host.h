@@ -144,6 +144,7 @@ enum kvm_exit_types {
 	EMULATED_TLBWE_EXITS,
 	EMULATED_RFI_EXITS,
 	EMULATED_RFCI_EXITS,
+	EMULATED_RFDI_EXITS,
 	DEC_EXITS,
 	EXT_INTR_EXITS,
 	HALT_WAKEUP,
@@ -589,8 +590,6 @@ struct kvm_vcpu_arch {
 	u32 crit_save;
 	/* guest debug registers*/
 	struct debug_reg dbg_reg;
-	/* hardware visible debug registers when in guest state */
-	struct debug_reg shadow_dbg_reg;
 #endif
 	gpa_t paddr_accessed;
 	gva_t vaddr_accessed;
@@ -612,7 +611,6 @@ struct kvm_vcpu_arch {
 	u32 cpr0_cfgaddr; /* holds the last set cpr0_cfgaddr */
 
 	struct hrtimer dec_timer;
-	struct tasklet_struct tasklet;
 	u64 dec_jiffies;
 	u64 dec_expires;
 	unsigned long pending_exceptions;

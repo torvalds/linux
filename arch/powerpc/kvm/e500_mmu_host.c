@@ -69,7 +69,8 @@ static inline u32 e500_shadow_mas3_attrib(u32 mas3, int usermode)
  * writing shadow tlb entry to host TLB
  */
 static inline void __write_host_tlbe(struct kvm_book3e_206_tlb_entry *stlbe,
-				     uint32_t mas0)
+				     uint32_t mas0,
+				     uint32_t lpid)
 {
 	unsigned long flags;
 
@@ -80,7 +81,7 @@ static inline void __write_host_tlbe(struct kvm_book3e_206_tlb_entry *stlbe,
 	mtspr(SPRN_MAS3, (u32)stlbe->mas7_3);
 	mtspr(SPRN_MAS7, (u32)(stlbe->mas7_3 >> 32));
 #ifdef CONFIG_KVM_BOOKE_HV
-	mtspr(SPRN_MAS8, stlbe->mas8);
+	mtspr(SPRN_MAS8, MAS8_TGS | get_thread_specific_lpid(lpid));
 #endif
 	asm volatile("isync; tlbwe" : : : "memory");
 
@@ -129,11 +130,12 @@ static inline void write_host_tlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 	if (tlbsel == 0) {
 		mas0 = get_host_mas0(stlbe->mas2);
-		__write_host_tlbe(stlbe, mas0);
+		__write_host_tlbe(stlbe, mas0, vcpu_e500->vcpu.kvm->arch.lpid);
 	} else {
 		__write_host_tlbe(stlbe,
 				  MAS0_TLBSEL(1) |
-				  MAS0_ESEL(to_htlb1_esel(sesel)));
+				  MAS0_ESEL(to_htlb1_esel(sesel)),
+				  vcpu_e500->vcpu.kvm->arch.lpid);
 	}
 }
 
@@ -176,7 +178,7 @@ void kvmppc_map_magic(struct kvm_vcpu *vcpu)
 		       MAS3_SW | MAS3_SR | MAS3_UW | MAS3_UR;
 	magic.mas8 = 0;
 
-	__write_host_tlbe(&magic, MAS0_TLBSEL(1) | MAS0_ESEL(tlbcam_index));
+	__write_host_tlbe(&magic, MAS0_TLBSEL(1) | MAS0_ESEL(tlbcam_index), 0);
 	preempt_enable();
 }
 #endif
@@ -317,10 +319,6 @@ static void kvmppc_e500_setup_stlbe(
 	stlbe->mas2 = (gvaddr & MAS2_EPN) | (ref->flags & E500_TLB_MAS2_ATTR);
 	stlbe->mas7_3 = ((u64)pfn << PAGE_SHIFT) |
 			e500_shadow_mas3_attrib(gtlbe->mas7_3, pr);
-
-#ifdef CONFIG_KVM_BOOKE_HV
-	stlbe->mas8 = MAS8_TGS | vcpu->kvm->arch.lpid;
-#endif
 }
 
 static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
@@ -633,7 +631,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
 
 	local_irq_save(flags);
 	mtspr(SPRN_MAS6, (vcpu->arch.pid << MAS6_SPID_SHIFT) | addr_space);
-	mtspr(SPRN_MAS5, MAS5_SGS | vcpu->kvm->arch.lpid);
+	mtspr(SPRN_MAS5, MAS5_SGS | get_lpid(vcpu));
 	asm volatile("tlbsx 0, %[geaddr]\n" : :
 		     [geaddr] "r" (geaddr));
 	mtspr(SPRN_MAS5, 0);

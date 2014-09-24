@@ -294,7 +294,7 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	{
 		u32 last_inst;
 
-		kvmppc_get_last_inst(vcpu, false, &last_inst);
+		kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
 		/* XXX Deliver Program interrupt to guest. */
 		pr_emerg("%s: emulation failed (%08x)\n", __func__, last_inst);
 		r = RESUME_HOST;
@@ -638,7 +638,6 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	/* Make sure we're not using the vcpu anymore */
 	hrtimer_cancel(&vcpu->arch.dec_timer);
-	tasklet_kill(&vcpu->arch.tasklet);
 
 	kvmppc_remove_vcpu_debugfs(vcpu);
 
@@ -664,16 +663,12 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 	return kvmppc_core_pending_dec(vcpu);
 }
 
-/*
- * low level hrtimer wake routine. Because this runs in hardirq context
- * we schedule a tasklet to do the real work.
- */
 enum hrtimer_restart kvmppc_decrementer_wakeup(struct hrtimer *timer)
 {
 	struct kvm_vcpu *vcpu;
 
 	vcpu = container_of(timer, struct kvm_vcpu, arch.dec_timer);
-	tasklet_schedule(&vcpu->arch.tasklet);
+	kvmppc_decrementer_func(vcpu);
 
 	return HRTIMER_NORESTART;
 }
@@ -683,7 +678,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	int ret;
 
 	hrtimer_init(&vcpu->arch.dec_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-	tasklet_init(&vcpu->arch.tasklet, kvmppc_decrementer_func, (ulong)vcpu);
 	vcpu->arch.dec_timer.function = kvmppc_decrementer_wakeup;
 	vcpu->arch.dec_expires = ~(u64)0;
 
@@ -906,6 +900,103 @@ int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return EMULATE_DO_MMIO;
 }
 EXPORT_SYMBOL_GPL(kvmppc_handle_store);
+
+int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	int r = 0;
+	union kvmppc_one_reg val;
+	int size;
+
+	size = one_reg_size(reg->id);
+	if (size > sizeof(val))
+		return -EINVAL;
+
+	r = kvmppc_get_one_reg(vcpu, reg->id, &val);
+	if (r == -EINVAL) {
+		r = 0;
+		switch (reg->id) {
+#ifdef CONFIG_ALTIVEC
+		case KVM_REG_PPC_VR0 ... KVM_REG_PPC_VR31:
+			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
+				r = -ENXIO;
+				break;
+			}
+			vcpu->arch.vr.vr[reg->id - KVM_REG_PPC_VR0] = val.vval;
+			break;
+		case KVM_REG_PPC_VSCR:
+			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
+				r = -ENXIO;
+				break;
+			}
+			vcpu->arch.vr.vscr.u[3] = set_reg_val(reg->id, val);
+			break;
+		case KVM_REG_PPC_VRSAVE:
+			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
+				r = -ENXIO;
+				break;
+			}
+			vcpu->arch.vrsave = set_reg_val(reg->id, val);
+			break;
+#endif /* CONFIG_ALTIVEC */
+		default:
+			r = -EINVAL;
+			break;
+		}
+	}
+
+	if (r)
+		return r;
+
+	if (copy_to_user((char __user *)(unsigned long)reg->addr, &val, size))
+		r = -EFAULT;
+
+	return r;
+}
+
+int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	int r;
+	union kvmppc_one_reg val;
+	int size;
+
+	size = one_reg_size(reg->id);
+	if (size > sizeof(val))
+		return -EINVAL;
+
+	if (copy_from_user(&val, (char __user *)(unsigned long)reg->addr, size))
+		return -EFAULT;
+
+	r = kvmppc_set_one_reg(vcpu, reg->id, &val);
+	if (r == -EINVAL) {
+		r = 0;
+		switch (reg->id) {
+#ifdef CONFIG_ALTIVEC
+		case KVM_REG_PPC_VR0 ... KVM_REG_PPC_VR31:
+			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
+				r = -ENXIO;
+				break;
+			}
+			val.vval = vcpu->arch.vr.vr[reg->id - KVM_REG_PPC_VR0];
+			break;
+		case KVM_REG_PPC_VSCR:
+			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
+				r = -ENXIO;
+				break;
+			}
+			val = get_reg_val(reg->id, vcpu->arch.vr.vscr.u[3]);
+			break;
+		case KVM_REG_PPC_VRSAVE:
+			val = get_reg_val(reg->id, vcpu->arch.vrsave);
+			break;
+#endif /* CONFIG_ALTIVEC */
+		default:
+			r = -EINVAL;
+			break;
+		}
+	}
+
+	return r;
+}
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
