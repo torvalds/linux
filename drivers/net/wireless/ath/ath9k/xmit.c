@@ -2205,7 +2205,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ath_txq *txq = txctl->txq;
 	struct ath_atx_tid *tid = NULL;
 	struct ath_buf *bf;
-	bool queue;
+	bool queue, skip_uapsd = false;
 	int q, ret;
 
 	if (vif)
@@ -2246,14 +2246,14 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	     sc->cur_chan->stopped) && !txctl->force_channel) {
 		if (!txctl->an)
 			txctl->an = &avp->mcast_node;
-		info->flags &= ~IEEE80211_TX_CTL_PS_RESPONSE;
 		queue = true;
+		skip_uapsd = true;
 	}
 
 	if (txctl->an && queue)
 		tid = ath_get_skb_tid(sc, txctl->an, skb);
 
-	if (info->flags & IEEE80211_TX_CTL_PS_RESPONSE) {
+	if (!skip_uapsd && (info->flags & IEEE80211_TX_CTL_PS_RESPONSE)) {
 		ath_txq_unlock(sc, txq);
 		txq = sc->tx.uapsdq;
 		ath_txq_lock(sc, txq);
