@@ -380,6 +380,7 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 
 			if (chip->ic_version >= IC_VER_D) {
 				u16 reg;
+
 				retval = rtsx_read_phy_register(chip, 0x00,
 								&reg);
 				if (retval != STATUS_SUCCESS)
@@ -505,6 +506,7 @@ static inline int check_sd_speed_prior(u32 sd_speed_prior)
 
 	for (i = 0; i < 4; i++) {
 		u8 tmp = (u8)(sd_speed_prior >> (i*8));
+
 		if ((tmp < 0x01) || (tmp > 0x04)) {
 			fake_para = 1;
 			break;
@@ -520,6 +522,7 @@ static inline int check_sd_current_prior(u32 sd_current_prior)
 
 	for (i = 0; i < 4; i++) {
 		u8 tmp = (u8)(sd_current_prior >> (i*8));
+
 		if (tmp > 0x03) {
 			fake_para = 1;
 			break;
@@ -876,6 +879,7 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 
 	if (chip->polling_config) {
 		u8 val;
+
 		rtsx_read_config_byte(chip, 0, &val);
 	}
 
@@ -901,6 +905,7 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 	if (sd_card->sd_erase_status) {
 		if (chip->card_exist & SD_CARD) {
 			u8 val;
+
 			rtsx_read_register(chip, 0xFD30, &val);
 			if (val & 0x02) {
 				sd_card->sd_erase_status = SD_NOT_ERASE;
@@ -923,6 +928,7 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 		} else {
 			if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip)) {
 				u32 val;
+
 				rtsx_read_cfg_dw(chip, 1, 0x04, &val);
 				if (val & 0x07)
 					ss_allowed = 0;
@@ -1140,6 +1146,7 @@ void rtsx_stop_cmd(struct rtsx_chip *chip, int card)
 	for (i = 0; i <= 8; i++) {
 		int addr = RTSX_HCBAR + i * 4;
 		u32 reg;
+
 		reg = rtsx_readl(chip, addr);
 		dev_dbg(rtsx_dev(chip), "BAR (0x%02x): 0x%08x\n", addr, reg);
 	}
@@ -1149,6 +1156,7 @@ void rtsx_stop_cmd(struct rtsx_chip *chip, int card)
 	for (i = 0; i < 16; i++) {
 		u16 addr = 0xFE20 + (u16)i;
 		u8 val;
+
 		rtsx_read_register(chip, addr, &val);
 		dev_dbg(rtsx_dev(chip), "0x%04X: 0x%02x\n", addr, val);
 	}
@@ -1599,6 +1607,7 @@ void rtsx_enter_ss(struct rtsx_chip *chip)
 	} else {
 		if (!chip->phy_debug_mode) {
 			u32 tmp;
+
 			tmp = rtsx_readl(chip, RTSX_BIER);
 			tmp |= CARD_INT;
 			rtsx_writel(chip, RTSX_BIER, tmp);
@@ -1804,6 +1813,7 @@ void rtsx_enable_aspm(struct rtsx_chip *chip)
 
 			if (CHK_SDIO_EXIST(chip)) {
 				u16 val = chip->aspm_l0s_l1_en | 0x0100;
+
 				if (CHECK_PID(chip, 0x5288))
 					rtsx_write_cfg_dw(chip, 2, 0xC0,
 							0xFFFF, val);
