@@ -227,17 +227,16 @@ static struct greybus_host_driver es1_driver = {
 	.submit_gbuf		= submit_gbuf,
 };
 
-/* Callback for when we get a SVC message */
-static void svc_callback(struct urb *urb)
+/* Common function to report consistent warnings based on URB status */
+static int check_urb_status(struct urb *urb)
 {
-	struct es1_ap_dev *es1 = urb->context;
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
-	int retval;
 
 	switch (status) {
 	case 0:
-		break;
+		return 0;
+
 	case -EOVERFLOW:
 		dev_err(dev, "%s: overflow actual length is %d\n",
 			__func__, urb->actual_length);
@@ -246,11 +245,25 @@ static void svc_callback(struct urb *urb)
 	case -ESHUTDOWN:
 	case -EILSEQ:
 		/* device is gone, stop sending */
-		return;
-	default:
-		dev_err(dev, "%s: unknown status %d\n", __func__, status);
-		goto exit;
+		return status;
 	}
+	dev_err(dev, "%s: unknown status %d\n", __func__, status);
+
+	return -EAGAIN;
+}
+
+/* Callback for when we get a SVC message */
+static void svc_in_callback(struct urb *urb)
+{
+	struct es1_ap_dev *es1 = urb->context;
+	struct device *dev = &urb->dev->dev;
+	int status = check_urb_status(urb);
+	int retval;
+
+	if (status == -EAGAIN)
+		goto exit;
+	if (status)
+		return;
 
 	/* We have a message, create a new message structure, add it to the
 	 * list, and wake up our thread that will process the messages.
@@ -268,27 +281,15 @@ static void cport_in_callback(struct urb *urb)
 {
 	struct device *dev = &urb->dev->dev;
 	struct es1_ap_dev *es1 = urb->context;
-	int status = urb->status;
+	int status = check_urb_status(urb);
 	int retval;
 	u8 cport;
 	u8 *data;
 
-	switch (status) {
-	case 0:
-		break;
-	case -EOVERFLOW:
-		dev_err(dev, "%s: overflow actual length is %d\n",
-			__func__, urb->actual_length);
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-	case -EILSEQ:
-		/* device is gone, stop sending */
-		return;
-	default:
-		dev_err(dev, "%s: unknown status %d\n", __func__, status);
+	if (status == -EAGAIN)
 		goto exit;
-	}
+	if (status)
+		return;
 
 	/* The size has to be more then just an "empty" transfer */
 	if (urb->actual_length <= 2) {
@@ -318,35 +319,15 @@ exit:
 
 static void cport_out_callback(struct urb *urb)
 {
-	struct device *dev = &urb->dev->dev;
 	struct gbuf *gbuf = urb->context;
 	struct es1_ap_dev *es1 = gbuf->hdpriv;
 	unsigned long flags;
-	int status = urb->status;
 	int i;
 
-	/* do we care about errors going back up? */
-	switch (status) {
-	case 0:
-		break;
-	case -EOVERFLOW:
-		dev_err(dev, "%s: overflow actual length is %d\n",
-			__func__, urb->actual_length);
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-	case -EILSEQ:
-		/* device is gone, stop sending */
-		goto exit;
-	default:
-		dev_err(dev, "%s: unknown status %d\n", __func__, status);
-		goto exit;
-	}
+	/* If no error, tell the core the gbuf is properly sent */
+	if (!check_urb_status(urb))
+		greybus_gbuf_finished(gbuf);
 
-	/* Tell the core the gbuf is properly sent */
-	greybus_gbuf_finished(gbuf);
-
-exit:
 	/*
 	 * See if this was an urb in our pool, if so mark it "free", otherwise
 	 * we need to free it ourselves.
@@ -443,7 +424,7 @@ static int ap_probe(struct usb_interface *interface,
 
 	usb_fill_int_urb(es1->svc_urb, udev,
 			 usb_rcvintpipe(udev, es1->svc_endpoint),
-			 es1->svc_buffer, ES1_SVC_MSG_SIZE, svc_callback,
+			 es1->svc_buffer, ES1_SVC_MSG_SIZE, svc_in_callback,
 			 es1, svc_interval);
 	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
 	if (retval)
