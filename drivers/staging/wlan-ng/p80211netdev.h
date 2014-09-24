@@ -180,16 +180,16 @@ typedef struct wlandevice {
 	unsigned int ethconv;
 
 	/* device methods (init by MSD, used by p80211 */
-	int (*open) (struct wlandevice *wlandev);
-	int (*close) (struct wlandevice *wlandev);
-	void (*reset) (struct wlandevice *wlandev);
-	int (*txframe) (struct wlandevice *wlandev, struct sk_buff *skb,
+	int (*open)(struct wlandevice *wlandev);
+	int (*close)(struct wlandevice *wlandev);
+	void (*reset)(struct wlandevice *wlandev);
+	int (*txframe)(struct wlandevice *wlandev, struct sk_buff *skb,
 			union p80211_hdr *p80211_hdr,
 			struct p80211_metawep *p80211_wep);
-	int (*mlmerequest) (struct wlandevice *wlandev, struct p80211msg *msg);
-	int (*set_multicast_list) (struct wlandevice *wlandev,
+	int (*mlmerequest)(struct wlandevice *wlandev, struct p80211msg *msg);
+	int (*set_multicast_list)(struct wlandevice *wlandev,
 				   netdevice_t *dev);
-	void (*tx_timeout) (struct wlandevice *wlandev);
+	void (*tx_timeout)(struct wlandevice *wlandev);
 
 	/* 802.11 State */
 	u8 bssid[WLAN_BSSID_LEN];
