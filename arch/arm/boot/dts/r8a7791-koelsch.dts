@@ -275,11 +275,6 @@
 		renesas,function = "msiof0";
 	};
 
-	i2c6_pins: i2c6 {
-		renesas,groups = "i2c6";
-		renesas,function = "i2c6";
-	};
-
 	usb0_pins: usb0 {
 		renesas,groups = "usb0";
 		renesas,function = "usb0";
@@ -424,8 +419,6 @@
 };
 
 &i2c6 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c6_pins>;
 	status = "okay";
 	clock-frequency = <100000>;
 

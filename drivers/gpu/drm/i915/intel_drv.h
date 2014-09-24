@@ -153,6 +153,12 @@ struct intel_encoder {
 	 * be set correctly before calling this function. */
 	void (*get_config)(struct intel_encoder *,
 			   struct intel_crtc_config *pipe_config);
+	/*
+	 * Called during system suspend after all pending requests for the
+	 * encoder are flushed (for example for DP AUX transactions) and
+	 * device interrupts are disabled.
+	 */
+	void (*suspend)(struct intel_encoder *);
 	int crtc_mask;
 	enum hpd_pin hpd_pin;
 };
@@ -830,8 +836,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 				struct intel_load_detect_pipe *old,
 				struct drm_modeset_acquire_ctx *ctx);
 void intel_release_load_detect_pipe(struct drm_connector *connector,
-				    struct intel_load_detect_pipe *old,
-				    struct drm_modeset_acquire_ctx *ctx);
+				    struct intel_load_detect_pipe *old);
 int intel_pin_and_fence_fb_obj(struct drm_device *dev,
 			       struct drm_i915_gem_object *obj,
 			       struct intel_engine_cs *pipelined);

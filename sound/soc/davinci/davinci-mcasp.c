@@ -403,7 +403,8 @@ out:
 	return ret;
 }
 
-static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div)
+static int __davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id,
+				      int div, bool explicit)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 
@@ -420,7 +421,8 @@ static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div
 			       ACLKXDIV(div - 1), ACLKXDIV_MASK);
 		mcasp_mod_bits(mcasp, DAVINCI_MCASP_ACLKRCTL_REG,
 			       ACLKRDIV(div - 1), ACLKRDIV_MASK);
-		mcasp->bclk_div = div;
+		if (explicit)
+			mcasp->bclk_div = div;
 		break;
 
 	case 2:		/* BCLK/LRCLK ratio */
@@ -432,6 +434,12 @@ static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div
 	}
 
 	return 0;
+}
+
+static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id,
+				    int div)
+{
+	return __davinci_mcasp_set_clkdiv(dai, div_id, div, 1);
 }
 
 static int davinci_mcasp_set_sysclk(struct snd_soc_dai *dai, int clk_id,
@@ -738,7 +746,7 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 				 "Inaccurate BCLK: %u Hz / %u != %u Hz\n",
 				 mcasp->sysclk_freq, div, bclk_freq);
 		}
-		davinci_mcasp_set_clkdiv(cpu_dai, 1, div);
+		__davinci_mcasp_set_clkdiv(cpu_dai, 1, div, 0);
 	}
 
 	ret = mcasp_common_hw_param(mcasp, substream->stream,

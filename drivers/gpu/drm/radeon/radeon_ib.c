@@ -107,6 +107,7 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
  * @rdev: radeon_device pointer
  * @ib: IB object to schedule
  * @const_ib: Const IB to schedule (SI only)
+ * @hdp_flush: Whether or not to perform an HDP cache flush
  *
  * Schedule an IB on the associated ring (all asics).
  * Returns 0 on success, error on failure.
@@ -122,7 +123,7 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
  * to SI there was just a DE IB.
  */
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
-		       struct radeon_ib *const_ib)
+		       struct radeon_ib *const_ib, bool hdp_flush)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
 	int r = 0;
@@ -176,7 +177,7 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 	if (ib->vm)
 		radeon_vm_fence(rdev, ib->vm, ib->fence);
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, hdp_flush);
 	return 0;
 }
 

@@ -1444,7 +1444,7 @@ ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 
 			list_del(&sdata->reserved_chanctx_list);
 			list_move(&sdata->assigned_chanctx_list,
-				  &new_ctx->assigned_vifs);
+				  &ctx->assigned_vifs);
 			sdata->reserved_chanctx = NULL;
 
 			ieee80211_vif_chanctx_reservation_complete(sdata);

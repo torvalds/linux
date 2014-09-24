@@ -7,9 +7,6 @@
  */
 
 / {
-	model = "TI AM335x BeagleBone";
-	compatible = "ti,am335x-bone", "ti,am33xx";
-
 	cpus {
 		cpu@0 {
 			cpu0-supply = <&dcdc2_reg>;

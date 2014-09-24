@@ -660,6 +660,8 @@
 			clock-frequency = <100000>;
 			resets = <&apb2_rst 0>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		i2c1: i2c@01c2b000 {
@@ -670,6 +672,8 @@
 			clock-frequency = <100000>;
 			resets = <&apb2_rst 1>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		i2c2: i2c@01c2b400 {
@@ -680,6 +684,8 @@
 			clock-frequency = <100000>;
 			resets = <&apb2_rst 2>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		i2c3: i2c@01c2b800 {
@@ -690,6 +696,8 @@
 			clock-frequency = <100000>;
 			resets = <&apb2_rst 3>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		gmac: ethernet@01c30000 {

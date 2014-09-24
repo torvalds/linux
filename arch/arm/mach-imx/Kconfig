@@ -85,7 +85,6 @@ config SOC_IMX25
 
 config SOC_IMX27
 	bool
-	select ARCH_HAS_OPP
 	select CPU_ARM926T
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
@@ -659,7 +658,6 @@ comment "Device tree only"
 
 config SOC_IMX5
 	bool
-	select ARCH_HAS_OPP
 	select HAVE_IMX_SRC
 	select MXC_TZIC
 

@@ -4509,24 +4509,24 @@ static const char * const audio_clk_groups[] = {
 };
 
 static const char * const can0_groups[] = {
-	"can0_data_a",
+	"can0_data",
 	"can0_data_b",
 	"can0_data_c",
 	"can0_data_d",
 	"can0_data_e",
 	"can0_data_f",
-	"can_clk_a",
+	"can_clk",
 	"can_clk_b",
 	"can_clk_c",
 	"can_clk_d",
 };
 
 static const char * const can1_groups[] = {
-	"can1_data_a",
+	"can1_data",
 	"can1_data_b",
 	"can1_data_c",
 	"can1_data_d",
-	"can_clk_a",
+	"can_clk",
 	"can_clk_b",
 	"can_clk_c",
 	"can_clk_d",
