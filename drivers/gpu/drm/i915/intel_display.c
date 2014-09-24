@@ -11923,9 +11923,6 @@ intel_check_cursor_plane(struct drm_plane *plane,
 	if (!obj)
 		return 0;
 
-	if (fb == crtc->cursor->fb)
-		return 0;
-
 	/* Check for which cursor types we support */
 	crtc_w = drm_rect_width(&state->orig_dst);
 	crtc_h = drm_rect_height(&state->orig_dst);
@@ -11939,6 +11936,9 @@ intel_check_cursor_plane(struct drm_plane *plane,
 		DRM_DEBUG_KMS("buffer is too small\n");
 		return -ENOMEM;
 	}
+
+	if (fb == crtc->cursor->fb)
+		return 0;
 
 	/* we only need to pin inside GTT if cursor is non-phy */
 	mutex_lock(&dev->struct_mutex);
