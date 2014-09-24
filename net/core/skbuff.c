@@ -491,32 +491,33 @@ static void skb_free_head(struct sk_buff *skb)
 
 static void skb_release_data(struct sk_buff *skb)
 {
-	if (!skb->cloned ||
-	    !atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
-			       &skb_shinfo(skb)->dataref)) {
-		if (skb_shinfo(skb)->nr_frags) {
-			int i;
-			for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-				skb_frag_unref(skb, i);
-		}
+	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	int i;
 
-		/*
-		 * If skb buf is from userspace, we need to notify the caller
-		 * the lower device DMA has done;
-		 */
-		if (skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY) {
-			struct ubuf_info *uarg;
+	if (skb->cloned &&
+	    atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
+			      &shinfo->dataref))
+		return;
 
-			uarg = skb_shinfo(skb)->destructor_arg;
-			if (uarg->callback)
-				uarg->callback(uarg, true);
-		}
+	for (i = 0; i < shinfo->nr_frags; i++)
+		__skb_frag_unref(&shinfo->frags[i]);
 
-		if (skb_has_frag_list(skb))
-			skb_drop_fraglist(skb);
+	/*
+	 * If skb buf is from userspace, we need to notify the caller
+	 * the lower device DMA has done;
+	 */
+	if (shinfo->tx_flags & SKBTX_DEV_ZEROCOPY) {
+		struct ubuf_info *uarg;
 
-		skb_free_head(skb);
+		uarg = shinfo->destructor_arg;
+		if (uarg->callback)
+			uarg->callback(uarg, true);
 	}
+
+	if (shinfo->frag_list)
+		kfree_skb_list(shinfo->frag_list);
+
+	skb_free_head(skb);
 }
 
 /*
