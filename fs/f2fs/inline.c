@@ -424,7 +424,7 @@ int f2fs_convert_inline_dir(struct inode *dir, struct page *ipage,
 	/* clear inline dir and flag after data writeback */
 	zero_user_segment(ipage, INLINE_DATA_OFFSET,
 				 INLINE_DATA_OFFSET + MAX_INLINE_DATA);
-
+	clear_inode_flag(F2FS_I(dir), FI_INLINE_DENTRY);
 	stat_dec_inline_inode(dir);
 
 	if (i_size_read(dir) < PAGE_CACHE_SIZE) {

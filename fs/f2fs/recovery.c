@@ -129,7 +129,8 @@ retry:
 	goto out;
 
 out_unmap_put:
-	kunmap(page);
+	if (!f2fs_has_inline_dentry(dir))
+		kunmap(page);
 	f2fs_put_page(page, 0);
 out_err:
 	iput(dir);

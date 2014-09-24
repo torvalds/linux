@@ -201,6 +201,9 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 	unsigned int max_depth;
 	unsigned int level;
 
+	if (f2fs_has_inline_dentry(dir))
+		return find_in_inline_dir(dir, child, res_page);
+
 	if (npages == 0)
 		return NULL;
 
@@ -227,6 +230,9 @@ struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, struct page **p)
 	struct f2fs_dir_entry *de;
 	struct f2fs_dentry_block *dentry_blk;
 
+	if (f2fs_has_inline_dentry(dir))
+		return f2fs_parent_inline_dir(dir, p);
+
 	page = get_lock_data_page(dir, 0);
 	if (IS_ERR(page))
 		return NULL;
@@ -247,7 +253,8 @@ ino_t f2fs_inode_by_name(struct inode *dir, struct qstr *qstr)
 	de = f2fs_find_entry(dir, qstr, &page);
 	if (de) {
 		res = le32_to_cpu(de->ino);
-		kunmap(page);
+		if (!f2fs_has_inline_dentry(dir))
+			kunmap(page);
 		f2fs_put_page(page, 0);
 	}
 
@@ -261,7 +268,8 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 	f2fs_wait_on_page_writeback(page, DATA);
 	de->ino = cpu_to_le32(inode->i_ino);
 	set_de_type(de, inode);
-	kunmap(page);
+	if (!f2fs_has_inline_dentry(dir))
+		kunmap(page);
 	set_page_dirty(page);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(dir);
@@ -302,6 +310,9 @@ static int make_empty_dir(struct inode *inode,
 	struct page *dentry_page;
 	struct f2fs_dentry_block *dentry_blk;
 	struct f2fs_dir_entry *de;
+
+	if (f2fs_has_inline_dentry(inode))
+		return make_empty_inline_dir(inode, parent, page);
 
 	dentry_page = get_new_data_page(inode, page, 0, true);
 	if (IS_ERR(dentry_page))
@@ -462,6 +473,14 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 	int err = 0;
 	int i;
 
+	if (f2fs_has_inline_dentry(dir)) {
+		err = f2fs_add_inline_entry(dir, name, inode);
+		if (!err || err != -EAGAIN)
+			return err;
+		else
+			err = 0;
+	}
+
 	dentry_hash = f2fs_dentry_hash(name);
 	level = 0;
 	current_depth = F2FS_I(dir)->i_current_depth;
@@ -600,6 +619,9 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
 	int i;
 
+	if (f2fs_has_inline_dentry(dir))
+		return f2fs_delete_inline_entry(dentry, page, dir, inode);
+
 	lock_page(page);
 	f2fs_wait_on_page_writeback(page, DATA);
 
@@ -636,6 +658,9 @@ bool f2fs_empty_dir(struct inode *dir)
 	unsigned int bit_pos;
 	struct f2fs_dentry_block *dentry_blk;
 	unsigned long nblock = dir_blocks(dir);
+
+	if (f2fs_has_inline_dentry(dir))
+		return f2fs_empty_inline_dir(dir);
 
 	for (bidx = 0; bidx < nblock; bidx++) {
 		dentry_page = get_lock_data_page(dir, bidx);
@@ -675,6 +700,9 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 	struct file_ra_state *ra = &file->f_ra;
 	unsigned int n = ((unsigned long)ctx->pos / NR_DENTRY_IN_BLOCK);
 	unsigned char d_type = DT_UNKNOWN;
+
+	if (f2fs_has_inline_dentry(inode))
+		return f2fs_read_inline_dir(file, ctx);
 
 	bit_pos = ((unsigned long)ctx->pos % NR_DENTRY_IN_BLOCK);
 
