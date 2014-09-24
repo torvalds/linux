@@ -22,8 +22,8 @@ struct st_rc_device {
 	int				irq;
 	int				irq_wake;
 	struct clk			*sys_clock;
-	void				*base;	/* Register base address */
-	void				*rx_base;/* RX Register base address */
+	volatile void __iomem		*base;	/* Register base address */
+	volatile void __iomem		*rx_base;/* RX Register base address */
 	struct rc_dev			*rdev;
 	bool				overclocking;
 	int				sample_mult;
@@ -267,8 +267,8 @@ static int st_rc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	rc_dev->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(rc_dev->base)) {
-		ret = PTR_ERR(rc_dev->base);
+	if (IS_ERR((__force void *)rc_dev->base)) {
+		ret = PTR_ERR((__force void *)rc_dev->base);
 		goto err;
 	}
 
