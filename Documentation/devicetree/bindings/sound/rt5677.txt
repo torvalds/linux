@@ -10,6 +10,11 @@ Required properties:
 
 - interrupts : The CODEC's interrupt output.
 
+- gpio-controller : Indicates this device is a GPIO controller.
+
+- #gpio-cells : Should be two. The first cell is the pin number and the
+  second cell is used to specify optional parameters (currently unused).
+
 Optional properties:
 
 - realtek,pow-ldo2-gpio : The GPIO that controls the CODEC's POW_LDO2 pin.
@@ -36,6 +41,10 @@ rt5677 {
 	reg = <0x2c>;
 	interrupt-parent = <&gpio>;
 	interrupts = <TEGRA_GPIO(W, 3) GPIO_ACTIVE_HIGH>;
+
+	gpio-controller;
+	#gpio-cells = <2>;
+
 	realtek,pow-ldo2-gpio =
 		<&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
 };
