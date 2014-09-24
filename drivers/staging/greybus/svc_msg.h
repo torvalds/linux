@@ -1,10 +1,12 @@
 /*
  * Greybus AP <-> SVC message structure format.
  *
- * Defined in the "Greybus Application Protocol" document.
- * See that document for any details on these values and structures.
+ * See "Greybus Application Protocol" document (version 0.draft) for
+ * details on these values and structures.
  *
  * Copyright 2014 Google Inc.
+ *
+ * Released under the GPLv2 only.
  */
 
 #ifndef __SVC_MSG_H
