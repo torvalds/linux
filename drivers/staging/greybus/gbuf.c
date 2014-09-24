@@ -139,8 +139,8 @@ static void cport_process_event(struct work_struct *work)
 	struct gbuf *gbuf = container_of(work, struct gbuf, event);
 
 	/* Call the completion handler, then drop our reference */
- 	gbuf->complete(gbuf);
- 	greybus_put_gbuf(gbuf);
+	gbuf->complete(gbuf);
+	greybus_put_gbuf(gbuf);
 }
 
 #define MAX_CPORTS	1024
