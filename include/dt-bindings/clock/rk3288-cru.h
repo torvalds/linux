@@ -61,6 +61,15 @@
 #define SCLK_LCDC_PWM1		101
 #define SCLK_MAC_RX		102
 #define SCLK_MAC_TX		103
+#define SCLK_EDP_24M		104
+#define SCLK_EDP		105
+#define SCLK_RGA		106
+#define SCLK_ISP		107
+#define SCLK_ISP_JPE		108
+#define SCLK_HDMI_HDCP		109
+#define SCLK_HDMI_CEC		110
+#define SCLK_HEVC_CABAC		111
+#define SCLK_HEVC_CORE		112
 
 #define DCLK_VOP0		190
 #define DCLK_VOP1		191
@@ -75,6 +84,16 @@
 #define ACLK_VOP1		198
 #define ACLK_CRYPTO		199
 #define ACLK_RGA		200
+#define ACLK_RGA_NIU		201
+#define ACLK_IEP		202
+#define ACLK_VIO0_NIU		203
+#define ACLK_VIP		204
+#define ACLK_ISP		205
+#define ACLK_VIO1_NIU		206
+#define ACLK_HEVC		207
+#define ACLK_VCODEC		208
+#define ACLK_CPU		209
+#define ACLK_PERI		210
 
 /* pclk gates */
 #define PCLK_GPIO0		320
@@ -112,6 +131,15 @@
 #define PCLK_PS2C		352
 #define PCLK_TIMER		353
 #define PCLK_TZPC		354
+#define PCLK_EDP_CTRL		355
+#define PCLK_MIPI_DSI0		356
+#define PCLK_MIPI_DSI1		357
+#define PCLK_MIPI_CSI		358
+#define PCLK_LVDS_PHY		359
+#define PCLK_HDMI_CTRL		360
+#define PCLK_VIO2_H2P		361
+#define PCLK_CPU		362
+#define PCLK_PERI		363
 
 /* hclk gates */
 #define HCLK_GPS		448
@@ -137,8 +165,16 @@
 #define HCLK_IEP		468
 #define HCLK_ISP		469
 #define HCLK_RGA		470
+#define HCLK_VIO_AHB_ARBI	471
+#define HCLK_VIO_NIU		472
+#define HCLK_VIP		473
+#define HCLK_VIO2_H2P		474
+#define HCLK_HEVC		475
+#define HCLK_VCODEC		476
+#define HCLK_CPU		477
+#define HCLK_PERI		478
 
-#define CLK_NR_CLKS		(HCLK_RGA + 1)
+#define CLK_NR_CLKS		(HCLK_PERI + 1)
 
 /* soft-reset indices */
 #define SRST_CORE0		0
