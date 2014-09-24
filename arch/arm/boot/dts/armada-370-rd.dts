@@ -50,6 +50,18 @@
 		};
 
 		internal-regs {
+			pinctrl {
+				fan_pins: fan-pins {
+					marvell,pins = "mpp8";
+					marvell,function = "gpio";
+				};
+
+				led_pins: led-pins {
+					marvell,pins = "mpp32";
+					marvell,function = "gpio";
+				};
+			};
+
 			serial@12000 {
 				status = "okay";
 			};
@@ -59,6 +71,8 @@
 			};
 
 			mdio {
+				pinctrl-0 = <&mdio_pins>;
+				pinctrl-names = "default";
 				phy0: ethernet-phy@0 {
 					reg = <0>;
 				};
@@ -74,6 +88,8 @@
 				phy-mode = "sgmii";
 			};
 			ethernet@74000 {
+				pinctrl-0 = <&ge1_rgmii_pins>;
+				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy1>;
 				phy-mode = "rgmii-id";
@@ -103,6 +119,26 @@
 					label = "Software Button";
 					linux,code = <KEY_POWER>;
 					gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+				};
+			};
+
+			gpio-fan {
+				compatible = "gpio-fan";
+				gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+				gpio-fan,speed-map = <0 0 3000 1>;
+				pinctrl-0 = <&fan_pins>;
+				pinctrl-names = "default";
+			};
+
+			gpio_leds {
+				compatible = "gpio-leds";
+				pinctrl-names = "default";
+				pinctrl-0 = <&led_pins>;
+
+				sw_led {
+					label = "370rd:green:sw";
+					gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+					default-state = "keep";
 				};
 			};
 
