@@ -1,0 +1,267 @@
+/*
+ * Hisilicon Ltd. HiP04 SoC
+ *
+ * Copyright (C) 2013-2014 Hisilicon Ltd.
+ * Copyright (C) 2013-2014 Linaro Ltd.
+ *
+ * Author: Haojian Zhuang <haojian.zhuang@linaro.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	/* memory bus is 64-bit */
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	bootwrapper {
+		compatible = "hisilicon,hip04-bootwrapper";
+		boot-method = <0x10c00000 0x10000>, <0xe0000100 0x1000>;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&CPU0>;
+				};
+				core1 {
+					cpu = <&CPU1>;
+				};
+				core2 {
+					cpu = <&CPU2>;
+				};
+				core3 {
+					cpu = <&CPU3>;
+				};
+			};
+			cluster1 {
+				core0 {
+					cpu = <&CPU4>;
+				};
+				core1 {
+					cpu = <&CPU5>;
+				};
+				core2 {
+					cpu = <&CPU6>;
+				};
+				core3 {
+					cpu = <&CPU7>;
+				};
+			};
+			cluster2 {
+				core0 {
+					cpu = <&CPU8>;
+				};
+				core1 {
+					cpu = <&CPU9>;
+				};
+				core2 {
+					cpu = <&CPU10>;
+				};
+				core3 {
+					cpu = <&CPU11>;
+				};
+			};
+			cluster3 {
+				core0 {
+					cpu = <&CPU12>;
+				};
+				core1 {
+					cpu = <&CPU13>;
+				};
+				core2 {
+					cpu = <&CPU14>;
+				};
+				core3 {
+					cpu = <&CPU15>;
+				};
+			};
+		};
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0>;
+		};
+		CPU1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <1>;
+		};
+		CPU2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <2>;
+		};
+		CPU3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <3>;
+		};
+		CPU4: cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x100>;
+		};
+		CPU5: cpu@101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x101>;
+		};
+		CPU6: cpu@102 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x102>;
+		};
+		CPU7: cpu@103 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x103>;
+		};
+		CPU8: cpu@200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x200>;
+		};
+		CPU9: cpu@201 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x201>;
+		};
+		CPU10: cpu@202 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x202>;
+		};
+		CPU11: cpu@203 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x203>;
+		};
+		CPU12: cpu@300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x300>;
+		};
+		CPU13: cpu@301 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x301>;
+		};
+		CPU14: cpu@302 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x302>;
+		};
+		CPU15: cpu@303 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x303>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupt-parent = <&gic>;
+		interrupts = <1 13 0xf08>,
+			     <1 14 0xf08>,
+			     <1 11 0xf08>,
+			     <1 10 0xf08>;
+	};
+
+	clk_50m: clk_50m {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <50000000>;
+	};
+
+	clk_168m: clk_168m {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <168000000>;
+	};
+
+	soc {
+		/* It's a 32-bit SoC. */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&gic>;
+		ranges = <0 0 0xe0000000 0x10000000>;
+
+		gic: interrupt-controller@c01000 {
+			compatible = "hisilicon,hip04-intc";
+			#interrupt-cells = <3>;
+			#address-cells = <0>;
+			interrupt-controller;
+			interrupts = <1 9 0xf04>;
+
+			reg = <0xc01000 0x1000>, <0xc02000 0x1000>,
+			      <0xc04000 0x2000>, <0xc06000 0x2000>;
+		};
+
+		sysctrl: sysctrl {
+			compatible = "hisilicon,sysctrl";
+			reg = <0x3e00000 0x00100000>;
+		};
+
+		fabric: fabric {
+			compatible = "hisilicon,hip04-fabric";
+			reg = <0x302a000 0x1000>;
+		};
+
+		dual_timer0: dual_timer@3000000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x3000000 0x1000>;
+			interrupts = <0 224 4>;
+			clocks = <&clk_50m>, <&clk_50m>;
+			clock-names = "apb_pclk";
+		};
+
+		arm-pmu {
+			compatible = "arm,cortex-a15-pmu";
+			interrupts = <0 64 4>,
+				     <0 65 4>,
+				     <0 66 4>,
+				     <0 67 4>,
+				     <0 68 4>,
+				     <0 69 4>,
+				     <0 70 4>,
+				     <0 71 4>,
+				     <0 72 4>,
+				     <0 73 4>,
+				     <0 74 4>,
+				     <0 75 4>,
+				     <0 76 4>,
+				     <0 77 4>,
+				     <0 78 4>,
+				     <0 79 4>;
+		};
+
+		uart0: uart@4007000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x4007000 0x1000>;
+			interrupts = <0 381 4>;
+			clocks = <&clk_168m>;
+			clock-names = "uartclk";
+			reg-shift = <2>;
+			status = "disabled";
+		};
+
+		sata0: sata@a000000 {
+			compatible = "hisilicon,hisi-ahci";
+			reg = <0xa000000 0x1000000>;
+			interrupts = <0 372 4>;
+		};
+
+	};
+};
