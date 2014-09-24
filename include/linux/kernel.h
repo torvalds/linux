@@ -162,6 +162,7 @@ extern int _cond_resched(void);
 #endif
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
+  void ___might_sleep(const char *file, int line, int preempt_offset);
   void __might_sleep(const char *file, int line, int preempt_offset);
 /**
  * might_sleep - annotation for functions that can sleep
@@ -177,6 +178,8 @@ extern int _cond_resched(void);
 	do { __might_sleep(__FILE__, __LINE__, 0); might_resched(); } while (0)
 # define sched_annotate_sleep()	__set_current_state(TASK_RUNNING)
 #else
+  static inline void ___might_sleep(const char *file, int line,
+				   int preempt_offset) { }
   static inline void __might_sleep(const char *file, int line,
 				   int preempt_offset) { }
 # define might_sleep() do { might_resched(); } while (0)

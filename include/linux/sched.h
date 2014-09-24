@@ -2806,7 +2806,7 @@ static inline int signal_pending_state(long state, struct task_struct *p)
 extern int _cond_resched(void);
 
 #define cond_resched() ({			\
-	__might_sleep(__FILE__, __LINE__, 0);	\
+	___might_sleep(__FILE__, __LINE__, 0);	\
 	_cond_resched();			\
 })
 
@@ -2819,14 +2819,14 @@ extern int __cond_resched_lock(spinlock_t *lock);
 #endif
 
 #define cond_resched_lock(lock) ({				\
-	__might_sleep(__FILE__, __LINE__, PREEMPT_LOCK_OFFSET);	\
+	___might_sleep(__FILE__, __LINE__, PREEMPT_LOCK_OFFSET);\
 	__cond_resched_lock(lock);				\
 })
 
 extern int __cond_resched_softirq(void);
 
 #define cond_resched_softirq() ({					\
-	__might_sleep(__FILE__, __LINE__, SOFTIRQ_DISABLE_OFFSET);	\
+	___might_sleep(__FILE__, __LINE__, SOFTIRQ_DISABLE_OFFSET);	\
 	__cond_resched_softirq();					\
 })
 

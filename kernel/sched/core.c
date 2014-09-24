@@ -7296,8 +7296,6 @@ static inline int preempt_count_equals(int preempt_offset)
 
 void __might_sleep(const char *file, int line, int preempt_offset)
 {
-	static unsigned long prev_jiffy;	/* ratelimiting */
-
 	/*
 	 * Blocking primitives will set (and therefore destroy) current->state,
 	 * since we will exit with TASK_RUNNING make sure we enter with it,
@@ -7310,6 +7308,14 @@ void __might_sleep(const char *file, int line, int preempt_offset)
 			(void *)current->task_state_change,
 			(void *)current->task_state_change))
 		__set_current_state(TASK_RUNNING);
+
+	___might_sleep(file, line, preempt_offset);
+}
+EXPORT_SYMBOL(__might_sleep);
+
+void ___might_sleep(const char *file, int line, int preempt_offset)
+{
+	static unsigned long prev_jiffy;	/* ratelimiting */
 
 	rcu_sleep_check(); /* WARN_ON_ONCE() by default, no rate limit reqd. */
 	if ((preempt_count_equals(preempt_offset) && !irqs_disabled() &&
@@ -7340,7 +7346,7 @@ void __might_sleep(const char *file, int line, int preempt_offset)
 #endif
 	dump_stack();
 }
-EXPORT_SYMBOL(__might_sleep);
+EXPORT_SYMBOL(___might_sleep);
 #endif
 
 #ifdef CONFIG_MAGIC_SYSRQ
