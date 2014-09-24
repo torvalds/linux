@@ -28,6 +28,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/math64.h>
 #include "qm1d1c0042.h"
 
 #define QM1D1C0042_NUM_REGS 0x20
@@ -234,7 +235,9 @@ static int qm1d1c0042_set_params(struct dvb_frontend *fe)
 	 * sd = b          (b >= 0)
 	 *      1<<22 + b  (b < 0)
 	 */
-	b = (((s64) freq) << 20) / state->cfg.xtal_freq - (((s64) a) << 20);
+	b = (s32)div64_s64(((s64) freq) << 20, state->cfg.xtal_freq)
+			   - (((s64) a) << 20);
+
 	if (b >= 0)
 		sd = b;
 	else
