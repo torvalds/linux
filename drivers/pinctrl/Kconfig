@@ -86,7 +86,7 @@ config PINCTRL_BCM2835
 
 config PINCTRL_BCM281XX
 	bool "Broadcom BCM281xx pinctrl driver"
-	depends on OF
+	depends on OF && (ARCH_BCM_MOBILE || COMPILE_TEST)
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
