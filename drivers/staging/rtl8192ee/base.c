@@ -468,7 +468,8 @@ static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
 		    rtl92e_watch_dog_timer_callback, (unsigned long)hw);
 	init_timer(&rtlpriv->works.dualmac_easyconcurrent_retrytimer);
 	setup_timer(&rtlpriv->works.dualmac_easyconcurrent_retrytimer,
-		    rtl92e_easy_concurrent_retrytimer_callback, (unsigned long)hw);
+		    rtl92e_easy_concurrent_retrytimer_callback,
+		    (unsigned long)hw);
 	/* <2> work queue */
 	rtlpriv->works.hw = hw;
 	rtlpriv->works.rtl_wq = alloc_workqueue("%s", 0, 0, rtlpriv->cfg->name);
