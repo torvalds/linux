@@ -2412,7 +2412,7 @@ static void switch_names(struct dentry *dentry, struct dentry *target)
 			}
 		}
 	}
-	swap(dentry->d_name.len, target->d_name.len);
+	swap(dentry->d_name.hash_len, target->d_name.hash_len);
 }
 
 static void dentry_lock_for_move(struct dentry *dentry, struct dentry *target)
@@ -2510,7 +2510,6 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 
 	/* Switch the names.. */
 	switch_names(dentry, target);
-	swap(dentry->d_name.hash, target->d_name.hash);
 
 	/* ... and switch them in the tree */
 	if (IS_ROOT(dentry)) {
