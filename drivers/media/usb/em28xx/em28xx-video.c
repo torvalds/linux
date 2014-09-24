@@ -1342,7 +1342,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct em28xx *dev = video_drvdata(file);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
-	if (v4l2->streaming_users > 0)
+	if (vb2_is_busy(&v4l2->vb_vidq))
 		return -EBUSY;
 
 	vidioc_try_fmt_vid_cap(file, priv, f);
@@ -1883,8 +1883,9 @@ static int em28xx_v4l2_open(struct file *filp)
 		return -EINVAL;
 	}
 
-	em28xx_videodbg("open dev=%s type=%s\n",
-			video_device_node_name(vdev), v4l2_type_names[fh_type]);
+	em28xx_videodbg("open dev=%s type=%s users=%d\n",
+			video_device_node_name(vdev), v4l2_type_names[fh_type],
+			v4l2->users);
 
 	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;
@@ -1897,9 +1898,7 @@ static int em28xx_v4l2_open(struct file *filp)
 		return ret;
 	}
 
-	if (v4l2_fh_is_singular_file(filp)) {
-		em28xx_videodbg("first opened filehandle, initializing device\n");
-
+	if (v4l2->users == 0) {
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 
 		if (vdev->vfl_type != VFL_TYPE_RADIO)
@@ -1910,8 +1909,6 @@ static int em28xx_v4l2_open(struct file *filp)
 		 * of some i2c devices
 		 */
 		em28xx_wake_i2c(dev);
-	} else {
-		em28xx_videodbg("further filehandles are already opened\n");
 	}
 
 	if (vdev->vfl_type == VFL_TYPE_RADIO) {
@@ -1921,6 +1918,7 @@ static int em28xx_v4l2_open(struct file *filp)
 
 	kref_get(&dev->ref);
 	kref_get(&v4l2->ref);
+	v4l2->users++;
 
 	mutex_unlock(&dev->lock);
 
@@ -2027,11 +2025,12 @@ static int em28xx_v4l2_close(struct file *filp)
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 	int              errCode;
 
+	em28xx_videodbg("users=%d\n", v4l2->users);
+
+	vb2_fop_release(filp);
 	mutex_lock(&dev->lock);
 
-	if (v4l2_fh_is_singular_file(filp)) {
-		em28xx_videodbg("last opened filehandle, shutting down device\n");
-
+	if (v4l2->users == 1) {
 		/* No sense to try to write to the device */
 		if (dev->disconnected)
 			goto exit;
@@ -2050,12 +2049,10 @@ static int em28xx_v4l2_close(struct file *filp)
 			em28xx_errdev("cannot change alternate number to "
 					"0 (error=%i)\n", errCode);
 		}
-	} else {
-		em28xx_videodbg("further opened filehandles left\n");
 	}
 
 exit:
-	vb2_fop_release(filp);
+	v4l2->users--;
 	kref_put(&v4l2->ref, em28xx_free_v4l2);
 	mutex_unlock(&dev->lock);
 	kref_put(&dev->ref, em28xx_free_device);

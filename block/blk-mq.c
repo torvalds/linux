@@ -119,7 +119,16 @@ void blk_mq_freeze_queue(struct request_queue *q)
 	spin_unlock_irq(q->queue_lock);
 
 	if (freeze) {
-		percpu_ref_kill(&q->mq_usage_counter);
+		/*
+		 * XXX: Temporary kludge to work around SCSI blk-mq stall.
+		 * SCSI synchronously creates and destroys many queues
+		 * back-to-back during probe leading to lengthy stalls.
+		 * This will be fixed by keeping ->mq_usage_counter in
+		 * atomic mode until genhd registration, but, for now,
+		 * let's work around using expedited synchronization.
+		 */
+		__percpu_ref_kill_expedited(&q->mq_usage_counter);
+
 		blk_mq_run_queues(q, false);
 	}
 	wait_event(q->mq_freeze_wq, percpu_ref_is_zero(&q->mq_usage_counter));
@@ -203,7 +212,6 @@ __blk_mq_alloc_request(struct blk_mq_alloc_data *data, int rw)
 	if (tag != BLK_MQ_TAG_FAIL) {
 		rq = data->hctx->tags->rqs[tag];
 
-		rq->cmd_flags = 0;
 		if (blk_mq_tag_busy(data->hctx)) {
 			rq->cmd_flags = REQ_MQ_INFLIGHT;
 			atomic_inc(&data->hctx->nr_active);
@@ -258,6 +266,7 @@ static void __blk_mq_free_request(struct blk_mq_hw_ctx *hctx,
 
 	if (rq->cmd_flags & REQ_MQ_INFLIGHT)
 		atomic_dec(&hctx->nr_active);
+	rq->cmd_flags = 0;
 
 	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
 	blk_mq_put_tag(hctx, tag, &ctx->last_tag);
@@ -393,6 +402,12 @@ static void blk_mq_start_request(struct request *rq, bool last)
 	blk_add_timer(rq);
 
 	/*
+	 * Ensure that ->deadline is visible before set the started
+	 * flag and clear the completed flag.
+	 */
+	smp_mb__before_atomic();
+
+	/*
 	 * Mark us as started and clear complete. Complete might have been
 	 * set if requeue raced with timeout, which then marked it as
 	 * complete. So be sure to clear complete again when we start
@@ -473,7 +488,11 @@ static void blk_mq_requeue_work(struct work_struct *work)
 		blk_mq_insert_request(rq, false, false, false);
 	}
 
-	blk_mq_run_queues(q, false);
+	/*
+	 * Use the start variant of queue running here, so that running
+	 * the requeue work will kick stopped queues.
+	 */
+	blk_mq_start_hw_queues(q);
 }
 
 void blk_mq_add_to_requeue_list(struct request *rq, bool at_head)
@@ -957,14 +976,9 @@ void blk_mq_insert_request(struct request *rq, bool at_head, bool run_queue,
 
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 
-	if (rq->cmd_flags & (REQ_FLUSH | REQ_FUA) &&
-	    !(rq->cmd_flags & (REQ_FLUSH_SEQ))) {
-		blk_insert_flush(rq);
-	} else {
-		spin_lock(&ctx->lock);
-		__blk_mq_insert_request(hctx, rq, at_head);
-		spin_unlock(&ctx->lock);
-	}
+	spin_lock(&ctx->lock);
+	__blk_mq_insert_request(hctx, rq, at_head);
+	spin_unlock(&ctx->lock);
 
 	if (run_queue)
 		blk_mq_run_hw_queue(hctx, async);
@@ -1404,6 +1418,8 @@ static struct blk_mq_tags *blk_mq_init_rq_map(struct blk_mq_tag_set *set,
 		left -= to_do * rq_size;
 		for (j = 0; j < to_do; j++) {
 			tags->rqs[i] = p;
+			tags->rqs[i]->atomic_flags = 0;
+			tags->rqs[i]->cmd_flags = 0;
 			if (set->ops->init_request) {
 				if (set->ops->init_request(set->driver_data,
 						tags->rqs[i], hctx_idx, i,
@@ -1956,7 +1972,6 @@ out_unwind:
 	while (--i >= 0)
 		blk_mq_free_rq_map(set, set->tags[i], i);
 
-	set->tags = NULL;
 	return -ENOMEM;
 }
 
