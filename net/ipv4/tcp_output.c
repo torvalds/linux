@@ -384,7 +384,7 @@ static void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
 	TCP_SKB_CB(skb)->tcp_flags = flags;
 	TCP_SKB_CB(skb)->sacked = 0;
 
-	shinfo->gso_segs = 1;
+	tcp_skb_pcount_set(skb, 1);
 	shinfo->gso_size = 0;
 	shinfo->gso_type = 0;
 
@@ -972,6 +972,9 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 		TCP_ADD_STATS(sock_net(sk), TCP_MIB_OUTSEGS,
 			      tcp_skb_pcount(skb));
 
+	/* OK, its time to fill skb_shinfo(skb)->gso_segs */
+	skb_shinfo(skb)->gso_segs = tcp_skb_pcount(skb);
+
 	/* Our usage of tstamp should remain private */
 	skb->tstamp.tv64 = 0;
 
@@ -1019,11 +1022,11 @@ static void tcp_set_skb_tso_segs(const struct sock *sk, struct sk_buff *skb,
 		/* Avoid the costly divide in the normal
 		 * non-TSO case.
 		 */
-		shinfo->gso_segs = 1;
+		tcp_skb_pcount_set(skb, 1);
 		shinfo->gso_size = 0;
 		shinfo->gso_type = 0;
 	} else {
-		shinfo->gso_segs = DIV_ROUND_UP(skb->len, mss_now);
+		tcp_skb_pcount_set(skb, DIV_ROUND_UP(skb->len, mss_now));
 		shinfo->gso_size = mss_now;
 		shinfo->gso_type = sk->sk_gso_type;
 	}

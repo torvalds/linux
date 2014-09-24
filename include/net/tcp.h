@@ -698,7 +698,16 @@ static inline u32 tcp_skb_timestamp(const struct sk_buff *skb)
 struct tcp_skb_cb {
 	__u32		seq;		/* Starting sequence number	*/
 	__u32		end_seq;	/* SEQ + FIN + SYN + datalen	*/
-	__u32		tcp_tw_isn;	/* isn chosen by tcp_timewait_state_process() */
+	union {
+		/* Note : tcp_tw_isn is used in input path only
+		 *	  (isn chosen by tcp_timewait_state_process())
+		 *
+		 * 	  tcp_gso_segs is used in write queue only,
+		 *	  cf tcp_skb_pcount()
+		 */
+		__u32		tcp_tw_isn;
+		__u32		tcp_gso_segs;
+	};
 	__u8		tcp_flags;	/* TCP header flags. (tcp[13])	*/
 
 	__u8		sacked;		/* State flags for SACK/FACK.	*/
@@ -746,7 +755,17 @@ TCP_ECN_create_request(struct request_sock *req, const struct sk_buff *skb,
  */
 static inline int tcp_skb_pcount(const struct sk_buff *skb)
 {
-	return skb_shinfo(skb)->gso_segs;
+	return TCP_SKB_CB(skb)->tcp_gso_segs;
+}
+
+static inline void tcp_skb_pcount_set(struct sk_buff *skb, int segs)
+{
+	TCP_SKB_CB(skb)->tcp_gso_segs = segs;
+}
+
+static inline void tcp_skb_pcount_add(struct sk_buff *skb, int segs)
+{
+	TCP_SKB_CB(skb)->tcp_gso_segs += segs;
 }
 
 /* This is valid iff tcp_skb_pcount() > 1. */
