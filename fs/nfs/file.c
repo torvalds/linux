@@ -477,7 +477,8 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
 
 	/* Always try to initiate a 'commit' if relevant, but only
 	 * wait for it if __GFP_WAIT is set and the calling process is
-	 * allowed to block.  Even then, only wait 1 second.
+	 * allowed to block.  Even then, only wait 1 second and only
+	 * if the 'bdi' is not congested.
 	 * Waiting indefinitely can cause deadlocks when the NFS
 	 * server is on this machine, and there is no particular need
 	 * to wait extensively here.  A short wait has the benefit
@@ -488,9 +489,13 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
 		nfs_commit_inode(mapping->host, 0);
 		if ((gfp & __GFP_WAIT) &&
 		    !current_is_kswapd() &&
-		    !(current->flags & PF_FSTRANS)) {
+		    !(current->flags & PF_FSTRANS) &&
+		    !bdi_write_congested(&nfss->backing_dev_info)) {
 			wait_on_page_bit_killable_timeout(page, PG_private,
 							  HZ);
+			if (PagePrivate(page))
+				set_bdi_congested(&nfss->backing_dev_info,
+						  BLK_RW_ASYNC);
 		}
 	}
 	/* If PagePrivate() is set, then the page is not freeable */
