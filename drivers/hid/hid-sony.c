@@ -1107,10 +1107,10 @@ static void sony_input_configured(struct hid_device *hdev,
 
 	/*
 	 * The Dualshock 4 touchpad supports 2 touches and has a
-	 * resolution of 1920x940.
+	 * resolution of 1920x942 (44.86 dots/mm).
 	 */
 	if (sc->quirks & DUALSHOCK4_CONTROLLER) {
-		if (sony_register_touchpad(hidinput, 2, 1920, 940) != 0)
+		if (sony_register_touchpad(hidinput, 2, 1920, 942) != 0)
 			hid_err(sc->hdev,
 				"Unable to initialize multi-touch slots\n");
 	}
