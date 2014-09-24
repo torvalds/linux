@@ -530,16 +530,9 @@ EXPORT_SYMBOL(dma_cache_wback);
  */
 void flush_icache_range(unsigned long kstart, unsigned long kend)
 {
-	unsigned int tot_sz, off, sz;
-	unsigned long phy, pfn;
+	unsigned int tot_sz;
 
-	/* printk("Kernel Cache Cohenercy: %lx to %lx\n",kstart, kend); */
-
-	/* This is not the right API for user virtual address */
-	if (kstart < TASK_SIZE) {
-		BUG_ON("Flush icache range for user virtual addr space");
-		return;
-	}
+	WARN(kstart < TASK_SIZE, "%s() can't handle user vaddr", __func__);
 
 	/* Shortcut for bigger flush ranges.
 	 * Here we don't care if this was kernel virtual or phy addr
@@ -572,6 +565,9 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 	 *     straddles across 2 virtual pages and hence need for loop
 	 */
 	while (tot_sz > 0) {
+		unsigned int off, sz;
+		unsigned long phy, pfn;
+
 		off = kstart % PAGE_SIZE;
 		pfn = vmalloc_to_pfn((void *)kstart);
 		phy = (pfn << PAGE_SHIFT) + off;
