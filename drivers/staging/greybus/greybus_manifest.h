@@ -1,7 +1,7 @@
 /*
  * Greybus module manifest definition
  *
- * See "Greybus Application Protocol" document (version 0.draft) for
+ * See "Greybus Application Protocol" document (version 0.1) for
  * details on these values and structures.
  *
  * Copyright 2014 Google Inc.
