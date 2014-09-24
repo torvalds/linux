@@ -848,6 +848,7 @@ out:
 
 /**
  * spi_finalize_current_transfer - report completion of a transfer
+ * @master: the master reporting completion
  *
  * Called by SPI drivers using the core transfer_one_message()
  * implementation to notify it that the current interrupt driven

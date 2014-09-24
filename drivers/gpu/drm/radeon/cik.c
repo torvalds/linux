@@ -5749,20 +5749,17 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(0x15D8, 0);
 	WREG32(0x15DC, 0);
 
-	/* empty context1-15 */
-	/* FIXME start with 4G, once using 2 level pt switch to full
-	 * vm size space
-	 */
+	/* restore context1-15 */
 	/* set vm size, must be a multiple of 4 */
 	WREG32(VM_CONTEXT1_PAGE_TABLE_START_ADDR, 0);
 	WREG32(VM_CONTEXT1_PAGE_TABLE_END_ADDR, rdev->vm_manager.max_pfn);
 	for (i = 1; i < 16; i++) {
 		if (i < 8)
 			WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (i << 2),
-			       rdev->gart.table_addr >> 12);
+			       rdev->vm_manager.saved_table_addr[i]);
 		else
 			WREG32(VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((i - 8) << 2),
-			       rdev->gart.table_addr >> 12);
+			       rdev->vm_manager.saved_table_addr[i]);
 	}
 
 	/* enable context1-15 */
@@ -5827,6 +5824,17 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
  */
 static void cik_pcie_gart_disable(struct radeon_device *rdev)
 {
+	unsigned i;
+
+	for (i = 1; i < 16; ++i) {
+		uint32_t reg;
+		if (i < 8)
+			reg = VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (i << 2);
+		else
+			reg = VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((i - 8) << 2);
+		rdev->vm_manager.saved_table_addr[i] = RREG32(reg);
+	}
+
 	/* Disable all tables */
 	WREG32(VM_CONTEXT0_CNTL, 0);
 	WREG32(VM_CONTEXT1_CNTL, 0);
@@ -9555,6 +9563,9 @@ static void cik_pcie_gen3_enable(struct radeon_device *rdev)
 	int ret, i;
 	u16 tmp16;
 
+	if (pci_is_root_bus(rdev->pdev->bus))
+		return;
+
 	if (radeon_pcie_gen2 == 0)
 		return;
 
@@ -9781,7 +9792,8 @@ static void cik_program_aspm(struct radeon_device *rdev)
 			if (orig != data)
 				WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, data);
 
-			if (!disable_clkreq) {
+			if (!disable_clkreq &&
+			    !pci_is_root_bus(rdev->pdev->bus)) {
 				struct pci_dev *root = rdev->pdev->bus->self;
 				u32 lnkcap;
 

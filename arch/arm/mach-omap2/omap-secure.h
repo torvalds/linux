@@ -45,6 +45,7 @@
 #define OMAP4_MON_L2X0_PREFETCH_INDEX	0x113
 
 #define OMAP5_DRA7_MON_SET_CNTFRQ_INDEX	0x109
+#define OMAP5_MON_AMBA_IF_INDEX		0x108
 
 /* Secure PPA(Primary Protected Application) APIs */
 #define OMAP4_PPA_L2_POR_INDEX		0x23

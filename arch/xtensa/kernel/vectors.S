@@ -454,8 +454,14 @@ _DoubleExceptionVector_WindowOverflow:
 	s32i	a0, a2, PT_DEPC
 
 _DoubleExceptionVector_handle_exception:
+	addi	a0, a0, -EXCCAUSE_UNALIGNED
+	beqz	a0, 2f
 	addx4	a0, a0, a3
-	l32i	a0, a0, EXC_TABLE_FAST_USER
+	l32i	a0, a0, EXC_TABLE_FAST_USER + 4 * EXCCAUSE_UNALIGNED
+	xsr	a3, excsave1
+	jx	a0
+2:
+	movi	a0, user_exception
 	xsr	a3, excsave1
 	jx	a0
 

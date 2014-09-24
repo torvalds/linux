@@ -271,7 +271,7 @@ static void giveback(struct dw_spi *dws)
 					transfer_list);
 
 	if (!last_transfer->cs_change)
-		spi_chip_sel(dws, dws->cur_msg->spi, 0);
+		spi_chip_sel(dws, msg->spi, 0);
 
 	spi_finalize_current_message(dws->master);
 }
