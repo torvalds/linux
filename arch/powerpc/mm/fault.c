@@ -120,16 +120,16 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address)
 
 	up_read(&current->mm->mmap_sem);
 
-	if (user_mode(regs)) {
-		current->thread.trap_nr = BUS_ADRERR;
-		info.si_signo = SIGBUS;
-		info.si_errno = 0;
-		info.si_code = BUS_ADRERR;
-		info.si_addr = (void __user *)address;
-		force_sig_info(SIGBUS, &info, current);
-		return MM_FAULT_RETURN;
-	}
-	return MM_FAULT_ERR(SIGBUS);
+	if (!user_mode(regs))
+		return MM_FAULT_ERR(SIGBUS);
+
+	current->thread.trap_nr = BUS_ADRERR;
+	info.si_signo = SIGBUS;
+	info.si_errno = 0;
+	info.si_code = BUS_ADRERR;
+	info.si_addr = (void __user *)address;
+	force_sig_info(SIGBUS, &info, current);
+	return MM_FAULT_RETURN;
 }
 
 static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
