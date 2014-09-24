@@ -558,13 +558,17 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	struct map *map;
 	struct kmap *kmap;
 	int err;
+	union perf_event *event;
+
+	if (machine->vmlinux_maps[0] == NULL)
+		return -1;
+
 	/*
 	 * We should get this from /sys/kernel/sections/.text, but till that is
 	 * available use this, and after it is use this as a fallback for older
 	 * kernels.
 	 */
-	union perf_event *event = zalloc((sizeof(event->mmap) +
-					  machine->id_hdr_size));
+	event = zalloc((sizeof(event->mmap) + machine->id_hdr_size));
 	if (event == NULL) {
 		pr_debug("Not enough memory synthesizing mmap event "
 			 "for kernel modules\n");
