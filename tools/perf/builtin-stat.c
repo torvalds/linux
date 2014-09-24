@@ -732,7 +732,7 @@ static void aggr_printout(struct perf_evsel *evsel, int id, int nr)
 	}
 }
 
-static void nsec_printout(int cpu, int nr, struct perf_evsel *evsel, double avg)
+static void nsec_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 {
 	double msecs = avg / 1e6;
 	const char *fmt_v, *fmt_n;
@@ -741,7 +741,7 @@ static void nsec_printout(int cpu, int nr, struct perf_evsel *evsel, double avg)
 	fmt_v = csv_output ? "%.6f%s" : "%18.6f%s";
 	fmt_n = csv_output ? "%s" : "%-25s";
 
-	aggr_printout(evsel, cpu, nr);
+	aggr_printout(evsel, id, nr);
 
 	scnprintf(name, sizeof(name), "%s%s",
 		  perf_evsel__name(evsel), csv_output ? "" : " (msec)");
@@ -947,11 +947,12 @@ static void print_ll_cache_misses(int cpu,
 	fprintf(output, " of all LL-cache hits   ");
 }
 
-static void abs_printout(int cpu, int nr, struct perf_evsel *evsel, double avg)
+static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 {
 	double total, ratio = 0.0, total2;
 	double sc =  evsel->scale;
 	const char *fmt;
+	int cpu = cpu_map__id_to_cpu(id);
 
 	if (csv_output) {
 		fmt = sc != 1.0 ?  "%.2f%s" : "%.0f%s";
@@ -962,7 +963,7 @@ static void abs_printout(int cpu, int nr, struct perf_evsel *evsel, double avg)
 			fmt = sc != 1.0 ? "%18.2f%s" : "%18.0f%s";
 	}
 
-	aggr_printout(evsel, cpu, nr);
+	aggr_printout(evsel, id, nr);
 
 	if (aggr_mode == AGGR_GLOBAL)
 		cpu = 0;
