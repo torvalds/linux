@@ -6026,6 +6026,11 @@ static void kvm_vcpu_flush_tlb(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->tlb_flush(vcpu);
 }
 
+void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
+					   unsigned long address)
+{
+}
+
 /*
  * Returns 1 to let __vcpu_run() continue the guest execution loop without
  * exiting to the userspace.  Otherwise, the value will be returned to the

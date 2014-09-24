@@ -181,6 +181,11 @@ static inline int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
 	return 0;
 }
 
+static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
+							 unsigned long address)
+{
+}
+
 struct kvm_vcpu *kvm_arm_get_running_vcpu(void);
 struct kvm_vcpu __percpu **kvm_get_running_vcpus(void);
 
