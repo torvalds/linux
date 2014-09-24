@@ -2019,25 +2019,25 @@ static int s5p_mfc_get_mvc_view_id_v6(struct s5p_mfc_dev *dev)
 static unsigned int s5p_mfc_get_pic_type_top_v6(struct s5p_mfc_ctx *ctx)
 {
 	return s5p_mfc_read_info_v6(ctx,
-		(unsigned int) ctx->dev->mfc_regs->d_ret_picture_tag_top);
+		(__force unsigned int) ctx->dev->mfc_regs->d_ret_picture_tag_top);
 }
 
 static unsigned int s5p_mfc_get_pic_type_bot_v6(struct s5p_mfc_ctx *ctx)
 {
 	return s5p_mfc_read_info_v6(ctx,
-		(unsigned int) ctx->dev->mfc_regs->d_ret_picture_tag_bot);
+		(__force unsigned int) ctx->dev->mfc_regs->d_ret_picture_tag_bot);
 }
 
 static unsigned int s5p_mfc_get_crop_info_h_v6(struct s5p_mfc_ctx *ctx)
 {
 	return s5p_mfc_read_info_v6(ctx,
-		(unsigned int) ctx->dev->mfc_regs->d_display_crop_info1);
+		(__force unsigned int) ctx->dev->mfc_regs->d_display_crop_info1);
 }
 
 static unsigned int s5p_mfc_get_crop_info_v_v6(struct s5p_mfc_ctx *ctx)
 {
 	return s5p_mfc_read_info_v6(ctx,
-		(unsigned int) ctx->dev->mfc_regs->d_display_crop_info2);
+		(__force unsigned int) ctx->dev->mfc_regs->d_display_crop_info2);
 }
 
 static struct s5p_mfc_regs mfc_regs;
