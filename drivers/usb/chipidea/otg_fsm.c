@@ -218,6 +218,7 @@ static unsigned otg_timer_ms[] = {
 	TB_DATA_PLS,
 	TB_SSEND_SRP,
 	TA_DP_END,
+	TA_TST_MAINT,
 	0,
 };
 
@@ -365,6 +366,21 @@ static int a_dp_end_tmout(struct ci_hdrc *ci)
 	return 0;
 }
 
+static int a_tst_maint_tmout(struct ci_hdrc *ci)
+{
+	ci->fsm.tst_maint = 0;
+	if (ci->fsm.otg_vbus_off) {
+		ci->fsm.otg_vbus_off = 0;
+		dev_dbg(ci->dev,
+			"test device does not disconnect, end the session!\n");
+	}
+
+	/* End the session */
+	ci->fsm.a_bus_req = 0;
+	ci->fsm.a_bus_drop = 1;
+	return 0;
+}
+
 /*
  * Keep this list in the same order as timers indexed
  * by enum otg_fsm_timer in include/linux/usb/otg-fsm.h
@@ -382,6 +398,7 @@ static int (*otg_timer_handlers[])(struct ci_hdrc *) = {
 	b_data_pls_tmout,	/* B_DATA_PLS */
 	b_ssend_srp_tmout,	/* B_SSEND_SRP */
 	a_dp_end_tmout,		/* A_DP_END */
+	a_tst_maint_tmout,	/* A_TST_MAINT */
 	NULL,			/* HNP_POLLING */
 };
 
