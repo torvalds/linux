@@ -639,7 +639,7 @@ static int bcm3510_download_firmware(struct dvb_frontend* fe)
 		err("could not load firmware (%s): %d",BCM3510_DEFAULT_FIRMWARE,ret);
 		return ret;
 	}
-	deb_info("got firmware: %zd\n",fw->size);
+	deb_info("got firmware: %zu\n", fw->size);
 
 	b = fw->data;
 	for (i = 0; i < fw->size;) {
