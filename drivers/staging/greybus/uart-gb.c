@@ -34,7 +34,7 @@
 struct gb_tty {
 	struct tty_port port;
 	struct greybus_module *gmod;
-	int cport;
+	int cport_id;
 	unsigned int minor;
 	unsigned char clocal;
 	unsigned int throttled:1;

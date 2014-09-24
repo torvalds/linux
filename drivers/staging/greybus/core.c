@@ -315,7 +315,7 @@ static int create_cport(struct greybus_module *gmod,
 	if (!gmod_cport)
 		return -ENOMEM;
 
-	gmod_cport->number = le16_to_cpu(cport->number);
+	gmod_cport->id = le16_to_cpu(cport->id);
 	gmod_cport->size = le16_to_cpu(cport->size);
 	gmod_cport->speed = cport->speed;
 

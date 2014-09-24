@@ -91,9 +91,9 @@
   Submit a SVC message to the hardware
     the host controller function send_svc_msg is called
   Receive gbuf messages
-    the host controller driver must call greybus_cport_in_data() with the data
+    the host controller driver must call greybus_cport_in() with the data
   Reveive SVC messages from the hardware
-    The host controller driver must call gb_new_ap_msg
+    The host controller driver must call greybus_svc_in
 
 
 */
@@ -102,7 +102,7 @@
 struct gbuf;
 
 struct gmod_cport {
-	u16	number;
+	u16	id;
 	u16	size;
 	u8	speed;	// valid???
 	// FIXME, what else?
@@ -169,7 +169,7 @@ struct greybus_host_driver {
 
 	int (*alloc_gbuf_data)(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask);
 	void (*free_gbuf_data)(struct gbuf *gbuf);
-	int (*send_svc_msg)(struct svc_msg *svc_msg,
+	int (*submit_svc)(struct svc_msg *svc_msg,
 			    struct greybus_host_device *hd);
 	int (*submit_gbuf)(struct gbuf *gbuf, struct greybus_host_device *hd,
 			   gfp_t gfp_mask);
@@ -187,7 +187,7 @@ struct greybus_host_device {
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *host_driver,
 					      struct device *parent);
 void greybus_remove_hd(struct greybus_host_device *hd);
-void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
+void greybus_cport_in(struct greybus_host_device *hd, int cport_id, u8 *data,
 			   size_t length);
 void greybus_gbuf_finished(struct gbuf *gbuf);
 
@@ -289,7 +289,7 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		   u8 *data, int size);
 void gb_remove_module(struct greybus_host_device *hd, u8 module_id);
 
-int gb_new_ap_msg(u8 *data, int length, struct greybus_host_device *hd);
+int greybus_svc_in(u8 *data, int length, struct greybus_host_device *hd);
 int gb_ap_init(void);
 void gb_ap_exit(void);
 int gb_debugfs_init(void);
@@ -298,9 +298,9 @@ int gb_gbuf_init(void);
 void gb_gbuf_exit(void);
 
 int gb_register_cport_complete(struct greybus_module *gmod,
-			       gbuf_complete_t handler, int cport,
+			       gbuf_complete_t handler, int cport_id,
 			       void *context);
-void gb_deregister_cport_complete(int cport);
+void gb_deregister_cport_complete(int cport_id);
 
 extern const struct attribute_group *greybus_module_groups[];
 

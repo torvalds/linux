@@ -53,7 +53,7 @@ static int svc_msg_send(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 
 	// FIXME - Do we need to do more than just pass it to the hd and then
 	// free it?
-	retval = hd->driver->send_svc_msg(svc_msg, hd);
+	retval = hd->driver->submit_svc(svc_msg, hd);
 
 	svc_msg_free(svc_msg);
 	return retval;
@@ -294,7 +294,7 @@ static void ap_process_event(struct work_struct *work)
 	kfree(ap_msg);
 }
 
-int gb_new_ap_msg(u8 *data, int size, struct greybus_host_device *hd)
+int greybus_svc_in(u8 *data, int size, struct greybus_host_device *hd)
 {
 	struct ap_msg *ap_msg;
 
@@ -326,7 +326,7 @@ int gb_new_ap_msg(u8 *data, int size, struct greybus_host_device *hd)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gb_new_ap_msg);
+EXPORT_SYMBOL_GPL(greybus_svc_in);
 
 int gb_ap_init(void)
 {

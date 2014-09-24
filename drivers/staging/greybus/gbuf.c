@@ -156,36 +156,36 @@ static struct gb_cport_handler cport_handler[MAX_CPORTS];
 // need it, we don't have a dynamic system...
 
 int gb_register_cport_complete(struct greybus_module *gmod,
-			       gbuf_complete_t handler, int cport,
+			       gbuf_complete_t handler, int cport_id,
 			       void *context)
 {
-	if (cport_handler[cport].handler)
+	if (cport_handler[cport_id].handler)
 		return -EINVAL;
-	cport_handler[cport].context = context;
-	cport_handler[cport].gmod = gmod;
-	cport_handler[cport].cport.number = cport;
-	cport_handler[cport].handler = handler;
+	cport_handler[cport_id].context = context;
+	cport_handler[cport_id].gmod = gmod;
+	cport_handler[cport_id].cport.id = cport_id;
+	cport_handler[cport_id].handler = handler;
 	return 0;
 }
 
-void gb_deregister_cport_complete(int cport)
+void gb_deregister_cport_complete(int cport_id)
 {
-	cport_handler[cport].handler = NULL;
+	cport_handler[cport_id].handler = NULL;
 }
 
-void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
+void greybus_cport_in(struct greybus_host_device *hd, int cport_id, u8 *data,
 			   size_t length)
 {
 	struct gb_cport_handler *ch;
 	struct gbuf *gbuf;
 
 	/* first check to see if we have a cport handler for this cport */
-	ch = &cport_handler[cport];
+	ch = &cport_handler[cport_id];
 	if (!ch->handler) {
 		/* Ugh, drop the data on the floor, after logging it... */
 		dev_err(hd->parent,
 			"Received data for cport %d, but no handler!\n",
-			cport);
+			cport_id);
 		return;
 	}
 
@@ -216,7 +216,7 @@ void greybus_cport_in_data(struct greybus_host_device *hd, int cport, u8 *data,
 
 	queue_work(gbuf_workqueue, &gbuf->event);
 }
-EXPORT_SYMBOL_GPL(greybus_cport_in_data);
+EXPORT_SYMBOL_GPL(greybus_cport_in);
 
 /* Can be called in interrupt context, do the work and get out of here */
 void greybus_gbuf_finished(struct gbuf *gbuf)

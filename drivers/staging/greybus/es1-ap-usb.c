@@ -113,7 +113,7 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 	 * we will encode the cport number in the first byte of the buffer, so
 	 * set the second byte to be the "transfer buffer"
 	 */
-	buffer[0] = gbuf->cport->number;
+	buffer[0] = gbuf->cport->id;
 	gbuf->transfer_buffer = &buffer[1];
 	gbuf->transfer_buffer_length = size;
 	gbuf->actual_length = size;
@@ -139,7 +139,7 @@ static void free_gbuf_data(struct gbuf *gbuf)
 }
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
-static int send_svc_msg(struct svc_msg *svc_msg, struct greybus_host_device *hd)
+static int submit_svc(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 {
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	int retval;
@@ -223,7 +223,7 @@ static struct greybus_host_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
 	.alloc_gbuf_data	= alloc_gbuf_data,
 	.free_gbuf_data		= free_gbuf_data,
-	.send_svc_msg		= send_svc_msg,
+	.submit_svc		= submit_svc,
 	.submit_gbuf		= submit_gbuf,
 };
 
@@ -268,7 +268,7 @@ static void svc_in_callback(struct urb *urb)
 	/* We have a message, create a new message structure, add it to the
 	 * list, and wake up our thread that will process the messages.
 	 */
-	gb_new_ap_msg(urb->transfer_buffer, urb->actual_length, es1->hd);
+	greybus_svc_in(urb->transfer_buffer, urb->actual_length, es1->hd);
 
 exit:
 	/* resubmit the urb to get more messages */
@@ -307,7 +307,7 @@ static void cport_in_callback(struct urb *urb)
 	data = &data[1];
 
 	/* Pass this data to the greybus core */
-	greybus_cport_in_data(es1->hd, cport, data, urb->actual_length - 1);
+	greybus_cport_in(es1->hd, cport, data, urb->actual_length - 1);
 
 exit:
 	/* put our urb back in the request pool */
