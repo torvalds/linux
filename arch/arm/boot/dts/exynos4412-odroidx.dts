@@ -71,6 +71,10 @@
 	};
 };
 
+&emmc {
+	vmmc-supply = <&buck8_reg>;
+};
+
 &max77686 {
 	voltage-regulators {
 		ldo22_reg: ldo@22 {

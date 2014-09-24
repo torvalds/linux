@@ -93,10 +93,9 @@
 		};
 	};
 
-	mmc@12550000 {
+	emmc: mmc@12550000 {
 		pinctrl-0 = <&sd4_clk &sd4_cmd &sd4_bus4 &sd4_bus8>;
 		pinctrl-names = "default";
-		vmmc-supply = <&buck8_reg>;
 		vqmmc-supply = <&ldo20_reg>;
 		status = "okay";
 
