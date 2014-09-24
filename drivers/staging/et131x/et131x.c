@@ -3393,7 +3393,8 @@ static void et131x_adjust_link(struct net_device *netdev)
 			et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
 					&register18);
 			et131x_mii_write(adapter, phydev->addr,
-					 PHY_MPHY_CONTROL_REG, register18 | 0x4);
+					 PHY_MPHY_CONTROL_REG,
+					 register18 | 0x4);
 			et131x_mii_write(adapter, phydev->addr, PHY_INDEX_REG,
 					 register18 | 0x8402);
 			et131x_mii_write(adapter, phydev->addr, PHY_DATA_REG,
@@ -3426,7 +3427,8 @@ static void et131x_adjust_link(struct net_device *netdev)
 			et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
 					&register18);
 			et131x_mii_write(adapter, phydev->addr,
-					 PHY_MPHY_CONTROL_REG, register18 | 0x4);
+					 PHY_MPHY_CONTROL_REG,
+					 register18 | 0x4);
 			et131x_mii_write(adapter, phydev->addr,
 					 PHY_INDEX_REG, register18 | 0x8402);
 			et131x_mii_write(adapter, phydev->addr,
@@ -3750,8 +3752,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 		 */
 		/* TRAP();*/
 
-		dev_warn(&adapter->pdev->dev,
-			 "RxDMA_ERR interrupt, error %x\n",
+		dev_warn(&adapter->pdev->dev, "RxDMA_ERR interrupt, error %x\n",
 			 readl(&iomem->txmac.tx_test));
 	}
 
@@ -3777,8 +3778,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 		 * occur. In a nutshell, the whole Tx path will have to be reset
 		 * and re-configured afterwards.
 		 */
-		dev_warn(&adapter->pdev->dev,
-			 "TXMAC interrupt, error 0x%08x\n",
+		dev_warn(&adapter->pdev->dev, "TXMAC interrupt, error 0x%08x\n",
 			 err);
 
 		/* If we are debugging, we want to see this error, otherwise we
