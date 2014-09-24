@@ -1841,7 +1841,6 @@ static struct platform_driver msm_otg_driver = {
 	.remove = msm_otg_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &msm_otg_dev_pm_ops,
 		.of_match_table = msm_otg_dt_match,
 	},

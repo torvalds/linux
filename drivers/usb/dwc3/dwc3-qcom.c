@@ -118,7 +118,6 @@ static struct platform_driver dwc3_qcom_driver = {
 	.remove		= dwc3_qcom_remove,
 	.driver		= {
 		.name	= "qcom-dwc3",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_dwc3_match,
 	},
 };
