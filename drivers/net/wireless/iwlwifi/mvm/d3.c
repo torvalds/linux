@@ -1061,6 +1061,15 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 					    vif, mvmvif, ap_sta);
 		if (ret)
 			goto out;
+	} else if (mvm->nd_config) {
+		ret = iwl_mvm_switch_to_d3(mvm);
+		if (ret)
+			goto out;
+
+		ret = iwl_mvm_scan_offload_start(mvm, vif, mvm->nd_config,
+						 mvm->nd_ies);
+		if (ret)
+			goto out;
 	} else {
 		ret = 1;
 		goto out_noreset;
