@@ -11,6 +11,7 @@
 #include "vf610-pinfunc.h"
 #include <dt-bindings/clock/vf610-clock.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
 	aliases {
@@ -81,6 +82,13 @@
 				interrupt-controller;
 				reg = <0x40003000 0x1000>,
 				      <0x40002100 0x100>;
+			};
+
+			global_timer: timer@40002200 {
+				compatible = "arm,cortex-a9-global-timer";
+				reg = <0x40002200 0x20>;
+				interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_PLATFORM_BUS>;
 			};
 
 			L2: l2-cache@40006000 {
