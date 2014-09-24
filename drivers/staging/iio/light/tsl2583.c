@@ -230,6 +230,7 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 
 	for (i = 0; i < 4; i++) {
 		int reg = TSL258X_CMD_REG | (TSL258X_ALS_CHAN0LO + i);
+
 		ret = taos_i2c_read(chip->client, reg, &buf[i], 1);
 		if (ret < 0) {
 			dev_err(&chip->client->dev,
