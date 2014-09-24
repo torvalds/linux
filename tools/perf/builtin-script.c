@@ -1744,7 +1744,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	session = perf_session__new(&file, false, &script.tool);
 	if (session == NULL)
-		return -ENOMEM;
+		return -1;
 
 	if (header || header_only) {
 		perf_session__fprintf_info(session, stdout, show_full_info);

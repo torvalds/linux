@@ -2250,7 +2250,7 @@ static int trace__replay(struct trace *trace)
 
 	session = perf_session__new(&file, false, &trace->tool);
 	if (session == NULL)
-		return -ENOMEM;
+		return -1;
 
 	if (symbol__init(&session->header.env) < 0)
 		goto out;

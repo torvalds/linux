@@ -1605,7 +1605,7 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 	int ret = -EINVAL;
 
 	if (session == NULL)
-		return -ENOMEM;
+		return -1;
 
 	symbol__init(&session->header.env);
 

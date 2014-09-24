@@ -124,7 +124,7 @@ static int report_raw_events(struct perf_mem *mem)
 							 &mem->tool);
 
 	if (session == NULL)
-		return -ENOMEM;
+		return -1;
 
 	if (mem->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, mem->cpu_list,

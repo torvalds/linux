@@ -698,7 +698,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	session = perf_session__new(&file, false, &perf_kmem);
 	if (session == NULL)
-		return -ENOMEM;
+		return -1;
 
 	symbol__init(&session->header.env);
 

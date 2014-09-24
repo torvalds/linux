@@ -720,7 +720,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 repeat:
 	session = perf_session__new(&file, false, &report.tool);
 	if (session == NULL)
-		return -ENOMEM;
+		return -1;
 
 	if (report.queue_size) {
 		ordered_events__set_alloc_size(&session->ordered_events,
