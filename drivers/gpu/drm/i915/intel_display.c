@@ -8463,7 +8463,7 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
-	unsigned old_width, stride;
+	unsigned old_width;
 	uint32_t addr;
 	int ret;
 
@@ -8475,28 +8475,10 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 		goto finish;
 	}
 
-	/* Check for which cursor types we support */
-	if (!cursor_size_ok(dev, width, height)) {
-		DRM_DEBUG("Cursor dimension not supported\n");
-		return -EINVAL;
-	}
-
-	stride = roundup_pow_of_two(width) * 4;
-	if (obj->base.size < stride * height) {
-		DRM_DEBUG_KMS("buffer is too small\n");
-		return -ENOMEM;
-	}
-
 	/* we only need to pin inside GTT if cursor is non-phy */
 	mutex_lock(&dev->struct_mutex);
 	if (!INTEL_INFO(dev)->cursor_needs_physical) {
 		unsigned alignment;
-
-		if (obj->tiling_mode) {
-			DRM_DEBUG_KMS("cursor cannot be tiled\n");
-			ret = -EINVAL;
-			goto fail_locked;
-		}
 
 		/*
 		 * Global gtt pte registers are special registers which actually
@@ -11918,16 +11900,55 @@ intel_check_cursor_plane(struct drm_plane *plane,
 			 struct intel_plane_state *state)
 {
 	struct drm_crtc *crtc = state->crtc;
+	struct drm_device *dev = crtc->dev;
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_rect *dest = &state->dst;
 	struct drm_rect *src = &state->src;
 	const struct drm_rect *clip = &state->clip;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	int crtc_w, crtc_h;
+	unsigned stride;
+	int ret;
 
-	return drm_plane_helper_check_update(plane, crtc, fb,
+	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    src, dest, clip,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    true, true, &state->visible);
+	if (ret)
+		return ret;
+
+
+	/* if we want to turn off the cursor ignore width and height */
+	if (!obj)
+		return 0;
+
+	if (fb == crtc->cursor->fb)
+		return 0;
+
+	/* Check for which cursor types we support */
+	crtc_w = drm_rect_width(&state->orig_dst);
+	crtc_h = drm_rect_height(&state->orig_dst);
+	if (!cursor_size_ok(dev, crtc_w, crtc_h)) {
+		DRM_DEBUG("Cursor dimension not supported\n");
+		return -EINVAL;
+	}
+
+	stride = roundup_pow_of_two(crtc_w) * 4;
+	if (obj->base.size < stride * crtc_h) {
+		DRM_DEBUG_KMS("buffer is too small\n");
+		return -ENOMEM;
+	}
+
+	/* we only need to pin inside GTT if cursor is non-phy */
+	mutex_lock(&dev->struct_mutex);
+	if (!INTEL_INFO(dev)->cursor_needs_physical && obj->tiling_mode) {
+		DRM_DEBUG_KMS("cursor cannot be tiled\n");
+		ret = -EINVAL;
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
 }
 
 static int
