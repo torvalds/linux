@@ -145,7 +145,7 @@
 			cache-level = <2>;
 		};
 
-		memory-controller@f8006000 {
+		mc: memory-controller@f8006000 {
 			compatible = "xlnx,zynq-ddrc-a05";
 			reg = <0xf8006000 0x1000>;
 		} ;
