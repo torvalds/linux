@@ -670,17 +670,13 @@ EXPORT_SYMBOL(__page_cache_alloc);
  * at a cost of "thundering herd" phenomena during rare hash
  * collisions.
  */
-static wait_queue_head_t *page_waitqueue(struct page *page)
+wait_queue_head_t *page_waitqueue(struct page *page)
 {
 	const struct zone *zone = page_zone(page);
 
 	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
 }
-
-static inline void wake_up_page(struct page *page, int bit)
-{
-	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
-}
+EXPORT_SYMBOL(page_waitqueue);
 
 void wait_on_page_bit(struct page *page, int bit_nr)
 {
