@@ -1724,4 +1724,5 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("D. Kozlov (xeb@mail.ru)");
 MODULE_DESCRIPTION("GRE over IPv6 tunneling device");
 MODULE_ALIAS_RTNL_LINK("ip6gre");
+MODULE_ALIAS_RTNL_LINK("ip6gretap");
 MODULE_ALIAS_NETDEV("ip6gre0");
