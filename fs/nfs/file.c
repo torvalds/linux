@@ -475,17 +475,23 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
 
 	dfprintk(PAGECACHE, "NFS: release_page(%p)\n", page);
 
-	/* Only do I/O if gfp is a superset of GFP_KERNEL, and we're not
-	 * doing this memory reclaim for a fs-related allocation.
+	/* Always try to initiate a 'commit' if relevant, but only
+	 * wait for it if __GFP_WAIT is set and the calling process is
+	 * allowed to block.  Even then, only wait 1 second.
+	 * Waiting indefinitely can cause deadlocks when the NFS
+	 * server is on this machine, and there is no particular need
+	 * to wait extensively here.  A short wait has the benefit
+	 * that someone else can worry about the freezer.
 	 */
-	if (mapping && (gfp & GFP_KERNEL) == GFP_KERNEL &&
-	    !(current->flags & PF_FSTRANS)) {
-		int how = FLUSH_SYNC;
-
-		/* Don't let kswapd deadlock waiting for OOM RPC calls */
-		if (current_is_kswapd())
-			how = 0;
-		nfs_commit_inode(mapping->host, how);
+	if (mapping) {
+		struct nfs_server *nfss = NFS_SERVER(mapping->host);
+		nfs_commit_inode(mapping->host, 0);
+		if ((gfp & __GFP_WAIT) &&
+		    !current_is_kswapd() &&
+		    !(current->flags & PF_FSTRANS)) {
+			wait_on_page_bit_killable_timeout(page, PG_private,
+							  HZ);
+		}
 	}
 	/* If PagePrivate() is set, then the page is not freeable */
 	if (PagePrivate(page))
