@@ -23,6 +23,7 @@
 
 #include "core.h"
 #include "debug.h"
+#include "hif.h"
 
 /* ms */
 #define ATH10K_DEBUG_HTT_STATS_INTERVAL 1000
@@ -1041,6 +1042,84 @@ static const struct file_operations fops_fw_dbglog = {
 	.llseek = default_llseek,
 };
 
+static int ath10k_debug_cal_data_open(struct inode *inode, struct file *file)
+{
+	struct ath10k *ar = inode->i_private;
+	void *buf;
+	u32 hi_addr;
+	__le32 addr;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_UTF) {
+		ret = -ENETDOWN;
+		goto err;
+	}
+
+	buf = vmalloc(QCA988X_CAL_DATA_LEN);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	hi_addr = host_interest_item_address(HI_ITEM(hi_board_data));
+
+	ret = ath10k_hif_diag_read(ar, hi_addr, &addr, sizeof(addr));
+	if (ret) {
+		ath10k_warn(ar, "failed to read hi_board_data address: %d\n", ret);
+		goto err_vfree;
+	}
+
+	ret = ath10k_hif_diag_read(ar, le32_to_cpu(addr), buf,
+				   QCA988X_CAL_DATA_LEN);
+	if (ret) {
+		ath10k_warn(ar, "failed to read calibration data: %d\n", ret);
+		goto err_vfree;
+	}
+
+	file->private_data = buf;
+
+	mutex_unlock(&ar->conf_mutex);
+
+	return 0;
+
+err_vfree:
+	vfree(buf);
+
+err:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static ssize_t ath10k_debug_cal_data_read(struct file *file,
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	void *buf = file->private_data;
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       buf, QCA988X_CAL_DATA_LEN);
+}
+
+static int ath10k_debug_cal_data_release(struct inode *inode,
+					 struct file *file)
+{
+	vfree(file->private_data);
+
+	return 0;
+}
+
+static const struct file_operations fops_cal_data = {
+	.open = ath10k_debug_cal_data_open,
+	.read = ath10k_debug_cal_data_read,
+	.release = ath10k_debug_cal_data_release,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath10k_debug_start(struct ath10k *ar)
 {
 	int ret;
@@ -1213,6 +1292,9 @@ int ath10k_debug_register(struct ath10k *ar)
 
 	debugfs_create_file("fw_dbglog", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_fw_dbglog);
+
+	debugfs_create_file("cal_data", S_IRUSR, ar->debug.debugfs_phy,
+			    ar, &fops_cal_data);
 
 	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED)) {
 		debugfs_create_file("dfs_simulate_radar", S_IWUSR,
