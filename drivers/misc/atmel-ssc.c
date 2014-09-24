@@ -57,7 +57,7 @@ struct ssc_device *ssc_request(unsigned int ssc_num)
 	ssc->user++;
 	spin_unlock(&user_lock);
 
-	clk_prepare_enable(ssc->clk);
+	clk_prepare(ssc->clk);
 
 	return ssc;
 }
@@ -77,7 +77,7 @@ void ssc_free(struct ssc_device *ssc)
 	spin_unlock(&user_lock);
 
 	if (disable_clk)
-		clk_disable_unprepare(ssc->clk);
+		clk_unprepare(ssc->clk);
 }
 EXPORT_SYMBOL(ssc_free);
 
