@@ -264,11 +264,11 @@ struct tty_struct {
 	struct winsize winsize;		/* winsize_mutex */
 	unsigned long stopped:1,	/* flow_lock */
 		      flow_stopped:1,
-		      unused:62;
+		      unused:BITS_PER_LONG - 2;
 	int hw_stopped;
 	unsigned long ctrl_status:8,	/* ctrl_lock */
 		      packet:1,
-		      unused_ctrl:55;
+		      unused_ctrl:BITS_PER_LONG - 9;
 	unsigned int receive_room;	/* Bytes free for queue */
 	int flow_change;
 
