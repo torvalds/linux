@@ -246,8 +246,6 @@ static void ft1000_disconnect(struct usb_interface *interface)
 		kfree(ft1000dev);
 	}
 	kfree(pFileStart);
-
-	return;
 }
 
 static struct usb_driver ft1000_usb_driver = {
