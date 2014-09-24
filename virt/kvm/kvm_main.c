@@ -57,6 +57,7 @@
 
 #include "coalesced_mmio.h"
 #include "async_pf.h"
+#include "vfio.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/kvm.h>
@@ -3225,6 +3226,9 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 		printk(KERN_ERR "kvm: create debugfs files failed\n");
 		goto out_undebugfs;
 	}
+
+	r = kvm_vfio_ops_init();
+	WARN_ON(r);
 
 	return 0;
 
