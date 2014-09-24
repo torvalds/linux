@@ -62,7 +62,6 @@ typedef struct {
 	(s)->si_generation
 
 struct nfsd4_callback {
-	void *cb_op;
 	struct nfs4_client *cb_clp;
 	struct list_head cb_per_client;
 	u32 cb_minorversion;
