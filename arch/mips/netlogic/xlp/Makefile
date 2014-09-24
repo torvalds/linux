@@ -4,5 +4,7 @@ ifdef CONFIG_USB
 obj-y				+= usb-init.o
 obj-y				+= usb-init-xlp2.o
 endif
-obj-$(CONFIG_SATA_AHCI)		+= ahci-init.o
-obj-$(CONFIG_SATA_AHCI)		+= ahci-init-xlp2.o
+ifdef CONFIG_SATA_AHCI
+obj-y				+= ahci-init.o
+obj-y				+= ahci-init-xlp2.o
+endif
