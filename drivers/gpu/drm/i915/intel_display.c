@@ -8455,13 +8455,6 @@ static bool cursor_size_ok(struct drm_device *dev,
 	return true;
 }
 
-/*
- * intel_crtc_cursor_set_obj - Set cursor to specified GEM object
- *
- * Note that the object's reference will be consumed if the update fails.  If
- * the update succeeds, the reference of the old object (if any) will be
- * consumed.
- */
 static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 				     struct drm_i915_gem_object *obj,
 				     uint32_t width, uint32_t height)
@@ -8491,8 +8484,7 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 	stride = roundup_pow_of_two(width) * 4;
 	if (obj->base.size < stride * height) {
 		DRM_DEBUG_KMS("buffer is too small\n");
-		ret = -ENOMEM;
-		goto fail;
+		return -ENOMEM;
 	}
 
 	/* we only need to pin inside GTT if cursor is non-phy */
@@ -8581,8 +8573,6 @@ fail_unpin:
 	i915_gem_object_unpin_from_display_plane(obj);
 fail_locked:
 	mutex_unlock(&dev->struct_mutex);
-fail:
-	drm_gem_object_unreference_unlocked(&obj->base);
 	return ret;
 }
 
