@@ -356,7 +356,7 @@ bool intel_fbc_enabled(struct drm_device *dev)
 	return dev_priv->fbc.enabled;
 }
 
-void gen8_fbc_sw_flush(struct drm_device *dev, u32 value)
+void bdw_fbc_sw_flush(struct drm_device *dev, u32 value)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 

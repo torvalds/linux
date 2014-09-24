@@ -666,6 +666,14 @@ struct i915_fbc {
 	 * possible. */
 	bool enabled;
 
+	/* On gen8 some rings cannont perform fbc clean operation so for now
+	 * we are doing this on SW with mmio.
+	 * This variable works in the opposite information direction
+	 * of ring->fbc_dirty telling software on frontbuffer tracking
+	 * to perform the cache clean on sw side.
+	 */
+	bool need_sw_cache_clean;
+
 	struct intel_fbc_work {
 		struct delayed_work work;
 		struct drm_crtc *crtc;
@@ -2825,7 +2833,7 @@ extern void intel_modeset_setup_hw_state(struct drm_device *dev,
 extern void i915_redisable_vga(struct drm_device *dev);
 extern void i915_redisable_vga_power_on(struct drm_device *dev);
 extern bool intel_fbc_enabled(struct drm_device *dev);
-extern void gen8_fbc_sw_flush(struct drm_device *dev, u32 value);
+extern void bdw_fbc_sw_flush(struct drm_device *dev, u32 value);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void intel_init_pch_refclk(struct drm_device *dev);

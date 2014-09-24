@@ -189,8 +189,10 @@ void intel_frontbuffer_flush(struct drm_device *dev,
 	 * needs to be reworked into a proper frontbuffer tracking scheme like
 	 * psr employs.
 	 */
-	if (IS_BROADWELL(dev))
-		gen8_fbc_sw_flush(dev, FBC_REND_CACHE_CLEAN);
+	if (dev_priv->fbc.need_sw_cache_clean) {
+		dev_priv->fbc.need_sw_cache_clean = false;
+		bdw_fbc_sw_flush(dev, FBC_REND_CACHE_CLEAN);
+	}
 }
 
 /**

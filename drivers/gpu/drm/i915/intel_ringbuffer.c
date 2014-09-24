@@ -2237,6 +2237,7 @@ static int gen6_ring_flush(struct intel_engine_cs *ring,
 			   u32 invalidate, u32 flush)
 {
 	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t cmd;
 	int ret;
 
@@ -2267,8 +2268,12 @@ static int gen6_ring_flush(struct intel_engine_cs *ring,
 	}
 	intel_ring_advance(ring);
 
-	if (IS_GEN7(dev) && !invalidate && flush)
-		return gen7_ring_fbc_flush(ring, FBC_REND_CACHE_CLEAN);
+	if (!invalidate && flush) {
+		if (IS_GEN7(dev))
+			return gen7_ring_fbc_flush(ring, FBC_REND_CACHE_CLEAN);
+		else if (IS_BROADWELL(dev))
+			dev_priv->fbc.need_sw_cache_clean = true;
+	}
 
 	return 0;
 }
