@@ -644,6 +644,10 @@ static int xs_udp_send_request(struct rpc_task *task)
 	dprintk("RPC:       xs_udp_send_request(%u) = %d\n",
 			xdr->len - req->rq_bytes_sent, status);
 
+	/* firewall is blocking us, don't return -EAGAIN or we end up looping */
+	if (status == -EPERM)
+		goto process_status;
+
 	if (sent > 0 || status == 0) {
 		req->rq_xmit_bytes_sent += sent;
 		if (sent >= req->rq_slen)
@@ -652,6 +656,7 @@ static int xs_udp_send_request(struct rpc_task *task)
 		status = -EAGAIN;
 	}
 
+process_status:
 	switch (status) {
 	case -ENOTSOCK:
 		status = -ENOTCONN;
@@ -667,6 +672,7 @@ static int xs_udp_send_request(struct rpc_task *task)
 	case -ENOBUFS:
 	case -EPIPE:
 	case -ECONNREFUSED:
+	case -EPERM:
 		/* When the server has died, an ICMP port unreachable message
 		 * prompts ECONNREFUSED. */
 		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
