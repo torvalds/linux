@@ -63,6 +63,21 @@ enum {
 	__PERCPU_REF_FLAG_BITS	= 2,
 };
 
+/* @flags for percpu_ref_init() */
+enum {
+	/*
+	 * Start w/ ref == 1 in atomic mode.  Can be switched to percpu
+	 * operation using percpu_ref_switch_to_percpu().
+	 */
+	PERCPU_REF_INIT_ATOMIC	= 1 << 0,
+
+	/*
+	 * Start dead w/ ref == 0 in atomic mode.  Must be revived with
+	 * percpu_ref_reinit() before used.  Implies INIT_ATOMIC.
+	 */
+	PERCPU_REF_INIT_DEAD	= 1 << 1,
+};
+
 struct percpu_ref {
 	atomic_long_t		count;
 	/*
@@ -76,7 +91,8 @@ struct percpu_ref {
 };
 
 int __must_check percpu_ref_init(struct percpu_ref *ref,
-				 percpu_ref_func_t *release, gfp_t gfp);
+				 percpu_ref_func_t *release, unsigned int flags,
+				 gfp_t gfp);
 void percpu_ref_exit(struct percpu_ref *ref);
 void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_switch);

@@ -45,26 +45,39 @@ static unsigned long __percpu *percpu_count_ptr(struct percpu_ref *ref)
  * percpu_ref_init - initialize a percpu refcount
  * @ref: percpu_ref to initialize
  * @release: function which will be called when refcount hits 0
+ * @flags: PERCPU_REF_INIT_* flags
  * @gfp: allocation mask to use
  *
- * Initializes the refcount in single atomic counter mode with a refcount of 1;
- * analagous to atomic_long_set(ref, 1).
+ * Initializes @ref.  If @flags is zero, @ref starts in percpu mode with a
+ * refcount of 1; analagous to atomic_long_set(ref, 1).  See the
+ * definitions of PERCPU_REF_INIT_* flags for flag behaviors.
  *
  * Note that @release must not sleep - it may potentially be called from RCU
  * callback context by percpu_ref_kill().
  */
 int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release,
-		    gfp_t gfp)
+		    unsigned int flags, gfp_t gfp)
 {
 	size_t align = max_t(size_t, 1 << __PERCPU_REF_FLAG_BITS,
 			     __alignof__(unsigned long));
-
-	atomic_long_set(&ref->count, 1 + PERCPU_COUNT_BIAS);
+	unsigned long start_count = 0;
 
 	ref->percpu_count_ptr = (unsigned long)
 		__alloc_percpu_gfp(sizeof(unsigned long), align, gfp);
 	if (!ref->percpu_count_ptr)
 		return -ENOMEM;
+
+	if (flags & (PERCPU_REF_INIT_ATOMIC | PERCPU_REF_INIT_DEAD))
+		ref->percpu_count_ptr |= __PERCPU_REF_ATOMIC;
+	else
+		start_count += PERCPU_COUNT_BIAS;
+
+	if (flags & PERCPU_REF_INIT_DEAD)
+		ref->percpu_count_ptr |= __PERCPU_REF_DEAD;
+	else
+		start_count++;
+
+	atomic_long_set(&ref->count, start_count);
 
 	ref->release = release;
 	return 0;
