@@ -2204,6 +2204,17 @@ static void intel_edp_psr_work(struct work_struct *work)
 		container_of(work, typeof(*dev_priv), psr.work.work);
 	struct intel_dp *intel_dp = dev_priv->psr.enabled;
 
+	/* We have to make sure PSR is ready for re-enable
+	 * otherwise it keeps disabled until next full enable/disable cycle.
+	 * PSR might take some time to get fully disabled
+	 * and be ready for re-enable.
+	 */
+	if (wait_for((I915_READ(EDP_PSR_STATUS_CTL(dev_priv->dev)) &
+		      EDP_PSR_STATUS_STATE_MASK) == 0, 50)) {
+		DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
+		return;
+	}
+
 	mutex_lock(&dev_priv->psr.lock);
 	intel_dp = dev_priv->psr.enabled;
 
