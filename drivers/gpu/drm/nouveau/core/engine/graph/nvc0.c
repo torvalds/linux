@@ -68,6 +68,9 @@ nvc0_graph_zbc_color_get(struct nvc0_graph_priv *priv, int format,
 		}
 	}
 
+	if (zbc < 0)
+		return zbc;
+
 	memcpy(priv->zbc_color[zbc].ds, ds, sizeof(priv->zbc_color[zbc].ds));
 	memcpy(priv->zbc_color[zbc].l2, l2, sizeof(priv->zbc_color[zbc].l2));
 	priv->zbc_color[zbc].format = format;
@@ -108,6 +111,9 @@ nvc0_graph_zbc_depth_get(struct nvc0_graph_priv *priv, int format,
 			zbc = (zbc < 0) ? i : zbc;
 		}
 	}
+
+	if (zbc < 0)
+		return zbc;
 
 	priv->zbc_depth[zbc].format = format;
 	priv->zbc_depth[zbc].ds = ds;

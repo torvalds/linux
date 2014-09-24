@@ -53,7 +53,20 @@ with IS_ERR() (they will never return a NULL pointer). -ENOENT will be returned
 if and only if no GPIO has been assigned to the device/function/index triplet,
 other error codes are used for cases where a GPIO has been assigned but an error
 occurred while trying to acquire it. This is useful to discriminate between mere
-errors and an absence of GPIO for optional GPIO parameters.
+errors and an absence of GPIO for optional GPIO parameters. For the common
+pattern where a GPIO is optional, the gpiod_get_optional() and
+gpiod_get_index_optional() functions can be used. These functions return NULL
+instead of -ENOENT if no GPIO has been assigned to the requested function:
+
+
+	struct gpio_desc *gpiod_get_optional(struct device *dev,
+					     const char *con_id,
+					     enum gpiod_flags flags)
+
+	struct gpio_desc *gpiod_get_index_optional(struct device *dev,
+						   const char *con_id,
+						   unsigned int index,
+						   enum gpiod_flags flags)
 
 Device-managed variants of these functions are also defined:
 
@@ -64,6 +77,15 @@ Device-managed variants of these functions are also defined:
 					       const char *con_id,
 					       unsigned int idx,
 					       enum gpiod_flags flags)
+
+	struct gpio_desc *devm_gpiod_get_optional(struct device *dev,
+						  const char *con_id,
+						  enum gpiod_flags flags)
+
+	struct gpio_desc * devm_gpiod_get_index_optional(struct device *dev,
+							const char *con_id,
+							unsigned int index,
+							enum gpiod_flags flags)
 
 A GPIO descriptor can be disposed of using the gpiod_put() function:
 

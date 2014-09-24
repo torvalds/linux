@@ -541,6 +541,8 @@ static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 			continue;
 		if (rcu_access_pointer(sdata->vif.chanctx_conf) != conf)
 			continue;
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+			continue;
 
 		if (!compat)
 			compat = &sdata->vif.bss_conf.chandef;
@@ -1444,7 +1446,7 @@ ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 
 			list_del(&sdata->reserved_chanctx_list);
 			list_move(&sdata->assigned_chanctx_list,
-				  &new_ctx->assigned_vifs);
+				  &ctx->assigned_vifs);
 			sdata->reserved_chanctx = NULL;
 
 			ieee80211_vif_chanctx_reservation_complete(sdata);

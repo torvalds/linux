@@ -86,7 +86,7 @@ nouveau_parent_lclass(struct nouveau_object *parent, u32 *lclass, int size)
 	sclass = nv_parent(parent)->sclass;
 	while (sclass) {
 		if (++nr < size)
-			lclass[nr] = sclass->oclass->handle;
+			lclass[nr] = sclass->oclass->handle & 0xffff;
 		sclass = sclass->sclass;
 	}
 
@@ -96,7 +96,7 @@ nouveau_parent_lclass(struct nouveau_object *parent, u32 *lclass, int size)
 		if (engine && (oclass = engine->sclass)) {
 			while (oclass->ofuncs) {
 				if (++nr < size)
-					lclass[nr] = oclass->handle;
+					lclass[nr] = oclass->handle & 0xffff;
 				oclass++;
 			}
 		}

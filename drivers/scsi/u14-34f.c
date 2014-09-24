@@ -1006,7 +1006,7 @@ static int port_detect \
           sh[j]->irq, dma_name, sh[j]->sg_tablesize, sh[j]->can_queue);
 
    if (sh[j]->max_id > 8 || sh[j]->max_lun > 8)
-      printk("%s: wide SCSI support enabled, max_id %u, max_lun %u.\n",
+      printk("%s: wide SCSI support enabled, max_id %u, max_lun %llu.\n",
              BN(j), sh[j]->max_id, sh[j]->max_lun);
 
    for (i = 0; i <= sh[j]->max_channel; i++)
@@ -1285,7 +1285,7 @@ static int u14_34f_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct
    cpp->cpp_index = i;
    SCpnt->host_scribble = (unsigned char *) &cpp->cpp_index;
 
-   if (do_trace) printk("%s: qcomm, mbox %d, target %d.%d:%llu.\n",
+   if (do_trace) printk("%s: qcomm, mbox %d, target %d.%d:%u.\n",
                         BN(j), i, SCpnt->device->channel, SCpnt->device->id,
                         (u8)SCpnt->device->lun);
 

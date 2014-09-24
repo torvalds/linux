@@ -149,7 +149,8 @@ power_down:
 static int nouveau_platform_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm_dev = platform_get_drvdata(pdev);
-	struct nouveau_device *device = nouveau_dev(drm_dev);
+	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct nouveau_device *device = nvkm_device(&drm->device);
 	struct nouveau_platform_gpu *gpu = nv_device_to_platform(device)->gpu;
 
 	nouveau_drm_device_remove(drm_dev);

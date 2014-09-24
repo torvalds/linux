@@ -183,6 +183,7 @@ void flush_icache_range(unsigned long start, unsigned long end)
 		preempt_enable();
 	}
 }
+EXPORT_SYMBOL(flush_icache_range);
 
 
 /* Called when smp_send_reschedule() triggers IRQ_RESCHEDULE. */

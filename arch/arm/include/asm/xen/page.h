@@ -33,7 +33,6 @@ typedef struct xpaddr {
 #define INVALID_P2M_ENTRY      (~0UL)
 
 unsigned long __pfn_to_mfn(unsigned long pfn);
-unsigned long __mfn_to_pfn(unsigned long mfn);
 extern struct rb_root phys_to_mach;
 
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
@@ -51,14 +50,6 @@ static inline unsigned long pfn_to_mfn(unsigned long pfn)
 
 static inline unsigned long mfn_to_pfn(unsigned long mfn)
 {
-	unsigned long pfn;
-
-	if (phys_to_mach.rb_node != NULL) {
-		pfn = __mfn_to_pfn(mfn);
-		if (pfn != INVALID_P2M_ENTRY)
-			return pfn;
-	}
-
 	return mfn;
 }
 

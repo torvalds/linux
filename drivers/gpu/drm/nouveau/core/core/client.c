@@ -132,12 +132,12 @@ nvkm_client_notify_new(struct nouveau_client *client,
 		if (ret == 0) {
 			client->notify[index] = notify;
 			notify->client = client;
-			return 0;
+			return index;
 		}
 	}
 
 	kfree(notify);
-	return 0;
+	return ret;
 }
 
 static int

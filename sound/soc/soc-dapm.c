@@ -2860,12 +2860,14 @@ int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int reg_val, val;
-	int ret = 0;
 
-	if (e->reg != SND_SOC_NOPM)
-		ret = soc_dapm_read(dapm, e->reg, &reg_val);
-	else
+	if (e->reg != SND_SOC_NOPM) {
+		int ret = soc_dapm_read(dapm, e->reg, &reg_val);
+		if (ret)
+			return ret;
+	} else {
 		reg_val = dapm_kcontrol_get_value(kcontrol);
+	}
 
 	val = (reg_val >> e->shift_l) & e->mask;
 	ucontrol->value.enumerated.item[0] = snd_soc_enum_val_to_item(e, val);
@@ -2875,7 +2877,7 @@ int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 		ucontrol->value.enumerated.item[1] = val;
 	}
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_get_enum_double);
 

@@ -36,6 +36,7 @@
 #include <linux/netpoll.h>
 
 #define MACVLAN_HASH_SIZE	(1 << BITS_PER_BYTE)
+#define MACVLAN_BC_QUEUE_LEN	1000
 
 struct macvlan_port {
 	struct net_device	*dev;
@@ -248,7 +249,7 @@ static void macvlan_broadcast_enqueue(struct macvlan_port *port,
 		goto err;
 
 	spin_lock(&port->bc_queue.lock);
-	if (skb_queue_len(&port->bc_queue) < skb->dev->tx_queue_len) {
+	if (skb_queue_len(&port->bc_queue) < MACVLAN_BC_QUEUE_LEN) {
 		__skb_queue_tail(&port->bc_queue, nskb);
 		err = 0;
 	}
@@ -739,7 +740,10 @@ static int macvlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	int err = -EINVAL;
 
-	if (!vlan->port->passthru)
+	/* Support unicast filter only on passthru devices.
+	 * Multicast filter should be allowed on all devices.
+	 */
+	if (!vlan->port->passthru && is_unicast_ether_addr(addr))
 		return -EOPNOTSUPP;
 
 	if (flags & NLM_F_REPLACE)
@@ -760,7 +764,10 @@ static int macvlan_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	int err = -EINVAL;
 
-	if (!vlan->port->passthru)
+	/* Support unicast filter only on passthru devices.
+	 * Multicast filter should be allowed on all devices.
+	 */
+	if (!vlan->port->passthru && is_unicast_ether_addr(addr))
 		return -EOPNOTSUPP;
 
 	if (is_unicast_ether_addr(addr))
@@ -800,6 +807,7 @@ static netdev_features_t macvlan_fix_features(struct net_device *dev,
 					     features,
 					     mask);
 	features |= ALWAYS_ON_FEATURES;
+	features &= ~NETIF_F_NETNS_LOCAL;
 
 	return features;
 }

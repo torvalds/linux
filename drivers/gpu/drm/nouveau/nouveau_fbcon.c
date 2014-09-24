@@ -226,7 +226,7 @@ nouveau_fbcon_accel_restore(struct drm_device *dev)
 	}
 }
 
-void
+static void
 nouveau_fbcon_accel_fini(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -246,7 +246,7 @@ nouveau_fbcon_accel_fini(struct drm_device *dev)
 	}
 }
 
-void
+static void
 nouveau_fbcon_accel_init(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);

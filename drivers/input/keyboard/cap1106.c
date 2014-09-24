@@ -33,8 +33,8 @@
 #define CAP1106_REG_SENSOR_CONFIG	0x22
 #define CAP1106_REG_SENSOR_CONFIG2	0x23
 #define CAP1106_REG_SAMPLING_CONFIG	0x24
-#define CAP1106_REG_CALIBRATION		0x25
-#define CAP1106_REG_INT_ENABLE		0x26
+#define CAP1106_REG_CALIBRATION		0x26
+#define CAP1106_REG_INT_ENABLE		0x27
 #define CAP1106_REG_REPEAT_RATE		0x28
 #define CAP1106_REG_MT_CONFIG		0x2a
 #define CAP1106_REG_MT_PATTERN_CONFIG	0x2b
@@ -64,7 +64,7 @@ struct cap1106_priv {
 	struct input_dev *idev;
 
 	/* config */
-	unsigned int keycodes[CAP1106_NUM_CHN];
+	unsigned short keycodes[CAP1106_NUM_CHN];
 };
 
 static const struct reg_default cap1106_reg_defaults[] = {
@@ -271,6 +271,12 @@ static int cap1106_i2c_probe(struct i2c_client *i2c_client,
 
 	for (i = 0; i < CAP1106_NUM_CHN; i++)
 		__set_bit(priv->keycodes[i], priv->idev->keybit);
+
+	__clear_bit(KEY_RESERVED, priv->idev->keybit);
+
+	priv->idev->keycode = priv->keycodes;
+	priv->idev->keycodesize = sizeof(priv->keycodes[0]);
+	priv->idev->keycodemax = ARRAY_SIZE(priv->keycodes);
 
 	priv->idev->id.vendor = CAP1106_MANUFACTURER_ID;
 	priv->idev->id.product = CAP1106_PRODUCT_ID;

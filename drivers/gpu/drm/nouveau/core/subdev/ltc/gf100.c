@@ -98,6 +98,7 @@ static int
 gf100_ltc_init(struct nouveau_object *object)
 {
 	struct nvkm_ltc_priv *priv = (void *)object;
+	u32 lpg128 = !(nv_rd32(priv, 0x100c80) & 0x00000001);
 	int ret;
 
 	ret = nvkm_ltc_init(priv);
@@ -107,6 +108,7 @@ gf100_ltc_init(struct nouveau_object *object)
 	nv_mask(priv, 0x17e820, 0x00100000, 0x00000000); /* INTR_EN &= ~0x10 */
 	nv_wr32(priv, 0x17e8d8, priv->ltc_nr);
 	nv_wr32(priv, 0x17e8d4, priv->tag_base);
+	nv_mask(priv, 0x17e8c0, 0x00000002, lpg128 ? 0x00000002 : 0x00000000);
 	return 0;
 }
 
@@ -156,7 +158,7 @@ gf100_ltc_init_tag_ram(struct nouveau_fb *pfb, struct nvkm_ltc_priv *priv)
 	if (ret) {
 		priv->num_tags = 0;
 	} else {
-		u64 tag_base = (priv->tag_ram->offset << 12) + tag_margin;
+		u64 tag_base = ((u64)priv->tag_ram->offset << 12) + tag_margin;
 
 		tag_base += tag_align - 1;
 		ret = do_div(tag_base, tag_align);

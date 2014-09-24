@@ -275,8 +275,10 @@ nvif_object_new(struct nvif_object *parent, u32 handle, u32 oclass,
 	if (object) {
 		int ret = nvif_object_init(parent, nvif_object_del, handle,
 					   oclass, data, size, object);
-		if (ret)
+		if (ret) {
 			kfree(object);
+			object = NULL;
+		}
 		*pobject = object;
 		return ret;
 	}

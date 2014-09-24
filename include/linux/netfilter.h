@@ -9,6 +9,7 @@
 #include <linux/in6.h>
 #include <linux/wait.h>
 #include <linux/list.h>
+#include <linux/static_key.h>
 #include <uapi/linux/netfilter.h>
 #ifdef CONFIG_NETFILTER
 static inline int NF_DROP_GETERR(int verdict)
@@ -99,9 +100,9 @@ void nf_unregister_sockopt(struct nf_sockopt_ops *reg);
 
 extern struct list_head nf_hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 
-#if defined(CONFIG_JUMP_LABEL)
-#include <linux/static_key.h>
+#ifdef HAVE_JUMP_LABEL
 extern struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
+
 static inline bool nf_hooks_active(u_int8_t pf, unsigned int hook)
 {
 	if (__builtin_constant_p(pf) &&

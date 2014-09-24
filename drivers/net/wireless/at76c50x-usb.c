@@ -2423,8 +2423,6 @@ static void at76_delete_device(struct at76_priv *priv)
 
 	kfree_skb(priv->rx_skb);
 
-	usb_put_dev(priv->udev);
-
 	at76_dbg(DBG_PROC_ENTRY, "%s: before freeing priv/ieee80211_hw",
 		 __func__);
 	ieee80211_free_hw(priv->hw);
@@ -2558,6 +2556,7 @@ static void at76_disconnect(struct usb_interface *interface)
 
 	wiphy_info(priv->hw->wiphy, "disconnecting\n");
 	at76_delete_device(priv);
+	usb_put_dev(priv->udev);
 	dev_info(&interface->dev, "disconnected\n");
 }
 

@@ -520,7 +520,7 @@ void bio_integrity_endio(struct bio *bio, int error)
 	 */
 	if (error) {
 		bio->bi_end_io = bip->bip_end_io;
-		bio_endio(bio, error);
+		bio_endio_nodec(bio, error);
 
 		return;
 	}

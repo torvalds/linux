@@ -179,9 +179,12 @@ static inline int tipc_port_importance(struct tipc_port *port)
 	return msg_importance(&port->phdr);
 }
 
-static inline void tipc_port_set_importance(struct tipc_port *port, int imp)
+static inline int tipc_port_set_importance(struct tipc_port *port, int imp)
 {
+	if (imp > TIPC_CRITICAL_IMPORTANCE)
+		return -EINVAL;
 	msg_set_importance(&port->phdr, (u32)imp);
+	return 0;
 }
 
 #endif

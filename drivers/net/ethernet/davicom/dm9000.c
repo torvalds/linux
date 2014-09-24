@@ -1399,7 +1399,7 @@ static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
 	const void *mac_addr;
 
 	if (!IS_ENABLED(CONFIG_OF) || !np)
-		return NULL;
+		return ERR_PTR(-ENXIO);
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)

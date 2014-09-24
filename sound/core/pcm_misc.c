@@ -142,11 +142,11 @@ static struct pcm_format_data pcm_formats[(INT)SNDRV_PCM_FORMAT_LAST+1] = {
 	},
 	[SNDRV_PCM_FORMAT_DSD_U8] = {
 		.width = 8, .phys = 8, .le = 1, .signd = 0,
-		.silence = {},
+		.silence = { 0x69 },
 	},
 	[SNDRV_PCM_FORMAT_DSD_U16_LE] = {
 		.width = 16, .phys = 16, .le = 1, .signd = 0,
-		.silence = {},
+		.silence = { 0x69, 0x69 },
 	},
 	/* FIXME: the following three formats are not defined properly yet */
 	[SNDRV_PCM_FORMAT_MPEG] = {

@@ -1228,7 +1228,6 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nouveau_mem *node = mem->mm_node;
-	struct drm_device *dev = drm->dev;
 	int ret;
 
 	mem->bus.addr = NULL;
@@ -1247,7 +1246,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		if (drm->agp.stat == ENABLED) {
 			mem->bus.offset = mem->start << PAGE_SHIFT;
 			mem->bus.base = drm->agp.base;
-			mem->bus.is_iomem = !dev->agp->cant_use_aperture;
+			mem->bus.is_iomem = !drm->dev->agp->cant_use_aperture;
 		}
 #endif
 		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA || !node->memtype)

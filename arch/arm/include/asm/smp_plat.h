@@ -8,6 +8,7 @@
 #include <linux/cpumask.h>
 #include <linux/err.h>
 
+#include <asm/cpu.h>
 #include <asm/cputype.h>
 
 /*
@@ -23,6 +24,20 @@ static inline bool is_smp(void)
 #else
 	return true;
 #endif
+}
+
+/**
+ * smp_cpuid_part() - return part id for a given cpu
+ * @cpu:	logical cpu id.
+ *
+ * Return: part id of logical cpu passed as argument.
+ */
+static inline unsigned int smp_cpuid_part(int cpu)
+{
+	struct cpuinfo_arm *cpu_info = &per_cpu(cpu_data, cpu);
+
+	return is_smp() ? cpu_info->cpuid & ARM_CPU_PART_MASK :
+			  read_cpuid_part();
 }
 
 /* all SMP configurations have the extended CPUID registers */

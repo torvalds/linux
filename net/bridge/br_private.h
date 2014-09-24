@@ -309,6 +309,9 @@ struct br_input_skb_cb {
 	int igmp;
 	int mrouters_only;
 #endif
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	bool vlan_filtered;
+#endif
 };
 
 #define BR_INPUT_SKB_CB(__skb)	((struct br_input_skb_cb *)(__skb)->cb)

@@ -83,7 +83,7 @@
  *            CIK: 1D and linear tiling modes contain valid PIPE_CONFIG
  *   2.39.0 - Add INFO query for number of active CUs
  *   2.40.0 - Add RADEON_GEM_GTT_WC/UC, flush HDP cache before submitting
- *            CS to GPU
+ *            CS to GPU on >= r600
  */
 #define KMS_DRIVER_MAJOR	2
 #define KMS_DRIVER_MINOR	40
@@ -180,6 +180,7 @@ int radeon_vm_size = 8;
 int radeon_vm_block_size = -1;
 int radeon_deep_color = 0;
 int radeon_use_pflipirq = 2;
+int radeon_bapm = -1;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -258,6 +259,9 @@ module_param_named(deep_color, radeon_deep_color, int, 0444);
 
 MODULE_PARM_DESC(use_pflipirq, "Pflip irqs for pageflip completion (0 = disable, 1 = as fallback, 2 = exclusive (default))");
 module_param_named(use_pflipirq, radeon_use_pflipirq, int, 0444);
+
+MODULE_PARM_DESC(bapm, "BAPM support (1 = enable, 0 = disable, -1 = auto)");
+module_param_named(bapm, radeon_bapm, int, 0444);
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
@@ -436,6 +440,7 @@ static int radeon_pmops_runtime_suspend(struct device *dev)
 	ret = radeon_suspend_kms(drm_dev, false, false);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
+	pci_ignore_hotplug(pdev);
 	pci_set_power_state(pdev, PCI_D3cold);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
 

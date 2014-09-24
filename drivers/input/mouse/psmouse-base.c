@@ -670,6 +670,8 @@ static void psmouse_apply_defaults(struct psmouse *psmouse)
 	__set_bit(REL_X, input_dev->relbit);
 	__set_bit(REL_Y, input_dev->relbit);
 
+	__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
+
 	psmouse->set_rate = psmouse_set_rate;
 	psmouse->set_resolution = psmouse_set_resolution;
 	psmouse->poll = psmouse_poll;

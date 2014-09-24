@@ -389,7 +389,7 @@ smb2_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	struct smb2_file_all_info *smb2_data;
 
-	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + MAX_NAME * 2,
+	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + PATH_MAX * 2,
 			    GFP_KERNEL);
 	if (smb2_data == NULL)
 		return -ENOMEM;
@@ -731,11 +731,72 @@ smb2_sync_write(const unsigned int xid, struct cifsFileInfo *cfile,
 	return SMB2_write(xid, parms, written, iov, nr_segs);
 }
 
+/* Set or clear the SPARSE_FILE attribute based on value passed in setsparse */
+static bool smb2_set_sparse(const unsigned int xid, struct cifs_tcon *tcon,
+		struct cifsFileInfo *cfile, struct inode *inode, __u8 setsparse)
+{
+	struct cifsInodeInfo *cifsi;
+	int rc;
+
+	cifsi = CIFS_I(inode);
+
+	/* if file already sparse don't bother setting sparse again */
+	if ((cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) && setsparse)
+		return true; /* already sparse */
+
+	if (!(cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE) && !setsparse)
+		return true; /* already not sparse */
+
+	/*
+	 * Can't check for sparse support on share the usual way via the
+	 * FS attribute info (FILE_SUPPORTS_SPARSE_FILES) on the share
+	 * since Samba server doesn't set the flag on the share, yet
+	 * supports the set sparse FSCTL and returns sparse correctly
+	 * in the file attributes. If we fail setting sparse though we
+	 * mark that server does not support sparse files for this share
+	 * to avoid repeatedly sending the unsupported fsctl to server
+	 * if the file is repeatedly extended.
+	 */
+	if (tcon->broken_sparse_sup)
+		return false;
+
+	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
+			cfile->fid.volatile_fid, FSCTL_SET_SPARSE,
+			true /* is_fctl */, &setsparse, 1, NULL, NULL);
+	if (rc) {
+		tcon->broken_sparse_sup = true;
+		cifs_dbg(FYI, "set sparse rc = %d\n", rc);
+		return false;
+	}
+
+	if (setsparse)
+		cifsi->cifsAttrs |= FILE_ATTRIBUTE_SPARSE_FILE;
+	else
+		cifsi->cifsAttrs &= (~FILE_ATTRIBUTE_SPARSE_FILE);
+
+	return true;
+}
+
 static int
 smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifsFileInfo *cfile, __u64 size, bool set_alloc)
 {
 	__le64 eof = cpu_to_le64(size);
+	struct inode *inode;
+
+	/*
+	 * If extending file more than one page make sparse. Many Linux fs
+	 * make files sparse by default when extending via ftruncate
+	 */
+	inode = cfile->dentry->d_inode;
+
+	if (!set_alloc && (size > inode->i_size + 8192)) {
+		__u8 set_sparse = 1;
+
+		/* whether set sparse succeeds or not, extend the file */
+		smb2_set_sparse(xid, tcon, cfile, inode, set_sparse);
+	}
+
 	return SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
 			    cfile->fid.volatile_fid, cfile->pid, &eof, false);
 }
@@ -954,6 +1015,105 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
+			    loff_t offset, loff_t len, bool keep_size)
+{
+	struct inode *inode;
+	struct cifsInodeInfo *cifsi;
+	struct cifsFileInfo *cfile = file->private_data;
+	struct file_zero_data_information fsctl_buf;
+	long rc;
+	unsigned int xid;
+
+	xid = get_xid();
+
+	inode = cfile->dentry->d_inode;
+	cifsi = CIFS_I(inode);
+
+	/* if file not oplocked can't be sure whether asking to extend size */
+	if (!CIFS_CACHE_READ(cifsi))
+		if (keep_size == false)
+			return -EOPNOTSUPP;
+
+	/*
+	 * Must check if file sparse since fallocate -z (zero range) assumes
+	 * non-sparse allocation
+	 */
+	if (!(cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE))
+		return -EOPNOTSUPP;
+
+	/*
+	 * need to make sure we are not asked to extend the file since the SMB3
+	 * fsctl does not change the file size. In the future we could change
+	 * this to zero the first part of the range then set the file size
+	 * which for a non sparse file would zero the newly extended range
+	 */
+	if (keep_size == false)
+		if (i_size_read(inode) < offset + len)
+			return -EOPNOTSUPP;
+
+	cifs_dbg(FYI, "offset %lld len %lld", offset, len);
+
+	fsctl_buf.FileOffset = cpu_to_le64(offset);
+	fsctl_buf.BeyondFinalZero = cpu_to_le64(offset + len);
+
+	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
+			cfile->fid.volatile_fid, FSCTL_SET_ZERO_DATA,
+			true /* is_fctl */, (char *)&fsctl_buf,
+			sizeof(struct file_zero_data_information), NULL, NULL);
+	free_xid(xid);
+	return rc;
+}
+
+static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
+			    loff_t offset, loff_t len)
+{
+	struct inode *inode;
+	struct cifsInodeInfo *cifsi;
+	struct cifsFileInfo *cfile = file->private_data;
+	struct file_zero_data_information fsctl_buf;
+	long rc;
+	unsigned int xid;
+	__u8 set_sparse = 1;
+
+	xid = get_xid();
+
+	inode = cfile->dentry->d_inode;
+	cifsi = CIFS_I(inode);
+
+	/* Need to make file sparse, if not already, before freeing range. */
+	/* Consider adding equivalent for compressed since it could also work */
+	if (!smb2_set_sparse(xid, tcon, cfile, inode, set_sparse))
+		return -EOPNOTSUPP;
+
+	cifs_dbg(FYI, "offset %lld len %lld", offset, len);
+
+	fsctl_buf.FileOffset = cpu_to_le64(offset);
+	fsctl_buf.BeyondFinalZero = cpu_to_le64(offset + len);
+
+	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
+			cfile->fid.volatile_fid, FSCTL_SET_ZERO_DATA,
+			true /* is_fctl */, (char *)&fsctl_buf,
+			sizeof(struct file_zero_data_information), NULL, NULL);
+	free_xid(xid);
+	return rc;
+}
+
+static long smb3_fallocate(struct file *file, struct cifs_tcon *tcon, int mode,
+			   loff_t off, loff_t len)
+{
+	/* KEEP_SIZE already checked for by do_fallocate */
+	if (mode & FALLOC_FL_PUNCH_HOLE)
+		return smb3_punch_hole(file, tcon, off, len);
+	else if (mode & FALLOC_FL_ZERO_RANGE) {
+		if (mode & FALLOC_FL_KEEP_SIZE)
+			return smb3_zero_range(file, tcon, off, len, true);
+		return smb3_zero_range(file, tcon, off, len, false);
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static void
 smb2_downgrade_oplock(struct TCP_Server_Info *server,
 			struct cifsInodeInfo *cinode, bool set_level2)
@@ -1161,6 +1321,12 @@ smb2_wp_retry_size(struct inode *inode)
 		     SMB2_MAX_BUFFER_SIZE);
 }
 
+static bool
+smb2_dir_needs_close(struct cifsFileInfo *cfile)
+{
+	return !cfile->invalidHandle;
+}
+
 struct smb_version_operations smb20_operations = {
 	.compare_fids = smb2_compare_fids,
 	.setup_request = smb2_setup_request,
@@ -1236,6 +1402,7 @@ struct smb_version_operations smb20_operations = {
 	.parse_lease_buf = smb2_parse_lease_buf,
 	.clone_range = smb2_clone_range,
 	.wp_retry_size = smb2_wp_retry_size,
+	.dir_needs_close = smb2_dir_needs_close,
 };
 
 struct smb_version_operations smb21_operations = {
@@ -1313,6 +1480,7 @@ struct smb_version_operations smb21_operations = {
 	.parse_lease_buf = smb2_parse_lease_buf,
 	.clone_range = smb2_clone_range,
 	.wp_retry_size = smb2_wp_retry_size,
+	.dir_needs_close = smb2_dir_needs_close,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -1393,6 +1561,8 @@ struct smb_version_operations smb30_operations = {
 	.clone_range = smb2_clone_range,
 	.validate_negotiate = smb3_validate_negotiate,
 	.wp_retry_size = smb2_wp_retry_size,
+	.dir_needs_close = smb2_dir_needs_close,
+	.fallocate = smb3_fallocate,
 };
 
 struct smb_version_values smb20_values = {

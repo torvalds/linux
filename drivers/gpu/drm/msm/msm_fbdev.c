@@ -143,7 +143,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	ret = msm_gem_get_iova_locked(fbdev->bo, 0, &paddr);
 	if (ret) {
 		dev_err(dev->dev, "failed to get buffer obj iova: %d\n", ret);
-		goto fail;
+		goto fail_unlock;
 	}
 
 	fbi = framebuffer_alloc(0, dev->dev);

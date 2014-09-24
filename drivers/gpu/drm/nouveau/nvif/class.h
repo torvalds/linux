@@ -428,8 +428,8 @@ struct nv50_disp_dac_pwr_v0 {
 struct nv50_disp_dac_load_v0 {
 	__u8  version;
 	__u8  load;
-	__u16 data;
-	__u8  pad04[4];
+	__u8  pad02[2];
+	__u32 data;
 };
 
 struct nv50_disp_sor_pwr_v0 {

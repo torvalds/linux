@@ -554,13 +554,13 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	} else {
 		/* otherwise, address lowest common amount from 0GiB */
 		ret = nouveau_mm_init(&pfb->vram, rsvd_head,
-				      (bsize << 8) * parts, 1);
+				      (bsize << 8) * parts - rsvd_head, 1);
 		if (ret)
 			return ret;
 
 		/* and the rest starting from (8GiB + common_size) */
 		offset = (0x0200000000ULL >> 12) + (bsize << 8);
-		length = (ram->size >> 12) - (bsize << 8) - rsvd_tail;
+		length = (ram->size >> 12) - ((bsize * parts) << 8) - rsvd_tail;
 
 		ret = nouveau_mm_init(&pfb->vram, offset, length, 0);
 		if (ret)
