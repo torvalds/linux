@@ -743,11 +743,6 @@ static const struct rpc_call_ops nfsd4_cb_probe_ops = {
 
 static struct workqueue_struct *callback_wq;
 
-static void do_probe_callback(struct nfs4_client *clp)
-{
-	return nfsd4_cb(&clp->cl_cb_null, clp, NFSPROC4_CLNT_CB_NULL);
-}
-
 /*
  * Poke the callback thread to process any updates to the callback
  * parameters, and send a null probe.
@@ -756,7 +751,7 @@ void nfsd4_probe_callback(struct nfs4_client *clp)
 {
 	clp->cl_cb_state = NFSD4_CB_UNKNOWN;
 	set_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_flags);
-	do_probe_callback(clp);
+	nfsd4_run_cb(&clp->cl_cb_null);
 }
 
 void nfsd4_probe_callback_sync(struct nfs4_client *clp)
@@ -912,7 +907,7 @@ void nfsd4_shutdown_callback(struct nfs4_client *clp)
 	 * instead, nfsd4_run_cb_null() will detect the killed
 	 * client, destroy the rpc client, and stop:
 	 */
-	do_probe_callback(clp);
+	nfsd4_run_cb(&clp->cl_cb_null);
 	flush_workqueue(callback_wq);
 }
 
@@ -1025,7 +1020,7 @@ nfsd4_run_cb_recall(struct work_struct *w)
 	nfsd4_run_callback_rpc(cb);
 }
 
-void nfsd4_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
+void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 		enum nfsd4_cb_op op)
 {
 	cb->cb_clp = clp;
@@ -1038,6 +1033,9 @@ void nfsd4_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 		cb->cb_ops = &nfsd4_cb_recall_ops;
 	INIT_LIST_HEAD(&cb->cb_per_client);
 	cb->cb_done = true;
+}
 
+void nfsd4_run_cb(struct nfsd4_callback *cb)
+{
 	queue_work(callback_wq, &cb->cb_work);
 }

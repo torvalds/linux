@@ -645,6 +645,9 @@ alloc_init_deleg(struct nfs4_client *clp, struct svc_fh *current_fh)
 	INIT_LIST_HEAD(&dp->dl_perclnt);
 	INIT_LIST_HEAD(&dp->dl_recall_lru);
 	dp->dl_type = NFS4_OPEN_DELEGATE_READ;
+	dp->dl_retries = 1;
+	nfsd4_init_cb(&dp->dl_recall, dp->dl_stid.sc_client,
+		 NFSPROC4_CLNT_CB_RECALL);
 	INIT_WORK(&dp->dl_recall.cb_work, nfsd4_run_cb_recall);
 	return dp;
 out_dec:
@@ -1869,6 +1872,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 		free_client(clp);
 		return NULL;
 	}
+	nfsd4_init_cb(&clp->cl_cb_null, clp, NFSPROC4_CLNT_CB_NULL);
 	INIT_WORK(&clp->cl_cb_null.cb_work, nfsd4_run_cb_null);
 	clp->cl_time = get_seconds();
 	clear_bit(0, &clp->cl_cb_slot_busy);
@@ -3388,9 +3392,7 @@ static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 	 * it's safe to take a reference.
 	 */
 	atomic_inc(&dp->dl_stid.sc_count);
-	dp->dl_retries = 1;
-	nfsd4_cb(&dp->dl_recall, dp->dl_stid.sc_client,
-		 NFSPROC4_CLNT_CB_RECALL);
+	nfsd4_run_cb(&dp->dl_recall);
 }
 
 /* Called from break_lease() with i_lock held. */
