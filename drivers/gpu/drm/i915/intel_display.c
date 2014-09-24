@@ -11671,12 +11671,23 @@ intel_check_primary_plane(struct drm_plane *plane,
 	struct drm_rect *dest = &state->dst;
 	struct drm_rect *src = &state->src;
 	const struct drm_rect *clip = &state->clip;
+	int ret;
 
-	return drm_plane_helper_check_update(plane, crtc, fb,
+	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    src, dest, clip,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    false, true, &state->visible);
+	if (ret)
+		return ret;
+
+	/* no fb bound */
+	if (state->visible && !fb) {
+		DRM_ERROR("No FB bound\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int
@@ -11688,6 +11699,8 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
+	struct drm_framebuffer *old_fb = plane->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
@@ -11696,66 +11709,27 @@ intel_commit_primary_plane(struct drm_plane *plane,
 
 	intel_crtc_wait_for_pending_flips(crtc);
 
-	/*
-	 * If clipping results in a non-visible primary plane, we'll disable
-	 * the primary plane.  Note that this is a bit different than what
-	 * happens if userspace explicitly disables the plane by passing fb=0
-	 * because plane->fb still gets set and pinned.
-	 */
-	if (!state->visible) {
-		mutex_lock(&dev->struct_mutex);
-
-		/*
-		 * Try to pin the new fb first so that we can bail out if we
-		 * fail.
-		 */
-		if (plane->fb != fb) {
-			ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
-			if (ret) {
-				mutex_unlock(&dev->struct_mutex);
-				return ret;
-			}
-		}
-
-		i915_gem_track_fb(old_obj, obj,
-				  INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe));
-
-		if (intel_crtc->primary_enabled)
-			intel_disable_primary_hw_plane(plane, crtc);
-
-
-		if (plane->fb != fb)
-			if (plane->fb)
-				intel_unpin_fb_obj(old_obj);
-
-		mutex_unlock(&dev->struct_mutex);
-
-	} else {
-		if (intel_crtc && intel_crtc->active &&
-		    intel_crtc->primary_enabled) {
-			/*
-			 * FBC does not work on some platforms for rotated
-			 * planes, so disable it when rotation is not 0 and
-			 * update it when rotation is set back to 0.
-			 *
-			 * FIXME: This is redundant with the fbc update done in
-			 * the primary plane enable function except that that
-			 * one is done too late. We eventually need to unify
-			 * this.
-			 */
-			if (INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev) &&
-			    dev_priv->fbc.plane == intel_crtc->plane &&
-			    intel_plane->rotation != BIT(DRM_ROTATE_0)) {
-				intel_disable_fbc(dev);
-			}
-		}
-		ret = intel_pipe_set_base(crtc, src->x1, src->y1, fb);
-		if (ret)
-			return ret;
-
-		if (!intel_crtc->primary_enabled)
-			intel_enable_primary_hw_plane(plane, crtc);
+	if (intel_crtc_has_pending_flip(crtc)) {
+		DRM_ERROR("pipe is still busy with an old pageflip\n");
+		return -EBUSY;
 	}
+
+	if (plane->fb != fb) {
+		mutex_lock(&dev->struct_mutex);
+		ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
+		if (ret == 0)
+			i915_gem_track_fb(old_obj, obj,
+					  INTEL_FRONTBUFFER_PRIMARY(pipe));
+		mutex_unlock(&dev->struct_mutex);
+		if (ret != 0) {
+			DRM_DEBUG_KMS("pin & fence failed\n");
+			return ret;
+		}
+	}
+
+	crtc->primary->fb = fb;
+	crtc->x = src->x1;
+	crtc->y = src->y1;
 
 	intel_plane->crtc_x = state->orig_dst.x1;
 	intel_plane->crtc_y = state->orig_dst.y1;
@@ -11766,6 +11740,69 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	intel_plane->src_w = drm_rect_width(&state->orig_src);
 	intel_plane->src_h = drm_rect_height(&state->orig_src);
 	intel_plane->obj = obj;
+
+	if (intel_crtc->active) {
+		/*
+		 * FBC does not work on some platforms for rotated
+		 * planes, so disable it when rotation is not 0 and
+		 * update it when rotation is set back to 0.
+		 *
+		 * FIXME: This is redundant with the fbc update done in
+		 * the primary plane enable function except that that
+		 * one is done too late. We eventually need to unify
+		 * this.
+		 */
+		if (intel_crtc->primary_enabled &&
+		    INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev) &&
+		    dev_priv->fbc.plane == intel_crtc->plane &&
+		    intel_plane->rotation != BIT(DRM_ROTATE_0)) {
+			intel_disable_fbc(dev);
+		}
+
+		if (state->visible) {
+			bool was_enabled = intel_crtc->primary_enabled;
+
+			/* FIXME: kill this fastboot hack */
+			intel_update_pipe_size(intel_crtc);
+
+			intel_crtc->primary_enabled = true;
+
+			dev_priv->display.update_primary_plane(crtc, plane->fb,
+					crtc->x, crtc->y);
+
+			/*
+			 * BDW signals flip done immediately if the plane
+			 * is disabled, even if the plane enable is already
+			 * armed to occur at the next vblank :(
+			 */
+			if (IS_BROADWELL(dev) && !was_enabled)
+				intel_wait_for_vblank(dev, intel_crtc->pipe);
+		} else {
+			/*
+			 * If clipping results in a non-visible primary plane,
+			 * we'll disable the primary plane.  Note that this is
+			 * a bit different than what happens if userspace
+			 * explicitly disables the plane by passing fb=0
+			 * because plane->fb still gets set and pinned.
+			 */
+			intel_disable_primary_hw_plane(plane, crtc);
+		}
+
+		intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_PRIMARY(pipe));
+
+		mutex_lock(&dev->struct_mutex);
+		intel_update_fbc(dev);
+		mutex_unlock(&dev->struct_mutex);
+	}
+
+	if (old_fb && old_fb != fb) {
+		if (intel_crtc->active)
+			intel_wait_for_vblank(dev, intel_crtc->pipe);
+
+		mutex_lock(&dev->struct_mutex);
+		intel_unpin_fb_obj(old_obj);
+		mutex_unlock(&dev->struct_mutex);
+	}
 
 	return 0;
 }
