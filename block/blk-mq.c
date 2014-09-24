@@ -1795,8 +1795,12 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	if (!q)
 		goto err_hctxs;
 
+	/*
+	 * Init percpu_ref in atomic mode so that it's faster to shutdown.
+	 * See blk_register_queue() for details.
+	 */
 	if (percpu_ref_init(&q->mq_usage_counter, blk_mq_usage_counter_release,
-			    0, GFP_KERNEL))
+			    PERCPU_REF_INIT_ATOMIC, GFP_KERNEL))
 		goto err_map;
 
 	setup_timer(&q->timeout, blk_mq_rq_timer, (unsigned long) q);
