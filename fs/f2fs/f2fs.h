@@ -46,8 +46,9 @@
 #define F2FS_MOUNT_DISABLE_EXT_IDENTIFY	0x00000040
 #define F2FS_MOUNT_INLINE_XATTR		0x00000080
 #define F2FS_MOUNT_INLINE_DATA		0x00000100
-#define F2FS_MOUNT_FLUSH_MERGE		0x00000200
-#define F2FS_MOUNT_NOBARRIER		0x00000400
+#define F2FS_MOUNT_INLINE_DENTRY	0x00000200
+#define F2FS_MOUNT_FLUSH_MERGE		0x00000400
+#define F2FS_MOUNT_NOBARRIER		0x00000800
 
 #define clear_opt(sbi, option)	(sbi->mount_opt.opt &= ~F2FS_MOUNT_##option)
 #define set_opt(sbi, option)	(sbi->mount_opt.opt |= F2FS_MOUNT_##option)
@@ -1058,6 +1059,7 @@ enum {
 	FI_NO_EXTENT,		/* not to use the extent cache */
 	FI_INLINE_XATTR,	/* used for inline xattr */
 	FI_INLINE_DATA,		/* used for inline data*/
+	FI_INLINE_DENTRY,	/* used for inline dentry */
 	FI_APPEND_WRITE,	/* inode has appended data */
 	FI_UPDATE_WRITE,	/* inode has in-place-update data */
 	FI_NEED_IPU,		/* used for ipu per file */
@@ -1104,6 +1106,8 @@ static inline void get_inline_info(struct f2fs_inode_info *fi,
 		set_inode_flag(fi, FI_INLINE_XATTR);
 	if (ri->i_inline & F2FS_INLINE_DATA)
 		set_inode_flag(fi, FI_INLINE_DATA);
+	if (ri->i_inline & F2FS_INLINE_DENTRY)
+		set_inode_flag(fi, FI_INLINE_DENTRY);
 }
 
 static inline void set_raw_inline(struct f2fs_inode_info *fi,
@@ -1115,6 +1119,8 @@ static inline void set_raw_inline(struct f2fs_inode_info *fi,
 		ri->i_inline |= F2FS_INLINE_XATTR;
 	if (is_inode_flag_set(fi, FI_INLINE_DATA))
 		ri->i_inline |= F2FS_INLINE_DATA;
+	if (is_inode_flag_set(fi, FI_INLINE_DENTRY))
+		ri->i_inline |= F2FS_INLINE_DENTRY;
 }
 
 static inline int f2fs_has_inline_xattr(struct inode *inode)
@@ -1160,6 +1166,17 @@ static inline bool f2fs_is_volatile_file(struct inode *inode)
 }
 
 static inline void *inline_data_addr(struct page *page)
+{
+	struct f2fs_inode *ri = F2FS_INODE(page);
+	return (void *)&(ri->i_addr[1]);
+}
+
+static inline int f2fs_has_inline_dentry(struct inode *inode)
+{
+	return is_inode_flag_set(F2FS_I(inode), FI_INLINE_DENTRY);
+}
+
+static inline void *inline_dentry_addr(struct page *page)
 {
 	struct f2fs_inode *ri = F2FS_INODE(page);
 	return (void *)&(ri->i_addr[1]);
