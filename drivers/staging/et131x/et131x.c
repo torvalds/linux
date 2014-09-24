@@ -2638,7 +2638,7 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 				desc[frag].len_vlan = skb_headlen(skb) / 2;
 				dma_addr = dma_map_single(&adapter->pdev->dev,
 							  skb->data,
-							  (skb_headlen(skb) / 2),
+							  skb_headlen(skb) / 2,
 							  DMA_TO_DEVICE);
 				desc[frag].addr_lo = lower_32_bits(dma_addr);
 				desc[frag].addr_hi = upper_32_bits(dma_addr);
@@ -2647,8 +2647,8 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 				desc[frag].len_vlan = skb_headlen(skb) / 2;
 				dma_addr = dma_map_single(&adapter->pdev->dev,
 							  skb->data +
-							  (skb_headlen(skb) / 2),
-							  (skb_headlen(skb) / 2),
+							  skb_headlen(skb) / 2,
+							  skb_headlen(skb) / 2,
 							  DMA_TO_DEVICE);
 				desc[frag].addr_lo = lower_32_bits(dma_addr);
 				desc[frag].addr_hi = upper_32_bits(dma_addr);
