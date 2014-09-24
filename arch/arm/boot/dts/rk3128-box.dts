@@ -239,6 +239,10 @@
 	*/
 };
 
+&gmac_clkin {
+	clock-frequency = <125000000>;
+};
+
 &gmac {
 	//pmu_regulator = "act_ldo5";
 	//pmu_enable_level = <1>; //1->HIGH, 0->LOW
