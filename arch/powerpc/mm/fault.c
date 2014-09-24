@@ -114,7 +114,8 @@ static int store_updates_sp(struct pt_regs *regs)
 #define MM_FAULT_CONTINUE	-1
 #define MM_FAULT_ERR(sig)	(sig)
 
-static int do_sigbus(struct pt_regs *regs, unsigned long address)
+static int do_sigbus(struct pt_regs *regs, unsigned long address,
+		     unsigned int fault)
 {
 	siginfo_t info;
 
@@ -128,6 +129,13 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address)
 	info.si_errno = 0;
 	info.si_code = BUS_ADRERR;
 	info.si_addr = (void __user *)address;
+#ifdef CONFIG_MEMORY_FAILURE
+	if (fault & (VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE)) {
+		pr_err("MCE: Killing %s:%d due to hardware memory corruption fault at %lx\n",
+			current->comm, current->pid, address);
+		info.si_code = BUS_MCEERR_AR;
+	}
+#endif
 	force_sig_info(SIGBUS, &info, current);
 	return MM_FAULT_RETURN;
 }
@@ -170,11 +178,8 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
 		return MM_FAULT_RETURN;
 	}
 
-	/* Bus error. x86 handles HWPOISON here, we'll add this if/when
-	 * we support the feature in HW
-	 */
-	if (fault & VM_FAULT_SIGBUS)
-		return do_sigbus(regs, addr);
+	if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE))
+		return do_sigbus(regs, addr, fault);
 
 	/* We don't understand the fault code, this is fatal */
 	BUG();
