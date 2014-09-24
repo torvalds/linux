@@ -305,7 +305,7 @@ static void fmr2_pnp_remove(struct pnp_dev *pdev)
 	pnp_set_drvdata(pdev, NULL);
 }
 
-struct isa_driver fmr2_isa_driver = {
+static struct isa_driver fmr2_isa_driver = {
 	.match		= fmr2_isa_match,
 	.remove		= fmr2_isa_remove,
 	.driver		= {
@@ -313,7 +313,7 @@ struct isa_driver fmr2_isa_driver = {
 	},
 };
 
-struct pnp_driver fmr2_pnp_driver = {
+static struct pnp_driver fmr2_pnp_driver = {
 	.name		= "radio-sf16fmr2",
 	.id_table	= fmr2_pnp_ids,
 	.probe		= fmr2_pnp_probe,
