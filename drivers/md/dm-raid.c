@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2010-2011 Neil Brown
- * Copyright (C) 2010-2011 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2010-2014 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -1150,6 +1150,27 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 }
 
 /*
+ * Enable/disable discard support on RAID set depending on RAID level.
+ */
+static void configure_discard_support(struct dm_target *ti, struct raid_set *rs)
+{
+	/* Assume discards not supported until after checks below. */
+	ti->discards_supported = false;
+
+	/* RAID level 4,5,6 require discard_zeroes_data for data integrity! */
+	if (rs->md.level == 4 || rs->md.level == 5 || rs->md.level == 6)
+		return; /* discard_zeroes_data cannot be trusted as reliable */
+
+	ti->discards_supported = true;
+
+	/*
+	 * RAID1 and RAID10 personalities require bio splitting,
+	 */
+	ti->split_discard_bios = true;
+	ti->num_discard_bios = 1;
+}
+
+/*
  * Construct a RAID4/5/6 mapping:
  * Args:
  *	<raid_type> <#raid_params> <raid_params>		\
@@ -1230,6 +1251,11 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	INIT_WORK(&rs->md.event_work, do_table_event);
 	ti->private = rs;
 	ti->num_flush_bios = 1;
+
+	/*
+	 * Disable/enable discard support on RAID set.
+	 */
+	configure_discard_support(ti, rs);
 
 	mutex_lock(&rs->md.reconfig_mutex);
 	ret = md_run(&rs->md);
@@ -1652,7 +1678,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 5, 2},
+	.version = {1, 6, 0},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,
