@@ -64,7 +64,7 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
-		adc@f8007100 {
+		adc: adc@f8007100 {
 			compatible = "xlnx,zynq-xadc-1.00.a";
 			reg = <0xf8007100 0x20>;
 			interrupts = <0 7 4>;
