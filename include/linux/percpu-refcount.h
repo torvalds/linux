@@ -67,7 +67,9 @@ enum {
 enum {
 	/*
 	 * Start w/ ref == 1 in atomic mode.  Can be switched to percpu
-	 * operation using percpu_ref_switch_to_percpu().
+	 * operation using percpu_ref_switch_to_percpu().  If initialized
+	 * with this flag, the ref will stay in atomic mode until
+	 * percpu_ref_switch_to_percpu() is invoked on it.
 	 */
 	PERCPU_REF_INIT_ATOMIC	= 1 << 0,
 
@@ -87,6 +89,7 @@ struct percpu_ref {
 	unsigned long		percpu_count_ptr;
 	percpu_ref_func_t	*release;
 	percpu_ref_func_t	*confirm_switch;
+	bool			force_atomic:1;
 	struct rcu_head		rcu;
 };
 

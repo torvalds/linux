@@ -67,6 +67,8 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release,
 	if (!ref->percpu_count_ptr)
 		return -ENOMEM;
 
+	ref->force_atomic = flags & PERCPU_REF_INIT_ATOMIC;
+
 	if (flags & (PERCPU_REF_INIT_ATOMIC | PERCPU_REF_INIT_DEAD))
 		ref->percpu_count_ptr |= __PERCPU_REF_ATOMIC;
 	else
@@ -202,7 +204,8 @@ static void __percpu_ref_switch_to_atomic(struct percpu_ref *ref,
  * are guaraneed to be in atomic mode, @confirm_switch, which may not
  * block, is invoked.  This function may be invoked concurrently with all
  * the get/put operations and can safely be mixed with kill and reinit
- * operations.
+ * operations.  Note that @ref will stay in atomic mode across kill/reinit
+ * cycles until percpu_ref_switch_to_percpu() is called.
  *
  * This function normally doesn't block and can be called from any context
  * but it may block if @confirm_kill is specified and @ref is already in
@@ -216,6 +219,7 @@ static void __percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_switch)
 {
+	ref->force_atomic = true;
 	__percpu_ref_switch_to_atomic(ref, confirm_switch);
 }
 
@@ -255,7 +259,10 @@ static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
  *
  * Switch @ref to percpu mode.  This function may be invoked concurrently
  * with all the get/put operations and can safely be mixed with kill and
- * reinit operations.
+ * reinit operations.  This function reverses the sticky atomic state set
+ * by PERCPU_REF_INIT_ATOMIC or percpu_ref_switch_to_atomic().  If @ref is
+ * dying or dead, the actual switching takes place on the following
+ * percpu_ref_reinit().
  *
  * This function normally doesn't block and can be called from any context
  * but it may block if @ref is in the process of switching to atomic mode
@@ -263,6 +270,8 @@ static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
  */
 void percpu_ref_switch_to_percpu(struct percpu_ref *ref)
 {
+	ref->force_atomic = false;
+
 	/* a dying or dead ref can't be switched to percpu mode w/o reinit */
 	if (!(ref->percpu_count_ptr & __PERCPU_REF_DEAD))
 		__percpu_ref_switch_to_percpu(ref);
@@ -304,8 +313,8 @@ EXPORT_SYMBOL_GPL(percpu_ref_kill_and_confirm);
  * @ref: perpcu_ref to re-initialize
  *
  * Re-initialize @ref so that it's in the same state as when it finished
- * percpu_ref_init().  @ref must have been initialized successfully and
- * reached 0 but not exited.
+ * percpu_ref_init() ignoring %PERCPU_REF_INIT_DEAD.  @ref must have been
+ * initialized successfully and reached 0 but not exited.
  *
  * Note that percpu_ref_tryget[_live]() are safe to perform on @ref while
  * this function is in progress.
@@ -316,6 +325,7 @@ void percpu_ref_reinit(struct percpu_ref *ref)
 
 	ref->percpu_count_ptr &= ~__PERCPU_REF_DEAD;
 	percpu_ref_get(ref);
-	__percpu_ref_switch_to_percpu(ref);
+	if (!ref->force_atomic)
+		__percpu_ref_switch_to_percpu(ref);
 }
 EXPORT_SYMBOL_GPL(percpu_ref_reinit);
