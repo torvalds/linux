@@ -63,41 +63,6 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release,
 EXPORT_SYMBOL_GPL(percpu_ref_init);
 
 /**
- * percpu_ref_reinit - re-initialize a percpu refcount
- * @ref: perpcu_ref to re-initialize
- *
- * Re-initialize @ref so that it's in the same state as when it finished
- * percpu_ref_init().  @ref must have been initialized successfully, killed
- * and reached 0 but not exited.
- *
- * Note that percpu_ref_tryget[_live]() are safe to perform on @ref while
- * this function is in progress.
- */
-void percpu_ref_reinit(struct percpu_ref *ref)
-{
-	unsigned long __percpu *pcpu_count = pcpu_count_ptr(ref);
-	int cpu;
-
-	BUG_ON(!pcpu_count);
-	WARN_ON(!percpu_ref_is_zero(ref));
-
-	atomic_long_set(&ref->count, 1 + PCPU_COUNT_BIAS);
-
-	/*
-	 * Restore per-cpu operation.  smp_store_release() is paired with
-	 * smp_read_barrier_depends() in __pcpu_ref_alive() and guarantees
-	 * that the zeroing is visible to all percpu accesses which can see
-	 * the following PCPU_REF_DEAD clearing.
-	 */
-	for_each_possible_cpu(cpu)
-		*per_cpu_ptr(pcpu_count, cpu) = 0;
-
-	smp_store_release(&ref->pcpu_count_ptr,
-			  ref->pcpu_count_ptr & ~PCPU_REF_DEAD);
-}
-EXPORT_SYMBOL_GPL(percpu_ref_reinit);
-
-/**
  * percpu_ref_exit - undo percpu_ref_init()
  * @ref: percpu_ref to exit
  *
@@ -189,3 +154,38 @@ void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 	call_rcu_sched(&ref->rcu, percpu_ref_kill_rcu);
 }
 EXPORT_SYMBOL_GPL(percpu_ref_kill_and_confirm);
+
+/**
+ * percpu_ref_reinit - re-initialize a percpu refcount
+ * @ref: perpcu_ref to re-initialize
+ *
+ * Re-initialize @ref so that it's in the same state as when it finished
+ * percpu_ref_init().  @ref must have been initialized successfully, killed
+ * and reached 0 but not exited.
+ *
+ * Note that percpu_ref_tryget[_live]() are safe to perform on @ref while
+ * this function is in progress.
+ */
+void percpu_ref_reinit(struct percpu_ref *ref)
+{
+	unsigned long __percpu *pcpu_count = pcpu_count_ptr(ref);
+	int cpu;
+
+	BUG_ON(!pcpu_count);
+	WARN_ON(!percpu_ref_is_zero(ref));
+
+	atomic_long_set(&ref->count, 1 + PCPU_COUNT_BIAS);
+
+	/*
+	 * Restore per-cpu operation.  smp_store_release() is paired with
+	 * smp_read_barrier_depends() in __pcpu_ref_alive() and guarantees
+	 * that the zeroing is visible to all percpu accesses which can see
+	 * the following PCPU_REF_DEAD clearing.
+	 */
+	for_each_possible_cpu(cpu)
+		*per_cpu_ptr(pcpu_count, cpu) = 0;
+
+	smp_store_release(&ref->pcpu_count_ptr,
+			  ref->pcpu_count_ptr & ~PCPU_REF_DEAD);
+}
+EXPORT_SYMBOL_GPL(percpu_ref_reinit);

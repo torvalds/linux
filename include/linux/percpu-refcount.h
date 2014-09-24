@@ -68,10 +68,10 @@ struct percpu_ref {
 
 int __must_check percpu_ref_init(struct percpu_ref *ref,
 				 percpu_ref_func_t *release, gfp_t gfp);
-void percpu_ref_reinit(struct percpu_ref *ref);
 void percpu_ref_exit(struct percpu_ref *ref);
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill);
+void percpu_ref_reinit(struct percpu_ref *ref);
 
 /**
  * percpu_ref_kill - drop the initial ref
