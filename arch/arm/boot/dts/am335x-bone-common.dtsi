@@ -227,6 +227,7 @@
 &tps {
 	regulators {
 		dcdc1_reg: regulator@0 {
+			regulator-name = "vdds_dpr";
 			regulator-always-on;
 		};
 
@@ -249,18 +250,22 @@
 		};
 
 		ldo1_reg: regulator@3 {
+			regulator-name = "vio,vrtc,vdds";
 			regulator-always-on;
 		};
 
 		ldo2_reg: regulator@4 {
+			regulator-name = "vdd_3v3aux";
 			regulator-always-on;
 		};
 
 		ldo3_reg: regulator@5 {
+			regulator-name = "vdd_1v8";
 			regulator-always-on;
 		};
 
 		ldo4_reg: regulator@6 {
+			regulator-name = "vdd_3v3a";
 			regulator-always-on;
 		};
 	};

@@ -4696,8 +4696,9 @@ int drm_mode_create_dumb_ioctl(struct drm_device *dev,
 		return -EINVAL;
 
 	/* overflow checks for 32bit size calculations */
+	/* NOTE: DIV_ROUND_UP() can overflow */
 	cpp = DIV_ROUND_UP(args->bpp, 8);
-	if (cpp > 0xffffffffU / args->width)
+	if (!cpp || cpp > 0xffffffffU / args->width)
 		return -EINVAL;
 	stride = cpp * args->width;
 	if (args->height > 0xffffffffU / stride)

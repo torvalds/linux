@@ -253,6 +253,11 @@ static void __init nokia_n900_legacy_init(void)
 
 	}
 }
+
+static void __init omap3_tao3530_legacy_init(void)
+{
+	hsmmc2_internal_input_clk();
+}
 #endif /* CONFIG_ARCH_OMAP3 */
 
 #ifdef CONFIG_ARCH_OMAP4
@@ -377,6 +382,7 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ "ti,omap3-evm-37xx", omap3_evm_legacy_init, },
 	{ "ti,omap3-zoom3", omap3_zoom_legacy_init, },
 	{ "ti,am3517-evm", am3517_evm_legacy_init, },
+	{ "technexion,omap3-tao3530", omap3_tao3530_legacy_init, },
 #endif
 #ifdef CONFIG_ARCH_OMAP4
 	{ "ti,omap4-sdp", omap4_sdp_legacy_init, },

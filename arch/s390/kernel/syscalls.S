@@ -356,3 +356,6 @@ SYSCALL(sys_finit_module,sys_finit_module,compat_sys_finit_module)
 SYSCALL(sys_sched_setattr,sys_sched_setattr,compat_sys_sched_setattr) /* 345 */
 SYSCALL(sys_sched_getattr,sys_sched_getattr,compat_sys_sched_getattr)
 SYSCALL(sys_renameat2,sys_renameat2,compat_sys_renameat2)
+SYSCALL(sys_seccomp,sys_seccomp,compat_sys_seccomp)
+SYSCALL(sys_getrandom,sys_getrandom,compat_sys_getrandom)
+SYSCALL(sys_memfd_create,sys_memfd_create,compat_sys_memfd_create) /* 350 */

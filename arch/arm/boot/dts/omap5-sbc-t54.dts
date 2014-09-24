@@ -1,11 +1,11 @@
 /*
- * Suppport for CompuLab SBC-T54 with CM-T54
+ * Suppport for CompuLab CM-T54 on SB-T54 baseboard
  */
 
 #include "omap5-cm-t54.dts"
 
 / {
-	model = "CompuLab SBC-T54 with CM-T54";
+	model = "CompuLab CM-T54 on SB-T54";
 	compatible = "compulab,omap5-sbc-t54", "compulab,omap5-cm-t54", "ti,omap5";
 };
 

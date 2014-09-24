@@ -23,8 +23,8 @@
  * Here we define all the compile-time 'special' virtual
  * addresses. The point is to have a constant address at
  * compile time, but to set the physical address only
- * in the boot process. We allocate these special  addresses
- * from the end of the consistent memory region backwards.
+ * in the boot process. We allocate these special addresses
+ * from the start of the consistent memory region upwards.
  * Also this lets us do fail-safe vmalloc(), we
  * can guarantee that these special addresses and
  * vmalloc()-ed addresses never overlap.
@@ -38,7 +38,8 @@ enum fixed_addresses {
 #ifdef CONFIG_HIGHMEM
 	/* reserved pte's for temporary kernel mappings */
 	FIX_KMAP_BEGIN,
-	FIX_KMAP_END = FIX_KMAP_BEGIN + (KM_TYPE_NR * NR_CPUS) - 1,
+	FIX_KMAP_END = FIX_KMAP_BEGIN +
+		(KM_TYPE_NR * NR_CPUS * DCACHE_N_COLORS) - 1,
 #endif
 	__end_of_fixed_addresses
 };
@@ -47,7 +48,28 @@ enum fixed_addresses {
 #define FIXADDR_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
 #define FIXADDR_START	((FIXADDR_TOP - FIXADDR_SIZE) & PMD_MASK)
 
-#include <asm-generic/fixmap.h>
+#define __fix_to_virt(x)	(FIXADDR_START + ((x) << PAGE_SHIFT))
+#define __virt_to_fix(x)	(((x) - FIXADDR_START) >> PAGE_SHIFT)
+
+#ifndef __ASSEMBLY__
+/*
+ * 'index to address' translation. If anyone tries to use the idx
+ * directly without translation, we catch the bug with a NULL-deference
+ * kernel oops. Illegal ranges of incoming indices are caught too.
+ */
+static __always_inline unsigned long fix_to_virt(const unsigned int idx)
+{
+	BUILD_BUG_ON(idx >= __end_of_fixed_addresses);
+	return __fix_to_virt(idx);
+}
+
+static inline unsigned long virt_to_fix(const unsigned long vaddr)
+{
+	BUG_ON(vaddr >= FIXADDR_TOP || vaddr < FIXADDR_START);
+	return __virt_to_fix(vaddr);
+}
+
+#endif
 
 #define kmap_get_fixmap_pte(vaddr) \
 	pte_offset_kernel( \

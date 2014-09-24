@@ -334,6 +334,10 @@
 			interrupts = <26>;
 			ti,mbox-num-users = <2>;
 			ti,mbox-num-fifos = <2>;
+			mbox_dsp: dsp {
+				ti,mbox-tx = <0 0 0>;
+				ti,mbox-rx = <1 0 0>;
+			};
 		};
 
 		mcspi1: spi@48098000 {

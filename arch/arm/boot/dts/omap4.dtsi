@@ -656,6 +656,14 @@
 			ti,hwmods = "mailbox";
 			ti,mbox-num-users = <3>;
 			ti,mbox-num-fifos = <8>;
+			mbox_ipu: mbox_ipu {
+				ti,mbox-tx = <0 0 0>;
+				ti,mbox-rx = <1 0 0>;
+			};
+			mbox_dsp: mbox_dsp {
+				ti,mbox-tx = <3 0 0>;
+				ti,mbox-rx = <2 0 0>;
+			};
 		};
 
 		timer1: timer@4a318000 {
