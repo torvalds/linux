@@ -34,7 +34,7 @@
 static unsigned long __percpu *percpu_count_ptr(struct percpu_ref *ref)
 {
 	return (unsigned long __percpu *)
-		(ref->percpu_count_ptr & ~__PERCPU_REF_ATOMIC);
+		(ref->percpu_count_ptr & ~__PERCPU_REF_ATOMIC_DEAD);
 }
 
 /**
@@ -52,10 +52,13 @@ static unsigned long __percpu *percpu_count_ptr(struct percpu_ref *ref)
 int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release,
 		    gfp_t gfp)
 {
+	size_t align = max_t(size_t, 1 << __PERCPU_REF_FLAG_BITS,
+			     __alignof__(unsigned long));
+
 	atomic_long_set(&ref->count, 1 + PERCPU_COUNT_BIAS);
 
-	ref->percpu_count_ptr =
-		(unsigned long)alloc_percpu_gfp(unsigned long, gfp);
+	ref->percpu_count_ptr = (unsigned long)
+		__alloc_percpu_gfp(sizeof(unsigned long), align, gfp);
 	if (!ref->percpu_count_ptr)
 		return -ENOMEM;
 
@@ -80,7 +83,7 @@ void percpu_ref_exit(struct percpu_ref *ref)
 
 	if (percpu_count) {
 		free_percpu(percpu_count);
-		ref->percpu_count_ptr = __PERCPU_REF_ATOMIC;
+		ref->percpu_count_ptr = __PERCPU_REF_ATOMIC_DEAD;
 	}
 }
 EXPORT_SYMBOL_GPL(percpu_ref_exit);
@@ -145,10 +148,10 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill)
 {
-	WARN_ONCE(ref->percpu_count_ptr & __PERCPU_REF_ATOMIC,
+	WARN_ONCE(ref->percpu_count_ptr & __PERCPU_REF_ATOMIC_DEAD,
 		  "%s called more than once on %pf!", __func__, ref->release);
 
-	ref->percpu_count_ptr |= __PERCPU_REF_ATOMIC;
+	ref->percpu_count_ptr |= __PERCPU_REF_ATOMIC_DEAD;
 	ref->confirm_switch = confirm_kill;
 
 	call_rcu_sched(&ref->rcu, percpu_ref_kill_rcu);
@@ -180,12 +183,12 @@ void percpu_ref_reinit(struct percpu_ref *ref)
 	 * Restore per-cpu operation.  smp_store_release() is paired with
 	 * smp_read_barrier_depends() in __ref_is_percpu() and guarantees
 	 * that the zeroing is visible to all percpu accesses which can see
-	 * the following __PERCPU_REF_ATOMIC clearing.
+	 * the following __PERCPU_REF_ATOMIC_DEAD clearing.
 	 */
 	for_each_possible_cpu(cpu)
 		*per_cpu_ptr(percpu_count, cpu) = 0;
 
 	smp_store_release(&ref->percpu_count_ptr,
-			  ref->percpu_count_ptr & ~__PERCPU_REF_ATOMIC);
+			  ref->percpu_count_ptr & ~__PERCPU_REF_ATOMIC_DEAD);
 }
 EXPORT_SYMBOL_GPL(percpu_ref_reinit);
