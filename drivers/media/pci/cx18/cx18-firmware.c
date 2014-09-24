@@ -130,7 +130,7 @@ static int load_cpu_fw_direct(const char *fn, u8 __iomem *mem, struct cx18 *cx)
 		}
 	}
 	if (!test_bit(CX18_F_I_LOADED_FW, &cx->i_flags))
-		CX18_INFO("loaded %s firmware (%zd bytes)\n", fn, fw->size);
+		CX18_INFO("loaded %s firmware (%zu bytes)\n", fn, fw->size);
 	size = fw->size;
 	release_firmware(fw);
 	cx18_setup_page(cx, SCB_OFFSET);
@@ -202,7 +202,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 		offset += seghdr.size;
 	}
 	if (!test_bit(CX18_F_I_LOADED_FW, &cx->i_flags))
-		CX18_INFO("loaded %s firmware V%08x (%zd bytes)\n",
+		CX18_INFO("loaded %s firmware V%08x (%zu bytes)\n",
 				fn, apu_version, fw->size);
 	size = fw->size;
 	release_firmware(fw);

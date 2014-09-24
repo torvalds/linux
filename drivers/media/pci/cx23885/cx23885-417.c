@@ -942,7 +942,7 @@ static int cx23885_load_firmware(struct cx23885_dev *dev)
 
 	if (firmware->size != CX23885_FIRM_IMAGE_SIZE) {
 		printk(KERN_ERR "ERROR: Firmware size mismatch "
-			"(have %zd, expected %d)\n",
+			"(have %zu, expected %d)\n",
 			firmware->size, CX23885_FIRM_IMAGE_SIZE);
 		release_firmware(firmware);
 		return -1;
