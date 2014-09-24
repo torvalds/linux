@@ -74,9 +74,6 @@ config STACKTRACE_SUPPORT
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
-config NO_DMA
-	def_bool n
-
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
