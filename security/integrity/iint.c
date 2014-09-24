@@ -25,8 +25,6 @@ static struct rb_root integrity_iint_tree = RB_ROOT;
 static DEFINE_RWLOCK(integrity_iint_lock);
 static struct kmem_cache *iint_cache __read_mostly;
 
-int iint_initialized;
-
 /*
  * __integrity_iint_find - return the iint associated with an inode
  */
@@ -166,7 +164,6 @@ static int __init integrity_iintcache_init(void)
 	iint_cache =
 	    kmem_cache_create("iint_cache", sizeof(struct integrity_iint_cache),
 			      0, SLAB_PANIC, init_once);
-	iint_initialized = 1;
 	return 0;
 }
 security_initcall(integrity_iintcache_init);
