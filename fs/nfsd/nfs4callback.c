@@ -824,18 +824,8 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 		dprintk("%s: freed slot, new seqid=%d\n", __func__,
 			clp->cl_cb_session->se_cb_seq_nr);
 	}
-}
 
-static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
-{
-	struct nfsd4_callback *cb = calldata;
-	struct nfs4_delegation *dp = to_delegation(cb);
-	struct nfs4_client *clp = cb->cb_clp;
-	struct rpc_clnt *current_rpc_client = clp->cl_cb_client;
-
-	nfsd4_cb_done(task, calldata);
-
-	if (current_rpc_client != task->tk_client) {
+	if (clp->cl_cb_client != task->tk_client) {
 		/* We're shutting down or changing cl_cb_client; leave
 		 * it to nfsd4_process_cb_update to restart the call if
 		 * necessary. */
@@ -844,45 +834,42 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 
 	if (cb->cb_done)
 		return;
-	switch (task->tk_status) {
+
+	switch (cb->cb_ops->done(cb, task)) {
 	case 0:
+		task->tk_status = 0;
+		rpc_restart_call_prepare(task);
+		return;
+	case 1:
 		break;
-	case -EBADHANDLE:
-	case -NFS4ERR_BAD_STATEID:
-		/* Race: client probably got cb_recall
-		 * before open reply granting delegation */
-		if (dp->dl_retries--) {
-			rpc_delay(task, 2*HZ);
-			task->tk_status = 0;
-			rpc_restart_call_prepare(task);
-			return;
-		}
-	default:
+	case -1:
 		/* Network partition? */
 		nfsd4_mark_cb_down(clp, task->tk_status);
+		break;
+	default:
+		BUG();
 	}
 	cb->cb_done = true;
 }
 
-static void nfsd4_cb_recall_release(void *calldata)
+static void nfsd4_cb_release(void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
 	struct nfs4_client *clp = cb->cb_clp;
 
 	if (cb->cb_done) {
-		struct nfs4_delegation *dp = to_delegation(cb);
-
 		spin_lock(&clp->cl_lock);
 		list_del(&cb->cb_per_client);
 		spin_unlock(&clp->cl_lock);
-		nfs4_put_stid(&dp->dl_stid);
+
+		cb->cb_ops->release(cb);
 	}
 }
 
-static const struct rpc_call_ops nfsd4_cb_recall_ops = {
+static const struct rpc_call_ops nfsd4_cb_ops = {
 	.rpc_call_prepare = nfsd4_cb_prepare,
-	.rpc_call_done = nfsd4_cb_recall_done,
-	.rpc_release = nfsd4_cb_recall_release,
+	.rpc_call_done = nfsd4_cb_done,
+	.rpc_release = nfsd4_cb_release,
 };
 
 int nfsd4_create_callback_queue(void)
@@ -909,12 +896,6 @@ void nfsd4_shutdown_callback(struct nfs4_client *clp)
 	 */
 	nfsd4_run_cb(&clp->cl_cb_null);
 	flush_workqueue(callback_wq);
-}
-
-static void nfsd4_release_cb(struct nfsd4_callback *cb)
-{
-	if (cb->cb_ops->rpc_release)
-		cb->cb_ops->rpc_release(cb);
 }
 
 /* requires cl_lock: */
@@ -983,10 +964,15 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 }
 
 static void
-nfsd4_run_callback_rpc(struct nfsd4_callback *cb)
+nfsd4_run_cb_work(struct work_struct *work)
 {
+	struct nfsd4_callback *cb =
+		container_of(work, struct nfsd4_callback, cb_work);
 	struct nfs4_client *clp = cb->cb_clp;
 	struct rpc_clnt *clnt;
+
+	if (cb->cb_ops && cb->cb_ops->prepare)
+		cb->cb_ops->prepare(cb);
 
 	if (clp->cl_flags & NFSD4_CLIENT_CB_FLAG_MASK)
 		nfsd4_process_cb_update(cb);
@@ -994,43 +980,24 @@ nfsd4_run_callback_rpc(struct nfsd4_callback *cb)
 	clnt = clp->cl_cb_client;
 	if (!clnt) {
 		/* Callback channel broken, or client killed; give up: */
-		nfsd4_release_cb(cb);
+		if (cb->cb_ops && cb->cb_ops->release)
+			cb->cb_ops->release(cb);
 		return;
 	}
 	cb->cb_msg.rpc_cred = clp->cl_cb_cred;
 	rpc_call_async(clnt, &cb->cb_msg, RPC_TASK_SOFT | RPC_TASK_SOFTCONN,
-			cb->cb_ops, cb);
-}
-
-void
-nfsd4_run_cb_null(struct work_struct *w)
-{
-	struct nfsd4_callback *cb = container_of(w, struct nfsd4_callback,
-							cb_work);
-	nfsd4_run_callback_rpc(cb);
-}
-
-void
-nfsd4_run_cb_recall(struct work_struct *w)
-{
-	struct nfsd4_callback *cb = container_of(w, struct nfsd4_callback,
-							cb_work);
-
-	nfsd4_prepare_cb_recall(to_delegation(cb));
-	nfsd4_run_callback_rpc(cb);
+			cb->cb_ops ? &nfsd4_cb_ops : &nfsd4_cb_probe_ops, cb);
 }
 
 void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
-		enum nfsd4_cb_op op)
+		struct nfsd4_callback_ops *ops, enum nfsd4_cb_op op)
 {
 	cb->cb_clp = clp;
 	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[op];
 	cb->cb_msg.rpc_argp = cb;
 	cb->cb_msg.rpc_resp = cb;
-	if (op == NFSPROC4_CLNT_CB_NULL)
-		cb->cb_ops = &nfsd4_cb_probe_ops;
-	else
-		cb->cb_ops = &nfsd4_cb_recall_ops;
+	cb->cb_ops = ops;
+	INIT_WORK(&cb->cb_work, nfsd4_run_cb_work);
 	INIT_LIST_HEAD(&cb->cb_per_client);
 	cb->cb_done = true;
 }

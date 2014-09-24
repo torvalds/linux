@@ -96,6 +96,8 @@ static struct kmem_cache *deleg_slab;
 
 static void free_session(struct nfsd4_session *);
 
+static struct nfsd4_callback_ops nfsd4_cb_recall_ops;
+
 static bool is_session_dead(struct nfsd4_session *ses)
 {
 	return ses->se_flags & NFS4_SESSION_DEAD;
@@ -647,8 +649,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct svc_fh *current_fh)
 	dp->dl_type = NFS4_OPEN_DELEGATE_READ;
 	dp->dl_retries = 1;
 	nfsd4_init_cb(&dp->dl_recall, dp->dl_stid.sc_client,
-		 NFSPROC4_CLNT_CB_RECALL);
-	INIT_WORK(&dp->dl_recall.cb_work, nfsd4_run_cb_recall);
+		      &nfsd4_cb_recall_ops, NFSPROC4_CLNT_CB_RECALL);
 	return dp;
 out_dec:
 	atomic_long_dec(&num_delegations);
@@ -1872,8 +1873,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 		free_client(clp);
 		return NULL;
 	}
-	nfsd4_init_cb(&clp->cl_cb_null, clp, NFSPROC4_CLNT_CB_NULL);
-	INIT_WORK(&clp->cl_cb_null.cb_work, nfsd4_run_cb_null);
+	nfsd4_init_cb(&clp->cl_cb_null, clp, NULL, NFSPROC4_CLNT_CB_NULL);
 	clp->cl_time = get_seconds();
 	clear_bit(0, &clp->cl_cb_slot_busy);
 	copy_verf(clp, verf);
@@ -3360,8 +3360,12 @@ nfs4_share_conflict(struct svc_fh *current_fh, unsigned int deny_type)
 	return ret;
 }
 
-void nfsd4_prepare_cb_recall(struct nfs4_delegation *dp)
+#define cb_to_delegation(cb) \
+	container_of(cb, struct nfs4_delegation, dl_recall)
+
+static void nfsd4_cb_recall_prepare(struct nfsd4_callback *cb)
 {
+	struct nfs4_delegation *dp = cb_to_delegation(cb);
 	struct nfsd_net *nn = net_generic(dp->dl_stid.sc_client->net,
 					  nfsd_net_id);
 
@@ -3381,6 +3385,43 @@ void nfsd4_prepare_cb_recall(struct nfs4_delegation *dp)
 	}
 	spin_unlock(&state_lock);
 }
+
+static int nfsd4_cb_recall_done(struct nfsd4_callback *cb,
+		struct rpc_task *task)
+{
+	struct nfs4_delegation *dp = cb_to_delegation(cb);
+
+	switch (task->tk_status) {
+	case 0:
+		return 1;
+	case -EBADHANDLE:
+	case -NFS4ERR_BAD_STATEID:
+		/*
+		 * Race: client probably got cb_recall before open reply
+		 * granting delegation.
+		 */
+		if (dp->dl_retries--) {
+			rpc_delay(task, 2 * HZ);
+			return 0;
+		}
+		/*FALLTHRU*/
+	default:
+		return -1;
+	}
+}
+
+static void nfsd4_cb_recall_release(struct nfsd4_callback *cb)
+{
+	struct nfs4_delegation *dp = cb_to_delegation(cb);
+
+	nfs4_put_stid(&dp->dl_stid);
+}
+
+static struct nfsd4_callback_ops nfsd4_cb_recall_ops = {
+	.prepare	= nfsd4_cb_recall_prepare,
+	.done		= nfsd4_cb_recall_done,
+	.release	= nfsd4_cb_recall_release,
+};
 
 static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 {
