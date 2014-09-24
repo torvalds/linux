@@ -3192,15 +3192,13 @@ static void et131x_hwaddr_init(struct et131x_adapter *adapter)
 		 * working with so we need to copy the current
 		 * address into the permanent address
 		 */
-		memcpy(adapter->rom_addr,
-		       adapter->addr, ETH_ALEN);
+		ether_addr_copy(adapter->rom_addr, adapter->addr);
 	} else {
 		/* We do not have an override address, so set the
 		 * current address to the permanent address and add
 		 * it to the device
 		 */
-		memcpy(adapter->addr,
-		       adapter->rom_addr, ETH_ALEN);
+		ether_addr_copy(adapter->addr, adapter->rom_addr);
 	}
 }
 
@@ -4055,7 +4053,7 @@ static void et131x_multicast(struct net_device *netdev)
 	netdev_for_each_mc_addr(ha, netdev) {
 		if (i == NIC_MAX_MCAST_LIST)
 			break;
-		memcpy(adapter->multicast_list[i++], ha->addr, ETH_ALEN);
+		ether_addr_copy(adapter->multicast_list[i++], ha->addr);
 	}
 	adapter->multicast_addr_count = i;
 
@@ -4185,7 +4183,7 @@ static int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 	et131x_init_send(adapter);
 
 	et131x_hwaddr_init(adapter);
-	memcpy(netdev->dev_addr, adapter->addr, ETH_ALEN);
+	ether_addr_copy(netdev->dev_addr, adapter->addr);
 
 	/* Init the device with the new settings */
 	et131x_adapter_setup(adapter);
@@ -4303,7 +4301,7 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	netif_napi_add(netdev, &adapter->napi, et131x_poll, 64);
 
 	/* Copy address into the net_device struct */
-	memcpy(netdev->dev_addr, adapter->addr, ETH_ALEN);
+	ether_addr_copy(netdev->dev_addr, adapter->addr);
 
 	rc = -ENOMEM;
 
