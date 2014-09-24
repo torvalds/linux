@@ -6026,6 +6026,18 @@ static void kvm_vcpu_flush_tlb(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->tlb_flush(vcpu);
 }
 
+void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
+{
+	if (!kvm_x86_ops->set_apic_access_page_addr)
+		return;
+
+	vcpu->kvm->arch.apic_access_page = gfn_to_page(vcpu->kvm,
+			APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
+	kvm_x86_ops->set_apic_access_page_addr(vcpu,
+			page_to_phys(vcpu->kvm->arch.apic_access_page));
+}
+EXPORT_SYMBOL_GPL(kvm_vcpu_reload_apic_access_page);
+
 void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 					   unsigned long address)
 {
@@ -6091,6 +6103,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_deliver_pmi(vcpu);
 		if (kvm_check_request(KVM_REQ_SCAN_IOAPIC, vcpu))
 			vcpu_scan_ioapic(vcpu);
+		if (kvm_check_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu))
+			kvm_vcpu_reload_apic_access_page(vcpu);
 	}
 
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
