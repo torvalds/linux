@@ -32,7 +32,6 @@
 
 #define MASK(n)        ((1 << (n)) - 1)        /* make an n-bit mask */
 
-#define PCI_VENDOR_ID_VMWARE		0x15AD
 #define PCI_DEVICE_ID_VMWARE_PVSCSI	0x07C0
 
 /*
