@@ -121,7 +121,7 @@ static void hci_reject_sco(struct hci_conn *conn)
 {
 	struct hci_cp_reject_sync_conn_req cp;
 
-	cp.reason = HCI_ERROR_REMOTE_USER_TERM;
+	cp.reason = HCI_ERROR_REJ_LIMITED_RESOURCES;
 	bacpy(&cp.bdaddr, &conn->dst);
 
 	hci_send_cmd(conn->hdev, HCI_OP_REJECT_SYNC_CONN_REQ, sizeof(cp), &cp);
