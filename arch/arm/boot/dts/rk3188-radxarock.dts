@@ -65,6 +65,19 @@
 		pinctrl-0 = <&ir_recv_pin>;
 	};
 
+	vcc_otg: usb-otg-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&otg_vbus_drv>;
+		regulator-name = "otg-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vcc_sd0: sdmmc-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "sdmmc-supply";
@@ -73,6 +86,19 @@
 		gpio = <&gpio3 1 GPIO_ACTIVE_LOW>;
 		startup-delay-us = <100000>;
 		vin-supply = <&vcc_io>;
+	};
+
+	vcc_host: usb-host-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&host_vbus_drv>;
+		regulator-name = "host-pwr";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 };
 
@@ -160,7 +186,6 @@
 				regulator-name = "VCC_RMII";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
 			};
 
 			vccio_wl: REG10 {
@@ -220,6 +245,15 @@
 			rockchip,pins = <RK_GPIO0 10 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	usb {
+		host_vbus_drv: host-vbus-drv {
+			rockchip,pins = <0 3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		otg_vbus_drv: otg-vbus-drv {
+			rockchip,pins = <2 31 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &uart0 {
@@ -235,6 +269,14 @@
 };
 
 &uart3 {
+	status = "okay";
+};
+
+&usb_host {
+	status = "okay";
+};
+
+&usb_otg {
 	status = "okay";
 };
 

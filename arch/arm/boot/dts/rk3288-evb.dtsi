@@ -177,3 +177,7 @@
 &usb_host0_ehci {
 	status = "okay";
 };
+
+&usb_host1 {
+	status = "okay";
+};
