@@ -108,6 +108,7 @@
 	clock-names = "refclk";
 	clocks = <&pmu_system_controller 0>;
 	refclk-frequency = <24000000>;
+	ext-supply = <&buck8_reg>;
 };
 
 &max77686 {
