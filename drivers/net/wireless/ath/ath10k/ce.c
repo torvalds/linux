@@ -443,12 +443,12 @@ int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr)
  * Guts of ath10k_ce_completed_recv_next.
  * The caller takes responsibility for any necessary locking.
  */
-static int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
-						void **per_transfer_contextp,
-						u32 *bufferp,
-						unsigned int *nbytesp,
-						unsigned int *transfer_idp,
-						unsigned int *flagsp)
+int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
+					 void **per_transfer_contextp,
+					 u32 *bufferp,
+					 unsigned int *nbytesp,
+					 unsigned int *transfer_idp,
+					 unsigned int *flagsp)
 {
 	struct ath10k_ce_ring *dest_ring = ce_state->dest_ring;
 	unsigned int nentries_mask = dest_ring->nentries_mask;
@@ -576,11 +576,11 @@ int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
  * Guts of ath10k_ce_completed_send_next.
  * The caller takes responsibility for any necessary locking.
  */
-static int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
-						void **per_transfer_contextp,
-						u32 *bufferp,
-						unsigned int *nbytesp,
-						unsigned int *transfer_idp)
+int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
+					 void **per_transfer_contextp,
+					 u32 *bufferp,
+					 unsigned int *nbytesp,
+					 unsigned int *transfer_idp)
 {
 	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
 	u32 ctrl_addr = ce_state->ctrl_addr;

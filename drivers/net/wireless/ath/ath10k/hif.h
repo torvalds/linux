@@ -43,6 +43,10 @@ struct ath10k_hif_ops {
 	int (*tx_sg)(struct ath10k *ar, u8 pipe_id,
 		     struct ath10k_hif_sg_item *items, int n_items);
 
+	/* read firmware memory through the diagnose interface */
+	int (*diag_read)(struct ath10k *ar, u32 address, void *buf,
+			 size_t buf_len);
+
 	/*
 	 * API to handle HIF-specific BMI message exchanges, this API is
 	 * synchronous and only allowed to be called from a context that
@@ -96,6 +100,12 @@ static inline int ath10k_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 				   int n_items)
 {
 	return ar->hif.ops->tx_sg(ar, pipe_id, items, n_items);
+}
+
+static inline int ath10k_hif_diag_read(struct ath10k *ar, u32 address, void *buf,
+				       size_t buf_len)
+{
+	return ar->hif.ops->diag_read(ar, address, buf, buf_len);
 }
 
 static inline int ath10k_hif_exchange_bmi_msg(struct ath10k *ar,
