@@ -84,7 +84,6 @@ MODULE_DEVICE_TABLE(platform, max77802_clk_id);
 static struct platform_driver max77802_clk_driver = {
 	.driver = {
 		.name  = "max77802-clk",
-		.owner = THIS_MODULE,
 	},
 	.probe = max77802_clk_probe,
 	.remove = max77802_clk_remove,

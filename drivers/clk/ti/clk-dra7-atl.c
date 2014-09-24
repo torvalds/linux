@@ -301,7 +301,6 @@ MODULE_DEVICE_TABLE(of, of_dra7_atl_clk_match_tbl);
 static struct platform_driver dra7_atl_clk_driver = {
 	.driver = {
 		.name = "dra7-atl",
-		.owner = THIS_MODULE,
 		.of_match_table = of_dra7_atl_clk_match_tbl,
 	},
 	.probe = of_dra7_atl_clk_probe,
