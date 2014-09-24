@@ -2521,9 +2521,9 @@ int Config_FileOperation(struct vnt_private *pDevice,
 
 	if (memcmp(tmpbuffer, "USA", 3) == 0) {
 		result = ZoneType_USA;
-	} else if(memcmp(tmpbuffer, "JAPAN", 5) == 0) {
+	} else if (memcmp(tmpbuffer, "JAPAN", 5) == 0) {
 		result = ZoneType_Japan;
-	} else if(memcmp(tmpbuffer, "EUROPE", 5) == 0) {
+	} else if (memcmp(tmpbuffer, "EUROPE", 5) == 0) {
 		result = ZoneType_Europe;
 	} else {
 		result = -1;
