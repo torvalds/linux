@@ -416,3 +416,8 @@ void __init at91_register_devices(void)
 {
 	at91_boot_soc.register_devices();
 }
+
+void __init at91_init_time(void)
+{
+	at91_boot_soc.init_time();
+}

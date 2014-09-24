@@ -25,15 +25,6 @@
 #include "board.h"
 #include "generic.h"
 
-
-static void __init sam9_dt_timer_init(void)
-{
-#if defined(CONFIG_COMMON_CLK)
-	of_clk_init(NULL);
-#endif
-	at91sam926x_pit_init();
-}
-
 static const char *at91_dt_board_compat[] __initdata = {
 	"atmel,at91sam9",
 	NULL
@@ -41,7 +32,6 @@ static const char *at91_dt_board_compat[] __initdata = {
 
 DT_MACHINE_START(at91sam_dt, "Atmel AT91SAM (Device Tree)")
 	/* Maintainer: Atmel */
-	.init_time	= sam9_dt_timer_init,
 	.map_io		= at91_map_io,
 	.init_early	= at91_dt_initialize,
 	.dt_compat	= at91_dt_board_compat,

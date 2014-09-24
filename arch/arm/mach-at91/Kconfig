@@ -33,15 +33,11 @@ config OLD_IRQ_AT91
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 
-config AT91_SAM9_TIME
-	bool
-
 config HAVE_AT91_SMD
 	bool
 
 config SOC_AT91SAM9
 	bool
-	select AT91_SAM9_TIME
 	select ATMEL_AIC_IRQ if !OLD_IRQ_AT91
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
@@ -50,7 +46,6 @@ config SOC_AT91SAM9
 
 config SOC_SAMA5
 	bool
-	select AT91_SAM9_TIME
 	select ATMEL_AIC5_IRQ
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
