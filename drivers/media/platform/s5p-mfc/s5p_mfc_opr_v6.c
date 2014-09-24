@@ -1880,7 +1880,7 @@ static void s5p_mfc_write_info_v6(struct s5p_mfc_ctx *ctx, unsigned int data,
 		unsigned int ofs)
 {
 	s5p_mfc_clock_on();
-	writel(data, (void *)ofs);
+	writel(data, (volatile void __iomem *)ofs);
 	s5p_mfc_clock_off();
 }
 
@@ -1890,7 +1890,7 @@ s5p_mfc_read_info_v6(struct s5p_mfc_ctx *ctx, unsigned int ofs)
 	int ret;
 
 	s5p_mfc_clock_on();
-	ret = readl((void *)ofs);
+	ret = readl((volatile void __iomem *)ofs);
 	s5p_mfc_clock_off();
 
 	return ret;
