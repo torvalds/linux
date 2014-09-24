@@ -6028,19 +6028,31 @@ static void kvm_vcpu_flush_tlb(struct kvm_vcpu *vcpu)
 
 void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
 {
+	struct page *page = NULL;
+
 	if (!kvm_x86_ops->set_apic_access_page_addr)
 		return;
 
-	vcpu->kvm->arch.apic_access_page = gfn_to_page(vcpu->kvm,
-			APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
-	kvm_x86_ops->set_apic_access_page_addr(vcpu,
-			page_to_phys(vcpu->kvm->arch.apic_access_page));
+	page = gfn_to_page(vcpu->kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
+	kvm_x86_ops->set_apic_access_page_addr(vcpu, page_to_phys(page));
+
+	/*
+	 * Do not pin apic access page in memory, the MMU notifier
+	 * will call us again if it is migrated or swapped out.
+	 */
+	put_page(page);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_reload_apic_access_page);
 
 void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 					   unsigned long address)
 {
+	/*
+	 * The physical address of apic access page is stored in the VMCS.
+	 * Update it when it becomes invalid.
+	 */
+	if (address == gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT))
+		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
 }
 
 /*
@@ -7297,8 +7309,6 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kfree(kvm->arch.vpic);
 	kfree(kvm->arch.vioapic);
 	kvm_free_vcpus(kvm);
-	if (kvm->arch.apic_access_page)
-		put_page(kvm->arch.apic_access_page);
 	kfree(rcu_dereference_check(kvm->arch.apic_map, 1));
 }
 
