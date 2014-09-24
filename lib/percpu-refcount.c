@@ -108,7 +108,6 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 	 * reaching 0 before we add the percpu counts. But doing it at the same
 	 * time is equivalent and saves us atomic operations:
 	 */
-
 	atomic_long_add((long)count - PCPU_COUNT_BIAS, &ref->count);
 
 	WARN_ONCE(atomic_long_read(&ref->count) <= 0,
@@ -120,8 +119,8 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 		ref->confirm_kill(ref);
 
 	/*
-	 * Now we're in single atomic_t mode with a consistent refcount, so it's
-	 * safe to drop our initial ref:
+	 * Now we're in single atomic_long_t mode with a consistent
+	 * refcount, so it's safe to drop our initial ref:
 	 */
 	percpu_ref_put(ref);
 }
@@ -134,8 +133,8 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
  * Equivalent to percpu_ref_kill() but also schedules kill confirmation if
  * @confirm_kill is not NULL.  @confirm_kill, which may not block, will be
  * called after @ref is seen as dead from all CPUs - all further
- * invocations of percpu_ref_tryget() will fail.  See percpu_ref_tryget()
- * for more details.
+ * invocations of percpu_ref_tryget_live() will fail.  See
+ * percpu_ref_tryget_live() for more details.
  *
  * Due to the way percpu_ref is implemented, @confirm_kill will be called
  * after at least one full RCU grace period has passed but this is an
@@ -145,8 +144,7 @@ void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill)
 {
 	WARN_ONCE(ref->pcpu_count_ptr & PCPU_REF_DEAD,
-		  "percpu_ref_kill() called more than once on %pf!",
-		  ref->release);
+		  "%s called more than once on %pf!", __func__, ref->release);
 
 	ref->pcpu_count_ptr |= PCPU_REF_DEAD;
 	ref->confirm_kill = confirm_kill;
@@ -172,7 +170,7 @@ void percpu_ref_reinit(struct percpu_ref *ref)
 	int cpu;
 
 	BUG_ON(!pcpu_count);
-	WARN_ON(!percpu_ref_is_zero(ref));
+	WARN_ON_ONCE(!percpu_ref_is_zero(ref));
 
 	atomic_long_set(&ref->count, 1 + PCPU_COUNT_BIAS);
 

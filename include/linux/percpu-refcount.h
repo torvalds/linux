@@ -115,8 +115,10 @@ static inline bool __pcpu_ref_alive(struct percpu_ref *ref,
  * percpu_ref_get - increment a percpu refcount
  * @ref: percpu_ref to get
  *
- * Analagous to atomic_inc().
-  */
+ * Analagous to atomic_long_inc().
+ *
+ * This function is safe to call as long as @ref is between init and exit.
+ */
 static inline void percpu_ref_get(struct percpu_ref *ref)
 {
 	unsigned long __percpu *pcpu_count;
@@ -138,12 +140,12 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
  * Increment a percpu refcount unless its count already reached zero.
  * Returns %true on success; %false on failure.
  *
- * The caller is responsible for ensuring that @ref stays accessible.
+ * This function is safe to call as long as @ref is between init and exit.
  */
 static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 {
 	unsigned long __percpu *pcpu_count;
-	int ret = false;
+	int ret;
 
 	rcu_read_lock_sched();
 
@@ -166,12 +168,13 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
  * Increment a percpu refcount unless it has already been killed.  Returns
  * %true on success; %false on failure.
  *
- * Completion of percpu_ref_kill() in itself doesn't guarantee that tryget
- * will fail.  For such guarantee, percpu_ref_kill_and_confirm() should be
- * used.  After the confirm_kill callback is invoked, it's guaranteed that
- * no new reference will be given out by percpu_ref_tryget().
+ * Completion of percpu_ref_kill() in itself doesn't guarantee that this
+ * function will fail.  For such guarantee, percpu_ref_kill_and_confirm()
+ * should be used.  After the confirm_kill callback is invoked, it's
+ * guaranteed that no new reference will be given out by
+ * percpu_ref_tryget_live().
  *
- * The caller is responsible for ensuring that @ref stays accessible.
+ * This function is safe to call as long as @ref is between init and exit.
  */
 static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 {
@@ -196,6 +199,8 @@ static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
  *
  * Decrement the refcount, and if 0, call the release function (which was passed
  * to percpu_ref_init())
+ *
+ * This function is safe to call as long as @ref is between init and exit.
  */
 static inline void percpu_ref_put(struct percpu_ref *ref)
 {
@@ -216,6 +221,8 @@ static inline void percpu_ref_put(struct percpu_ref *ref)
  * @ref: percpu_ref to test
  *
  * Returns %true if @ref reached zero.
+ *
+ * This function is safe to call as long as @ref is between init and exit.
  */
 static inline bool percpu_ref_is_zero(struct percpu_ref *ref)
 {
