@@ -37,7 +37,7 @@ static unsigned int bucket_blocks(unsigned int level)
 		return 4;
 }
 
-static unsigned char f2fs_filetype_table[F2FS_FT_MAX] = {
+unsigned char f2fs_filetype_table[F2FS_FT_MAX] = {
 	[F2FS_FT_UNKNOWN]	= DT_UNKNOWN,
 	[F2FS_FT_REG_FILE]	= DT_REG,
 	[F2FS_FT_DIR]		= DT_DIR,
@@ -59,7 +59,7 @@ static unsigned char f2fs_type_by_mode[S_IFMT >> S_SHIFT] = {
 	[S_IFLNK >> S_SHIFT]	= F2FS_FT_SYMLINK,
 };
 
-static void set_de_type(struct f2fs_dir_entry *de, struct inode *inode)
+void set_de_type(struct f2fs_dir_entry *de, struct inode *inode)
 {
 	umode_t mode = inode->i_mode;
 	de->file_type = f2fs_type_by_mode[(mode & S_IFMT) >> S_SHIFT];
@@ -77,7 +77,7 @@ static unsigned long dir_block_index(unsigned int level,
 	return bidx;
 }
 
-static bool early_match_name(size_t namelen, f2fs_hash_t namehash,
+bool early_match_name(size_t namelen, f2fs_hash_t namehash,
 				struct f2fs_dir_entry *de)
 {
 	if (le16_to_cpu(de->name_len) != namelen)
@@ -307,7 +307,6 @@ static int make_empty_dir(struct inode *inode,
 	if (IS_ERR(dentry_page))
 		return PTR_ERR(dentry_page);
 
-
 	dentry_blk = kmap_atomic(dentry_page);
 
 	de = &dentry_blk->dentry[0];
@@ -333,7 +332,7 @@ static int make_empty_dir(struct inode *inode,
 	return 0;
 }
 
-static struct page *init_inode_metadata(struct inode *inode,
+struct page *init_inode_metadata(struct inode *inode,
 		struct inode *dir, const struct qstr *name)
 {
 	struct page *page;
@@ -395,7 +394,7 @@ error:
 	return ERR_PTR(err);
 }
 
-static void update_parent_metadata(struct inode *dir, struct inode *inode,
+void update_parent_metadata(struct inode *dir, struct inode *inode,
 						unsigned int current_depth)
 {
 	if (is_inode_flag_set(F2FS_I(inode), FI_NEW_INODE)) {
@@ -560,16 +559,44 @@ fail:
 	return err;
 }
 
+void f2fs_drop_nlink(struct inode *dir, struct inode *inode, struct page *page)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+
+	down_write(&F2FS_I(inode)->i_sem);
+
+	if (S_ISDIR(inode->i_mode)) {
+		drop_nlink(dir);
+		if (page)
+			update_inode(dir, page);
+		else
+			update_inode_page(dir);
+	}
+	inode->i_ctime = CURRENT_TIME;
+
+	drop_nlink(inode);
+	if (S_ISDIR(inode->i_mode)) {
+		drop_nlink(inode);
+		i_size_write(inode, 0);
+	}
+	up_write(&F2FS_I(inode)->i_sem);
+	update_inode_page(inode);
+
+	if (inode->i_nlink == 0)
+		add_orphan_inode(sbi, inode->i_ino);
+	else
+		release_orphan_inode(sbi);
+}
+
 /*
  * It only removes the dentry from the dentry page, corresponding name
  * entry in name page does not need to be touched during deletion.
  */
 void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
-						struct inode *inode)
+					struct inode *dir, struct inode *inode)
 {
 	struct	f2fs_dentry_block *dentry_blk;
 	unsigned int bit_pos;
-	struct inode *dir = page->mapping->host;
 	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
 	int i;
 
@@ -590,29 +617,8 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 
-	if (inode) {
-		struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
-
-		down_write(&F2FS_I(inode)->i_sem);
-
-		if (S_ISDIR(inode->i_mode)) {
-			drop_nlink(dir);
-			update_inode_page(dir);
-		}
-		inode->i_ctime = CURRENT_TIME;
-		drop_nlink(inode);
-		if (S_ISDIR(inode->i_mode)) {
-			drop_nlink(inode);
-			i_size_write(inode, 0);
-		}
-		up_write(&F2FS_I(inode)->i_sem);
-		update_inode_page(inode);
-
-		if (inode->i_nlink == 0)
-			add_orphan_inode(sbi, inode->i_ino);
-		else
-			release_orphan_inode(sbi);
-	}
+	if (inode)
+		f2fs_drop_nlink(dir, inode, NULL);
 
 	if (bit_pos == NR_DENTRY_IN_BLOCK) {
 		truncate_hole(dir, page->index, page->index + 1);
@@ -628,7 +634,7 @@ bool f2fs_empty_dir(struct inode *dir)
 	unsigned long bidx;
 	struct page *dentry_page;
 	unsigned int bit_pos;
-	struct	f2fs_dentry_block *dentry_blk;
+	struct f2fs_dentry_block *dentry_blk;
 	unsigned long nblock = dir_blocks(dir);
 
 	for (bidx = 0; bidx < nblock; bidx++) {
@@ -639,7 +645,6 @@ bool f2fs_empty_dir(struct inode *dir)
 			else
 				return false;
 		}
-
 
 		dentry_blk = kmap_atomic(dentry_page);
 		if (bidx == 0)

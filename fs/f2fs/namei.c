@@ -223,7 +223,7 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 		f2fs_put_page(page, 0);
 		goto fail;
 	}
-	f2fs_delete_entry(de, page, inode);
+	f2fs_delete_entry(de, page, dir, inode);
 	f2fs_unlock_op(sbi);
 
 	/* In order to evict this inode, we set it dirty */
@@ -435,7 +435,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	old_inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(old_inode);
 
-	f2fs_delete_entry(old_entry, old_page, NULL);
+	f2fs_delete_entry(old_entry, old_page, old_dir, NULL);
 
 	if (old_dir_entry) {
 		if (old_dir != new_dir) {
