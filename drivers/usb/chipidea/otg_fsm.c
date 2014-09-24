@@ -766,6 +766,15 @@ static void ci_otg_fsm_event(struct ci_hdrc *ci)
 	case OTG_STATE_A_HOST:
 		if ((intr_sts & USBi_PCI) && !port_conn) {
 			fsm->b_conn = 0;
+			if (fsm->tst_maint) {
+				ci_otg_del_timer(ci, A_TST_MAINT);
+				if (fsm->otg_vbus_off) {
+					fsm->a_bus_req = 0;
+					fsm->a_bus_drop = 1;
+					fsm->otg_vbus_off = 0;
+				}
+				fsm->tst_maint = 0;
+			}
 			ci_otg_queue_work(ci);
 		}
 		break;
