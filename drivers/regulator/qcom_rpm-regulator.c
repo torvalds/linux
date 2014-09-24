@@ -631,7 +631,7 @@ static int rpm_reg_probe(struct platform_device *pdev)
 	struct regulator_init_data *initdata;
 	const struct qcom_rpm_reg *template;
 	const struct of_device_id *match;
-	struct regulator_config config = { 0 };
+	struct regulator_config config = { };
 	struct regulator_dev *rdev;
 	struct qcom_rpm_reg *vreg;
 	const char *key;
