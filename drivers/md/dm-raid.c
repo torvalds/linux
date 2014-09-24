@@ -18,6 +18,8 @@
 
 #define DM_MSG_PREFIX "raid"
 
+static bool devices_handle_discard_safely = false;
+
 /*
  * The following flags are used by dm-raid.c to set up the array state.
  * They must be cleared before md_run is called.
@@ -475,6 +477,8 @@ too_many:
  *                                      will form the "stripe"
  *    [[no]sync]			Force or prevent recovery of the
  *                                      entire array
+ *    [devices_handle_discard_safely]	Allow discards on RAID4/5/6; useful if RAID
+ *					member device(s) properly support TRIM/UNMAP
  *    [rebuild <idx>]			Rebuild the drive indicated by the index
  *    [daemon_sleep <ms>]		Time between bitmap daemon work to
  *                                      clear bits
@@ -1150,23 +1154,45 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 }
 
 /*
- * Enable/disable discard support on RAID set depending on RAID level.
+ * Enable/disable discard support on RAID set depending on
+ * RAID level and discard properties of underlying RAID members.
  */
 static void configure_discard_support(struct dm_target *ti, struct raid_set *rs)
 {
+	int i;
+	bool raid456;
+
 	/* Assume discards not supported until after checks below. */
 	ti->discards_supported = false;
 
 	/* RAID level 4,5,6 require discard_zeroes_data for data integrity! */
-	if (rs->md.level == 4 || rs->md.level == 5 || rs->md.level == 6)
-		return; /* discard_zeroes_data cannot be trusted as reliable */
+	raid456 = (rs->md.level == 4 || rs->md.level == 5 || rs->md.level == 6);
 
+	for (i = 0; i < rs->md.raid_disks; i++) {
+		struct request_queue *q = bdev_get_queue(rs->dev[i].rdev.bdev);
+
+		if (!q || !blk_queue_discard(q))
+			return;
+
+		if (raid456) {
+			if (!q->limits.discard_zeroes_data)
+				return;
+			if (!devices_handle_discard_safely) {
+				DMERR("raid456 discard support disabled due to discard_zeroes_data uncertainty.");
+				DMERR("Set dm-raid.devices_handle_discard_safely=Y to override.");
+				return;
+			}
+		}
+	}
+
+	/* All RAID members properly support discards */
 	ti->discards_supported = true;
 
 	/*
 	 * RAID1 and RAID10 personalities require bio splitting,
+	 * RAID0/4/5/6 don't and process large discard bios properly.
 	 */
-	ti->split_discard_bios = true;
+	ti->split_discard_bios = !!(rs->md.level == 1 || rs->md.level == 10);
 	ti->num_discard_bios = 1;
 }
 
@@ -1708,6 +1734,10 @@ static void __exit dm_raid_exit(void)
 
 module_init(dm_raid_init);
 module_exit(dm_raid_exit);
+
+module_param(devices_handle_discard_safely, bool, 0644);
+MODULE_PARM_DESC(devices_handle_discard_safely,
+		 "Set to Y if all devices in each array reliably return zeroes on reads from discarded regions");
 
 MODULE_DESCRIPTION(DM_NAME " raid4/5/6 target");
 MODULE_ALIAS("dm-raid1");
