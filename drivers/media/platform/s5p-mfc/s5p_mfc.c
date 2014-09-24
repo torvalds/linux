@@ -1331,20 +1331,20 @@ static const struct dev_pm_ops s5p_mfc_pm_ops = {
 			   NULL)
 };
 
-struct s5p_mfc_buf_size_v5 mfc_buf_size_v5 = {
+static struct s5p_mfc_buf_size_v5 mfc_buf_size_v5 = {
 	.h264_ctx	= MFC_H264_CTX_BUF_SIZE,
 	.non_h264_ctx	= MFC_CTX_BUF_SIZE,
 	.dsc		= DESC_BUF_SIZE,
 	.shm		= SHARED_BUF_SIZE,
 };
 
-struct s5p_mfc_buf_size buf_size_v5 = {
+static struct s5p_mfc_buf_size buf_size_v5 = {
 	.fw	= MAX_FW_SIZE,
 	.cpb	= MAX_CPB_SIZE,
 	.priv	= &mfc_buf_size_v5,
 };
 
-struct s5p_mfc_buf_align mfc_buf_align_v5 = {
+static struct s5p_mfc_buf_align mfc_buf_align_v5 = {
 	.base = MFC_BASE_ALIGN_ORDER,
 };
 
@@ -1357,7 +1357,7 @@ static struct s5p_mfc_variant mfc_drvdata_v5 = {
 	.fw_name[0]	= "s5p-mfc.fw",
 };
 
-struct s5p_mfc_buf_size_v6 mfc_buf_size_v6 = {
+static struct s5p_mfc_buf_size_v6 mfc_buf_size_v6 = {
 	.dev_ctx	= MFC_CTX_BUF_SIZE_V6,
 	.h264_dec_ctx	= MFC_H264_DEC_CTX_BUF_SIZE_V6,
 	.other_dec_ctx	= MFC_OTHER_DEC_CTX_BUF_SIZE_V6,
@@ -1365,13 +1365,13 @@ struct s5p_mfc_buf_size_v6 mfc_buf_size_v6 = {
 	.other_enc_ctx	= MFC_OTHER_ENC_CTX_BUF_SIZE_V6,
 };
 
-struct s5p_mfc_buf_size buf_size_v6 = {
+static struct s5p_mfc_buf_size buf_size_v6 = {
 	.fw	= MAX_FW_SIZE_V6,
 	.cpb	= MAX_CPB_SIZE_V6,
 	.priv	= &mfc_buf_size_v6,
 };
 
-struct s5p_mfc_buf_align mfc_buf_align_v6 = {
+static struct s5p_mfc_buf_align mfc_buf_align_v6 = {
 	.base = 0,
 };
 
@@ -1389,7 +1389,7 @@ static struct s5p_mfc_variant mfc_drvdata_v6 = {
 	.fw_name[1]     = "s5p-mfc-v6-v2.fw",
 };
 
-struct s5p_mfc_buf_size_v6 mfc_buf_size_v7 = {
+static struct s5p_mfc_buf_size_v6 mfc_buf_size_v7 = {
 	.dev_ctx	= MFC_CTX_BUF_SIZE_V7,
 	.h264_dec_ctx	= MFC_H264_DEC_CTX_BUF_SIZE_V7,
 	.other_dec_ctx	= MFC_OTHER_DEC_CTX_BUF_SIZE_V7,
@@ -1397,13 +1397,13 @@ struct s5p_mfc_buf_size_v6 mfc_buf_size_v7 = {
 	.other_enc_ctx	= MFC_OTHER_ENC_CTX_BUF_SIZE_V7,
 };
 
-struct s5p_mfc_buf_size buf_size_v7 = {
+static struct s5p_mfc_buf_size buf_size_v7 = {
 	.fw	= MAX_FW_SIZE_V7,
 	.cpb	= MAX_CPB_SIZE_V7,
 	.priv	= &mfc_buf_size_v7,
 };
 
-struct s5p_mfc_buf_align mfc_buf_align_v7 = {
+static struct s5p_mfc_buf_align mfc_buf_align_v7 = {
 	.base = 0,
 };
 
@@ -1416,7 +1416,7 @@ static struct s5p_mfc_variant mfc_drvdata_v7 = {
 	.fw_name[0]     = "s5p-mfc-v7.fw",
 };
 
-struct s5p_mfc_buf_size_v6 mfc_buf_size_v8 = {
+static struct s5p_mfc_buf_size_v6 mfc_buf_size_v8 = {
 	.dev_ctx	= MFC_CTX_BUF_SIZE_V8,
 	.h264_dec_ctx	= MFC_H264_DEC_CTX_BUF_SIZE_V8,
 	.other_dec_ctx	= MFC_OTHER_DEC_CTX_BUF_SIZE_V8,
@@ -1424,13 +1424,13 @@ struct s5p_mfc_buf_size_v6 mfc_buf_size_v8 = {
 	.other_enc_ctx	= MFC_OTHER_ENC_CTX_BUF_SIZE_V8,
 };
 
-struct s5p_mfc_buf_size buf_size_v8 = {
+static struct s5p_mfc_buf_size buf_size_v8 = {
 	.fw	= MAX_FW_SIZE_V8,
 	.cpb	= MAX_CPB_SIZE_V8,
 	.priv	= &mfc_buf_size_v8,
 };
 
-struct s5p_mfc_buf_align mfc_buf_align_v8 = {
+static struct s5p_mfc_buf_align mfc_buf_align_v8 = {
 	.base = 0,
 };
 
