@@ -476,20 +476,18 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
 	dfprintk(PAGECACHE, "NFS: release_page(%p)\n", page);
 
 	/* Always try to initiate a 'commit' if relevant, but only
-	 * wait for it if __GFP_WAIT is set and the calling process is
-	 * allowed to block.  Even then, only wait 1 second and only
-	 * if the 'bdi' is not congested.
+	 * wait for it if __GFP_WAIT is set.  Even then, only wait 1
+	 * second and only if the 'bdi' is not congested.
 	 * Waiting indefinitely can cause deadlocks when the NFS
-	 * server is on this machine, and there is no particular need
-	 * to wait extensively here.  A short wait has the benefit
-	 * that someone else can worry about the freezer.
+	 * server is on this machine, when a new TCP connection is
+	 * needed and in other rare cases.  There is no particular
+	 * need to wait extensively here.  A short wait has the
+	 * benefit that someone else can worry about the freezer.
 	 */
 	if (mapping) {
 		struct nfs_server *nfss = NFS_SERVER(mapping->host);
 		nfs_commit_inode(mapping->host, 0);
 		if ((gfp & __GFP_WAIT) &&
-		    !current_is_kswapd() &&
-		    !(current->flags & PF_FSTRANS) &&
 		    !bdi_write_congested(&nfss->backing_dev_info)) {
 			wait_on_page_bit_killable_timeout(page, PG_private,
 							  HZ);
