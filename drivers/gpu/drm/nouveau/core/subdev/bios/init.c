@@ -255,6 +255,8 @@ init_i2c(struct nvbios_init *init, int index)
 		}
 
 		index = init->outp->i2c_index;
+		if (init->outp->type == DCB_OUTPUT_DP)
+			index += NV_I2C_AUX(0);
 	}
 
 	return i2c->find(i2c, index);

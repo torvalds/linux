@@ -8,6 +8,8 @@
 #include <subdev/bios/i2c.h>
 
 #define NV_I2C_PORT(n)    (0x00 + (n))
+#define NV_I2C_AUX(n)     (0x10 + (n))
+#define NV_I2C_EXT(n)     (0x20 + (n))
 #define NV_I2C_DEFAULT(n) (0x80 + (n))
 
 #define NV_I2C_TYPE_DCBI2C(n) (0x0000 | (n))

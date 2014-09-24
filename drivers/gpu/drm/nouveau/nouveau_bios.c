@@ -1493,6 +1493,7 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 			break;
 		}
 		link = entry->dpconf.sor.link;
+		entry->i2c_index += NV_I2C_AUX(0);
 		break;
 	case DCB_OUTPUT_TMDS:
 		if (dcb->version >= 0x40) {
