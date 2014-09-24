@@ -49,7 +49,7 @@ static const u8 ac_to_hwq[] = {
 	BK_QUEUE
 };
 
-u8 _rtl_mac_to_hwqueue(struct ieee80211_hw *hw,
+static u8 _rtl_mac_to_hwqueue(struct ieee80211_hw *hw,
 		struct sk_buff *skb)
 {
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -362,8 +362,8 @@ static bool rtl_pci_get_amd_l1_patch(struct ieee80211_hw *hw)
 	return status;
 }
 
-bool rtl_pci_check_buddy_priv(struct ieee80211_hw *hw,
-        		      struct rtl_priv **buddy_priv)
+static bool rtl_pci_check_buddy_priv(struct ieee80211_hw *hw,
+				     struct rtl_priv **buddy_priv)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
@@ -406,7 +406,7 @@ bool rtl_pci_check_buddy_priv(struct ieee80211_hw *hw,
 	return b_find_buddy_priv;
 }
 
-void rtl_pci_get_linkcontrol_field(struct ieee80211_hw *hw)
+static void rtl_pci_get_linkcontrol_field(struct ieee80211_hw *hw)
 {
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	u8 capabilityoffset = pcipriv->ndis_adapter.pcibridge_pciehdr_offset;
@@ -1745,7 +1745,7 @@ static void rtl_pci_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 	}
 }
 
-void rtl_pci_deinit(struct ieee80211_hw *hw)
+static void rtl_pci_deinit(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
@@ -1760,7 +1760,7 @@ void rtl_pci_deinit(struct ieee80211_hw *hw)
 
 }
 
-int rtl_pci_init(struct ieee80211_hw *hw, struct pci_dev *pdev)
+static int rtl_pci_init(struct ieee80211_hw *hw, struct pci_dev *pdev)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	int err;
@@ -1777,7 +1777,7 @@ int rtl_pci_init(struct ieee80211_hw *hw, struct pci_dev *pdev)
 	return 1;
 }
 
-int rtl_pci_start(struct ieee80211_hw *hw)
+static int rtl_pci_start(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -1811,7 +1811,7 @@ int rtl_pci_start(struct ieee80211_hw *hw)
 	return 0;
 }
 
-void rtl_pci_stop(struct ieee80211_hw *hw)
+static void rtl_pci_stop(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
@@ -2102,7 +2102,7 @@ static int rtl_pci_intr_mode_decide(struct ieee80211_hw *hw)
 
 /* this is used for other modules get
  * hw pointer in rtl_pci_get_hw_pointer */
-struct ieee80211_hw *hw_export = NULL;
+static struct ieee80211_hw *hw_export;
 
 int rtl_pci_probe(struct pci_dev *pdev,
                   const struct pci_device_id *id)
