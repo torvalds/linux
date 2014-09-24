@@ -2482,6 +2482,7 @@ void mmc_start_host(struct mmc_host *host)
 {
 	host->f_init = max(freqs[0], host->f_min);
 	host->rescan_disable = 0;
+	host->ios.power_mode = MMC_POWER_UNDEFINED;
 	if (host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)
 		mmc_power_off(host);
 	else

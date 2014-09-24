@@ -42,6 +42,7 @@ struct mmc_ios {
 #define MMC_POWER_OFF		0
 #define MMC_POWER_UP		1
 #define MMC_POWER_ON		2
+#define MMC_POWER_UNDEFINED	3
 
 	unsigned char	bus_width;		/* data bus width */
 
