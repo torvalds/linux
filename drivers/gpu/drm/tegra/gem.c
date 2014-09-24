@@ -306,6 +306,7 @@ const struct vm_operations_struct tegra_bo_vm_ops = {
 
 int tegra_drm_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	unsigned long vm_pgoff = vma->vm_pgoff;
 	struct drm_gem_object *gem;
 	struct tegra_bo *bo;
 	int ret;
@@ -317,12 +318,19 @@ int tegra_drm_mmap(struct file *file, struct vm_area_struct *vma)
 	gem = vma->vm_private_data;
 	bo = to_tegra_bo(gem);
 
-	ret = remap_pfn_range(vma, vma->vm_start, bo->paddr >> PAGE_SHIFT,
-			      vma->vm_end - vma->vm_start, vma->vm_page_prot);
-	if (ret)
-		drm_gem_vm_close(vma);
+	vma->vm_flags &= ~VM_PFNMAP;
+	vma->vm_pgoff = 0;
 
-	return ret;
+	ret = dma_mmap_writecombine(gem->dev->dev, vma, bo->vaddr, bo->paddr,
+				    gem->size);
+	if (ret) {
+		drm_gem_vm_close(vma);
+		return ret;
+	}
+
+	vma->vm_pgoff = vm_pgoff;
+
+	return 0;
 }
 
 static struct sg_table *
