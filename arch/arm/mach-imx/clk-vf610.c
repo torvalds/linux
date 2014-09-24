@@ -58,6 +58,8 @@
 #define PFD_PLL1_BASE		(anatop_base + 0x2b0)
 #define PFD_PLL2_BASE		(anatop_base + 0x100)
 #define PFD_PLL3_BASE		(anatop_base + 0xf0)
+#define PLL3_CTRL		(anatop_base + 0x10)
+#define PLL7_CTRL		(anatop_base + 0x20)
 
 static void __iomem *anatop_base;
 static void __iomem *ccm_base;
@@ -98,9 +100,15 @@ static struct clk_div_table pll4_main_div_table[] = {
 static struct clk *clk[VF610_CLK_END];
 static struct clk_onecell_data clk_data;
 
+static unsigned int const clks_init_on[] __initconst = {
+	VF610_CLK_SYS_BUS,
+	VF610_CLK_DDR_SEL,
+};
+
 static void __init vf610_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
+	int i;
 
 	clk[VF610_CLK_DUMMY] = imx_clk_fixed("dummy", 0);
 	clk[VF610_CLK_SIRC_128K] = imx_clk_fixed("sirc_128k", 128000);
@@ -148,6 +156,9 @@ static void __init vf610_clocks_init(struct device_node *ccm_node)
 	clk[VF610_CLK_PLL5_MAIN] = imx_clk_fixed_factor("pll5_main", "fast_clk_sel", 125, 6);
 	/* pll6: default 960Mhz */
 	clk[VF610_CLK_PLL6_MAIN] = imx_clk_fixed_factor("pll6_main", "fast_clk_sel", 40, 1);
+	/* pll7: USB1 PLL at 480MHz */
+	clk[VF610_CLK_PLL7_MAIN] = imx_clk_pllv3(IMX_PLLV3_USB,	"pll7_main", "fast_clk_sel", PLL7_CTRL, 0x2);
+
 	clk[VF610_CLK_PLL1_PFD_SEL] = imx_clk_mux("pll1_pfd_sel", CCM_CCSR, 16, 3, pll1_sels, 5);
 	clk[VF610_CLK_PLL2_PFD_SEL] = imx_clk_mux("pll2_pfd_sel", CCM_CCSR, 19, 3, pll2_sels, 5);
 	clk[VF610_CLK_SYS_SEL] = imx_clk_mux("sys_sel", CCM_CCSR, 0, 3, sys_sels, ARRAY_SIZE(sys_sels));
@@ -160,8 +171,11 @@ static void __init vf610_clocks_init(struct device_node *ccm_node)
 	clk[VF610_CLK_PLL4_MAIN_DIV] = clk_register_divider_table(NULL, "pll4_main_div", "pll4_main", 0, CCM_CACRR, 6, 3, 0, pll4_main_div_table, &imx_ccm_lock);
 	clk[VF610_CLK_PLL6_MAIN_DIV] = imx_clk_divider("pll6_main_div", "pll6_main", CCM_CACRR, 21, 1);
 
-	clk[VF610_CLK_USBC0] = imx_clk_gate2("usbc0", "pll3_main", CCM_CCGR1, CCM_CCGRx_CGn(4));
-	clk[VF610_CLK_USBC1] = imx_clk_gate2("usbc1", "pll3_main", CCM_CCGR7, CCM_CCGRx_CGn(4));
+	clk[VF610_CLK_USBPHY0] = imx_clk_gate("usbphy0", "pll3_main", PLL3_CTRL, 6);
+	clk[VF610_CLK_USBPHY1] = imx_clk_gate("usbphy1", "pll7_main", PLL7_CTRL, 6);
+
+	clk[VF610_CLK_USBC0] = imx_clk_gate2("usbc0", "ipg_bus", CCM_CCGR1, CCM_CCGRx_CGn(4));
+	clk[VF610_CLK_USBC1] = imx_clk_gate2("usbc1", "ipg_bus", CCM_CCGR7, CCM_CCGRx_CGn(4));
 
 	clk[VF610_CLK_QSPI0_SEL] = imx_clk_mux("qspi0_sel", CCM_CSCMR1, 22, 2, qspi_sels, 4);
 	clk[VF610_CLK_QSPI0_EN] = imx_clk_gate("qspi0_en", "qspi0_sel", CCM_CSCDR3, 4);
@@ -321,6 +335,9 @@ static void __init vf610_clocks_init(struct device_node *ccm_node)
 	clk_set_parent(clk[VF610_CLK_SAI1_SEL], clk[VF610_CLK_AUDIO_EXT]);
 	clk_set_parent(clk[VF610_CLK_SAI2_SEL], clk[VF610_CLK_AUDIO_EXT]);
 	clk_set_parent(clk[VF610_CLK_SAI3_SEL], clk[VF610_CLK_AUDIO_EXT]);
+
+	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
+		clk_prepare_enable(clk[clks_init_on[i]]);
 
 	/* Add the clocks to provider list */
 	clk_data.clks = clk;

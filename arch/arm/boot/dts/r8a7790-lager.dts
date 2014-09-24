@@ -392,7 +392,7 @@
 	status = "okay";
 
 	vdd_dvfs: regulator@68 {
-		compatible = "diasemi,da9210";
+		compatible = "dlg,da9210";
 		reg = <0x68>;
 
 		regulator-min-microvolt = <1000000>;

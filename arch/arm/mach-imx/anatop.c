@@ -104,6 +104,19 @@ void __init imx_init_revision_from_anatop(void)
 	case 2:
 		revision = IMX_CHIP_REVISION_1_2;
 		break;
+	case 3:
+		revision = IMX_CHIP_REVISION_1_3;
+		break;
+	case 4:
+		revision = IMX_CHIP_REVISION_1_4;
+		break;
+	case 5:
+		/*
+		 * i.MX6DQ TO1.5 is defined as Rev 1.3 in Data Sheet, marked
+		 * as 'D' in Part Number last character.
+		 */
+		revision = IMX_CHIP_REVISION_1_5;
+		break;
 	default:
 		revision = IMX_CHIP_REVISION_UNKNOWN;
 	}

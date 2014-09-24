@@ -221,6 +221,7 @@
 				};
 
 				ssi2: ssi@50014000 {
+					#sound-dai-cells = <0>;
 					compatible = "fsl,imx53-ssi",
 							"fsl,imx51-ssi",
 							"fsl,imx21-ssi";
@@ -661,6 +662,7 @@
 			};
 
 			ssi1: ssi@63fcc000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx53-ssi", "fsl,imx51-ssi",
 						"fsl,imx21-ssi";
 				reg = <0x63fcc000 0x4000>;
@@ -688,6 +690,7 @@
 			};
 
 			ssi3: ssi@63fe8000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx53-ssi", "fsl,imx51-ssi",
 						"fsl,imx21-ssi";
 				reg = <0x63fe8000 0x4000>;
@@ -743,6 +746,11 @@
 			compatible = "mmio-sram";
 			reg = <0xf8000000 0x20000>;
 			clocks = <&clks IMX5_CLK_OCRAM>;
+		};
+
+		pmu {
+			compatible = "arm,cortex-a8-pmu";
+			interrupts = <77>;
 		};
 	};
 };
