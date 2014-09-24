@@ -181,6 +181,7 @@ int radeon_vm_block_size = -1;
 int radeon_deep_color = 0;
 int radeon_use_pflipirq = 2;
 int radeon_bapm = -1;
+int radeon_backlight = -1;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -262,6 +263,9 @@ module_param_named(use_pflipirq, radeon_use_pflipirq, int, 0444);
 
 MODULE_PARM_DESC(bapm, "BAPM support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(bapm, radeon_bapm, int, 0444);
+
+MODULE_PARM_DESC(backlight, "backlight support (1 = enable, 0 = disable, -1 = auto)");
+module_param_named(backlight, radeon_backlight, int, 0444);
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
