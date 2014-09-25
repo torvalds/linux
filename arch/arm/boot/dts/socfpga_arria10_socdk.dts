@@ -44,5 +44,9 @@
 		serial0@ffc02000 {
 			status = "okay";
 		};
+
+		sysmgr@ffd06000 {
+			cpu1-start-addr = <0xffd06230>;
+		};
 	};
 };
