@@ -236,10 +236,10 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	return buf;
 }
 
-static void arc_chk_ccms(void)
+static void arc_chk_core_config(void)
 {
-#if defined(CONFIG_ARC_HAS_DCCM) || defined(CONFIG_ARC_HAS_ICCM)
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
+	int fpu_enabled;
 
 #ifdef CONFIG_ARC_HAS_DCCM
 	/*
@@ -257,33 +257,20 @@ static void arc_chk_ccms(void)
 	if (CONFIG_ARC_ICCM_SZ != cpu->iccm.sz)
 		panic("Linux built with incorrect ICCM Size\n");
 #endif
-#endif
-}
 
-/*
- * Ensure that FP hardware and kernel config match
- * -If hardware contains DPFP, kernel needs to save/restore FPU state
- *  across context switches
- * -If hardware lacks DPFP, but kernel configured to save FPU state then
- *  kernel trying to access non-existant DPFP regs will crash
- *
- * We only check for Dbl precision Floating Point, because only DPFP
- * hardware has dedicated regs which need to be saved/restored on ctx-sw
- * (Single Precision uses core regs), thus kernel is kind of oblivious to it
- */
-static void arc_chk_fpu(void)
-{
-	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
+	/*
+	 * FP hardware/software config sanity
+	 * -If hardware contains DPFP, kernel needs to save/restore FPU state
+	 * -If not, it will crash trying to save/restore the non-existant regs
+	 *
+	 * (only DPDP checked since SP has no arch visible regs)
+	 */
+	fpu_enabled = IS_ENABLED(CONFIG_ARC_FPU_SAVE_RESTORE);
 
-	if (cpu->dpfp.ver) {
-#ifndef CONFIG_ARC_FPU_SAVE_RESTORE
-		pr_warn("DPFP support broken in this kernel...\n");
-#endif
-	} else {
-#ifdef CONFIG_ARC_FPU_SAVE_RESTORE
-		panic("H/w lacks DPFP support, apps won't work\n");
-#endif
-	}
+	if (cpu->dpfp.ver && !fpu_enabled)
+		pr_warn("CONFIG_ARC_FPU_SAVE_RESTORE needed for working apps\n");
+	else if (!cpu->dpfp.ver && fpu_enabled)
+		panic("FPU non-existent, disable CONFIG_ARC_FPU_SAVE_RESTORE\n");
 }
 
 /*
@@ -304,12 +291,11 @@ void setup_processor(void)
 
 	arc_mmu_init();
 	arc_cache_init();
-	arc_chk_ccms();
 
 	printk(arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
 	printk(arc_platform_smp_cpuinfo());
 
-	arc_chk_fpu();
+	arc_chk_core_config();
 }
 
 static inline int is_kernel(unsigned long addr)
