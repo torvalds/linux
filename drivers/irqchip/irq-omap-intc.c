@@ -17,15 +17,16 @@
 #include <linux/io.h>
 
 #include <asm/exception.h>
-#include <asm/mach/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
-#include "soc.h"
-#include "common.h"
-#include "../../drivers/irqchip/irqchip.h"
+#include "irqchip.h"
+
+/* Define these here for now until we drop all board-files */
+#define OMAP24XX_IC_BASE	0x480fe000
+#define OMAP34XX_IC_BASE	0x48200000
 
 /* selected INTC register offsets */
 
@@ -48,16 +49,13 @@
 
 #define ACTIVEIRQ_MASK		0x7f	/* omap2/3 active interrupt bits */
 #define INTCPS_NR_ILR_REGS	128
-#define INTCPS_NR_MIR_REGS	3
+#define INTCPS_NR_MIR_REGS	4
 
-/*
- * OMAP2 has a number of different interrupt controllers, each interrupt
- * controller is identified as its own "bank". Register definitions are
- * fairly consistent for each bank, but not all registers are implemented
- * for each bank.. when in doubt, consult the TRM.
- */
+#define INTC_IDLE_FUNCIDLE	(1 << 0)
+#define INTC_IDLE_TURBO		(1 << 1)
 
-/* Structure to save interrupt controller context */
+#define INTC_PROTECTION_ENABLE	(1 << 0)
+
 struct omap_intc_regs {
 	u32 sysconfig;
 	u32 protection;
@@ -73,7 +71,6 @@ static void __iomem *omap_irq_base;
 static int omap_nr_pending = 3;
 static int omap_nr_irqs = 96;
 
-/* INTC bank register get/set */
 static void intc_writel(u32 reg, u32 val)
 {
 	writel_relaxed(val, omap_irq_base + reg);
@@ -131,12 +128,14 @@ void omap3_intc_prepare_idle(void)
 	 * cf. errata ID i540 for 3430 (all revisions up to 3.1.x)
 	 */
 	intc_writel(INTC_SYSCONFIG, 0);
+	intc_writel(INTC_IDLE, INTC_IDLE_TURBO);
 }
 
 void omap3_intc_resume_idle(void)
 {
 	/* Re-enable autoidle */
 	intc_writel(INTC_SYSCONFIG, 1);
+	intc_writel(INTC_IDLE, 0);
 }
 
 /* XXX: FIQ and additional INTC support (only MPU at the moment) */
@@ -173,11 +172,10 @@ static void __init omap_irq_soft_reset(void)
 
 int omap_irq_pending(void)
 {
-	int irq;
+	int i;
 
-	for (irq = 0; irq < omap_nr_irqs; irq += 32)
-		if (intc_readl(INTC_PENDING_IRQ0 +
-					((irq >> 5) << 5)))
+	for (i = 0; i < omap_nr_pending; i++)
+		if (intc_readl(INTC_PENDING_IRQ0 + (0x20 * i)))
 			return 1;
 	return 0;
 }
@@ -290,12 +288,28 @@ static int __init omap_init_irq_legacy(u32 base)
 	return 0;
 }
 
+static void __init omap_irq_enable_protection(void)
+{
+	u32 reg;
+
+	reg = intc_readl(INTC_PROTECTION);
+	reg |= INTC_PROTECTION_ENABLE;
+	intc_writel(INTC_PROTECTION, reg);
+}
+
 static int __init omap_init_irq(u32 base, struct device_node *node)
 {
+	int ret;
+
 	if (node)
-		return omap_init_irq_of(node);
+		ret = omap_init_irq_of(node);
 	else
-		return omap_init_irq_legacy(base);
+		ret = omap_init_irq_legacy(base);
+
+	if (ret == 0)
+		omap_irq_enable_protection();
+
+	return ret;
 }
 
 static asmlinkage void __exception_irq_entry
@@ -326,9 +340,11 @@ out:
 		}
 	} while (irqnr);
 
-	/* If an irq is masked or deasserted while active, we will
+	/*
+	 * If an irq is masked or deasserted while active, we will
 	 * keep ending up here with no irq handled. So remove it from
-	 * the INTC with an ack.*/
+	 * the INTC with an ack.
+	 */
 	if (!handled_irq)
 		omap_ack_irq(NULL);
 }
@@ -360,7 +376,6 @@ void __init ti81xx_init_irq(void)
 static int __init intc_of_init(struct device_node *node,
 			     struct device_node *parent)
 {
-	struct resource res;
 	int ret;
 
 	omap_nr_pending = 3;
@@ -368,11 +383,6 @@ static int __init intc_of_init(struct device_node *node,
 
 	if (WARN_ON(!node))
 		return -ENODEV;
-
-	if (of_address_to_resource(node, 0, &res)) {
-		WARN(1, "unable to get intc registers\n");
-		return -EINVAL;
-	}
 
 	if (of_device_is_compatible(node, "ti,am33xx-intc")) {
 		omap_nr_irqs = 128;
