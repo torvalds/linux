@@ -210,6 +210,7 @@ struct ufs_dev_cmd {
  * @name: clock name
  * @max_freq: maximum frequency supported by the clock
  * @min_freq: min frequency that can be used for clock scaling
+ * @curr_freq: indicates the current frequency that it is set to
  * @enabled: variable to check against multiple enable/disable
  */
 struct ufs_clk_info {
@@ -218,6 +219,7 @@ struct ufs_clk_info {
 	const char *name;
 	u32 max_freq;
 	u32 min_freq;
+	u32 curr_freq;
 	bool enabled;
 };
 
@@ -244,6 +246,7 @@ struct ufs_pwr_mode_info {
  * @name: variant name
  * @init: called when the driver is initialized
  * @exit: called to cleanup everything done in init
+ * @clk_scale_notify: notifies that clks are scaled up/down
  * @setup_clocks: called before touching any of the controller registers
  * @setup_regulators: called before accessing the host controller
  * @hce_enable_notify: called before and after HCE enable bit is set to allow
@@ -260,6 +263,7 @@ struct ufs_hba_variant_ops {
 	const char *name;
 	int	(*init)(struct ufs_hba *);
 	void    (*exit)(struct ufs_hba *);
+	void    (*clk_scale_notify)(struct ufs_hba *);
 	int     (*setup_clocks)(struct ufs_hba *, bool);
 	int     (*setup_regulators)(struct ufs_hba *, bool);
 	int     (*hce_enable_notify)(struct ufs_hba *, bool);
@@ -301,6 +305,13 @@ struct ufs_clk_gating {
 	bool is_suspended;
 	struct device_attribute delay_attr;
 	int active_reqs;
+};
+
+struct ufs_clk_scaling {
+	ktime_t  busy_start_t;
+	bool is_busy_started;
+	unsigned long  tot_busy_t;
+	unsigned long window_start_t;
 };
 
 /**
@@ -456,6 +467,11 @@ struct ufs_hba {
 #define UFSHCD_CAP_CLK_GATING	(1 << 0)
 	/* Allow hiberb8 with clk gating */
 #define UFSHCD_CAP_HIBERN8_WITH_CLK_GATING (1 << 1)
+	/* Allow dynamic clk scaling */
+#define UFSHCD_CAP_CLK_SCALING	(1 << 2)
+
+	struct devfreq *devfreq;
+	struct ufs_clk_scaling clk_scaling;
 };
 
 /* Returns true if clocks can be gated. Otherwise false */
@@ -466,6 +482,10 @@ static inline bool ufshcd_is_clkgating_allowed(struct ufs_hba *hba)
 static inline bool ufshcd_can_hibern8_during_gating(struct ufs_hba *hba)
 {
 	return hba->caps & UFSHCD_CAP_HIBERN8_WITH_CLK_GATING;
+}
+static inline int ufshcd_is_clkscaling_enabled(struct ufs_hba *hba)
+{
+	return hba->caps & UFSHCD_CAP_CLK_SCALING;
 }
 #define ufshcd_writel(hba, val, reg)	\
 	writel((val), (hba)->mmio_base + (reg))
