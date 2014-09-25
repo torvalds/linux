@@ -1675,17 +1675,16 @@ qlafx00_get_fcport(struct scsi_qla_host *vha, int tgt_id)
 	fc_port_t	*fcport;
 
 	/* Check for matching device in remote port list. */
-	fcport = NULL;
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 		if (fcport->tgt_id == tgt_id) {
 			ql_dbg(ql_dbg_async, vha, 0x5072,
 			    "Matching fcport(%p) found with TGT-ID: 0x%x "
 			    "and Remote TGT_ID: 0x%x\n",
 			    fcport, fcport->tgt_id, tgt_id);
-			break;
+			return fcport;
 		}
 	}
-	return fcport;
+	return NULL;
 }
 
 static void
