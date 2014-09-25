@@ -61,26 +61,10 @@ cifs_utf16_bytes(const __le16 *from, int maxbytes,
 	return outlen;
 }
 
-/*
- * cifs_mapchar - convert a host-endian char to proper char in codepage
- * @target - where converted character should be copied
- * @src_char - 2 byte host-endian source character
- * @cp - codepage to which character should be converted
- * @mapchar - should character be mapped according to mapchars mount option?
- *
- * This function handles the conversion of a single character. It is the
- * responsibility of the caller to ensure that the target buffer is large
- * enough to hold the result of the conversion (at least NLS_MAX_CHARSET_SIZE).
- */
-static int
-cifs_mapchar(char *target, const __u16 src_char, const struct nls_table *cp,
-	     bool mapchar)
+/* Convert character using the SFU - "Services for Unix" remapping range */
+static bool
+convert_sfu_char(const __u16 src_char, char *target)
 {
-	int len = 1;
-
-	if (!mapchar)
-		goto cp_convert;
-
 	/*
 	 * BB: Cannot handle remapping UNI_SLASH until all the calls to
 	 *     build_path_from_dentry are modified, as they use slash as
@@ -106,19 +90,74 @@ cifs_mapchar(char *target, const __u16 src_char, const struct nls_table *cp,
 		*target = '<';
 		break;
 	default:
-		goto cp_convert;
+		return false;
 	}
+	return true;
+}
 
-out:
-	return len;
+/* Convert character using the SFM - "Services for Mac" remapping range */
+static bool
+convert_sfm_char(const __u16 src_char, char *target)
+{
+	switch (src_char) {
+	case SFM_COLON:
+		*target = ':';
+		break;
+	case SFM_ASTERISK:
+		*target = '*';
+		break;
+	case SFM_QUESTION:
+		*target = '?';
+		break;
+	case SFM_PIPE:
+		*target = '|';
+		break;
+	case SFM_GRTRTHAN:
+		*target = '>';
+		break;
+	case SFM_LESSTHAN:
+		*target = '<';
+		break;
+	case SFM_SLASH:
+		*target = '\\';
+		break;
+	default:
+		return false;
+	}
+	return true;
+}
 
-cp_convert:
+
+/*
+ * cifs_mapchar - convert a host-endian char to proper char in codepage
+ * @target - where converted character should be copied
+ * @src_char - 2 byte host-endian source character
+ * @cp - codepage to which character should be converted
+ * @map_type - How should the 7 NTFS/SMB reserved characters be mapped to UCS2?
+ *
+ * This function handles the conversion of a single character. It is the
+ * responsibility of the caller to ensure that the target buffer is large
+ * enough to hold the result of the conversion (at least NLS_MAX_CHARSET_SIZE).
+ */
+static int
+cifs_mapchar(char *target, const __u16 src_char, const struct nls_table *cp,
+	     int maptype)
+{
+	int len = 1;
+
+	if ((maptype == SFM_MAP_UNI_RSVD) && convert_sfm_char(src_char, target))
+		return len;
+	else if ((maptype == SFU_MAP_UNI_RSVD) &&
+		  convert_sfu_char(src_char, target))
+		return len;
+
+	/* if character not one of seven in special remap set */
 	len = cp->uni2char(src_char, target, NLS_MAX_CHARSET_SIZE);
 	if (len <= 0) {
 		*target = '?';
 		len = 1;
 	}
-	goto out;
+	return len;
 }
 
 /*
@@ -145,7 +184,7 @@ cp_convert:
  */
 int
 cifs_from_utf16(char *to, const __le16 *from, int tolen, int fromlen,
-		 const struct nls_table *codepage, bool mapchar)
+		const struct nls_table *codepage, int map_type)
 {
 	int i, charlen, safelen;
 	int outlen = 0;
@@ -172,13 +211,13 @@ cifs_from_utf16(char *to, const __le16 *from, int tolen, int fromlen,
 		 * conversion bleed into the null terminator
 		 */
 		if (outlen >= safelen) {
-			charlen = cifs_mapchar(tmp, ftmp, codepage, mapchar);
+			charlen = cifs_mapchar(tmp, ftmp, codepage, map_type);
 			if ((outlen + charlen) > (tolen - nullsize))
 				break;
 		}
 
 		/* put converted char into 'to' buffer */
-		charlen = cifs_mapchar(&to[outlen], ftmp, codepage, mapchar);
+		charlen = cifs_mapchar(&to[outlen], ftmp, codepage, map_type);
 		outlen += charlen;
 	}
 
@@ -267,7 +306,7 @@ cifs_strndup_from_utf16(const char *src, const int maxlen,
 		if (!dst)
 			return NULL;
 		cifs_from_utf16(dst, (__le16 *) src, len, maxlen, codepage,
-			       false);
+			       NO_MAP_UNI_RSVD);
 	} else {
 		len = strnlen(src, maxlen);
 		len++;
