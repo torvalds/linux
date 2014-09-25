@@ -2580,7 +2580,8 @@ qla25xx_read_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
 	uint32_t faddr, left, burst;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA27XX(ha))
+	if (IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha) ||
+	    IS_QLA27XX(ha))
 		goto try_fast;
 	if (offset & 0xfff)
 		goto slow_read;
