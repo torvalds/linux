@@ -52,6 +52,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
+#include <linux/regulator/consumer.h>
 
 #include <asm/irq.h>
 #include <asm/byteorder.h>
@@ -219,6 +220,7 @@ struct ufs_hba_variant_ops {
  * @saved_uic_err: sticky UIC error mask
  * @dev_cmd: ufs device management command information
  * @auto_bkops_enabled: to track whether bkops is enabled in device
+ * @vreg_info: UFS device voltage regulator information
  */
 struct ufs_hba {
 	void __iomem *mmio_base;
@@ -279,6 +281,7 @@ struct ufs_hba {
 	struct ufs_dev_cmd dev_cmd;
 
 	bool auto_bkops_enabled;
+	struct ufs_vreg_info vreg_info;
 };
 
 #define ufshcd_writel(hba, val, reg)	\

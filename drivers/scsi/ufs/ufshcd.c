@@ -68,6 +68,16 @@
 /* Interrupt aggregation default timeout, unit: 40us */
 #define INT_AGGR_DEF_TO	0x02
 
+#define ufshcd_toggle_vreg(_dev, _vreg, _on)				\
+	({                                                              \
+		int _ret;                                               \
+		if (_on)                                                \
+			_ret = ufshcd_enable_vreg(_dev, _vreg);         \
+		else                                                    \
+			_ret = ufshcd_disable_vreg(_dev, _vreg);        \
+		_ret;                                                   \
+	})
+
 enum {
 	UFSHCD_MAX_CHANNEL	= 0,
 	UFSHCD_MAX_ID		= 1,
@@ -3193,6 +3203,153 @@ static struct scsi_host_template ufshcd_driver_template = {
 	.can_queue		= UFSHCD_CAN_QUEUE,
 };
 
+static int ufshcd_config_vreg(struct device *dev,
+		struct ufs_vreg *vreg, bool on)
+{
+	int ret = 0;
+	struct regulator *reg = vreg->reg;
+	const char *name = vreg->name;
+	int min_uV, uA_load;
+
+	BUG_ON(!vreg);
+
+	if (regulator_count_voltages(reg) > 0) {
+		min_uV = on ? vreg->min_uV : 0;
+		ret = regulator_set_voltage(reg, min_uV, vreg->max_uV);
+		if (ret) {
+			dev_err(dev, "%s: %s set voltage failed, err=%d\n",
+					__func__, name, ret);
+			goto out;
+		}
+
+		uA_load = on ? vreg->max_uA : 0;
+		ret = regulator_set_optimum_mode(reg, uA_load);
+		if (ret >= 0) {
+			/*
+			 * regulator_set_optimum_mode() returns new regulator
+			 * mode upon success.
+			 */
+			ret = 0;
+		} else {
+			dev_err(dev, "%s: %s set optimum mode(uA_load=%d) failed, err=%d\n",
+					__func__, name, uA_load, ret);
+			goto out;
+		}
+	}
+out:
+	return ret;
+}
+
+static int ufshcd_enable_vreg(struct device *dev, struct ufs_vreg *vreg)
+{
+	int ret = 0;
+
+	if (!vreg || vreg->enabled)
+		goto out;
+
+	ret = ufshcd_config_vreg(dev, vreg, true);
+	if (!ret)
+		ret = regulator_enable(vreg->reg);
+
+	if (!ret)
+		vreg->enabled = true;
+	else
+		dev_err(dev, "%s: %s enable failed, err=%d\n",
+				__func__, vreg->name, ret);
+out:
+	return ret;
+}
+
+static int ufshcd_disable_vreg(struct device *dev, struct ufs_vreg *vreg)
+{
+	int ret = 0;
+
+	if (!vreg || !vreg->enabled)
+		goto out;
+
+	ret = regulator_disable(vreg->reg);
+
+	if (!ret) {
+		/* ignore errors on applying disable config */
+		ufshcd_config_vreg(dev, vreg, false);
+		vreg->enabled = false;
+	} else {
+		dev_err(dev, "%s: %s disable failed, err=%d\n",
+				__func__, vreg->name, ret);
+	}
+out:
+	return ret;
+}
+
+static int ufshcd_setup_vreg(struct ufs_hba *hba, bool on)
+{
+	int ret = 0;
+	struct device *dev = hba->dev;
+	struct ufs_vreg_info *info = &hba->vreg_info;
+
+	if (!info)
+		goto out;
+
+	ret = ufshcd_toggle_vreg(dev, info->vcc, on);
+	if (ret)
+		goto out;
+
+	ret = ufshcd_toggle_vreg(dev, info->vccq, on);
+	if (ret)
+		goto out;
+
+	ret = ufshcd_toggle_vreg(dev, info->vccq2, on);
+	if (ret)
+		goto out;
+
+out:
+	if (ret) {
+		ufshcd_toggle_vreg(dev, info->vccq2, false);
+		ufshcd_toggle_vreg(dev, info->vccq, false);
+		ufshcd_toggle_vreg(dev, info->vcc, false);
+	}
+	return ret;
+}
+
+static int ufshcd_get_vreg(struct device *dev, struct ufs_vreg *vreg)
+{
+	int ret = 0;
+
+	if (!vreg)
+		goto out;
+
+	vreg->reg = devm_regulator_get(dev, vreg->name);
+	if (IS_ERR(vreg->reg)) {
+		ret = PTR_ERR(vreg->reg);
+		dev_err(dev, "%s: %s get failed, err=%d\n",
+				__func__, vreg->name, ret);
+	}
+out:
+	return ret;
+}
+
+static int ufshcd_init_vreg(struct ufs_hba *hba)
+{
+	int ret = 0;
+	struct device *dev = hba->dev;
+	struct ufs_vreg_info *info = &hba->vreg_info;
+
+	if (!info)
+		goto out;
+
+	ret = ufshcd_get_vreg(dev, info->vcc);
+	if (ret)
+		goto out;
+
+	ret = ufshcd_get_vreg(dev, info->vccq);
+	if (ret)
+		goto out;
+
+	ret = ufshcd_get_vreg(dev, info->vccq2);
+out:
+	return ret;
+}
+
 static int ufshcd_variant_hba_init(struct ufs_hba *hba)
 {
 	int err = 0;
@@ -3246,6 +3403,36 @@ static void ufshcd_variant_hba_exit(struct ufs_hba *hba)
 
 	if (hba->vops->exit)
 		hba->vops->exit(hba);
+}
+
+static int ufshcd_hba_init(struct ufs_hba *hba)
+{
+	int err;
+
+	err = ufshcd_init_vreg(hba);
+	if (err)
+		goto out;
+
+	err = ufshcd_setup_vreg(hba, true);
+	if (err)
+		goto out;
+
+	err = ufshcd_variant_hba_init(hba);
+	if (err)
+		goto out_disable_vreg;
+
+	goto out;
+
+out_disable_vreg:
+	ufshcd_setup_vreg(hba, false);
+out:
+	return err;
+}
+
+static void ufshcd_hba_exit(struct ufs_hba *hba)
+{
+	ufshcd_variant_hba_exit(hba);
+	ufshcd_setup_vreg(hba, false);
 }
 
 /**
@@ -3333,7 +3520,7 @@ void ufshcd_remove(struct ufs_hba *hba)
 
 	scsi_host_put(hba->host);
 
-	ufshcd_variant_hba_exit(hba);
+	ufshcd_hba_exit(hba);
 }
 EXPORT_SYMBOL_GPL(ufshcd_remove);
 
@@ -3412,7 +3599,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	hba->mmio_base = mmio_base;
 	hba->irq = irq;
 
-	err = ufshcd_variant_hba_init(hba);
+	err = ufshcd_hba_init(hba);
 	if (err)
 		goto out_error;
 
@@ -3504,7 +3691,7 @@ out_remove_scsi_host:
 	scsi_remove_host(hba->host);
 out_disable:
 	scsi_host_put(host);
-	ufshcd_variant_hba_exit(hba);
+	ufshcd_hba_exit(hba);
 out_error:
 	return err;
 }

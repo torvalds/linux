@@ -362,4 +362,29 @@ struct ufs_query_res {
 	struct utp_upiu_query upiu_res;
 };
 
+#define UFS_VREG_VCC_MIN_UV	   2700000 /* uV */
+#define UFS_VREG_VCC_MAX_UV	   3600000 /* uV */
+#define UFS_VREG_VCC_1P8_MIN_UV    1700000 /* uV */
+#define UFS_VREG_VCC_1P8_MAX_UV    1950000 /* uV */
+#define UFS_VREG_VCCQ_MIN_UV	   1100000 /* uV */
+#define UFS_VREG_VCCQ_MAX_UV	   1300000 /* uV */
+#define UFS_VREG_VCCQ2_MIN_UV	   1650000 /* uV */
+#define UFS_VREG_VCCQ2_MAX_UV	   1950000 /* uV */
+
+struct ufs_vreg {
+	struct regulator *reg;
+	const char *name;
+	bool enabled;
+	int min_uV;
+	int max_uV;
+	int min_uA;
+	int max_uA;
+};
+
+struct ufs_vreg_info {
+	struct ufs_vreg *vcc;
+	struct ufs_vreg *vccq;
+	struct ufs_vreg *vccq2;
+};
+
 #endif /* End of Header */
