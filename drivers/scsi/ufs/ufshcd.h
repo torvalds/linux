@@ -266,6 +266,13 @@ struct ufs_hba {
 
 	struct Scsi_Host *host;
 	struct device *dev;
+	/*
+	 * This field is to keep a reference to "scsi_device" corresponding to
+	 * "UFS device" W-LU.
+	 */
+	struct scsi_device *sdev_ufs_device;
+	struct scsi_device *sdev_rpmb;
+	struct scsi_device *sdev_boot;
 
 	struct ufshcd_lrb *lrb;
 	unsigned long lrb_in_use;
