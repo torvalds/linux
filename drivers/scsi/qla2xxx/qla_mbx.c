@@ -117,7 +117,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	command = mcp->mb[0];
 	mboxes = mcp->out_mb;
 
-	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1111,
+	ql_dbg(ql_dbg_mbx, vha, 0x1111,
 	    "Mailbox registers (OUT):\n");
 	for (cnt = 0; cnt < ha->mbx_count; cnt++) {
 		if (IS_QLA2200(ha) && cnt == 8)
