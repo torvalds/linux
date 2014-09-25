@@ -318,7 +318,7 @@ struct init_cb_24xx {
 	 * BIT 4  = Enable Target Mode
 	 * BIT 5  = Disable Initiator Mode
 	 * BIT 6  = Acquire FA-WWN
-	 * BIT 7  = Reserved
+	 * BIT 7  = Enable D-port Diagnostics
 	 *
 	 * BIT 8  = Reserved
 	 * BIT 9  = Non Participating LIP
