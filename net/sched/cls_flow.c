@@ -354,7 +354,7 @@ static void flow_destroy_filter(struct rcu_head *head)
 	struct flow_filter *f = container_of(head, struct flow_filter, rcu);
 
 	del_timer_sync(&f->perturb_timer);
-	tcf_exts_destroy(f->tp, &f->exts);
+	tcf_exts_destroy(&f->exts);
 	tcf_em_tree_destroy(f->tp, &f->ematches);
 	kfree(f);
 }
@@ -533,7 +533,7 @@ err2:
 	tcf_em_tree_destroy(tp, &t);
 	kfree(fnew);
 err1:
-	tcf_exts_destroy(tp, &e);
+	tcf_exts_destroy(&e);
 	return err;
 }
 

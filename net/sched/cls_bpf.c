@@ -93,7 +93,7 @@ static int cls_bpf_init(struct tcf_proto *tp)
 static void cls_bpf_delete_prog(struct tcf_proto *tp, struct cls_bpf_prog *prog)
 {
 	tcf_unbind_filter(tp, &prog->res);
-	tcf_exts_destroy(tp, &prog->exts);
+	tcf_exts_destroy(&prog->exts);
 
 	bpf_prog_destroy(prog->filter);
 
@@ -217,7 +217,7 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 errout_free:
 	kfree(bpf_ops);
 errout:
-	tcf_exts_destroy(tp, &exts);
+	tcf_exts_destroy(&exts);
 	return ret;
 }
 

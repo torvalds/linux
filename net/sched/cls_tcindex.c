@@ -169,7 +169,7 @@ found:
 		rcu_assign_pointer(*walk, rtnl_dereference(f->next));
 	}
 	tcf_unbind_filter(tp, &r->res);
-	tcf_exts_destroy(tp, &r->exts);
+	tcf_exts_destroy(&r->exts);
 	if (f)
 		kfree_rcu(f, rcu);
 	return 0;
@@ -401,7 +401,7 @@ errout_alloc:
 		kfree(cp->h);
 errout:
 	kfree(cp);
-	tcf_exts_destroy(tp, &e);
+	tcf_exts_destroy(&e);
 	return err;
 }
 

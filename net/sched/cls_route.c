@@ -272,7 +272,7 @@ route4_delete_filter(struct rcu_head *head)
 	struct tcf_proto *tp = f->tp;
 
 	tcf_unbind_filter(tp, &f->res);
-	tcf_exts_destroy(tp, &f->exts);
+	tcf_exts_destroy(&f->exts);
 	kfree(f);
 }
 
@@ -456,7 +456,7 @@ static int route4_set_parms(struct net *net, struct tcf_proto *tp,
 
 	return 0;
 errout:
-	tcf_exts_destroy(tp, &e);
+	tcf_exts_destroy(&e);
 	return err;
 }
 
