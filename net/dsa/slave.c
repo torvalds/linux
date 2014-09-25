@@ -342,6 +342,44 @@ static int dsa_slave_set_wol(struct net_device *dev, struct ethtool_wolinfo *w)
 	return ret;
 }
 
+static int dsa_slave_set_eee(struct net_device *dev, struct ethtool_eee *e)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+	int ret;
+
+	if (!ds->drv->set_eee)
+		return -EOPNOTSUPP;
+
+	ret = ds->drv->set_eee(ds, p->port, p->phy, e);
+	if (ret)
+		return ret;
+
+	if (p->phy)
+		ret = phy_ethtool_set_eee(p->phy, e);
+
+	return ret;
+}
+
+static int dsa_slave_get_eee(struct net_device *dev, struct ethtool_eee *e)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+	int ret;
+
+	if (!ds->drv->get_eee)
+		return -EOPNOTSUPP;
+
+	ret = ds->drv->get_eee(ds, p->port, e);
+	if (ret)
+		return ret;
+
+	if (p->phy)
+		ret = phy_ethtool_get_eee(p->phy, e);
+
+	return ret;
+}
+
 static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_settings		= dsa_slave_get_settings,
 	.set_settings		= dsa_slave_set_settings,
@@ -353,6 +391,8 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_sset_count		= dsa_slave_get_sset_count,
 	.set_wol		= dsa_slave_set_wol,
 	.get_wol		= dsa_slave_get_wol,
+	.set_eee		= dsa_slave_set_eee,
+	.get_eee		= dsa_slave_get_eee,
 };
 
 static const struct net_device_ops dsa_slave_netdev_ops = {

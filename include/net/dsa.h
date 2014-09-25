@@ -232,6 +232,15 @@ struct dsa_switch_driver {
 			       struct phy_device *phy);
 	void	(*port_disable)(struct dsa_switch *ds, int port,
 				struct phy_device *phy);
+
+	/*
+	 * EEE setttings
+	 */
+	int	(*set_eee)(struct dsa_switch *ds, int port,
+			   struct phy_device *phydev,
+			   struct ethtool_eee *e);
+	int	(*get_eee)(struct dsa_switch *ds, int port,
+			   struct ethtool_eee *e);
 };
 
 void register_switch_driver(struct dsa_switch_driver *type);
