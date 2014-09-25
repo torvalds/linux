@@ -220,6 +220,19 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 	core_writel(priv, reg, CORE_STS_OVERRIDE_IMP);
 }
 
+static void bcm_sf2_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	u32 reg;
+
+	reg = core_readl(priv, CORE_EEE_EN_CTRL);
+	if (enable)
+		reg |= 1 << port;
+	else
+		reg &= ~(1 << port);
+	core_writel(priv, reg, CORE_EEE_EN_CTRL);
+}
+
 static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 			      struct phy_device *phy)
 {
@@ -246,6 +259,10 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	core_writel(priv, reg, CORE_PORT_VLAN_CTL_PORT(port));
 
 	bcm_sf2_imp_vlan_setup(ds, cpu_port);
+
+	/* If EEE was enabled, restore it */
+	if (priv->port_sts[port].eee.eee_enabled)
+		bcm_sf2_eee_enable_set(ds, port, true);
 
 	return 0;
 }
@@ -277,6 +294,60 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
 	reg |= P_TXQ_PSM_VDD(port);
 	core_writel(priv, reg, CORE_MEM_PSM_VDD_CTRL);
+}
+
+/* Returns 0 if EEE was not enabled, or 1 otherwise
+ */
+static int bcm_sf2_eee_init(struct dsa_switch *ds, int port,
+			    struct phy_device *phy)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	struct ethtool_eee *p = &priv->port_sts[port].eee;
+	int ret;
+
+	p->supported = (SUPPORTED_1000baseT_Full | SUPPORTED_100baseT_Full);
+
+	ret = phy_init_eee(phy, 0);
+	if (ret)
+		return 0;
+
+	bcm_sf2_eee_enable_set(ds, port, true);
+
+	return 1;
+}
+
+static int bcm_sf2_sw_get_eee(struct dsa_switch *ds, int port,
+			      struct ethtool_eee *e)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	struct ethtool_eee *p = &priv->port_sts[port].eee;
+	u32 reg;
+
+	reg = core_readl(priv, CORE_EEE_LPI_INDICATE);
+	e->eee_enabled = p->eee_enabled;
+	e->eee_active = !!(reg & (1 << port));
+
+	return 0;
+}
+
+static int bcm_sf2_sw_set_eee(struct dsa_switch *ds, int port,
+			      struct phy_device *phydev,
+			      struct ethtool_eee *e)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	struct ethtool_eee *p = &priv->port_sts[port].eee;
+
+	p->eee_enabled = e->eee_enabled;
+
+	if (!p->eee_enabled) {
+		bcm_sf2_eee_enable_set(ds, port, false);
+	} else {
+		p->eee_enabled = bcm_sf2_eee_init(ds, port, phydev);
+		if (!p->eee_enabled)
+			return -EOPNOTSUPP;
+	}
+
+	return 0;
 }
 
 static irqreturn_t bcm_sf2_switch_0_isr(int irq, void *dev_id)
@@ -792,6 +863,8 @@ static struct dsa_switch_driver bcm_sf2_switch_driver = {
 	.set_wol		= bcm_sf2_sw_set_wol,
 	.port_enable		= bcm_sf2_port_setup,
 	.port_disable		= bcm_sf2_port_disable,
+	.get_eee		= bcm_sf2_sw_get_eee,
+	.set_eee		= bcm_sf2_sw_set_eee,
 };
 
 static int __init bcm_sf2_init(void)

@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/mii.h>
+#include <linux/ethtool.h>
 
 #include <net/dsa.h>
 
@@ -43,6 +44,8 @@ struct bcm_sf2_hw_params {
 
 struct bcm_sf2_port_status {
 	unsigned int link;
+
+	struct ethtool_eee eee;
 };
 
 struct bcm_sf2_priv {

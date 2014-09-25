@@ -225,4 +225,7 @@
 #define CORE_PORT_VLAN_CTL_PORT(x)	(0xc400 + ((x) * 0x8))
 #define  PORT_VLAN_CTRL_MASK		0x1ff
 
+#define CORE_EEE_EN_CTRL		0x24800
+#define CORE_EEE_LPI_INDICATE		0x24810
+
 #endif /* __BCM_SF2_REGS_H */
