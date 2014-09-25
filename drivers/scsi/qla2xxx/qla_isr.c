@@ -3098,10 +3098,11 @@ skip_msi:
 	}
 
 clear_risc_ints:
+	if (IS_FWI2_CAPABLE(ha) || IS_QLAFX00(ha))
+		goto fail;
 
 	spin_lock_irq(&ha->hardware_lock);
-	if (!IS_FWI2_CAPABLE(ha))
-		WRT_REG_WORD(&reg->isp.semaphore, 0);
+	WRT_REG_WORD(&reg->isp.semaphore, 0);
 	spin_unlock_irq(&ha->hardware_lock);
 
 fail:
