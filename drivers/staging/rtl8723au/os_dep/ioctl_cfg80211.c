@@ -1118,7 +1118,7 @@ exit:
 	return ret;
 }
 
-int cfg80211_infrastructure_mode(struct rtw_adapter *padapter,
+static int cfg80211_infrastructure_mode(struct rtw_adapter *padapter,
 				 enum nl80211_iftype ifmode)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
