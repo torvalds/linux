@@ -157,7 +157,26 @@
 #define  QUEUESPERPAGEPF0_MASK   0x0000000fU
 #define  QUEUESPERPAGEPF0_GET(x) ((x) & QUEUESPERPAGEPF0_MASK)
 
+#define QUEUESPERPAGEPF0    0
 #define QUEUESPERPAGEPF1    4
+
+/* T5 and later support a new BAR2-based doorbell mechanism for Egress Queues.
+ * The User Doorbells are each 128 bytes in length with a Simple Doorbell at
+ * offsets 8x and a Write Combining single 64-byte Egress Queue Unit
+ * (X_IDXSIZE_UNIT) Gather Buffer interface at offset 64.  For Ingress Queues,
+ * we have a Going To Sleep register at offsets 8x+4.
+ *
+ * As noted above, we have many instances of the Simple Doorbell and Going To
+ * Sleep registers at offsets 8x and 8x+4, respectively.  We want to use a
+ * non-64-byte aligned offset for the Simple Doorbell in order to attempt to
+ * avoid buffering of the writes to the Simple Doorbell and we want to use a
+ * non-contiguous offset for the Going To Sleep writes in order to avoid
+ * possible combining between them.
+ */
+#define SGE_UDB_SIZE            128
+#define SGE_UDB_KDOORBELL       8
+#define SGE_UDB_GTS             20
+#define SGE_UDB_WCDOORBELL      64
 
 #define SGE_INT_CAUSE1 0x1024
 #define SGE_INT_CAUSE2 0x1030
