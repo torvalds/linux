@@ -84,6 +84,9 @@ static int dsa_slave_open(struct net_device *dev)
 			goto clear_allmulti;
 	}
 
+	if (p->phy)
+		phy_start(p->phy);
+
 	return 0;
 
 clear_allmulti:
@@ -100,6 +103,9 @@ static int dsa_slave_close(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct net_device *master = p->parent->dst->master_netdev;
+
+	if (p->phy)
+		phy_stop(p->phy);
 
 	dev_mc_unsync(master, dev);
 	dev_uc_unsync(master, dev);
