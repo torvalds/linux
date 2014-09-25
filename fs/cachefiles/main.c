@@ -84,7 +84,7 @@ error_proc:
 error_object_jar:
 	misc_deregister(&cachefiles_dev);
 error_dev:
-	pr_err("failed to register: %d", ret);
+	pr_err("failed to register: %d\n", ret);
 	return ret;
 }
 
