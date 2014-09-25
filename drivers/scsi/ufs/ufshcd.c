@@ -4884,13 +4884,19 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	}
 
 	if (ufshcd_is_runtime_pm(pm_op)) {
-		/*
-		 * The device is idle with no requests in the queue,
-		 * allow background operations if needed.
-		 */
-		ret = ufshcd_bkops_ctrl(hba, BKOPS_STATUS_NON_CRITICAL);
-		if (ret)
-			goto enable_gating;
+		if (ufshcd_can_autobkops_during_suspend(hba)) {
+			/*
+			 * The device is idle with no requests in the queue,
+			 * allow background operations if bkops status shows
+			 * that performance might be impacted.
+			 */
+			ret = ufshcd_urgent_bkops(hba);
+			if (ret)
+				goto enable_gating;
+		} else {
+			/* make sure that auto bkops is disabled */
+			ufshcd_disable_auto_bkops(hba);
+		}
 	}
 
 	if ((req_dev_pwr_mode != hba->curr_dev_pwr_mode) &&
@@ -5038,7 +5044,11 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 			goto set_old_link_state;
 	}
 
-	ufshcd_disable_auto_bkops(hba);
+	/*
+	 * If BKOPs operations are urgently needed at this moment then
+	 * keep auto-bkops enabled or else disable it.
+	 */
+	ufshcd_urgent_bkops(hba);
 	hba->clk_gating.is_suspended = false;
 
 	if (ufshcd_is_clkscaling_enabled(hba))
