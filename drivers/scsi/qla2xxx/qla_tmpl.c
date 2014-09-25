@@ -792,6 +792,15 @@ qla27xx_walk_template(struct scsi_qla_host *vha,
 			break;
 		ent = qla27xx_next_entry(ent);
 	}
+
+	if (count)
+		ql_dbg(ql_dbg_misc, vha, 0xd018,
+		    "%s: residual count (%lx)\n", __func__, count);
+
+	if (ent->hdr.entry_type != ENTRY_TYPE_TMP_END)
+		ql_dbg(ql_dbg_misc, vha, 0xd019,
+		    "%s: missing end (%lx)\n", __func__, count);
+
 	ql_dbg(ql_dbg_misc, vha, 0xd01b,
 	    "%s: len=%lx\n", __func__, *len);
 }
