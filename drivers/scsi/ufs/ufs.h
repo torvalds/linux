@@ -50,6 +50,8 @@
 			cpu_to_be32((byte3 << 24) | (byte2 << 16) |\
 			 (byte1 << 8) | (byte0))
 
+#define UFS_UPIU_MAX_GENERAL_LUN	8
+
 /*
  * UFS Protocol Information Unit related definitions
  */
@@ -129,10 +131,29 @@ enum desc_idn {
 	QUERY_DESC_IDN_RFU_1		= 0x6,
 	QUERY_DESC_IDN_GEOMETRY		= 0x7,
 	QUERY_DESC_IDN_POWER		= 0x8,
-	QUERY_DESC_IDN_RFU_2		= 0x9,
+	QUERY_DESC_IDN_MAX,
 };
 
-#define UNIT_DESC_MAX_SIZE       0x22
+enum desc_header_offset {
+	QUERY_DESC_LENGTH_OFFSET	= 0x00,
+	QUERY_DESC_DESC_TYPE_OFFSET	= 0x01,
+};
+
+enum ufs_desc_max_size {
+	QUERY_DESC_DEVICE_MAX_SIZE		= 0x1F,
+	QUERY_DESC_CONFIGURAION_MAX_SIZE	= 0x90,
+	QUERY_DESC_UNIT_MAX_SIZE		= 0x23,
+	QUERY_DESC_INTERCONNECT_MAX_SIZE	= 0x06,
+	/*
+	 * Max. 126 UNICODE characters (2 bytes per character) plus 2 bytes
+	 * of descriptor header.
+	 */
+	QUERY_DESC_STRING_MAX_SIZE		= 0xFE,
+	QUERY_DESC_GEOMETRY_MAZ_SIZE		= 0x44,
+	QUERY_DESC_POWER_MAX_SIZE		= 0x62,
+	QUERY_DESC_RFU_MAX_SIZE			= 0x00,
+};
+
 /* Unit descriptor parameters offsets in bytes*/
 enum unit_desc_param {
 	UNIT_DESC_PARAM_LEN			= 0x0,
