@@ -454,6 +454,7 @@ dtb-$(CONFIG_ARCH_TEGRA) += tegra20-harmony.dtb \
 	tegra114-roth.dtb \
 	tegra114-tn7.dtb \
 	tegra124-jetson-tk1.dtb \
+	tegra124-nyan-big.dtb \
 	tegra124-venice2.dtb
 dtb-$(CONFIG_ARCH_U300) += ste-u300.dtb
 dtb-$(CONFIG_ARCH_U8500) += ste-snowball.dtb \

@@ -4,8 +4,8 @@
 #include "tegra124.dtsi"
 
 / {
-	model = "NVIDIA Tegra124 Venice2";
-	compatible = "nvidia,venice2", "nvidia,tegra124";
+	model = "Acer Chromebook 13 CB5-311";
+	compatible = "google,nyan-big", "nvidia,tegra124";
 
 	aliases {
 		rtc0 = "/i2c@0,7000d000/pmic@40";
@@ -42,33 +42,17 @@
 		};
 	};
 
-	pinmux: pinmux@0,70000868 {
-		pinctrl-names = "boot";
-		pinctrl-0 = <&pinmux_boot>;
+	pinmux@0,70000868 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinmux_default>;
 
-		pinmux_boot: common {
+		pinmux_default: common {
 			dap_mclk1_pw4 {
 				nvidia,pins = "dap_mclk1_pw4";
 				nvidia,function = "extperiph1";
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-			};
-			dap1_din_pn1 {
-				nvidia,pins = "dap1_din_pn1";
-				nvidia,function = "i2s0";
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
-			dap1_dout_pn2 {
-				nvidia,pins = "dap1_dout_pn2",
-					      "dap1_fs_pn0",
-					      "dap1_sclk_pn3";
-				nvidia,function = "i2s0";
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 			dap2_din_pa4 {
 				nvidia,pins = "dap2_din_pa4";
@@ -194,8 +178,10 @@
 					      "sdmmc3_dat1_pb6",
 					      "sdmmc3_dat2_pb5",
 					      "sdmmc3_dat3_pb4",
+					      "kb_col4_pq4",
 					      "sdmmc3_clk_lb_out_pee4",
-					      "sdmmc3_clk_lb_in_pee5";
+					      "sdmmc3_clk_lb_in_pee5",
+					      "sdmmc3_cd_n_pv2";
 				nvidia,function = "sdmmc3";
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 				nvidia,pull = <TEGRA_PIN_PULL_UP>;
@@ -282,22 +268,6 @@
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
-			dap4_din_pp5 {
-				nvidia,pins = "dap4_din_pp5";
-				nvidia,function = "i2s3";
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
-			dap4_dout_pp6 {
-				nvidia,pins = "dap4_dout_pp6",
-					      "dap4_fs_pp4",
-					      "dap4_sclk_pp7";
-				nvidia,function = "i2s3";
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-			};
 			gen1_i2c_sda_pc5 {
 				nvidia,pins = "gen1_i2c_sda_pc5",
 					      "gen1_i2c_scl_pc4";
@@ -307,50 +277,6 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,lock = <TEGRA_PIN_DISABLE>;
 				nvidia,open-drain = <TEGRA_PIN_ENABLE>;
-			};
-			uart2_cts_n_pj5 {
-				nvidia,pins = "uart2_cts_n_pj5";
-				nvidia,function = "uartb";
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-			};
-			uart2_rts_n_pj6 {
-				nvidia,pins = "uart2_rts_n_pj6";
-				nvidia,function = "uartb";
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-			};
-			uart2_rxd_pc3 {
-				nvidia,pins = "uart2_rxd_pc3";
-				nvidia,function = "irda";
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-			};
-			uart2_txd_pc2 {
-				nvidia,pins = "uart2_txd_pc2";
-				nvidia,function = "irda";
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-			};
-			uart3_cts_n_pa1 {
-				nvidia,pins = "uart3_cts_n_pa1",
-					      "uart3_rxd_pw7";
-				nvidia,function = "uartc";
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-			};
-			uart3_rts_n_pc0 {
-				nvidia,pins = "uart3_rts_n_pc0",
-					      "uart3_txd_pw6";
-				nvidia,function = "uartc";
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			hdmi_cec_pee3 {
 				nvidia,pins = "hdmi_cec_pee3";
@@ -378,29 +304,6 @@
 				nvidia,lock = <TEGRA_PIN_DISABLE>;
 				nvidia,rcv-sel = <TEGRA_PIN_ENABLE>;
 			};
-			pj7 {
-				nvidia,pins = "pj7",
-					      "pk7";
-				nvidia,function = "uartd";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-			};
-			pb0 {
-				nvidia,pins = "pb0",
-					      "pb1";
-				nvidia,function = "uartd";
-				nvidia,pull = <TEGRA_PIN_PULL_UP>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-			};
-			ph0 {
-				nvidia,pins = "ph0";
-				nvidia,function = "pwm0";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-			};
 			kb_row10_ps2 {
 				nvidia,pins = "kb_row10_ps2";
 				nvidia,function = "uarta";
@@ -414,13 +317,6 @@
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-			};
-			kb_row6_pr6 {
-				nvidia,pins = "kb_row6_pr6";
-				nvidia,function = "displaya_alt";
-				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			usb_vbus_en0_pn4 {
 				nvidia,pins = "usb_vbus_en0_pn4",
@@ -436,16 +332,16 @@
 				nvidia,pins = "drive_sdio1";
 				nvidia,high-speed-mode = <TEGRA_PIN_ENABLE>;
 				nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-				nvidia,pull-down-strength = <32>;
-				nvidia,pull-up-strength = <42>;
-				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;
-				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_FASTEST>;
+				nvidia,pull-down-strength = <36>;
+				nvidia,pull-up-strength = <20>;
+				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_SLOW>;
+				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_SLOW>;
 			};
 			drive_sdio3 {
 				nvidia,pins = "drive_sdio3";
 				nvidia,high-speed-mode = <TEGRA_PIN_ENABLE>;
 				nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-				nvidia,pull-down-strength = <20>;
+				nvidia,pull-down-strength = <22>;
 				nvidia,pull-up-strength = <36>;
 				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;
 				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_FASTEST>;
@@ -454,19 +350,11 @@
 				nvidia,pins = "drive_gma";
 				nvidia,high-speed-mode = <TEGRA_PIN_ENABLE>;
 				nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
-				nvidia,pull-down-strength = <1>;
-				nvidia,pull-up-strength = <2>;
+				nvidia,pull-down-strength = <2>;
+				nvidia,pull-up-strength = <1>;
 				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;
 				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_FASTEST>;
 				nvidia,drive-type = <1>;
-			};
-			als_irq_l {
-				nvidia,pins = "gpio_x3_aud_px3";
-				nvidia,function = "gmi";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			codec_irq_l {
 				nvidia,pins = "ph4";
@@ -486,27 +374,27 @@
 				nvidia,pins = "gpio_w3_aud_pw3";
 				nvidia,function = "spi6";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			tpm_davint_l {
 				nvidia,pins = "ph6";
 				nvidia,function = "gmi";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			ts_irq_l {
 				nvidia,pins = "pk2";
 				nvidia,function = "gmi";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			ts_reset_l {
 				nvidia,pins = "pk4";
 				nvidia,function = "gmi";
-				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -549,7 +437,7 @@
 				nvidia,pins = "pj0";
 				nvidia,function = "gmi";
 				nvidia,pull = <TEGRA_PIN_PULL_UP>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			sensor_irq_l {
@@ -566,17 +454,38 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
-			wifi_rst_l {
-				nvidia,pins = "clk2_req_pcc5";
-				nvidia,function = "dap";
+			en_vdd_bl {
+				nvidia,pins = "dap3_dout_pp2";
+				nvidia,function = "i2s2";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+			};
+			en_vdd_hdmi {
+				nvidia,pins = "spdif_in_pk6";
+				nvidia,function = "spdif";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+			};
+			soc_warm_reset_l {
+				nvidia,pins = "pi5";
+				nvidia,function = "gmi";
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+			};
+			hp_det_l {
+				nvidia,pins = "pi7";
+				nvidia,function = "rsvd1";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
-			hp_det_l {
-				nvidia,pins = "ulpi_data1_po2";
-				nvidia,function = "spi3";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+			mic_det_l {
+				nvidia,pins = "kb_row7_pr7";
+				nvidia,function = "rsvd2";
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
@@ -584,6 +493,7 @@
 	};
 
 	serial@0,70006000 {
+		/* Debug connector on the bottom of the board near SD card. */
 		status = "okay";
 	};
 
@@ -601,24 +511,30 @@
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(H, 4) GPIO_ACTIVE_HIGH>;
 		};
+
+		temperature-sensor@4c {
+			compatible = "ti,tmp451";
+			reg = <0x4c>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(I, 6) IRQ_TYPE_LEVEL_LOW>;
+
+			#thermal-sensor-cells = <1>;
+		};
 	};
 
 	i2c@0,7000c400 {
 		status = "okay";
 		clock-frequency = <100000>;
-
-		trackpad@4b {
-			compatible = "atmel,maxtouch";
-			reg = <0x4b>;
-			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_LEVEL_LOW>;
-			linux,gpio-keymap = <0 0 0 BTN_LEFT>;
-		};
 	};
 
 	i2c@0,7000c500 {
 		status = "okay";
-		clock-frequency = <100000>;
+		clock-frequency = <400000>;
+
+		tpm@20 {
+			compatible = "infineon,slb9645tt";
+			reg = <0x20>;
+		};
 	};
 
 	hdmi_ddc: i2c@0,7000c700 {
@@ -653,8 +569,14 @@
 					bias-pull-down;
 				};
 
-				gpio1_2_4_7 {
-					pins = "gpio1", "gpio2", "gpio4", "gpio7";
+				gpio1 {
+					pins = "gpio1";
+					function = "gpio";
+					bias-pull-up;
+				};
+
+				gpio2_4_7 {
+					pins = "gpio2", "gpio4", "gpio7";
 					function = "gpio";
 					bias-pull-up;
 				};
@@ -667,6 +589,7 @@
 				gpio5 {
 					pins = "gpio5";
 					function = "clk32k-out";
+					bias-pull-down;
 				};
 			};
 
@@ -685,7 +608,7 @@
 				sd0 {
 					regulator-name = "+VDD_CPU_AP";
 					regulator-min-microvolt = <700000>;
-					regulator-max-microvolt = <1400000>;
+					regulator-max-microvolt = <1350000>;
 					regulator-min-microamp = <3500000>;
 					regulator-max-microamp = <3500000>;
 					regulator-always-on;
@@ -698,7 +621,7 @@
 					regulator-min-microvolt = <700000>;
 					regulator-max-microvolt = <1350000>;
 					regulator-min-microamp = <2500000>;
-					regulator-max-microamp = <2500000>;
+					regulator-max-microamp = <4000000>;
 					regulator-always-on;
 					regulator-boot-on;
 					ams,ext-control = <1>;
@@ -826,7 +749,7 @@
 
 		cros_ec: cros-ec@0 {
 			compatible = "google,cros-ec-spi";
-			spi-max-frequency = <4000000>;
+			spi-max-frequency = <3000000>;
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(C, 7) IRQ_TYPE_LEVEL_LOW>;
 			reg = <0>;
@@ -855,7 +778,8 @@
 					compatible = "sbs,sbs-battery";
 					reg = <0xb>;
 					sbs,i2c-retry-count = <2>;
-					sbs,poll-retry-count = <1>;
+					sbs,poll-retry-count = <10>;
+					power-supplies = <&charger>;
 				};
 			};
 		};
@@ -864,16 +788,16 @@
 	spi@0,7000da00 {
 		status = "okay";
 		spi-max-frequency = <25000000>;
-		spi-flash@0 {
+
+		flash@0 {
 			compatible = "winbond,w25q32dw";
 			reg = <0>;
-			spi-max-frequency = <20000000>;
 		};
 	};
 
 	pmc@0,7000e400 {
 		nvidia,invert-interrupt;
-		nvidia,suspend-mode = <1>;
+		nvidia,suspend-mode = <0>;
 		nvidia,cpu-pwr-good-time = <500>;
 		nvidia,cpu-pwr-off-time = <300>;
 		nvidia,core-pwr-good-time = <641 3845>;
@@ -886,18 +810,29 @@
 		status = "okay";
 	};
 
-	sdhci@0,700b0400 {
-		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
+	sdhci@0,700b0000 { /* WiFi/BT on this bus */
+		status = "okay";
+		power-gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_HIGH>;
+		bus-width = <4>;
+		no-1-8-v;
+		non-removable;
+	};
+
+	sdhci@0,700b0400 { /* SD Card on this bus */
+		status = "okay";
+		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
 		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
 		wp-gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
-		status = "okay";
 		bus-width = <4>;
+		no-1-8-v;
 		vqmmc-supply = <&vddio_sdmmc3>;
 	};
 
-	sdhci@0,700b0600 {
+	sdhci@0,700b0600 { /* eMMC on this bus */
 		status = "okay";
 		bus-width = <8>;
+		no-1-8-v;
+		non-removable;
 	};
 
 	ahub@0,70300000 {
@@ -906,7 +841,7 @@
 		};
 	};
 
-	usb@0,7d000000 {
+	usb@0,7d000000 { /* Rear external USB port. */
 		status = "okay";
 	};
 
@@ -915,7 +850,7 @@
 		vbus-supply = <&vdd_usb1_vbus>;
 	};
 
-	usb@0,7d004000 {
+	usb@0,7d004000 { /* Internal webcam. */
 		status = "okay";
 	};
 
@@ -924,7 +859,7 @@
 		vbus-supply = <&vdd_run_cam>;
 	};
 
-	usb@0,7d008000 {
+	usb@0,7d008000 { /* Left external USB port. */
 		status = "okay";
 	};
 
@@ -940,8 +875,41 @@
 		power-supply = <&vdd_led>;
 		pwms = <&pwm 1 1000000>;
 
-		brightness-levels = <0 4 8 16 32 64 128 255>;
-		default-brightness-level = <6>;
+		default-brightness-level = <224>;
+		brightness-levels =
+			<  0   1   2   3   4   5   6   7
+			   8   9  10  11  12  13  14  15
+			  16  17  18  19  20  21  22  23
+			  24  25  26  27  28  29  30  31
+			  32  33  34  35  36  37  38  39
+			  40  41  42  43  44  45  46  47
+			  48  49  50  51  52  53  54  55
+			  56  57  58  59  60  61  62  63
+			  64  65  66  67  68  69  70  71
+			  72  73  74  75  76  77  78  79
+			  80  81  82  83  84  85  86  87
+			  88  89  90  91  92  93  94  95
+			  96  97  98  99 100 101 102 103
+			 104 105 106 107 108 109 110 111
+			 112 113 114 115 116 117 118 119
+			 120 121 122 123 124 125 126 127
+			 128 129 130 131 132 133 134 135
+			 136 137 138 139 140 141 142 143
+			 144 145 146 147 148 149 150 151
+			 152 153 154 155 156 157 158 159
+			 160 161 162 163 164 165 166 167
+			 168 169 170 171 172 173 174 175
+			 176 177 178 179 180 181 182 183
+			 184 185 186 187 188 189 190 191
+			 192 193 194 195 196 197 198 199
+			 200 201 202 203 204 205 206 207
+			 208 209 210 211 212 213 214 215
+			 216 217 218 219 220 221 222 223
+			 224 225 226 227 228 229 230 231
+			 232 233 234 235 236 237 238 239
+			 240 241 242 243 244 245 246 247
+			 248 249 250 251 252 253 254 255
+			 256>;
 	};
 
 	clocks {
@@ -960,17 +928,26 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
+		lid {
+			label = "Lid";
+			gpios = <&gpio TEGRA_GPIO(R, 4) GPIO_ACTIVE_LOW>;
+			linux,input-type = <5>;
+			linux,code = <KEY_RESERVED>;
+			debounce-interval = <1>;
+			gpio-key,wakeup;
+		};
+
 		power {
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
-			debounce-interval = <10>;
+			debounce-interval = <30>;
 			gpio-key,wakeup;
 		};
 	};
 
 	panel: panel {
-		compatible = "lg,lp129qe", "simple-panel";
+		compatible = "auo,b133xtn01";
 
 		backlight = <&backlight>;
 		ddc-i2c-bus = <&dpaux>;
@@ -1130,9 +1107,9 @@
 	};
 
 	sound {
-		compatible = "nvidia,tegra-audio-max98090-venice2",
+		compatible = "nvidia,tegra-audio-max98090-nyan-big",
 			     "nvidia,tegra-audio-max98090";
-		nvidia,model = "NVIDIA Tegra Venice2";
+		nvidia,model = "Acer Chromebook 13";
 
 		nvidia,audio-routing =
 			"Headphones", "HPR",
@@ -1140,6 +1117,8 @@
 			"Speakers", "SPKR",
 			"Speakers", "SPKL",
 			"Mic Jack", "MICBIAS",
+			"DMICL", "Int Mic",
+			"DMICR", "Int Mic",
 			"IN34", "Mic Jack";
 
 		nvidia,i2s-controller = <&tegra_i2s1>;
@@ -1149,6 +1128,8 @@
 			 <&tegra_car TEGRA124_CLK_PLL_A_OUT0>,
 			 <&tegra_car TEGRA124_CLK_EXTERN1>;
 		clock-names = "pll_a", "pll_a_out0", "mclk";
+
+		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(I, 7) GPIO_ACTIVE_HIGH>;
 	};
 };
 
