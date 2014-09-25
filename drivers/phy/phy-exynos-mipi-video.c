@@ -165,7 +165,6 @@ static struct platform_driver exynos_mipi_video_phy_driver = {
 	.driver = {
 		.of_match_table	= exynos_mipi_video_phy_of_match,
 		.name  = "exynos-mipi-video-phy",
-		.owner = THIS_MODULE,
 	}
 };
 module_platform_driver(exynos_mipi_video_phy_driver);

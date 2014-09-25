@@ -585,8 +585,6 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 	lockdep_assert_held(&mvm->mutex);
 
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS)) {
-		u32 mode;
-
 		switch (mvm->bt_force_ant_mode) {
 		case BT_FORCE_ANT_BT:
 			mode = BT_COEX_BT;
@@ -756,7 +754,8 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	struct iwl_bt_iterator_data *data = _data;
 	struct iwl_mvm *mvm = data->mvm;
 	struct ieee80211_chanctx_conf *chanctx_conf;
-	enum ieee80211_smps_mode smps_mode;
+	/* default smps_mode is AUTOMATIC - only used for client modes */
+	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_AUTOMATIC;
 	u32 bt_activity_grading;
 	int ave_rssi;
 
@@ -764,8 +763,6 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		/* default smps_mode for BSS / P2P client is AUTOMATIC */
-		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 		break;
 	case NL80211_IFTYPE_AP:
 		if (!mvmvif->ap_ibss_active)
@@ -797,7 +794,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	else if (bt_activity_grading >= BT_LOW_TRAFFIC)
 		smps_mode = IEEE80211_SMPS_DYNAMIC;
 
-	/* relax SMPS contraints for next association */
+	/* relax SMPS constraints for next association */
 	if (!vif->bss_conf.assoc)
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
