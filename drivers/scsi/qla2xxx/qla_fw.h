@@ -317,7 +317,7 @@ struct init_cb_24xx {
 	 * BIT 3  = Reserved
 	 * BIT 4  = Enable Target Mode
 	 * BIT 5  = Disable Initiator Mode
-	 * BIT 6  = Reserved
+	 * BIT 6  = Acquire FA-WWN
 	 * BIT 7  = Reserved
 	 *
 	 * BIT 8  = Reserved
