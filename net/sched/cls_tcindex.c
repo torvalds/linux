@@ -303,7 +303,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 			cp->hash = DEFAULT_HASH_SIZE;
 	}
 
-	if (!cp->perfect && cp->h)
+	if (!cp->perfect && !cp->h)
 		cp->alloc_hash = cp->hash;
 
 	/* Note: this could be as restrictive as if (handle & ~(mask >> shift))
