@@ -1,5 +1,5 @@
-# List of programs to build
-hostprogs-y := vdso_test
+# vdso_test won't build for glibc < 2.16, so disable it
+# hostprogs-y := vdso_test
 hostprogs-$(CONFIG_X86) := vdso_standalone_test_x86
 vdso_standalone_test_x86-objs := vdso_standalone_test_x86.o parse_vdso.o
 vdso_test-objs := parse_vdso.o vdso_test.o
