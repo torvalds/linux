@@ -116,14 +116,14 @@ struct ath10k_wmi {
 	struct ath10k_mem_chunk mem_chunks[WMI_MAX_MEM_REQS];
 };
 
-struct ath10k_peer_stat {
+struct ath10k_fw_stats_peer {
 	u8 peer_macaddr[ETH_ALEN];
 	u32 peer_rssi;
 	u32 peer_tx_rate;
 	u32 peer_rx_rate; /* 10x only */
 };
 
-struct ath10k_target_stats {
+struct ath10k_fw_stats {
 	/* PDEV stats */
 	s32 ch_noise_floor;
 	u32 tx_frame_count;
@@ -183,7 +183,7 @@ struct ath10k_target_stats {
 
 	/* PEER STATS */
 	u8 peers;
-	struct ath10k_peer_stat peer_stat[TARGET_NUM_PEERS];
+	struct ath10k_fw_stats_peer peer_stat[TARGET_NUM_PEERS];
 
 	/* TODO: Beacon filter stats */
 
@@ -292,10 +292,9 @@ struct ath10k_fw_crash_data {
 struct ath10k_debug {
 	struct dentry *debugfs_phy;
 
-	struct ath10k_target_stats target_stats;
+	struct ath10k_fw_stats fw_stats;
+	struct completion fw_stats_complete;
 	DECLARE_BITMAP(wmi_service_bitmap, WMI_SERVICE_MAX);
-
-	struct completion event_stats_compl;
 
 	unsigned long htt_stats_mask;
 	struct delayed_work htt_stats_dwork;

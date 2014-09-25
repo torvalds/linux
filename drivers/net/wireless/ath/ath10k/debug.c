@@ -239,29 +239,29 @@ static const struct file_operations fops_wmi_services = {
 	.llseek = default_llseek,
 };
 
-void ath10k_debug_read_target_stats(struct ath10k *ar, struct sk_buff *skb)
+void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 {
 	int ret;
 
 	spin_lock_bh(&ar->data_lock);
 
-	ret = ath10k_wmi_pull_fw_stats(ar, skb, &ar->debug.target_stats);
+	ret = ath10k_wmi_pull_fw_stats(ar, skb, &ar->debug.fw_stats);
 	if (ret) {
 		ath10k_warn(ar, "failed to pull fw stats: %d\n", ret);
 		goto unlock;
 	}
 
-	complete(&ar->debug.event_stats_compl);
+	complete(&ar->debug.fw_stats_complete);
 
 unlock:
 	spin_unlock_bh(&ar->data_lock);
 }
 
-static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
+static ssize_t ath10k_fw_stats_read(struct file *file, char __user *user_buf,
 				    size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
-	struct ath10k_target_stats *fw_stats;
+	struct ath10k_fw_stats *fw_stats;
 	char *buf = NULL;
 	unsigned int len = 0, buf_len = 8000;
 	ssize_t ret_cnt = 0;
@@ -269,7 +269,7 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 	int i;
 	int ret;
 
-	fw_stats = &ar->debug.target_stats;
+	fw_stats = &ar->debug.fw_stats;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -286,7 +286,7 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 		goto exit;
 	}
 
-	left = wait_for_completion_timeout(&ar->debug.event_stats_compl, 1*HZ);
+	left = wait_for_completion_timeout(&ar->debug.fw_stats_complete, 1*HZ);
 	if (left <= 0)
 		goto exit;
 
@@ -445,7 +445,7 @@ exit:
 }
 
 static const struct file_operations fops_fw_stats = {
-	.read = ath10k_read_fw_stats,
+	.read = ath10k_fw_stats_read,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -1147,7 +1147,7 @@ int ath10k_debug_register(struct ath10k *ar)
 	INIT_DELAYED_WORK(&ar->debug.htt_stats_dwork,
 			  ath10k_debug_htt_stats_dwork);
 
-	init_completion(&ar->debug.event_stats_compl);
+	init_completion(&ar->debug.fw_stats_complete);
 
 	debugfs_create_file("fw_stats", S_IRUSR, ar->debug.debugfs_phy, ar,
 			    &fops_fw_stats);

@@ -1330,7 +1330,7 @@ static int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
 }
 
 static void ath10k_wmi_pull_pdev_stats(const struct wmi_pdev_stats *src,
-				       struct ath10k_target_stats *dst)
+				       struct ath10k_fw_stats *dst)
 {
 	const struct wal_dbg_tx_stats *tx = &src->wal.tx;
 	const struct wal_dbg_rx_stats *rx = &src->wal.rx;
@@ -1383,7 +1383,7 @@ static void ath10k_wmi_pull_pdev_stats(const struct wmi_pdev_stats *src,
 }
 
 static void ath10k_wmi_pull_peer_stats(const struct wmi_peer_stats *src,
-				       struct ath10k_peer_stat *dst)
+				       struct ath10k_fw_stats_peer *dst)
 {
 	ether_addr_copy(dst->peer_macaddr, src->peer_macaddr.addr);
 	dst->peer_rssi = __le32_to_cpu(src->peer_rssi);
@@ -1392,7 +1392,7 @@ static void ath10k_wmi_pull_peer_stats(const struct wmi_peer_stats *src,
 
 static int ath10k_wmi_main_pull_fw_stats(struct ath10k *ar,
 					 struct sk_buff *skb,
-					 struct ath10k_target_stats *stats)
+					 struct ath10k_fw_stats *stats)
 {
 	const struct wmi_stats_event *ev = (void *)skb->data;
 	u32 num_pdev_stats, num_vdev_stats, num_peer_stats;
@@ -1432,7 +1432,7 @@ static int ath10k_wmi_main_pull_fw_stats(struct ath10k *ar,
 
 static int ath10k_wmi_10x_pull_fw_stats(struct ath10k *ar,
 					struct sk_buff *skb,
-					struct ath10k_target_stats *stats)
+					struct ath10k_fw_stats *stats)
 {
 	const struct wmi_stats_event *ev = (void *)skb->data;
 	u32 num_pdev_stats, num_vdev_stats, num_peer_stats;
@@ -1481,7 +1481,7 @@ static int ath10k_wmi_10x_pull_fw_stats(struct ath10k *ar,
 }
 
 int ath10k_wmi_pull_fw_stats(struct ath10k *ar, struct sk_buff *skb,
-			     struct ath10k_target_stats *stats)
+			     struct ath10k_fw_stats *stats)
 {
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
 		return ath10k_wmi_10x_pull_fw_stats(ar, skb, stats);
@@ -1493,7 +1493,7 @@ static void ath10k_wmi_event_update_stats(struct ath10k *ar,
 					  struct sk_buff *skb)
 {
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "WMI_UPDATE_STATS_EVENTID\n");
-	ath10k_debug_read_target_stats(ar, skb);
+	ath10k_debug_fw_stats_process(ar, skb);
 }
 
 static void ath10k_wmi_event_vdev_start_resp(struct ath10k *ar,

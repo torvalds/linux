@@ -4573,7 +4573,7 @@ struct wmi_svc_rdy_ev_arg {
 
 struct ath10k;
 struct ath10k_vif;
-struct ath10k_target_stats;
+struct ath10k_fw_stats;
 
 int ath10k_wmi_attach(struct ath10k *ar);
 void ath10k_wmi_detach(struct ath10k *ar);
@@ -4646,6 +4646,6 @@ int ath10k_wmi_force_fw_hang(struct ath10k *ar,
 int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable);
 int ath10k_wmi_pull_fw_stats(struct ath10k *ar, struct sk_buff *skb,
-			     struct ath10k_target_stats *stats);
+			     struct ath10k_fw_stats *stats);
 
 #endif /* _WMI_H_ */
