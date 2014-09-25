@@ -128,18 +128,10 @@ qla27xx_insert32(uint32_t value, void *buf, ulong *len)
 static inline void
 qla27xx_insertbuf(void *mem, ulong size, void *buf, ulong *len)
 {
-	ulong cnt = size;
 
-	if (buf && mem) {
+	if (buf && mem && size) {
 		buf += *len;
-		while (cnt >= sizeof(uint32_t)) {
-			*(__le32 *)buf = cpu_to_le32p(mem);
-			buf += sizeof(uint32_t);
-			mem += sizeof(uint32_t);
-			cnt -= sizeof(uint32_t);
-		}
-		if (cnt)
-			memcpy(buf, mem, cnt);
+		memcpy(buf, mem, size);
 	}
 	*len += size;
 }
