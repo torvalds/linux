@@ -177,16 +177,18 @@ int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *ring, unsig
  *
  * @rdev: radeon_device pointer
  * @ring: radeon_ring structure holding ring information
+ * @hdp_flush: Whether or not to perform an HDP cache flush
  *
  * Update the wptr (write pointer) to tell the GPU to
  * execute new commands on the ring buffer (all asics).
  */
-void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
+void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring,
+			bool hdp_flush)
 {
 	/* If we are emitting the HDP flush via the ring buffer, we need to
 	 * do it before padding.
 	 */
-	if (rdev->asic->ring[ring->idx]->hdp_flush)
+	if (hdp_flush && rdev->asic->ring[ring->idx]->hdp_flush)
 		rdev->asic->ring[ring->idx]->hdp_flush(rdev, ring);
 	/* We pad to match fetch size */
 	while (ring->wptr & ring->align_mask) {
@@ -196,7 +198,7 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 	/* If we are emitting the HDP flush via MMIO, we need to do it after
 	 * all CPU writes to VRAM finished.
 	 */
-	if (rdev->asic->mmio_hdp_flush)
+	if (hdp_flush && rdev->asic->mmio_hdp_flush)
 		rdev->asic->mmio_hdp_flush(rdev);
 	radeon_ring_set_wptr(rdev, ring);
 }
@@ -207,12 +209,14 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
  *
  * @rdev: radeon_device pointer
  * @ring: radeon_ring structure holding ring information
+ * @hdp_flush: Whether or not to perform an HDP cache flush
  *
  * Call radeon_ring_commit() then unlock the ring (all asics).
  */
-void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_ring *ring)
+void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_ring *ring,
+			       bool hdp_flush)
 {
-	radeon_ring_commit(rdev, ring);
+	radeon_ring_commit(rdev, ring, hdp_flush);
 	mutex_unlock(&rdev->ring_lock);
 }
 
@@ -372,7 +376,7 @@ int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
 		radeon_ring_write(ring, data[i]);
 	}
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 	kfree(data);
 	return 0;
 }
@@ -400,9 +404,7 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
 		r = radeon_bo_create(rdev, ring->ring_size, PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_GTT,
-				     (rdev->flags & RADEON_IS_PCIE) ?
-				     RADEON_GEM_GTT_WC : 0,
+				     RADEON_GEM_DOMAIN_GTT, 0,
 				     NULL, &ring->ring_obj);
 		if (r) {
 			dev_err(rdev->dev, "(%d) ring create failed\n", r);

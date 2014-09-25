@@ -24,8 +24,8 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/tegra-powergate.h>
 #include <linux/regulator/consumer.h>
+#include <soc/tegra/pmc.h>
 #include "ahci.h"
 
 #define SATA_CONFIGURATION_0				0x180
