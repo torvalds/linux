@@ -488,6 +488,10 @@ static int blk_mq_init_flush(struct request_queue *q)
 
 int blk_init_flush(struct request_queue *q)
 {
+	INIT_LIST_HEAD(&q->flush_queue[0]);
+	INIT_LIST_HEAD(&q->flush_queue[1]);
+	INIT_LIST_HEAD(&q->flush_data_in_flight);
+
 	if (q->mq_ops)
 		return blk_mq_init_flush(q);
 
