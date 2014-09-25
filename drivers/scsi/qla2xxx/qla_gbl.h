@@ -562,7 +562,7 @@ extern void *qla24xx_prep_ms_fdmi_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
 extern int qla2x00_fdmi_register(scsi_qla_host_t *);
 extern int qla2x00_gfpn_id(scsi_qla_host_t *, sw_info_t *);
 extern int qla2x00_gpsc(scsi_qla_host_t *, sw_info_t *);
-extern void qla2x00_get_sym_node_name(scsi_qla_host_t *, uint8_t *);
+extern void qla2x00_get_sym_node_name(scsi_qla_host_t *, uint8_t *, size_t);
 
 /*
  * Global Function Prototypes in qla_attr.c source file.
@@ -614,7 +614,7 @@ extern void qlafx00_soft_reset(scsi_qla_host_t *);
 extern int qlafx00_chip_diag(scsi_qla_host_t *);
 extern void qlafx00_config_rings(struct scsi_qla_host *);
 extern char *qlafx00_pci_info_str(struct scsi_qla_host *, char *);
-extern char *qlafx00_fw_version_str(struct scsi_qla_host *, char *);
+extern char *qlafx00_fw_version_str(struct scsi_qla_host *, char *, size_t);
 extern irqreturn_t qlafx00_intr_handler(int, void *);
 extern void qlafx00_enable_intrs(struct qla_hw_data *);
 extern void qlafx00_disable_intrs(struct qla_hw_data *);

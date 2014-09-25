@@ -1014,7 +1014,7 @@ qla2x00_fw_version_show(struct device *dev,
 	char fw_str[128];
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n",
-	    ha->isp_ops->fw_version_str(vha, fw_str));
+	    ha->isp_ops->fw_version_str(vha, fw_str, sizeof(fw_str)));
 }
 
 static ssize_t
@@ -1924,7 +1924,8 @@ qla2x00_get_host_symbolic_name(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
 
-	qla2x00_get_sym_node_name(vha, fc_host_symbolic_name(shost));
+	qla2x00_get_sym_node_name(vha, fc_host_symbolic_name(shost),
+	    sizeof(fc_host_symbolic_name(shost)));
 }
 
 static void

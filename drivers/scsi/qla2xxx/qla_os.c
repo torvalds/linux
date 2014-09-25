@@ -548,14 +548,13 @@ qla24xx_pci_info_str(struct scsi_qla_host *vha, char *str)
 }
 
 static char *
-qla2x00_fw_version_str(struct scsi_qla_host *vha, char *str)
+qla2x00_fw_version_str(struct scsi_qla_host *vha, char *str, size_t size)
 {
 	char un_str[10];
 	struct qla_hw_data *ha = vha->hw;
 
-	sprintf(str, "%d.%02d.%02d ", ha->fw_major_version,
-	    ha->fw_minor_version,
-	    ha->fw_subminor_version);
+	snprintf(str, size, "%d.%02d.%02d ", ha->fw_major_version,
+	    ha->fw_minor_version, ha->fw_subminor_version);
 
 	if (ha->fw_attributes & BIT_9) {
 		strcat(str, "FLX");
@@ -587,11 +586,11 @@ qla2x00_fw_version_str(struct scsi_qla_host *vha, char *str)
 }
 
 static char *
-qla24xx_fw_version_str(struct scsi_qla_host *vha, char *str)
+qla24xx_fw_version_str(struct scsi_qla_host *vha, char *str, size_t size)
 {
 	struct qla_hw_data *ha = vha->hw;
 
-	sprintf(str, "%d.%02d.%02d (%x)", ha->fw_major_version,
+	snprintf(str, size, "%d.%02d.%02d (%x)", ha->fw_major_version,
 	    ha->fw_minor_version, ha->fw_subminor_version, ha->fw_attributes);
 	return str;
 }
@@ -2925,7 +2924,7 @@ skip_dpc:
 	    pdev->device, ha->isp_ops->pci_info_str(base_vha, pci_info),
 	    pci_name(pdev), ha->flags.enable_64bit_addressing ? '+' : '-',
 	    base_vha->host_no,
-	    ha->isp_ops->fw_version_str(base_vha, fw_str));
+	    ha->isp_ops->fw_version_str(base_vha, fw_str, sizeof(fw_str)));
 
 	qlt_add_target(ha, base_vha);
 

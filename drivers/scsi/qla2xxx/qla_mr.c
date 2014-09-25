@@ -695,11 +695,11 @@ qlafx00_pci_info_str(struct scsi_qla_host *vha, char *str)
 }
 
 char *
-qlafx00_fw_version_str(struct scsi_qla_host *vha, char *str)
+qlafx00_fw_version_str(struct scsi_qla_host *vha, char *str, size_t size)
 {
 	struct qla_hw_data *ha = vha->hw;
 
-	sprintf(str, "%s", ha->mr.fw_version);
+	snprintf(str, size, "%s", ha->mr.fw_version);
 	return str;
 }
 
