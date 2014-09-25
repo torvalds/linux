@@ -319,6 +319,66 @@ cifs_strndup_from_utf16(const char *src, const int maxlen,
 	return dst;
 }
 
+static __le16 convert_to_sfu_char(char src_char)
+{
+	__le16 dest_char;
+
+	switch (src_char) {
+	case ':':
+		dest_char = cpu_to_le16(UNI_COLON);
+		break;
+	case '*':
+		dest_char = cpu_to_le16(UNI_ASTERISK);
+		break;
+	case '?':
+		dest_char = cpu_to_le16(UNI_QUESTION);
+		break;
+	case '<':
+		dest_char = cpu_to_le16(UNI_LESSTHAN);
+		break;
+	case '>':
+		dest_char = cpu_to_le16(UNI_GRTRTHAN);
+		break;
+	case '|':
+		dest_char = cpu_to_le16(UNI_PIPE);
+		break;
+	default:
+		dest_char = 0;
+	}
+
+	return dest_char;
+}
+
+static __le16 convert_to_sfm_char(char src_char)
+{
+	__le16 dest_char;
+
+	switch (src_char) {
+	case ':':
+		dest_char = cpu_to_le16(SFM_COLON);
+		break;
+	case '*':
+		dest_char = cpu_to_le16(SFM_ASTERISK);
+		break;
+	case '?':
+		dest_char = cpu_to_le16(SFM_QUESTION);
+		break;
+	case '<':
+		dest_char = cpu_to_le16(SFM_LESSTHAN);
+		break;
+	case '>':
+		dest_char = cpu_to_le16(SFM_GRTRTHAN);
+		break;
+	case '|':
+		dest_char = cpu_to_le16(SFM_PIPE);
+		break;
+	default:
+		dest_char = 0;
+	}
+
+	return dest_char;
+}
+
 /*
  * Convert 16 bit Unicode pathname to wire format from string in current code
  * page. Conversion may involve remapping up the six characters that are
@@ -327,7 +387,7 @@ cifs_strndup_from_utf16(const char *src, const int maxlen,
  */
 int
 cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
-		 const struct nls_table *cp, int mapChars)
+		 const struct nls_table *cp, int map_chars)
 {
 	int i, charlen;
 	int j = 0;
@@ -335,39 +395,30 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 	__le16 dst_char;
 	wchar_t tmp;
 
-	if (!mapChars)
+	if (map_chars == NO_MAP_UNI_RSVD)
 		return cifs_strtoUTF16(target, source, PATH_MAX, cp);
 
 	for (i = 0; i < srclen; j++) {
 		src_char = source[i];
 		charlen = 1;
-		switch (src_char) {
-		case 0:
+
+		/* check if end of string */
+		if (src_char == 0)
 			goto ctoUTF16_out;
-		case ':':
-			dst_char = cpu_to_le16(UNI_COLON);
-			break;
-		case '*':
-			dst_char = cpu_to_le16(UNI_ASTERISK);
-			break;
-		case '?':
-			dst_char = cpu_to_le16(UNI_QUESTION);
-			break;
-		case '<':
-			dst_char = cpu_to_le16(UNI_LESSTHAN);
-			break;
-		case '>':
-			dst_char = cpu_to_le16(UNI_GRTRTHAN);
-			break;
-		case '|':
-			dst_char = cpu_to_le16(UNI_PIPE);
-			break;
+
+		/* see if we must remap this char */
+		if (map_chars == SFU_MAP_UNI_RSVD)
+			dst_char = convert_to_sfu_char(src_char);
+		else if (map_chars == SFM_MAP_UNI_RSVD)
+			dst_char = convert_to_sfm_char(src_char);
+		else
+			dst_char = 0;
 		/*
 		 * FIXME: We can not handle remapping backslash (UNI_SLASH)
 		 * until all the calls to build_path_from_dentry are modified,
 		 * as they use backslash as separator.
 		 */
-		default:
+		if (dst_char == 0) {
 			charlen = cp->char2uni(source + i, srclen - i, &tmp);
 			dst_char = cpu_to_le16(tmp);
 
