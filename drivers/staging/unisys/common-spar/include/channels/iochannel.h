@@ -790,11 +790,11 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 
 #define ULTRA_IO_CHANNEL_SERVER_READY(x, chanId, logCtx) \
 	ULTRA_CHANNEL_SERVER_TRANSITION(x, chanId, SrvState, CHANNELSRV_READY, \
-					logCtx);
+					logCtx)
 
 #define ULTRA_IO_CHANNEL_SERVER_NOTREADY(x, chanId, logCtx)	\
 	ULTRA_CHANNEL_SERVER_TRANSITION(x, chanId, SrvState, \
-					CHANNELSRV_UNINITIALIZED, logCtx);
+					CHANNELSRV_UNINITIALIZED, logCtx)
 
 static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 					      struct vhba_wwnn *wwnn,
