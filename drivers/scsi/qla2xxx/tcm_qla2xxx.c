@@ -515,8 +515,13 @@ static void tcm_qla2xxx_set_default_node_attrs(struct se_node_acl *nacl)
 
 static u32 tcm_qla2xxx_get_task_tag(struct se_cmd *se_cmd)
 {
-	struct qla_tgt_cmd *cmd = container_of(se_cmd,
-				struct qla_tgt_cmd, se_cmd);
+	struct qla_tgt_cmd *cmd;
+
+	/* check for task mgmt cmd */
+	if (se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
+		return 0xffffffff;
+
+	cmd = container_of(se_cmd, struct qla_tgt_cmd, se_cmd);
 
 	return cmd->tag;
 }
