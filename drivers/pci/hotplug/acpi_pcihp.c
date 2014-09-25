@@ -182,7 +182,8 @@ int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle)
 {
 	acpi_handle bridge_handle, parent_handle;
 
-	if (!(bridge_handle = acpi_pci_get_bridge_handle(pbus)))
+	bridge_handle = acpi_pci_get_bridge_handle(pbus);
+	if (!bridge_handle)
 		return 0;
 	if ((ACPI_FAILURE(acpi_get_parent(handle, &parent_handle))))
 		return 0;

@@ -3534,57 +3534,6 @@ DECLARE_PCI_FIXUP_HEADER(0x1283, 0x8892, quirk_use_pcie_bridge_dma_alias);
 /* Intel 82801, https://bugzilla.kernel.org/show_bug.cgi?id=44881#c49 */
 DECLARE_PCI_FIXUP_HEADER(0x8086, 0x244e, quirk_use_pcie_bridge_dma_alias);
 
-static struct pci_dev *pci_func_0_dma_source(struct pci_dev *dev)
-{
-	if (!PCI_FUNC(dev->devfn))
-		return pci_dev_get(dev);
-
-	return pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
-}
-
-static const struct pci_dev_dma_source {
-	u16 vendor;
-	u16 device;
-	struct pci_dev *(*dma_source)(struct pci_dev *dev);
-} pci_dev_dma_source[] = {
-	/*
-	 * https://bugzilla.redhat.com/show_bug.cgi?id=605888
-	 *
-	 * Some Ricoh devices use the function 0 source ID for DMA on
-	 * other functions of a multifunction device.  The DMA devices
-	 * is therefore function 0, which will have implications of the
-	 * iommu grouping of these devices.
-	 */
-	{ PCI_VENDOR_ID_RICOH, 0xe822, pci_func_0_dma_source },
-	{ PCI_VENDOR_ID_RICOH, 0xe230, pci_func_0_dma_source },
-	{ PCI_VENDOR_ID_RICOH, 0xe832, pci_func_0_dma_source },
-	{ PCI_VENDOR_ID_RICOH, 0xe476, pci_func_0_dma_source },
-	{ 0 }
-};
-
-/*
- * IOMMUs with isolation capabilities need to be programmed with the
- * correct source ID of a device.  In most cases, the source ID matches
- * the device doing the DMA, but sometimes hardware is broken and will
- * tag the DMA as being sourced from a different device.  This function
- * allows that translation.  Note that the reference count of the
- * returned device is incremented on all paths.
- */
-struct pci_dev *pci_get_dma_source(struct pci_dev *dev)
-{
-	const struct pci_dev_dma_source *i;
-
-	for (i = pci_dev_dma_source; i->dma_source; i++) {
-		if ((i->vendor == dev->vendor ||
-		     i->vendor == (u16)PCI_ANY_ID) &&
-		    (i->device == dev->device ||
-		     i->device == (u16)PCI_ANY_ID))
-			return i->dma_source(dev);
-	}
-
-	return pci_dev_get(dev);
-}
-
 /*
  * AMD has indicated that the devices below do not support peer-to-peer
  * in any system where they are found in the southbridge with an AMD
@@ -3686,6 +3635,21 @@ static int pci_quirk_intel_pch_acs(struct pci_dev *dev, u16 acs_flags)
 	return acs_flags & ~flags ? 0 : 1;
 }
 
+static int pci_quirk_solarflare_acs(struct pci_dev *dev, u16 acs_flags)
+{
+	/*
+	 * SV, TB, and UF are not relevant to multifunction endpoints.
+	 *
+	 * Solarflare indicates that peer-to-peer between functions is not
+	 * possible, therefore RR, CR, and DT are not implemented.  Mask
+	 * these out as if they were clear in the ACS capabilities register.
+	 */
+	acs_flags &= ~(PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR |
+		       PCI_ACS_CR | PCI_ACS_UF | PCI_ACS_DT);
+
+	return acs_flags ? 0 : 1;
+}
+
 static const struct pci_dev_acs_enabled {
 	u16 vendor;
 	u16 device;
@@ -3697,6 +3661,8 @@ static const struct pci_dev_acs_enabled {
 	{ PCI_VENDOR_ID_ATI, 0x439d, pci_quirk_amd_sb_acs },
 	{ PCI_VENDOR_ID_ATI, 0x4384, pci_quirk_amd_sb_acs },
 	{ PCI_VENDOR_ID_ATI, 0x4399, pci_quirk_amd_sb_acs },
+	{ PCI_VENDOR_ID_SOLARFLARE, 0x0903, pci_quirk_solarflare_acs },
+	{ PCI_VENDOR_ID_SOLARFLARE, 0x0923, pci_quirk_solarflare_acs },
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_intel_pch_acs },
 	{ 0 }
 };
