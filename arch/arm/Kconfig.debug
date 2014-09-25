@@ -101,6 +101,10 @@ choice
 		bool "Kernel low-level debugging on 9263 and 9g45"
 		depends on HAVE_AT91_DBGU1
 
+	config AT91_DEBUG_LL_DBGU2
+		bool "Kernel low-level debugging on sama5d4"
+		depends on HAVE_AT91_DBGU2
+
 	config DEBUG_BCM2835
 		bool "Kernel low-level debugging on BCM2835 PL011 UART"
 		depends on ARCH_BCM2835

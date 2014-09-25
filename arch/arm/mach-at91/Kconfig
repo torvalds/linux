@@ -12,6 +12,9 @@ config HAVE_AT91_DBGU0
 config HAVE_AT91_DBGU1
 	bool
 
+config HAVE_AT91_DBGU2
+	bool
+
 config AT91_USE_OLD_CLK
 	bool
 
@@ -40,6 +43,9 @@ config AT91_SAM9_TIME
 	bool
 
 config HAVE_AT91_SMD
+	bool
+
+config HAVE_AT91_H32MX
 	bool
 
 config SOC_AT91SAM9
@@ -103,6 +109,21 @@ config SOC_SAMA5D3
 	help
 	  Select this if you are using one of Atmel's SAMA5D3 family SoC.
 	  This support covers SAMA5D31, SAMA5D33, SAMA5D34, SAMA5D35, SAMA5D36.
+
+config SOC_SAMA5D4
+	bool "SAMA5D4 family"
+	select SOC_SAMA5
+	select HAVE_AT91_DBGU2
+	select CLKSRC_MMIO
+	select CACHE_L2X0
+	select CACHE_PL310
+	select HAVE_FB_ATMEL
+	select HAVE_AT91_UTMI
+	select HAVE_AT91_SMD
+	select HAVE_AT91_USB_CLK
+	select HAVE_AT91_H32MX
+	help
+	  Select this if you are using one of Atmel's SAMA5D4 family SoC.
 endif
 
 if SOC_SAM_V4_V5
