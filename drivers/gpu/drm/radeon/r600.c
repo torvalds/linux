@@ -2912,7 +2912,7 @@ struct radeon_fence *r600_copy_cpdma(struct radeon_device *rdev,
 		return ERR_PTR(r);
 	}
 
-	radeon_semaphore_sync_resv(sem, resv, false);
+	radeon_semaphore_sync_resv(rdev, sem, resv, false);
 	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
 
 	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));

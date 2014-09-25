@@ -541,6 +541,15 @@ int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 	uint64_t seq[RADEON_NUM_RINGS] = {};
 	long r;
 
+	/*
+	 * This function should not be called on !radeon fences.
+	 * If this is the case, it would mean this function can
+	 * also be called on radeon fences belonging to another card.
+	 * exclusive_lock is not held in that case.
+	 */
+	if (WARN_ON_ONCE(!to_radeon_fence(&fence->base)))
+		return fence_wait(&fence->base, intr);
+
 	seq[fence->ring] = fence->seq;
 	r = radeon_fence_wait_seq_timeout(fence->rdev, seq, intr, MAX_SCHEDULE_TIMEOUT);
 	if (r < 0) {

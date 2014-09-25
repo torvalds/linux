@@ -249,9 +249,9 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 	return 0;
 }
 
-static void radeon_cs_sync_rings(struct radeon_cs_parser *p)
+static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 {
-	int i;
+	int i, r = 0;
 
 	for (i = 0; i < p->nrelocs; i++) {
 		struct reservation_object *resv;
@@ -260,9 +260,13 @@ static void radeon_cs_sync_rings(struct radeon_cs_parser *p)
 			continue;
 
 		resv = p->relocs[i].robj->tbo.resv;
-		radeon_semaphore_sync_resv(p->ib.semaphore, resv,
-					   p->relocs[i].tv.shared);
+		r = radeon_semaphore_sync_resv(p->rdev, p->ib.semaphore, resv,
+					       p->relocs[i].tv.shared);
+
+		if (r)
+			break;
 	}
+	return r;
 }
 
 /* XXX: note that this is called from the legacy UMS CS ioctl as well */
@@ -472,13 +476,19 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		return r;
 	}
 
+	r = radeon_cs_sync_rings(parser);
+	if (r) {
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Failed to sync rings: %i\n", r);
+		return r;
+	}
+
 	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
 		radeon_uvd_note_usage(rdev);
 	else if ((parser->ring == TN_RING_TYPE_VCE1_INDEX) ||
 		 (parser->ring == TN_RING_TYPE_VCE2_INDEX))
 		radeon_vce_note_usage(rdev);
 
-	radeon_cs_sync_rings(parser);
 	r = radeon_ib_schedule(rdev, &parser->ib, NULL, true);
 	if (r) {
 		DRM_ERROR("Failed to schedule IB !\n");
@@ -565,7 +575,13 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	if (r) {
 		goto out;
 	}
-	radeon_cs_sync_rings(parser);
+
+	r = radeon_cs_sync_rings(parser);
+	if (r) {
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Failed to sync rings: %i\n", r);
+		goto out;
+	}
 	radeon_semaphore_sync_fence(parser->ib.semaphore, vm->fence);
 
 	if ((rdev->family >= CHIP_TAHITI) &&

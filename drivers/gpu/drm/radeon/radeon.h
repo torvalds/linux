@@ -589,9 +589,10 @@ bool radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
 				struct radeon_semaphore *semaphore);
 void radeon_semaphore_sync_fence(struct radeon_semaphore *semaphore,
 				 struct radeon_fence *fence);
-void radeon_semaphore_sync_resv(struct radeon_semaphore *semaphore,
-				struct reservation_object *resv,
-				bool shared);
+int radeon_semaphore_sync_resv(struct radeon_device *rdev,
+			       struct radeon_semaphore *semaphore,
+			       struct reservation_object *resv,
+			       bool shared);
 int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 				struct radeon_semaphore *semaphore,
 				int waiting_ring);

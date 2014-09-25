@@ -470,7 +470,7 @@ struct radeon_fence *r600_copy_dma(struct radeon_device *rdev,
 		return ERR_PTR(r);
 	}
 
-	radeon_semaphore_sync_resv(sem, resv, false);
+	radeon_semaphore_sync_resv(rdev, sem, resv, false);
 	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
 
 	for (i = 0; i < num_loops; i++) {
