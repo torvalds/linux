@@ -2202,6 +2202,11 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		if (IS_DPORT_CAPABLE(ha))
 			mid_init_cb->init_cb.firmware_options_1 |=
 			    cpu_to_le16(BIT_7);
+		/* Enable FA-WWPN */
+		ha->flags.fawwpn_enabled =
+		    (mid_init_cb->init_cb.firmware_options_1 & BIT_6) ? 1 : 0;
+		ql_dbg(ql_dbg_init, vha, 0x0141, "FA-WWPN Support: %s.\n",
+		    (ha->flags.fawwpn_enabled) ? "enabled" : "disabled");
 	}
 
 	rval = qla2x00_init_firmware(vha, ha->init_cb_size);

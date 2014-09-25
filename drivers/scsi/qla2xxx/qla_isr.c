@@ -752,6 +752,16 @@ skip_rio:
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 			atomic_set(&vha->loop_state, LOOP_DOWN);
 			atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
+			/*
+			 * In case of loop down, restore WWPN from
+			 * NVRAM in case of FA-WWPN capable ISP
+			 */
+			if (ha->flags.fawwpn_enabled) {
+				void *wwpn = ha->init_cb->port_name;
+
+				memcpy(vha->port_name, wwpn, WWN_SIZE);
+			}
+
 			vha->device_flags |= DFLG_NO_CABLE;
 			qla2x00_mark_all_devices_lost(vha, 1);
 		}
