@@ -43,26 +43,26 @@ struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 static void read_arc_build_cfg_regs(void)
 {
 	struct bcr_perip uncached_space;
+	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
+	READ_BCR(ARC_REG_ISA_CFG_BCR, cpu->isa);
 
-	cpu->timers = read_aux_reg(ARC_REG_TIMERS_BCR);
+	READ_BCR(ARC_REG_TIMERS_BCR, cpu->timers);
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
 
 	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
 	cpu->uncached_base = uncached_space.start << 24;
 
-	cpu->extn.mul = read_aux_reg(ARC_REG_MUL_BCR);
-	cpu->extn.swap = read_aux_reg(ARC_REG_SWAP_BCR);
-	cpu->extn.norm = read_aux_reg(ARC_REG_NORM_BCR);
-	cpu->extn.minmax = read_aux_reg(ARC_REG_MIXMAX_BCR);
-	cpu->extn.barrel = read_aux_reg(ARC_REG_BARREL_BCR);
-	READ_BCR(ARC_REG_MAC_BCR, cpu->extn_mac_mul);
+	READ_BCR(ARC_REG_MUL_BCR, cpu->extn_mpy);
 
-	cpu->extn.ext_arith = read_aux_reg(ARC_REG_EXTARITH_BCR);
-	cpu->extn.crc = read_aux_reg(ARC_REG_CRC_BCR);
+	cpu->extn.norm = read_aux_reg(ARC_REG_NORM_BCR) > 1 ? 1 : 0; /* 2,3 */
+	cpu->extn.barrel = read_aux_reg(ARC_REG_BARREL_BCR) > 1 ? 1 : 0; /* 2,3 */
+	cpu->extn.swap = read_aux_reg(ARC_REG_SWAP_BCR) ? 1 : 0;        /* 1,3 */
+	cpu->extn.crc = read_aux_reg(ARC_REG_CRC_BCR) ? 1 : 0;
+	cpu->extn.minmax = read_aux_reg(ARC_REG_MIXMAX_BCR) > 1 ? 1 : 0; /* 2 */
 
 	/* Note that we read the CCM BCRs independent of kernel config
 	 * This is to catch the cases where user doesn't know that
@@ -96,43 +96,76 @@ static void read_arc_build_cfg_regs(void)
 	read_decode_mmu_bcr();
 	read_decode_cache_bcr();
 
-	READ_BCR(ARC_REG_FP_BCR, cpu->fp);
-	READ_BCR(ARC_REG_DPFP_BCR, cpu->dpfp);
+	{
+		struct bcr_fp_arcompact sp, dp;
+		struct bcr_bpu_arcompact bpu;
+
+		READ_BCR(ARC_REG_FP_BCR, sp);
+		READ_BCR(ARC_REG_DPFP_BCR, dp);
+		cpu->extn.fpu_sp = sp.ver ? 1 : 0;
+		cpu->extn.fpu_dp = dp.ver ? 1 : 0;
+
+		READ_BCR(ARC_REG_BPU_BCR, bpu);
+		cpu->bpu.ver = bpu.ver;
+		cpu->bpu.full = bpu.fam ? 1 : 0;
+		if (bpu.ent) {
+			cpu->bpu.num_cache = 256 << (bpu.ent - 1);
+			cpu->bpu.num_pred = 256 << (bpu.ent - 1);
+		}
+	}
+
+	READ_BCR(ARC_REG_AP_BCR, bcr);
+	cpu->extn.ap = bcr.ver ? 1 : 0;
+
+	READ_BCR(ARC_REG_SMART_BCR, bcr);
+	cpu->extn.smart = bcr.ver ? 1 : 0;
+
+	cpu->extn.debug = cpu->extn.ap | cpu->extn.smart;
 }
 
 static const struct cpuinfo_data arc_cpu_tbl[] = {
-	{ {0x10, "ARCTangent A5"}, 0x1F},
 	{ {0x20, "ARC 600"      }, 0x2F},
 	{ {0x30, "ARC 700"      }, 0x33},
 	{ {0x34, "ARC 700 R4.10"}, 0x34},
+	{ {0x35, "ARC 700 R4.11"}, 0x35},
 	{ {0x00, NULL		} }
 };
 
+#define IS_AVAIL1(v, str)	((v) ? str : "")
+#define IS_USED(cfg)		(IS_ENABLED(cfg) ? "" : "(not used) ")
+#define IS_AVAIL2(v, str, cfg)  IS_AVAIL1(v, str), IS_AVAIL1(v, IS_USED(cfg))
+
 static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 {
-	int n = 0;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
 	struct bcr_identity *core = &cpu->core;
 	const struct cpuinfo_data *tbl;
-	int be = 0;
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	be = 1;
-#endif
+	char *isa_nm;
+	int i, be, atomic;
+	int n = 0;
+
 	FIX_PTR(cpu);
 
+	{
+		isa_nm = "ARCompact";
+		be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
+
+		atomic = cpu->isa.atomic1;
+		if (!cpu->isa.ver)	/* ISA BCR absent, use Kconfig info */
+			atomic = IS_ENABLED(CONFIG_ARC_HAS_LLSC);
+	}
+
 	n += scnprintf(buf + n, len - n,
-		       "\nARC IDENTITY\t: Family [%#02x]"
-		       " Cpu-id [%#02x] Chip-id [%#4x]\n",
-		       core->family, core->cpu_id,
-		       core->chip_id);
+		       "\nIDENTITY\t: ARCVER [%#02x] ARCNUM [%#02x] CHIPID [%#4x]\n",
+		       core->family, core->cpu_id, core->chip_id);
 
 	for (tbl = &arc_cpu_tbl[0]; tbl->info.id != 0; tbl++) {
 		if ((core->family >= tbl->info.id) &&
 		    (core->family <= tbl->up_range)) {
 			n += scnprintf(buf + n, len - n,
-				       "processor\t: %s %s\n",
-				       tbl->info.str,
-				       be ? "[Big Endian]" : "");
+				       "processor [%d]\t: %s (%s ISA) %s\n",
+				       cpu_id, tbl->info.str, isa_nm,
+				       IS_AVAIL1(be, "[Big-Endian]"));
 			break;
 		}
 	}
@@ -144,34 +177,35 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		       (unsigned int)(arc_get_core_freq() / 1000000),
 		       (unsigned int)(arc_get_core_freq() / 10000) % 100);
 
-	n += scnprintf(buf + n, len - n, "Timers\t\t: %s %s\n",
-		       (cpu->timers & 0x200) ? "TIMER1" : "",
-		       (cpu->timers & 0x100) ? "TIMER0" : "");
+	n += scnprintf(buf + n, len - n, "Timers\t\t: %s%s%s%s\nISA Extn\t: ",
+		       IS_AVAIL1(cpu->timers.t0, "Timer0 "),
+		       IS_AVAIL1(cpu->timers.t1, "Timer1 "),
+		       IS_AVAIL2(cpu->timers.rtsc, "64-bit RTSC ", CONFIG_ARC_HAS_RTSC));
 
-	n += scnprintf(buf + n, len - n, "Vect Tbl Base\t: %#x\n",
-		       cpu->vec_base);
+	n += i = scnprintf(buf + n, len - n, "%s%s",
+			   IS_AVAIL2(atomic, "atomic ", CONFIG_ARC_HAS_LLSC));
 
-	n += scnprintf(buf + n, len - n, "UNCACHED Base\t: %#x\n",
-		       cpu->uncached_base);
+	if (i)
+		n += scnprintf(buf + n, len - n, "\n\t\t: ");
+
+	n += scnprintf(buf + n, len - n, "%s%s%s%s%s%s%s%s\n",
+		       IS_AVAIL1(cpu->extn_mpy.ver, "mpy "),
+		       IS_AVAIL1(cpu->extn.norm, "norm "),
+		       IS_AVAIL1(cpu->extn.barrel, "barrel-shift "),
+		       IS_AVAIL1(cpu->extn.swap, "swap "),
+		       IS_AVAIL1(cpu->extn.minmax, "minmax "),
+		       IS_AVAIL1(cpu->extn.crc, "crc "),
+		       IS_AVAIL2(1, "swape", CONFIG_ARC_HAS_SWAPE));
+
+	if (cpu->bpu.ver)
+		n += scnprintf(buf + n, len - n,
+			      "BPU\t\t: %s%s match, cache:%d, Predict Table:%d\n",
+			      IS_AVAIL1(cpu->bpu.full, "full"),
+			      IS_AVAIL1(!cpu->bpu.full, "partial"),
+			      cpu->bpu.num_cache, cpu->bpu.num_pred);
 
 	return buf;
 }
-
-static const struct id_to_str mul_type_nm[] = {
-	{ 0x0, "N/A"},
-	{ 0x1, "32x32 (spl Result Reg)" },
-	{ 0x2, "32x32 (ANY Result Reg)" }
-};
-
-static const struct id_to_str mac_mul_nm[] = {
-	{0x0, "N/A"},
-	{0x1, "N/A"},
-	{0x2, "Dual 16 x 16"},
-	{0x3, "N/A"},
-	{0x4, "32x16"},
-	{0x5, "N/A"},
-	{0x6, "Dual 16x16 and 32x16"}
-};
 
 static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 {
@@ -179,56 +213,26 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
 
 	FIX_PTR(cpu);
-#define IS_AVAIL1(var, str)	((var) ? str : "")
-#define IS_AVAIL2(var, str)	((var == 0x2) ? str : "")
-#define IS_USED(cfg)		(IS_ENABLED(cfg) ? "(in-use)" : "(not used)")
 
 	n += scnprintf(buf + n, len - n,
-		       "Extn [700-Base]\t: %s %s %s %s %s %s\n",
-		       IS_AVAIL2(cpu->extn.norm, "norm,"),
-		       IS_AVAIL2(cpu->extn.barrel, "barrel-shift,"),
-		       IS_AVAIL1(cpu->extn.swap, "swap,"),
-		       IS_AVAIL2(cpu->extn.minmax, "minmax,"),
-		       IS_AVAIL1(cpu->extn.crc, "crc,"),
-		       IS_AVAIL2(cpu->extn.ext_arith, "ext-arith"));
+		       "Vector Table\t: %#x\nUncached Base\t: %#x\n",
+		       cpu->vec_base, cpu->uncached_base);
 
-	n += scnprintf(buf + n, len - n, "Extn [700-MPY]\t: %s",
-		       mul_type_nm[cpu->extn.mul].str);
+	if (cpu->extn.fpu_sp || cpu->extn.fpu_dp)
+		n += scnprintf(buf + n, len - n, "FPU\t\t: %s%s\n",
+			       IS_AVAIL1(cpu->extn.fpu_sp, "SP "),
+			       IS_AVAIL1(cpu->extn.fpu_dp, "DP "));
 
-	n += scnprintf(buf + n, len - n, "   MAC MPY: %s\n",
-		       mac_mul_nm[cpu->extn_mac_mul.type].str);
+	if (cpu->extn.debug)
+		n += scnprintf(buf + n, len - n, "DEBUG\t\t: %s%s%s\n",
+			       IS_AVAIL1(cpu->extn.ap, "ActionPoint "),
+			       IS_AVAIL1(cpu->extn.smart, "smaRT "),
+			       IS_AVAIL1(cpu->extn.rtt, "RTT "));
 
-	if (cpu->core.family == 0x34) {
-		n += scnprintf(buf + n, len - n,
-		"Extn [700-4.10]\t: LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
-			       IS_USED(CONFIG_ARC_HAS_LLSC),
-			       IS_USED(CONFIG_ARC_HAS_SWAPE),
-			       IS_USED(CONFIG_ARC_HAS_RTSC));
-	}
-
-	n += scnprintf(buf + n, len - n, "Extn [CCM]\t: %s",
-		       !(cpu->dccm.sz || cpu->iccm.sz) ? "N/A" : "");
-
-	if (cpu->dccm.sz)
-		n += scnprintf(buf + n, len - n, "DCCM: @ %x, %d KB ",
-			       cpu->dccm.base_addr, TO_KB(cpu->dccm.sz));
-
-	if (cpu->iccm.sz)
-		n += scnprintf(buf + n, len - n, "ICCM: @ %x, %d KB",
+	if (cpu->dccm.sz || cpu->iccm.sz)
+		n += scnprintf(buf + n, len - n, "Extn [CCM]\t: DCCM @ %x, %d KB / ICCM: @ %x, %d KB\n",
+			       cpu->dccm.base_addr, TO_KB(cpu->dccm.sz),
 			       cpu->iccm.base_addr, TO_KB(cpu->iccm.sz));
-
-	n += scnprintf(buf + n, len - n, "\nExtn [FPU]\t: %s",
-		       !(cpu->fp.ver || cpu->dpfp.ver) ? "N/A" : "");
-
-	if (cpu->fp.ver)
-		n += scnprintf(buf + n, len - n, "SP [v%d] %s",
-			       cpu->fp.ver, cpu->fp.fast ? "(fast)" : "");
-
-	if (cpu->dpfp.ver)
-		n += scnprintf(buf + n, len - n, "DP [v%d] %s",
-			       cpu->dpfp.ver, cpu->dpfp.fast ? "(fast)" : "");
-
-	n += scnprintf(buf + n, len - n, "\n");
 
 	n += scnprintf(buf + n, len - n,
 		       "OS ABI [v3]\t: no-legacy-syscalls\n");
@@ -240,6 +244,15 @@ static void arc_chk_core_config(void)
 {
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	int fpu_enabled;
+
+	if (!cpu->timers.t0)
+		panic("Timer0 is not present!\n");
+
+	if (!cpu->timers.t1)
+		panic("Timer1 is not present!\n");
+
+	if (IS_ENABLED(CONFIG_ARC_HAS_RTSC) && !cpu->timers.rtsc)
+		panic("RTSC is not present\n");
 
 #ifdef CONFIG_ARC_HAS_DCCM
 	/*
@@ -267,9 +280,9 @@ static void arc_chk_core_config(void)
 	 */
 	fpu_enabled = IS_ENABLED(CONFIG_ARC_FPU_SAVE_RESTORE);
 
-	if (cpu->dpfp.ver && !fpu_enabled)
+	if (cpu->extn.fpu_dp && !fpu_enabled)
 		pr_warn("CONFIG_ARC_FPU_SAVE_RESTORE needed for working apps\n");
-	else if (!cpu->dpfp.ver && fpu_enabled)
+	else if (!cpu->extn.fpu_dp && fpu_enabled)
 		panic("FPU non-existent, disable CONFIG_ARC_FPU_SAVE_RESTORE\n");
 }
 
@@ -405,7 +418,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m, arc_cpu_mumbojumbo(cpu_id, str, PAGE_SIZE));
 
-	seq_printf(m, "Bogo MIPS : \t%lu.%02lu\n",
+	seq_printf(m, "Bogo MIPS\t: %lu.%02lu\n",
 		   loops_per_jiffy / (500000 / HZ),
 		   (loops_per_jiffy / (5000 / HZ)) % 100);
 
