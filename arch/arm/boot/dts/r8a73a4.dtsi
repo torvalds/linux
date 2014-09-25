@@ -122,7 +122,7 @@
 			     <0 57 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	dmac: dma-multiplexer@0 {
+	dmac: dma-multiplexer {
 		compatible = "renesas,shdma-mux";
 		#dma-cells = <1>;
 		dma-channels = <20>;
