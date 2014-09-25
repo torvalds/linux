@@ -44,13 +44,6 @@
 #define R6XX_MAX_PIPES				8
 #define R6XX_MAX_PIPES_MASK			0xff
 
-/* PTE flags */
-#define PTE_VALID				(1 << 0)
-#define PTE_SYSTEM				(1 << 1)
-#define PTE_SNOOPED				(1 << 2)
-#define PTE_READABLE				(1 << 5)
-#define PTE_WRITEABLE				(1 << 6)
-
 /* tiling bits */
 #define     ARRAY_LINEAR_GENERAL              0x00000000
 #define     ARRAY_LINEAR_ALIGNED              0x00000001

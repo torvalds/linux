@@ -165,13 +165,14 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	struct rk_i2s_dev *i2s = to_info(cpu_dai);
 	unsigned int mask = 0, val = 0;
 
-	mask = I2S_CKR_MSS_SLAVE;
+	mask = I2S_CKR_MSS_MASK;
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
-		val = I2S_CKR_MSS_SLAVE;
+		/* Set source clock in Master mode */
+		val = I2S_CKR_MSS_MASTER;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
-		val = I2S_CKR_MSS_MASTER;
+		val = I2S_CKR_MSS_SLAVE;
 		break;
 	default:
 		return -EINVAL;
@@ -361,6 +362,8 @@ static bool rockchip_i2s_rd_reg(struct device *dev, unsigned int reg)
 	case I2S_XFER:
 	case I2S_CLR:
 	case I2S_RXDR:
+	case I2S_FIFOLR:
+	case I2S_INTSR:
 		return true;
 	default:
 		return false;
@@ -370,8 +373,8 @@ static bool rockchip_i2s_rd_reg(struct device *dev, unsigned int reg)
 static bool rockchip_i2s_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case I2S_FIFOLR:
 	case I2S_INTSR:
+	case I2S_CLR:
 		return true;
 	default:
 		return false;
@@ -381,8 +384,6 @@ static bool rockchip_i2s_volatile_reg(struct device *dev, unsigned int reg)
 static bool rockchip_i2s_precious_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case I2S_FIFOLR:
-		return true;
 	default:
 		return false;
 	}

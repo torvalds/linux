@@ -83,7 +83,7 @@
  *            CIK: 1D and linear tiling modes contain valid PIPE_CONFIG
  *   2.39.0 - Add INFO query for number of active CUs
  *   2.40.0 - Add RADEON_GEM_GTT_WC/UC, flush HDP cache before submitting
- *            CS to GPU
+ *            CS to GPU on >= r600
  */
 #define KMS_DRIVER_MAJOR	2
 #define KMS_DRIVER_MINOR	40
@@ -440,6 +440,7 @@ static int radeon_pmops_runtime_suspend(struct device *dev)
 	ret = radeon_suspend_kms(drm_dev, false, false);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
+	pci_ignore_hotplug(pdev);
 	pci_set_power_state(pdev, PCI_D3cold);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
 

@@ -712,7 +712,8 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 				  struct intel_crtc_config *pipe_config)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 tmp, flags = 0;
 	int dotclock;
 
@@ -733,6 +734,10 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 
 	if (tmp & HDMI_MODE_SELECT_HDMI)
 		pipe_config->has_audio = true;
+
+	if (!HAS_PCH_SPLIT(dev) &&
+	    tmp & HDMI_COLOR_RANGE_16_235)
+		pipe_config->limited_color_range = true;
 
 	pipe_config->adjusted_mode.flags |= flags;
 

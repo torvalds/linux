@@ -214,12 +214,14 @@ config PHY_QCOM_IPQ806X_SATA
 config PHY_ST_SPEAR1310_MIPHY
 	tristate "ST SPEAR1310-MIPHY driver"
 	select GENERIC_PHY
+	depends on MACH_SPEAR1310 || COMPILE_TEST
 	help
 	  Support for ST SPEAr1310 MIPHY which can be used for PCIe and SATA.
 
 config PHY_ST_SPEAR1340_MIPHY
 	tristate "ST SPEAR1340-MIPHY driver"
 	select GENERIC_PHY
+	depends on MACH_SPEAR1340 || COMPILE_TEST
 	help
 	  Support for ST SPEAr1340 MIPHY which can be used for PCIe and SATA.
 
