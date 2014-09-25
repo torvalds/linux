@@ -413,9 +413,9 @@ static void armada_370_xp_mpic_handle_cascade_irq(unsigned int irq,
 
 	irqmap = readl_relaxed(per_cpu_int_base + ARMADA_375_PPI_CAUSE);
 
-	if (irqmap & BIT(0)) {
+	if (irqmap & BIT(1)) {
 		armada_370_xp_handle_msi_irq(NULL, true);
-		irqmap &= ~BIT(0);
+		irqmap &= ~BIT(1);
 	}
 
 	for_each_set_bit(irqn, &irqmap, BITS_PER_LONG) {
