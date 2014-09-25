@@ -31,15 +31,4 @@ extern unsigned long kern_locked_tte_data;
 
 void prom_world(int enter);
 
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
-#define VMEMMAP_CHUNK_SHIFT	22
-#define VMEMMAP_CHUNK		(1UL << VMEMMAP_CHUNK_SHIFT)
-#define VMEMMAP_CHUNK_MASK	~(VMEMMAP_CHUNK - 1UL)
-#define VMEMMAP_ALIGN(x)	(((x)+VMEMMAP_CHUNK-1UL)&VMEMMAP_CHUNK_MASK)
-
-#define VMEMMAP_SIZE	((((1UL << MAX_PHYSADDR_BITS) >> PAGE_SHIFT) * \
-			  sizeof(struct page)) >> VMEMMAP_CHUNK_SHIFT)
-extern unsigned long vmemmap_table[VMEMMAP_SIZE];
-#endif
-
 #endif /* _SPARC64_MM_INIT_H */
