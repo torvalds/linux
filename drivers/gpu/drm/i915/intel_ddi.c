@@ -96,7 +96,7 @@ static const struct ddi_buf_trans bdw_ddi_translations_dp[] = {
 	{ 0x80B2CFFF, 0x001B0002 },
 	{ 0x00FFFFFF, 0x000E000A },
 	{ 0x00DB6FFF, 0x00160005 },
-	{ 0x00C71FFF, 0x001A0002 },
+	{ 0x80C71FFF, 0x001A0002 },
 	{ 0x00F7DFFF, 0x00180004 },
 	{ 0x80D75FFF, 0x001B0002 },
 };
