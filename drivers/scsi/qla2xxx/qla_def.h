@@ -3446,6 +3446,7 @@ struct qla_hw_data {
 	struct work_struct board_disable;
 
 	struct mr_data_fx00 mr;
+	uint32_t chip_reset;
 
 	struct qlt_hw_data tgt;
 	int	allow_cna_fw_dump;

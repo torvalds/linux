@@ -923,6 +923,7 @@ struct qla_tgt_cmd {
 	uint32_t tag;
 	uint32_t unpacked_lun;
 	enum dma_data_direction dma_data_direction;
+	uint32_t reset_count;
 
 	uint16_t loop_id;	/* to save extra sess dereferences */
 	struct qla_tgt *tgt;	/* to save extra sess dereferences */
@@ -958,6 +959,7 @@ struct qla_tgt_mgmt_cmd {
 	struct se_cmd se_cmd;
 	struct work_struct free_work;
 	unsigned int flags;
+	uint32_t reset_count;
 #define QLA24XX_MGMT_SEND_NACK	1
 	union {
 		struct atio_from_isp atio;

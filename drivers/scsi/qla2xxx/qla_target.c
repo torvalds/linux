@@ -106,6 +106,8 @@ static void qlt_send_term_exchange(struct scsi_qla_host *ha, struct qla_tgt_cmd
 	*cmd, struct atio_from_isp *atio, int ha_locked);
 static void qlt_reject_free_srr_imm(struct scsi_qla_host *ha,
 	struct qla_tgt_srr_imm *imm, int ha_lock);
+static void qlt_abort_cmd_on_host_reset(struct scsi_qla_host *vha,
+	struct qla_tgt_cmd *cmd);
 /*
  * Global Variables
  */
@@ -1036,7 +1038,7 @@ static void qlt_24xx_send_abts_resp(struct scsi_qla_host *vha,
 	if (qlt_issue_marker(vha, 1) != QLA_SUCCESS)
 		return;
 
-	resp = (struct abts_resp_to_24xx *)qla2x00_alloc_iocbs(vha, NULL);
+	resp = (struct abts_resp_to_24xx *)qla2x00_alloc_iocbs_ready(vha, NULL);
 	if (!resp) {
 		ql_dbg(ql_dbg_tgt, vha, 0xe04a,
 		    "qla_target(%d): %s failed: unable to allocate "
@@ -1107,7 +1109,7 @@ static void qlt_24xx_retry_term_exchange(struct scsi_qla_host *vha,
 	if (qlt_issue_marker(vha, 1) != QLA_SUCCESS)
 		return;
 
-	ctio = (struct ctio7_to_24xx *)qla2x00_alloc_iocbs(vha, NULL);
+	ctio = (struct ctio7_to_24xx *)qla2x00_alloc_iocbs_ready(vha, NULL);
 	if (ctio == NULL) {
 		ql_dbg(ql_dbg_tgt, vha, 0xe04b,
 		    "qla_target(%d): %s failed: unable to allocate "
@@ -1326,6 +1328,21 @@ void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *mcmd)
 	    mcmd, mcmd->fc_tm_rsp, mcmd->flags);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
+
+	if (qla2x00_reset_active(vha) || mcmd->reset_count != ha->chip_reset) {
+		/*
+		 * Either a chip reset is active or this request was from
+		 * previous life, just abort the processing.
+		 */
+		ql_dbg(ql_dbg_async, vha, 0xe100,
+			"RESET-TMR active/old-count/new-count = %d/%d/%d.\n",
+			qla2x00_reset_active(vha), mcmd->reset_count,
+			ha->chip_reset);
+		ha->tgt.tgt_ops->free_mcmd(mcmd);
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+		return;
+	}
+
 	if (mcmd->flags == QLA24XX_MGMT_SEND_NACK)
 		qlt_send_notify_ack(vha, &mcmd->orig_iocb.imm_ntfy,
 		    0, 0, 0, 0, 0, 0);
@@ -2269,6 +2286,21 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
+	if (qla2x00_reset_active(vha) || cmd->reset_count != ha->chip_reset) {
+		/*
+		 * Either a chip reset is active or this request was from
+		 * previous life, just abort the processing.
+		 */
+		cmd->state = QLA_TGT_STATE_PROCESSED;
+		qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
+		ql_dbg(ql_dbg_async, vha, 0xe101,
+			"RESET-RSP active/old-count/new-count = %d/%d/%d.\n",
+			qla2x00_reset_active(vha), cmd->reset_count,
+			ha->chip_reset);
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+		return 0;
+	}
+
 	/* Does F/W have an IOCBs for this request */
 	res = qlt_check_reserve_free_req(vha, full_req_cnt);
 	if (unlikely(res))
@@ -2391,6 +2423,21 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 		return -EAGAIN;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
+
+	if (qla2x00_reset_active(vha) || cmd->reset_count != ha->chip_reset) {
+		/*
+		 * Either a chip reset is active or this request was from
+		 * previous life, just abort the processing.
+		 */
+		cmd->state = QLA_TGT_STATE_NEED_DATA;
+		qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
+		ql_dbg(ql_dbg_async, vha, 0xe102,
+			"RESET-XFR active/old-count/new-count = %d/%d/%d.\n",
+			qla2x00_reset_active(vha), cmd->reset_count,
+			ha->chip_reset);
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+		return 0;
+	}
 
 	/* Does F/W have an IOCBs for this request */
 	res = qlt_check_reserve_free_req(vha, prm.req_cnt);
@@ -2577,7 +2624,7 @@ static int __qlt_send_term_exchange(struct scsi_qla_host *vha,
 
 	ql_dbg(ql_dbg_tgt, vha, 0xe01c, "Sending TERM EXCH CTIO (ha=%p)\n", ha);
 
-	pkt = (request_t *)qla2x00_alloc_iocbs(vha, NULL);
+	pkt = (request_t *)qla2x00_alloc_iocbs_ready(vha, NULL);
 	if (pkt == NULL) {
 		ql_dbg(ql_dbg_tgt, vha, 0xe050,
 		    "qla_target(%d): %s failed: unable to allocate "
@@ -3305,6 +3352,8 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 		return -ENOMEM;
 	}
 
+	cmd->reset_count = vha->hw->chip_reset;
+
 	INIT_WORK(&cmd->work, qlt_do_work);
 	queue_work(qla_tgt_wq, &cmd->work);
 	return 0;
@@ -3338,6 +3387,7 @@ static int qlt_issue_task_mgmt(struct qla_tgt_sess *sess, uint32_t lun,
 	}
 	mcmd->tmr_func = fn;
 	mcmd->flags = flags;
+	mcmd->reset_count = vha->hw->chip_reset;
 
 	switch (fn) {
 	case QLA_TGT_CLEAR_ACA:

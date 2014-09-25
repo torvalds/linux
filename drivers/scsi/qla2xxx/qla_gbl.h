@@ -72,6 +72,7 @@ extern void qla2x00_async_logout_done(struct scsi_qla_host *, fc_port_t *,
 extern void qla2x00_async_adisc_done(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern void *qla2x00_alloc_iocbs(struct scsi_qla_host *, srb_t *);
+extern void *qla2x00_alloc_iocbs_ready(struct scsi_qla_host *, srb_t *);
 extern int qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *, fc_port_t *);
 
 extern fc_port_t *

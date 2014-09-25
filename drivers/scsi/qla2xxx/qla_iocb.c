@@ -1858,6 +1858,17 @@ static void qla25xx_set_que(srb_t *sp, struct rsp_que **rsp)
 }
 
 /* Generic Control-SRB manipulation functions. */
+
+/* hardware_lock assumed to be held. */
+void *
+qla2x00_alloc_iocbs_ready(scsi_qla_host_t *vha, srb_t *sp)
+{
+	if (qla2x00_reset_active(vha))
+		return NULL;
+
+	return qla2x00_alloc_iocbs(vha, sp);
+}
+
 void *
 qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 {
