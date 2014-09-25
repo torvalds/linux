@@ -228,6 +228,7 @@ struct ufs_hba_variant_ops {
  * @eh_flags: Error handling flags
  * @intr_mask: Interrupt Mask Bits
  * @ee_ctrl_mask: Exception event control mask
+ * @is_powered: flag to check if HBA is powered
  * @eh_work: Worker to handle UFS errors that require s/w attention
  * @eeh_work: Worker to handle exception events
  * @errors: HBA errors
@@ -283,6 +284,7 @@ struct ufs_hba {
 	u32 eh_flags;
 	u32 intr_mask;
 	u16 ee_ctrl_mask;
+	bool is_powered;
 
 	/* Work Queues */
 	struct work_struct eh_work;
