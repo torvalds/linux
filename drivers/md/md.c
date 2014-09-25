@@ -630,17 +630,6 @@ static void mddev_unlock(struct mddev * mddev)
 	spin_unlock(&pers_lock);
 }
 
-static struct md_rdev * find_rdev_nr(struct mddev *mddev, int nr)
-{
-	struct md_rdev *rdev;
-
-	rdev_for_each(rdev, mddev)
-		if (rdev->desc_nr == nr)
-			return rdev;
-
-	return NULL;
-}
-
 static struct md_rdev *find_rdev_nr_rcu(struct mddev *mddev, int nr)
 {
 	struct md_rdev *rdev;
@@ -2060,16 +2049,21 @@ static int bind_rdev_to_array(struct md_rdev * rdev, struct mddev * mddev)
 	 * If it is -1, assign a free number, else
 	 * check number is not in use
 	 */
+	rcu_read_lock();
 	if (rdev->desc_nr < 0) {
 		int choice = 0;
-		if (mddev->pers) choice = mddev->raid_disks;
-		while (find_rdev_nr(mddev, choice))
+		if (mddev->pers)
+			choice = mddev->raid_disks;
+		while (find_rdev_nr_rcu(mddev, choice))
 			choice++;
 		rdev->desc_nr = choice;
 	} else {
-		if (find_rdev_nr(mddev, rdev->desc_nr))
+		if (find_rdev_nr_rcu(mddev, rdev->desc_nr)) {
+			rcu_read_unlock();
 			return -EBUSY;
+		}
 	}
+	rcu_read_unlock();
 	if (mddev->max_disks && rdev->desc_nr >= mddev->max_disks) {
 		printk(KERN_WARNING "md: %s: array is limited to %d devices\n",
 		       mdname(mddev), mddev->max_disks);
