@@ -547,8 +547,8 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 	 */
 	status = regmap_write(chip->regmap, ISL29018_REG_TEST, 0x0);
 	if (status < 0) {
-		dev_err(chip->dev, "Failed to clear isl29018 TEST reg."
-					"(%d)\n", status);
+		dev_err(chip->dev, "Failed to clear isl29018 TEST reg.(%d)\n",
+			status);
 		return status;
 	}
 
@@ -558,8 +558,8 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 	 */
 	status = regmap_write(chip->regmap, ISL29018_REG_ADD_COMMAND1, 0);
 	if (status < 0) {
-		dev_err(chip->dev, "Failed to clear isl29018 CMD1 reg."
-					"(%d)\n", status);
+		dev_err(chip->dev, "Failed to clear isl29018 CMD1 reg.(%d)\n",
+			status);
 		return status;
 	}
 
