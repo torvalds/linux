@@ -667,6 +667,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	int lso_header_size;
 	void *fragptr;
 	bool bounce = false;
+	bool send_doorbell;
 
 	if (!priv->port_up)
 		goto tx_drop;
@@ -878,12 +879,16 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb_tx_timestamp(skb);
 
-	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce && !vlan_tx_tag_present(skb)) {
+	send_doorbell = !skb->xmit_more || netif_xmit_stopped(ring->tx_queue);
+
+	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce &&
+	    !vlan_tx_tag_present(skb) && send_doorbell) {
 		tx_desc->ctrl.bf_qpn |= cpu_to_be32(ring->doorbell_qpn);
 
 		op_own |= htonl((bf_index & 0xffff) << 8);
-		/* Ensure new descirptor hits memory
-		* before setting ownership of this descriptor to HW */
+		/* Ensure new descriptor hits memory
+		 * before setting ownership of this descriptor to HW
+		 */
 		wmb();
 		tx_desc->ctrl.owner_opcode = op_own;
 
@@ -896,12 +901,16 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		ring->bf.offset ^= ring->bf.buf_size;
 	} else {
-		/* Ensure new descirptor hits memory
-		* before setting ownership of this descriptor to HW */
+		/* Ensure new descriptor hits memory
+		 * before setting ownership of this descriptor to HW
+		 */
 		wmb();
 		tx_desc->ctrl.owner_opcode = op_own;
-		wmb();
-		iowrite32be(ring->doorbell_qpn, ring->bf.uar->map + MLX4_SEND_DOORBELL);
+		if (send_doorbell) {
+			wmb();
+			iowrite32be(ring->doorbell_qpn,
+				    ring->bf.uar->map + MLX4_SEND_DOORBELL);
+		}
 	}
 
 	return NETDEV_TX_OK;
