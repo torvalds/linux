@@ -917,6 +917,7 @@ struct qla_tgt_cmd {
 	unsigned int ctx_dsd_alloced:1;
 	unsigned int q_full:1;
 	unsigned int term_exchg:1;
+	unsigned int cmd_sent_to_fw:1;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */

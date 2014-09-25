@@ -2409,6 +2409,7 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 
 
 	cmd->state = QLA_TGT_STATE_PROCESSED; /* Mid-level is done processing */
+	cmd->cmd_sent_to_fw = 1;
 
 	qla2x00_start_iocbs(vha, vha->req);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -2484,6 +2485,7 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 		qlt_load_data_segments(&prm, vha);
 
 	cmd->state = QLA_TGT_STATE_NEED_DATA;
+	cmd->cmd_sent_to_fw = 1;
 
 	qla2x00_start_iocbs(vha, vha->req);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -2717,19 +2719,10 @@ static void qlt_send_term_exchange(struct scsi_qla_host *vha,
 	if (rc == -ENOMEM)
 		qlt_alloc_qfull_cmd(vha, atio, 0, 0);
 	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
+
 done:
-	/*
-	 * Terminate exchange will tell fw to release any active CTIO
-	 * that's in FW posession and cleanup the exchange.
-	 *
-	 * "cmd->state == QLA_TGT_STATE_ABORTED" means CTIO is still
-	 * down at FW.  Free the cmd later when CTIO comes back later
-	 * w/aborted(0x2) status.
-	 *
-	 * "cmd->state != QLA_TGT_STATE_ABORTED" means CTIO is already
-	 * back w/some err.  Free the cmd now.
-	 */
-	if ((rc == 1) && (cmd->state != QLA_TGT_STATE_ABORTED)) {
+	if (cmd && ((cmd->state != QLA_TGT_STATE_ABORTED) ||
+	    !cmd->cmd_sent_to_fw)) {
 		if (!ha_locked && !in_interrupt())
 			msleep(250); /* just in case */
 
@@ -3071,6 +3064,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 
 	se_cmd = &cmd->se_cmd;
 	tfo = se_cmd->se_tfo;
+	cmd->cmd_sent_to_fw = 0;
 
 	if (cmd->sg_mapped)
 		qlt_unmap_sg(vha, cmd);
