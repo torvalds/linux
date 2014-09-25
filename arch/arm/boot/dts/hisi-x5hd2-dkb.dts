@@ -51,3 +51,36 @@
 &uart0 {
 	status = "okay";
 };
+
+&gmac0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	phy-handle = <&phy2>;
+	phy-mode = "mii";
+	/* Placeholder, overwritten by bootloader */
+	mac-address = [00 00 00 00 00 00];
+	status = "okay";
+
+	phy2: ethernet-phy@2 {
+		reg = <2>;
+	};
+};
+
+&gmac1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii";
+	/* Placeholder, overwritten by bootloader */
+	mac-address = [00 00 00 00 00 00];
+	status = "okay";
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+&ahci {
+        phys = <&sata_phy>;
+        phy-names = "sata-phy";
+};
