@@ -2648,7 +2648,7 @@ queuing_error:
 	return QLA_FUNCTION_FAILED;
 }
 
-void
+static void
 qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 {
 	struct srb_iocb *aio = &sp->u.iocb_cmd;
