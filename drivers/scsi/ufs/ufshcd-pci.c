@@ -43,34 +43,24 @@
  * @pdev: pointer to PCI device handle
  * @state: power state
  *
- * Returns -ENOSYS
+ * Returns 0 if successful
+ * Returns non-zero otherwise
  */
 static int ufshcd_pci_suspend(struct device *dev)
 {
-	/*
-	 * TODO:
-	 * 1. Call ufshcd_suspend
-	 * 2. Do bus specific power management
-	 */
-
-	return -ENOSYS;
+	return ufshcd_system_suspend(dev_get_drvdata(dev));
 }
 
 /**
  * ufshcd_pci_resume - resume power management function
  * @pdev: pointer to PCI device handle
  *
- * Returns -ENOSYS
+ * Returns 0 if successful
+ * Returns non-zero otherwise
  */
 static int ufshcd_pci_resume(struct device *dev)
 {
-	/*
-	 * TODO:
-	 * 1. Call ufshcd_resume.
-	 * 2. Do bus specific wake up
-	 */
-
-	return -ENOSYS;
+	return ufshcd_system_resume(dev_get_drvdata(dev));
 }
 #else
 #define ufshcd_pci_suspend	NULL
@@ -80,30 +70,15 @@ static int ufshcd_pci_resume(struct device *dev)
 #ifdef CONFIG_PM_RUNTIME
 static int ufshcd_pci_runtime_suspend(struct device *dev)
 {
-	struct ufs_hba *hba = dev_get_drvdata(dev);
-
-	if (!hba)
-		return 0;
-
-	return ufshcd_runtime_suspend(hba);
+	return ufshcd_runtime_suspend(dev_get_drvdata(dev));
 }
 static int ufshcd_pci_runtime_resume(struct device *dev)
 {
-	struct ufs_hba *hba = dev_get_drvdata(dev);
-
-	if (!hba)
-		return 0;
-
-	return ufshcd_runtime_resume(hba);
+	return ufshcd_runtime_resume(dev_get_drvdata(dev));
 }
 static int ufshcd_pci_runtime_idle(struct device *dev)
 {
-	struct ufs_hba *hba = dev_get_drvdata(dev);
-
-	if (!hba)
-		return 0;
-
-	return ufshcd_runtime_idle(hba);
+	return ufshcd_runtime_idle(dev_get_drvdata(dev));
 }
 #else /* !CONFIG_PM_RUNTIME */
 #define ufshcd_pci_runtime_suspend	NULL
@@ -117,7 +92,7 @@ static int ufshcd_pci_runtime_idle(struct device *dev)
  */
 static void ufshcd_pci_shutdown(struct pci_dev *pdev)
 {
-	ufshcd_hba_stop((struct ufs_hba *)pci_get_drvdata(pdev));
+	ufshcd_shutdown((struct ufs_hba *)pci_get_drvdata(pdev));
 }
 
 /**

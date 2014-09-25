@@ -129,6 +129,7 @@ enum {
 /* Flag idn for Query Requests*/
 enum flag_idn {
 	QUERY_FLAG_IDN_FDEVICEINIT      = 0x01,
+	QUERY_FLAG_IDN_PWR_ON_WPE	= 0x03,
 	QUERY_FLAG_IDN_BKOPS_EN         = 0x04,
 };
 
@@ -194,6 +195,18 @@ enum unit_desc_param {
 	UNIT_DESC_PARAM_LARGE_UNIT_SIZE_M1	= 0x22,
 };
 
+/*
+ * Logical Unit Write Protect
+ * 00h: LU not write protected
+ * 01h: LU write protected when fPowerOnWPEn =1
+ * 02h: LU permanently write protected when fPermanentWPEn =1
+ */
+enum ufs_lu_wp_type {
+	UFS_LU_NO_WP		= 0x00,
+	UFS_LU_POWER_ON_WP	= 0x01,
+	UFS_LU_PERM_WP		= 0x02,
+};
+
 /* bActiveICCLevel parameter current units */
 enum {
 	UFSHCD_NANO_AMP		= 0,
@@ -226,11 +239,12 @@ enum {
 };
 
 /* Background operation status */
-enum {
+enum bkops_status {
 	BKOPS_STATUS_NO_OP               = 0x0,
 	BKOPS_STATUS_NON_CRITICAL        = 0x1,
 	BKOPS_STATUS_PERF_IMPACT         = 0x2,
 	BKOPS_STATUS_CRITICAL            = 0x3,
+	BKOPS_STATUS_MAX		 = BKOPS_STATUS_CRITICAL,
 };
 
 /* UTP QUERY Transaction Specific Fields OpCode */
@@ -291,6 +305,14 @@ enum {
 	UPIU_TASK_MANAGEMENT_FUNC_FAILED	= 0x05,
 	UPIU_INCORRECT_LOGICAL_UNIT_NO		= 0x09,
 };
+
+/* UFS device power modes */
+enum ufs_dev_pwr_mode {
+	UFS_ACTIVE_PWR_MODE	= 1,
+	UFS_SLEEP_PWR_MODE	= 2,
+	UFS_POWERDOWN_PWR_MODE	= 3,
+};
+
 /**
  * struct utp_upiu_header - UPIU header structure
  * @dword_0: UPIU header DW-0
@@ -437,6 +459,12 @@ struct ufs_query_res {
 #define UFS_VREG_VCCQ2_MIN_UV	   1650000 /* uV */
 #define UFS_VREG_VCCQ2_MAX_UV	   1950000 /* uV */
 
+/*
+ * VCCQ & VCCQ2 current requirement when UFS device is in sleep state
+ * and link is in Hibern8 state.
+ */
+#define UFS_VREG_LPM_LOAD_UA	1000 /* uA */
+
 struct ufs_vreg {
 	struct regulator *reg;
 	const char *name;
@@ -452,6 +480,12 @@ struct ufs_vreg_info {
 	struct ufs_vreg *vccq;
 	struct ufs_vreg *vccq2;
 	struct ufs_vreg *vdd_hba;
+};
+
+struct ufs_dev_info {
+	bool f_power_on_wp_en;
+	/* Keeps information if any of the LU is power on write protected */
+	bool is_lu_power_on_wp;
 };
 
 #endif /* End of Header */
