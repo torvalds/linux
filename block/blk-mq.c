@@ -1509,6 +1509,20 @@ static int blk_mq_hctx_notify(void *data, unsigned long action,
 	return NOTIFY_OK;
 }
 
+static void blk_mq_exit_hctx(struct request_queue *q,
+		struct blk_mq_tag_set *set,
+		struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
+{
+	blk_mq_tag_idle(hctx);
+
+	if (set->ops->exit_hctx)
+		set->ops->exit_hctx(hctx, hctx_idx);
+
+	blk_mq_unregister_cpu_notifier(&hctx->cpu_notifier);
+	kfree(hctx->ctxs);
+	blk_mq_free_bitmap(&hctx->ctx_map);
+}
+
 static void blk_mq_exit_hw_queues(struct request_queue *q,
 		struct blk_mq_tag_set *set, int nr_queue)
 {
@@ -1518,17 +1532,8 @@ static void blk_mq_exit_hw_queues(struct request_queue *q,
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (i == nr_queue)
 			break;
-
-		blk_mq_tag_idle(hctx);
-
-		if (set->ops->exit_hctx)
-			set->ops->exit_hctx(hctx, i);
-
-		blk_mq_unregister_cpu_notifier(&hctx->cpu_notifier);
-		kfree(hctx->ctxs);
-		blk_mq_free_bitmap(&hctx->ctx_map);
+		blk_mq_exit_hctx(q, set, hctx, i);
 	}
-
 }
 
 static void blk_mq_free_hw_queues(struct request_queue *q,
@@ -1543,6 +1548,61 @@ static void blk_mq_free_hw_queues(struct request_queue *q,
 	}
 }
 
+static int blk_mq_init_hctx(struct request_queue *q,
+		struct blk_mq_tag_set *set,
+		struct blk_mq_hw_ctx *hctx, unsigned hctx_idx)
+{
+	int node;
+
+	node = hctx->numa_node;
+	if (node == NUMA_NO_NODE)
+		node = hctx->numa_node = set->numa_node;
+
+	INIT_DELAYED_WORK(&hctx->run_work, blk_mq_run_work_fn);
+	INIT_DELAYED_WORK(&hctx->delay_work, blk_mq_delay_work_fn);
+	spin_lock_init(&hctx->lock);
+	INIT_LIST_HEAD(&hctx->dispatch);
+	hctx->queue = q;
+	hctx->queue_num = hctx_idx;
+	hctx->flags = set->flags;
+	hctx->cmd_size = set->cmd_size;
+
+	blk_mq_init_cpu_notifier(&hctx->cpu_notifier,
+					blk_mq_hctx_notify, hctx);
+	blk_mq_register_cpu_notifier(&hctx->cpu_notifier);
+
+	hctx->tags = set->tags[hctx_idx];
+
+	/*
+	 * Allocate space for all possible cpus to avoid allocation at
+	 * runtime
+	 */
+	hctx->ctxs = kmalloc_node(nr_cpu_ids * sizeof(void *),
+					GFP_KERNEL, node);
+	if (!hctx->ctxs)
+		goto unregister_cpu_notifier;
+
+	if (blk_mq_alloc_bitmap(&hctx->ctx_map, node))
+		goto free_ctxs;
+
+	hctx->nr_ctx = 0;
+
+	if (set->ops->init_hctx &&
+	    set->ops->init_hctx(hctx, set->driver_data, hctx_idx))
+		goto free_bitmap;
+
+	return 0;
+
+ free_bitmap:
+	blk_mq_free_bitmap(&hctx->ctx_map);
+ free_ctxs:
+	kfree(hctx->ctxs);
+ unregister_cpu_notifier:
+	blk_mq_unregister_cpu_notifier(&hctx->cpu_notifier);
+
+	return -1;
+}
+
 static int blk_mq_init_hw_queues(struct request_queue *q,
 		struct blk_mq_tag_set *set)
 {
@@ -1553,43 +1613,7 @@ static int blk_mq_init_hw_queues(struct request_queue *q,
 	 * Initialize hardware queues
 	 */
 	queue_for_each_hw_ctx(q, hctx, i) {
-		int node;
-
-		node = hctx->numa_node;
-		if (node == NUMA_NO_NODE)
-			node = hctx->numa_node = set->numa_node;
-
-		INIT_DELAYED_WORK(&hctx->run_work, blk_mq_run_work_fn);
-		INIT_DELAYED_WORK(&hctx->delay_work, blk_mq_delay_work_fn);
-		spin_lock_init(&hctx->lock);
-		INIT_LIST_HEAD(&hctx->dispatch);
-		hctx->queue = q;
-		hctx->queue_num = i;
-		hctx->flags = set->flags;
-		hctx->cmd_size = set->cmd_size;
-
-		blk_mq_init_cpu_notifier(&hctx->cpu_notifier,
-						blk_mq_hctx_notify, hctx);
-		blk_mq_register_cpu_notifier(&hctx->cpu_notifier);
-
-		hctx->tags = set->tags[i];
-
-		/*
-		 * Allocate space for all possible cpus to avoid allocation at
-		 * runtime
-		 */
-		hctx->ctxs = kmalloc_node(nr_cpu_ids * sizeof(void *),
-						GFP_KERNEL, node);
-		if (!hctx->ctxs)
-			break;
-
-		if (blk_mq_alloc_bitmap(&hctx->ctx_map, node))
-			break;
-
-		hctx->nr_ctx = 0;
-
-		if (set->ops->init_hctx &&
-		    set->ops->init_hctx(hctx, set->driver_data, i))
+		if (blk_mq_init_hctx(q, set, hctx, i))
 			break;
 	}
 
