@@ -91,7 +91,7 @@ struct nvram_24xx {
 	/* Firmware Initialization Control Block. */
 	uint16_t version;
 	uint16_t reserved_1;
-	uint16_t frame_payload_size;
+	__le16 frame_payload_size;
 	uint16_t execution_throttle;
 	uint16_t exchange_count;
 	uint16_t hard_address;
