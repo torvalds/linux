@@ -1491,8 +1491,7 @@ static int _nbu2ss_get_ep_stall(struct nbu2ss_udc *udc, u8 ep_adrs)
 
 	if ((data & bit_data) == 0)
 		return 0;
-	else
-		return 1;
+	return 1;
 }
 
 /*-------------------------------------------------------------------------*/
