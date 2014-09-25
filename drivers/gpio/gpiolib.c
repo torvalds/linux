@@ -514,7 +514,8 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
 	/* Remove all IRQ mappings and delete the domain */
 	if (gpiochip->irqdomain) {
 		for (offset = 0; offset < gpiochip->ngpio; offset++)
-			irq_dispose_mapping(gpiochip->irq_base + offset);
+			irq_dispose_mapping(
+				irq_find_mapping(gpiochip->irqdomain, offset));
 		irq_domain_remove(gpiochip->irqdomain);
 	}
 
