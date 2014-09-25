@@ -3021,7 +3021,7 @@ struct wmi_stats_event {
  * PDEV statistics
  * TODO: add all PDEV stats here
  */
-struct wmi_pdev_stats_old {
+struct wmi_pdev_stats {
 	__le32 chan_nf;        /* Channel noise floor */
 	__le32 tx_frame_count; /* TX frame count */
 	__le32 rx_frame_count; /* RX frame count */
@@ -3032,15 +3032,8 @@ struct wmi_pdev_stats_old {
 	struct wal_dbg_stats wal; /* WAL dbg stats */
 } __packed;
 
-struct wmi_pdev_stats_10x {
-	__le32 chan_nf;        /* Channel noise floor */
-	__le32 tx_frame_count; /* TX frame count */
-	__le32 rx_frame_count; /* RX frame count */
-	__le32 rx_clear_count; /* rx clear count */
-	__le32 cycle_count;    /* cycle count */
-	__le32 phy_err_count;  /* Phy error count */
-	__le32 chan_tx_pwr;    /* channel tx power */
-	struct wal_dbg_stats wal; /* WAL dbg stats */
+struct wmi_10x_pdev_stats {
+	struct wmi_pdev_stats old;
 	__le32 ack_rx_bad;
 	__le32 rts_bad;
 	__le32 rts_good;
@@ -3061,16 +3054,14 @@ struct wmi_vdev_stats {
  * peer statistics.
  * TODO: add more stats
  */
-struct wmi_peer_stats_old {
+struct wmi_peer_stats {
 	struct wmi_mac_addr peer_macaddr;
 	__le32 peer_rssi;
 	__le32 peer_tx_rate;
 } __packed;
 
-struct wmi_peer_stats_10x {
-	struct wmi_mac_addr peer_macaddr;
-	__le32 peer_rssi;
-	__le32 peer_tx_rate;
+struct wmi_10x_peer_stats {
+	struct wmi_peer_stats old;
 	__le32 peer_rx_rate;
 } __packed;
 
@@ -4582,6 +4573,7 @@ struct wmi_svc_rdy_ev_arg {
 
 struct ath10k;
 struct ath10k_vif;
+struct ath10k_target_stats;
 
 int ath10k_wmi_attach(struct ath10k *ar);
 void ath10k_wmi_detach(struct ath10k *ar);
@@ -4653,5 +4645,7 @@ int ath10k_wmi_force_fw_hang(struct ath10k *ar,
 			     enum wmi_force_fw_hang_type type, u32 delay_ms);
 int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable);
+int ath10k_wmi_pull_fw_stats(struct ath10k *ar, struct sk_buff *skb,
+			     struct ath10k_target_stats *stats);
 
 #endif /* _WMI_H_ */

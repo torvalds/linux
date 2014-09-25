@@ -239,133 +239,22 @@ static const struct file_operations fops_wmi_services = {
 	.llseek = default_llseek,
 };
 
-void ath10k_debug_read_target_stats(struct ath10k *ar,
-				    struct wmi_stats_event *ev)
+void ath10k_debug_read_target_stats(struct ath10k *ar, struct sk_buff *skb)
 {
-	u8 *tmp = ev->data;
-	struct ath10k_target_stats *stats;
-	int num_pdev_stats, num_vdev_stats, num_peer_stats;
-	struct wmi_pdev_stats_10x *ps;
-	int i;
+	int ret;
 
 	spin_lock_bh(&ar->data_lock);
 
-	stats = &ar->debug.target_stats;
-
-	num_pdev_stats = __le32_to_cpu(ev->num_pdev_stats); /* 0 or 1 */
-	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats); /* 0 or max vdevs */
-	num_peer_stats = __le32_to_cpu(ev->num_peer_stats); /* 0 or max peers */
-
-	if (num_pdev_stats) {
-		ps = (struct wmi_pdev_stats_10x *)tmp;
-
-		stats->ch_noise_floor = __le32_to_cpu(ps->chan_nf);
-		stats->tx_frame_count = __le32_to_cpu(ps->tx_frame_count);
-		stats->rx_frame_count = __le32_to_cpu(ps->rx_frame_count);
-		stats->rx_clear_count = __le32_to_cpu(ps->rx_clear_count);
-		stats->cycle_count = __le32_to_cpu(ps->cycle_count);
-		stats->phy_err_count = __le32_to_cpu(ps->phy_err_count);
-		stats->chan_tx_power = __le32_to_cpu(ps->chan_tx_pwr);
-
-		stats->comp_queued = __le32_to_cpu(ps->wal.tx.comp_queued);
-		stats->comp_delivered =
-			__le32_to_cpu(ps->wal.tx.comp_delivered);
-		stats->msdu_enqued = __le32_to_cpu(ps->wal.tx.msdu_enqued);
-		stats->mpdu_enqued = __le32_to_cpu(ps->wal.tx.mpdu_enqued);
-		stats->wmm_drop = __le32_to_cpu(ps->wal.tx.wmm_drop);
-		stats->local_enqued = __le32_to_cpu(ps->wal.tx.local_enqued);
-		stats->local_freed = __le32_to_cpu(ps->wal.tx.local_freed);
-		stats->hw_queued = __le32_to_cpu(ps->wal.tx.hw_queued);
-		stats->hw_reaped = __le32_to_cpu(ps->wal.tx.hw_reaped);
-		stats->underrun = __le32_to_cpu(ps->wal.tx.underrun);
-		stats->tx_abort = __le32_to_cpu(ps->wal.tx.tx_abort);
-		stats->mpdus_requed = __le32_to_cpu(ps->wal.tx.mpdus_requed);
-		stats->tx_ko = __le32_to_cpu(ps->wal.tx.tx_ko);
-		stats->data_rc = __le32_to_cpu(ps->wal.tx.data_rc);
-		stats->self_triggers = __le32_to_cpu(ps->wal.tx.self_triggers);
-		stats->sw_retry_failure =
-			__le32_to_cpu(ps->wal.tx.sw_retry_failure);
-		stats->illgl_rate_phy_err =
-			__le32_to_cpu(ps->wal.tx.illgl_rate_phy_err);
-		stats->pdev_cont_xretry =
-			__le32_to_cpu(ps->wal.tx.pdev_cont_xretry);
-		stats->pdev_tx_timeout =
-			__le32_to_cpu(ps->wal.tx.pdev_tx_timeout);
-		stats->pdev_resets = __le32_to_cpu(ps->wal.tx.pdev_resets);
-		stats->phy_underrun = __le32_to_cpu(ps->wal.tx.phy_underrun);
-		stats->txop_ovf = __le32_to_cpu(ps->wal.tx.txop_ovf);
-
-		stats->mid_ppdu_route_change =
-			__le32_to_cpu(ps->wal.rx.mid_ppdu_route_change);
-		stats->status_rcvd = __le32_to_cpu(ps->wal.rx.status_rcvd);
-		stats->r0_frags = __le32_to_cpu(ps->wal.rx.r0_frags);
-		stats->r1_frags = __le32_to_cpu(ps->wal.rx.r1_frags);
-		stats->r2_frags = __le32_to_cpu(ps->wal.rx.r2_frags);
-		stats->r3_frags = __le32_to_cpu(ps->wal.rx.r3_frags);
-		stats->htt_msdus = __le32_to_cpu(ps->wal.rx.htt_msdus);
-		stats->htt_mpdus = __le32_to_cpu(ps->wal.rx.htt_mpdus);
-		stats->loc_msdus = __le32_to_cpu(ps->wal.rx.loc_msdus);
-		stats->loc_mpdus = __le32_to_cpu(ps->wal.rx.loc_mpdus);
-		stats->oversize_amsdu =
-			__le32_to_cpu(ps->wal.rx.oversize_amsdu);
-		stats->phy_errs = __le32_to_cpu(ps->wal.rx.phy_errs);
-		stats->phy_err_drop = __le32_to_cpu(ps->wal.rx.phy_err_drop);
-		stats->mpdu_errs = __le32_to_cpu(ps->wal.rx.mpdu_errs);
-
-		if (test_bit(ATH10K_FW_FEATURE_WMI_10X,
-			     ar->fw_features)) {
-			stats->ack_rx_bad = __le32_to_cpu(ps->ack_rx_bad);
-			stats->rts_bad = __le32_to_cpu(ps->rts_bad);
-			stats->rts_good = __le32_to_cpu(ps->rts_good);
-			stats->fcs_bad = __le32_to_cpu(ps->fcs_bad);
-			stats->no_beacons = __le32_to_cpu(ps->no_beacons);
-			stats->mib_int_count = __le32_to_cpu(ps->mib_int_count);
-			tmp += sizeof(struct wmi_pdev_stats_10x);
-		} else {
-			tmp += sizeof(struct wmi_pdev_stats_old);
-		}
+	ret = ath10k_wmi_pull_fw_stats(ar, skb, &ar->debug.target_stats);
+	if (ret) {
+		ath10k_warn(ar, "failed to pull fw stats: %d\n", ret);
+		goto unlock;
 	}
 
-	/* 0 or max vdevs */
-	/* Currently firmware does not support VDEV stats */
-	if (num_vdev_stats) {
-		struct wmi_vdev_stats *vdev_stats;
-
-		for (i = 0; i < num_vdev_stats; i++) {
-			vdev_stats = (struct wmi_vdev_stats *)tmp;
-			tmp += sizeof(struct wmi_vdev_stats);
-		}
-	}
-
-	if (num_peer_stats) {
-		struct wmi_peer_stats_10x *peer_stats;
-		struct ath10k_peer_stat *s;
-
-		stats->peers = num_peer_stats;
-
-		for (i = 0; i < num_peer_stats; i++) {
-			peer_stats = (struct wmi_peer_stats_10x *)tmp;
-			s = &stats->peer_stat[i];
-
-			memcpy(s->peer_macaddr, &peer_stats->peer_macaddr.addr,
-			       ETH_ALEN);
-			s->peer_rssi = __le32_to_cpu(peer_stats->peer_rssi);
-			s->peer_tx_rate =
-				__le32_to_cpu(peer_stats->peer_tx_rate);
-			if (test_bit(ATH10K_FW_FEATURE_WMI_10X,
-				     ar->fw_features)) {
-				s->peer_rx_rate =
-					__le32_to_cpu(peer_stats->peer_rx_rate);
-				tmp += sizeof(struct wmi_peer_stats_10x);
-
-			} else {
-				tmp += sizeof(struct wmi_peer_stats_old);
-			}
-		}
-	}
-
-	spin_unlock_bh(&ar->data_lock);
 	complete(&ar->debug.event_stats_compl);
+
+unlock:
+	spin_unlock_bh(&ar->data_lock);
 }
 
 static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
