@@ -355,14 +355,9 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 			ent->t262.start_addr = start;
 			ent->t262.end_addr = end;
 		}
-	} else if (ent->t262.ram_area == T262_RAM_AREA_DDR_RAM) {
-		ql_dbg(ql_dbg_misc, vha, 0xd021,
-		    "%s: unsupported ddr ram\n", __func__);
-		qla27xx_skip_entry(ent, buf);
-		goto done;
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd022,
-		    "%s: unknown area %u\n", __func__, ent->t262.ram_area);
+		    "%s: unknown area %x\n", __func__, ent->t262.ram_area);
 		qla27xx_skip_entry(ent, buf);
 		goto done;
 	}
@@ -377,8 +372,6 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 
 	dwords = end - start + 1;
 	if (buf) {
-		ql_dbg(ql_dbg_misc, vha, 0xd024,
-		    "%s: @%lx -> (%lx dwords)\n", __func__, start, dwords);
 		buf += *len;
 		qla24xx_dump_ram(vha->hw, start, buf, dwords, &buf);
 	}
@@ -423,13 +416,9 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 				count++;
 			}
 		}
-	} else if (ent->t263.queue_type == T263_QUEUE_TYPE_ATIO) {
-		ql_dbg(ql_dbg_misc, vha, 0xd025,
-		    "%s: unsupported atio queue\n", __func__);
-		qla27xx_skip_entry(ent, buf);
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd026,
-		    "%s: unknown queue %u\n", __func__, ent->t263.queue_type);
+		    "%s: unknown queue %x\n", __func__, ent->t263.queue_type);
 		qla27xx_skip_entry(ent, buf);
 	}
 
@@ -524,17 +513,9 @@ qla27xx_fwdt_entry_t268(struct scsi_qla_host *vha,
 			    "%s: missing eft\n", __func__);
 			qla27xx_skip_entry(ent, buf);
 		}
-	} else if (ent->t268.buf_type == T268_BUF_TYPE_EXCH_BUFOFF) {
-		ql_dbg(ql_dbg_misc, vha, 0xd029,
-		    "%s: unsupported exchange offload buffer\n", __func__);
-		qla27xx_skip_entry(ent, buf);
-	} else if (ent->t268.buf_type == T268_BUF_TYPE_EXTD_LOGIN) {
-		ql_dbg(ql_dbg_misc, vha, 0xd02a,
-		    "%s: unsupported extended login buffer\n", __func__);
-		qla27xx_skip_entry(ent, buf);
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd02b,
-		    "%s: unknown buf %x\n", __func__, ent->t268.buf_type);
+		    "%s: unknown buffer %x\n", __func__, ent->t268.buf_type);
 		qla27xx_skip_entry(ent, buf);
 	}
 
@@ -670,13 +651,9 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 				count++;
 			}
 		}
-	} else if (ent->t274.queue_type == T274_QUEUE_TYPE_ATIO_SHAD) {
-		ql_dbg(ql_dbg_misc, vha, 0xd02e,
-		    "%s: unsupported atio queue\n", __func__);
-		qla27xx_skip_entry(ent, buf);
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd02f,
-		    "%s: unknown queue %u\n", __func__, ent->t274.queue_type);
+		    "%s: unknown queue %x\n", __func__, ent->t274.queue_type);
 		qla27xx_skip_entry(ent, buf);
 	}
 
