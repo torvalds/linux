@@ -53,6 +53,71 @@ static struct ufs_hba_variant_ops *get_variant_ops(struct device *dev)
 	return NULL;
 }
 
+static int ufshcd_parse_clock_info(struct ufs_hba *hba)
+{
+	int ret = 0;
+	int cnt;
+	int i;
+	struct device *dev = hba->dev;
+	struct device_node *np = dev->of_node;
+	char *name;
+	u32 *clkfreq = NULL;
+	struct ufs_clk_info *clki;
+
+	if (!np)
+		goto out;
+
+	INIT_LIST_HEAD(&hba->clk_list_head);
+
+	cnt = of_property_count_strings(np, "clock-names");
+	if (!cnt || (cnt == -EINVAL)) {
+		dev_info(dev, "%s: Unable to find clocks, assuming enabled\n",
+				__func__);
+	} else if (cnt < 0) {
+		dev_err(dev, "%s: count clock strings failed, err %d\n",
+				__func__, cnt);
+		ret = cnt;
+	}
+
+	if (cnt <= 0)
+		goto out;
+
+	clkfreq = kzalloc(cnt * sizeof(*clkfreq), GFP_KERNEL);
+	if (!clkfreq) {
+		ret = -ENOMEM;
+		dev_err(dev, "%s: memory alloc failed\n", __func__);
+		goto out;
+	}
+
+	ret = of_property_read_u32_array(np,
+			"max-clock-frequency-hz", clkfreq, cnt);
+	if (ret && (ret != -EINVAL)) {
+		dev_err(dev, "%s: invalid max-clock-frequency-hz property, %d\n",
+				__func__, ret);
+		goto out;
+	}
+
+	for (i = 0; i < cnt; i++) {
+		ret = of_property_read_string_index(np,
+				"clock-names", i, (const char **)&name);
+		if (ret)
+			goto out;
+
+		clki = devm_kzalloc(dev, sizeof(*clki), GFP_KERNEL);
+		if (!clki) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		clki->max_freq = clkfreq[i];
+		clki->name = kstrdup(name, GFP_KERNEL);
+		list_add_tail(&clki->list, &hba->clk_list_head);
+	}
+out:
+	kfree(clkfreq);
+	return ret;
+}
+
 #define MAX_PROP_SIZE 32
 static int ufshcd_populate_vreg(struct device *dev, const char *name,
 		struct ufs_vreg **out_vreg)
@@ -266,6 +331,12 @@ static int ufshcd_pltfrm_probe(struct platform_device *pdev)
 
 	hba->vops = get_variant_ops(&pdev->dev);
 
+	err = ufshcd_parse_clock_info(hba);
+	if (err) {
+		dev_err(&pdev->dev, "%s: clock parse failed %d\n",
+				__func__, err);
+		goto out;
+	}
 	err = ufshcd_parse_regulator_info(hba);
 	if (err) {
 		dev_err(&pdev->dev, "%s: regulator init failed %d\n",

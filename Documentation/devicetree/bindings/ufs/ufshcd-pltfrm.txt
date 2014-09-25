@@ -21,8 +21,17 @@ Optional properties:
 - vccq-max-microamp     : specifies max. load that can be drawn from vccq supply
 - vccq2-max-microamp    : specifies max. load that can be drawn from vccq2 supply
 
+- clocks                : List of phandle and clock specifier pairs
+- clock-names           : List of clock input name strings sorted in the same
+                          order as the clocks property.
+- max-clock-frequency-hz : List of maximum operating frequency stored in the same
+                           order as the clocks property. If this property is not
+			   defined or a value in the array is "0" then it is assumed
+			   that the frequency is set by the parent clock or a
+			   fixed rate clock source.
+
 Note: If above properties are not defined it can be assumed that the supply
-regulators are always on.
+regulators or clocks are always on.
 
 Example:
 	ufshc@0xfc598000 {
@@ -37,4 +46,8 @@ Example:
 		vcc-max-microamp = 500000;
 		vccq-max-microamp = 200000;
 		vccq2-max-microamp = 200000;
+
+		clocks = <&core 0>, <&ref 0>, <&iface 0>;
+		clock-names = "core_clk", "ref_clk", "iface_clk";
+		max-clock-frequency-hz = <100000000 19200000 0>;
 	};

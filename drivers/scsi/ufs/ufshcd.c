@@ -3350,6 +3350,80 @@ out:
 	return ret;
 }
 
+static int ufshcd_setup_clocks(struct ufs_hba *hba, bool on)
+{
+	int ret = 0;
+	struct ufs_clk_info *clki;
+	struct list_head *head = &hba->clk_list_head;
+
+	if (!head || list_empty(head))
+		goto out;
+
+	list_for_each_entry(clki, head, list) {
+		if (!IS_ERR_OR_NULL(clki->clk)) {
+			if (on && !clki->enabled) {
+				ret = clk_prepare_enable(clki->clk);
+				if (ret) {
+					dev_err(hba->dev, "%s: %s prepare enable failed, %d\n",
+						__func__, clki->name, ret);
+					goto out;
+				}
+			} else if (!on && clki->enabled) {
+				clk_disable_unprepare(clki->clk);
+			}
+			clki->enabled = on;
+			dev_dbg(hba->dev, "%s: clk: %s %sabled\n", __func__,
+					clki->name, on ? "en" : "dis");
+		}
+	}
+out:
+	if (ret) {
+		list_for_each_entry(clki, head, list) {
+			if (!IS_ERR_OR_NULL(clki->clk) && clki->enabled)
+				clk_disable_unprepare(clki->clk);
+		}
+	}
+	return ret;
+}
+
+static int ufshcd_init_clocks(struct ufs_hba *hba)
+{
+	int ret = 0;
+	struct ufs_clk_info *clki;
+	struct device *dev = hba->dev;
+	struct list_head *head = &hba->clk_list_head;
+
+	if (!head || list_empty(head))
+		goto out;
+
+	list_for_each_entry(clki, head, list) {
+		if (!clki->name)
+			continue;
+
+		clki->clk = devm_clk_get(dev, clki->name);
+		if (IS_ERR(clki->clk)) {
+			ret = PTR_ERR(clki->clk);
+			dev_err(dev, "%s: %s clk get failed, %d\n",
+					__func__, clki->name, ret);
+			goto out;
+		}
+
+		if (clki->max_freq) {
+			ret = clk_set_rate(clki->clk, clki->max_freq);
+			if (ret) {
+				dev_err(hba->dev, "%s: %s clk set rate(%dHz) failed, %d\n",
+					__func__, clki->name,
+					clki->max_freq, ret);
+				goto out;
+			}
+		}
+		dev_dbg(dev, "%s: clk: %s, rate: %lu\n", __func__,
+				clki->name, clk_get_rate(clki->clk));
+	}
+out:
+	return ret;
+}
+
 static int ufshcd_variant_hba_init(struct ufs_hba *hba)
 {
 	int err = 0;
@@ -3409,13 +3483,21 @@ static int ufshcd_hba_init(struct ufs_hba *hba)
 {
 	int err;
 
-	err = ufshcd_init_vreg(hba);
+	err = ufshcd_init_clocks(hba);
 	if (err)
 		goto out;
 
-	err = ufshcd_setup_vreg(hba, true);
+	err = ufshcd_setup_clocks(hba, true);
 	if (err)
 		goto out;
+
+	err = ufshcd_init_vreg(hba);
+	if (err)
+		goto out_disable_clks;
+
+	err = ufshcd_setup_vreg(hba, true);
+	if (err)
+		goto out_disable_clks;
 
 	err = ufshcd_variant_hba_init(hba);
 	if (err)
@@ -3425,6 +3507,8 @@ static int ufshcd_hba_init(struct ufs_hba *hba)
 
 out_disable_vreg:
 	ufshcd_setup_vreg(hba, false);
+out_disable_clks:
+	ufshcd_setup_clocks(hba, false);
 out:
 	return err;
 }
@@ -3433,6 +3517,7 @@ static void ufshcd_hba_exit(struct ufs_hba *hba)
 {
 	ufshcd_variant_hba_exit(hba);
 	ufshcd_setup_vreg(hba, false);
+	ufshcd_setup_clocks(hba, false);
 }
 
 /**
