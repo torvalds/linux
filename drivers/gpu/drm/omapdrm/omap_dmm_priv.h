@@ -153,6 +153,10 @@ struct refill_engine {
 	struct list_head idle_node;
 };
 
+struct dmm_platform_data {
+	uint32_t cpu_cache_flags;
+};
+
 struct dmm {
 	struct device *dev;
 	void __iomem *base;
@@ -183,6 +187,8 @@ struct dmm {
 
 	/* allocation list and lock */
 	struct list_head alloc_head;
+
+	const struct dmm_platform_data *plat_data;
 };
 
 #endif

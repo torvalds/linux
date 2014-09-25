@@ -39,6 +39,10 @@
 static struct tcm *containers[TILFMT_NFORMATS];
 static struct dmm *omap_dmm;
 
+#if defined(CONFIG_OF)
+static const struct of_device_id dmm_of_match[];
+#endif
+
 /* global spinlock for protecting lists */
 static DEFINE_SPINLOCK(list_lock);
 
@@ -529,6 +533,11 @@ size_t tiler_vsize(enum tiler_fmt fmt, uint16_t w, uint16_t h)
 	return round_up(geom[fmt].cpp * w, PAGE_SIZE) * h;
 }
 
+uint32_t tiler_get_cpu_cache_flags(void)
+{
+	return omap_dmm->plat_data->cpu_cache_flags;
+}
+
 bool dmm_is_available(void)
 {
 	return omap_dmm ? true : false;
@@ -591,6 +600,18 @@ static int omap_dmm_probe(struct platform_device *dev)
 	INIT_LIST_HEAD(&omap_dmm->idle_head);
 
 	init_waitqueue_head(&omap_dmm->engine_queue);
+
+	if (dev->dev.of_node) {
+		const struct of_device_id *match;
+
+		match = of_match_node(dmm_of_match, dev->dev.of_node);
+		if (!match) {
+			dev_err(&dev->dev, "failed to find matching device node\n");
+			return -ENODEV;
+		}
+
+		omap_dmm->plat_data = match->data;
+	}
 
 	/* lookup hwmod data - base address and irq */
 	mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
@@ -972,9 +993,23 @@ static const struct dev_pm_ops omap_dmm_pm_ops = {
 #endif
 
 #if defined(CONFIG_OF)
+static const struct dmm_platform_data dmm_omap4_platform_data = {
+	.cpu_cache_flags = OMAP_BO_WC,
+};
+
+static const struct dmm_platform_data dmm_omap5_platform_data = {
+	.cpu_cache_flags = OMAP_BO_UNCACHED,
+};
+
 static const struct of_device_id dmm_of_match[] = {
-	{ .compatible = "ti,omap4-dmm", },
-	{ .compatible = "ti,omap5-dmm", },
+	{
+		.compatible = "ti,omap4-dmm",
+		.data = &dmm_omap4_platform_data,
+	},
+	{
+		.compatible = "ti,omap5-dmm",
+		.data = &dmm_omap5_platform_data,
+	},
 	{},
 };
 #endif
