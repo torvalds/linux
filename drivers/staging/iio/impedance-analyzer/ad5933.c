@@ -115,6 +115,7 @@ static const struct iio_chan_spec ad5933_channels[] = {
 		.channel = 0,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
 		.address = AD5933_REG_TEMP_DATA,
+		.scan_index = -1,
 		.scan_type = {
 			.sign = 's',
 			.realbits = 14,
@@ -125,8 +126,6 @@ static const struct iio_chan_spec ad5933_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.extend_name = "real_raw",
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-		BIT(IIO_CHAN_INFO_SCALE),
 		.address = AD5933_REG_REAL_DATA,
 		.scan_index = 0,
 		.scan_type = {
@@ -139,8 +138,6 @@ static const struct iio_chan_spec ad5933_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.extend_name = "imag_raw",
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-		BIT(IIO_CHAN_INFO_SCALE),
 		.address = AD5933_REG_IMAG_DATA,
 		.scan_index = 1,
 		.scan_type = {
@@ -746,14 +743,14 @@ static int ad5933_probe(struct i2c_client *client,
 	indio_dev->name = id->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ad5933_channels;
-	indio_dev->num_channels = 1; /* only register temp0_input */
+	indio_dev->num_channels = ARRAY_SIZE(ad5933_channels);
 
 	ret = ad5933_register_ring_funcs_and_init(indio_dev);
 	if (ret)
 		goto error_disable_reg;
 
-	/* skip temp0_input, register in0_(real|imag)_raw */
-	ret = iio_buffer_register(indio_dev, &ad5933_channels[1], 2);
+	ret = iio_buffer_register(indio_dev, ad5933_channels,
+		ARRAY_SIZE(ad5933_channels));
 	if (ret)
 		goto error_unreg_ring;
 
