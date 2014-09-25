@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
 #include <linux/slab.h>
+#include <linux/of_address.h>
 
 MODULE_DESCRIPTION("Broadcom's specific AMBA driver");
 MODULE_LICENSE("GPL");
@@ -131,6 +132,43 @@ static bool bcma_is_core_needed_early(u16 core_id)
 	return false;
 }
 
+#ifdef CONFIG_OF
+static struct device_node *bcma_of_find_child_device(struct platform_device *parent,
+						     struct bcma_device *core)
+{
+	struct device_node *node;
+	u64 size;
+	const __be32 *reg;
+
+	if (!parent || !parent->dev.of_node)
+		return NULL;
+
+	for_each_child_of_node(parent->dev.of_node, node) {
+		reg = of_get_address(node, 0, &size, NULL);
+		if (!reg)
+			continue;
+		if (of_translate_address(node, reg) == core->addr)
+			return node;
+	}
+	return NULL;
+}
+
+static void bcma_of_fill_device(struct platform_device *parent,
+				struct bcma_device *core)
+{
+	struct device_node *node;
+
+	node = bcma_of_find_child_device(parent, core);
+	if (node)
+		core->dev.of_node = node;
+}
+#else
+static void bcma_of_fill_device(struct platform_device *parent,
+				struct bcma_device *core)
+{
+}
+#endif /* CONFIG_OF */
+
 static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
 {
 	int err;
@@ -147,7 +185,13 @@ static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
 		break;
 	case BCMA_HOSTTYPE_SOC:
 		core->dev.dma_mask = &core->dev.coherent_dma_mask;
-		core->dma_dev = &core->dev;
+		if (bus->host_pdev) {
+			core->dma_dev = &bus->host_pdev->dev;
+			core->dev.parent = &bus->host_pdev->dev;
+			bcma_of_fill_device(bus->host_pdev, core);
+		} else {
+			core->dma_dev = &core->dev;
+		}
 		break;
 	case BCMA_HOSTTYPE_SDIO:
 		break;
@@ -528,6 +572,11 @@ static int __init bcma_modinit(void)
 	if (err)
 		return err;
 
+	err = bcma_host_soc_register_driver();
+	if (err) {
+		pr_err("SoC host initialization failed\n");
+		err = 0;
+	}
 #ifdef CONFIG_BCMA_HOST_PCI
 	err = bcma_host_pci_init();
 	if (err) {
@@ -545,6 +594,7 @@ static void __exit bcma_modexit(void)
 #ifdef CONFIG_BCMA_HOST_PCI
 	bcma_host_pci_exit();
 #endif
+	bcma_host_soc_unregister_driver();
 	bus_unregister(&bcma_bus_type);
 }
 module_exit(bcma_modexit)
