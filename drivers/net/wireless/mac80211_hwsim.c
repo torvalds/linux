@@ -862,7 +862,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	if (skb_queue_len(&data->pending) >= MAX_QUEUE) {
 		/* Droping until WARN_QUEUE level */
 		while (skb_queue_len(&data->pending) >= WARN_QUEUE)
-			skb_dequeue(&data->pending);
+			ieee80211_free_txskb(hw, skb_dequeue(&data->pending));
 	}
 
 	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_ATOMIC);
@@ -921,6 +921,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 
 nla_put_failure:
 	printk(KERN_DEBUG "mac80211_hwsim: error occurred in %s\n", __func__);
+	ieee80211_free_txskb(hw, my_skb);
 }
 
 static bool hwsim_chans_compat(struct ieee80211_channel *c1,
