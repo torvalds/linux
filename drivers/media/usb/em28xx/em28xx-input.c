@@ -712,8 +712,10 @@ static int em28xx_ir_init(struct em28xx *dev)
 	em28xx_info("Registering input extension\n");
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
+	if (!ir)
+		return -ENOMEM;
 	rc = rc_allocate_device();
-	if (!ir || !rc)
+	if (!rc)
 		goto error;
 
 	/* record handles to ourself */
