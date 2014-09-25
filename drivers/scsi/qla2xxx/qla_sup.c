@@ -3163,7 +3163,7 @@ qla2xxx_get_vpd_field(scsi_qla_host_t *vha, char *key, char *str, size_t size)
 	}
 
 	if (pos < end - len && *pos != 0x78)
-		return snprintf(str, size, "%.*s", len, pos + 3);
+		return scnprintf(str, size, "%.*s", len, pos + 3);
 
 	return 0;
 }
