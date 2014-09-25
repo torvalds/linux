@@ -198,7 +198,7 @@ int omap_vc_bypass_scale(struct voltagedomain *voltdm,
 		loop_cnt++;
 
 		if (retries_cnt > 10) {
-			pr_warning("%s: Retry count exceeded\n", __func__);
+			pr_warn("%s: Retry count exceeded\n", __func__);
 			return -ETIMEDOUT;
 		}
 

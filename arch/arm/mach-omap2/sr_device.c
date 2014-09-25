@@ -154,7 +154,7 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 
 	pdev = omap_device_build(name, i, oh, sr_data, sizeof(*sr_data));
 	if (IS_ERR(pdev))
-		pr_warning("%s: Could not build omap_device for %s: %s.\n\n",
+		pr_warn("%s: Could not build omap_device for %s: %s\n",
 			__func__, name, oh->name);
 exit:
 	i++;
