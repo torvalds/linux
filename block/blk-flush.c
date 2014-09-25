@@ -479,8 +479,7 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 }
 EXPORT_SYMBOL(blkdev_issue_flush);
 
-static struct blk_flush_queue *blk_alloc_flush_queue(
-		struct request_queue *q)
+struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q)
 {
 	struct blk_flush_queue *fq;
 	int rq_sz = sizeof(struct request);
@@ -511,7 +510,7 @@ static struct blk_flush_queue *blk_alloc_flush_queue(
 	return NULL;
 }
 
-static void blk_free_flush_queue(struct blk_flush_queue *fq)
+void blk_free_flush_queue(struct blk_flush_queue *fq)
 {
 	/* bio based request queue hasn't flush queue */
 	if (!fq)
@@ -519,18 +518,4 @@ static void blk_free_flush_queue(struct blk_flush_queue *fq)
 
 	kfree(fq->flush_rq);
 	kfree(fq);
-}
-
-int blk_init_flush(struct request_queue *q)
-{
-	q->fq = blk_alloc_flush_queue(q);
-	if (!q->fq)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void blk_exit_flush(struct request_queue *q)
-{
-	blk_free_flush_queue(q->fq);
 }

@@ -39,8 +39,8 @@ static inline void __blk_get_queue(struct request_queue *q)
 	kobject_get(&q->kobj);
 }
 
-int blk_init_flush(struct request_queue *q);
-void blk_exit_flush(struct request_queue *q);
+struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q);
+void blk_free_flush_queue(struct blk_flush_queue *fq);
 
 int blk_init_rl(struct request_list *rl, struct request_queue *q,
 		gfp_t gfp_mask);
