@@ -20,16 +20,24 @@
 
 #define CTR_L1IP_SHIFT		14
 #define CTR_L1IP_MASK		3
+#define CTR_CWG_SHIFT		24
+#define CTR_CWG_MASK		15
 
 #define ICACHE_POLICY_RESERVED	0
 #define ICACHE_POLICY_AIVIVT	1
 #define ICACHE_POLICY_VIPT	2
 #define ICACHE_POLICY_PIPT	3
 
-static inline u32 icache_policy(void)
-{
-	return (read_cpuid_cachetype() >> CTR_L1IP_SHIFT) & CTR_L1IP_MASK;
-}
+#ifndef __ASSEMBLY__
+
+#include <linux/bitops.h>
+
+#define CTR_L1IP(ctr)	(((ctr) >> CTR_L1IP_SHIFT) & CTR_L1IP_MASK)
+
+#define ICACHEF_ALIASING	BIT(0)
+#define ICACHEF_AIVIVT		BIT(1)
+
+extern unsigned long __icache_flags;
 
 /*
  * Whilst the D-side always behaves as PIPT on AArch64, aliasing is
@@ -37,12 +45,19 @@ static inline u32 icache_policy(void)
  */
 static inline int icache_is_aliasing(void)
 {
-	return icache_policy() != ICACHE_POLICY_PIPT;
+	return test_bit(ICACHEF_ALIASING, &__icache_flags);
 }
 
 static inline int icache_is_aivivt(void)
 {
-	return icache_policy() == ICACHE_POLICY_AIVIVT;
+	return test_bit(ICACHEF_AIVIVT, &__icache_flags);
 }
+
+static inline u32 cache_type_cwg(void)
+{
+	return (read_cpuid_cachetype() >> CTR_CWG_SHIFT) & CTR_CWG_MASK;
+}
+
+#endif	/* __ASSEMBLY__ */
 
 #endif	/* __ASM_CACHETYPE_H */

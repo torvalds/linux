@@ -285,6 +285,33 @@ void system_reset_exception(struct pt_regs *regs)
 
 	/* What should we do here? We could issue a shutdown or hard reset. */
 }
+
+/*
+ * This function is called in real mode. Strictly no printk's please.
+ *
+ * regs->nip and regs->msr contains srr0 and ssr1.
+ */
+long machine_check_early(struct pt_regs *regs)
+{
+	long handled = 0;
+
+	__get_cpu_var(irq_stat).mce_exceptions++;
+
+	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
+		handled = cur_cpu_spec->machine_check_early(regs);
+	return handled;
+}
+
+long hmi_exception_realmode(struct pt_regs *regs)
+{
+	__get_cpu_var(irq_stat).hmi_exceptions++;
+
+	if (ppc_md.hmi_exception_early)
+		ppc_md.hmi_exception_early(regs);
+
+	return 0;
+}
+
 #endif
 
 /*
@@ -592,7 +619,7 @@ int machine_check_e500(struct pt_regs *regs)
 	if (reason & MCSR_BUS_RBERR)
 		printk("Bus - Read Data Bus Error\n");
 	if (reason & MCSR_BUS_WBERR)
-		printk("Bus - Read Data Bus Error\n");
+		printk("Bus - Write Data Bus Error\n");
 	if (reason & MCSR_BUS_IPERR)
 		printk("Bus - Instruction Parity Error\n");
 	if (reason & MCSR_BUS_RPERR)
@@ -719,6 +746,20 @@ bail:
 void SMIException(struct pt_regs *regs)
 {
 	die("System Management Interrupt", regs, SIGABRT);
+}
+
+void handle_hmi_exception(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs;
+
+	old_regs = set_irq_regs(regs);
+	irq_enter();
+
+	if (ppc_md.handle_hmi_exception)
+		ppc_md.handle_hmi_exception(regs);
+
+	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 void unknown_exception(struct pt_regs *regs)
@@ -1364,8 +1405,9 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
-	pr_err("%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
-	       hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
+	pr_err_ratelimited(
+		"%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
+		hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
 
 	if (user_mode(regs)) {
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
@@ -1384,7 +1426,6 @@ void fp_unavailable_tm(struct pt_regs *regs)
 
 	TM_DEBUG("FP Unavailable trap whilst transactional at 0x%lx, MSR=%lx\n",
 		 regs->nip, regs->msr);
-	tm_enable();
 
         /* We can only have got here if the task started using FP after
          * beginning the transaction.  So, the transactional regs are just a
@@ -1393,8 +1434,7 @@ void fp_unavailable_tm(struct pt_regs *regs)
          * transaction, and probably retry but now with FP enabled.  So the
          * checkpointed FP registers need to be loaded.
 	 */
-	tm_reclaim(&current->thread, current->thread.regs->msr,
-		   TM_CAUSE_FAC_UNAV);
+	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
 	/* Reclaim didn't save out any FPRs to transact_fprs. */
 
 	/* Enable FP for the task: */
@@ -1403,11 +1443,19 @@ void fp_unavailable_tm(struct pt_regs *regs)
 	/* This loads and recheckpoints the FP registers from
 	 * thread.fpr[].  They will remain in registers after the
 	 * checkpoint so we don't need to reload them after.
+	 * If VMX is in use, the VRs now hold checkpointed values,
+	 * so we don't want to load the VRs from the thread_struct.
 	 */
-	tm_recheckpoint(&current->thread, regs->msr);
+	tm_recheckpoint(&current->thread, MSR_FP);
+
+	/* If VMX is in use, get the transactional values back */
+	if (regs->msr & MSR_VEC) {
+		do_load_up_transact_altivec(&current->thread);
+		/* At this point all the VSX state is loaded, so enable it */
+		regs->msr |= MSR_VSX;
+	}
 }
 
-#ifdef CONFIG_ALTIVEC
 void altivec_unavailable_tm(struct pt_regs *regs)
 {
 	/* See the comments in fp_unavailable_tm().  This function operates
@@ -1417,18 +1465,21 @@ void altivec_unavailable_tm(struct pt_regs *regs)
 	TM_DEBUG("Vector Unavailable trap whilst transactional at 0x%lx,"
 		 "MSR=%lx\n",
 		 regs->nip, regs->msr);
-	tm_enable();
-	tm_reclaim(&current->thread, current->thread.regs->msr,
-		   TM_CAUSE_FAC_UNAV);
+	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
 	regs->msr |= MSR_VEC;
-	tm_recheckpoint(&current->thread, regs->msr);
+	tm_recheckpoint(&current->thread, MSR_VEC);
 	current->thread.used_vr = 1;
-}
-#endif
 
-#ifdef CONFIG_VSX
+	if (regs->msr & MSR_FP) {
+		do_load_up_transact_fpu(&current->thread);
+		regs->msr |= MSR_VSX;
+	}
+}
+
 void vsx_unavailable_tm(struct pt_regs *regs)
 {
+	unsigned long orig_msr = regs->msr;
+
 	/* See the comments in fp_unavailable_tm().  This works similarly,
 	 * though we're loading both FP and VEC registers in here.
 	 *
@@ -1440,18 +1491,30 @@ void vsx_unavailable_tm(struct pt_regs *regs)
 		 "MSR=%lx\n",
 		 regs->nip, regs->msr);
 
-	tm_enable();
+	current->thread.used_vsr = 1;
+
+	/* If FP and VMX are already loaded, we have all the state we need */
+	if ((orig_msr & (MSR_FP | MSR_VEC)) == (MSR_FP | MSR_VEC)) {
+		regs->msr |= MSR_VSX;
+		return;
+	}
+
 	/* This reclaims FP and/or VR regs if they're already enabled */
-	tm_reclaim(&current->thread, current->thread.regs->msr,
-		   TM_CAUSE_FAC_UNAV);
+	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
 
 	regs->msr |= MSR_VEC | MSR_FP | current->thread.fpexc_mode |
 		MSR_VSX;
-	/* This loads & recheckpoints FP and VRs. */
-	tm_recheckpoint(&current->thread, regs->msr);
-	current->thread.used_vsr = 1;
+
+	/* This loads & recheckpoints FP and VRs; but we have
+	 * to be sure not to overwrite previously-valid state.
+	 */
+	tm_recheckpoint(&current->thread, regs->msr & ~orig_msr);
+
+	if (orig_msr & MSR_FP)
+		do_load_up_transact_fpu(&current->thread);
+	if (orig_msr & MSR_VEC)
+		do_load_up_transact_altivec(&current->thread);
 }
-#endif
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 void performance_monitor_exception(struct pt_regs *regs)
@@ -1831,6 +1894,7 @@ struct ppc_emulated ppc_emulated = {
 #ifdef CONFIG_PPC64
 	WARN_EMULATED_SETUP(mfdscr),
 	WARN_EMULATED_SETUP(mtdscr),
+	WARN_EMULATED_SETUP(lq_stq),
 #endif
 };
 

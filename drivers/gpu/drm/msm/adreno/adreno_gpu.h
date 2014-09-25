@@ -51,6 +51,7 @@ struct adreno_gpu {
 	struct msm_gpu base;
 	struct adreno_rev rev;
 	const struct adreno_info *info;
+	uint32_t gmem;  /* actual gmem size */
 	uint32_t revn;  /* numeric revision name */
 	const struct adreno_gpu_funcs *funcs;
 
@@ -70,9 +71,25 @@ struct adreno_gpu {
 struct adreno_platform_config {
 	struct adreno_rev rev;
 	uint32_t fast_rate, slow_rate, bus_freq;
+#ifdef CONFIG_MSM_BUS_SCALING
+	struct msm_bus_scale_pdata *bus_scale_table;
+#endif
 };
 
-#define ADRENO_IDLE_TIMEOUT (20 * 1000)
+#define ADRENO_IDLE_TIMEOUT msecs_to_jiffies(1000)
+
+#define spin_until(X) ({                                   \
+	int __ret = -ETIMEDOUT;                            \
+	unsigned long __t = jiffies + ADRENO_IDLE_TIMEOUT; \
+	do {                                               \
+		if (X) {                                   \
+			__ret = 0;                         \
+			break;                             \
+		}                                          \
+	} while (time_before(jiffies, __t));               \
+	__ret;                                             \
+})
+
 
 static inline bool adreno_is_a3xx(struct adreno_gpu *gpu)
 {
@@ -94,6 +111,11 @@ static inline bool adreno_is_a330(struct adreno_gpu *gpu)
 	return gpu->revn == 330;
 }
 
+static inline bool adreno_is_a330v2(struct adreno_gpu *gpu)
+{
+	return adreno_is_a330(gpu) && (gpu->rev.patchid > 0);
+}
+
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
 int adreno_hw_init(struct msm_gpu *gpu);
 uint32_t adreno_last_fence(struct msm_gpu *gpu);
@@ -105,6 +127,7 @@ void adreno_idle(struct msm_gpu *gpu);
 #ifdef CONFIG_DEBUG_FS
 void adreno_show(struct msm_gpu *gpu, struct seq_file *m);
 #endif
+void adreno_dump(struct msm_gpu *gpu);
 void adreno_wait_ring(struct msm_gpu *gpu, uint32_t ndwords);
 
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,

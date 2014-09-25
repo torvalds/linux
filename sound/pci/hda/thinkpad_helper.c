@@ -39,6 +39,7 @@ static void update_tpacpi_mute_led(void *private_data, int enabled)
 }
 
 static void update_tpacpi_micmute_led(struct hda_codec *codec,
+				      struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
 	if (!ucontrol || !led_set_func)
@@ -62,7 +63,8 @@ static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 		if (!led_set_func)
 			led_set_func = symbol_request(tpacpi_led_set);
 		if (!led_set_func) {
-			snd_printk(KERN_WARNING "Failed to find thinkpad-acpi symbol tpacpi_led_set\n");
+			codec_warn(codec,
+				   "Failed to find thinkpad-acpi symbol tpacpi_led_set\n");
 			return;
 		}
 
@@ -74,7 +76,8 @@ static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 		}
 		if (led_set_func(TPACPI_LED_MICMUTE, false) >= 0) {
 			if (spec->num_adc_nids > 1)
-				snd_printdd("Skipping micmute LED control due to several ADCs");
+				codec_dbg(codec,
+					  "Skipping micmute LED control due to several ADCs");
 			else {
 				spec->cap_sync_hook = update_tpacpi_micmute_led;
 				removefunc = false;

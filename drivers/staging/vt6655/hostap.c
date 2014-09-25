@@ -48,7 +48,6 @@
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
-//static int          msglevel                =MSG_LEVEL_DEBUG;
 static int msglevel = MSG_LEVEL_INFO;
 
 /*---------------------  Static Functions  --------------------------*/
@@ -207,11 +206,11 @@ static int hostap_remove_sta(PSDevice pDevice,
 {
 	unsigned int uNodeIndex;
 
-	if (BSSDBbIsSTAInNodeDB(pDevice->pMgmt, param->sta_addr, &uNodeIndex)) {
+	if (BSSDBbIsSTAInNodeDB(pDevice->pMgmt, param->sta_addr, &uNodeIndex))
 		BSSvRemoveOneNode(pDevice, uNodeIndex);
-	} else {
+	else
 		return -ENOENT;
-	}
+
 	return 0;
 }
 
@@ -234,14 +233,13 @@ static int hostap_add_sta(PSDevice pDevice,
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned int uNodeIndex;
 
-	if (!BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex)) {
+	if (!BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex))
 		BSSvCreateOneNode((PSDevice)pDevice, &uNodeIndex);
-	}
+
 	memcpy(pMgmt->sNodeDBTable[uNodeIndex].abyMACAddr, param->sta_addr, WLAN_ADDR_LEN);
 	pMgmt->sNodeDBTable[uNodeIndex].eNodeState = NODE_ASSOC;
 	pMgmt->sNodeDBTable[uNodeIndex].wCapInfo = param->u.add_sta.capability;
 // TODO listenInterval
-//    pMgmt->sNodeDBTable[uNodeIndex].wListenInterval = 1;
 	pMgmt->sNodeDBTable[uNodeIndex].bPSEnable = false;
 	pMgmt->sNodeDBTable[uNodeIndex].bySuppRate = param->u.add_sta.tx_supp_rates;
 
@@ -258,8 +256,8 @@ static int hostap_add_sta(PSDevice pDevice,
 
 	pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer = jiffies;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Add STA AID= %d \n", pMgmt->sNodeDBTable[uNodeIndex].wAID);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MAC=%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X \n",
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Add STA AID= %d\n", pMgmt->sNodeDBTable[uNodeIndex].wAID);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MAC=%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",
 		param->sta_addr[0],
 		param->sta_addr[1],
 		param->sta_addr[2],
@@ -267,7 +265,7 @@ static int hostap_add_sta(PSDevice pDevice,
 		param->sta_addr[4],
 		param->sta_addr[5]
 		);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Max Support rate = %d \n",
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Max Support rate = %d\n",
 		pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate);
 
 	return 0;
@@ -296,45 +294,12 @@ static int hostap_get_info_sta(PSDevice pDevice,
 	if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex)) {
 		param->u.get_info_sta.inactive_sec =
 			(jiffies - pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer) / HZ;
-
-		//param->u.get_info_sta.txexc = pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts;
 	} else {
 		return -ENOENT;
 	}
 
 	return 0;
 }
-
-/*
- * Description:
- *      reset txexec
- *
- * Parameters:
- *  In:
- *      pDevice   -
- *      param     -
- *  Out:
- *      true, false
- *
- * Return Value:
- *
- */
-/*
-  static int hostap_reset_txexc_sta(PSDevice pDevice,
-  struct viawget_hostapd_param *param)
-  {
-  PSMgmtObject    pMgmt = pDevice->pMgmt;
-  unsigned int uNodeIndex;
-
-  if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex)) {
-  pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts = 0;
-  } else {
-  return -ENOENT;
-  }
-
-  return 0;
-  }
-*/
 
 /*
  * Description:
@@ -358,7 +323,7 @@ static int hostap_set_flags_sta(PSDevice pDevice,
 	if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex)) {
 		pMgmt->sNodeDBTable[uNodeIndex].dwFlags |= param->u.set_flags_sta.flags_or;
 		pMgmt->sNodeDBTable[uNodeIndex].dwFlags &= param->u.set_flags_sta.flags_and;
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " dwFlags = %x \n",
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " dwFlags = %x\n",
 			(unsigned int)pMgmt->sNodeDBTable[uNodeIndex].dwFlags);
 	} else {
 		return -ENOENT;
@@ -385,6 +350,9 @@ static int hostap_set_generic_element(PSDevice pDevice,
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 
+	if (param->u.generic_elem.len > sizeof(pMgmt->abyWPAIE))
+		return -EINVAL;
+
 	memcpy(pMgmt->abyWPAIE,
 	       param->u.generic_elem.data,
 	       param->u.generic_elem.len
@@ -397,7 +365,7 @@ static int hostap_set_generic_element(PSDevice pDevice,
 	// disable wpa
 	if (pMgmt->wWPAIELen == 0) {
 		pMgmt->eAuthenMode = WMAC_AUTH_OPEN;
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " No WPAIE, Disable WPA \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " No WPAIE, Disable WPA\n");
 	} else  {
 		// enable wpa
 		if ((pMgmt->abyWPAIE[0] == WLAN_EID_RSN_WPA) ||
@@ -429,8 +397,6 @@ static void hostap_flush_sta(PSDevice pDevice)
 	// reserved node index =0 for multicast node.
 	BSSvClearNodeDBTable(pDevice, 1);
 	pDevice->uAssocCount = 0;
-
-	return;
 }
 
 /*
@@ -456,19 +422,12 @@ static int hostap_set_encryption(PSDevice pDevice,
 	unsigned char abySeq[MAX_KEY_LEN];
 	unsigned long long KeyRSC;
 	unsigned char byKeyDecMode = KEY_CTL_WEP;
-	int     ret = 0;
 	int     iNodeIndex = -1;
 	int     ii;
 	bool bKeyTableFull = false;
 	unsigned short wKeyCtl = 0;
 
 	param->u.crypt.err = 0;
-/*
-  if (param_len !=
-  (int) ((char *) param->u.crypt.key - (char *) param) +
-  param->u.crypt.key_len)
-  return -EINVAL;
-*/
 
 	if (param->u.crypt.alg > WPA_ALG_CCMP)
 		return -EINVAL;
@@ -491,8 +450,8 @@ static int hostap_set_encryption(PSDevice pDevice,
 			return -EINVAL;
 		}
 	}
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " hostap_set_encryption: sta_index %d \n", iNodeIndex);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " hostap_set_encryption: alg %d \n", param->u.crypt.alg);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " hostap_set_encryption: sta_index %d\n", iNodeIndex);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " hostap_set_encryption: alg %d\n", param->u.crypt.alg);
 
 	if (param->u.crypt.alg == WPA_ALG_NONE) {
 		if (pMgmt->sNodeDBTable[iNodeIndex].bOnFly) {
@@ -500,7 +459,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 					  param->sta_addr,
 					  pMgmt->sNodeDBTable[iNodeIndex].dwKeyIndex,
 					  pDevice->PortOffset)) {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybRemoveKey fail \n");
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybRemoveKey fail\n");
 			}
 			pMgmt->sNodeDBTable[iNodeIndex].bOnFly = false;
 		}
@@ -516,7 +475,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 		       MAX_KEY_LEN
 );
 
-		return ret;
+		return 0;
 	}
 
 	memcpy(abyKey, param->u.crypt.key, param->u.crypt.key_len);
@@ -572,7 +531,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 		pMgmt->byCSSGK = KEY_CTL_WEP;
 		pMgmt->sNodeDBTable[iNodeIndex].byCipherSuite = KEY_CTL_WEP;
 		pMgmt->sNodeDBTable[iNodeIndex].dwKeyIndex = dwKeyIndex;
-		return ret;
+		return 0;
 	}
 
 	if (param->u.crypt.seq) {
@@ -645,10 +604,10 @@ static int hostap_set_encryption(PSDevice pDevice,
 		MACvSetDefaultKeyCtl(pDevice->PortOffset, wKeyCtl, MAX_KEY_TABLE-1, pDevice->byLocalID);
 	}
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Set key sta_index= %d \n", iNodeIndex);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " tx_index=%d len=%d \n", param->u.crypt.idx,
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Set key sta_index= %d\n", iNodeIndex);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " tx_index=%d len=%d\n", param->u.crypt.idx,
 		param->u.crypt.key_len);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " key=%x-%x-%x-%x-%x-xxxxx \n",
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " key=%x-%x-%x-%x-%x-xxxxx\n",
 		pMgmt->sNodeDBTable[iNodeIndex].abyWepKey[0],
 		pMgmt->sNodeDBTable[iNodeIndex].abyWepKey[1],
 		pMgmt->sNodeDBTable[iNodeIndex].abyWepKey[2],
@@ -663,7 +622,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 	pMgmt->sNodeDBTable[iNodeIndex].dwTSC47_16 = 0;
 	pMgmt->sNodeDBTable[iNodeIndex].wTSC15_0 = 0;
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -684,7 +643,6 @@ static int hostap_get_encryption(PSDevice pDevice,
 				 int param_len)
 {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
-	int     ret = 0;
 	int     ii;
 	int     iNodeIndex = 0;
 
@@ -701,11 +659,10 @@ static int hostap_get_encryption(PSDevice pDevice,
 	}
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "hostap_get_encryption: %d\n", iNodeIndex);
 	memset(param->u.crypt.seq, 0, 8);
-	for (ii = 0; ii < 8; ii++) {
+	for (ii = 0; ii < 8; ii++)
 		param->u.crypt.seq[ii] = (unsigned char)pMgmt->sNodeDBTable[iNodeIndex].KeyRSC >> (ii * 8);
-	}
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -742,68 +699,62 @@ int vt6655_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 
 	switch (param->cmd) {
 	case VIAWGET_HOSTAPD_SET_ENCRYPTION:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_ENCRYPTION \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_ENCRYPTION\n");
 		spin_lock_irq(&pDevice->lock);
 		ret = hostap_set_encryption(pDevice, param, p->length);
 		spin_unlock_irq(&pDevice->lock);
 		break;
 	case VIAWGET_HOSTAPD_GET_ENCRYPTION:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_GET_ENCRYPTION \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_GET_ENCRYPTION\n");
 		spin_lock_irq(&pDevice->lock);
 		ret = hostap_get_encryption(pDevice, param, p->length);
 		spin_unlock_irq(&pDevice->lock);
 		break;
 	case VIAWGET_HOSTAPD_SET_ASSOC_AP_ADDR:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_ASSOC_AP_ADDR \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_ASSOC_AP_ADDR\n");
 		ret = -EOPNOTSUPP;
 		goto out;
 	case VIAWGET_HOSTAPD_FLUSH:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_FLUSH \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_FLUSH\n");
 		spin_lock_irq(&pDevice->lock);
 		hostap_flush_sta(pDevice);
 		spin_unlock_irq(&pDevice->lock);
 		break;
 	case VIAWGET_HOSTAPD_ADD_STA:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_ADD_STA \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_ADD_STA\n");
 		spin_lock_irq(&pDevice->lock);
 		ret = hostap_add_sta(pDevice, param);
 		spin_unlock_irq(&pDevice->lock);
 		break;
 	case VIAWGET_HOSTAPD_REMOVE_STA:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_REMOVE_STA \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_REMOVE_STA\n");
 		spin_lock_irq(&pDevice->lock);
 		ret = hostap_remove_sta(pDevice, param);
 		spin_unlock_irq(&pDevice->lock);
 		break;
 	case VIAWGET_HOSTAPD_GET_INFO_STA:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_GET_INFO_STA \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_GET_INFO_STA\n");
 		ret = hostap_get_info_sta(pDevice, param);
 		ap_ioctl = 1;
 		break;
-/*
-	case VIAWGET_HOSTAPD_RESET_TXEXC_STA:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_RESET_TXEXC_STA \n");
-		ret = hostap_reset_txexc_sta(pDevice, param);
-		break;
-*/
 	case VIAWGET_HOSTAPD_SET_FLAGS_STA:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_FLAGS_STA \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_FLAGS_STA\n");
 		ret = hostap_set_flags_sta(pDevice, param);
 		break;
 	case VIAWGET_HOSTAPD_MLME:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_MLME \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_MLME\n");
 		ret = -EOPNOTSUPP;
 		goto out;
 	case VIAWGET_HOSTAPD_SET_GENERIC_ELEMENT:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_GENERIC_ELEMENT \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_GENERIC_ELEMENT\n");
 		ret = hostap_set_generic_element(pDevice, param);
 		break;
 	case VIAWGET_HOSTAPD_SCAN_REQ:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SCAN_REQ \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SCAN_REQ\n");
 		ret = -EOPNOTSUPP;
 		goto out;
 	case VIAWGET_HOSTAPD_STA_CLEAR_STATS:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_STA_CLEAR_STATS \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_STA_CLEAR_STATS\n");
 		ret = -EOPNOTSUPP;
 		goto out;
 	default:
@@ -814,9 +765,8 @@ int vt6655_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 	}
 
 	if ((ret == 0) && ap_ioctl) {
-		if (copy_to_user(p->pointer, param, p->length)) {
+		if (copy_to_user(p->pointer, param, p->length))
 			ret = -EFAULT;
-		}
 	}
 
 out:

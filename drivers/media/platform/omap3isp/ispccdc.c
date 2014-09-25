@@ -30,7 +30,6 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
-#include <linux/omap-iommu.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <media/v4l2-event.h>
@@ -206,7 +205,8 @@ static int ccdc_lsc_validate_config(struct isp_ccdc_device *ccdc,
  * ccdc_lsc_program_table - Program Lens Shading Compensation table address.
  * @ccdc: Pointer to ISP CCDC device.
  */
-static void ccdc_lsc_program_table(struct isp_ccdc_device *ccdc, u32 addr)
+static void ccdc_lsc_program_table(struct isp_ccdc_device *ccdc,
+				   dma_addr_t addr)
 {
 	isp_reg_writel(to_isp_device(ccdc), addr,
 		       OMAP3_ISP_IOMEM_CCDC, ISPCCDC_LSC_TABLE_BASE);
@@ -293,7 +293,7 @@ static int __ccdc_lsc_enable(struct isp_ccdc_device *ccdc, int enable)
 			isp_reg_clr(isp, OMAP3_ISP_IOMEM_CCDC,
 				    ISPCCDC_LSC_CONFIG, ISPCCDC_LSC_ENABLE);
 			ccdc->lsc.state = LSC_STATE_STOPPED;
-			dev_warn(to_device(ccdc), "LSC prefecth timeout\n");
+			dev_warn(to_device(ccdc), "LSC prefetch timeout\n");
 			return -ETIMEDOUT;
 		}
 		ccdc->lsc.state = LSC_STATE_RUNNING;
@@ -333,7 +333,7 @@ static int __ccdc_lsc_configure(struct isp_ccdc_device *ccdc,
 		return -EBUSY;
 
 	ccdc_lsc_setup_regs(ccdc, &req->config);
-	ccdc_lsc_program_table(ccdc, req->table);
+	ccdc_lsc_program_table(ccdc, req->table.dma);
 	return 0;
 }
 
@@ -368,11 +368,12 @@ static void ccdc_lsc_free_request(struct isp_ccdc_device *ccdc,
 	if (req == NULL)
 		return;
 
-	if (req->iovm)
-		dma_unmap_sg(isp->dev, req->iovm->sgt->sgl,
-			     req->iovm->sgt->nents, DMA_TO_DEVICE);
-	if (req->table)
-		omap_iommu_vfree(isp->domain, isp->dev, req->table);
+	if (req->table.addr) {
+		sg_free_table(&req->table.sgt);
+		dma_free_coherent(isp->dev, req->config.size, req->table.addr,
+				  req->table.dma);
+	}
+
 	kfree(req);
 }
 
@@ -416,7 +417,6 @@ static int ccdc_lsc_config(struct isp_ccdc_device *ccdc,
 	struct isp_device *isp = to_isp_device(ccdc);
 	struct ispccdc_lsc_config_req *req;
 	unsigned long flags;
-	void *table;
 	u16 update;
 	int ret;
 
@@ -444,38 +444,31 @@ static int ccdc_lsc_config(struct isp_ccdc_device *ccdc,
 
 		req->enable = 1;
 
-		req->table = omap_iommu_vmalloc(isp->domain, isp->dev, 0,
-					req->config.size, IOMMU_FLAG);
-		if (IS_ERR_VALUE(req->table)) {
-			req->table = 0;
+		req->table.addr = dma_alloc_coherent(isp->dev, req->config.size,
+						     &req->table.dma,
+						     GFP_KERNEL);
+		if (req->table.addr == NULL) {
 			ret = -ENOMEM;
 			goto done;
 		}
 
-		req->iovm = omap_find_iovm_area(isp->dev, req->table);
-		if (req->iovm == NULL) {
-			ret = -ENOMEM;
+		ret = dma_get_sgtable(isp->dev, &req->table.sgt,
+				      req->table.addr, req->table.dma,
+				      req->config.size);
+		if (ret < 0)
 			goto done;
-		}
 
-		if (!dma_map_sg(isp->dev, req->iovm->sgt->sgl,
-				req->iovm->sgt->nents, DMA_TO_DEVICE)) {
-			ret = -ENOMEM;
-			req->iovm = NULL;
-			goto done;
-		}
+		dma_sync_sg_for_cpu(isp->dev, req->table.sgt.sgl,
+				    req->table.sgt.nents, DMA_TO_DEVICE);
 
-		dma_sync_sg_for_cpu(isp->dev, req->iovm->sgt->sgl,
-				    req->iovm->sgt->nents, DMA_TO_DEVICE);
-
-		table = omap_da_to_va(isp->dev, req->table);
-		if (copy_from_user(table, config->lsc, req->config.size)) {
+		if (copy_from_user(req->table.addr, config->lsc,
+				   req->config.size)) {
 			ret = -EFAULT;
 			goto done;
 		}
 
-		dma_sync_sg_for_device(isp->dev, req->iovm->sgt->sgl,
-				       req->iovm->sgt->nents, DMA_TO_DEVICE);
+		dma_sync_sg_for_device(isp->dev, req->table.sgt.sgl,
+				       req->table.sgt.nents, DMA_TO_DEVICE);
 	}
 
 	spin_lock_irqsave(&ccdc->lsc.req_lock, flags);
@@ -584,7 +577,7 @@ static void ccdc_configure_fpc(struct isp_ccdc_device *ccdc)
 	if (!ccdc->fpc_en)
 		return;
 
-	isp_reg_writel(isp, ccdc->fpc.fpcaddr, OMAP3_ISP_IOMEM_CCDC,
+	isp_reg_writel(isp, ccdc->fpc.dma, OMAP3_ISP_IOMEM_CCDC,
 		       ISPCCDC_FPC_ADDR);
 	/* The FPNUM field must be set before enabling FPC. */
 	isp_reg_writel(isp, (ccdc->fpc.fpnum << ISPCCDC_FPC_FPNUM_SHIFT),
@@ -674,7 +667,7 @@ static void ccdc_config_imgattr(struct isp_ccdc_device *ccdc, u32 colptn)
 /*
  * ccdc_config - Set CCDC configuration from userspace
  * @ccdc: Pointer to ISP CCDC device.
- * @userspace_add: Structure containing CCDC configuration sent from userspace.
+ * @ccdc_struct: Structure containing CCDC configuration sent from userspace.
  *
  * Returns 0 if successful, -EINVAL if the pointer to the configuration
  * structure is null, or the copy_from_user function fails to copy user space
@@ -724,8 +717,9 @@ static int ccdc_config(struct isp_ccdc_device *ccdc,
 	ccdc->shadow_update = 0;
 
 	if (OMAP3ISP_CCDC_FPC & ccdc_struct->update) {
-		u32 table_old = 0;
-		u32 table_new;
+		struct omap3isp_ccdc_fpc fpc;
+		struct ispccdc_fpc fpc_old = { .addr = NULL, };
+		struct ispccdc_fpc fpc_new;
 		u32 size;
 
 		if (ccdc->state != ISP_PIPELINE_STREAM_STOPPED)
@@ -734,35 +728,39 @@ static int ccdc_config(struct isp_ccdc_device *ccdc,
 		ccdc->fpc_en = !!(OMAP3ISP_CCDC_FPC & ccdc_struct->flag);
 
 		if (ccdc->fpc_en) {
-			if (copy_from_user(&ccdc->fpc, ccdc_struct->fpc,
-					   sizeof(ccdc->fpc)))
+			if (copy_from_user(&fpc, ccdc_struct->fpc, sizeof(fpc)))
 				return -EFAULT;
 
+			size = fpc.fpnum * 4;
+
 			/*
-			 * table_new must be 64-bytes aligned, but it's
-			 * already done by omap_iommu_vmalloc().
+			 * The table address must be 64-bytes aligned, which is
+			 * guaranteed by dma_alloc_coherent().
 			 */
-			size = ccdc->fpc.fpnum * 4;
-			table_new = omap_iommu_vmalloc(isp->domain, isp->dev,
-							0, size, IOMMU_FLAG);
-			if (IS_ERR_VALUE(table_new))
+			fpc_new.fpnum = fpc.fpnum;
+			fpc_new.addr = dma_alloc_coherent(isp->dev, size,
+							  &fpc_new.dma,
+							  GFP_KERNEL);
+			if (fpc_new.addr == NULL)
 				return -ENOMEM;
 
-			if (copy_from_user(omap_da_to_va(isp->dev, table_new),
-					   (__force void __user *)
-					   ccdc->fpc.fpcaddr, size)) {
-				omap_iommu_vfree(isp->domain, isp->dev,
-								table_new);
+			if (copy_from_user(fpc_new.addr,
+					   (__force void __user *)fpc.fpcaddr,
+					   size)) {
+				dma_free_coherent(isp->dev, size, fpc_new.addr,
+						  fpc_new.dma);
 				return -EFAULT;
 			}
 
-			table_old = ccdc->fpc.fpcaddr;
-			ccdc->fpc.fpcaddr = table_new;
+			fpc_old = ccdc->fpc;
+			ccdc->fpc = fpc_new;
 		}
 
 		ccdc_configure_fpc(ccdc);
-		if (table_old != 0)
-			omap_iommu_vfree(isp->domain, isp->dev, table_old);
+
+		if (fpc_old.addr != NULL)
+			dma_free_coherent(isp->dev, fpc_old.fpnum * 4,
+					  fpc_old.addr, fpc_old.dma);
 	}
 
 	return ccdc_lsc_config(ccdc, ccdc_struct);
@@ -793,7 +791,7 @@ static void ccdc_apply_controls(struct isp_ccdc_device *ccdc)
 
 /*
  * omap3isp_ccdc_restore_context - Restore values of the CCDC module registers
- * @dev: Pointer to ISP device
+ * @isp: Pointer to ISP device
  */
 void omap3isp_ccdc_restore_context(struct isp_device *isp)
 {
@@ -1516,12 +1514,14 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 
 	if (ccdc_sbl_wait_idle(ccdc, 1000)) {
 		dev_info(isp->dev, "CCDC won't become idle!\n");
+		isp->crashed |= 1U << ccdc->subdev.entity.id;
+		omap3isp_pipeline_cancel_stream(pipe);
 		goto done;
 	}
 
 	buffer = omap3isp_video_buffer_next(&ccdc->video_out);
 	if (buffer != NULL) {
-		ccdc_set_outaddr(ccdc, buffer->isp_addr);
+		ccdc_set_outaddr(ccdc, buffer->dma);
 		restart = 1;
 	}
 
@@ -1660,7 +1660,7 @@ static int ccdc_video_queue(struct isp_video *video, struct isp_buffer *buffer)
 	if (!(ccdc->output & CCDC_OUTPUT_MEMORY))
 		return -ENODEV;
 
-	ccdc_set_outaddr(ccdc, buffer->isp_addr);
+	ccdc_set_outaddr(ccdc, buffer->dma);
 
 	/* We now have a buffer queued on the output, restart the pipeline
 	 * on the next CCDC interrupt if running in continuous mode (or when
@@ -2484,7 +2484,8 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 	v4l2_set_subdevdata(sd, ccdc);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
 
-	pads[CCDC_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	pads[CCDC_PAD_SINK].flags = MEDIA_PAD_FL_SINK
+				    | MEDIA_PAD_FL_MUST_CONNECT;
 	pads[CCDC_PAD_SOURCE_VP].flags = MEDIA_PAD_FL_SOURCE;
 	pads[CCDC_PAD_SOURCE_OF].flags = MEDIA_PAD_FL_SOURCE;
 
@@ -2522,7 +2523,7 @@ error_video:
 
 /*
  * omap3isp_ccdc_init - CCDC module initialization.
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  *
  * TODO: Get the initialisation values from platform data.
  *
@@ -2561,7 +2562,7 @@ int omap3isp_ccdc_init(struct isp_device *isp)
 
 /*
  * omap3isp_ccdc_cleanup - CCDC module cleanup.
- * @dev: Device pointer specific to the OMAP3 ISP.
+ * @isp: Device pointer specific to the OMAP3 ISP.
  */
 void omap3isp_ccdc_cleanup(struct isp_device *isp)
 {
@@ -2577,8 +2578,9 @@ void omap3isp_ccdc_cleanup(struct isp_device *isp)
 	cancel_work_sync(&ccdc->lsc.table_work);
 	ccdc_lsc_free_queue(ccdc, &ccdc->lsc.free_queue);
 
-	if (ccdc->fpc.fpcaddr != 0)
-		omap_iommu_vfree(isp->domain, isp->dev, ccdc->fpc.fpcaddr);
+	if (ccdc->fpc.addr != NULL)
+		dma_free_coherent(isp->dev, ccdc->fpc.fpnum * 4, ccdc->fpc.addr,
+				  ccdc->fpc.dma);
 
 	mutex_destroy(&ccdc->ioctl_lock);
 }

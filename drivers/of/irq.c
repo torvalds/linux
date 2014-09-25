@@ -216,6 +216,9 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 				goto fail;
 			}
 
+			if (!of_device_is_available(newpar))
+				match = 0;
+
 			/* Get #interrupt-cells and #address-cells of new
 			 * parent
 			 */
@@ -298,16 +301,17 @@ int of_irq_parse_one(struct device_node *device, int index, struct of_phandle_ar
 	/* Get the reg property (if any) */
 	addr = of_get_property(device, "reg", NULL);
 
+	/* Try the new-style interrupts-extended first */
+	res = of_parse_phandle_with_args(device, "interrupts-extended",
+					"#interrupt-cells", index, out_irq);
+	if (!res)
+		return of_irq_parse_raw(addr, out_irq);
+
 	/* Get the interrupts property */
 	intspec = of_get_property(device, "interrupts", &intlen);
-	if (intspec == NULL) {
-		/* Try the new-style interrupts-extended */
-		res = of_parse_phandle_with_args(device, "interrupts-extended",
-						"#interrupt-cells", index, out_irq);
-		if (res)
-			return -EINVAL;
-		return of_irq_parse_raw(addr, out_irq);
-	}
+	if (intspec == NULL)
+		return -EINVAL;
+
 	intlen /= sizeof(*intspec);
 
 	pr_debug(" intspec=%d intlen=%d\n", be32_to_cpup(intspec), intlen);
@@ -361,7 +365,7 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 
 		memset(r, 0, sizeof(*r));
 		/*
-		 * Get optional "interrupts-names" property to add a name
+		 * Get optional "interrupt-names" property to add a name
 		 * to the resource.
 		 */
 		of_property_read_string_index(dev, "interrupt-names", index,
@@ -375,6 +379,54 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 	return irq;
 }
 EXPORT_SYMBOL_GPL(of_irq_to_resource);
+
+/**
+ * of_irq_get - Decode a node's IRQ and return it as a Linux irq number
+ * @dev: pointer to device tree node
+ * @index: zero-based index of the irq
+ *
+ * Returns Linux irq number on success, or -EPROBE_DEFER if the irq domain
+ * is not yet created.
+ *
+ */
+int of_irq_get(struct device_node *dev, int index)
+{
+	int rc;
+	struct of_phandle_args oirq;
+	struct irq_domain *domain;
+
+	rc = of_irq_parse_one(dev, index, &oirq);
+	if (rc)
+		return rc;
+
+	domain = irq_find_host(oirq.np);
+	if (!domain)
+		return -EPROBE_DEFER;
+
+	return irq_create_of_mapping(&oirq);
+}
+
+/**
+ * of_irq_get_byname - Decode a node's IRQ and return it as a Linux irq number
+ * @dev: pointer to device tree node
+ * @name: irq name
+ *
+ * Returns Linux irq number on success, or -EPROBE_DEFER if the irq domain
+ * is not yet created, or error code in case of any other failure.
+ */
+int of_irq_get_byname(struct device_node *dev, const char *name)
+{
+	int index;
+
+	if (unlikely(!name))
+		return -EINVAL;
+
+	index = of_property_match_string(dev, "interrupt-names", name);
+	if (index < 0)
+		return index;
+
+	return of_irq_get(dev, index);
+}
 
 /**
  * of_irq_count - Count the number of IRQs a node uses
@@ -435,7 +487,8 @@ void __init of_irq_init(const struct of_device_id *matches)
 	INIT_LIST_HEAD(&intc_parent_list);
 
 	for_each_matching_node(np, matches) {
-		if (!of_find_property(np, "interrupt-controller", NULL))
+		if (!of_find_property(np, "interrupt-controller", NULL) ||
+				!of_device_is_available(np))
 			continue;
 		/*
 		 * Here, we allocate and populate an intc_desc with the node

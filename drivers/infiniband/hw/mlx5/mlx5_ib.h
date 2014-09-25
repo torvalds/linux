@@ -189,12 +189,16 @@ struct mlx5_ib_qp {
 
 	int			create_type;
 	u32			pa_lkey;
+
+	/* Store signature errors */
+	bool			signature_en;
 };
 
 struct mlx5_ib_cq_buf {
 	struct mlx5_buf		buf;
 	struct ib_umem		*umem;
 	int			cqe_size;
+	int			nent;
 };
 
 enum mlx5_ib_qp_flags {
@@ -220,7 +224,7 @@ struct mlx5_ib_cq {
 	/* protect resize cq
 	 */
 	struct mutex		resize_mutex;
-	struct mlx5_ib_cq_resize *resize_buf;
+	struct mlx5_ib_cq_buf  *resize_buf;
 	struct ib_umem	       *resize_umem;
 	int			cqe_size;
 };
@@ -260,11 +264,9 @@ struct mlx5_ib_mr {
 	__be64			*pas;
 	dma_addr_t		dma;
 	int			npages;
-	struct completion	done;
-	enum ib_wc_status	status;
 	struct mlx5_ib_dev     *dev;
 	struct mlx5_create_mkey_mbox_out out;
-	unsigned long		start;
+	struct mlx5_core_sig_ctx    *sig;
 };
 
 struct mlx5_ib_fast_reg_page_list {
@@ -272,6 +274,17 @@ struct mlx5_ib_fast_reg_page_list {
 	__be64			       *mapped_page_list;
 	dma_addr_t			map;
 };
+
+struct mlx5_ib_umr_context {
+	enum ib_wc_status	status;
+	struct completion	done;
+};
+
+static inline void mlx5_ib_init_umr_context(struct mlx5_ib_umr_context *context)
+{
+	context->status = -1;
+	init_completion(&context->done);
+}
 
 struct umr_common {
 	struct ib_pd	*pd;
@@ -347,7 +360,7 @@ struct mlx5_ib_resources {
 
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
-	struct mlx5_core_dev		mdev;
+	struct mlx5_core_dev		*mdev;
 	MLX5_DECLARE_DOORBELL_LOCK(uar_lock);
 	struct list_head		eqs_list;
 	int				num_ports;
@@ -396,6 +409,11 @@ static inline struct mlx5_ib_qp *to_mibqp(struct mlx5_core_qp *mqp)
 	return container_of(mqp, struct mlx5_ib_qp, mqp);
 }
 
+static inline struct mlx5_ib_mr *to_mibmr(struct mlx5_core_mr *mmr)
+{
+	return container_of(mmr, struct mlx5_ib_mr, mmr);
+}
+
 static inline struct mlx5_ib_pd *to_mpd(struct ib_pd *ibpd)
 {
 	return container_of(ibpd, struct mlx5_ib_pd, ibpd);
@@ -436,16 +454,6 @@ static inline struct mlx5_ib_ah *to_mah(struct ib_ah *ibah)
 	return container_of(ibah, struct mlx5_ib_ah, ibah);
 }
 
-static inline struct mlx5_ib_dev *mlx5_core2ibdev(struct mlx5_core_dev *dev)
-{
-	return container_of(dev, struct mlx5_ib_dev, mdev);
-}
-
-static inline struct mlx5_ib_dev *mlx5_pci2ibdev(struct pci_dev *pdev)
-{
-	return mlx5_core2ibdev(pci2mlx5_core_dev(pdev));
-}
-
 int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context, unsigned long virt,
 			struct mlx5_db *db);
 void mlx5_ib_db_unmap_user(struct mlx5_ib_ucontext *context, struct mlx5_db *db);
@@ -453,7 +461,7 @@ void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 qpn, struct mlx5_ib_srq *srq)
 void mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 qpn, struct mlx5_ib_srq *srq);
 void mlx5_ib_free_srq_wqe(struct mlx5_ib_srq *srq, int wqe_index);
 int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
-		 int port, struct ib_wc *in_wc, struct ib_grh *in_grh,
+		 u8 port, struct ib_wc *in_wc, struct ib_grh *in_grh,
 		 void *in_mad, void *response_mad);
 struct ib_ah *create_ib_ah(struct ib_ah_attr *ah_attr,
 			   struct mlx5_ib_ah *ah);
@@ -495,6 +503,9 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int access_flags,
 				  struct ib_udata *udata);
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr);
+int mlx5_ib_destroy_mr(struct ib_mr *ibmr);
+struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
+				struct ib_mr_init_attr *mr_init_attr);
 struct ib_mr *mlx5_ib_alloc_fast_reg_mr(struct ib_pd *pd,
 					int max_page_list_len);
 struct ib_fast_reg_page_list *mlx5_ib_alloc_fast_reg_page_list(struct ib_device *ibdev,
@@ -530,6 +541,8 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev);
 int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev);
 int mlx5_mr_ib_cont_pages(struct ib_umem *umem, u64 addr, int *count, int *shift);
 void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context);
+int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
+			    struct ib_mr_status *mr_status);
 
 static inline void init_query_mad(struct ib_smp *mad)
 {

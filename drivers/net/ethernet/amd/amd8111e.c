@@ -24,9 +24,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 Module Name:
 
@@ -74,7 +72,6 @@ Revision History:
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
@@ -104,7 +101,6 @@ Revision History:
 MODULE_AUTHOR("Advanced Micro Devices, Inc.");
 MODULE_DESCRIPTION ("AMD8111 based 10/100 Ethernet Controller. Driver Version "MODULE_VERS);
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(pci, amd8111e_pci_tbl);
 module_param_array(speed_duplex, int, NULL, 0);
 MODULE_PARM_DESC(speed_duplex, "Set device speed and duplex modes, 0: Auto Negotiate, 1: 10Mbps Half Duplex, 2: 10Mbps Full Duplex, 3: 100Mbps Half Duplex, 4: 100Mbps Full Duplex");
 module_param_array(coalesce, bool, NULL, 0);
@@ -112,17 +108,9 @@ MODULE_PARM_DESC(coalesce, "Enable or Disable interrupt coalescing, 1: Enable, 0
 module_param_array(dynamic_ipg, bool, NULL, 0);
 MODULE_PARM_DESC(dynamic_ipg, "Enable or Disable dynamic IPG, 1: Enable, 0: Disable");
 
-static DEFINE_PCI_DEVICE_TABLE(amd8111e_pci_tbl) = {
-
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD8111E_7462,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
-	{ 0, }
-
-};
-/*
-This function will read the PHY registers.
-*/
-static int amd8111e_read_phy(struct amd8111e_priv* lp, int phy_id, int reg, u32* val)
+/* This function will read the PHY registers. */
+static int amd8111e_read_phy(struct amd8111e_priv *lp,
+			     int phy_id, int reg, u32 *val)
 {
 	void __iomem *mmio = lp->mmio;
 	unsigned int reg_val;
@@ -149,10 +137,9 @@ err_phy_read:
 
 }
 
-/*
-This function will write into PHY registers.
-*/
-static int amd8111e_write_phy(struct amd8111e_priv* lp,int phy_id, int reg, u32 val)
+/* This function will write into PHY registers. */
+static int amd8111e_write_phy(struct amd8111e_priv *lp,
+			      int phy_id, int reg, u32 val)
 {
 	unsigned int repeat = REPEAT_CNT;
 	void __iomem *mmio = lp->mmio;
@@ -179,12 +166,11 @@ err_phy_write:
 	return -EINVAL;
 
 }
-/*
-This is the mii register read function provided to the mii interface.
-*/
-static int amd8111e_mdio_read(struct net_device * dev, int phy_id, int reg_num)
+
+/* This is the mii register read function provided to the mii interface. */
+static int amd8111e_mdio_read(struct net_device *dev, int phy_id, int reg_num)
 {
-	struct amd8111e_priv* lp = netdev_priv(dev);
+	struct amd8111e_priv *lp = netdev_priv(dev);
 	unsigned int reg_val;
 
 	amd8111e_read_phy(lp,phy_id,reg_num,&reg_val);
@@ -192,19 +178,18 @@ static int amd8111e_mdio_read(struct net_device * dev, int phy_id, int reg_num)
 
 }
 
-/*
-This is the mii register write function provided to the mii interface.
-*/
-static void amd8111e_mdio_write(struct net_device * dev, int phy_id, int reg_num, int val)
+/* This is the mii register write function provided to the mii interface. */
+static void amd8111e_mdio_write(struct net_device *dev,
+				int phy_id, int reg_num, int val)
 {
-	struct amd8111e_priv* lp = netdev_priv(dev);
+	struct amd8111e_priv *lp = netdev_priv(dev);
 
 	amd8111e_write_phy(lp, phy_id, reg_num, val);
 }
 
-/*
-This function will set PHY speed. During initialization sets the original speed to 100 full.
-*/
+/* This function will set PHY speed. During initialization sets
+ * the original speed to 100 full
+ */
 static void amd8111e_set_ext_phy(struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
@@ -243,14 +228,13 @@ static void amd8111e_set_ext_phy(struct net_device *dev)
 
 }
 
-/*
-This function will unmap skb->data space and will free
-all transmit and receive skbuffs.
-*/
+/* This function will unmap skb->data space and will free
+ * all transmit and receive skbuffs.
+ */
 static int amd8111e_free_skbs(struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
-	struct sk_buff* rx_skbuff;
+	struct sk_buff *rx_skbuff;
 	int i;
 
 	/* Freeing transmit skbs */
@@ -277,18 +261,18 @@ static int amd8111e_free_skbs(struct net_device *dev)
 	return 0;
 }
 
-/*
-This will set the receive buffer length corresponding to the mtu size of networkinterface.
-*/
-static inline void amd8111e_set_rx_buff_len(struct net_device* dev)
+/* This will set the receive buffer length corresponding
+ * to the mtu size of networkinterface.
+ */
+static inline void amd8111e_set_rx_buff_len(struct net_device *dev)
 {
-	struct amd8111e_priv* lp = netdev_priv(dev);
+	struct amd8111e_priv *lp = netdev_priv(dev);
 	unsigned int mtu = dev->mtu;
 
 	if (mtu > ETH_DATA_LEN){
 		/* MTU + ethernet header + FCS
-		+ optional VLAN tag + skb reserve space 2 */
-
+		 * + optional VLAN tag + skb reserve space 2
+		 */
 		lp->rx_buff_len = mtu + ETH_HLEN + 10;
 		lp->options |= OPTION_JUMBO_ENABLE;
 	} else{
@@ -297,8 +281,10 @@ static inline void amd8111e_set_rx_buff_len(struct net_device* dev)
 	}
 }
 
-/*
-This function will free all the previously allocated buffers, determine new receive buffer length  and will allocate new receive buffers. This function also allocates and initializes both the transmitter and receive hardware descriptors.
+/* This function will free all the previously allocated buffers,
+ * determine new receive buffer length  and will allocate new receive buffers.
+ * This function also allocates and initializes both the transmitter
+ * and receive hardware descriptors.
  */
 static int amd8111e_init_ring(struct net_device *dev)
 {
@@ -379,15 +365,18 @@ err_free_tx_ring:
 err_no_mem:
 	return -ENOMEM;
 }
-/* This function will set the interrupt coalescing according to the input arguments */
-static int amd8111e_set_coalesce(struct net_device * dev, enum coal_mode cmod)
+
+/* This function will set the interrupt coalescing according
+ * to the input arguments
+ */
+static int amd8111e_set_coalesce(struct net_device *dev, enum coal_mode cmod)
 {
 	unsigned int timeout;
 	unsigned int event_count;
 
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	void __iomem *mmio = lp->mmio;
-	struct amd8111e_coalesce_conf * coal_conf = &lp->coal_conf;
+	struct amd8111e_coalesce_conf *coal_conf = &lp->coal_conf;
 
 
 	switch(cmod)
@@ -438,9 +427,7 @@ static int amd8111e_set_coalesce(struct net_device * dev, enum coal_mode cmod)
 
 }
 
-/*
-This function initializes the device registers  and starts the device.
-*/
+/* This function initializes the device registers  and starts the device. */
 static int amd8111e_restart(struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
@@ -504,8 +491,7 @@ static int amd8111e_restart(struct net_device *dev)
 
 	/* Enable interrupt coalesce */
 	if(lp->options & OPTION_INTR_COAL_ENABLE){
-		printk(KERN_INFO "%s: Interrupt Coalescing Enabled.\n",
-								dev->name);
+		netdev_info(dev, "Interrupt Coalescing Enabled.\n");
 		amd8111e_set_coalesce(dev,ENABLE_COAL);
 	}
 
@@ -517,10 +503,9 @@ static int amd8111e_restart(struct net_device *dev)
 	readl(mmio+CMD0);
 	return 0;
 }
-/*
-This function clears necessary the device registers.
-*/
-static void amd8111e_init_hw_default( struct amd8111e_priv* lp)
+
+/* This function clears necessary the device registers. */
+static void amd8111e_init_hw_default(struct amd8111e_priv *lp)
 {
 	unsigned int reg_val;
 	unsigned int logic_filter[2] ={0,};
@@ -590,7 +575,7 @@ static void amd8111e_init_hw_default( struct amd8111e_priv* lp)
 	writew(MIB_CLEAR, mmio + MIB_ADDR);
 
 	/* Clear LARF */
-	amd8111e_writeq(*(u64*)logic_filter,mmio+LADRF);
+	amd8111e_writeq(*(u64 *)logic_filter, mmio + LADRF);
 
 	/* SRAM_SIZE register */
 	reg_val = readl(mmio + SRAM_SIZE);
@@ -608,11 +593,10 @@ static void amd8111e_init_hw_default( struct amd8111e_priv* lp)
 
 }
 
-/*
-This function disables the interrupt and clears all the pending
-interrupts in INT0
+/* This function disables the interrupt and clears all the pending
+ * interrupts in INT0
  */
-static void amd8111e_disable_interrupt(struct amd8111e_priv* lp)
+static void amd8111e_disable_interrupt(struct amd8111e_priv *lp)
 {
 	u32 intr0;
 
@@ -628,10 +612,8 @@ static void amd8111e_disable_interrupt(struct amd8111e_priv* lp)
 
 }
 
-/*
-This function stops the chip.
-*/
-static void amd8111e_stop_chip(struct amd8111e_priv* lp)
+/* This function stops the chip. */
+static void amd8111e_stop_chip(struct amd8111e_priv *lp)
 {
 	writel(RUN, lp->mmio + CMD0);
 
@@ -639,10 +621,8 @@ static void amd8111e_stop_chip(struct amd8111e_priv* lp)
 	readl(lp->mmio + CMD0);
 }
 
-/*
-This function frees the  transmiter and receiver descriptor rings.
-*/
-static void amd8111e_free_ring(struct amd8111e_priv* lp)
+/* This function frees the  transmiter and receiver descriptor rings. */
+static void amd8111e_free_ring(struct amd8111e_priv *lp)
 {
 	/* Free transmit and receive descriptor rings */
 	if(lp->rx_ring){
@@ -662,12 +642,13 @@ static void amd8111e_free_ring(struct amd8111e_priv* lp)
 
 }
 
-/*
-This function will free all the transmit skbs that are actually transmitted by the device. It will check the ownership of the skb before freeing the skb.
-*/
+/* This function will free all the transmit skbs that are actually
+ * transmitted by the device. It will check the ownership of the
+ * skb before freeing the skb.
+ */
 static int amd8111e_tx(struct net_device *dev)
 {
-	struct amd8111e_priv* lp = netdev_priv(dev);
+	struct amd8111e_priv *lp = netdev_priv(dev);
 	int tx_index = lp->tx_complete_idx & TX_RING_DR_MOD_MASK;
 	int status;
 	/* Complete all the transmit packet */
@@ -723,22 +704,24 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 	int rx_pkt_limit = budget;
 	unsigned long flags;
 
+	if (rx_pkt_limit <= 0)
+		goto rx_not_empty;
+
 	do{
-		/* process receive packets until we use the quota*/
-		/* If we own the next entry, it's a new packet. Send it up. */
+		/* process receive packets until we use the quota.
+		 * If we own the next entry, it's a new packet. Send it up.
+		 */
 		while(1) {
 			status = le16_to_cpu(lp->rx_ring[rx_index].rx_flags);
 			if (status & OWN_BIT)
 				break;
 
-			/*
-			 * There is a tricky error noted by John Murphy,
+			/* There is a tricky error noted by John Murphy,
 			 * <murf@perftech.com> to Russ Nelson: Even with
 			 * full-sized * buffers it's possible for a
 			 * jabber packet to use two buffers, with only
 			 * the last correctly noting the error.
 			 */
-
 			if(status & ERR_BIT) {
 				/* reseting flags */
 				lp->rx_ring[rx_index].rx_flags &= RESET_RX_FLAGS;
@@ -771,7 +754,8 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 			new_skb = netdev_alloc_skb(dev, lp->rx_buff_len);
 			if (!new_skb) {
 				/* if allocation fail,
-				   ignore that pkt and go to next one */
+				 * ignore that pkt and go to next one
+				 */
 				lp->rx_ring[rx_index].rx_flags &= RESET_RX_FLAGS;
 				lp->drv_rx_errors++;
 				goto err_next_pkt;
@@ -812,8 +796,8 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 			rx_index = (++lp->rx_idx) & RX_RING_DR_MOD_MASK;
 		}
 		/* Check the interrupt status register for more packets in the
-		   mean time. Process them since we have not used up our quota.*/
-
+		 * mean time. Process them since we have not used up our quota.
+		 */
 		intr0 = readl(mmio + INT0);
 		/*Ack receive packets */
 		writel(intr0 & RINT0,mmio + INT0);
@@ -833,10 +817,8 @@ rx_not_empty:
 	return num_rx_pkt;
 }
 
-/*
-This function will indicate the link status to the kernel.
-*/
-static int amd8111e_link_change(struct net_device* dev)
+/* This function will indicate the link status to the kernel. */
+static int amd8111e_link_change(struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	int status0,speed;
@@ -860,24 +842,26 @@ static int amd8111e_link_change(struct net_device* dev)
 		else if(speed == PHY_SPEED_100)
 			lp->link_config.speed = SPEED_100;
 
-		printk(KERN_INFO "%s: Link is Up. Speed is %s Mbps %s Duplex\n",			dev->name,
-		       (lp->link_config.speed == SPEED_100) ? "100": "10",
-		       (lp->link_config.duplex == DUPLEX_FULL)? "Full": "Half");
+		netdev_info(dev, "Link is Up. Speed is %s Mbps %s Duplex\n",
+			    (lp->link_config.speed == SPEED_100) ?
+							"100" : "10",
+			    (lp->link_config.duplex == DUPLEX_FULL) ?
+							"Full" : "Half");
+
 		netif_carrier_on(dev);
 	}
 	else{
 		lp->link_config.speed = SPEED_INVALID;
 		lp->link_config.duplex = DUPLEX_INVALID;
 		lp->link_config.autoneg = AUTONEG_INVALID;
-		printk(KERN_INFO "%s: Link is Down.\n",dev->name);
+		netdev_info(dev, "Link is Down.\n");
 		netif_carrier_off(dev);
 	}
 
 	return 0;
 }
-/*
-This function reads the mib counters.
-*/
+
+/* This function reads the mib counters. */
 static int amd8111e_read_mib(void __iomem *mmio, u8 MIB_COUNTER)
 {
 	unsigned int  status;
@@ -895,8 +879,7 @@ static int amd8111e_read_mib(void __iomem *mmio, u8 MIB_COUNTER)
 	return data;
 }
 
-/*
- * This function reads the mib registers and returns the hardware statistics.
+/* This function reads the mib registers and returns the hardware statistics.
  * It updates previous internal driver statistics with new values.
  */
 static struct net_device_stats *amd8111e_get_stats(struct net_device *dev)
@@ -992,13 +975,14 @@ static struct net_device_stats *amd8111e_get_stats(struct net_device *dev)
 
 	return new_stats;
 }
+
 /* This function recalculate the interrupt coalescing  mode on every interrupt
-according to the datarate and the packet rate.
-*/
+ * according to the datarate and the packet rate.
+ */
 static int amd8111e_calc_coalesce(struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
-	struct amd8111e_coalesce_conf * coal_conf = &lp->coal_conf;
+	struct amd8111e_coalesce_conf *coal_conf = &lp->coal_conf;
 	int tx_pkt_rate;
 	int rx_pkt_rate;
 	int tx_data_rate;
@@ -1126,13 +1110,14 @@ static int amd8111e_calc_coalesce(struct net_device *dev)
 	return 0;
 
 }
-/*
-This is device interrupt function. It handles transmit, receive,link change and hardware timer interrupts.
-*/
+
+/* This is device interrupt function. It handles transmit,
+ * receive,link change and hardware timer interrupts.
+ */
 static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 {
 
-	struct net_device * dev = (struct net_device *) dev_id;
+	struct net_device *dev = (struct net_device *)dev_id;
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	void __iomem *mmio = lp->mmio;
 	unsigned int intr0, intren0;
@@ -1168,7 +1153,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 			/* Schedule a polling routine */
 			__napi_schedule(&lp->napi);
 		} else if (intren0 & RINTEN0) {
-			printk("************Driver bug! interrupt while in poll\n");
+			netdev_dbg(dev, "************Driver bug! interrupt while in poll\n");
 			/* Fix by disable receive interrupts */
 			writel(RINTEN0, mmio + INTEN0);
 		}
@@ -1205,10 +1190,11 @@ static void amd8111e_poll(struct net_device *dev)
 #endif
 
 
-/*
-This function closes the network interface and updates the statistics so that most recent statistics will be available after the interface is down.
-*/
-static int amd8111e_close(struct net_device * dev)
+/* This function closes the network interface and updates
+ * the statistics so that most recent statistics will be
+ * available after the interface is down.
+ */
+static int amd8111e_close(struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	netif_stop_queue(dev);
@@ -1238,9 +1224,11 @@ static int amd8111e_close(struct net_device * dev)
 	lp->opened = 0;
 	return 0;
 }
-/* This function opens new interface.It requests irq for the device, initializes the device,buffers and descriptors, and starts the device.
-*/
-static int amd8111e_open(struct net_device * dev )
+
+/* This function opens new interface.It requests irq for the device,
+ * initializes the device,buffers and descriptors, and starts the device.
+ */
+static int amd8111e_open(struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 
@@ -1264,7 +1252,7 @@ static int amd8111e_open(struct net_device * dev )
 	/* Start ipg timer */
 	if(lp->options & OPTION_DYN_IPG_ENABLE){
 		add_timer(&lp->ipg_data.ipg_timer);
-		printk(KERN_INFO "%s: Dynamic IPG Enabled.\n",dev->name);
+		netdev_info(dev, "Dynamic IPG Enabled\n");
 	}
 
 	lp->opened = 1;
@@ -1275,10 +1263,11 @@ static int amd8111e_open(struct net_device * dev )
 
 	return 0;
 }
-/*
-This function checks if there is any transmit  descriptors available to queue more packet.
-*/
-static int amd8111e_tx_queue_avail(struct amd8111e_priv* lp )
+
+/* This function checks if there is any transmit  descriptors
+ * available to queue more packet.
+ */
+static int amd8111e_tx_queue_avail(struct amd8111e_priv *lp)
 {
 	int tx_index = lp->tx_idx & TX_BUFF_MOD_MASK;
 	if (lp->tx_skbuff[tx_index])
@@ -1287,12 +1276,14 @@ static int amd8111e_tx_queue_avail(struct amd8111e_priv* lp )
 		return 0;
 
 }
-/*
-This function will queue the transmit packets to the descriptors and will trigger the send operation. It also initializes the transmit descriptors with buffer physical address, byte count, ownership to hardware etc.
-*/
 
+/* This function will queue the transmit packets to the
+ * descriptors and will trigger the send operation. It also
+ * initializes the transmit descriptors with buffer physical address,
+ * byte count, ownership to hardware etc.
+ */
 static netdev_tx_t amd8111e_start_xmit(struct sk_buff *skb,
-				       struct net_device * dev)
+				       struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	int tx_index;
@@ -1338,9 +1329,7 @@ static netdev_tx_t amd8111e_start_xmit(struct sk_buff *skb,
 	spin_unlock_irqrestore(&lp->lock, flags);
 	return NETDEV_TX_OK;
 }
-/*
-This function returns all the memory mapped registers of the device.
-*/
+/* This function returns all the memory mapped registers of the device. */
 static void amd8111e_read_regs(struct amd8111e_priv *lp, u32 *buf)
 {
 	void __iomem *mmio = lp->mmio;
@@ -1361,10 +1350,9 @@ static void amd8111e_read_regs(struct amd8111e_priv *lp, u32 *buf)
 }
 
 
-/*
-This function sets promiscuos mode, all-multi mode or the multicast address
-list to the device.
-*/
+/* This function sets promiscuos mode, all-multi mode or the multicast address
+ * list to the device.
+ */
 static void amd8111e_set_multicast_list(struct net_device *dev)
 {
 	struct netdev_hw_addr *ha;
@@ -1383,14 +1371,14 @@ static void amd8111e_set_multicast_list(struct net_device *dev)
 		/* get all multicast packet */
 		mc_filter[1] = mc_filter[0] = 0xffffffff;
 		lp->options |= OPTION_MULTICAST_ENABLE;
-		amd8111e_writeq(*(u64*)mc_filter,lp->mmio + LADRF);
+		amd8111e_writeq(*(u64 *)mc_filter, lp->mmio + LADRF);
 		return;
 	}
 	if (netdev_mc_empty(dev)) {
 		/* get only own packets */
 		mc_filter[1] = mc_filter[0] = 0;
 		lp->options &= ~OPTION_MULTICAST_ENABLE;
-		amd8111e_writeq(*(u64*)mc_filter,lp->mmio + LADRF);
+		amd8111e_writeq(*(u64 *)mc_filter, lp->mmio + LADRF);
 		/* disable promiscuous mode */
 		writel(PROM, lp->mmio + CMD2);
 		return;
@@ -1402,14 +1390,15 @@ static void amd8111e_set_multicast_list(struct net_device *dev)
 		bit_num = (ether_crc_le(ETH_ALEN, ha->addr) >> 26) & 0x3f;
 		mc_filter[bit_num >> 5] |= 1 << (bit_num & 31);
 	}
-	amd8111e_writeq(*(u64*)mc_filter,lp->mmio+ LADRF);
+	amd8111e_writeq(*(u64 *)mc_filter, lp->mmio + LADRF);
 
 	/* To eliminate PCI posting bug */
 	readl(lp->mmio + CMD2);
 
 }
 
-static void amd8111e_get_drvinfo(struct net_device* dev, struct ethtool_drvinfo *info)
+static void amd8111e_get_drvinfo(struct net_device *dev,
+				 struct ethtool_drvinfo *info)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	struct pci_dev *pci_dev = lp->pci_dev;
@@ -1501,11 +1490,11 @@ static const struct ethtool_ops ops = {
 	.set_wol = amd8111e_set_wol,
 };
 
-/*
-This function handles all the  ethtool ioctls. It gives driver info, gets/sets driver speed, gets memory mapped register values, forces auto negotiation, sets/gets WOL options for ethtool application.
-*/
-
-static int amd8111e_ioctl(struct net_device * dev , struct ifreq *ifr, int cmd)
+/* This function handles all the  ethtool ioctls. It gives driver info,
+ * gets/sets driver speed, gets memory mapped register values, forces
+ * auto negotiation, sets/gets WOL options for ethtool application.
+ */
+static int amd8111e_ioctl(struct net_device *dev , struct ifreq *ifr, int cmd)
 {
 	struct mii_ioctl_data *data = if_mii(ifr);
 	struct amd8111e_priv *lp = netdev_priv(dev);
@@ -1559,9 +1548,9 @@ static int amd8111e_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-/*
-This function changes the mtu of the device. It restarts the device  to initialize the descriptor with new receive buffers.
-*/
+/* This function changes the mtu of the device. It restarts the device  to
+ * initialize the descriptor with new receive buffers.
+ */
 static int amd8111e_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
@@ -1572,7 +1561,8 @@ static int amd8111e_change_mtu(struct net_device *dev, int new_mtu)
 
 	if (!netif_running(dev)) {
 		/* new_mtu will be used
-		   when device starts netxt time */
+		 * when device starts netxt time
+		 */
 		dev->mtu = new_mtu;
 		return 0;
 	}
@@ -1591,7 +1581,7 @@ static int amd8111e_change_mtu(struct net_device *dev, int new_mtu)
 	return err;
 }
 
-static int amd8111e_enable_magicpkt(struct amd8111e_priv* lp)
+static int amd8111e_enable_magicpkt(struct amd8111e_priv *lp)
 {
 	writel( VAL1|MPPLBA, lp->mmio + CMD3);
 	writel( VAL0|MPEN_SW, lp->mmio + CMD7);
@@ -1601,7 +1591,7 @@ static int amd8111e_enable_magicpkt(struct amd8111e_priv* lp)
 	return 0;
 }
 
-static int amd8111e_enable_link_change(struct amd8111e_priv* lp)
+static int amd8111e_enable_link_change(struct amd8111e_priv *lp)
 {
 
 	/* Adapter is already stoped/suspended/interrupt-disabled */
@@ -1612,19 +1602,18 @@ static int amd8111e_enable_link_change(struct amd8111e_priv* lp)
 	return 0;
 }
 
-/*
- * This function is called when a packet transmission fails to complete
+/* This function is called when a packet transmission fails to complete
  * within a reasonable period, on the assumption that an interrupt have
  * failed or the interface is locked up. This function will reinitialize
  * the hardware.
  */
 static void amd8111e_tx_timeout(struct net_device *dev)
 {
-	struct amd8111e_priv* lp = netdev_priv(dev);
+	struct amd8111e_priv *lp = netdev_priv(dev);
 	int err;
 
-	printk(KERN_ERR "%s: transmit timed out, resetting\n",
-	 					      dev->name);
+	netdev_err(dev, "transmit timed out, resetting\n");
+
 	spin_lock_irq(&lp->lock);
 	err = amd8111e_restart(dev);
 	spin_unlock_irq(&lp->lock);
@@ -1701,22 +1690,10 @@ static int amd8111e_resume(struct pci_dev *pci_dev)
 	return 0;
 }
 
-
-static void amd8111e_remove_one(struct pci_dev *pdev)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-	if (dev) {
-		unregister_netdev(dev);
-		iounmap(((struct amd8111e_priv *)netdev_priv(dev))->mmio);
-		free_netdev(dev);
-		pci_release_regions(pdev);
-		pci_disable_device(pdev);
-	}
-}
-static void amd8111e_config_ipg(struct net_device* dev)
+static void amd8111e_config_ipg(struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
-	struct ipg_info* ipg_data = &lp->ipg_data;
+	struct ipg_info *ipg_data = &lp->ipg_data;
 	void __iomem *mmio = lp->mmio;
 	unsigned int prev_col_cnt = ipg_data->col_cnt;
 	unsigned int total_col_cnt;
@@ -1814,27 +1791,24 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 {
 	int err, i;
 	unsigned long reg_addr,reg_len;
-	struct amd8111e_priv* lp;
-	struct net_device* dev;
+	struct amd8111e_priv *lp;
+	struct net_device *dev;
 
 	err = pci_enable_device(pdev);
 	if(err){
-		printk(KERN_ERR "amd8111e: Cannot enable new PCI device, "
-			"exiting.\n");
+		dev_err(&pdev->dev, "Cannot enable new PCI device\n");
 		return err;
 	}
 
 	if(!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)){
-		printk(KERN_ERR "amd8111e: Cannot find PCI base address, "
-		       "exiting.\n");
+		dev_err(&pdev->dev, "Cannot find PCI base address\n");
 		err = -ENODEV;
 		goto err_disable_pdev;
 	}
 
 	err = pci_request_regions(pdev, MODULE_NAME);
 	if(err){
-		printk(KERN_ERR "amd8111e: Cannot obtain PCI resources, "
-		       "exiting.\n");
+		dev_err(&pdev->dev, "Cannot obtain PCI resources\n");
 		goto err_disable_pdev;
 	}
 
@@ -1842,16 +1816,14 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	/* Find power-management capability. */
 	if (!pdev->pm_cap) {
-		printk(KERN_ERR "amd8111e: No Power Management capability, "
-		       "exiting.\n");
+		dev_err(&pdev->dev, "No Power Management capability\n");
 		err = -ENODEV;
 		goto err_free_reg;
 	}
 
 	/* Initialize DMA */
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) < 0) {
-		printk(KERN_ERR "amd8111e: DMA not supported,"
-			"exiting.\n");
+		dev_err(&pdev->dev, "DMA not supported\n");
 		err = -ENODEV;
 		goto err_free_reg;
 	}
@@ -1878,10 +1850,9 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	spin_lock_init(&lp->lock);
 
-	lp->mmio = ioremap(reg_addr, reg_len);
+	lp->mmio = devm_ioremap(&pdev->dev, reg_addr, reg_len);
 	if (!lp->mmio) {
-		printk(KERN_ERR "amd8111e: Cannot map device registers, "
-		       "exiting\n");
+		dev_err(&pdev->dev, "Cannot map device registers\n");
 		err = -ENOMEM;
 		goto err_free_dev;
 	}
@@ -1900,7 +1871,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	/* Initialize driver entry points */
 	dev->netdev_ops = &amd8111e_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &ops);
+	dev->ethtool_ops = &ops;
 	dev->irq =pdev->irq;
 	dev->watchdog_timeo = AMD8111E_TX_TIMEOUT;
 	netif_napi_add(dev, &lp->napi, amd8111e_rx_poll, 32);
@@ -1923,9 +1894,8 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 
 	err = register_netdev(dev);
 	if (err) {
-		printk(KERN_ERR "amd8111e: Cannot register net device, "
-		       "exiting.\n");
-		goto err_iounmap;
+		dev_err(&pdev->dev, "Cannot register net device\n");
+		goto err_free_dev;
 	}
 
 	pci_set_drvdata(pdev, dev);
@@ -1942,21 +1912,17 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	}
 
 	/*  display driver and device information */
-
     	chip_version = (readl(lp->mmio + CHIPID) & 0xf0000000)>>28;
-	printk(KERN_INFO "%s: AMD-8111e Driver Version: %s\n",
-	       dev->name,MODULE_VERS);
-	printk(KERN_INFO "%s: [ Rev %x ] PCI 10/100BaseT Ethernet %pM\n",
-	       dev->name, chip_version, dev->dev_addr);
+	dev_info(&pdev->dev, "AMD-8111e Driver Version: %s\n", MODULE_VERS);
+	dev_info(&pdev->dev, "[ Rev %x ] PCI 10/100BaseT Ethernet %pM\n",
+		 chip_version, dev->dev_addr);
 	if (lp->ext_phy_id)
-		printk(KERN_INFO "%s: Found MII PHY ID 0x%08x at address 0x%02x\n",
-		       dev->name, lp->ext_phy_id, lp->ext_phy_addr);
+		dev_info(&pdev->dev, "Found MII PHY ID 0x%08x at address 0x%02x\n",
+			 lp->ext_phy_id, lp->ext_phy_addr);
 	else
-		printk(KERN_INFO "%s: Couldn't detect MII PHY, assuming address 0x01\n",
-		       dev->name);
+		dev_info(&pdev->dev, "Couldn't detect MII PHY, assuming address 0x01\n");
+
     	return 0;
-err_iounmap:
-	iounmap(lp->mmio);
 
 err_free_dev:
 	free_netdev(dev);
@@ -1969,6 +1935,29 @@ err_disable_pdev:
 	return err;
 
 }
+
+static void amd8111e_remove_one(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	if (dev) {
+		unregister_netdev(dev);
+		free_netdev(dev);
+		pci_release_regions(pdev);
+		pci_disable_device(pdev);
+	}
+}
+
+static const struct pci_device_id amd8111e_pci_tbl[] = {
+	{
+	 .vendor = PCI_VENDOR_ID_AMD,
+	 .device = PCI_DEVICE_ID_AMD8111E_7462,
+	},
+	{
+	 .vendor = 0,
+	}
+};
+MODULE_DEVICE_TABLE(pci, amd8111e_pci_tbl);
 
 static struct pci_driver amd8111e_driver = {
 	.name   	= MODULE_NAME,

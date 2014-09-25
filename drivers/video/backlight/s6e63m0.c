@@ -597,11 +597,6 @@ static int s6e63m0_get_power(struct lcd_device *ld)
 	return lcd->power;
 }
 
-static int s6e63m0_get_brightness(struct backlight_device *bd)
-{
-	return bd->props.brightness;
-}
-
 static int s6e63m0_set_brightness(struct backlight_device *bd)
 {
 	int ret = 0, brightness = bd->props.brightness;
@@ -629,7 +624,6 @@ static struct lcd_ops s6e63m0_lcd_ops = {
 };
 
 static const struct backlight_ops s6e63m0_backlight_ops  = {
-	.get_brightness = s6e63m0_get_brightness,
 	.update_status = s6e63m0_set_brightness,
 };
 
@@ -703,7 +697,7 @@ static ssize_t s6e63m0_sysfs_show_gamma_table(struct device *dev,
 	struct s6e63m0 *lcd = dev_get_drvdata(dev);
 	char temp[3];
 
-	sprintf(temp, "%d\n", lcd->gamma_table_count);
+	sprintf(temp, "%u\n", lcd->gamma_table_count);
 	strcpy(buf, temp);
 
 	return strlen(buf);

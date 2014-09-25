@@ -63,7 +63,9 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		if (unlikely(type & ~(SKB_GSO_UDP |
 				      SKB_GSO_DODGY |
 				      SKB_GSO_UDP_TUNNEL |
+				      SKB_GSO_UDP_TUNNEL_CSUM |
 				      SKB_GSO_GRE |
+				      SKB_GSO_GRE_CSUM |
 				      SKB_GSO_IPIP |
 				      SKB_GSO_SIT |
 				      SKB_GSO_MPLS) ||
@@ -76,7 +78,8 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		goto out;
 	}
 
-	if (skb->encapsulation && skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL)
+	if (skb->encapsulation && skb_shinfo(skb)->gso_type &
+	    (SKB_GSO_UDP_TUNNEL|SKB_GSO_UDP_TUNNEL_CSUM))
 		segs = skb_udp_tunnel_segment(skb, features);
 	else {
 		/* Do software UFO. Complete and fill in the UDP checksum as HW cannot
@@ -113,7 +116,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		fptr = (struct frag_hdr *)(skb_network_header(skb) + unfrag_ip6hlen);
 		fptr->nexthdr = nexthdr;
 		fptr->reserved = 0;
-		ipv6_select_ident(fptr, (struct rt6_info *)skb_dst(skb));
+		fptr->identification = skb_shinfo(skb)->ip6_frag_id;
 
 		/* Fragment the skb. ipv6 header and the remaining fields of the
 		 * fragment header are updated in ipv6_gso_segment()

@@ -71,7 +71,6 @@ TRIG_WAKE_EOS
 #include "8253.h"
 #include "comedi_fc.h"
 
-#define A2150_SIZE           28
 #define A2150_DMA_BUFFER_SIZE	0xff00	/*  size in bytes of dma buffer */
 
 /* Registers and bits */
@@ -156,13 +155,6 @@ struct a2150_private {
 	int config_bits;	/*  config register bits */
 };
 
-static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-
-static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
-			    int flags);
-static int a2150_set_chanlist(struct comedi_device *dev,
-			      unsigned int start_channel,
-			      unsigned int num_channels);
 /* interrupt service routine */
 static irqreturn_t a2150_interrupt(int irq, void *d)
 {
@@ -179,32 +171,31 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	static const int sample_size = sizeof(devpriv->dma_buffer[0]);
 
 	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
+		dev_err(dev->class_dev, "premature interrupt\n");
 		return IRQ_HANDLED;
 	}
 	/*  initialize async here to make sure s is not NULL */
 	async = s->async;
-	async->events = 0;
 	cmd = &async->cmd;
 
 	status = inw(dev->iobase + STATUS_REG);
 
 	if ((status & INTR_BIT) == 0) {
-		comedi_error(dev, "spurious interrupt");
+		dev_err(dev->class_dev, "spurious interrupt\n");
 		return IRQ_NONE;
 	}
 
 	if (status & OVFL_BIT) {
-		comedi_error(dev, "fifo overflow");
-		a2150_cancel(dev, s);
+		dev_err(dev->class_dev, "fifo overflow\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		cfc_handle_events(dev, s);
 	}
 
 	if ((status & DMA_TC_BIT) == 0) {
-		comedi_error(dev, "caught non-dma interrupt?  Aborting.");
-		a2150_cancel(dev, s);
+		dev_err(dev->class_dev,
+			"caught non-dma interrupt?  Aborting.\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		cfc_handle_events(dev, s);
 		return IRQ_HANDLED;
 	}
 
@@ -249,7 +240,6 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 		cfc_write_to_buffer(s, dpnt);
 		if (cmd->stop_src == TRIG_COUNT) {
 			if (--devpriv->count == 0) {	/* end of acquisition */
-				a2150_cancel(dev, s);
 				async->events |= COMEDI_CB_EOA;
 				break;
 			}
@@ -265,7 +255,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 
 	async->events |= COMEDI_CB_BLOCK;
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 
 	/* clear interrupt */
 	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
@@ -290,14 +280,165 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+/*
+ * sets bits in devpriv->clock_bits to nearest approximation of requested
+ * period, adjusts requested period to actual timing.
+ */
+static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
+			    unsigned int flags)
+{
+	const struct a2150_board *thisboard = comedi_board(dev);
+	struct a2150_private *devpriv = dev->private;
+	int lub, glb, temp;
+	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
+	int i, j;
+
+	/*  initialize greatest lower and least upper bounds */
+	lub_divisor_shift = 3;
+	lub_index = 0;
+	lub = thisboard->clock[lub_index] * (1 << lub_divisor_shift);
+	glb_divisor_shift = 0;
+	glb_index = thisboard->num_clocks - 1;
+	glb = thisboard->clock[glb_index] * (1 << glb_divisor_shift);
+
+	/*  make sure period is in available range */
+	if (*period < glb)
+		*period = glb;
+	if (*period > lub)
+		*period = lub;
+
+	/*  we can multiply period by 1, 2, 4, or 8, using (1 << i) */
+	for (i = 0; i < 4; i++) {
+		/*  there are a maximum of 4 master clocks */
+		for (j = 0; j < thisboard->num_clocks; j++) {
+			/*  temp is the period in nanosec we are evaluating */
+			temp = thisboard->clock[j] * (1 << i);
+			/*  if it is the best match yet */
+			if (temp < lub && temp >= *period) {
+				lub_divisor_shift = i;
+				lub_index = j;
+				lub = temp;
+			}
+			if (temp > glb && temp <= *period) {
+				glb_divisor_shift = i;
+				glb_index = j;
+				glb = temp;
+			}
+		}
+	}
+	switch (flags & TRIG_ROUND_MASK) {
+	case TRIG_ROUND_NEAREST:
+	default:
+		/*  if least upper bound is better approximation */
+		if (lub - *period < *period - glb)
+			*period = lub;
+		else
+			*period = glb;
+		break;
+	case TRIG_ROUND_UP:
+		*period = lub;
+		break;
+	case TRIG_ROUND_DOWN:
+		*period = glb;
+		break;
+	}
+
+	/*  set clock bits for config register appropriately */
+	devpriv->config_bits &= ~CLOCK_MASK;
+	if (*period == lub) {
+		devpriv->config_bits |=
+		    CLOCK_SELECT_BITS(lub_index) |
+		    CLOCK_DIVISOR_BITS(lub_divisor_shift);
+	} else {
+		devpriv->config_bits |=
+		    CLOCK_SELECT_BITS(glb_index) |
+		    CLOCK_DIVISOR_BITS(glb_divisor_shift);
+	}
+
+	return 0;
+}
+
+static int a2150_set_chanlist(struct comedi_device *dev,
+			      unsigned int start_channel,
+			      unsigned int num_channels)
+{
+	struct a2150_private *devpriv = dev->private;
+
+	if (start_channel + num_channels > 4)
+		return -1;
+
+	devpriv->config_bits &= ~CHANNEL_MASK;
+
+	switch (num_channels) {
+	case 1:
+		devpriv->config_bits |= CHANNEL_BITS(0x4 | start_channel);
+		break;
+	case 2:
+		if (start_channel == 0)
+			devpriv->config_bits |= CHANNEL_BITS(0x2);
+		else if (start_channel == 2)
+			devpriv->config_bits |= CHANNEL_BITS(0x3);
+		else
+			return -1;
+		break;
+	case 4:
+		devpriv->config_bits |= CHANNEL_BITS(0x1);
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
+static int a2150_ai_check_chanlist(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
+	int i;
+
+	if (cmd->chanlist_len == 2 && (chan0 == 1 || chan0 == 3)) {
+		dev_dbg(dev->class_dev,
+			"length 2 chanlist must be channels 0,1 or channels 2,3\n");
+		return -EINVAL;
+	}
+
+	if (cmd->chanlist_len == 3) {
+		dev_dbg(dev->class_dev,
+			"chanlist must have 1,2 or 4 channels\n");
+		return -EINVAL;
+	}
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+
+		if (chan != (chan0 + i)) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must be consecutive channels, counting upwards\n");
+			return -EINVAL;
+		}
+
+		if (chan == 2)
+			aref0 = aref;
+		if (aref != aref0) {
+			dev_dbg(dev->class_dev,
+				"channels 0/1 and 2/3 must have the same analog reference\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int a2150_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	const struct a2150_board *thisboard = comedi_board(dev);
 	int err = 0;
-	int tmp;
-	int startChan;
-	int i;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -342,42 +483,17 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		a2150_get_timing(dev, &cmd->scan_begin_arg, cmd->flags);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		arg = cmd->scan_begin_arg;
+		a2150_get_timing(dev, &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (err)
 		return 4;
 
-	/*  check channel/gain list against card's limitations */
-	if (cmd->chanlist) {
-		startChan = CR_CHAN(cmd->chanlist[0]);
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) != (startChan + i)) {
-				comedi_error(dev,
-					     "entries in chanlist must be consecutive channels, counting upwards\n");
-				err++;
-			}
-		}
-		if (cmd->chanlist_len == 2 && CR_CHAN(cmd->chanlist[0]) == 1) {
-			comedi_error(dev,
-				     "length 2 chanlist must be channels 0,1 or channels 2,3");
-			err++;
-		}
-		if (cmd->chanlist_len == 3) {
-			comedi_error(dev,
-				     "chanlist must have 1,2 or 4 channels");
-			err++;
-		}
-		if (CR_AREF(cmd->chanlist[0]) != CR_AREF(cmd->chanlist[1]) ||
-		    CR_AREF(cmd->chanlist[2]) != CR_AREF(cmd->chanlist[3])) {
-			comedi_error(dev,
-				     "channels 0/1 and 2/3 must have the same analog reference");
-			err++;
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= a2150_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -390,13 +506,14 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct a2150_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	unsigned long timer_base = dev->iobase + I8253_BASE_REG;
 	unsigned long lock_flags;
 	unsigned int old_config_bits = devpriv->config_bits;
 	unsigned int trigger_bits;
 
 	if (cmd->flags & TRIG_RT) {
-		comedi_error(dev,
-			     " dma incompatible with hard real-time interrupt (TRIG_RT), aborting");
+		dev_err(dev->class_dev,
+			"dma incompatible with hard real-time interrupt (TRIG_RT), aborting\n");
 		return -1;
 	}
 	/*  clear fifo and reset triggering circuitry */
@@ -457,7 +574,8 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
 	/*  may need to wait 72 sampling periods if timing was changed */
-	i8254_load(dev->iobase + I8253_BASE_REG, 0, 2, 72, 0);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE0 | I8254_BINARY);
+	i8254_write(timer_base, 0, 2, 72);
 
 	/*  setup start triggering */
 	trigger_bits = 0;
@@ -476,7 +594,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		trigger_bits |= HW_TRIG_EN;
 	} else if (cmd->start_src == TRIG_OTHER) {
 		/*  XXX add support for level/slope start trigger using TRIG_OTHER */
-		comedi_error(dev, "you shouldn't see this?");
+		dev_err(dev->class_dev, "you shouldn't see this?\n");
 	}
 	/*  send trigger config bits */
 	outw(trigger_bits, dev->iobase + TRIGGER_REG);
@@ -488,13 +606,25 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int a2150_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + STATUS_REG);
+	if (status & FNE_BIT)
+		return 0;
+	return -EBUSY;
+}
+
 static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
 	struct a2150_private *devpriv = dev->private;
-	unsigned int i, n;
-	static const int timeout = 100000;
-	static const int filter_delay = 36;
+	unsigned int n;
+	int ret;
 
 	/*  clear fifo and reset triggering circuitry */
 	outw(0, dev->iobase + FIFO_RESET_REG);
@@ -524,30 +654,20 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	 * there is a 35.6 sample delay for data to get through the
 	 * antialias filter
 	 */
-	for (n = 0; n < filter_delay; n++) {
-		for (i = 0; i < timeout; i++) {
-			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
-				break;
-			udelay(1);
-		}
-		if (i == timeout) {
-			comedi_error(dev, "timeout");
-			return -ETIME;
-		}
+	for (n = 0; n < 36; n++) {
+		ret = comedi_timeout(dev, s, insn, a2150_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		inw(dev->iobase + FIFO_DATA_REG);
 	}
 
 	/*  read data */
 	for (n = 0; n < insn->n; n++) {
-		for (i = 0; i < timeout; i++) {
-			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
-				break;
-			udelay(1);
-		}
-		if (i == timeout) {
-			comedi_error(dev, "timeout");
-			return -ETIME;
-		}
+		ret = comedi_timeout(dev, s, insn, a2150_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		data[n] = inw(dev->iobase + FIFO_DATA_REG);
 		data[n] ^= 0x8000;
 	}
@@ -558,129 +678,17 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-/*
- * sets bits in devpriv->clock_bits to nearest approximation of requested
- * period, adjusts requested period to actual timing.
- */
-static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
-			    int flags)
-{
-	const struct a2150_board *thisboard = comedi_board(dev);
-	struct a2150_private *devpriv = dev->private;
-	int lub, glb, temp;
-	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
-	int i, j;
-
-	/*  initialize greatest lower and least upper bounds */
-	lub_divisor_shift = 3;
-	lub_index = 0;
-	lub = thisboard->clock[lub_index] * (1 << lub_divisor_shift);
-	glb_divisor_shift = 0;
-	glb_index = thisboard->num_clocks - 1;
-	glb = thisboard->clock[glb_index] * (1 << glb_divisor_shift);
-
-	/*  make sure period is in available range */
-	if (*period < glb)
-		*period = glb;
-	if (*period > lub)
-		*period = lub;
-
-	/*  we can multiply period by 1, 2, 4, or 8, using (1 << i) */
-	for (i = 0; i < 4; i++) {
-		/*  there are a maximum of 4 master clocks */
-		for (j = 0; j < thisboard->num_clocks; j++) {
-			/*  temp is the period in nanosec we are evaluating */
-			temp = thisboard->clock[j] * (1 << i);
-			/*  if it is the best match yet */
-			if (temp < lub && temp >= *period) {
-				lub_divisor_shift = i;
-				lub_index = j;
-				lub = temp;
-			}
-			if (temp > glb && temp <= *period) {
-				glb_divisor_shift = i;
-				glb_index = j;
-				glb = temp;
-			}
-		}
-	}
-	flags &= TRIG_ROUND_MASK;
-	switch (flags) {
-	case TRIG_ROUND_NEAREST:
-	default:
-		/*  if least upper bound is better approximation */
-		if (lub - *period < *period - glb)
-			*period = lub;
-		else
-			*period = glb;
-		break;
-	case TRIG_ROUND_UP:
-		*period = lub;
-		break;
-	case TRIG_ROUND_DOWN:
-		*period = glb;
-		break;
-	}
-
-	/*  set clock bits for config register appropriately */
-	devpriv->config_bits &= ~CLOCK_MASK;
-	if (*period == lub) {
-		devpriv->config_bits |=
-		    CLOCK_SELECT_BITS(lub_index) |
-		    CLOCK_DIVISOR_BITS(lub_divisor_shift);
-	} else {
-		devpriv->config_bits |=
-		    CLOCK_SELECT_BITS(glb_index) |
-		    CLOCK_DIVISOR_BITS(glb_divisor_shift);
-	}
-
-	return 0;
-}
-
-static int a2150_set_chanlist(struct comedi_device *dev,
-			      unsigned int start_channel,
-			      unsigned int num_channels)
-{
-	struct a2150_private *devpriv = dev->private;
-
-	if (start_channel + num_channels > 4)
-		return -1;
-
-	devpriv->config_bits &= ~CHANNEL_MASK;
-
-	switch (num_channels) {
-	case 1:
-		devpriv->config_bits |= CHANNEL_BITS(0x4 | start_channel);
-		break;
-	case 2:
-		if (start_channel == 0)
-			devpriv->config_bits |= CHANNEL_BITS(0x2);
-		else if (start_channel == 2)
-			devpriv->config_bits |= CHANNEL_BITS(0x3);
-		else
-			return -1;
-		break;
-	case 4:
-		devpriv->config_bits |= CHANNEL_BITS(0x1);
-		break;
-	default:
-		return -1;
-		break;
-	}
-
-	return 0;
-}
-
 /* probes board type, returns offset */
 static int a2150_probe(struct comedi_device *dev)
 {
 	int status = inw(dev->iobase + STATUS_REG);
+
 	return ID_BITS(status);
 }
 
 static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct a2150_board *thisboard = comedi_board(dev);
+	const struct a2150_board *thisboard;
 	struct a2150_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int irq = it->options[1];
@@ -693,7 +701,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	ret = comedi_request_region(dev, it->options[0], A2150_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x1c);
 	if (ret)
 		return ret;
 
@@ -768,8 +776,8 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		udelay(1000);
 	}
 	if (i == timeout) {
-		printk
-		    (" timed out waiting for offset calibration to complete\n");
+		dev_err(dev->class_dev,
+			"timed out waiting for offset calibration to complete\n");
 		return -ETIME;
 	}
 	devpriv->config_bits |= ENABLE0_BIT | ENABLE1_BIT;

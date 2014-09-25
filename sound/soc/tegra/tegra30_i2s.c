@@ -357,7 +357,7 @@ static const struct regmap_config tegra30_i2s_regmap_config = {
 	.writeable_reg = tegra30_i2s_wr_rd_reg,
 	.readable_reg = tegra30_i2s_wr_rd_reg,
 	.volatile_reg = tegra30_i2s_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static const struct tegra30_i2s_soc_data tegra30_i2s_config = {

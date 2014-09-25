@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -257,7 +257,8 @@ enum {
 
 /* Bit 17-18: (0) SS, (1) SS*2 */
 #define RATE_MCS_STBC_POS		17
-#define RATE_MCS_STBC_MSK		(1 << RATE_MCS_STBC_POS)
+#define RATE_MCS_HT_STBC_MSK		(3 << RATE_MCS_STBC_POS)
+#define RATE_MCS_VHT_STBC_MSK		(1 << RATE_MCS_STBC_POS)
 
 /* Bit 19: (0) Beamforming is off, (1) Beamforming is on */
 #define RATE_MCS_BF_POS			19
@@ -281,8 +282,31 @@ enum {
 /* # entries in rate scale table to support Tx retries */
 #define  LQ_MAX_RETRY_NUM 16
 
-/* Link quality command flags, only this one is available */
-#define  LQ_FLAG_SET_STA_TLC_RTS_MSK	BIT(0)
+/* Link quality command flags bit fields */
+
+/* Bit 0: (0) Don't use RTS (1) Use RTS */
+#define LQ_FLAG_USE_RTS_POS             0
+#define LQ_FLAG_USE_RTS_MSK	        (1 << LQ_FLAG_USE_RTS_POS)
+
+/* Bit 1-3: LQ command color. Used to match responses to LQ commands */
+#define LQ_FLAG_COLOR_POS               1
+#define LQ_FLAG_COLOR_MSK               (7 << LQ_FLAG_COLOR_POS)
+
+/* Bit 4-5: Tx RTS BW Signalling
+ * (0) No RTS BW signalling
+ * (1) Static BW signalling
+ * (2) Dynamic BW signalling
+ */
+#define LQ_FLAG_RTS_BW_SIG_POS          4
+#define LQ_FLAG_RTS_BW_SIG_NONE         (0 << LQ_FLAG_RTS_BW_SIG_POS)
+#define LQ_FLAG_RTS_BW_SIG_STATIC       (1 << LQ_FLAG_RTS_BW_SIG_POS)
+#define LQ_FLAG_RTS_BW_SIG_DYNAMIC      (2 << LQ_FLAG_RTS_BW_SIG_POS)
+
+/* Bit 6: (0) No dynamic BW selection (1) Allow dynamic BW selection
+ * Dyanmic BW selection allows Tx with narrower BW then requested in rates
+ */
+#define LQ_FLAG_DYNAMIC_BW_POS          6
+#define LQ_FLAG_DYNAMIC_BW_MSK          (1 << LQ_FLAG_DYNAMIC_BW_POS)
 
 /**
  * struct iwl_lq_cmd - link quality command
@@ -310,7 +334,7 @@ enum {
  */
 struct iwl_lq_cmd {
 	u8 sta_id;
-	u8 reserved1;
+	u8 reduced_tpc;
 	u16 control;
 	/* LINK_QUAL_GENERAL_PARAMS_API_S_VER_1 */
 	u8 flags;

@@ -623,14 +623,6 @@ int rs780_dpm_enable(struct radeon_device *rdev)
 	if (pi->gfx_clock_gating)
 		r600_gfx_clockgating_enable(rdev, true);
 
-	if (rdev->irq.installed && (rdev->pm.int_thermal_type == THERMAL_TYPE_RV6XX)) {
-		ret = r600_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
-		if (ret)
-			return ret;
-		rdev->irq.dpm_thermal = true;
-		radeon_irq_set(rdev);
-	}
-
 	return 0;
 }
 
@@ -815,9 +807,6 @@ static int rs780_parse_power_table(struct radeon_device *rdev)
 				  power_info->pplib.ucNumStates, GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 
 	for (i = 0; i < power_info->pplib.ucNumStates; i++) {
 		power_state = (union pplib_power_state *)
@@ -866,6 +855,10 @@ int rs780_dpm_init(struct radeon_device *rdev)
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = rs780_parse_power_table(rdev);
 	if (ret)

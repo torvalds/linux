@@ -28,7 +28,7 @@
 	compatible = "nvidia,cardhu", "nvidia,tegra30";
 
 	aliases {
-		rtc0 = "/i2c@7000d000/tps6586x@34";
+		rtc0 = "/i2c@7000d000/tps65911@2d";
 		rtc1 = "/rtc@7000e000";
 	};
 
@@ -38,9 +38,14 @@
 
 	pcie-controller@00003000 {
 		status = "okay";
-		pex-clk-supply = <&pex_hvdd_3v3_reg>;
-		vdd-supply = <&ldo1_reg>;
-		avdd-supply = <&ldo2_reg>;
+
+		/* AVDD_PEXA and VDD_PEXA inputs are grounded on Cardhu. */
+		avdd-pexb-supply = <&ldo1_reg>;
+		vdd-pexb-supply = <&ldo1_reg>;
+		avdd-pex-pll-supply = <&ldo1_reg>;
+		hvdd-pex-supply = <&pex_hvdd_3v3_reg>;
+		vddio-pex-ctl-supply = <&sys_3v3_reg>;
+		avdd-plle-supply = <&ldo2_reg>;
 
 		pci@1,0 {
 			nvidia,num-lanes = <4>;
@@ -186,6 +191,13 @@
 			reg = <0x44>;
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(L, 0) IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		i2cmux@70 {
+			compatible = "nxp,pca9546";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x70>;
 		};
 	};
 

@@ -127,7 +127,7 @@ static struct ubi_ainf_volume *add_vol(struct ubi_attach_info *ai, int vol_id,
 
 		if (vol_id > av->vol_id)
 			p = &(*p)->rb_left;
-		else if (vol_id > av->vol_id)
+		else
 			p = &(*p)->rb_right;
 	}
 
@@ -423,7 +423,7 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 				pnum, err);
 			ret = err > 0 ? UBI_BAD_FASTMAP : err;
 			goto out;
-		} else if (ret == UBI_IO_BITFLIPS)
+		} else if (err == UBI_IO_BITFLIPS)
 			scrub = 1;
 
 		/*
@@ -463,8 +463,8 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 				}
 			}
 			if (found_orphan) {
-				kmem_cache_free(ai->aeb_slab_cache, tmp_aeb);
 				list_del(&tmp_aeb->u.list);
+				kmem_cache_free(ai->aeb_slab_cache, tmp_aeb);
 			}
 
 			new_aeb = kmem_cache_alloc(ai->aeb_slab_cache,
@@ -846,16 +846,16 @@ fail_bad:
 	ret = UBI_BAD_FASTMAP;
 fail:
 	list_for_each_entry_safe(tmp_aeb, _tmp_aeb, &used, u.list) {
-		kmem_cache_free(ai->aeb_slab_cache, tmp_aeb);
 		list_del(&tmp_aeb->u.list);
+		kmem_cache_free(ai->aeb_slab_cache, tmp_aeb);
 	}
 	list_for_each_entry_safe(tmp_aeb, _tmp_aeb, &eba_orphans, u.list) {
-		kmem_cache_free(ai->aeb_slab_cache, tmp_aeb);
 		list_del(&tmp_aeb->u.list);
+		kmem_cache_free(ai->aeb_slab_cache, tmp_aeb);
 	}
 	list_for_each_entry_safe(tmp_aeb, _tmp_aeb, &free, u.list) {
-		kmem_cache_free(ai->aeb_slab_cache, tmp_aeb);
 		list_del(&tmp_aeb->u.list);
+		kmem_cache_free(ai->aeb_slab_cache, tmp_aeb);
 	}
 
 	return ret;

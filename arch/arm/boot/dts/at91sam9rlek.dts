@@ -1,0 +1,247 @@
+/*
+ * at91sam9rlek.dts - Device Tree file for Atmel at91sam9rl reference board
+ *
+ *  Copyright (C) 2014  Alexandre Belloni <alexandre.belloni@free-electrons.com>
+ *
+ * Licensed under GPLv2 only
+ */
+/dts-v1/;
+#include "at91sam9rl.dtsi"
+
+/ {
+	model = "Atmel at91sam9rlek";
+	compatible = "atmel,at91sam9rlek", "atmel,at91sam9rl", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 rootfstype=ubifs root=ubi0:rootfs ubi.mtd=5 rw";
+	};
+
+	memory {
+		reg = <0x20000000 0x4000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <12000000>;
+		};
+
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+
+	ahb {
+		fb0: fb@00500000 {
+			display = <&display0>;
+			status = "okay";
+
+			display0: display {
+				bits-per-pixel = <16>;
+				atmel,lcdcon-backlight;
+				atmel,dmacon = <0x1>;
+				atmel,lcdcon2 = <0x80008002>;
+				atmel,guard-time = <1>;
+				atmel,lcd-wiring-mode = "RGB";
+
+				display-timings {
+					native-mode = <&timing0>;
+					timing0: timing0 {
+						clock-frequency = <4965000>;
+						hactive = <240>;
+						vactive = <320>;
+						hback-porch = <1>;
+						hfront-porch = <33>;
+						vback-porch = <1>;
+						vfront-porch = <0>;
+						hsync-len = <5>;
+						vsync-len = <1>;
+						hsync-active = <1>;
+						vsync-active = <1>;
+					};
+				};
+			};
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "soft";
+			nand-on-flash-bbt = <1>;
+			status = "okay";
+
+			at91bootstrap@0 {
+				label = "at91bootstrap";
+				reg = <0x0 0x40000>;
+			};
+
+			bootloader@40000 {
+				label = "bootloader";
+				reg = <0x40000 0x80000>;
+			};
+
+			bootloaderenv@c0000 {
+				label = "bootloader env";
+				reg = <0xc0000 0xc0000>;
+			};
+
+			dtb@180000 {
+				label = "device tree";
+				reg = <0x180000 0x80000>;
+			};
+
+			kernel@200000 {
+				label = "kernel";
+				reg = <0x200000 0x600000>;
+			};
+
+			rootfs@800000 {
+				label = "rootfs";
+				reg = <0x800000 0x0f800000>;
+			};
+		};
+
+		apb {
+			mmc0: mmc@fffa4000 {
+				pinctrl-0 = <
+					&pinctrl_board_mmc0
+					&pinctrl_mmc0_clk
+					&pinctrl_mmc0_slot0_cmd_dat0
+					&pinctrl_mmc0_slot0_dat1_3>;
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioA 15 GPIO_ACTIVE_HIGH>;
+				};
+			};
+
+			usart0: serial@fffb0000 {
+				pinctrl-0 = <
+					&pinctrl_usart0
+					&pinctrl_usart0_rts
+					&pinctrl_usart0_cts>;
+				status = "okay";
+			};
+
+			adc0: adc@fffd0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <
+					&pinctrl_adc0_ad0
+					&pinctrl_adc0_ad1
+					&pinctrl_adc0_ad2
+					&pinctrl_adc0_ad3
+					&pinctrl_adc0_ad4
+					&pinctrl_adc0_ad5
+					&pinctrl_adc0_adtrg>;
+				atmel,adc-ts-wires = <4>;
+				status = "okay";
+			};
+
+			usb0: gadget@fffd4000 {
+				atmel,vbus-gpio = <&pioA 8 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+			};
+
+			spi0: spi@fffcc000 {
+				status = "okay";
+				cs-gpios = <&pioA 28 0>, <0>, <0>, <0>;
+				mtd_dataflash@0 {
+					compatible = "atmel,at45", "atmel,dataflash";
+					spi-max-frequency = <15000000>;
+					reg = <0>;
+				};
+			};
+
+			pwm0: pwm@fffc8000 {
+				status = "okay";
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_pwm0_pwm1_2>,
+					<&pinctrl_pwm0_pwm2_2>;
+			};
+
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+
+			pinctrl@fffff400 {
+				mmc0 {
+					pinctrl_board_mmc0: mmc0-board {
+						atmel,pins =
+							<AT91_PIOA 15 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
+				};
+			};
+
+			pmc: pmc@fffffc00 {
+				main: mainck {
+					clock-frequency = <12000000>;
+				};
+			};
+
+			watchdog@fffffd40 {
+				status = "okay";
+			};
+		};
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+
+		ds1 {
+			label = "ds1";
+			pwms = <&pwm0 1 5000 PWM_POLARITY_INVERTED>;
+			max-brightness = <255>;
+		};
+
+		ds2 {
+			label = "ds2";
+			pwms = <&pwm0 2 5000 PWM_POLARITY_INVERTED>;
+			max-brightness = <255>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		ds3 {
+			label = "ds3";
+			gpios = <&pioD 14 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		right_click {
+			label = "right_click";
+			gpios = <&pioB 0 GPIO_ACTIVE_LOW>;
+			linux,code = <273>;
+			gpio-key,wakeup;
+		};
+
+		left_click {
+			label = "left_click";
+			gpios = <&pioB 1 GPIO_ACTIVE_LOW>;
+			linux,code = <272>;
+			gpio-key,wakeup;
+		};
+	};
+
+	i2c@0 {
+		status = "okay";
+	};
+
+	i2c@1 {
+		status = "okay";
+	};
+};

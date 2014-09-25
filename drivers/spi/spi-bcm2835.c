@@ -315,7 +315,6 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 
 	master->mode_bits = BCM2835_SPI_MODE_BITS;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->bus_num = -1;
 	master->num_chipselect = 3;
 	master->transfer_one_message = bcm2835_spi_transfer_one;
 	master->dev.of_node = pdev->dev.of_node;
@@ -347,8 +346,8 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(bs->clk);
 
-	err = request_irq(bs->irq, bcm2835_spi_interrupt, 0,
-			dev_name(&pdev->dev), master);
+	err = devm_request_irq(&pdev->dev, bs->irq, bcm2835_spi_interrupt, 0,
+				dev_name(&pdev->dev), master);
 	if (err) {
 		dev_err(&pdev->dev, "could not request IRQ: %d\n", err);
 		goto out_clk_disable;
@@ -361,13 +360,11 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	err = devm_spi_register_master(&pdev->dev, master);
 	if (err) {
 		dev_err(&pdev->dev, "could not register SPI master: %d\n", err);
-		goto out_free_irq;
+		goto out_clk_disable;
 	}
 
 	return 0;
 
-out_free_irq:
-	free_irq(bs->irq, master);
 out_clk_disable:
 	clk_disable_unprepare(bs->clk);
 out_master_put:
@@ -379,8 +376,6 @@ static int bcm2835_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct bcm2835_spi *bs = spi_master_get_devdata(master);
-
-	free_irq(bs->irq, master);
 
 	/* Clear FIFOs, and disable the HW block */
 	bcm2835_wr(bs, BCM2835_SPI_CS,

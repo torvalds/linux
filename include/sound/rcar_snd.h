@@ -34,30 +34,45 @@
  * B : SSI direction
  */
 #define RSND_SSI_CLK_PIN_SHARE		(1 << 31)
-#define RSND_SSI_SYNC			(1 << 29) /* SSI34_sync etc */
+#define RSND_SSI_NO_BUSIF		(1 << 30) /* SSI+DMA without BUSIF */
 
-#define RSND_SSI_PLAY			(1 << 24)
-
-#define RSND_SSI_SET(_dai_id, _dma_id, _pio_irq, _flags)	\
-{ .dai_id = _dai_id, .dma_id = _dma_id, .pio_irq = _pio_irq, .flags = _flags }
+#define RSND_SSI(_dma_id, _pio_irq, _flags)		\
+{ .dma_id = _dma_id, .pio_irq = _pio_irq, .flags = _flags }
 #define RSND_SSI_UNUSED \
-{ .dai_id = -1, .dma_id = -1, .pio_irq = -1, .flags = 0 }
+{ .dma_id = -1, .pio_irq = -1, .flags = 0 }
 
 struct rsnd_ssi_platform_info {
-	int dai_id;
 	int dma_id;
 	int pio_irq;
 	u32 flags;
 };
 
+#define RSND_SRC(rate, _dma_id)						\
+{ .convert_rate = rate, .dma_id = _dma_id, }
+#define RSND_SRC_UNUSED				\
+{ .convert_rate = 0, .dma_id = -1, }
+
+struct rsnd_src_platform_info {
+	u32 convert_rate; /* sampling rate convert */
+	int dma_id; /* for Gen2 SCU */
+};
+
 /*
  * flags
  */
-#define RSND_SCU_USE_HPBIF		(1 << 31) /* it needs RSND_SSI_DEPENDENT */
-
-struct rsnd_scu_platform_info {
+struct rsnd_dvc_platform_info {
 	u32 flags;
-	u32 convert_rate; /* sampling rate convert */
+};
+
+struct rsnd_dai_path_info {
+	struct rsnd_ssi_platform_info *ssi;
+	struct rsnd_src_platform_info *src;
+	struct rsnd_dvc_platform_info *dvc;
+};
+
+struct rsnd_dai_platform_info {
+	struct rsnd_dai_path_info playback;
+	struct rsnd_dai_path_info capture;
 };
 
 /*
@@ -75,8 +90,12 @@ struct rcar_snd_info {
 	u32 flags;
 	struct rsnd_ssi_platform_info *ssi_info;
 	int ssi_info_nr;
-	struct rsnd_scu_platform_info *scu_info;
-	int scu_info_nr;
+	struct rsnd_src_platform_info *src_info;
+	int src_info_nr;
+	struct rsnd_dvc_platform_info *dvc_info;
+	int dvc_info_nr;
+	struct rsnd_dai_platform_info *dai_info;
+	int dai_info_nr;
 	int (*start)(int id);
 	int (*stop)(int id);
 };

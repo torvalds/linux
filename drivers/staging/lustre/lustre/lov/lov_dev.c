@@ -41,7 +41,7 @@
 #define DEBUG_SUBSYSTEM S_LOV
 
 /* class_name2obd() */
-#include <obd_class.h>
+#include "../include/obd_class.h"
 
 #include "lov_cl_internal.h"
 #include "lov_internal.h"
@@ -143,7 +143,7 @@ static void *lov_key_init(const struct lu_context *ctx,
 {
 	struct lov_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, lov_thread_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, lov_thread_kmem, GFP_NOFS);
 	if (info != NULL)
 		INIT_LIST_HEAD(&info->lti_closure.clc_list);
 	else
@@ -170,7 +170,7 @@ static void *lov_session_key_init(const struct lu_context *ctx,
 {
 	struct lov_session *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, lov_session_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, lov_session_kmem, GFP_NOFS);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -260,7 +260,7 @@ static int lov_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct lov_req *lr;
 	int result;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lr, lov_req_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(lr, lov_req_kmem, GFP_NOFS);
 	if (lr != NULL) {
 		cl_req_slice_add(req, &lr->lr_cl, dev, &lov_req_ops);
 		result = 0;
@@ -453,7 +453,7 @@ static int lov_process_config(const struct lu_env *env,
 		case LCFG_LOV_ADD_INA:
 			rc = lov_cl_add_target(env, d, index);
 			if (rc != 0)
-				lov_del_target(d->ld_obd, index, 0, 0);
+				lov_del_target(d->ld_obd, index, NULL, 0);
 			break;
 		case LCFG_LOV_DEL_OBD:
 			lov_cl_del_target(env, d, index);

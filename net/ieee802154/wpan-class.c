@@ -44,13 +44,12 @@ static DEVICE_ATTR_RO(name);
 
 MASTER_SHOW(current_channel, "%d");
 MASTER_SHOW(current_page, "%d");
-MASTER_SHOW_COMPLEX(transmit_power, "%d +- %d dB",
-	((signed char) (phy->transmit_power << 2)) >> 2,
-	(phy->transmit_power >> 6) ? (phy->transmit_power >> 6) * 3 : 1 );
+MASTER_SHOW(transmit_power, "%d +- 1 dB");
 MASTER_SHOW(cca_mode, "%d");
 
 static ssize_t channels_supported_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
+				       struct device_attribute *attr,
+				       char *buf)
 {
 	struct wpan_phy *phy = container_of(dev, struct wpan_phy, dev);
 	int ret;
@@ -59,7 +58,7 @@ static ssize_t channels_supported_show(struct device *dev,
 	mutex_lock(&phy->pib_lock);
 	for (i = 0; i < 32; i++) {
 		ret = snprintf(buf + len, PAGE_SIZE - len,
-				"%#09x\n", phy->channels_supported[i]);
+			       "%#09x\n", phy->channels_supported[i]);
 		if (ret < 0)
 			break;
 		len += ret;
@@ -82,6 +81,7 @@ ATTRIBUTE_GROUPS(pmib);
 static void wpan_phy_release(struct device *d)
 {
 	struct wpan_phy *phy = container_of(d, struct wpan_phy, dev);
+
 	kfree(phy);
 }
 
@@ -123,11 +123,12 @@ static int wpan_phy_iter(struct device *dev, void *_data)
 {
 	struct wpan_phy_iter_data *wpid = _data;
 	struct wpan_phy *phy = container_of(dev, struct wpan_phy, dev);
+
 	return wpid->fn(phy, wpid->data);
 }
 
 int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data),
-		void *data)
+		      void *data)
 {
 	struct wpan_phy_iter_data wpid = {
 		.fn = fn,
@@ -199,6 +200,7 @@ EXPORT_SYMBOL(wpan_phy_free);
 static int __init wpan_phy_class_init(void)
 {
 	int rc;
+
 	rc = class_register(&wpan_phy_class);
 	if (rc)
 		goto err;

@@ -26,10 +26,9 @@
 # define LOCK_PTR_REG "D"
 #endif
 
-#if defined(CONFIG_X86_32) && \
-	(defined(CONFIG_X86_OOSTORE) || defined(CONFIG_X86_PPRO_FENCE))
+#if defined(CONFIG_X86_32) && (defined(CONFIG_X86_PPRO_FENCE))
 /*
- * On PPro SMP or if we are using OOSTORE, we use a locked operation to unlock
+ * On PPro SMP, we use a locked operation to unlock
  * (PPro errata 66, 92)
  */
 # define UNLOCK_LOCK_PREFIX LOCK_PREFIX
@@ -188,6 +187,7 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 		cpu_relax();
 }
 
+#ifndef CONFIG_QUEUE_RWLOCK
 /*
  * Read-write spinlocks, allowing multiple readers
  * but only one writer.
@@ -270,6 +270,9 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 	asm volatile(LOCK_PREFIX WRITE_LOCK_ADD(%1) "%0"
 		     : "+m" (rw->write) : "i" (RW_LOCK_BIAS) : "memory");
 }
+#else
+#include <asm/qrwlock.h>
+#endif /* CONFIG_QUEUE_RWLOCK */
 
 #define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
 #define arch_write_lock_flags(lock, flags) arch_write_lock(lock)

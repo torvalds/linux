@@ -35,7 +35,7 @@
  */
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
+#include "../../../include/linux/libcfs/libcfs.h"
 
 #include <linux/if.h>
 #include <linux/in.h>
@@ -46,9 +46,9 @@
 int
 libcfs_sock_ioctl(int cmd, unsigned long arg)
 {
-	mm_segment_t    oldmm = get_fs();
+	mm_segment_t	oldmm = get_fs();
 	struct socket  *sock;
-	int	     rc;
+	int		rc;
 	struct file    *sock_filp;
 
 	rc = sock_create (PF_INET, SOCK_STREAM, 0, &sock);
@@ -198,8 +198,6 @@ libcfs_ipif_enumerate (char ***namesp)
 		rc = -ENOMEM;
 		goto out1;
 	}
-	/* NULL out all names[i] */
-	memset (names, 0, nfound * sizeof(*names));
 
 	for (i = 0; i < nfound; i++) {
 
@@ -255,7 +253,6 @@ int
 libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 {
 	int	    rc;
-	mm_segment_t   oldmm = get_fs();
 	long	   ticks = timeout * HZ;
 	unsigned long  then;
 	struct timeval tv;
@@ -265,17 +262,11 @@ libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 	 * empty enough to take the whole message immediately */
 
 	for (;;) {
-		struct iovec  iov = {
+		struct kvec  iov = {
 			.iov_base = buffer,
 			.iov_len  = nob
 		};
 		struct msghdr msg = {
-			.msg_name       = NULL,
-			.msg_namelen    = 0,
-			.msg_iov	= &iov,
-			.msg_iovlen     = 1,
-			.msg_control    = NULL,
-			.msg_controllen = 0,
 			.msg_flags      = (timeout == 0) ? MSG_DONTWAIT : 0
 		};
 
@@ -285,10 +276,8 @@ libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 				.tv_sec = ticks / HZ,
 				.tv_usec = ((ticks % HZ) * 1000000) / HZ
 			};
-			set_fs(KERNEL_DS);
-			rc = sock_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,
+			rc = kernel_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,
 					     (char *)&tv, sizeof(tv));
-			set_fs(oldmm);
 			if (rc != 0) {
 				CERROR("Can't set socket send timeout "
 				       "%ld.%06d: %d\n",
@@ -297,11 +286,9 @@ libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 			}
 		}
 
-		set_fs (KERNEL_DS);
 		then = jiffies;
-		rc = sock_sendmsg (sock, &msg, iov.iov_len);
+		rc = kernel_sendmsg(sock, &msg, &iov, 1, nob);
 		ticks -= jiffies - then;
-		set_fs (oldmm);
 
 		if (rc == nob)
 			return 0;
@@ -329,7 +316,6 @@ int
 libcfs_sock_read (struct socket *sock, void *buffer, int nob, int timeout)
 {
 	int	    rc;
-	mm_segment_t   oldmm = get_fs();
 	long	   ticks = timeout * HZ;
 	unsigned long  then;
 	struct timeval tv;
@@ -338,17 +324,11 @@ libcfs_sock_read (struct socket *sock, void *buffer, int nob, int timeout)
 	LASSERT (ticks > 0);
 
 	for (;;) {
-		struct iovec  iov = {
+		struct kvec  iov = {
 			.iov_base = buffer,
 			.iov_len  = nob
 		};
 		struct msghdr msg = {
-			.msg_name       = NULL,
-			.msg_namelen    = 0,
-			.msg_iov	= &iov,
-			.msg_iovlen     = 1,
-			.msg_control    = NULL,
-			.msg_controllen = 0,
 			.msg_flags      = 0
 		};
 
@@ -357,21 +337,17 @@ libcfs_sock_read (struct socket *sock, void *buffer, int nob, int timeout)
 			.tv_sec = ticks / HZ,
 			.tv_usec = ((ticks % HZ) * 1000000) / HZ
 		};
-		set_fs(KERNEL_DS);
-		rc = sock_setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
+		rc = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
 				     (char *)&tv, sizeof(tv));
-		set_fs(oldmm);
 		if (rc != 0) {
 			CERROR("Can't set socket recv timeout %ld.%06d: %d\n",
 			       (long)tv.tv_sec, (int)tv.tv_usec, rc);
 			return rc;
 		}
 
-		set_fs(KERNEL_DS);
 		then = jiffies;
-		rc = sock_recvmsg(sock, &msg, iov.iov_len, 0);
+		rc = kernel_recvmsg(sock, &msg, &iov, 1, nob, 0);
 		ticks -= jiffies - then;
-		set_fs(oldmm);
 
 		if (rc < 0)
 			return rc;
@@ -400,7 +376,6 @@ libcfs_sock_create (struct socket **sockp, int *fatal,
 	struct socket      *sock;
 	int		 rc;
 	int		 option;
-	mm_segment_t	oldmm = get_fs();
 
 	/* All errors are fatal except bind failure if the port is in use */
 	*fatal = 1;
@@ -412,11 +387,9 @@ libcfs_sock_create (struct socket **sockp, int *fatal,
 		return (rc);
 	}
 
-	set_fs (KERNEL_DS);
 	option = 1;
-	rc = sock_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+	rc = kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
 			     (char *)&option, sizeof (option));
-	set_fs (oldmm);
 	if (rc != 0) {
 		CERROR("Can't set SO_REUSEADDR for socket: %d\n", rc);
 		goto failed;
@@ -453,16 +426,13 @@ libcfs_sock_create (struct socket **sockp, int *fatal,
 int
 libcfs_sock_setbuf (struct socket *sock, int txbufsize, int rxbufsize)
 {
-	mm_segment_t	oldmm = get_fs();
 	int		 option;
 	int		 rc;
 
 	if (txbufsize != 0) {
 		option = txbufsize;
-		set_fs (KERNEL_DS);
-		rc = sock_setsockopt(sock, SOL_SOCKET, SO_SNDBUF,
+		rc = kernel_setsockopt(sock, SOL_SOCKET, SO_SNDBUF,
 				     (char *)&option, sizeof (option));
-		set_fs (oldmm);
 		if (rc != 0) {
 			CERROR ("Can't set send buffer %d: %d\n",
 				option, rc);
@@ -472,10 +442,8 @@ libcfs_sock_setbuf (struct socket *sock, int txbufsize, int rxbufsize)
 
 	if (rxbufsize != 0) {
 		option = rxbufsize;
-		set_fs (KERNEL_DS);
-		rc = sock_setsockopt (sock, SOL_SOCKET, SO_RCVBUF,
+		rc = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
 				      (char *)&option, sizeof (option));
-		set_fs (oldmm);
 		if (rc != 0) {
 			CERROR ("Can't set receive buffer %d: %d\n",
 				option, rc);
@@ -577,7 +545,7 @@ libcfs_sock_accept (struct socket **newsockp, struct socket *sock)
 	newsock->ops = sock->ops;
 
 	set_current_state(TASK_INTERRUPTIBLE);
-	add_wait_queue(cfs_sk_sleep(sock->sk), &wait);
+	add_wait_queue(sk_sleep(sock->sk), &wait);
 
 	rc = sock->ops->accept(sock, newsock, O_NONBLOCK);
 	if (rc == -EAGAIN) {
@@ -586,7 +554,7 @@ libcfs_sock_accept (struct socket **newsockp, struct socket *sock)
 		rc = sock->ops->accept(sock, newsock, O_NONBLOCK);
 	}
 
-	remove_wait_queue(cfs_sk_sleep(sock->sk), &wait);
+	remove_wait_queue(sk_sleep(sock->sk), &wait);
 	set_current_state(TASK_RUNNING);
 
 	if (rc != 0)
@@ -605,7 +573,7 @@ EXPORT_SYMBOL(libcfs_sock_accept);
 void
 libcfs_sock_abort_accept (struct socket *sock)
 {
-	wake_up_all(cfs_sk_sleep(sock->sk));
+	wake_up_all(sk_sleep(sock->sk));
 }
 
 EXPORT_SYMBOL(libcfs_sock_abort_accept);

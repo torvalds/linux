@@ -78,9 +78,15 @@ struct zpci_dev {
 	enum zpci_state state;
 	u32		fid;		/* function ID, used by sclp */
 	u32		fh;		/* function handle, used by insn's */
+	u16		vfn;		/* virtual function number */
 	u16		pchid;		/* physical channel ID */
 	u8		pfgid;		/* function group ID */
+	u8		pft;		/* pci function type */
 	u16		domain;
+
+	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
+	u32 uid;			/* user defined id */
+	u8 util_str[CLP_UTIL_STR_LEN];	/* utility string */
 
 	/* IRQ stuff */
 	u64		msi_addr;	/* MSI address */
@@ -119,6 +125,8 @@ static inline bool zdev_enabled(struct zpci_dev *zdev)
 {
 	return (zdev->fh & (1UL << 31)) ? true : false;
 }
+
+extern const struct attribute_group *zpci_attr_groups[];
 
 /* -----------------------------------------------------------------------------
   Prototypes
@@ -165,10 +173,6 @@ static inline void zpci_exit_slot(struct zpci_dev *zdev) {}
 /* Helpers */
 struct zpci_dev *get_zdev(struct pci_dev *);
 struct zpci_dev *get_zdev_by_fid(u32);
-
-/* sysfs */
-int zpci_sysfs_add_device(struct device *);
-void zpci_sysfs_remove_device(struct device *);
 
 /* DMA */
 int zpci_dma_init(void);

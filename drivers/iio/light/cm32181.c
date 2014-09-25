@@ -103,13 +103,13 @@ static int cm32181_reg_init(struct cm32181_chip *cm32181)
 /**
  *  cm32181_read_als_it() - Get sensor integration time (ms)
  *  @cm32181:	pointer of struct cm32181
- *  @val:	pointer of int to load the als_it value.
+ *  @val2:	pointer of int to load the als_it value.
  *
  *  Report the current integartion time by millisecond.
  *
- *  Return: IIO_VAL_INT for success, otherwise -EINVAL.
+ *  Return: IIO_VAL_INT_PLUS_MICRO for success, otherwise -EINVAL.
  */
-static int cm32181_read_als_it(struct cm32181_chip *cm32181, int *val)
+static int cm32181_read_als_it(struct cm32181_chip *cm32181, int *val2)
 {
 	u16 als_it;
 	int i;
@@ -119,8 +119,8 @@ static int cm32181_read_als_it(struct cm32181_chip *cm32181, int *val)
 	als_it >>= CM32181_CMD_ALS_IT_SHIFT;
 	for (i = 0; i < ARRAY_SIZE(als_it_bits); i++) {
 		if (als_it == als_it_bits[i]) {
-			*val = als_it_value[i];
-			return IIO_VAL_INT;
+			*val2 = als_it_value[i];
+			return IIO_VAL_INT_PLUS_MICRO;
 		}
 	}
 
@@ -221,7 +221,8 @@ static int cm32181_read_raw(struct iio_dev *indio_dev,
 		*val = cm32181->calibscale;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_INT_TIME:
-		ret = cm32181_read_als_it(cm32181, val);
+		*val = 0;
+		ret = cm32181_read_als_it(cm32181, val2);
 		return ret;
 	}
 
@@ -240,7 +241,7 @@ static int cm32181_write_raw(struct iio_dev *indio_dev,
 		cm32181->calibscale = val;
 		return val;
 	case IIO_CHAN_INFO_INT_TIME:
-		ret = cm32181_write_als_it(cm32181, val);
+		ret = cm32181_write_als_it(cm32181, val2);
 		return ret;
 	}
 
@@ -264,7 +265,7 @@ static ssize_t cm32181_get_it_available(struct device *dev,
 
 	n = ARRAY_SIZE(als_it_value);
 	for (i = 0, len = 0; i < n; i++)
-		len += sprintf(buf + len, "%d ", als_it_value[i]);
+		len += sprintf(buf + len, "0.%06u ", als_it_value[i]);
 	return len + sprintf(buf + len, "\n");
 }
 
@@ -330,7 +331,7 @@ static int cm32181_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&client->dev, indio_dev);
 	if (ret) {
 		dev_err(&client->dev,
 			"%s: regist device failed\n",
@@ -338,14 +339,6 @@ static int cm32181_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	return 0;
-}
-
-static int cm32181_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
 	return 0;
 }
 
@@ -369,7 +362,6 @@ static struct i2c_driver cm32181_driver = {
 	},
 	.id_table       = cm32181_id,
 	.probe		= cm32181_probe,
-	.remove		= cm32181_remove,
 };
 
 module_i2c_driver(cm32181_driver);

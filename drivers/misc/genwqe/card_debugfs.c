@@ -26,7 +26,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -349,7 +348,7 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 	char name[64];
 	unsigned int i;
 
-	sprintf(card_name, "%s%u_card", GENWQE_DEVNAME, cd->card_idx);
+	sprintf(card_name, "%s%d_card", GENWQE_DEVNAME, cd->card_idx);
 
 	root = debugfs_create_dir(card_name, cd->debugfs_genwqe);
 	if (!root) {
@@ -455,7 +454,7 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 	}
 
 	for (i = 0; i <  GENWQE_MAX_VFS; i++) {
-		sprintf(name, "vf%d_jobtimeout_msec", i);
+		sprintf(name, "vf%u_jobtimeout_msec", i);
 
 		file = debugfs_create_u32(name, 0666, root,
 					  &cd->vf_jobtimeout_msec[i]);
@@ -481,6 +480,13 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 
 	file = debugfs_create_u32("skip_recovery", 0666, root,
 				  &cd->skip_recovery);
+	if (!file) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	file = debugfs_create_u32("use_platform_recovery", 0666, root,
+				  &cd->use_platform_recovery);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;

@@ -31,6 +31,7 @@
 #include <asm/mach/arch.h>
 
 #include <mach/at91sam9_smc.h>
+#include <mach/hardware.h>
 
 #include "at91_aic.h"
 #include "board.h"
@@ -38,6 +39,7 @@
 #include "generic.h"
 #include "gsia18s.h"
 #include "stamp9g20.h"
+#include "gpio.h"
 
 static void __init gsia18s_init_early(void)
 {

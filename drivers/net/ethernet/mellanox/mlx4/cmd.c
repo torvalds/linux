@@ -212,8 +212,7 @@ static int mlx4_comm_cmd_poll(struct mlx4_dev *dev, u8 cmd, u16 param,
 
 	/* First, verify that the master reports correct status */
 	if (comm_pending(dev)) {
-		mlx4_warn(dev, "Communication channel is not idle."
-			  "my toggle is %d (cmd:0x%x)\n",
+		mlx4_warn(dev, "Communication channel is not idle - my toggle is %d (cmd:0x%x)\n",
 			  priv->cmd.comm_toggle, cmd);
 		return -EAGAIN;
 	}
@@ -422,9 +421,8 @@ static int mlx4_slave_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 					*out_param =
 						be64_to_cpu(vhcr->out_param);
 				else {
-					mlx4_err(dev, "response expected while"
-						 "output mailbox is NULL for "
-						 "command 0x%x\n", op);
+					mlx4_err(dev, "response expected while output mailbox is NULL for command 0x%x\n",
+						 op);
 					vhcr->status = CMD_STAT_BAD_PARAM;
 				}
 			}
@@ -439,16 +437,15 @@ static int mlx4_slave_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 					*out_param =
 						be64_to_cpu(vhcr->out_param);
 				else {
-					mlx4_err(dev, "response expected while"
-						 "output mailbox is NULL for "
-						 "command 0x%x\n", op);
+					mlx4_err(dev, "response expected while output mailbox is NULL for command 0x%x\n",
+						 op);
 					vhcr->status = CMD_STAT_BAD_PARAM;
 				}
 			}
 			ret = mlx4_status_to_errno(vhcr->status);
 		} else
-			mlx4_err(dev, "failed execution of VHCR_POST command"
-				 "opcode 0x%x\n", op);
+			mlx4_err(dev, "failed execution of VHCR_POST command opcode 0x%x\n",
+				 op);
 	}
 
 	mutex_unlock(&priv->cmd.slave_cmd_mutex);
@@ -473,6 +470,13 @@ static int mlx4_cmd_poll(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 		 * and cannot accept commands.
 		 */
 		err = -EIO;
+		goto out;
+	}
+
+	if (out_is_imm && !out_param) {
+		mlx4_err(dev, "response expected while output mailbox is NULL for command 0x%x\n",
+			 op);
+		err = -EINVAL;
 		goto out;
 	}
 
@@ -554,6 +558,13 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	cmd->free_head = context->next;
 	spin_unlock(&cmd->context_lock);
 
+	if (out_is_imm && !out_param) {
+		mlx4_err(dev, "response expected while output mailbox is NULL for command 0x%x\n",
+			 op);
+		err = -EINVAL;
+		goto out;
+	}
+
 	init_completion(&context->done);
 
 	mlx4_cmd_post(dev, in_param, out_param ? *out_param : 0,
@@ -625,9 +636,8 @@ static int mlx4_ACCESS_MEM(struct mlx4_dev *dev, u64 master_addr,
 
 	if ((slave_addr & 0xfff) | (master_addr & 0xfff) |
 	    (slave & ~0x7f) | (size & 0xff)) {
-		mlx4_err(dev, "Bad access mem params - slave_addr:0x%llx "
-			      "master_addr:0x%llx slave_id:%d size:%d\n",
-			      slave_addr, master_addr, slave, size);
+		mlx4_err(dev, "Bad access mem params - slave_addr:0x%llx master_addr:0x%llx slave_id:%d size:%d\n",
+			 slave_addr, master_addr, slave, size);
 		return -EINVAL;
 	}
 
@@ -705,20 +715,28 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 	struct ib_smp *smp = inbox->buf;
 	u32 index;
 	u8 port;
+	u8 opcode_modifier;
 	u16 *table;
 	int err;
 	int vidx, pidx;
+	int network_view;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct ib_smp *outsmp = outbox->buf;
 	__be16 *outtab = (__be16 *)(outsmp->data);
 	__be32 slave_cap_mask;
 	__be64 slave_node_guid;
+
 	port = vhcr->in_modifier;
+
+	/* network-view bit is for driver use only, and should not be passed to FW */
+	opcode_modifier = vhcr->op_modifier & ~0x8; /* clear netw view bit */
+	network_view = !!(vhcr->op_modifier & 0x8);
 
 	if (smp->base_version == 1 &&
 	    smp->mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED &&
 	    smp->class_version == 1) {
-		if (smp->method	== IB_MGMT_METHOD_GET) {
+		/* host view is paravirtualized */
+		if (!network_view && smp->method == IB_MGMT_METHOD_GET) {
 			if (smp->attr_id == IB_SMP_ATTR_PKEY_TABLE) {
 				index = be32_to_cpu(smp->attr_mod);
 				if (port < 1 || port > dev->caps.num_ports)
@@ -743,7 +761,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				/*get the slave specific caps:*/
 				/*do the command */
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					    vhcr->in_modifier, vhcr->op_modifier,
+					    vhcr->in_modifier, opcode_modifier,
 					    vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				/* modify the response for slaves */
 				if (!err && slave != mlx4_master_func_num(dev)) {
@@ -760,7 +778,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				smp->attr_mod = cpu_to_be32(slave / 8);
 				/* execute cmd */
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					     vhcr->in_modifier, vhcr->op_modifier,
+					     vhcr->in_modifier, opcode_modifier,
 					     vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				if (!err) {
 					/* if needed, move slave gid to index 0 */
@@ -774,7 +792,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 			}
 			if (smp->attr_id == IB_SMP_ATTR_NODE_INFO) {
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					     vhcr->in_modifier, vhcr->op_modifier,
+					     vhcr->in_modifier, opcode_modifier,
 					     vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				if (!err) {
 					slave_node_guid =  mlx4_get_slave_node_guid(dev, slave);
@@ -784,32 +802,28 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 			}
 		}
 	}
+
+	/* Non-privileged VFs are only allowed "host" view LID-routed 'Get' MADs.
+	 * These are the MADs used by ib verbs (such as ib_query_gids).
+	 */
 	if (slave != mlx4_master_func_num(dev) &&
-	    ((smp->mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) ||
-	     (smp->mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED &&
-	      smp->method == IB_MGMT_METHOD_SET))) {
-		mlx4_err(dev, "slave %d is trying to execute a Subnet MGMT MAD, "
-			 "class 0x%x, method 0x%x for attr 0x%x. Rejecting\n",
-			 slave, smp->method, smp->mgmt_class,
-			 be16_to_cpu(smp->attr_id));
-		return -EPERM;
+	    !mlx4_vf_smi_enabled(dev, slave, port)) {
+		if (!(smp->mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED &&
+		      smp->method == IB_MGMT_METHOD_GET) || network_view) {
+			mlx4_err(dev, "Unprivileged slave %d is trying to execute a Subnet MGMT MAD, class 0x%x, method 0x%x, view=%s for attr 0x%x. Rejecting\n",
+				 slave, smp->method, smp->mgmt_class,
+				 network_view ? "Network" : "Host",
+				 be16_to_cpu(smp->attr_id));
+			return -EPERM;
+		}
 	}
-	/*default:*/
+
 	return mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-				    vhcr->in_modifier, vhcr->op_modifier,
+				    vhcr->in_modifier, opcode_modifier,
 				    vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 }
 
-static int MLX4_CMD_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
-		     struct mlx4_vhcr *vhcr,
-		     struct mlx4_cmd_mailbox *inbox,
-		     struct mlx4_cmd_mailbox *outbox,
-		     struct mlx4_cmd_info *cmd)
-{
-	return -EPERM;
-}
-
-static int MLX4_CMD_GET_OP_REQ_wrapper(struct mlx4_dev *dev, int slave,
+static int mlx4_CMD_EPERM_wrapper(struct mlx4_dev *dev, int slave,
 		     struct mlx4_vhcr *vhcr,
 		     struct mlx4_cmd_mailbox *inbox,
 		     struct mlx4_cmd_mailbox *outbox,
@@ -962,6 +976,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.encode_slave_id = false,
 		.verify = NULL,
 		.wrapper = NULL
+	},
+	{
+		.opcode = MLX4_CMD_CONFIG_DEV,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_CMD_EPERM_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_ALLOC_RES,
@@ -1253,12 +1276,12 @@ static struct mlx4_cmd_info cmd_info[] = {
 	},
 	{
 		.opcode = MLX4_CMD_UPDATE_QP,
-		.has_inbox = false,
+		.has_inbox = true,
 		.has_outbox = false,
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = MLX4_CMD_UPDATE_QP_wrapper
+		.wrapper = mlx4_UPDATE_QP_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_GET_OP_REQ,
@@ -1267,7 +1290,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = MLX4_CMD_GET_OP_REQ_wrapper,
+		.wrapper = mlx4_CMD_EPERM_wrapper,
 	},
 	{
 		.opcode = MLX4_CMD_CONF_SPECIAL_QP,
@@ -1286,6 +1309,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.encode_slave_id = false,
 		.verify = NULL,
 		.wrapper = mlx4_MAD_IFC_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_MAD_DEMUX,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_CMD_EPERM_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_QUERY_IF_STAT,
@@ -1371,6 +1403,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.verify = NULL,
 		.wrapper = mlx4_QP_FLOW_STEERING_DETACH_wrapper
 	},
+	{
+		.opcode = MLX4_FLOW_STEERING_IB_UC_QP_RANGE,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_CMD_EPERM_wrapper
+	},
 };
 
 static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
@@ -1400,8 +1441,8 @@ static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
 				      ALIGN(sizeof(struct mlx4_vhcr_cmd),
 					    MLX4_ACCESS_MEM_ALIGN), 1);
 		if (ret) {
-			mlx4_err(dev, "%s:Failed reading vhcr"
-				 "ret: 0x%x\n", __func__, ret);
+			mlx4_err(dev, "%s: Failed reading vhcr ret: 0x%x\n",
+				 __func__, ret);
 			kfree(vhcr);
 			return ret;
 		}
@@ -1452,9 +1493,8 @@ static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
 
 	/* Apply permission and bound checks if applicable */
 	if (cmd->verify && cmd->verify(dev, slave, vhcr, inbox)) {
-		mlx4_warn(dev, "Command:0x%x from slave: %d failed protection "
-			  "checks for resource_id:%d\n", vhcr->op, slave,
-			  vhcr->in_modifier);
+		mlx4_warn(dev, "Command:0x%x from slave: %d failed protection checks for resource_id:%d\n",
+			  vhcr->op, slave, vhcr->in_modifier);
 		vhcr_cmd->status = CMD_STAT_BAD_OP;
 		goto out_status;
 	}
@@ -1493,8 +1533,7 @@ static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
 	}
 
 	if (err) {
-		mlx4_warn(dev, "vhcr command:0x%x slave:%d failed with"
-			  " error:%d, status %d\n",
+		mlx4_warn(dev, "vhcr command:0x%x slave:%d failed with error:%d, status %d\n",
 			  vhcr->op, slave, vhcr->errno, err);
 		vhcr_cmd->status = mlx4_errno_to_status(err);
 		goto out_status;
@@ -1528,8 +1567,8 @@ out_status:
 				 __func__);
 		else if (vhcr->e_bit &&
 			 mlx4_GEN_EQE(dev, slave, &priv->mfunc.master.cmd_eqe))
-				mlx4_warn(dev, "Failed to generate command completion "
-					  "eqe for slave %d\n", slave);
+				mlx4_warn(dev, "Failed to generate command completion eqe for slave %d\n",
+					  slave);
 	}
 
 out:
@@ -1568,8 +1607,9 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 
 	mlx4_dbg(dev, "updating immediately admin params slave %d port %d\n",
 		 slave, port);
-	mlx4_dbg(dev, "vlan %d QoS %d link down %d\n", vp_admin->default_vlan,
-		 vp_admin->default_qos, vp_admin->link_state);
+	mlx4_dbg(dev, "vlan %d QoS %d link down %d\n",
+		 vp_admin->default_vlan, vp_admin->default_qos,
+		 vp_admin->link_state);
 
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (!work)
@@ -1582,7 +1622,7 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 						   &admin_vlan_ix);
 			if (err) {
 				kfree(work);
-				mlx4_warn((&priv->dev),
+				mlx4_warn(&priv->dev,
 					  "No vlan resources slave %d, port %d\n",
 					  slave, port);
 				return err;
@@ -1591,7 +1631,7 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 			admin_vlan_ix = NO_INDX;
 		}
 		work->flags |= MLX4_VF_IMMED_VLAN_FLAG_VLAN;
-		mlx4_dbg((&(priv->dev)),
+		mlx4_dbg(&priv->dev,
 			 "alloc vlan %d idx  %d slave %d port %d\n",
 			 (int)(vp_admin->default_vlan),
 			 admin_vlan_ix, slave, port);
@@ -1634,8 +1674,18 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 	int port, err;
 	struct mlx4_vport_state *vp_admin;
 	struct mlx4_vport_oper_state *vp_oper;
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(
+			&priv->dev, slave);
+	int min_port = find_first_bit(actv_ports.ports,
+				      priv->dev.caps.num_ports) + 1;
+	int max_port = min_port - 1 +
+		bitmap_weight(actv_ports.ports, priv->dev.caps.num_ports);
 
-	for (port = 1; port <= MLX4_MAX_PORTS; port++) {
+	for (port = min_port; port <= max_port; port++) {
+		if (!test_bit(port - 1, actv_ports.ports))
+			continue;
+		priv->mfunc.master.vf_oper[slave].smi_enabled[port] =
+			priv->mfunc.master.vf_admin[slave].enable_smi[port];
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 		vp_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
 		vp_oper->state = *vp_admin;
@@ -1644,12 +1694,12 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 						   vp_admin->default_vlan, &(vp_oper->vlan_idx));
 			if (err) {
 				vp_oper->vlan_idx = NO_INDX;
-				mlx4_warn((&priv->dev),
+				mlx4_warn(&priv->dev,
 					  "No vlan resorces slave %d, port %d\n",
 					  slave, port);
 				return err;
 			}
-			mlx4_dbg((&(priv->dev)), "alloc vlan %d idx  %d slave %d port %d\n",
+			mlx4_dbg(&priv->dev, "alloc vlan %d idx  %d slave %d port %d\n",
 				 (int)(vp_oper->state.default_vlan),
 				 vp_oper->vlan_idx, slave, port);
 		}
@@ -1660,12 +1710,12 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 			if (0 > vp_oper->mac_idx) {
 				err = vp_oper->mac_idx;
 				vp_oper->mac_idx = NO_INDX;
-				mlx4_warn((&priv->dev),
+				mlx4_warn(&priv->dev,
 					  "No mac resorces slave %d, port %d\n",
 					  slave, port);
 				return err;
 			}
-			mlx4_dbg((&(priv->dev)), "alloc mac %llx idx  %d slave %d port %d\n",
+			mlx4_dbg(&priv->dev, "alloc mac %llx idx  %d slave %d port %d\n",
 				 vp_oper->state.mac, vp_oper->mac_idx, slave, port);
 		}
 	}
@@ -1676,8 +1726,19 @@ static void mlx4_master_deactivate_admin_state(struct mlx4_priv *priv, int slave
 {
 	int port;
 	struct mlx4_vport_oper_state *vp_oper;
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(
+			&priv->dev, slave);
+	int min_port = find_first_bit(actv_ports.ports,
+				      priv->dev.caps.num_ports) + 1;
+	int max_port = min_port - 1 +
+		bitmap_weight(actv_ports.ports, priv->dev.caps.num_ports);
 
-	for (port = 1; port <= MLX4_MAX_PORTS; port++) {
+
+	for (port = min_port; port <= max_port; port++) {
+		if (!test_bit(port - 1, actv_ports.ports))
+			continue;
+		priv->mfunc.master.vf_oper[slave].smi_enabled[port] =
+			MLX4_VF_SMI_DISABLED;
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 		if (NO_INDX != vp_oper->vlan_idx) {
 			__mlx4_unregister_vlan(&priv->dev,
@@ -1705,8 +1766,8 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 	slave_state[slave].comm_toggle ^= 1;
 	reply = (u32) slave_state[slave].comm_toggle << 31;
 	if (toggle != slave_state[slave].comm_toggle) {
-		mlx4_warn(dev, "Incorrect toggle %d from slave %d. *** MASTER"
-			  "STATE COMPROMISIED ***\n", toggle, slave);
+		mlx4_warn(dev, "Incorrect toggle %d from slave %d. *** MASTER STATE COMPROMISED ***\n",
+			  toggle, slave);
 		goto reset_slave;
 	}
 	if (cmd == MLX4_COMM_CMD_RESET) {
@@ -1733,8 +1794,8 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 	/*command from slave in the middle of FLR*/
 	if (cmd != MLX4_COMM_CMD_RESET &&
 	    MLX4_COMM_CMD_FLR == slave_state[slave].last_cmd) {
-		mlx4_warn(dev, "slave:%d is Trying to run cmd(0x%x) "
-			  "in the middle of FLR\n", slave, cmd);
+		mlx4_warn(dev, "slave:%d is Trying to run cmd(0x%x) in the middle of FLR\n",
+			  slave, cmd);
 		return;
 	}
 
@@ -1772,8 +1833,8 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 
 		mutex_lock(&priv->cmd.slave_cmd_mutex);
 		if (mlx4_master_process_vhcr(dev, slave, NULL)) {
-			mlx4_err(dev, "Failed processing vhcr for slave:%d,"
-				 " resetting slave.\n", slave);
+			mlx4_err(dev, "Failed processing vhcr for slave:%d, resetting slave\n",
+				 slave);
 			mutex_unlock(&priv->cmd.slave_cmd_mutex);
 			goto reset_slave;
 		}
@@ -1790,8 +1851,7 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		is_going_down = 1;
 	spin_unlock_irqrestore(&priv->mfunc.master.slave_state_lock, flags);
 	if (is_going_down) {
-		mlx4_warn(dev, "Slave is going down aborting command(%d)"
-			  " executing from slave:%d\n",
+		mlx4_warn(dev, "Slave is going down aborting command(%d) executing from slave:%d\n",
 			  cmd, slave);
 		return;
 	}
@@ -1854,10 +1914,9 @@ void mlx4_master_comm_channel(struct work_struct *work)
 			if (toggle != slt) {
 				if (master->slave_state[slave].comm_toggle
 				    != slt) {
-					printk(KERN_INFO "slave %d out of sync."
-					       " read toggle %d, state toggle %d. "
-					       "Resynching.\n", slave, slt,
-					       master->slave_state[slave].comm_toggle);
+					pr_info("slave %d out of sync. read toggle %d, state toggle %d. Resynching.\n",
+						slave, slt,
+						master->slave_state[slave].comm_toggle);
 					master->slave_state[slave].comm_toggle =
 						slt;
 				}
@@ -1870,8 +1929,7 @@ void mlx4_master_comm_channel(struct work_struct *work)
 	}
 
 	if (reported && reported != served)
-		mlx4_warn(dev, "Got command event with bitmask from %d slaves"
-			  " but %d were served\n",
+		mlx4_warn(dev, "Got command event with bitmask from %d slaves but %d were served\n",
 			  reported, served);
 
 	if (mlx4_ARM_COMM_CHANNEL(dev))
@@ -1927,7 +1985,7 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 		ioremap(pci_resource_start(dev->pdev, 2) +
 			MLX4_SLAVE_COMM_BASE, MLX4_COMM_PAGESIZE);
 	if (!priv->mfunc.comm) {
-		mlx4_err(dev, "Couldn't map communication vector.\n");
+		mlx4_err(dev, "Couldn't map communication vector\n");
 		goto err_vhcr;
 	}
 
@@ -2054,7 +2112,7 @@ int mlx4_cmd_init(struct mlx4_dev *dev)
 		priv->cmd.hcr = ioremap(pci_resource_start(dev->pdev, 0) +
 					MLX4_HCR_BASE, MLX4_HCR_SIZE);
 		if (!priv->cmd.hcr) {
-			mlx4_err(dev, "Couldn't map command register.\n");
+			mlx4_err(dev, "Couldn't map command register\n");
 			return -ENOMEM;
 		}
 	}
@@ -2225,6 +2283,128 @@ static int mlx4_get_slave_indx(struct mlx4_dev *dev, int vf)
 	return vf+1;
 }
 
+int mlx4_get_vf_indx(struct mlx4_dev *dev, int slave)
+{
+	if (slave < 1 || slave > dev->num_vfs) {
+		mlx4_err(dev,
+			 "Bad slave number:%d (number of activated slaves: %lu)\n",
+			 slave, dev->num_slaves);
+		return -EINVAL;
+	}
+	return slave - 1;
+}
+
+struct mlx4_active_ports mlx4_get_active_ports(struct mlx4_dev *dev, int slave)
+{
+	struct mlx4_active_ports actv_ports;
+	int vf;
+
+	bitmap_zero(actv_ports.ports, MLX4_MAX_PORTS);
+
+	if (slave == 0) {
+		bitmap_fill(actv_ports.ports, dev->caps.num_ports);
+		return actv_ports;
+	}
+
+	vf = mlx4_get_vf_indx(dev, slave);
+	if (vf < 0)
+		return actv_ports;
+
+	bitmap_set(actv_ports.ports, dev->dev_vfs[vf].min_port - 1,
+		   min((int)dev->dev_vfs[mlx4_get_vf_indx(dev, slave)].n_ports,
+		   dev->caps.num_ports));
+
+	return actv_ports;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_active_ports);
+
+int mlx4_slave_convert_port(struct mlx4_dev *dev, int slave, int port)
+{
+	unsigned n;
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(dev, slave);
+	unsigned m = bitmap_weight(actv_ports.ports, dev->caps.num_ports);
+
+	if (port <= 0 || port > m)
+		return -EINVAL;
+
+	n = find_first_bit(actv_ports.ports, dev->caps.num_ports);
+	if (port <= n)
+		port = n + 1;
+
+	return port;
+}
+EXPORT_SYMBOL_GPL(mlx4_slave_convert_port);
+
+int mlx4_phys_to_slave_port(struct mlx4_dev *dev, int slave, int port)
+{
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(dev, slave);
+	if (test_bit(port - 1, actv_ports.ports))
+		return port -
+			find_first_bit(actv_ports.ports, dev->caps.num_ports);
+
+	return -1;
+}
+EXPORT_SYMBOL_GPL(mlx4_phys_to_slave_port);
+
+struct mlx4_slaves_pport mlx4_phys_to_slaves_pport(struct mlx4_dev *dev,
+						   int port)
+{
+	unsigned i;
+	struct mlx4_slaves_pport slaves_pport;
+
+	bitmap_zero(slaves_pport.slaves, MLX4_MFUNC_MAX);
+
+	if (port <= 0 || port > dev->caps.num_ports)
+		return slaves_pport;
+
+	for (i = 0; i < dev->num_vfs + 1; i++) {
+		struct mlx4_active_ports actv_ports =
+			mlx4_get_active_ports(dev, i);
+		if (test_bit(port - 1, actv_ports.ports))
+			set_bit(i, slaves_pport.slaves);
+	}
+
+	return slaves_pport;
+}
+EXPORT_SYMBOL_GPL(mlx4_phys_to_slaves_pport);
+
+struct mlx4_slaves_pport mlx4_phys_to_slaves_pport_actv(
+		struct mlx4_dev *dev,
+		const struct mlx4_active_ports *crit_ports)
+{
+	unsigned i;
+	struct mlx4_slaves_pport slaves_pport;
+
+	bitmap_zero(slaves_pport.slaves, MLX4_MFUNC_MAX);
+
+	for (i = 0; i < dev->num_vfs + 1; i++) {
+		struct mlx4_active_ports actv_ports =
+			mlx4_get_active_ports(dev, i);
+		if (bitmap_equal(crit_ports->ports, actv_ports.ports,
+				 dev->caps.num_ports))
+			set_bit(i, slaves_pport.slaves);
+	}
+
+	return slaves_pport;
+}
+EXPORT_SYMBOL_GPL(mlx4_phys_to_slaves_pport_actv);
+
+static int mlx4_slaves_closest_port(struct mlx4_dev *dev, int slave, int port)
+{
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(dev, slave);
+	int min_port = find_first_bit(actv_ports.ports, dev->caps.num_ports)
+			+ 1;
+	int max_port = min_port +
+		bitmap_weight(actv_ports.ports, dev->caps.num_ports);
+
+	if (port < min_port)
+		port = min_port;
+	else if (port >= max_port)
+		port = max_port - 1;
+
+	return port;
+}
+
 int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -2238,6 +2418,7 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 	if (slave < 0)
 		return -EINVAL;
 
+	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 	s_info->mac = mac;
 	mlx4_info(dev, "default mac on vf %d port %d to %llX will take afect only after vf restart\n",
@@ -2264,6 +2445,7 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 	if (slave < 0)
 		return -EINVAL;
 
+	port = mlx4_slaves_closest_port(dev, slave, port);
 	vf_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
 
 	if ((0 == vlan) && (0 == qos))
@@ -2280,6 +2462,31 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_vlan);
 
+ /* mlx4_get_slave_default_vlan -
+ * return true if VST ( default vlan)
+ * if VST, will return vlan & qos (if not NULL)
+ */
+bool mlx4_get_slave_default_vlan(struct mlx4_dev *dev, int port, int slave,
+				 u16 *vlan, u8 *qos)
+{
+	struct mlx4_vport_oper_state *vp_oper;
+	struct mlx4_priv *priv;
+
+	priv = mlx4_priv(dev);
+	port = mlx4_slaves_closest_port(dev, slave, port);
+	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
+
+	if (MLX4_VGT != vp_oper->state.default_vlan) {
+		if (vlan)
+			*vlan = vp_oper->state.default_vlan;
+		if (qos)
+			*qos = vp_oper->state.default_qos;
+		return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_slave_default_vlan);
+
 int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -2294,6 +2501,7 @@ int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 	if (slave < 0)
 		return -EINVAL;
 
+	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 	s_info->spoofchk = setting;
 
@@ -2325,11 +2533,12 @@ int mlx4_get_vf_config(struct mlx4_dev *dev, int port, int vf, struct ifla_vf_in
 	ivf->mac[4] = ((s_info->mac >> (1*8)) & 0xff);
 	ivf->mac[5] = ((s_info->mac)  & 0xff);
 
-	ivf->vlan	= s_info->default_vlan;
-	ivf->qos	= s_info->default_qos;
-	ivf->tx_rate	= s_info->tx_rate;
-	ivf->spoofchk	= s_info->spoofchk;
-	ivf->linkstate	= s_info->link_state;
+	ivf->vlan		= s_info->default_vlan;
+	ivf->qos		= s_info->default_qos;
+	ivf->max_tx_rate	= s_info->tx_rate;
+	ivf->min_tx_rate	= 0;
+	ivf->spoofchk		= s_info->spoofchk;
+	ivf->linkstate		= s_info->link_state;
 
 	return 0;
 }
@@ -2346,6 +2555,7 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 	if (slave < 0)
 		return -EINVAL;
 
+	port = mlx4_slaves_closest_port(dev, slave, port);
 	switch (link_state) {
 	case IFLA_VF_LINK_STATE_AUTO:
 		/* get current link state */
@@ -2381,3 +2591,50 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_link_state);
+
+int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (slave < 1 || slave >= dev->num_slaves ||
+	    port < 1 || port > MLX4_MAX_PORTS)
+		return 0;
+
+	return priv->mfunc.master.vf_oper[slave].smi_enabled[port] ==
+		MLX4_VF_SMI_ENABLED;
+}
+EXPORT_SYMBOL_GPL(mlx4_vf_smi_enabled);
+
+int mlx4_vf_get_enable_smi_admin(struct mlx4_dev *dev, int slave, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (slave == mlx4_master_func_num(dev))
+		return 1;
+
+	if (slave < 1 || slave >= dev->num_slaves ||
+	    port < 1 || port > MLX4_MAX_PORTS)
+		return 0;
+
+	return priv->mfunc.master.vf_admin[slave].enable_smi[port] ==
+		MLX4_VF_SMI_ENABLED;
+}
+EXPORT_SYMBOL_GPL(mlx4_vf_get_enable_smi_admin);
+
+int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
+				 int enabled)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (slave == mlx4_master_func_num(dev))
+		return 0;
+
+	if (slave < 1 || slave >= dev->num_slaves ||
+	    port < 1 || port > MLX4_MAX_PORTS ||
+	    enabled < 0 || enabled > 1)
+		return -EINVAL;
+
+	priv->mfunc.master.vf_admin[slave].enable_smi[port] = enabled;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_vf_set_enable_smi_admin);

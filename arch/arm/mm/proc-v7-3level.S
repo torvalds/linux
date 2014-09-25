@@ -19,6 +19,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
+#include <asm/assembler.h>
 
 #define TTB_IRGN_NC	(0 << 8)
 #define TTB_IRGN_WBWA	(1 << 8)
@@ -61,8 +62,16 @@ ENTRY(cpu_v7_switch_mm)
 	mcrr	p15, 0, rpgdl, rpgdh, c2		@ set TTB 0
 	isb
 #endif
-	mov	pc, lr
+	ret	lr
 ENDPROC(cpu_v7_switch_mm)
+
+#ifdef __ARMEB__
+#define rl r3
+#define rh r2
+#else
+#define rl r2
+#define rh r3
+#endif
 
 /*
  * cpu_v7_set_pte_ext(ptep, pte)
@@ -73,18 +82,23 @@ ENDPROC(cpu_v7_switch_mm)
  */
 ENTRY(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
-	tst	r2, #L_PTE_VALID
+	tst	rl, #L_PTE_VALID
 	beq	1f
-	tst	r3, #1 << (57 - 32)		@ L_PTE_NONE
-	bicne	r2, #L_PTE_VALID
+	tst	rh, #1 << (57 - 32)		@ L_PTE_NONE
+	bicne	rl, #L_PTE_VALID
 	bne	1f
-	tst	r3, #1 << (55 - 32)		@ L_PTE_DIRTY
-	orreq	r2, #L_PTE_RDONLY
+
+	eor	ip, rh, #1 << (55 - 32)	@ toggle L_PTE_DIRTY in temp reg to
+					@ test for !L_PTE_DIRTY || L_PTE_RDONLY
+	tst	ip, #1 << (55 - 32) | 1 << (58 - 32)
+	orrne	rl, #PTE_AP2
+	biceq	rl, #PTE_AP2
+
 1:	strd	r2, r3, [r0]
 	ALT_SMP(W(nop))
 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
 #endif
-	mov	pc, lr
+	ret	lr
 ENDPROC(cpu_v7_set_pte_ext)
 
 	/*
@@ -132,12 +146,10 @@ ENDPROC(cpu_v7_set_pte_ext)
 	mov	\tmp, \ttbr1, lsr #(32 - ARCH_PGD_SHIFT)	@ upper bits
 	mov	\ttbr1, \ttbr1, lsl #ARCH_PGD_SHIFT		@ lower bits
 	addls	\ttbr1, \ttbr1, #TTBR1_OFFSET
-	mcrr	p15, 1, \ttbr1, \zero, c2			@ load TTBR1
+	mcrr	p15, 1, \ttbr1, \tmp, c2			@ load TTBR1
 	mov	\tmp, \ttbr0, lsr #(32 - ARCH_PGD_SHIFT)	@ upper bits
 	mov	\ttbr0, \ttbr0, lsl #ARCH_PGD_SHIFT		@ lower bits
-	mcrr	p15, 0, \ttbr0, \zero, c2			@ load TTBR0
-	mcrr	p15, 1, \ttbr1, \zero, c2			@ load TTBR1
-	mcrr	p15, 0, \ttbr0, \zero, c2			@ load TTBR0
+	mcrr	p15, 0, \ttbr0, \tmp, c2			@ load TTBR0
 	.endm
 
 	/*

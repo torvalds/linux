@@ -15,7 +15,7 @@ config SYNCLINK_CS
 
 	  This driver may be built as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
-	  The module will be called synclinkmp.  If you want to do that, say M
+	  The module will be called synclink_cs.  If you want to do that, say M
 	  here.
 
 config CARDMAN_4000

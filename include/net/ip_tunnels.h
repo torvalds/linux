@@ -38,6 +38,11 @@ struct ip_tunnel_prl_entry {
 	struct rcu_head			rcu_head;
 };
 
+struct ip_tunnel_dst {
+	struct dst_entry __rcu 		*dst;
+	__be32				 saddr;
+};
+
 struct ip_tunnel {
 	struct ip_tunnel __rcu	*next;
 	struct hlist_node hash_node;
@@ -53,6 +58,8 @@ struct ip_tunnel {
 	__u32		o_seqno;	/* The last output seqno */
 	int		hlen;		/* Precalculated header length */
 	int		mlink;
+
+	struct ip_tunnel_dst __percpu *dst_cache;
 
 	struct ip_tunnel_parm parms;
 
@@ -123,6 +130,7 @@ int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
 int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 		      struct ip_tunnel_parm *p);
 void ip_tunnel_setup(struct net_device *dev, int net_id);
+void ip_tunnel_dst_reset_all(struct ip_tunnel *t);
 
 /* Extract dsfield from inner protocol */
 static inline u8 ip_tunnel_get_dsfield(const struct iphdr *iph,
@@ -146,7 +154,7 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 }
 
 int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto);
-int iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
+int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		  __be32 src, __be32 dst, __u8 proto,
 		  __u8 tos, __u8 ttl, __be16 df, bool xnet);
 
@@ -155,10 +163,10 @@ struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
 
 static inline void iptunnel_xmit_stats(int err,
 				       struct net_device_stats *err_stats,
-				       struct pcpu_tstats __percpu *stats)
+				       struct pcpu_sw_netstats __percpu *stats)
 {
 	if (err > 0) {
-		struct pcpu_tstats *tstats = this_cpu_ptr(stats);
+		struct pcpu_sw_netstats *tstats = this_cpu_ptr(stats);
 
 		u64_stats_update_begin(&tstats->syncp);
 		tstats->tx_bytes += err;

@@ -32,7 +32,7 @@ ENTRY(cpu_arm740_proc_init)
 ENTRY(cpu_arm740_do_idle)
 ENTRY(cpu_arm740_dcache_clean_area)
 ENTRY(cpu_arm740_switch_mm)
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_arm740_proc_fin()
@@ -42,7 +42,7 @@ ENTRY(cpu_arm740_proc_fin)
 	bic	r0, r0, #0x3f000000		@ bank/f/lock/s
 	bic	r0, r0, #0x0000000c		@ w-buffer/cache
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	mov	pc, lr
+	ret	lr
 
 /*
  * cpu_arm740_reset(loc)
@@ -56,7 +56,7 @@ ENTRY(cpu_arm740_reset)
 	mrc	p15, 0, ip, c1, c0, 0		@ get ctrl register
 	bic	ip, ip, #0x0000000c		@ ............wc..
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
-	mov	pc, r0
+	ret	r0
 ENDPROC(cpu_arm740_reset)
 	.popsection
 
@@ -115,7 +115,7 @@ __arm740_setup:
 						@ need some benchmark
 	orr	r0, r0, #0x0000000d		@ MPU/Cache/WB
 
-	mov	pc, lr
+	ret	lr
 
 	.size	__arm740_setup, . - __arm740_setup
 

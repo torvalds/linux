@@ -597,28 +597,27 @@ static const unsigned int max98088_exmode_values[] = {
        0x00, 0x43, 0x10, 0x20, 0x30, 0x40, 0x11, 0x22, 0x32
 };
 
-static const struct soc_enum max98088_exmode_enum =
-       SOC_VALUE_ENUM_SINGLE(M98088_REG_41_SPKDHP, 0, 127,
-                             ARRAY_SIZE(max98088_exmode_texts),
-                             max98088_exmode_texts,
-                             max98088_exmode_values);
+static SOC_VALUE_ENUM_SINGLE_DECL(max98088_exmode_enum,
+				  M98088_REG_41_SPKDHP, 0, 127,
+				  max98088_exmode_texts,
+				  max98088_exmode_values);
 
 static const char *max98088_ex_thresh[] = { /* volts PP */
        "0.6", "1.2", "1.8", "2.4", "3.0", "3.6", "4.2", "4.8"};
-static const struct soc_enum max98088_ex_thresh_enum[] = {
-       SOC_ENUM_SINGLE(M98088_REG_42_SPKDHP_THRESH, 0, 8,
-               max98088_ex_thresh),
-};
+static SOC_ENUM_SINGLE_DECL(max98088_ex_thresh_enum,
+			    M98088_REG_42_SPKDHP_THRESH, 0,
+			    max98088_ex_thresh);
 
 static const char *max98088_fltr_mode[] = {"Voice", "Music" };
-static const struct soc_enum max98088_filter_mode_enum[] = {
-       SOC_ENUM_SINGLE(M98088_REG_18_DAI1_FILTERS, 7, 2, max98088_fltr_mode),
-};
+static SOC_ENUM_SINGLE_DECL(max98088_filter_mode_enum,
+			    M98088_REG_18_DAI1_FILTERS, 7,
+			    max98088_fltr_mode);
 
 static const char *max98088_extmic_text[] = { "None", "MIC1", "MIC2" };
 
-static const struct soc_enum max98088_extmic_enum =
-       SOC_ENUM_SINGLE(M98088_REG_48_CFG_MIC, 0, 3, max98088_extmic_text);
+static SOC_ENUM_SINGLE_DECL(max98088_extmic_enum,
+			    M98088_REG_48_CFG_MIC, 0,
+			    max98088_extmic_text);
 
 static const struct snd_kcontrol_new max98088_extmic_mux =
        SOC_DAPM_ENUM("External MIC Mux", max98088_extmic_enum);
@@ -626,17 +625,17 @@ static const struct snd_kcontrol_new max98088_extmic_mux =
 static const char *max98088_dai1_fltr[] = {
        "Off", "fc=258/fs=16k", "fc=500/fs=16k",
        "fc=258/fs=8k", "fc=500/fs=8k", "fc=200"};
-static const struct soc_enum max98088_dai1_dac_filter_enum[] = {
-       SOC_ENUM_SINGLE(M98088_REG_18_DAI1_FILTERS, 0, 6, max98088_dai1_fltr),
-};
-static const struct soc_enum max98088_dai1_adc_filter_enum[] = {
-       SOC_ENUM_SINGLE(M98088_REG_18_DAI1_FILTERS, 4, 6, max98088_dai1_fltr),
-};
+static SOC_ENUM_SINGLE_DECL(max98088_dai1_dac_filter_enum,
+			    M98088_REG_18_DAI1_FILTERS, 0,
+			    max98088_dai1_fltr);
+static SOC_ENUM_SINGLE_DECL(max98088_dai1_adc_filter_enum,
+			    M98088_REG_18_DAI1_FILTERS, 4,
+			    max98088_dai1_fltr);
 
 static int max98088_mic1pre_set(struct snd_kcontrol *kcontrol,
                                struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
        unsigned int sel = ucontrol->value.integer.value[0];
 
@@ -650,7 +649,7 @@ static int max98088_mic1pre_set(struct snd_kcontrol *kcontrol,
 static int max98088_mic1pre_get(struct snd_kcontrol *kcontrol,
                                struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
 
        ucontrol->value.integer.value[0] = max98088->mic1pre;
@@ -660,7 +659,7 @@ static int max98088_mic1pre_get(struct snd_kcontrol *kcontrol,
 static int max98088_mic2pre_set(struct snd_kcontrol *kcontrol,
                                struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
        unsigned int sel = ucontrol->value.integer.value[0];
 
@@ -674,7 +673,7 @@ static int max98088_mic2pre_set(struct snd_kcontrol *kcontrol,
 static int max98088_mic2pre_get(struct snd_kcontrol *kcontrol,
                                struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
 
        ucontrol->value.integer.value[0] = max98088->mic2pre;
@@ -1300,12 +1299,12 @@ static int max98088_dai2_hw_params(struct snd_pcm_substream *substream,
 
        rate = params_rate(params);
 
-       switch (params_format(params)) {
-       case SNDRV_PCM_FORMAT_S16_LE:
+       switch (params_width(params)) {
+       case 16:
                snd_soc_update_bits(codec, M98088_REG_1C_DAI2_FORMAT,
                        M98088_DAI_WS, 0);
                break;
-       case SNDRV_PCM_FORMAT_S24_LE:
+       case 24:
                snd_soc_update_bits(codec, M98088_REG_1C_DAI2_FORMAT,
                        M98088_DAI_WS, M98088_DAI_WS);
                break;
@@ -1751,7 +1750,7 @@ static void max98088_setup_eq2(struct snd_soc_codec *codec)
 static int max98088_put_eq_enum(struct snd_kcontrol *kcontrol,
                                 struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
        struct max98088_pdata *pdata = max98088->pdata;
        int channel = max98088_get_channel(codec, kcontrol->id.name);
@@ -1783,7 +1782,7 @@ static int max98088_put_eq_enum(struct snd_kcontrol *kcontrol,
 static int max98088_get_eq_enum(struct snd_kcontrol *kcontrol,
                                 struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
        int channel = max98088_get_channel(codec, kcontrol->id.name);
        struct max98088_cdata *cdata;
@@ -1849,7 +1848,7 @@ static void max98088_handle_eq_pdata(struct snd_soc_codec *codec)
 
        /* Now point the soc_enum to .texts array items */
        max98088->eq_enum.texts = max98088->eq_texts;
-       max98088->eq_enum.max = max98088->eq_textcnt;
+       max98088->eq_enum.items = max98088->eq_textcnt;
 
        ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
        if (ret != 0)
@@ -1914,12 +1913,6 @@ static int max98088_probe(struct snd_soc_codec *codec)
        int ret = 0;
 
        regcache_mark_dirty(max98088->regmap);
-
-       ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-       if (ret != 0) {
-               dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-               return ret;
-       }
 
        /* initialize private data */
 

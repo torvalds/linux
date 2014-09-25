@@ -34,14 +34,15 @@
 int radeon_semaphore_create(struct radeon_device *rdev,
 			    struct radeon_semaphore **semaphore)
 {
+	uint64_t *cpu_addr;
 	int i, r;
 
 	*semaphore = kmalloc(sizeof(struct radeon_semaphore), GFP_KERNEL);
 	if (*semaphore == NULL) {
 		return -ENOMEM;
 	}
-	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo,
-			     &(*semaphore)->sa_bo, 8, 8, true);
+	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &(*semaphore)->sa_bo,
+			     8 * RADEON_NUM_SYNCS, 8);
 	if (r) {
 		kfree(*semaphore);
 		*semaphore = NULL;
@@ -49,7 +50,10 @@ int radeon_semaphore_create(struct radeon_device *rdev,
 	}
 	(*semaphore)->waiters = 0;
 	(*semaphore)->gpu_addr = radeon_sa_bo_gpu_addr((*semaphore)->sa_bo);
-	*((uint64_t*)radeon_sa_bo_cpu_addr((*semaphore)->sa_bo)) = 0;
+
+	cpu_addr = radeon_sa_bo_cpu_addr((*semaphore)->sa_bo);
+	for (i = 0; i < RADEON_NUM_SYNCS; ++i)
+		cpu_addr[i] = 0;
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i)
 		(*semaphore)->sync_to[i] = NULL;
@@ -125,6 +129,7 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 				struct radeon_semaphore *semaphore,
 				int ring)
 {
+	unsigned count = 0;
 	int i, r;
 
         for (i = 0; i < RADEON_NUM_RINGS; ++i) {
@@ -140,6 +145,14 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 			return -EINVAL;
 		}
 
+		if (++count > RADEON_NUM_SYNCS) {
+			/* not enough room, wait manually */
+			r = radeon_fence_wait(fence, false);
+			if (r)
+				return r;
+			continue;
+		}
+
 		/* allocate enough space for sync command */
 		r = radeon_ring_alloc(rdev, &rdev->ring[i], 16);
 		if (r) {
@@ -150,7 +163,9 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 		if (!radeon_semaphore_emit_signal(rdev, i, semaphore)) {
 			/* signaling wasn't successful wait manually */
 			radeon_ring_undo(&rdev->ring[i]);
-			radeon_fence_wait_locked(fence);
+			r = radeon_fence_wait(fence, false);
+			if (r)
+				return r;
 			continue;
 		}
 
@@ -158,12 +173,16 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 		if (!radeon_semaphore_emit_wait(rdev, ring, semaphore)) {
 			/* waiting wasn't successful wait manually */
 			radeon_ring_undo(&rdev->ring[i]);
-			radeon_fence_wait_locked(fence);
+			r = radeon_fence_wait(fence, false);
+			if (r)
+				return r;
 			continue;
 		}
 
-		radeon_ring_commit(rdev, &rdev->ring[i]);
+		radeon_ring_commit(rdev, &rdev->ring[i], false);
 		radeon_fence_note_sync(fence, ring);
+
+		semaphore->gpu_addr += 8;
 	}
 
 	return 0;

@@ -58,14 +58,6 @@ static int davinci_verify_speed(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static unsigned int davinci_getspeed(unsigned int cpu)
-{
-	if (cpu)
-		return 0;
-
-	return clk_get_rate(cpufreq.armclk) / 1000;
-}
-
 static int davinci_target(struct cpufreq_policy *policy, unsigned int idx)
 {
 	struct davinci_cpufreq_config *pdata = cpufreq.dev->platform_data;
@@ -73,7 +65,7 @@ static int davinci_target(struct cpufreq_policy *policy, unsigned int idx)
 	unsigned int old_freq, new_freq;
 	int ret = 0;
 
-	old_freq = davinci_getspeed(0);
+	old_freq = policy->cur;
 	new_freq = pdata->freq_table[idx].frequency;
 
 	/* if moving to higher frequency, up the voltage beforehand */
@@ -116,6 +108,8 @@ static int davinci_cpu_init(struct cpufreq_policy *policy)
 			return result;
 	}
 
+	policy->clk = cpufreq.armclk;
+
 	/*
 	 * Time measurement across the target() function yields ~1500-1800us
 	 * time taken with no drivers on notification list.
@@ -126,12 +120,11 @@ static int davinci_cpu_init(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_driver davinci_driver = {
-	.flags		= CPUFREQ_STICKY,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= davinci_verify_speed,
 	.target_index	= davinci_target,
-	.get		= davinci_getspeed,
+	.get		= cpufreq_generic_get,
 	.init		= davinci_cpu_init,
-	.exit		= cpufreq_generic_exit,
 	.name		= "davinci",
 	.attr		= cpufreq_generic_attr,
 };

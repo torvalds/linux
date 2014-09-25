@@ -2,7 +2,7 @@
  * Marvell Wireless LAN device driver: management IE handling- setting and
  * deleting IE.
  *
- * Copyright (C) 2012, Marvell International Ltd.
+ * Copyright (C) 2012-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -138,9 +138,9 @@ mwifiex_update_autoindex_ies(struct mwifiex_private *priv,
 	}
 
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP)
-		return mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_SYS_CONFIG,
-					      HostCmd_ACT_GEN_SET,
-					      UAP_CUSTOM_IE_I, ie_list);
+		return mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
+					HostCmd_ACT_GEN_SET,
+					UAP_CUSTOM_IE_I, ie_list, false);
 
 	return 0;
 }

@@ -85,12 +85,10 @@
 
 			PHY0: ethernet-phy@0 {
 				reg = <0x0>;
-				device_type = "ethernet-phy";
 			};
 
 			PHY1: ethernet-phy@1 {
 				reg = <0x1>;
-				device_type = "ethernet-phy";
 			};
 		};
 

@@ -9,14 +9,17 @@
  * published by the Free Software Foundation.
 */
 
+#include <dt-bindings/clock/exynos5440.h>
 #include "skeleton.dtsi"
 
 / {
-	compatible = "samsung,exynos5440";
+	compatible = "samsung,exynos5440", "samsung,exynos5";
 
 	interrupt-parent = <&gic>;
 
 	aliases {
+		serial0 = &serial_0;
+		serial1 = &serial_1;
 		spi0 = &spi_0;
 		tmuctrl0 = &tmuctrl_0;
 		tmuctrl1 = &tmuctrl_1;
@@ -101,19 +104,19 @@
 		>;
 	};
 
-	serial@B0000 {
+	serial_0: serial@B0000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0xB0000 0x1000>;
 		interrupts = <0 2 0>;
-		clocks = <&clock 21>, <&clock 21>;
+		clocks = <&clock CLK_B_125>, <&clock CLK_B_125>;
 		clock-names = "uart", "clk_uart_baud0";
 	};
 
-	serial@C0000 {
+	serial_1: serial@C0000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0xC0000 0x1000>;
 		interrupts = <0 3 0>;
-		clocks = <&clock 21>, <&clock 21>;
+		clocks = <&clock CLK_B_125>, <&clock CLK_B_125>;
 		clock-names = "uart", "clk_uart_baud0";
 	};
 
@@ -125,7 +128,7 @@
 		#size-cells = <0>;
 		samsung,spi-src-clk = <0>;
 		num-cs = <1>;
-		clocks = <&clock 21>, <&clock 16>;
+		clocks = <&clock CLK_B_125>, <&clock CLK_SPI_BAUD>;
 		clock-names = "spi", "spi_busclk0";
 	};
 
@@ -161,7 +164,7 @@
 		interrupts = <0 5 0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&clock 21>;
+		clocks = <&clock CLK_B_125>;
 		clock-names = "i2c";
 	};
 
@@ -171,15 +174,15 @@
 		interrupts = <0 6 0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&clock 21>;
+		clocks = <&clock CLK_B_125>;
 		clock-names = "i2c";
 	};
 
-	watchdog {
+	watchdog@110000 {
 		compatible = "samsung,s3c2410-wdt";
 		reg = <0x110000 0x1000>;
 		interrupts = <0 1 0>;
-		clocks = <&clock 21>;
+		clocks = <&clock CLK_B_125>;
 		clock-names = "watchdog";
 	};
 
@@ -190,7 +193,7 @@
 		interrupts = <0 31 4>;
 		interrupt-names = "macirq";
 		phy-mode = "sgmii";
-		clocks = <&clock 25>;
+		clocks = <&clock CLK_GMAC0>;
 		clock-names = "stmmaceth";
 	};
 
@@ -206,7 +209,7 @@
 		compatible = "samsung,s3c6410-rtc";
 		reg = <0x130000 0x1000>;
 		interrupts = <0 17 0>, <0 16 0>;
-		clocks = <&clock 21>;
+		clocks = <&clock CLK_B_125>;
 		clock-names = "rtc";
 	};
 
@@ -214,7 +217,7 @@
 		compatible = "samsung,exynos5440-tmu";
 		reg = <0x160118 0x230>, <0x160368 0x10>;
 		interrupts = <0 58 0>;
-		clocks = <&clock 21>;
+		clocks = <&clock CLK_B_125>;
 		clock-names = "tmu_apbif";
 	};
 
@@ -222,7 +225,7 @@
 		compatible = "samsung,exynos5440-tmu";
 		reg = <0x16011C 0x230>, <0x160368 0x10>;
 		interrupts = <0 58 0>;
-		clocks = <&clock 21>;
+		clocks = <&clock CLK_B_125>;
 		clock-names = "tmu_apbif";
 	};
 
@@ -230,7 +233,7 @@
 		compatible = "samsung,exynos5440-tmu";
 		reg = <0x160120 0x230>, <0x160368 0x10>;
 		interrupts = <0 58 0>;
-		clocks = <&clock 21>;
+		clocks = <&clock CLK_B_125>;
 		clock-names = "tmu_apbif";
 	};
 
@@ -238,7 +241,7 @@
 		compatible = "snps,exynos5440-ahci";
 		reg = <0x210000 0x10000>;
 		interrupts = <0 30 0>;
-		clocks = <&clock 23>;
+		clocks = <&clock CLK_SATA>;
 		clock-names = "sata";
 	};
 
@@ -246,7 +249,7 @@
 		compatible = "samsung,exynos5440-ohci";
 		reg = <0x220000 0x1000>;
 		interrupts = <0 29 0>;
-		clocks = <&clock 24>;
+		clocks = <&clock CLK_USB>;
 		clock-names = "usbhost";
 	};
 
@@ -254,7 +257,7 @@
 		compatible = "samsung,exynos5440-ehci";
 		reg = <0x221000 0x1000>;
 		interrupts = <0 29 0>;
-		clocks = <&clock 24>;
+		clocks = <&clock CLK_USB>;
 		clock-names = "usbhost";
 	};
 
@@ -264,7 +267,7 @@
 			0x270000 0x1000
 			0x271000 0x40>;
 		interrupts = <0 20 0>, <0 21 0>, <0 22 0>;
-		clocks = <&clock 28>, <&clock 27>;
+		clocks = <&clock CLK_PR0_250_O>, <&clock CLK_PB0_250_O>;
 		clock-names = "pcie", "pcie_bus";
 		#address-cells = <3>;
 		#size-cells = <2>;
@@ -285,7 +288,7 @@
 			0x272000 0x1000
 			0x271040 0x40>;
 		interrupts = <0 23 0>, <0 24 0>, <0 25 0>;
-		clocks = <&clock 29>, <&clock 27>;
+		clocks = <&clock CLK_PR1_250_O>, <&clock CLK_PB0_250_O>;
 		clock-names = "pcie", "pcie_bus";
 		#address-cells = <3>;
 		#size-cells = <2>;

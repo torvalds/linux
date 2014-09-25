@@ -14,10 +14,11 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pmx_led_os_red: pmx-led-os-red {
 				marvell,pins = "mpp22";
 				marvell,function = "gpio";
@@ -104,8 +105,6 @@
 
 &nand {
 	status = "okay";
-	pinctrl-0 = <&pmx_nand>;
-	pinctrl-names = "default";
 
 	partition@0 {
 		label = "u-boot";
@@ -133,7 +132,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@8 {
-		device_type = "ethernet-phy";
 		reg = <8>;
 	};
 };

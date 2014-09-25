@@ -136,6 +136,7 @@ u32 host1x_syncpt_id(struct host1x_syncpt *sp);
 u32 host1x_syncpt_read_min(struct host1x_syncpt *sp);
 u32 host1x_syncpt_read_max(struct host1x_syncpt *sp);
 int host1x_syncpt_incr(struct host1x_syncpt *sp);
+u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs);
 int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
 		       u32 *value);
 struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
@@ -163,12 +164,15 @@ int host1x_job_submit(struct host1x_job *job);
  */
 
 struct host1x_reloc {
-	struct host1x_bo *cmdbuf;
-	u32 cmdbuf_offset;
-	struct host1x_bo *target;
-	u32 target_offset;
-	u32 shift;
-	u32 pad;
+	struct {
+		struct host1x_bo *bo;
+		unsigned long offset;
+	} cmdbuf;
+	struct {
+		struct host1x_bo *bo;
+		unsigned long offset;
+	} target;
+	unsigned long shift;
 };
 
 struct host1x_job {
@@ -280,5 +284,11 @@ int host1x_device_exit(struct host1x_device *device);
 
 int host1x_client_register(struct host1x_client *client);
 int host1x_client_unregister(struct host1x_client *client);
+
+struct tegra_mipi_device;
+
+struct tegra_mipi_device *tegra_mipi_request(struct device *device);
+void tegra_mipi_free(struct tegra_mipi_device *device);
+int tegra_mipi_calibrate(struct tegra_mipi_device *device);
 
 #endif

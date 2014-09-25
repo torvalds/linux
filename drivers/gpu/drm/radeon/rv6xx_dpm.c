@@ -1546,7 +1546,6 @@ int rv6xx_dpm_enable(struct radeon_device *rdev)
 {
 	struct rv6xx_power_info *pi = rv6xx_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
-	int ret;
 
 	if (r600_dynamicpm_enabled(rdev))
 		return -EINVAL;
@@ -1593,15 +1592,6 @@ int rv6xx_dpm_enable(struct radeon_device *rdev)
 	r600_power_level_enable(rdev, R600_POWER_LEVEL_LOW, true);
 	r600_power_level_enable(rdev, R600_POWER_LEVEL_MEDIUM, true);
 	r600_power_level_enable(rdev, R600_POWER_LEVEL_HIGH, true);
-
-	if (rdev->irq.installed &&
-	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
-		ret = r600_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
-		if (ret)
-			return ret;
-		rdev->irq.dpm_thermal = true;
-		radeon_irq_set(rdev);
-	}
 
 	rv6xx_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 
@@ -1901,9 +1891,6 @@ static int rv6xx_parse_power_table(struct radeon_device *rdev)
 				  power_info->pplib.ucNumStates, GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 
 	for (i = 0; i < power_info->pplib.ucNumStates; i++) {
 		power_state = (union pplib_power_state *)
@@ -1952,6 +1939,10 @@ int rv6xx_dpm_init(struct radeon_device *rdev)
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = rv6xx_parse_power_table(rdev);
 	if (ret)

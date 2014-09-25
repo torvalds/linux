@@ -35,8 +35,9 @@
 #include "ms.h"
 #include "spi.h"
 
-void scsi_show_command(struct scsi_cmnd *srb)
+void scsi_show_command(struct rtsx_chip *chip)
 {
+	struct scsi_cmnd *srb = chip->srb;
 	char *what = NULL;
 	int i, unknown_cmd = 0;
 
@@ -314,13 +315,13 @@ void scsi_show_command(struct scsi_cmnd *srb)
 	}
 
 	if (srb->cmnd[0] != TEST_UNIT_READY)
-		RTSX_DEBUGP("Command %s (%d bytes)\n", what, srb->cmd_len);
+		dev_dbg(rtsx_dev(chip), "Command %s (%d bytes)\n",
+			what, srb->cmd_len);
 
 	if (unknown_cmd) {
-		RTSX_DEBUGP("");
 		for (i = 0; i < srb->cmd_len && i < 16; i++)
-			RTSX_DEBUGPN(" %02x", srb->cmnd[i]);
-		RTSX_DEBUGPN("\n");
+			dev_dbg(rtsx_dev(chip), " %02x", srb->cmnd[i]);
+		dev_dbg(rtsx_dev(chip), "\n");
 	}
 }
 
@@ -883,14 +884,14 @@ static int read_write(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		/* Accessing to any card is forbidden
 		 * until the erase procedure of SD is completed
 		 */
-		RTSX_DEBUGP("SD card being erased!\n");
+		dev_dbg(rtsx_dev(chip), "SD card being erased!\n");
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_READ_FORBIDDEN);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
 
 	if (get_lun_card(chip, lun) == SD_CARD) {
 		if (sd_card->sd_lock_status & SD_LOCKED) {
-			RTSX_DEBUGP("SD card locked!\n");
+			dev_dbg(rtsx_dev(chip), "SD card locked!\n");
 			set_sense_type(chip, lun,
 				SENSE_TYPE_MEDIA_READ_FORBIDDEN);
 			TRACE_RET(chip, TRANSPORT_FAILED);
@@ -935,7 +936,7 @@ static int read_write(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	if (chip->rw_fail_cnt[lun] == 3) {
-		RTSX_DEBUGP("read/write fail three times in succession\n");
+		dev_dbg(rtsx_dev(chip), "read/write fail three times in succession\n");
 		if (srb->sc_data_direction == DMA_FROM_DEVICE)
 			set_sense_type(chip, lun,
 				SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
@@ -947,7 +948,7 @@ static int read_write(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 	if (srb->sc_data_direction == DMA_TO_DEVICE) {
 		if (check_card_wp(chip, lun)) {
-			RTSX_DEBUGP("Write protected card!\n");
+			dev_dbg(rtsx_dev(chip), "Write protected card!\n");
 			set_sense_type(chip, lun,
 				SENSE_TYPE_MEDIA_WRITE_PROTECT);
 			TRACE_RET(chip, TRANSPORT_FAILED);
@@ -1380,7 +1381,7 @@ static int trace_msg_cmd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	*(ptr++) = (u8)(msg_cnt >> 16);
 	*(ptr++) = (u8)(msg_cnt >> 8);
 	*(ptr++) = (u8)msg_cnt;
-	RTSX_DEBUGP("Trace message count is %d\n", msg_cnt);
+	dev_dbg(rtsx_dev(chip), "Trace message count is %d\n", msg_cnt);
 
 	for (i = 1; i <= msg_cnt; i++) {
 		int j, idx;
@@ -1432,7 +1433,7 @@ static int read_host_reg(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	addr = srb->cmnd[4];
 
 	val = rtsx_readl(chip, addr);
-	RTSX_DEBUGP("Host register (0x%x): 0x%x\n", addr, val);
+	dev_dbg(rtsx_dev(chip), "Host register (0x%x): 0x%x\n", addr, val);
 
 	buf[0] = (u8)(val >> 24);
 	buf[1] = (u8)(val >> 16);
@@ -1595,9 +1596,9 @@ static int dma_access_ring_buffer(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	len = min_t(u16, len, scsi_bufflen(srb));
 
 	if (srb->sc_data_direction == DMA_FROM_DEVICE)
-		RTSX_DEBUGP("Read from device\n");
+		dev_dbg(rtsx_dev(chip), "Read from device\n");
 	else
-		RTSX_DEBUGP("Write to device\n");
+		dev_dbg(rtsx_dev(chip), "Write to device\n");
 
 	retval = rtsx_transfer_data(chip, 0, scsi_sglist(srb), len,
 			scsi_sg_count(srb), srb->sc_data_direction, 1000);
@@ -1731,7 +1732,7 @@ static int get_dev_status(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		status[0x17] = 0x00;
 	}
 
-	RTSX_DEBUGP("status[0x17] = 0x%x\n", status[0x17]);
+	dev_dbg(rtsx_dev(chip), "status[0x17] = 0x%x\n", status[0x17]);
 #endif
 
 	status[0x18] = 0x8A;
@@ -2312,8 +2313,8 @@ static int read_cfg_byte(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	addr = ((u16)(srb->cmnd[4]) << 8) | srb->cmnd[5];
 	len = ((u16)(srb->cmnd[6]) << 8) | srb->cmnd[7];
 
-	RTSX_DEBUGP("%s: func = %d, addr = 0x%x, len = %d\n", __func__, func,
-		addr, len);
+	dev_dbg(rtsx_dev(chip), "%s: func = %d, addr = 0x%x, len = %d\n",
+		__func__, func, addr, len);
 
 	if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip))
 		func_max = 1;
@@ -2366,7 +2367,8 @@ static int write_cfg_byte(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	addr = ((u16)(srb->cmnd[4]) << 8) | srb->cmnd[5];
 	len = ((u16)(srb->cmnd[6]) << 8) | srb->cmnd[7];
 
-	RTSX_DEBUGP("%s: func = %d, addr = 0x%x\n", __func__, func, addr);
+	dev_dbg(rtsx_dev(chip), "%s: func = %d, addr = 0x%x\n",
+		__func__, func, addr);
 
 	if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip))
 		func_max = 1;
@@ -2867,7 +2869,7 @@ static int get_ms_information(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
-	if ((get_lun_card(chip, lun) != MS_CARD)) {
+	if (get_lun_card(chip, lun) != MS_CARD) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_LUN_NOT_SUPPORT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
@@ -2983,7 +2985,7 @@ static int sd_extention_cmnd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
-	if ((get_lun_card(chip, lun) != SD_CARD)) {
+	if (get_lun_card(chip, lun) != SD_CARD) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_LUN_NOT_SUPPORT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
@@ -3030,8 +3032,6 @@ static int mg_report_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	int retval;
 	u8 key_format;
 
-	RTSX_DEBUGP("--%s--\n", __func__);
-
 	rtsx_disable_aspm(chip);
 
 	if (chip->ss_en && (rtsx_get_stat(chip) == RTSX_STAT_SS)) {
@@ -3046,7 +3046,7 @@ static int mg_report_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
-	if ((get_lun_card(chip, lun) != MS_CARD)) {
+	if (get_lun_card(chip, lun) != MS_CARD) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_LUN_NOT_SUPPORT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
@@ -3062,7 +3062,7 @@ static int mg_report_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	key_format = srb->cmnd[10] & 0x3F;
-	RTSX_DEBUGP("key_format = 0x%x\n", key_format);
+	dev_dbg(rtsx_dev(chip), "key_format = 0x%x\n", key_format);
 
 	switch (key_format) {
 	case KF_GET_LOC_EKB:
@@ -3131,8 +3131,6 @@ static int mg_send_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	int retval;
 	u8 key_format;
 
-	RTSX_DEBUGP("--%s--\n", __func__);
-
 	rtsx_disable_aspm(chip);
 
 	if (chip->ss_en && (rtsx_get_stat(chip) == RTSX_STAT_SS)) {
@@ -3151,7 +3149,7 @@ static int mg_send_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_WRITE_PROTECT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
-	if ((get_lun_card(chip, lun) != MS_CARD)) {
+	if (get_lun_card(chip, lun) != MS_CARD) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_LUN_NOT_SUPPORT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
@@ -3167,7 +3165,7 @@ static int mg_send_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	key_format = srb->cmnd[10] & 0x3F;
-	RTSX_DEBUGP("key_format = 0x%x\n", key_format);
+	dev_dbg(rtsx_dev(chip), "key_format = 0x%x\n", key_format);
 
 	switch (key_format) {
 	case KF_SET_LEAF_ID:

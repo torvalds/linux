@@ -399,8 +399,6 @@ enum lock_type4 {
 #define FATTR4_WORD2_LAYOUT_BLKSIZE     (1UL << 1)
 #define FATTR4_WORD2_MDSTHRESHOLD       (1UL << 4)
 #define FATTR4_WORD2_SECURITY_LABEL     (1UL << 16)
-#define FATTR4_WORD2_CHANGE_SECURITY_LABEL \
-					(1UL << 17)
 
 /* MDS threshold bitmap bits */
 #define THRESHOLD_RD                    (1UL << 0)

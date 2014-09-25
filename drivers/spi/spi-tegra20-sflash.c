@@ -22,7 +22,6 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -121,7 +120,6 @@ struct tegra_sflash_data {
 	struct reset_control			*rst;
 	void __iomem				*base;
 	unsigned				irq;
-	u32					spi_max_frequency;
 	u32					cur_speed;
 
 	struct spi_device			*cur_spi;
@@ -149,14 +147,14 @@ struct tegra_sflash_data {
 static int tegra_sflash_runtime_suspend(struct device *dev);
 static int tegra_sflash_runtime_resume(struct device *dev);
 
-static inline unsigned long tegra_sflash_readl(struct tegra_sflash_data *tsd,
+static inline u32 tegra_sflash_readl(struct tegra_sflash_data *tsd,
 		unsigned long reg)
 {
 	return readl(tsd->base + reg);
 }
 
 static inline void tegra_sflash_writel(struct tegra_sflash_data *tsd,
-		unsigned long val, unsigned long reg)
+		u32 val, unsigned long reg)
 {
 	writel(val, tsd->base + reg);
 }
@@ -186,7 +184,7 @@ static unsigned tegra_sflash_fill_tx_fifo_from_client_txbuf(
 	struct tegra_sflash_data *tsd, struct spi_transfer *t)
 {
 	unsigned nbytes;
-	unsigned long status;
+	u32 status;
 	unsigned max_n_32bit = tsd->curr_xfer_words;
 	u8 *tx_buf = (u8 *)t->tx_buf + tsd->cur_tx_pos;
 
@@ -197,11 +195,11 @@ static unsigned tegra_sflash_fill_tx_fifo_from_client_txbuf(
 	status = tegra_sflash_readl(tsd, SPI_STATUS);
 	while (!(status & SPI_TXF_FULL)) {
 		int i;
-		unsigned int x = 0;
+		u32 x = 0;
 
 		for (i = 0; nbytes && (i < tsd->bytes_per_word);
 							i++, nbytes--)
-				x |= ((*tx_buf++) << i*8);
+			x |= (u32)(*tx_buf++) << (i * 8);
 		tegra_sflash_writel(tsd, x, SPI_TX_FIFO);
 		if (!nbytes)
 			break;
@@ -215,16 +213,14 @@ static unsigned tegra_sflash_fill_tx_fifo_from_client_txbuf(
 static int tegra_sflash_read_rx_fifo_to_client_rxbuf(
 		struct tegra_sflash_data *tsd, struct spi_transfer *t)
 {
-	unsigned long status;
+	u32 status;
 	unsigned int read_words = 0;
 	u8 *rx_buf = (u8 *)t->rx_buf + tsd->cur_rx_pos;
 
 	status = tegra_sflash_readl(tsd, SPI_STATUS);
 	while (!(status & SPI_RXF_EMPTY)) {
 		int i;
-		unsigned long x;
-
-		x = tegra_sflash_readl(tsd, SPI_RX_FIFO);
+		u32 x = tegra_sflash_readl(tsd, SPI_RX_FIFO);
 		for (i = 0; (i < tsd->bytes_per_word); i++)
 			*rx_buf++ = (x >> (i*8)) & 0xFF;
 		read_words++;
@@ -237,7 +233,7 @@ static int tegra_sflash_read_rx_fifo_to_client_rxbuf(
 static int tegra_sflash_start_cpu_based_transfer(
 		struct tegra_sflash_data *tsd, struct spi_transfer *t)
 {
-	unsigned long val = 0;
+	u32 val = 0;
 	unsigned cur_words;
 
 	if (tsd->cur_direction & DATA_DIR_TX)
@@ -267,7 +263,7 @@ static int tegra_sflash_start_transfer_one(struct spi_device *spi,
 {
 	struct tegra_sflash_data *tsd = spi_master_get_devdata(spi->master);
 	u32 speed;
-	unsigned long command;
+	u32 command;
 
 	speed = t->speed_hz;
 	if (speed != tsd->cur_speed) {
@@ -314,16 +310,7 @@ static int tegra_sflash_start_transfer_one(struct spi_device *spi,
 	tegra_sflash_writel(tsd, command, SPI_COMMAND);
 	tsd->command_reg = command;
 
-	return  tegra_sflash_start_cpu_based_transfer(tsd, t);
-}
-
-static int tegra_sflash_setup(struct spi_device *spi)
-{
-	struct tegra_sflash_data *tsd = spi_master_get_devdata(spi->master);
-
-	/* Set speed to the spi max fequency if spi device has not set */
-	spi->max_speed_hz = spi->max_speed_hz ? : tsd->spi_max_frequency;
-	return 0;
+	return tegra_sflash_start_cpu_based_transfer(tsd, t);
 }
 
 static int tegra_sflash_transfer_one_message(struct spi_master *master,
@@ -432,16 +419,7 @@ static irqreturn_t tegra_sflash_isr(int irq, void *context_data)
 	return handle_cpu_based_xfer(tsd);
 }
 
-static void tegra_sflash_parse_dt(struct tegra_sflash_data *tsd)
-{
-	struct device_node *np = tsd->dev->of_node;
-
-	if (of_property_read_u32(np, "spi-max-frequency",
-					&tsd->spi_max_frequency))
-		tsd->spi_max_frequency = 25000000; /* 25MHz */
-}
-
-static struct of_device_id tegra_sflash_of_match[] = {
+static const struct of_device_id tegra_sflash_of_match[] = {
 	{ .compatible = "nvidia,tegra20-sflash", },
 	{}
 };
@@ -469,11 +447,9 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
-	master->setup = tegra_sflash_setup;
 	master->transfer_one_message = tegra_sflash_transfer_one_message;
 	master->auto_runtime_pm = true;
 	master->num_chipselect = MAX_CHIP_SELECT;
-	master->bus_num = -1;
 
 	platform_set_drvdata(pdev, master);
 	tsd = spi_master_get_devdata(master);
@@ -481,7 +457,9 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 	tsd->dev = &pdev->dev;
 	spin_lock_init(&tsd->lock);
 
-	tegra_sflash_parse_dt(tsd);
+	if (of_property_read_u32(tsd->dev->of_node, "spi-max-frequency",
+				 &master->max_speed_hz))
+		master->max_speed_hz = 25000000; /* 25MHz */
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	tsd->base = devm_ioremap_resource(&pdev->dev, r);

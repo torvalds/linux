@@ -93,7 +93,6 @@ static void free_if_spi_card(struct if_spi_card *card)
 		list_del(&packet->list);
 		kfree(packet);
 	}
-	spi_set_drvdata(card->spi, NULL);
 	kfree(card);
 }
 

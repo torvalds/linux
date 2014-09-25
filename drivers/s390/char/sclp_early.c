@@ -20,11 +20,16 @@ struct read_info_sccb {
 	struct	sccb_header header;	/* 0-7 */
 	u16	rnmax;			/* 8-9 */
 	u8	rnsize;			/* 10 */
-	u8	_reserved0[24 - 11];	/* 11-15 */
+	u8	_reserved0[16 - 11];	/* 11-15 */
+	u16	ncpurl;			/* 16-17 */
+	u16	cpuoff;			/* 18-19 */
+	u8	_reserved7[24 - 20];	/* 20-23 */
 	u8	loadparm[8];		/* 24-31 */
 	u8	_reserved1[48 - 32];	/* 32-47 */
 	u64	facilities;		/* 48-55 */
-	u8	_reserved2[84 - 56];	/* 56-83 */
+	u8	_reserved2a[76 - 56];	/* 56-75 */
+	u32	ibc;			/* 76-79 */
+	u8	_reserved2b[84 - 80];	/* 80-83 */
 	u8	fac84;			/* 84 */
 	u8	fac85;			/* 85 */
 	u8	_reserved3[91 - 86];	/* 86-90 */
@@ -32,14 +37,19 @@ struct read_info_sccb {
 	u8	_reserved4[100 - 92];	/* 92-99 */
 	u32	rnsize2;		/* 100-103 */
 	u64	rnmax2;			/* 104-111 */
-	u8	_reserved5[4096 - 112];	/* 112-4095 */
+	u8	_reserved5[120 - 112];	/* 112-119 */
+	u16	hcpua;			/* 120-121 */
+	u8	_reserved6[4096 - 122];	/* 122-4095 */
 } __packed __aligned(PAGE_SIZE);
 
 static char sccb_early[PAGE_SIZE] __aligned(PAGE_SIZE) __initdata;
 static unsigned int sclp_con_has_vt220 __initdata;
 static unsigned int sclp_con_has_linemode __initdata;
 static unsigned long sclp_hsa_size;
+static unsigned int sclp_max_cpu;
 static struct sclp_ipl_info sclp_ipl_info;
+static unsigned char sclp_siif;
+static u32 sclp_ibc;
 
 u64 sclp_facilities;
 u8 sclp_fac84;
@@ -91,6 +101,9 @@ static int __init sclp_read_info_early(struct read_info_sccb *sccb)
 
 static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 {
+	struct sclp_cpu_entry *cpue;
+	u16 boot_cpu_address, cpu;
+
 	if (sclp_read_info_early(sccb))
 		return;
 
@@ -101,6 +114,25 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 	sclp_rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	sclp_rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	sclp_rzm <<= 20;
+	sclp_ibc = sccb->ibc;
+
+	if (!sccb->hcpua) {
+		if (MACHINE_IS_VM)
+			sclp_max_cpu = 64;
+		else
+			sclp_max_cpu = sccb->ncpurl;
+	} else {
+		sclp_max_cpu = sccb->hcpua + 1;
+	}
+
+	boot_cpu_address = stap();
+	cpue = (void *)sccb + sccb->cpuoff;
+	for (cpu = 0; cpu < sccb->ncpurl; cpue++, cpu++) {
+		if (boot_cpu_address != cpue->address)
+			continue;
+		sclp_siif = cpue->siif;
+		break;
+	}
 
 	/* Save IPL information */
 	sclp_ipl_info.is_valid = 1;
@@ -128,6 +160,23 @@ unsigned long long sclp_get_rzm(void)
 {
 	return sclp_rzm;
 }
+
+unsigned int sclp_get_max_cpu(void)
+{
+	return sclp_max_cpu;
+}
+
+int sclp_has_siif(void)
+{
+	return sclp_siif;
+}
+EXPORT_SYMBOL(sclp_has_siif);
+
+unsigned int sclp_get_ibc(void)
+{
+	return sclp_ibc;
+}
+EXPORT_SYMBOL(sclp_get_ibc);
 
 /*
  * This function will be called after sclp_facilities_detect(), which gets
@@ -184,9 +233,9 @@ static long __init sclp_hsa_size_init(struct sdias_sccb *sccb)
 	sccb_init_eq_size(sccb);
 	if (sclp_cmd_early(SCLP_CMDW_WRITE_EVENT_DATA, sccb))
 		return -EIO;
-	if (sccb->evbuf.blk_cnt != 0)
-		return (sccb->evbuf.blk_cnt - 1) * PAGE_SIZE;
-	return 0;
+	if (sccb->evbuf.blk_cnt == 0)
+		return 0;
+	return (sccb->evbuf.blk_cnt - 1) * PAGE_SIZE;
 }
 
 static long __init sclp_hsa_copy_wait(struct sccb_header *sccb)
@@ -195,6 +244,8 @@ static long __init sclp_hsa_copy_wait(struct sccb_header *sccb)
 	sccb->length = PAGE_SIZE;
 	if (sclp_cmd_early(SCLP_CMDW_READ_EVENT_DATA, sccb))
 		return -EIO;
+	if (((struct sdias_sccb *) sccb)->evbuf.blk_cnt == 0)
+		return 0;
 	return (((struct sdias_sccb *) sccb)->evbuf.blk_cnt - 1) * PAGE_SIZE;
 }
 

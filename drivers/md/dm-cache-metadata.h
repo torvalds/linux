@@ -9,19 +9,17 @@
 
 #include "dm-cache-block-types.h"
 #include "dm-cache-policy-internal.h"
+#include "persistent-data/dm-space-map-metadata.h"
 
 /*----------------------------------------------------------------*/
 
-#define DM_CACHE_METADATA_BLOCK_SIZE 4096
+#define DM_CACHE_METADATA_BLOCK_SIZE DM_SM_METADATA_BLOCK_SIZE
 
 /* FIXME: remove this restriction */
 /*
  * The metadata device is currently limited in size.
- *
- * We have one block of index, which can hold 255 index entries.  Each
- * index entry contains allocation info about 16k metadata blocks.
  */
-#define DM_CACHE_METADATA_MAX_SECTORS (255 * (1 << 14) * (DM_CACHE_METADATA_BLOCK_SIZE / (1 << SECTOR_SHIFT)))
+#define DM_CACHE_METADATA_MAX_SECTORS DM_SM_METADATA_MAX_SECTORS
 
 /*
  * A metadata device larger than 16GB triggers a warning.
@@ -72,14 +70,14 @@ dm_cblock_t dm_cache_size(struct dm_cache_metadata *cmd);
 
 int dm_cache_discard_bitset_resize(struct dm_cache_metadata *cmd,
 				   sector_t discard_block_size,
-				   dm_dblock_t new_nr_entries);
+				   dm_oblock_t new_nr_entries);
 
 typedef int (*load_discard_fn)(void *context, sector_t discard_block_size,
-			       dm_dblock_t dblock, bool discarded);
+			       dm_oblock_t dblock, bool discarded);
 int dm_cache_load_discards(struct dm_cache_metadata *cmd,
 			   load_discard_fn fn, void *context);
 
-int dm_cache_set_discard(struct dm_cache_metadata *cmd, dm_dblock_t dblock, bool discard);
+int dm_cache_set_discard(struct dm_cache_metadata *cmd, dm_oblock_t dblock, bool discard);
 
 int dm_cache_remove_mapping(struct dm_cache_metadata *cmd, dm_cblock_t cblock);
 int dm_cache_insert_mapping(struct dm_cache_metadata *cmd, dm_cblock_t cblock, dm_oblock_t oblock);
@@ -128,14 +126,7 @@ void dm_cache_dump(struct dm_cache_metadata *cmd);
  * rather than querying the policy for each cblock, we let it walk its data
  * structures and fill in the hints in whatever order it wishes.
  */
-
-int dm_cache_begin_hints(struct dm_cache_metadata *cmd, struct dm_cache_policy *p);
-
-/*
- * requests hints for every cblock and stores in the metadata device.
- */
-int dm_cache_save_hint(struct dm_cache_metadata *cmd,
-		       dm_cblock_t cblock, uint32_t hint);
+int dm_cache_write_hints(struct dm_cache_metadata *cmd, struct dm_cache_policy *p);
 
 /*
  * Query method.  Are all the blocks in the cache clean?

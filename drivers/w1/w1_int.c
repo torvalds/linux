@@ -38,7 +38,7 @@ module_param_named(search_count, w1_search_count, int, 0);
 static int w1_enable_pullup = 1;
 module_param_named(enable_pullup, w1_enable_pullup, int, 0);
 
-static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
+static struct w1_master *w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 				       struct device_driver *driver,
 				       struct device *device)
 {
@@ -50,8 +50,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	 */
 	dev = kzalloc(sizeof(struct w1_master) + sizeof(struct w1_bus_master), GFP_KERNEL);
 	if (!dev) {
-		printk(KERN_ERR
-			"Failed to allocate %zd bytes for new w1 device.\n",
+		pr_err("Failed to allocate %zd bytes for new w1 device.\n",
 			sizeof(struct w1_master));
 		return NULL;
 	}
@@ -75,8 +74,10 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	atomic_set(&dev->refcnt, 2);
 
 	INIT_LIST_HEAD(&dev->slist);
+	INIT_LIST_HEAD(&dev->async_list);
 	mutex_init(&dev->mutex);
 	mutex_init(&dev->bus_mutex);
+	mutex_init(&dev->list_mutex);
 
 	memcpy(&dev->dev, device, sizeof(struct device));
 	dev_set_name(&dev->dev, "w1_bus_master%u", dev->id);
@@ -89,7 +90,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 
 	err = device_register(&dev->dev);
 	if (err) {
-		printk(KERN_ERR "Failed to register master device. err=%d\n", err);
+		pr_err("Failed to register master device. err=%d\n", err);
 		memset(dev, 0, sizeof(struct w1_master));
 		kfree(dev);
 		dev = NULL;
@@ -103,6 +104,10 @@ static void w1_free_dev(struct w1_master *dev)
 	device_unregister(&dev->dev);
 }
 
+/**
+ * w1_add_master_device() - registers a new master device
+ * @master:	master bus device to register
+ */
 int w1_add_master_device(struct w1_bus_master *master)
 {
 	struct w1_master *dev, *entry;
@@ -110,13 +115,13 @@ int w1_add_master_device(struct w1_bus_master *master)
 	struct w1_netlink_msg msg;
 	int id, found;
 
-        /* validate minimum functionality */
-        if (!(master->touch_bit && master->reset_bus) &&
-            !(master->write_bit && master->read_bit) &&
+	/* validate minimum functionality */
+	if (!(master->touch_bit && master->reset_bus) &&
+	    !(master->write_bit && master->read_bit) &&
 	    !(master->write_byte && master->read_byte && master->reset_bus)) {
-		printk(KERN_ERR "w1_add_master_device: invalid function set\n");
+		pr_err("w1_add_master_device: invalid function set\n");
 		return(-EINVAL);
-        }
+	}
 
 	/* Lock until the device is added (or not) to w1_masters. */
 	mutex_lock(&w1_mlock);
@@ -172,6 +177,7 @@ int w1_add_master_device(struct w1_bus_master *master)
 
 #if 0 /* Thread cleanup code, not required currently. */
 err_out_kill_thread:
+	set_bit(W1_ABORT_SEARCH, &dev->flags);
 	kthread_stop(dev->thread);
 #endif
 err_out_rm_attr:
@@ -187,16 +193,22 @@ void __w1_remove_master_device(struct w1_master *dev)
 	struct w1_netlink_msg msg;
 	struct w1_slave *sl, *sln;
 
-	kthread_stop(dev->thread);
-
 	mutex_lock(&w1_mlock);
 	list_del(&dev->w1_master_entry);
 	mutex_unlock(&w1_mlock);
 
+	set_bit(W1_ABORT_SEARCH, &dev->flags);
+	kthread_stop(dev->thread);
+
 	mutex_lock(&dev->mutex);
-	list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry)
+	mutex_lock(&dev->list_mutex);
+	list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
+		mutex_unlock(&dev->list_mutex);
 		w1_slave_detach(sl);
+		mutex_lock(&dev->list_mutex);
+	}
 	w1_destroy_master_attributes(dev);
+	mutex_unlock(&dev->list_mutex);
 	mutex_unlock(&dev->mutex);
 	atomic_dec(&dev->refcnt);
 
@@ -206,7 +218,13 @@ void __w1_remove_master_device(struct w1_master *dev)
 
 		if (msleep_interruptible(1000))
 			flush_signals(current);
+		mutex_lock(&dev->list_mutex);
+		w1_process_callbacks(dev);
+		mutex_unlock(&dev->list_mutex);
 	}
+	mutex_lock(&dev->list_mutex);
+	w1_process_callbacks(dev);
+	mutex_unlock(&dev->list_mutex);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.id.mst.id = dev->id;
@@ -216,6 +234,10 @@ void __w1_remove_master_device(struct w1_master *dev)
 	w1_free_dev(dev);
 }
 
+/**
+ * w1_remove_master_device() - unregister a master device
+ * @bm:	master bus device to remove
+ */
 void w1_remove_master_device(struct w1_bus_master *bm)
 {
 	struct w1_master *dev, *found = NULL;
@@ -231,7 +253,7 @@ void w1_remove_master_device(struct w1_bus_master *bm)
 	}
 
 	if (!found) {
-		printk(KERN_ERR "Device doesn't exist.\n");
+		pr_err("Device doesn't exist.\n");
 		return;
 	}
 

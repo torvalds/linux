@@ -31,7 +31,6 @@
 
 #define DRIVER_NAME		"CCI-400"
 #define DRIVER_NAME_PMU		DRIVER_NAME " PMU"
-#define PMU_NAME		"CCI_400"
 
 #define CCI_PORT_CTRL		0x0
 #define CCI_CTRL_STATUS		0xc
@@ -88,8 +87,7 @@ static unsigned long cci_ctrl_phys;
 
 #define CCI_REV_R0		0
 #define CCI_REV_R1		1
-#define CCI_REV_R0_P4		4
-#define CCI_REV_R1_P2		6
+#define CCI_REV_R1_PX		5
 
 #define CCI_PMU_EVT_SEL		0x000
 #define CCI_PMU_CNTR		0x004
@@ -163,6 +161,15 @@ static struct pmu_port_event_ranges port_event_range[] = {
 	},
 };
 
+/*
+ * Export different PMU names for the different revisions so userspace knows
+ * because the event ids are different
+ */
+static char *const pmu_names[] = {
+	[CCI_REV_R0] = "CCI_400",
+	[CCI_REV_R1] = "CCI_400_r1",
+};
+
 struct cci_pmu_drv_data {
 	void __iomem *base;
 	struct arm_pmu *cci_pmu;
@@ -193,20 +200,15 @@ static int probe_cci_revision(void)
 	rev = readl_relaxed(cci_ctrl_base + CCI_PID2) & CCI_PID2_REV_MASK;
 	rev >>= CCI_PID2_REV_SHIFT;
 
-	if (rev <= CCI_REV_R0_P4)
+	if (rev < CCI_REV_R1_PX)
 		return CCI_REV_R0;
-	else if (rev <= CCI_REV_R1_P2)
+	else
 		return CCI_REV_R1;
-
-	return -ENOENT;
 }
 
 static struct pmu_port_event_ranges *port_range_by_rev(void)
 {
 	int rev = probe_cci_revision();
-
-	if (rev < 0)
-		return NULL;
 
 	return &port_event_range[rev];
 }
@@ -395,7 +397,8 @@ static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 		hw_counter = &event->hw;
 
 		/* Did this counter overflow? */
-		if (!pmu_read_register(idx, CCI_PMU_OVRFLW) & CCI_PMU_OVRFLW_FLAG)
+		if (!(pmu_read_register(idx, CCI_PMU_OVRFLW) &
+		      CCI_PMU_OVRFLW_FLAG))
 			continue;
 
 		pmu_write_register(CCI_PMU_OVRFLW_FLAG, idx, CCI_PMU_OVRFLW);
@@ -526,7 +529,7 @@ static void pmu_write_counter(struct perf_event *event, u32 value)
 static int cci_pmu_init(struct arm_pmu *cci_pmu, struct platform_device *pdev)
 {
 	*cci_pmu = (struct arm_pmu){
-		.name             = PMU_NAME,
+		.name		  = pmu_names[probe_cci_revision()],
 		.max_period       = (1LLU << 32) - 1,
 		.get_hw_events    = pmu_get_hw_events,
 		.get_event_idx    = pmu_get_event_idx,
@@ -979,7 +982,7 @@ static int cci_probe(void)
 
 	nb_cci_ports = cci_config->nb_ace + cci_config->nb_ace_lite;
 
-	ports = kcalloc(sizeof(*ports), nb_cci_ports, GFP_KERNEL);
+	ports = kcalloc(nb_cci_ports, sizeof(*ports), GFP_KERNEL);
 	if (!ports)
 		return -ENOMEM;
 

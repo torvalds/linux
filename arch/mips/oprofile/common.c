@@ -86,6 +86,11 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	case CPU_34K:
 	case CPU_1004K:
 	case CPU_74K:
+	case CPU_1074K:
+	case CPU_INTERAPTIV:
+	case CPU_PROAPTIV:
+	case CPU_P5600:
+	case CPU_M5150:
 	case CPU_LOONGSON1:
 	case CPU_SB1:
 	case CPU_SB1A:

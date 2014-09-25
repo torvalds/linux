@@ -22,7 +22,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -44,10 +43,6 @@
 #include <linux/if_vlan.h>
 
 #include "gianfar.h"
-
-extern void gfar_start(struct net_device *dev);
-extern int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue,
-			      int rx_work_limit);
 
 #define GFAR_MAX_COAL_USECS 0xffff
 #define GFAR_MAX_COAL_FRAMES 0xff
@@ -365,24 +360,10 @@ static int gfar_scoalesce(struct net_device *dev,
 			  struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	int i = 0;
+	int i, err = 0;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
-
-	/* Set up rx coalescing */
-	/* As of now, we will enable/disable coalescing for all
-	 * queues together in case of eTSEC2, this will be modified
-	 * along with the ethtool interface
-	 */
-	if ((cvals->rx_coalesce_usecs == 0) ||
-	    (cvals->rx_max_coalesced_frames == 0)) {
-		for (i = 0; i < priv->num_rx_queues; i++)
-			priv->rx_queue[i]->rxcoalescing = 0;
-	} else {
-		for (i = 0; i < priv->num_rx_queues; i++)
-			priv->rx_queue[i]->rxcoalescing = 1;
-	}
 
 	if (NULL == priv->phydev)
 		return -ENODEV;
@@ -398,6 +379,32 @@ static int gfar_scoalesce(struct net_device *dev,
 		netdev_info(dev, "Coalescing is limited to %d frames\n",
 			    GFAR_MAX_COAL_FRAMES);
 		return -EINVAL;
+	}
+
+	/* Check the bounds of the values */
+	if (cvals->tx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
+		netdev_info(dev, "Coalescing is limited to %d microseconds\n",
+			    GFAR_MAX_COAL_USECS);
+		return -EINVAL;
+	}
+
+	if (cvals->tx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
+		netdev_info(dev, "Coalescing is limited to %d frames\n",
+			    GFAR_MAX_COAL_FRAMES);
+		return -EINVAL;
+	}
+
+	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
+		cpu_relax();
+
+	/* Set up rx coalescing */
+	if ((cvals->rx_coalesce_usecs == 0) ||
+	    (cvals->rx_max_coalesced_frames == 0)) {
+		for (i = 0; i < priv->num_rx_queues; i++)
+			priv->rx_queue[i]->rxcoalescing = 0;
+	} else {
+		for (i = 0; i < priv->num_rx_queues; i++)
+			priv->rx_queue[i]->rxcoalescing = 1;
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
@@ -416,28 +423,22 @@ static int gfar_scoalesce(struct net_device *dev,
 			priv->tx_queue[i]->txcoalescing = 1;
 	}
 
-	/* Check the bounds of the values */
-	if (cvals->tx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
-		netdev_info(dev, "Coalescing is limited to %d microseconds\n",
-			    GFAR_MAX_COAL_USECS);
-		return -EINVAL;
-	}
-
-	if (cvals->tx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
-		netdev_info(dev, "Coalescing is limited to %d frames\n",
-			    GFAR_MAX_COAL_FRAMES);
-		return -EINVAL;
-	}
-
 	for (i = 0; i < priv->num_tx_queues; i++) {
 		priv->tx_queue[i]->txic = mk_ic_value(
 			cvals->tx_max_coalesced_frames,
 			gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs));
 	}
 
-	gfar_configure_coalescing_all(priv);
+	if (dev->flags & IFF_UP) {
+		stop_gfar(dev);
+		err = startup_gfar(dev);
+	} else {
+		gfar_mac_reset(priv);
+	}
 
-	return 0;
+	clear_bit_unlock(GFAR_RESETTING, &priv->state);
+
+	return err;
 }
 
 /* Fills in rvals with the current ring parameters.  Currently,
@@ -468,15 +469,13 @@ static void gfar_gringparam(struct net_device *dev,
 }
 
 /* Change the current ring parameters, stopping the controller if
- * necessary so that we don't mess things up while we're in
- * motion.  We wait for the ring to be clean before reallocating
- * the rings.
+ * necessary so that we don't mess things up while we're in motion.
  */
 static int gfar_sringparam(struct net_device *dev,
 			   struct ethtool_ringparam *rvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	int err = 0, i = 0;
+	int err = 0, i;
 
 	if (rvals->rx_pending > GFAR_RX_MAX_RING_SIZE)
 		return -EINVAL;
@@ -494,44 +493,25 @@ static int gfar_sringparam(struct net_device *dev,
 		return -EINVAL;
 	}
 
+	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
+		cpu_relax();
 
-	if (dev->flags & IFF_UP) {
-		unsigned long flags;
-
-		/* Halt TX and RX, and process the frames which
-		 * have already been received
-		 */
-		local_irq_save(flags);
-		lock_tx_qs(priv);
-		lock_rx_qs(priv);
-
-		gfar_halt(dev);
-
-		unlock_rx_qs(priv);
-		unlock_tx_qs(priv);
-		local_irq_restore(flags);
-
-		for (i = 0; i < priv->num_rx_queues; i++)
-			gfar_clean_rx_ring(priv->rx_queue[i],
-					   priv->rx_queue[i]->rx_ring_size);
-
-		/* Now we take down the rings to rebuild them */
+	if (dev->flags & IFF_UP)
 		stop_gfar(dev);
-	}
 
-	/* Change the size */
-	for (i = 0; i < priv->num_rx_queues; i++) {
+	/* Change the sizes */
+	for (i = 0; i < priv->num_rx_queues; i++)
 		priv->rx_queue[i]->rx_ring_size = rvals->rx_pending;
+
+	for (i = 0; i < priv->num_tx_queues; i++)
 		priv->tx_queue[i]->tx_ring_size = rvals->tx_pending;
-		priv->tx_queue[i]->num_txbdfree =
-			priv->tx_queue[i]->tx_ring_size;
-	}
 
 	/* Rebuild the rings with the new size */
-	if (dev->flags & IFF_UP) {
+	if (dev->flags & IFF_UP)
 		err = startup_gfar(dev);
-		netif_tx_wake_all_queues(dev);
-	}
+
+	clear_bit_unlock(GFAR_RESETTING, &priv->state);
+
 	return err;
 }
 
@@ -552,6 +532,9 @@ static int gfar_spauseparam(struct net_device *dev,
 	struct phy_device *phydev = priv->phydev;
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 oldadv, newadv;
+
+	if (!phydev)
+		return -ENODEV;
 
 	if (!(phydev->supported & SUPPORTED_Pause) ||
 	    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
@@ -609,43 +592,29 @@ static int gfar_spauseparam(struct net_device *dev,
 
 int gfar_set_features(struct net_device *dev, netdev_features_t features)
 {
-	struct gfar_private *priv = netdev_priv(dev);
-	unsigned long flags;
-	int err = 0, i = 0;
 	netdev_features_t changed = dev->features ^ features;
+	struct gfar_private *priv = netdev_priv(dev);
+	int err = 0;
 
-	if (changed & (NETIF_F_HW_VLAN_CTAG_TX|NETIF_F_HW_VLAN_CTAG_RX))
-		gfar_vlan_mode(dev, features);
-
-	if (!(changed & NETIF_F_RXCSUM))
+	if (!(changed & (NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+			 NETIF_F_RXCSUM)))
 		return 0;
 
+	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
+		cpu_relax();
+
+	dev->features = features;
+
 	if (dev->flags & IFF_UP) {
-		/* Halt TX and RX, and process the frames which
-		 * have already been received
-		 */
-		local_irq_save(flags);
-		lock_tx_qs(priv);
-		lock_rx_qs(priv);
-
-		gfar_halt(dev);
-
-		unlock_tx_qs(priv);
-		unlock_rx_qs(priv);
-		local_irq_restore(flags);
-
-		for (i = 0; i < priv->num_rx_queues; i++)
-			gfar_clean_rx_ring(priv->rx_queue[i],
-					   priv->rx_queue[i]->rx_ring_size);
-
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
-
-		dev->features = features;
-
 		err = startup_gfar(dev);
-		netif_tx_wake_all_queues(dev);
+	} else {
+		gfar_mac_reset(priv);
 	}
+
+	clear_bit_unlock(GFAR_RESETTING, &priv->state);
+
 	return err;
 }
 
@@ -889,10 +858,8 @@ static int gfar_set_hash_opts(struct gfar_private *priv,
 
 static int gfar_check_filer_hardware(struct gfar_private *priv)
 {
-	struct gfar __iomem *regs = NULL;
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 i;
-
-	regs = priv->gfargrp[0].regs;
 
 	/* Check if we are in FIFO mode */
 	i = gfar_read(&regs->ecntrl);
@@ -927,7 +894,7 @@ static int gfar_check_filer_hardware(struct gfar_private *priv)
 	/* Sets the properties for arbitrary filer rule
 	 * to the first 4 Layer 4 Bytes
 	 */
-	regs->rbifx = 0xC0C1C2C3;
+	gfar_write(&regs->rbifx, 0xC0C1C2C3);
 	return 0;
 }
 
@@ -1055,10 +1022,18 @@ static void gfar_set_basic_ip(struct ethtool_tcpip4_spec *value,
 			      struct ethtool_tcpip4_spec *mask,
 			      struct filer_table *tab)
 {
-	gfar_set_attribute(value->ip4src, mask->ip4src, RQFCR_PID_SIA, tab);
-	gfar_set_attribute(value->ip4dst, mask->ip4dst, RQFCR_PID_DIA, tab);
-	gfar_set_attribute(value->pdst, mask->pdst, RQFCR_PID_DPT, tab);
-	gfar_set_attribute(value->psrc, mask->psrc, RQFCR_PID_SPT, tab);
+	gfar_set_attribute(be32_to_cpu(value->ip4src),
+			   be32_to_cpu(mask->ip4src),
+			   RQFCR_PID_SIA, tab);
+	gfar_set_attribute(be32_to_cpu(value->ip4dst),
+			   be32_to_cpu(mask->ip4dst),
+			   RQFCR_PID_DIA, tab);
+	gfar_set_attribute(be16_to_cpu(value->pdst),
+			   be16_to_cpu(mask->pdst),
+			   RQFCR_PID_DPT, tab);
+	gfar_set_attribute(be16_to_cpu(value->psrc),
+			   be16_to_cpu(mask->psrc),
+			   RQFCR_PID_SPT, tab);
 	gfar_set_attribute(value->tos, mask->tos, RQFCR_PID_TOS, tab);
 }
 
@@ -1067,12 +1042,17 @@ static void gfar_set_user_ip(struct ethtool_usrip4_spec *value,
 			     struct ethtool_usrip4_spec *mask,
 			     struct filer_table *tab)
 {
-	gfar_set_attribute(value->ip4src, mask->ip4src, RQFCR_PID_SIA, tab);
-	gfar_set_attribute(value->ip4dst, mask->ip4dst, RQFCR_PID_DIA, tab);
+	gfar_set_attribute(be32_to_cpu(value->ip4src),
+			   be32_to_cpu(mask->ip4src),
+			   RQFCR_PID_SIA, tab);
+	gfar_set_attribute(be32_to_cpu(value->ip4dst),
+			   be32_to_cpu(mask->ip4dst),
+			   RQFCR_PID_DIA, tab);
 	gfar_set_attribute(value->tos, mask->tos, RQFCR_PID_TOS, tab);
 	gfar_set_attribute(value->proto, mask->proto, RQFCR_PID_L4P, tab);
-	gfar_set_attribute(value->l4_4_bytes, mask->l4_4_bytes, RQFCR_PID_ARB,
-			   tab);
+	gfar_set_attribute(be32_to_cpu(value->l4_4_bytes),
+			   be32_to_cpu(mask->l4_4_bytes),
+			   RQFCR_PID_ARB, tab);
 
 }
 
@@ -1139,7 +1119,41 @@ static void gfar_set_ether(struct ethhdr *value, struct ethhdr *mask,
 		}
 	}
 
-	gfar_set_attribute(value->h_proto, mask->h_proto, RQFCR_PID_ETY, tab);
+	gfar_set_attribute(be16_to_cpu(value->h_proto),
+			   be16_to_cpu(mask->h_proto),
+			   RQFCR_PID_ETY, tab);
+}
+
+static inline u32 vlan_tci_vid(struct ethtool_rx_flow_spec *rule)
+{
+	return be16_to_cpu(rule->h_ext.vlan_tci) & VLAN_VID_MASK;
+}
+
+static inline u32 vlan_tci_vidm(struct ethtool_rx_flow_spec *rule)
+{
+	return be16_to_cpu(rule->m_ext.vlan_tci) & VLAN_VID_MASK;
+}
+
+static inline u32 vlan_tci_cfi(struct ethtool_rx_flow_spec *rule)
+{
+	return be16_to_cpu(rule->h_ext.vlan_tci) & VLAN_CFI_MASK;
+}
+
+static inline u32 vlan_tci_cfim(struct ethtool_rx_flow_spec *rule)
+{
+	return be16_to_cpu(rule->m_ext.vlan_tci) & VLAN_CFI_MASK;
+}
+
+static inline u32 vlan_tci_prio(struct ethtool_rx_flow_spec *rule)
+{
+	return (be16_to_cpu(rule->h_ext.vlan_tci) & VLAN_PRIO_MASK) >>
+		VLAN_PRIO_SHIFT;
+}
+
+static inline u32 vlan_tci_priom(struct ethtool_rx_flow_spec *rule)
+{
+	return (be16_to_cpu(rule->m_ext.vlan_tci) & VLAN_PRIO_MASK) >>
+		VLAN_PRIO_SHIFT;
 }
 
 /* Convert a rule to binary filter format of gianfar */
@@ -1153,22 +1167,21 @@ static int gfar_convert_to_filer(struct ethtool_rx_flow_spec *rule,
 	u32 old_index = tab->index;
 
 	/* Check if vlan is wanted */
-	if ((rule->flow_type & FLOW_EXT) && (rule->m_ext.vlan_tci != 0xFFFF)) {
+	if ((rule->flow_type & FLOW_EXT) &&
+	    (rule->m_ext.vlan_tci != cpu_to_be16(0xFFFF))) {
 		if (!rule->m_ext.vlan_tci)
-			rule->m_ext.vlan_tci = 0xFFFF;
+			rule->m_ext.vlan_tci = cpu_to_be16(0xFFFF);
 
 		vlan = RQFPR_VLN;
 		vlan_mask = RQFPR_VLN;
 
 		/* Separate the fields */
-		id = rule->h_ext.vlan_tci & VLAN_VID_MASK;
-		id_mask = rule->m_ext.vlan_tci & VLAN_VID_MASK;
-		cfi = rule->h_ext.vlan_tci & VLAN_CFI_MASK;
-		cfi_mask = rule->m_ext.vlan_tci & VLAN_CFI_MASK;
-		prio = (rule->h_ext.vlan_tci & VLAN_PRIO_MASK) >>
-		       VLAN_PRIO_SHIFT;
-		prio_mask = (rule->m_ext.vlan_tci & VLAN_PRIO_MASK) >>
-			    VLAN_PRIO_SHIFT;
+		id = vlan_tci_vid(rule);
+		id_mask = vlan_tci_vidm(rule);
+		cfi = vlan_tci_cfi(rule);
+		cfi_mask = vlan_tci_cfim(rule);
+		prio = vlan_tci_prio(rule);
+		prio_mask = vlan_tci_priom(rule);
 
 		if (cfi == VLAN_TAG_PRESENT && cfi_mask == VLAN_TAG_PRESENT) {
 			vlan |= RQFPR_CFI;
@@ -1567,9 +1580,6 @@ static int gfar_write_filer_table(struct gfar_private *priv,
 	if (tab->index > MAX_FILER_IDX - 1)
 		return -EBUSY;
 
-	/* Avoid inconsistent filer table to be processed */
-	lock_rx_qs(priv);
-
 	/* Fill regular entries */
 	for (; i < MAX_FILER_IDX - 1 && (tab->fe[i].ctrl | tab->fe[i].ctrl);
 	     i++)
@@ -1581,8 +1591,6 @@ static int gfar_write_filer_table(struct gfar_private *priv,
 	 * because that's what people expect
 	 */
 	gfar_write_filer(priv, i, 0x20, 0x0);
-
-	unlock_rx_qs(priv);
 
 	return 0;
 }
@@ -1666,10 +1674,10 @@ static void gfar_invert_masks(struct ethtool_rx_flow_spec *flow)
 	for (i = 0; i < sizeof(flow->m_u); i++)
 		flow->m_u.hdata[i] ^= 0xFF;
 
-	flow->m_ext.vlan_etype ^= 0xFFFF;
-	flow->m_ext.vlan_tci ^= 0xFFFF;
-	flow->m_ext.data[0] ^= ~0;
-	flow->m_ext.data[1] ^= ~0;
+	flow->m_ext.vlan_etype ^= cpu_to_be16(0xFFFF);
+	flow->m_ext.vlan_tci ^= cpu_to_be16(0xFFFF);
+	flow->m_ext.data[0] ^= cpu_to_be32(~0);
+	flow->m_ext.data[1] ^= cpu_to_be32(~0);
 }
 
 static int gfar_add_cls(struct gfar_private *priv,
@@ -1787,6 +1795,9 @@ static int gfar_set_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	int ret = 0;
+
+	if (test_bit(GFAR_RESETTING, &priv->state))
+		return -EBUSY;
 
 	mutex_lock(&priv->rx_queue_access);
 

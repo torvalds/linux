@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@
 #include "iwl-trans.h"
 
 #define CHANNEL_NUM_SIZE	4	/* num of channels in calib_ch size */
-#define IWL_NUM_PAPD_CH_GROUPS	4
+#define IWL_NUM_PAPD_CH_GROUPS	7
 #define IWL_NUM_TXP_CH_GROUPS	9
 
 struct iwl_phy_db_entry {
@@ -345,7 +345,6 @@ static int iwl_send_phy_db_cmd(struct iwl_phy_db *phy_db, u16 type,
 	struct iwl_phy_db_cmd phy_db_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = PHY_DB_CMD,
-		.flags = CMD_SYNC,
 	};
 
 	IWL_DEBUG_INFO(phy_db->trans,
@@ -383,7 +382,7 @@ static int iwl_phy_db_send_all_channel_groups(
 		if (!entry)
 			return -EINVAL;
 
-		if (WARN_ON_ONCE(!entry->size))
+		if (!entry->size)
 			continue;
 
 		/* Send the requested PHY DB section */
@@ -393,13 +392,13 @@ static int iwl_phy_db_send_all_channel_groups(
 					  entry->data);
 		if (err) {
 			IWL_ERR(phy_db->trans,
-				"Can't SEND phy_db section %d (%d), err %d",
+				"Can't SEND phy_db section %d (%d), err %d\n",
 				type, i, err);
 			return err;
 		}
 
 		IWL_DEBUG_INFO(phy_db->trans,
-			       "Sent PHY_DB HCMD, type = %d num = %d",
+			       "Sent PHY_DB HCMD, type = %d num = %d\n",
 			       type, i);
 	}
 
@@ -451,7 +450,7 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 						 IWL_NUM_PAPD_CH_GROUPS);
 	if (err) {
 		IWL_ERR(phy_db->trans,
-			"Cannot send channel specific PAPD groups");
+			"Cannot send channel specific PAPD groups\n");
 		return err;
 	}
 
@@ -461,7 +460,7 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 						 IWL_NUM_TXP_CH_GROUPS);
 	if (err) {
 		IWL_ERR(phy_db->trans,
-			"Cannot send channel specific TX power groups");
+			"Cannot send channel specific TX power groups\n");
 		return err;
 	}
 

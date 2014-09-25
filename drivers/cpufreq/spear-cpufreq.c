@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -29,11 +30,6 @@ static struct {
 	struct cpufreq_frequency_table *freq_tbl;
 	u32 cnt;
 } spear_cpufreq;
-
-static unsigned int spear_cpufreq_get(unsigned int cpu)
-{
-	return clk_get_rate(spear_cpufreq.clk) / 1000;
-}
 
 static struct clk *spear1340_cpu_get_possible_parent(unsigned long newfreq)
 {
@@ -138,7 +134,7 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 	}
 
 	newfreq = clk_round_rate(srcclk, newfreq * mult);
-	if (newfreq < 0) {
+	if (newfreq <= 0) {
 		pr_err("clk_round_rate failed for cpu src clock\n");
 		return newfreq;
 	}
@@ -156,22 +152,22 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 
 static int spear_cpufreq_init(struct cpufreq_policy *policy)
 {
+	policy->clk = spear_cpufreq.clk;
 	return cpufreq_generic_init(policy, spear_cpufreq.freq_tbl,
 			spear_cpufreq.transition_latency);
 }
 
 static struct cpufreq_driver spear_cpufreq_driver = {
 	.name		= "cpufreq-spear",
-	.flags		= CPUFREQ_STICKY,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= spear_cpufreq_target,
-	.get		= spear_cpufreq_get,
+	.get		= cpufreq_generic_get,
 	.init		= spear_cpufreq_init,
-	.exit		= cpufreq_generic_exit,
 	.attr		= cpufreq_generic_attr,
 };
 
-static int spear_cpufreq_driver_init(void)
+static int spear_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device_node *np;
 	const struct property *prop;
@@ -199,18 +195,15 @@ static int spear_cpufreq_driver_init(void)
 	cnt = prop->length / sizeof(u32);
 	val = prop->value;
 
-	freq_tbl = kmalloc(sizeof(*freq_tbl) * (cnt + 1), GFP_KERNEL);
+	freq_tbl = kzalloc(sizeof(*freq_tbl) * (cnt + 1), GFP_KERNEL);
 	if (!freq_tbl) {
 		ret = -ENOMEM;
 		goto out_put_node;
 	}
 
-	for (i = 0; i < cnt; i++) {
-		freq_tbl[i].driver_data = i;
+	for (i = 0; i < cnt; i++)
 		freq_tbl[i].frequency = be32_to_cpup(val++);
-	}
 
-	freq_tbl[i].driver_data = i;
 	freq_tbl[i].frequency = CPUFREQ_TABLE_END;
 
 	spear_cpufreq.freq_tbl = freq_tbl;
@@ -239,7 +232,15 @@ out_put_node:
 	of_node_put(np);
 	return ret;
 }
-late_initcall(spear_cpufreq_driver_init);
+
+static struct platform_driver spear_cpufreq_platdrv = {
+	.driver = {
+		.name	= "spear-cpufreq",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= spear_cpufreq_probe,
+};
+module_platform_driver(spear_cpufreq_platdrv);
 
 MODULE_AUTHOR("Deepak Sikri <deepak.sikri@st.com>");
 MODULE_DESCRIPTION("SPEAr CPUFreq driver");

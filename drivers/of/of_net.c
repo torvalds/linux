@@ -12,32 +12,12 @@
 #include <linux/export.h>
 
 /**
- * It maps 'enum phy_interface_t' found in include/linux/phy.h
- * into the device tree binding of 'phy-mode', so that Ethernet
- * device driver can get phy interface from device tree.
- */
-static const char *phy_modes[] = {
-	[PHY_INTERFACE_MODE_NA]		= "",
-	[PHY_INTERFACE_MODE_MII]	= "mii",
-	[PHY_INTERFACE_MODE_GMII]	= "gmii",
-	[PHY_INTERFACE_MODE_SGMII]	= "sgmii",
-	[PHY_INTERFACE_MODE_TBI]	= "tbi",
-	[PHY_INTERFACE_MODE_REVMII]	= "rev-mii",
-	[PHY_INTERFACE_MODE_RMII]	= "rmii",
-	[PHY_INTERFACE_MODE_RGMII]	= "rgmii",
-	[PHY_INTERFACE_MODE_RGMII_ID]	= "rgmii-id",
-	[PHY_INTERFACE_MODE_RGMII_RXID]	= "rgmii-rxid",
-	[PHY_INTERFACE_MODE_RGMII_TXID] = "rgmii-txid",
-	[PHY_INTERFACE_MODE_RTBI]	= "rtbi",
-	[PHY_INTERFACE_MODE_SMII]	= "smii",
-};
-
-/**
  * of_get_phy_mode - Get phy mode for given device_node
  * @np:	Pointer to the given device_node
  *
- * The function gets phy interface string from property 'phy-mode',
- * and return its index in phy_modes table, or errno in error case.
+ * The function gets phy interface string from property 'phy-mode' or
+ * 'phy-connection-type', and return its index in phy_modes table, or errno in
+ * error case.
  */
 int of_get_phy_mode(struct device_node *np)
 {
@@ -46,10 +26,12 @@ int of_get_phy_mode(struct device_node *np)
 
 	err = of_property_read_string(np, "phy-mode", &pm);
 	if (err < 0)
+		err = of_property_read_string(np, "phy-connection-type", &pm);
+	if (err < 0)
 		return err;
 
-	for (i = 0; i < ARRAY_SIZE(phy_modes); i++)
-		if (!strcasecmp(pm, phy_modes[i]))
+	for (i = 0; i < PHY_INTERFACE_MODE_MAX; i++)
+		if (!strcasecmp(pm, phy_modes(i)))
 			return i;
 
 	return -ENODEV;

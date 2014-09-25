@@ -49,7 +49,7 @@ savage_bci_wait_fifo_shadow(drm_savage_private_t * dev_priv, unsigned int n)
 #endif
 
 	for (i = 0; i < SAVAGE_DEFAULT_USEC_TIMEOUT; i++) {
-		DRM_MEMORYBARRIER();
+		mb();
 		status = dev_priv->status_ptr[0];
 		if ((status & mask) < threshold)
 			return 0;
@@ -123,7 +123,7 @@ savage_bci_wait_event_shadow(drm_savage_private_t * dev_priv, uint16_t e)
 	int i;
 
 	for (i = 0; i < SAVAGE_EVENT_USEC_TIMEOUT; i++) {
-		DRM_MEMORYBARRIER();
+		mb();
 		status = dev_priv->status_ptr[1];
 		if ((((status & 0xffff) - e) & 0xffff) <= 0x7fff ||
 		    (status & 0xffff) == 0)
@@ -449,7 +449,7 @@ static void savage_dma_flush(drm_savage_private_t * dev_priv)
 		}
 	}
 
-	DRM_MEMORYBARRIER();
+	mb();
 
 	/* do flush ... */
 	phys_addr = dev_priv->cmd_dma->offset +
@@ -990,10 +990,10 @@ static int savage_bci_get_buffers(struct drm_device *dev,
 
 		buf->file_priv = file_priv;
 
-		if (DRM_COPY_TO_USER(&d->request_indices[i],
+		if (copy_to_user(&d->request_indices[i],
 				     &buf->idx, sizeof(buf->idx)))
 			return -EFAULT;
-		if (DRM_COPY_TO_USER(&d->request_sizes[i],
+		if (copy_to_user(&d->request_sizes[i],
 				     &buf->total, sizeof(buf->total)))
 			return -EFAULT;
 
@@ -1079,4 +1079,4 @@ const struct drm_ioctl_desc savage_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(SAVAGE_BCI_EVENT_WAIT, savage_bci_event_wait, DRM_AUTH),
 };
 
-int savage_max_ioctl = DRM_ARRAY_SIZE(savage_ioctls);
+int savage_max_ioctl = ARRAY_SIZE(savage_ioctls);

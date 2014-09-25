@@ -33,15 +33,6 @@ ENDPROC(__mcount)
  * function will be waiting there.  mmmm pie.
  */
 ENTRY(_ftrace_caller)
-# ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
-	/* optional micro optimization: return if stopped */
-	p1.l = _function_trace_stop;
-	p1.h = _function_trace_stop;
-	r3 = [p1];
-	cc = r3 == 0;
-	if ! cc jump _ftrace_stub (bp);
-# endif
-
 	/* save first/second/third function arg and the return register */
 	[--sp] = r2;
 	[--sp] = r0;
@@ -83,15 +74,6 @@ ENDPROC(_ftrace_caller)
 
 /* See documentation for _ftrace_caller */
 ENTRY(__mcount)
-# ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
-	/* optional micro optimization: return if stopped */
-	p1.l = _function_trace_stop;
-	p1.h = _function_trace_stop;
-	r3 = [p1];
-	cc = r3 == 0;
-	if ! cc jump _ftrace_stub (bp);
-# endif
-
 	/* save third function arg early so we can do testing below */
 	[--sp] = r2;
 

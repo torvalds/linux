@@ -144,6 +144,7 @@ enum {
 	IFLA_NUM_RX_QUEUES,
 	IFLA_CARRIER,
 	IFLA_PHYS_PORT_ID,
+	IFLA_CARRIER_CHANGES,
 	__IFLA_MAX
 };
 
@@ -203,10 +204,16 @@ enum {
 	IFLA_INET6_CACHEINFO,	/* time values and max reasm size */
 	IFLA_INET6_ICMP6STATS,	/* statistics (icmpv6)		*/
 	IFLA_INET6_TOKEN,	/* device token			*/
+	IFLA_INET6_ADDR_GEN_MODE, /* implicit address generator mode */
 	__IFLA_INET6_MAX
 };
 
 #define IFLA_INET6_MAX	(__IFLA_INET6_MAX - 1)
+
+enum in6_addr_gen_mode {
+	IN6_ADDR_GEN_MODE_EUI64,
+	IN6_ADDR_GEN_MODE_NONE,
+};
 
 enum {
 	BRIDGE_MODE_UNSPEC,
@@ -240,6 +247,8 @@ enum {
 	IFLA_INFO_KIND,
 	IFLA_INFO_DATA,
 	IFLA_INFO_XSTATS,
+	IFLA_INFO_SLAVE_KIND,
+	IFLA_INFO_SLAVE_DATA,
 	__IFLA_INFO_MAX,
 };
 
@@ -316,6 +325,9 @@ enum {
 	IFLA_VXLAN_PORT,	/* destination port */
 	IFLA_VXLAN_GROUP6,
 	IFLA_VXLAN_LOCAL6,
+	IFLA_VXLAN_UDP_CSUM,
+	IFLA_VXLAN_UDP_ZERO_CSUM6_TX,
+	IFLA_VXLAN_UDP_ZERO_CSUM6_RX,
 	__IFLA_VXLAN_MAX
 };
 #define IFLA_VXLAN_MAX	(__IFLA_VXLAN_MAX - 1)
@@ -331,10 +343,56 @@ enum {
 	IFLA_BOND_UNSPEC,
 	IFLA_BOND_MODE,
 	IFLA_BOND_ACTIVE_SLAVE,
+	IFLA_BOND_MIIMON,
+	IFLA_BOND_UPDELAY,
+	IFLA_BOND_DOWNDELAY,
+	IFLA_BOND_USE_CARRIER,
+	IFLA_BOND_ARP_INTERVAL,
+	IFLA_BOND_ARP_IP_TARGET,
+	IFLA_BOND_ARP_VALIDATE,
+	IFLA_BOND_ARP_ALL_TARGETS,
+	IFLA_BOND_PRIMARY,
+	IFLA_BOND_PRIMARY_RESELECT,
+	IFLA_BOND_FAIL_OVER_MAC,
+	IFLA_BOND_XMIT_HASH_POLICY,
+	IFLA_BOND_RESEND_IGMP,
+	IFLA_BOND_NUM_PEER_NOTIF,
+	IFLA_BOND_ALL_SLAVES_ACTIVE,
+	IFLA_BOND_MIN_LINKS,
+	IFLA_BOND_LP_INTERVAL,
+	IFLA_BOND_PACKETS_PER_SLAVE,
+	IFLA_BOND_AD_LACP_RATE,
+	IFLA_BOND_AD_SELECT,
+	IFLA_BOND_AD_INFO,
 	__IFLA_BOND_MAX,
 };
 
 #define IFLA_BOND_MAX	(__IFLA_BOND_MAX - 1)
+
+enum {
+	IFLA_BOND_AD_INFO_UNSPEC,
+	IFLA_BOND_AD_INFO_AGGREGATOR,
+	IFLA_BOND_AD_INFO_NUM_PORTS,
+	IFLA_BOND_AD_INFO_ACTOR_KEY,
+	IFLA_BOND_AD_INFO_PARTNER_KEY,
+	IFLA_BOND_AD_INFO_PARTNER_MAC,
+	__IFLA_BOND_AD_INFO_MAX,
+};
+
+#define IFLA_BOND_AD_INFO_MAX	(__IFLA_BOND_AD_INFO_MAX - 1)
+
+enum {
+	IFLA_BOND_SLAVE_UNSPEC,
+	IFLA_BOND_SLAVE_STATE,
+	IFLA_BOND_SLAVE_MII_STATUS,
+	IFLA_BOND_SLAVE_LINK_FAILURE_COUNT,
+	IFLA_BOND_SLAVE_PERM_HWADDR,
+	IFLA_BOND_SLAVE_QUEUE_ID,
+	IFLA_BOND_SLAVE_AD_AGGREGATOR_ID,
+	__IFLA_BOND_SLAVE_MAX,
+};
+
+#define IFLA_BOND_SLAVE_MAX	(__IFLA_BOND_SLAVE_MAX - 1)
 
 /* SR-IOV virtual function management section */
 
@@ -350,9 +408,10 @@ enum {
 	IFLA_VF_UNSPEC,
 	IFLA_VF_MAC,		/* Hardware queue specific attributes */
 	IFLA_VF_VLAN,
-	IFLA_VF_TX_RATE,	/* TX Bandwidth Allocation */
+	IFLA_VF_TX_RATE,	/* Max TX Bandwidth Allocation */
 	IFLA_VF_SPOOFCHK,	/* Spoof Checking on/off switch */
 	IFLA_VF_LINK_STATE,	/* link state enable/disable/auto switch */
+	IFLA_VF_RATE,		/* Min and Max TX Bandwidth Allocation */
 	__IFLA_VF_MAX,
 };
 
@@ -372,6 +431,12 @@ struct ifla_vf_vlan {
 struct ifla_vf_tx_rate {
 	__u32 vf;
 	__u32 rate; /* Max TX bandwidth in Mbps, 0 disables throttling */
+};
+
+struct ifla_vf_rate {
+	__u32 vf;
+	__u32 min_tx_rate; /* Min Bandwidth in Mbps */
+	__u32 max_tx_rate; /* Max Bandwidth in Mbps */
 };
 
 struct ifla_vf_spoofchk {

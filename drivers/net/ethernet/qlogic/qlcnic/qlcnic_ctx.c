@@ -91,18 +91,6 @@ void qlcnic_free_mbx_args(struct qlcnic_cmd_args *cmd)
 	cmd->rsp.arg = NULL;
 }
 
-static int qlcnic_is_valid_nic_func(struct qlcnic_adapter *adapter, u8 pci_func)
-{
-	int i;
-
-	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
-		if (adapter->npars[i].pci_func == pci_func)
-			return i;
-	}
-
-	return -1;
-}
-
 static u32
 qlcnic_poll_rsp(struct qlcnic_adapter *adapter)
 {
@@ -148,7 +136,7 @@ int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 	rsp = qlcnic_poll_rsp(adapter);
 
 	if (rsp == QLCNIC_CDRP_RSP_TIMEOUT) {
-		dev_err(&pdev->dev, "card response timeout.\n");
+		dev_err(&pdev->dev, "command timeout, response = 0x%x\n", rsp);
 		cmd->rsp.arg[0] = QLCNIC_RCODE_TIMEOUT;
 	} else if (rsp == QLCNIC_CDRP_RSP_FAIL) {
 		cmd->rsp.arg[0] = QLCRD32(adapter, QLCNIC_CDRP_ARG(1), &err);
@@ -895,8 +883,6 @@ int qlcnic_82xx_get_nic_info(struct qlcnic_adapter *adapter,
 		npar_info->max_rx_ques = le16_to_cpu(nic_info->max_rx_ques);
 		npar_info->capabilities = le32_to_cpu(nic_info->capabilities);
 		npar_info->max_mtu = le16_to_cpu(nic_info->max_mtu);
-		adapter->max_tx_rings = npar_info->max_tx_ques;
-		adapter->max_sds_rings = npar_info->max_rx_ques;
 	}
 
 	qlcnic_free_mbx_args(&cmd);
@@ -966,13 +952,15 @@ out_free_dma:
 int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *adapter,
 			     struct qlcnic_pci_info *pci_info)
 {
-	int err = 0, i;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	size_t npar_size = sizeof(struct qlcnic_pci_info_le);
+	size_t pci_size = npar_size * ahw->max_vnic_func;
+	u16 nic = 0, fcoe = 0, iscsi = 0;
+	struct qlcnic_pci_info_le *npar;
 	struct qlcnic_cmd_args cmd;
 	dma_addr_t pci_info_dma_t;
-	struct qlcnic_pci_info_le *npar;
 	void *pci_info_addr;
-	size_t npar_size = sizeof(struct qlcnic_pci_info_le);
-	size_t pci_size = npar_size * QLCNIC_MAX_PCI_FUNC;
+	int err = 0, i;
 
 	pci_info_addr = dma_zalloc_coherent(&adapter->pdev->dev, pci_size,
 					    &pci_info_dma_t, GFP_KERNEL);
@@ -989,14 +977,16 @@ int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *adapter,
 	cmd.req.arg[3] = pci_size;
 	err = qlcnic_issue_cmd(adapter, &cmd);
 
-	adapter->ahw->act_pci_func = 0;
+	ahw->total_nic_func = 0;
 	if (err == QLCNIC_RCODE_SUCCESS) {
-		for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++, npar++, pci_info++) {
+		for (i = 0; i < ahw->max_vnic_func; i++, npar++, pci_info++) {
 			pci_info->id = le16_to_cpu(npar->id);
 			pci_info->active = le16_to_cpu(npar->active);
+			if (!pci_info->active)
+				continue;
 			pci_info->type = le16_to_cpu(npar->type);
-			if (pci_info->type == QLCNIC_TYPE_NIC)
-				adapter->ahw->act_pci_func++;
+			err = qlcnic_get_pci_func_type(adapter, pci_info->type,
+						       &nic, &fcoe, &iscsi);
 			pci_info->default_port =
 				le16_to_cpu(npar->default_port);
 			pci_info->tx_min_bw =
@@ -1011,6 +1001,14 @@ int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *adapter,
 		err = -EIO;
 	}
 
+	ahw->total_nic_func = nic;
+	ahw->total_pci_func = nic + fcoe + iscsi;
+	if (ahw->total_nic_func == 0 || ahw->total_pci_func == 0) {
+		dev_err(&adapter->pdev->dev,
+			"%s: Invalid function count: total nic func[%x], total pci func[%x]\n",
+			__func__, ahw->total_nic_func, ahw->total_pci_func);
+		err = -EIO;
+	}
 	qlcnic_free_mbx_args(&cmd);
 out_free_dma:
 	dma_free_coherent(&adapter->pdev->dev, pci_size, pci_info_addr,
@@ -1029,8 +1027,11 @@ int qlcnic_config_port_mirroring(struct qlcnic_adapter *adapter, u8 id,
 	u32 arg1;
 
 	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC ||
-	    !(adapter->eswitch[id].flags & QLCNIC_SWITCH_ENABLE))
+	    !(adapter->eswitch[id].flags & QLCNIC_SWITCH_ENABLE)) {
+		dev_err(&adapter->pdev->dev, "%s: Not a management function\n",
+			__func__);
 		return err;
+	}
 
 	arg1 = id | (enable_mirroring ? BIT_4 : 0);
 	arg1 |= pci_func << 8;
@@ -1203,7 +1204,7 @@ int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
 	esw_stats->numbytes = QLCNIC_STATS_NOT_AVAIL;
 	esw_stats->context_id = eswitch;
 
-	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
+	for (i = 0; i < adapter->ahw->total_nic_func; i++) {
 		if (adapter->npars[i].phy_port != eswitch)
 			continue;
 
@@ -1236,15 +1237,16 @@ int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
 int qlcnic_clear_esw_stats(struct qlcnic_adapter *adapter, const u8 func_esw,
 		const u8 port, const u8 rx_tx)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_cmd_args cmd;
 	int err;
 	u32 arg1;
-	struct qlcnic_cmd_args cmd;
 
-	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC)
+	if (ahw->op_mode != QLCNIC_MGMT_FUNC)
 		return -EIO;
 
 	if (func_esw == QLCNIC_STATS_PORT) {
-		if (port >= QLCNIC_MAX_PCI_FUNC)
+		if (port >= ahw->max_vnic_func)
 			goto err_ret;
 	} else if (func_esw == QLCNIC_STATS_ESWITCH) {
 		if (port >= QLCNIC_NIU_MAX_XG_PORTS)
@@ -1319,8 +1321,12 @@ int qlcnic_config_switch_port(struct qlcnic_adapter *adapter,
 	u32 arg1, arg2 = 0;
 	u8 pci_func;
 
-	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC)
+	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC) {
+		dev_err(&adapter->pdev->dev, "%s: Not a management function\n",
+			__func__);
 		return err;
+	}
+
 	pci_func = esw_cfg->pci_func;
 	index = qlcnic_is_valid_nic_func(adapter, pci_func);
 	if (index < 0)
@@ -1355,6 +1361,7 @@ int qlcnic_config_switch_port(struct qlcnic_adapter *adapter,
 			arg2 &= ~BIT_3;
 		break;
 	case QLCNIC_ADD_VLAN:
+			arg1 &= ~(0x0ffff << 16);
 			arg1 |= (BIT_2 | BIT_5);
 			arg1 |= (esw_cfg->vlan_id << 16);
 			break;
@@ -1363,6 +1370,8 @@ int qlcnic_config_switch_port(struct qlcnic_adapter *adapter,
 			arg1 &= ~(0x0ffff << 16);
 			break;
 	default:
+		dev_err(&adapter->pdev->dev, "%s: Invalid opmode 0x%x\n",
+			__func__, esw_cfg->op_mode);
 		return err;
 	}
 

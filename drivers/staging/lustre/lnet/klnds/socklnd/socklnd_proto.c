@@ -165,7 +165,8 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 	LASSERT (tx_ack == NULL ||
 		 tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
-	if ((tx = conn->ksnc_tx_carrier) == NULL) {
+	tx = conn->ksnc_tx_carrier;
+	if (tx == NULL) {
 		if (tx_ack != NULL) {
 			list_add_tail(&tx_ack->tx_list,
 					  &conn->ksnc_tx_queue);
@@ -191,7 +192,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 
 	if (cookie == tx->tx_msg.ksm_zc_cookies[0] ||
 	    cookie == tx->tx_msg.ksm_zc_cookies[1]) {
-		CWARN("%s: duplicated ZC cookie: "LPU64"\n",
+		CWARN("%s: duplicated ZC cookie: %llu\n",
 		      libcfs_id2str(conn->ksnc_peer->ksnp_id), cookie);
 		return 1; /* XXX return error in the future */
 	}
@@ -243,7 +244,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 		/* ksm_zc_cookies[0] < ksm_zc_cookies[1], it is range of cookies */
 		if (cookie >= tx->tx_msg.ksm_zc_cookies[0] &&
 		    cookie <= tx->tx_msg.ksm_zc_cookies[1]) {
-			CWARN("%s: duplicated ZC cookie: "LPU64"\n",
+			CWARN("%s: duplicated ZC cookie: %llu\n",
 			      libcfs_id2str(conn->ksnc_peer->ksnp_id), cookie);
 			return 1; /* XXX: return error in the future */
 		}
@@ -392,7 +393,8 @@ ksocknal_handle_zcreq(ksock_conn_t *c, __u64 cookie, int remote)
 	if (tx == NULL)
 		return -ENOMEM;
 
-	if ((rc = ksocknal_launch_packet(peer->ksnp_ni, tx, peer->ksnp_id)) == 0)
+	rc = ksocknal_launch_packet(peer->ksnp_ni, tx, peer->ksnp_id);
+	if (rc == 0)
 		return 0;
 
 	ksocknal_free_tx(tx);
@@ -450,7 +452,7 @@ ksocknal_handle_zcack(ksock_conn_t *conn, __u64 cookie1, __u64 cookie2)
 static int
 ksocknal_send_hello_v1 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 {
-	socket_t	*sock = conn->ksnc_sock;
+	struct socket	*sock = conn->ksnc_sock;
 	lnet_hdr_t	  *hdr;
 	lnet_magicversion_t *hmv;
 	int		  rc;
@@ -525,7 +527,7 @@ out:
 static int
 ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 {
-	socket_t   *sock = conn->ksnc_sock;
+	struct socket *sock = conn->ksnc_sock;
 	int	     rc;
 
 	hello->kshm_magic   = LNET_PROTO_MAGIC;
@@ -568,7 +570,7 @@ ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 static int
 ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,int timeout)
 {
-	socket_t	*sock = conn->ksnc_sock;
+	struct socket	*sock = conn->ksnc_sock;
 	lnet_hdr_t	  *hdr;
 	int		  rc;
 	int		  i;
@@ -644,7 +646,7 @@ out:
 static int
 ksocknal_recv_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeout)
 {
-	socket_t      *sock = conn->ksnc_sock;
+	struct socket   *sock = conn->ksnc_sock;
 	int		rc;
 	int		i;
 

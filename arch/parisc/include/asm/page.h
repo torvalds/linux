@@ -29,18 +29,8 @@ struct page;
 void clear_page_asm(void *page);
 void copy_page_asm(void *to, void *from);
 #define clear_user_page(vto, vaddr, page) clear_page_asm(vto)
-#define copy_user_page(vto, vfrom, vaddr, page) copy_page_asm(vto, vfrom)
-
-/* #define CONFIG_PARISC_TMPALIAS */
-
-#ifdef CONFIG_PARISC_TMPALIAS
-void clear_user_highpage(struct page *page, unsigned long vaddr);
-#define clear_user_highpage clear_user_highpage
-struct vm_area_struct;
-void copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr, struct vm_area_struct *vma);
-#define __HAVE_ARCH_COPY_USER_HIGHPAGE
-#endif
+void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
+			struct page *pg);
 
 /*
  * These are used to make use of C type-checking..

@@ -217,7 +217,7 @@ static int oz_set_active_pd(const u8 *addr)
 	pd = oz_pd_find(addr);
 	if (pd) {
 		spin_lock_bh(&g_cdev.lock);
-		memcpy(g_cdev.active_addr, addr, ETH_ALEN);
+		ether_addr_copy(g_cdev.active_addr, addr);
 		old_pd = g_cdev.active_pd;
 		g_cdev.active_pd = pd;
 		spin_unlock_bh(&g_cdev.lock);
@@ -283,7 +283,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 			u8 addr[ETH_ALEN];
 			oz_dbg(ON, "OZ_IOCTL_GET_ACTIVE_PD\n");
 			spin_lock_bh(&g_cdev.lock);
-			memcpy(addr, g_cdev.active_addr, ETH_ALEN);
+			ether_addr_copy(addr, g_cdev.active_addr);
 			spin_unlock_bh(&g_cdev.lock);
 			if (copy_to_user((void __user *)arg, addr, ETH_ALEN))
 				return -EFAULT;
@@ -448,7 +448,7 @@ int oz_cdev_start(struct oz_pd *pd, int resume)
 	}
 	spin_lock(&g_cdev.lock);
 	if ((g_cdev.active_pd == NULL) &&
-		(memcmp(pd->mac_addr, g_cdev.active_addr, ETH_ALEN) == 0)) {
+		ether_addr_equal(pd->mac_addr, g_cdev.active_addr)) {
 		oz_pd_get(pd);
 		g_cdev.active_pd = pd;
 		oz_dbg(ON, "Active PD arrived\n");

@@ -7,7 +7,6 @@ comment "Intel/Marvell Dev Platforms (sorted by hardware release time)"
 config MACH_PXA3XX_DT
 	bool "Support PXA3xx platforms from device tree"
 	select CPU_PXA300
-	select HAVE_PWM
 	select POWER_SUPPLY
 	select PXA3xx
 	select USE_OF
@@ -23,12 +22,10 @@ config ARCH_LUBBOCK
 
 config MACH_MAINSTONE
 	bool "Intel HCDDBBVA0 Development Platform (aka Mainstone)"
-	select HAVE_PWM
 	select PXA27x
 
 config MACH_ZYLONITE
 	bool
-	select HAVE_PWM
 	select PXA3xx
 
 config MACH_ZYLONITE300
@@ -53,12 +50,16 @@ config MACH_TAVOREVB
 	select CPU_PXA930
 	select CPU_PXA935
 	select PXA3xx
+	select FB
+	select FB_PXA
 
 config MACH_SAAR
 	bool "PXA930 Handheld Platform (aka SAAR)"
 	select CPU_PXA930
 	select CPU_PXA935
 	select PXA3xx
+	select FB
+	select FB_PXA
 
 comment "Third Party Dev Platforms (sorted by vendor name)"
 
@@ -69,8 +70,7 @@ config ARCH_PXA_IDP
 config ARCH_VIPER
 	bool "Arcom/Eurotech VIPER SBC"
 	select ARCOM_PCMCIA
-	select HAVE_PWM
-	select I2C_GPIO
+	select I2C_GPIO if I2C=y
 	select ISA
 	select PXA25x
 	select PXA_HAVE_ISA_IRQS
@@ -120,7 +120,6 @@ config MACH_CM_X300
 	bool "CompuLab CM-X300 modules"
 	select CPU_PXA300
 	select CPU_PXA310
-	select HAVE_PWM
 	select PXA3xx
 
 config MACH_CAPC7117
@@ -164,7 +163,6 @@ config MACH_XCEP
 	select MTD_CFI_INTELEXT
 	select MTD_PHYSMAP
 	select PXA25x
-	select SMC91X
 	help
 	  PXA255 based Single Board Computer with SMC 91C111 ethernet chip and 64 MB of flash.
 	  Tuned for usage in Libera instruments for particle accelerators.
@@ -181,6 +179,7 @@ config MACH_TRIZEPS4
 config MACH_TRIZEPS4WL
 	bool "Keith und Koep Trizeps4-WL DIMM-Module"
 	depends on TRIZEPS_PXA
+	select MACH_TRIZEPS4
 	select PXA27x
 	select TRIZEPS_PCMCIA
 
@@ -211,7 +210,6 @@ config TRIZEPS_PCMCIA
 
 config MACH_LOGICPD_PXA270
 	bool "LogicPD PXA270 Card Engine Development Platform"
-	select HAVE_PWM
 	select PXA27x
 
 config MACH_PCM027
@@ -222,7 +220,6 @@ config MACH_PCM027
 config MACH_PCM990_BASEBOARD
 	bool "PHYTEC PCM-990 development board"
 	depends on MACH_PCM027
-	select HAVE_PWM
 
 choice
 	prompt "display on pcm990"
@@ -246,7 +243,6 @@ config MACH_COLIBRI
 config MACH_COLIBRI_PXA270_INCOME
 	bool "Income s.r.o. PXA270 SBC"
 	depends on MACH_COLIBRI
-	select HAVE_PWM
 	select PXA27x
 
 config MACH_COLIBRI300
@@ -275,7 +271,6 @@ comment "End-user Products (sorted by vendor name)"
 
 config MACH_H4700
 	bool "HP iPAQ hx4700"
-	select HAVE_PWM
 	select IWMMXT
 	select PXA27x
 
@@ -289,14 +284,12 @@ config MACH_HIMALAYA
 
 config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
-	select HAVE_PWM
 	select IWMMXT
 	select PXA27x
 
 config MACH_MIOA701
 	bool "Mitac Mio A701 Support"
 	select GPIO_SYSFS
-	select HAVE_PWM
 	select IWMMXT
 	select PXA27x
 	help
@@ -306,7 +299,6 @@ config MACH_MIOA701
 
 config PXA_EZX
 	bool "Motorola EZX Platform"
-	select HAVE_PWM
 	select IWMMXT
 	select PXA27x
 
@@ -346,7 +338,6 @@ config MACH_MP900C
 
 config ARCH_PXA_PALM
 	bool "PXA based Palm PDAs"
-	select HAVE_PWM
 
 config MACH_PALM27X
 	bool
@@ -444,7 +435,6 @@ config MACH_TREO680
 config MACH_RAUMFELD_RC
 	bool "Raumfeld Controller"
 	select CPU_PXA300
-	select HAVE_PWM
 	select POWER_SUPPLY
 	select PXA3xx
 
@@ -608,7 +598,6 @@ config MACH_E800
 
 config MACH_ZIPIT2
 	bool "Zipit Z2 Handheld"
-	select HAVE_PWM
 	select PXA27x
 endmenu
 

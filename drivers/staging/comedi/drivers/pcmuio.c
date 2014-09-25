@@ -317,7 +317,7 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 	struct pcmuio_private *devpriv = dev->private;
 	int asic = pcmuio_subdevice_to_asic(s);
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
-	unsigned int len = s->async->cmd.chanlist_len;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned oldevents = s->async->events;
 	unsigned int val = 0;
 	unsigned long flags;
@@ -331,15 +331,16 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 	if (!(triggered & chip->enabled_mask))
 		goto done;
 
-	for (i = 0; i < len; i++) {
-		unsigned int chan = CR_CHAN(s->async->cmd.chanlist[i]);
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
 		if (triggered & (1 << chan))
 			val |= (1 << i);
 	}
 
 	/* Write the scan to the buffer. */
-	if (comedi_buf_put(s->async, val) &&
-	    comedi_buf_put(s->async, val >> 16)) {
+	if (comedi_buf_put(s, val) &&
+	    comedi_buf_put(s, val >> 16)) {
 		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 	} else {
 		/* Overflow! Stop acquisition!! */
@@ -460,20 +461,18 @@ static int pcmuio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-/*
- * Internal trigger function to start acquisition for an 'INTERRUPT' subdevice.
- */
-static int
-pcmuio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
-			  unsigned int trignum)
+static int pcmuio_inttrig_start_intr(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     unsigned int trig_num)
 {
 	struct pcmuio_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int asic = pcmuio_subdevice_to_asic(s);
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned long flags;
 	int event = 0;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	spin_lock_irqsave(&chip->spinlock, flags);
@@ -518,15 +517,11 @@ static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* Set up start of acquisition. */
-	switch (cmd->start_src) {
-	case TRIG_INT:
+	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = pcmuio_inttrig_start_intr;
-		break;
-	default:
-		/* TRIG_NOW */
+	else	/* TRIG_NOW */
 		event = pcmuio_start_intr(dev, s);
-		break;
-	}
+
 	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	if (event)

@@ -36,6 +36,7 @@
 #include <linux/module.h>
 #include <linux/v4l2-mediabus.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
@@ -1009,10 +1010,10 @@ static const struct v4l2_subdev_core_ops tvp514x_core_ops = {
 	.s_ctrl = v4l2_subdev_s_ctrl,
 	.queryctrl = v4l2_subdev_queryctrl,
 	.querymenu = v4l2_subdev_querymenu,
-	.s_std = tvp514x_s_std,
 };
 
 static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
+	.s_std = tvp514x_s_std,
 	.s_routing = tvp514x_s_routing,
 	.querystd = tvp514x_querystd,
 	.enum_mbus_fmt = tvp514x_enum_mbus_fmt,
@@ -1068,7 +1069,7 @@ tvp514x_get_pdata(struct i2c_client *client)
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
 
-	endpoint = v4l2_of_get_next_endpoint(client->dev.of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(client->dev.of_node, NULL);
 	if (!endpoint)
 		return NULL;
 

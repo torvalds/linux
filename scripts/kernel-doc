@@ -2073,6 +2073,7 @@ sub check_return_section {
 sub dump_function($$) {
     my $prototype = shift;
     my $file = shift;
+    my $noret = 0;
 
     $prototype =~ s/^static +//;
     $prototype =~ s/^extern +//;
@@ -2084,9 +2085,10 @@ sub dump_function($$) {
     $prototype =~ s/^noinline +//;
     $prototype =~ s/__init +//;
     $prototype =~ s/__init_or_module +//;
+    $prototype =~ s/__meminit +//;
     $prototype =~ s/__must_check +//;
     $prototype =~ s/__weak +//;
-    $prototype =~ s/^#\s*define\s+//; #ak added
+    my $define = $prototype =~ s/^#\s*define\s+//; #ak added
     $prototype =~ s/__attribute__\s*\(\([a-z,]*\)\)//;
 
     # Yes, this truly is vile.  We are looking for:
@@ -2105,7 +2107,15 @@ sub dump_function($$) {
     # - atomic_set (macro)
     # - pci_match_device, __copy_to_user (long return type)
 
-    if ($prototype =~ m/^()([a-zA-Z0-9_~:]+)\s*\(([^\(]*)\)/ ||
+    if ($define && $prototype =~ m/^()([a-zA-Z0-9_~:]+)\s+/) {
+        # This is an object-like macro, it has no return type and no parameter
+        # list.
+        # Function-like macros are not allowed to have spaces between
+        # declaration_name and opening parenthesis (notice the \s+).
+        $return_type = $1;
+        $declaration_name = $2;
+        $noret = 1;
+    } elsif ($prototype =~ m/^()([a-zA-Z0-9_~:]+)\s*\(([^\(]*)\)/ ||
 	$prototype =~ m/^(\w+)\s+([a-zA-Z0-9_~:]+)\s*\(([^\(]*)\)/ ||
 	$prototype =~ m/^(\w+\s*\*)\s*([a-zA-Z0-9_~:]+)\s*\(([^\(]*)\)/ ||
 	$prototype =~ m/^(\w+\s+\w+)\s+([a-zA-Z0-9_~:]+)\s*\(([^\(]*)\)/ ||
@@ -2140,7 +2150,7 @@ sub dump_function($$) {
         # of warnings goes sufficiently down, the check is only performed in
         # verbose mode.
         # TODO: always perform the check.
-        if ($verbose) {
+        if ($verbose && !$noret) {
                 check_return_section($file, $declaration_name, $return_type);
         }
 

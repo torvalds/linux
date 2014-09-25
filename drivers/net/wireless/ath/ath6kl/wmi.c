@@ -59,6 +59,55 @@ static const s32 wmi_rate_tbl[][2] = {
 	{0, 0}
 };
 
+static const s32 wmi_rate_tbl_mcs15[][2] = {
+	/* {W/O SGI, with SGI} */
+	{1000, 1000},
+	{2000, 2000},
+	{5500, 5500},
+	{11000, 11000},
+	{6000, 6000},
+	{9000, 9000},
+	{12000, 12000},
+	{18000, 18000},
+	{24000, 24000},
+	{36000, 36000},
+	{48000, 48000},
+	{54000, 54000},
+	{6500, 7200},     /* HT 20, MCS 0 */
+	{13000, 14400},
+	{19500, 21700},
+	{26000, 28900},
+	{39000, 43300},
+	{52000, 57800},
+	{58500, 65000},
+	{65000, 72200},
+	{13000, 14400},   /* HT 20, MCS 8 */
+	{26000, 28900},
+	{39000, 43300},
+	{52000, 57800},
+	{78000, 86700},
+	{104000, 115600},
+	{117000, 130000},
+	{130000, 144400}, /* HT 20, MCS 15 */
+	{13500, 15000},   /*HT 40, MCS 0 */
+	{27000, 30000},
+	{40500, 45000},
+	{54000, 60000},
+	{81000, 90000},
+	{108000, 120000},
+	{121500, 135000},
+	{135000, 150000},
+	{27000, 30000},   /*HT 40, MCS 8 */
+	{54000, 60000},
+	{81000, 90000},
+	{108000, 120000},
+	{162000, 180000},
+	{216000, 240000},
+	{243000, 270000},
+	{270000, 300000}, /*HT 40, MCS 15 */
+	{0, 0}
+};
+
 /* 802.1d to AC mapping. Refer pg 57 of WMM-test-plan-v1.2 */
 static const u8 up_to_ac[] = {
 	WMM_AC_BE,
@@ -289,8 +338,9 @@ int ath6kl_wmi_implicit_create_pstream(struct wmi *wmi, u8 if_idx,
 			   ath6kl_wmi_determine_user_priority(((u8 *) llc_hdr) +
 					sizeof(struct ath6kl_llc_snap_hdr),
 					layer2_priority);
-		} else
+		} else {
 			usr_pri = layer2_priority & 0x7;
+		}
 
 		/*
 		 * Queue the EAPOL frames in the same WMM_AC_VO queue
@@ -359,8 +409,9 @@ int ath6kl_wmi_dot11_hdr_remove(struct wmi *wmi, struct sk_buff *skb)
 		hdr_size = roundup(sizeof(struct ieee80211_qos_hdr),
 				   sizeof(u32));
 		skb_pull(skb, hdr_size);
-	} else if (sub_type == cpu_to_le16(IEEE80211_STYPE_DATA))
+	} else if (sub_type == cpu_to_le16(IEEE80211_STYPE_DATA)) {
 		skb_pull(skb, sizeof(struct ieee80211_hdr_3addr));
+	}
 
 	datap = skb->data;
 	llc_hdr = (struct ath6kl_llc_snap_hdr *)(datap);
@@ -914,7 +965,7 @@ ath6kl_get_regpair(u16 regdmn)
 		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(regDomainPairs); i++) {
-		if (regDomainPairs[i].regDmnEnum == regdmn)
+		if (regDomainPairs[i].reg_domain == regdmn)
 			return &regDomainPairs[i];
 	}
 
@@ -936,7 +987,6 @@ ath6kl_regd_find_country_by_rd(u16 regdmn)
 
 static void ath6kl_wmi_regdomain_event(struct wmi *wmi, u8 *datap, int len)
 {
-
 	struct ath6kl_wmi_regdomain *ev;
 	struct country_code_to_enum_rd *country = NULL;
 	struct reg_dmn_pair_mapping *regpair = NULL;
@@ -946,15 +996,14 @@ static void ath6kl_wmi_regdomain_event(struct wmi *wmi, u8 *datap, int len)
 	ev = (struct ath6kl_wmi_regdomain *) datap;
 	reg_code = le32_to_cpu(ev->reg_code);
 
-	if ((reg_code >> ATH6KL_COUNTRY_RD_SHIFT) & COUNTRY_ERD_FLAG)
+	if ((reg_code >> ATH6KL_COUNTRY_RD_SHIFT) & COUNTRY_ERD_FLAG) {
 		country = ath6kl_regd_find_country((u16) reg_code);
-	else if (!(((u16) reg_code & WORLD_SKU_MASK) == WORLD_SKU_PREFIX)) {
-
+	} else if (!(((u16) reg_code & WORLD_SKU_MASK) == WORLD_SKU_PREFIX)) {
 		regpair = ath6kl_get_regpair((u16) reg_code);
 		country = ath6kl_regd_find_country_by_rd((u16) reg_code);
 		if (regpair)
 			ath6kl_dbg(ATH6KL_DBG_WMI, "Regpair used: 0x%0x\n",
-				   regpair->regDmnEnum);
+				   regpair->reg_domain);
 		else
 			ath6kl_warn("Regpair not found reg_code 0x%0x\n",
 				    reg_code);
@@ -1499,7 +1548,6 @@ static int ath6kl_wmi_cac_event_rx(struct wmi *wmi, u8 *datap, int len,
 
 	if ((reply->cac_indication == CAC_INDICATION_ADMISSION_RESP) &&
 	    (reply->status_code != IEEE80211_TSPEC_STATUS_ADMISS_ACCEPTED)) {
-
 		ts = (struct ieee80211_tspec_ie *) &(reply->tspec_suggestion);
 		tsinfo = le16_to_cpu(ts->tsinfo);
 		tsid = (tsinfo >> IEEE80211_WMM_IE_TSPEC_TID_SHIFT) &
@@ -1530,7 +1578,6 @@ static int ath6kl_wmi_cac_event_rx(struct wmi *wmi, u8 *datap, int len,
 	 * for delete qos stream from AP
 	 */
 	else if (reply->cac_indication == CAC_INDICATION_DELETE) {
-
 		ts = (struct ieee80211_tspec_ie *) &(reply->tspec_suggestion);
 		tsinfo = le16_to_cpu(ts->tsinfo);
 		ts_id = ((tsinfo >> IEEE80211_WMM_IE_TSPEC_TID_SHIFT) &
@@ -2322,7 +2369,7 @@ int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index,
 	return ret;
 }
 
-int ath6kl_wmi_add_krk_cmd(struct wmi *wmi, u8 if_idx, u8 *krk)
+int ath6kl_wmi_add_krk_cmd(struct wmi *wmi, u8 if_idx, const u8 *krk)
 {
 	struct sk_buff *skb;
 	struct wmi_add_krk_cmd *cmd;
@@ -2479,7 +2526,6 @@ static int ath6kl_wmi_sync_point(struct wmi *wmi, u8 if_idx)
 		goto free_data_skb;
 
 	for (index = 0; index < num_pri_streams; index++) {
-
 		if (WARN_ON(!data_sync_bufs[index].skb))
 			goto free_data_skb;
 
@@ -2704,7 +2750,6 @@ static void ath6kl_wmi_relinquish_implicit_pstream_credits(struct wmi *wmi)
 
 	for (i = 0; i < WMM_NUM_AC; i++) {
 		if (stream_exist & (1 << i)) {
-
 			/*
 			 * FIXME: Is this lock & unlock inside
 			 * for loop correct? may need rework.
@@ -2754,9 +2799,9 @@ static int ath6kl_set_bitrate_mask64(struct wmi *wmi, u8 if_idx,
 				mask->control[band].legacy << 4;
 
 		/* copy mcs rate mask */
-		mcsrate = mask->control[band].mcs[1];
+		mcsrate = mask->control[band].ht_mcs[1];
 		mcsrate <<= 8;
-		mcsrate |= mask->control[band].mcs[0];
+		mcsrate |= mask->control[band].ht_mcs[0];
 		ratemask[band] |= mcsrate << 12;
 		ratemask[band] |= mcsrate << 28;
 	}
@@ -2806,7 +2851,7 @@ static int ath6kl_set_bitrate_mask32(struct wmi *wmi, u8 if_idx,
 				mask->control[band].legacy << 4;
 
 		/* copy mcs rate mask */
-		mcsrate = mask->control[band].mcs[0];
+		mcsrate = mask->control[band].ht_mcs[0];
 		ratemask[band] |= mcsrate << 12;
 		ratemask[band] |= mcsrate << 20;
 	}
@@ -2842,7 +2887,8 @@ int ath6kl_wmi_set_bitrate_mask(struct wmi *wmi, u8 if_idx,
 {
 	struct ath6kl *ar = wmi->parent_dev;
 
-	if (ar->hw.flags & ATH6KL_HW_64BIT_RATES)
+	if (test_bit(ATH6KL_FW_CAPABILITY_64BIT_RATES,
+		     ar->fw_capabilities))
 		return ath6kl_set_bitrate_mask64(wmi, if_idx, mask);
 	else
 		return ath6kl_set_bitrate_mask32(wmi, if_idx, mask);
@@ -2870,8 +2916,9 @@ int ath6kl_wmi_set_host_sleep_mode_cmd(struct wmi *wmi, u8 if_idx,
 	if (host_mode == ATH6KL_HOST_MODE_ASLEEP) {
 		ath6kl_wmi_relinquish_implicit_pstream_credits(wmi);
 		cmd->asleep = cpu_to_le32(1);
-	} else
+	} else {
 		cmd->awake = cpu_to_le32(1);
+	}
 
 	ret = ath6kl_wmi_cmd_send(wmi, if_idx, skb,
 				  WMI_SET_HOST_SLEEP_MODE_CMDID,
@@ -3282,9 +3329,11 @@ int ath6kl_wmi_set_regdomain_cmd(struct wmi *wmi, const char *alpha2)
 				   NO_SYNC_WMIFLAG);
 }
 
-s32 ath6kl_wmi_get_rate(s8 rate_index)
+s32 ath6kl_wmi_get_rate(struct wmi *wmi, s8 rate_index)
 {
+	struct ath6kl *ar = wmi->parent_dev;
 	u8 sgi = 0;
+	s32 ret;
 
 	if (rate_index == RATE_AUTO)
 		return 0;
@@ -3295,10 +3344,20 @@ s32 ath6kl_wmi_get_rate(s8 rate_index)
 		sgi = 1;
 	}
 
-	if (WARN_ON(rate_index > RATE_MCS_7_40))
-		rate_index = RATE_MCS_7_40;
+	if (test_bit(ATH6KL_FW_CAPABILITY_RATETABLE_MCS15,
+		     ar->fw_capabilities)) {
+		if (WARN_ON(rate_index >= ARRAY_SIZE(wmi_rate_tbl_mcs15)))
+			return 0;
 
-	return wmi_rate_tbl[(u32) rate_index][sgi];
+		ret = wmi_rate_tbl_mcs15[(u32) rate_index][sgi];
+	} else {
+		if (WARN_ON(rate_index >= ARRAY_SIZE(wmi_rate_tbl)))
+			return 0;
+
+		ret = wmi_rate_tbl[(u32) rate_index][sgi];
+	}
+
+	return ret;
 }
 
 static int ath6kl_wmi_get_pmkid_list_event_rx(struct wmi *wmi, u8 *datap,

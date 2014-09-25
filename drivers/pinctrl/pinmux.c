@@ -391,14 +391,16 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
 	const struct pinmux_ops *ops = pctldev->desc->pmxops;
-	int ret;
-	const unsigned *pins;
-	unsigned num_pins;
+	int ret = 0;
+	const unsigned *pins = NULL;
+	unsigned num_pins = 0;
 	int i;
 	struct pin_desc *desc;
 
-	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
-				      &pins, &num_pins);
+	if (pctlops->get_group_pins)
+		ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
+					      &pins, &num_pins);
+
 	if (ret) {
 		const char *gname;
 
@@ -469,15 +471,15 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 {
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
-	const struct pinmux_ops *ops = pctldev->desc->pmxops;
-	int ret;
-	const unsigned *pins;
-	unsigned num_pins;
+	int ret = 0;
+	const unsigned *pins = NULL;
+	unsigned num_pins = 0;
 	int i;
 	struct pin_desc *desc;
 
-	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
-				      &pins, &num_pins);
+	if (pctlops->get_group_pins)
+		ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
+					      &pins, &num_pins);
 	if (ret) {
 		const char *gname;
 
@@ -515,9 +517,6 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 				 pins[i], desc->name, gname);
 		}
 	}
-
-	if (ops->disable)
-		ops->disable(pctldev, setting->data.mux.func, setting->data.mux.group);
 }
 
 #ifdef CONFIG_DEBUG_FS

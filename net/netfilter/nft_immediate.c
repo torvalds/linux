@@ -70,7 +70,8 @@ err1:
 	return err;
 }
 
-static void nft_immediate_destroy(const struct nft_expr *expr)
+static void nft_immediate_destroy(const struct nft_ctx *ctx,
+				  const struct nft_expr *expr)
 {
 	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
 	return nft_data_uninit(&priv->data, nft_dreg_to_type(priv->dreg));

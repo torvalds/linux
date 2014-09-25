@@ -42,15 +42,15 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <linux/module.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_fid.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_fid.h"
 /* mdc RPC locks */
-#include <lustre_mdc.h>
+#include "../include/lustre_mdc.h"
 #include "fid_internal.h"
 
 static int seq_client_rpc(struct lu_client_seq *seq,
@@ -196,8 +196,8 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 	if (range_is_exhausted(&seq->lcs_space)) {
 		rc = seq_client_alloc_meta(env, seq);
 		if (rc) {
-			CERROR("%s: Can't allocate new meta-sequence,"
-			       "rc %d\n", seq->lcs_name, rc);
+			CERROR("%s: Can't allocate new meta-sequence, rc %d\n",
+			       seq->lcs_name, rc);
 			return rc;
 		} else {
 			CDEBUG(D_INFO, "%s: New range - "DRANGE"\n",
@@ -211,7 +211,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 	*seqnr = seq->lcs_space.lsr_start;
 	seq->lcs_space.lsr_start += 1;
 
-	CDEBUG(D_INFO, "%s: Allocated sequence ["LPX64"]\n", seq->lcs_name,
+	CDEBUG(D_INFO, "%s: Allocated sequence [%#llx]\n", seq->lcs_name,
 	       *seqnr);
 
 	return rc;
@@ -225,7 +225,7 @@ static int seq_fid_alloc_prep(struct lu_client_seq *seq,
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		mutex_unlock(&seq->lcs_mutex);
 
-		waitq_wait(link, TASK_UNINTERRUPTIBLE);
+		schedule();
 
 		mutex_lock(&seq->lcs_mutex);
 		remove_wait_queue(&seq->lcs_waitq, link);
@@ -256,7 +256,7 @@ int seq_client_get_seq(const struct lu_env *env,
 
 	LASSERT(seqnr != NULL);
 	mutex_lock(&seq->lcs_mutex);
-	init_waitqueue_entry_current(&link);
+	init_waitqueue_entry(&link, current);
 
 	while (1) {
 		rc = seq_fid_alloc_prep(seq, &link);
@@ -266,15 +266,15 @@ int seq_client_get_seq(const struct lu_env *env,
 
 	rc = seq_client_alloc_seq(env, seq, seqnr);
 	if (rc) {
-		CERROR("%s: Can't allocate new sequence, "
-		       "rc %d\n", seq->lcs_name, rc);
+		CERROR("%s: Can't allocate new sequence, rc %d\n",
+		       seq->lcs_name, rc);
 		seq_fid_alloc_fini(seq);
 		mutex_unlock(&seq->lcs_mutex);
 		return rc;
 	}
 
-	CDEBUG(D_INFO, "%s: allocate sequence "
-	       "[0x%16.16"LPF64"x]\n", seq->lcs_name, *seqnr);
+	CDEBUG(D_INFO, "%s: allocate sequence [0x%16.16Lx]\n",
+	       seq->lcs_name, *seqnr);
 
 	/* Since the caller require the whole seq,
 	 * so marked this seq to be used */
@@ -306,7 +306,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	LASSERT(seq != NULL);
 	LASSERT(fid != NULL);
 
-	init_waitqueue_entry_current(&link);
+	init_waitqueue_entry(&link, current);
 	mutex_lock(&seq->lcs_mutex);
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_SEQ_EXHAUST))
@@ -329,15 +329,15 @@ int seq_client_alloc_fid(const struct lu_env *env,
 
 		rc = seq_client_alloc_seq(env, seq, &seqnr);
 		if (rc) {
-			CERROR("%s: Can't allocate new sequence, "
-			       "rc %d\n", seq->lcs_name, rc);
+			CERROR("%s: Can't allocate new sequence, rc %d\n",
+			       seq->lcs_name, rc);
 			seq_fid_alloc_fini(seq);
 			mutex_unlock(&seq->lcs_mutex);
 			return rc;
 		}
 
-		CDEBUG(D_INFO, "%s: Switch to sequence "
-		       "[0x%16.16"LPF64"x]\n", seq->lcs_name, seqnr);
+		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16Lx]\n",
+		       seq->lcs_name, seqnr);
 
 		seq->lcs_fid.f_oid = LUSTRE_FID_INIT_OID;
 		seq->lcs_fid.f_seq = seqnr;
@@ -370,7 +370,7 @@ void seq_client_flush(struct lu_client_seq *seq)
 	wait_queue_t link;
 
 	LASSERT(seq != NULL);
-	init_waitqueue_entry_current(&link);
+	init_waitqueue_entry(&link, current);
 	mutex_lock(&seq->lcs_mutex);
 
 	while (seq->lcs_update) {
@@ -378,7 +378,7 @@ void seq_client_flush(struct lu_client_seq *seq)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		mutex_unlock(&seq->lcs_mutex);
 
-		waitq_wait(&link, TASK_UNINTERRUPTIBLE);
+		schedule();
 
 		mutex_lock(&seq->lcs_mutex);
 		remove_wait_queue(&seq->lcs_waitq, &link);
@@ -400,18 +400,18 @@ EXPORT_SYMBOL(seq_client_flush);
 
 static void seq_client_proc_fini(struct lu_client_seq *seq)
 {
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 	if (seq->lcs_proc_dir) {
 		if (!IS_ERR(seq->lcs_proc_dir))
 			lprocfs_remove(&seq->lcs_proc_dir);
 		seq->lcs_proc_dir = NULL;
 	}
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */
 }
 
 static int seq_client_proc_init(struct lu_client_seq *seq)
 {
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 	int rc;
 
 	seq->lcs_proc_dir = lprocfs_register(seq->lcs_name,
@@ -428,8 +428,8 @@ static int seq_client_proc_init(struct lu_client_seq *seq)
 	rc = lprocfs_add_vars(seq->lcs_proc_dir,
 			      seq_client_proc_list, seq);
 	if (rc) {
-		CERROR("%s: Can't init sequence manager "
-		       "proc, rc %d\n", seq->lcs_name, rc);
+		CERROR("%s: Can't init sequence manager proc, rc %d\n",
+		       seq->lcs_name, rc);
 		GOTO(out_cleanup, rc);
 	}
 
@@ -439,7 +439,7 @@ out_cleanup:
 	seq_client_proc_fini(seq);
 	return rc;
 
-#else /* LPROCFS */
+#else /* CONFIG_PROC_FS */
 	return 0;
 #endif
 }

@@ -82,12 +82,16 @@
 #define	CG_SPLL_FUNC_CNTL_2				0x604
 #define		SCLK_MUX_SEL(x)				((x) << 0)
 #define		SCLK_MUX_SEL_MASK			(0x1ff << 0)
+#define		SCLK_MUX_UPDATE				(1 << 26)
 #define	CG_SPLL_FUNC_CNTL_3				0x608
 #define		SPLL_FB_DIV(x)				((x) << 0)
 #define		SPLL_FB_DIV_MASK			(0x3ffffff << 0)
 #define		SPLL_DITHEN				(1 << 28)
+#define	CG_SPLL_STATUS					0x60c
+#define		SPLL_CHG_STATUS				(1 << 1)
 
 #define MPLL_CNTL_MODE                                  0x61c
+#       define MPLL_MCLK_SEL                            (1 << 11)
 #       define SS_SSEN                                  (1 << 24)
 #       define SS_DSMODE_EN                             (1 << 25)
 
@@ -513,10 +517,11 @@
 #       define HDMI_ERROR_ACK                (1 << 8)
 #       define HDMI_ERROR_MASK               (1 << 9)
 #       define HDMI_DEEP_COLOR_ENABLE        (1 << 24)
-#       define HDMI_DEEP_COLOR_DEPTH         (((x) & 3) << 28)
+#       define HDMI_DEEP_COLOR_DEPTH(x)      (((x) & 3) << 28)
 #       define HDMI_24BIT_DEEP_COLOR         0
 #       define HDMI_30BIT_DEEP_COLOR         1
 #       define HDMI_36BIT_DEEP_COLOR         2
+#       define HDMI_DEEP_COLOR_DEPTH_MASK    (3 << 28)
 #define HDMI_STATUS                          0x7034
 #       define HDMI_ACTIVE_AVMUTE            (1 << 0)
 #       define HDMI_AUDIO_PACKET_ERROR       (1 << 16)

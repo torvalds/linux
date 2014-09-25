@@ -43,12 +43,12 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-# include <linux/libcfs/libcfs.h>
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_dlm.h>
-#include <lustre_net.h>
-#include <lustre_sec.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_sec.h"
 #include "ldlm_internal.h"
 
 /* @priority: If non-zero, move the selected connection to the list head.
@@ -74,9 +74,8 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 
 	if (create) {
 		OBD_ALLOC(imp_conn, sizeof(*imp_conn));
-		if (!imp_conn) {
+		if (!imp_conn)
 			GOTO(out_put, rc = -ENOMEM);
-		}
 	}
 
 	spin_lock(&imp->imp_lock);
@@ -325,7 +324,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	}
 
 	init_rwsem(&cli->cl_sem);
-	sema_init(&cli->cl_mgc_sem, 1);
+	mutex_init(&cli->cl_mgc_mutex);
 	cli->cl_conn_count = 0;
 	memcpy(server_uuid.uuid, lustre_cfg_buf(lcfg, 2),
 	       min_t(unsigned int, LUSTRE_CFG_BUFLEN(lcfg, 2),
@@ -511,14 +510,14 @@ int client_connect_import(const struct lu_env *env,
 
 	rc = ptlrpc_connect_import(imp);
 	if (rc != 0) {
-		LASSERT (imp->imp_state == LUSTRE_IMP_DISCON);
+		LASSERT(imp->imp_state == LUSTRE_IMP_DISCON);
 		GOTO(out_ldlm, rc);
 	}
-	LASSERT((*exp)->exp_connection);
+	LASSERT(*exp != NULL && (*exp)->exp_connection);
 
 	if (data) {
 		LASSERTF((ocd->ocd_connect_flags & data->ocd_connect_flags) ==
-			 ocd->ocd_connect_flags, "old "LPX64", new "LPX64"\n",
+			 ocd->ocd_connect_flags, "old %#llx, new %#llx\n",
 			 data->ocd_connect_flags, ocd->ocd_connect_flags);
 		data->ocd_connect_flags = ocd->ocd_connect_flags;
 	}
@@ -546,7 +545,7 @@ int client_disconnect_export(struct obd_export *exp)
 	int rc = 0, err;
 
 	if (!obd) {
-		CERROR("invalid export for disconnect: exp %p cookie "LPX64"\n",
+		CERROR("invalid export for disconnect: exp %p cookie %#llx\n",
 		       exp, exp ? exp->exp_handle.h_cookie : -1);
 		return -EINVAL;
 	}
@@ -662,33 +661,32 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	struct ptlrpc_reply_state *rs;
 	struct obd_export	 *exp;
 
-	if (req->rq_no_reply) {
+	if (req->rq_no_reply)
 		return;
-	}
 
 	svcpt = req->rq_rqbd->rqbd_svcpt;
 	rs = req->rq_reply_state;
 	if (rs == NULL || !rs->rs_difficult) {
 		/* no notifiers */
-		target_send_reply_msg (req, rc, fail_id);
+		target_send_reply_msg(req, rc, fail_id);
 		return;
 	}
 
 	/* must be an export if locks saved */
-	LASSERT (req->rq_export != NULL);
+	LASSERT(req->rq_export != NULL);
 	/* req/reply consistent */
 	LASSERT(rs->rs_svcpt == svcpt);
 
 	/* "fresh" reply */
-	LASSERT (!rs->rs_scheduled);
-	LASSERT (!rs->rs_scheduled_ever);
-	LASSERT (!rs->rs_handled);
-	LASSERT (!rs->rs_on_net);
-	LASSERT (rs->rs_export == NULL);
-	LASSERT (list_empty(&rs->rs_obd_list));
-	LASSERT (list_empty(&rs->rs_exp_list));
+	LASSERT(!rs->rs_scheduled);
+	LASSERT(!rs->rs_scheduled_ever);
+	LASSERT(!rs->rs_handled);
+	LASSERT(!rs->rs_on_net);
+	LASSERT(rs->rs_export == NULL);
+	LASSERT(list_empty(&rs->rs_obd_list));
+	LASSERT(list_empty(&rs->rs_exp_list));
 
-	exp = class_export_get (req->rq_export);
+	exp = class_export_get(req->rq_export);
 
 	/* disable reply scheduling while I'm setting up */
 	rs->rs_scheduled = 1;
@@ -699,7 +697,7 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	rs->rs_opc       = lustre_msg_get_opc(req->rq_reqmsg);
 
 	spin_lock(&exp->exp_uncommitted_replies_lock);
-	CDEBUG(D_NET, "rs transno = "LPU64", last committed = "LPU64"\n",
+	CDEBUG(D_NET, "rs transno = %llu, last committed = %llu\n",
 	       rs->rs_transno, exp->exp_last_committed);
 	if (rs->rs_transno > exp->exp_last_committed) {
 		/* not committed already */

@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,7 +28,6 @@
  *****************************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
@@ -173,7 +172,7 @@ static int iwl_send_wimax_coex(struct iwl_priv *priv)
 	memset(&coex_cmd, 0, sizeof(coex_cmd));
 
 	return iwl_dvm_send_cmd_pdu(priv,
-				COEX_PRIORITY_TABLE_CMD, CMD_SYNC,
+				COEX_PRIORITY_TABLE_CMD, 0,
 				sizeof(coex_cmd), &coex_cmd);
 }
 
@@ -206,7 +205,7 @@ void iwl_send_prio_tbl(struct iwl_priv *priv)
 	memcpy(prio_tbl_cmd.prio_tbl, iwl_bt_prio_tbl,
 		sizeof(iwl_bt_prio_tbl));
 	if (iwl_dvm_send_cmd_pdu(priv,
-				REPLY_BT_COEX_PRIO_TABLE, CMD_SYNC,
+				REPLY_BT_COEX_PRIO_TABLE, 0,
 				sizeof(prio_tbl_cmd), &prio_tbl_cmd))
 		IWL_ERR(priv, "failed to send BT prio tbl command\n");
 }
@@ -219,7 +218,7 @@ int iwl_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 	env_cmd.action = action;
 	env_cmd.type = type;
 	ret = iwl_dvm_send_cmd_pdu(priv,
-			       REPLY_BT_COEX_PROT_ENV, CMD_SYNC,
+			       REPLY_BT_COEX_PROT_ENV, 0,
 			       sizeof(env_cmd), &env_cmd);
 	if (ret)
 		IWL_ERR(priv, "failed to send BT env command\n");
@@ -389,7 +388,6 @@ static bool iwlagn_wait_calib(struct iwl_notif_wait_data *notif_wait,
 {
 	struct iwl_priv *priv = data;
 	struct iwl_calib_hdr *hdr;
-	int len;
 
 	if (pkt->hdr.cmd != CALIBRATION_RES_NOTIFICATION) {
 		WARN_ON(pkt->hdr.cmd != CALIBRATION_COMPLETE_NOTIFICATION);
@@ -397,12 +395,8 @@ static bool iwlagn_wait_calib(struct iwl_notif_wait_data *notif_wait,
 	}
 
 	hdr = (struct iwl_calib_hdr *)pkt->data;
-	len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 
-	/* reduce the size by the length field itself */
-	len -= sizeof(__le32);
-
-	if (iwl_calib_set(priv, hdr, len))
+	if (iwl_calib_set(priv, hdr, iwl_rx_packet_payload_len(pkt)))
 		IWL_ERR(priv, "Failed to record calibration data %d\n",
 			hdr->op_code);
 

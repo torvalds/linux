@@ -2,7 +2,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/otg.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
@@ -13,7 +13,7 @@
 #include "phy-generic.h"
 
 struct am335x_phy {
-	struct usb_phy_gen_xceiv usb_phy_gen;
+	struct usb_phy_generic usb_phy_gen;
 	struct phy_control *phy_ctrl;
 	int id;
 };
@@ -122,15 +122,9 @@ static int am335x_phy_resume(struct device *dev)
 
 	return 0;
 }
-
-static const struct dev_pm_ops am335x_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(am335x_phy_suspend, am335x_phy_resume)
-};
-
-#define DEV_PM_OPS     (&am335x_pm_ops)
-#else
-#define DEV_PM_OPS     NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(am335x_pm_ops, am335x_phy_suspend, am335x_phy_resume);
 
 static const struct of_device_id am335x_phy_ids[] = {
 	{ .compatible = "ti,am335x-usb-phy" },
@@ -144,7 +138,7 @@ static struct platform_driver am335x_phy_driver = {
 	.driver         = {
 		.name   = "am335x-phy-driver",
 		.owner  = THIS_MODULE,
-		.pm = DEV_PM_OPS,
+		.pm = &am335x_pm_ops,
 		.of_match_table = am335x_phy_ids,
 	},
 };

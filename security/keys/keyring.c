@@ -73,6 +73,8 @@ static inline unsigned keyring_hash(const char *desc)
  * can be treated as ordinary keys in addition to having their own special
  * operations.
  */
+static int keyring_preparse(struct key_preparsed_payload *prep);
+static void keyring_free_preparse(struct key_preparsed_payload *prep);
 static int keyring_instantiate(struct key *keyring,
 			       struct key_preparsed_payload *prep);
 static void keyring_revoke(struct key *keyring);
@@ -84,6 +86,8 @@ static long keyring_read(const struct key *keyring,
 struct key_type key_type_keyring = {
 	.name		= "keyring",
 	.def_datalen	= 0,
+	.preparse	= keyring_preparse,
+	.free_preparse	= keyring_free_preparse,
 	.instantiate	= keyring_instantiate,
 	.match		= user_match,
 	.revoke		= keyring_revoke,
@@ -123,6 +127,21 @@ static void keyring_publish_name(struct key *keyring)
 }
 
 /*
+ * Preparse a keyring payload
+ */
+static int keyring_preparse(struct key_preparsed_payload *prep)
+{
+	return prep->datalen != 0 ? -EINVAL : 0;
+}
+
+/*
+ * Free a preparse of a user defined key payload
+ */
+static void keyring_free_preparse(struct key_preparsed_payload *prep)
+{
+}
+
+/*
  * Initialise a keyring.
  *
  * Returns 0 on success, -EINVAL if given any data.
@@ -130,17 +149,10 @@ static void keyring_publish_name(struct key *keyring)
 static int keyring_instantiate(struct key *keyring,
 			       struct key_preparsed_payload *prep)
 {
-	int ret;
-
-	ret = -EINVAL;
-	if (prep->datalen == 0) {
-		assoc_array_init(&keyring->keys);
-		/* make the keyring available by name if it has one */
-		keyring_publish_name(keyring);
-		ret = 0;
-	}
-
-	return ret;
+	assoc_array_init(&keyring->keys);
+	/* make the keyring available by name if it has one */
+	keyring_publish_name(keyring);
+	return 0;
 }
 
 /*
@@ -541,7 +553,7 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 	/* key must have search permissions */
 	if (!(ctx->flags & KEYRING_SEARCH_NO_CHECK_PERM) &&
 	    key_task_permission(make_key_ref(key, ctx->possessed),
-				ctx->cred, KEY_SEARCH) < 0) {
+				ctx->cred, KEY_NEED_SEARCH) < 0) {
 		ctx->result = ERR_PTR(-EACCES);
 		kleave(" = %d [!perm]", ctx->skipped_ret);
 		goto skipped;
@@ -721,7 +733,7 @@ ascend_to_node:
 		/* Search a nested keyring */
 		if (!(ctx->flags & KEYRING_SEARCH_NO_CHECK_PERM) &&
 		    key_task_permission(make_key_ref(key, ctx->possessed),
-					ctx->cred, KEY_SEARCH) < 0)
+					ctx->cred, KEY_NEED_SEARCH) < 0)
 			continue;
 
 		/* stack the current position */
@@ -843,7 +855,7 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 		return ERR_PTR(-ENOTDIR);
 
 	if (!(ctx->flags & KEYRING_SEARCH_NO_CHECK_PERM)) {
-		err = key_task_permission(keyring_ref, ctx->cred, KEY_SEARCH);
+		err = key_task_permission(keyring_ref, ctx->cred, KEY_NEED_SEARCH);
 		if (err < 0)
 			return ERR_PTR(err);
 	}
@@ -973,7 +985,7 @@ struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 
 			if (!skip_perm_check &&
 			    key_permission(make_key_ref(keyring, 0),
-					   KEY_SEARCH) < 0)
+					   KEY_NEED_SEARCH) < 0)
 				continue;
 
 			/* we've got a match but we might end up racing with
@@ -1000,7 +1012,11 @@ static int keyring_detect_cycle_iterator(const void *object,
 
 	kenter("{%d}", key->serial);
 
-	BUG_ON(key != ctx->match_data);
+	/* We might get a keyring with matching index-key that is nonetheless a
+	 * different keyring. */
+	if (key != ctx->match_data)
+		return 0;
+
 	ctx->result = ERR_PTR(-EDEADLK);
 	return 1;
 }

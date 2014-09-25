@@ -31,6 +31,18 @@ static void __check_htcap_disable(struct ieee80211_ht_cap *ht_capa,
 	}
 }
 
+static void __check_htcap_enable(struct ieee80211_ht_cap *ht_capa,
+				  struct ieee80211_ht_cap *ht_capa_mask,
+				  struct ieee80211_sta_ht_cap *ht_cap,
+				  u16 flag)
+{
+	__le16 le_flag = cpu_to_le16(flag);
+
+	if ((ht_capa_mask->cap_info & le_flag) &&
+	    (ht_capa->cap_info & le_flag))
+		ht_cap->cap |= flag;
+}
+
 void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_sta_ht_cap *ht_cap)
 {
@@ -59,7 +71,7 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	smask = (u8 *)(&ht_capa_mask->mcs.rx_mask);
 
 	/* NOTE:  If you add more over-rides here, update register_hw
-	 * ht_capa_mod_msk logic in main.c as well.
+	 * ht_capa_mod_mask logic in main.c as well.
 	 * And, if this method can ever change ht_cap.ht_supported, fix
 	 * the check in ieee80211_add_ht_ie.
 	 */
@@ -85,6 +97,14 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	/* Allow user to disable the max-AMSDU bit. */
 	__check_htcap_disable(ht_capa, ht_capa_mask, ht_cap,
 			      IEEE80211_HT_CAP_MAX_AMSDU);
+
+	/* Allow user to disable LDPC */
+	__check_htcap_disable(ht_capa, ht_capa_mask, ht_cap,
+			      IEEE80211_HT_CAP_LDPC_CODING);
+
+	/* Allow user to enable 40 MHz intolerant bit. */
+	__check_htcap_enable(ht_capa, ht_capa_mask, ht_cap,
+			     IEEE80211_HT_CAP_40MHZ_INTOLERANT);
 
 	/* Allow user to decrease AMPDU factor */
 	if (ht_capa_mask->ampdu_params_info &
@@ -130,13 +150,12 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * If user has specified capability over-rides, take care
-	 * of that if the station we're setting up is the AP that
+	 * of that if the station we're setting up is the AP or TDLS peer that
 	 * we advertised a restricted capability set to. Override
 	 * our own capabilities and then use those below.
 	 */
-	if ((sdata->vif.type == NL80211_IFTYPE_STATION ||
-	     sdata->vif.type == NL80211_IFTYPE_ADHOC) &&
-	    !test_sta_flag(sta, WLAN_STA_TDLS_PEER))
+	if (sdata->vif.type == NL80211_IFTYPE_STATION ||
+	    sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		ieee80211_apply_htcap_overrides(sdata, &own_cap);
 
 	/*
@@ -207,6 +226,9 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	/* handle MCS rate 32 too */
 	if (own_cap.mcs.rx_mask[32/8] & ht_cap_ie->mcs.rx_mask[32/8] & 1)
 		ht_cap.mcs.rx_mask[32/8] |= 1;
+
+	/* set Rx highest rate */
+	ht_cap.mcs.rx_highest = ht_cap_ie->mcs.rx_highest;
 
  apply:
 	changed = memcmp(&sta->sta.ht_cap, &ht_cap, sizeof(ht_cap));
@@ -375,7 +397,7 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.action.u.delba.params = cpu_to_le16(params);
 	mgmt->u.action.u.delba.reason_code = cpu_to_le16(reason_code);
 
-	ieee80211_tx_skb_tid(sdata, skb, tid);
+	ieee80211_tx_skb(sdata, skb);
 }
 
 void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
@@ -466,7 +488,9 @@ void ieee80211_request_smps_ap_work(struct work_struct *work)
 			     u.ap.request_smps_work);
 
 	sdata_lock(sdata);
-	__ieee80211_request_smps_ap(sdata, sdata->u.ap.driver_smps_mode);
+	if (sdata_dereference(sdata->u.ap.beacon, sdata))
+		__ieee80211_request_smps_ap(sdata,
+					    sdata->u.ap.driver_smps_mode);
 	sdata_unlock(sdata);
 }
 
@@ -478,9 +502,6 @@ void ieee80211_request_smps(struct ieee80211_vif *vif,
 	if (WARN_ON_ONCE(vif->type != NL80211_IFTYPE_STATION &&
 			 vif->type != NL80211_IFTYPE_AP))
 		return;
-
-	if (WARN_ON(smps_mode == IEEE80211_SMPS_OFF))
-		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		if (sdata->u.mgd.driver_smps_mode == smps_mode)

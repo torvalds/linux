@@ -6,6 +6,7 @@
  * Copyright (C) 2006 Felix Fietkau (nbd@openwrt.org)
  * Copyright (C) 2006 Broadcom Corporation.
  * Copyright (C) 2007 Michael Buesch <m@bues.ch>
+ * Copyright (C) 2013 Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Distribute under GPL.
  */
@@ -29,6 +30,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/ssb/ssb.h>
 #include <linux/slab.h>
+#include <linux/phy.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -103,7 +105,7 @@ MODULE_PARM_DESC(b44_debug, "B44 bitmapped debugging message enable value");
 
 
 #ifdef CONFIG_B44_PCI
-static DEFINE_PCI_DEVICE_TABLE(b44_pci_tbl) = {
+static const struct pci_device_id b44_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_BCM4401) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_BCM4401B0) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_BCM4401B1) },
@@ -284,7 +286,7 @@ static int __b44_writephy(struct b44 *bp, int phy_addr, int reg, u32 val)
 
 static inline int b44_readphy(struct b44 *bp, int reg, u32 *val)
 {
-	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY)
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
 		return 0;
 
 	return __b44_readphy(bp, bp->phy_addr, reg, val);
@@ -292,14 +294,14 @@ static inline int b44_readphy(struct b44 *bp, int reg, u32 *val)
 
 static inline int b44_writephy(struct b44 *bp, int reg, u32 val)
 {
-	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY)
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
 		return 0;
 
 	return __b44_writephy(bp, bp->phy_addr, reg, val);
 }
 
 /* miilib interface */
-static int b44_mii_read(struct net_device *dev, int phy_id, int location)
+static int b44_mdio_read_mii(struct net_device *dev, int phy_id, int location)
 {
 	u32 val;
 	struct b44 *bp = netdev_priv(dev);
@@ -309,11 +311,28 @@ static int b44_mii_read(struct net_device *dev, int phy_id, int location)
 	return val;
 }
 
-static void b44_mii_write(struct net_device *dev, int phy_id, int location,
-			 int val)
+static void b44_mdio_write_mii(struct net_device *dev, int phy_id, int location,
+			       int val)
 {
 	struct b44 *bp = netdev_priv(dev);
 	__b44_writephy(bp, phy_id, location, val);
+}
+
+static int b44_mdio_read_phylib(struct mii_bus *bus, int phy_id, int location)
+{
+	u32 val;
+	struct b44 *bp = bus->priv;
+	int rc = __b44_readphy(bp, phy_id, location, &val);
+	if (rc)
+		return 0xffffffff;
+	return val;
+}
+
+static int b44_mdio_write_phylib(struct mii_bus *bus, int phy_id, int location,
+				 u16 val)
+{
+	struct b44 *bp = bus->priv;
+	return __b44_writephy(bp, phy_id, location, val);
 }
 
 static int b44_phy_reset(struct b44 *bp)
@@ -321,7 +340,7 @@ static int b44_phy_reset(struct b44 *bp)
 	u32 val;
 	int err;
 
-	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY)
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
 		return 0;
 	err = b44_writephy(bp, MII_BMCR, BMCR_RESET);
 	if (err)
@@ -423,7 +442,7 @@ static int b44_setup_phy(struct b44 *bp)
 
 	b44_wap54g10_workaround(bp);
 
-	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY)
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
 		return 0;
 	if ((err = b44_readphy(bp, B44_MII_ALEDCTRL, &val)) != 0)
 		goto out;
@@ -521,12 +540,14 @@ static void b44_check_phy(struct b44 *bp)
 {
 	u32 bmsr, aux;
 
-	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY) {
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
 		bp->flags |= B44_FLAG_100_BASE_T;
-		bp->flags |= B44_FLAG_FULL_DUPLEX;
 		if (!netif_carrier_ok(bp->dev)) {
 			u32 val = br32(bp, B44_TX_CTRL);
-			val |= TX_CTRL_DUPLEX;
+			if (bp->flags & B44_FLAG_FULL_DUPLEX)
+				val |= TX_CTRL_DUPLEX;
+			else
+				val &= ~TX_CTRL_DUPLEX;
 			bw32(bp, B44_TX_CTRL, val);
 			netif_carrier_on(bp->dev);
 			b44_link_report(bp);
@@ -1315,7 +1336,7 @@ static void b44_chip_reset(struct b44 *bp, int reset_kind)
 	if (!(br32(bp, B44_DEVCTRL) & DEVCTRL_IPP)) {
 		bw32(bp, B44_ENET_CTRL, ENET_CTRL_EPSEL);
 		br32(bp, B44_ENET_CTRL);
-		bp->flags &= ~B44_FLAG_INTERNAL_PHY;
+		bp->flags |= B44_FLAG_EXTERNAL_PHY;
 	} else {
 		u32 val = br32(bp, B44_DEVCTRL);
 
@@ -1324,7 +1345,7 @@ static void b44_chip_reset(struct b44 *bp, int reset_kind)
 			br32(bp, B44_DEVCTRL);
 			udelay(100);
 		}
-		bp->flags |= B44_FLAG_INTERNAL_PHY;
+		bp->flags &= ~B44_FLAG_EXTERNAL_PHY;
 	}
 }
 
@@ -1339,7 +1360,10 @@ static void b44_halt(struct b44 *bp)
 	bw32(bp, B44_MAC_CTRL, MAC_CTRL_PHY_PDOWN);
 	/* now reset the chip, but without enabling the MAC&PHY
 	 * part of it. This has to be done _after_ we shut down the PHY */
-	b44_chip_reset(bp, B44_CHIP_RESET_PARTIAL);
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
+		b44_chip_reset(bp, B44_CHIP_RESET_FULL);
+	else
+		b44_chip_reset(bp, B44_CHIP_RESET_PARTIAL);
 }
 
 /* bp->lock is held. */
@@ -1460,6 +1484,10 @@ static int b44_open(struct net_device *dev)
 	add_timer(&bp->timer);
 
 	b44_enable_ints(bp);
+
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
+		phy_start(bp->phydev);
+
 	netif_start_queue(dev);
 out:
 	return err;
@@ -1622,6 +1650,9 @@ static int b44_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
+		phy_stop(bp->phydev);
+
 	napi_disable(&bp->napi);
 
 	del_timer_sync(&bp->timer);
@@ -1654,7 +1685,7 @@ static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin_bh(&hwstat->syncp);
+		start = u64_stats_fetch_begin_irq(&hwstat->syncp);
 
 		/* Convert HW stats into rtnl_link_stats64 stats. */
 		nstat->rx_packets = hwstat->rx_pkts;
@@ -1666,7 +1697,7 @@ static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
 				     hwstat->tx_underruns +
 				     hwstat->tx_excessive_cols +
 				     hwstat->tx_late_cols);
-		nstat->multicast  = hwstat->tx_multicast_pkts;
+		nstat->multicast  = hwstat->rx_multicast_pkts;
 		nstat->collisions = hwstat->tx_total_cols;
 
 		nstat->rx_length_errors = (hwstat->rx_oversize_pkts +
@@ -1688,7 +1719,7 @@ static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
 		/* Carrier lost counter seems to be broken for some devices */
 		nstat->tx_carrier_errors = hwstat->tx_carrier_lost;
 #endif
-	} while (u64_stats_fetch_retry_bh(&hwstat->syncp, start));
+	} while (u64_stats_fetch_retry_irq(&hwstat->syncp, start));
 
 	return nstat;
 }
@@ -1805,6 +1836,11 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct b44 *bp = netdev_priv(dev);
 
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
+		BUG_ON(!bp->phydev);
+		return phy_ethtool_gset(bp->phydev, cmd);
+	}
+
 	cmd->supported = (SUPPORTED_Autoneg);
 	cmd->supported |= (SUPPORTED_100baseT_Half |
 			  SUPPORTED_100baseT_Full |
@@ -1828,8 +1864,8 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		DUPLEX_FULL : DUPLEX_HALF;
 	cmd->port = 0;
 	cmd->phy_address = bp->phy_addr;
-	cmd->transceiver = (bp->flags & B44_FLAG_INTERNAL_PHY) ?
-		XCVR_INTERNAL : XCVR_EXTERNAL;
+	cmd->transceiver = (bp->flags & B44_FLAG_EXTERNAL_PHY) ?
+		XCVR_EXTERNAL : XCVR_INTERNAL;
 	cmd->autoneg = (bp->flags & B44_FLAG_FORCE_LINK) ?
 		AUTONEG_DISABLE : AUTONEG_ENABLE;
 	if (cmd->autoneg == AUTONEG_ENABLE)
@@ -1846,7 +1882,23 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int b44_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct b44 *bp = netdev_priv(dev);
-	u32 speed = ethtool_cmd_speed(cmd);
+	u32 speed;
+	int ret;
+
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
+		BUG_ON(!bp->phydev);
+		spin_lock_irq(&bp->lock);
+		if (netif_running(dev))
+			b44_setup_phy(bp);
+
+		ret = phy_ethtool_sset(bp->phydev, cmd);
+
+		spin_unlock_irq(&bp->lock);
+
+		return ret;
+	}
+
+	speed = ethtool_cmd_speed(cmd);
 
 	/* We do not support gigabit. */
 	if (cmd->autoneg == AUTONEG_ENABLE) {
@@ -2021,12 +2073,12 @@ static void b44_get_ethtool_stats(struct net_device *dev,
 	do {
 		data_src = &hwstat->tx_good_octets;
 		data_dst = data;
-		start = u64_stats_fetch_begin_bh(&hwstat->syncp);
+		start = u64_stats_fetch_begin_irq(&hwstat->syncp);
 
 		for (i = 0; i < ARRAY_SIZE(b44_gstrings); i++)
 			*data_dst++ = *data_src++;
 
-	} while (u64_stats_fetch_retry_bh(&hwstat->syncp, start));
+	} while (u64_stats_fetch_retry_irq(&hwstat->syncp, start));
 }
 
 static void b44_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -2076,7 +2128,6 @@ static const struct ethtool_ops b44_ethtool_ops = {
 
 static int b44_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct mii_ioctl_data *data = if_mii(ifr);
 	struct b44 *bp = netdev_priv(dev);
 	int err = -EINVAL;
 
@@ -2084,7 +2135,12 @@ static int b44_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		goto out;
 
 	spin_lock_irq(&bp->lock);
-	err = generic_mii_ioctl(&bp->mii_if, data, cmd, NULL);
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
+		BUG_ON(!bp->phydev);
+		err = phy_mii_ioctl(bp->phydev, ifr, cmd);
+	} else {
+		err = generic_mii_ioctl(&bp->mii_if, if_mii(ifr), cmd, NULL);
+	}
 	spin_unlock_irq(&bp->lock);
 out:
 	return err;
@@ -2146,6 +2202,146 @@ static const struct net_device_ops b44_netdev_ops = {
 #endif
 };
 
+static void b44_adjust_link(struct net_device *dev)
+{
+	struct b44 *bp = netdev_priv(dev);
+	struct phy_device *phydev = bp->phydev;
+	bool status_changed = 0;
+
+	BUG_ON(!phydev);
+
+	if (bp->old_link != phydev->link) {
+		status_changed = 1;
+		bp->old_link = phydev->link;
+	}
+
+	/* reflect duplex change */
+	if (phydev->link) {
+		if ((phydev->duplex == DUPLEX_HALF) &&
+		    (bp->flags & B44_FLAG_FULL_DUPLEX)) {
+			status_changed = 1;
+			bp->flags &= ~B44_FLAG_FULL_DUPLEX;
+		} else if ((phydev->duplex == DUPLEX_FULL) &&
+			   !(bp->flags & B44_FLAG_FULL_DUPLEX)) {
+			status_changed = 1;
+			bp->flags |= B44_FLAG_FULL_DUPLEX;
+		}
+	}
+
+	if (status_changed) {
+		u32 val = br32(bp, B44_TX_CTRL);
+		if (bp->flags & B44_FLAG_FULL_DUPLEX)
+			val |= TX_CTRL_DUPLEX;
+		else
+			val &= ~TX_CTRL_DUPLEX;
+		bw32(bp, B44_TX_CTRL, val);
+		phy_print_status(phydev);
+	}
+}
+
+static int b44_register_phy_one(struct b44 *bp)
+{
+	struct mii_bus *mii_bus;
+	struct ssb_device *sdev = bp->sdev;
+	struct phy_device *phydev;
+	char bus_id[MII_BUS_ID_SIZE + 3];
+	struct ssb_sprom *sprom = &sdev->bus->sprom;
+	int err;
+
+	mii_bus = mdiobus_alloc();
+	if (!mii_bus) {
+		dev_err(sdev->dev, "mdiobus_alloc() failed\n");
+		err = -ENOMEM;
+		goto err_out;
+	}
+
+	mii_bus->priv = bp;
+	mii_bus->read = b44_mdio_read_phylib;
+	mii_bus->write = b44_mdio_write_phylib;
+	mii_bus->name = "b44_eth_mii";
+	mii_bus->parent = sdev->dev;
+	mii_bus->phy_mask = ~(1 << bp->phy_addr);
+	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "%x", instance);
+	mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
+	if (!mii_bus->irq) {
+		dev_err(sdev->dev, "mii_bus irq allocation failed\n");
+		err = -ENOMEM;
+		goto err_out_mdiobus;
+	}
+
+	memset(mii_bus->irq, PHY_POLL, sizeof(int) * PHY_MAX_ADDR);
+
+	bp->mii_bus = mii_bus;
+
+	err = mdiobus_register(mii_bus);
+	if (err) {
+		dev_err(sdev->dev, "failed to register MII bus\n");
+		goto err_out_mdiobus_irq;
+	}
+
+	if (!bp->mii_bus->phy_map[bp->phy_addr] &&
+	    (sprom->boardflags_lo & (B44_BOARDFLAG_ROBO | B44_BOARDFLAG_ADM))) {
+
+		dev_info(sdev->dev,
+			 "could not find PHY at %i, use fixed one\n",
+			 bp->phy_addr);
+
+		bp->phy_addr = 0;
+		snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, "fixed-0",
+			 bp->phy_addr);
+	} else {
+		snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, mii_bus->id,
+			 bp->phy_addr);
+	}
+
+	phydev = phy_connect(bp->dev, bus_id, &b44_adjust_link,
+			     PHY_INTERFACE_MODE_MII);
+	if (IS_ERR(phydev)) {
+		dev_err(sdev->dev, "could not attach PHY at %i\n",
+			bp->phy_addr);
+		err = PTR_ERR(phydev);
+		goto err_out_mdiobus_unregister;
+	}
+
+	/* mask with MAC supported features */
+	phydev->supported &= (SUPPORTED_100baseT_Half |
+			      SUPPORTED_100baseT_Full |
+			      SUPPORTED_Autoneg |
+			      SUPPORTED_MII);
+	phydev->advertising = phydev->supported;
+
+	bp->phydev = phydev;
+	bp->old_link = 0;
+	bp->phy_addr = phydev->addr;
+
+	dev_info(sdev->dev, "attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
+		 phydev->drv->name, dev_name(&phydev->dev));
+
+	return 0;
+
+err_out_mdiobus_unregister:
+	mdiobus_unregister(mii_bus);
+
+err_out_mdiobus_irq:
+	kfree(mii_bus->irq);
+
+err_out_mdiobus:
+	mdiobus_free(mii_bus);
+
+err_out:
+	return err;
+}
+
+static void b44_unregister_phy_one(struct b44 *bp)
+{
+	struct mii_bus *mii_bus = bp->mii_bus;
+
+	phy_disconnect(bp->phydev);
+	mdiobus_unregister(mii_bus);
+	kfree(mii_bus->irq);
+	mdiobus_free(mii_bus);
+}
+
 static int b44_init_one(struct ssb_device *sdev,
 			const struct ssb_device_id *ent)
 {
@@ -2184,7 +2380,7 @@ static int b44_init_one(struct ssb_device *sdev,
 	netif_napi_add(dev, &bp->napi, b44_poll, 64);
 	dev->watchdog_timeo = B44_TX_TIMEOUT;
 	dev->irq = sdev->irq;
-	SET_ETHTOOL_OPS(dev, &b44_ethtool_ops);
+	dev->ethtool_ops = &b44_ethtool_ops;
 
 	err = ssb_bus_powerup(sdev->bus, 0);
 	if (err) {
@@ -2206,9 +2402,15 @@ static int b44_init_one(struct ssb_device *sdev,
 		goto err_out_powerdown;
 	}
 
+	if (bp->phy_addr == B44_PHY_ADDR_NO_PHY) {
+		dev_err(sdev->dev, "No PHY present on this MAC, aborting\n");
+		err = -ENODEV;
+		goto err_out_powerdown;
+	}
+
 	bp->mii_if.dev = dev;
-	bp->mii_if.mdio_read = b44_mii_read;
-	bp->mii_if.mdio_write = b44_mii_write;
+	bp->mii_if.mdio_read = b44_mdio_read_mii;
+	bp->mii_if.mdio_write = b44_mdio_write_mii;
 	bp->mii_if.phy_id = bp->phy_addr;
 	bp->mii_if.phy_id_mask = 0x1f;
 	bp->mii_if.reg_num_mask = 0x1f;
@@ -2236,13 +2438,26 @@ static int b44_init_one(struct ssb_device *sdev,
 	b44_chip_reset(bp, B44_CHIP_RESET_FULL);
 
 	/* do a phy reset to test if there is an active phy */
-	if (b44_phy_reset(bp) < 0)
-		bp->phy_addr = B44_PHY_ADDR_NO_PHY;
+	err = b44_phy_reset(bp);
+	if (err < 0) {
+		dev_err(sdev->dev, "phy reset failed\n");
+		goto err_out_unregister_netdev;
+	}
+
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
+		err = b44_register_phy_one(bp);
+		if (err) {
+			dev_err(sdev->dev, "Cannot register PHY, aborting\n");
+			goto err_out_unregister_netdev;
+		}
+	}
 
 	netdev_info(dev, "%s %pM\n", DRV_DESCRIPTION, dev->dev_addr);
 
 	return 0;
 
+err_out_unregister_netdev:
+	unregister_netdev(dev);
 err_out_powerdown:
 	ssb_bus_may_powerdown(sdev->bus);
 
@@ -2256,8 +2471,11 @@ out:
 static void b44_remove_one(struct ssb_device *sdev)
 {
 	struct net_device *dev = ssb_get_drvdata(sdev);
+	struct b44 *bp = netdev_priv(dev);
 
 	unregister_netdev(dev);
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
+		b44_unregister_phy_one(bp);
 	ssb_device_disable(sdev, 0);
 	ssb_bus_may_powerdown(sdev->bus);
 	free_netdev(dev);

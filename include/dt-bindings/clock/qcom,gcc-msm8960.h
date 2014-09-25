@@ -51,7 +51,7 @@
 #define QDSS_TSCTR_CLK				34
 #define SFAB_ADM0_M0_A_CLK			35
 #define SFAB_ADM0_M1_A_CLK			36
-#define SFAB_ADM0_M2_A_CLK			37
+#define SFAB_ADM0_M2_H_CLK			37
 #define ADM0_CLK				38
 #define ADM0_PBUS_CLK				39
 #define MSS_XPU_CLK				40
@@ -99,7 +99,7 @@
 #define CFPB2_H_CLK				82
 #define SFAB_CFPB_M_H_CLK			83
 #define CFPB_MASTER_H_CLK			84
-#define SFAB_CFPB_S_HCLK			85
+#define SFAB_CFPB_S_H_CLK			85
 #define CFPB_SPLITTER_H_CLK			86
 #define TSIF_H_CLK				87
 #define TSIF_INACTIVITY_TIMERS_CLK		88
@@ -110,7 +110,6 @@
 #define CE1_SLEEP_CLK				93
 #define CE2_H_CLK				94
 #define CE2_CORE_CLK				95
-#define CE2_SLEEP_CLK				96
 #define SFPB_H_CLK_SRC				97
 #define SFPB_H_CLK				98
 #define SFAB_SFPB_M_H_CLK			99
@@ -252,7 +251,7 @@
 #define MSS_S_H_CLK				235
 #define MSS_CXO_SRC_CLK				236
 #define SATA_H_CLK				237
-#define SATA_SRC_CLK				238
+#define SATA_CLK_SRC				238
 #define SATA_RXOOB_CLK				239
 #define SATA_PMALIVE_CLK			240
 #define SATA_PHY_REF_CLK			241
@@ -309,5 +308,16 @@
 #define PLL13					292
 #define PLL14					293
 #define PLL14_VOTE				294
+#define USB_HS3_H_CLK				295
+#define USB_HS3_XCVR_SRC			296
+#define USB_HS3_XCVR_CLK			297
+#define USB_HS4_H_CLK				298
+#define USB_HS4_XCVR_SRC			299
+#define USB_HS4_XCVR_CLK			300
+#define SATA_PHY_CFG_CLK			301
+#define SATA_A_CLK				302
+#define CE3_SRC					303
+#define CE3_CORE_CLK				304
+#define CE3_H_CLK				305
 
 #endif

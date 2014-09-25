@@ -12,10 +12,11 @@
 /dts-v1/;
 #include "exynos5250.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Insignal Arndale evaluation board based on EXYNOS5250";
-	compatible = "insignal,arndale", "samsung,exynos5250";
+	compatible = "insignal,arndale", "samsung,exynos5250", "samsung,exynos5";
 
 	memory {
 		reg = <0x40000000 0x80000000>;
@@ -23,6 +24,10 @@
 
 	chosen {
 		bootargs = "console=ttySAC2,115200";
+	};
+
+	rtc@101E0000 {
+		status = "okay";
 	};
 
 	codec@11000000 {
@@ -103,6 +108,7 @@
 					regulator-name = "VDD_IOPERI_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
 					op_mode = <1>;
 				};
 
@@ -287,6 +293,7 @@
 					regulator-name = "vdd_g3d";
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1000000>;
+					regulator-always-on;
 					regulator-boot-on;
 					op_mode = <1>;
 				};
@@ -370,6 +377,27 @@
 		};
 	};
 
+	i2c@121D0000 {
+		status = "okay";
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <40000>;
+		samsung,i2c-slave-addr = <0x38>;
+
+		sata_phy_i2c:sata-phy@38 {
+			compatible = "samsung,exynos-sataphy-i2c";
+			reg = <0x38>;
+		};
+	};
+
+	sata@122F0000 {
+		status = "okay";
+	};
+
+	sata-phy@12170000 {
+		status = "okay";
+		samsung,exynos-sataphy-i2c-phandle = <&sata_phy_i2c>;
+	};
+
 	mmc_0: mmc@12200000 {
 		status = "okay";
 		num-slots = <1>;
@@ -418,42 +446,42 @@
 		menu {
 			label = "SW-TACT2";
 			gpios = <&gpx1 4 1>;
-			linux,code = <139>;
+			linux,code = <KEY_MENU>;
 			gpio-key,wakeup;
 		};
 
 		home {
 			label = "SW-TACT3";
 			gpios = <&gpx1 5 1>;
-			linux,code = <102>;
+			linux,code = <KEY_HOME>;
 			gpio-key,wakeup;
 		};
 
 		up {
 			label = "SW-TACT4";
 			gpios = <&gpx1 6 1>;
-			linux,code = <103>;
+			linux,code = <KEY_UP>;
 			gpio-key,wakeup;
 		};
 
 		down {
 			label = "SW-TACT5";
 			gpios = <&gpx1 7 1>;
-			linux,code = <108>;
+			linux,code = <KEY_DOWN>;
 			gpio-key,wakeup;
 		};
 
 		back {
 			label = "SW-TACT6";
 			gpios = <&gpx2 0 1>;
-			linux,code = <158>;
+			linux,code = <KEY_BACK>;
 			gpio-key,wakeup;
 		};
 
 		wakeup {
 			label = "SW-TACT7";
 			gpios = <&gpx2 1 1>;
-			linux,code = <143>;
+			linux,code = <KEY_WAKEUP>;
 			gpio-key,wakeup;
 		};
 	};

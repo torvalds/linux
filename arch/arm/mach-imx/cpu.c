@@ -2,6 +2,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
 
@@ -60,6 +61,18 @@ void __init imx_set_aips(void __iomem *base)
 	__raw_writel(reg, base + 0x50);
 }
 
+void __init imx_aips_allow_unprivileged_access(
+		const char *compat)
+{
+	void __iomem *aips_base_addr;
+	struct device_node *np;
+
+	for_each_compatible_node(np, NULL, compat) {
+		aips_base_addr = of_iomap(np, 0);
+		imx_set_aips(aips_base_addr);
+	}
+}
+
 struct device * __init imx_soc_device_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
@@ -110,6 +123,9 @@ struct device * __init imx_soc_device_init(void)
 		break;
 	case MXC_CPU_IMX6DL:
 		soc_id = "i.MX6DL";
+		break;
+	case MXC_CPU_IMX6SX:
+		soc_id = "i.MX6SX";
 		break;
 	case MXC_CPU_IMX6Q:
 		soc_id = "i.MX6Q";

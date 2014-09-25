@@ -395,7 +395,8 @@ static int assigned_device_enable_host_msix(struct kvm *kvm,
 	if (dev->entries_nr == 0)
 		return r;
 
-	r = pci_enable_msix(dev->dev, dev->host_msix_entries, dev->entries_nr);
+	r = pci_enable_msix_exact(dev->dev,
+				  dev->host_msix_entries, dev->entries_nr);
 	if (r)
 		return r;
 
@@ -525,8 +526,10 @@ static int assign_guest_irq(struct kvm *kvm,
 		dev->irq_requested_type |= guest_irq_type;
 		if (dev->ack_notifier.gsi != -1)
 			kvm_register_irq_ack_notifier(kvm, &dev->ack_notifier);
-	} else
+	} else {
 		kvm_free_irq_source_id(kvm, dev->irq_source_id);
+		dev->irq_source_id = -1;
+	}
 
 	return r;
 }

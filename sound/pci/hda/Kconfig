@@ -1,8 +1,15 @@
-menuconfig SND_HDA_INTEL
-	tristate "Intel HD Audio"
+menu "HD-Audio"
+
+config SND_HDA
+	tristate
 	select SND_PCM
 	select SND_VMASTER
 	select SND_KCTL_JACK
+
+config SND_HDA_INTEL
+	tristate "HD Audio PCI"
+	depends on SND_PCI
+	select SND_HDA
 	help
 	  Say Y here to include support for Intel "High Definition
 	  Audio" (Azalia) and its compatible devices.
@@ -13,7 +20,22 @@ menuconfig SND_HDA_INTEL
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hda-intel.
 
-if SND_HDA_INTEL
+config SND_HDA_TEGRA
+	tristate "NVIDIA Tegra HD Audio"
+	depends on ARCH_TEGRA
+	select SND_HDA
+	help
+	  Say Y here to support the HDA controller present in NVIDIA
+	  Tegra SoCs
+
+	  This options enables support for the HD Audio controller
+	  present in some NVIDIA Tegra SoCs, used to communicate audio
+	  to the HDMI output.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-hda-tegra.
+
+if SND_HDA
 
 config SND_HDA_DSP_LOADER
 	bool
@@ -41,7 +63,6 @@ config SND_HDA_HWDEP
 
 config SND_HDA_RECONFIG
 	bool "Allow dynamic codec reconfiguration"
-	depends on SND_HDA_HWDEP
 	help
 	  Say Y here to enable the HD-audio codec re-configuration feature.
 	  This adds the sysfs interfaces to allow user to clear the whole
@@ -50,7 +71,7 @@ config SND_HDA_RECONFIG
 
 config SND_HDA_INPUT_BEEP
 	bool "Support digital beep via input layer"
-	depends on INPUT=y || INPUT=SND_HDA_INTEL
+	depends on INPUT=y || INPUT=SND_HDA
 	help
 	  Say Y here to build a digital beep interface for HD-audio
 	  driver. This interface is used to generate digital beeps.
@@ -76,15 +97,12 @@ config SND_HDA_INPUT_JACK
 config SND_HDA_PATCH_LOADER
 	bool "Support initialization patch loading for HD-audio"
 	select FW_LOADER
-	select SND_HDA_HWDEP
 	select SND_HDA_RECONFIG
 	help
 	  Say Y here to allow the HD-audio driver to load a pseudo
 	  firmware file ("patch") for overriding the BIOS setup at
 	  start up.  The "patch" file can be specified via patch module
 	  option, such as patch=hda-init.
-
-	  This option turns on hwdep and reconfig features automatically.
 
 config SND_HDA_CODEC_REALTEK
 	tristate "Build Realtek HD-audio codec support"
@@ -94,7 +112,7 @@ config SND_HDA_CODEC_REALTEK
 	  snd-hda-intel driver, such as ALC880.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_REALTEK=m
+	depends on SND_HDA=y && SND_HDA_CODEC_REALTEK=m
 
 config SND_HDA_CODEC_ANALOG
 	tristate "Build Analog Device HD-audio codec support"
@@ -104,7 +122,7 @@ config SND_HDA_CODEC_ANALOG
 	  snd-hda-intel driver, such as AD1986A.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_ANALOG=m
+	depends on SND_HDA=y && SND_HDA_CODEC_ANALOG=m
 
 config SND_HDA_CODEC_SIGMATEL
 	tristate "Build IDT/Sigmatel HD-audio codec support"
@@ -114,7 +132,7 @@ config SND_HDA_CODEC_SIGMATEL
 	  snd-hda-intel driver, such as STAC9200.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_SIGMATEL=m
+	depends on SND_HDA=y && SND_HDA_CODEC_SIGMATEL=m
 
 config SND_HDA_CODEC_VIA
 	tristate "Build VIA HD-audio codec support"
@@ -124,7 +142,7 @@ config SND_HDA_CODEC_VIA
 	  snd-hda-intel driver, such as VT1708.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_VIA=m
+	depends on SND_HDA=y && SND_HDA_CODEC_VIA=m
 
 config SND_HDA_CODEC_HDMI
 	tristate "Build HDMI/DisplayPort HD-audio codec support"
@@ -134,7 +152,7 @@ config SND_HDA_CODEC_HDMI
 	  Intel and Nvidia HDMI/DisplayPort codecs.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_HDMI=m
+	depends on SND_HDA=y && SND_HDA_CODEC_HDMI=m
 
 config SND_HDA_I915
 	bool
@@ -149,7 +167,7 @@ config SND_HDA_CODEC_CIRRUS
 	  snd-hda-intel driver, such as CS4206.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_CIRRUS=m
+	depends on SND_HDA=y && SND_HDA_CODEC_CIRRUS=m
 
 config SND_HDA_CODEC_CONEXANT
 	tristate "Build Conexant HD-audio codec support"
@@ -159,7 +177,7 @@ config SND_HDA_CODEC_CONEXANT
 	  snd-hda-intel driver, such as CX20549.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_CONEXANT=m
+	depends on SND_HDA=y && SND_HDA_CODEC_CONEXANT=m
 
 config SND_HDA_CODEC_CA0110
 	tristate "Build Creative CA0110-IBG codec support"
@@ -169,7 +187,7 @@ config SND_HDA_CODEC_CA0110
 	  snd-hda-intel driver, found on some Creative X-Fi cards.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_CA0110=m
+	depends on SND_HDA=y && SND_HDA_CODEC_CA0110=m
 
 config SND_HDA_CODEC_CA0132
 	tristate "Build Creative CA0132 codec support"
@@ -178,7 +196,7 @@ config SND_HDA_CODEC_CA0132
 	  snd-hda-intel driver.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_CA0132=m
+	depends on SND_HDA=y && SND_HDA_CODEC_CA0132=m
 
 config SND_HDA_CODEC_CA0132_DSP
 	bool "Support new DSP code for CA0132 codec"
@@ -200,7 +218,7 @@ config SND_HDA_CODEC_CMEDIA
 	  snd-hda-intel driver, such as CMI9880.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_CMEDIA=m
+	depends on SND_HDA=y && SND_HDA_CODEC_CMEDIA=m
 
 config SND_HDA_CODEC_SI3054
 	tristate "Build Silicon Labs 3054 HD-modem codec support"
@@ -209,7 +227,7 @@ config SND_HDA_CODEC_SI3054
 	  (and compatibles) support in snd-hda-intel driver.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_CODEC_SI3054=m
+	depends on SND_HDA=y && SND_HDA_CODEC_SI3054=m
 
 config SND_HDA_GENERIC
 	tristate "Enable generic HD-audio codec parser"
@@ -218,7 +236,7 @@ config SND_HDA_GENERIC
 	  in snd-hda-intel driver.
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA_INTEL=y && SND_HDA_GENERIC=m
+	depends on SND_HDA=y && SND_HDA_GENERIC=m
 
 config SND_HDA_POWER_SAVE_DEFAULT
 	int "Default time-out for HD-audio power-save mode"
@@ -229,3 +247,5 @@ config SND_HDA_POWER_SAVE_DEFAULT
 	  power-save mode.  0 means to disable the power-save mode.
 
 endif
+
+endmenu

@@ -25,6 +25,91 @@
 
 #include "ptp_private.h"
 
+static int ptp_disable_pinfunc(struct ptp_clock_info *ops,
+			       enum ptp_pin_function func, unsigned int chan)
+{
+	struct ptp_clock_request rq;
+	int err = 0;
+
+	memset(&rq, 0, sizeof(rq));
+
+	switch (func) {
+	case PTP_PF_NONE:
+		break;
+	case PTP_PF_EXTTS:
+		rq.type = PTP_CLK_REQ_EXTTS;
+		rq.extts.index = chan;
+		err = ops->enable(ops, &rq, 0);
+		break;
+	case PTP_PF_PEROUT:
+		rq.type = PTP_CLK_REQ_PEROUT;
+		rq.perout.index = chan;
+		err = ops->enable(ops, &rq, 0);
+		break;
+	case PTP_PF_PHYSYNC:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return err;
+}
+
+int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
+		    enum ptp_pin_function func, unsigned int chan)
+{
+	struct ptp_clock_info *info = ptp->info;
+	struct ptp_pin_desc *pin1 = NULL, *pin2 = &info->pin_config[pin];
+	unsigned int i;
+
+	/* Check to see if any other pin previously had this function. */
+	for (i = 0; i < info->n_pins; i++) {
+		if (info->pin_config[i].func == func &&
+		    info->pin_config[i].chan == chan) {
+			pin1 = &info->pin_config[i];
+			break;
+		}
+	}
+	if (pin1 && i == pin)
+		return 0;
+
+	/* Check the desired function and channel. */
+	switch (func) {
+	case PTP_PF_NONE:
+		break;
+	case PTP_PF_EXTTS:
+		if (chan >= info->n_ext_ts)
+			return -EINVAL;
+		break;
+	case PTP_PF_PEROUT:
+		if (chan >= info->n_per_out)
+			return -EINVAL;
+		break;
+	case PTP_PF_PHYSYNC:
+		if (chan != 0)
+			return -EINVAL;
+	default:
+		return -EINVAL;
+	}
+
+	if (info->verify(info, pin, func, chan)) {
+		pr_err("driver cannot use function %u on pin %u\n", func, chan);
+		return -EOPNOTSUPP;
+	}
+
+	/* Disable whatever function was previously assigned. */
+	if (pin1) {
+		ptp_disable_pinfunc(info, func, chan);
+		pin1->func = PTP_PF_NONE;
+		pin1->chan = 0;
+	}
+	ptp_disable_pinfunc(info, pin2->func, pin2->chan);
+	pin2->func = func;
+	pin2->chan = chan;
+
+	return 0;
+}
+
 int ptp_open(struct posix_clock *pc, fmode_t fmode)
 {
 	return 0;
@@ -35,12 +120,13 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 	struct ptp_clock_caps caps;
 	struct ptp_clock_request req;
 	struct ptp_sys_offset *sysoff = NULL;
+	struct ptp_pin_desc pd;
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 	struct ptp_clock_info *ops = ptp->info;
 	struct ptp_clock_time *pct;
 	struct timespec ts;
 	int enable, err = 0;
-	unsigned int i;
+	unsigned int i, pin_index;
 
 	switch (cmd) {
 
@@ -51,6 +137,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		caps.n_ext_ts = ptp->info->n_ext_ts;
 		caps.n_per_out = ptp->info->n_per_out;
 		caps.pps = ptp->info->pps;
+		caps.n_pins = ptp->info->n_pins;
 		if (copy_to_user((void __user *)arg, &caps, sizeof(caps)))
 			err = -EFAULT;
 		break;
@@ -124,6 +211,40 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		pct->nsec = ts.tv_nsec;
 		if (copy_to_user((void __user *)arg, sysoff, sizeof(*sysoff)))
 			err = -EFAULT;
+		break;
+
+	case PTP_PIN_GETFUNC:
+		if (copy_from_user(&pd, (void __user *)arg, sizeof(pd))) {
+			err = -EFAULT;
+			break;
+		}
+		pin_index = pd.index;
+		if (pin_index >= ops->n_pins) {
+			err = -EINVAL;
+			break;
+		}
+		if (mutex_lock_interruptible(&ptp->pincfg_mux))
+			return -ERESTARTSYS;
+		pd = ops->pin_config[pin_index];
+		mutex_unlock(&ptp->pincfg_mux);
+		if (!err && copy_to_user((void __user *)arg, &pd, sizeof(pd)))
+			err = -EFAULT;
+		break;
+
+	case PTP_PIN_SETFUNC:
+		if (copy_from_user(&pd, (void __user *)arg, sizeof(pd))) {
+			err = -EFAULT;
+			break;
+		}
+		pin_index = pd.index;
+		if (pin_index >= ops->n_pins) {
+			err = -EINVAL;
+			break;
+		}
+		if (mutex_lock_interruptible(&ptp->pincfg_mux))
+			return -ERESTARTSYS;
+		err = ptp_set_pinfunc(ptp, pin_index, pd.func, pd.chan);
+		mutex_unlock(&ptp->pincfg_mux);
 		break;
 
 	default:

@@ -56,17 +56,17 @@ The dma_buf buffer sharing API usage contains the following steps:
 				     size_t size, int flags,
 				     const char *exp_name)
 
-   If this succeeds, dma_buf_export allocates a dma_buf structure, and returns a
-   pointer to the same. It also associates an anonymous file with this buffer,
-   so it can be exported. On failure to allocate the dma_buf object, it returns
-   NULL.
+   If this succeeds, dma_buf_export_named allocates a dma_buf structure, and
+   returns a pointer to the same. It also associates an anonymous file with this
+   buffer, so it can be exported. On failure to allocate the dma_buf object,
+   it returns NULL.
 
    'exp_name' is the name of exporter - to facilitate information while
    debugging.
 
    Exporting modules which do not wish to provide any specific name may use the
    helper define 'dma_buf_export()', with the same arguments as above, but
-   without the last argument; a __FILE__ pre-processor directive will be
+   without the last argument; a KBUILD_MODNAME pre-processor directive will be
    inserted in place of 'exp_name' instead.
 
 2. Userspace gets a handle to pass around to potential buffer-users
@@ -76,7 +76,7 @@ The dma_buf buffer sharing API usage contains the following steps:
    drivers and/or processes.
 
    Interface:
-      int dma_buf_fd(struct dma_buf *dmabuf)
+      int dma_buf_fd(struct dma_buf *dmabuf, int flags)
 
    This API installs an fd for the anonymous file associated with this buffer;
    returns either 'fd', or error.
@@ -157,7 +157,9 @@ to request use of buffer for allocation.
    "dma_buf->ops->" indirection from the users of this interface.
 
    In struct dma_buf_ops, unmap_dma_buf is defined as
-      void (*unmap_dma_buf)(struct dma_buf_attachment *, struct sg_table *);
+      void (*unmap_dma_buf)(struct dma_buf_attachment *,
+                            struct sg_table *,
+                            enum dma_data_direction);
 
    unmap_dma_buf signifies the end-of-DMA for the attachment provided. Like
    map_dma_buf, this API also must be implemented by the exporter.
@@ -217,7 +219,7 @@ NOTES:
     and then allow further {map,unmap}_dma_buf operations from any buffer-user
     from the migrated backing-storage.
 
-   If the exporter cannot fulfil the backing-storage constraints of the new
+   If the exporter cannot fulfill the backing-storage constraints of the new
    buffer-user device as requested, dma_buf_attach() would return an error to
    denote non-compatibility of the new buffer-sharing request with the current
    buffer.
@@ -352,7 +354,7 @@ Being able to mmap an export dma-buf buffer object has 2 main use-cases:
 
    No special interfaces, userspace simply calls mmap on the dma-buf fd.
 
-2. Supporting existing mmap interfaces in exporters
+2. Supporting existing mmap interfaces in importers
 
    Similar to the motivation for kernel cpu access it is again important that
    the userspace code of a given importing subsystem can use the same interfaces

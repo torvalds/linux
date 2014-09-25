@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -25,11 +24,13 @@
  *
  ******************************************************************************/
 
-/* Interrupt Throttling and Rate Limiting (storm control) Goodies */
+#ifndef _I40E_TXRX_H_
+#define _I40E_TXRX_H_
 
-#define I40E_MAX_ITR               0x07FF
-#define I40E_MIN_ITR               0x0001
-#define I40E_ITR_USEC_RESOLUTION   2
+/* Interrupt Throttling and Rate Limiting Goodies */
+
+#define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */
+#define I40E_MIN_ITR               0x0004  /* reg uses 2 usec resolution */
 #define I40E_MAX_IRATE             0x03F
 #define I40E_MIN_IRATE             0x001
 #define I40E_IRATE_USEC_RESOLUTION 4
@@ -49,10 +50,37 @@
 
 #define I40E_QUEUE_END_OF_LIST 0x7FF
 
-#define I40E_ITR_NONE  3
-#define I40E_RX_ITR    0
-#define I40E_TX_ITR    1
-#define I40E_PE_ITR    2
+/* this enum matches hardware bits and is meant to be used by DYN_CTLN
+ * registers and QINT registers or more generally anywhere in the manual
+ * mentioning ITR_INDX, ITR_NONE cannot be used as an index 'n' into any
+ * register but instead is a special value meaning "don't update" ITR0/1/2.
+ */
+enum i40e_dyn_idx_t {
+	I40E_IDX_ITR0 = 0,
+	I40E_IDX_ITR1 = 1,
+	I40E_IDX_ITR2 = 2,
+	I40E_ITR_NONE = 3	/* ITR_NONE must not be used as an index */
+};
+
+/* these are indexes into ITRN registers */
+#define I40E_RX_ITR    I40E_IDX_ITR0
+#define I40E_TX_ITR    I40E_IDX_ITR1
+#define I40E_PE_ITR    I40E_IDX_ITR2
+
+/* Supported RSS offloads */
+#define I40E_DEFAULT_RSS_HENA ( \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_SCTP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) | \
+	((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_SCTP) | \
+	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) | \
+	((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6) | \
+	((u64)1 << I40E_FILTER_PCTYPE_L2_PAYLOAD))
+
 /* Supported Rx Buffer Sizes */
 #define I40E_RXBUFFER_512   512    /* Used for packet split */
 #define I40E_RXBUFFER_2048  2048
@@ -88,11 +116,11 @@
 #define i40e_rx_desc i40e_32byte_rx_desc
 
 #define I40E_MIN_TX_LEN		17
-#define I40E_MAX_DATA_PER_TXD	16383	/* aka 16kB - 1 */
+#define I40E_MAX_DATA_PER_TXD	8192
 
 /* Tx Descriptors needed, worst case */
 #define TXD_USE_COUNT(S) DIV_ROUND_UP((S), I40E_MAX_DATA_PER_TXD)
-#define DESC_NEEDED ((MAX_SKB_FRAGS * TXD_USE_COUNT(PAGE_SIZE)) + 4)
+#define DESC_NEEDED (MAX_SKB_FRAGS + 4)
 
 #define I40E_TX_FLAGS_CSUM		(u32)(1)
 #define I40E_TX_FLAGS_HW_VLAN		(u32)(1 << 1)
@@ -102,6 +130,8 @@
 #define I40E_TX_FLAGS_IPV6		(u32)(1 << 5)
 #define I40E_TX_FLAGS_FCCRC		(u32)(1 << 6)
 #define I40E_TX_FLAGS_FSO		(u32)(1 << 7)
+#define I40E_TX_FLAGS_TSYN		(u32)(1 << 8)
+#define I40E_TX_FLAGS_FD_SB		(u32)(1 << 9)
 #define I40E_TX_FLAGS_VLAN_MASK		0xffff0000
 #define I40E_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define I40E_TX_FLAGS_VLAN_PRIO_SHIFT	29
@@ -110,7 +140,10 @@
 struct i40e_tx_buffer {
 	struct i40e_tx_desc *next_to_watch;
 	unsigned long time_stamp;
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		void *raw_buf;
+	};
 	unsigned int bytecount;
 	unsigned short gso_segs;
 	DEFINE_DMA_UNMAP_ADDR(dma);
@@ -139,8 +172,8 @@ struct i40e_tx_queue_stats {
 
 struct i40e_rx_queue_stats {
 	u64 non_eop_descs;
-	u64 alloc_rx_page_failed;
-	u64 alloc_rx_buff_failed;
+	u64 alloc_page_failed;
+	u64 alloc_buff_failed;
 };
 
 enum i40e_ring_state_t {
@@ -149,7 +182,6 @@ enum i40e_ring_state_t {
 	__I40E_TX_DETECT_HANG,
 	__I40E_HANG_CHECK_ARMED,
 	__I40E_RX_PS_ENABLED,
-	__I40E_RX_LRO_ENABLED,
 	__I40E_RX_16BYTE_DESC_ENABLED,
 };
 
@@ -165,12 +197,6 @@ enum i40e_ring_state_t {
 	set_bit(__I40E_TX_DETECT_HANG, &(ring)->state)
 #define clear_check_for_tx_hang(ring) \
 	clear_bit(__I40E_TX_DETECT_HANG, &(ring)->state)
-#define ring_is_lro_enabled(ring) \
-	test_bit(__I40E_RX_LRO_ENABLED, &(ring)->state)
-#define set_ring_lro_enabled(ring) \
-	set_bit(__I40E_RX_LRO_ENABLED, &(ring)->state)
-#define clear_ring_lro_enabled(ring) \
-	clear_bit(__I40E_RX_LRO_ENABLED, &(ring)->state)
 #define ring_is_16byte_desc_enabled(ring) \
 	test_bit(__I40E_RX_16BYTE_DESC_ENABLED, &(ring)->state)
 #define set_ring_16byte_desc_enabled(ring) \
@@ -213,6 +239,8 @@ struct i40e_ring {
 
 	u8 atr_sample_rate;
 	u8 atr_count;
+
+	unsigned long last_rx_timestamp;
 
 	bool ring_active;		/* is ring online or not */
 
@@ -262,3 +290,13 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring);
 void i40e_free_tx_resources(struct i40e_ring *tx_ring);
 void i40e_free_rx_resources(struct i40e_ring *rx_ring);
 int i40e_napi_poll(struct napi_struct *napi, int budget);
+#ifdef I40E_FCOE
+void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
+		 struct i40e_tx_buffer *first, u32 tx_flags,
+		 const u8 hdr_len, u32 td_cmd, u32 td_offset);
+int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
+int i40e_xmit_descriptor_count(struct sk_buff *skb, struct i40e_ring *tx_ring);
+int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
+			       struct i40e_ring *tx_ring, u32 *flags);
+#endif
+#endif /* _I40E_TXRX_H_ */

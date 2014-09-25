@@ -75,6 +75,8 @@ enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
 		return iint->ima_bprm_status;
 	case MODULE_CHECK:
 		return iint->ima_module_status;
+	case FIRMWARE_CHECK:
+		return iint->ima_firmware_status;
 	case FILE_CHECK:
 	default:
 		return iint->ima_file_status;
@@ -94,6 +96,9 @@ static void ima_set_cache_status(struct integrity_iint_cache *iint,
 	case MODULE_CHECK:
 		iint->ima_module_status = status;
 		break;
+	case FIRMWARE_CHECK:
+		iint->ima_firmware_status = status;
+		break;
 	case FILE_CHECK:
 	default:
 		iint->ima_file_status = status;
@@ -112,6 +117,9 @@ static void ima_cache_flags(struct integrity_iint_cache *iint, int func)
 		break;
 	case MODULE_CHECK:
 		iint->flags |= (IMA_MODULE_APPRAISED | IMA_APPRAISED);
+		break;
+	case FIRMWARE_CHECK:
+		iint->flags |= (IMA_FIRMWARE_APPRAISED | IMA_APPRAISED);
 		break;
 	case FILE_CHECK:
 	default:
@@ -177,11 +185,11 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 			     struct evm_ima_xattr_data *xattr_value,
 			     int xattr_len)
 {
+	static const char op[] = "appraise_data";
+	char *cause = "unknown";
 	struct dentry *dentry = file->f_dentry;
 	struct inode *inode = dentry->d_inode;
 	enum integrity_status status = INTEGRITY_UNKNOWN;
-	const char *op = "appraise_data";
-	char *cause = "unknown";
 	int rc = xattr_len, hash_start = 0;
 
 	if (!ima_appraise)
@@ -214,7 +222,7 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 		hash_start = 1;
 	case IMA_XATTR_DIGEST:
 		if (iint->flags & IMA_DIGSIG_REQUIRED) {
-			cause = "IMA signature required";
+			cause = "IMA-signature-required";
 			status = INTEGRITY_FAIL;
 			break;
 		}
@@ -341,7 +349,7 @@ static int ima_protect_xattr(struct dentry *dentry, const char *xattr_name,
 	return 0;
 }
 
-static void ima_reset_appraise_flags(struct inode *inode)
+static void ima_reset_appraise_flags(struct inode *inode, int digsig)
 {
 	struct integrity_iint_cache *iint;
 
@@ -353,18 +361,22 @@ static void ima_reset_appraise_flags(struct inode *inode)
 		return;
 
 	iint->flags &= ~IMA_DONE_MASK;
+	if (digsig)
+		iint->flags |= IMA_DIGSIG;
 	return;
 }
 
 int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 		       const void *xattr_value, size_t xattr_value_len)
 {
+	const struct evm_ima_xattr_data *xvalue = xattr_value;
 	int result;
 
 	result = ima_protect_xattr(dentry, xattr_name, xattr_value,
 				   xattr_value_len);
 	if (result == 1) {
-		ima_reset_appraise_flags(dentry->d_inode);
+		ima_reset_appraise_flags(dentry->d_inode,
+			 (xvalue->type == EVM_IMA_XATTR_DIGSIG) ? 1 : 0);
 		result = 0;
 	}
 	return result;
@@ -376,7 +388,7 @@ int ima_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 
 	result = ima_protect_xattr(dentry, xattr_name, NULL, 0);
 	if (result == 1) {
-		ima_reset_appraise_flags(dentry->d_inode);
+		ima_reset_appraise_flags(dentry->d_inode, 0);
 		result = 0;
 	}
 	return result;

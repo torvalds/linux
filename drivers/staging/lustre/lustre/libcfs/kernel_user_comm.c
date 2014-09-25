@@ -42,108 +42,8 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 #define D_KUC D_OTHER
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#ifdef LUSTRE_UTILS
-/* This is the userspace side. */
-
-/** Start the userspace side of a KUC pipe.
- * @param link Private descriptor for pipe/socket.
- * @param groups KUC broadcast group to listen to
- *	  (can be null for unicast to this pid)
- */
-int libcfs_ukuc_start(lustre_kernelcomm *link, int group)
-{
-	int pfd[2];
-
-	if (pipe(pfd) < 0)
-		return -errno;
-
-	memset(link, 0, sizeof(*link));
-	link->lk_rfd = pfd[0];
-	link->lk_wfd = pfd[1];
-	link->lk_group = group;
-	link->lk_uid = getpid();
-	return 0;
-}
-
-int libcfs_ukuc_stop(lustre_kernelcomm *link)
-{
-	if (link->lk_wfd > 0)
-		close(link->lk_wfd);
-	return close(link->lk_rfd);
-}
-
-#define lhsz sizeof(*kuch)
-
-/** Read a message from the link.
- * Allocates memory, returns handle
- *
- * @param link Private descriptor for pipe/socket.
- * @param buf Buffer to read into, must include size for kuc_hdr
- * @param maxsize Maximum message size allowed
- * @param transport Only listen to messages on this transport
- *      (and the generic transport)
- */
-int libcfs_ukuc_msg_get(lustre_kernelcomm *link, char *buf, int maxsize,
-			int transport)
-{
-	struct kuc_hdr *kuch;
-	int rc = 0;
-
-	memset(buf, 0, maxsize);
-
-	CDEBUG(D_KUC, "Waiting for message from kernel on fd %d\n",
-	       link->lk_rfd);
-
-	while (1) {
-		/* Read header first to get message size */
-		rc = read(link->lk_rfd, buf, lhsz);
-		if (rc <= 0) {
-			rc = -errno;
-			break;
-		}
-		kuch = (struct kuc_hdr *)buf;
-
-		CDEBUG(D_KUC, "Received message mg=%x t=%d m=%d l=%d\n",
-		       kuch->kuc_magic, kuch->kuc_transport, kuch->kuc_msgtype,
-		       kuch->kuc_msglen);
-
-		if (kuch->kuc_magic != KUC_MAGIC) {
-			CERROR("bad message magic %x != %x\n",
-			       kuch->kuc_magic, KUC_MAGIC);
-			rc = -EPROTO;
-			break;
-		}
-
-		if (kuch->kuc_msglen > maxsize) {
-			rc = -EMSGSIZE;
-			break;
-		}
-
-		/* Read payload */
-		rc = read(link->lk_rfd, buf + lhsz, kuch->kuc_msglen - lhsz);
-		if (rc < 0) {
-			rc = -errno;
-			break;
-		}
-		if (rc < (kuch->kuc_msglen - lhsz)) {
-			CERROR("short read: got %d of %d bytes\n",
-			       rc, kuch->kuc_msglen);
-			rc = -EPROTO;
-			break;
-		}
-
-		if (kuch->kuc_transport == transport ||
-		    kuch->kuc_transport == KUC_TRANSPORT_GENERIC) {
-			return 0;
-		}
-		/* Drop messages for other transports */
-	}
-	return rc;
-}
-
-#else /* LUSTRE_UTILS */
 /* This is the kernel side (liblustre as well). */
 
 /**
@@ -338,5 +238,3 @@ int libcfs_kkuc_group_foreach(int group, libcfs_kkuc_cb_t cb_func,
 	return rc;
 }
 EXPORT_SYMBOL(libcfs_kkuc_group_foreach);
-
-#endif /* LUSTRE_UTILS */

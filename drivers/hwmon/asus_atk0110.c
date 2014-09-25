@@ -16,11 +16,7 @@
 #include <linux/dmi.h>
 #include <linux/jiffies.h>
 #include <linux/err.h>
-
-#include <acpi/acpi.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_bus.h>
-
+#include <linux/acpi.h>
 
 #define ATK_HID "ATK0110"
 
@@ -692,7 +688,7 @@ static int atk_debugfs_gitm_get(void *p, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(atk_debugfs_gitm,
 			atk_debugfs_gitm_get,
 			NULL,
-			"0x%08llx\n")
+			"0x%08llx\n");
 
 static int atk_acpi_print(char *buf, size_t sz, union acpi_object *obj)
 {

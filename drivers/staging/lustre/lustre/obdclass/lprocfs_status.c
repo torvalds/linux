@@ -41,9 +41,9 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 
-#include <obd_class.h>
-#include <lprocfs_status.h>
-#include <lustre/lustre_idl.h>
+#include "../include/obd_class.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre/lustre_idl.h"
 #include <linux/seq_file.h>
 
 static const char * const obd_connect_names[] = {
@@ -98,6 +98,8 @@ static const char * const obd_connect_names[] = {
 	"lightweight_conn",
 	"short_io",
 	"pingless",
+	"flock_deadlock",
+	"disp_stripe",
 	"unknown",
 	NULL
 };
@@ -114,7 +116,7 @@ int obd_connect_flags2str(char *page, int count, __u64 flags, char *sep)
 	}
 	if (flags & ~(mask - 1))
 		ret += snprintf(page + ret, count - ret,
-				"%sunknown flags "LPX64,
+				"%sunknown flags %#llx",
 				ret ? sep : "", flags & ~(mask - 1));
 	return ret;
 }
@@ -218,7 +220,7 @@ int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
 }
 EXPORT_SYMBOL(lprocfs_write_frac_helper);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 
 static int lprocfs_no_percpu_stats = 0;
 module_param(lprocfs_no_percpu_stats, int, 0644);
@@ -398,7 +400,7 @@ EXPORT_SYMBOL(lprocfs_wr_uint);
 
 int lprocfs_rd_u64(struct seq_file *m, void *data)
 {
-	return seq_printf(m, LPU64"\n", *(__u64 *)data);
+	return seq_printf(m, "%llu\n", *(__u64 *)data);
 }
 EXPORT_SYMBOL(lprocfs_rd_u64);
 
@@ -474,7 +476,7 @@ int lprocfs_rd_kbytestotal(struct seq_file *m, void *data)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -494,7 +496,7 @@ int lprocfs_rd_kbytesfree(struct seq_file *m, void *data)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -514,7 +516,7 @@ int lprocfs_rd_kbytesavail(struct seq_file *m, void *data)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -528,7 +530,7 @@ int lprocfs_rd_filestotal(struct seq_file *m, void *data)
 			    cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			    OBD_STATFS_NODELAY);
 	if (!rc)
-		rc = seq_printf(m, LPU64"\n", osfs.os_files);
+		rc = seq_printf(m, "%llu\n", osfs.os_files);
 
 	return rc;
 }
@@ -542,7 +544,7 @@ int lprocfs_rd_filesfree(struct seq_file *m, void *data)
 			    cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			    OBD_STATFS_NODELAY);
 	if (!rc)
-		rc = seq_printf(m, LPU64"\n", osfs.os_ffree);
+		rc = seq_printf(m, "%llu\n", osfs.os_ffree);
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_rd_filesfree);
@@ -665,7 +667,7 @@ static void obd_connect_seq_flags2str(struct seq_file *m, __u64 flags, char *sep
 		}
 	}
 	if (flags & ~(mask - 1))
-		seq_printf(m, "%sunknown flags "LPX64,
+		seq_printf(m, "%sunknown flags %#llx",
 				first ? sep : "", flags & ~(mask - 1));
 }
 
@@ -742,7 +744,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 		      "       inflight: %u\n"
 		      "       unregistering: %u\n"
 		      "       timeouts: %u\n"
-		      "       avg_waittime: "LPU64" %s\n",
+		      "       avg_waittime: %llu %s\n",
 		      atomic_read(&imp->imp_inflight),
 		      atomic_read(&imp->imp_unregistering),
 		      atomic_read(&imp->imp_timeouts),
@@ -764,9 +766,9 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 
 	seq_printf(m,
 		      "    transactions:\n"
-		      "       last_replay: "LPU64"\n"
-		      "       peer_committed: "LPU64"\n"
-		      "       last_checked: "LPU64"\n",
+		      "       last_replay: %llu\n"
+		      "       peer_committed: %llu\n"
+		      "       last_checked: %llu\n",
 		      imp->imp_last_replay_transno,
 		      imp->imp_peer_committed_transno,
 		      imp->imp_last_transno_checked);
@@ -783,7 +785,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 			ret.lc_sum = sum;
 			seq_printf(m,
 				      "    %s_data_averages:\n"
-				      "       bytes_per_rpc: "LPU64"\n",
+				      "       bytes_per_rpc: %llu\n",
 				      rw ? "write" : "read",
 				      ret.lc_sum);
 		}
@@ -797,7 +799,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 			do_div(sum, ret.lc_count);
 			ret.lc_sum = sum;
 			seq_printf(m,
-				      "       %s_per_rpc: "LPU64"\n",
+				      "       %s_per_rpc: %llu\n",
 				      header->lc_units, ret.lc_sum);
 			j = (int)ret.lc_sum;
 			if (j > 0)
@@ -866,7 +868,7 @@ int lprocfs_rd_timeouts(struct seq_file *m, void *data)
 	LPROCFS_CLIMP_CHECK(obd);
 	imp = obd->u.cli.cl_import;
 
-	now = cfs_time_current_sec();
+	now = get_seconds();
 
 	/* Some network health info for kicks */
 	s2dhms(&ts, now - imp->imp_last_reply_time);
@@ -906,7 +908,7 @@ int lprocfs_rd_connect_flags(struct seq_file *m, void *data)
 
 	LPROCFS_CLIMP_CHECK(obd);
 	flags = obd->u.cli.cl_import->imp_connect_data.ocd_connect_flags;
-	seq_printf(m, "flags="LPX64"\n", flags);
+	seq_printf(m, "flags=%#llx\n", flags);
 	obd_connect_seq_flags2str(m, flags, "\n");
 	seq_printf(m, "\n");
 	LPROCFS_CLIMP_EXIT(obd);
@@ -1173,19 +1175,19 @@ static int lprocfs_stats_seq_show(struct seq_file *p, void *v)
 	if (ctr.lc_count == 0)
 		goto out;
 
-	rc = seq_printf(p, "%-25s "LPD64" samples [%s]", hdr->lc_name,
+	rc = seq_printf(p, "%-25s %lld samples [%s]", hdr->lc_name,
 			ctr.lc_count, hdr->lc_units);
 
 	if (rc < 0)
 		goto out;
 
 	if ((hdr->lc_config & LPROCFS_CNTR_AVGMINMAX) && (ctr.lc_count > 0)) {
-		rc = seq_printf(p, " "LPD64" "LPD64" "LPD64,
+		rc = seq_printf(p, " %lld %lld %lld",
 				ctr.lc_min, ctr.lc_max, ctr.lc_sum);
 		if (rc < 0)
 			goto out;
 		if (hdr->lc_config & LPROCFS_CNTR_STDDEV)
-			rc = seq_printf(p, " "LPD64, ctr.lc_sumsquare);
+			rc = seq_printf(p, " %lld", ctr.lc_sumsquare);
 		if (rc < 0)
 			goto out;
 	}
@@ -1194,7 +1196,7 @@ out:
 	return (rc < 0) ? rc : 0;
 }
 
-struct seq_operations lprocfs_stats_seq_sops = {
+static const struct seq_operations lprocfs_stats_seq_sops = {
 	.start	= lprocfs_stats_seq_start,
 	.stop	= lprocfs_stats_seq_stop,
 	.next	= lprocfs_stats_seq_next,

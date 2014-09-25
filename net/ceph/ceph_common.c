@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/string.h>
+#include <linux/vmalloc.h>
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 
@@ -71,6 +72,8 @@ const char *ceph_msg_type_name(int type)
 	case CEPH_MSG_MON_SUBSCRIBE_ACK: return "mon_subscribe_ack";
 	case CEPH_MSG_STATFS: return "statfs";
 	case CEPH_MSG_STATFS_REPLY: return "statfs_reply";
+	case CEPH_MSG_MON_GET_VERSION: return "mon_get_version";
+	case CEPH_MSG_MON_GET_VERSION_REPLY: return "mon_get_version_reply";
 	case CEPH_MSG_MDS_MAP: return "mds_map";
 	case CEPH_MSG_CLIENT_SESSION: return "client_session";
 	case CEPH_MSG_CLIENT_RECONNECT: return "client_reconnect";
@@ -169,6 +172,25 @@ int ceph_compare_options(struct ceph_options *new_opt,
 	return -1;
 }
 EXPORT_SYMBOL(ceph_compare_options);
+
+void *ceph_kvmalloc(size_t size, gfp_t flags)
+{
+	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+		void *ptr = kmalloc(size, flags | __GFP_NOWARN);
+		if (ptr)
+			return ptr;
+	}
+
+	return __vmalloc(size, flags | __GFP_HIGHMEM, PAGE_KERNEL);
+}
+
+void ceph_kvfree(const void *ptr)
+{
+	if (is_vmalloc_addr(ptr))
+		vfree(ptr);
+	else
+		kfree(ptr);
+}
 
 
 static int parse_fsid(const char *str, struct ceph_fsid *fsid)
@@ -461,8 +483,8 @@ EXPORT_SYMBOL(ceph_client_id);
  * create a fresh client instance
  */
 struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private,
-				       unsigned int supported_features,
-				       unsigned int required_features)
+				       u64 supported_features,
+				       u64 required_features)
 {
 	struct ceph_client *client;
 	struct ceph_entity_addr *myaddr = NULL;

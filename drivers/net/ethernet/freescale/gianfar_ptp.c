@@ -22,7 +22,6 @@
 
 #include <linux/device.h>
 #include <linux/hrtimer.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -134,7 +133,7 @@ struct gianfar_ptp_registers {
 #define REG_SIZE	sizeof(struct gianfar_ptp_registers)
 
 struct etsects {
-	struct gianfar_ptp_registers *regs;
+	struct gianfar_ptp_registers __iomem *regs;
 	spinlock_t lock; /* protects regs */
 	struct ptp_clock *clock;
 	struct ptp_clock_info caps;
@@ -415,6 +414,7 @@ static struct ptp_clock_info ptp_gianfar_caps = {
 	.n_alarm	= 0,
 	.n_ext_ts	= N_EXT_TS,
 	.n_per_out	= 0,
+	.n_pins		= 0,
 	.pps		= 1,
 	.adjfreq	= ptp_gianfar_adjfreq,
 	.adjtime	= ptp_gianfar_adjtime,

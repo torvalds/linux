@@ -71,7 +71,11 @@ static unsigned int mpui7xx_sleep_save[MPUI7XX_SLEEP_SAVE_SIZE];
 static unsigned int mpui1510_sleep_save[MPUI1510_SLEEP_SAVE_SIZE];
 static unsigned int mpui1610_sleep_save[MPUI1610_SLEEP_SAVE_SIZE];
 
-#ifdef CONFIG_OMAP_32K_TIMER
+#ifndef CONFIG_OMAP_32K_TIMER
+
+static unsigned short enable_dyn_sleep = 0;
+
+#else
 
 static unsigned short enable_dyn_sleep = 1;
 
@@ -119,19 +123,8 @@ void omap1_pm_idle(void)
 #warning Enable 32kHz OS timer in order to allow sleep states in idle
 	use_idlect1 = use_idlect1 & ~(1 << 9);
 #else
-
-	while (enable_dyn_sleep) {
-
-#ifdef CONFIG_CBUS_TAHVO_USB
-		extern int vbus_active;
-		/* Clock requirements? */
-		if (vbus_active)
-			break;
-#endif
+	if (enable_dyn_sleep)
 		do_sleep = 1;
-		break;
-	}
-
 #endif
 
 #ifdef CONFIG_OMAP_DM_TIMER

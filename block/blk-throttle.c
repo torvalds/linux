@@ -412,13 +412,13 @@ static void throtl_pd_init(struct blkcg_gq *blkg)
 	int rw;
 
 	/*
-	 * If sane_hierarchy is enabled, we switch to properly hierarchical
+	 * If on the default hierarchy, we switch to properly hierarchical
 	 * behavior where limits on a given throtl_grp are applied to the
 	 * whole subtree rather than just the group itself.  e.g. If 16M
 	 * read_bps limit is set on the root group, the whole system can't
 	 * exceed 16M for the device.
 	 *
-	 * If sane_hierarchy is not enabled, the broken flat hierarchy
+	 * If not on the default hierarchy, the broken flat hierarchy
 	 * behavior is retained where all throtl_grps are treated as if
 	 * they're all separate root groups right below throtl_data.
 	 * Limits of a group don't interact with limits of other groups
@@ -426,7 +426,7 @@ static void throtl_pd_init(struct blkcg_gq *blkg)
 	 */
 	parent_sq = &td->service_queue;
 
-	if (cgroup_sane_behavior(blkg->blkcg->css.cgroup) && blkg->parent)
+	if (cgroup_on_dfl(blkg->blkcg->css.cgroup) && blkg->parent)
 		parent_sq = &blkg_to_tg(blkg->parent)->service_queue;
 
 	throtl_service_queue_init(&tg->service_queue, parent_sq);
@@ -744,7 +744,7 @@ static inline void throtl_extend_slice(struct throtl_grp *tg, bool rw,
 static bool throtl_slice_used(struct throtl_grp *tg, bool rw)
 {
 	if (time_in_range(jiffies, tg->slice_start[rw], tg->slice_end[rw]))
-		return 0;
+		return false;
 
 	return 1;
 }
@@ -842,7 +842,7 @@ static bool tg_with_in_iops_limit(struct throtl_grp *tg, struct bio *bio,
 	if (tg->io_disp[rw] + 1 <= io_allowed) {
 		if (wait)
 			*wait = 0;
-		return 1;
+		return true;
 	}
 
 	/* Calc approx time to dispatch */
@@ -877,14 +877,14 @@ static bool tg_with_in_bps_limit(struct throtl_grp *tg, struct bio *bio,
 	do_div(tmp, HZ);
 	bytes_allowed = tmp;
 
-	if (tg->bytes_disp[rw] + bio->bi_size <= bytes_allowed) {
+	if (tg->bytes_disp[rw] + bio->bi_iter.bi_size <= bytes_allowed) {
 		if (wait)
 			*wait = 0;
-		return 1;
+		return true;
 	}
 
 	/* Calc approx time to dispatch */
-	extra_bytes = tg->bytes_disp[rw] + bio->bi_size - bytes_allowed;
+	extra_bytes = tg->bytes_disp[rw] + bio->bi_iter.bi_size - bytes_allowed;
 	jiffy_wait = div64_u64(extra_bytes * HZ, tg->bps[rw]);
 
 	if (!jiffy_wait)
@@ -923,7 +923,7 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
 	if (tg->bps[rw] == -1 && tg->iops[rw] == -1) {
 		if (wait)
 			*wait = 0;
-		return 1;
+		return true;
 	}
 
 	/*
@@ -987,7 +987,7 @@ static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 	bool rw = bio_data_dir(bio);
 
 	/* Charge the bio to the group */
-	tg->bytes_disp[rw] += bio->bi_size;
+	tg->bytes_disp[rw] += bio->bi_iter.bi_size;
 	tg->io_disp[rw]++;
 
 	/*
@@ -1003,8 +1003,8 @@ static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 	 */
 	if (!(bio->bi_rw & REQ_THROTTLED)) {
 		bio->bi_rw |= REQ_THROTTLED;
-		throtl_update_dispatch_stats(tg_to_blkg(tg), bio->bi_size,
-					     bio->bi_rw);
+		throtl_update_dispatch_stats(tg_to_blkg(tg),
+					     bio->bi_iter.bi_size, bio->bi_rw);
 	}
 }
 
@@ -1258,7 +1258,7 @@ out_unlock:
  * of throtl_data->service_queue.  Those bio's are ready and issued by this
  * function.
  */
-void blk_throtl_dispatch_work_fn(struct work_struct *work)
+static void blk_throtl_dispatch_work_fn(struct work_struct *work)
 {
 	struct throtl_data *td = container_of(work, struct throtl_data,
 					      dispatch_work);
@@ -1346,10 +1346,10 @@ static int tg_print_conf_uint(struct seq_file *sf, void *v)
 	return 0;
 }
 
-static int tg_set_conf(struct cgroup_subsys_state *css, struct cftype *cft,
-		       const char *buf, bool is_u64)
+static ssize_t tg_set_conf(struct kernfs_open_file *of,
+			   char *buf, size_t nbytes, loff_t off, bool is_u64)
 {
-	struct blkcg *blkcg = css_to_blkcg(css);
+	struct blkcg *blkcg = css_to_blkcg(of_css(of));
 	struct blkg_conf_ctx ctx;
 	struct throtl_grp *tg;
 	struct throtl_service_queue *sq;
@@ -1368,9 +1368,9 @@ static int tg_set_conf(struct cgroup_subsys_state *css, struct cftype *cft,
 		ctx.v = -1;
 
 	if (is_u64)
-		*(u64 *)((void *)tg + cft->private) = ctx.v;
+		*(u64 *)((void *)tg + of_cft(of)->private) = ctx.v;
 	else
-		*(unsigned int *)((void *)tg + cft->private) = ctx.v;
+		*(unsigned int *)((void *)tg + of_cft(of)->private) = ctx.v;
 
 	throtl_log(&tg->service_queue,
 		   "limit change rbps=%llu wbps=%llu riops=%u wiops=%u",
@@ -1404,19 +1404,19 @@ static int tg_set_conf(struct cgroup_subsys_state *css, struct cftype *cft,
 	}
 
 	blkg_conf_finish(&ctx);
-	return 0;
+	return nbytes;
 }
 
-static int tg_set_conf_u64(struct cgroup_subsys_state *css, struct cftype *cft,
-			   const char *buf)
+static ssize_t tg_set_conf_u64(struct kernfs_open_file *of,
+			       char *buf, size_t nbytes, loff_t off)
 {
-	return tg_set_conf(css, cft, buf, true);
+	return tg_set_conf(of, buf, nbytes, off, true);
 }
 
-static int tg_set_conf_uint(struct cgroup_subsys_state *css, struct cftype *cft,
-			    const char *buf)
+static ssize_t tg_set_conf_uint(struct kernfs_open_file *of,
+				char *buf, size_t nbytes, loff_t off)
 {
-	return tg_set_conf(css, cft, buf, false);
+	return tg_set_conf(of, buf, nbytes, off, false);
 }
 
 static struct cftype throtl_files[] = {
@@ -1424,29 +1424,25 @@ static struct cftype throtl_files[] = {
 		.name = "throttle.read_bps_device",
 		.private = offsetof(struct throtl_grp, bps[READ]),
 		.seq_show = tg_print_conf_u64,
-		.write_string = tg_set_conf_u64,
-		.max_write_len = 256,
+		.write = tg_set_conf_u64,
 	},
 	{
 		.name = "throttle.write_bps_device",
 		.private = offsetof(struct throtl_grp, bps[WRITE]),
 		.seq_show = tg_print_conf_u64,
-		.write_string = tg_set_conf_u64,
-		.max_write_len = 256,
+		.write = tg_set_conf_u64,
 	},
 	{
 		.name = "throttle.read_iops_device",
 		.private = offsetof(struct throtl_grp, iops[READ]),
 		.seq_show = tg_print_conf_uint,
-		.write_string = tg_set_conf_uint,
-		.max_write_len = 256,
+		.write = tg_set_conf_uint,
 	},
 	{
 		.name = "throttle.write_iops_device",
 		.private = offsetof(struct throtl_grp, iops[WRITE]),
 		.seq_show = tg_print_conf_uint,
-		.write_string = tg_set_conf_uint,
-		.max_write_len = 256,
+		.write = tg_set_conf_uint,
 	},
 	{
 		.name = "throttle.io_service_bytes",
@@ -1503,7 +1499,7 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	if (tg) {
 		if (!tg->has_rules[rw]) {
 			throtl_update_dispatch_stats(tg_to_blkg(tg),
-						     bio->bi_size, bio->bi_rw);
+					bio->bi_iter.bi_size, bio->bi_rw);
 			goto out_unlock_rcu;
 		}
 	}
@@ -1559,7 +1555,7 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	/* out-of-limit, queue to @tg */
 	throtl_log(sq, "[%c] bio. bdisp=%llu sz=%u bps=%llu iodisp=%u iops=%u queued=%d/%d",
 		   rw == READ ? 'R' : 'W',
-		   tg->bytes_disp[rw], bio->bi_size, tg->bps[rw],
+		   tg->bytes_disp[rw], bio->bi_iter.bi_size, tg->bps[rw],
 		   tg->io_disp[rw], tg->iops[rw],
 		   sq->nr_queued[READ], sq->nr_queued[WRITE]);
 

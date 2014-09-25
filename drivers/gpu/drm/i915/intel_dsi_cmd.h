@@ -33,6 +33,9 @@
 #include "intel_drv.h"
 #include "intel_dsi.h"
 
+#define DPI_LP_MODE_EN	false
+#define DPI_HS_MODE_EN	true
+
 void dsi_hs_mode_enable(struct intel_dsi *intel_dsi, bool enable);
 
 int dsi_vc_dcs_write(struct intel_dsi *intel_dsi, int channel,
@@ -47,7 +50,8 @@ int dsi_vc_dcs_read(struct intel_dsi *intel_dsi, int channel, u8 dcs_cmd,
 int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
 			u8 *reqdata, int reqlen, u8 *buf, int buflen);
 
-int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd);
+int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs);
+void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi);
 
 /* XXX: questionable write helpers */
 static inline int dsi_vc_dcs_write_0(struct intel_dsi *intel_dsi,

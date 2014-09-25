@@ -2444,7 +2444,7 @@ static void reduce_ethqs(struct adapter *adapter, int n)
  */
 static int enable_msix(struct adapter *adapter)
 {
-	int i, err, want, need;
+	int i, want, need, nqsets;
 	struct msix_entry entries[MSIX_ENTRIES];
 	struct sge *s = &adapter->sge;
 
@@ -2460,26 +2460,23 @@ static int enable_msix(struct adapter *adapter)
 	 */
 	want = s->max_ethqsets + MSIX_EXTRAS;
 	need = adapter->params.nports + MSIX_EXTRAS;
-	while ((err = pci_enable_msix(adapter->pdev, entries, want)) >= need)
-		want = err;
 
-	if (err == 0) {
-		int nqsets = want - MSIX_EXTRAS;
-		if (nqsets < s->max_ethqsets) {
-			dev_warn(adapter->pdev_dev, "only enough MSI-X vectors"
-				 " for %d Queue Sets\n", nqsets);
-			s->max_ethqsets = nqsets;
-			if (nqsets < s->ethqsets)
-				reduce_ethqs(adapter, nqsets);
-		}
-		for (i = 0; i < want; ++i)
-			adapter->msix_info[i].vec = entries[i].vector;
-	} else if (err > 0) {
-		pci_disable_msix(adapter->pdev);
-		dev_info(adapter->pdev_dev, "only %d MSI-X vectors left,"
-			 " not using MSI-X\n", err);
+	want = pci_enable_msix_range(adapter->pdev, entries, need, want);
+	if (want < 0)
+		return want;
+
+	nqsets = want - MSIX_EXTRAS;
+	if (nqsets < s->max_ethqsets) {
+		dev_warn(adapter->pdev_dev, "only enough MSI-X vectors"
+			 " for %d Queue Sets\n", nqsets);
+		s->max_ethqsets = nqsets;
+		if (nqsets < s->ethqsets)
+			reduce_ethqs(adapter, nqsets);
 	}
-	return err;
+	for (i = 0; i < want; ++i)
+		adapter->msix_info[i].vec = entries[i].vector;
+
+	return 0;
 }
 
 static const struct net_device_ops cxgb4vf_netdev_ops	= {
@@ -2667,7 +2664,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 		netdev->netdev_ops = &cxgb4vf_netdev_ops;
-		SET_ETHTOOL_OPS(netdev, &cxgb4vf_ethtool_ops);
+		netdev->ethtool_ops = &cxgb4vf_ethtool_ops;
 
 		/*
 		 * Initialize the hardware/software state for the port.
@@ -2879,24 +2876,24 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 	if (!adapter)
 		return;
 
-	/*
-	 * Disable all Virtual Interfaces.  This will shut down the
+	/* Disable all Virtual Interfaces.  This will shut down the
 	 * delivery of all ingress packets into the chip for these
 	 * Virtual Interfaces.
 	 */
-	for_each_port(adapter, pidx) {
-		struct net_device *netdev;
-		struct port_info *pi;
+	for_each_port(adapter, pidx)
+		if (test_bit(pidx, &adapter->registered_device_map))
+			unregister_netdev(adapter->port[pidx]);
 
-		if (!test_bit(pidx, &adapter->registered_device_map))
-			continue;
-
-		netdev = adapter->port[pidx];
-		if (!netdev)
-			continue;
-
-		pi = netdev_priv(netdev);
-		t4vf_enable_vi(adapter, pi->viid, false, false);
+	/* Free up all Queues which will prevent further DMA and
+	 * Interrupts allowing various internal pathways to drain.
+	 */
+	t4vf_sge_stop(adapter);
+	if (adapter->flags & USING_MSIX) {
+		pci_disable_msix(adapter->pdev);
+		adapter->flags &= ~USING_MSIX;
+	} else if (adapter->flags & USING_MSI) {
+		pci_disable_msi(adapter->pdev);
+		adapter->flags &= ~USING_MSI;
 	}
 
 	/*
@@ -2904,6 +2901,7 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 	 * Interrupts allowing various internal pathways to drain.
 	 */
 	t4vf_free_sge_resources(adapter);
+	pci_set_drvdata(pdev, NULL);
 }
 
 /*
@@ -2912,7 +2910,7 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 #define CH_DEVICE(devid, idx) \
 	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, PCI_ANY_ID, 0, 0, idx }
 
-static DEFINE_PCI_DEVICE_TABLE(cxgb4vf_pci_tbl) = {
+static const struct pci_device_id cxgb4vf_pci_tbl[] = {
 	CH_DEVICE(0xb000, 0),	/* PE10K FPGA */
 	CH_DEVICE(0x4800, 0),	/* T440-dbg */
 	CH_DEVICE(0x4801, 0),	/* T420-cr */
@@ -2927,6 +2925,15 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4vf_pci_tbl) = {
 	CH_DEVICE(0x480a, 0),   /* T404-bt */
 	CH_DEVICE(0x480d, 0),   /* T480-cr */
 	CH_DEVICE(0x480e, 0),   /* T440-lp-cr */
+	CH_DEVICE(0x4880, 0),
+	CH_DEVICE(0x4880, 1),
+	CH_DEVICE(0x4880, 2),
+	CH_DEVICE(0x4880, 3),
+	CH_DEVICE(0x4880, 4),
+	CH_DEVICE(0x4880, 5),
+	CH_DEVICE(0x4880, 6),
+	CH_DEVICE(0x4880, 7),
+	CH_DEVICE(0x4880, 8),
 	CH_DEVICE(0x5800, 0),	/* T580-dbg */
 	CH_DEVICE(0x5801, 0),	/* T520-cr */
 	CH_DEVICE(0x5802, 0),	/* T522-cr */
@@ -2947,6 +2954,14 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4vf_pci_tbl) = {
 	CH_DEVICE(0x5811, 0),   /* T520-lp-cr */
 	CH_DEVICE(0x5812, 0),   /* T560-cr */
 	CH_DEVICE(0x5813, 0),   /* T580-cr */
+	CH_DEVICE(0x5814, 0),   /* T580-so-cr */
+	CH_DEVICE(0x5815, 0),   /* T502-bt */
+	CH_DEVICE(0x5880, 0),
+	CH_DEVICE(0x5881, 0),
+	CH_DEVICE(0x5882, 0),
+	CH_DEVICE(0x5883, 0),
+	CH_DEVICE(0x5884, 0),
+	CH_DEVICE(0x5885, 0),
 	{ 0, }
 };
 

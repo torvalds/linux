@@ -4,6 +4,7 @@
 #include <core/object.h>
 #include <core/subdev.h>
 #include <core/engine.h>
+#include <core/event.h>
 
 enum nv_subdev_type {
 	NVDEV_ENGINE_DEVICE,
@@ -28,7 +29,7 @@ enum nv_subdev_type {
 	NVDEV_SUBDEV_BUS,
 	NVDEV_SUBDEV_TIMER,
 	NVDEV_SUBDEV_FB,
-	NVDEV_SUBDEV_LTCG,
+	NVDEV_SUBDEV_LTC,
 	NVDEV_SUBDEV_IBUS,
 	NVDEV_SUBDEV_INSTMEM,
 	NVDEV_SUBDEV_VM,
@@ -38,7 +39,9 @@ enum nv_subdev_type {
 	NVDEV_SUBDEV_THERM,
 	NVDEV_SUBDEV_CLOCK,
 
-	NVDEV_ENGINE_DMAOBJ,
+	NVDEV_ENGINE_FIRST,
+	NVDEV_ENGINE_DMAOBJ = NVDEV_ENGINE_FIRST,
+	NVDEV_ENGINE_IFB,
 	NVDEV_ENGINE_FIFO,
 	NVDEV_ENGINE_SW,
 	NVDEV_ENGINE_GR,
@@ -64,12 +67,16 @@ struct nouveau_device {
 	struct list_head head;
 
 	struct pci_dev *pdev;
+	struct platform_device *platformdev;
 	u64 handle;
+
+	struct nvkm_event event;
 
 	const char *cfgopt;
 	const char *dbgopt;
 	const char *name;
 	const char *cname;
+	u64 disable_mask;
 
 	enum {
 		NV_04    = 0x04,
@@ -80,15 +87,21 @@ struct nouveau_device {
 		NV_40    = 0x40,
 		NV_50    = 0x50,
 		NV_C0    = 0xc0,
-		NV_D0    = 0xd0,
 		NV_E0    = 0xe0,
+		GM100    = 0x110,
 	} card_type;
 	u32 chipset;
 	u32 crystal;
 
 	struct nouveau_oclass *oclass[NVDEV_SUBDEV_NR];
 	struct nouveau_object *subdev[NVDEV_SUBDEV_NR];
+
+	struct {
+		struct notifier_block nb;
+	} acpi;
 };
+
+int nouveau_device_list(u64 *name, int size);
 
 static inline struct nouveau_device *
 nv_device(void *obj)
@@ -137,5 +150,27 @@ nv_device_match(struct nouveau_object *object, u16 dev, u16 ven, u16 sub)
 	       device->pdev->subsystem_vendor == ven &&
 	       device->pdev->subsystem_device == sub;
 }
+
+static inline bool
+nv_device_is_pci(struct nouveau_device *device)
+{
+	return device->pdev != NULL;
+}
+
+static inline struct device *
+nv_device_base(struct nouveau_device *device)
+{
+	return nv_device_is_pci(device) ? &device->pdev->dev :
+					  &device->platformdev->dev;
+}
+
+resource_size_t
+nv_device_resource_start(struct nouveau_device *device, unsigned int bar);
+
+resource_size_t
+nv_device_resource_len(struct nouveau_device *device, unsigned int bar);
+
+int
+nv_device_get_irq(struct nouveau_device *device, bool stall);
 
 #endif

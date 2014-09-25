@@ -14,9 +14,6 @@ Required properties:
 - interrupt-names: Must include the following entries:
   "intr": The Tegra interrupt that is asserted for controller interrupts
   "msi": The Tegra interrupt that is asserted when an MSI is received
-- pex-clk-supply: Supply voltage for internal reference clock
-- vdd-supply: Power supply for controller (1.05V)
-- avdd-supply: Power supply for controller (1.05V) (not required for Tegra20)
 - bus-range: Range of bus numbers associated with this controller
 - #address-cells: Address representation for root ports (must be 3)
   - cell 0 specifies the bus and device numbers of the root port:
@@ -42,6 +39,10 @@ Required properties:
     - 0xc2000000: prefetchable memory region
   Please refer to the standard PCI bus binding document for a more detailed
   explanation.
+- #interrupt-cells: Size representation for interrupts (must be 1)
+- interrupt-map-mask and interrupt-map: Standard PCI IRQ mapping properties
+  Please refer to the standard PCI bus binding document for a more detailed
+  explanation.
 - clocks: Must contain an entry for each entry in clock-names.
   See ../clocks/clock-bindings.txt for details.
 - clock-names: Must include the following entries:
@@ -55,6 +56,33 @@ Required properties:
   - pex
   - afi
   - pcie_x
+
+Power supplies for Tegra20:
+- avdd-pex-supply: Power supply for analog PCIe logic. Must supply 1.05 V.
+- vdd-pex-supply: Power supply for digital PCIe I/O. Must supply 1.05 V.
+- avdd-pex-pll-supply: Power supply for dedicated (internal) PCIe PLL. Must
+  supply 1.05 V.
+- avdd-plle-supply: Power supply for PLLE, which is shared with SATA. Must
+  supply 1.05 V.
+- vddio-pex-clk-supply: Power supply for PCIe clock. Must supply 3.3 V.
+
+Power supplies for Tegra30:
+- Required:
+  - avdd-pex-pll-supply: Power supply for dedicated (internal) PCIe PLL. Must
+    supply 1.05 V.
+  - avdd-plle-supply: Power supply for PLLE, which is shared with SATA. Must
+    supply 1.05 V.
+  - vddio-pex-ctl-supply: Power supply for PCIe control I/O partition. Must
+    supply 1.8 V.
+  - hvdd-pex-supply: High-voltage supply for PCIe I/O and PCIe output clocks.
+    Must supply 3.3 V.
+- Optional:
+  - If lanes 0 to 3 are used:
+    - avdd-pexa-supply: Power supply for analog PCIe logic. Must supply 1.05 V.
+    - vdd-pexa-supply: Power supply for digital PCIe I/O. Must supply 1.05 V.
+  - If lanes 4 or 5 are used:
+    - avdd-pexb-supply: Power supply for analog PCIe logic. Must supply 1.05 V.
+    - vdd-pexb-supply: Power supply for digital PCIe I/O. Must supply 1.05 V.
 
 Root ports are defined as subnodes of the PCIe controller node.
 
@@ -85,6 +113,10 @@ SoC DTSI:
 		interrupts = <0 98 0x04   /* controller interrupt */
 		              0 99 0x04>; /* MSI interrupt */
 		interrupt-names = "intr", "msi";
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &intc GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 
 		bus-range = <0x00 0xff>;
 		#address-cells = <3>;

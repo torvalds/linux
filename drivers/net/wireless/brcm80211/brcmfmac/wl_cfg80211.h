@@ -89,21 +89,6 @@ enum brcmf_scan_status {
 	BRCMF_SCAN_STATUS_SUPPRESS,
 };
 
-/**
- * enum wl_mode - driver mode of virtual interface.
- *
- * @WL_MODE_BSS: connects to BSS.
- * @WL_MODE_IBSS: operate as ad-hoc.
- * @WL_MODE_AP: operate as access-point.
- * @WL_MODE_P2P: provide P2P discovery.
- */
-enum wl_mode {
-	WL_MODE_BSS,
-	WL_MODE_IBSS,
-	WL_MODE_AP,
-	WL_MODE_P2P
-};
-
 /* dongle configuration */
 struct brcmf_cfg80211_conf {
 	u32 frag_threshold;
@@ -193,7 +178,6 @@ struct vif_saved_ie {
  * @ifp: lower layer interface pointer
  * @wdev: wireless device.
  * @profile: profile information.
- * @mode: operating mode.
  * @roam_off: roaming state.
  * @sme_state: SME state using enum brcmf_vif_status bits.
  * @pm_block: power-management blocked.
@@ -204,7 +188,6 @@ struct brcmf_cfg80211_vif {
 	struct brcmf_if *ifp;
 	struct wireless_dev wdev;
 	struct brcmf_cfg80211_profile profile;
-	s32 mode;
 	s32 roam_off;
 	unsigned long sme_state;
 	bool pm_block;
@@ -402,7 +385,6 @@ struct brcmf_cfg80211_info {
 	bool ibss_starter;
 	bool pwr_save;
 	bool dongle_up;
-	bool roam_on;
 	bool scan_tried;
 	u8 *dcmd_buf;
 	u8 *extra_buf;
@@ -412,7 +394,6 @@ struct brcmf_cfg80211_info {
 	struct work_struct escan_timeout_work;
 	u8 *escan_ioctl_buf;
 	struct list_head vif_list;
-	u8 vif_cnt;
 	struct brcmf_cfg80211_vif_event vif_event;
 	struct completion vif_disabled;
 	struct brcmu_d11inf d11inf;
@@ -487,16 +468,16 @@ enum nl80211_iftype brcmf_cfg80211_get_iftype(struct brcmf_if *ifp);
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 					   enum nl80211_iftype type,
 					   bool pm_block);
-void brcmf_free_vif(struct brcmf_cfg80211_info *cfg,
-	            struct brcmf_cfg80211_vif *vif);
+void brcmf_free_vif(struct brcmf_cfg80211_vif *vif);
 
 s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 			  const u8 *vndr_ie_buf, u32 vndr_ie_len);
 s32 brcmf_vif_clear_mgmt_ies(struct brcmf_cfg80211_vif *vif);
-struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key);
+const struct brcmf_tlv *
+brcmf_parse_tlvs(const void *buf, int buflen, uint key);
 u16 channel_to_chanspec(struct brcmu_d11inf *d11inf,
 			struct ieee80211_channel *ch);
-u32 wl_get_vif_state_all(struct brcmf_cfg80211_info *cfg, unsigned long state);
+bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg, unsigned long state);
 void brcmf_cfg80211_arm_vif_event(struct brcmf_cfg80211_info *cfg,
 				  struct brcmf_cfg80211_vif *vif);
 bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg);
@@ -507,5 +488,6 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 				bool fw_abort);
 void brcmf_set_mpc(struct brcmf_if *ndev, int mpc);
 void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg);
+void brcmf_cfg80211_free_netdev(struct net_device *ndev);
 
 #endif				/* _wl_cfg80211_h_ */

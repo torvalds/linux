@@ -73,24 +73,6 @@ static void clk_reg_write_mask(u32 reg, uint32_t val, uint32_t mask)
 	bfin_write32(reg, val2);
 }
 
-static void clk_reg_set_bits(u32 reg, uint32_t mask)
-{
-	u32 val;
-
-	val = bfin_read32(reg);
-	val |= mask;
-	bfin_write32(reg, val);
-}
-
-static void clk_reg_clear_bits(u32 reg, uint32_t mask)
-{
-	u32 val;
-
-	val = bfin_read32(reg);
-	val &= ~mask;
-	bfin_write32(reg, val);
-}
-
 int wait_for_pll_align(void)
 {
 	int i = 10000;
@@ -120,6 +102,7 @@ void clk_disable(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_disable);
 
+
 unsigned long clk_get_rate(struct clk *clk)
 {
 	unsigned long ret = 0;
@@ -131,7 +114,7 @@ EXPORT_SYMBOL(clk_get_rate);
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	long ret = -EIO;
+	long ret = 0;
 	if (clk->ops && clk->ops->round_rate)
 		ret = clk->ops->round_rate(clk, rate);
 	return ret;
@@ -380,6 +363,12 @@ static struct clk ethclk = {
 	.ops	    = &dummy_clk_ops,
 };
 
+static struct clk spiclk = {
+	.name       = "spi",
+	.parent     = &sclk1,
+	.ops        = &dummy_clk_ops,
+};
+
 static struct clk_lookup bf609_clks[] = {
 	CLK(sys_clkin, NULL, "SYS_CLKIN"),
 	CLK(pll_clk, NULL, "PLLCLK"),
@@ -392,6 +381,7 @@ static struct clk_lookup bf609_clks[] = {
 	CLK(dclk, NULL, "DCLK"),
 	CLK(oclk, NULL, "OCLK"),
 	CLK(ethclk, NULL, "stmmaceth"),
+	CLK(spiclk, NULL, "spi"),
 };
 
 int __init clk_init(void)

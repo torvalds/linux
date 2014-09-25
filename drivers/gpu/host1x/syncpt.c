@@ -93,6 +93,7 @@ u32 host1x_syncpt_id(struct host1x_syncpt *sp)
 {
 	return sp->id;
 }
+EXPORT_SYMBOL(host1x_syncpt_id);
 
 /*
  * Updates the value sent to hardware.
@@ -101,6 +102,7 @@ u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs)
 {
 	return (u32)atomic_add_return(incrs, &sp->max_val);
 }
+EXPORT_SYMBOL(host1x_syncpt_incr_max);
 
  /*
  * Write cached syncpoint and waitbase values to hardware.
@@ -168,6 +170,7 @@ int host1x_syncpt_incr(struct host1x_syncpt *sp)
 {
 	return host1x_hw_syncpt_cpu_incr(sp->host, sp);
 }
+EXPORT_SYMBOL(host1x_syncpt_incr);
 
 /*
  * Updated sync point form hardware, and returns true if syncpoint is expired,
@@ -377,6 +380,7 @@ struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
 	struct host1x *host = dev_get_drvdata(dev->parent);
 	return host1x_syncpt_alloc(host, dev, flags);
 }
+EXPORT_SYMBOL(host1x_syncpt_request);
 
 void host1x_syncpt_free(struct host1x_syncpt *sp)
 {
@@ -390,6 +394,7 @@ void host1x_syncpt_free(struct host1x_syncpt *sp)
 	sp->name = NULL;
 	sp->client_managed = false;
 }
+EXPORT_SYMBOL(host1x_syncpt_free);
 
 void host1x_syncpt_deinit(struct host1x *host)
 {
@@ -408,6 +413,7 @@ u32 host1x_syncpt_read_max(struct host1x_syncpt *sp)
 	smp_rmb();
 	return (u32)atomic_read(&sp->max_val);
 }
+EXPORT_SYMBOL(host1x_syncpt_read_max);
 
 /*
  * Read min, which is a shadow of the current sync point value in hardware.
@@ -417,6 +423,7 @@ u32 host1x_syncpt_read_min(struct host1x_syncpt *sp)
 	smp_rmb();
 	return (u32)atomic_read(&sp->min_val);
 }
+EXPORT_SYMBOL(host1x_syncpt_read_min);
 
 int host1x_syncpt_nb_pts(struct host1x *host)
 {
@@ -439,13 +446,16 @@ struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, u32 id)
 		return NULL;
 	return host->syncpt + id;
 }
+EXPORT_SYMBOL(host1x_syncpt_get);
 
 struct host1x_syncpt_base *host1x_syncpt_get_base(struct host1x_syncpt *sp)
 {
 	return sp ? sp->base : NULL;
 }
+EXPORT_SYMBOL(host1x_syncpt_get_base);
 
 u32 host1x_syncpt_base_id(struct host1x_syncpt_base *base)
 {
 	return base->id;
 }
+EXPORT_SYMBOL(host1x_syncpt_base_id);

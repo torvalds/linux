@@ -16,9 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
@@ -95,6 +93,14 @@ static int nfc_genl_send_target(struct sk_buff *msg, struct nfc_target *target,
 	    nla_put(msg, NFC_ATTR_TARGET_SENSF_RES, target->sensf_res_len,
 		    target->sensf_res))
 		goto nla_put_failure;
+
+	if (target->is_iso15693) {
+		if (nla_put_u8(msg, NFC_ATTR_TARGET_ISO15693_DSFID,
+			       target->iso15693_dsfid) ||
+		    nla_put(msg, NFC_ATTR_TARGET_ISO15693_UID,
+			    sizeof(target->iso15693_uid), target->iso15693_uid))
+			goto nla_put_failure;
+	}
 
 	return genlmsg_end(msg, hdr);
 

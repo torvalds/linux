@@ -19,7 +19,7 @@
 
 / {
 	model = "Samsung smdkv310 evaluation board based on Exynos4210";
-	compatible = "samsung,smdkv310", "samsung,exynos4210";
+	compatible = "samsung,smdkv310", "samsung,exynos4210", "samsung,exynos4";
 
 	memory {
 		reg = <0x40000000 0x80000000>;
@@ -168,6 +168,7 @@
 	};
 
 	spi_2: spi@13940000 {
+		cs-gpios = <&gpc1 2 0>;
 		status = "okay";
 
 		w25x80@0 {
@@ -178,7 +179,6 @@
 			spi-max-frequency = <1000000>;
 
 			controller-data {
-				cs-gpio = <&gpc1 2 0>;
 				samsung,spi-feedback-delay = <0>;
 			};
 

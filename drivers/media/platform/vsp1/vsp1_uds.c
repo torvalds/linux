@@ -1,7 +1,7 @@
 /*
  * vsp1_uds.c  --  R-Car VSP1 Up and Down Scaler
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -44,6 +44,11 @@ static inline void vsp1_uds_write(struct vsp1_uds *uds, u32 reg, u32 data)
 /* -----------------------------------------------------------------------------
  * Scaling Computation
  */
+
+void vsp1_uds_set_alpha(struct vsp1_uds *uds, unsigned int alpha)
+{
+	vsp1_uds_write(uds, VI6_UDS_ALPVAL, alpha << VI6_UDS_ALPVAL_VAL0_SHIFT);
+}
 
 /*
  * uds_output_size - Return the output size for an input size and scaling ratio
@@ -105,50 +110,56 @@ static unsigned int uds_compute_ratio(unsigned int input, unsigned int output)
 	return (input - 1) * 4096 / (output - 1);
 }
 
-static void uds_compute_ratios(struct vsp1_uds *uds)
-{
-	struct v4l2_mbus_framefmt *input = &uds->entity.formats[UDS_PAD_SINK];
-	struct v4l2_mbus_framefmt *output =
-		&uds->entity.formats[UDS_PAD_SOURCE];
-
-	uds->hscale = uds_compute_ratio(input->width, output->width);
-	uds->vscale = uds_compute_ratio(input->height, output->height);
-
-	dev_dbg(uds->entity.vsp1->dev, "hscale %u vscale %u\n",
-		uds->hscale, uds->vscale);
-}
-
 /* -----------------------------------------------------------------------------
  * V4L2 Subdevice Core Operations
  */
 
 static int uds_s_stream(struct v4l2_subdev *subdev, int enable)
 {
-	const struct v4l2_mbus_framefmt *format;
 	struct vsp1_uds *uds = to_uds(subdev);
+	const struct v4l2_mbus_framefmt *output;
+	const struct v4l2_mbus_framefmt *input;
+	unsigned int hscale;
+	unsigned int vscale;
+	bool multitap;
 
 	if (!enable)
 		return 0;
 
-	/* Enable multi-tap scaling. */
-	vsp1_uds_write(uds, VI6_UDS_CTRL, VI6_UDS_CTRL_BC);
+	input = &uds->entity.formats[UDS_PAD_SINK];
+	output = &uds->entity.formats[UDS_PAD_SOURCE];
+
+	hscale = uds_compute_ratio(input->width, output->width);
+	vscale = uds_compute_ratio(input->height, output->height);
+
+	dev_dbg(uds->entity.vsp1->dev, "hscale %u vscale %u\n", hscale, vscale);
+
+	/* Multi-tap scaling can't be enabled along with alpha scaling when
+	 * scaling down with a factor lower than or equal to 1/2 in either
+	 * direction.
+	 */
+	if (uds->scale_alpha && (hscale >= 8192 || vscale >= 8192))
+		multitap = false;
+	else
+		multitap = true;
+
+	vsp1_uds_write(uds, VI6_UDS_CTRL,
+		       (uds->scale_alpha ? VI6_UDS_CTRL_AON : 0) |
+		       (multitap ? VI6_UDS_CTRL_BC : 0));
 
 	vsp1_uds_write(uds, VI6_UDS_PASS_BWIDTH,
-		       (uds_passband_width(uds->hscale)
+		       (uds_passband_width(hscale)
 				<< VI6_UDS_PASS_BWIDTH_H_SHIFT) |
-		       (uds_passband_width(uds->vscale)
+		       (uds_passband_width(vscale)
 				<< VI6_UDS_PASS_BWIDTH_V_SHIFT));
 
-
 	/* Set the scaling ratios and the output size. */
-	format = &uds->entity.formats[UDS_PAD_SOURCE];
-
 	vsp1_uds_write(uds, VI6_UDS_SCALE,
-		       (uds->hscale << VI6_UDS_SCALE_HFRAC_SHIFT) |
-		       (uds->vscale << VI6_UDS_SCALE_VFRAC_SHIFT));
+		       (hscale << VI6_UDS_SCALE_HFRAC_SHIFT) |
+		       (vscale << VI6_UDS_SCALE_VFRAC_SHIFT));
 	vsp1_uds_write(uds, VI6_UDS_CLIP_SIZE,
-		       (format->width << VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
-		       (format->height << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
+		       (output->width << VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
+		       (output->height << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
 
 	return 0;
 }
@@ -281,9 +292,6 @@ static int uds_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
 		uds_try_format(uds, fh, UDS_PAD_SOURCE, format, fmt->which);
 	}
 
-	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		uds_compute_ratios(uds);
-
 	return 0;
 }
 
@@ -323,7 +331,6 @@ struct vsp1_uds *vsp1_uds_create(struct vsp1_device *vsp1, unsigned int index)
 
 	uds->entity.type = VSP1_ENTITY_UDS;
 	uds->entity.index = index;
-	uds->entity.id = VI6_DPR_NODE_UDS(index);
 
 	ret = vsp1_entity_init(vsp1, &uds->entity, 2);
 	if (ret < 0)

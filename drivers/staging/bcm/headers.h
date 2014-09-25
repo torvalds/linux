@@ -34,7 +34,7 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/usb.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/ip.h>
 
 #include "Typedefs.h"

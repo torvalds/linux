@@ -88,6 +88,7 @@ struct au0828_board {
 	unsigned int tuner_type;
 	unsigned char tuner_addr;
 	unsigned char i2c_clk_divider;
+	unsigned char has_ir_i2c:1;
 	struct au0828_input input[AU0828_MAX_INPUT];
 
 };
@@ -102,6 +103,10 @@ struct au0828_dvb {
 	struct dmx_frontend fe_mem;
 	struct dvb_net net;
 	int feeding;
+	int start_count;
+	int stop_count;
+
+	int (*set_frontend)(struct dvb_frontend *fe);
 };
 
 enum au0828_stream_state {
@@ -209,6 +214,10 @@ struct au0828_dev {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler v4l2_ctrl_hdl;
 #endif
+#ifdef CONFIG_VIDEO_AU0828_RC
+	struct au0828_rc *ir;
+#endif
+
 	int users;
 	unsigned int resources;	/* resources in use */
 	struct video_device *vdev;
@@ -260,6 +269,10 @@ struct au0828_dev {
 	/* USB / URB Related */
 	int		urb_streaming;
 	struct urb	*urbs[URB_COUNT];
+
+	/* Preallocated transfer digital transfer buffers */
+
+	char *dig_transfer_buffer[URB_COUNT];
 };
 
 /* ----------------------------------------------------------- */
@@ -311,3 +324,9 @@ extern struct videobuf_queue_ops au0828_vbi_qops;
 	do { if (au0828_debug & level)\
 		printk(KERN_DEBUG DRIVER_NAME "/0: " fmt, ## arg);\
 	} while (0)
+
+/* au0828-input.c */
+int au0828_rc_register(struct au0828_dev *dev);
+void au0828_rc_unregister(struct au0828_dev *dev);
+int au0828_rc_suspend(struct au0828_dev *dev);
+int au0828_rc_resume(struct au0828_dev *dev);

@@ -18,7 +18,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/arizona/pdata.h>
 
-#define ARIZONA_MAX_CORE_SUPPLIES 3
+#define ARIZONA_MAX_CORE_SUPPLIES 2
 
 enum arizona_type {
 	WM5102 = 1,
@@ -46,8 +46,8 @@ enum arizona_type {
 #define ARIZONA_IRQ_DSP_IRQ6              17
 #define ARIZONA_IRQ_DSP_IRQ7              18
 #define ARIZONA_IRQ_DSP_IRQ8              19
-#define ARIZONA_IRQ_SPK_SHUTDOWN_WARN     20
-#define ARIZONA_IRQ_SPK_SHUTDOWN          21
+#define ARIZONA_IRQ_SPK_OVERHEAT_WARN     20
+#define ARIZONA_IRQ_SPK_OVERHEAT          21
 #define ARIZONA_IRQ_MICDET                22
 #define ARIZONA_IRQ_HPDET                 23
 #define ARIZONA_IRQ_WSEQ_DONE             24
@@ -78,8 +78,31 @@ enum arizona_type {
 #define ARIZONA_IRQ_FLL1_CLOCK_OK         49
 #define ARIZONA_IRQ_MICD_CLAMP_RISE	  50
 #define ARIZONA_IRQ_MICD_CLAMP_FALL	  51
+#define ARIZONA_IRQ_HP3R_DONE             52
+#define ARIZONA_IRQ_HP3L_DONE             53
+#define ARIZONA_IRQ_HP2R_DONE             54
+#define ARIZONA_IRQ_HP2L_DONE             55
+#define ARIZONA_IRQ_HP1R_DONE             56
+#define ARIZONA_IRQ_HP1L_DONE             57
+#define ARIZONA_IRQ_ISRC3_CFG_ERR         58
+#define ARIZONA_IRQ_DSP_SHARED_WR_COLL    59
+#define ARIZONA_IRQ_SPK_SHUTDOWN          60
+#define ARIZONA_IRQ_SPK1R_SHORT           61
+#define ARIZONA_IRQ_SPK1L_SHORT           62
+#define ARIZONA_IRQ_HP3R_SC_NEG           63
+#define ARIZONA_IRQ_HP3R_SC_POS           64
+#define ARIZONA_IRQ_HP3L_SC_NEG           65
+#define ARIZONA_IRQ_HP3L_SC_POS           66
+#define ARIZONA_IRQ_HP2R_SC_NEG           67
+#define ARIZONA_IRQ_HP2R_SC_POS           68
+#define ARIZONA_IRQ_HP2L_SC_NEG           69
+#define ARIZONA_IRQ_HP2L_SC_POS           70
+#define ARIZONA_IRQ_HP1R_SC_NEG           71
+#define ARIZONA_IRQ_HP1R_SC_POS           72
+#define ARIZONA_IRQ_HP1L_SC_NEG           73
+#define ARIZONA_IRQ_HP1L_SC_POS           74
 
-#define ARIZONA_NUM_IRQ                   52
+#define ARIZONA_NUM_IRQ                   75
 
 struct snd_soc_dapm_context;
 
@@ -109,7 +132,15 @@ struct arizona {
 	struct mutex clk_lock;
 	int clk32k_ref;
 
+	bool ctrlif_error;
+
 	struct snd_soc_dapm_context *dapm;
+
+	int tdm_width[ARIZONA_MAX_AIF];
+	int tdm_slots[ARIZONA_MAX_AIF];
+
+	uint16_t dac_comp_coeff;
+	uint8_t dac_comp_enabled;
 };
 
 int arizona_clk32k_enable(struct arizona *arizona);
@@ -123,5 +154,8 @@ int arizona_set_irq_wake(struct arizona *arizona, int irq, int on);
 int wm5102_patch(struct arizona *arizona);
 int wm5110_patch(struct arizona *arizona);
 int wm8997_patch(struct arizona *arizona);
+
+extern int arizona_of_get_named_gpio(struct arizona *arizona, const char *prop,
+				     bool mandatory);
 
 #endif

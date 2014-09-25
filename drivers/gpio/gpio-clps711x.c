@@ -65,6 +65,7 @@ static int clps711x_gpio_probe(struct platform_device *pdev)
 	}
 
 	bgc->gc.base = id * 8;
+	bgc->gc.owner = THIS_MODULE;
 	platform_set_drvdata(pdev, bgc);
 
 	return gpiochip_add(&bgc->gc);
@@ -97,3 +98,4 @@ module_platform_driver(clps711x_gpio_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alexander Shiyan <shc_work@mail.ru>");
 MODULE_DESCRIPTION("CLPS711X GPIO driver");
+MODULE_ALIAS("platform:clps711x-gpio");

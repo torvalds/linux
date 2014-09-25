@@ -41,7 +41,6 @@
 #include "dgnc_driver.h"	/* Driver main header file */
 #include "dgnc_cls.h"
 #include "dgnc_tty.h"
-#include "dgnc_trace.h"
 
 static inline void cls_parse_isr(struct dgnc_board *brd, uint port);
 static inline void cls_clear_break(struct channel_t *ch, int force);
@@ -453,10 +452,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 			cls_copy_data_from_queue_to_uart(ch);
 		}
 
-		/* Received Xoff signal/Special character */
-		if (isr & UART_IIR_XOFF)
-			/* Empty */
-
 		/* CTS/RTS change of state */
 		if (isr & UART_IIR_CTSRTS) {
 			brd->intr_modem++;
@@ -827,9 +822,8 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 	 * Check to make sure its for us.
 	 */
 	if (brd->magic != DGNC_BOARD_MAGIC) {
-		APR((
-		    "Received interrupt (%d) with a board pointer "
-						"that wasn't ours!\n", irq));
+		APR(("Received interrupt (%d) with a board pointer that wasn't ours!\n",
+			  irq));
 		return IRQ_NONE;
 	}
 
@@ -846,8 +840,7 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 	/* If 0, no interrupts pending */
 	if (!poll_reg) {
 		DPR_INTR((
-			 "Kernel interrupted to me, but no pending "
-							"interrupts...\n"));
+			 "Kernel interrupted to me, but no pending interrupts...\n"));
 		DGNC_UNLOCK(brd->bd_intr_lock, lock_flags);
 		return IRQ_NONE;
 	}
@@ -1046,16 +1039,13 @@ static void cls_flush_uart_read(struct channel_t *ch)
 	 * For complete POSIX compatibility, we should be purging the
 	 * read FIFO in the UART here.
 	 *
-	 * However, doing the statement below also incorrectly flushes
-	 * write data as well as just basically trashing the FIFO.
+	 * However, clearing the read FIFO (UART_FCR_CLEAR_RCVR) also
+	 * incorrectly flushes write data as well as just basically trashing the
+	 * FIFO.
 	 *
-	 * I believe this is a BUG in this UART.
-	 * So for now, we will leave the code #ifdef'ed out...
+	 * Presumably, this is a bug in this UART.
 	 */
-#if 0
-	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR),
-					 &ch->ch_cls_uart->isr_fcr);
-#endif
+
 	udelay(10);
 }
 
@@ -1388,8 +1378,7 @@ static void cls_send_break(struct channel_t *ch, int msecs)
 		writeb((temp | UART_LCR_SBC), &ch->ch_cls_uart->lcr);
 		ch->ch_flags |= (CH_BREAK_SENDING);
 		DPR_IOCTL((
-			"Port %d. Starting UART_LCR_SBC! start: %lx "
-			"should end: %lx\n",
+			"Port %d. Starting UART_LCR_SBC! start: %lx should end: %lx\n",
 			ch->ch_portnum, jiffies, ch->ch_stop_sending_break));
 	}
 }

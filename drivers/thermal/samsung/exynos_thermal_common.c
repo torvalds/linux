@@ -280,7 +280,7 @@ static int exynos_get_trend(struct thermal_zone_device *thermal,
 	return 0;
 }
 /* Operation callback functions for thermal zone */
-static struct thermal_zone_device_ops const exynos_dev_ops = {
+static struct thermal_zone_device_ops exynos_dev_ops = {
 	.bind = exynos_bind,
 	.unbind = exynos_unbind,
 	.get_temp = exynos_get_temp,

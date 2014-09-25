@@ -42,13 +42,12 @@
  * @{
  */
 
-#include <lustre_net.h>
-#include <obd.h>
+#include "lustre_net.h"
+#include "obd.h"
 
 /* lib/debug.c */
 void dump_lniobuf(struct niobuf_local *lnb);
 int dump_req(struct ptlrpc_request *req);
-void dump_lsm(int level, struct lov_stripe_md *lsm);
 int block_debug_setup(void *addr, int len, __u64 off, __u64 id);
 int block_debug_check(char *who, void *addr, int len, __u64 off, __u64 id);
 

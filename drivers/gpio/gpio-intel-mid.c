@@ -1,7 +1,7 @@
 /*
- * Moorestown platform Langwell chip GPIO driver
+ * Intel MID GPIO driver
  *
- * Copyright (c) 2008, 2009, 2013, Intel Corporation.
+ * Copyright (c) 2008-2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,10 +11,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* Supports:
@@ -32,12 +28,10 @@
 #include <linux/stddef.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
-#include <linux/irqdomain.h>
 
 #define INTEL_MID_IRQ_TYPE_EDGE		(1 << 0)
 #define INTEL_MID_IRQ_TYPE_LEVEL	(1 << 1)
@@ -82,10 +76,12 @@ struct intel_mid_gpio {
 	void __iomem			*reg_base;
 	spinlock_t			lock;
 	struct pci_dev			*pdev;
-	struct irq_domain		*domain;
 };
 
-#define to_intel_gpio_priv(chip) container_of(chip, struct intel_mid_gpio, chip)
+static inline struct intel_mid_gpio *to_intel_gpio_priv(struct gpio_chip *gc)
+{
+	return container_of(gc, struct intel_mid_gpio, chip);
+}
 
 static void __iomem *gpio_reg(struct gpio_chip *chip, unsigned offset,
 			      enum GPIO_REG reg_type)
@@ -186,15 +182,10 @@ static int intel_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
-static int intel_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
-{
-	struct intel_mid_gpio *priv = to_intel_gpio_priv(chip);
-	return irq_create_mapping(priv->domain, offset);
-}
-
 static int intel_mid_irq_type(struct irq_data *d, unsigned type)
 {
-	struct intel_mid_gpio *priv = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct intel_mid_gpio *priv = to_intel_gpio_priv(gc);
 	u32 gpio = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 value;
@@ -235,33 +226,11 @@ static void intel_mid_irq_mask(struct irq_data *d)
 {
 }
 
-static unsigned int intel_mid_irq_startup(struct irq_data *d)
-{
-	struct intel_mid_gpio *priv = irq_data_get_irq_chip_data(d);
-
-	if (gpio_lock_as_irq(&priv->chip, irqd_to_hwirq(d)))
-		dev_err(priv->chip.dev,
-			"unable to lock HW IRQ %lu for IRQ\n",
-			irqd_to_hwirq(d));
-	intel_mid_irq_unmask(d);
-	return 0;
-}
-
-static void intel_mid_irq_shutdown(struct irq_data *d)
-{
-	struct intel_mid_gpio *priv = irq_data_get_irq_chip_data(d);
-
-	intel_mid_irq_mask(d);
-	gpio_unlock_as_irq(&priv->chip, irqd_to_hwirq(d));
-}
-
 static struct irq_chip intel_mid_irqchip = {
 	.name		= "INTEL_MID-GPIO",
 	.irq_mask	= intel_mid_irq_mask,
 	.irq_unmask	= intel_mid_irq_unmask,
 	.irq_set_type	= intel_mid_irq_type,
-	.irq_startup	= intel_mid_irq_startup,
-	.irq_shutdown	= intel_mid_irq_shutdown,
 };
 
 static const struct intel_mid_gpio_ddata gpio_lincroft = {
@@ -334,8 +303,9 @@ MODULE_DEVICE_TABLE(pci, intel_gpio_ids);
 
 static void intel_mid_irq_handler(unsigned irq, struct irq_desc *desc)
 {
+	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
+	struct intel_mid_gpio *priv = to_intel_gpio_priv(gc);
 	struct irq_data *data = irq_desc_get_irq_data(desc);
-	struct intel_mid_gpio *priv = irq_data_get_irq_handler_data(data);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 	u32 base, gpio, mask;
 	unsigned long pending;
@@ -349,7 +319,7 @@ static void intel_mid_irq_handler(unsigned irq, struct irq_desc *desc)
 			mask = BIT(gpio);
 			/* Clear before handling so we can't lose an edge */
 			writel(mask, gedr);
-			generic_handle_irq(irq_find_mapping(priv->domain,
+			generic_handle_irq(irq_find_mapping(gc->irqdomain,
 							    base + gpio));
 		}
 	}
@@ -375,27 +345,10 @@ static void intel_mid_irq_init_hw(struct intel_mid_gpio *priv)
 	}
 }
 
-static int intel_gpio_irq_map(struct irq_domain *d, unsigned int irq,
-			    irq_hw_number_t hwirq)
-{
-	struct intel_mid_gpio *priv = d->host_data;
-
-	irq_set_chip_and_handler(irq, &intel_mid_irqchip, handle_simple_irq);
-	irq_set_chip_data(irq, priv);
-	irq_set_irq_type(irq, IRQ_TYPE_NONE);
-
-	return 0;
-}
-
-static const struct irq_domain_ops intel_gpio_irq_ops = {
-	.map = intel_gpio_irq_map,
-	.xlate = irq_domain_xlate_twocell,
-};
-
 static int intel_gpio_runtime_idle(struct device *dev)
 {
-	pm_schedule_suspend(dev, 500);
-	return -EBUSY;
+	int err = pm_schedule_suspend(dev, 500);
+	return err ?: -EBUSY;
 }
 
 static const struct dev_pm_ops intel_gpio_pm_ops = {
@@ -445,18 +398,12 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 	priv->chip.direction_output = intel_gpio_direction_output;
 	priv->chip.get = intel_gpio_get;
 	priv->chip.set = intel_gpio_set;
-	priv->chip.to_irq = intel_gpio_to_irq;
 	priv->chip.base = gpio_base;
 	priv->chip.ngpio = ddata->ngpio;
 	priv->chip.can_sleep = false;
 	priv->pdev = pdev;
 
 	spin_lock_init(&priv->lock);
-
-	priv->domain = irq_domain_add_simple(pdev->dev.of_node, ddata->ngpio,
-					irq_base, &intel_gpio_irq_ops, priv);
-	if (!priv->domain)
-		return -ENOMEM;
 
 	pci_set_drvdata(pdev, priv);
 	retval = gpiochip_add(&priv->chip);
@@ -465,10 +412,23 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 		return retval;
 	}
 
+	retval = gpiochip_irqchip_add(&priv->chip,
+				      &intel_mid_irqchip,
+				      irq_base,
+				      handle_simple_irq,
+				      IRQ_TYPE_NONE);
+	if (retval) {
+		dev_err(&pdev->dev,
+			"could not connect irqchip to gpiochip\n");
+		return retval;
+	}
+
 	intel_mid_irq_init_hw(priv);
 
-	irq_set_handler_data(pdev->irq, priv);
-	irq_set_chained_handler(pdev->irq, intel_mid_irq_handler);
+	gpiochip_set_chained_irqchip(&priv->chip,
+				     &intel_mid_irqchip,
+				     pdev->irq,
+				     intel_mid_irq_handler);
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);

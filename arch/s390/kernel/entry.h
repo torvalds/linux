@@ -48,8 +48,8 @@ void do_per_trap(struct pt_regs *regs);
 void syscall_trace(struct pt_regs *regs, int entryexit);
 void kernel_stack_overflow(struct pt_regs * regs);
 void do_signal(struct pt_regs *regs);
-void handle_signal32(unsigned long sig, struct k_sigaction *ka,
-		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs);
+void handle_signal32(struct ksignal *ksig, sigset_t *oldset,
+		     struct pt_regs *regs);
 void do_notify_resume(struct pt_regs *regs);
 
 void __init init_IRQ(void);
@@ -67,9 +67,7 @@ struct s390_mmap_arg_struct;
 struct fadvise64_64_args;
 struct old_sigaction;
 
-long sys_sigreturn(void);
-long sys_rt_sigreturn(void);
-long sys32_sigreturn(void);
-long sys32_rt_sigreturn(void);
+long sys_s390_personality(unsigned int personality);
+long sys_s390_runtime_instr(int command, int signum);
 
 #endif /* _ENTRY_H */

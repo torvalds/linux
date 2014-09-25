@@ -268,8 +268,7 @@ static const char *drc_high_text[] = {
 	"0",
 };
 
-static const struct soc_enum drc_high =
-	SOC_ENUM_SINGLE(WM9081_DRC_3, 3, 6, drc_high_text);
+static SOC_ENUM_SINGLE_DECL(drc_high, WM9081_DRC_3, 3, drc_high_text);
 
 static const char *drc_low_text[] = {
 	"1",
@@ -279,8 +278,7 @@ static const char *drc_low_text[] = {
 	"0",
 };
 
-static const struct soc_enum drc_low =
-	SOC_ENUM_SINGLE(WM9081_DRC_3, 0, 5, drc_low_text);
+static SOC_ENUM_SINGLE_DECL(drc_low, WM9081_DRC_3, 0, drc_low_text);
 
 static const char *drc_atk_text[] = {
 	"181us",
@@ -297,8 +295,7 @@ static const char *drc_atk_text[] = {
 	"185.6ms",
 };
 
-static const struct soc_enum drc_atk =
-	SOC_ENUM_SINGLE(WM9081_DRC_2, 12, 12, drc_atk_text);
+static SOC_ENUM_SINGLE_DECL(drc_atk, WM9081_DRC_2, 12, drc_atk_text);
 
 static const char *drc_dcy_text[] = {
 	"186ms",
@@ -312,8 +309,7 @@ static const char *drc_dcy_text[] = {
 	"47.56s",
 };
 
-static const struct soc_enum drc_dcy =
-	SOC_ENUM_SINGLE(WM9081_DRC_2, 8, 9, drc_dcy_text);
+static SOC_ENUM_SINGLE_DECL(drc_dcy, WM9081_DRC_2, 8, drc_dcy_text);
 
 static const char *drc_qr_dcy_text[] = {
 	"0.725ms",
@@ -321,8 +317,7 @@ static const char *drc_qr_dcy_text[] = {
 	"5.8ms",
 };
 
-static const struct soc_enum drc_qr_dcy =
-	SOC_ENUM_SINGLE(WM9081_DRC_2, 4, 3, drc_qr_dcy_text);
+static SOC_ENUM_SINGLE_DECL(drc_qr_dcy, WM9081_DRC_2, 4, drc_qr_dcy_text);
 
 static const char *dac_deemph_text[] = {
 	"None",
@@ -331,21 +326,21 @@ static const char *dac_deemph_text[] = {
 	"48kHz",
 };
 
-static const struct soc_enum dac_deemph =
-	SOC_ENUM_SINGLE(WM9081_DAC_DIGITAL_2, 1, 4, dac_deemph_text);
+static SOC_ENUM_SINGLE_DECL(dac_deemph, WM9081_DAC_DIGITAL_2, 1,
+			    dac_deemph_text);
 
 static const char *speaker_mode_text[] = {
 	"Class D",
 	"Class AB",
 };
 
-static const struct soc_enum speaker_mode =
-	SOC_ENUM_SINGLE(WM9081_ANALOGUE_SPEAKER_2, 6, 2, speaker_mode_text);
+static SOC_ENUM_SINGLE_DECL(speaker_mode, WM9081_ANALOGUE_SPEAKER_2, 6,
+			    speaker_mode_text);
 
 static int speaker_mode_get(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	unsigned int reg;
 
 	reg = snd_soc_read(codec, WM9081_ANALOGUE_SPEAKER_2);
@@ -366,7 +361,7 @@ static int speaker_mode_get(struct snd_kcontrol *kcontrol,
 static int speaker_mode_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	unsigned int reg_pwr = snd_soc_read(codec, WM9081_POWER_MANAGEMENT);
 	unsigned int reg2 = snd_soc_read(codec, WM9081_ANALOGUE_SPEAKER_2);
 
@@ -1034,19 +1029,19 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 		/* Otherwise work out a BCLK from the sample size */
 		wm9081->bclk = 2 * wm9081->fs;
 
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			wm9081->bclk *= 16;
 			break;
-		case SNDRV_PCM_FORMAT_S20_3LE:
+		case 20:
 			wm9081->bclk *= 20;
 			aif2 |= 0x4;
 			break;
-		case SNDRV_PCM_FORMAT_S24_LE:
+		case 24:
 			wm9081->bclk *= 24;
 			aif2 |= 0x8;
 			break;
-		case SNDRV_PCM_FORMAT_S32_LE:
+		case 32:
 			wm9081->bclk *= 32;
 			aif2 |= 0xc;
 			break;
@@ -1265,15 +1260,6 @@ static struct snd_soc_dai_driver wm9081_dai = {
 static int wm9081_probe(struct snd_soc_codec *codec)
 {
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	codec->control_data = wm9081->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	/* Enable zero cross by default */
 	snd_soc_update_bits(codec, WM9081_ANALOGUE_LINEOUT,
@@ -1288,7 +1274,7 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 				     ARRAY_SIZE(wm9081_eq_controls));
 	}
 
-	return ret;
+	return 0;
 }
 
 static int wm9081_remove(struct snd_soc_codec *codec)

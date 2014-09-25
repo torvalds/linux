@@ -10,6 +10,11 @@ config ARM_GIC
 config GIC_NON_BANKED
 	bool
 
+config ARM_GIC_V3
+	bool
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+
 config ARM_NVIC
 	bool
 	select IRQ_DOMAIN
@@ -23,12 +28,31 @@ config ARM_VIC
 config ARM_VIC_NR
 	int
 	default 4 if ARCH_S5PV210
-	default 3 if ARCH_S5PC100
 	default 2
 	depends on ARM_VIC
 	help
 	  The maximum number of VICs available in the system, for
 	  power management.
+
+config ATMEL_AIC_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+
+config ATMEL_AIC5_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+
+config BRCMSTB_L2_IRQ
+	bool
+	depends on ARM
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
 
 config DW_APB_ICTL
 	bool
@@ -37,6 +61,18 @@ config DW_APB_ICTL
 config IMGPDC_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config CLPS711X_IRQCHIP
+	bool
+	depends on ARCH_CLPS711X
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+	default y
+
+config OR1K_PIC
+	bool
 	select IRQ_DOMAIN
 
 config ORION_IRQCHIP
@@ -65,3 +101,15 @@ config VERSATILE_FPGA_IRQ_NR
        int
        default 4
        depends on VERSATILE_FPGA_IRQ
+
+config XTENSA_MX
+	bool
+	select IRQ_DOMAIN
+
+config IRQ_CROSSBAR
+	bool
+	help
+	  Support for a CROSSBAR ip that preceeds the main interrupt controller.
+	  The primary irqchip invokes the crossbar's callback which inturn allocates
+	  a free irq and configures the IP. Thus the peripheral interrupts are
+	  routed to one of the free irqchip interrupt lines.

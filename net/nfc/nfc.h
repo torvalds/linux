@@ -16,9 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __LOCAL_NFC_H
@@ -42,6 +40,12 @@ struct nfc_rawsock {
 	struct work_struct tx_work;
 	bool tx_work_scheduled;
 };
+
+struct nfc_sock_list {
+	struct hlist_head head;
+	rwlock_t          lock;
+};
+
 #define nfc_rawsock(sk) ((struct nfc_rawsock *) sk)
 #define to_rawsock_sk(_tx_work) \
 	((struct sock *) container_of(_tx_work, struct nfc_rawsock, tx_work))

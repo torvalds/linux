@@ -188,6 +188,7 @@ int host1x_device_init(struct host1x_device *device)
 
 	return 0;
 }
+EXPORT_SYMBOL(host1x_device_init);
 
 int host1x_device_exit(struct host1x_device *device)
 {
@@ -213,9 +214,10 @@ int host1x_device_exit(struct host1x_device *device)
 
 	return 0;
 }
+EXPORT_SYMBOL(host1x_device_exit);
 
-static int host1x_register_client(struct host1x *host1x,
-				  struct host1x_client *client)
+static int host1x_add_client(struct host1x *host1x,
+			     struct host1x_client *client)
 {
 	struct host1x_device *device;
 	struct host1x_subdev *subdev;
@@ -236,8 +238,8 @@ static int host1x_register_client(struct host1x *host1x,
 	return -ENODEV;
 }
 
-static int host1x_unregister_client(struct host1x *host1x,
-				    struct host1x_client *client)
+static int host1x_del_client(struct host1x *host1x,
+			     struct host1x_client *client)
 {
 	struct host1x_device *device, *dt;
 	struct host1x_subdev *subdev;
@@ -501,7 +503,7 @@ int host1x_client_register(struct host1x_client *client)
 	mutex_lock(&devices_lock);
 
 	list_for_each_entry(host1x, &devices, list) {
-		err = host1x_register_client(host1x, client);
+		err = host1x_add_client(host1x, client);
 		if (!err) {
 			mutex_unlock(&devices_lock);
 			return 0;
@@ -527,7 +529,7 @@ int host1x_client_unregister(struct host1x_client *client)
 	mutex_lock(&devices_lock);
 
 	list_for_each_entry(host1x, &devices, list) {
-		err = host1x_unregister_client(host1x, client);
+		err = host1x_del_client(host1x, client);
 		if (!err) {
 			mutex_unlock(&devices_lock);
 			return 0;

@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/backlight.h>
 #include <linux/dmi.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 #define SAMSUNGQ10_BL_MAX_INTENSITY 7
 
@@ -46,13 +46,7 @@ static int samsungq10_bl_set_intensity(struct backlight_device *bd)
 	return 0;
 }
 
-static int samsungq10_bl_get_intensity(struct backlight_device *bd)
-{
-	return bd->props.brightness;
-}
-
 static const struct backlight_ops samsungq10_bl_ops = {
-	.get_brightness = samsungq10_bl_get_intensity,
 	.update_status	= samsungq10_bl_set_intensity,
 };
 

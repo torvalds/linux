@@ -258,6 +258,8 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	platform_set_drvdata(pdev, tps_rtc);
+
 	irq  = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_warn(&pdev->dev, "Wake up is not possible as irq = %d\n",
@@ -282,8 +284,6 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "RTC device register: err %d\n", ret);
 		return ret;
 	}
-
-	platform_set_drvdata(pdev, tps_rtc);
 
 	return 0;
 }

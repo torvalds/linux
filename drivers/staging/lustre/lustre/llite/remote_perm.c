@@ -46,12 +46,12 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
-#include <lustre_lite.h>
-#include <lustre_ha.h>
-#include <lustre_dlm.h>
-#include <lprocfs_status.h>
-#include <lustre_disk.h>
-#include <lustre_param.h>
+#include "../include/lustre_lite.h"
+#include "../include/lustre_ha.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre_disk.h"
+#include "../include/lustre_param.h"
 #include "llite_internal.h"
 
 struct kmem_cache *ll_remote_perm_cachep = NULL;
@@ -77,7 +77,7 @@ static inline void free_ll_remote_perm(struct ll_remote_perm *lrp)
 	OBD_SLAB_FREE(lrp, ll_remote_perm_cachep, sizeof(*lrp));
 }
 
-struct hlist_head *alloc_rmtperm_hash(void)
+static struct hlist_head *alloc_rmtperm_hash(void)
 {
 	struct hlist_head *hash;
 	int i;
@@ -249,7 +249,7 @@ int lustre_check_remote_perm(struct inode *inode, int mask)
 	struct ptlrpc_request *req = NULL;
 	struct mdt_remote_perm *perm;
 	struct obd_capa *oc;
-	cfs_time_t save;
+	unsigned long save;
 	int i = 0, rc;
 
 	do {

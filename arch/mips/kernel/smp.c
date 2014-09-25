@@ -43,10 +43,6 @@
 #include <asm/time.h>
 #include <asm/setup.h>
 
-#ifdef CONFIG_MIPS_MT_SMTC
-#include <asm/mipsmtregs.h>
-#endif /* CONFIG_MIPS_MT_SMTC */
-
 volatile cpumask_t cpu_callin_map;	/* Bitmask of started secondaries */
 
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
@@ -63,8 +59,17 @@ EXPORT_SYMBOL(smp_num_siblings);
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_sibling_map);
 
+/* representing the core map of multi-core chips of each logical CPU */
+cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
+EXPORT_SYMBOL(cpu_core_map);
+
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
+
+/* representing cpus for which core maps can be computed */
+static cpumask_t cpu_core_setup_map;
+
+cpumask_t cpu_coherent_mask;
 
 static inline void set_cpu_sibling_map(int cpu)
 {
@@ -74,13 +79,28 @@ static inline void set_cpu_sibling_map(int cpu)
 
 	if (smp_num_siblings > 1) {
 		for_each_cpu_mask(i, cpu_sibling_setup_map) {
-			if (cpu_data[cpu].core == cpu_data[i].core) {
+			if (cpu_data[cpu].package == cpu_data[i].package &&
+				    cpu_data[cpu].core == cpu_data[i].core) {
 				cpu_set(i, cpu_sibling_map[cpu]);
 				cpu_set(cpu, cpu_sibling_map[i]);
 			}
 		}
 	} else
 		cpu_set(cpu, cpu_sibling_map[cpu]);
+}
+
+static inline void set_cpu_core_map(int cpu)
+{
+	int i;
+
+	cpu_set(cpu, cpu_core_setup_map);
+
+	for_each_cpu_mask(i, cpu_core_setup_map) {
+		if (cpu_data[cpu].package == cpu_data[i].package) {
+			cpu_set(i, cpu_core_map[cpu]);
+			cpu_set(cpu, cpu_core_map[i]);
+		}
+	}
 }
 
 struct plat_smp_ops *mp_ops;
@@ -102,12 +122,6 @@ asmlinkage void start_secondary(void)
 {
 	unsigned int cpu;
 
-#ifdef CONFIG_MIPS_MT_SMTC
-	/* Only do cpu_probe for first TC of CPU */
-	if ((read_c0_tcbind() & TCBIND_CURTC) != 0)
-		__cpu_name[smp_processor_id()] = __cpu_name[0];
-	else
-#endif /* CONFIG_MIPS_MT_SMTC */
 	cpu_probe();
 	cpu_report();
 	per_cpu_trap_init(false);
@@ -124,11 +138,13 @@ asmlinkage void start_secondary(void)
 	cpu = smp_processor_id();
 	cpu_data[cpu].udelay_val = loops_per_jiffy;
 
+	cpu_set(cpu, cpu_coherent_mask);
 	notify_cpu_starting(cpu);
 
 	set_cpu_online(cpu, true);
 
 	set_cpu_sibling_map(cpu);
+	set_cpu_core_map(cpu);
 
 	cpu_set(cpu, cpu_callin_map);
 
@@ -173,7 +189,6 @@ void smp_send_stop(void)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	mp_ops->cpus_done();
 }
 
 /* called from main before smp_init() */
@@ -183,9 +198,11 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	current_thread_info()->cpu = 0;
 	mp_ops->prepare_cpus(max_cpus);
 	set_cpu_sibling_map(0);
+	set_cpu_core_map(0);
 #ifndef CONFIG_HOTPLUG_CPU
 	init_cpu_present(cpu_possible_mask);
 #endif
+	cpumask_copy(&cpu_coherent_mask, cpu_possible_mask);
 }
 
 /* preload SMP state for boot cpu */
@@ -238,13 +255,10 @@ static void flush_tlb_mm_ipi(void *mm)
  *  o collapses to normal function call on UP kernels
  *  o collapses to normal function call on systems with a single shared
  *    primary cache.
- *  o CONFIG_MIPS_MT_SMTC currently implies there is only one physical core.
  */
 static inline void smp_on_other_tlbs(void (*func) (void *info), void *info)
 {
-#ifndef CONFIG_MIPS_MT_SMTC
 	smp_call_function(func, info, 1);
-#endif
 }
 
 static inline void smp_on_each_tlb(void (*func) (void *info), void *info)
@@ -404,3 +418,46 @@ void dump_send_ipi(void (*dump_ipi_callback)(void *))
 }
 EXPORT_SYMBOL(dump_send_ipi);
 #endif
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+
+static DEFINE_PER_CPU(atomic_t, tick_broadcast_count);
+static DEFINE_PER_CPU(struct call_single_data, tick_broadcast_csd);
+
+void tick_broadcast(const struct cpumask *mask)
+{
+	atomic_t *count;
+	struct call_single_data *csd;
+	int cpu;
+
+	for_each_cpu(cpu, mask) {
+		count = &per_cpu(tick_broadcast_count, cpu);
+		csd = &per_cpu(tick_broadcast_csd, cpu);
+
+		if (atomic_inc_return(count) == 1)
+			smp_call_function_single_async(cpu, csd);
+	}
+}
+
+static void tick_broadcast_callee(void *info)
+{
+	int cpu = smp_processor_id();
+	tick_receive_broadcast();
+	atomic_set(&per_cpu(tick_broadcast_count, cpu), 0);
+}
+
+static int __init tick_broadcast_init(void)
+{
+	struct call_single_data *csd;
+	int cpu;
+
+	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+		csd = &per_cpu(tick_broadcast_csd, cpu);
+		csd->func = tick_broadcast_callee;
+	}
+
+	return 0;
+}
+early_initcall(tick_broadcast_init);
+
+#endif /* CONFIG_GENERIC_CLOCKEVENTS_BROADCAST */

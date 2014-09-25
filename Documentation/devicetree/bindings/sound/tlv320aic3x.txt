@@ -6,7 +6,6 @@ Required properties:
 
 - compatible - "string" - One of:
     "ti,tlv320aic3x" - Generic TLV320AIC3x device
-    "ti,tlv320aic32x4" - TLV320AIC32x4
     "ti,tlv320aic33" - TLV320AIC33
     "ti,tlv320aic3007" - TLV320AIC3007
     "ti,tlv320aic3106" - TLV320AIC3106

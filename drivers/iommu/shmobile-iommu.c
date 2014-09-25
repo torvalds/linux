@@ -343,7 +343,7 @@ static int shmobile_iommu_add_device(struct device *dev)
 	mapping = archdata->iommu_mapping;
 	if (!mapping) {
 		mapping = arm_iommu_create_mapping(&platform_bus_type, 0,
-						   L1_LEN << 20, 0);
+						   L1_LEN << 20);
 		if (IS_ERR(mapping))
 			return PTR_ERR(mapping);
 		archdata->iommu_mapping = mapping;
@@ -354,7 +354,7 @@ static int shmobile_iommu_add_device(struct device *dev)
 	return 0;
 }
 
-static struct iommu_ops shmobile_iommu_ops = {
+static const struct iommu_ops shmobile_iommu_ops = {
 	.domain_init = shmobile_iommu_domain_init,
 	.domain_destroy = shmobile_iommu_domain_destroy,
 	.attach_dev = shmobile_iommu_attach_device,
@@ -380,14 +380,13 @@ int ipmmu_iommu_init(struct shmobile_ipmmu *ipmmu)
 		kmem_cache_destroy(l1cache);
 		return -ENOMEM;
 	}
-	archdata = kmalloc(sizeof(*archdata), GFP_KERNEL);
+	archdata = kzalloc(sizeof(*archdata), GFP_KERNEL);
 	if (!archdata) {
 		kmem_cache_destroy(l1cache);
 		kmem_cache_destroy(l2cache);
 		return -ENOMEM;
 	}
 	spin_lock_init(&archdata->attach_lock);
-	archdata->attached = NULL;
 	archdata->ipmmu = ipmmu;
 	ipmmu_archdata = archdata;
 	bus_set_iommu(&platform_bus_type, &shmobile_iommu_ops);

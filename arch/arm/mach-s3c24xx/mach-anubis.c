@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/gpio.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/i2c.h>
@@ -32,7 +33,6 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
 #include <mach/gpio-samsung.h>
@@ -46,7 +46,6 @@
 
 #include <net/ax88796.h>
 
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <linux/platform_data/asoc-s3c24xx_simtec.h>
@@ -352,6 +351,7 @@ static struct platform_device anubis_device_sm501 = {
 /* Standard Anubis devices */
 
 static struct platform_device *anubis_devices[] __initdata = {
+	&s3c2410_device_dclk,
 	&s3c_device_ohci,
 	&s3c_device_wdt,
 	&s3c_device_adc,
@@ -362,14 +362,6 @@ static struct platform_device *anubis_devices[] __initdata = {
 	&anubis_device_ide1,
 	&anubis_device_asix,
 	&anubis_device_sm501,
-};
-
-static struct clk *anubis_clocks[] __initdata = {
-	&s3c24xx_dclk0,
-	&s3c24xx_dclk1,
-	&s3c24xx_clkout0,
-	&s3c24xx_clkout1,
-	&s3c24xx_uclk,
 };
 
 /* I2C devices. */
@@ -394,23 +386,7 @@ static struct s3c24xx_audio_simtec_pdata __initdata anubis_audio = {
 
 static void __init anubis_map_io(void)
 {
-	/* initialise the clocks */
-
-	s3c24xx_dclk0.parent = &clk_upll;
-	s3c24xx_dclk0.rate   = 12*1000*1000;
-
-	s3c24xx_dclk1.parent = &clk_upll;
-	s3c24xx_dclk1.rate   = 24*1000*1000;
-
-	s3c24xx_clkout0.parent  = &s3c24xx_dclk0;
-	s3c24xx_clkout1.parent  = &s3c24xx_dclk1;
-
-	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
-
-	s3c24xx_register_clocks(anubis_clocks, ARRAY_SIZE(anubis_clocks));
-
 	s3c24xx_init_io(anubis_iodesc, ARRAY_SIZE(anubis_iodesc));
-	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(anubis_uartcfgs, ARRAY_SIZE(anubis_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
@@ -426,6 +402,12 @@ static void __init anubis_map_io(void)
 		gpio_request_one(S3C2410_GPA(0), GPIOF_OUT_INIT_HIGH, NULL);
 		gpio_free(S3C2410_GPA(0));
 	}
+}
+
+static void __init anubis_init_time(void)
+{
+	s3c2440_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void __init anubis_init(void)
@@ -447,6 +429,6 @@ MACHINE_START(ANUBIS, "Simtec-Anubis")
 	.map_io		= anubis_map_io,
 	.init_machine	= anubis_init,
 	.init_irq	= s3c2440_init_irq,
-	.init_time	= samsung_timer_init,
+	.init_time	= anubis_init_time,
 	.restart	= s3c244x_restart,
 MACHINE_END

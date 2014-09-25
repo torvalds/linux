@@ -12,11 +12,9 @@
 #include "request.h"
 #include "writeback.h"
 
-#include <linux/cgroup.h>
 #include <linux/module.h>
 #include <linux/hash.h>
 #include <linux/random.h>
-#include "blk-cgroup.h"
 
 #include <trace/events/bcache.h>
 
@@ -27,184 +25,26 @@ struct kmem_cache *bch_search_cache;
 
 static void bch_data_insert_start(struct closure *);
 
-/* Cgroup interface */
-
-#ifdef CONFIG_CGROUP_BCACHE
-static struct bch_cgroup bcache_default_cgroup = { .cache_mode = -1 };
-
-static struct bch_cgroup *cgroup_to_bcache(struct cgroup *cgroup)
-{
-	struct cgroup_subsys_state *css;
-	return cgroup &&
-		(css = cgroup_subsys_state(cgroup, bcache_subsys_id))
-		? container_of(css, struct bch_cgroup, css)
-		: &bcache_default_cgroup;
-}
-
-struct bch_cgroup *bch_bio_to_cgroup(struct bio *bio)
-{
-	struct cgroup_subsys_state *css = bio->bi_css
-		? cgroup_subsys_state(bio->bi_css->cgroup, bcache_subsys_id)
-		: task_subsys_state(current, bcache_subsys_id);
-
-	return css
-		? container_of(css, struct bch_cgroup, css)
-		: &bcache_default_cgroup;
-}
-
-static ssize_t cache_mode_read(struct cgroup *cgrp, struct cftype *cft,
-			struct file *file,
-			char __user *buf, size_t nbytes, loff_t *ppos)
-{
-	char tmp[1024];
-	int len = bch_snprint_string_list(tmp, PAGE_SIZE, bch_cache_modes,
-					  cgroup_to_bcache(cgrp)->cache_mode + 1);
-
-	if (len < 0)
-		return len;
-
-	return simple_read_from_buffer(buf, nbytes, ppos, tmp, len);
-}
-
-static int cache_mode_write(struct cgroup *cgrp, struct cftype *cft,
-			    const char *buf)
-{
-	int v = bch_read_string_list(buf, bch_cache_modes);
-	if (v < 0)
-		return v;
-
-	cgroup_to_bcache(cgrp)->cache_mode = v - 1;
-	return 0;
-}
-
-static u64 bch_verify_read(struct cgroup *cgrp, struct cftype *cft)
-{
-	return cgroup_to_bcache(cgrp)->verify;
-}
-
-static int bch_verify_write(struct cgroup *cgrp, struct cftype *cft, u64 val)
-{
-	cgroup_to_bcache(cgrp)->verify = val;
-	return 0;
-}
-
-static u64 bch_cache_hits_read(struct cgroup *cgrp, struct cftype *cft)
-{
-	struct bch_cgroup *bcachecg = cgroup_to_bcache(cgrp);
-	return atomic_read(&bcachecg->stats.cache_hits);
-}
-
-static u64 bch_cache_misses_read(struct cgroup *cgrp, struct cftype *cft)
-{
-	struct bch_cgroup *bcachecg = cgroup_to_bcache(cgrp);
-	return atomic_read(&bcachecg->stats.cache_misses);
-}
-
-static u64 bch_cache_bypass_hits_read(struct cgroup *cgrp,
-					 struct cftype *cft)
-{
-	struct bch_cgroup *bcachecg = cgroup_to_bcache(cgrp);
-	return atomic_read(&bcachecg->stats.cache_bypass_hits);
-}
-
-static u64 bch_cache_bypass_misses_read(struct cgroup *cgrp,
-					   struct cftype *cft)
-{
-	struct bch_cgroup *bcachecg = cgroup_to_bcache(cgrp);
-	return atomic_read(&bcachecg->stats.cache_bypass_misses);
-}
-
-static struct cftype bch_files[] = {
-	{
-		.name		= "cache_mode",
-		.read		= cache_mode_read,
-		.write_string	= cache_mode_write,
-	},
-	{
-		.name		= "verify",
-		.read_u64	= bch_verify_read,
-		.write_u64	= bch_verify_write,
-	},
-	{
-		.name		= "cache_hits",
-		.read_u64	= bch_cache_hits_read,
-	},
-	{
-		.name		= "cache_misses",
-		.read_u64	= bch_cache_misses_read,
-	},
-	{
-		.name		= "cache_bypass_hits",
-		.read_u64	= bch_cache_bypass_hits_read,
-	},
-	{
-		.name		= "cache_bypass_misses",
-		.read_u64	= bch_cache_bypass_misses_read,
-	},
-	{ }	/* terminate */
-};
-
-static void init_bch_cgroup(struct bch_cgroup *cg)
-{
-	cg->cache_mode = -1;
-}
-
-static struct cgroup_subsys_state *bcachecg_create(struct cgroup *cgroup)
-{
-	struct bch_cgroup *cg;
-
-	cg = kzalloc(sizeof(*cg), GFP_KERNEL);
-	if (!cg)
-		return ERR_PTR(-ENOMEM);
-	init_bch_cgroup(cg);
-	return &cg->css;
-}
-
-static void bcachecg_destroy(struct cgroup *cgroup)
-{
-	struct bch_cgroup *cg = cgroup_to_bcache(cgroup);
-	kfree(cg);
-}
-
-struct cgroup_subsys bcache_subsys = {
-	.create		= bcachecg_create,
-	.destroy	= bcachecg_destroy,
-	.subsys_id	= bcache_subsys_id,
-	.name		= "bcache",
-	.module		= THIS_MODULE,
-};
-EXPORT_SYMBOL_GPL(bcache_subsys);
-#endif
-
 static unsigned cache_mode(struct cached_dev *dc, struct bio *bio)
 {
-#ifdef CONFIG_CGROUP_BCACHE
-	int r = bch_bio_to_cgroup(bio)->cache_mode;
-	if (r >= 0)
-		return r;
-#endif
 	return BDEV_CACHE_MODE(&dc->sb);
 }
 
 static bool verify(struct cached_dev *dc, struct bio *bio)
 {
-#ifdef CONFIG_CGROUP_BCACHE
-	if (bch_bio_to_cgroup(bio)->verify)
-		return true;
-#endif
 	return dc->verify;
 }
 
 static void bio_csum(struct bio *bio, struct bkey *k)
 {
-	struct bio_vec *bv;
+	struct bio_vec bv;
+	struct bvec_iter iter;
 	uint64_t csum = 0;
-	int i;
 
-	bio_for_each_segment(bv, bio, i) {
-		void *d = kmap(bv->bv_page) + bv->bv_offset;
-		csum = bch_crc64_update(csum, d, bv->bv_len);
-		kunmap(bv->bv_page);
+	bio_for_each_segment(bv, bio, iter) {
+		void *d = kmap(bv.bv_page) + bv.bv_offset;
+		csum = bch_crc64_update(csum, d, bv.bv_len);
+		kunmap(bv.bv_page);
 	}
 
 	k->ptr[KEY_PTRS(k)] = csum & (~0ULL >> 1);
@@ -248,10 +88,28 @@ static void bch_data_insert_keys(struct closure *cl)
 		atomic_dec_bug(journal_ref);
 
 	if (!op->insert_data_done)
-		continue_at(cl, bch_data_insert_start, bcache_wq);
+		continue_at(cl, bch_data_insert_start, op->wq);
 
 	bch_keylist_free(&op->insert_keys);
 	closure_return(cl);
+}
+
+static int bch_keylist_realloc(struct keylist *l, unsigned u64s,
+			       struct cache_set *c)
+{
+	size_t oldsize = bch_keylist_nkeys(l);
+	size_t newsize = oldsize + u64s;
+
+	/*
+	 * The journalling code doesn't handle the case where the keys to insert
+	 * is bigger than an empty write: If we just return -ENOMEM here,
+	 * bio_insert() and bio_invalidate() will insert the keys created so far
+	 * and finish the rest when the keylist is empty.
+	 */
+	if (newsize * sizeof(uint64_t) > block_bytes(c) - sizeof(struct jset))
+		return -ENOMEM;
+
+	return __bch_keylist_realloc(l, u64s);
 }
 
 static void bch_data_invalidate(struct closure *cl)
@@ -260,26 +118,26 @@ static void bch_data_invalidate(struct closure *cl)
 	struct bio *bio = op->bio;
 
 	pr_debug("invalidating %i sectors from %llu",
-		 bio_sectors(bio), (uint64_t) bio->bi_sector);
+		 bio_sectors(bio), (uint64_t) bio->bi_iter.bi_sector);
 
 	while (bio_sectors(bio)) {
 		unsigned sectors = min(bio_sectors(bio),
 				       1U << (KEY_SIZE_BITS - 1));
 
-		if (bch_keylist_realloc(&op->insert_keys, 0, op->c))
+		if (bch_keylist_realloc(&op->insert_keys, 2, op->c))
 			goto out;
 
-		bio->bi_sector	+= sectors;
-		bio->bi_size	-= sectors << 9;
+		bio->bi_iter.bi_sector	+= sectors;
+		bio->bi_iter.bi_size	-= sectors << 9;
 
 		bch_keylist_add(&op->insert_keys,
-				&KEY(op->inode, bio->bi_sector, sectors));
+				&KEY(op->inode, bio->bi_iter.bi_sector, sectors));
 	}
 
 	op->insert_data_done = true;
 	bio_put(bio);
 out:
-	continue_at(cl, bch_data_insert_keys, bcache_wq);
+	continue_at(cl, bch_data_insert_keys, op->wq);
 }
 
 static void bch_data_insert_error(struct closure *cl)
@@ -322,7 +180,7 @@ static void bch_data_insert_endio(struct bio *bio, int error)
 		if (op->writeback)
 			op->error = error;
 		else if (!op->replace)
-			set_closure_fn(cl, bch_data_insert_error, bcache_wq);
+			set_closure_fn(cl, bch_data_insert_error, op->wq);
 		else
 			set_closure_fn(cl, NULL, NULL);
 	}
@@ -335,13 +193,13 @@ static void bch_data_insert_start(struct closure *cl)
 	struct data_insert_op *op = container_of(cl, struct data_insert_op, cl);
 	struct bio *bio = op->bio, *n;
 
-	if (op->bypass)
-		return bch_data_invalidate(cl);
-
 	if (atomic_sub_return(bio_sectors(bio), &op->c->sectors_to_gc) < 0) {
 		set_gc_sectors(op->c);
 		wake_up_gc(op->c);
 	}
+
+	if (op->bypass)
+		return bch_data_invalidate(cl);
 
 	/*
 	 * Journal writes are marked REQ_FLUSH; if the original write was a
@@ -356,21 +214,21 @@ static void bch_data_insert_start(struct closure *cl)
 
 		/* 1 for the device pointer and 1 for the chksum */
 		if (bch_keylist_realloc(&op->insert_keys,
-					1 + (op->csum ? 1 : 0),
+					3 + (op->csum ? 1 : 0),
 					op->c))
-			continue_at(cl, bch_data_insert_keys, bcache_wq);
+			continue_at(cl, bch_data_insert_keys, op->wq);
 
 		k = op->insert_keys.top;
 		bkey_init(k);
 		SET_KEY_INODE(k, op->inode);
-		SET_KEY_OFFSET(k, bio->bi_sector);
+		SET_KEY_OFFSET(k, bio->bi_iter.bi_sector);
 
 		if (!bch_alloc_sectors(op->c, k, bio_sectors(bio),
 				       op->write_point, op->write_prio,
 				       op->writeback))
 			goto err;
 
-		n = bch_bio_split(bio, KEY_SIZE(k), GFP_NOIO, split);
+		n = bio_next_split(bio, KEY_SIZE(k), GFP_NOIO, split);
 
 		n->bi_end_io	= bch_data_insert_endio;
 		n->bi_private	= cl;
@@ -395,7 +253,7 @@ static void bch_data_insert_start(struct closure *cl)
 	} while (n != bio);
 
 	op->insert_data_done = true;
-	continue_at(cl, bch_data_insert_keys, bcache_wq);
+	continue_at(cl, bch_data_insert_keys, op->wq);
 err:
 	/* bch_alloc_sectors() blocks if s->writeback = true */
 	BUG_ON(op->writeback);
@@ -424,7 +282,7 @@ err:
 		bio_put(bio);
 
 		if (!bch_keylist_empty(&op->insert_keys))
-			continue_at(cl, bch_data_insert_keys, bcache_wq);
+			continue_at(cl, bch_data_insert_keys, op->wq);
 		else
 			closure_return(cl);
 	}
@@ -453,7 +311,8 @@ void bch_data_insert(struct closure *cl)
 {
 	struct data_insert_op *op = container_of(cl, struct data_insert_op, cl);
 
-	trace_bcache_write(op->bio, op->writeback, op->bypass);
+	trace_bcache_write(op->c, op->inode, op->bio,
+			   op->writeback, op->bypass);
 
 	bch_keylist_init(&op->insert_keys);
 	bio_get(op->bio);
@@ -521,7 +380,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 	     (bio->bi_rw & REQ_WRITE)))
 		goto skip;
 
-	if (bio->bi_sector & (c->sb.block_size - 1) ||
+	if (bio->bi_iter.bi_sector & (c->sb.block_size - 1) ||
 	    bio_sectors(bio) & (c->sb.block_size - 1)) {
 		pr_debug("skipping unaligned io");
 		goto skip;
@@ -545,8 +404,8 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 
 	spin_lock(&dc->io_lock);
 
-	hlist_for_each_entry(i, iohash(dc, bio->bi_sector), hash)
-		if (i->last == bio->bi_sector &&
+	hlist_for_each_entry(i, iohash(dc, bio->bi_iter.bi_sector), hash)
+		if (i->last == bio->bi_iter.bi_sector &&
 		    time_before(jiffies, i->jiffies))
 			goto found;
 
@@ -555,8 +414,8 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 	add_sequential(task);
 	i->sequential = 0;
 found:
-	if (i->sequential + bio->bi_size > i->sequential)
-		i->sequential	+= bio->bi_size;
+	if (i->sequential + bio->bi_iter.bi_size > i->sequential)
+		i->sequential	+= bio->bi_iter.bi_size;
 
 	i->last			 = bio_end_sector(bio);
 	i->jiffies		 = jiffies + msecs_to_jiffies(5000);
@@ -596,16 +455,13 @@ struct search {
 	/* Stack frame for bio_complete */
 	struct closure		cl;
 
-	struct bcache_device	*d;
-
 	struct bbio		bio;
 	struct bio		*orig_bio;
 	struct bio		*cache_miss;
+	struct bcache_device	*d;
 
 	unsigned		insert_bio_sectors;
-
 	unsigned		recoverable:1;
-	unsigned		unaligned_bvec:1;
 	unsigned		write:1;
 	unsigned		read_dirty_data:1;
 
@@ -630,7 +486,8 @@ static void bch_cache_read_endio(struct bio *bio, int error)
 
 	if (error)
 		s->iop.error = error;
-	else if (ptr_stale(s->iop.c, &b->key, 0)) {
+	else if (!KEY_DIRTY(&b->key) &&
+		 ptr_stale(s->iop.c, &b->key, 0)) {
 		atomic_long_inc(&s->iop.c->cache_read_races);
 		s->iop.error = -EINTR;
 	}
@@ -649,15 +506,15 @@ static int cache_lookup_fn(struct btree_op *op, struct btree *b, struct bkey *k)
 	struct bkey *bio_key;
 	unsigned ptr;
 
-	if (bkey_cmp(k, &KEY(s->iop.inode, bio->bi_sector, 0)) <= 0)
+	if (bkey_cmp(k, &KEY(s->iop.inode, bio->bi_iter.bi_sector, 0)) <= 0)
 		return MAP_CONTINUE;
 
 	if (KEY_INODE(k) != s->iop.inode ||
-	    KEY_START(k) > bio->bi_sector) {
+	    KEY_START(k) > bio->bi_iter.bi_sector) {
 		unsigned bio_sectors = bio_sectors(bio);
 		unsigned sectors = KEY_INODE(k) == s->iop.inode
 			? min_t(uint64_t, INT_MAX,
-				KEY_START(k) - bio->bi_sector)
+				KEY_START(k) - bio->bi_iter.bi_sector)
 			: INT_MAX;
 
 		int ret = s->d->cache_miss(b, s, bio, sectors);
@@ -679,14 +536,14 @@ static int cache_lookup_fn(struct btree_op *op, struct btree *b, struct bkey *k)
 	if (KEY_DIRTY(k))
 		s->read_dirty_data = true;
 
-	n = bch_bio_split(bio, min_t(uint64_t, INT_MAX,
-				     KEY_OFFSET(k) - bio->bi_sector),
-			  GFP_NOIO, s->d->bio_split);
+	n = bio_next_split(bio, min_t(uint64_t, INT_MAX,
+				      KEY_OFFSET(k) - bio->bi_iter.bi_sector),
+			   GFP_NOIO, s->d->bio_split);
 
 	bio_key = &container_of(n, struct bbio, bio)->key;
 	bch_bkey_copy_single_ptr(bio_key, k, ptr);
 
-	bch_cut_front(&KEY(s->iop.inode, n->bi_sector, 0), bio_key);
+	bch_cut_front(&KEY(s->iop.inode, n->bi_iter.bi_sector, 0), bio_key);
 	bch_cut_back(&KEY(s->iop.inode, bio_end_sector(n), 0), bio_key);
 
 	n->bi_end_io	= bch_cache_read_endio;
@@ -711,10 +568,13 @@ static void cache_lookup(struct closure *cl)
 {
 	struct search *s = container_of(cl, struct search, iop.cl);
 	struct bio *bio = &s->bio.bio;
+	int ret;
 
-	int ret = bch_btree_map_keys(&s->op, s->iop.c,
-				     &KEY(s->iop.inode, bio->bi_sector, 0),
-				     cache_lookup_fn, MAP_END_KEY);
+	bch_btree_op_init(&s->op, -1);
+
+	ret = bch_btree_map_keys(&s->op, s->iop.c,
+				 &KEY(s->iop.inode, bio->bi_iter.bi_sector, 0),
+				 cache_lookup_fn, MAP_END_KEY);
 	if (ret == -EAGAIN)
 		continue_at(cl, cache_lookup, bcache_wq);
 
@@ -755,13 +615,15 @@ static void bio_complete(struct search *s)
 	}
 }
 
-static void do_bio_hook(struct search *s)
+static void do_bio_hook(struct search *s, struct bio *orig_bio)
 {
 	struct bio *bio = &s->bio.bio;
-	memcpy(bio, s->orig_bio, sizeof(struct bio));
 
+	bio_init(bio);
+	__bio_clone_fast(bio, orig_bio);
 	bio->bi_end_io		= request_endio;
 	bio->bi_private		= &s->cl;
+
 	atomic_set(&bio->bi_cnt, 3);
 }
 
@@ -773,43 +635,37 @@ static void search_free(struct closure *cl)
 	if (s->iop.bio)
 		bio_put(s->iop.bio);
 
-	if (s->unaligned_bvec)
-		mempool_free(s->bio.bio.bi_io_vec, s->d->unaligned_bvec);
-
 	closure_debug_destroy(cl);
 	mempool_free(s, s->d->c->search);
 }
 
-static struct search *search_alloc(struct bio *bio, struct bcache_device *d)
+static inline struct search *search_alloc(struct bio *bio,
+					  struct bcache_device *d)
 {
 	struct search *s;
-	struct bio_vec *bv;
 
 	s = mempool_alloc(d->c->search, GFP_NOIO);
-	memset(s, 0, offsetof(struct search, iop.insert_keys));
 
-	__closure_init(&s->cl, NULL);
+	closure_init(&s->cl, NULL);
+	do_bio_hook(s, bio);
 
-	s->iop.inode		= d->id;
-	s->iop.c		= d->c;
-	s->d			= d;
-	s->op.lock		= -1;
-	s->iop.write_point	= hash_long((unsigned long) current, 16);
 	s->orig_bio		= bio;
-	s->write		= (bio->bi_rw & REQ_WRITE) != 0;
-	s->iop.flush_journal	= (bio->bi_rw & (REQ_FLUSH|REQ_FUA)) != 0;
+	s->cache_miss		= NULL;
+	s->d			= d;
 	s->recoverable		= 1;
+	s->write		= (bio->bi_rw & REQ_WRITE) != 0;
+	s->read_dirty_data	= 0;
 	s->start_time		= jiffies;
-	do_bio_hook(s);
 
-	if (bio->bi_size != bio_segments(bio) * PAGE_SIZE) {
-		bv = mempool_alloc(d->unaligned_bvec, GFP_NOIO);
-		memcpy(bv, bio_iovec(bio),
-		       sizeof(struct bio_vec) * bio_segments(bio));
-
-		s->bio.bio.bi_io_vec	= bv;
-		s->unaligned_bvec	= 1;
-	}
+	s->iop.c		= d->c;
+	s->iop.bio		= NULL;
+	s->iop.inode		= d->id;
+	s->iop.write_point	= hash_long((unsigned long) current, 16);
+	s->iop.write_prio	= 0;
+	s->iop.error		= 0;
+	s->iop.flags		= 0;
+	s->iop.flush_journal	= (bio->bi_rw & (REQ_FLUSH|REQ_FUA)) != 0;
+	s->iop.wq		= bcache_wq;
 
 	return s;
 }
@@ -849,26 +705,13 @@ static void cached_dev_read_error(struct closure *cl)
 {
 	struct search *s = container_of(cl, struct search, cl);
 	struct bio *bio = &s->bio.bio;
-	struct bio_vec *bv;
-	int i;
 
 	if (s->recoverable) {
 		/* Retry from the backing device: */
 		trace_bcache_read_retry(s->orig_bio);
 
 		s->iop.error = 0;
-		bv = s->bio.bio.bi_io_vec;
-		do_bio_hook(s);
-		s->bio.bio.bi_io_vec = bv;
-
-		if (!s->unaligned_bvec)
-			bio_for_each_segment(bv, s->orig_bio, i)
-				bv->bv_offset = 0, bv->bv_len = PAGE_SIZE;
-		else
-			memcpy(s->bio.bio.bi_io_vec,
-			       bio_iovec(s->orig_bio),
-			       sizeof(struct bio_vec) *
-			       bio_segments(s->orig_bio));
+		do_bio_hook(s, s->orig_bio);
 
 		/* XXX: invalidate cache */
 
@@ -893,9 +736,9 @@ static void cached_dev_read_done(struct closure *cl)
 
 	if (s->iop.bio) {
 		bio_reset(s->iop.bio);
-		s->iop.bio->bi_sector = s->cache_miss->bi_sector;
+		s->iop.bio->bi_iter.bi_sector = s->cache_miss->bi_iter.bi_sector;
 		s->iop.bio->bi_bdev = s->cache_miss->bi_bdev;
-		s->iop.bio->bi_size = s->insert_bio_sectors << 9;
+		s->iop.bio->bi_iter.bi_size = s->insert_bio_sectors << 9;
 		bch_bio_map(s->iop.bio, NULL);
 
 		bio_copy_data(s->cache_miss, s->iop.bio);
@@ -904,8 +747,7 @@ static void cached_dev_read_done(struct closure *cl)
 		s->cache_miss = NULL;
 	}
 
-	if (verify(dc, &s->bio.bio) && s->recoverable &&
-	    !s->unaligned_bvec && !s->read_dirty_data)
+	if (verify(dc, &s->bio.bio) && s->recoverable && !s->read_dirty_data)
 		bch_data_verify(dc, s->orig_bio);
 
 	bio_complete(s);
@@ -945,7 +787,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	struct bio *miss, *cache_bio;
 
 	if (s->cache_miss || s->iop.bypass) {
-		miss = bch_bio_split(bio, sectors, GFP_NOIO, s->d->bio_split);
+		miss = bio_next_split(bio, sectors, GFP_NOIO, s->d->bio_split);
 		ret = miss == bio ? MAP_DONE : MAP_CONTINUE;
 		goto out_submit;
 	}
@@ -959,7 +801,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	s->insert_bio_sectors = min(sectors, bio_sectors(bio) + reada);
 
 	s->iop.replace_key = KEY(s->iop.inode,
-				 bio->bi_sector + s->insert_bio_sectors,
+				 bio->bi_iter.bi_sector + s->insert_bio_sectors,
 				 s->insert_bio_sectors);
 
 	ret = bch_btree_insert_check_key(b, &s->op, &s->iop.replace_key);
@@ -968,7 +810,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 
 	s->iop.replace = true;
 
-	miss = bch_bio_split(bio, sectors, GFP_NOIO, s->d->bio_split);
+	miss = bio_next_split(bio, sectors, GFP_NOIO, s->d->bio_split);
 
 	/* btree_search_recurse()'s btree iterator is no good anymore */
 	ret = miss == bio ? MAP_DONE : -EINTR;
@@ -979,9 +821,9 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	if (!cache_bio)
 		goto out_submit;
 
-	cache_bio->bi_sector	= miss->bi_sector;
-	cache_bio->bi_bdev	= miss->bi_bdev;
-	cache_bio->bi_size	= s->insert_bio_sectors << 9;
+	cache_bio->bi_iter.bi_sector	= miss->bi_iter.bi_sector;
+	cache_bio->bi_bdev		= miss->bi_bdev;
+	cache_bio->bi_iter.bi_size	= s->insert_bio_sectors << 9;
 
 	cache_bio->bi_end_io	= request_endio;
 	cache_bio->bi_private	= &s->cl;
@@ -1031,7 +873,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 {
 	struct closure *cl = &s->cl;
 	struct bio *bio = &s->bio.bio;
-	struct bkey start = KEY(dc->disk.id, bio->bi_sector, 0);
+	struct bkey start = KEY(dc->disk.id, bio->bi_iter.bi_sector, 0);
 	struct bkey end = KEY(dc->disk.id, bio_end_sector(bio), 0);
 
 	bch_keybuf_check_overlapping(&s->iop.c->moving_gc_keys, &start, &end);
@@ -1087,8 +929,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 			closure_bio_submit(flush, cl, s->d);
 		}
 	} else {
-		s->iop.bio = bio_clone_bioset(bio, GFP_NOIO,
-					      dc->disk.bio_split);
+		s->iop.bio = bio_clone_fast(bio, GFP_NOIO, dc->disk.bio_split);
 
 		closure_bio_submit(bio, cl, s->d);
 	}
@@ -1126,13 +967,13 @@ static void cached_dev_make_request(struct request_queue *q, struct bio *bio)
 	part_stat_unlock();
 
 	bio->bi_bdev = dc->bdev;
-	bio->bi_sector += dc->sb.data_offset;
+	bio->bi_iter.bi_sector += dc->sb.data_offset;
 
 	if (cached_dev_get(dc)) {
 		s = search_alloc(bio, d);
 		trace_bcache_request_start(s->d, bio);
 
-		if (!bio->bi_size) {
+		if (!bio->bi_iter.bi_size) {
 			/*
 			 * can't call bch_journal_meta from under
 			 * generic_make_request
@@ -1204,24 +1045,15 @@ void bch_cached_dev_request_init(struct cached_dev *dc)
 static int flash_dev_cache_miss(struct btree *b, struct search *s,
 				struct bio *bio, unsigned sectors)
 {
-	struct bio_vec *bv;
-	int i;
+	unsigned bytes = min(sectors, bio_sectors(bio)) << 9;
 
-	/* Zero fill bio */
+	swap(bio->bi_iter.bi_size, bytes);
+	zero_fill_bio(bio);
+	swap(bio->bi_iter.bi_size, bytes);
 
-	bio_for_each_segment(bv, bio, i) {
-		unsigned j = min(bv->bv_len >> 9, sectors);
+	bio_advance(bio, bytes);
 
-		void *p = kmap(bv->bv_page);
-		memset(p + bv->bv_offset, 0, j << 9);
-		kunmap(bv->bv_page);
-
-		sectors	-= j;
-	}
-
-	bio_advance(bio, min(sectors << 9, bio->bi_size));
-
-	if (!bio->bi_size)
+	if (!bio->bi_iter.bi_size)
 		return MAP_DONE;
 
 	return MAP_CONTINUE;
@@ -1255,7 +1087,7 @@ static void flash_dev_make_request(struct request_queue *q, struct bio *bio)
 
 	trace_bcache_request_start(s->d, bio);
 
-	if (!bio->bi_size) {
+	if (!bio->bi_iter.bi_size) {
 		/*
 		 * can't call bch_journal_meta from under
 		 * generic_make_request
@@ -1265,7 +1097,7 @@ static void flash_dev_make_request(struct request_queue *q, struct bio *bio)
 				      bcache_wq);
 	} else if (rw) {
 		bch_keybuf_check_overlapping(&s->iop.c->moving_gc_keys,
-					&KEY(d->id, bio->bi_sector, 0),
+					&KEY(d->id, bio->bi_iter.bi_sector, 0),
 					&KEY(d->id, bio_end_sector(bio), 0));
 
 		s->iop.bypass		= (bio->bi_rw & REQ_DISCARD) != 0;
@@ -1314,9 +1146,6 @@ void bch_flash_dev_request_init(struct bcache_device *d)
 
 void bch_request_exit(void)
 {
-#ifdef CONFIG_CGROUP_BCACHE
-	cgroup_unload_subsys(&bcache_subsys);
-#endif
 	if (bch_search_cache)
 		kmem_cache_destroy(bch_search_cache);
 }
@@ -1327,11 +1156,5 @@ int __init bch_request_init(void)
 	if (!bch_search_cache)
 		return -ENOMEM;
 
-#ifdef CONFIG_CGROUP_BCACHE
-	cgroup_load_subsys(&bcache_subsys);
-	init_bch_cgroup(&bcache_default_cgroup);
-
-	cgroup_add_cftypes(&bcache_subsys, bch_files);
-#endif
 	return 0;
 }

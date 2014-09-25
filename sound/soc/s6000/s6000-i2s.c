@@ -570,7 +570,7 @@ err_release_none:
 	return ret;
 }
 
-static void s6000_i2s_remove(struct platform_device *pdev)
+static int s6000_i2s_remove(struct platform_device *pdev)
 {
 	struct s6000_i2s_dev *dev = dev_get_drvdata(&pdev->dev);
 	struct resource *region;
@@ -597,6 +597,8 @@ static void s6000_i2s_remove(struct platform_device *pdev)
 	iounmap(mmio);
 	region = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	release_mem_region(region->start, resource_size(region));
+
+	return 0;
 }
 
 static struct platform_driver s6000_i2s_driver = {

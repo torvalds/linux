@@ -13,7 +13,6 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/proc_fs.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 
 #include "pci.h"
@@ -132,7 +131,7 @@ static void pci_clip_resource_to_region(struct pci_bus *bus,
 
 static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 		resource_size_t size, resource_size_t align,
-		resource_size_t min, unsigned int type_mask,
+		resource_size_t min, unsigned long type_mask,
 		resource_size_t (*alignf)(void *,
 					  const struct resource *,
 					  resource_size_t,
@@ -144,7 +143,7 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 	struct resource *r, avail;
 	resource_size_t max;
 
-	type_mask |= IORESOURCE_IO | IORESOURCE_MEM;
+	type_mask |= IORESOURCE_TYPE_BITS;
 
 	pci_bus_for_each_resource(bus, r, i) {
 		if (!r)
@@ -162,8 +161,6 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 
 		avail = *r;
 		pci_clip_resource_to_region(bus, &avail, region);
-		if (!resource_size(&avail))
-			continue;
 
 		/*
 		 * "min" is typically PCIBIOS_MIN_IO or PCIBIOS_MIN_MEM to
@@ -202,7 +199,7 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
  */
 int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 		resource_size_t size, resource_size_t align,
-		resource_size_t min, unsigned int type_mask,
+		resource_size_t min, unsigned long type_mask,
 		resource_size_t (*alignf)(void *,
 					  const struct resource *,
 					  resource_size_t,
@@ -229,6 +226,7 @@ int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 					 type_mask, alignf, alignf_data,
 					 &pci_32_bit);
 }
+EXPORT_SYMBOL(pci_bus_alloc_resource);
 
 void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
 
@@ -238,7 +236,7 @@ void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
  *
  * This adds add sysfs entries and start device drivers
  */
-int pci_bus_add_device(struct pci_dev *dev)
+void pci_bus_add_device(struct pci_dev *dev)
 {
 	int retval;
 
@@ -255,9 +253,8 @@ int pci_bus_add_device(struct pci_dev *dev)
 	WARN_ON(retval < 0);
 
 	dev->is_added = 1;
-
-	return 0;
 }
+EXPORT_SYMBOL_GPL(pci_bus_add_device);
 
 /**
  * pci_bus_add_devices - start driver for PCI devices
@@ -269,16 +266,12 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	struct pci_bus *child;
-	int retval;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		/* Skip already-added devices */
 		if (dev->is_added)
 			continue;
-		retval = pci_bus_add_device(dev);
-		if (retval)
-			dev_err(&dev->dev, "Error adding device (%d)\n",
-				retval);
+		pci_bus_add_device(dev);
 	}
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -288,6 +281,7 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 			pci_bus_add_devices(child);
 	}
 }
+EXPORT_SYMBOL(pci_bus_add_devices);
 
 /** pci_walk_bus - walk devices on/under bus, calling callback.
  *  @top      bus whose devices should be walked
@@ -353,6 +347,3 @@ void pci_bus_put(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_put);
 
-EXPORT_SYMBOL(pci_bus_alloc_resource);
-EXPORT_SYMBOL_GPL(pci_bus_add_device);
-EXPORT_SYMBOL(pci_bus_add_devices);

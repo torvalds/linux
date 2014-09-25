@@ -73,53 +73,23 @@
 #include <asm/cachectl.h>
 #include <asm/setup.h>
 
-/* Instruction cache related Auxiliary registers */
-#define ARC_REG_IC_BCR		0x77	/* Build Config reg */
-#define ARC_REG_IC_IVIC		0x10
-#define ARC_REG_IC_CTRL		0x11
-#define ARC_REG_IC_IVIL		0x19
-#if (CONFIG_ARC_MMU_VER > 2)
-#define ARC_REG_IC_PTAG		0x1E
-#endif
-
-/* Bit val in IC_CTRL */
-#define IC_CTRL_CACHE_DISABLE   0x1
-
-/* Data cache related Auxiliary registers */
-#define ARC_REG_DC_BCR		0x72	/* Build Config reg */
-#define ARC_REG_DC_IVDC		0x47
-#define ARC_REG_DC_CTRL		0x48
-#define ARC_REG_DC_IVDL		0x4A
-#define ARC_REG_DC_FLSH		0x4B
-#define ARC_REG_DC_FLDL		0x4C
-#if (CONFIG_ARC_MMU_VER > 2)
-#define ARC_REG_DC_PTAG		0x5C
-#endif
-
-/* Bit val in DC_CTRL */
-#define DC_CTRL_INV_MODE_FLUSH  0x40
-#define DC_CTRL_FLUSH_STATUS    0x100
-
-char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len)
+char *arc_cache_mumbojumbo(int c, char *buf, int len)
 {
 	int n = 0;
-	unsigned int c = smp_processor_id();
 
-#define PR_CACHE(p, enb, str)						\
-{									\
+#define PR_CACHE(p, cfg, str)						\
 	if (!(p)->ver)							\
 		n += scnprintf(buf + n, len - n, str"\t\t: N/A\n");	\
 	else								\
 		n += scnprintf(buf + n, len - n,			\
-			str"\t\t: (%uK) VIPT, %dway set-asc, %ub Line %s\n", \
-			TO_KB((p)->sz), (p)->assoc, (p)->line_len,	\
-			enb ?  "" : "DISABLED (kernel-build)");		\
-}
+			str"\t\t: %uK, %dway/set, %uB Line, %s%s%s\n",	\
+			(p)->sz_k, (p)->assoc, (p)->line_len,		\
+			(p)->vipt ? "VIPT" : "PIPT",			\
+			(p)->alias ? " aliasing" : "",			\
+			IS_ENABLED(cfg) ? "" : " (not used)");
 
-	PR_CACHE(&cpuinfo_arc700[c].icache, IS_ENABLED(CONFIG_ARC_HAS_ICACHE),
-			"I-Cache");
-	PR_CACHE(&cpuinfo_arc700[c].dcache, IS_ENABLED(CONFIG_ARC_HAS_DCACHE),
-			"D-Cache");
+	PR_CACHE(&cpuinfo_arc700[c].icache, CONFIG_ARC_HAS_ICACHE, "I-Cache");
+	PR_CACHE(&cpuinfo_arc700[c].dcache, CONFIG_ARC_HAS_DCACHE, "D-Cache");
 
 	return buf;
 }
@@ -144,20 +114,31 @@ void read_decode_cache_bcr(void)
 	p_ic = &cpuinfo_arc700[cpu].icache;
 	READ_BCR(ARC_REG_IC_BCR, ibcr);
 
+	if (!ibcr.ver)
+		goto dc_chk;
+
 	BUG_ON(ibcr.config != 3);
 	p_ic->assoc = 2;		/* Fixed to 2w set assoc */
 	p_ic->line_len = 8 << ibcr.line_len;
-	p_ic->sz = 0x200 << ibcr.sz;
+	p_ic->sz_k = 1 << (ibcr.sz - 1);
 	p_ic->ver = ibcr.ver;
+	p_ic->vipt = 1;
+	p_ic->alias = p_ic->sz_k/p_ic->assoc/TO_KB(PAGE_SIZE) > 1;
 
+dc_chk:
 	p_dc = &cpuinfo_arc700[cpu].dcache;
 	READ_BCR(ARC_REG_DC_BCR, dbcr);
+
+	if (!dbcr.ver)
+		return;
 
 	BUG_ON(dbcr.config != 2);
 	p_dc->assoc = 4;		/* Fixed to 4w set assoc */
 	p_dc->line_len = 16 << dbcr.line_len;
-	p_dc->sz = 0x200 << dbcr.sz;
+	p_dc->sz_k = 1 << (dbcr.sz - 1);
 	p_dc->ver = dbcr.ver;
+	p_dc->vipt = 1;
+	p_dc->alias = p_dc->sz_k/p_dc->assoc/TO_KB(PAGE_SIZE) > 1;
 }
 
 /*
@@ -169,72 +150,45 @@ void read_decode_cache_bcr(void)
  */
 void arc_cache_init(void)
 {
-	unsigned int cpu = smp_processor_id();
-	struct cpuinfo_arc_cache *ic = &cpuinfo_arc700[cpu].icache;
-	struct cpuinfo_arc_cache *dc = &cpuinfo_arc700[cpu].dcache;
-	unsigned int dcache_does_alias, temp;
+	unsigned int __maybe_unused cpu = smp_processor_id();
 	char str[256];
 
 	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
 
-	if (!ic->ver)
-		goto chk_dc;
+	if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE)) {
+		struct cpuinfo_arc_cache *ic = &cpuinfo_arc700[cpu].icache;
 
-#ifdef CONFIG_ARC_HAS_ICACHE
-	/* 1. Confirm some of I-cache params which Linux assumes */
-	if (ic->line_len != L1_CACHE_BYTES)
-		panic("Cache H/W doesn't match kernel Config");
+		if (!ic->ver)
+			panic("cache support enabled but non-existent cache\n");
 
-	if (ic->ver != CONFIG_ARC_MMU_VER)
-		panic("Cache ver doesn't match MMU ver\n");
-#endif
+		if (ic->line_len != L1_CACHE_BYTES)
+			panic("ICache line [%d] != kernel Config [%d]",
+			      ic->line_len, L1_CACHE_BYTES);
 
-	/* Enable/disable I-Cache */
-	temp = read_aux_reg(ARC_REG_IC_CTRL);
+		if (ic->ver != CONFIG_ARC_MMU_VER)
+			panic("Cache ver [%d] doesn't match MMU ver [%d]\n",
+			      ic->ver, CONFIG_ARC_MMU_VER);
+	}
 
-#ifdef CONFIG_ARC_HAS_ICACHE
-	temp &= ~IC_CTRL_CACHE_DISABLE;
-#else
-	temp |= IC_CTRL_CACHE_DISABLE;
-#endif
+	if (IS_ENABLED(CONFIG_ARC_HAS_DCACHE)) {
+		struct cpuinfo_arc_cache *dc = &cpuinfo_arc700[cpu].dcache;
+		int handled;
 
-	write_aux_reg(ARC_REG_IC_CTRL, temp);
+		if (!dc->ver)
+			panic("cache support enabled but non-existent cache\n");
 
-chk_dc:
-	if (!dc->ver)
-		return;
+		if (dc->line_len != L1_CACHE_BYTES)
+			panic("DCache line [%d] != kernel Config [%d]",
+			      dc->line_len, L1_CACHE_BYTES);
 
-#ifdef CONFIG_ARC_HAS_DCACHE
-	if (dc->line_len != L1_CACHE_BYTES)
-		panic("Cache H/W doesn't match kernel Config");
+		/* check for D-Cache aliasing */
+		handled = IS_ENABLED(CONFIG_ARC_CACHE_VIPT_ALIASING);
 
-	/* check for D-Cache aliasing */
-	dcache_does_alias = (dc->sz / dc->assoc) > PAGE_SIZE;
-
-	if (dcache_does_alias && !cache_is_vipt_aliasing())
-		panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
-	else if (!dcache_does_alias && cache_is_vipt_aliasing())
-		panic("Don't need CONFIG_ARC_CACHE_VIPT_ALIASING\n");
-#endif
-
-	/* Set the default Invalidate Mode to "simpy discard dirty lines"
-	 *  as this is more frequent then flush before invalidate
-	 * Ofcourse we toggle this default behviour when desired
-	 */
-	temp = read_aux_reg(ARC_REG_DC_CTRL);
-	temp &= ~DC_CTRL_INV_MODE_FLUSH;
-
-#ifdef CONFIG_ARC_HAS_DCACHE
-	/* Enable D-Cache: Clear Bit 0 */
-	write_aux_reg(ARC_REG_DC_CTRL, temp & ~IC_CTRL_CACHE_DISABLE);
-#else
-	/* Flush D cache */
-	write_aux_reg(ARC_REG_DC_FLSH, 0x1);
-	/* Disable D cache */
-	write_aux_reg(ARC_REG_DC_CTRL, temp | IC_CTRL_CACHE_DISABLE);
-#endif
-
-	return;
+		if (dc->alias && !handled)
+			panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
+		else if (!dc->alias && handled)
+			panic("Don't need CONFIG_ARC_CACHE_VIPT_ALIASING\n");
+	}
 }
 
 #define OP_INV		0x1
@@ -254,12 +208,16 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
 
 	if (cacheop == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
+#if (CONFIG_ARC_MMU_VER > 2)
 		aux_tag = ARC_REG_IC_PTAG;
+#endif
 	}
 	else {
 		/* d$ cmd: INV (discard or wback-n-discard) OR FLUSH (wback) */
 		aux_cmd = cacheop & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
+#if (CONFIG_ARC_MMU_VER > 2)
 		aux_tag = ARC_REG_DC_PTAG;
+#endif
 	}
 
 	/* Ensure we properly floor/ceil the non-line aligned/sized requests
@@ -282,7 +240,7 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
 #else
 	/* if V-P const for loop, PTAG can be written once outside loop */
 	if (full_page_op)
-		write_aux_reg(ARC_REG_DC_PTAG, paddr);
+		write_aux_reg(aux_tag, paddr);
 #endif
 
 	while (num_lines-- > 0) {
@@ -296,7 +254,7 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
 		write_aux_reg(aux_cmd, vaddr);
 		vaddr += L1_CACHE_BYTES;
 #else
-		write_aux_reg(aux, paddr);
+		write_aux_reg(aux_cmd, paddr);
 		paddr += L1_CACHE_BYTES;
 #endif
 	}
@@ -308,10 +266,32 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
  * Machine specific helpers for Entire D-Cache or Per Line ops
  */
 
-static inline void wait_for_flush(void)
+static unsigned int __before_dc_op(const int op)
 {
-	while (read_aux_reg(ARC_REG_DC_CTRL) & DC_CTRL_FLUSH_STATUS)
-		;
+	unsigned int reg = reg;
+
+	if (op == OP_FLUSH_N_INV) {
+		/* Dcache provides 2 cmd: FLUSH or INV
+		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
+		 * flush-n-inv is achieved by INV cmd but with IM=1
+		 * So toggle INV sub-mode depending on op request and default
+		 */
+		reg = read_aux_reg(ARC_REG_DC_CTRL);
+		write_aux_reg(ARC_REG_DC_CTRL, reg | DC_CTRL_INV_MODE_FLUSH)
+			;
+	}
+
+	return reg;
+}
+
+static void __after_dc_op(const int op, unsigned int reg)
+{
+	if (op & OP_FLUSH)	/* flush / flush-n-inv both wait */
+		while (read_aux_reg(ARC_REG_DC_CTRL) & DC_CTRL_FLUSH_STATUS);
+
+	/* Switch back to default Invalidate mode */
+	if (op == OP_FLUSH_N_INV)
+		write_aux_reg(ARC_REG_DC_CTRL, reg & ~DC_CTRL_INV_MODE_FLUSH);
 }
 
 /*
@@ -322,18 +302,10 @@ static inline void wait_for_flush(void)
  */
 static inline void __dc_entire_op(const int cacheop)
 {
-	unsigned int tmp = tmp;
+	unsigned int ctrl_reg;
 	int aux;
 
-	if (cacheop == OP_FLUSH_N_INV) {
-		/* Dcache provides 2 cmd: FLUSH or INV
-		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
-		 * flush-n-inv is achieved by INV cmd but with IM=1
-		 * Default INV sub-mode is DISCARD, which needs to be toggled
-		 */
-		tmp = read_aux_reg(ARC_REG_DC_CTRL);
-		write_aux_reg(ARC_REG_DC_CTRL, tmp | DC_CTRL_INV_MODE_FLUSH);
-	}
+	ctrl_reg = __before_dc_op(cacheop);
 
 	if (cacheop & OP_INV)	/* Inv or flush-n-inv use same cmd reg */
 		aux = ARC_REG_DC_IVDC;
@@ -342,12 +314,7 @@ static inline void __dc_entire_op(const int cacheop)
 
 	write_aux_reg(aux, 0x1);
 
-	if (cacheop & OP_FLUSH)	/* flush / flush-n-inv both wait */
-		wait_for_flush();
-
-	/* Switch back the DISCARD ONLY Invalidate mode */
-	if (cacheop == OP_FLUSH_N_INV)
-		write_aux_reg(ARC_REG_DC_CTRL, tmp & ~DC_CTRL_INV_MODE_FLUSH);
+	__after_dc_op(cacheop, ctrl_reg);
 }
 
 /* For kernel mappings cache operation: index is same as paddr */
@@ -359,29 +326,16 @@ static inline void __dc_entire_op(const int cacheop)
 static inline void __dc_line_op(unsigned long paddr, unsigned long vaddr,
 				unsigned long sz, const int cacheop)
 {
-	unsigned long flags, tmp = tmp;
+	unsigned long flags;
+	unsigned int ctrl_reg;
 
 	local_irq_save(flags);
 
-	if (cacheop == OP_FLUSH_N_INV) {
-		/*
-		 * Dcache provides 2 cmd: FLUSH or INV
-		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
-		 * flush-n-inv is achieved by INV cmd but with IM=1
-		 * Default INV sub-mode is DISCARD, which needs to be toggled
-		 */
-		tmp = read_aux_reg(ARC_REG_DC_CTRL);
-		write_aux_reg(ARC_REG_DC_CTRL, tmp | DC_CTRL_INV_MODE_FLUSH);
-	}
+	ctrl_reg = __before_dc_op(cacheop);
 
 	__cache_line_loop(paddr, vaddr, sz, cacheop);
 
-	if (cacheop & OP_FLUSH)	/* flush / flush-n-inv both wait */
-		wait_for_flush();
-
-	/* Switch back the DISCARD ONLY Invalidate mode */
-	if (cacheop == OP_FLUSH_N_INV)
-		write_aux_reg(ARC_REG_DC_CTRL, tmp & ~DC_CTRL_INV_MODE_FLUSH);
+	__after_dc_op(cacheop, ctrl_reg);
 
 	local_irq_restore(flags);
 }
@@ -442,8 +396,16 @@ static inline void __dc_line_op(unsigned long paddr, unsigned long vaddr,
 /***********************************************************
  * Machine specific helper for per line I-Cache invalidate.
  */
-static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
-				unsigned long sz)
+
+static inline void __ic_entire_inv(void)
+{
+	write_aux_reg(ARC_REG_IC_IVIC, 1);
+	read_aux_reg(ARC_REG_IC_CTRL);	/* blocks */
+}
+
+static inline void
+__ic_line_inv_vaddr_local(unsigned long paddr, unsigned long vaddr,
+			  unsigned long sz)
 {
 	unsigned long flags;
 
@@ -452,13 +414,39 @@ static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
 	local_irq_restore(flags);
 }
 
-static inline void __ic_entire_inv(void)
-{
-	write_aux_reg(ARC_REG_IC_IVIC, 1);
-	read_aux_reg(ARC_REG_IC_CTRL);	/* blocks */
-}
+#ifndef CONFIG_SMP
+
+#define __ic_line_inv_vaddr(p, v, s)	__ic_line_inv_vaddr_local(p, v, s)
 
 #else
+
+struct ic_inv_args {
+	unsigned long paddr, vaddr;
+	int sz;
+};
+
+static void __ic_line_inv_vaddr_helper(void *info)
+{
+        struct ic_inv_args *ic_inv = info;
+
+        __ic_line_inv_vaddr_local(ic_inv->paddr, ic_inv->vaddr, ic_inv->sz);
+}
+
+static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
+				unsigned long sz)
+{
+	struct ic_inv_args ic_inv = {
+		.paddr = paddr,
+		.vaddr = vaddr,
+		.sz    = sz
+	};
+
+	on_each_cpu(__ic_line_inv_vaddr_helper, &ic_inv, 1);
+}
+
+#endif	/* CONFIG_SMP */
+
+#else	/* !CONFIG_ARC_HAS_ICACHE */
 
 #define __ic_entire_inv()
 #define __ic_line_inv_vaddr(pstart, vstart, sz)
@@ -593,6 +581,7 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 		tot_sz -= sz;
 	}
 }
+EXPORT_SYMBOL(flush_icache_range);
 
 /*
  * General purpose helper to make I and D cache lines consistent.
@@ -606,12 +595,8 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
  */
 void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__ic_line_inv_vaddr(paddr, vaddr, len);
 	__dc_line_op(paddr, vaddr, len, OP_FLUSH_N_INV);
-	local_irq_restore(flags);
+	__ic_line_inv_vaddr(paddr, vaddr, len);
 }
 
 /* wrapper to compile time eliminate alignment checks in flush loop */

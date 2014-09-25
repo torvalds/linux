@@ -9,6 +9,7 @@
 #define _LINUX_BACKLIGHT_H
 
 #include <linux/device.h>
+#include <linux/fb.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 
@@ -37,6 +38,11 @@ enum backlight_type {
 	BACKLIGHT_PLATFORM,
 	BACKLIGHT_FIRMWARE,
 	BACKLIGHT_TYPE_MAX,
+};
+
+enum backlight_notification {
+	BACKLIGHT_REGISTERED,
+	BACKLIGHT_UNREGISTERED,
 };
 
 struct backlight_device;
@@ -104,6 +110,11 @@ struct backlight_device {
 	struct list_head entry;
 
 	struct device dev;
+
+	/* Multiple framebuffers may share one backlight device */
+	bool fb_bl_on[FB_MAX];
+
+	int use_count;
 };
 
 static inline void backlight_update_status(struct backlight_device *bd)
@@ -127,6 +138,8 @@ extern void devm_backlight_device_unregister(struct device *dev,
 extern void backlight_force_update(struct backlight_device *bd,
 				   enum backlight_update_reason reason);
 extern bool backlight_device_registered(enum backlight_type type);
+extern int backlight_register_notifier(struct notifier_block *nb);
+extern int backlight_unregister_notifier(struct notifier_block *nb);
 
 #define to_backlight_device(obj) container_of(obj, struct backlight_device, dev)
 

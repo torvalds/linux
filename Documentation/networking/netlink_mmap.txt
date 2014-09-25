@@ -226,9 +226,9 @@ Ring setup:
 	void *rx_ring, *tx_ring;
 
 	/* Configure ring parameters */
-	if (setsockopt(fd, NETLINK_RX_RING, &req, sizeof(req)) < 0)
+	if (setsockopt(fd, SOL_NETLINK, NETLINK_RX_RING, &req, sizeof(req)) < 0)
 		exit(1);
-	if (setsockopt(fd, NETLINK_TX_RING, &req, sizeof(req)) < 0)
+	if (setsockopt(fd, SOL_NETLINK, NETLINK_TX_RING, &req, sizeof(req)) < 0)
 		exit(1)
 
 	/* Calculate size of each individual ring */

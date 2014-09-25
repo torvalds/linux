@@ -20,23 +20,27 @@ enum {
 	SOF_TIMESTAMPING_SOFTWARE = (1<<4),
 	SOF_TIMESTAMPING_SYS_HARDWARE = (1<<5),
 	SOF_TIMESTAMPING_RAW_HARDWARE = (1<<6),
-	SOF_TIMESTAMPING_MASK =
-	(SOF_TIMESTAMPING_RAW_HARDWARE - 1) |
-	SOF_TIMESTAMPING_RAW_HARDWARE
+	SOF_TIMESTAMPING_OPT_ID = (1<<7),
+	SOF_TIMESTAMPING_TX_SCHED = (1<<8),
+	SOF_TIMESTAMPING_TX_ACK = (1<<9),
+
+	SOF_TIMESTAMPING_LAST = SOF_TIMESTAMPING_TX_ACK,
+	SOF_TIMESTAMPING_MASK = (SOF_TIMESTAMPING_LAST - 1) |
+				 SOF_TIMESTAMPING_LAST
 };
 
 /**
- * struct hwtstamp_config - %SIOCSHWTSTAMP parameter
+ * struct hwtstamp_config - %SIOCGHWTSTAMP and %SIOCSHWTSTAMP parameter
  *
- * @flags:	no flags defined right now, must be zero
+ * @flags:	no flags defined right now, must be zero for %SIOCSHWTSTAMP
  * @tx_type:	one of HWTSTAMP_TX_*
- * @rx_type:	one of one of HWTSTAMP_FILTER_*
+ * @rx_filter:	one of HWTSTAMP_FILTER_*
  *
- * %SIOCSHWTSTAMP expects a &struct ifreq with a ifr_data pointer to
- * this structure. dev_ifsioc() in the kernel takes care of the
- * translation between 32 bit userspace and 64 bit kernel. The
- * structure is intentionally chosen so that it has the same layout on
- * 32 and 64 bit systems, don't break this!
+ * %SIOCGHWTSTAMP and %SIOCSHWTSTAMP expect a &struct ifreq with a
+ * ifr_data pointer to this structure.  For %SIOCSHWTSTAMP, if the
+ * driver or hardware does not support the requested @rx_filter value,
+ * the driver may use a more general filter mode.  In this case
+ * @rx_filter will indicate the actual mode on return.
  */
 struct hwtstamp_config {
 	int flags;

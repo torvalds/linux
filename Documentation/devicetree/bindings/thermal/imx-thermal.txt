@@ -8,10 +8,14 @@ Required properties:
   calibration data, e.g. OCOTP on imx6q.  The details about calibration data
   can be found in SoC Reference Manual.
 
+Optional properties:
+- clocks : thermal sensor's clock source.
+
 Example:
 
 tempmon {
 	compatible = "fsl,imx6q-tempmon";
 	fsl,tempmon = <&anatop>;
 	fsl,tempmon-data = <&ocotp>;
+	clocks = <&clks 172>;
 };

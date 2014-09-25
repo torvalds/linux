@@ -240,7 +240,7 @@ struct rme96 {
 
 	u8 rev; /* card revision number */
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	u32 playback_pointer;
 	u32 capture_pointer;
 	void *playback_suspend_buffer;
@@ -263,7 +263,7 @@ struct rme96 {
 	struct snd_kcontrol   *spdif_ctl;
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snd_rme96_ids) = {
+static const struct pci_device_id snd_rme96_ids[] = {
 	{ PCI_VDEVICE(XILINX, PCI_DEVICE_ID_RME_DIGI96), 0, },
 	{ PCI_VDEVICE(XILINX, PCI_DEVICE_ID_RME_DIGI96_8), 0, },
 	{ PCI_VDEVICE(XILINX, PCI_DEVICE_ID_RME_DIGI96_8_PRO), 0, },
@@ -1570,7 +1570,7 @@ snd_rme96_free(void *private_data)
 		pci_release_regions(rme96->pci);
 		rme96->port = 0;
 	}
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	vfree(rme96->playback_suspend_buffer);
 	vfree(rme96->capture_suspend_buffer);
 #endif
@@ -1609,13 +1609,15 @@ snd_rme96_create(struct rme96 *rme96)
 
 	rme96->iobase = ioremap_nocache(rme96->port, RME96_IO_SIZE);
 	if (!rme96->iobase) {
-		snd_printk(KERN_ERR "unable to remap memory region 0x%lx-0x%lx\n", rme96->port, rme96->port + RME96_IO_SIZE - 1);
+		dev_err(rme96->card->dev,
+			"unable to remap memory region 0x%lx-0x%lx\n",
+			rme96->port, rme96->port + RME96_IO_SIZE - 1);
 		return -ENOMEM;
 	}
 
 	if (request_irq(pci->irq, snd_rme96_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, rme96)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		dev_err(rme96->card->dev, "unable to grab IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
 	rme96->irq = pci->irq;
@@ -2372,13 +2374,12 @@ snd_rme96_create_switches(struct snd_card *card,
  * Card initialisation
  */
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
-static int
-snd_rme96_suspend(struct pci_dev *pci,
-		  pm_message_t state)
+static int rme96_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct rme96 *rme96 = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
@@ -2407,15 +2408,15 @@ snd_rme96_suspend(struct pci_dev *pci,
 	return 0;
 }
 
-static int
-snd_rme96_resume(struct pci_dev *pci)
+static int rme96_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct rme96 *rme96 = card->private_data;
 
 	pci_restore_state(pci);
 	if (pci_enable_device(pci) < 0) {
-		printk(KERN_ERR "rme96: pci_enable_device failed, disabling device\n");
+		dev_err(dev, "pci_enable_device failed, disabling device\n");
 		snd_card_disconnect(card);
 		return -EIO;
 	}
@@ -2451,7 +2452,11 @@ snd_rme96_resume(struct pci_dev *pci)
 	return 0;
 }
 
-#endif
+static SIMPLE_DEV_PM_OPS(rme96_pm, rme96_suspend, rme96_resume);
+#define RME96_PM_OPS	&rme96_pm
+#else
+#define RME96_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP */
 
 static void snd_rme96_card_free(struct snd_card *card)
 {
@@ -2475,31 +2480,30 @@ snd_rme96_probe(struct pci_dev *pci,
 		dev++;
 		return -ENOENT;
 	}
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct rme96), &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct rme96), &card);
 	if (err < 0)
 		return err;
 	card->private_free = snd_rme96_card_free;
 	rme96 = card->private_data;
 	rme96->card = card;
 	rme96->pci = pci;
-	snd_card_set_dev(card, &pci->dev);
 	if ((err = snd_rme96_create(rme96)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
 	
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	rme96->playback_suspend_buffer = vmalloc(RME96_BUFFER_SIZE);
 	if (!rme96->playback_suspend_buffer) {
-		snd_printk(KERN_ERR
+		dev_err(card->dev,
 			   "Failed to allocate playback suspend buffer!\n");
 		snd_card_free(card);
 		return -ENOMEM;
 	}
 	rme96->capture_suspend_buffer = vmalloc(RME96_BUFFER_SIZE);
 	if (!rme96->capture_suspend_buffer) {
-		snd_printk(KERN_ERR
+		dev_err(card->dev,
 			   "Failed to allocate capture suspend buffer!\n");
 		snd_card_free(card);
 		return -ENOMEM;
@@ -2548,10 +2552,9 @@ static struct pci_driver rme96_driver = {
 	.id_table = snd_rme96_ids,
 	.probe = snd_rme96_probe,
 	.remove = snd_rme96_remove,
-#ifdef CONFIG_PM
-	.suspend = snd_rme96_suspend,
-	.resume = snd_rme96_resume,
-#endif
+	.driver = {
+		.pm = RME96_PM_OPS,
+	},
 };
 
 module_pci_driver(rme96_driver);

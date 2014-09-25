@@ -5,6 +5,30 @@
 
 menu "Pressure sensors"
 
+config HID_SENSOR_PRESS
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
+	tristate "HID PRESS"
+	help
+	  Say yes here to build support for the HID SENSOR
+	  Pressure driver
+
+          To compile this driver as a module, choose M here: the module
+          will be called hid-sensor-press.
+
+config MPL115
+	tristate "Freescale MPL115A2 pressure sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Freescale MPL115A2
+	  pressure sensor connected via I2C.
+
+          To compile this driver as a module, choose M here: the module
+          will be called mpl115.
+
 config MPL3115
 	tristate "Freescale MPL3115A2 pressure sensor driver"
 	depends on I2C
@@ -26,7 +50,7 @@ config IIO_ST_PRESS
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics pressure
-	  sensors: LPS001WP, LPS331AP.
+	  sensors: LPS001WP, LPS25H, LPS331AP.
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:
@@ -45,5 +69,15 @@ config IIO_ST_PRESS_SPI
 	tristate
 	depends on IIO_ST_PRESS
 	depends on IIO_ST_SENSORS_SPI
+
+config T5403
+	tristate "EPCOS T5403 digital barometric pressure sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the EPCOS T5403 pressure sensor
+	  connected via I2C.
+
+          To compile this driver as a module, choose M here: the module
+          will be called t5403.
 
 endmenu

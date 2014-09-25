@@ -48,13 +48,13 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_lib.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_lite.h>
-#include <lustre_dlm.h>
-#include <lustre_fid.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_lite.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_fid.h"
 #include "llite_internal.h"
 
 /*
@@ -158,7 +158,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	int i;
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p) hash "LPU64"\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p) hash %llu\n",
 	       inode->i_ino, inode->i_generation, inode, hash);
 
 	LASSERT(max_pages > 0 && max_pages <= MD_MAX_BRW_PAGES);
@@ -302,9 +302,9 @@ static struct page *ll_dir_page_locate(struct inode *dir, __u64 *hash,
 				*start = le64_to_cpu(dp->ldp_hash_start);
 				*end   = le64_to_cpu(dp->ldp_hash_end);
 			}
-			LASSERTF(*start <= *hash, "start = "LPX64",end = "
-				 LPX64",hash = "LPX64"\n", *start, *end, *hash);
-			CDEBUG(D_VFSTRACE, "page %lu [%llu %llu], hash "LPU64"\n",
+			LASSERTF(*start <= *hash, "start = %#llx,end = %#llx,hash = %#llx\n",
+				 *start, *end, *hash);
+			CDEBUG(D_VFSTRACE, "page %lu [%llu %llu], hash %llu\n",
 			       offset, *start, *end, *hash);
 			if (*hash > *end) {
 				ll_release_page(page, 0);
@@ -362,7 +362,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 		struct ptlrpc_request *request;
 		struct md_op_data *op_data;
 
-		op_data = ll_prep_md_op_data(NULL, dir, NULL, NULL, 0, 0,
+		op_data = ll_prep_md_op_data(NULL, dir, dir, NULL, 0, 0,
 		LUSTRE_OPC_ANY, NULL);
 		if (IS_ERR(op_data))
 			return (void *)op_data;
@@ -376,7 +376,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 		if (request)
 			ptlrpc_req_finished(request);
 		if (rc < 0) {
-			CERROR("lock enqueue: "DFID" at "LPU64": rc %d\n",
+			CERROR("lock enqueue: "DFID" at %llu: rc %d\n",
 				PFID(ll_inode2fid(dir)), hash, rc);
 			return ERR_PTR(rc);
 		}
@@ -396,7 +396,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 	mutex_lock(&lli->lli_readdir_mutex);
 	page = ll_dir_page_locate(dir, &lhash, &start, &end);
 	if (IS_ERR(page)) {
-		CERROR("dir page locate: "DFID" at "LPU64": rc %ld\n",
+		CERROR("dir page locate: "DFID" at %llu: rc %ld\n",
 		       PFID(ll_inode2fid(dir)), lhash, PTR_ERR(page));
 		GOTO(out_unlock, page);
 	} else if (page != NULL) {
@@ -420,7 +420,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 	page = read_cache_page(mapping, hash_x_index(hash, hash64),
 			       ll_dir_filler, &lhash);
 	if (IS_ERR(page)) {
-		CERROR("read cache page: "DFID" at "LPU64": rc %ld\n",
+		CERROR("read cache page: "DFID" at %llu: rc %ld\n",
 		       PFID(ll_inode2fid(dir)), hash, PTR_ERR(page));
 		GOTO(out_unlock, page);
 	}
@@ -428,14 +428,14 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 	wait_on_page_locked(page);
 	(void)kmap(page);
 	if (!PageUptodate(page)) {
-		CERROR("page not updated: "DFID" at "LPU64": rc %d\n",
+		CERROR("page not updated: "DFID" at %llu: rc %d\n",
 		       PFID(ll_inode2fid(dir)), hash, -5);
 		goto fail;
 	}
 	if (!PageChecked(page))
 		ll_check_page(dir, page);
 	if (PageError(page)) {
-		CERROR("page error: "DFID" at "LPU64": rc %d\n",
+		CERROR("page error: "DFID" at %llu: rc %d\n",
 		       PFID(ll_inode2fid(dir)), hash, -5);
 		goto fail;
 	}
@@ -452,10 +452,9 @@ hash_collision:
 	}
 	if (end == start) {
 		LASSERT(start == lhash);
-		CWARN("Page-wide hash collision: "LPU64"\n", end);
+		CWARN("Page-wide hash collision: %llu\n", end);
 		if (BITS_PER_LONG == 32 && hash64)
-			CWARN("Real page-wide hash collision at ["LPU64" "LPU64
-			      "] with hash "LPU64"\n",
+			CWARN("Real page-wide hash collision at [%llu %llu] with hash %llu\n",
 			      le64_to_cpu(dp->ldp_hash_start),
 			      le64_to_cpu(dp->ldp_hash_end), hash);
 		/*
@@ -632,7 +631,7 @@ out:
 	return rc;
 }
 
-int ll_send_mgc_param(struct obd_export *mgc, char *string)
+static int ll_send_mgc_param(struct obd_export *mgc, char *string)
 {
 	struct mgs_send_param *msp;
 	int rc = 0;
@@ -795,7 +794,7 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 	int rc, lmmsize;
 	struct md_op_data *op_data;
 
-	rc = ll_get_max_mdsize(sbi, &lmmsize);
+	rc = ll_get_default_mdsize(sbi, &lmmsize);
 	if (rc)
 		return rc;
 
@@ -926,8 +925,7 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 		iput(inode);
 		if (rc != 0) {
 			CDEBUG(D_HSM, "Could not read file data version of "
-				      DFID" (rc = %d). Archive request ("
-				      LPX64") could not be done.\n",
+				      DFID" (rc = %d). Archive request (%#llx) could not be done.\n",
 				      PFID(&copy->hc_hai.hai_fid), rc,
 				      copy->hc_hai.hai_cookie);
 			hpk.hpk_flags |= HP_FLAG_RETRY;
@@ -1023,7 +1021,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 		    (copy->hc_data_version != data_version)) {
 			CDEBUG(D_HSM, "File data version mismatched. "
 			      "File content was changed during archiving. "
-			       DFID", start:"LPX64" current:"LPX64"\n",
+			       DFID", start:%#llx current:%#llx\n",
 			       PFID(&copy->hc_hai.hai_fid),
 			       copy->hc_data_version, data_version);
 			/* File was changed, send error to cdt. Do not ask for
@@ -1048,20 +1046,25 @@ progress:
 }
 
 
-static int copy_and_ioctl(int cmd, struct obd_export *exp, void *data, int len)
+static int copy_and_ioctl(int cmd, struct obd_export *exp,
+			  const void __user *data, size_t size)
 {
-	void *ptr;
+	void *copy;
 	int rc;
 
-	OBD_ALLOC(ptr, len);
-	if (ptr == NULL)
+	OBD_ALLOC(copy, size);
+	if (copy == NULL)
 		return -ENOMEM;
-	if (copy_from_user(ptr, data, len)) {
-		OBD_FREE(ptr, len);
-		return -EFAULT;
+
+	if (copy_from_user(copy, data, size)) {
+		rc = -EFAULT;
+		goto out;
 	}
-	rc = obd_iocontrol(cmd, exp, len, data, NULL);
-	OBD_FREE(ptr, len);
+
+	rc = obd_iocontrol(cmd, exp, size, copy, NULL);
+out:
+	OBD_FREE(copy, size);
+
 	return rc;
 }
 
@@ -1080,16 +1083,16 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	case Q_QUOTAOFF:
 	case Q_SETQUOTA:
 	case Q_SETINFO:
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 		break;
 	case Q_GETQUOTA:
 		if (((type == USRQUOTA &&
-		      uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
+		      !uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
 		     (type == GRPQUOTA &&
 		      !in_egroup_p(make_kgid(&init_user_ns, id)))) &&
-		    (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		    (!capable(CFS_CAP_SYS_ADMIN) ||
 		     sbi->ll_flags & LL_SBI_RMT_CLIENT))
 			return -EPERM;
 		break;
@@ -1261,7 +1264,7 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (mdtidx < 0)
 			return mdtidx;
 
-		if (put_user((int)mdtidx, (int*)arg))
+		if (put_user((int)mdtidx, (int *)arg))
 			return -EFAULT;
 
 		return 0;
@@ -1395,7 +1398,7 @@ lmv_out_free:
 		if (tmp == NULL)
 			GOTO(free_lmv, rc = -ENOMEM);
 
-		memcpy(tmp, &lum, sizeof(lum));
+		*tmp = lum;
 		tmp->lum_type = LMV_STRIPE_TYPE;
 		tmp->lum_stripe_count = 1;
 		mdtindex = ll_get_mdt_idx(inode);
@@ -1496,7 +1499,7 @@ out_rmdir:
 				GOTO(out_req, rc = -EFAULT);
 			rc = -EOVERFLOW;
 		}
-	skip_lmm:
+skip_lmm:
 		if (cmd == IOC_MDC_GETFILEINFO || cmd == LL_IOC_MDC_GETINFO) {
 			struct lov_user_mds_data *lmdp;
 			lstat_t st = { 0 };
@@ -1520,7 +1523,7 @@ out_rmdir:
 				GOTO(out_req, rc = -EFAULT);
 		}
 
-	out_req:
+out_req:
 		ptlrpc_req_finished(request);
 		if (filename)
 			ll_putname(filename);
@@ -1584,9 +1587,9 @@ out_rmdir:
 		if (copy_to_user(&lumd->lmd_st, &st, sizeof(st)))
 			GOTO(free_lsm, rc = -EFAULT);
 
-	free_lsm:
+free_lsm:
 		obd_free_memmd(sbi->ll_dt_exp, &lsm);
-	free_lmm:
+free_lmm:
 		OBD_FREE_LARGE(lmm, lmmsize);
 		return rc;
 	}
@@ -1597,7 +1600,7 @@ out_rmdir:
 		struct obd_quotactl *oqctl;
 		int error = 0;
 
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 
@@ -1621,7 +1624,7 @@ out_rmdir:
 	case OBD_IOC_POLL_QUOTACHECK: {
 		struct if_quotacheck *check;
 
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
+		if (!capable(CFS_CAP_SYS_ADMIN) ||
 		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
 			return -EPERM;
 
@@ -1648,7 +1651,7 @@ out_rmdir:
 				CDEBUG(D_QUOTA, "copy_to_user failed\n");
 			GOTO(out_poll, rc);
 		}
-	out_poll:
+out_poll:
 		OBD_FREE_PTR(check);
 		return rc;
 	}
@@ -1697,9 +1700,9 @@ out_rmdir:
 				rc = -EFAULT;
 		}
 
-	out_quotactl_20:
+out_quotactl_20:
 		OBD_FREE_PTR(qctl_20);
-	out_quotactl_18:
+out_quotactl_18:
 		OBD_FREE_PTR(qctl_18);
 		return rc;
 	}
@@ -1721,7 +1724,7 @@ out_rmdir:
 		if (rc == 0 && copy_to_user((void *)arg,qctl,sizeof(*qctl)))
 			rc = -EFAULT;
 
-	out_quotactl:
+out_quotactl:
 		OBD_FREE_PTR(qctl);
 		return rc;
 	}
@@ -1773,7 +1776,7 @@ out_rmdir:
 			return -EFAULT;
 		return 0;
 	case LL_IOC_GET_CONNECT_FLAGS: {
-		return obd_iocontrol(cmd, sbi->ll_md_exp, 0, NULL, (void*)arg);
+		return obd_iocontrol(cmd, sbi->ll_md_exp, 0, NULL, (void *)arg);
 	}
 	case OBD_IOC_CHANGELOG_SEND:
 	case OBD_IOC_CHANGELOG_CLEAR:
@@ -1799,6 +1802,11 @@ out_rmdir:
 		/* Compute the whole struct size */
 		totalsize = hur_len(hur);
 		OBD_FREE_PTR(hur);
+
+		/* Final size will be more than double totalsize */
+		if (totalsize >= MDS_MAXREQSIZE / 3)
+			return -E2BIG;
+
 		OBD_ALLOC_LARGE(hur, totalsize);
 		if (hur == NULL)
 			return -ENOMEM;
@@ -1954,17 +1962,17 @@ out:
 	return ret;
 }
 
-int ll_dir_open(struct inode *inode, struct file *file)
+static int ll_dir_open(struct inode *inode, struct file *file)
 {
 	return ll_file_open(inode, file);
 }
 
-int ll_dir_release(struct inode *inode, struct file *file)
+static int ll_dir_release(struct inode *inode, struct file *file)
 {
 	return ll_file_release(inode, file);
 }
 
-struct file_operations ll_dir_operations = {
+const struct file_operations ll_dir_operations = {
 	.llseek   = ll_dir_seek,
 	.open     = ll_dir_open,
 	.release  = ll_dir_release,

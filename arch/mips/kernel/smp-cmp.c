@@ -39,57 +39,9 @@
 #include <asm/amon.h>
 #include <asm/gic.h>
 
-static void ipi_call_function(unsigned int cpu)
-{
-	pr_debug("CPU%d: %s cpu %d status %08x\n",
-		 smp_processor_id(), __func__, cpu, read_c0_status());
-
-	gic_send_ipi(plat_ipi_call_int_xlate(cpu));
-}
-
-
-static void ipi_resched(unsigned int cpu)
-{
-	pr_debug("CPU%d: %s cpu %d status %08x\n",
-		 smp_processor_id(), __func__, cpu, read_c0_status());
-
-	gic_send_ipi(plat_ipi_resched_int_xlate(cpu));
-}
-
-/*
- * FIXME: This isn't restricted to CMP
- * The SMVP kernel could use GIC interrupts if available
- */
-void cmp_send_ipi_single(int cpu, unsigned int action)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-
-	switch (action) {
-	case SMP_CALL_FUNCTION:
-		ipi_call_function(cpu);
-		break;
-
-	case SMP_RESCHEDULE_YOURSELF:
-		ipi_resched(cpu);
-		break;
-	}
-
-	local_irq_restore(flags);
-}
-
-static void cmp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
-{
-	unsigned int i;
-
-	for_each_cpu(i, mask)
-		cmp_send_ipi_single(i, action);
-}
-
 static void cmp_init_secondary(void)
 {
-	struct cpuinfo_mips *c = &current_cpu_data;
+	struct cpuinfo_mips *c __maybe_unused = &current_cpu_data;
 
 	/* Assume GIC is present */
 	change_c0_status(ST0_IM, STATUSF_IP3 | STATUSF_IP4 | STATUSF_IP6 |
@@ -97,14 +49,10 @@ static void cmp_init_secondary(void)
 
 	/* Enable per-cpu interrupts: platform specific */
 
-	c->core = (read_c0_ebase() >> 1) & 0x1ff;
-#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
+#ifdef CONFIG_MIPS_MT_SMP
 	if (cpu_has_mipsmt)
 		c->vpe_id = (read_c0_tcbind() >> TCBIND_CURVPE_SHIFT) &
 			TCBIND_CURVPE;
-#endif
-#ifdef CONFIG_MIPS_MT_SMTC
-	c->tc_id  = (read_c0_tcbind() & TCBIND_CURTC) >> TCBIND_CURTC_SHIFT;
 #endif
 }
 
@@ -122,11 +70,6 @@ static void cmp_smp_finish(void)
 #endif /* CONFIG_MIPS_MT_FPAFF */
 
 	local_irq_enable();
-}
-
-static void cmp_cpus_done(void)
-{
-	pr_debug("SMPCMP: CPU%d: %s\n", smp_processor_id(), __func__);
 }
 
 /*
@@ -184,10 +127,6 @@ void __init cmp_smp_setup(void)
 		unsigned int mvpconf0 = read_c0_mvpconf0();
 
 		nvpe = ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
-#elif defined(CONFIG_MIPS_MT_SMTC)
-		unsigned int mvpconf0 = read_c0_mvpconf0();
-
-		nvpe = ((mvpconf0 & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT) + 1;
 #endif
 		smp_num_siblings = nvpe;
 	}
@@ -199,19 +138,21 @@ void __init cmp_prepare_cpus(unsigned int max_cpus)
 	pr_debug("SMPCMP: CPU%d: %s max_cpus=%d\n",
 		 smp_processor_id(), __func__, max_cpus);
 
+#ifdef CONFIG_MIPS_MT
 	/*
 	 * FIXME: some of these options are per-system, some per-core and
 	 * some per-cpu
 	 */
 	mips_mt_set_cpuoptions();
+#endif
+
 }
 
 struct plat_smp_ops cmp_smp_ops = {
-	.send_ipi_single	= cmp_send_ipi_single,
-	.send_ipi_mask		= cmp_send_ipi_mask,
+	.send_ipi_single	= gic_send_ipi_single,
+	.send_ipi_mask		= gic_send_ipi_mask,
 	.init_secondary		= cmp_init_secondary,
 	.smp_finish		= cmp_smp_finish,
-	.cpus_done		= cmp_cpus_done,
 	.boot_secondary		= cmp_boot_secondary,
 	.smp_setup		= cmp_smp_setup,
 	.prepare_cpus		= cmp_prepare_cpus,

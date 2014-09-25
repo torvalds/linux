@@ -25,8 +25,12 @@
 #include <linux/irq.h>
 #include <linux/clockchips.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/sched_clock.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/mach/time.h>
 
@@ -116,10 +120,21 @@ static u64 notrace mxc_read_sched_clock(void)
 	return sched_clock_reg ? __raw_readl(sched_clock_reg) : 0;
 }
 
+static struct delay_timer imx_delay_timer;
+
+static unsigned long imx_read_current_timer(void)
+{
+	return __raw_readl(sched_clock_reg);
+}
+
 static int __init mxc_clocksource_init(struct clk *timer_clk)
 {
 	unsigned int c = clk_get_rate(timer_clk);
 	void __iomem *reg = timer_base + (timer_is_v2() ? V2_TCN : MX1_2_TCN);
+
+	imx_delay_timer.read_current_timer = &imx_read_current_timer;
+	imx_delay_timer.freq = c;
+	register_current_timer_delay(&imx_delay_timer);
 
 	sched_clock_reg = reg;
 
@@ -275,25 +290,20 @@ static int __init mxc_clockevent_init(struct clk *timer_clk)
 	return 0;
 }
 
-void __init mxc_timer_init(void __iomem *base, int irq)
+static void __init _mxc_timer_init(int irq,
+				   struct clk *clk_per, struct clk *clk_ipg)
 {
 	uint32_t tctl_val;
-	struct clk *timer_clk;
-	struct clk *timer_ipg_clk;
 
-	timer_clk = clk_get_sys("imx-gpt.0", "per");
-	if (IS_ERR(timer_clk)) {
+	if (IS_ERR(clk_per)) {
 		pr_err("i.MX timer: unable to get clk\n");
 		return;
 	}
 
-	timer_ipg_clk = clk_get_sys("imx-gpt.0", "ipg");
-	if (!IS_ERR(timer_ipg_clk))
-		clk_prepare_enable(timer_ipg_clk);
+	if (!IS_ERR(clk_ipg))
+		clk_prepare_enable(clk_ipg);
 
-	clk_prepare_enable(timer_clk);
-
-	timer_base = base;
+	clk_prepare_enable(clk_per);
 
 	/*
 	 * Initialise to a known state (all timers off, and timing reset)
@@ -310,9 +320,45 @@ void __init mxc_timer_init(void __iomem *base, int irq)
 	__raw_writel(tctl_val, timer_base + MXC_TCTL);
 
 	/* init and register the timer to the framework */
-	mxc_clocksource_init(timer_clk);
-	mxc_clockevent_init(timer_clk);
+	mxc_clocksource_init(clk_per);
+	mxc_clockevent_init(clk_per);
 
 	/* Make irqs happen */
 	setup_irq(irq, &mxc_timer_irq);
 }
+
+void __init mxc_timer_init(void __iomem *base, int irq)
+{
+	struct clk *clk_per = clk_get_sys("imx-gpt.0", "per");
+	struct clk *clk_ipg = clk_get_sys("imx-gpt.0", "ipg");
+
+	timer_base = base;
+
+	_mxc_timer_init(irq, clk_per, clk_ipg);
+}
+
+static void __init mxc_timer_init_dt(struct device_node *np)
+{
+	struct clk *clk_per, *clk_ipg;
+	int irq;
+
+	if (timer_base)
+		return;
+
+	timer_base = of_iomap(np, 0);
+	WARN_ON(!timer_base);
+	irq = irq_of_parse_and_map(np, 0);
+
+	clk_per = of_clk_get_by_name(np, "per");
+	clk_ipg = of_clk_get_by_name(np, "ipg");
+
+	_mxc_timer_init(irq, clk_per, clk_ipg);
+}
+CLOCKSOURCE_OF_DECLARE(mx1_timer, "fsl,imx1-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx25_timer, "fsl,imx25-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx50_timer, "fsl,imx50-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx51_timer, "fsl,imx51-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx53_timer, "fsl,imx53-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx6q_timer, "fsl,imx6q-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx6sl_timer, "fsl,imx6sl-gpt", mxc_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(mx6sx_timer, "fsl,imx6sx-gpt", mxc_timer_init_dt);

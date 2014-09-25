@@ -1076,7 +1076,7 @@ static void yenta_config_init(struct yenta_socket *socket)
  */
 static void yenta_fixup_parent_bridge(struct pci_bus *cardbus_bridge)
 {
-	struct list_head *tmp;
+	struct pci_bus *sibling;
 	unsigned char upper_limit;
 	/*
 	 * We only check and fix the parent bridge: All systems which need
@@ -1095,18 +1095,18 @@ static void yenta_fixup_parent_bridge(struct pci_bus *cardbus_bridge)
 	/* stay within the limits of the bus range of the parent: */
 	upper_limit = bridge_to_fix->parent->busn_res.end;
 
-	/* check the bus ranges of all silbling bridges to prevent overlap */
-	list_for_each(tmp, &bridge_to_fix->parent->children) {
-		struct pci_bus *silbling = pci_bus_b(tmp);
+	/* check the bus ranges of all sibling bridges to prevent overlap */
+	list_for_each_entry(sibling, &bridge_to_fix->parent->children,
+			node) {
 		/*
-		 * If the silbling has a higher secondary bus number
+		 * If the sibling has a higher secondary bus number
 		 * and it's secondary is equal or smaller than our
 		 * current upper limit, set the new upper limit to
-		 * the bus number below the silbling's range:
+		 * the bus number below the sibling's range:
 		 */
-		if (silbling->busn_res.start > bridge_to_fix->busn_res.end
-		    && silbling->busn_res.start <= upper_limit)
-			upper_limit = silbling->busn_res.start - 1;
+		if (sibling->busn_res.start > bridge_to_fix->busn_res.end
+		    && sibling->busn_res.start <= upper_limit)
+			upper_limit = sibling->busn_res.start - 1;
 	}
 
 	/* Show that the wanted subordinate number is not possible: */
@@ -1352,7 +1352,7 @@ static const struct dev_pm_ops yenta_pm_ops = {
 		.driver_data	= CARDBUS_TYPE_##type,	\
 	}
 
-static DEFINE_PCI_DEVICE_TABLE(yenta_table) = {
+static const struct pci_device_id yenta_table[] = {
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1031, TI),
 
 	/*

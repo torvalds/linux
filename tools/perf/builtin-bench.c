@@ -12,6 +12,7 @@
  *  sched ... scheduler and IPC performance
  *  mem   ... memory access performance
  *  numa  ... NUMA scheduling and MM performance
+ *  futex ... Futex performance
  */
 #include "perf.h"
 #include "util/util.h"
@@ -54,6 +55,14 @@ static struct bench mem_benchmarks[] = {
 	{ NULL,		NULL,						NULL			}
 };
 
+static struct bench futex_benchmarks[] = {
+	{ "hash",	"Benchmark for futex hash table",               bench_futex_hash	},
+	{ "wake",	"Benchmark for futex wake calls",               bench_futex_wake	},
+	{ "requeue",	"Benchmark for futex requeue calls",            bench_futex_requeue	},
+	{ "all",	"Test all futex benchmarks",			NULL			},
+	{ NULL,		NULL,						NULL			}
+};
+
 struct collection {
 	const char	*name;
 	const char	*summary;
@@ -61,11 +70,12 @@ struct collection {
 };
 
 static struct collection collections[] = {
-	{ "sched",	"Scheduler and IPC benchmarks",		sched_benchmarks	},
+	{ "sched",	"Scheduler and IPC benchmarks",			sched_benchmarks	},
 	{ "mem",	"Memory access benchmarks",			mem_benchmarks		},
 #ifdef HAVE_LIBNUMA_SUPPORT
 	{ "numa",	"NUMA scheduling and MM benchmarks",		numa_benchmarks		},
 #endif
+	{"futex",       "Futex stressing benchmarks",                   futex_benchmarks        },
 	{ "all",	"All benchmarks",				NULL			},
 	{ NULL,		NULL,						NULL			}
 };
@@ -76,7 +86,7 @@ static struct collection collections[] = {
 
 /* Iterate over all benchmarks within a collection: */
 #define for_each_bench(coll, bench) \
-	for (bench = coll->benchmarks; bench->name; bench++)
+	for (bench = coll->benchmarks; bench && bench->name; bench++)
 
 static void dump_benchmarks(struct collection *coll)
 {
@@ -94,9 +104,11 @@ static const char *bench_format_str;
 
 /* Output/formatting style, exported to benchmark modules: */
 int bench_format = BENCH_FORMAT_DEFAULT;
+unsigned int bench_repeat = 10; /* default number of times to repeat the run */
 
 static const struct option bench_options[] = {
 	OPT_STRING('f', "format", &bench_format_str, "default", "Specify format style"),
+	OPT_UINTEGER('r', "repeat",  &bench_repeat,   "Specify amount of times to repeat the run"),
 	OPT_END()
 };
 
@@ -213,6 +225,11 @@ int cmd_bench(int argc, const char **argv, const char *prefix __maybe_unused)
 	bench_format = bench_str2int(bench_format_str);
 	if (bench_format == BENCH_FORMAT_UNKNOWN) {
 		printf("Unknown format descriptor: '%s'\n", bench_format_str);
+		goto end;
+	}
+
+	if (bench_repeat == 0) {
+		printf("Invalid repeat option: Must specify a positive value\n");
 		goto end;
 	}
 

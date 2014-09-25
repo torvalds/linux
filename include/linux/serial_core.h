@@ -199,6 +199,8 @@ struct uart_port {
 	unsigned char		suspended;
 	unsigned char		irq_wake;
 	unsigned char		unused[2];
+	struct attribute_group	*attr_group;		/* port specific attributes */
+	const struct attribute_group **tty_groups;	/* all attributes (serial core use only) */
 	void			*private_data;		/* generic platform data pointer */
 };
 
@@ -285,6 +287,28 @@ static inline int uart_poll_timeout(struct uart_port *port)
 /*
  * Console helpers.
  */
+struct earlycon_device {
+	struct console *con;
+	struct uart_port port;
+	char options[16];		/* e.g., 115200n8 */
+	unsigned int baud;
+};
+int setup_earlycon(char *buf, const char *match,
+		   int (*setup)(struct earlycon_device *, const char *));
+
+extern int of_setup_earlycon(unsigned long addr,
+			     int (*setup)(struct earlycon_device *, const char *));
+
+#define EARLYCON_DECLARE(name, func) \
+static int __init name ## _setup_earlycon(char *buf) \
+{ \
+	return setup_earlycon(buf, __stringify(name), func); \
+} \
+early_param("earlycon", name ## _setup_earlycon);
+
+#define OF_EARLYCON_DECLARE(name, compat, fn)				\
+	_OF_DECLARE(earlycon, name, compat, fn, void *)
+
 struct uart_port *uart_get_console(struct uart_port *ports, int nr,
 				   struct console *c);
 void uart_parse_options(char *options, int *baud, int *parity, int *bits,

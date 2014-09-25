@@ -359,6 +359,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	 *    if closed, act like it's not there for now
 	 */
 
+	mutex_lock(&dev->mode_config.mutex);
 	i2c_adap = i2c_get_adapter(dev_priv->ops->i2c_bus);
 	if (i2c_adap == NULL)
 		dev_err(dev->dev, "No ddc adapter available!\n");
@@ -401,10 +402,14 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	}
 
 out:
-	drm_sysfs_connector_add(connector);
+	mutex_unlock(&dev->mode_config.mutex);
+
+	drm_connector_register(connector);
 	return;
 
 failed_find:
+	mutex_unlock(&dev->mode_config.mutex);
+
 	dev_dbg(dev->dev, "No LVDS modes found, disabling.\n");
 	if (gma_encoder->ddc_bus)
 		psb_intel_i2c_destroy(gma_encoder->ddc_bus);

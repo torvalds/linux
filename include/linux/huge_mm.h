@@ -93,10 +93,6 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
 #endif /* CONFIG_DEBUG_VM */
 
 extern unsigned long transparent_hugepage_flags;
-extern int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-			  pmd_t *dst_pmd, pmd_t *src_pmd,
-			  struct vm_area_struct *vma,
-			  unsigned long addr, unsigned long end);
 extern int split_huge_page_to_list(struct page *page, struct list_head *list);
 static inline int split_huge_page(struct page *page)
 {
@@ -157,46 +153,6 @@ static inline int hpage_nr_pages(struct page *page)
 		return HPAGE_PMD_NR;
 	return 1;
 }
-/*
- * compound_trans_head() should be used instead of compound_head(),
- * whenever the "page" passed as parameter could be the tail of a
- * transparent hugepage that could be undergoing a
- * __split_huge_page_refcount(). The page structure layout often
- * changes across releases and it makes extensive use of unions. So if
- * the page structure layout will change in a way that
- * page->first_page gets clobbered by __split_huge_page_refcount, the
- * implementation making use of smp_rmb() will be required.
- *
- * Currently we define compound_trans_head as compound_head, because
- * page->private is in the same union with page->first_page, and
- * page->private isn't clobbered. However this also means we're
- * currently leaving dirt into the page->private field of anonymous
- * pages resulting from a THP split, instead of setting page->private
- * to zero like for every other page that has PG_private not set. But
- * anonymous pages don't use page->private so this is not a problem.
- */
-#if 0
-/* This will be needed if page->private will be clobbered in split_huge_page */
-static inline struct page *compound_trans_head(struct page *page)
-{
-	if (PageTail(page)) {
-		struct page *head;
-		head = page->first_page;
-		smp_rmb();
-		/*
-		 * head may be a dangling pointer.
-		 * __split_huge_page_refcount clears PageTail before
-		 * overwriting first_page, so if PageTail is still
-		 * there it means the head pointer isn't dangling.
-		 */
-		if (PageTail(page))
-			return head;
-	}
-	return page;
-}
-#else
-#define compound_trans_head(page) compound_head(page)
-#endif
 
 extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
@@ -226,7 +182,6 @@ static inline int split_huge_page(struct page *page)
 	do { } while (0)
 #define split_huge_page_pmd_mm(__mm, __address, __pmd)	\
 	do { } while (0)
-#define compound_trans_head(page) compound_head(page)
 static inline int hugepage_madvise(struct vm_area_struct *vma,
 				   unsigned long *vm_flags, int advice)
 {

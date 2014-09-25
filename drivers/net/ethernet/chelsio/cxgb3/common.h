@@ -36,7 +36,6 @@
 #include <linux/types.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/mdio.h>

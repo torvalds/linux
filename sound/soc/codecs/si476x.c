@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <linux/regmap.h>
 #include <sound/soc.h>
 #include <sound/initval.h>
 
@@ -166,17 +167,17 @@ static int si476x_codec_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S8:
+	switch (params_width(params)) {
+	case 8:
 		width = SI476X_PCM_FORMAT_S8;
 		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
+	case 16:
 		width = SI476X_PCM_FORMAT_S16_LE;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		width = SI476X_PCM_FORMAT_S20_3LE;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		width = SI476X_PCM_FORMAT_S24_LE;
 		break;
 	default:
@@ -207,12 +208,6 @@ out:
 	return err;
 }
 
-static int si476x_codec_probe(struct snd_soc_codec *codec)
-{
-	codec->control_data = dev_get_regmap(codec->dev->parent, NULL);
-	return 0;
-}
-
 static struct snd_soc_dai_ops si476x_dai_ops = {
 	.hw_params	= si476x_codec_hw_params,
 	.set_fmt	= si476x_codec_set_dai_fmt,
@@ -236,8 +231,13 @@ static struct snd_soc_dai_driver si476x_dai = {
 	.ops		= &si476x_dai_ops,
 };
 
+static struct regmap *si476x_get_regmap(struct device *dev)
+{
+	return dev_get_regmap(dev->parent, NULL);
+}
+
 static struct snd_soc_codec_driver soc_codec_dev_si476x = {
-	.probe  = si476x_codec_probe,
+	.get_regmap = si476x_get_regmap,
 	.dapm_widgets = si476x_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(si476x_dapm_widgets),
 	.dapm_routes = si476x_dapm_routes,

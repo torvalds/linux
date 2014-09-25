@@ -14,6 +14,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -22,8 +23,11 @@
 #include <linux/moduleparam.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
+
+#include <asm/system_misc.h>
 
 #define WDT_MAX_TIMEOUT         16
 #define WDT_MIN_TIMEOUT         1
@@ -57,18 +61,38 @@ struct sunxi_wdt_dev {
  */
 
 static const int wdt_timeout_map[] = {
-	[1] = 0b0001,  /* 1s  */
-	[2] = 0b0010,  /* 2s  */
-	[3] = 0b0011,  /* 3s  */
-	[4] = 0b0100,  /* 4s  */
-	[5] = 0b0101,  /* 5s  */
-	[6] = 0b0110,  /* 6s  */
-	[8] = 0b0111,  /* 8s  */
-	[10] = 0b1000, /* 10s */
-	[12] = 0b1001, /* 12s */
-	[14] = 0b1010, /* 14s */
-	[16] = 0b1011, /* 16s */
+	[1] = 0x1,  /* 1s  */
+	[2] = 0x2,  /* 2s  */
+	[3] = 0x3,  /* 3s  */
+	[4] = 0x4,  /* 4s  */
+	[5] = 0x5,  /* 5s  */
+	[6] = 0x6,  /* 6s  */
+	[8] = 0x7,  /* 8s  */
+	[10] = 0x8, /* 10s */
+	[12] = 0x9, /* 12s */
+	[14] = 0xA, /* 14s */
+	[16] = 0xB, /* 16s */
 };
+
+static void __iomem *reboot_wdt_base;
+
+static void sun4i_wdt_restart(enum reboot_mode mode, const char *cmd)
+{
+	/* Enable timer and set reset bit in the watchdog */
+	writel(WDT_MODE_EN | WDT_MODE_RST_EN, reboot_wdt_base + WDT_MODE);
+
+	/*
+	 * Restart the watchdog. The default (and lowest) interval
+	 * value for the watchdog is 0.5s.
+	 */
+	writel(WDT_CTRL_RELOAD, reboot_wdt_base + WDT_CTRL);
+
+	while (1) {
+		mdelay(5);
+		writel(WDT_MODE_EN | WDT_MODE_RST_EN,
+		       reboot_wdt_base + WDT_MODE);
+	}
+}
 
 static int sunxi_wdt_ping(struct watchdog_device *wdt_dev)
 {
@@ -181,6 +205,9 @@ static int sunxi_wdt_probe(struct platform_device *pdev)
 	if (unlikely(err))
 		return err;
 
+	reboot_wdt_base = sunxi_wdt->wdt_base;
+	arm_pm_restart = sun4i_wdt_restart;
+
 	dev_info(&pdev->dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)",
 			sunxi_wdt->wdt_dev.timeout, nowayout);
 
@@ -190,6 +217,8 @@ static int sunxi_wdt_probe(struct platform_device *pdev)
 static int sunxi_wdt_remove(struct platform_device *pdev)
 {
 	struct sunxi_wdt_dev *sunxi_wdt = platform_get_drvdata(pdev);
+
+	arm_pm_restart = NULL;
 
 	watchdog_unregister_device(&sunxi_wdt->wdt_dev);
 	watchdog_set_drvdata(&sunxi_wdt->wdt_dev, NULL);
@@ -205,7 +234,7 @@ static void sunxi_wdt_shutdown(struct platform_device *pdev)
 }
 
 static const struct of_device_id sunxi_wdt_dt_ids[] = {
-	{ .compatible = "allwinner,sun4i-wdt" },
+	{ .compatible = "allwinner,sun4i-a10-wdt" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sunxi_wdt_dt_ids);

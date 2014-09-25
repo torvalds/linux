@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <net/sock.h>
 #include <net/af_ieee802154.h>
+#include <net/ieee802154_netdev.h>
 
 #include "af802154.h"
 
@@ -55,21 +56,24 @@ static void raw_close(struct sock *sk, long timeout)
 	sk_common_release(sk);
 }
 
-static int raw_bind(struct sock *sk, struct sockaddr *uaddr, int len)
+static int raw_bind(struct sock *sk, struct sockaddr *_uaddr, int len)
 {
-	struct sockaddr_ieee802154 *addr = (struct sockaddr_ieee802154 *)uaddr;
+	struct ieee802154_addr addr;
+	struct sockaddr_ieee802154 *uaddr = (struct sockaddr_ieee802154 *)_uaddr;
 	int err = 0;
 	struct net_device *dev = NULL;
 
-	if (len < sizeof(*addr))
+	if (len < sizeof(*uaddr))
 		return -EINVAL;
 
-	if (addr->family != AF_IEEE802154)
+	uaddr = (struct sockaddr_ieee802154 *)_uaddr;
+	if (uaddr->family != AF_IEEE802154)
 		return -EINVAL;
 
 	lock_sock(sk);
 
-	dev = ieee802154_get_dev(sock_net(sk), &addr->addr);
+	ieee802154_addr_from_sa(&addr, &uaddr->addr);
+	dev = ieee802154_get_dev(sock_net(sk), &addr);
 	if (!dev) {
 		err = -ENODEV;
 		goto out;
@@ -92,7 +96,7 @@ out:
 }
 
 static int raw_connect(struct sock *sk, struct sockaddr *uaddr,
-			int addr_len)
+		       int addr_len)
 {
 	return -ENOTSUPP;
 }
@@ -102,8 +106,8 @@ static int raw_disconnect(struct sock *sk, int flags)
 	return 0;
 }
 
-static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
-		       size_t size)
+static int raw_sendmsg(struct kiocb *iocb, struct sock *sk,
+		       struct msghdr *msg, size_t size)
 {
 	struct net_device *dev;
 	unsigned int mtu;
@@ -141,7 +145,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	hlen = LL_RESERVED_SPACE(dev);
 	tlen = dev->needed_tailroom;
 	skb = sock_alloc_send_skb(sk, hlen + tlen + size,
-			msg->msg_flags & MSG_DONTWAIT, &err);
+				  msg->msg_flags & MSG_DONTWAIT, &err);
 	if (!skb)
 		goto out_dev;
 
@@ -209,6 +213,10 @@ out:
 
 static int raw_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
+		return NET_RX_DROP;
+
 	if (sock_queue_rcv_skb(sk, skb) < 0) {
 		kfree_skb(skb);
 		return NET_RX_DROP;
@@ -227,7 +235,6 @@ void ieee802154_raw_deliver(struct net_device *dev, struct sk_buff *skb)
 		bh_lock_sock(sk);
 		if (!sk->sk_bound_dev_if ||
 		    sk->sk_bound_dev_if == dev->ifindex) {
-
 			struct sk_buff *clone;
 
 			clone = skb_clone(skb, GFP_ATOMIC);
@@ -240,13 +247,13 @@ void ieee802154_raw_deliver(struct net_device *dev, struct sk_buff *skb)
 }
 
 static int raw_getsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int __user *optlen)
+			  char __user *optval, int __user *optlen)
 {
 	return -EOPNOTSUPP;
 }
 
 static int raw_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, unsigned int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	return -EOPNOTSUPP;
 }
@@ -266,4 +273,3 @@ struct proto ieee802154_raw_prot = {
 	.getsockopt	= raw_getsockopt,
 	.setsockopt	= raw_setsockopt,
 };
-

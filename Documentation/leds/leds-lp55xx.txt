@@ -73,6 +73,10 @@ select_engine : Select which engine is used for running program
 run_engine    : Start program which is loaded via the firmware interface
 firmware      : Load program data
 
+In case of LP5523, one more command is required, 'enginex_leds'.
+It is used for selecting LED output(s) at each engine number.
+In more details, please refer to 'leds-lp5523.txt'.
+
 For example, run blinking pattern in engine #1 of LP5521
 echo 1 > /sys/bus/i2c/devices/xxxx/select_engine
 echo 1 > /sys/class/firmware/lp5521/loading
@@ -81,10 +85,12 @@ echo 0 > /sys/class/firmware/lp5521/loading
 echo 1 > /sys/bus/i2c/devices/xxxx/run_engine
 
 For example, run blinking pattern in engine #3 of LP55231
+Two LEDs are configured as pattern output channels.
 echo 3 > /sys/bus/i2c/devices/xxxx/select_engine
 echo 1 > /sys/class/firmware/lp55231/loading
 echo "9d0740ff7e0040007e00a0010000" > /sys/class/firmware/lp55231/data
 echo 0 > /sys/class/firmware/lp55231/loading
+echo "000001100" > /sys/bus/i2c/devices/xxxx/engine3_leds
 echo 1 > /sys/bus/i2c/devices/xxxx/run_engine
 
 To start blinking patterns in engine #2 and #3 simultaneously,
@@ -99,17 +105,19 @@ done
 echo 1 > /sys/class/leds/red/device/run_engine
 
 Here is another example for LP5523.
+Full LED strings are selected by 'engine2_leds'.
 echo 2 > /sys/bus/i2c/devices/xxxx/select_engine
 echo 1 > /sys/class/firmware/lp5523/loading
 echo "9d80400004ff05ff437f0000" > /sys/class/firmware/lp5523/data
 echo 0 > /sys/class/firmware/lp5523/loading
+echo "111111111" > /sys/bus/i2c/devices/xxxx/engine2_leds
 echo 1 > /sys/bus/i2c/devices/xxxx/run_engine
 
 As soon as 'loading' is set to 0, registered callback is called.
 Inside the callback, the selected engine is loaded and memory is updated.
 To run programmed pattern, 'run_engine' attribute should be enabled.
 
-The pattern sqeuence of LP8501 is same as LP5523.
+The pattern sqeuence of LP8501 is similar to LP5523.
 However pattern data is specific.
 Ex 1) Engine 1 is used
 echo 1 > /sys/bus/i2c/devices/xxxx/select_engine

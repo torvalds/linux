@@ -203,6 +203,12 @@
 #define		CTF_TEMP_MASK				0x0003fe00
 #define		CTF_TEMP_SHIFT				9
 
+#define CG_ECLK_CNTL                                    0xC05000AC
+#       define ECLK_DIVIDER_MASK                        0x7f
+#       define ECLK_DIR_CNTL_EN                         (1 << 8)
+#define CG_ECLK_STATUS                                  0xC05000B0
+#       define ECLK_STATUS                              (1 << 0)
+
 #define	CG_SPLL_FUNC_CNTL				0xC0500140
 #define		SPLL_RESET				(1 << 0)
 #define		SPLL_PWRON				(1 << 1)
@@ -476,6 +482,7 @@
 #define		READ_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 16)
 #define		WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT		(1 << 18)
 #define		WRITE_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 19)
+#define		PAGE_TABLE_BLOCK_SIZE(x)			(((x) & 0xF) << 24)
 #define VM_CONTEXT1_CNTL				0x1414
 #define VM_CONTEXT0_CNTL2				0x1430
 #define VM_CONTEXT1_CNTL2				0x1434
@@ -724,6 +731,17 @@
 
 #define ATC_MISC_CG           				0x3350
 
+#define GMCON_RENG_EXECUTE				0x3508
+#define 	RENG_EXECUTE_ON_PWR_UP			(1 << 0)
+#define GMCON_MISC					0x350c
+#define 	RENG_EXECUTE_ON_REG_UPDATE		(1 << 11)
+#define 	STCTRL_STUTTER_EN			(1 << 16)
+
+#define GMCON_PGFSM_CONFIG				0x3538
+#define GMCON_PGFSM_WRITE				0x353c
+#define GMCON_PGFSM_READ				0x3540
+#define GMCON_MISC3					0x3544
+
 #define MC_SEQ_CNTL_3                                     0x3600
 #       define CAC_EN                                     (1 << 31)
 #define MC_SEQ_G5PDX_CTRL                                 0x3604
@@ -870,6 +888,15 @@
 #       define DC_HPD6_INTERRUPT                        (1 << 17)
 #       define DC_HPD6_RX_INTERRUPT                     (1 << 18)
 #define DISP_INTERRUPT_STATUS_CONTINUE6                 0x6780
+
+/* 0x6858, 0x7458, 0x10058, 0x10c58, 0x11858, 0x12458 */
+#define GRPH_INT_STATUS                                 0x6858
+#       define GRPH_PFLIP_INT_OCCURRED                  (1 << 0)
+#       define GRPH_PFLIP_INT_CLEAR                     (1 << 8)
+/* 0x685c, 0x745c, 0x1005c, 0x10c5c, 0x1185c, 0x1245c */
+#define GRPH_INT_CONTROL                                0x685c
+#       define GRPH_PFLIP_INT_MASK                      (1 << 0)
+#       define GRPH_PFLIP_INT_TYPE                      (1 << 8)
 
 #define	DAC_AUTODETECT_INT_CONTROL			0x67c8
 
@@ -1725,12 +1752,12 @@
 #define		EOP_TC_WB_ACTION_EN                     (1 << 15) /* L2 */
 #define		EOP_TCL1_ACTION_EN                      (1 << 16)
 #define		EOP_TC_ACTION_EN                        (1 << 17) /* L2 */
+#define		EOP_TCL2_VOLATILE                       (1 << 24)
 #define		EOP_CACHE_POLICY(x)                     ((x) << 25)
                 /* 0 - LRU
 		 * 1 - Stream
 		 * 2 - Bypass
 		 */
-#define		EOP_TCL2_VOLATILE                       (1 << 27)
 #define		DATA_SEL(x)                             ((x) << 29)
                 /* 0 - discard
 		 * 1 - send low 32bit data
@@ -1998,5 +2025,48 @@
 
 /* UVD CTX indirect */
 #define	UVD_CGC_MEM_CTRL				0xC0
+
+/* VCE */
+
+#define VCE_VCPU_CACHE_OFFSET0		0x20024
+#define VCE_VCPU_CACHE_SIZE0		0x20028
+#define VCE_VCPU_CACHE_OFFSET1		0x2002c
+#define VCE_VCPU_CACHE_SIZE1		0x20030
+#define VCE_VCPU_CACHE_OFFSET2		0x20034
+#define VCE_VCPU_CACHE_SIZE2		0x20038
+#define VCE_RB_RPTR2			0x20178
+#define VCE_RB_WPTR2			0x2017c
+#define VCE_RB_RPTR			0x2018c
+#define VCE_RB_WPTR			0x20190
+#define VCE_CLOCK_GATING_A		0x202f8
+#	define CGC_CLK_GATE_DLY_TIMER_MASK	(0xf << 0)
+#	define CGC_CLK_GATE_DLY_TIMER(x)	((x) << 0)
+#	define CGC_CLK_GATER_OFF_DLY_TIMER_MASK	(0xff << 4)
+#	define CGC_CLK_GATER_OFF_DLY_TIMER(x)	((x) << 4)
+#	define CGC_UENC_WAIT_AWAKE	(1 << 18)
+#define VCE_CLOCK_GATING_B		0x202fc
+#define VCE_CGTT_CLK_OVERRIDE		0x207a0
+#define VCE_UENC_CLOCK_GATING		0x207bc
+#	define CLOCK_ON_DELAY_MASK	(0xf << 0)
+#	define CLOCK_ON_DELAY(x)	((x) << 0)
+#	define CLOCK_OFF_DELAY_MASK	(0xff << 4)
+#	define CLOCK_OFF_DELAY(x)	((x) << 4)
+#define VCE_UENC_REG_CLOCK_GATING	0x207c0
+#define VCE_SYS_INT_EN			0x21300
+#	define VCE_SYS_INT_TRAP_INTERRUPT_EN	(1 << 3)
+#define VCE_LMI_CTRL2			0x21474
+#define VCE_LMI_CTRL			0x21498
+#define VCE_LMI_VM_CTRL			0x214a0
+#define VCE_LMI_SWAP_CNTL		0x214b4
+#define VCE_LMI_SWAP_CNTL1		0x214b8
+#define VCE_LMI_CACHE_CTRL		0x214f4
+
+#define VCE_CMD_NO_OP		0x00000000
+#define VCE_CMD_END		0x00000001
+#define VCE_CMD_IB		0x00000002
+#define VCE_CMD_FENCE		0x00000003
+#define VCE_CMD_TRAP		0x00000004
+#define VCE_CMD_IB_AUTO		0x00000005
+#define VCE_CMD_SEMAPHORE	0x00000006
 
 #endif

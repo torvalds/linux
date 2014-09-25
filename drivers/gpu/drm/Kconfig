@@ -20,6 +20,10 @@ menuconfig DRM
 	  details.  You should also select and configure AGP
 	  (/dev/agpgart) support if it is available for your platform.
 
+config DRM_MIPI_DSI
+	bool
+	depends on DRM
+
 config DRM_USB
 	tristate
 	depends on DRM
@@ -79,6 +83,8 @@ config DRM_KMS_CMA_HELPER
 
 source "drivers/gpu/drm/i2c/Kconfig"
 
+source "drivers/gpu/drm/bridge/Kconfig"
+
 config DRM_TDFX
 	tristate "3dfx Banshee/Voodoo3+"
 	depends on DRM && PCI
@@ -108,6 +114,7 @@ config DRM_RADEON
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
+	select INTERVAL_TREE
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to
@@ -188,6 +195,12 @@ source "drivers/gpu/drm/tilcdc/Kconfig"
 
 source "drivers/gpu/drm/qxl/Kconfig"
 
+source "drivers/gpu/drm/bochs/Kconfig"
+
 source "drivers/gpu/drm/msm/Kconfig"
 
 source "drivers/gpu/drm/tegra/Kconfig"
+
+source "drivers/gpu/drm/panel/Kconfig"
+
+source "drivers/gpu/drm/sti/Kconfig"

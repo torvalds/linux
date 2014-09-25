@@ -47,6 +47,7 @@
 	.type = device_type, \
 	.modified = mod, \
 	.info_mask_separate = mask, \
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ), \
 	.scan_index = index, \
 	.channel2 = ch2, \
 	.address = addr, \
@@ -58,11 +59,6 @@
 		.endianness = endian, \
 	}, \
 }
-
-#define ST_SENSOR_DEV_ATTR_SAMP_FREQ() \
-		IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO, \
-			st_sensors_sysfs_get_sampling_frequency, \
-			st_sensors_sysfs_set_sampling_frequency)
 
 #define ST_SENSORS_DEV_ATTR_SAMP_FREQ_AVAIL() \
 		IIO_DEV_ATTR_SAMP_FREQ_AVAIL( \
@@ -269,6 +265,10 @@ int st_sensors_set_enable(struct iio_dev *indio_dev, bool enable);
 
 int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable);
 
+void st_sensors_power_enable(struct iio_dev *indio_dev);
+
+void st_sensors_power_disable(struct iio_dev *indio_dev);
+
 int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr);
 
 int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable);
@@ -280,12 +280,6 @@ int st_sensors_read_info_raw(struct iio_dev *indio_dev,
 
 int st_sensors_check_device_support(struct iio_dev *indio_dev,
 			int num_sensors_list, const struct st_sensors *sensors);
-
-ssize_t st_sensors_sysfs_get_sampling_frequency(struct device *dev,
-				struct device_attribute *attr, char *buf);
-
-ssize_t st_sensors_sysfs_set_sampling_frequency(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size);
 
 ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 				struct device_attribute *attr, char *buf);

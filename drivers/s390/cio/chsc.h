@@ -21,17 +21,6 @@ struct cmg_entry {
 	u32 values[NR_MEASUREMENT_ENTRIES];
 } __attribute__ ((packed));
 
-struct channel_path_desc {
-	u8 flags;
-	u8 lsn;
-	u8 desc;
-	u8 chpid;
-	u8 swla;
-	u8 zeroes;
-	u8 chla;
-	u8 chpp;
-} __attribute__ ((packed));
-
 struct channel_path_desc_fmt1 {
 	u8 flags;
 	u8 lsn;

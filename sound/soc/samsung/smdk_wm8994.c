@@ -57,7 +57,7 @@ static int smdk_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	/* AIF1CLK should be >=3MHz for optimal performance */
-	if (params_format(params) == SNDRV_PCM_FORMAT_S24_LE)
+	if (params_width(params) == 24)
 		pll_out = params_rate(params) * 384;
 	else if (params_rate(params) == 8000 || params_rate(params) == 11025)
 		pll_out = params_rate(params) * 512;
@@ -88,18 +88,6 @@ static int smdk_wm8994_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	/* HeadPhone */
-	snd_soc_dapm_enable_pin(dapm, "HPOUT1R");
-	snd_soc_dapm_enable_pin(dapm, "HPOUT1L");
-
-	/* MicIn */
-	snd_soc_dapm_enable_pin(dapm, "IN1LN");
-	snd_soc_dapm_enable_pin(dapm, "IN1RN");
-
-	/* LineIn */
-	snd_soc_dapm_enable_pin(dapm, "IN2LN");
-	snd_soc_dapm_enable_pin(dapm, "IN2RN");
 
 	/* Other pins NC */
 	snd_soc_dapm_nc_pin(dapm, "HPOUT2P");
@@ -152,13 +140,11 @@ static struct snd_soc_card smdk = {
 	.num_links = ARRAY_SIZE(smdk_dai),
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id samsung_wm8994_of_match[] = {
 	{ .compatible = "samsung,smdk-wm8994", .data = &smdk_board_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, samsung_wm8994_of_match);
-#endif /* CONFIG_OF */
 
 static int smdk_audio_probe(struct platform_device *pdev)
 {
@@ -188,7 +174,7 @@ static int smdk_audio_probe(struct platform_device *pdev)
 		smdk_dai[0].platform_of_node = smdk_dai[0].cpu_of_node;
 	}
 
-	id = of_match_device(samsung_wm8994_of_match, &pdev->dev);
+	id = of_match_device(of_match_ptr(samsung_wm8994_of_match), &pdev->dev);
 	if (id)
 		*board = *((struct smdk_wm8994_data *)id->data);
 
@@ -204,7 +190,7 @@ static int smdk_audio_probe(struct platform_device *pdev)
 
 static struct platform_driver smdk_audio_driver = {
 	.driver		= {
-		.name	= "smdk-audio-wm8894",
+		.name	= "smdk-audio-wm8994",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(samsung_wm8994_of_match),
 		.pm	= &snd_soc_pm_ops,

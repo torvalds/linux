@@ -79,6 +79,7 @@ struct pci_8255_boardinfo {
 	const char *name;
 	int dio_badr;
 	int n_8255;
+	unsigned int has_mite:1;
 };
 
 static const struct pci_8255_boardinfo pci_8255_boards[] = {
@@ -126,42 +127,68 @@ static const struct pci_8255_boardinfo pci_8255_boards[] = {
 		.name		= "ni_pci-dio-96",
 		.dio_badr	= 1,
 		.n_8255		= 4,
+		.has_mite	= 1,
 	},
 	[BOARD_NI_PCIDIO96B] = {
 		.name		= "ni_pci-dio-96b",
 		.dio_badr	= 1,
 		.n_8255		= 4,
+		.has_mite	= 1,
 	},
 	[BOARD_NI_PXI6508] = {
 		.name		= "ni_pxi-6508",
 		.dio_badr	= 1,
 		.n_8255		= 4,
+		.has_mite	= 1,
 	},
 	[BOARD_NI_PCI6503] = {
 		.name		= "ni_pci-6503",
 		.dio_badr	= 1,
 		.n_8255		= 1,
+		.has_mite	= 1,
 	},
 	[BOARD_NI_PCI6503B] = {
 		.name		= "ni_pci-6503b",
 		.dio_badr	= 1,
 		.n_8255		= 1,
+		.has_mite	= 1,
 	},
 	[BOARD_NI_PCI6503X] = {
 		.name		= "ni_pci-6503x",
 		.dio_badr	= 1,
 		.n_8255		= 1,
+		.has_mite	= 1,
 	},
 	[BOARD_NI_PXI_6503] = {
 		.name		= "ni_pxi-6503",
 		.dio_badr	= 1,
 		.n_8255		= 1,
+		.has_mite	= 1,
 	},
 };
 
-struct pci_8255_private {
-	void __iomem *mmio_base;
-};
+/* ripped from mite.h and mite_setup2() to avoid mite dependancy */
+#define MITE_IODWBSR	0xc0	 /* IO Device Window Base Size Register */
+#define WENAB		(1 << 7) /* window enable */
+
+static int pci_8255_mite_init(struct pci_dev *pcidev)
+{
+	void __iomem *mite_base;
+	u32 main_phys_addr;
+
+	/* ioremap the MITE registers (BAR 0) temporarily */
+	mite_base = pci_ioremap_bar(pcidev, 0);
+	if (!mite_base)
+		return -ENOMEM;
+
+	/* set data window to main registers (BAR 1) */
+	main_phys_addr = pci_resource_start(pcidev, 1);
+	writel(main_phys_addr | WENAB, mite_base + MITE_IODWBSR);
+
+	/* finished with MITE registers */
+	iounmap(mite_base);
+	return 0;
+}
 
 static int pci_8255_mmio(int dir, int port, int data, unsigned long iobase)
 {
@@ -170,9 +197,8 @@ static int pci_8255_mmio(int dir, int port, int data, unsigned long iobase)
 	if (dir) {
 		writeb(data, mmio_base + port);
 		return 0;
-	} else {
-		return readb(mmio_base  + port);
 	}
+	return readb(mmio_base  + port);
 }
 
 static int pci_8255_auto_attach(struct comedi_device *dev,
@@ -180,7 +206,6 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct pci_8255_boardinfo *board = NULL;
-	struct pci_8255_private *devpriv;
 	struct comedi_subdevice *s;
 	bool is_mmio;
 	int ret;
@@ -193,19 +218,21 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
-
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 
+	if (board->has_mite) {
+		ret = pci_8255_mite_init(pcidev);
+		if (ret)
+			return ret;
+	}
+
 	is_mmio = (pci_resource_flags(pcidev, board->dio_badr) &
 		   IORESOURCE_MEM) != 0;
 	if (is_mmio) {
-		devpriv->mmio_base = pci_ioremap_bar(pcidev, board->dio_badr);
-		if (!devpriv->mmio_base)
+		dev->mmio = pci_ioremap_bar(pcidev, board->dio_badr);
+		if (!dev->mmio)
 			return -ENOMEM;
 	} else {
 		dev->iobase = pci_resource_start(pcidev, board->dio_badr);
@@ -225,7 +252,7 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 
 		s = &dev->subdevices[i];
 		if (is_mmio) {
-			iobase = (unsigned long)(devpriv->mmio_base + (i * 4));
+			iobase = (unsigned long)(dev->mmio + (i * 4));
 			ret = subdev_8255_init(dev, s, pci_8255_mmio, iobase);
 		} else {
 			iobase = dev->iobase + (i * 4);
@@ -235,18 +262,13 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 			return ret;
 	}
 
-	dev_info(dev->class_dev, "%s attached (%d digital i/o channels)\n",
-		dev->board_name, board->n_8255 * 24);
-
 	return 0;
 }
 
 static void pci_8255_detach(struct comedi_device *dev)
 {
-	struct pci_8255_private *devpriv = dev->private;
-
-	if (devpriv && devpriv->mmio_base)
-		iounmap(devpriv->mmio_base);
+	if (dev->mmio)
+		iounmap(dev->mmio);
 	comedi_pci_disable(dev);
 }
 

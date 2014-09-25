@@ -44,6 +44,7 @@ static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	const struct drm_display_mode *mode = &rcrtc->crtc.mode;
 	unsigned int freq = mode->clock;
 	u32 lvdcr0;
+	u32 lvdhcr;
 	u32 pllcr;
 	int ret;
 
@@ -72,15 +73,19 @@ static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	 * VSYNC -> CTRL1
 	 * DISP  -> CTRL2
 	 * 0     -> CTRL3
-	 *
-	 * Channels 1 and 3 are switched on ES1.
 	 */
 	rcar_lvds_write(lvds, LVDCTRCR, LVDCTRCR_CTR3SEL_ZERO |
 			LVDCTRCR_CTR2SEL_DISP | LVDCTRCR_CTR1SEL_VSYNC |
 			LVDCTRCR_CTR0SEL_HSYNC);
-	rcar_lvds_write(lvds, LVDCHCR,
-			LVDCHCR_CHSEL_CH(0, 0) | LVDCHCR_CHSEL_CH(1, 3) |
-			LVDCHCR_CHSEL_CH(2, 2) | LVDCHCR_CHSEL_CH(3, 1));
+
+	if (rcar_du_needs(lvds->dev, RCAR_DU_QUIRK_LVDS_LANES))
+		lvdhcr = LVDCHCR_CHSEL_CH(0, 0) | LVDCHCR_CHSEL_CH(1, 3)
+		       | LVDCHCR_CHSEL_CH(2, 2) | LVDCHCR_CHSEL_CH(3, 1);
+	else
+		lvdhcr = LVDCHCR_CHSEL_CH(0, 0) | LVDCHCR_CHSEL_CH(1, 1)
+		       | LVDCHCR_CHSEL_CH(2, 2) | LVDCHCR_CHSEL_CH(3, 3);
+
+	rcar_lvds_write(lvds, LVDCHCR, lvdhcr);
 
 	/* Select the input, hardcode mode 0, enable LVDS operation and turn
 	 * bias circuitry on.
@@ -144,18 +149,9 @@ static int rcar_du_lvdsenc_get_resources(struct rcar_du_lvdsenc *lvds,
 	sprintf(name, "lvds.%u", lvds->index);
 
 	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-	if (mem == NULL) {
-		dev_err(&pdev->dev, "failed to get memory resource for %s\n",
-			name);
-		return -EINVAL;
-	}
-
 	lvds->mmio = devm_ioremap_resource(&pdev->dev, mem);
-	if (lvds->mmio == NULL) {
-		dev_err(&pdev->dev, "failed to remap memory resource for %s\n",
-			name);
-		return -ENOMEM;
-	}
+	if (IS_ERR(lvds->mmio))
+		return PTR_ERR(lvds->mmio);
 
 	lvds->clock = devm_clk_get(&pdev->dev, name);
 	if (IS_ERR(lvds->clock)) {

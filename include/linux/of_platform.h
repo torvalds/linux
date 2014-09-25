@@ -37,7 +37,7 @@
  * Note: Using an auxdata lookup table should be considered a last resort when
  * converting a platform to use the DT.  Normally the automatically generated
  * device name will not matter, and drivers should obtain data from the device
- * node instead of from an anonymouns platform_data pointer.
+ * node instead of from an anonymous platform_data pointer.
  */
 struct of_dev_auxdata {
 	char *compatible;
@@ -72,6 +72,7 @@ extern int of_platform_populate(struct device_node *root,
 				const struct of_device_id *matches,
 				const struct of_dev_auxdata *lookup,
 				struct device *parent);
+extern void of_platform_depopulate(struct device *parent);
 #else
 static inline int of_platform_populate(struct device_node *root,
 					const struct of_device_id *matches,
@@ -80,6 +81,7 @@ static inline int of_platform_populate(struct device_node *root,
 {
 	return -ENODEV;
 }
+static inline void of_platform_depopulate(struct device *parent) { }
 #endif
 
 #endif	/* _LINUX_OF_PLATFORM_H */

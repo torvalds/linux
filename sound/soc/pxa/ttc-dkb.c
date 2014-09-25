@@ -78,10 +78,6 @@ static int ttc_pm860x_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	/* connected pins */
-	snd_soc_dapm_enable_pin(dapm, "Ext Speaker");
-	snd_soc_dapm_enable_pin(dapm, "Ext Mic 1");
-	snd_soc_dapm_enable_pin(dapm, "Ext Mic 3");
 	snd_soc_dapm_disable_pin(dapm, "Headset Mic 2");
 	snd_soc_dapm_disable_pin(dapm, "Headset Stereophone");
 

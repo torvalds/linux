@@ -231,14 +231,23 @@ out:
 	return ret;
 }
 
+/*
+ * nfs4_release_slot_table - release all slot table entries
+ */
+static void nfs4_release_slot_table(struct nfs4_slot_table *tbl)
+{
+	nfs4_shrink_slot_table(tbl, 0);
+}
+
 /**
- * nfs4_release_slot_table - release resources attached to a slot table
+ * nfs4_shutdown_slot_table - release resources attached to a slot table
  * @tbl: slot table to shut down
  *
  */
-void nfs4_release_slot_table(struct nfs4_slot_table *tbl)
+void nfs4_shutdown_slot_table(struct nfs4_slot_table *tbl)
 {
-	nfs4_shrink_slot_table(tbl, 0);
+	nfs4_release_slot_table(tbl);
+	rpc_destroy_wait_queue(&tbl->slot_tbl_waitq);
 }
 
 /**
@@ -422,7 +431,7 @@ void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 
-static void nfs4_destroy_session_slot_tables(struct nfs4_session *session)
+static void nfs4_release_session_slot_tables(struct nfs4_session *session)
 {
 	nfs4_release_slot_table(&session->fc_slot_table);
 	nfs4_release_slot_table(&session->bc_slot_table);
@@ -450,7 +459,7 @@ int nfs4_setup_session_slot_tables(struct nfs4_session *ses)
 	if (status && tbl->slots == NULL)
 		/* Fore and back channel share a connection so get
 		 * both slot tables or neither */
-		nfs4_destroy_session_slot_tables(ses);
+		nfs4_release_session_slot_tables(ses);
 	return status;
 }
 
@@ -468,6 +477,12 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 
 	session->clp = clp;
 	return session;
+}
+
+static void nfs4_destroy_session_slot_tables(struct nfs4_session *session)
+{
+	nfs4_shutdown_slot_table(&session->fc_slot_table);
+	nfs4_shutdown_slot_table(&session->bc_slot_table);
 }
 
 void nfs4_destroy_session(struct nfs4_session *session)

@@ -54,9 +54,7 @@ static inline void move_tags(unsigned *dst, unsigned *dst_nr,
 /*
  * Try to steal tags from a remote cpu's percpu freelist.
  *
- * We first check how many percpu freelists have tags - we don't steal tags
- * unless enough percpu freelists have tags on them that it's possible more than
- * half the total tags could be stuck on remote percpu freelists.
+ * We first check how many percpu freelists have tags
  *
  * Then we iterate through the cpus until we find some tags - we don't attempt
  * to find the "best" cpu to steal from, to keep cacheline bouncing to a
@@ -69,8 +67,7 @@ static inline void steal_tags(struct percpu_ida *pool,
 	struct percpu_ida_cpu *remote;
 
 	for (cpus_have_tags = cpumask_weight(&pool->cpus_have_tags);
-	     cpus_have_tags * pool->percpu_max_size > pool->nr_tags / 2;
-	     cpus_have_tags--) {
+	     cpus_have_tags; cpus_have_tags--) {
 		cpu = cpumask_next(cpu, &pool->cpus_have_tags);
 
 		if (cpu >= nr_cpu_ids) {
@@ -132,22 +129,22 @@ static inline unsigned alloc_local_tag(struct percpu_ida_cpu *tags)
 /**
  * percpu_ida_alloc - allocate a tag
  * @pool: pool to allocate from
- * @gfp: gfp flags
+ * @state: task state for prepare_to_wait
  *
  * Returns a tag - an integer in the range [0..nr_tags) (passed to
  * tag_pool_init()), or otherwise -ENOSPC on allocation failure.
  *
  * Safe to be called from interrupt context (assuming it isn't passed
- * __GFP_WAIT, of course).
+ * TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE, of course).
  *
  * @gfp indicates whether or not to wait until a free id is available (it's not
  * used for internal memory allocations); thus if passed __GFP_WAIT we may sleep
  * however long it takes until another thread frees an id (same semantics as a
  * mempool).
  *
- * Will not fail if passed __GFP_WAIT.
+ * Will not fail if passed TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE.
  */
-int percpu_ida_alloc(struct percpu_ida *pool, gfp_t gfp)
+int percpu_ida_alloc(struct percpu_ida *pool, int state)
 {
 	DEFINE_WAIT(wait);
 	struct percpu_ida_cpu *tags;
@@ -174,7 +171,8 @@ int percpu_ida_alloc(struct percpu_ida *pool, gfp_t gfp)
 		 *
 		 * global lock held and irqs disabled, don't need percpu lock
 		 */
-		prepare_to_wait(&pool->wait, &wait, TASK_UNINTERRUPTIBLE);
+		if (state != TASK_RUNNING)
+			prepare_to_wait(&pool->wait, &wait, state);
 
 		if (!tags->nr_free)
 			alloc_global_tags(pool, tags);
@@ -191,16 +189,22 @@ int percpu_ida_alloc(struct percpu_ida *pool, gfp_t gfp)
 		spin_unlock(&pool->lock);
 		local_irq_restore(flags);
 
-		if (tag >= 0 || !(gfp & __GFP_WAIT))
+		if (tag >= 0 || state == TASK_RUNNING)
 			break;
+
+		if (signal_pending_state(state, current)) {
+			tag = -ERESTARTSYS;
+			break;
+		}
 
 		schedule();
 
 		local_irq_save(flags);
 		tags = this_cpu_ptr(pool->tag_cpu);
 	}
+	if (state != TASK_RUNNING)
+		finish_wait(&pool->wait, &wait);
 
-	finish_wait(&pool->wait, &wait);
 	return tag;
 }
 EXPORT_SYMBOL_GPL(percpu_ida_alloc);

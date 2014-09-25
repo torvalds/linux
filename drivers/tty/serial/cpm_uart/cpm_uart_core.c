@@ -202,14 +202,6 @@ static void cpm_uart_stop_rx(struct uart_port *port)
 }
 
 /*
- * Enable Modem status interrupts
- */
-static void cpm_uart_enable_ms(struct uart_port *port)
-{
-	pr_debug("CPM uart[%d]:enable ms\n", port->line);
-}
-
-/*
  * Generate a break.
  */
 static void cpm_uart_break_ctl(struct uart_port *port, int break_state)
@@ -971,7 +963,7 @@ static void cpm_uart_config_port(struct uart_port *port, int flags)
  * Note that this is called with interrupts already disabled
  */
 static void cpm_uart_early_write(struct uart_cpm_port *pinfo,
-		const char *string, u_int count)
+		const char *string, u_int count, bool handle_linefeed)
 {
 	unsigned int i;
 	cbd_t __iomem *bdp, *bdbase;
@@ -1013,7 +1005,7 @@ static void cpm_uart_early_write(struct uart_cpm_port *pinfo,
 			bdp++;
 
 		/* if a LF, also do CR... */
-		if (*string == 10) {
+		if (handle_linefeed && *string == 10) {
 			while ((in_be16(&bdp->cbd_sc) & BD_SC_READY) != 0)
 				;
 
@@ -1111,7 +1103,7 @@ static void cpm_put_poll_char(struct uart_port *port,
 	static char ch[2];
 
 	ch[0] = (char)c;
-	cpm_uart_early_write(pinfo, ch, 1);
+	cpm_uart_early_write(pinfo, ch, 1, false);
 }
 #endif /* CONFIG_CONSOLE_POLL */
 
@@ -1122,7 +1114,6 @@ static struct uart_ops cpm_uart_pops = {
 	.stop_tx	= cpm_uart_stop_tx,
 	.start_tx	= cpm_uart_start_tx,
 	.stop_rx	= cpm_uart_stop_rx,
-	.enable_ms	= cpm_uart_enable_ms,
 	.break_ctl	= cpm_uart_break_ctl,
 	.startup	= cpm_uart_startup,
 	.shutdown	= cpm_uart_shutdown,
@@ -1275,7 +1266,7 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 		spin_lock_irqsave(&pinfo->port.lock, flags);
 	}
 
-	cpm_uart_early_write(pinfo, s, count);
+	cpm_uart_early_write(pinfo, s, count, true);
 
 	if (unlikely(nolock)) {
 		local_irq_restore(flags);

@@ -53,15 +53,13 @@ static bool event_compare(struct fsnotify_event *old_fsn,
 	return false;
 }
 
-static struct fsnotify_event *inotify_merge(struct list_head *list,
-					    struct fsnotify_event *event)
+static int inotify_merge(struct list_head *list,
+			  struct fsnotify_event *event)
 {
 	struct fsnotify_event *last_event;
 
 	last_event = list_entry(list->prev, struct fsnotify_event, list);
-	if (!event_compare(last_event, event))
-		return NULL;
-	return last_event;
+	return event_compare(last_event, event);
 }
 
 int inotify_handle_event(struct fsnotify_group *group,
@@ -69,13 +67,12 @@ int inotify_handle_event(struct fsnotify_group *group,
 			 struct fsnotify_mark *inode_mark,
 			 struct fsnotify_mark *vfsmount_mark,
 			 u32 mask, void *data, int data_type,
-			 const unsigned char *file_name)
+			 const unsigned char *file_name, u32 cookie)
 {
 	struct inotify_inode_mark *i_mark;
 	struct inotify_event_info *event;
-	struct fsnotify_event *added_event;
 	struct fsnotify_event *fsn_event;
-	int ret = 0;
+	int ret;
 	int len = 0;
 	int alloc_len = sizeof(struct inotify_event_info);
 
@@ -106,22 +103,21 @@ int inotify_handle_event(struct fsnotify_group *group,
 	fsn_event = &event->fse;
 	fsnotify_init_event(fsn_event, inode, mask);
 	event->wd = i_mark->wd;
+	event->sync_cookie = cookie;
 	event->name_len = len;
 	if (len)
 		strcpy(event->name, file_name);
 
-	added_event = fsnotify_add_notify_event(group, fsn_event, inotify_merge);
-	if (added_event) {
+	ret = fsnotify_add_event(group, fsn_event, inotify_merge);
+	if (ret) {
 		/* Our event wasn't used in the end. Free it. */
 		fsnotify_destroy_event(group, fsn_event);
-		if (IS_ERR(added_event))
-			ret = PTR_ERR(added_event);
 	}
 
 	if (inode_mark->mask & IN_ONESHOT)
 		fsnotify_destroy_mark(inode_mark, group);
 
-	return ret;
+	return 0;
 }
 
 static void inotify_freeing_mark(struct fsnotify_mark *fsn_mark, struct fsnotify_group *group)

@@ -14,8 +14,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -25,6 +24,7 @@
 #include <linux/if_arp.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/etherdevice.h>
 
 #include <asm/uaccess.h>
 
@@ -644,7 +644,7 @@ prism54_translate_bss(struct net_device *ndev, struct iw_request_info *info,
 	wpa_ie_len = prism54_wpa_bss_ie_get(priv, bss->address, wpa_ie);
 	if (wpa_ie_len > 0) {
 		iwe.cmd = IWEVGENIE;
-		iwe.u.data.length = min(wpa_ie_len, (size_t)MAX_WPA_IE_LEN);
+		iwe.u.data.length = min_t(size_t, wpa_ie_len, MAX_WPA_IE_LEN);
 		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
 						  &iwe, wpa_ie);
 	}
@@ -1861,7 +1861,7 @@ prism54_del_mac(struct net_device *ndev, struct iw_request_info *info,
 	if (mutex_lock_interruptible(&acl->lock))
 		return -ERESTARTSYS;
 	list_for_each_entry(entry, &acl->mac_list, _list) {
-		if (memcmp(entry->addr, addr->sa_data, ETH_ALEN) == 0) {
+		if (ether_addr_equal(entry->addr, addr->sa_data)) {
 			list_del(&entry->_list);
 			acl->size--;
 			kfree(entry);

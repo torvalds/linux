@@ -10,9 +10,7 @@ Required properties:
 - interrupt-names: Should contain the interrupt names "macirq"
   "eth_wake_irq" if this interrupt is supported in the "interrupts"
   property
-- phy-mode: String, operation mode of the PHY interface.
-  Supported values are: "mii", "rmii", "gmii", "rgmii".
-- snps,phy-addr		phy address to connect to.
+- phy-mode: See ethernet.txt file in the same directory.
 - snps,reset-gpio 	gpio number for phy reset.
 - snps,reset-active-low boolean flag to indicate if phy reset is active low.
 - snps,reset-delays-us  is triplet of delays
@@ -27,9 +25,24 @@ Required properties:
 - snps,force_sf_dma_mode	Force DMA to use the Store and Forward
 				mode for both tx and rx. This flag is
 				ignored if force_thresh_dma_mode is set.
+- snps,multicast-filter-bins:	Number of multicast filter hash bins
+				supported by this device instance
+- snps,perfect-filter-entries:	Number of perfect filter entries supported
+				by this device instance
 
 Optional properties:
-- mac-address: 6 bytes, mac address
+- resets: Should contain a phandle to the STMMAC reset signal, if any
+- reset-names: Should contain the reset signal name "stmmaceth", if a
+	reset phandle is given
+- max-frame-size: See ethernet.txt file in the same directory
+- clocks: If present, the first clock should be the GMAC main clock,
+  further clocks may be specified in derived bindings.
+- clock-names: One name for each entry in the clocks property, the
+  first one should be "stmmaceth".
+- clk_ptp_ref: this is the PTP reference clock; in case of the PTP is
+  available this clock is used for programming the Timestamp Addend Register.
+  If not passed then the system clock will be used and this is fine on some
+  platforms.
 
 Examples:
 
@@ -40,5 +53,10 @@ Examples:
 		interrupts = <24 23>;
 		interrupt-names = "macirq", "eth_wake_irq";
 		mac-address = [000000000000]; /* Filled in by U-Boot */
+		max-frame-size = <3800>;
 		phy-mode = "gmii";
+		snps,multicast-filter-bins = <256>;
+		snps,perfect-filter-entries = <128>;
+		clocks = <&clock>;
+		clock-names = "stmmaceth">;
 	};

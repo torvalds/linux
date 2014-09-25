@@ -43,5 +43,5 @@ data (0.03125 degrees celsius resolution).
 
 Thanks to
 ---------
-Jean Delvare <khali@linux-fr.org> for mentoring the hwmon-side driver
+Jean Delvare <jdelvare@suse.de> for mentoring the hwmon-side driver
 development.

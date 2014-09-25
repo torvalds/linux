@@ -424,107 +424,134 @@ void debug_dma_dump_mappings(struct device *dev)
 EXPORT_SYMBOL(debug_dma_dump_mappings);
 
 /*
- * For each page mapped (initial page in the case of
- * dma_alloc_coherent/dma_map_{single|page}, or each page in a
- * scatterlist) insert into this tree using the pfn as the key. At
+ * For each mapping (initial cacheline in the case of
+ * dma_alloc_coherent/dma_map_page, initial cacheline in each page of a
+ * scatterlist, or the cacheline specified in dma_map_single) insert
+ * into this tree using the cacheline as the key. At
  * dma_unmap_{single|sg|page} or dma_free_coherent delete the entry.  If
- * the pfn already exists at insertion time add a tag as a reference
+ * the entry already exists at insertion time add a tag as a reference
  * count for the overlapping mappings.  For now, the overlap tracking
- * just ensures that 'unmaps' balance 'maps' before marking the pfn
- * idle, but we should also be flagging overlaps as an API violation.
+ * just ensures that 'unmaps' balance 'maps' before marking the
+ * cacheline idle, but we should also be flagging overlaps as an API
+ * violation.
  *
  * Memory usage is mostly constrained by the maximum number of available
  * dma-debug entries in that we need a free dma_debug_entry before
- * inserting into the tree.  In the case of dma_map_{single|page} and
- * dma_alloc_coherent there is only one dma_debug_entry and one pfn to
- * track per event.  dma_map_sg(), on the other hand,
- * consumes a single dma_debug_entry, but inserts 'nents' entries into
- * the tree.
+ * inserting into the tree.  In the case of dma_map_page and
+ * dma_alloc_coherent there is only one dma_debug_entry and one
+ * dma_active_cacheline entry to track per event.  dma_map_sg(), on the
+ * other hand, consumes a single dma_debug_entry, but inserts 'nents'
+ * entries into the tree.
  *
  * At any time debug_dma_assert_idle() can be called to trigger a
- * warning if the given page is in the active set.
+ * warning if any cachelines in the given page are in the active set.
  */
-static RADIX_TREE(dma_active_pfn, GFP_NOWAIT);
+static RADIX_TREE(dma_active_cacheline, GFP_NOWAIT);
 static DEFINE_SPINLOCK(radix_lock);
-#define ACTIVE_PFN_MAX_OVERLAP ((1 << RADIX_TREE_MAX_TAGS) - 1)
+#define ACTIVE_CACHELINE_MAX_OVERLAP ((1 << RADIX_TREE_MAX_TAGS) - 1)
+#define CACHELINE_PER_PAGE_SHIFT (PAGE_SHIFT - L1_CACHE_SHIFT)
+#define CACHELINES_PER_PAGE (1 << CACHELINE_PER_PAGE_SHIFT)
 
-static int active_pfn_read_overlap(unsigned long pfn)
+static phys_addr_t to_cacheline_number(struct dma_debug_entry *entry)
+{
+	return (entry->pfn << CACHELINE_PER_PAGE_SHIFT) +
+		(entry->offset >> L1_CACHE_SHIFT);
+}
+
+static int active_cacheline_read_overlap(phys_addr_t cln)
 {
 	int overlap = 0, i;
 
 	for (i = RADIX_TREE_MAX_TAGS - 1; i >= 0; i--)
-		if (radix_tree_tag_get(&dma_active_pfn, pfn, i))
+		if (radix_tree_tag_get(&dma_active_cacheline, cln, i))
 			overlap |= 1 << i;
 	return overlap;
 }
 
-static int active_pfn_set_overlap(unsigned long pfn, int overlap)
+static int active_cacheline_set_overlap(phys_addr_t cln, int overlap)
 {
 	int i;
 
-	if (overlap > ACTIVE_PFN_MAX_OVERLAP || overlap < 0)
-		return 0;
+	if (overlap > ACTIVE_CACHELINE_MAX_OVERLAP || overlap < 0)
+		return overlap;
 
 	for (i = RADIX_TREE_MAX_TAGS - 1; i >= 0; i--)
 		if (overlap & 1 << i)
-			radix_tree_tag_set(&dma_active_pfn, pfn, i);
+			radix_tree_tag_set(&dma_active_cacheline, cln, i);
 		else
-			radix_tree_tag_clear(&dma_active_pfn, pfn, i);
+			radix_tree_tag_clear(&dma_active_cacheline, cln, i);
 
 	return overlap;
 }
 
-static void active_pfn_inc_overlap(unsigned long pfn)
+static void active_cacheline_inc_overlap(phys_addr_t cln)
 {
-	int overlap = active_pfn_read_overlap(pfn);
+	int overlap = active_cacheline_read_overlap(cln);
 
-	overlap = active_pfn_set_overlap(pfn, ++overlap);
+	overlap = active_cacheline_set_overlap(cln, ++overlap);
 
 	/* If we overflowed the overlap counter then we're potentially
 	 * leaking dma-mappings.  Otherwise, if maps and unmaps are
 	 * balanced then this overflow may cause false negatives in
-	 * debug_dma_assert_idle() as the pfn may be marked idle
+	 * debug_dma_assert_idle() as the cacheline may be marked idle
 	 * prematurely.
 	 */
-	WARN_ONCE(overlap == 0,
-		  "DMA-API: exceeded %d overlapping mappings of pfn %lx\n",
-		  ACTIVE_PFN_MAX_OVERLAP, pfn);
+	WARN_ONCE(overlap > ACTIVE_CACHELINE_MAX_OVERLAP,
+		  "DMA-API: exceeded %d overlapping mappings of cacheline %pa\n",
+		  ACTIVE_CACHELINE_MAX_OVERLAP, &cln);
 }
 
-static int active_pfn_dec_overlap(unsigned long pfn)
+static int active_cacheline_dec_overlap(phys_addr_t cln)
 {
-	int overlap = active_pfn_read_overlap(pfn);
+	int overlap = active_cacheline_read_overlap(cln);
 
-	return active_pfn_set_overlap(pfn, --overlap);
+	return active_cacheline_set_overlap(cln, --overlap);
 }
 
-static int active_pfn_insert(struct dma_debug_entry *entry)
+static int active_cacheline_insert(struct dma_debug_entry *entry)
 {
+	phys_addr_t cln = to_cacheline_number(entry);
 	unsigned long flags;
 	int rc;
 
+	/* If the device is not writing memory then we don't have any
+	 * concerns about the cpu consuming stale data.  This mitigates
+	 * legitimate usages of overlapping mappings.
+	 */
+	if (entry->direction == DMA_TO_DEVICE)
+		return 0;
+
 	spin_lock_irqsave(&radix_lock, flags);
-	rc = radix_tree_insert(&dma_active_pfn, entry->pfn, entry);
+	rc = radix_tree_insert(&dma_active_cacheline, cln, entry);
 	if (rc == -EEXIST)
-		active_pfn_inc_overlap(entry->pfn);
+		active_cacheline_inc_overlap(cln);
 	spin_unlock_irqrestore(&radix_lock, flags);
 
 	return rc;
 }
 
-static void active_pfn_remove(struct dma_debug_entry *entry)
+static void active_cacheline_remove(struct dma_debug_entry *entry)
 {
+	phys_addr_t cln = to_cacheline_number(entry);
 	unsigned long flags;
 
+	/* ...mirror the insert case */
+	if (entry->direction == DMA_TO_DEVICE)
+		return;
+
 	spin_lock_irqsave(&radix_lock, flags);
-	if (active_pfn_dec_overlap(entry->pfn) == 0)
-		radix_tree_delete(&dma_active_pfn, entry->pfn);
+	/* since we are counting overlaps the final put of the
+	 * cacheline will occur when the overlap count is 0.
+	 * active_cacheline_dec_overlap() returns -1 in that case
+	 */
+	if (active_cacheline_dec_overlap(cln) < 0)
+		radix_tree_delete(&dma_active_cacheline, cln);
 	spin_unlock_irqrestore(&radix_lock, flags);
 }
 
 /**
  * debug_dma_assert_idle() - assert that a page is not undergoing dma
- * @page: page to lookup in the dma_active_pfn tree
+ * @page: page to lookup in the dma_active_cacheline tree
  *
  * Place a call to this routine in cases where the cpu touching the page
  * before the dma completes (page is dma_unmapped) will lead to data
@@ -532,22 +559,38 @@ static void active_pfn_remove(struct dma_debug_entry *entry)
  */
 void debug_dma_assert_idle(struct page *page)
 {
+	static struct dma_debug_entry *ents[CACHELINES_PER_PAGE];
+	struct dma_debug_entry *entry = NULL;
+	void **results = (void **) &ents;
+	unsigned int nents, i;
 	unsigned long flags;
-	struct dma_debug_entry *entry;
+	phys_addr_t cln;
 
 	if (!page)
 		return;
 
+	cln = (phys_addr_t) page_to_pfn(page) << CACHELINE_PER_PAGE_SHIFT;
 	spin_lock_irqsave(&radix_lock, flags);
-	entry = radix_tree_lookup(&dma_active_pfn, page_to_pfn(page));
+	nents = radix_tree_gang_lookup(&dma_active_cacheline, results, cln,
+				       CACHELINES_PER_PAGE);
+	for (i = 0; i < nents; i++) {
+		phys_addr_t ent_cln = to_cacheline_number(ents[i]);
+
+		if (ent_cln == cln) {
+			entry = ents[i];
+			break;
+		} else if (ent_cln >= cln + CACHELINES_PER_PAGE)
+			break;
+	}
 	spin_unlock_irqrestore(&radix_lock, flags);
 
 	if (!entry)
 		return;
 
+	cln = to_cacheline_number(entry);
 	err_printk(entry->dev, entry,
-		   "DMA-API: cpu touching an active dma mapped page "
-		   "[pfn=0x%lx]\n", entry->pfn);
+		   "DMA-API: cpu touching an active dma mapped cacheline [cln=%pa]\n",
+		   &cln);
 }
 
 /*
@@ -564,9 +607,9 @@ static void add_dma_entry(struct dma_debug_entry *entry)
 	hash_bucket_add(bucket, entry);
 	put_hash_bucket(bucket, &flags);
 
-	rc = active_pfn_insert(entry);
+	rc = active_cacheline_insert(entry);
 	if (rc == -ENOMEM) {
-		pr_err("DMA-API: pfn tracking ENOMEM, dma-debug disabled\n");
+		pr_err("DMA-API: cacheline tracking ENOMEM, dma-debug disabled\n");
 		global_disable = true;
 	}
 
@@ -627,7 +670,7 @@ static void dma_entry_free(struct dma_debug_entry *entry)
 {
 	unsigned long flags;
 
-	active_pfn_remove(entry);
+	active_cacheline_remove(entry);
 
 	/*
 	 * add to beginning of the list - this way the entries are

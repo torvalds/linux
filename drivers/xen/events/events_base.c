@@ -246,7 +246,7 @@ static void xen_irq_info_cleanup(struct irq_info *info)
  */
 unsigned int evtchn_from_irq(unsigned irq)
 {
-	if (unlikely(WARN(irq < 0 || irq >= nr_irqs, "Invalid irq %d!\n", irq)))
+	if (unlikely(WARN(irq >= nr_irqs, "Invalid irq %d!\n", irq)))
 		return 0;
 
 	return info_for_irq(irq)->evtchn;
@@ -336,9 +336,8 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 
 	BUG_ON(irq == -1);
 #ifdef CONFIG_SMP
-	cpumask_copy(irq_to_desc(irq)->irq_data.affinity, cpumask_of(cpu));
+	cpumask_copy(irq_get_irq_data(irq)->affinity, cpumask_of(cpu));
 #endif
-
 	xen_evtchn_port_bind_to_cpu(info, cpu);
 
 	info->cpu = cpu;
@@ -373,10 +372,8 @@ static void xen_irq_init(unsigned irq)
 {
 	struct irq_info *info;
 #ifdef CONFIG_SMP
-	struct irq_desc *desc = irq_to_desc(irq);
-
 	/* By default all event channels notify CPU#0. */
-	cpumask_copy(desc->irq_data.affinity, cpumask_of(0));
+	cpumask_copy(irq_get_irq_data(irq)->affinity, cpumask_of(0));
 #endif
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -391,29 +388,22 @@ static void xen_irq_init(unsigned irq)
 	list_add_tail(&info->list, &xen_irq_list_head);
 }
 
-static int __must_check xen_allocate_irq_dynamic(void)
+static int __must_check xen_allocate_irqs_dynamic(int nvec)
 {
-	int first = 0;
-	int irq;
+	int i, irq = irq_alloc_descs(-1, 0, nvec, -1);
 
-#ifdef CONFIG_X86_IO_APIC
-	/*
-	 * For an HVM guest or domain 0 which see "real" (emulated or
-	 * actual respectively) GSIs we allocate dynamic IRQs
-	 * e.g. those corresponding to event channels or MSIs
-	 * etc. from the range above those "real" GSIs to avoid
-	 * collisions.
-	 */
-	if (xen_initial_domain() || xen_hvm_domain())
-		first = get_nr_irqs_gsi();
-#endif
-
-	irq = irq_alloc_desc_from(first, -1);
-
-	if (irq >= 0)
-		xen_irq_init(irq);
+	if (irq >= 0) {
+		for (i = 0; i < nvec; i++)
+			xen_irq_init(irq + i);
+	}
 
 	return irq;
+}
+
+static inline int __must_check xen_allocate_irq_dynamic(void)
+{
+
+	return xen_allocate_irqs_dynamic(1);
 }
 
 static int __must_check xen_allocate_irq_gsi(unsigned gsi)
@@ -469,9 +459,6 @@ static void xen_evtchn_close(unsigned int port)
 	close.port = port;
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
 		BUG();
-
-	/* Closed ports are implicitly re-bound to VCPU0. */
-	bind_evtchn_to_cpu(port, 0);
 }
 
 static void pirq_query_unmask(int irq)
@@ -488,13 +475,6 @@ static void pirq_query_unmask(int irq)
 	info->u.pirq.flags &= ~PIRQ_NEEDS_EOI;
 	if (irq_status.flags & XENIRQSTAT_needs_eoi)
 		info->u.pirq.flags |= PIRQ_NEEDS_EOI;
-}
-
-static bool probing_irq(int irq)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-
-	return desc && desc->action == NULL;
 }
 
 static void eoi_pirq(struct irq_data *data)
@@ -538,8 +518,7 @@ static unsigned int __startup_pirq(unsigned int irq)
 					BIND_PIRQ__WILL_SHARE : 0;
 	rc = HYPERVISOR_event_channel_op(EVTCHNOP_bind_pirq, &bind_pirq);
 	if (rc != 0) {
-		if (!probing_irq(irq))
-			pr_info("Failed to obtain physical IRQ %d\n", irq);
+		pr_warn("Failed to obtain physical IRQ %d\n", irq);
 		return 0;
 	}
 	evtchn = bind_pirq.port;
@@ -741,22 +720,25 @@ int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc)
 }
 
 int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			     int pirq, const char *name, domid_t domid)
+			     int pirq, int nvec, const char *name, domid_t domid)
 {
-	int irq, ret;
+	int i, irq, ret;
 
 	mutex_lock(&irq_mapping_update_lock);
 
-	irq = xen_allocate_irq_dynamic();
+	irq = xen_allocate_irqs_dynamic(nvec);
 	if (irq < 0)
 		goto out;
 
-	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_edge_irq,
-			name);
+	for (i = 0; i < nvec; i++) {
+		irq_set_chip_and_handler_name(irq + i, &xen_pirq_chip, handle_edge_irq, name);
 
-	ret = xen_irq_info_pirq_setup(irq, 0, pirq, 0, domid, 0);
-	if (ret < 0)
-		goto error_irq;
+		ret = xen_irq_info_pirq_setup(irq + i, 0, pirq + i, 0, domid,
+					      i == 0 ? 0 : PIRQ_MSI_GROUP);
+		if (ret < 0)
+			goto error_irq;
+	}
+
 	ret = irq_set_msi_desc(irq, msidesc);
 	if (ret < 0)
 		goto error_irq;
@@ -764,7 +746,8 @@ out:
 	mutex_unlock(&irq_mapping_update_lock);
 	return irq;
 error_irq:
-	__unbind_from_irq(irq);
+	for (; i >= 0; i--)
+		__unbind_from_irq(irq + i);
 	mutex_unlock(&irq_mapping_update_lock);
 	return ret;
 }
@@ -772,18 +755,18 @@ error_irq:
 
 int xen_destroy_irq(int irq)
 {
-	struct irq_desc *desc;
 	struct physdev_unmap_pirq unmap_irq;
 	struct irq_info *info = info_for_irq(irq);
 	int rc = -ENOENT;
 
 	mutex_lock(&irq_mapping_update_lock);
 
-	desc = irq_to_desc(irq);
-	if (!desc)
-		goto out;
-
-	if (xen_initial_domain()) {
+	/*
+	 * If trying to remove a vector in a MSI group different
+	 * than the first one skip the PIRQ unmap unless this vector
+	 * is the first one in the group.
+	 */
+	if (xen_initial_domain() && !(info->u.pirq.flags & PIRQ_MSI_GROUP)) {
 		unmap_irq.pirq = info->u.pirq.pirq;
 		unmap_irq.domid = info->u.pirq.domid;
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap_irq);
@@ -862,6 +845,8 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 			irq = ret;
 			goto out;
 		}
+		/* New interdomain events are bound to VCPU 0. */
+		bind_evtchn_to_cpu(evtchn, 0);
 	} else {
 		struct irq_info *info = info_for_irq(irq);
 		WARN_ON(info == NULL || info->type != IRQT_EVTCHN);
@@ -1248,6 +1233,7 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 	irq_enter();
 #ifdef CONFIG_X86
 	exit_idle();
+	inc_irq_stat(irq_hv_callback_count);
 #endif
 
 	__xen_evtchn_do_upcall();
@@ -1337,29 +1323,9 @@ static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 static int set_affinity_irq(struct irq_data *data, const struct cpumask *dest,
 			    bool force)
 {
-	unsigned tcpu = cpumask_first(dest);
+	unsigned tcpu = cpumask_first_and(dest, cpu_online_mask);
 
 	return rebind_irq_to_cpu(data->irq, tcpu);
-}
-
-static int retrigger_evtchn(int evtchn)
-{
-	int masked;
-
-	if (!VALID_EVTCHN(evtchn))
-		return 0;
-
-	masked = test_and_set_mask(evtchn);
-	set_evtchn(evtchn);
-	if (!masked)
-		unmask_evtchn(evtchn);
-
-	return 1;
-}
-
-int resend_irq_on_evtchn(unsigned int irq)
-{
-	return retrigger_evtchn(evtchn_from_irq(irq));
 }
 
 static void enable_dynirq(struct irq_data *data)
@@ -1396,7 +1362,18 @@ static void mask_ack_dynirq(struct irq_data *data)
 
 static int retrigger_dynirq(struct irq_data *data)
 {
-	return retrigger_evtchn(evtchn_from_irq(data->irq));
+	unsigned int evtchn = evtchn_from_irq(data->irq);
+	int masked;
+
+	if (!VALID_EVTCHN(evtchn))
+		return 0;
+
+	masked = test_and_set_mask(evtchn);
+	set_evtchn(evtchn);
+	if (!masked)
+		unmask_evtchn(evtchn);
+
+	return 1;
 }
 
 static void restore_pirqs(void)

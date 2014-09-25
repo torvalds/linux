@@ -36,9 +36,7 @@
 
 struct max8925_regulator_info {
 	struct regulator_desc	desc;
-	struct regulator_dev	*regulator;
 	struct i2c_client	*i2c;
-	struct max8925_chip	*chip;
 
 	int	vol_reg;
 	int	enable_reg;
@@ -251,10 +249,11 @@ static int max8925_regulator_dt_init(struct platform_device *pdev,
 {
 	struct device_node *nproot, *np;
 	int rcount;
-	nproot = of_node_get(pdev->dev.parent->of_node);
+
+	nproot = pdev->dev.parent->of_node;
 	if (!nproot)
 		return -ENODEV;
-	np = of_find_node_by_name(nproot, "regulators");
+	np = of_get_child_by_name(nproot, "regulators");
 	if (!np) {
 		dev_err(&pdev->dev, "failed to find regulators node\n");
 		return -ENODEV;
@@ -264,7 +263,7 @@ static int max8925_regulator_dt_init(struct platform_device *pdev,
 				&max8925_regulator_matches[ridx], 1);
 	of_node_put(np);
 	if (rcount < 0)
-		return -ENODEV;
+		return rcount;
 	config->init_data =	max8925_regulator_matches[ridx].init_data;
 	config->of_node = max8925_regulator_matches[ridx].of_node;
 
@@ -303,7 +302,6 @@ static int max8925_regulator_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	ri->i2c = chip->i2c;
-	ri->chip = chip;
 
 	config.dev = &pdev->dev;
 	config.driver_data = ri;

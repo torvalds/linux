@@ -35,17 +35,27 @@ struct vpdma_data {
 
 	struct platform_device	*pdev;
 
-	/* tells whether vpdma firmware is loaded or not */
-	bool ready;
+	/* callback to VPE driver when the firmware is loaded */
+	void (*cb)(struct platform_device *pdev);
+};
+
+enum vpdma_data_format_type {
+	VPDMA_DATA_FMT_TYPE_YUV,
+	VPDMA_DATA_FMT_TYPE_RGB,
+	VPDMA_DATA_FMT_TYPE_MISC,
 };
 
 struct vpdma_data_format {
+	enum vpdma_data_format_type type;
 	int data_type;
 	u8 depth;
 };
 
 #define VPDMA_DESC_ALIGN		16	/* 16-byte descriptor alignment */
-
+#define VPDMA_STRIDE_ALIGN		16	/*
+						 * line stride of source and dest
+						 * buffers should be 16 byte aligned
+						 */
 #define VPDMA_DTD_DESC_SIZE		32	/* 8 words */
 #define VPDMA_CFD_CTD_DESC_SIZE		16	/* 4 words */
 
@@ -176,13 +186,15 @@ void vpdma_add_cfd_adb(struct vpdma_desc_list *list, int client,
 		struct vpdma_buf *adb);
 void vpdma_add_sync_on_channel_ctd(struct vpdma_desc_list *list,
 		enum vpdma_channel chan);
-void vpdma_add_out_dtd(struct vpdma_desc_list *list, struct v4l2_rect *c_rect,
+void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
+		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
 		enum vpdma_channel chan, u32 flags);
-void vpdma_add_in_dtd(struct vpdma_desc_list *list, int frame_width,
-		int frame_height, struct v4l2_rect *c_rect,
+void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
+		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
-		enum vpdma_channel chan, int field, u32 flags);
+		enum vpdma_channel chan, int field, u32 flags, int frame_width,
+		int frame_height, int start_h, int start_v);
 
 /* vpdma list interrupt management */
 void vpdma_enable_list_complete_irq(struct vpdma_data *vpdma, int list_num,
@@ -198,6 +210,7 @@ void vpdma_set_frame_start_event(struct vpdma_data *vpdma,
 void vpdma_dump_regs(struct vpdma_data *vpdma);
 
 /* initialize vpdma, passed with VPE's platform device pointer */
-struct vpdma_data *vpdma_create(struct platform_device *pdev);
+struct vpdma_data *vpdma_create(struct platform_device *pdev,
+		void (*cb)(struct platform_device *pdev));
 
 #endif

@@ -97,12 +97,10 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-# include <lustre_dlm.h>
-
-#include <cl_object.h>
-
-#include <obd_class.h>
-#include <obd_support.h>
+#include "../include/lustre_dlm.h"
+#include "../include/cl_object.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
 #include "ldlm_internal.h"
 
 
@@ -336,12 +334,12 @@ static int ldlm_srv_pool_recalc(struct ldlm_pool *pl)
 {
 	time_t recalc_interval_sec;
 
-	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
+	recalc_interval_sec = get_seconds() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period)
 		return 0;
 
 	spin_lock(&pl->pl_lock);
-	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
+	recalc_interval_sec = get_seconds() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period) {
 		spin_unlock(&pl->pl_lock);
 		return 0;
@@ -362,7 +360,7 @@ static int ldlm_srv_pool_recalc(struct ldlm_pool *pl)
 	 */
 	ldlm_pool_recalc_grant_plan(pl);
 
-	pl->pl_recalc_time = cfs_time_current_sec();
+	pl->pl_recalc_time = get_seconds();
 	lprocfs_counter_add(pl->pl_stats, LDLM_POOL_TIMING_STAT,
 			    recalc_interval_sec);
 	spin_unlock(&pl->pl_lock);
@@ -378,7 +376,7 @@ static int ldlm_srv_pool_recalc(struct ldlm_pool *pl)
  * locks smaller in next 10h.
  */
 static int ldlm_srv_pool_shrink(struct ldlm_pool *pl,
-				int nr, unsigned int gfp_mask)
+				int nr, gfp_t gfp_mask)
 {
 	__u32 limit;
 
@@ -473,7 +471,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 {
 	time_t recalc_interval_sec;
 
-	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
+	recalc_interval_sec = get_seconds() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period)
 		return 0;
 
@@ -481,7 +479,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 	/*
 	 * Check if we need to recalc lists now.
 	 */
-	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
+	recalc_interval_sec = get_seconds() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period) {
 		spin_unlock(&pl->pl_lock);
 		return 0;
@@ -492,7 +490,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 	 */
 	ldlm_cli_pool_pop_slv(pl);
 
-	pl->pl_recalc_time = cfs_time_current_sec();
+	pl->pl_recalc_time = get_seconds();
 	lprocfs_counter_add(pl->pl_stats, LDLM_POOL_TIMING_STAT,
 			    recalc_interval_sec);
 	spin_unlock(&pl->pl_lock);
@@ -518,7 +516,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
  * passed \a pl according to \a nr and \a gfp_mask.
  */
 static int ldlm_cli_pool_shrink(struct ldlm_pool *pl,
-				int nr, unsigned int gfp_mask)
+				int nr, gfp_t gfp_mask)
 {
 	struct ldlm_namespace *ns;
 	int unused;
@@ -546,13 +544,13 @@ static int ldlm_cli_pool_shrink(struct ldlm_pool *pl,
 		return ldlm_cancel_lru(ns, nr, LCF_ASYNC, LDLM_CANCEL_SHRINK);
 }
 
-struct ldlm_pool_ops ldlm_srv_pool_ops = {
+static const struct ldlm_pool_ops ldlm_srv_pool_ops = {
 	.po_recalc = ldlm_srv_pool_recalc,
 	.po_shrink = ldlm_srv_pool_shrink,
 	.po_setup  = ldlm_srv_pool_setup
 };
 
-struct ldlm_pool_ops ldlm_cli_pool_ops = {
+static const struct ldlm_pool_ops ldlm_cli_pool_ops = {
 	.po_recalc = ldlm_cli_pool_recalc,
 	.po_shrink = ldlm_cli_pool_shrink
 };
@@ -566,7 +564,7 @@ int ldlm_pool_recalc(struct ldlm_pool *pl)
 	time_t recalc_interval_sec;
 	int count;
 
-	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
+	recalc_interval_sec = get_seconds() - pl->pl_recalc_time;
 	if (recalc_interval_sec <= 0)
 		goto recalc;
 
@@ -591,7 +589,7 @@ int ldlm_pool_recalc(struct ldlm_pool *pl)
 		lprocfs_counter_add(pl->pl_stats, LDLM_POOL_RECALC_STAT,
 				    count);
 	}
-	recalc_interval_sec = pl->pl_recalc_time - cfs_time_current_sec() +
+	recalc_interval_sec = pl->pl_recalc_time - get_seconds() +
 			      pl->pl_recalc_period;
 
 	return recalc_interval_sec;
@@ -603,7 +601,7 @@ int ldlm_pool_recalc(struct ldlm_pool *pl)
  * freeable locks. Otherwise, return the number of canceled locks.
  */
 int ldlm_pool_shrink(struct ldlm_pool *pl, int nr,
-		     unsigned int gfp_mask)
+		     gfp_t gfp_mask)
 {
 	int cancel = 0;
 
@@ -638,7 +636,7 @@ int ldlm_pool_setup(struct ldlm_pool *pl, int limit)
 }
 EXPORT_SYMBOL(ldlm_pool_setup);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 {
 	int granted, grant_rate, cancel_rate, grant_step;
@@ -661,8 +659,8 @@ static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 	spin_unlock(&pl->pl_lock);
 
 	seq_printf(m, "LDLM pool state (%s):\n"
-		      "  SLV: "LPU64"\n"
-		      "  CLV: "LPU64"\n"
+		      "  SLV: %llu\n"
+		      "  CLV: %llu\n"
 		      "  LVF: %d\n",
 		      pl->pl_name, slv, clv, lvf);
 
@@ -718,7 +716,7 @@ LPROC_SEQ_FOPS_RO(lprocfs_grant_speed);
 		snprintf(var_name, MAX_STRING_SIZE, #name);	\
 		pool_vars[0].data = var;			\
 		pool_vars[0].fops = ops;			\
-		lprocfs_add_vars(pl->pl_proc_dir, pool_vars, 0);\
+		lprocfs_add_vars(pl->pl_proc_dir, pool_vars, NULL);\
 	} while (0)
 
 static int ldlm_pool_proc_init(struct ldlm_pool *pl)
@@ -823,14 +821,14 @@ static void ldlm_pool_proc_fini(struct ldlm_pool *pl)
 		pl->pl_proc_dir = NULL;
 	}
 }
-#else /* !LPROCFS */
+#else /* !CONFIG_PROC_FS */
 static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 {
 	return 0;
 }
 
 static void ldlm_pool_proc_fini(struct ldlm_pool *pl) {}
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */
 
 int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 		   int idx, ldlm_side_t client)
@@ -839,7 +837,7 @@ int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 
 	spin_lock_init(&pl->pl_lock);
 	atomic_set(&pl->pl_granted, 0);
-	pl->pl_recalc_time = cfs_time_current_sec();
+	pl->pl_recalc_time = get_seconds();
 	atomic_set(&pl->pl_lock_volume_factor, 1);
 
 	atomic_set(&pl->pl_grant_rate, 0);
@@ -1029,7 +1027,7 @@ static struct completion ldlm_pools_comp;
  * count locks from all namespaces (if possible). Returns number of
  * cached locks.
  */
-static unsigned long ldlm_pools_count(ldlm_side_t client, unsigned int gfp_mask)
+static unsigned long ldlm_pools_count(ldlm_side_t client, gfp_t gfp_mask)
 {
 	int total = 0, nr_ns;
 	struct ldlm_namespace *ns;
@@ -1082,7 +1080,7 @@ static unsigned long ldlm_pools_count(ldlm_side_t client, unsigned int gfp_mask)
 	return total;
 }
 
-static unsigned long ldlm_pools_scan(ldlm_side_t client, int nr, unsigned int gfp_mask)
+static unsigned long ldlm_pools_scan(ldlm_side_t client, int nr, gfp_t gfp_mask)
 {
 	unsigned long freed = 0;
 	int tmp, nr_ns;

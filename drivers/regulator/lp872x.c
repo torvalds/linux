@@ -211,7 +211,7 @@ static int lp872x_get_timestep_usec(struct lp872x *lp)
 
 	ret = lp872x_read_byte(lp, LP872X_GENERAL_CFG, &val);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	val = (val & mask) >> shift;
 	if (val >= size)
@@ -229,7 +229,7 @@ static int lp872x_regulator_enable_time(struct regulator_dev *rdev)
 	u8 addr, val;
 
 	if (time_step_us < 0)
-		return -EINVAL;
+		return time_step_us;
 
 	switch (rid) {
 	case LP8720_ID_LDO1 ... LP8720_ID_BUCK:
@@ -845,7 +845,6 @@ static struct lp872x_platform_data
 	struct device_node *np = dev->of_node;
 	struct lp872x_platform_data *pdata;
 	struct of_regulator_match *match;
-	struct regulator_init_data *d;
 	int num_matches;
 	int count;
 	int i;
@@ -892,14 +891,6 @@ static struct lp872x_platform_data
 		pdata->regulator_data[i].id =
 				(enum lp872x_regulator_id)match[i].driver_data;
 		pdata->regulator_data[i].init_data = match[i].init_data;
-
-		/* Operation mode configuration for buck/buck1/buck2 */
-		if (strncmp(match[i].name, "buck", 4))
-			continue;
-
-		d = pdata->regulator_data[i].init_data;
-		d->constraints.valid_modes_mask |= LP872X_VALID_OPMODE;
-		d->constraints.valid_ops_mask |= REGULATOR_CHANGE_MODE;
 	}
 out:
 	return pdata;

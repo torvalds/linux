@@ -1028,7 +1028,7 @@ static int set_pkeys(struct qib_devdata *dd, u8 port, u16 *pkeys)
 
 		event.event = IB_EVENT_PKEY_CHANGE;
 		event.device = &dd->verbs_dev.ibdev;
-		event.element.port_num = 1;
+		event.element.port_num = port;
 		ib_dispatch_event(&event);
 	}
 	return 0;
@@ -1634,6 +1634,23 @@ static int pma_get_portcounters_cong(struct ib_pma_mad *pmp,
 	return reply((struct ib_smp *)pmp);
 }
 
+static void qib_snapshot_pmacounters(
+	struct qib_ibport *ibp,
+	struct qib_pma_counters *pmacounters)
+{
+	struct qib_pma_counters *p;
+	int cpu;
+
+	memset(pmacounters, 0, sizeof(*pmacounters));
+	for_each_possible_cpu(cpu) {
+		p = per_cpu_ptr(ibp->pmastats, cpu);
+		pmacounters->n_unicast_xmit += p->n_unicast_xmit;
+		pmacounters->n_unicast_rcv += p->n_unicast_rcv;
+		pmacounters->n_multicast_xmit += p->n_multicast_xmit;
+		pmacounters->n_multicast_rcv += p->n_multicast_rcv;
+	}
+}
+
 static int pma_get_portcounters_ext(struct ib_pma_mad *pmp,
 				    struct ib_device *ibdev, u8 port)
 {
@@ -1642,6 +1659,7 @@ static int pma_get_portcounters_ext(struct ib_pma_mad *pmp,
 	struct qib_ibport *ibp = to_iport(ibdev, port);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	u64 swords, rwords, spkts, rpkts, xwait;
+	struct qib_pma_counters pma;
 	u8 port_select = p->port_select;
 
 	memset(pmp->data, 0, sizeof(pmp->data));
@@ -1664,10 +1682,17 @@ static int pma_get_portcounters_ext(struct ib_pma_mad *pmp,
 	p->port_rcv_data = cpu_to_be64(rwords);
 	p->port_xmit_packets = cpu_to_be64(spkts);
 	p->port_rcv_packets = cpu_to_be64(rpkts);
-	p->port_unicast_xmit_packets = cpu_to_be64(ibp->n_unicast_xmit);
-	p->port_unicast_rcv_packets = cpu_to_be64(ibp->n_unicast_rcv);
-	p->port_multicast_xmit_packets = cpu_to_be64(ibp->n_multicast_xmit);
-	p->port_multicast_rcv_packets = cpu_to_be64(ibp->n_multicast_rcv);
+
+	qib_snapshot_pmacounters(ibp, &pma);
+
+	p->port_unicast_xmit_packets = cpu_to_be64(pma.n_unicast_xmit
+		- ibp->z_unicast_xmit);
+	p->port_unicast_rcv_packets = cpu_to_be64(pma.n_unicast_rcv
+		- ibp->z_unicast_rcv);
+	p->port_multicast_xmit_packets = cpu_to_be64(pma.n_multicast_xmit
+		- ibp->z_multicast_xmit);
+	p->port_multicast_rcv_packets = cpu_to_be64(pma.n_multicast_rcv
+		- ibp->z_multicast_rcv);
 
 bail:
 	return reply((struct ib_smp *) pmp);
@@ -1795,6 +1820,7 @@ static int pma_set_portcounters_ext(struct ib_pma_mad *pmp,
 	struct qib_ibport *ibp = to_iport(ibdev, port);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	u64 swords, rwords, spkts, rpkts, xwait;
+	struct qib_pma_counters pma;
 
 	qib_snapshot_counters(ppd, &swords, &rwords, &spkts, &rpkts, &xwait);
 
@@ -1810,17 +1836,19 @@ static int pma_set_portcounters_ext(struct ib_pma_mad *pmp,
 	if (p->counter_select & IB_PMA_SELX_PORT_RCV_PACKETS)
 		ibp->z_port_rcv_packets = rpkts;
 
+	qib_snapshot_pmacounters(ibp, &pma);
+
 	if (p->counter_select & IB_PMA_SELX_PORT_UNI_XMIT_PACKETS)
-		ibp->n_unicast_xmit = 0;
+		ibp->z_unicast_xmit = pma.n_unicast_xmit;
 
 	if (p->counter_select & IB_PMA_SELX_PORT_UNI_RCV_PACKETS)
-		ibp->n_unicast_rcv = 0;
+		ibp->z_unicast_rcv = pma.n_unicast_rcv;
 
 	if (p->counter_select & IB_PMA_SELX_PORT_MULTI_XMIT_PACKETS)
-		ibp->n_multicast_xmit = 0;
+		ibp->z_multicast_xmit = pma.n_multicast_xmit;
 
 	if (p->counter_select & IB_PMA_SELX_PORT_MULTI_RCV_PACKETS)
-		ibp->n_multicast_rcv = 0;
+		ibp->z_multicast_rcv = pma.n_multicast_rcv;
 
 	return pma_get_portcounters_ext(pmp, ibdev, port);
 }
@@ -2448,7 +2476,7 @@ int qib_create_agents(struct qib_ibdev *dev)
 		ibp = &dd->pport[p].ibport_data;
 		agent = ib_register_mad_agent(&dev->ibdev, p + 1, IB_QPT_SMI,
 					      NULL, 0, send_handler,
-					      NULL, NULL);
+					      NULL, NULL, 0);
 		if (IS_ERR(agent)) {
 			ret = PTR_ERR(agent);
 			goto err;

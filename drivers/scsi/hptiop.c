@@ -1024,7 +1024,7 @@ static int hptiop_queuecommand_lck(struct scsi_cmnd *scp,
 
 	_req->scp = scp;
 
-	dprintk("hptiop_queuecmd(scp=%p) %d/%d/%d/%d cdb=(%08x-%08x-%08x-%08x) "
+	dprintk("hptiop_queuecmd(scp=%p) %d/%d/%d/%llu cdb=(%08x-%08x-%08x-%08x) "
 			"req_index=%d, req=%p\n",
 			scp,
 			host->host_no, scp->device->channel,

@@ -1,6 +1,6 @@
 What:		/config/usb-gadget/gadget/functions/ffs.name
 Date:		Nov 2013
-KenelVersion:	3.13
+KernelVersion:	3.13
 Description:	The purpose of this directory is to create and remove it.
 
 		A corresponding USB function instance is created/removed.

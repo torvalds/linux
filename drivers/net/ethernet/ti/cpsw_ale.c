@@ -25,8 +25,6 @@
 #include "cpsw_ale.h"
 
 #define BITMASK(bits)		(BIT(bits) - 1)
-#define ALE_ENTRY_BITS		68
-#define ALE_ENTRY_WORDS	DIV_ROUND_UP(ALE_ENTRY_BITS, 32)
 
 #define ALE_VERSION_MAJOR(rev)	((rev >> 8) & 0xff)
 #define ALE_VERSION_MINOR(rev)	(rev & 0xff)
@@ -163,7 +161,7 @@ int cpsw_ale_match_addr(struct cpsw_ale *ale, u8 *addr, u16 vid)
 		if (cpsw_ale_get_vlan_id(ale_entry) != vid)
 			continue;
 		cpsw_ale_get_addr(ale_entry, entry_addr);
-		if (memcmp(entry_addr, addr, 6) == 0)
+		if (ether_addr_equal(entry_addr, addr))
 			return idx;
 	}
 	return -ENOENT;
@@ -477,6 +475,14 @@ static const struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.port_shift	= 0,
 		.bits		= 1,
 	},
+	[ALE_P0_UNI_FLOOD]	= {
+		.name		= "port0_unicast_flood",
+		.offset		= ALE_CONTROL,
+		.port_offset	= 0,
+		.shift		= 8,
+		.port_shift	= 0,
+		.bits		= 1,
+	},
 	[ALE_VLAN_NOLEARN]	= {
 		.name		= "vlan_nolearn",
 		.offset		= ALE_CONTROL,
@@ -570,6 +576,14 @@ static const struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.offset		= ALE_PORTCTL,
 		.port_offset	= 4,
 		.shift		= 4,
+		.port_shift	= 0,
+		.bits		= 1,
+	},
+	[ALE_PORT_NO_SA_UPDATE]	= {
+		.name		= "no_source_update",
+		.offset		= ALE_PORTCTL,
+		.port_offset	= 4,
+		.shift		= 5,
 		.port_shift	= 0,
 		.bits		= 1,
 	},
@@ -746,4 +760,14 @@ int cpsw_ale_destroy(struct cpsw_ale *ale)
 	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 0);
 	kfree(ale);
 	return 0;
+}
+
+void cpsw_ale_dump(struct cpsw_ale *ale, u32 *data)
+{
+	int i;
+
+	for (i = 0; i < ale->params.ale_entries; i++) {
+		cpsw_ale_read(ale, i, data);
+		data += ALE_ENTRY_WORDS;
+	}
 }

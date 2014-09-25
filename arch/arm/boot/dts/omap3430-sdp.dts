@@ -34,6 +34,10 @@
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
 	vmmc_aux-supply = <&vsim>;
+	/*
+	 * S6-3 must be in ON position for 8 bit mode to function
+	 * Else, use 4 bit mode
+	 */
 	bus-width = <8>;
 };
 
@@ -103,9 +107,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <1 0 0x08000000>;
-		nand-bus-width = <8>;
-
 		ti,nand-ecc-opt = "sw";
+		nand-bus-width = <8>;
 		gpmc,cs-on-ns = <0>;
 		gpmc,cs-rd-off-ns = <36>;
 		gpmc,cs-wr-off-ns = <36>;

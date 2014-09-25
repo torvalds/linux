@@ -481,8 +481,7 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			    | AR_Q_MISC_CBR_INCR_DIS0);
 		value = (qi->tqi_readyTime -
 			 (ah->config.sw_beacon_response_time -
-			  ah->config.dma_beacon_response_time) -
-			 ah->config.additional_swba_backoff) * 1024;
+			  ah->config.dma_beacon_response_time)) * 1024;
 		REG_WRITE(ah, AR_QRDYTIMECFG(q),
 			  value | AR_Q_RDYTIMECFG_EN);
 		REG_SET_BIT(ah, AR_DMISC(q),
@@ -550,25 +549,25 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 
 	if (ads.ds_rxstatus8 & AR_PostDelimCRCErr) {
 		rs->rs_rssi = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ctl0 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ctl1 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ctl2 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ext0 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ext1 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ext2 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl[0] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl[1] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl[2] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext[0] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext[1] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext[2] = ATH9K_RSSI_BAD;
 	} else {
 		rs->rs_rssi = MS(ads.ds_rxstatus4, AR_RxRSSICombined);
-		rs->rs_rssi_ctl0 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl[0] = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt00);
-		rs->rs_rssi_ctl1 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl[1] = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt01);
-		rs->rs_rssi_ctl2 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl[2] = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt02);
-		rs->rs_rssi_ext0 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext[0] = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt10);
-		rs->rs_rssi_ext1 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext[1] = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt11);
-		rs->rs_rssi_ext2 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext[2] = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt12);
 	}
 	if (ads.ds_rxstatus8 & AR_RxKeyIdxValid)
@@ -828,7 +827,7 @@ void ath9k_hw_enable_interrupts(struct ath_hw *ah)
 		return;
 	}
 
-	if (AR_SREV_9340(ah) || AR_SREV_9550(ah))
+	if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah))
 		sync_default &= ~AR_INTR_SYNC_HOST1_FATAL;
 
 	async_mask = AR_INTR_MAC_IRQ;
@@ -923,11 +922,29 @@ void ath9k_hw_set_interrupts(struct ath_hw *ah)
 			mask2 |= AR_IMR_S2_CST;
 	}
 
+	if (ah->config.hw_hang_checks & HW_BB_WATCHDOG) {
+		if (ints & ATH9K_INT_BB_WATCHDOG) {
+			mask |= AR_IMR_BCNMISC;
+			mask2 |= AR_IMR_S2_BB_WATCHDOG;
+		}
+	}
+
 	ath_dbg(common, INTERRUPT, "new IMR 0x%x\n", mask);
 	REG_WRITE(ah, AR_IMR, mask);
-	ah->imrs2_reg &= ~(AR_IMR_S2_TIM | AR_IMR_S2_DTIM | AR_IMR_S2_DTIMSYNC |
-			   AR_IMR_S2_CABEND | AR_IMR_S2_CABTO |
-			   AR_IMR_S2_TSFOOR | AR_IMR_S2_GTT | AR_IMR_S2_CST);
+	ah->imrs2_reg &= ~(AR_IMR_S2_TIM |
+			   AR_IMR_S2_DTIM |
+			   AR_IMR_S2_DTIMSYNC |
+			   AR_IMR_S2_CABEND |
+			   AR_IMR_S2_CABTO |
+			   AR_IMR_S2_TSFOOR |
+			   AR_IMR_S2_GTT |
+			   AR_IMR_S2_CST);
+
+	if (ah->config.hw_hang_checks & HW_BB_WATCHDOG) {
+		if (ints & ATH9K_INT_BB_WATCHDOG)
+			ah->imrs2_reg &= ~AR_IMR_S2_BB_WATCHDOG;
+	}
+
 	ah->imrs2_reg |= mask2;
 	REG_WRITE(ah, AR_IMR_S2, ah->imrs2_reg);
 
@@ -941,3 +958,25 @@ void ath9k_hw_set_interrupts(struct ath_hw *ah)
 	return;
 }
 EXPORT_SYMBOL(ath9k_hw_set_interrupts);
+
+#define ATH9K_HW_MAX_DCU       10
+#define ATH9K_HW_SLICE_PER_DCU 16
+#define ATH9K_HW_BIT_IN_SLICE  16
+void ath9k_hw_set_tx_filter(struct ath_hw *ah, u8 destidx, bool set)
+{
+	int dcu_idx;
+	u32 filter;
+
+	for (dcu_idx = 0; dcu_idx < 10; dcu_idx++) {
+		filter = SM(set, AR_D_TXBLK_WRITE_COMMAND);
+		filter |= SM(dcu_idx, AR_D_TXBLK_WRITE_DCU);
+		filter |= SM((destidx / ATH9K_HW_SLICE_PER_DCU),
+			     AR_D_TXBLK_WRITE_SLICE);
+		filter |= BIT(destidx % ATH9K_HW_BIT_IN_SLICE);
+		ath_dbg(ath9k_hw_common(ah), PS,
+			"DCU%d staid %d set %d txfilter %08x\n",
+			dcu_idx, destidx, set, filter);
+		REG_WRITE(ah, AR_D_TXBLK_BASE, filter);
+	}
+}
+EXPORT_SYMBOL(ath9k_hw_set_tx_filter);

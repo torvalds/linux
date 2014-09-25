@@ -1,7 +1,8 @@
 /*
  * pinctrl pads, groups, functions for CSR SiRFprimaII
  *
- * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
+ * Copyright (c) 2011 - 2014 Cambridge Silicon Radio Limited, a CSR plc group
+ * company.
  *
  * Licensed under GPLv2 or later.
  */
@@ -413,7 +414,7 @@ static const struct sirfsoc_padmux ac97_padmux = {
 	.funcval = 0,
 };
 
-static const unsigned ac97_pins[] = { 33, 34, 35, 36 };
+static const unsigned ac97_pins[] = { 43, 44, 45, 46 };
 
 static const struct sirfsoc_muxmask spi1_muxmask[] = {
 	{

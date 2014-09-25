@@ -7,6 +7,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
 
 #include "skeleton.dtsi"
 
@@ -24,42 +25,9 @@
 		reg = <0x00000000 0x80000000 0x00000000 0x40000000>;
 	};
 
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		interrupt-parent = <&gic>;
-
-		cpu@0 {
-			compatible = "arm,cortex-a15";
-			device_type = "cpu";
-			reg = <0>;
-		};
-
-		cpu@1 {
-			compatible = "arm,cortex-a15";
-			device_type = "cpu";
-			reg = <1>;
-		};
-
-		cpu@2 {
-			compatible = "arm,cortex-a15";
-			device_type = "cpu";
-			reg = <2>;
-		};
-
-		cpu@3 {
-			compatible = "arm,cortex-a15";
-			device_type = "cpu";
-			reg = <3>;
-		};
-	};
-
 	gic: interrupt-controller {
 		compatible = "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
-		#size-cells = <0>;
-		#address-cells = <1>;
 		interrupt-controller;
 		reg = <0x0 0x02561000 0x0 0x1000>,
 		      <0x0 0x02562000 0x0 0x2000>,
@@ -96,10 +64,23 @@
 		compatible = "ti,keystone","simple-bus";
 		interrupt-parent = <&gic>;
 		ranges = <0x0 0x0 0x0 0xc0000000>;
+		dma-ranges = <0x80000000 0x8 0x00000000 0x80000000>;
+
+		pllctrl: pll-controller@02310000 {
+			compatible = "ti,keystone-pllctrl", "syscon";
+			reg = <0x02310000 0x200>;
+		};
+
+		devctrl: device-state-control@02620000 {
+			compatible = "ti,keystone-devctrl", "syscon";
+			reg = <0x02620000 0x1000>;
+		};
 
 		rstctrl: reset-controller {
 			compatible = "ti,keystone-reset";
-			reg = <0x023100e8 4>;	/* pll reset control reg */
+			ti,syscon-pll = <&pllctrl 0xe4>;
+			ti,syscon-dev = <&devctrl 0x328>;
+			ti,wdt-list = <0>;
 		};
 
 		/include/ "keystone-clocks.dtsi"
@@ -132,11 +113,6 @@
 			interrupts = <GIC_SPI 283 IRQ_TYPE_EDGE_RISING>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-
-			dtt@50 {
-				compatible = "at,24c1024";
-				reg = <0x50>;
-			};
 		};
 
 		i2c1: i2c@2530400 {
@@ -145,6 +121,8 @@
 			clock-frequency = <100000>;
 			clocks = <&clki2c>;
 			interrupts = <GIC_SPI 286 IRQ_TYPE_EDGE_RISING>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		i2c2: i2c@2530800 {
@@ -153,6 +131,8 @@
 			clock-frequency = <100000>;
 			clocks = <&clki2c>;
 			interrupts = <GIC_SPI 289 IRQ_TYPE_EDGE_RISING>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		spi0: spi@21000400 {
@@ -162,6 +142,8 @@
 			ti,davinci-spi-intr-line = <0>;
 			interrupts = <GIC_SPI 292 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clkspi>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		spi1: spi@21000600 {
@@ -171,6 +153,8 @@
 			ti,davinci-spi-intr-line = <0>;
 			interrupts = <GIC_SPI 296 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clkspi>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		spi2: spi@21000800 {
@@ -180,6 +164,8 @@
 			ti,davinci-spi-intr-line = <0>;
 			interrupts = <GIC_SPI 300 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clkspi>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		usb_phy: usb_phy@2620738 {
@@ -199,6 +185,8 @@
 			clock-names = "usb";
 			interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
 			ranges;
+			dma-coherent;
+			dma-ranges;
 			status = "disabled";
 
 			dwc3@2690000 {
@@ -207,6 +195,87 @@
 				interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
 				usb-phy = <&usb_phy>, <&usb_phy>;
 			};
+		};
+
+		wdt: wdt@022f0080 {
+			compatible = "ti,keystone-wdt","ti,davinci-wdt";
+			reg = <0x022f0080 0x80>;
+			clocks = <&clkwdtimer0>;
+		};
+
+		clock_event: timer@22f0000 {
+			compatible = "ti,keystone-timer";
+			reg = <0x022f0000 0x80>;
+			interrupts = <GIC_SPI 110 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clktimer15>;
+		};
+
+		gpio0: gpio@260bf00 {
+			compatible = "ti,keystone-gpio";
+			reg = <0x0260bf00 0x100>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			/* HW Interrupts mapped to GPIO pins */
+			interrupts = <GIC_SPI 120 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 121 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 122 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 123 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 124 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 125 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 126 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 127 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 128 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 129 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 130 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 131 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 132 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 133 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 134 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 135 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 136 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 137 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 138 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 139 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 140 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 141 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 142 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 143 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 144 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 145 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 146 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 147 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 148 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 149 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 150 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 151 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkgpio>;
+			clock-names = "gpio";
+			ti,ngpio = <32>;
+			ti,davinci-gpio-unbanked = <32>;
+		};
+
+		aemif: aemif@21000A00 {
+			compatible = "ti,keystone-aemif", "ti,davinci-aemif";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			clocks = <&clkaemif>;
+			clock-names = "aemif";
+			clock-ranges;
+
+			reg = <0x21000A00 0x00000100>;
+			ranges = <0 0 0x30000000 0x10000000
+				  1 0 0x21000A00 0x00000100>;
+		};
+
+		mdio: mdio@02090300 {
+			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg		= <0x02090300 0x100>;
+			status = "disabled";
+			clocks = <&clkpa>;
+			clock-names = "fck";
+			bus_freq	= <2500000>;
 		};
 	};
 };

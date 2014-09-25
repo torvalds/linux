@@ -1,6 +1,4 @@
 /*
- * arch/arm/plat-omap/include/mach/nand.h
- *
  * Copyright (C) 2006 Micron Technology Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -23,8 +21,17 @@ enum nand_io {
 };
 
 enum omap_ecc {
-	/* 1-bit  ECC calculation by GPMC, Error detection by Software */
-	OMAP_ECC_HAM1_CODE_HW = 0,
+	/*
+	 * 1-bit ECC: calculation and correction by SW
+	 * ECC stored at end of spare area
+	 */
+	OMAP_ECC_HAM1_CODE_SW = 0,
+
+	/*
+	 * 1-bit ECC: calculation by GPMC, Error detection by Software
+	 * ECC layout compatible with ROM code layout
+	 */
+	OMAP_ECC_HAM1_CODE_HW,
 	/* 4-bit  ECC calculation by GPMC, Error detection by Software */
 	OMAP_ECC_BCH4_CODE_HW_DETECTION_SW,
 	/* 4-bit  ECC calculation by GPMC, Error detection by ELM */
@@ -33,6 +40,8 @@ enum omap_ecc {
 	OMAP_ECC_BCH8_CODE_HW_DETECTION_SW,
 	/* 8-bit  ECC calculation by GPMC, Error detection by ELM */
 	OMAP_ECC_BCH8_CODE_HW,
+	/* 16-bit ECC calculation by GPMC, Error detection by ELM */
+	OMAP_ECC_BCH16_CODE_HW,
 };
 
 struct gpmc_nand_regs {
@@ -52,6 +61,9 @@ struct gpmc_nand_regs {
 	void __iomem	*gpmc_bch_result1[GPMC_BCH_NUM_REMAINDER];
 	void __iomem	*gpmc_bch_result2[GPMC_BCH_NUM_REMAINDER];
 	void __iomem	*gpmc_bch_result3[GPMC_BCH_NUM_REMAINDER];
+	void __iomem	*gpmc_bch_result4[GPMC_BCH_NUM_REMAINDER];
+	void __iomem	*gpmc_bch_result5[GPMC_BCH_NUM_REMAINDER];
+	void __iomem	*gpmc_bch_result6[GPMC_BCH_NUM_REMAINDER];
 };
 
 struct omap_nand_platform_data {

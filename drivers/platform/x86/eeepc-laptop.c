@@ -28,8 +28,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/slab.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_bus.h>
+#include <linux/acpi.h>
 #include <linux/uaccess.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
@@ -166,7 +165,6 @@ struct eeepc_laptop {
 
 	struct platform_device *platform_device;
 	struct acpi_device *device;		/* the device we are in */
-	struct device *hwmon_device;
 	struct backlight_device *backlight_device;
 
 	struct input_dev *inputdev;
@@ -635,8 +633,7 @@ static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc, acpi_handle handle)
 			dev = pci_scan_single_device(bus, 0);
 			if (dev) {
 				pci_bus_assign_resources(bus);
-				if (pci_bus_add_device(dev))
-					pr_err("Unable to hotplug wifi\n");
+				pci_bus_add_device(dev);
 			}
 		} else {
 			dev = pci_get_slot(bus, 0);
@@ -1056,20 +1053,20 @@ static ssize_t show_sys_hwmon(int (*get)(void), char *buf)
 	return sprintf(buf, "%d\n", get());
 }
 
-#define EEEPC_CREATE_SENSOR_ATTR(_name, _mode, _set, _get)		\
+#define EEEPC_CREATE_SENSOR_ATTR(_name, _mode, _get, _set)		\
 	static ssize_t show_##_name(struct device *dev,			\
 				    struct device_attribute *attr,	\
 				    char *buf)				\
 	{								\
-		return show_sys_hwmon(_set, buf);			\
+		return show_sys_hwmon(_get, buf);			\
 	}								\
 	static ssize_t store_##_name(struct device *dev,		\
 				     struct device_attribute *attr,	\
 				     const char *buf, size_t count)	\
 	{								\
-		return store_sys_hwmon(_get, buf, count);		\
+		return store_sys_hwmon(_set, buf, count);		\
 	}								\
-	static SENSOR_DEVICE_ATTR(_name, _mode, show_##_name, store_##_name, 0);
+	static DEVICE_ATTR(_name, _mode, show_##_name, store_##_name)
 
 EEEPC_CREATE_SENSOR_ATTR(fan1_input, S_IRUGO, eeepc_get_fan_rpm, NULL);
 EEEPC_CREATE_SENSOR_ATTR(pwm1, S_IRUGO | S_IWUSR,
@@ -1077,55 +1074,26 @@ EEEPC_CREATE_SENSOR_ATTR(pwm1, S_IRUGO | S_IWUSR,
 EEEPC_CREATE_SENSOR_ATTR(pwm1_enable, S_IRUGO | S_IWUSR,
 			 eeepc_get_fan_ctrl, eeepc_set_fan_ctrl);
 
-static ssize_t
-show_name(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "eeepc\n");
-}
-static SENSOR_DEVICE_ATTR(name, S_IRUGO, show_name, NULL, 0);
-
-static struct attribute *hwmon_attributes[] = {
-	&sensor_dev_attr_pwm1.dev_attr.attr,
-	&sensor_dev_attr_fan1_input.dev_attr.attr,
-	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
-	&sensor_dev_attr_name.dev_attr.attr,
+static struct attribute *hwmon_attrs[] = {
+	&dev_attr_pwm1.attr,
+	&dev_attr_fan1_input.attr,
+	&dev_attr_pwm1_enable.attr,
 	NULL
 };
-
-static struct attribute_group hwmon_attribute_group = {
-	.attrs = hwmon_attributes
-};
-
-static void eeepc_hwmon_exit(struct eeepc_laptop *eeepc)
-{
-	struct device *hwmon;
-
-	hwmon = eeepc->hwmon_device;
-	if (!hwmon)
-		return;
-	sysfs_remove_group(&hwmon->kobj,
-			   &hwmon_attribute_group);
-	hwmon_device_unregister(hwmon);
-	eeepc->hwmon_device = NULL;
-}
+ATTRIBUTE_GROUPS(hwmon);
 
 static int eeepc_hwmon_init(struct eeepc_laptop *eeepc)
 {
+	struct device *dev = &eeepc->platform_device->dev;
 	struct device *hwmon;
-	int result;
 
-	hwmon = hwmon_device_register(&eeepc->platform_device->dev);
+	hwmon = devm_hwmon_device_register_with_groups(dev, "eeepc", NULL,
+						       hwmon_groups);
 	if (IS_ERR(hwmon)) {
 		pr_err("Could not register eeepc hwmon device\n");
-		eeepc->hwmon_device = NULL;
 		return PTR_ERR(hwmon);
 	}
-	eeepc->hwmon_device = hwmon;
-	result = sysfs_create_group(&hwmon->kobj,
-				    &hwmon_attribute_group);
-	if (result)
-		eeepc_hwmon_exit(eeepc);
-	return result;
+	return 0;
 }
 
 /*
@@ -1481,7 +1449,6 @@ static int eeepc_acpi_add(struct acpi_device *device)
 fail_rfkill:
 	eeepc_led_exit(eeepc);
 fail_led:
-	eeepc_hwmon_exit(eeepc);
 fail_hwmon:
 	eeepc_input_exit(eeepc);
 fail_input:
@@ -1501,7 +1468,6 @@ static int eeepc_acpi_remove(struct acpi_device *device)
 	eeepc_backlight_exit(eeepc);
 	eeepc_rfkill_exit(eeepc);
 	eeepc_input_exit(eeepc);
-	eeepc_hwmon_exit(eeepc);
 	eeepc_led_exit(eeepc);
 	eeepc_platform_exit(eeepc);
 

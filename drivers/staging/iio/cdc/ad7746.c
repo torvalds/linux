@@ -91,7 +91,7 @@
 #define AD7746_CAPDAC_DACP(x)		((x) & 0x7F)
 
 /*
- * struct ad7746_chip_info - chip specifc information
+ * struct ad7746_chip_info - chip specific information
  */
 
 struct ad7746_chip_info {

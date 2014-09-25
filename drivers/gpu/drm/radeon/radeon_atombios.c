@@ -30,26 +30,9 @@
 #include "atom.h"
 #include "atom-bits.h"
 
-/* from radeon_encoder.c */
-extern uint32_t
-radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device,
-			uint8_t dac);
-extern void radeon_link_encoder_connector(struct drm_device *dev);
 extern void
 radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum,
 			uint32_t supported_device, u16 caps);
-
-/* from radeon_connector.c */
-extern void
-radeon_add_atom_connector(struct drm_device *dev,
-			  uint32_t connector_id,
-			  uint32_t supported_device,
-			  int connector_type,
-			  struct radeon_i2c_bus_rec *i2c_bus,
-			  uint32_t igp_lane_info,
-			  uint16_t connector_object_id,
-			  struct radeon_hpd *hpd,
-			  struct radeon_router *router);
 
 /* from radeon_legacy_encoder.c */
 extern void
@@ -464,6 +447,13 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		}
 	}
 
+	/* Fujitsu D3003-S2 board lists DVI-I as DVI-I and VGA */
+	if ((dev->pdev->device == 0x9805) &&
+	    (dev->pdev->subsystem_vendor == 0x1734) &&
+	    (dev->pdev->subsystem_device == 0x11bd)) {
+		if (*connector_type == DRM_MODE_CONNECTOR_VGA)
+			return false;
+	}
 
 	return true;
 }
@@ -1244,10 +1234,18 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 			rdev->clock.default_dispclk =
 				le32_to_cpu(firmware_info->info_21.ulDefaultDispEngineClkFreq);
 			if (rdev->clock.default_dispclk == 0) {
-				if (ASIC_IS_DCE5(rdev))
+				if (ASIC_IS_DCE6(rdev))
+					rdev->clock.default_dispclk = 60000; /* 600 Mhz */
+				else if (ASIC_IS_DCE5(rdev))
 					rdev->clock.default_dispclk = 54000; /* 540 Mhz */
 				else
 					rdev->clock.default_dispclk = 60000; /* 600 Mhz */
+			}
+			/* set a reasonable default for DP */
+			if (ASIC_IS_DCE6(rdev) && (rdev->clock.default_dispclk < 53900)) {
+				DRM_INFO("Changing default dispclk from %dMhz to 600Mhz\n",
+					 rdev->clock.default_dispclk / 100);
+				rdev->clock.default_dispclk = 60000;
 			}
 			rdev->clock.dp_extclk =
 				le16_to_cpu(firmware_info->info_21.usUniphyDPModeExtClkFreq);
@@ -1528,6 +1526,7 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_assign->v1.usSpreadSpectrumPercentage);
 					ss->type = ss_assign->v1.ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_assign->v1.usSpreadRateInKhz);
+					ss->percentage_divider = 100;
 					return true;
 				}
 				ss_assign = (union asic_ss_assignment *)
@@ -1545,6 +1544,7 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_assign->v2.usSpreadSpectrumPercentage);
 					ss->type = ss_assign->v2.ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_assign->v2.usSpreadRateIn10Hz);
+					ss->percentage_divider = 100;
 					if ((crev == 2) &&
 					    ((id == ASIC_INTERNAL_ENGINE_SS) ||
 					     (id == ASIC_INTERNAL_MEMORY_SS)))
@@ -1566,6 +1566,11 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_assign->v3.usSpreadSpectrumPercentage);
 					ss->type = ss_assign->v3.ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_assign->v3.usSpreadRateIn10Hz);
+					if (ss_assign->v3.ucSpreadSpectrumMode &
+					    SS_MODE_V3_PERCENTAGE_DIV_BY_1000_MASK)
+						ss->percentage_divider = 1000;
+					else
+						ss->percentage_divider = 100;
 					if ((id == ASIC_INTERNAL_ENGINE_SS) ||
 					    (id == ASIC_INTERNAL_MEMORY_SS))
 						ss->rate /= 100;
@@ -1809,7 +1814,8 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 		if (misc & ATOM_DOUBLE_CLOCK_MODE)
 			mode->flags |= DRM_MODE_FLAG_DBLSCAN;
 
-		mode->clock = le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
+		mode->crtc_clock = mode->clock =
+			le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
 
 		if (index == 1) {
 			/* PAL timings appear to have wrong values for totals */
@@ -1852,7 +1858,8 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 		if (misc & ATOM_DOUBLE_CLOCK_MODE)
 			mode->flags |= DRM_MODE_FLAG_DBLSCAN;
 
-		mode->clock = le16_to_cpu(dtd_timings->usPixClk) * 10;
+		mode->crtc_clock = mode->clock =
+			le16_to_cpu(dtd_timings->usPixClk) * 10;
 		break;
 	}
 	return true;
@@ -1963,7 +1970,7 @@ static const char *thermal_controller_names[] = {
 	"adm1032",
 	"adm1030",
 	"max6649",
-	"lm64",
+	"lm63", /* lm64 */
 	"f75375",
 	"asc7xxx",
 };
@@ -1974,7 +1981,7 @@ static const char *pp_lib_thermal_controller_names[] = {
 	"adm1032",
 	"adm1030",
 	"max6649",
-	"lm64",
+	"lm63", /* lm64 */
 	"f75375",
 	"RV6xx",
 	"RV770",
@@ -2281,19 +2288,31 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			rdev->pm.int_thermal_type = THERMAL_TYPE_KV;
-		} else if ((controller->ucType ==
-			    ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) ||
-			   (controller->ucType ==
-			    ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL) ||
-			   (controller->ucType ==
-			    ATOM_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL)) {
-			DRM_INFO("Special thermal controller config\n");
+		} else if (controller->ucType ==
+			   ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) {
+			DRM_INFO("External GPIO thermal controller %s fan control\n",
+				 (controller->ucFanParameters &
+				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+			rdev->pm.int_thermal_type = THERMAL_TYPE_EXTERNAL_GPIO;
+		} else if (controller->ucType ==
+			   ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL) {
+			DRM_INFO("ADT7473 with internal thermal controller %s fan control\n",
+				 (controller->ucFanParameters &
+				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+			rdev->pm.int_thermal_type = THERMAL_TYPE_ADT7473_WITH_INTERNAL;
+		} else if (controller->ucType ==
+			   ATOM_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL) {
+			DRM_INFO("EMC2103 with internal thermal controller %s fan control\n",
+				 (controller->ucFanParameters &
+				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+			rdev->pm.int_thermal_type = THERMAL_TYPE_EMC2103_WITH_INTERNAL;
 		} else if (controller->ucType < ARRAY_SIZE(pp_lib_thermal_controller_names)) {
 			DRM_INFO("Possible %s thermal controller at 0x%02x %s fan control\n",
 				 pp_lib_thermal_controller_names[controller->ucType],
 				 controller->ucI2cAddress >> 1,
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+			rdev->pm.int_thermal_type = THERMAL_TYPE_EXTERNAL;
 			i2c_bus = radeon_lookup_i2c_gpio(rdev, controller->ucI2cLine);
 			rdev->pm.i2c_bus = radeon_i2c_lookup(rdev, &i2c_bus);
 			if (rdev->pm.i2c_bus) {
@@ -3236,6 +3255,41 @@ int radeon_atom_get_leakage_vddc_based_on_leakage_params(struct radeon_device *r
 	return 0;
 }
 
+union get_voltage_info {
+	struct  _GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2 in;
+	struct  _GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_2 evv_out;
+};
+
+int radeon_atom_get_voltage_evv(struct radeon_device *rdev,
+				u16 virtual_voltage_id,
+				u16 *voltage)
+{
+	int index = GetIndexIntoMasterTable(COMMAND, GetVoltageInfo);
+	u32 entry_id;
+	u32 count = rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.count;
+	union get_voltage_info args;
+
+	for (entry_id = 0; entry_id < count; entry_id++) {
+		if (rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries[entry_id].v ==
+		    virtual_voltage_id)
+			break;
+	}
+
+	if (entry_id >= count)
+		return -EINVAL;
+
+	args.in.ucVoltageType = VOLTAGE_TYPE_VDDC;
+	args.in.ucVoltageMode = ATOM_GET_VOLTAGE_EVV_VOLTAGE;
+	args.in.ulSCLKFreq =
+		cpu_to_le32(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries[entry_id].clk);
+
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+	*voltage = le16_to_cpu(args.evv_out.usVoltageLevel);
+
+	return 0;
+}
+
 int radeon_atom_get_voltage_gpio_settings(struct radeon_device *rdev,
 					  u16 voltage_level, u8 voltage_type,
 					  u32 *gpio_value, u32 *gpio_mask)
@@ -3395,6 +3449,50 @@ radeon_atom_is_voltage_gpio(struct radeon_device *rdev,
 
 	}
 	return false;
+}
+
+int radeon_atom_get_svi2_info(struct radeon_device *rdev,
+			      u8 voltage_type,
+			      u8 *svd_gpio_id, u8 *svc_gpio_id)
+{
+	int index = GetIndexIntoMasterTable(DATA, VoltageObjectInfo);
+	u8 frev, crev;
+	u16 data_offset, size;
+	union voltage_object_info *voltage_info;
+	union voltage_object *voltage_object = NULL;
+
+	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		voltage_info = (union voltage_object_info *)
+			(rdev->mode_info.atom_context->bios + data_offset);
+
+		switch (frev) {
+		case 3:
+			switch (crev) {
+			case 1:
+				voltage_object = (union voltage_object *)
+					atom_lookup_voltage_object_v3(&voltage_info->v3,
+								      voltage_type,
+								      VOLTAGE_OBJ_SVID2);
+				if (voltage_object) {
+					*svd_gpio_id = voltage_object->v3.asSVID2Obj.ucSVDGpioId;
+					*svc_gpio_id = voltage_object->v3.asSVID2Obj.ucSVCGpioId;
+				} else {
+					return -EINVAL;
+				}
+				break;
+			default:
+				DRM_ERROR("unknown voltage object table\n");
+				return -EINVAL;
+			}
+			break;
+		default:
+			DRM_ERROR("unknown voltage object table\n");
+			return -EINVAL;
+		}
+
+	}
+	return 0;
 }
 
 int radeon_atom_get_max_voltage(struct radeon_device *rdev,
@@ -3884,16 +3982,18 @@ int radeon_atom_init_mc_reg_table(struct radeon_device *rdev,
 							((u8 *)format + sizeof(ATOM_INIT_REG_INDEX_FORMAT));
 					}
 					reg_table->last = i;
-					while ((*(u32 *)reg_data != END_OF_REG_DATA_BLOCK) &&
+					while ((le32_to_cpu(*(u32 *)reg_data) != END_OF_REG_DATA_BLOCK) &&
 					       (num_ranges < VBIOS_MAX_AC_TIMING_ENTRIES)) {
-						t_mem_id = (u8)((*(u32 *)reg_data & MEM_ID_MASK) >> MEM_ID_SHIFT);
+						t_mem_id = (u8)((le32_to_cpu(*(u32 *)reg_data) & MEM_ID_MASK)
+								>> MEM_ID_SHIFT);
 						if (module_index == t_mem_id) {
 							reg_table->mc_reg_table_entry[num_ranges].mclk_max =
-								(u32)((*(u32 *)reg_data & CLOCK_RANGE_MASK) >> CLOCK_RANGE_SHIFT);
+								(u32)((le32_to_cpu(*(u32 *)reg_data) & CLOCK_RANGE_MASK)
+								      >> CLOCK_RANGE_SHIFT);
 							for (i = 0, j = 1; i < reg_table->last; i++) {
 								if ((reg_table->mc_reg_address[i].pre_reg_data & LOW_NIBBLE_MASK) == DATA_FROM_TABLE) {
 									reg_table->mc_reg_table_entry[num_ranges].mc_data[i] =
-										(u32)*((u32 *)reg_data + j);
+										(u32)le32_to_cpu(*((u32 *)reg_data + j));
 									j++;
 								} else if ((reg_table->mc_reg_address[i].pre_reg_data & LOW_NIBBLE_MASK) == DATA_EQU_PREV) {
 									reg_table->mc_reg_table_entry[num_ranges].mc_data[i] =
@@ -3905,7 +4005,7 @@ int radeon_atom_init_mc_reg_table(struct radeon_device *rdev,
 						reg_data = (ATOM_MEMORY_SETTING_DATA_BLOCK *)
 							((u8 *)reg_data + le16_to_cpu(reg_block->usRegDataBlkSize));
 					}
-					if (*(u32 *)reg_data != END_OF_REG_DATA_BLOCK)
+					if (le32_to_cpu(*(u32 *)reg_data) != END_OF_REG_DATA_BLOCK)
 						return -EINVAL;
 					reg_table->num_entries = num_ranges;
 				} else
@@ -3943,6 +4043,10 @@ void radeon_atom_initialize_bios_scratch_regs(struct drm_device *dev)
 
 	/* tell the bios not to handle mode switching */
 	bios_6_scratch |= ATOM_S6_ACC_BLOCK_DISPLAY_SWITCH;
+
+	/* clear the vbios dpms state */
+	if (ASIC_IS_DCE4(rdev))
+		bios_2_scratch &= ~ATOM_S2_DEVICE_DPMS_STATE;
 
 	if (rdev->family >= CHIP_R600) {
 		WREG32(R600_BIOS_2_SCRATCH, bios_2_scratch);

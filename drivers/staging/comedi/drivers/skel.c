@@ -75,9 +75,6 @@ Configuration Options:
 #include "comedi_fc.h"
 
 /* Imaginary registers for the imaginary board */
-
-#define SKEL_SIZE 0
-
 #define SKEL_START_AI_CONV	0
 #define SKEL_AI_READ		0
 
@@ -129,7 +126,7 @@ struct skel_private {
  * convert ns nanoseconds to a counter value suitable for programming
  * the device.  Also, it should adjust ns so that it cooresponds to
  * the actual time that the device will use. */
-static int skel_ns_to_timer(unsigned int *ns, int round)
+static int skel_ns_to_timer(unsigned int *ns, unsigned int flags)
 {
 	/* trivial timer */
 	/* if your timing is done through two cascaded timers, the
@@ -142,6 +139,29 @@ static int skel_ns_to_timer(unsigned int *ns, int round)
 }
 
 /*
+ * This function doesn't require a particular form, this is just
+ * what happens to be used in some of the drivers. The comedi_timeout()
+ * helper uses this callback to check for the end-of-conversion while
+ * waiting for up to 1 second. This function should return 0 when the
+ * conversion is finished and -EBUSY to keep waiting. Any other errno
+ * will terminate comedi_timeout() and return that errno to the caller.
+ * If the timeout occurs, comedi_timeout() will return -ETIMEDOUT.
+ */
+static int skel_ai_eoc(struct comedi_device *dev,
+		       struct comedi_subdevice *s,
+		       struct comedi_insn *insn,
+		       unsigned long context)
+{
+	unsigned int status;
+
+	/* status = inb(dev->iobase + SKEL_STATUS); */
+	status = 1;
+	if (status)
+		return 0;
+	return -EBUSY;
+}
+
+/*
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
  */
@@ -149,9 +169,9 @@ static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
 	const struct skel_board *thisboard = comedi_board(dev);
-	int n, i;
+	int n;
 	unsigned int d;
-	unsigned int status;
+	int ret;
 
 	/* a typical programming sequence */
 
@@ -165,18 +185,10 @@ static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		/* trigger conversion */
 		/* outw(0,dev->iobase + SKEL_CONVERT); */
 
-#define TIMEOUT 100
 		/* wait for conversion to end */
-		for (i = 0; i < TIMEOUT; i++) {
-			status = 1;
-			/* status = inb(dev->iobase + SKEL_STATUS); */
-			if (status)
-				break;
-		}
-		if (i == TIMEOUT) {
-			dev_warn(dev->class_dev, "ai timeout\n");
-			return -ETIMEDOUT;
-		}
+		ret = comedi_timeout(dev, s, insn, skel_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		/* read data */
 		/* d = inw(dev->iobase + SKEL_AI_DATA); */
@@ -205,7 +217,7 @@ static int skel_ai_cmdtest(struct comedi_device *dev,
 			   struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -271,24 +283,19 @@ static int skel_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		skel_ns_to_timer(&cmd->scan_begin_arg,
-				 cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		arg = cmd->scan_begin_arg;
+		skel_ns_to_timer(&arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
-		skel_ns_to_timer(&cmd->convert_arg,
-				 cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->convert_arg)
-			err++;
-		if (cmd->scan_begin_src == TRIG_TIMER &&
-		    cmd->scan_begin_arg <
-		    cmd->convert_arg * cmd->scan_end_arg) {
-			cmd->scan_begin_arg =
-			    cmd->convert_arg * cmd->scan_end_arg;
-			err++;
+		arg = cmd->convert_arg;
+		skel_ns_to_timer(&arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			arg = cmd->convert_arg * cmd->scan_end_arg;
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 arg);
 		}
 	}
 
@@ -455,8 +462,6 @@ static int skel_common_attach(struct comedi_device *dev)
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-
-	dev_info(dev->class_dev, "skel: attached\n");
 
 	return 0;
 }

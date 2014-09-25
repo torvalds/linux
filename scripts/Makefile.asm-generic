@@ -21,4 +21,3 @@ all: $(patsubst %, $(obj)/%, $(generic-y))
 
 $(obj)/%.h:
 	$(call cmd,wrap)
-

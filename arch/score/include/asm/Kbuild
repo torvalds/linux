@@ -1,8 +1,13 @@
 
 header-y +=
 
+
 generic-y += barrier.h
 generic-y += clkdev.h
+generic-y += cputime.h
+generic-y += hash.h
+generic-y += mcs_spinlock.h
+generic-y += preempt.h
+generic-y += scatterlist.h
 generic-y += trace_clock.h
 generic-y += xor.h
-generic-y += preempt.h

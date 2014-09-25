@@ -15,12 +15,7 @@ config CPU_IDLE
 if CPU_IDLE
 
 config CPU_IDLE_MULTIPLE_DRIVERS
-        bool "Support multiple cpuidle drivers"
-        default n
-        help
-         Allows the cpuidle framework to use different drivers for each CPU.
-         This is useful if you have a system with different CPU latencies and
-         states. If unsure say N.
+        bool
 
 config CPU_IDLE_GOV_LADDER
 	bool "Ladder governor (for periodic timer tick)"
@@ -33,6 +28,16 @@ config CPU_IDLE_GOV_MENU
 menu "ARM CPU Idle Drivers"
 depends on ARM
 source "drivers/cpuidle/Kconfig.arm"
+endmenu
+
+menu "MIPS CPU Idle Drivers"
+depends on MIPS
+source "drivers/cpuidle/Kconfig.mips"
+endmenu
+
+menu "POWERPC CPU Idle Drivers"
+depends on PPC
+source "drivers/cpuidle/Kconfig.powerpc"
 endmenu
 
 endif

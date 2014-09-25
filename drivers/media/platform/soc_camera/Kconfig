@@ -17,19 +17,6 @@ config SOC_CAMERA_PLATFORM
 	help
 	  This is a generic SoC camera platform driver, useful for testing
 
-config MX1_VIDEO
-	bool
-
-config VIDEO_MX1
-	tristate "i.MX1/i.MXL CMOS Sensor Interface driver"
-	depends on BROKEN
-	depends on VIDEO_DEV && ARCH_MX1 && SOC_CAMERA
-	select FIQ
-	select VIDEOBUF_DMA_CONTIG
-	select MX1_VIDEO
-	---help---
-	  This is a v4l2 driver for the i.MX1/i.MXL CMOS Sensor Interface
-
 config VIDEO_MX3
 	tristate "i.MX3x Camera Sensor Interface driver"
 	depends on VIDEO_DEV && MX3_IPU && SOC_CAMERA
@@ -47,6 +34,7 @@ config VIDEO_PXA27x
 config VIDEO_RCAR_VIN
 	tristate "R-Car Video Input (VIN) support"
 	depends on VIDEO_DEV && SOC_CAMERA
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select SOC_CAMERA_SCALE_CROP
 	---help---
@@ -55,12 +43,14 @@ config VIDEO_RCAR_VIN
 config VIDEO_SH_MOBILE_CSI2
 	tristate "SuperH Mobile MIPI CSI-2 Interface driver"
 	depends on VIDEO_DEV && SOC_CAMERA && HAVE_CLK
+	depends on ARCH_SHMOBILE || SUPERH || COMPILE_TEST
 	---help---
 	  This is a v4l2 driver for the SuperH MIPI CSI-2 Interface
 
 config VIDEO_SH_MOBILE_CEU
 	tristate "SuperH Mobile CEU Interface driver"
 	depends on VIDEO_DEV && SOC_CAMERA && HAS_DMA && HAVE_CLK
+	depends on ARCH_SHMOBILE || SUPERH || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select SOC_CAMERA_SCALE_CROP
 	---help---
@@ -76,7 +66,7 @@ config VIDEO_OMAP1
 
 config VIDEO_MX2
 	tristate "i.MX27 Camera Sensor Interface driver"
-	depends on VIDEO_DEV && SOC_CAMERA && MACH_MX27
+	depends on VIDEO_DEV && SOC_CAMERA && SOC_IMX27
 	select VIDEOBUF2_DMA_CONTIG
 	---help---
 	  This is a v4l2 driver for the i.MX27 Camera Sensor Interface

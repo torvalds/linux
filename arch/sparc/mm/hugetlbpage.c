@@ -4,7 +4,6 @@
  * Copyright (C) 2002, 2003, 2006 David S. Miller (davem@davemloft.net)
  */
 
-#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
@@ -228,11 +227,6 @@ int pmd_huge(pmd_t pmd)
 }
 
 int pud_huge(pud_t pud)
-{
-	return 0;
-}
-
-int pmd_huge_support(void)
 {
 	return 0;
 }

@@ -22,7 +22,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 #if  defined(LNET_ROUTER)
 
@@ -107,9 +107,9 @@ lnet_peers_start_down(void)
 }
 
 void
-lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, cfs_time_t when)
+lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, unsigned long when)
 {
-	if (cfs_time_before(when, lp->lp_timestamp)) { /* out of date information */
+	if (time_before(when, lp->lp_timestamp)) { /* out of date information */
 		CDEBUG(D_NET, "Out of date\n");
 		return;
 	}
@@ -135,7 +135,7 @@ lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, cfs_time_t when)
 	CDEBUG(D_NET, "set %s %d\n", libcfs_nid2str(lp->lp_nid), alive);
 }
 
-void
+static void
 lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 {
 	int	alive;
@@ -145,7 +145,7 @@ lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 	 * NB individual events can be missed; the only guarantee is that you
 	 * always get the most recent news */
 
-	if (lp->lp_notifying)
+	if (lp->lp_notifying || ni == NULL)
 		return;
 
 	lp->lp_notifying = 1;
@@ -273,7 +273,7 @@ static void lnet_shuffle_seed(void)
 }
 
 /* NB expects LNET_LOCK held */
-void
+static void
 lnet_add_route_to_rnet (lnet_remotenet_t *rnet, lnet_route_t *route)
 {
 	unsigned int      len = 0;
@@ -779,7 +779,8 @@ lnet_wait_known_routerstate(void)
 		if (all_known)
 			return;
 
-		cfs_pause(cfs_time_seconds(1));
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1));
 	}
 }
 
@@ -795,7 +796,7 @@ lnet_update_ni_status_locked(void)
 	timeout = router_ping_timeout +
 		  MAX(live_router_check_interval, dead_router_check_interval);
 
-	now = cfs_time_current_sec();
+	now = get_seconds();
 	list_for_each_entry(ni, &the_lnet.ln_nis, ni_list) {
 		if (ni->ni_lnd->lnd_type == LOLND)
 			continue;
@@ -865,7 +866,6 @@ lnet_create_rc_data_locked(lnet_peer_t *gateway)
 	if (pi == NULL)
 		goto out;
 
-	memset(pi, 0, LNET_PINGINFO_SIZE);
 	for (i = 0; i < LNET_MAX_RTR_NIS; i++) {
 		pi->pi_ni[i].ns_nid = LNET_NID_ANY;
 		pi->pi_ni[i].ns_status = LNET_NI_STATUS_INVALID;
@@ -931,7 +931,7 @@ static void
 lnet_ping_router_locked (lnet_peer_t *rtr)
 {
 	lnet_rc_data_t *rcd = NULL;
-	cfs_time_t      now = cfs_time_current();
+	unsigned long      now = cfs_time_current();
 	int	     secs;
 
 	lnet_peer_addref_locked(rtr);
@@ -1147,7 +1147,8 @@ lnet_prune_rc_data(int wait_unlink)
 		i++;
 		CDEBUG(((i & (-i)) == i) ? D_WARNING : D_NET,
 		       "Waiting for rc buffers to unlink\n");
-		cfs_pause(cfs_time_seconds(1) / 4);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1) / 4);
 
 		lnet_net_lock(LNET_LOCK_EX);
 	}
@@ -1206,11 +1207,11 @@ rescan:
 
 		lnet_prune_rc_data(0); /* don't wait for UNLINK */
 
-		/* Call cfs_pause() here always adds 1 to load average
+		/* Call schedule_timeout() here always adds 1 to load average
 		 * because kernel counts # active tasks as nr_running
 		 * + nr_uninterruptible. */
-		schedule_timeout_and_set_state(TASK_INTERRUPTIBLE,
-						   cfs_time_seconds(1));
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1));
 	}
 
 	LASSERT(the_lnet.ln_rc_state == LNET_RC_STATE_STOPPING);
@@ -1496,10 +1497,10 @@ lnet_rtrpools_alloc(int im_a_router)
 }
 
 int
-lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, cfs_time_t when)
+lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 {
 	struct lnet_peer	*lp = NULL;
-	cfs_time_t		now = cfs_time_current();
+	unsigned long		now = cfs_time_current();
 	int			cpt = lnet_cpt_of_nid(nid);
 
 	LASSERT (!in_interrupt ());
@@ -1575,7 +1576,7 @@ lnet_get_tunables (void)
 #else
 
 int
-lnet_notify (lnet_ni_t *ni, lnet_nid_t nid, int alive, cfs_time_t when)
+lnet_notify (lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 {
 	return -EOPNOTSUPP;
 }
@@ -1586,7 +1587,7 @@ lnet_router_checker (void)
 	static time_t last = 0;
 	static int    running = 0;
 
-	time_t	    now = cfs_time_current_sec();
+	time_t	    now = get_seconds();
 	int	       interval = now - last;
 	int	       rc;
 	__u64	     version;

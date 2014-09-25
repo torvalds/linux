@@ -24,7 +24,6 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <net/mac80211.h>
@@ -2808,8 +2807,7 @@ il4965_rs_rate_init_stub(void *il_r, struct ieee80211_supported_band *sband,
 {
 }
 
-static struct rate_control_ops rs_4965_ops = {
-	.module = NULL,
+static const struct rate_control_ops rs_4965_ops = {
 	.name = IL4965_RS_NAME,
 	.tx_status = il4965_rs_tx_status,
 	.get_rate = il4965_rs_get_rate,

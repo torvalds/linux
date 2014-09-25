@@ -56,12 +56,11 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include <lustre_dlm.h>
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_lib.h>
+#include "../include/lustre_dlm.h"
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_lib.h"
 #include <linux/list.h>
-
 #include "ldlm_internal.h"
 
 int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
@@ -205,6 +204,26 @@ ldlm_flock_deadlock(struct ldlm_lock *req, struct ldlm_lock *bl_lock)
 	return 0;
 }
 
+static void ldlm_flock_cancel_on_deadlock(struct ldlm_lock *lock,
+					  struct list_head *work_list)
+{
+	CDEBUG(D_INFO, "reprocess deadlock req=%p\n", lock);
+
+	if ((exp_connect_flags(lock->l_export) &
+				OBD_CONNECT_FLOCK_DEAD) == 0) {
+		CERROR(
+		      "deadlock found, but client doesn't support flock canceliation\n");
+	} else {
+		LASSERT(lock->l_completion_ast);
+		LASSERT((lock->l_flags & LDLM_FL_AST_SENT) == 0);
+		lock->l_flags |= LDLM_FL_AST_SENT | LDLM_FL_CANCEL_ON_BLOCK |
+			LDLM_FL_FLOCK_DEADLOCK;
+		ldlm_flock_blocking_unlink(lock);
+		ldlm_resource_unlink_lock(lock);
+		ldlm_add_ast_work_item(lock, NULL, work_list);
+	}
+}
+
 /**
  * Process a granting attempt for flock lock.
  * Must be called under ns lock held.
@@ -241,9 +260,8 @@ ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags, int first_enq,
 	int splitted = 0;
 	const struct ldlm_callback_suite null_cbs = { NULL };
 
-	CDEBUG(D_DLMTRACE, "flags %#llx owner "LPU64" pid %u mode %u start "
-	       LPU64" end "LPU64"\n", *flags,
-	       new->l_policy_data.l_flock.owner,
+	CDEBUG(D_DLMTRACE, "flags %#llx owner %llu pid %u mode %u start %llu end %llu\n",
+	       *flags, new->l_policy_data.l_flock.owner,
 	       new->l_policy_data.l_flock.pid, mode,
 	       req->l_policy_data.l_flock.start,
 	       req->l_policy_data.l_flock.end);
@@ -272,6 +290,7 @@ reprocess:
 			}
 		}
 	} else {
+		int reprocess_failed = 0;
 		lockmode_verify(mode);
 
 		/* This loop determines if there are existing locks
@@ -293,8 +312,15 @@ reprocess:
 			if (!ldlm_flocks_overlap(lock, req))
 				continue;
 
-			if (!first_enq)
-				return LDLM_ITER_CONTINUE;
+			if (!first_enq) {
+				reprocess_failed = 1;
+				if (ldlm_flock_deadlock(req, lock)) {
+					ldlm_flock_cancel_on_deadlock(req,
+							work_list);
+					return LDLM_ITER_CONTINUE;
+				}
+				continue;
+			}
 
 			if (*flags & LDLM_FL_BLOCK_NOWAIT) {
 				ldlm_flock_destroy(req, mode, *flags);
@@ -330,6 +356,8 @@ reprocess:
 			*flags |= LDLM_FL_BLOCK_GRANTED;
 			return LDLM_ITER_STOP;
 		}
+		if (reprocess_failed)
+			return LDLM_ITER_CONTINUE;
 	}
 
 	if (*flags & LDLM_FL_TEST_LOCK) {
@@ -646,7 +674,10 @@ granted:
 	/* ldlm_lock_enqueue() has already placed lock on the granted list. */
 	list_del_init(&lock->l_res_link);
 
-	if (flags & LDLM_FL_TEST_LOCK) {
+	if (lock->l_flags & LDLM_FL_FLOCK_DEADLOCK) {
+		LDLM_DEBUG(lock, "client-side enqueue deadlock received");
+		rc = -EDEADLK;
+	} else if (flags & LDLM_FL_TEST_LOCK) {
 		/* fcntl(F_GETLK) request */
 		/* The old mode was saved in getlk->fl_type so that if the mode
 		 * in the lock changes we can decref the appropriate refcount.*/
@@ -672,7 +703,7 @@ granted:
 		ldlm_process_flock_lock(lock, &noreproc, 1, &err, NULL);
 	}
 	unlock_res_and_lock(lock);
-	return 0;
+	return rc;
 }
 EXPORT_SYMBOL(ldlm_flock_completion_ast);
 

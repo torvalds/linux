@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/of_address.h>

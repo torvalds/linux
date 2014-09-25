@@ -24,7 +24,6 @@
 
 #include <core/client.h>
 #include <core/os.h>
-#include <core/class.h>
 #include <core/handle.h>
 #include <core/engctx.h>
 
@@ -484,7 +483,7 @@ nv40_graph_init(struct nouveau_object *object)
 		engine->tile_prog(engine, i);
 
 	/* begin RAM config */
-	vramsz = pci_resource_len(nv_device(priv)->pdev, 0) - 1;
+	vramsz = nv_device_resource_len(nv_device(priv), 0) - 1;
 	switch (nv_device(priv)->chipset) {
 	case 0x40:
 		nv_wr32(priv, 0x4009A4, nv_rd32(priv, 0x100200));

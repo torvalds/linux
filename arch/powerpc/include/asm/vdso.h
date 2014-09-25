@@ -4,11 +4,11 @@
 #ifdef __KERNEL__
 
 /* Default link addresses for the vDSOs */
-#define VDSO32_LBASE	0x100000
-#define VDSO64_LBASE	0x100000
+#define VDSO32_LBASE	0x0
+#define VDSO64_LBASE	0x0
 
 /* Default map addresses for 32bit vDSO */
-#define VDSO32_MBASE	VDSO32_LBASE
+#define VDSO32_MBASE	0x100000
 
 #define VDSO_VERSION_STRING	LINUX_2.6.15
 

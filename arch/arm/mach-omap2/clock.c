@@ -26,7 +26,6 @@
 #include <linux/clk-private.h>
 #include <asm/cpu.h>
 
-
 #include <trace/events/power.h>
 
 #include "soc.h"
@@ -48,6 +47,24 @@
 u16 cpu_mask;
 
 /*
+ * Clock features setup. Used instead of CPU type checks.
+ */
+struct ti_clk_features ti_clk_features;
+
+/* DPLL valid Fint frequency band limits - from 34xx TRM Section 4.7.6.2 */
+#define OMAP3430_DPLL_FINT_BAND1_MIN	750000
+#define OMAP3430_DPLL_FINT_BAND1_MAX	2100000
+#define OMAP3430_DPLL_FINT_BAND2_MIN	7500000
+#define OMAP3430_DPLL_FINT_BAND2_MAX	21000000
+
+/*
+ * DPLL valid Fint frequency range for OMAP36xx and OMAP4xxx.
+ * From device data manual section 4.3 "DPLL and DLL Specifications".
+ */
+#define OMAP3PLUS_DPLL_FINT_MIN		32000
+#define OMAP3PLUS_DPLL_FINT_MAX		52000000
+
+/*
  * clkdm_control: if true, then when a clock is enabled in the
  * hardware, its clockdomain will first be enabled; and when a clock
  * is disabled in the hardware, its clockdomain will be disabled
@@ -56,26 +73,30 @@ u16 cpu_mask;
 static bool clkdm_control = true;
 
 static LIST_HEAD(clk_hw_omap_clocks);
+void __iomem *clk_memmaps[CLK_MAX_MEMMAPS];
 
-/*
- * Used for clocks that have the same value as the parent clock,
- * divided by some factor
- */
-unsigned long omap_fixed_divisor_recalc(struct clk_hw *hw,
-		unsigned long parent_rate)
+void omap2_clk_writel(u32 val, struct clk_hw_omap *clk, void __iomem *reg)
 {
-	struct clk_hw_omap *oclk;
+	if (clk->flags & MEMMAP_ADDRESSING) {
+		struct clk_omap_reg *r = (struct clk_omap_reg *)&reg;
+		writel_relaxed(val, clk_memmaps[r->index] + r->offset);
+	} else {
+		writel_relaxed(val, reg);
+	}
+}
 
-	if (!hw) {
-		pr_warn("%s: hw is NULL\n", __func__);
-		return -EINVAL;
+u32 omap2_clk_readl(struct clk_hw_omap *clk, void __iomem *reg)
+{
+	u32 val;
+
+	if (clk->flags & MEMMAP_ADDRESSING) {
+		struct clk_omap_reg *r = (struct clk_omap_reg *)&reg;
+		val = readl_relaxed(clk_memmaps[r->index] + r->offset);
+	} else {
+		val = readl_relaxed(reg);
 	}
 
-	oclk = to_clk_hw_omap(hw);
-
-	WARN_ON(!oclk->fixed_div);
-
-	return parent_rate / oclk->fixed_div;
+	return val;
 }
 
 /*
@@ -87,6 +108,7 @@ unsigned long omap_fixed_divisor_recalc(struct clk_hw *hw,
 
 /**
  * _wait_idlest_generic - wait for a module to leave the idle state
+ * @clk: module clock to wait for (needed for register offsets)
  * @reg: virtual address of module IDLEST register
  * @mask: value to mask against to determine if the module is active
  * @idlest: idle state indicator (0 or 1) for the clock
@@ -98,14 +120,14 @@ unsigned long omap_fixed_divisor_recalc(struct clk_hw *hw,
  * elapsed.  XXX Deprecated - should be moved into drivers for the
  * individual IP block that the IDLEST register exists in.
  */
-static int _wait_idlest_generic(void __iomem *reg, u32 mask, u8 idlest,
-				const char *name)
+static int _wait_idlest_generic(struct clk_hw_omap *clk, void __iomem *reg,
+				u32 mask, u8 idlest, const char *name)
 {
 	int i = 0, ena = 0;
 
 	ena = (idlest) ? 0 : mask;
 
-	omap_test_timeout(((__raw_readl(reg) & mask) == ena),
+	omap_test_timeout(((omap2_clk_readl(clk, reg) & mask) == ena),
 			  MAX_MODULE_ENABLE_WAIT, i);
 
 	if (i < MAX_MODULE_ENABLE_WAIT)
@@ -138,7 +160,7 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 	/* Not all modules have multiple clocks that their IDLEST depends on */
 	if (clk->ops->find_companion) {
 		clk->ops->find_companion(clk, &companion_reg, &other_bit);
-		if (!(__raw_readl(companion_reg) & (1 << other_bit)))
+		if (!(omap2_clk_readl(clk, companion_reg) & (1 << other_bit)))
 			return;
 	}
 
@@ -146,8 +168,8 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 	r = cm_split_idlest_reg(idlest_reg, &prcm_mod, &idlest_reg_id);
 	if (r) {
 		/* IDLEST register not in the CM module */
-		_wait_idlest_generic(idlest_reg, (1 << idlest_bit), idlest_val,
-				     __clk_get_name(clk->hw.clk));
+		_wait_idlest_generic(clk, idlest_reg, (1 << idlest_bit),
+				     idlest_val, __clk_get_name(clk->hw.clk));
 	} else {
 		cm_wait_module_ready(prcm_mod, idlest_reg_id, idlest_bit);
 	};
@@ -262,13 +284,7 @@ void omap2_clk_dflt_find_idlest(struct clk_hw_omap *clk,
 	 * 34xx reverses this, just to keep us on our toes
 	 * AM35xx uses both, depending on the module.
 	 */
-	if (cpu_is_omap24xx())
-		*idlest_val = OMAP24XX_CM_IDLEST_VAL;
-	else if (cpu_is_omap34xx())
-		*idlest_val = OMAP34XX_CM_IDLEST_VAL;
-	else
-		BUG();
-
+	*idlest_val = ti_clk_features.cm_idlest_val;
 }
 
 /**
@@ -309,13 +325,13 @@ int omap2_dflt_clk_enable(struct clk_hw *hw)
 	}
 
 	/* FIXME should not have INVERT_ENABLE bit here */
-	v = __raw_readl(clk->enable_reg);
+	v = omap2_clk_readl(clk, clk->enable_reg);
 	if (clk->flags & INVERT_ENABLE)
 		v &= ~(1 << clk->enable_bit);
 	else
 		v |= (1 << clk->enable_bit);
-	__raw_writel(v, clk->enable_reg);
-	v = __raw_readl(clk->enable_reg); /* OCP barrier */
+	omap2_clk_writel(v, clk, clk->enable_reg);
+	v = omap2_clk_readl(clk, clk->enable_reg); /* OCP barrier */
 
 	if (clk->ops && clk->ops->find_idlest)
 		_omap2_module_wait_ready(clk);
@@ -353,12 +369,12 @@ void omap2_dflt_clk_disable(struct clk_hw *hw)
 		return;
 	}
 
-	v = __raw_readl(clk->enable_reg);
+	v = omap2_clk_readl(clk, clk->enable_reg);
 	if (clk->flags & INVERT_ENABLE)
 		v |= (1 << clk->enable_bit);
 	else
 		v &= ~(1 << clk->enable_bit);
-	__raw_writel(v, clk->enable_reg);
+	omap2_clk_writel(v, clk, clk->enable_reg);
 	/* No OCP barrier needed here since it is a disable operation */
 
 	if (clkdm_control && clk->clkdm)
@@ -454,7 +470,7 @@ int omap2_dflt_clk_is_enabled(struct clk_hw *hw)
 	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	u32 v;
 
-	v = __raw_readl(clk->enable_reg);
+	v = omap2_clk_readl(clk, clk->enable_reg);
 
 	if (clk->flags & INVERT_ENABLE)
 		v ^= BIT(clk->enable_bit);
@@ -520,6 +536,9 @@ int omap2_clk_enable_autoidle_all(void)
 	list_for_each_entry(c, &clk_hw_omap_clocks, node)
 		if (c->ops && c->ops->allow_idle)
 			c->ops->allow_idle(c);
+
+	of_ti_clk_allow_autoidle_all();
+
 	return 0;
 }
 
@@ -539,6 +558,9 @@ int omap2_clk_disable_autoidle_all(void)
 	list_for_each_entry(c, &clk_hw_omap_clocks, node)
 		if (c->ops && c->ops->deny_idle)
 			c->ops->deny_idle(c);
+
+	of_ti_clk_deny_autoidle_all();
+
 	return 0;
 }
 
@@ -699,4 +721,54 @@ void __init omap2_clk_print_new_rates(const char *hfclkin_ck_name,
 		(hfclkin_rate / 1000000), ((hfclkin_rate / 100000) % 10),
 		(clk_get_rate(core_ck) / 1000000),
 		(clk_get_rate(mpu_ck) / 1000000));
+}
+
+/**
+ * ti_clk_init_features - init clock features struct for the SoC
+ *
+ * Initializes the clock features struct based on the SoC type.
+ */
+void __init ti_clk_init_features(void)
+{
+	/* Fint setup for DPLLs */
+	if (cpu_is_omap3430()) {
+		ti_clk_features.fint_min = OMAP3430_DPLL_FINT_BAND1_MIN;
+		ti_clk_features.fint_max = OMAP3430_DPLL_FINT_BAND2_MAX;
+		ti_clk_features.fint_band1_max = OMAP3430_DPLL_FINT_BAND1_MAX;
+		ti_clk_features.fint_band2_min = OMAP3430_DPLL_FINT_BAND2_MIN;
+	} else {
+		ti_clk_features.fint_min = OMAP3PLUS_DPLL_FINT_MIN;
+		ti_clk_features.fint_max = OMAP3PLUS_DPLL_FINT_MAX;
+	}
+
+	/* Bypass value setup for DPLLs */
+	if (cpu_is_omap24xx()) {
+		ti_clk_features.dpll_bypass_vals |=
+			(1 << OMAP2XXX_EN_DPLL_LPBYPASS) |
+			(1 << OMAP2XXX_EN_DPLL_FRBYPASS);
+	} else if (cpu_is_omap34xx()) {
+		ti_clk_features.dpll_bypass_vals |=
+			(1 << OMAP3XXX_EN_DPLL_LPBYPASS) |
+			(1 << OMAP3XXX_EN_DPLL_FRBYPASS);
+	} else if (soc_is_am33xx() || cpu_is_omap44xx() || soc_is_am43xx() ||
+		   soc_is_omap54xx() || soc_is_dra7xx()) {
+		ti_clk_features.dpll_bypass_vals |=
+			(1 << OMAP4XXX_EN_DPLL_LPBYPASS) |
+			(1 << OMAP4XXX_EN_DPLL_FRBYPASS) |
+			(1 << OMAP4XXX_EN_DPLL_MNBYPASS);
+	}
+
+	/* Jitter correction only available on OMAP343X */
+	if (cpu_is_omap343x())
+		ti_clk_features.flags |= TI_CLK_DPLL_HAS_FREQSEL;
+
+	/* Idlest value for interface clocks.
+	 * 24xx uses 0 to indicate not ready, and 1 to indicate ready.
+	 * 34xx reverses this, just to keep us on our toes
+	 * AM35xx uses both, depending on the module.
+	 */
+	if (cpu_is_omap24xx())
+		ti_clk_features.cm_idlest_val = OMAP24XX_CM_IDLEST_VAL;
+	else if (cpu_is_omap34xx())
+		ti_clk_features.cm_idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }

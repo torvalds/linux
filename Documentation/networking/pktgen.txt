@@ -24,6 +24,34 @@ For monitoring and control pktgen creates:
         /proc/net/pktgen/ethX
 
 
+Tuning NIC for max performance
+==============================
+
+The default NIC setting are (likely) not tuned for pktgen's artificial
+overload type of benchmarking, as this could hurt the normal use-case.
+
+Specifically increasing the TX ring buffer in the NIC:
+ # ethtool -G ethX tx 1024
+
+A larger TX ring can improve pktgen's performance, while it can hurt
+in the general case, 1) because the TX ring buffer might get larger
+than the CPUs L1/L2 cache, 2) because it allow more queueing in the
+NIC HW layer (which is bad for bufferbloat).
+
+One should be careful to conclude, that packets/descriptors in the HW
+TX ring cause delay.  Drivers usually delay cleaning up the
+ring-buffers (for various performance reasons), thus packets stalling
+the TX ring, might just be waiting for cleanup.
+
+This cleanup issues is specifically the case, for the driver ixgbe
+(Intel 82599 chip).  This driver (ixgbe) combine TX+RX ring cleanups,
+and the cleanup interval is affected by the ethtool --coalesce setting
+of parameter "rx-usecs".
+
+For ixgbe use e.g "30" resulting in approx 33K interrupts/sec (1/30*10^6):
+ # ethtool -C ethX rx-usecs 30
+
+
 Viewing threads
 ===============
 /proc/net/pktgen/kpktgend_0 
@@ -102,13 +130,20 @@ Examples:
                          The 'minimum' MAC is what you set with dstmac.
 
  pgset "flag [name]"     Set a flag to determine behaviour.  Current flags
-                         are: IPSRC_RND #IP Source is random (between min/max),
-                              IPDST_RND, UDPSRC_RND,
-                              UDPDST_RND, MACSRC_RND, MACDST_RND 
+                         are: IPSRC_RND # IP source is random (between min/max)
+                              IPDST_RND # IP destination is random
+                              UDPSRC_RND, UDPDST_RND,
+                              MACSRC_RND, MACDST_RND
+                              TXSIZE_RND, IPV6,
                               MPLS_RND, VID_RND, SVID_RND
+                              FLOW_SEQ,
                               QUEUE_MAP_RND # queue map random
                               QUEUE_MAP_CPU # queue map mirrors smp_processor_id()
+                              UDPCSUM,
+                              IPSEC # IPsec encapsulation (needs CONFIG_XFRM)
+                              NODE_ALLOC # node specific memory allocation
 
+ pgset spi SPI_VALUE     Set specific SA used to transform packet.
 
  pgset "udp_src_min 9"   set UDP source port min, If < udp_src_max, then
                          cycle through the port range.
@@ -177,6 +212,18 @@ Note when adding devices to a specific CPU there good idea to also assign
 /proc/irq/XX/smp_affinity so the TX-interrupts gets bound to the same CPU.
 as this reduces cache bouncing when freeing skb's.
 
+Enable IPsec
+============
+Default IPsec transformation with ESP encapsulation plus Transport mode
+could be enabled by simply setting:
+
+pgset "flag IPSEC"
+pgset "flows 1"
+
+To avoid breaking existing testbed scripts for using AH type and tunnel mode,
+user could use "pgset spi SPI_VALUE" to specify which formal of transformation
+to employ.
+
 
 Current commands and configuration options
 ==========================================
@@ -219,12 +266,22 @@ udp_dst_max
 
 flag
   IPSRC_RND
-  TXSIZE_RND
   IPDST_RND
   UDPSRC_RND
   UDPDST_RND
   MACSRC_RND
   MACDST_RND
+  TXSIZE_RND
+  IPV6
+  MPLS_RND
+  VID_RND
+  SVID_RND
+  FLOW_SEQ
+  QUEUE_MAP_RND
+  QUEUE_MAP_CPU
+  UDPCSUM
+  IPSEC
+  NODE_ALLOC
 
 dst_min
 dst_max

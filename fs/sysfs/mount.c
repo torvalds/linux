@@ -13,6 +13,7 @@
 #define DEBUG
 
 #include <linux/fs.h>
+#include <linux/magic.h>
 #include <linux/mount.h>
 #include <linux/init.h>
 #include <linux/user_namespace.h>
@@ -27,6 +28,7 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 {
 	struct dentry *root;
 	void *ns;
+	bool new_sb;
 
 	if (!(flags & MS_KERNMOUNT)) {
 		if (!capable(CAP_SYS_ADMIN) && !fs_fully_visible(fs_type))
@@ -37,8 +39,9 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 	}
 
 	ns = kobj_ns_grab_current(KOBJ_NS_TYPE_NET);
-	root = kernfs_mount_ns(fs_type, flags, sysfs_root, ns);
-	if (IS_ERR(root))
+	root = kernfs_mount_ns(fs_type, flags, sysfs_root,
+				SYSFS_MAGIC, &new_sb, ns);
+	if (IS_ERR(root) || !new_sb)
 		kobj_ns_drop(KOBJ_NS_TYPE_NET, ns);
 	return root;
 }
@@ -62,7 +65,8 @@ int __init sysfs_init(void)
 {
 	int err;
 
-	sysfs_root = kernfs_create_root(NULL, NULL);
+	sysfs_root = kernfs_create_root(NULL, KERNFS_ROOT_EXTRA_OPEN_PERM_CHECK,
+					NULL);
 	if (IS_ERR(sysfs_root))
 		return PTR_ERR(sysfs_root);
 

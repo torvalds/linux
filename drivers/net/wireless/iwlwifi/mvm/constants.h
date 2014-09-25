@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,5 +78,11 @@
 #define IWL_MVM_PS_SNOOZE_INTERVAL		25
 #define IWL_MVM_PS_SNOOZE_WINDOW		50
 #define IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW		25
+#define IWL_MVM_LOWLAT_QUOTA_MIN_PERCENT	64
+#define IWL_MVM_BT_COEX_EN_RED_TXP_THRESH	62
+#define IWL_MVM_BT_COEX_DIS_RED_TXP_THRESH	65
+#define IWL_MVM_BT_COEX_SYNC2SCO		1
+#define IWL_MVM_BT_COEX_CORUNNING		1
+#define IWL_MVM_BT_COEX_MPLUT			1
 
 #endif /* __MVM_CONSTANTS_H */

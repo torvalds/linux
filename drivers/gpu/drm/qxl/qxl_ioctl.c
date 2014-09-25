@@ -200,7 +200,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 	for (i = 0; i < cmd->relocs_num; ++i) {
 		struct drm_qxl_reloc reloc;
 
-		if (DRM_COPY_FROM_USER(&reloc,
+		if (copy_from_user(&reloc,
 				       &((struct drm_qxl_reloc *)(uintptr_t)cmd->relocs)[i],
 				       sizeof(reloc))) {
 			ret = -EFAULT;
@@ -297,7 +297,7 @@ static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 		struct drm_qxl_command *commands =
 			(struct drm_qxl_command *)(uintptr_t)execbuffer->commands;
 
-		if (DRM_COPY_FROM_USER(&user_cmd, &commands[cmd_num],
+		if (copy_from_user(&user_cmd, &commands[cmd_num],
 				       sizeof(user_cmd)))
 			return -EFAULT;
 
@@ -451,4 +451,4 @@ const struct drm_ioctl_desc qxl_ioctls[] = {
 			  DRM_AUTH|DRM_UNLOCKED),
 };
 
-int qxl_max_ioctls = DRM_ARRAY_SIZE(qxl_ioctls);
+int qxl_max_ioctls = ARRAY_SIZE(qxl_ioctls);

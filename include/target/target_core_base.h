@@ -37,6 +37,9 @@
 /* Used by transport_send_check_condition_and_sense() */
 #define SPC_SENSE_KEY_OFFSET			2
 #define SPC_ADD_SENSE_LEN_OFFSET		7
+#define SPC_DESC_TYPE_OFFSET			8
+#define SPC_ADDITIONAL_DESC_LEN_OFFSET		9
+#define SPC_VALIDITY_OFFSET			10
 #define SPC_ASC_KEY_OFFSET			12
 #define SPC_ASCQ_KEY_OFFSET			13
 #define TRANSPORT_IQN_LEN			224
@@ -112,7 +115,7 @@
 /* Queue Algorithm Modifier default for restricted reordering in control mode page */
 #define DA_EMULATE_REST_REORD			0
 
-#define SE_INQUIRY_BUF				512
+#define SE_INQUIRY_BUF				1024
 #define SE_MODE_PAGE_BUF			512
 #define SE_SENSE_BUF				96
 
@@ -159,7 +162,7 @@ enum se_cmd_flags_table {
 	SCF_SENT_CHECK_CONDITION	= 0x00000800,
 	SCF_OVERFLOW_BIT		= 0x00001000,
 	SCF_UNDERFLOW_BIT		= 0x00002000,
-	SCF_SENT_DELAYED_TAS		= 0x00004000,
+	SCF_SEND_DELAYED_TAS		= 0x00004000,
 	SCF_ALUA_NON_OPTIMIZED		= 0x00008000,
 	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00020000,
 	SCF_ACK_KREF			= 0x00040000,
@@ -205,6 +208,9 @@ enum tcm_sense_reason_table {
 	TCM_OUT_OF_RESOURCES			= R(0x12),
 	TCM_PARAMETER_LIST_LENGTH_ERROR		= R(0x13),
 	TCM_MISCOMPARE_VERIFY			= R(0x14),
+	TCM_LOGICAL_BLOCK_GUARD_CHECK_FAILED	= R(0x15),
+	TCM_LOGICAL_BLOCK_APP_TAG_CHECK_FAILED	= R(0x16),
+	TCM_LOGICAL_BLOCK_REF_TAG_CHECK_FAILED	= R(0x17),
 #undef R
 };
 
@@ -247,10 +253,28 @@ typedef enum {
 
 struct se_cmd;
 
+struct t10_alua_lba_map_member {
+	struct list_head lba_map_mem_list;
+	int lba_map_mem_alua_state;
+	int lba_map_mem_alua_pg_id;
+};
+
+struct t10_alua_lba_map {
+	u64 lba_map_first_lba;
+	u64 lba_map_last_lba;
+	struct list_head lba_map_list;
+	struct list_head lba_map_mem_list;
+};
+
 struct t10_alua {
 	/* ALUA Target Port Group ID */
 	u16	alua_tg_pt_gps_counter;
 	u32	alua_tg_pt_gps_count;
+	/* Referrals support */
+	spinlock_t lba_map_lock;
+	u32     lba_map_segment_size;
+	u32     lba_map_segment_multiplier;
+	struct list_head lba_map_list;
 	spinlock_t tg_pt_gps_lock;
 	struct se_device *t10_dev;
 	/* Used for default ALUA Target Port Group */
@@ -284,6 +308,8 @@ struct t10_alua_tg_pt_gp {
 	u16	tg_pt_gp_id;
 	int	tg_pt_gp_valid_id;
 	int	tg_pt_gp_alua_supported_states;
+	int	tg_pt_gp_alua_pending_state;
+	int	tg_pt_gp_alua_previous_state;
 	int	tg_pt_gp_alua_access_status;
 	int	tg_pt_gp_alua_access_type;
 	int	tg_pt_gp_nonop_delay_msecs;
@@ -291,9 +317,6 @@ struct t10_alua_tg_pt_gp {
 	int	tg_pt_gp_implicit_trans_secs;
 	int	tg_pt_gp_pref;
 	int	tg_pt_gp_write_metadata;
-	/* Used by struct t10_alua_tg_pt_gp->tg_pt_gp_md_buf_len */
-#define ALUA_MD_BUF_LEN				1024
-	u32	tg_pt_gp_md_buf_len;
 	u32	tg_pt_gp_members;
 	atomic_t tg_pt_gp_alua_access_state;
 	atomic_t tg_pt_gp_ref_cnt;
@@ -303,6 +326,10 @@ struct t10_alua_tg_pt_gp {
 	struct config_group tg_pt_gp_group;
 	struct list_head tg_pt_gp_list;
 	struct list_head tg_pt_gp_mem_list;
+	struct se_port *tg_pt_gp_alua_port;
+	struct se_node_acl *tg_pt_gp_alua_nacl;
+	struct delayed_work tg_pt_gp_transition_work;
+	struct completion *tg_pt_gp_transition_complete;
 };
 
 struct t10_alua_tg_pt_gp_member {
@@ -414,6 +441,39 @@ struct se_tmr_req {
 	struct list_head	tmr_list;
 };
 
+enum target_prot_op {
+	TARGET_PROT_NORMAL	= 0,
+	TARGET_PROT_DIN_INSERT	= (1 << 0),
+	TARGET_PROT_DOUT_INSERT	= (1 << 1),
+	TARGET_PROT_DIN_STRIP	= (1 << 2),
+	TARGET_PROT_DOUT_STRIP	= (1 << 3),
+	TARGET_PROT_DIN_PASS	= (1 << 4),
+	TARGET_PROT_DOUT_PASS	= (1 << 5),
+};
+
+#define TARGET_PROT_ALL	TARGET_PROT_DIN_INSERT | TARGET_PROT_DOUT_INSERT | \
+			TARGET_PROT_DIN_STRIP | TARGET_PROT_DOUT_STRIP | \
+			TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS
+
+enum target_prot_type {
+	TARGET_DIF_TYPE0_PROT,
+	TARGET_DIF_TYPE1_PROT,
+	TARGET_DIF_TYPE2_PROT,
+	TARGET_DIF_TYPE3_PROT,
+};
+
+enum target_core_dif_check {
+	TARGET_DIF_CHECK_GUARD  = 0x1 << 0,
+	TARGET_DIF_CHECK_APPTAG = 0x1 << 1,
+	TARGET_DIF_CHECK_REFTAG = 0x1 << 2,
+};
+
+struct se_dif_v1_tuple {
+	__be16			guard_tag;
+	__be16			app_tag;
+	__be32			ref_tag;
+};
+
 struct se_cmd {
 	/* SAM response code being sent to initiator */
 	u8			scsi_status;
@@ -470,7 +530,6 @@ struct se_cmd {
 #define CMD_T_COMPLETE		(1 << 2)
 #define CMD_T_SENT		(1 << 4)
 #define CMD_T_STOP		(1 << 5)
-#define CMD_T_FAILED		(1 << 6)
 #define CMD_T_DEV_ACTIVE	(1 << 7)
 #define CMD_T_REQUEST_STOP	(1 << 8)
 #define CMD_T_BUSY		(1 << 9)
@@ -497,14 +556,25 @@ struct se_cmd {
 	void			*priv;
 
 	/* Used for lun->lun_ref counting */
-	bool			lun_ref_active;
+	int			lun_ref_active;
+
+	/* DIF related members */
+	enum target_prot_op	prot_op;
+	enum target_prot_type	prot_type;
+	u8			prot_checks;
+	u32			prot_length;
+	u32			reftag_seed;
+	struct scatterlist	*t_prot_sg;
+	unsigned int		t_prot_nents;
+	sense_reason_t		pi_err;
+	sector_t		bad_sector;
+	bool			prot_pto;
 };
 
 struct se_ua {
 	u8			ua_asc;
 	u8			ua_ascq;
 	struct se_node_acl	*ua_nacl;
-	struct list_head	ua_dev_list;
 	struct list_head	ua_nacl_list;
 };
 
@@ -539,6 +609,7 @@ struct se_node_acl {
 struct se_session {
 	unsigned		sess_tearing_down:1;
 	u64			sess_bin_isid;
+	enum target_prot_op	sup_prot_ops;
 	struct se_node_acl	*se_node_acl;
 	struct se_portal_group *se_tpg;
 	void			*fabric_sess_ptr;
@@ -605,6 +676,9 @@ struct se_dev_attrib {
 	int		emulate_tpws;
 	int		emulate_caw;
 	int		emulate_3pc;
+	int		pi_prot_format;
+	enum target_prot_type pi_prot_type;
+	enum target_prot_type hw_pi_prot_type;
 	int		enforce_pr_isids;
 	int		is_nonrot;
 	int		emulate_rest_reord;
@@ -736,6 +810,8 @@ struct se_device {
 	/* Linked list for struct se_hba struct se_device list */
 	struct list_head	dev_list;
 	struct se_lun		xcopy_lun;
+	/* Protection Information */
+	int			prot_length;
 };
 
 struct se_hba {

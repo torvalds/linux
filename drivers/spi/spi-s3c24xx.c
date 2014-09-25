@@ -9,9 +9,7 @@
  *
 */
 
-#include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -29,7 +27,6 @@
 
 #include <plat/regs-spi.h>
 
-#include <plat/fiq.h>
 #include <asm/fiq.h>
 
 #include "spi-s3c24xx-fiq.h"
@@ -78,13 +75,11 @@ struct s3c24xx_spi {
 	unsigned char		*rx;
 
 	struct clk		*clk;
-	struct resource		*ioarea;
 	struct spi_master	*master;
 	struct spi_device	*curdev;
 	struct device		*dev;
 	struct s3c2410_spi_info *pdata;
 };
-
 
 #define SPCON_DEFAULT (S3C2410_SPCON_MSTR | S3C2410_SPCON_SMOD_INT)
 #define SPPIN_DEFAULT (S3C2410_SPPIN_KEEP)
@@ -126,24 +121,14 @@ static int s3c24xx_spi_update_state(struct spi_device *spi,
 {
 	struct s3c24xx_spi *hw = to_hw(spi);
 	struct s3c24xx_spi_devstate *cs = spi->controller_state;
-	unsigned int bpw;
 	unsigned int hz;
 	unsigned int div;
 	unsigned long clk;
 
-	bpw = t ? t->bits_per_word : spi->bits_per_word;
 	hz  = t ? t->speed_hz : spi->max_speed_hz;
-
-	if (!bpw)
-		bpw = 8;
 
 	if (!hz)
 		hz = spi->max_speed_hz;
-
-	if (bpw != 8) {
-		dev_err(&spi->dev, "invalid bits-per-word (%d)\n", bpw);
-		return -EINVAL;
-	}
 
 	if (spi->mode != cs->mode) {
 		u8 spcon = SPCON_DEFAULT | S3C2410_SPCON_ENSCK;
@@ -197,11 +182,11 @@ static int s3c24xx_spi_setup(struct spi_device *spi)
 
 	/* allocate settings on the first call */
 	if (!cs) {
-		cs = kzalloc(sizeof(struct s3c24xx_spi_devstate), GFP_KERNEL);
-		if (!cs) {
-			dev_err(&spi->dev, "no memory for controller state\n");
+		cs = devm_kzalloc(&spi->dev,
+				  sizeof(struct s3c24xx_spi_devstate),
+				  GFP_KERNEL);
+		if (!cs)
 			return -ENOMEM;
-		}
 
 		cs->spcon = SPCON_DEFAULT;
 		cs->hz = -1;
@@ -221,11 +206,6 @@ static int s3c24xx_spi_setup(struct spi_device *spi)
 	spin_unlock(&hw->bitbang.lock);
 
 	return 0;
-}
-
-static void s3c24xx_spi_cleanup(struct spi_device *spi)
-{
-	kfree(spi->controller_state);
 }
 
 static inline unsigned int hw_txbyte(struct s3c24xx_spi *hw, int count)
@@ -517,8 +497,7 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	master = spi_alloc_master(&pdev->dev, sizeof(struct s3c24xx_spi));
 	if (master == NULL) {
 		dev_err(&pdev->dev, "No memory for spi_master\n");
-		err = -ENOMEM;
-		goto err_nomem;
+		return -ENOMEM;
 	}
 
 	hw = spi_master_get_devdata(master);
@@ -548,6 +527,7 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 
 	master->num_chipselect = hw->pdata->num_cs;
 	master->bus_num = pdata->bus_num;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 
 	/* setup the state for the bitbang driver */
 
@@ -557,53 +537,36 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	hw->bitbang.txrx_bufs      = s3c24xx_spi_txrx;
 
 	hw->master->setup  = s3c24xx_spi_setup;
-	hw->master->cleanup = s3c24xx_spi_cleanup;
 
 	dev_dbg(hw->dev, "bitbang at %p\n", &hw->bitbang);
 
 	/* find and map our resources */
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "Cannot get IORESOURCE_MEM\n");
-		err = -ENOENT;
-		goto err_no_iores;
-	}
-
-	hw->ioarea = request_mem_region(res->start, resource_size(res),
-					pdev->name);
-
-	if (hw->ioarea == NULL) {
-		dev_err(&pdev->dev, "Cannot reserve region\n");
-		err = -ENXIO;
-		goto err_no_iores;
-	}
-
-	hw->regs = ioremap(res->start, resource_size(res));
-	if (hw->regs == NULL) {
-		dev_err(&pdev->dev, "Cannot map IO\n");
-		err = -ENXIO;
-		goto err_no_iomap;
+	hw->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hw->regs)) {
+		err = PTR_ERR(hw->regs);
+		goto err_no_pdata;
 	}
 
 	hw->irq = platform_get_irq(pdev, 0);
 	if (hw->irq < 0) {
 		dev_err(&pdev->dev, "No IRQ specified\n");
 		err = -ENOENT;
-		goto err_no_irq;
+		goto err_no_pdata;
 	}
 
-	err = request_irq(hw->irq, s3c24xx_spi_irq, 0, pdev->name, hw);
+	err = devm_request_irq(&pdev->dev, hw->irq, s3c24xx_spi_irq, 0,
+				pdev->name, hw);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot claim IRQ\n");
-		goto err_no_irq;
+		goto err_no_pdata;
 	}
 
-	hw->clk = clk_get(&pdev->dev, "spi");
+	hw->clk = devm_clk_get(&pdev->dev, "spi");
 	if (IS_ERR(hw->clk)) {
 		dev_err(&pdev->dev, "No clock for device\n");
 		err = PTR_ERR(hw->clk);
-		goto err_no_clk;
+		goto err_no_pdata;
 	}
 
 	/* setup any gpio we can */
@@ -615,7 +578,8 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 			goto err_register;
 		}
 
-		err = gpio_request(pdata->pin_cs, dev_name(&pdev->dev));
+		err = devm_gpio_request(&pdev->dev, pdata->pin_cs,
+					dev_name(&pdev->dev));
 		if (err) {
 			dev_err(&pdev->dev, "Failed to get gpio for cs\n");
 			goto err_register;
@@ -639,27 +603,10 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	return 0;
 
  err_register:
-	if (hw->set_cs == s3c24xx_spi_gpiocs)
-		gpio_free(pdata->pin_cs);
-
 	clk_disable(hw->clk);
-	clk_put(hw->clk);
 
- err_no_clk:
-	free_irq(hw->irq, hw);
-
- err_no_irq:
-	iounmap(hw->regs);
-
- err_no_iomap:
-	release_resource(hw->ioarea);
-	kfree(hw->ioarea);
-
- err_no_iores:
  err_no_pdata:
 	spi_master_put(hw->master);
-
- err_nomem:
 	return err;
 }
 
@@ -668,19 +615,7 @@ static int s3c24xx_spi_remove(struct platform_device *dev)
 	struct s3c24xx_spi *hw = platform_get_drvdata(dev);
 
 	spi_bitbang_stop(&hw->bitbang);
-
 	clk_disable(hw->clk);
-	clk_put(hw->clk);
-
-	free_irq(hw->irq, hw);
-	iounmap(hw->regs);
-
-	if (hw->set_cs == s3c24xx_spi_gpiocs)
-		gpio_free(hw->pdata->pin_cs);
-
-	release_resource(hw->ioarea);
-	kfree(hw->ioarea);
-
 	spi_master_put(hw->master);
 	return 0;
 }
@@ -691,6 +626,11 @@ static int s3c24xx_spi_remove(struct platform_device *dev)
 static int s3c24xx_spi_suspend(struct device *dev)
 {
 	struct s3c24xx_spi *hw = dev_get_drvdata(dev);
+	int ret;
+
+	ret = spi_master_suspend(hw->master);
+	if (ret)
+		return ret;
 
 	if (hw->pdata && hw->pdata->gpio_setup)
 		hw->pdata->gpio_setup(hw->pdata, 0);
@@ -704,7 +644,7 @@ static int s3c24xx_spi_resume(struct device *dev)
 	struct s3c24xx_spi *hw = dev_get_drvdata(dev);
 
 	s3c24xx_spi_initialsetup(hw);
-	return 0;
+	return spi_master_resume(hw->master);
 }
 
 static const struct dev_pm_ops s3c24xx_spi_pmops = {

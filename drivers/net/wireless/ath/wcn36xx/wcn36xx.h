@@ -54,7 +54,7 @@ enum wcn36xx_debug_mask {
 };
 
 #define wcn36xx_err(fmt, arg...)				\
-	printk(KERN_ERR pr_fmt("ERROR " fmt), ##arg);
+	printk(KERN_ERR pr_fmt("ERROR " fmt), ##arg)
 
 #define wcn36xx_warn(fmt, arg...)				\
 	printk(KERN_WARNING pr_fmt("WARNING " fmt), ##arg)
@@ -125,10 +125,10 @@ struct wcn36xx_vif {
 	enum wcn36xx_power_state pw_state;
 
 	u8 bss_index;
-	u8 ucast_dpu_signature;
 	/* Returned from WCN36XX_HAL_ADD_STA_SELF_RSP */
 	u8 self_sta_index;
 	u8 self_dpu_desc_index;
+	u8 self_ucast_dpu_sign;
 };
 
 /**
@@ -159,6 +159,7 @@ struct wcn36xx_sta {
 	u16 tid;
 	u8 sta_index;
 	u8 dpu_desc_index;
+	u8 ucast_dpu_sign;
 	u8 bss_sta_index;
 	u8 bss_dpu_desc_index;
 	bool is_data_encrypted;
@@ -171,10 +172,14 @@ struct wcn36xx {
 	struct device		*dev;
 	struct list_head	vif_list;
 
+	const struct firmware	*nv;
+
 	u8			fw_revision;
 	u8			fw_version;
 	u8			fw_minor;
 	u8			fw_major;
+	u32			fw_feat_caps[WCN36XX_HAL_CAPS_SIZE];
+	u32			chip_version;
 
 	/* extra byte for the NULL termination */
 	u8			crm_version[WCN36XX_HAL_VERSION_LENGTH + 1];
@@ -221,6 +226,9 @@ struct wcn36xx {
 #endif /* CONFIG_WCN36XX_DEBUGFS */
 
 };
+
+#define WCN36XX_CHIP_3660	0
+#define WCN36XX_CHIP_3680	1
 
 static inline bool wcn36xx_is_fw_version(struct wcn36xx *wcn,
 					 u8 major,

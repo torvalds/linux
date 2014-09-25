@@ -40,7 +40,12 @@
 static unsigned long efi_rt_eflags;
 
 void efi_sync_low_kernel_mappings(void) {}
-void efi_setup_page_tables(void) {}
+void __init efi_dump_pagetable(void) {}
+int efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+{
+	return 0;
+}
+void efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages) {}
 
 void __init efi_map_region(efi_memory_desc_t *md)
 {
@@ -76,4 +81,10 @@ void efi_call_phys_epilog(void)
 	__flush_tlb_all();
 
 	local_irq_restore(efi_rt_eflags);
+}
+
+void __init efi_runtime_mkexec(void)
+{
+	if (__supported_pte_mask & _PAGE_NX)
+		runtime_code_page_mkexec();
 }

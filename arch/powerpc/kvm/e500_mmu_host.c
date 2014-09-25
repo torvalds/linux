@@ -65,15 +65,6 @@ static inline u32 e500_shadow_mas3_attrib(u32 mas3, int usermode)
 	return mas3;
 }
 
-static inline u32 e500_shadow_mas2_attrib(u32 mas2, int usermode)
-{
-#ifdef CONFIG_SMP
-	return (mas2 & MAS2_ATTRIB_MASK) | MAS2_M;
-#else
-	return mas2 & MAS2_ATTRIB_MASK;
-#endif
-}
-
 /*
  * writing shadow tlb entry to host TLB
  */
@@ -116,11 +107,15 @@ static u32 get_host_mas0(unsigned long eaddr)
 {
 	unsigned long flags;
 	u32 mas0;
+	u32 mas4;
 
 	local_irq_save(flags);
 	mtspr(SPRN_MAS6, 0);
+	mas4 = mfspr(SPRN_MAS4);
+	mtspr(SPRN_MAS4, mas4 & ~MAS4_TLBSEL_MASK);
 	asm volatile("tlbsx 0, %0" : : "b" (eaddr & ~CONFIG_PAGE_OFFSET));
 	mas0 = mfspr(SPRN_MAS0);
+	mtspr(SPRN_MAS4, mas4);
 	local_irq_restore(flags);
 
 	return mas0;
@@ -231,15 +226,15 @@ void inval_gtlbe_on_host(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
 		ref->flags &= ~(E500_TLB_TLB0 | E500_TLB_VALID);
 	}
 
-	/* Already invalidated in between */
-	if (!(ref->flags & E500_TLB_VALID))
-		return;
-
-	/* Guest tlbe is backed by at most one host tlbe per shadow pid. */
-	kvmppc_e500_tlbil_one(vcpu_e500, gtlbe);
+	/*
+	 * If TLB entry is still valid then it's a TLB0 entry, and thus
+	 * backed by at most one host tlbe per shadow pid
+	 */
+	if (ref->flags & E500_TLB_VALID)
+		kvmppc_e500_tlbil_one(vcpu_e500, gtlbe);
 
 	/* Mark the TLB as not backed by the host anymore */
-	ref->flags &= ~E500_TLB_VALID;
+	ref->flags = 0;
 }
 
 static inline int tlbe_is_writable(struct kvm_book3e_206_tlb_entry *tlbe)
@@ -249,10 +244,13 @@ static inline int tlbe_is_writable(struct kvm_book3e_206_tlb_entry *tlbe)
 
 static inline void kvmppc_e500_ref_setup(struct tlbe_ref *ref,
 					 struct kvm_book3e_206_tlb_entry *gtlbe,
-					 pfn_t pfn)
+					 pfn_t pfn, unsigned int wimg)
 {
 	ref->pfn = pfn;
-	ref->flags |= E500_TLB_VALID;
+	ref->flags = E500_TLB_VALID;
+
+	/* Use guest supplied MAS2_G and MAS2_E */
+	ref->flags |= (gtlbe->mas2 & MAS2_ATTRIB_MASK) | wimg;
 
 	/* Mark the page accessed */
 	kvm_set_pfn_accessed(pfn);
@@ -316,8 +314,7 @@ static void kvmppc_e500_setup_stlbe(
 
 	/* Force IPROT=0 for all guest mappings. */
 	stlbe->mas1 = MAS1_TSIZE(tsize) | get_tlb_sts(gtlbe) | MAS1_VALID;
-	stlbe->mas2 = (gvaddr & MAS2_EPN) |
-		      e500_shadow_mas2_attrib(gtlbe->mas2, pr);
+	stlbe->mas2 = (gvaddr & MAS2_EPN) | (ref->flags & E500_TLB_MAS2_ATTR);
 	stlbe->mas7_3 = ((u64)pfn << PAGE_SHIFT) |
 			e500_shadow_mas3_attrib(gtlbe->mas7_3, pr);
 
@@ -339,6 +336,10 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	int ret = 0;
 	unsigned long mmu_seq;
 	struct kvm *kvm = vcpu_e500->vcpu.kvm;
+	unsigned long tsize_pages = 0;
+	pte_t *ptep;
+	unsigned int wimg = 0;
+	pgd_t *pgdir;
 
 	/* used to check for invalidations in progress */
 	mmu_seq = kvm->mmu_notifier_seq;
@@ -405,7 +406,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 			 */
 
 			for (; tsize > BOOK3E_PAGESZ_4K; tsize -= 2) {
-				unsigned long gfn_start, gfn_end, tsize_pages;
+				unsigned long gfn_start, gfn_end;
 				tsize_pages = 1 << (tsize - 2);
 
 				gfn_start = gfn & ~(tsize_pages - 1);
@@ -447,11 +448,12 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	}
 
 	if (likely(!pfnmap)) {
-		unsigned long tsize_pages = 1 << (tsize + 10 - PAGE_SHIFT);
+		tsize_pages = 1 << (tsize + 10 - PAGE_SHIFT);
 		pfn = gfn_to_pfn_memslot(slot, gfn);
 		if (is_error_noslot_pfn(pfn)) {
-			printk(KERN_ERR "Couldn't get real page for gfn %lx!\n",
-					(long)gfn);
+			if (printk_ratelimit())
+				pr_err("%s: real page not found for gfn %lx\n",
+				       __func__, (long)gfn);
 			return -EINVAL;
 		}
 
@@ -466,7 +468,19 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 		goto out;
 	}
 
-	kvmppc_e500_ref_setup(ref, gtlbe, pfn);
+
+	pgdir = vcpu_e500->vcpu.arch.pgdir;
+	ptep = lookup_linux_ptep(pgdir, hva, &tsize_pages);
+	if (pte_present(*ptep))
+		wimg = (*ptep >> PTE_WIMGE_SHIFT) & MAS2_WIMGE_MASK;
+	else {
+		if (printk_ratelimit())
+			pr_err("%s: pte not present: gfn %lx, pfn %lx\n",
+				__func__, (long)gfn, pfn);
+		ret = -EINVAL;
+		goto out;
+	}
+	kvmppc_e500_ref_setup(ref, gtlbe, pfn, wimg);
 
 	kvmppc_e500_setup_stlbe(&vcpu_e500->vcpu, gtlbe, tsize,
 				ref, gvaddr, stlbe);
@@ -596,6 +610,104 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 		break;
 	}
 }
+
+#ifdef CONFIG_KVM_BOOKE_HV
+int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
+			  u32 *instr)
+{
+	gva_t geaddr;
+	hpa_t addr;
+	hfn_t pfn;
+	hva_t eaddr;
+	u32 mas1, mas2, mas3;
+	u64 mas7_mas3;
+	struct page *page;
+	unsigned int addr_space, psize_shift;
+	bool pr;
+	unsigned long flags;
+
+	/* Search TLB for guest pc to get the real address */
+	geaddr = kvmppc_get_pc(vcpu);
+
+	addr_space = (vcpu->arch.shared->msr & MSR_IS) >> MSR_IR_LG;
+
+	local_irq_save(flags);
+	mtspr(SPRN_MAS6, (vcpu->arch.pid << MAS6_SPID_SHIFT) | addr_space);
+	mtspr(SPRN_MAS5, MAS5_SGS | vcpu->kvm->arch.lpid);
+	asm volatile("tlbsx 0, %[geaddr]\n" : :
+		     [geaddr] "r" (geaddr));
+	mtspr(SPRN_MAS5, 0);
+	mtspr(SPRN_MAS8, 0);
+	mas1 = mfspr(SPRN_MAS1);
+	mas2 = mfspr(SPRN_MAS2);
+	mas3 = mfspr(SPRN_MAS3);
+#ifdef CONFIG_64BIT
+	mas7_mas3 = mfspr(SPRN_MAS7_MAS3);
+#else
+	mas7_mas3 = ((u64)mfspr(SPRN_MAS7) << 32) | mas3;
+#endif
+	local_irq_restore(flags);
+
+	/*
+	 * If the TLB entry for guest pc was evicted, return to the guest.
+	 * There are high chances to find a valid TLB entry next time.
+	 */
+	if (!(mas1 & MAS1_VALID))
+		return EMULATE_AGAIN;
+
+	/*
+	 * Another thread may rewrite the TLB entry in parallel, don't
+	 * execute from the address if the execute permission is not set
+	 */
+	pr = vcpu->arch.shared->msr & MSR_PR;
+	if (unlikely((pr && !(mas3 & MAS3_UX)) ||
+		     (!pr && !(mas3 & MAS3_SX)))) {
+		pr_err_ratelimited(
+			"%s: Instuction emulation from guest addres %08lx without execute permission\n",
+			__func__, geaddr);
+		return EMULATE_AGAIN;
+	}
+
+	/*
+	 * The real address will be mapped by a cacheable, memory coherent,
+	 * write-back page. Check for mismatches when LRAT is used.
+	 */
+	if (has_feature(vcpu, VCPU_FTR_MMU_V2) &&
+	    unlikely((mas2 & MAS2_I) || (mas2 & MAS2_W) || !(mas2 & MAS2_M))) {
+		pr_err_ratelimited(
+			"%s: Instuction emulation from guest addres %08lx mismatches storage attributes\n",
+			__func__, geaddr);
+		return EMULATE_AGAIN;
+	}
+
+	/* Get pfn */
+	psize_shift = MAS1_GET_TSIZE(mas1) + 10;
+	addr = (mas7_mas3 & (~0ULL << psize_shift)) |
+	       (geaddr & ((1ULL << psize_shift) - 1ULL));
+	pfn = addr >> PAGE_SHIFT;
+
+	/* Guard against emulation from devices area */
+	if (unlikely(!page_is_ram(pfn))) {
+		pr_err_ratelimited("%s: Instruction emulation from non-RAM host addres %08llx is not supported\n",
+			 __func__, addr);
+		return EMULATE_AGAIN;
+	}
+
+	/* Map a page and get guest's instruction */
+	page = pfn_to_page(pfn);
+	eaddr = (unsigned long)kmap_atomic(page);
+	*instr = *(u32 *)(eaddr | (unsigned long)(addr & ~PAGE_MASK));
+	kunmap_atomic((u32 *)eaddr);
+
+	return EMULATE_DONE;
+}
+#else
+int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
+			  u32 *instr)
+{
+	return EMULATE_AGAIN;
+}
+#endif
 
 /************* MMU Notifiers *************/
 

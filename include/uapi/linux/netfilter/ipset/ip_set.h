@@ -82,6 +82,8 @@ enum {
 	IPSET_ATTR_PROTO,	/* 7 */
 	IPSET_ATTR_CADT_FLAGS,	/* 8 */
 	IPSET_ATTR_CADT_LINENO = IPSET_ATTR_LINENO,	/* 9 */
+	IPSET_ATTR_MARK,	/* 10 */
+	IPSET_ATTR_MARKMASK,	/* 11 */
 	/* Reserve empty slots */
 	IPSET_ATTR_CADT_MAX = 16,
 	/* Create-only specific attributes */
@@ -144,6 +146,7 @@ enum ipset_errno {
 	IPSET_ERR_IPADDR_IPV6,
 	IPSET_ERR_COUNTER,
 	IPSET_ERR_COMMENT,
+	IPSET_ERR_INVALID_MARKMASK,
 
 	/* Type specific error codes */
 	IPSET_ERR_TYPE_SPECIFIC = 4352,
@@ -182,7 +185,16 @@ enum ipset_cadt_flags {
 	IPSET_FLAG_WITH_COUNTERS = (1 << IPSET_FLAG_BIT_WITH_COUNTERS),
 	IPSET_FLAG_BIT_WITH_COMMENT = 4,
 	IPSET_FLAG_WITH_COMMENT = (1 << IPSET_FLAG_BIT_WITH_COMMENT),
+	IPSET_FLAG_BIT_WITH_FORCEADD = 5,
+	IPSET_FLAG_WITH_FORCEADD = (1 << IPSET_FLAG_BIT_WITH_FORCEADD),
 	IPSET_FLAG_CADT_MAX	= 15,
+};
+
+/* The flag bits which correspond to the non-extension create flags */
+enum ipset_create_flags {
+	IPSET_CREATE_FLAG_BIT_FORCEADD = 0,
+	IPSET_CREATE_FLAG_FORCEADD = (1 << IPSET_CREATE_FLAG_BIT_FORCEADD),
+	IPSET_CREATE_FLAG_BIT_MAX = 7,
 };
 
 /* Commands with settype-specific attributes */

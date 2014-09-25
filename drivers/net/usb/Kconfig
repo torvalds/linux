@@ -1,11 +1,15 @@
 #
 # USB Network devices configuration
 #
-comment "Networking support is needed for USB Network Adapter support"
-	depends on USB && !NET
+comment "Host-side USB support is needed for USB Network Adapter support"
+	depends on !USB && NET
 
-menu "USB Network Adapters"
+menuconfig USB_NET_DRIVERS
+	tristate "USB Network Adapters"
+	default USB if USB
 	depends on USB && NET
+
+if USB_NET_DRIVERS
 
 config USB_CATC
 	tristate "USB CATC NetMate-based Ethernet device support"
@@ -92,11 +96,12 @@ config USB_RTL8150
 	  module will be called rtl8150.
 
 config USB_RTL8152
-	tristate "Realtek RTL8152 Based USB 2.0 Ethernet Adapters"
+	tristate "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 	select MII
 	help
 	  This option adds support for Realtek RTL8152 based USB 2.0
-	  10/100 Ethernet adapters.
+	  10/100 Ethernet adapters and RTL8153 based USB 3.0 10/100/1000
+	  Ethernet adapters.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called r8152.
@@ -290,6 +295,21 @@ config USB_NET_SR9700
 	help
 	  This option adds support for CoreChip-sz SR9700 based USB 1.1
 	  10/100 Ethernet adapters.
+
+config USB_NET_SR9800
+	tristate "CoreChip-sz SR9800 based USB 2.0 10/100 ethernet devices"
+	depends on USB_USBNET
+	select CRC32
+	---help---
+	  Say Y if you want to use one of the following 100Mbps USB Ethernet
+	  device based on the CoreChip-sz SR9800 chip.
+
+	  This driver makes the adapter appear as a normal Ethernet interface,
+	  typically on eth0, if it is the only ethernet device, or perhaps on
+	  eth1, if you have a PCI or ISA ethernet card installed.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sr9800.
 
 config USB_NET_SMSC75XX
 	tristate "SMSC LAN75XX based USB 2.0 gigabit ethernet devices"
@@ -552,5 +572,4 @@ config USB_VL600
 
 	  http://ubuntuforums.org/showpost.php?p=10589647&postcount=17
 
-
-endmenu
+endif # USB_NET_DRIVERS

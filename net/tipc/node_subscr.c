@@ -81,15 +81,16 @@ void tipc_nodesub_unsubscribe(struct tipc_node_subscr *node_sub)
  *
  * Note: node is locked by caller
  */
-void tipc_nodesub_notify(struct tipc_node *node)
+void tipc_nodesub_notify(struct list_head *nsub_list)
 {
-	struct tipc_node_subscr *ns;
+	struct tipc_node_subscr *ns, *safe;
+	net_ev_handler handle_node_down;
 
-	list_for_each_entry(ns, &node->nsub, nodesub_list) {
-		if (ns->handle_node_down) {
-			tipc_k_signal((Handler)ns->handle_node_down,
-				      (unsigned long)ns->usr_handle);
+	list_for_each_entry_safe(ns, safe, nsub_list, nodesub_list) {
+		handle_node_down = ns->handle_node_down;
+		if (handle_node_down) {
 			ns->handle_node_down = NULL;
+			handle_node_down(ns->usr_handle);
 		}
 	}
 }

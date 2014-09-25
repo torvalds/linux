@@ -23,6 +23,7 @@
 #include <linux/of_address.h>
 #include <linux/cpuidle.h>
 #include <linux/cpufreq.h>
+#include <linux/cpu.h>
 
 #include <linux/mm.h>
 
@@ -154,7 +155,7 @@ int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL_GPL(xen_unmap_domain_mfn_range);
 
-static void __init xen_percpu_init(void *unused)
+static void xen_percpu_init(void)
 {
 	struct vcpu_register_vcpu_info info;
 	struct vcpu_info *vcpup;
@@ -180,8 +181,7 @@ static void xen_restart(enum reboot_mode reboot_mode, const char *cmd)
 	struct sched_shutdown r = { .reason = SHUTDOWN_reboot };
 	int rc;
 	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
-	if (rc)
-		BUG();
+	BUG_ON(rc);
 }
 
 static void xen_power_off(void)
@@ -189,8 +189,32 @@ static void xen_power_off(void)
 	struct sched_shutdown r = { .reason = SHUTDOWN_poweroff };
 	int rc;
 	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
-	if (rc)
-		BUG();
+	BUG_ON(rc);
+}
+
+static int xen_cpu_notification(struct notifier_block *self,
+				unsigned long action,
+				void *hcpu)
+{
+	switch (action) {
+	case CPU_STARTING:
+		xen_percpu_init();
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block xen_cpu_notifier = {
+	.notifier_call = xen_cpu_notification,
+};
+
+static irqreturn_t xen_arm_callback(int irq, void *arg)
+{
+	xen_hvm_evtchn_do_upcall();
+	return IRQ_HANDLED;
 }
 
 /*
@@ -208,7 +232,7 @@ static int __init xen_guest_init(void)
 	const char *version = NULL;
 	const char *xen_prefix = "xen,xen-";
 	struct resource res;
-	unsigned long grant_frames;
+	phys_addr_t grant_frames;
 
 	node = of_find_compatible_node(NULL, NULL, "xen,xen");
 	if (!node) {
@@ -227,11 +251,21 @@ static int __init xen_guest_init(void)
 		return 0;
 	grant_frames = res.start;
 	xen_events_irq = irq_of_parse_and_map(node, 0);
-	pr_info("Xen %s support found, events_irq=%d gnttab_frame_pfn=%lx\n",
-			version, xen_events_irq, (grant_frames >> PAGE_SHIFT));
+	pr_info("Xen %s support found, events_irq=%d gnttab_frame=%pa\n",
+			version, xen_events_irq, &grant_frames);
+
+	if (xen_events_irq < 0)
+		return -ENODEV;
+
 	xen_domain_type = XEN_HVM_DOMAIN;
 
 	xen_setup_features();
+
+	if (!xen_feature(XENFEAT_grant_map_identity)) {
+		pr_warn("Please upgrade your Xen.\n"
+				"If your platform has any non-coherent DMA devices, they won't work properly.\n");
+	}
+
 	if (xen_feature(XENFEAT_dom0))
 		xen_start_info->flags |= SIF_INITDOMAIN|SIF_PRIVILEGED;
 	else
@@ -281,9 +315,21 @@ static int __init xen_guest_init(void)
 	disable_cpuidle();
 	disable_cpufreq();
 
+	xen_init_IRQ();
+
+	if (request_percpu_irq(xen_events_irq, xen_arm_callback,
+			       "events", &xen_vcpu)) {
+		pr_err("Error request IRQ %d\n", xen_events_irq);
+		return -EINVAL;
+	}
+
+	xen_percpu_init();
+
+	register_cpu_notifier(&xen_cpu_notifier);
+
 	return 0;
 }
-core_initcall(xen_guest_init);
+early_initcall(xen_guest_init);
 
 static int __init xen_pm_init(void)
 {
@@ -297,30 +343,13 @@ static int __init xen_pm_init(void)
 }
 late_initcall(xen_pm_init);
 
-static irqreturn_t xen_arm_callback(int irq, void *arg)
-{
-	xen_hvm_evtchn_do_upcall();
-	return IRQ_HANDLED;
-}
 
-static int __init xen_init_events(void)
-{
-	if (!xen_domain() || xen_events_irq < 0)
-		return -ENODEV;
+/* empty stubs */
+void xen_arch_pre_suspend(void) { }
+void xen_arch_post_suspend(int suspend_cancelled) { }
+void xen_timer_resume(void) { }
+void xen_arch_resume(void) { }
 
-	xen_init_IRQ();
-
-	if (request_percpu_irq(xen_events_irq, xen_arm_callback,
-			"events", &xen_vcpu)) {
-		pr_err("Error requesting IRQ %d\n", xen_events_irq);
-		return -EINVAL;
-	}
-
-	on_each_cpu(xen_percpu_init, NULL, 0);
-
-	return 0;
-}
-postcore_initcall(xen_init_events);
 
 /* In the hypervisor.S file. */
 EXPORT_SYMBOL_GPL(HYPERVISOR_event_channel_op);
@@ -333,4 +362,5 @@ EXPORT_SYMBOL_GPL(HYPERVISOR_memory_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_physdev_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_vcpu_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_tmem_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_multicall);
 EXPORT_SYMBOL_GPL(privcmd_call);

@@ -1516,7 +1516,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 		dev->ts1.height = 576;
 		cx2341x_handler_set_50hz(&dev->mpeg_ctrl_handler, true);
 	}
-	call_all(dev, core, s_std, dev->norm);
+	call_all(dev, video, s_std, dev->norm);
 	/* do mode control overrides */
 	cx231xx_do_mode_ctrl_overrides(dev);
 
@@ -1563,7 +1563,6 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.width = dev->ts1.width;
 	f->fmt.pix.height = dev->ts1.height;
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
-	f->fmt.pix.priv = 0;
 	dprintk(1, "VIDIOC_G_FMT: w: %d, h: %d\n",
 		dev->ts1.width, dev->ts1.height);
 	dprintk(3, "exit vidioc_g_fmt_vid_cap()\n");
@@ -1582,7 +1581,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.sizeimage = mpeglines * mpeglinesize;
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	f->fmt.pix.priv = 0;
 	dprintk(1, "VIDIOC_TRY_FMT: w: %d, h: %d\n",
 		dev->ts1.width, dev->ts1.height);
 	dprintk(3, "exit vidioc_try_fmt_vid_cap()\n");
@@ -1923,7 +1921,6 @@ static struct video_device *cx231xx_video_dev_alloc(
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->lock = &dev->lock;
 	vfd->release = video_device_release;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	vfd->ctrl_handler = &dev->mpeg_ctrl_handler.hdl;
 	video_set_drvdata(vfd, dev);
 	if (dev->tuner_type == TUNER_ABSENT) {

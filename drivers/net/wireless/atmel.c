@@ -28,8 +28,8 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Atmel wireless lan drivers; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    along with Atmel wireless lan drivers; if not, see
+    <http://www.gnu.org/licenses/>.
 
     For all queries about this code, please contact the current author,
     Simon Kelley <simon@thekelleys.org.uk> and not Atmel Corporation.
@@ -39,7 +39,6 @@
 
 ******************************************************************************/
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 
 #include <linux/kernel.h>
@@ -68,7 +67,7 @@
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
-#include <linux/ieee80211.h>
+#include <net/cfg80211.h>
 #include "atmel.h"
 
 #define DRIVER_MAJOR 0
@@ -2274,7 +2273,7 @@ static int atmel_set_freq(struct net_device *dev,
 
 		/* Hack to fall through... */
 		fwrq->e = 0;
-		fwrq->m = ieee80211_freq_to_dsss_chan(f);
+		fwrq->m = ieee80211_frequency_to_channel(f);
 	}
 	/* Setting by channel number */
 	if ((fwrq->m > 1000) || (fwrq->e > 0))
@@ -2435,8 +2434,8 @@ static int atmel_get_range(struct net_device *dev,
 			range->freq[k].i = i; /* List index */
 
 			/* Values in MHz -> * 10^5 * 10 */
-			range->freq[k].m = (ieee80211_dsss_chan_to_freq(i) *
-					    100000);
+			range->freq[k].m = 100000 *
+			 ieee80211_channel_to_frequency(i, IEEE80211_BAND_2GHZ);
 			range->freq[k++].e = 1;
 		}
 		range->num_frequency = k;
@@ -2599,11 +2598,11 @@ static const iw_handler atmel_private_handler[] =
 	NULL,				/* SIOCIWFIRSTPRIV */
 };
 
-typedef struct atmel_priv_ioctl {
+struct atmel_priv_ioctl {
 	char id[32];
 	unsigned char __user *data;
 	unsigned short len;
-} atmel_priv_ioctl;
+};
 
 #define ATMELFWL	SIOCIWFIRSTPRIV
 #define ATMELIDIFC	ATMELFWL + 1
@@ -2616,7 +2615,7 @@ static const struct iw_priv_args atmel_private_args[] = {
 		.cmd = ATMELFWL,
 		.set_args = IW_PRIV_TYPE_BYTE
 				| IW_PRIV_SIZE_FIXED
-				| sizeof (atmel_priv_ioctl),
+				| sizeof(struct atmel_priv_ioctl),
 		.get_args = IW_PRIV_TYPE_NONE,
 		.name = "atmelfwl"
 	}, {
@@ -2646,7 +2645,7 @@ static int atmel_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	int i, rc = 0;
 	struct atmel_private *priv = netdev_priv(dev);
-	atmel_priv_ioctl com;
+	struct atmel_priv_ioctl com;
 	struct iwreq *wrq = (struct iwreq *) rq;
 	unsigned char *new_firmware;
 	char domain[REGDOMAINSZ + 1];
@@ -4278,8 +4277,7 @@ static void atmel_wmem32(struct atmel_private *priv, u16 pos, u32 data)
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with AtmelMACFW; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    along with AtmelMACFW; if not, see <http://www.gnu.org/licenses/>.
 
 ****************************************************************************/
 /* This firmware should work on the 76C502 RFMD, RFMD_D, and RFMD_E        */

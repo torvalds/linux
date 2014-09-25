@@ -83,9 +83,20 @@ static inline void queue_tail_inc(struct be_queue_info *q)
 
 /*ISCSI */
 
+struct be_aic_obj {		/* Adaptive interrupt coalescing (AIC) info */
+	bool enable;
+	u32 min_eqd;		/* in usecs */
+	u32 max_eqd;		/* in usecs */
+	u32 prev_eqd;		/* in usecs */
+	u32 et_eqd;		/* configured val when aic is off */
+	ulong jiffs;
+	u64 eq_prev;		/* Used to calculate eqe */
+};
+
 struct be_eq_obj {
 	bool todo_mcc_cq;
 	bool todo_cq;
+	u32 cq_count;
 	struct be_queue_info q;
 	struct beiscsi_hba *phba;
 	struct be_queue_info *cq;
@@ -96,6 +107,14 @@ struct be_eq_obj {
 struct be_mcc_obj {
 	struct be_queue_info q;
 	struct be_queue_info cq;
+};
+
+struct beiscsi_mcc_tag_state {
+#define MCC_TAG_STATE_COMPLETED 0x00
+#define MCC_TAG_STATE_RUNNING   0x01
+#define MCC_TAG_STATE_TIMEOUT   0x02
+	uint8_t tag_state;
+	struct be_dma_mem tag_mem_state;
 };
 
 struct be_ctrl_info {
@@ -122,6 +141,8 @@ struct be_ctrl_info {
 	unsigned short mcc_alloc_index;
 	unsigned short mcc_free_index;
 	unsigned int mcc_tag_available;
+
+	struct beiscsi_mcc_tag_state ptag_state[MAX_MCC_CMD + 1];
 };
 
 #include "be_cmds.h"
@@ -129,6 +150,7 @@ struct be_ctrl_info {
 #define PAGE_SHIFT_4K 12
 #define PAGE_SIZE_4K (1 << PAGE_SHIFT_4K)
 #define mcc_timeout		120000 /* 12s timeout */
+#define BEISCSI_LOGOUT_SYNC_DELAY	250
 
 /* Returns number of pages spanned by the data starting at the given addr */
 #define PAGES_4K_SPANNED(_address, size)				\

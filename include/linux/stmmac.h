@@ -110,12 +110,36 @@ struct plat_stmmacenet_data {
 	int force_sf_dma_mode;
 	int force_thresh_dma_mode;
 	int riwt_off;
+	int max_speed;
+	int maxmtu;
+	int multicast_filter_bins;
+	int unicast_filter_entries;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
-	int (*init)(struct platform_device *pdev);
-	void (*exit)(struct platform_device *pdev);
+	void *(*setup)(struct platform_device *pdev);
+	void (*free)(struct platform_device *pdev, void *priv);
+	int (*init)(struct platform_device *pdev, void *priv);
+	void (*exit)(struct platform_device *pdev, void *priv);
 	void *custom_cfg;
 	void *custom_data;
 	void *bsp_priv;
+};
+
+/* of_data for SoC glue layer device tree bindings */
+
+struct stmmac_of_data {
+	int has_gmac;
+	int enh_desc;
+	int tx_coe;
+	int rx_coe;
+	int bugged_jumbo;
+	int pmt;
+	int riwt_off;
+	void (*fix_mac_speed)(void *priv, unsigned int speed);
+	void (*bus_setup)(void __iomem *ioaddr);
+	void *(*setup)(struct platform_device *pdev);
+	void (*free)(struct platform_device *pdev, void *priv);
+	int (*init)(struct platform_device *pdev, void *priv);
+	void (*exit)(struct platform_device *pdev, void *priv);
 };
 #endif

@@ -109,7 +109,9 @@ config I2C_I801
 	    Avoton (SOC)
 	    Wellsburg (PCH)
 	    Coleto Creek (PCH)
+	    Wildcat Point (PCH)
 	    Wildcat Point-LP (PCH)
+	    BayTrail (SOC)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -152,6 +154,7 @@ config I2C_PIIX4
 	    ATI SB700/SP5100
 	    ATI SB800
 	    AMD Hudson-2
+	    AMD ML
 	    AMD CZ
 	    Serverworks OSB4
 	    Serverworks CSB5
@@ -374,6 +377,13 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 	help
 	  The unit of the TWI clock is kHz.
 
+config I2C_CADENCE
+	tristate "Cadence I2C Controller"
+	depends on ARCH_ZYNQ
+	help
+	  Say yes here to select Cadence I2C Host Controller. This controller is
+	  e.g. used by Xilinx Zynq.
+
 config I2C_CBUS_GPIO
 	tristate "CBUS I2C driver"
 	depends on GPIOLIB
@@ -386,7 +396,7 @@ config I2C_CBUS_GPIO
 
 config I2C_CPM
 	tristate "Freescale CPM1 or CPM2 (MPC8xx/826x)"
-	depends on (CPM1 || CPM2) && OF_I2C
+	depends on CPM1 || CPM2
 	help
 	  This supports the use of the I2C interface on Freescale
 	  processors with CPM1 or CPM2.
@@ -431,9 +441,16 @@ config I2C_DESIGNWARE_PCI
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-pci.
 
+config I2C_EFM32
+	tristate "EFM32 I2C controller"
+	depends on ARCH_EFM32 || COMPILE_TEST
+	help
+	  This driver supports the i2c block found in Energy Micro's EFM32
+	  SoCs.
+
 config I2C_EG20T
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) I2C"
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	help
 	  This driver is for PCH(Platform controller Hub) I2C of EG20T which
 	  is an IOH(Input/Output Hub) for x86 embedded processor.
@@ -449,9 +466,9 @@ config I2C_EG20T
 config I2C_EXYNOS5
 	tristate "Exynos5 high-speed I2C driver"
 	depends on ARCH_EXYNOS5 && OF
+	default y
 	help
-	  Say Y here to include support for high-speed I2C controller in the
-	  Exynos5 based Samsung SoCs.
+	  High-speed I2C controller on Exynos5 based Samsung SoCs.
 
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
@@ -526,7 +543,7 @@ config I2C_MPC
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
-	depends on (MV64X60 || PLAT_ORION || ARCH_SUNXI)
+	depends on MV64X60 || PLAT_ORION || ARCH_SUNXI
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Marvell 64xxx line of host bridges.
@@ -553,13 +570,6 @@ config I2C_NOMADIK
 	  If you say yes to this option, support will be included for the
 	  I2C interface from ST-Ericsson's Nomadik and Ux500 architectures,
 	  as well as the STA2X11 PCIe I/O HUB.
-
-config I2C_NUC900
-	tristate "NUC900 I2C Driver"
-	depends on ARCH_W90X900
-	help
-	  Say Y here to include support for I2C controller in the
-	  Winbond/Nuvoton NUC900 based System-on-Chip devices.
 
 config I2C_OCORES
 	tristate "OpenCores I2C Controller"
@@ -647,6 +657,16 @@ config I2C_PXA_SLAVE
 	  is necessary for systems where the PXA may be a target on the
 	  I2C bus.
 
+config I2C_QUP
+	tristate "Qualcomm QUP based I2C controller"
+	depends on ARCH_QCOM
+	help
+	  If you say yes to this option, support will be included for the
+	  built-in I2C interface on the Qualcomm SoCs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-qup.
+
 config I2C_RIIC
 	tristate "Renesas RIIC adapter"
 	depends on ARCH_SHMOBILE || COMPILE_TEST
@@ -656,6 +676,16 @@ config I2C_RIIC
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-riic.
+
+config I2C_RK3X
+	tristate "Rockchip RK3xxx I2C adapter"
+	depends on OF
+	help
+	  Say Y here to include support for the I2C adapter in Rockchip RK3xxx
+	  SoCs.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called i2c-rk3x.
 
 config HAVE_S3C2410_I2C
 	bool
@@ -670,16 +700,6 @@ config I2C_S3C2410
 	help
 	  Say Y here to include support for I2C controller in the
 	  Samsung SoCs.
-
-config I2C_S6000
-	tristate "S6000 I2C support"
-	depends on XTENSA_VARIANT_S6000
-	help
-	  This driver supports the on chip I2C device on the
-	  S6000 xtensa processor family.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called i2c-s6000.
 
 config I2C_SH7760
 	tristate "Renesas SH7760 I2C Controller"
@@ -744,6 +764,19 @@ config I2C_STU300
 
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-stu300.
+
+config I2C_SUN6I_P2WI
+	tristate "Allwinner sun6i internal P2WI controller"
+	depends on RESET_CONTROLLER
+	depends on MACH_SUN6I || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  P2WI (Push/Pull 2 Wire Interface) controller embedded in some sunxi
+	  SOCs.
+	  The P2WI looks like an SMBus controller (which supports only byte
+	  accesses), except that it only supports one slave device.
+	  This interface is used to connect to specific PMIC devices (like the
+	  AXP221).
 
 config I2C_TEGRA
 	tristate "NVIDIA Tegra internal I2C controller"
@@ -935,7 +968,7 @@ config I2C_ACORN
 
 config I2C_ELEKTOR
 	tristate "Elektor ISA card"
-	depends on ISA && HAS_IOPORT && BROKEN_ON_SMP
+	depends on ISA && HAS_IOPORT_MAP && BROKEN_ON_SMP
 	select I2C_ALGOPCF
 	help
 	  This supports the PCF8584 ISA bus I2C adapter.  Say Y if you own
@@ -967,36 +1000,14 @@ config I2C_SIBYTE
 	help
 	  Supports the SiByte SOC on-chip I2C interfaces (2 channels).
 
-config SCx200_I2C
-	tristate "NatSemi SCx200 I2C using GPIO pins (DEPRECATED)"
-	depends on SCx200_GPIO
-	select I2C_ALGOBIT
+config I2C_CROS_EC_TUNNEL
+	tristate "ChromeOS EC tunnel I2C bus"
+	depends on MFD_CROS_EC
 	help
-	  Enable the use of two GPIO pins of a SCx200 processor as an I2C bus.
-
-	  If you don't know what to do here, say N.
-
-	  This support is also available as a module.  If so, the module
-	  will be called scx200_i2c.
-
-	  This driver is deprecated and will be dropped soon. Use i2c-gpio
-	  (or scx200_acb) instead.
-
-config SCx200_I2C_SCL
-	int "GPIO pin used for SCL"
-	depends on SCx200_I2C
-	default "12"
-	help
-	  Enter the GPIO pin number used for the SCL signal.  This value can
-	  also be specified with a module parameter.
-
-config SCx200_I2C_SDA
-	int "GPIO pin used for SDA"
-	depends on SCx200_I2C
-	default "13"
-	help
-	  Enter the GPIO pin number used for the SSA signal.  This value can
-	  also be specified with a module parameter.
+	  If you say yes here you get an I2C bus that will tunnel i2c commands
+	  through to the other side of the ChromeOS EC to the i2c bus
+	  connected there. This will work whatever the interface used to
+	  talk to the EC (SPI, I2C or LPC).
 
 config SCx200_ACB
 	tristate "Geode ACCESS.bus support"

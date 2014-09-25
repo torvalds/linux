@@ -120,7 +120,7 @@ void __init tegra_super_clk_gen4_init(void __iomem *clk_base,
 					ARRAY_SIZE(cclk_lp_parents),
 					CLK_SET_RATE_PARENT,
 					clk_base + CCLKLP_BURST_POLICY,
-					0, 4, 8, 9, NULL);
+					TEGRA_DIVIDER_2, 4, 8, 9, NULL);
 		*dt_clk = clk;
 	}
 

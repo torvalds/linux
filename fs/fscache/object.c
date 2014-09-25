@@ -314,6 +314,9 @@ void fscache_object_init(struct fscache_object *object,
 	object->cache = cache;
 	object->cookie = cookie;
 	object->parent = NULL;
+#ifdef CONFIG_FSCACHE_OBJECT_LIST
+	RB_CLEAR_NODE(&object->objlist_link);
+#endif
 
 	object->oob_event_mask = 0;
 	for (t = object->oob_table; t->events; t++)
@@ -979,6 +982,7 @@ nomem:
 submit_op_failed:
 	clear_bit(FSCACHE_OBJECT_IS_LIVE, &object->flags);
 	spin_unlock(&cookie->lock);
+	fscache_unuse_cookie(object);
 	kfree(op);
 	_leave(" [EIO]");
 	return transit_to(KILL_OBJECT);

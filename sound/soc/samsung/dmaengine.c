@@ -17,6 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/amba/pl08x.h>
+#include <linux/platform_data/dma-s3c24xx.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -29,6 +30,8 @@
 
 #ifdef CONFIG_ARCH_S3C64XX
 #define filter_fn pl08x_filter_id
+#elif defined(CONFIG_ARCH_S3C24XX)
+#define filter_fn s3c24xx_dma_filter
 #else
 #define filter_fn NULL
 #endif
@@ -66,17 +69,12 @@ EXPORT_SYMBOL_GPL(samsung_asoc_init_dma_data);
 
 int samsung_asoc_dma_platform_register(struct device *dev)
 {
-	return snd_dmaengine_pcm_register(dev, &samsung_dmaengine_pcm_config,
-					  SND_DMAENGINE_PCM_FLAG_CUSTOM_CHANNEL_NAME |
-					  SND_DMAENGINE_PCM_FLAG_COMPAT);
+	return devm_snd_dmaengine_pcm_register(dev,
+			&samsung_dmaengine_pcm_config,
+			SND_DMAENGINE_PCM_FLAG_CUSTOM_CHANNEL_NAME |
+			SND_DMAENGINE_PCM_FLAG_COMPAT);
 }
 EXPORT_SYMBOL_GPL(samsung_asoc_dma_platform_register);
-
-void samsung_asoc_dma_platform_unregister(struct device *dev)
-{
-	return snd_dmaengine_pcm_unregister(dev);
-}
-EXPORT_SYMBOL_GPL(samsung_asoc_dma_platform_unregister);
 
 MODULE_AUTHOR("Mark Brown <broonie@linaro.org>");
 MODULE_DESCRIPTION("Samsung dmaengine ASoC driver");

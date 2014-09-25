@@ -386,7 +386,7 @@ srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
 	}
 
 	CDEBUG (D_NET,
-		"Posted passive RDMA: peer %s, portal %d, matchbits "LPX64"\n",
+		"Posted passive RDMA: peer %s, portal %d, matchbits %#llx\n",
 		libcfs_id2str(peer), portal, matchbits);
 	return 0;
 }
@@ -426,7 +426,7 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 	}
 
 	if (rc != 0) {
-		CERROR ("LNet%s(%s, %d, "LPD64") failed: %d\n",
+		CERROR ("LNet%s(%s, %d, %lld) failed: %d\n",
 			((options & LNET_MD_OP_PUT) != 0) ? "Put" : "Get",
 			libcfs_id2str(peer), portal, matchbits, rc);
 
@@ -437,7 +437,7 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 		LASSERT (rc == 0);
 	} else {
 		CDEBUG (D_NET,
-			"Posted active RDMA: peer %s, portal %u, matchbits "LPX64"\n",
+			"Posted active RDMA: peer %s, portal %u, matchbits %#llx\n",
 			libcfs_id2str(peer), portal, matchbits);
 	}
 	return 0;
@@ -563,7 +563,7 @@ srpc_add_buffer(struct swi_workitem *wi)
 	}
 
 	if (rc != 0) {
-		scd->scd_buf_err_stamp = cfs_time_current_sec();
+		scd->scd_buf_err_stamp = get_seconds();
 		scd->scd_buf_err = rc;
 
 		LASSERT(scd->scd_buf_posting > 0);
@@ -1098,7 +1098,7 @@ srpc_add_client_rpc_timer (srpc_client_rpc_t *rpc)
 	timer->stt_data    = rpc;
 	timer->stt_func    = srpc_client_rpc_expired;
 	timer->stt_expires = cfs_time_add(rpc->crpc_timeout,
-					  cfs_time_current_sec());
+					  get_seconds());
 	stt_add_timer(timer);
 	return;
 }
@@ -1481,7 +1481,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 		}
 
 		if (scd->scd_buf_err_stamp != 0 &&
-		    scd->scd_buf_err_stamp < cfs_time_current_sec()) {
+		    scd->scd_buf_err_stamp < get_seconds()) {
 			/* re-enable adding buffer */
 			scd->scd_buf_err_stamp = 0;
 			scd->scd_buf_err = 0;
@@ -1585,8 +1585,9 @@ srpc_startup (void)
 	spin_lock_init(&srpc_data.rpc_glock);
 
 	/* 1 second pause to avoid timestamp reuse */
-	cfs_pause(cfs_time_seconds(1));
-	srpc_data.rpc_matchbits = ((__u64) cfs_time_current_sec()) << 48;
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(cfs_time_seconds(1));
+	srpc_data.rpc_matchbits = ((__u64) get_seconds()) << 48;
 
 	srpc_data.rpc_state = SRPC_STATE_NONE;
 

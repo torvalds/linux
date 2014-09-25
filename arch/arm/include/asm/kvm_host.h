@@ -36,7 +36,7 @@
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #define KVM_HAVE_ONE_REG
 
-#define KVM_VCPU_MAX_FEATURES 1
+#define KVM_VCPU_MAX_FEATURES 2
 
 #include <kvm/arm_vgic.h>
 
@@ -101,6 +101,12 @@ struct kvm_vcpu_arch {
 	/* The CPU type we expose to the VM */
 	u32 midr;
 
+	/* HYP trapping configuration */
+	u32 hcr;
+
+	/* Interrupt related fields */
+	u32 irq_lines;		/* IRQ and FIQ levels */
+
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
 
@@ -127,9 +133,6 @@ struct kvm_vcpu_arch {
 
 	/* IO related fields */
 	struct kvm_decode mmio_decode;
-
-	/* Interrupt related fields */
-	u32 irq_lines;		/* IRQ and FIQ levels */
 
 	/* Cache some mmu pages needed inside spinlock regions */
 	struct kvm_mmu_memory_cache mmu_page_cache;
@@ -222,10 +225,12 @@ static inline int kvm_arch_dev_ioctl_check_extension(long ext)
 	return 0;
 }
 
+static inline void vgic_arch_setup(const struct vgic_params *vgic)
+{
+	BUG_ON(vgic->type != VGIC_V2);
+}
+
 int kvm_perf_init(void);
 int kvm_perf_teardown(void);
-
-u64 kvm_arm_timer_get_reg(struct kvm_vcpu *, u64 regid);
-int kvm_arm_timer_set_reg(struct kvm_vcpu *, u64 regid, u64 value);
 
 #endif /* __ARM_KVM_HOST_H__ */

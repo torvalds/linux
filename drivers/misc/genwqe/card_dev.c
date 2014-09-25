@@ -531,7 +531,9 @@ static int do_flash_update(struct genwqe_file *cfile,
 	case '1':
 		cmdopts = 0x1C;
 		break;		/* download/erase_first/part_1 */
-	case 'v':		/* cmdopts = 0x0c (VPD) */
+	case 'v':
+		cmdopts = 0x0C;
+		break;		/* download/erase_first/vpd */
 	default:
 		return -EINVAL;
 	}
@@ -665,6 +667,8 @@ static int do_flash_read(struct genwqe_file *cfile,
 		cmdopts = 0x1A;
 		break;		/* upload/part_1 */
 	case 'v':
+		cmdopts = 0x0A;
+		break;		/* upload/vpd */
 	default:
 		return -EINVAL;
 	}
@@ -787,6 +791,7 @@ static int genwqe_pin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 	if (rc != 0) {
 		dev_err(&pci_dev->dev,
 			"[%s] genwqe_user_vmap rc=%d\n", __func__, rc);
+		kfree(dma_map);
 		return rc;
 	}
 
@@ -835,15 +840,8 @@ static int ddcb_cmd_cleanup(struct genwqe_file *cfile, struct ddcb_requ *req)
 			__genwqe_del_mapping(cfile, dma_map);
 			genwqe_user_vunmap(cd, dma_map, req);
 		}
-		if (req->sgl[i] != NULL) {
-			genwqe_free_sgl(cd, req->sgl[i],
-				       req->sgl_dma_addr[i],
-				       req->sgl_size[i]);
-			req->sgl[i] = NULL;
-			req->sgl_dma_addr[i] = 0x0;
-			req->sgl_size[i] = 0;
-		}
-
+		if (req->sgls[i].sgl != NULL)
+			genwqe_free_sync_sgl(cd, &req->sgls[i]);
 	}
 	return 0;
 }
@@ -912,7 +910,7 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 
 		case ATS_TYPE_SGL_RDWR:
 		case ATS_TYPE_SGL_RD: {
-			int page_offs, nr_pages, offs;
+			int page_offs;
 
 			u_addr = be64_to_cpu(*((__be64 *)
 					       &cmd->asiv[asiv_offs]));
@@ -950,27 +948,18 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 				page_offs = 0;
 			}
 
-			offs = offset_in_page(u_addr);
-			nr_pages = DIV_ROUND_UP(offs + u_size, PAGE_SIZE);
-
 			/* create genwqe style scatter gather list */
-			req->sgl[i] = genwqe_alloc_sgl(cd, m->nr_pages,
-						      &req->sgl_dma_addr[i],
-						      &req->sgl_size[i]);
-			if (req->sgl[i] == NULL) {
-				rc = -ENOMEM;
+			rc = genwqe_alloc_sync_sgl(cd, &req->sgls[i],
+						   (void __user *)u_addr,
+						   u_size);
+			if (rc != 0)
 				goto err_out;
-			}
-			genwqe_setup_sgl(cd, offs, u_size,
-					req->sgl[i],
-					req->sgl_dma_addr[i],
-					req->sgl_size[i],
-					m->dma_list,
-					page_offs,
-					nr_pages);
+
+			genwqe_setup_sgl(cd, &req->sgls[i],
+					 &m->dma_list[page_offs]);
 
 			*((__be64 *)&cmd->asiv[asiv_offs]) =
-				cpu_to_be64(req->sgl_dma_addr[i]);
+				cpu_to_be64(req->sgls[i].sgl_dma_addr);
 
 			break;
 		}
@@ -1059,9 +1048,14 @@ static long genwqe_ioctl(struct file *filp, unsigned int cmd,
 	int rc = 0;
 	struct genwqe_file *cfile = (struct genwqe_file *)filp->private_data;
 	struct genwqe_dev *cd = cfile->cd;
+	struct pci_dev *pci_dev = cd->pci_dev;
 	struct genwqe_reg_io __user *io;
 	u64 val;
 	u32 reg_offs;
+
+	/* Return -EIO if card hit EEH */
+	if (pci_channel_offline(pci_dev))
+		return -EIO;
 
 	if (_IOC_TYPE(cmd) != GENWQE_IOC_CODE)
 		return -EINVAL;

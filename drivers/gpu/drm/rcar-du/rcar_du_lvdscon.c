@@ -57,21 +57,14 @@ static int rcar_du_lvds_connector_get_modes(struct drm_connector *connector)
 	return 1;
 }
 
-static int rcar_du_lvds_connector_mode_valid(struct drm_connector *connector,
-					    struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
 static const struct drm_connector_helper_funcs connector_helper_funcs = {
 	.get_modes = rcar_du_lvds_connector_get_modes,
-	.mode_valid = rcar_du_lvds_connector_mode_valid,
 	.best_encoder = rcar_du_connector_best_encoder,
 };
 
 static void rcar_du_lvds_connector_destroy(struct drm_connector *connector)
 {
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
@@ -112,7 +105,7 @@ int rcar_du_lvds_connector_init(struct rcar_du_device *rcdu,
 		return ret;
 
 	drm_connector_helper_add(connector, &connector_helper_funcs);
-	ret = drm_sysfs_connector_add(connector);
+	ret = drm_connector_register(connector);
 	if (ret < 0)
 		return ret;
 

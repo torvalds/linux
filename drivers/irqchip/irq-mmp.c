@@ -22,7 +22,7 @@
 #include <linux/of_irq.h>
 
 #include <asm/exception.h>
-#include <asm/mach/irq.h>
+#include <asm/hardirq.h>
 
 #include "irqchip.h"
 
@@ -194,8 +194,7 @@ static struct mmp_intc_conf mmp2_conf = {
 	.conf_mask	= 0x7f,
 };
 
-static asmlinkage void __exception_irq_entry
-mmp_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry mmp_handle_irq(struct pt_regs *regs)
 {
 	int irq, hwirq;
 
@@ -207,8 +206,7 @@ mmp_handle_irq(struct pt_regs *regs)
 	handle_IRQ(irq, regs);
 }
 
-static asmlinkage void __exception_irq_entry
-mmp2_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry mmp2_handle_irq(struct pt_regs *regs)
 {
 	int irq, hwirq;
 

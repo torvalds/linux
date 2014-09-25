@@ -12,6 +12,7 @@
 #include <linux/kvm_host.h>
 #include <linux/kernel.h>
 #include <asm/opal.h>
+#include <asm/mce.h>
 
 /* SRR1 bits for machine check on POWER7 */
 #define SRR1_MC_LDSTERR		(1ul << (63-42))
@@ -44,29 +45,17 @@ static void reload_slb(struct kvm_vcpu *vcpu)
 		return;
 
 	/* Sanity check */
-	n = min_t(u32, slb->persistent, SLB_MIN_SIZE);
+	n = min_t(u32, be32_to_cpu(slb->persistent), SLB_MIN_SIZE);
 	if ((void *) &slb->save_area[n] > vcpu->arch.slb_shadow.pinned_end)
 		return;
 
 	/* Load up the SLB from that */
 	for (i = 0; i < n; ++i) {
-		unsigned long rb = slb->save_area[i].esid;
-		unsigned long rs = slb->save_area[i].vsid;
+		unsigned long rb = be64_to_cpu(slb->save_area[i].esid);
+		unsigned long rs = be64_to_cpu(slb->save_area[i].vsid);
 
 		rb = (rb & ~0xFFFul) | i;	/* insert entry number */
 		asm volatile("slbmte %0,%1" : : "r" (rs), "r" (rb));
-	}
-}
-
-/* POWER7 TLB flush */
-static void flush_tlb_power7(struct kvm_vcpu *vcpu)
-{
-	unsigned long i, rb;
-
-	rb = TLBIEL_INVAL_SET_LPID;
-	for (i = 0; i < POWER7_TLB_SETS; ++i) {
-		asm volatile("tlbiel %0" : : "r" (rb));
-		rb += 1 << TLBIEL_INVAL_SET_SHIFT;
 	}
 }
 
@@ -79,9 +68,7 @@ static void flush_tlb_power7(struct kvm_vcpu *vcpu)
 static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 {
 	unsigned long srr1 = vcpu->arch.shregs.msr;
-#ifdef CONFIG_PPC_POWERNV
-	struct opal_machine_check_event *opal_evt;
-#endif
+	struct machine_check_event mce_evt;
 	long handled = 1;
 
 	if (srr1 & SRR1_MC_LDSTERR) {
@@ -96,7 +83,8 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 				   DSISR_MC_SLB_PARITY | DSISR_MC_DERAT_MULTI);
 		}
 		if (dsisr & DSISR_MC_TLB_MULTI) {
-			flush_tlb_power7(vcpu);
+			if (cur_cpu_spec && cur_cpu_spec->flush_tlb)
+				cur_cpu_spec->flush_tlb(TLBIEL_INVAL_SET_LPID);
 			dsisr &= ~DSISR_MC_TLB_MULTI;
 		}
 		/* Any other errors we don't understand? */
@@ -113,28 +101,37 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 		reload_slb(vcpu);
 		break;
 	case SRR1_MC_IFETCH_TLBMULTI:
-		flush_tlb_power7(vcpu);
+		if (cur_cpu_spec && cur_cpu_spec->flush_tlb)
+			cur_cpu_spec->flush_tlb(TLBIEL_INVAL_SET_LPID);
 		break;
 	default:
 		handled = 0;
 	}
 
-#ifdef CONFIG_PPC_POWERNV
 	/*
-	 * See if OPAL has already handled the condition.
-	 * We assume that if the condition is recovered then OPAL
+	 * See if we have already handled the condition in the linux host.
+	 * We assume that if the condition is recovered then linux host
 	 * will have generated an error log event that we will pick
 	 * up and log later.
+	 * Don't release mce event now. We will queue up the event so that
+	 * we can log the MCE event info on host console.
 	 */
-	opal_evt = local_paca->opal_mc_evt;
-	if (opal_evt->version == OpalMCE_V1 &&
-	    (opal_evt->severity == OpalMCE_SEV_NO_ERROR ||
-	     opal_evt->disposition == OpalMCE_DISPOSITION_RECOVERED))
+	if (!get_mce_event(&mce_evt, MCE_EVENT_DONTRELEASE))
+		goto out;
+
+	if (mce_evt.version == MCE_V1 &&
+	    (mce_evt.severity == MCE_SEV_NO_ERROR ||
+	     mce_evt.disposition == MCE_DISPOSITION_RECOVERED))
 		handled = 1;
 
-	if (handled)
-		opal_evt->in_use = 0;
-#endif
+out:
+	/*
+	 * We are now going enter guest either through machine check
+	 * interrupt (for unhandled errors) or will continue from
+	 * current HSRR0 (for handled errors) in guest. Hence
+	 * queue up the event so that we can log it from host console later.
+	 */
+	machine_check_queue_event();
 
 	return handled;
 }

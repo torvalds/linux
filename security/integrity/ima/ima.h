@@ -27,7 +27,7 @@
 #include "../integrity.h"
 
 enum ima_show_type { IMA_SHOW_BINARY, IMA_SHOW_BINARY_NO_FIELD_LEN,
-		     IMA_SHOW_ASCII };
+		     IMA_SHOW_BINARY_OLD_STRING_FMT, IMA_SHOW_ASCII };
 enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 
 /* digest size for IMA, fits SHA1 or MD5 */
@@ -158,7 +158,7 @@ struct integrity_iint_cache *integrity_iint_insert(struct inode *inode);
 struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 
 /* IMA policy related functions */
-enum ima_hooks { FILE_CHECK = 1, MMAP_CHECK, BPRM_CHECK, MODULE_CHECK, POST_SETATTR };
+enum ima_hooks { FILE_CHECK = 1, MMAP_CHECK, BPRM_CHECK, MODULE_CHECK, FIRMWARE_CHECK, POST_SETATTR };
 
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		     int flags);
@@ -171,6 +171,7 @@ void ima_delete_rules(void);
 #define IMA_APPRAISE_ENFORCE	0x01
 #define IMA_APPRAISE_FIX	0x02
 #define IMA_APPRAISE_MODULES	0x04
+#define IMA_APPRAISE_FIRMWARE	0x08
 
 #ifdef CONFIG_IMA_APPRAISE
 int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
@@ -249,4 +250,16 @@ static inline int security_filter_rule_match(u32 secid, u32 field, u32 op,
 	return -EINVAL;
 }
 #endif /* CONFIG_IMA_LSM_RULES */
+
+#ifdef CONFIG_IMA_TRUSTED_KEYRING
+static inline int ima_init_keyring(const unsigned int id)
+{
+	return integrity_init_keyring(id);
+}
+#else
+static inline int ima_init_keyring(const unsigned int id)
+{
+	return 0;
+}
+#endif /* CONFIG_IMA_TRUSTED_KEYRING */
 #endif

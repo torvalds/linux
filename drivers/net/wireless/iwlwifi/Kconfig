@@ -2,10 +2,6 @@ config IWLWIFI
 	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
 	depends on PCI && MAC80211 && HAS_IOMEM
 	select FW_LOADER
-	select NEW_LEDS
-	select LEDS_CLASS
-	select LEDS_TRIGGERS
-	select MAC80211_LEDS
 	---help---
 	  Select to build the driver supporting the:
 
@@ -24,16 +20,17 @@ config IWLWIFI
 		Intel 2000 Series Wi-Fi Adapters
 		Intel 7260 Wi-Fi Adapter
 		Intel 3160 Wi-Fi Adapter
+		Intel 7265 Wi-Fi Adapter
 
 
 	  This driver uses the kernel's mac80211 subsystem.
 
-	  In order to use this driver, you will need a microcode (uCode)
+	  In order to use this driver, you will need a firmware
 	  image for it. You can obtain the microcode from:
 
-	          <http://intellinuxwireless.org/>.
+	          <http://wireless.kernel.org/en/users/Drivers/iwlwifi>.
 
-	  The microcode is typically installed in /lib/firmware. You can
+	  The firmware is typically installed in /lib/firmware. You can
 	  look in the hotplug script /etc/hotplug/firmware.agent to
 	  determine which directory FIRMWARE_DIR is set to when the script
 	  runs.
@@ -43,9 +40,17 @@ config IWLWIFI
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwlwifi.
 
+if IWLWIFI
+
+config IWLWIFI_LEDS
+	bool
+	depends on LEDS_CLASS=y || LEDS_CLASS=IWLWIFI
+	select LEDS_TRIGGERS
+	select MAC80211_LEDS
+	default y
+
 config IWLDVM
 	tristate "Intel Wireless WiFi DVM Firmware support"
-	depends on IWLWIFI
 	default IWLWIFI
 	help
 	  This is the driver that supports the DVM firmware which is
@@ -54,7 +59,6 @@ config IWLDVM
 
 config IWLMVM
 	tristate "Intel Wireless WiFi MVM Firmware support"
-	depends on IWLWIFI
 	help
 	  This is the driver that supports the MVM firmware which is
 	  currently only available for 7260 and 3160 devices.
@@ -66,14 +70,25 @@ config IWLWIFI_OPMODE_MODULAR
 	default y if IWLMVM=m
 
 comment "WARNING: iwlwifi is useless without IWLDVM or IWLMVM"
-	depends on IWLWIFI && IWLDVM=n && IWLMVM=n
+	depends on IWLDVM=n && IWLMVM=n
+
+config IWLWIFI_BCAST_FILTERING
+	bool "Enable broadcast filtering"
+	depends on IWLMVM
+	help
+	  Say Y here to enable default bcast filtering configuration.
+
+	  Enabling broadcast filtering will drop any incoming wireless
+	  broadcast frames, except some very specific predefined
+	  patterns (e.g. incoming arp requests).
+
+	  If unsure, don't enable this option, as some programs might
+	  expect incoming broadcasts for their normal operations.
 
 menu "Debugging Options"
-	depends on IWLWIFI
 
 config IWLWIFI_DEBUG
 	bool "Enable full debugging output in the iwlwifi driver"
-	depends on IWLWIFI
 	---help---
 	  This option will enable debug tracing output for the iwlwifi drivers
 
@@ -98,7 +113,7 @@ config IWLWIFI_DEBUG
 
 config IWLWIFI_DEBUGFS
         bool "iwlwifi debugfs support"
-        depends on IWLWIFI && MAC80211_DEBUGFS
+        depends on MAC80211_DEBUGFS
         ---help---
 	  Enable creation of debugfs files for the iwlwifi drivers. This
 	  is a low-impact option that allows getting insight into the
@@ -106,13 +121,12 @@ config IWLWIFI_DEBUGFS
 
 config IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
         bool "Experimental uCode support"
-        depends on IWLWIFI && IWLWIFI_DEBUG
+        depends on IWLWIFI_DEBUG
         ---help---
 	  Enable use of experimental ucode for testing and debugging.
 
 config IWLWIFI_DEVICE_TRACING
 	bool "iwlwifi device access tracing"
-	depends on IWLWIFI
 	depends on EVENT_TRACING
 	help
 	  Say Y here to trace all commands, including TX frames and IO
@@ -128,3 +142,5 @@ config IWLWIFI_DEVICE_TRACING
 	  If unsure, say Y so we can help you better when problems
 	  occur.
 endmenu
+
+endif

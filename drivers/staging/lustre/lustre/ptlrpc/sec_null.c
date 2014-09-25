@@ -41,11 +41,11 @@
 #define DEBUG_SUBSYSTEM S_SEC
 
 
-#include <obd_support.h>
-#include <obd_cksum.h>
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <lustre_sec.h>
+#include "../include/obd_support.h"
+#include "../include/obd_cksum.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_sec.h"
 
 static struct ptlrpc_sec_policy null_policy;
 static struct ptlrpc_sec	null_sec;
@@ -260,11 +260,22 @@ int null_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		if (newbuf == NULL)
 			return -ENOMEM;
 
+		/* Must lock this, so that otherwise unprotected change of
+		 * rq_reqmsg is not racing with parallel processing of
+		 * imp_replay_list traversing threads. See LU-3333
+		 * This is a bandaid at best, we really need to deal with this
+		 * in request enlarging code before unpacking that's already
+		 * there */
+		if (req->rq_import)
+			spin_lock(&req->rq_import->imp_lock);
 		memcpy(newbuf, req->rq_reqbuf, req->rq_reqlen);
 
 		OBD_FREE_LARGE(req->rq_reqbuf, req->rq_reqbuf_len);
 		req->rq_reqbuf = req->rq_reqmsg = newbuf;
 		req->rq_reqbuf_len = alloc_size;
+
+		if (req->rq_import)
+			spin_unlock(&req->rq_import->imp_lock);
 	}
 
 	_sptlrpc_enlarge_msg_inplace(req->rq_reqmsg, segment, newsize);

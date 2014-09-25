@@ -241,6 +241,9 @@ typedef struct SISLANDS_SMC_STATETABLE SISLANDS_SMC_STATETABLE;
 #define SI_SMC_SOFT_REGISTER_non_ulv_pcie_link_width  0xF4
 #define SI_SMC_SOFT_REGISTER_tdr_is_about_to_happen   0xFC
 #define SI_SMC_SOFT_REGISTER_vr_hot_gpio              0x100
+#define SI_SMC_SOFT_REGISTER_svi_rework_plat_type     0x118
+#define SI_SMC_SOFT_REGISTER_svi_rework_gpio_id_svd   0x11c
+#define SI_SMC_SOFT_REGISTER_svi_rework_gpio_id_svc   0x120
 
 #define SMC_SISLANDS_LKGE_LUT_NUM_OF_TEMP_ENTRIES 16
 #define SMC_SISLANDS_LKGE_LUT_NUM_OF_VOLT_ENTRIES 32
@@ -374,8 +377,6 @@ typedef struct Smc_SIslands_DTE_Configuration Smc_SIslands_DTE_Configuration;
 
 #pragma pack(pop)
 
-int si_set_smc_sram_address(struct radeon_device *rdev,
-			    u32 smc_address, u32 limit);
 int si_copy_bytes_to_smc(struct radeon_device *rdev,
 			 u32 smc_start_address,
 			 const u8 *src, u32 byte_count, u32 limit);

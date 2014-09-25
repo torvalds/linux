@@ -90,18 +90,18 @@ static void ft_free_cmd(struct ft_cmd *cmd)
 {
 	struct fc_frame *fp;
 	struct fc_lport *lport;
-	struct se_session *se_sess;
+	struct ft_sess *sess;
 
 	if (!cmd)
 		return;
-	se_sess = cmd->sess->se_sess;
+	sess = cmd->sess;
 	fp = cmd->req_frame;
 	lport = fr_dev(fp);
 	if (fr_seq(fp))
 		lport->tt.seq_release(fr_seq(fp));
 	fc_frame_free(fp);
-	percpu_ida_free(&se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
-	ft_sess_put(cmd->sess);	/* undo get from lookup at recv */
+	percpu_ida_free(&sess->se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
+	ft_sess_put(sess);	/* undo get from lookup at recv */
 }
 
 void ft_release_cmd(struct se_cmd *se_cmd)
@@ -128,6 +128,7 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	struct fc_lport *lport;
 	struct fc_exch *ep;
 	size_t len;
+	int rc;
 
 	if (cmd->aborted)
 		return 0;
@@ -137,9 +138,10 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	len = sizeof(*fcp) + se_cmd->scsi_sense_length;
 	fp = fc_frame_alloc(lport, len);
 	if (!fp) {
-		/* XXX shouldn't just drop it - requeue and retry? */
-		return 0;
+		se_cmd->scsi_status = SAM_STAT_TASK_SET_FULL;
+		return -ENOMEM;
 	}
+
 	fcp = fc_frame_payload_get(fp, len);
 	memset(fcp, 0, len);
 	fcp->resp.fr_status = se_cmd->scsi_status;
@@ -170,7 +172,18 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	fc_fill_fc_hdr(fp, FC_RCTL_DD_CMD_STATUS, ep->did, ep->sid, FC_TYPE_FCP,
 		       FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ, 0);
 
-	lport->tt.seq_send(lport, cmd->seq, fp);
+	rc = lport->tt.seq_send(lport, cmd->seq, fp);
+	if (rc) {
+		pr_info_ratelimited("%s: Failed to send response frame %p, "
+				    "xid <0x%x>\n", __func__, fp, ep->xid);
+		/*
+		 * Generate a TASK_SET_FULL status to notify the initiator
+		 * to reduce it's queue_depth after the se_cmd response has
+		 * been re-queued by target-core.
+		 */
+		se_cmd->scsi_status = SAM_STAT_TASK_SET_FULL;
+		return -ENOMEM;
+	}
 	lport->tt.exch_done(cmd->seq);
 	return 0;
 }
@@ -426,6 +439,11 @@ void ft_queue_tm_resp(struct se_cmd *se_cmd)
 	ft_send_resp_code(cmd, code);
 }
 
+void ft_aborted_task(struct se_cmd *se_cmd)
+{
+	return;
+}
+
 static void ft_send_work(struct work_struct *work);
 
 /*
@@ -438,7 +456,7 @@ static void ft_recv_cmd(struct ft_sess *sess, struct fc_frame *fp)
 	struct se_session *se_sess = sess->se_sess;
 	int tag;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, GFP_ATOMIC);
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
 	if (tag < 0)
 		goto busy;
 

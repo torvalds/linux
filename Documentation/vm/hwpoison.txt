@@ -84,6 +84,11 @@ PR_MCE_KILL
 		PR_MCE_KILL_EARLY: Early kill
 		PR_MCE_KILL_LATE:  Late kill
 		PR_MCE_KILL_DEFAULT: Use system global default
+	Note that if you want to have a dedicated thread which handles
+	the SIGBUS(BUS_MCEERR_AO) on behalf of the process, you should
+	call prctl(PR_MCE_KILL_EARLY) on the designated thread. Otherwise,
+	the SIGBUS is sent to the main thread.
+
 PR_MCE_KILL_GET
 	return current mode
 

@@ -29,12 +29,26 @@
 	  </address>
 	</affiliation>
       </author>
+      <author>
+	<firstname>Daniel</firstname>
+	<surname>Vetter</surname>
+	<contrib>Contributions all over the place</contrib>
+	<affiliation>
+	  <orgname>Intel Corporation</orgname>
+	  <address>
+	    <email>daniel.vetter@ffwll.ch</email>
+	  </address>
+	</affiliation>
+      </author>
     </authorgroup>
 
     <copyright>
       <year>2008-2009</year>
-      <year>2012</year>
+      <year>2013-2014</year>
       <holder>Intel Corporation</holder>
+    </copyright>
+    <copyright>
+      <year>2012</year>
       <holder>Laurent Pinchart</holder>
     </copyright>
 
@@ -60,7 +74,15 @@
 
 <toc></toc>
 
-  <!-- Introduction -->
+<part id="drmCore">
+  <title>DRM Core</title>
+  <partintro>
+    <para>
+      This first part of the DRM Developer's Guide documents core DRM code,
+      helper libraries for writing drivers and generic userspace interfaces
+      exposed by DRM drivers.
+    </para>
+  </partintro>
 
   <chapter id="drmIntroduction">
     <title>Introduction</title>
@@ -118,6 +140,12 @@
       structure. Drivers typically statically initialize a drm_driver structure,
       and then pass it to one of the <function>drm_*_init()</function> functions
       to register it with the DRM subsystem.
+    </para>
+    <para>
+      Newer drivers that no longer require a <structname>drm_bus</structname>
+      structure can alternatively use the low-level device initialization and
+      registration functions such as <function>drm_dev_alloc()</function> and
+      <function>drm_dev_register()</function> directly.
     </para>
     <para>
       The <structname>drm_driver</structname> structure contains static
@@ -260,12 +288,42 @@ char *date;</synopsis>
       </sect3>
     </sect2>
     <sect2>
+      <title>Device Registration</title>
+      <para>
+        A number of functions are provided to help with device registration.
+        The functions deal with PCI, USB and platform devices, respectively.
+      </para>
+!Edrivers/gpu/drm/drm_pci.c
+!Edrivers/gpu/drm/drm_usb.c
+!Edrivers/gpu/drm/drm_platform.c
+      <para>
+        New drivers that no longer rely on the services provided by the
+        <structname>drm_bus</structname> structure can call the low-level
+        device registration functions directly. The
+        <function>drm_dev_alloc()</function> function can be used to allocate
+        and initialize a new <structname>drm_device</structname> structure.
+        Drivers will typically want to perform some additional setup on this
+        structure, such as allocating driver-specific data and storing a
+        pointer to it in the DRM device's <structfield>dev_private</structfield>
+        field. Drivers should also set the device's unique name using the
+        <function>drm_dev_set_unique()</function> function. After it has been
+        set up a device can be registered with the DRM subsystem by calling
+        <function>drm_dev_register()</function>. This will cause the device to
+        be exposed to userspace and will call the driver's
+        <structfield>.load()</structfield> implementation. When a device is
+        removed, the DRM device can safely be unregistered and freed by calling
+        <function>drm_dev_unregister()</function> followed by a call to
+        <function>drm_dev_unref()</function>.
+      </para>
+!Edrivers/gpu/drm/drm_drv.c
+    </sect2>
+    <sect2>
       <title>Driver Load</title>
       <para>
         The <methodname>load</methodname> method is the driver and device
         initialization entry point. The method is responsible for allocating and
-        initializing driver private data, specifying supported performance
-        counters, performing resource allocation and mapping (e.g. acquiring
+	initializing driver private data, performing resource allocation and
+	mapping (e.g. acquiring
         clocks, mapping registers or allocating command buffers), initializing
         the memory manager (<xref linkend="drm-memory-management"/>), installing
         the IRQ handler (<xref linkend="drm-irq-registration"/>), setting up
@@ -295,7 +353,7 @@ char *date;</synopsis>
 	their <methodname>load</methodname> method called with flags to 0.
       </para>
       <sect3>
-        <title>Driver Private &amp; Performance Counters</title>
+        <title>Driver Private Data</title>
         <para>
           The driver private hangs off the main
           <structname>drm_device</structname> structure and can be used for
@@ -306,14 +364,6 @@ char *date;</synopsis>
           appropriately; it should be freed and
           <structname>drm_device</structname>.<structfield>dev_priv</structfield>
           set to NULL when the driver is unloaded.
-        </para>
-        <para>
-          DRM supports several counters which were used for rough performance
-          characterization. This stat counter system is deprecated and should not
-          be used. If performance monitoring is desired, the developer should
-          investigate and potentially enhance the kernel perf and tracing
-          infrastructure to export GPU related performance information for
-          consumption by performance monitoring tools and applications.
         </para>
       </sect3>
       <sect3 id="drm-irq-registration">
@@ -328,21 +378,13 @@ char *date;</synopsis>
         <sect4>
           <title>Managed IRQ Registration</title>
           <para>
-            Both the <function>drm_irq_install</function> and
-	    <function>drm_irq_uninstall</function> functions get the device IRQ by
-	    calling <function>drm_dev_to_irq</function>. This inline function will
-	    call a bus-specific operation to retrieve the IRQ number. For platform
-	    devices, <function>platform_get_irq</function>(..., 0) is used to
-	    retrieve the IRQ number.
-          </para>
-          <para>
             <function>drm_irq_install</function> starts by calling the
             <methodname>irq_preinstall</methodname> driver operation. The operation
             is optional and must make sure that the interrupt will not get fired by
             clearing all pending interrupt flags or disabling the interrupt.
           </para>
           <para>
-            The IRQ will then be requested by a call to
+            The passed-in IRQ will then be requested by a call to
             <function>request_irq</function>. If the DRIVER_IRQ_SHARED driver
             feature flag is set, a shared (IRQF_SHARED) IRQ handler will be
             requested.
@@ -445,7 +487,7 @@ char *date;</synopsis>
       providing a solution to every graphics memory-related problems, GEM
       identified common code between drivers and created a support library to
       share it. GEM has simpler initialization and execution requirements than
-      TTM, but has no video RAM management capabitilies and is thus limited to
+      TTM, but has no video RAM management capabilities and is thus limited to
       UMA devices.
     </para>
     <sect2>
@@ -697,55 +739,16 @@ char *date;</synopsis>
           respectively. The conversion is handled by the DRM core without any
           driver-specific support.
         </para>
-        <para>
-          Similar to global names, GEM file descriptors are also used to share GEM
-          objects across processes. They offer additional security: as file
-          descriptors must be explicitly sent over UNIX domain sockets to be shared
-          between applications, they can't be guessed like the globally unique GEM
-          names.
-        </para>
-        <para>
-          Drivers that support GEM file descriptors, also known as the DRM PRIME
-          API, must set the DRIVER_PRIME bit in the struct
-          <structname>drm_driver</structname>
-          <structfield>driver_features</structfield> field, and implement the
-          <methodname>prime_handle_to_fd</methodname> and
-          <methodname>prime_fd_to_handle</methodname> operations.
-        </para>
-        <para>
-          <synopsis>int (*prime_handle_to_fd)(struct drm_device *dev,
-                            struct drm_file *file_priv, uint32_t handle,
-                            uint32_t flags, int *prime_fd);
-  int (*prime_fd_to_handle)(struct drm_device *dev,
-                            struct drm_file *file_priv, int prime_fd,
-                            uint32_t *handle);</synopsis>
-          Those two operations convert a handle to a PRIME file descriptor and
-          vice versa. Drivers must use the kernel dma-buf buffer sharing framework
-          to manage the PRIME file descriptors.
-        </para>
-        <para>
-          While non-GEM drivers must implement the operations themselves, GEM
-          drivers must use the <function>drm_gem_prime_handle_to_fd</function>
-          and <function>drm_gem_prime_fd_to_handle</function> helper functions.
-          Those helpers rely on the driver
-          <methodname>gem_prime_export</methodname> and
-          <methodname>gem_prime_import</methodname> operations to create a dma-buf
-          instance from a GEM object (dma-buf exporter role) and to create a GEM
-          object from a dma-buf instance (dma-buf importer role).
-        </para>
-        <para>
-          <synopsis>struct dma_buf * (*gem_prime_export)(struct drm_device *dev,
-                                       struct drm_gem_object *obj,
-                                       int flags);
-  struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
-                                              struct dma_buf *dma_buf);</synopsis>
-          These two operations are mandatory for GEM drivers that support DRM
-          PRIME.
-        </para>
-        <sect4>
-          <title>DRM PRIME Helper Functions Reference</title>
-!Pdrivers/gpu/drm/drm_prime.c PRIME Helpers
-        </sect4>
+	<para>
+	  GEM also supports buffer sharing with dma-buf file descriptors through
+	  PRIME. GEM-based drivers must use the provided helpers functions to
+	  implement the exporting and importing correctly. See <xref linkend="drm-prime-support" />.
+	  Since sharing file descriptors is inherently more secure than the
+	  easily guessable and global GEM names it is the preferred buffer
+	  sharing mechanism. Sharing buffers through GEM names is only supported
+	  for legacy userspace. Furthermore PRIME also allows cross-device
+	  buffer sharing since it is based on dma-bufs.
+	</para>
       </sect3>
       <sect3 id="drm-gem-objects-mapping">
         <title>GEM Objects Mapping</title>
@@ -830,62 +833,6 @@ char *date;</synopsis>
         </para>
       </sect3>
       <sect3>
-        <title>Dumb GEM Objects</title>
-        <para>
-          The GEM API doesn't standardize GEM objects creation and leaves it to
-          driver-specific ioctls. While not an issue for full-fledged graphics
-          stacks that include device-specific userspace components (in libdrm for
-          instance), this limit makes DRM-based early boot graphics unnecessarily
-          complex.
-        </para>
-        <para>
-          Dumb GEM objects partly alleviate the problem by providing a standard
-          API to create dumb buffers suitable for scanout, which can then be used
-          to create KMS frame buffers.
-        </para>
-        <para>
-          To support dumb GEM objects drivers must implement the
-          <methodname>dumb_create</methodname>,
-          <methodname>dumb_destroy</methodname> and
-          <methodname>dumb_map_offset</methodname> operations.
-        </para>
-        <itemizedlist>
-          <listitem>
-            <synopsis>int (*dumb_create)(struct drm_file *file_priv, struct drm_device *dev,
-                     struct drm_mode_create_dumb *args);</synopsis>
-            <para>
-              The <methodname>dumb_create</methodname> operation creates a GEM
-              object suitable for scanout based on the width, height and depth
-              from the struct <structname>drm_mode_create_dumb</structname>
-              argument. It fills the argument's <structfield>handle</structfield>,
-              <structfield>pitch</structfield> and <structfield>size</structfield>
-              fields with a handle for the newly created GEM object and its line
-              pitch and size in bytes.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>int (*dumb_destroy)(struct drm_file *file_priv, struct drm_device *dev,
-                      uint32_t handle);</synopsis>
-            <para>
-              The <methodname>dumb_destroy</methodname> operation destroys a dumb
-              GEM object created by <methodname>dumb_create</methodname>.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>int (*dumb_map_offset)(struct drm_file *file_priv, struct drm_device *dev,
-                         uint32_t handle, uint64_t *offset);</synopsis>
-            <para>
-              The <methodname>dumb_map_offset</methodname> operation associates an
-              mmap fake offset with the GEM object given by the handle and returns
-              it. Drivers must use the
-              <function>drm_gem_create_mmap_offset</function> function to
-              associate the fake offset as described in
-              <xref linkend="drm-gem-objects-mapping"/>.
-            </para>
-          </listitem>
-        </itemizedlist>
-      </sect3>
-      <sect3>
         <title>Memory Coherency</title>
         <para>
           When mapped to the device or used in a command buffer, backing pages
@@ -924,7 +871,99 @@ char *date;</synopsis>
           abstracted from the client in libdrm.
         </para>
       </sect3>
-    </sect2>
+      <sect3>
+        <title>GEM Function Reference</title>
+!Edrivers/gpu/drm/drm_gem.c
+      </sect3>
+      </sect2>
+      <sect2>
+	<title>VMA Offset Manager</title>
+!Pdrivers/gpu/drm/drm_vma_manager.c vma offset manager
+!Edrivers/gpu/drm/drm_vma_manager.c
+!Iinclude/drm/drm_vma_manager.h
+      </sect2>
+      <sect2 id="drm-prime-support">
+	<title>PRIME Buffer Sharing</title>
+	<para>
+	  PRIME is the cross device buffer sharing framework in drm, originally
+	  created for the OPTIMUS range of multi-gpu platforms. To userspace
+	  PRIME buffers are dma-buf based file descriptors.
+	</para>
+	<sect3>
+	  <title>Overview and Driver Interface</title>
+	  <para>
+	    Similar to GEM global names, PRIME file descriptors are
+	    also used to share buffer objects across processes. They offer
+	    additional security: as file descriptors must be explicitly sent over
+	    UNIX domain sockets to be shared between applications, they can't be
+	    guessed like the globally unique GEM names.
+	  </para>
+	  <para>
+	    Drivers that support the PRIME
+	    API must set the DRIVER_PRIME bit in the struct
+	    <structname>drm_driver</structname>
+	    <structfield>driver_features</structfield> field, and implement the
+	    <methodname>prime_handle_to_fd</methodname> and
+	    <methodname>prime_fd_to_handle</methodname> operations.
+	  </para>
+	  <para>
+	    <synopsis>int (*prime_handle_to_fd)(struct drm_device *dev,
+			  struct drm_file *file_priv, uint32_t handle,
+			  uint32_t flags, int *prime_fd);
+int (*prime_fd_to_handle)(struct drm_device *dev,
+			  struct drm_file *file_priv, int prime_fd,
+			  uint32_t *handle);</synopsis>
+	    Those two operations convert a handle to a PRIME file descriptor and
+	    vice versa. Drivers must use the kernel dma-buf buffer sharing framework
+	    to manage the PRIME file descriptors. Similar to the mode setting
+	    API PRIME is agnostic to the underlying buffer object manager, as
+	    long as handles are 32bit unsigned integers.
+	  </para>
+	  <para>
+	    While non-GEM drivers must implement the operations themselves, GEM
+	    drivers must use the <function>drm_gem_prime_handle_to_fd</function>
+	    and <function>drm_gem_prime_fd_to_handle</function> helper functions.
+	    Those helpers rely on the driver
+	    <methodname>gem_prime_export</methodname> and
+	    <methodname>gem_prime_import</methodname> operations to create a dma-buf
+	    instance from a GEM object (dma-buf exporter role) and to create a GEM
+	    object from a dma-buf instance (dma-buf importer role).
+	  </para>
+	  <para>
+	    <synopsis>struct dma_buf * (*gem_prime_export)(struct drm_device *dev,
+				     struct drm_gem_object *obj,
+				     int flags);
+struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
+					    struct dma_buf *dma_buf);</synopsis>
+	    These two operations are mandatory for GEM drivers that support
+	    PRIME.
+	  </para>
+	</sect3>
+        <sect3>
+          <title>PRIME Helper Functions</title>
+!Pdrivers/gpu/drm/drm_prime.c PRIME Helpers
+        </sect3>
+      </sect2>
+      <sect2>
+	<title>PRIME Function References</title>
+!Edrivers/gpu/drm/drm_prime.c
+      </sect2>
+      <sect2>
+	<title>DRM MM Range Allocator</title>
+	<sect3>
+	  <title>Overview</title>
+!Pdrivers/gpu/drm/drm_mm.c Overview
+	</sect3>
+	<sect3>
+	  <title>LRU Scan/Eviction Support</title>
+!Pdrivers/gpu/drm/drm_mm.c lru scan roaster
+	</sect3>
+      </sect2>
+      <sect2>
+	<title>DRM MM Range Allocator Function References</title>
+!Edrivers/gpu/drm/drm_mm.c
+!Iinclude/drm/drm_mm.h
+      </sect2>
   </sect1>
 
   <!-- Internals: mode setting -->
@@ -953,6 +992,11 @@ int max_width, max_height;</synopsis>
       </listitem>
     </itemizedlist>
     <sect2>
+      <title>Display Modes Function Reference</title>
+!Iinclude/drm/drm_modes.h
+!Edrivers/gpu/drm/drm_modes.c
+    </sect2>
+    <sect2>
       <title>Frame Buffer Creation</title>
       <synopsis>struct drm_framebuffer *(*fb_create)(struct drm_device *dev,
 				     struct drm_file *file_priv,
@@ -968,9 +1012,11 @@ int max_width, max_height;</synopsis>
         Frame buffers rely on the underneath memory manager for low-level memory
         operations. When creating a frame buffer applications pass a memory
         handle (or a list of memory handles for multi-planar formats) through
-        the <parameter>drm_mode_fb_cmd2</parameter> argument. This document
-        assumes that the driver uses GEM, those handles thus reference GEM
-        objects.
+	the <parameter>drm_mode_fb_cmd2</parameter> argument. For drivers using
+	GEM as their userspace buffer management interface this would be a GEM
+	handle.  Drivers are however free to use their own backing storage object
+	handles, e.g. vmwgfx directly exposes special TTM handles to userspace
+	and so expects TTM handles in the create ioctl and not GEM handles.
       </para>
       <para>
         Drivers must first validate the requested frame buffer parameters passed
@@ -992,7 +1038,7 @@ int max_width, max_height;</synopsis>
       </para>
 
       <para>
-	The initailization of the new framebuffer instance is finalized with a
+	The initialization of the new framebuffer instance is finalized with a
 	call to <function>drm_framebuffer_init</function> which takes a pointer
 	to DRM frame buffer operations (struct
 	<structname>drm_framebuffer_funcs</structname>). Note that this function
@@ -1042,7 +1088,7 @@ int max_width, max_height;</synopsis>
       <para>
 	The lifetime of a drm framebuffer is controlled with a reference count,
 	drivers can grab additional references with
-	<function>drm_framebuffer_reference</function> </para> and drop them
+	<function>drm_framebuffer_reference</function>and drop them
 	again with <function>drm_framebuffer_unreference</function>. For
 	driver-private framebuffers for which the last reference is never
 	dropped (e.g. for the fbdev framebuffer when the struct
@@ -1050,6 +1096,72 @@ int max_width, max_height;</synopsis>
 	helper struct) drivers can manually clean up a framebuffer at module
 	unload time with
 	<function>drm_framebuffer_unregister_private</function>.
+      </para>
+    </sect2>
+    <sect2>
+      <title>Dumb Buffer Objects</title>
+      <para>
+	The KMS API doesn't standardize backing storage object creation and
+	leaves it to driver-specific ioctls. Furthermore actually creating a
+	buffer object even for GEM-based drivers is done through a
+	driver-specific ioctl - GEM only has a common userspace interface for
+	sharing and destroying objects. While not an issue for full-fledged
+	graphics stacks that include device-specific userspace components (in
+	libdrm for instance), this limit makes DRM-based early boot graphics
+	unnecessarily complex.
+      </para>
+      <para>
+        Dumb objects partly alleviate the problem by providing a standard
+        API to create dumb buffers suitable for scanout, which can then be used
+        to create KMS frame buffers.
+      </para>
+      <para>
+        To support dumb objects drivers must implement the
+        <methodname>dumb_create</methodname>,
+        <methodname>dumb_destroy</methodname> and
+        <methodname>dumb_map_offset</methodname> operations.
+      </para>
+      <itemizedlist>
+        <listitem>
+          <synopsis>int (*dumb_create)(struct drm_file *file_priv, struct drm_device *dev,
+                   struct drm_mode_create_dumb *args);</synopsis>
+          <para>
+            The <methodname>dumb_create</methodname> operation creates a driver
+	    object (GEM or TTM handle) suitable for scanout based on the
+	    width, height and depth from the struct
+	    <structname>drm_mode_create_dumb</structname> argument. It fills the
+	    argument's <structfield>handle</structfield>,
+	    <structfield>pitch</structfield> and <structfield>size</structfield>
+	    fields with a handle for the newly created object and its line
+            pitch and size in bytes.
+          </para>
+        </listitem>
+        <listitem>
+          <synopsis>int (*dumb_destroy)(struct drm_file *file_priv, struct drm_device *dev,
+                    uint32_t handle);</synopsis>
+          <para>
+            The <methodname>dumb_destroy</methodname> operation destroys a dumb
+            object created by <methodname>dumb_create</methodname>.
+          </para>
+        </listitem>
+        <listitem>
+          <synopsis>int (*dumb_map_offset)(struct drm_file *file_priv, struct drm_device *dev,
+                       uint32_t handle, uint64_t *offset);</synopsis>
+          <para>
+            The <methodname>dumb_map_offset</methodname> operation associates an
+            mmap fake offset with the object given by the handle and returns
+            it. Drivers must use the
+            <function>drm_gem_create_mmap_offset</function> function to
+            associate the fake offset as described in
+            <xref linkend="drm-gem-objects-mapping"/>.
+          </para>
+        </listitem>
+      </itemizedlist>
+      <para>
+        Note that dumb objects may not be used for gpu acceleration, as has been
+	attempted on some ARM embedded platforms. Such drivers really must have
+	a hardware-specific ioctl to allocate suitable buffer objects.
+      </para>
     </sect2>
     <sect2>
       <title>Output Polling</title>
@@ -1110,7 +1222,7 @@ int max_width, max_height;</synopsis>
           pointer to CRTC functions.
         </para>
       </sect3>
-      <sect3>
+      <sect3 id="drm-kms-crtcops">
         <title>CRTC Operations</title>
         <sect4>
           <title>Set Configuration</title>
@@ -1130,8 +1242,11 @@ int max_width, max_height;</synopsis>
             This operation is called with the mode config lock held.
           </para>
           <note><para>
-            FIXME: How should set_config interact with DPMS? If the CRTC is
-            suspended, should it be resumed?
+	    Note that the drm core has no notion of restoring the mode setting
+	    state after resume, since all resume handling is in the full
+	    responsibility of the driver. The common mode setting helper library
+	    though provides a helper which can be used for this:
+	    <function>drm_helper_resume_force_mode</function>.
           </para></note>
         </sect4>
         <sect4>
@@ -1248,15 +1363,47 @@ int max_width, max_height;</synopsis>
 	optionally scale it to a destination size. The result is then blended
 	with or overlayed on top of a CRTC.
       </para>
+      <para>
+      The DRM core recognizes three types of planes:
+      <itemizedlist>
+        <listitem>
+        DRM_PLANE_TYPE_PRIMARY represents a "main" plane for a CRTC.  Primary
+        planes are the planes operated upon by by CRTC modesetting and flipping
+        operations described in <xref linkend="drm-kms-crtcops"/>.
+        </listitem>
+        <listitem>
+        DRM_PLANE_TYPE_CURSOR represents a "cursor" plane for a CRTC.  Cursor
+        planes are the planes operated upon by the DRM_IOCTL_MODE_CURSOR and
+        DRM_IOCTL_MODE_CURSOR2 ioctls.
+        </listitem>
+        <listitem>
+        DRM_PLANE_TYPE_OVERLAY represents all non-primary, non-cursor planes.
+        Some drivers refer to these types of planes as "sprites" internally.
+        </listitem>
+      </itemizedlist>
+      For compatibility with legacy userspace, only overlay planes are made
+      available to userspace by default.  Userspace clients may set the
+      DRM_CLIENT_CAP_UNIVERSAL_PLANES client capability bit to indicate that
+      they wish to receive a universal plane list containing all plane types.
+      </para>
       <sect3>
         <title>Plane Initialization</title>
         <para>
-          Planes are optional. To create a plane, a KMS drivers allocates and
+          To create a plane, a KMS drivers allocates and
           zeroes an instances of struct <structname>drm_plane</structname>
           (possibly as part of a larger structure) and registers it with a call
-          to <function>drm_plane_init</function>. The function takes a bitmask
+          to <function>drm_universal_plane_init</function>. The function takes a bitmask
           of the CRTCs that can be associated with the plane, a pointer to the
-          plane functions and a list of format supported formats.
+          plane functions, a list of format supported formats, and the type of
+          plane (primary, cursor, or overlay) being initialized.
+        </para>
+        <para>
+          Cursor and overlay planes are optional.  All drivers should provide
+          one primary plane per CRTC (although this requirement may change in
+          the future); drivers that do not wish to provide special handling for
+          primary planes may make use of the helper functions described in
+          <xref linkend="drm-kms-planehelpers"/> to create and register a
+          primary plane with standard capabilities.
         </para>
       </sect3>
       <sect3>
@@ -1463,7 +1610,7 @@ int max_width, max_height;</synopsis>
           The connector is then registered with a call to
           <function>drm_connector_init</function> with a pointer to the connector
           functions and a connector type, and exposed through sysfs with a call to
-          <function>drm_sysfs_connector_add</function>.
+          <function>drm_connector_register</function>.
         </para>
         <para>
           Supported connector types are
@@ -1621,7 +1768,7 @@ int max_width, max_height;</synopsis>
 	(<function>drm_encoder_cleanup</function>) and connectors
 	(<function>drm_connector_cleanup</function>). Furthermore, connectors
 	that have been added to sysfs must be removed by a call to
-	<function>drm_sysfs_connector_remove</function> before calling
+	<function>drm_connector_unregister</function> before calling
 	<function>drm_connector_cleanup</function>.
       </para>
       <para>
@@ -1666,7 +1813,7 @@ void intel_crt_init(struct drm_device *dev)
 	drm_encoder_helper_add(&intel_output->enc, &intel_crt_helper_funcs);
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 }]]></programlisting>
       <para>
         In the example above (taken from the i915 driver), a CRTC, connector and
@@ -1680,6 +1827,12 @@ void intel_crt_init(struct drm_device *dev)
       <title>KMS API Functions</title>
 !Edrivers/gpu/drm/drm_crtc.c
     </sect2>
+    <sect2>
+      <title>KMS Locking</title>
+!Pdrivers/gpu/drm/drm_modeset_lock.c kms locking
+!Iinclude/drm/drm_modeset_lock.h
+!Edrivers/gpu/drm/drm_modeset_lock.c
+    </sect2>
   </sect1>
 
   <!-- Internals: kms helper functions -->
@@ -1687,7 +1840,7 @@ void intel_crt_init(struct drm_device *dev)
   <sect1>
     <title>Mode Setting Helper Functions</title>
     <para>
-      The CRTC, encoder and connector functions provided by the drivers
+      The plane, CRTC, encoder and connector functions provided by the drivers
       implement the DRM API. They're called by the DRM core and ioctl handlers
       to handle device state changes and configuration request. As implementing
       those functions often requires logic not specific to drivers, mid-layer
@@ -1695,8 +1848,8 @@ void intel_crt_init(struct drm_device *dev)
     </para>
     <para>
       The DRM core contains one mid-layer implementation. The mid-layer provides
-      implementations of several CRTC, encoder and connector functions (called
-      from the top of the mid-layer) that pre-process requests and call
+      implementations of several plane, CRTC, encoder and connector functions
+      (called from the top of the mid-layer) that pre-process requests and call
       lower-level functions provided by the driver (at the bottom of the
       mid-layer). For instance, the
       <function>drm_crtc_helper_set_config</function> function can be used to
@@ -1784,8 +1937,8 @@ void intel_crt_init(struct drm_device *dev)
           <para>
             The function filters out modes larger than
             <parameter>max_width</parameter> and <parameter>max_height</parameter>
-            if specified. It then calls the connector
-            <methodname>mode_valid</methodname> helper operation for  each mode in
+            if specified. It then calls the optional connector
+            <methodname>mode_valid</methodname> helper operation for each mode in
             the probed list to check whether the mode is valid for the connector.
           </para>
         </listitem>
@@ -2134,7 +2287,7 @@ void intel_crt_init(struct drm_device *dev)
             set the <structfield>display_info</structfield>
             <structfield>width_mm</structfield> and
             <structfield>height_mm</structfield> fields if they haven't been set
-            already (for instance at initilization time when a fixed-size panel is
+            already (for instance at initialization time when a fixed-size panel is
             attached to the connector). The mode <structfield>width_mm</structfield>
             and <structfield>height_mm</structfield> fields are only used internally
             during EDID parsing and should not be set when creating modes manually.
@@ -2146,7 +2299,7 @@ void intel_crt_init(struct drm_device *dev)
           <para>
             Verify whether a mode is valid for the connector. Return MODE_OK for
             supported modes and one of the enum drm_mode_status values (MODE_*)
-            for unsupported modes. This operation is mandatory.
+            for unsupported modes. This operation is optional.
           </para>
           <para>
             As the mode rejection reason is currently not used beside for
@@ -2168,6 +2321,11 @@ void intel_crt_init(struct drm_device *dev)
 !Edrivers/gpu/drm/drm_crtc_helper.c
     </sect2>
     <sect2>
+      <title>Output Probing Helper Functions Reference</title>
+!Pdrivers/gpu/drm/drm_probe_helper.c output probing helper overview
+!Edrivers/gpu/drm/drm_probe_helper.c
+    </sect2>
+    <sect2>
       <title>fbdev Helper Functions Reference</title>
 !Pdrivers/gpu/drm/drm_fb_helper.c fbdev helpers
 !Edrivers/gpu/drm/drm_fb_helper.c
@@ -2178,6 +2336,12 @@ void intel_crt_init(struct drm_device *dev)
 !Pdrivers/gpu/drm/drm_dp_helper.c dp helpers
 !Iinclude/drm/drm_dp_helper.h
 !Edrivers/gpu/drm/drm_dp_helper.c
+    </sect2>
+    <sect2>
+      <title>Display Port MST Helper Functions Reference</title>
+!Pdrivers/gpu/drm/drm_dp_mst_topology.c dp mst helper
+!Iinclude/drm/drm_dp_mst_helper.h
+!Edrivers/gpu/drm/drm_dp_mst_topology.c
     </sect2>
     <sect2>
       <title>EDID Helper Functions Reference</title>
@@ -2196,10 +2360,19 @@ void intel_crt_init(struct drm_device *dev)
 !Edrivers/gpu/drm/drm_flip_work.c
     </sect2>
     <sect2>
-      <title>VMA Offset Manager</title>
-!Pdrivers/gpu/drm/drm_vma_manager.c vma offset manager
-!Edrivers/gpu/drm/drm_vma_manager.c
-!Iinclude/drm/drm_vma_manager.h
+      <title>HDMI Infoframes Helper Reference</title>
+      <para>
+	Strictly speaking this is not a DRM helper library but generally useable
+	by any driver interfacing with HDMI outputs like v4l or alsa drivers.
+	But it nicely fits into the overall topic of mode setting helper
+	libraries and hence is also included here.
+      </para>
+!Iinclude/linux/hdmi.h
+!Edrivers/video/hdmi.c
+    </sect2>
+    <sect2>
+      <title id="drm-kms-planehelpers">Plane Helper Reference</title>
+!Edrivers/gpu/drm/drm_plane_helper.c Plane Helpers
     </sect2>
   </sect1>
 
@@ -2223,7 +2396,7 @@ void intel_crt_init(struct drm_device *dev)
       first create properties and then create and associate individual instances
       of those properties to objects. A property can be instantiated multiple
       times and associated with different objects. Values are stored in property
-      instances, and all other property information are stored in the propery
+      instances, and all other property information are stored in the property
       and shared between all instances of the property.
     </para>
     <para>
@@ -2317,6 +2490,836 @@ void intel_crt_init(struct drm_device *dev)
       pointer to the target object, a pointer to the previously created property
       and an initial instance value.
     </para>
+    <sect2>
+	<title>Existing KMS Properties</title>
+	<para>
+	The following table gives description of drm properties exposed by various
+	modules/drivers.
+	</para>
+	<table border="1" cellpadding="0" cellspacing="0">
+	<tbody>
+	<tr style="font-weight: bold;">
+	<td valign="top" >Owner Module/Drivers</td>
+	<td valign="top" >Group</td>
+	<td valign="top" >Property Name</td>
+	<td valign="top" >Type</td>
+	<td valign="top" >Property Values</td>
+	<td valign="top" >Object attached</td>
+	<td valign="top" >Description/Restrictions</td>
+	</tr>
+	<tr>
+	<td rowspan="21" valign="top" >DRM</td>
+	<td rowspan="2" valign="top" >Generic</td>
+	<td valign="top" >“EDID”</td>
+	<td valign="top" >BLOB | IMMUTABLE</td>
+	<td valign="top" >0</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >Contains id of edid blob ptr object.</td>
+	</tr>
+	<tr>
+	<td valign="top" >“DPMS”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ “On”, “Standby”, “Suspend”, “Off” }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >Contains DPMS operation mode value.</td>
+	</tr>
+	<tr>
+	<td rowspan="1" valign="top" >Plane</td>
+	<td valign="top" >“type”</td>
+	<td valign="top" >ENUM | IMMUTABLE</td>
+	<td valign="top" >{ "Overlay", "Primary", "Cursor" }</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Plane type</td>
+	</tr>
+	<tr>
+	<td rowspan="2" valign="top" >DVI-I</td>
+	<td valign="top" >“subconnector”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ “Unknown”, “DVI-D”, “DVI-A” }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“select subconnector”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ “Automatic”, “DVI-D”, “DVI-A” }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="13" valign="top" >TV</td>
+	<td valign="top" >“subconnector”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "Unknown", "Composite", "SVIDEO", "Component", "SCART" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“select subconnector”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "Automatic", "Composite", "SVIDEO", "Component", "SCART" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“mode”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "NTSC_M", "NTSC_J", "NTSC_443", "PAL_B" } etc.</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“left margin”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=100</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“right margin”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=100</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“top margin”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=100</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“bottom margin”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=100</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“brightness”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=100</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“contrast”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=100</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“flicker reduction”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=100</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“overscan”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=100</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“saturation”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=100</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“hue”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=100</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="3" valign="top" >Optional</td>
+	<td valign="top" >“scaling mode”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "None", "Full", "Center", "Full aspect" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"aspect ratio"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "None", "4:3", "16:9" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >DRM property to set aspect ratio from user space app.
+		This enum is made generic to allow addition of custom aspect
+		ratios.</td>
+	</tr>
+	<tr>
+	<td valign="top" >“dirty”</td>
+	<td valign="top" >ENUM | IMMUTABLE</td>
+	<td valign="top" >{ "Off", "On", "Annotate" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="21" valign="top" >i915</td>
+	<td rowspan="2" valign="top" >Generic</td>
+	<td valign="top" >"Broadcast RGB"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "Automatic", "Full", "Limited 16:235" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“audio”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "force-dvi", "off", "auto", "on" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="1" valign="top" >Plane</td>
+	<td valign="top" >“rotation”</td>
+	<td valign="top" >BITMASK</td>
+	<td valign="top" >{ 0, "rotate-0" }, { 2, "rotate-180" }</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="17" valign="top" >SDVO-TV</td>
+	<td valign="top" >“mode”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "NTSC_M", "NTSC_J", "NTSC_443", "PAL_B" } etc.</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"left_margin"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"right_margin"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"top_margin"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"bottom_margin"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“hpos”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“vpos”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“contrast”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“saturation”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“hue”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“sharpness”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“flicker_filter”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“flicker_filter_adaptive”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“flicker_filter_2d”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“tv_chroma_filter”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“tv_luma_filter”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“dot_crawl”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=1</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >SDVO-TV/LVDS</td>
+	<td valign="top" >“brightness”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="2" valign="top" >CDV gma-500</td>
+	<td rowspan="2" valign="top" >Generic</td>
+	<td valign="top" >"Broadcast RGB"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ “Full”, “Limited 16:235” }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"Broadcast RGB"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ “off”, “auto”, “on” }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="19" valign="top" >Poulsbo</td>
+	<td rowspan="1" valign="top" >Generic</td>
+	<td valign="top" >“backlight”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=100</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="17" valign="top" >SDVO-TV</td>
+	<td valign="top" >“mode”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "NTSC_M", "NTSC_J", "NTSC_443", "PAL_B" } etc.</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"left_margin"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"right_margin"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"top_margin"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"bottom_margin"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“hpos”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“vpos”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“contrast”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“saturation”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“hue”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“sharpness”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“flicker_filter”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“flicker_filter_adaptive”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“flicker_filter_2d”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“tv_chroma_filter”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“tv_luma_filter”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“dot_crawl”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=1</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >SDVO-TV/LVDS</td>
+	<td valign="top" >“brightness”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max= SDVO dependent</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="11" valign="top" >armada</td>
+	<td rowspan="2" valign="top" >CRTC</td>
+	<td valign="top" >"CSC_YUV"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "Auto" , "CCIR601", "CCIR709" }</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"CSC_RGB"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "Auto", "Computer system", "Studio" }</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="9" valign="top" >Overlay</td>
+	<td valign="top" >"colorkey"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0xffffff</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"colorkey_min"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0xffffff</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"colorkey_max"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0xffffff</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"colorkey_val"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0xffffff</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"colorkey_alpha"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0xffffff</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"colorkey_mode"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "disabled", "Y component", "U component"
+	, "V component", "RGB", “R component", "G component", "B component" }</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"brightness"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=256 + 255</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"contrast"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0x7fff</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"saturation"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0x7fff</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="2" valign="top" >exynos</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >“mode”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "normal", "blank" }</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >Overlay</td>
+	<td valign="top" >“zpos”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=MAX_PLANE-1</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="2" valign="top" >i2c/ch7006_drv</td>
+	<td valign="top" >Generic</td>
+	<td valign="top" >“scale”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=2</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="1" valign="top" >TV</td>
+	<td valign="top" >“mode”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "PAL", "PAL-M","PAL-N"}, ”PAL-Nc"
+	, "PAL-60", "NTSC-M", "NTSC-J" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="15" valign="top" >nouveau</td>
+	<td rowspan="6" valign="top" >NV10 Overlay</td>
+	<td valign="top" >"colorkey"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0x01ffffff</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“contrast”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=8192-1</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“brightness”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=1024</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“hue”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=359</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“saturation”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=8192-1</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“iturbt_709”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=1</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="2" valign="top" >Nv04 Overlay</td>
+	<td valign="top" >“colorkey”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0x01ffffff</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“brightness”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=1024</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="7" valign="top" >Display</td>
+	<td valign="top" >“dithering mode”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "auto", "off", "on" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“dithering depth”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "auto", "off", "on", "static 2x2", "dynamic 2x2", "temporal" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“underscan”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "auto", "6 bpc", "8 bpc" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“underscan hborder”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=128</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“underscan vborder”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=128</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“vibrant hue”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=180</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“color vibrance”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=200</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="2" valign="top" >omap</td>
+	<td rowspan="2" valign="top" >Generic</td>
+	<td valign="top" >“rotation”</td>
+	<td valign="top" >BITMASK</td>
+	<td valign="top" >{ 0, "rotate-0" },
+	{ 1, "rotate-90" },
+	{ 2, "rotate-180" },
+	{ 3, "rotate-270" },
+	{ 4, "reflect-x" },
+	{ 5, "reflect-y" }</td>
+	<td valign="top" >CRTC, Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“zorder”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=3</td>
+	<td valign="top" >CRTC, Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >qxl</td>
+	<td valign="top" >Generic</td>
+	<td valign="top" >“hotplug_mode_update"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=1</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="9" valign="top" >radeon</td>
+	<td valign="top" >DVI-I</td>
+	<td valign="top" >“coherent”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=1</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >DAC enable load detect</td>
+	<td valign="top" >“load detection”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=1</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >TV Standard</td>
+	<td valign="top" >"tv standard"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "ntsc", "pal", "pal-m", "pal-60", "ntsc-j"
+	, "scart-pal", "pal-cn", "secam" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >legacy TMDS PLL detect</td>
+	<td valign="top" >"tmds_pll"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "driver", "bios" }</td>
+	<td valign="top" >-</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="3" valign="top" >Underscan</td>
+	<td valign="top" >"underscan"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "off", "on", "auto" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"underscan hborder"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=128</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"underscan vborder"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=128</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >Audio</td>
+	<td valign="top" >“audio”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "off", "on", "auto" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >FMT Dithering</td>
+	<td valign="top" >“dither”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "off", "on" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="3" valign="top" >rcar-du</td>
+	<td rowspan="3" valign="top" >Generic</td>
+	<td valign="top" >"alpha"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=255</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"colorkey"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0x01ffffff</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"zpos"</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=1, Max=7</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >TBD</td>
+	</tr>
+	</tbody>
+	</table>
+    </sect2>
   </sect1>
 
   <!-- Internals: vertical blanking -->
@@ -2394,6 +3397,10 @@ void (*disable_vblank) (struct drm_device *dev, int crtc);</synopsis>
       with a call to <function>drm_vblank_cleanup</function> in the driver
       <methodname>unload</methodname> operation handler.
     </para>
+    <sect2>
+      <title>Vertical Blanking and Interrupt Handling Functions Reference</title>
+!Edrivers/gpu/drm/drm_irq.c
+    </sect2>
   </sect1>
 
   <!-- Internals: open/close, file operations and ioctls -->
@@ -2561,42 +3568,44 @@ int num_ioctls;</synopsis>
       </para>
     </sect2>
   </sect1>
-
   <sect1>
-    <title>Command submission &amp; fencing</title>
+    <title>Legacy Support Code</title>
     <para>
-      This should cover a few device-specific command submission
-      implementations.
+      The section very briefly covers some of the old legacy support code which
+      is only used by old DRM drivers which have done a so-called shadow-attach
+      to the underlying device instead of registering as a real driver. This
+      also includes some of the old generic buffer management and command
+      submission code. Do not use any of this in new and modern drivers.
     </para>
-  </sect1>
 
-  <!-- Internals: suspend/resume -->
+    <sect2>
+      <title>Legacy Suspend/Resume</title>
+      <para>
+	The DRM core provides some suspend/resume code, but drivers wanting full
+	suspend/resume support should provide save() and restore() functions.
+	These are called at suspend, hibernate, or resume time, and should perform
+	any state save or restore required by your device across suspend or
+	hibernate states.
+      </para>
+      <synopsis>int (*suspend) (struct drm_device *, pm_message_t state);
+  int (*resume) (struct drm_device *);</synopsis>
+      <para>
+	Those are legacy suspend and resume methods which
+	<emphasis>only</emphasis> work with the legacy shadow-attach driver
+	registration functions. New driver should use the power management
+	interface provided by their bus type (usually through
+	the struct <structname>device_driver</structname> dev_pm_ops) and set
+	these methods to NULL.
+      </para>
+    </sect2>
 
-  <sect1>
-    <title>Suspend/Resume</title>
-    <para>
-      The DRM core provides some suspend/resume code, but drivers wanting full
-      suspend/resume support should provide save() and restore() functions.
-      These are called at suspend, hibernate, or resume time, and should perform
-      any state save or restore required by your device across suspend or
-      hibernate states.
-    </para>
-    <synopsis>int (*suspend) (struct drm_device *, pm_message_t state);
-int (*resume) (struct drm_device *);</synopsis>
-    <para>
-      Those are legacy suspend and resume methods. New driver should use the
-      power management interface provided by their bus type (usually through
-      the struct <structname>device_driver</structname> dev_pm_ops) and set
-      these methods to NULL.
-    </para>
-  </sect1>
-
-  <sect1>
-    <title>DMA services</title>
-    <para>
-      This should cover how DMA mapping etc. is supported by the core.
-      These functions are deprecated and should not be used.
-    </para>
+    <sect2>
+      <title>Legacy DMA Services</title>
+      <para>
+	This should cover how DMA mapping etc. is supported by the core.
+	These functions are deprecated and should not be used.
+      </para>
+    </sect2>
   </sect1>
   </chapter>
 
@@ -2658,8 +3667,8 @@ int (*resume) (struct drm_device *);</synopsis>
         DRM core provides multiple character-devices for user-space to use.
         Depending on which device is opened, user-space can perform a different
         set of operations (mainly ioctls). The primary node is always created
-        and called <term>card&lt;num&gt;</term>. Additionally, a currently
-        unused control node, called <term>controlD&lt;num&gt;</term> is also
+        and called card&lt;num&gt;. Additionally, a currently
+        unused control node, called controlD&lt;num&gt; is also
         created. The primary node provides all legacy operations and
         historically was the only interface used by userspace. With KMS, the
         control node was introduced. However, the planned KMS control interface
@@ -2674,21 +3683,21 @@ int (*resume) (struct drm_device *);</synopsis>
         nodes were introduced. Render nodes solely serve render clients, that
         is, no modesetting or privileged ioctls can be issued on render nodes.
         Only non-global rendering commands are allowed. If a driver supports
-        render nodes, it must advertise it via the <term>DRIVER_RENDER</term>
+        render nodes, it must advertise it via the DRIVER_RENDER
         DRM driver capability. If not supported, the primary node must be used
         for render clients together with the legacy drmAuth authentication
         procedure.
       </para>
       <para>
         If a driver advertises render node support, DRM core will create a
-        separate render node called <term>renderD&lt;num&gt;</term>. There will
+        separate render node called renderD&lt;num&gt;. There will
         be one render node per device. No ioctls except  PRIME-related ioctls
-        will be allowed on this node. Especially <term>GEM_OPEN</term> will be
+        will be allowed on this node. Especially GEM_OPEN will be
         explicitly prohibited. Render nodes are designed to avoid the
         buffer-leaks, which occur if clients guess the flink names or mmap
         offsets on the legacy interface. Additionally to this basic interface,
         drivers must mark their driver-dependent render-only ioctls as
-        <term>DRM_RENDER_ALLOW</term> so render clients can use them. Driver
+        DRM_RENDER_ALLOW so render clients can use them. Driver
         authors must be careful not to allow any privileged ioctls on render
         nodes.
       </para>
@@ -2734,30 +3743,182 @@ int (*resume) (struct drm_device *);</synopsis>
             <term>DRM_IOCTL_MODESET_CTL</term>
             <listitem>
               <para>
-                This should be called by application level drivers before and
-                after mode setting, since on many devices the vertical blank
-                counter is reset at that time.  Internally, the DRM snapshots
-                the last vblank count when the ioctl is called with the
-                _DRM_PRE_MODESET command, so that the counter won't go backwards
-                (which is dealt with when _DRM_POST_MODESET is used).
+		This was only used for user-mode-settind drivers around
+		modesetting changes to allow the kernel to update the vblank
+		interrupt after mode setting, since on many devices the vertical
+		blank counter is reset to 0 at some point during modeset. Modern
+		drivers should not call this any more since with kernel mode
+		setting it is a no-op.
               </para>
             </listitem>
           </varlistentry>
         </variablelist>
-<!--!Edrivers/char/drm/drm_irq.c-->
       </para>
     </sect1>
 
   </chapter>
+</part>
+<part id="drmDrivers">
+  <title>DRM Drivers</title>
 
-  <!-- API reference -->
-
-  <appendix id="drmDriverApi">
-    <title>DRM Driver API</title>
+  <partintro>
     <para>
-      Include auto-generated API reference here (need to reference it
-      from paragraphs above too).
+      This second part of the DRM Developer's Guide documents driver code,
+      implementation details and also all the driver-specific userspace
+      interfaces. Especially since all hardware-acceleration interfaces to
+      userspace are driver specific for efficiency and other reasons these
+      interfaces can be rather substantial. Hence every driver has its own
+      chapter.
     </para>
-  </appendix>
+  </partintro>
 
+  <chapter id="drmI915">
+    <title>drm/i915 Intel GFX Driver</title>
+    <para>
+      The drm/i915 driver supports all (with the exception of some very early
+      models) integrated GFX chipsets with both Intel display and rendering
+      blocks. This excludes a set of SoC platforms with an SGX rendering unit,
+      those have basic support through the gma500 drm driver.
+    </para>
+    <sect1>
+      <title>Display Hardware Handling</title>
+      <para>
+        This section covers everything related to the display hardware including
+        the mode setting infrastructure, plane, sprite and cursor handling and
+        display, output probing and related topics.
+      </para>
+      <sect2>
+        <title>Mode Setting Infrastructure</title>
+        <para>
+          The i915 driver is thus far the only DRM driver which doesn't use the
+          common DRM helper code to implement mode setting sequences. Thus it
+          has its own tailor-made infrastructure for executing a display
+          configuration change.
+        </para>
+      </sect2>
+      <sect2>
+        <title>Plane Configuration</title>
+        <para>
+	  This section covers plane configuration and composition with the
+	  primary plane, sprites, cursors and overlays. This includes the
+	  infrastructure to do atomic vsync'ed updates of all this state and
+	  also tightly coupled topics like watermark setup and computation,
+	  framebuffer compression and panel self refresh.
+        </para>
+      </sect2>
+      <sect2>
+        <title>Output Probing</title>
+        <para>
+	  This section covers output probing and related infrastructure like the
+	  hotplug interrupt storm detection and mitigation code. Note that the
+	  i915 driver still uses most of the common DRM helper code for output
+	  probing, so those sections fully apply.
+        </para>
+      </sect2>
+      <sect2>
+        <title>DPIO</title>
+!Pdrivers/gpu/drm/i915/i915_reg.h DPIO
+	<table id="dpiox2">
+	  <title>Dual channel PHY (VLV/CHV)</title>
+	  <tgroup cols="8">
+	    <colspec colname="c0" />
+	    <colspec colname="c1" />
+	    <colspec colname="c2" />
+	    <colspec colname="c3" />
+	    <colspec colname="c4" />
+	    <colspec colname="c5" />
+	    <colspec colname="c6" />
+	    <colspec colname="c7" />
+	    <spanspec spanname="ch0" namest="c0" nameend="c3" />
+	    <spanspec spanname="ch1" namest="c4" nameend="c7" />
+	    <spanspec spanname="ch0pcs01" namest="c0" nameend="c1" />
+	    <spanspec spanname="ch0pcs23" namest="c2" nameend="c3" />
+	    <spanspec spanname="ch1pcs01" namest="c4" nameend="c5" />
+	    <spanspec spanname="ch1pcs23" namest="c6" nameend="c7" />
+	    <thead>
+	      <row>
+		<entry spanname="ch0">CH0</entry>
+		<entry spanname="ch1">CH1</entry>
+	      </row>
+	    </thead>
+	    <tbody valign="top" align="center">
+	      <row>
+		<entry spanname="ch0">CMN/PLL/REF</entry>
+		<entry spanname="ch1">CMN/PLL/REF</entry>
+	      </row>
+	      <row>
+		<entry spanname="ch0pcs01">PCS01</entry>
+		<entry spanname="ch0pcs23">PCS23</entry>
+		<entry spanname="ch1pcs01">PCS01</entry>
+		<entry spanname="ch1pcs23">PCS23</entry>
+	      </row>
+	      <row>
+		<entry>TX0</entry>
+		<entry>TX1</entry>
+		<entry>TX2</entry>
+		<entry>TX3</entry>
+		<entry>TX0</entry>
+		<entry>TX1</entry>
+		<entry>TX2</entry>
+		<entry>TX3</entry>
+	      </row>
+	      <row>
+		<entry spanname="ch0">DDI0</entry>
+		<entry spanname="ch1">DDI1</entry>
+	      </row>
+	    </tbody>
+	  </tgroup>
+	</table>
+	<table id="dpiox1">
+	  <title>Single channel PHY (CHV)</title>
+	  <tgroup cols="4">
+	    <colspec colname="c0" />
+	    <colspec colname="c1" />
+	    <colspec colname="c2" />
+	    <colspec colname="c3" />
+	    <spanspec spanname="ch0" namest="c0" nameend="c3" />
+	    <spanspec spanname="ch0pcs01" namest="c0" nameend="c1" />
+	    <spanspec spanname="ch0pcs23" namest="c2" nameend="c3" />
+	    <thead>
+	      <row>
+		<entry spanname="ch0">CH0</entry>
+	      </row>
+	    </thead>
+	    <tbody valign="top" align="center">
+	      <row>
+		<entry spanname="ch0">CMN/PLL/REF</entry>
+	      </row>
+	      <row>
+		<entry spanname="ch0pcs01">PCS01</entry>
+		<entry spanname="ch0pcs23">PCS23</entry>
+	      </row>
+	      <row>
+		<entry>TX0</entry>
+		<entry>TX1</entry>
+		<entry>TX2</entry>
+		<entry>TX3</entry>
+	      </row>
+	      <row>
+		<entry spanname="ch0">DDI2</entry>
+	      </row>
+	    </tbody>
+	  </tgroup>
+	</table>
+      </sect2>
+    </sect1>
+
+    <sect1>
+      <title>Memory Management and Command Submission</title>
+      <para>
+	This sections covers all things related to the GEM implementation in the
+	i915 driver.
+      </para>
+      <sect2>
+        <title>Batchbuffer Parsing</title>
+!Pdrivers/gpu/drm/i915/i915_cmd_parser.c batch buffer command parser
+!Idrivers/gpu/drm/i915/i915_cmd_parser.c
+      </sect2>
+    </sect1>
+  </chapter>
+</part>
 </book>

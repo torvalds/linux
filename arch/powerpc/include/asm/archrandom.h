@@ -25,7 +25,25 @@ static inline int arch_get_random_int(unsigned int *v)
 	return rc;
 }
 
+static inline int arch_has_random(void)
+{
+	return !!ppc_md.get_random_long;
+}
+
 int powernv_get_random_long(unsigned long *v);
+
+static inline int arch_get_random_seed_long(unsigned long *v)
+{
+	return 0;
+}
+static inline int arch_get_random_seed_int(unsigned int *v)
+{
+	return 0;
+}
+static inline int arch_has_random_seed(void)
+{
+	return 0;
+}
 
 #endif /* CONFIG_ARCH_RANDOM */
 

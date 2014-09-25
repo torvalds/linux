@@ -91,6 +91,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_VERDE:
 	case CHIP_PITCAIRN:
 	case CHIP_ARUBA:
+	case CHIP_OLAND:
 		fw_name = FIRMWARE_TAHITI;
 		break;
 
@@ -98,6 +99,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_KABINI:
 	case CHIP_KAVERI:
 	case CHIP_HAWAII:
+	case CHIP_MULLINS:
 		fw_name = FIRMWARE_BONAIRE;
 		break;
 
@@ -115,7 +117,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	bo_size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 8) +
 		  RADEON_UVD_STACK_SIZE + RADEON_UVD_HEAP_SIZE;
 	r = radeon_bo_create(rdev, bo_size, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->uvd.vcpu_bo);
+			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &rdev->uvd.vcpu_bo);
 	if (r) {
 		dev_err(rdev->dev, "(%d) failed to allocate UVD bo\n", r);
 		return r;
@@ -169,6 +171,8 @@ void radeon_uvd_fini(struct radeon_device *rdev)
 	}
 
 	radeon_bo_unref(&rdev->uvd.vcpu_bo);
+
+	radeon_ring_fini(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX]);
 
 	release_firmware(rdev->uvd_fw);
 }
@@ -452,7 +456,7 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 	}
 
 	reloc = p->relocs_ptr[(idx / 4)];
-	start = reloc->lobj.gpu_offset;
+	start = reloc->gpu_offset;
 	end = start + radeon_bo_size(reloc->robj);
 	start += offset;
 
@@ -462,6 +466,10 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 	cmd = radeon_get_ib_value(p, p->idx) >> 1;
 
 	if (cmd < 0x4) {
+		if (end <= start) {
+			DRM_ERROR("invalid reloc offset %X!\n", offset);
+			return -EINVAL;
+		}
 		if ((end - start) < buf_sizes[cmd]) {
 			DRM_ERROR("buffer (%d) to small (%d / %d)!\n", cmd,
 				  (unsigned)(end - start), buf_sizes[cmd]);
@@ -638,7 +646,7 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 		ib.ptr[i] = PACKET2(0);
 	ib.length_dw = 16;
 
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r)
 		goto err;
 	ttm_eu_fence_buffer_objects(&ticket, &head, ib.fence);
@@ -666,7 +674,7 @@ int radeon_uvd_get_create_msg(struct radeon_device *rdev, int ring,
 	int r, i;
 
 	r = radeon_bo_create(rdev, 1024, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM, NULL, &bo);
+			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &bo);
 	if (r)
 		return r;
 
@@ -712,7 +720,7 @@ int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
 	int r, i;
 
 	r = radeon_bo_create(rdev, 1024, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM, NULL, &bo);
+			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &bo);
 	if (r)
 		return r;
 
@@ -778,6 +786,8 @@ static void radeon_uvd_idle_work_handler(struct work_struct *work)
 
 	if (radeon_fence_count_emitted(rdev, R600_RING_TYPE_UVD_INDEX) == 0) {
 		if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+			radeon_uvd_count_handles(rdev, &rdev->pm.dpm.sd,
+						 &rdev->pm.dpm.hd);
 			radeon_dpm_enable_uvd(rdev, false);
 		} else {
 			radeon_set_uvd_clocks(rdev, 0, 0);

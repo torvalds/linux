@@ -86,6 +86,9 @@
 
 #define USBSS_IRQ_PD_COMP	(1 <<  2)
 
+/* Packet Descriptor */
+#define PD2_ZERO_LENGTH		(1 << 19)
+
 struct cppi41_channel {
 	struct dma_chan chan;
 	struct dma_async_tx_descriptor txd;
@@ -307,7 +310,7 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 			__iormb();
 
 		while (val) {
-			u32 desc;
+			u32 desc, len;
 
 			q_num = __fls(val);
 			val &= ~(1 << q_num);
@@ -319,9 +322,13 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 						q_num, desc);
 				continue;
 			}
-			c->residue = pd_trans_len(c->desc->pd6) -
-				pd_trans_len(c->desc->pd0);
 
+			if (c->desc->pd2 & PD2_ZERO_LENGTH)
+				len = 0;
+			else
+				len = pd_trans_len(c->desc->pd0);
+
+			c->residue = pd_trans_len(c->desc->pd6) - len;
 			dma_cookie_complete(&c->txd);
 			c->txd.callback(c->txd.callback_param);
 		}
@@ -620,12 +627,15 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 	u32 desc_phys;
 	int ret;
 
+	desc_phys = lower_32_bits(c->desc_phys);
+	desc_num = (desc_phys - cdd->descs_phys) / sizeof(struct cppi41_desc);
+	if (!cdd->chan_busy[desc_num])
+		return 0;
+
 	ret = cppi41_tear_down_chan(c);
 	if (ret)
 		return ret;
 
-	desc_phys = lower_32_bits(c->desc_phys);
-	desc_num = (desc_phys - cdd->descs_phys) / sizeof(struct cppi41_desc);
 	WARN_ON(!cdd->chan_busy[desc_num]);
 	cdd->chan_busy[desc_num] = NULL;
 
@@ -972,8 +982,10 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 		goto err_chans;
 
 	irq = irq_of_parse_and_map(dev->of_node, 0);
-	if (!irq)
+	if (!irq) {
+		ret = -EINVAL;
 		goto err_irq;
+	}
 
 	cppi_writel(USBSS_IRQ_PD_COMP, cdd->usbss_mem + USBSS_IRQ_ENABLER);
 

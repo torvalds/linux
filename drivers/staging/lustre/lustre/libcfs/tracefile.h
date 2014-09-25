@@ -37,7 +37,7 @@
 #ifndef __LIBCFS_TRACEFILE_H__
 #define __LIBCFS_TRACEFILE_H__
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 #include "linux/linux-tracefile.h"
 
@@ -307,7 +307,7 @@ cfs_trace_put_tcd (struct cfs_trace_cpu_data *tcd)
 	put_cpu();
 }
 
-int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, int gfp,
+int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, gfp_t gfp,
 			   struct list_head *stock);
 
 

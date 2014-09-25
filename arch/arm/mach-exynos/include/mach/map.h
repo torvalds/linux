@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-exynos/include/mach/map.h
- *
+/*
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
@@ -23,20 +22,10 @@
 
 #include <plat/map-s5p.h>
 
-#define EXYNOS4_PA_SYSRAM0		0x02025000
-#define EXYNOS4_PA_SYSRAM1		0x02020000
-#define EXYNOS5_PA_SYSRAM		0x02020000
-#define EXYNOS4210_PA_SYSRAM_NS		0x0203F000
-#define EXYNOS4x12_PA_SYSRAM_NS		0x0204F000
-#define EXYNOS5250_PA_SYSRAM_NS		0x0204F000
-
 #define EXYNOS_PA_CHIPID		0x10000000
 
 #define EXYNOS4_PA_SYSCON		0x10010000
 #define EXYNOS5_PA_SYSCON		0x10050100
-
-#define EXYNOS4_PA_PMU			0x10020000
-#define EXYNOS5_PA_PMU			0x10040000
 
 #define EXYNOS4_PA_CMU			0x10030000
 #define EXYNOS5_PA_CMU			0x10010000

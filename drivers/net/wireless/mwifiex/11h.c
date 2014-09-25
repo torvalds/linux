@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: 802.11h
  *
- * Copyright (C) 2013, Marvell International Ltd.
+ * Copyright (C) 2013-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -73,8 +73,8 @@ static int mwifiex_11h_activate(struct mwifiex_private *priv, bool flag)
 {
 	u32 enable = flag;
 
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
-				     HostCmd_ACT_GEN_SET, DOT11H_I, &enable);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+				HostCmd_ACT_GEN_SET, DOT11H_I, &enable, true);
 }
 
 /* This functions processes TLV buffer for a pending BSS Join command.

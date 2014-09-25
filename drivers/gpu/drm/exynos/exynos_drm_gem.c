@@ -301,7 +301,6 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 					unsigned int gem_handle,
 					struct drm_file *filp)
 {
-	struct exynos_drm_gem_obj *exynos_gem_obj;
 	struct drm_gem_object *obj;
 
 	obj = drm_gem_object_lookup(dev, filp, gem_handle);
@@ -309,8 +308,6 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 		DRM_ERROR("failed to lookup gem object.\n");
 		return;
 	}
-
-	exynos_gem_obj = to_exynos_gem_obj(obj);
 
 	drm_gem_object_unreference_unlocked(obj);
 
@@ -338,45 +335,21 @@ int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
 			&args->offset);
 }
 
-static struct drm_file *exynos_drm_find_drm_file(struct drm_device *drm_dev,
-							struct file *filp)
-{
-	struct drm_file *file_priv;
-
-	/* find current process's drm_file from filelist. */
-	list_for_each_entry(file_priv, &drm_dev->filelist, lhead)
-		if (file_priv->filp == filp)
-			return file_priv;
-
-	WARN_ON(1);
-
-	return ERR_PTR(-EFAULT);
-}
-
-static int exynos_drm_gem_mmap_buffer(struct file *filp,
+int exynos_drm_gem_mmap_buffer(struct file *filp,
 				      struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = filp->private_data;
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
 	struct drm_device *drm_dev = obj->dev;
 	struct exynos_drm_gem_buf *buffer;
-	struct drm_file *file_priv;
 	unsigned long vm_size;
 	int ret;
+
+	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
 
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_private_data = obj;
 	vma->vm_ops = drm_dev->driver->gem_vm_ops;
-
-	/* restore it to driver's fops. */
-	filp->f_op = fops_get(drm_dev->driver->fops);
-
-	file_priv = exynos_drm_find_drm_file(drm_dev, filp);
-	if (IS_ERR(file_priv))
-		return PTR_ERR(file_priv);
-
-	/* restore it to drm_file. */
-	filp->private_data = file_priv;
 
 	update_vm_cache_attr(exynos_gem_obj, vma);
 
@@ -411,15 +384,13 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 	return 0;
 }
 
-static const struct file_operations exynos_drm_gem_fops = {
-	.mmap = exynos_drm_gem_mmap_buffer,
-};
-
 int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
+	struct drm_exynos_file_private *exynos_file_priv;
 	struct drm_exynos_gem_mmap *args = data;
 	struct drm_gem_object *obj;
+	struct file *anon_filp;
 	unsigned long addr;
 
 	if (!(dev->driver->driver_features & DRIVER_GEM)) {
@@ -427,47 +398,25 @@ int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		return -ENODEV;
 	}
 
+	mutex_lock(&dev->struct_mutex);
+
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
-	/*
-	 * We have to use gem object and its fops for specific mmaper,
-	 * but vm_mmap() can deliver only filp. So we have to change
-	 * filp->f_op and filp->private_data temporarily, then restore
-	 * again. So it is important to keep lock until restoration the
-	 * settings to prevent others from misuse of filp->f_op or
-	 * filp->private_data.
-	 */
-	mutex_lock(&dev->struct_mutex);
+	exynos_file_priv = file_priv->driver_priv;
+	anon_filp = exynos_file_priv->anon_filp;
+	anon_filp->private_data = obj;
 
-	/*
-	 * Set specific mmper's fops. And it will be restored by
-	 * exynos_drm_gem_mmap_buffer to dev->driver->fops.
-	 * This is used to call specific mapper temporarily.
-	 */
-	file_priv->filp->f_op = &exynos_drm_gem_fops;
-
-	/*
-	 * Set gem object to private_data so that specific mmaper
-	 * can get the gem object. And it will be restored by
-	 * exynos_drm_gem_mmap_buffer to drm_file.
-	 */
-	file_priv->filp->private_data = obj;
-
-	addr = vm_mmap(file_priv->filp, 0, args->size,
-			PROT_READ | PROT_WRITE, MAP_SHARED, 0);
+	addr = vm_mmap(anon_filp, 0, args->size, PROT_READ | PROT_WRITE,
+			MAP_SHARED, 0);
 
 	drm_gem_object_unreference(obj);
 
 	if (IS_ERR_VALUE(addr)) {
-		/* check filp->f_op, filp->private_data are restored */
-		if (file_priv->filp->f_op == &exynos_drm_gem_fops) {
-			file_priv->filp->f_op = fops_get(dev->driver->fops);
-			file_priv->filp->private_data = file_priv;
-		}
 		mutex_unlock(&dev->struct_mutex);
 		return (int)addr;
 	}
@@ -660,22 +609,20 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	args->pitch = args->width * ((args->bpp + 7) / 8);
 	args->size = args->pitch * args->height;
 
-	exynos_gem_obj = exynos_drm_gem_create(dev, EXYNOS_BO_CONTIG |
-						EXYNOS_BO_WC, args->size);
-	/*
-	 * If physically contiguous memory allocation fails and if IOMMU is
-	 * supported then try to get buffer from non physically contiguous
-	 * memory area.
-	 */
-	if (IS_ERR(exynos_gem_obj) && is_drm_iommu_supported(dev)) {
-		dev_warn(dev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
+	if (is_drm_iommu_supported(dev)) {
 		exynos_gem_obj = exynos_drm_gem_create(dev,
-					EXYNOS_BO_NONCONTIG | EXYNOS_BO_WC,
-					args->size);
+			EXYNOS_BO_NONCONTIG | EXYNOS_BO_WC,
+			args->size);
+	} else {
+		exynos_gem_obj = exynos_drm_gem_create(dev,
+			EXYNOS_BO_CONTIG | EXYNOS_BO_WC,
+			args->size);
 	}
 
-	if (IS_ERR(exynos_gem_obj))
+	if (IS_ERR(exynos_gem_obj)) {
+		dev_warn(dev->dev, "FB allocation failed.\n");
 		return PTR_ERR(exynos_gem_obj);
+	}
 
 	ret = exynos_drm_gem_handle_create(&exynos_gem_obj->base, file_priv,
 			&args->handle);

@@ -52,17 +52,16 @@ int vmw_dmabuf_to_placement(struct vmw_private *dev_priv,
 			    struct ttm_placement *placement,
 			    bool interruptible)
 {
-	struct vmw_master *vmaster = dev_priv->active_master;
 	struct ttm_buffer_object *bo = &buf->base;
 	int ret;
 
-	ret = ttm_write_lock(&vmaster->lock, interruptible);
+	ret = ttm_write_lock(&dev_priv->reservation_sem, interruptible);
 	if (unlikely(ret != 0))
 		return ret;
 
 	vmw_execbuf_release_pinned_bo(dev_priv);
 
-	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
+	ret = ttm_bo_reserve(bo, interruptible, false, false, NULL);
 	if (unlikely(ret != 0))
 		goto err;
 
@@ -71,7 +70,7 @@ int vmw_dmabuf_to_placement(struct vmw_private *dev_priv,
 	ttm_bo_unreserve(bo);
 
 err:
-	ttm_write_unlock(&vmaster->lock);
+	ttm_write_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
@@ -95,19 +94,18 @@ int vmw_dmabuf_to_vram_or_gmr(struct vmw_private *dev_priv,
 			      struct vmw_dma_buffer *buf,
 			      bool pin, bool interruptible)
 {
-	struct vmw_master *vmaster = dev_priv->active_master;
 	struct ttm_buffer_object *bo = &buf->base;
 	struct ttm_placement *placement;
 	int ret;
 
-	ret = ttm_write_lock(&vmaster->lock, interruptible);
+	ret = ttm_write_lock(&dev_priv->reservation_sem, interruptible);
 	if (unlikely(ret != 0))
 		return ret;
 
 	if (pin)
 		vmw_execbuf_release_pinned_bo(dev_priv);
 
-	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
+	ret = ttm_bo_reserve(bo, interruptible, false, false, NULL);
 	if (unlikely(ret != 0))
 		goto err;
 
@@ -143,7 +141,7 @@ int vmw_dmabuf_to_vram_or_gmr(struct vmw_private *dev_priv,
 err_unreserve:
 	ttm_bo_unreserve(bo);
 err:
-	ttm_write_unlock(&vmaster->lock);
+	ttm_write_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
@@ -198,7 +196,6 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *dev_priv,
 				struct vmw_dma_buffer *buf,
 				bool pin, bool interruptible)
 {
-	struct vmw_master *vmaster = dev_priv->active_master;
 	struct ttm_buffer_object *bo = &buf->base;
 	struct ttm_placement placement;
 	int ret = 0;
@@ -209,13 +206,13 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *dev_priv,
 		placement = vmw_vram_placement;
 	placement.lpfn = bo->num_pages;
 
-	ret = ttm_write_lock(&vmaster->lock, interruptible);
+	ret = ttm_write_lock(&dev_priv->reservation_sem, interruptible);
 	if (unlikely(ret != 0))
 		return ret;
 
 	if (pin)
 		vmw_execbuf_release_pinned_bo(dev_priv);
-	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
+	ret = ttm_bo_reserve(bo, interruptible, false, false, NULL);
 	if (unlikely(ret != 0))
 		goto err_unlock;
 
@@ -232,7 +229,7 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *dev_priv,
 
 	ttm_bo_unreserve(bo);
 err_unlock:
-	ttm_write_unlock(&vmaster->lock);
+	ttm_write_unlock(&dev_priv->reservation_sem);
 
 	return ret;
 }
@@ -290,8 +287,7 @@ void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *bo,
 /**
  * vmw_bo_pin - Pin or unpin a buffer object without moving it.
  *
- * @bo: The buffer object. Must be reserved, and present either in VRAM
- * or GMR memory.
+ * @bo: The buffer object. Must be reserved.
  * @pin: Whether to pin or unpin.
  *
  */
@@ -303,10 +299,9 @@ void vmw_bo_pin(struct ttm_buffer_object *bo, bool pin)
 	int ret;
 
 	lockdep_assert_held(&bo->resv->lock.base);
-	BUG_ON(old_mem_type != TTM_PL_VRAM &&
-	       old_mem_type != VMW_PL_GMR);
 
-	pl_flags = TTM_PL_FLAG_VRAM | VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED;
+	pl_flags = TTM_PL_FLAG_VRAM | VMW_PL_FLAG_GMR | VMW_PL_FLAG_MOB
+		| TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED;
 	if (pin)
 		pl_flags |= TTM_PL_FLAG_NO_EVICT;
 

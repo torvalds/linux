@@ -1,6 +1,6 @@
 /*
  * NVM Express device driver
- * Copyright (c) 2011, Intel Corporation.
+ * Copyright (c) 2011-2014, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -10,10 +10,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 /*
@@ -25,6 +21,7 @@
 #include <linux/bio.h>
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
+#include <linux/compat.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -242,8 +239,6 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #define READ_CAP_16_RESP_SIZE				32
 
 /* NVMe Namespace and Command Defines */
-#define NVME_GET_SMART_LOG_PAGE				0x02
-#define NVME_GET_FEAT_TEMP_THRESH			0x04
 #define BYTES_TO_DWORDS					4
 #define NVME_MAX_FIRMWARE_SLOT				7
 
@@ -685,6 +680,7 @@ static int nvme_trans_standard_inquiry_page(struct nvme_ns *ns,
 	u8 resp_data_format = 0x02;
 	u8 protect;
 	u8 cmdque = 0x01 << 1;
+	u8 fw_offset = sizeof(dev->firmware_rev);
 
 	mem = dma_alloc_coherent(&dev->pci_dev->dev, sizeof(struct nvme_id_ns),
 				&dma_addr, GFP_KERNEL);
@@ -720,7 +716,11 @@ static int nvme_trans_standard_inquiry_page(struct nvme_ns *ns,
 	inq_response[7] = cmdque;	/* wbus16=0 | sync=0 | vs=0 */
 	strncpy(&inq_response[8], "NVMe    ", 8);
 	strncpy(&inq_response[16], dev->model, 16);
-	strncpy(&inq_response[32], dev->firmware_rev, 4);
+
+	while (dev->firmware_rev[fw_offset - 1] == ' ' && fw_offset > 4)
+		fw_offset--;
+	fw_offset -= 4;
+	strncpy(&inq_response[32], dev->firmware_rev + fw_offset, 4);
 
 	xfer_len = min(alloc_len, STANDARD_INQUIRY_LENGTH);
 	res = nvme_trans_copy_to_user(hdr, inq_response, xfer_len);
@@ -1017,8 +1017,8 @@ static int nvme_trans_log_info_exceptions(struct nvme_ns *ns,
 	c.common.opcode = nvme_admin_get_log_page;
 	c.common.nsid = cpu_to_le32(0xFFFFFFFF);
 	c.common.prp1 = cpu_to_le64(dma_addr);
-	c.common.cdw10[0] = cpu_to_le32(((sizeof(struct nvme_smart_log) /
-			BYTES_TO_DWORDS) << 16) | NVME_GET_SMART_LOG_PAGE);
+	c.common.cdw10[0] = cpu_to_le32((((sizeof(struct nvme_smart_log) /
+			BYTES_TO_DWORDS) - 1) << 16) | NVME_LOG_SMART);
 	res = nvme_submit_admin_cmd(dev, &c, NULL);
 	if (res != NVME_SC_SUCCESS) {
 		temp_c = LOG_TEMP_UNKNOWN;
@@ -1085,8 +1085,8 @@ static int nvme_trans_log_temperature(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	c.common.opcode = nvme_admin_get_log_page;
 	c.common.nsid = cpu_to_le32(0xFFFFFFFF);
 	c.common.prp1 = cpu_to_le64(dma_addr);
-	c.common.cdw10[0] = cpu_to_le32(((sizeof(struct nvme_smart_log) /
-			BYTES_TO_DWORDS) << 16) | NVME_GET_SMART_LOG_PAGE);
+	c.common.cdw10[0] = cpu_to_le32((((sizeof(struct nvme_smart_log) /
+			BYTES_TO_DWORDS) - 1) << 16) | NVME_LOG_SMART);
 	res = nvme_submit_admin_cmd(dev, &c, NULL);
 	if (res != NVME_SC_SUCCESS) {
 		temp_c_cur = LOG_TEMP_UNKNOWN;
@@ -1476,7 +1476,7 @@ static int nvme_trans_power_state(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 		goto out_dma;
 	}
 	id_ctrl = mem;
-	lowest_pow_st = id_ctrl->npss - 1;
+	lowest_pow_st = max(POWER_STATE_0, (int)(id_ctrl->npss - 1));
 
 	switch (pc) {
 	case NVME_POWER_STATE_START_VALID:
@@ -1493,20 +1493,19 @@ static int nvme_trans_power_state(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 		break;
 	case NVME_POWER_STATE_IDLE:
 		/* Action unspecified if POWER CONDITION MODIFIER != [0,1,2] */
-		/* min of desired state and (lps-1) because lps is STOP */
 		if (pcmod == 0x0)
-			ps_desired = min(POWER_STATE_1, (lowest_pow_st - 1));
+			ps_desired = POWER_STATE_1;
 		else if (pcmod == 0x1)
-			ps_desired = min(POWER_STATE_2, (lowest_pow_st - 1));
+			ps_desired = POWER_STATE_2;
 		else if (pcmod == 0x2)
-			ps_desired = min(POWER_STATE_3, (lowest_pow_st - 1));
+			ps_desired = POWER_STATE_3;
 		break;
 	case NVME_POWER_STATE_STANDBY:
 		/* Action unspecified if POWER CONDITION MODIFIER != [0,1] */
 		if (pcmod == 0x0)
-			ps_desired = max(0, (lowest_pow_st - 2));
+			ps_desired = max(POWER_STATE_0, (lowest_pow_st - 2));
 		else if (pcmod == 0x1)
-			ps_desired = max(0, (lowest_pow_st - 1));
+			ps_desired = max(POWER_STATE_0, (lowest_pow_st - 1));
 		break;
 	case NVME_POWER_STATE_LU_CONTROL:
 	default:
@@ -1561,13 +1560,14 @@ static int nvme_trans_send_fw_cmd(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 			res = PTR_ERR(iod);
 			goto out;
 		}
-		length = nvme_setup_prps(dev, &c.common, iod, tot_len,
-								GFP_KERNEL);
+		length = nvme_setup_prps(dev, iod, tot_len, GFP_KERNEL);
 		if (length != tot_len) {
 			res = -ENOMEM;
 			goto out_unmap;
 		}
 
+		c.dlfw.prp1 = cpu_to_le64(sg_dma_address(iod->sg));
+		c.dlfw.prp2 = cpu_to_le64(iod->first_dma);
 		c.dlfw.numd = cpu_to_le32((tot_len/BYTES_TO_DWORDS) - 1);
 		c.dlfw.offset = cpu_to_le32(offset/BYTES_TO_DWORDS);
 	} else if (opcode == nvme_admin_activate_fw) {
@@ -2032,7 +2032,6 @@ static int nvme_trans_do_nvme_io(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	int res = SNTI_TRANSLATION_SUCCESS;
 	int nvme_sc;
 	struct nvme_dev *dev = ns->dev;
-	struct nvme_queue *nvmeq;
 	u32 num_cmds;
 	struct nvme_iod *iod;
 	u64 unit_len;
@@ -2044,7 +2043,7 @@ static int nvme_trans_do_nvme_io(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	struct nvme_command c;
 	u8 opcode = (is_write ? nvme_cmd_write : nvme_cmd_read);
 	u16 control;
-	u32 max_blocks = nvme_block_nr(ns, dev->max_hw_sectors);
+	u32 max_blocks = queue_max_hw_sectors(ns->queue);
 
 	num_cmds = nvme_trans_io_get_num_cmds(hdr, cdb_info, max_blocks);
 
@@ -2092,8 +2091,7 @@ static int nvme_trans_do_nvme_io(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 			res = PTR_ERR(iod);
 			goto out;
 		}
-		retcode = nvme_setup_prps(dev, &c.common, iod, unit_len,
-							GFP_KERNEL);
+		retcode = nvme_setup_prps(dev, iod, unit_len, GFP_KERNEL);
 		if (retcode != unit_len) {
 			nvme_unmap_user_pages(dev,
 				(is_write) ? DMA_TO_DEVICE : DMA_FROM_DEVICE,
@@ -2102,21 +2100,12 @@ static int nvme_trans_do_nvme_io(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 			res = -ENOMEM;
 			goto out;
 		}
+		c.rw.prp1 = cpu_to_le64(sg_dma_address(iod->sg));
+		c.rw.prp2 = cpu_to_le64(iod->first_dma);
 
 		nvme_offset += unit_num_blocks;
 
-		nvmeq = get_nvmeq(dev);
-		/*
-		 * Since nvme_submit_sync_cmd sleeps, we can't keep
-		 * preemption disabled.  We may be preempted at any
-		 * point, and be rescheduled to a different CPU.  That
-		 * will cause cacheline bouncing, but no additional
-		 * races since q_lock already protects against other
-		 * CPUs.
-		 */
-		put_nvmeq(nvmeq);
-		nvme_sc = nvme_submit_sync_cmd(nvmeq, &c, NULL,
-						NVME_IO_TIMEOUT);
+		nvme_sc = nvme_submit_io_cmd(dev, &c, NULL);
 		if (nvme_sc != NVME_SC_SUCCESS) {
 			nvme_unmap_user_pages(dev,
 				(is_write) ? DMA_TO_DEVICE : DMA_FROM_DEVICE,
@@ -2643,7 +2632,6 @@ static int nvme_trans_start_stop(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 {
 	int res = SNTI_TRANSLATION_SUCCESS;
 	int nvme_sc;
-	struct nvme_queue *nvmeq;
 	struct nvme_command c;
 	u8 immed, pcmod, pc, no_flush, start;
 
@@ -2670,10 +2658,7 @@ static int nvme_trans_start_stop(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 			c.common.opcode = nvme_cmd_flush;
 			c.common.nsid = cpu_to_le32(ns->ns_id);
 
-			nvmeq = get_nvmeq(ns->dev);
-			put_nvmeq(nvmeq);
-			nvme_sc = nvme_submit_sync_cmd(nvmeq, &c, NULL, NVME_IO_TIMEOUT);
-
+			nvme_sc = nvme_submit_io_cmd(ns->dev, &c, NULL);
 			res = nvme_trans_status_code(hdr, nvme_sc);
 			if (res)
 				goto out;
@@ -2696,15 +2681,12 @@ static int nvme_trans_synchronize_cache(struct nvme_ns *ns,
 	int res = SNTI_TRANSLATION_SUCCESS;
 	int nvme_sc;
 	struct nvme_command c;
-	struct nvme_queue *nvmeq;
 
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = nvme_cmd_flush;
 	c.common.nsid = cpu_to_le32(ns->ns_id);
 
-	nvmeq = get_nvmeq(ns->dev);
-	put_nvmeq(nvmeq);
-	nvme_sc = nvme_submit_sync_cmd(nvmeq, &c, NULL, NVME_IO_TIMEOUT);
+	nvme_sc = nvme_submit_io_cmd(ns->dev, &c, NULL);
 
 	res = nvme_trans_status_code(hdr, nvme_sc);
 	if (res)
@@ -2871,7 +2853,6 @@ static int nvme_trans_unmap(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	struct nvme_dev *dev = ns->dev;
 	struct scsi_unmap_parm_list *plist;
 	struct nvme_dsm_range *range;
-	struct nvme_queue *nvmeq;
 	struct nvme_command c;
 	int i, nvme_sc, res = -ENOMEM;
 	u16 ndesc, list_len;
@@ -2913,10 +2894,7 @@ static int nvme_trans_unmap(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	c.dsm.nr = cpu_to_le32(ndesc - 1);
 	c.dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
 
-	nvmeq = get_nvmeq(dev);
-	put_nvmeq(nvmeq);
-
-	nvme_sc = nvme_submit_sync_cmd(nvmeq, &c, NULL, NVME_IO_TIMEOUT);
+	nvme_sc = nvme_submit_io_cmd(dev, &c, NULL);
 	res = nvme_trans_status_code(hdr, nvme_sc);
 
 	dma_free_coherent(&dev->pci_dev->dev, ndesc * sizeof(*range),
@@ -3037,6 +3015,152 @@ int nvme_sg_io(struct nvme_ns *ns, struct sg_io_hdr __user *u_hdr)
 
 	return retcode;
 }
+
+#ifdef CONFIG_COMPAT
+typedef struct sg_io_hdr32 {
+	compat_int_t interface_id;	/* [i] 'S' for SCSI generic (required) */
+	compat_int_t dxfer_direction;	/* [i] data transfer direction  */
+	unsigned char cmd_len;		/* [i] SCSI command length ( <= 16 bytes) */
+	unsigned char mx_sb_len;		/* [i] max length to write to sbp */
+	unsigned short iovec_count;	/* [i] 0 implies no scatter gather */
+	compat_uint_t dxfer_len;		/* [i] byte count of data transfer */
+	compat_uint_t dxferp;		/* [i], [*io] points to data transfer memory
+					      or scatter gather list */
+	compat_uptr_t cmdp;		/* [i], [*i] points to command to perform */
+	compat_uptr_t sbp;		/* [i], [*o] points to sense_buffer memory */
+	compat_uint_t timeout;		/* [i] MAX_UINT->no timeout (unit: millisec) */
+	compat_uint_t flags;		/* [i] 0 -> default, see SG_FLAG... */
+	compat_int_t pack_id;		/* [i->o] unused internally (normally) */
+	compat_uptr_t usr_ptr;		/* [i->o] unused internally */
+	unsigned char status;		/* [o] scsi status */
+	unsigned char masked_status;	/* [o] shifted, masked scsi status */
+	unsigned char msg_status;		/* [o] messaging level data (optional) */
+	unsigned char sb_len_wr;		/* [o] byte count actually written to sbp */
+	unsigned short host_status;	/* [o] errors from host adapter */
+	unsigned short driver_status;	/* [o] errors from software driver */
+	compat_int_t resid;		/* [o] dxfer_len - actual_transferred */
+	compat_uint_t duration;		/* [o] time taken by cmd (unit: millisec) */
+	compat_uint_t info;		/* [o] auxiliary information */
+} sg_io_hdr32_t;  /* 64 bytes long (on sparc32) */
+
+typedef struct sg_iovec32 {
+	compat_uint_t iov_base;
+	compat_uint_t iov_len;
+} sg_iovec32_t;
+
+static int sg_build_iovec(sg_io_hdr_t __user *sgio, void __user *dxferp, u16 iovec_count)
+{
+	sg_iovec_t __user *iov = (sg_iovec_t __user *) (sgio + 1);
+	sg_iovec32_t __user *iov32 = dxferp;
+	int i;
+
+	for (i = 0; i < iovec_count; i++) {
+		u32 base, len;
+
+		if (get_user(base, &iov32[i].iov_base) ||
+		    get_user(len, &iov32[i].iov_len) ||
+		    put_user(compat_ptr(base), &iov[i].iov_base) ||
+		    put_user(len, &iov[i].iov_len))
+			return -EFAULT;
+	}
+
+	if (put_user(iov, &sgio->dxferp))
+		return -EFAULT;
+	return 0;
+}
+
+int nvme_sg_io32(struct nvme_ns *ns, unsigned long arg)
+{
+	sg_io_hdr32_t __user *sgio32 = (sg_io_hdr32_t __user *)arg;
+	sg_io_hdr_t __user *sgio;
+	u16 iovec_count;
+	u32 data;
+	void __user *dxferp;
+	int err;
+	int interface_id;
+
+	if (get_user(interface_id, &sgio32->interface_id))
+		return -EFAULT;
+	if (interface_id != 'S')
+		return -EINVAL;
+
+	if (get_user(iovec_count, &sgio32->iovec_count))
+		return -EFAULT;
+
+	{
+		void __user *top = compat_alloc_user_space(0);
+		void __user *new = compat_alloc_user_space(sizeof(sg_io_hdr_t) +
+				       (iovec_count * sizeof(sg_iovec_t)));
+		if (new > top)
+			return -EINVAL;
+
+		sgio = new;
+	}
+
+	/* Ok, now construct.  */
+	if (copy_in_user(&sgio->interface_id, &sgio32->interface_id,
+			 (2 * sizeof(int)) +
+			 (2 * sizeof(unsigned char)) +
+			 (1 * sizeof(unsigned short)) +
+			 (1 * sizeof(unsigned int))))
+		return -EFAULT;
+
+	if (get_user(data, &sgio32->dxferp))
+		return -EFAULT;
+	dxferp = compat_ptr(data);
+	if (iovec_count) {
+		if (sg_build_iovec(sgio, dxferp, iovec_count))
+			return -EFAULT;
+	} else {
+		if (put_user(dxferp, &sgio->dxferp))
+			return -EFAULT;
+	}
+
+	{
+		unsigned char __user *cmdp;
+		unsigned char __user *sbp;
+
+		if (get_user(data, &sgio32->cmdp))
+			return -EFAULT;
+		cmdp = compat_ptr(data);
+
+		if (get_user(data, &sgio32->sbp))
+			return -EFAULT;
+		sbp = compat_ptr(data);
+
+		if (put_user(cmdp, &sgio->cmdp) ||
+		    put_user(sbp, &sgio->sbp))
+			return -EFAULT;
+	}
+
+	if (copy_in_user(&sgio->timeout, &sgio32->timeout,
+			 3 * sizeof(int)))
+		return -EFAULT;
+
+	if (get_user(data, &sgio32->usr_ptr))
+		return -EFAULT;
+	if (put_user(compat_ptr(data), &sgio->usr_ptr))
+		return -EFAULT;
+
+	err = nvme_sg_io(ns, sgio);
+	if (err >= 0) {
+		void __user *datap;
+
+		if (copy_in_user(&sgio32->pack_id, &sgio->pack_id,
+				 sizeof(int)) ||
+		    get_user(datap, &sgio->usr_ptr) ||
+		    put_user((u32)(unsigned long)datap,
+			     &sgio32->usr_ptr) ||
+		    copy_in_user(&sgio32->status, &sgio->status,
+				 (4 * sizeof(unsigned char)) +
+				 (2 * sizeof(unsigned short)) +
+				 (3 * sizeof(int))))
+			err = -EFAULT;
+	}
+
+	return err;
+}
+#endif
 
 int nvme_sg_get_version_num(int __user *ip)
 {

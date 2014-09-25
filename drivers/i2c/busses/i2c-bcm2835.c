@@ -219,40 +219,22 @@ static const struct i2c_algorithm bcm2835_i2c_algo = {
 static int bcm2835_i2c_probe(struct platform_device *pdev)
 {
 	struct bcm2835_i2c_dev *i2c_dev;
-	struct resource *mem, *requested, *irq;
+	struct resource *mem, *irq;
 	u32 bus_clk_rate, divider;
 	int ret;
 	struct i2c_adapter *adap;
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
-	if (!i2c_dev) {
-		dev_err(&pdev->dev, "Cannot allocate i2c_dev\n");
+	if (!i2c_dev)
 		return -ENOMEM;
-	}
 	platform_set_drvdata(pdev, i2c_dev);
 	i2c_dev->dev = &pdev->dev;
 	init_completion(&i2c_dev->completion);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "No mem resource\n");
-		return -ENODEV;
-	}
-
-	requested = devm_request_mem_region(&pdev->dev, mem->start,
-					    resource_size(mem),
-					    dev_name(&pdev->dev));
-	if (!requested) {
-		dev_err(&pdev->dev, "Could not claim register region\n");
-		return -EBUSY;
-	}
-
-	i2c_dev->regs = devm_ioremap(&pdev->dev, mem->start,
-				     resource_size(mem));
-	if (!i2c_dev->regs) {
-		dev_err(&pdev->dev, "Could not map registers\n");
-		return -ENOMEM;
-	}
+	i2c_dev->regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(i2c_dev->regs))
+		return PTR_ERR(i2c_dev->regs);
 
 	i2c_dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(i2c_dev->clk)) {
@@ -295,7 +277,7 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	adap = &i2c_dev->adapter;
 	i2c_set_adapdata(adap, i2c_dev);
 	adap->owner = THIS_MODULE;
-	adap->class = I2C_CLASS_HWMON;
+	adap->class = I2C_CLASS_DEPRECATED;
 	strlcpy(adap->name, "bcm2835 I2C adapter", sizeof(adap->name));
 	adap->algo = &bcm2835_i2c_algo;
 	adap->dev.parent = &pdev->dev;

@@ -1,13 +1,13 @@
 What:		/config/usb-gadget
 Date:		Jun 2013
-KenelVersion:	3.11
+KernelVersion:	3.11
 Description:
 		This group contains sub-groups corresponding to created
 		USB gadgets.
 
 What:		/config/usb-gadget/gadget
 Date:		Jun 2013
-KenelVersion:	3.11
+KernelVersion:	3.11
 Description:
 
 		The attributes of a gadget:
@@ -27,7 +27,7 @@ Description:
 
 What:		/config/usb-gadget/gadget/configs
 Date:		Jun 2013
-KenelVersion:	3.11
+KernelVersion:	3.11
 Description:
 		This group contains a USB gadget's configurations
 
@@ -58,20 +58,54 @@ Description:
 
 What:		/config/usb-gadget/gadget/functions
 Date:		Jun 2013
-KenelVersion:	3.11
+KernelVersion:	3.11
 Description:
 		This group contains functions available to this USB gadget.
 
+What:		/config/usb-gadget/gadget/functions/<func>.<inst>/interface.<n>
+Date:		May 2014
+KernelVersion:	3.16
+Description:
+		This group contains "Feature Descriptors" specific for one
+		gadget's USB interface or one interface group described
+		by an IAD.
+
+		The attributes:
+
+		compatible_id		- 8-byte string for "Compatible ID"
+		sub_compatible_id	- 8-byte string for "Sub Compatible ID"
+
+What:		/config/usb-gadget/gadget/functions/<func>.<inst>/interface.<n>/<property>
+Date:		May 2014
+KernelVersion:	3.16
+Description:
+		This group contains "Extended Property Descriptors" specific for one
+		gadget's USB interface or one interface group described
+		by an IAD.
+
+		The attributes:
+
+		type		- value 1..7 for interpreting the data
+				1: unicode string
+				2: unicode string with environment variable
+				3: binary
+				4: little-endian 32-bit
+				5: big-endian 32-bit
+				6: unicode string with a symbolic link
+				7: multiple unicode strings
+		data		- blob of data to be interpreted depending on
+				type
+
 What:		/config/usb-gadget/gadget/strings
 Date:		Jun 2013
-KenelVersion:	3.11
+KernelVersion:	3.11
 Description:
 		This group contains subdirectories for language-specific
 		strings for this gadget.
 
 What:		/config/usb-gadget/gadget/strings/language
 Date:		Jun 2013
-KenelVersion:	3.11
+KernelVersion:	3.11
 Description:
 		The attributes:
 
@@ -79,3 +113,14 @@ Description:
 		product		- gadget's product description
 		manufacturer	- gadget's manufacturer description
 
+What:		/config/usb-gadget/gadget/os_desc
+Date:		May 2014
+KernelVersion:	3.16
+Description:
+		This group contains "OS String" extension handling attributes.
+
+		use		- flag turning "OS Desctiptors" support on/off
+		b_vendor_code	- one-byte value used for custom per-device and
+				per-interface requests
+		qw_sign		- an identifier to be reported as "OS String"
+				proper

@@ -916,9 +916,6 @@ static int __svc_register(struct net *net, const char *progname,
 #endif
 	}
 
-	if (error < 0)
-		printk(KERN_WARNING "svc: failed to register %sv%u RPC "
-			"service (errno %d).\n", progname, version, -error);
 	return error;
 }
 
@@ -937,6 +934,7 @@ int svc_register(const struct svc_serv *serv, struct net *net,
 		 const unsigned short port)
 {
 	struct svc_program	*progp;
+	struct svc_version	*vers;
 	unsigned int		i;
 	int			error = 0;
 
@@ -946,7 +944,8 @@ int svc_register(const struct svc_serv *serv, struct net *net,
 
 	for (progp = serv->sv_program; progp; progp = progp->pg_next) {
 		for (i = 0; i < progp->pg_nvers; i++) {
-			if (progp->pg_vers[i] == NULL)
+			vers = progp->pg_vers[i];
+			if (vers == NULL)
 				continue;
 
 			dprintk("svc: svc_register(%sv%d, %s, %u, %u)%s\n",
@@ -955,16 +954,26 @@ int svc_register(const struct svc_serv *serv, struct net *net,
 					proto == IPPROTO_UDP?  "udp" : "tcp",
 					port,
 					family,
-					progp->pg_vers[i]->vs_hidden?
-						" (but not telling portmap)" : "");
+					vers->vs_hidden ?
+					" (but not telling portmap)" : "");
 
-			if (progp->pg_vers[i]->vs_hidden)
+			if (vers->vs_hidden)
 				continue;
 
 			error = __svc_register(net, progp->pg_name, progp->pg_prog,
 						i, family, proto, port);
-			if (error < 0)
+
+			if (vers->vs_rpcb_optnl) {
+				error = 0;
+				continue;
+			}
+
+			if (error < 0) {
+				printk(KERN_WARNING "svc: failed to register "
+					"%sv%u RPC service (errno %d).\n",
+					progp->pg_name, i, -error);
 				break;
+			}
 		}
 	}
 
@@ -1077,9 +1086,9 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		goto err_short_len;
 
 	/* Will be turned off only in gss privacy case: */
-	rqstp->rq_splice_ok = 1;
+	rqstp->rq_splice_ok = true;
 	/* Will be turned off only when NFSv4 Sessions are used */
-	rqstp->rq_usedeferral = 1;
+	rqstp->rq_usedeferral = true;
 	rqstp->rq_dropme = false;
 
 	/* Setup reply header */

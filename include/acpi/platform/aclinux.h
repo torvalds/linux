@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,13 +44,30 @@
 #ifndef __ACLINUX_H__
 #define __ACLINUX_H__
 
+#ifdef __KERNEL__
+
+/* ACPICA external files should not include ACPICA headers directly. */
+
+#if !defined(BUILDING_ACPICA) && !defined(_LINUX_ACPI_H)
+#error "Please don't include <acpi/acpi.h> directly, include <linux/acpi.h> instead."
+#endif
+
+#endif
+
 /* Common (in-kernel/user-space) ACPICA configuration */
 
 #define ACPI_USE_SYSTEM_CLIBRARY
 #define ACPI_USE_DO_WHILE_0
-#define ACPI_MUTEX_TYPE             ACPI_BINARY_SEMAPHORE
 
 #ifdef __KERNEL__
+
+#define ACPI_USE_SYSTEM_INTTYPES
+
+/* Compile for reduced hardware mode only with this kernel config */
+
+#ifdef CONFIG_ACPI_REDUCED_HARDWARE_ONLY
+#define ACPI_REDUCED_HARDWARE 1
+#endif
 
 #include <linux/string.h>
 #include <linux/kernel.h>
@@ -63,7 +80,40 @@
 #ifdef EXPORT_ACPI_INTERFACES
 #include <linux/export.h>
 #endif
-#include <asm/acpi.h>
+#ifdef CONFIG_ACPI
+#include <asm/acenv.h>
+#endif
+
+#ifndef CONFIG_ACPI
+
+/* External globals for __KERNEL__, stubs is needed */
+
+#define ACPI_GLOBAL(t,a)
+#define ACPI_INIT_GLOBAL(t,a,b)
+
+/* Generating stubs for configurable ACPICA macros */
+
+#define ACPI_NO_MEM_ALLOCATIONS
+
+/* Generating stubs for configurable ACPICA functions */
+
+#define ACPI_NO_ERROR_MESSAGES
+#undef ACPI_DEBUG_OUTPUT
+
+/* External interface for __KERNEL__, stub is needed */
+
+#define ACPI_EXTERNAL_RETURN_STATUS(prototype) \
+	static ACPI_INLINE prototype {return(AE_NOT_CONFIGURED);}
+#define ACPI_EXTERNAL_RETURN_OK(prototype) \
+	static ACPI_INLINE prototype {return(AE_OK);}
+#define ACPI_EXTERNAL_RETURN_VOID(prototype) \
+	static ACPI_INLINE prototype {return;}
+#define ACPI_EXTERNAL_RETURN_UINT32(prototype) \
+	static ACPI_INLINE prototype {return(0);}
+#define ACPI_EXTERNAL_RETURN_PTR(prototype) \
+	static ACPI_INLINE prototype {return(NULL);}
+
+#endif				/* CONFIG_ACPI */
 
 /* Host-dependent types and defines for in-kernel ACPICA */
 
@@ -75,146 +125,21 @@
 #define acpi_spinlock                       spinlock_t *
 #define acpi_cpu_flags                      unsigned long
 
-#else				/* !__KERNEL__ */
+/* Use native linux version of acpi_os_allocate_zeroed */
 
-#include <stdarg.h>
-#include <string.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <unistd.h>
-
-/* Host-dependent types and defines for user-space ACPICA */
-
-#define ACPI_FLUSH_CPU_CACHE()
-#define ACPI_CAST_PTHREAD_T(pthread) ((acpi_thread_id) (pthread))
-
-#if defined(__ia64__) || defined(__x86_64__) || defined(__aarch64__)
-#define ACPI_MACHINE_WIDTH          64
-#define COMPILER_DEPENDENT_INT64    long
-#define COMPILER_DEPENDENT_UINT64   unsigned long
-#else
-#define ACPI_MACHINE_WIDTH          32
-#define COMPILER_DEPENDENT_INT64    long long
-#define COMPILER_DEPENDENT_UINT64   unsigned long long
-#define ACPI_USE_NATIVE_DIVIDE
-#endif
-
-#ifndef __cdecl
-#define __cdecl
-#endif
-
-#endif				/* __KERNEL__ */
-
-/* Linux uses GCC */
-
-#include <acpi/platform/acgcc.h>
-
-#ifdef __KERNEL__
-
-/*
- * FIXME: Inclusion of actypes.h
- * Linux kernel need this before defining inline OSL interfaces as
- * actypes.h need to be included to find ACPICA type definitions.
- * Since from ACPICA's perspective, the actypes.h should be included after
- * acenv.h (aclinux.h), this leads to a inclusion mis-ordering issue.
- */
-#include <acpi/actypes.h>
+#define USE_NATIVE_ALLOCATE_ZEROED
 
 /*
  * Overrides for in-kernel ACPICA
  */
-acpi_status __init acpi_os_initialize(void);
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize
-
-acpi_status acpi_os_terminate(void);
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate
-
-/*
- * Memory allocation/deallocation
- */
-
-/*
- * The irqs_disabled() check is for resume from RAM.
- * Interrupts are off during resume, just like they are for boot.
- * However, boot has  (system_state != SYSTEM_RUNNING)
- * to quiet __might_sleep() in kmalloc() and resume does not.
- */
-static inline void *acpi_os_allocate(acpi_size size)
-{
-	return kmalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
-}
-
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_allocate
-
-/* Use native linux version of acpi_os_allocate_zeroed */
-
-static inline void *acpi_os_allocate_zeroed(acpi_size size)
-{
-	return kzalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
-}
-
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_allocate_zeroed
-#define USE_NATIVE_ALLOCATE_ZEROED
-
-static inline void acpi_os_free(void *memory)
-{
-	kfree(memory);
-}
-
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_free
-
-static inline void *acpi_os_acquire_object(acpi_cache_t * cache)
-{
-	return kmem_cache_zalloc(cache,
-				 irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
-}
-
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_acquire_object
-
-static inline acpi_thread_id acpi_os_get_thread_id(void)
-{
-	return (acpi_thread_id) (unsigned long)current;
-}
-
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_thread_id
-
-#ifndef CONFIG_PREEMPT
-
-/*
- * Used within ACPICA to show where it is safe to preempt execution
- * when CONFIG_PREEMPT=n
- */
-#define ACPI_PREEMPTION_POINT() \
-	do { \
-		if (!irqs_disabled()) \
-			cond_resched(); \
-	} while (0)
-
-#endif
-
-/*
- * When lockdep is enabled, the spin_lock_init() macro stringifies it's
- * argument and uses that as a name for the lock in debugging.
- * By executing spin_lock_init() in a macro the key changes from "lock" for
- * all locks to the name of the argument of acpi_os_create_lock(), which
- * prevents lockdep from reporting false positives for ACPICA locks.
- */
-#define acpi_os_create_lock(__handle) \
-	({ \
-		spinlock_t *lock = ACPI_ALLOCATE(sizeof(*lock)); \
-		if (lock) { \
-			*(__handle) = lock; \
-			spin_lock_init(*(__handle)); \
-		} \
-		lock ? AE_OK : AE_NO_MEMORY; \
-	})
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_lock
-
-void __iomem *acpi_os_map_memory(acpi_physical_address where, acpi_size length);
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_map_memory
-
-void acpi_os_unmap_memory(void __iomem * logical_address, acpi_size size);
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_unmap_memory
 
 /*
  * OSL interfaces used by debugger/disassembler
@@ -234,15 +159,45 @@ void acpi_os_unmap_memory(void __iomem * logical_address, acpi_size size);
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_next_filename
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_directory
 
-/*
- * OSL interfaces added by Linux
- */
-void early_acpi_os_unmap_memory(void __iomem * virt, acpi_size size);
+#else				/* !__KERNEL__ */
 
-void acpi_os_gpe_count(u32 gpe_number);
+#include <stdarg.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <unistd.h>
 
-void acpi_os_fixed_event_count(u32 fixed_event_number);
+/* Define/disable kernel-specific declarators */
+
+#ifndef __init
+#define __init
+#endif
+
+/* Host-dependent types and defines for user-space ACPICA */
+
+#define ACPI_FLUSH_CPU_CACHE()
+#define ACPI_CAST_PTHREAD_T(pthread) ((acpi_thread_id) (pthread))
+
+#if defined(__ia64__)    || defined(__x86_64__) ||\
+	defined(__aarch64__) || defined(__PPC64__)
+#define ACPI_MACHINE_WIDTH          64
+#define COMPILER_DEPENDENT_INT64    long
+#define COMPILER_DEPENDENT_UINT64   unsigned long
+#else
+#define ACPI_MACHINE_WIDTH          32
+#define COMPILER_DEPENDENT_INT64    long long
+#define COMPILER_DEPENDENT_UINT64   unsigned long long
+#define ACPI_USE_NATIVE_DIVIDE
+#endif
+
+#ifndef __cdecl
+#define __cdecl
+#endif
 
 #endif				/* __KERNEL__ */
+
+/* Linux uses GCC */
+
+#include <acpi/platform/acgcc.h>
 
 #endif				/* __ACLINUX_H__ */

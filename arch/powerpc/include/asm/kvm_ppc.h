@@ -41,10 +41,24 @@
 enum emulation_result {
 	EMULATE_DONE,         /* no further processing */
 	EMULATE_DO_MMIO,      /* kvm_run filled with MMIO request */
-	EMULATE_DO_DCR,       /* kvm_run filled with DCR request */
 	EMULATE_FAIL,         /* can't emulate this instruction */
 	EMULATE_AGAIN,        /* something went wrong. go again */
 	EMULATE_EXIT_USER,    /* emulation requires exit to user-space */
+};
+
+enum instruction_type {
+	INST_GENERIC,
+	INST_SC,		/* system call */
+};
+
+enum xlate_instdata {
+	XLATE_INST,		/* translate instruction address */
+	XLATE_DATA		/* translate data address */
+};
+
+enum xlate_readwrite {
+	XLATE_READ,		/* check for read permissions */
+	XLATE_WRITE		/* check for write permissions */
 };
 
 extern int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
@@ -54,15 +68,24 @@ extern void kvmppc_handler_highmem(void);
 extern void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu);
 extern int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
                               unsigned int rt, unsigned int bytes,
-                              int is_bigendian);
+			      int is_default_endian);
 extern int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
                                unsigned int rt, unsigned int bytes,
-                               int is_bigendian);
+			       int is_default_endian);
 extern int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                               u64 val, unsigned int bytes, int is_bigendian);
+			       u64 val, unsigned int bytes,
+			       int is_default_endian);
 
+extern int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
+				 enum instruction_type type, u32 *inst);
+
+extern int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
+		     bool data);
+extern int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
+		     bool data);
 extern int kvmppc_emulate_instruction(struct kvm_run *run,
                                       struct kvm_vcpu *vcpu);
+extern int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu);
 extern int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu);
 extern void kvmppc_emulate_dec(struct kvm_vcpu *vcpu);
 extern u32 kvmppc_get_dec(struct kvm_vcpu *vcpu, u64 tb);
@@ -85,6 +108,9 @@ extern gpa_t kvmppc_mmu_xlate(struct kvm_vcpu *vcpu, unsigned int gtlb_index,
                               gva_t eaddr);
 extern void kvmppc_mmu_dtlb_miss(struct kvm_vcpu *vcpu);
 extern void kvmppc_mmu_itlb_miss(struct kvm_vcpu *vcpu);
+extern int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr,
+			enum xlate_instdata xlid, enum xlate_readwrite xlrw,
+			struct kvmppc_pte *pte);
 
 extern struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm,
                                                 unsigned int id);
@@ -105,6 +131,14 @@ extern void kvmppc_core_dequeue_dec(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                        struct kvm_interrupt *irq);
 extern void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu);
+extern void kvmppc_core_queue_dtlb_miss(struct kvm_vcpu *vcpu, ulong dear_flags,
+					ulong esr_flags);
+extern void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu,
+					   ulong dear_flags,
+					   ulong esr_flags);
+extern void kvmppc_core_queue_itlb_miss(struct kvm_vcpu *vcpu);
+extern void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu,
+					   ulong esr_flags);
 extern void kvmppc_core_flush_tlb(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_check_requests(struct kvm_vcpu *vcpu);
 
@@ -128,6 +162,8 @@ extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 				struct kvm_create_spapr_tce *args);
 extern long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 			     unsigned long ioba, unsigned long tce);
+extern long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
+			     unsigned long ioba);
 extern struct kvm_rma_info *kvm_alloc_rma(void);
 extern void kvm_release_rma(struct kvm_rma_info *ri);
 extern struct page *kvm_alloc_hpt(unsigned long nr_pages);
@@ -225,11 +261,34 @@ struct kvmppc_ops {
 	void (*fast_vcpu_kick)(struct kvm_vcpu *vcpu);
 	long (*arch_vm_ioctl)(struct file *filp, unsigned int ioctl,
 			      unsigned long arg);
-
+	int (*hcall_implemented)(unsigned long hcall);
 };
 
 extern struct kvmppc_ops *kvmppc_hv_ops;
 extern struct kvmppc_ops *kvmppc_pr_ops;
+
+static inline int kvmppc_get_last_inst(struct kvm_vcpu *vcpu,
+					enum instruction_type type, u32 *inst)
+{
+	int ret = EMULATE_DONE;
+	u32 fetched_inst;
+
+	/* Load the instruction manually if it failed to do so in the
+	 * exit path */
+	if (vcpu->arch.last_inst == KVM_INST_FETCH_FAILED)
+		ret = kvmppc_load_last_inst(vcpu, type, &vcpu->arch.last_inst);
+
+	/*  Write fetch_failed unswapped if the fetch failed */
+	if (ret == EMULATE_DONE)
+		fetched_inst = kvmppc_need_byteswap(vcpu) ?
+				swab32(vcpu->arch.last_inst) :
+				vcpu->arch.last_inst;
+	else
+		fetched_inst = vcpu->arch.last_inst;
+
+	*inst = fetched_inst;
+	return ret;
+}
 
 static inline bool is_kvmppc_hv_enabled(struct kvm *kvm)
 {
@@ -334,6 +393,10 @@ static inline void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu)
 	vcpu->kvm->arch.kvm_ops->fast_vcpu_kick(vcpu);
 }
 
+extern void kvm_hv_vm_activated(void);
+extern void kvm_hv_vm_deactivated(void);
+extern bool kvm_hv_mode_active(void);
+
 #else
 static inline void __init kvm_cma_reserve(void)
 {}
@@ -353,6 +416,9 @@ static inline void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu)
 {
 	kvm_vcpu_kick(vcpu);
 }
+
+static inline bool kvm_hv_mode_active(void)		{ return false; }
+
 #endif
 
 #ifdef CONFIG_KVM_XICS
@@ -381,6 +447,17 @@ static inline int kvm_vm_ioctl_xics_irq(struct kvm *kvm,
 static inline int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
 	{ return 0; }
 #endif
+
+static inline unsigned long kvmppc_get_epr(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_KVM_BOOKE_HV
+	return mfspr(SPRN_GEPR);
+#elif defined(CONFIG_BOOKE)
+	return vcpu->arch.epr;
+#else
+	return 0;
+#endif
+}
 
 static inline void kvmppc_set_epr(struct kvm_vcpu *vcpu, u32 epr)
 {
@@ -446,6 +523,113 @@ static inline void kvmppc_mmu_flush_icache(pfn_t pfn)
 }
 
 /*
+ * Shared struct helpers. The shared struct can be little or big endian,
+ * depending on the guest endianness. So expose helpers to all of them.
+ */
+static inline bool kvmppc_shared_big_endian(struct kvm_vcpu *vcpu)
+{
+#if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_KVM_BOOK3S_PR_POSSIBLE)
+	/* Only Book3S_64 PR supports bi-endian for now */
+	return vcpu->arch.shared_big_endian;
+#elif defined(CONFIG_PPC_BOOK3S_64) && defined(__LITTLE_ENDIAN__)
+	/* Book3s_64 HV on little endian is always little endian */
+	return false;
+#else
+	return true;
+#endif
+}
+
+#define SPRNG_WRAPPER_GET(reg, bookehv_spr)				\
+static inline ulong kvmppc_get_##reg(struct kvm_vcpu *vcpu)		\
+{									\
+	return mfspr(bookehv_spr);					\
+}									\
+
+#define SPRNG_WRAPPER_SET(reg, bookehv_spr)				\
+static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, ulong val)	\
+{									\
+	mtspr(bookehv_spr, val);						\
+}									\
+
+#define SHARED_WRAPPER_GET(reg, size)					\
+static inline u##size kvmppc_get_##reg(struct kvm_vcpu *vcpu)		\
+{									\
+	if (kvmppc_shared_big_endian(vcpu))				\
+	       return be##size##_to_cpu(vcpu->arch.shared->reg);	\
+	else								\
+	       return le##size##_to_cpu(vcpu->arch.shared->reg);	\
+}									\
+
+#define SHARED_WRAPPER_SET(reg, size)					\
+static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, u##size val)	\
+{									\
+	if (kvmppc_shared_big_endian(vcpu))				\
+	       vcpu->arch.shared->reg = cpu_to_be##size(val);		\
+	else								\
+	       vcpu->arch.shared->reg = cpu_to_le##size(val);		\
+}									\
+
+#define SHARED_WRAPPER(reg, size)					\
+	SHARED_WRAPPER_GET(reg, size)					\
+	SHARED_WRAPPER_SET(reg, size)					\
+
+#define SPRNG_WRAPPER(reg, bookehv_spr)					\
+	SPRNG_WRAPPER_GET(reg, bookehv_spr)				\
+	SPRNG_WRAPPER_SET(reg, bookehv_spr)				\
+
+#ifdef CONFIG_KVM_BOOKE_HV
+
+#define SHARED_SPRNG_WRAPPER(reg, size, bookehv_spr)			\
+	SPRNG_WRAPPER(reg, bookehv_spr)					\
+
+#else
+
+#define SHARED_SPRNG_WRAPPER(reg, size, bookehv_spr)			\
+	SHARED_WRAPPER(reg, size)					\
+
+#endif
+
+SHARED_WRAPPER(critical, 64)
+SHARED_SPRNG_WRAPPER(sprg0, 64, SPRN_GSPRG0)
+SHARED_SPRNG_WRAPPER(sprg1, 64, SPRN_GSPRG1)
+SHARED_SPRNG_WRAPPER(sprg2, 64, SPRN_GSPRG2)
+SHARED_SPRNG_WRAPPER(sprg3, 64, SPRN_GSPRG3)
+SHARED_SPRNG_WRAPPER(srr0, 64, SPRN_GSRR0)
+SHARED_SPRNG_WRAPPER(srr1, 64, SPRN_GSRR1)
+SHARED_SPRNG_WRAPPER(dar, 64, SPRN_GDEAR)
+SHARED_SPRNG_WRAPPER(esr, 64, SPRN_GESR)
+SHARED_WRAPPER_GET(msr, 64)
+static inline void kvmppc_set_msr_fast(struct kvm_vcpu *vcpu, u64 val)
+{
+	if (kvmppc_shared_big_endian(vcpu))
+	       vcpu->arch.shared->msr = cpu_to_be64(val);
+	else
+	       vcpu->arch.shared->msr = cpu_to_le64(val);
+}
+SHARED_WRAPPER(dsisr, 32)
+SHARED_WRAPPER(int_pending, 32)
+SHARED_WRAPPER(sprg4, 64)
+SHARED_WRAPPER(sprg5, 64)
+SHARED_WRAPPER(sprg6, 64)
+SHARED_WRAPPER(sprg7, 64)
+
+static inline u32 kvmppc_get_sr(struct kvm_vcpu *vcpu, int nr)
+{
+	if (kvmppc_shared_big_endian(vcpu))
+	       return be32_to_cpu(vcpu->arch.shared->sr[nr]);
+	else
+	       return le32_to_cpu(vcpu->arch.shared->sr[nr]);
+}
+
+static inline void kvmppc_set_sr(struct kvm_vcpu *vcpu, int nr, u32 val)
+{
+	if (kvmppc_shared_big_endian(vcpu))
+	       vcpu->arch.shared->sr[nr] = cpu_to_be32(val);
+	else
+	       vcpu->arch.shared->sr[nr] = cpu_to_le32(val);
+}
+
+/*
  * Please call after prepare_to_enter. This function puts the lazy ee and irq
  * disabled tracking state back to normal mode, without actually enabling
  * interrupts.
@@ -455,6 +639,12 @@ static inline void kvmppc_fix_ee_before_entry(void)
 	trace_hardirqs_on();
 
 #ifdef CONFIG_PPC64
+	/*
+	 * To avoid races, the caller must have gone directly from having
+	 * interrupts fully-enabled to hard-disabled.
+	 */
+	WARN_ON(local_paca->irq_happened != PACA_IRQ_HARD_DIS);
+
 	/* Only need to enable IRQs by hard enabling them after this */
 	local_paca->irq_happened = 0;
 	local_paca->soft_enabled = 1;
@@ -476,7 +666,7 @@ static inline ulong kvmppc_get_ea_indexed(struct kvm_vcpu *vcpu, int ra, int rb)
 	msr_64bit = MSR_SF;
 #endif
 
-	if (!(vcpu->arch.shared->msr & msr_64bit))
+	if (!(kvmppc_get_msr(vcpu) & msr_64bit))
 		ea = (uint32_t)ea;
 
 	return ea;

@@ -68,7 +68,7 @@ static int pwm_beeper_event(struct input_dev *input,
 
 static int pwm_beeper_probe(struct platform_device *pdev)
 {
-	unsigned long pwm_id = (unsigned long)pdev->dev.platform_data;
+	unsigned long pwm_id = (unsigned long)dev_get_platdata(&pdev->dev);
 	struct pwm_beeper *beeper;
 	int error;
 

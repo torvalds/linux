@@ -28,8 +28,8 @@ use IO::Handle;
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
 		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5",
-		"drxk_hauppauge_hvr930c", "tda10071", "it9135", "it9137",
-		"drxk_pctv", "drxk_terratec_htc_stick", "sms1xxx_hcw");
+		"drxk_hauppauge_hvr930c", "tda10071", "it9135", "drxk_pctv",
+		"drxk_terratec_htc_stick", "sms1xxx_hcw", "si2165");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -727,24 +727,6 @@ sub it9135 {
 	"$fwfile1 $fwfile2"
 }
 
-sub it9137 {
-    my $url = "http://kworld.server261.com/kworld/CD/ITE_TiVme/V1.00/";
-    my $zipfile = "Driver_V10.323.1.0412.100412.zip";
-    my $hash = "79b597dc648698ed6820845c0c9d0d37";
-    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);
-    my $drvfile = "Driver_V10.323.1.0412.100412/Data/x86/IT9135BDA.sys";
-    my $fwfile = "dvb-usb-it9137-01.fw";
-
-    checkstandard();
-
-    wgetfile($zipfile, $url . $zipfile);
-    verify($zipfile, $hash);
-    unzip($zipfile, $tmpdir);
-    extract("$tmpdir/$drvfile", 69632, 5731, "$fwfile");
-
-    "$fwfile"
-}
-
 sub tda10071 {
     my $sourcefile = "PCTV_460e_reference.zip";
     my $url = "ftp://ftp.pctvsystems.com/TV/driver/PCTV%2070e%2080e%20100e%20320e%20330e%20800e/";
@@ -799,6 +781,37 @@ sub sms1xxx_hcw {
     $allfiles =~ s/^\s//;
 
     $allfiles;
+}
+
+sub si2165 {
+    my $sourcefile = "model_111xxx_122xxx_driver_6_0_119_31191_WHQL.zip";
+    my $url = "http://www.hauppauge.de/files/drivers/";
+    my $hash = "76633e7c76b0edee47c3ba18ded99336";
+    my $fwfile = "dvb-demod-si2165.fw";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+
+    checkstandard();
+
+    wgetfile($sourcefile, $url . $sourcefile);
+    verify($sourcefile, $hash);
+    unzip($sourcefile, $tmpdir);
+    extract("$tmpdir/Driver10/Hcw10bda.sys", 0x80788, 0x81E08-0x80788, "$tmpdir/fw1");
+
+    delzero("$tmpdir/fw1","$tmpdir/fw1-1");
+    #verify("$tmpdir/fw1","5e0909858fdf0b5b09ad48b9fe622e70");
+
+    my $CRC="\x0A\xCC";
+    my $BLOCKS_MAIN="\x27";
+    open FW,">$fwfile";
+    print FW "\x01\x00"; # just a version id for the driver itself
+    print FW "\x9A"; # fw version
+    print FW "\x00"; # padding
+    print FW "$BLOCKS_MAIN"; # number of blocks of main part
+    print FW "\x00"; # padding
+    print FW "$CRC"; # 16bit crc value of main part
+    appendfile(FW,"$tmpdir/fw1");
+
+    "$fwfile";
 }
 
 # ---------------------------------------------------------------

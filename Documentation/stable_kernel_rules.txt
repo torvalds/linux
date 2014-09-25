@@ -29,6 +29,9 @@ Rules on what kind of patches are accepted, and which ones are not, into the
 
 Procedure for submitting patches to the -stable tree:
 
+ - If the patch covers files in net/ or drivers/net please follow netdev stable
+   submission guidelines as described in
+   Documentation/networking/netdev-FAQ.txt
  - Send the patch, after verifying that it follows the above rules, to
    stable@vger.kernel.org.  You must note the upstream commit ID in the
    changelog of your submission, as well as the kernel version you wish
@@ -39,7 +42,7 @@ Procedure for submitting patches to the -stable tree:
    the stable tree without anything else needing to be done by the author
    or subsystem maintainer.
  - If the patch requires other patches as prerequisites which can be
-   cherry-picked than this can be specified in the following format in
+   cherry-picked, then this can be specified in the following format in
    the sign-off area:
 
      Cc: <stable@vger.kernel.org> # 3.3.x: a1f84a3: sched: Check for idle

@@ -496,7 +496,7 @@ void hostap_init_proc(local_info_t *local)
 
 void hostap_remove_proc(local_info_t *local)
 {
-	remove_proc_subtree(local->ddev->name, hostap_proc);
+	proc_remove(local->proc);
 }
 
 

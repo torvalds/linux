@@ -1,0 +1,19 @@
+/*
+ * Copyright 2013 Gateworks Corporation
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include "imx6dl.dtsi"
+#include "imx6qdl-gw51xx.dtsi"
+
+/ {
+	model = "Gateworks Ventana i.MX6 DualLite/Solo GW51XX";
+	compatible = "gw,imx6dl-gw51xx", "gw,ventana", "fsl,imx6dl";
+};

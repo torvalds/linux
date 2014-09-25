@@ -190,7 +190,7 @@ void kvm_arch_check_processor_compat(void *rtn)
 	*(int *)rtn = 0;
 }
 
-int kvm_dev_ioctl_check_extension(long ext)
+int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 
 	int r;
@@ -199,6 +199,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_IRQCHIP:
 	case KVM_CAP_MP_STATE:
 	case KVM_CAP_IRQ_INJECT_STATUS:
+	case KVM_CAP_IOAPIC_POLARITY_IGNORED:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:

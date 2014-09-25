@@ -23,7 +23,6 @@
  */
 
 #include <core/os.h>
-#include <core/class.h>
 #include <core/engctx.h>
 
 #include <subdev/vm.h>

@@ -695,7 +695,7 @@ static void csi2_isr_buffer(struct isp_csi2_device *csi2)
 	if (buffer == NULL)
 		return;
 
-	csi2_set_outaddr(csi2, buffer->isp_addr);
+	csi2_set_outaddr(csi2, buffer->dma);
 	csi2_ctx_enable(isp, csi2, 0, 1);
 }
 
@@ -812,7 +812,7 @@ static int csi2_queue(struct isp_video *video, struct isp_buffer *buffer)
 	struct isp_device *isp = video->isp;
 	struct isp_csi2_device *csi2 = &isp->isp_csi2a;
 
-	csi2_set_outaddr(csi2, buffer->isp_addr);
+	csi2_set_outaddr(csi2, buffer->dma);
 
 	/*
 	 * If streaming was enabled before there was a buffer queued
@@ -1245,7 +1245,8 @@ static int csi2_init_entities(struct isp_csi2_device *csi2)
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	pads[CSI2_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
-	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK
+				    | MEDIA_PAD_FL_MUST_CONNECT;
 
 	me->ops = &csi2_media_ops;
 	ret = media_entity_init(me, CSI2_PADS_NUM, pads, 0);

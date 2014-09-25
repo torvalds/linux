@@ -205,10 +205,10 @@ struct kretprobe_blackpoint {
 	void *addr;
 };
 
-struct kprobe_blackpoint {
-	const char *name;
+struct kprobe_blacklist_entry {
+	struct list_head list;
 	unsigned long start_addr;
-	unsigned long range;
+	unsigned long end_addr;
 };
 
 #ifdef CONFIG_KPROBES
@@ -265,6 +265,7 @@ extern void arch_disarm_kprobe(struct kprobe *p);
 extern int arch_init_kprobes(void);
 extern void show_registers(struct pt_regs *regs);
 extern void kprobes_inc_nmissed_count(struct kprobe *p);
+extern bool arch_within_kprobe_blacklist(unsigned long addr);
 
 struct kprobe_insn_cache {
 	struct mutex mutex;
@@ -355,7 +356,7 @@ static inline void reset_current_kprobe(void)
 
 static inline struct kprobe_ctlblk *get_kprobe_ctlblk(void)
 {
-	return (&__get_cpu_var(kprobe_ctlblk));
+	return this_cpu_ptr(&kprobe_ctlblk);
 }
 
 int register_kprobe(struct kprobe *p);
@@ -475,5 +476,19 @@ static inline int enable_jprobe(struct jprobe *jp)
 {
 	return enable_kprobe(&jp->kp);
 }
+
+#ifdef CONFIG_KPROBES
+/*
+ * Blacklist ganerating macro. Specify functions which is not probed
+ * by using this macro.
+ */
+#define __NOKPROBE_SYMBOL(fname)			\
+static unsigned long __used				\
+	__attribute__((section("_kprobe_blacklist")))	\
+	_kbl_addr_##fname = (unsigned long)fname;
+#define NOKPROBE_SYMBOL(fname)	__NOKPROBE_SYMBOL(fname)
+#else
+#define NOKPROBE_SYMBOL(fname)
+#endif
 
 #endif /* _LINUX_KPROBES_H */

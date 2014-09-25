@@ -58,7 +58,7 @@ static void chsc_subchannel_irq(struct subchannel *sch)
 {
 	struct chsc_private *private = dev_get_drvdata(&sch->dev);
 	struct chsc_request *request = private->request;
-	struct irb *irb = (struct irb *)&S390_lowcore.irb;
+	struct irb *irb = &__get_cpu_var(cio_irb);
 
 	CHSC_LOG(4, "irb");
 	CHSC_LOG_HEX(4, irb, sizeof(*irb));
@@ -173,8 +173,7 @@ static struct css_driver chsc_subchannel_driver = {
 
 static int __init chsc_init_dbfs(void)
 {
-	chsc_debug_msg_id = debug_register("chsc_msg", 16, 1,
-					   16 * sizeof(long));
+	chsc_debug_msg_id = debug_register("chsc_msg", 8, 1, 4 * sizeof(long));
 	if (!chsc_debug_msg_id)
 		goto out;
 	debug_register_view(chsc_debug_msg_id, &debug_sprintf_view);

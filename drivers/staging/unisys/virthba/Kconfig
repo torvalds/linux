@@ -1,0 +1,10 @@
+#
+# Unisys virthba configuration
+#
+
+config UNISYS_VIRTHBA
+	tristate "Unisys virthba driver"
+	depends on UNISYSSPAR && UNISYS_VISORCHIPSET && UNISYS_CHANNELSTUB && UNISYS_UISLIB && UNISYS_VIRTPCI && SCSI
+	---help---
+	If you say Y here, you will enable the Unisys virthba driver.
+

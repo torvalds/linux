@@ -81,8 +81,9 @@ struct ceph_pg_v1 {
  */
 #define CEPH_NOPOOL  ((__u64) (-1))  /* pool id not defined */
 
-#define CEPH_PG_TYPE_REP     1
-#define CEPH_PG_TYPE_RAID4   2
+#define CEPH_POOL_TYPE_REP     1
+#define CEPH_POOL_TYPE_RAID4   2 /* never implemented */
+#define CEPH_POOL_TYPE_EC      3
 
 /*
  * stable_mod func is used to control number of placement groups.
@@ -132,6 +133,10 @@ extern const char *ceph_osd_state_name(int s);
 /* osd weights.  fixed point value: 0x10000 == 1.0 ("in"), 0 == "out" */
 #define CEPH_OSD_IN  0x10000
 #define CEPH_OSD_OUT 0
+
+/* osd primary-affinity.  fixed point value: 0x10000 == baseline */
+#define CEPH_OSD_MAX_PRIMARY_AFFINITY 0x10000
+#define CEPH_OSD_DEFAULT_PRIMARY_AFFINITY 0x10000
 
 
 /*
@@ -226,6 +231,9 @@ enum {
 	CEPH_OSD_OP_OMAPCLEAR     = CEPH_OSD_OP_MODE_WR | CEPH_OSD_OP_TYPE_DATA | 23,
 	CEPH_OSD_OP_OMAPRMKEYS    = CEPH_OSD_OP_MODE_WR | CEPH_OSD_OP_TYPE_DATA | 24,
 	CEPH_OSD_OP_OMAP_CMP      = CEPH_OSD_OP_MODE_RD | CEPH_OSD_OP_TYPE_DATA | 25,
+
+	/* hints */
+	CEPH_OSD_OP_SETALLOCHINT = CEPH_OSD_OP_MODE_WR | CEPH_OSD_OP_TYPE_DATA | 35,
 
 	/** multi **/
 	CEPH_OSD_OP_CLONERANGE = CEPH_OSD_OP_MODE_WR | CEPH_OSD_OP_TYPE_MULTI | 1,
@@ -344,6 +352,10 @@ enum {
 	CEPH_OSD_FLAG_EXEC_PUBLIC =    0x1000,  /* DEPRECATED op may exec (public) */
 	CEPH_OSD_FLAG_LOCALIZE_READS = 0x2000,  /* read from nearby replica, if any */
 	CEPH_OSD_FLAG_RWORDERED =      0x4000,  /* order wrt concurrent reads */
+	CEPH_OSD_FLAG_IGNORE_CACHE =   0x8000,  /* ignore cache logic */
+	CEPH_OSD_FLAG_SKIPRWLOCKS =   0x10000,  /* skip rw locks */
+	CEPH_OSD_FLAG_IGNORE_OVERLAY = 0x20000, /* ignore pool overlay */
+	CEPH_OSD_FLAG_FLUSH =         0x40000,  /* this is part of flush */
 };
 
 enum {
@@ -378,7 +390,7 @@ enum {
  */
 struct ceph_osd_op {
 	__le16 op;           /* CEPH_OSD_OP_* */
-	__le32 flags;        /* CEPH_OSD_FLAG_* */
+	__le32 flags;        /* CEPH_OSD_OP_FLAG_* */
 	union {
 		struct {
 			__le64 offset, length;
@@ -412,6 +424,10 @@ struct ceph_osd_op {
 			__le64 offset, length;
 			__le64 src_offset;
 		} __attribute__ ((packed)) clonerange;
+		struct {
+			__le64 expected_object_size;
+			__le64 expected_write_size;
+		} __attribute__ ((packed)) alloc_hint;
 	};
 	__le32 payload_len;
 } __attribute__ ((packed));

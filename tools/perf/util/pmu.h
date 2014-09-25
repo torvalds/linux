@@ -1,7 +1,7 @@
 #ifndef __PMU_H
 #define __PMU_H
 
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/perf_event.h>
 #include <stdbool.h>
 
@@ -29,7 +29,7 @@ int perf_pmu__config_terms(struct list_head *formats,
 			   struct perf_event_attr *attr,
 			   struct list_head *head_terms);
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
-			  char **unit, double *scale);
+			  const char **unit, double *scale);
 struct list_head *perf_pmu__alias(struct perf_pmu *pmu,
 				  struct list_head *head_terms);
 int perf_pmu_wrap(void);

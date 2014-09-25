@@ -2998,37 +2998,6 @@ static void abx500_get_regulator_info(struct ab8500 *ab8500)
 	}
 }
 
-static int ab8500_regulator_init_registers(struct platform_device *pdev,
-					   int id, int mask, int value)
-{
-	struct ab8500_reg_init *reg_init = abx500_regulator.init;
-	int err;
-
-	BUG_ON(value & ~mask);
-	BUG_ON(mask & ~reg_init[id].mask);
-
-	/* initialize register */
-	err = abx500_mask_and_set_register_interruptible(
-		&pdev->dev,
-		reg_init[id].bank,
-		reg_init[id].addr,
-		mask, value);
-	if (err < 0) {
-		dev_err(&pdev->dev,
-			"Failed to initialize 0x%02x, 0x%02x.\n",
-			reg_init[id].bank,
-			reg_init[id].addr);
-		return err;
-	}
-	dev_vdbg(&pdev->dev,
-		 "  init: 0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
-		 reg_init[id].bank,
-		 reg_init[id].addr,
-		 mask, value);
-
-	return 0;
-}
-
 static int ab8500_regulator_register(struct platform_device *pdev,
 				     struct regulator_init_data *init_data,
 				     int id, struct device_node *np)
@@ -3036,7 +3005,6 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_regulator_info *info = NULL;
 	struct regulator_config config = { };
-	int err;
 
 	/* assign per-regulator data */
 	info = &abx500_regulator.info[id];
@@ -3058,34 +3026,12 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 	}
 
 	/* register regulator with framework */
-	info->regulator = regulator_register(&info->desc, &config);
+	info->regulator = devm_regulator_register(&pdev->dev, &info->desc,
+						&config);
 	if (IS_ERR(info->regulator)) {
-		err = PTR_ERR(info->regulator);
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);
-		/* when we fail, un-register all earlier regulators */
-		while (--id >= 0) {
-			info = &abx500_regulator.info[id];
-			regulator_unregister(info->regulator);
-		}
-		return err;
-	}
-
-	return 0;
-}
-
-static int
-ab8500_regulator_of_probe(struct platform_device *pdev,
-			  struct device_node *np)
-{
-	struct of_regulator_match *match = abx500_regulator.match;
-	int err, i;
-
-	for (i = 0; i < abx500_regulator.info_size; i++) {
-		err = ab8500_regulator_register(
-			pdev, match[i].init_data, i, match[i].of_node);
-		if (err)
-			return err;
+		return PTR_ERR(info->regulator);
 	}
 
 	return 0;
@@ -3095,9 +3041,8 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *np = pdev->dev.of_node;
-	struct ab8500_platform_data *ppdata;
-	struct ab8500_regulator_platform_data *pdata;
-	int i, err;
+	struct of_regulator_match *match;
+	int err, i;
 
 	if (!ab8500) {
 		dev_err(&pdev->dev, "null mfd parent\n");
@@ -3106,95 +3051,28 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 
 	abx500_get_regulator_info(ab8500);
 
-	if (np) {
-		err = of_regulator_match(&pdev->dev, np,
-					 abx500_regulator.match,
-					 abx500_regulator.match_size);
-		if (err < 0) {
-			dev_err(&pdev->dev,
-				"Error parsing regulator init data: %d\n", err);
-			return err;
-		}
-
-		err = ab8500_regulator_of_probe(pdev, np);
+	err = of_regulator_match(&pdev->dev, np,
+				 abx500_regulator.match,
+				 abx500_regulator.match_size);
+	if (err < 0) {
+		dev_err(&pdev->dev,
+			"Error parsing regulator init data: %d\n", err);
 		return err;
 	}
 
-	ppdata = dev_get_platdata(ab8500->dev);
-	if (!ppdata) {
-		dev_err(&pdev->dev, "null parent pdata\n");
-		return -EINVAL;
-	}
-
-	pdata = ppdata->regulator;
-	if (!pdata) {
-		dev_err(&pdev->dev, "null pdata\n");
-		return -EINVAL;
-	}
-
-	/* make sure the platform data has the correct size */
-	if (pdata->num_regulator != abx500_regulator.info_size) {
-		dev_err(&pdev->dev, "Configuration error: size mismatch.\n");
-		return -EINVAL;
-	}
-
-	/* initialize debug (initial state is recorded with this call) */
-	err = ab8500_regulator_debug_init(pdev);
-	if (err)
-		return err;
-
-	/* initialize registers */
-	for (i = 0; i < pdata->num_reg_init; i++) {
-		int id, mask, value;
-
-		id = pdata->reg_init[i].id;
-		mask = pdata->reg_init[i].mask;
-		value = pdata->reg_init[i].value;
-
-		/* check for configuration errors */
-		BUG_ON(id >= abx500_regulator.init_size);
-
-		err = ab8500_regulator_init_registers(pdev, id, mask, value);
-		if (err < 0)
-			return err;
-	}
-
-	/* register all regulators */
+	match = abx500_regulator.match;
 	for (i = 0; i < abx500_regulator.info_size; i++) {
-		err = ab8500_regulator_register(pdev, &pdata->regulator[i],
-						i, NULL);
-		if (err < 0)
+		err = ab8500_regulator_register(pdev, match[i].init_data, i,
+						match[i].of_node);
+		if (err)
 			return err;
 	}
-
-	return 0;
-}
-
-static int ab8500_regulator_remove(struct platform_device *pdev)
-{
-	int i, err;
-
-	for (i = 0; i < abx500_regulator.info_size; i++) {
-		struct ab8500_regulator_info *info = NULL;
-		info = &abx500_regulator.info[i];
-
-		dev_vdbg(rdev_get_dev(info->regulator),
-			"%s-remove\n", info->desc.name);
-
-		regulator_unregister(info->regulator);
-	}
-
-	/* remove regulator debug */
-	err = ab8500_regulator_debug_exit(pdev);
-	if (err)
-		return err;
 
 	return 0;
 }
 
 static struct platform_driver ab8500_regulator_driver = {
 	.probe = ab8500_regulator_probe,
-	.remove = ab8500_regulator_remove,
 	.driver         = {
 		.name   = "ab8500-regulator",
 		.owner  = THIS_MODULE,

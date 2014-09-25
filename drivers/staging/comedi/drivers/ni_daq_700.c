@@ -18,32 +18,34 @@
  */
 
 /*
-Driver: ni_daq_700
-Description: National Instruments PCMCIA DAQCard-700 DIO only
-Author: Fred Brooks <nsaspook@nsaspook.com>,
-  based on ni_daq_dio24 by Daniel Vecino Castel <dvecino@able.es>
-Devices: [National Instruments] PCMCIA DAQ-Card-700 (ni_daq_700)
-Status: works
-Updated: Wed, 19 Sep 2012 12:07:20 +0000
-
-The daqcard-700 appears in Comedi as a  digital I/O subdevice (0) with
-16 channels and a analog input subdevice (1) with 16 single-ended channels.
-
-Digital:  The channel 0 corresponds to the daqcard-700's output
-port, bit 0; channel 8 corresponds to the input port, bit 0.
-
-Digital direction configuration: channels 0-7 output, 8-15 input (8225 device
-emu as port A output, port B input, port C N/A).
-
-Analog: The input  range is 0 to 4095 for -10 to +10 volts
-IRQ is assigned but not used.
-
-Version 0.1	Original DIO only driver
-Version 0.2	DIO and basic AI analog input support on 16 se channels
-
-Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
-		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
-*/
+ * Driver: ni_daq_700
+ * Description: National Instruments PCMCIA DAQCard-700
+ * Author: Fred Brooks <nsaspook@nsaspook.com>,
+ *   based on ni_daq_dio24 by Daniel Vecino Castel <dvecino@able.es>
+ * Devices: [National Instruments] PCMCIA DAQ-Card-700 (ni_daq_700)
+ * Status: works
+ * Updated: Wed, 21 May 2014 12:07:20 +0000
+ *
+ * The daqcard-700 appears in Comedi as a  digital I/O subdevice (0) with
+ * 16 channels and a analog input subdevice (1) with 16 single-ended channels
+ * or 8 differential channels, and three input ranges.
+ *
+ * Digital:  The channel 0 corresponds to the daqcard-700's output
+ * port, bit 0; channel 8 corresponds to the input port, bit 0.
+ *
+ * Digital direction configuration: channels 0-7 output, 8-15 input.
+ *
+ * Analog: The input  range is 0 to 4095 with a default of -10 to +10 volts.
+ * Valid ranges:
+ *       0 for -10 to 10V bipolar
+ *       1 for -5 to 5V bipolar
+ *       2 for -2.5 to 2.5V bipolar
+ *
+ * IRQ is assigned but not used.
+ *
+ * Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
+ *		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -69,6 +71,17 @@ Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
 #define CDA_R2		0x0A	/* RW 8bit */
 #define CMO_R		0x0B	/* RO 8bit */
 #define TIC_R		0x06	/* WO 8bit */
+/* daqcard700 modes */
+#define CMD_R3_DIFF     0x04    /* diff mode */
+
+static const struct comedi_lrange range_daq700_ai = {
+	3,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5)
+	}
+};
 
 static int daq700_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
@@ -109,51 +122,66 @@ static int daq700_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int daq700_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + STA_R2);
+	if ((status & 0x03))
+		return -EOVERFLOW;
+	status = inb(dev->iobase + STA_R1);
+	if ((status & 0x02))
+		return -ENODATA;
+	if ((status & 0x11) == 0x01)
+		return 0;
+	return -EBUSY;
+}
+
 static int daq700_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s,
 			   struct comedi_insn *insn, unsigned int *data)
 {
-	int n, i, chan;
+	int n;
 	int d;
-	unsigned int status;
-	enum { TIMEOUT = 100 };
+	int ret;
+	unsigned int chan	= CR_CHAN(insn->chanspec);
+	unsigned int aref	= CR_AREF(insn->chanspec);
+	unsigned int range	= CR_RANGE(insn->chanspec);
+	unsigned int r3_bits	= 0;
 
-	chan = CR_CHAN(insn->chanspec);
+	/* set channel input modes */
+	if (aref == AREF_DIFF)
+		r3_bits |= CMD_R3_DIFF;
+	/* write channel mode/range */
+	if (range >= 1)
+		range++;        /* convert range to hardware value */
+	outb(r3_bits | (range & 0x03), dev->iobase + CMD_R3);
+
 	/* write channel to multiplexer */
 	/* set mask scan bit high to disable scanning */
 	outb(chan | 0x80, dev->iobase + CMD_R1);
+	/* mux needs 2us to really settle [Fred Brooks]. */
+	udelay(2);
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion with out0 L to H */
 		outb(0x00, dev->iobase + CMD_R2); /* enable ADC conversions */
 		outb(0x30, dev->iobase + CMO_R); /* mode 0 out0 L, from H */
+		outb(0x00, dev->iobase + ADCLEAR_R);	/* clear the ADC FIFO */
+		/* read 16bit junk from FIFO to clear */
+		inw(dev->iobase + ADFIFO_R);
 		/* mode 1 out0 H, L to H, start conversion */
 		outb(0x32, dev->iobase + CMO_R);
+
 		/* wait for conversion to end */
-		for (i = 0; i < TIMEOUT; i++) {
-			status = inb(dev->iobase + STA_R2);
-			if ((status & 0x03) != 0) {
-				dev_info(dev->class_dev,
-					 "Overflow/run Error\n");
-				return -EOVERFLOW;
-			}
-			status = inb(dev->iobase + STA_R1);
-			if ((status & 0x02) != 0) {
-				dev_info(dev->class_dev, "Data Error\n");
-				return -ENODATA;
-			}
-			if ((status & 0x11) == 0x01) {
-				/* ADC conversion complete */
-				break;
-			}
-			udelay(1);
-		}
-		if (i == TIMEOUT) {
-			dev_info(dev->class_dev,
-				 "timeout during ADC conversion\n");
-			return -ETIMEDOUT;
-		}
+		ret = comedi_timeout(dev, s, insn, daq700_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		/* read data */
 		d = inw(dev->iobase + ADFIFO_R);
 		/* mangle the data as necessary */
@@ -221,18 +249,12 @@ static int daq700_auto_attach(struct comedi_device *dev,
 	/* DAQCard-700 ai */
 	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_AI;
-	/* we support single-ended (ground)  */
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan = 16;
 	s->maxdata = (1 << 12) - 1;
-	s->range_table = &range_bipolar10;
+	s->range_table = &range_daq700_ai;
 	s->insn_read = daq700_ai_rinsn;
 	daq700_ai_config(dev, s);
-
-	dev_info(dev->class_dev, "%s: %s, io 0x%lx\n",
-		dev->driver->driver_name,
-		dev->board_name,
-		dev->iobase);
 
 	return 0;
 }
@@ -267,5 +289,4 @@ module_comedi_pcmcia_driver(daq700_driver, daq700_cs_driver);
 MODULE_AUTHOR("Fred Brooks <nsaspook@nsaspook.com>");
 MODULE_DESCRIPTION(
 	"Comedi driver for National Instruments PCMCIA DAQCard-700 DIO/AI");
-MODULE_VERSION("0.2.00");
 MODULE_LICENSE("GPL");

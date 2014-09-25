@@ -226,6 +226,15 @@ cifs_small_buf_release(void *buf_to_free)
 	return;
 }
 
+void
+free_rsp_buf(int resp_buftype, void *rsp)
+{
+	if (resp_buftype == CIFS_SMALL_BUFFER)
+		cifs_small_buf_release(rsp);
+	else if (resp_buftype == CIFS_LARGE_BUFFER)
+		cifs_buf_release(rsp);
+}
+
 /* NB: MID can not be set if treeCon not passed in, in that
    case it is responsbility of caller to set the mid */
 void
@@ -414,7 +423,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 			return true;
 		}
 		if (pSMBr->hdr.Status.CifsError) {
-			cifs_dbg(FYI, "notify err 0x%d\n",
+			cifs_dbg(FYI, "notify err 0x%x\n",
 				 pSMBr->hdr.Status.CifsError);
 			return true;
 		}
@@ -441,7 +450,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 	if (pSMB->hdr.WordCount != 8)
 		return false;
 
-	cifs_dbg(FYI, "oplock type 0x%d level 0x%d\n",
+	cifs_dbg(FYI, "oplock type 0x%x level 0x%x\n",
 		 pSMB->LockType, pSMB->OplockLevel);
 	if (!(pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE))
 		return false;
@@ -466,8 +475,22 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 				cifs_dbg(FYI, "file id match, oplock break\n");
 				pCifsInode = CIFS_I(netfile->dentry->d_inode);
 
-				cifs_set_oplock_level(pCifsInode,
-					pSMB->OplockLevel ? OPLOCK_READ : 0);
+				set_bit(CIFS_INODE_PENDING_OPLOCK_BREAK,
+					&pCifsInode->flags);
+
+				/*
+				 * Set flag if the server downgrades the oplock
+				 * to L2 else clear.
+				 */
+				if (pSMB->OplockLevel)
+					set_bit(
+					   CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2,
+					   &pCifsInode->flags);
+				else
+					clear_bit(
+					   CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2,
+					   &pCifsInode->flags);
+
 				queue_work(cifsiod_wq,
 					   &netfile->oplock_break);
 				netfile->oplock_break_cancelled = false;
@@ -549,6 +572,55 @@ void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
 			 &cinode->vfs_inode);
 	} else
 		cinode->oplock = 0;
+}
+
+/*
+ * We wait for oplock breaks to be processed before we attempt to perform
+ * writes.
+ */
+int cifs_get_writer(struct cifsInodeInfo *cinode)
+{
+	int rc;
+
+start:
+	rc = wait_on_bit(&cinode->flags, CIFS_INODE_PENDING_OPLOCK_BREAK,
+			 TASK_KILLABLE);
+	if (rc)
+		return rc;
+
+	spin_lock(&cinode->writers_lock);
+	if (!cinode->writers)
+		set_bit(CIFS_INODE_PENDING_WRITERS, &cinode->flags);
+	cinode->writers++;
+	/* Check to see if we have started servicing an oplock break */
+	if (test_bit(CIFS_INODE_PENDING_OPLOCK_BREAK, &cinode->flags)) {
+		cinode->writers--;
+		if (cinode->writers == 0) {
+			clear_bit(CIFS_INODE_PENDING_WRITERS, &cinode->flags);
+			wake_up_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS);
+		}
+		spin_unlock(&cinode->writers_lock);
+		goto start;
+	}
+	spin_unlock(&cinode->writers_lock);
+	return 0;
+}
+
+void cifs_put_writer(struct cifsInodeInfo *cinode)
+{
+	spin_lock(&cinode->writers_lock);
+	cinode->writers--;
+	if (cinode->writers == 0) {
+		clear_bit(CIFS_INODE_PENDING_WRITERS, &cinode->flags);
+		wake_up_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS);
+	}
+	spin_unlock(&cinode->writers_lock);
+}
+
+void cifs_done_oplock_break(struct cifsInodeInfo *cinode)
+{
+	clear_bit(CIFS_INODE_PENDING_OPLOCK_BREAK, &cinode->flags);
+	wake_up_bit(&cinode->flags, CIFS_INODE_PENDING_OPLOCK_BREAK);
 }
 
 bool

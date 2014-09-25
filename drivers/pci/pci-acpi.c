@@ -12,40 +12,37 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/pci-aspm.h>
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
-
 #include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
 #include "pci.h"
 
 /**
- * pci_acpi_wake_bus - Wake-up notification handler for root buses.
- * @handle: ACPI handle of a device the notification is for.
- * @event: Type of the signaled event.
- * @context: PCI root bus to wake up devices on.
+ * pci_acpi_wake_bus - Root bus wakeup notification fork function.
+ * @work: Work item to handle.
  */
-static void pci_acpi_wake_bus(acpi_handle handle, u32 event, void *context)
+static void pci_acpi_wake_bus(struct work_struct *work)
 {
-	struct pci_bus *pci_bus = context;
+	struct acpi_device *adev;
+	struct acpi_pci_root *root;
 
-	if (event == ACPI_NOTIFY_DEVICE_WAKE && pci_bus)
-		pci_pme_wakeup_bus(pci_bus);
+	adev = container_of(work, struct acpi_device, wakeup.context.work);
+	root = acpi_driver_data(adev);
+	pci_pme_wakeup_bus(root->bus);
 }
 
 /**
- * pci_acpi_wake_dev - Wake-up notification handler for PCI devices.
+ * pci_acpi_wake_dev - PCI device wakeup notification work function.
  * @handle: ACPI handle of a device the notification is for.
- * @event: Type of the signaled event.
- * @context: PCI device object to wake up.
+ * @work: Work item to handle.
  */
-static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
+static void pci_acpi_wake_dev(struct work_struct *work)
 {
-	struct pci_dev *pci_dev = context;
+	struct acpi_device_wakeup_context *context;
+	struct pci_dev *pci_dev;
 
-	if (event != ACPI_NOTIFY_DEVICE_WAKE || !pci_dev)
-		return;
+	context = container_of(work, struct acpi_device_wakeup_context, work);
+	pci_dev = to_pci_dev(context->dev);
 
 	if (pci_dev->pme_poll)
 		pci_dev->pme_poll = false;
@@ -68,23 +65,12 @@ static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
 }
 
 /**
- * pci_acpi_add_bus_pm_notifier - Register PM notifier for given PCI bus.
- * @dev: ACPI device to add the notifier for.
- * @pci_bus: PCI bus to walk checking for PME status if an event is signaled.
+ * pci_acpi_add_bus_pm_notifier - Register PM notifier for root PCI bus.
+ * @dev: PCI root bridge ACPI device.
  */
-acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev,
-					 struct pci_bus *pci_bus)
+acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev)
 {
-	return acpi_add_pm_notifier(dev, pci_acpi_wake_bus, pci_bus);
-}
-
-/**
- * pci_acpi_remove_bus_pm_notifier - Unregister PCI bus PM notifier.
- * @dev: ACPI device to remove the notifier from.
- */
-acpi_status pci_acpi_remove_bus_pm_notifier(struct acpi_device *dev)
-{
-	return acpi_remove_pm_notifier(dev, pci_acpi_wake_bus);
+	return acpi_add_pm_notifier(dev, NULL, pci_acpi_wake_bus);
 }
 
 /**
@@ -95,16 +81,7 @@ acpi_status pci_acpi_remove_bus_pm_notifier(struct acpi_device *dev)
 acpi_status pci_acpi_add_pm_notifier(struct acpi_device *dev,
 				     struct pci_dev *pci_dev)
 {
-	return acpi_add_pm_notifier(dev, pci_acpi_wake_dev, pci_dev);
-}
-
-/**
- * pci_acpi_remove_pm_notifier - Unregister PCI device PM notifier.
- * @dev: ACPI device to remove the notifier from.
- */
-acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev)
-{
-	return acpi_remove_pm_notifier(dev, pci_acpi_wake_dev);
+	return acpi_add_pm_notifier(dev, &pci_dev->dev, pci_acpi_wake_dev);
 }
 
 phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
@@ -173,14 +150,13 @@ static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 
 static bool acpi_pci_power_manageable(struct pci_dev *dev)
 {
-	acpi_handle handle = ACPI_HANDLE(&dev->dev);
-
-	return handle ? acpi_bus_power_manageable(handle) : false;
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
+	return adev ? acpi_device_power_manageable(adev) : false;
 }
 
 static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
-	acpi_handle handle = ACPI_HANDLE(&dev->dev);
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
 	static const u8 state_conv[] = {
 		[PCI_D0] = ACPI_STATE_D0,
 		[PCI_D1] = ACPI_STATE_D1,
@@ -191,7 +167,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	int error = -EINVAL;
 
 	/* If the ACPI device has _EJ0, ignore the device */
-	if (!handle || acpi_has_method(handle, "_EJ0"))
+	if (!adev || acpi_has_method(adev->handle, "_EJ0"))
 		return -ENODEV;
 
 	switch (state) {
@@ -205,7 +181,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	case PCI_D1:
 	case PCI_D2:
 	case PCI_D3hot:
-		error = acpi_bus_set_power(handle, state_conv[state]);
+		error = acpi_device_set_power(adev, state_conv[state]);
 	}
 
 	if (!error)
@@ -217,9 +193,8 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 static bool acpi_pci_can_wakeup(struct pci_dev *dev)
 {
-	acpi_handle handle = ACPI_HANDLE(&dev->dev);
-
-	return handle ? acpi_bus_can_wakeup(handle) : false;
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
+	return adev ? acpi_device_can_wakeup(adev) : false;
 }
 
 static void acpi_pci_propagate_wakeup_enable(struct pci_bus *bus, bool enable)
@@ -306,25 +281,17 @@ void acpi_pci_remove_bus(struct pci_bus *bus)
 }
 
 /* ACPI bus type */
-static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
+static struct acpi_device *acpi_pci_find_companion(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	bool is_bridge;
+	bool check_children;
 	u64 addr;
 
-	/*
-	 * pci_is_bridge() is not suitable here, because pci_dev->subordinate
-	 * is set only after acpi_pci_find_device() has been called for the
-	 * given device.
-	 */
-	is_bridge = pci_dev->hdr_type == PCI_HEADER_TYPE_BRIDGE
-			|| pci_dev->hdr_type == PCI_HEADER_TYPE_CARDBUS;
+	check_children = pci_is_bridge(pci_dev);
 	/* Please ref to ACPI spec for the syntax of _ADR */
 	addr = (PCI_SLOT(pci_dev->devfn) << 16) | PCI_FUNC(pci_dev->devfn);
-	*handle = acpi_find_child(ACPI_HANDLE(dev->parent), addr, is_bridge);
-	if (!*handle)
-		return -ENODEV;
-	return 0;
+	return acpi_find_child_device(ACPI_COMPANION(dev->parent), addr,
+				      check_children);
 }
 
 static void pci_acpi_setup(struct device *dev)
@@ -367,7 +334,7 @@ static bool pci_acpi_bus_match(struct device *dev)
 static struct acpi_bus_type acpi_pci_bus = {
 	.name = "PCI",
 	.match = pci_acpi_bus_match,
-	.find_device = acpi_pci_find_device,
+	.find_companion = acpi_pci_find_companion,
 	.setup = pci_acpi_setup,
 	.cleanup = pci_acpi_cleanup,
 };

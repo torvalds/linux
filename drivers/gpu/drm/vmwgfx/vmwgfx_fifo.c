@@ -35,6 +35,23 @@ bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
 	uint32_t fifo_min, hwversion;
 	const struct vmw_fifo_state *fifo = &dev_priv->fifo;
 
+	if (!(dev_priv->capabilities & SVGA_CAP_3D))
+		return false;
+
+	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS) {
+		uint32_t result;
+
+		if (!dev_priv->has_mob)
+			return false;
+
+		mutex_lock(&dev_priv->hw_mutex);
+		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_3D);
+		result = vmw_read(dev_priv, SVGA_REG_DEV_CAP);
+		mutex_unlock(&dev_priv->hw_mutex);
+
+		return (result != 0);
+	}
+
 	if (!(dev_priv->capabilities & SVGA_CAP_EXTENDED_FIFO))
 		return false;
 
@@ -163,8 +180,9 @@ void vmw_fifo_release(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 
 	mutex_lock(&dev_priv->hw_mutex);
 
+	vmw_write(dev_priv, SVGA_REG_SYNC, SVGA_SYNC_GENERIC);
 	while (vmw_read(dev_priv, SVGA_REG_BUSY) != 0)
-		vmw_write(dev_priv, SVGA_REG_SYNC, SVGA_SYNC_GENERIC);
+		;
 
 	dev_priv->last_read_seqno = ioread32(fifo_mem + SVGA_FIFO_FENCE);
 
@@ -511,24 +529,16 @@ out_err:
 }
 
 /**
- * vmw_fifo_emit_dummy_query - emits a dummy query to the fifo.
+ * vmw_fifo_emit_dummy_legacy_query - emits a dummy query to the fifo using
+ * legacy query commands.
  *
  * @dev_priv: The device private structure.
  * @cid: The hardware context id used for the query.
  *
- * This function is used to emit a dummy occlusion query with
- * no primitives rendered between query begin and query end.
- * It's used to provide a query barrier, in order to know that when
- * this query is finished, all preceding queries are also finished.
- *
- * A Query results structure should have been initialized at the start
- * of the dev_priv->dummy_query_bo buffer object. And that buffer object
- * must also be either reserved or pinned when this function is called.
- *
- * Returns -ENOMEM on failure to reserve fifo space.
+ * See the vmw_fifo_emit_dummy_query documentation.
  */
-int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
-			      uint32_t cid)
+static int vmw_fifo_emit_dummy_legacy_query(struct vmw_private *dev_priv,
+					    uint32_t cid)
 {
 	/*
 	 * A query wait without a preceding query end will
@@ -565,4 +575,76 @@ int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
+}
+
+/**
+ * vmw_fifo_emit_dummy_gb_query - emits a dummy query to the fifo using
+ * guest-backed resource query commands.
+ *
+ * @dev_priv: The device private structure.
+ * @cid: The hardware context id used for the query.
+ *
+ * See the vmw_fifo_emit_dummy_query documentation.
+ */
+static int vmw_fifo_emit_dummy_gb_query(struct vmw_private *dev_priv,
+					uint32_t cid)
+{
+	/*
+	 * A query wait without a preceding query end will
+	 * actually finish all queries for this cid
+	 * without writing to the query result structure.
+	 */
+
+	struct ttm_buffer_object *bo = dev_priv->dummy_query_bo;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdWaitForGBQuery body;
+	} *cmd;
+
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Out of fifo space for dummy query.\n");
+		return -ENOMEM;
+	}
+
+	cmd->header.id = SVGA_3D_CMD_WAIT_FOR_GB_QUERY;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.cid = cid;
+	cmd->body.type = SVGA3D_QUERYTYPE_OCCLUSION;
+	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	cmd->body.mobid = bo->mem.start;
+	cmd->body.offset = 0;
+
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+
+	return 0;
+}
+
+
+/**
+ * vmw_fifo_emit_dummy_gb_query - emits a dummy query to the fifo using
+ * appropriate resource query commands.
+ *
+ * @dev_priv: The device private structure.
+ * @cid: The hardware context id used for the query.
+ *
+ * This function is used to emit a dummy occlusion query with
+ * no primitives rendered between query begin and query end.
+ * It's used to provide a query barrier, in order to know that when
+ * this query is finished, all preceding queries are also finished.
+ *
+ * A Query results structure should have been initialized at the start
+ * of the dev_priv->dummy_query_bo buffer object. And that buffer object
+ * must also be either reserved or pinned when this function is called.
+ *
+ * Returns -ENOMEM on failure to reserve fifo space.
+ */
+int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
+			      uint32_t cid)
+{
+	if (dev_priv->has_mob)
+		return vmw_fifo_emit_dummy_gb_query(dev_priv, cid);
+
+	return vmw_fifo_emit_dummy_legacy_query(dev_priv, cid);
 }

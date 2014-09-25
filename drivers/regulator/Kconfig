@@ -70,6 +70,14 @@ config REGULATOR_88PM8607
 	help
 	  This driver supports 88PM8607 voltage regulator chips.
 
+config REGULATOR_ACT8865
+	tristate "Active-semi act8865 voltage regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver controls a active-semi act8865 voltage output
+	  regulator via I2C bus.
+
 config REGULATOR_AD5398
 	tristate "Analog Devices AD5398/AD5821 regulators"
 	depends on I2C
@@ -131,6 +139,21 @@ config REGULATOR_AS3722
 	  AS3722 PMIC. This will enable support for all the software
 	  controllable DCDC/LDO regulators.
 
+config REGULATOR_AXP20X
+	tristate "X-POWERS AXP20X PMIC Regulators"
+	depends on MFD_AXP20X
+	help
+	  This driver provides support for the voltage regulators on the
+	  AXP20X PMIC.
+
+config REGULATOR_BCM590XX
+	tristate "Broadcom BCM590xx PMU Regulators"
+	depends on MFD_BCM590XX
+	help
+	  This driver provides support for the voltage regulators on the
+	  BCM590xx PMUs. This will enable support for the software
+	  controllable LDO/Switching regulators.
+
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
 	depends on PMIC_DA903X
@@ -172,6 +195,16 @@ config REGULATOR_DA9210
 	help
 	  Say y here to support for the Dialog Semiconductor DA9210.
 	  The DA9210 is a multi-phase synchronous step down
+	  converter 12A DC-DC Buck controlled through an I2C
+	  interface.
+
+config REGULATOR_DA9211
+	tristate "Dialog Semiconductor DA9211/DA9212 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor DA9211/DA9212.
+	  The DA9211/DA9212 is a multi-phase synchronous step down
 	  converter 12A DC-DC Buck controlled through an I2C
 	  interface.
 
@@ -248,6 +281,22 @@ config REGULATOR_LP8788
 	depends on MFD_LP8788
 	help
 	  This driver supports LP8788 voltage regulator chip.
+
+config REGULATOR_LTC3589
+	tristate "LTC3589 8-output voltage regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This enables support for the LTC3589, LTC3589-1, and LTC3589-2
+	  8-output regulators controlled via I2C.
+
+config REGULATOR_MAX14577
+	tristate "Maxim 14577/77836 regulator"
+	depends on MFD_MAX14577
+	help
+	  This driver controls a Maxim MAX14577/77836 regulator via I2C bus.
+	  The MAX14577 regulators include safeout LDO and charger current
+	  regulator. The MAX77836 has two additional LDOs.
 
 config REGULATOR_MAX1586
 	tristate "Maxim 1586/1587 voltage regulator"
@@ -369,6 +418,15 @@ config REGULATOR_PALMAS
 	  on the muxing. This is handled automatically in the driver by
 	  reading the mux info from OTP.
 
+config REGULATOR_PBIAS
+	tristate "PBIAS OMAP regulator driver"
+	depends on (ARCH_OMAP || COMPILE_TEST) && MFD_SYSCON
+	help
+	 Say y here to support pbias regulator for mmc1:SD card i/o
+	 on OMAP SoCs.
+	 This driver provides support for OMAP pbias modelled
+	 regulators.
+
 config REGULATOR_PCAP
 	tristate "Motorola PCAP2 regulator driver"
 	depends on EZX_PCAP
@@ -384,12 +442,12 @@ config REGULATOR_PCF50633
 	 on PCF50633
 
 config REGULATOR_PFUZE100
-	tristate "Support regulators on Freescale PFUZE100 PMIC"
+	tristate "Freescale PFUZE100/PFUZE200 regulator driver"
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  Say y here to support the regulators found on the Freescale PFUZE100
-	  PMIC.
+	  Say y here to support the regulators found on the Freescale
+	  PFUZE100/PFUZE200 PMIC.
 
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
@@ -401,13 +459,21 @@ config REGULATOR_RC5T583
 	  through regulator interface. The device supports multiple DCDC/LDO
 	  outputs which can be controlled by i2c communication.
 
-config REGULATOR_S2MPS11
-	tristate "Samsung S2MPS11 voltage regulator"
+config REGULATOR_S2MPA01
+	tristate "Samsung S2MPA01 voltage regulator"
 	depends on MFD_SEC_CORE
 	help
-	 This driver supports a Samsung S2MPS11 voltage output regulator
-	 via I2C bus. S2MPS11 is comprised of high efficient Buck converters
-	 including Dual-Phase Buck converter, Buck-Boost converter, various LDOs.
+	 This driver controls Samsung S2MPA01 voltage output regulator
+	 via I2C bus. S2MPA01 has 10 Bucks and 26 LDO outputs.
+
+config REGULATOR_S2MPS11
+	tristate "Samsung S2MPS11/S2MPS14/S2MPU02 voltage regulator"
+	depends on MFD_SEC_CORE
+	help
+	 This driver supports a Samsung S2MPS11/S2MPS14/S2MPU02 voltage output
+	 regulator via I2C bus. The chip is comprised of high efficient Buck
+	 converters including Dual-Phase Buck converter, Buck-Boost converter,
+	 various LDOs.
 
 config REGULATOR_S5M8767
 	tristate "Samsung S5M8767A voltage regulator"
@@ -416,6 +482,12 @@ config REGULATOR_S5M8767
 	 This driver supports a Samsung S5M8767A voltage output regulator
 	 via I2C bus. S5M8767A have 9 Bucks and 28 LDOs output and
 	 supports DVS mode with 8bits of output voltage control.
+
+config REGULATOR_ST_PWM
+	tristate "STMicroelectronics PWM voltage regulator"
+	depends on ARCH_STI
+	help
+	 This driver supports ST's PWM controlled voltage regulators.
 
 config REGULATOR_TI_ABB
 	tristate "TI Adaptive Body Bias on-chip LDO"
@@ -495,6 +567,15 @@ config REGULATOR_TPS65217
 	help
 	  This driver supports TPS65217 voltage regulator chips. TPS65217
 	  provides three step-down converters and four general-purpose LDO
+	  voltage regulators. It supports software based voltage control
+	  for different voltage domains
+
+config REGULATOR_TPS65218
+	tristate "TI TPS65218 Power regulators"
+	depends on MFD_TPS65218 && OF
+	help
+	  This driver supports TPS65218 voltage regulator chips. TPS65218
+	  provides six step-down converters and one general-purpose LDO
 	  voltage regulators. It supports software based voltage control
 	  for different voltage domains
 

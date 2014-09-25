@@ -203,10 +203,6 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 	     (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)))
 		return -ENODEV;
 
-	if (!dev->irq && dev->pin) {
-		dev_warn(&dev->dev, "device [%04x:%04x] has invalid IRQ; "
-			 "check vendor BIOS\n", dev->vendor, dev->device);
-	}
 	status = pcie_port_device_register(dev);
 	if (status)
 		return status;
@@ -397,7 +393,7 @@ static struct pci_driver pcie_portdriver = {
 static int __init dmi_pcie_pme_disable_msi(const struct dmi_system_id *d)
 {
 	pr_notice("%s detected: will not use MSI for PCIe PME signaling\n",
-			d->ident);
+		  d->ident);
 	pcie_pme_disable_msi();
 	return 0;
 }

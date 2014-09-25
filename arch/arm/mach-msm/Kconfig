@@ -1,50 +1,9 @@
-config ARCH_MSM
-	bool
-
-config ARCH_MSM_DT
-	bool "Qualcomm MSM DT Support" if ARCH_MULTI_V7
-	select ARCH_MSM
-	select ARCH_REQUIRE_GPIOLIB
-	select CLKSRC_OF
-	select GENERIC_CLOCKEVENTS
-	help
-	  Support for Qualcomm's devicetree based MSM systems.
-
 if ARCH_MSM
-
-menu "Qualcomm MSM SoC Selection"
-	depends on ARCH_MSM_DT
-
-config ARCH_MSM8X60
-	bool "Enable support for MSM8X60"
-	select ARM_GIC
-	select CPU_V7
-	select HAVE_SMP
-	select MSM_SCM if SMP
-	select MSM_TIMER
-
-config ARCH_MSM8960
-	bool "Enable support for MSM8960"
-	select ARM_GIC
-	select CPU_V7
-	select HAVE_SMP
-	select MSM_SCM if SMP
-	select MSM_TIMER
-
-config ARCH_MSM8974
-	bool "Enable support for MSM8974"
-	select ARM_GIC
-	select CPU_V7
-	select HAVE_ARM_ARCH_TIMER
-	select HAVE_SMP
-	select MSM_SCM if SMP
-
-endmenu
 
 choice
 	prompt "Qualcomm MSM SoC Type"
 	default ARCH_MSM7X00A
-	depends on ARCH_MSM_NODT
+	depends on ARCH_MSM
 
 config ARCH_MSM7X00A
 	bool "MSM7x00A / MSM7x01A"
@@ -54,7 +13,7 @@ config ARCH_MSM7X00A
 	select MACH_TROUT if !MACH_HALIBUT
 	select MSM_PROC_COMM
 	select MSM_SMD
-	select MSM_TIMER
+	select CLKSRC_QCOM
 	select MSM_SMD_PKG3
 
 config ARCH_MSM7X30
@@ -66,7 +25,7 @@ config ARCH_MSM7X30
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
 	select MSM_SMD
-	select MSM_TIMER
+	select CLKSRC_QCOM
 	select MSM_VIC
 
 config ARCH_QSD8X50
@@ -78,13 +37,10 @@ config ARCH_QSD8X50
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
 	select MSM_SMD
-	select MSM_TIMER
+	select CLKSRC_QCOM
 	select MSM_VIC
 
 endchoice
-
-config MSM_HAS_DEBUG_UART_HS
-	bool
 
 config MSM_SOC_REV_A
 	bool
@@ -99,7 +55,7 @@ config  MSM_VIC
 	bool
 
 menu "Qualcomm MSM Board Type"
-	depends on ARCH_MSM_NODT
+	depends on ARCH_MSM
 
 config MACH_HALIBUT
 	depends on ARCH_MSM
@@ -149,11 +105,5 @@ config MSM_GPIOMUX
 	bool
 	help
 	  Support for MSM V1 TLMM GPIOMUX architecture.
-
-config MSM_SCM
-	bool
-
-config MSM_TIMER
-	bool
 
 endif

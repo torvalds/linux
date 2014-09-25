@@ -285,6 +285,15 @@ static void __init collect_cpu_sig_on_bsp(void *arg)
 
 	uci->cpu_sig.sig = cpuid_eax(0x00000001);
 }
+
+static void __init get_bsp_sig(void)
+{
+	unsigned int bsp = boot_cpu_data.cpu_index;
+	struct ucode_cpu_info *uci = ucode_cpu_info + bsp;
+
+	if (!uci->cpu_sig.sig)
+		smp_call_function_single(bsp, collect_cpu_sig_on_bsp, NULL, 1);
+}
 #else
 void load_ucode_amd_ap(void)
 {
@@ -337,30 +346,36 @@ void load_ucode_amd_ap(void)
 
 int __init save_microcode_in_initrd_amd(void)
 {
+	unsigned long cont;
 	enum ucode_state ret;
 	u32 eax;
 
-#ifdef CONFIG_X86_32
-	unsigned int bsp = boot_cpu_data.cpu_index;
-	struct ucode_cpu_info *uci = ucode_cpu_info + bsp;
+	if (!container)
+		return -EINVAL;
 
-	if (!uci->cpu_sig.sig)
-		smp_call_function_single(bsp, collect_cpu_sig_on_bsp, NULL, 1);
+#ifdef CONFIG_X86_32
+	get_bsp_sig();
+	cont = (unsigned long)container;
+#else
+	/*
+	 * We need the physical address of the container for both bitness since
+	 * boot_params.hdr.ramdisk_image is a physical address.
+	 */
+	cont = __pa(container);
+#endif
 
 	/*
-	 * Take into account the fact that the ramdisk might get relocated
-	 * and therefore we need to recompute the container's position in
-	 * virtual memory space.
+	 * Take into account the fact that the ramdisk might get relocated and
+	 * therefore we need to recompute the container's position in virtual
+	 * memory space.
 	 */
-	container = (u8 *)(__va((u32)relocated_ramdisk) +
-			   ((u32)container - boot_params.hdr.ramdisk_image));
-#endif
+	if (relocated_ramdisk)
+		container = (u8 *)(__va(relocated_ramdisk) +
+			     (cont - boot_params.hdr.ramdisk_image));
+
 	if (ucode_new_rev)
 		pr_info("microcode: updated early to new patch_level=0x%08x\n",
 			ucode_new_rev);
-
-	if (!container)
-		return -EINVAL;
 
 	eax   = cpuid_eax(0x00000001);
 	eax   = ((eax >> 8) & 0xf) + ((eax >> 20) & 0xff);

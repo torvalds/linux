@@ -64,7 +64,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/device.h>
@@ -554,8 +553,8 @@ static int kingsun_probe(struct usb_interface *intf,
 	return 0;
 
 free_mem:
-	if (kingsun->out_buf) kfree(kingsun->out_buf);
-	if (kingsun->in_buf) kfree(kingsun->in_buf);
+	kfree(kingsun->out_buf);
+	kfree(kingsun->in_buf);
 	free_netdev(net);
 err_out1:
 	return ret;

@@ -94,7 +94,6 @@ void ocrdma_ring_cq_db(struct ocrdma_dev *, u16 cq_id, bool armed,
 int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed);
 int ocrdma_query_config(struct ocrdma_dev *,
 			struct ocrdma_mbx_query_config *config);
-int ocrdma_resolve_dgid(struct ocrdma_dev *, union ib_gid *dgid, u8 *mac_addr);
 
 int ocrdma_mbx_alloc_pd(struct ocrdma_dev *, struct ocrdma_pd *);
 int ocrdma_mbx_dealloc_pd(struct ocrdma_dev *, struct ocrdma_pd *);
@@ -113,8 +112,7 @@ int ocrdma_mbx_create_qp(struct ocrdma_qp *, struct ib_qp_init_attr *attrs,
 			 u8 enable_dpp_cq, u16 dpp_cq_id, u16 *dpp_offset,
 			 u16 *dpp_credit_lmt);
 int ocrdma_mbx_modify_qp(struct ocrdma_dev *, struct ocrdma_qp *,
-			 struct ib_qp_attr *attrs, int attr_mask,
-			 enum ib_qp_state old_qps);
+			 struct ib_qp_attr *attrs, int attr_mask);
 int ocrdma_mbx_query_qp(struct ocrdma_dev *, struct ocrdma_qp *,
 			struct ocrdma_qp_params *param);
 int ocrdma_mbx_destroy_qp(struct ocrdma_dev *, struct ocrdma_qp *);
@@ -133,5 +131,10 @@ int ocrdma_qp_state_change(struct ocrdma_qp *, enum ib_qp_state new_state,
 bool ocrdma_is_qp_in_sq_flushlist(struct ocrdma_cq *, struct ocrdma_qp *);
 bool ocrdma_is_qp_in_rq_flushlist(struct ocrdma_cq *, struct ocrdma_qp *);
 void ocrdma_flush_qp(struct ocrdma_qp *);
+int ocrdma_get_irq(struct ocrdma_dev *dev, struct ocrdma_eq *eq);
+
+int ocrdma_mbx_rdma_stats(struct ocrdma_dev *, bool reset);
+char *port_speed_string(struct ocrdma_dev *dev);
+void ocrdma_init_service_level(struct ocrdma_dev *);
 
 #endif				/* __OCRDMA_HW_H__ */

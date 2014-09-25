@@ -39,9 +39,9 @@
 # include <linux/module.h>
 # include <linux/kernel.h>
 
-#include <obd_class.h>
+#include "../include/obd_class.h"
 #include "mdc_internal.h"
-#include <lustre_fid.h>
+#include "../include/lustre_fid.h"
 
 /* mdc_setattr does its own semaphore handling */
 static int mdc_reint(struct ptlrpc_request *request,
@@ -66,7 +66,7 @@ static int mdc_reint(struct ptlrpc_request *request,
 /* Find and cancel locally locks matched by inode @bits & @mode in the resource
  * found by @fid. Found locks are added into @cancel list. Returns the amount of
  * locks added to @cancels list. */
-int mdc_resource_get_unused(struct obd_export *exp, struct lu_fid *fid,
+int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 			    struct list_head *cancels, ldlm_mode_t mode,
 			    __u64 bits)
 {
@@ -165,6 +165,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 			req->rq_cb_data = *mod;
 			(*mod)->mod_open_req = req;
 			req->rq_commit_cb = mdc_commit_open;
+			(*mod)->mod_is_create = true;
 			/**
 			 * Take an extra reference on \var mod, it protects \var
 			 * mod from being freed on eviction (commit callback is
@@ -198,7 +199,8 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	*request = req;
 	if (rc && req->rq_commit_cb) {
 		/* Put an extra reference on \var mod on error case. */
-		obd_mod_put(*mod);
+		if (mod != NULL && *mod != NULL)
+			obd_mod_put(*mod);
 		req->rq_commit_cb(req);
 	}
 	return rc;
@@ -271,7 +273,7 @@ rebuild:
 	if (resends) {
 		req->rq_generation_set = 1;
 		req->rq_import_generation = generation;
-		req->rq_sent = cfs_time_current_sec() + resends;
+		req->rq_sent = get_seconds() + resends;
 	}
 	level = LUSTRE_IMP_FULL;
  resend:
@@ -356,9 +358,9 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	mdc_unlink_pack(req, op_data);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_easize);
+			     obd->u.cli.cl_default_mds_easize);
 	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_cookiesize);
+			     obd->u.cli.cl_default_mds_cookiesize);
 	ptlrpc_request_set_replen(req);
 
 	*request = req;
@@ -469,9 +471,9 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 	mdc_rename_pack(req, op_data, old, oldlen, new, newlen);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_easize);
+			     obd->u.cli.cl_default_mds_easize);
 	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_SERVER,
-			     obd->u.cli.cl_max_mds_cookiesize);
+			     obd->u.cli.cl_default_mds_cookiesize);
 	ptlrpc_request_set_replen(req);
 
 	rc = mdc_reint(req, obd->u.cli.cl_rpc_lock, LUSTRE_IMP_FULL);

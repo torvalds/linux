@@ -1,4 +1,4 @@
-/* Copyright (C) 2011-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2014 B.A.T.M.A.N. contributors:
  *
  * Antonio Quartulli
  *
@@ -12,13 +12,11 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _NET_BATMAN_ADV_ARP_H_
-#define _NET_BATMAN_ADV_ARP_H_
+#ifndef _NET_BATMAN_ADV_DISTRIBUTED_ARP_TABLE_H_
+#define _NET_BATMAN_ADV_DISTRIBUTED_ARP_TABLE_H_
 
 #ifdef CONFIG_BATMAN_ADV_DAT
 
@@ -27,6 +25,9 @@
 
 #include <linux/if_arp.h>
 
+/**
+ * BATADV_DAT_ADDR_MAX - maximum address value in the DHT space
+ */
 #define BATADV_DAT_ADDR_MAX ((batadv_dat_addr_t)~(batadv_dat_addr_t)0)
 
 void batadv_dat_status_update(struct net_device *net_dev);
@@ -169,4 +170,4 @@ static inline void batadv_dat_inc_counter(struct batadv_priv *bat_priv,
 
 #endif /* CONFIG_BATMAN_ADV_DAT */
 
-#endif /* _NET_BATMAN_ADV_ARP_H_ */
+#endif /* _NET_BATMAN_ADV_DISTRIBUTED_ARP_TABLE_H_ */

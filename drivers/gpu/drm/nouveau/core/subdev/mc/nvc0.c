@@ -26,20 +26,23 @@
 
 const struct nouveau_mc_intr
 nvc0_mc_intr[] = {
+	{ 0x04000000, NVDEV_ENGINE_DISP },  /* DISP first, so pageflip timestamps work. */
 	{ 0x00000001, NVDEV_ENGINE_PPP },
 	{ 0x00000020, NVDEV_ENGINE_COPY0 },
 	{ 0x00000040, NVDEV_ENGINE_COPY1 },
 	{ 0x00000080, NVDEV_ENGINE_COPY2 },
 	{ 0x00000100, NVDEV_ENGINE_FIFO },
 	{ 0x00001000, NVDEV_ENGINE_GR },
+	{ 0x00002000, NVDEV_SUBDEV_FB },
 	{ 0x00008000, NVDEV_ENGINE_BSP },
 	{ 0x00040000, NVDEV_SUBDEV_THERM },
 	{ 0x00020000, NVDEV_ENGINE_VP },
 	{ 0x00100000, NVDEV_SUBDEV_TIMER },
-	{ 0x00200000, NVDEV_SUBDEV_GPIO },
+	{ 0x00200000, NVDEV_SUBDEV_GPIO },	/* PMGR->GPIO */
+	{ 0x00200000, NVDEV_SUBDEV_I2C },	/* PMGR->I2C/AUX */
 	{ 0x01000000, NVDEV_SUBDEV_PWR },
-	{ 0x02000000, NVDEV_SUBDEV_LTCG },
-	{ 0x04000000, NVDEV_ENGINE_DISP },
+	{ 0x02000000, NVDEV_SUBDEV_LTC },
+	{ 0x08000000, NVDEV_SUBDEV_FB },
 	{ 0x10000000, NVDEV_SUBDEV_BUS },
 	{ 0x40000000, NVDEV_SUBDEV_IBUS },
 	{ 0x80000000, NVDEV_ENGINE_SW },
@@ -53,6 +56,12 @@ nvc0_mc_msi_rearm(struct nouveau_mc *pmc)
 	nv_wr32(priv, 0x088704, 0x00000000);
 }
 
+void
+nvc0_mc_unk260(struct nouveau_mc *pmc, u32 data)
+{
+	nv_wr32(pmc, 0x000260, data);
+}
+
 struct nouveau_oclass *
 nvc0_mc_oclass = &(struct nouveau_mc_oclass) {
 	.base.handle = NV_SUBDEV(MC, 0xc0),
@@ -64,4 +73,5 @@ nvc0_mc_oclass = &(struct nouveau_mc_oclass) {
 	},
 	.intr = nvc0_mc_intr,
 	.msi_rearm = nvc0_mc_msi_rearm,
+	.unk260 = nvc0_mc_unk260,
 }.base;

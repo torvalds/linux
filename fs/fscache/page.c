@@ -44,6 +44,19 @@ void __fscache_wait_on_page_write(struct fscache_cookie *cookie, struct page *pa
 EXPORT_SYMBOL(__fscache_wait_on_page_write);
 
 /*
+ * wait for a page to finish being written to the cache. Put a timeout here
+ * since we might be called recursively via parent fs.
+ */
+static
+bool release_page_wait_timeout(struct fscache_cookie *cookie, struct page *page)
+{
+	wait_queue_head_t *wq = bit_waitqueue(&cookie->flags, 0);
+
+	return wait_event_timeout(*wq, !__fscache_check_page_write(cookie, page),
+				  HZ);
+}
+
+/*
  * decide whether a page can be released, possibly by cancelling a store to it
  * - we're allowed to sleep if __GFP_WAIT is flagged
  */
@@ -115,7 +128,10 @@ page_busy:
 	}
 
 	fscache_stat(&fscache_n_store_vmscan_wait);
-	__fscache_wait_on_page_write(cookie, page);
+	if (!release_page_wait_timeout(cookie, page))
+		_debug("fscache writeout timeout page: %p{%lx}",
+			page, page->index);
+
 	gfp &= ~__GFP_WAIT;
 	goto try_again;
 }
@@ -182,7 +198,7 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 {
 	struct fscache_operation *op;
 	struct fscache_object *object;
-	bool wake_cookie;
+	bool wake_cookie = false;
 
 	_enter("%p", cookie);
 
@@ -212,15 +228,16 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 
 	__fscache_use_cookie(cookie);
 	if (fscache_submit_exclusive_op(object, op) < 0)
-		goto nobufs;
+		goto nobufs_dec;
 	spin_unlock(&cookie->lock);
 	fscache_stat(&fscache_n_attr_changed_ok);
 	fscache_put_operation(op);
 	_leave(" = 0");
 	return 0;
 
-nobufs:
+nobufs_dec:
 	wake_cookie = __fscache_unuse_cookie(cookie);
+nobufs:
 	spin_unlock(&cookie->lock);
 	kfree(op);
 	if (wake_cookie)
@@ -298,7 +315,6 @@ int fscache_wait_for_deferred_lookup(struct fscache_cookie *cookie)
 
 	jif = jiffies;
 	if (wait_on_bit(&cookie->flags, FSCACHE_COOKIE_LOOKING_UP,
-			fscache_wait_bit_interruptible,
 			TASK_INTERRUPTIBLE) != 0) {
 		fscache_stat(&fscache_n_retrievals_intr);
 		_leave(" = -ERESTARTSYS");
@@ -342,7 +358,6 @@ int fscache_wait_for_operation_activation(struct fscache_object *object,
 	if (stat_op_waits)
 		fscache_stat(stat_op_waits);
 	if (wait_on_bit(&op->flags, FSCACHE_OP_WAITING,
-			fscache_wait_bit_interruptible,
 			TASK_INTERRUPTIBLE) != 0) {
 		ret = fscache_cancel_op(op, do_cancel);
 		if (ret == 0)
@@ -351,7 +366,7 @@ int fscache_wait_for_operation_activation(struct fscache_object *object,
 		/* it's been removed from the pending queue by another party,
 		 * so we should get to run shortly */
 		wait_on_bit(&op->flags, FSCACHE_OP_WAITING,
-			    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+			    TASK_UNINTERRUPTIBLE);
 	}
 	_debug("<<< GO");
 
@@ -1108,10 +1123,8 @@ void fscache_mark_page_cached(struct fscache_retrieval *op, struct page *page)
 		static bool once_only;
 		if (!once_only) {
 			once_only = true;
-			printk(KERN_WARNING "FS-Cache:"
-			       " Cookie type %s marked page %lx"
-			       " multiple times\n",
-			       cookie->def->name, page->index);
+			pr_warn("Cookie type %s marked page %lx multiple times\n",
+				cookie->def->name, page->index);
 		}
 	}
 

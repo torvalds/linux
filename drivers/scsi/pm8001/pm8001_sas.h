@@ -475,6 +475,7 @@ struct pm8001_hba_info {
 	struct list_head	list;
 	unsigned long		flags;
 	spinlock_t		lock;/* host-wide lock */
+	spinlock_t		bitmap_lock;
 	struct pci_dev		*pdev;/* our device */
 	struct device		*dev;
 	struct pm8001_hba_memspace io_mem[6];
@@ -616,7 +617,6 @@ extern struct workqueue_struct *pm8001_wq;
 int pm8001_tag_alloc(struct pm8001_hba_info *pm8001_ha, u32 *tag_out);
 void pm8001_tag_init(struct pm8001_hba_info *pm8001_ha);
 u32 pm8001_get_ncq_tag(struct sas_task *task, u32 *tag);
-void pm8001_ccb_free(struct pm8001_hba_info *pm8001_ha, u32 ccb_idx);
 void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 	struct sas_task *task, struct pm8001_ccb_info *ccb, u32 ccb_idx);
 int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
@@ -707,6 +707,18 @@ ssize_t pm80xx_get_fatal_dump(struct device *cdev,
 ssize_t pm8001_get_gsm_dump(struct device *cdev, u32, char *buf);
 /* ctl shared API */
 extern struct device_attribute *pm8001_host_attrs[];
+
+static inline void
+pm8001_ccb_task_free_done(struct pm8001_hba_info *pm8001_ha,
+			struct sas_task *task, struct pm8001_ccb_info *ccb,
+			u32 ccb_idx)
+{
+	pm8001_ccb_task_free(pm8001_ha, task, ccb, ccb_idx);
+	smp_mb(); /*in order to force CPU ordering*/
+	spin_unlock(&pm8001_ha->lock);
+	task->task_done(task);
+	spin_lock(&pm8001_ha->lock);
+}
 
 #endif
 

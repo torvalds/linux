@@ -51,12 +51,16 @@ uint64_t nlm_io_base;
 struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
 cpumask_t nlm_cpumask = CPU_MASK_CPU0;
 unsigned int nlm_threads_per_core;
+unsigned int xlp_cores_per_node;
 
 static void nlm_linux_exit(void)
 {
 	uint64_t sysbase = nlm_get_node(0)->sysbase;
 
-	nlm_write_sys_reg(sysbase, SYS_CHIP_RESET, 1);
+	if (cpu_is_xlp9xx())
+		nlm_write_sys_reg(sysbase, SYS_9XX_CHIP_RESET, 1);
+	else
+		nlm_write_sys_reg(sysbase, SYS_CHIP_RESET, 1);
 	for ( ; ; )
 		cpu_wait();
 }
@@ -92,6 +96,14 @@ static void __init xlp_init_mem_from_bars(void)
 
 void __init plat_mem_setup(void)
 {
+#ifdef CONFIG_SMP
+	nlm_wakeup_secondary_cpus();
+
+	/* update TLB size after waking up threads */
+	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
+
+	register_smp_ops(&nlm_smp_ops);
+#endif
 	_machine_restart = (void (*)(char *))nlm_linux_exit;
 	_machine_halt	= nlm_linux_exit;
 	pm_power_off	= nlm_linux_exit;
@@ -109,7 +121,9 @@ void __init plat_mem_setup(void)
 
 const char *get_system_type(void)
 {
-	switch (read_c0_prid() & 0xff00) {
+	switch (read_c0_prid() & PRID_IMP_MASK) {
+	case PRID_IMP_NETLOGIC_XLP9XX:
+	case PRID_IMP_NETLOGIC_XLP5XX:
 	case PRID_IMP_NETLOGIC_XLP2XX:
 		return "Broadcom XLPII Series";
 	default:
@@ -149,6 +163,10 @@ void __init prom_init(void)
 	void *reset_vec;
 
 	nlm_io_base = CKSEG1ADDR(XLP_DEFAULT_IO_BASE);
+	if (cpu_is_xlp9xx())
+		xlp_cores_per_node = 32;
+	else
+		xlp_cores_per_node = 8;
 	nlm_init_boot_cpu();
 	xlp_mmu_init();
 	nlm_node_init(0);
@@ -162,11 +180,5 @@ void __init prom_init(void)
 
 #ifdef CONFIG_SMP
 	cpumask_setall(&nlm_cpumask);
-	nlm_wakeup_secondary_cpus();
-
-	/* update TLB size after waking up threads */
-	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
-
-	register_smp_ops(&nlm_smp_ops);
 #endif
 }

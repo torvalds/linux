@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -213,5 +213,34 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 			   struct iwl_mvm_time_event_data *te_data);
 
 void iwl_mvm_roc_done_wk(struct work_struct *wk);
+
+/**
+ * iwl_mvm_schedule_csa_noa - request NoA for channel switch
+ * @mvm: the mvm component
+ * @vif: the virtual interface for which the channel switch is issued
+ * @duration: the duration of the NoA in TU.
+ * @apply_time: NoA start time in GP2.
+ *
+ * This function is used to schedule NoA time event and is used to perform
+ * the channel switch flow.
+ */
+int iwl_mvm_schedule_csa_noa(struct iwl_mvm *mvm,
+			     struct ieee80211_vif *vif,
+			     u32 duration, u32 apply_time);
+
+/**
+ * iwl_mvm_te_scheduled - check if the fw received the TE cmd
+ * @te_data: the time event data that corresponds to that time event
+ *
+ * This function returns true iff this TE is added to the fw.
+ */
+static inline bool
+iwl_mvm_te_scheduled(struct iwl_mvm_time_event_data *te_data)
+{
+	if (!te_data)
+		return false;
+
+	return !!te_data->uid;
+}
 
 #endif /* __time_event_h__ */

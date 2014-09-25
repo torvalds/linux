@@ -35,6 +35,8 @@ enum {
 	NFC_DIGITAL_RF_TECH_106A = 0,
 	NFC_DIGITAL_RF_TECH_212F,
 	NFC_DIGITAL_RF_TECH_424F,
+	NFC_DIGITAL_RF_TECH_ISO15693,
+	NFC_DIGITAL_RF_TECH_106B,
 
 	NFC_DIGITAL_RF_TECH_LAST,
 };
@@ -47,15 +49,23 @@ enum {
 	NFC_DIGITAL_FRAMING_NFCA_SHORT = 0,
 	NFC_DIGITAL_FRAMING_NFCA_STANDARD,
 	NFC_DIGITAL_FRAMING_NFCA_STANDARD_WITH_CRC_A,
+	NFC_DIGITAL_FRAMING_NFCA_ANTICOL_COMPLETE,
 
 	NFC_DIGITAL_FRAMING_NFCA_T1T,
 	NFC_DIGITAL_FRAMING_NFCA_T2T,
+	NFC_DIGITAL_FRAMING_NFCA_T4T,
 	NFC_DIGITAL_FRAMING_NFCA_NFC_DEP,
 
 	NFC_DIGITAL_FRAMING_NFCF,
 	NFC_DIGITAL_FRAMING_NFCF_T3T,
 	NFC_DIGITAL_FRAMING_NFCF_NFC_DEP,
 	NFC_DIGITAL_FRAMING_NFC_DEP_ACTIVATED,
+
+	NFC_DIGITAL_FRAMING_ISO15693_INVENTORY,
+	NFC_DIGITAL_FRAMING_ISO15693_T5T,
+
+	NFC_DIGITAL_FRAMING_NFCB,
+	NFC_DIGITAL_FRAMING_NFCB_T4T,
 
 	NFC_DIGITAL_FRAMING_LAST,
 };
@@ -117,11 +127,30 @@ typedef void (*nfc_digital_cmd_complete_t)(struct nfc_digital_dev *ddev,
  *	the NFC-DEP ATR_REQ command through cb. The digital stack deducts the RF
  *	tech by analyzing the SoD of the frame containing the ATR_REQ command.
  *	This is an asynchronous function.
+ * @tg_listen_md: If supported, put the device in automatic listen mode with
+ *	mode detection but without automatic anti-collision. In this mode, the
+ *	device automatically detects the RF technology.  What the actual
+ *	RF technology is can be retrieved by calling @tg_get_rf_tech.
+ *	The digital stack will then perform the appropriate anti-collision
+ *	sequence.  This is an asynchronous function.
+ * @tg_get_rf_tech: Required when @tg_listen_md is supported, unused otherwise.
+ *	Return the RF Technology that was detected by the @tg_listen_md call.
+ *	This is a synchronous function.
  *
  * @switch_rf: Turns device radio on or off. The stack does not call explicitly
  *	switch_rf to turn the radio on. A call to in|tg_configure_hw must turn
  *	the device radio on.
  * @abort_cmd: Discard the last sent command.
+ *
+ * Notes: Asynchronous functions have a timeout parameter. It is the driver
+ *	responsibility to call the digital stack back through the
+ *	nfc_digital_cmd_complete_t callback when no RF respsonse has been
+ *	received within the specified time (in milliseconds). In that case the
+ *	driver must set the resp sk_buff to ERR_PTR(-ETIMEDOUT).
+ *	Since the digital stack serializes commands to be sent, it's mandatory
+ *	for the driver to handle the timeout correctly. Otherwise the stack
+ *	would not be able to send new commands, waiting for the reply of the
+ *	current one.
  */
 struct nfc_digital_ops {
 	int (*in_configure_hw)(struct nfc_digital_dev *ddev, int type,
@@ -141,6 +170,9 @@ struct nfc_digital_ops {
 			      struct digital_tg_mdaa_params *mdaa_params,
 			      u16 timeout, nfc_digital_cmd_complete_t cb,
 			      void *arg);
+	int (*tg_listen_md)(struct nfc_digital_dev *ddev, u16 timeout,
+			    nfc_digital_cmd_complete_t cb, void *arg);
+	int (*tg_get_rf_tech)(struct nfc_digital_dev *ddev, u8 *rf_tech);
 
 	int (*switch_rf)(struct nfc_digital_dev *ddev, bool on);
 	void (*abort_cmd)(struct nfc_digital_dev *ddev);
@@ -193,6 +225,8 @@ struct nfc_digital_dev {
 	u8 curr_protocol;
 	u8 curr_rf_tech;
 	u8 curr_nfc_dep_pni;
+
+	u16 target_fsc;
 
 	int (*skb_check_crc)(struct sk_buff *skb);
 	void (*skb_add_crc)(struct sk_buff *skb);

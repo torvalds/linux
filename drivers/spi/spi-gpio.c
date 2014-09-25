@@ -19,7 +19,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
@@ -115,17 +114,17 @@ spi_to_pdata(const struct spi_device *spi)
 
 static inline void setsck(const struct spi_device *spi, int is_on)
 {
-	gpio_set_value(SPI_SCK_GPIO, is_on);
+	gpio_set_value_cansleep(SPI_SCK_GPIO, is_on);
 }
 
 static inline void setmosi(const struct spi_device *spi, int is_on)
 {
-	gpio_set_value(SPI_MOSI_GPIO, is_on);
+	gpio_set_value_cansleep(SPI_MOSI_GPIO, is_on);
 }
 
 static inline int getmiso(const struct spi_device *spi)
 {
-	return !!gpio_get_value(SPI_MISO_GPIO);
+	return !!gpio_get_value_cansleep(SPI_MISO_GPIO);
 }
 
 #undef pdata
@@ -229,7 +228,7 @@ static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 
 	if (cs != SPI_GPIO_NO_CHIPSELECT) {
 		/* SPI is normally active-low */
-		gpio_set_value(cs, (spi->mode & SPI_CS_HIGH) ? is_active : !is_active);
+		gpio_set_value_cansleep(cs, (spi->mode & SPI_CS_HIGH) ? is_active : !is_active);
 	}
 }
 
@@ -250,7 +249,7 @@ static int spi_gpio_setup(struct spi_device *spi)
 		/*
 		 * ... otherwise, take it from spi->controller_data
 		 */
-		cs = (unsigned int) spi->controller_data;
+		cs = (unsigned int)(uintptr_t) spi->controller_data;
 	}
 
 	if (!spi->controller_state) {
@@ -341,7 +340,7 @@ done:
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id spi_gpio_dt_ids[] = {
+static const struct of_device_id spi_gpio_dt_ids[] = {
 	{ .compatible = "spi-gpio" },
 	{}
 };
@@ -503,13 +502,12 @@ static int spi_gpio_remove(struct platform_device *pdev)
 {
 	struct spi_gpio			*spi_gpio;
 	struct spi_gpio_platform_data	*pdata;
-	int				status;
 
 	spi_gpio = platform_get_drvdata(pdev);
 	pdata = dev_get_platdata(&pdev->dev);
 
 	/* stop() unregisters child devices too */
-	status = spi_bitbang_stop(&spi_gpio->bitbang);
+	spi_bitbang_stop(&spi_gpio->bitbang);
 
 	if (SPI_MISO_GPIO != SPI_GPIO_NO_MISO)
 		gpio_free(SPI_MISO_GPIO);
@@ -518,7 +516,7 @@ static int spi_gpio_remove(struct platform_device *pdev)
 	gpio_free(SPI_SCK_GPIO);
 	spi_master_put(spi_gpio->bitbang.master);
 
-	return status;
+	return 0;
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);

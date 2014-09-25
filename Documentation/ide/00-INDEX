@@ -10,3 +10,5 @@ ide-tape.txt
 	- info on the IDE ATAPI streaming tape driver
 ide.txt
 	- important info for users of ATA devices (IDE/EIDE disks and CD-ROMS).
+warm-plug-howto.txt
+	- using sysfs to remove and add IDE devices.

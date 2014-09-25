@@ -151,7 +151,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 	dma_cap_set(DMA_SLAVE, mask);
 
 	flctl->chan_fifo0_tx = dma_request_channel(mask, shdma_chan_filter,
-					    (void *)pdata->slave_id_fifo0_tx);
+				(void *)(uintptr_t)pdata->slave_id_fifo0_tx);
 	dev_dbg(&pdev->dev, "%s: TX: got channel %p\n", __func__,
 		flctl->chan_fifo0_tx);
 
@@ -168,7 +168,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 		goto err;
 
 	flctl->chan_fifo0_rx = dma_request_channel(mask, shdma_chan_filter,
-					    (void *)pdata->slave_id_fifo0_rx);
+				(void *)(uintptr_t)pdata->slave_id_fifo0_rx);
 	dev_dbg(&pdev->dev, "%s: RX: got channel %p\n", __func__,
 		flctl->chan_fifo0_rx);
 
@@ -897,7 +897,7 @@ static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 		if (!flctl->qos_request) {
 			ret = dev_pm_qos_add_request(&flctl->pdev->dev,
 							&flctl->pm_qos,
-							DEV_PM_QOS_LATENCY,
+							DEV_PM_QOS_RESUME_LATENCY,
 							100);
 			if (ret < 0)
 				dev_err(&flctl->pdev->dev,
@@ -1021,7 +1021,6 @@ static irqreturn_t flctl_handle_flste(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_OF
 struct flctl_soc_config {
 	unsigned long flcmncr_val;
 	unsigned has_hwecc:1;
@@ -1059,10 +1058,8 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 
 	pdata = devm_kzalloc(dev, sizeof(struct sh_flctl_platform_data),
 								GFP_KERNEL);
-	if (!pdata) {
-		dev_err(dev, "%s: failed to allocate config data\n", __func__);
+	if (!pdata)
 		return NULL;
-	}
 
 	/* set SoC specific options */
 	pdata->flcmncr_val = config->flcmncr_val;
@@ -1080,12 +1077,6 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 
 	return pdata;
 }
-#else /* CONFIG_OF */
-static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
-{
-	return NULL;
-}
-#endif /* CONFIG_OF */
 
 static int flctl_probe(struct platform_device *pdev)
 {
@@ -1094,38 +1085,30 @@ static int flctl_probe(struct platform_device *pdev)
 	struct mtd_info *flctl_mtd;
 	struct nand_chip *nand;
 	struct sh_flctl_platform_data *pdata;
-	int ret = -ENXIO;
+	int ret;
 	int irq;
 	struct mtd_part_parser_data ppdata = {};
 
-	flctl = kzalloc(sizeof(struct sh_flctl), GFP_KERNEL);
-	if (!flctl) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
+	flctl = devm_kzalloc(&pdev->dev, sizeof(struct sh_flctl), GFP_KERNEL);
+	if (!flctl)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get I/O memory\n");
-		goto err_iomap;
-	}
-
-	flctl->reg = ioremap(res->start, resource_size(res));
-	if (flctl->reg == NULL) {
-		dev_err(&pdev->dev, "failed to remap I/O memory\n");
-		goto err_iomap;
-	}
+	flctl->reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(flctl->reg))
+		return PTR_ERR(flctl->reg);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "failed to get flste irq data\n");
-		goto err_flste;
+		return -ENXIO;
 	}
 
-	ret = request_irq(irq, flctl_handle_flste, IRQF_SHARED, "flste", flctl);
+	ret = devm_request_irq(&pdev->dev, irq, flctl_handle_flste, IRQF_SHARED,
+			       "flste", flctl);
 	if (ret) {
 		dev_err(&pdev->dev, "request interrupt failed.\n");
-		goto err_flste;
+		return ret;
 	}
 
 	if (pdev->dev.of_node)
@@ -1135,8 +1118,7 @@ static int flctl_probe(struct platform_device *pdev)
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "no setup data defined\n");
-		ret = -EINVAL;
-		goto err_pdata;
+		return -EINVAL;
 	}
 
 	platform_set_drvdata(pdev, flctl);
@@ -1190,12 +1172,6 @@ static int flctl_probe(struct platform_device *pdev)
 err_chip:
 	flctl_release_dma(flctl);
 	pm_runtime_disable(&pdev->dev);
-err_pdata:
-	free_irq(irq, flctl);
-err_flste:
-	iounmap(flctl->reg);
-err_iomap:
-	kfree(flctl);
 	return ret;
 }
 
@@ -1206,9 +1182,6 @@ static int flctl_remove(struct platform_device *pdev)
 	flctl_release_dma(flctl);
 	nand_release(&flctl->mtd);
 	pm_runtime_disable(&pdev->dev);
-	free_irq(platform_get_irq(pdev, 0), flctl);
-	iounmap(flctl->reg);
-	kfree(flctl);
 
 	return 0;
 }

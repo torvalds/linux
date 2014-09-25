@@ -314,6 +314,19 @@ static int af9033_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
+	/* feed clock to RF tuner */
+	switch (state->cfg.tuner) {
+	case AF9033_TUNER_IT9135_38:
+	case AF9033_TUNER_IT9135_51:
+	case AF9033_TUNER_IT9135_52:
+	case AF9033_TUNER_IT9135_60:
+	case AF9033_TUNER_IT9135_61:
+	case AF9033_TUNER_IT9135_62:
+		ret = af9033_wr_reg(state, 0x80fba8, 0x00);
+		if (ret < 0)
+			goto err;
+	}
+
 	/* settings for TS interface */
 	if (state->cfg.ts_mode == AF9033_TS_MODE_USB) {
 		ret = af9033_wr_reg_mask(state, 0x80f9a5, 0x00, 0x01);
@@ -989,10 +1002,62 @@ err:
 	return ret;
 }
 
+static int af9033_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+{
+	struct af9033_state *state = fe->demodulator_priv;
+	int ret;
+
+	dev_dbg(&state->i2c->dev, "%s: onoff=%d\n", __func__, onoff);
+
+	ret = af9033_wr_reg_mask(state, 0x80f993, onoff, 0x01);
+	if (ret < 0)
+		goto err;
+
+	return 0;
+
+err:
+	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
+static int af9033_pid_filter(struct dvb_frontend *fe, int index, u16 pid, int onoff)
+{
+	struct af9033_state *state = fe->demodulator_priv;
+	int ret;
+	u8 wbuf[2] = {(pid >> 0) & 0xff, (pid >> 8) & 0xff};
+
+	dev_dbg(&state->i2c->dev, "%s: index=%d pid=%04x onoff=%d\n",
+			__func__, index, pid, onoff);
+
+	if (pid > 0x1fff)
+		return 0;
+
+	ret = af9033_wr_regs(state, 0x80f996, wbuf, 2);
+	if (ret < 0)
+		goto err;
+
+	ret = af9033_wr_reg(state, 0x80f994, onoff);
+	if (ret < 0)
+		goto err;
+
+	ret = af9033_wr_reg(state, 0x80f995, index);
+	if (ret < 0)
+		goto err;
+
+	return 0;
+
+err:
+	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
 static struct dvb_frontend_ops af9033_ops;
 
 struct dvb_frontend *af9033_attach(const struct af9033_config *config,
-		struct i2c_adapter *i2c)
+				   struct i2c_adapter *i2c,
+				   struct af9033_ops *ops)
 {
 	int ret;
 	struct af9033_state *state;
@@ -1066,6 +1131,11 @@ struct dvb_frontend *af9033_attach(const struct af9033_config *config,
 	/* create dvb_frontend */
 	memcpy(&state->fe.ops, &af9033_ops, sizeof(struct dvb_frontend_ops));
 	state->fe.demodulator_priv = state;
+
+	if (ops) {
+		ops->pid_filter = af9033_pid_filter;
+		ops->pid_filter_ctrl = af9033_pid_filter_ctrl;
+	}
 
 	return &state->fe;
 

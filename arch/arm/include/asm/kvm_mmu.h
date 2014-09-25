@@ -114,11 +114,46 @@ static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
 	pmd_val(*pmd) |= L_PMD_S2_RDWR;
 }
 
+/* Open coded p*d_addr_end that can deal with 64bit addresses */
+#define kvm_pgd_addr_end(addr, end)					\
+({	u64 __boundary = ((addr) + PGDIR_SIZE) & PGDIR_MASK;		\
+	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
+})
+
+#define kvm_pud_addr_end(addr,end)		(end)
+
+#define kvm_pmd_addr_end(addr, end)					\
+({	u64 __boundary = ((addr) + PMD_SIZE) & PMD_MASK;		\
+	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
+})
+
+static inline bool kvm_page_empty(void *ptr)
+{
+	struct page *ptr_page = virt_to_page(ptr);
+	return page_count(ptr_page) == 1;
+}
+
+
+#define kvm_pte_table_empty(ptep) kvm_page_empty(ptep)
+#define kvm_pmd_table_empty(pmdp) kvm_page_empty(pmdp)
+#define kvm_pud_table_empty(pudp) (0)
+
+
 struct kvm;
 
-static inline void coherent_icache_guest_page(struct kvm *kvm, hva_t hva,
-					      unsigned long size)
+#define kvm_flush_dcache_to_poc(a,l)	__cpuc_flush_dcache_area((a), (l))
+
+static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 {
+	return (vcpu->arch.cp15[c1_SCTLR] & 0b101) == 0b101;
+}
+
+static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
+					     unsigned long size)
+{
+	if (!vcpu_has_cache_enabled(vcpu))
+		kvm_flush_dcache_to_poc((void *)hva, size);
+	
 	/*
 	 * If we are going to insert an instruction page and the icache is
 	 * either VIPT or PIPT, there is a potential problem where the host
@@ -139,8 +174,9 @@ static inline void coherent_icache_guest_page(struct kvm *kvm, hva_t hva,
 	}
 }
 
-#define kvm_flush_dcache_to_poc(a,l)	__cpuc_flush_dcache_area((a), (l))
 #define kvm_virt_to_phys(x)		virt_to_idmap((unsigned long)(x))
+
+void stage2_flush_vm(struct kvm *kvm);
 
 #endif	/* !__ASSEMBLY__ */
 

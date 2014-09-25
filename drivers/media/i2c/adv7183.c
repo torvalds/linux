@@ -501,8 +501,6 @@ static const struct v4l2_ctrl_ops adv7183_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops adv7183_core_ops = {
 	.log_status = adv7183_log_status,
-	.g_std = adv7183_g_std,
-	.s_std = adv7183_s_std,
 	.reset = adv7183_reset,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = adv7183_g_register,
@@ -511,6 +509,8 @@ static const struct v4l2_subdev_core_ops adv7183_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops adv7183_video_ops = {
+	.g_std = adv7183_g_std,
+	.s_std = adv7183_s_std,
 	.s_routing = adv7183_s_routing,
 	.querystd = adv7183_querystd,
 	.g_input_status = adv7183_g_input_status,

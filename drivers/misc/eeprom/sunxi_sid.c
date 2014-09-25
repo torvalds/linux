@@ -21,7 +21,6 @@
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/fs.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
@@ -96,7 +95,7 @@ static int sunxi_sid_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id sunxi_sid_of_match[] = {
-	{ .compatible = "allwinner,sun4i-sid", .data = (void *)16},
+	{ .compatible = "allwinner,sun4i-a10-sid", .data = (void *)16},
 	{ .compatible = "allwinner,sun7i-a20-sid", .data = (void *)512},
 	{/* sentinel */},
 };

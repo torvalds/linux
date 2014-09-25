@@ -43,6 +43,7 @@
 #define G25_REV_MIN 0x22
 #define G27_REV_MAJ 0x12
 #define G27_REV_MIN 0x38
+#define G27_2_REV_MIN 0x39
 
 #define to_hid_device(pdev) container_of(pdev, struct hid_device, dev)
 
@@ -51,7 +52,7 @@ static void hid_lg4ff_set_range_g25(struct hid_device *hid, u16 range);
 static ssize_t lg4ff_range_show(struct device *dev, struct device_attribute *attr, char *buf);
 static ssize_t lg4ff_range_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
 
-static DEVICE_ATTR(range, S_IRWXU | S_IRWXG | S_IRWXO, lg4ff_range_show, lg4ff_range_store);
+static DEVICE_ATTR(range, S_IRWXU | S_IRWXG | S_IROTH, lg4ff_range_show, lg4ff_range_store);
 
 struct lg4ff_device_entry {
 	__u32 product_id;
@@ -130,6 +131,7 @@ static const struct lg4ff_usb_revision lg4ff_revs[] = {
 	{DFP_REV_MAJ,  DFP_REV_MIN,  &native_dfp},	/* Driving Force Pro */
 	{G25_REV_MAJ,  G25_REV_MIN,  &native_g25},	/* G25 */
 	{G27_REV_MAJ,  G27_REV_MIN,  &native_g27},	/* G27 */
+	{G27_REV_MAJ,  G27_2_REV_MIN,  &native_g27},	/* G27 v2 */
 };
 
 /* Recalculates X axis value accordingly to currently selected range */
@@ -449,13 +451,13 @@ static ssize_t lg4ff_range_store(struct device *dev, struct device_attribute *at
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
 		hid_err(hid, "Private driver data not found!\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
 		hid_err(hid, "Device properties not found!\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	if (range == 0)

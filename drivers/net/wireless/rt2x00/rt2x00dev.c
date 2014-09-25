@@ -14,9 +14,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -143,8 +141,11 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
 
-	if (test_and_clear_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags))
+	if (test_and_clear_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags)) {
+		mutex_lock(&intf->beacon_skb_mutex);
 		rt2x00queue_update_beacon(rt2x00dev, vif);
+		mutex_unlock(&intf->beacon_skb_mutex);
+	}
 }
 
 static void rt2x00lib_intf_scheduled(struct work_struct *work)
@@ -218,7 +219,7 @@ static void rt2x00lib_beaconupdate_iter(void *data, u8 *mac,
 	 * never be called for USB devices.
 	 */
 	WARN_ON(rt2x00_is_usb(rt2x00dev));
-	rt2x00queue_update_beacon_locked(rt2x00dev, vif);
+	rt2x00queue_update_beacon(rt2x00dev, vif);
 }
 
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
@@ -567,10 +568,10 @@ static void rt2x00lib_rxdone_check_ba(struct rt2x00_dev *rt2x00dev,
 
 #undef TID_CHECK
 
-		if (!ether_addr_equal(ba->ra, entry->ta))
+		if (!ether_addr_equal_64bits(ba->ra, entry->ta))
 			continue;
 
-		if (!ether_addr_equal(ba->ta, entry->ra))
+		if (!ether_addr_equal_64bits(ba->ta, entry->ra))
 			continue;
 
 		/* Mark BAR since we received the according BA */
@@ -1128,9 +1129,10 @@ static void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/*
-	 * Unregister extra components.
+	 * Stop rfkill polling.
 	 */
-	rt2x00rfkill_unregister(rt2x00dev);
+	if (test_bit(REQUIRE_DELAYED_RFKILL, &rt2x00dev->cap_flags))
+		rt2x00rfkill_unregister(rt2x00dev);
 
 	/*
 	 * Allow the HW to uninitialize.
@@ -1167,6 +1169,12 @@ static int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
 	}
 
 	set_bit(DEVICE_STATE_INITIALIZED, &rt2x00dev->flags);
+
+	/*
+	 * Start rfkill polling.
+	 */
+	if (test_bit(REQUIRE_DELAYED_RFKILL, &rt2x00dev->cap_flags))
+		rt2x00rfkill_register(rt2x00dev);
 
 	return 0;
 }
@@ -1377,7 +1385,12 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00link_register(rt2x00dev);
 	rt2x00leds_register(rt2x00dev);
 	rt2x00debug_register(rt2x00dev);
-	rt2x00rfkill_register(rt2x00dev);
+
+	/*
+	 * Start rfkill polling.
+	 */
+	if (!test_bit(REQUIRE_DELAYED_RFKILL, &rt2x00dev->cap_flags))
+		rt2x00rfkill_register(rt2x00dev);
 
 	return 0;
 
@@ -1391,6 +1404,12 @@ EXPORT_SYMBOL_GPL(rt2x00lib_probe_dev);
 void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 {
 	clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
+
+	/*
+	 * Stop rfkill polling.
+	 */
+	if (!test_bit(REQUIRE_DELAYED_RFKILL, &rt2x00dev->cap_flags))
+		rt2x00rfkill_unregister(rt2x00dev);
 
 	/*
 	 * Disable radio.
@@ -1454,8 +1473,7 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Free the driver data.
 	 */
-	if (rt2x00dev->drv_data)
-		kfree(rt2x00dev->drv_data);
+	kfree(rt2x00dev->drv_data);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_remove_dev);
 

@@ -39,6 +39,7 @@ struct device_node;
  * 		from the cpu to be killed.
  * @cpu_die:	Makes a cpu leave the kernel. Must not fail. Called from the
  *		cpu being killed.
+ * @cpu_kill:  Ensures a cpu has left the kernel. Called from another cpu.
  * @cpu_suspend: Suspends a cpu and saves the required context. May fail owing
  *               to wrong parameters or error conditions. Called from the
  *               CPU being suspended. Must be called with IRQs disabled.
@@ -52,6 +53,7 @@ struct cpu_operations {
 #ifdef CONFIG_HOTPLUG_CPU
 	int		(*cpu_disable)(unsigned int cpu);
 	void		(*cpu_die)(unsigned int cpu);
+	int		(*cpu_kill)(unsigned int cpu);
 #endif
 #ifdef CONFIG_ARM64_CPU_SUSPEND
 	int		(*cpu_suspend)(unsigned long);

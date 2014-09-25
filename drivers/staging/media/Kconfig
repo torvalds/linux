@@ -21,17 +21,17 @@ if STAGING_MEDIA
 # Please keep them in alphabetic order
 source "drivers/staging/media/as102/Kconfig"
 
+source "drivers/staging/media/bcm2048/Kconfig"
+
 source "drivers/staging/media/cxd2099/Kconfig"
 
 source "drivers/staging/media/davinci_vpfe/Kconfig"
 
 source "drivers/staging/media/dt3155v4l/Kconfig"
 
-source "drivers/staging/media/go7007/Kconfig"
+source "drivers/staging/media/omap24xx/Kconfig"
 
-source "drivers/staging/media/msi3101/Kconfig"
-
-source "drivers/staging/media/solo6x10/Kconfig"
+source "drivers/staging/media/omap4iss/Kconfig"
 
 # Keep LIRC at the end, as it has sub-menus
 source "drivers/staging/media/lirc/Kconfig"

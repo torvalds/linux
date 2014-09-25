@@ -24,9 +24,6 @@
 #define DEFAULT_HASH_SIZE	64	/* optimized for diffserv */
 
 
-#define	PRIV(tp)	((struct tcindex_data *) (tp)->root)
-
-
 struct tcindex_filter_result {
 	struct tcf_exts		exts;
 	struct tcf_result	res;
@@ -48,11 +45,6 @@ struct tcindex_data {
 	int hash;		/* hash table size; 0 if undefined */
 	int alloc_hash;		/* allocated size */
 	int fall_through;	/* 0: only classify if explicit match */
-};
-
-static const struct tcf_ext_map tcindex_ext_map = {
-	.police = TCA_TCINDEX_POLICE,
-	.action = TCA_TCINDEX_ACT
 };
 
 static inline int
@@ -82,7 +74,7 @@ tcindex_lookup(struct tcindex_data *p, u16 key)
 static int tcindex_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			    struct tcf_result *res)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter_result *f;
 	int key = (skb->tc_index & p->mask) >> p->shift;
 
@@ -107,7 +99,7 @@ static int tcindex_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 static unsigned long tcindex_get(struct tcf_proto *tp, u32 handle)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter_result *r;
 
 	pr_debug("tcindex_get(tp %p,handle 0x%08x)\n", tp, handle);
@@ -145,7 +137,7 @@ static int tcindex_init(struct tcf_proto *tp)
 static int
 __tcindex_delete(struct tcf_proto *tp, unsigned long arg, int lock)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) arg;
 	struct tcindex_filter *f = NULL;
 
@@ -196,11 +188,17 @@ static const struct nla_policy tcindex_policy[TCA_TCINDEX_MAX + 1] = {
 	[TCA_TCINDEX_CLASSID]		= { .type = NLA_U32 },
 };
 
+static void tcindex_filter_result_init(struct tcindex_filter_result *r)
+{
+	memset(r, 0, sizeof(*r));
+	tcf_exts_init(&r->exts, TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
+}
+
 static int
 tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		  u32 handle, struct tcindex_data *p,
 		  struct tcindex_filter_result *r, struct nlattr **tb,
-		 struct nlattr *est)
+		  struct nlattr *est, bool ovr)
 {
 	int err, balloc = 0;
 	struct tcindex_filter_result new_filter_result, *old_r = r;
@@ -209,17 +207,17 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	struct tcindex_filter *f = NULL; /* make gcc behave */
 	struct tcf_exts e;
 
-	err = tcf_exts_validate(net, tp, tb, est, &e, &tcindex_ext_map);
+	tcf_exts_init(&e, TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
+	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
 	if (err < 0)
 		return err;
 
 	memcpy(&cp, p, sizeof(cp));
-	memset(&new_filter_result, 0, sizeof(new_filter_result));
+	tcindex_filter_result_init(&new_filter_result);
 
+	tcindex_filter_result_init(&cr);
 	if (old_r)
-		memcpy(&cr, r, sizeof(cr));
-	else
-		memset(&cr, 0, sizeof(cr));
+		cr.res = r->res;
 
 	if (tb[TCA_TCINDEX_HASH])
 		cp.hash = nla_get_u32(tb[TCA_TCINDEX_HASH]);
@@ -271,9 +269,14 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	err = -ENOMEM;
 	if (!cp.perfect && !cp.h) {
 		if (valid_perfect_hash(&cp)) {
+			int i;
+
 			cp.perfect = kcalloc(cp.hash, sizeof(*r), GFP_KERNEL);
 			if (!cp.perfect)
 				goto errout;
+			for (i = 0; i < cp.hash; i++)
+				tcf_exts_init(&cp.perfect[i].exts, TCA_TCINDEX_ACT,
+					      TCA_TCINDEX_POLICE);
 			balloc = 1;
 		} else {
 			cp.h = kcalloc(cp.hash, sizeof(f), GFP_KERNEL);
@@ -299,14 +302,17 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		tcf_bind_filter(tp, &cr.res, base);
 	}
 
-	tcf_exts_change(tp, &cr.exts, &e);
+	if (old_r)
+		tcf_exts_change(tp, &r->exts, &e);
+	else
+		tcf_exts_change(tp, &cr.exts, &e);
 
 	tcf_tree_lock(tp);
 	if (old_r && old_r != r)
-		memset(old_r, 0, sizeof(*old_r));
+		tcindex_filter_result_init(old_r);
 
 	memcpy(p, &cp, sizeof(cp));
-	memcpy(r, &cr, sizeof(cr));
+	r->res = cr.res;
 
 	if (r == &new_filter_result) {
 		struct tcindex_filter **fp;
@@ -335,11 +341,11 @@ errout:
 static int
 tcindex_change(struct net *net, struct sk_buff *in_skb,
 	       struct tcf_proto *tp, unsigned long base, u32 handle,
-	       struct nlattr **tca, unsigned long *arg)
+	       struct nlattr **tca, unsigned long *arg, bool ovr)
 {
 	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct nlattr *tb[TCA_TCINDEX_MAX + 1];
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) *arg;
 	int err;
 
@@ -355,13 +361,13 @@ tcindex_change(struct net *net, struct sk_buff *in_skb,
 		return err;
 
 	return tcindex_set_parms(net, tp, base, handle, p, r, tb,
-				 tca[TCA_RATE]);
+				 tca[TCA_RATE], ovr);
 }
 
 
 static void tcindex_walk(struct tcf_proto *tp, struct tcf_walker *walker)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter *f, *next;
 	int i;
 
@@ -408,13 +414,13 @@ static int tcindex_destroy_element(struct tcf_proto *tp,
 
 static void tcindex_destroy(struct tcf_proto *tp)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcf_walker walker;
 
 	pr_debug("tcindex_destroy(tp %p),p %p\n", tp, p);
 	walker.count = 0;
 	walker.skip = 0;
-	walker.fn = &tcindex_destroy_element;
+	walker.fn = tcindex_destroy_element;
 	tcindex_walk(tp, &walker);
 	kfree(p->perfect);
 	kfree(p->h);
@@ -423,10 +429,10 @@ static void tcindex_destroy(struct tcf_proto *tp)
 }
 
 
-static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
+static int tcindex_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
     struct sk_buff *skb, struct tcmsg *t)
 {
-	struct tcindex_data *p = PRIV(tp);
+	struct tcindex_data *p = tp->root;
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) fh;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
@@ -468,11 +474,11 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 		    nla_put_u32(skb, TCA_TCINDEX_CLASSID, r->res.classid))
 			goto nla_put_failure;
 
-		if (tcf_exts_dump(skb, &r->exts, &tcindex_ext_map) < 0)
+		if (tcf_exts_dump(skb, &r->exts) < 0)
 			goto nla_put_failure;
 		nla_nest_end(skb, nest);
 
-		if (tcf_exts_dump_stats(skb, &r->exts, &tcindex_ext_map) < 0)
+		if (tcf_exts_dump_stats(skb, &r->exts) < 0)
 			goto nla_put_failure;
 	}
 

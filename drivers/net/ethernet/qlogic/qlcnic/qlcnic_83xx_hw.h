@@ -308,6 +308,8 @@ struct qlc_83xx_reset {
 #define QLC_83XX_IDC_FLASH_PARAM_ADDR			0x3e8020
 
 struct qlcnic_adapter;
+struct qlcnic_fw_dump;
+
 struct qlc_83xx_idc {
 	int (*state_entry) (struct qlcnic_adapter *);
 	u64		sec_counter;
@@ -322,6 +324,11 @@ struct qlc_83xx_idc {
 	u8		quiesce_req;
 	u8		delay_reset;
 	char		**name;
+};
+
+enum qlcnic_vlan_operations {
+	QLC_VLAN_ADD = 0,
+	QLC_VLAN_DELETE
 };
 
 /* Device States */
@@ -376,6 +383,8 @@ enum qlcnic_83xx_states {
 
 /* LED configuration settings */
 #define QLC_83XX_ENABLE_BEACON		0xe
+#define QLC_83XX_BEACON_ON		1
+#define QLC_83XX_BEACON_OFF		0
 #define QLC_83XX_LED_RATE		0xff
 #define QLC_83XX_LED_ACT		(1 << 10)
 #define QLC_83XX_LED_MOD		(0 << 13)
@@ -408,7 +417,6 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_PVID_STRIP_CAPABILITY		BIT_22
 #define QLC_83XX_GET_FUNC_MODE_FROM_NPAR_INFO(val)	(val & 0x80000000)
 #define QLC_83XX_GET_LRO_CAPABILITY(val)		(val & 0x20)
-#define QLC_83XX_GET_LSO_CAPABILITY(val)		(val & 0x40)
 #define QLC_83XX_GET_LSO_CAPABILITY(val)		(val & 0x40)
 #define QLC_83XX_GET_HW_LRO_CAPABILITY(val)		(val & 0x400)
 #define QLC_83XX_GET_VLAN_ALIGN_CAPABILITY(val)	(val & 0x4000)
@@ -518,6 +526,12 @@ enum qlc_83xx_ext_regs {
 	QLC_83XX_ASIC_TEMP,
 };
 
+/* Initialize/Stop NIC command bit definitions */
+#define QLC_REGISTER_LB_IDC		BIT_0
+#define QLC_REGISTER_DCB_AEN		BIT_1
+#define QLC_83XX_MULTI_TENANCY_INFO	BIT_29
+#define QLC_INIT_FW_RESOURCES		BIT_31
+
 /* 83xx funcitons */
 int qlcnic_83xx_get_fw_version(struct qlcnic_adapter *);
 int qlcnic_83xx_issue_cmd(struct qlcnic_adapter *, struct qlcnic_cmd_args *);
@@ -532,24 +546,20 @@ void qlcnic_83xx_write_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
 void qlcnic_83xx_read_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
 int qlcnic_83xx_rd_reg_indirect(struct qlcnic_adapter *, ulong, int *);
 int qlcnic_83xx_wrt_reg_indirect(struct qlcnic_adapter *, ulong, u32);
-void qlcnic_83xx_process_rcv_diag(struct qlcnic_adapter *, int, u64 []);
 int qlcnic_83xx_nic_set_promisc(struct qlcnic_adapter *, u32);
-int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *, u8);
-int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *, u8);
 int qlcnic_83xx_config_hw_lro(struct qlcnic_adapter *, int);
 int qlcnic_83xx_config_rss(struct qlcnic_adapter *, int);
-int qlcnic_83xx_config_intr_coalesce(struct qlcnic_adapter *);
 void qlcnic_83xx_change_l2_filter(struct qlcnic_adapter *, u64 *, u16);
 int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *, struct qlcnic_pci_info *);
 int qlcnic_83xx_set_nic_info(struct qlcnic_adapter *, struct qlcnic_info *);
-void qlcnic_83xx_register_nic_idc_func(struct qlcnic_adapter *, int);
+void qlcnic_83xx_initialize_nic(struct qlcnic_adapter *, int);
 
 int qlcnic_83xx_napi_add(struct qlcnic_adapter *, struct net_device *);
 void qlcnic_83xx_napi_del(struct qlcnic_adapter *);
 void qlcnic_83xx_napi_enable(struct qlcnic_adapter *);
 void qlcnic_83xx_napi_disable(struct qlcnic_adapter *);
 int qlcnic_83xx_config_led(struct qlcnic_adapter *, u32, u32);
-void qlcnic_ind_wr(struct qlcnic_adapter *, u32, u32);
+int qlcnic_ind_wr(struct qlcnic_adapter *, u32, u32);
 int qlcnic_ind_rd(struct qlcnic_adapter *, u32);
 int qlcnic_83xx_create_rx_ctx(struct qlcnic_adapter *);
 int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *,
@@ -563,32 +573,22 @@ void qlcnic_83xx_process_rcv_ring_diag(struct qlcnic_host_sds_ring *);
 int qlcnic_83xx_config_intrpt(struct qlcnic_adapter *, bool);
 int qlcnic_83xx_sre_macaddr_change(struct qlcnic_adapter *, u8 *, u16, u8);
 int qlcnic_83xx_get_mac_address(struct qlcnic_adapter *, u8 *, u8);
-void qlcnic_83xx_configure_mac(struct qlcnic_adapter *, u8 *, u8,
-			       struct qlcnic_cmd_args *);
 int qlcnic_83xx_alloc_mbx_args(struct qlcnic_cmd_args *,
 			       struct qlcnic_adapter *, u32);
 void qlcnic_free_mbx_args(struct qlcnic_cmd_args *);
 void qlcnic_set_npar_data(struct qlcnic_adapter *, const struct qlcnic_info *,
 			  struct qlcnic_info *);
-void qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *);
-irqreturn_t qlcnic_83xx_handle_aen(int, void *);
+int qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *,
+				 struct ethtool_coalesce *);
+int qlcnic_83xx_set_rx_tx_intr_coal(struct qlcnic_adapter *);
 int qlcnic_83xx_get_port_info(struct qlcnic_adapter *);
 void qlcnic_83xx_enable_mbx_interrupt(struct qlcnic_adapter *);
 void qlcnic_83xx_disable_mbx_intr(struct qlcnic_adapter *);
 irqreturn_t qlcnic_83xx_clear_legacy_intr(struct qlcnic_adapter *);
 irqreturn_t qlcnic_83xx_intr(int, void *);
 irqreturn_t qlcnic_83xx_tmp_intr(int, void *);
-void qlcnic_83xx_enable_intr(struct qlcnic_adapter *,
-			     struct qlcnic_host_sds_ring *);
-void qlcnic_83xx_disable_intr(struct qlcnic_adapter *,
-			     struct qlcnic_host_sds_ring *);
 void qlcnic_83xx_check_vf(struct qlcnic_adapter *,
 			  const struct pci_device_id *);
-void __qlcnic_83xx_process_aen(struct qlcnic_adapter *);
-int qlcnic_83xx_get_port_config(struct qlcnic_adapter *);
-int qlcnic_83xx_set_port_config(struct qlcnic_adapter *);
-int qlcnic_enable_eswitch(struct qlcnic_adapter *, u8, u8);
-int qlcnic_83xx_get_nic_configuration(struct qlcnic_adapter *);
 int qlcnic_83xx_config_default_opmode(struct qlcnic_adapter *);
 int qlcnic_83xx_setup_mbx_intr(struct qlcnic_adapter *);
 void qlcnic_83xx_free_mbx_intr(struct qlcnic_adapter *);
@@ -610,17 +610,13 @@ int qlcnic_83xx_lockless_flash_read32(struct qlcnic_adapter *,
 				      u32, u8 *, int);
 int qlcnic_83xx_init(struct qlcnic_adapter *, int);
 int qlcnic_83xx_idc_ready_state_entry(struct qlcnic_adapter *);
-int qlcnic_83xx_check_hw_status(struct qlcnic_adapter *p_dev);
 void qlcnic_83xx_idc_poll_dev_state(struct work_struct *);
-int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *);
 void qlcnic_83xx_idc_exit(struct qlcnic_adapter *);
 void qlcnic_83xx_idc_request_reset(struct qlcnic_adapter *, u32);
 int qlcnic_83xx_lock_driver(struct qlcnic_adapter *);
 void qlcnic_83xx_unlock_driver(struct qlcnic_adapter *);
 int qlcnic_83xx_set_default_offload_settings(struct qlcnic_adapter *);
-int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *, u64, u32 *, u32);
 int qlcnic_83xx_idc_vnic_pf_entry(struct qlcnic_adapter *);
-int qlcnic_83xx_enable_vnic_mode(struct qlcnic_adapter *, int);
 int qlcnic_83xx_disable_vnic_mode(struct qlcnic_adapter *, int);
 int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *);
 int qlcnic_83xx_get_vnic_vport_info(struct qlcnic_adapter *,
@@ -648,9 +644,6 @@ int qlcnic_83xx_enable_flash_write(struct qlcnic_adapter *);
 int qlcnic_83xx_disable_flash_write(struct qlcnic_adapter *);
 void qlcnic_83xx_enable_mbx_poll(struct qlcnic_adapter *);
 void qlcnic_83xx_disable_mbx_poll(struct qlcnic_adapter *);
-void qlcnic_83xx_set_mac_filter_count(struct qlcnic_adapter *);
-int qlcnic_83xx_shutdown(struct pci_dev *);
-int qlcnic_83xx_resume(struct qlcnic_adapter *);
 int qlcnic_83xx_idc_init(struct qlcnic_adapter *);
 int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *);
 int qlcnic_83xx_set_vnic_opmode(struct qlcnic_adapter *);
@@ -658,9 +651,11 @@ int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *);
 void qlcnic_83xx_aer_stop_poll_work(struct qlcnic_adapter *);
 int qlcnic_83xx_aer_reset(struct qlcnic_adapter *);
 void qlcnic_83xx_aer_start_poll_work(struct qlcnic_adapter *);
-pci_ers_result_t qlcnic_83xx_io_error_detected(struct pci_dev *,
-					       pci_channel_state_t);
-pci_ers_result_t qlcnic_83xx_io_slot_reset(struct pci_dev *);
-void qlcnic_83xx_io_resume(struct pci_dev *);
-void qlcnic_83xx_stop_hw(struct qlcnic_adapter *);
+u32 qlcnic_83xx_get_saved_state(void *, u32);
+void qlcnic_83xx_set_saved_state(void *, u32, u32);
+void qlcnic_83xx_cache_tmpl_hdr_values(struct qlcnic_fw_dump *);
+u32 qlcnic_83xx_get_cap_size(void *, int);
+void qlcnic_83xx_set_sys_info(void *, int, u32);
+void qlcnic_83xx_store_cap_mask(void *, u32);
+int qlcnic_ms_mem_write128(struct qlcnic_adapter *, u64, u32 *, u32);
 #endif

@@ -47,8 +47,8 @@
  * @{
  */
 
-#include <lustre_handles.h>
-#include <lustre/lustre_idl.h>
+#include "lustre_handles.h"
+#include "lustre/lustre_idl.h"
 
 
 /**
@@ -152,7 +152,7 @@ struct import_state_hist {
 };
 
 /**
- * Defintion of PortalRPC import structure.
+ * Definition of PortalRPC import structure.
  * Imports are representing client-side view to remote target.
  */
 struct obd_import {
@@ -180,6 +180,17 @@ struct obd_import {
 	struct list_head		imp_delayed_list;
 	/** @} */
 
+	/**
+	 * List of requests that are retained for committed open replay. Once
+	 * open is committed, open replay request will be moved from the
+	 * imp_replay_list into the imp_committed_list.
+	 * The imp_replay_cursor is for accelerating searching during replay.
+	 * @{
+	 */
+	struct list_head		imp_committed_list;
+	struct list_head	       *imp_replay_cursor;
+	/** @} */
+
 	/** obd device for this import */
 	struct obd_device	*imp_obd;
 
@@ -189,7 +200,7 @@ struct obd_import {
 	 */
 	struct ptlrpc_sec	*imp_sec;
 	struct mutex		  imp_sec_mutex;
-	cfs_time_t		imp_sec_expire;
+	unsigned long		imp_sec_expire;
 	/** @} */
 
 	/** Wait queue for those who need to wait for recovery completion */
@@ -219,7 +230,7 @@ struct obd_import {
 	* after a check to save on unnecessary replay list iterations
 	*/
 	int		       imp_last_generation_checked;
-	/** Last tranno we replayed */
+	/** Last transno we replayed */
 	__u64		     imp_last_replay_transno;
 	/** Last transno committed on remote side */
 	__u64		     imp_peer_committed_transno;
@@ -236,8 +247,8 @@ struct obd_import {
 	 */
 	struct lustre_handle      imp_remote_handle;
 	/** When to perform next ping. time in jiffies. */
-	cfs_time_t		imp_next_ping;
-	/** When we last succesfully connected. time in 64bit jiffies */
+	unsigned long		imp_next_ping;
+	/** When we last successfully connected. time in 64bit jiffies */
 	__u64		     imp_last_success_conn;
 
 	/** List of all possible connection for import. */
@@ -268,7 +279,7 @@ struct obd_import {
 				  imp_no_lock_replay:1,
 				  /* recovery by versions was failed */
 				  imp_vbr_failed:1,
-				  /* force an immidiate ping */
+				  /* force an immediate ping */
 				  imp_force_verify:1,
 				  /* force a scheduled ping */
 				  imp_force_next_verify:1,
@@ -281,7 +292,7 @@ struct obd_import {
 				  /* need IR MNE swab */
 				  imp_need_mne_swab:1,
 				  /* import must be reconnected instead of
-				   * chouse new connection */
+				   * chose new connection */
 				  imp_force_reconnect:1,
 				  /* import has tried to connect with server */
 				  imp_connect_tried:1;
@@ -339,7 +350,7 @@ static inline void at_reset(struct adaptive_timeout *at, int val) {
 	spin_lock(&at->at_lock);
 	at->at_current = val;
 	at->at_worst_ever = val;
-	at->at_worst_time = cfs_time_current_sec();
+	at->at_worst_time = get_seconds();
 	spin_unlock(&at->at_lock);
 }
 static inline void at_init(struct adaptive_timeout *at, int val, int flags) {

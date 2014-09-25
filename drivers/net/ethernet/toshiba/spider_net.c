@@ -73,7 +73,7 @@ MODULE_PARM_DESC(tx_descriptors, "number of descriptors used " \
 
 char spider_net_driver_name[] = "spidernet";
 
-static DEFINE_PCI_DEVICE_TABLE(spider_net_pci_tbl) = {
+static const struct pci_device_id spider_net_pci_tbl[] = {
 	{ PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_SPIDER_NET,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ 0, }
@@ -860,7 +860,7 @@ spider_net_release_tx_chain(struct spider_net_card *card, int brutal)
 		if (skb) {
 			pci_unmap_single(card->pdev, buf_addr, skb->len,
 					PCI_DMA_TODEVICE);
-			dev_kfree_skb(skb);
+			dev_consume_skb_any(skb);
 		}
 	}
 	return 0;

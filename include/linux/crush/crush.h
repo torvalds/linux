@@ -19,10 +19,11 @@
 
 #define CRUSH_MAGIC 0x00010000ul   /* for detecting algorithm revisions */
 
-
 #define CRUSH_MAX_DEPTH 10  /* max crush hierarchy depth */
-#define CRUSH_MAX_SET   10  /* max size of a mapping result */
 
+
+#define CRUSH_ITEM_UNDEF  0x7ffffffe  /* undefined result (internal use only) */
+#define CRUSH_ITEM_NONE   0x7fffffff  /* no result */
 
 /*
  * CRUSH uses user-defined "rules" to describe how inputs should be
@@ -43,8 +44,14 @@ enum {
 				      /* arg2 = type */
 	CRUSH_RULE_CHOOSE_INDEP = 3,  /* same */
 	CRUSH_RULE_EMIT = 4,          /* no args */
-	CRUSH_RULE_CHOOSE_LEAF_FIRSTN = 6,
-	CRUSH_RULE_CHOOSE_LEAF_INDEP = 7,
+	CRUSH_RULE_CHOOSELEAF_FIRSTN = 6,
+	CRUSH_RULE_CHOOSELEAF_INDEP = 7,
+
+	CRUSH_RULE_SET_CHOOSE_TRIES = 8, /* override choose_total_tries */
+	CRUSH_RULE_SET_CHOOSELEAF_TRIES = 9, /* override chooseleaf_descend_once */
+	CRUSH_RULE_SET_CHOOSE_LOCAL_TRIES = 10,
+	CRUSH_RULE_SET_CHOOSE_LOCAL_FALLBACK_TRIES = 11,
+	CRUSH_RULE_SET_CHOOSELEAF_VARY_R = 12
 };
 
 /*
@@ -162,8 +169,17 @@ struct crush_map {
 	__u32 choose_local_fallback_tries;
 	/* choose attempts before giving up */ 
 	__u32 choose_total_tries;
-	/* attempt chooseleaf inner descent once; on failure retry outer descent */
+	/* attempt chooseleaf inner descent once for firstn mode; on
+	 * reject retry outer descent.  Note that this does *not*
+	 * apply to a collision: in that case we will retry as we used
+	 * to. */
 	__u32 chooseleaf_descend_once;
+
+	/* if non-zero, feed r into chooseleaf, bit-shifted right by (r-1)
+	 * bits.  a value of 1 is best for new clusters.  for legacy clusters
+	 * that want to limit reshuffling, a value of 3 or 4 will make the
+	 * mappings line up a bit better with previous mappings. */
+	__u8 chooseleaf_vary_r;
 };
 
 
@@ -174,6 +190,7 @@ extern void crush_destroy_bucket_list(struct crush_bucket_list *b);
 extern void crush_destroy_bucket_tree(struct crush_bucket_tree *b);
 extern void crush_destroy_bucket_straw(struct crush_bucket_straw *b);
 extern void crush_destroy_bucket(struct crush_bucket *b);
+extern void crush_destroy_rule(struct crush_rule *r);
 extern void crush_destroy(struct crush_map *map);
 
 static inline int crush_calc_tree_node(int i)

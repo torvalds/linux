@@ -14,9 +14,6 @@
 
 #include "blk.h"
 
-int blk_iopoll_enabled = 1;
-EXPORT_SYMBOL(blk_iopoll_enabled);
-
 static unsigned int blk_iopoll_budget __read_mostly = 256;
 
 static DEFINE_PER_CPU(struct list_head, blk_cpu_iopoll);
@@ -52,7 +49,7 @@ EXPORT_SYMBOL(blk_iopoll_sched);
 void __blk_iopoll_complete(struct blk_iopoll *iop)
 {
 	list_del(&iop->list);
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit_unlock(IOPOLL_F_SCHED, &iop->state);
 }
 EXPORT_SYMBOL(__blk_iopoll_complete);
@@ -67,12 +64,12 @@ EXPORT_SYMBOL(__blk_iopoll_complete);
  *     iopoll handler will not be invoked again before blk_iopoll_sched_prep()
  *     is called.
  **/
-void blk_iopoll_complete(struct blk_iopoll *iopoll)
+void blk_iopoll_complete(struct blk_iopoll *iop)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__blk_iopoll_complete(iopoll);
+	__blk_iopoll_complete(iop);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(blk_iopoll_complete);
@@ -164,7 +161,7 @@ EXPORT_SYMBOL(blk_iopoll_disable);
 void blk_iopoll_enable(struct blk_iopoll *iop)
 {
 	BUG_ON(!test_bit(IOPOLL_F_SCHED, &iop->state));
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit_unlock(IOPOLL_F_SCHED, &iop->state);
 }
 EXPORT_SYMBOL(blk_iopoll_enable);

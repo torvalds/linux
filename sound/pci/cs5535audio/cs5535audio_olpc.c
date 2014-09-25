@@ -36,7 +36,8 @@ void olpc_analog_input(struct snd_ac97 *ac97, int on)
 	err = snd_ac97_update_bits(ac97, AC97_AD_TEST2,
 			1 << AC97_AD_HPFD_SHIFT, on << AC97_AD_HPFD_SHIFT);
 	if (err < 0) {
-		snd_printk(KERN_ERR "setting High Pass Filter - %d\n", err);
+		dev_err(ac97->bus->card->dev,
+			"setting High Pass Filter - %d\n", err);
 		return;
 	}
 
@@ -58,7 +59,7 @@ void olpc_mic_bias(struct snd_ac97 *ac97, int on)
 	err = snd_ac97_update_bits(ac97, AC97_AD_MISC,
 			1 << AC97_AD_VREFD_SHIFT, on << AC97_AD_VREFD_SHIFT);
 	if (err < 0)
-		snd_printk(KERN_ERR "setting MIC Bias - %d\n", err);
+		dev_err(ac97->bus->card->dev, "setting MIC Bias - %d\n", err);
 }
 
 static int olpc_dc_info(struct snd_kcontrol *kctl,
@@ -153,7 +154,7 @@ int olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 		return 0;
 
 	if (gpio_request(OLPC_GPIO_MIC_AC, DRV_NAME)) {
-		printk(KERN_ERR DRV_NAME ": unable to allocate MIC GPIO\n");
+		dev_err(card->dev, "unable to allocate MIC GPIO\n");
 		return -EIO;
 	}
 	gpio_direction_output(OLPC_GPIO_MIC_AC, 0);

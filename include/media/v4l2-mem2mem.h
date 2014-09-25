@@ -64,6 +64,9 @@ struct v4l2_m2m_queue_ctx {
 };
 
 struct v4l2_m2m_ctx {
+	/* optional cap/out vb2 queues lock */
+	struct mutex			*q_lock;
+
 /* private: internal use only */
 	struct v4l2_m2m_dev		*m2m_dev;
 
@@ -91,6 +94,8 @@ void *v4l2_m2m_get_curr_priv(struct v4l2_m2m_dev *m2m_dev);
 
 struct vb2_queue *v4l2_m2m_get_vq(struct v4l2_m2m_ctx *m2m_ctx,
 				       enum v4l2_buf_type type);
+
+void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx);
 
 void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 			 struct v4l2_m2m_ctx *m2m_ctx);
@@ -228,6 +233,27 @@ static inline void *v4l2_m2m_dst_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_buf_remove(&m2m_ctx->cap_q_ctx);
 }
+
+/* v4l2 ioctl helpers */
+
+int v4l2_m2m_ioctl_reqbufs(struct file *file, void *priv,
+				struct v4l2_requestbuffers *rb);
+int v4l2_m2m_ioctl_create_bufs(struct file *file, void *fh,
+				struct v4l2_create_buffers *create);
+int v4l2_m2m_ioctl_querybuf(struct file *file, void *fh,
+				struct v4l2_buffer *buf);
+int v4l2_m2m_ioctl_expbuf(struct file *file, void *fh,
+				struct v4l2_exportbuffer *eb);
+int v4l2_m2m_ioctl_qbuf(struct file *file, void *fh,
+				struct v4l2_buffer *buf);
+int v4l2_m2m_ioctl_dqbuf(struct file *file, void *fh,
+				struct v4l2_buffer *buf);
+int v4l2_m2m_ioctl_streamon(struct file *file, void *fh,
+				enum v4l2_buf_type type);
+int v4l2_m2m_ioctl_streamoff(struct file *file, void *fh,
+				enum v4l2_buf_type type);
+int v4l2_m2m_fop_mmap(struct file *file, struct vm_area_struct *vma);
+unsigned int v4l2_m2m_fop_poll(struct file *file, poll_table *wait);
 
 #endif /* _MEDIA_V4L2_MEM2MEM_H */
 

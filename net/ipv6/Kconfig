@@ -138,6 +138,7 @@ config INET6_XFRM_MODE_ROUTEOPTIMIZATION
 config IPV6_VTI
 tristate "Virtual (secure) IPv6: tunneling"
 	select IPV6_TUNNEL
+	select NET_IP_TUNNEL
 	depends on INET6_XFRM_MODE_TUNNEL
 	---help---
 	Tunneling means encapsulating data of one protocol type within

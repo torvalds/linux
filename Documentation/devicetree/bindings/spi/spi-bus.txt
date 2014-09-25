@@ -55,19 +55,21 @@ contain the following properties.
     		chip select active high
 - spi-3wire       - (optional) Empty property indicating device requires
     		    3-wire mode.
+- spi-lsb-first   - (optional) Empty property indicating device requires
+		LSB first mode.
 - spi-tx-bus-width - (optional) The bus width(number of data wires) that
                       used for MOSI. Defaults to 1 if not present.
 - spi-rx-bus-width - (optional) The bus width(number of data wires) that
                       used for MISO. Defaults to 1 if not present.
 
 Some SPI controllers and devices support Dual and Quad SPI transfer mode.
-It allows data in SPI system transfered in 2 wires(DUAL) or 4 wires(QUAD).
+It allows data in the SPI system to be transferred in 2 wires(DUAL) or 4 wires(QUAD).
 Now the value that spi-tx-bus-width and spi-rx-bus-width can receive is
 only 1(SINGLE), 2(DUAL) and 4(QUAD).
 Dual/Quad mode is not allowed when 3-wire mode is used.
 
 If a gpio chipselect is used for the SPI slave the gpio number will be passed
-via the cs_gpio
+via the SPI master node cs-gpios property.
 
 SPI example for an MPC5200 SPI bus:
 	spi@f00 {

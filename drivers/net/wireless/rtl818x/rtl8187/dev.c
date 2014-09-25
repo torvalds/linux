@@ -20,7 +20,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -254,14 +253,21 @@ static void rtl8187_tx(struct ieee80211_hw *dev,
 	flags |= ieee80211_get_tx_rate(dev, info)->hw_value << 24;
 	if (ieee80211_has_morefrags(tx_hdr->frame_control))
 		flags |= RTL818X_TX_DESC_FLAG_MOREFRAG;
+
+	/* HW will perform RTS-CTS when only RTS flags is set.
+	 * HW will perform CTS-to-self when both RTS and CTS flags are set.
+	 * RTS rate and RTS duration will be used also for CTS-to-self.
+	 */
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		flags |= RTL818X_TX_DESC_FLAG_RTS;
 		flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
 		rts_dur = ieee80211_rts_duration(dev, priv->vif,
 						 skb->len, info);
 	} else if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
-		flags |= RTL818X_TX_DESC_FLAG_CTS;
+		flags |= RTL818X_TX_DESC_FLAG_RTS | RTL818X_TX_DESC_FLAG_CTS;
 		flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
+		rts_dur = ieee80211_ctstoself_duration(dev, priv->vif,
+						 skb->len, info);
 	}
 
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
@@ -382,6 +388,8 @@ static void rtl8187_rx_cb(struct urb *urb)
 	rx_status.freq = dev->conf.chandef.chan->center_freq;
 	rx_status.band = dev->conf.chandef.chan->band;
 	rx_status.flag |= RX_FLAG_MACTIME_START;
+	if (flags & RTL818X_RX_DESC_FLAG_SPLCP)
+		rx_status.flag |= RX_FLAG_SHORTPRE;
 	if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
@@ -416,7 +424,7 @@ static int rtl8187_init_urbs(struct ieee80211_hw *dev)
 	struct rtl8187_rx_info *info;
 	int ret = 0;
 
-	while (skb_queue_len(&priv->rx_queue) < 16) {
+	while (skb_queue_len(&priv->rx_queue) < 32) {
 		skb = __dev_alloc_skb(RTL8187_MAX_RX, GFP_KERNEL);
 		if (!skb) {
 			ret = -ENOMEM;
@@ -593,7 +601,7 @@ static void rtl8187_set_anaparam(struct rtl8187_priv *priv, bool rfon)
 	rtl818x_iowrite32(priv, &priv->map->ANAPARAM, anaparam);
 	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2, anaparam2);
 	if (priv->is_rtl8187b)
-		rtl818x_iowrite8(priv, &priv->map->ANAPARAM3, anaparam3);
+		rtl818x_iowrite8(priv, &priv->map->ANAPARAM3A, anaparam3);
 	reg &= ~RTL818X_CONFIG3_ANAPARAM_WRITE;
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
@@ -786,7 +794,7 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 	rtl818x_iowrite16(priv, (__le16 *)0xFF34, 0x0FFF);
 
 	reg = rtl818x_ioread8(priv, &priv->map->CW_CONF);
-	reg |= RTL818X_CW_CONF_PERPACKET_RETRY_SHIFT;
+	reg |= RTL818X_CW_CONF_PERPACKET_RETRY;
 	rtl818x_iowrite8(priv, &priv->map->CW_CONF, reg);
 
 	/* Auto Rate Fallback Register (ARFR): 1M-54M setting */
@@ -944,8 +952,8 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 		rtl818x_iowrite32(priv, &priv->map->RX_CONF, reg);
 
 		reg = rtl818x_ioread8(priv, &priv->map->TX_AGC_CTL);
-		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_GAIN_SHIFT;
-		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT;
+		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_GAIN;
+		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL;
 		reg &= ~RTL818X_TX_AGC_CTL_FEEDBACK_ANT;
 		rtl818x_iowrite8(priv, &priv->map->TX_AGC_CTL, reg);
 
@@ -987,13 +995,13 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 	rtl818x_iowrite32(priv, &priv->map->RX_CONF, reg);
 
 	reg = rtl818x_ioread8(priv, &priv->map->CW_CONF);
-	reg &= ~RTL818X_CW_CONF_PERPACKET_CW_SHIFT;
-	reg |= RTL818X_CW_CONF_PERPACKET_RETRY_SHIFT;
+	reg &= ~RTL818X_CW_CONF_PERPACKET_CW;
+	reg |= RTL818X_CW_CONF_PERPACKET_RETRY;
 	rtl818x_iowrite8(priv, &priv->map->CW_CONF, reg);
 
 	reg = rtl818x_ioread8(priv, &priv->map->TX_AGC_CTL);
-	reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_GAIN_SHIFT;
-	reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT;
+	reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_GAIN;
+	reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL;
 	reg &= ~RTL818X_TX_AGC_CTL_FEEDBACK_ANT;
 	rtl818x_iowrite8(priv, &priv->map->TX_AGC_CTL, reg);
 
@@ -1637,10 +1645,10 @@ static int rtl8187_probe(struct usb_interface *intf,
 
  err_free_dmabuf:
 	kfree(priv->io_dmabuf);
- err_free_dev:
-	ieee80211_free_hw(dev);
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(udev);
+ err_free_dev:
+	ieee80211_free_hw(dev);
 	return err;
 }
 

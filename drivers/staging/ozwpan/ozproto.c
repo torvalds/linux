@@ -8,6 +8,7 @@
 #include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/errno.h>
 #include <linux/ieee80211.h>
 #include "ozdbg.h"
@@ -37,9 +38,13 @@ struct oz_binding {
 };
 
 /*
+ * External variable
+ */
+
+DEFINE_SPINLOCK(g_polling_lock);
+/*
  * Static external variables.
  */
-static DEFINE_SPINLOCK(g_polling_lock);
 static LIST_HEAD(g_pd_list);
 static LIST_HEAD(g_binding);
 static DEFINE_SPINLOCK(g_binding_lock);
@@ -179,7 +184,7 @@ static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
 		spin_lock_bh(&g_polling_lock);
 		list_for_each(e, &g_pd_list) {
 			pd2 = container_of(e, struct oz_pd, link);
-			if (memcmp(pd2->mac_addr, pd_addr, ETH_ALEN) == 0) {
+			if (ether_addr_equal(pd2->mac_addr, pd_addr)) {
 				free_pd = pd;
 				pd = pd2;
 				break;
@@ -596,7 +601,7 @@ struct oz_pd *oz_pd_find(const u8 *mac_addr)
 	spin_lock_bh(&g_polling_lock);
 	list_for_each(e, &g_pd_list) {
 		pd = container_of(e, struct oz_pd, link);
-		if (memcmp(pd->mac_addr, mac_addr, ETH_ALEN) == 0) {
+		if (ether_addr_equal(pd->mac_addr, mac_addr)) {
 			atomic_inc(&pd->ref_count);
 			spin_unlock_bh(&g_polling_lock);
 			return pd;
@@ -663,31 +668,26 @@ void oz_binding_add(const char *net_dev)
 {
 	struct oz_binding *binding;
 
-	binding = kmalloc(sizeof(struct oz_binding), GFP_KERNEL);
-	if (binding) {
-		binding->ptype.type = __constant_htons(OZ_ETHERTYPE);
-		binding->ptype.func = oz_pkt_recv;
+	binding = kzalloc(sizeof(struct oz_binding), GFP_KERNEL);
+	if (!binding)
+		return;
+
+	binding->ptype.type = htons(OZ_ETHERTYPE);
+	binding->ptype.func = oz_pkt_recv;
+	if (net_dev && *net_dev) {
 		memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
-		if (net_dev && *net_dev) {
-			oz_dbg(ON, "Adding binding: %s\n", net_dev);
-			binding->ptype.dev =
-				dev_get_by_name(&init_net, net_dev);
-			if (binding->ptype.dev == NULL) {
-				oz_dbg(ON, "Netdev %s not found\n", net_dev);
-				kfree(binding);
-				binding = NULL;
-			}
-		} else {
-			oz_dbg(ON, "Binding to all netcards\n");
-			binding->ptype.dev = NULL;
-		}
-		if (binding) {
-			dev_add_pack(&binding->ptype);
-			spin_lock_bh(&g_binding_lock);
-			list_add_tail(&binding->link, &g_binding);
-			spin_unlock_bh(&g_binding_lock);
+		oz_dbg(ON, "Adding binding: %s\n", net_dev);
+		binding->ptype.dev = dev_get_by_name(&init_net, net_dev);
+		if (binding->ptype.dev == NULL) {
+			oz_dbg(ON, "Netdev %s not found\n", net_dev);
+			kfree(binding);
+			return;
 		}
 	}
+	dev_add_pack(&binding->ptype);
+	spin_lock_bh(&g_binding_lock);
+	list_add_tail(&binding->link, &g_binding);
+	spin_unlock_bh(&g_binding_lock);
 }
 
 /*
@@ -765,7 +765,7 @@ static char *oz_get_next_device_name(char *s, char *dname, int max_size)
 int oz_protocol_init(char *devs)
 {
 	skb_queue_head_init(&g_rx_queue);
-	if (devs && (devs[0] == '*')) {
+	if (devs[0] == '*') {
 		oz_binding_add(NULL);
 	} else {
 		char d[32];
@@ -792,18 +792,9 @@ int oz_get_pd_list(struct oz_mac_addr *addr, int max_count)
 		if (count >= max_count)
 			break;
 		pd = container_of(e, struct oz_pd, link);
-		memcpy(&addr[count++], pd->mac_addr, ETH_ALEN);
+		ether_addr_copy((u8 *)&addr[count++], pd->mac_addr);
 	}
 	spin_unlock_bh(&g_polling_lock);
 	return count;
 }
 
-void oz_polling_lock_bh(void)
-{
-	spin_lock_bh(&g_polling_lock);
-}
-
-void oz_polling_unlock_bh(void)
-{
-	spin_unlock_bh(&g_polling_lock);
-}

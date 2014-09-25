@@ -127,23 +127,17 @@ struct btree {
 	struct cache_set	*c;
 	struct btree		*parent;
 
+	struct mutex		write_lock;
+
 	unsigned long		flags;
 	uint16_t		written;	/* would be nice to kill */
 	uint8_t			level;
-	uint8_t			nsets;
-	uint8_t			page_order;
 
-	/*
-	 * Set of sorted keys - the real btree node - plus a binary search tree
-	 *
-	 * sets[0] is special; set[0]->tree, set[0]->prev and set[0]->data point
-	 * to the memory we have allocated for this btree node. Additionally,
-	 * set[0]->data points to the entire btree node as it exists on disk.
-	 */
-	struct bset_tree	sets[MAX_BSETS];
+	struct btree_keys	keys;
 
 	/* For outstanding btree writes, used as a lock - protects write_idx */
-	struct closure_with_waitlist	io;
+	struct closure		io;
+	struct semaphore	io_mutex;
 
 	struct list_head	list;
 	struct delayed_work	work;
@@ -179,44 +173,24 @@ static inline struct btree_write *btree_prev_write(struct btree *b)
 	return b->writes + (btree_node_write_idx(b) ^ 1);
 }
 
-static inline unsigned bset_offset(struct btree *b, struct bset *i)
+static inline struct bset *btree_bset_first(struct btree *b)
 {
-	return (((size_t) i) - ((size_t) b->sets->data)) >> 9;
+	return b->keys.set->data;
 }
 
-static inline struct bset *write_block(struct btree *b)
+static inline struct bset *btree_bset_last(struct btree *b)
 {
-	return ((void *) b->sets[0].data) + b->written * block_bytes(b->c);
+	return bset_tree_last(&b->keys)->data;
 }
 
-static inline bool bset_written(struct btree *b, struct bset_tree *t)
+static inline unsigned bset_block_offset(struct btree *b, struct bset *i)
 {
-	return t->data < write_block(b);
-}
-
-static inline bool bkey_written(struct btree *b, struct bkey *k)
-{
-	return k < write_block(b)->start;
+	return bset_sector_offset(&b->keys, i) >> b->c->block_bits;
 }
 
 static inline void set_gc_sectors(struct cache_set *c)
 {
 	atomic_set(&c->sectors_to_gc, c->sb.bucket_size * c->nbuckets / 16);
-}
-
-static inline struct bkey *bch_btree_iter_init(struct btree *b,
-					       struct btree_iter *iter,
-					       struct bkey *search)
-{
-	return __bch_btree_iter_init(b, iter, search, b->sets);
-}
-
-static inline bool bch_ptr_invalid(struct btree *b, const struct bkey *k)
-{
-	if (b->level)
-		return bch_btree_ptr_invalid(b->c, k);
-	else
-		return bch_extent_ptr_invalid(b->c, k);
 }
 
 void bkey_put(struct cache_set *c, struct bkey *k);
@@ -229,17 +203,12 @@ void bkey_put(struct cache_set *c, struct bkey *k);
 	     iter++)							\
 		hlist_for_each_entry_rcu((b), (c)->bucket_hash + iter, hash)
 
-#define for_each_key_filter(b, k, iter, filter)				\
-	for (bch_btree_iter_init((b), (iter), NULL);			\
-	     ((k) = bch_btree_iter_next_filter((iter), b, filter));)
-
-#define for_each_key(b, k, iter)					\
-	for (bch_btree_iter_init((b), (iter), NULL);			\
-	     ((k) = bch_btree_iter_next(iter));)
-
 /* Recursing down the btree */
 
 struct btree_op {
+	/* for waiting on btree reserve in btree_split() */
+	wait_queue_t		wait;
+
 	/* Btree level at which we start taking write locks */
 	short			lock;
 
@@ -249,6 +218,7 @@ struct btree_op {
 static inline void bch_btree_op_init(struct btree_op *op, int write_lock_level)
 {
 	memset(op, 0, sizeof(struct btree_op));
+	init_wait(&op->wait);
 	op->lock = write_lock_level;
 }
 
@@ -267,12 +237,15 @@ static inline void rw_unlock(bool w, struct btree *b)
 	(w ? up_write : up_read)(&b->lock);
 }
 
-void bch_btree_node_read(struct btree *);
+void bch_btree_node_read_done(struct btree *);
+void __bch_btree_node_write(struct btree *, struct closure *);
 void bch_btree_node_write(struct btree *, struct closure *);
 
 void bch_btree_set_root(struct btree *);
-struct btree *bch_btree_node_alloc(struct cache_set *, int, bool);
-struct btree *bch_btree_node_get(struct cache_set *, struct bkey *, int, bool);
+struct btree *__bch_btree_node_alloc(struct cache_set *, struct btree_op *,
+				     int, bool, struct btree *);
+struct btree *bch_btree_node_get(struct cache_set *, struct btree_op *,
+				 struct bkey *, int, bool, struct btree *);
 
 int bch_btree_insert_check_key(struct btree *, struct btree_op *,
 			       struct bkey *);
@@ -280,10 +253,10 @@ int bch_btree_insert(struct cache_set *, struct keylist *,
 		     atomic_t *, struct bkey *);
 
 int bch_gc_thread_start(struct cache_set *);
-size_t bch_btree_gc_finish(struct cache_set *);
+void bch_initial_gc_finish(struct cache_set *);
 void bch_moving_gc(struct cache_set *);
 int bch_btree_check(struct cache_set *);
-uint8_t __bch_btree_mark_key(struct cache_set *, int, struct bkey *);
+void bch_initial_mark_key(struct cache_set *, int, struct bkey *);
 
 static inline void wake_up_gc(struct cache_set *c)
 {

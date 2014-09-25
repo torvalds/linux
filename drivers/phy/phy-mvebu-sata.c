@@ -99,16 +99,16 @@ static int phy_mvebu_sata_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
 
-	phy_provider = devm_of_phy_provider_register(&pdev->dev,
-						     of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
-
-	phy = devm_phy_create(&pdev->dev, &phy_mvebu_sata_ops, NULL);
+	phy = devm_phy_create(&pdev->dev, NULL, &phy_mvebu_sata_ops, NULL);
 	if (IS_ERR(phy))
 		return PTR_ERR(phy);
 
 	phy_set_drvdata(phy, priv);
+
+	phy_provider = devm_of_phy_provider_register(&pdev->dev,
+						     of_phy_simple_xlate);
+	if (IS_ERR(phy_provider))
+		return PTR_ERR(phy_provider);
 
 	/* The boot loader may of left it on. Turn it off. */
 	phy_mvebu_sata_power_off(phy);

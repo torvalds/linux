@@ -14,7 +14,6 @@
 #include <bcm63xx_io.h>
 #include <bcm63xx_regs.h>
 
-#ifdef BCMCPU_RUNTIME_DETECT
 static const unsigned long bcm6348_regs_enetdmac[] = {
 	[ENETDMAC_CHANCFG]	= ENETDMAC_CHANCFG_REG,
 	[ENETDMAC_IR]		= ENETDMAC_IR_REG,
@@ -43,9 +42,6 @@ static __init void bcm63xx_enetdmac_regs_init(void)
 	else
 		bcm63xx_regs_enetdmac = bcm6348_regs_enetdmac;
 }
-#else
-static __init void bcm63xx_enetdmac_regs_init(void) { }
-#endif
 
 static struct resource shared_res[] = {
 	{

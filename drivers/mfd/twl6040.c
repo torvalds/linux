@@ -87,8 +87,13 @@ static struct reg_default twl6040_defaults[] = {
 };
 
 static struct reg_default twl6040_patch[] = {
-	/* Select I2C bus access to dual access registers */
-	{ TWL6040_REG_ACCCTL, 0x09 },
+	/*
+	 * Select I2C bus access to dual access registers
+	 * Interrupt register is cleared on read
+	 * Select fast mode for i2c (400KHz)
+	 */
+	{ TWL6040_REG_ACCCTL,
+		TWL6040_I2CSEL | TWL6040_INTCLRMODE | TWL6040_I2CMODE(1) },
 };
 
 
@@ -286,6 +291,8 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 		if (twl6040->power_count++)
 			goto out;
 
+		clk_prepare_enable(twl6040->clk32k);
+
 		/* Allow writes to the chip */
 		regcache_cache_only(twl6040->regmap, false);
 
@@ -341,6 +348,8 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 
 		twl6040->sysclk = 0;
 		twl6040->mclk = 0;
+
+		clk_disable_unprepare(twl6040->clk32k);
 	}
 
 out:
@@ -432,12 +441,9 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 					    TWL6040_HPLLENA;
 				break;
 			case 19200000:
-				/*
-				* PLL disabled
-				* (enable PLL if MCLK jitter quality
-				*  doesn't meet specification)
-				*/
-				hppllctl |= TWL6040_MCLK_19200KHZ;
+				/* PLL enabled, bypass mode */
+				hppllctl |= TWL6040_MCLK_19200KHZ |
+					    TWL6040_HPLLBP | TWL6040_HPLLENA;
 				break;
 			case 26000000:
 				/* PLL enabled, active mode */
@@ -445,9 +451,9 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 					    TWL6040_HPLLENA;
 				break;
 			case 38400000:
-				/* PLL enabled, active mode */
+				/* PLL enabled, bypass mode */
 				hppllctl |= TWL6040_MCLK_38400KHZ |
-					    TWL6040_HPLLENA;
+					    TWL6040_HPLLBP | TWL6040_HPLLENA;
 				break;
 			default:
 				dev_err(twl6040->dev,
@@ -639,6 +645,12 @@ static int twl6040_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, twl6040);
 
+	twl6040->clk32k = devm_clk_get(&client->dev, "clk32k");
+	if (IS_ERR(twl6040->clk32k)) {
+		dev_info(&client->dev, "clk32k is not handled\n");
+		twl6040->clk32k = NULL;
+	}
+
 	twl6040->supplies[0].supply = "vio";
 	twl6040->supplies[1].supply = "v2v1";
 	ret = devm_regulator_bulk_get(&client->dev, TWL6040_NUM_SUPPLIES,
@@ -660,7 +672,15 @@ static int twl6040_probe(struct i2c_client *client,
 	mutex_init(&twl6040->mutex);
 	init_completion(&twl6040->ready);
 
+	regmap_register_patch(twl6040->regmap, twl6040_patch,
+			      ARRAY_SIZE(twl6040_patch));
+
 	twl6040->rev = twl6040_reg_read(twl6040, TWL6040_REG_ASICREV);
+	if (twl6040->rev < 0) {
+		dev_err(&client->dev, "Failed to read revision register: %d\n",
+			twl6040->rev);
+		goto gpio_err;
+	}
 
 	/* ERRATA: Automatic power-up is not possible in ES1.0 */
 	if (twl6040_get_revid(twl6040) > TWL6040_REV_ES1_0)
@@ -674,10 +694,13 @@ static int twl6040_probe(struct i2c_client *client,
 					    GPIOF_OUT_INIT_LOW, "audpwron");
 		if (ret)
 			goto gpio_err;
+
+		/* Clear any pending interrupt */
+		twl6040_reg_read(twl6040, TWL6040_REG_INTID);
 	}
 
 	ret = regmap_add_irq_chip(twl6040->regmap, twl6040->irq, IRQF_ONESHOT,
-				  0, &twl6040_irq_chip,&twl6040->irq_data);
+				  0, &twl6040_irq_chip, &twl6040->irq_data);
 	if (ret < 0)
 		goto gpio_err;
 
@@ -701,11 +724,6 @@ static int twl6040_probe(struct i2c_client *client,
 		dev_err(twl6040->dev, "Thermal IRQ request failed: %d\n", ret);
 		goto readyirq_err;
 	}
-
-	/* dual-access registers controlled by I2C only */
-	twl6040_set_bits(twl6040, TWL6040_REG_ACCCTL, TWL6040_I2CSEL);
-	regmap_register_patch(twl6040->regmap, twl6040_patch,
-			      ARRAY_SIZE(twl6040_patch));
 
 	/*
 	 * The main functionality of twl6040 to provide audio on OMAP4+ systems.

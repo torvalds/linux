@@ -204,8 +204,11 @@ static int ds1742_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc);
 
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &pdata->nvram_attr);
+	if (ret)
+		dev_err(&pdev->dev, "Unable to create sysfs entry: %s\n",
+			pdata->nvram_attr.attr.name);
 
-	return ret;
+	return 0;
 }
 
 static int ds1742_rtc_remove(struct platform_device *pdev)
@@ -216,7 +219,7 @@ static int ds1742_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id __maybe_unused ds1742_rtc_of_match[] = {
+static const struct of_device_id __maybe_unused ds1742_rtc_of_match[] = {
 	{ .compatible = "maxim,ds1742", },
 	{ }
 };
@@ -228,7 +231,7 @@ static struct platform_driver ds1742_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-ds1742",
 		.owner	= THIS_MODULE,
-		.of_match_table = ds1742_rtc_of_match,
+		.of_match_table = of_match_ptr(ds1742_rtc_of_match),
 	},
 };
 

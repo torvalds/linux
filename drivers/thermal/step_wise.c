@@ -60,6 +60,7 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 	 */
 	cdev->ops->get_cur_state(cdev, &cur_state);
 	next_target = instance->target;
+	dev_dbg(&cdev->device, "cur_state=%ld\n", cur_state);
 
 	switch (trend) {
 	case THERMAL_TREND_RAISING:
@@ -131,6 +132,9 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 	if (tz->temperature >= trip_temp)
 		throttle = true;
 
+	dev_dbg(&tz->device, "Trip%d[type=%d,temp=%ld]:trend=%d,throttle=%d\n",
+				trip, trip_type, trip_temp, trend, throttle);
+
 	mutex_lock(&tz->lock);
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
@@ -139,6 +143,8 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 
 		old_target = instance->target;
 		instance->target = get_target_state(instance, trend, throttle);
+		dev_dbg(&instance->cdev->device, "old_target=%d, target=%d\n",
+					old_target, (int)instance->target);
 
 		if (old_target == instance->target)
 			continue;

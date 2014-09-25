@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
+#include <linux/acpi.h>
 
 #include "iwl-trans.h"
 #include "iwl-drv.h"
@@ -77,7 +78,7 @@
 	.driver_data = (kernel_ulong_t)&(cfg)
 
 /* Hardware specific file defines the PCI IDs table for that hardware module */
-static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
+static const struct pci_device_id iwl_hw_card_ids[] = {
 #if IS_ENABLED(CONFIG_IWLDVM)
 	{IWL_PCI_DEVICE(0x4232, 0x1201, iwl5100_agn_cfg)}, /* Mini Card */
 	{IWL_PCI_DEVICE(0x4232, 0x1301, iwl5100_agn_cfg)}, /* Half Mini Card */
@@ -297,6 +298,9 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x08B2, 0x4370, iwl7260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x08B2, 0x4360, iwl7260_2n_cfg)},
 	{IWL_PCI_DEVICE(0x08B1, 0x5070, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x5072, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x5170, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x5770, iwl7260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x08B1, 0x4020, iwl7260_2n_cfg)},
 	{IWL_PCI_DEVICE(0x08B1, 0x402A, iwl7260_2n_cfg)},
 	{IWL_PCI_DEVICE(0x08B2, 0x4220, iwl7260_2n_cfg)},
@@ -348,27 +352,43 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x08B3, 0x8060, iwl3160_2n_cfg)},
 	{IWL_PCI_DEVICE(0x08B3, 0x8062, iwl3160_n_cfg)},
 	{IWL_PCI_DEVICE(0x08B4, 0x8270, iwl3160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B4, 0x8370, iwl3160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B4, 0x8272, iwl3160_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x08B3, 0x8470, iwl3160_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x08B3, 0x8570, iwl3160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x1070, iwl3160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x1170, iwl3160_2ac_cfg)},
+
+/* 3165 Series */
+	{IWL_PCI_DEVICE(0x3165, 0x4010, iwl3165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x4210, iwl3165_2ac_cfg)},
 
 /* 7265 Series */
 	{IWL_PCI_DEVICE(0x095A, 0x5010, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5110, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5100, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095B, 0x5310, iwl7265_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x5302, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5302, iwl7265_n_cfg)},
 	{IWL_PCI_DEVICE(0x095B, 0x5210, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5012, iwl7265_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x500A, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5412, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5410, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5510, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5400, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x1010, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5000, iwl7265_2n_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x500A, iwl7265_2n_cfg)},
 	{IWL_PCI_DEVICE(0x095B, 0x5200, iwl7265_2n_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5002, iwl7265_n_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5102, iwl7265_n_cfg)},
 	{IWL_PCI_DEVICE(0x095B, 0x5202, iwl7265_n_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9010, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9012, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x900A, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9110, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9112, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9210, iwl7265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x9200, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9510, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9310, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x9410, iwl7265_2ac_cfg)},
@@ -380,11 +400,91 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x095A, 0x5590, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095B, 0x5290, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5490, iwl7265_2ac_cfg)},
+
+/* 8000 Series */
+	{IWL_PCI_DEVICE(0x24F3, 0x0010, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0x0030, iwl8260_2ac_cfg)},
 #endif /* CONFIG_IWLMVM */
 
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
+
+#ifdef CONFIG_ACPI
+#define SPL_METHOD		"SPLC"
+#define SPL_DOMAINTYPE_MODULE	BIT(0)
+#define SPL_DOMAINTYPE_WIFI	BIT(1)
+#define SPL_DOMAINTYPE_WIGIG	BIT(2)
+#define SPL_DOMAINTYPE_RFEM	BIT(3)
+
+static u64 splx_get_pwr_limit(struct iwl_trans *trans, union acpi_object *splx)
+{
+	union acpi_object *limits, *domain_type, *power_limit;
+
+	if (splx->type != ACPI_TYPE_PACKAGE ||
+	    splx->package.count != 2 ||
+	    splx->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    splx->package.elements[0].integer.value != 0) {
+		IWL_ERR(trans, "Unsupported splx structure\n");
+		return 0;
+	}
+
+	limits = &splx->package.elements[1];
+	if (limits->type != ACPI_TYPE_PACKAGE ||
+	    limits->package.count < 2 ||
+	    limits->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    limits->package.elements[1].type != ACPI_TYPE_INTEGER) {
+		IWL_ERR(trans, "Invalid limits element\n");
+		return 0;
+	}
+
+	domain_type = &limits->package.elements[0];
+	power_limit = &limits->package.elements[1];
+	if (!(domain_type->integer.value & SPL_DOMAINTYPE_WIFI)) {
+		IWL_DEBUG_INFO(trans, "WiFi power is not limited\n");
+		return 0;
+	}
+
+	return power_limit->integer.value;
+}
+
+static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev)
+{
+	acpi_handle pxsx_handle;
+	acpi_handle handle;
+	struct acpi_buffer splx = {ACPI_ALLOCATE_BUFFER, NULL};
+	acpi_status status;
+
+	pxsx_handle = ACPI_HANDLE(&pdev->dev);
+	if (!pxsx_handle) {
+		IWL_DEBUG_INFO(trans,
+			       "Could not retrieve root port ACPI handle\n");
+		return;
+	}
+
+	/* Get the method's handle */
+	status = acpi_get_handle(pxsx_handle, (acpi_string)SPL_METHOD, &handle);
+	if (ACPI_FAILURE(status)) {
+		IWL_DEBUG_INFO(trans, "SPL method not found\n");
+		return;
+	}
+
+	/* Call SPLC with no arguments */
+	status = acpi_evaluate_object(handle, NULL, NULL, &splx);
+	if (ACPI_FAILURE(status)) {
+		IWL_ERR(trans, "SPLC invocation failed (0x%x)\n", status);
+		return;
+	}
+
+	trans->dflt_pwr_limit = splx_get_pwr_limit(trans, splx.pointer);
+	IWL_DEBUG_INFO(trans, "Default power limit set to %lld\n",
+		       trans->dflt_pwr_limit);
+	kfree(splx.pointer);
+}
+
+#else /* CONFIG_ACPI */
+static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev) {}
+#endif
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
@@ -409,6 +509,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = PTR_ERR(trans_pcie->drv);
 		goto out_free_trans;
 	}
+
+	set_dflt_pwr_limit(iwl_trans, pdev);
 
 	/* register transport layer debugfs here */
 	ret = iwl_trans_dbgfs_register(iwl_trans, iwl_trans->dbgfs_dir);
@@ -468,7 +570,7 @@ static int iwl_pci_resume(struct device *device)
 	iwl_enable_rfkill_int(trans);
 
 	hw_rfkill = iwl_is_rfkill_set(trans);
-	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
+	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 
 	return 0;
 }

@@ -17,6 +17,7 @@
 
 #include "msm_drv.h"
 #include "msm_gpu.h"
+#include "msm_kms.h"
 
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
@@ -30,48 +31,17 @@ static const struct drm_mode_config_funcs mode_config_funcs = {
 	.output_poll_changed = msm_fb_output_poll_changed,
 };
 
-static int msm_fault_handler(struct iommu_domain *iommu, struct device *dev,
-		unsigned long iova, int flags, void *arg)
-{
-	DBG("*** fault: iova=%08lx, flags=%d", iova, flags);
-	return 0;
-}
-
-int msm_register_iommu(struct drm_device *dev, struct iommu_domain *iommu)
+int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	int idx = priv->num_iommus++;
+	int idx = priv->num_mmus++;
 
-	if (WARN_ON(idx >= ARRAY_SIZE(priv->iommus)))
+	if (WARN_ON(idx >= ARRAY_SIZE(priv->mmus)))
 		return -EINVAL;
 
-	priv->iommus[idx] = iommu;
-
-	iommu_set_fault_handler(iommu, msm_fault_handler, dev);
-
-	/* need to iommu_attach_device() somewhere??  on resume?? */
+	priv->mmus[idx] = mmu;
 
 	return idx;
-}
-
-int msm_iommu_attach(struct drm_device *dev, struct iommu_domain *iommu,
-		const char **names, int cnt)
-{
-	int i, ret;
-
-	for (i = 0; i < cnt; i++) {
-		/* TODO maybe some day msm iommu won't require this hack: */
-		struct device *msm_iommu_get_ctx(const char *ctx_name);
-		struct device *ctx = msm_iommu_get_ctx(names[i]);
-		if (!ctx)
-			continue;
-		ret = iommu_attach_device(iommu, ctx);
-		if (ret) {
-			dev_warn(dev->dev, "could not attach iommu to %s", names[i]);
-			return ret;
-		}
-	}
-	return 0;
 }
 
 #ifdef CONFIG_DRM_MSM_REGISTER_LOGGING
@@ -81,6 +51,14 @@ module_param(reglog, bool, 0600);
 #else
 #define reglog 0
 #endif
+
+static char *vram = "16m";
+MODULE_PARM_DESC(vram, "Configure VRAM size (for devices without IOMMU/GPUMMU");
+module_param(vram, charp, 0);
+
+/*
+ * Util/helpers:
+ */
 
 void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 		const char *dbgname)
@@ -161,11 +139,39 @@ static int msm_unload(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 	}
 
+	if (priv->vram.paddr) {
+		DEFINE_DMA_ATTRS(attrs);
+		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
+		drm_mm_takedown(&priv->vram.mm);
+		dma_free_attrs(dev->dev, priv->vram.size, NULL,
+				priv->vram.paddr, &attrs);
+	}
+
+	component_unbind_all(dev->dev, dev);
+
 	dev->dev_private = NULL;
 
 	kfree(priv);
 
 	return 0;
+}
+
+static int get_mdp_ver(struct platform_device *pdev)
+{
+#ifdef CONFIG_OF
+	static const struct of_device_id match_types[] = { {
+		.compatible = "qcom,mdss_mdp",
+		.data	= (void	*)5,
+	}, {
+		/* end node */
+	} };
+	struct device *dev = &pdev->dev;
+	const struct of_device_id *match;
+	match = of_match_node(match_types, dev->of_node);
+	if (match)
+		return (int)match->data;
+#endif
+	return 4;
 }
 
 static int msm_load(struct drm_device *dev, unsigned long flags)
@@ -191,7 +197,60 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_init(dev);
 
-	kms = mdp4_kms_init(dev);
+	/* if we have no IOMMU, then we need to use carveout allocator.
+	 * Grab the entire CMA chunk carved out in early startup in
+	 * mach-msm:
+	 */
+	if (!iommu_present(&platform_bus_type)) {
+		DEFINE_DMA_ATTRS(attrs);
+		unsigned long size;
+		void *p;
+
+		DBG("using %s VRAM carveout", vram);
+		size = memparse(vram, NULL);
+		priv->vram.size = size;
+
+		drm_mm_init(&priv->vram.mm, 0, (size >> PAGE_SHIFT) - 1);
+
+		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
+		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
+
+		/* note that for no-kernel-mapping, the vaddr returned
+		 * is bogus, but non-null if allocation succeeded:
+		 */
+		p = dma_alloc_attrs(dev->dev, size,
+				&priv->vram.paddr, GFP_KERNEL, &attrs);
+		if (!p) {
+			dev_err(dev->dev, "failed to allocate VRAM\n");
+			priv->vram.paddr = 0;
+			ret = -ENOMEM;
+			goto fail;
+		}
+
+		dev_info(dev->dev, "VRAM: %08x->%08x\n",
+				(uint32_t)priv->vram.paddr,
+				(uint32_t)(priv->vram.paddr + size));
+	}
+
+	platform_set_drvdata(pdev, dev);
+
+	/* Bind all our sub-components: */
+	ret = component_bind_all(dev->dev, dev);
+	if (ret)
+		return ret;
+
+	switch (get_mdp_ver(pdev)) {
+	case 4:
+		kms = mdp4_kms_init(dev);
+		break;
+	case 5:
+		kms = mdp5_kms_init(dev);
+		break;
+	default:
+		kms = ERR_PTR(-ENODEV);
+		break;
+	}
+
 	if (IS_ERR(kms)) {
 		/*
 		 * NOTE: once we have GPU support, having no kms should not
@@ -228,18 +287,20 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	pm_runtime_get_sync(dev->dev);
-	ret = drm_irq_install(dev);
+	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
 	pm_runtime_put_sync(dev->dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to install IRQ handler\n");
 		goto fail;
 	}
 
-	platform_set_drvdata(pdev, dev);
-
 #ifdef CONFIG_DRM_MSM_FBDEV
 	priv->fbdev = msm_fbdev_init(dev);
 #endif
+
+	ret = msm_debugfs_late_init(dev);
+	if (ret)
+		goto fail;
 
 	drm_kms_helper_poll_init(dev);
 
@@ -252,33 +313,42 @@ fail:
 
 static void load_gpu(struct drm_device *dev)
 {
+	static DEFINE_MUTEX(init_lock);
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gpu *gpu;
 
-	if (priv->gpu)
-		return;
+	mutex_lock(&init_lock);
 
-	mutex_lock(&dev->struct_mutex);
+	if (priv->gpu)
+		goto out;
+
 	gpu = a3xx_gpu_init(dev);
 	if (IS_ERR(gpu)) {
 		dev_warn(dev->dev, "failed to load a3xx gpu\n");
 		gpu = NULL;
 		/* not fatal */
 	}
-	mutex_unlock(&dev->struct_mutex);
 
 	if (gpu) {
 		int ret;
+		mutex_lock(&dev->struct_mutex);
 		gpu->funcs->pm_resume(gpu);
+		mutex_unlock(&dev->struct_mutex);
 		ret = gpu->funcs->hw_init(gpu);
 		if (ret) {
 			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 			gpu->funcs->destroy(gpu);
 			gpu = NULL;
+		} else {
+			/* give inactive pm a chance to kick in: */
+			msm_gpu_retire(gpu);
 		}
 	}
 
 	priv->gpu = gpu;
+
+out:
+	mutex_unlock(&init_lock);
 }
 
 static int msm_open(struct drm_device *dev, struct drm_file *file)
@@ -319,14 +389,11 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 static void msm_lastclose(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	if (priv->fbdev) {
-		drm_modeset_lock_all(dev);
-		drm_fb_helper_restore_fbdev_mode(priv->fbdev);
-		drm_modeset_unlock_all(dev);
-	}
+	if (priv->fbdev)
+		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
 }
 
-static irqreturn_t msm_irq(DRM_IRQ_ARGS)
+static irqreturn_t msm_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct msm_drm_private *priv = dev->dev_private;
@@ -415,7 +482,7 @@ static int msm_gem_show(struct drm_device *dev, struct seq_file *m)
 
 static int msm_mm_show(struct drm_device *dev, struct seq_file *m)
 {
-	return drm_mm_dump_table(m, dev->mm_private);
+	return drm_mm_dump_table(m, &dev->vma_offset_manager->vm_addr_space_mm);
 }
 
 static int msm_fb_show(struct drm_device *dev, struct seq_file *m)
@@ -468,6 +535,41 @@ static struct drm_info_list msm_debugfs_list[] = {
 		{ "fb", show_locked, 0, msm_fb_show },
 };
 
+static int late_init_minor(struct drm_minor *minor)
+{
+	int ret;
+
+	if (!minor)
+		return 0;
+
+	ret = msm_rd_debugfs_init(minor);
+	if (ret) {
+		dev_err(minor->dev->dev, "could not install rd debugfs\n");
+		return ret;
+	}
+
+	ret = msm_perf_debugfs_init(minor);
+	if (ret) {
+		dev_err(minor->dev->dev, "could not install perf debugfs\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+int msm_debugfs_late_init(struct drm_device *dev)
+{
+	int ret;
+	ret = late_init_minor(dev->primary);
+	if (ret)
+		return ret;
+	ret = late_init_minor(dev->render);
+	if (ret)
+		return ret;
+	ret = late_init_minor(dev->control);
+	return ret;
+}
+
 static int msm_debugfs_init(struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
@@ -482,13 +584,17 @@ static int msm_debugfs_init(struct drm_minor *minor)
 		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static void msm_debugfs_cleanup(struct drm_minor *minor)
 {
 	drm_debugfs_remove_files(msm_debugfs_list,
 			ARRAY_SIZE(msm_debugfs_list), minor);
+	if (!minor->dev->dev_private)
+		return;
+	msm_rd_debugfs_cleanup(minor);
+	msm_perf_debugfs_cleanup(minor);
 }
 #endif
 
@@ -601,6 +707,12 @@ static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_msm_gem_new *args = data;
+
+	if (args->flags & ~MSM_BO_FLAGS) {
+		DRM_ERROR("invalid flags: %08x\n", args->flags);
+		return -EINVAL;
+	}
+
 	return msm_gem_new_handle(dev, file, args->size,
 			args->flags, &args->handle);
 }
@@ -613,6 +725,11 @@ static int msm_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 	struct drm_msm_gem_cpu_prep *args = data;
 	struct drm_gem_object *obj;
 	int ret;
+
+	if (args->op & ~MSM_PREP_FLAGS) {
+		DRM_ERROR("invalid op: %08x\n", args->op);
+		return -EINVAL;
+	}
 
 	obj = drm_gem_object_lookup(dev, file, args->handle);
 	if (!obj)
@@ -668,7 +785,14 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_msm_wait_fence *args = data;
-	return msm_wait_fence_interruptable(dev, args->fence, &TS(args->timeout));
+
+	if (args->pad) {
+		DRM_ERROR("invalid pad: %08x\n", args->pad);
+		return -EINVAL;
+	}
+
+	return msm_wait_fence_interruptable(dev, args->fence,
+			&TS(args->timeout));
 }
 
 static const struct drm_ioctl_desc msm_ioctls[] = {
@@ -773,17 +897,102 @@ static const struct dev_pm_ops msm_pm_ops = {
 };
 
 /*
+ * Componentized driver support:
+ */
+
+#ifdef CONFIG_OF
+/* NOTE: the CONFIG_OF case duplicates the same code as exynos or imx
+ * (or probably any other).. so probably some room for some helpers
+ */
+static int compare_of(struct device *dev, void *data)
+{
+	return dev->of_node == data;
+}
+
+static int add_components(struct device *dev, struct component_match **matchptr,
+		const char *name)
+{
+	struct device_node *np = dev->of_node;
+	unsigned i;
+
+	for (i = 0; ; i++) {
+		struct device_node *node;
+
+		node = of_parse_phandle(np, name, i);
+		if (!node)
+			break;
+
+		component_match_add(dev, matchptr, compare_of, node);
+	}
+
+	return 0;
+}
+#else
+static int compare_dev(struct device *dev, void *data)
+{
+	return dev == data;
+}
+#endif
+
+static int msm_drm_bind(struct device *dev)
+{
+	return drm_platform_init(&msm_driver, to_platform_device(dev));
+}
+
+static void msm_drm_unbind(struct device *dev)
+{
+	drm_put_dev(platform_get_drvdata(to_platform_device(dev)));
+}
+
+static const struct component_master_ops msm_drm_ops = {
+	.bind = msm_drm_bind,
+	.unbind = msm_drm_unbind,
+};
+
+/*
  * Platform driver:
  */
 
 static int msm_pdev_probe(struct platform_device *pdev)
 {
-	return drm_platform_init(&msm_driver, pdev);
+	struct component_match *match = NULL;
+#ifdef CONFIG_OF
+	add_components(&pdev->dev, &match, "connectors");
+	add_components(&pdev->dev, &match, "gpus");
+#else
+	/* For non-DT case, it kinda sucks.  We don't actually have a way
+	 * to know whether or not we are waiting for certain devices (or if
+	 * they are simply not present).  But for non-DT we only need to
+	 * care about apq8064/apq8060/etc (all mdp4/a3xx):
+	 */
+	static const char *devnames[] = {
+			"hdmi_msm.0", "kgsl-3d0.0",
+	};
+	int i;
+
+	DBG("Adding components..");
+
+	for (i = 0; i < ARRAY_SIZE(devnames); i++) {
+		struct device *dev;
+
+		dev = bus_find_device_by_name(&platform_bus_type,
+				NULL, devnames[i]);
+		if (!dev) {
+			dev_info(&pdev->dev, "still waiting for %s\n", devnames[i]);
+			return -EPROBE_DEFER;
+		}
+
+		component_match_add(&pdev->dev, &match, compare_dev, dev);
+	}
+#endif
+
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	return component_master_add_with_match(&pdev->dev, &msm_drm_ops, match);
 }
 
 static int msm_pdev_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&msm_driver, pdev);
+	component_master_del(&pdev->dev, &msm_drm_ops);
 
 	return 0;
 }
@@ -793,12 +1002,20 @@ static const struct platform_device_id msm_id[] = {
 	{ }
 };
 
+static const struct of_device_id dt_match[] = {
+	{ .compatible = "qcom,mdp" },      /* mdp4 */
+	{ .compatible = "qcom,mdss_mdp" }, /* mdp5 */
+	{}
+};
+MODULE_DEVICE_TABLE(of, dt_match);
+
 static struct platform_driver msm_platform_driver = {
 	.probe      = msm_pdev_probe,
 	.remove     = msm_pdev_remove,
 	.driver     = {
 		.owner  = THIS_MODULE,
 		.name   = "msm",
+		.of_match_table = dt_match,
 		.pm     = &msm_pm_ops,
 	},
 	.id_table   = msm_id,

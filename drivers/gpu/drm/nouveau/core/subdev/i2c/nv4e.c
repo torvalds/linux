@@ -22,8 +22,9 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/i2c.h>
 #include <subdev/vga.h>
+
+#include "priv.h"
 
 struct nv4e_i2c_priv {
 	struct nouveau_i2c base;
@@ -107,29 +108,15 @@ nv4e_i2c_sclass[] = {
 	{}
 };
 
-static int
-nv4e_i2c_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
-{
-	struct nv4e_i2c_priv *priv;
-	int ret;
-
-	ret = nouveau_i2c_create(parent, engine, oclass, nv4e_i2c_sclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-struct nouveau_oclass
-nv4e_i2c_oclass = {
-	.handle = NV_SUBDEV(I2C, 0x4e),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv4e_i2c_ctor,
+struct nouveau_oclass *
+nv4e_i2c_oclass = &(struct nouveau_i2c_impl) {
+	.base.handle = NV_SUBDEV(I2C, 0x4e),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = _nouveau_i2c_ctor,
 		.dtor = _nouveau_i2c_dtor,
 		.init = _nouveau_i2c_init,
 		.fini = _nouveau_i2c_fini,
 	},
-};
+	.sclass = nv4e_i2c_sclass,
+	.pad_x = &nv04_i2c_pad_oclass,
+}.base;

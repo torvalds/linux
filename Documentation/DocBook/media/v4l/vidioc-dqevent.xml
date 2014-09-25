@@ -94,6 +94,18 @@
 	  </row>
 	  <row>
 	    <entry></entry>
+	    <entry>&v4l2-event-motion-det;</entry>
+            <entry><structfield>motion_det</structfield></entry>
+	    <entry>Event data for event V4L2_EVENT_MOTION_DET.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-event-src-change;</entry>
+            <entry><structfield>src_change</structfield></entry>
+	    <entry>Event data for event V4L2_EVENT_SOURCE_CHANGE.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
 	    <entry>__u8</entry>
             <entry><structfield>data</structfield>[64]</entry>
 	    <entry>Event data. Defined by the event type. The union
@@ -242,6 +254,60 @@
       </tgroup>
     </table>
 
+    <table frame="none" pgwide="1" id="v4l2-event-src-change">
+      <title>struct <structname>v4l2_event_src_change</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>changes</structfield></entry>
+	    <entry>
+	      A bitmask that tells what has changed. See <xref linkend="src-changes-flags" />.
+	    </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-motion-det">
+      <title>struct <structname>v4l2_event_motion_det</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>flags</structfield></entry>
+	    <entry>
+	      Currently only one flag is available: if <constant>V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ</constant>
+	      is set, then the <structfield>frame_sequence</structfield> field is valid,
+	      otherwise that field should be ignored.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>frame_sequence</structfield></entry>
+	    <entry>
+	      The sequence number of the frame being received. Only valid if the
+	      <constant>V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ</constant> flag was set.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>region_mask</structfield></entry>
+	    <entry>
+	      The bitmask of the regions that reported motion. There is at least one
+	      region. If this field is 0, then no motion was detected at all.
+	      If there is no <constant>V4L2_CID_DETECT_MD_REGION_GRID</constant> control
+	      (see <xref linkend="detect-controls" />) to assign a different region
+	      to each cell in the motion detection grid, then that all cells
+	      are automatically assigned to the default region 0.
+	    </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
     <table pgwide="1" frame="none" id="changes-flags">
       <title>Changes</title>
       <tgroup cols="3">
@@ -266,6 +332,23 @@
 	    <entry>0x0004</entry>
 	    <entry>This control event was triggered because the minimum,
 	    maximum, step or the default value of the control changed.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="src-changes-flags">
+      <title>Source Changes</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_EVENT_SRC_CH_RESOLUTION</constant></entry>
+	    <entry>0x0001</entry>
+	    <entry>This event gets triggered when a resolution change is
+	    detected at an input. This can come from an input connector or
+	    from a video decoder.
+	    </entry>
 	  </row>
 	</tbody>
       </tgroup>

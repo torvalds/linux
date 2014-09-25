@@ -937,7 +937,7 @@ static int sata_rcar_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sata_rcar_suspend(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
@@ -991,7 +991,7 @@ static struct platform_driver sata_rcar_driver = {
 		.name		= DRV_NAME,
 		.owner		= THIS_MODULE,
 		.of_match_table	= sata_rcar_match,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 		.pm		= &sata_rcar_pm_ops,
 #endif
 	},

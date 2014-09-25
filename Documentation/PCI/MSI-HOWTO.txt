@@ -82,7 +82,19 @@ Most of the hard work is done for the driver in the PCI layer.  It simply
 has to request that the PCI layer set up the MSI capability for this
 device.
 
-4.2.1 pci_enable_msi_range
+4.2.1 pci_enable_msi
+
+int pci_enable_msi(struct pci_dev *dev)
+
+A successful call allocates ONE interrupt to the device, regardless
+of how many MSIs the device supports.  The device is switched from
+pin-based interrupt mode to MSI mode.  The dev->irq number is changed
+to a new number which represents the message signaled interrupt;
+consequently, this function should be called before the driver calls
+request_irq(), because an MSI is delivered via a vector that is
+different from the vector of a pin-based interrupt.
+
+4.2.2 pci_enable_msi_range
 
 int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec)
 
@@ -147,6 +159,11 @@ static int foo_driver_enable_msi(struct pci_dev *pdev, int nvec)
 	return pci_enable_msi_range(pdev, nvec, nvec);
 }
 
+Note, unlike pci_enable_msi_exact() function, which could be also used to
+enable a particular number of MSI-X interrupts, pci_enable_msi_range()
+returns either a negative errno or 'nvec' (not negative errno or 0 - as
+pci_enable_msi_exact() does).
+
 4.2.1.3 Single MSI mode
 
 The most notorious example of the request type described above is
@@ -158,7 +175,27 @@ static int foo_driver_enable_single_msi(struct pci_dev *pdev)
 	return pci_enable_msi_range(pdev, 1, 1);
 }
 
-4.2.2 pci_disable_msi
+Note, unlike pci_enable_msi() function, which could be also used to
+enable the single MSI mode, pci_enable_msi_range() returns either a
+negative errno or 1 (not negative errno or 0 - as pci_enable_msi()
+does).
+
+4.2.3 pci_enable_msi_exact
+
+int pci_enable_msi_exact(struct pci_dev *dev, int nvec)
+
+This variation on pci_enable_msi_range() call allows a device driver to
+request exactly 'nvec' MSIs.
+
+If this function returns a negative number, it indicates an error and
+the driver should not attempt to request any more MSI interrupts for
+this device.
+
+By contrast with pci_enable_msi_range() function, pci_enable_msi_exact()
+returns zero in case of success, which indicates MSI interrupts have been
+successfully allocated.
+
+4.2.4 pci_disable_msi
 
 void pci_disable_msi(struct pci_dev *dev)
 
@@ -172,7 +209,7 @@ on any interrupt for which it previously called request_irq().
 Failure to do so results in a BUG_ON(), leaving the device with
 MSI enabled and thus leaking its vector.
 
-4.2.3 pci_msi_vec_count
+4.2.4 pci_msi_vec_count
 
 int pci_msi_vec_count(struct pci_dev *dev)
 
@@ -257,8 +294,8 @@ possible, likely up to the limit returned by pci_msix_vec_count() function:
 
 static int foo_driver_enable_msix(struct foo_adapter *adapter, int nvec)
 {
-	return pci_enable_msi_range(adapter->pdev, adapter->msix_entries,
-				    1, nvec);
+	return pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
+				     1, nvec);
 }
 
 Note the value of 'minvec' parameter is 1.  As 'minvec' is inclusive,
@@ -269,8 +306,8 @@ In this case the function could look like this:
 
 static int foo_driver_enable_msix(struct foo_adapter *adapter, int nvec)
 {
-	return pci_enable_msi_range(adapter->pdev, adapter->msix_entries,
-				    FOO_DRIVER_MINIMUM_NVEC, nvec);
+	return pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
+				     FOO_DRIVER_MINIMUM_NVEC, nvec);
 }
 
 4.3.1.2 Exact number of MSI-X interrupts
@@ -282,9 +319,14 @@ parameters:
 
 static int foo_driver_enable_msix(struct foo_adapter *adapter, int nvec)
 {
-	return pci_enable_msi_range(adapter->pdev, adapter->msix_entries,
-				    nvec, nvec);
+	return pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
+				     nvec, nvec);
 }
+
+Note, unlike pci_enable_msix_exact() function, which could be also used to
+enable a particular number of MSI-X interrupts, pci_enable_msix_range()
+returns either a negative errno or 'nvec' (not negative errno or 0 - as
+pci_enable_msix_exact() does).
 
 4.3.1.3 Specific requirements to the number of MSI-X interrupts
 
@@ -332,7 +374,64 @@ Note how pci_enable_msix_range() return value is analized for a fallback -
 any error code other than -ENOSPC indicates a fatal error and should not
 be retried.
 
-4.3.2 pci_disable_msix
+4.3.2 pci_enable_msix_exact
+
+int pci_enable_msix_exact(struct pci_dev *dev,
+			  struct msix_entry *entries, int nvec)
+
+This variation on pci_enable_msix_range() call allows a device driver to
+request exactly 'nvec' MSI-Xs.
+
+If this function returns a negative number, it indicates an error and
+the driver should not attempt to allocate any more MSI-X interrupts for
+this device.
+
+By contrast with pci_enable_msix_range() function, pci_enable_msix_exact()
+returns zero in case of success, which indicates MSI-X interrupts have been
+successfully allocated.
+
+Another version of a routine that enables MSI-X mode for a device with
+specific requirements described in chapter 4.3.1.3 might look like this:
+
+/*
+ * Assume 'minvec' and 'maxvec' are non-zero
+ */
+static int foo_driver_enable_msix(struct foo_adapter *adapter,
+				  int minvec, int maxvec)
+{
+	int rc;
+
+	minvec = roundup_pow_of_two(minvec);
+	maxvec = rounddown_pow_of_two(maxvec);
+
+	if (minvec > maxvec)
+		return -ERANGE;
+
+retry:
+	rc = pci_enable_msix_exact(adapter->pdev,
+				   adapter->msix_entries, maxvec);
+
+	/*
+	 * -ENOSPC is the only error code allowed to be analyzed
+	 */
+	if (rc == -ENOSPC) {
+		if (maxvec == 1)
+			return -ENOSPC;
+
+		maxvec /= 2;
+
+		if (minvec > maxvec)
+			return -ENOSPC;
+
+		goto retry;
+	} else if (rc < 0) {
+		return rc;
+	}
+
+	return maxvec;
+}
+
+4.3.3 pci_disable_msix
 
 void pci_disable_msix(struct pci_dev *dev)
 
@@ -477,7 +576,7 @@ Some devices are known to have faulty MSI implementations.  Usually this
 is handled in the individual device driver, but occasionally it's necessary
 to handle this with a quirk.  Some drivers have an option to disable use
 of MSI.  While this is a convenient workaround for the driver author,
-it is not good practise, and should not be emulated.
+it is not good practice, and should not be emulated.
 
 5.4. Finding why MSIs are disabled on a device
 

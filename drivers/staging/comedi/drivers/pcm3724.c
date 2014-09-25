@@ -33,7 +33,6 @@ Copy/pasted/hacked from pcm724.c
 
 #include "8255.h"
 
-#define PCM3724_SIZE   16
 #define SIZE_8255	4
 
 #define BUF_C0 0x1
@@ -65,19 +64,6 @@ struct priv_pcm3724 {
 	int dio_1;
 	int dio_2;
 };
-
-static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
-{
-	unsigned long iobase = arg;
-	unsigned char inbres;
-	if (dir) {
-		outb(data, iobase + port);
-		return 0;
-	} else {
-		inbres = inb(iobase + port);
-		return inbres;
-	}
-}
 
 static int compute_buffer(int config, int devno, struct comedi_subdevice *s)
 {
@@ -215,7 +201,7 @@ static int pcm3724_attach(struct comedi_device *dev,
 	if (!priv)
 		return -ENOMEM;
 
-	ret = comedi_request_region(dev, it->options[0], PCM3724_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
@@ -225,8 +211,10 @@ static int pcm3724_attach(struct comedi_device *dev,
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
-		subdev_8255_init(dev, s, subdev_8255_cb,
-				 (unsigned long)(dev->iobase + SIZE_8255 * i));
+		ret = subdev_8255_init(dev, s, NULL,
+				       dev->iobase + SIZE_8255 * i);
+		if (ret)
+			return ret;
 		s->insn_config = subdev_3724_insn_config;
 	}
 	return 0;

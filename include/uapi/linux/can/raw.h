@@ -42,8 +42,8 @@
  * DAMAGE.
  */
 
-#ifndef CAN_RAW_H
-#define CAN_RAW_H
+#ifndef _UAPI_CAN_RAW_H
+#define _UAPI_CAN_RAW_H
 
 #include <linux/can.h>
 
@@ -59,4 +59,4 @@ enum {
 	CAN_RAW_FD_FRAMES,	/* allow CAN FD frames (default:off) */
 };
 
-#endif
+#endif /* !_UAPI_CAN_RAW_H */

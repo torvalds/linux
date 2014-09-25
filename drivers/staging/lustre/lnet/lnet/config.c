@@ -35,7 +35,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 typedef struct {			    /* tmp struct for parsing routes */
 	struct list_head	 ltb_list;	/* stash on lists */
@@ -166,7 +166,7 @@ lnet_ni_alloc(__u32 net, struct cfs_expr_list *el, struct list_head *nilist)
 
 	/* LND will fill in the address part of the NID */
 	ni->ni_nid = LNET_MKNID(net, 0);
-	ni->ni_last_alive = cfs_time_current_sec();
+	ni->ni_last_alive = get_seconds();
 	list_add_tail(&ni->ni_list, nilist);
 	return ni;
  failed:
@@ -443,7 +443,7 @@ lnet_str2tbs_sep(struct list_head *tbs, char *str)
 	/* Split 'str' into separate commands */
 	for (;;) {
 		/* skip leading whitespace */
-		while (cfs_iswhite(*str))
+		while (isspace(*str))
 			str++;
 
 		/* scan for separator or comment */
@@ -460,7 +460,7 @@ lnet_str2tbs_sep(struct list_head *tbs, char *str)
 			}
 
 			for (i = 0; i < nob; i++)
-				if (cfs_iswhite(str[i]))
+				if (isspace(str[i]))
 					ltb->ltb_text[i] = ' ';
 				else
 					ltb->ltb_text[i] = str[i];
@@ -667,7 +667,7 @@ lnet_parse_route(char *str, int *im_a_router)
 	sep = str;
 	for (;;) {
 		/* scan for token start */
-		while (cfs_iswhite(*sep))
+		while (isspace(*sep))
 			sep++;
 		if (*sep == 0) {
 			if (ntokens < (got_hops ? 3 : 2))
@@ -679,7 +679,7 @@ lnet_parse_route(char *str, int *im_a_router)
 		token = sep++;
 
 		/* scan for token end */
-		while (*sep != 0 && !cfs_iswhite(*sep))
+		while (*sep != 0 && !isspace(*sep))
 			sep++;
 		if (*sep != 0)
 			*sep++ = 0;
@@ -858,7 +858,7 @@ lnet_match_network_tokens(char *net_entry, __u32 *ipaddrs, int nip)
 	sep = tokens;
 	for (;;) {
 		/* scan for token start */
-		while (cfs_iswhite(*sep))
+		while (isspace(*sep))
 			sep++;
 		if (*sep == 0)
 			break;
@@ -866,7 +866,7 @@ lnet_match_network_tokens(char *net_entry, __u32 *ipaddrs, int nip)
 		token = sep++;
 
 		/* scan for token end */
-		while (*sep != 0 && !cfs_iswhite(*sep))
+		while (*sep != 0 && !isspace(*sep))
 			sep++;
 		if (*sep != 0)
 			*sep++ = 0;

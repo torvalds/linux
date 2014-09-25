@@ -57,6 +57,8 @@
 			resets = <&tegra_car 27>;
 			reset-names = "dc";
 
+			nvidia,head = <0>;
+
 			rgb {
 				status = "disabled";
 			};
@@ -71,6 +73,8 @@
 			clock-names = "dc", "parent";
 			resets = <&tegra_car 26>;
 			reset-names = "dc";
+
+			nvidia,head = <1>;
 
 			rgb {
 				status = "disabled";
@@ -214,6 +218,12 @@
 		gpio-controller;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+	};
+
+	apbmisc@70000800 {
+		compatible = "nvidia,tegra114-apbmisc", "nvidia,tegra20-apbmisc";
+		reg = <0x70000800 0x64   /* Chip revision */
+		       0x70000008 0x04>; /* Strapping options */
 	};
 
 	pinmux: pinmux@70000868 {
@@ -481,6 +491,15 @@
 		clock-names = "pclk", "clk32k_in";
 	};
 
+	fuse@7000f800 {
+		compatible = "nvidia,tegra114-efuse";
+		reg = <0x7000f800 0x400>;
+		clocks = <&tegra_car TEGRA114_CLK_FUSE>;
+		clock-names = "fuse";
+		resets = <&tegra_car 39>;
+		reset-names = "fuse";
+	};
+
 	iommu@70019010 {
 		compatible = "nvidia,tegra114-smmu", "nvidia,tegra30-smmu";
 		reg = <0x70019010 0x02c
@@ -600,7 +619,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC1>;
 		resets = <&tegra_car 14>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@78000200 {
@@ -610,7 +629,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC2>;
 		resets = <&tegra_car 9>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@78000400 {
@@ -620,7 +639,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC3>;
 		resets = <&tegra_car 69>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	sdhci@78000600 {
@@ -630,7 +649,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_SDMMC4>;
 		resets = <&tegra_car 15>;
 		reset-names = "sdhci";
-		status = "disable";
+		status = "disabled";
 	};
 
 	usb@7d000000 {
@@ -653,6 +672,8 @@
 			 <&tegra_car TEGRA114_CLK_PLL_U>,
 			 <&tegra_car TEGRA114_CLK_USBD>;
 		clock-names = "reg", "pll_u", "utmi-pads";
+		resets = <&tegra_car 22>, <&tegra_car 22>;
+		reset-names = "usb", "utmi-pads";
 		nvidia,hssync-start-delay = <0>;
 		nvidia,idle-wait-delay = <17>;
 		nvidia,elastic-limit = <16>;
@@ -663,6 +684,7 @@
 		nvidia,hssquelch-level = <2>;
 		nvidia,hsdiscon-level = <5>;
 		nvidia,xcvr-hsslew = <12>;
+		nvidia,has-utmi-pad-registers;
 		status = "disabled";
 	};
 
@@ -686,6 +708,8 @@
 			 <&tegra_car TEGRA114_CLK_PLL_U>,
 			 <&tegra_car TEGRA114_CLK_USBD>;
 		clock-names = "reg", "pll_u", "utmi-pads";
+		resets = <&tegra_car 59>, <&tegra_car 22>;
+		reset-names = "usb", "utmi-pads";
 		nvidia,hssync-start-delay = <0>;
 		nvidia,idle-wait-delay = <17>;
 		nvidia,elastic-limit = <16>;

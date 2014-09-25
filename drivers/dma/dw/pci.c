@@ -75,7 +75,31 @@ static void dw_pci_remove(struct pci_dev *pdev)
 		dev_warn(&pdev->dev, "can't remove device properly: %d\n", ret);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(dw_pci_id_table) = {
+#ifdef CONFIG_PM_SLEEP
+
+static int dw_pci_suspend_late(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct dw_dma_chip *chip = pci_get_drvdata(pci);
+
+	return dw_dma_suspend(chip);
+};
+
+static int dw_pci_resume_early(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct dw_dma_chip *chip = pci_get_drvdata(pci);
+
+	return dw_dma_resume(chip);
+};
+
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops dw_pci_dev_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(dw_pci_suspend_late, dw_pci_resume_early)
+};
+
+static const struct pci_device_id dw_pci_id_table[] = {
 	/* Medfield */
 	{ PCI_VDEVICE(INTEL, 0x0827), (kernel_ulong_t)&dw_pci_pdata },
 	{ PCI_VDEVICE(INTEL, 0x0830), (kernel_ulong_t)&dw_pci_pdata },
@@ -83,6 +107,9 @@ static DEFINE_PCI_DEVICE_TABLE(dw_pci_id_table) = {
 	/* BayTrail */
 	{ PCI_VDEVICE(INTEL, 0x0f06), (kernel_ulong_t)&dw_pci_pdata },
 	{ PCI_VDEVICE(INTEL, 0x0f40), (kernel_ulong_t)&dw_pci_pdata },
+
+	/* Haswell */
+	{ PCI_VDEVICE(INTEL, 0x9c60), (kernel_ulong_t)&dw_pci_pdata },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, dw_pci_id_table);
@@ -92,6 +119,9 @@ static struct pci_driver dw_pci_driver = {
 	.id_table	= dw_pci_id_table,
 	.probe		= dw_pci_probe,
 	.remove		= dw_pci_remove,
+	.driver	= {
+		.pm	= &dw_pci_dev_pm_ops,
+	},
 };
 
 module_pci_driver(dw_pci_driver);

@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -36,8 +35,6 @@ static int rbtx4939_flash_remove(struct platform_device *dev)
 		return 0;
 
 	if (info->mtd) {
-		struct rbtx4939_flash_data *pdata = dev_get_platdata(&dev->dev);
-
 		mtd_device_unregister(info->mtd);
 		map_destroy(info->mtd);
 	}

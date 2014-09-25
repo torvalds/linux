@@ -38,12 +38,12 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <lustre_lite.h>
-#include <lustre_ha.h>
-#include <lustre_dlm.h>
+#include "../include/lustre_lite.h"
+#include "../include/lustre_ha.h"
+#include "../include/lustre_dlm.h"
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <lprocfs_status.h>
+#include "../include/lprocfs_status.h"
 #include "llite_internal.h"
 
 static struct kmem_cache *ll_inode_cachep;
@@ -52,7 +52,7 @@ static struct inode *ll_alloc_inode(struct super_block *sb)
 {
 	struct ll_inode_info *lli;
 	ll_stats_ops_tally(ll_s2sbi(sb), LPROC_LL_ALLOC_INODE, 1);
-	OBD_SLAB_ALLOC_PTR_GFP(lli, ll_inode_cachep, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(lli, ll_inode_cachep, GFP_NOFS);
 	if (lli == NULL)
 		return NULL;
 
@@ -72,7 +72,7 @@ static void ll_destroy_inode(struct inode *inode)
 	call_rcu(&inode->i_rcu, ll_inode_destroy_callback);
 }
 
-int ll_init_inodecache(void)
+static int ll_init_inodecache(void)
 {
 	ll_inode_cachep = kmem_cache_create("lustre_inode_cache",
 					       sizeof(struct ll_inode_info),
@@ -82,7 +82,7 @@ int ll_init_inodecache(void)
 	return 0;
 }
 
-void ll_destroy_inodecache(void)
+static void ll_destroy_inodecache(void)
 {
 	kmem_cache_destroy(ll_inode_cachep);
 }
@@ -102,9 +102,6 @@ struct super_operations lustre_super_operations =
 MODULE_ALIAS_FS("lustre");
 
 void lustre_register_client_process_config(int (*cpc)(struct lustre_cfg *lcfg));
-
-int vvp_global_init(void);
-void vvp_global_fini(void);
 
 static int __init init_lustre_lite(void)
 {

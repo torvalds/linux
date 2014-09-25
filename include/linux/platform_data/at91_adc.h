@@ -7,23 +7,10 @@
 #ifndef _AT91_ADC_H_
 #define _AT91_ADC_H_
 
-/**
- * struct at91_adc_reg_desc - Various informations relative to registers
- * @channel_base:	Base offset for the channel data registers
- * @drdy_mask:		Mask of the DRDY field in the relevant registers
-			(Interruptions registers mostly)
- * @status_register:	Offset of the Interrupt Status Register
- * @trigger_register:	Offset of the Trigger setup register
- * @mr_prescal_mask:	Mask of the PRESCAL field in the adc MR register
- * @mr_startup_mask:	Mask of the STARTUP field in the adc MR register
- */
-struct at91_adc_reg_desc {
-	u8	channel_base;
-	u32	drdy_mask;
-	u8	status_register;
-	u8	trigger_register;
-	u32	mr_prescal_mask;
-	u32	mr_startup_mask;
+enum atmel_adc_ts_type {
+	ATMEL_ADC_TOUCHSCREEN_NONE = 0,
+	ATMEL_ADC_TOUCHSCREEN_4WIRE = 4,
+	ATMEL_ADC_TOUCHSCREEN_5WIRE = 5,
 };
 
 /**
@@ -42,23 +29,21 @@ struct at91_adc_trigger {
 /**
  * struct at91_adc_data - platform data for ADC driver
  * @channels_used:		channels in use on the board as a bitmask
- * @num_channels:		global number of channels available on the board
- * @registers:			Registers definition on the board
  * @startup_time:		startup time of the ADC in microseconds
  * @trigger_list:		Triggers available in the ADC
  * @trigger_number:		Number of triggers available in the ADC
  * @use_external_triggers:	does the board has external triggers availables
  * @vref:			Reference voltage for the ADC in millivolts
+ * @touchscreen_type:		If a touchscreen is connected, its type (4 or 5 wires)
  */
 struct at91_adc_data {
 	unsigned long			channels_used;
-	u8				num_channels;
-	struct at91_adc_reg_desc	*registers;
 	u8				startup_time;
 	struct at91_adc_trigger		*trigger_list;
 	u8				trigger_number;
 	bool				use_external_triggers;
 	u16				vref;
+	enum atmel_adc_ts_type		touchscreen_type;
 };
 
 extern void __init at91_add_device_adc(struct at91_adc_data *data);

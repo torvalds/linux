@@ -55,17 +55,11 @@
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-smix-defs.h>
 
-#if defined(CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS) \
-	&& CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS
-int num_packet_buffers = CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS;
-#else
-int num_packet_buffers = 1024;
-#endif
+static int num_packet_buffers = 1024;
 module_param(num_packet_buffers, int, 0444);
 MODULE_PARM_DESC(num_packet_buffers, "\n"
 	"\tNumber of packet buffers to allocate and store in the\n"
-	"\tFPA. By default, 1024 packet buffers are used unless\n"
-	"\tCONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS is defined.");
+	"\tFPA. By default, 1024 packet buffers are used.\n");
 
 int pow_receive_group = 15;
 module_param(pow_receive_group, int, 0444);
@@ -475,9 +469,8 @@ int cvm_oct_common_init(struct net_device *dev)
 
 	/* We do our own locking, Linux doesn't need to */
 	dev->features |= NETIF_F_LLTX;
-	SET_ETHTOOL_OPS(dev, &cvm_oct_ethtool_ops);
+	dev->ethtool_ops = &cvm_oct_ethtool_ops;
 
-	cvm_oct_phy_setup_device(dev);
 	cvm_oct_set_mac_filter(dev);
 	dev->netdev_ops->ndo_change_mtu(dev, dev->mtu);
 
@@ -728,6 +721,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 
 			/* Initialize the device private structure. */
 			priv = netdev_priv(dev);
+			priv->netdev = dev;
 			priv->of_node = cvm_oct_node_for_port(pip, interface,
 								port_index);
 

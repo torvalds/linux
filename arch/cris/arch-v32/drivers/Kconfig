@@ -11,7 +11,6 @@ config ETRAX_ETHERNET
 config ETRAX_NO_PHY
 	bool "PHY not present"
 	depends on ETRAX_ETHERNET
-	default N
 	help
 	  This option disables all MDIO communication with an ethernet
 	  transceiver connected to the MII interface. This option shall
@@ -116,7 +115,6 @@ config ETRAX_AXISFLASHMAP
 config ETRAX_AXISFLASHMAP_MTD0WHOLE
 	bool "MTD0 is whole boot flash device"
 	depends on ETRAX_AXISFLASHMAP
-	default N
 	help
 	  When this option is not set, mtd0 refers to the first partition
 	  on the boot flash device. When set, mtd0 refers to the whole

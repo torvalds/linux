@@ -143,28 +143,23 @@ int comedi_check_chanlist(struct comedi_subdevice *s, int n,
 	unsigned int chanspec;
 	int chan, range_len, i;
 
-	if (s->range_table || s->range_table_list) {
-		for (i = 0; i < n; i++) {
-			chanspec = chanlist[i];
-			chan = CR_CHAN(chanspec);
-			if (s->range_table)
-				range_len = s->range_table->length;
-			else if (s->range_table_list && chan < s->n_chan)
-				range_len = s->range_table_list[chan]->length;
-			else
-				range_len = 0;
-			if (chan >= s->n_chan ||
-			    CR_RANGE(chanspec) >= range_len ||
-			    aref_invalid(s, chanspec)) {
-				dev_warn(dev->class_dev,
-					 "bad chanlist[%d]=0x%08x chan=%d range length=%d\n",
-					 i, chanspec, chan, range_len);
-				return -EINVAL;
-			}
+	for (i = 0; i < n; i++) {
+		chanspec = chanlist[i];
+		chan = CR_CHAN(chanspec);
+		if (s->range_table)
+			range_len = s->range_table->length;
+		else if (s->range_table_list && chan < s->n_chan)
+			range_len = s->range_table_list[chan]->length;
+		else
+			range_len = 0;
+		if (chan >= s->n_chan ||
+		    CR_RANGE(chanspec) >= range_len ||
+		    aref_invalid(s, chanspec)) {
+			dev_warn(dev->class_dev,
+				 "bad chanlist[%d]=0x%08x chan=%d range length=%d\n",
+				 i, chanspec, chan, range_len);
+			return -EINVAL;
 		}
-	} else {
-		dev_err(dev->class_dev, "(bug) no range type list!\n");
-		return -EINVAL;
 	}
 	return 0;
 }

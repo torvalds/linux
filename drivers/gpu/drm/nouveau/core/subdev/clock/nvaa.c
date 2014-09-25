@@ -421,7 +421,8 @@ nvaa_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvaa_clock_priv *priv;
 	int ret;
 
-	ret = nouveau_clock_create(parent, engine, oclass, nvaa_domains, &priv);
+	ret = nouveau_clock_create(parent, engine, oclass, nvaa_domains, NULL,
+				   0, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;

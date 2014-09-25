@@ -136,18 +136,18 @@ static struct rtnl_link_stats64 *ifb_stats64(struct net_device *dev,
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin_bh(&dp->rsync);
+		start = u64_stats_fetch_begin_irq(&dp->rsync);
 		stats->rx_packets = dp->rx_packets;
 		stats->rx_bytes = dp->rx_bytes;
-	} while (u64_stats_fetch_retry_bh(&dp->rsync, start));
+	} while (u64_stats_fetch_retry_irq(&dp->rsync, start));
 
 	do {
-		start = u64_stats_fetch_begin_bh(&dp->tsync);
+		start = u64_stats_fetch_begin_irq(&dp->tsync);
 
 		stats->tx_packets = dp->tx_packets;
 		stats->tx_bytes = dp->tx_bytes;
 
-	} while (u64_stats_fetch_retry_bh(&dp->tsync, start));
+	} while (u64_stats_fetch_retry_irq(&dp->tsync, start));
 
 	stats->rx_dropped = dev->stats.rx_dropped;
 	stats->tx_dropped = dev->stats.tx_dropped;
@@ -180,7 +180,8 @@ static void ifb_setup(struct net_device *dev)
 	dev->tx_queue_len = TX_Q_LIMIT;
 
 	dev->features |= IFB_FEATURES;
-	dev->vlan_features |= IFB_FEATURES;
+	dev->vlan_features |= IFB_FEATURES & ~(NETIF_F_HW_VLAN_CTAG_TX |
+					       NETIF_F_HW_VLAN_STAG_TX);
 
 	dev->flags |= IFF_NOARP;
 	dev->flags &= ~IFF_MULTICAST;
@@ -268,8 +269,8 @@ static int __init ifb_init_one(int index)
 	struct ifb_private *dp;
 	int err;
 
-	dev_ifb = alloc_netdev(sizeof(struct ifb_private),
-				 "ifb%d", ifb_setup);
+	dev_ifb = alloc_netdev(sizeof(struct ifb_private), "ifb%d",
+			       NET_NAME_UNKNOWN, ifb_setup);
 
 	if (!dev_ifb)
 		return -ENOMEM;

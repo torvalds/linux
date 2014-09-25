@@ -1,30 +1,25 @@
-/*******************************************************************************
-
-  Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
-
+/* Intel(R) Gigabit Ethernet Linux driver
+ * Copyright(c) 2007-2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 /* Linux PRO/1000 Ethernet Driver main header file */
 
@@ -41,6 +36,8 @@
 #include <linux/if_vlan.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/pci.h>
+#include <linux/mdio.h>
 
 struct igb_adapter;
 
@@ -67,6 +64,7 @@ struct igb_adapter;
 #define IGB_MIN_ITR_USECS	10
 #define NON_Q_VECTORS		1
 #define MAX_Q_VECTORS		8
+#define MAX_MSIX_ENTRIES	10
 
 /* Transmit and receive queues */
 #define IGB_MAX_RX_QUEUES	8
@@ -127,9 +125,9 @@ struct vf_data_storage {
 #define IGB_TX_PTHRESH	((hw->mac.type == e1000_i354) ? 20 : 8)
 #define IGB_TX_HTHRESH	1
 #define IGB_RX_WTHRESH	((hw->mac.type == e1000_82576 && \
-			  adapter->msix_entries) ? 1 : 4)
+			  (adapter->flags & IGB_FLAG_HAS_MSIX)) ? 1 : 4)
 #define IGB_TX_WTHRESH	((hw->mac.type == e1000_82576 && \
-			  adapter->msix_entries) ? 1 : 16)
+			  (adapter->flags & IGB_FLAG_HAS_MSIX)) ? 1 : 16)
 
 /* this is the size past which hardware will drop packets when setting LPE=0 */
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
@@ -196,6 +194,7 @@ struct igb_tx_buffer {
 	unsigned int bytecount;
 	u16 gso_segs;
 	__be16 protocol;
+
 	DEFINE_DMA_UNMAP_ADDR(dma);
 	DEFINE_DMA_UNMAP_LEN(len);
 	u32 tx_flags;
@@ -239,7 +238,6 @@ struct igb_ring {
 		struct igb_tx_buffer *tx_buffer_info;
 		struct igb_rx_buffer *rx_buffer_info;
 	};
-	unsigned long last_rx_timestamp;
 	void *desc;			/* descriptor ring memory */
 	unsigned long flags;		/* ring specific flags */
 	void __iomem *tail;		/* pointer to ring tail register */
@@ -337,8 +335,10 @@ struct hwmon_attr {
 	};
 
 struct hwmon_buff {
-	struct device *device;
-	struct hwmon_attr *hwmon_list;
+	struct attribute_group group;
+	const struct attribute_group *groups[2];
+	struct attribute *attrs[E1000_MAX_SENSORS * 4 + 1];
+	struct hwmon_attr hwmon_list[E1000_MAX_SENSORS * 4];
 	unsigned int n_hwmon;
 	};
 #endif
@@ -355,7 +355,7 @@ struct igb_adapter {
 	unsigned int flags;
 
 	unsigned int num_q_vectors;
-	struct msix_entry *msix_entries;
+	struct msix_entry msix_entries[MAX_MSIX_ENTRIES];
 
 	/* Interrupt Throttle Rate */
 	u32 rx_itr_setting;
@@ -430,8 +430,10 @@ struct igb_adapter {
 	struct delayed_work ptp_overflow_work;
 	struct work_struct ptp_tx_work;
 	struct sk_buff *ptp_tx_skb;
+	struct hwtstamp_config tstamp_config;
 	unsigned long ptp_tx_start;
 	unsigned long last_rx_ptp_check;
+	unsigned long last_rx_timestamp;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
@@ -440,7 +442,7 @@ struct igb_adapter {
 
 	char fw_version[32];
 #ifdef CONFIG_IGB_HWMON
-	struct hwmon_buff igb_hwmon_buff;
+	struct hwmon_buff *igb_hwmon_buff;
 	bool ets;
 #endif
 	struct i2c_algo_bit_data i2c_algo;
@@ -450,6 +452,9 @@ struct igb_adapter {
 	u8 rss_indir_tbl[IGB_RETA_SIZE];
 
 	unsigned long link_check_timeout;
+	int copper_tries;
+	struct e1000_info ei;
+	u16 eee_advert;
 };
 
 #define IGB_FLAG_HAS_MSI		(1 << 0)
@@ -462,6 +467,17 @@ struct igb_adapter {
 #define IGB_FLAG_RSS_FIELD_IPV6_UDP	(1 << 7)
 #define IGB_FLAG_WOL_SUPPORTED		(1 << 8)
 #define IGB_FLAG_NEED_LINK_UPDATE	(1 << 9)
+#define IGB_FLAG_MEDIA_RESET		(1 << 10)
+#define IGB_FLAG_MAS_CAPABLE		(1 << 11)
+#define IGB_FLAG_MAS_ENABLE		(1 << 12)
+#define IGB_FLAG_HAS_MSIX		(1 << 13)
+#define IGB_FLAG_EEE			(1 << 14)
+
+/* Media Auto Sense */
+#define IGB_MAS_ENABLE_0		0X0001
+#define IGB_MAS_ENABLE_1		0X0002
+#define IGB_MAS_ENABLE_2		0X0004
+#define IGB_MAS_ENABLE_3		0X0008
 
 /* DMA Coalescing defines */
 #define IGB_MIN_TXPBSIZE	20408
@@ -473,7 +489,8 @@ struct igb_adapter {
 enum e1000_state_t {
 	__IGB_TESTING,
 	__IGB_RESETTING,
-	__IGB_DOWN
+	__IGB_DOWN,
+	__IGB_PTP_TX_IN_PROGRESS,
 };
 
 enum igb_boards {
@@ -509,28 +526,12 @@ void igb_set_fw_version(struct igb_adapter *);
 void igb_ptp_init(struct igb_adapter *adapter);
 void igb_ptp_stop(struct igb_adapter *adapter);
 void igb_ptp_reset(struct igb_adapter *adapter);
-void igb_ptp_tx_work(struct work_struct *work);
 void igb_ptp_rx_hang(struct igb_adapter *adapter);
-void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter);
 void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector, struct sk_buff *skb);
 void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector, unsigned char *va,
 			 struct sk_buff *skb);
-static inline void igb_ptp_rx_hwtstamp(struct igb_ring *rx_ring,
-				       union e1000_adv_rx_desc *rx_desc,
-				       struct sk_buff *skb)
-{
-	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TS) &&
-	    !igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP))
-		igb_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
-
-	/* Update the last_rx_timestamp timer in order to enable watchdog check
-	 * for error case of latched timestamp on a dropped packet.
-	 */
-	rx_ring->last_rx_timestamp = jiffies;
-}
-
-int igb_ptp_hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr,
-			   int cmd);
+int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr);
+int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr);
 #ifdef CONFIG_IGB_HWMON
 void igb_sysfs_exit(struct igb_adapter *adapter);
 int igb_sysfs_init(struct igb_adapter *adapter);

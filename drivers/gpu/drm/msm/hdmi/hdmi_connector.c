@@ -17,19 +17,20 @@
 
 #include <linux/gpio.h>
 
+#include "msm_kms.h"
 #include "hdmi.h"
 
 struct hdmi_connector {
 	struct drm_connector base;
 	struct hdmi *hdmi;
+	struct work_struct hpd_work;
 };
 #define to_hdmi_connector(x) container_of(x, struct hdmi_connector, base)
 
 static int gpio_config(struct hdmi *hdmi, bool on)
 {
 	struct drm_device *dev = hdmi->dev;
-	struct hdmi_platform_config *config =
-			hdmi->pdev->dev.platform_data;
+	const struct hdmi_platform_config *config = hdmi->config;
 	int ret;
 
 	if (on) {
@@ -39,26 +40,56 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 				"HDMI_DDC_CLK", config->ddc_clk_gpio, ret);
 			goto error1;
 		}
+		gpio_set_value_cansleep(config->ddc_clk_gpio, 1);
+
 		ret = gpio_request(config->ddc_data_gpio, "HDMI_DDC_DATA");
 		if (ret) {
 			dev_err(dev->dev, "'%s'(%d) gpio_request failed: %d\n",
 				"HDMI_DDC_DATA", config->ddc_data_gpio, ret);
 			goto error2;
 		}
+		gpio_set_value_cansleep(config->ddc_data_gpio, 1);
+
 		ret = gpio_request(config->hpd_gpio, "HDMI_HPD");
 		if (ret) {
 			dev_err(dev->dev, "'%s'(%d) gpio_request failed: %d\n",
 				"HDMI_HPD", config->hpd_gpio, ret);
 			goto error3;
 		}
-		if (config->pmic_gpio != -1) {
-			ret = gpio_request(config->pmic_gpio, "PMIC_HDMI_MUX_SEL");
+		gpio_direction_input(config->hpd_gpio);
+		gpio_set_value_cansleep(config->hpd_gpio, 1);
+
+		if (config->mux_en_gpio != -1) {
+			ret = gpio_request(config->mux_en_gpio, "HDMI_MUX_EN");
 			if (ret) {
 				dev_err(dev->dev, "'%s'(%d) gpio_request failed: %d\n",
-					"PMIC_HDMI_MUX_SEL", config->pmic_gpio, ret);
+					"HDMI_MUX_EN", config->mux_en_gpio, ret);
 				goto error4;
 			}
-			gpio_set_value_cansleep(config->pmic_gpio, 0);
+			gpio_set_value_cansleep(config->mux_en_gpio, 1);
+		}
+
+		if (config->mux_sel_gpio != -1) {
+			ret = gpio_request(config->mux_sel_gpio, "HDMI_MUX_SEL");
+			if (ret) {
+				dev_err(dev->dev, "'%s'(%d) gpio_request failed: %d\n",
+					"HDMI_MUX_SEL", config->mux_sel_gpio, ret);
+				goto error5;
+			}
+			gpio_set_value_cansleep(config->mux_sel_gpio, 0);
+		}
+
+		if (config->mux_lpm_gpio != -1) {
+			ret = gpio_request(config->mux_lpm_gpio,
+					"HDMI_MUX_LPM");
+			if (ret) {
+				dev_err(dev->dev,
+					"'%s'(%d) gpio_request failed: %d\n",
+					"HDMI_MUX_LPM",
+					config->mux_lpm_gpio, ret);
+				goto error6;
+			}
+			gpio_set_value_cansleep(config->mux_lpm_gpio, 1);
 		}
 		DBG("gpio on");
 	} else {
@@ -66,15 +97,31 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 		gpio_free(config->ddc_data_gpio);
 		gpio_free(config->hpd_gpio);
 
-		if (config->pmic_gpio != -1) {
-			gpio_set_value_cansleep(config->pmic_gpio, 1);
-			gpio_free(config->pmic_gpio);
+		if (config->mux_en_gpio != -1) {
+			gpio_set_value_cansleep(config->mux_en_gpio, 0);
+			gpio_free(config->mux_en_gpio);
+		}
+
+		if (config->mux_sel_gpio != -1) {
+			gpio_set_value_cansleep(config->mux_sel_gpio, 1);
+			gpio_free(config->mux_sel_gpio);
+		}
+
+		if (config->mux_lpm_gpio != -1) {
+			gpio_set_value_cansleep(config->mux_lpm_gpio, 0);
+			gpio_free(config->mux_lpm_gpio);
 		}
 		DBG("gpio off");
 	}
 
 	return 0;
 
+error6:
+	if (config->mux_sel_gpio != -1)
+		gpio_free(config->mux_sel_gpio);
+error5:
+	if (config->mux_en_gpio != -1)
+		gpio_free(config->mux_en_gpio);
 error4:
 	gpio_free(config->hpd_gpio);
 error3:
@@ -88,10 +135,11 @@ error1:
 static int hpd_enable(struct hdmi_connector *hdmi_connector)
 {
 	struct hdmi *hdmi = hdmi_connector->hdmi;
+	const struct hdmi_platform_config *config = hdmi->config;
 	struct drm_device *dev = hdmi_connector->base.dev;
 	struct hdmi_phy *phy = hdmi->phy;
 	uint32_t hpd_ctrl;
-	int ret;
+	int i, ret;
 
 	ret = gpio_config(hdmi, true);
 	if (ret) {
@@ -99,31 +147,30 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 		goto fail;
 	}
 
-	ret = clk_prepare_enable(hdmi->clk);
-	if (ret) {
-		dev_err(dev->dev, "failed to enable 'clk': %d\n", ret);
-		goto fail;
+	for (i = 0; i < config->hpd_clk_cnt; i++) {
+		if (config->hpd_freq && config->hpd_freq[i]) {
+			ret = clk_set_rate(hdmi->hpd_clks[i],
+					config->hpd_freq[i]);
+			if (ret)
+				dev_warn(dev->dev, "failed to set clk %s (%d)\n",
+						config->hpd_clk_names[i], ret);
+		}
+
+		ret = clk_prepare_enable(hdmi->hpd_clks[i]);
+		if (ret) {
+			dev_err(dev->dev, "failed to enable hpd clk: %s (%d)\n",
+					config->hpd_clk_names[i], ret);
+			goto fail;
+		}
 	}
 
-	ret = clk_prepare_enable(hdmi->m_pclk);
-	if (ret) {
-		dev_err(dev->dev, "failed to enable 'm_pclk': %d\n", ret);
-		goto fail;
-	}
-
-	ret = clk_prepare_enable(hdmi->s_pclk);
-	if (ret) {
-		dev_err(dev->dev, "failed to enable 's_pclk': %d\n", ret);
-		goto fail;
-	}
-
-	if (hdmi->mpp0)
-		ret = regulator_enable(hdmi->mpp0);
-	if (!ret)
-		ret = regulator_enable(hdmi->mvs);
-	if (ret) {
-		dev_err(dev->dev, "failed to enable regulators: %d\n", ret);
-		goto fail;
+	for (i = 0; i < config->hpd_reg_cnt; i++) {
+		ret = regulator_enable(hdmi->hpd_regs[i]);
+		if (ret) {
+			dev_err(dev->dev, "failed to enable hpd regulator: %s (%d)\n",
+					config->hpd_reg_names[i], ret);
+			goto fail;
+		}
 	}
 
 	hdmi_set_mode(hdmi, false);
@@ -156,26 +203,26 @@ fail:
 static int hdp_disable(struct hdmi_connector *hdmi_connector)
 {
 	struct hdmi *hdmi = hdmi_connector->hdmi;
+	const struct hdmi_platform_config *config = hdmi->config;
 	struct drm_device *dev = hdmi_connector->base.dev;
-	int ret = 0;
+	int i, ret = 0;
 
 	/* Disable HPD interrupt */
 	hdmi_write(hdmi, REG_HDMI_HPD_INT_CTRL, 0);
 
 	hdmi_set_mode(hdmi, false);
 
-	if (hdmi->mpp0)
-		ret = regulator_disable(hdmi->mpp0);
-	if (!ret)
-		ret = regulator_disable(hdmi->mvs);
-	if (ret) {
-		dev_err(dev->dev, "failed to enable regulators: %d\n", ret);
-		goto fail;
+	for (i = 0; i < config->hpd_reg_cnt; i++) {
+		ret = regulator_disable(hdmi->hpd_regs[i]);
+		if (ret) {
+			dev_err(dev->dev, "failed to disable hpd regulator: %s (%d)\n",
+					config->hpd_reg_names[i], ret);
+			goto fail;
+		}
 	}
 
-	clk_disable_unprepare(hdmi->clk);
-	clk_disable_unprepare(hdmi->m_pclk);
-	clk_disable_unprepare(hdmi->s_pclk);
+	for (i = 0; i < config->hpd_clk_cnt; i++)
+		clk_disable_unprepare(hdmi->hpd_clks[i]);
 
 	ret = gpio_config(hdmi, false);
 	if (ret) {
@@ -189,9 +236,19 @@ fail:
 	return ret;
 }
 
+static void
+hotplug_work(struct work_struct *work)
+{
+	struct hdmi_connector *hdmi_connector =
+		container_of(work, struct hdmi_connector, hpd_work);
+	struct drm_connector *connector = &hdmi_connector->base;
+	drm_helper_hpd_irq_event(connector->dev);
+}
+
 void hdmi_connector_irq(struct drm_connector *connector)
 {
 	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
+	struct msm_drm_private *priv = connector->dev->dev_private;
 	struct hdmi *hdmi = hdmi_connector->hdmi;
 	uint32_t hpd_int_status, hpd_int_ctrl;
 
@@ -209,14 +266,29 @@ void hdmi_connector_irq(struct drm_connector *connector)
 		hdmi_write(hdmi, REG_HDMI_HPD_INT_CTRL,
 				hpd_int_ctrl | HDMI_HPD_INT_CTRL_INT_ACK);
 
-		drm_helper_hpd_irq_event(connector->dev);
-
 		/* detect disconnect if we are connected or visa versa: */
 		hpd_int_ctrl = HDMI_HPD_INT_CTRL_INT_EN;
 		if (!detected)
 			hpd_int_ctrl |= HDMI_HPD_INT_CTRL_INT_CONNECT;
 		hdmi_write(hdmi, REG_HDMI_HPD_INT_CTRL, hpd_int_ctrl);
+
+		queue_work(priv->wq, &hdmi_connector->hpd_work);
 	}
+}
+
+static enum drm_connector_status detect_reg(struct hdmi *hdmi)
+{
+	uint32_t hpd_int_status = hdmi_read(hdmi, REG_HDMI_HPD_INT_STATUS);
+	return (hpd_int_status & HDMI_HPD_INT_STATUS_CABLE_DETECTED) ?
+			connector_status_connected : connector_status_disconnected;
+}
+
+static enum drm_connector_status detect_gpio(struct hdmi *hdmi)
+{
+	const struct hdmi_platform_config *config = hdmi->config;
+	return gpio_get_value(config->hpd_gpio) ?
+			connector_status_connected :
+			connector_status_disconnected;
 }
 
 static enum drm_connector_status hdmi_connector_detect(
@@ -224,22 +296,29 @@ static enum drm_connector_status hdmi_connector_detect(
 {
 	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
 	struct hdmi *hdmi = hdmi_connector->hdmi;
-	uint32_t hpd_int_status;
+	enum drm_connector_status stat_gpio, stat_reg;
 	int retry = 20;
 
-	hpd_int_status = hdmi_read(hdmi, REG_HDMI_HPD_INT_STATUS);
+	do {
+		stat_gpio = detect_gpio(hdmi);
+		stat_reg  = detect_reg(hdmi);
 
-	/* sense seems to in some cases be momentarily de-asserted, don't
-	 * let that trick us into thinking the monitor is gone:
-	 */
-	while (retry-- && !(hpd_int_status & HDMI_HPD_INT_STATUS_CABLE_DETECTED)) {
+		if (stat_gpio == stat_reg)
+			break;
+
 		mdelay(10);
-		hpd_int_status = hdmi_read(hdmi, REG_HDMI_HPD_INT_STATUS);
-		DBG("status=%08x", hpd_int_status);
+	} while (--retry);
+
+	/* the status we get from reading gpio seems to be more reliable,
+	 * so trust that one the most if we didn't manage to get hdmi and
+	 * gpio status to agree:
+	 */
+	if (stat_gpio != stat_reg) {
+		DBG("HDMI_HPD_INT_STATUS tells us: %d", stat_reg);
+		DBG("hpd gpio tells us: %d", stat_gpio);
 	}
 
-	return (hpd_int_status & HDMI_HPD_INT_STATUS_CABLE_DETECTED) ?
-			connector_status_connected : connector_status_disconnected;
+	return stat_gpio;
 }
 
 static void hdmi_connector_destroy(struct drm_connector *connector)
@@ -248,7 +327,7 @@ static void hdmi_connector_destroy(struct drm_connector *connector)
 
 	hdp_disable(hdmi_connector);
 
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 
 	hdmi_unreference(hdmi_connector->hdmi);
@@ -285,6 +364,8 @@ static int hdmi_connector_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
+	struct hdmi *hdmi = hdmi_connector->hdmi;
+	const struct hdmi_platform_config *config = hdmi->config;
 	struct msm_drm_private *priv = connector->dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	long actual, requested;
@@ -292,6 +373,13 @@ static int hdmi_connector_mode_valid(struct drm_connector *connector,
 	requested = 1000 * mode->clock;
 	actual = kms->funcs->round_pixclk(kms,
 			requested, hdmi_connector->hdmi->encoder);
+
+	/* for mdp5/apq8074, we manage our own pixel clk (as opposed to
+	 * mdp4/dtv stuff where pixel clk is assigned to mdp/encoder
+	 * instead):
+	 */
+	if (config->pwr_clk_cnt > 0)
+		actual = clk_round_rate(hdmi->pwr_clks[0], actual);
 
 	DBG("requested=%ld, actual=%ld", requested, actual);
 
@@ -335,6 +423,7 @@ struct drm_connector *hdmi_connector_init(struct hdmi *hdmi)
 	}
 
 	hdmi_connector->hdmi = hdmi_reference(hdmi);
+	INIT_WORK(&hdmi_connector->hpd_work, hotplug_work);
 
 	connector = &hdmi_connector->base;
 
@@ -342,12 +431,13 @@ struct drm_connector *hdmi_connector_init(struct hdmi *hdmi)
 			DRM_MODE_CONNECTOR_HDMIA);
 	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
 
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+			DRM_CONNECTOR_POLL_DISCONNECT;
 
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	ret = hpd_enable(hdmi_connector);
 	if (ret) {

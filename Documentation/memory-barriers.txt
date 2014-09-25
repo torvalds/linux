@@ -115,8 +115,8 @@ For example, consider the following sequence of events:
 	CPU 1		CPU 2
 	===============	===============
 	{ A == 1; B == 2 }
-	A = 3;		x = A;
-	B = 4;		y = B;
+	A = 3;		x = B;
+	B = 4;		y = A;
 
 The set of accesses as seen by the memory system in the middle can be arranged
 in 24 different combinations:
@@ -608,26 +608,30 @@ as follows:
 	b = p;  /* BUG: Compiler can reorder!!! */
 	do_something();
 
-The solution is again ACCESS_ONCE(), which preserves the ordering between
-the load from variable 'a' and the store to variable 'b':
+The solution is again ACCESS_ONCE() and barrier(), which preserves the
+ordering between the load from variable 'a' and the store to variable 'b':
 
 	q = ACCESS_ONCE(a);
 	if (q) {
+		barrier();
 		ACCESS_ONCE(b) = p;
 		do_something();
 	} else {
+		barrier();
 		ACCESS_ONCE(b) = p;
 		do_something_else();
 	}
 
-You could also use barrier() to prevent the compiler from moving
-the stores to variable 'b', but barrier() would not prevent the
-compiler from proving to itself that a==1 always, so ACCESS_ONCE()
-is also needed.
+The initial ACCESS_ONCE() is required to prevent the compiler from
+proving the value of 'a', and the pair of barrier() invocations are
+required to prevent the compiler from pulling the two identical stores
+to 'b' out from the legs of the "if" statement.
 
 It is important to note that control dependencies absolutely require a
 a conditional.  For example, the following "optimized" version of
-the above example breaks ordering:
+the above example breaks ordering, which is why the barrier() invocations
+are absolutely required if you have identical stores in both legs of
+the "if" statement:
 
 	q = ACCESS_ONCE(a);
 	ACCESS_ONCE(b) = p;  /* BUG: No ordering vs. load from a!!! */
@@ -643,9 +647,11 @@ It is of course legal for the prior load to be part of the conditional,
 for example, as follows:
 
 	if (ACCESS_ONCE(a) > 0) {
+		barrier();
 		ACCESS_ONCE(b) = q / 2;
 		do_something();
 	} else {
+		barrier();
 		ACCESS_ONCE(b) = q / 3;
 		do_something_else();
 	}
@@ -659,9 +665,11 @@ the needed conditional.  For example:
 
 	q = ACCESS_ONCE(a);
 	if (q % MAX) {
+		barrier();
 		ACCESS_ONCE(b) = p;
 		do_something();
 	} else {
+		barrier();
 		ACCESS_ONCE(b) = p;
 		do_something_else();
 	}
@@ -723,8 +731,13 @@ In summary:
       use smb_rmb(), smp_wmb(), or, in the case of prior stores and
       later loads, smp_mb().
 
+  (*) If both legs of the "if" statement begin with identical stores
+      to the same variable, a barrier() statement is required at the
+      beginning of each leg of the "if" statement.
+
   (*) Control dependencies require at least one run-time conditional
-      between the prior load and the subsequent store.  If the compiler
+      between the prior load and the subsequent store, and this
+      conditional must involve the prior load.  If the compiler
       is able to optimize the conditional away, it will have also
       optimized away the ordering.  Careful use of ACCESS_ONCE() can
       help to preserve the needed conditional.
@@ -744,10 +757,14 @@ SMP BARRIER PAIRING
 When dealing with CPU-CPU interactions, certain types of memory barrier should
 always be paired.  A lack of appropriate pairing is almost certainly an error.
 
-A write barrier should always be paired with a data dependency barrier or read
-barrier, though a general barrier would also be viable.  Similarly a read
-barrier or a data dependency barrier should always be paired with at least an
-write barrier, though, again, a general barrier is viable:
+General barriers pair with each other, though they also pair with
+most other types of barriers, albeit without transitivity.  An acquire
+barrier pairs with a release barrier, but both may also pair with other
+barriers, including of course general barriers.  A write barrier pairs
+with a data dependency barrier, an acquire barrier, a release barrier,
+a read barrier, or a general barrier.  Similarly a read barrier or a
+data dependency barrier pairs with a write barrier, an acquire barrier,
+a release barrier, or a general barrier:
 
 	CPU 1		      CPU 2
 	===============	      ===============
@@ -1249,6 +1266,23 @@ The ACCESS_ONCE() function can prevent any number of optimizations that,
 while perfectly safe in single-threaded code, can be fatal in concurrent
 code.  Here are some examples of these sorts of optimizations:
 
+ (*) The compiler is within its rights to reorder loads and stores
+     to the same variable, and in some cases, the CPU is within its
+     rights to reorder loads to the same variable.  This means that
+     the following code:
+
+	a[0] = x;
+	a[1] = x;
+
+     Might result in an older value of x stored in a[1] than in a[0].
+     Prevent both the compiler and the CPU from doing this as follows:
+
+	a[0] = ACCESS_ONCE(x);
+	a[1] = ACCESS_ONCE(x);
+
+     In short, ACCESS_ONCE() provides cache coherence for accesses from
+     multiple CPUs to a single variable.
+
  (*) The compiler is within its rights to merge successive loads from
      the same variable.  Such merging can cause the compiler to "optimize"
      the following code:
@@ -1371,7 +1405,7 @@ code.  Here are some examples of these sorts of optimizations:
 			process_message(msg);
 	}
 
-     There is nothing to prevent the the compiler from transforming
+     There is nothing to prevent the compiler from transforming
      process_level() to the following, in fact, this might well be a
      win for single-threaded code:
 
@@ -1553,45 +1587,25 @@ There are some more advanced barrier functions:
      insert anything more than a compiler barrier in a UP compilation.
 
 
- (*) smp_mb__before_atomic_dec();
- (*) smp_mb__after_atomic_dec();
- (*) smp_mb__before_atomic_inc();
- (*) smp_mb__after_atomic_inc();
+ (*) smp_mb__before_atomic();
+ (*) smp_mb__after_atomic();
 
-     These are for use with atomic add, subtract, increment and decrement
-     functions that don't return a value, especially when used for reference
-     counting.  These functions do not imply memory barriers.
+     These are for use with atomic (such as add, subtract, increment and
+     decrement) functions that don't return a value, especially when used for
+     reference counting.  These functions do not imply memory barriers.
+
+     These are also used for atomic bitop functions that do not return a
+     value (such as set_bit and clear_bit).
 
      As an example, consider a piece of code that marks an object as being dead
      and then decrements the object's reference count:
 
 	obj->dead = 1;
-	smp_mb__before_atomic_dec();
+	smp_mb__before_atomic();
 	atomic_dec(&obj->ref_count);
 
      This makes sure that the death mark on the object is perceived to be set
      *before* the reference counter is decremented.
-
-     See Documentation/atomic_ops.txt for more information.  See the "Atomic
-     operations" subsection for information on where to use these.
-
-
- (*) smp_mb__before_clear_bit(void);
- (*) smp_mb__after_clear_bit(void);
-
-     These are for use similar to the atomic inc/dec barriers.  These are
-     typically used for bitwise unlocking operations, so care must be taken as
-     there are no implicit memory barriers here either.
-
-     Consider implementing an unlock operation of some nature by clearing a
-     locking bit.  The clear_bit() would then need to be barriered like this:
-
-	smp_mb__before_clear_bit();
-	clear_bit( ... );
-
-     This prevents memory operations before the clear leaking to after it.  See
-     the subsection on "Locking Functions" with reference to RELEASE operation
-     implications.
 
      See Documentation/atomic_ops.txt for more information.  See the "Atomic
      operations" subsection for information on where to use these.
@@ -1644,12 +1658,12 @@ for each construct.  These operations all imply certain barriers:
      Memory operations issued after the ACQUIRE will be completed after the
      ACQUIRE operation has completed.
 
-     Memory operations issued before the ACQUIRE may be completed after the
-     ACQUIRE operation has completed.  An smp_mb__before_spinlock(), combined
-     with a following ACQUIRE, orders prior loads against subsequent stores and
-     stores and prior stores against subsequent stores.  Note that this is
-     weaker than smp_mb()!  The smp_mb__before_spinlock() primitive is free on
-     many architectures.
+     Memory operations issued before the ACQUIRE may be completed after
+     the ACQUIRE operation has completed.  An smp_mb__before_spinlock(),
+     combined with a following ACQUIRE, orders prior loads against
+     subsequent loads and stores and also orders prior stores against
+     subsequent stores.  Note that this is weaker than smp_mb()!  The
+     smp_mb__before_spinlock() primitive is free on many architectures.
 
  (2) RELEASE operation implication:
 
@@ -1694,24 +1708,21 @@ may occur as:
 
 	ACQUIRE M, STORE *B, STORE *A, RELEASE M
 
-This same reordering can of course occur if the lock's ACQUIRE and RELEASE are
-to the same lock variable, but only from the perspective of another CPU not
-holding that lock.
+When the ACQUIRE and RELEASE are a lock acquisition and release,
+respectively, this same reordering can occur if the lock's ACQUIRE and
+RELEASE are to the same lock variable, but only from the perspective of
+another CPU not holding that lock.  In short, a ACQUIRE followed by an
+RELEASE may -not- be assumed to be a full memory barrier.
 
-In short, a RELEASE followed by an ACQUIRE may -not- be assumed to be a full
-memory barrier because it is possible for a preceding RELEASE to pass a
-later ACQUIRE from the viewpoint of the CPU, but not from the viewpoint
-of the compiler.  Note that deadlocks cannot be introduced by this
-interchange because if such a deadlock threatened, the RELEASE would
-simply complete.
-
-If it is necessary for a RELEASE-ACQUIRE pair to produce a full barrier, the
-ACQUIRE can be followed by an smp_mb__after_unlock_lock() invocation.  This
-will produce a full barrier if either (a) the RELEASE and the ACQUIRE are
-executed by the same CPU or task, or (b) the RELEASE and ACQUIRE act on the
-same variable.  The smp_mb__after_unlock_lock() primitive is free on many
-architectures.  Without smp_mb__after_unlock_lock(), the critical sections
-corresponding to the RELEASE and the ACQUIRE can cross:
+Similarly, the reverse case of a RELEASE followed by an ACQUIRE does not
+imply a full memory barrier.  If it is necessary for a RELEASE-ACQUIRE
+pair to produce a full barrier, the ACQUIRE can be followed by an
+smp_mb__after_unlock_lock() invocation.  This will produce a full barrier
+if either (a) the RELEASE and the ACQUIRE are executed by the same
+CPU or task, or (b) the RELEASE and ACQUIRE act on the same variable.
+The smp_mb__after_unlock_lock() primitive is free on many architectures.
+Without smp_mb__after_unlock_lock(), the CPU's execution of the critical
+sections corresponding to the RELEASE and the ACQUIRE can cross, so that:
 
 	*A = a;
 	RELEASE M
@@ -1722,7 +1733,36 @@ could occur as:
 
 	ACQUIRE N, STORE *B, STORE *A, RELEASE M
 
-With smp_mb__after_unlock_lock(), they cannot, so that:
+It might appear that this reordering could introduce a deadlock.
+However, this cannot happen because if such a deadlock threatened,
+the RELEASE would simply complete, thereby avoiding the deadlock.
+
+	Why does this work?
+
+	One key point is that we are only talking about the CPU doing
+	the reordering, not the compiler.  If the compiler (or, for
+	that matter, the developer) switched the operations, deadlock
+	-could- occur.
+
+	But suppose the CPU reordered the operations.  In this case,
+	the unlock precedes the lock in the assembly code.  The CPU
+	simply elected to try executing the later lock operation first.
+	If there is a deadlock, this lock operation will simply spin (or
+	try to sleep, but more on that later).	The CPU will eventually
+	execute the unlock operation (which preceded the lock operation
+	in the assembly code), which will unravel the potential deadlock,
+	allowing the lock operation to succeed.
+
+	But what if the lock is a sleeplock?  In that case, the code will
+	try to enter the scheduler, where it will eventually encounter
+	a memory barrier, which will force the earlier unlock operation
+	to complete, again unraveling the deadlock.  There might be
+	a sleep-unlock race, but the locking primitive needs to resolve
+	such races properly in any case.
+
+With smp_mb__after_unlock_lock(), the two critical sections cannot overlap.
+For example, with the following code, the store to *A will always be
+seen by other CPUs before the store to *B:
 
 	*A = a;
 	RELEASE M
@@ -1730,13 +1770,18 @@ With smp_mb__after_unlock_lock(), they cannot, so that:
 	smp_mb__after_unlock_lock();
 	*B = b;
 
-will always occur as either of the following:
+The operations will always occur in one of the following orders:
 
-	STORE *A, RELEASE, ACQUIRE, STORE *B
-	STORE *A, ACQUIRE, RELEASE, STORE *B
+	STORE *A, RELEASE, ACQUIRE, smp_mb__after_unlock_lock(), STORE *B
+	STORE *A, ACQUIRE, RELEASE, smp_mb__after_unlock_lock(), STORE *B
+	ACQUIRE, STORE *A, RELEASE, smp_mb__after_unlock_lock(), STORE *B
 
 If the RELEASE and ACQUIRE were instead both operating on the same lock
-variable, only the first of these two alternatives can occur.
+variable, only the first of these alternatives can occur.  In addition,
+the more strongly ordered systems may rule out some of the above orders.
+But in any case, as noted earlier, the smp_mb__after_unlock_lock()
+ensures that the store to *A will always be seen as happening before
+the store to *B.
 
 Locks and semaphores may not provide any guarantee of ordering on UP compiled
 systems, and so cannot be counted on in such a situation to actually achieve
@@ -1851,6 +1896,21 @@ between the STORE to indicate the event and the STORE to set TASK_RUNNING:
 	    STORE current->state	  <write barrier>
 	    <general barrier>		  STORE current->state
 	LOAD event_indicated
+
+To repeat, this write memory barrier is present if and only if something
+is actually awakened.  To see this, consider the following sequence of
+events, where X and Y are both initially zero:
+
+	CPU 1				CPU 2
+	===============================	===============================
+	X = 1;				STORE event_indicated
+	smp_mb();			wake_up();
+	Y = 1;				wait_event(wq, Y == 1);
+	wake_up();			  load from Y sees 1, no memory barrier
+					load from X might see 0
+
+In contrast, if a wakeup does occur, CPU 2's load from X would be guaranteed
+to see 1.
 
 The available waker functions include:
 
@@ -2222,11 +2282,11 @@ operations:
 	change_bit();
 
 With these the appropriate explicit memory barrier should be used if necessary
-(smp_mb__before_clear_bit() for instance).
+(smp_mb__before_atomic() for instance).
 
 
 The following also do _not_ imply memory barriers, and so may require explicit
-memory barriers under some circumstances (smp_mb__before_atomic_dec() for
+memory barriers under some circumstances (smp_mb__before_atomic() for
 instance):
 
 	atomic_add();
@@ -2757,7 +2817,7 @@ in that order, but, without intervention, the sequence may have almost any
 combination of elements combined or discarded, provided the program's view of
 the world remains consistent.  Note that ACCESS_ONCE() is -not- optional
 in the above example, as there are architectures where a given CPU might
-interchange successive loads to the same location.  On such architectures,
+reorder successive loads to the same location.  On such architectures,
 ACCESS_ONCE() does whatever is necessary to prevent this, for example, on
 Itanium the volatile casts used by ACCESS_ONCE() cause GCC to emit the
 special ld.acq and st.rel instructions that prevent such reordering.

@@ -1095,7 +1095,7 @@ SCSI_NCR_SETUP_FORCE_SYNC_NEGO	(default: not defined)
 SCSI_NCR_SETUP_MASTER_PARITY	(default: defined)
 	If defined, master parity checking is enabled.
 
-SCSI_NCR_SETUP_MASTER_PARITY	(default: defined)
+SCSI_NCR_SETUP_SCSI_PARITY	(default: defined)
 	If defined, SCSI parity checking is enabled.
 
 SCSI_NCR_PROFILE_SUPPORT	(default: not defined)

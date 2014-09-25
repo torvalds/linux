@@ -119,7 +119,7 @@ int rcar_du_dumb_create(struct drm_file *file, struct drm_device *dev,
 	/* The R8A7779 DU requires a 16 pixels pitch alignment as documented,
 	 * but the R8A7790 DU seems to require a 128 bytes pitch alignment.
 	 */
-	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_ALIGN_128B))
+	if (rcar_du_needs(rcdu, RCAR_DU_QUIRK_ALIGN_128B))
 		align = 128;
 	else
 		align = 16 * args->bpp / 8;
@@ -135,7 +135,9 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 {
 	struct rcar_du_device *rcdu = dev->dev_private;
 	const struct rcar_du_format_info *format;
+	unsigned int max_pitch;
 	unsigned int align;
+	unsigned int bpp;
 
 	format = rcar_du_format_info(mode_cmd->pixel_format);
 	if (format == NULL) {
@@ -144,13 +146,20 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_ALIGN_128B))
+	/*
+	 * The pitch and alignment constraints are expressed in pixels on the
+	 * hardware side and in bytes in the DRM API.
+	 */
+	bpp = format->planes == 2 ? 1 : format->bpp / 8;
+	max_pitch =  4096 * bpp;
+
+	if (rcar_du_needs(rcdu, RCAR_DU_QUIRK_ALIGN_128B))
 		align = 128;
 	else
-		align = 16 * format->bpp / 8;
+		align = 16 * bpp;
 
 	if (mode_cmd->pitches[0] & (align - 1) ||
-	    mode_cmd->pitches[0] >= 8192) {
+	    mode_cmd->pitches[0] >= max_pitch) {
 		dev_dbg(dev->dev, "invalid pitch value %u\n",
 			mode_cmd->pitches[0]);
 		return ERR_PTR(-EINVAL);
@@ -248,7 +257,10 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 			continue;
 		}
 
-		rcar_du_encoder_init(rcdu, pdata->type, pdata->output, pdata);
+		ret = rcar_du_encoder_init(rcdu, pdata->type, pdata->output,
+					   pdata);
+		if (ret < 0)
+			return ret;
 	}
 
 	/* Set the possible CRTCs and possible clones. There's always at least

@@ -24,9 +24,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -949,6 +947,40 @@ static inline u8 rt2800_get_beacon_offset(struct rt2x00_dev *rt2x00dev,
 	return BEACON_BASE_TO_OFFSET(rt2800_hw_beacon_base(rt2x00dev, index));
 }
 
+static void rt2800_update_beacons_setup(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue = rt2x00dev->bcn;
+	struct queue_entry *entry;
+	int i, bcn_num = 0;
+	u64 off, reg = 0;
+	u32 bssid_dw1;
+
+	/*
+	 * Setup offsets of all active beacons in BCN_OFFSET{0,1} registers.
+	 */
+	for (i = 0; i < queue->limit; i++) {
+		entry = &queue->entries[i];
+		if (!test_bit(ENTRY_BCN_ENABLED, &entry->flags))
+			continue;
+		off = rt2800_get_beacon_offset(rt2x00dev, entry->entry_idx);
+		reg |= off << (8 * bcn_num);
+		bcn_num++;
+	}
+
+	WARN_ON_ONCE(bcn_num != rt2x00dev->intf_beaconing);
+
+	rt2800_register_write(rt2x00dev, BCN_OFFSET0, (u32) reg);
+	rt2800_register_write(rt2x00dev, BCN_OFFSET1, (u32) (reg >> 32));
+
+	/*
+	 * H/W sends up to MAC_BSSID_DW1_BSS_BCN_NUM + 1 consecutive beacons.
+	 */
+	rt2800_register_read(rt2x00dev, MAC_BSSID_DW1, &bssid_dw1);
+	rt2x00_set_field32(&bssid_dw1, MAC_BSSID_DW1_BSS_BCN_NUM,
+			   bcn_num > 0 ? bcn_num - 1 : 0);
+	rt2800_register_write(rt2x00dev, MAC_BSSID_DW1, bssid_dw1);
+}
+
 void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
@@ -1005,12 +1037,17 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 
 	rt2800_register_multiwrite(rt2x00dev, beacon_base, entry->skb->data,
 				   entry->skb->len + padding_len);
+	__set_bit(ENTRY_BCN_ENABLED, &entry->flags);
 
 	/*
-	 * Enable beaconing again.
+	 * Change global beacons settings.
 	 */
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
-	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+	rt2800_update_beacons_setup(rt2x00dev);
+
+	/*
+	 * Restore beaconing state.
+	 */
+	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, orig_reg);
 
 	/*
 	 * Clean up beacon skb.
@@ -1041,13 +1078,14 @@ static inline void rt2800_clear_beacon_register(struct rt2x00_dev *rt2x00dev,
 void rt2800_clear_beacon(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	u32 reg;
+	u32 orig_reg, reg;
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
 	 * otherwise we might be sending out invalid data.
 	 */
-	rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+	rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &orig_reg);
+	reg = orig_reg;
 	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
@@ -1055,12 +1093,16 @@ void rt2800_clear_beacon(struct queue_entry *entry)
 	 * Clear beacon.
 	 */
 	rt2800_clear_beacon_register(rt2x00dev, entry->entry_idx);
+	__clear_bit(ENTRY_BCN_ENABLED, &entry->flags);
 
 	/*
-	 * Enabled beaconing again.
+	 * Change global beacons settings.
 	 */
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
-	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+	rt2800_update_beacons_setup(rt2x00dev);
+	/*
+	 * Restore beaconing state.
+	 */
+	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, orig_reg);
 }
 EXPORT_SYMBOL_GPL(rt2800_clear_beacon);
 
@@ -1559,7 +1601,7 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 		if (!is_zero_ether_addr((const u8 *)conf->bssid)) {
 			reg = le32_to_cpu(conf->bssid[1]);
 			rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_ID_MASK, 3);
-			rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_BCN_NUM, 7);
+			rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_BCN_NUM, 0);
 			conf->bssid[1] = cpu_to_le32(reg);
 		}
 
@@ -4520,28 +4562,6 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	if (ret)
 		return ret;
 
-	rt2800_register_read(rt2x00dev, BCN_OFFSET0, &reg);
-	rt2x00_set_field32(&reg, BCN_OFFSET0_BCN0,
-			   rt2800_get_beacon_offset(rt2x00dev, 0));
-	rt2x00_set_field32(&reg, BCN_OFFSET0_BCN1,
-			   rt2800_get_beacon_offset(rt2x00dev, 1));
-	rt2x00_set_field32(&reg, BCN_OFFSET0_BCN2,
-			   rt2800_get_beacon_offset(rt2x00dev, 2));
-	rt2x00_set_field32(&reg, BCN_OFFSET0_BCN3,
-			   rt2800_get_beacon_offset(rt2x00dev, 3));
-	rt2800_register_write(rt2x00dev, BCN_OFFSET0, reg);
-
-	rt2800_register_read(rt2x00dev, BCN_OFFSET1, &reg);
-	rt2x00_set_field32(&reg, BCN_OFFSET1_BCN4,
-			   rt2800_get_beacon_offset(rt2x00dev, 4));
-	rt2x00_set_field32(&reg, BCN_OFFSET1_BCN5,
-			   rt2800_get_beacon_offset(rt2x00dev, 5));
-	rt2x00_set_field32(&reg, BCN_OFFSET1_BCN6,
-			   rt2800_get_beacon_offset(rt2x00dev, 6));
-	rt2x00_set_field32(&reg, BCN_OFFSET1_BCN7,
-			   rt2800_get_beacon_offset(rt2x00dev, 7));
-	rt2800_register_write(rt2x00dev, BCN_OFFSET1, reg);
-
 	rt2800_register_write(rt2x00dev, LEGACY_BASIC_RATE, 0x0000013f);
 	rt2800_register_write(rt2x00dev, HT_BASIC_RATE, 0x00008003);
 
@@ -6453,7 +6473,7 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 7, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 10, 0x53);
 	rt2800_rfcsr_write(rt2x00dev, 11, 0x4a);
-	rt2800_rfcsr_write(rt2x00dev, 12, 0xc6);
+	rt2800_rfcsr_write(rt2x00dev, 12, 0x46);
 	rt2800_rfcsr_write(rt2x00dev, 13, 0x9f);
 	rt2800_rfcsr_write(rt2x00dev, 14, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 15, 0x00);
@@ -6466,7 +6486,8 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 22, 0x20);
 	rt2800_rfcsr_write(rt2x00dev, 23, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 24, 0x00);
-	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
+	if (rt2x00_is_usb(rt2x00dev) &&
+	    rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
 		rt2800_rfcsr_write(rt2x00dev, 25, 0x80);
 	else
 		rt2800_rfcsr_write(rt2x00dev, 25, 0xc0);
@@ -6486,10 +6507,7 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 38, 0x85);
 	rt2800_rfcsr_write(rt2x00dev, 39, 0x1b);
 
-	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
-		rt2800_rfcsr_write(rt2x00dev, 40, 0x0b);
-	else
-		rt2800_rfcsr_write(rt2x00dev, 40, 0x4b);
+	rt2800_rfcsr_write(rt2x00dev, 40, 0x0b);
 	rt2800_rfcsr_write(rt2x00dev, 41, 0xbb);
 	rt2800_rfcsr_write(rt2x00dev, 42, 0xd2);
 	rt2800_rfcsr_write(rt2x00dev, 43, 0x9a);
@@ -6510,16 +6528,26 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 53, 0x84);
 	rt2800_rfcsr_write(rt2x00dev, 54, 0x78);
 	rt2800_rfcsr_write(rt2x00dev, 55, 0x44);
-	rt2800_rfcsr_write(rt2x00dev, 56, 0x22);
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
+		rt2800_rfcsr_write(rt2x00dev, 56, 0x42);
+	else
+		rt2800_rfcsr_write(rt2x00dev, 56, 0x22);
 	rt2800_rfcsr_write(rt2x00dev, 57, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 58, 0x7f);
 	rt2800_rfcsr_write(rt2x00dev, 59, 0x8f);
 
 	rt2800_rfcsr_write(rt2x00dev, 60, 0x45);
-	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
-		rt2800_rfcsr_write(rt2x00dev, 61, 0xd1);
-	else
-		rt2800_rfcsr_write(rt2x00dev, 61, 0xdd);
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F)) {
+		if (rt2x00_is_usb(rt2x00dev))
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xd1);
+		else
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xd5);
+	} else {
+		if (rt2x00_is_usb(rt2x00dev))
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xdd);
+		else
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xb5);
+	}
 	rt2800_rfcsr_write(rt2x00dev, 62, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 63, 0x00);
 
@@ -6601,7 +6629,6 @@ static void rt2800_init_rfcsr_5592(struct rt2x00_dev *rt2x00dev)
 	rt2800_rf_init_calibration(rt2x00dev, 30);
 
 	rt2800_rfcsr_write(rt2x00dev, 1, 0x3F);
-	rt2800_rfcsr_write(rt2x00dev, 3, 0x08);
 	rt2800_rfcsr_write(rt2x00dev, 3, 0x08);
 	rt2800_rfcsr_write(rt2x00dev, 5, 0x10);
 	rt2800_rfcsr_write(rt2x00dev, 6, 0xE4);
@@ -7453,10 +7480,9 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	u32 reg;
 
 	/*
-	 * Disable powersaving as default on PCI devices.
+	 * Disable powersaving as default.
 	 */
-	if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev))
-		rt2x00dev->hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
+	rt2x00dev->hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	/*
 	 * Initialize all hw fields.

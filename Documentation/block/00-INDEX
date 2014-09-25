@@ -14,6 +14,8 @@ deadline-iosched.txt
 	- Deadline IO scheduler tunables
 ioprio.txt
 	- Block io priorities (in CFQ scheduler)
+null_blk.txt
+	- Null block for block-layer benchmarking.
 queue-sysfs.txt
 	- Queue's sysfs entries
 request.txt

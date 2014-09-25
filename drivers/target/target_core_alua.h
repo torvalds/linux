@@ -13,12 +13,13 @@
 /*
  * ASYMMETRIC ACCESS STATE field
  *
- * from spc4r17 section 6.27 Table 245
+ * from spc4r36j section 6.37 Table 307
  */
 #define ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED	0x0
 #define ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED	0x1
 #define ALUA_ACCESS_STATE_STANDBY		0x2
 #define ALUA_ACCESS_STATE_UNAVAILABLE		0x3
+#define ALUA_ACCESS_STATE_LBA_DEPENDENT		0x4
 #define ALUA_ACCESS_STATE_OFFLINE		0xe
 #define ALUA_ACCESS_STATE_TRANSITION		0xf
 
@@ -78,18 +79,30 @@
  */
 #define ALUA_SECONDARY_METADATA_WWN_LEN			256
 
+/* Used by core_alua_update_tpg_(primary,secondary)_metadata */
+#define ALUA_MD_BUF_LEN					1024
+
 extern struct kmem_cache *t10_alua_lu_gp_cache;
 extern struct kmem_cache *t10_alua_lu_gp_mem_cache;
 extern struct kmem_cache *t10_alua_tg_pt_gp_cache;
 extern struct kmem_cache *t10_alua_tg_pt_gp_mem_cache;
+extern struct kmem_cache *t10_alua_lba_map_cache;
+extern struct kmem_cache *t10_alua_lba_map_mem_cache;
 
 extern sense_reason_t target_emulate_report_target_port_groups(struct se_cmd *);
 extern sense_reason_t target_emulate_set_target_port_groups(struct se_cmd *);
+extern sense_reason_t target_emulate_report_referrals(struct se_cmd *);
 extern int core_alua_check_nonop_delay(struct se_cmd *);
 extern int core_alua_do_port_transition(struct t10_alua_tg_pt_gp *,
 				struct se_device *, struct se_port *,
 				struct se_node_acl *, int, int);
 extern char *core_alua_dump_status(int);
+extern struct t10_alua_lba_map *core_alua_allocate_lba_map(
+				struct list_head *, u64, u64);
+extern int core_alua_allocate_lba_map_mem(struct t10_alua_lba_map *, int, int);
+extern void core_alua_free_lba_map(struct list_head *);
+extern void core_alua_set_lba_map(struct se_device *, struct list_head *,
+				int, int);
 extern struct t10_alua_lu_gp *core_alua_allocate_lu_gp(const char *, int);
 extern int core_alua_set_lu_gp_id(struct t10_alua_lu_gp *, u16);
 extern void core_alua_free_lu_gp(struct t10_alua_lu_gp *);

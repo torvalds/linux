@@ -4,7 +4,6 @@
 #ifndef _ASM_POWERPC_PPC_ASM_H
 #define _ASM_POWERPC_PPC_ASM_H
 
-#include <linux/init.h>
 #include <linux/stringify.h>
 #include <asm/asm-compat.h>
 #include <asm/processor.h>
@@ -58,7 +57,7 @@ BEGIN_FW_FTR_SECTION;							\
 	LDX_BE	r10,0,r10;		/* get log write index */	\
 	cmpd	cr1,r11,r10;						\
 	beq+	cr1,33f;						\
-	bl	.accumulate_stolen_time;				\
+	bl	accumulate_stolen_time;				\
 	ld	r12,_MSR(r1);						\
 	andi.	r10,r12,MSR_PR;		/* Restore cr0 (coming from user) */ \
 33:									\
@@ -190,8 +189,44 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define __STK_REG(i)   (112 + ((i)-14)*8)
 #define STK_REG(i)     __STK_REG(__REG_##i)
 
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+#define STK_GOT		24
+#define __STK_PARAM(i)	(32 + ((i)-3)*8)
+#else
+#define STK_GOT		40
 #define __STK_PARAM(i)	(48 + ((i)-3)*8)
+#endif
 #define STK_PARAM(i)	__STK_PARAM(__REG_##i)
+
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+
+#define _GLOBAL(name) \
+	.section ".text"; \
+	.align 2 ; \
+	.type name,@function; \
+	.globl name; \
+name:
+
+#define _GLOBAL_TOC(name) \
+	.section ".text"; \
+	.align 2 ; \
+	.type name,@function; \
+	.globl name; \
+name: \
+0:	addis r2,r12,(.TOC.-0b)@ha; \
+	addi r2,r2,(.TOC.-0b)@l; \
+	.localentry name,.-name
+
+#define _KPROBE(name) \
+	.section ".kprobes.text","a"; \
+	.align 2 ; \
+	.type name,@function; \
+	.globl name; \
+name:
+
+#define DOTSYM(a)	a
+
+#else
 
 #define XGLUE(a,b) a##b
 #define GLUE(a,b) XGLUE(a,b)
@@ -210,19 +245,7 @@ name: \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
-#define _INIT_GLOBAL(name) \
-	__REF; \
-	.align 2 ; \
-	.globl name; \
-	.globl GLUE(.,name); \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
+#define _GLOBAL_TOC(name) _GLOBAL(name)
 
 #define _KPROBE(name) \
 	.section ".kprobes.text","a"; \
@@ -238,29 +261,9 @@ name: \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
-#define _STATIC(name) \
-	.section ".text"; \
-	.align 2 ; \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
+#define DOTSYM(a)	GLUE(.,a)
 
-#define _INIT_STATIC(name) \
-	__REF; \
-	.align 2 ; \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
+#endif
 
 #else /* 32-bit */
 
@@ -273,6 +276,8 @@ n:
 	.stabs __stringify(n:F-1),N_FUN,0,0,n;\
 	.globl n;	\
 n:
+
+#define _GLOBAL_TOC(name) _GLOBAL(name)
 
 #define _KPROBE(n)	\
 	.section ".kprobes.text","a";	\
@@ -295,6 +300,11 @@ n:
  *   you want to access various offsets within it).  On ppc32 this is
  *   identical to LOAD_REG_IMMEDIATE.
  *
+ * LOAD_REG_ADDR_PIC(rn, name)
+ *   Loads the address of label 'name' into register 'run'. Use this when
+ *   the kernel doesn't run at the linked or relocated address. Please
+ *   note that this macro will clobber the lr register.
+ *
  * LOAD_REG_ADDRBASE(rn, name)
  * ADDROFF(name)
  *   LOAD_REG_ADDRBASE loads part of the address of label 'name' into
@@ -305,12 +315,25 @@ n:
  *      LOAD_REG_ADDRBASE(rX, name)
  *      ld	rY,ADDROFF(name)(rX)
  */
+
+/* Be careful, this will clobber the lr register. */
+#define LOAD_REG_ADDR_PIC(reg, name)		\
+	bl	0f;				\
+0:	mflr	reg;				\
+	addis	reg,reg,(name - 0b)@ha;		\
+	addi	reg,reg,(name - 0b)@l;
+
 #ifdef __powerpc64__
+#ifdef HAVE_AS_ATHIGH
+#define __AS_ATHIGH high
+#else
+#define __AS_ATHIGH h
+#endif
 #define LOAD_REG_IMMEDIATE(reg,expr)		\
 	lis     reg,(expr)@highest;		\
 	ori     reg,reg,(expr)@higher;	\
 	rldicr  reg,reg,32,31;		\
-	oris    reg,reg,(expr)@h;		\
+	oris    reg,reg,(expr)@__AS_ATHIGH;	\
 	ori     reg,reg,(expr)@l;
 
 #define LOAD_REG_ADDR(reg,name)			\

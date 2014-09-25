@@ -81,14 +81,14 @@ static int ksz_config_flags(struct phy_device *phydev)
 }
 
 static int kszphy_extended_write(struct phy_device *phydev,
-                                 u32 regnum, u16 val)
+				u32 regnum, u16 val)
 {
 	phy_write(phydev, MII_KSZPHY_EXTREG, KSZPHY_EXTREG_WRITE | regnum);
 	return phy_write(phydev, MII_KSZPHY_EXTREG_WRITE, val);
 }
 
 static int kszphy_extended_read(struct phy_device *phydev,
-                                 u32 regnum)
+				u32 regnum)
 {
 	phy_write(phydev, MII_KSZPHY_EXTREG, regnum);
 	return phy_read(phydev, MII_KSZPHY_EXTREG_READ);
@@ -148,15 +148,52 @@ static int ks8737_config_intr(struct phy_device *phydev)
 	return rc < 0 ? rc : 0;
 }
 
+static int kszphy_setup_led(struct phy_device *phydev,
+			    unsigned int reg, unsigned int shift)
+{
+
+	struct device *dev = &phydev->dev;
+	struct device_node *of_node = dev->of_node;
+	int rc, temp;
+	u32 val;
+
+	if (!of_node && dev->parent->of_node)
+		of_node = dev->parent->of_node;
+
+	if (of_property_read_u32(of_node, "micrel,led-mode", &val))
+		return 0;
+
+	temp = phy_read(phydev, reg);
+	if (temp < 0)
+		return temp;
+
+	temp &= ~(3 << shift);
+	temp |= val << shift;
+	rc = phy_write(phydev, reg, temp);
+
+	return rc < 0 ? rc : 0;
+}
+
 static int kszphy_config_init(struct phy_device *phydev)
 {
 	return 0;
 }
 
+static int kszphy_config_init_led8041(struct phy_device *phydev)
+{
+	/* single led control, register 0x1e bits 15..14 */
+	return kszphy_setup_led(phydev, 0x1e, 14);
+}
+
 static int ksz8021_config_init(struct phy_device *phydev)
 {
-	int rc;
 	const u16 val = KSZPHY_OMSO_B_CAST_OFF | KSZPHY_OMSO_RMII_OVERRIDE;
+	int rc;
+
+	rc = kszphy_setup_led(phydev, 0x1f, 4);
+	if (rc)
+		dev_err(&phydev->dev, "failed to set led mode\n");
+
 	phy_write(phydev, MII_KSZPHY_OMSO, val);
 	rc = ksz_config_flags(phydev);
 	return rc < 0 ? rc : 0;
@@ -165,6 +202,10 @@ static int ksz8021_config_init(struct phy_device *phydev)
 static int ks8051_config_init(struct phy_device *phydev)
 {
 	int rc;
+
+	rc = kszphy_setup_led(phydev, 0x1f, 4);
+	if (rc)
+		dev_err(&phydev->dev, "failed to set led mode\n");
 
 	rc = ksz_config_flags(phydev);
 	return rc < 0 ? rc : 0;
@@ -205,13 +246,13 @@ static int ksz9021_load_values_from_of(struct phy_device *phydev,
 	if (val1 != -1)
 		newval = ((newval & 0xfff0) | ((val1 / PS_TO_REG) & 0xf) << 0);
 
-	if (val2 != -1)
+	if (val2 != -2)
 		newval = ((newval & 0xff0f) | ((val2 / PS_TO_REG) & 0xf) << 4);
 
-	if (val3 != -1)
+	if (val3 != -3)
 		newval = ((newval & 0xf0ff) | ((val3 / PS_TO_REG) & 0xf) << 8);
 
-	if (val4 != -1)
+	if (val4 != -4)
 		newval = ((newval & 0x0fff) | ((val4 / PS_TO_REG) & 0xf) << 12);
 
 	return kszphy_extended_write(phydev, reg, newval);
@@ -238,6 +279,110 @@ static int ksz9021_config_init(struct phy_device *phydev)
 				    MII_KSZPHY_TX_DATA_PAD_SKEW,
 				    "txd0-skew-ps", "txd1-skew-ps",
 				    "txd2-skew-ps", "txd3-skew-ps");
+	}
+	return 0;
+}
+
+#define MII_KSZ9031RN_MMD_CTRL_REG	0x0d
+#define MII_KSZ9031RN_MMD_REGDATA_REG	0x0e
+#define OP_DATA				1
+#define KSZ9031_PS_TO_REG		60
+
+/* Extended registers */
+#define MII_KSZ9031RN_CONTROL_PAD_SKEW	4
+#define MII_KSZ9031RN_RX_DATA_PAD_SKEW	5
+#define MII_KSZ9031RN_TX_DATA_PAD_SKEW	6
+#define MII_KSZ9031RN_CLK_PAD_SKEW	8
+
+static int ksz9031_extended_write(struct phy_device *phydev,
+				  u8 mode, u32 dev_addr, u32 regnum, u16 val)
+{
+	phy_write(phydev, MII_KSZ9031RN_MMD_CTRL_REG, dev_addr);
+	phy_write(phydev, MII_KSZ9031RN_MMD_REGDATA_REG, regnum);
+	phy_write(phydev, MII_KSZ9031RN_MMD_CTRL_REG, (mode << 14) | dev_addr);
+	return phy_write(phydev, MII_KSZ9031RN_MMD_REGDATA_REG, val);
+}
+
+static int ksz9031_extended_read(struct phy_device *phydev,
+				 u8 mode, u32 dev_addr, u32 regnum)
+{
+	phy_write(phydev, MII_KSZ9031RN_MMD_CTRL_REG, dev_addr);
+	phy_write(phydev, MII_KSZ9031RN_MMD_REGDATA_REG, regnum);
+	phy_write(phydev, MII_KSZ9031RN_MMD_CTRL_REG, (mode << 14) | dev_addr);
+	return phy_read(phydev, MII_KSZ9031RN_MMD_REGDATA_REG);
+}
+
+static int ksz9031_of_load_skew_values(struct phy_device *phydev,
+				       struct device_node *of_node,
+				       u16 reg, size_t field_sz,
+				       char *field[], u8 numfields)
+{
+	int val[4] = {-1, -2, -3, -4};
+	int matches = 0;
+	u16 mask;
+	u16 maxval;
+	u16 newval;
+	int i;
+
+	for (i = 0; i < numfields; i++)
+		if (!of_property_read_u32(of_node, field[i], val + i))
+			matches++;
+
+	if (!matches)
+		return 0;
+
+	if (matches < numfields)
+		newval = ksz9031_extended_read(phydev, OP_DATA, 2, reg);
+	else
+		newval = 0;
+
+	maxval = (field_sz == 4) ? 0xf : 0x1f;
+	for (i = 0; i < numfields; i++)
+		if (val[i] != -(i + 1)) {
+			mask = 0xffff;
+			mask ^= maxval << (field_sz * i);
+			newval = (newval & mask) |
+				(((val[i] / KSZ9031_PS_TO_REG) & maxval)
+					<< (field_sz * i));
+		}
+
+	return ksz9031_extended_write(phydev, OP_DATA, 2, reg, newval);
+}
+
+static int ksz9031_config_init(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->dev;
+	struct device_node *of_node = dev->of_node;
+	char *clk_skews[2] = {"rxc-skew-ps", "txc-skew-ps"};
+	char *rx_data_skews[4] = {
+		"rxd0-skew-ps", "rxd1-skew-ps",
+		"rxd2-skew-ps", "rxd3-skew-ps"
+	};
+	char *tx_data_skews[4] = {
+		"txd0-skew-ps", "txd1-skew-ps",
+		"txd2-skew-ps", "txd3-skew-ps"
+	};
+	char *control_skews[2] = {"txen-skew-ps", "rxdv-skew-ps"};
+
+	if (!of_node && dev->parent->of_node)
+		of_node = dev->parent->of_node;
+
+	if (of_node) {
+		ksz9031_of_load_skew_values(phydev, of_node,
+				MII_KSZ9031RN_CLK_PAD_SKEW, 5,
+				clk_skews, 2);
+
+		ksz9031_of_load_skew_values(phydev, of_node,
+				MII_KSZ9031RN_CONTROL_PAD_SKEW, 4,
+				control_skews, 2);
+
+		ksz9031_of_load_skew_values(phydev, of_node,
+				MII_KSZ9031RN_RX_DATA_PAD_SKEW, 4,
+				rx_data_skews, 4);
+
+		ksz9031_of_load_skew_values(phydev, of_node,
+				MII_KSZ9031RN_TX_DATA_PAD_SKEW, 4,
+				tx_data_skews, 4);
 	}
 	return 0;
 }
@@ -273,6 +418,26 @@ static int ksz8873mll_read_status(struct phy_device *phydev)
 static int ksz8873mll_config_aneg(struct phy_device *phydev)
 {
 	return 0;
+}
+
+/* This routine returns -1 as an indication to the caller that the
+ * Micrel ksz9021 10/100/1000 PHY does not support standard IEEE
+ * MMD extended PHY registers.
+ */
+static int
+ksz9021_rd_mmd_phyreg(struct phy_device *phydev, int ptrad, int devnum,
+		      int regnum)
+{
+	return -1;
+}
+
+/* This routine does nothing since the Micrel ksz9021 does not support
+ * standard IEEE MMD extended PHY registers.
+ */
+static void
+ksz9021_wr_mmd_phyreg(struct phy_device *phydev, int ptrad, int devnum,
+		      int regnum, u32 val)
+{
 }
 
 static struct phy_driver ksphy_driver[] = {
@@ -327,7 +492,7 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
 				| SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init,
+	.config_init	= kszphy_config_init_led8041,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
@@ -342,7 +507,7 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= PHY_BASIC_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init,
+	.config_init	= kszphy_config_init_led8041,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
@@ -371,7 +536,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= 0x00ffffff,
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init,
+	.config_init	= kszphy_config_init_led8041,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
@@ -420,15 +585,16 @@ static struct phy_driver ksphy_driver[] = {
 	.config_intr	= ksz9021_config_intr,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
+	.read_mmd_indirect = ksz9021_rd_mmd_phyreg,
+	.write_mmd_indirect = ksz9021_wr_mmd_phyreg,
 	.driver		= { .owner = THIS_MODULE, },
 }, {
 	.phy_id		= PHY_ID_KSZ9031,
 	.phy_id_mask	= 0x00fffff0,
 	.name		= "Micrel KSZ9031 Gigabit PHY",
-	.features	= (PHY_GBIT_FEATURES | SUPPORTED_Pause
-				| SUPPORTED_Asym_Pause),
+	.features	= (PHY_GBIT_FEATURES | SUPPORTED_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init,
+	.config_init	= ksz9031_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,

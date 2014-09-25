@@ -498,6 +498,7 @@ unlock:
 static int vpfe_open(struct file *file)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
+	struct video_device *vdev = video_devdata(file);
 	struct vpfe_fh *fh;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_open\n");
@@ -517,6 +518,7 @@ static int vpfe_open(struct file *file)
 	/* store pointer to fh in private_data member of file */
 	file->private_data = fh;
 	fh->vpfe_dev = vpfe_dev;
+	v4l2_fh_init(&fh->fh, vdev);
 	mutex_lock(&vpfe_dev->lock);
 	/* If decoder is not initialized. initialize it */
 	if (!vpfe_dev->initialized) {
@@ -529,9 +531,7 @@ static int vpfe_open(struct file *file)
 	vpfe_dev->usrs++;
 	/* Set io_allowed member to false */
 	fh->io_allowed = 0;
-	/* Initialize priority of this instance to default priority */
-	fh->prio = V4L2_PRIORITY_UNSET;
-	v4l2_prio_open(&vpfe_dev->prio, &fh->prio);
+	v4l2_fh_add(&fh->fh);
 	mutex_unlock(&vpfe_dev->lock);
 	return 0;
 }
@@ -734,12 +734,14 @@ static int vpfe_release(struct file *file)
 		}
 		vpfe_dev->io_usrs = 0;
 		vpfe_dev->numbuffers = config_params.numbuffers;
+		videobuf_stop(&vpfe_dev->buffer_queue);
+		videobuf_mmap_free(&vpfe_dev->buffer_queue);
 	}
 
 	/* Decrement device usrs counter */
 	vpfe_dev->usrs--;
-	/* Close the priority */
-	v4l2_prio_close(&vpfe_dev->prio, fh->prio);
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	/* If this is the last file handle */
 	if (!vpfe_dev->usrs) {
 		vpfe_dev->initialized = 0;
@@ -1215,7 +1217,7 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 	}
 
 	ret = v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 core, s_std, std_id);
+					 video, s_std, std_id);
 	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Failed to set standard\n");
 		goto unlock_out;
@@ -1908,8 +1910,6 @@ static int vpfe_probe(struct platform_device *pdev)
 	/* Initialize field of the device objects */
 	vpfe_dev->numbuffers = config_params.numbuffers;
 
-	/* Initialize prio member of device object */
-	v4l2_prio_init(&vpfe_dev->prio);
 	/* register video device */
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
 		"trying to register vpfe device.\n");

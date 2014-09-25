@@ -106,7 +106,6 @@ static int inet6_create(struct net *net, struct socket *sock, int protocol,
 	struct inet_protosw *answer;
 	struct proto *answer_prot;
 	unsigned char answer_flags;
-	char answer_no_check;
 	int try_loading_module = 0;
 	int err;
 
@@ -162,7 +161,6 @@ lookup_protocol:
 
 	sock->ops = answer->ops;
 	answer_prot = answer->prot;
-	answer_no_check = answer->no_check;
 	answer_flags = answer->flags;
 	rcu_read_unlock();
 
@@ -176,7 +174,6 @@ lookup_protocol:
 	sock_init_data(sock, sk);
 
 	err = 0;
-	sk->sk_no_check = answer_no_check;
 	if (INET_PROTOSW_REUSE & answer_flags)
 		sk->sk_reuse = SK_CAN_REUSE;
 
@@ -200,7 +197,7 @@ lookup_protocol:
 	np->mcast_hops	= IPV6_DEFAULT_MCASTHOPS;
 	np->mc_loop	= 1;
 	np->pmtudisc	= IPV6_PMTUDISC_WANT;
-	np->ipv6only	= net->ipv6.sysctl.bindv6only;
+	sk->sk_ipv6only	= net->ipv6.sysctl.bindv6only;
 
 	/* Init the ipv4 part of the socket since we can have sockets
 	 * using v6 API for ipv4.
@@ -213,7 +210,7 @@ lookup_protocol:
 	inet->mc_list	= NULL;
 	inet->rcv_tos	= 0;
 
-	if (ipv4_config.no_pmtu_disc)
+	if (net->ipv4.sysctl_ip_no_pmtu_disc)
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;
@@ -297,7 +294,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		/* Binding to v4-mapped address on a v6-only socket
 		 * makes no sense
 		 */
-		if (np->ipv6only) {
+		if (sk->sk_ipv6only) {
 			err = -EINVAL;
 			goto out;
 		}
@@ -374,7 +371,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (addr_type != IPV6_ADDR_ANY) {
 		sk->sk_userlocks |= SOCK_BINDADDR_LOCK;
 		if (addr_type != IPV6_ADDR_MAPPED)
-			np->ipv6only = 1;
+			sk->sk_ipv6only = 1;
 	}
 	if (snum)
 		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;
@@ -661,7 +658,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 
 		final_p = fl6_update_dst(&fl6, np->opt, &final);
 
-		dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
+		dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
 		if (IS_ERR(dst)) {
 			sk->sk_route_caps = 0;
 			sk->sk_err_soft = -PTR_ERR(dst);
@@ -683,8 +680,7 @@ bool ipv6_opt_accepted(const struct sock *sk, const struct sk_buff *skb)
 	if (np->rxopt.all) {
 		if ((opt->hop && (np->rxopt.bits.hopopts ||
 				  np->rxopt.bits.ohopopts)) ||
-		    ((IPV6_FLOWINFO_MASK &
-		      *(__be32 *)skb_network_header(skb)) &&
+		    (ip6_flowinfo((struct ipv6hdr *) skb_network_header(skb)) &&
 		     np->rxopt.bits.rxflow) ||
 		    (opt->srcrt && (np->rxopt.bits.srcrt ||
 		     np->rxopt.bits.osrcrt)) ||
@@ -716,33 +712,25 @@ static int __net_init ipv6_init_mibs(struct net *net)
 {
 	int i;
 
-	if (snmp_mib_init((void __percpu **)net->mib.udp_stats_in6,
-			  sizeof(struct udp_mib),
-			  __alignof__(struct udp_mib)) < 0)
+	net->mib.udp_stats_in6 = alloc_percpu(struct udp_mib);
+	if (!net->mib.udp_stats_in6)
 		return -ENOMEM;
-	if (snmp_mib_init((void __percpu **)net->mib.udplite_stats_in6,
-			  sizeof(struct udp_mib),
-			  __alignof__(struct udp_mib)) < 0)
+	net->mib.udplite_stats_in6 = alloc_percpu(struct udp_mib);
+	if (!net->mib.udplite_stats_in6)
 		goto err_udplite_mib;
-	if (snmp_mib_init((void __percpu **)net->mib.ipv6_statistics,
-			  sizeof(struct ipstats_mib),
-			  __alignof__(struct ipstats_mib)) < 0)
+	net->mib.ipv6_statistics = alloc_percpu(struct ipstats_mib);
+	if (!net->mib.ipv6_statistics)
 		goto err_ip_mib;
 
 	for_each_possible_cpu(i) {
 		struct ipstats_mib *af_inet6_stats;
-		af_inet6_stats = per_cpu_ptr(net->mib.ipv6_statistics[0], i);
+		af_inet6_stats = per_cpu_ptr(net->mib.ipv6_statistics, i);
 		u64_stats_init(&af_inet6_stats->syncp);
-#if SNMP_ARRAY_SZ == 2
-		af_inet6_stats = per_cpu_ptr(net->mib.ipv6_statistics[1], i);
-		u64_stats_init(&af_inet6_stats->syncp);
-#endif
 	}
 
 
-	if (snmp_mib_init((void __percpu **)net->mib.icmpv6_statistics,
-			  sizeof(struct icmpv6_mib),
-			  __alignof__(struct icmpv6_mib)) < 0)
+	net->mib.icmpv6_statistics = alloc_percpu(struct icmpv6_mib);
+	if (!net->mib.icmpv6_statistics)
 		goto err_icmp_mib;
 	net->mib.icmpv6msg_statistics = kzalloc(sizeof(struct icmpv6msg_mib),
 						GFP_KERNEL);
@@ -751,22 +739,22 @@ static int __net_init ipv6_init_mibs(struct net *net)
 	return 0;
 
 err_icmpmsg_mib:
-	snmp_mib_free((void __percpu **)net->mib.icmpv6_statistics);
+	free_percpu(net->mib.icmpv6_statistics);
 err_icmp_mib:
-	snmp_mib_free((void __percpu **)net->mib.ipv6_statistics);
+	free_percpu(net->mib.ipv6_statistics);
 err_ip_mib:
-	snmp_mib_free((void __percpu **)net->mib.udplite_stats_in6);
+	free_percpu(net->mib.udplite_stats_in6);
 err_udplite_mib:
-	snmp_mib_free((void __percpu **)net->mib.udp_stats_in6);
+	free_percpu(net->mib.udp_stats_in6);
 	return -ENOMEM;
 }
 
 static void ipv6_cleanup_mibs(struct net *net)
 {
-	snmp_mib_free((void __percpu **)net->mib.udp_stats_in6);
-	snmp_mib_free((void __percpu **)net->mib.udplite_stats_in6);
-	snmp_mib_free((void __percpu **)net->mib.ipv6_statistics);
-	snmp_mib_free((void __percpu **)net->mib.icmpv6_statistics);
+	free_percpu(net->mib.udp_stats_in6);
+	free_percpu(net->mib.udplite_stats_in6);
+	free_percpu(net->mib.ipv6_statistics);
+	free_percpu(net->mib.icmpv6_statistics);
 	kfree(net->mib.icmpv6msg_statistics);
 }
 
@@ -776,6 +764,8 @@ static int __net_init inet6_net_init(struct net *net)
 
 	net->ipv6.sysctl.bindv6only = 0;
 	net->ipv6.sysctl.icmpv6_time = 1*HZ;
+	net->ipv6.sysctl.flowlabel_consistency = 1;
+	net->ipv6.sysctl.auto_flowlabels = 0;
 	atomic_set(&net->ipv6.rt_genid, 0);
 
 	err = ipv6_init_mibs(net);

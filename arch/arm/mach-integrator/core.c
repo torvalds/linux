@@ -25,13 +25,11 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
-
 #include <asm/mach-types.h>
 #include <asm/mach/time.h>
 #include <asm/pgtable.h>
 
+#include "hardware.h"
 #include "cm.h"
 #include "common.h"
 

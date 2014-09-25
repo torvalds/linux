@@ -23,8 +23,8 @@
 #define COMP_HDR_LEN 4
 #define COMP_CKSUM_LEN 2
 
-#define LE16(x) __constant_cpu_to_le16(x)
-#define LE32(x) __constant_cpu_to_le32(x)
+#define LE16(x) cpu_to_le16(x)
+#define LE32(x) cpu_to_le32(x)
 
 /* Local defines to distinguish between extension and control CTL's */
 #define EXT_ADDITIVE (0x8000)
@@ -131,6 +131,7 @@ static const struct ar9300_eeprom ar9300_default = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -138,7 +139,7 @@ static const struct ar9300_eeprom ar9300_default = {
 	 },
 	.base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0},
+		.future = {0, 0},
 		.tempslopextension = {0, 0, 0, 0, 0, 0, 0, 0}
 	},
 	.calFreqPier2G = {
@@ -333,6 +334,7 @@ static const struct ar9300_eeprom ar9300_default = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -707,6 +709,7 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -714,7 +717,7 @@ static const struct ar9300_eeprom ar9300_x113 = {
 	 },
 	 .base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0},
+		.future = {0, 0},
 		.tempslopextension = {0, 0, 0, 0, 0, 0, 0, 0}
 	 },
 	.calFreqPier2G = {
@@ -909,6 +912,7 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -1284,6 +1288,7 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -1291,7 +1296,7 @@ static const struct ar9300_eeprom ar9300_h112 = {
 	},
 	.base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0},
+		.future = {0, 0},
 		.tempslopextension = {0, 0, 0, 0, 0, 0, 0, 0}
 	},
 	.calFreqPier2G = {
@@ -1486,6 +1491,7 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -1861,6 +1867,7 @@ static const struct ar9300_eeprom ar9300_x112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80c080),
 		.papdRateMaskHt40 = LE32(0x0080c080),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -1868,7 +1875,7 @@ static const struct ar9300_eeprom ar9300_x112 = {
 	},
 	.base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0},
+		.future = {0, 0},
 		.tempslopextension = {0, 0, 0, 0, 0, 0, 0, 0}
 	},
 	.calFreqPier2G = {
@@ -2063,6 +2070,7 @@ static const struct ar9300_eeprom ar9300_x112 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -2437,6 +2445,7 @@ static const struct ar9300_eeprom ar9300_h116 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0c80C080),
 		.papdRateMaskHt40 = LE32(0x0080C080),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -2444,7 +2453,7 @@ static const struct ar9300_eeprom ar9300_h116 = {
 	 },
 	 .base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0},
+		.future = {0, 0},
 		.tempslopextension = {0, 0, 0, 0, 0, 0, 0, 0}
 	 },
 	.calFreqPier2G = {
@@ -2639,6 +2648,7 @@ static const struct ar9300_eeprom ar9300_h116 = {
 		.thresh62 = 28,
 		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
 		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
+		.switchcomspdt = 0,
 		.xlna_bias_strength = 0,
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0,
@@ -3525,7 +3535,8 @@ static void ar9003_hw_xpa_bias_level_apply(struct ath_hw *ah, bool is2ghz)
 {
 	int bias = ar9003_modal_header(ah, is2ghz)->xpaBiasLvl;
 
-	if (AR_SREV_9485(ah) || AR_SREV_9330(ah) || AR_SREV_9340(ah))
+	if (AR_SREV_9485(ah) || AR_SREV_9330(ah) || AR_SREV_9340(ah) ||
+	    AR_SREV_9531(ah))
 		REG_RMW_FIELD(ah, AR_CH0_TOP2, AR_CH0_TOP2_XPABIASLVL, bias);
 	else if (AR_SREV_9462(ah) || AR_SREV_9550(ah) || AR_SREV_9565(ah))
 		REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
@@ -3588,7 +3599,7 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
 				AR_SWITCH_TABLE_COM_AR9462_ALL, value);
-	} else if (AR_SREV_9550(ah)) {
+	} else if (AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
 				AR_SWITCH_TABLE_COM_AR9550_ALL, value);
 	} else
@@ -3965,7 +3976,7 @@ static void ar9003_hw_apply_tuning_caps(struct ath_hw *ah)
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
 	u8 tuning_caps_param = eep->baseEepHeader.params_for_tuning_caps[0];
 
-	if (AR_SREV_9485(ah) || AR_SREV_9330(ah) || AR_SREV_9340(ah))
+	if (AR_SREV_9340(ah) || AR_SREV_9531(ah))
 		return;
 
 	if (eep->baseEepHeader.featureEnable & 0x40) {
@@ -4020,7 +4031,10 @@ static void ar9003_hw_xpa_timing_control_apply(struct ath_hw *ah, bool is2ghz)
 	if (!(eep->baseEepHeader.featureEnable & 0x80))
 		return;
 
-	if (!AR_SREV_9300(ah) && !AR_SREV_9340(ah) && !AR_SREV_9580(ah))
+	if (!AR_SREV_9300(ah) &&
+	    !AR_SREV_9340(ah) &&
+	    !AR_SREV_9580(ah) &&
+	    !AR_SREV_9531(ah))
 		return;
 
 	xpa_ctl = ar9003_modal_header(ah, is2ghz)->txFrameToXpaOn;
@@ -4111,6 +4125,37 @@ static void ar9003_hw_thermo_cal_apply(struct ath_hw *ah)
 	}
 }
 
+static void ar9003_hw_apply_minccapwr_thresh(struct ath_hw *ah,
+					     bool is2ghz)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	const u_int32_t cca_ctrl[AR9300_MAX_CHAINS] = {
+		AR_PHY_CCA_CTRL_0,
+		AR_PHY_CCA_CTRL_1,
+		AR_PHY_CCA_CTRL_2,
+	};
+	int chain;
+	u32 val;
+
+	if (is2ghz) {
+		if (!(eep->base_ext1.misc_enable & BIT(2)))
+			return;
+	} else {
+		if (!(eep->base_ext1.misc_enable & BIT(3)))
+			return;
+	}
+
+	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
+		if (!(ah->caps.tx_chainmask & BIT(chain)))
+			continue;
+
+		val = ar9003_modal_header(ah, is2ghz)->noiseFloorThreshCh[chain];
+		REG_RMW_FIELD(ah, cca_ctrl[chain],
+			      AR_PHY_EXT_CCA0_THRESH62_1, val);
+	}
+
+}
+
 static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 					     struct ath9k_channel *chan)
 {
@@ -4122,9 +4167,10 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 	ar9003_hw_xlna_bias_strength_apply(ah, is2ghz);
 	ar9003_hw_atten_apply(ah, chan);
 	ar9003_hw_quick_drop_apply(ah, chan->channel);
-	if (!AR_SREV_9330(ah) && !AR_SREV_9340(ah) && !AR_SREV_9550(ah))
+	if (!AR_SREV_9330(ah) && !AR_SREV_9340(ah) && !AR_SREV_9531(ah))
 		ar9003_hw_internal_regulator_apply(ah);
 	ar9003_hw_apply_tuning_caps(ah);
+	ar9003_hw_apply_minccapwr_thresh(ah, chan);
 	ar9003_hw_txend_to_xpa_off_apply(ah, is2ghz);
 	ar9003_hw_thermometer_apply(ah);
 	ar9003_hw_thermo_cal_apply(ah);
@@ -4746,44 +4792,55 @@ static void ar9003_hw_power_control_override(struct ath_hw *ah,
 	}
 
 tempslope:
-	if (AR_SREV_9550(ah)) {
+	if (AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
+		u8 txmask = (eep->baseEepHeader.txrxMask & 0xf0) >> 4;
+
 		/*
 		 * AR955x has tempSlope register for each chain.
 		 * Check whether temp_compensation feature is enabled or not.
 		 */
 		if (eep->baseEepHeader.featureEnable & 0x1) {
 			if (frequency < 4000) {
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      eep->base_ext2.tempSlopeLow);
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      temp_slope);
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      eep->base_ext2.tempSlopeHigh);
+				if (txmask & BIT(0))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      eep->base_ext2.tempSlopeLow);
+				if (txmask & BIT(1))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      temp_slope);
+				if (txmask & BIT(2))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      eep->base_ext2.tempSlopeHigh);
 			} else {
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      temp_slope);
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      temp_slope1);
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      temp_slope2);
+				if (txmask & BIT(0))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      temp_slope);
+				if (txmask & BIT(1))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      temp_slope1);
+				if (txmask & BIT(2))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      temp_slope2);
 			}
 		} else {
 			/*
 			 * If temp compensation is not enabled,
 			 * set all registers to 0.
 			 */
-			REG_RMW_FIELD(ah, AR_PHY_TPC_19,
-				      AR_PHY_TPC_19_ALPHA_THERM, 0);
-			REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
-				      AR_PHY_TPC_19_ALPHA_THERM, 0);
-			REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
-				      AR_PHY_TPC_19_ALPHA_THERM, 0);
+			if (txmask & BIT(0))
+				REG_RMW_FIELD(ah, AR_PHY_TPC_19,
+					      AR_PHY_TPC_19_ALPHA_THERM, 0);
+			if (txmask & BIT(1))
+				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
+					      AR_PHY_TPC_19_ALPHA_THERM, 0);
+			if (txmask & BIT(2))
+				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
+					      AR_PHY_TPC_19_ALPHA_THERM, 0);
 		}
 	} else {
 		REG_RMW_FIELD(ah, AR_PHY_TPC_19,
@@ -5020,6 +5077,10 @@ static u16 ar9003_hw_get_max_edge_power(struct ar9300_eeprom *eep,
 			break;
 		}
 	}
+
+	if (is2GHz && !twiceMaxEdgePower)
+		twiceMaxEdgePower = 60;
+
 	return twiceMaxEdgePower;
 }
 

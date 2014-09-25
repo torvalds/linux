@@ -77,7 +77,7 @@ static int mpl3115_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	struct mpl3115_data *data = iio_priv(indio_dev);
-	s32 tmp = 0;
+	__be32 tmp = 0;
 	int ret;
 
 	switch (mask) {
@@ -98,7 +98,7 @@ static int mpl3115_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&data->lock);
 			if (ret < 0)
 				return ret;
-			*val = sign_extend32(be32_to_cpu(tmp) >> 12, 23);
+			*val = be32_to_cpu(tmp) >> 12;
 			return IIO_VAL_INT;
 		case IIO_TEMP: /* in 0.0625 celsius / LSB */
 			mutex_lock(&data->lock);
@@ -112,7 +112,7 @@ static int mpl3115_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&data->lock);
 			if (ret < 0)
 				return ret;
-			*val = sign_extend32(be32_to_cpu(tmp) >> 20, 15);
+			*val = sign_extend32(be32_to_cpu(tmp) >> 20, 11);
 			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
@@ -185,7 +185,7 @@ static const struct iio_chan_spec mpl3115_channels[] = {
 			BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index = 0,
 		.scan_type = {
-			.sign = 's',
+			.sign = 'u',
 			.realbits = 20,
 			.storagebits = 32,
 			.shift = 12,

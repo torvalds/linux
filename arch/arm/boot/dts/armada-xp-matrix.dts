@@ -23,7 +23,12 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0 0x00000000 0 0x80000000>; /* 2 GB */
+		/*
+		 * This board has 4 GB of RAM, but the last 256 MB of
+		 * RAM are not usable due to the overlap with the MBus
+		 * Window address range
+		 */
+		reg = <0 0x00000000 0 0xf0000000>;
 	};
 
 	soc {
@@ -32,19 +37,15 @@
 
 		internal-regs {
 			serial@12000 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			serial@12100 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			serial@12200 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 			serial@12300 {
-				clock-frequency = <250000000>;
 				status = "okay";
 			};
 
@@ -56,6 +57,10 @@
 			ethernet@30000 {
 				status = "okay";
 				phy-mode = "sgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
 			};
 
 			pcie-controller {

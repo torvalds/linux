@@ -1,0 +1,42 @@
+/*
+ * Device Tree file for d2 Network v2
+ *
+ * Copyright (C) 2014 Simon Guinot <simon.guinot@sequanux.org>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+*/
+
+/dts-v1/;
+
+#include "kirkwood-netxbig.dtsi"
+
+/ {
+	model = "LaCie d2 Network v2";
+	compatible = "lacie,d2net_v2", "lacie,netxbig", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	ns2-leds {
+		compatible = "lacie,ns2-leds";
+
+		blue-sata {
+			label = "d2net_v2:blue:sata";
+			slow-gpio = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+			cmd-gpio = <&gpio0 30 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		red-fail {
+			label = "d2net_v2:red:fail";
+			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};

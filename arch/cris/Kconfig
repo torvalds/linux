@@ -29,7 +29,7 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 config FORCE_MAX_ZONEORDER
@@ -122,12 +122,6 @@ config ETRAX100LX_V2
 	help
 	  Support version 2 of the ETRAX 100LX.
 
-config SVINTO_SIM
-	bool "ETRAX-100LX-for-xsim-simulator"
-	select ARCH_USES_GETTIMEOFFSET
-	help
-	  Support the xsim ETRAX Simulator.
-
 config ETRAXFS
 	bool "ETRAX-FS-V32"
 	help
@@ -144,6 +138,7 @@ config ETRAX_ARCH_V10
        bool
        default y if ETRAX100LX || ETRAX100LX_V2
        default n if !(ETRAX100LX || ETRAX100LX_V2)
+       select TTY
 
 config ETRAX_ARCH_V32
        bool

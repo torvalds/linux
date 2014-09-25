@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <media/rc-core.h>
 #include <linux/pinctrl/consumer.h>
 
@@ -28,6 +29,7 @@ struct st_rc_device {
 	int				sample_mult;
 	int				sample_div;
 	bool				rxuhfmode;
+	struct	reset_control		*rstc;
 };
 
 /* Registers */
@@ -161,6 +163,10 @@ static void st_rc_hardware_init(struct st_rc_device *dev)
 	unsigned int rx_max_symbol_per = MAX_SYMB_TIME;
 	unsigned int rx_sampling_freq_div;
 
+	/* Enable the IP */
+	if (dev->rstc)
+		reset_control_deassert(dev->rstc);
+
 	clk_prepare_enable(dev->sys_clock);
 	baseclock = clk_get_rate(dev->sys_clock);
 
@@ -271,12 +277,17 @@ static int st_rc_probe(struct platform_device *pdev)
 	else
 		rc_dev->rx_base = rc_dev->base;
 
+
+	rc_dev->rstc = reset_control_get(dev, NULL);
+	if (IS_ERR(rc_dev->rstc))
+		rc_dev->rstc = NULL;
+
 	rc_dev->dev = dev;
 	platform_set_drvdata(pdev, rc_dev);
 	st_rc_hardware_init(rc_dev);
 
 	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protos = RC_BIT_ALL;
+	rdev->allowed_protocols = RC_BIT_ALL;
 	/* rx sampling rate is 10Mhz */
 	rdev->rx_resolution = 100;
 	rdev->timeout = US_TO_NS(MAX_SYMB_TIME);
@@ -338,6 +349,8 @@ static int st_rc_suspend(struct device *dev)
 		writel(0x00, rc_dev->rx_base + IRB_RX_EN);
 		writel(0x00, rc_dev->rx_base + IRB_RX_INT_EN);
 		clk_disable_unprepare(rc_dev->sys_clock);
+		if (rc_dev->rstc)
+			reset_control_assert(rc_dev->rstc);
 	}
 
 	return 0;

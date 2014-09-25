@@ -72,8 +72,8 @@ TRACE_EVENT(radeon_vm_bo_update,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->soffset = bo_va->soffset;
-			   __entry->eoffset = bo_va->eoffset;
+			   __entry->soffset = bo_va->it.start;
+			   __entry->eoffset = bo_va->it.last + 1;
 			   __entry->flags = bo_va->flags;
 			   ),
 	    TP_printk("soffs=%010llx, eoffs=%010llx, flags=%08x",
@@ -104,44 +104,65 @@ TRACE_EVENT(radeon_vm_set_page,
 		      __entry->flags, __entry->count)
 );
 
+TRACE_EVENT(radeon_vm_flush,
+	    TP_PROTO(uint64_t pd_addr, unsigned ring, unsigned id),
+	    TP_ARGS(pd_addr, ring, id),
+	    TP_STRUCT__entry(
+			     __field(u64, pd_addr)
+			     __field(u32, ring)
+			     __field(u32, id)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pd_addr = pd_addr;
+			   __entry->ring = ring;
+			   __entry->id = id;
+			   ),
+	    TP_printk("pd_addr=%010Lx, ring=%u, id=%u",
+		      __entry->pd_addr, __entry->ring, __entry->id)
+);
+
 DECLARE_EVENT_CLASS(radeon_fence_request,
 
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
+	    TP_PROTO(struct drm_device *dev, int ring, u32 seqno),
 
-	    TP_ARGS(dev, seqno),
+	    TP_ARGS(dev, ring, seqno),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
+			     __field(int, ring)
 			     __field(u32, seqno)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
+			   __entry->ring = ring;
 			   __entry->seqno = seqno;
 			   ),
 
-	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
+	    TP_printk("dev=%u, ring=%d, seqno=%u",
+		      __entry->dev, __entry->ring, __entry->seqno)
 );
 
 DEFINE_EVENT(radeon_fence_request, radeon_fence_emit,
 
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
+	    TP_PROTO(struct drm_device *dev, int ring, u32 seqno),
 
-	    TP_ARGS(dev, seqno)
+	    TP_ARGS(dev, ring, seqno)
 );
 
 DEFINE_EVENT(radeon_fence_request, radeon_fence_wait_begin,
 
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
+	    TP_PROTO(struct drm_device *dev, int ring, u32 seqno),
 
-	    TP_ARGS(dev, seqno)
+	    TP_ARGS(dev, ring, seqno)
 );
 
 DEFINE_EVENT(radeon_fence_request, radeon_fence_wait_end,
 
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
+	    TP_PROTO(struct drm_device *dev, int ring, u32 seqno),
 
-	    TP_ARGS(dev, seqno)
+	    TP_ARGS(dev, ring, seqno)
 );
 
 DECLARE_EVENT_CLASS(radeon_semaphore_request,

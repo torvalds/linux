@@ -351,8 +351,7 @@ static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
 	for (i = 0; i < pd->nr_chips; i++) {
 		port_index = 0;
 		while (port_index < DSA_MAX_PORTS) {
-			if (pd->chip[i].port_names[port_index])
-				kfree(pd->chip[i].port_names[port_index]);
+			kfree(pd->chip[i].port_names[port_index]);
 			port_index++;
 		}
 		kfree(pd->chip[i].rtable);
@@ -406,8 +405,9 @@ static int dsa_of_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
-	chip_index = 0;
+	chip_index = -1;
 	for_each_available_child_of_node(np, child) {
+		chip_index++;
 		cd = &pd->chip[chip_index];
 
 		cd->mii_bus = &mdio_bus->dev;

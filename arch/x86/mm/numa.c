@@ -493,14 +493,6 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 		struct numa_memblk *mb = &mi->blk[i];
 		memblock_set_node(mb->start, mb->end - mb->start,
 				  &memblock.memory, mb->nid);
-
-		/*
-		 * At this time, all memory regions reserved by memblock are
-		 * used by the kernel. Set the nid in memblock.reserved will
-		 * mark out all the nodes the kernel resides in.
-		 */
-		memblock_set_node(mb->start, mb->end - mb->start,
-				  &memblock.reserved, mb->nid);
 	}
 
 	/*
@@ -565,13 +557,24 @@ static void __init numa_init_array(void)
 static void __init numa_clear_kernel_node_hotplug(void)
 {
 	int i, nid;
-	nodemask_t numa_kernel_nodes;
+	nodemask_t numa_kernel_nodes = NODE_MASK_NONE;
 	unsigned long start, end;
-	struct memblock_type *type = &memblock.reserved;
+	struct memblock_region *r;
+
+	/*
+	 * At this time, all memory regions reserved by memblock are
+	 * used by the kernel. Set the nid in memblock.reserved will
+	 * mark out all the nodes the kernel resides in.
+	 */
+	for (i = 0; i < numa_meminfo.nr_blks; i++) {
+		struct numa_memblk *mb = &numa_meminfo.blk[i];
+		memblock_set_node(mb->start, mb->end - mb->start,
+				  &memblock.reserved, mb->nid);
+	}
 
 	/* Mark all kernel nodes. */
-	for (i = 0; i < type->cnt; i++)
-		node_set(type->regions[i].nid, numa_kernel_nodes);
+	for_each_memblock(reserved, r)
+		node_set(r->nid, numa_kernel_nodes);
 
 	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
 	for (i = 0; i < numa_meminfo.nr_blks; i++) {
@@ -684,10 +687,6 @@ static int __init dummy_numa_init(void)
 void __init x86_numa_init(void)
 {
 	if (!numa_off) {
-#ifdef CONFIG_X86_NUMAQ
-		if (!numa_init(numaq_numa_init))
-			return;
-#endif
 #ifdef CONFIG_ACPI_NUMA
 		if (!numa_init(x86_acpi_numa_init))
 			return;

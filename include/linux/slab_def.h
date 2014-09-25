@@ -1,6 +1,8 @@
 #ifndef _LINUX_SLAB_DEF_H
 #define	_LINUX_SLAB_DEF_H
 
+#include <linux/reciprocal_div.h>
+
 /*
  * Definitions unique to the original Linux SLAB allocator.
  */
@@ -12,7 +14,7 @@ struct kmem_cache {
 	unsigned int shared;
 
 	unsigned int size;
-	u32 reciprocal_buffer_size;
+	struct reciprocal_value reciprocal_buffer_size;
 /* 2) touched by every alloc & free from the backend */
 
 	unsigned int flags;		/* constant flags */

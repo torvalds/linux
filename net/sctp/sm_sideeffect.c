@@ -22,9 +22,8 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -249,7 +248,7 @@ void sctp_generate_t3_rtx_event(unsigned long peer)
 
 	/* Check whether a task is in the sock.  */
 
-	sctp_bh_lock_sock(asoc->base.sk);
+	bh_lock_sock(asoc->base.sk);
 	if (sock_owned_by_user(asoc->base.sk)) {
 		pr_debug("%s: sock is busy\n", __func__);
 
@@ -276,7 +275,7 @@ void sctp_generate_t3_rtx_event(unsigned long peer)
 		asoc->base.sk->sk_err = -error;
 
 out_unlock:
-	sctp_bh_unlock_sock(asoc->base.sk);
+	bh_unlock_sock(asoc->base.sk);
 	sctp_transport_put(transport);
 }
 
@@ -289,7 +288,7 @@ static void sctp_generate_timeout_event(struct sctp_association *asoc,
 	struct net *net = sock_net(asoc->base.sk);
 	int error = 0;
 
-	sctp_bh_lock_sock(asoc->base.sk);
+	bh_lock_sock(asoc->base.sk);
 	if (sock_owned_by_user(asoc->base.sk)) {
 		pr_debug("%s: sock is busy: timer %d\n", __func__,
 			 timeout_type);
@@ -316,7 +315,7 @@ static void sctp_generate_timeout_event(struct sctp_association *asoc,
 		asoc->base.sk->sk_err = -error;
 
 out_unlock:
-	sctp_bh_unlock_sock(asoc->base.sk);
+	bh_unlock_sock(asoc->base.sk);
 	sctp_association_put(asoc);
 }
 
@@ -368,7 +367,7 @@ void sctp_generate_heartbeat_event(unsigned long data)
 	struct sctp_association *asoc = transport->asoc;
 	struct net *net = sock_net(asoc->base.sk);
 
-	sctp_bh_lock_sock(asoc->base.sk);
+	bh_lock_sock(asoc->base.sk);
 	if (sock_owned_by_user(asoc->base.sk)) {
 		pr_debug("%s: sock is busy\n", __func__);
 
@@ -393,7 +392,7 @@ void sctp_generate_heartbeat_event(unsigned long data)
 		 asoc->base.sk->sk_err = -error;
 
 out_unlock:
-	sctp_bh_unlock_sock(asoc->base.sk);
+	bh_unlock_sock(asoc->base.sk);
 	sctp_transport_put(transport);
 }
 
@@ -405,8 +404,8 @@ void sctp_generate_proto_unreach_event(unsigned long data)
 	struct sctp_transport *transport = (struct sctp_transport *) data;
 	struct sctp_association *asoc = transport->asoc;
 	struct net *net = sock_net(asoc->base.sk);
-	
-	sctp_bh_lock_sock(asoc->base.sk);
+
+	bh_lock_sock(asoc->base.sk);
 	if (sock_owned_by_user(asoc->base.sk)) {
 		pr_debug("%s: sock is busy\n", __func__);
 
@@ -428,7 +427,7 @@ void sctp_generate_proto_unreach_event(unsigned long data)
 		   asoc->state, asoc->ep, asoc, transport, GFP_ATOMIC);
 
 out_unlock:
-	sctp_bh_unlock_sock(asoc->base.sk);
+	bh_unlock_sock(asoc->base.sk);
 	sctp_association_put(asoc);
 }
 
@@ -496,11 +495,11 @@ static void sctp_do_8_2_transport_strike(sctp_cmd_seq_t *commands,
 	}
 
 	/* If the transport error count is greater than the pf_retrans
-	 * threshold, and less than pathmaxrtx, then mark this transport
-	 * as Partially Failed, ee SCTP Quick Failover Draft, secon 5.1,
-	 * point 1
+	 * threshold, and less than pathmaxrtx, and if the current state
+	 * is SCTP_ACTIVE, then mark this transport as Partially Failed,
+	 * see SCTP Quick Failover Draft, section 5.1
 	 */
-	if ((transport->state != SCTP_PF) &&
+	if ((transport->state == SCTP_ACTIVE) &&
 	   (asoc->pf_retrans < transport->pathmaxrxt) &&
 	   (transport->error_count > asoc->pf_retrans)) {
 
@@ -544,7 +543,7 @@ static void sctp_cmd_init_failed(sctp_cmd_seq_t *commands,
 {
 	struct sctp_ulpevent *event;
 
-	event = sctp_ulpevent_make_assoc_change(asoc,0, SCTP_CANT_STR_ASSOC,
+	event = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_CANT_STR_ASSOC,
 						(__u16)error, 0, 0, NULL,
 						GFP_ATOMIC);
 
@@ -1116,7 +1115,7 @@ int sctp_do_sm(struct net *net, sctp_event_t event_type, sctp_subtype_t subtype,
 	sctp_init_cmd_seq(&commands);
 
 	debug_pre_sfn();
-	status = (*state_fn->fn)(net, ep, asoc, subtype, event_arg, &commands);
+	status = state_fn->fn(net, ep, asoc, subtype, event_arg, &commands);
 	debug_post_sfn();
 
 	error = sctp_side_effects(event_type, subtype, state,

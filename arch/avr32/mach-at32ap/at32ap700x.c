@@ -1553,7 +1553,7 @@ static struct resource atmel_pwm0_resource[] __initdata = {
 	IRQ(24),
 };
 static struct clk atmel_pwm0_mck = {
-	.name		= "pwm_clk",
+	.name		= "at91sam9rl-pwm",
 	.parent		= &pbb_clk,
 	.mode		= pbb_clk_mode,
 	.get_rate	= pbb_clk_get_rate,
@@ -1568,15 +1568,12 @@ struct platform_device *__init at32_add_device_pwm(u32 mask)
 	if (!mask)
 		return NULL;
 
-	pdev = platform_device_alloc("atmel_pwm", 0);
+	pdev = platform_device_alloc("at91sam9rl-pwm", 0);
 	if (!pdev)
 		return NULL;
 
 	if (platform_device_add_resources(pdev, atmel_pwm0_resource,
 				ARRAY_SIZE(atmel_pwm0_resource)))
-		goto out_free_pdev;
-
-	if (platform_device_add_data(pdev, &mask, sizeof(mask)))
 		goto out_free_pdev;
 
 	pin_mask = 0;

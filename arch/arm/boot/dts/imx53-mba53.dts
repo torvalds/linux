@@ -17,12 +17,8 @@
 	model = "TQ MBa53 starter kit";
 	compatible = "tq,mba53", "tq,tqma53", "fsl,imx53";
 
-	reg_backlight: fixed@0 {
-		compatible = "regulator-fixed";
-		regulator-name = "lcd-supply";
-		gpio = <&gpio2 5 0>;
-		startup-delay-us = <5000>;
-		enable-active-low;
+	chosen {
+		stdout-path = &uart2;
 	};
 
 	backlight {
@@ -38,17 +34,37 @@
 		compatible = "fsl,imx-parallel-display";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_disp1_1>;
-		crtcs = <&ipu 1>;
 		interface-pix-fmt = "rgb24";
 		status = "disabled";
+
+		port {
+			display1_in: endpoint {
+				remote-endpoint = <&ipu_di1_disp1>;
+			};
+		};
 	};
 
-	reg_3p2v: 3p2v {
-		compatible = "regulator-fixed";
-		regulator-name = "3P2V";
-		regulator-min-microvolt = <3200000>;
-		regulator-max-microvolt = <3200000>;
-		regulator-always-on;
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_backlight: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "lcd-supply";
+			gpio = <&gpio2 5 0>;
+			startup-delay-us = <5000>;
+		};
+
+		reg_3p2v: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "3P2V";
+			regulator-min-microvolt = <3200000>;
+			regulator-max-microvolt = <3200000>;
+			regulator-always-on;
+		};
 	};
 
 	sound {
@@ -141,6 +157,10 @@
 	};
 };
 
+&ipu_di1_disp1 {
+	remote-endpoint = <&display1_in>;
+};
+
 &cspi {
 	status = "okay";
 };
@@ -148,14 +168,14 @@
 &audmux {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_audmux_1>;
+	pinctrl-0 = <&pinctrl_audmux>;
 };
 
 &i2c2 {
 	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
-		clocks = <&clks 150>;
+		clocks = <&clks IMX5_CLK_SSI_EXT1_GATE>;
 		VDDA-supply = <&reg_3p2v>;
 		VDDIO-supply = <&reg_3p2v>;
 	};
@@ -205,7 +225,6 @@
 };
 
 &ssi2 {
-	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 
@@ -228,7 +247,7 @@
 &tve {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_vga_sync_1>;
-	ddc = <&i2c3>;
+	ddc-i2c-bus = <&i2c3>;
 	fsl,tve-mode = "vga";
 	fsl,hsync-pin = <4>;
 	fsl,vsync-pin = <6>;

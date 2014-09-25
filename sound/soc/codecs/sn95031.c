@@ -312,14 +312,14 @@ static int sn95031_dmic56_event(struct snd_soc_dapm_widget *w,
 /* mux controls */
 static const char *sn95031_mic_texts[] = { "AMIC", "LineIn" };
 
-static const struct soc_enum sn95031_micl_enum =
-	SOC_ENUM_SINGLE(SN95031_ADCCONFIG, 1, 2, sn95031_mic_texts);
+static SOC_ENUM_SINGLE_DECL(sn95031_micl_enum,
+			    SN95031_ADCCONFIG, 1, sn95031_mic_texts);
 
 static const struct snd_kcontrol_new sn95031_micl_mux_control =
 	SOC_DAPM_ENUM("Route", sn95031_micl_enum);
 
-static const struct soc_enum sn95031_micr_enum =
-	SOC_ENUM_SINGLE(SN95031_ADCCONFIG, 3, 2, sn95031_mic_texts);
+static SOC_ENUM_SINGLE_DECL(sn95031_micr_enum,
+			    SN95031_ADCCONFIG, 3, sn95031_mic_texts);
 
 static const struct snd_kcontrol_new sn95031_micr_mux_control =
 	SOC_DAPM_ENUM("Route", sn95031_micr_enum);
@@ -328,26 +328,26 @@ static const char *sn95031_input_texts[] = {	"DMIC1", "DMIC2", "DMIC3",
 						"DMIC4", "DMIC5", "DMIC6",
 						"ADC Left", "ADC Right" };
 
-static const struct soc_enum sn95031_input1_enum =
-	SOC_ENUM_SINGLE(SN95031_AUDIOMUX12, 0, 8, sn95031_input_texts);
+static SOC_ENUM_SINGLE_DECL(sn95031_input1_enum,
+			    SN95031_AUDIOMUX12, 0, sn95031_input_texts);
 
 static const struct snd_kcontrol_new sn95031_input1_mux_control =
 	SOC_DAPM_ENUM("Route", sn95031_input1_enum);
 
-static const struct soc_enum sn95031_input2_enum =
-	SOC_ENUM_SINGLE(SN95031_AUDIOMUX12, 4, 8, sn95031_input_texts);
+static SOC_ENUM_SINGLE_DECL(sn95031_input2_enum,
+			    SN95031_AUDIOMUX12, 4, sn95031_input_texts);
 
 static const struct snd_kcontrol_new sn95031_input2_mux_control =
 	SOC_DAPM_ENUM("Route", sn95031_input2_enum);
 
-static const struct soc_enum sn95031_input3_enum =
-	SOC_ENUM_SINGLE(SN95031_AUDIOMUX34, 0, 8, sn95031_input_texts);
+static SOC_ENUM_SINGLE_DECL(sn95031_input3_enum,
+			    SN95031_AUDIOMUX34, 0, sn95031_input_texts);
 
 static const struct snd_kcontrol_new sn95031_input3_mux_control =
 	SOC_DAPM_ENUM("Route", sn95031_input3_enum);
 
-static const struct soc_enum sn95031_input4_enum =
-	SOC_ENUM_SINGLE(SN95031_AUDIOMUX34, 4, 8, sn95031_input_texts);
+static SOC_ENUM_SINGLE_DECL(sn95031_input4_enum,
+			    SN95031_AUDIOMUX34, 4, sn95031_input_texts);
 
 static const struct snd_kcontrol_new sn95031_input4_mux_control =
 	SOC_DAPM_ENUM("Route", sn95031_input4_enum);
@@ -359,19 +359,19 @@ static const char *sn95031_micmode_text[] = {"Single Ended", "Differential"};
 /* 0dB to 30dB in 10dB steps */
 static const DECLARE_TLV_DB_SCALE(mic_tlv, 0, 10, 0);
 
-static const struct soc_enum sn95031_micmode1_enum =
-	SOC_ENUM_SINGLE(SN95031_MICAMP1, 1, 2, sn95031_micmode_text);
-static const struct soc_enum sn95031_micmode2_enum =
-	SOC_ENUM_SINGLE(SN95031_MICAMP2, 1, 2, sn95031_micmode_text);
+static SOC_ENUM_SINGLE_DECL(sn95031_micmode1_enum,
+			    SN95031_MICAMP1, 1, sn95031_micmode_text);
+static SOC_ENUM_SINGLE_DECL(sn95031_micmode2_enum,
+			    SN95031_MICAMP2, 1, sn95031_micmode_text);
 
 static const char *sn95031_dmic_cfg_text[] = {"GPO", "DMIC"};
 
-static const struct soc_enum sn95031_dmic12_cfg_enum =
-	SOC_ENUM_SINGLE(SN95031_DMICMUX, 0, 2, sn95031_dmic_cfg_text);
-static const struct soc_enum sn95031_dmic34_cfg_enum =
-	SOC_ENUM_SINGLE(SN95031_DMICMUX, 1, 2, sn95031_dmic_cfg_text);
-static const struct soc_enum sn95031_dmic56_cfg_enum =
-	SOC_ENUM_SINGLE(SN95031_DMICMUX, 2, 2, sn95031_dmic_cfg_text);
+static SOC_ENUM_SINGLE_DECL(sn95031_dmic12_cfg_enum,
+			    SN95031_DMICMUX, 0, sn95031_dmic_cfg_text);
+static SOC_ENUM_SINGLE_DECL(sn95031_dmic34_cfg_enum,
+			    SN95031_DMICMUX, 1, sn95031_dmic_cfg_text);
+static SOC_ENUM_SINGLE_DECL(sn95031_dmic56_cfg_enum,
+			    SN95031_DMICMUX, 2, sn95031_dmic_cfg_text);
 
 static const struct snd_kcontrol_new sn95031_snd_controls[] = {
 	SOC_ENUM("Mic1Mode Capture Route", sn95031_micmode1_enum),
@@ -661,12 +661,12 @@ static int sn95031_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	unsigned int format, rate;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		format = BIT(4)|BIT(5);
 		break;
 
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		format = 0;
 		break;
 	default:
@@ -824,8 +824,6 @@ EXPORT_SYMBOL_GPL(sn95031_jack_detection);
 static int sn95031_codec_probe(struct snd_soc_codec *codec)
 {
 	pr_debug("codec_probe called\n");
-
-	snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
 
 	/* PCM interface config
 	 * This sets the pcm rx slot conguration to max 6 slots

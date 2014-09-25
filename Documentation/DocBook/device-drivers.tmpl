@@ -54,7 +54,7 @@
 !Ikernel/sched/cpupri.c
 !Ikernel/sched/fair.c
 !Iinclude/linux/completion.h
-!Ekernel/timer.c
+!Ekernel/time/timer.c
      </sect1>
      <sect1><title>Wait queues and Wake events</title>
 !Iinclude/linux/wait.h
@@ -63,7 +63,7 @@
      <sect1><title>High-resolution timers</title>
 !Iinclude/linux/ktime.h
 !Iinclude/linux/hrtimer.h
-!Ekernel/hrtimer.c
+!Ekernel/time/hrtimer.c
      </sect1>
      <sect1><title>Workqueues and Kevents</title>
 !Ekernel/workqueue.c
@@ -128,8 +128,12 @@ X!Edrivers/base/interface.c
 !Edrivers/base/bus.c
      </sect1>
      <sect1><title>Device Drivers DMA Management</title>
-!Edrivers/base/dma-buf.c
-!Edrivers/base/reservation.c
+!Edrivers/dma-buf/dma-buf.c
+!Edrivers/dma-buf/fence.c
+!Edrivers/dma-buf/seqno-fence.c
+!Iinclude/linux/fence.h
+!Iinclude/linux/seqno-fence.h
+!Edrivers/dma-buf/reservation.c
 !Iinclude/linux/reservation.h
 !Edrivers/base/dma-coherent.c
 !Edrivers/base/dma-mapping.c
@@ -276,7 +280,7 @@ X!Isound/sound_firmware.c
      </para>
 
      <sect1><title>Frame Buffer Memory</title>
-!Edrivers/video/fbmem.c
+!Edrivers/video/fbdev/core/fbmem.c
      </sect1>
 <!--
      <sect1><title>Frame Buffer Console</title>
@@ -284,7 +288,7 @@ X!Edrivers/video/console/fbcon.c
      </sect1>
 -->
      <sect1><title>Frame Buffer Colormap</title>
-!Edrivers/video/fbcmap.c
+!Edrivers/video/fbdev/core/fbcmap.c
      </sect1>
 <!-- FIXME:
   drivers/video/fbgen.c has no docs, which stuffs up the sgml.  Comment
@@ -294,11 +298,11 @@ X!Idrivers/video/fbgen.c
      </sect1>
 KAO -->
      <sect1><title>Frame Buffer Video Mode Database</title>
-!Idrivers/video/modedb.c
-!Edrivers/video/modedb.c
+!Idrivers/video/fbdev/core/modedb.c
+!Edrivers/video/fbdev/core/modedb.c
      </sect1>
      <sect1><title>Frame Buffer Macintosh Video Mode Database</title>
-!Edrivers/video/macmodes.c
+!Edrivers/video/fbdev/macmodes.c
      </sect1>
      <sect1><title>Frame Buffer Fonts</title>
         <para>

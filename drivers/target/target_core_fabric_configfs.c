@@ -906,7 +906,7 @@ static struct config_group *target_fabric_make_lun(
 	lun_cg->default_groups[1] = NULL;
 
 	port_stat_grp = &lun->port_stat_grps.stat_group;
-	port_stat_grp->default_groups =  kzalloc(sizeof(struct config_group) * 3,
+	port_stat_grp->default_groups =  kzalloc(sizeof(struct config_group *) * 4,
 				GFP_KERNEL);
 	if (!port_stat_grp->default_groups) {
 		pr_err("Unable to allocate port_stat_grp->default_groups\n");

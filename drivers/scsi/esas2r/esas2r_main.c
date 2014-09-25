@@ -390,7 +390,7 @@ static int esas2r_probe(struct pci_dev *pcid,
 	esas2r_log_dev(ESAS2R_LOG_INFO, &(pcid->dev),
 		       "pci_enable_device() OK");
 	esas2r_log_dev(ESAS2R_LOG_INFO, &(pcid->dev),
-		       "after pci_device_enable() enable_cnt: %d",
+		       "after pci_enable_device() enable_cnt: %d",
 		       pcid->enable_cnt.counter);
 
 	host = scsi_host_alloc(&driver_template, host_alloc_size);

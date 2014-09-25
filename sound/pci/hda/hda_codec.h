@@ -271,6 +271,7 @@ struct hda_pcm {
 
 /* codec information */
 struct hda_codec {
+	struct device dev;
 	struct hda_bus *bus;
 	unsigned int addr;	/* codec addr*/
 	struct list_head list;	/* list point */
@@ -332,12 +333,15 @@ struct hda_codec {
 	struct snd_array driver_pins;	/* pin configs set by codec parser */
 	struct snd_array cvt_setups;	/* audio convert setups */
 
-#ifdef CONFIG_SND_HDA_HWDEP
 	struct mutex user_mutex;
-	struct snd_hwdep *hwdep;	/* assigned hwdep device */
+#ifdef CONFIG_SND_HDA_RECONFIG
 	struct snd_array init_verbs;	/* additional init verbs */
 	struct snd_array hints;		/* additional hints */
 	struct snd_array user_pins;	/* default pin configs to override */
+#endif
+
+#ifdef CONFIG_SND_HDA_HWDEP
+	struct snd_hwdep *hwdep;	/* assigned hwdep device */
 #endif
 
 	/* misc flags */
@@ -361,6 +365,7 @@ struct hda_codec {
 	unsigned int epss:1;		/* supporting EPSS? */
 	unsigned int cached_write:1;	/* write only to caches */
 	unsigned int dp_mst:1; /* support DP1.2 Multi-stream transport */
+	unsigned int dump_coef:1; /* dump processing coefs in codec proc file */
 #ifdef CONFIG_PM
 	unsigned int power_on :1;	/* current (global) power-state */
 	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
@@ -532,7 +537,8 @@ void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
 				    int do_now);
 #define snd_hda_codec_cleanup_stream(codec, nid) \
 	__snd_hda_codec_cleanup_stream(codec, nid, 0)
-unsigned int snd_hda_calc_stream_format(unsigned int rate,
+unsigned int snd_hda_calc_stream_format(struct hda_codec *codec,
+					unsigned int rate,
 					unsigned int channels,
 					unsigned int format,
 					unsigned int maxbps,

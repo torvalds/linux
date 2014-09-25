@@ -17,6 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/firmware.h>
 #include <linux/platform_device.h>
 #include "wcn36xx.h"
 
@@ -177,6 +178,60 @@ static inline u8 get_sta_index(struct ieee80211_vif *vif,
 	       sta_priv->sta_index;
 }
 
+static const char * const wcn36xx_caps_names[] = {
+	"MCC",				/* 0 */
+	"P2P",				/* 1 */
+	"DOT11AC",			/* 2 */
+	"SLM_SESSIONIZATION",		/* 3 */
+	"DOT11AC_OPMODE",		/* 4 */
+	"SAP32STA",			/* 5 */
+	"TDLS",				/* 6 */
+	"P2P_GO_NOA_DECOUPLE_INIT_SCAN",/* 7 */
+	"WLANACTIVE_OFFLOAD",		/* 8 */
+	"BEACON_OFFLOAD",		/* 9 */
+	"SCAN_OFFLOAD",			/* 10 */
+	"ROAM_OFFLOAD",			/* 11 */
+	"BCN_MISS_OFFLOAD",		/* 12 */
+	"STA_POWERSAVE",		/* 13 */
+	"STA_ADVANCED_PWRSAVE",		/* 14 */
+	"AP_UAPSD",			/* 15 */
+	"AP_DFS",			/* 16 */
+	"BLOCKACK",			/* 17 */
+	"PHY_ERR",			/* 18 */
+	"BCN_FILTER",			/* 19 */
+	"RTT",				/* 20 */
+	"RATECTRL",			/* 21 */
+	"WOW"				/* 22 */
+};
+
+static const char *wcn36xx_get_cap_name(enum place_holder_in_cap_bitmap x)
+{
+	if (x >= ARRAY_SIZE(wcn36xx_caps_names))
+		return "UNKNOWN";
+	return wcn36xx_caps_names[x];
+}
+
+static void wcn36xx_feat_caps_info(struct wcn36xx *wcn)
+{
+	int i;
+
+	for (i = 0; i < MAX_FEATURE_SUPPORTED; i++) {
+		if (get_feat_caps(wcn->fw_feat_caps, i))
+			wcn36xx_info("FW Cap %s\n", wcn36xx_get_cap_name(i));
+	}
+}
+
+static void wcn36xx_detect_chip_version(struct wcn36xx *wcn)
+{
+	if (get_feat_caps(wcn->fw_feat_caps, DOT11AC)) {
+		wcn36xx_info("Chip is 3680\n");
+		wcn->chip_version = WCN36XX_CHIP_3680;
+	} else {
+		wcn36xx_info("Chip is 3660\n");
+		wcn->chip_version = WCN36XX_CHIP_3660;
+	}
+}
+
 static int wcn36xx_start(struct ieee80211_hw *hw)
 {
 	struct wcn36xx *wcn = hw->priv;
@@ -223,6 +278,16 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 		goto out_free_smd_buf;
 	}
 
+	if (!wcn36xx_is_fw_version(wcn, 1, 2, 2, 24)) {
+		ret = wcn36xx_smd_feature_caps_exchange(wcn);
+		if (ret)
+			wcn36xx_warn("Exchange feature caps failed\n");
+		else
+			wcn36xx_feat_caps_info(wcn);
+	}
+
+	wcn36xx_detect_chip_version(wcn);
+
 	/* DMA channel initialization */
 	ret = wcn36xx_dxe_init(wcn);
 	if (ret) {
@@ -232,11 +297,6 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 
 	wcn36xx_debugfs_init(wcn);
 
-	if (!wcn36xx_is_fw_version(wcn, 1, 2, 2, 24)) {
-		ret = wcn36xx_smd_feature_caps_exchange(wcn);
-		if (ret)
-			wcn36xx_warn("Exchange feature caps failed\n");
-	}
 	INIT_LIST_HEAD(&wcn->vif_list);
 	return 0;
 
@@ -428,7 +488,6 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		wcn36xx_err("Unsupported key cmd 0x%x\n", cmd);
 		ret = -EOPNOTSUPP;
 		goto out;
-		break;
 	}
 
 out:
@@ -641,12 +700,14 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 		dev_kfree_skb(skb);
 	}
 
-	if (changed & BSS_CHANGED_BEACON_ENABLED) {
+	if (changed & BSS_CHANGED_BEACON_ENABLED ||
+	    changed & BSS_CHANGED_BEACON) {
 		wcn36xx_dbg(WCN36XX_DBG_MAC,
 			    "mac bss changed beacon enabled %d\n",
 			    bss_conf->enable_beacon);
 
 		if (bss_conf->enable_beacon) {
+			vif_priv->dtim_period = bss_conf->dtim_period;
 			vif_priv->bss_index = 0xff;
 			wcn36xx_smd_config_bss(wcn, vif, NULL,
 					       vif->addr, false);
@@ -991,6 +1052,7 @@ static int wcn36xx_remove(struct platform_device *pdev)
 	struct wcn36xx *wcn = hw->priv;
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "platform remove\n");
 
+	release_firmware(wcn->nv);
 	mutex_destroy(&wcn->hal_mutex);
 
 	ieee80211_unregister_hw(hw);

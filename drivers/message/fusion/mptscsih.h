@@ -98,7 +98,7 @@ typedef struct _internal_cmd {
 	u8		cmd;		/* SCSI Op Code */
 	u8		channel;	/* bus number */
 	u8		id;		/* SCSI ID (virtual) */
-	int		lun;
+	u64		lun;
 	u8		flags;		/* Bit Field - See above */
 	u8		physDiskNum;	/* Phys disk number, -1 else */
 	u8		rsvd2;
@@ -113,9 +113,9 @@ extern int mptscsih_resume(struct pci_dev *pdev);
 #endif
 extern int mptscsih_show_info(struct seq_file *, struct Scsi_Host *);
 extern const char * mptscsih_info(struct Scsi_Host *SChost);
-extern int mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *));
+extern int mptscsih_qcmd(struct scsi_cmnd *SCpnt);
 extern int mptscsih_IssueTaskMgmt(MPT_SCSI_HOST *hd, u8 type, u8 channel,
-	u8 id, int lun, int ctx2abort, ulong timeout);
+	u8 id, u64 lun, int ctx2abort, ulong timeout);
 extern void mptscsih_slave_destroy(struct scsi_device *device);
 extern int mptscsih_slave_configure(struct scsi_device *device);
 extern int mptscsih_abort(struct scsi_cmnd * SCpnt);

@@ -203,7 +203,7 @@ static int hfa384x_usbctlx_submit(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx);
 static void unlocked_usbctlx_complete(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx);
 
 struct usbctlx_completor {
-	int (*complete) (struct usbctlx_completor *);
+	int (*complete)(struct usbctlx_completor *);
 };
 
 static int
@@ -272,7 +272,7 @@ static int hfa384x_isgood_pdrcode(u16 pdrcode);
 
 static inline const char *ctlxstr(CTLX_STATE s)
 {
-	static const char *ctlx_str[] = {
+	static const char * const ctlx_str[] = {
 		"Initial state",
 		"Complete",
 		"Request failed",
@@ -350,14 +350,14 @@ static int submit_rx_urb(hfa384x_t *hw, gfp_t memflags)
 
 	result = -ENOLINK;
 	if (!hw->wlandev->hwremoved &&
-			!test_bit(WORK_RX_HALT, &hw->usb_flags)) {
+	    !test_bit(WORK_RX_HALT, &hw->usb_flags)) {
 		result = SUBMIT_URB(&hw->rx_urb, memflags);
 
 		/* Check whether we need to reset the RX pipe */
 		if (result == -EPIPE) {
 			netdev_warn(hw->wlandev->netdev,
-			       "%s rx pipe stalled: requesting reset\n",
-			       hw->wlandev->netdev->name);
+				    "%s rx pipe stalled: requesting reset\n",
+				    hw->wlandev->netdev->name);
 			if (!test_and_set_bit(WORK_RX_HALT, &hw->usb_flags))
 				schedule_work(&hw->usb_work);
 		}
@@ -398,16 +398,15 @@ static int submit_tx_urb(hfa384x_t *hw, struct urb *tx_urb, gfp_t memflags)
 
 	result = -ENOLINK;
 	if (netif_running(netdev)) {
-
-		if (!hw->wlandev->hwremoved
-		    && !test_bit(WORK_TX_HALT, &hw->usb_flags)) {
+		if (!hw->wlandev->hwremoved &&
+		    !test_bit(WORK_TX_HALT, &hw->usb_flags)) {
 			result = SUBMIT_URB(tx_urb, memflags);
 
 			/* Test whether we need to reset the TX pipe */
 			if (result == -EPIPE) {
 				netdev_warn(hw->wlandev->netdev,
-				       "%s tx pipe stalled: requesting reset\n",
-				       netdev->name);
+					    "%s tx pipe stalled: requesting reset\n",
+					    netdev->name);
 				set_bit(WORK_TX_HALT, &hw->usb_flags);
 				schedule_work(&hw->usb_work);
 			} else if (result == 0) {
@@ -455,11 +454,11 @@ static void hfa384x_usb_defer(struct work_struct *data)
 		ret = usb_clear_halt(hw->usb, hw->endp_in);
 		if (ret != 0) {
 			netdev_err(hw->wlandev->netdev,
-			       "Failed to clear rx pipe for %s: err=%d\n",
-			       netdev->name, ret);
+				   "Failed to clear rx pipe for %s: err=%d\n",
+				   netdev->name, ret);
 		} else {
 			netdev_info(hw->wlandev->netdev, "%s rx pipe reset complete.\n",
-			       netdev->name);
+				    netdev->name);
 			clear_bit(WORK_RX_HALT, &hw->usb_flags);
 			set_bit(WORK_RX_RESUME, &hw->usb_flags);
 		}
@@ -472,7 +471,8 @@ static void hfa384x_usb_defer(struct work_struct *data)
 		ret = submit_rx_urb(hw, GFP_KERNEL);
 		if (ret != 0) {
 			netdev_err(hw->wlandev->netdev,
-			       "Failed to resume %s rx pipe.\n", netdev->name);
+				   "Failed to resume %s rx pipe.\n",
+				   netdev->name);
 		} else {
 			clear_bit(WORK_RX_RESUME, &hw->usb_flags);
 		}
@@ -486,11 +486,11 @@ static void hfa384x_usb_defer(struct work_struct *data)
 		ret = usb_clear_halt(hw->usb, hw->endp_out);
 		if (ret != 0) {
 			netdev_err(hw->wlandev->netdev,
-			       "Failed to clear tx pipe for %s: err=%d\n",
-			       netdev->name, ret);
+				   "Failed to clear tx pipe for %s: err=%d\n",
+				   netdev->name, ret);
 		} else {
 			netdev_info(hw->wlandev->netdev, "%s tx pipe reset complete.\n",
-			       netdev->name);
+				    netdev->name);
 			clear_bit(WORK_TX_HALT, &hw->usb_flags);
 			set_bit(WORK_TX_RESUME, &hw->usb_flags);
 
@@ -642,8 +642,7 @@ usbctlx_get_status(const hfa384x_usb_cmdresp_t *cmdresp,
 	result->resp1 = le16_to_cpu(cmdresp->resp1);
 	result->resp2 = le16_to_cpu(cmdresp->resp2);
 
-	pr_debug("cmdresult:status=0x%04x "
-		 "resp0=0x%04x resp1=0x%04x resp2=0x%04x\n",
+	pr_debug("cmdresult:status=0x%04x resp0=0x%04x resp1=0x%04x resp2=0x%04x\n",
 		 result->status, result->resp0, result->resp1, result->resp2);
 
 	return result->status & HFA384x_STATUS_RESULT;
@@ -656,7 +655,6 @@ usbctlx_get_rridresult(const hfa384x_usb_rridresp_t *rridresp,
 	result->rid = le16_to_cpu(rridresp->rid);
 	result->riddata = rridresp->data;
 	result->riddata_len = ((le16_to_cpu(rridresp->frmlen) - 1) * 2);
-
 }
 
 /*----------------------------------------------------------------
@@ -675,7 +673,7 @@ static inline int usbctlx_cmd_completor_fn(struct usbctlx_completor *head)
 {
 	struct usbctlx_cmd_completor *complete;
 
-	complete = (struct usbctlx_cmd_completor *) head;
+	complete = (struct usbctlx_cmd_completor *)head;
 	return usbctlx_get_status(complete->cmdresp, complete->result);
 }
 
@@ -710,15 +708,14 @@ static int usbctlx_rrid_completor_fn(struct usbctlx_completor *head)
 	struct usbctlx_rrid_completor *complete;
 	hfa384x_rridresult_t rridresult;
 
-	complete = (struct usbctlx_rrid_completor *) head;
+	complete = (struct usbctlx_rrid_completor *)head;
 	usbctlx_get_rridresult(complete->rridresp, &rridresult);
 
 	/* Validate the length, note body len calculation in bytes */
 	if (rridresult.riddata_len != complete->riddatalen) {
-		printk(KERN_WARNING
-		       "RID len mismatch, rid=0x%04x hlen=%d fwlen=%d\n",
-		       rridresult.rid,
-		       complete->riddatalen, rridresult.riddata_len);
+		pr_warn("RID len mismatch, rid=0x%04x hlen=%d fwlen=%d\n",
+			rridresult.rid,
+			complete->riddatalen, rridresult.riddata_len);
 		return -ENODATA;
 	}
 
@@ -745,14 +742,12 @@ static inline struct usbctlx_completor *init_rrid_completor(
 * Completor object:
 * Interprets the results of a synchronous RID-write
 ----------------------------------------------------------------*/
-typedef struct usbctlx_cmd_completor usbctlx_wrid_completor_t;
 #define init_wrid_completor  init_cmd_completor
 
 /*----------------------------------------------------------------
 * Completor object:
 * Interprets the results of a synchronous memory-write
 ----------------------------------------------------------------*/
-typedef struct usbctlx_cmd_completor usbctlx_wmem_completor_t;
 #define init_wmem_completor  init_cmd_completor
 
 /*----------------------------------------------------------------
@@ -766,11 +761,11 @@ struct usbctlx_rmem_completor {
 	void *data;
 	unsigned int len;
 };
-typedef struct usbctlx_rmem_completor usbctlx_rmem_completor_t;
 
 static int usbctlx_rmem_completor_fn(struct usbctlx_completor *head)
 {
-	usbctlx_rmem_completor_t *complete = (usbctlx_rmem_completor_t *) head;
+	struct usbctlx_rmem_completor *complete =
+		(struct usbctlx_rmem_completor *)head;
 
 	pr_debug("rmemresp:len=%d\n", complete->rmemresp->frmlen);
 	memcpy(complete->data, complete->rmemresp->data, complete->len);
@@ -778,7 +773,7 @@ static int usbctlx_rmem_completor_fn(struct usbctlx_completor *head)
 }
 
 static inline struct usbctlx_completor *init_rmem_completor(
-						usbctlx_rmem_completor_t
+						struct usbctlx_rmem_completor
 							*completor,
 						hfa384x_usb_rmemresp_t
 							*rmemresp,
@@ -991,9 +986,7 @@ int hfa384x_cmd_initialize(hfa384x_t *hw)
 
 	result = hfa384x_docmd_wait(hw, &cmd);
 
-	pr_debug("cmdresp.init: "
-		 "status=0x%04x, resp0=0x%04x, "
-		 "resp1=0x%04x, resp2=0x%04x\n",
+	pr_debug("cmdresp.init: status=0x%04x, resp0=0x%04x, resp1=0x%04x, resp2=0x%04x\n",
 		 cmd.result.status,
 		 cmd.result.resp0, cmd.result.resp1, cmd.result.resp2);
 	if (result == 0) {
@@ -1212,7 +1205,7 @@ int hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis)
 	result = usb_reset_device(hw->usb);
 	if (result < 0) {
 		netdev_err(hw->wlandev->netdev, "usb_reset_device() failed, result=%d.\n",
-		       result);
+			   result);
 	}
 
 	return result;
@@ -1312,8 +1305,8 @@ cleanup:
 			result = completor->complete(completor);
 		} else {
 			netdev_warn(hw->wlandev->netdev, "CTLX[%d] error: state(%s)\n",
-			       le16_to_cpu(ctlx->outbuf.type),
-			       ctlxstr(ctlx->state));
+				    le16_to_cpu(ctlx->outbuf.type),
+				    ctlxstr(ctlx->state));
 			result = -EIO;
 		}
 
@@ -1381,8 +1374,7 @@ hfa384x_docmd(hfa384x_t *hw,
 
 	ctlx->outbufsize = sizeof(ctlx->outbuf.cmdreq);
 
-	pr_debug("cmdreq: cmd=0x%04x "
-		 "parm0=0x%04x parm1=0x%04x parm2=0x%04x\n",
+	pr_debug("cmdreq: cmd=0x%04x parm0=0x%04x parm1=0x%04x parm2=0x%04x\n",
 		 cmd->cmd, cmd->parm0, cmd->parm1, cmd->parm2);
 
 	ctlx->reapable = mode;
@@ -1566,7 +1558,7 @@ hfa384x_dowrid(hfa384x_t *hw,
 	if (result != 0) {
 		kfree(ctlx);
 	} else if (mode == DOWAIT) {
-		usbctlx_wrid_completor_t completor;
+		struct usbctlx_cmd_completor completor;
 		hfa384x_cmdresult_t wridresult;
 
 		result = hfa384x_usbctlx_complete_sync(hw,
@@ -1658,7 +1650,7 @@ hfa384x_dormem(hfa384x_t *hw,
 	if (result != 0) {
 		kfree(ctlx);
 	} else if (mode == DOWAIT) {
-		usbctlx_rmem_completor_t completor;
+		struct usbctlx_rmem_completor completor;
 
 		result =
 		    hfa384x_usbctlx_complete_sync(hw, ctlx,
@@ -1748,7 +1740,7 @@ hfa384x_dowmem(hfa384x_t *hw,
 	if (result != 0) {
 		kfree(ctlx);
 	} else if (mode == DOWAIT) {
-		usbctlx_wmem_completor_t completor;
+		struct usbctlx_cmd_completor completor;
 		hfa384x_cmdresult_t wmemresult;
 
 		result = hfa384x_usbctlx_complete_sync(hw,
@@ -2018,7 +2010,8 @@ int hfa384x_drvr_flashdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len)
 	if (hw->dlstate != HFA384x_DLSTATE_FLASHENABLED)
 		return -EINVAL;
 
-	netdev_info(hw->wlandev->netdev, "Download %d bytes to flash @0x%06x\n", len, daddr);
+	netdev_info(hw->wlandev->netdev,
+		    "Download %d bytes to flash @0x%06x\n", len, daddr);
 
 	/* Convert to flat address for arithmetic */
 	/* NOTE: dlbuffer RID stores the address in AUX format */
@@ -2026,11 +2019,6 @@ int hfa384x_drvr_flashdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len)
 	    HFA384x_ADDR_AUX_MKFLAT(hw->bufinfo.page, hw->bufinfo.offset);
 	pr_debug("dlbuf.page=0x%04x dlbuf.offset=0x%04x dlbufaddr=0x%08x\n",
 		 hw->bufinfo.page, hw->bufinfo.offset, dlbufaddr);
-
-#if 0
-	netdev_warn(hw->wlandev->netdev, "dlbuf@0x%06lx len=%d to=%d\n", dlbufaddr,
-	       hw->bufinfo.len, hw->dltimeout);
-#endif
 	/* Calculations to determine how many fills of the dlbuffer to do
 	 * and how many USB wmemreq's to do for each fill.  At this point
 	 * in time, the dlbuffer size and the wmemreq size are the same.
@@ -2056,15 +2044,15 @@ int hfa384x_drvr_flashdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len)
 		burnhi = HFA384x_ADDR_CMD_MKPAGE(burndaddr);
 
 		netdev_info(hw->wlandev->netdev, "Writing %d bytes to flash @0x%06x\n",
-		       burnlen, burndaddr);
+			    burnlen, burndaddr);
 
 		/* Set the download mode */
 		result = hfa384x_cmd_download(hw, HFA384x_PROGMODE_NV,
 					      burnlo, burnhi, burnlen);
 		if (result) {
-			netdev_err(hw->wlandev->netdev, "download(NV,lo=%x,hi=%x,len=%x) "
-			       "cmd failed, result=%d. Aborting d/l\n",
-			       burnlo, burnhi, burnlen, result);
+			netdev_err(hw->wlandev->netdev,
+				   "download(NV,lo=%x,hi=%x,len=%x) cmd failed, result=%d. Aborting d/l\n",
+				   burnlo, burnhi, burnlen, result);
 			goto exit_proc;
 		}
 
@@ -2095,9 +2083,8 @@ int hfa384x_drvr_flashdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len)
 					      0, 0, 0);
 		if (result) {
 			netdev_err(hw->wlandev->netdev,
-			       "download(NVWRITE,lo=%x,hi=%x,len=%x) "
-			       "cmd failed, result=%d. Aborting d/l\n",
-			       burnlo, burnhi, burnlen, result);
+				   "download(NVWRITE,lo=%x,hi=%x,len=%x) cmd failed, result=%d. Aborting d/l\n",
+				   burnlo, burnhi, burnlen, result);
 			goto exit_proc;
 		}
 
@@ -2280,7 +2267,7 @@ int hfa384x_drvr_ramdl_enable(hfa384x_t *hw, u32 exeaddr)
 	for (i = 0; i < HFA384x_PORTID_MAX; i++) {
 		if (hw->port_enabled[i]) {
 			netdev_err(hw->wlandev->netdev,
-			       "Can't download with a macport enabled.\n");
+				   "Can't download with a macport enabled.\n");
 			return -EINVAL;
 		}
 	}
@@ -2352,7 +2339,8 @@ int hfa384x_drvr_ramdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len)
 	if (hw->dlstate != HFA384x_DLSTATE_RAMENABLED)
 		return -EINVAL;
 
-	netdev_info(hw->wlandev->netdev, "Writing %d bytes to ram @0x%06x\n", len, daddr);
+	netdev_info(hw->wlandev->netdev, "Writing %d bytes to ram @0x%06x\n",
+		    len, daddr);
 
 	/* How many dowmem calls?  */
 	nwrites = len / HFA384x_USB_RWMEM_MAXLEN;
@@ -2450,7 +2438,8 @@ int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, unsigned int len)
 
 		if (result) {
 			netdev_warn(hw->wlandev->netdev,
-			       "Read from index %zd failed, continuing\n", i);
+				    "Read from index %zd failed, continuing\n",
+				    i);
 			continue;
 		}
 
@@ -2462,14 +2451,15 @@ int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, unsigned int len)
 			pdrcode = le16_to_cpu(pda[currpdr + 1]);
 			/* Test the record length */
 			if (pdrlen > HFA384x_PDR_LEN_MAX || pdrlen == 0) {
-				netdev_err(hw->wlandev->netdev, "pdrlen invalid=%d\n", pdrlen);
+				netdev_err(hw->wlandev->netdev,
+					   "pdrlen invalid=%d\n", pdrlen);
 				pdaok = 0;
 				break;
 			}
 			/* Test the code */
 			if (!hfa384x_isgood_pdrcode(pdrcode)) {
 				netdev_err(hw->wlandev->netdev, "pdrcode invalid=%d\n",
-				       pdrcode);
+					   pdrcode);
 				pdaok = 0;
 				break;
 			}
@@ -2485,13 +2475,13 @@ int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, unsigned int len)
 		}
 		if (pdaok) {
 			netdev_info(hw->wlandev->netdev,
-			       "PDA Read from 0x%08x in %s space.\n",
-			       pdaloc[i].cardaddr,
-			       pdaloc[i].auxctl == 0 ? "EXTDS" :
-			       pdaloc[i].auxctl == 1 ? "NV" :
-			       pdaloc[i].auxctl == 2 ? "PHY" :
-			       pdaloc[i].auxctl == 3 ? "ICSRAM" :
-			       "<bogus auxctl>");
+				    "PDA Read from 0x%08x in %s space.\n",
+				    pdaloc[i].cardaddr,
+				    pdaloc[i].auxctl == 0 ? "EXTDS" :
+				    pdaloc[i].auxctl == 1 ? "NV" :
+				    pdaloc[i].auxctl == 2 ? "PHY" :
+				    pdaloc[i].auxctl == 3 ? "ICSRAM" :
+				    "<bogus auxctl>");
 			break;
 		}
 	}
@@ -2586,7 +2576,8 @@ int hfa384x_drvr_start(hfa384x_t *hw)
 	result = submit_rx_urb(hw, GFP_KERNEL);
 	if (result != 0) {
 		netdev_err(hw->wlandev->netdev,
-		       "Fatal, failed to submit RX URB, result=%d\n", result);
+			   "Fatal, failed to submit RX URB, result=%d\n",
+			   result);
 		goto done;
 	}
 
@@ -2602,12 +2593,13 @@ int hfa384x_drvr_start(hfa384x_t *hw)
 	 */
 	result1 = hfa384x_cmd_initialize(hw);
 	msleep(1000);
-	result = result2 = hfa384x_cmd_initialize(hw);
+	result = hfa384x_cmd_initialize(hw);
+	result2 = result;
 	if (result1 != 0) {
 		if (result2 != 0) {
 			netdev_err(hw->wlandev->netdev,
-				"cmd_initialize() failed on two attempts, results %d and %d\n",
-				result1, result2);
+				   "cmd_initialize() failed on two attempts, results %d and %d\n",
+				   result1, result2);
 			usb_kill_urb(&hw->rx_urb);
 			goto done;
 		} else {
@@ -2617,9 +2609,9 @@ int hfa384x_drvr_start(hfa384x_t *hw)
 		}
 	} else if (result2 != 0) {
 		netdev_warn(hw->wlandev->netdev, "First cmd_initialize() succeeded, but second attempt failed (result=%d)\n",
-			result2);
+			    result2);
 		netdev_warn(hw->wlandev->netdev,
-		       "Most likely the card will be functional\n");
+			    "Most likely the card will be functional\n");
 		goto done;
 	}
 
@@ -2650,7 +2642,6 @@ done:
 ----------------------------------------------------------------*/
 int hfa384x_drvr_stop(hfa384x_t *hw)
 {
-	int result = 0;
 	int i;
 
 	might_sleep();
@@ -2675,7 +2666,7 @@ int hfa384x_drvr_stop(hfa384x_t *hw)
 	for (i = 0; i < HFA384x_NUMPORTS_MAX; i++)
 		hw->port_enabled[i] = 0;
 
-	return result;
+	return 0;
 }
 
 /*----------------------------------------------------------------
@@ -2784,7 +2775,8 @@ int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
 	result = 1;
 	ret = submit_tx_urb(hw, &hw->tx_urb, GFP_ATOMIC);
 	if (ret != 0) {
-		netdev_err(hw->wlandev->netdev, "submit_tx_urb() failed, error=%d\n", ret);
+		netdev_err(hw->wlandev->netdev,
+			   "submit_tx_urb() failed, error=%d\n", ret);
 		result = 3;
 	}
 
@@ -2826,7 +2818,7 @@ void hfa384x_tx_timeout(wlandevice_t *wlandev)
 ----------------------------------------------------------------*/
 static void hfa384x_usbctlx_reaper_task(unsigned long data)
 {
-	hfa384x_t *hw = (hfa384x_t *) data;
+	hfa384x_t *hw = (hfa384x_t *)data;
 	struct list_head *entry;
 	struct list_head *temp;
 	unsigned long flags;
@@ -2845,7 +2837,6 @@ static void hfa384x_usbctlx_reaper_task(unsigned long data)
 	}
 
 	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
-
 }
 
 /*----------------------------------------------------------------
@@ -2864,7 +2855,7 @@ static void hfa384x_usbctlx_reaper_task(unsigned long data)
 ----------------------------------------------------------------*/
 static void hfa384x_usbctlx_completion_task(unsigned long data)
 {
-	hfa384x_t *hw = (hfa384x_t *) data;
+	hfa384x_t *hw = (hfa384x_t *)data;
 	struct list_head *entry;
 	struct list_head *temp;
 	unsigned long flags;
@@ -3010,7 +3001,8 @@ static void unlocked_usbctlx_complete(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 
 	default:
 		netdev_err(hw->wlandev->netdev, "CTLX[%d] not in a terminating state(%s)\n",
-		       le16_to_cpu(ctlx->outbuf.type), ctlxstr(ctlx->state));
+			   le16_to_cpu(ctlx->outbuf.type),
+			   ctlxstr(ctlx->state));
 		break;
 	}			/* switch */
 }
@@ -3092,8 +3084,8 @@ static void hfa384x_usbctlxq_run(hfa384x_t *hw)
 			 * and schedule a reset ...
 			 */
 			netdev_warn(hw->wlandev->netdev,
-			       "%s tx pipe stalled: requesting reset\n",
-			       hw->wlandev->netdev->name);
+				    "%s tx pipe stalled: requesting reset\n",
+				    hw->wlandev->netdev->name);
 			list_move(&head->list, &hw->ctlxq.pending);
 			set_bit(WORK_TX_HALT, &hw->usb_flags);
 			schedule_work(&hw->usb_work);
@@ -3102,12 +3094,12 @@ static void hfa384x_usbctlxq_run(hfa384x_t *hw)
 
 		if (result == -ESHUTDOWN) {
 			netdev_warn(hw->wlandev->netdev, "%s urb shutdown!\n",
-			       hw->wlandev->netdev->name);
+				    hw->wlandev->netdev->name);
 			break;
 		}
 
 		netdev_err(hw->wlandev->netdev, "Failed to submit CTLX[%d]: error=%d\n",
-		       le16_to_cpu(head->outbuf.type), result);
+			   le16_to_cpu(head->outbuf.type), result);
 		unlocked_usbctlx_complete(hw, head);
 	}			/* while */
 
@@ -3135,7 +3127,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 {
 	wlandevice_t *wlandev = urb->context;
 	hfa384x_t *hw;
-	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *) urb->transfer_buffer;
+	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *)urb->transfer_buffer;
 	struct sk_buff *skb = NULL;
 	int result;
 	int urb_status;
@@ -3166,18 +3158,18 @@ static void hfa384x_usbin_callback(struct urb *urb)
 
 		/* Check for short packet */
 		if (urb->actual_length == 0) {
-			++(wlandev->linux_stats.rx_errors);
-			++(wlandev->linux_stats.rx_length_errors);
+			wlandev->netdev->stats.rx_errors++;
+			wlandev->netdev->stats.rx_length_errors++;
 			action = RESUBMIT;
 		}
 		break;
 
 	case -EPIPE:
 		netdev_warn(hw->wlandev->netdev, "%s rx pipe stalled: requesting reset\n",
-		       wlandev->netdev->name);
+			    wlandev->netdev->name);
 		if (!test_and_set_bit(WORK_RX_HALT, &hw->usb_flags))
 			schedule_work(&hw->usb_work);
-		++(wlandev->linux_stats.rx_errors);
+		wlandev->netdev->stats.rx_errors++;
 		action = ABORT;
 		break;
 
@@ -3188,12 +3180,12 @@ static void hfa384x_usbin_callback(struct urb *urb)
 		    !timer_pending(&hw->throttle)) {
 			mod_timer(&hw->throttle, jiffies + THROTTLE_JIFFIES);
 		}
-		++(wlandev->linux_stats.rx_errors);
+		wlandev->netdev->stats.rx_errors++;
 		action = ABORT;
 		break;
 
 	case -EOVERFLOW:
-		++(wlandev->linux_stats.rx_over_errors);
+		wlandev->netdev->stats.rx_over_errors++;
 		action = RESUBMIT;
 		break;
 
@@ -3212,7 +3204,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 	default:
 		pr_debug("urb status=%d, transfer flags=0x%x\n",
 			 urb->status, urb->transfer_flags);
-		++(wlandev->linux_stats.rx_errors);
+		wlandev->netdev->stats.rx_errors++;
 		action = RESUBMIT;
 		break;
 	}
@@ -3225,8 +3217,8 @@ static void hfa384x_usbin_callback(struct urb *urb)
 
 		if (result != 0) {
 			netdev_err(hw->wlandev->netdev,
-			       "Fatal, failed to resubmit rx_urb. error=%d\n",
-			       result);
+				   "Fatal, failed to resubmit rx_urb. error=%d\n",
+				   result);
 		}
 	}
 
@@ -3361,9 +3353,9 @@ retry:
 		 */
 		if (ctlx->outbuf.type != intype) {
 			netdev_warn(hw->wlandev->netdev,
-			       "Expected IN[%d], received IN[%d] - ignored.\n",
-			       le16_to_cpu(ctlx->outbuf.type),
-			       le16_to_cpu(intype));
+				    "Expected IN[%d], received IN[%d] - ignored.\n",
+				    le16_to_cpu(ctlx->outbuf.type),
+				    le16_to_cpu(intype));
 			goto unlock;
 		}
 
@@ -3397,10 +3389,9 @@ retry:
 			 * Throw this CTLX away ...
 			 */
 			netdev_err(hw->wlandev->netdev,
-			       "Matched IN URB, CTLX[%d] in invalid state(%s)."
-			       " Discarded.\n",
-			       le16_to_cpu(ctlx->outbuf.type),
-			       ctlxstr(ctlx->state));
+				   "Matched IN URB, CTLX[%d] in invalid state(%s). Discarded.\n",
+				   le16_to_cpu(ctlx->outbuf.type),
+				   ctlxstr(ctlx->state));
 			if (unlocked_usbctlx_cancel_async(hw, ctlx) == 0)
 				run_queue = 1;
 			break;
@@ -3464,7 +3455,7 @@ static void hfa384x_usbin_txcompl(wlandevice_t *wlandev,
 ----------------------------------------------------------------*/
 static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 {
-	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *) skb->data;
+	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *)skb->data;
 	hfa384x_t *hw = wlandev->priv;
 	int hdrlen;
 	struct p80211_rxmeta *rxmeta;
@@ -3535,7 +3526,8 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 
 	default:
 		netdev_warn(hw->wlandev->netdev, "Received frame on unsupported port=%d\n",
-		       HFA384x_RXSTATUS_MACPORT_GET(usbin->rxfrm.desc.status));
+			    HFA384x_RXSTATUS_MACPORT_GET(
+				    usbin->rxfrm.desc.status));
 		goto done;
 		break;
 	}
@@ -3597,8 +3589,8 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 	skb = dev_alloc_skb(skblen);
 	if (skb == NULL) {
 		netdev_err(hw->wlandev->netdev,
-		       "alloc_skb failed trying to allocate %d bytes\n",
-		       skblen);
+			   "alloc_skb failed trying to allocate %d bytes\n",
+			   skblen);
 		return;
 	}
 
@@ -3608,7 +3600,7 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 		struct p80211_caphdr *caphdr;
 		/* The NEW header format! */
 		datap = skb_put(skb, sizeof(struct p80211_caphdr));
-		caphdr = (struct p80211_caphdr *) datap;
+		caphdr = (struct p80211_caphdr *)datap;
 
 		caphdr->version = htonl(P80211CAPTURE_VERSION);
 		caphdr->length = htonl(sizeof(struct p80211_caphdr));
@@ -3705,7 +3697,6 @@ static void hfa384x_usbout_callback(struct urb *urb)
 #endif
 
 	if (wlandev && wlandev->netdev) {
-
 		switch (urb->status) {
 		case 0:
 			hfa384x_usbout_tx(wlandev, usbout);
@@ -3714,13 +3705,14 @@ static void hfa384x_usbout_callback(struct urb *urb)
 		case -EPIPE:
 			{
 				hfa384x_t *hw = wlandev->priv;
+
 				netdev_warn(hw->wlandev->netdev,
-				       "%s tx pipe stalled: requesting reset\n",
-				       wlandev->netdev->name);
+					    "%s tx pipe stalled: requesting reset\n",
+					    wlandev->netdev->name);
 				if (!test_and_set_bit
 				    (WORK_TX_HALT, &hw->usb_flags))
 					schedule_work(&hw->usb_work);
-				++(wlandev->linux_stats.tx_errors);
+				wlandev->netdev->stats.tx_errors++;
 				break;
 			}
 
@@ -3731,12 +3723,12 @@ static void hfa384x_usbout_callback(struct urb *urb)
 				hfa384x_t *hw = wlandev->priv;
 
 				if (!test_and_set_bit
-				    (THROTTLE_TX, &hw->usb_flags)
-				    && !timer_pending(&hw->throttle)) {
+				    (THROTTLE_TX, &hw->usb_flags) &&
+				    !timer_pending(&hw->throttle)) {
 					mod_timer(&hw->throttle,
 						  jiffies + THROTTLE_JIFFIES);
 				}
-				++(wlandev->linux_stats.tx_errors);
+				wlandev->netdev->stats.tx_errors++;
 				netif_stop_queue(wlandev->netdev);
 				break;
 			}
@@ -3748,8 +3740,8 @@ static void hfa384x_usbout_callback(struct urb *urb)
 
 		default:
 			netdev_info(wlandev->netdev, "unknown urb->status=%d\n",
-			       urb->status);
-			++(wlandev->linux_stats.tx_errors);
+				    urb->status);
+			wlandev->netdev->stats.tx_errors++;
 			break;
 		}		/* switch */
 	}
@@ -3842,9 +3834,9 @@ retry:
 		default:
 			/* This is NOT a valid CTLX "success" state! */
 			netdev_err(hw->wlandev->netdev,
-				"Illegal CTLX[%d] success state(%s, %d) in OUT URB\n",
-				le16_to_cpu(ctlx->outbuf.type),
-				ctlxstr(ctlx->state), urb->status);
+				   "Illegal CTLX[%d] success state(%s, %d) in OUT URB\n",
+				   le16_to_cpu(ctlx->outbuf.type),
+				   ctlxstr(ctlx->state), urb->status);
 			break;
 		}		/* switch */
 	} else {
@@ -3852,8 +3844,8 @@ retry:
 		if ((urb->status == -EPIPE) &&
 		    !test_and_set_bit(WORK_TX_HALT, &hw->usb_flags)) {
 			netdev_warn(hw->wlandev->netdev,
-			       "%s tx pipe stalled: requesting reset\n",
-			       hw->wlandev->netdev->name);
+				    "%s tx pipe stalled: requesting reset\n",
+				    hw->wlandev->netdev->name);
 			schedule_work(&hw->usb_work);
 		}
 
@@ -3904,7 +3896,7 @@ delresp:
 ----------------------------------------------------------------*/
 static void hfa384x_usbctlx_reqtimerfn(unsigned long data)
 {
-	hfa384x_t *hw = (hfa384x_t *) data;
+	hfa384x_t *hw = (hfa384x_t *)data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
@@ -3962,7 +3954,7 @@ static void hfa384x_usbctlx_reqtimerfn(unsigned long data)
 ----------------------------------------------------------------*/
 static void hfa384x_usbctlx_resptimerfn(unsigned long data)
 {
-	hfa384x_t *hw = (hfa384x_t *) data;
+	hfa384x_t *hw = (hfa384x_t *)data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
@@ -4001,7 +3993,7 @@ static void hfa384x_usbctlx_resptimerfn(unsigned long data)
 ----------------------------------------------------------------*/
 static void hfa384x_usb_throttlefn(unsigned long data)
 {
-	hfa384x_t *hw = (hfa384x_t *) data;
+	hfa384x_t *hw = (hfa384x_t *)data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
@@ -4139,13 +4131,13 @@ static int hfa384x_isgood_pdrcode(u16 pdrcode)
 	default:
 		if (pdrcode < 0x1000) {
 			/* code is OK, but we don't know exactly what it is */
-			pr_debug("Encountered unknown PDR#=0x%04x, "
-				 "assuming it's ok.\n", pdrcode);
+			pr_debug("Encountered unknown PDR#=0x%04x, assuming it's ok.\n",
+				 pdrcode);
 			return 1;
 		} else {
 			/* bad code */
-			pr_debug("Encountered unknown PDR#=0x%04x, "
-				 "(>=0x1000), assuming it's bad.\n", pdrcode);
+			pr_debug("Encountered unknown PDR#=0x%04x, (>=0x1000), assuming it's bad.\n",
+				 pdrcode);
 			return 0;
 		}
 		break;

@@ -173,7 +173,7 @@ struct rfcomm_dlc {
 	struct sk_buff_head   tx_queue;
 	struct timer_list     timer;
 
-	spinlock_t    lock;
+	struct mutex  lock;
 	unsigned long state;
 	unsigned long flags;
 	atomic_t      refcnt;
@@ -238,12 +238,14 @@ int  rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 								u8 channel);
 int  rfcomm_dlc_close(struct rfcomm_dlc *d, int reason);
 int  rfcomm_dlc_send(struct rfcomm_dlc *d, struct sk_buff *skb);
+void rfcomm_dlc_send_noerror(struct rfcomm_dlc *d, struct sk_buff *skb);
 int  rfcomm_dlc_set_modem_status(struct rfcomm_dlc *d, u8 v24_sig);
 int  rfcomm_dlc_get_modem_status(struct rfcomm_dlc *d, u8 *v24_sig);
 void rfcomm_dlc_accept(struct rfcomm_dlc *d);
+struct rfcomm_dlc *rfcomm_dlc_exists(bdaddr_t *src, bdaddr_t *dst, u8 channel);
 
-#define rfcomm_dlc_lock(d)     spin_lock(&d->lock)
-#define rfcomm_dlc_unlock(d)   spin_unlock(&d->lock)
+#define rfcomm_dlc_lock(d)     mutex_lock(&d->lock)
+#define rfcomm_dlc_unlock(d)   mutex_unlock(&d->lock)
 
 static inline void rfcomm_dlc_hold(struct rfcomm_dlc *d)
 {
@@ -295,6 +297,7 @@ struct rfcomm_conninfo {
 #define RFCOMM_LM_TRUSTED	0x0008
 #define RFCOMM_LM_RELIABLE	0x0010
 #define RFCOMM_LM_SECURE	0x0020
+#define RFCOMM_LM_FIPS		0x0040
 
 #define rfcomm_pi(sk) ((struct rfcomm_pinfo *) sk)
 
@@ -323,11 +326,16 @@ int  rfcomm_connect_ind(struct rfcomm_session *s, u8 channel,
 #define RFCOMMGETDEVINFO	_IOR('R', 211, int)
 #define RFCOMMSTEALDLC		_IOW('R', 220, int)
 
+/* rfcomm_dev.flags bit definitions */
 #define RFCOMM_REUSE_DLC      0
 #define RFCOMM_RELEASE_ONHUP  1
 #define RFCOMM_HANGUP_NOW     2
 #define RFCOMM_TTY_ATTACHED   3
-#define RFCOMM_TTY_RELEASED   4
+#define RFCOMM_DEFUNCT_BIT4   4	  /* don't reuse this bit - userspace visible */
+
+/* rfcomm_dev.status bit definitions */
+#define RFCOMM_DEV_RELEASED   0
+#define RFCOMM_TTY_OWNED      1
 
 struct rfcomm_dev_req {
 	s16      dev_id;

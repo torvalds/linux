@@ -63,7 +63,7 @@ struct mfd_cell {
 	/* A list of regulator supplies that should be mapped to the MFD
 	 * device rather than the child device when requested
 	 */
-	const char		**parent_supplies;
+	const char * const	*parent_supplies;
 	int			num_parent_supplies;
 };
 

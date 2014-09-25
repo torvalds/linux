@@ -108,6 +108,10 @@ static int qib_map_sg(struct ib_device *dev, struct scatterlist *sgl,
 			ret = 0;
 			break;
 		}
+		sg->dma_address = addr + sg->offset;
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+		sg->dma_length = sg->length;
+#endif
 	}
 	return ret;
 }
@@ -117,21 +121,6 @@ static void qib_unmap_sg(struct ib_device *dev,
 			 enum dma_data_direction direction)
 {
 	BUG_ON(!valid_dma_direction(direction));
-}
-
-static u64 qib_sg_dma_address(struct ib_device *dev, struct scatterlist *sg)
-{
-	u64 addr = (u64) page_address(sg_page(sg));
-
-	if (addr)
-		addr += sg->offset;
-	return addr;
-}
-
-static unsigned int qib_sg_dma_len(struct ib_device *dev,
-				   struct scatterlist *sg)
-{
-	return sg->length;
 }
 
 static void qib_sync_single_for_cpu(struct ib_device *dev, u64 addr,
@@ -173,8 +162,6 @@ struct ib_dma_mapping_ops qib_dma_mapping_ops = {
 	.unmap_page = qib_dma_unmap_page,
 	.map_sg = qib_map_sg,
 	.unmap_sg = qib_unmap_sg,
-	.dma_address = qib_sg_dma_address,
-	.dma_len = qib_sg_dma_len,
 	.sync_single_for_cpu = qib_sync_single_for_cpu,
 	.sync_single_for_device = qib_sync_single_for_device,
 	.alloc_coherent = qib_dma_alloc_coherent,

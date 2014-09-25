@@ -1024,7 +1024,6 @@ static int __irlan_insert_param(struct sk_buff *skb, char *param, int type,
 	default:
 		IRDA_DEBUG(2, "%s(), Unknown parameter type!\n", __func__ );
 		return 0;
-		break;
 	}
 
 	/* Insert at end of sk-buffer */

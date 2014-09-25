@@ -170,6 +170,8 @@ struct si_power_info {
 	bool vddc_phase_shed_control;
 	bool pspp_notify_required;
 	bool sclk_deep_sleep_above_low;
+	bool voltage_control_svi2;
+	bool vddci_control_svi2;
 	/* smc offsets */
 	u32 sram_end;
 	u32 state_table_start;
@@ -192,6 +194,9 @@ struct si_power_info {
 	SMC_SIslands_MCRegisters smc_mc_reg_table;
 	SISLANDS_SMC_STATETABLE smc_statetable;
 	PP_SIslands_PAPMParameters papm_parm;
+	/* SVI2 */
+	u8 svd_gpio_id;
+	u8 svc_gpio_id;
 };
 
 #define SISLANDS_INITIAL_STATE_ARB_INDEX    0

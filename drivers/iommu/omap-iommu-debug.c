@@ -213,116 +213,6 @@ static ssize_t debug_read_pagetable(struct file *file, char __user *userbuf,
 	return bytes;
 }
 
-static ssize_t debug_read_mmap(struct file *file, char __user *userbuf,
-			       size_t count, loff_t *ppos)
-{
-	struct device *dev = file->private_data;
-	struct omap_iommu *obj = dev_to_omap_iommu(dev);
-	char *p, *buf;
-	struct iovm_struct *tmp;
-	int uninitialized_var(i);
-	ssize_t bytes;
-
-	buf = (char *)__get_free_page(GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	p = buf;
-
-	p += sprintf(p, "%-3s %-8s %-8s %6s %8s\n",
-		     "No", "start", "end", "size", "flags");
-	p += sprintf(p, "-------------------------------------------------\n");
-
-	mutex_lock(&iommu_debug_lock);
-
-	list_for_each_entry(tmp, &obj->mmap, list) {
-		size_t len;
-		const char *str = "%3d %08x-%08x %6x %8x\n";
-		const int maxcol = 39;
-
-		len = tmp->da_end - tmp->da_start;
-		p += snprintf(p, maxcol, str,
-			      i, tmp->da_start, tmp->da_end, len, tmp->flags);
-
-		if (PAGE_SIZE - (p - buf) < maxcol)
-			break;
-		i++;
-	}
-
-	bytes = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
-
-	mutex_unlock(&iommu_debug_lock);
-	free_page((unsigned long)buf);
-
-	return bytes;
-}
-
-static ssize_t debug_read_mem(struct file *file, char __user *userbuf,
-			      size_t count, loff_t *ppos)
-{
-	struct device *dev = file->private_data;
-	char *p, *buf;
-	struct iovm_struct *area;
-	ssize_t bytes;
-
-	count = min_t(ssize_t, count, PAGE_SIZE);
-
-	buf = (char *)__get_free_page(GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	p = buf;
-
-	mutex_lock(&iommu_debug_lock);
-
-	area = omap_find_iovm_area(dev, (u32)ppos);
-	if (!area) {
-		bytes = -EINVAL;
-		goto err_out;
-	}
-	memcpy(p, area->va, count);
-	p += count;
-
-	bytes = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
-err_out:
-	mutex_unlock(&iommu_debug_lock);
-	free_page((unsigned long)buf);
-
-	return bytes;
-}
-
-static ssize_t debug_write_mem(struct file *file, const char __user *userbuf,
-			       size_t count, loff_t *ppos)
-{
-	struct device *dev = file->private_data;
-	struct iovm_struct *area;
-	char *p, *buf;
-
-	count = min_t(size_t, count, PAGE_SIZE);
-
-	buf = (char *)__get_free_page(GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	p = buf;
-
-	mutex_lock(&iommu_debug_lock);
-
-	if (copy_from_user(p, userbuf, count)) {
-		count =  -EFAULT;
-		goto err_out;
-	}
-
-	area = omap_find_iovm_area(dev, (u32)ppos);
-	if (!area) {
-		count = -EINVAL;
-		goto err_out;
-	}
-	memcpy(area->va, p, count);
-err_out:
-	mutex_unlock(&iommu_debug_lock);
-	free_page((unsigned long)buf);
-
-	return count;
-}
-
 #define DEBUG_FOPS(name)						\
 	static const struct file_operations debug_##name##_fops = {	\
 		.open = simple_open,					\
@@ -342,8 +232,6 @@ DEBUG_FOPS_RO(ver);
 DEBUG_FOPS_RO(regs);
 DEBUG_FOPS_RO(tlb);
 DEBUG_FOPS(pagetable);
-DEBUG_FOPS_RO(mmap);
-DEBUG_FOPS(mem);
 
 #define __DEBUG_ADD_FILE(attr, mode)					\
 	{								\
@@ -354,8 +242,8 @@ DEBUG_FOPS(mem);
 			return -ENOMEM;					\
 	}
 
-#define DEBUG_ADD_FILE(name) __DEBUG_ADD_FILE(name, 600)
-#define DEBUG_ADD_FILE_RO(name) __DEBUG_ADD_FILE(name, 400)
+#define DEBUG_ADD_FILE(name) __DEBUG_ADD_FILE(name, 0600)
+#define DEBUG_ADD_FILE_RO(name) __DEBUG_ADD_FILE(name, 0400)
 
 static int iommu_debug_register(struct device *dev, void *data)
 {
@@ -389,8 +277,6 @@ static int iommu_debug_register(struct device *dev, void *data)
 	DEBUG_ADD_FILE_RO(regs);
 	DEBUG_ADD_FILE_RO(tlb);
 	DEBUG_ADD_FILE(pagetable);
-	DEBUG_ADD_FILE_RO(mmap);
-	DEBUG_ADD_FILE(mem);
 
 	return 0;
 

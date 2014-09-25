@@ -45,7 +45,7 @@ udelay:
 	mfspr	r4,SPRN_PVR
 	srwi	r4,r4,16
 	cmpwi	0,r4,1		/* 601 ? */
-	bne	.udelay_not_601
+	bne	.Ludelay_not_601
 00:	li	r0,86	/* Instructions / microsecond? */
 	mtctr	r0
 10:	addi	r0,r0,0 /* NOP */
@@ -54,7 +54,7 @@ udelay:
 	bne	00b
 	blr
 
-.udelay_not_601:
+.Ludelay_not_601:
 	mulli	r4,r3,1000	/* nanoseconds */
 	/*  Change r4 to be the number of ticks using:
 	 *	(nanoseconds + (timebase_period_ns - 1 )) / timebase_period_ns

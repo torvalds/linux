@@ -164,6 +164,11 @@
 
 #include "twl4030.dtsi"
 #include "twl4030_omap3.dtsi"
+#include "omap3-panel-sharp-ls037v7dw01.dtsi"
+
+&backlight0 {
+	gpios = <&twl_gpio 7 GPIO_ACTIVE_HIGH>;
+};
 
 &i2c2 {
 	clock-frequency = <400000>;
@@ -173,9 +178,40 @@
 	clock-frequency = <400000>;
 };
 
+/* tps61130rsa enabled by twl4030 regen */
+&lcd_3v3 {
+	regulator-always-on;
+};
+
+&lcd0 {
+	enable-gpios = <&twl_gpio 15 GPIO_ACTIVE_HIGH>;	/* lcd INI */
+	reset-gpios = <&gpio2 23 GPIO_ACTIVE_HIGH>;	/* gpio55, lcd RESB */
+	mode-gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;	/* gpio56, lcd MO */
+};
+
+&mcspi1 {
+	tsc2046@0 {
+		interrupt-parent = <&gpio2>;
+		interrupts = <22 0>;		/* gpio54 */
+		pendown-gpio = <&gpio2 22 0>;
+	};
+};
+
 &mmc1 {
+	/* See 35xx errata 2.1.1.128 in SPRZ278F */
+	compatible = "ti,omap3-pre-es3-hsmmc";
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+};
+
+&mmc2 {
+	status="disabled";
+};
+
+&mmc3 {
+	status="disabled";
 };
 
 &omap3_pmx_core {
@@ -209,6 +245,21 @@
 			0x174 (PIN_OUTPUT | MUX_MODE0)	/* hsusb0_stp.hsusb0_stp */
 		>;
 	};
+
+	mmc1_pins: pinmux_mmc1_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2144, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_clk.mmc1_clk */
+			OMAP3_CORE1_IOPAD(0x2146, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_cmd.mmc1_cmd */
+			OMAP3_CORE1_IOPAD(0x2148, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_dat0.mmc1_dat0 */
+			OMAP3_CORE1_IOPAD(0x214A, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_dat1.mmc1_dat1 */
+			OMAP3_CORE1_IOPAD(0x214C, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_dat2.mmc1_dat2 */
+			OMAP3_CORE1_IOPAD(0x214e, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_dat3.mmc1_dat3 */
+		>;
+	};
+};
+
+&uart3 {
+	interrupts-extended = <&intc 74 &omap3_pmx_core OMAP3_UART3_RX>;
 };
 
 &usb_otg_hs {
@@ -223,9 +274,4 @@
 &vaux1 {
 	/* Needed for ads7846 */
         regulator-name = "vcc";
-};
-
-&vpll2 {
-       /* Needed for DSS */
-       regulator-name = "vdds_dsi";
 };

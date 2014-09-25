@@ -53,9 +53,9 @@
 /*
  * super-class definitions.
  */
-#include <lu_object.h>
+#include "lu_object.h"
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 struct seq_file;
 struct proc_dir_entry;
@@ -441,7 +441,8 @@ struct dt_object_operations {
 					struct dt_object *dt,
 					struct lustre_capa *old,
 					__u64 opc);
-	int (*do_object_sync)(const struct lu_env *, struct dt_object *);
+	int (*do_object_sync)(const struct lu_env *env, struct dt_object *obj,
+			      __u64 start, __u64 end);
 	/**
 	 * Get object info of next level. Currently, only get inode from osd.
 	 * This is only used by quota b=16542
@@ -900,13 +901,13 @@ static inline int dt_object_lock(const struct lu_env *env,
 int dt_lookup_dir(const struct lu_env *env, struct dt_object *dir,
 		  const char *name, struct lu_fid *fid);
 
-static inline int dt_object_sync(const struct lu_env *env,
-				 struct dt_object *o)
+static inline int dt_object_sync(const struct lu_env *env, struct dt_object *o,
+				 __u64 start, __u64 end)
 {
 	LASSERT(o);
 	LASSERT(o->do_ops);
 	LASSERT(o->do_ops->do_object_sync);
-	return o->do_ops->do_object_sync(env, o);
+	return o->do_ops->do_object_sync(env, o, start, end);
 }
 
 int dt_declare_version_set(const struct lu_env *env, struct dt_object *o,
@@ -1480,7 +1481,7 @@ static inline struct dt_thread_info *dt_info(const struct lu_env *env)
 int dt_global_init(void);
 void dt_global_fini(void);
 
-# ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 int lprocfs_dt_rd_blksize(char *page, char **start, off_t off,
 			  int count, int *eof, void *data);
 int lprocfs_dt_rd_kbytestotal(char *page, char **start, off_t off,
@@ -1493,6 +1494,6 @@ int lprocfs_dt_rd_filestotal(char *page, char **start, off_t off,
 			     int count, int *eof, void *data);
 int lprocfs_dt_rd_filesfree(char *page, char **start, off_t off,
 			    int count, int *eof, void *data);
-# endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */
 
 #endif /* __LUSTRE_DT_OBJECT_H */

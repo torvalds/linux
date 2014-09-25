@@ -39,6 +39,26 @@
 			clock-frequency = <48000000>;
 		};
 
+		abb_mpu_iva: regulator-abb-mpu {
+			compatible = "ti,abb-v1";
+			regulator-name = "abb_mpu_iva";
+			#address-cell = <0>;
+			#size-cells = <0>;
+			reg = <0x483072f0 0x8>, <0x48306818 0x4>;
+			reg-names = "base-address", "int-address";
+			ti,tranxdone-status-mask = <0x4000000>;
+			clocks = <&sys_ck>;
+			ti,settling-time = <30>;
+			ti,clock-cycles = <8>;
+			ti,abb_info = <
+			/*uV		ABB	efuse	rbb_m	fbb_m	vset_m*/
+			1012500		0	0	0	0	0
+			1200000		0	0	0	0	0
+			1325000		0	0	0	0	0
+			1375000		1	0	0	0	0
+			>;
+		};
+
 		omap3_pmx_core2: pinmux@480025a0 {
 			compatible = "ti,omap3-padconf", "pinctrl-single";
 			reg = <0x480025a0 0x5c>;
@@ -51,3 +71,25 @@
 		};
 	};
 };
+
+/* OMAP3630 needs dss_96m_fck for VENC */
+&venc {
+	clocks = <&dss_tv_fck>, <&dss_96m_fck>;
+	clock-names = "fck", "tv_dac_clk";
+};
+
+&ssi {
+	status = "ok";
+
+	clocks = <&ssi_ssr_fck>,
+		 <&ssi_sst_fck>,
+		 <&ssi_ick>;
+	clock-names = "ssi_ssr_fck",
+		      "ssi_sst_fck",
+		      "ssi_ick";
+};
+
+/include/ "omap34xx-omap36xx-clocks.dtsi"
+/include/ "omap36xx-omap3430es2plus-clocks.dtsi"
+/include/ "omap36xx-am35xx-omap3430es2plus-clocks.dtsi"
+/include/ "omap36xx-clocks.dtsi"

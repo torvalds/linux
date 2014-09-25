@@ -22,8 +22,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
-
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
@@ -31,7 +29,6 @@
 
 #include <plat/cpu.h>
 #include <plat/cpu-freq-core.h>
-#include <plat/clock.h>
 
 static struct clk *xtal;
 static struct clk *fclk;
@@ -55,7 +52,7 @@ static inline int within_khz(unsigned long a, unsigned long b)
  * specified in @cfg. The values are stored in @cfg for later use
  * by the relevant set routine if the request settings can be reached.
  */
-int s3c2440_cpufreq_calcdivs(struct s3c_cpufreq_config *cfg)
+static int s3c2440_cpufreq_calcdivs(struct s3c_cpufreq_config *cfg)
 {
 	unsigned int hdiv, pdiv;
 	unsigned long hclk, fclk, armclk;
@@ -242,7 +239,7 @@ static int s3c2440_cpufreq_calctable(struct s3c_cpufreq_config *cfg,
 	return ret;
 }
 
-struct s3c_cpufreq_info s3c2440_cpufreq_info = {
+static struct s3c_cpufreq_info s3c2440_cpufreq_info = {
 	.max		= {
 		.fclk	= 400000000,
 		.hclk	= 133333333,
@@ -263,8 +260,6 @@ struct s3c_cpufreq_info s3c2440_cpufreq_info = {
 	.set_divs	= s3c2440_cpufreq_setdivs,
 	.calc_divs	= s3c2440_cpufreq_calcdivs,
 	.calc_freqtable	= s3c2440_cpufreq_calctable,
-
-	.resume_clocks	= s3c244x_setup_clocks,
 
 	.debug_io_show  = s3c_cpufreq_debugfs_call(s3c2410_iotiming_debugfs),
 };

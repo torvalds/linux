@@ -342,11 +342,25 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
 }
 #endif /* I2C_BOARDINFO */
 
-/*
+/**
+ * struct i2c_algorithm - represent I2C transfer method
+ * @master_xfer: Issue a set of i2c transactions to the given I2C adapter
+ *   defined by the msgs array, with num messages available to transfer via
+ *   the adapter specified by adap.
+ * @smbus_xfer: Issue smbus transactions to the given I2C adapter. If this
+ *   is not present, then the bus layer will try and convert the SMBus calls
+ *   into I2C transfers instead.
+ * @functionality: Return the flags that this algorithm/adapter pair supports
+ *   from the I2C_FUNC_* flags.
+ *
  * The following structs are for those who like to implement new bus drivers:
  * i2c_algorithm is the interface to a class of hardware solutions which can
  * be addressed using the same bus algorithms - i.e. bit-banging or the PCF8584
  * to name two of the most common.
+ *
+ * The return codes from the @master_xfer field should indicate the type of
+ * error code that occured during the transfer, as documented in the kernel
+ * Documentation file Documentation/i2c/fault-codes.
  */
 struct i2c_algorithm {
 	/* If an adapter algorithm can't do I2C-level access, set master_xfer
@@ -473,6 +487,7 @@ void i2c_unlock_adapter(struct i2c_adapter *);
 #define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */
 #define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
 #define I2C_CLASS_SPD		(1<<7)	/* Memory modules */
+#define I2C_CLASS_DEPRECATED	(1<<8)	/* Warn users that adapter will stop using classes */
 
 /* Internal numbers to terminate lists */
 #define I2C_CLIENT_END		0xfffeU
@@ -561,5 +576,21 @@ static inline struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node
 	return NULL;
 }
 #endif /* CONFIG_OF */
+
+#ifdef CONFIG_ACPI
+void acpi_i2c_register_devices(struct i2c_adapter *adap);
+#else
+static inline void acpi_i2c_register_devices(struct i2c_adapter *adap) { }
+#endif /* CONFIG_ACPI */
+
+#ifdef CONFIG_ACPI_I2C_OPREGION
+int acpi_i2c_install_space_handler(struct i2c_adapter *adapter);
+void acpi_i2c_remove_space_handler(struct i2c_adapter *adapter);
+#else
+static inline void acpi_i2c_remove_space_handler(struct i2c_adapter *adapter)
+{ }
+static inline int acpi_i2c_install_space_handler(struct i2c_adapter *adapter)
+{ return 0; }
+#endif /* CONFIG_ACPI_I2C_OPREGION */
 
 #endif /* _LINUX_I2C_H */

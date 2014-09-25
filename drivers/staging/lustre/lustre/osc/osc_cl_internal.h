@@ -46,13 +46,13 @@
 #ifndef OSC_CL_INTERNAL_H
 #define OSC_CL_INTERNAL_H
 
-# include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd.h>
+#include "../include/obd.h"
 /* osc_build_res_name() */
-#include <obd_ost.h>
-#include <cl_object.h>
-#include <lclient.h>
+#include "../include/obd_ost.h"
+#include "../include/cl_object.h"
+#include "../include/lclient.h"
 #include "osc_internal.h"
 
 /** \defgroup osc osc
@@ -118,7 +118,7 @@ struct osc_object {
 	 * True if locking against this stripe got -EUSERS.
 	 */
 	int		oo_contended;
-	cfs_time_t	 oo_contention_time;
+	unsigned long	 oo_contention_time;
 	/**
 	 * List of pages in transfer.
 	 */
@@ -176,7 +176,16 @@ static inline void osc_object_unlock(struct osc_object *obj)
 
 static inline int osc_object_is_locked(struct osc_object *obj)
 {
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
 	return spin_is_locked(&obj->oo_lock);
+#else
+	/*
+	 * It is not perfect to return true all the time.
+	 * But since this function is only used for assertion
+	 * and checking, it seems OK.
+	 */
+	return 1;
+#endif
 }
 
 /*
@@ -378,7 +387,7 @@ struct osc_page {
 	/**
 	 * Submit time - the time when the page is starting RPC. For debugging.
 	 */
-	cfs_time_t	    ops_submit_time;
+	unsigned long	    ops_submit_time;
 
 	/**
 	 * A lock of which we hold a reference covers this page. Only used by

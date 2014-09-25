@@ -13,6 +13,7 @@
 #include <linux/debugfs.h>
 #include <linux/workqueue.h>
 #include <linux/kref.h>
+#include <asm/hypfs.h>
 
 #define REG_FILE_MODE    0440
 #define UPDATE_FILE_MODE 0220
@@ -36,6 +37,10 @@ extern int hypfs_vm_init(void);
 extern void hypfs_vm_exit(void);
 extern int hypfs_vm_create_files(struct dentry *root);
 
+/* Set Partition-Resource Parameter */
+int hypfs_sprp_init(void);
+void hypfs_sprp_exit(void);
+
 /* debugfs interface */
 struct hypfs_dbfs_file;
 
@@ -52,6 +57,8 @@ struct hypfs_dbfs_file {
 	int		(*data_create)(void **data, void **data_free_ptr,
 				       size_t *size);
 	void		(*data_free)(const void *buf_free_ptr);
+	long		(*unlocked_ioctl) (struct file *, unsigned int,
+					   unsigned long);
 
 	/* Private data for hypfs_dbfs.c */
 	struct hypfs_dbfs_data	*data;

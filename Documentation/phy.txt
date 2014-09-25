@@ -53,10 +53,12 @@ unregister the PHY.
 The PHY driver should create the PHY in order for other peripheral controllers
 to make use of it. The PHY framework provides 2 APIs to create the PHY.
 
-struct phy *phy_create(struct device *dev, const struct phy_ops *ops,
-        struct phy_init_data *init_data);
-struct phy *devm_phy_create(struct device *dev, const struct phy_ops *ops,
-	struct phy_init_data *init_data);
+struct phy *phy_create(struct device *dev, struct device_node *node,
+		       const struct phy_ops *ops,
+		       struct phy_init_data *init_data);
+struct phy *devm_phy_create(struct device *dev, struct device_node *node,
+			    const struct phy_ops *ops,
+			    struct phy_init_data *init_data);
 
 The PHY drivers can use one of the above 2 APIs to create the PHY by passing
 the device pointer, phy ops and init_data.
@@ -75,14 +77,26 @@ Before the controller can make use of the PHY, it has to get a reference to
 it. This framework provides the following APIs to get a reference to the PHY.
 
 struct phy *phy_get(struct device *dev, const char *string);
+struct phy *phy_optional_get(struct device *dev, const char *string);
 struct phy *devm_phy_get(struct device *dev, const char *string);
+struct phy *devm_phy_optional_get(struct device *dev, const char *string);
 
-phy_get and devm_phy_get can be used to get the PHY. In the case of dt boot,
-the string arguments should contain the phy name as given in the dt data and
-in the case of non-dt boot, it should contain the label of the PHY.
-The only difference between the two APIs is that devm_phy_get associates the
-device with the PHY using devres on successful PHY get. On driver detach,
-release function is invoked on the the devres data and devres data is freed.
+phy_get, phy_optional_get, devm_phy_get and devm_phy_optional_get can
+be used to get the PHY. In the case of dt boot, the string arguments
+should contain the phy name as given in the dt data and in the case of
+non-dt boot, it should contain the label of the PHY.  The two
+devm_phy_get associates the device with the PHY using devres on
+successful PHY get. On driver detach, release function is invoked on
+the the devres data and devres data is freed. phy_optional_get and
+devm_phy_optional_get should be used when the phy is optional. These
+two functions will never return -ENODEV, but instead returns NULL when
+the phy cannot be found.
+
+It should be noted that NULL is a valid phy reference. All phy
+consumer calls on the NULL phy become NOPs. That is the release calls,
+the phy_init() and phy_exit() calls, and phy_power_on() and
+phy_power_off() calls are all NOP when applied to a NULL phy. The NULL
+phy is useful in devices for handling optional phy devices.
 
 5. Releasing a reference to the PHY
 

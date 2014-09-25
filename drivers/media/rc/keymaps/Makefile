@@ -98,4 +98,5 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-videomate-s350.o \
 			rc-videomate-tv-pvr.o \
 			rc-winfast.o \
-			rc-winfast-usbii-deluxe.o
+			rc-winfast-usbii-deluxe.o \
+			rc-su3000.o

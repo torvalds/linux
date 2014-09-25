@@ -18,6 +18,8 @@
 #ifndef __ARM_KVM_ASM_H__
 #define __ARM_KVM_ASM_H__
 
+#include <asm/virt.h>
+
 /*
  * 0 is reserved as an invalid value.
  * Order *must* be kept in sync with the hyp switch code.
@@ -43,14 +45,25 @@
 #define	AMAIR_EL1	19	/* Aux Memory Attribute Indirection Register */
 #define	CNTKCTL_EL1	20	/* Timer Control Register (EL1) */
 #define	PAR_EL1		21	/* Physical Address Register */
+#define MDSCR_EL1	22	/* Monitor Debug System Control Register */
+#define DBGBCR0_EL1	23	/* Debug Breakpoint Control Registers (0-15) */
+#define DBGBCR15_EL1	38
+#define DBGBVR0_EL1	39	/* Debug Breakpoint Value Registers (0-15) */
+#define DBGBVR15_EL1	54
+#define DBGWCR0_EL1	55	/* Debug Watchpoint Control Registers (0-15) */
+#define DBGWCR15_EL1	70
+#define DBGWVR0_EL1	71	/* Debug Watchpoint Value Registers (0-15) */
+#define DBGWVR15_EL1	86
+#define MDCCINT_EL1	87	/* Monitor Debug Comms Channel Interrupt Enable Reg */
+
 /* 32bit specific registers. Keep them at the end of the range */
-#define	DACR32_EL2	22	/* Domain Access Control Register */
-#define	IFSR32_EL2	23	/* Instruction Fault Status Register */
-#define	FPEXC32_EL2	24	/* Floating-Point Exception Control Register */
-#define	DBGVCR32_EL2	25	/* Debug Vector Catch Register */
-#define	TEECR32_EL1	26	/* ThumbEE Configuration Register */
-#define	TEEHBR32_EL1	27	/* ThumbEE Handler Base Register */
-#define	NR_SYS_REGS	28
+#define	DACR32_EL2	88	/* Domain Access Control Register */
+#define	IFSR32_EL2	89	/* Instruction Fault Status Register */
+#define	FPEXC32_EL2	90	/* Floating-Point Exception Control Register */
+#define	DBGVCR32_EL2	91	/* Debug Vector Catch Register */
+#define	TEECR32_EL1	92	/* ThumbEE Configuration Register */
+#define	TEEHBR32_EL1	93	/* ThumbEE Handler Base Register */
+#define	NR_SYS_REGS	94
 
 /* 32bit mapping */
 #define c0_MPIDR	(MPIDR_EL1 * 2)	/* MultiProcessor ID Register */
@@ -79,12 +92,25 @@
 #define c13_TID_URW	(TPIDR_EL0 * 2)	/* Thread ID, User R/W */
 #define c13_TID_URO	(TPIDRRO_EL0 * 2)/* Thread ID, User R/O */
 #define c13_TID_PRIV	(TPIDR_EL1 * 2)	/* Thread ID, Privileged */
-#define c10_AMAIR	(AMAIR_EL1 * 2)	/* Aux Memory Attr Indirection Reg */
+#define c10_AMAIR0	(AMAIR_EL1 * 2)	/* Aux Memory Attr Indirection Reg */
+#define c10_AMAIR1	(c10_AMAIR0 + 1)/* Aux Memory Attr Indirection Reg */
 #define c14_CNTKCTL	(CNTKCTL_EL1 * 2) /* Timer Control Register (PL1) */
-#define NR_CP15_REGS	(NR_SYS_REGS * 2)
+
+#define cp14_DBGDSCRext	(MDSCR_EL1 * 2)
+#define cp14_DBGBCR0	(DBGBCR0_EL1 * 2)
+#define cp14_DBGBVR0	(DBGBVR0_EL1 * 2)
+#define cp14_DBGBXVR0	(cp14_DBGBVR0 + 1)
+#define cp14_DBGWCR0	(DBGWCR0_EL1 * 2)
+#define cp14_DBGWVR0	(DBGWVR0_EL1 * 2)
+#define cp14_DBGDCCINT	(MDCCINT_EL1 * 2)
+
+#define NR_COPRO_REGS	(NR_SYS_REGS * 2)
 
 #define ARM_EXCEPTION_IRQ	  0
 #define ARM_EXCEPTION_TRAP	  1
+
+#define KVM_ARM64_DEBUG_DIRTY_SHIFT	0
+#define KVM_ARM64_DEBUG_DIRTY		(1 << KVM_ARM64_DEBUG_DIRTY_SHIFT)
 
 #ifndef __ASSEMBLY__
 struct kvm;
@@ -95,13 +121,21 @@ extern char __kvm_hyp_init_end[];
 
 extern char __kvm_hyp_vector[];
 
-extern char __kvm_hyp_code_start[];
-extern char __kvm_hyp_code_end[];
+#define	__kvm_hyp_code_start	__hyp_text_start
+#define	__kvm_hyp_code_end	__hyp_text_end
 
 extern void __kvm_flush_vm_context(void);
 extern void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa);
 
 extern int __kvm_vcpu_run(struct kvm_vcpu *vcpu);
+
+extern u64 __vgic_v3_get_ich_vtr_el2(void);
+
+extern char __save_vgic_v2_state[];
+extern char __restore_vgic_v2_state[];
+extern char __save_vgic_v3_state[];
+extern char __restore_vgic_v3_state[];
+
 #endif
 
 #endif /* __ARM_KVM_ASM_H__ */

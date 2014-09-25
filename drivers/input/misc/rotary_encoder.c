@@ -16,7 +16,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/device.h>
@@ -144,7 +143,7 @@ static irqreturn_t rotary_encoder_half_period_irq(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id rotary_encoder_of_match[] = {
+static const struct of_device_id rotary_encoder_of_match[] = {
 	{ .compatible = "rotary-encoder", },
 	{ },
 };

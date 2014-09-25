@@ -20,6 +20,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
+#include <linux/delay.h>
 
 #include <asm/opal.h>
 
@@ -76,11 +77,8 @@
 /* Validate buffer size */
 #define VALIDATE_BUF_SIZE	4096
 
-/* XXX: Assume candidate image size is <= 256MB */
-#define MAX_IMAGE_SIZE	0x10000000
-
-/* Flash sg list version */
-#define SG_LIST_VERSION (1UL)
+/* XXX: Assume candidate image size is <= 1GB */
+#define MAX_IMAGE_SIZE	0x40000000
 
 /* Image status */
 enum {
@@ -101,27 +99,6 @@ struct image_header_t {
 	uint16_t	magic;
 	uint16_t	version;
 	uint32_t	size;
-};
-
-/* Scatter/gather entry */
-struct opal_sg_entry {
-	void	*data;
-	long	length;
-};
-
-/* We calculate number of entries based on PAGE_SIZE */
-#define SG_ENTRIES_PER_NODE ((PAGE_SIZE - 16) / sizeof(struct opal_sg_entry))
-
-/*
- * This struct is very similar but not identical to that
- * needed by the opal flash update. All we need to do for
- * opal is rewrite num_entries into a version/length and
- * translate the pointers to absolute.
- */
-struct opal_sg_list {
-	unsigned long num_entries;
-	struct opal_sg_list *next;
-	struct opal_sg_entry entry[SG_ENTRIES_PER_NODE];
 };
 
 struct validate_flash_t {
@@ -152,11 +129,16 @@ static DEFINE_MUTEX(image_data_mutex);
  */
 static inline void opal_flash_validate(void)
 {
-	struct validate_flash_t *args_buf = &validate_flash_data;
+	long ret;
+	void *buf = validate_flash_data.buf;
+	__be32 size = cpu_to_be32(validate_flash_data.buf_size);
+	__be32 result;
 
-	args_buf->status = opal_validate_flash(__pa(args_buf->buf),
-					       &(args_buf->buf_size),
-					       &(args_buf->result));
+	ret = opal_validate_flash(__pa(buf), &size, &result);
+
+	validate_flash_data.status = ret;
+	validate_flash_data.buf_size = be32_to_cpu(size);
+	validate_flash_data.result = be32_to_cpu(result);
 }
 
 /*
@@ -289,94 +271,11 @@ static ssize_t manage_store(struct kobject *kobj,
 }
 
 /*
- * Free sg list
- */
-static void free_sg_list(struct opal_sg_list *list)
-{
-	struct opal_sg_list *sg1;
-	while (list) {
-		sg1 = list->next;
-		kfree(list);
-		list = sg1;
-	}
-	list = NULL;
-}
-
-/*
- * Build candidate image scatter gather list
- *
- * list format:
- *   -----------------------------------
- *  |  VER (8) | Entry length in bytes  |
- *   -----------------------------------
- *  |  Pointer to next entry            |
- *   -----------------------------------
- *  |  Address of memory area 1         |
- *   -----------------------------------
- *  |  Length of memory area 1          |
- *   -----------------------------------
- *  |   .........                       |
- *   -----------------------------------
- *  |   .........                       |
- *   -----------------------------------
- *  |  Address of memory area N         |
- *   -----------------------------------
- *  |  Length of memory area N          |
- *   -----------------------------------
- */
-static struct opal_sg_list *image_data_to_sglist(void)
-{
-	struct opal_sg_list *sg1, *list = NULL;
-	void *addr;
-	int size;
-
-	addr = image_data.data;
-	size = image_data.size;
-
-	sg1 = kzalloc((sizeof(struct opal_sg_list)), GFP_KERNEL);
-	if (!sg1)
-		return NULL;
-
-	list = sg1;
-	sg1->num_entries = 0;
-	while (size > 0) {
-		/* Translate virtual address to physical address */
-		sg1->entry[sg1->num_entries].data =
-			(void *)(vmalloc_to_pfn(addr) << PAGE_SHIFT);
-
-		if (size > PAGE_SIZE)
-			sg1->entry[sg1->num_entries].length = PAGE_SIZE;
-		else
-			sg1->entry[sg1->num_entries].length = size;
-
-		sg1->num_entries++;
-		if (sg1->num_entries >= SG_ENTRIES_PER_NODE) {
-			sg1->next = kzalloc((sizeof(struct opal_sg_list)),
-					    GFP_KERNEL);
-			if (!sg1->next) {
-				pr_err("%s : Failed to allocate memory\n",
-				       __func__);
-				goto nomem;
-			}
-
-			sg1 = sg1->next;
-			sg1->num_entries = 0;
-		}
-		addr += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-	return list;
-nomem:
-	free_sg_list(list);
-	return NULL;
-}
-
-/*
  * OPAL update flash
  */
 static int opal_flash_update(int op)
 {
-	struct opal_sg_list *sg, *list, *next;
+	struct opal_sg_list *list;
 	unsigned long addr;
 	int64_t rc = OPAL_PARAMETER;
 
@@ -386,37 +285,59 @@ static int opal_flash_update(int op)
 		goto flash;
 	}
 
-	list = image_data_to_sglist();
+	list = opal_vmalloc_to_sg_list(image_data.data, image_data.size);
 	if (!list)
 		goto invalid_img;
 
 	/* First entry address */
 	addr = __pa(list);
 
-	/* Translate sg list address to absolute */
-	for (sg = list; sg; sg = next) {
-		next = sg->next;
-		/* Don't translate NULL pointer for last entry */
-		if (sg->next)
-			sg->next = (struct opal_sg_list *)__pa(sg->next);
-		else
-			sg->next = NULL;
-
-		/* Make num_entries into the version/length field */
-		sg->num_entries = (SG_LIST_VERSION << 56) |
-			(sg->num_entries * sizeof(struct opal_sg_entry) + 16);
-	}
-
-	pr_alert("FLASH: Image is %u bytes\n", image_data.size);
-	pr_alert("FLASH: Image update requested\n");
-	pr_alert("FLASH: Image will be updated during system reboot\n");
-	pr_alert("FLASH: This will take several minutes. Do not power off!\n");
-
 flash:
 	rc = opal_update_flash(addr);
 
 invalid_img:
 	return rc;
+}
+
+/* Return CPUs to OPAL before starting FW update */
+static void flash_return_cpu(void *info)
+{
+	int cpu = smp_processor_id();
+
+	if (!cpu_online(cpu))
+		return;
+
+	/* Disable IRQ */
+	hard_irq_disable();
+
+	/* Return the CPU to OPAL */
+	opal_return_cpu();
+}
+
+/* This gets called just before system reboots */
+void opal_flash_term_callback(void)
+{
+	struct cpumask mask;
+
+	if (update_flash_data.status != FLASH_IMG_READY)
+		return;
+
+	pr_alert("FLASH: Flashing new firmware\n");
+	pr_alert("FLASH: Image is %u bytes\n", image_data.size);
+	pr_alert("FLASH: Performing flash and reboot/shutdown\n");
+	pr_alert("FLASH: This will take several minutes. Do not power off!\n");
+
+	/* Small delay to help getting the above message out */
+	msleep(500);
+
+	/* Return secondary CPUs to firmware */
+	cpumask_copy(&mask, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &mask);
+	if (!cpumask_empty(&mask))
+		smp_call_function_many(&mask,
+				       flash_return_cpu, NULL, false);
+	/* Hard disable interrupts */
+	hard_irq_disable();
 }
 
 /*

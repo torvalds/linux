@@ -29,11 +29,12 @@
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
 
+#include <nvif/notify.h>
+#include <nvif/event.h>
+
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
-
-#include <engine/fifo.h>
 
 struct fence_work {
 	struct work_struct base;
@@ -143,7 +144,7 @@ nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 	int ret;
 
 	fence->channel  = chan;
-	fence->timeout  = jiffies + (15 * DRM_HZ);
+	fence->timeout  = jiffies + (15 * HZ);
 	fence->sequence = ++fctx->sequence;
 
 	ret = fctx->emit(fence);
@@ -165,12 +166,18 @@ nouveau_fence_done(struct nouveau_fence *fence)
 	return !fence->channel;
 }
 
+struct nouveau_fence_wait {
+	struct nouveau_fence_priv *priv;
+	struct nvif_notify notify;
+};
+
 static int
-nouveau_fence_wait_uevent_handler(void *data, int index)
+nouveau_fence_wait_uevent_handler(struct nvif_notify *notify)
 {
-	struct nouveau_fence_priv *priv = data;
-	wake_up_all(&priv->waiting);
-	return NVKM_EVENT_KEEP;
+	struct nouveau_fence_wait *wait =
+		container_of(notify, typeof(*wait), notify);
+	wake_up_all(&wait->priv->waiting);
+	return NVIF_NOTIFY_KEEP;
 }
 
 static int
@@ -178,18 +185,22 @@ nouveau_fence_wait_uevent(struct nouveau_fence *fence, bool intr)
 
 {
 	struct nouveau_channel *chan = fence->channel;
-	struct nouveau_fifo *pfifo = nouveau_fifo(chan->drm->device);
 	struct nouveau_fence_priv *priv = chan->drm->fence;
-	struct nouveau_eventh *handler;
+	struct nouveau_fence_wait wait = { .priv = priv };
 	int ret = 0;
 
-	ret = nouveau_event_new(pfifo->uevent, 0,
-				nouveau_fence_wait_uevent_handler,
-				priv, &handler);
+	ret = nvif_notify_init(chan->object, NULL,
+			       nouveau_fence_wait_uevent_handler, false,
+			       G82_CHANNEL_DMA_V0_NTFY_UEVENT,
+			       &(struct nvif_notify_uevent_req) {
+			       },
+			       sizeof(struct nvif_notify_uevent_req),
+			       sizeof(struct nvif_notify_uevent_rep),
+			       &wait.notify);
 	if (ret)
 		return ret;
 
-	nouveau_event_get(handler);
+	nvif_notify_get(&wait.notify);
 
 	if (fence->timeout) {
 		unsigned long timeout = fence->timeout - jiffies;
@@ -221,7 +232,7 @@ nouveau_fence_wait_uevent(struct nouveau_fence *fence, bool intr)
 		}
 	}
 
-	nouveau_event_ref(NULL, &handler);
+	nvif_notify_fini(&wait.notify);
 	if (unlikely(ret < 0))
 		return ret;
 

@@ -58,7 +58,7 @@
 ENTRY(HYPERVISOR_##hypercall)			\
 	mov r12, #__HYPERVISOR_##hypercall;	\
 	__HVC(XEN_IMM);						\
-	mov pc, lr;							\
+	ret lr;					\
 ENDPROC(HYPERVISOR_##hypercall)
 
 #define HYPERCALL0 HYPERCALL_SIMPLE
@@ -74,7 +74,7 @@ ENTRY(HYPERVISOR_##hypercall)			\
 	mov r12, #__HYPERVISOR_##hypercall;	\
 	__HVC(XEN_IMM);						\
 	ldm sp!, {r4}						\
-	mov pc, lr							\
+	ret lr					\
 ENDPROC(HYPERVISOR_##hypercall)
 
                 .text
@@ -89,6 +89,7 @@ HYPERCALL2(memory_op);
 HYPERCALL2(physdev_op);
 HYPERCALL3(vcpu_op);
 HYPERCALL1(tmem_op);
+HYPERCALL2(multicall);
 
 ENTRY(privcmd_call)
 	stmdb sp!, {r4}
@@ -100,5 +101,5 @@ ENTRY(privcmd_call)
 	ldr r4, [sp, #4]
 	__HVC(XEN_IMM)
 	ldm sp!, {r4}
-	mov pc, lr
+	ret lr
 ENDPROC(privcmd_call);

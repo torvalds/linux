@@ -12,9 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) "hci: %s: " fmt, __func__
@@ -28,6 +26,8 @@
 
 #include "hci.h"
 
+#define MAX_FWI 4949
+
 static int nfc_hci_execute_cmd_async(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 			       const u8 *param, size_t param_len,
 			       data_exchange_cb_t cb, void *cb_context)
@@ -39,7 +39,7 @@ static int nfc_hci_execute_cmd_async(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 	 * for all commands?
 	 */
 	return nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_COMMAND, cmd,
-				      param, param_len, cb, cb_context, 3000);
+				      param, param_len, cb, cb_context, MAX_FWI);
 }
 
 /*
@@ -84,7 +84,7 @@ static int nfc_hci_execute_cmd(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 						    NFC_HCI_HCP_COMMAND, cmd,
 						    param, param_len,
 						    nfc_hci_execute_cb, &hcp_ew,
-						    3000);
+						    MAX_FWI);
 	if (hcp_ew.exec_result < 0)
 		return hcp_ew.exec_result;
 

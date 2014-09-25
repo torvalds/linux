@@ -43,20 +43,20 @@
 
 #define DEBUG_SUBSYSTEM S_FLD
 
-# include <linux/libcfs/libcfs.h>
-# include <linux/module.h>
-# include <asm/div64.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/module.h>
+#include <asm/div64.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <lustre_ver.h>
-#include <obd_support.h>
-#include <lprocfs_status.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_ver.h"
+#include "../include/obd_support.h"
+#include "../include/lprocfs_status.h"
 
-#include <dt_object.h>
-#include <md_object.h>
-#include <lustre_req_layout.h>
-#include <lustre_fld.h>
+#include "../include/dt_object.h"
+#include "../include/md_object.h"
+#include "../include/lustre_req_layout.h"
+#include "../include/lustre_fld.h"
 #include "fld_internal.h"
 
 /**
@@ -113,9 +113,9 @@ void fld_cache_fini(struct fld_cache *cache)
 	}
 
 	CDEBUG(D_INFO, "FLD cache statistics (%s):\n", cache->fci_name);
-	CDEBUG(D_INFO, "  Total reqs: "LPU64"\n", cache->fci_stat.fst_count);
-	CDEBUG(D_INFO, "  Cache reqs: "LPU64"\n", cache->fci_stat.fst_cache);
-	CDEBUG(D_INFO, "  Cache hits: "LPU64"%%\n", pct);
+	CDEBUG(D_INFO, "  Total reqs: %llu\n", cache->fci_stat.fst_count);
+	CDEBUG(D_INFO, "  Cache reqs: %llu\n", cache->fci_stat.fst_cache);
+	CDEBUG(D_INFO, "  Cache hits: %llu%%\n", pct);
 
 	OBD_FREE_PTR(cache);
 }
@@ -236,8 +236,8 @@ static int fld_cache_shrink(struct fld_cache *cache)
 		num++;
 	}
 
-	CDEBUG(D_INFO, "%s: FLD cache - Shrunk by "
-	       "%d entries\n", cache->fci_name, num);
+	CDEBUG(D_INFO, "%s: FLD cache - Shrunk by %d entries\n",
+			cache->fci_name, num);
 
 	return 0;
 }
@@ -355,7 +355,7 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 		fld_cache_entry_add(cache, f_new, &f_curr->fce_list);
 	} else
 		CERROR("NEW range ="DRANGE" curr = "DRANGE"\n",
-		       PRANGE(range),PRANGE(&f_curr->fce_range));
+		       PRANGE(range), PRANGE(&f_curr->fce_range));
 }
 
 struct fld_cache_entry

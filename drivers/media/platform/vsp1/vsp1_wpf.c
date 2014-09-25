@@ -1,7 +1,7 @@
 /*
  * vsp1_wpf.c  --  R-Car VSP1 Write Pixel Formatter
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -39,36 +39,77 @@ static inline void vsp1_wpf_write(struct vsp1_rwpf *wpf, u32 reg, u32 data)
 }
 
 /* -----------------------------------------------------------------------------
+ * Controls
+ */
+
+static int wpf_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vsp1_rwpf *wpf =
+		container_of(ctrl->handler, struct vsp1_rwpf, ctrls);
+	u32 value;
+
+	if (!vsp1_entity_is_streaming(&wpf->entity))
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_ALPHA_COMPONENT:
+		value = vsp1_wpf_read(wpf, VI6_WPF_OUTFMT);
+		value &= ~VI6_WPF_OUTFMT_PDV_MASK;
+		value |= ctrl->val << VI6_WPF_OUTFMT_PDV_SHIFT;
+		vsp1_wpf_write(wpf, VI6_WPF_OUTFMT, value);
+		break;
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops wpf_ctrl_ops = {
+	.s_ctrl = wpf_s_ctrl,
+};
+
+/* -----------------------------------------------------------------------------
  * V4L2 Subdevice Core Operations
  */
 
 static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 {
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&subdev->entity);
 	struct vsp1_rwpf *wpf = to_rwpf(subdev);
-	struct vsp1_pipeline *pipe =
-		to_vsp1_pipeline(&wpf->entity.subdev.entity);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
-	const struct v4l2_mbus_framefmt *format =
-		&wpf->entity.formats[RWPF_PAD_SOURCE];
+	const struct v4l2_rect *crop = &wpf->crop;
 	unsigned int i;
 	u32 srcrpf = 0;
 	u32 outfmt = 0;
+	int ret;
+
+	ret = vsp1_entity_set_streaming(&wpf->entity, enable);
+	if (ret < 0)
+		return ret;
 
 	if (!enable) {
 		vsp1_write(vsp1, VI6_WPF_IRQ_ENB(wpf->entity.index), 0);
+		vsp1_wpf_write(wpf, VI6_WPF_SRCRPF, 0);
 		return 0;
 	}
 
-	/* Sources */
+	/* Sources. If the pipeline has a single input configure it as the
+	 * master layer. Otherwise configure all inputs as sub-layers and
+	 * select the virtual RPF as the master layer.
+	 */
 	for (i = 0; i < pipe->num_inputs; ++i) {
 		struct vsp1_rwpf *input = pipe->inputs[i];
 
-		srcrpf |= VI6_WPF_SRCRPF_RPF_ACT_MST(input->entity.index);
+		srcrpf |= pipe->num_inputs == 1
+			? VI6_WPF_SRCRPF_RPF_ACT_MST(input->entity.index)
+			: VI6_WPF_SRCRPF_RPF_ACT_SUB(input->entity.index);
 	}
+
+	if (pipe->num_inputs > 1)
+		srcrpf |= VI6_WPF_SRCRPF_VIRACT_MST;
 
 	vsp1_wpf_write(wpf, VI6_WPF_SRCRPF, srcrpf);
 
-	/* Destination stride. Cropping isn't supported yet. */
+	/* Destination stride. */
 	if (!pipe->lif) {
 		struct v4l2_pix_format_mplane *format = &wpf->video.format;
 
@@ -79,10 +120,12 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 				       format->plane_fmt[1].bytesperline);
 	}
 
-	vsp1_wpf_write(wpf, VI6_WPF_HSZCLIP,
-		       format->width << VI6_WPF_SZCLIP_SIZE_SHIFT);
-	vsp1_wpf_write(wpf, VI6_WPF_VSZCLIP,
-		       format->height << VI6_WPF_SZCLIP_SIZE_SHIFT);
+	vsp1_wpf_write(wpf, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
+		       (crop->left << VI6_WPF_SZCLIP_OFST_SHIFT) |
+		       (crop->width << VI6_WPF_SZCLIP_SIZE_SHIFT));
+	vsp1_wpf_write(wpf, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
+		       (crop->top << VI6_WPF_SZCLIP_OFST_SHIFT) |
+		       (crop->height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
 	/* Format */
 	if (!pipe->lif) {
@@ -90,6 +133,8 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 
 		outfmt = fmtinfo->hwfmt << VI6_WPF_OUTFMT_WRFMT_SHIFT;
 
+		if (fmtinfo->alpha)
+			outfmt |= VI6_WPF_OUTFMT_PXA;
 		if (fmtinfo->swap_yc)
 			outfmt |= VI6_WPF_OUTFMT_SPYCS;
 		if (fmtinfo->swap_uv)
@@ -102,7 +147,13 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	    wpf->entity.formats[RWPF_PAD_SOURCE].code)
 		outfmt |= VI6_WPF_OUTFMT_CSC;
 
+	/* Take the control handler lock to ensure that the PDV value won't be
+	 * changed behind our back by a set control operation.
+	 */
+	mutex_lock(wpf->ctrls.lock);
+	outfmt |= vsp1_wpf_read(wpf, VI6_WPF_OUTFMT) & VI6_WPF_OUTFMT_PDV_MASK;
 	vsp1_wpf_write(wpf, VI6_WPF_OUTFMT, outfmt);
+	mutex_unlock(wpf->ctrls.lock);
 
 	vsp1_write(vsp1, VI6_DPR_WPF_FPORCH(wpf->entity.index),
 		   VI6_DPR_WPF_FPORCH_FP_WPFN);
@@ -130,6 +181,8 @@ static struct v4l2_subdev_pad_ops wpf_pad_ops = {
 	.enum_frame_size = vsp1_rwpf_enum_frame_size,
 	.get_fmt = vsp1_rwpf_get_format,
 	.set_fmt = vsp1_rwpf_set_format,
+	.get_selection = vsp1_rwpf_get_selection,
+	.set_selection = vsp1_rwpf_set_selection,
 };
 
 static struct v4l2_subdev_ops wpf_ops = {
@@ -178,7 +231,6 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	wpf->entity.type = VSP1_ENTITY_WPF;
 	wpf->entity.index = index;
-	wpf->entity.id = VI6_DPR_NODE_WPF(index);
 
 	ret = vsp1_entity_init(vsp1, &wpf->entity, 2);
 	if (ret < 0)
@@ -197,6 +249,20 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	vsp1_entity_init_formats(subdev, NULL);
 
+	/* Initialize the control handler. */
+	v4l2_ctrl_handler_init(&wpf->ctrls, 1);
+	v4l2_ctrl_new_std(&wpf->ctrls, &wpf_ctrl_ops, V4L2_CID_ALPHA_COMPONENT,
+			  0, 255, 1, 255);
+
+	wpf->entity.subdev.ctrl_handler = &wpf->ctrls;
+
+	if (wpf->ctrls.error) {
+		dev_err(vsp1->dev, "wpf%u: failed to initialize controls\n",
+			index);
+		ret = wpf->ctrls.error;
+		goto error;
+	}
+
 	/* Initialize the video device. */
 	video = &wpf->video;
 
@@ -206,7 +272,9 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	ret = vsp1_video_init(video, &wpf->entity);
 	if (ret < 0)
-		goto error_video;
+		goto error;
+
+	wpf->entity.video = video;
 
 	/* Connect the video device to the WPF. All connections are immutable
 	 * except for the WPF0 source link if a LIF is present.
@@ -219,15 +287,13 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 				       RWPF_PAD_SOURCE,
 				       &wpf->video.video.entity, 0, flags);
 	if (ret < 0)
-		goto error_link;
+		goto error;
 
 	wpf->entity.sink = &wpf->video.video.entity;
 
 	return wpf;
 
-error_link:
-	vsp1_video_cleanup(video);
-error_video:
-	media_entity_cleanup(&wpf->entity.subdev.entity);
+error:
+	vsp1_entity_destroy(&wpf->entity);
 	return ERR_PTR(ret);
 }

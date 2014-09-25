@@ -8,11 +8,11 @@ Required properties:
   the Cadence GEM, or the generic form: "cdns,gem".
 - reg: Address and length of the register set for the device
 - interrupts: Should contain macb interrupt
-- phy-mode: String, operation mode of the PHY interface.
-  Supported values are: "mii", "rmii", "gmii", "rgmii".
-
-Optional properties:
-- local-mac-address: 6 bytes, mac address
+- phy-mode: See ethernet.txt file in the same directory.
+- clock-names: Tuple listing input clock names.
+	Required elements: 'pclk', 'hclk'
+	Optional elements: 'tx_clk'
+- clocks: Phandles to input clocks.
 
 Examples:
 
@@ -22,4 +22,6 @@ Examples:
 		interrupts = <21>;
 		phy-mode = "rmii";
 		local-mac-address = [3a 0e 03 04 05 06];
+		clock-names = "pclk", "hclk", "tx_clk";
+		clocks = <&clkc 30>, <&clkc 30>, <&clkc 13>;
 	};

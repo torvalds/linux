@@ -286,7 +286,7 @@ static int sh_vou_buf_prepare(struct videobuf_queue *vq,
 	vb->size = vb->height * bytes_per_line;
 	if (vb->baddr && vb->bsize < vb->size) {
 		/* User buffer too small */
-		dev_warn(vq->dev, "User buffer too small: [%u] @ %lx\n",
+		dev_warn(vq->dev, "User buffer too small: [%zu] @ %lx\n",
 			 vb->bsize, vb->baddr);
 		return -EINVAL;
 	}
@@ -302,9 +302,10 @@ static int sh_vou_buf_prepare(struct videobuf_queue *vq,
 	}
 
 	dev_dbg(vou_dev->v4l2_dev.dev,
-		"%s(): fmt #%d, %u bytes per line, phys 0x%x, type %d, state %d\n",
+		"%s(): fmt #%d, %u bytes per line, phys %pad, type %d, state %d\n",
 		__func__, vou_dev->pix_idx, bytes_per_line,
-		videobuf_to_dma_contig(vb), vb->memory, vb->state);
+		({ dma_addr_t addr = videobuf_to_dma_contig(vb); &addr; }),
+		vb->memory, vb->state);
 
 	return 0;
 }
@@ -442,7 +443,7 @@ static void sh_vou_configure_geometry(struct sh_vou_device *vou_dev,
 				      int pix_idx, int w_idx, int h_idx)
 {
 	struct sh_vou_fmt *fmt = vou_fmt + pix_idx;
-	unsigned int black_left, black_top, width_max, height_max,
+	unsigned int black_left, black_top, width_max,
 		frame_in_height, frame_out_height, frame_out_top;
 	struct v4l2_rect *rect = &vou_dev->rect;
 	struct v4l2_pix_format *pix = &vou_dev->pix;
@@ -450,10 +451,10 @@ static void sh_vou_configure_geometry(struct sh_vou_device *vou_dev,
 
 	if (vou_dev->std & V4L2_STD_525_60) {
 		width_max = 858;
-		height_max = 262;
+		/* height_max = 262; */
 	} else {
 		width_max = 864;
-		height_max = 312;
+		/* height_max = 312; */
 	}
 
 	frame_in_height = pix->height / 2;
@@ -1052,7 +1053,6 @@ static irqreturn_t sh_vou_isr(int irq, void *dev_id)
 	static unsigned long j;
 	struct videobuf_buffer *vb;
 	static int cnt;
-	static int side;
 	u32 irq_status = sh_vou_reg_a_read(vou_dev, VOUIR), masked;
 	u32 vou_status = sh_vou_reg_a_read(vou_dev, VOUSTR);
 
@@ -1080,7 +1080,7 @@ static irqreturn_t sh_vou_isr(int irq, void *dev_id)
 		irq_status, masked, vou_status, cnt);
 
 	cnt++;
-	side = vou_status & 0x10000;
+	/* side = vou_status & 0x10000; */
 
 	/* Clear only set interrupts */
 	sh_vou_reg_a_write(vou_dev, VOUIR, masked);

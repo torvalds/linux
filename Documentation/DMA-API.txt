@@ -4,22 +4,26 @@
         James E.J. Bottomley <James.Bottomley@HansenPartnership.com>
 
 This document describes the DMA API.  For a more gentle introduction
-of the API (and actual examples) see
-Documentation/DMA-API-HOWTO.txt.
+of the API (and actual examples), see Documentation/DMA-API-HOWTO.txt.
 
-This API is split into two pieces.  Part I describes the API.  Part II
-describes the extensions to the API for supporting non-consistent
-memory machines.  Unless you know that your driver absolutely has to
-support non-consistent platforms (this is usually only legacy
-platforms) you should only use the API described in part I.
+This API is split into two pieces.  Part I describes the basic API.
+Part II describes extensions for supporting non-consistent memory
+machines.  Unless you know that your driver absolutely has to support
+non-consistent platforms (this is usually only legacy platforms) you
+should only use the API described in part I.
 
 Part I - dma_ API
 -------------------------------------
 
-To get the dma_ API, you must #include <linux/dma-mapping.h>
+To get the dma_ API, you must #include <linux/dma-mapping.h>.  This
+provides dma_addr_t and the interfaces described below.
 
+A dma_addr_t can hold any valid DMA or bus address for the platform.  It
+can be given to a device to use as a DMA source or target.  A CPU cannot
+reference a dma_addr_t directly because there may be translation between
+its physical address space and the bus address space.
 
-Part Ia - Using large dma-coherent buffers
+Part Ia - Using large DMA-coherent buffers
 ------------------------------------------
 
 void *
@@ -33,20 +37,21 @@ to make sure to flush the processor's write buffers before telling
 devices to read that memory.)
 
 This routine allocates a region of <size> bytes of consistent memory.
-It also returns a <dma_handle> which may be cast to an unsigned
-integer the same width as the bus and used as the physical address
-base of the region.
 
-Returns: a pointer to the allocated region (in the processor's virtual
+It returns a pointer to the allocated region (in the processor's virtual
 address space) or NULL if the allocation failed.
+
+It also returns a <dma_handle> which may be cast to an unsigned integer the
+same width as the bus and given to the device as the bus address base of
+the region.
 
 Note: consistent memory can be expensive on some platforms, and the
 minimum allocation length may be as big as a page, so you should
 consolidate your requests for consistent memory as much as possible.
 The simplest way to do that is to use the dma_pool calls (see below).
 
-The flag parameter (dma_alloc_coherent only) allows the caller to
-specify the GFP_ flags (see kmalloc) for the allocation (the
+The flag parameter (dma_alloc_coherent() only) allows the caller to
+specify the GFP_ flags (see kmalloc()) for the allocation (the
 implementation may choose to ignore flags that affect the location of
 the returned memory, like GFP_DMA).
 
@@ -61,24 +66,24 @@ void
 dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 			   dma_addr_t dma_handle)
 
-Free the region of consistent memory you previously allocated.  dev,
-size and dma_handle must all be the same as those passed into the
-consistent allocate.  cpu_addr must be the virtual address returned by
-the consistent allocate.
+Free a region of consistent memory you previously allocated.  dev,
+size and dma_handle must all be the same as those passed into
+dma_alloc_coherent().  cpu_addr must be the virtual address returned by
+the dma_alloc_coherent().
 
 Note that unlike their sibling allocation calls, these routines
 may only be called with IRQs enabled.
 
 
-Part Ib - Using small dma-coherent buffers
+Part Ib - Using small DMA-coherent buffers
 ------------------------------------------
 
 To get this part of the dma_ API, you must #include <linux/dmapool.h>
 
-Many drivers need lots of small dma-coherent memory regions for DMA
+Many drivers need lots of small DMA-coherent memory regions for DMA
 descriptors or I/O buffers.  Rather than allocating in units of a page
 or more using dma_alloc_coherent(), you can use DMA pools.  These work
-much like a struct kmem_cache, except that they use the dma-coherent allocator,
+much like a struct kmem_cache, except that they use the DMA-coherent allocator,
 not __get_free_pages().  Also, they understand common hardware constraints
 for alignment, like queue heads needing to be aligned on N-byte boundaries.
 
@@ -87,7 +92,7 @@ for alignment, like queue heads needing to be aligned on N-byte boundaries.
 	dma_pool_create(const char *name, struct device *dev,
 			size_t size, size_t align, size_t alloc);
 
-The pool create() routines initialize a pool of dma-coherent buffers
+dma_pool_create() initializes a pool of DMA-coherent buffers
 for use with a given device.  It must be called in a context which
 can sleep.
 
@@ -102,25 +107,26 @@ from this pool must not cross 4KByte boundaries.
 	void *dma_pool_alloc(struct dma_pool *pool, gfp_t gfp_flags,
 			dma_addr_t *dma_handle);
 
-This allocates memory from the pool; the returned memory will meet the size
-and alignment requirements specified at creation time.  Pass GFP_ATOMIC to
-prevent blocking, or if it's permitted (not in_interrupt, not holding SMP locks),
-pass GFP_KERNEL to allow blocking.  Like dma_alloc_coherent(), this returns
-two values:  an address usable by the cpu, and the dma address usable by the
-pool's device.
+This allocates memory from the pool; the returned memory will meet the
+size and alignment requirements specified at creation time.  Pass
+GFP_ATOMIC to prevent blocking, or if it's permitted (not
+in_interrupt, not holding SMP locks), pass GFP_KERNEL to allow
+blocking.  Like dma_alloc_coherent(), this returns two values:  an
+address usable by the CPU, and the DMA address usable by the pool's
+device.
 
 
 	void dma_pool_free(struct dma_pool *pool, void *vaddr,
 			dma_addr_t addr);
 
 This puts memory back into the pool.  The pool is what was passed to
-the pool allocation routine; the cpu (vaddr) and dma addresses are what
+dma_pool_alloc(); the CPU (vaddr) and DMA addresses are what
 were returned when that routine allocated the memory being freed.
 
 
 	void dma_pool_destroy(struct dma_pool *pool);
 
-The pool destroy() routines free the resources of the pool.  They must be
+dma_pool_destroy() frees the resources of the pool.  It must be
 called in a context which can sleep.  Make sure you've freed all allocated
 memory back to the pool before you destroy it.
 
@@ -187,9 +193,9 @@ dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 		      enum dma_data_direction direction)
 
 Maps a piece of processor virtual memory so it can be accessed by the
-device and returns the physical handle of the memory.
+device and returns the bus address of the memory.
 
-The direction for both api's may be converted freely by casting.
+The direction for both APIs may be converted freely by casting.
 However the dma_ API uses a strongly typed enumerator for its
 direction:
 
@@ -198,31 +204,30 @@ DMA_TO_DEVICE		data is going from the memory to the device
 DMA_FROM_DEVICE		data is coming from the device to the memory
 DMA_BIDIRECTIONAL	direction isn't known
 
-Notes:  Not all memory regions in a machine can be mapped by this
-API.  Further, regions that appear to be physically contiguous in
-kernel virtual space may not be contiguous as physical memory.  Since
-this API does not provide any scatter/gather capability, it will fail
-if the user tries to map a non-physically contiguous piece of memory.
-For this reason, it is recommended that memory mapped by this API be
-obtained only from sources which guarantee it to be physically contiguous
-(like kmalloc).
+Notes:  Not all memory regions in a machine can be mapped by this API.
+Further, contiguous kernel virtual space may not be contiguous as
+physical memory.  Since this API does not provide any scatter/gather
+capability, it will fail if the user tries to map a non-physically
+contiguous piece of memory.  For this reason, memory to be mapped by
+this API should be obtained from sources which guarantee it to be
+physically contiguous (like kmalloc).
 
-Further, the physical address of the memory must be within the
-dma_mask of the device (the dma_mask represents a bit mask of the
-addressable region for the device.  I.e., if the physical address of
-the memory anded with the dma_mask is still equal to the physical
-address, then the device can perform DMA to the memory).  In order to
+Further, the bus address of the memory must be within the
+dma_mask of the device (the dma_mask is a bit mask of the
+addressable region for the device, i.e., if the bus address of
+the memory ANDed with the dma_mask is still equal to the bus
+address, then the device can perform DMA to the memory).  To
 ensure that the memory allocated by kmalloc is within the dma_mask,
 the driver may specify various platform-dependent flags to restrict
-the physical memory range of the allocation (e.g. on x86, GFP_DMA
-guarantees to be within the first 16Mb of available physical memory,
+the bus address range of the allocation (e.g., on x86, GFP_DMA
+guarantees to be within the first 16MB of available bus addresses,
 as required by ISA devices).
 
 Note also that the above constraints on physical contiguity and
 dma_mask may not apply if the platform has an IOMMU (a device which
-supplies a physical to virtual mapping between the I/O memory bus and
-the device).  However, to be portable, device driver writers may *not*
-assume that such an IOMMU exists.
+maps an I/O bus address to a physical memory address).  However, to be
+portable, device driver writers may *not* assume that such an IOMMU
+exists.
 
 Warnings:  Memory coherency operates at a granularity called the cache
 line width.  In order for memory mapped by this API to operate
@@ -281,9 +286,9 @@ cache width is.
 int
 dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 
-In some circumstances dma_map_single and dma_map_page will fail to create
+In some circumstances dma_map_single() and dma_map_page() will fail to create
 a mapping. A driver can check for these errors by testing the returned
-dma address with dma_mapping_error(). A non-zero return value means the mapping
+DMA address with dma_mapping_error(). A non-zero return value means the mapping
 could not be created and the driver should take appropriate action (e.g.
 reduce current DMA mapping usage or delay and try again later).
 
@@ -291,7 +296,7 @@ reduce current DMA mapping usage or delay and try again later).
 	dma_map_sg(struct device *dev, struct scatterlist *sg,
 		int nents, enum dma_data_direction direction)
 
-Returns: the number of physical segments mapped (this may be shorter
+Returns: the number of bus address segments mapped (this may be shorter
 than <nents> passed in if some elements of the scatter/gather list are
 physically or virtually adjacent and an IOMMU maps them with a single
 entry).
@@ -299,7 +304,7 @@ entry).
 Please note that the sg cannot be mapped again if it has been mapped once.
 The mapping process is allowed to destroy information in the sg.
 
-As with the other mapping interfaces, dma_map_sg can fail. When it
+As with the other mapping interfaces, dma_map_sg() can fail. When it
 does, 0 is returned and a driver must take appropriate action. It is
 critical that the driver do something, in the case of a block driver
 aborting the request or even oopsing is better than doing nothing and
@@ -335,7 +340,7 @@ must be the same as those and passed in to the scatter/gather mapping
 API.
 
 Note: <nents> must be the number you passed in, *not* the number of
-physical entries returned.
+bus address entries returned.
 
 void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle, size_t size,
@@ -350,7 +355,7 @@ void
 dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
 		       enum dma_data_direction direction)
 
-Synchronise a single contiguous or scatter/gather mapping for the cpu
+Synchronise a single contiguous or scatter/gather mapping for the CPU
 and device. With the sync_sg API, all the parameters must be the same
 as those passed into the single mapping API. With the sync_single API,
 you can use dma_handle and size parameters that aren't identical to
@@ -391,10 +396,10 @@ The four functions above are just like the counterpart functions
 without the _attrs suffixes, except that they pass an optional
 struct dma_attrs*.
 
-struct dma_attrs encapsulates a set of "dma attributes". For the
+struct dma_attrs encapsulates a set of "DMA attributes". For the
 definition of struct dma_attrs see linux/dma-attrs.h.
 
-The interpretation of dma attributes is architecture-specific, and
+The interpretation of DMA attributes is architecture-specific, and
 each attribute should be documented in Documentation/DMA-attributes.txt.
 
 If struct dma_attrs* is NULL, the semantics of each of these
@@ -458,7 +463,7 @@ Note: where the platform can return consistent memory, it will
 guarantee that the sync points become nops.
 
 Warning:  Handling non-consistent memory is a real pain.  You should
-only ever use this API if you positively know your driver will be
+only use this API if you positively know your driver will be
 required to work on one of the rare (usually non-PCI) architectures
 that simply cannot make consistent memory.
 
@@ -492,30 +497,29 @@ continuing on for size.  Again, you *must* observe the cache line
 boundaries when doing this.
 
 int
-dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
+dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 			    dma_addr_t device_addr, size_t size, int
 			    flags)
 
-Declare region of memory to be handed out by dma_alloc_coherent when
+Declare region of memory to be handed out by dma_alloc_coherent() when
 it's asked for coherent memory for this device.
 
-bus_addr is the physical address to which the memory is currently
-assigned in the bus responding region (this will be used by the
-platform to perform the mapping).
+phys_addr is the CPU physical address to which the memory is currently
+assigned (this will be ioremapped so the CPU can access the region).
 
-device_addr is the physical address the device needs to be programmed
-with actually to address this memory (this will be handed out as the
+device_addr is the bus address the device needs to be programmed
+with to actually address this memory (this will be handed out as the
 dma_addr_t in dma_alloc_coherent()).
 
 size is the size of the area (must be multiples of PAGE_SIZE).
 
-flags can be or'd together and are:
+flags can be ORed together and are:
 
 DMA_MEMORY_MAP - request that the memory returned from
 dma_alloc_coherent() be directly writable.
 
 DMA_MEMORY_IO - request that the memory returned from
-dma_alloc_coherent() be addressable using read/write/memcpy_toio etc.
+dma_alloc_coherent() be addressable using read()/write()/memcpy_toio() etc.
 
 One or both of these flags must be present.
 
@@ -572,7 +576,7 @@ region is occupied.
 Part III - Debug drivers use of the DMA-API
 -------------------------------------------
 
-The DMA-API as described above as some constraints. DMA addresses must be
+The DMA-API as described above has some constraints. DMA addresses must be
 released with the corresponding function with the same size for example. With
 the advent of hardware IOMMUs it becomes more and more important that drivers
 do not violate those constraints. In the worst case such a violation can
@@ -690,11 +694,11 @@ architectural default.
 void debug_dmap_mapping_error(struct device *dev, dma_addr_t dma_addr);
 
 dma-debug interface debug_dma_mapping_error() to debug drivers that fail
-to check dma mapping errors on addresses returned by dma_map_single() and
+to check DMA mapping errors on addresses returned by dma_map_single() and
 dma_map_page() interfaces. This interface clears a flag set by
 debug_dma_map_page() to indicate that dma_mapping_error() has been called by
 the driver. When driver does unmap, debug_dma_unmap() checks the flag and if
 this flag is still set, prints warning message that includes call trace that
 leads up to the unmap. This interface can be called from dma_mapping_error()
-routines to enable dma mapping error check debugging.
+routines to enable DMA mapping error check debugging.
 

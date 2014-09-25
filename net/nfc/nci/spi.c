@@ -105,7 +105,7 @@ int nci_spi_send(struct nci_spi *nspi,
 	if (ret != 0 || nspi->acknowledge_mode == NCI_SPI_CRC_DISABLED)
 		goto done;
 
-	init_completion(&nspi->req_completion);
+	reinit_completion(&nspi->req_completion);
 	completion_rc =	wait_for_completion_interruptible_timeout(
 							&nspi->req_completion,
 							NCI_SPI_SEND_TIMEOUT);
@@ -145,6 +145,7 @@ struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
 
 	nspi->spi = spi;
 	nspi->ndev = ndev;
+	init_completion(&nspi->req_completion);
 
 	return nspi;
 }

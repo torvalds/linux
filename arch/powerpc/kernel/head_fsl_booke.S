@@ -65,28 +65,77 @@ _ENTRY(_start);
 	nop
 
 	/* Translate device tree address to physical, save in r30/r31 */
-	mfmsr	r16
-	mfspr	r17,SPRN_PID
-	rlwinm	r17,r17,16,0x3fff0000	/* turn PID into MAS6[SPID] */
-	rlwimi	r17,r16,28,0x00000001	/* turn MSR[DS] into MAS6[SAS] */
-	mtspr	SPRN_MAS6,r17
-
-	tlbsx	0,r3			/* must succeed */
-
-	mfspr	r16,SPRN_MAS1
-	mfspr	r20,SPRN_MAS3
-	rlwinm	r17,r16,25,0x1f		/* r17 = log2(page size) */
-	li	r18,1024
-	slw	r18,r18,r17		/* r18 = page size */
-	addi	r18,r18,-1
-	and	r19,r3,r18		/* r19 = page offset */
-	andc	r31,r20,r18		/* r31 = page base */
-	or	r31,r31,r19		/* r31 = devtree phys addr */
-	mfspr	r30,SPRN_MAS7
+	bl	get_phys_addr
+	mr	r30,r3
+	mr	r31,r4
 
 	li	r25,0			/* phys kernel start (low) */
 	li	r24,0			/* CPU number */
 	li	r23,0			/* phys kernel start (high) */
+
+#ifdef CONFIG_RELOCATABLE
+	LOAD_REG_ADDR_PIC(r3, _stext)	/* Get our current runtime base */
+
+	/* Translate _stext address to physical, save in r23/r25 */
+	bl	get_phys_addr
+	mr	r23,r3
+	mr	r25,r4
+
+	bl	0f
+0:	mflr	r8
+	addis	r3,r8,(is_second_reloc - 0b)@ha
+	lwz	r19,(is_second_reloc - 0b)@l(r3)
+
+	/* Check if this is the second relocation. */
+	cmpwi	r19,1
+	bne	1f
+
+	/*
+	 * For the second relocation, we already get the real memstart_addr
+	 * from device tree. So we will map PAGE_OFFSET to memstart_addr,
+	 * then the virtual address of start kernel should be:
+	 *          PAGE_OFFSET + (kernstart_addr - memstart_addr)
+	 * Since the offset between kernstart_addr and memstart_addr should
+	 * never be beyond 1G, so we can just use the lower 32bit of them
+	 * for the calculation.
+	 */
+	lis	r3,PAGE_OFFSET@h
+
+	addis	r4,r8,(kernstart_addr - 0b)@ha
+	addi	r4,r4,(kernstart_addr - 0b)@l
+	lwz	r5,4(r4)
+
+	addis	r6,r8,(memstart_addr - 0b)@ha
+	addi	r6,r6,(memstart_addr - 0b)@l
+	lwz	r7,4(r6)
+
+	subf	r5,r7,r5
+	add	r3,r3,r5
+	b	2f
+
+1:
+	/*
+	 * We have the runtime (virutal) address of our base.
+	 * We calculate our shift of offset from a 64M page.
+	 * We could map the 64M page we belong to at PAGE_OFFSET and
+	 * get going from there.
+	 */
+	lis	r4,KERNELBASE@h
+	ori	r4,r4,KERNELBASE@l
+	rlwinm	r6,r25,0,0x3ffffff		/* r6 = PHYS_START % 64M */
+	rlwinm	r5,r4,0,0x3ffffff		/* r5 = KERNELBASE % 64M */
+	subf	r3,r5,r6			/* r3 = r6 - r5 */
+	add	r3,r4,r3			/* Required Virtual Address */
+
+2:	bl	relocate
+
+	/*
+	 * For the second relocation, we already set the right tlb entries
+	 * for the kernel space, so skip the code in fsl_booke_entry_mapping.S
+	*/
+	cmpwi	r19,1
+	beq	set_ivor
+#endif
 
 /* We try to not make any assumptions about how the boot loader
  * setup or used the TLBs.  We invalidate all mappings from the
@@ -113,6 +162,7 @@ _ENTRY(__early_start)
 #include "fsl_booke_entry_mapping.S"
 #undef ENTRY_MAPPING_BOOT_SETUP
 
+set_ivor:
 	/* Establish the interrupt vector offsets */
 	SET_IVOR(0,  CriticalInput);
 	SET_IVOR(1,  MachineCheck);
@@ -166,8 +216,7 @@ _ENTRY(__early_start)
 	/* Check to see if we're the second processor, and jump
 	 * to the secondary_start code if so
 	 */
-	lis	r24, boot_cpuid@h
-	ori	r24, r24, boot_cpuid@l
+	LOAD_REG_ADDR_PIC(r24, boot_cpuid)
 	lwz	r24, 0(r24)
 	cmpwi	r24, -1
 	mfspr   r24,SPRN_PIR
@@ -196,6 +245,18 @@ _ENTRY(__early_start)
 	stw	r24, TI_CPU(r22)
 
 	bl	early_init
+
+#ifdef CONFIG_RELOCATABLE
+	mr	r3,r30
+	mr	r4,r31
+#ifdef CONFIG_PHYS_64BIT
+	mr	r5,r23
+	mr	r6,r25
+#else
+	mr	r5,r25
+#endif
+	bl	relocate_init
+#endif
 
 #ifdef CONFIG_DYNAMIC_MEMSTART
 	lis	r3,kernstart_addr@ha
@@ -856,6 +917,33 @@ KernelSPE:
 #endif /* CONFIG_SPE */
 
 /*
+ * Translate the effec addr in r3 to phys addr. The phys addr will be put
+ * into r3(higher 32bit) and r4(lower 32bit)
+ */
+get_phys_addr:
+	mfmsr	r8
+	mfspr	r9,SPRN_PID
+	rlwinm	r9,r9,16,0x3fff0000	/* turn PID into MAS6[SPID] */
+	rlwimi	r9,r8,28,0x00000001	/* turn MSR[DS] into MAS6[SAS] */
+	mtspr	SPRN_MAS6,r9
+
+	tlbsx	0,r3			/* must succeed */
+
+	mfspr	r8,SPRN_MAS1
+	mfspr	r12,SPRN_MAS3
+	rlwinm	r9,r8,25,0x1f		/* r9 = log2(page size) */
+	li	r10,1024
+	slw	r10,r10,r9		/* r10 = page size */
+	addi	r10,r10,-1
+	and	r11,r3,r10		/* r11 = page offset */
+	andc	r4,r12,r10		/* r4 = page base */
+	or	r4,r4,r11		/* r4 = devtree phys addr */
+#ifdef CONFIG_PHYS_64BIT
+	mfspr	r3,SPRN_MAS7
+#endif
+	blr
+
+/*
  * Global functions
  */
 
@@ -1057,6 +1145,29 @@ _GLOBAL(__flush_disable_L1)
 /* When we get here, r24 needs to hold the CPU # */
 	.globl __secondary_start
 __secondary_start:
+	LOAD_REG_ADDR_PIC(r3, tlbcam_index)
+	lwz	r3,0(r3)
+	mtctr	r3
+	li	r26,0		/* r26 safe? */
+
+	bl	switch_to_as1
+	mr	r27,r3		/* tlb entry */
+	/* Load each CAM entry */
+1:	mr	r3,r26
+	bl	loadcam_entry
+	addi	r26,r26,1
+	bdnz	1b
+	mr	r3,r27		/* tlb entry */
+	LOAD_REG_ADDR_PIC(r4, memstart_addr)
+	lwz	r4,0(r4)
+	mr	r5,r25		/* phys kernel start */
+	rlwinm	r5,r5,0,~0x3ffffff	/* aligned 64M */
+	subf	r4,r5,r4	/* memstart_addr - phys kernel start */
+	li	r5,0		/* no device tree */
+	li	r6,0		/* not boot cpu */
+	bl	restore_to_as0
+
+
 	lis	r3,__secondary_hold_acknowledge@h
 	ori	r3,r3,__secondary_hold_acknowledge@l
 	stw	r24,0(r3)
@@ -1064,17 +1175,6 @@ __secondary_start:
 	li	r3,0
 	mr	r4,r24		/* Why? */
 	bl	call_setup_cpu
-
-	lis	r3,tlbcam_index@ha
-	lwz	r3,tlbcam_index@l(r3)
-	mtctr	r3
-	li	r26,0		/* r26 safe? */
-
-	/* Load each CAM entry */
-1:	mr	r3,r26
-	bl	loadcam_entry
-	addi	r26,r26,1
-	bdnz	1b
 
 	/* get current_thread_info and current */
 	lis	r1,secondary_ti@ha
@@ -1109,6 +1209,112 @@ __secondary_start:
 __secondary_hold_acknowledge:
 	.long	-1
 #endif
+
+/*
+ * Create a tlb entry with the same effective and physical address as
+ * the tlb entry used by the current running code. But set the TS to 1.
+ * Then switch to the address space 1. It will return with the r3 set to
+ * the ESEL of the new created tlb.
+ */
+_GLOBAL(switch_to_as1)
+	mflr	r5
+
+	/* Find a entry not used */
+	mfspr	r3,SPRN_TLB1CFG
+	andi.	r3,r3,0xfff
+	mfspr	r4,SPRN_PID
+	rlwinm	r4,r4,16,0x3fff0000	/* turn PID into MAS6[SPID] */
+	mtspr	SPRN_MAS6,r4
+1:	lis	r4,0x1000		/* Set MAS0(TLBSEL) = 1 */
+	addi	r3,r3,-1
+	rlwimi	r4,r3,16,4,15		/* Setup MAS0 = TLBSEL | ESEL(r3) */
+	mtspr	SPRN_MAS0,r4
+	tlbre
+	mfspr	r4,SPRN_MAS1
+	andis.	r4,r4,MAS1_VALID@h
+	bne	1b
+
+	/* Get the tlb entry used by the current running code */
+	bl	0f
+0:	mflr	r4
+	tlbsx	0,r4
+
+	mfspr	r4,SPRN_MAS1
+	ori	r4,r4,MAS1_TS		/* Set the TS = 1 */
+	mtspr	SPRN_MAS1,r4
+
+	mfspr	r4,SPRN_MAS0
+	rlwinm	r4,r4,0,~MAS0_ESEL_MASK
+	rlwimi	r4,r3,16,4,15		/* Setup MAS0 = TLBSEL | ESEL(r3) */
+	mtspr	SPRN_MAS0,r4
+	tlbwe
+	isync
+	sync
+
+	mfmsr	r4
+	ori	r4,r4,MSR_IS | MSR_DS
+	mtspr	SPRN_SRR0,r5
+	mtspr	SPRN_SRR1,r4
+	sync
+	rfi
+
+/*
+ * Restore to the address space 0 and also invalidate the tlb entry created
+ * by switch_to_as1.
+ * r3 - the tlb entry which should be invalidated
+ * r4 - __pa(PAGE_OFFSET in AS1) - __pa(PAGE_OFFSET in AS0)
+ * r5 - device tree virtual address. If r4 is 0, r5 is ignored.
+ * r6 - boot cpu
+*/
+_GLOBAL(restore_to_as0)
+	mflr	r0
+
+	bl	0f
+0:	mflr	r9
+	addi	r9,r9,1f - 0b
+
+	/*
+	 * We may map the PAGE_OFFSET in AS0 to a different physical address,
+	 * so we need calculate the right jump and device tree address based
+	 * on the offset passed by r4.
+	 */
+	add	r9,r9,r4
+	add	r5,r5,r4
+	add	r0,r0,r4
+
+2:	mfmsr	r7
+	li	r8,(MSR_IS | MSR_DS)
+	andc	r7,r7,r8
+
+	mtspr	SPRN_SRR0,r9
+	mtspr	SPRN_SRR1,r7
+	sync
+	rfi
+
+	/* Invalidate the temporary tlb entry for AS1 */
+1:	lis	r9,0x1000		/* Set MAS0(TLBSEL) = 1 */
+	rlwimi	r9,r3,16,4,15		/* Setup MAS0 = TLBSEL | ESEL(r3) */
+	mtspr	SPRN_MAS0,r9
+	tlbre
+	mfspr	r9,SPRN_MAS1
+	rlwinm	r9,r9,0,2,31		/* Clear MAS1 Valid and IPPROT */
+	mtspr	SPRN_MAS1,r9
+	tlbwe
+	isync
+
+	cmpwi	r4,0
+	cmpwi	cr1,r6,0
+	cror	eq,4*cr1+eq,eq
+	bne	3f			/* offset != 0 && is_boot_cpu */
+	mtlr	r0
+	blr
+
+	/*
+	 * The PAGE_OFFSET will map to a different physical address,
+	 * jump to _start to do another relocation again.
+	*/
+3:	mr	r3,r5
+	bl	_start
 
 /*
  * We put a few things here that have to be page-aligned. This stuff

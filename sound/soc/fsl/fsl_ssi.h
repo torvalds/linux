@@ -12,33 +12,32 @@
 #ifndef _MPC8610_I2S_H
 #define _MPC8610_I2S_H
 
-/* SSI Register Map */
-struct ccsr_ssi {
-	__be32 stx0;	/* 0x.0000 - SSI Transmit Data Register 0 */
-	__be32 stx1;	/* 0x.0004 - SSI Transmit Data Register 1 */
-	__be32 srx0;	/* 0x.0008 - SSI Receive Data Register 0 */
-	__be32 srx1;	/* 0x.000C - SSI Receive Data Register 1 */
-	__be32 scr;	/* 0x.0010 - SSI Control Register */
-	__be32 sisr;	/* 0x.0014 - SSI Interrupt Status Register Mixed */
-	__be32 sier;	/* 0x.0018 - SSI Interrupt Enable Register */
-	__be32 stcr;	/* 0x.001C - SSI Transmit Configuration Register */
-	__be32 srcr;	/* 0x.0020 - SSI Receive Configuration Register */
-	__be32 stccr;	/* 0x.0024 - SSI Transmit Clock Control Register */
-	__be32 srccr;	/* 0x.0028 - SSI Receive Clock Control Register */
-	__be32 sfcsr;	/* 0x.002C - SSI FIFO Control/Status Register */
-	__be32 str;	/* 0x.0030 - SSI Test Register */
-	__be32 sor;	/* 0x.0034 - SSI Option Register */
-	__be32 sacnt;	/* 0x.0038 - SSI AC97 Control Register */
-	__be32 sacadd;	/* 0x.003C - SSI AC97 Command Address Register */
-	__be32 sacdat;	/* 0x.0040 - SSI AC97 Command Data Register */
-	__be32 satag;	/* 0x.0044 - SSI AC97 Tag Register */
-	__be32 stmsk;	/* 0x.0048 - SSI Transmit Time Slot Mask Register */
-	__be32 srmsk;	/* 0x.004C - SSI Receive Time Slot Mask Register */
-	__be32 saccst;	/* 0x.0050 - SSI AC97 Channel Status Register */
-	__be32 saccen;	/* 0x.0054 - SSI AC97 Channel Enable Register */
-	__be32 saccdis; /* 0x.0058 - SSI AC97 Channel Disable Register */
-};
+/* SSI registers */
+#define CCSR_SSI_STX0			0x00
+#define CCSR_SSI_STX1			0x04
+#define CCSR_SSI_SRX0			0x08
+#define CCSR_SSI_SRX1			0x0c
+#define CCSR_SSI_SCR			0x10
+#define CCSR_SSI_SISR			0x14
+#define CCSR_SSI_SIER			0x18
+#define CCSR_SSI_STCR			0x1c
+#define CCSR_SSI_SRCR			0x20
+#define CCSR_SSI_STCCR			0x24
+#define CCSR_SSI_SRCCR			0x28
+#define CCSR_SSI_SFCSR			0x2c
+#define CCSR_SSI_STR			0x30
+#define CCSR_SSI_SOR			0x34
+#define CCSR_SSI_SACNT			0x38
+#define CCSR_SSI_SACADD			0x3c
+#define CCSR_SSI_SACDAT			0x40
+#define CCSR_SSI_SATAG			0x44
+#define CCSR_SSI_STMSK			0x48
+#define CCSR_SSI_SRMSK			0x4c
+#define CCSR_SSI_SACCST			0x50
+#define CCSR_SSI_SACCEN			0x54
+#define CCSR_SSI_SACCDIS		0x58
 
+#define CCSR_SSI_SCR_SYNC_TX_FS		0x00001000
 #define CCSR_SSI_SCR_RFR_CLK_DIS	0x00000800
 #define CCSR_SSI_SCR_TFR_CLK_DIS	0x00000400
 #define CCSR_SSI_SCR_TCH_EN		0x00000100
@@ -206,5 +205,64 @@ struct ccsr_ssi {
 #define CCSR_SSI_SACNT_FV		0x00000002
 #define CCSR_SSI_SACNT_AC97EN		0x00000001
 
-#endif
 
+struct device;
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+
+struct fsl_ssi_dbg {
+	struct dentry *dbg_dir;
+	struct dentry *dbg_stats;
+
+	struct {
+		unsigned int rfrc;
+		unsigned int tfrc;
+		unsigned int cmdau;
+		unsigned int cmddu;
+		unsigned int rxt;
+		unsigned int rdr1;
+		unsigned int rdr0;
+		unsigned int tde1;
+		unsigned int tde0;
+		unsigned int roe1;
+		unsigned int roe0;
+		unsigned int tue1;
+		unsigned int tue0;
+		unsigned int tfs;
+		unsigned int rfs;
+		unsigned int tls;
+		unsigned int rls;
+		unsigned int rff1;
+		unsigned int rff0;
+		unsigned int tfe1;
+		unsigned int tfe0;
+	} stats;
+};
+
+void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *ssi_dbg, u32 sisr);
+
+int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg, struct device *dev);
+
+void fsl_ssi_debugfs_remove(struct fsl_ssi_dbg *ssi_dbg);
+
+#else
+
+struct fsl_ssi_dbg {
+};
+
+static inline void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *stats, u32 sisr)
+{
+}
+
+static inline int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg,
+		struct device *dev)
+{
+	return 0;
+}
+
+static inline void fsl_ssi_debugfs_remove(struct fsl_ssi_dbg *ssi_dbg)
+{
+}
+#endif  /* ! IS_ENABLED(CONFIG_DEBUG_FS) */
+
+#endif

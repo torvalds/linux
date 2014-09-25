@@ -25,9 +25,7 @@
  *     GNU General Public License for more details.
  *
  *     You should have received a copy of the GNU General Public License
- *     along with this program; if not, write to the Free Software
- *     Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- *     MA 02111-1307 USA
+ *     along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  *     Linux-IrDA now supports four different types of IrDA sockets:
  *
@@ -676,7 +674,6 @@ static int irda_discover_daddr_and_lsap_sel(struct irda_sock *self, char *name)
 			self->daddr = DEV_ADDR_ANY;
 			kfree(discoveries);
 			return -EHOSTUNREACH;
-			break;
 		}
 	}
 	/* Cleanup our copy of the discovery log */
@@ -1654,7 +1651,7 @@ static int irda_sendmsg_ultra(struct kiocb *iocb, struct socket *sock,
 
 	/* Check if an address was specified with sendto. Jean II */
 	if (msg->msg_name) {
-		struct sockaddr_irda *addr = (struct sockaddr_irda *) msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_irda *, addr, msg->msg_name);
 		err = -EINVAL;
 		/* Check address, extract pid. Jean II */
 		if (msg->msg_namelen < sizeof(*addr))

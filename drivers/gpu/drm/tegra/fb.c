@@ -18,10 +18,12 @@ static inline struct tegra_fb *to_tegra_fb(struct drm_framebuffer *fb)
 	return container_of(fb, struct tegra_fb, base);
 }
 
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 static inline struct tegra_fbdev *to_tegra_fbdev(struct drm_fb_helper *helper)
 {
 	return container_of(helper, struct tegra_fbdev, base);
 }
+#endif
 
 struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 				    unsigned int index)
@@ -44,14 +46,15 @@ bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer)
 	return false;
 }
 
-bool tegra_fb_is_tiled(struct drm_framebuffer *framebuffer)
+int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
+			struct tegra_bo_tiling *tiling)
 {
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
 
-	if (fb->planes[0]->flags & TEGRA_BO_TILED)
-		return true;
+	/* TODO: handle YUV formats? */
+	*tiling = fb->planes[0]->tiling;
 
-	return false;
+	return 0;
 }
 
 static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
@@ -98,8 +101,10 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
 		return ERR_PTR(-ENOMEM);
 
 	fb->planes = kzalloc(num_planes * sizeof(*planes), GFP_KERNEL);
-	if (!fb->planes)
+	if (!fb->planes) {
+		kfree(fb);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	fb->num_planes = num_planes;
 
@@ -172,6 +177,7 @@ unreference:
 	return ERR_PTR(err);
 }
 
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 static struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_fillrect = sys_fillrect,
@@ -188,6 +194,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 			     struct drm_fb_helper_surface_size *sizes)
 {
 	struct tegra_fbdev *fbdev = to_tegra_fbdev(helper);
+	struct tegra_drm *tegra = helper->dev->dev_private;
 	struct drm_device *drm = helper->dev;
 	struct drm_mode_fb_cmd2 cmd = { 0 };
 	unsigned int bytes_per_pixel;
@@ -202,7 +209,8 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 
 	cmd.width = sizes->surface_width;
 	cmd.height = sizes->surface_height;
-	cmd.pitches[0] = sizes->surface_width * bytes_per_pixel;
+	cmd.pitches[0] = round_up(sizes->surface_width * bytes_per_pixel,
+				  tegra->pitch_align);
 	cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 						     sizes->surface_depth);
 
@@ -262,18 +270,13 @@ release:
 	return err;
 }
 
-static struct drm_fb_helper_funcs tegra_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs tegra_fb_helper_funcs = {
 	.fb_probe = tegra_fbdev_probe,
 };
 
-static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm,
-					      unsigned int preferred_bpp,
-					      unsigned int num_crtc,
-					      unsigned int max_connectors)
+static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm)
 {
-	struct drm_fb_helper *helper;
 	struct tegra_fbdev *fbdev;
-	int err;
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
 	if (!fbdev) {
@@ -281,13 +284,23 @@ static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	fbdev->base.funcs = &tegra_fb_helper_funcs;
-	helper = &fbdev->base;
+	drm_fb_helper_prepare(drm, &fbdev->base, &tegra_fb_helper_funcs);
+
+	return fbdev;
+}
+
+static int tegra_fbdev_init(struct tegra_fbdev *fbdev,
+			    unsigned int preferred_bpp,
+			    unsigned int num_crtc,
+			    unsigned int max_connectors)
+{
+	struct drm_device *drm = fbdev->base.dev;
+	int err;
 
 	err = drm_fb_helper_init(drm, &fbdev->base, num_crtc, max_connectors);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to initialize DRM FB helper\n");
-		goto free;
+		return err;
 	}
 
 	err = drm_fb_helper_single_add_all_connectors(&fbdev->base);
@@ -296,21 +309,17 @@ static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm,
 		goto fini;
 	}
 
-	drm_helper_disable_unused_functions(drm);
-
 	err = drm_fb_helper_initial_config(&fbdev->base, preferred_bpp);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to set initial configuration\n");
 		goto fini;
 	}
 
-	return fbdev;
+	return 0;
 
 fini:
 	drm_fb_helper_fini(&fbdev->base);
-free:
-	kfree(fbdev);
-	return ERR_PTR(err);
+	return err;
 }
 
 static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
@@ -339,6 +348,12 @@ static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
 	kfree(fbdev);
 }
 
+void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)
+{
+	if (fbdev)
+		drm_fb_helper_restore_fbdev_mode_unlocked(&fbdev->base);
+}
+
 static void tegra_fb_output_poll_changed(struct drm_device *drm)
 {
 	struct tegra_drm *tegra = drm->dev_private;
@@ -346,16 +361,20 @@ static void tegra_fb_output_poll_changed(struct drm_device *drm)
 	if (tegra->fbdev)
 		drm_fb_helper_hotplug_event(&tegra->fbdev->base);
 }
+#endif
 
 static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 	.fb_create = tegra_fb_create,
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 	.output_poll_changed = tegra_fb_output_poll_changed,
+#endif
 };
 
-int tegra_drm_fb_init(struct drm_device *drm)
+int tegra_drm_fb_prepare(struct drm_device *drm)
 {
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_drm *tegra = drm->dev_private;
-	struct tegra_fbdev *fbdev;
+#endif
 
 	drm->mode_config.min_width = 0;
 	drm->mode_config.min_height = 0;
@@ -365,28 +384,35 @@ int tegra_drm_fb_init(struct drm_device *drm)
 
 	drm->mode_config.funcs = &tegra_drm_mode_funcs;
 
-	fbdev = tegra_fbdev_create(drm, 32, drm->mode_config.num_crtc,
-				   drm->mode_config.num_connector);
-	if (IS_ERR(fbdev))
-		return PTR_ERR(fbdev);
+#ifdef CONFIG_DRM_TEGRA_FBDEV
+	tegra->fbdev = tegra_fbdev_create(drm);
+	if (IS_ERR(tegra->fbdev))
+		return PTR_ERR(tegra->fbdev);
+#endif
 
-	tegra->fbdev = fbdev;
+	return 0;
+}
+
+int tegra_drm_fb_init(struct drm_device *drm)
+{
+#ifdef CONFIG_DRM_TEGRA_FBDEV
+	struct tegra_drm *tegra = drm->dev_private;
+	int err;
+
+	err = tegra_fbdev_init(tegra->fbdev, 32, drm->mode_config.num_crtc,
+			       drm->mode_config.num_connector);
+	if (err < 0)
+		return err;
+#endif
 
 	return 0;
 }
 
 void tegra_drm_fb_exit(struct drm_device *drm)
 {
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra_fbdev_free(tegra->fbdev);
-}
-
-void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)
-{
-	if (fbdev) {
-		drm_modeset_lock_all(fbdev->base.dev);
-		drm_fb_helper_restore_fbdev_mode(&fbdev->base);
-		drm_modeset_unlock_all(fbdev->base.dev);
-	}
+#endif
 }

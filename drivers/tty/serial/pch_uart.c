@@ -257,6 +257,8 @@ struct eg20t_port {
 	dma_addr_t			rx_buf_dma;
 
 	struct dentry	*debugfs;
+#define IRQ_NAME_SIZE 17
+	char				irq_name[IRQ_NAME_SIZE];
 
 	/* protect the eg20t_port private structure and io access to membase */
 	spinlock_t lock;
@@ -734,9 +736,10 @@ static void pch_request_dma(struct uart_port *port)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	dma_dev = pci_get_bus_and_slot(priv->pdev->bus->number,
-				       PCI_DEVFN(0xa, 0)); /* Get DMA's dev
-								information */
+	/* Get DMA's dev information */
+	dma_dev = pci_get_slot(priv->pdev->bus,
+			PCI_DEVFN(PCI_SLOT(priv->pdev->devfn), 0));
+
 	/* Set Tx DMA */
 	param = &priv->param_tx;
 	param->dma_dev = &dma_dev->dev;
@@ -1045,7 +1048,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 					priv->sg_tx_p, nent, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
-		dev_err(priv->port.dev, "%s:device_prep_slave_sg Failed\n",
+		dev_err(priv->port.dev, "%s:dmaengine_prep_slave_sg Failed\n",
 			__func__);
 		return 0;
 	}
@@ -1343,7 +1346,7 @@ static int pch_uart_startup(struct uart_port *port)
 		return ret;
 
 	ret = request_irq(priv->port.irq, pch_uart_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, priv);
+			priv->irq_name, priv);
 	if (ret < 0)
 		return ret;
 
@@ -1508,10 +1511,14 @@ static int pch_uart_verify_port(struct uart_port *port,
 			__func__);
 		return -EOPNOTSUPP;
 #endif
-		dev_info(priv->port.dev, "PCH UART : Use DMA Mode\n");
-		if (!priv->use_dma)
+		if (!priv->use_dma) {
 			pch_request_dma(port);
-		priv->use_dma = 1;
+			if (priv->chan_rx)
+				priv->use_dma = 1;
+		}
+		dev_info(priv->port.dev, "PCH UART: %s\n",
+				priv->use_dma ?
+				"Use DMA Mode" : "No DMA");
 	}
 
 	return 0;
@@ -1584,13 +1591,8 @@ static void pch_uart_put_poll_char(struct uart_port *port,
 	wait_for_xmitr(priv, UART_LSR_THRE);
 	/*
 	 * Send the character out.
-	 * If a LF, also do CR...
 	 */
 	iowrite8(c, priv->membase + PCH_UART_THR);
-	if (c == 10) {
-		wait_for_xmitr(priv, UART_LSR_THRE);
-		iowrite8(13, priv->membase + PCH_UART_THR);
-	}
 
 	/*
 	 * Finally, wait for transmitter to become empty
@@ -1758,7 +1760,9 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	int fifosize;
 	int port_type;
 	struct pch_uart_driver_data *board;
+#ifdef CONFIG_DEBUG_FS
 	char name[32];	/* for debugfs file name */
+#endif
 
 	board = &drv_dat[id->driver_data];
 	port_type = board->port_type;
@@ -1811,6 +1815,10 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->port.fifosize = fifosize;
 	priv->port.line = board->line_no;
 	priv->trigger = PCH_UART_HAL_TRIGGER_M;
+
+	snprintf(priv->irq_name, IRQ_NAME_SIZE,
+		 KBUILD_MODNAME ":" PCH_UART_DRIVER_DEVICE "%d",
+		 priv->port.line);
 
 	spin_lock_init(&priv->port.lock);
 

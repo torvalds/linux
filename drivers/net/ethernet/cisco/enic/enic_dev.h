@@ -28,7 +28,7 @@
  */
 #define ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnicdevcmdfn, ...) \
 	do { \
-		spin_lock(&enic->devcmd_lock); \
+		spin_lock_bh(&enic->devcmd_lock); \
 		if (enic_is_valid_vf(enic, vf)) { \
 			vnic_dev_cmd_proxy_by_index_start(enic->vdev, vf); \
 			err = vnicdevcmdfn(enic->vdev, ##__VA_ARGS__); \
@@ -36,7 +36,7 @@
 		} else { \
 			err = vnicdevcmdfn(enic->vdev, ##__VA_ARGS__); \
 		} \
-		spin_unlock(&enic->devcmd_lock); \
+		spin_unlock_bh(&enic->devcmd_lock); \
 	} while (0)
 
 int enic_dev_fw_info(struct enic *enic, struct vnic_devcmd_fw_info **fw_info);
@@ -45,8 +45,8 @@ int enic_dev_add_station_addr(struct enic *enic);
 int enic_dev_del_station_addr(struct enic *enic);
 int enic_dev_packet_filter(struct enic *enic, int directed, int multicast,
 	int broadcast, int promisc, int allmulti);
-int enic_dev_add_addr(struct enic *enic, u8 *addr);
-int enic_dev_del_addr(struct enic *enic, u8 *addr);
+int enic_dev_add_addr(struct enic *enic, const u8 *addr);
+int enic_dev_del_addr(struct enic *enic, const u8 *addr);
 int enic_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid);
 int enic_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid);
 int enic_dev_notify_unset(struct enic *enic);

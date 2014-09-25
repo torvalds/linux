@@ -68,13 +68,13 @@
 /* Defaults values */
 #define BMA180_DEF_PMODE	0
 #define BMA180_DEF_BW		20
-#define BMA180_DEF_SCALE	250
+#define BMA180_DEF_SCALE	2452
 
 /* Available values for sysfs */
 #define BMA180_FLP_FREQ_AVAILABLE \
 	"10 20 40 75 150 300"
 #define BMA180_SCALE_AVAILABLE \
-	"0.000130 0.000190 0.000250 0.000380 0.000500 0.000990 0.001980"
+	"0.001275 0.001863 0.002452 0.003727 0.004903 0.009709 0.019417"
 
 struct bma180_data {
 	struct i2c_client *client;
@@ -94,7 +94,7 @@ enum bma180_axis {
 };
 
 static int bw_table[] = { 10, 20, 40, 75, 150, 300 }; /* Hz */
-static int scale_table[] = { 130, 190, 250, 380, 500, 990, 1980 };
+static int scale_table[] = { 1275, 1863, 2452, 3727, 4903, 9709, 19417 };
 
 static int bma180_get_acc_reg(struct bma180_data *data, enum bma180_axis axis)
 {
@@ -376,6 +376,8 @@ static int bma180_write_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&data->mutex);
 		return ret;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		if (val2)
+			return -EINVAL;
 		mutex_lock(&data->mutex);
 		ret = bma180_set_bw(data, val);
 		mutex_unlock(&data->mutex);
@@ -447,14 +449,14 @@ static const struct iio_chan_spec_ext_info bma180_ext_info[] = {
 	{ },
 };
 
-#define BMA180_CHANNEL(_index) {					\
+#define BMA180_CHANNEL(_axis) {					\
 	.type = IIO_ACCEL,						\
-	.indexed = 1,							\
-	.channel = (_index),						\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
+	.modified = 1,							\
+	.channel2 = IIO_MOD_##_axis,					\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),			\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |		\
 		BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),	\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
-	.scan_index = (_index),						\
+	.scan_index = AXIS_##_axis,					\
 	.scan_type = {							\
 		.sign = 's',						\
 		.realbits = 14,						\
@@ -465,10 +467,10 @@ static const struct iio_chan_spec_ext_info bma180_ext_info[] = {
 }
 
 static const struct iio_chan_spec bma180_channels[] = {
-	BMA180_CHANNEL(AXIS_X),
-	BMA180_CHANNEL(AXIS_Y),
-	BMA180_CHANNEL(AXIS_Z),
-	IIO_CHAN_SOFT_TIMESTAMP(4),
+	BMA180_CHANNEL(X),
+	BMA180_CHANNEL(Y),
+	BMA180_CHANNEL(Z),
+	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
 static irqreturn_t bma180_trigger_handler(int irq, void *p)
@@ -569,7 +571,7 @@ static int bma180_probe(struct i2c_client *client,
 	trig->ops = &bma180_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);
 	data->trig = trig;
-	indio_dev->trig = trig;
+	indio_dev->trig = iio_trigger_get(trig);
 
 	ret = iio_trigger_register(trig);
 	if (ret)

@@ -223,6 +223,30 @@ static ssize_t next_bitstream_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(next_bitstream);
 
+static ssize_t reload_bitstream_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int reload;
+	struct genwqe_dev *cd = dev_get_drvdata(dev);
+
+	if (kstrtoint(buf, 0, &reload) < 0)
+		return -EINVAL;
+
+	if (reload == 0x1) {
+		if (cd->card_state == GENWQE_CARD_UNUSED ||
+		    cd->card_state == GENWQE_CARD_USED)
+			cd->card_state = GENWQE_CARD_RELOAD_BITSTREAM;
+		else
+			return -EIO;
+	} else {
+		return -EINVAL;
+	}
+
+	return count;
+}
+static DEVICE_ATTR_WO(reload_bitstream);
+
 /*
  * Create device_attribute structures / params: name, mode, show, store
  * additional flag if valid in VF
@@ -239,6 +263,7 @@ static struct attribute *genwqe_attributes[] = {
 	&dev_attr_status.attr,
 	&dev_attr_freerunning_timer.attr,
 	&dev_attr_queue_working_time.attr,
+	&dev_attr_reload_bitstream.attr,
 	NULL,
 };
 

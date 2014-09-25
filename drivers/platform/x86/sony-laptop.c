@@ -61,9 +61,6 @@
 #include <linux/workqueue.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_bus.h>
-#include <asm/uaccess.h>
 #include <linux/sonypi.h>
 #include <linux/sony-laptop.h>
 #include <linux/rfkill.h>
@@ -71,14 +68,13 @@
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
 #endif
+#include <asm/uaccess.h>
 
 #define dprintk(fmt, ...)			\
 do {						\
 	if (debug)				\
 		pr_warn(fmt, ##__VA_ARGS__);	\
 } while (0)
-
-#define SONY_LAPTOP_DRIVER_VERSION	"0.6"
 
 #define SONY_NC_CLASS		"sony-nc"
 #define SONY_NC_HID		"SNY5001"
@@ -91,7 +87,6 @@ do {						\
 MODULE_AUTHOR("Stelian Pop, Mattia Dongili");
 MODULE_DESCRIPTION("Sony laptop extras driver (SPIC and SNC ACPI device)");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(SONY_LAPTOP_DRIVER_VERSION);
 
 static int debug;
 module_param(debug, int, 0);
@@ -131,7 +126,8 @@ static int kbd_backlight = -1;
 module_param(kbd_backlight, int, 0444);
 MODULE_PARM_DESC(kbd_backlight,
 		 "set this to 0 to disable keyboard backlight, "
-		 "1 to enable it (default: no change from current value)");
+		 "1 to enable it with automatic control and 2 to have it always "
+		 "on (default: no change from current value)");
 
 static int kbd_backlight_timeout = -1;
 module_param(kbd_backlight_timeout, int, 0444);
@@ -154,7 +150,8 @@ static void sony_nc_battery_care_cleanup(struct platform_device *pd);
 static int sony_nc_thermal_setup(struct platform_device *pd);
 static void sony_nc_thermal_cleanup(struct platform_device *pd);
 
-static int sony_nc_lid_resume_setup(struct platform_device *pd);
+static int sony_nc_lid_resume_setup(struct platform_device *pd,
+				    unsigned int handle);
 static void sony_nc_lid_resume_cleanup(struct platform_device *pd);
 
 static int sony_nc_gfx_switch_setup(struct platform_device *pd,
@@ -164,6 +161,21 @@ static int __sony_nc_gfx_switch_status_get(void);
 
 static int sony_nc_highspeed_charging_setup(struct platform_device *pd);
 static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd);
+
+static int sony_nc_lowbatt_setup(struct platform_device *pd);
+static void sony_nc_lowbatt_cleanup(struct platform_device *pd);
+
+static int sony_nc_fanspeed_setup(struct platform_device *pd);
+static void sony_nc_fanspeed_cleanup(struct platform_device *pd);
+
+static int sony_nc_usb_charge_setup(struct platform_device *pd);
+static void sony_nc_usb_charge_cleanup(struct platform_device *pd);
+
+static int sony_nc_panelid_setup(struct platform_device *pd);
+static void sony_nc_panelid_cleanup(struct platform_device *pd);
+
+static int sony_nc_smart_conn_setup(struct platform_device *pd);
+static void sony_nc_smart_conn_cleanup(struct platform_device *pd);
 
 static int sony_nc_touchpad_setup(struct platform_device *pd,
 				  unsigned int handle);
@@ -791,7 +803,7 @@ static int sony_nc_buffer_call(acpi_handle handle, char *name, u64 *value,
 		void *buffer, size_t buflen)
 {
 	int ret = 0;
-	size_t len = len;
+	size_t len;
 	union acpi_object *object = __call_snc_method(handle, name, value);
 
 	if (!object)
@@ -1124,6 +1136,8 @@ static struct sony_nc_event sony_100_events[] = {
 	{ 0x25, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0xa6, SONYPI_EVENT_HELP_PRESSED },
 	{ 0x26, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0xa8, SONYPI_EVENT_FNKEY_1 },
+	{ 0x28, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0, 0 },
 };
 
@@ -1341,7 +1355,8 @@ static void sony_nc_function_setup(struct acpi_device *device,
 						result);
 			break;
 		case 0x0119:
-			result = sony_nc_lid_resume_setup(pf_device);
+		case 0x015D:
+			result = sony_nc_lid_resume_setup(pf_device, handle);
 			if (result)
 				pr_err("couldn't set up lid resume function (%d)\n",
 						result);
@@ -1383,6 +1398,36 @@ static void sony_nc_function_setup(struct acpi_device *device,
 				pr_err("couldn't set up keyboard backlight function (%d)\n",
 						result);
 			break;
+		case 0x0121:
+			result = sony_nc_lowbatt_setup(pf_device);
+			if (result)
+				pr_err("couldn't set up low battery function (%d)\n",
+				       result);
+			break;
+		case 0x0149:
+			result = sony_nc_fanspeed_setup(pf_device);
+			if (result)
+				pr_err("couldn't set up fan speed function (%d)\n",
+				       result);
+			break;
+		case 0x0155:
+			result = sony_nc_usb_charge_setup(pf_device);
+			if (result)
+				pr_err("couldn't set up USB charge support (%d)\n",
+						result);
+			break;
+		case 0x011D:
+			result = sony_nc_panelid_setup(pf_device);
+			if (result)
+				pr_err("couldn't set up panel ID function (%d)\n",
+				       result);
+			break;
+		case 0x0168:
+			result = sony_nc_smart_conn_setup(pf_device);
+			if (result)
+				pr_err("couldn't set up smart connect support (%d)\n",
+						result);
+			break;
 		default:
 			continue;
 		}
@@ -1422,6 +1467,7 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 			sony_nc_battery_care_cleanup(pd);
 			break;
 		case 0x0119:
+		case 0x015D:
 			sony_nc_lid_resume_cleanup(pd);
 			break;
 		case 0x0122:
@@ -1445,6 +1491,21 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 		case 0x014c:
 		case 0x0163:
 			sony_nc_kbd_backlight_cleanup(pd, handle);
+			break;
+		case 0x0121:
+			sony_nc_lowbatt_cleanup(pd);
+			break;
+		case 0x0149:
+			sony_nc_fanspeed_cleanup(pd);
+			break;
+		case 0x0155:
+			sony_nc_usb_charge_cleanup(pd);
+			break;
+		case 0x011D:
+			sony_nc_panelid_cleanup(pd);
+			break;
+		case 0x0168:
+			sony_nc_smart_conn_cleanup(pd);
 			break;
 		default:
 			continue;
@@ -1721,7 +1782,7 @@ static ssize_t __sony_nc_kbd_backlight_mode_set(u8 value)
 {
 	int result;
 
-	if (value > 1)
+	if (value > 2)
 		return -EINVAL;
 
 	if (sony_call_snc_handle(kbdbl_ctl->handle,
@@ -1729,8 +1790,10 @@ static ssize_t __sony_nc_kbd_backlight_mode_set(u8 value)
 		return -EIO;
 
 	/* Try to turn the light on/off immediately */
-	sony_call_snc_handle(kbdbl_ctl->handle,
-			(value << 0x10) | (kbdbl_ctl->base + 0x100), &result);
+	if (value != 1)
+		sony_call_snc_handle(kbdbl_ctl->handle,
+				(value << 0x0f) | (kbdbl_ctl->base + 0x100),
+				&result);
 
 	kbdbl_ctl->mode = value;
 
@@ -2223,9 +2286,14 @@ static void sony_nc_thermal_resume(void)
 #endif
 
 /* resume on LID open */
+#define LID_RESUME_S5	0
+#define LID_RESUME_S4	1
+#define LID_RESUME_S3	2
+#define LID_RESUME_MAX	3
 struct snc_lid_resume_control {
-	struct device_attribute attrs[3];
+	struct device_attribute attrs[LID_RESUME_MAX];
 	unsigned int status;
+	int handle;
 };
 static struct snc_lid_resume_control *lid_ctl;
 
@@ -2233,8 +2301,9 @@ static ssize_t sony_nc_lid_resume_store(struct device *dev,
 					struct device_attribute *attr,
 					const char *buffer, size_t count)
 {
-	unsigned int result, pos;
+	unsigned int result;
 	unsigned long value;
+	unsigned int pos = LID_RESUME_S5;
 	if (count > 31)
 		return -EINVAL;
 
@@ -2247,21 +2316,21 @@ static ssize_t sony_nc_lid_resume_store(struct device *dev,
 	 * +--------------+
 	 *   2    1    0
 	 */
-	if (strcmp(attr->attr.name, "lid_resume_S3") == 0)
-		pos = 2;
-	else if (strcmp(attr->attr.name, "lid_resume_S4") == 0)
-		pos = 1;
-	else if (strcmp(attr->attr.name, "lid_resume_S5") == 0)
-		pos = 0;
-	else
-               return -EINVAL;
+	while (pos < LID_RESUME_MAX) {
+		if (&lid_ctl->attrs[pos].attr == &attr->attr)
+			break;
+		pos++;
+	}
+	if (pos == LID_RESUME_MAX)
+		return -EINVAL;
 
 	if (value)
 		value = lid_ctl->status | (1 << pos);
 	else
 		value = lid_ctl->status & ~(1 << pos);
 
-	if (sony_call_snc_handle(0x0119, value << 0x10 | 0x0100, &result))
+	if (sony_call_snc_handle(lid_ctl->handle, value << 0x10 | 0x0100,
+				&result))
 		return -EIO;
 
 	lid_ctl->status = value;
@@ -2270,29 +2339,27 @@ static ssize_t sony_nc_lid_resume_store(struct device *dev,
 }
 
 static ssize_t sony_nc_lid_resume_show(struct device *dev,
-				       struct device_attribute *attr, char *buffer)
+					struct device_attribute *attr,
+					char *buffer)
 {
-	unsigned int pos;
+	unsigned int pos = LID_RESUME_S5;
 
-	if (strcmp(attr->attr.name, "lid_resume_S3") == 0)
-		pos = 2;
-	else if (strcmp(attr->attr.name, "lid_resume_S4") == 0)
-		pos = 1;
-	else if (strcmp(attr->attr.name, "lid_resume_S5") == 0)
-		pos = 0;
-	else
-		return -EINVAL;
-	       
-	return snprintf(buffer, PAGE_SIZE, "%d\n",
-			(lid_ctl->status >> pos) & 0x01);
+	while (pos < LID_RESUME_MAX) {
+		if (&lid_ctl->attrs[pos].attr == &attr->attr)
+			return snprintf(buffer, PAGE_SIZE, "%d\n",
+					(lid_ctl->status >> pos) & 0x01);
+		pos++;
+	}
+	return -EINVAL;
 }
 
-static int sony_nc_lid_resume_setup(struct platform_device *pd)
+static int sony_nc_lid_resume_setup(struct platform_device *pd,
+					unsigned int handle)
 {
 	unsigned int result;
 	int i;
 
-	if (sony_call_snc_handle(0x0119, 0x0000, &result))
+	if (sony_call_snc_handle(handle, 0x0000, &result))
 		return -EIO;
 
 	lid_ctl = kzalloc(sizeof(struct snc_lid_resume_control), GFP_KERNEL);
@@ -2300,26 +2367,29 @@ static int sony_nc_lid_resume_setup(struct platform_device *pd)
 		return -ENOMEM;
 
 	lid_ctl->status = result & 0x7;
+	lid_ctl->handle = handle;
 
 	sysfs_attr_init(&lid_ctl->attrs[0].attr);
-	lid_ctl->attrs[0].attr.name = "lid_resume_S3";
-	lid_ctl->attrs[0].attr.mode = S_IRUGO | S_IWUSR;
-	lid_ctl->attrs[0].show = sony_nc_lid_resume_show;
-	lid_ctl->attrs[0].store = sony_nc_lid_resume_store;
+	lid_ctl->attrs[LID_RESUME_S5].attr.name = "lid_resume_S5";
+	lid_ctl->attrs[LID_RESUME_S5].attr.mode = S_IRUGO | S_IWUSR;
+	lid_ctl->attrs[LID_RESUME_S5].show = sony_nc_lid_resume_show;
+	lid_ctl->attrs[LID_RESUME_S5].store = sony_nc_lid_resume_store;
 
-	sysfs_attr_init(&lid_ctl->attrs[1].attr);
-	lid_ctl->attrs[1].attr.name = "lid_resume_S4";
-	lid_ctl->attrs[1].attr.mode = S_IRUGO | S_IWUSR;
-	lid_ctl->attrs[1].show = sony_nc_lid_resume_show;
-	lid_ctl->attrs[1].store = sony_nc_lid_resume_store;
+	if (handle == 0x0119) {
+		sysfs_attr_init(&lid_ctl->attrs[1].attr);
+		lid_ctl->attrs[LID_RESUME_S4].attr.name = "lid_resume_S4";
+		lid_ctl->attrs[LID_RESUME_S4].attr.mode = S_IRUGO | S_IWUSR;
+		lid_ctl->attrs[LID_RESUME_S4].show = sony_nc_lid_resume_show;
+		lid_ctl->attrs[LID_RESUME_S4].store = sony_nc_lid_resume_store;
 
-	sysfs_attr_init(&lid_ctl->attrs[2].attr);
-	lid_ctl->attrs[2].attr.name = "lid_resume_S5";
-	lid_ctl->attrs[2].attr.mode = S_IRUGO | S_IWUSR;
-	lid_ctl->attrs[2].show = sony_nc_lid_resume_show;
-	lid_ctl->attrs[2].store = sony_nc_lid_resume_store;
-
-	for (i = 0; i < 3; i++) {
+		sysfs_attr_init(&lid_ctl->attrs[2].attr);
+		lid_ctl->attrs[LID_RESUME_S3].attr.name = "lid_resume_S3";
+		lid_ctl->attrs[LID_RESUME_S3].attr.mode = S_IRUGO | S_IWUSR;
+		lid_ctl->attrs[LID_RESUME_S3].show = sony_nc_lid_resume_show;
+		lid_ctl->attrs[LID_RESUME_S3].store = sony_nc_lid_resume_store;
+	}
+	for (i = 0; i < LID_RESUME_MAX &&
+			lid_ctl->attrs[i].attr.name; i++) {
 		result = device_create_file(&pd->dev, &lid_ctl->attrs[i]);
 		if (result)
 			goto liderror;
@@ -2342,8 +2412,12 @@ static void sony_nc_lid_resume_cleanup(struct platform_device *pd)
 	int i;
 
 	if (lid_ctl) {
-		for (i = 0; i < 3; i++)
+		for (i = 0; i < LID_RESUME_MAX; i++) {
+			if (!lid_ctl->attrs[i].attr.name)
+				break;
+
 			device_remove_file(&pd->dev, &lid_ctl->attrs[i]);
+		}
 
 		kfree(lid_ctl);
 		lid_ctl = NULL;
@@ -2523,6 +2597,355 @@ static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd)
 		device_remove_file(&pd->dev, hsc_handle);
 		kfree(hsc_handle);
 		hsc_handle = NULL;
+	}
+}
+
+/* low battery function */
+static struct device_attribute *lowbatt_handle;
+
+static ssize_t sony_nc_lowbatt_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	unsigned int result;
+	unsigned long value;
+
+	if (count > 31)
+		return -EINVAL;
+
+	if (kstrtoul(buffer, 10, &value) || value > 1)
+		return -EINVAL;
+
+	if (sony_call_snc_handle(0x0121, value << 8, &result))
+		return -EIO;
+
+	return count;
+}
+
+static ssize_t sony_nc_lowbatt_show(struct device *dev,
+		struct device_attribute *attr, char *buffer)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x0121, 0x0200, &result))
+		return -EIO;
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 1);
+}
+
+static int sony_nc_lowbatt_setup(struct platform_device *pd)
+{
+	unsigned int result;
+
+	lowbatt_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	if (!lowbatt_handle)
+		return -ENOMEM;
+
+	sysfs_attr_init(&lowbatt_handle->attr);
+	lowbatt_handle->attr.name = "lowbatt_hibernate";
+	lowbatt_handle->attr.mode = S_IRUGO | S_IWUSR;
+	lowbatt_handle->show = sony_nc_lowbatt_show;
+	lowbatt_handle->store = sony_nc_lowbatt_store;
+
+	result = device_create_file(&pd->dev, lowbatt_handle);
+	if (result) {
+		kfree(lowbatt_handle);
+		lowbatt_handle = NULL;
+		return result;
+	}
+
+	return 0;
+}
+
+static void sony_nc_lowbatt_cleanup(struct platform_device *pd)
+{
+	if (lowbatt_handle) {
+		device_remove_file(&pd->dev, lowbatt_handle);
+		kfree(lowbatt_handle);
+		lowbatt_handle = NULL;
+	}
+}
+
+/* fan speed function */
+static struct device_attribute *fan_handle, *hsf_handle;
+
+static ssize_t sony_nc_hsfan_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	unsigned int result;
+	unsigned long value;
+
+	if (count > 31)
+		return -EINVAL;
+
+	if (kstrtoul(buffer, 10, &value) || value > 1)
+		return -EINVAL;
+
+	if (sony_call_snc_handle(0x0149, value << 0x10 | 0x0200, &result))
+		return -EIO;
+
+	return count;
+}
+
+static ssize_t sony_nc_hsfan_show(struct device *dev,
+		struct device_attribute *attr, char *buffer)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x0149, 0x0100, &result))
+		return -EIO;
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 0x01);
+}
+
+static ssize_t sony_nc_fanspeed_show(struct device *dev,
+		struct device_attribute *attr, char *buffer)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x0149, 0x0300, &result))
+		return -EIO;
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 0xff);
+}
+
+static int sony_nc_fanspeed_setup(struct platform_device *pd)
+{
+	unsigned int result;
+
+	fan_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	if (!fan_handle)
+		return -ENOMEM;
+
+	hsf_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	if (!hsf_handle) {
+		result = -ENOMEM;
+		goto out_hsf_handle_alloc;
+	}
+
+	sysfs_attr_init(&fan_handle->attr);
+	fan_handle->attr.name = "fanspeed";
+	fan_handle->attr.mode = S_IRUGO;
+	fan_handle->show = sony_nc_fanspeed_show;
+	fan_handle->store = NULL;
+
+	sysfs_attr_init(&hsf_handle->attr);
+	hsf_handle->attr.name = "fan_forced";
+	hsf_handle->attr.mode = S_IRUGO | S_IWUSR;
+	hsf_handle->show = sony_nc_hsfan_show;
+	hsf_handle->store = sony_nc_hsfan_store;
+
+	result = device_create_file(&pd->dev, fan_handle);
+	if (result)
+		goto out_fan_handle;
+
+	result = device_create_file(&pd->dev, hsf_handle);
+	if (result)
+		goto out_hsf_handle;
+
+	return 0;
+
+out_hsf_handle:
+	device_remove_file(&pd->dev, fan_handle);
+
+out_fan_handle:
+	kfree(hsf_handle);
+	hsf_handle = NULL;
+
+out_hsf_handle_alloc:
+	kfree(fan_handle);
+	fan_handle = NULL;
+	return result;
+}
+
+static void sony_nc_fanspeed_cleanup(struct platform_device *pd)
+{
+	if (fan_handle) {
+		device_remove_file(&pd->dev, fan_handle);
+		kfree(fan_handle);
+		fan_handle = NULL;
+	}
+	if (hsf_handle) {
+		device_remove_file(&pd->dev, hsf_handle);
+		kfree(hsf_handle);
+		hsf_handle = NULL;
+	}
+}
+
+/* USB charge function */
+static struct device_attribute *uc_handle;
+
+static ssize_t sony_nc_usb_charge_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	unsigned int result;
+	unsigned long value;
+
+	if (count > 31)
+		return -EINVAL;
+
+	if (kstrtoul(buffer, 10, &value) || value > 1)
+		return -EINVAL;
+
+	if (sony_call_snc_handle(0x0155, value << 0x10 | 0x0100, &result))
+		return -EIO;
+
+	return count;
+}
+
+static ssize_t sony_nc_usb_charge_show(struct device *dev,
+		struct device_attribute *attr, char *buffer)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x0155, 0x0000, &result))
+		return -EIO;
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", result & 0x01);
+}
+
+static int sony_nc_usb_charge_setup(struct platform_device *pd)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x0155, 0x0000, &result) || !(result & 0x01)) {
+		/* some models advertise the handle but have no implementation
+		 * for it
+		 */
+		pr_info("No USB Charge capability found\n");
+		return 0;
+	}
+
+	uc_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	if (!uc_handle)
+		return -ENOMEM;
+
+	sysfs_attr_init(&uc_handle->attr);
+	uc_handle->attr.name = "usb_charge";
+	uc_handle->attr.mode = S_IRUGO | S_IWUSR;
+	uc_handle->show = sony_nc_usb_charge_show;
+	uc_handle->store = sony_nc_usb_charge_store;
+
+	result = device_create_file(&pd->dev, uc_handle);
+	if (result) {
+		kfree(uc_handle);
+		uc_handle = NULL;
+		return result;
+	}
+
+	return 0;
+}
+
+static void sony_nc_usb_charge_cleanup(struct platform_device *pd)
+{
+	if (uc_handle) {
+		device_remove_file(&pd->dev, uc_handle);
+		kfree(uc_handle);
+		uc_handle = NULL;
+	}
+}
+
+/* Panel ID function */
+static struct device_attribute *panel_handle;
+
+static ssize_t sony_nc_panelid_show(struct device *dev,
+		struct device_attribute *attr, char *buffer)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(0x011D, 0x0000, &result))
+		return -EIO;
+
+	return snprintf(buffer, PAGE_SIZE, "%d\n", result);
+}
+
+static int sony_nc_panelid_setup(struct platform_device *pd)
+{
+	unsigned int result;
+
+	panel_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	if (!panel_handle)
+		return -ENOMEM;
+
+	sysfs_attr_init(&panel_handle->attr);
+	panel_handle->attr.name = "panel_id";
+	panel_handle->attr.mode = S_IRUGO;
+	panel_handle->show = sony_nc_panelid_show;
+	panel_handle->store = NULL;
+
+	result = device_create_file(&pd->dev, panel_handle);
+	if (result) {
+		kfree(panel_handle);
+		panel_handle = NULL;
+		return result;
+	}
+
+	return 0;
+}
+
+static void sony_nc_panelid_cleanup(struct platform_device *pd)
+{
+	if (panel_handle) {
+		device_remove_file(&pd->dev, panel_handle);
+		kfree(panel_handle);
+		panel_handle = NULL;
+	}
+}
+
+/* smart connect function */
+static struct device_attribute *sc_handle;
+
+static ssize_t sony_nc_smart_conn_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buffer, size_t count)
+{
+	unsigned int result;
+	unsigned long value;
+
+	if (count > 31)
+		return -EINVAL;
+
+	if (kstrtoul(buffer, 10, &value) || value > 1)
+		return -EINVAL;
+
+	if (sony_call_snc_handle(0x0168, value << 0x10, &result))
+		return -EIO;
+
+	return count;
+}
+
+static int sony_nc_smart_conn_setup(struct platform_device *pd)
+{
+	unsigned int result;
+
+	sc_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	if (!sc_handle)
+		return -ENOMEM;
+
+	sysfs_attr_init(&sc_handle->attr);
+	sc_handle->attr.name = "smart_connect";
+	sc_handle->attr.mode = S_IWUSR;
+	sc_handle->show = NULL;
+	sc_handle->store = sony_nc_smart_conn_store;
+
+	result = device_create_file(&pd->dev, sc_handle);
+	if (result) {
+		kfree(sc_handle);
+		sc_handle = NULL;
+		return result;
+	}
+
+	return 0;
+}
+
+static void sony_nc_smart_conn_cleanup(struct platform_device *pd)
+{
+	if (sc_handle) {
+		device_remove_file(&pd->dev, sc_handle);
+		kfree(sc_handle);
+		sc_handle = NULL;
 	}
 }
 
@@ -2728,8 +3151,6 @@ static int sony_nc_add(struct acpi_device *device)
 	int result = 0;
 	struct sony_nc_value *item;
 
-	pr_info("%s v%s\n", SONY_NC_DRIVER_NAME, SONY_LAPTOP_DRIVER_VERSION);
-
 	sony_nc_acpi_device = device;
 	strcpy(acpi_device_class(device), "sony/hotkey");
 
@@ -2823,6 +3244,7 @@ static int sony_nc_add(struct acpi_device *device)
 		}
 	}
 
+	pr_info("SNC setup done.\n");
 	return 0;
 
 out_sysfs:
@@ -4261,8 +4683,6 @@ static int sony_pic_add(struct acpi_device *device)
 	struct sony_pic_ioport *io, *tmp_io;
 	struct sony_pic_irq *irq, *tmp_irq;
 
-	pr_info("%s v%s\n", SONY_PIC_DRIVER_NAME, SONY_LAPTOP_DRIVER_VERSION);
-
 	spic_dev.acpi_dev = device;
 	strcpy(acpi_device_class(device), "sony/hotkey");
 	sony_pic_detect_device_type(&spic_dev);
@@ -4362,6 +4782,7 @@ static int sony_pic_add(struct acpi_device *device)
 	if (result)
 		goto err_remove_pf;
 
+	pr_info("SPIC setup done.\n");
 	return 0;
 
 err_remove_pf:

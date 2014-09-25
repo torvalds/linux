@@ -55,7 +55,6 @@
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		reg = <0 0xe61c0000 0 0x200>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 1 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 2 IRQ_TYPE_LEVEL_HIGH>,
@@ -95,7 +94,6 @@
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		reg = <0 0xe61c0200 0 0x200>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 32 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 33 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 34 IRQ_TYPE_LEVEL_HIGH>,
@@ -136,7 +134,6 @@
 		dma0: dma-controller@e6700020 {
 			compatible = "renesas,shdma-r8a73a4";
 			reg = <0 0xe6700020 0 0x89e0>;
-			interrupt-parent = <&gic>;
 			interrupts = <0 220 IRQ_TYPE_LEVEL_HIGH
 					0 200 IRQ_TYPE_LEVEL_HIGH
 					0 201 IRQ_TYPE_LEVEL_HIGH
@@ -171,7 +168,6 @@
 		compatible = "renesas,rcar-thermal";
 		reg = <0 0xe61f0000 0 0x14>, <0 0xe61f0100 0 0x38>,
 			 <0 0xe61f0200 0 0x38>, <0 0xe61f0300 0 0x38>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 69 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
@@ -180,7 +176,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6500000 0 0x428>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 174 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -190,7 +185,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6510000 0 0x428>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 175 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -200,7 +194,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6520000 0 0x428>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 176 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -210,7 +203,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6530000 0 0x428>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 177 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -220,7 +212,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6540000 0 0x428>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 178 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -230,7 +221,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe60b0000 0 0x428>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 179 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -240,7 +230,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6550000 0 0x428>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 184 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -250,7 +239,6 @@
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6560000 0 0x428>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 185 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -260,15 +248,55 @@
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
 		reg = <0 0xe6570000 0 0x428>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 173 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	scifa0: serial@e6c40000 {
+		compatible = "renesas,scifa-r8a73a4", "renesas,scifa";
+		reg = <0 0xe6c40000 0 0x100>;
+		interrupts = <0 144 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	scifa1: serial@e6c50000 {
+		compatible = "renesas,scifa-r8a73a4", "renesas,scifa";
+		reg = <0 0xe6c50000 0 0x100>;
+		interrupts = <0 145 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	scifb2: serial@e6c20000 {
+		compatible = "renesas,scifb-r8a73a4", "renesas,scifb";
+		reg = <0 0xe6c20000 0 0x100>;
+		interrupts = <0 148 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	scifb3: serial@e6c30000 {
+		compatible = "renesas,scifb-r8a73a4", "renesas,scifb";
+		reg = <0 0xe6c30000 0 0x100>;
+		interrupts = <0 149 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	scifb4: serial@e6ce0000 {
+		compatible = "renesas,scifb-r8a73a4", "renesas,scifb";
+		reg = <0 0xe6ce0000 0 0x100>;
+		interrupts = <0 150 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	scifb5: serial@e6cf0000 {
+		compatible = "renesas,scifb-r8a73a4", "renesas,scifb";
+		reg = <0 0xe6cf0000 0 0x100>;
+		interrupts = <0 151 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
 	mmcif0: mmc@ee200000 {
 		compatible = "renesas,sh-mmcif";
 		reg = <0 0xee200000 0 0x80>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 169 IRQ_TYPE_LEVEL_HIGH>;
 		reg-io-width = <4>;
 		status = "disabled";
@@ -277,7 +305,6 @@
 	mmcif1: mmc@ee220000 {
 		compatible = "renesas,sh-mmcif";
 		reg = <0 0xee220000 0 0x80>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 170 IRQ_TYPE_LEVEL_HIGH>;
 		reg-io-width = <4>;
 		status = "disabled";
@@ -309,7 +336,6 @@
 	sdhi0: sd@ee100000 {
 		compatible = "renesas,sdhi-r8a73a4";
 		reg = <0 0xee100000 0 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 165 IRQ_TYPE_LEVEL_HIGH>;
 		cap-sd-highspeed;
 		status = "disabled";
@@ -318,7 +344,6 @@
 	sdhi1: sd@ee120000 {
 		compatible = "renesas,sdhi-r8a73a4";
 		reg = <0 0xee120000 0 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 166 IRQ_TYPE_LEVEL_HIGH>;
 		cap-sd-highspeed;
 		status = "disabled";
@@ -327,7 +352,6 @@
 	sdhi2: sd@ee140000 {
 		compatible = "renesas,sdhi-r8a73a4";
 		reg = <0 0xee140000 0 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 167 IRQ_TYPE_LEVEL_HIGH>;
 		cap-sd-highspeed;
 		status = "disabled";

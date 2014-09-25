@@ -37,7 +37,7 @@ config SND_SOC_SH4_SIU
 config SND_SOC_RCAR
 	tristate "R-Car series SRU/SCU/SSIU/SSI support"
 	select SND_SIMPLE_CARD
-	select REGMAP
+	select REGMAP_MMIO
 	help
 	  This option enables R-Car SUR/SCU/SSIU/SSI sound support
 
@@ -56,7 +56,7 @@ config SND_SH7760_AC97
 
 config SND_SIU_MIGOR
 	tristate "SIU sound support on Migo-R"
-	depends on SH_MIGOR
+	depends on SH_MIGOR && I2C
 	select SND_SOC_SH4_SIU
 	select SND_SOC_WM8978
 	help

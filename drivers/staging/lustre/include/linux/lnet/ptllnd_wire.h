@@ -54,7 +54,6 @@
  * enough to avoid RDMA for anything sent while control is not in liblustre */
 #define PTLLND_MAX_ULND_MSG_SIZE 512
 
-
 /************************************************************************
  * Portals LND Wire message format.
  * These are sent in sender's byte order (i.e. receiver flips).
@@ -64,26 +63,22 @@
 					 * above is for bulk data transfer */
 #define LNET_MSG_MATCHBITS       0      /* the value for the message channel */
 
-typedef struct
-{
+typedef struct {
 	lnet_hdr_t	kptlim_hdr;	     /* portals header */
 	char	      kptlim_payload[0];      /* piggy-backed payload */
 } WIRE_ATTR kptl_immediate_msg_t;
 
-typedef struct
-{
+typedef struct {
 	lnet_hdr_t	kptlrm_hdr;	     /* portals header */
 	__u64	     kptlrm_matchbits;       /* matchbits */
 } WIRE_ATTR kptl_rdma_msg_t;
 
-typedef struct
-{
+typedef struct {
 	__u64	     kptlhm_matchbits;       /* matchbits */
 	__u32	     kptlhm_max_msg_size;    /* max message size */
 } WIRE_ATTR kptl_hello_msg_t;
 
-typedef struct
-{
+typedef struct {
 	/* First 2 fields fixed FOR ALL TIME */
 	__u32	   ptlm_magic;     /* I'm a Portals LND message */
 	__u16	   ptlm_version;   /* this is my version number */
@@ -107,7 +102,7 @@ typedef struct
 } kptl_msg_t;
 
 /* kptl_msg_t::ptlm_credits is only a __u8 */
-#define PTLLND_MSG_MAX_CREDITS ((typeof(((kptl_msg_t*) 0)->ptlm_credits)) -1)
+#define PTLLND_MSG_MAX_CREDITS ((typeof(((kptl_msg_t *)0)->ptlm_credits)) - 1)
 
 #define PTLLND_MSG_MAGIC		LNET_PROTO_PTL_MAGIC
 #define PTLLND_MSG_VERSION	      0x04

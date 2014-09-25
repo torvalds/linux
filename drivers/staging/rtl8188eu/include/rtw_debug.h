@@ -23,7 +23,7 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 
-
+#define DRIVERVERSION	"v4.1.4_6773.20130222"
 #define _drv_always_			1
 #define _drv_emerg_			2
 #define _drv_alert_			3
@@ -97,20 +97,6 @@ extern u32 GlobalDebugLevel;
 				 (unsigned int)_comp, _level);		\
 			pr_info fmt;					\
 		}							\
-	} while (0)
-
-#define _func_enter_							\
-	do {								\
-		if (GlobalDebugLevel >= _drv_debug_)			\
-			pr_info("%s : %s enters at %d\n",		\
-				 DRIVER_PREFIX, __func__, __LINE__);	\
-	} while (0)
-
-#define _func_exit_							\
-	do {								\
-		if (GlobalDebugLevel >= _drv_debug_)			\
-			pr_info("%s : %s exits at %d\n",		\
-				 DRIVER_PREFIX, __func__, __LINE__);	\
 	} while (0)
 
 #define RT_PRINT_DATA(_comp, _level, _titlestring, _hexdata, _hexdatalen)\
@@ -276,15 +262,5 @@ int proc_get_rssi_disp(char *page, char **start,
 
 int proc_set_rssi_disp(struct file *file, const char __user *buffer,
 		       unsigned long count, void *data);
-
-#ifdef CONFIG_BT_COEXIST
-int proc_get_btcoex_dbg(char *page, char **start,
-			off_t offset, int count,
-			int *eof, void *data);
-
-int proc_set_btcoex_dbg(struct file *file, const char *buffer,
-			signed long count, void *data);
-
-#endif /* CONFIG_BT_COEXIST */
 
 #endif	/* __RTW_DEBUG_H__ */

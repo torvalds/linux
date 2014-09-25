@@ -27,6 +27,7 @@
 #include <linux/init.h>
 
 #include "em28xx.h"
+#include "em28xx-v4l.h"
 
 static unsigned int vbibufs = 5;
 module_param(vbibufs, int, 0644);
@@ -46,12 +47,13 @@ static int vbi_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct em28xx *dev = vb2_get_drv_priv(vq);
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	unsigned long size;
 
 	if (fmt)
 		size = fmt->fmt.pix.sizeimage;
 	else
-		size = dev->vbi_width * dev->vbi_height * 2;
+		size = v4l2->vbi_width * v4l2->vbi_height * 2;
 
 	if (0 == *nbuffers)
 		*nbuffers = 32;
@@ -68,11 +70,12 @@ static int vbi_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 static int vbi_buffer_prepare(struct vb2_buffer *vb)
 {
-	struct em28xx        *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct em28xx_buffer *buf = container_of(vb, struct em28xx_buffer, vb);
+	struct em28xx        *dev  = vb2_get_drv_priv(vb->vb2_queue);
+	struct em28xx_v4l2   *v4l2 = dev->v4l2;
+	struct em28xx_buffer *buf  = container_of(vb, struct em28xx_buffer, vb);
 	unsigned long        size;
 
-	size = dev->vbi_width * dev->vbi_height * 2;
+	size = v4l2->vbi_width * v4l2->vbi_height * 2;
 
 	if (vb2_plane_size(vb, 0) < size) {
 		printk(KERN_INFO "%s data will not fit into plane (%lu < %lu)\n",

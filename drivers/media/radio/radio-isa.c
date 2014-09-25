@@ -253,7 +253,6 @@ static int radio_isa_common_probe(struct radio_isa_card *isa,
 	isa->vdev.fops = &radio_isa_fops;
 	isa->vdev.ioctl_ops = &radio_isa_ioctl_ops;
 	isa->vdev.release = video_device_release_empty;
-	set_bit(V4L2_FL_USE_FH_PRIO, &isa->vdev.flags);
 	video_set_drvdata(&isa->vdev, isa);
 	isa->freq = FREQ_LOW;
 	isa->stereo = drv->has_stereo;

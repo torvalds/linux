@@ -45,7 +45,7 @@ struct imx1_pinctrl {
 #define MX1_DDIR 0x00
 #define MX1_OCR 0x04
 #define MX1_ICONFA 0x0c
-#define MX1_ICONFB 0x10
+#define MX1_ICONFB 0x14
 #define MX1_GIUS 0x20
 #define MX1_GPR 0x38
 #define MX1_PUEN 0x40
@@ -97,12 +97,12 @@ static void imx1_write_2bit(struct imx1_pinctrl *ipctl, unsigned int pin_id,
 	u32 old_val;
 	u32 new_val;
 
-	dev_dbg(ipctl->dev, "write: register 0x%p offset %d value 0x%x\n",
-			reg, offset, value);
-
 	/* Use the next register if the pin's port pin number is >=16 */
 	if (pin_id % 32 >= 16)
 		reg += 0x04;
+
+	dev_dbg(ipctl->dev, "write: register 0x%p offset %d value 0x%x\n",
+			reg, offset, value);
 
 	/* Get current state of pins */
 	old_val = readl(reg);
@@ -139,7 +139,7 @@ static int imx1_read_2bit(struct imx1_pinctrl *ipctl, unsigned int pin_id,
 		u32 reg_offset)
 {
 	void __iomem *reg = imx1_mem(ipctl, pin_id) + reg_offset;
-	int offset = pin_id % 16;
+	int offset = (pin_id % 16) * 2;
 
 	/* Use the next register if the pin's port pin number is >=16 */
 	if (pin_id % 32 >= 16)
@@ -526,7 +526,7 @@ static int imx1_pinctrl_parse_functions(struct device_node *np,
 	/* Initialise function */
 	func->name = np->name;
 	func->num_groups = of_get_child_count(np);
-	if (func->num_groups <= 0)
+	if (func->num_groups == 0)
 		return -EINVAL;
 
 	func->groups = devm_kzalloc(info->dev,

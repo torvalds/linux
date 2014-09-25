@@ -636,11 +636,17 @@ static size_t omap_sham_append_buffer(struct omap_sham_reqctx *ctx,
 static size_t omap_sham_append_sg(struct omap_sham_reqctx *ctx)
 {
 	size_t count;
+	const u8 *vaddr;
 
 	while (ctx->sg) {
+		vaddr = kmap_atomic(sg_page(ctx->sg));
+
 		count = omap_sham_append_buffer(ctx,
-				sg_virt(ctx->sg) + ctx->offset,
+				vaddr + ctx->offset,
 				ctx->sg->length - ctx->offset);
+
+		kunmap_atomic((void *)vaddr);
+
 		if (!count)
 			break;
 		ctx->offset += count;
@@ -2022,9 +2028,7 @@ static int omap_sham_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops omap_sham_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(omap_sham_suspend, omap_sham_resume)
-};
+static SIMPLE_DEV_PM_OPS(omap_sham_pm_ops, omap_sham_suspend, omap_sham_resume);
 
 static struct platform_driver omap_sham_driver = {
 	.probe	= omap_sham_probe,

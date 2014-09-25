@@ -14,15 +14,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/linkage.h>
 
-#include <asm/cache.h>
+#include <soc/tegra/fuse.h>
+
 #include <asm/asm-offsets.h>
-#include <asm/hardware/cache-l2x0.h>
+#include <asm/cache.h>
 
 #include "flowctrl.h"
-#include "fuse.h"
 #include "iomap.h"
 #include "reset.h"
 #include "sleep.h"
@@ -78,8 +78,10 @@ ENTRY(tegra_resume)
 	str	r1, [r0]
 #endif
 
+#ifdef CONFIG_CACHE_L2X0
 	/* L2 cache resume & re-enable */
-	l2_cache_resume r0, r1, r2, l2x0_saved_regs_addr
+	bl	l2c310_early_resume
+#endif
 end_ca9_scu_l2_resume:
 	mov32	r9, 0xc0f
 	cmp	r8, r9
@@ -87,12 +89,6 @@ end_ca9_scu_l2_resume:
 
 	b	cpu_resume
 ENDPROC(tegra_resume)
-#endif
-
-#ifdef CONFIG_CACHE_L2X0
-	.globl	l2x0_saved_regs_addr
-l2x0_saved_regs_addr:
-	.long	0
 #endif
 
 	.align L1_CACHE_SHIFT

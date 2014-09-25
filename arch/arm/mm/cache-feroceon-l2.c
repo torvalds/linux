@@ -13,10 +13,15 @@
  */
 
 #include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/highmem.h>
+#include <linux/io.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
-#include <plat/cache-feroceon-l2.h>
+#include <asm/hardware/cache-feroceon-l2.h>
+
+#define L2_WRITETHROUGH_KIRKWOOD	BIT(4)
 
 /*
  * Low-level cache maintenance operations.
@@ -331,7 +336,9 @@ static void __init enable_l2(void)
 			enable_icache();
 		if (d)
 			enable_dcache();
-	}
+	} else
+		pr_err(FW_BUG
+		       "Feroceon L2: bootloader left the L2 cache on!\n");
 }
 
 void __init feroceon_l2_init(int __l2_wt_override)
@@ -343,10 +350,47 @@ void __init feroceon_l2_init(int __l2_wt_override)
 	outer_cache.inv_range = feroceon_l2_inv_range;
 	outer_cache.clean_range = feroceon_l2_clean_range;
 	outer_cache.flush_range = feroceon_l2_flush_range;
-	outer_cache.inv_all = l2_inv_all;
 
 	enable_l2();
 
 	printk(KERN_INFO "Feroceon L2: Cache support initialised%s.\n",
 			 l2_wt_override ? ", in WT override mode" : "");
 }
+#ifdef CONFIG_OF
+static const struct of_device_id feroceon_ids[] __initconst = {
+	{ .compatible = "marvell,kirkwood-cache"},
+	{ .compatible = "marvell,feroceon-cache"},
+	{}
+};
+
+int __init feroceon_of_init(void)
+{
+	struct device_node *node;
+	void __iomem *base;
+	bool l2_wt_override = false;
+	struct resource res;
+
+#if defined(CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH)
+	l2_wt_override = true;
+#endif
+
+	node = of_find_matching_node(NULL, feroceon_ids);
+	if (node && of_device_is_compatible(node, "marvell,kirkwood-cache")) {
+		if (of_address_to_resource(node, 0, &res))
+			return -ENODEV;
+
+		base = ioremap(res.start, resource_size(&res));
+		if (!base)
+			return -ENOMEM;
+
+		if (l2_wt_override)
+			writel(readl(base) | L2_WRITETHROUGH_KIRKWOOD, base);
+		else
+			writel(readl(base) & ~L2_WRITETHROUGH_KIRKWOOD, base);
+	}
+
+	feroceon_l2_init(l2_wt_override);
+
+	return 0;
+}
+#endif

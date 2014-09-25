@@ -656,6 +656,7 @@ static ssize_t bm_status_write(struct file * file, const char __user * buffer,
 
 			mutex_unlock(&root->d_inode->i_mutex);
 			dput(root);
+			break;
 		default: return res;
 	}
 	return count;

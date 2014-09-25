@@ -16,6 +16,7 @@ Required Properties:
   - "samsung,exynos4210-pinctrl": for Exynos4210 compatible pin-controller.
   - "samsung,exynos4x12-pinctrl": for Exynos4x12 compatible pin-controller.
   - "samsung,exynos5250-pinctrl": for Exynos5250 compatible pin-controller.
+  - "samsung,exynos5260-pinctrl": for Exynos5260 compatible pin-controller.
   - "samsung,exynos5420-pinctrl": for Exynos5420 compatible pin-controller.
 
 - reg: Base address of the pin controller hardware module and length of
@@ -43,7 +44,11 @@ Required Properties:
 - Pin mux/config groups as child nodes: The pin mux (selecting pin function
   mode) and pin config (pull up/down, driver strength) settings are represented
   as child nodes of the pin-controller node. There should be atleast one
-  child node and there is no limit on the count of these child nodes.
+  child node and there is no limit on the count of these child nodes. It is
+  also possible for a child node to consist of several further child nodes
+  to allow grouping multiple pinctrl groups into one. The format of second
+  level child nodes is exactly the same as for first level ones and is
+  described below.
 
   The child node should contain a list of pin(s) on which a particular pin
   function selection or pin configuration (or both) have to applied. This
@@ -70,6 +75,7 @@ Required Properties:
   "samsung,pins" property of the child node. The following pin configuration
   properties are supported.
 
+  - samsung,pin-val: Initial value of pin output buffer.
   - samsung,pin-pud: Pull up/down configuration.
   - samsung,pin-drv: Drive strength configuration.
   - samsung,pin-pud-pdn: Pull up/down configuration in power down mode.
@@ -247,6 +253,23 @@ Example 1: A pin-controller node with pin groups.
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <3>;
 			samsung,pin-drv = <0>;
+		};
+
+		sd4_bus8: sd4-bus-width8 {
+			part-1 {
+				samsung,pins = "gpk0-3", "gpk0-4",
+						"gpk0-5", "gpk0-6";
+				samsung,pin-function = <3>;
+				samsung,pin-pud = <3>;
+				samsung,pin-drv = <3>;
+			};
+			part-2 {
+				samsung,pins = "gpk1-3", "gpk1-4",
+						"gpk1-5", "gpk1-6";
+				samsung,pin-function = <4>;
+				samsung,pin-pud = <4>;
+				samsung,pin-drv = <3>;
+			};
 		};
 	};
 

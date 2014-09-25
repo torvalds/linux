@@ -37,6 +37,11 @@ static void sclp_sync_callback(struct sclp_req *req, void *data)
 
 int sclp_sync_request(sclp_cmdw_t cmd, void *sccb)
 {
+	return sclp_sync_request_timeout(cmd, sccb, 0);
+}
+
+int sclp_sync_request_timeout(sclp_cmdw_t cmd, void *sccb, int timeout)
+{
 	struct completion completion;
 	struct sclp_req *request;
 	int rc;
@@ -44,6 +49,8 @@ int sclp_sync_request(sclp_cmdw_t cmd, void *sccb)
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (!request)
 		return -ENOMEM;
+	if (timeout)
+		request->queue_timeout = timeout;
 	request->command = cmd;
 	request->sccb = sccb;
 	request->status = SCLP_REQ_FILLED;
@@ -110,7 +117,8 @@ int sclp_get_cpu_info(struct sclp_cpu_info *info)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = sizeof(*sccb);
-	rc = sclp_sync_request(SCLP_CMDW_READ_CPU_INFO, sccb);
+	rc = sclp_sync_request_timeout(SCLP_CMDW_READ_CPU_INFO, sccb,
+				       SCLP_QUEUE_INTERVAL);
 	if (rc)
 		goto out;
 	if (sccb->header.response_code != 0x0010) {
@@ -144,7 +152,7 @@ static int do_cpu_configure(sclp_cmdw_t cmd)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = sizeof(*sccb);
-	rc = sclp_sync_request(cmd, sccb);
+	rc = sclp_sync_request_timeout(cmd, sccb, SCLP_QUEUE_INTERVAL);
 	if (rc)
 		goto out;
 	switch (sccb->header.response_code) {
@@ -214,7 +222,7 @@ static int do_assign_storage(sclp_cmdw_t cmd, u16 rn)
 		return -ENOMEM;
 	sccb->header.length = PAGE_SIZE;
 	sccb->rn = rn;
-	rc = sclp_sync_request(cmd, sccb);
+	rc = sclp_sync_request_timeout(cmd, sccb, SCLP_QUEUE_INTERVAL);
 	if (rc)
 		goto out;
 	switch (sccb->header.response_code) {
@@ -269,7 +277,8 @@ static int sclp_attach_storage(u8 id)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = PAGE_SIZE;
-	rc = sclp_sync_request(0x00080001 | id << 8, sccb);
+	rc = sclp_sync_request_timeout(0x00080001 | id << 8, sccb,
+				       SCLP_QUEUE_INTERVAL);
 	if (rc)
 		goto out;
 	switch (sccb->header.response_code) {
@@ -506,7 +515,7 @@ static int __init sclp_detect_standby_memory(void)
 	if (rc)
 		goto out;
 	sclp_pdev = platform_device_register_simple("sclp_mem", -1, NULL, 0);
-	rc = PTR_RET(sclp_pdev);
+	rc = PTR_ERR_OR_ZERO(sclp_pdev);
 	if (rc)
 		goto out_driver;
 	sclp_add_standby_memory();
@@ -699,4 +708,9 @@ int sclp_chp_read_info(struct sclp_chp_info *info)
 out:
 	free_page((unsigned long) sccb);
 	return rc;
+}
+
+bool sclp_has_sprp(void)
+{
+	return !!(sclp_fac84 & 0x2);
 }

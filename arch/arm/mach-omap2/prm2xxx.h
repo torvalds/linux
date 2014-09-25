@@ -27,7 +27,7 @@
 
 /*
  * OMAP2-specific global PRM registers
- * Use __raw_{read,write}l() with these registers.
+ * Use {read,write}l_relaxed() with these registers.
  *
  * With a few exceptions, these are the register names beginning with
  * PRCM_* on 24xx.  (The exceptions are the IRQSTATUS and IRQENABLE
@@ -125,6 +125,7 @@ extern int omap2xxx_clkdm_sleep(struct clockdomain *clkdm);
 extern int omap2xxx_clkdm_wakeup(struct clockdomain *clkdm);
 
 extern void omap2xxx_prm_dpll_reset(void);
+void omap2xxx_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask);
 
 extern int __init omap2xxx_prm_init(void);
 

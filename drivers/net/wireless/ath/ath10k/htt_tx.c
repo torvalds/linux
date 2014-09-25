@@ -83,18 +83,15 @@ void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id)
 	__clear_bit(msdu_id, htt->used_msdu_ids);
 }
 
-int ath10k_htt_tx_attach(struct ath10k_htt *htt)
+int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 {
-	u8 pipe;
-
 	spin_lock_init(&htt->tx_lock);
 	init_waitqueue_head(&htt->empty_tx_wq);
 
-	/* At the beginning free queue number should hint us the maximum
-	 * queue length */
-	pipe = htt->ar->htc.endpoint[htt->eid].ul_pipe_id;
-	htt->max_num_pending_tx = ath10k_hif_get_free_queue_number(htt->ar,
-								   pipe);
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, htt->ar->fw_features))
+		htt->max_num_pending_tx = TARGET_10X_NUM_MSDU_DESC;
+	else
+		htt->max_num_pending_tx = TARGET_NUM_MSDU_DESC;
 
 	ath10k_dbg(ATH10K_DBG_BOOT, "htt tx max num pending tx %d\n",
 		   htt->max_num_pending_tx);
@@ -112,17 +109,23 @@ int ath10k_htt_tx_attach(struct ath10k_htt *htt)
 		return -ENOMEM;
 	}
 
+	htt->tx_pool = dma_pool_create("ath10k htt tx pool", htt->ar->dev,
+				       sizeof(struct ath10k_htt_txbuf), 4, 0);
+	if (!htt->tx_pool) {
+		kfree(htt->used_msdu_ids);
+		kfree(htt->pending_tx);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
-static void ath10k_htt_tx_cleanup_pending(struct ath10k_htt *htt)
+static void ath10k_htt_tx_free_pending(struct ath10k_htt *htt)
 {
 	struct htt_tx_done tx_done = {0};
 	int msdu_id;
 
-	/* No locks needed. Called after communication with the device has
-	 * been stopped. */
-
+	spin_lock_bh(&htt->tx_lock);
 	for (msdu_id = 0; msdu_id < htt->max_num_pending_tx; msdu_id++) {
 		if (!test_bit(msdu_id, htt->used_msdu_ids))
 			continue;
@@ -135,13 +138,15 @@ static void ath10k_htt_tx_cleanup_pending(struct ath10k_htt *htt)
 
 		ath10k_txrx_tx_unref(htt, &tx_done);
 	}
+	spin_unlock_bh(&htt->tx_lock);
 }
 
-void ath10k_htt_tx_detach(struct ath10k_htt *htt)
+void ath10k_htt_tx_free(struct ath10k_htt *htt)
 {
-	ath10k_htt_tx_cleanup_pending(htt);
+	ath10k_htt_tx_free_pending(htt);
 	kfree(htt->pending_tx);
 	kfree(htt->used_msdu_ids);
+	dma_pool_destroy(htt->tx_pool);
 	return;
 }
 
@@ -302,6 +307,52 @@ int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
 	return 0;
 }
 
+int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
+				u8 max_subfrms_ampdu,
+				u8 max_subfrms_amsdu)
+{
+	struct htt_aggr_conf *aggr_conf;
+	struct sk_buff *skb;
+	struct htt_cmd *cmd;
+	int len;
+	int ret;
+
+	/* Firmware defaults are: amsdu = 3 and ampdu = 64 */
+
+	if (max_subfrms_ampdu == 0 || max_subfrms_ampdu > 64)
+		return -EINVAL;
+
+	if (max_subfrms_amsdu == 0 || max_subfrms_amsdu > 31)
+		return -EINVAL;
+
+	len = sizeof(cmd->hdr);
+	len += sizeof(cmd->aggr_conf);
+
+	skb = ath10k_htc_alloc_skb(len);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put(skb, len);
+	cmd = (struct htt_cmd *)skb->data;
+	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_AGGR_CFG;
+
+	aggr_conf = &cmd->aggr_conf;
+	aggr_conf->max_num_ampdu_subframes = max_subfrms_ampdu;
+	aggr_conf->max_num_amsdu_subframes = max_subfrms_amsdu;
+
+	ath10k_dbg(ATH10K_DBG_HTT, "htt h2t aggr cfg msg amsdu %d ampdu %d",
+		   aggr_conf->max_num_amsdu_subframes,
+		   aggr_conf->max_num_ampdu_subframes);
+
+	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
+	if (ret) {
+		dev_kfree_skb_any(skb);
+		return ret;
+	}
+
+	return 0;
+}
+
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 {
 	struct device *dev = htt->ar->dev;
@@ -337,7 +388,9 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		goto err_free_msdu_id;
 	}
 
-	res = ath10k_skb_map(dev, msdu);
+	skb_cb->paddr = dma_map_single(dev, msdu->data, msdu->len,
+				       DMA_TO_DEVICE);
+	res = dma_mapping_error(dev, skb_cb->paddr);
 	if (res)
 		goto err_free_txdesc;
 
@@ -351,8 +404,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	memcpy(cmd->mgmt_tx.hdr, msdu->data,
 	       min_t(int, msdu->len, HTT_MGMT_FRM_HDR_DOWNLOAD_LEN));
 
-	skb_cb->htt.frag_len = 0;
-	skb_cb->htt.pad_len = 0;
+	skb_cb->htt.txbuf = NULL;
 
 	res = ath10k_htc_send(&htt->ar->htc, htt->eid, txdesc);
 	if (res)
@@ -361,7 +413,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	return 0;
 
 err_unmap_msdu:
-	ath10k_skb_unmap(dev, msdu);
+	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 err_free_txdesc:
 	dev_kfree_skb_any(txdesc);
 err_free_msdu_id:
@@ -378,19 +430,19 @@ err:
 int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 {
 	struct device *dev = htt->ar->dev;
-	struct htt_cmd *cmd;
-	struct htt_data_tx_desc_frag *tx_frags;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)msdu->data;
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(msdu);
-	struct sk_buff *txdesc = NULL;
-	bool use_frags;
-	u8 vdev_id = ATH10K_SKB_CB(msdu)->vdev_id;
-	u8 tid;
-	int prefetch_len, desc_len;
-	int msdu_id = -1;
+	struct ath10k_hif_sg_item sg_items[2];
+	struct htt_data_tx_desc_frag *frags;
+	u8 vdev_id = skb_cb->vdev_id;
+	u8 tid = skb_cb->htt.tid;
+	int prefetch_len;
 	int res;
-	u8 flags0;
-	u16 flags1;
+	u8 flags0 = 0;
+	u16 msdu_id, flags1 = 0;
+	dma_addr_t paddr;
+	u32 frags_paddr;
+	bool use_frags;
 
 	res = ath10k_htt_tx_inc_pending(htt);
 	if (res)
@@ -409,114 +461,126 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	prefetch_len = min(htt->prefetch_len, msdu->len);
 	prefetch_len = roundup(prefetch_len, 4);
 
-	desc_len = sizeof(cmd->hdr) + sizeof(cmd->data_tx) + prefetch_len;
-
-	txdesc = ath10k_htc_alloc_skb(desc_len);
-	if (!txdesc) {
-		res = -ENOMEM;
-		goto err_free_msdu_id;
-	}
-
 	/* Since HTT 3.0 there is no separate mgmt tx command. However in case
 	 * of mgmt tx using TX_FRM there is not tx fragment list. Instead of tx
 	 * fragment list host driver specifies directly frame pointer. */
 	use_frags = htt->target_version_major < 3 ||
 		    !ieee80211_is_mgmt(hdr->frame_control);
 
-	if (!IS_ALIGNED((unsigned long)txdesc->data, 4)) {
-		ath10k_warn("htt alignment check failed. dropping packet.\n");
-		res = -EIO;
-		goto err_free_txdesc;
-	}
+	skb_cb->htt.txbuf = dma_pool_alloc(htt->tx_pool, GFP_ATOMIC,
+					   &paddr);
+	if (!skb_cb->htt.txbuf)
+		goto err_free_msdu_id;
+	skb_cb->htt.txbuf_paddr = paddr;
 
-	if (use_frags) {
-		skb_cb->htt.frag_len = sizeof(*tx_frags) * 2;
-		skb_cb->htt.pad_len = (unsigned long)msdu->data -
-				      round_down((unsigned long)msdu->data, 4);
-
-		skb_push(msdu, skb_cb->htt.frag_len + skb_cb->htt.pad_len);
-	} else {
-		skb_cb->htt.frag_len = 0;
-		skb_cb->htt.pad_len = 0;
-	}
-
-	res = ath10k_skb_map(dev, msdu);
+	skb_cb->paddr = dma_map_single(dev, msdu->data, msdu->len,
+				       DMA_TO_DEVICE);
+	res = dma_mapping_error(dev, skb_cb->paddr);
 	if (res)
-		goto err_pull_txfrag;
+		goto err_free_txbuf;
 
-	if (use_frags) {
-		dma_sync_single_for_cpu(dev, skb_cb->paddr, msdu->len,
-					DMA_TO_DEVICE);
+	if (likely(use_frags)) {
+		frags = skb_cb->htt.txbuf->frags;
 
-		/* tx fragment list must be terminated with zero-entry */
-		tx_frags = (struct htt_data_tx_desc_frag *)msdu->data;
-		tx_frags[0].paddr = __cpu_to_le32(skb_cb->paddr +
-						  skb_cb->htt.frag_len +
-						  skb_cb->htt.pad_len);
-		tx_frags[0].len   = __cpu_to_le32(msdu->len -
-						  skb_cb->htt.frag_len -
-						  skb_cb->htt.pad_len);
-		tx_frags[1].paddr = __cpu_to_le32(0);
-		tx_frags[1].len   = __cpu_to_le32(0);
+		frags[0].paddr = __cpu_to_le32(skb_cb->paddr);
+		frags[0].len = __cpu_to_le32(msdu->len);
+		frags[1].paddr = 0;
+		frags[1].len = 0;
 
-		dma_sync_single_for_device(dev, skb_cb->paddr, msdu->len,
-					   DMA_TO_DEVICE);
-	}
-
-	ath10k_dbg(ATH10K_DBG_HTT, "msdu 0x%llx\n",
-		   (unsigned long long) ATH10K_SKB_CB(msdu)->paddr);
-	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "msdu: ",
-			msdu->data, msdu->len);
-
-	skb_put(txdesc, desc_len);
-	cmd = (struct htt_cmd *)txdesc->data;
-
-	tid = ATH10K_SKB_CB(msdu)->htt.tid;
-
-	ath10k_dbg(ATH10K_DBG_HTT, "htt data tx using tid %hhu\n", tid);
-
-	flags0  = 0;
-	if (!ieee80211_has_protected(hdr->frame_control))
-		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
-	flags0 |= HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT;
-
-	if (use_frags)
 		flags0 |= SM(ATH10K_HW_TXRX_NATIVE_WIFI,
 			     HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE);
-	else
+
+		frags_paddr = skb_cb->htt.txbuf_paddr;
+	} else {
 		flags0 |= SM(ATH10K_HW_TXRX_MGMT,
 			     HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE);
 
-	flags1  = 0;
+		frags_paddr = skb_cb->paddr;
+	}
+
+	/* Normally all commands go through HTC which manages tx credits for
+	 * each endpoint and notifies when tx is completed.
+	 *
+	 * HTT endpoint is creditless so there's no need to care about HTC
+	 * flags. In that case it is trivial to fill the HTC header here.
+	 *
+	 * MSDU transmission is considered completed upon HTT event. This
+	 * implies no relevant resources can be freed until after the event is
+	 * received. That's why HTC tx completion handler itself is ignored by
+	 * setting NULL to transfer_context for all sg items.
+	 *
+	 * There is simply no point in pushing HTT TX_FRM through HTC tx path
+	 * as it's a waste of resources. By bypassing HTC it is possible to
+	 * avoid extra memory allocations, compress data structures and thus
+	 * improve performance. */
+
+	skb_cb->htt.txbuf->htc_hdr.eid = htt->eid;
+	skb_cb->htt.txbuf->htc_hdr.len = __cpu_to_le16(
+			sizeof(skb_cb->htt.txbuf->cmd_hdr) +
+			sizeof(skb_cb->htt.txbuf->cmd_tx) +
+			prefetch_len);
+	skb_cb->htt.txbuf->htc_hdr.flags = 0;
+
+	if (!ieee80211_has_protected(hdr->frame_control))
+		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
+
+	flags0 |= HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT;
+
 	flags1 |= SM((u16)vdev_id, HTT_DATA_TX_DESC_FLAGS1_VDEV_ID);
 	flags1 |= SM((u16)tid, HTT_DATA_TX_DESC_FLAGS1_EXT_TID);
 	flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L3_OFFLOAD;
 	flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L4_OFFLOAD;
 
-	cmd->hdr.msg_type        = HTT_H2T_MSG_TYPE_TX_FRM;
-	cmd->data_tx.flags0      = flags0;
-	cmd->data_tx.flags1      = __cpu_to_le16(flags1);
-	cmd->data_tx.len         = __cpu_to_le16(msdu->len -
-						 skb_cb->htt.frag_len -
-						 skb_cb->htt.pad_len);
-	cmd->data_tx.id          = __cpu_to_le16(msdu_id);
-	cmd->data_tx.frags_paddr = __cpu_to_le32(skb_cb->paddr);
-	cmd->data_tx.peerid      = __cpu_to_le32(HTT_INVALID_PEERID);
+	/* Prevent firmware from sending up tx inspection requests. There's
+	 * nothing ath10k can do with frames requested for inspection so force
+	 * it to simply rely a regular tx completion with discard status.
+	 */
+	flags1 |= HTT_DATA_TX_DESC_FLAGS1_POSTPONED;
 
-	memcpy(cmd->data_tx.prefetch, hdr, prefetch_len);
+	skb_cb->htt.txbuf->cmd_hdr.msg_type = HTT_H2T_MSG_TYPE_TX_FRM;
+	skb_cb->htt.txbuf->cmd_tx.flags0 = flags0;
+	skb_cb->htt.txbuf->cmd_tx.flags1 = __cpu_to_le16(flags1);
+	skb_cb->htt.txbuf->cmd_tx.len = __cpu_to_le16(msdu->len);
+	skb_cb->htt.txbuf->cmd_tx.id = __cpu_to_le16(msdu_id);
+	skb_cb->htt.txbuf->cmd_tx.frags_paddr = __cpu_to_le32(frags_paddr);
+	skb_cb->htt.txbuf->cmd_tx.peerid = __cpu_to_le32(HTT_INVALID_PEERID);
 
-	res = ath10k_htc_send(&htt->ar->htc, htt->eid, txdesc);
+	ath10k_dbg(ATH10K_DBG_HTT,
+		   "htt tx flags0 %hhu flags1 %hu len %d id %hu frags_paddr %08x, msdu_paddr %08x vdev %hhu tid %hhu\n",
+		   flags0, flags1, msdu->len, msdu_id, frags_paddr,
+		   (u32)skb_cb->paddr, vdev_id, tid);
+	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "htt tx msdu: ",
+			msdu->data, msdu->len);
+
+	sg_items[0].transfer_id = 0;
+	sg_items[0].transfer_context = NULL;
+	sg_items[0].vaddr = &skb_cb->htt.txbuf->htc_hdr;
+	sg_items[0].paddr = skb_cb->htt.txbuf_paddr +
+			    sizeof(skb_cb->htt.txbuf->frags);
+	sg_items[0].len = sizeof(skb_cb->htt.txbuf->htc_hdr) +
+			  sizeof(skb_cb->htt.txbuf->cmd_hdr) +
+			  sizeof(skb_cb->htt.txbuf->cmd_tx);
+
+	sg_items[1].transfer_id = 0;
+	sg_items[1].transfer_context = NULL;
+	sg_items[1].vaddr = msdu->data;
+	sg_items[1].paddr = skb_cb->paddr;
+	sg_items[1].len = prefetch_len;
+
+	res = ath10k_hif_tx_sg(htt->ar,
+			       htt->ar->htc.endpoint[htt->eid].ul_pipe_id,
+			       sg_items, ARRAY_SIZE(sg_items));
 	if (res)
 		goto err_unmap_msdu;
 
 	return 0;
 
 err_unmap_msdu:
-	ath10k_skb_unmap(dev, msdu);
-err_pull_txfrag:
-	skb_pull(msdu, skb_cb->htt.frag_len + skb_cb->htt.pad_len);
-err_free_txdesc:
-	dev_kfree_skb_any(txdesc);
+	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
+err_free_txbuf:
+	dma_pool_free(htt->tx_pool,
+		      skb_cb->htt.txbuf,
+		      skb_cb->htt.txbuf_paddr);
 err_free_msdu_id:
 	spin_lock_bh(&htt->tx_lock);
 	htt->pending_tx[msdu_id] = NULL;

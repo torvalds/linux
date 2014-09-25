@@ -5,6 +5,7 @@
 config XILLYBUS
 	tristate "Xillybus generic FPGA interface"
 	depends on PCI || (OF_ADDRESS && OF_IRQ)
+	select CRC32
 	help
 	  Xillybus is a generic interface for peripherals designed on
 	  programmable logic (FPGA). The driver probes the hardware for
@@ -16,7 +17,7 @@ if XILLYBUS
 
 config XILLYBUS_PCIE
 	tristate "Xillybus over PCIe"
-	depends on PCI
+	depends on PCI_MSI
 	help
 	  Set to M if you want Xillybus to use PCI Express for communicating
 	  with the FPGA.

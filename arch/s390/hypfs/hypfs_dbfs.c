@@ -81,9 +81,25 @@ static ssize_t dbfs_read(struct file *file, char __user *buf,
 	return rc;
 }
 
+static long dbfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct hypfs_dbfs_file *df;
+	long rc;
+
+	df = file->f_path.dentry->d_inode->i_private;
+	mutex_lock(&df->lock);
+	if (df->unlocked_ioctl)
+		rc = df->unlocked_ioctl(file, cmd, arg);
+	else
+		rc = -ENOTTY;
+	mutex_unlock(&df->lock);
+	return rc;
+}
+
 static const struct file_operations dbfs_ops = {
 	.read		= dbfs_read,
 	.llseek		= no_llseek,
+	.unlocked_ioctl = dbfs_ioctl,
 };
 
 int hypfs_dbfs_create_file(struct hypfs_dbfs_file *df)

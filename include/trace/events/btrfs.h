@@ -21,6 +21,8 @@ struct btrfs_block_group_cache;
 struct btrfs_free_cluster;
 struct map_lookup;
 struct extent_buffer;
+struct btrfs_work;
+struct __btrfs_workqueue;
 
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
@@ -208,17 +210,18 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		  __entry->refs, __entry->compress_type)
 );
 
-#define show_ordered_flags(flags)					\
-	__print_symbolic(flags,						\
-		{ BTRFS_ORDERED_IO_DONE, 	"IO_DONE" 	},	\
-		{ BTRFS_ORDERED_COMPLETE, 	"COMPLETE" 	},	\
-		{ BTRFS_ORDERED_NOCOW, 		"NOCOW" 	},	\
-		{ BTRFS_ORDERED_COMPRESSED, 	"COMPRESSED" 	},	\
-		{ BTRFS_ORDERED_PREALLOC, 	"PREALLOC" 	},	\
-		{ BTRFS_ORDERED_DIRECT, 	"DIRECT" 	},	\
-		{ BTRFS_ORDERED_IOERR, 		"IOERR" 	},	\
-		{ BTRFS_ORDERED_UPDATED_ISIZE, 	"UPDATED_ISIZE"	},	\
-		{ BTRFS_ORDERED_LOGGED_CSUM, 	"LOGGED_CSUM"	})
+#define show_ordered_flags(flags)					   \
+	__print_flags(flags, "|",					   \
+		{ (1 << BTRFS_ORDERED_IO_DONE), 	"IO_DONE" 	}, \
+		{ (1 << BTRFS_ORDERED_COMPLETE), 	"COMPLETE" 	}, \
+		{ (1 << BTRFS_ORDERED_NOCOW), 		"NOCOW" 	}, \
+		{ (1 << BTRFS_ORDERED_COMPRESSED), 	"COMPRESSED" 	}, \
+		{ (1 << BTRFS_ORDERED_PREALLOC), 	"PREALLOC" 	}, \
+		{ (1 << BTRFS_ORDERED_DIRECT),	 	"DIRECT" 	}, \
+		{ (1 << BTRFS_ORDERED_IOERR), 		"IOERR" 	}, \
+		{ (1 << BTRFS_ORDERED_UPDATED_ISIZE), 	"UPDATED_ISIZE"	}, \
+		{ (1 << BTRFS_ORDERED_LOGGED_CSUM), 	"LOGGED_CSUM"	}, \
+		{ (1 << BTRFS_ORDERED_TRUNCATED), 	"TRUNCATED"	})
 
 
 DECLARE_EVENT_CLASS(btrfs__ordered_extent,
@@ -979,6 +982,141 @@ TRACE_EVENT(free_extent_state,
 
 	TP_printk(" state=%p; caller = %pF", __entry->state,
 		  (void *)__entry->ip)
+);
+
+DECLARE_EVENT_CLASS(btrfs__work,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work),
+
+	TP_STRUCT__entry(
+		__field(	void *,	work			)
+		__field(	void *, wq			)
+		__field(	void *,	func			)
+		__field(	void *,	ordered_func		)
+		__field(	void *,	ordered_free		)
+	),
+
+	TP_fast_assign(
+		__entry->work		= work;
+		__entry->wq		= work->wq;
+		__entry->func		= work->func;
+		__entry->ordered_func	= work->ordered_func;
+		__entry->ordered_free	= work->ordered_free;
+	),
+
+	TP_printk("work=%p, wq=%p, func=%p, ordered_func=%p, ordered_free=%p",
+		  __entry->work, __entry->wq, __entry->func,
+		  __entry->ordered_func, __entry->ordered_free)
+);
+
+/* For situiations that the work is freed */
+DECLARE_EVENT_CLASS(btrfs__work__done,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work),
+
+	TP_STRUCT__entry(
+		__field(	void *,	work			)
+	),
+
+	TP_fast_assign(
+		__entry->work		= work;
+	),
+
+	TP_printk("work->%p", __entry->work)
+);
+
+DEFINE_EVENT(btrfs__work, btrfs_work_queued,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work)
+);
+
+DEFINE_EVENT(btrfs__work, btrfs_work_sched,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work)
+);
+
+DEFINE_EVENT(btrfs__work, btrfs_normal_work_done,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work)
+);
+
+DEFINE_EVENT(btrfs__work__done, btrfs_all_work_done,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work)
+);
+
+DEFINE_EVENT(btrfs__work, btrfs_ordered_sched,
+
+	TP_PROTO(struct btrfs_work *work),
+
+	TP_ARGS(work)
+);
+
+DECLARE_EVENT_CLASS(btrfs__workqueue,
+
+	TP_PROTO(struct __btrfs_workqueue *wq, const char *name, int high),
+
+	TP_ARGS(wq, name, high),
+
+	TP_STRUCT__entry(
+		__field(	void *,	wq			)
+		__string(	name,	name			)
+		__field(	int ,	high			)
+	),
+
+	TP_fast_assign(
+		__entry->wq		= wq;
+		__assign_str(name, name);
+		__entry->high		= high;
+	),
+
+	TP_printk("name=%s%s, wq=%p", __get_str(name),
+		  __print_flags(__entry->high, "",
+				{(WQ_HIGHPRI),	"-high"}),
+		  __entry->wq)
+);
+
+DEFINE_EVENT(btrfs__workqueue, btrfs_workqueue_alloc,
+
+	TP_PROTO(struct __btrfs_workqueue *wq, const char *name, int high),
+
+	TP_ARGS(wq, name, high)
+);
+
+DECLARE_EVENT_CLASS(btrfs__workqueue_done,
+
+	TP_PROTO(struct __btrfs_workqueue *wq),
+
+	TP_ARGS(wq),
+
+	TP_STRUCT__entry(
+		__field(	void *,	wq			)
+	),
+
+	TP_fast_assign(
+		__entry->wq		= wq;
+	),
+
+	TP_printk("wq=%p", __entry->wq)
+);
+
+DEFINE_EVENT(btrfs__workqueue_done, btrfs_workqueue_destroy,
+
+	TP_PROTO(struct __btrfs_workqueue *wq),
+
+	TP_ARGS(wq)
 );
 
 #endif /* _TRACE_BTRFS_H */

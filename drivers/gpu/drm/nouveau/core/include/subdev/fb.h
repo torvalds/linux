@@ -105,6 +105,15 @@ extern struct nouveau_oclass *nvaa_fb_oclass;
 extern struct nouveau_oclass *nvaf_fb_oclass;
 extern struct nouveau_oclass *nvc0_fb_oclass;
 extern struct nouveau_oclass *nve0_fb_oclass;
+extern struct nouveau_oclass *gk20a_fb_oclass;
+extern struct nouveau_oclass *gm107_fb_oclass;
+
+#include <subdev/bios/ramcfg.h>
+
+struct nouveau_ram_data {
+	struct nvbios_ramcfg bios;
+	u32 freq;
+};
 
 struct nouveau_ram {
 	struct nouveau_object base;
@@ -142,6 +151,12 @@ struct nouveau_ram {
 	} rammap, ramcfg, timing;
 	u32 freq;
 	u32 mr[16];
+	u32 mr1_nuts;
+
+	struct nouveau_ram_data *next;
+	struct nouveau_ram_data former;
+	struct nouveau_ram_data xition;
+	struct nouveau_ram_data target;
 };
 
 #endif

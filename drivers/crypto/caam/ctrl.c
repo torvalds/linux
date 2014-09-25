@@ -5,6 +5,7 @@
  * Copyright 2008-2012 Freescale Semiconductor, Inc.
  */
 
+#include <linux/device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
@@ -14,7 +15,6 @@
 #include "jr.h"
 #include "desc_constr.h"
 #include "error.h"
-#include "ctrl.h"
 
 /*
  * Descriptor to instantiate RNG State Handle 0 in normal mode and
@@ -88,6 +88,17 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
 
 	/* Set the bit to request direct access to DECO0 */
 	topregs = (struct caam_full __iomem *)ctrlpriv->ctrl;
+
+	if (ctrlpriv->virt_en == 1) {
+		setbits32(&topregs->ctrl.deco_rsr, DECORSR_JR0);
+
+		while (!(rd_reg32(&topregs->ctrl.deco_rsr) & DECORSR_VALID) &&
+		       --timeout)
+			cpu_relax();
+
+		timeout = 100000;
+	}
+
 	setbits32(&topregs->ctrl.deco_rq, DECORR_RQD0ENABLE);
 
 	while (!(rd_reg32(&topregs->ctrl.deco_rq) & DECORR_DEN0) &&
@@ -129,6 +140,9 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
 
 	*status = rd_reg32(&topregs->deco.op_status_hi) &
 		  DECO_OP_STATUS_HI_ERR_MASK;
+
+	if (ctrlpriv->virt_en == 1)
+		clrbits32(&topregs->ctrl.deco_rsr, DECORSR_JR0);
 
 	/* Mark the DECO as free */
 	clrbits32(&topregs->ctrl.deco_rq, DECORR_RQD0ENABLE);
@@ -296,9 +310,6 @@ static int caam_remove(struct platform_device *pdev)
 	/* Unmap controller region */
 	iounmap(&topregs->ctrl);
 
-	kfree(ctrlpriv->jrpdev);
-	kfree(ctrlpriv);
-
 	return ret;
 }
 
@@ -352,32 +363,17 @@ static void kick_trng(struct platform_device *pdev, int ent_delay)
 
 /**
  * caam_get_era() - Return the ERA of the SEC on SoC, based
- * on the SEC_VID register.
- * Returns the ERA number (1..4) or -ENOTSUPP if the ERA is unknown.
- * @caam_id - the value of the SEC_VID register
+ * on "sec-era" propery in the DTS. This property is updated by u-boot.
  **/
-int caam_get_era(u64 caam_id)
+int caam_get_era(void)
 {
-	struct sec_vid *sec_vid = (struct sec_vid *)&caam_id;
-	static const struct {
-		u16 ip_id;
-		u8 maj_rev;
-		u8 era;
-	} caam_eras[] = {
-		{0x0A10, 1, 1},
-		{0x0A10, 2, 2},
-		{0x0A12, 1, 3},
-		{0x0A14, 1, 3},
-		{0x0A14, 2, 4},
-		{0x0A16, 1, 4},
-		{0x0A11, 1, 4}
-	};
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(caam_eras); i++)
-		if (caam_eras[i].ip_id == sec_vid->ip_id &&
-			caam_eras[i].maj_rev == sec_vid->maj_rev)
-				return caam_eras[i].era;
+	struct device_node *caam_node;
+	for_each_compatible_node(caam_node, NULL, "fsl,sec-v4.0") {
+		const uint32_t *prop = (uint32_t *)of_get_property(caam_node,
+				"fsl,sec-era",
+				NULL);
+		return prop ? *prop : -ENOTSUPP;
+	}
 
 	return -ENOTSUPP;
 }
@@ -396,9 +392,11 @@ static int caam_probe(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	struct caam_perfmon *perfmon;
 #endif
-	u64 cha_vid;
+	u32 scfgr, comp_params;
+	u32 cha_vid_ls;
 
-	ctrlpriv = kzalloc(sizeof(struct caam_drv_private), GFP_KERNEL);
+	ctrlpriv = devm_kzalloc(&pdev->dev, sizeof(struct caam_drv_private),
+				GFP_KERNEL);
 	if (!ctrlpriv)
 		return -ENOMEM;
 
@@ -429,13 +427,40 @@ static int caam_probe(struct platform_device *pdev)
 	setbits32(&topregs->ctrl.mcr, MCFGR_WDENABLE |
 		  (sizeof(dma_addr_t) == sizeof(u64) ? MCFGR_LONG_PTR : 0));
 
+	/*
+	 *  Read the Compile Time paramters and SCFGR to determine
+	 * if Virtualization is enabled for this platform
+	 */
+	comp_params = rd_reg32(&topregs->ctrl.perfmon.comp_parms_ms);
+	scfgr = rd_reg32(&topregs->ctrl.scfgr);
+
+	ctrlpriv->virt_en = 0;
+	if (comp_params & CTPR_MS_VIRT_EN_INCL) {
+		/* VIRT_EN_INCL = 1 & VIRT_EN_POR = 1 or
+		 * VIRT_EN_INCL = 1 & VIRT_EN_POR = 0 & SCFGR_VIRT_EN = 1
+		 */
+		if ((comp_params & CTPR_MS_VIRT_EN_POR) ||
+		    (!(comp_params & CTPR_MS_VIRT_EN_POR) &&
+		       (scfgr & SCFGR_VIRT_EN)))
+				ctrlpriv->virt_en = 1;
+	} else {
+		/* VIRT_EN_INCL = 0 && VIRT_EN_POR_VALUE = 1 */
+		if (comp_params & CTPR_MS_VIRT_EN_POR)
+				ctrlpriv->virt_en = 1;
+	}
+
+	if (ctrlpriv->virt_en == 1)
+		setbits32(&topregs->ctrl.jrstart, JRSTART_JR0_START |
+			  JRSTART_JR1_START | JRSTART_JR2_START |
+			  JRSTART_JR3_START);
+
 	if (sizeof(dma_addr_t) == sizeof(u64))
 		if (of_device_is_compatible(nprop, "fsl,sec-v5.0"))
-			dma_set_mask(dev, DMA_BIT_MASK(40));
+			dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
 		else
-			dma_set_mask(dev, DMA_BIT_MASK(36));
+			dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
 	else
-		dma_set_mask(dev, DMA_BIT_MASK(32));
+		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 
 	/*
 	 * Detect and enable JobRs
@@ -443,16 +468,14 @@ static int caam_probe(struct platform_device *pdev)
 	 * for all, then go probe each one.
 	 */
 	rspec = 0;
-	for_each_compatible_node(np, NULL, "fsl,sec-v4.0-job-ring")
-		rspec++;
-	if (!rspec) {
-		/* for backward compatible with device trees */
-		for_each_compatible_node(np, NULL, "fsl,sec4.0-job-ring")
+	for_each_available_child_of_node(nprop, np)
+		if (of_device_is_compatible(np, "fsl,sec-v4.0-job-ring") ||
+		    of_device_is_compatible(np, "fsl,sec4.0-job-ring"))
 			rspec++;
-	}
 
-	ctrlpriv->jrpdev = kzalloc(sizeof(struct platform_device *) * rspec,
-								GFP_KERNEL);
+	ctrlpriv->jrpdev = devm_kzalloc(&pdev->dev,
+					sizeof(struct platform_device *) * rspec,
+					GFP_KERNEL);
 	if (ctrlpriv->jrpdev == NULL) {
 		iounmap(&topregs->ctrl);
 		return -ENOMEM;
@@ -460,18 +483,9 @@ static int caam_probe(struct platform_device *pdev)
 
 	ring = 0;
 	ctrlpriv->total_jobrs = 0;
-	for_each_compatible_node(np, NULL, "fsl,sec-v4.0-job-ring") {
-		ctrlpriv->jrpdev[ring] =
-				of_platform_device_create(np, NULL, dev);
-		if (!ctrlpriv->jrpdev[ring]) {
-			pr_warn("JR%d Platform device creation error\n", ring);
-			continue;
-		}
-		ctrlpriv->total_jobrs++;
-		ring++;
-	}
-	if (!ring) {
-		for_each_compatible_node(np, NULL, "fsl,sec4.0-job-ring") {
+	for_each_available_child_of_node(nprop, np)
+		if (of_device_is_compatible(np, "fsl,sec-v4.0-job-ring") ||
+		    of_device_is_compatible(np, "fsl,sec4.0-job-ring")) {
 			ctrlpriv->jrpdev[ring] =
 				of_platform_device_create(np, NULL, dev);
 			if (!ctrlpriv->jrpdev[ring]) {
@@ -482,11 +496,11 @@ static int caam_probe(struct platform_device *pdev)
 			ctrlpriv->total_jobrs++;
 			ring++;
 		}
-	}
 
 	/* Check to see if QI present. If so, enable */
-	ctrlpriv->qi_present = !!(rd_reg64(&topregs->ctrl.perfmon.comp_parms) &
-				  CTPR_QI_MASK);
+	ctrlpriv->qi_present =
+			!!(rd_reg32(&topregs->ctrl.perfmon.comp_parms_ms) &
+			   CTPR_MS_QI_MASK);
 	if (ctrlpriv->qi_present) {
 		ctrlpriv->qi = (struct caam_queue_if __force *)&topregs->qi;
 		/* This is all that's required to physically enable QI */
@@ -500,13 +514,13 @@ static int caam_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	cha_vid = rd_reg64(&topregs->ctrl.perfmon.cha_id);
+	cha_vid_ls = rd_reg32(&topregs->ctrl.perfmon.cha_id_ls);
 
 	/*
 	 * If SEC has RNG version >= 4 and RNG state handle has not been
 	 * already instantiated, do RNG instantiation
 	 */
-	if ((cha_vid & CHA_ID_RNG_MASK) >> CHA_ID_RNG_SHIFT >= 4) {
+	if ((cha_vid_ls & CHA_ID_LS_RNG_MASK) >> CHA_ID_LS_RNG_SHIFT >= 4) {
 		ctrlpriv->rng4_sh_init =
 			rd_reg32(&topregs->ctrl.r4tst[0].rdsta);
 		/*
@@ -560,11 +574,12 @@ static int caam_probe(struct platform_device *pdev)
 
 	/* NOTE: RTIC detection ought to go here, around Si time */
 
-	caam_id = rd_reg64(&topregs->ctrl.perfmon.caam_id);
+	caam_id = (u64)rd_reg32(&topregs->ctrl.perfmon.caam_id_ms) << 32 |
+		  (u64)rd_reg32(&topregs->ctrl.perfmon.caam_id_ls);
 
 	/* Report "alive" for developer to see */
 	dev_info(dev, "device ID = 0x%016llx (Era %d)\n", caam_id,
-		 caam_get_era(caam_id));
+		 caam_get_era());
 	dev_info(dev, "job rings = %d, qi = %d\n",
 		 ctrlpriv->total_jobrs, ctrlpriv->qi_present);
 
@@ -576,7 +591,7 @@ static int caam_probe(struct platform_device *pdev)
 	 */
 	perfmon = (struct caam_perfmon __force *)&ctrl->perfmon;
 
-	ctrlpriv->dfs_root = debugfs_create_dir("caam", NULL);
+	ctrlpriv->dfs_root = debugfs_create_dir(dev_name(dev), NULL);
 	ctrlpriv->ctl = debugfs_create_dir("ctl", ctrlpriv->dfs_root);
 
 	/* Controller-level - performance monitor counters */

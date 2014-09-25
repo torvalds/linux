@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -32,20 +31,20 @@
 #include "i40e_adminq_cmd.h"
 
 #define I40E_ADMINQ_DESC(R, i)   \
-	(&(((struct i40e_aq_desc *)((R).desc))[i]))
+	(&(((struct i40e_aq_desc *)((R).desc_buf.va))[i]))
 
 #define I40E_ADMINQ_DESC_ALIGNMENT 4096
 
 struct i40e_adminq_ring {
-	void *desc;		/* Descriptor ring memory */
-	void *details;		/* ASQ details */
+	struct i40e_virt_mem dma_head;	/* space for dma structures */
+	struct i40e_dma_mem desc_buf;	/* descriptor ring memory */
+	struct i40e_virt_mem cmd_buf;	/* command buffer memory */
 
 	union {
 		struct i40e_dma_mem *asq_bi;
 		struct i40e_dma_mem *arq_bi;
 	} r;
 
-	u64 dma_addr;		/* Physical address of the ring */
 	u16 count;		/* Number of descriptors */
 	u16 rx_buf_len;		/* Admin Receive Queue buffer length */
 
@@ -56,6 +55,9 @@ struct i40e_adminq_ring {
 	/* used for queue tracking */
 	u32 head;
 	u32 tail;
+	u32 len;
+	u32 bah;
+	u32 bal;
 };
 
 /* ASQ transaction details */
@@ -69,7 +71,7 @@ struct i40e_asq_cmd_details {
 };
 
 #define I40E_ADMINQ_DETAILS(R, i)   \
-	(&(((struct i40e_asq_cmd_details *)((R).details))[i]))
+	(&(((struct i40e_asq_cmd_details *)((R).cmd_buf.va))[i]))
 
 /* ARQ event information */
 struct i40e_arq_event_info {
@@ -82,6 +84,7 @@ struct i40e_arq_event_info {
 struct i40e_adminq_info {
 	struct i40e_adminq_ring arq;    /* receive queue */
 	struct i40e_adminq_ring asq;    /* send queue */
+	u32 asq_cmd_timeout;            /* send queue cmd write back timeout*/
 	u16 num_arq_entries;            /* receive queue depth */
 	u16 num_asq_entries;            /* send queue depth */
 	u16 arq_buf_size;               /* receive queue buffer size */
@@ -90,17 +93,51 @@ struct i40e_adminq_info {
 	u16 fw_min_ver;                 /* firmware minor version */
 	u16 api_maj_ver;                /* api major version */
 	u16 api_min_ver;                /* api minor version */
+	bool nvm_busy;
+	bool nvm_release_on_done;
 
 	struct mutex asq_mutex; /* Send queue lock */
 	struct mutex arq_mutex; /* Receive queue lock */
-
-	struct i40e_dma_mem asq_mem;    /* send queue dynamic memory */
-	struct i40e_dma_mem arq_mem;    /* receive queue dynamic memory */
 
 	/* last status values on send and receive queues */
 	enum i40e_admin_queue_err asq_last_status;
 	enum i40e_admin_queue_err arq_last_status;
 };
+
+/**
+ * i40e_aq_rc_to_posix - convert errors to user-land codes
+ * aq_rc: AdminQ error code to convert
+ **/
+static inline int i40e_aq_rc_to_posix(u16 aq_rc)
+{
+	int aq_to_posix[] = {
+		0,           /* I40E_AQ_RC_OK */
+		-EPERM,      /* I40E_AQ_RC_EPERM */
+		-ENOENT,     /* I40E_AQ_RC_ENOENT */
+		-ESRCH,      /* I40E_AQ_RC_ESRCH */
+		-EINTR,      /* I40E_AQ_RC_EINTR */
+		-EIO,        /* I40E_AQ_RC_EIO */
+		-ENXIO,      /* I40E_AQ_RC_ENXIO */
+		-E2BIG,      /* I40E_AQ_RC_E2BIG */
+		-EAGAIN,     /* I40E_AQ_RC_EAGAIN */
+		-ENOMEM,     /* I40E_AQ_RC_ENOMEM */
+		-EACCES,     /* I40E_AQ_RC_EACCES */
+		-EFAULT,     /* I40E_AQ_RC_EFAULT */
+		-EBUSY,      /* I40E_AQ_RC_EBUSY */
+		-EEXIST,     /* I40E_AQ_RC_EEXIST */
+		-EINVAL,     /* I40E_AQ_RC_EINVAL */
+		-ENOTTY,     /* I40E_AQ_RC_ENOTTY */
+		-ENOSPC,     /* I40E_AQ_RC_ENOSPC */
+		-ENOSYS,     /* I40E_AQ_RC_ENOSYS */
+		-ERANGE,     /* I40E_AQ_RC_ERANGE */
+		-EPIPE,      /* I40E_AQ_RC_EFLUSHED */
+		-ESPIPE,     /* I40E_AQ_RC_BAD_ADDR */
+		-EROFS,      /* I40E_AQ_RC_EMODE */
+		-EFBIG,      /* I40E_AQ_RC_EFBIG */
+	};
+
+	return aq_to_posix[aq_rc];
+}
 
 /* general information */
 #define I40E_AQ_LARGE_BUF	512

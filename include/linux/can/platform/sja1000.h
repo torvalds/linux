@@ -1,5 +1,5 @@
-#ifndef _CAN_PLATFORM_SJA1000_H_
-#define _CAN_PLATFORM_SJA1000_H_
+#ifndef _CAN_PLATFORM_SJA1000_H
+#define _CAN_PLATFORM_SJA1000_H
 
 /* clock divider register */
 #define CDR_CLKOUT_MASK 0x07
@@ -32,4 +32,4 @@ struct sja1000_platform_data {
 	u8 cdr;		/* clock divider register */
 };
 
-#endif	/* !_CAN_PLATFORM_SJA1000_H_ */
+#endif	/* !_CAN_PLATFORM_SJA1000_H */

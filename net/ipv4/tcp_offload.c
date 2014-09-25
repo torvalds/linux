@@ -14,6 +14,21 @@
 #include <net/tcp.h>
 #include <net/protocol.h>
 
+static void tcp_gso_tstamp(struct sk_buff *skb, unsigned int ts_seq,
+			   unsigned int seq, unsigned int mss)
+{
+	while (skb) {
+		if (before(ts_seq, seq + mss)) {
+			skb_shinfo(skb)->tx_flags |= SKBTX_SW_TSTAMP;
+			skb_shinfo(skb)->tskey = ts_seq;
+			return;
+		}
+
+		skb = skb->next;
+		seq += mss;
+	}
+}
+
 struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 				netdev_features_t features)
 {
@@ -57,10 +72,12 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 			       SKB_GSO_TCP_ECN |
 			       SKB_GSO_TCPV6 |
 			       SKB_GSO_GRE |
+			       SKB_GSO_GRE_CSUM |
 			       SKB_GSO_IPIP |
 			       SKB_GSO_SIT |
 			       SKB_GSO_MPLS |
 			       SKB_GSO_UDP_TUNNEL |
+			       SKB_GSO_UDP_TUNNEL_CSUM |
 			       0) ||
 			     !(type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))))
 			goto out;
@@ -89,6 +106,9 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 	th = tcp_hdr(skb);
 	seq = ntohl(th->seq);
 
+	if (unlikely(skb_shinfo(gso_skb)->tx_flags & SKBTX_SW_TSTAMP))
+		tcp_gso_tstamp(segs, skb_shinfo(gso_skb)->tskey, seq, mss);
+
 	newcheck = ~csum_fold((__force __wsum)((__force u32)th->check +
 					       (__force u32)delta));
 
@@ -97,9 +117,7 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 		th->check = newcheck;
 
 		if (skb->ip_summed != CHECKSUM_PARTIAL)
-			th->check =
-			     csum_fold(csum_partial(skb_transport_header(skb),
-						    thlen, skb->csum));
+			th->check = gso_make_checksum(skb, ~th->check);
 
 		seq += mss;
 		if (copy_destructor) {
@@ -133,12 +151,10 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 	th->check = ~csum_fold((__force __wsum)((__force u32)th->check +
 				(__force u32)delta));
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
-		th->check = csum_fold(csum_partial(skb_transport_header(skb),
-						   thlen, skb->csum));
+		th->check = gso_make_checksum(skb, ~th->check);
 out:
 	return segs;
 }
-EXPORT_SYMBOL(tcp_gso_segment);
 
 struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
@@ -197,7 +213,8 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	goto out_check_final;
 
 found:
-	flush = NAPI_GRO_CB(p)->flush;
+	/* Include the IP ID check below from the inner most IP hdr */
+	flush = NAPI_GRO_CB(p)->flush | NAPI_GRO_CB(p)->flush_id;
 	flush |= (__force int)(flags & TCP_FLAG_CWR);
 	flush |= (__force int)((flags ^ tcp_flag_word(th2)) &
 		  ~(TCP_FLAG_CWR | TCP_FLAG_FIN | TCP_FLAG_PSH));
@@ -230,17 +247,16 @@ out_check_final:
 		pp = head;
 
 out:
-	NAPI_GRO_CB(skb)->flush |= flush;
+	NAPI_GRO_CB(skb)->flush |= (flush != 0);
 
 	return pp;
 }
-EXPORT_SYMBOL(tcp_gro_receive);
 
 int tcp_gro_complete(struct sk_buff *skb)
 {
 	struct tcphdr *th = tcp_hdr(skb);
 
-	skb->csum_start = skb_transport_header(skb) - skb->head;
+	skb->csum_start = (unsigned char *)th - skb->head;
 	skb->csum_offset = offsetof(struct tcphdr, check);
 	skb->ip_summed = CHECKSUM_PARTIAL;
 
@@ -272,6 +288,7 @@ static int tcp_v4_gso_send_check(struct sk_buff *skb)
 
 static struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
+	/* Use the IP hdr immediately proceeding for this transport */
 	const struct iphdr *iph = skb_gro_network_header(skb);
 	__wsum wsum;
 
@@ -279,7 +296,7 @@ static struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *
 	if (NAPI_GRO_CB(skb)->flush)
 		goto skip_csum;
 
-	wsum = skb->csum;
+	wsum = NAPI_GRO_CB(skb)->csum;
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_NONE:
@@ -303,14 +320,14 @@ skip_csum:
 	return tcp_gro_receive(head, skb);
 }
 
-static int tcp4_gro_complete(struct sk_buff *skb)
+static int tcp4_gro_complete(struct sk_buff *skb, int thoff)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th = tcp_hdr(skb);
 
-	th->check = ~tcp_v4_check(skb->len - skb_transport_offset(skb),
-				  iph->saddr, iph->daddr, 0);
-	skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
+	th->check = ~tcp_v4_check(skb->len - thoff, iph->saddr,
+				  iph->daddr, 0);
+	skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV4;
 
 	return tcp_gro_complete(skb);
 }

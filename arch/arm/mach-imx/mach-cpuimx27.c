@@ -36,6 +36,7 @@
 
 #include "common.h"
 #include "devices-imx27.h"
+#include "ehci.h"
 #include "eukrea-baseboards.h"
 #include "hardware.h"
 #include "iomux-mx27.h"
@@ -314,7 +315,6 @@ MACHINE_START(EUKREA_CPUIMX27, "EUKREA CPUIMX27")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
-	.handle_irq = imx27_handle_irq,
 	.init_time	= eukrea_cpuimx27_timer_init,
 	.init_machine = eukrea_cpuimx27_init,
 	.restart	= mxc_restart,

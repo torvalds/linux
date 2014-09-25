@@ -34,7 +34,6 @@
 #include <linux/mm.h>
 #include <linux/watchdog.h>
 #include <linux/reboot.h>
-#include <linux/init.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/moduleparam.h>
@@ -58,7 +57,6 @@ struct omap_wdt_dev {
 	void __iomem    *base;          /* physical */
 	struct device   *dev;
 	bool		omap_wdt_users;
-	struct resource *mem;
 	int		wdt_trgr_pattern;
 	struct mutex	lock;		/* to avoid races with PM */
 };
@@ -207,7 +205,7 @@ static int omap_wdt_probe(struct platform_device *pdev)
 {
 	struct omap_wd_timer_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct watchdog_device *omap_wdt;
-	struct resource *res, *mem;
+	struct resource *res;
 	struct omap_wdt_dev *wdev;
 	u32 rs;
 	int ret;
@@ -216,29 +214,20 @@ static int omap_wdt_probe(struct platform_device *pdev)
 	if (!omap_wdt)
 		return -ENOMEM;
 
-	/* reserve static register mappings */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
-	mem = devm_request_mem_region(&pdev->dev, res->start,
-				      resource_size(res), pdev->name);
-	if (!mem)
-		return -EBUSY;
-
 	wdev = devm_kzalloc(&pdev->dev, sizeof(*wdev), GFP_KERNEL);
 	if (!wdev)
 		return -ENOMEM;
 
 	wdev->omap_wdt_users	= false;
-	wdev->mem		= mem;
 	wdev->dev		= &pdev->dev;
 	wdev->wdt_trgr_pattern	= 0x1234;
 	mutex_init(&wdev->lock);
 
-	wdev->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!wdev->base)
-		return -ENOMEM;
+	/* reserve static register mappings */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	wdev->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(wdev->base))
+		return PTR_ERR(wdev->base);
 
 	omap_wdt->info	      = &omap_wdt_info;
 	omap_wdt->ops	      = &omap_wdt_ops;

@@ -203,45 +203,36 @@ static ssize_t blk_mq_hw_sysfs_rq_list_show(struct blk_mq_hw_ctx *hctx,
 	return ret;
 }
 
-static ssize_t blk_mq_hw_sysfs_ipi_show(struct blk_mq_hw_ctx *hctx, char *page)
-{
-	ssize_t ret;
-
-	spin_lock(&hctx->lock);
-	ret = sprintf(page, "%u\n", !!(hctx->flags & BLK_MQ_F_SHOULD_IPI));
-	spin_unlock(&hctx->lock);
-
-	return ret;
-}
-
-static ssize_t blk_mq_hw_sysfs_ipi_store(struct blk_mq_hw_ctx *hctx,
-					 const char *page, size_t len)
-{
-	struct blk_mq_ctx *ctx;
-	unsigned long ret;
-	unsigned int i;
-
-	if (kstrtoul(page, 10, &ret)) {
-		pr_err("blk-mq-sysfs: invalid input '%s'\n", page);
-		return -EINVAL;
-	}
-
-	spin_lock(&hctx->lock);
-	if (ret)
-		hctx->flags |= BLK_MQ_F_SHOULD_IPI;
-	else
-		hctx->flags &= ~BLK_MQ_F_SHOULD_IPI;
-	spin_unlock(&hctx->lock);
-
-	hctx_for_each_ctx(hctx, ctx, i)
-		ctx->ipi_redirect = !!ret;
-
-	return len;
-}
-
 static ssize_t blk_mq_hw_sysfs_tags_show(struct blk_mq_hw_ctx *hctx, char *page)
 {
 	return blk_mq_tag_sysfs_show(hctx->tags, page);
+}
+
+static ssize_t blk_mq_hw_sysfs_active_show(struct blk_mq_hw_ctx *hctx, char *page)
+{
+	return sprintf(page, "%u\n", atomic_read(&hctx->nr_active));
+}
+
+static ssize_t blk_mq_hw_sysfs_cpus_show(struct blk_mq_hw_ctx *hctx, char *page)
+{
+	unsigned int i, first = 1;
+	ssize_t ret = 0;
+
+	blk_mq_disable_hotplug();
+
+	for_each_cpu(i, hctx->cpumask) {
+		if (first)
+			ret += sprintf(ret + page, "%u", i);
+		else
+			ret += sprintf(ret + page, ", %u", i);
+
+		first = 0;
+	}
+
+	blk_mq_enable_hotplug();
+
+	ret += sprintf(ret + page, "\n");
+	return ret;
 }
 
 static struct blk_mq_ctx_sysfs_entry blk_mq_sysfs_dispatched = {
@@ -281,18 +272,21 @@ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_dispatched = {
 	.attr = {.name = "dispatched", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_dispatched_show,
 };
+static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_active = {
+	.attr = {.name = "active", .mode = S_IRUGO },
+	.show = blk_mq_hw_sysfs_active_show,
+};
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_pending = {
 	.attr = {.name = "pending", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_rq_list_show,
 };
-static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_ipi = {
-	.attr = {.name = "ipi_redirect", .mode = S_IRUGO | S_IWUSR},
-	.show = blk_mq_hw_sysfs_ipi_show,
-	.store = blk_mq_hw_sysfs_ipi_store,
-};
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_tags = {
 	.attr = {.name = "tags", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_tags_show,
+};
+static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_cpus = {
+	.attr = {.name = "cpu_list", .mode = S_IRUGO },
+	.show = blk_mq_hw_sysfs_cpus_show,
 };
 
 static struct attribute *default_hw_ctx_attrs[] = {
@@ -300,8 +294,9 @@ static struct attribute *default_hw_ctx_attrs[] = {
 	&blk_mq_hw_sysfs_run.attr,
 	&blk_mq_hw_sysfs_dispatched.attr,
 	&blk_mq_hw_sysfs_pending.attr,
-	&blk_mq_hw_sysfs_ipi.attr,
 	&blk_mq_hw_sysfs_tags.attr,
+	&blk_mq_hw_sysfs_cpus.attr,
+	&blk_mq_hw_sysfs_active.attr,
 	NULL,
 };
 
@@ -332,6 +327,42 @@ static struct kobj_type blk_mq_hw_ktype = {
 	.release	= blk_mq_sysfs_release,
 };
 
+static void blk_mq_unregister_hctx(struct blk_mq_hw_ctx *hctx)
+{
+	struct blk_mq_ctx *ctx;
+	int i;
+
+	if (!hctx->nr_ctx || !(hctx->flags & BLK_MQ_F_SYSFS_UP))
+		return;
+
+	hctx_for_each_ctx(hctx, ctx, i)
+		kobject_del(&ctx->kobj);
+
+	kobject_del(&hctx->kobj);
+}
+
+static int blk_mq_register_hctx(struct blk_mq_hw_ctx *hctx)
+{
+	struct request_queue *q = hctx->queue;
+	struct blk_mq_ctx *ctx;
+	int i, ret;
+
+	if (!hctx->nr_ctx || !(hctx->flags & BLK_MQ_F_SYSFS_UP))
+		return 0;
+
+	ret = kobject_add(&hctx->kobj, &q->mq_kobj, "%u", hctx->queue_num);
+	if (ret)
+		return ret;
+
+	hctx_for_each_ctx(hctx, ctx, i) {
+		ret = kobject_add(&ctx->kobj, &hctx->kobj, "cpu%u", ctx->cpu);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
 void blk_mq_unregister_disk(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
@@ -340,11 +371,11 @@ void blk_mq_unregister_disk(struct gendisk *disk)
 	int i, j;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		hctx_for_each_ctx(hctx, ctx, j) {
-			kobject_del(&ctx->kobj);
+		blk_mq_unregister_hctx(hctx);
+
+		hctx_for_each_ctx(hctx, ctx, j)
 			kobject_put(&ctx->kobj);
-		}
-		kobject_del(&hctx->kobj);
+
 		kobject_put(&hctx->kobj);
 	}
 
@@ -355,15 +386,30 @@ void blk_mq_unregister_disk(struct gendisk *disk)
 	kobject_put(&disk_to_dev(disk)->kobj);
 }
 
+static void blk_mq_sysfs_init(struct request_queue *q)
+{
+	struct blk_mq_hw_ctx *hctx;
+	struct blk_mq_ctx *ctx;
+	int i, j;
+
+	kobject_init(&q->mq_kobj, &blk_mq_ktype);
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		kobject_init(&hctx->kobj, &blk_mq_hw_ktype);
+
+		hctx_for_each_ctx(hctx, ctx, j)
+			kobject_init(&ctx->kobj, &blk_mq_ctx_ktype);
+	}
+}
+
 int blk_mq_register_disk(struct gendisk *disk)
 {
 	struct device *dev = disk_to_dev(disk);
 	struct request_queue *q = disk->queue;
 	struct blk_mq_hw_ctx *hctx;
-	struct blk_mq_ctx *ctx;
-	int ret, i, j;
+	int ret, i;
 
-	kobject_init(&q->mq_kobj, &blk_mq_ktype);
+	blk_mq_sysfs_init(q);
 
 	ret = kobject_add(&q->mq_kobj, kobject_get(&dev->kobj), "%s", "mq");
 	if (ret < 0)
@@ -372,20 +418,10 @@ int blk_mq_register_disk(struct gendisk *disk)
 	kobject_uevent(&q->mq_kobj, KOBJ_ADD);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		kobject_init(&hctx->kobj, &blk_mq_hw_ktype);
-		ret = kobject_add(&hctx->kobj, &q->mq_kobj, "%u", i);
+		hctx->flags |= BLK_MQ_F_SYSFS_UP;
+		ret = blk_mq_register_hctx(hctx);
 		if (ret)
 			break;
-
-		if (!hctx->nr_ctx)
-			continue;
-
-		hctx_for_each_ctx(hctx, ctx, j) {
-			kobject_init(&ctx->kobj, &blk_mq_ctx_ktype);
-			ret = kobject_add(&ctx->kobj, &hctx->kobj, "cpu%u", ctx->cpu);
-			if (ret)
-				break;
-		}
 	}
 
 	if (ret) {
@@ -394,4 +430,27 @@ int blk_mq_register_disk(struct gendisk *disk)
 	}
 
 	return 0;
+}
+
+void blk_mq_sysfs_unregister(struct request_queue *q)
+{
+	struct blk_mq_hw_ctx *hctx;
+	int i;
+
+	queue_for_each_hw_ctx(q, hctx, i)
+		blk_mq_unregister_hctx(hctx);
+}
+
+int blk_mq_sysfs_register(struct request_queue *q)
+{
+	struct blk_mq_hw_ctx *hctx;
+	int i, ret = 0;
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		ret = blk_mq_register_hctx(hctx);
+		if (ret)
+			break;
+	}
+
+	return ret;
 }

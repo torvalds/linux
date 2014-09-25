@@ -209,6 +209,16 @@ static void atombios_enable_crtc_memreq(struct drm_crtc *crtc, int state)
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+static const u32 vga_control_regs[6] =
+{
+	AVIVO_D1VGA_CONTROL,
+	AVIVO_D2VGA_CONTROL,
+	EVERGREEN_D3VGA_CONTROL,
+	EVERGREEN_D4VGA_CONTROL,
+	EVERGREEN_D5VGA_CONTROL,
+	EVERGREEN_D6VGA_CONTROL,
+};
+
 static void atombios_blank_crtc(struct drm_crtc *crtc, int state)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
@@ -216,13 +226,23 @@ static void atombios_blank_crtc(struct drm_crtc *crtc, int state)
 	struct radeon_device *rdev = dev->dev_private;
 	int index = GetIndexIntoMasterTable(COMMAND, BlankCRTC);
 	BLANK_CRTC_PS_ALLOCATION args;
+	u32 vga_control = 0;
 
 	memset(&args, 0, sizeof(args));
+
+	if (ASIC_IS_DCE8(rdev)) {
+		vga_control = RREG32(vga_control_regs[radeon_crtc->crtc_id]);
+		WREG32(vga_control_regs[radeon_crtc->crtc_id], vga_control | 1);
+	}
 
 	args.ucCRTC = radeon_crtc->crtc_id;
 	args.ucBlanking = state;
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+	if (ASIC_IS_DCE8(rdev)) {
+		WREG32(vga_control_regs[radeon_crtc->crtc_id], vga_control);
+	}
 }
 
 static void atombios_powergate_crtc(struct drm_crtc *crtc, int state)
@@ -250,8 +270,6 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		radeon_crtc->enabled = true;
-		/* adjust pm to dpms changes BEFORE enabling crtcs */
-		radeon_pm_compute_clocks(rdev);
 		atombios_enable_crtc(crtc, ATOM_ENABLE);
 		if (ASIC_IS_DCE3(rdev) && !ASIC_IS_DCE6(rdev))
 			atombios_enable_crtc_memreq(crtc, ATOM_ENABLE);
@@ -269,10 +287,10 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 			atombios_enable_crtc_memreq(crtc, ATOM_DISABLE);
 		atombios_enable_crtc(crtc, ATOM_DISABLE);
 		radeon_crtc->enabled = false;
-		/* adjust pm to dpms changes AFTER disabling crtcs */
-		radeon_pm_compute_clocks(rdev);
 		break;
 	}
+	/* adjust pm to dpms */
+	radeon_pm_compute_clocks(rdev);
 }
 
 static void
@@ -423,7 +441,17 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 	int index = GetIndexIntoMasterTable(COMMAND, EnableSpreadSpectrumOnPPLL);
 	union atom_enable_ss args;
 
-	if (!enable) {
+	if (enable) {
+		/* Don't mess with SS if percentage is 0 or external ss.
+		 * SS is already disabled previously, and disabling it
+		 * again can cause display problems if the pll is already
+		 * programmed.
+		 */
+		if (ss->percentage == 0)
+			return;
+		if (ss->type & ATOM_EXTERNAL_SS_MASK)
+			return;
+	} else {
 		for (i = 0; i < rdev->num_crtc; i++) {
 			if (rdev->mode_info.crtcs[i] &&
 			    rdev->mode_info.crtcs[i]->enabled &&
@@ -459,8 +487,6 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 		args.v3.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
 		args.v3.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 		args.v3.ucEnable = enable;
-		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK) || ASIC_IS_DCE61(rdev))
-			args.v3.ucEnable = ATOM_DISABLE;
 	} else if (ASIC_IS_DCE4(rdev)) {
 		args.v2.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
 		args.v2.ucSpreadSpectrumType = ss->type & ATOM_SS_CENTRE_SPREAD_MODE_MASK;
@@ -480,8 +506,6 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 		args.v2.usSpreadSpectrumAmount = cpu_to_le16(ss->amount);
 		args.v2.usSpreadSpectrumStep = cpu_to_le16(ss->step);
 		args.v2.ucEnable = enable;
-		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK) || ASIC_IS_DCE41(rdev))
-			args.v2.ucEnable = ATOM_DISABLE;
 	} else if (ASIC_IS_DCE3(rdev)) {
 		args.v1.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
 		args.v1.ucSpreadSpectrumType = ss->type & ATOM_SS_CENTRE_SPREAD_MODE_MASK;
@@ -503,8 +527,7 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 		args.lvds_ss_2.ucSpreadSpectrumRange = ss->range;
 		args.lvds_ss_2.ucEnable = enable;
 	} else {
-		if ((enable == ATOM_DISABLE) || (ss->percentage == 0) ||
-		    (ss->type & ATOM_EXTERNAL_SS_MASK)) {
+		if (enable == ATOM_DISABLE) {
 			atombios_disable_ss(rdev, pll_id);
 			return;
 		}
@@ -534,7 +557,8 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 	u32 adjusted_clock = mode->clock;
 	int encoder_mode = atombios_get_encoder_mode(encoder);
 	u32 dp_clock = mode->clock;
-	int bpc = radeon_get_monitor_bpc(connector);
+	u32 clock = mode->clock;
+	int bpc = radeon_crtc->bpc;
 	bool is_duallink = radeon_dig_monitor_is_duallink(encoder, mode->clock);
 
 	/* reset the pll flags */
@@ -609,6 +633,24 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 			radeon_crtc->pll_flags |= RADEON_PLL_USE_REF_DIV;
 	}
 
+	/* adjust pll for deep color modes */
+	if (encoder_mode == ATOM_ENCODER_MODE_HDMI) {
+		switch (bpc) {
+		case 8:
+		default:
+			break;
+		case 10:
+			clock = (clock * 5) / 4;
+			break;
+		case 12:
+			clock = (clock * 3) / 2;
+			break;
+		case 16:
+			clock = clock * 2;
+			break;
+		}
+	}
+
 	/* DCE3+ has an AdjustDisplayPll that will adjust the pixel clock
 	 * accordingly based on the encoder/transmitter to work around
 	 * special hw requirements.
@@ -630,7 +672,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 			switch (crev) {
 			case 1:
 			case 2:
-				args.v1.usPixelClock = cpu_to_le16(mode->clock / 10);
+				args.v1.usPixelClock = cpu_to_le16(clock / 10);
 				args.v1.ucTransmitterID = radeon_encoder->encoder_id;
 				args.v1.ucEncodeMode = encoder_mode;
 				if (radeon_crtc->ss_enabled && radeon_crtc->ss.percentage)
@@ -642,7 +684,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				adjusted_clock = le16_to_cpu(args.v1.usPixelClock) * 10;
 				break;
 			case 3:
-				args.v3.sInput.usPixelClock = cpu_to_le16(mode->clock / 10);
+				args.v3.sInput.usPixelClock = cpu_to_le16(clock / 10);
 				args.v3.sInput.ucTransmitterID = radeon_encoder->encoder_id;
 				args.v3.sInput.ucEncodeMode = encoder_mode;
 				args.v3.sInput.ucDispPllConfig = 0;
@@ -656,10 +698,6 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					args.v3.sInput.usPixelClock = cpu_to_le16(dp_clock / 10);
 				} else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 					struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-					if (encoder_mode == ATOM_ENCODER_MODE_HDMI)
-						/* deep color support */
-						args.v3.sInput.usPixelClock =
-							cpu_to_le16((mode->clock * bpc / 8) / 10);
 					if (dig->coherent_mode)
 						args.v3.sInput.ucDispPllConfig |=
 							DISPPLL_CONFIG_COHERENT_MODE;
@@ -839,14 +877,21 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v5.ucMiscInfo = 0; /* HDMI depth, etc. */
 			if (ss_enabled && (ss->type & ATOM_EXTERNAL_SS_MASK))
 				args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_REF_DIV_SRC;
-			switch (bpc) {
-			case 8:
-			default:
-				args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_24BPP;
-				break;
-			case 10:
-				args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_30BPP;
-				break;
+			if (encoder_mode == ATOM_ENCODER_MODE_HDMI) {
+				switch (bpc) {
+				case 8:
+				default:
+					args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_24BPP;
+					break;
+				case 10:
+					/* yes this is correct, the atom define is wrong */
+					args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_32BPP;
+					break;
+				case 12:
+					/* yes this is correct, the atom define is wrong */
+					args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_30BPP;
+					break;
+				}
 			}
 			args.v5.ucTransmitterID = encoder_id;
 			args.v5.ucEncoderMode = encoder_mode;
@@ -861,20 +906,22 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v6.ucMiscInfo = 0; /* HDMI depth, etc. */
 			if (ss_enabled && (ss->type & ATOM_EXTERNAL_SS_MASK))
 				args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_REF_DIV_SRC;
-			switch (bpc) {
-			case 8:
-			default:
-				args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_24BPP;
-				break;
-			case 10:
-				args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_30BPP;
-				break;
-			case 12:
-				args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_36BPP;
-				break;
-			case 16:
-				args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_48BPP;
-				break;
+			if (encoder_mode == ATOM_ENCODER_MODE_HDMI) {
+				switch (bpc) {
+				case 8:
+				default:
+					args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_24BPP;
+					break;
+				case 10:
+					args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_30BPP_V6;
+					break;
+				case 12:
+					args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_36BPP_V6;
+					break;
+				case 16:
+					args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_48BPP;
+					break;
+				}
 			}
 			args.v6.ucTransmitterID = encoder_id;
 			args.v6.ucEncoderMode = encoder_mode;
@@ -915,6 +962,9 @@ static bool atombios_crtc_prepare_pll(struct drm_crtc *crtc, struct drm_display_
 		struct radeon_connector_atom_dig *dig_connector =
 			radeon_connector->con_priv;
 		int dp_clock;
+
+		/* Assign mode clock for hdmi deep color max clock limit check */
+		radeon_connector->pixelclock_for_modeset = mode->clock;
 		radeon_crtc->bpc = radeon_get_monitor_bpc(connector);
 
 		switch (encoder_mode) {
@@ -938,11 +988,14 @@ static bool atombios_crtc_prepare_pll(struct drm_crtc *crtc, struct drm_display_
 							radeon_atombios_get_ppll_ss_info(rdev,
 											 &radeon_crtc->ss,
 											 ATOM_DP_SS_ID1);
-				} else
+				} else {
 					radeon_crtc->ss_enabled =
 						radeon_atombios_get_ppll_ss_info(rdev,
 										 &radeon_crtc->ss,
 										 ATOM_DP_SS_ID1);
+				}
+				/* disable spread spectrum on DCE3 DP */
+				radeon_crtc->ss_enabled = false;
 			}
 			break;
 		case ATOM_ENCODER_MODE_LVDS:
@@ -993,9 +1046,16 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	struct radeon_encoder *radeon_encoder =
 		to_radeon_encoder(radeon_crtc->encoder);
 	u32 pll_clock = mode->clock;
+	u32 clock = mode->clock;
 	u32 ref_div = 0, fb_div = 0, frac_fb_div = 0, post_div = 0;
 	struct radeon_pll *pll;
 	int encoder_mode = atombios_get_encoder_mode(radeon_crtc->encoder);
+
+	/* pass the actual clock to atombios_crtc_program_pll for DCE5,6 for HDMI */
+	if (ASIC_IS_DCE5(rdev) &&
+	    (encoder_mode == ATOM_ENCODER_MODE_HDMI) &&
+	    (radeon_crtc->bpc > 8))
+		clock = radeon_crtc->adjusted_clock;
 
 	switch (radeon_crtc->pll_id) {
 	case ATOM_PPLL1:
@@ -1031,7 +1091,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 				 radeon_crtc->crtc_id, &radeon_crtc->ss);
 
 	atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
-				  encoder_mode, radeon_encoder->encoder_id, mode->clock,
+				  encoder_mode, radeon_encoder->encoder_id, clock,
 				  ref_div, fb_div, frac_fb_div, post_div,
 				  radeon_crtc->bpc, radeon_crtc->ss_enabled, &radeon_crtc->ss);
 
@@ -1039,15 +1099,17 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 		/* calculate ss amount and step size */
 		if (ASIC_IS_DCE4(rdev)) {
 			u32 step_size;
-			u32 amount = (((fb_div * 10) + frac_fb_div) * radeon_crtc->ss.percentage) / 10000;
+			u32 amount = (((fb_div * 10) + frac_fb_div) *
+				      (u32)radeon_crtc->ss.percentage) /
+				(100 * (u32)radeon_crtc->ss.percentage_divider);
 			radeon_crtc->ss.amount = (amount / 10) & ATOM_PPLL_SS_AMOUNT_V2_FBDIV_MASK;
 			radeon_crtc->ss.amount |= ((amount - (amount / 10)) << ATOM_PPLL_SS_AMOUNT_V2_NFRAC_SHIFT) &
 				ATOM_PPLL_SS_AMOUNT_V2_NFRAC_MASK;
 			if (radeon_crtc->ss.type & ATOM_PPLL_SS_TYPE_V2_CENTRE_SPREAD)
-				step_size = (4 * amount * ref_div * (radeon_crtc->ss.rate * 2048)) /
+				step_size = (4 * amount * ref_div * ((u32)radeon_crtc->ss.rate * 2048)) /
 					(125 * 25 * pll->reference_freq / 100);
 			else
-				step_size = (2 * amount * ref_div * (radeon_crtc->ss.rate * 2048)) /
+				step_size = (2 * amount * ref_div * ((u32)radeon_crtc->ss.rate * 2048)) /
 					(125 * 25 * pll->reference_freq / 100);
 			radeon_crtc->ss.step = step_size;
 		}
@@ -1074,9 +1136,10 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
 	u32 tmp, viewport_w, viewport_h;
 	int r;
+	bool bypass_lut = false;
 
 	/* no fb bound */
-	if (!atomic && !crtc->fb) {
+	if (!atomic && !crtc->primary->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
@@ -1086,8 +1149,8 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		target_fb = fb;
 	}
 	else {
-		radeon_fb = to_radeon_framebuffer(crtc->fb);
-		target_fb = crtc->fb;
+		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
+		target_fb = crtc->primary->fb;
 	}
 
 	/* If atomic, assume fb object is pinned & idle & fenced and
@@ -1112,33 +1175,73 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(rbo);
 
-	switch (target_fb->bits_per_pixel) {
-	case 8:
+	switch (target_fb->pixel_format) {
+	case DRM_FORMAT_C8:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_8BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_INDEXED));
 		break;
-	case 15:
+	case DRM_FORMAT_XRGB4444:
+	case DRM_FORMAT_ARGB4444:
+		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
+			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB4444));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN16);
+#endif
+		break;
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_ARGB1555:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB1555));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN16);
+#endif
 		break;
-	case 16:
+	case DRM_FORMAT_BGRX5551:
+	case DRM_FORMAT_BGRA5551:
+		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
+			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_BGRA5551));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN16);
+#endif
+		break;
+	case DRM_FORMAT_RGB565:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_16BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB565));
 #ifdef __BIG_ENDIAN
 		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN16);
 #endif
 		break;
-	case 24:
-	case 32:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_32BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB8888));
 #ifdef __BIG_ENDIAN
 		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
 #endif
 		break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_32BPP) |
+			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_ARGB2101010));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
+#endif
+		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
+		bypass_lut = true;
+		break;
+	case DRM_FORMAT_BGRX1010102:
+	case DRM_FORMAT_BGRA1010102:
+		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_32BPP) |
+			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_BGRA1010102));
+#ifdef __BIG_ENDIAN
+		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
+#endif
+		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
+		bypass_lut = true;
+		break;
 	default:
-		DRM_ERROR("Unsupported screen depth %d\n",
-			  target_fb->bits_per_pixel);
+		DRM_ERROR("Unsupported screen format %s\n",
+			  drm_get_format_name(target_fb->pixel_format));
 		return -EINVAL;
 	}
 
@@ -1146,31 +1249,48 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		evergreen_tiling_fields(tiling_flags, &bankw, &bankh, &mtaspect, &tile_split);
 
 		/* Set NUM_BANKS. */
-		if (rdev->family >= CHIP_BONAIRE) {
-			unsigned tileb, index, num_banks, tile_split_bytes;
+		if (rdev->family >= CHIP_TAHITI) {
+			unsigned index, num_banks;
 
-			/* Calculate the macrotile mode index. */
-			tile_split_bytes = 64 << tile_split;
-			tileb = 8 * 8 * target_fb->bits_per_pixel / 8;
-			tileb = min(tile_split_bytes, tileb);
+			if (rdev->family >= CHIP_BONAIRE) {
+				unsigned tileb, tile_split_bytes;
 
-			for (index = 0; tileb > 64; index++) {
-				tileb >>= 1;
+				/* Calculate the macrotile mode index. */
+				tile_split_bytes = 64 << tile_split;
+				tileb = 8 * 8 * target_fb->bits_per_pixel / 8;
+				tileb = min(tile_split_bytes, tileb);
+
+				for (index = 0; tileb > 64; index++)
+					tileb >>= 1;
+
+				if (index >= 16) {
+					DRM_ERROR("Wrong screen bpp (%u) or tile split (%u)\n",
+						  target_fb->bits_per_pixel, tile_split);
+					return -EINVAL;
+				}
+
+				num_banks = (rdev->config.cik.macrotile_mode_array[index] >> 6) & 0x3;
+			} else {
+				switch (target_fb->bits_per_pixel) {
+				case 8:
+					index = 10;
+					break;
+				case 16:
+					index = SI_TILE_MODE_COLOR_2D_SCANOUT_16BPP;
+					break;
+				default:
+				case 32:
+					index = SI_TILE_MODE_COLOR_2D_SCANOUT_32BPP;
+					break;
+				}
+
+				num_banks = (rdev->config.si.tile_mode_array[index] >> 20) & 0x3;
 			}
 
-			if (index >= 16) {
-				DRM_ERROR("Wrong screen bpp (%u) or tile split (%u)\n",
-					  target_fb->bits_per_pixel, tile_split);
-				return -EINVAL;
-			}
-
-			num_banks = (rdev->config.cik.macrotile_mode_array[index] >> 6) & 0x3;
 			fb_format |= EVERGREEN_GRPH_NUM_BANKS(num_banks);
 		} else {
-			/* SI and older. */
-			if (rdev->family >= CHIP_TAHITI)
-				tmp = rdev->config.si.tile_config;
-			else if (rdev->family >= CHIP_CAYMAN)
+			/* NI and older. */
+			if (rdev->family >= CHIP_CAYMAN)
 				tmp = rdev->config.cayman.tile_config;
 			else
 				tmp = rdev->config.evergreen.tile_config;
@@ -1250,6 +1370,18 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(EVERGREEN_GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
 	WREG32(EVERGREEN_GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
 
+	/*
+	 * The LUT only has 256 slots for indexing by a 8 bpc fb. Bypass the LUT
+	 * for > 8 bpc scanout to avoid truncation of fb indices to 8 msb's, to
+	 * retain the full precision throughout the pipeline.
+	 */
+	WREG32_P(EVERGREEN_GRPH_LUT_10BIT_BYPASS_CONTROL + radeon_crtc->crtc_offset,
+		 (bypass_lut ? EVERGREEN_LUT_10BIT_BYPASS_EN : 0),
+		 ~EVERGREEN_LUT_10BIT_BYPASS_EN);
+
+	if (bypass_lut)
+		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
+
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_X_START + radeon_crtc->crtc_offset, 0);
@@ -1282,10 +1414,10 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	tmp &= ~EVERGREEN_GRPH_SURFACE_UPDATE_H_RETRACE_EN;
 	WREG32(EVERGREEN_GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset, tmp);
 
-	/* set pageflip to happen anywhere in vblank interval */
-	WREG32(EVERGREEN_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
+	/* set pageflip to happen only at start of vblank interval (front porch) */
+	WREG32(EVERGREEN_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 3);
 
-	if (!atomic && fb && fb != crtc->fb) {
+	if (!atomic && fb && fb != crtc->primary->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
@@ -1317,9 +1449,10 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
 	u32 tmp, viewport_w, viewport_h;
 	int r;
+	bool bypass_lut = false;
 
 	/* no fb bound */
-	if (!atomic && !crtc->fb) {
+	if (!atomic && !crtc->primary->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
@@ -1329,8 +1462,8 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		target_fb = fb;
 	}
 	else {
-		radeon_fb = to_radeon_framebuffer(crtc->fb);
-		target_fb = crtc->fb;
+		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
+		target_fb = crtc->primary->fb;
 	}
 
 	obj = radeon_fb->obj;
@@ -1354,18 +1487,30 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(rbo);
 
-	switch (target_fb->bits_per_pixel) {
-	case 8:
+	switch (target_fb->pixel_format) {
+	case DRM_FORMAT_C8:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_8BPP |
 		    AVIVO_D1GRPH_CONTROL_8BPP_INDEXED;
 		break;
-	case 15:
+	case DRM_FORMAT_XRGB4444:
+	case DRM_FORMAT_ARGB4444:
+		fb_format =
+		    AVIVO_D1GRPH_CONTROL_DEPTH_16BPP |
+		    AVIVO_D1GRPH_CONTROL_16BPP_ARGB4444;
+#ifdef __BIG_ENDIAN
+		fb_swap = R600_D1GRPH_SWAP_ENDIAN_16BIT;
+#endif
+		break;
+	case DRM_FORMAT_XRGB1555:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_16BPP |
 		    AVIVO_D1GRPH_CONTROL_16BPP_ARGB1555;
+#ifdef __BIG_ENDIAN
+		fb_swap = R600_D1GRPH_SWAP_ENDIAN_16BIT;
+#endif
 		break;
-	case 16:
+	case DRM_FORMAT_RGB565:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_16BPP |
 		    AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
@@ -1373,8 +1518,8 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_swap = R600_D1GRPH_SWAP_ENDIAN_16BIT;
 #endif
 		break;
-	case 24:
-	case 32:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_32BPP |
 		    AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
@@ -1382,9 +1527,20 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_swap = R600_D1GRPH_SWAP_ENDIAN_32BIT;
 #endif
 		break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+		fb_format =
+		    AVIVO_D1GRPH_CONTROL_DEPTH_32BPP |
+		    AVIVO_D1GRPH_CONTROL_32BPP_ARGB2101010;
+#ifdef __BIG_ENDIAN
+		fb_swap = R600_D1GRPH_SWAP_ENDIAN_32BIT;
+#endif
+		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
+		bypass_lut = true;
+		break;
 	default:
-		DRM_ERROR("Unsupported screen depth %d\n",
-			  target_fb->bits_per_pixel);
+		DRM_ERROR("Unsupported screen format %s\n",
+			  drm_get_format_name(target_fb->pixel_format));
 		return -EINVAL;
 	}
 
@@ -1423,6 +1579,13 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	if (rdev->family >= CHIP_R600)
 		WREG32(R600_D1GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
 
+	/* LUT only has 256 slots for 8 bpc fb. Bypass for > 8 bpc scanout for precision */
+	WREG32_P(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset,
+		 (bypass_lut ? AVIVO_LUT_10BIT_BYPASS_EN : 0), ~AVIVO_LUT_10BIT_BYPASS_EN);
+
+	if (bypass_lut)
+		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
+
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
 	WREG32(AVIVO_D1GRPH_X_START + radeon_crtc->crtc_offset, 0);
@@ -1451,10 +1614,10 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	tmp &= ~AVIVO_D1GRPH_SURFACE_UPDATE_H_RETRACE_EN;
 	WREG32(AVIVO_D1GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset, tmp);
 
-	/* set pageflip to happen anywhere in vblank interval */
-	WREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
+	/* set pageflip to happen only at start of vblank interval (front porch) */
+	WREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 3);
 
-	if (!atomic && fb && fb != crtc->fb) {
+	if (!atomic && fb && fb != crtc->primary->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
@@ -1689,8 +1852,9 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 		}
 		/* otherwise, pick one of the plls */
 		if ((rdev->family == CHIP_KAVERI) ||
-		    (rdev->family == CHIP_KABINI)) {
-			/* KB/KV has PPLL1 and PPLL2 */
+		    (rdev->family == CHIP_KABINI) ||
+		    (rdev->family == CHIP_MULLINS)) {
+			/* KB/KV/ML has PPLL1 and PPLL2 */
 			pll_in_use = radeon_get_pll_use_mask(crtc);
 			if (!(pll_in_use & (1 << ATOM_PPLL2)))
 				return ATOM_PPLL2;
@@ -1743,6 +1907,20 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 			return ATOM_PPLL1;
 		DRM_ERROR("unable to allocate a PPLL\n");
 		return ATOM_PPLL_INVALID;
+	} else if (ASIC_IS_DCE41(rdev)) {
+		/* Don't share PLLs on DCE4.1 chips */
+		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(radeon_crtc->encoder))) {
+			if (rdev->clock.dp_extclk)
+				/* skip PPLL programming if using ext clock */
+				return ATOM_PPLL_INVALID;
+		}
+		pll_in_use = radeon_get_pll_use_mask(crtc);
+		if (!(pll_in_use & (1 << ATOM_PPLL1)))
+			return ATOM_PPLL1;
+		if (!(pll_in_use & (1 << ATOM_PPLL2)))
+			return ATOM_PPLL2;
+		DRM_ERROR("unable to allocate a PPLL\n");
+		return ATOM_PPLL_INVALID;
 	} else if (ASIC_IS_DCE4(rdev)) {
 		/* in DP mode, the DP ref clock can come from PPLL, DCPLL, or ext clock,
 		 * depending on the asic:
@@ -1770,7 +1948,7 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 				if (pll != ATOM_PPLL_INVALID)
 					return pll;
 			}
-		} else if (!ASIC_IS_DCE41(rdev)) { /* Don't share PLLs on DCE4.1 chips */
+		} else {
 			/* use the same PPLL for all monitors with the same clock */
 			pll = radeon_get_shared_nondp_ppll(crtc);
 			if (pll != ATOM_PPLL_INVALID)
@@ -1839,6 +2017,9 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	if (radeon_encoder->active_device &
 	    (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
 		is_tvcv = true;
+
+	if (!radeon_crtc->adjusted_clock)
+		return -EINVAL;
 
 	atombios_crtc_set_pll(crtc, adjusted_mode);
 
@@ -1927,12 +2108,12 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	int i;
 
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-	if (crtc->fb) {
+	if (crtc->primary->fb) {
 		int r;
 		struct radeon_framebuffer *radeon_fb;
 		struct radeon_bo *rbo;
 
-		radeon_fb = to_radeon_framebuffer(crtc->fb);
+		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r))

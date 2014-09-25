@@ -175,6 +175,15 @@ config HID_PRODIKEYS
 	  multimedia keyboard, but will lack support for the musical keyboard
 	  and some additional multimedia keys.
 
+config HID_CP2112
+	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
+	depends on USB_HID && I2C && GPIOLIB
+	---help---
+	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.
+	This is a HID device driver which registers as an i2c adapter
+	and gpiochip to expose these functions of the CP2112. The
+	customizable USB descriptor fields are exposed as sysfs attributes.
+
 config HID_CYPRESS
 	tristate "Cypress mouse and barcode readers" if EXPERT
 	depends on HID
@@ -252,6 +261,20 @@ config HOLTEK_FF
 	  Say Y here if you have a Holtek On Line Grip based game controller
 	  and want to have force feedback support for it.
 
+config HID_GT683R
+	tristate "MSI GT68xR LED support"
+	depends on LEDS_CLASS && USB_HID
+	---help---
+	Say Y here if you want to enable support for the three MSI GT68xR LEDs
+
+	This driver support following modes:
+	  - Normal: LEDs are fully on when enabled
+	  - Audio:  LEDs brightness depends on sound level
+	  - Breathing: LEDs brightness varies at human breathing rate
+
+	Currently the following devices are know to be supported:
+	  - MSI GT683R
+
 config HID_HUION
 	tristate "Huion tablets"
 	depends on USB_HID
@@ -322,18 +345,20 @@ config HID_LCPOWER
 	---help---
 	Support for LC-Power RC1000MCE RF remote control.
 
-config HID_LENOVO_TPKBD
-	tristate "Lenovo ThinkPad USB Keyboard with TrackPoint"
+config HID_LENOVO
+	tristate "Lenovo / Thinkpad devices"
 	depends on HID
 	select NEW_LEDS
 	select LEDS_CLASS
 	---help---
-	Support for the Lenovo ThinkPad USB Keyboard with TrackPoint.
+	Support for Lenovo devices that are not fully compliant with HID standard.
 
-	Say Y here if you have a Lenovo ThinkPad USB Keyboard with TrackPoint
-	and would like to use device-specific features like changing the
-	sensitivity of the trackpoint, using the microphone mute button or
-	controlling the mute and microphone mute LEDs.
+	Say Y if you want support for the non-compliant features of the Lenovo
+	Thinkpad standalone keyboards, e.g:
+	- ThinkPad USB Keyboard with TrackPoint (supports extra LEDs and trackpoint
+	  configuration)
+	- ThinkPad Compact Bluetooth Keyboard with TrackPoint (supports Fn keys)
+	- ThinkPad Compact USB Keyboard with TrackPoint (supports Fn keys)
 
 config HID_LOGITECH
 	tristate "Logitech devices" if EXPERT
@@ -599,7 +624,10 @@ config HID_SAITEK
 	Support for Saitek devices that are not fully compliant with the
 	HID standard.
 
-	Currently only supports the PS1000 controller.
+	Supported devices:
+	- PS1000 Dual Analog Pad
+	- R.A.T.7 Gaming Mouse
+	- M.M.O.7 Gaming Mouse
 
 config HID_SAMSUNG
 	tristate "Samsung InfraRed remote control or keyboards"
@@ -608,25 +636,27 @@ config HID_SAMSUNG
 	Support for Samsung InfraRed remote control or keyboards.
 
 config HID_SONY
-	tristate "Sony PS2/3 accessories"
+	tristate "Sony PS2/3/4 accessories"
 	depends on USB_HID
 	depends on NEW_LEDS
 	depends on LEDS_CLASS
+	select POWER_SUPPLY
 	---help---
 	Support for
 
 	  * Sony PS3 6-axis controllers
+	  * Sony PS4 DualShock 4 controllers
 	  * Buzz controllers
 	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
 	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
 
 config SONY_FF
-	bool "Sony PS2/3 accessories force feedback support"
+	bool "Sony PS2/3/4 accessories force feedback support" 
 	depends on HID_SONY
 	select INPUT_FF_MEMLESS
 	---help---
-	Say Y here if you have a Sony PS2/3 accessory and want to enable force
-	feedback support for it.
+	Say Y here if you have a Sony PS2/3/4 accessory and want to enable
+	force feedback support for it.
 
 config HID_SPEEDLINK
 	tristate "Speedlink VAD Cezanne mouse support"
@@ -645,6 +675,14 @@ config HID_SUNPLUS
 	depends on HID
 	---help---
 	Support for Sunplus wireless desktop.
+
+config HID_RMI
+	tristate "Synaptics RMI4 device support"
+	depends on HID
+	---help---
+	Support for Synaptics RMI4 touchpads.
+	Say Y here if you have a Synaptics RMI4 touchpads over i2c-hid or usbhid
+	and want support for its special functionalities.
 
 config HID_GREENASIA
 	tristate "GreenAsia (Product ID 0x12) game controller support"
@@ -726,12 +764,17 @@ config THRUSTMASTER_FF
 	  Rumble Force or Force Feedback Wheel.
 
 config HID_WACOM
-	tristate "Wacom Bluetooth devices support"
+	tristate "Wacom Intuos/Graphire tablet support (USB)"
 	depends on HID
-	depends on LEDS_CLASS
 	select POWER_SUPPLY
-	---help---
-	Support for Wacom Graphire Bluetooth and Intuos4 WL tablets.
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  Say Y here if you want to use the USB or BT version of the Wacom Intuos
+	  or Graphire tablet.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wacom.
 
 config HID_WIIMOTE
 	tristate "Nintendo Wii / Wii U peripherals"
@@ -763,7 +806,7 @@ config HID_XINMO
 	depends on HID
 	---help---
 	Support for Xin-Mo devices that are not fully compliant with the HID
-	standard. Currently only supports the Xin-Mo Dual Arcade. Say Y here
+	standard. Currently only supports the Xin-Mo Dual Arcade. Say Y here
 	if you have a Xin-Mo Dual Arcade controller.
 
 config HID_ZEROPLUS
@@ -788,7 +831,7 @@ config HID_ZYDACRON
 
 config HID_SENSOR_HUB
 	tristate "HID Sensors framework support"
-	depends on HID
+	depends on HID && HAS_IOMEM
 	select MFD_CORE
 	default n
 	---help---

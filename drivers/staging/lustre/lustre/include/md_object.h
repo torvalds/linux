@@ -35,7 +35,7 @@
  *
  * lustre/include/md_object.h
  *
- * Extention of lu_object.h for metadata objects
+ * Extension of lu_object.h for metadata objects
  */
 
 #ifndef _LUSTRE_MD_OBJECT_H
@@ -56,7 +56,7 @@
 /*
  * super-class definitions.
  */
-#include <dt_object.h>
+#include "dt_object.h"
 
 struct md_device;
 struct md_device_operations;

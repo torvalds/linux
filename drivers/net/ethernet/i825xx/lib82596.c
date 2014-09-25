@@ -78,7 +78,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
@@ -994,7 +993,7 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				       dev->name));
 		dev->stats.tx_dropped++;
 
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 	} else {
 		if (++lp->next_tx_cmd == TX_RING_SIZE)
 			lp->next_tx_cmd = 0;

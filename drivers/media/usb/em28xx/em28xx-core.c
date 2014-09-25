@@ -23,6 +23,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -32,6 +33,16 @@
 #include <media/v4l2-common.h>
 
 #include "em28xx.h"
+
+#define DRIVER_AUTHOR "Ludovico Cavedon <cavedon@sssup.it>, " \
+		      "Markus Rechberger <mrechberger@gmail.com>, " \
+		      "Mauro Carvalho Chehab <mchehab@infradead.org>, " \
+		      "Sascha Sommer <saschasommer@freenet.de>"
+
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE("GPL");
+MODULE_VERSION(EM28XX_VERSION);
 
 /* #define ENABLE_DEBUG_ISOC_FRAMES */
 
@@ -52,14 +63,6 @@ MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
 	if (reg_debug) \
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); } while (0)
-
-static int alt;
-module_param(alt, int, 0644);
-MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
-
-static unsigned int disable_vbi;
-module_param(disable_vbi, int, 0644);
-MODULE_PARM_DESC(disable_vbi, "disable vbi support");
 
 /* FIXME */
 #define em28xx_isocdbg(fmt, arg...) do {\
@@ -226,21 +229,42 @@ int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 EXPORT_SYMBOL_GPL(em28xx_write_reg_bits);
 
 /*
+ * em28xx_toggle_reg_bits()
+ * toggles/inverts the bits (specified by bitmask) of a register
+ */
+int em28xx_toggle_reg_bits(struct em28xx *dev, u16 reg, u8 bitmask)
+{
+	int oldval;
+	u8 newval;
+
+	oldval = em28xx_read_reg(dev, reg);
+	if (oldval < 0)
+		return oldval;
+
+	newval = (~oldval & bitmask) | (oldval & ~bitmask);
+
+	return em28xx_write_reg(dev, reg, newval);
+}
+EXPORT_SYMBOL_GPL(em28xx_toggle_reg_bits);
+
+/*
  * em28xx_is_ac97_ready()
  * Checks if ac97 is ready
  */
 static int em28xx_is_ac97_ready(struct em28xx *dev)
 {
-	int ret, i;
+	unsigned long timeout = jiffies + msecs_to_jiffies(EM28XX_AC97_XFER_TIMEOUT);
+	int ret;
 
 	/* Wait up to 50 ms for AC97 command to complete */
-	for (i = 0; i < 10; i++, msleep(5)) {
+	while (time_is_after_jiffies(timeout)) {
 		ret = em28xx_read_reg(dev, EM28XX_R43_AC97BUSY);
 		if (ret < 0)
 			return ret;
 
 		if (!(ret & 0x01))
 			return 0;
+		msleep(5);
 	}
 
 	em28xx_warn("AC97 command still being executed: not handled properly!\n");
@@ -482,16 +506,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 	int vid1, vid2, feat, cfg;
 	u32 vid;
 
-	if (dev->chip_id == CHIP_ID_EM2870 || dev->chip_id == CHIP_ID_EM2874
-		|| dev->chip_id == CHIP_ID_EM28174) {
-		/* Digital only device - don't load any alsa module */
-		dev->audio_mode.has_audio = false;
-		dev->has_audio_class = false;
-		dev->has_alsa_audio = false;
+	if (!dev->audio_mode.has_audio)
 		return 0;
-	}
-
-	dev->audio_mode.has_audio = true;
 
 	/* See how this device is configured */
 	cfg = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
@@ -504,17 +520,19 @@ int em28xx_audio_setup(struct em28xx *dev)
 		dev->has_alsa_audio = false;
 		dev->audio_mode.has_audio = false;
 		return 0;
-	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		   EM28XX_CHIPCFG_I2S_3_SAMPRATES) {
-		em28xx_info("I2S Audio (3 sample rates)\n");
-		dev->audio_mode.i2s_3rates = 1;
-	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		   EM28XX_CHIPCFG_I2S_5_SAMPRATES) {
-		em28xx_info("I2S Audio (5 sample rates)\n");
-		dev->audio_mode.i2s_5rates = 1;
-	}
-
-	if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
+	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
+		if (dev->chip_id < CHIP_ID_EM2860 &&
+	            (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+		    EM2820_CHIPCFG_I2S_1_SAMPRATE)
+			dev->audio_mode.i2s_samplerates = 1;
+		else if (dev->chip_id >= CHIP_ID_EM2860 &&
+			 (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+			 EM2860_CHIPCFG_I2S_5_SAMPRATES)
+			dev->audio_mode.i2s_samplerates = 5;
+		else
+			dev->audio_mode.i2s_samplerates = 3;
+		em28xx_info("I2S Audio (%d sample rate(s))\n",
+					       dev->audio_mode.i2s_samplerates);
 		/* Skip the code that does AC97 vendor detection */
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
 		goto init_audio;
@@ -582,295 +600,81 @@ init_audio:
 }
 EXPORT_SYMBOL_GPL(em28xx_audio_setup);
 
-int em28xx_colorlevels_set_default(struct em28xx *dev)
+const struct em28xx_led *em28xx_find_led(struct em28xx *dev,
+					 enum em28xx_led_role role)
 {
-	em28xx_write_reg(dev, EM28XX_R20_YGAIN, CONTRAST_DEFAULT);
-	em28xx_write_reg(dev, EM28XX_R21_YOFFSET, BRIGHTNESS_DEFAULT);
-	em28xx_write_reg(dev, EM28XX_R22_UVGAIN, SATURATION_DEFAULT);
-	em28xx_write_reg(dev, EM28XX_R23_UOFFSET, BLUE_BALANCE_DEFAULT);
-	em28xx_write_reg(dev, EM28XX_R24_VOFFSET, RED_BALANCE_DEFAULT);
-	em28xx_write_reg(dev, EM28XX_R25_SHARPNESS, SHARPNESS_DEFAULT);
-
-	em28xx_write_reg(dev, EM28XX_R14_GAMMA, 0x20);
-	em28xx_write_reg(dev, EM28XX_R15_RGAIN, 0x20);
-	em28xx_write_reg(dev, EM28XX_R16_GGAIN, 0x20);
-	em28xx_write_reg(dev, EM28XX_R17_BGAIN, 0x20);
-	em28xx_write_reg(dev, EM28XX_R18_ROFFSET, 0x00);
-	em28xx_write_reg(dev, EM28XX_R19_GOFFSET, 0x00);
-	return em28xx_write_reg(dev, EM28XX_R1A_BOFFSET, 0x00);
+	if (dev->board.leds) {
+		u8 k = 0;
+		while (dev->board.leds[k].role >= 0 &&
+			       dev->board.leds[k].role < EM28XX_NUM_LED_ROLES) {
+			if (dev->board.leds[k].role == role)
+				return &dev->board.leds[k];
+			k++;
+		}
+	}
+	return NULL;
 }
+EXPORT_SYMBOL_GPL(em28xx_find_led);
 
 int em28xx_capture_start(struct em28xx *dev, int start)
 {
 	int rc;
+	const struct em28xx_led *led = NULL;
 
 	if (dev->chip_id == CHIP_ID_EM2874 ||
 	    dev->chip_id == CHIP_ID_EM2884 ||
-	    dev->chip_id == CHIP_ID_EM28174) {
+	    dev->chip_id == CHIP_ID_EM28174 ||
+	    dev->chip_id == CHIP_ID_EM28178) {
 		/* The Transport Stream Enable Register moved in em2874 */
-		if (!start) {
-			rc = em28xx_write_reg_bits(dev, EM2874_R5F_TS_ENABLE,
-						   0x00,
-						   EM2874_TS1_CAPTURE_ENABLE);
-			return rc;
-		}
-
-		/* Enable Transport Stream */
 		rc = em28xx_write_reg_bits(dev, EM2874_R5F_TS_ENABLE,
-					   EM2874_TS1_CAPTURE_ENABLE,
+					   start ?
+					       EM2874_TS1_CAPTURE_ENABLE : 0x00,
 					   EM2874_TS1_CAPTURE_ENABLE);
-		return rc;
+	} else {
+		/* FIXME: which is the best order? */
+		/* video registers are sampled by VREF */
+		rc = em28xx_write_reg_bits(dev, EM28XX_R0C_USBSUSP,
+					   start ? 0x10 : 0x00, 0x10);
+		if (rc < 0)
+			return rc;
+
+		if (start) {
+			if (dev->board.is_webcam)
+				rc = em28xx_write_reg(dev, 0x13, 0x0c);
+
+			/* Enable video capture */
+			rc = em28xx_write_reg(dev, 0x48, 0x00);
+			if (rc < 0)
+				return rc;
+
+			if (dev->mode == EM28XX_ANALOG_MODE)
+				rc = em28xx_write_reg(dev,
+						    EM28XX_R12_VINENABLE, 0x67);
+			else
+				rc = em28xx_write_reg(dev,
+						    EM28XX_R12_VINENABLE, 0x37);
+			if (rc < 0)
+				return rc;
+
+			msleep(6);
+		} else {
+			/* disable video capture */
+			rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x27);
+		}
 	}
-
-
-	/* FIXME: which is the best order? */
-	/* video registers are sampled by VREF */
-	rc = em28xx_write_reg_bits(dev, EM28XX_R0C_USBSUSP,
-				   start ? 0x10 : 0x00, 0x10);
-	if (rc < 0)
-		return rc;
-
-	if (!start) {
-		/* disable video capture */
-		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x27);
-		return rc;
-	}
-
-	if (dev->board.is_webcam)
-		rc = em28xx_write_reg(dev, 0x13, 0x0c);
-
-	/* enable video capture */
-	rc = em28xx_write_reg(dev, 0x48, 0x00);
 
 	if (dev->mode == EM28XX_ANALOG_MODE)
-		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x67);
+		led = em28xx_find_led(dev, EM28XX_LED_ANALOG_CAPTURING);
 	else
-		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x37);
+		led = em28xx_find_led(dev, EM28XX_LED_DIGITAL_CAPTURING);
 
-	msleep(6);
+	if (led)
+		em28xx_write_reg_bits(dev, led->gpio_reg,
+				      (!start ^ led->inverted) ?
+				      ~led->gpio_mask : led->gpio_mask,
+				      led->gpio_mask);
 
 	return rc;
-}
-
-int em28xx_vbi_supported(struct em28xx *dev)
-{
-	/* Modprobe option to manually disable */
-	if (disable_vbi == 1)
-		return 0;
-
-	if (dev->board.is_webcam)
-		return 0;
-
-	/* FIXME: check subdevices for VBI support */
-
-	if (dev->chip_id == CHIP_ID_EM2860 ||
-	    dev->chip_id == CHIP_ID_EM2883)
-		return 1;
-
-	/* Version of em28xx that does not support VBI */
-	return 0;
-}
-
-int em28xx_set_outfmt(struct em28xx *dev)
-{
-	int ret;
-	u8 fmt, vinctrl;
-
-	fmt = dev->format->reg;
-	if (!dev->is_em25xx)
-		fmt |= 0x20;
-	/*
-	 * NOTE: it's not clear if this is really needed !
-	 * The datasheets say bit 5 is a reserved bit and devices seem to work
-	 * fine without it. But the Windows driver sets it for em2710/50+em28xx
-	 * devices and we've always been setting it, too.
-	 *
-	 * em2765 (em25xx, em276x/7x/8x) devices do NOT work with this bit set,
-	 * it's likely used for an additional (compressed ?) format there.
-	 */
-	ret = em28xx_write_reg(dev, EM28XX_R27_OUTFMT, fmt);
-	if (ret < 0)
-		return ret;
-
-	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, dev->vinmode);
-	if (ret < 0)
-		return ret;
-
-	vinctrl = dev->vinctl;
-	if (em28xx_vbi_supported(dev) == 1) {
-		vinctrl |= EM28XX_VINCTRL_VBI_RAW;
-		em28xx_write_reg(dev, EM28XX_R34_VBI_START_H, 0x00);
-		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, dev->vbi_width/4);
-		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, dev->vbi_height);
-		if (dev->norm & V4L2_STD_525_60) {
-			/* NTSC */
-			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
-		} else if (dev->norm & V4L2_STD_625_50) {
-			/* PAL */
-			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x07);
-		}
-	}
-
-	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, vinctrl);
-}
-
-static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,
-				  u8 ymin, u8 ymax)
-{
-	em28xx_coredbg("em28xx Scale: (%d,%d)-(%d,%d)\n",
-			xmin, ymin, xmax, ymax);
-
-	em28xx_write_regs(dev, EM28XX_R28_XMIN, &xmin, 1);
-	em28xx_write_regs(dev, EM28XX_R29_XMAX, &xmax, 1);
-	em28xx_write_regs(dev, EM28XX_R2A_YMIN, &ymin, 1);
-	return em28xx_write_regs(dev, EM28XX_R2B_YMAX, &ymax, 1);
-}
-
-static void em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
-				   u16 width, u16 height)
-{
-	u8 cwidth = width >> 2;
-	u8 cheight = height >> 2;
-	u8 overflow = (height >> 9 & 0x02) | (width >> 10 & 0x01);
-	/* NOTE: size limit: 2047x1023 = 2MPix */
-
-	em28xx_coredbg("capture area set to (%d,%d): %dx%d\n",
-		       hstart, vstart,
-		       ((overflow & 2) << 9 | cwidth << 2),
-		       ((overflow & 1) << 10 | cheight << 2));
-
-	em28xx_write_regs(dev, EM28XX_R1C_HSTART, &hstart, 1);
-	em28xx_write_regs(dev, EM28XX_R1D_VSTART, &vstart, 1);
-	em28xx_write_regs(dev, EM28XX_R1E_CWIDTH, &cwidth, 1);
-	em28xx_write_regs(dev, EM28XX_R1F_CHEIGHT, &cheight, 1);
-	em28xx_write_regs(dev, EM28XX_R1B_OFLOW, &overflow, 1);
-
-	/* FIXME: function/meaning of these registers ? */
-	/* FIXME: align width+height to multiples of 4 ?! */
-	if (dev->is_em25xx) {
-		em28xx_write_reg(dev, 0x34, width >> 4);
-		em28xx_write_reg(dev, 0x35, height >> 4);
-	}
-}
-
-static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
-{
-	u8 mode;
-	/* the em2800 scaler only supports scaling down to 50% */
-
-	if (dev->board.is_em2800) {
-		mode = (v ? 0x20 : 0x00) | (h ? 0x10 : 0x00);
-	} else {
-		u8 buf[2];
-
-		buf[0] = h;
-		buf[1] = h >> 8;
-		em28xx_write_regs(dev, EM28XX_R30_HSCALELOW, (char *)buf, 2);
-
-		buf[0] = v;
-		buf[1] = v >> 8;
-		em28xx_write_regs(dev, EM28XX_R32_VSCALELOW, (char *)buf, 2);
-		/* it seems that both H and V scalers must be active
-		   to work correctly */
-		mode = (h || v) ? 0x30 : 0x00;
-	}
-	return em28xx_write_reg_bits(dev, EM28XX_R26_COMPR, mode, 0x30);
-}
-
-/* FIXME: this only function read values from dev */
-int em28xx_resolution_set(struct em28xx *dev)
-{
-	int width, height;
-	width = norm_maxw(dev);
-	height = norm_maxh(dev);
-
-	/* Properly setup VBI */
-	dev->vbi_width = 720;
-	if (dev->norm & V4L2_STD_525_60)
-		dev->vbi_height = 12;
-	else
-		dev->vbi_height = 18;
-
-	em28xx_set_outfmt(dev);
-
-	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
-
-	/* If we don't set the start position to 2 in VBI mode, we end up
-	   with line 20/21 being YUYV encoded instead of being in 8-bit
-	   greyscale.  The core of the issue is that line 21 (and line 23 for
-	   PAL WSS) are inside of active video region, and as a result they
-	   get the pixelformatting associated with that area.  So by cropping
-	   it out, we end up with the same format as the rest of the VBI
-	   region */
-	if (em28xx_vbi_supported(dev) == 1)
-		em28xx_capture_area_set(dev, 0, 2, width, height);
-	else
-		em28xx_capture_area_set(dev, 0, 0, width, height);
-
-	return em28xx_scaler_set(dev, dev->hscale, dev->vscale);
-}
-
-/* Set USB alternate setting for analog video */
-int em28xx_set_alternate(struct em28xx *dev)
-{
-	int errCode;
-	int i;
-	unsigned int min_pkt_size = dev->width * 2 + 4;
-
-	/* NOTE: for isoc transfers, only alt settings > 0 are allowed
-		 bulk transfers seem to work only with alt=0 ! */
-	dev->alt = 0;
-	if ((alt > 0) && (alt < dev->num_alt)) {
-		em28xx_coredbg("alternate forced to %d\n", dev->alt);
-		dev->alt = alt;
-		goto set_alt;
-	}
-	if (dev->analog_xfer_bulk)
-		goto set_alt;
-
-	/* When image size is bigger than a certain value,
-	   the frame size should be increased, otherwise, only
-	   green screen will be received.
-	 */
-	if (dev->width * 2 * dev->height > 720 * 240 * 2)
-		min_pkt_size *= 2;
-
-	for (i = 0; i < dev->num_alt; i++) {
-		/* stop when the selected alt setting offers enough bandwidth */
-		if (dev->alt_max_pkt_size_isoc[i] >= min_pkt_size) {
-			dev->alt = i;
-			break;
-		/* otherwise make sure that we end up with the maximum bandwidth
-		   because the min_pkt_size equation might be wrong...
-		*/
-		} else if (dev->alt_max_pkt_size_isoc[i] >
-			   dev->alt_max_pkt_size_isoc[dev->alt])
-			dev->alt = i;
-	}
-
-set_alt:
-	/* NOTE: for bulk transfers, we need to call usb_set_interface()
-	 * even if the previous settings were the same. Otherwise streaming
-	 * fails with all urbs having status = -EOVERFLOW ! */
-	if (dev->analog_xfer_bulk) {
-		dev->max_pkt_size = 512; /* USB 2.0 spec */
-		dev->packet_multiplier = EM28XX_BULK_PACKET_MULTIPLIER;
-	} else { /* isoc */
-		em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
-			       min_pkt_size, dev->alt);
-		dev->max_pkt_size =
-				  dev->alt_max_pkt_size_isoc[dev->alt];
-		dev->packet_multiplier = EM28XX_NUM_ISOC_PACKETS;
-	}
-	em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n",
-		       dev->alt, dev->max_pkt_size);
-	errCode = usb_set_interface(dev->udev, 0, dev->alt);
-	if (errCode < 0) {
-		em28xx_errdev("cannot change alternate number to %d (error=%i)\n",
-			      dev->alt, errCode);
-		return errCode;
-	}
-	return 0;
 }
 
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio)
@@ -1238,18 +1042,6 @@ int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
 EXPORT_SYMBOL_GPL(em28xx_init_usb_xfer);
 
 /*
- * em28xx_wake_i2c()
- * configure i2c attached devices
- */
-void em28xx_wake_i2c(struct em28xx *dev)
-{
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core,  reset, 0);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
-			INPUT(dev->ctl_input)->vmux, 0, 0);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 0);
-}
-
-/*
  * Device control list
  */
 
@@ -1272,7 +1064,7 @@ int em28xx_register_extension(struct em28xx_ops *ops)
 		ops->init(dev);
 	}
 	mutex_unlock(&em28xx_devlist_mutex);
-	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
+	printk(KERN_INFO "em28xx: Registered (%s) extension\n", ops->name);
 	return 0;
 }
 EXPORT_SYMBOL(em28xx_register_extension);
@@ -1315,4 +1107,32 @@ void em28xx_close_extension(struct em28xx *dev)
 	}
 	list_del(&dev->devlist);
 	mutex_unlock(&em28xx_devlist_mutex);
+}
+
+int em28xx_suspend_extension(struct em28xx *dev)
+{
+	const struct em28xx_ops *ops = NULL;
+
+	em28xx_info("Suspending extensions");
+	mutex_lock(&em28xx_devlist_mutex);
+	list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+		if (ops->suspend)
+			ops->suspend(dev);
+	}
+	mutex_unlock(&em28xx_devlist_mutex);
+	return 0;
+}
+
+int em28xx_resume_extension(struct em28xx *dev)
+{
+	const struct em28xx_ops *ops = NULL;
+
+	em28xx_info("Resuming extensions");
+	mutex_lock(&em28xx_devlist_mutex);
+	list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+		if (ops->resume)
+			ops->resume(dev);
+	}
+	mutex_unlock(&em28xx_devlist_mutex);
+	return 0;
 }

@@ -17,7 +17,6 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
 #include <linux/agp_backend.h>
@@ -94,6 +93,7 @@ static struct _intel_private {
 #define IS_IRONLAKE	intel_private.driver->is_ironlake
 #define HAS_PGTBL_EN	intel_private.driver->has_pgtbl_enable
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static int intel_gtt_map_memory(struct page **pages,
 				unsigned int num_entries,
 				struct sg_table *st)
@@ -168,6 +168,7 @@ static void i8xx_destroy_pages(struct page *page)
 	__free_pages(page, 2);
 	atomic_dec(&agp_bridge->current_memory_agp);
 }
+#endif
 
 #define I810_GTT_ORDER 4
 static int i810_setup(void)
@@ -208,6 +209,7 @@ static void i810_cleanup(void)
 	free_gatt_pages(intel_private.i81x_gtt_table, I810_GTT_ORDER);
 }
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static int i810_insert_dcache_entries(struct agp_memory *mem, off_t pg_start,
 				      int type)
 {
@@ -288,6 +290,7 @@ static void intel_i810_free_by_type(struct agp_memory *curr)
 	}
 	kfree(curr);
 }
+#endif
 
 static int intel_gtt_setup_scratch_page(void)
 {
@@ -645,7 +648,9 @@ static int intel_gtt_init(void)
 		return -ENOMEM;
 	}
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 	global_cache_flush();   /* FIXME: ? */
+#endif
 
 	intel_private.stolen_size = intel_gtt_stolen_size();
 
@@ -666,6 +671,7 @@ static int intel_gtt_init(void)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static int intel_fake_agp_fetch_size(void)
 {
 	int num_sizes = ARRAY_SIZE(intel_fake_agp_sizes);
@@ -684,6 +690,7 @@ static int intel_fake_agp_fetch_size(void)
 
 	return 0;
 }
+#endif
 
 static void i830_cleanup(void)
 {
@@ -795,6 +802,7 @@ static int i830_setup(void)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static int intel_fake_agp_create_gatt_table(struct agp_bridge_data *bridge)
 {
 	agp_bridge->gatt_table_real = NULL;
@@ -819,6 +827,7 @@ static int intel_fake_agp_configure(void)
 
 	return 0;
 }
+#endif
 
 static bool i830_check_flags(unsigned int flags)
 {
@@ -857,6 +866,7 @@ void intel_gtt_insert_sg_entries(struct sg_table *st,
 }
 EXPORT_SYMBOL(intel_gtt_insert_sg_entries);
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static void intel_gtt_insert_pages(unsigned int first_entry,
 				   unsigned int num_entries,
 				   struct page **pages,
@@ -922,6 +932,7 @@ out_err:
 	mem->is_flushed = true;
 	return ret;
 }
+#endif
 
 void intel_gtt_clear_range(unsigned int first_entry, unsigned int num_entries)
 {
@@ -935,6 +946,7 @@ void intel_gtt_clear_range(unsigned int first_entry, unsigned int num_entries)
 }
 EXPORT_SYMBOL(intel_gtt_clear_range);
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static int intel_fake_agp_remove_entries(struct agp_memory *mem,
 					 off_t pg_start, int type)
 {
@@ -976,6 +988,7 @@ static struct agp_memory *intel_fake_agp_alloc_by_type(size_t pg_count,
 	/* always return NULL for other allocation types for now */
 	return NULL;
 }
+#endif
 
 static int intel_alloc_chipset_flush_resource(void)
 {
@@ -1129,6 +1142,7 @@ static int i9xx_setup(void)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 static const struct agp_bridge_driver intel_fake_agp_driver = {
 	.owner			= THIS_MODULE,
 	.size_type		= FIXED_APER_SIZE,
@@ -1150,6 +1164,7 @@ static const struct agp_bridge_driver intel_fake_agp_driver = {
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 };
+#endif
 
 static const struct intel_gtt_driver i81x_gtt_driver = {
 	.gen = 1,
@@ -1367,11 +1382,13 @@ int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 
 	intel_private.refcount++;
 
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 	if (bridge) {
 		bridge->driver = &intel_fake_agp_driver;
 		bridge->dev_private_data = &intel_private;
 		bridge->dev = bridge_pdev;
 	}
+#endif
 
 	intel_private.bridge_dev = pci_dev_get(bridge_pdev);
 

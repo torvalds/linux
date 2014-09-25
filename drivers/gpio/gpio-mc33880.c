@@ -149,20 +149,15 @@ exit_destroy:
 static int mc33880_remove(struct spi_device *spi)
 {
 	struct mc33880 *mc;
-	int ret;
 
 	mc = spi_get_drvdata(spi);
 	if (mc == NULL)
 		return -ENODEV;
 
-	ret = gpiochip_remove(&mc->chip);
-	if (!ret)
-		mutex_destroy(&mc->lock);
-	else
-		dev_err(&spi->dev, "Failed to remove the GPIO controller: %d\n",
-			ret);
+	gpiochip_remove(&mc->chip);
+	mutex_destroy(&mc->lock);
 
-	return ret;
+	return 0;
 }
 
 static struct spi_driver mc33880_driver = {

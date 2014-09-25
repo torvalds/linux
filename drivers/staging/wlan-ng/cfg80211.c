@@ -1,4 +1,6 @@
 /* cfg80211 Interface for prism2_usb module */
+#include "hfa384x.h"
+#include "prism2mgmt.h"
 
 
 /* Prism2 channel/frequency/bitrate declarations */
@@ -84,7 +86,7 @@ static int prism2_domibset_uint32(wlandevice_t *wlandev, u32 did, u32 data)
 }
 
 static int prism2_domibset_pstr32(wlandevice_t *wlandev,
-				  u32 did, u8 len, u8 *data)
+				  u32 did, u8 len, const u8 *data)
 {
 	struct p80211msg_dot11req_mibset msg;
 	p80211item_pstr32_t *mibitem =
@@ -298,7 +300,7 @@ static int prism2_set_default_key(struct wiphy *wiphy, struct net_device *dev,
 
 
 static int prism2_get_station(struct wiphy *wiphy, struct net_device *dev,
-			      u8 *mac, struct station_info *sinfo)
+			      const u8 *mac, struct station_info *sinfo)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
 	struct p80211msg_lnxreq_commsquality quality;
@@ -400,6 +402,8 @@ static int prism2_scan(struct wiphy *wiphy,
 	numbss = msg1.numbss.data;
 
 	for (i = 0; i < numbss; i++) {
+		int freq;
+
 		memset(&msg2, 0, sizeof(msg2));
 		msg2.msgcode = DIDmsg_dot11req_scan_results;
 		msg2.bssindex.data = i;
@@ -414,9 +418,10 @@ static int prism2_scan(struct wiphy *wiphy,
 		ie_buf[1] = msg2.ssid.data.len;
 		ie_len = ie_buf[1] + 2;
 		memcpy(&ie_buf[2], &(msg2.ssid.data.data), msg2.ssid.data.len);
+		freq = ieee80211_channel_to_frequency(msg2.dschannel.data,
+						      IEEE80211_BAND_2GHZ);
 		bss = cfg80211_inform_bss(wiphy,
-			ieee80211_get_channel(wiphy,
-			      ieee80211_dsss_chan_to_freq(msg2.dschannel.data)),
+			ieee80211_get_channel(wiphy, freq),
 			(const u8 *) &(msg2.bssid.data.data),
 			msg2.timestamp.data, msg2.capinfo.data,
 			msg2.beaconperiod.data,
@@ -746,7 +751,7 @@ static const struct cfg80211_ops prism2_usb_cfg_ops = {
 
 
 /* Functions to create/free wiphy interface */
-struct wiphy *wlan_create_wiphy(struct device *dev, wlandevice_t *wlandev)
+static struct wiphy *wlan_create_wiphy(struct device *dev, wlandevice_t *wlandev)
 {
 	struct wiphy *wiphy;
 	struct prism2_wiphy_private *priv;
@@ -783,7 +788,7 @@ struct wiphy *wlan_create_wiphy(struct device *dev, wlandevice_t *wlandev)
 }
 
 
-void wlan_free_wiphy(struct wiphy *wiphy)
+static void wlan_free_wiphy(struct wiphy *wiphy)
 {
 	wiphy_unregister(wiphy);
 	wiphy_free(wiphy);

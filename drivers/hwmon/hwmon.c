@@ -22,6 +22,7 @@
 #include <linux/gfp.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
+#include <linux/string.h>
 
 #define HWMON_ID_PREFIX "hwmon"
 #define HWMON_ID_FORMAT HWMON_ID_PREFIX "%d"
@@ -98,6 +99,10 @@ hwmon_device_register_with_groups(struct device *dev, const char *name,
 {
 	struct hwmon_device *hwdev;
 	int err, id;
+
+	/* Do not accept invalid characters in hwmon name attribute */
+	if (name && (!strlen(name) || strpbrk(name, "-* \t\n")))
+		return ERR_PTR(-EINVAL);
 
 	id = ida_simple_get(&hwmon_ida, 0, 0, GFP_KERNEL);
 	if (id < 0)

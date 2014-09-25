@@ -6,8 +6,19 @@
  * warranty of any kind, whether express or implied.
  */
 
+/*
+ * TODO: add Orion USB device port init when kernel.org support is added.
+ * TODO: add flash write support: see below.
+ * TODO: add power-off support.
+ * TODO: add I2C EEPROM support.
+ */
+
 /dts-v1/;
-/include/ "orion5x.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "orion5x-mv88f5182.dtsi"
 
 / {
 	model = "LaCie Ethernet Disk mini V2";
@@ -19,48 +30,82 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		linux,stdout-path = &uart0;
 	};
 
-	ocp@f1000000 {
-		serial@12000 {
-			clock-frequency = <166666667>;
-			status = "okay";
-		};
-
-		sata@80000 {
-			status = "okay";
-			nr-ports = <2>;
-		};
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>,
+			 <MBUS_ID(0x09, 0x00) 0 0xf2200000 0x800>,
+			 <MBUS_ID(0x01, 0x0f) 0 0xfff80000 0x80000>;
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
+		pinctrl-0 = <&pmx_power_button>;
+		pinctrl-names = "default";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		button@1 {
 			label = "Power-on Switch";
-			linux,code = <116>; /* KEY_POWER */
-			gpios = <&gpio0 18 0>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
-	gpio_leds {
+	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_power_led>;
+		pinctrl-names = "default";
 
 		led@1 {
 			label = "power:blue";
-			gpios = <&gpio0 16 1>;
+			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
 
-&mdio {
+&devbus_bootcs {
 	status = "okay";
 
-	ethphy: ethernet-phy {
-		device_type = "ethernet-phy";
-		reg = <8>;
+	/* Read parameters */
+	devbus,bus-width    = <8>;
+	devbus,turn-off-ps  = <90000>;
+	devbus,badr-skew-ps = <0>;
+	devbus,acc-first-ps = <186000>;
+	devbus,acc-next-ps  = <186000>;
+
+	/* Write parameters */
+	devbus,wr-high-ps  = <90000>;
+	devbus,wr-low-ps   = <90000>;
+	devbus,ale-wr-ps   = <90000>;
+
+	/*
+	 * Currently the MTD code does not recognize the MX29LV400CBCT
+	 * as a bottom-type device. This could cause risks of
+	 * accidentally erasing critical flash sectors. We thus define
+	 * a single, write-protected partition covering the whole
+	 * flash.  TODO: once the flash part TOP/BOTTOM detection
+	 * issue is sorted out in the MTD code, break this into at
+	 * least three partitions: 'u-boot code', 'u-boot environment'
+	 * and 'whatever is left'.
+	 */
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0 0x80000>;
+		bank-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "Full512Kb";
+			reg = <0 0x80000>;
+			read-only;
+		};
 	};
+};
+
+&ehci0 {
+	status = "okay";
 };
 
 &eth {
@@ -69,4 +114,61 @@
 	ethernet-port@0 {
 		phy-handle = <&ethphy>;
 	};
+};
+
+&i2c {
+	status = "okay";
+	clock-frequency = <100000>;
+	#address-cells = <1>;
+
+	rtc@32 {
+		compatible = "ricoh,rs5c372a";
+		reg = <0x32>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy: ethernet-phy {
+		reg = <8>;
+	};
+};
+
+&pinctrl {
+	pinctrl-0 = <&pmx_rtc &pmx_power_led_ctrl>;
+	pinctrl-names = "default";
+
+	pmx_power_button: pmx-power-button {
+		marvell,pins = "mpp18";
+		marvell,function = "gpio";
+	};
+
+	pmx_power_led: pmx-power-led {
+		marvell,pins = "mpp16";
+		marvell,function = "gpio";
+	};
+
+	pmx_power_led_ctrl: pmx-power-led-ctrl {
+		marvell,pins = "mpp17";
+		marvell,function = "gpio";
+	};
+
+	pmx_rtc: pmx-rtc {
+		marvell,pins = "mpp3";
+		marvell,function = "gpio";
+	};
+};
+
+&sata {
+	pinctrl-0 = <&pmx_sata0 &pmx_sata1>;
+	pinctrl-names = "default";
+	status = "okay";
+	nr-ports = <2>;
+};
+
+&uart0 {
+	status = "okay";
 };

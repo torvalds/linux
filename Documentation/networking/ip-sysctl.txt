@@ -15,16 +15,46 @@ ip_default_ttl - INTEGER
 	forwarded) IP packets. Should be between 1 and 255 inclusive.
 	Default: 64 (as recommended by RFC1700)
 
-ip_no_pmtu_disc - BOOLEAN
-	Disable Path MTU Discovery. If enabled and a
+ip_no_pmtu_disc - INTEGER
+	Disable Path MTU Discovery. If enabled in mode 1 and a
 	fragmentation-required ICMP is received, the PMTU to this
 	destination will be set to min_pmtu (see below). You will need
 	to raise min_pmtu to the smallest interface MTU on your system
 	manually if you want to avoid locally generated fragments.
+
+	In mode 2 incoming Path MTU Discovery messages will be
+	discarded. Outgoing frames are handled the same as in mode 1,
+	implicitly setting IP_PMTUDISC_DONT on every created socket.
+
+	Mode 3 is a hardend pmtu discover mode. The kernel will only
+	accept fragmentation-needed errors if the underlying protocol
+	can verify them besides a plain socket lookup. Current
+	protocols for which pmtu events will be honored are TCP, SCTP
+	and DCCP as they verify e.g. the sequence number or the
+	association. This mode should not be enabled globally but is
+	only intended to secure e.g. name servers in namespaces where
+	TCP path mtu must still work but path MTU information of other
+	protocols should be discarded. If enabled globally this mode
+	could break other protocols.
+
+	Possible values: 0-3
 	Default: FALSE
 
 min_pmtu - INTEGER
 	default 552 - minimum discovered Path MTU
+
+ip_forward_use_pmtu - BOOLEAN
+	By default we don't trust protocol path MTUs while forwarding
+	because they could be easily forged and can lead to unwanted
+	fragmentation by the router.
+	You only need to enable this if you have user-space software
+	which tries to discover path mtus by itself and depends on the
+	kernel honoring this information. This is normally not the
+	case.
+	Default: 0 (disabled)
+	Possible values:
+	0 - disabled
+	1 - enabled
 
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
@@ -71,18 +101,16 @@ ipfrag_high_thresh - INTEGER
 	Maximum memory used to reassemble IP fragments. When
 	ipfrag_high_thresh bytes of memory is allocated for this purpose,
 	the fragment handler will toss packets until ipfrag_low_thresh
-	is reached.
+	is reached. This also serves as a maximum limit to namespaces
+	different from the initial one.
 
 ipfrag_low_thresh - INTEGER
-	See ipfrag_high_thresh
+	Maximum memory used to reassemble IP fragments before the kernel
+	begins to remove incomplete fragment queues to free up resources.
+	The kernel still accepts new fragments for defragmentation.
 
 ipfrag_time - INTEGER
 	Time in seconds to keep an IP fragment in memory.
-
-ipfrag_secret_interval - INTEGER
-	Regeneration interval (in seconds) of the hash secret (or lifetime
-	for the hash secret) for IP fragments.
-	Default: 600
 
 ipfrag_max_dist - INTEGER
 	ipfrag_max_dist is a non-negative integer value which defines the
@@ -159,6 +187,16 @@ tcp_app_win - INTEGER
 	Reserve max(window/2^tcp_app_win, mss) of window for application
 	buffer. Value 0 is special, it means that nothing is reserved.
 	Default: 31
+
+tcp_autocorking - BOOLEAN
+	Enable TCP auto corking :
+	When applications do consecutive small write()/sendmsg() system calls,
+	we try to coalesce these small writes as much as possible, to lower
+	total amount of sent packets. This is done if at least one prior
+	packet for the flow is waiting in Qdisc queues or device transmit
+	queue. Applications can still use TCP_CORK for optimal behavior
+	when they know how/when to uncork their sockets.
+	Default : 1
 
 tcp_available_congestion_control - STRING
 	Shows the available congestion control choices that are registered.
@@ -1048,6 +1086,12 @@ igmpv3_unsolicited_report_interval - INTEGER
 	IGMPv3 report retransmit will take place.
 	Default: 1000 (1 seconds)
 
+promote_secondaries - BOOLEAN
+	When a primary IP address is removed from this interface
+	promote a corresponding secondary IP address instead of
+	removing all the corresponding secondary IP addresses.
+
+
 tag - INTEGER
 	Allows you to write a number, which can be used as required.
 	Default value is 0.
@@ -1078,6 +1122,30 @@ bindv6only - BOOLEAN
 
 	Default: FALSE (as specified in RFC3493)
 
+flowlabel_consistency - BOOLEAN
+	Protect the consistency (and unicity) of flow label.
+	You have to disable it to use IPV6_FL_F_REFLECT flag on the
+	flow label manager.
+	TRUE: enabled
+	FALSE: disabled
+	Default: TRUE
+
+auto_flowlabels - BOOLEAN
+	Automatically generate flow labels based based on a flow hash
+	of the packet. This allows intermediate devices, such as routers,
+	to idenfify packet flows for mechanisms like Equal Cost Multipath
+	Routing (see RFC 6438).
+	TRUE: enabled
+	FALSE: disabled
+	Default: false
+
+anycast_src_echo_reply - BOOLEAN
+	Controls the use of anycast addresses as source addresses for ICMPv6
+	echo reply
+	TRUE:  enabled
+	FALSE: disabled
+	Default: FALSE
+
 IPv6 Fragmentation:
 
 ip6frag_high_thresh - INTEGER
@@ -1091,11 +1159,6 @@ ip6frag_low_thresh - INTEGER
 
 ip6frag_time - INTEGER
 	Time in seconds to keep an IPv6 fragment in memory.
-
-ip6frag_secret_interval - INTEGER
-	Regeneration interval (in seconds) of the hash secret (or lifetime
-	for the hash secret) for IPv6 fragments.
-	Default: 600
 
 conf/default/*:
 	Change the interface-specific default settings.
@@ -1148,6 +1211,18 @@ accept_ra_defrtr - BOOLEAN
 
 	Functional default: enabled if accept_ra is enabled.
 			    disabled if accept_ra is disabled.
+
+accept_ra_from_local - BOOLEAN
+	Accept RA with source-address that is found on local machine
+        if the RA is otherwise proper and able to be accepted.
+        Default is to NOT accept these as it may be an un-intended
+        network loop.
+
+	Functional default:
+           enabled if accept_ra_from_local is enabled
+               on a specific interface.
+	   disabled if accept_ra_from_local is disabled
+               on a specific interface.
 
 accept_ra_pinfo - BOOLEAN
 	Learn Prefix Information in Router Advertisement.

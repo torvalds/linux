@@ -86,7 +86,7 @@ typedef uint64_t blkif_sector_t;
  *     Interface%20manuals/100293068c.pdf
  * The backend can optionally provide three extra XenBus attributes to
  * further optimize the discard functionality:
- * 'discard-aligment' - Devices that support discard functionality may
+ * 'discard-alignment' - Devices that support discard functionality may
  * internally allocate space in units that are bigger than the exported
  * logical block size. The discard-alignment parameter indicates how many bytes
  * the beginning of the partition is offset from the internal allocation unit's
@@ -113,13 +113,13 @@ typedef uint64_t blkif_sector_t;
  * it's less than the number provided by the backend. The indirect_grefs field
  * in blkif_request_indirect should be filled by the frontend with the
  * grant references of the pages that are holding the indirect segments.
- * This pages are filled with an array of blkif_request_segment_aligned
- * that hold the information about the segments. The number of indirect
- * pages to use is determined by the maximum number of segments
- * a indirect request contains. Every indirect page can contain a maximum
- * of 512 segments (PAGE_SIZE/sizeof(blkif_request_segment_aligned)),
- * so to calculate the number of indirect pages to use we have to do
- * ceil(indirect_segments/512).
+ * These pages are filled with an array of blkif_request_segment that hold the
+ * information about the segments. The number of indirect pages to use is
+ * determined by the number of segments an indirect request contains. Every
+ * indirect page can contain a maximum of
+ * (PAGE_SIZE / sizeof(struct blkif_request_segment)) segments, so to
+ * calculate the number of indirect pages to use we have to do
+ * ceil(indirect_segments / (PAGE_SIZE / sizeof(struct blkif_request_segment))).
  *
  * If a backend does not recognize BLKIF_OP_INDIRECT, it should *not*
  * create the "feature-max-indirect-segments" node!
@@ -135,13 +135,12 @@ typedef uint64_t blkif_sector_t;
 
 #define BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST 8
 
-struct blkif_request_segment_aligned {
-	grant_ref_t gref;        /* reference to I/O buffer frame        */
-	/* @first_sect: first sector in frame to transfer (inclusive).   */
-	/* @last_sect: last sector in frame to transfer (inclusive).     */
-	uint8_t     first_sect, last_sect;
-	uint16_t    _pad; /* padding to make it 8 bytes, so it's cache-aligned */
-} __attribute__((__packed__));
+struct blkif_request_segment {
+		grant_ref_t gref;        /* reference to I/O buffer frame        */
+		/* @first_sect: first sector in frame to transfer (inclusive).   */
+		/* @last_sect: last sector in frame to transfer (inclusive).     */
+		uint8_t     first_sect, last_sect;
+};
 
 struct blkif_request_rw {
 	uint8_t        nr_segments;  /* number of segments                   */
@@ -151,12 +150,7 @@ struct blkif_request_rw {
 #endif
 	uint64_t       id;           /* private guest value, echoed in resp  */
 	blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
-	struct blkif_request_segment {
-		grant_ref_t gref;        /* reference to I/O buffer frame        */
-		/* @first_sect: first sector in frame to transfer (inclusive).   */
-		/* @last_sect: last sector in frame to transfer (inclusive).     */
-		uint8_t     first_sect, last_sect;
-	} seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 } __attribute__((__packed__));
 
 struct blkif_request_discard {

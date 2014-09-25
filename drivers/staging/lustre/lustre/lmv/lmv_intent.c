@@ -41,15 +41,14 @@
 #include <asm/div64.h>
 #include <linux/seq_file.h>
 #include <linux/namei.h>
-#include <linux/lustre_intent.h>
-
-#include <obd_support.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_lib.h>
-#include <lustre_net.h>
-#include <lustre_dlm.h>
-#include <obd_class.h>
-#include <lprocfs_status.h>
+#include "../include/linux/lustre_intent.h"
+#include "../include/obd_support.h"
+#include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_dlm.h"
+#include "../include/obd_class.h"
+#include "../include/lprocfs_status.h"
 #include "lmv_internal.h"
 
 static int lmv_intent_remote(struct obd_export *exp, void *lmm,
@@ -119,7 +118,6 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	CDEBUG(D_INODE, "REMOTE_INTENT with fid="DFID" -> mds #%d\n",
 	       PFID(&body->fid1), tgt->ltd_idx);
 
-	it->d.lustre.it_disposition &= ~DISP_ENQ_COMPLETE;
 	rc = md_intent_lock(tgt->ltd_exp, op_data, lmm, lmmsize, it,
 			    flags, &req, cb_blocking, extra_lock_flags);
 	if (rc)

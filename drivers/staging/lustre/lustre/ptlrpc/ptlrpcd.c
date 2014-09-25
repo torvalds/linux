@@ -55,16 +55,15 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-# include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <lustre_net.h>
-# include <lustre_lib.h>
-
-#include <lustre_ha.h>
-#include <obd_class.h>   /* for obd_zombie */
-#include <obd_support.h> /* for OBD_FAIL_CHECK */
-#include <cl_object.h> /* cl_env_{get,put}() */
-#include <lprocfs_status.h>
+#include "../include/lustre_net.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_ha.h"
+#include "../include/obd_class.h"	/* for obd_zombie */
+#include "../include/obd_support.h"	/* for OBD_FAIL_CHECK */
+#include "../include/cl_object.h"	/* cl_env_{get,put}() */
+#include "../include/lprocfs_status.h"
 
 #include "ptlrpc_internal.h"
 
@@ -229,7 +228,7 @@ void ptlrpcd_add_req(struct ptlrpc_request *req, pdl_policy_t policy, int idx)
 		spin_unlock(&req->rq_lock);
 		l_wait_event(req->rq_set_waitq, (req->rq_set == NULL), &lwi);
 	} else if (req->rq_set) {
-		/* If we have a vaid "rq_set", just reuse it to avoid double
+		/* If we have a valid "rq_set", just reuse it to avoid double
 		 * linked. */
 		LASSERT(req->rq_phase == RQ_PHASE_NEW);
 		LASSERT(req->rq_send_state == LUSTRE_IMP_REPLAY);
@@ -471,7 +470,7 @@ static int ptlrpcd(void *arg)
  *      be better. But it breaks former data transfer policy.
  *
  *      So we shouldn't be blind for avoiding the data transfer. We make some
- *      compromise: divide the ptlrpcd threds pool into two parts. One part is
+ *      compromise: divide the ptlrpcd threads pool into two parts. One part is
  *      for bound mode, each ptlrpcd thread in this part is bound to some CPU
  *      core. The other part is for free mode, all the ptlrpcd threads in the
  *      part can be scheduled on any CPU core. We specify some partnership

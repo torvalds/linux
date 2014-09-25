@@ -14,10 +14,11 @@
 
 /dts-v1/;
 #include "exynos4412.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Insignal Origen evaluation board based on Exynos4412";
-	compatible = "insignal,origen4412", "samsung,exynos4412";
+	compatible = "insignal,origen4412", "samsung,exynos4412", "samsung,exynos4";
 
 	memory {
 		reg = <0x40000000 0x40000000>;
@@ -48,6 +49,14 @@
 		};
 	};
 
+	watchdog@10060000 {
+		status = "okay";
+	};
+
+	rtc@10070000 {
+		status = "okay";
+	};
+
 	pinctrl@11000000 {
 		keypad_rows: keypad-rows {
 			samsung,pins = "gpx2-0", "gpx2-1", "gpx2-2";
@@ -76,37 +85,37 @@
 		key_home {
 			keypad,row = <0>;
 			keypad,column = <0>;
-			linux,code = <102>;
+			linux,code = <KEY_HOME>;
 		};
 
 		key_down {
 			keypad,row = <0>;
 			keypad,column = <1>;
-			linux,code = <108>;
+			linux,code = <KEY_DOWN>;
 		};
 
 		key_up {
 			keypad,row = <1>;
 			keypad,column = <0>;
-			linux,code = <103>;
+			linux,code = <KEY_UP>;
 		};
 
 		key_menu {
 			keypad,row = <1>;
 			keypad,column = <1>;
-			linux,code = <139>;
+			linux,code = <KEY_MENU>;
 		};
 
 		key_back {
 			keypad,row = <2>;
 			keypad,column = <0>;
-			linux,code = <158>;
+			linux,code = <KEY_BACK>;
 		};
 
 		key_enter {
 			keypad,row = <2>;
 			keypad,column = <1>;
-			linux,code = <28>;
+			linux,code = <KEY_ENTER>;
 		};
 	};
 
@@ -459,8 +468,8 @@
 
 				buck2_reg: BUCK2 {
 					regulator-name = "vdd_arm";
-					regulator-min-microvolt = <925000>;
-					regulator-max-microvolt	= <1300000>;
+					regulator-min-microvolt = <900000>;
+					regulator-max-microvolt	= <1350000>;
 					regulator-always-on;
 					regulator-boot-on;
 					op_mode = <1>; /* Normal Mode */

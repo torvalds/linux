@@ -37,12 +37,19 @@ module_param_named(nointxmask, nointxmask, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(nointxmask,
 		  "Disable support for PCI 2.3 style INTx masking.  If this resolves problems for specific devices, report lspci -vvvxxx to linux-pci@vger.kernel.org so the device can be fixed automatically via the broken_intx_masking flag.");
 
+static DEFINE_MUTEX(driver_lock);
+
+static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev);
+
 static int vfio_pci_enable(struct vfio_pci_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	int ret;
 	u16 cmd;
 	u8 msix_pos;
+
+	/* Don't allow our initial saved state to include busmaster */
+	pci_clear_master(pdev);
 
 	ret = pci_enable_device(pdev);
 	if (ret)
@@ -57,7 +64,8 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 
 	ret = vfio_config_init(vdev);
 	if (ret) {
-		pci_load_and_free_saved_state(pdev, &vdev->pci_saved_state);
+		kfree(vdev->pci_saved_state);
+		vdev->pci_saved_state = NULL;
 		pci_disable_device(pdev);
 		return ret;
 	}
@@ -98,7 +106,8 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 	struct pci_dev *pdev = vdev->pdev;
 	int bar;
 
-	pci_disable_device(pdev);
+	/* Stop the device from further DMA */
+	pci_clear_master(pdev);
 
 	vfio_pci_set_irqs_ioctl(vdev, VFIO_IRQ_SET_DATA_NONE |
 				VFIO_IRQ_SET_ACTION_TRIGGER,
@@ -116,6 +125,8 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 		vdev->barmap[bar] = NULL;
 	}
 
+	vdev->needs_reset = true;
+
 	/*
 	 * If we have saved state, restore it.  If we can reset the device,
 	 * even better.  Resetting with current state seems better than
@@ -127,7 +138,7 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 			__func__, dev_name(&pdev->dev));
 
 		if (!vdev->reset_works)
-			return;
+			goto out;
 
 		pci_save_state(pdev);
 	}
@@ -147,17 +158,29 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 		if (ret)
 			pr_warn("%s: Failed to reset device %s (%d)\n",
 				__func__, dev_name(&pdev->dev), ret);
+		else
+			vdev->needs_reset = false;
 	}
 
 	pci_restore_state(pdev);
+out:
+	pci_disable_device(pdev);
+
+	vfio_pci_try_bus_reset(vdev);
 }
 
 static void vfio_pci_release(void *device_data)
 {
 	struct vfio_pci_device *vdev = device_data;
 
-	if (atomic_dec_and_test(&vdev->refcnt))
+	mutex_lock(&driver_lock);
+
+	if (!(--vdev->refcnt)) {
+		vfio_spapr_pci_eeh_release(vdev->pdev);
 		vfio_pci_disable(vdev);
+	}
+
+	mutex_unlock(&driver_lock);
 
 	module_put(THIS_MODULE);
 }
@@ -165,19 +188,26 @@ static void vfio_pci_release(void *device_data)
 static int vfio_pci_open(void *device_data)
 {
 	struct vfio_pci_device *vdev = device_data;
+	int ret = 0;
 
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
 
-	if (atomic_inc_return(&vdev->refcnt) == 1) {
-		int ret = vfio_pci_enable(vdev);
-		if (ret) {
-			module_put(THIS_MODULE);
-			return ret;
-		}
-	}
+	mutex_lock(&driver_lock);
 
-	return 0;
+	if (!vdev->refcnt) {
+		ret = vfio_pci_enable(vdev);
+		if (ret)
+			goto error;
+
+		vfio_spapr_pci_eeh_open(vdev->pdev);
+	}
+	vdev->refcnt++;
+error:
+	mutex_unlock(&driver_lock);
+	if (ret)
+		module_put(THIS_MODULE);
+	return ret;
 }
 
 static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
@@ -196,8 +226,7 @@ static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
 		if (pos) {
 			pci_read_config_word(vdev->pdev,
 					     pos + PCI_MSI_FLAGS, &flags);
-
-			return 1 << (flags & PCI_MSI_FLAGS_QMASK);
+			return 1 << ((flags & PCI_MSI_FLAGS_QMASK) >> 1);
 		}
 	} else if (irq_type == VFIO_PCI_MSIX_IRQ_INDEX) {
 		u8 pos;
@@ -833,7 +862,6 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
 	mutex_init(&vdev->igate);
 	spin_lock_init(&vdev->irqlock);
-	atomic_set(&vdev->refcnt, 0);
 
 	ret = vfio_add_group_dev(&pdev->dev, &vfio_pci_ops, vdev);
 	if (ret) {
@@ -848,12 +876,15 @@ static void vfio_pci_remove(struct pci_dev *pdev)
 {
 	struct vfio_pci_device *vdev;
 
-	vdev = vfio_del_group_dev(&pdev->dev);
-	if (!vdev)
-		return;
+	mutex_lock(&driver_lock);
 
-	iommu_group_put(pdev->dev.iommu_group);
-	kfree(vdev);
+	vdev = vfio_del_group_dev(&pdev->dev);
+	if (vdev) {
+		iommu_group_put(pdev->dev.iommu_group);
+		kfree(vdev);
+	}
+
+	mutex_unlock(&driver_lock);
 }
 
 static pci_ers_result_t vfio_pci_aer_err_detected(struct pci_dev *pdev,
@@ -872,8 +903,12 @@ static pci_ers_result_t vfio_pci_aer_err_detected(struct pci_dev *pdev,
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
+	mutex_lock(&vdev->igate);
+
 	if (vdev->err_trigger)
 		eventfd_signal(vdev->err_trigger, 1);
+
+	mutex_unlock(&vdev->igate);
 
 	vfio_device_put(device);
 
@@ -891,6 +926,110 @@ static struct pci_driver vfio_pci_driver = {
 	.remove		= vfio_pci_remove,
 	.err_handler	= &vfio_err_handlers,
 };
+
+/*
+ * Test whether a reset is necessary and possible.  We mark devices as
+ * needs_reset when they are released, but don't have a function-local reset
+ * available.  If any of these exist in the affected devices, we want to do
+ * a bus/slot reset.  We also need all of the affected devices to be unused,
+ * so we abort if any device has a non-zero refcnt.  driver_lock prevents a
+ * device from being opened during the scan or unbound from vfio-pci.
+ */
+static int vfio_pci_test_bus_reset(struct pci_dev *pdev, void *data)
+{
+	bool *needs_reset = data;
+	struct pci_driver *pci_drv = ACCESS_ONCE(pdev->driver);
+	int ret = -EBUSY;
+
+	if (pci_drv == &vfio_pci_driver) {
+		struct vfio_device *device;
+		struct vfio_pci_device *vdev;
+
+		device = vfio_device_get_from_dev(&pdev->dev);
+		if (!device)
+			return ret;
+
+		vdev = vfio_device_data(device);
+		if (vdev) {
+			if (vdev->needs_reset)
+				*needs_reset = true;
+
+			if (!vdev->refcnt)
+				ret = 0;
+		}
+
+		vfio_device_put(device);
+	}
+
+	/*
+	 * TODO: vfio-core considers groups to be viable even if some devices
+	 * are attached to known drivers, like pci-stub or pcieport.  We can't
+	 * freeze devices from being unbound to those drivers like we can
+	 * here though, so it would be racy to test for them.  We also can't
+	 * use device_lock() to prevent changes as that would interfere with
+	 * PCI-core taking device_lock during bus reset.  For now, we require
+	 * devices to be bound to vfio-pci to get a bus/slot reset on release.
+	 */
+
+	return ret;
+}
+
+/* Clear needs_reset on all affected devices after successful bus/slot reset */
+static int vfio_pci_clear_needs_reset(struct pci_dev *pdev, void *data)
+{
+	struct pci_driver *pci_drv = ACCESS_ONCE(pdev->driver);
+
+	if (pci_drv == &vfio_pci_driver) {
+		struct vfio_device *device;
+		struct vfio_pci_device *vdev;
+
+		device = vfio_device_get_from_dev(&pdev->dev);
+		if (!device)
+			return 0;
+
+		vdev = vfio_device_data(device);
+		if (vdev)
+			vdev->needs_reset = false;
+
+		vfio_device_put(device);
+	}
+
+	return 0;
+}
+
+/*
+ * Attempt to do a bus/slot reset if there are devices affected by a reset for
+ * this device that are needs_reset and all of the affected devices are unused
+ * (!refcnt).  Callers of this function are required to hold driver_lock such
+ * that devices can not be unbound from vfio-pci or opened by a user while we
+ * test for and perform a bus/slot reset.
+ */
+static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev)
+{
+	bool needs_reset = false, slot = false;
+	int ret;
+
+	if (!pci_probe_reset_slot(vdev->pdev->slot))
+		slot = true;
+	else if (pci_probe_reset_bus(vdev->pdev->bus))
+		return;
+
+	if (vfio_pci_for_each_slot_or_bus(vdev->pdev,
+					  vfio_pci_test_bus_reset,
+					  &needs_reset, slot) || !needs_reset)
+		return;
+
+	if (slot)
+		ret = pci_try_reset_slot(vdev->pdev->slot);
+	else
+		ret = pci_try_reset_bus(vdev->pdev->bus);
+
+	if (ret)
+		return;
+
+	vfio_pci_for_each_slot_or_bus(vdev->pdev,
+				      vfio_pci_clear_needs_reset, NULL, slot);
+}
 
 static void __exit vfio_pci_cleanup(void)
 {

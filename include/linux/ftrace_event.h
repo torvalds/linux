@@ -7,6 +7,7 @@
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <linux/perf_event.h>
+#include <linux/tracepoint.h>
 
 struct trace_array;
 struct trace_buffer;
@@ -36,6 +37,9 @@ const char *ftrace_print_symbols_seq_u64(struct trace_seq *p,
 					 const struct trace_print_flags_u64
 								 *symbol_array);
 #endif
+
+const char *ftrace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
+				     unsigned int bitmask_size);
 
 const char *ftrace_print_hex_seq(struct trace_seq *p,
 				 const unsigned char *buf, int len);
@@ -163,6 +167,8 @@ void trace_current_buffer_discard_commit(struct ring_buffer *buffer,
 
 void tracing_record_cmdline(struct task_struct *tsk);
 
+int ftrace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...);
+
 struct event_filter;
 
 enum trace_reg {
@@ -197,6 +203,32 @@ struct ftrace_event_class {
 extern int ftrace_event_reg(struct ftrace_event_call *event,
 			    enum trace_reg type, void *data);
 
+int ftrace_output_event(struct trace_iterator *iter, struct ftrace_event_call *event,
+			char *fmt, ...);
+
+int ftrace_event_define_field(struct ftrace_event_call *call,
+			      char *type, int len, char *item, int offset,
+			      int field_size, int sign, int filter);
+
+struct ftrace_event_buffer {
+	struct ring_buffer		*buffer;
+	struct ring_buffer_event	*event;
+	struct ftrace_event_file	*ftrace_file;
+	void				*entry;
+	unsigned long			flags;
+	int				pc;
+};
+
+void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
+				  struct ftrace_event_file *ftrace_file,
+				  unsigned long len);
+
+void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer);
+
+int ftrace_event_define_field(struct ftrace_event_call *call,
+			      char *type, int len, char *item, int offset,
+			      int field_size, int sign, int filter);
+
 enum {
 	TRACE_EVENT_FL_FILTERED_BIT,
 	TRACE_EVENT_FL_CAP_ANY_BIT,
@@ -204,6 +236,7 @@ enum {
 	TRACE_EVENT_FL_IGNORE_ENABLE_BIT,
 	TRACE_EVENT_FL_WAS_ENABLED_BIT,
 	TRACE_EVENT_FL_USE_CALL_FILTER_BIT,
+	TRACE_EVENT_FL_TRACEPOINT_BIT,
 };
 
 /*
@@ -216,6 +249,7 @@ enum {
  *                    (used for module unloading, if a module event is enabled,
  *                     it is best to clear the buffers that used it).
  *  USE_CALL_FILTER - For ftrace internal events, don't use file filter
+ *  TRACEPOINT    - Event is a tracepoint
  */
 enum {
 	TRACE_EVENT_FL_FILTERED		= (1 << TRACE_EVENT_FL_FILTERED_BIT),
@@ -224,16 +258,20 @@ enum {
 	TRACE_EVENT_FL_IGNORE_ENABLE	= (1 << TRACE_EVENT_FL_IGNORE_ENABLE_BIT),
 	TRACE_EVENT_FL_WAS_ENABLED	= (1 << TRACE_EVENT_FL_WAS_ENABLED_BIT),
 	TRACE_EVENT_FL_USE_CALL_FILTER	= (1 << TRACE_EVENT_FL_USE_CALL_FILTER_BIT),
+	TRACE_EVENT_FL_TRACEPOINT	= (1 << TRACE_EVENT_FL_TRACEPOINT_BIT),
 };
 
 struct ftrace_event_call {
 	struct list_head	list;
 	struct ftrace_event_class *class;
-	char			*name;
+	union {
+		char			*name;
+		/* Set TRACE_EVENT_FL_TRACEPOINT flag when using "tp" */
+		struct tracepoint	*tp;
+	};
 	struct trace_event	event;
 	const char		*print_fmt;
 	struct event_filter	*filter;
-	struct list_head	*files;
 	void			*mod;
 	void			*data;
 	/*
@@ -243,6 +281,7 @@ struct ftrace_event_call {
 	 *   bit 3:		ftrace internal event (do not enable)
 	 *   bit 4:		Event was enabled by module
 	 *   bit 5:		use call filter rather than file filter
+	 *   bit 6:		Event is a tracepoint
 	 */
 	int			flags; /* static flags of different events */
 
@@ -254,6 +293,15 @@ struct ftrace_event_call {
 			     struct perf_event *);
 #endif
 };
+
+static inline const char *
+ftrace_event_name(struct ftrace_event_call *call)
+{
+	if (call->flags & TRACE_EVENT_FL_TRACEPOINT)
+		return call->tp ? call->tp->name : NULL;
+	else
+		return call->name;
+}
 
 struct trace_array;
 struct ftrace_subsystem_dir;
@@ -325,7 +373,7 @@ struct ftrace_event_file {
 #define __TRACE_EVENT_FLAGS(name, value)				\
 	static int __init trace_init_flags_##name(void)			\
 	{								\
-		event_##name.flags = value;				\
+		event_##name.flags |= value;				\
 		return 0;						\
 	}								\
 	early_initcall(trace_init_flags_##name);
@@ -355,8 +403,6 @@ enum event_trigger_type {
 	ETT_EVENT_ENABLE	= (1 << 3),
 };
 
-extern void destroy_preds(struct ftrace_event_file *file);
-extern void destroy_call_preds(struct ftrace_event_call *call);
 extern int filter_match_preds(struct event_filter *filter, void *rec);
 
 extern int filter_check_discard(struct ftrace_event_file *file, void *rec,
@@ -495,10 +541,6 @@ enum {
 	FILTER_TRACE_FN,
 };
 
-#define EVENT_STORAGE_SIZE 128
-extern struct mutex event_storage_mutex;
-extern char event_storage[EVENT_STORAGE_SIZE];
-
 extern int trace_event_raw_init(struct ftrace_event_call *call);
 extern int trace_define_field(struct ftrace_event_call *call, const char *type,
 			      const char *name, int offset, int size,
@@ -528,40 +570,6 @@ do {									\
 	} else								\
 		__trace_printk(ip, fmt, ##args);			\
 } while (0)
-
-/**
- * tracepoint_string - register constant persistent string to trace system
- * @str - a constant persistent string that will be referenced in tracepoints
- *
- * If constant strings are being used in tracepoints, it is faster and
- * more efficient to just save the pointer to the string and reference
- * that with a printf "%s" instead of saving the string in the ring buffer
- * and wasting space and time.
- *
- * The problem with the above approach is that userspace tools that read
- * the binary output of the trace buffers do not have access to the string.
- * Instead they just show the address of the string which is not very
- * useful to users.
- *
- * With tracepoint_string(), the string will be registered to the tracing
- * system and exported to userspace via the debugfs/tracing/printk_formats
- * file that maps the string address to the string text. This way userspace
- * tools that read the binary buffers have a way to map the pointers to
- * the ASCII strings they represent.
- *
- * The @str used must be a constant string and persistent as it would not
- * make sense to show a string that no longer exists. But it is still fine
- * to be used with modules, because when modules are unloaded, if they
- * had tracepoints, the ring buffers are cleared too. As long as the string
- * does not change during the life of the module, it is fine to use
- * tracepoint_string() within a module.
- */
-#define tracepoint_string(str)						\
-	({								\
-		static const char *___tp_str __tracepoint_string = str; \
-		___tp_str;						\
-	})
-#define __tracepoint_string	__attribute__((section("__tracepoint_str")))
 
 #ifdef CONFIG_PERF_EVENTS
 struct perf_event;

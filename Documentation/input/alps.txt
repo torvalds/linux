@@ -94,7 +94,7 @@ PS/2 packet format
 
 Note that the device never signals overflow condition.
 
-ALPS Absolute Mode - Protocol Verion 1
+ALPS Absolute Mode - Protocol Version 1
 --------------------------------------
 
  byte 0:  1    0    0    0    1   x9   x8   x7

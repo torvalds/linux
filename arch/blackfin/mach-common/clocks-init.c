@@ -7,7 +7,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/init.h>
 #include <asm/blackfin.h>
 
 #include <asm/dma.h>

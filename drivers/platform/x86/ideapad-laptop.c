@@ -26,8 +26,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <linux/rfkill.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
@@ -37,6 +36,8 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/i8042.h>
+#include <linux/dmi.h>
+#include <linux/device.h>
 
 #define IDEAPAD_RFKILL_DEV_NUM	(3)
 
@@ -86,6 +87,7 @@ struct ideapad_private {
 	struct backlight_device *blightdev;
 	struct dentry *debug;
 	unsigned long cfg;
+	bool has_hw_rfkill_switch;
 };
 
 static bool no_bt_rfkill;
@@ -438,7 +440,7 @@ static umode_t ideapad_is_visible(struct kobject *kobj,
 	return supported ? attr->mode : 0;
 }
 
-static struct attribute_group ideapad_attribute_group = {
+static const struct attribute_group ideapad_attribute_group = {
 	.is_visible = ideapad_is_visible,
 	.attrs = ideapad_attributes
 };
@@ -453,7 +455,7 @@ struct ideapad_rfk_data {
 	int type;
 };
 
-const struct ideapad_rfk_data ideapad_rfk_data[] = {
+static const struct ideapad_rfk_data ideapad_rfk_data[] = {
 	{ "ideapad_wlan",    CFG_WIFI_BIT, VPCCMD_W_WIFI, RFKILL_TYPE_WLAN },
 	{ "ideapad_bluetooth", CFG_BT_BIT, VPCCMD_W_BT, RFKILL_TYPE_BLUETOOTH },
 	{ "ideapad_3g",        CFG_3G_BIT, VPCCMD_W_3G, RFKILL_TYPE_WWAN },
@@ -472,12 +474,14 @@ static struct rfkill_ops ideapad_rfk_ops = {
 
 static void ideapad_sync_rfk_state(struct ideapad_private *priv)
 {
-	unsigned long hw_blocked;
+	unsigned long hw_blocked = 0;
 	int i;
 
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_RF, &hw_blocked))
-		return;
-	hw_blocked = !hw_blocked;
+	if (priv->has_hw_rfkill_switch) {
+		if (read_ec_data(priv->adev->handle, VPCCMD_R_RF, &hw_blocked))
+			return;
+		hw_blocked = !hw_blocked;
+	}
 
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		if (priv->rfk[i])
@@ -820,6 +824,22 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 	}
 }
 
+/*
+ * Some ideapads don't have a hardware rfkill switch, reading VPCCMD_R_RF
+ * always results in 0 on these models, causing ideapad_laptop to wrongly
+ * report all radios as hardware-blocked.
+ */
+static const struct dmi_system_id no_hw_rfkill_list[] = {
+	{
+		.ident = "Lenovo Yoga 2 11 / 13 / Pro",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Yoga 2"),
+		},
+	},
+	{}
+};
+
 static int ideapad_acpi_add(struct platform_device *pdev)
 {
 	int ret, i;
@@ -834,7 +854,7 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	if (read_method_int(adev->handle, "_CFG", &cfg))
 		return -ENODEV;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -842,10 +862,11 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	priv->cfg = cfg;
 	priv->adev = adev;
 	priv->platform_device = pdev;
+	priv->has_hw_rfkill_switch = !dmi_check_system(no_hw_rfkill_list);
 
 	ret = ideapad_sysfs_init(priv);
 	if (ret)
-		goto sysfs_failed;
+		return ret;
 
 	ret = ideapad_debugfs_init(priv);
 	if (ret)
@@ -855,12 +876,17 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	if (ret)
 		goto input_failed;
 
-	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++) {
+	/*
+	 * On some models without a hw-switch (the yoga 2 13 at least)
+	 * VPCCMD_W_RF must be explicitly set to 1 for the wifi to work.
+	 */
+	if (!priv->has_hw_rfkill_switch)
+		write_ec_cmd(priv->adev->handle, VPCCMD_W_RF, 1);
+
+	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		if (test_bit(ideapad_rfk_data[i].cfgbit, &priv->cfg))
 			ideapad_register_rfkill(priv, i);
-		else
-			priv->rfk[i] = NULL;
-	}
+
 	ideapad_sync_rfk_state(priv);
 	ideapad_sync_touchpad_state(priv);
 
@@ -885,8 +911,6 @@ input_failed:
 	ideapad_debugfs_exit(priv);
 debugfs_failed:
 	ideapad_sysfs_exit(priv);
-sysfs_failed:
-	kfree(priv);
 	return ret;
 }
 
@@ -904,7 +928,6 @@ static int ideapad_acpi_remove(struct platform_device *pdev)
 	ideapad_debugfs_exit(priv);
 	ideapad_sysfs_exit(priv);
 	dev_set_drvdata(&pdev->dev, NULL);
-	kfree(priv);
 
 	return 0;
 }

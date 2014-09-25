@@ -39,6 +39,11 @@
 		};
 	};
 
+	arm-pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <29>;
+	};
+
 	axi {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -65,9 +70,10 @@
 				#clock-cells = <1>;
 			};
 
-			reset-controller@88010000 {
+			rstc: reset-controller@88010000 {
 				compatible = "sirf,prima2-rstc";
 				reg = <0x88010000 0x1000>;
+				#reset-cells = <1>;
 			};
 
 			rsc-controller@88020000 {
@@ -166,6 +172,7 @@
 				compatible = "sirf,prima2-dspif";
 				reg = <0xa8000000 0x10000>;
 				interrupts = <9>;
+				resets = <&rstc 1>;
 			};
 
 			gps@a8010000 {
@@ -173,6 +180,7 @@
 				reg = <0xa8010000 0x10000>;
 				interrupts = <7>;
 				clocks = <&clks 9>;
+				resets = <&rstc 2>;
 			};
 
 			dsp@a9000000 {
@@ -180,6 +188,7 @@
 				reg = <0xa9000000 0x1000000>;
 				interrupts = <8>;
 				clocks = <&clks 8>;
+				resets = <&rstc 0>;
 			};
 		};
 
@@ -194,6 +203,7 @@
 				compatible = "sirf,prima2-tick";
 				reg = <0xb0020000 0x1000>;
 				interrupts = <0>;
+				clocks = <&clks 11>;
 			};
 
 			nand@b0030000 {
@@ -217,8 +227,8 @@
 				interrupts = <17>;
 				fifosize = <128>;
 				clocks = <&clks 13>;
-				sirf,uart-dma-rx-channel = <21>;
-				sirf,uart-dma-tx-channel = <2>;
+				dmas = <&dmac1 5>, <&dmac0 2>;
+				dma-names = "rx", "tx";
 			};
 
 			uart1: uart@b0060000 {
@@ -228,6 +238,7 @@
 				interrupts = <18>;
 				fifosize = <32>;
 				clocks = <&clks 14>;
+				dma-names = "no-rx", "no-tx";
 			};
 
 			uart2: uart@b0070000 {
@@ -237,8 +248,8 @@
 				interrupts = <19>;
 				fifosize = <128>;
 				clocks = <&clks 15>;
-				sirf,uart-dma-rx-channel = <6>;
-				sirf,uart-dma-tx-channel = <7>;
+				dmas = <&dmac0 6>, <&dmac0 7>;
+				dma-names = "rx", "tx";
 			};
 
 			usp0: usp@b0080000 {
@@ -248,8 +259,8 @@
 				interrupts = <20>;
 				fifosize = <128>;
 				clocks = <&clks 28>;
-				sirf,usp-dma-rx-channel = <17>;
-				sirf,usp-dma-tx-channel = <18>;
+				dmas = <&dmac1 1>, <&dmac1 2>;
+				dma-names = "rx", "tx";
 			};
 
 			usp1: usp@b0090000 {
@@ -259,8 +270,8 @@
 				interrupts = <21>;
 				fifosize = <128>;
 				clocks = <&clks 29>;
-				sirf,usp-dma-rx-channel = <14>;
-				sirf,usp-dma-tx-channel = <15>;
+				dmas = <&dmac0 14>, <&dmac0 15>;
+				dma-names = "rx", "tx";
 			};
 
 			dmac0: dma-controller@b00b0000 {
@@ -269,6 +280,7 @@
 				reg = <0xb00b0000 0x10000>;
 				interrupts = <12>;
 				clocks = <&clks 24>;
+				#dma-cells = <1>;
 			};
 
 			dmac1: dma-controller@b0160000 {
@@ -277,6 +289,7 @@
 				reg = <0xb0160000 0x10000>;
 				interrupts = <13>;
 				clocks = <&clks 25>;
+				#dma-cells = <1>;
 			};
 
 			vip@b00C0000 {
@@ -293,9 +306,9 @@
 				reg = <0xb00d0000 0x10000>;
 				interrupts = <15>;
 				sirf,spi-num-chipselects = <1>;
-				cs-gpios = <&gpio 0 0>;
-				sirf,spi-dma-rx-channel = <25>;
-				sirf,spi-dma-tx-channel = <20>;
+				dmas = <&dmac1 9>,
+				     <&dmac1 4>;
+				dma-names = "rx", "tx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clks 19>;
@@ -308,8 +321,9 @@
 				reg = <0xb0170000 0x10000>;
 				interrupts = <16>;
 				sirf,spi-num-chipselects = <1>;
-				sirf,spi-dma-rx-channel = <12>;
-				sirf,spi-dma-tx-channel = <13>;
+				dmas = <&dmac0 12>,
+				     <&dmac0 13>;
+				dma-names = "rx", "tx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clks 20>;
@@ -550,6 +564,18 @@
                                                 sirf,function = "usp0_uart_nostreamctrl";
                                         };
                                 };
+				usp0_only_utfs_pins_a: usp0@2 {
+					usp0 {
+						sirf,pins = "usp0_only_utfs_grp";
+						sirf,function = "usp0_only_utfs";
+					};
+				};
+				usp0_only_urfs_pins_a: usp0@3 {
+					usp0 {
+						sirf,pins = "usp0_only_urfs_grp";
+						sirf,function = "usp0_only_urfs";
+					};
+				};
                                 usp1_pins_a: usp1@0 {
                                         usp1 {
                                                 sirf,pins = "usp1grp";

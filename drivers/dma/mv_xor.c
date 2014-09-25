@@ -191,12 +191,10 @@ static void mv_set_mode(struct mv_xor_chan *chan,
 
 static void mv_chan_activate(struct mv_xor_chan *chan)
 {
-	u32 activation;
-
 	dev_dbg(mv_chan_to_devp(chan), " activate chan.\n");
-	activation = readl_relaxed(XOR_ACTIVATION(chan));
-	activation |= 0x1;
-	writel_relaxed(activation, XOR_ACTIVATION(chan));
+
+	/* writel ensures all descriptors are flushed before activation */
+	writel(BIT(0), XOR_ACTIVATION(chan));
 }
 
 static char mv_chan_is_busy(struct mv_xor_chan *chan)
@@ -497,8 +495,8 @@ mv_xor_tx_submit(struct dma_async_tx_descriptor *tx)
 		if (!mv_can_chain(grp_start))
 			goto submit_done;
 
-		dev_dbg(mv_chan_to_devp(mv_chan), "Append to last desc %x\n",
-			old_chain_tail->async_tx.phys);
+		dev_dbg(mv_chan_to_devp(mv_chan), "Append to last desc %pa\n",
+			&old_chain_tail->async_tx.phys);
 
 		/* fix up the hardware chain */
 		mv_desc_set_next_desc(old_chain_tail, grp_start->async_tx.phys);
@@ -527,7 +525,8 @@ submit_done:
 /* returns the number of allocated descriptors */
 static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 {
-	char *hw_desc;
+	void *virt_desc;
+	dma_addr_t dma_desc;
 	int idx;
 	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
 	struct mv_xor_desc_slot *slot = NULL;
@@ -542,17 +541,16 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 				" %d descriptor slots", idx);
 			break;
 		}
-		hw_desc = (char *) mv_chan->dma_desc_pool_virt;
-		slot->hw_desc = (void *) &hw_desc[idx * MV_XOR_SLOT_SIZE];
+		virt_desc = mv_chan->dma_desc_pool_virt;
+		slot->hw_desc = virt_desc + idx * MV_XOR_SLOT_SIZE;
 
 		dma_async_tx_descriptor_init(&slot->async_tx, chan);
 		slot->async_tx.tx_submit = mv_xor_tx_submit;
 		INIT_LIST_HEAD(&slot->chain_node);
 		INIT_LIST_HEAD(&slot->slot_node);
 		INIT_LIST_HEAD(&slot->tx_list);
-		hw_desc = (char *) mv_chan->dma_desc_pool;
-		slot->async_tx.phys =
-			(dma_addr_t) &hw_desc[idx * MV_XOR_SLOT_SIZE];
+		dma_desc = mv_chan->dma_desc_pool;
+		slot->async_tx.phys = dma_desc + idx * MV_XOR_SLOT_SIZE;
 		slot->idx = idx++;
 
 		spin_lock_bh(&mv_chan->lock);
@@ -582,8 +580,8 @@ mv_xor_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	int slot_cnt;
 
 	dev_dbg(mv_chan_to_devp(mv_chan),
-		"%s dest: %x src %x len: %u flags: %ld\n",
-		__func__, dest, src, len, flags);
+		"%s dest: %pad src %pad len: %u flags: %ld\n",
+		__func__, &dest, &src, len, flags);
 	if (unlikely(len < MV_XOR_MIN_BYTE_COUNT))
 		return NULL;
 
@@ -626,8 +624,8 @@ mv_xor_prep_dma_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 	BUG_ON(len > MV_XOR_MAX_BYTE_COUNT);
 
 	dev_dbg(mv_chan_to_devp(mv_chan),
-		"%s src_cnt: %d len: dest %x %u flags: %ld\n",
-		__func__, src_cnt, len, dest, flags);
+		"%s src_cnt: %d len: %u dest %pad flags: %ld\n",
+		__func__, src_cnt, len, &dest, flags);
 
 	spin_lock_bh(&mv_chan->lock);
 	slot_cnt = mv_chan_xor_slot_count(len, src_cnt);

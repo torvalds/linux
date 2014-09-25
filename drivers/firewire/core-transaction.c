@@ -523,11 +523,11 @@ static DEFINE_SPINLOCK(address_handler_list_lock);
 static LIST_HEAD(address_handler_list);
 
 const struct fw_address_region fw_high_memory_region =
-	{ .start = 0x000100000000ULL, .end = 0xffffe0000000ULL,  };
+	{ .start = FW_MAX_PHYSICAL_RANGE, .end = 0xffffe0000000ULL, };
 EXPORT_SYMBOL(fw_high_memory_region);
 
 static const struct fw_address_region low_memory_region =
-	{ .start = 0x000000000000ULL, .end = 0x000100000000ULL,  };
+	{ .start = 0x000000000000ULL, .end = FW_MAX_PHYSICAL_RANGE, };
 
 #if 0
 const struct fw_address_region fw_private_region =
@@ -1217,7 +1217,7 @@ static void handle_low_memory(struct fw_card *card, struct fw_request *request,
 }
 
 static struct fw_address_handler low_memory = {
-	.length			= 0x000100000000ULL,
+	.length			= FW_MAX_PHYSICAL_RANGE,
 	.address_callback	= handle_low_memory,
 };
 

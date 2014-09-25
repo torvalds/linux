@@ -135,13 +135,14 @@ config COMEDI_PCL724
 	  support driver.
 
 	  Supported boards include:
-	    Advantech PCL-724    24 channels
-	    Advantech PCL-722    144 (or 96) channels
-	    Advantech PCL-731    48 channels
-	    ADlink ACL-7122      144 (or 96) channels
-	    ADlink ACL-7124      24 channels
-	    ADlink PET-48DIO     48 channels
-	    WinSystems PCM-IO48  48 channels (PC/104)
+	    Advantech PCL-724            24 channels
+	    Advantech PCL-722            144 (or 96) channels
+	    Advantech PCL-731            48 channels
+	    ADlink ACL-7122              144 (or 96) channels
+	    ADlink ACL-7124              24 channels
+	    ADlink PET-48DIO             48 channels
+	    WinSystems PCM-IO48          48 channels (PC/104)
+	    Diamond Systems ONYX-MM-DIO  48 channels (PC/104)
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcl724.
@@ -160,16 +161,19 @@ config COMEDI_PCL730
 	  Enable support for various simple ISA or PC/104 Digital I/O boards.
 	  These boards all use 8-bit I/O ports.
 
-	  Advantech PCL-730   isolated - 16 in/16 out  ttl - 16 in/16 out
-	  ICP ISO-730         isolated - 16 in/16 out  ttl - 16 in/16 out
-	  ADlink ACL-7130     isolated - 16 in/16 out  ttl - 16 in/16 out
-	  Advantech PCM-3730  isolated - 8 in/8 out    ttl - 16 in/16 out
-	  Advantech PCL-725   isolated - 8 in/8 out
-	  ICP P8R8-DIO        isolated - 8 in/8 out
-	  ADlink ACL-7225b    isolated - 16 in/16 out
-	  ICP P16R16-DIO      isolated - 16 in/16 out
-	  Advantech PCL-733   isolated - 32 in
-	  Advantech PCL-734   isolated - 32 out
+	  Advantech PCL-730             iso - 16 in/16 out  ttl - 16 in/16 out
+	  ICP ISO-730                   iso - 16 in/16 out  ttl - 16 in/16 out
+	  ADlink ACL-7130               iso - 16 in/16 out  ttl - 16 in/16 out
+	  Advantech PCM-3730            iso - 8 in/8 out    ttl - 16 in/16 out
+	  Advantech PCL-725             iso - 8 in/8 out
+	  ICP P8R8-DIO                  iso - 8 in/8 out
+	  ADlink ACL-7225b              iso - 16 in/16 out
+	  ICP P16R16-DIO                iso - 16 in/16 out
+	  Advantech PCL-733             iso - 32 in
+	  Advantech PCL-734             iso - 32 out
+	  Diamond Systems OPMM-1616-XT  iso - 16 in/16 out
+	  Diamond Systems PEARL-MM-P    iso - 16 out
+	  Diamond Systems IR104-PBF     iso - 20 in/20 out
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcl730.
@@ -177,6 +181,7 @@ config COMEDI_PCL730
 config COMEDI_PCL812
 	tristate "Advantech PCL-812/813 and ADlink ACL-8112/8113/8113/8216"
 	depends on VIRT_TO_BUS && ISA_DMA_API
+	select COMEDI_FC
 	---help---
 	  Enable support for Advantech PCL-812/PG, PCL-813/B, ADLink
 	  ACL-8112DG/HG/PG, ACL-8113, ACL-8216, ICP DAS A-821PGH/PGL/PGL-NDA,
@@ -188,6 +193,7 @@ config COMEDI_PCL812
 config COMEDI_PCL816
 	tristate "Advantech PCL-814 and PCL-816 ISA card support"
 	depends on VIRT_TO_BUS && ISA_DMA_API
+	select COMEDI_FC
 	---help---
 	  Enable support for Advantech PCL-814 and PCL-816 ISA cards
 
@@ -197,6 +203,7 @@ config COMEDI_PCL816
 config COMEDI_PCL818
 	tristate "Advantech PCL-718 and PCL-818 ISA card support"
 	depends on VIRT_TO_BUS && ISA_DMA_API
+	select COMEDI_FC
 	---help---
 	  Enable support for Advantech PCL-818 ISA cards
 	  PCL-818L, PCL-818H, PCL-818HD, PCL-818HG, PCL-818 and PCL-718
@@ -256,6 +263,14 @@ config COMEDI_RTI802
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called rti802.
+
+config COMEDI_DAC02
+	tristate "Keithley Metrabyte DAC02 compatible ISA card support"
+	---help---
+	  Enable support for Keithley Metrabyte DAC02 compatible ISA cards.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called dac02.
 
 config COMEDI_DAS16M1
 	tristate "MeasurementComputing CIO-DAS16/M1DAS-16 ISA card support"
@@ -559,15 +574,6 @@ config COMEDI_MULTIQ3
 	  To compile this driver as a module, choose M here: the module will be
 	  called multiq3.
 
-config COMEDI_POC
-	tristate "Generic driver for very simple devices"
-	---help---
-	  Enable generic support for very simple / POC (Piece of Crap) boards,
-	  Keithley Metrabyte DAC-02 (dac02).
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called poc.
-
 config COMEDI_S526
 	tristate "Sensoray s526 support"
 	---help---
@@ -647,6 +653,7 @@ config COMEDI_ADDI_APCI_1516
 
 config COMEDI_ADDI_APCI_1564
 	tristate "ADDI-DATA APCI_1564 support"
+	select COMEDI_ADDI_WATCHDOG
 	---help---
 	  Enable support for ADDI-DATA APCI_1564 cards
 
@@ -753,6 +760,7 @@ config COMEDI_ADL_PCI9118
 
 config COMEDI_ADV_PCI1710
 	tristate "Advantech PCI-171x, PCI-1720 and PCI-1731 support"
+	select COMEDI_FC
 	---help---
 	  Enable support for Advantech PCI-1710, PCI-1710HG, PCI-1711,
 	  PCI-1713, PCI-1720 and PCI-1731
@@ -807,7 +815,7 @@ config COMEDI_AMPLC_PC236_PCI
 	  Enable support for Amplicon PCI236 DIO board.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called amplc_pc236.
+	  called amplc_pci236.
 
 config COMEDI_AMPLC_PC263_PCI
 	tristate "Amplicon PCI263 relay board support"
@@ -856,6 +864,7 @@ config COMEDI_DAS08_PCI
 
 config COMEDI_DT3000
 	tristate "Data Translation DT3000 series support"
+	select COMEDI_FC
 	---help---
 	  Enable support for Data Translation DT3000 series
 	  DT3001, DT3001-PGL, DT3002, DT3003, DT3003-PGL, DT3004, DT3005 and
@@ -1005,8 +1014,6 @@ config COMEDI_NI_6527
 
 config COMEDI_NI_65XX
 	tristate "NI 65xx static dio PCI card support"
-	depends on HAS_DMA
-	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments 65xx static dio boards.
 	  Supported devices: National Instruments PCI-6509 (ni_65xx),
@@ -1030,8 +1037,6 @@ config COMEDI_NI_660X
 
 config COMEDI_NI_670X
 	tristate "NI 670x PCI card support"
-	depends on HAS_DMA
-	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments PCI-6703 and PCI-6704
 
@@ -1040,9 +1045,7 @@ config COMEDI_NI_670X
 
 config COMEDI_NI_LABPC_PCI
 	tristate "NI Lab-PC PCI-1200 support"
-	depends on HAS_DMA
 	select COMEDI_NI_LABPC
-	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments Lab-PC PCI-1200.
 
@@ -1101,6 +1104,7 @@ config COMEDI_S626
 
 config COMEDI_MITE
 	depends on HAS_DMA
+	select COMEDI_FC
 	tristate
 
 config COMEDI_NI_TIOCMD
@@ -1179,6 +1183,7 @@ config COMEDI_NI_MIO_CS
 
 config COMEDI_QUATECH_DAQP_CS
 	tristate "Quatech DAQP PCMCIA data capture card support"
+	select COMEDI_FC
 	---help---
 	  Enable support for the Quatech DAQP PCMCIA data capture cards
 	  DAQP-208 and DAQP-308

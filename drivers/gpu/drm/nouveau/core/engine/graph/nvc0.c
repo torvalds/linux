@@ -23,17 +23,235 @@
  */
 
 #include "nvc0.h"
+#include "ctxnvc0.h"
+
+/*******************************************************************************
+ * Zero Bandwidth Clear
+ ******************************************************************************/
+
+static void
+nvc0_graph_zbc_clear_color(struct nvc0_graph_priv *priv, int zbc)
+{
+	if (priv->zbc_color[zbc].format) {
+		nv_wr32(priv, 0x405804, priv->zbc_color[zbc].ds[0]);
+		nv_wr32(priv, 0x405808, priv->zbc_color[zbc].ds[1]);
+		nv_wr32(priv, 0x40580c, priv->zbc_color[zbc].ds[2]);
+		nv_wr32(priv, 0x405810, priv->zbc_color[zbc].ds[3]);
+	}
+	nv_wr32(priv, 0x405814, priv->zbc_color[zbc].format);
+	nv_wr32(priv, 0x405820, zbc);
+	nv_wr32(priv, 0x405824, 0x00000004); /* TRIGGER | WRITE | COLOR */
+}
+
+static int
+nvc0_graph_zbc_color_get(struct nvc0_graph_priv *priv, int format,
+			 const u32 ds[4], const u32 l2[4])
+{
+	struct nouveau_ltc *ltc = nouveau_ltc(priv);
+	int zbc = -ENOSPC, i;
+
+	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
+		if (priv->zbc_color[i].format) {
+			if (priv->zbc_color[i].format != format)
+				continue;
+			if (memcmp(priv->zbc_color[i].ds, ds, sizeof(
+				   priv->zbc_color[i].ds)))
+				continue;
+			if (memcmp(priv->zbc_color[i].l2, l2, sizeof(
+				   priv->zbc_color[i].l2))) {
+				WARN_ON(1);
+				return -EINVAL;
+			}
+			return i;
+		} else {
+			zbc = (zbc < 0) ? i : zbc;
+		}
+	}
+
+	if (zbc < 0)
+		return zbc;
+
+	memcpy(priv->zbc_color[zbc].ds, ds, sizeof(priv->zbc_color[zbc].ds));
+	memcpy(priv->zbc_color[zbc].l2, l2, sizeof(priv->zbc_color[zbc].l2));
+	priv->zbc_color[zbc].format = format;
+	ltc->zbc_color_get(ltc, zbc, l2);
+	nvc0_graph_zbc_clear_color(priv, zbc);
+	return zbc;
+}
+
+static void
+nvc0_graph_zbc_clear_depth(struct nvc0_graph_priv *priv, int zbc)
+{
+	if (priv->zbc_depth[zbc].format)
+		nv_wr32(priv, 0x405818, priv->zbc_depth[zbc].ds);
+	nv_wr32(priv, 0x40581c, priv->zbc_depth[zbc].format);
+	nv_wr32(priv, 0x405820, zbc);
+	nv_wr32(priv, 0x405824, 0x00000005); /* TRIGGER | WRITE | DEPTH */
+}
+
+static int
+nvc0_graph_zbc_depth_get(struct nvc0_graph_priv *priv, int format,
+			 const u32 ds, const u32 l2)
+{
+	struct nouveau_ltc *ltc = nouveau_ltc(priv);
+	int zbc = -ENOSPC, i;
+
+	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
+		if (priv->zbc_depth[i].format) {
+			if (priv->zbc_depth[i].format != format)
+				continue;
+			if (priv->zbc_depth[i].ds != ds)
+				continue;
+			if (priv->zbc_depth[i].l2 != l2) {
+				WARN_ON(1);
+				return -EINVAL;
+			}
+			return i;
+		} else {
+			zbc = (zbc < 0) ? i : zbc;
+		}
+	}
+
+	if (zbc < 0)
+		return zbc;
+
+	priv->zbc_depth[zbc].format = format;
+	priv->zbc_depth[zbc].ds = ds;
+	priv->zbc_depth[zbc].l2 = l2;
+	ltc->zbc_depth_get(ltc, zbc, l2);
+	nvc0_graph_zbc_clear_depth(priv, zbc);
+	return zbc;
+}
 
 /*******************************************************************************
  * Graphics object classes
  ******************************************************************************/
 
+static int
+nvc0_fermi_mthd_zbc_color(struct nouveau_object *object, void *data, u32 size)
+{
+	struct nvc0_graph_priv *priv = (void *)object->engine;
+	union {
+		struct fermi_a_zbc_color_v0 v0;
+	} *args = data;
+	int ret;
+
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		switch (args->v0.format) {
+		case FERMI_A_ZBC_COLOR_V0_FMT_ZERO:
+		case FERMI_A_ZBC_COLOR_V0_FMT_UNORM_ONE:
+		case FERMI_A_ZBC_COLOR_V0_FMT_RF32_GF32_BF32_AF32:
+		case FERMI_A_ZBC_COLOR_V0_FMT_R16_G16_B16_A16:
+		case FERMI_A_ZBC_COLOR_V0_FMT_RN16_GN16_BN16_AN16:
+		case FERMI_A_ZBC_COLOR_V0_FMT_RS16_GS16_BS16_AS16:
+		case FERMI_A_ZBC_COLOR_V0_FMT_RU16_GU16_BU16_AU16:
+		case FERMI_A_ZBC_COLOR_V0_FMT_RF16_GF16_BF16_AF16:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A8R8G8B8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A8RL8GL8BL8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A2B10G10R10:
+		case FERMI_A_ZBC_COLOR_V0_FMT_AU2BU10GU10RU10:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A8B8G8R8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A8BL8GL8RL8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_AN8BN8GN8RN8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_AS8BS8GS8RS8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_AU8BU8GU8RU8:
+		case FERMI_A_ZBC_COLOR_V0_FMT_A2R10G10B10:
+		case FERMI_A_ZBC_COLOR_V0_FMT_BF10GF11RF11:
+			ret = nvc0_graph_zbc_color_get(priv, args->v0.format,
+							     args->v0.ds,
+							     args->v0.l2);
+			if (ret >= 0) {
+				args->v0.index = ret;
+				return 0;
+			}
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	return ret;
+}
+
+static int
+nvc0_fermi_mthd_zbc_depth(struct nouveau_object *object, void *data, u32 size)
+{
+	struct nvc0_graph_priv *priv = (void *)object->engine;
+	union {
+		struct fermi_a_zbc_depth_v0 v0;
+	} *args = data;
+	int ret;
+
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		switch (args->v0.format) {
+		case FERMI_A_ZBC_DEPTH_V0_FMT_FP32:
+			ret = nvc0_graph_zbc_depth_get(priv, args->v0.format,
+							     args->v0.ds,
+							     args->v0.l2);
+			return (ret >= 0) ? 0 : -ENOSPC;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	return ret;
+}
+
+static int
+nvc0_fermi_mthd(struct nouveau_object *object, u32 mthd, void *data, u32 size)
+{
+	switch (mthd) {
+	case FERMI_A_ZBC_COLOR:
+		return nvc0_fermi_mthd_zbc_color(object, data, size);
+	case FERMI_A_ZBC_DEPTH:
+		return nvc0_fermi_mthd_zbc_depth(object, data, size);
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+struct nouveau_ofuncs
+nvc0_fermi_ofuncs = {
+	.ctor = _nouveau_object_ctor,
+	.dtor = nouveau_object_destroy,
+	.init = nouveau_object_init,
+	.fini = nouveau_object_fini,
+	.mthd = nvc0_fermi_mthd,
+};
+
+static int
+nvc0_graph_set_shader_exceptions(struct nouveau_object *object, u32 mthd,
+				 void *pdata, u32 size)
+{
+	struct nvc0_graph_priv *priv = (void *)nv_engine(object);
+	if (size >= sizeof(u32)) {
+		u32 data = *(u32 *)pdata ? 0xffffffff : 0x00000000;
+		nv_wr32(priv, 0x419e44, data);
+		nv_wr32(priv, 0x419e4c, data);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+struct nouveau_omthds
+nvc0_graph_9097_omthds[] = {
+	{ 0x1528, 0x1528, nvc0_graph_set_shader_exceptions },
+	{}
+};
+
+struct nouveau_omthds
+nvc0_graph_90c0_omthds[] = {
+	{ 0x1528, 0x1528, nvc0_graph_set_shader_exceptions },
+	{}
+};
+
 struct nouveau_oclass
 nvc0_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0x9039, &nouveau_object_ofuncs },
-	{ 0x9097, &nouveau_object_ofuncs },
-	{ 0x90c0, &nouveau_object_ofuncs },
+	{ FERMI_A, &nvc0_fermi_ofuncs, nvc0_graph_9097_omthds },
+	{ FERMI_COMPUTE_A, &nouveau_object_ofuncs, nvc0_graph_90c0_omthds },
 	{}
 };
 
@@ -97,7 +315,7 @@ nvc0_graph_context_ctor(struct nouveau_object *parent,
 		u32 addr = mmio->addr;
 		u32 data = mmio->data;
 
-		if (mmio->shift) {
+		if (mmio->buffer >= 0) {
 			u64 info = chan->data[mmio->buffer].vma.offset;
 			data |= info >> mmio->shift;
 		}
@@ -146,11 +364,11 @@ nvc0_graph_context_dtor(struct nouveau_object *object)
 }
 
 /*******************************************************************************
- * PGRAPH engine/subdev functions
+ * PGRAPH register lists
  ******************************************************************************/
 
-struct nvc0_graph_init
-nvc0_graph_init_regs[] = {
+const struct nvc0_graph_init
+nvc0_graph_init_main_0[] = {
 	{ 0x400080,   1, 0x04, 0x003083c2 },
 	{ 0x400088,   1, 0x04, 0x00006fe7 },
 	{ 0x40008c,   1, 0x04, 0x00000000 },
@@ -165,95 +383,170 @@ nvc0_graph_init_regs[] = {
 	{}
 };
 
-struct nvc0_graph_init
-nvc0_graph_init_unk40xx[] = {
+const struct nvc0_graph_init
+nvc0_graph_init_fe_0[] = {
 	{ 0x40415c,   1, 0x04, 0x00000000 },
 	{ 0x404170,   1, 0x04, 0x00000000 },
 	{}
 };
 
-struct nvc0_graph_init
-nvc0_graph_init_unk44xx[] = {
+const struct nvc0_graph_init
+nvc0_graph_init_pri_0[] = {
 	{ 0x404488,   2, 0x04, 0x00000000 },
 	{}
 };
 
-struct nvc0_graph_init
-nvc0_graph_init_unk78xx[] = {
+const struct nvc0_graph_init
+nvc0_graph_init_rstr2d_0[] = {
 	{ 0x407808,   1, 0x04, 0x00000000 },
 	{}
 };
 
-struct nvc0_graph_init
-nvc0_graph_init_unk60xx[] = {
+const struct nvc0_graph_init
+nvc0_graph_init_pd_0[] = {
 	{ 0x406024,   1, 0x04, 0x00000000 },
 	{}
 };
 
-struct nvc0_graph_init
-nvc0_graph_init_unk58xx[] = {
+const struct nvc0_graph_init
+nvc0_graph_init_ds_0[] = {
 	{ 0x405844,   1, 0x04, 0x00ffffff },
 	{ 0x405850,   1, 0x04, 0x00000000 },
 	{ 0x405908,   1, 0x04, 0x00000000 },
 	{}
 };
 
-struct nvc0_graph_init
-nvc0_graph_init_unk80xx[] = {
+const struct nvc0_graph_init
+nvc0_graph_init_scc_0[] = {
 	{ 0x40803c,   1, 0x04, 0x00000000 },
 	{}
 };
 
-struct nvc0_graph_init
-nvc0_graph_init_gpc[] = {
+const struct nvc0_graph_init
+nvc0_graph_init_prop_0[] = {
 	{ 0x4184a0,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_gpc_unk_0[] = {
 	{ 0x418604,   1, 0x04, 0x00000000 },
 	{ 0x418680,   1, 0x04, 0x00000000 },
 	{ 0x418714,   1, 0x04, 0x80000000 },
 	{ 0x418384,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_setup_0[] = {
 	{ 0x418814,   3, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_crstr_0[] = {
 	{ 0x418b04,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_setup_1[] = {
 	{ 0x4188c8,   1, 0x04, 0x80000000 },
 	{ 0x4188cc,   1, 0x04, 0x00000000 },
 	{ 0x4188d0,   1, 0x04, 0x00010000 },
 	{ 0x4188d4,   1, 0x04, 0x00000001 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_zcull_0[] = {
 	{ 0x418910,   1, 0x04, 0x00010001 },
 	{ 0x418914,   1, 0x04, 0x00000301 },
 	{ 0x418918,   1, 0x04, 0x00800000 },
 	{ 0x418980,   1, 0x04, 0x77777770 },
 	{ 0x418984,   3, 0x04, 0x77777777 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_gpm_0[] = {
 	{ 0x418c04,   1, 0x04, 0x00000000 },
 	{ 0x418c88,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_gpc_unk_1[] = {
 	{ 0x418d00,   1, 0x04, 0x00000000 },
 	{ 0x418f08,   1, 0x04, 0x00000000 },
 	{ 0x418e00,   1, 0x04, 0x00000050 },
 	{ 0x418e08,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_gcc_0[] = {
 	{ 0x41900c,   1, 0x04, 0x00000000 },
 	{ 0x419018,   1, 0x04, 0x00000000 },
 	{}
 };
 
-static struct nvc0_graph_init
-nvc0_graph_init_tpc[] = {
+const struct nvc0_graph_init
+nvc0_graph_init_tpccs_0[] = {
 	{ 0x419d08,   2, 0x04, 0x00000000 },
 	{ 0x419d10,   1, 0x04, 0x00000014 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_tex_0[] = {
 	{ 0x419ab0,   1, 0x04, 0x00000000 },
 	{ 0x419ab8,   1, 0x04, 0x000000e7 },
 	{ 0x419abc,   2, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_pe_0[] = {
 	{ 0x41980c,   3, 0x04, 0x00000000 },
 	{ 0x419844,   1, 0x04, 0x00000000 },
 	{ 0x41984c,   1, 0x04, 0x00005bc5 },
 	{ 0x419850,   4, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_l1c_0[] = {
 	{ 0x419c98,   1, 0x04, 0x00000000 },
 	{ 0x419ca8,   1, 0x04, 0x80000000 },
 	{ 0x419cb4,   1, 0x04, 0x00000000 },
 	{ 0x419cb8,   1, 0x04, 0x00008bf4 },
 	{ 0x419cbc,   1, 0x04, 0x28137606 },
 	{ 0x419cc0,   2, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_wwdx_0[] = {
 	{ 0x419bd4,   1, 0x04, 0x00800000 },
 	{ 0x419bdc,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_tpccs_1[] = {
 	{ 0x419d2c,   1, 0x04, 0x00000000 },
+	{}
+};
+
+const struct nvc0_graph_init
+nvc0_graph_init_mpc_0[] = {
 	{ 0x419c0c,   1, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct nvc0_graph_init
+nvc0_graph_init_sm_0[] = {
 	{ 0x419e00,   1, 0x04, 0x00000000 },
 	{ 0x419ea0,   1, 0x04, 0x00000000 },
 	{ 0x419ea4,   1, 0x04, 0x00000100 },
@@ -270,8 +563,8 @@ nvc0_graph_init_tpc[] = {
 	{}
 };
 
-struct nvc0_graph_init
-nvc0_graph_init_unk88xx[] = {
+const struct nvc0_graph_init
+nvc0_graph_init_be_0[] = {
 	{ 0x40880c,   1, 0x04, 0x00000000 },
 	{ 0x408910,   9, 0x04, 0x00000000 },
 	{ 0x408950,   1, 0x04, 0x00000000 },
@@ -282,18 +575,93 @@ nvc0_graph_init_unk88xx[] = {
 	{}
 };
 
-struct nvc0_graph_init
-nvc0_graph_tpc_0[] = {
-	{ 0x50405c,   1, 0x04, 0x00000001 },
+const struct nvc0_graph_init
+nvc0_graph_init_fe_1[] = {
+	{ 0x4040f0,   1, 0x04, 0x00000000 },
 	{}
 };
 
+const struct nvc0_graph_init
+nvc0_graph_init_pe_1[] = {
+	{ 0x419880,   1, 0x04, 0x00000002 },
+	{}
+};
+
+static const struct nvc0_graph_pack
+nvc0_graph_pack_mmio[] = {
+	{ nvc0_graph_init_main_0 },
+	{ nvc0_graph_init_fe_0 },
+	{ nvc0_graph_init_pri_0 },
+	{ nvc0_graph_init_rstr2d_0 },
+	{ nvc0_graph_init_pd_0 },
+	{ nvc0_graph_init_ds_0 },
+	{ nvc0_graph_init_scc_0 },
+	{ nvc0_graph_init_prop_0 },
+	{ nvc0_graph_init_gpc_unk_0 },
+	{ nvc0_graph_init_setup_0 },
+	{ nvc0_graph_init_crstr_0 },
+	{ nvc0_graph_init_setup_1 },
+	{ nvc0_graph_init_zcull_0 },
+	{ nvc0_graph_init_gpm_0 },
+	{ nvc0_graph_init_gpc_unk_1 },
+	{ nvc0_graph_init_gcc_0 },
+	{ nvc0_graph_init_tpccs_0 },
+	{ nvc0_graph_init_tex_0 },
+	{ nvc0_graph_init_pe_0 },
+	{ nvc0_graph_init_l1c_0 },
+	{ nvc0_graph_init_wwdx_0 },
+	{ nvc0_graph_init_tpccs_1 },
+	{ nvc0_graph_init_mpc_0 },
+	{ nvc0_graph_init_sm_0 },
+	{ nvc0_graph_init_be_0 },
+	{ nvc0_graph_init_fe_1 },
+	{ nvc0_graph_init_pe_1 },
+	{}
+};
+
+/*******************************************************************************
+ * PGRAPH engine/subdev functions
+ ******************************************************************************/
+
 void
-nvc0_graph_mmio(struct nvc0_graph_priv *priv, struct nvc0_graph_init *init)
+nvc0_graph_zbc_init(struct nvc0_graph_priv *priv)
 {
-	for (; init && init->count; init++) {
-		u32 addr = init->addr, i;
-		for (i = 0; i < init->count; i++) {
+	const u32  zero[] = { 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+			      0x00000000, 0x00000000, 0x00000000, 0x00000000 };
+	const u32   one[] = { 0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000,
+			      0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff };
+	const u32 f32_0[] = { 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+			      0x00000000, 0x00000000, 0x00000000, 0x00000000 };
+	const u32 f32_1[] = { 0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000,
+			      0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000 };
+	struct nouveau_ltc *ltc = nouveau_ltc(priv);
+	int index;
+
+	if (!priv->zbc_color[0].format) {
+		nvc0_graph_zbc_color_get(priv, 1,  & zero[0],   &zero[4]);
+		nvc0_graph_zbc_color_get(priv, 2,  &  one[0],    &one[4]);
+		nvc0_graph_zbc_color_get(priv, 4,  &f32_0[0],  &f32_0[4]);
+		nvc0_graph_zbc_color_get(priv, 4,  &f32_1[0],  &f32_1[4]);
+		nvc0_graph_zbc_depth_get(priv, 1, 0x00000000, 0x00000000);
+		nvc0_graph_zbc_depth_get(priv, 1, 0x3f800000, 0x3f800000);
+	}
+
+	for (index = ltc->zbc_min; index <= ltc->zbc_max; index++)
+		nvc0_graph_zbc_clear_color(priv, index);
+	for (index = ltc->zbc_min; index <= ltc->zbc_max; index++)
+		nvc0_graph_zbc_clear_depth(priv, index);
+}
+
+void
+nvc0_graph_mmio(struct nvc0_graph_priv *priv, const struct nvc0_graph_pack *p)
+{
+	const struct nvc0_graph_pack *pack;
+	const struct nvc0_graph_init *init;
+
+	pack_for_each_init(init, pack, p) {
+		u32 next = init->addr + init->count * init->pitch;
+		u32 addr = init->addr;
+		while (addr < next) {
 			nv_wr32(priv, addr, init->data);
 			addr += init->pitch;
 		}
@@ -301,49 +669,53 @@ nvc0_graph_mmio(struct nvc0_graph_priv *priv, struct nvc0_graph_init *init)
 }
 
 void
-nvc0_graph_icmd(struct nvc0_graph_priv *priv, struct nvc0_graph_init *init)
+nvc0_graph_icmd(struct nvc0_graph_priv *priv, const struct nvc0_graph_pack *p)
 {
-	u32 addr, data;
-	int i, j;
+	const struct nvc0_graph_pack *pack;
+	const struct nvc0_graph_init *init;
+	u32 data = 0;
 
 	nv_wr32(priv, 0x400208, 0x80000000);
-	for (i = 0; init->count; init++, i++) {
-		if (!i || data != init->data) {
+
+	pack_for_each_init(init, pack, p) {
+		u32 next = init->addr + init->count * init->pitch;
+		u32 addr = init->addr;
+
+		if ((pack == p && init == p->init) || data != init->data) {
 			nv_wr32(priv, 0x400204, init->data);
 			data = init->data;
 		}
 
-		addr = init->addr;
-		for (j = 0; j < init->count; j++) {
+		while (addr < next) {
 			nv_wr32(priv, 0x400200, addr);
+			nv_wait(priv, 0x400700, 0x00000002, 0x00000000);
 			addr += init->pitch;
-			while (nv_rd32(priv, 0x400700) & 0x00000002) {}
 		}
 	}
+
 	nv_wr32(priv, 0x400208, 0x00000000);
 }
 
 void
-nvc0_graph_mthd(struct nvc0_graph_priv *priv, struct nvc0_graph_mthd *mthds)
+nvc0_graph_mthd(struct nvc0_graph_priv *priv, const struct nvc0_graph_pack *p)
 {
-	struct nvc0_graph_mthd *mthd;
-	struct nvc0_graph_init *init;
-	int i = 0, j;
-	u32 data;
+	const struct nvc0_graph_pack *pack;
+	const struct nvc0_graph_init *init;
+	u32 data = 0;
 
-	while ((mthd = &mthds[i++]) && (init = mthd->init)) {
-		u32  addr = 0x80000000 | mthd->oclass;
-		for (data = 0; init->count; init++) {
-			if (init == mthd->init || data != init->data) {
-				nv_wr32(priv, 0x40448c, init->data);
-				data = init->data;
-			}
+	pack_for_each_init(init, pack, p) {
+		u32 ctrl = 0x80000000 | pack->type;
+		u32 next = init->addr + init->count * init->pitch;
+		u32 addr = init->addr;
 
-			addr = (addr & 0x8000ffff) | (init->addr << 14);
-			for (j = 0; j < init->count; j++) {
-				nv_wr32(priv, 0x404488, addr);
-				addr += init->pitch << 14;
-			}
+		if ((pack == p && init == p->init) || data != init->data) {
+			nv_wr32(priv, 0x40448c, init->data);
+			data = init->data;
+		}
+
+		while (addr < next) {
+			nv_wr32(priv, 0x404488, ctrl | (addr << 14));
+			addr += init->pitch;
 		}
 	}
 }
@@ -663,17 +1035,40 @@ nvc0_graph_ctxctl_debug(struct nvc0_graph_priv *priv)
 static void
 nvc0_graph_ctxctl_isr(struct nvc0_graph_priv *priv)
 {
-	u32 ustat = nv_rd32(priv, 0x409c18);
+	u32 stat = nv_rd32(priv, 0x409c18);
 
-	if (ustat & 0x00000001)
-		nv_error(priv, "CTXCTL ucode error\n");
-	if (ustat & 0x00080000)
-		nv_error(priv, "CTXCTL watchdog timeout\n");
-	if (ustat & ~0x00080001)
-		nv_error(priv, "CTXCTL 0x%08x\n", ustat);
+	if (stat & 0x00000001) {
+		u32 code = nv_rd32(priv, 0x409814);
+		if (code == E_BAD_FWMTHD) {
+			u32 class = nv_rd32(priv, 0x409808);
+			u32  addr = nv_rd32(priv, 0x40980c);
+			u32  subc = (addr & 0x00070000) >> 16;
+			u32  mthd = (addr & 0x00003ffc);
+			u32  data = nv_rd32(priv, 0x409810);
 
-	nvc0_graph_ctxctl_debug(priv);
-	nv_wr32(priv, 0x409c20, ustat);
+			nv_error(priv, "FECS MTHD subc %d class 0x%04x "
+				       "mthd 0x%04x data 0x%08x\n",
+				 subc, class, mthd, data);
+
+			nv_wr32(priv, 0x409c20, 0x00000001);
+			stat &= ~0x00000001;
+		} else {
+			nv_error(priv, "FECS ucode error %d\n", code);
+		}
+	}
+
+	if (stat & 0x00080000) {
+		nv_error(priv, "FECS watchdog timeout\n");
+		nvc0_graph_ctxctl_debug(priv);
+		nv_wr32(priv, 0x409c20, 0x00080000);
+		stat &= ~0x00080000;
+	}
+
+	if (stat) {
+		nv_error(priv, "FECS 0x%08x\n", stat);
+		nvc0_graph_ctxctl_debug(priv);
+		nv_wr32(priv, 0x409c20, stat);
+	}
 }
 
 static void
@@ -768,15 +1163,20 @@ nvc0_graph_init_fw(struct nvc0_graph_priv *priv, u32 fuc_base,
 			nv_wr32(priv, fuc_base + 0x0188, i >> 6);
 		nv_wr32(priv, fuc_base + 0x0184, code->data[i]);
 	}
+
+	/* code must be padded to 0x40 words */
+	for (; i & 0x3f; i++)
+		nv_wr32(priv, fuc_base + 0x0184, 0);
 }
 
 static void
 nvc0_graph_init_csdata(struct nvc0_graph_priv *priv,
-		       struct nvc0_graph_init *init,
+		       const struct nvc0_graph_pack *pack,
 		       u32 falcon, u32 starstar, u32 base)
 {
-	u32 addr = init->addr;
-	u32 next = addr;
+	const struct nvc0_graph_pack *iter;
+	const struct nvc0_graph_init *init;
+	u32 addr = ~0, prev = ~0, xfer = 0;
 	u32 star, temp;
 
 	nv_wr32(priv, falcon + 0x01c0, 0x02000000 + starstar);
@@ -786,22 +1186,28 @@ nvc0_graph_init_csdata(struct nvc0_graph_priv *priv,
 		star = temp;
 	nv_wr32(priv, falcon + 0x01c0, 0x01000000 + star);
 
-	do {
-		if (init->addr != next) {
-			while (addr < next) {
-				u32 nr = min((int)(next - addr) / 4, 32);
-				nv_wr32(priv, falcon + 0x01c4,
-					((nr - 1) << 26) | (addr - base));
-				addr += nr * 4;
-				star += 4;
+	pack_for_each_init(init, iter, pack) {
+		u32 head = init->addr - base;
+		u32 tail = head + init->count * init->pitch;
+		while (head < tail) {
+			if (head != prev + 4 || xfer >= 32) {
+				if (xfer) {
+					u32 data = ((--xfer << 26) | addr);
+					nv_wr32(priv, falcon + 0x01c4, data);
+					star += 4;
+				}
+				addr = head;
+				xfer = 0;
 			}
-			addr = next = init->addr;
+			prev = head;
+			xfer = xfer + 1;
+			head = head + init->pitch;
 		}
-		next += init->count * 4;
-	} while ((init++)->count);
+	}
 
+	nv_wr32(priv, falcon + 0x01c4, (--xfer << 26) | addr);
 	nv_wr32(priv, falcon + 0x01c0, 0x01000004 + starstar);
-	nv_wr32(priv, falcon + 0x01c4, star);
+	nv_wr32(priv, falcon + 0x01c4, star + 4);
 }
 
 int
@@ -809,18 +1215,16 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 {
 	struct nvc0_graph_oclass *oclass = (void *)nv_object(priv)->oclass;
 	struct nvc0_grctx_oclass *cclass = (void *)nv_engine(priv)->cclass;
-	struct nvc0_graph_init *init;
-	u32 r000260;
 	int i;
 
 	if (priv->firmware) {
 		/* load fuc microcode */
-		r000260 = nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
+		nouveau_mc(priv)->unk260(nouveau_mc(priv), 0);
 		nvc0_graph_init_fw(priv, 0x409000, &priv->fuc409c,
 						   &priv->fuc409d);
 		nvc0_graph_init_fw(priv, 0x41a000, &priv->fuc41ac,
 						   &priv->fuc41ad);
-		nv_wr32(priv, 0x000260, r000260);
+		nouveau_mc(priv)->unk260(nouveau_mc(priv), 1);
 
 		/* start both of them running */
 		nv_wr32(priv, 0x409840, 0xffffffff);
@@ -901,10 +1305,13 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 		}
 
 		return 0;
+	} else
+	if (!oclass->fecs.ucode) {
+		return -ENOSYS;
 	}
 
 	/* load HUB microcode */
-	r000260 = nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
+	nouveau_mc(priv)->unk260(nouveau_mc(priv), 0);
 	nv_wr32(priv, 0x4091c0, 0x01000000);
 	for (i = 0; i < oclass->fecs.ucode->data.size / 4; i++)
 		nv_wr32(priv, 0x4091c4, oclass->fecs.ucode->data.data[i]);
@@ -914,10 +1321,6 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 		if ((i & 0x3f) == 0)
 			nv_wr32(priv, 0x409188, i >> 6);
 		nv_wr32(priv, 0x409184, oclass->fecs.ucode->code.data[i]);
-	}
-
-	for (i = 0; (init = cclass->hub[i]); i++) {
-		nvc0_graph_init_csdata(priv, init, 0x409000, 0x000, 0x000000);
 	}
 
 	/* load GPC microcode */
@@ -931,14 +1334,13 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 			nv_wr32(priv, 0x41a188, i >> 6);
 		nv_wr32(priv, 0x41a184, oclass->gpccs.ucode->code.data[i]);
 	}
-	nv_wr32(priv, 0x000260, r000260);
+	nouveau_mc(priv)->unk260(nouveau_mc(priv), 1);
 
-	if ((init = cclass->gpc[0]))
-		nvc0_graph_init_csdata(priv, init, 0x41a000, 0x000, 0x418000);
-	if ((init = cclass->gpc[2]))
-		nvc0_graph_init_csdata(priv, init, 0x41a000, 0x004, 0x419800);
-	if ((init = cclass->gpc[3]))
-		nvc0_graph_init_csdata(priv, init, 0x41a000, 0x008, 0x41be00);
+	/* load register lists */
+	nvc0_graph_init_csdata(priv, cclass->hub, 0x409000, 0x000, 0x000000);
+	nvc0_graph_init_csdata(priv, cclass->gpc, 0x41a000, 0x000, 0x418000);
+	nvc0_graph_init_csdata(priv, cclass->tpc, 0x41a000, 0x004, 0x419800);
+	nvc0_graph_init_csdata(priv, cclass->ppc, 0x41a000, 0x008, 0x41be00);
 
 	/* start HUB ucode running, it'll init the GPCs */
 	nv_wr32(priv, 0x40910c, 0x00000000);
@@ -985,8 +1387,7 @@ nvc0_graph_init(struct nouveau_object *object)
 	nv_wr32(priv, GPC_BCAST(0x08b4), priv->unk4188b4->addr >> 8);
 	nv_wr32(priv, GPC_BCAST(0x08b8), priv->unk4188b8->addr >> 8);
 
-	for (i = 0; oclass->mmio[i]; i++)
-		nvc0_graph_mmio(priv, oclass->mmio[i]);
+	nvc0_graph_mmio(priv, oclass->mmio);
 
 	memcpy(tpcnr, priv->tpc_nr, sizeof(priv->tpc_nr));
 	for (i = 0, gpc = -1; i < priv->tpc_total; i++) {
@@ -1068,6 +1469,9 @@ nvc0_graph_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x400134, 0xffffffff);
 
 	nv_wr32(priv, 0x400054, 0x34ce3464);
+
+	nvc0_graph_zbc_init(priv);
+
 	return nvc0_graph_init_ctxctl(priv);
 }
 
@@ -1088,10 +1492,10 @@ nvc0_graph_ctor_fw(struct nvc0_graph_priv *priv, const char *fwname,
 	int ret;
 
 	snprintf(f, sizeof(f), "nouveau/nv%02x_%s", device->chipset, fwname);
-	ret = request_firmware(&fw, f, &device->pdev->dev);
+	ret = request_firmware(&fw, f, nv_device_base(device));
 	if (ret) {
 		snprintf(f, sizeof(f), "nouveau/%s", fwname);
-		ret = request_firmware(&fw, f, &device->pdev->dev);
+		ret = request_firmware(&fw, f, nv_device_base(device));
 		if (ret) {
 			nv_error(priv, "failed to load %s\n", fwname);
 			return ret;
@@ -1130,10 +1534,14 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvc0_graph_oclass *oclass = (void *)bclass;
 	struct nouveau_device *device = nv_device(parent);
 	struct nvc0_graph_priv *priv;
-	int ret, i;
+	bool use_ext_fw, enable;
+	int ret, i, j;
 
-	ret = nouveau_graph_create(parent, engine, bclass,
-				   (oclass->fecs.ucode != NULL), &priv);
+	use_ext_fw = nouveau_boolopt(device->cfgopt, "NvGrUseFW",
+				     oclass->fecs.ucode == NULL);
+	enable = use_ext_fw || oclass->fecs.ucode != NULL;
+
+	ret = nouveau_graph_create(parent, engine, bclass, enable, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -1143,7 +1551,7 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	priv->base.units = nvc0_graph_units;
 
-	if (nouveau_boolopt(device->cfgopt, "NvGrUseFW", false)) {
+	if (use_ext_fw) {
 		nv_info(priv, "using external firmware\n");
 		if (nvc0_graph_ctor_fw(priv, "fuc409c", &priv->fuc409c) ||
 		    nvc0_graph_ctor_fw(priv, "fuc409d", &priv->fuc409d) ||
@@ -1173,6 +1581,11 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	for (i = 0; i < priv->gpc_nr; i++) {
 		priv->tpc_nr[i]  = nv_rd32(priv, GPC_UNIT(i, 0x2608));
 		priv->tpc_total += priv->tpc_nr[i];
+		priv->ppc_nr[i]  = oclass->ppc_nr;
+		for (j = 0; j < priv->ppc_nr[i]; j++) {
+			u8 mask = nv_rd32(priv, GPC_UNIT(i, 0x0c30 + (j * 4)));
+			priv->ppc_tpc_nr[i][j] = hweight8(mask);
+		}
 	}
 
 	/*XXX: these need figuring out... though it might not even matter */
@@ -1217,22 +1630,6 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nvc0_graph_init *
-nvc0_graph_init_mmio[] = {
-	nvc0_graph_init_regs,
-	nvc0_graph_init_unk40xx,
-	nvc0_graph_init_unk44xx,
-	nvc0_graph_init_unk78xx,
-	nvc0_graph_init_unk60xx,
-	nvc0_graph_init_unk58xx,
-	nvc0_graph_init_unk80xx,
-	nvc0_graph_init_gpc,
-	nvc0_graph_init_tpc,
-	nvc0_graph_init_unk88xx,
-	nvc0_graph_tpc_0,
-	NULL
-};
-
 #include "fuc/hubnvc0.fuc.h"
 
 struct nvc0_graph_ucode
@@ -1264,7 +1661,7 @@ nvc0_graph_oclass = &(struct nvc0_graph_oclass) {
 	},
 	.cclass = &nvc0_grctx_oclass,
 	.sclass =  nvc0_graph_sclass,
-	.mmio = nvc0_graph_init_mmio,
+	.mmio = nvc0_graph_pack_mmio,
 	.fecs.ucode = &nvc0_graph_fecs_ucode,
 	.gpccs.ucode = &nvc0_graph_gpccs_ucode,
 }.base;

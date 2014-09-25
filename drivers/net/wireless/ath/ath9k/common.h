@@ -21,6 +21,10 @@
 #include "hw.h"
 #include "hw-ops.h"
 
+#include "common-init.h"
+#include "common-beacon.h"
+#include "common-debug.h"
+
 /* Common header for Atheros 802.11n base driver cores */
 
 #define WME_BA_BMP_SIZE         64
@@ -42,6 +46,38 @@
 #define ATH_EP_RND(x, mul) 						\
 	(((x) + ((mul)/2)) / (mul))
 
+#define IEEE80211_MS_TO_TU(x)   (((x) * 1000) / 1024)
+
+struct ath_beacon_config {
+	int beacon_interval;
+	u16 dtim_period;
+	u16 bmiss_timeout;
+	u8 dtim_count;
+	bool enable_beacon;
+	bool ibss_creator;
+	u32 nexttbtt;
+	u32 intval;
+};
+
+bool ath9k_cmn_rx_accept(struct ath_common *common,
+			 struct ieee80211_hdr *hdr,
+			 struct ieee80211_rx_status *rxs,
+			 struct ath_rx_status *rx_stats,
+			 bool *decrypt_error,
+			 unsigned int rxfilter);
+void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
+				  struct sk_buff *skb,
+				  struct ath_rx_status *rx_stats,
+				  struct ieee80211_rx_status *rxs,
+				  bool decrypt_error);
+int ath9k_cmn_process_rate(struct ath_common *common,
+			   struct ieee80211_hw *hw,
+			   struct ath_rx_status *rx_stats,
+			   struct ieee80211_rx_status *rxs);
+void ath9k_cmn_process_rssi(struct ath_common *common,
+			    struct ieee80211_hw *hw,
+			    struct ath_rx_status *rx_stats,
+			    struct ieee80211_rx_status *rxs);
 int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb);
 struct ath9k_channel *ath9k_cmn_get_channel(struct ieee80211_hw *hw,
 					    struct ath_hw *ah,

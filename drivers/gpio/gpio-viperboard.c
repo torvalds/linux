@@ -446,8 +446,7 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	return ret;
 
 err_gpiob:
-	if (gpiochip_remove(&vb_gpio->gpioa))
-		dev_err(&pdev->dev, "%s gpiochip_remove failed\n", __func__);
+	gpiochip_remove(&vb_gpio->gpioa);
 
 err_gpioa:
 	return ret;
@@ -456,13 +455,10 @@ err_gpioa:
 static int vprbrd_gpio_remove(struct platform_device *pdev)
 {
 	struct vprbrd_gpio *vb_gpio = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&vb_gpio->gpiob);
-	if (ret == 0)
-		ret = gpiochip_remove(&vb_gpio->gpioa);
+	gpiochip_remove(&vb_gpio->gpiob);
 
-	return ret;
+	return 0;
 }
 
 static struct platform_driver vprbrd_gpio_driver = {

@@ -184,7 +184,7 @@ static void ext4_es_print_tree(struct inode *inode)
 	while (node) {
 		struct extent_status *es;
 		es = rb_entry(node, struct extent_status, rb_node);
-		printk(KERN_DEBUG " [%u/%u) %llu %llx",
+		printk(KERN_DEBUG " [%u/%u) %llu %x",
 		       es->es_lblk, es->es_len,
 		       ext4_es_pblock(es), ext4_es_status(es));
 		node = rb_next(node);
@@ -344,8 +344,14 @@ static int ext4_es_can_be_merged(struct extent_status *es1,
 	if (ext4_es_status(es1) != ext4_es_status(es2))
 		return 0;
 
-	if (((__u64) es1->es_len) + es2->es_len > 0xFFFFFFFFULL)
+	if (((__u64) es1->es_len) + es2->es_len > EXT_MAX_BLOCKS) {
+		pr_warn("ES assertion failed when merging extents. "
+			"The sum of lengths of es1 (%d) and es2 (%d) "
+			"is bigger than allowed file size (%d)\n",
+			es1->es_len, es2->es_len, EXT_MAX_BLOCKS);
+		WARN_ON(1);
 		return 0;
+	}
 
 	if (((__u64) es1->es_lblk) + es1->es_len != es2->es_lblk)
 		return 0;
@@ -433,7 +439,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		ee_start = ext4_ext_pblock(ex);
 		ee_len = ext4_ext_get_actual_len(ex);
 
-		ee_status = ext4_ext_is_uninitialized(ex) ? 1 : 0;
+		ee_status = ext4_ext_is_unwritten(ex) ? 1 : 0;
 		es_status = ext4_es_is_unwritten(es) ? 1 : 0;
 
 		/*
@@ -445,8 +451,8 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 				pr_warn("ES insert assertion failed for "
 					"inode: %lu we can find an extent "
 					"at block [%d/%d/%llu/%c], but we "
-					"want to add an delayed/hole extent "
-					"[%d/%d/%llu/%llx]\n",
+					"want to add a delayed/hole extent "
+					"[%d/%d/%llu/%x]\n",
 					inode->i_ino, ee_block, ee_len,
 					ee_start, ee_status ? 'u' : 'w',
 					es->es_lblk, es->es_len,
@@ -486,8 +492,8 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		if (!ext4_es_is_delayed(es) && !ext4_es_is_hole(es)) {
 			pr_warn("ES insert assertion failed for inode: %lu "
 				"can't find an extent at block %d but we want "
-				"to add an written/unwritten extent "
-				"[%d/%d/%llu/%llx]\n", inode->i_ino,
+				"to add a written/unwritten extent "
+				"[%d/%d/%llu/%x]\n", inode->i_ino,
 				es->es_lblk, es->es_lblk, es->es_len,
 				ext4_es_pblock(es), ext4_es_status(es));
 		}
@@ -524,7 +530,7 @@ static void ext4_es_insert_extent_ind_check(struct inode *inode,
 			 */
 			pr_warn("ES insert assertion failed for inode: %lu "
 				"We can find blocks but we want to add a "
-				"delayed/hole extent [%d/%d/%llu/%llx]\n",
+				"delayed/hole extent [%d/%d/%llu/%x]\n",
 				inode->i_ino, es->es_lblk, es->es_len,
 				ext4_es_pblock(es), ext4_es_status(es));
 			return;
@@ -554,7 +560,7 @@ static void ext4_es_insert_extent_ind_check(struct inode *inode,
 		if (ext4_es_is_written(es)) {
 			pr_warn("ES insert assertion failed for inode: %lu "
 				"We can't find the block but we want to add "
-				"an written extent [%d/%d/%llu/%llx]\n",
+				"a written extent [%d/%d/%llu/%x]\n",
 				inode->i_ino, es->es_lblk, es->es_len,
 				ext4_es_pblock(es), ext4_es_status(es));
 			return;
@@ -658,8 +664,7 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 
 	newes.es_lblk = lblk;
 	newes.es_len = len;
-	ext4_es_store_pblock(&newes, pblk);
-	ext4_es_store_status(&newes, status);
+	ext4_es_store_pblock_status(&newes, pblk, status);
 	trace_ext4_es_insert_extent(inode, &newes);
 
 	ext4_es_insert_extent_check(inode, &newes);
@@ -699,8 +704,7 @@ void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
 
 	newes.es_lblk = lblk;
 	newes.es_len = len;
-	ext4_es_store_pblock(&newes, pblk);
-	ext4_es_store_status(&newes, status);
+	ext4_es_store_pblock_status(&newes, pblk, status);
 	trace_ext4_es_cache_extent(inode, &newes);
 
 	if (!len)
@@ -812,13 +816,13 @@ retry:
 
 			newes.es_lblk = end + 1;
 			newes.es_len = len2;
+			block = 0x7FDEADBEEFULL;
 			if (ext4_es_is_written(&orig_es) ||
-			    ext4_es_is_unwritten(&orig_es)) {
+			    ext4_es_is_unwritten(&orig_es))
 				block = ext4_es_pblock(&orig_es) +
 					orig_es.es_len - len2;
-				ext4_es_store_pblock(&newes, block);
-			}
-			ext4_es_store_status(&newes, ext4_es_status(&orig_es));
+			ext4_es_store_pblock_status(&newes, block,
+						    ext4_es_status(&orig_es));
 			err = __es_insert_extent(inode, &newes);
 			if (err) {
 				es->es_lblk = orig_es.es_lblk;
@@ -962,10 +966,10 @@ retry:
 			continue;
 		}
 
-		if (ei->i_es_lru_nr == 0 || ei == locked_ei)
+		if (ei->i_es_lru_nr == 0 || ei == locked_ei ||
+		    !write_trylock(&ei->i_es_lock))
 			continue;
 
-		write_lock(&ei->i_es_lock);
 		shrunk = __es_try_to_reclaim_extents(ei, nr_to_scan);
 		if (ei->i_es_lru_nr == 0)
 			list_del_init(&ei->i_es_lru);

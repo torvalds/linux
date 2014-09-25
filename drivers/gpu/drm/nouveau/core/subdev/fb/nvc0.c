@@ -33,6 +33,21 @@ nvc0_fb_memtype_valid(struct nouveau_fb *pfb, u32 tile_flags)
 	return likely((nvc0_pte_storage_type_map[memtype] != 0xff));
 }
 
+static void
+nvc0_fb_intr(struct nouveau_subdev *subdev)
+{
+	struct nvc0_fb_priv *priv = (void *)subdev;
+	u32 intr = nv_rd32(priv, 0x000100);
+	if (intr & 0x08000000) {
+		nv_debug(priv, "PFFB intr\n");
+		intr &= ~0x08000000;
+	}
+	if (intr & 0x00002000) {
+		nv_debug(priv, "PBFB intr\n");
+		intr &= ~0x00002000;
+	}
+}
+
 int
 nvc0_fb_init(struct nouveau_object *object)
 {
@@ -45,6 +60,7 @@ nvc0_fb_init(struct nouveau_object *object)
 
 	if (priv->r100c10_page)
 		nv_wr32(priv, 0x100c10, priv->r100c10 >> 8);
+	nv_mask(priv, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
 	return 0;
 }
 
@@ -55,8 +71,8 @@ nvc0_fb_dtor(struct nouveau_object *object)
 	struct nvc0_fb_priv *priv = (void *)object;
 
 	if (priv->r100c10_page) {
-		pci_unmap_page(device->pdev, priv->r100c10, PAGE_SIZE,
-			       PCI_DMA_BIDIRECTIONAL);
+		dma_unmap_page(nv_device_base(device), priv->r100c10, PAGE_SIZE,
+			       DMA_BIDIRECTIONAL);
 		__free_page(priv->r100c10_page);
 	}
 
@@ -79,13 +95,14 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	priv->r100c10_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (priv->r100c10_page) {
-		priv->r100c10 = pci_map_page(device->pdev, priv->r100c10_page,
-					     0, PAGE_SIZE,
-					     PCI_DMA_BIDIRECTIONAL);
-		if (pci_dma_mapping_error(device->pdev, priv->r100c10))
+		priv->r100c10 = dma_map_page(nv_device_base(device),
+					     priv->r100c10_page, 0, PAGE_SIZE,
+					     DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(nv_device_base(device), priv->r100c10))
 			return -EFAULT;
 	}
 
+	nv_subdev(priv)->intr = nvc0_fb_intr;
 	return 0;
 }
 

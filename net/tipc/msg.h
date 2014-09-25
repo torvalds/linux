@@ -1,7 +1,7 @@
 /*
  * net/tipc/msg.h: Include file for TIPC message header routines
  *
- * Copyright (c) 2000-2007, Ericsson AB
+ * Copyright (c) 2000-2007, 2014, Ericsson AB
  * Copyright (c) 2005-2008, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -463,6 +463,11 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 #define FRAGMENT		1
 #define LAST_FRAGMENT		2
 
+/* Bundling protocol message types
+ */
+#define BUNDLE_OPEN             0
+#define BUNDLE_CLOSED           1
+
 /*
  * Link management protocol message types
  */
@@ -706,9 +711,36 @@ static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 9, 0, 0xffff, n);
 }
 
-u32 tipc_msg_tot_importance(struct tipc_msg *m);
+static inline u32 tipc_msg_tot_importance(struct tipc_msg *m)
+{
+	if ((msg_user(m) == MSG_FRAGMENTER) && (msg_type(m) == FIRST_FRAGMENT))
+		return msg_importance(msg_get_wrapped(m));
+	return msg_importance(m);
+}
+
+static inline u32 msg_tot_origport(struct tipc_msg *m)
+{
+	if ((msg_user(m) == MSG_FRAGMENTER) && (msg_type(m) == FIRST_FRAGMENT))
+		return msg_origport(msg_get_wrapped(m));
+	return msg_origport(m);
+}
+
+bool tipc_msg_reverse(struct sk_buff *buf, u32 *dnode, int err);
+
+int tipc_msg_eval(struct sk_buff *buf, u32 *dnode);
+
 void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
 		   u32 destnode);
-int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
-		   unsigned int len, int max_size, struct sk_buff **buf);
+
+int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf);
+
+bool tipc_msg_bundle(struct sk_buff *bbuf, struct sk_buff *buf, u32 mtu);
+
+bool tipc_msg_make_bundle(struct sk_buff **buf, u32 mtu, u32 dnode);
+
+int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
+		   int offset, int dsz, int mtu , struct sk_buff **chain);
+
+struct sk_buff *tipc_msg_reassemble(struct sk_buff *chain);
+
 #endif

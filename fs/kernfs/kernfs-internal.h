@@ -26,7 +26,8 @@ struct kernfs_iattrs {
 	struct simple_xattrs	xattrs;
 };
 
-#define KN_DEACTIVATED_BIAS		INT_MIN
+/* +1 to avoid triggering overflow warning when negating it */
+#define KN_DEACTIVATED_BIAS		(INT_MIN + 1)
 
 /* KERNFS_TYPE_MASK and types are defined in include/linux/kernfs.h */
 
@@ -45,16 +46,11 @@ static inline struct kernfs_root *kernfs_root(struct kernfs_node *kn)
 }
 
 /*
- * Context structure to be used while adding/removing nodes.
- */
-struct kernfs_addrm_cxt {
-	struct kernfs_node	*removed;
-};
-
-/*
  * mount.c
  */
 struct kernfs_super_info {
+	struct super_block	*sb;
+
 	/*
 	 * The root associated with this super_block.  Each super_block is
 	 * identified by the root and ns it's associated with.
@@ -68,9 +64,13 @@ struct kernfs_super_info {
 	 * an array and compare kernfs_node tag against every entry.
 	 */
 	const void		*ns;
+
+	/* anchored at kernfs_root->supers, protected by kernfs_mutex */
+	struct list_head	node;
 };
 #define kernfs_info(SB) ((struct kernfs_super_info *)(SB->s_fs_info))
 
+extern const struct super_operations kernfs_sops;
 extern struct kmem_cache *kernfs_node_cache;
 
 /*
@@ -100,9 +100,7 @@ extern const struct inode_operations kernfs_dir_iops;
 
 struct kernfs_node *kernfs_get_active(struct kernfs_node *kn);
 void kernfs_put_active(struct kernfs_node *kn);
-void kernfs_addrm_start(struct kernfs_addrm_cxt *acxt);
-int kernfs_add_one(struct kernfs_addrm_cxt *acxt, struct kernfs_node *kn);
-void kernfs_addrm_finish(struct kernfs_addrm_cxt *acxt);
+int kernfs_add_one(struct kernfs_node *kn);
 struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
 				    const char *name, umode_t mode,
 				    unsigned flags);

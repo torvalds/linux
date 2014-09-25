@@ -106,6 +106,7 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "INT3432", 0 },
 	{ "INT3433", 0 },
 	{ "80860F41", 0 },
+	{ "808622C1", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dw_i2c_acpi_match);
@@ -159,6 +160,13 @@ static int dw_i2c_probe(struct platform_device *pdev)
 					"i2c-sda-hold-time-ns", &ht);
 		dev->sda_hold_time = div_u64((u64)ic_clk * ht + 500000,
 					     1000000);
+
+		of_property_read_u32(pdev->dev.of_node,
+				     "i2c-sda-falling-time-ns",
+				     &dev->sda_falling_time);
+		of_property_read_u32(pdev->dev.of_node,
+				     "i2c-scl-falling-time-ns",
+				     &dev->scl_falling_time);
 	}
 
 	dev->functionality =
@@ -195,7 +203,7 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	adap = &dev->adapter;
 	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
-	adap->class = I2C_CLASS_HWMON;
+	adap->class = I2C_CLASS_DEPRECATED;
 	strlcpy(adap->name, "Synopsys DesignWare I2C adapter",
 			sizeof(adap->name));
 	adap->algo = &i2c_dw_algo;
@@ -240,12 +248,13 @@ static const struct of_device_id dw_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, dw_i2c_of_match);
 #endif
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 static int dw_i2c_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
 
+	i2c_dw_disable(i_dev);
 	clk_disable_unprepare(i_dev->clk);
 
 	return 0;
@@ -261,12 +270,10 @@ static int dw_i2c_resume(struct device *dev)
 
 	return 0;
 }
-
-static SIMPLE_DEV_PM_OPS(dw_i2c_dev_pm_ops, dw_i2c_suspend, dw_i2c_resume);
-#define DW_I2C_DEV_PM_OPS	(&dw_i2c_dev_pm_ops)
-#else
-#define DW_I2C_DEV_PM_OPS	NULL
 #endif
+
+static UNIVERSAL_DEV_PM_OPS(dw_i2c_dev_pm_ops, dw_i2c_suspend,
+			    dw_i2c_resume, NULL);
 
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:i2c_designware");
@@ -279,7 +286,7 @@ static struct platform_driver dw_i2c_driver = {
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(dw_i2c_of_match),
 		.acpi_match_table = ACPI_PTR(dw_i2c_acpi_match),
-		.pm	= DW_I2C_DEV_PM_OPS,
+		.pm	= &dw_i2c_dev_pm_ops,
 	},
 };
 

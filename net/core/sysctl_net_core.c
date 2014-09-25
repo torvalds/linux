@@ -122,7 +122,8 @@ static int flow_limit_cpu_sysctl(struct ctl_table *table, int write,
 				synchronize_rcu();
 				kfree(cur);
 			} else if (!cur && cpumask_test_cpu(i, mask)) {
-				cur = kzalloc(len, GFP_KERNEL);
+				cur = kzalloc_node(len, GFP_KERNEL,
+						   cpu_to_node(i));
 				if (!cur) {
 					/* not unwinding previous changes */
 					ret = -ENOMEM;

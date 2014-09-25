@@ -16,12 +16,6 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 {
 	struct fanotify_event_info *old, *new;
 
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	/* dont merge two permission events */
-	if ((old_fsn->mask & FAN_ALL_PERM_EVENTS) &&
-	    (new_fsn->mask & FAN_ALL_PERM_EVENTS))
-		return false;
-#endif
 	pr_debug("%s: old=%p new=%p\n", __func__, old_fsn, new_fsn);
 	old = FANOTIFY_E(old_fsn);
 	new = FANOTIFY_E(new_fsn);
@@ -34,13 +28,22 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 }
 
 /* and the list better be locked by something too! */
-static struct fsnotify_event *fanotify_merge(struct list_head *list,
-					     struct fsnotify_event *event)
+static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 {
 	struct fsnotify_event *test_event;
 	bool do_merge = false;
 
 	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
+
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	/*
+	 * Don't merge a permission event with any other event so that we know
+	 * the event structure we have created in fanotify_handle_event() is the
+	 * one we should check for permission response.
+	 */
+	if (event->mask & FAN_ALL_PERM_EVENTS)
+		return 0;
+#endif
 
 	list_for_each_entry_reverse(test_event, list, list) {
 		if (should_merge(test_event, event)) {
@@ -50,15 +53,15 @@ static struct fsnotify_event *fanotify_merge(struct list_head *list,
 	}
 
 	if (!do_merge)
-		return NULL;
+		return 0;
 
 	test_event->mask |= event->mask;
-	return test_event;
+	return 1;
 }
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-static int fanotify_get_response_from_access(struct fsnotify_group *group,
-					     struct fanotify_event_info *event)
+static int fanotify_get_response(struct fsnotify_group *group,
+				 struct fanotify_perm_event_info *event)
 {
 	int ret;
 
@@ -67,8 +70,15 @@ static int fanotify_get_response_from_access(struct fsnotify_group *group,
 	wait_event(group->fanotify_data.access_waitq, event->response ||
 				atomic_read(&group->fanotify_data.bypass_perm));
 
-	if (!event->response) /* bypass_perm set */
+	if (!event->response) {	/* bypass_perm set */
+		/*
+		 * Event was canceled because group is being destroyed. Remove
+		 * it from group's event list because we are responsible for
+		 * freeing the permission event.
+		 */
+		fsnotify_remove_event(group, &event->fae.fse);
 		return 0;
+	}
 
 	/* userspace responded, convert to something usable */
 	switch (event->response) {
@@ -139,17 +149,50 @@ static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 	return false;
 }
 
+struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
+						 struct path *path)
+{
+	struct fanotify_event_info *event;
+
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	if (mask & FAN_ALL_PERM_EVENTS) {
+		struct fanotify_perm_event_info *pevent;
+
+		pevent = kmem_cache_alloc(fanotify_perm_event_cachep,
+					  GFP_KERNEL);
+		if (!pevent)
+			return NULL;
+		event = &pevent->fae;
+		pevent->response = 0;
+		goto init;
+	}
+#endif
+	event = kmem_cache_alloc(fanotify_event_cachep, GFP_KERNEL);
+	if (!event)
+		return NULL;
+init: __maybe_unused
+	fsnotify_init_event(&event->fse, inode, mask);
+	event->tgid = get_pid(task_tgid(current));
+	if (path) {
+		event->path = *path;
+		path_get(&event->path);
+	} else {
+		event->path.mnt = NULL;
+		event->path.dentry = NULL;
+	}
+	return event;
+}
+
 static int fanotify_handle_event(struct fsnotify_group *group,
 				 struct inode *inode,
 				 struct fsnotify_mark *inode_mark,
 				 struct fsnotify_mark *fanotify_mark,
 				 u32 mask, void *data, int data_type,
-				 const unsigned char *file_name)
+				 const unsigned char *file_name, u32 cookie)
 {
 	int ret = 0;
 	struct fanotify_event_info *event;
 	struct fsnotify_event *fsn_event;
-	struct fsnotify_event *notify_fsn_event;
 
 	BUILD_BUG_ON(FAN_ACCESS != FS_ACCESS);
 	BUILD_BUG_ON(FAN_MODIFY != FS_MODIFY);
@@ -169,40 +212,26 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
 		 mask);
 
-	event = kmem_cache_alloc(fanotify_event_cachep, GFP_KERNEL);
+	event = fanotify_alloc_event(inode, mask, data);
 	if (unlikely(!event))
 		return -ENOMEM;
 
 	fsn_event = &event->fse;
-	fsnotify_init_event(fsn_event, inode, mask);
-	event->tgid = get_pid(task_tgid(current));
-	if (data_type == FSNOTIFY_EVENT_PATH) {
-		struct path *path = data;
-		event->path = *path;
-		path_get(&event->path);
-	} else {
-		event->path.mnt = NULL;
-		event->path.dentry = NULL;
-	}
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	event->response = 0;
-#endif
-
-	notify_fsn_event = fsnotify_add_notify_event(group, fsn_event,
-						     fanotify_merge);
-	if (notify_fsn_event) {
+	ret = fsnotify_add_event(group, fsn_event, fanotify_merge);
+	if (ret) {
+		/* Permission events shouldn't be merged */
+		BUG_ON(ret == 1 && mask & FAN_ALL_PERM_EVENTS);
 		/* Our event wasn't used in the end. Free it. */
 		fsnotify_destroy_event(group, fsn_event);
-		if (IS_ERR(notify_fsn_event))
-			return PTR_ERR(notify_fsn_event);
-		/* We need to ask about a different events after a merge... */
-		event = FANOTIFY_E(notify_fsn_event);
-		fsn_event = notify_fsn_event;
+
+		return 0;
 	}
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	if (fsn_event->mask & FAN_ALL_PERM_EVENTS)
-		ret = fanotify_get_response_from_access(group, event);
+	if (mask & FAN_ALL_PERM_EVENTS) {
+		ret = fanotify_get_response(group, FANOTIFY_PE(fsn_event));
+		fsnotify_destroy_event(group, fsn_event);
+	}
 #endif
 	return ret;
 }
@@ -223,6 +252,13 @@ static void fanotify_free_event(struct fsnotify_event *fsn_event)
 	event = FANOTIFY_E(fsn_event);
 	path_put(&event->path);
 	put_pid(event->tgid);
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	if (fsn_event->mask & FAN_ALL_PERM_EVENTS) {
+		kmem_cache_free(fanotify_perm_event_cachep,
+				FANOTIFY_PE(fsn_event));
+		return;
+	}
+#endif
 	kmem_cache_free(fanotify_event_cachep, event);
 }
 

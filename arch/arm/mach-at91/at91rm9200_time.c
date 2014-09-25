@@ -31,6 +31,7 @@
 #include <asm/mach/time.h>
 
 #include <mach/at91_st.h>
+#include <mach/hardware.h>
 
 static unsigned long last_crtr;
 static u32 irqmask;

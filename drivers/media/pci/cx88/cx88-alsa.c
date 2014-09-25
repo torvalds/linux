@@ -852,8 +852,6 @@ static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
 	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
 
-	snd_card_set_dev(card, &pci->dev);
-
 	*rchip = chip;
 	*core_ptr = core;
 
@@ -876,8 +874,8 @@ static int cx88_audio_initdev(struct pci_dev *pci,
 		return (-ENOENT);
 	}
 
-	err = snd_card_create(index[devno], id[devno], THIS_MODULE,
-			      sizeof(snd_cx88_card_t), &card);
+	err = snd_card_new(&pci->dev, index[devno], id[devno], THIS_MODULE,
+			   sizeof(snd_cx88_card_t), &card);
 	if (err < 0)
 		return err;
 
@@ -931,9 +929,9 @@ error:
  */
 static void cx88_audio_finidev(struct pci_dev *pci)
 {
-	struct cx88_audio_dev *card = pci_get_drvdata(pci);
+	struct snd_card *card = pci_get_drvdata(pci);
 
-	snd_card_free((void *)card);
+	snd_card_free(card);
 
 	devno--;
 }

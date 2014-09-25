@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 
@@ -35,12 +36,10 @@
 #include <asm/irq.h>
 
 #include <plat/cpu-freq.h>
-#include <plat/regs-serial.h>
 #include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/clock.h>
 #include <plat/sdhci.h>
 #include <plat/ata-core.h>
 #include <plat/adc-core.h>

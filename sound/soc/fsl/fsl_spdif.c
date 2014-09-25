@@ -13,18 +13,18 @@
  * kind, whether express or implied.
  */
 
-#include <linux/module.h>
+#include <linux/bitrev.h>
 #include <linux/clk.h>
 #include <linux/clk-private.h>
-#include <linux/bitrev.h>
-#include <linux/regmap.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/regmap.h>
 
 #include <sound/asoundef.h>
-#include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
+#include <sound/soc.h>
 
 #include "fsl_spdif.h"
 #include "imx-pcm.h"
@@ -32,10 +32,13 @@
 #define FSL_SPDIF_TXFIFO_WML	0x8
 #define FSL_SPDIF_RXFIFO_WML	0x8
 
-#define INTR_FOR_PLAYBACK (INT_TXFIFO_RESYNC)
-#define INTR_FOR_CAPTURE (INT_SYM_ERR | INT_BIT_ERR | INT_URX_FUL | INT_URX_OV|\
-		INT_QRX_FUL | INT_QRX_OV | INT_UQ_SYNC | INT_UQ_ERR |\
-		INT_RXFIFO_RESYNC | INT_LOSS_LOCK | INT_DPLL_LOCKED)
+#define INTR_FOR_PLAYBACK	(INT_TXFIFO_RESYNC)
+#define INTR_FOR_CAPTURE	(INT_SYM_ERR | INT_BIT_ERR | INT_URX_FUL |\
+				INT_URX_OV | INT_QRX_FUL | INT_QRX_OV |\
+				INT_UQ_SYNC | INT_UQ_ERR | INT_RXFIFO_RESYNC |\
+				INT_LOSS_LOCK | INT_DPLL_LOCKED)
+
+#define SIE_INTR_FOR(tx)	(tx ? INTR_FOR_PLAYBACK : INTR_FOR_CAPTURE)
 
 /* Index list for the values that has if (DPLL Locked) condition */
 static u8 srpc_dpll_locked[] = { 0x0, 0x1, 0x2, 0x3, 0x4, 0xa, 0xb };
@@ -69,17 +72,42 @@ struct spdif_mixer_control {
 	u32 ready_buf;
 };
 
+/**
+ * fsl_spdif_priv: Freescale SPDIF private data
+ *
+ * @fsl_spdif_control: SPDIF control data
+ * @cpu_dai_drv: cpu dai driver
+ * @pdev: platform device pointer
+ * @regmap: regmap handler
+ * @dpll_locked: dpll lock flag
+ * @txrate: the best rates for playback
+ * @txclk_df: STC_TXCLK_DF dividers value for playback
+ * @sysclk_df: STC_SYSCLK_DF dividers value for playback
+ * @txclk_src: STC_TXCLK_SRC values for playback
+ * @rxclk_src: SRPC_CLKSRC_SEL values for capture
+ * @txclk: tx clock sources for playback
+ * @rxclk: rx clock sources for capture
+ * @coreclk: core clock for register access via DMA
+ * @sysclk: system clock for rx clock rate measurement
+ * @dma_params_tx: DMA parameters for transmit channel
+ * @dma_params_rx: DMA parameters for receive channel
+ * @name: driver name
+ */
 struct fsl_spdif_priv {
 	struct spdif_mixer_control fsl_spdif_control;
 	struct snd_soc_dai_driver cpu_dai_drv;
 	struct platform_device *pdev;
 	struct regmap *regmap;
 	bool dpll_locked;
-	u8 txclk_div[SPDIF_TXRATE_MAX];
+	u32 txrate[SPDIF_TXRATE_MAX];
+	u8 txclk_df[SPDIF_TXRATE_MAX];
+	u8 sysclk_df[SPDIF_TXRATE_MAX];
 	u8 txclk_src[SPDIF_TXRATE_MAX];
 	u8 rxclk_src;
 	struct clk *txclk[SPDIF_TXRATE_MAX];
 	struct clk *rxclk;
+	struct clk *coreclk;
+	struct clk *sysclk;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 
@@ -112,10 +140,9 @@ static void spdif_irq_sym_error(struct fsl_spdif_priv *spdif_priv)
 
 	dev_dbg(&pdev->dev, "isr: receiver found illegal symbol\n");
 
-	if (!spdif_priv->dpll_locked) {
-		/* DPLL unlocked seems no audio stream */
+	/* Clear illegal symbol if DPLL unlocked since no audio stream */
+	if (!spdif_priv->dpll_locked)
 		regmap_update_bits(regmap, REG_SPDIF_SIE, INT_SYM_ERR, 0);
-	}
 }
 
 /* U/Q Channel receive register full */
@@ -310,8 +337,8 @@ static void spdif_write_channel_status(struct fsl_spdif_priv *spdif_priv)
 	u32 ch_status;
 
 	ch_status = (bitrev8(ctrl->ch_status[0]) << 16) |
-		(bitrev8(ctrl->ch_status[1]) << 8) |
-		bitrev8(ctrl->ch_status[2]);
+		    (bitrev8(ctrl->ch_status[1]) << 8) |
+		    bitrev8(ctrl->ch_status[2]);
 	regmap_write(regmap, REG_SPDIF_STCSCH, ch_status);
 
 	dev_dbg(&pdev->dev, "STCSCH: 0x%06x\n", ch_status);
@@ -349,7 +376,7 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 	struct platform_device *pdev = spdif_priv->pdev;
 	unsigned long csfs = 0;
 	u32 stc, mask, rate;
-	u8 clk, div;
+	u8 clk, txclk_df, sysclk_df;
 	int ret;
 
 	switch (sample_rate) {
@@ -365,6 +392,14 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 		rate = SPDIF_TXRATE_48000;
 		csfs = IEC958_AES3_CON_FS_48000;
 		break;
+	case 96000:
+		rate = SPDIF_TXRATE_96000;
+		csfs = IEC958_AES3_CON_FS_96000;
+		break;
+	case 192000:
+		rate = SPDIF_TXRATE_192000;
+		csfs = IEC958_AES3_CON_FS_192000;
+		break;
 	default:
 		dev_err(&pdev->dev, "unsupported sample rate %d\n", sample_rate);
 		return -EINVAL;
@@ -376,25 +411,31 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	div = spdif_priv->txclk_div[rate];
-	if (div == 0) {
-		dev_err(&pdev->dev, "the divisor can't be zero\n");
+	txclk_df = spdif_priv->txclk_df[rate];
+	if (txclk_df == 0) {
+		dev_err(&pdev->dev, "the txclk_df can't be zero\n");
 		return -EINVAL;
 	}
 
+	sysclk_df = spdif_priv->sysclk_df[rate];
+
+	/* Don't mess up the clocks from other modules */
+	if (clk != STC_TXCLK_SPDIF_ROOT)
+		goto clk_set_bypass;
+
 	/*
-	 * The S/PDIF block needs a clock of 64 * fs * div.  The S/PDIF block
-	 * will divide by (div).  So request 64 * fs * (div+1) which will
-	 * get rounded.
+	 * The S/PDIF block needs a clock of 64 * fs * txclk_df.
+	 * So request 64 * fs * (txclk_df + 1) to get rounded.
 	 */
-	ret = clk_set_rate(spdif_priv->txclk[rate], 64 * sample_rate * (div + 1));
+	ret = clk_set_rate(spdif_priv->txclk[rate], 64 * sample_rate * (txclk_df + 1));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to set tx clock rate\n");
 		return ret;
 	}
 
+clk_set_bypass:
 	dev_dbg(&pdev->dev, "expected clock rate = %d\n",
-			(64 * sample_rate * div));
+			(64 * sample_rate * txclk_df * sysclk_df));
 	dev_dbg(&pdev->dev, "actual clock rate = %ld\n",
 			clk_get_rate(spdif_priv->txclk[rate]));
 
@@ -402,11 +443,14 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 	spdif_set_cstatus(ctrl, IEC958_AES3_CON_FS, csfs);
 
 	/* select clock source and divisor */
-	stc = STC_TXCLK_ALL_EN | STC_TXCLK_SRC_SET(clk) | STC_TXCLK_DIV(div);
-	mask = STC_TXCLK_ALL_EN_MASK | STC_TXCLK_SRC_MASK | STC_TXCLK_DIV_MASK;
+	stc = STC_TXCLK_ALL_EN | STC_TXCLK_SRC_SET(clk) |
+	      STC_TXCLK_DF(txclk_df) | STC_SYSCLK_DF(sysclk_df);
+	mask = STC_TXCLK_ALL_EN_MASK | STC_TXCLK_SRC_MASK |
+	       STC_TXCLK_DF_MASK | STC_SYSCLK_DF_MASK;
 	regmap_update_bits(regmap, REG_SPDIF_STC, mask, stc);
 
-	dev_dbg(&pdev->dev, "set sample rate to %d\n", sample_rate);
+	dev_dbg(&pdev->dev, "set sample rate to %dHz for %dHz playback\n",
+			spdif_priv->txrate[rate], sample_rate);
 
 	return 0;
 }
@@ -423,10 +467,16 @@ static int fsl_spdif_startup(struct snd_pcm_substream *substream,
 
 	/* Reset module and interrupts only for first initialization */
 	if (!cpu_dai->active) {
+		ret = clk_prepare_enable(spdif_priv->coreclk);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to enable core clock\n");
+			return ret;
+		}
+
 		ret = spdif_softreset(spdif_priv);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to soft reset\n");
-			return ret;
+			goto err;
 		}
 
 		/* Disable all the interrupts */
@@ -454,6 +504,11 @@ static int fsl_spdif_startup(struct snd_pcm_substream *substream,
 	regmap_update_bits(regmap, REG_SPDIF_SCR, SCR_LOW_POWER, 0);
 
 	return 0;
+
+err:
+	clk_disable_unprepare(spdif_priv->coreclk);
+
+	return ret;
 }
 
 static void fsl_spdif_shutdown(struct snd_pcm_substream *substream,
@@ -484,6 +539,7 @@ static void fsl_spdif_shutdown(struct snd_pcm_substream *substream,
 		spdif_intr_status_clear(spdif_priv);
 		regmap_update_bits(regmap, REG_SPDIF_SCR,
 				SCR_LOW_POWER, SCR_LOW_POWER);
+		clk_disable_unprepare(spdif_priv->coreclk);
 	}
 }
 
@@ -506,7 +562,7 @@ static int fsl_spdif_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 		}
 		spdif_set_cstatus(ctrl, IEC958_AES3_CON_CLOCK,
-				IEC958_AES3_CON_CLOCK_1000PPM);
+				  IEC958_AES3_CON_CLOCK_1000PPM);
 		spdif_write_channel_status(spdif_priv);
 	} else {
 		/* Setup rx clock source */
@@ -522,9 +578,9 @@ static int fsl_spdif_trigger(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct fsl_spdif_priv *spdif_priv = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 	struct regmap *regmap = spdif_priv->regmap;
-	int is_playack = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
-	u32 intr = is_playack ? INTR_FOR_PLAYBACK : INTR_FOR_CAPTURE;
-	u32 dmaen = is_playack ? SCR_DMA_TX_EN : SCR_DMA_RX_EN;;
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	u32 intr = SIE_INTR_FOR(tx);
+	u32 dmaen = SCR_DMA_xX_EN(tx);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -615,9 +671,8 @@ static int fsl_spdif_capture_get(struct snd_kcontrol *kcontrol,
 	u32 cstatus, val;
 
 	regmap_read(regmap, REG_SPDIF_SIS, &val);
-	if (!(val & INT_CNEW)) {
+	if (!(val & INT_CNEW))
 		return -EAGAIN;
-	}
 
 	regmap_read(regmap, REG_SPDIF_SRCSH, &cstatus);
 	ucontrol->value.iec958.status[0] = (cstatus >> 16) & 0xFF;
@@ -646,15 +701,14 @@ static int fsl_spdif_subcode_get(struct snd_kcontrol *kcontrol,
 	struct fsl_spdif_priv *spdif_priv = snd_soc_dai_get_drvdata(cpu_dai);
 	struct spdif_mixer_control *ctrl = &spdif_priv->fsl_spdif_control;
 	unsigned long flags;
-	int ret = 0;
+	int ret = -EAGAIN;
 
 	spin_lock_irqsave(&ctrl->ctl_lock, flags);
 	if (ctrl->ready_buf) {
 		int idx = (ctrl->ready_buf - 1) * SPDIF_UBITS_SIZE;
 		memcpy(&ucontrol->value.iec958.subcode[0],
 				&ctrl->subcode[idx], SPDIF_UBITS_SIZE);
-	} else {
-		ret = -EAGAIN;
+		ret = 0;
 	}
 	spin_unlock_irqrestore(&ctrl->ctl_lock, flags);
 
@@ -679,15 +733,14 @@ static int fsl_spdif_qget(struct snd_kcontrol *kcontrol,
 	struct fsl_spdif_priv *spdif_priv = snd_soc_dai_get_drvdata(cpu_dai);
 	struct spdif_mixer_control *ctrl = &spdif_priv->fsl_spdif_control;
 	unsigned long flags;
-	int ret = 0;
+	int ret = -EAGAIN;
 
 	spin_lock_irqsave(&ctrl->ctl_lock, flags);
 	if (ctrl->ready_buf) {
 		int idx = (ctrl->ready_buf - 1) * SPDIF_QSUB_SIZE;
 		memcpy(&ucontrol->value.bytes.data[0],
 				&ctrl->qsub[idx], SPDIF_QSUB_SIZE);
-	} else {
-		ret = -EAGAIN;
+		ret = 0;
 	}
 	spin_unlock_irqrestore(&ctrl->ctl_lock, flags);
 
@@ -715,7 +768,7 @@ static int fsl_spdif_vbit_get(struct snd_kcontrol *kcontrol,
 	struct regmap *regmap = spdif_priv->regmap;
 	u32 val;
 
-	val = regmap_read(regmap, REG_SPDIF_SIS, &val);
+	regmap_read(regmap, REG_SPDIF_SIS, &val);
 	ucontrol->value.integer.value[0] = (val & INT_VAL_NOGOOD) != 0;
 	regmap_write(regmap, REG_SPDIF_SIC, INT_VAL_NOGOOD);
 
@@ -752,10 +805,10 @@ static int spdif_get_rxclk_rate(struct fsl_spdif_priv *spdif_priv,
 	regmap_read(regmap, REG_SPDIF_SRPC, &phaseconf);
 
 	clksrc = (phaseconf >> SRPC_CLKSRC_SEL_OFFSET) & 0xf;
-	if (srpc_dpll_locked[clksrc] && (phaseconf & SRPC_DPLL_LOCKED)) {
-		/* Get bus clock from system */
-		busclk_freq = clk_get_rate(spdif_priv->rxclk);
-	}
+
+	/* Get bus clock from system */
+	if (srpc_dpll_locked[clksrc] && (phaseconf & SRPC_DPLL_LOCKED))
+		busclk_freq = clk_get_rate(spdif_priv->sysclk);
 
 	/* FreqMeas_CLK = (BUS_CLK * FreqMeas) / 2 ^ 10 / GAINSEL / 128 */
 	tmpval64 = (u64) busclk_freq * freqmeas;
@@ -779,12 +832,12 @@ static int fsl_spdif_rxrate_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
 	struct fsl_spdif_priv *spdif_priv = snd_soc_dai_get_drvdata(cpu_dai);
-	int rate = spdif_get_rxclk_rate(spdif_priv, SPDIF_DEFAULT_GAINSEL);
+	int rate = 0;
 
 	if (spdif_priv->dpll_locked)
-		ucontrol->value.integer.value[0] = rate;
-	else
-		ucontrol->value.integer.value[0] = 0;
+		rate = spdif_get_rxclk_rate(spdif_priv, SPDIF_DEFAULT_GAINSEL);
+
+	ucontrol->value.integer.value[0] = rate;
 
 	return 0;
 }
@@ -911,8 +964,8 @@ static int fsl_spdif_dai_probe(struct snd_soc_dai *dai)
 {
 	struct fsl_spdif_priv *spdif_private = snd_soc_dai_get_drvdata(dai);
 
-	dai->playback_dma_data = &spdif_private->dma_params_tx;
-	dai->capture_dma_data = &spdif_private->dma_params_rx;
+	snd_soc_dai_init_dma_data(dai, &spdif_private->dma_params_tx,
+				  &spdif_private->dma_params_rx);
 
 	snd_soc_add_dai_controls(dai, fsl_spdif_ctrls, ARRAY_SIZE(fsl_spdif_ctrls));
 
@@ -922,12 +975,14 @@ static int fsl_spdif_dai_probe(struct snd_soc_dai *dai)
 static struct snd_soc_dai_driver fsl_spdif_dai = {
 	.probe = &fsl_spdif_dai_probe,
 	.playback = {
+		.stream_name = "CPU-Playback",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = FSL_SPDIF_RATES_PLAYBACK,
 		.formats = FSL_SPDIF_FORMATS_PLAYBACK,
 	},
 	.capture = {
+		.stream_name = "CPU-Capture",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = FSL_SPDIF_RATES_CAPTURE,
@@ -985,7 +1040,7 @@ static bool fsl_spdif_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct regmap_config fsl_spdif_regmap_config = {
+static struct regmap_config fsl_spdif_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -997,50 +1052,68 @@ static const struct regmap_config fsl_spdif_regmap_config = {
 
 static u32 fsl_spdif_txclk_caldiv(struct fsl_spdif_priv *spdif_priv,
 				struct clk *clk, u64 savesub,
-				enum spdif_txrate index)
+				enum spdif_txrate index, bool round)
 {
-	const u32 rate[] = { 32000, 44100, 48000 };
+	const u32 rate[] = { 32000, 44100, 48000, 96000, 192000 };
+	bool is_sysclk = clk == spdif_priv->sysclk;
 	u64 rate_ideal, rate_actual, sub;
-	u32 div, arate;
+	u32 sysclk_dfmin, sysclk_dfmax;
+	u32 txclk_df, sysclk_df, arate;
 
-	for (div = 1; div <= 128; div++) {
-		rate_ideal = rate[index] * (div + 1) * 64;
-		rate_actual = clk_round_rate(clk, rate_ideal);
+	/* The sysclk has an extra divisor [2, 512] */
+	sysclk_dfmin = is_sysclk ? 2 : 1;
+	sysclk_dfmax = is_sysclk ? 512 : 1;
 
-		arate = rate_actual / 64;
-		arate /= div;
+	for (sysclk_df = sysclk_dfmin; sysclk_df <= sysclk_dfmax; sysclk_df++) {
+		for (txclk_df = 1; txclk_df <= 128; txclk_df++) {
+			rate_ideal = rate[index] * (txclk_df + 1) * 64;
+			if (round)
+				rate_actual = clk_round_rate(clk, rate_ideal);
+			else
+				rate_actual = clk_get_rate(clk);
 
-		if (arate == rate[index]) {
-			/* We are lucky */
-			savesub = 0;
-			spdif_priv->txclk_div[index] = div;
-			break;
-		} else if (arate / rate[index] == 1) {
-			/* A little bigger than expect */
-			sub = (arate - rate[index]) * 100000;
-			do_div(sub, rate[index]);
-			if (sub < savesub) {
+			arate = rate_actual / 64;
+			arate /= txclk_df * sysclk_df;
+
+			if (arate == rate[index]) {
+				/* We are lucky */
+				savesub = 0;
+				spdif_priv->txclk_df[index] = txclk_df;
+				spdif_priv->sysclk_df[index] = sysclk_df;
+				spdif_priv->txrate[index] = arate;
+				goto out;
+			} else if (arate / rate[index] == 1) {
+				/* A little bigger than expect */
+				sub = (u64)(arate - rate[index]) * 100000;
+				do_div(sub, rate[index]);
+				if (sub >= savesub)
+					continue;
 				savesub = sub;
-				spdif_priv->txclk_div[index] = div;
-			}
-		} else if (rate[index] / arate == 1) {
-			/* A little smaller than expect */
-			sub = (rate[index] - arate) * 100000;
-			do_div(sub, rate[index]);
-			if (sub < savesub) {
+				spdif_priv->txclk_df[index] = txclk_df;
+				spdif_priv->sysclk_df[index] = sysclk_df;
+				spdif_priv->txrate[index] = arate;
+			} else if (rate[index] / arate == 1) {
+				/* A little smaller than expect */
+				sub = (u64)(rate[index] - arate) * 100000;
+				do_div(sub, rate[index]);
+				if (sub >= savesub)
+					continue;
 				savesub = sub;
-				spdif_priv->txclk_div[index] = div;
+				spdif_priv->txclk_df[index] = txclk_df;
+				spdif_priv->sysclk_df[index] = sysclk_df;
+				spdif_priv->txrate[index] = arate;
 			}
 		}
 	}
 
+out:
 	return savesub;
 }
 
 static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 				enum spdif_txrate index)
 {
-	const u32 rate[] = { 32000, 44100, 48000 };
+	const u32 rate[] = { 32000, 44100, 48000, 96000, 192000 };
 	struct platform_device *pdev = spdif_priv->pdev;
 	struct device *dev = &pdev->dev;
 	u64 savesub = 100000, ret;
@@ -1058,7 +1131,8 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 		if (!clk_get_rate(clk))
 			continue;
 
-		ret = fsl_spdif_txclk_caldiv(spdif_priv, clk, savesub, index);
+		ret = fsl_spdif_txclk_caldiv(spdif_priv, clk, savesub, index,
+					     i == STC_TXCLK_SPDIF_ROOT);
 		if (savesub == ret)
 			continue;
 
@@ -1073,8 +1147,13 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 
 	dev_dbg(&pdev->dev, "use rxtx%d as tx clock source for %dHz sample rate\n",
 			spdif_priv->txclk_src[index], rate[index]);
-	dev_dbg(&pdev->dev, "use divisor %d for %dHz sample rate\n",
-			spdif_priv->txclk_div[index], rate[index]);
+	dev_dbg(&pdev->dev, "use txclk df %d for %dHz sample rate\n",
+			spdif_priv->txclk_df[index], rate[index]);
+	if (spdif_priv->txclk[index] == spdif_priv->sysclk)
+		dev_dbg(&pdev->dev, "use sysclk df %d for %dHz sample rate\n",
+				spdif_priv->sysclk_df[index], rate[index]);
+	dev_dbg(&pdev->dev, "the best rate for %dHz sample rate is %dHz\n",
+			rate[index], spdif_priv->txrate[index]);
 
 	return 0;
 }
@@ -1105,6 +1184,9 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	memcpy(&spdif_priv->cpu_dai_drv, &fsl_spdif_dai, sizeof(fsl_spdif_dai));
 	spdif_priv->cpu_dai_drv.name = spdif_priv->name;
 
+	if (of_property_read_bool(np, "big-endian"))
+		fsl_spdif_regmap_config.val_format_endian = REGMAP_ENDIAN_BIG;
+
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(&pdev->dev, res);
@@ -1131,6 +1213,20 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* Get system clock for rx clock rate calculation */
+	spdif_priv->sysclk = devm_clk_get(&pdev->dev, "rxtx5");
+	if (IS_ERR(spdif_priv->sysclk)) {
+		dev_err(&pdev->dev, "no sys clock (rxtx5) in devicetree\n");
+		return PTR_ERR(spdif_priv->sysclk);
+	}
+
+	/* Get core clock for data register access via DMA */
+	spdif_priv->coreclk = devm_clk_get(&pdev->dev, "core");
+	if (IS_ERR(spdif_priv->coreclk)) {
+		dev_err(&pdev->dev, "no core clock in devicetree\n");
+		return PTR_ERR(spdif_priv->coreclk);
+	}
+
 	/* Select clock source for rx/tx clock */
 	spdif_priv->rxclk = devm_clk_get(&pdev->dev, "rxtx1");
 	if (IS_ERR(spdif_priv->rxclk)) {
@@ -1150,12 +1246,12 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	spin_lock_init(&ctrl->ctl_lock);
 
 	/* Init tx channel status default value */
-	ctrl->ch_status[0] =
-		IEC958_AES0_CON_NOT_COPYRIGHT | IEC958_AES0_CON_EMPHASIS_5015;
+	ctrl->ch_status[0] = IEC958_AES0_CON_NOT_COPYRIGHT |
+			     IEC958_AES0_CON_EMPHASIS_5015;
 	ctrl->ch_status[1] = IEC958_AES1_CON_DIGDIGCONV_ID;
 	ctrl->ch_status[2] = 0x00;
-	ctrl->ch_status[3] =
-		IEC958_AES3_CON_FS_44100 | IEC958_AES3_CON_CLOCK_1000PPM;
+	ctrl->ch_status[3] = IEC958_AES3_CON_FS_44100 |
+			     IEC958_AES3_CON_CLOCK_1000PPM;
 
 	spdif_priv->dpll_locked = false;
 
@@ -1183,6 +1279,7 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 
 static const struct of_device_id fsl_spdif_dt_ids[] = {
 	{ .compatible = "fsl,imx35-spdif", },
+	{ .compatible = "fsl,vf610-spdif", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsl_spdif_dt_ids);

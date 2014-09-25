@@ -3,24 +3,31 @@
 Required properties:
 - #address-cells: see spi-bus.txt
 - #size-cells: see spi-bus.txt
-- compatible: should be "efm32,spi"
+- compatible: should be "energymicro,efm32-spi"
 - reg: Offset and length of the register set for the controller
 - interrupts: pair specifying rx and tx irq
 - clocks: phandle to the spi clock
 - cs-gpios: see spi-bus.txt
-- location: Value to write to the ROUTE register's LOCATION bitfield to configure the pinmux for the device, see datasheet for values.
+
+Recommended properties :
+- energymicro,location: Value to write to the ROUTE register's LOCATION
+                        bitfield to configure the pinmux for the device, see
+                        datasheet for values.
+                        If this property is not provided, keeping what is
+                        already configured in the hardware, so its either the
+                        reset default 0 or whatever the bootloader did.
 
 Example:
 
 spi1: spi@0x4000c400 { /* USART1 */
 	#address-cells = <1>;
 	#size-cells = <0>;
-	compatible = "efm32,spi";
+	compatible = "energymicro,efm32-spi";
 	reg = <0x4000c400 0x400>;
 	interrupts = <15 16>;
 	clocks = <&cmu 20>;
 	cs-gpios = <&gpio 51 1>; // D3
-	location = <1>;
+	energymicro,location = <1>;
 	status = "ok";
 
 	ks8851@0 {

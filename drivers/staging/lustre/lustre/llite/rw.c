@@ -54,10 +54,10 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <lustre_lite.h>
-#include <obd_cksum.h>
+#include "../include/lustre_lite.h"
+#include "../include/obd_cksum.h"
 #include "llite_internal.h"
-#include <linux/lustre_compat25.h>
+#include "../include/linux/lustre_compat25.h"
 
 /**
  * Finalizes cl-data before exiting typical address_space operation. Dual to
@@ -77,12 +77,6 @@ static void ll_cl_fini(struct ll_cl_context *lcc)
 		cl_page_put(env, page);
 	}
 
-	if (io && lcc->lcc_created) {
-		cl_io_end(env, io);
-		cl_io_unlock(env, io);
-		cl_io_iter_fini(env, io);
-		cl_io_fini(env, io);
-	}
 	cl_env_put(env, &lcc->lcc_refcheck);
 }
 
@@ -135,7 +129,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 		}
 
 		/*
-		 * Loop-back driver calls ->prepare_write() and ->sendfile()
+		 * Loop-back driver calls ->prepare_write().
 		 * methods directly, bypassing file system ->write() operation,
 		 * so cl_io has to be created here.
 		 */
@@ -157,8 +151,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 		result = cl_io_rw_init(env, io, CIT_WRITE, pos, PAGE_CACHE_SIZE);
 		if (result == 0) {
 			cio->cui_fd = LUSTRE_FPRIVATE(file);
-			cio->cui_iov = NULL;
-			cio->cui_nrsegs = 0;
+			cio->cui_iter = NULL;
 			result = cl_io_iter_init(env, io);
 			if (result == 0) {
 				result = cl_io_lock(env, io);
@@ -167,7 +160,6 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 			}
 		} else
 			result = io->ci_result;
-		lcc->lcc_created = 1;
 	}
 
 	lcc->lcc_io = io;
@@ -504,14 +496,9 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 	struct cl_object *clob  = ll_i2info(mapping->host)->lli_clob;
 	struct cl_page   *page;
 	enum ra_stat      which = _NR_RA_STAT; /* keep gcc happy */
-	unsigned int      gfp_mask;
 	int	       rc    = 0;
 	const char       *msg   = NULL;
 
-	gfp_mask = GFP_HIGHUSER & ~__GFP_WAIT;
-#ifdef __GFP_NOWARN
-	gfp_mask |= __GFP_NOWARN;
-#endif
 	vmpage = grab_cache_page_nowait(mapping, index);
 	if (vmpage != NULL) {
 		/* Check if vmpage was truncated or reclaimed */
@@ -558,10 +545,10 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
  * striped over, rather than having a constant value for all files here. */
 
 /* RAS_INCREASE_STEP should be (1UL << (inode->i_blkbits - PAGE_CACHE_SHIFT)).
- * Temprarily set RAS_INCREASE_STEP to 1MB. After 4MB RPC is enabled
+ * Temporarily set RAS_INCREASE_STEP to 1MB. After 4MB RPC is enabled
  * by default, this should be adjusted corresponding with max_read_ahead_mb
  * and max_read_ahead_per_file_mb otherwise the readahead budget can be used
- * up quickly which will affect read performance siginificantly. See LU-2816 */
+ * up quickly which will affect read performance significantly. See LU-2816 */
 #define RAS_INCREASE_STEP(inode) (ONE_MB_BRW_SIZE >> PAGE_CACHE_SHIFT)
 
 static inline int stride_io_mode(struct ll_readahead_state *ras)
@@ -570,7 +557,7 @@ static inline int stride_io_mode(struct ll_readahead_state *ras)
 }
 /* The function calculates how much pages will be read in
  * [off, off + length], in such stride IO area,
- * stride_offset = st_off, stride_lengh = st_len,
+ * stride_offset = st_off, stride_length = st_len,
  * stride_pages = st_pgs
  *
  *   |------------------|*****|------------------|*****|------------|*****|....
@@ -609,7 +596,7 @@ stride_pg_count(pgoff_t st_off, unsigned long st_len, unsigned long st_pgs,
 	if (end_left > st_pgs)
 		end_left = st_pgs;
 
-	CDEBUG(D_READA, "start "LPU64", end "LPU64" start_left %lu end_left %lu \n",
+	CDEBUG(D_READA, "start %llu, end %llu start_left %lu end_left %lu \n",
 	       start, end, start_left, end_left);
 
 	if (start == end)
@@ -1021,7 +1008,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 		kms_pages = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
 			    PAGE_CACHE_SHIFT;
 
-		CDEBUG(D_READA, "kmsp "LPU64" mwp %lu mp %lu\n", kms_pages,
+		CDEBUG(D_READA, "kmsp %llu mwp %lu mp %lu\n", kms_pages,
 		       ra->ra_max_read_ahead_whole_pages, ra->ra_max_pages_per_file);
 
 		if (kms_pages &&
@@ -1090,7 +1077,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 	ras_set_start(inode, ras, index);
 
 	if (stride_io_mode(ras))
-		/* Since stride readahead is sentivite to the offset
+		/* Since stride readahead is sensitive to the offset
 		 * of read-ahead, so we use original offset here,
 		 * instead of ras_window_start, which is RPC aligned */
 		ras->ras_next_readahead = max(index, ras->ras_next_readahead);

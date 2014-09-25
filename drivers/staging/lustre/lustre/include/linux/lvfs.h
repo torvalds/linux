@@ -45,9 +45,9 @@
 #error Do not #include this file directly. #include <lvfs.h> instead
 #endif
 
-#include <linux/lustre_compat25.h>
-#include <linux/lustre_common.h>
-#include <linux/lvfs_linux.h>
+#include "lustre_compat25.h"
+#include "lustre_common.h"
+#include "lvfs_linux.h"
 
 #define LLOG_LVFS
 

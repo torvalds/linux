@@ -52,8 +52,10 @@ lp3943_pwm_request_map(struct lp3943_pwm *lp3943_pwm, int hwpwm)
 		offset = pwm_map->output[i];
 
 		/* Return an error if the pin is already assigned */
-		if (test_and_set_bit(offset, &lp3943->pin_used))
+		if (test_and_set_bit(offset, &lp3943->pin_used)) {
+			kfree(pwm_map);
 			return ERR_PTR(-EBUSY);
+		}
 	}
 
 	return pwm_map;
@@ -276,6 +278,7 @@ static int lp3943_pwm_probe(struct platform_device *pdev)
 	lp3943_pwm->chip.dev = &pdev->dev;
 	lp3943_pwm->chip.ops = &lp3943_pwm_ops;
 	lp3943_pwm->chip.npwm = LP3943_NUM_PWMS;
+	lp3943_pwm->chip.can_sleep = true;
 
 	platform_set_drvdata(pdev, lp3943_pwm);
 

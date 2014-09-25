@@ -30,6 +30,8 @@
 #include <linux/printk.h>
 #include <linux/bug.h>
 #include <linux/of.h>
+#include <linux/cpu.h>
+#include <linux/smp.h>
 
 struct trusted_foundations_platform_data {
 	unsigned int version_major;
@@ -47,10 +49,15 @@ static inline void register_trusted_foundations(
 				   struct trusted_foundations_platform_data *pd)
 {
 	/*
-	 * If we try to register TF, this means the system needs it to continue.
-	 * Its absence if thus a fatal error.
+	 * If the system requires TF and we cannot provide it, continue booting
+	 * but disable features that cannot be provided.
 	 */
-	panic("No support for Trusted Foundations, stopping...\n");
+	pr_err("No support for Trusted Foundations, continuing in degraded mode.\n");
+	pr_err("Secondary processors as well as CPU PM will be disabled.\n");
+#if IS_ENABLED(CONFIG_SMP)
+	setup_max_cpus = 0;
+#endif
+	cpu_idle_poll_ctrl(true);
 }
 
 static inline void of_register_trusted_foundations(void)
@@ -59,7 +66,7 @@ static inline void of_register_trusted_foundations(void)
 	 * If we find the target should enable TF but does not support it,
 	 * fail as the system won't be able to do much anyway
 	 */
-	if (of_find_compatible_node(NULL, NULL, "tl,trusted-foundations"))
+	if (of_find_compatible_node(NULL, NULL, "tlm,trusted-foundations"))
 		register_trusted_foundations(NULL);
 }
 #endif /* CONFIG_TRUSTED_FOUNDATIONS */

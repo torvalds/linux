@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -66,23 +67,23 @@ static inline void ixgbe_fcoe_clear_ddp(struct ixgbe_fcoe_ddp *ddp)
  */
 int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid)
 {
-	int len = 0;
+	int len;
 	struct ixgbe_fcoe *fcoe;
 	struct ixgbe_adapter *adapter;
 	struct ixgbe_fcoe_ddp *ddp;
 	u32 fcbuff;
 
 	if (!netdev)
-		goto out_ddp_put;
+		return 0;
 
 	if (xid >= IXGBE_FCOE_DDP_MAX)
-		goto out_ddp_put;
+		return 0;
 
 	adapter = netdev_priv(netdev);
 	fcoe = &adapter->fcoe;
 	ddp = &fcoe->ddp[xid];
 	if (!ddp->udl)
-		goto out_ddp_put;
+		return 0;
 
 	len = ddp->len;
 	/* if there an error, force to invalidate ddp context */
@@ -113,7 +114,6 @@ int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid)
 
 	ixgbe_fcoe_clear_ddp(ddp);
 
-out_ddp_put:
 	return len;
 }
 
@@ -393,27 +393,27 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		xid =  be16_to_cpu(fh->fh_rx_id);
 
 	if (xid >= IXGBE_FCOE_DDP_MAX)
-		goto ddp_out;
+		return -EINVAL;
 
 	fcoe = &adapter->fcoe;
 	ddp = &fcoe->ddp[xid];
 	if (!ddp->udl)
-		goto ddp_out;
+		return -EINVAL;
 
 	ddp_err = ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_ERR_FCEOFE |
 					      IXGBE_RXDADV_ERR_FCERR);
 	if (ddp_err)
-		goto ddp_out;
+		return -EINVAL;
 
 	switch (ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_FCSTAT)) {
 	/* return 0 to bypass going to ULD for DDPed data */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_DDP):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_DDP):
 		/* update length of DDPed data */
 		ddp->len = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
 		rc = 0;
 		break;
 	/* unmap the sg list when FCPRSP is received */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_FCPRSP):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_FCPRSP):
 		dma_unmap_sg(&adapter->pdev->dev, ddp->sgl,
 			     ddp->sgc, DMA_FROM_DEVICE);
 		ddp->err = ddp_err;
@@ -421,14 +421,14 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		ddp->sgc = 0;
 		/* fall through */
 	/* if DDP length is present pass it through to ULD */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NODDP):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NODDP):
 		/* update length of DDPed data */
 		ddp->len = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
 		if (ddp->len)
 			rc = ddp->len;
 		break;
 	/* no match will return as an error */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NOMTCH):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NOMTCH):
 	default:
 		break;
 	}
@@ -446,7 +446,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		crc = (struct fcoe_crc_eof *)skb_put(skb, sizeof(*crc));
 		crc->fcoe_eof = FC_EOF_T;
 	}
-ddp_out:
+
 	return rc;
 }
 
@@ -585,7 +585,7 @@ static int ixgbe_fcoe_dma_pool_alloc(struct ixgbe_fcoe *fcoe,
 	struct dma_pool *pool;
 	char pool_name[32];
 
-	snprintf(pool_name, 32, "ixgbe_fcoe_ddp_%d", cpu);
+	snprintf(pool_name, 32, "ixgbe_fcoe_ddp_%u", cpu);
 
 	pool = dma_pool_create(pool_name, dev, IXGBE_FCPTR_MAX,
 			       IXGBE_FCPTR_ALIGN, PAGE_SIZE);
@@ -877,7 +877,6 @@ int ixgbe_fcoe_disable(struct net_device *netdev)
  */
 int ixgbe_fcoe_get_wwn(struct net_device *netdev, u64 *wwn, int type)
 {
-	int rc = -EINVAL;
 	u16 prefix = 0xffff;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_mac_info *mac = &adapter->hw.mac;
@@ -902,9 +901,9 @@ int ixgbe_fcoe_get_wwn(struct net_device *netdev, u64 *wwn, int type)
 		       ((u64) mac->san_addr[3] << 16) |
 		       ((u64) mac->san_addr[4] << 8)  |
 		       ((u64) mac->san_addr[5]);
-		rc = 0;
+		return 0;
 	}
-	return rc;
+	return -EINVAL;
 }
 
 /**

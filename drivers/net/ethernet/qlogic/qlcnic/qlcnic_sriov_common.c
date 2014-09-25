@@ -35,7 +35,12 @@ static void qlcnic_sriov_vf_cancel_fw_work(struct qlcnic_adapter *);
 static void qlcnic_sriov_cleanup_transaction(struct qlcnic_bc_trans *);
 static int qlcnic_sriov_issue_cmd(struct qlcnic_adapter *,
 				  struct qlcnic_cmd_args *);
+static int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *, u8);
 static void qlcnic_sriov_process_bc_cmd(struct work_struct *);
+static int qlcnic_sriov_vf_shutdown(struct pci_dev *);
+static int qlcnic_sriov_vf_resume(struct qlcnic_adapter *);
+static int qlcnic_sriov_async_issue_cmd(struct qlcnic_adapter *,
+					struct qlcnic_cmd_args *);
 
 static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 	.read_crb			= qlcnic_83xx_read_crb,
@@ -68,6 +73,8 @@ static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 	.change_l2_filter		= qlcnic_83xx_change_l2_filter,
 	.get_board_info			= qlcnic_83xx_get_port_info,
 	.free_mac_list			= qlcnic_sriov_vf_free_mac_list,
+	.enable_sds_intr		= qlcnic_83xx_enable_sds_intr,
+	.disable_sds_intr		= qlcnic_83xx_disable_sds_intr,
 };
 
 static struct qlcnic_nic_template qlcnic_sriov_vf_ops = {
@@ -176,6 +183,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 		vf->adapter = adapter;
 		vf->pci_func = qlcnic_sriov_virtid_fn(adapter, i);
 		mutex_init(&vf->send_cmd_lock);
+		spin_lock_init(&vf->vlan_list_lock);
 		INIT_LIST_HEAD(&vf->rcv_act.wait_list);
 		INIT_LIST_HEAD(&vf->rcv_pend.wait_list);
 		spin_lock_init(&vf->rcv_act.lock);
@@ -191,8 +199,10 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 				goto qlcnic_destroy_async_wq;
 			}
 			sriov->vf_info[i].vp = vp;
+			vp->vlan_mode = QLC_GUEST_VLAN_MODE;
 			vp->max_tx_bw = MAX_BW;
-			vp->spoofchk = true;
+			vp->min_tx_bw = MIN_BW;
+			vp->spoofchk = false;
 			random_ether_addr(vp->mac);
 			dev_info(&adapter->pdev->dev,
 				 "MAC Address %pM is configured for VF %d\n",
@@ -276,6 +286,11 @@ static void qlcnic_sriov_vf_cleanup(struct qlcnic_adapter *adapter)
 
 void qlcnic_sriov_cleanup(struct qlcnic_adapter *adapter)
 {
+	if (!test_bit(__QLCNIC_SRIOV_ENABLE, &adapter->state))
+		return;
+
+	qlcnic_sriov_free_vlans(adapter);
+
 	if (qlcnic_sriov_pf_check(adapter))
 		qlcnic_sriov_pf_cleanup(adapter);
 
@@ -416,10 +431,15 @@ static int qlcnic_sriov_set_guest_vlan_mode(struct qlcnic_adapter *adapter,
 		return 0;
 
 	sriov->any_vlan = cmd->rsp.arg[2] & 0xf;
+	sriov->num_allowed_vlans = cmd->rsp.arg[2] >> 16;
+	dev_info(&adapter->pdev->dev, "Number of allowed Guest VLANs = %d\n",
+		 sriov->num_allowed_vlans);
+
+	qlcnic_sriov_alloc_vlans(adapter);
+
 	if (!sriov->any_vlan)
 		return 0;
 
-	sriov->num_allowed_vlans = cmd->rsp.arg[2] >> 16;
 	num_vlans = sriov->num_allowed_vlans;
 	sriov->allowed_vlans = kzalloc(sizeof(u16) * num_vlans, GFP_KERNEL);
 	if (!sriov->allowed_vlans)
@@ -432,13 +452,13 @@ static int qlcnic_sriov_set_guest_vlan_mode(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static int qlcnic_sriov_get_vf_acl(struct qlcnic_adapter *adapter,
-				   struct qlcnic_info *info)
+static int qlcnic_sriov_get_vf_acl(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
 	struct qlcnic_cmd_args cmd;
 	int ret = 0;
 
+	memset(&cmd, 0, sizeof(cmd));
 	ret = qlcnic_sriov_alloc_bc_mbx_args(&cmd, QLCNIC_BC_CMD_GET_ACL);
 	if (ret)
 		return ret;
@@ -473,13 +493,11 @@ static int qlcnic_sriov_vf_init_driver(struct qlcnic_adapter *adapter)
 	if (err)
 		return err;
 
+	ahw->max_mc_count = nic_info.max_rx_mcast_mac_filters;
+
 	err = qlcnic_get_nic_info(adapter, &nic_info, ahw->pci_func);
 	if (err)
 		return -EIO;
-
-	err = qlcnic_sriov_get_vf_acl(adapter, &nic_info);
-	if (err)
-		return err;
 
 	if (qlcnic_83xx_get_port_info(adapter))
 		return -EIO;
@@ -500,9 +518,10 @@ static int qlcnic_sriov_vf_init_driver(struct qlcnic_adapter *adapter)
 static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 				 int pci_using_dac)
 {
-	struct qlcnic_dcb *dcb;
 	int err;
 
+	adapter->flags |= QLCNIC_VLAN_FILTERING;
+	adapter->ahw->total_nic_func = 1;
 	INIT_LIST_HEAD(&adapter->vf_mc_list);
 	if (!qlcnic_use_msi_x && !!qlcnic_use_msi)
 		dev_warn(&adapter->pdev->dev,
@@ -538,10 +557,9 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 	if (err)
 		goto err_out_send_channel_term;
 
-	dcb = adapter->dcb;
-
-	if (dcb && qlcnic_dcb_attach(dcb))
-		qlcnic_clear_dcb_ops(dcb);
+	err = qlcnic_sriov_get_vf_acl(adapter);
+	if (err)
+		goto err_out_send_channel_term;
 
 	err = qlcnic_setup_netdev(adapter, adapter->netdev, pci_using_dac);
 	if (err)
@@ -759,6 +777,7 @@ static int qlcnic_sriov_prepare_bc_hdr(struct qlcnic_bc_trans *trans,
 		cmd->req.arg = (u32 *)trans->req_pay;
 		cmd->rsp.arg = (u32 *)trans->rsp_pay;
 		cmd_op = cmd->req.arg[0] & 0xff;
+		cmd->cmd_op = cmd_op;
 		remainder = (trans->rsp_pay_size) % (bc_pay_sz);
 		num_frags = (trans->rsp_pay_size) / (bc_pay_sz);
 		if (remainder)
@@ -1345,7 +1364,7 @@ static int qlcnic_sriov_retry_bc_cmd(struct qlcnic_adapter *adapter,
 	return -EIO;
 }
 
-static int qlcnic_sriov_issue_cmd(struct qlcnic_adapter *adapter,
+static int __qlcnic_sriov_issue_cmd(struct qlcnic_adapter *adapter,
 				  struct qlcnic_cmd_args *cmd)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
@@ -1359,7 +1378,7 @@ static int qlcnic_sriov_issue_cmd(struct qlcnic_adapter *adapter,
 
 	rsp = qlcnic_sriov_alloc_bc_trans(&trans);
 	if (rsp)
-		return rsp;
+		goto free_cmd;
 
 	rsp = qlcnic_sriov_prepare_bc_hdr(trans, cmd, seq, QLC_BC_COMMAND);
 	if (rsp)
@@ -1397,12 +1416,17 @@ retry:
 	    (mbx_err_code == QLCNIC_MBX_PORT_RSP_OK)) {
 		rsp = QLCNIC_RCODE_SUCCESS;
 	} else {
-		rsp = mbx_err_code;
-		if (!rsp)
-			rsp = 1;
-		dev_err(dev,
-			"MBX command 0x%x failed with err:0x%x for VF %d\n",
-			opcode, mbx_err_code, func);
+		if (cmd->type == QLC_83XX_MBX_CMD_NO_WAIT) {
+			rsp = QLCNIC_RCODE_SUCCESS;
+		} else {
+			rsp = mbx_err_code;
+			if (!rsp)
+				rsp = 1;
+
+			dev_err(dev,
+				"MBX command 0x%x failed with err:0x%x for VF %d\n",
+				opcode, mbx_err_code, func);
+		}
 	}
 
 err_out:
@@ -1414,15 +1438,33 @@ err_out:
 
 cleanup_transaction:
 	qlcnic_sriov_cleanup_transaction(trans);
+
+free_cmd:
+	if (cmd->type == QLC_83XX_MBX_CMD_NO_WAIT) {
+		qlcnic_free_mbx_args(cmd);
+		kfree(cmd);
+	}
+
 	return rsp;
 }
 
-int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *adapter, u8 cmd_op)
+
+static int qlcnic_sriov_issue_cmd(struct qlcnic_adapter *adapter,
+				  struct qlcnic_cmd_args *cmd)
+{
+	if (cmd->type == QLC_83XX_MBX_CMD_NO_WAIT)
+		return qlcnic_sriov_async_issue_cmd(adapter, cmd);
+	else
+		return __qlcnic_sriov_issue_cmd(adapter, cmd);
+}
+
+static int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *adapter, u8 cmd_op)
 {
 	struct qlcnic_cmd_args cmd;
 	struct qlcnic_vf_info *vf = &adapter->ahw->sriov->vf_info[0];
 	int ret;
 
+	memset(&cmd, 0, sizeof(cmd));
 	if (qlcnic_sriov_alloc_bc_mbx_args(&cmd, cmd_op))
 		return -ENOMEM;
 
@@ -1447,29 +1489,28 @@ out:
 	return ret;
 }
 
-void qlcnic_vf_add_mc_list(struct net_device *netdev, u16 vlan)
+static void qlcnic_vf_add_mc_list(struct net_device *netdev, const u8 *mac)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	struct qlcnic_mac_list_s *cur;
-	struct list_head *head, tmp_list;
+	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
+	struct qlcnic_vf_info *vf;
+	u16 vlan_id;
+	int i;
 
-	INIT_LIST_HEAD(&tmp_list);
-	head = &adapter->vf_mc_list;
-	netif_addr_lock_bh(netdev);
+	vf = &adapter->ahw->sriov->vf_info[0];
 
-	while (!list_empty(head)) {
-		cur = list_entry(head->next, struct qlcnic_mac_list_s, list);
-		list_move(&cur->list, &tmp_list);
-	}
-
-	netif_addr_unlock_bh(netdev);
-
-	while (!list_empty(&tmp_list)) {
-		cur = list_entry((&tmp_list)->next,
-				 struct qlcnic_mac_list_s, list);
-		qlcnic_nic_add_mac(adapter, cur->mac_addr, vlan);
-		list_del(&cur->list);
-		kfree(cur);
+	if (!qlcnic_sriov_check_any_vlan(vf)) {
+		qlcnic_nic_add_mac(adapter, mac, 0);
+	} else {
+		spin_lock(&vf->vlan_list_lock);
+		for (i = 0; i < sriov->num_allowed_vlans; i++) {
+			vlan_id = vf->sriov_vlans[i];
+			if (vlan_id)
+				qlcnic_nic_add_mac(adapter, mac, vlan_id);
+		}
+		spin_unlock(&vf->vlan_list_lock);
+		if (qlcnic_84xx_check(adapter))
+			qlcnic_nic_add_mac(adapter, mac, 0);
 	}
 }
 
@@ -1478,6 +1519,7 @@ void qlcnic_sriov_cleanup_async_list(struct qlcnic_back_channel *bc)
 	struct list_head *head = &bc->async_list;
 	struct qlcnic_async_work_list *entry;
 
+	flush_workqueue(bc->bc_async_wq);
 	while (!list_empty(head)) {
 		entry = list_entry(head->next, struct qlcnic_async_work_list,
 				   list);
@@ -1487,27 +1529,68 @@ void qlcnic_sriov_cleanup_async_list(struct qlcnic_back_channel *bc)
 	}
 }
 
-static void qlcnic_sriov_vf_set_multi(struct net_device *netdev)
+void qlcnic_sriov_vf_set_multi(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	u16 vlan;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	static const u8 bcast_addr[ETH_ALEN] = {
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	};
+	struct netdev_hw_addr *ha;
+	u32 mode = VPORT_MISS_MODE_DROP;
 
 	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return;
 
-	vlan = adapter->ahw->sriov->vlan;
-	__qlcnic_set_multi(netdev, vlan);
+	if (netdev->flags & IFF_PROMISC) {
+		if (!(adapter->flags & QLCNIC_PROMISC_DISABLED))
+			mode = VPORT_MISS_MODE_ACCEPT_ALL;
+	} else if ((netdev->flags & IFF_ALLMULTI) ||
+		   (netdev_mc_count(netdev) > ahw->max_mc_count)) {
+		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
+	} else {
+		qlcnic_vf_add_mc_list(netdev, bcast_addr);
+		if (!netdev_mc_empty(netdev)) {
+			netdev_for_each_mc_addr(ha, netdev)
+				qlcnic_vf_add_mc_list(netdev, ha->addr);
+		}
+	}
+
+	/* configure unicast MAC address, if there is not sufficient space
+	 * to store all the unicast addresses then enable promiscuous mode
+	 */
+	if (netdev_uc_count(netdev) > ahw->max_uc_count) {
+		mode = VPORT_MISS_MODE_ACCEPT_ALL;
+	} else if (!netdev_uc_empty(netdev)) {
+		netdev_for_each_uc_addr(ha, netdev)
+			qlcnic_vf_add_mc_list(netdev, ha->addr);
+	}
+
+	if (adapter->pdev->is_virtfn) {
+		if (mode == VPORT_MISS_MODE_ACCEPT_ALL &&
+		    !adapter->fdb_mac_learn) {
+			qlcnic_alloc_lb_filters_mem(adapter);
+			adapter->drv_mac_learn = 1;
+			adapter->rx_mac_learn = true;
+		} else {
+			adapter->drv_mac_learn = 0;
+			adapter->rx_mac_learn = false;
+		}
+	}
+
+	qlcnic_nic_set_promisc(adapter, mode);
 }
 
-static void qlcnic_sriov_handle_async_multi(struct work_struct *work)
+static void qlcnic_sriov_handle_async_issue_cmd(struct work_struct *work)
 {
 	struct qlcnic_async_work_list *entry;
-	struct net_device *netdev;
+	struct qlcnic_adapter *adapter;
+	struct qlcnic_cmd_args *cmd;
 
 	entry = container_of(work, struct qlcnic_async_work_list, work);
-	netdev = (struct net_device *)entry->ptr;
-
-	qlcnic_sriov_vf_set_multi(netdev);
+	adapter = entry->ptr;
+	cmd = entry->cmd;
+	__qlcnic_sriov_issue_cmd(adapter, cmd);
 	return;
 }
 
@@ -1537,8 +1620,9 @@ qlcnic_sriov_get_free_node_async_work(struct qlcnic_back_channel *bc)
 	return entry;
 }
 
-static void qlcnic_sriov_schedule_bc_async_work(struct qlcnic_back_channel *bc,
-						work_func_t func, void *data)
+static void qlcnic_sriov_schedule_async_cmd(struct qlcnic_back_channel *bc,
+					    work_func_t func, void *data,
+					    struct qlcnic_cmd_args *cmd)
 {
 	struct qlcnic_async_work_list *entry = NULL;
 
@@ -1547,21 +1631,23 @@ static void qlcnic_sriov_schedule_bc_async_work(struct qlcnic_back_channel *bc,
 		return;
 
 	entry->ptr = data;
+	entry->cmd = cmd;
 	INIT_WORK(&entry->work, func);
 	queue_work(bc->bc_async_wq, &entry->work);
 }
 
-void qlcnic_sriov_vf_schedule_multi(struct net_device *netdev)
+static int qlcnic_sriov_async_issue_cmd(struct qlcnic_adapter *adapter,
+					struct qlcnic_cmd_args *cmd)
 {
 
-	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_back_channel *bc = &adapter->ahw->sriov->bc;
 
 	if (adapter->need_fw_reset)
-		return;
+		return -EIO;
 
-	qlcnic_sriov_schedule_bc_async_work(bc, qlcnic_sriov_handle_async_multi,
-					    netdev);
+	qlcnic_sriov_schedule_async_cmd(bc, qlcnic_sriov_handle_async_issue_cmd,
+					adapter, cmd);
+	return 0;
 }
 
 static int qlcnic_sriov_vf_reinit_driver(struct qlcnic_adapter *adapter)
@@ -1583,8 +1669,6 @@ static int qlcnic_sriov_vf_reinit_driver(struct qlcnic_adapter *adapter)
 	err = qlcnic_sriov_vf_init_driver(adapter);
 	if (err)
 		goto err_out_term_channel;
-
-	qlcnic_dcb_get_info(adapter->dcb);
 
 	return 0;
 
@@ -1787,6 +1871,12 @@ static int qlcnic_sriov_vf_idc_unknown_state(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
+static void qlcnic_sriov_vf_periodic_tasks(struct qlcnic_adapter *adapter)
+{
+	if (adapter->fhash.fnum)
+		qlcnic_prune_lb_filters(adapter);
+}
+
 static void qlcnic_sriov_vf_poll_dev_state(struct work_struct *work)
 {
 	struct qlcnic_adapter *adapter;
@@ -1818,6 +1908,8 @@ static void qlcnic_sriov_vf_poll_dev_state(struct work_struct *work)
 	}
 
 	idc->prev_state = idc->curr_state;
+	qlcnic_sriov_vf_periodic_tasks(adapter);
+
 	if (!ret && test_bit(QLC_83XX_MODULE_LOADED, &idc->status))
 		qlcnic_schedule_work(adapter, qlcnic_sriov_vf_poll_dev_state,
 				     idc->delay);
@@ -1833,18 +1925,60 @@ static void qlcnic_sriov_vf_cancel_fw_work(struct qlcnic_adapter *adapter)
 	cancel_delayed_work_sync(&adapter->fw_work);
 }
 
-static int qlcnic_sriov_validate_vlan_cfg(struct qlcnic_sriov *sriov,
+static int qlcnic_sriov_check_vlan_id(struct qlcnic_sriov *sriov,
+				      struct qlcnic_vf_info *vf, u16 vlan_id)
+{
+	int i, err = -EINVAL;
+
+	if (!vf->sriov_vlans)
+		return err;
+
+	spin_lock_bh(&vf->vlan_list_lock);
+
+	for (i = 0; i < sriov->num_allowed_vlans; i++) {
+		if (vf->sriov_vlans[i] == vlan_id) {
+			err = 0;
+			break;
+		}
+	}
+
+	spin_unlock_bh(&vf->vlan_list_lock);
+	return err;
+}
+
+static int qlcnic_sriov_validate_num_vlans(struct qlcnic_sriov *sriov,
+					   struct qlcnic_vf_info *vf)
+{
+	int err = 0;
+
+	spin_lock_bh(&vf->vlan_list_lock);
+
+	if (vf->num_vlan >= sriov->num_allowed_vlans)
+		err = -EINVAL;
+
+	spin_unlock_bh(&vf->vlan_list_lock);
+	return err;
+}
+
+static int qlcnic_sriov_validate_vlan_cfg(struct qlcnic_adapter *adapter,
 					  u16 vid, u8 enable)
 {
-	u16 vlan = sriov->vlan;
+	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
+	struct qlcnic_vf_info *vf;
+	bool vlan_exist;
 	u8 allowed = 0;
 	int i;
 
+	vf = &adapter->ahw->sriov->vf_info[0];
+	vlan_exist = qlcnic_sriov_check_any_vlan(vf);
 	if (sriov->vlan_mode != QLC_GUEST_VLAN_MODE)
 		return -EINVAL;
 
 	if (enable) {
-		if (vlan)
+		if (qlcnic_83xx_vf_check(adapter) && vlan_exist)
+			return -EINVAL;
+
+		if (qlcnic_sriov_validate_num_vlans(sriov, vf))
 			return -EINVAL;
 
 		if (sriov->any_vlan) {
@@ -1857,24 +1991,56 @@ static int qlcnic_sriov_validate_vlan_cfg(struct qlcnic_sriov *sriov,
 				return -EINVAL;
 		}
 	} else {
-		if (!vlan || vlan != vid)
+		if (!vlan_exist || qlcnic_sriov_check_vlan_id(sriov, vf, vid))
 			return -EINVAL;
 	}
 
 	return 0;
 }
 
+static void qlcnic_sriov_vlan_operation(struct qlcnic_vf_info *vf, u16 vlan_id,
+					enum qlcnic_vlan_operations opcode)
+{
+	struct qlcnic_adapter *adapter = vf->adapter;
+	struct qlcnic_sriov *sriov;
+
+	sriov = adapter->ahw->sriov;
+
+	if (!vf->sriov_vlans)
+		return;
+
+	spin_lock_bh(&vf->vlan_list_lock);
+
+	switch (opcode) {
+	case QLC_VLAN_ADD:
+		qlcnic_sriov_add_vlan_id(sriov, vf, vlan_id);
+		break;
+	case QLC_VLAN_DELETE:
+		qlcnic_sriov_del_vlan_id(sriov, vf, vlan_id);
+		break;
+	default:
+		netdev_err(adapter->netdev, "Invalid VLAN operation\n");
+	}
+
+	spin_unlock_bh(&vf->vlan_list_lock);
+	return;
+}
+
 int qlcnic_sriov_cfg_vf_guest_vlan(struct qlcnic_adapter *adapter,
 				   u16 vid, u8 enable)
 {
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
+	struct net_device *netdev = adapter->netdev;
+	struct qlcnic_vf_info *vf;
 	struct qlcnic_cmd_args cmd;
 	int ret;
 
+	memset(&cmd, 0, sizeof(cmd));
 	if (vid == 0)
 		return 0;
 
-	ret = qlcnic_sriov_validate_vlan_cfg(sriov, vid, enable);
+	vf = &adapter->ahw->sriov->vf_info[0];
+	ret = qlcnic_sriov_validate_vlan_cfg(adapter, vid, enable);
 	if (ret)
 		return ret;
 
@@ -1891,14 +2057,18 @@ int qlcnic_sriov_cfg_vf_guest_vlan(struct qlcnic_adapter *adapter,
 		dev_err(&adapter->pdev->dev,
 			"Failed to configure guest VLAN, err=%d\n", ret);
 	} else {
+		netif_addr_lock_bh(netdev);
 		qlcnic_free_mac_list(adapter);
+		netif_addr_unlock_bh(netdev);
 
 		if (enable)
-			sriov->vlan = vid;
+			qlcnic_sriov_vlan_operation(vf, vid, QLC_VLAN_ADD);
 		else
-			sriov->vlan = 0;
+			qlcnic_sriov_vlan_operation(vf, vid, QLC_VLAN_DELETE);
 
-		qlcnic_sriov_vf_set_multi(adapter->netdev);
+		netif_addr_lock_bh(netdev);
+		qlcnic_set_multi(netdev);
+		netif_addr_unlock_bh(netdev);
 	}
 
 	qlcnic_free_mbx_args(&cmd);
@@ -1908,21 +2078,19 @@ int qlcnic_sriov_cfg_vf_guest_vlan(struct qlcnic_adapter *adapter,
 static void qlcnic_sriov_vf_free_mac_list(struct qlcnic_adapter *adapter)
 {
 	struct list_head *head = &adapter->mac_list;
-	struct qlcnic_mac_list_s *cur;
-	u16 vlan;
-
-	vlan = adapter->ahw->sriov->vlan;
+	struct qlcnic_mac_vlan_list *cur;
 
 	while (!list_empty(head)) {
-		cur = list_entry(head->next, struct qlcnic_mac_list_s, list);
-		qlcnic_sre_macaddr_change(adapter, cur->mac_addr,
-					  vlan, QLCNIC_MAC_DEL);
+		cur = list_entry(head->next, struct qlcnic_mac_vlan_list, list);
+		qlcnic_sre_macaddr_change(adapter, cur->mac_addr, cur->vlan_id,
+					  QLCNIC_MAC_DEL);
 		list_del(&cur->list);
 		kfree(cur);
 	}
 }
 
-int qlcnic_sriov_vf_shutdown(struct pci_dev *pdev)
+
+static int qlcnic_sriov_vf_shutdown(struct pci_dev *pdev)
 {
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
@@ -1946,7 +2114,7 @@ int qlcnic_sriov_vf_shutdown(struct pci_dev *pdev)
 	return 0;
 }
 
-int qlcnic_sriov_vf_resume(struct qlcnic_adapter *adapter)
+static int qlcnic_sriov_vf_resume(struct qlcnic_adapter *adapter)
 {
 	struct qlc_83xx_idc *idc = &adapter->ahw->idc;
 	struct net_device *netdev = adapter->netdev;
@@ -1970,5 +2138,72 @@ int qlcnic_sriov_vf_resume(struct qlcnic_adapter *adapter)
 	netif_device_attach(netdev);
 	qlcnic_schedule_work(adapter, qlcnic_sriov_vf_poll_dev_state,
 			     idc->delay);
+	return err;
+}
+
+void qlcnic_sriov_alloc_vlans(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
+	struct qlcnic_vf_info *vf;
+	int i;
+
+	for (i = 0; i < sriov->num_vfs; i++) {
+		vf = &sriov->vf_info[i];
+		vf->sriov_vlans = kcalloc(sriov->num_allowed_vlans,
+					  sizeof(*vf->sriov_vlans), GFP_KERNEL);
+	}
+}
+
+void qlcnic_sriov_free_vlans(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
+	struct qlcnic_vf_info *vf;
+	int i;
+
+	for (i = 0; i < sriov->num_vfs; i++) {
+		vf = &sriov->vf_info[i];
+		kfree(vf->sriov_vlans);
+		vf->sriov_vlans = NULL;
+	}
+}
+
+void qlcnic_sriov_add_vlan_id(struct qlcnic_sriov *sriov,
+			      struct qlcnic_vf_info *vf, u16 vlan_id)
+{
+	int i;
+
+	for (i = 0; i < sriov->num_allowed_vlans; i++) {
+		if (!vf->sriov_vlans[i]) {
+			vf->sriov_vlans[i] = vlan_id;
+			vf->num_vlan++;
+			return;
+		}
+	}
+}
+
+void qlcnic_sriov_del_vlan_id(struct qlcnic_sriov *sriov,
+			      struct qlcnic_vf_info *vf, u16 vlan_id)
+{
+	int i;
+
+	for (i = 0; i < sriov->num_allowed_vlans; i++) {
+		if (vf->sriov_vlans[i] == vlan_id) {
+			vf->sriov_vlans[i] = 0;
+			vf->num_vlan--;
+			return;
+		}
+	}
+}
+
+bool qlcnic_sriov_check_any_vlan(struct qlcnic_vf_info *vf)
+{
+	bool err = false;
+
+	spin_lock_bh(&vf->vlan_list_lock);
+
+	if (vf->num_vlan)
+		err = true;
+
+	spin_unlock_bh(&vf->vlan_list_lock);
 	return err;
 }

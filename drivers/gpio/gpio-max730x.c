@@ -228,22 +228,16 @@ EXPORT_SYMBOL_GPL(__max730x_probe);
 int __max730x_remove(struct device *dev)
 {
 	struct max7301 *ts = dev_get_drvdata(dev);
-	int ret;
 
 	if (ts == NULL)
 		return -ENODEV;
 
 	/* Power down the chip and disable IRQ output */
 	ts->write(dev, 0x04, 0x00);
-
-	ret = gpiochip_remove(&ts->chip);
-	if (!ret) {
-		mutex_destroy(&ts->lock);
-		kfree(ts);
-	} else
-		dev_err(dev, "Failed to remove GPIO controller: %d\n", ret);
-
-	return ret;
+	gpiochip_remove(&ts->chip);
+	mutex_destroy(&ts->lock);
+	kfree(ts);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(__max730x_remove);
 

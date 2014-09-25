@@ -51,7 +51,7 @@ struct fwspk {
 	const struct device_info *device_info;
 	struct mutex mutex;
 	struct cmp_connection connection;
-	struct amdtp_out_stream stream;
+	struct amdtp_stream stream;
 	bool mute;
 	s16 volume[6];
 	s16 volume_min;
@@ -167,13 +167,7 @@ static int fwspk_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		return err;
 
-	err = snd_pcm_hw_constraint_minmax(runtime,
-					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
-					   5000, UINT_MAX);
-	if (err < 0)
-		return err;
-
-	err = snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
+	err = amdtp_stream_add_pcm_hw_constraints(&fwspk->stream, runtime);
 	if (err < 0)
 		return err;
 
@@ -187,46 +181,10 @@ static int fwspk_close(struct snd_pcm_substream *substream)
 
 static void fwspk_stop_stream(struct fwspk *fwspk)
 {
-	if (amdtp_out_stream_running(&fwspk->stream)) {
-		amdtp_out_stream_stop(&fwspk->stream);
+	if (amdtp_stream_running(&fwspk->stream)) {
+		amdtp_stream_stop(&fwspk->stream);
 		cmp_connection_break(&fwspk->connection);
 	}
-}
-
-static int fwspk_set_rate(struct fwspk *fwspk, unsigned int sfc)
-{
-	u8 *buf;
-	int err;
-
-	buf = kmalloc(8, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	buf[0] = 0x00;		/* AV/C, CONTROL */
-	buf[1] = 0xff;		/* unit */
-	buf[2] = 0x19;		/* INPUT PLUG SIGNAL FORMAT */
-	buf[3] = 0x00;		/* plug 0 */
-	buf[4] = 0x90;		/* format: audio */
-	buf[5] = 0x00 | sfc;	/* AM824, frequency */
-	buf[6] = 0xff;		/* SYT (not used) */
-	buf[7] = 0xff;
-
-	err = fcp_avc_transaction(fwspk->unit, buf, 8, buf, 8,
-				  BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5));
-	if (err < 0)
-		goto error;
-	if (err < 6 || buf[0] != 0x09 /* ACCEPTED */) {
-		dev_err(&fwspk->unit->device, "failed to set sample rate\n");
-		err = -EIO;
-		goto error;
-	}
-
-	err = 0;
-
-error:
-	kfree(buf);
-
-	return err;
 }
 
 static int fwspk_hw_params(struct snd_pcm_substream *substream,
@@ -244,17 +202,20 @@ static int fwspk_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		goto error;
 
-	amdtp_out_stream_set_parameters(&fwspk->stream,
-					params_rate(hw_params),
-					params_channels(hw_params),
-					0);
+	amdtp_stream_set_parameters(&fwspk->stream,
+				    params_rate(hw_params),
+				    params_channels(hw_params),
+				    0);
 
-	amdtp_out_stream_set_pcm_format(&fwspk->stream,
-					params_format(hw_params));
+	amdtp_stream_set_pcm_format(&fwspk->stream,
+				    params_format(hw_params));
 
-	err = fwspk_set_rate(fwspk, fwspk->stream.sfc);
-	if (err < 0)
+	err = avc_general_set_sig_fmt(fwspk->unit, params_rate(hw_params),
+				      AVC_GENERAL_PLUG_DIR_IN, 0);
+	if (err < 0) {
+		dev_err(&fwspk->unit->device, "failed to set sample rate\n");
 		goto err_buffer;
+	}
 
 	return 0;
 
@@ -282,25 +243,25 @@ static int fwspk_prepare(struct snd_pcm_substream *substream)
 
 	mutex_lock(&fwspk->mutex);
 
-	if (amdtp_out_streaming_error(&fwspk->stream))
+	if (amdtp_streaming_error(&fwspk->stream))
 		fwspk_stop_stream(fwspk);
 
-	if (!amdtp_out_stream_running(&fwspk->stream)) {
+	if (!amdtp_stream_running(&fwspk->stream)) {
 		err = cmp_connection_establish(&fwspk->connection,
-			amdtp_out_stream_get_max_payload(&fwspk->stream));
+			amdtp_stream_get_max_payload(&fwspk->stream));
 		if (err < 0)
 			goto err_mutex;
 
-		err = amdtp_out_stream_start(&fwspk->stream,
-					fwspk->connection.resources.channel,
-					fwspk->connection.speed);
+		err = amdtp_stream_start(&fwspk->stream,
+					 fwspk->connection.resources.channel,
+					 fwspk->connection.speed);
 		if (err < 0)
 			goto err_connection;
 	}
 
 	mutex_unlock(&fwspk->mutex);
 
-	amdtp_out_stream_pcm_prepare(&fwspk->stream);
+	amdtp_stream_pcm_prepare(&fwspk->stream);
 
 	return 0;
 
@@ -327,7 +288,7 @@ static int fwspk_trigger(struct snd_pcm_substream *substream, int cmd)
 	default:
 		return -EINVAL;
 	}
-	amdtp_out_stream_pcm_trigger(&fwspk->stream, pcm);
+	amdtp_stream_pcm_trigger(&fwspk->stream, pcm);
 	return 0;
 }
 
@@ -335,7 +296,7 @@ static snd_pcm_uframes_t fwspk_pointer(struct snd_pcm_substream *substream)
 {
 	struct fwspk *fwspk = substream->private_data;
 
-	return amdtp_out_stream_pcm_pointer(&fwspk->stream);
+	return amdtp_stream_pcm_pointer(&fwspk->stream);
 }
 
 static int fwspk_create_pcm(struct fwspk *fwspk)
@@ -653,7 +614,7 @@ static void fwspk_card_free(struct snd_card *card)
 {
 	struct fwspk *fwspk = card->private_data;
 
-	amdtp_out_stream_destroy(&fwspk->stream);
+	amdtp_stream_destroy(&fwspk->stream);
 	cmp_connection_destroy(&fwspk->connection);
 	fw_unit_put(fwspk->unit);
 	mutex_destroy(&fwspk->mutex);
@@ -668,10 +629,10 @@ static int fwspk_probe(struct fw_unit *unit,
 	u32 firmware;
 	int err;
 
-	err = snd_card_create(-1, NULL, THIS_MODULE, sizeof(*fwspk), &card);
+	err = snd_card_new(&unit->device, -1, NULL, THIS_MODULE,
+			   sizeof(*fwspk), &card);
 	if (err < 0)
 		return err;
-	snd_card_set_dev(card, &unit->device);
 
 	fwspk = card->private_data;
 	fwspk->card = card;
@@ -679,11 +640,12 @@ static int fwspk_probe(struct fw_unit *unit,
 	fwspk->unit = fw_unit_get(unit);
 	fwspk->device_info = (const struct device_info *)id->driver_data;
 
-	err = cmp_connection_init(&fwspk->connection, unit, 0);
+	err = cmp_connection_init(&fwspk->connection, unit, CMP_INPUT, 0);
 	if (err < 0)
 		goto err_unit;
 
-	err = amdtp_out_stream_init(&fwspk->stream, unit, CIP_NONBLOCKING);
+	err = amdtp_stream_init(&fwspk->stream, unit, AMDTP_OUT_STREAM,
+				CIP_NONBLOCKING);
 	if (err < 0)
 		goto err_connection;
 
@@ -733,21 +695,21 @@ static void fwspk_bus_reset(struct fw_unit *unit)
 	fcp_bus_reset(fwspk->unit);
 
 	if (cmp_connection_update(&fwspk->connection) < 0) {
-		amdtp_out_stream_pcm_abort(&fwspk->stream);
+		amdtp_stream_pcm_abort(&fwspk->stream);
 		mutex_lock(&fwspk->mutex);
 		fwspk_stop_stream(fwspk);
 		mutex_unlock(&fwspk->mutex);
 		return;
 	}
 
-	amdtp_out_stream_update(&fwspk->stream);
+	amdtp_stream_update(&fwspk->stream);
 }
 
 static void fwspk_remove(struct fw_unit *unit)
 {
 	struct fwspk *fwspk = dev_get_drvdata(&unit->device);
 
-	amdtp_out_stream_pcm_abort(&fwspk->stream);
+	amdtp_stream_pcm_abort(&fwspk->stream);
 	snd_card_disconnect(fwspk->card);
 
 	mutex_lock(&fwspk->mutex);

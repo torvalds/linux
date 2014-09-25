@@ -28,8 +28,6 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#define MULTIQ3_SIZE 16
-
 /*
  * MULTIQ-3 port offsets
  */
@@ -81,34 +79,44 @@ struct multiq3_private {
 	unsigned int ao_readback[2];
 };
 
+static int multiq3_ai_status(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + MULTIQ3_STATUS);
+	if (status & context)
+		return 0;
+	return -EBUSY;
+}
+
 static int multiq3_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	int i, n;
+	int n;
 	int chan;
 	unsigned int hi, lo;
+	int ret;
 
 	chan = CR_CHAN(insn->chanspec);
 	outw(MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan << 3),
 	     dev->iobase + MULTIQ3_CONTROL);
 
-	for (i = 0; i < MULTIQ3_TIMEOUT; i++) {
-		if (inw(dev->iobase + MULTIQ3_STATUS) & MULTIQ3_STATUS_EOC)
-			break;
-	}
-	if (i == MULTIQ3_TIMEOUT)
-		return -ETIMEDOUT;
+	ret = comedi_timeout(dev, s, insn, multiq3_ai_status,
+			     MULTIQ3_STATUS_EOC);
+	if (ret)
+		return ret;
 
 	for (n = 0; n < insn->n; n++) {
 		outw(0, dev->iobase + MULTIQ3_AD_CS);
-		for (i = 0; i < MULTIQ3_TIMEOUT; i++) {
-			if (inw(dev->iobase +
-				MULTIQ3_STATUS) & MULTIQ3_STATUS_EOC_I)
-				break;
-		}
-		if (i == MULTIQ3_TIMEOUT)
-			return -ETIMEDOUT;
+
+		ret = comedi_timeout(dev, s, insn, multiq3_ai_status,
+				     MULTIQ3_STATUS_EOC_I);
+		if (ret)
+			return ret;
 
 		hi = inb(dev->iobase + MULTIQ3_AD_CS);
 		lo = inb(dev->iobase + MULTIQ3_AD_CS);
@@ -179,12 +187,12 @@ static int multiq3_encoder_insn_read(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	int n;
 	int chan = CR_CHAN(insn->chanspec);
 	int control = MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan << 3);
+	int value;
+	int n;
 
 	for (n = 0; n < insn->n; n++) {
-		int value;
 		outw(control, dev->iobase + MULTIQ3_CONTROL);
 		outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CONTROL);
 		outb(MULTIQ3_TRSFRCNTR_OL, dev->iobase + MULTIQ3_ENC_CONTROL);
@@ -223,7 +231,7 @@ static int multiq3_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], MULTIQ3_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 

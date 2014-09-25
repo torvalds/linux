@@ -23,7 +23,7 @@
 
 /* Maximum number of Copy Engine's supported */
 #define CE_COUNT_MAX 8
-#define CE_HTT_H2T_MSG_SRC_NENTRIES 2048
+#define CE_HTT_H2T_MSG_SRC_NENTRIES 4096
 
 /* Descriptor rings must be aligned to this boundary */
 #define CE_DESC_RING_ALIGN	8
@@ -104,7 +104,8 @@ struct ath10k_ce_ring {
 	void *shadow_base_unaligned;
 	struct ce_desc *shadow_base;
 
-	void **per_transfer_context;
+	/* keep last */
+	void *per_transfer_context[0];
 };
 
 struct ath10k_ce_pipe {
@@ -151,6 +152,15 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   /* 14 bits */
 		   unsigned int transfer_id,
 		   unsigned int flags);
+
+int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
+			  void *per_transfer_context,
+			  u32 buffer,
+			  unsigned int nbytes,
+			  unsigned int transfer_id,
+			  unsigned int flags);
+
+void __ath10k_ce_send_revert(struct ath10k_ce_pipe *pipe);
 
 void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
 				void (*send_cb)(struct ath10k_ce_pipe *),
@@ -203,10 +213,12 @@ int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
 
 /*==================CE Engine Initialization=======================*/
 
-/* Initialize an instance of a CE */
-struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
-				unsigned int ce_id,
-				const struct ce_attr *attr);
+int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
+			const struct ce_attr *attr);
+void ath10k_ce_deinit_pipe(struct ath10k *ar, unsigned int ce_id);
+int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
+			  const struct ce_attr *attr);
+void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id);
 
 /*==================CE Engine Shutdown=======================*/
 /*
@@ -229,12 +241,10 @@ int ath10k_ce_cancel_send_next(struct ath10k_ce_pipe *ce_state,
 			       unsigned int *nbytesp,
 			       unsigned int *transfer_idp);
 
-void ath10k_ce_deinit(struct ath10k_ce_pipe *ce_state);
-
 /*==================CE Interrupt Handlers====================*/
 void ath10k_ce_per_engine_service_any(struct ath10k *ar);
 void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id);
-void ath10k_ce_disable_interrupts(struct ath10k *ar);
+int ath10k_ce_disable_interrupts(struct ath10k *ar);
 
 /* ce_attr.flags values */
 /* Use NonSnooping PCIe accesses? */

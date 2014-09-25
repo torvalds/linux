@@ -15,7 +15,6 @@
 #define __LINUX_OPP_H__
 
 #include <linux/err.h>
-#include <linux/cpufreq.h>
 #include <linux/notifier.h>
 
 struct dev_pm_opp;
@@ -116,24 +115,5 @@ static inline int of_init_opp_table(struct device *dev)
 	return -EINVAL;
 }
 #endif
-
-#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_PM_OPP)
-int dev_pm_opp_init_cpufreq_table(struct device *dev,
-			    struct cpufreq_frequency_table **table);
-void dev_pm_opp_free_cpufreq_table(struct device *dev,
-				struct cpufreq_frequency_table **table);
-#else
-static inline int dev_pm_opp_init_cpufreq_table(struct device *dev,
-			    struct cpufreq_frequency_table **table)
-{
-	return -EINVAL;
-}
-
-static inline
-void dev_pm_opp_free_cpufreq_table(struct device *dev,
-				struct cpufreq_frequency_table **table)
-{
-}
-#endif		/* CONFIG_CPU_FREQ */
 
 #endif		/* __LINUX_OPP_H__ */

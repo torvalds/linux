@@ -23,17 +23,20 @@
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
+		eth3 = &eth3;
 	};
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "marvell,armada-xp-smp";
 
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "marvell,sheeva-v7";
 			reg = <0>;
 			clocks = <&cpuclk 0>;
+			clock-latency = <1000000>;
 		};
 
 		cpu@1 {
@@ -41,6 +44,7 @@
 			compatible = "marvell,sheeva-v7";
 			reg = <1>;
 			clocks = <&cpuclk 1>;
+			clock-latency = <1000000>;
 		};
 	};
 
@@ -291,7 +295,7 @@
 				interrupts = <91>;
 			};
 
-			ethernet@34000 {
+			eth3: ethernet@34000 {
 				compatible = "marvell,armada-370-neta";
 				reg = <0x34000 0x4000>;
 				interrupts = <14>;

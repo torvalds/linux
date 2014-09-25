@@ -50,6 +50,32 @@
 #define BT_MBI_PCIE_READ	0x00
 #define BT_MBI_PCIE_WRITE	0x01
 
+/* Quark available units */
+#define QRK_MBI_UNIT_HBA	0x00
+#define QRK_MBI_UNIT_HB	0x03
+#define QRK_MBI_UNIT_RMU	0x04
+#define QRK_MBI_UNIT_MM	0x05
+#define QRK_MBI_UNIT_MMESRAM	0x05
+#define QRK_MBI_UNIT_SOC	0x31
+
+/* Quark read/write opcodes */
+#define QRK_MBI_HBA_READ	0x10
+#define QRK_MBI_HBA_WRITE	0x11
+#define QRK_MBI_HB_READ	0x10
+#define QRK_MBI_HB_WRITE	0x11
+#define QRK_MBI_RMU_READ	0x10
+#define QRK_MBI_RMU_WRITE	0x11
+#define QRK_MBI_MM_READ	0x10
+#define QRK_MBI_MM_WRITE	0x11
+#define QRK_MBI_MMESRAM_READ	0x12
+#define QRK_MBI_MMESRAM_WRITE	0x13
+#define QRK_MBI_SOC_READ	0x06
+#define QRK_MBI_SOC_WRITE	0x07
+
+#if IS_ENABLED(CONFIG_IOSF_MBI)
+
+bool iosf_mbi_available(void);
+
 /**
  * iosf_mbi_read() - MailBox Interface read command
  * @port:	port indicating subunit being accessed
@@ -86,5 +112,34 @@ int iosf_mbi_write(u8 port, u8 opcode, u32 offset, u32 mdr);
  * Return: Nonzero on error
  */
 int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask);
+
+#else /* CONFIG_IOSF_MBI is not enabled */
+static inline
+bool iosf_mbi_available(void)
+{
+	return false;
+}
+
+static inline
+int iosf_mbi_read(u8 port, u8 opcode, u32 offset, u32 *mdr)
+{
+	WARN(1, "IOSF_MBI driver not available");
+	return -EPERM;
+}
+
+static inline
+int iosf_mbi_write(u8 port, u8 opcode, u32 offset, u32 mdr)
+{
+	WARN(1, "IOSF_MBI driver not available");
+	return -EPERM;
+}
+
+static inline
+int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask)
+{
+	WARN(1, "IOSF_MBI driver not available");
+	return -EPERM;
+}
+#endif /* CONFIG_IOSF_MBI */
 
 #endif /* IOSF_MBI_SYMS_H */

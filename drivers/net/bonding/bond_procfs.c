@@ -65,37 +65,42 @@ static void bond_info_seq_stop(struct seq_file *seq, void *v)
 static void bond_info_show_master(struct seq_file *seq)
 {
 	struct bonding *bond = seq->private;
+	const struct bond_opt_value *optval;
 	struct slave *curr;
 	int i;
 
-	read_lock(&bond->curr_slave_lock);
-	curr = bond->curr_active_slave;
-	read_unlock(&bond->curr_slave_lock);
+	curr = rcu_dereference(bond->curr_active_slave);
 
 	seq_printf(seq, "Bonding Mode: %s",
-		   bond_mode_name(bond->params.mode));
+		   bond_mode_name(BOND_MODE(bond)));
 
-	if (bond->params.mode == BOND_MODE_ACTIVEBACKUP &&
-	    bond->params.fail_over_mac)
-		seq_printf(seq, " (fail_over_mac %s)",
-		   fail_over_mac_tbl[bond->params.fail_over_mac].modename);
+	if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP &&
+	    bond->params.fail_over_mac) {
+		optval = bond_opt_get_val(BOND_OPT_FAIL_OVER_MAC,
+					  bond->params.fail_over_mac);
+		seq_printf(seq, " (fail_over_mac %s)", optval->string);
+	}
 
 	seq_printf(seq, "\n");
 
-	if (bond->params.mode == BOND_MODE_XOR ||
-		bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_XOR ||
+		BOND_MODE(bond) == BOND_MODE_8023AD) {
+		optval = bond_opt_get_val(BOND_OPT_XMIT_HASH,
+					  bond->params.xmit_policy);
 		seq_printf(seq, "Transmit Hash Policy: %s (%d)\n",
-			xmit_hashtype_tbl[bond->params.xmit_policy].modename,
-			bond->params.xmit_policy);
+			   optval->string, bond->params.xmit_policy);
 	}
 
-	if (USES_PRIMARY(bond->params.mode)) {
+	if (bond_uses_primary(bond)) {
 		seq_printf(seq, "Primary Slave: %s",
 			   (bond->primary_slave) ?
 			   bond->primary_slave->dev->name : "None");
-		if (bond->primary_slave)
+		if (bond->primary_slave) {
+			optval = bond_opt_get_val(BOND_OPT_PRIMARY_RESELECT,
+						  bond->params.primary_reselect);
 			seq_printf(seq, " (primary_reselect %s)",
-		   pri_reselect_tbl[bond->params.primary_reselect].modename);
+				   optval->string);
+		}
 
 		seq_printf(seq, "\nCurrently Active Slave: %s\n",
 			   (curr) ? curr->dev->name : "None");
@@ -129,15 +134,17 @@ static void bond_info_show_master(struct seq_file *seq)
 		seq_printf(seq, "\n");
 	}
 
-	if (bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
 
 		seq_puts(seq, "\n802.3ad info\n");
 		seq_printf(seq, "LACP rate: %s\n",
 			   (bond->params.lacp_fast) ? "fast" : "slow");
 		seq_printf(seq, "Min links: %d\n", bond->params.min_links);
+		optval = bond_opt_get_val(BOND_OPT_AD_SELECT,
+					  bond->params.ad_select);
 		seq_printf(seq, "Aggregator selection policy (ad_select): %s\n",
-			   ad_select_tbl[bond->params.ad_select].modename);
+			   optval->string);
 
 		if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
 			seq_printf(seq, "bond %s has no active aggregator\n",
@@ -157,18 +164,6 @@ static void bond_info_show_master(struct seq_file *seq)
 				   ad_info.partner_system);
 		}
 	}
-}
-
-static const char *bond_slave_link_status(s8 link)
-{
-	static const char * const status[] = {
-		[BOND_LINK_UP] = "up",
-		[BOND_LINK_FAIL] = "going down",
-		[BOND_LINK_DOWN] = "down",
-		[BOND_LINK_BACK] = "going back",
-	};
-
-	return status[link];
 }
 
 static void bond_info_show_slave(struct seq_file *seq,
@@ -193,9 +188,9 @@ static void bond_info_show_slave(struct seq_file *seq,
 
 	seq_printf(seq, "Permanent HW addr: %pM\n", slave->perm_hwaddr);
 
-	if (bond->params.mode == BOND_MODE_8023AD) {
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		const struct aggregator *agg
-			= SLAVE_AD_INFO(slave).port.aggregator;
+			= SLAVE_AD_INFO(slave)->port.aggregator;
 
 		if (agg)
 			seq_printf(seq, "Aggregator ID: %d\n",
@@ -257,8 +252,8 @@ void bond_create_proc_entry(struct bonding *bond)
 						    S_IRUGO, bn->proc_dir,
 						    &bond_info_fops, bond);
 		if (bond->proc_entry == NULL)
-			pr_warning("Warning: Cannot create /proc/net/%s/%s\n",
-				   DRV_NAME, bond_dev->name);
+			netdev_warn(bond_dev, "Cannot create /proc/net/%s/%s\n",
+				    DRV_NAME, bond_dev->name);
 		else
 			memcpy(bond->proc_file_name, bond_dev->name, IFNAMSIZ);
 	}
@@ -284,8 +279,8 @@ void __net_init bond_create_proc_dir(struct bond_net *bn)
 	if (!bn->proc_dir) {
 		bn->proc_dir = proc_mkdir(DRV_NAME, bn->net->proc_net);
 		if (!bn->proc_dir)
-			pr_warning("Warning: cannot create /proc/net/%s\n",
-				   DRV_NAME);
+			pr_warn("Warning: Cannot create /proc/net/%s\n",
+				DRV_NAME);
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
- * LEDs driver for Freescale MC13783/MC13892
+ * LEDs driver for Freescale MC13783/MC13892/MC34708
  *
  * Copyright (C) 2010 Philippe Rétornaz
  *
@@ -17,57 +17,56 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
+#include <linux/of.h>
 #include <linux/workqueue.h>
 #include <linux/mfd/mc13xxx.h>
-
-#define MC13XXX_REG_LED_CONTROL(x)	(51 + (x))
 
 struct mc13xxx_led_devtype {
 	int	led_min;
 	int	led_max;
 	int	num_regs;
+	u32	ledctrl_base;
 };
 
 struct mc13xxx_led {
 	struct led_classdev	cdev;
 	struct work_struct	work;
-	struct mc13xxx		*master;
 	enum led_brightness	new_brightness;
 	int			id;
+	struct mc13xxx_leds	*leds;
 };
 
 struct mc13xxx_leds {
+	struct mc13xxx			*master;
 	struct mc13xxx_led_devtype	*devtype;
 	int				num_leds;
-	struct mc13xxx_led		led[0];
+	struct mc13xxx_led		*led;
 };
+
+static unsigned int mc13xxx_max_brightness(int id)
+{
+	if (id >= MC13783_LED_MD && id <= MC13783_LED_KP)
+		return 0x0f;
+	else if (id >= MC13783_LED_R1 && id <= MC13783_LED_B3)
+		return 0x1f;
+
+	return 0x3f;
+}
 
 static void mc13xxx_led_work(struct work_struct *work)
 {
 	struct mc13xxx_led *led = container_of(work, struct mc13xxx_led, work);
-	int reg, mask, value, bank, off, shift;
+	struct mc13xxx_leds *leds = led->leds;
+	unsigned int reg, bank, off, shift;
 
 	switch (led->id) {
 	case MC13783_LED_MD:
-		reg = MC13XXX_REG_LED_CONTROL(2);
-		shift = 9;
-		mask = 0x0f;
-		value = led->new_brightness >> 4;
-		break;
 	case MC13783_LED_AD:
-		reg = MC13XXX_REG_LED_CONTROL(2);
-		shift = 13;
-		mask = 0x0f;
-		value = led->new_brightness >> 4;
-		break;
 	case MC13783_LED_KP:
-		reg = MC13XXX_REG_LED_CONTROL(2);
-		shift = 17;
-		mask = 0x0f;
-		value = led->new_brightness >> 4;
+		reg = 2;
+		shift = 9 + (led->id - MC13783_LED_MD) * 4;
 		break;
 	case MC13783_LED_R1:
 	case MC13783_LED_G1:
@@ -80,46 +79,35 @@ static void mc13xxx_led_work(struct work_struct *work)
 	case MC13783_LED_B3:
 		off = led->id - MC13783_LED_R1;
 		bank = off / 3;
-		reg = MC13XXX_REG_LED_CONTROL(3) + bank;
+		reg = 3 + bank;
 		shift = (off - bank * 3) * 5 + 6;
-		value = led->new_brightness >> 3;
-		mask = 0x1f;
 		break;
 	case MC13892_LED_MD:
-		reg = MC13XXX_REG_LED_CONTROL(0);
-		shift = 3;
-		mask = 0x3f;
-		value = led->new_brightness >> 2;
-		break;
 	case MC13892_LED_AD:
-		reg = MC13XXX_REG_LED_CONTROL(0);
-		shift = 15;
-		mask = 0x3f;
-		value = led->new_brightness >> 2;
-		break;
 	case MC13892_LED_KP:
-		reg = MC13XXX_REG_LED_CONTROL(1);
-		shift = 3;
-		mask = 0x3f;
-		value = led->new_brightness >> 2;
+		reg = (led->id - MC13892_LED_MD) / 2;
+		shift = 3 + (led->id - MC13892_LED_MD) * 12;
 		break;
 	case MC13892_LED_R:
 	case MC13892_LED_G:
 	case MC13892_LED_B:
 		off = led->id - MC13892_LED_R;
 		bank = off / 2;
-		reg = MC13XXX_REG_LED_CONTROL(2) + bank;
+		reg = 2 + bank;
 		shift = (off - bank * 2) * 12 + 3;
-		value = led->new_brightness >> 2;
-		mask = 0x3f;
+		break;
+	case MC34708_LED_R:
+	case MC34708_LED_G:
+		reg = 0;
+		shift = 3 + (led->id - MC34708_LED_R) * 12;
 		break;
 	default:
 		BUG();
 	}
 
-	mc13xxx_lock(led->master);
-	mc13xxx_reg_rmw(led->master, reg, mask << shift, value << shift);
-	mc13xxx_unlock(led->master);
+	mc13xxx_reg_rmw(leds->master, leds->devtype->ledctrl_base + reg,
+			mc13xxx_max_brightness(led->id) << shift,
+			led->new_brightness << shift);
 }
 
 static void mc13xxx_led_set(struct led_classdev *led_cdev,
@@ -132,163 +120,153 @@ static void mc13xxx_led_set(struct led_classdev *led_cdev,
 	schedule_work(&led->work);
 }
 
-static int __init mc13xxx_led_setup(struct mc13xxx_led *led, int max_current)
+#ifdef CONFIG_OF
+static struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
+	struct platform_device *pdev)
 {
-	int shift, mask, reg, ret, bank;
+	struct mc13xxx_leds *leds = platform_get_drvdata(pdev);
+	struct mc13xxx_leds_platform_data *pdata;
+	struct device_node *parent, *child;
+	struct device *dev = &pdev->dev;
+	int i = 0, ret = -ENODATA;
 
-	switch (led->id) {
-	case MC13783_LED_MD:
-		reg = MC13XXX_REG_LED_CONTROL(2);
-		shift = 0;
-		mask = 0x07;
-		break;
-	case MC13783_LED_AD:
-		reg = MC13XXX_REG_LED_CONTROL(2);
-		shift = 3;
-		mask = 0x07;
-		break;
-	case MC13783_LED_KP:
-		reg = MC13XXX_REG_LED_CONTROL(2);
-		shift = 6;
-		mask = 0x07;
-		break;
-	case MC13783_LED_R1:
-	case MC13783_LED_G1:
-	case MC13783_LED_B1:
-	case MC13783_LED_R2:
-	case MC13783_LED_G2:
-	case MC13783_LED_B2:
-	case MC13783_LED_R3:
-	case MC13783_LED_G3:
-	case MC13783_LED_B3:
-		bank = (led->id - MC13783_LED_R1) / 3;
-		reg = MC13XXX_REG_LED_CONTROL(3) + bank;
-		shift = ((led->id - MC13783_LED_R1) - bank * 3) * 2;
-		mask = 0x03;
-		break;
-	case MC13892_LED_MD:
-		reg = MC13XXX_REG_LED_CONTROL(0);
-		shift = 9;
-		mask = 0x07;
-		break;
-	case MC13892_LED_AD:
-		reg = MC13XXX_REG_LED_CONTROL(0);
-		shift = 21;
-		mask = 0x07;
-		break;
-	case MC13892_LED_KP:
-		reg = MC13XXX_REG_LED_CONTROL(1);
-		shift = 9;
-		mask = 0x07;
-		break;
-	case MC13892_LED_R:
-	case MC13892_LED_G:
-	case MC13892_LED_B:
-		bank = (led->id - MC13892_LED_R) / 2;
-		reg = MC13XXX_REG_LED_CONTROL(2) + bank;
-		shift = ((led->id - MC13892_LED_R) - bank * 2) * 12 + 9;
-		mask = 0x07;
-		break;
-	default:
-		BUG();
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	of_node_get(dev->parent->of_node);
+
+	parent = of_find_node_by_name(dev->parent->of_node, "leds");
+	if (!parent)
+		goto out_node_put;
+
+	ret = of_property_read_u32_array(parent, "led-control",
+					 pdata->led_control,
+					 leds->devtype->num_regs);
+	if (ret)
+		goto out_node_put;
+
+	pdata->num_leds = of_get_child_count(parent);
+
+	pdata->led = devm_kzalloc(dev, pdata->num_leds * sizeof(*pdata->led),
+				  GFP_KERNEL);
+	if (!pdata->led) {
+		ret = -ENOMEM;
+		goto out_node_put;
 	}
 
-	mc13xxx_lock(led->master);
-	ret = mc13xxx_reg_rmw(led->master, reg, mask << shift,
-			      max_current << shift);
-	mc13xxx_unlock(led->master);
+	for_each_child_of_node(parent, child) {
+		const char *str;
+		u32 tmp;
 
-	return ret;
+		if (of_property_read_u32(child, "reg", &tmp))
+			continue;
+		pdata->led[i].id = leds->devtype->led_min + tmp;
+
+		if (!of_property_read_string(child, "label", &str))
+			pdata->led[i].name = str;
+		if (!of_property_read_string(child, "linux,default-trigger",
+					     &str))
+			pdata->led[i].default_trigger = str;
+
+		i++;
+	}
+
+	pdata->num_leds = i;
+	ret = i > 0 ? 0 : -ENODATA;
+
+out_node_put:
+	of_node_put(parent);
+
+	return ret ? ERR_PTR(ret) : pdata;
 }
+#else
+static inline struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
+	struct platform_device *pdev)
+{
+	return ERR_PTR(-ENOSYS);
+}
+#endif
 
 static int __init mc13xxx_led_probe(struct platform_device *pdev)
 {
-	struct mc13xxx_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct mc13xxx *mcdev = dev_get_drvdata(pdev->dev.parent);
+	struct device *dev = &pdev->dev;
+	struct mc13xxx_leds_platform_data *pdata = dev_get_platdata(dev);
+	struct mc13xxx *mcdev = dev_get_drvdata(dev->parent);
 	struct mc13xxx_led_devtype *devtype =
 		(struct mc13xxx_led_devtype *)pdev->id_entry->driver_data;
 	struct mc13xxx_leds *leds;
-	int i, id, num_leds, ret = -ENODATA;
-	u32 reg, init_led = 0;
+	int i, id, ret = -ENODATA;
+	u32 init_led = 0;
 
-	if (!pdata) {
-		dev_err(&pdev->dev, "Missing platform data\n");
-		return -ENODEV;
-	}
-
-	num_leds = pdata->num_leds;
-
-	if ((num_leds < 1) ||
-	    (num_leds > (devtype->led_max - devtype->led_min + 1))) {
-		dev_err(&pdev->dev, "Invalid LED count %d\n", num_leds);
-		return -EINVAL;
-	}
-
-	leds = devm_kzalloc(&pdev->dev, num_leds * sizeof(struct mc13xxx_led) +
-			    sizeof(struct mc13xxx_leds), GFP_KERNEL);
+	leds = devm_kzalloc(dev, sizeof(*leds), GFP_KERNEL);
 	if (!leds)
 		return -ENOMEM;
 
 	leds->devtype = devtype;
-	leds->num_leds = num_leds;
+	leds->master = mcdev;
 	platform_set_drvdata(pdev, leds);
 
-	mc13xxx_lock(mcdev);
+	if (dev->parent->of_node) {
+		pdata = mc13xxx_led_probe_dt(pdev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	} else if (!pdata)
+		return -ENODATA;
+
+	leds->num_leds = pdata->num_leds;
+
+	if ((leds->num_leds < 1) ||
+	    (leds->num_leds > (devtype->led_max - devtype->led_min + 1))) {
+		dev_err(dev, "Invalid LED count %d\n", leds->num_leds);
+		return -EINVAL;
+	}
+
+	leds->led = devm_kzalloc(dev, leds->num_leds * sizeof(*leds->led),
+				 GFP_KERNEL);
+	if (!leds->led)
+		return -ENOMEM;
+
 	for (i = 0; i < devtype->num_regs; i++) {
-		reg = pdata->led_control[i];
-		WARN_ON(reg >= (1 << 24));
-		ret = mc13xxx_reg_write(mcdev, MC13XXX_REG_LED_CONTROL(i), reg);
+		ret = mc13xxx_reg_write(mcdev, leds->devtype->ledctrl_base + i,
+					pdata->led_control[i]);
 		if (ret)
-			break;
-	}
-	mc13xxx_unlock(mcdev);
-
-	if (ret) {
-		dev_err(&pdev->dev, "Unable to init LED driver\n");
-		return ret;
+			return ret;
 	}
 
-	for (i = 0; i < num_leds; i++) {
+	for (i = 0; i < leds->num_leds; i++) {
 		const char *name, *trig;
-		char max_current;
 
 		ret = -EINVAL;
 
 		id = pdata->led[i].id;
 		name = pdata->led[i].name;
 		trig = pdata->led[i].default_trigger;
-		max_current = pdata->led[i].max_current;
 
 		if ((id > devtype->led_max) || (id < devtype->led_min)) {
-			dev_err(&pdev->dev, "Invalid ID %i\n", id);
+			dev_err(dev, "Invalid ID %i\n", id);
 			break;
 		}
 
 		if (init_led & (1 << id)) {
-			dev_warn(&pdev->dev,
-				 "LED %i already initialized\n", id);
+			dev_warn(dev, "LED %i already initialized\n", id);
 			break;
 		}
 
 		init_led |= 1 << id;
 		leds->led[i].id = id;
-		leds->led[i].master = mcdev;
+		leds->led[i].leds = leds;
 		leds->led[i].cdev.name = name;
 		leds->led[i].cdev.default_trigger = trig;
+		leds->led[i].cdev.flags = LED_CORE_SUSPENDRESUME;
 		leds->led[i].cdev.brightness_set = mc13xxx_led_set;
-		leds->led[i].cdev.brightness = LED_OFF;
+		leds->led[i].cdev.max_brightness = mc13xxx_max_brightness(id);
 
 		INIT_WORK(&leds->led[i].work, mc13xxx_led_work);
 
-		ret = mc13xxx_led_setup(&leds->led[i], max_current);
+		ret = led_classdev_register(dev->parent, &leds->led[i].cdev);
 		if (ret) {
-			dev_err(&pdev->dev, "Unable to setup LED %i\n", id);
-			break;
-		}
-		ret = led_classdev_register(pdev->dev.parent,
-					    &leds->led[i].cdev);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to register LED %i\n", id);
+			dev_err(dev, "Failed to register LED %i\n", id);
 			break;
 		}
 	}
@@ -304,7 +282,6 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 
 static int mc13xxx_led_remove(struct platform_device *pdev)
 {
-	struct mc13xxx *mcdev = dev_get_drvdata(pdev->dev.parent);
 	struct mc13xxx_leds *leds = platform_get_drvdata(pdev);
 	int i;
 
@@ -313,11 +290,6 @@ static int mc13xxx_led_remove(struct platform_device *pdev)
 		cancel_work_sync(&leds->led[i].work);
 	}
 
-	mc13xxx_lock(mcdev);
-	for (i = 0; i < leds->devtype->num_regs; i++)
-		mc13xxx_reg_write(mcdev, MC13XXX_REG_LED_CONTROL(i), 0);
-	mc13xxx_unlock(mcdev);
-
 	return 0;
 }
 
@@ -325,17 +297,27 @@ static const struct mc13xxx_led_devtype mc13783_led_devtype = {
 	.led_min	= MC13783_LED_MD,
 	.led_max	= MC13783_LED_B3,
 	.num_regs	= 6,
+	.ledctrl_base	= 51,
 };
 
 static const struct mc13xxx_led_devtype mc13892_led_devtype = {
 	.led_min	= MC13892_LED_MD,
 	.led_max	= MC13892_LED_B,
 	.num_regs	= 4,
+	.ledctrl_base	= 51,
+};
+
+static const struct mc13xxx_led_devtype mc34708_led_devtype = {
+	.led_min	= MC34708_LED_R,
+	.led_max	= MC34708_LED_G,
+	.num_regs	= 1,
+	.ledctrl_base	= 54,
 };
 
 static const struct platform_device_id mc13xxx_led_id_table[] = {
 	{ "mc13783-led", (kernel_ulong_t)&mc13783_led_devtype, },
 	{ "mc13892-led", (kernel_ulong_t)&mc13892_led_devtype, },
+	{ "mc34708-led", (kernel_ulong_t)&mc34708_led_devtype, },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, mc13xxx_led_id_table);

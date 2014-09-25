@@ -1,12 +1,13 @@
 MVEBU System Controller
 -----------------------
-MVEBU (Marvell SOCs: Armada 370/XP, Dove, mv78xx0, Kirkwood, Orion5x)
+MVEBU (Marvell SOCs: Armada 370/375/XP, Dove, mv78xx0, Kirkwood, Orion5x)
 
 Required properties:
 
 - compatible: one of:
 	- "marvell,orion-system-controller"
 	- "marvell,armada-370-xp-system-controller"
+	- "marvell,armada-375-system-controller"
 - reg: Should contain system controller registers location and length.
 
 Example:

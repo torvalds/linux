@@ -21,6 +21,7 @@
 #endif
 
 #include <asm/ptrace.h>
+#include <asm/thread_info.h>
 
 /*
  * Stack pushing/popping (register pairs only). Equivalent to store decrement
@@ -68,23 +69,31 @@
 	msr	daifclr, #8
 	.endm
 
-	.macro	disable_step, tmp
+	.macro	disable_step_tsk, flgs, tmp
+	tbz	\flgs, #TIF_SINGLESTEP, 9990f
 	mrs	\tmp, mdscr_el1
 	bic	\tmp, \tmp, #1
 	msr	mdscr_el1, \tmp
+	isb	// Synchronise with enable_dbg
+9990:
 	.endm
 
-	.macro	enable_step, tmp
+	.macro	enable_step_tsk, flgs, tmp
+	tbz	\flgs, #TIF_SINGLESTEP, 9990f
+	disable_dbg
 	mrs	\tmp, mdscr_el1
 	orr	\tmp, \tmp, #1
 	msr	mdscr_el1, \tmp
+9990:
 	.endm
 
-	.macro	enable_dbg_if_not_stepping, tmp
-	mrs	\tmp, mdscr_el1
-	tbnz	\tmp, #0, 9990f
-	enable_dbg
-9990:
+/*
+ * Enable both debug exceptions and interrupts. This is likely to be
+ * faster than two daifclr operations, since writes to this register
+ * are self-synchronising.
+ */
+	.macro	enable_dbg_and_irq
+	msr	daifclr, #(8 | 2)
 	.endm
 
 /*

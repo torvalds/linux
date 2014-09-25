@@ -40,6 +40,7 @@
 #define W1_FAMILY_DS2760	0x30
 #define W1_FAMILY_DS2780	0x32
 #define W1_FAMILY_DS2413	0x3A
+#define W1_FAMILY_DS2406	0x12
 #define W1_THERM_DS1825		0x3B
 #define W1_FAMILY_DS2781	0x3D
 #define W1_THERM_DS28EA00	0x42
@@ -48,6 +49,12 @@
 
 struct w1_slave;
 
+/**
+ * struct w1_family_ops - operations for a family type
+ * @add_slave: add_slave
+ * @remove_slave: remove_slave
+ * @groups: sysfs group
+ */
 struct w1_family_ops
 {
 	int  (* add_slave)(struct w1_slave *);
@@ -55,6 +62,13 @@ struct w1_family_ops
 	const struct attribute_group **groups;
 };
 
+/**
+ * struct w1_family - reference counted family structure.
+ * @family_entry:	family linked list
+ * @fid:		8 bit family identifier
+ * @fops:		operations for this family
+ * @refcnt:		reference counter
+ */
 struct w1_family
 {
 	struct list_head	family_entry;

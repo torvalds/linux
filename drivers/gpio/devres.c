@@ -39,41 +39,63 @@ static int devm_gpiod_match(struct device *dev, void *res, void *data)
  * devm_gpiod_get - Resource-managed gpiod_get()
  * @dev:	GPIO consumer
  * @con_id:	function within the GPIO consumer
+ * @flags:	optional GPIO initialization flags
  *
  * Managed gpiod_get(). GPIO descriptors returned from this function are
  * automatically disposed on driver detach. See gpiod_get() for detailed
  * information about behavior and return values.
  */
-struct gpio_desc *__must_check devm_gpiod_get(struct device *dev,
-					      const char *con_id)
+struct gpio_desc *__must_check __devm_gpiod_get(struct device *dev,
+					      const char *con_id,
+					      enum gpiod_flags flags)
 {
-	return devm_gpiod_get_index(dev, con_id, 0);
+	return devm_gpiod_get_index(dev, con_id, 0, flags);
 }
-EXPORT_SYMBOL(devm_gpiod_get);
+EXPORT_SYMBOL(__devm_gpiod_get);
+
+/**
+ * devm_gpiod_get_optional - Resource-managed gpiod_get_optional()
+ * @dev: GPIO consumer
+ * @con_id: function within the GPIO consumer
+ * @flags: optional GPIO initialization flags
+ *
+ * Managed gpiod_get_optional(). GPIO descriptors returned from this function
+ * are automatically disposed on driver detach. See gpiod_get_optional() for
+ * detailed information about behavior and return values.
+ */
+struct gpio_desc *__must_check __devm_gpiod_get_optional(struct device *dev,
+						       const char *con_id,
+						       enum gpiod_flags flags)
+{
+	return devm_gpiod_get_index_optional(dev, con_id, 0, flags);
+}
+EXPORT_SYMBOL(__devm_gpiod_get_optional);
 
 /**
  * devm_gpiod_get_index - Resource-managed gpiod_get_index()
  * @dev:	GPIO consumer
  * @con_id:	function within the GPIO consumer
  * @idx:	index of the GPIO to obtain in the consumer
+ * @flags:	optional GPIO initialization flags
  *
  * Managed gpiod_get_index(). GPIO descriptors returned from this function are
  * automatically disposed on driver detach. See gpiod_get_index() for detailed
  * information about behavior and return values.
  */
-struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
+struct gpio_desc *__must_check __devm_gpiod_get_index(struct device *dev,
 						    const char *con_id,
-						    unsigned int idx)
+						    unsigned int idx,
+						    enum gpiod_flags flags)
 {
 	struct gpio_desc **dr;
 	struct gpio_desc *desc;
 
-	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpiod_desc *),
+	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpio_desc *),
 			  GFP_KERNEL);
 	if (!dr)
 		return ERR_PTR(-ENOMEM);
 
-	desc = gpiod_get_index(dev, con_id, idx);
+	desc = gpiod_get_index(dev, con_id, idx, flags);
 	if (IS_ERR(desc)) {
 		devres_free(dr);
 		return desc;
@@ -84,7 +106,36 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 
 	return desc;
 }
-EXPORT_SYMBOL(devm_gpiod_get_index);
+EXPORT_SYMBOL(__devm_gpiod_get_index);
+
+/**
+ * devm_gpiod_get_index_optional - Resource-managed gpiod_get_index_optional()
+ * @dev: GPIO consumer
+ * @con_id: function within the GPIO consumer
+ * @index: index of the GPIO to obtain in the consumer
+ * @flags: optional GPIO initialization flags
+ *
+ * Managed gpiod_get_index_optional(). GPIO descriptors returned from this
+ * function are automatically disposed on driver detach. See
+ * gpiod_get_index_optional() for detailed information about behavior and
+ * return values.
+ */
+struct gpio_desc *__must_check __devm_gpiod_get_index_optional(struct device *dev,
+							     const char *con_id,
+							     unsigned int index,
+							 enum gpiod_flags flags)
+{
+	struct gpio_desc *desc;
+
+	desc = devm_gpiod_get_index(dev, con_id, index, flags);
+	if (IS_ERR(desc)) {
+		if (PTR_ERR(desc) == -ENOENT)
+			return NULL;
+	}
+
+	return desc;
+}
+EXPORT_SYMBOL(__devm_gpiod_get_index_optional);
 
 /**
  * devm_gpiod_put - Resource-managed gpiod_put()

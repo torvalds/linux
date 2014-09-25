@@ -58,16 +58,6 @@ static int read_mpidr(void)
 }
 
 /*
- * Get a global nanosecond time stamp for tracing.
- */
-static s64 get_ns(void)
-{
-	struct timespec ts;
-	getnstimeofday(&ts);
-	return timespec_to_ns(&ts);
-}
-
-/*
  * bL switcher core code.
  */
 
@@ -224,7 +214,7 @@ static int bL_switch_to(unsigned int new_cluster_id)
 	 */
 	local_irq_disable();
 	local_fiq_disable();
-	trace_cpu_migrate_begin(get_ns(), ob_mpidr);
+	trace_cpu_migrate_begin(ktime_get_real_ns(), ob_mpidr);
 
 	/* redirect GIC's SGIs to our counterpart */
 	gic_migrate_target(bL_gic_id[ib_cpu][ib_cluster]);
@@ -267,7 +257,7 @@ static int bL_switch_to(unsigned int new_cluster_id)
 					  tdev->evtdev->next_event, 1);
 	}
 
-	trace_cpu_migrate_finish(get_ns(), ib_mpidr);
+	trace_cpu_migrate_finish(ktime_get_real_ns(), ib_mpidr);
 	local_fiq_enable();
 	local_irq_enable();
 
@@ -433,8 +423,12 @@ static void bL_switcher_restore_cpus(void)
 {
 	int i;
 
-	for_each_cpu(i, &bL_switcher_removed_logical_cpus)
-		cpu_up(i);
+	for_each_cpu(i, &bL_switcher_removed_logical_cpus) {
+		struct device *cpu_dev = get_cpu_device(i);
+		int ret = device_online(cpu_dev);
+		if (ret)
+			dev_err(cpu_dev, "switcher: unable to restore CPU\n");
+	}
 }
 
 static int bL_switcher_halve_cpus(void)
@@ -521,7 +515,7 @@ static int bL_switcher_halve_cpus(void)
 			continue;
 		}
 
-		ret = cpu_down(i);
+		ret = device_offline(get_cpu_device(i));
 		if (ret) {
 			bL_switcher_restore_cpus();
 			return ret;
@@ -554,7 +548,7 @@ int bL_switcher_get_logical_index(u32 mpidr)
 
 static void bL_switcher_trace_trigger_cpu(void *__always_unused info)
 {
-	trace_cpu_migrate_current(get_ns(), read_mpidr());
+	trace_cpu_migrate_current(ktime_get_real_ns(), read_mpidr());
 }
 
 int bL_switcher_trace_trigger(void)
@@ -797,10 +791,8 @@ static int __init bL_switcher_init(void)
 {
 	int ret;
 
-	if (MAX_NR_CLUSTERS != 2) {
-		pr_err("%s: only dual cluster systems are supported\n", __func__);
-		return -EINVAL;
-	}
+	if (!mcpm_is_available())
+		return -ENODEV;
 
 	cpu_notifier(bL_switcher_hotplug_callback, 0);
 

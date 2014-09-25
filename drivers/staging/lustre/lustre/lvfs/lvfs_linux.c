@@ -45,17 +45,17 @@
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
-#include <linux/libcfs/libcfs.h>
 #include <linux/module.h>
-#include <linux/lustre_compat25.h>
-#include <lvfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../include/linux/lustre_compat25.h"
+#include "../include/lvfs.h"
 
-#include <obd.h>
-#include <lustre_lib.h>
+#include "../include/obd.h"
+#include "../include/lustre_lib.h"
 
 struct lprocfs_stats *obd_memory = NULL;
 EXPORT_SYMBOL(obd_memory);
-/* refine later and change to seqlock or simlar from libcfs */
+/* refine later and change to seqlock or similar from libcfs */
 
 /* Debugging check only needed during development */
 #ifdef OBD_CTXT_DEBUG
@@ -223,7 +223,7 @@ int lustre_rename(struct dentry *dir, struct vfsmount *mnt,
 		GOTO(put_old, err = PTR_ERR(dchild_new));
 
 	err = ll_vfs_rename(dir->d_inode, dchild_old, mnt,
-			    dir->d_inode, dchild_new, mnt, NULL);
+			    dir->d_inode, dchild_new, mnt);
 
 	dput(dchild_new);
 put_old:
@@ -233,8 +233,8 @@ put_old:
 EXPORT_SYMBOL(lustre_rename);
 
 /* Note: dput(dchild) will *not* be called if there is an error */
-struct l_file *l_dentry_open(struct lvfs_run_ctxt *ctxt, struct l_dentry *de,
-			     int flags)
+struct file *l_dentry_open(struct lvfs_run_ctxt *ctxt, struct dentry *de,
+			   int flags)
 {
 	struct path path = {
 		.dentry = de,
@@ -244,7 +244,7 @@ struct l_file *l_dentry_open(struct lvfs_run_ctxt *ctxt, struct l_dentry *de,
 }
 EXPORT_SYMBOL(l_dentry_open);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 			  struct lprocfs_counter_header *header,
 			  enum lprocfs_stats_flags flags,
@@ -286,7 +286,7 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 	return ret;
 }
 EXPORT_SYMBOL(lprocfs_read_helper);
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS*/
 
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre VFS Filesystem Helper v0.1");

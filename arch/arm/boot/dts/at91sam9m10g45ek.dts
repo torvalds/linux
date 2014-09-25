@@ -8,6 +8,7 @@
  */
 /dts-v1/;
 #include "at91sam9g45.dtsi"
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	model = "Atmel AT91SAM9M10G45-EK";
@@ -29,6 +30,14 @@
 		main_clock: clock@0 {
 			compatible = "atmel,osc", "fixed-clock";
 			clock-frequency = <12000000>;
+		};
+
+		slow_xtal {
+		      clock-frequency = <32768>;
+		};
+
+		main_xtal {
+		      clock-frequency = <12000000>;
 		};
 	};
 
@@ -130,6 +139,21 @@
 				status = "okay";
 			};
 
+			adc0: adc@fffb0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <
+					&pinctrl_adc0_ad0
+					&pinctrl_adc0_ad1
+					&pinctrl_adc0_ad2
+					&pinctrl_adc0_ad3
+					&pinctrl_adc0_ad4
+					&pinctrl_adc0_ad5
+					&pinctrl_adc0_ad6
+					&pinctrl_adc0_ad7>;
+				atmel,adc-ts-wires = <4>;
+				status = "okay";
+			};
+
 			pwm0: pwm@fffb8000 {
 				status = "okay";
 
@@ -216,14 +240,14 @@
 
 		d6 {
 			label = "d6";
-			pwms = <&pwm0 3 5000 0>;
+			pwms = <&pwm0 3 5000 PWM_POLARITY_INVERTED>;
 			max-brightness = <255>;
 			linux,default-trigger = "nand-disk";
 		};
 
 		d7 {
 			label = "d7";
-			pwms = <&pwm0 1 5000 0>;
+			pwms = <&pwm0 1 5000 PWM_POLARITY_INVERTED>;
 			max-brightness = <255>;
 			linux,default-trigger = "mmc0";
 		};

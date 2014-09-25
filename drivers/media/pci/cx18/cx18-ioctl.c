@@ -156,7 +156,6 @@ static int cx18_g_fmt_vid_cap(struct file *file, void *fh,
 	pixfmt->height = cx->cxhdl.height;
 	pixfmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pixfmt->field = V4L2_FIELD_INTERLACED;
-	pixfmt->priv = 0;
 	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
 		pixfmt->pixelformat = s->pixelformat;
 		pixfmt->sizeimage = s->vb_bytes_per_frame;
@@ -602,7 +601,7 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id std)
 			(unsigned long long) cx->std);
 
 	/* Tuner */
-	cx18_call_all(cx, core, s_std, cx->std);
+	cx18_call_all(cx, video, s_std, cx->std);
 	return 0;
 }
 

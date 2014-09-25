@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <linux/irq.h>
 #include <asm/irq_regs.h>
 #include <asm/cputime.h>
 #include <asm/lowcore.h>
@@ -29,6 +30,7 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct irq_stat, irq_stat);
 EXPORT_PER_CPU_SYMBOL_GPL(irq_stat);
 
 struct irq_class {
+	int irq;
 	char *name;
 	char *desc;
 };
@@ -44,9 +46,9 @@ struct irq_class {
  * up with having a sum which accounts each interrupt twice.
  */
 static const struct irq_class irqclass_main_desc[NR_IRQS_BASE] = {
-	[EXT_INTERRUPT]  = {.name = "EXT"},
-	[IO_INTERRUPT]	 = {.name = "I/O"},
-	[THIN_INTERRUPT] = {.name = "AIO"},
+	{.irq = EXT_INTERRUPT,	.name = "EXT"},
+	{.irq = IO_INTERRUPT,	.name = "I/O"},
+	{.irq = THIN_INTERRUPT, .name = "AIO"},
 };
 
 /*
@@ -55,42 +57,42 @@ static const struct irq_class irqclass_main_desc[NR_IRQS_BASE] = {
  * In addition this list contains non external / I/O events like NMIs.
  */
 static const struct irq_class irqclass_sub_desc[NR_ARCH_IRQS] = {
-	[IRQEXT_CLK] = {.name = "CLK", .desc = "[EXT] Clock Comparator"},
-	[IRQEXT_EXC] = {.name = "EXC", .desc = "[EXT] External Call"},
-	[IRQEXT_EMS] = {.name = "EMS", .desc = "[EXT] Emergency Signal"},
-	[IRQEXT_TMR] = {.name = "TMR", .desc = "[EXT] CPU Timer"},
-	[IRQEXT_TLA] = {.name = "TAL", .desc = "[EXT] Timing Alert"},
-	[IRQEXT_PFL] = {.name = "PFL", .desc = "[EXT] Pseudo Page Fault"},
-	[IRQEXT_DSD] = {.name = "DSD", .desc = "[EXT] DASD Diag"},
-	[IRQEXT_VRT] = {.name = "VRT", .desc = "[EXT] Virtio"},
-	[IRQEXT_SCP] = {.name = "SCP", .desc = "[EXT] Service Call"},
-	[IRQEXT_IUC] = {.name = "IUC", .desc = "[EXT] IUCV"},
-	[IRQEXT_CMS] = {.name = "CMS", .desc = "[EXT] CPU-Measurement: Sampling"},
-	[IRQEXT_CMC] = {.name = "CMC", .desc = "[EXT] CPU-Measurement: Counter"},
-	[IRQEXT_CMR] = {.name = "CMR", .desc = "[EXT] CPU-Measurement: RI"},
-	[IRQIO_CIO]  = {.name = "CIO", .desc = "[I/O] Common I/O Layer Interrupt"},
-	[IRQIO_QAI]  = {.name = "QAI", .desc = "[I/O] QDIO Adapter Interrupt"},
-	[IRQIO_DAS]  = {.name = "DAS", .desc = "[I/O] DASD"},
-	[IRQIO_C15]  = {.name = "C15", .desc = "[I/O] 3215"},
-	[IRQIO_C70]  = {.name = "C70", .desc = "[I/O] 3270"},
-	[IRQIO_TAP]  = {.name = "TAP", .desc = "[I/O] Tape"},
-	[IRQIO_VMR]  = {.name = "VMR", .desc = "[I/O] Unit Record Devices"},
-	[IRQIO_LCS]  = {.name = "LCS", .desc = "[I/O] LCS"},
-	[IRQIO_CLW]  = {.name = "CLW", .desc = "[I/O] CLAW"},
-	[IRQIO_CTC]  = {.name = "CTC", .desc = "[I/O] CTC"},
-	[IRQIO_APB]  = {.name = "APB", .desc = "[I/O] AP Bus"},
-	[IRQIO_ADM]  = {.name = "ADM", .desc = "[I/O] EADM Subchannel"},
-	[IRQIO_CSC]  = {.name = "CSC", .desc = "[I/O] CHSC Subchannel"},
-	[IRQIO_PCI]  = {.name = "PCI", .desc = "[I/O] PCI Interrupt" },
-	[IRQIO_MSI]  = {.name = "MSI", .desc = "[I/O] MSI Interrupt" },
-	[IRQIO_VIR]  = {.name = "VIR", .desc = "[I/O] Virtual I/O Devices"},
-	[NMI_NMI]    = {.name = "NMI", .desc = "[NMI] Machine Check"},
-	[CPU_RST]    = {.name = "RST", .desc = "[CPU] CPU Restart"},
+	{.irq = IRQEXT_CLK, .name = "CLK", .desc = "[EXT] Clock Comparator"},
+	{.irq = IRQEXT_EXC, .name = "EXC", .desc = "[EXT] External Call"},
+	{.irq = IRQEXT_EMS, .name = "EMS", .desc = "[EXT] Emergency Signal"},
+	{.irq = IRQEXT_TMR, .name = "TMR", .desc = "[EXT] CPU Timer"},
+	{.irq = IRQEXT_TLA, .name = "TAL", .desc = "[EXT] Timing Alert"},
+	{.irq = IRQEXT_PFL, .name = "PFL", .desc = "[EXT] Pseudo Page Fault"},
+	{.irq = IRQEXT_DSD, .name = "DSD", .desc = "[EXT] DASD Diag"},
+	{.irq = IRQEXT_VRT, .name = "VRT", .desc = "[EXT] Virtio"},
+	{.irq = IRQEXT_SCP, .name = "SCP", .desc = "[EXT] Service Call"},
+	{.irq = IRQEXT_IUC, .name = "IUC", .desc = "[EXT] IUCV"},
+	{.irq = IRQEXT_CMS, .name = "CMS", .desc = "[EXT] CPU-Measurement: Sampling"},
+	{.irq = IRQEXT_CMC, .name = "CMC", .desc = "[EXT] CPU-Measurement: Counter"},
+	{.irq = IRQEXT_CMR, .name = "CMR", .desc = "[EXT] CPU-Measurement: RI"},
+	{.irq = IRQIO_CIO,  .name = "CIO", .desc = "[I/O] Common I/O Layer Interrupt"},
+	{.irq = IRQIO_QAI,  .name = "QAI", .desc = "[I/O] QDIO Adapter Interrupt"},
+	{.irq = IRQIO_DAS,  .name = "DAS", .desc = "[I/O] DASD"},
+	{.irq = IRQIO_C15,  .name = "C15", .desc = "[I/O] 3215"},
+	{.irq = IRQIO_C70,  .name = "C70", .desc = "[I/O] 3270"},
+	{.irq = IRQIO_TAP,  .name = "TAP", .desc = "[I/O] Tape"},
+	{.irq = IRQIO_VMR,  .name = "VMR", .desc = "[I/O] Unit Record Devices"},
+	{.irq = IRQIO_LCS,  .name = "LCS", .desc = "[I/O] LCS"},
+	{.irq = IRQIO_CLW,  .name = "CLW", .desc = "[I/O] CLAW"},
+	{.irq = IRQIO_CTC,  .name = "CTC", .desc = "[I/O] CTC"},
+	{.irq = IRQIO_APB,  .name = "APB", .desc = "[I/O] AP Bus"},
+	{.irq = IRQIO_ADM,  .name = "ADM", .desc = "[I/O] EADM Subchannel"},
+	{.irq = IRQIO_CSC,  .name = "CSC", .desc = "[I/O] CHSC Subchannel"},
+	{.irq = IRQIO_PCI,  .name = "PCI", .desc = "[I/O] PCI Interrupt" },
+	{.irq = IRQIO_MSI,  .name = "MSI", .desc = "[I/O] MSI Interrupt" },
+	{.irq = IRQIO_VIR,  .name = "VIR", .desc = "[I/O] Virtual I/O Devices"},
+	{.irq = IRQIO_VAI,  .name = "VAI", .desc = "[I/O] Virtual I/O Devices AI"},
+	{.irq = NMI_NMI,    .name = "NMI", .desc = "[NMI] Machine Check"},
+	{.irq = CPU_RST,    .name = "RST", .desc = "[CPU] CPU Restart"},
 };
 
 void __init init_IRQ(void)
 {
-	irq_reserve_irqs(0, THIN_INTERRUPT);
 	init_cio_interrupts();
 	init_airq_interrupts();
 	init_ext_interrupts();
@@ -115,33 +117,37 @@ void do_IRQ(struct pt_regs *regs, int irq)
  */
 int show_interrupts(struct seq_file *p, void *v)
 {
-	int irq = *(loff_t *) v;
-	int cpu;
+	int index = *(loff_t *) v;
+	int cpu, irq;
 
 	get_online_cpus();
-	if (irq == 0) {
+	if (index == 0) {
 		seq_puts(p, "           ");
 		for_each_online_cpu(cpu)
 			seq_printf(p, "CPU%d       ", cpu);
 		seq_putc(p, '\n');
 		goto out;
 	}
-	if (irq < NR_IRQS) {
-		if (irq >= NR_IRQS_BASE)
+	if (index < NR_IRQS) {
+		if (index >= NR_IRQS_BASE)
 			goto out;
-		seq_printf(p, "%s: ", irqclass_main_desc[irq].name);
+		/* Adjust index to process irqclass_main_desc array entries */
+		index--;
+		seq_printf(p, "%s: ", irqclass_main_desc[index].name);
+		irq = irqclass_main_desc[index].irq;
 		for_each_online_cpu(cpu)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(irq, cpu));
 		seq_putc(p, '\n');
 		goto out;
 	}
-	for (irq = 0; irq < NR_ARCH_IRQS; irq++) {
-		seq_printf(p, "%s: ", irqclass_sub_desc[irq].name);
+	for (index = 0; index < NR_ARCH_IRQS; index++) {
+		seq_printf(p, "%s: ", irqclass_sub_desc[index].name);
+		irq = irqclass_sub_desc[index].irq;
 		for_each_online_cpu(cpu)
 			seq_printf(p, "%10u ",
 				   per_cpu(irq_stat, cpu).irqs[irq]);
-		if (irqclass_sub_desc[irq].desc)
-			seq_printf(p, "  %s", irqclass_sub_desc[irq].desc);
+		if (irqclass_sub_desc[index].desc)
+			seq_printf(p, "  %s", irqclass_sub_desc[index].desc);
 		seq_putc(p, '\n');
 	}
 out:
@@ -149,9 +155,9 @@ out:
 	return 0;
 }
 
-int arch_show_interrupts(struct seq_file *p, int prec)
+unsigned int arch_dynirq_lower_bound(unsigned int from)
 {
-	return 0;
+	return from < THIN_INTERRUPT ? THIN_INTERRUPT : from;
 }
 
 /*
@@ -205,7 +211,7 @@ static inline int ext_hash(u16 code)
 	return (code + (code >> 9)) & (ARRAY_SIZE(ext_int_hash) - 1);
 }
 
-int register_external_interrupt(u16 code, ext_int_handler_t handler)
+int register_external_irq(u16 code, ext_int_handler_t handler)
 {
 	struct ext_int_info *p;
 	unsigned long flags;
@@ -223,9 +229,9 @@ int register_external_interrupt(u16 code, ext_int_handler_t handler)
 	spin_unlock_irqrestore(&ext_int_hash_lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL(register_external_interrupt);
+EXPORT_SYMBOL(register_external_irq);
 
-int unregister_external_interrupt(u16 code, ext_int_handler_t handler)
+int unregister_external_irq(u16 code, ext_int_handler_t handler)
 {
 	struct ext_int_info *p;
 	unsigned long flags;
@@ -241,7 +247,7 @@ int unregister_external_interrupt(u16 code, ext_int_handler_t handler)
 	spin_unlock_irqrestore(&ext_int_hash_lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL(unregister_external_interrupt);
+EXPORT_SYMBOL(unregister_external_irq);
 
 static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 {
@@ -251,7 +257,7 @@ static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 	int index;
 
 	ext_code = *(struct ext_code *) &regs->int_code;
-	if (ext_code.code != 0x1004)
+	if (ext_code.code != EXT_IRQ_CLK_COMP)
 		__get_cpu_var(s390_idle).nohz_delay = 1;
 
 	index = ext_hash(ext_code.code);

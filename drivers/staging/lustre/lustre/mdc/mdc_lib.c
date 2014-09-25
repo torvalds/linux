@@ -35,8 +35,8 @@
  */
 
 #define DEBUG_SUBSYSTEM S_MDC
-#include <lustre_net.h>
-#include <lustre/lustre_idl.h>
+#include "../include/lustre_net.h"
+#include "../include/lustre/lustre_idl.h"
 #include "mdc_internal.h"
 
 
@@ -197,7 +197,7 @@ static __u64 mds_pack_open_flags(__u64 flags, __u32 mode)
 	if (flags & FMODE_EXEC)
 		cr_flags |= MDS_FMODE_EXEC;
 #endif
-	if (flags & O_LOV_DELAY_CREATE)
+	if (cl_is_lov_delay_create(flags))
 		cr_flags |= MDS_OPEN_DELAY_CREATE;
 
 	if (flags & O_NONBLOCK)

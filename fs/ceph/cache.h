@@ -48,6 +48,12 @@ void ceph_readpage_to_fscache(struct inode *inode, struct page *page);
 void ceph_invalidate_fscache_page(struct inode* inode, struct page *page);
 void ceph_queue_revalidate(struct inode *inode);
 
+static inline void ceph_fscache_update_objectsize(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	fscache_attr_changed(ci->fscache);
+}
+
 static inline void ceph_fscache_invalidate(struct inode *inode)
 {
 	fscache_invalidate(ceph_inode(inode)->fscache);
@@ -65,6 +71,14 @@ static inline int ceph_release_fscache_page(struct page *page, gfp_t gfp)
 	struct inode* inode = page->mapping->host;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	return fscache_maybe_release_page(ci->fscache, page, gfp);
+}
+
+static inline void ceph_fscache_readpage_cancel(struct inode *inode,
+						struct page *page)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	if (fscache_cookie_valid(ci->fscache) && PageFsCache(page))
+		__fscache_uncache_page(ci->fscache, page);
 }
 
 static inline void ceph_fscache_readpages_cancel(struct inode *inode,
@@ -127,6 +141,10 @@ static inline void ceph_readpage_to_fscache(struct inode *inode,
 {
 }
 
+static inline void ceph_fscache_update_objectsize(struct inode *inode)
+{
+}
+
 static inline void ceph_fscache_invalidate(struct inode *inode)
 {
 }
@@ -143,6 +161,11 @@ static inline void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* 
 static inline int ceph_release_fscache_page(struct page *page, gfp_t gfp)
 {
 	return 1;
+}
+
+static inline void ceph_fscache_readpage_cancel(struct inode *inode,
+						struct page *page)
+{
 }
 
 static inline void ceph_fscache_readpages_cancel(struct inode *inode,

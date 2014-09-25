@@ -37,10 +37,10 @@
 #ifndef _MDC_INTERNAL_H
 #define _MDC_INTERNAL_H
 
-#include <lustre_mdc.h>
-#include <lustre_mds.h>
+#include "../include/lustre_mdc.h"
+#include "../include/lustre_mds.h"
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars);
 #else
 static inline void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars)
@@ -101,7 +101,7 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		struct lustre_handle *lockh, void *lmm, int lmmsize,
 		struct ptlrpc_request **req, __u64 extra_lock_flags);
 
-int mdc_resource_get_unused(struct obd_export *exp, struct lu_fid *fid,
+int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 			    struct list_head *cancels, ldlm_mode_t mode,
 			    __u64 bits);
 /* mdc/mdc_request.c */
@@ -122,7 +122,7 @@ int mdc_free_lustre_md(struct obd_export *exp, struct lustre_md *md);
 
 int mdc_set_open_replay_data(struct obd_export *exp,
 			     struct obd_client_handle *och,
-			     struct ptlrpc_request *open_req);
+			     struct lookup_intent *it);
 
 int mdc_clear_open_replay_data(struct obd_export *exp,
 			       struct obd_client_handle *och);

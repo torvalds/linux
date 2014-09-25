@@ -191,7 +191,23 @@ DEF_MMIO_OUT_D(out_le32, 32, stw);
 
 #endif /* __BIG_ENDIAN */
 
+/*
+ * Cache inhibitied accessors for use in real mode, you don't want to use these
+ * unless you know what you're doing.
+ *
+ * NB. These use the cpu byte ordering.
+ */
+DEF_MMIO_OUT_X(out_rm8,   8, stbcix);
+DEF_MMIO_OUT_X(out_rm16, 16, sthcix);
+DEF_MMIO_OUT_X(out_rm32, 32, stwcix);
+DEF_MMIO_IN_X(in_rm8,   8, lbzcix);
+DEF_MMIO_IN_X(in_rm16, 16, lhzcix);
+DEF_MMIO_IN_X(in_rm32, 32, lwzcix);
+
 #ifdef __powerpc64__
+
+DEF_MMIO_OUT_X(out_rm64, 64, stdcix);
+DEF_MMIO_IN_X(in_rm64, 64, ldcix);
 
 #ifdef __BIG_ENDIAN__
 DEF_MMIO_OUT_D(out_be64, 64, std);

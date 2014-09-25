@@ -34,6 +34,10 @@ So this framework sets up the basic building blocks that all drivers
 need and this same framework should make it much easier to refactor
 common code into utility functions shared by all drivers.
 
+A good example to look at as a reference is the v4l2-pci-skeleton.c
+source that is available in this directory. It is a skeleton driver for
+a PCI capture card, and demonstrates how to use the V4L2 driver
+framework. It can be used as a template for real PCI video capture driver.
 
 Structure of a driver
 ---------------------
@@ -671,11 +675,6 @@ You should also set these fields:
   video_device is initialized you *do* know which parent PCI device to use and
   so you set dev_device to the correct PCI device.
 
-- flags: optional. Set to V4L2_FL_USE_FH_PRIO if you want to let the framework
-  handle the VIDIOC_G/S_PRIORITY ioctls. This requires that you use struct
-  v4l2_fh. Eventually this flag will disappear once all drivers use the core
-  priority handling. But for now it has to be set explicitly.
-
 If you use v4l2_ioctl_ops, then you should set .unlocked_ioctl to video_ioctl2
 in your v4l2_file_operations struct.
 
@@ -768,6 +767,7 @@ types exist:
 VFL_TYPE_GRABBER: videoX for video input/output devices
 VFL_TYPE_VBI: vbiX for vertical blank data (i.e. closed captions, teletext)
 VFL_TYPE_RADIO: radioX for radio tuners
+VFL_TYPE_SDR: swradioX for Software Defined Radio tuners
 
 The last argument gives you a certain amount of control over the device
 device node number used (i.e. the X in videoX). Normally you will pass -1
@@ -904,8 +904,7 @@ struct v4l2_fh
 
 struct v4l2_fh provides a way to easily keep file handle specific data
 that is used by the V4L2 framework. New drivers must use struct v4l2_fh
-since it is also used to implement priority handling (VIDIOC_G/S_PRIORITY)
-if the video_device flag V4L2_FL_USE_FH_PRIO is also set.
+since it is also used to implement priority handling (VIDIOC_G/S_PRIORITY).
 
 The users of v4l2_fh (in the V4L2 framework, not the driver) know
 whether a driver uses v4l2_fh as its file->private_data pointer by

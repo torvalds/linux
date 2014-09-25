@@ -150,15 +150,17 @@ void dgnc_remove_driver_sysfiles(struct pci_driver *dgnc_driver)
 }
 
 
-#define DGNC_VERIFY_BOARD(p, bd)			\
-	if (!p)						\
-		return 0;				\
-							\
-	bd = dev_get_drvdata(p);			\
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)	\
-		return 0;				\
-	if (bd->state != BOARD_READY)			\
-		return 0;				\
+#define DGNC_VERIFY_BOARD(p, bd)				\
+	do {							\
+		if (!p)						\
+			return 0;				\
+								\
+		bd = dev_get_drvdata(p);			\
+		if (!bd || bd->magic != DGNC_BOARD_MAGIC)	\
+			return 0;				\
+		if (bd->state != BOARD_READY)			\
+			return 0;				\
+	} while (0)
 
 
 
@@ -739,7 +741,7 @@ void dgnc_create_tty_sysfs(struct un_t *un, struct device *c)
 
 	ret = sysfs_create_group(&c->kobj, &dgnc_tty_attribute_group);
 	if (ret) {
-		printk(KERN_ERR "dgnc: failed to create sysfs tty device attributes.\n");
+		dev_err(c, "dgnc: failed to create sysfs tty device attributes.\n");
 		sysfs_remove_group(&c->kobj, &dgnc_tty_attribute_group);
 		return;
 	}

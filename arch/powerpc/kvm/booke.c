@@ -51,7 +51,6 @@ unsigned long kvmppc_booke_handlers;
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "mmio",       VCPU_STAT(mmio_exits) },
-	{ "dcr",        VCPU_STAT(dcr_exits) },
 	{ "sig",        VCPU_STAT(signal_exits) },
 	{ "itlb_r",     VCPU_STAT(itlb_real_miss_exits) },
 	{ "itlb_v",     VCPU_STAT(itlb_virt_miss_exits) },
@@ -185,24 +184,28 @@ static void kvmppc_booke_queue_irqprio(struct kvm_vcpu *vcpu,
 	set_bit(priority, &vcpu->arch.pending_exceptions);
 }
 
-static void kvmppc_core_queue_dtlb_miss(struct kvm_vcpu *vcpu,
-                                        ulong dear_flags, ulong esr_flags)
+void kvmppc_core_queue_dtlb_miss(struct kvm_vcpu *vcpu,
+				 ulong dear_flags, ulong esr_flags)
 {
 	vcpu->arch.queued_dear = dear_flags;
 	vcpu->arch.queued_esr = esr_flags;
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DTLB_MISS);
 }
 
-static void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu,
-                                           ulong dear_flags, ulong esr_flags)
+void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu,
+				    ulong dear_flags, ulong esr_flags)
 {
 	vcpu->arch.queued_dear = dear_flags;
 	vcpu->arch.queued_esr = esr_flags;
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DATA_STORAGE);
 }
 
-static void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu,
-                                           ulong esr_flags)
+void kvmppc_core_queue_itlb_miss(struct kvm_vcpu *vcpu)
+{
+	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ITLB_MISS);
+}
+
+void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu, ulong esr_flags)
 {
 	vcpu->arch.queued_esr = esr_flags;
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_INST_STORAGE);
@@ -266,13 +269,8 @@ static void kvmppc_core_dequeue_watchdog(struct kvm_vcpu *vcpu)
 
 static void set_guest_srr(struct kvm_vcpu *vcpu, unsigned long srr0, u32 srr1)
 {
-#ifdef CONFIG_KVM_BOOKE_HV
-	mtspr(SPRN_GSRR0, srr0);
-	mtspr(SPRN_GSRR1, srr1);
-#else
-	vcpu->arch.shared->srr0 = srr0;
-	vcpu->arch.shared->srr1 = srr1;
-#endif
+	kvmppc_set_srr0(vcpu, srr0);
+	kvmppc_set_srr1(vcpu, srr1);
 }
 
 static void set_guest_csrr(struct kvm_vcpu *vcpu, unsigned long srr0, u32 srr1)
@@ -295,51 +293,6 @@ static void set_guest_mcsrr(struct kvm_vcpu *vcpu, unsigned long srr0, u32 srr1)
 {
 	vcpu->arch.mcsrr0 = srr0;
 	vcpu->arch.mcsrr1 = srr1;
-}
-
-static unsigned long get_guest_dear(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_KVM_BOOKE_HV
-	return mfspr(SPRN_GDEAR);
-#else
-	return vcpu->arch.shared->dar;
-#endif
-}
-
-static void set_guest_dear(struct kvm_vcpu *vcpu, unsigned long dear)
-{
-#ifdef CONFIG_KVM_BOOKE_HV
-	mtspr(SPRN_GDEAR, dear);
-#else
-	vcpu->arch.shared->dar = dear;
-#endif
-}
-
-static unsigned long get_guest_esr(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_KVM_BOOKE_HV
-	return mfspr(SPRN_GESR);
-#else
-	return vcpu->arch.shared->esr;
-#endif
-}
-
-static void set_guest_esr(struct kvm_vcpu *vcpu, u32 esr)
-{
-#ifdef CONFIG_KVM_BOOKE_HV
-	mtspr(SPRN_GESR, esr);
-#else
-	vcpu->arch.shared->esr = esr;
-#endif
-}
-
-static unsigned long get_guest_epr(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_KVM_BOOKE_HV
-	return mfspr(SPRN_GEPR);
-#else
-	return vcpu->arch.epr;
-#endif
 }
 
 /* Deliver the interrupt of the corresponding priority, if possible. */
@@ -450,9 +403,9 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 
 		vcpu->arch.pc = vcpu->arch.ivpr | vcpu->arch.ivor[priority];
 		if (update_esr == true)
-			set_guest_esr(vcpu, vcpu->arch.queued_esr);
+			kvmppc_set_esr(vcpu, vcpu->arch.queued_esr);
 		if (update_dear == true)
-			set_guest_dear(vcpu, vcpu->arch.queued_dear);
+			kvmppc_set_dar(vcpu, vcpu->arch.queued_dear);
 		if (update_epr == true) {
 			if (vcpu->arch.epr_flags & KVMPPC_EPR_USER)
 				kvm_make_request(KVM_REQ_EPR_EXIT, vcpu);
@@ -643,7 +596,7 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 		local_irq_enable();
 		kvm_vcpu_block(vcpu);
 		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
-		local_irq_disable();
+		hard_irq_disable();
 
 		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
 		r = 1;
@@ -682,34 +635,22 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	int ret, s;
 	struct debug_reg debug;
-#ifdef CONFIG_PPC_FPU
-	struct thread_fp_state fp;
-	int fpexc_mode;
-#endif
 
 	if (!vcpu->arch.sane) {
 		kvm_run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		return -EINVAL;
 	}
 
-	local_irq_disable();
 	s = kvmppc_prepare_to_enter(vcpu);
 	if (s <= 0) {
-		local_irq_enable();
 		ret = s;
 		goto out;
 	}
+	/* interrupts now hard-disabled */
 
 #ifdef CONFIG_PPC_FPU
 	/* Save userspace FPU state in stack */
 	enable_kernel_fp();
-	fp = current->thread.fp_state;
-	fpexc_mode = current->thread.fpexc_mode;
-
-	/* Restore guest FPU state to thread */
-	memcpy(current->thread.fp_state.fpr, vcpu->arch.fpr,
-	       sizeof(vcpu->arch.fpr));
-	current->thread.fp_state.fpscr = vcpu->arch.fpscr;
 
 	/*
 	 * Since we can't trap on MSR_FP in GS-mode, we consider the guest
@@ -728,6 +669,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	debug = current->thread.debug;
 	current->thread.debug = vcpu->arch.shadow_dbg_reg;
 
+	vcpu->arch.pgdir = current->mm->pgd;
 	kvmppc_fix_ee_before_entry();
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
@@ -743,15 +685,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	kvmppc_save_guest_fp(vcpu);
 
 	vcpu->fpu_active = 0;
-
-	/* Save guest FPU state from thread */
-	memcpy(vcpu->arch.fpr, current->thread.fp_state.fpr,
-	       sizeof(vcpu->arch.fpr));
-	vcpu->arch.fpscr = current->thread.fp_state.fpscr;
-
-	/* Restore userspace FPU state from stack */
-	current->thread.fp_state = fp;
-	current->thread.fpexc_mode = fpexc_mode;
 #endif
 
 out:
@@ -772,9 +705,8 @@ static int emulation_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		 * they were actually modified by emulation. */
 		return RESUME_GUEST_NV;
 
-	case EMULATE_DO_DCR:
-		run->exit_reason = KVM_EXIT_DCR;
-		return RESUME_HOST;
+	case EMULATE_AGAIN:
+		return RESUME_GUEST;
 
 	case EMULATE_FAIL:
 		printk(KERN_CRIT "%s: emulation at %lx failed (%08x)\n",
@@ -886,6 +818,28 @@ static void kvmppc_restart_interrupt(struct kvm_vcpu *vcpu,
 	}
 }
 
+static int kvmppc_resume_inst_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
+				  enum emulation_result emulated, u32 last_inst)
+{
+	switch (emulated) {
+	case EMULATE_AGAIN:
+		return RESUME_GUEST;
+
+	case EMULATE_FAIL:
+		pr_debug("%s: load instruction from guest address %lx failed\n",
+		       __func__, vcpu->arch.pc);
+		/* For debugging, encode the failing instruction and
+		 * report it to userspace. */
+		run->hw.hardware_exit_reason = ~0ULL << 32;
+		run->hw.hardware_exit_reason |= last_inst;
+		kvmppc_core_queue_program(vcpu, ESR_PIL);
+		return RESUME_HOST;
+
+	default:
+		BUG();
+	}
+}
+
 /**
  * kvmppc_handle_exit
  *
@@ -897,23 +851,28 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int r = RESUME_HOST;
 	int s;
 	int idx;
-
-#ifdef CONFIG_PPC64
-	WARN_ON(local_paca->irq_happened != 0);
-#endif
-
-	/*
-	 * We enter with interrupts disabled in hardware, but
-	 * we need to call hard_irq_disable anyway to ensure that
-	 * the software state is kept in sync.
-	 */
-	hard_irq_disable();
+	u32 last_inst = KVM_INST_FETCH_FAILED;
+	enum emulation_result emulated = EMULATE_DONE;
 
 	/* update before a new last_exit_type is rewritten */
 	kvmppc_update_timing_stats(vcpu);
 
 	/* restart interrupts if they were meant for the host */
 	kvmppc_restart_interrupt(vcpu, exit_nr);
+
+	/*
+	 * get last instruction before beeing preempted
+	 * TODO: for e6500 check also BOOKE_INTERRUPT_LRAT_ERROR & ESR_DATA
+	 */
+	switch (exit_nr) {
+	case BOOKE_INTERRUPT_DATA_STORAGE:
+	case BOOKE_INTERRUPT_DTLB_MISS:
+	case BOOKE_INTERRUPT_HV_PRIV:
+		emulated = kvmppc_get_last_inst(vcpu, false, &last_inst);
+		break;
+	default:
+		break;
+	}
 
 	local_irq_enable();
 
@@ -922,6 +881,11 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
+
+	if (emulated != EMULATE_DONE) {
+		r = kvmppc_resume_inst_load(run, vcpu, emulated, last_inst);
+		goto out;
+	}
 
 	switch (exit_nr) {
 	case BOOKE_INTERRUPT_MACHINE_CHECK:
@@ -1212,17 +1176,17 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		BUG();
 	}
 
+out:
 	/*
 	 * To avoid clobbering exit_reason, only check for signals if we
 	 * aren't already exiting to userspace for some other reason.
 	 */
 	if (!(r & RESUME_HOST)) {
-		local_irq_disable();
 		s = kvmppc_prepare_to_enter(vcpu);
-		if (s <= 0) {
-			local_irq_enable();
+		if (s <= 0)
 			r = (s << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
-		} else {
+		else {
+			/* interrupts now hard-disabled */
 			kvmppc_fix_ee_before_entry();
 		}
 	}
@@ -1297,17 +1261,17 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->lr = vcpu->arch.lr;
 	regs->xer = kvmppc_get_xer(vcpu);
 	regs->msr = vcpu->arch.shared->msr;
-	regs->srr0 = vcpu->arch.shared->srr0;
-	regs->srr1 = vcpu->arch.shared->srr1;
+	regs->srr0 = kvmppc_get_srr0(vcpu);
+	regs->srr1 = kvmppc_get_srr1(vcpu);
 	regs->pid = vcpu->arch.pid;
-	regs->sprg0 = vcpu->arch.shared->sprg0;
-	regs->sprg1 = vcpu->arch.shared->sprg1;
-	regs->sprg2 = vcpu->arch.shared->sprg2;
-	regs->sprg3 = vcpu->arch.shared->sprg3;
-	regs->sprg4 = vcpu->arch.shared->sprg4;
-	regs->sprg5 = vcpu->arch.shared->sprg5;
-	regs->sprg6 = vcpu->arch.shared->sprg6;
-	regs->sprg7 = vcpu->arch.shared->sprg7;
+	regs->sprg0 = kvmppc_get_sprg0(vcpu);
+	regs->sprg1 = kvmppc_get_sprg1(vcpu);
+	regs->sprg2 = kvmppc_get_sprg2(vcpu);
+	regs->sprg3 = kvmppc_get_sprg3(vcpu);
+	regs->sprg4 = kvmppc_get_sprg4(vcpu);
+	regs->sprg5 = kvmppc_get_sprg5(vcpu);
+	regs->sprg6 = kvmppc_get_sprg6(vcpu);
+	regs->sprg7 = kvmppc_get_sprg7(vcpu);
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		regs->gpr[i] = kvmppc_get_gpr(vcpu, i);
@@ -1325,17 +1289,17 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	vcpu->arch.lr = regs->lr;
 	kvmppc_set_xer(vcpu, regs->xer);
 	kvmppc_set_msr(vcpu, regs->msr);
-	vcpu->arch.shared->srr0 = regs->srr0;
-	vcpu->arch.shared->srr1 = regs->srr1;
+	kvmppc_set_srr0(vcpu, regs->srr0);
+	kvmppc_set_srr1(vcpu, regs->srr1);
 	kvmppc_set_pid(vcpu, regs->pid);
-	vcpu->arch.shared->sprg0 = regs->sprg0;
-	vcpu->arch.shared->sprg1 = regs->sprg1;
-	vcpu->arch.shared->sprg2 = regs->sprg2;
-	vcpu->arch.shared->sprg3 = regs->sprg3;
-	vcpu->arch.shared->sprg4 = regs->sprg4;
-	vcpu->arch.shared->sprg5 = regs->sprg5;
-	vcpu->arch.shared->sprg6 = regs->sprg6;
-	vcpu->arch.shared->sprg7 = regs->sprg7;
+	kvmppc_set_sprg0(vcpu, regs->sprg0);
+	kvmppc_set_sprg1(vcpu, regs->sprg1);
+	kvmppc_set_sprg2(vcpu, regs->sprg2);
+	kvmppc_set_sprg3(vcpu, regs->sprg3);
+	kvmppc_set_sprg4(vcpu, regs->sprg4);
+	kvmppc_set_sprg5(vcpu, regs->sprg5);
+	kvmppc_set_sprg6(vcpu, regs->sprg6);
+	kvmppc_set_sprg7(vcpu, regs->sprg7);
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		kvmppc_set_gpr(vcpu, i, regs->gpr[i]);
@@ -1353,8 +1317,8 @@ static void get_sregs_base(struct kvm_vcpu *vcpu,
 	sregs->u.e.csrr0 = vcpu->arch.csrr0;
 	sregs->u.e.csrr1 = vcpu->arch.csrr1;
 	sregs->u.e.mcsr = vcpu->arch.mcsr;
-	sregs->u.e.esr = get_guest_esr(vcpu);
-	sregs->u.e.dear = get_guest_dear(vcpu);
+	sregs->u.e.esr = kvmppc_get_esr(vcpu);
+	sregs->u.e.dear = kvmppc_get_dar(vcpu);
 	sregs->u.e.tsr = vcpu->arch.tsr;
 	sregs->u.e.tcr = vcpu->arch.tcr;
 	sregs->u.e.dec = kvmppc_get_dec(vcpu, tb);
@@ -1371,8 +1335,8 @@ static int set_sregs_base(struct kvm_vcpu *vcpu,
 	vcpu->arch.csrr0 = sregs->u.e.csrr0;
 	vcpu->arch.csrr1 = sregs->u.e.csrr1;
 	vcpu->arch.mcsr = sregs->u.e.mcsr;
-	set_guest_esr(vcpu, sregs->u.e.esr);
-	set_guest_dear(vcpu, sregs->u.e.dear);
+	kvmppc_set_esr(vcpu, sregs->u.e.esr);
+	kvmppc_set_dar(vcpu, sregs->u.e.dear);
 	vcpu->arch.vrsave = sregs->u.e.vrsave;
 	kvmppc_set_tcr(vcpu, sregs->u.e.tcr);
 
@@ -1525,7 +1489,7 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.dac2);
 		break;
 	case KVM_REG_PPC_EPR: {
-		u32 epr = get_guest_epr(vcpu);
+		u32 epr = kvmppc_get_epr(vcpu);
 		val = get_reg_val(reg->id, epr);
 		break;
 	}
@@ -1818,6 +1782,57 @@ void kvm_guest_protect_msr(struct kvm_vcpu *vcpu, ulong prot_bitmap, bool set)
 			vcpu->arch.shadow_msrp &= ~MSRP_PMMP;
 	}
 #endif
+}
+
+int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, enum xlate_instdata xlid,
+		 enum xlate_readwrite xlrw, struct kvmppc_pte *pte)
+{
+	int gtlb_index;
+	gpa_t gpaddr;
+
+#ifdef CONFIG_KVM_E500V2
+	if (!(vcpu->arch.shared->msr & MSR_PR) &&
+	    (eaddr & PAGE_MASK) == vcpu->arch.magic_page_ea) {
+		pte->eaddr = eaddr;
+		pte->raddr = (vcpu->arch.magic_page_pa & PAGE_MASK) |
+			     (eaddr & ~PAGE_MASK);
+		pte->vpage = eaddr >> PAGE_SHIFT;
+		pte->may_read = true;
+		pte->may_write = true;
+		pte->may_execute = true;
+
+		return 0;
+	}
+#endif
+
+	/* Check the guest TLB. */
+	switch (xlid) {
+	case XLATE_INST:
+		gtlb_index = kvmppc_mmu_itlb_index(vcpu, eaddr);
+		break;
+	case XLATE_DATA:
+		gtlb_index = kvmppc_mmu_dtlb_index(vcpu, eaddr);
+		break;
+	default:
+		BUG();
+	}
+
+	/* Do we have a TLB entry at all? */
+	if (gtlb_index < 0)
+		return -ENOENT;
+
+	gpaddr = kvmppc_mmu_xlate(vcpu, gtlb_index, eaddr);
+
+	pte->eaddr = eaddr;
+	pte->raddr = (gpaddr & PAGE_MASK) | (eaddr & ~PAGE_MASK);
+	pte->vpage = eaddr >> PAGE_SHIFT;
+
+	/* XXX read permissions from the guest TLB */
+	pte->may_read = true;
+	pte->may_write = true;
+	pte->may_execute = true;
+
+	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,

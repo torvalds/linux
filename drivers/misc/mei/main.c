@@ -13,9 +13,6 @@
  * more details.
  *
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -35,12 +32,10 @@
 #include <linux/compat.h>
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
-#include <linux/miscdevice.h>
 
 #include <linux/mei.h>
 
 #include "mei_dev.h"
-#include "hw-me.h"
 #include "client.h"
 
 /**
@@ -53,19 +48,12 @@
  */
 static int mei_open(struct inode *inode, struct file *file)
 {
-	struct miscdevice *misc = file->private_data;
-	struct pci_dev *pdev;
-	struct mei_cl *cl;
 	struct mei_device *dev;
+	struct mei_cl *cl;
 
 	int err;
 
-	if (!misc->parent)
-		return -ENODEV;
-
-	pdev = container_of(misc->parent, struct pci_dev, dev);
-
-	dev = pci_get_drvdata(pdev);
+	dev = container_of(inode->i_cdev, struct mei_device, cdev);
 	if (!dev)
 		return -ENODEV;
 
@@ -129,17 +117,11 @@ static int mei_release(struct inode *inode, struct file *file)
 	}
 	if (cl->state == MEI_FILE_CONNECTED) {
 		cl->state = MEI_FILE_DISCONNECTING;
-		dev_dbg(&dev->pdev->dev,
-			"disconnecting client host client = %d, "
-		    "ME client = %d\n",
-		    cl->host_client_id,
-		    cl->me_client_id);
+		cl_dbg(dev, cl, "disconnecting\n");
 		rets = mei_cl_disconnect(cl);
 	}
 	mei_cl_flush_queues(cl);
-	dev_dbg(&dev->pdev->dev, "remove client host client = %d, ME client = %d\n",
-	    cl->host_client_id,
-	    cl->me_client_id);
+	cl_dbg(dev, cl, "removing\n");
 
 	mei_cl_unlink(cl);
 
@@ -284,6 +266,7 @@ copy_buffer:
 	length = min_t(size_t, length, cb->buf_idx - *offset);
 
 	if (copy_to_user(ubuf, cb->response_buffer.data + *offset, length)) {
+		dev_dbg(&dev->pdev->dev, "failed to copy data to userland\n");
 		rets = -EFAULT;
 		goto free;
 	}
@@ -340,7 +323,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 	id = mei_me_cl_by_id(dev, cl->me_client_id);
 	if (id < 0) {
-		rets = -ENODEV;
+		rets = -ENOTTY;
 		goto out;
 	}
 
@@ -404,7 +387,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 	rets = copy_from_user(write_cb->request_buffer.data, ubuf, length);
 	if (rets) {
-		dev_err(&dev->pdev->dev, "failed to copy data from userland\n");
+		dev_dbg(&dev->pdev->dev, "failed to copy data from userland\n");
 		rets = -EFAULT;
 		goto out;
 	}
@@ -471,12 +454,11 @@ static int mei_ioctl_connect_client(struct file *file,
 	if (i < 0 || dev->me_clients[i].props.fixed_address) {
 		dev_dbg(&dev->pdev->dev, "Cannot connect to FW Client UUID = %pUl\n",
 				&data->in_client_uuid);
-		rets = -ENODEV;
+		rets = -ENOTTY;
 		goto end;
 	}
 
 	cl->me_client_id = dev->me_clients[i].client_id;
-	cl->state = MEI_FILE_CONNECTING;
 
 	dev_dbg(&dev->pdev->dev, "Connect to FW Client ID = %d\n",
 			cl->me_client_id);
@@ -569,7 +551,7 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 	dev_dbg(&dev->pdev->dev, "copy connect data from user\n");
 	if (copy_from_user(connect_data, (char __user *)data,
 				sizeof(struct mei_connect_client_data))) {
-		dev_err(&dev->pdev->dev, "failed to copy data from userland\n");
+		dev_dbg(&dev->pdev->dev, "failed to copy data from userland\n");
 		rets = -EFAULT;
 		goto out;
 	}
@@ -653,8 +635,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 		goto out;
 	}
 
-	if (MEI_WRITE_COMPLETE == cl->writing_state)
-		mask |= (POLLIN | POLLRDNORM);
+	mask |= (POLLIN | POLLRDNORM);
 
 out:
 	mutex_unlock(&dev->device_lock);
@@ -678,46 +659,148 @@ static const struct file_operations mei_fops = {
 	.llseek = no_llseek
 };
 
-/*
- * Misc Device Struct
+static struct class *mei_class;
+static dev_t mei_devt;
+#define MEI_MAX_DEVS  MINORMASK
+static DEFINE_MUTEX(mei_minor_lock);
+static DEFINE_IDR(mei_idr);
+
+/**
+ * mei_minor_get - obtain next free device minor number
+ *
+ * @dev:  device pointer
+ *
+ * returns allocated minor, or -ENOSPC if no free minor left
  */
-static struct miscdevice  mei_misc_device = {
-		.name = "mei",
-		.fops = &mei_fops,
-		.minor = MISC_DYNAMIC_MINOR,
-};
-
-
-int mei_register(struct mei_device *dev)
+static int mei_minor_get(struct mei_device *dev)
 {
 	int ret;
-	mei_misc_device.parent = &dev->pdev->dev;
-	ret = misc_register(&mei_misc_device);
-	if (ret)
+
+	mutex_lock(&mei_minor_lock);
+	ret = idr_alloc(&mei_idr, dev, 0, MEI_MAX_DEVS, GFP_KERNEL);
+	if (ret >= 0)
+		dev->minor = ret;
+	else if (ret == -ENOSPC)
+		dev_err(&dev->pdev->dev, "too many mei devices\n");
+
+	mutex_unlock(&mei_minor_lock);
+	return ret;
+}
+
+/**
+ * mei_minor_free - mark device minor number as free
+ *
+ * @dev:  device pointer
+ */
+static void mei_minor_free(struct mei_device *dev)
+{
+	mutex_lock(&mei_minor_lock);
+	idr_remove(&mei_idr, dev->minor);
+	mutex_unlock(&mei_minor_lock);
+}
+
+int mei_register(struct mei_device *dev, struct device *parent)
+{
+	struct device *clsdev; /* class device */
+	int ret, devno;
+
+	ret = mei_minor_get(dev);
+	if (ret < 0)
 		return ret;
 
-	if (mei_dbgfs_register(dev, mei_misc_device.name))
-		dev_err(&dev->pdev->dev, "cannot register debugfs\n");
+	/* Fill in the data structures */
+	devno = MKDEV(MAJOR(mei_devt), dev->minor);
+	cdev_init(&dev->cdev, &mei_fops);
+	dev->cdev.owner = mei_fops.owner;
+
+	/* Add the device */
+	ret = cdev_add(&dev->cdev, devno, 1);
+	if (ret) {
+		dev_err(parent, "unable to add device %d:%d\n",
+			MAJOR(mei_devt), dev->minor);
+		goto err_dev_add;
+	}
+
+	clsdev = device_create(mei_class, parent, devno,
+			 NULL, "mei%d", dev->minor);
+
+	if (IS_ERR(clsdev)) {
+		dev_err(parent, "unable to create device %d:%d\n",
+			MAJOR(mei_devt), dev->minor);
+		ret = PTR_ERR(clsdev);
+		goto err_dev_create;
+	}
+
+	ret = mei_dbgfs_register(dev, dev_name(clsdev));
+	if (ret) {
+		dev_err(clsdev, "cannot register debugfs ret = %d\n", ret);
+		goto err_dev_dbgfs;
+	}
 
 	return 0;
+
+err_dev_dbgfs:
+	device_destroy(mei_class, devno);
+err_dev_create:
+	cdev_del(&dev->cdev);
+err_dev_add:
+	mei_minor_free(dev);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mei_register);
 
 void mei_deregister(struct mei_device *dev)
 {
+	int devno;
+
+	devno = dev->cdev.dev;
+	cdev_del(&dev->cdev);
+
 	mei_dbgfs_deregister(dev);
-	misc_deregister(&mei_misc_device);
-	mei_misc_device.parent = NULL;
+
+	device_destroy(mei_class, devno);
+
+	mei_minor_free(dev);
 }
 EXPORT_SYMBOL_GPL(mei_deregister);
 
 static int __init mei_init(void)
 {
-	return mei_cl_bus_init();
+	int ret;
+
+	mei_class = class_create(THIS_MODULE, "mei");
+	if (IS_ERR(mei_class)) {
+		pr_err("couldn't create class\n");
+		ret = PTR_ERR(mei_class);
+		goto err;
+	}
+
+	ret = alloc_chrdev_region(&mei_devt, 0, MEI_MAX_DEVS, "mei");
+	if (ret < 0) {
+		pr_err("unable to allocate char dev region\n");
+		goto err_class;
+	}
+
+	ret = mei_cl_bus_init();
+	if (ret < 0) {
+		pr_err("unable to initialize bus\n");
+		goto err_chrdev;
+	}
+
+	return 0;
+
+err_chrdev:
+	unregister_chrdev_region(mei_devt, MEI_MAX_DEVS);
+err_class:
+	class_destroy(mei_class);
+err:
+	return ret;
 }
 
 static void __exit mei_exit(void)
 {
+	unregister_chrdev_region(mei_devt, MEI_MAX_DEVS);
+	class_destroy(mei_class);
 	mei_cl_bus_exit();
 }
 

@@ -1,3 +1,4 @@
+#include <linux/percpu.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu_ops.h>
@@ -89,6 +90,13 @@ int cpu_suspend(unsigned long arg)
 	if (ret == 0) {
 		cpu_switch_mm(mm->pgd, mm);
 		flush_tlb_all();
+
+		/*
+		 * Restore per-cpu offset before any kernel
+		 * subsystem relying on it has a chance to run.
+		 */
+		set_my_cpu_offset(per_cpu_offset(cpu));
+
 		/*
 		 * Restore HW breakpoint registers to sane values
 		 * before debug exceptions are possibly reenabled
@@ -111,7 +119,7 @@ int cpu_suspend(unsigned long arg)
 extern struct sleep_save_sp sleep_save_sp;
 extern phys_addr_t sleep_idmap_phys;
 
-static int cpu_suspend_init(void)
+static int __init cpu_suspend_init(void)
 {
 	void *ctx_ptr;
 

@@ -15,9 +15,12 @@ nft_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
 
 	nft_set_pktinfo(pkt, ops, skb, in, out);
 
-	pkt->xt.thoff = ip_hdrlen(pkt->skb);
 	ip = ip_hdr(pkt->skb);
+	pkt->tprot = ip->protocol;
+	pkt->xt.thoff = ip_hdrlen(pkt->skb);
 	pkt->xt.fragoff = ntohs(ip->frag_off) & IP_OFFSET;
 }
+
+extern struct nft_af_info nft_af_ipv4;
 
 #endif

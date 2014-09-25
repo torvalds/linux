@@ -44,27 +44,6 @@
 #include <asm/tlb.h>
 #include <asm/fixmap.h>
 
-/* Atomicity and interruptability */
-#ifdef CONFIG_MIPS_MT_SMTC
-
-#include <asm/mipsmtregs.h>
-
-#define ENTER_CRITICAL(flags) \
-	{ \
-	unsigned int mvpflags; \
-	local_irq_save(flags);\
-	mvpflags = dvpe()
-#define EXIT_CRITICAL(flags) \
-	evpe(mvpflags); \
-	local_irq_restore(flags); \
-	}
-#else
-
-#define ENTER_CRITICAL(flags) local_irq_save(flags)
-#define EXIT_CRITICAL(flags) local_irq_restore(flags)
-
-#endif /* CONFIG_MIPS_MT_SMTC */
-
 /*
  * We have up to 8 empty zeroed pages so we can map one of the right colour
  * when needed.	 This is necessary only on R4000 / R4400 SC and MC versions
@@ -74,6 +53,7 @@
  */
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL_GPL(empty_zero_page);
+EXPORT_SYMBOL(zero_page_mask);
 
 /*
  * Not static inline because used by IP27 special magic initialization code
@@ -100,21 +80,7 @@ void setup_zero_pages(void)
 	zero_page_mask = ((PAGE_SIZE << order) - 1) & PAGE_MASK;
 }
 
-#ifdef CONFIG_MIPS_MT_SMTC
-static pte_t *kmap_coherent_pte;
-static void __init kmap_coherent_init(void)
-{
-	unsigned long vaddr;
-
-	/* cache the first coherent kmap pte */
-	vaddr = __fix_to_virt(FIX_CMAP_BEGIN);
-	kmap_coherent_pte = kmap_get_fixmap_pte(vaddr);
-}
-#else
-static inline void kmap_coherent_init(void) {}
-#endif
-
-void *kmap_coherent(struct page *page, unsigned long addr)
+static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 {
 	enum fixed_addresses idx;
 	unsigned long vaddr, flags, entrylo;
@@ -126,60 +92,48 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 
 	pagefault_disable();
 	idx = (addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1);
-#ifdef CONFIG_MIPS_MT_SMTC
-	idx += FIX_N_COLOURS * smp_processor_id() +
-		(in_interrupt() ? (FIX_N_COLOURS * NR_CPUS) : 0);
-#else
 	idx += in_interrupt() ? FIX_N_COLOURS : 0;
-#endif
 	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
-	pte = mk_pte(page, PAGE_KERNEL);
+	pte = mk_pte(page, prot);
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
 	entrylo = pte.pte_high;
 #else
 	entrylo = pte_to_entrylo(pte_val(pte));
 #endif
 
-	ENTER_CRITICAL(flags);
+	local_irq_save(flags);
 	old_ctx = read_c0_entryhi();
 	write_c0_entryhi(vaddr & (PAGE_MASK << 1));
 	write_c0_entrylo0(entrylo);
 	write_c0_entrylo1(entrylo);
-#ifdef CONFIG_MIPS_MT_SMTC
-	set_pte(kmap_coherent_pte - (FIX_CMAP_END - idx), pte);
-	/* preload TLB instead of local_flush_tlb_one() */
-	mtc0_tlbw_hazard();
-	tlb_probe();
-	tlb_probe_hazard();
-	tlbidx = read_c0_index();
-	mtc0_tlbw_hazard();
-	if (tlbidx < 0)
-		tlb_write_random();
-	else
-		tlb_write_indexed();
-#else
 	tlbidx = read_c0_wired();
 	write_c0_wired(tlbidx + 1);
 	write_c0_index(tlbidx);
 	mtc0_tlbw_hazard();
 	tlb_write_indexed();
-#endif
 	tlbw_use_hazard();
 	write_c0_entryhi(old_ctx);
-	EXIT_CRITICAL(flags);
+	local_irq_restore(flags);
 
 	return (void*) vaddr;
 }
 
-#define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
+void *kmap_coherent(struct page *page, unsigned long addr)
+{
+	return __kmap_pgprot(page, addr, PAGE_KERNEL);
+}
+
+void *kmap_noncoherent(struct page *page, unsigned long addr)
+{
+	return __kmap_pgprot(page, addr, PAGE_KERNEL_NC);
+}
 
 void kunmap_coherent(void)
 {
-#ifndef CONFIG_MIPS_MT_SMTC
 	unsigned int wired;
 	unsigned long flags, old_ctx;
 
-	ENTER_CRITICAL(flags);
+	local_irq_save(flags);
 	old_ctx = read_c0_entryhi();
 	wired = read_c0_wired() - 1;
 	write_c0_wired(wired);
@@ -191,8 +145,7 @@ void kunmap_coherent(void)
 	tlb_write_indexed();
 	tlbw_use_hazard();
 	write_c0_entryhi(old_ctx);
-	EXIT_CRITICAL(flags);
-#endif
+	local_irq_restore(flags);
 	pagefault_enable();
 }
 
@@ -258,7 +211,7 @@ EXPORT_SYMBOL_GPL(copy_from_user_page);
 void __init fixrange_init(unsigned long start, unsigned long end,
 	pgd_t *pgd_base)
 {
-#if defined(CONFIG_HIGHMEM) || defined(CONFIG_MIPS_MT_SMTC)
+#ifdef CONFIG_HIGHMEM
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -329,8 +282,6 @@ void __init paging_init(void)
 #ifdef CONFIG_HIGHMEM
 	kmap_init();
 #endif
-	kmap_coherent_init();
-
 #ifdef CONFIG_ZONE_DMA
 	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
 #endif
@@ -375,6 +326,38 @@ static inline void mem_init_free_highmem(void)
 #endif
 }
 
+unsigned __weak platform_maar_init(unsigned num_maars)
+{
+	return 0;
+}
+
+static void maar_init(void)
+{
+	unsigned num_maars, used, i;
+
+	if (!cpu_has_maar)
+		return;
+
+	/* Detect the number of MAARs */
+	write_c0_maari(~0);
+	back_to_back_c0_hazard();
+	num_maars = read_c0_maari() + 1;
+
+	/* MAARs should be in pairs */
+	WARN_ON(num_maars % 2);
+
+	/* Configure the required MAARs */
+	used = platform_maar_init(num_maars / 2);
+
+	/* Disable any further MAARs */
+	for (i = (used * 2); i < num_maars; i++) {
+		write_c0_maari(i);
+		back_to_back_c0_hazard();
+		write_c0_maar(0);
+		back_to_back_c0_hazard();
+	}
+}
+
 void __init mem_init(void)
 {
 #ifdef CONFIG_HIGHMEM
@@ -387,6 +370,7 @@ void __init mem_init(void)
 #endif
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 
+	maar_init();
 	free_all_bootmem();
 	setup_zero_pages();	/* Setup zeroed pages.  */
 	mem_init_free_highmem();
@@ -424,10 +408,20 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
+void (*free_init_pages_eva)(void *begin, void *end) = NULL;
+
 void __init_refok free_initmem(void)
 {
 	prom_free_prom_memory();
-	free_initmem_default(POISON_FREE_INITMEM);
+	/*
+	 * Let the platform define a specific function to free the
+	 * init section since EVA may have used any possible mapping
+	 * between virtual and physical addresses.
+	 */
+	if (free_init_pages_eva)
+		free_init_pages_eva((void *)&__init_begin, (void *)&__init_end);
+	else
+		free_initmem_default(POISON_FREE_INITMEM);
 }
 
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT

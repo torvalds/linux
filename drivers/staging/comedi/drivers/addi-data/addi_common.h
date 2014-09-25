@@ -18,25 +18,6 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
-#define LOWORD(W)	(unsigned short)((W) & 0xFFFF)
-#define HIWORD(W)	(unsigned short)(((W) >> 16) & 0xFFFF)
-
-#define ADDI_ENABLE		1
-#define ADDI_DISABLE		0
-#define APCI1710_SAVE_INTERRUPT	1
-
-#define ADDIDATA_EEPROM		1
-#define ADDIDATA_NO_EEPROM	0
-#define ADDIDATA_93C76		"93C76"
-#define ADDIDATA_S5920		"S5920"
-
-/* ADDIDATA Enable Disable */
-#define ADDIDATA_ENABLE		1
-#define ADDIDATA_DISABLE	0
-
-/* Structures */
-
-/* structure for the boardtype */
 struct addi_board {
 	const char *pc_DriverName;	/*  driver name */
 	int i_IorangeBase1;
@@ -118,18 +99,10 @@ struct addi_private {
 	int i_IobaseAmcc;	/*  base+size for AMCC chip */
 	int i_IobaseAddon;	/* addon base address */
 	int i_IobaseReserved;
-	unsigned char b_AiContinuous;	/*  we do unlimited AI */
 	unsigned int ui_AiActualScan;	/* how many scans we finished */
 	unsigned int ui_AiNbrofChannels;	/*  how many channels is measured */
-	unsigned int ui_AiScanLength;	/*  Length of actual scanlist */
-	unsigned int *pui_AiChannelList;	/*  actual chanlist */
 	unsigned int ui_AiChannelList[32];	/*  actual chanlist */
 	unsigned int ui_AiReadData[32];
-	unsigned int ui_AiTimer0;	/* Timer Constant for Timer0 */
-	unsigned int ui_AiTimer1;	/* Timer constant for Timer1 */
-	unsigned int ui_AiFlags;
-	unsigned int ui_AiDataLength;
-	unsigned int ui_AiNbrofScans;	/*  number of scans to do */
 	unsigned short us_UseDma;	/*  To use Dma or not */
 	unsigned char b_DmaDoubleBuffer;	/*  we can use double buffering */
 	unsigned int ui_DmaActualBuffer;	/*  which buffer is used now */
@@ -145,11 +118,10 @@ struct addi_private {
 	unsigned short us_OutputRegister;	/*  Contain data written at iobase + 0 */
 	unsigned char b_Timer2Mode;	/*  Specify the timer 2 mode */
 	unsigned char b_Timer2Interrupt;	/* Timer2  interrupt enable or disable */
-	unsigned char b_AiCyclicAcquisition;	/*  indicate cyclic acquisition */
+	unsigned int ai_running:1;
 	unsigned char b_InterruptMode;	/*  eoc eos or dma */
 	unsigned char b_EocEosInterrupt;	/*  Enable disable eoc eos interrupt */
 	unsigned int ui_EocEosConversionTime;
-	unsigned char b_SingelDiff;
 	unsigned char b_ExttrigEnable;	/* To enable or disable external trigger */
 
 	/* Pointer to the current process */

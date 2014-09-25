@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <crypto/rng.h>
+#include <crypto/drbg.h>
 
 #include "internal.h"
 
@@ -108,6 +109,11 @@ struct cprng_test_suite {
 	unsigned int count;
 };
 
+struct drbg_test_suite {
+	struct drbg_testvec *vecs;
+	unsigned int count;
+};
+
 struct alg_test_desc {
 	const char *alg;
 	int (*test)(const struct alg_test_desc *desc, const char *driver,
@@ -121,6 +127,7 @@ struct alg_test_desc {
 		struct pcomp_test_suite pcomp;
 		struct hash_test_suite hash;
 		struct cprng_test_suite cprng;
+		struct drbg_test_suite drbg;
 	} suite;
 };
 
@@ -191,13 +198,20 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 	const char *algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
 	unsigned int i, j, k, temp;
 	struct scatterlist sg[8];
-	char result[64];
+	char *result;
+	char *key;
 	struct ahash_request *req;
 	struct tcrypt_result tresult;
 	void *hash_buff;
 	char *xbuf[XBUFSIZE];
 	int ret = -ENOMEM;
 
+	result = kmalloc(MAX_DIGEST_SIZE, GFP_KERNEL);
+	if (!result)
+		return ret;
+	key = kmalloc(MAX_KEYLEN, GFP_KERNEL);
+	if (!key)
+		goto out_nobuf;
 	if (testmgr_alloc_buf(xbuf))
 		goto out_nobuf;
 
@@ -222,7 +236,7 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 			goto out;
 
 		j++;
-		memset(result, 0, 64);
+		memset(result, 0, MAX_DIGEST_SIZE);
 
 		hash_buff = xbuf[0];
 		hash_buff += align_offset;
@@ -232,8 +246,14 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 
 		if (template[i].ksize) {
 			crypto_ahash_clear_flags(tfm, ~0);
-			ret = crypto_ahash_setkey(tfm, template[i].key,
-						  template[i].ksize);
+			if (template[i].ksize > MAX_KEYLEN) {
+				pr_err("alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
+				       j, algo, template[i].ksize, MAX_KEYLEN);
+				ret = -EINVAL;
+				goto out;
+			}
+			memcpy(key, template[i].key, template[i].ksize);
+			ret = crypto_ahash_setkey(tfm, key, template[i].ksize);
 			if (ret) {
 				printk(KERN_ERR "alg: hash: setkey failed on "
 				       "test %d for %s: ret=%d\n", j, algo,
@@ -293,7 +313,7 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 
 		if (template[i].np) {
 			j++;
-			memset(result, 0, 64);
+			memset(result, 0, MAX_DIGEST_SIZE);
 
 			temp = 0;
 			sg_init_table(sg, template[i].np);
@@ -312,8 +332,16 @@ static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 			}
 
 			if (template[i].ksize) {
+				if (template[i].ksize > MAX_KEYLEN) {
+					pr_err("alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
+					       j, algo, template[i].ksize,
+					       MAX_KEYLEN);
+					ret = -EINVAL;
+					goto out;
+				}
 				crypto_ahash_clear_flags(tfm, ~0);
-				ret = crypto_ahash_setkey(tfm, template[i].key,
+				memcpy(key, template[i].key, template[i].ksize);
+				ret = crypto_ahash_setkey(tfm, key,
 							  template[i].ksize);
 
 				if (ret) {
@@ -365,6 +393,8 @@ out:
 out_noreq:
 	testmgr_free_buf(xbuf);
 out_nobuf:
+	kfree(key);
+	kfree(result);
 	return ret;
 }
 
@@ -414,16 +444,21 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 	void *input;
 	void *output;
 	void *assoc;
-	char iv[MAX_IVLEN];
+	char *iv;
 	char *xbuf[XBUFSIZE];
 	char *xoutbuf[XBUFSIZE];
 	char *axbuf[XBUFSIZE];
 
+	iv = kzalloc(MAX_IVLEN, GFP_KERNEL);
+	if (!iv)
+		return ret;
+	key = kmalloc(MAX_KEYLEN, GFP_KERNEL);
+	if (!key)
+		goto out_noxbuf;
 	if (testmgr_alloc_buf(xbuf))
 		goto out_noxbuf;
 	if (testmgr_alloc_buf(axbuf))
 		goto out_noaxbuf;
-
 	if (diff_dst && testmgr_alloc_buf(xoutbuf))
 		goto out_nooutbuf;
 
@@ -484,7 +519,14 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				crypto_aead_set_flags(
 					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 
-			key = template[i].key;
+			if (template[i].klen > MAX_KEYLEN) {
+				pr_err("alg: aead%s: setkey failed on test %d for %s: key size %d > %d\n",
+				       d, j, algo, template[i].klen,
+				       MAX_KEYLEN);
+				ret = -EINVAL;
+				goto out;
+			}
+			memcpy(key, template[i].key, template[i].klen);
 
 			ret = crypto_aead_setkey(tfm, key,
 						 template[i].klen);
@@ -585,7 +627,14 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 			if (template[i].wk)
 				crypto_aead_set_flags(
 					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
-			key = template[i].key;
+			if (template[i].klen > MAX_KEYLEN) {
+				pr_err("alg: aead%s: setkey failed on test %d for %s: key size %d > %d\n",
+				       d, j, algo, template[i].klen,
+				       MAX_KEYLEN);
+				ret = -EINVAL;
+				goto out;
+			}
+			memcpy(key, template[i].key, template[i].klen);
 
 			ret = crypto_aead_setkey(tfm, key, template[i].klen);
 			if (!ret == template[i].fail) {
@@ -767,6 +816,8 @@ out_nooutbuf:
 out_noaxbuf:
 	testmgr_free_buf(xbuf);
 out_noxbuf:
+	kfree(key);
+	kfree(iv);
 	return ret;
 }
 
@@ -1712,6 +1763,100 @@ static int alg_test_cprng(const struct alg_test_desc *desc, const char *driver,
 	return err;
 }
 
+
+static int drbg_cavs_test(struct drbg_testvec *test, int pr,
+			  const char *driver, u32 type, u32 mask)
+{
+	int ret = -EAGAIN;
+	struct crypto_rng *drng;
+	struct drbg_test_data test_data;
+	struct drbg_string addtl, pers, testentropy;
+	unsigned char *buf = kzalloc(test->expectedlen, GFP_KERNEL);
+
+	if (!buf)
+		return -ENOMEM;
+
+	drng = crypto_alloc_rng(driver, type, mask);
+	if (IS_ERR(drng)) {
+		printk(KERN_ERR "alg: drbg: could not allocate DRNG handle for "
+		       "%s\n", driver);
+		kzfree(buf);
+		return -ENOMEM;
+	}
+
+	test_data.testentropy = &testentropy;
+	drbg_string_fill(&testentropy, test->entropy, test->entropylen);
+	drbg_string_fill(&pers, test->pers, test->perslen);
+	ret = crypto_drbg_reset_test(drng, &pers, &test_data);
+	if (ret) {
+		printk(KERN_ERR "alg: drbg: Failed to reset rng\n");
+		goto outbuf;
+	}
+
+	drbg_string_fill(&addtl, test->addtla, test->addtllen);
+	if (pr) {
+		drbg_string_fill(&testentropy, test->entpra, test->entprlen);
+		ret = crypto_drbg_get_bytes_addtl_test(drng,
+			buf, test->expectedlen, &addtl,	&test_data);
+	} else {
+		ret = crypto_drbg_get_bytes_addtl(drng,
+			buf, test->expectedlen, &addtl);
+	}
+	if (ret <= 0) {
+		printk(KERN_ERR "alg: drbg: could not obtain random data for "
+		       "driver %s\n", driver);
+		goto outbuf;
+	}
+
+	drbg_string_fill(&addtl, test->addtlb, test->addtllen);
+	if (pr) {
+		drbg_string_fill(&testentropy, test->entprb, test->entprlen);
+		ret = crypto_drbg_get_bytes_addtl_test(drng,
+			buf, test->expectedlen, &addtl, &test_data);
+	} else {
+		ret = crypto_drbg_get_bytes_addtl(drng,
+			buf, test->expectedlen, &addtl);
+	}
+	if (ret <= 0) {
+		printk(KERN_ERR "alg: drbg: could not obtain random data for "
+		       "driver %s\n", driver);
+		goto outbuf;
+	}
+
+	ret = memcmp(test->expected, buf, test->expectedlen);
+
+outbuf:
+	crypto_free_rng(drng);
+	kzfree(buf);
+	return ret;
+}
+
+
+static int alg_test_drbg(const struct alg_test_desc *desc, const char *driver,
+			 u32 type, u32 mask)
+{
+	int err = 0;
+	int pr = 0;
+	int i = 0;
+	struct drbg_testvec *template = desc->suite.drbg.vecs;
+	unsigned int tcount = desc->suite.drbg.count;
+
+	if (0 == memcmp(driver, "drbg_pr_", 8))
+		pr = 1;
+
+	for (i = 0; i < tcount; i++) {
+		err = drbg_cavs_test(&template[i], pr, driver, type, mask);
+		if (err) {
+			printk(KERN_ERR "alg: drbg: Test %d failed for %s\n",
+			       i, driver);
+			err = -EINVAL;
+			break;
+		}
+	}
+	return err;
+
+}
+
 static int alg_test_null(const struct alg_test_desc *desc,
 			     const char *driver, u32 type, u32 mask)
 {
@@ -1809,14 +1954,108 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "authenc(hmac(md5),ecb(cipher_null))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = hmac_md5_ecb_cipher_null_enc_tv_template,
+					.count = HMAC_MD5_ECB_CIPHER_NULL_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = hmac_md5_ecb_cipher_null_dec_tv_template,
+					.count = HMAC_MD5_ECB_CIPHER_NULL_DEC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
 		.alg = "authenc(hmac(sha1),cbc(aes))",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
 			.aead = {
 				.enc = {
-					.vecs = hmac_sha1_aes_cbc_enc_tv_template,
-					.count = HMAC_SHA1_AES_CBC_ENC_TEST_VECTORS
+					.vecs =
+					hmac_sha1_aes_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA1_AES_CBC_ENC_TEST_VEC
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha1),cbc(des))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs =
+					hmac_sha1_des_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA1_DES_CBC_ENC_TEST_VEC
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha1),cbc(des3_ede))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs =
+					hmac_sha1_des3_ede_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA1_DES3_EDE_CBC_ENC_TEST_VEC
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha1),ecb(cipher_null))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs =
+					hmac_sha1_ecb_cipher_null_enc_tv_temp,
+					.count =
+					HMAC_SHA1_ECB_CIPHER_NULL_ENC_TEST_VEC
+				},
+				.dec = {
+					.vecs =
+					hmac_sha1_ecb_cipher_null_dec_tv_temp,
+					.count =
+					HMAC_SHA1_ECB_CIPHER_NULL_DEC_TEST_VEC
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha224),cbc(des))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs =
+					hmac_sha224_des_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA224_DES_CBC_ENC_TEST_VEC
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha224),cbc(des3_ede))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs =
+					hmac_sha224_des3_ede_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA224_DES3_EDE_CBC_ENC_TEST_VEC
 				}
 			}
 		}
@@ -1827,8 +2066,66 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.suite = {
 			.aead = {
 				.enc = {
-					.vecs = hmac_sha256_aes_cbc_enc_tv_template,
-					.count = HMAC_SHA256_AES_CBC_ENC_TEST_VECTORS
+					.vecs =
+					hmac_sha256_aes_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA256_AES_CBC_ENC_TEST_VEC
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha256),cbc(des))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs =
+					hmac_sha256_des_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA256_DES_CBC_ENC_TEST_VEC
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha256),cbc(des3_ede))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs =
+					hmac_sha256_des3_ede_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA256_DES3_EDE_CBC_ENC_TEST_VEC
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha384),cbc(des))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs =
+					hmac_sha384_des_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA384_DES_CBC_ENC_TEST_VEC
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha384),cbc(des3_ede))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs =
+					hmac_sha384_des3_ede_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA384_DES3_EDE_CBC_ENC_TEST_VEC
 				}
 			}
 		}
@@ -1839,8 +2136,38 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.suite = {
 			.aead = {
 				.enc = {
-					.vecs = hmac_sha512_aes_cbc_enc_tv_template,
-					.count = HMAC_SHA512_AES_CBC_ENC_TEST_VECTORS
+					.vecs =
+					hmac_sha512_aes_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA512_AES_CBC_ENC_TEST_VEC
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha512),cbc(des))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs =
+					hmac_sha512_des_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA512_DES_CBC_ENC_TEST_VEC
+				}
+			}
+		}
+	}, {
+		.alg = "authenc(hmac(sha512),cbc(des3_ede))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs =
+					hmac_sha512_des3_ede_cbc_enc_tv_temp,
+					.count =
+					HMAC_SHA512_DES3_EDE_CBC_ENC_TEST_VEC
 				}
 			}
 		}
@@ -2271,6 +2598,152 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "digest_null",
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_nopr_ctr_aes128",
+		.test = alg_test_drbg,
+		.fips_allowed = 1,
+		.suite = {
+			.drbg = {
+				.vecs = drbg_nopr_ctr_aes128_tv_template,
+				.count = ARRAY_SIZE(drbg_nopr_ctr_aes128_tv_template)
+			}
+		}
+	}, {
+		.alg = "drbg_nopr_ctr_aes192",
+		.test = alg_test_drbg,
+		.fips_allowed = 1,
+		.suite = {
+			.drbg = {
+				.vecs = drbg_nopr_ctr_aes192_tv_template,
+				.count = ARRAY_SIZE(drbg_nopr_ctr_aes192_tv_template)
+			}
+		}
+	}, {
+		.alg = "drbg_nopr_ctr_aes256",
+		.test = alg_test_drbg,
+		.fips_allowed = 1,
+		.suite = {
+			.drbg = {
+				.vecs = drbg_nopr_ctr_aes256_tv_template,
+				.count = ARRAY_SIZE(drbg_nopr_ctr_aes256_tv_template)
+			}
+		}
+	}, {
+		/*
+		 * There is no need to specifically test the DRBG with every
+		 * backend cipher -- covered by drbg_nopr_hmac_sha256 test
+		 */
+		.alg = "drbg_nopr_hmac_sha1",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_nopr_hmac_sha256",
+		.test = alg_test_drbg,
+		.fips_allowed = 1,
+		.suite = {
+			.drbg = {
+				.vecs = drbg_nopr_hmac_sha256_tv_template,
+				.count =
+				ARRAY_SIZE(drbg_nopr_hmac_sha256_tv_template)
+			}
+		}
+	}, {
+		/* covered by drbg_nopr_hmac_sha256 test */
+		.alg = "drbg_nopr_hmac_sha384",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_nopr_hmac_sha512",
+		.test = alg_test_null,
+		.fips_allowed = 1,
+	}, {
+		.alg = "drbg_nopr_sha1",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_nopr_sha256",
+		.test = alg_test_drbg,
+		.fips_allowed = 1,
+		.suite = {
+			.drbg = {
+				.vecs = drbg_nopr_sha256_tv_template,
+				.count = ARRAY_SIZE(drbg_nopr_sha256_tv_template)
+			}
+		}
+	}, {
+		/* covered by drbg_nopr_sha256 test */
+		.alg = "drbg_nopr_sha384",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_nopr_sha512",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_pr_ctr_aes128",
+		.test = alg_test_drbg,
+		.fips_allowed = 1,
+		.suite = {
+			.drbg = {
+				.vecs = drbg_pr_ctr_aes128_tv_template,
+				.count = ARRAY_SIZE(drbg_pr_ctr_aes128_tv_template)
+			}
+		}
+	}, {
+		/* covered by drbg_pr_ctr_aes128 test */
+		.alg = "drbg_pr_ctr_aes192",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_pr_ctr_aes256",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_pr_hmac_sha1",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_pr_hmac_sha256",
+		.test = alg_test_drbg,
+		.fips_allowed = 1,
+		.suite = {
+			.drbg = {
+				.vecs = drbg_pr_hmac_sha256_tv_template,
+				.count = ARRAY_SIZE(drbg_pr_hmac_sha256_tv_template)
+			}
+		}
+	}, {
+		/* covered by drbg_pr_hmac_sha256 test */
+		.alg = "drbg_pr_hmac_sha384",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_pr_hmac_sha512",
+		.test = alg_test_null,
+		.fips_allowed = 1,
+	}, {
+		.alg = "drbg_pr_sha1",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_pr_sha256",
+		.test = alg_test_drbg,
+		.fips_allowed = 1,
+		.suite = {
+			.drbg = {
+				.vecs = drbg_pr_sha256_tv_template,
+				.count = ARRAY_SIZE(drbg_pr_sha256_tv_template)
+			}
+		}
+	}, {
+		/* covered by drbg_pr_sha256 test */
+		.alg = "drbg_pr_sha384",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
+		.alg = "drbg_pr_sha512",
+		.fips_allowed = 1,
 		.test = alg_test_null,
 	}, {
 		.alg = "ecb(__aes-aesni)",
@@ -3241,8 +3714,8 @@ test_done:
 		panic("%s: %s alg self test failed in fips mode!\n", driver, alg);
 
 	if (fips_enabled && !rc)
-		printk(KERN_INFO "alg: self-tests for %s (%s) passed\n",
-		       driver, alg);
+		pr_info(KERN_INFO "alg: self-tests for %s (%s) passed\n",
+			driver, alg);
 
 	return rc;
 

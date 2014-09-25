@@ -348,8 +348,8 @@ static void __net_random_once_deferred(struct work_struct *w)
 {
 	struct __net_random_once_work *work =
 		container_of(w, struct __net_random_once_work, work);
-	if (!static_key_enabled(work->key))
-		static_key_slow_inc(work->key);
+	BUG_ON(!static_key_enabled(work->key));
+	static_key_slow_dec(work->key);
 	kfree(work);
 }
 
@@ -367,7 +367,7 @@ static void __net_random_once_disable_jump(struct static_key *key)
 }
 
 bool __net_get_random_once(void *buf, int nbytes, bool *done,
-			   struct static_key *done_key)
+			   struct static_key *once_key)
 {
 	static DEFINE_SPINLOCK(lock);
 	unsigned long flags;
@@ -382,7 +382,7 @@ bool __net_get_random_once(void *buf, int nbytes, bool *done,
 	*done = true;
 	spin_unlock_irqrestore(&lock, flags);
 
-	__net_random_once_disable_jump(done_key);
+	__net_random_once_disable_jump(once_key);
 
 	return true;
 }

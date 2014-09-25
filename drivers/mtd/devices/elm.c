@@ -15,6 +15,8 @@
  *
  */
 
+#define DRIVER_NAME	"omap-elm"
+
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -84,6 +86,8 @@ struct elm_info {
 	struct list_head list;
 	enum bch_ecc bch_type;
 	struct elm_registers elm_regs;
+	int ecc_steps;
+	int ecc_syndrome_size;
 };
 
 static LIST_HEAD(elm_devices);
@@ -103,7 +107,8 @@ static u32 elm_read_reg(struct elm_info *info, int offset)
  * @dev:	ELM device
  * @bch_type:	Type of BCH ecc
  */
-int elm_config(struct device *dev, enum bch_ecc bch_type)
+int elm_config(struct device *dev, enum bch_ecc bch_type,
+	int ecc_steps, int ecc_step_size, int ecc_syndrome_size)
 {
 	u32 reg_val;
 	struct elm_info *info = dev_get_drvdata(dev);
@@ -112,10 +117,22 @@ int elm_config(struct device *dev, enum bch_ecc bch_type)
 		dev_err(dev, "Unable to configure elm - device not probed?\n");
 		return -ENODEV;
 	}
+	/* ELM cannot detect ECC errors for chunks > 1KB */
+	if (ecc_step_size > ((ELM_ECC_SIZE + 1) / 2)) {
+		dev_err(dev, "unsupported config ecc-size=%d\n", ecc_step_size);
+		return -EINVAL;
+	}
+	/* ELM support 8 error syndrome process */
+	if (ecc_steps > ERROR_VECTOR_MAX) {
+		dev_err(dev, "unsupported config ecc-step=%d\n", ecc_steps);
+		return -EINVAL;
+	}
 
 	reg_val = (bch_type & ECC_BCH_LEVEL_MASK) | (ELM_ECC_SIZE << 16);
 	elm_write_reg(info, ELM_LOCATION_CONFIG, reg_val);
-	info->bch_type = bch_type;
+	info->bch_type		= bch_type;
+	info->ecc_steps		= ecc_steps;
+	info->ecc_syndrome_size	= ecc_syndrome_size;
 
 	return 0;
 }
@@ -157,17 +174,15 @@ static void elm_load_syndrome(struct elm_info *info,
 	int i, offset;
 	u32 val;
 
-	for (i = 0; i < ERROR_VECTOR_MAX; i++) {
+	for (i = 0; i < info->ecc_steps; i++) {
 
 		/* Check error reported */
 		if (err_vec[i].error_reported) {
 			elm_configure_page_mode(info, i, true);
 			offset = ELM_SYNDROME_FRAGMENT_0 +
 				SYNDROME_FRAGMENT_REG_SIZE * i;
-
-			/* BCH8 */
-			if (info->bch_type) {
-
+			switch (info->bch_type) {
+			case BCH8_ECC:
 				/* syndrome fragment 0 = ecc[9-12B] */
 				val = cpu_to_be32(*(u32 *) &ecc[9]);
 				elm_write_reg(info, offset, val);
@@ -186,7 +201,8 @@ static void elm_load_syndrome(struct elm_info *info,
 				offset += 4;
 				val = ecc[0];
 				elm_write_reg(info, offset, val);
-			} else {
+				break;
+			case BCH4_ECC:
 				/* syndrome fragment 0 = ecc[20-52b] bits */
 				val = (cpu_to_be32(*(u32 *) &ecc[3]) >> 4) |
 					((ecc[2] & 0xf) << 28);
@@ -196,11 +212,36 @@ static void elm_load_syndrome(struct elm_info *info,
 				offset += 4;
 				val = cpu_to_be32(*(u32 *) &ecc[0]) >> 12;
 				elm_write_reg(info, offset, val);
+				break;
+			case BCH16_ECC:
+				val = cpu_to_be32(*(u32 *) &ecc[22]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[18]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[14]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[10]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[6]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[2]);
+				elm_write_reg(info, offset, val);
+				offset += 4;
+				val = cpu_to_be32(*(u32 *) &ecc[0]) >> 16;
+				elm_write_reg(info, offset, val);
+				break;
+			default:
+				pr_err("invalid config bch_type\n");
 			}
 		}
 
 		/* Update ecc pointer with ecc byte size */
-		ecc += info->bch_type ? BCH8_SIZE : BCH4_SIZE;
+		ecc += info->ecc_syndrome_size;
 	}
 }
 
@@ -223,7 +264,7 @@ static void elm_start_processing(struct elm_info *info,
 	 * Set syndrome vector valid, so that ELM module
 	 * will process it for vectors error is reported
 	 */
-	for (i = 0; i < ERROR_VECTOR_MAX; i++) {
+	for (i = 0; i < info->ecc_steps; i++) {
 		if (err_vec[i].error_reported) {
 			offset = ELM_SYNDROME_FRAGMENT_6 +
 				SYNDROME_FRAGMENT_REG_SIZE * i;
@@ -252,7 +293,7 @@ static void elm_error_correction(struct elm_info *info,
 	int offset;
 	u32 reg_val;
 
-	for (i = 0; i < ERROR_VECTOR_MAX; i++) {
+	for (i = 0; i < info->ecc_steps; i++) {
 
 		/* Check error reported */
 		if (err_vec[i].error_reported) {
@@ -354,10 +395,8 @@ static int elm_probe(struct platform_device *pdev)
 	struct elm_info *info;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	info->dev = &pdev->dev;
 
@@ -380,7 +419,7 @@ static int elm_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
-	if (pm_runtime_get_sync(&pdev->dev)) {
+	if (pm_runtime_get_sync(&pdev->dev) < 0) {
 		ret = -EINVAL;
 		pm_runtime_disable(&pdev->dev);
 		dev_err(&pdev->dev, "can't enable clock\n");
@@ -401,6 +440,7 @@ static int elm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 /**
  * elm_context_save
  * saves ELM configurations to preserve them across Hardware powered-down
@@ -418,6 +458,13 @@ static int elm_context_save(struct elm_info *info)
 	for (i = 0; i < ERROR_VECTOR_MAX; i++) {
 		offset = i * SYNDROME_FRAGMENT_REG_SIZE;
 		switch (bch_type) {
+		case BCH16_ECC:
+			regs->elm_syndrome_fragment_6[i] = elm_read_reg(info,
+					ELM_SYNDROME_FRAGMENT_6 + offset);
+			regs->elm_syndrome_fragment_5[i] = elm_read_reg(info,
+					ELM_SYNDROME_FRAGMENT_5 + offset);
+			regs->elm_syndrome_fragment_4[i] = elm_read_reg(info,
+					ELM_SYNDROME_FRAGMENT_4 + offset);
 		case BCH8_ECC:
 			regs->elm_syndrome_fragment_3[i] = elm_read_reg(info,
 					ELM_SYNDROME_FRAGMENT_3 + offset);
@@ -428,6 +475,7 @@ static int elm_context_save(struct elm_info *info)
 					ELM_SYNDROME_FRAGMENT_1 + offset);
 			regs->elm_syndrome_fragment_0[i] = elm_read_reg(info,
 					ELM_SYNDROME_FRAGMENT_0 + offset);
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -456,6 +504,13 @@ static int elm_context_restore(struct elm_info *info)
 	for (i = 0; i < ERROR_VECTOR_MAX; i++) {
 		offset = i * SYNDROME_FRAGMENT_REG_SIZE;
 		switch (bch_type) {
+		case BCH16_ECC:
+			elm_write_reg(info, ELM_SYNDROME_FRAGMENT_6 + offset,
+					regs->elm_syndrome_fragment_6[i]);
+			elm_write_reg(info, ELM_SYNDROME_FRAGMENT_5 + offset,
+					regs->elm_syndrome_fragment_5[i]);
+			elm_write_reg(info, ELM_SYNDROME_FRAGMENT_4 + offset,
+					regs->elm_syndrome_fragment_4[i]);
 		case BCH8_ECC:
 			elm_write_reg(info, ELM_SYNDROME_FRAGMENT_3 + offset,
 					regs->elm_syndrome_fragment_3[i]);
@@ -466,6 +521,7 @@ static int elm_context_restore(struct elm_info *info)
 					regs->elm_syndrome_fragment_1[i]);
 			elm_write_reg(info, ELM_SYNDROME_FRAGMENT_0 + offset,
 					regs->elm_syndrome_fragment_0[i]);
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -492,6 +548,7 @@ static int elm_resume(struct device *dev)
 	elm_context_restore(info);
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(elm_pm_ops, elm_suspend, elm_resume);
 
@@ -505,7 +562,7 @@ MODULE_DEVICE_TABLE(of, elm_of_match);
 
 static struct platform_driver elm_driver = {
 	.driver	= {
-		.name	= "elm",
+		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(elm_of_match),
 		.pm	= &elm_pm_ops,

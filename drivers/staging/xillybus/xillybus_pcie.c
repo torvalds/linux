@@ -72,52 +72,62 @@ static void xilly_dma_sync_single_for_device_pci(struct xilly_endpoint *ep,
 				       xilly_pci_direction(direction));
 }
 
+static void xilly_pci_unmap(void *ptr)
+{
+	struct xilly_mapping *data = ptr;
+
+	pci_unmap_single(data->device, data->dma_addr,
+			 data->size, data->direction);
+
+	kfree(ptr);
+}
+
 /*
  * Map either through the PCI DMA mapper or the non_PCI one. Behind the
  * scenes exactly the same functions are called with the same parameters,
  * but that can change.
  */
 
-static dma_addr_t xilly_map_single_pci(struct xilly_cleanup *mem,
-				       struct xilly_endpoint *ep,
-				       void *ptr,
-				       size_t size,
-				       int direction
+static int xilly_map_single_pci(struct xilly_endpoint *ep,
+				void *ptr,
+				size_t size,
+				int direction,
+				dma_addr_t *ret_dma_handle
 	)
 {
-
-	dma_addr_t addr = 0;
-	struct xilly_dma *this;
 	int pci_direction;
+	dma_addr_t addr;
+	struct xilly_mapping *this;
+	int rc = 0;
 
-	this = kmalloc(sizeof(struct xilly_dma), GFP_KERNEL);
+	this = kzalloc(sizeof(*this), GFP_KERNEL);
 	if (!this)
-		return 0;
+		return -ENOMEM;
 
 	pci_direction = xilly_pci_direction(direction);
+
 	addr = pci_map_single(ep->pdev, ptr, size, pci_direction);
-	this->direction = pci_direction;
 
 	if (pci_dma_mapping_error(ep->pdev, addr)) {
 		kfree(this);
-		return 0;
+		return -ENODEV;
 	}
 
+	this->device = ep->pdev;
 	this->dma_addr = addr;
-	this->pdev = ep->pdev;
 	this->size = size;
+	this->direction = pci_direction;
 
-	list_add_tail(&this->node, &mem->to_unmap);
+	*ret_dma_handle = addr;
 
-	return addr;
-}
+	rc = devm_add_action(ep->dev, xilly_pci_unmap, this);
 
-static void xilly_unmap_single_pci(struct xilly_dma *entry)
-{
-	pci_unmap_single(entry->pdev,
-			 entry->dma_addr,
-			 entry->size,
-			 entry->direction);
+	if (rc) {
+		pci_unmap_single(ep->pdev, addr, size, pci_direction);
+		kfree(this);
+	}
+
+	return rc;
 }
 
 static struct xilly_endpoint_hardware pci_hw = {
@@ -125,7 +135,6 @@ static struct xilly_endpoint_hardware pci_hw = {
 	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_for_cpu_pci,
 	.hw_sync_sgl_for_device = xilly_dma_sync_single_for_device_pci,
 	.map_single = xilly_map_single_pci,
-	.unmap_single = xilly_unmap_single_pci
 };
 
 static int xilly_probe(struct pci_dev *pdev,
@@ -141,38 +150,32 @@ static int xilly_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, endpoint);
 
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
+
+	if (rc) {
+		dev_err(endpoint->dev,
+			"pcim_enable_device() failed. Aborting.\n");
+		return rc;
+	}
 
 	/* L0s has caused packet drops. No power saving, thank you. */
 
 	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S);
 
-	if (rc) {
-		dev_err(endpoint->dev,
-			"pci_enable_device() failed. Aborting.\n");
-		goto no_enable;
-	}
-
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		dev_err(endpoint->dev,
 			"Incorrect BAR configuration. Aborting.\n");
-		rc = -ENODEV;
-		goto bad_bar;
+		return -ENODEV;
 	}
 
-	rc = pci_request_regions(pdev, xillyname);
+	rc = pcim_iomap_regions(pdev, 0x01, xillyname);
 	if (rc) {
 		dev_err(endpoint->dev,
-			"pci_request_regions() failed. Aborting.\n");
-		goto failed_request_regions;
+			"pcim_iomap_regions() failed. Aborting.\n");
+		return rc;
 	}
 
-	endpoint->registers = pci_iomap(pdev, 0, 128);
-	if (!endpoint->registers) {
-		dev_err(endpoint->dev, "Failed to map BAR 0. Aborting.\n");
-		rc = -EIO;
-		goto failed_iomap0;
-	}
+	endpoint->registers = pcim_iomap_table(pdev)[0];
 
 	pci_set_master(pdev);
 
@@ -180,16 +183,15 @@ static int xilly_probe(struct pci_dev *pdev,
 	if (pci_enable_msi(pdev)) {
 		dev_err(endpoint->dev,
 			"Failed to enable MSI interrupts. Aborting.\n");
-		rc = -ENODEV;
-		goto failed_enable_msi;
+		return -ENODEV;
 	}
-	rc = request_irq(pdev->irq, xillybus_isr, 0, xillyname, endpoint);
+	rc = devm_request_irq(&pdev->dev, pdev->irq, xillybus_isr, 0,
+			      xillyname, endpoint);
 
 	if (rc) {
 		dev_err(endpoint->dev,
 			"Failed to register MSI handler. Aborting.\n");
-		rc = -ENODEV;
-		goto failed_register_msi;
+		return -ENODEV;
 	}
 
 	/*
@@ -203,32 +205,10 @@ static int xilly_probe(struct pci_dev *pdev,
 		endpoint->dma_using_dac = 0;
 	else {
 		dev_err(endpoint->dev, "Failed to set DMA mask. Aborting.\n");
-		rc = -ENODEV;
-		goto failed_dmamask;
+		return -ENODEV;
 	}
 
-	rc = xillybus_endpoint_discovery(endpoint);
-
-	if (!rc)
-		return 0;
-
-failed_dmamask:
-	free_irq(pdev->irq, endpoint);
-failed_register_msi:
-	pci_disable_msi(pdev);
-failed_enable_msi:
-	/* pci_clear_master(pdev); Nobody else seems to do this */
-	pci_iounmap(pdev, endpoint->registers);
-failed_iomap0:
-	pci_release_regions(pdev);
-failed_request_regions:
-bad_bar:
-	pci_disable_device(pdev);
-no_enable:
-	xillybus_do_cleanup(&endpoint->cleanup, endpoint);
-
-	kfree(endpoint);
-	return rc;
+	return xillybus_endpoint_discovery(endpoint);
 }
 
 static void xilly_remove(struct pci_dev *pdev)
@@ -236,17 +216,6 @@ static void xilly_remove(struct pci_dev *pdev)
 	struct xilly_endpoint *endpoint = pci_get_drvdata(pdev);
 
 	xillybus_endpoint_remove(endpoint);
-
-	free_irq(pdev->irq, endpoint);
-
-	pci_disable_msi(pdev);
-	pci_iounmap(pdev, endpoint->registers);
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-
-	xillybus_do_cleanup(&endpoint->cleanup, endpoint);
-
-	kfree(endpoint);
 }
 
 MODULE_DEVICE_TABLE(pci, xillyids);

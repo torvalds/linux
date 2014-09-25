@@ -47,15 +47,9 @@ static unsigned int nf_nat_ipv6_fn(const struct nf_hook_ops *ops,
 	if (ct == NULL || nf_ct_is_untracked(ct))
 		return NF_ACCEPT;
 
-	nat = nfct_nat(ct);
-	if (nat == NULL) {
-		/* Conntrack module was loaded late, can't add extension. */
-		if (nf_ct_is_confirmed(ct))
-			return NF_ACCEPT;
-		nat = nf_ct_ext_add(ct, NF_CT_EXT_NAT, GFP_ATOMIC);
-		if (nat == NULL)
-			return NF_ACCEPT;
-	}
+	nat = nf_ct_nat_ext_add(ct);
+	if (nat == NULL)
+		return NF_ACCEPT;
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:
@@ -79,7 +73,7 @@ static unsigned int nf_nat_ipv6_fn(const struct nf_hook_ops *ops,
 
 		nft_set_pktinfo_ipv6(&pkt, ops, skb, in, out);
 
-		ret = nft_do_chain_pktinfo(&pkt, ops);
+		ret = nft_do_chain(&pkt, ops);
 		if (ret != NF_ACCEPT)
 			return ret;
 		if (!nf_nat_initialized(ct, maniptype)) {
@@ -170,21 +164,21 @@ static unsigned int nf_nat_ipv6_output(const struct nf_hook_ops *ops,
 	return ret;
 }
 
-static struct nf_chain_type nft_chain_nat_ipv6 = {
-	.family		= NFPROTO_IPV6,
+static const struct nf_chain_type nft_chain_nat_ipv6 = {
 	.name		= "nat",
 	.type		= NFT_CHAIN_T_NAT,
+	.family		= NFPROTO_IPV6,
+	.owner		= THIS_MODULE,
 	.hook_mask	= (1 << NF_INET_PRE_ROUTING) |
 			  (1 << NF_INET_POST_ROUTING) |
 			  (1 << NF_INET_LOCAL_OUT) |
 			  (1 << NF_INET_LOCAL_IN),
-	.fn		= {
+	.hooks		= {
 		[NF_INET_PRE_ROUTING]	= nf_nat_ipv6_prerouting,
 		[NF_INET_POST_ROUTING]	= nf_nat_ipv6_postrouting,
 		[NF_INET_LOCAL_OUT]	= nf_nat_ipv6_output,
 		[NF_INET_LOCAL_IN]	= nf_nat_ipv6_fn,
 	},
-	.me		= THIS_MODULE,
 };
 
 static int __init nft_chain_nat_ipv6_init(void)

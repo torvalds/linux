@@ -109,7 +109,7 @@ struct dm_cache_metadata {
 	dm_block_t discard_root;
 
 	sector_t discard_block_size;
-	dm_dblock_t discard_nr_blocks;
+	dm_oblock_t discard_nr_blocks;
 
 	sector_t data_block_size;
 	dm_cblock_t cache_blocks;
@@ -120,6 +120,12 @@ struct dm_cache_metadata {
 	unsigned policy_version[CACHE_POLICY_VERSION_SIZE];
 	size_t policy_hint_size;
 	struct dm_cache_statistics stats;
+
+	/*
+	 * Reading the space map root can fail, so we read it into this
+	 * buffer before the superblock is locked and updated.
+	 */
+	__u8 metadata_space_map_root[SPACE_MAP_ROOT_SIZE];
 };
 
 /*-------------------------------------------------------------------
@@ -260,11 +266,31 @@ static void __setup_mapping_info(struct dm_cache_metadata *cmd)
 	}
 }
 
+static int __save_sm_root(struct dm_cache_metadata *cmd)
+{
+	int r;
+	size_t metadata_len;
+
+	r = dm_sm_root_size(cmd->metadata_sm, &metadata_len);
+	if (r < 0)
+		return r;
+
+	return dm_sm_copy_root(cmd->metadata_sm, &cmd->metadata_space_map_root,
+			       metadata_len);
+}
+
+static void __copy_sm_root(struct dm_cache_metadata *cmd,
+			   struct cache_disk_superblock *disk_super)
+{
+	memcpy(&disk_super->metadata_space_map_root,
+	       &cmd->metadata_space_map_root,
+	       sizeof(cmd->metadata_space_map_root));
+}
+
 static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 {
 	int r;
 	struct dm_block *sblock;
-	size_t metadata_len;
 	struct cache_disk_superblock *disk_super;
 	sector_t bdev_size = i_size_read(cmd->bdev->bd_inode) >> SECTOR_SHIFT;
 
@@ -272,12 +298,16 @@ static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 	if (bdev_size > DM_CACHE_METADATA_MAX_SECTORS)
 		bdev_size = DM_CACHE_METADATA_MAX_SECTORS;
 
-	r = dm_sm_root_size(cmd->metadata_sm, &metadata_len);
+	r = dm_tm_pre_commit(cmd->tm);
 	if (r < 0)
 		return r;
 
-	r = dm_tm_pre_commit(cmd->tm);
-	if (r < 0)
+	/*
+	 * dm_sm_copy_root() can fail.  So we need to do it before we start
+	 * updating the superblock.
+	 */
+	r = __save_sm_root(cmd);
+	if (r)
 		return r;
 
 	r = superblock_lock_zero(cmd, &sblock);
@@ -293,17 +323,14 @@ static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 	memset(disk_super->policy_version, 0, sizeof(disk_super->policy_version));
 	disk_super->policy_hint_size = 0;
 
-	r = dm_sm_copy_root(cmd->metadata_sm, &disk_super->metadata_space_map_root,
-			    metadata_len);
-	if (r < 0)
-		goto bad_locked;
+	__copy_sm_root(cmd, disk_super);
 
 	disk_super->mapping_root = cpu_to_le64(cmd->root);
 	disk_super->hint_root = cpu_to_le64(cmd->hint_root);
 	disk_super->discard_root = cpu_to_le64(cmd->discard_root);
 	disk_super->discard_block_size = cpu_to_le64(cmd->discard_block_size);
-	disk_super->discard_nr_blocks = cpu_to_le64(from_dblock(cmd->discard_nr_blocks));
-	disk_super->metadata_block_size = cpu_to_le32(DM_CACHE_METADATA_BLOCK_SIZE >> SECTOR_SHIFT);
+	disk_super->discard_nr_blocks = cpu_to_le64(from_oblock(cmd->discard_nr_blocks));
+	disk_super->metadata_block_size = cpu_to_le32(DM_CACHE_METADATA_BLOCK_SIZE);
 	disk_super->data_block_size = cpu_to_le32(cmd->data_block_size);
 	disk_super->cache_blocks = cpu_to_le32(0);
 
@@ -313,10 +340,6 @@ static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 	disk_super->write_misses = cpu_to_le32(0);
 
 	return dm_tm_commit(cmd->tm, sblock);
-
-bad_locked:
-	dm_bm_unlock(sblock);
-	return r;
 }
 
 static int __format_metadata(struct dm_cache_metadata *cmd)
@@ -402,6 +425,15 @@ static int __open_metadata(struct dm_cache_metadata *cmd)
 
 	disk_super = dm_block_data(sblock);
 
+	/* Verify the data block size hasn't changed */
+	if (le32_to_cpu(disk_super->data_block_size) != cmd->data_block_size) {
+		DMERR("changing the data block size (from %u to %llu) is not supported",
+		      le32_to_cpu(disk_super->data_block_size),
+		      (unsigned long long)cmd->data_block_size);
+		r = -EINVAL;
+		goto bad;
+	}
+
 	r = __check_incompat_features(disk_super, cmd);
 	if (r < 0)
 		goto bad;
@@ -446,7 +478,7 @@ static int __create_persistent_data_objects(struct dm_cache_metadata *cmd,
 					    bool may_format_device)
 {
 	int r;
-	cmd->bm = dm_block_manager_create(cmd->bdev, DM_CACHE_METADATA_BLOCK_SIZE,
+	cmd->bm = dm_block_manager_create(cmd->bdev, DM_CACHE_METADATA_BLOCK_SIZE << SECTOR_SHIFT,
 					  CACHE_METADATA_CACHE_SIZE,
 					  CACHE_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(cmd->bm)) {
@@ -496,7 +528,7 @@ static void read_superblock_fields(struct dm_cache_metadata *cmd,
 	cmd->hint_root = le64_to_cpu(disk_super->hint_root);
 	cmd->discard_root = le64_to_cpu(disk_super->discard_root);
 	cmd->discard_block_size = le64_to_cpu(disk_super->discard_block_size);
-	cmd->discard_nr_blocks = to_dblock(le64_to_cpu(disk_super->discard_nr_blocks));
+	cmd->discard_nr_blocks = to_oblock(le64_to_cpu(disk_super->discard_nr_blocks));
 	cmd->data_block_size = le32_to_cpu(disk_super->data_block_size);
 	cmd->cache_blocks = to_cblock(le32_to_cpu(disk_super->cache_blocks));
 	strncpy(cmd->policy_name, disk_super->policy_name, sizeof(cmd->policy_name));
@@ -530,8 +562,9 @@ static int __begin_transaction_flags(struct dm_cache_metadata *cmd,
 	disk_super = dm_block_data(sblock);
 	update_flags(disk_super, mutator);
 	read_superblock_fields(cmd, disk_super);
+	dm_bm_unlock(sblock);
 
-	return dm_bm_flush_and_unlock(cmd->bm, sblock);
+	return dm_bm_flush(cmd->bm);
 }
 
 static int __begin_transaction(struct dm_cache_metadata *cmd)
@@ -559,7 +592,6 @@ static int __commit_transaction(struct dm_cache_metadata *cmd,
 				flags_mutator mutator)
 {
 	int r;
-	size_t metadata_len;
 	struct cache_disk_superblock *disk_super;
 	struct dm_block *sblock;
 
@@ -577,8 +609,8 @@ static int __commit_transaction(struct dm_cache_metadata *cmd,
 	if (r < 0)
 		return r;
 
-	r = dm_sm_root_size(cmd->metadata_sm, &metadata_len);
-	if (r < 0)
+	r = __save_sm_root(cmd);
+	if (r)
 		return r;
 
 	r = superblock_lock(cmd, &sblock);
@@ -594,7 +626,7 @@ static int __commit_transaction(struct dm_cache_metadata *cmd,
 	disk_super->hint_root = cpu_to_le64(cmd->hint_root);
 	disk_super->discard_root = cpu_to_le64(cmd->discard_root);
 	disk_super->discard_block_size = cpu_to_le64(cmd->discard_block_size);
-	disk_super->discard_nr_blocks = cpu_to_le64(from_dblock(cmd->discard_nr_blocks));
+	disk_super->discard_nr_blocks = cpu_to_le64(from_oblock(cmd->discard_nr_blocks));
 	disk_super->cache_blocks = cpu_to_le32(from_cblock(cmd->cache_blocks));
 	strncpy(disk_super->policy_name, cmd->policy_name, sizeof(disk_super->policy_name));
 	disk_super->policy_version[0] = cpu_to_le32(cmd->policy_version[0]);
@@ -605,13 +637,7 @@ static int __commit_transaction(struct dm_cache_metadata *cmd,
 	disk_super->read_misses = cpu_to_le32(cmd->stats.read_misses);
 	disk_super->write_hits = cpu_to_le32(cmd->stats.write_hits);
 	disk_super->write_misses = cpu_to_le32(cmd->stats.write_misses);
-
-	r = dm_sm_copy_root(cmd->metadata_sm, &disk_super->metadata_space_map_root,
-			    metadata_len);
-	if (r < 0) {
-		dm_bm_unlock(sblock);
-		return r;
-	}
+	__copy_sm_root(cmd, disk_super);
 
 	return dm_tm_commit(cmd->tm, sblock);
 }
@@ -771,15 +797,15 @@ out:
 
 int dm_cache_discard_bitset_resize(struct dm_cache_metadata *cmd,
 				   sector_t discard_block_size,
-				   dm_dblock_t new_nr_entries)
+				   dm_oblock_t new_nr_entries)
 {
 	int r;
 
 	down_write(&cmd->root_lock);
 	r = dm_bitset_resize(&cmd->discard_info,
 			     cmd->discard_root,
-			     from_dblock(cmd->discard_nr_blocks),
-			     from_dblock(new_nr_entries),
+			     from_oblock(cmd->discard_nr_blocks),
+			     from_oblock(new_nr_entries),
 			     false, &cmd->discard_root);
 	if (!r) {
 		cmd->discard_block_size = discard_block_size;
@@ -792,28 +818,28 @@ int dm_cache_discard_bitset_resize(struct dm_cache_metadata *cmd,
 	return r;
 }
 
-static int __set_discard(struct dm_cache_metadata *cmd, dm_dblock_t b)
+static int __set_discard(struct dm_cache_metadata *cmd, dm_oblock_t b)
 {
 	return dm_bitset_set_bit(&cmd->discard_info, cmd->discard_root,
-				 from_dblock(b), &cmd->discard_root);
+				 from_oblock(b), &cmd->discard_root);
 }
 
-static int __clear_discard(struct dm_cache_metadata *cmd, dm_dblock_t b)
+static int __clear_discard(struct dm_cache_metadata *cmd, dm_oblock_t b)
 {
 	return dm_bitset_clear_bit(&cmd->discard_info, cmd->discard_root,
-				   from_dblock(b), &cmd->discard_root);
+				   from_oblock(b), &cmd->discard_root);
 }
 
-static int __is_discarded(struct dm_cache_metadata *cmd, dm_dblock_t b,
+static int __is_discarded(struct dm_cache_metadata *cmd, dm_oblock_t b,
 			  bool *is_discarded)
 {
 	return dm_bitset_test_bit(&cmd->discard_info, cmd->discard_root,
-				  from_dblock(b), &cmd->discard_root,
+				  from_oblock(b), &cmd->discard_root,
 				  is_discarded);
 }
 
 static int __discard(struct dm_cache_metadata *cmd,
-		     dm_dblock_t dblock, bool discard)
+		     dm_oblock_t dblock, bool discard)
 {
 	int r;
 
@@ -826,7 +852,7 @@ static int __discard(struct dm_cache_metadata *cmd,
 }
 
 int dm_cache_set_discard(struct dm_cache_metadata *cmd,
-			 dm_dblock_t dblock, bool discard)
+			 dm_oblock_t dblock, bool discard)
 {
 	int r;
 
@@ -844,8 +870,8 @@ static int __load_discards(struct dm_cache_metadata *cmd,
 	dm_block_t b;
 	bool discard;
 
-	for (b = 0; b < from_dblock(cmd->discard_nr_blocks); b++) {
-		dm_dblock_t dblock = to_dblock(b);
+	for (b = 0; b < from_oblock(cmd->discard_nr_blocks); b++) {
+		dm_oblock_t dblock = to_oblock(b);
 
 		if (cmd->clean_when_opened) {
 			r = __is_discarded(cmd, dblock, &discard);
@@ -1228,22 +1254,12 @@ static int begin_hints(struct dm_cache_metadata *cmd, struct dm_cache_policy *po
 	return 0;
 }
 
-int dm_cache_begin_hints(struct dm_cache_metadata *cmd, struct dm_cache_policy *policy)
+static int save_hint(void *context, dm_cblock_t cblock, dm_oblock_t oblock, uint32_t hint)
 {
-	int r;
-
-	down_write(&cmd->root_lock);
-	r = begin_hints(cmd, policy);
-	up_write(&cmd->root_lock);
-
-	return r;
-}
-
-static int save_hint(struct dm_cache_metadata *cmd, dm_cblock_t cblock,
-		     uint32_t hint)
-{
-	int r;
+	struct dm_cache_metadata *cmd = context;
 	__le32 value = cpu_to_le32(hint);
+	int r;
+
 	__dm_bless_for_disk(&value);
 
 	r = dm_array_set_value(&cmd->hint_info, cmd->hint_root,
@@ -1253,16 +1269,25 @@ static int save_hint(struct dm_cache_metadata *cmd, dm_cblock_t cblock,
 	return r;
 }
 
-int dm_cache_save_hint(struct dm_cache_metadata *cmd, dm_cblock_t cblock,
-		       uint32_t hint)
+static int write_hints(struct dm_cache_metadata *cmd, struct dm_cache_policy *policy)
 {
 	int r;
 
-	if (!hints_array_initialized(cmd))
-		return 0;
+	r = begin_hints(cmd, policy);
+	if (r) {
+		DMERR("begin_hints failed");
+		return r;
+	}
+
+	return policy_walk_mappings(policy, save_hint, cmd);
+}
+
+int dm_cache_write_hints(struct dm_cache_metadata *cmd, struct dm_cache_policy *policy)
+{
+	int r;
 
 	down_write(&cmd->root_lock);
-	r = save_hint(cmd, cblock, hint);
+	r = write_hints(cmd, policy);
 	up_write(&cmd->root_lock);
 
 	return r;

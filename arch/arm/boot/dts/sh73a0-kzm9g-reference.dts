@@ -14,11 +14,16 @@
 /dts-v1/;
 #include "sh73a0.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "KZM-A9-GT";
 	compatible = "renesas,kzm9g-reference", "renesas,sh73a0";
+
+	aliases {
+		serial4 = &scifa4;
+	};
 
 	cpus {
 		cpu@0 {
@@ -34,7 +39,7 @@
 	};
 
 	chosen {
-		bootargs = "console=tty0 console=ttySC4,115200 root=/dev/nfs ip=dhcp ignore_loglevel earlyprintk=sh-sci.4,115200 rw";
+		bootargs = "console=tty0 console=ttySC4,115200 root=/dev/nfs ip=dhcp ignore_loglevel rw";
 	};
 
 	memory {
@@ -112,43 +117,43 @@
 
 		back-key {
 			gpios = <&pcf8575 8 GPIO_ACTIVE_LOW>;
-			linux,code = <158>;
+			linux,code = <KEY_BACK>;
 			label = "SW3";
 		};
 
 		right-key {
 			gpios = <&pcf8575 9 GPIO_ACTIVE_LOW>;
-			linux,code = <106>;
+			linux,code = <KEY_RIGHT>;
 			label = "SW2-R";
 		};
 
 		left-key {
 			gpios = <&pcf8575 10 GPIO_ACTIVE_LOW>;
-			linux,code = <105>;
+			linux,code = <KEY_LEFT>;
 			label = "SW2-L";
 		};
 
 		enter-key {
 			gpios = <&pcf8575 11 GPIO_ACTIVE_LOW>;
-			linux,code = <28>;
+			linux,code = <KEY_ENTER>;
 			label = "SW2-P";
 		};
 
 		up-key {
 			gpios = <&pcf8575 12 GPIO_ACTIVE_LOW>;
-			linux,code = <103>;
+			linux,code = <KEY_UP>;
 			label = "SW2-U";
 		};
 
 		down-key {
 			gpios = <&pcf8575 13 GPIO_ACTIVE_LOW>;
-			linux,code = <108>;
+			linux,code = <KEY_DOWN>;
 			label = "SW2-D";
 		};
 
 		home-key {
 			gpios = <&pcf8575 14 GPIO_ACTIVE_LOW>;
-			linux,code = <102>;
+			linux,code = <KEY_HOME>;
 			label = "SW1";
 		};
 	};
@@ -275,9 +280,6 @@
 };
 
 &pfc {
-	pinctrl-0 = <&scifa4_pins>;
-	pinctrl-names = "default";
-
 	i2c3_pins: i2c3 {
 		renesas,groups = "i2c3_1";
 		renesas,function = "i2c3";
@@ -315,6 +317,13 @@
 				 "fsia_data_in", "fsia_data_out";
 		renesas,function = "fsia";
 	};
+};
+
+&scifa4 {
+	pinctrl-0 = <&scifa4_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
 
 &sdhi0 {

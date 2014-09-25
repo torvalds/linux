@@ -57,7 +57,7 @@ config ARCH_FLATMEM_ENABLE
 config MMU
 	def_bool y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
@@ -356,7 +356,6 @@ config ARC_CURR_IN_REG
 
 config ARC_MISALIGN_ACCESS
 	bool "Emulate unaligned memory access (userspace only)"
-	default N
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	help
@@ -408,17 +407,6 @@ config ARC_DBG_TLB_MISS_COUNT
 	help
 	  Counts number of I and D TLB Misses and exports them via Debugfs
 	  The counters can be cleared via Debugfs as well
-
-config CMDLINE_UBOOT
-	bool "Support U-boot kernel command line passing"
-	default n
-	help
-	  If you are using U-boot (www.denx.de) and wish to pass the kernel
-	  command line from the U-boot environment to the Linux kernel then
-	  switch this option on.
-	  ARC U-boot will setup the cmdline in RAM/flash and set r2 to point
-	  to it. kernel startup code will append this to DeviceTree
-	  /bootargs provided cmdline args.
 
 config ARC_BUILTIN_DTB_NAME
 	string "Built in DTB"

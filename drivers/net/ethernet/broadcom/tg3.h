@@ -4,7 +4,7 @@
  * Copyright (C) 2001, 2002, 2003, 2004 David S. Miller (davem@redhat.com)
  * Copyright (C) 2001 Jeff Garzik (jgarzik@pobox.com)
  * Copyright (C) 2004 Sun Microsystems Inc.
- * Copyright (C) 2007-2013 Broadcom Corporation.
+ * Copyright (C) 2007-2014 Broadcom Corporation.
  */
 
 #ifndef _T3_H
@@ -1146,10 +1146,14 @@
 #define TG3_CPMU_CLCK_ORIDE		0x00003624
 #define  CPMU_CLCK_ORIDE_MAC_ORIDE_EN	 0x80000000
 
+#define TG3_CPMU_CLCK_ORIDE_ENABLE	0x00003628
+#define  TG3_CPMU_MAC_ORIDE_ENABLE	 (1 << 13)
+
 #define TG3_CPMU_STATUS			0x0000362c
 #define  TG3_CPMU_STATUS_FMSK_5717	 0x20000000
 #define  TG3_CPMU_STATUS_FMSK_5719	 0xc0000000
 #define  TG3_CPMU_STATUS_FSHFT_5719	 30
+#define  TG3_CPMU_STATUS_LINK_MASK	 0x180000
 
 #define TG3_CPMU_CLCK_STAT		0x00003630
 #define  CPMU_CLCK_STAT_MAC_CLCK_MASK	 0x001f0000
@@ -2204,7 +2208,7 @@
 
 #define NIC_SRAM_DATA_CFG_2		0x00000d38
 
-#define  NIC_SRAM_DATA_CFG_2_APD_EN	 0x00000400
+#define  NIC_SRAM_DATA_CFG_2_APD_EN	 0x00004000
 #define  SHASTA_EXT_LED_MODE_MASK	 0x00018000
 #define  SHASTA_EXT_LED_LEGACY		 0x00000000
 #define  SHASTA_EXT_LED_SHARED		 0x00008000
@@ -2225,6 +2229,9 @@
 #define NIC_SRAM_CPMU_STATUS		0x00000e00
 #define  NIC_SRAM_CPMUSTAT_SIG		0x0000362c
 #define  NIC_SRAM_CPMUSTAT_SIG_MSK	0x0000ffff
+
+#define NIC_SRAM_DATA_CFG_5		0x00000e0c
+#define  NIC_SRAM_DISABLE_1G_HALF_ADV	0x00000002
 
 #define NIC_SRAM_RX_MINI_BUFFER_DESC	0x00001000
 
@@ -2601,7 +2608,11 @@ struct tg3_rx_buffer_desc {
 #define RXD_ERR_TOO_SMALL		0x00400000
 #define RXD_ERR_NO_RESOURCES		0x00800000
 #define RXD_ERR_HUGE_FRAME		0x01000000
-#define RXD_ERR_MASK			0xffff0000
+
+#define RXD_ERR_MASK	(RXD_ERR_BAD_CRC | RXD_ERR_COLLISION |		\
+			 RXD_ERR_LINK_LOST | RXD_ERR_PHY_DECODE |	\
+			 RXD_ERR_MAC_ABRT | RXD_ERR_TOO_SMALL |		\
+			 RXD_ERR_NO_RESOURCES | RXD_ERR_HUGE_FRAME)
 
 	u32				reserved;
 	u32				opaque;
@@ -3014,6 +3025,7 @@ enum TG3_FLAGS {
 	TG3_FLAG_ENABLE_ASF,
 	TG3_FLAG_ASPM_WORKAROUND,
 	TG3_FLAG_POLL_SERDES,
+	TG3_FLAG_POLL_CPMU_LINK,
 	TG3_FLAG_MBOX_WRITE_REORDER,
 	TG3_FLAG_PCIX_TARGET_HWBUG,
 	TG3_FLAG_WOL_SPEED_100MB,
@@ -3325,6 +3337,7 @@ struct tg3 {
 #define TG3_PHYFLG_1G_ON_VAUX_OK	0x00080000
 #define TG3_PHYFLG_KEEP_LINK_ON_PWRDN	0x00100000
 #define TG3_PHYFLG_MDIX_STATE		0x00200000
+#define TG3_PHYFLG_DISABLE_1G_HD_ADV	0x00400000
 
 	u32				led_ctrl;
 	u32				phy_otp;
@@ -3394,6 +3407,7 @@ struct tg3 {
 
 	struct device			*hwmon_dev;
 	bool				link_up;
+	bool				pcierr_recovery;
 };
 
 /* Accessor macros for chip and asic attributes

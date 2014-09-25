@@ -180,9 +180,13 @@ enum clk_id {
 	tegra_clk_sbc6_8,
 	tegra_clk_sclk,
 	tegra_clk_sdmmc1,
+	tegra_clk_sdmmc1_8,
 	tegra_clk_sdmmc2,
+	tegra_clk_sdmmc2_8,
 	tegra_clk_sdmmc3,
+	tegra_clk_sdmmc3_8,
 	tegra_clk_sdmmc4,
+	tegra_clk_sdmmc4_8,
 	tegra_clk_se,
 	tegra_clk_soc_therm,
 	tegra_clk_sor0,
@@ -229,6 +233,7 @@ enum clk_id {
 	tegra_clk_xusb_hs_src,
 	tegra_clk_xusb_ss,
 	tegra_clk_xusb_ss_src,
+	tegra_clk_xusb_ss_div2,
 	tegra_clk_max,
 };
 

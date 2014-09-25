@@ -2270,7 +2270,8 @@ struct il_spectrum_notification {
  */
 #define IL_POWER_VEC_SIZE 5
 
-#define IL_POWER_DRIVER_ALLOW_SLEEP_MSK	cpu_to_le16(BIT(0))
+#define IL_POWER_DRIVER_ALLOW_SLEEP_MSK		cpu_to_le16(BIT(0))
+#define IL_POWER_SLEEP_OVER_DTIM_MSK		cpu_to_le16(BIT(2))
 #define IL_POWER_PCI_PM_MSK			cpu_to_le16(BIT(3))
 
 struct il3945_powertable_cmd {

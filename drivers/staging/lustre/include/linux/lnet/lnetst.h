@@ -41,9 +41,9 @@
 #ifndef __LNET_ST_H__
 #define __LNET_ST_H__
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lnet.h>
-#include <linux/lnet/lib-types.h>
+#include "../libcfs/libcfs.h"
+#include "lnet.h"
+#include "lib-types.h"
 
 #define LST_FEAT_NONE		(0)
 #define LST_FEAT_BULK_LEN	(1 << 0)	/* enable variable page size */
@@ -402,7 +402,7 @@ typedef struct {
 /* add stat in session */
 typedef struct {
 	int		     lstio_sta_key;	  /* IN: session key */
-	int		     lstio_sta_timeout;      /* IN: timeout for stat requst */
+	int		     lstio_sta_timeout;      /* IN: timeout for stat request */
 	int		     lstio_sta_nmlen;	/* IN: group name length */
 	char		   *lstio_sta_namep;	/* IN: group name */
 	int		     lstio_sta_count;	/* IN: # of pid */

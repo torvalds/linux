@@ -23,12 +23,12 @@
  */
 
 #include <core/os.h>
-#include <core/class.h>
 #include <core/engctx.h>
 #include <core/namedb.h>
 #include <core/handle.h>
 #include <core/gpuobj.h>
 #include <core/event.h>
+#include <nvif/event.h>
 
 #include <subdev/bar.h>
 
@@ -86,10 +86,10 @@ nv50_software_mthd_vblsem_release(struct nouveau_object *object, u32 mthd,
 {
 	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
 	u32 head = *(u32 *)args;
-	if (head >= chan->vblank.nr_event)
+	if (head >= nouveau_disp(chan)->vblank.index_nr)
 		return -EINVAL;
 
-	nouveau_event_get(chan->vblank.event[head]);
+	nvkm_notify_get(&chan->vblank.notify[head]);
 	return 0;
 }
 
@@ -124,9 +124,10 @@ nv50_software_sclass[] = {
  ******************************************************************************/
 
 static int
-nv50_software_vblsem_release(void *data, int head)
+nv50_software_vblsem_release(struct nvkm_notify *notify)
 {
-	struct nv50_software_chan *chan = data;
+	struct nv50_software_chan *chan =
+		container_of(notify, typeof(*chan), vblank.notify[notify->index]);
 	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
 	struct nouveau_bar *bar = nouveau_bar(priv);
 
@@ -142,7 +143,7 @@ nv50_software_vblsem_release(void *data, int head)
 		nv_wr32(priv, 0x060014, chan->vblank.value);
 	}
 
-	return NVKM_EVENT_DROP;
+	return NVKM_NOTIFY_DROP;
 }
 
 void
@@ -151,11 +152,8 @@ nv50_software_context_dtor(struct nouveau_object *object)
 	struct nv50_software_chan *chan = (void *)object;
 	int i;
 
-	if (chan->vblank.event) {
-		for (i = 0; i < chan->vblank.nr_event; i++)
-			nouveau_event_ref(NULL, &chan->vblank.event[i]);
-		kfree(chan->vblank.event);
-	}
+	for (i = 0; i < ARRAY_SIZE(chan->vblank.notify); i++)
+		nvkm_notify_fini(&chan->vblank.notify[i]);
 
 	nouveau_software_context_destroy(&chan->base);
 }
@@ -176,15 +174,14 @@ nv50_software_context_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	chan->vblank.nr_event = pdisp ? pdisp->vblank->index_nr : 0;
-	chan->vblank.event = kzalloc(chan->vblank.nr_event *
-				     sizeof(*chan->vblank.event), GFP_KERNEL);
-	if (!chan->vblank.event)
-		return -ENOMEM;
-
-	for (i = 0; i < chan->vblank.nr_event; i++) {
-		ret = nouveau_event_new(pdisp->vblank, i, pclass->vblank,
-					chan, &chan->vblank.event[i]);
+	for (i = 0; pdisp && i < pdisp->vblank.index_nr; i++) {
+		ret = nvkm_notify_init(&pdisp->vblank, pclass->vblank, false,
+				       &(struct nvif_notify_head_req_v0) {
+					.head = i,
+				       },
+				       sizeof(struct nvif_notify_head_req_v0),
+				       sizeof(struct nvif_notify_head_rep_v0),
+				       &chan->vblank.notify[i]);
 		if (ret)
 			return ret;
 	}
@@ -198,7 +195,7 @@ nv50_software_cclass = {
 	.base.handle = NV_ENGCTX(SW, 0x50),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_software_context_ctor,
-		.dtor = _nouveau_software_context_dtor,
+		.dtor = nv50_software_context_dtor,
 		.init = _nouveau_software_context_init,
 		.fini = _nouveau_software_context_fini,
 	},

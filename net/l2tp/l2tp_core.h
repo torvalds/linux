@@ -162,7 +162,9 @@ struct l2tp_tunnel_cfg {
 #endif
 	u16			local_udp_port;
 	u16			peer_udp_port;
-	unsigned int		use_udp_checksums:1;
+	unsigned int		use_udp_checksums:1,
+				udp6_zero_tx_checksums:1,
+				udp6_zero_rx_checksums:1;
 };
 
 struct l2tp_tunnel {
@@ -238,8 +240,6 @@ out:
 	return tunnel;
 }
 
-struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel);
-void l2tp_tunnel_sock_put(struct sock *sk);
 struct l2tp_session *l2tp_session_find(struct net *net,
 				       struct l2tp_tunnel *tunnel,
 				       u32 session_id);
@@ -265,6 +265,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		      int length, int (*payload_hook)(struct sk_buff *skb));
 int l2tp_session_queue_purge(struct l2tp_session *session);
 int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb);
+void l2tp_session_set_header_len(struct l2tp_session *session, int version);
 
 int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb,
 		  int hdr_len);

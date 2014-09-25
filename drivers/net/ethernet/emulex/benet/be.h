@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2013 Emulex
+ * Copyright (C) 2005 - 2014 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -34,7 +34,7 @@
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"4.9.224.0u"
+#define DRV_VER			"10.4u"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -42,7 +42,7 @@
 #define OC_NAME_BE		OC_NAME	"(be3)"
 #define OC_NAME_LANCER		OC_NAME "(Lancer)"
 #define OC_NAME_SH		OC_NAME "(Skyhawk)"
-#define DRV_DESC		"Emulex OneConnect 10Gbps NIC Driver"
+#define DRV_DESC		"Emulex OneConnect NIC Driver"
 
 #define BE_VENDOR_ID 		0x19a2
 #define EMULEX_VENDOR_ID	0x10df
@@ -88,7 +88,6 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define BE_MIN_MTU		256
 
 #define BE_NUM_VLANS_SUPPORTED	64
-#define BE_UMC_NUM_VLANS_SUPPORTED	15
 #define BE_MAX_EQD		128u
 #define	BE_MAX_TX_FRAG_COUNT	30
 
@@ -120,6 +119,9 @@ static inline char *nic_name(struct pci_dev *pdev)
 
 #define MAX_VFS			30 /* Max VFs supported by BE3 FW */
 #define FW_VER_LEN		32
+
+#define	RSS_INDIR_TABLE_LEN	128
+#define RSS_HASH_KEY_LEN	40
 
 struct be_dma_mem {
 	void *va;
@@ -262,9 +264,10 @@ struct be_tx_obj {
 /* Struct to remember the pages posted for rx frags */
 struct be_rx_page_info {
 	struct page *page;
+	/* set to page-addr for last frag of the page & frag-addr otherwise */
 	DEFINE_DMA_UNMAP_ADDR(bus);
 	u16 page_offset;
-	bool last_page_user;
+	bool last_frag;		/* last frag of the page */
 };
 
 struct be_rx_stats {
@@ -283,7 +286,6 @@ struct be_rx_compl_info {
 	u32 rss_hash;
 	u16 vlan_tag;
 	u16 pkt_size;
-	u16 rxq_idx;
 	u16 port;
 	u8 vlanf;
 	u8 num_rcvd;
@@ -294,9 +296,10 @@ struct be_rx_compl_info {
 	u8 ip_csum;
 	u8 l4_csum;
 	u8 ipv6;
-	u8 vtm;
+	u8 qnq;
 	u8 pkt_type;
 	u8 ip_frag;
+	u8 tunneled;
 };
 
 struct be_rx_obj {
@@ -351,13 +354,16 @@ struct be_drv_stats {
 	u32 roce_drops_crc;
 };
 
+/* A vlan-id of 0xFFFF must be used to clear transparent vlan-tagging */
+#define BE_RESET_VLAN_TAG_ID	0xFFFF
+
 struct be_vf_cfg {
 	unsigned char mac_addr[ETH_ALEN];
 	int if_handle;
 	int pmac_id;
-	u16 def_vid;
 	u16 vlan_tag;
 	u32 tx_rate;
+	u32 plink_tracking;
 };
 
 enum vf_state {
@@ -366,15 +372,21 @@ enum vf_state {
 };
 
 #define BE_FLAGS_LINK_STATUS_INIT		1
+#define BE_FLAGS_SRIOV_ENABLED			(1 << 2)
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
 #define BE_FLAGS_VLAN_PROMISC			(1 << 4)
+#define BE_FLAGS_MCAST_PROMISC			(1 << 5)
 #define BE_FLAGS_NAPI_ENABLED			(1 << 9)
-#define BE_UC_PMAC_COUNT		30
-#define BE_VF_UC_PMAC_COUNT		2
 #define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		(1 << 11)
+#define BE_FLAGS_VXLAN_OFFLOADS			(1 << 12)
+#define BE_FLAGS_SETUP_DONE			(1 << 13)
+
+#define BE_UC_PMAC_COUNT			30
+#define BE_VF_UC_PMAC_COUNT			2
 
 /* Ethtool set_dump flags */
 #define LANCER_INITIATE_FW_DUMP			0x1
+#define LANCER_DELETE_FW_DUMP			0x2
 
 struct phy_info {
 	u8 transceiver;
@@ -402,6 +414,14 @@ struct be_resources {
 	u16 max_vlans;		/* Number of vlans supported */
 	u16 max_evt_qs;
 	u32 if_cap_flags;
+	u32 vf_if_cap_flags;	/* VF if capability flags */
+};
+
+struct rss_info {
+	u64 rss_flags;
+	u8 rsstable[RSS_INDIR_TABLE_LEN];
+	u8 rss_queue[RSS_INDIR_TABLE_LEN];
+	u8 rss_hkey[RSS_HASH_KEY_LEN];
 };
 
 struct be_adapter {
@@ -440,7 +460,7 @@ struct be_adapter {
 	struct be_drv_stats drv_stats;
 	struct be_aic_obj aic_obj[MAX_EVT_QS];
 	u16 vlans_added;
-	u8 vlan_tag[VLAN_N_VID];
+	unsigned long vids[BITS_TO_LONGS(VLAN_N_VID)];
 	u8 vlan_prio_bmap;	/* Available Priority BitMap */
 	u16 recommended_prio;	/* Recommended Priority */
 	struct be_dma_mem rx_filter; /* Cmd DMA mem for rx-filter */
@@ -466,6 +486,7 @@ struct be_adapter {
 
 	u32 port_num;
 	bool promiscuous;
+	u8 mc_type;
 	u32 function_mode;
 	u32 function_caps;
 	u32 rx_fc;		/* Rx flow control */
@@ -483,6 +504,7 @@ struct be_adapter {
 	u32 flash_status;
 	struct completion et_cmd_compl;
 
+	struct be_resources pool_res;	/* resources available for the port */
 	struct be_resources res;	/* resources available for the func */
 	u16 num_vfs;			/* Number of VFs provisioned by PF */
 	u8 virtfn;
@@ -491,23 +513,24 @@ struct be_adapter {
 	u32 sli_family;
 	u8 hba_port_num;
 	u16 pvid;
+	__be16 vxlan_port;
 	struct phy_info phy;
 	u8 wol_cap;
-	bool wol;
+	bool wol_en;
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 	u16 asic_rev;
 	u16 qnq_vid;
 	u32 msg_enable;
 	int be_get_temp_freq;
 	u8 pf_number;
-	u64 rss_flags;
+	struct rss_info rss_info;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)
 #define be_virtfn(adapter)		(adapter->virtfn)
-#define	sriov_enabled(adapter)		(adapter->num_vfs > 0)
-#define sriov_want(adapter)             (be_physfn(adapter) &&	\
-					 (num_vfs || pci_num_vf(adapter->pdev)))
+#define sriov_enabled(adapter)		(adapter->flags &	\
+					 BE_FLAGS_SRIOV_ENABLED)
+
 #define for_all_vfs(adapter, vf_cfg, i)					\
 	for (i = 0, vf_cfg = &adapter->vf_cfg[i]; i < adapter->num_vfs;	\
 		i++, vf_cfg++)
@@ -518,7 +541,7 @@ struct be_adapter {
 #define be_max_vlans(adapter)		(adapter->res.max_vlans)
 #define be_max_uc(adapter)		(adapter->res.max_uc_mac)
 #define be_max_mc(adapter)		(adapter->res.max_mcast_mac)
-#define be_max_vfs(adapter)		(adapter->res.max_vfs)
+#define be_max_vfs(adapter)		(adapter->pool_res.max_vfs)
 #define be_max_rss(adapter)		(adapter->res.max_rss_qs)
 #define be_max_txqs(adapter)		(adapter->res.max_tx_qs)
 #define be_max_prio_txqs(adapter)	(adapter->res.max_prio_tx_qs)
@@ -534,6 +557,12 @@ static inline u16 be_max_qs(struct be_adapter *adapter)
 	num = min(num, be_max_eqs(adapter));
 	return min_t(u16, num, num_online_cpus());
 }
+
+/* Is BE in pvid_tagging mode */
+#define be_pvid_tagging_enabled(adapter)	(adapter->pvid)
+
+/* Is BE in QNQ multi-channel mode */
+#define be_is_qnq_mode(adapter)		(adapter->function_mode & QNQ_MODE)
 
 #define lancer_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID3 || \
 				 adapter->pdev->device == OC_DEVICE_ID4)
@@ -646,6 +675,8 @@ static inline void swap_dws(void *wrb, int len)
 	} while (len);
 #endif				/* __BIG_ENDIAN */
 }
+
+#define be_cmd_status(status)		(status > 0 ? -EIO : status)
 
 static inline u8 is_tcp_pkt(struct sk_buff *skb)
 {
@@ -866,5 +897,6 @@ void be_roce_dev_remove(struct be_adapter *);
  */
 void be_roce_dev_open(struct be_adapter *);
 void be_roce_dev_close(struct be_adapter *);
+void be_roce_dev_shutdown(struct be_adapter *);
 
 #endif				/* BE_H */

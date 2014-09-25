@@ -134,7 +134,8 @@ static irqreturn_t st1232_ts_irq_handler(int irq, void *dev_id)
 	} else if (!ts->low_latency_req.dev) {
 		/* First contact, request 100 us latency. */
 		dev_pm_qos_add_ancestor_request(&ts->client->dev,
-						&ts->low_latency_req, 100);
+						&ts->low_latency_req,
+						DEV_PM_QOS_RESUME_LATENCY, 100);
 	}
 
 	/* SYN_REPORT */
@@ -154,7 +155,7 @@ static int st1232_ts_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct st1232_ts_data *ts;
-	struct st1232_pdata *pdata = client->dev.platform_data;
+	struct st1232_pdata *pdata = dev_get_platdata(&client->dev);
 	struct input_dev *input_dev;
 	int error;
 

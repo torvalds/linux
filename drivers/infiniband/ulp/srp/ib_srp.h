@@ -66,13 +66,10 @@ enum {
 	SRP_TAG_NO_REQ		= ~0U,
 	SRP_TAG_TSK_MGMT	= 1U << 31,
 
-	SRP_FMR_SIZE		= 512,
-	SRP_FMR_MIN_SIZE	= 128,
-	SRP_FMR_POOL_SIZE	= 1024,
-	SRP_FMR_DIRTY_SIZE	= SRP_FMR_POOL_SIZE / 4,
+	SRP_MAX_PAGES_PER_MR	= 512,
 
-	SRP_MAP_ALLOW_FMR	= 0,
-	SRP_MAP_NO_FMR		= 1,
+	LOCAL_INV_WR_ID_MASK	= 1,
+	FAST_REG_WR_ID_MASK	= 2,
 };
 
 enum srp_target_state {
@@ -86,15 +83,24 @@ enum srp_iu_type {
 	SRP_IU_RSP,
 };
 
+/*
+ * @mr_page_mask: HCA memory registration page mask.
+ * @mr_page_size: HCA memory registration page size.
+ * @mr_max_size: Maximum size in bytes of a single FMR / FR registration
+ *   request.
+ */
 struct srp_device {
 	struct list_head	dev_list;
 	struct ib_device       *dev;
 	struct ib_pd	       *pd;
 	struct ib_mr	       *mr;
-	struct ib_fmr_pool     *fmr_pool;
-	u64			fmr_page_mask;
-	int			fmr_page_size;
-	int			fmr_max_size;
+	u64			mr_page_mask;
+	int			mr_page_size;
+	int			mr_max_size;
+	int			max_pages_per_mr;
+	bool			has_fmr;
+	bool			has_fr;
+	bool			use_fast_reg;
 };
 
 struct srp_host {
@@ -105,17 +111,21 @@ struct srp_host {
 	spinlock_t		target_lock;
 	struct completion	released;
 	struct list_head	list;
+	struct mutex		add_target_mutex;
 };
 
 struct srp_request {
 	struct list_head	list;
 	struct scsi_cmnd       *scmnd;
 	struct srp_iu	       *cmd;
-	struct ib_pool_fmr    **fmr_list;
+	union {
+		struct ib_pool_fmr **fmr_list;
+		struct srp_fr_desc **fr_list;
+	};
 	u64		       *map_page;
 	struct srp_direct_buf  *indirect_desc;
 	dma_addr_t		indirect_dma_addr;
-	short			nfmr;
+	short			nmdesc;
 	short			index;
 };
 
@@ -130,6 +140,10 @@ struct srp_target_port {
 	struct ib_cq	       *send_cq ____cacheline_aligned_in_smp;
 	struct ib_cq	       *recv_cq;
 	struct ib_qp	       *qp;
+	union {
+		struct ib_fmr_pool     *fmr_pool;
+		struct srp_fr_pool     *fr_pool;
+	};
 	u32			lkey;
 	u32			rkey;
 	enum srp_target_state	state;
@@ -196,15 +210,66 @@ struct srp_iu {
 	enum dma_data_direction	direction;
 };
 
+/**
+ * struct srp_fr_desc - fast registration work request arguments
+ * @entry: Entry in srp_fr_pool.free_list.
+ * @mr:    Memory region.
+ * @frpl:  Fast registration page list.
+ */
+struct srp_fr_desc {
+	struct list_head		entry;
+	struct ib_mr			*mr;
+	struct ib_fast_reg_page_list	*frpl;
+};
+
+/**
+ * struct srp_fr_pool - pool of fast registration descriptors
+ *
+ * An entry is available for allocation if and only if it occurs in @free_list.
+ *
+ * @size:      Number of descriptors in this pool.
+ * @max_page_list_len: Maximum fast registration work request page list length.
+ * @lock:      Protects free_list.
+ * @free_list: List of free descriptors.
+ * @desc:      Fast registration descriptor pool.
+ */
+struct srp_fr_pool {
+	int			size;
+	int			max_page_list_len;
+	spinlock_t		lock;
+	struct list_head	free_list;
+	struct srp_fr_desc	desc[0];
+};
+
+/**
+ * struct srp_map_state - per-request DMA memory mapping state
+ * @desc:	    Pointer to the element of the SRP buffer descriptor array
+ *		    that is being filled in.
+ * @pages:	    Array with DMA addresses of pages being considered for
+ *		    memory registration.
+ * @base_dma_addr:  DMA address of the first page that has not yet been mapped.
+ * @dma_len:	    Number of bytes that will be registered with the next
+ *		    FMR or FR memory registration call.
+ * @total_len:	    Total number of bytes in the sg-list being mapped.
+ * @npages:	    Number of page addresses in the pages[] array.
+ * @nmdesc:	    Number of FMR or FR memory descriptors used for mapping.
+ * @ndesc:	    Number of SRP buffer descriptors that have been filled in.
+ * @unmapped_sg:    First element of the sg-list that is mapped via FMR or FR.
+ * @unmapped_index: Index of the first element mapped via FMR or FR.
+ * @unmapped_addr:  DMA address of the first element mapped via FMR or FR.
+ */
 struct srp_map_state {
-	struct ib_pool_fmr    **next_fmr;
+	union {
+		struct ib_pool_fmr **next_fmr;
+		struct srp_fr_desc **next_fr;
+	};
 	struct srp_direct_buf  *desc;
 	u64		       *pages;
 	dma_addr_t		base_dma_addr;
-	u32			fmr_len;
+	u32			dma_len;
 	u32			total_len;
 	unsigned int		npages;
-	unsigned int		nfmr;
+	unsigned int		nmdesc;
 	unsigned int		ndesc;
 	struct scatterlist     *unmapped_sg;
 	int			unmapped_index;

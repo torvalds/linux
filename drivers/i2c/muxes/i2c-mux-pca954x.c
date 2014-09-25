@@ -28,7 +28,7 @@
  * Based on:
  *	i2c-virtual_cb.c from Brian Kuschak <bkuschak@yahoo.com>
  * and
- *	pca9540.c from Jean Delvare <khali@linux-fr.org>.
+ *	pca9540.c from Jean Delvare <jdelvare@suse.de>.
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -36,13 +36,12 @@
  */
 
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 #include <linux/i2c/pca954x.h>
-#include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 
 #define PCA954X_MAX_NCHANS 8
@@ -187,7 +186,7 @@ static int pca954x_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
 	struct pca954x_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = client->dev.of_node;
+	struct gpio_desc *gpio;
 	int num, force, class;
 	struct pca954x *data;
 	int ret;
@@ -201,21 +200,10 @@ static int pca954x_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 
-	if (IS_ENABLED(CONFIG_OF) && np) {
-		enum of_gpio_flags flags;
-		int gpio;
-
-		/* Get the mux out of reset if a reset GPIO is specified. */
-		gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
-		if (gpio_is_valid(gpio)) {
-			ret = devm_gpio_request_one(&client->dev, gpio,
-					flags & OF_GPIO_ACTIVE_LOW ?
-					GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
-					"pca954x reset");
-			if (ret < 0)
-				return ret;
-		}
-	}
+	/* Get the mux out of reset if a reset GPIO is specified. */
+	gpio = devm_gpiod_get(&client->dev, "reset");
+	if (!IS_ERR(gpio))
+		gpiod_direction_output(gpio, 0);
 
 	/* Write the mux register at addr to verify
 	 * that the mux is in fact present. This also
@@ -286,9 +274,23 @@ static int pca954x_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int pca954x_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct pca954x *data = i2c_get_clientdata(client);
+
+	data->last_chan = 0;
+	return i2c_smbus_write_byte(client, 0);
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(pca954x_pm, NULL, pca954x_resume);
+
 static struct i2c_driver pca954x_driver = {
 	.driver		= {
 		.name	= "pca954x",
+		.pm	= &pca954x_pm,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pca954x_probe,

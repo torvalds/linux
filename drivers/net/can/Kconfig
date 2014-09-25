@@ -65,23 +65,17 @@ config CAN_LEDS
 
 config CAN_AT91
 	tristate "Atmel AT91 onchip CAN controller"
-	depends on ARM
+	depends on ARCH_AT91 || COMPILE_TEST
 	---help---
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
 	  and AT91SAM9X5 processors.
 
 config CAN_TI_HECC
-	depends on ARCH_OMAP3
+	depends on ARM
 	tristate "TI High End CAN Controller"
 	---help---
 	  Driver for TI HECC (High End CAN Controller) module found on many
 	  TI devices. The device specifications are available from www.ti.com
-
-config CAN_MCP251X
-	tristate "Microchip MCP251x SPI CAN controllers"
-	depends on SPI && HAS_DMA
-	---help---
-	  Driver for the Microchip MCP251x SPI CAN controllers.
 
 config CAN_BFIN
 	depends on BF534 || BF536 || BF537 || BF538 || BF539 || BF54x
@@ -110,7 +104,7 @@ config CAN_FLEXCAN
 
 config PCH_CAN
 	tristate "Intel EG20T PCH CAN controller"
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	---help---
 	  This driver is for PCH CAN of Topcliff (Intel EG20T PCH) which
 	  is an IOH for x86 embedded processor (Intel Atom E6xx series).
@@ -125,6 +119,24 @@ config CAN_GRCAN
 	  endian syntheses of the cores would need some modifications on
 	  the hardware level to work.
 
+config CAN_RCAR
+	tristate "Renesas R-Car CAN controller"
+	depends on ARM
+	---help---
+	  Say Y here if you want to use CAN controller found on Renesas R-Car
+	  SoCs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called rcar_can.
+
+config CAN_XILINXCAN
+	tristate "Xilinx CAN"
+	depends on ARCH_ZYNQ || MICROBLAZE || COMPILE_TEST
+	depends on COMMON_CLK && HAS_IOMEM
+	---help---
+	  Xilinx CAN driver. This driver supports both soft AXI CAN IP and
+	  Zynq CANPS IP.
+
 source "drivers/net/can/mscan/Kconfig"
 
 source "drivers/net/can/sja1000/Kconfig"
@@ -132,6 +144,8 @@ source "drivers/net/can/sja1000/Kconfig"
 source "drivers/net/can/c_can/Kconfig"
 
 source "drivers/net/can/cc770/Kconfig"
+
+source "drivers/net/can/spi/Kconfig"
 
 source "drivers/net/can/usb/Kconfig"
 

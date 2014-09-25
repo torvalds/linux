@@ -4,10 +4,10 @@
 #include <linux/perf_event.h>
 #include <sys/types.h>
 #include <stdbool.h>
-#include "types.h"
+#include <linux/bitmap.h>
+#include <linux/types.h>
 #include "event.h"
 
-#include <linux/bitmap.h>
 
 enum {
 	HEADER_RESERVED		= 0,	/* always cleared */
@@ -150,6 +150,8 @@ int perf_event__process_build_id(struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_session *session);
 bool is_perf_magic(u64 magic);
+
+int dsos__hit_all(struct perf_session *session);
 
 /*
  * arch specific callback

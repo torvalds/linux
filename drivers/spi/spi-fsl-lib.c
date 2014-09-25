@@ -99,11 +99,6 @@ int mpc8xxx_spi_transfer(struct spi_device *spi,
 	return 0;
 }
 
-void mpc8xxx_spi_cleanup(struct spi_device *spi)
-{
-	kfree(spi->controller_state);
-}
-
 const char *mpc8xxx_spi_strmode(unsigned int flags)
 {
 	if (flags & SPI_QE_CPU_MODE) {
@@ -134,7 +129,6 @@ int mpc8xxx_spi_probe(struct device *dev, struct resource *mem,
 			| SPI_LSB_FIRST | SPI_LOOP;
 
 	master->transfer = mpc8xxx_spi_transfer;
-	master->cleanup = mpc8xxx_spi_cleanup;
 	master->dev.of_node = dev->of_node;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
@@ -200,9 +194,9 @@ int of_mpc8xxx_spi_probe(struct platform_device *ofdev)
 	const void *prop;
 	int ret = -ENOMEM;
 
-	pinfo = kzalloc(sizeof(*pinfo), GFP_KERNEL);
+	pinfo = devm_kzalloc(&ofdev->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
-		return -ENOMEM;
+		return ret;
 
 	pdata = &pinfo->pdata;
 	dev->platform_data = pdata;
@@ -215,15 +209,13 @@ int of_mpc8xxx_spi_probe(struct platform_device *ofdev)
 	pdata->sysclk = get_brgfreq();
 	if (pdata->sysclk == -1) {
 		pdata->sysclk = fsl_get_sys_freq();
-		if (pdata->sysclk == -1) {
-			ret = -ENODEV;
-			goto err;
-		}
+		if (pdata->sysclk == -1)
+			return -ENODEV;
 	}
 #else
 	ret = of_property_read_u32(np, "clock-frequency", &pdata->sysclk);
 	if (ret)
-		goto err;
+		return ret;
 #endif
 
 	prop = of_get_property(np, "mode", NULL);
@@ -237,8 +229,4 @@ int of_mpc8xxx_spi_probe(struct platform_device *ofdev)
 		pdata->flags = SPI_CPM_MODE | SPI_CPM1;
 
 	return 0;
-
-err:
-	kfree(pinfo);
-	return ret;
 }

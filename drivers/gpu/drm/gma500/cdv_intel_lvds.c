@@ -446,7 +446,7 @@ static void cdv_intel_lvds_destroy(struct drm_connector *connector)
 
 	if (gma_encoder->i2c_bus)
 		psb_intel_i2c_destroy(gma_encoder->i2c_bus);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -494,7 +494,7 @@ static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 						      &crtc->saved_mode,
 						      encoder->crtc->x,
 						      encoder->crtc->y,
-						      encoder->crtc->fb))
+						      encoder->crtc->primary->fb))
 				return -1;
 		}
 	} else if (!strcmp(property->name, "backlight") && encoder) {
@@ -712,6 +712,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
 	 */
+	mutex_lock(&dev->mode_config.mutex);
 	psb_intel_ddc_get_modes(connector,
 				&gma_encoder->ddc_bus->adapter);
 	list_for_each_entry(scan, &connector->probed_modes, head) {
@@ -772,10 +773,12 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	}
 
 out:
-	drm_sysfs_connector_add(connector);
+	mutex_unlock(&dev->mode_config.mutex);
+	drm_connector_register(connector);
 	return;
 
 failed_find:
+	mutex_unlock(&dev->mode_config.mutex);
 	printk(KERN_ERR "Failed find\n");
 	if (gma_encoder->ddc_bus)
 		psb_intel_i2c_destroy(gma_encoder->ddc_bus);

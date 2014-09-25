@@ -25,7 +25,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/clock.h>
-#include <subdev/devinit/priv.h>
+#include <subdev/devinit/nv04.h>
 
 #include "pll.h"
 
@@ -82,7 +82,8 @@ nv04_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv04_clock_priv *priv;
 	int ret;
 
-	ret = nouveau_clock_create(parent, engine, oclass, nv04_domain, &priv);
+	ret = nouveau_clock_create(parent, engine, oclass, nv04_domain, NULL, 0,
+				   false, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;

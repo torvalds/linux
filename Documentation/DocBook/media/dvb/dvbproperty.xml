@@ -196,7 +196,7 @@ get/set up to 64 properties. The actual meaning of each property is described on
 		<para>1)For satellital delivery systems, it is measured in kHz.
 			For the other ones, it is measured in Hz.</para>
 		<para>2)For ISDB-T, the channels are usually transmitted with an offset of 143kHz.
-			E.g. a valid frequncy could be 474143 kHz. The stepping is bound to the bandwidth of
+			E.g. a valid frequency could be 474143 kHz. The stepping is bound to the bandwidth of
 			the channel which is 6MHz.</para>
 
 		<para>3)As in ISDB-Tsb the channel consists of only one or three segments the
@@ -555,10 +555,46 @@ typedef enum fe_delivery_system {
 		</section>
 		<section id="DTV-ISDBT-LAYER-TIME-INTERLEAVING">
 			<title><constant>DTV_ISDBT_LAYER*_TIME_INTERLEAVING</constant></title>
-			<para>Possible values: 0, 1, 2, 3, -1 (AUTO)</para>
-			<para>Note: The real inter-leaver depth-names depend on the mode (fft-size); the values
-				here are referring to what can be found in the TMCC-structure -
-				independent of the mode.</para>
+			<para>Valid values: 0, 1, 2, 4, -1 (AUTO)</para>
+			<para>when DTV_ISDBT_SOUND_BROADCASTING is active, value 8 is also valid.</para>
+			<para>Note: The real time interleaving length depends on the mode (fft-size). The values
+				here are referring to what can be found in the TMCC-structure, as shown in the table below.</para>
+			<informaltable id="isdbt-layer-interleaving-table">
+				<tgroup cols="4" align="center">
+					<tbody>
+						<row>
+							<entry>DTV_ISDBT_LAYER*_TIME_INTERLEAVING</entry>
+							<entry>Mode 1 (2K FFT)</entry>
+							<entry>Mode 2 (4K FFT)</entry>
+							<entry>Mode 3 (8K FFT)</entry>
+						</row>
+						<row>
+							<entry>0</entry>
+							<entry>0</entry>
+							<entry>0</entry>
+							<entry>0</entry>
+						</row>
+						<row>
+							<entry>1</entry>
+							<entry>4</entry>
+							<entry>2</entry>
+							<entry>1</entry>
+						</row>
+						<row>
+							<entry>2</entry>
+							<entry>8</entry>
+							<entry>4</entry>
+							<entry>2</entry>
+						</row>
+						<row>
+							<entry>4</entry>
+							<entry>16</entry>
+							<entry>8</entry>
+							<entry>4</entry>
+						</row>
+					</tbody>
+				</tgroup>
+			</informaltable>
 		</section>
 		<section id="DTV-ATSCMH-FIC-VER">
 			<title><constant>DTV_ATSCMH_FIC_VER</constant></title>

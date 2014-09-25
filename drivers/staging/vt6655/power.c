@@ -95,14 +95,12 @@ PSvEnablePowerSaving(
 	if (wListenInterval >= 2) {
 		// clear always listen beacon
 		MACvRegBitsOff(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_ALBCN);
-		//pDevice->wCFG &= ~CFG_ALB;
 		// first time set listen next beacon
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_LNBCN);
 		pMgmt->wCountToWakeUp = wListenInterval;
 	} else {
 		// always listen beacon
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_ALBCN);
-		//pDevice->wCFG |= CFG_ALB;
 		pMgmt->wCountToWakeUp = 0;
 	}
 
@@ -110,16 +108,12 @@ PSvEnablePowerSaving(
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PSEN);
 	pDevice->bEnablePSMode = true;
 
-	if (pDevice->eOPMode == OP_MODE_ADHOC) {
-//        bMgrPrepareBeaconToSend((void *)pDevice, pMgmt);
-	}
-	// We don't send null pkt in ad hoc mode since beacon will handle this.
-	else if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
+	/* We don't send null pkt in ad hoc mode since beacon will handle this. */
+	if (pDevice->eOPMode != OP_MODE_ADHOC && pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
 		PSbSendNullPacket(pDevice);
-	}
+
 	pDevice->bPWBitOn = true;
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
-	return;
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable...\n");
 }
 
 /*+
@@ -138,7 +132,6 @@ PSvDisablePowerSaving(
 )
 {
 	PSDevice        pDevice = (PSDevice)hDeviceContext;
-//    PSMgmtObject    pMgmt = pDevice->pMgmt;
 
 	// disable power saving hw function
 	MACbPSWakeup(pDevice->PortOffset);
@@ -151,11 +144,10 @@ PSvDisablePowerSaving(
 
 	pDevice->bEnablePSMode = false;
 
-	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
+	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
 		PSbSendNullPacket(pDevice);
-	}
+
 	pDevice->bPWBitOn = false;
-	return;
 }
 
 /*+
@@ -256,13 +248,8 @@ PSvSendPSPOLL(
 	pTxPacket->cbMPDULen = WLAN_HDR_ADDR2_LEN;
 	pTxPacket->cbPayloadLen = 0;
 	// send the frame
-	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
+	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
-	} else {
-//        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n");
-	}
-
-	return;
 }
 
 /*+
@@ -284,17 +271,15 @@ PSbSendNullPacket(
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
 	unsigned int uIdx;
 
-	if (!pDevice->bLinkPass) {
+	if (!pDevice->bLinkPass)
 		return false;
-	}
+
 #ifdef TxInSleep
-	if (!pDevice->bEnablePSMode && !pDevice->fTxDataInSleep) {
+	if (!pDevice->bEnablePSMode && !pDevice->fTxDataInSleep)
 		return false;
-	}
 #else
-	if (!pDevice->bEnablePSMode) {
+	if (!pDevice->bEnablePSMode)
 		return false;
-	}
 #endif
 	if (pDevice->bEnablePSMode) {
 		for (uIdx = 0; uIdx < TYPE_MAXTD; uIdx++) {
@@ -323,9 +308,8 @@ PSbSendNullPacket(
 ));
 	}
 
-	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
+	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA)
 		pTxPacket->p80211Header->sA3.wFrameCtl |= cpu_to_le16((unsigned short)WLAN_SET_FC_TODS(1));
-	}
 
 	memcpy(pTxPacket->p80211Header->sA3.abyAddr1, pMgmt->abyCurrBSSID, WLAN_ADDR_LEN);
 	memcpy(pTxPacket->p80211Header->sA3.abyAddr2, pMgmt->abyMACAddr, WLAN_ADDR_LEN);
@@ -336,8 +320,6 @@ PSbSendNullPacket(
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
 		return false;
-	} else {
-//            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet success....\n");
 	}
 
 	return true;
@@ -363,9 +345,8 @@ PSbIsNextTBTTWakeUp(
 	bool bWakeUp = false;
 
 	if (pMgmt->wListenInterval >= 2) {
-		if (pMgmt->wCountToWakeUp == 0) {
+		if (pMgmt->wCountToWakeUp == 0)
 			pMgmt->wCountToWakeUp = pMgmt->wListenInterval;
-		}
 
 		pMgmt->wCountToWakeUp--;
 

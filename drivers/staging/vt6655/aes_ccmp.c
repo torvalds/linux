@@ -35,6 +35,7 @@
 
 #include "device.h"
 #include "80211hdr.h"
+#include "aes_ccmp.h"
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -46,8 +47,7 @@
  * SBOX Table
  */
 
-static unsigned char sbox_table[256] =
-{
+static unsigned char sbox_table[256] = {
 	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
 	0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
 	0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
@@ -153,9 +153,8 @@ static void SubBytes(unsigned char *in, unsigned char *out)
 {
 	int i;
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < 16; i++)
 		out[i] = sbox_table[in[i]];
-	}
 }
 
 static void ShiftRows(unsigned char *in, unsigned char *out)
@@ -205,8 +204,7 @@ static void AESv128(unsigned char *key, unsigned char *data, unsigned char *ciph
 			SubBytes(ciphertext, TmpdataA);
 			ShiftRows(TmpdataA, TmpdataB);
 			xor_128(TmpdataB, abyRoundKey, ciphertext);
-		} else /* round 1 ~ 9 */
-		{
+		} else /* round 1 ~ 9 */{
 			SubBytes(ciphertext, TmpdataA);
 			ShiftRows(TmpdataA, TmpdataB);
 			MixColumns(&TmpdataB[0], &TmpdataA[0]);
@@ -311,13 +309,11 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 
 	/* CCMP */
 	AESv128(pbyRxKey, MIC_IV, abyMIC);
-	for (kk = 0; kk < 16; kk++) {
+	for (kk = 0; kk < 16; kk++)
 		abyTmp[kk] = MIC_HDR1[kk] ^ abyMIC[kk];
-	}
 	AESv128(pbyRxKey, abyTmp, abyMIC);
-	for (kk = 0; kk < 16; kk++) {
+	for (kk = 0; kk < 16; kk++)
 		abyTmp[kk] = MIC_HDR2[kk] ^ abyMIC[kk];
-	}
 	AESv128(pbyRxKey, abyTmp, abyMIC);
 
 	wCnt = 1;
@@ -330,12 +326,10 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 
 		AESv128(pbyRxKey, abyCTRPLD, abyTmp);
 
-		for (kk = 0; kk < 16; kk++) {
+		for (kk = 0; kk < 16; kk++)
 			abyPlainText[kk] = abyTmp[kk] ^ pbyPayload[kk];
-		}
-		for (kk = 0; kk < 16; kk++) {
+		for (kk = 0; kk < 16; kk++)
 			abyTmp[kk] = abyMIC[kk] ^ abyPlainText[kk];
-		}
 		AESv128(pbyRxKey, abyTmp, abyMIC);
 
 		memcpy(pbyPayload, abyPlainText, 16);
@@ -345,27 +339,23 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 
 	/* last payload */
 	memcpy(&(abyLastCipher[0]), pbyPayload, jj);
-	for (ii = jj; ii < 16; ii++) {
+	for (ii = jj; ii < 16; ii++)
 		abyLastCipher[ii] = 0x00;
-	}
 
 	abyCTRPLD[14] = (unsigned char)(wCnt >> 8);
 	abyCTRPLD[15] = (unsigned char)(wCnt & 0xff);
 
 	AESv128(pbyRxKey, abyCTRPLD, abyTmp);
-	for (kk = 0; kk < 16; kk++) {
+	for (kk = 0; kk < 16; kk++)
 		abyPlainText[kk] = abyTmp[kk] ^ abyLastCipher[kk];
-	}
 	memcpy(pbyPayload, abyPlainText, jj);
 	pbyPayload += jj;
 
 	/* for MIC calculation */
-	for (ii = jj; ii < 16; ii++) {
+	for (ii = jj; ii < 16; ii++)
 		abyPlainText[ii] = 0x00;
-	}
-	for (kk = 0; kk < 16; kk++) {
+	for (kk = 0; kk < 16; kk++)
 		abyTmp[kk] = abyMIC[kk] ^ abyPlainText[kk];
-	}
 	AESv128(pbyRxKey, abyTmp, abyMIC);
 
 	/* =>above is the calculate MIC */
@@ -375,9 +365,8 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	abyCTRPLD[14] = (unsigned char)(wCnt >> 8);
 	abyCTRPLD[15] = (unsigned char)(wCnt & 0xff);
 	AESv128(pbyRxKey, abyCTRPLD, abyTmp);
-	for (kk = 0; kk < 8; kk++) {
+	for (kk = 0; kk < 8; kk++)
 		abyTmp[kk] = abyTmp[kk] ^ pbyPayload[kk];
-	}
 	/* =>above is the dec-MIC from packet */
 	/* -------------------------------------------- */
 

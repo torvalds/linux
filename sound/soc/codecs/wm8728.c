@@ -94,13 +94,13 @@ static int wm8728_hw_params(struct snd_pcm_substream *substream,
 
 	dac &= ~0x18;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		dac |= 0x10;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		dac |= 0x08;
 		break;
 	default:
@@ -228,19 +228,10 @@ static int wm8728_resume(struct snd_soc_codec *codec)
 
 static int wm8728_probe(struct snd_soc_codec *codec)
 {
-	int ret;
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8728: failed to configure cache I/O: %d\n",
-		       ret);
-		return ret;
-	}
-
 	/* power on device */
 	wm8728_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	return ret;
+	return 0;
 }
 
 static int wm8728_remove(struct snd_soc_codec *codec)

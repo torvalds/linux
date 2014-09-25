@@ -57,7 +57,7 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 	in->arg = cpu_to_be32(arg);
 	in->register_id = cpu_to_be16(reg_num);
 	err = mlx5_cmd_exec(dev, in, sizeof(*in) + size_in, out,
-			    sizeof(out) + size_out);
+			    sizeof(*out) + size_out);
 	if (err)
 		goto ex2;
 
@@ -86,7 +86,7 @@ struct mlx5_reg_pcap {
 	__be32			caps_31_0;
 };
 
-int mlx5_set_port_caps(struct mlx5_core_dev *dev, int port_num, u32 caps)
+int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps)
 {
 	struct mlx5_reg_pcap in;
 	struct mlx5_reg_pcap out;

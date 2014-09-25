@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -222,14 +222,30 @@ void acpi_ns_detach_object(struct acpi_namespace_node *node)
 		}
 	}
 
-	/* Clear the entry in all cases */
+	/* Clear the Node entry in all cases */
 
 	node->object = NULL;
 	if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) == ACPI_DESC_TYPE_OPERAND) {
+
+		/* Unlink object from front of possible object list */
+
 		node->object = obj_desc->common.next_object;
+
+		/* Handle possible 2-descriptor object */
+
 		if (node->object &&
-		    ((node->object)->common.type != ACPI_TYPE_LOCAL_DATA)) {
+		    (node->object->common.type != ACPI_TYPE_LOCAL_DATA)) {
 			node->object = node->object->common.next_object;
+		}
+
+		/*
+		 * Detach the object from any data objects (which are still held by
+		 * the namespace node)
+		 */
+		if (obj_desc->common.next_object &&
+		    ((obj_desc->common.next_object)->common.type ==
+		     ACPI_TYPE_LOCAL_DATA)) {
+			obj_desc->common.next_object = NULL;
 		}
 	}
 

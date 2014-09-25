@@ -1,37 +1,118 @@
-config ARCH_BCM
-	bool "Broadcom SoC Support"
-	depends on ARCH_MULTIPLATFORM
+menuconfig ARCH_BCM
+	bool "Broadcom SoC Support" if ARCH_MULTI_V6_V7
 	help
-	  This enables support for Broadcom ARM based SoC
-          chips
+	  This enables support for Broadcom ARM based SoC chips
 
 if ARCH_BCM
 
-menu "Broadcom SoC Selection"
-
 config ARCH_BCM_MOBILE
-	bool "Broadcom Mobile SoC" if ARCH_MULTI_V7
-	depends on MMU
+	bool "Broadcom Mobile SoC Support" if ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369 if SMP
+	select ARM_ERRATA_775420
 	select ARM_GIC
-	select CPU_V7
-	select CLKSRC_OF
-	select GENERIC_CLOCKEVENTS
-	select GENERIC_TIME
 	select GPIO_BCM_KONA
-	select SPARSE_IRQ
 	select TICK_ONESHOT
-	select CACHE_L2X0
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL
 	help
 	  This enables support for systems based on Broadcom mobile SoCs.
-	  It currently supports the 'BCM281XX' family, which includes
-	  BCM11130, BCM11140, BCM11351, BCM28145 and
-	  BCM28155 variants.
+
+if ARCH_BCM_MOBILE
+
+menu "Broadcom Mobile SoC Selection"
+
+config ARCH_BCM_281XX
+	bool "Broadcom BCM281XX SoC family"
+	default y
+	select HAVE_SMP
+	help
+	  Enable support for the BCM281XX family, which includes
+	  BCM11130, BCM11140, BCM11351, BCM28145 and BCM28155
+	  variants.
+
+config ARCH_BCM_21664
+	bool "Broadcom BCM21664 SoC family"
+	default y
+	select HAVE_SMP
+	help
+	  Enable support for the BCM21664 family, which includes
+	  BCM21663 and BCM21664 variants.
+
+config ARCH_BCM_MOBILE_L2_CACHE
+	bool "Broadcom mobile SoC level 2 cache support"
+	depends on (ARCH_BCM_281XX || ARCH_BCM_21664)
+	default y
+	select CACHE_L2X0
+	select ARCH_BCM_MOBILE_SMC
+
+config ARCH_BCM_MOBILE_SMC
+	bool
+	depends on ARCH_BCM_281XX || ARCH_BCM_21664
+
+config ARCH_BCM_MOBILE_SMP
+	bool "Broadcom mobile SoC SMP support"
+	depends on (ARCH_BCM_281XX || ARCH_BCM_21664) && SMP
+	default y
+	select HAVE_ARM_SCU
+	select ARM_ERRATA_764369
+	help
+	  SMP support for the BCM281XX and BCM21664 SoC families.
+	  Provided as an option so SMP support for SoCs of this type
+	  can be disabled for an SMP-enabled kernel.
 
 endmenu
+
+endif
+
+config ARCH_BCM2835
+	bool "Broadcom BCM2835 family" if ARCH_MULTI_V6
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_AMBA
+	select ARM_ERRATA_411920
+	select ARM_TIMER_SP804
+	select CLKSRC_OF
+	select PINCTRL
+	select PINCTRL_BCM2835
+	help
+	  This enables support for the Broadcom BCM2835 SoC. This SoC is
+	  used in the Raspberry Pi and Roku 2 devices.
+
+config ARCH_BCM_5301X
+	bool "Broadcom BCM470X / BCM5301X ARM SoC" if ARCH_MULTI_V7
+	select ARM_GIC
+	select CACHE_L2X0
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select ARM_GLOBAL_TIMER
+	select CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
+	help
+	  Support for Broadcom BCM470X and BCM5301X SoCs with ARM CPU cores.
+
+	  This is a network SoC line mostly used in home routers and
+	  wifi access points, it's internal name is Northstar.
+	  This inclused the following SoC: BCM53010, BCM53011, BCM53012,
+	  BCM53014, BCM53015, BCM53016, BCM53017, BCM53018, BCM4707,
+	  BCM4708 and BCM4709.
+
+	  Do not confuse this with the BCM4760 which is a totally
+	  different SoC or with the older BCM47XX and BCM53XX based
+	  network SoC using a MIPS CPU, they are supported by arch/mips/bcm47xx
+
+config ARCH_BRCMSTB
+	bool "Broadcom BCM7XXX based boards" if ARCH_MULTI_V7
+	depends on MMU
+	select ARM_GIC
+	select MIGHT_HAVE_PCI
+	select HAVE_SMP
+	select HAVE_ARM_ARCH_TIMER
+	select BRCMSTB_GISB_ARB
+	select BRCMSTB_L2_IRQ
+	help
+	  Say Y if you intend to run the kernel on a Broadcom ARM-based STB
+	  chipset.
+
+	  This enables support for Broadcom ARM-based set-top box chipsets,
+	  including the 7445 family of chips.
 
 endif

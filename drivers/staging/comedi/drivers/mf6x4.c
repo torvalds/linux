@@ -93,7 +93,6 @@ struct mf6x4_private {
 	 * and MF634 yet we will call them 0, 1, 2
 	 */
 	void __iomem *bar0_mem;
-	void __iomem *bar1_mem;
 	void __iomem *bar2_mem;
 
 	/*
@@ -108,84 +107,78 @@ struct mf6x4_private {
 };
 
 static int mf6x4_di_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct mf6x4_private *devpriv = dev->private;
-
-	data[1] = ioread16(devpriv->bar1_mem + MF6X4_DIN_R) & MF6X4_DIN_M;
+	data[1] = ioread16(dev->mmio + MF6X4_DIN_R) & MF6X4_DIN_M;
 
 	return insn->n;
 }
 
 static int mf6x4_do_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct mf6x4_private *devpriv = dev->private;
-
 	if (comedi_dio_update_state(s, data))
-		iowrite16(s->state & MF6X4_DOUT_M,
-			  devpriv->bar1_mem + MF6X4_DOUT_R);
+		iowrite16(s->state & MF6X4_DOUT_M, dev->mmio + MF6X4_DOUT_R);
 
 	data[1] = s->state;
 
 	return insn->n;
 }
 
-static int mf6x4_ai_wait_for_eoc(struct comedi_device *dev,
-				 unsigned int timeout)
+static int mf6x4_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
 {
 	struct mf6x4_private *devpriv = dev->private;
-	unsigned int eolc;
+	unsigned int status;
 
-	while (timeout--) {
-		eolc = ioread32(devpriv->gpioc_R) & MF6X4_GPIOC_EOLC;
-		if (eolc)
-			return 0;
-
-		udelay(1);
-	}
-
-	return -ETIME;
+	status = ioread32(devpriv->gpioc_R);
+	if (status & MF6X4_GPIOC_EOLC)
+		return 0;
+	return -EBUSY;
 }
 
 static int mf6x4_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct mf6x4_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 	int ret;
 	int i;
 	int d;
 
 	/* Set the ADC channel number in the scan list */
-	iowrite16((1 << chan) & MF6X4_ADCTRL_M,
-		  devpriv->bar1_mem + MF6X4_ADCTRL_R);
+	iowrite16((1 << chan) & MF6X4_ADCTRL_M, dev->mmio + MF6X4_ADCTRL_R);
 
 	for (i = 0; i < insn->n; i++) {
 		/* Trigger ADC conversion by reading ADSTART */
-		ioread16(devpriv->bar1_mem + MF6X4_ADSTART_R);
+		ioread16(dev->mmio + MF6X4_ADSTART_R);
 
-		ret = mf6x4_ai_wait_for_eoc(dev, 100);
+		ret = comedi_timeout(dev, s, insn, mf6x4_ai_eoc, 0);
 		if (ret)
 			return ret;
 
 		/* Read the actual value */
-		d = ioread16(devpriv->bar1_mem + MF6X4_ADDATA_R);
+		d = ioread16(dev->mmio + MF6X4_ADDATA_R);
 		d &= s->maxdata;
 		data[i] = d;
 	}
 
-	iowrite16(0x0, devpriv->bar1_mem + MF6X4_ADCTRL_R);
+	iowrite16(0x0, dev->mmio + MF6X4_ADCTRL_R);
 
 	return insn->n;
 }
 
 static int mf6x4_ao_insn_write(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct mf6x4_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
@@ -198,8 +191,7 @@ static int mf6x4_ao_insn_write(struct comedi_device *dev,
 		  devpriv->gpioc_R);
 
 	for (i = 0; i < insn->n; i++) {
-		iowrite16(data[i] & MF6X4_DA_M,
-			  devpriv->bar1_mem + MF6X4_DAC_R(chan));
+		iowrite16(data[i] & MF6X4_DA_M, dev->mmio + MF6X4_DAC_R(chan));
 
 		devpriv->ao_readback[chan] = data[i];
 	}
@@ -249,8 +241,8 @@ static int mf6x4_auto_attach(struct comedi_device *dev, unsigned long context)
 	if (!devpriv->bar0_mem)
 		return -ENODEV;
 
-	devpriv->bar1_mem = pci_ioremap_bar(pcidev, board->bar_nums[1]);
-	if (!devpriv->bar1_mem)
+	dev->mmio = pci_ioremap_bar(pcidev, board->bar_nums[1]);
+	if (!dev->mmio)
 		return -ENODEV;
 
 	devpriv->bar2_mem = pci_ioremap_bar(pcidev, board->bar_nums[2]);
@@ -313,8 +305,8 @@ static void mf6x4_detach(struct comedi_device *dev)
 
 	if (devpriv->bar0_mem)
 		iounmap(devpriv->bar0_mem);
-	if (devpriv->bar1_mem)
-		iounmap(devpriv->bar1_mem);
+	if (dev->mmio)
+		iounmap(dev->mmio);
 	if (devpriv->bar2_mem)
 		iounmap(devpriv->bar2_mem);
 

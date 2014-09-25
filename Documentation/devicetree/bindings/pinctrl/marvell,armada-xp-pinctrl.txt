@@ -6,6 +6,7 @@ part and usage.
 Required properties:
 - compatible: "marvell,mv78230-pinctrl", "marvell,mv78260-pinctrl",
               "marvell,mv78460-pinctrl"
+- reg: register specifier of MPP registers
 
 This driver supports all Armada XP variants, i.e. mv78230, mv78260, and mv78460.
 

@@ -31,7 +31,7 @@
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/irqchip/versatile-fpga.h>
+#include <linux/irqchip.h>
 #include <linux/mtd/physmap.h>
 #include <linux/clk.h>
 #include <linux/platform_data/clk-integrator.h>
@@ -42,24 +42,23 @@
 #include <linux/sys_soc.h>
 #include <linux/termios.h>
 #include <linux/sched_clock.h>
+#include <linux/clk-provider.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/setup.h>
 #include <asm/param.h>		/* HZ */
 #include <asm/mach-types.h>
-
-#include <mach/lm.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
+#include "hardware.h"
 #include "cm.h"
 #include "common.h"
 #include "pci_v3.h"
+#include "lm.h"
 
 /* Base address to the AP system controller */
 void __iomem *ap_syscon_base;
@@ -358,7 +357,7 @@ static struct clock_event_device integrator_clockevent = {
 
 static struct irqaction integrator_timer_irq = {
 	.name		= "timer",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= integrator_timer_interrupt,
 	.dev_id		= &integrator_clockevent,
 };
@@ -402,10 +401,7 @@ static void __init ap_of_timer_init(void)
 	struct clk *clk;
 	unsigned long rate;
 
-	clk = clk_get_sys("ap_timer", NULL);
-	BUG_ON(IS_ERR(clk));
-	clk_prepare_enable(clk);
-	rate = clk_get_rate(clk);
+	of_clk_init(NULL);
 
 	err = of_property_read_string(of_aliases,
 				"arm,timer-primary", &path);
@@ -415,6 +411,12 @@ static void __init ap_of_timer_init(void)
 	base = of_iomap(node, 0);
 	if (WARN_ON(!base))
 		return;
+
+	clk = of_clk_get(node, 0);
+	BUG_ON(IS_ERR(clk));
+	clk_prepare_enable(clk);
+	rate = clk_get_rate(clk);
+
 	writel(0, base + TIMER_CTRL);
 	integrator_clocksource_init(rate, base);
 
@@ -427,20 +429,20 @@ static void __init ap_of_timer_init(void)
 	if (WARN_ON(!base))
 		return;
 	irq = irq_of_parse_and_map(node, 0);
+
+	clk = of_clk_get(node, 0);
+	BUG_ON(IS_ERR(clk));
+	clk_prepare_enable(clk);
+	rate = clk_get_rate(clk);
+
 	writel(0, base + TIMER_CTRL);
 	integrator_clockevent_init(rate, base, irq);
 }
 
-static const struct of_device_id fpga_irq_of_match[] __initconst = {
-	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },
-	{ /* Sentinel */ }
-};
-
 static void __init ap_init_irq_of(void)
 {
 	cm_init();
-	of_irq_init(fpga_irq_of_match);
-	integrator_clk_init(false);
+	irqchip_init();
 }
 
 /* For the Device Tree, add in the UART callbacks as AUXDATA */
@@ -473,25 +475,18 @@ static const struct of_device_id ebi_match[] = {
 static void __init ap_init_of(void)
 {
 	unsigned long sc_dec;
-	struct device_node *root;
 	struct device_node *syscon;
 	struct device_node *ebi;
 	struct device *parent;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
 	u32 ap_sc_id;
-	int err;
 	int i;
 
-	/* Here we create an SoC device for the root node */
-	root = of_find_node_by_path("/");
-	if (!root)
-		return;
-
-	syscon = of_find_matching_node(root, ap_syscon_match);
+	syscon = of_find_matching_node(NULL, ap_syscon_match);
 	if (!syscon)
 		return;
-	ebi = of_find_matching_node(root, ebi_match);
+	ebi = of_find_matching_node(NULL, ebi_match);
 	if (!ebi)
 		return;
 
@@ -502,19 +497,17 @@ static void __init ap_init_of(void)
 	if (!ebi_base)
 		return;
 
+	of_platform_populate(NULL, of_default_bus_match_table,
+			ap_auxdata_lookup, NULL);
+
 	ap_sc_id = readl(ap_syscon_base);
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
 		return;
 
-	err = of_property_read_string(root, "compatible",
-				      &soc_dev_attr->soc_id);
-	if (err)
-		return;
-	err = of_property_read_string(root, "model", &soc_dev_attr->machine);
-	if (err)
-		return;
+	soc_dev_attr->soc_id = "XVC";
+	soc_dev_attr->machine = "Integrator/AP";
 	soc_dev_attr->family = "Integrator";
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
 					   'A' + (ap_sc_id & 0x0f));
@@ -528,9 +521,6 @@ static void __init ap_init_of(void)
 
 	parent = soc_device_to_device(soc_dev);
 	integrator_init_sysfs(parent, ap_sc_id);
-
-	of_platform_populate(root, of_default_bus_match_table,
-			ap_auxdata_lookup, parent);
 
 	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
@@ -563,7 +553,6 @@ DT_MACHINE_START(INTEGRATOR_AP_DT, "ARM Integrator/AP (Device Tree)")
 	.map_io		= ap_map_io,
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq_of,
-	.handle_irq	= fpga_handle_irq,
 	.init_time	= ap_of_timer_init,
 	.init_machine	= ap_init_of,
 	.restart	= integrator_restart,

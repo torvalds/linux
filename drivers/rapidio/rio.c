@@ -1509,30 +1509,39 @@ EXPORT_SYMBOL_GPL(rio_route_clr_table);
 
 static bool rio_chan_filter(struct dma_chan *chan, void *arg)
 {
-	struct rio_dev *rdev = arg;
+	struct rio_mport *mport = arg;
 
 	/* Check that DMA device belongs to the right MPORT */
-	return (rdev->net->hport ==
-		container_of(chan->device, struct rio_mport, dma));
+	return mport == container_of(chan->device, struct rio_mport, dma);
 }
+
+/**
+ * rio_request_mport_dma - request RapidIO capable DMA channel associated
+ *   with specified local RapidIO mport device.
+ * @mport: RIO mport to perform DMA data transfers
+ *
+ * Returns pointer to allocated DMA channel or NULL if failed.
+ */
+struct dma_chan *rio_request_mport_dma(struct rio_mport *mport)
+{
+	dma_cap_mask_t mask;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+	return dma_request_channel(mask, rio_chan_filter, mport);
+}
+EXPORT_SYMBOL_GPL(rio_request_mport_dma);
 
 /**
  * rio_request_dma - request RapidIO capable DMA channel that supports
  *   specified target RapidIO device.
- * @rdev: RIO device control structure
+ * @rdev: RIO device associated with DMA transfer
  *
  * Returns pointer to allocated DMA channel or NULL if failed.
  */
 struct dma_chan *rio_request_dma(struct rio_dev *rdev)
 {
-	dma_cap_mask_t mask;
-	struct dma_chan *dchan;
-
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	dchan = dma_request_channel(mask, rio_chan_filter, rdev);
-
-	return dchan;
+	return rio_request_mport_dma(rdev->net->hport);
 }
 EXPORT_SYMBOL_GPL(rio_request_dma);
 
@@ -1545,6 +1554,41 @@ void rio_release_dma(struct dma_chan *dchan)
 	dma_release_channel(dchan);
 }
 EXPORT_SYMBOL_GPL(rio_release_dma);
+
+/**
+ * rio_dma_prep_xfer - RapidIO specific wrapper
+ *   for device_prep_slave_sg callback defined by DMAENGINE.
+ * @dchan: DMA channel to configure
+ * @destid: target RapidIO device destination ID
+ * @data: RIO specific data descriptor
+ * @direction: DMA data transfer direction (TO or FROM the device)
+ * @flags: dmaengine defined flags
+ *
+ * Initializes RapidIO capable DMA channel for the specified data transfer.
+ * Uses DMA channel private extension to pass information related to remote
+ * target RIO device.
+ * Returns pointer to DMA transaction descriptor or NULL if failed.
+ */
+struct dma_async_tx_descriptor *rio_dma_prep_xfer(struct dma_chan *dchan,
+	u16 destid, struct rio_dma_data *data,
+	enum dma_transfer_direction direction, unsigned long flags)
+{
+	struct rio_dma_ext rio_ext;
+
+	if (dchan->device->device_prep_slave_sg == NULL) {
+		pr_err("%s: prep_rio_sg == NULL\n", __func__);
+		return NULL;
+	}
+
+	rio_ext.destid = destid;
+	rio_ext.rio_addr_u = data->rio_addr_u;
+	rio_ext.rio_addr = data->rio_addr;
+	rio_ext.wr_type = data->wr_type;
+
+	return dmaengine_prep_rio_sg(dchan, data->sg, data->sg_len,
+				     direction, flags, &rio_ext);
+}
+EXPORT_SYMBOL_GPL(rio_dma_prep_xfer);
 
 /**
  * rio_dma_prep_slave_sg - RapidIO specific wrapper
@@ -1564,23 +1608,7 @@ struct dma_async_tx_descriptor *rio_dma_prep_slave_sg(struct rio_dev *rdev,
 	struct dma_chan *dchan, struct rio_dma_data *data,
 	enum dma_transfer_direction direction, unsigned long flags)
 {
-	struct dma_async_tx_descriptor *txd = NULL;
-	struct rio_dma_ext rio_ext;
-
-	if (dchan->device->device_prep_slave_sg == NULL) {
-		pr_err("%s: prep_rio_sg == NULL\n", __func__);
-		return NULL;
-	}
-
-	rio_ext.destid = rdev->destid;
-	rio_ext.rio_addr_u = data->rio_addr_u;
-	rio_ext.rio_addr = data->rio_addr;
-	rio_ext.wr_type = data->wr_type;
-
-	txd = dmaengine_prep_rio_sg(dchan, data->sg, data->sg_len,
-					direction, flags, &rio_ext);
-
-	return txd;
+	return rio_dma_prep_xfer(dchan,	rdev->destid, data, direction, flags);
 }
 EXPORT_SYMBOL_GPL(rio_dma_prep_slave_sg);
 
@@ -1884,6 +1912,7 @@ static int rio_get_hdid(int index)
 int rio_register_mport(struct rio_mport *port)
 {
 	struct rio_scan_node *scan = NULL;
+	int res = 0;
 
 	if (next_portid >= RIO_MAX_MPORTS) {
 		pr_err("RIO: reached specified max number of mports\n");
@@ -1893,6 +1922,16 @@ int rio_register_mport(struct rio_mport *port)
 	port->id = next_portid++;
 	port->host_deviceid = rio_get_hdid(port->id);
 	port->nscan = NULL;
+
+	dev_set_name(&port->dev, "rapidio%d", port->id);
+	port->dev.class = &rio_mport_class;
+
+	res = device_register(&port->dev);
+	if (res)
+		dev_err(&port->dev, "RIO: mport%d registration failed ERR=%d\n",
+			port->id, res);
+	else
+		dev_dbg(&port->dev, "RIO: mport%d registered\n", port->id);
 
 	mutex_lock(&rio_mport_list_lock);
 	list_add_tail(&port->node, &rio_mports);

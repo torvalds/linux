@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/uaccess.h>
+#include <linux/goldfish.h>
 
 MODULE_AUTHOR("Google, Inc.");
 MODULE_DESCRIPTION("Android QEMU Audio Driver");
@@ -60,6 +61,8 @@ struct goldfish_audio {
 
 #define AUDIO_READ(data, addr)		(readl(data->reg_base + addr))
 #define AUDIO_WRITE(data, addr, x)	(writel(x, data->reg_base + addr))
+#define AUDIO_WRITE64(data, addr, addr2, x)	\
+	(gf_write64((u64)(x), data->reg_base + addr, data->reg_base+addr2))
 
 /*
  *  temporary variable used between goldfish_audio_probe() and
@@ -78,11 +81,14 @@ enum {
 	/* set number of bytes in buffer to write */
 	AUDIO_WRITE_BUFFER_1  = 0x10,
 	AUDIO_WRITE_BUFFER_2  = 0x14,
+	AUDIO_SET_WRITE_BUFFER_1_HIGH = 0x28,
+	AUDIO_SET_WRITE_BUFFER_2_HIGH = 0x30,
 
 	/* true if audio input is supported */
 	AUDIO_READ_SUPPORTED = 0x18,
 	/* buffer to use for audio input */
 	AUDIO_SET_READ_BUFFER = 0x1C,
+	AUDIO_SET_READ_BUFFER_HIGH = 0x34,
 
 	/* driver writes number of bytes to read */
 	AUDIO_START_READ  = 0x20,
@@ -147,6 +153,7 @@ static ssize_t goldfish_audio_write(struct file *fp, const char __user *buf,
 
 	while (count > 0) {
 		ssize_t copy = count;
+
 		if (copy > WRITE_BUFFER_SIZE)
 			copy = WRITE_BUFFER_SIZE;
 		wait_event_interruptible(data->wait, (data->buffer_status &
@@ -196,10 +203,10 @@ static int goldfish_audio_open(struct inode *ip, struct file *fp)
 					     AUDIO_INT_WRITE_BUFFER_2_EMPTY);
 		AUDIO_WRITE(audio_data, AUDIO_INT_ENABLE, AUDIO_INT_MASK);
 		return 0;
-	} else {
-		atomic_dec(&open_count);
-		return -EBUSY;
 	}
+
+	atomic_dec(&open_count);
+	return -EBUSY;
 }
 
 static int goldfish_audio_release(struct inode *ip, struct file *fp)
@@ -216,8 +223,8 @@ static long goldfish_audio_ioctl(struct file *fp, unsigned int cmd,
 	/* temporary workaround, until we switch to the ALSA API */
 	if (cmd == 315)
 		return -1;
-	else
-		return 0;
+
+	return 0;
 }
 
 static irqreturn_t goldfish_audio_interrupt(int irq, void *dev_id)
@@ -267,11 +274,9 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 	struct goldfish_audio *data;
 	dma_addr_t buf_addr;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (data == NULL) {
-		ret = -ENOMEM;
-		goto err_data_alloc_failed;
-	}
+	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
 	spin_lock_init(&data->lock);
 	init_waitqueue_head(&data->wait);
 	platform_set_drvdata(pdev, data);
@@ -279,38 +284,33 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
 		dev_err(&pdev->dev, "platform_get_resource failed\n");
-		ret = -ENODEV;
-		goto err_no_io_base;
+		return -ENODEV;
 	}
-	data->reg_base = ioremap(r->start, PAGE_SIZE);
-	if (data->reg_base == NULL) {
-		ret = -ENOMEM;
-		goto err_no_io_base;
-	}
+	data->reg_base = devm_ioremap(&pdev->dev, r->start, PAGE_SIZE);
+	if (data->reg_base == NULL)
+		return -ENOMEM;
 
 	data->irq = platform_get_irq(pdev, 0);
 	if (data->irq < 0) {
 		dev_err(&pdev->dev, "platform_get_irq failed\n");
-		ret = -ENODEV;
-		goto err_no_irq;
+		return -ENODEV;
 	}
-	data->buffer_virt = dma_alloc_coherent(&pdev->dev,
+	data->buffer_virt = dmam_alloc_coherent(&pdev->dev,
 				COMBINED_BUFFER_SIZE, &buf_addr, GFP_KERNEL);
-	if (data->buffer_virt == 0) {
-		ret = -ENOMEM;
+	if (data->buffer_virt == NULL) {
 		dev_err(&pdev->dev, "allocate buffer failed\n");
-		goto err_alloc_write_buffer_failed;
+		return -ENOMEM;
 	}
 	data->buffer_phys = buf_addr;
 	data->write_buffer1 = data->buffer_virt;
 	data->write_buffer2 = data->buffer_virt + WRITE_BUFFER_SIZE;
 	data->read_buffer = data->buffer_virt + 2 * WRITE_BUFFER_SIZE;
 
-	ret = request_irq(data->irq, goldfish_audio_interrupt,
+	ret = devm_request_irq(&pdev->dev, data->irq, goldfish_audio_interrupt,
 					IRQF_SHARED, pdev->name, data);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
-		goto err_request_irq_failed;
+		return ret;
 	}
 
 	ret = misc_register(&goldfish_audio_device);
@@ -318,44 +318,30 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"misc_register returned %d in goldfish_audio_init\n",
 								ret);
-		goto err_misc_register_failed;
+		return ret;
 	}
 
-	AUDIO_WRITE(data, AUDIO_SET_WRITE_BUFFER_1, buf_addr);
-	AUDIO_WRITE(data, AUDIO_SET_WRITE_BUFFER_2,
-						buf_addr + WRITE_BUFFER_SIZE);
+	AUDIO_WRITE64(data, AUDIO_SET_WRITE_BUFFER_1,
+				AUDIO_SET_WRITE_BUFFER_1_HIGH, buf_addr);
+	buf_addr += WRITE_BUFFER_SIZE;
+
+	AUDIO_WRITE64(data, AUDIO_SET_WRITE_BUFFER_2,
+				AUDIO_SET_WRITE_BUFFER_2_HIGH, buf_addr);
+
+	buf_addr += WRITE_BUFFER_SIZE;
 
 	data->read_supported = AUDIO_READ(data, AUDIO_READ_SUPPORTED);
 	if (data->read_supported)
-		AUDIO_WRITE(data, AUDIO_SET_READ_BUFFER,
-					buf_addr + 2 * WRITE_BUFFER_SIZE);
+		AUDIO_WRITE64(data, AUDIO_SET_READ_BUFFER,
+				AUDIO_SET_READ_BUFFER_HIGH, buf_addr);
 
 	audio_data = data;
 	return 0;
-
-err_misc_register_failed:
-err_request_irq_failed:
-	dma_free_coherent(&pdev->dev, COMBINED_BUFFER_SIZE,
-					data->buffer_virt, data->buffer_phys);
-err_alloc_write_buffer_failed:
-err_no_irq:
-	iounmap(data->reg_base);
-err_no_io_base:
-	kfree(data);
-err_data_alloc_failed:
-	return ret;
 }
 
 static int goldfish_audio_remove(struct platform_device *pdev)
 {
-	struct goldfish_audio *data = platform_get_drvdata(pdev);
-
 	misc_deregister(&goldfish_audio_device);
-	free_irq(data->irq, data);
-	dma_free_coherent(&pdev->dev, COMBINED_BUFFER_SIZE,
-					data->buffer_virt, data->buffer_phys);
-	iounmap(data->reg_base);
-	kfree(data);
 	audio_data = NULL;
 	return 0;
 }

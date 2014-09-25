@@ -21,6 +21,7 @@
 #include <asm/apic.h>
 #include <asm/pci_x86.h>
 #include <asm/setup.h>
+#include <asm/i8259.h>
 
 __initdata u64 initial_dtb;
 char __initdata cmd_line[COMMAND_LINE_SIZE];
@@ -165,84 +166,6 @@ static void __init dtb_lapic_setup(void)
 #ifdef CONFIG_X86_IO_APIC
 static unsigned int ioapic_id;
 
-static void __init dtb_add_ioapic(struct device_node *dn)
-{
-	struct resource r;
-	int ret;
-
-	ret = of_address_to_resource(dn, 0, &r);
-	if (ret) {
-		printk(KERN_ERR "Can't obtain address from node %s.\n",
-				dn->full_name);
-		return;
-	}
-	mp_register_ioapic(++ioapic_id, r.start, gsi_top);
-}
-
-static void __init dtb_ioapic_setup(void)
-{
-	struct device_node *dn;
-
-	for_each_compatible_node(dn, NULL, "intel,ce4100-ioapic")
-		dtb_add_ioapic(dn);
-
-	if (nr_ioapics) {
-		of_ioapic = 1;
-		return;
-	}
-	printk(KERN_ERR "Error: No information about IO-APIC in OF.\n");
-}
-#else
-static void __init dtb_ioapic_setup(void) {}
-#endif
-
-static void __init dtb_apic_setup(void)
-{
-	dtb_lapic_setup();
-	dtb_ioapic_setup();
-}
-
-#ifdef CONFIG_OF_FLATTREE
-static void __init x86_flattree_get_config(void)
-{
-	u32 size, map_len;
-	struct boot_param_header *dt;
-
-	if (!initial_dtb)
-		return;
-
-	map_len = max(PAGE_SIZE - (initial_dtb & ~PAGE_MASK),
-			(u64)sizeof(struct boot_param_header));
-
-	dt = early_memremap(initial_dtb, map_len);
-	size = be32_to_cpu(dt->totalsize);
-	if (map_len < size) {
-		early_iounmap(dt, map_len);
-		dt = early_memremap(initial_dtb, size);
-		map_len = size;
-	}
-
-	initial_boot_params = dt;
-	unflatten_and_copy_device_tree();
-	early_iounmap(dt, map_len);
-}
-#else
-static inline void x86_flattree_get_config(void) { }
-#endif
-
-void __init x86_dtb_init(void)
-{
-	x86_flattree_get_config();
-
-	if (!of_have_populated_dt())
-		return;
-
-	dtb_setup_hpet();
-	dtb_apic_setup();
-}
-
-#ifdef CONFIG_X86_IO_APIC
-
 struct of_ioapic_type {
 	u32 out_type;
 	u32 trigger;
@@ -278,10 +201,8 @@ static int ioapic_xlate(struct irq_domain *domain,
 			const u32 *intspec, u32 intsize,
 			irq_hw_number_t *out_hwirq, u32 *out_type)
 {
-	struct io_apic_irq_attr attr;
 	struct of_ioapic_type *it;
-	u32 line, idx;
-	int rc;
+	u32 line, idx, gsi;
 
 	if (WARN_ON(intsize < 2))
 		return -EINVAL;
@@ -293,13 +214,10 @@ static int ioapic_xlate(struct irq_domain *domain,
 
 	it = &of_ioapic_type[intspec[1]];
 
-	idx = (u32) domain->host_data;
-	set_io_apic_irq_attr(&attr, idx, line, it->trigger, it->polarity);
-
-	rc = io_apic_setup_irq_pin_once(irq_find_mapping(domain, line),
-					cpu_to_node(0), &attr);
-	if (rc)
-		return rc;
+	idx = (u32)(long)domain->host_data;
+	gsi = mp_pin_to_gsi(idx, line);
+	if (mp_set_gsi_attr(gsi, it->trigger, it->polarity, cpu_to_node(0)))
+		return -EBUSY;
 
 	*out_hwirq = line;
 	*out_type = it->out_type;
@@ -307,81 +225,86 @@ static int ioapic_xlate(struct irq_domain *domain,
 }
 
 const struct irq_domain_ops ioapic_irq_domain_ops = {
+	.map = mp_irqdomain_map,
+	.unmap = mp_irqdomain_unmap,
 	.xlate = ioapic_xlate,
 };
 
-static void dt_add_ioapic_domain(unsigned int ioapic_num,
-		struct device_node *np)
-{
-	struct irq_domain *id;
-	struct mp_ioapic_gsi *gsi_cfg;
-	int ret;
-	int num;
-
-	gsi_cfg = mp_ioapic_gsi_routing(ioapic_num);
-	num = gsi_cfg->gsi_end - gsi_cfg->gsi_base + 1;
-
-	id = irq_domain_add_linear(np, num, &ioapic_irq_domain_ops,
-			(void *)ioapic_num);
-	BUG_ON(!id);
-	if (gsi_cfg->gsi_base == 0) {
-		/*
-		 * The first NR_IRQS_LEGACY irq descs are allocated in
-		 * early_irq_init() and need just a mapping. The
-		 * remaining irqs need both. All of them are preallocated
-		 * and assigned so we can keep the 1:1 mapping which the ioapic
-		 * is having.
-		 */
-		irq_domain_associate_many(id, 0, 0, NR_IRQS_LEGACY);
-
-		if (num > NR_IRQS_LEGACY) {
-			ret = irq_create_strict_mappings(id, NR_IRQS_LEGACY,
-					NR_IRQS_LEGACY, num - NR_IRQS_LEGACY);
-			if (ret)
-				pr_err("Error creating mapping for the "
-						"remaining IRQs: %d\n", ret);
-		}
-		irq_set_default_host(id);
-	} else {
-		ret = irq_create_strict_mappings(id, gsi_cfg->gsi_base, 0, num);
-		if (ret)
-			pr_err("Error creating IRQ mapping: %d\n", ret);
-	}
-}
-
-static void __init ioapic_add_ofnode(struct device_node *np)
+static void __init dtb_add_ioapic(struct device_node *dn)
 {
 	struct resource r;
-	int i, ret;
+	int ret;
+	struct ioapic_domain_cfg cfg = {
+		.type = IOAPIC_DOMAIN_DYNAMIC,
+		.ops = &ioapic_irq_domain_ops,
+		.dev = dn,
+	};
 
-	ret = of_address_to_resource(np, 0, &r);
+	ret = of_address_to_resource(dn, 0, &r);
 	if (ret) {
-		printk(KERN_ERR "Failed to obtain address for %s\n",
-				np->full_name);
+		printk(KERN_ERR "Can't obtain address from node %s.\n",
+				dn->full_name);
 		return;
 	}
-
-	for (i = 0; i < nr_ioapics; i++) {
-		if (r.start == mpc_ioapic_addr(i)) {
-			dt_add_ioapic_domain(i, np);
-			return;
-		}
-	}
-	printk(KERN_ERR "IOxAPIC at %s is not registered.\n", np->full_name);
+	mp_register_ioapic(++ioapic_id, r.start, gsi_top, &cfg);
 }
 
-void __init x86_add_irq_domains(void)
+static void __init dtb_ioapic_setup(void)
 {
-	struct device_node *dp;
+	struct device_node *dn;
+
+	for_each_compatible_node(dn, NULL, "intel,ce4100-ioapic")
+		dtb_add_ioapic(dn);
+
+	if (nr_ioapics) {
+		of_ioapic = 1;
+		return;
+	}
+	printk(KERN_ERR "Error: No information about IO-APIC in OF.\n");
+}
+#else
+static void __init dtb_ioapic_setup(void) {}
+#endif
+
+static void __init dtb_apic_setup(void)
+{
+	dtb_lapic_setup();
+	dtb_ioapic_setup();
+}
+
+#ifdef CONFIG_OF_FLATTREE
+static void __init x86_flattree_get_config(void)
+{
+	u32 size, map_len;
+	void *dt;
+
+	if (!initial_dtb)
+		return;
+
+	map_len = max(PAGE_SIZE - (initial_dtb & ~PAGE_MASK), (u64)128);
+
+	initial_boot_params = dt = early_memremap(initial_dtb, map_len);
+	size = of_get_flat_dt_size();
+	if (map_len < size) {
+		early_iounmap(dt, map_len);
+		initial_boot_params = dt = early_memremap(initial_dtb, size);
+		map_len = size;
+	}
+
+	unflatten_and_copy_device_tree();
+	early_iounmap(dt, map_len);
+}
+#else
+static inline void x86_flattree_get_config(void) { }
+#endif
+
+void __init x86_dtb_init(void)
+{
+	x86_flattree_get_config();
 
 	if (!of_have_populated_dt())
 		return;
 
-	for_each_node_with_property(dp, "interrupt-controller") {
-		if (of_device_is_compatible(dp, "intel,ce4100-ioapic"))
-			ioapic_add_ofnode(dp);
-	}
+	dtb_setup_hpet();
+	dtb_apic_setup();
 }
-#else
-void __init x86_add_irq_domains(void) { }
-#endif

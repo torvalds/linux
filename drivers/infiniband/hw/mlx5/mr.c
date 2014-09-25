@@ -73,6 +73,8 @@ static void reg_mr_callback(int status, void *context)
 	struct mlx5_cache_ent *ent = &cache->ent[c];
 	u8 key;
 	unsigned long flags;
+	struct mlx5_mr_table *table = &dev->mdev->priv.mr_table;
+	int err;
 
 	spin_lock_irqsave(&ent->lock, flags);
 	ent->pending--;
@@ -95,9 +97,9 @@ static void reg_mr_callback(int status, void *context)
 		return;
 	}
 
-	spin_lock_irqsave(&dev->mdev.priv.mkey_lock, flags);
-	key = dev->mdev.priv.mkey_key++;
-	spin_unlock_irqrestore(&dev->mdev.priv.mkey_lock, flags);
+	spin_lock_irqsave(&dev->mdev->priv.mkey_lock, flags);
+	key = dev->mdev->priv.mkey_key++;
+	spin_unlock_irqrestore(&dev->mdev->priv.mkey_lock, flags);
 	mr->mmr.key = mlx5_idx_to_mkey(be32_to_cpu(mr->out.mkey) & 0xffffff) | key;
 
 	cache->last_add = jiffies;
@@ -107,6 +109,13 @@ static void reg_mr_callback(int status, void *context)
 	ent->cur++;
 	ent->size++;
 	spin_unlock_irqrestore(&ent->lock, flags);
+
+	write_lock_irqsave(&table->lock, flags);
+	err = radix_tree_insert(&table->tree, mlx5_base_mkey(mr->mmr.key),
+				&mr->mmr);
+	if (err)
+		pr_err("Error inserting to mr tree. 0x%x\n", -err);
+	write_unlock_irqrestore(&table->lock, flags);
 }
 
 static int add_keys(struct mlx5_ib_dev *dev, int c, int num)
@@ -146,8 +155,7 @@ static int add_keys(struct mlx5_ib_dev *dev, int c, int num)
 		spin_lock_irq(&ent->lock);
 		ent->pending++;
 		spin_unlock_irq(&ent->lock);
-		mr->start = jiffies;
-		err = mlx5_core_create_mkey(&dev->mdev, &mr->mmr, in,
+		err = mlx5_core_create_mkey(dev->mdev, &mr->mmr, in,
 					    sizeof(*in), reg_mr_callback,
 					    mr, &mr->out);
 		if (err) {
@@ -180,7 +188,7 @@ static void remove_keys(struct mlx5_ib_dev *dev, int c, int num)
 		ent->cur--;
 		ent->size--;
 		spin_unlock_irq(&ent->lock);
-		err = mlx5_core_destroy_mkey(&dev->mdev, &mr->mmr);
+		err = mlx5_core_destroy_mkey(dev->mdev, &mr->mmr);
 		if (err)
 			mlx5_ib_warn(dev, "failed destroy mkey\n");
 		else
@@ -471,7 +479,7 @@ static void clean_keys(struct mlx5_ib_dev *dev, int c)
 		ent->cur--;
 		ent->size--;
 		spin_unlock_irq(&ent->lock);
-		err = mlx5_core_destroy_mkey(&dev->mdev, &mr->mmr);
+		err = mlx5_core_destroy_mkey(dev->mdev, &mr->mmr);
 		if (err)
 			mlx5_ib_warn(dev, "failed destroy mkey\n");
 		else
@@ -488,7 +496,7 @@ static int mlx5_mr_cache_debugfs_init(struct mlx5_ib_dev *dev)
 	if (!mlx5_debugfs_root)
 		return 0;
 
-	cache->root = debugfs_create_dir("mr_cache", dev->mdev.priv.dbg_root);
+	cache->root = debugfs_create_dir("mr_cache", dev->mdev->priv.dbg_root);
 	if (!cache->root)
 		return -ENOMEM;
 
@@ -563,8 +571,8 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		ent->order = i + 2;
 		ent->dev = dev;
 
-		if (dev->mdev.profile->mask & MLX5_PROF_MASK_MR_CACHE)
-			limit = dev->mdev.profile->mr_cache[i].limit;
+		if (dev->mdev->profile->mask & MLX5_PROF_MASK_MR_CACHE)
+			limit = dev->mdev->profile->mr_cache[i].limit;
 		else
 			limit = 0;
 
@@ -602,7 +610,7 @@ int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
 struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
-	struct mlx5_core_dev *mdev = &dev->mdev;
+	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_create_mkey_mbox_in *in;
 	struct mlx5_mkey_seg *seg;
 	struct mlx5_ib_mr *mr;
@@ -700,7 +708,7 @@ static void prep_umr_unreg_wqe(struct mlx5_ib_dev *dev,
 
 void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context)
 {
-	struct mlx5_ib_mr *mr;
+	struct mlx5_ib_umr_context *context;
 	struct ib_wc wc;
 	int err;
 
@@ -713,9 +721,9 @@ void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context)
 		if (err == 0)
 			break;
 
-		mr = (struct mlx5_ib_mr *)(unsigned long)wc.wr_id;
-		mr->status = wc.status;
-		complete(&mr->done);
+		context = (struct mlx5_ib_umr_context *) (unsigned long) wc.wr_id;
+		context->status = wc.status;
+		complete(&context->done);
 	}
 	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 }
@@ -727,11 +735,12 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct device *ddev = dev->ib_dev.dma_device;
 	struct umr_common *umrc = &dev->umrc;
+	struct mlx5_ib_umr_context umr_context;
 	struct ib_send_wr wr, *bad;
 	struct mlx5_ib_mr *mr;
 	struct ib_sge sg;
 	int size = sizeof(u64) * npages;
-	int err;
+	int err = 0;
 	int i;
 
 	for (i = 0; i < 1; i++) {
@@ -752,7 +761,7 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	mr->pas = kmalloc(size + MLX5_UMR_ALIGN - 1, GFP_KERNEL);
 	if (!mr->pas) {
 		err = -ENOMEM;
-		goto error;
+		goto free_mr;
 	}
 
 	mlx5_ib_populate_pas(dev, umem, page_shift,
@@ -761,44 +770,46 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	mr->dma = dma_map_single(ddev, mr_align(mr->pas, MLX5_UMR_ALIGN), size,
 				 DMA_TO_DEVICE);
 	if (dma_mapping_error(ddev, mr->dma)) {
-		kfree(mr->pas);
 		err = -ENOMEM;
-		goto error;
+		goto free_pas;
 	}
 
 	memset(&wr, 0, sizeof(wr));
-	wr.wr_id = (u64)(unsigned long)mr;
+	wr.wr_id = (u64)(unsigned long)&umr_context;
 	prep_umr_reg_wqe(pd, &wr, &sg, mr->dma, npages, mr->mmr.key, page_shift, virt_addr, len, access_flags);
 
-	/* We serialize polls so one process does not kidnap another's
-	 * completion. This is not a problem since wr is completed in
-	 * around 1 usec
-	 */
+	mlx5_ib_init_umr_context(&umr_context);
 	down(&umrc->sem);
-	init_completion(&mr->done);
 	err = ib_post_send(umrc->qp, &wr, &bad);
 	if (err) {
 		mlx5_ib_warn(dev, "post send failed, err %d\n", err);
-		up(&umrc->sem);
-		goto error;
+		goto unmap_dma;
+	} else {
+		wait_for_completion(&umr_context.done);
+		if (umr_context.status != IB_WC_SUCCESS) {
+			mlx5_ib_warn(dev, "reg umr failed\n");
+			err = -EFAULT;
+		}
 	}
-	wait_for_completion(&mr->done);
-	up(&umrc->sem);
 
+	mr->mmr.iova = virt_addr;
+	mr->mmr.size = len;
+	mr->mmr.pd = to_mpd(pd)->pdn;
+
+unmap_dma:
+	up(&umrc->sem);
 	dma_unmap_single(ddev, mr->dma, size, DMA_TO_DEVICE);
+
+free_pas:
 	kfree(mr->pas);
 
-	if (mr->status != IB_WC_SUCCESS) {
-		mlx5_ib_warn(dev, "reg umr failed\n");
-		err = -EFAULT;
-		goto error;
+free_mr:
+	if (err) {
+		free_cached_mr(dev, mr);
+		return ERR_PTR(err);
 	}
 
 	return mr;
-
-error:
-	free_cached_mr(dev, mr);
-	return ERR_PTR(err);
 }
 
 static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
@@ -835,7 +846,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
 	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
 	in->xlat_oct_act_size = cpu_to_be32(get_octo_len(virt_addr, length,
 							 1 << page_shift));
-	err = mlx5_core_create_mkey(&dev->mdev, &mr->mmr, in, inlen, NULL,
+	err = mlx5_core_create_mkey(dev->mdev, &mr->mmr, in, inlen, NULL,
 				    NULL, NULL);
 	if (err) {
 		mlx5_ib_warn(dev, "create mkey failed\n");
@@ -912,7 +923,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->umem = umem;
 	mr->npages = npages;
 	spin_lock(&dev->mr_lock);
-	dev->mdev.priv.reg_pages += npages;
+	dev->mdev->priv.reg_pages += npages;
 	spin_unlock(&dev->mr_lock);
 	mr->ibmr.lkey = mr->mmr.key;
 	mr->ibmr.rkey = mr->mmr.key;
@@ -927,24 +938,26 @@ error:
 static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 {
 	struct umr_common *umrc = &dev->umrc;
+	struct mlx5_ib_umr_context umr_context;
 	struct ib_send_wr wr, *bad;
 	int err;
 
 	memset(&wr, 0, sizeof(wr));
-	wr.wr_id = (u64)(unsigned long)mr;
+	wr.wr_id = (u64)(unsigned long)&umr_context;
 	prep_umr_unreg_wqe(dev, &wr, mr->mmr.key);
 
+	mlx5_ib_init_umr_context(&umr_context);
 	down(&umrc->sem);
-	init_completion(&mr->done);
 	err = ib_post_send(umrc->qp, &wr, &bad);
 	if (err) {
 		up(&umrc->sem);
 		mlx5_ib_dbg(dev, "err %d\n", err);
 		goto error;
+	} else {
+		wait_for_completion(&umr_context.done);
+		up(&umrc->sem);
 	}
-	wait_for_completion(&mr->done);
-	up(&umrc->sem);
-	if (mr->status != IB_WC_SUCCESS) {
+	if (umr_context.status != IB_WC_SUCCESS) {
 		mlx5_ib_warn(dev, "unreg umr failed\n");
 		err = -EFAULT;
 		goto error;
@@ -965,7 +978,7 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 	int err;
 
 	if (!umred) {
-		err = mlx5_core_destroy_mkey(&dev->mdev, &mr->mmr);
+		err = mlx5_core_destroy_mkey(dev->mdev, &mr->mmr);
 		if (err) {
 			mlx5_ib_warn(dev, "failed to destroy mkey 0x%x (%d)\n",
 				     mr->mmr.key, err);
@@ -983,7 +996,7 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 	if (umem) {
 		ib_umem_release(umem);
 		spin_lock(&dev->mr_lock);
-		dev->mdev.priv.reg_pages -= npages;
+		dev->mdev->priv.reg_pages -= npages;
 		spin_unlock(&dev->mr_lock);
 	}
 
@@ -991,6 +1004,122 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 		kfree(mr);
 
 	return 0;
+}
+
+struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
+				struct ib_mr_init_attr *mr_init_attr)
+{
+	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	struct mlx5_create_mkey_mbox_in *in;
+	struct mlx5_ib_mr *mr;
+	int access_mode, err;
+	int ndescs = roundup(mr_init_attr->max_reg_descriptors, 4);
+
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
+
+	in = kzalloc(sizeof(*in), GFP_KERNEL);
+	if (!in) {
+		err = -ENOMEM;
+		goto err_free;
+	}
+
+	in->seg.status = 1 << 6; /* free */
+	in->seg.xlt_oct_size = cpu_to_be32(ndescs);
+	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
+	in->seg.flags_pd = cpu_to_be32(to_mpd(pd)->pdn);
+	access_mode = MLX5_ACCESS_MODE_MTT;
+
+	if (mr_init_attr->flags & IB_MR_SIGNATURE_EN) {
+		u32 psv_index[2];
+
+		in->seg.flags_pd = cpu_to_be32(be32_to_cpu(in->seg.flags_pd) |
+							   MLX5_MKEY_BSF_EN);
+		in->seg.bsfs_octo_size = cpu_to_be32(MLX5_MKEY_BSF_OCTO_SIZE);
+		mr->sig = kzalloc(sizeof(*mr->sig), GFP_KERNEL);
+		if (!mr->sig) {
+			err = -ENOMEM;
+			goto err_free_in;
+		}
+
+		/* create mem & wire PSVs */
+		err = mlx5_core_create_psv(dev->mdev, to_mpd(pd)->pdn,
+					   2, psv_index);
+		if (err)
+			goto err_free_sig;
+
+		access_mode = MLX5_ACCESS_MODE_KLM;
+		mr->sig->psv_memory.psv_idx = psv_index[0];
+		mr->sig->psv_wire.psv_idx = psv_index[1];
+
+		mr->sig->sig_status_checked = true;
+		mr->sig->sig_err_exists = false;
+		/* Next UMR, Arm SIGERR */
+		++mr->sig->sigerr_count;
+	}
+
+	in->seg.flags = MLX5_PERM_UMR_EN | access_mode;
+	err = mlx5_core_create_mkey(dev->mdev, &mr->mmr, in, sizeof(*in),
+				    NULL, NULL, NULL);
+	if (err)
+		goto err_destroy_psv;
+
+	mr->ibmr.lkey = mr->mmr.key;
+	mr->ibmr.rkey = mr->mmr.key;
+	mr->umem = NULL;
+	kfree(in);
+
+	return &mr->ibmr;
+
+err_destroy_psv:
+	if (mr->sig) {
+		if (mlx5_core_destroy_psv(dev->mdev,
+					  mr->sig->psv_memory.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy mem psv %d\n",
+				     mr->sig->psv_memory.psv_idx);
+		if (mlx5_core_destroy_psv(dev->mdev,
+					  mr->sig->psv_wire.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy wire psv %d\n",
+				     mr->sig->psv_wire.psv_idx);
+	}
+err_free_sig:
+	kfree(mr->sig);
+err_free_in:
+	kfree(in);
+err_free:
+	kfree(mr);
+	return ERR_PTR(err);
+}
+
+int mlx5_ib_destroy_mr(struct ib_mr *ibmr)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ibmr->device);
+	struct mlx5_ib_mr *mr = to_mmr(ibmr);
+	int err;
+
+	if (mr->sig) {
+		if (mlx5_core_destroy_psv(dev->mdev,
+					  mr->sig->psv_memory.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy mem psv %d\n",
+				     mr->sig->psv_memory.psv_idx);
+		if (mlx5_core_destroy_psv(dev->mdev,
+					  mr->sig->psv_wire.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy wire psv %d\n",
+				     mr->sig->psv_wire.psv_idx);
+		kfree(mr->sig);
+	}
+
+	err = mlx5_core_destroy_mkey(dev->mdev, &mr->mmr);
+	if (err) {
+		mlx5_ib_warn(dev, "failed to destroy mkey 0x%x (%d)\n",
+			     mr->mmr.key, err);
+		return err;
+	}
+
+	kfree(mr);
+
+	return err;
 }
 
 struct ib_mr *mlx5_ib_alloc_fast_reg_mr(struct ib_pd *pd,
@@ -1020,7 +1149,7 @@ struct ib_mr *mlx5_ib_alloc_fast_reg_mr(struct ib_pd *pd,
 	 * TBD not needed - issue 197292 */
 	in->seg.log2_page_size = PAGE_SHIFT;
 
-	err = mlx5_core_create_mkey(&dev->mdev, &mr->mmr, in, sizeof(*in), NULL,
+	err = mlx5_core_create_mkey(dev->mdev, &mr->mmr, in, sizeof(*in), NULL,
 				    NULL, NULL);
 	kfree(in);
 	if (err)
@@ -1073,8 +1202,49 @@ void mlx5_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list)
 	struct mlx5_ib_dev *dev = to_mdev(page_list->device);
 	int size = page_list->max_page_list_len * sizeof(u64);
 
-	dma_free_coherent(&dev->mdev.pdev->dev, size, mfrpl->mapped_page_list,
+	dma_free_coherent(&dev->mdev->pdev->dev, size, mfrpl->mapped_page_list,
 			  mfrpl->map);
 	kfree(mfrpl->ibfrpl.page_list);
 	kfree(mfrpl);
+}
+
+int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
+			    struct ib_mr_status *mr_status)
+{
+	struct mlx5_ib_mr *mmr = to_mmr(ibmr);
+	int ret = 0;
+
+	if (check_mask & ~IB_MR_CHECK_SIG_STATUS) {
+		pr_err("Invalid status check mask\n");
+		ret = -EINVAL;
+		goto done;
+	}
+
+	mr_status->fail_status = 0;
+	if (check_mask & IB_MR_CHECK_SIG_STATUS) {
+		if (!mmr->sig) {
+			ret = -EINVAL;
+			pr_err("signature status check requested on a non-signature enabled MR\n");
+			goto done;
+		}
+
+		mmr->sig->sig_status_checked = true;
+		if (!mmr->sig->sig_err_exists)
+			goto done;
+
+		if (ibmr->lkey == mmr->sig->err_item.key)
+			memcpy(&mr_status->sig_err, &mmr->sig->err_item,
+			       sizeof(mr_status->sig_err));
+		else {
+			mr_status->sig_err.err_type = IB_SIG_BAD_GUARD;
+			mr_status->sig_err.sig_err_offset = 0;
+			mr_status->sig_err.key = mmr->sig->err_item.key;
+		}
+
+		mmr->sig->sig_err_exists = false;
+		mr_status->fail_status |= IB_MR_CHECK_SIG_STATUS;
+	}
+
+done:
+	return ret;
 }

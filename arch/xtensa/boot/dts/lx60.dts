@@ -3,7 +3,7 @@
 /include/ "xtfpga-flash-4m.dtsi"
 
 / {
-	compatible = "xtensa,lx60";
+	compatible = "cdns,xtensa-lx60";
 	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x04000000>;

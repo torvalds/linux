@@ -207,8 +207,11 @@ static void dma_callback(void *data)
 	src_vb = v4l2_m2m_src_buf_remove(curr_ctx->m2m_ctx);
 	dst_vb = v4l2_m2m_dst_buf_remove(curr_ctx->m2m_ctx);
 
-	src_vb->v4l2_buf.timestamp = dst_vb->v4l2_buf.timestamp;
-	src_vb->v4l2_buf.timecode = dst_vb->v4l2_buf.timecode;
+	dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
+	dst_vb->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst_vb->v4l2_buf.flags |=
+		src_vb->v4l2_buf.flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst_vb->v4l2_buf.timecode = src_vb->v4l2_buf.timecode;
 
 	v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_DONE);
 	v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_DONE);
@@ -868,7 +871,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->ops = &deinterlace_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
-	src_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	q_data[V4L2_M2M_SRC].fmt = &formats[0];
 	q_data[V4L2_M2M_SRC].width = 640;
 	q_data[V4L2_M2M_SRC].height = 480;
@@ -885,7 +888,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	dst_vq->ops = &deinterlace_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
-	dst_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	q_data[V4L2_M2M_DST].fmt = &formats[0];
 	q_data[V4L2_M2M_DST].width = 640;
 	q_data[V4L2_M2M_DST].height = 480;
@@ -918,7 +921,7 @@ static int deinterlace_open(struct file *file)
 		return ret;
 	}
 
-	ctx->xt = kzalloc(sizeof(struct dma_async_tx_descriptor) +
+	ctx->xt = kzalloc(sizeof(struct dma_interleaved_template) +
 				sizeof(struct data_chunk), GFP_KERNEL);
 	if (!ctx->xt) {
 		kfree(ctx);
@@ -999,7 +1002,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 	dma_cap_mask_t mask;
 	int ret = 0;
 
-	pcdev = kzalloc(sizeof *pcdev, GFP_KERNEL);
+	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
 	if (!pcdev)
 		return -ENOMEM;
 
@@ -1009,7 +1012,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_INTERLEAVE, mask);
 	pcdev->dma_chan = dma_request_channel(mask, NULL, pcdev);
 	if (!pcdev->dma_chan)
-		goto free_dev;
+		return -ENODEV;
 
 	if (!dma_has_cap(DMA_INTERLEAVE, pcdev->dma_chan->device->cap_mask)) {
 		v4l2_err(&pcdev->v4l2_dev, "DMA does not support INTERLEAVE\n");
@@ -1075,8 +1078,6 @@ unreg_dev:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 rel_dma:
 	dma_release_channel(pcdev->dma_chan);
-free_dev:
-	kfree(pcdev);
 
 	return ret;
 }
@@ -1091,7 +1092,6 @@ static int deinterlace_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 	dma_release_channel(pcdev->dma_chan);
-	kfree(pcdev);
 
 	return 0;
 }

@@ -178,9 +178,24 @@ smb2_check_message(char *buf, unsigned int length)
 		/* Windows 7 server returns 24 bytes more */
 		if (clc_len + 20 == len && command == SMB2_OPLOCK_BREAK_HE)
 			return 0;
-		/* server can return one byte more */
+		/* server can return one byte more due to implied bcc[0] */
 		if (clc_len == 4 + len + 1)
 			return 0;
+
+		/*
+		 * MacOS server pads after SMB2.1 write response with 3 bytes
+		 * of junk. Other servers match RFC1001 len to actual
+		 * SMB2/SMB3 frame length (header + smb2 response specific data)
+		 * Log the server error (once), but allow it and continue
+		 * since the frame is parseable.
+		 */
+		if (clc_len < 4 /* RFC1001 header size */ + len) {
+			printk_once(KERN_WARNING
+				"SMB2 server sent bad RFC1001 len %d not %d\n",
+				len, clc_len - 4);
+			return 0;
+		}
+
 		return 1;
 	}
 	return 0;
@@ -437,7 +452,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp,
 			continue;
 
 		cifs_dbg(FYI, "found in the open list\n");
-		cifs_dbg(FYI, "lease key match, lease break 0x%d\n",
+		cifs_dbg(FYI, "lease key match, lease break 0x%x\n",
 			 le32_to_cpu(rsp->NewLeaseState));
 
 		server->ops->set_oplock_level(cinode, lease_state, 0, NULL);
@@ -467,7 +482,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp,
 		}
 
 		cifs_dbg(FYI, "found in the pending open list\n");
-		cifs_dbg(FYI, "lease key match, lease break 0x%d\n",
+		cifs_dbg(FYI, "lease key match, lease break 0x%x\n",
 			 le32_to_cpu(rsp->NewLeaseState));
 
 		open->oplock = lease_state;
@@ -546,7 +561,7 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 			return false;
 	}
 
-	cifs_dbg(FYI, "oplock level 0x%d\n", rsp->OplockLevel);
+	cifs_dbg(FYI, "oplock level 0x%x\n", rsp->OplockLevel);
 
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);
@@ -575,9 +590,21 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 				else
 					cfile->oplock_break_cancelled = false;
 
-				server->ops->set_oplock_level(cinode,
-				  rsp->OplockLevel ? SMB2_OPLOCK_LEVEL_II : 0,
-				  0, NULL);
+				set_bit(CIFS_INODE_PENDING_OPLOCK_BREAK,
+					&cinode->flags);
+
+				/*
+				 * Set flag if the server downgrades the oplock
+				 * to L2 else clear.
+				 */
+				if (rsp->OplockLevel)
+					set_bit(
+					   CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2,
+					   &cinode->flags);
+				else
+					clear_bit(
+					   CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2,
+					   &cinode->flags);
 
 				queue_work(cifsiod_wq, &cfile->oplock_break);
 

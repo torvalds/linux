@@ -79,7 +79,7 @@ MODULE_PARM_DESC(delay_pcm_irq, "Delay PCM interrupt by specified number of samp
 /*
  * Class 0401: 1102:0008 (rev 00) Subsystem: 1102:1001 -> Audigy2 Value  Model:SB0400
  */
-static DEFINE_PCI_DEVICE_TABLE(snd_emu10k1_ids) = {
+static const struct pci_device_id snd_emu10k1_ids[] = {
 	{ PCI_VDEVICE(CREATIVE, 0x0002), 0 },	/* EMU10K1 */
 	{ PCI_VDEVICE(CREATIVE, 0x0004), 1 },	/* Audigy */
 	{ PCI_VDEVICE(CREATIVE, 0x0008), 1 },	/* Audigy 2 Value SB0400 */
@@ -117,7 +117,8 @@ static int snd_card_emu10k1_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
 	if (max_buffer_size[dev] < 32)
@@ -169,7 +170,8 @@ static int snd_card_emu10k1_probe(struct pci_dev *pci,
 	if (snd_seq_device_new(card, 1, SNDRV_SEQ_DEV_ID_EMU10K1_SYNTH,
 			       sizeof(struct snd_emu10k1_synth_arg), &wave) < 0 ||
 	    wave == NULL) {
-		snd_printk(KERN_WARNING "can't initialize Emu10k1 wavetable synth\n");
+		dev_warn(emu->card->dev,
+			 "can't initialize Emu10k1 wavetable synth\n");
 	} else {
 		struct snd_emu10k1_synth_arg *arg;
 		arg = SNDRV_SEQ_DEVICE_ARGPTR(wave);
@@ -246,8 +248,7 @@ static int snd_emu10k1_resume(struct device *dev)
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
 	if (pci_enable_device(pci) < 0) {
-		printk(KERN_ERR "emu10k1: pci_enable_device failed, "
-		       "disabling device\n");
+		dev_err(dev, "pci_enable_device failed, disabling device\n");
 		snd_card_disconnect(card);
 		return -EIO;
 	}

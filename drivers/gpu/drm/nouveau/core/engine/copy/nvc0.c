@@ -26,9 +26,7 @@
 #include <engine/fifo.h>
 #include <engine/copy.h>
 
-#include <core/class.h>
 #include <core/enum.h>
-#include <core/class.h>
 #include <core/enum.h>
 
 #include "fuc/nvc0.fuc.h"
@@ -105,9 +103,6 @@ nvc0_copy0_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvc0_copy_priv *priv;
 	int ret;
 
-	if (nv_rd32(parent, 0x022500) & 0x00000100)
-		return -ENODEV;
-
 	ret = nouveau_falcon_create(parent, engine, oclass, 0x104000, true,
 				    "PCE0", "copy0", &priv);
 	*pobject = nv_object(priv);
@@ -132,9 +127,6 @@ nvc0_copy1_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 {
 	struct nvc0_copy_priv *priv;
 	int ret;
-
-	if (nv_rd32(parent, 0x022500) & 0x00000200)
-		return -ENODEV;
 
 	ret = nouveau_falcon_create(parent, engine, oclass, 0x105000, true,
 				    "PCE1", "copy1", &priv);

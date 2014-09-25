@@ -35,8 +35,10 @@
 #include "ocrdma_ah.h"
 #include "ocrdma_hw.h"
 
+#define OCRDMA_VID_PCP_SHIFT	0xD
+
 static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
-				struct ib_ah_attr *attr, int pdid)
+			struct ib_ah_attr *attr, union ib_gid *sgid, int pdid)
 {
 	int status = 0;
 	u16 vlan_tag; bool vlan_enabled = false;
@@ -47,15 +49,14 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	memset(&eth, 0, sizeof(eth));
 	memset(&grh, 0, sizeof(grh));
 
-	ah->sgid_index = attr->grh.sgid_index;
-
-	vlan_tag = rdma_get_vlan_id(&attr->grh.dgid);
+	/* VLAN */
+	vlan_tag = attr->vlan_id;
 	if (!vlan_tag || (vlan_tag > 0xFFF))
 		vlan_tag = dev->pvid;
 	if (vlan_tag && (vlan_tag < 0x1000)) {
 		eth.eth_type = cpu_to_be16(0x8100);
 		eth.roce_eth_type = cpu_to_be16(OCRDMA_ROCE_ETH_TYPE);
-		vlan_tag |= (attr->sl & 7) << 13;
+		vlan_tag |= (dev->sl & 0x07) << OCRDMA_VID_PCP_SHIFT;
 		eth.vlan_tag = cpu_to_be16(vlan_tag);
 		eth_sz = sizeof(struct ocrdma_eth_vlan);
 		vlan_enabled = true;
@@ -63,14 +64,14 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 		eth.eth_type = cpu_to_be16(OCRDMA_ROCE_ETH_TYPE);
 		eth_sz = sizeof(struct ocrdma_eth_basic);
 	}
+	/* MAC */
 	memcpy(&eth.smac[0], &dev->nic_info.mac_addr[0], ETH_ALEN);
-	status = ocrdma_resolve_dgid(dev, &attr->grh.dgid, &eth.dmac[0]);
+	status = ocrdma_resolve_dmac(dev, attr, &eth.dmac[0]);
 	if (status)
 		return status;
-	status = ocrdma_query_gid(&dev->ibdev, 1, attr->grh.sgid_index,
-			(union ib_gid *)&grh.sgid[0]);
-	if (status)
-		return status;
+	ah->sgid_index = attr->grh.sgid_index;
+	memcpy(&grh.sgid[0], sgid->raw, sizeof(union ib_gid));
+	memcpy(&grh.dgid[0], attr->grh.dgid.raw, sizeof(attr->grh.dgid.raw));
 
 	grh.tclass_flow = cpu_to_be32((6 << 28) |
 			(attr->grh.traffic_class << 24) |
@@ -78,12 +79,12 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	/* 0x1b is next header value in GRH */
 	grh.pdid_hoplimit = cpu_to_be32((pdid << 16) |
 			(0x1b << 8) | attr->grh.hop_limit);
-
-	memcpy(&grh.dgid[0], attr->grh.dgid.raw, sizeof(attr->grh.dgid.raw));
+	/* Eth HDR */
 	memcpy(&ah->av->eth_hdr, &eth, eth_sz);
 	memcpy((u8 *)ah->av + eth_sz, &grh, sizeof(struct ocrdma_grh));
 	if (vlan_enabled)
 		ah->av->valid |= OCRDMA_AV_VLAN_VALID;
+	ah->av->valid = cpu_to_le32(ah->av->valid);
 	return status;
 }
 
@@ -94,18 +95,42 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
 	struct ocrdma_ah *ah;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
+	union ib_gid sgid;
+	u8 zmac[ETH_ALEN];
 
 	if (!(attr->ah_flags & IB_AH_GRH))
 		return ERR_PTR(-EINVAL);
 
-	ah = kzalloc(sizeof *ah, GFP_ATOMIC);
+	if (atomic_cmpxchg(&dev->update_sl, 1, 0))
+		ocrdma_init_service_level(dev);
+	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
 	if (!ah)
 		return ERR_PTR(-ENOMEM);
 
 	status = ocrdma_alloc_av(dev, ah);
 	if (status)
 		goto av_err;
-	status = set_av_attr(dev, ah, attr, pd->id);
+
+	status = ocrdma_query_gid(&dev->ibdev, 1, attr->grh.sgid_index, &sgid);
+	if (status) {
+		pr_err("%s(): Failed to query sgid, status = %d\n",
+		      __func__, status);
+		goto av_conf_err;
+	}
+
+	memset(&zmac, 0, ETH_ALEN);
+	if (pd->uctx &&
+	    memcmp(attr->dmac, &zmac, ETH_ALEN)) {
+		status = rdma_addr_find_dmac_by_grh(&sgid, &attr->grh.dgid,
+                                        attr->dmac, &attr->vlan_id);
+		if (status) {
+			pr_err("%s(): Failed to resolve dmac from gid." 
+				"status = %d\n", __func__, status);
+			goto av_conf_err;
+		}
+	}
+
+	status = set_av_attr(dev, ah, attr, &sgid, pd->id);
 	if (status)
 		goto av_conf_err;
 
@@ -139,7 +164,7 @@ int ocrdma_query_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
 	struct ocrdma_av *av = ah->av;
 	struct ocrdma_grh *grh;
 	attr->ah_flags |= IB_AH_GRH;
-	if (ah->av->valid & Bit(1)) {
+	if (ah->av->valid & OCRDMA_AV_VALID) {
 		grh = (struct ocrdma_grh *)((u8 *)ah->av +
 				sizeof(struct ocrdma_eth_vlan));
 		attr->sl = be16_to_cpu(av->eth_hdr.vlan_tag) >> 13;

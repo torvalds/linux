@@ -60,7 +60,7 @@ static inline struct channel_path *chpid_to_chp(struct chp_id chpid)
 int chp_get_status(struct chp_id chpid);
 u8 chp_get_sch_opm(struct subchannel *sch);
 int chp_is_registered(struct chp_id chpid);
-void *chp_get_chp_desc(struct chp_id chpid);
+struct channel_path_desc *chp_get_chp_desc(struct chp_id chpid);
 void chp_remove_cmg_attr(struct channel_path *chp);
 int chp_add_cmg_attr(struct channel_path *chp);
 int chp_update_desc(struct channel_path *chp);

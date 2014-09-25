@@ -455,10 +455,10 @@ static void load_code(struct icom_port *icom_port)
 	for (index = 0; index < fw->size; index++)
 		new_page[index] = fw->data[index];
 
-	release_firmware(fw);
-
 	writeb((char) ((fw->size + 16)/16), &icom_port->dram->mac_length);
 	writel(temp_pci, &icom_port->dram->mac_load_addr);
+
+	release_firmware(fw);
 
 	/*Setting the syncReg to 0x80 causes adapter to start downloading
 	   the personality code into adapter instruction RAM.
@@ -1052,11 +1052,6 @@ static void icom_stop_rx(struct uart_port *port)
 	writeb(cmdReg & ~CMD_RCV_ENABLE, &ICOM_PORT->dram->CmdReg);
 }
 
-static void icom_enable_ms(struct uart_port *port)
-{
-	/* no-op */
-}
-
 static void icom_break(struct uart_port *port, int break_state)
 {
 	unsigned char cmdReg;
@@ -1300,7 +1295,6 @@ static struct uart_ops icom_ops = {
 	.start_tx = icom_start_tx,
 	.send_xchar = icom_send_xchar,
 	.stop_rx = icom_stop_rx,
-	.enable_ms = icom_enable_ms,
 	.break_ctl = icom_break,
 	.startup = icom_open,
 	.shutdown = icom_close,

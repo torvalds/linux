@@ -296,6 +296,11 @@ enum {
 	MASK_OCS			= 0x0F,
 };
 
+/* The maximum length of the data byte count field in the PRDT is 256KB */
+#define PRDT_DATA_BYTE_COUNT_MAX	(256 * 1024)
+/* The granularity of the data byte count field in the PRDT is 32-bit */
+#define PRDT_DATA_BYTE_COUNT_PAD	4
+
 /**
  * struct ufshcd_sg_entry - UFSHCI PRD Entry
  * @base_addr: Lower 32bit physical address DW-0
@@ -304,10 +309,10 @@ enum {
  * @size: size of physical segment DW-3
  */
 struct ufshcd_sg_entry {
-	u32    base_addr;
-	u32    upper_addr;
-	u32    reserved;
-	u32    size;
+	__le32    base_addr;
+	__le32    upper_addr;
+	__le32    reserved;
+	__le32    size;
 };
 
 /**
@@ -330,10 +335,10 @@ struct utp_transfer_cmd_desc {
  * @dword3: Descriptor Header DW3
  */
 struct request_desc_header {
-	u32 dword_0;
-	u32 dword_1;
-	u32 dword_2;
-	u32 dword_3;
+	__le32 dword_0;
+	__le32 dword_1;
+	__le32 dword_2;
+	__le32 dword_3;
 };
 
 /**
@@ -352,16 +357,16 @@ struct utp_transfer_req_desc {
 	struct request_desc_header header;
 
 	/* DW 4-5*/
-	u32  command_desc_base_addr_lo;
-	u32  command_desc_base_addr_hi;
+	__le32  command_desc_base_addr_lo;
+	__le32  command_desc_base_addr_hi;
 
 	/* DW 6 */
-	u16  response_upiu_length;
-	u16  response_upiu_offset;
+	__le16  response_upiu_length;
+	__le16  response_upiu_offset;
 
 	/* DW 7 */
-	u16  prd_table_length;
-	u16  prd_table_offset;
+	__le16  prd_table_length;
+	__le16  prd_table_offset;
 };
 
 /**
@@ -376,10 +381,10 @@ struct utp_task_req_desc {
 	struct request_desc_header header;
 
 	/* DW 4-11 */
-	u32 task_req_upiu[TASK_REQ_UPIU_SIZE_DWORDS];
+	__le32 task_req_upiu[TASK_REQ_UPIU_SIZE_DWORDS];
 
 	/* DW 12-19 */
-	u32 task_rsp_upiu[TASK_RSP_UPIU_SIZE_DWORDS];
+	__le32 task_rsp_upiu[TASK_RSP_UPIU_SIZE_DWORDS];
 };
 
 #endif /* End of Header */

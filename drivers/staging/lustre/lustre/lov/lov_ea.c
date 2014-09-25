@@ -41,11 +41,10 @@
 #define DEBUG_SUBSYSTEM S_LOV
 
 #include <asm/div64.h>
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_class.h>
-#include <obd_lov.h>
-#include <lustre/lustre_idl.h>
+#include "../include/obd_class.h"
+#include "../include/lustre/lustre_idl.h"
 
 #include "lov_internal.h"
 
@@ -98,10 +97,10 @@ struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size)
 
 	OBD_ALLOC_LARGE(lsm, *size);
 	if (!lsm)
-		return NULL;;
+		return NULL;
 
 	for (i = 0; i < stripe_count; i++) {
-		OBD_SLAB_ALLOC_PTR_GFP(loi, lov_oinfo_slab, __GFP_IO);
+		OBD_SLAB_ALLOC_PTR_GFP(loi, lov_oinfo_slab, GFP_NOFS);
 		if (loi == NULL)
 			goto err;
 		lsm->lsm_oinfo[i] = loi;
@@ -346,3 +345,14 @@ const struct lsm_operations lsm_v3_ops = {
 	.lsm_lmm_verify	 = lsm_lmm_verify_v3,
 	.lsm_unpackmd	   = lsm_unpackmd_v3,
 };
+
+void dump_lsm(unsigned int level, const struct lov_stripe_md *lsm)
+{
+	CDEBUG(level, "lsm %p, objid "DOSTID", maxbytes %#llx, magic 0x%08X,"
+	       " stripe_size %u, stripe_count %u, refc: %d,"
+	       " layout_gen %u, pool ["LOV_POOLNAMEF"]\n", lsm,
+	       POSTID(&lsm->lsm_oi), lsm->lsm_maxbytes, lsm->lsm_magic,
+	       lsm->lsm_stripe_size, lsm->lsm_stripe_count,
+	       atomic_read(&lsm->lsm_refc), lsm->lsm_layout_gen,
+	       lsm->lsm_pool_name);
+}

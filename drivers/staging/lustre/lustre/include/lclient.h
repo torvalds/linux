@@ -82,16 +82,7 @@ struct ccc_io {
 	/**
 	 * I/O vector information to or from which read/write is going.
 	 */
-	struct iovec *cui_iov;
-	unsigned long cui_nrsegs;
-	/**
-	 * Total iov count for left IO.
-	 */
-	unsigned long cui_tot_nrsegs;
-	/**
-	 * Old length for iov that was truncated partially.
-	 */
-	size_t cui_iov_olen;
+	struct iov_iter *cui_iter;
 	/**
 	 * Total size for the left IO.
 	 */
@@ -118,8 +109,8 @@ struct ccc_io {
 };
 
 /**
- * True, if \a io is a normal io, False for other (sendfile, splice*).
- * must be impementated in arch specific code.
+ * True, if \a io is a normal io, False for splice_{read,write}.
+ * must be implemented in arch specific code.
  */
 int cl_is_normalio(const struct lu_env *env, const struct cl_io *io);
 

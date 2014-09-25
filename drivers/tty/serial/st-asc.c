@@ -194,9 +194,9 @@ static inline u32 asc_txfifo_is_empty(struct uart_port *port)
 	return asc_in(port, ASC_STA) & ASC_STA_TE;
 }
 
-static inline int asc_txfifo_is_full(struct uart_port *port)
+static inline u32 asc_txfifo_is_half_empty(struct uart_port *port)
 {
-	return asc_in(port, ASC_STA) & ASC_STA_TF;
+	return asc_in(port, ASC_STA) & ASC_STA_THE;
 }
 
 static inline const char *asc_port_name(struct uart_port *port)
@@ -295,7 +295,7 @@ static void asc_receive_chars(struct uart_port *port)
 			status & ASC_STA_OE) {
 
 			if (c & ASC_RXBUF_FE) {
-				if (c == ASC_RXBUF_FE) {
+				if (c == (ASC_RXBUF_FE | ASC_RXBUF_DUMMY_RX)) {
 					port->icount.brk++;
 					if (uart_handle_break(port))
 						continue;
@@ -325,7 +325,7 @@ static void asc_receive_chars(struct uart_port *port)
 				flag = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char(port, c))
+		if (uart_handle_sysrq_char(port, c & 0xff))
 			continue;
 
 		uart_insert_char(port, c, ASC_RXBUF_DUMMY_OE, c & 0xff, flag);
@@ -409,12 +409,6 @@ static void asc_stop_tx(struct uart_port *port)
 static void asc_stop_rx(struct uart_port *port)
 {
 	asc_disable_rx_interrupts(port);
-}
-
-/* Force modem status interrupts on */
-static void asc_enable_ms(struct uart_port *port)
-{
-	/* Nothing here yet .. */
 }
 
 /* Handle breaks - ignored by us */
@@ -533,12 +527,12 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 		 * ASCBaudRate =   ------------------------
 		 *                          inputclock
 		 *
-		 * However to keep the maths inside 32bits we divide top and
-		 * bottom by 64. The +1 is to avoid a divide by zero if the
-		 * input clock rate is something unexpected.
+		 * To keep maths inside 64bits, we divide inputclock by 16.
 		 */
-		u32 counter = (baud * 16384) / ((port->uartclk / 64) + 1);
-		asc_out(port, ASC_BAUDRATE, counter);
+		u64 dividend = (u64)baud * (1 << 16);
+
+		do_div(dividend, port->uartclk / 16);
+		asc_out(port, ASC_BAUDRATE, dividend);
 		ctrl_val |= ASC_CTL_BAUDMODE;
 	}
 
@@ -547,7 +541,7 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 	ascport->port.read_status_mask = ASC_RXBUF_DUMMY_OE;
 	if (termios->c_iflag & INPCK)
 		ascport->port.read_status_mask |= ASC_RXBUF_FE | ASC_RXBUF_PE;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		ascport->port.read_status_mask |= ASC_RXBUF_DUMMY_BE;
 
 	/*
@@ -628,7 +622,7 @@ static int asc_get_poll_char(struct uart_port *port)
 
 static void asc_put_poll_char(struct uart_port *port, unsigned char c)
 {
-	while (asc_txfifo_is_full(port))
+	while (!asc_txfifo_is_half_empty(port))
 		cpu_relax();
 	asc_out(port, ASC_TXBUF, c);
 }
@@ -644,7 +638,6 @@ static struct uart_ops asc_uart_ops = {
 	.start_tx	= asc_start_tx,
 	.stop_tx	= asc_stop_tx,
 	.stop_rx	= asc_stop_rx,
-	.enable_ms	= asc_enable_ms,
 	.break_ctl	= asc_break_ctl,
 	.startup	= asc_startup,
 	.shutdown	= asc_shutdown,
@@ -783,7 +776,7 @@ static void asc_console_putchar(struct uart_port *port, int ch)
 	unsigned int timeout = 1000000;
 
 	/* Wait for upto 1 second in case flow control is stopping us. */
-	while (--timeout && asc_txfifo_is_full(port))
+	while (--timeout && !asc_txfifo_is_half_empty(port))
 		udelay(1);
 
 	asc_out(port, ASC_TXBUF, ch);
@@ -849,7 +842,8 @@ static int asc_console_setup(struct console *co, char *options)
 	 * this to be called during the uart port registration when the
 	 * driver gets probed and the port should be mapped at that point.
 	 */
-	BUG_ON(ascport->port.mapbase == 0 || ascport->port.membase == NULL);
+	if (ascport->port.mapbase == 0 || ascport->port.membase == NULL)
+		return -ENXIO;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);

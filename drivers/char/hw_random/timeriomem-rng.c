@@ -118,11 +118,10 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate memory for the device structure (and zero it) */
-	priv = kzalloc(sizeof(struct timeriomem_rng_private_data), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "failed to allocate device structure.\n");
+	priv = devm_kzalloc(&pdev->dev,
+			sizeof(struct timeriomem_rng_private_data), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, priv);
 
@@ -134,17 +133,16 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 			period = i;
 		else {
 			dev_err(&pdev->dev, "missing period\n");
-			err = -EINVAL;
-			goto out_free;
+			return -EINVAL;
 		}
-	} else
+	} else {
 		period = pdata->period;
+	}
 
 	priv->period = usecs_to_jiffies(period);
 	if (priv->period < 1) {
 		dev_err(&pdev->dev, "period is less than one jiffy\n");
-		err = -EINVAL;
-		goto out_free;
+		return -EINVAL;
 	}
 
 	priv->expires	= jiffies;
@@ -160,24 +158,16 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	priv->timeriomem_rng_ops.data_read	= timeriomem_rng_data_read;
 	priv->timeriomem_rng_ops.priv		= (unsigned long)priv;
 
-	if (!request_mem_region(res->start, resource_size(res),
-				dev_name(&pdev->dev))) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		err = -EBUSY;
+	priv->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->io_base)) {
+		err = PTR_ERR(priv->io_base);
 		goto out_timer;
-	}
-
-	priv->io_base = ioremap(res->start, resource_size(res));
-	if (priv->io_base == NULL) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		err = -EIO;
-		goto out_release_io;
 	}
 
 	err = hwrng_register(&priv->timeriomem_rng_ops);
 	if (err) {
 		dev_err(&pdev->dev, "problem registering\n");
-		goto out;
+		goto out_timer;
 	}
 
 	dev_info(&pdev->dev, "32bits from 0x%p @ %dus\n",
@@ -185,30 +175,18 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 
 	return 0;
 
-out:
-	iounmap(priv->io_base);
-out_release_io:
-	release_mem_region(res->start, resource_size(res));
 out_timer:
 	del_timer_sync(&priv->timer);
-out_free:
-	kfree(priv);
 	return err;
 }
 
 static int timeriomem_rng_remove(struct platform_device *pdev)
 {
 	struct timeriomem_rng_private_data *priv = platform_get_drvdata(pdev);
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	hwrng_unregister(&priv->timeriomem_rng_ops);
 
 	del_timer_sync(&priv->timer);
-	iounmap(priv->io_base);
-	release_mem_region(res->start, resource_size(res));
-	kfree(priv);
 
 	return 0;
 }

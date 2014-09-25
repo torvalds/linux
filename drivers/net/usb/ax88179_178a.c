@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -24,6 +23,8 @@
 #include <linux/usb.h>
 #include <linux/crc32.h>
 #include <linux/usb/usbnet.h>
+#include <uapi/linux/mdio.h>
+#include <linux/mdio.h>
 
 #define AX88179_PHY_ID				0x03
 #define AX_EEPROM_LEN				0x100
@@ -171,8 +172,12 @@
 #define GMII_PHY_PAGE_SELECT			0x1f
 	#define GMII_PHY_PGSEL_EXT	0x0007
 	#define GMII_PHY_PGSEL_PAGE0	0x0000
+	#define GMII_PHY_PGSEL_PAGE3	0x0003
+	#define GMII_PHY_PGSEL_PAGE5	0x0005
 
 struct ax88179_data {
+	u8  eee_enabled;
+	u8  eee_active;
 	u16 rxctl;
 	u16 reserved;
 };
@@ -374,6 +379,60 @@ static void ax88179_mdio_write(struct net_device *netdev, int phy_id, int loc,
 	ax88179_write_cmd(dev, AX_ACCESS_PHY, phy_id, (__u16)loc, 2, &res);
 }
 
+static inline int ax88179_phy_mmd_indirect(struct usbnet *dev, u16 prtad,
+					   u16 devad)
+{
+	u16 tmp16;
+	int ret;
+
+	tmp16 = devad;
+	ret = ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+				MII_MMD_CTRL, 2, &tmp16);
+
+	tmp16 = prtad;
+	ret = ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+				MII_MMD_DATA, 2, &tmp16);
+
+	tmp16 = devad | MII_MMD_CTRL_NOINCR;
+	ret = ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+				MII_MMD_CTRL, 2, &tmp16);
+
+	return ret;
+}
+
+static int
+ax88179_phy_read_mmd_indirect(struct usbnet *dev, u16 prtad, u16 devad)
+{
+	int ret;
+	u16 tmp16;
+
+	ax88179_phy_mmd_indirect(dev, prtad, devad);
+
+	ret = ax88179_read_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+			       MII_MMD_DATA, 2, &tmp16);
+	if (ret < 0)
+		return ret;
+
+	return tmp16;
+}
+
+static int
+ax88179_phy_write_mmd_indirect(struct usbnet *dev, u16 prtad, u16 devad,
+			       u16 data)
+{
+	int ret;
+
+	ax88179_phy_mmd_indirect(dev, prtad, devad);
+
+	ret = ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+				MII_MMD_DATA, 2, &data);
+
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int ax88179_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
@@ -573,6 +632,185 @@ static int ax88179_set_settings(struct net_device *net, struct ethtool_cmd *cmd)
 	return mii_ethtool_sset(&dev->mii, cmd);
 }
 
+static int
+ax88179_ethtool_get_eee(struct usbnet *dev, struct ethtool_eee *data)
+{
+	int val;
+
+	/* Get Supported EEE */
+	val = ax88179_phy_read_mmd_indirect(dev, MDIO_PCS_EEE_ABLE,
+					    MDIO_MMD_PCS);
+	if (val < 0)
+		return val;
+	data->supported = mmd_eee_cap_to_ethtool_sup_t(val);
+
+	/* Get advertisement EEE */
+	val = ax88179_phy_read_mmd_indirect(dev, MDIO_AN_EEE_ADV,
+					    MDIO_MMD_AN);
+	if (val < 0)
+		return val;
+	data->advertised = mmd_eee_adv_to_ethtool_adv_t(val);
+
+	/* Get LP advertisement EEE */
+	val = ax88179_phy_read_mmd_indirect(dev, MDIO_AN_EEE_LPABLE,
+					    MDIO_MMD_AN);
+	if (val < 0)
+		return val;
+	data->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(val);
+
+	return 0;
+}
+
+static int
+ax88179_ethtool_set_eee(struct usbnet *dev, struct ethtool_eee *data)
+{
+	u16 tmp16 = ethtool_adv_to_mmd_eee_adv_t(data->advertised);
+
+	return ax88179_phy_write_mmd_indirect(dev, MDIO_AN_EEE_ADV,
+					      MDIO_MMD_AN, tmp16);
+}
+
+static int ax88179_chk_eee(struct usbnet *dev)
+{
+	struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET };
+	struct ax88179_data *priv = (struct ax88179_data *)dev->data;
+
+	mii_ethtool_gset(&dev->mii, &ecmd);
+
+	if (ecmd.duplex & DUPLEX_FULL) {
+		int eee_lp, eee_cap, eee_adv;
+		u32 lp, cap, adv, supported = 0;
+
+		eee_cap = ax88179_phy_read_mmd_indirect(dev,
+							MDIO_PCS_EEE_ABLE,
+							MDIO_MMD_PCS);
+		if (eee_cap < 0) {
+			priv->eee_active = 0;
+			return false;
+		}
+
+		cap = mmd_eee_cap_to_ethtool_sup_t(eee_cap);
+		if (!cap) {
+			priv->eee_active = 0;
+			return false;
+		}
+
+		eee_lp = ax88179_phy_read_mmd_indirect(dev,
+						       MDIO_AN_EEE_LPABLE,
+						       MDIO_MMD_AN);
+		if (eee_lp < 0) {
+			priv->eee_active = 0;
+			return false;
+		}
+
+		eee_adv = ax88179_phy_read_mmd_indirect(dev,
+							MDIO_AN_EEE_ADV,
+							MDIO_MMD_AN);
+
+		if (eee_adv < 0) {
+			priv->eee_active = 0;
+			return false;
+		}
+
+		adv = mmd_eee_adv_to_ethtool_adv_t(eee_adv);
+		lp = mmd_eee_adv_to_ethtool_adv_t(eee_lp);
+		supported = (ecmd.speed == SPEED_1000) ?
+			     SUPPORTED_1000baseT_Full :
+			     SUPPORTED_100baseT_Full;
+
+		if (!(lp & adv & supported)) {
+			priv->eee_active = 0;
+			return false;
+		}
+
+		priv->eee_active = 1;
+		return true;
+	}
+
+	priv->eee_active = 0;
+	return false;
+}
+
+static void ax88179_disable_eee(struct usbnet *dev)
+{
+	u16 tmp16;
+
+	tmp16 = GMII_PHY_PGSEL_PAGE3;
+	ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+			  GMII_PHY_PAGE_SELECT, 2, &tmp16);
+
+	tmp16 = 0x3246;
+	ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+			  MII_PHYADDR, 2, &tmp16);
+
+	tmp16 = GMII_PHY_PGSEL_PAGE0;
+	ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+			  GMII_PHY_PAGE_SELECT, 2, &tmp16);
+}
+
+static void ax88179_enable_eee(struct usbnet *dev)
+{
+	u16 tmp16;
+
+	tmp16 = GMII_PHY_PGSEL_PAGE3;
+	ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+			  GMII_PHY_PAGE_SELECT, 2, &tmp16);
+
+	tmp16 = 0x3247;
+	ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+			  MII_PHYADDR, 2, &tmp16);
+
+	tmp16 = GMII_PHY_PGSEL_PAGE5;
+	ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+			  GMII_PHY_PAGE_SELECT, 2, &tmp16);
+
+	tmp16 = 0x0680;
+	ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+			  MII_BMSR, 2, &tmp16);
+
+	tmp16 = GMII_PHY_PGSEL_PAGE0;
+	ax88179_write_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+			  GMII_PHY_PAGE_SELECT, 2, &tmp16);
+}
+
+static int ax88179_get_eee(struct net_device *net, struct ethtool_eee *edata)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct ax88179_data *priv = (struct ax88179_data *)dev->data;
+
+	edata->eee_enabled = priv->eee_enabled;
+	edata->eee_active = priv->eee_active;
+
+	return ax88179_ethtool_get_eee(dev, edata);
+}
+
+static int ax88179_set_eee(struct net_device *net, struct ethtool_eee *edata)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct ax88179_data *priv = (struct ax88179_data *)dev->data;
+	int ret = -EOPNOTSUPP;
+
+	priv->eee_enabled = edata->eee_enabled;
+	if (!priv->eee_enabled) {
+		ax88179_disable_eee(dev);
+	} else {
+		priv->eee_enabled = ax88179_chk_eee(dev);
+		if (!priv->eee_enabled)
+			return -EOPNOTSUPP;
+
+		ax88179_enable_eee(dev);
+	}
+
+	ret = ax88179_ethtool_set_eee(dev, edata);
+	if (ret)
+		return ret;
+
+	mii_nway_restart(&dev->mii);
+
+	usbnet_link_change(dev, 0, 0);
+
+	return ret;
+}
 
 static int ax88179_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
 {
@@ -590,6 +828,8 @@ static const struct ethtool_ops ax88179_ethtool_ops = {
 	.get_eeprom		= ax88179_get_eeprom,
 	.get_settings		= ax88179_get_settings,
 	.set_settings		= ax88179_set_settings,
+	.get_eee		= ax88179_get_eee,
+	.set_eee		= ax88179_set_eee,
 	.nway_reset		= usbnet_nway_reset,
 };
 
@@ -981,6 +1221,7 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 	u16 *tmp16;
 	u8 *tmp;
 	struct ax88179_data *ax179_data = (struct ax88179_data *)dev->data;
+	struct ethtool_eee eee_data;
 
 	usbnet_get_endpoints(dev, intf);
 
@@ -1030,19 +1271,11 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.phy_id = 0x03;
 	dev->mii.supports_gmii = 1;
 
-	if (usb_device_no_sg_constraint(dev->udev))
-		dev->can_dma_sg = 1;
-
 	dev->net->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			      NETIF_F_RXCSUM;
 
 	dev->net->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 				 NETIF_F_RXCSUM;
-
-	if (dev->can_dma_sg) {
-		dev->net->features |= NETIF_F_SG | NETIF_F_TSO;
-		dev->net->hw_features |= NETIF_F_SG | NETIF_F_TSO;
-	}
 
 	/* Enable checksum offload */
 	*tmp = AX_RXCOE_IP | AX_RXCOE_TCP | AX_RXCOE_UDP |
@@ -1070,6 +1303,15 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 			  2, 2, tmp16);
 
 	ax88179_led_setting(dev);
+
+	ax179_data->eee_enabled = 0;
+	ax179_data->eee_active = 0;
+
+	ax88179_disable_eee(dev);
+
+	ax88179_ethtool_get_eee(dev, &eee_data);
+	eee_data.advertised = 0;
+	ax88179_ethtool_set_eee(dev, &eee_data);
 
 	/* Restart autoneg */
 	mii_nway_restart(&dev->mii);
@@ -1118,6 +1360,10 @@ static int ax88179_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	u32 rx_hdr;
 	u16 hdr_off;
 	u32 *pkt_hdr;
+
+	/* This check is no longer done by usbnet */
+	if (skb->len < dev->net->hard_header_len)
+		return 0;
 
 	skb_trim(skb, skb->len - 4);
 	memcpy(&rx_hdr, skb_tail_pointer(skb), 4);
@@ -1266,6 +1512,8 @@ static int ax88179_link_reset(struct usbnet *dev)
 	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
 			  2, 2, &mode);
 
+	ax179_data->eee_enabled = ax88179_chk_eee(dev);
+
 	netif_carrier_on(dev->net);
 
 	return 0;
@@ -1276,6 +1524,8 @@ static int ax88179_reset(struct usbnet *dev)
 	u8 buf[5];
 	u16 *tmp16;
 	u8 *tmp;
+	struct ax88179_data *ax179_data = (struct ax88179_data *)dev->data;
+	struct ethtool_eee eee_data;
 
 	tmp16 = (u16 *)buf;
 	tmp = (u8 *)buf;
@@ -1345,6 +1595,15 @@ static int ax88179_reset(struct usbnet *dev)
 
 	ax88179_led_setting(dev);
 
+	ax179_data->eee_enabled = 0;
+	ax179_data->eee_active = 0;
+
+	ax88179_disable_eee(dev);
+
+	ax88179_ethtool_get_eee(dev, &eee_data);
+	eee_data.advertised = 0;
+	ax88179_ethtool_set_eee(dev, &eee_data);
+
 	/* Restart autoneg */
 	mii_nway_restart(&dev->mii);
 
@@ -1392,6 +1651,19 @@ static const struct driver_info ax88178a_info = {
 	.tx_fixup = ax88179_tx_fixup,
 };
 
+static const struct driver_info dlink_dub1312_info = {
+	.description = "D-Link DUB-1312 USB 3.0 to Gigabit Ethernet Adapter",
+	.bind = ax88179_bind,
+	.unbind = ax88179_unbind,
+	.status = ax88179_status,
+	.link_reset = ax88179_link_reset,
+	.reset = ax88179_reset,
+	.stop = ax88179_stop,
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX,
+	.rx_fixup = ax88179_rx_fixup,
+	.tx_fixup = ax88179_tx_fixup,
+};
+
 static const struct driver_info sitecom_info = {
 	.description = "Sitecom USB 3.0 to Gigabit Adapter",
 	.bind = ax88179_bind,
@@ -1418,6 +1690,19 @@ static const struct driver_info samsung_info = {
 	.tx_fixup = ax88179_tx_fixup,
 };
 
+static const struct driver_info lenovo_info = {
+	.description = "Lenovo OneLinkDock Gigabit LAN",
+	.bind = ax88179_bind,
+	.unbind = ax88179_unbind,
+	.status = ax88179_status,
+	.link_reset = ax88179_link_reset,
+	.reset = ax88179_reset,
+	.stop = ax88179_stop,
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX,
+	.rx_fixup = ax88179_rx_fixup,
+	.tx_fixup = ax88179_tx_fixup,
+};
+
 static const struct usb_device_id products[] = {
 {
 	/* ASIX AX88179 10/100/1000 */
@@ -1428,6 +1713,10 @@ static const struct usb_device_id products[] = {
 	USB_DEVICE(0x0b95, 0x178a),
 	.driver_info = (unsigned long)&ax88178a_info,
 }, {
+	/* D-Link DUB-1312 USB 3.0 to Gigabit Ethernet Adapter */
+	USB_DEVICE(0x2001, 0x4a00),
+	.driver_info = (unsigned long)&dlink_dub1312_info,
+}, {
 	/* Sitecom USB 3.0 to Gigabit Adapter */
 	USB_DEVICE(0x0df6, 0x0072),
 	.driver_info = (unsigned long)&sitecom_info,
@@ -1435,6 +1724,10 @@ static const struct usb_device_id products[] = {
 	/* Samsung USB Ethernet Adapter */
 	USB_DEVICE(0x04e8, 0xa100),
 	.driver_info = (unsigned long)&samsung_info,
+}, {
+	/* Lenovo OneLinkDock Gigabit LAN */
+	USB_DEVICE(0x17ef, 0x304b),
+	.driver_info = (unsigned long)&lenovo_info,
 },
 	{ },
 };

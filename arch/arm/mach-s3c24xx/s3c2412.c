@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/reboot.h>
@@ -36,14 +37,11 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
-#include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
 #include <plat/devs.h>
 #include <plat/nand-core.h>
-#include <plat/pll.h>
 #include <plat/pm.h>
-#include <plat/regs-serial.h>
 #include <plat/regs-spi.h>
 
 #include "common.h"
@@ -169,53 +167,6 @@ void __init s3c2412_map_io(void)
 	/* register our io-tables */
 
 	iotable_init(s3c2412_iodesc, ARRAY_SIZE(s3c2412_iodesc));
-}
-
-void __init_or_cpufreq s3c2412_setup_clocks(void)
-{
-	struct clk *xtal_clk;
-	unsigned long tmp;
-	unsigned long xtal;
-	unsigned long fclk;
-	unsigned long hclk;
-	unsigned long pclk;
-
-	xtal_clk = clk_get(NULL, "xtal");
-	xtal = clk_get_rate(xtal_clk);
-	clk_put(xtal_clk);
-
-	/* now we've got our machine bits initialised, work out what
-	 * clocks we've got */
-
-	fclk = s3c24xx_get_pll(__raw_readl(S3C2410_MPLLCON), xtal * 2);
-
-	clk_mpll.rate = fclk;
-
-	tmp = __raw_readl(S3C2410_CLKDIVN);
-
-	/* work out clock scalings */
-
-	hclk = fclk / ((tmp & S3C2412_CLKDIVN_HDIVN_MASK) + 1);
-	hclk /= ((tmp & S3C2412_CLKDIVN_ARMDIVN) ? 2 : 1);
-	pclk = hclk / ((tmp & S3C2412_CLKDIVN_PDIVN) ? 2 : 1);
-
-	/* print brieft summary of clocks, etc */
-
-	printk("S3C2412: core %ld.%03ld MHz, memory %ld.%03ld MHz, peripheral %ld.%03ld MHz\n",
-	       print_mhz(fclk), print_mhz(hclk), print_mhz(pclk));
-
-	s3c24xx_setup_clocks(fclk, hclk, pclk);
-}
-
-void __init s3c2412_init_clocks(int xtal)
-{
-	/* initialise the clocks here, to allow other things like the
-	 * console to use them
-	 */
-
-	s3c24xx_register_baseclocks(xtal);
-	s3c2412_setup_clocks();
-	s3c2412_baseclk_add();
 }
 
 /* need to register the subsystem before we actually register the device, and

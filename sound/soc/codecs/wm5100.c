@@ -14,6 +14,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/pm.h>
 #include <linux/gcd.h>
 #include <linux/gpio.h>
@@ -389,7 +390,7 @@ static int wm5100_mixer_values[] = {
 
 #define WM5100_MUX_CTL_DECL(name) \
 	const struct snd_kcontrol_new name##_mux =	\
-		SOC_DAPM_VALUE_ENUM("Route", name##_enum)
+		SOC_DAPM_ENUM("Route", name##_enum)
 
 #define WM5100_MIXER_ENUMS(name, base_reg) \
 	static WM5100_MUX_ENUM_DECL(name##_in1_enum, base_reg);	     \
@@ -447,7 +448,7 @@ WM5100_MIXER_ENUMS(LHPF3, WM5100_HPLP3MIX_INPUT_1_SOURCE);
 WM5100_MIXER_ENUMS(LHPF4, WM5100_HPLP4MIX_INPUT_1_SOURCE);
 
 #define WM5100_MUX(name, ctrl) \
-	SND_SOC_DAPM_VALUE_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
 
 #define WM5100_MIXER_WIDGETS(name, name_str)	\
 	WM5100_MUX(name_str " Input 1", &name##_in1_mux), \
@@ -505,21 +506,21 @@ static const char *wm5100_lhpf_mode_text[] = {
 	"Low-pass", "High-pass"
 };
 
-static const struct soc_enum wm5100_lhpf1_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF1_1, WM5100_LHPF1_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf1_mode,
+			    WM5100_HPLPF1_1, WM5100_LHPF1_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
-static const struct soc_enum wm5100_lhpf2_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF2_1, WM5100_LHPF2_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf2_mode,
+			    WM5100_HPLPF2_1, WM5100_LHPF2_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
-static const struct soc_enum wm5100_lhpf3_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF3_1, WM5100_LHPF3_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf3_mode,
+			    WM5100_HPLPF3_1, WM5100_LHPF3_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
-static const struct soc_enum wm5100_lhpf4_mode =
-	SOC_ENUM_SINGLE(WM5100_HPLPF4_1, WM5100_LHPF4_MODE_SHIFT, 2,
-			wm5100_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm5100_lhpf4_mode,
+			    WM5100_HPLPF4_1, WM5100_LHPF4_MODE_SHIFT,
+			    wm5100_lhpf_mode_text);
 
 static const struct snd_kcontrol_new wm5100_snd_controls[] = {
 SOC_SINGLE("IN1 High Performance Switch", WM5100_IN1L_CONTROL,
@@ -734,8 +735,7 @@ WM5100_MIXER_CONTROLS("LHPF4", WM5100_HPLP4MIX_INPUT_1_SOURCE),
 static void wm5100_seq_notifier(struct snd_soc_dapm_context *dapm,
 				enum snd_soc_dapm_type event, int subseq)
 {
-	struct snd_soc_codec *codec = container_of(dapm,
-						   struct snd_soc_codec, dapm);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
 	u16 val, expect, i;
 
@@ -2099,6 +2099,7 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 {
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	if (jack) {
 		wm5100->jack = jack;
@@ -2116,9 +2117,14 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 				    WM5100_ACCDET_RATE_MASK);
 
 		/* We need the charge pump to power MICBIAS */
-		snd_soc_dapm_force_enable_pin(&codec->dapm, "CP2");
-		snd_soc_dapm_force_enable_pin(&codec->dapm, "SYSCLK");
-		snd_soc_dapm_sync(&codec->dapm);
+		snd_soc_dapm_mutex_lock(dapm);
+
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "CP2");
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "SYSCLK");
+
+		snd_soc_dapm_sync_unlocked(dapm);
+
+		snd_soc_dapm_mutex_unlock(dapm);
 
 		/* We start off just enabling microphone detection - even a
 		 * plain headphone will trigger detection.
@@ -2141,6 +2147,7 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wm5100_detect);
 
 static irqreturn_t wm5100_irq(int irq, void *data)
 {
@@ -2335,13 +2342,6 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 	int ret, i;
 
 	wm5100->codec = codec;
-	codec->control_data = wm5100->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(wm5100_dig_vu); i++)
 		snd_soc_update_bits(codec, wm5100_dig_vu[i], WM5100_OUT_VU,

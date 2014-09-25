@@ -17,7 +17,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
-#include "ipu-v3/imx-ipu-v3.h"
+#include "video/imx-ipu-v3.h"
 #include "ipuv3-plane.h"
 
 #define to_ipu_plane(x)	container_of(x, struct ipu_plane, base)
@@ -68,12 +68,12 @@ int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	if (!cma_obj) {
-		DRM_LOG_KMS("entry is null.\n");
+		DRM_DEBUG_KMS("entry is null.\n");
 		return -EFAULT;
 	}
 
-	dev_dbg(ipu_plane->base.dev->dev, "phys = 0x%x, x = %d, y = %d",
-		cma_obj->paddr, x, y);
+	dev_dbg(ipu_plane->base.dev->dev, "phys = %pad, x = %d, y = %d",
+		&cma_obj->paddr, x, y);
 
 	cpmem = ipu_get_cpmem(ipu_plane->ipu_ch);
 	ipu_cpmem_set_stride(cpmem, fb->pitches[0]);
@@ -239,6 +239,8 @@ err_out:
 
 void ipu_plane_enable(struct ipu_plane *ipu_plane)
 {
+	if (ipu_plane->dp)
+		ipu_dp_enable(ipu_plane->ipu);
 	ipu_dmfc_enable_channel(ipu_plane->dmfc);
 	ipu_idmac_enable_channel(ipu_plane->ipu_ch);
 	if (ipu_plane->dp)
@@ -257,6 +259,8 @@ void ipu_plane_disable(struct ipu_plane *ipu_plane)
 		ipu_dp_disable_channel(ipu_plane->dp);
 	ipu_idmac_disable_channel(ipu_plane->ipu_ch);
 	ipu_dmfc_disable_channel(ipu_plane->dmfc);
+	if (ipu_plane->dp)
+		ipu_dp_disable(ipu_plane->ipu);
 }
 
 static void ipu_plane_dpms(struct ipu_plane *ipu_plane, int mode)
@@ -277,7 +281,8 @@ static void ipu_plane_dpms(struct ipu_plane *ipu_plane, int mode)
 
 		ipu_idmac_put(ipu_plane->ipu_ch);
 		ipu_dmfc_put(ipu_plane->dmfc);
-		ipu_dp_put(ipu_plane->dp);
+		if (ipu_plane->dp)
+			ipu_dp_put(ipu_plane->dp);
 	}
 }
 

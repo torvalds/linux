@@ -51,8 +51,8 @@ static inline int restore_fp_ctl(u32 *fpc)
 		return 0;
 
 	asm volatile(
-		"0:	lfpc    %1\n"
-		"	la	%0,0\n"
+		"	lfpc    %1\n"
+		"0:	la	%0,0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
 		: "=d" (rc) : "Q" (*fpc), "0" (-EINVAL));
@@ -132,10 +132,6 @@ static inline void restore_access_regs(unsigned int *acrs)
 		update_cr_regs(next);					\
 	}								\
 	prev = __switch_to(prev,next);					\
-} while (0)
-
-#define finish_arch_switch(prev) do {					     \
-	set_fs(current->thread.mm_segment);				     \
 } while (0)
 
 #endif /* __ASM_SWITCH_TO_H */

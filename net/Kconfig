@@ -89,8 +89,12 @@ config NETWORK_SECMARK
 	  to nfmark, but designated for security purposes.
 	  If you are unsure how to answer this question, answer N.
 
+config NET_PTP_CLASSIFY
+	def_bool n
+
 config NETWORK_PHY_TIMESTAMPING
 	bool "Timestamping in PHY devices"
+	select NET_PTP_CLASSIFY
 	help
 	  This allows timestamping of network packets by PHYs with
 	  hardware timestamping capabilities. This option adds some
@@ -210,6 +214,7 @@ source "drivers/net/appletalk/Kconfig"
 source "net/x25/Kconfig"
 source "net/lapb/Kconfig"
 source "net/phonet/Kconfig"
+source "net/6lowpan/Kconfig"
 source "net/ieee802154/Kconfig"
 source "net/mac802154/Kconfig"
 source "net/sched/Kconfig"
@@ -238,12 +243,19 @@ config XPS
 	depends on SMP
 	default y
 
-config NETPRIO_CGROUP
-	tristate "Network priority cgroup"
+config CGROUP_NET_PRIO
+	bool "Network priority cgroup"
 	depends on CGROUPS
 	---help---
 	  Cgroup subsystem for use in assigning processes to network priorities on
-	  a per-interface basis
+	  a per-interface basis.
+
+config CGROUP_NET_CLASSID
+	boolean "Network classid cgroup"
+	depends on CGROUPS
+	---help---
+	  Cgroup subsystem for use as general purpose socket classid marker that is
+	  being used in cls_cgroup and for netfilter matching.
 
 config NET_RX_BUSY_POLL
 	boolean

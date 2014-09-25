@@ -49,8 +49,8 @@ static inline void set_bit(unsigned nr, volatile unsigned long *addr)
  * restricted to acting on a single-word quantity.
  *
  * clear_bit() may not contain a memory barrier, so if it is used for
- * locking purposes, you should call smp_mb__before_clear_bit() and/or
- * smp_mb__after_clear_bit() to ensure changes are visible on other cpus.
+ * locking purposes, you should call smp_mb__before_atomic() and/or
+ * smp_mb__after_atomic() to ensure changes are visible on other cpus.
  */
 static inline void clear_bit(unsigned nr, volatile unsigned long *addr)
 {
@@ -120,10 +120,6 @@ static inline int test_and_change_bit(unsigned nr,
 	smp_mb();  /* barrier for proper semantics */
 	return (_atomic_xor(addr, mask) & mask) != 0;
 }
-
-/* See discussion at smp_mb__before_atomic_dec() in <asm/atomic_32.h>. */
-#define smp_mb__before_clear_bit()	smp_mb()
-#define smp_mb__after_clear_bit()	do {} while (0)
 
 #include <asm-generic/bitops/ext2-atomic.h>
 

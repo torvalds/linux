@@ -40,6 +40,7 @@ struct vb2_dma_sg_buf {
 	unsigned int			num_pages;
 	atomic_t			refcount;
 	struct vb2_vmarea_handler	handler;
+	struct vm_area_struct		*vma;
 };
 
 static void vb2_dma_sg_put(void *buf_priv);
@@ -112,7 +113,7 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_fla
 		goto fail_pages_alloc;
 
 	ret = sg_alloc_table_from_pages(&buf->sg_table, buf->pages,
-			buf->num_pages, 0, size, gfp_flags);
+			buf->num_pages, 0, size, GFP_KERNEL);
 	if (ret)
 		goto fail_table_alloc;
 
@@ -155,12 +156,18 @@ static void vb2_dma_sg_put(void *buf_priv)
 	}
 }
 
+static inline int vma_is_io(struct vm_area_struct *vma)
+{
+	return !!(vma->vm_flags & (VM_IO | VM_PFNMAP));
+}
+
 static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 				    unsigned long size, int write)
 {
 	struct vb2_dma_sg_buf *buf;
 	unsigned long first, last;
 	int num_pages_from_user;
+	struct vm_area_struct *vma;
 
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
@@ -180,7 +187,38 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	if (!buf->pages)
 		goto userptr_fail_alloc_pages;
 
-	num_pages_from_user = get_user_pages(current, current->mm,
+	vma = find_vma(current->mm, vaddr);
+	if (!vma) {
+		dprintk(1, "no vma for address %lu\n", vaddr);
+		goto userptr_fail_find_vma;
+	}
+
+	if (vma->vm_end < vaddr + size) {
+		dprintk(1, "vma at %lu is too small for %lu bytes\n",
+			vaddr, size);
+		goto userptr_fail_find_vma;
+	}
+
+	buf->vma = vb2_get_vma(vma);
+	if (!buf->vma) {
+		dprintk(1, "failed to copy vma\n");
+		goto userptr_fail_find_vma;
+	}
+
+	if (vma_is_io(buf->vma)) {
+		for (num_pages_from_user = 0;
+		     num_pages_from_user < buf->num_pages;
+		     ++num_pages_from_user, vaddr += PAGE_SIZE) {
+			unsigned long pfn;
+
+			if (follow_pfn(vma, vaddr, &pfn)) {
+				dprintk(1, "no page for address %lu\n", vaddr);
+				break;
+			}
+			buf->pages[num_pages_from_user] = pfn_to_page(pfn);
+		}
+	} else
+		num_pages_from_user = get_user_pages(current, current->mm,
 					     vaddr & PAGE_MASK,
 					     buf->num_pages,
 					     write,
@@ -200,9 +238,12 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 userptr_fail_alloc_table_from_pages:
 userptr_fail_get_user_pages:
 	dprintk(1, "get_user_pages requested/got: %d/%d]\n",
-	       num_pages_from_user, buf->num_pages);
-	while (--num_pages_from_user >= 0)
-		put_page(buf->pages[num_pages_from_user]);
+		buf->num_pages, num_pages_from_user);
+	if (!vma_is_io(buf->vma))
+		while (--num_pages_from_user >= 0)
+			put_page(buf->pages[num_pages_from_user]);
+	vb2_put_vma(buf->vma);
+userptr_fail_find_vma:
 	kfree(buf->pages);
 userptr_fail_alloc_pages:
 	kfree(buf);
@@ -226,9 +267,11 @@ static void vb2_dma_sg_put_userptr(void *buf_priv)
 	while (--i >= 0) {
 		if (buf->write)
 			set_page_dirty_lock(buf->pages[i]);
-		put_page(buf->pages[i]);
+		if (!vma_is_io(buf->vma))
+			put_page(buf->pages[i]);
 	}
 	kfree(buf->pages);
+	vb2_put_vma(buf->vma);
 	kfree(buf);
 }
 

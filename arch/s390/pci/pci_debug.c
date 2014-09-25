@@ -5,8 +5,8 @@
  *    Jan Glauber <jang@linux.vnet.ibm.com>
  */
 
-#define COMPONENT "zPCI"
-#define pr_fmt(fmt) COMPONENT ": " fmt
+#define KMSG_COMPONENT "zpci"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/seq_file.h>
@@ -139,7 +139,7 @@ void zpci_debug_exit_device(struct zpci_dev *zdev)
 int __init zpci_debug_init(void)
 {
 	/* event trace buffer */
-	pci_debug_msg_id = debug_register("pci_msg", 16, 1, 16 * sizeof(long));
+	pci_debug_msg_id = debug_register("pci_msg", 8, 1, 8 * sizeof(long));
 	if (!pci_debug_msg_id)
 		return -EINVAL;
 	debug_register_view(pci_debug_msg_id, &debug_sprintf_view);

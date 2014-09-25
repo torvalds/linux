@@ -23,11 +23,10 @@ This document describes the Linux kernel Makefiles.
 	=== 4 Host Program support
 	   --- 4.1 Simple Host Program
 	   --- 4.2 Composite Host Programs
-	   --- 4.3 Defining shared libraries
-	   --- 4.4 Using C++ for host programs
-	   --- 4.5 Controlling compiler options for host programs
-	   --- 4.6 When host programs are actually built
-	   --- 4.7 Using hostprogs-$(CONFIG_FOO)
+	   --- 4.3 Using C++ for host programs
+	   --- 4.4 Controlling compiler options for host programs
+	   --- 4.5 When host programs are actually built
+	   --- 4.6 Using hostprogs-$(CONFIG_FOO)
 
 	=== 5 Kbuild clean infrastructure
 
@@ -643,29 +642,7 @@ Both possibilities are described in the following.
 	Finally, the two .o files are linked to the executable, lxdialog.
 	Note: The syntax <executable>-y is not permitted for host-programs.
 
---- 4.3 Defining shared libraries
-
-	Objects with extension .so are considered shared libraries, and
-	will be compiled as position independent objects.
-	Kbuild provides support for shared libraries, but the usage
-	shall be restricted.
-	In the following example the libkconfig.so shared library is used
-	to link the executable conf.
-
-	Example:
-		#scripts/kconfig/Makefile
-		hostprogs-y     := conf
-		conf-objs       := conf.o libkconfig.so
-		libkconfig-objs := expr.o type.o
-
-	Shared libraries always require a corresponding -objs line, and
-	in the example above the shared library libkconfig is composed by
-	the two objects expr.o and type.o.
-	expr.o and type.o will be built as position independent code and
-	linked as a shared library libkconfig.so. C++ is not supported for
-	shared libraries.
-
---- 4.4 Using C++ for host programs
+--- 4.3 Using C++ for host programs
 
 	kbuild offers support for host programs written in C++. This was
 	introduced solely to support kconfig, and is not recommended
@@ -688,7 +665,7 @@ Both possibilities are described in the following.
 		qconf-cxxobjs := qconf.o
 		qconf-objs    := check.o
 
---- 4.5 Controlling compiler options for host programs
+--- 4.4 Controlling compiler options for host programs
 
 	When compiling host programs, it is possible to set specific flags.
 	The programs will always be compiled utilising $(HOSTCC) passed
@@ -716,7 +693,7 @@ Both possibilities are described in the following.
 	When linking qconf, it will be passed the extra option
 	"-L$(QTDIR)/lib".
 
---- 4.6 When host programs are actually built
+--- 4.5 When host programs are actually built
 
 	Kbuild will only build host-programs when they are referenced
 	as a prerequisite.
@@ -747,7 +724,7 @@ Both possibilities are described in the following.
 	This will tell kbuild to build lxdialog even if not referenced in
 	any rule.
 
---- 4.7 Using hostprogs-$(CONFIG_FOO)
+--- 4.6 Using hostprogs-$(CONFIG_FOO)
 
 	A typical pattern in a Kbuild file looks like this:
 
@@ -1171,7 +1148,7 @@ When kbuild executes, the following steps are followed (roughly):
 	      obvious reason.
 
     dtc
-	Create flattend device tree blob object suitable for linking
+	Create flattened device tree blob object suitable for linking
 	into vmlinux. Device tree blobs linked into vmlinux are placed
 	in an init section in the image. Platform code *must* copy the
 	blob to non-init memory prior to calling unflatten_device_tree().

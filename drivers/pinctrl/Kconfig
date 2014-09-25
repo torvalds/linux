@@ -11,10 +11,10 @@ menu "Pin controllers"
 	depends on PINCTRL
 
 config PINMUX
-	bool "Support pin multiplexing controllers"
+	bool "Support pin multiplexing controllers" if COMPILE_TEST
 
 config PINCONF
-	bool "Support pin configuration controllers"
+	bool "Support pin configuration controllers" if COMPILE_TEST
 
 config GENERIC_PINCONF
 	bool
@@ -25,29 +25,6 @@ config DEBUG_PINCTRL
 	depends on DEBUG_KERNEL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
-
-config PINCTRL_ABX500
-	bool "ST-Ericsson ABx500 family Mixed Signal Circuit gpio functions"
-	depends on AB8500_CORE
-	select GENERIC_PINCONF
-	help
-	  Select this to enable the ABx500 family IC GPIO driver
-
-config PINCTRL_AB8500
-	bool "AB8500 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
-
-config PINCTRL_AB8540
-	bool "AB8540 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
-
-config PINCTRL_AB9540
-	bool "AB9540 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
-
-config PINCTRL_AB8505
-	bool "AB8505 pin controller driver"
-	depends on PINCTRL_ABX500 && ARCH_U8500
 
 config PINCTRL_ADI2
 	bool "ADI pin controller driver"
@@ -84,13 +61,16 @@ config PINCTRL_AT91
 	depends on ARCH_AT91
 	select PINMUX
 	select PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to enable the at91 pinctrl driver
 
 config PINCTRL_BAYTRAIL
 	bool "Intel Baytrail GPIO pin control"
 	depends on GPIOLIB && ACPI && X86
-	select IRQ_DOMAIN
+	select GPIOLIB_IRQCHIP
 	help
 	  driver for memory mapped GPIO functionality on Intel Baytrail
 	  platforms. Supports 3 banks with 102, 28 and 44 gpios.
@@ -104,16 +84,16 @@ config PINCTRL_BCM2835
 	select PINMUX
 	select PINCONF
 
-config PINCTRL_CAPRI
-	bool "Broadcom Capri pinctrl driver"
+config PINCTRL_BCM281XX
+	bool "Broadcom BCM281xx pinctrl driver"
 	depends on OF
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
 	select REGMAP_MMIO
 	help
-	  Say Y here to support Broadcom Capri pinctrl driver, which is used for
-	  the BCM281xx SoC family, including BCM11130, BCM11140, BCM11351,
+	  Say Y here to support Broadcom BCM281xx pinctrl driver, which is used
+	  for the BCM281xx SoC family, including BCM11130, BCM11140, BCM11351,
 	  BCM28145, and BCM28155 SoCs.  This driver requires the pinctrl
 	  framework.  GPIO is provided by a separate GPIO driver.
 
@@ -126,6 +106,13 @@ config PINCTRL_IMX1_CORE
 	bool
 	select PINMUX
 	select PINCONF
+
+config PINCTRL_IMX1
+	bool "IMX1 pinctrl driver"
+	depends on SOC_IMX1
+	select PINCTRL_IMX1_CORE
+	help
+	  Say Y here to enable the imx1 pinctrl driver
 
 config PINCTRL_IMX27
 	bool "IMX27 pinctrl driver"
@@ -185,6 +172,13 @@ config PINCTRL_IMX6SL
 	help
 	  Say Y here to enable the imx6sl pinctrl driver
 
+config PINCTRL_IMX6SX
+	bool "IMX6SX pinctrl driver"
+	depends on SOC_IMX6SX
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx6sx pinctrl driver
+
 config PINCTRL_VF610
 	bool "Freescale Vybrid VF610 pinctrl driver"
 	depends on SOC_VF610
@@ -216,43 +210,12 @@ config PINCTRL_IMX28
 	bool
 	select PINCTRL_MXS
 
-config PINCTRL_MSM
-	tristate
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
-
-config PINCTRL_MSM8X74
-	tristate "Qualcomm 8x74 pin controller driver"
-	depends on GPIOLIB && OF && OF_IRQ
-	select PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm 8974 platform.
-
-config PINCTRL_NOMADIK
-	bool "Nomadik pin controller driver"
-	depends on ARCH_U8500 || ARCH_NOMADIK
-	select PINMUX
-	select PINCONF
-
-config PINCTRL_STN8815
-	bool "STN8815 pin controller driver"
-	depends on PINCTRL_NOMADIK && ARCH_NOMADIK
-
-config PINCTRL_DB8500
-	bool "DB8500 pin controller driver"
-	depends on PINCTRL_NOMADIK && ARCH_U8500
-
-config PINCTRL_DB8540
-	bool "DB8540 pin controller driver"
-	depends on PINCTRL_NOMADIK && ARCH_U8500
-
 config PINCTRL_ROCKCHIP
 	bool
 	select PINMUX
 	select GENERIC_PINCONF
 	select GENERIC_IRQ_CHIP
+	select MFD_SYSCON
 
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
@@ -267,17 +230,14 @@ config PINCTRL_SIRF
 	bool "CSR SiRFprimaII/SiRFmarco pin controller driver"
 	depends on ARCH_SIRF
 	select PINMUX
-
-config PINCTRL_SUNXI
-	bool
-	select PINMUX
-	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
 
 config PINCTRL_ST
 	bool
 	depends on OF
 	select PINMUX
 	select PINCONF
+	select GPIOLIB_IRQCHIP
 
 config PINCTRL_TEGRA
 	bool
@@ -300,6 +260,12 @@ config PINCTRL_TEGRA124
 	bool
 	select PINCTRL_TEGRA
 
+config PINCTRL_TEGRA_XUSB
+	def_bool y if ARCH_TEGRA
+	select GENERIC_PHY
+	select PINCONF
+	select PINMUX
+
 config PINCTRL_TZ1090
 	bool "Toumaz Xenif TZ1090 pin control driver"
 	depends on SOC_TZ1090
@@ -321,27 +287,12 @@ config PINCTRL_U300
 config PINCTRL_COH901
 	bool "ST-Ericsson U300 COH 901 335/571 GPIO"
 	depends on GPIOLIB && ARCH_U300 && PINCTRL_U300
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support GPIO interface on ST-Ericsson U300.
 	  The names of the two IP block variants supported are
 	  COH 901 335 and COH 901 571/3. They contain 3, 5 or 7
 	  ports of 8 GPIO pins each.
-
-config PINCTRL_SAMSUNG
-	bool
-	select PINMUX
-	select PINCONF
-
-config PINCTRL_EXYNOS
-	bool "Pinctrl driver data for Samsung EXYNOS SoCs other than 5440"
-	depends on OF && GPIOLIB && (ARCH_EXYNOS || ARCH_S5PV210)
-	select PINCTRL_SAMSUNG
-
-config PINCTRL_EXYNOS5440
-	bool "Samsung EXYNOS5440 SoC pinctrl driver"
-	depends on SOC_EXYNOS5440
-	select PINMUX
-	select PINCONF
 
 config PINCTRL_PALMAS
 	bool "Pinctrl driver for the PALMAS Series MFD devices"
@@ -354,19 +305,14 @@ config PINCTRL_PALMAS
 	  open drain configuration for the Palmas series devices like
 	  TPS65913, TPS80036 etc.
 
-config PINCTRL_S3C24XX
-	bool "Samsung S3C24XX SoC pinctrl driver"
-	depends on ARCH_S3C24XX
-	select PINCTRL_SAMSUNG
-
-config PINCTRL_S3C64XX
-	bool "Samsung S3C64XX SoC pinctrl driver"
-	depends on ARCH_S3C64XX
-	select PINCTRL_SAMSUNG
-
+source "drivers/pinctrl/berlin/Kconfig"
 source "drivers/pinctrl/mvebu/Kconfig"
+source "drivers/pinctrl/nomadik/Kconfig"
+source "drivers/pinctrl/qcom/Kconfig"
+source "drivers/pinctrl/samsung/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
+source "drivers/pinctrl/sunxi/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
 
 config PINCTRL_XWAY

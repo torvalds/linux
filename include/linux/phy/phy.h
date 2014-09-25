@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 
 struct phy;
 
@@ -65,6 +66,7 @@ struct phy {
 	int			init_count;
 	int			power_count;
 	struct phy_attrs	attrs;
+	struct regulator	*pwr;
 };
 
 /**
@@ -146,14 +148,20 @@ static inline void phy_set_bus_width(struct phy *phy, int bus_width)
 	phy->attrs.bus_width = bus_width;
 }
 struct phy *phy_get(struct device *dev, const char *string);
+struct phy *phy_optional_get(struct device *dev, const char *string);
 struct phy *devm_phy_get(struct device *dev, const char *string);
+struct phy *devm_phy_optional_get(struct device *dev, const char *string);
+struct phy *devm_of_phy_get(struct device *dev, struct device_node *np,
+			    const char *con_id);
 void phy_put(struct phy *phy);
 void devm_phy_put(struct device *dev, struct phy *phy);
+struct phy *of_phy_get(struct device_node *np, const char *con_id);
 struct phy *of_phy_simple_xlate(struct device *dev,
 	struct of_phandle_args *args);
-struct phy *phy_create(struct device *dev, const struct phy_ops *ops,
-	struct phy_init_data *init_data);
-struct phy *devm_phy_create(struct device *dev,
+struct phy *phy_create(struct device *dev, struct device_node *node,
+		       const struct phy_ops *ops,
+		       struct phy_init_data *init_data);
+struct phy *devm_phy_create(struct device *dev, struct device_node *node,
 	const struct phy_ops *ops, struct phy_init_data *init_data);
 void phy_destroy(struct phy *phy);
 void devm_phy_destroy(struct device *dev, struct phy *phy);
@@ -169,21 +177,29 @@ void devm_of_phy_provider_unregister(struct device *dev,
 #else
 static inline int phy_pm_runtime_get(struct phy *phy)
 {
+	if (!phy)
+		return 0;
 	return -ENOSYS;
 }
 
 static inline int phy_pm_runtime_get_sync(struct phy *phy)
 {
+	if (!phy)
+		return 0;
 	return -ENOSYS;
 }
 
 static inline int phy_pm_runtime_put(struct phy *phy)
 {
+	if (!phy)
+		return 0;
 	return -ENOSYS;
 }
 
 static inline int phy_pm_runtime_put_sync(struct phy *phy)
 {
+	if (!phy)
+		return 0;
 	return -ENOSYS;
 }
 
@@ -199,21 +215,29 @@ static inline void phy_pm_runtime_forbid(struct phy *phy)
 
 static inline int phy_init(struct phy *phy)
 {
+	if (!phy)
+		return 0;
 	return -ENOSYS;
 }
 
 static inline int phy_exit(struct phy *phy)
 {
+	if (!phy)
+		return 0;
 	return -ENOSYS;
 }
 
 static inline int phy_power_on(struct phy *phy)
 {
+	if (!phy)
+		return 0;
 	return -ENOSYS;
 }
 
 static inline int phy_power_off(struct phy *phy)
 {
+	if (!phy)
+		return 0;
 	return -ENOSYS;
 }
 
@@ -232,7 +256,26 @@ static inline struct phy *phy_get(struct device *dev, const char *string)
 	return ERR_PTR(-ENOSYS);
 }
 
+static inline struct phy *phy_optional_get(struct device *dev,
+					   const char *string)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
 static inline struct phy *devm_phy_get(struct device *dev, const char *string)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline struct phy *devm_phy_optional_get(struct device *dev,
+						const char *string)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline struct phy *devm_of_phy_get(struct device *dev,
+					  struct device_node *np,
+					  const char *con_id)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -245,6 +288,11 @@ static inline void devm_phy_put(struct device *dev, struct phy *phy)
 {
 }
 
+static inline struct phy *of_phy_get(struct device_node *np, const char *con_id)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
 static inline struct phy *of_phy_simple_xlate(struct device *dev,
 	struct of_phandle_args *args)
 {
@@ -252,13 +300,17 @@ static inline struct phy *of_phy_simple_xlate(struct device *dev,
 }
 
 static inline struct phy *phy_create(struct device *dev,
-	const struct phy_ops *ops, struct phy_init_data *init_data)
+				     struct device_node *node,
+				     const struct phy_ops *ops,
+				     struct phy_init_data *init_data)
 {
 	return ERR_PTR(-ENOSYS);
 }
 
 static inline struct phy *devm_phy_create(struct device *dev,
-	const struct phy_ops *ops, struct phy_init_data *init_data)
+					  struct device_node *node,
+					  const struct phy_ops *ops,
+					  struct phy_init_data *init_data)
 {
 	return ERR_PTR(-ENOSYS);
 }

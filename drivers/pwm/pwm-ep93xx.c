@@ -224,7 +224,7 @@ static struct platform_driver ep93xx_pwm_driver = {
 module_platform_driver(ep93xx_pwm_driver);
 
 MODULE_DESCRIPTION("Cirrus Logic EP93xx PWM driver");
-MODULE_AUTHOR("Matthieu Crapet <mcrapet@gmail.com>, "
-	      "H Hartley Sweeten <hsweeten@visionengravers.com>");
+MODULE_AUTHOR("Matthieu Crapet <mcrapet@gmail.com>");
+MODULE_AUTHOR("H Hartley Sweeten <hsweeten@visionengravers.com>");
 MODULE_ALIAS("platform:ep93xx-pwm");
 MODULE_LICENSE("GPL");

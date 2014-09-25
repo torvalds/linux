@@ -37,6 +37,9 @@
 #include <linux/mlx5/driver.h>
 
 #define MLX5_INVALID_LKEY	0x100
+#define MLX5_SIG_WQE_SIZE	(MLX5_SEND_WQE_BB * 5)
+#define MLX5_DIF_SIZE		8
+#define MLX5_STRIDE_BLOCK_OP	0x400
 
 enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_ALT_ADDR_PATH		= 1 << 0,
@@ -143,12 +146,18 @@ enum {
 
 enum {
 	MLX5_QP_LAT_SENSITIVE	= 1 << 28,
+	MLX5_QP_BLOCK_MCAST	= 1 << 30,
 	MLX5_QP_ENABLE_SIG	= 1 << 31,
 };
 
 enum {
 	MLX5_RCV_DBR	= 0,
 	MLX5_SND_DBR	= 1,
+};
+
+enum {
+	MLX5_FLAGS_INLINE	= 1<<7,
+	MLX5_FLAGS_CHECK_FREE   = 1<<5,
 };
 
 struct mlx5_wqe_fmr_seg {
@@ -276,6 +285,60 @@ struct mlx5_wqe_signature_seg {
 
 struct mlx5_wqe_inline_seg {
 	__be32	byte_count;
+};
+
+struct mlx5_bsf {
+	struct mlx5_bsf_basic {
+		u8		bsf_size_sbs;
+		u8		check_byte_mask;
+		union {
+			u8	copy_byte_mask;
+			u8	bs_selector;
+			u8	rsvd_wflags;
+		} wire;
+		union {
+			u8	bs_selector;
+			u8	rsvd_mflags;
+		} mem;
+		__be32		raw_data_size;
+		__be32		w_bfs_psv;
+		__be32		m_bfs_psv;
+	} basic;
+	struct mlx5_bsf_ext {
+		__be32		t_init_gen_pro_size;
+		__be32		rsvd_epi_size;
+		__be32		w_tfs_psv;
+		__be32		m_tfs_psv;
+	} ext;
+	struct mlx5_bsf_inl {
+		__be32		w_inl_vld;
+		__be32		w_rsvd;
+		__be64		w_block_format;
+		__be32		m_inl_vld;
+		__be32		m_rsvd;
+		__be64		m_block_format;
+	} inl;
+};
+
+struct mlx5_klm {
+	__be32		bcount;
+	__be32		key;
+	__be64		va;
+};
+
+struct mlx5_stride_block_entry {
+	__be16		stride;
+	__be16		bcount;
+	__be32		key;
+	__be64		va;
+};
+
+struct mlx5_stride_block_ctrl_seg {
+	__be32		bcount_per_cycle;
+	__be32		op;
+	__be32		repeat_count;
+	u16		rsvd;
+	__be16		num_entries;
 };
 
 struct mlx5_core_qp {
@@ -444,6 +507,11 @@ static inline struct mlx5_core_qp *__mlx5_qp_lookup(struct mlx5_core_dev *dev, u
 	return radix_tree_lookup(&dev->priv.qp_table.tree, qpn);
 }
 
+static inline struct mlx5_core_mr *__mlx5_mr_lookup(struct mlx5_core_dev *dev, u32 key)
+{
+	return radix_tree_lookup(&dev->priv.mr_table.tree, key);
+}
+
 int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 			struct mlx5_core_qp *qp,
 			struct mlx5_create_qp_mbox_in *in,
@@ -463,5 +531,50 @@ void mlx5_init_qp_table(struct mlx5_core_dev *dev);
 void mlx5_cleanup_qp_table(struct mlx5_core_dev *dev);
 int mlx5_debug_qp_add(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
 void mlx5_debug_qp_remove(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
+
+static inline const char *mlx5_qp_type_str(int type)
+{
+	switch (type) {
+	case MLX5_QP_ST_RC: return "RC";
+	case MLX5_QP_ST_UC: return "C";
+	case MLX5_QP_ST_UD: return "UD";
+	case MLX5_QP_ST_XRC: return "XRC";
+	case MLX5_QP_ST_MLX: return "MLX";
+	case MLX5_QP_ST_QP0: return "QP0";
+	case MLX5_QP_ST_QP1: return "QP1";
+	case MLX5_QP_ST_RAW_ETHERTYPE: return "RAW_ETHERTYPE";
+	case MLX5_QP_ST_RAW_IPV6: return "RAW_IPV6";
+	case MLX5_QP_ST_SNIFFER: return "SNIFFER";
+	case MLX5_QP_ST_SYNC_UMR: return "SYNC_UMR";
+	case MLX5_QP_ST_PTP_1588: return "PTP_1588";
+	case MLX5_QP_ST_REG_UMR: return "REG_UMR";
+	default: return "Invalid transport type";
+	}
+}
+
+static inline const char *mlx5_qp_state_str(int state)
+{
+	switch (state) {
+	case MLX5_QP_STATE_RST:
+	return "RST";
+	case MLX5_QP_STATE_INIT:
+	return "INIT";
+	case MLX5_QP_STATE_RTR:
+	return "RTR";
+	case MLX5_QP_STATE_RTS:
+	return "RTS";
+	case MLX5_QP_STATE_SQER:
+	return "SQER";
+	case MLX5_QP_STATE_SQD:
+	return "SQD";
+	case MLX5_QP_STATE_ERR:
+	return "ERR";
+	case MLX5_QP_STATE_SQ_DRAINING:
+	return "SQ_DRAINING";
+	case MLX5_QP_STATE_SUSPENDED:
+	return "SUSPENDED";
+	default: return "Invalid QP state";
+	}
+}
 
 #endif /* MLX5_QP_H */

@@ -94,9 +94,6 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 #define CLOCK_10_KHZ	0x8D25
 #define CLOCK_1_KHZ		0x8E25
 #define CLOCK_100_HZ	0x8F25
-/* Other miscellaneous defines */
-#define ATMIO16D_SIZE	32	/* bus address range */
-#define ATMIO16D_TIMEOUT 10
 
 struct atmio16_board_t {
 
@@ -222,7 +219,7 @@ static irqreturn_t atmio16d_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
 
-	comedi_buf_put(s->async, inw(dev->iobase + AD_FIFO_REG));
+	comedi_buf_put(s, inw(dev->iobase + AD_FIFO_REG));
 
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
@@ -336,12 +333,9 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 	} else if (cmd->convert_arg < 655360000) {
 		base_clock = CLOCK_100_KHZ;
 		timer = cmd->convert_arg / 10000;
-	} else if (cmd->convert_arg <= 0xffffffff /* 6553600000 */) {
+	} else /* cmd->convert_arg < 6553600000 */ {
 		base_clock = CLOCK_10_KHZ;
 		timer = cmd->convert_arg / 100000;
-	} else if (cmd->convert_arg <= 0xffffffff /* 65536000000 */) {
-		base_clock = CLOCK_1_KHZ;
-		timer = cmd->convert_arg / 1000000;
 	}
 	outw(0xFF03, dev->iobase + AM9513A_COM_REG);
 	outw(base_clock, dev->iobase + AM9513A_DATA_REG);
@@ -404,12 +398,9 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 		} else if (cmd->scan_begin_arg < 655360000) {
 			base_clock = CLOCK_100_KHZ;
 			timer = cmd->scan_begin_arg / 10000;
-		} else if (cmd->scan_begin_arg < 0xffffffff /* 6553600000 */) {
+		} else /* cmd->scan_begin_arg < 6553600000 */ {
 			base_clock = CLOCK_10_KHZ;
 			timer = cmd->scan_begin_arg / 100000;
-		} else if (cmd->scan_begin_arg < 0xffffffff /* 65536000000 */) {
-			base_clock = CLOCK_1_KHZ;
-			timer = cmd->scan_begin_arg / 1000000;
 		}
 		outw(0xFF02, dev->iobase + AM9513A_COM_REG);
 		outw(base_clock, dev->iobase + AM9513A_DATA_REG);
@@ -448,16 +439,32 @@ static int atmio16d_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/* Mode 0 is used to get a single conversion on demand */
+static int atmio16d_ai_eoc(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + STAT_REG);
+	if (status & STAT_AD_CONVAVAIL)
+		return 0;
+	if (status & STAT_AD_OVERFLOW) {
+		outw(0, dev->iobase + AD_CLEAR_REG);
+		return -EOVERFLOW;
+	}
+	return -EBUSY;
+}
+
 static int atmio16d_ai_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
 	struct atmio16d_private *devpriv = dev->private;
-	int i, t;
+	int i;
 	int chan;
 	int gain;
-	int status;
+	int ret;
 
 	chan = CR_CHAN(insn->chanspec);
 	gain = CR_RANGE(insn->chanspec);
@@ -473,26 +480,17 @@ static int atmio16d_ai_insn_read(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		/* start the conversion */
 		outw(0, dev->iobase + START_CONVERT_REG);
+
 		/* wait for it to finish */
-		for (t = 0; t < ATMIO16D_TIMEOUT; t++) {
-			/* check conversion status */
-			status = inw(dev->iobase + STAT_REG);
-			if (status & STAT_AD_CONVAVAIL) {
-				/* read the data now */
-				data[i] = inw(dev->iobase + AD_FIFO_REG);
-				/* change to two's complement if need be */
-				if (devpriv->adc_coding == adc_2comp)
-					data[i] ^= 0x800;
-				break;
-			}
-			if (status & STAT_AD_OVERFLOW) {
-				outw(0, dev->iobase + AD_CLEAR_REG);
-				return -ETIME;
-			}
-		}
-		/* end waiting, now check if it timed out */
-		if (t == ATMIO16D_TIMEOUT)
-			return -ETIME;
+		ret = comedi_timeout(dev, s, insn, atmio16d_ai_eoc, 0);
+		if (ret)
+			return ret;
+
+		/* read the data now */
+		data[i] = inw(dev->iobase + AD_FIFO_REG);
+		/* change to two's complement if need be */
+		if (devpriv->adc_coding == adc_2comp)
+			data[i] ^= 0x800;
 	}
 
 	return i;
@@ -624,7 +622,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], ATMIO16D_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x20);
 	if (ret)
 		return ret;
 
@@ -723,10 +721,13 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 	/* 8255 subdevice */
 	s = &dev->subdevices[3];
-	if (board->has_8255)
-		subdev_8255_init(dev, s, NULL, dev->iobase);
-	else
+	if (board->has_8255) {
+		ret = subdev_8255_init(dev, s, NULL, dev->iobase);
+		if (ret)
+			return ret;
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 /* don't yet know how to deal with counter/timers */
 #if 0

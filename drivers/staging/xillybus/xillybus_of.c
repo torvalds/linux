@@ -19,6 +19,7 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/err.h>
 #include "xillybus.h"
 
 MODULE_DESCRIPTION("Xillybus driver for Open Firmware");
@@ -61,44 +62,53 @@ static void xilly_dma_sync_single_nop(struct xilly_endpoint *ep,
 {
 }
 
-static dma_addr_t xilly_map_single_of(struct xilly_cleanup *mem,
-				      struct xilly_endpoint *ep,
-				      void *ptr,
-				      size_t size,
-				      int direction
+static void xilly_of_unmap(void *ptr)
+{
+	struct xilly_mapping *data = ptr;
+
+	dma_unmap_single(data->device, data->dma_addr,
+			 data->size, data->direction);
+
+	kfree(ptr);
+}
+
+static int xilly_map_single_of(struct xilly_endpoint *ep,
+			       void *ptr,
+			       size_t size,
+			       int direction,
+			       dma_addr_t *ret_dma_handle
 	)
 {
+	dma_addr_t addr;
+	struct xilly_mapping *this;
+	int rc;
 
-	dma_addr_t addr = 0;
-	struct xilly_dma *this;
-
-	this = kmalloc(sizeof(struct xilly_dma), GFP_KERNEL);
+	this = kzalloc(sizeof(*this), GFP_KERNEL);
 	if (!this)
-		return 0;
+		return -ENOMEM;
 
 	addr = dma_map_single(ep->dev, ptr, size, direction);
-	this->direction = direction;
 
 	if (dma_mapping_error(ep->dev, addr)) {
 		kfree(this);
-		return 0;
+		return -ENODEV;
 	}
 
+	this->device = ep->dev;
 	this->dma_addr = addr;
-	this->dev = ep->dev;
 	this->size = size;
+	this->direction = direction;
 
-	list_add_tail(&this->node, &mem->to_unmap);
+	*ret_dma_handle = addr;
 
-	return addr;
-}
+	rc = devm_add_action(ep->dev, xilly_of_unmap, this);
 
-static void xilly_unmap_single_of(struct xilly_dma *entry)
-{
-	dma_unmap_single(entry->dev,
-			 entry->dma_addr,
-			 entry->size,
-			 entry->direction);
+	if (rc) {
+		dma_unmap_single(ep->dev, addr, size, direction);
+		kfree(this);
+	}
+
+	return rc;
 }
 
 static struct xilly_endpoint_hardware of_hw = {
@@ -106,7 +116,6 @@ static struct xilly_endpoint_hardware of_hw = {
 	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_for_cpu_of,
 	.hw_sync_sgl_for_device = xilly_dma_sync_single_for_device_of,
 	.map_single = xilly_map_single_of,
-	.unmap_single = xilly_unmap_single_of
 };
 
 static struct xilly_endpoint_hardware of_hw_coherent = {
@@ -114,7 +123,6 @@ static struct xilly_endpoint_hardware of_hw_coherent = {
 	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_nop,
 	.hw_sync_sgl_for_device = xilly_dma_sync_single_nop,
 	.map_single = xilly_map_single_of,
-	.unmap_single = xilly_unmap_single_of
 };
 
 static int xilly_drv_probe(struct platform_device *op)
@@ -123,6 +131,7 @@ static int xilly_drv_probe(struct platform_device *op)
 	struct xilly_endpoint *endpoint;
 	int rc = 0;
 	int irq;
+	struct resource res;
 	struct xilly_endpoint_hardware *ephw = &of_hw;
 
 	if (of_property_read_bool(dev->of_node, "dma-coherent"))
@@ -135,77 +144,31 @@ static int xilly_drv_probe(struct platform_device *op)
 
 	dev_set_drvdata(dev, endpoint);
 
-	rc = of_address_to_resource(dev->of_node, 0, &endpoint->res);
-	if (rc) {
-		dev_warn(endpoint->dev,
-			 "Failed to obtain device tree resource\n");
-		goto failed_request_regions;
-	}
+	rc = of_address_to_resource(dev->of_node, 0, &res);
+	endpoint->registers = devm_ioremap_resource(dev, &res);
 
-	if  (!request_mem_region(endpoint->res.start,
-				 resource_size(&endpoint->res), xillyname)) {
-		dev_err(endpoint->dev,
-			"request_mem_region failed. Aborting.\n");
-		rc = -EBUSY;
-		goto failed_request_regions;
-	}
-
-	endpoint->registers = of_iomap(dev->of_node, 0);
-	if (!endpoint->registers) {
-		dev_err(endpoint->dev,
-			"Failed to map I/O memory. Aborting.\n");
-		rc = -EIO;
-		goto failed_iomap0;
-	}
+	if (IS_ERR(endpoint->registers))
+		return PTR_ERR(endpoint->registers);
 
 	irq = irq_of_parse_and_map(dev->of_node, 0);
 
-	rc = request_irq(irq, xillybus_isr, 0, xillyname, endpoint);
+	rc = devm_request_irq(dev, irq, xillybus_isr, 0, xillyname, endpoint);
 
 	if (rc) {
 		dev_err(endpoint->dev,
 			"Failed to register IRQ handler. Aborting.\n");
-		rc = -ENODEV;
-		goto failed_register_irq;
+		return -ENODEV;
 	}
 
-	rc = xillybus_endpoint_discovery(endpoint);
-
-	if (!rc)
-		return 0;
-
-	free_irq(irq, endpoint);
-
-failed_register_irq:
-	iounmap(endpoint->registers);
-failed_iomap0:
-	release_mem_region(endpoint->res.start,
-			   resource_size(&endpoint->res));
-
-failed_request_regions:
-	xillybus_do_cleanup(&endpoint->cleanup, endpoint);
-
-	kfree(endpoint);
-	return rc;
+	return xillybus_endpoint_discovery(endpoint);
 }
 
 static int xilly_drv_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct xilly_endpoint *endpoint = dev_get_drvdata(dev);
-	int irq = irq_of_parse_and_map(dev->of_node, 0);
 
 	xillybus_endpoint_remove(endpoint);
-
-	free_irq(irq, endpoint);
-
-	iounmap(endpoint->registers);
-	release_mem_region(endpoint->res.start,
-			   resource_size(&endpoint->res));
-
-	xillybus_do_cleanup(&endpoint->cleanup, endpoint);
-
-	kfree(endpoint);
 
 	return 0;
 }

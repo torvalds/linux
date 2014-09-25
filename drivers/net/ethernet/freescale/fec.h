@@ -221,7 +221,7 @@ struct bufdesc_ex {
 #define BD_ENET_TX_RCMASK       ((ushort)0x003c)
 #define BD_ENET_TX_UN           ((ushort)0x0002)
 #define BD_ENET_TX_CSL          ((ushort)0x0001)
-#define BD_ENET_TX_STATS        ((ushort)0x03ff)        /* All status bits */
+#define BD_ENET_TX_STATS        ((ushort)0x0fff)        /* All status bits */
 
 /*enhanced buffer descriptor control/status used by Ethernet transmit*/
 #define BD_ENET_TX_INT          0x40000000
@@ -246,8 +246,8 @@ struct bufdesc_ex {
 #define RX_RING_SIZE		(FEC_ENET_RX_FRPPG * FEC_ENET_RX_PAGES)
 #define FEC_ENET_TX_FRSIZE	2048
 #define FEC_ENET_TX_FRPPG	(PAGE_SIZE / FEC_ENET_TX_FRSIZE)
-#define TX_RING_SIZE		16	/* Must be power of two */
-#define TX_RING_MOD_MASK	15	/*   for this to work */
+#define TX_RING_SIZE		512	/* Must be power of two */
+#define TX_RING_MOD_MASK	511	/*   for this to work */
 
 #define BD_ENET_RX_INT          0x00800000
 #define BD_ENET_RX_PTP          ((ushort)0x0400)
@@ -255,12 +255,6 @@ struct bufdesc_ex {
 #define BD_ENET_RX_PCR		0x00000010
 #define FLAG_RX_CSUM_ENABLED	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
 #define FLAG_RX_CSUM_ERROR	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
-
-struct fec_enet_delayed_work {
-	struct delayed_work delay_work;
-	bool timeout;
-	bool trig_tx;
-};
 
 /* The FEC buffer descriptors track the ring buffers.  The rx_bd_base and
  * tx_bd_base always point to the base of the buffer descriptors.  The
@@ -281,6 +275,9 @@ struct fec_enet_private {
 	struct clk *clk_enet_out;
 	struct clk *clk_ptp;
 
+	bool ptp_clk_on;
+	struct mutex ptp_clk_mutex;
+
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
 	unsigned char *tx_bounce[TX_RING_SIZE];
 	struct	sk_buff *tx_skbuff[TX_RING_SIZE];
@@ -296,12 +293,18 @@ struct fec_enet_private {
 	/* The ring entries to be free()ed */
 	struct bufdesc	*dirty_tx;
 
+	unsigned short bufdesc_size;
 	unsigned short tx_ring_size;
 	unsigned short rx_ring_size;
+	unsigned short tx_stop_threshold;
+	unsigned short tx_wake_threshold;
+
+	/* Software TSO */
+	char *tso_hdrs;
+	dma_addr_t tso_hdrs_dma;
 
 	struct	platform_device *pdev;
 
-	int	opened;
 	int	dev_id;
 
 	/* Phylib and MDIO interface */
@@ -310,6 +313,7 @@ struct fec_enet_private {
 	int	mii_timeout;
 	uint	phy_speed;
 	phy_interface_t	phy_interface;
+	struct device_node *phy_node;
 	int	link;
 	int	full_duplex;
 	int	speed;
@@ -320,6 +324,8 @@ struct fec_enet_private {
 
 	struct	napi_struct napi;
 	int	csum_flags;
+
+	struct work_struct tx_timeout_work;
 
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
@@ -332,14 +338,14 @@ struct fec_enet_private {
 	u32 cycle_speed;
 	int hwts_rx_en;
 	int hwts_tx_en;
-	struct timer_list time_keep;
-	struct fec_enet_delayed_work delay_work;
+	struct delayed_work time_keep;
 	struct regulator *reg_phy;
 };
 
 void fec_ptp_init(struct platform_device *pdev);
 void fec_ptp_start_cyclecounter(struct net_device *ndev);
-int fec_ptp_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd);
+int fec_ptp_set(struct net_device *ndev, struct ifreq *ifr);
+int fec_ptp_get(struct net_device *ndev, struct ifreq *ifr);
 
 /****************************************************************************/
 #endif /* FEC_H */

@@ -80,7 +80,7 @@ static int cirrus_ttm_global_init(struct cirrus_device *cirrus)
 	return 0;
 }
 
-void
+static void
 cirrus_ttm_global_release(struct cirrus_device *cirrus)
 {
 	if (cirrus->ttm.mem_global_ref.release == NULL)
@@ -102,7 +102,7 @@ static void cirrus_bo_ttm_destroy(struct ttm_buffer_object *tbo)
 	kfree(bo);
 }
 
-bool cirrus_ttm_bo_is_cirrus_bo(struct ttm_buffer_object *bo)
+static bool cirrus_ttm_bo_is_cirrus_bo(struct ttm_buffer_object *bo)
 {
 	if (bo->destroy == &cirrus_bo_ttm_destroy)
 		return true;
@@ -208,7 +208,7 @@ static struct ttm_backend_func cirrus_tt_backend_func = {
 };
 
 
-struct ttm_tt *cirrus_ttm_tt_create(struct ttm_bo_device *bdev,
+static struct ttm_tt *cirrus_ttm_tt_create(struct ttm_bo_device *bdev,
 				 unsigned long size, uint32_t page_flags,
 				 struct page *dummy_read_page)
 {
@@ -259,7 +259,9 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 
 	ret = ttm_bo_device_init(&cirrus->ttm.bdev,
 				 cirrus->ttm.bo_global_ref.ref.object,
-				 &cirrus_bo_driver, DRM_FILE_PAGE_OFFSET,
+				 &cirrus_bo_driver,
+				 dev->anon_inode->i_mapping,
+				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {
 		DRM_ERROR("Error initialising bo driver; %d\n", ret);
@@ -329,7 +331,6 @@ int cirrus_bo_create(struct drm_device *dev, int size, int align,
 	}
 
 	cirrusbo->bo.bdev = &cirrus->ttm.bdev;
-	cirrusbo->bo.bdev->dev_mapping = dev->dev_mapping;
 
 	cirrus_ttm_placement(cirrusbo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
 
@@ -372,26 +373,6 @@ int cirrus_bo_pin(struct cirrus_bo *bo, u32 pl_flag, u64 *gpu_addr)
 	bo->pin_count = 1;
 	if (gpu_addr)
 		*gpu_addr = cirrus_bo_gpu_offset(bo);
-	return 0;
-}
-
-int cirrus_bo_unpin(struct cirrus_bo *bo)
-{
-	int i, ret;
-	if (!bo->pin_count) {
-		DRM_ERROR("unpin bad %p\n", bo);
-		return 0;
-	}
-	bo->pin_count--;
-	if (bo->pin_count)
-		return 0;
-
-	for (i = 0; i < bo->placement.num_placement ; i++)
-		bo->placements[i] &= ~TTM_PL_FLAG_NO_EVICT;
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 

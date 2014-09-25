@@ -120,34 +120,51 @@ static const struct prot_bits pte_bits[] = {
 };
 
 static const struct prot_bits section_bits[] = {
-#ifndef CONFIG_ARM_LPAE
-	/* These are approximate */
-	{
-		.mask	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
-		.val	= 0,
-		.set	= "    ro",
-	}, {
-		.mask	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
-		.val	= PMD_SECT_AP_WRITE,
-		.set	= "    RW",
-	}, {
-		.mask	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
-		.val	= PMD_SECT_AP_READ,
-		.set	= "USR ro",
-	}, {
-		.mask	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
-		.val	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
-		.set	= "USR RW",
-#else
+#ifdef CONFIG_ARM_LPAE
 	{
 		.mask	= PMD_SECT_USER,
 		.val	= PMD_SECT_USER,
 		.set	= "USR",
 	}, {
-		.mask	= PMD_SECT_RDONLY,
-		.val	= PMD_SECT_RDONLY,
+		.mask	= L_PMD_SECT_RDONLY,
+		.val	= L_PMD_SECT_RDONLY,
 		.set	= "ro",
 		.clear	= "RW",
+#elif __LINUX_ARM_ARCH__ >= 6
+	{
+		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val	= PMD_SECT_APX | PMD_SECT_AP_WRITE,
+		.set	= "    ro",
+	}, {
+		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val	= PMD_SECT_AP_WRITE,
+		.set	= "    RW",
+	}, {
+		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val	= PMD_SECT_AP_READ,
+		.set	= "USR ro",
+	}, {
+		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.set	= "USR RW",
+#else /* ARMv4/ARMv5  */
+	/* These are approximate */
+	{
+		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val    = 0,
+		.set    = "    ro",
+	}, {
+		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val    = PMD_SECT_AP_WRITE,
+		.set    = "    RW",
+	}, {
+		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val    = PMD_SECT_AP_READ,
+		.set    = "USR ro",
+	}, {
+		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val    = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.set    = "USR RW",
 #endif
 	}, {
 		.mask	= PMD_SECT_XN,
@@ -264,6 +281,9 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 			note_page(st, addr, 3, pmd_val(*pmd));
 		else
 			walk_pte(st, pmd, addr);
+
+		if (SECTION_SIZE < PMD_SIZE && pmd_large(pmd[1]))
+			note_page(st, addr + SECTION_SIZE, 3, pmd_val(pmd[1]));
 	}
 }
 

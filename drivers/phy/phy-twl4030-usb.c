@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/usb/otg.h>
 #include <linux/phy/phy.h>
+#include <linux/pm_runtime.h>
 #include <linux/usb/musb-omap.h>
 #include <linux/usb/ulpi.h>
 #include <linux/i2c/twl.h>
@@ -338,7 +339,7 @@ static void twl4030_usb_set_mode(struct twl4030_usb *twl, int mode)
 		dev_err(twl->dev, "unsupported T2 transceiver mode %d\n",
 				mode);
 		break;
-	};
+	}
 }
 
 static void twl4030_i2c_access(struct twl4030_usb *twl, int on)
@@ -422,37 +423,55 @@ static void twl4030_phy_power(struct twl4030_usb *twl, int on)
 	}
 }
 
-static int twl4030_phy_power_off(struct phy *phy)
+static int twl4030_usb_runtime_suspend(struct device *dev)
 {
-	struct twl4030_usb *twl = phy_get_drvdata(phy);
+	struct twl4030_usb *twl = dev_get_drvdata(dev);
 
+	dev_dbg(twl->dev, "%s\n", __func__);
 	if (twl->asleep)
 		return 0;
 
 	twl4030_phy_power(twl, 0);
 	twl->asleep = 1;
-	dev_dbg(twl->dev, "%s\n", __func__);
+
 	return 0;
 }
 
-static void __twl4030_phy_power_on(struct twl4030_usb *twl)
+static int twl4030_usb_runtime_resume(struct device *dev)
 {
+	struct twl4030_usb *twl = dev_get_drvdata(dev);
+
+	dev_dbg(twl->dev, "%s\n", __func__);
+	if (!twl->asleep)
+		return 0;
+
 	twl4030_phy_power(twl, 1);
-	twl4030_i2c_access(twl, 1);
-	twl4030_usb_set_mode(twl, twl->usb_mode);
-	if (twl->usb_mode == T2_USB_MODE_ULPI)
-		twl4030_i2c_access(twl, 0);
+	twl->asleep = 0;
+
+	return 0;
+}
+
+static int twl4030_phy_power_off(struct phy *phy)
+{
+	struct twl4030_usb *twl = phy_get_drvdata(phy);
+
+	dev_dbg(twl->dev, "%s\n", __func__);
+	pm_runtime_mark_last_busy(twl->dev);
+	pm_runtime_put_autosuspend(twl->dev);
+
+	return 0;
 }
 
 static int twl4030_phy_power_on(struct phy *phy)
 {
 	struct twl4030_usb *twl = phy_get_drvdata(phy);
 
-	if (!twl->asleep)
-		return 0;
-	__twl4030_phy_power_on(twl);
-	twl->asleep = 0;
 	dev_dbg(twl->dev, "%s\n", __func__);
+	pm_runtime_get_sync(twl->dev);
+	twl4030_i2c_access(twl, 1);
+	twl4030_usb_set_mode(twl, twl->usb_mode);
+	if (twl->usb_mode == T2_USB_MODE_ULPI)
+		twl4030_i2c_access(twl, 0);
 
 	/*
 	 * XXX When VBUS gets driven after musb goes to A mode,
@@ -558,32 +577,16 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 		 * USB_LINK_VBUS state.  musb_hdrc won't care until it
 		 * starts to handle softconnect right.
 		 */
-		omap_musb_mailbox(status);
-	}
-	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
-
-	return IRQ_HANDLED;
-}
-
-static void twl4030_id_workaround_work(struct work_struct *work)
-{
-	struct twl4030_usb *twl = container_of(work, struct twl4030_usb,
-		id_workaround_work.work);
-	enum omap_musb_vbus_id_status status;
-	bool status_changed = false;
-
-	status = twl4030_usb_linkstat(twl);
-
-	spin_lock_irq(&twl->lock);
-	if (status >= 0 && status != twl->linkstat) {
-		twl->linkstat = status;
-		status_changed = true;
-	}
-	spin_unlock_irq(&twl->lock);
-
-	if (status_changed) {
-		dev_dbg(twl->dev, "handle missing status change to %d\n",
-				status);
+		if ((status == OMAP_MUSB_VBUS_VALID) ||
+		    (status == OMAP_MUSB_ID_GROUND)) {
+			if (twl->asleep)
+				pm_runtime_get_sync(twl->dev);
+		} else {
+			if (!twl->asleep) {
+				pm_runtime_mark_last_busy(twl->dev);
+				pm_runtime_put_autosuspend(twl->dev);
+			}
+		}
 		omap_musb_mailbox(status);
 	}
 
@@ -592,6 +595,19 @@ static void twl4030_id_workaround_work(struct work_struct *work)
 		cancel_delayed_work(&twl->id_workaround_work);
 		schedule_delayed_work(&twl->id_workaround_work, HZ);
 	}
+
+	if (irq)
+		sysfs_notify(&twl->dev->kobj, NULL, "vbus");
+
+	return IRQ_HANDLED;
+}
+
+static void twl4030_id_workaround_work(struct work_struct *work)
+{
+	struct twl4030_usb *twl = container_of(work, struct twl4030_usb,
+		id_workaround_work.work);
+
+	twl4030_usb_irq(0, twl);
 }
 
 static int twl4030_phy_init(struct phy *phy)
@@ -599,22 +615,17 @@ static int twl4030_phy_init(struct phy *phy)
 	struct twl4030_usb *twl = phy_get_drvdata(phy);
 	enum omap_musb_vbus_id_status status;
 
-	/*
-	 * Start in sleep state, we'll get called through set_suspend()
-	 * callback when musb is runtime resumed and it's time to start.
-	 */
-	__twl4030_phy_power(twl, 0);
-	twl->asleep = 1;
-
+	pm_runtime_get_sync(twl->dev);
 	status = twl4030_usb_linkstat(twl);
 	twl->linkstat = status;
 
-	if (status == OMAP_MUSB_ID_GROUND || status == OMAP_MUSB_VBUS_VALID) {
+	if (status == OMAP_MUSB_ID_GROUND || status == OMAP_MUSB_VBUS_VALID)
 		omap_musb_mailbox(twl->linkstat);
-		twl4030_phy_power_on(phy);
-	}
 
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
+	pm_runtime_mark_last_busy(twl->dev);
+	pm_runtime_put_autosuspend(twl->dev);
+
 	return 0;
 }
 
@@ -650,6 +661,11 @@ static const struct phy_ops ops = {
 	.owner		= THIS_MODULE,
 };
 
+static const struct dev_pm_ops twl4030_usb_pm_ops = {
+	SET_RUNTIME_PM_OPS(twl4030_usb_runtime_suspend,
+			   twl4030_usb_runtime_resume, NULL)
+};
+
 static int twl4030_usb_probe(struct platform_device *pdev)
 {
 	struct twl4030_usb_data *pdata = dev_get_platdata(&pdev->dev);
@@ -661,7 +677,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	struct phy_provider	*phy_provider;
 	struct phy_init_data	*init_data = NULL;
 
-	twl = devm_kzalloc(&pdev->dev, sizeof *twl, GFP_KERNEL);
+	twl = devm_kzalloc(&pdev->dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
 		return -ENOMEM;
 
@@ -676,7 +692,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	otg = devm_kzalloc(&pdev->dev, sizeof *otg, GFP_KERNEL);
+	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
 	if (!otg)
 		return -ENOMEM;
 
@@ -695,18 +711,18 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	otg->set_host		= twl4030_set_host;
 	otg->set_peripheral	= twl4030_set_peripheral;
 
-	phy_provider = devm_of_phy_provider_register(twl->dev,
-		of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
-
-	phy = devm_phy_create(twl->dev, &ops, init_data);
+	phy = devm_phy_create(twl->dev, NULL, &ops, init_data);
 	if (IS_ERR(phy)) {
 		dev_dbg(&pdev->dev, "Failed to create PHY\n");
 		return PTR_ERR(phy);
 	}
 
 	phy_set_drvdata(phy, twl);
+
+	phy_provider = devm_of_phy_provider_register(twl->dev,
+		of_phy_simple_xlate);
+	if (IS_ERR(phy_provider))
+		return PTR_ERR(phy_provider);
 
 	/* init spinlock for workqueue */
 	spin_lock_init(&twl->lock);
@@ -726,6 +742,11 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&twl->phy.notifier);
 
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
 	/* Our job is to use irqs and status from the power module
 	 * to keep the transceiver disabled when nothing's connected.
 	 *
@@ -744,6 +765,9 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 		return status;
 	}
 
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_put_autosuspend(twl->dev);
+
 	dev_info(&pdev->dev, "Initialized TWL4030 USB module\n");
 	return 0;
 }
@@ -753,6 +777,7 @@ static int twl4030_usb_remove(struct platform_device *pdev)
 	struct twl4030_usb *twl = platform_get_drvdata(pdev);
 	int val;
 
+	pm_runtime_get_sync(twl->dev);
 	cancel_delayed_work(&twl->id_workaround_work);
 	device_remove_file(twl->dev, &dev_attr_vbus);
 
@@ -772,9 +797,8 @@ static int twl4030_usb_remove(struct platform_device *pdev)
 
 	/* disable complete OTG block */
 	twl4030_usb_clear_bits(twl, POWER_CTRL, POWER_CTRL_OTG_ENAB);
-
-	if (!twl->asleep)
-		twl4030_phy_power(twl, 0);
+	pm_runtime_mark_last_busy(twl->dev);
+	pm_runtime_put(twl->dev);
 
 	return 0;
 }
@@ -792,6 +816,7 @@ static struct platform_driver twl4030_usb_driver = {
 	.remove		= twl4030_usb_remove,
 	.driver		= {
 		.name	= "twl4030_usb",
+		.pm	= &twl4030_usb_pm_ops,
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(twl4030_usb_id_table),
 	},

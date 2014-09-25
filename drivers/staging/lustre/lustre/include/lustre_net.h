@@ -55,21 +55,21 @@
  * @{
  */
 
-#include <linux/lustre_net.h>
+#include "linux/lustre_net.h"
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 // #include <obd.h>
-#include <linux/lnet/lnet.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_ha.h>
-#include <lustre_sec.h>
-#include <lustre_import.h>
-#include <lprocfs_status.h>
-#include <lu_object.h>
-#include <lustre_req_layout.h>
+#include "../../include/linux/lnet/lnet.h"
+#include "lustre/lustre_idl.h"
+#include "lustre_ha.h"
+#include "lustre_sec.h"
+#include "lustre_import.h"
+#include "lprocfs_status.h"
+#include "lu_object.h"
+#include "lustre_req_layout.h"
 
-#include <obd_support.h>
-#include <lustre_ver.h>
+#include "obd_support.h"
+#include "lustre_ver.h"
 
 /* MD flags we _always_ use */
 #define PTLRPC_MD_OPTIONS  0
@@ -264,6 +264,8 @@
 #define LDLM_MAXREQSIZE   (5 * 1024)
 #define LDLM_MAXREPSIZE   (1024)
 
+#define MDS_MAXREQSIZE		(5 * 1024)	/* >= 4736 */
+
 #define OST_MAXREQSIZE		(5 * 1024)
 
 /* Macro to hide a typecast. */
@@ -445,7 +447,7 @@ struct ptlrpc_reply_state {
 	lnet_handle_md_t       rs_md_h;
 	atomic_t	   rs_refcount;
 
-	/** Context for the sevice thread */
+	/** Context for the service thread */
 	struct ptlrpc_svc_ctx *rs_svc_ctx;
 	/** Reply buffer (actually sent to the client), encoded if needed */
 	struct lustre_msg     *rs_repbuf;       /* wrapper */
@@ -454,9 +456,9 @@ struct ptlrpc_reply_state {
 	/** Size of the reply message */
 	int		    rs_repdata_len;  /* wrapper msg length */
 	/**
-	 * Actual reply message. Its content is encrupted (if needed) to
+	 * Actual reply message. Its content is encrypted (if needed) to
 	 * produce reply buffer for actual sending. In simple case
-	 * of no network encryption we jus set \a rs_repbuf to \a rs_msg
+	 * of no network encryption we just set \a rs_repbuf to \a rs_msg
 	 */
 	struct lustre_msg     *rs_msg;	  /* reply message */
 
@@ -497,7 +499,7 @@ struct ptlrpc_request_pool {
 	spinlock_t prp_lock;
 	/** list of ptlrpc_request structs */
 	struct list_head prp_req_list;
-	/** Maximum message size that would fit into a rquest from this pool */
+	/** Maximum message size that would fit into a request from this pool */
 	int prp_rq_size;
 	/** Function to allocate more requests for this pool */
 	void (*prp_populate)(struct ptlrpc_request_pool *, int);
@@ -717,7 +719,7 @@ struct ptlrpc_nrs_pol_ops {
 	 *			 \a nrq
 	 * \param[in,out] nrq	 The request
 	 *
-	 * \pre spin_is_locked(&svcpt->scp_req_lock)
+	 * \pre assert_spin_locked(&svcpt->scp_req_lock)
 	 *
 	 * \see ptlrpc_nrs_req_stop_nolock()
 	 */
@@ -904,7 +906,7 @@ struct ptlrpc_nrs_pol_conf {
 	 */
 	struct module			  *nc_owner;
 	/**
-	 * Policy registration flags; a bitmast of \e nrs_policy_flags
+	 * Policy registration flags; a bitmask of \e nrs_policy_flags
 	 */
 	unsigned			   nc_flags;
 };
@@ -1351,7 +1353,7 @@ struct nrs_orr_data {
 	 */
 	enum nrs_orr_supp		od_supp;
 	/**
-	 * Round Robin quantum; the maxium number of RPCs that each request
+	 * Round Robin quantum; the maximum number of RPCs that each request
 	 * batch for each object or OST can have in a scheduling round.
 	 */
 	__u16				od_quantum;
@@ -1486,7 +1488,7 @@ struct ptlrpc_nrs_request {
 		 */
 		struct nrs_fifo_req	fifo;
 		/**
-		 * CRR-N request defintion
+		 * CRR-N request definition
 		 */
 		struct nrs_crrn_req	crr;
 		/** ORR and TRR share the same request definition */
@@ -1550,7 +1552,7 @@ struct ptlrpc_request {
 	 * requests in time
 	 */
 	struct list_head rq_timed_list;
-	/** server-side history, used for debuging purposes. */
+	/** server-side history, used for debugging purposes. */
 	struct list_head rq_history_list;
 	/** server-side per-export list */
 	struct list_head rq_exp_list;
@@ -1589,7 +1591,8 @@ struct ptlrpc_request {
 		rq_replay:1,
 		rq_no_resend:1, rq_waiting:1, rq_receiving_reply:1,
 		rq_no_delay:1, rq_net_err:1, rq_wait_ctx:1,
-		rq_early:1, rq_must_unlink:1,
+		rq_early:1,
+		rq_req_unlink:1, rq_reply_unlink:1,
 		rq_memalloc:1,      /* req originated from "kswapd" */
 		/* server-side flags */
 		rq_packed_final:1,  /* packed final reply */
@@ -1611,7 +1614,7 @@ struct ptlrpc_request {
 	enum rq_phase rq_phase; /* one of RQ_PHASE_* */
 	enum rq_phase rq_next_phase; /* one of RQ_PHASE_* to be used next */
 	atomic_t rq_refcount;/* client-side refcount for SENT race,
-				    server-side refcounf for multiple replies */
+				    server-side refcount for multiple replies */
 
 	/** Portal to which this request would be sent */
 	short rq_request_portal;  /* XXX FIXME bug 249 */
@@ -1637,7 +1640,7 @@ struct ptlrpc_request {
 	/** xid */
 	__u64 rq_xid;
 	/**
-	 * List item to for replay list. Not yet commited requests get linked
+	 * List item to for replay list. Not yet committed requests get linked
 	 * there.
 	 * Also see \a rq_replay comment above.
 	 */
@@ -1710,9 +1713,9 @@ struct ptlrpc_request {
 	lnet_handle_md_t     rq_req_md_h;
 	struct ptlrpc_cb_id  rq_req_cbid;
 	/** optional time limit for send attempts */
-	cfs_duration_t       rq_delay_limit;
+	long       rq_delay_limit;
 	/** time request was first queued */
-	cfs_time_t	   rq_queued_time;
+	unsigned long	   rq_queued_time;
 
 	/* server-side... */
 	/** request arrival time */
@@ -1952,7 +1955,7 @@ void _debug_req(struct ptlrpc_request *req,
 	__attribute__ ((format (printf, 3, 4)));
 
 /**
- * Helper that decides if we need to print request accordig to current debug
+ * Helper that decides if we need to print request according to current debug
  * level settings
  */
 #define debug_req(msgdata, mask, cdls, req, fmt, a...)			\
@@ -1966,7 +1969,7 @@ do {									  \
 } while(0)
 
 /**
- * This is the debug print function you need to use to print request sturucture
+ * This is the debug print function you need to use to print request structure
  * content into lustre debug log.
  * for most callers (level is a constant) this is resolved at compile time */
 #define DEBUG_REQ(level, req, fmt, args...)				   \
@@ -2353,7 +2356,7 @@ struct ptlrpc_service_part {
 	/** incoming reqs */
 	struct list_head			scp_req_incoming;
 	/** timeout before re-posting reqs, in tick */
-	cfs_duration_t			scp_rqbd_timeout;
+	long			scp_rqbd_timeout;
 	/**
 	 * all threads sleep on this. This wait-queue is signalled when new
 	 * incoming request arrives and when difficult reply has to be handled.
@@ -2404,7 +2407,7 @@ struct ptlrpc_service_part {
 	/** early reply timer */
 	struct timer_list		scp_at_timer;
 	/** debug */
-	cfs_time_t			scp_at_checktime;
+	unsigned long			scp_at_checktime;
 	/** check early replies */
 	unsigned			scp_at_check;
 	/** @} */
@@ -2591,7 +2594,7 @@ static inline int ptlrpc_client_bulk_active(struct ptlrpc_request *req)
 	desc = req->rq_bulk;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK) &&
-	    req->rq_bulk_deadline > cfs_time_current_sec())
+	    req->rq_bulk_deadline > get_seconds())
 		return 1;
 
 	if (!desc)
@@ -2621,6 +2624,8 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd);
  * request queues, request management, etc.
  * @{
  */
+void ptlrpc_request_committed(struct ptlrpc_request *req, int force);
+
 void ptlrpc_init_client(int req_portal, int rep_portal, char *name,
 			struct ptlrpc_client *);
 void ptlrpc_cleanup_client(struct obd_import *imp);
@@ -2997,7 +3002,7 @@ static inline int
 ptlrpc_client_early(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 0;
 	return req->rq_early;
 }
@@ -3009,7 +3014,7 @@ static inline int
 ptlrpc_client_replied(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 0;
 	return req->rq_replied;
 }
@@ -3019,7 +3024,7 @@ static inline int
 ptlrpc_client_recv(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec())
+	    req->rq_reply_deadline > get_seconds())
 		return 1;
 	return req->rq_receiving_reply;
 }
@@ -3031,11 +3036,12 @@ ptlrpc_client_recv_or_unlink(struct ptlrpc_request *req)
 
 	spin_lock(&req->rq_lock);
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > cfs_time_current_sec()) {
+	    req->rq_reply_deadline > get_seconds()) {
 		spin_unlock(&req->rq_lock);
 		return 1;
 	}
-	rc = req->rq_receiving_reply || req->rq_must_unlink;
+	rc = req->rq_receiving_reply;
+	rc = rc || req->rq_req_unlink || req->rq_reply_unlink;
 	spin_unlock(&req->rq_lock);
 	return rc;
 }
@@ -3094,9 +3100,9 @@ static inline int ptlrpc_req_get_repsize(struct ptlrpc_request *req)
 static inline int ptlrpc_send_limit_expired(struct ptlrpc_request *req)
 {
 	if (req->rq_delay_limit != 0 &&
-	    cfs_time_before(cfs_time_add(req->rq_queued_time,
-					 cfs_time_seconds(req->rq_delay_limit)),
-			    cfs_time_current())) {
+	    time_before(cfs_time_add(req->rq_queued_time,
+				     cfs_time_seconds(req->rq_delay_limit)),
+			cfs_time_current())) {
 		return 1;
 	}
 	return 0;
@@ -3223,7 +3229,7 @@ void ptlrpcd_decref(void);
  * @{
  */
 const char* ll_opcode2str(__u32 opcode);
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 void ptlrpc_lprocfs_register_obd(struct obd_device *obd);
 void ptlrpc_lprocfs_unregister_obd(struct obd_device *obd);
 void ptlrpc_lprocfs_brw(struct ptlrpc_request *req, int bytes);

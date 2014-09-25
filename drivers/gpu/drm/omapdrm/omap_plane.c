@@ -142,8 +142,8 @@ static void omap_plane_pre_apply(struct omap_drm_apply *apply)
 	DBG("%dx%d -> %dx%d (%d)", info->width, info->height,
 			info->out_width, info->out_height,
 			info->screen_width);
-	DBG("%d,%d %08x %08x", info->pos_x, info->pos_y,
-			info->paddr, info->p_uv_addr);
+	DBG("%d,%d %pad %pad", info->pos_x, info->pos_y,
+			&info->paddr, &info->p_uv_addr);
 
 	/* TODO: */
 	ilace = false;
@@ -225,6 +225,11 @@ int omap_plane_mode_set(struct drm_plane *plane,
 		omap_plane->apply_done_cb.arg = arg;
 	}
 
+	if (plane->fb)
+		drm_framebuffer_unreference(plane->fb);
+
+	drm_framebuffer_reference(fb);
+
 	plane->fb = fb;
 	plane->crtc = crtc;
 
@@ -241,10 +246,13 @@ static int omap_plane_update(struct drm_plane *plane,
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	omap_plane->enabled = true;
 
-	if (plane->fb)
-		drm_framebuffer_unreference(plane->fb);
-
-	drm_framebuffer_reference(fb);
+	/* omap_plane_mode_set() takes adjusted src */
+	switch (omap_plane->win.rotation & 0xf) {
+	case BIT(DRM_ROTATE_90):
+	case BIT(DRM_ROTATE_270):
+		swap(src_w, src_h);
+		break;
+	}
 
 	return omap_plane_mode_set(plane, crtc, fb,
 			crtc_x, crtc_y, crtc_w, crtc_h,
@@ -300,16 +308,13 @@ void omap_plane_install_properties(struct drm_plane *plane,
 	if (priv->has_dmm) {
 		prop = priv->rotation_prop;
 		if (!prop) {
-			const struct drm_prop_enum_list props[] = {
-					{ DRM_ROTATE_0,   "rotate-0" },
-					{ DRM_ROTATE_90,  "rotate-90" },
-					{ DRM_ROTATE_180, "rotate-180" },
-					{ DRM_ROTATE_270, "rotate-270" },
-					{ DRM_REFLECT_X,  "reflect-x" },
-					{ DRM_REFLECT_Y,  "reflect-y" },
-			};
-			prop = drm_property_create_bitmask(dev, 0, "rotation",
-					props, ARRAY_SIZE(props));
+			prop = drm_mode_create_rotation_property(dev,
+								 BIT(DRM_ROTATE_0) |
+								 BIT(DRM_ROTATE_90) |
+								 BIT(DRM_ROTATE_180) |
+								 BIT(DRM_ROTATE_270) |
+								 BIT(DRM_REFLECT_X) |
+								 BIT(DRM_REFLECT_Y));
 			if (prop == NULL)
 				return;
 			priv->rotation_prop = prop;

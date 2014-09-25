@@ -18,7 +18,7 @@ static inline int cpu_to_node(int cpu)
 
 struct pci_bus;
 #ifdef CONFIG_PCI
-extern int pcibus_to_node(struct pci_bus *pbus);
+int pcibus_to_node(struct pci_bus *pbus);
 #else
 static inline int pcibus_to_node(struct pci_bus *pbus)
 {
@@ -42,8 +42,6 @@ static inline int pcibus_to_node(struct pci_bus *pbus)
 #define topology_core_id(cpu)			(cpu_data(cpu).core_id)
 #define topology_core_cpumask(cpu)		(&cpu_core_map[cpu])
 #define topology_thread_cpumask(cpu)		(&per_cpu(cpu_sibling_map, cpu))
-#define mc_capable()				(sparc64_multi_core)
-#define smt_capable()				(sparc64_multi_core)
 #endif /* CONFIG_SMP */
 
 extern cpumask_t cpu_core_map[NR_CPUS];

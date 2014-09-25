@@ -2688,11 +2688,11 @@ static int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 		status = EnableAndResetMB(state);
 		if (status < 0)
 			break;
-		if (state->type_A)
+		if (state->type_A) {
 			status = ResetCEFR(state);
 			if (status < 0)
 				break;
-
+		}
 		if (fw) {
 			status = DownloadMicrocode(state, fw, fw_size);
 			if (status < 0)
@@ -2840,7 +2840,7 @@ static int drxd_init(struct dvb_frontend *fe)
 	return err;
 }
 
-int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
+static int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
 {
 	struct drxd_state *state = fe->demodulator_priv;
 
@@ -2849,7 +2849,6 @@ int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
 
 	return DRX_ConfigureI2CBridge(state, onoff);
 }
-EXPORT_SYMBOL(drxd_config_i2c);
 
 static int drxd_get_tune_settings(struct dvb_frontend *fe,
 				  struct dvb_frontend_tune_settings *sets)

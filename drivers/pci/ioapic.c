@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <acpi/acpi_bus.h>
 
 struct ioapic {
 	acpi_handle	handle;
@@ -99,7 +98,7 @@ static void ioapic_remove(struct pci_dev *dev)
 }
 
 
-static DEFINE_PCI_DEVICE_TABLE(ioapic_devices) = {
+static const struct pci_device_id ioapic_devices[] = {
 	{ PCI_DEVICE_CLASS(PCI_CLASS_SYSTEM_PIC_IOAPIC, ~0) },
 	{ PCI_DEVICE_CLASS(PCI_CLASS_SYSTEM_PIC_IOXAPIC, ~0) },
 	{ }

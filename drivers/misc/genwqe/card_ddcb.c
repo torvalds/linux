@@ -305,6 +305,8 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 			break;
 
 		new = (old | DDCB_NEXT_BE32);
+
+		wmb();
 		icrc_hsi_shi = cmpxchg(&prev_ddcb->icrc_hsi_shi_32, old, new);
 
 		if (icrc_hsi_shi == old)
@@ -314,6 +316,8 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 	/* Queue must be re-started by updating QUEUE_OFFSET */
 	ddcb_mark_tapped(pddcb);
 	num = (u64)ddcb_no << 8;
+
+	wmb();
 	__genwqe_writeq(cd, queue->IO_QUEUE_OFFSET, num); /* start queue */
 
 	return RET_DDCB_TAPPED;
@@ -1114,7 +1118,21 @@ static irqreturn_t genwqe_pf_isr(int irq, void *dev_id)
 	 * safer, but slower for the good-case ... See above.
 	 */
 	gfir = __genwqe_readq(cd, IO_SLC_CFGREG_GFIR);
-	if ((gfir & GFIR_ERR_TRIGGER) != 0x0) {
+	if (((gfir & GFIR_ERR_TRIGGER) != 0x0) &&
+	    !pci_channel_offline(pci_dev)) {
+
+		if (cd->use_platform_recovery) {
+			/*
+			 * Since we use raw accessors, EEH errors won't be
+			 * detected by the platform until we do a non-raw
+			 * MMIO or config space read
+			 */
+			readq(cd->mmio + IO_SLC_CFGREG_GFIR);
+
+			/* Don't do anything if the PCI channel is frozen */
+			if (pci_channel_offline(pci_dev))
+				goto exit;
+		}
 
 		wake_up_interruptible(&cd->health_waitq);
 
@@ -1122,12 +1140,12 @@ static irqreturn_t genwqe_pf_isr(int irq, void *dev_id)
 		 * By default GFIRs causes recovery actions. This
 		 * count is just for debug when recovery is masked.
 		 */
-		printk_ratelimited(KERN_ERR
-				   "%s %s: [%s] GFIR=%016llx\n",
-				   GENWQE_DEVNAME, dev_name(&pci_dev->dev),
-				   __func__, gfir);
+		dev_err_ratelimited(&pci_dev->dev,
+				    "[%s] GFIR=%016llx\n",
+				    __func__, gfir);
 	}
 
+ exit:
 	return IRQ_HANDLED;
 }
 
@@ -1233,9 +1251,7 @@ int genwqe_setup_service_layer(struct genwqe_dev *cd)
 	}
 
 	rc = genwqe_set_interrupt_capability(cd, GENWQE_MSI_IRQS);
-	if (rc > 0)
-		rc = genwqe_set_interrupt_capability(cd, rc);
-	if (rc != 0) {
+	if (rc) {
 		rc = -ENODEV;
 		goto stop_kthread;
 	}
@@ -1306,7 +1322,7 @@ static int queue_wake_up_all(struct genwqe_dev *cd)
  */
 int genwqe_finish_queue(struct genwqe_dev *cd)
 {
-	int i, rc, in_flight;
+	int i, rc = 0, in_flight;
 	int waitmax = genwqe_ddcb_software_timeout;
 	struct pci_dev *pci_dev = cd->pci_dev;
 	struct ddcb_queue *queue = &cd->queue;

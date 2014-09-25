@@ -50,11 +50,13 @@ struct ttm_range_manager {
 static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 			       struct ttm_buffer_object *bo,
 			       struct ttm_placement *placement,
+			       uint32_t flags,
 			       struct ttm_mem_reg *mem)
 {
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
 	struct drm_mm *mm = &rman->mm;
 	struct drm_mm_node *node = NULL;
+	enum drm_mm_allocator_flags aflags = DRM_MM_CREATE_DEFAULT;
 	unsigned long lpfn;
 	int ret;
 
@@ -66,11 +68,15 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 	if (!node)
 		return -ENOMEM;
 
+	if (flags & TTM_PL_FLAG_TOPDOWN)
+		aflags = DRM_MM_CREATE_TOP;
+
 	spin_lock(&rman->lock);
-	ret = drm_mm_insert_node_in_range(mm, node, mem->num_pages,
-					  mem->page_alignment,
+	ret = drm_mm_insert_node_in_range_generic(mm, node, mem->num_pages,
+					  mem->page_alignment, 0,
 					  placement->fpfn, lpfn,
-					  DRM_MM_SEARCH_BEST);
+					  DRM_MM_SEARCH_BEST,
+					  aflags);
 	spin_unlock(&rman->lock);
 
 	if (unlikely(ret)) {

@@ -200,7 +200,7 @@ skip_tuning:
 	if (btcoex->duty_cycle > ATH_MCI_MAX_DUTY_CYCLE)
 		btcoex->duty_cycle = ATH_MCI_MAX_DUTY_CYCLE;
 
-	btcoex->btcoex_no_stomp =  btcoex->btcoex_period * 1000 *
+	btcoex->btcoex_no_stomp =  btcoex->btcoex_period *
 		(100 - btcoex->duty_cycle) / 100;
 
 	ath9k_hw_btcoex_enable(sc->sc_ah);
@@ -555,7 +555,7 @@ void ath_mci_intr(struct ath_softc *sc)
 		mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_GPM;
 
 		while (more_data == MCI_GPM_MORE) {
-			if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
+			if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
 				return;
 
 			pgpm = mci->gpm_buf.bf_addr;
@@ -706,7 +706,7 @@ void ath9k_mci_set_txpower(struct ath_softc *sc, bool setchannel,
 		return;
 
 	if (setchannel) {
-		struct ath9k_hw_cal_data *caldata = &sc->caldata;
+		struct ath9k_hw_cal_data *caldata = &sc->cur_chan->caldata;
 		if (IS_CHAN_HT40PLUS(ah->curchan) &&
 		    (ah->curchan->channel > caldata->channel) &&
 		    (ah->curchan->channel <= caldata->channel + 20))
@@ -720,7 +720,7 @@ void ath9k_mci_set_txpower(struct ath_softc *sc, bool setchannel,
 		mci_hw->concur_tx = concur_tx;
 
 	if (old_concur_tx != mci_hw->concur_tx)
-		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
+		ath9k_hw_set_txpowerlimit(ah, sc->cur_chan->txpower, false);
 }
 
 static void ath9k_mci_stomp_audio(struct ath_softc *sc)

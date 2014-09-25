@@ -100,23 +100,11 @@ do {								\
 static inline int __mutex_fastpath_trylock(atomic_t *count,
 					   int (*fail_fn)(atomic_t *))
 {
-	/*
-	 * We have two variants here. The cmpxchg based one is the best one
-	 * because it never induce a false contention state.  It is included
-	 * here because architectures using the inc/dec algorithms over the
-	 * xchg ones are much more likely to support cmpxchg natively.
-	 *
-	 * If not we fall back to the spinlock based variant - that is
-	 * just as efficient (and simpler) as a 'destructive' probing of
-	 * the mutex state would be.
-	 */
-#ifdef __HAVE_ARCH_CMPXCHG
+	/* cmpxchg because it never induces a false contention state. */
 	if (likely(atomic_cmpxchg(count, 1, 0) == 1))
 		return 1;
+
 	return 0;
-#else
-	return fail_fn(count);
-#endif
 }
 
 #endif /* _ASM_X86_MUTEX_32_H */

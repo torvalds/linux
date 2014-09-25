@@ -102,9 +102,8 @@ static int subdev_8255_io(int dir, int port, int data, unsigned long iobase)
 	if (dir) {
 		outb(data, iobase + port);
 		return 0;
-	} else {
-		return inb(iobase + port);
 	}
+	return inb(iobase + port);
 }
 
 void subdev_8255_interrupt(struct comedi_device *dev,
@@ -117,7 +116,7 @@ void subdev_8255_interrupt(struct comedi_device *dev,
 	d = spriv->io(0, _8255_DATA, 0, iobase);
 	d |= (spriv->io(0, _8255_DATA + 1, 0, iobase) << 8);
 
-	comedi_buf_put(s->async, d);
+	comedi_buf_put(s, d);
 	s->async->events |= COMEDI_CB_EOS;
 
 	comedi_event(dev, s);
@@ -231,7 +230,7 @@ static int subdev_8255_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -298,6 +297,7 @@ int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (ret)
 		return ret;
 
+	s->len_chanlist	= 1;
 	s->do_cmdtest	= subdev_8255_cmdtest;
 	s->do_cmd	= subdev_8255_cmd;
 	s->cancel	= subdev_8255_cancel;

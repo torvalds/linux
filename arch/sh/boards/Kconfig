@@ -158,7 +158,7 @@ config SH_SDK7786
 	bool "SDK7786"
 	depends on CPU_SUBTYPE_SH7786
 	select SYS_SUPPORTS_PCI
-	select NO_IOPORT if !PCI
+	select NO_IOPORT_MAP if !PCI
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_SRAM_POOL
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
@@ -204,7 +204,7 @@ config SH_URQUELL
 	depends on CPU_SUBTYPE_SH7786
 	select ARCH_REQUIRE_GPIOLIB
 	select SYS_SUPPORTS_PCI
-	select NO_IOPORT if !PCI
+	select NO_IOPORT_MAP if !PCI
 
 config SH_MIGOR
 	bool "Migo-R"
@@ -306,7 +306,7 @@ config SH_LBOX_RE2
 config SH_X3PROTO
 	bool "SH-X3 Prototype board"
 	depends on CPU_SUBTYPE_SHX3
-	select NO_IOPORT if !PCI
+	select NO_IOPORT_MAP if !PCI
 	select IRQ_DOMAIN
 
 config SH_MAGIC_PANEL_R2
@@ -321,6 +321,7 @@ config SH_CAYMAN
 	bool "Hitachi Cayman"
 	depends on CPU_SUBTYPE_SH5_101 || CPU_SUBTYPE_SH5_103
 	select SYS_SUPPORTS_PCI
+	select ARCH_MIGHT_HAVE_PC_SERIO
 
 config SH_POLARIS
 	bool "SMSC Polaris"
@@ -332,7 +333,7 @@ config SH_POLARIS
 
 config SH_SH2007
 	bool "SH-2007 board"
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	depends on CPU_SUBTYPE_SH7780
 	help
@@ -370,7 +371,7 @@ if SH_MAGIC_PANEL_R2
 menu "Magic Panel R2 options"
 
 config SH_MAGIC_PANEL_R2_VERSION
-	int SH_MAGIC_PANEL_R2_VERSION
+	int "Magic Panel R2 Version"
 	default "3"
 	help
 	  Set the version of the Magic Panel R2

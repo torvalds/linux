@@ -208,8 +208,7 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 			  unsigned long in_devfn)
 {
 	struct pci_controller* hose;
-	struct list_head *ln;
-	struct pci_bus *bus = NULL;
+	struct pci_bus *tmp_bus, *bus = NULL;
 	struct device_node *hose_node;
 
 	/* Argh ! Please forgive me for that hack, but that's the
@@ -230,11 +229,12 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 	 * used on pre-domains setup. We return the first match
 	 */
 
-	for (ln = pci_root_buses.next; ln != &pci_root_buses; ln = ln->next) {
-		bus = pci_bus_b(ln);
-		if (in_bus >= bus->number && in_bus <= bus->busn_res.end)
+	list_for_each_entry(tmp_bus, &pci_root_buses, node) {
+		if (in_bus >= tmp_bus->number &&
+		    in_bus <= tmp_bus->busn_res.end) {
+			bus = tmp_bus;
 			break;
-		bus = NULL;
+		}
 	}
 	if (bus == NULL || bus->dev.of_node == NULL)
 		return -ENODEV;

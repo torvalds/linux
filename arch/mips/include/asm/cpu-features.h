@@ -20,6 +20,24 @@
 #ifndef cpu_has_tlb
 #define cpu_has_tlb		(cpu_data[0].options & MIPS_CPU_TLB)
 #endif
+#ifndef cpu_has_tlbinv
+#define cpu_has_tlbinv		(cpu_data[0].options & MIPS_CPU_TLBINV)
+#endif
+#ifndef cpu_has_segments
+#define cpu_has_segments	(cpu_data[0].options & MIPS_CPU_SEGMENTS)
+#endif
+#ifndef cpu_has_eva
+#define cpu_has_eva		(cpu_data[0].options & MIPS_CPU_EVA)
+#endif
+#ifndef cpu_has_htw
+#define cpu_has_htw		(cpu_data[0].options & MIPS_CPU_HTW)
+#endif
+#ifndef cpu_has_rixiex
+#define cpu_has_rixiex		(cpu_data[0].options & MIPS_CPU_RIXIEX)
+#endif
+#ifndef cpu_has_maar
+#define cpu_has_maar		(cpu_data[0].options & MIPS_CPU_MAAR)
+#endif
 
 /*
  * For the moment we don't consider R6000 and R8000 so we can assume that
@@ -101,9 +119,15 @@
 #ifndef cpu_has_smartmips
 #define cpu_has_smartmips	(cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
 #endif
+
 #ifndef cpu_has_rixi
-#define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
+# ifdef CONFIG_64BIT
+# define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
+# else /* CONFIG_32BIT */
+# define cpu_has_rixi		((cpu_data[0].options & MIPS_CPU_RIXI) && !cpu_has_64bits)
+# endif
 #endif
+
 #ifndef cpu_has_mmips
 # ifdef CONFIG_SYS_SUPPORTS_MICROMIPS
 #  define cpu_has_mmips		(cpu_data[0].options & MIPS_CPU_MICROMIPS)
@@ -111,6 +135,7 @@
 #  define cpu_has_mmips		0
 # endif
 #endif
+
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)
 #endif
@@ -174,6 +199,17 @@
 /*
  * Shortcuts ...
  */
+#define cpu_has_mips_2_3_4_5	(cpu_has_mips_2 | cpu_has_mips_3_4_5)
+#define cpu_has_mips_3_4_5	(cpu_has_mips_3 | cpu_has_mips_4_5)
+#define cpu_has_mips_4_5	(cpu_has_mips_4 | cpu_has_mips_5)
+
+#define cpu_has_mips_2_3_4_5_r	(cpu_has_mips_2 | cpu_has_mips_3_4_5_r)
+#define cpu_has_mips_3_4_5_r	(cpu_has_mips_3 | cpu_has_mips_4_5_r)
+#define cpu_has_mips_4_5_r	(cpu_has_mips_4 | cpu_has_mips_5_r)
+#define cpu_has_mips_5_r	(cpu_has_mips_5 | cpu_has_mips_r)
+
+#define cpu_has_mips_4_5_r2	(cpu_has_mips_4_5 | cpu_has_mips_r2)
+
 #define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2)
 #define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2)
 #define cpu_has_mips_r1 (cpu_has_mips32r1 | cpu_has_mips64r1)
@@ -290,6 +326,12 @@
 
 #ifndef cpu_has_vz
 #define cpu_has_vz		(cpu_data[0].ases & MIPS_ASE_VZ)
+#endif
+
+#if defined(CONFIG_CPU_HAS_MSA) && !defined(cpu_has_msa)
+# define cpu_has_msa		(cpu_data[0].ases & MIPS_ASE_MSA)
+#elif !defined(cpu_has_msa)
+# define cpu_has_msa		0
 #endif
 
 #endif /* __ASM_CPU_FEATURES_H */

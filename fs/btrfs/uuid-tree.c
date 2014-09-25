@@ -69,7 +69,7 @@ static int btrfs_uuid_tree_lookup(struct btrfs_root *uuid_root, u8 *uuid,
 	ret = -ENOENT;
 
 	if (!IS_ALIGNED(item_size, sizeof(u64))) {
-		pr_warn("btrfs: uuid item with illegal size %lu!\n",
+		btrfs_warn(uuid_root->fs_info, "uuid item with illegal size %lu!",
 			(unsigned long)item_size);
 		goto out;
 	}
@@ -137,7 +137,8 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans,
 		offset = btrfs_item_ptr_offset(eb, slot);
 		offset += btrfs_item_size_nr(eb, slot) - sizeof(subid_le);
 	} else if (ret < 0) {
-		pr_warn("btrfs: insert uuid item failed %d (0x%016llx, 0x%016llx) type %u!\n",
+		btrfs_warn(uuid_root->fs_info, "insert uuid item failed %d "
+			"(0x%016llx, 0x%016llx) type %u!",
 			ret, (unsigned long long)key.objectid,
 			(unsigned long long)key.offset, type);
 		goto out;
@@ -183,7 +184,7 @@ int btrfs_uuid_tree_rem(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_search_slot(trans, uuid_root, &key, path, -1, 1);
 	if (ret < 0) {
-		pr_warn("btrfs: error %d while searching for uuid item!\n",
+		btrfs_warn(uuid_root->fs_info, "error %d while searching for uuid item!",
 			ret);
 		goto out;
 	}
@@ -197,7 +198,7 @@ int btrfs_uuid_tree_rem(struct btrfs_trans_handle *trans,
 	offset = btrfs_item_ptr_offset(eb, slot);
 	item_size = btrfs_item_size_nr(eb, slot);
 	if (!IS_ALIGNED(item_size, sizeof(u64))) {
-		pr_warn("btrfs: uuid item with illegal size %lu!\n",
+		btrfs_warn(uuid_root->fs_info, "uuid item with illegal size %lu!",
 			(unsigned long)item_size);
 		ret = -ENOENT;
 		goto out;
@@ -299,7 +300,7 @@ again_search_slot:
 		offset = btrfs_item_ptr_offset(leaf, slot);
 		item_size = btrfs_item_size_nr(leaf, slot);
 		if (!IS_ALIGNED(item_size, sizeof(u64))) {
-			pr_warn("btrfs: uuid item with illegal size %lu!\n",
+			btrfs_warn(fs_info, "uuid item with illegal size %lu!",
 				(unsigned long)item_size);
 			goto skip;
 		}
@@ -349,6 +350,6 @@ skip:
 out:
 	btrfs_free_path(path);
 	if (ret)
-		pr_warn("btrfs: btrfs_uuid_tree_iterate failed %d\n", ret);
+		btrfs_warn(fs_info, "btrfs_uuid_tree_iterate failed %d", ret);
 	return 0;
 }

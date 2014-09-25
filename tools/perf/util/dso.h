@@ -4,7 +4,8 @@
 #include <linux/types.h>
 #include <linux/rbtree.h>
 #include <stdbool.h>
-#include "types.h"
+#include <linux/types.h>
+#include <linux/bitops.h>
 #include "map.h"
 #include "build-id.h"
 
@@ -38,6 +39,23 @@ enum dso_swap_type {
 	DSO_SWAP__UNSET,
 	DSO_SWAP__NO,
 	DSO_SWAP__YES,
+};
+
+enum dso_data_status {
+	DSO_DATA_STATUS_ERROR	= -1,
+	DSO_DATA_STATUS_UNKNOWN	= 0,
+	DSO_DATA_STATUS_OK	= 1,
+};
+
+enum dso_data_status_seen {
+	DSO_DATA_STATUS_SEEN_ITRACE,
+};
+
+enum dso_type {
+	DSO__TYPE_UNKNOWN,
+	DSO__TYPE_64BIT,
+	DSO__TYPE_32BIT,
+	DSO__TYPE_X32BIT,
 };
 
 #define DSO__SWAP(dso, type, val)			\
@@ -76,7 +94,6 @@ struct dso {
 	struct list_head node;
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
-	struct rb_root	 cache;
 	void		 *a2l;
 	char		 *symsrc_filename;
 	unsigned int	 a2l_fails;
@@ -91,6 +108,7 @@ struct dso {
 	u8		 annotate_warned:1;
 	u8		 short_name_allocated:1;
 	u8		 long_name_allocated:1;
+	u8		 is_64_bit:1;
 	u8		 sorted_by_name;
 	u8		 loaded;
 	u8		 rel;
@@ -99,8 +117,29 @@ struct dso {
 	const char	 *long_name;
 	u16		 long_name_len;
 	u16		 short_name_len;
+
+	/* dso data file */
+	struct {
+		struct rb_root	 cache;
+		int		 fd;
+		int		 status;
+		u32		 status_seen;
+		size_t		 file_size;
+		struct list_head open_entry;
+	} data;
+
 	char		 name[0];
 };
+
+/* dso__for_each_symbol - iterate over the symbols of given type
+ *
+ * @dso: the 'struct dso *' in which symbols itereated
+ * @pos: the 'struct symbol *' to use as a loop cursor
+ * @n: the 'struct rb_node *' to use as a temporary storage
+ * @type: the 'enum map_type' type of symbols
+ */
+#define dso__for_each_symbol(dso, pos, n, type)	\
+	symbols__for_each_entry(&(dso)->symbols[(type)], pos, n)
 
 static inline void dso__set_loaded(struct dso *dso, enum map_type type)
 {
@@ -131,12 +170,55 @@ char dso__symtab_origin(const struct dso *dso);
 int dso__read_binary_type_filename(const struct dso *dso, enum dso_binary_type type,
 				   char *root_dir, char *filename, size_t size);
 
+/*
+ * The dso__data_* external interface provides following functions:
+ *   dso__data_fd
+ *   dso__data_close
+ *   dso__data_size
+ *   dso__data_read_offset
+ *   dso__data_read_addr
+ *
+ * Please refer to the dso.c object code for each function and
+ * arguments documentation. Following text tries to explain the
+ * dso file descriptor caching.
+ *
+ * The dso__data* interface allows caching of opened file descriptors
+ * to speed up the dso data accesses. The idea is to leave the file
+ * descriptor opened ideally for the whole life of the dso object.
+ *
+ * The current usage of the dso__data_* interface is as follows:
+ *
+ * Get DSO's fd:
+ *   int fd = dso__data_fd(dso, machine);
+ *   USE 'fd' SOMEHOW
+ *
+ * Read DSO's data:
+ *   n = dso__data_read_offset(dso_0, &machine, 0, buf, BUFSIZE);
+ *   n = dso__data_read_addr(dso_0, &machine, 0, buf, BUFSIZE);
+ *
+ * Eventually close DSO's fd:
+ *   dso__data_close(dso);
+ *
+ * It is not necessary to close the DSO object data file. Each time new
+ * DSO data file is opened, the limit (RLIMIT_NOFILE/2) is checked. Once
+ * it is crossed, the oldest opened DSO object is closed.
+ *
+ * The dso__delete function calls close_dso function to ensure the
+ * data file descriptor gets closed/unmapped before the dso object
+ * is freed.
+ *
+ * TODO
+*/
 int dso__data_fd(struct dso *dso, struct machine *machine);
+void dso__data_close(struct dso *dso);
+
+off_t dso__data_size(struct dso *dso, struct machine *machine);
 ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 			      u64 offset, u8 *data, ssize_t size);
 ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
 			    struct machine *machine, u64 addr,
 			    u8 *data, ssize_t size);
+bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by);
 
 struct map *dso__new_map(const char *name);
 struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
@@ -170,5 +252,7 @@ static inline bool dso__is_kcore(struct dso *dso)
 }
 
 void dso__free_a2l(struct dso *dso);
+
+enum dso_type dso__type(struct dso *dso, struct machine *machine);
 
 #endif /* __PERF_DSO */

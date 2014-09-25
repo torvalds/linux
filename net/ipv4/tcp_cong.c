@@ -276,27 +276,6 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 	return err;
 }
 
-/* RFC2861 Check whether we are limited by application or congestion window
- * This is the inverse of cwnd check in tcp_tso_should_defer
- */
-bool tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	u32 left;
-
-	if (in_flight >= tp->snd_cwnd)
-		return true;
-
-	left = tp->snd_cwnd - in_flight;
-	if (sk_can_gso(sk) &&
-	    left * sysctl_tcp_tso_win_divisor < tp->snd_cwnd &&
-	    left * tp->mss_cache < sk->sk_gso_max_size &&
-	    left < sk->sk_gso_max_segs)
-		return true;
-	return left <= tcp_max_tso_deferred_mss(tp);
-}
-EXPORT_SYMBOL_GPL(tcp_is_cwnd_limited);
-
 /* Slow start is used when congestion window is no greater than the slow start
  * threshold. We base on RFC2581 and also handle stretch ACKs properly.
  * We do not implement RFC3465 Appropriate Byte Counting (ABC) per se but
@@ -338,11 +317,11 @@ EXPORT_SYMBOL_GPL(tcp_cong_avoid_ai);
 /* This is Jacobson's slow start and congestion avoidance.
  * SIGCOMM '88, p. 328.
  */
-void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked, u32 in_flight)
+void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (!tcp_is_cwnd_limited(sk, in_flight))
+	if (!tcp_is_cwnd_limited(sk))
 		return;
 
 	/* In "safe" area, increase. */
@@ -362,21 +341,12 @@ u32 tcp_reno_ssthresh(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(tcp_reno_ssthresh);
 
-/* Lower bound on congestion window with halving. */
-u32 tcp_reno_min_cwnd(const struct sock *sk)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	return tp->snd_ssthresh/2;
-}
-EXPORT_SYMBOL_GPL(tcp_reno_min_cwnd);
-
 struct tcp_congestion_ops tcp_reno = {
 	.flags		= TCP_CONG_NON_RESTRICTED,
 	.name		= "reno",
 	.owner		= THIS_MODULE,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
-	.min_cwnd	= tcp_reno_min_cwnd,
 };
 
 /* Initial congestion control used (until SYN)
@@ -388,6 +358,5 @@ struct tcp_congestion_ops tcp_init_congestion_ops  = {
 	.owner		= THIS_MODULE,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
-	.min_cwnd	= tcp_reno_min_cwnd,
 };
 EXPORT_SYMBOL_GPL(tcp_init_congestion_ops);

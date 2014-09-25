@@ -261,7 +261,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		struct drm_agp_mem *entry;
 		int valid = 0;
 
-		if (!drm_core_has_AGP(dev)) {
+		if (!dev->agp) {
 			kfree(map);
 			return -EINVAL;
 		}
@@ -303,9 +303,6 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 
 		break;
 	}
-	case _DRM_GEM:
-		DRM_ERROR("tried to addmap GEM object\n");
-		break;
 	case _DRM_SCATTER_GATHER:
 		if (!dev->sg) {
 			kfree(map);
@@ -366,7 +363,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		list->master = dev->primary->master;
 	*maplist = list;
 	return 0;
-	}
+}
 
 int drm_addmap(struct drm_device * dev, resource_size_t offset,
 	       unsigned int size, enum drm_map_type type,
@@ -482,9 +479,6 @@ int drm_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 		dmah.busaddr = map->offset;
 		dmah.size = map->size;
 		__drm_pci_free(dev, &dmah);
-		break;
-	case _DRM_GEM:
-		DRM_ERROR("tried to rmmap GEM object\n");
 		break;
 	}
 	kfree(map);
@@ -662,13 +656,13 @@ int drm_addbufs_agp(struct drm_device * dev, struct drm_buf_desc * request)
 		DRM_DEBUG("zone invalid\n");
 		return -EINVAL;
 	}
-	spin_lock(&dev->count_lock);
+	spin_lock(&dev->buf_lock);
 	if (dev->buf_use) {
-		spin_unlock(&dev->count_lock);
+		spin_unlock(&dev->buf_lock);
 		return -EBUSY;
 	}
 	atomic_inc(&dev->buf_alloc);
-	spin_unlock(&dev->count_lock);
+	spin_unlock(&dev->buf_lock);
 
 	mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
@@ -811,13 +805,13 @@ int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 	page_order = order - PAGE_SHIFT > 0 ? order - PAGE_SHIFT : 0;
 	total = PAGE_SIZE << page_order;
 
-	spin_lock(&dev->count_lock);
+	spin_lock(&dev->buf_lock);
 	if (dev->buf_use) {
-		spin_unlock(&dev->count_lock);
+		spin_unlock(&dev->buf_lock);
 		return -EBUSY;
 	}
 	atomic_inc(&dev->buf_alloc);
-	spin_unlock(&dev->count_lock);
+	spin_unlock(&dev->buf_lock);
 
 	mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
@@ -1021,13 +1015,13 @@ static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request
 	if (order < DRM_MIN_ORDER || order > DRM_MAX_ORDER)
 		return -EINVAL;
 
-	spin_lock(&dev->count_lock);
+	spin_lock(&dev->buf_lock);
 	if (dev->buf_use) {
-		spin_unlock(&dev->count_lock);
+		spin_unlock(&dev->buf_lock);
 		return -EBUSY;
 	}
 	atomic_inc(&dev->buf_alloc);
-	spin_unlock(&dev->count_lock);
+	spin_unlock(&dev->buf_lock);
 
 	mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
@@ -1181,7 +1175,7 @@ int drm_addbufs(struct drm_device *dev, void *data,
  * \param arg pointer to a drm_buf_info structure.
  * \return zero on success or a negative number on failure.
  *
- * Increments drm_device::buf_use while holding the drm_device::count_lock
+ * Increments drm_device::buf_use while holding the drm_device::buf_lock
  * lock, preventing of allocating more buffers after this call. Information
  * about each requested buffer is then copied into user space.
  */
@@ -1202,13 +1196,13 @@ int drm_infobufs(struct drm_device *dev, void *data,
 	if (!dma)
 		return -EINVAL;
 
-	spin_lock(&dev->count_lock);
+	spin_lock(&dev->buf_lock);
 	if (atomic_read(&dev->buf_alloc)) {
-		spin_unlock(&dev->count_lock);
+		spin_unlock(&dev->buf_lock);
 		return -EBUSY;
 	}
 	++dev->buf_use;		/* Can't allocate more after this call */
-	spin_unlock(&dev->count_lock);
+	spin_unlock(&dev->buf_lock);
 
 	for (i = 0, count = 0; i < DRM_MAX_ORDER + 1; i++) {
 		if (dma->bufs[i].buf_count)
@@ -1223,7 +1217,6 @@ int drm_infobufs(struct drm_device *dev, void *data,
 				struct drm_buf_desc __user *to =
 				    &request->list[count];
 				struct drm_buf_entry *from = &dma->bufs[i];
-				struct drm_freelist *list = &dma->bufs[i].freelist;
 				if (copy_to_user(&to->count,
 						 &from->buf_count,
 						 sizeof(from->buf_count)) ||
@@ -1231,19 +1224,19 @@ int drm_infobufs(struct drm_device *dev, void *data,
 						 &from->buf_size,
 						 sizeof(from->buf_size)) ||
 				    copy_to_user(&to->low_mark,
-						 &list->low_mark,
-						 sizeof(list->low_mark)) ||
+						 &from->low_mark,
+						 sizeof(from->low_mark)) ||
 				    copy_to_user(&to->high_mark,
-						 &list->high_mark,
-						 sizeof(list->high_mark)))
+						 &from->high_mark,
+						 sizeof(from->high_mark)))
 					return -EFAULT;
 
 				DRM_DEBUG("%d %d %d %d %d\n",
 					  i,
 					  dma->bufs[i].buf_count,
 					  dma->bufs[i].buf_size,
-					  dma->bufs[i].freelist.low_mark,
-					  dma->bufs[i].freelist.high_mark);
+					  dma->bufs[i].low_mark,
+					  dma->bufs[i].high_mark);
 				++count;
 			}
 		}
@@ -1296,8 +1289,8 @@ int drm_markbufs(struct drm_device *dev, void *data,
 	if (request->high_mark < 0 || request->high_mark > entry->buf_count)
 		return -EINVAL;
 
-	entry->freelist.low_mark = request->low_mark;
-	entry->freelist.high_mark = request->high_mark;
+	entry->low_mark = request->low_mark;
+	entry->high_mark = request->high_mark;
 
 	return 0;
 }
@@ -1387,16 +1380,16 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 	if (!dma)
 		return -EINVAL;
 
-	spin_lock(&dev->count_lock);
+	spin_lock(&dev->buf_lock);
 	if (atomic_read(&dev->buf_alloc)) {
-		spin_unlock(&dev->count_lock);
+		spin_unlock(&dev->buf_lock);
 		return -EBUSY;
 	}
 	dev->buf_use++;		/* Can't allocate more after this call */
-	spin_unlock(&dev->count_lock);
+	spin_unlock(&dev->buf_lock);
 
 	if (request->count >= dma->buf_count) {
-		if ((drm_core_has_AGP(dev) && (dma->flags & _DRM_DMA_USE_AGP))
+		if ((dev->agp && (dma->flags & _DRM_DMA_USE_AGP))
 		    || (drm_core_check_feature(dev, DRIVER_SG)
 			&& (dma->flags & _DRM_DMA_USE_SG))) {
 			struct drm_local_map *map = dev->agp_buffer_map;

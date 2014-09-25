@@ -649,10 +649,10 @@ static const struct v4l2_subdev_core_ops msp_core_ops = {
 	.s_ctrl = v4l2_subdev_s_ctrl,
 	.queryctrl = v4l2_subdev_queryctrl,
 	.querymenu = v4l2_subdev_querymenu,
-	.s_std = msp_s_std,
 };
 
 static const struct v4l2_subdev_video_ops msp_video_ops = {
+	.s_std = msp_s_std,
 	.querystd = msp_querystd,
 };
 

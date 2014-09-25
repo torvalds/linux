@@ -42,9 +42,11 @@
 #include "dib0070.h"
 #include "lgs8gxx.h"
 #include "atbm8830.h"
+#include "si2168.h"
+#include "si2157.h"
 
 /* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  64
+#define MAX_XFER_SIZE  80
 
 /* debug */
 static int dvb_usb_cxusb_debug;
@@ -144,11 +146,28 @@ static int cxusb_d680_dmb_gpio_tuner(struct dvb_usb_device *d,
 	}
 }
 
+static int cxusb_tt_ct2_4400_gpio_tuner(struct dvb_usb_device *d, int onoff)
+{
+	u8 o[2], i;
+	int rc;
+
+	o[0] = 0x83;
+	o[1] = onoff;
+	rc = cxusb_ctrl_msg(d, CMD_GPIO_WRITE, o, 2, &i, 1);
+
+	if (rc) {
+		deb_info("gpio_write failed.\n");
+		return -EIO;
+	}
+	return 0;
+}
+
 /* I2C */
 static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			  int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+	int ret;
 	int i;
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
@@ -173,7 +192,8 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			if (1 + msg[i].len > sizeof(ibuf)) {
 				warn("i2c rd: len=%d is too big!\n",
 				     msg[i].len);
-				return -EOPNOTSUPP;
+				ret = -EOPNOTSUPP;
+				goto unlock;
 			}
 			obuf[0] = 0;
 			obuf[1] = msg[i].len;
@@ -193,12 +213,14 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			if (3 + msg[i].len > sizeof(obuf)) {
 				warn("i2c wr: len=%d is too big!\n",
 				     msg[i].len);
-				return -EOPNOTSUPP;
+				ret = -EOPNOTSUPP;
+				goto unlock;
 			}
 			if (1 + msg[i + 1].len > sizeof(ibuf)) {
 				warn("i2c rd: len=%d is too big!\n",
 				     msg[i + 1].len);
-				return -EOPNOTSUPP;
+				ret = -EOPNOTSUPP;
+				goto unlock;
 			}
 			obuf[0] = msg[i].len;
 			obuf[1] = msg[i+1].len;
@@ -223,7 +245,8 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			if (2 + msg[i].len > sizeof(obuf)) {
 				warn("i2c wr: len=%d is too big!\n",
 				     msg[i].len);
-				return -EOPNOTSUPP;
+				ret = -EOPNOTSUPP;
+				goto unlock;
 			}
 			obuf[0] = msg[i].addr;
 			obuf[1] = msg[i].len;
@@ -237,8 +260,14 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		}
 	}
 
+	if (i == num)
+		ret = num;
+	else
+		ret = -EREMOTEIO;
+
+unlock:
 	mutex_unlock(&d->i2c_mutex);
-	return i == num ? num : -EREMOTEIO;
+	return ret;
 }
 
 static u32 cxusb_i2c_func(struct i2c_adapter *adapter)
@@ -489,6 +518,30 @@ static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 
 			return 0;
 		}
+	}
+
+	return 0;
+}
+
+static int cxusb_tt_ct2_4400_rc_query(struct dvb_usb_device *d)
+{
+	u8 i[2];
+	int ret;
+	u32 cmd, keycode;
+	u8 rc5_cmd, rc5_addr, rc5_toggle;
+
+	ret = cxusb_ctrl_msg(d, 0x10, NULL, 0, i, 2);
+	if (ret)
+		return ret;
+
+	cmd = (i[0] << 8) | i[1];
+
+	if (cmd != 0xffff) {
+		rc5_cmd = cmd & 0x3F; /* bits 1-6 for command */
+		rc5_addr = (cmd & 0x07C0) >> 6; /* bits 7-11 for address */
+		rc5_toggle = (cmd & 0x0800) >> 11; /* bit 12 for toggle */
+		keycode = (rc5_addr << 8) | rc5_cmd;
+		rc_keydown(d->rc_dev, RC_BIT_RC5, keycode, rc5_toggle);
 	}
 
 	return 0;
@@ -1059,8 +1112,15 @@ static struct dib7000p_config cxusb_dualdig4_rev2_config = {
 	.hostbus_diversity = 1,
 };
 
+struct dib0700_adapter_state {
+	int (*set_param_save)(struct dvb_frontend *);
+	struct dib7000p_ops dib7000p_ops;
+};
+
 static int cxusb_dualdig4_rev2_frontend_attach(struct dvb_usb_adapter *adap)
 {
+	struct dib0700_adapter_state *state = adap->priv;
+
 	if (usb_set_interface(adap->dev->udev, 0, 1) < 0)
 		err("set interface failed");
 
@@ -1068,14 +1128,17 @@ static int cxusb_dualdig4_rev2_frontend_attach(struct dvb_usb_adapter *adap)
 
 	cxusb_bluebird_gpio_pulse(adap->dev, 0x02, 1);
 
-	if (dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
-				     &cxusb_dualdig4_rev2_config) < 0) {
+	if (!dvb_attach(dib7000p_attach, &state->dib7000p_ops))
+		return -ENODEV;
+
+	if (state->dib7000p_ops.i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
+				       &cxusb_dualdig4_rev2_config) < 0) {
 		printk(KERN_WARNING "Unable to enumerate dib7000p\n");
 		return -ENODEV;
 	}
 
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
-			      &cxusb_dualdig4_rev2_config);
+	adap->fe_adap[0].fe = state->dib7000p_ops.init(&adap->dev->i2c_adap, 0x80,
+					      &cxusb_dualdig4_rev2_config);
 	if (adap->fe_adap[0].fe == NULL)
 		return -EIO;
 
@@ -1084,7 +1147,10 @@ static int cxusb_dualdig4_rev2_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int dib7070_tuner_reset(struct dvb_frontend *fe, int onoff)
 {
-	return dib7000p_set_gpio(fe, 8, 0, !onoff);
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct dib0700_adapter_state *state = adap->priv;
+
+	return state->dib7000p_ops.set_gpio(fe, 8, 0, !onoff);
 }
 
 static int dib7070_tuner_sleep(struct dvb_frontend *fe, int onoff)
@@ -1097,10 +1163,6 @@ static struct dib0070_config dib7070p_dib0070_config = {
 	.reset = dib7070_tuner_reset,
 	.sleep = dib7070_tuner_sleep,
 	.clock_khz = 12000,
-};
-
-struct dib0700_adapter_state {
-	int (*set_param_save) (struct dvb_frontend *);
 };
 
 static int dib7070_set_param_override(struct dvb_frontend *fe)
@@ -1117,7 +1179,7 @@ static int dib7070_set_param_override(struct dvb_frontend *fe)
 	case BAND_UHF: offset = 550; break;
 	}
 
-	dib7000p_set_wbd_ref(fe, offset + dib0070_wbd_offset(fe));
+	state->dib7000p_ops.set_wbd_ref(fe, offset + dib0070_wbd_offset(fe));
 
 	return state->set_param_save(fe);
 }
@@ -1125,8 +1187,14 @@ static int dib7070_set_param_override(struct dvb_frontend *fe)
 static int cxusb_dualdig4_rev2_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct dib0700_adapter_state *st = adap->priv;
-	struct i2c_adapter *tun_i2c =
-		dib7000p_get_i2c_master(adap->fe_adap[0].fe,
+	struct i2c_adapter *tun_i2c;
+
+	/*
+	 * No need to call dvb7000p_attach here, as it was called
+	 * already, as frontend_attach method is called first, and
+	 * tuner_attach is only called on sucess.
+	 */
+	tun_i2c = st->dib7000p_ops.get_i2c_master(adap->fe_adap[0].fe,
 					DIBX000_I2C_INTERFACE_TUNER, 1);
 
 	if (dvb_attach(dib0070_attach, adap->fe_adap[0].fe, tun_i2c,
@@ -1275,6 +1343,74 @@ static int cxusb_mygica_d689_frontend_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static int cxusb_tt_ct2_4400_attach(struct dvb_usb_adapter *adap)
+{
+	struct dvb_usb_device *d = adap->dev;
+	struct cxusb_state *st = d->priv;
+	struct i2c_adapter *adapter;
+	struct i2c_client *client_demod;
+	struct i2c_client *client_tuner;
+	struct i2c_board_info info;
+	struct si2168_config si2168_config;
+	struct si2157_config si2157_config;
+
+	/* reset the tuner */
+	if (cxusb_tt_ct2_4400_gpio_tuner(d, 0) < 0) {
+		err("clear tuner gpio failed");
+		return -EIO;
+	}
+	msleep(100);
+	if (cxusb_tt_ct2_4400_gpio_tuner(d, 1) < 0) {
+		err("set tuner gpio failed");
+		return -EIO;
+	}
+	msleep(100);
+
+	/* attach frontend */
+	si2168_config.i2c_adapter = &adapter;
+	si2168_config.fe = &adap->fe_adap[0].fe;
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+	info.addr = 0x64;
+	info.platform_data = &si2168_config;
+	request_module(info.type);
+	client_demod = i2c_new_device(&d->i2c_adap, &info);
+	if (client_demod == NULL || client_demod->dev.driver == NULL)
+		return -ENODEV;
+
+	if (!try_module_get(client_demod->dev.driver->owner)) {
+		i2c_unregister_device(client_demod);
+		return -ENODEV;
+	}
+
+	st->i2c_client_demod = client_demod;
+
+	/* attach tuner */
+	memset(&si2157_config, 0, sizeof(si2157_config));
+	si2157_config.fe = adap->fe_adap[0].fe;
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+	info.addr = 0x60;
+	info.platform_data = &si2157_config;
+	request_module(info.type);
+	client_tuner = i2c_new_device(adapter, &info);
+	if (client_tuner == NULL || client_tuner->dev.driver == NULL) {
+		module_put(client_demod->dev.driver->owner);
+		i2c_unregister_device(client_demod);
+		return -ENODEV;
+	}
+	if (!try_module_get(client_tuner->dev.driver->owner)) {
+		i2c_unregister_device(client_tuner);
+		module_put(client_demod->dev.driver->owner);
+		i2c_unregister_device(client_demod);
+		return -ENODEV;
+	}
+
+	st->i2c_client_tuner = client_tuner;
+
+	return 0;
+}
+
 /*
  * DViCO has shipped two devices with the same USB ID, but only one of them
  * needs a firmware download.  Check the device class details to see if they
@@ -1356,6 +1492,7 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_needsfirmware_prope
 static struct dvb_usb_device_properties cxusb_aver_a868r_properties;
 static struct dvb_usb_device_properties cxusb_d680_dmb_properties;
 static struct dvb_usb_device_properties cxusb_mygica_d689_properties;
+static struct dvb_usb_device_properties cxusb_tt_ct2_4400_properties;
 
 static int cxusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -1386,10 +1523,35 @@ static int cxusb_probe(struct usb_interface *intf,
 				     THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_mygica_d689_properties,
 				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &cxusb_tt_ct2_4400_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
 	    0)
 		return 0;
 
 	return -EINVAL;
+}
+
+static void cxusb_disconnect(struct usb_interface *intf)
+{
+	struct dvb_usb_device *d = usb_get_intfdata(intf);
+	struct cxusb_state *st = d->priv;
+	struct i2c_client *client;
+
+	/* remove I2C client for tuner */
+	client = st->i2c_client_tuner;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	/* remove I2C client for demodulator */
+	client = st->i2c_client_demod;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	dvb_usb_device_exit(intf);
 }
 
 static struct usb_device_id cxusb_table [] = {
@@ -1413,6 +1575,7 @@ static struct usb_device_id cxusb_table [] = {
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_4_REV_2) },
 	{ USB_DEVICE(USB_VID_CONEXANT, USB_PID_CONEXANT_D680_DMB) },
 	{ USB_DEVICE(USB_VID_CONEXANT, USB_PID_MYGICA_D689) },
+	{ USB_DEVICE(USB_VID_TECHNOTREND, USB_PID_TECHNOTREND_TVSTICK_CT2_4400) },
 	{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, cxusb_table);
@@ -2059,10 +2222,63 @@ static struct dvb_usb_device_properties cxusb_mygica_d689_properties = {
 	}
 };
 
+static struct dvb_usb_device_properties cxusb_tt_ct2_4400_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl         = CYPRESS_FX2,
+
+	.size_of_priv     = sizeof(struct cxusb_state),
+
+	.num_adapters = 1,
+	.adapter = {
+		{
+		.num_frontends = 1,
+		.fe = {{
+			.streaming_ctrl   = cxusb_streaming_ctrl,
+			/* both frontend and tuner attached in the
+			   same function */
+			.frontend_attach  = cxusb_tt_ct2_4400_attach,
+
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 8,
+				.endpoint = 0x82,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
+		} },
+		},
+	},
+
+	.i2c_algo = &cxusb_i2c_algo,
+	.generic_bulk_ctrl_endpoint = 0x01,
+	.generic_bulk_ctrl_endpoint_response = 0x81,
+
+	.rc.core = {
+		.rc_codes       = RC_MAP_TT_1500,
+		.allowed_protos = RC_BIT_RC5,
+		.rc_query       = cxusb_tt_ct2_4400_rc_query,
+		.rc_interval    = 150,
+	},
+
+	.num_device_descs = 1,
+	.devices = {
+		{
+			"TechnoTrend TVStick CT2-4400",
+			{ NULL },
+			{ &cxusb_table[20], NULL },
+		},
+	}
+};
+
 static struct usb_driver cxusb_driver = {
 	.name		= "dvb_usb_cxusb",
 	.probe		= cxusb_probe,
-	.disconnect     = dvb_usb_device_exit,
+	.disconnect     = cxusb_disconnect,
 	.id_table	= cxusb_table,
 };
 

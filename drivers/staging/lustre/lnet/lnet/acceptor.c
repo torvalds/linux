@@ -35,16 +35,16 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 
 static int   accept_port    = 988;
 static int   accept_backlog = 127;
 static int   accept_timeout = 5;
 
-struct {
+static struct {
 	int			pta_shutdown;
-	socket_t		*pta_sock;
+	struct socket		*pta_sock;
 	struct completion	pta_signal;
 } lnet_acceptor_state;
 
@@ -75,7 +75,7 @@ MODULE_PARM_DESC(accept_timeout, "Acceptor's timeout (seconds)");
 
 static char *accept_type;
 
-int
+static int
 lnet_acceptor_get_tunables(void)
 {
 	/* Userland acceptor uses 'accept_type' instead of 'accept', due to
@@ -139,11 +139,11 @@ lnet_connect_console_error(int rc, lnet_nid_t peer_nid,
 EXPORT_SYMBOL(lnet_connect_console_error);
 
 int
-lnet_connect(socket_t **sockp, lnet_nid_t peer_nid,
+lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 	    __u32 local_ip, __u32 peer_ip, int peer_port)
 {
 	lnet_acceptor_connreq_t cr;
-	socket_t	   *sock;
+	struct socket	   *sock;
 	int		     rc;
 	int		     port;
 	int		     fatal;
@@ -207,8 +207,8 @@ EXPORT_SYMBOL(lnet_connect);
 
 /* Below is the code common for both kernel and MT user-space */
 
-int
-lnet_accept(socket_t *sock, __u32 magic)
+static int
+lnet_accept(struct socket *sock, __u32 magic)
 {
 	lnet_acceptor_connreq_t cr;
 	__u32		   peer_ip;
@@ -329,10 +329,10 @@ lnet_accept(socket_t *sock, __u32 magic)
 	return rc;
 }
 
-int
+static int
 lnet_acceptor(void *arg)
 {
-	socket_t  *newsock;
+	struct socket *newsock;
 	int	    rc;
 	__u32	  magic;
 	__u32	  peer_ip;
@@ -371,7 +371,8 @@ lnet_acceptor(void *arg)
 		if (rc != 0) {
 			if (rc != -EAGAIN) {
 				CWARN("Accept error %d: pausing...\n", rc);
-				cfs_pause(cfs_time_seconds(1));
+				set_current_state(TASK_UNINTERRUPTIBLE);
+				schedule_timeout(cfs_time_seconds(1));
 			}
 			continue;
 		}
@@ -456,10 +457,8 @@ lnet_acceptor_start(void)
 
 	init_completion(&lnet_acceptor_state.pta_signal);
 	rc = accept2secure(accept_type, &secure);
-	if (rc <= 0) {
-		fini_completion(&lnet_acceptor_state.pta_signal);
+	if (rc <= 0)
 		return rc;
-	}
 
 	if (lnet_count_acceptor_nis() == 0)  /* not required */
 		return 0;
@@ -469,7 +468,6 @@ lnet_acceptor_start(void)
 				  "acceptor_%03ld", secure));
 	if (IS_ERR_VALUE(rc2)) {
 		CERROR("Can't start acceptor thread: %ld\n", rc2);
-		fini_completion(&lnet_acceptor_state.pta_signal);
 
 		return -ESRCH;
 	}
@@ -484,7 +482,6 @@ lnet_acceptor_start(void)
 	}
 
 	LASSERT(lnet_acceptor_state.pta_sock == NULL);
-	fini_completion(&lnet_acceptor_state.pta_signal);
 
 	return -ENETDOWN;
 }
@@ -500,6 +497,4 @@ lnet_acceptor_stop(void)
 
 	/* block until acceptor signals exit */
 	wait_for_completion(&lnet_acceptor_state.pta_signal);
-
-	fini_completion(&lnet_acceptor_state.pta_signal);
 }

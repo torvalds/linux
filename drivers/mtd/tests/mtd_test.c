@@ -1,6 +1,5 @@
 #define pr_fmt(fmt) "mtd_test: " fmt
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/printk.h>

@@ -510,6 +510,7 @@ typedef struct {
 #define DRM_RADEON_GEM_GET_TILING	0x29
 #define DRM_RADEON_GEM_BUSY		0x2a
 #define DRM_RADEON_GEM_VA		0x2b
+#define DRM_RADEON_GEM_OP		0x2c
 
 #define DRM_IOCTL_RADEON_CP_INIT    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_INIT, drm_radeon_init_t)
 #define DRM_IOCTL_RADEON_CP_START   DRM_IO(  DRM_COMMAND_BASE + DRM_RADEON_CP_START)
@@ -552,6 +553,7 @@ typedef struct {
 #define DRM_IOCTL_RADEON_GEM_GET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_GET_TILING, struct drm_radeon_gem_get_tiling)
 #define DRM_IOCTL_RADEON_GEM_BUSY	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_BUSY, struct drm_radeon_gem_busy)
 #define DRM_IOCTL_RADEON_GEM_VA		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_VA, struct drm_radeon_gem_va)
+#define DRM_IOCTL_RADEON_GEM_OP		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_OP, struct drm_radeon_gem_op)
 
 typedef struct drm_radeon_init {
 	enum {
@@ -794,7 +796,9 @@ struct drm_radeon_gem_info {
 	uint64_t	vram_visible;
 };
 
-#define RADEON_GEM_NO_BACKING_STORE 1
+#define RADEON_GEM_NO_BACKING_STORE	(1 << 0)
+#define RADEON_GEM_GTT_UC		(1 << 1)
+#define RADEON_GEM_GTT_WC		(1 << 2)
 
 struct drm_radeon_gem_create {
 	uint64_t	size;
@@ -884,6 +888,16 @@ struct drm_radeon_gem_pwrite {
 	uint64_t data_ptr;
 };
 
+/* Sets or returns a value associated with a buffer. */
+struct drm_radeon_gem_op {
+	uint32_t	handle; /* buffer */
+	uint32_t	op;     /* RADEON_GEM_OP_* */
+	uint64_t	value;  /* input or return value */
+};
+
+#define RADEON_GEM_OP_GET_INITIAL_DOMAIN	0
+#define RADEON_GEM_OP_SET_INITIAL_DOMAIN	1
+
 #define RADEON_VA_MAP			1
 #define RADEON_VA_UNMAP			2
 
@@ -919,6 +933,7 @@ struct drm_radeon_gem_va {
 #define RADEON_CS_RING_COMPUTE      1
 #define RADEON_CS_RING_DMA          2
 #define RADEON_CS_RING_UVD          3
+#define RADEON_CS_RING_VCE          4
 /* The third dword of RADEON_CHUNK_ID_FLAGS is a sint32 that sets the priority */
 /* 0 = normal, + = higher priority, - = lower priority */
 
@@ -929,6 +944,7 @@ struct drm_radeon_cs_chunk {
 };
 
 /* drm_radeon_cs_reloc.flags */
+#define RADEON_RELOC_PRIO_MASK		(0xf << 0)
 
 struct drm_radeon_cs_reloc {
 	uint32_t		handle;
@@ -985,7 +1001,16 @@ struct drm_radeon_cs {
 #define RADEON_INFO_CIK_MACROTILE_MODE_ARRAY	0x18
 /* query the number of render backends */
 #define RADEON_INFO_SI_BACKEND_ENABLED_MASK	0x19
-
+/* max engine clock - needed for OpenCL */
+#define RADEON_INFO_MAX_SCLK		0x1a
+/* version of VCE firmware */
+#define RADEON_INFO_VCE_FW_VERSION	0x1b
+/* version of VCE feedback */
+#define RADEON_INFO_VCE_FB_VERSION	0x1c
+#define RADEON_INFO_NUM_BYTES_MOVED	0x1d
+#define RADEON_INFO_VRAM_USAGE		0x1e
+#define RADEON_INFO_GTT_USAGE		0x1f
+#define RADEON_INFO_ACTIVE_CU_COUNT	0x20
 
 struct drm_radeon_info {
 	uint32_t		request;

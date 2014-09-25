@@ -21,7 +21,7 @@
 
 struct rate_control_ref {
 	struct ieee80211_local *local;
-	struct rate_control_ops *ops;
+	const struct rate_control_ops *ops;
 	void *priv;
 };
 
@@ -54,6 +54,8 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
+	ieee80211_sta_set_rx_nss(sta);
+
 	if (!ref)
 		return;
 
@@ -66,8 +68,6 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 	}
 
 	sband = local->hw.wiphy->bands[chanctx_conf->def.chan->band];
-
-	ieee80211_sta_set_rx_nss(sta);
 
 	ref->ops->rate_init(ref->priv, sband, &chanctx_conf->def, ista,
 			    priv_sta);
@@ -143,19 +143,6 @@ void rate_control_deinitialize(struct ieee80211_local *local);
 
 
 /* Rate control algorithms */
-#ifdef CONFIG_MAC80211_RC_PID
-int rc80211_pid_init(void);
-void rc80211_pid_exit(void);
-#else
-static inline int rc80211_pid_init(void)
-{
-	return 0;
-}
-static inline void rc80211_pid_exit(void)
-{
-}
-#endif
-
 #ifdef CONFIG_MAC80211_RC_MINSTREL
 int rc80211_minstrel_init(void);
 void rc80211_minstrel_exit(void);

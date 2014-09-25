@@ -276,7 +276,7 @@ config SND_CS46XX_NEW_DSP
 
 config SND_CS5530
 	tristate "CS5530 Audio"
-	depends on ISA_DMA_API
+	depends on ISA_DMA_API && (X86_32 || COMPILE_TEST)
 	select SND_SB16_DSP
 	help
 	  Say Y here to include support for audio on Cyrix/NatSemi CS5530 chips.
@@ -286,6 +286,7 @@ config SND_CS5530
 
 config SND_CS5535AUDIO
 	tristate "CS5535/CS5536 Audio"
+	depends on X86_32 || MIPS || COMPILE_TEST
 	select SND_PCM
 	select SND_AC97_CODEC
 	help
@@ -578,8 +579,6 @@ config SND_FM801_TEA575X_BOOL
 	  FM801 chip with a TEA5757 tuner (MediaForte SF256-PCS, SF256-PCP and
 	  SF64-PCR) into the snd-fm801 driver.
 
-source "sound/pci/hda/Kconfig"
-
 config SND_HDSP
 	tristate "RME Hammerfall DSP Audio"
 	select FW_LOADER
@@ -689,7 +688,7 @@ config SND_LOLA
 
 config SND_LX6464ES
 	tristate "Digigram LX6464ES"
-	depends on HAS_IOPORT
+	depends on HAS_IOPORT_MAP
 	select SND_PCM
 	help
 	  Say Y here to include support for Digigram LX6464ES boards.
@@ -796,7 +795,7 @@ config SND_RME9652
 
 config SND_SIS7019
 	tristate "SiS 7019 Audio Accelerator"
-	depends on X86 && !X86_64
+	depends on X86_32
 	select SND_AC97_CODEC
 	select ZONE_DMA
 	help
@@ -859,8 +858,8 @@ config SND_VIRTUOSO
 	select SND_JACK if INPUT=y || INPUT=SND
 	help
 	  Say Y here to include support for sound cards based on the
-	  Asus AV66/AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X, DS,
-	  Essence ST (Deluxe), and Essence STX.
+	  Asus AV66/AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X, DS, DSX,
+	  Essence ST (Deluxe), and Essence STX (II).
 	  Support for the HDAV1.3 (Deluxe) and HDAV1.3 Slim is experimental;
 	  for the Xense, missing.
 
@@ -889,3 +888,5 @@ config SND_YMFPCI
 	  will be called snd-ymfpci.
 
 endif	# SND_PCI
+
+source "sound/pci/hda/Kconfig"

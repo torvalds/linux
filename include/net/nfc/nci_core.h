@@ -21,8 +21,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -68,6 +67,7 @@ struct nci_ops {
 	int (*open)(struct nci_dev *ndev);
 	int (*close)(struct nci_dev *ndev);
 	int (*send)(struct nci_dev *ndev, struct sk_buff *skb);
+	int (*setup)(struct nci_dev *ndev);
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4
@@ -154,6 +154,7 @@ void nci_free_device(struct nci_dev *ndev);
 int nci_register_device(struct nci_dev *ndev);
 void nci_unregister_device(struct nci_dev *ndev);
 int nci_recv_frame(struct nci_dev *ndev, struct sk_buff *skb);
+int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, __u8 *val);
 
 static inline struct sk_buff *nci_skb_alloc(struct nci_dev *ndev,
 					    unsigned int len,

@@ -33,6 +33,24 @@ if DMADEVICES
 
 comment "DMA Devices"
 
+config INTEL_MIC_X100_DMA
+	tristate "Intel MIC X100 DMA Driver"
+	depends on 64BIT && X86 && INTEL_MIC_BUS
+	select DMA_ENGINE
+	help
+	  This enables DMA support for the Intel Many Integrated Core
+	  (MIC) family of PCIe form factor coprocessor X100 devices that
+	  run a 64 bit Linux OS. This driver will be used by both MIC
+	  host and card drivers.
+
+	  If you are building host kernel with a MIC device or a card
+	  kernel for a MIC device, then say M (recommended) or Y, else
+	  say N. If unsure say N.
+
+	  More information about the Intel MIC family as well as the Linux
+	  OS and tools for MIC to use with this driver are available from
+	  <http://software.intel.com/en-us/mic-developer>.
+
 config INTEL_MID_DMAC
 	tristate "Intel MID DMA support for Peripheral DMA controllers"
 	depends on PCI && X86
@@ -197,7 +215,7 @@ config AMCC_PPC440SPE_ADMA
 
 config TIMB_DMA
 	tristate "Timberdale FPGA DMA support"
-	depends on MFD_TIMBERDALE || HAS_IOMEM
+	depends on MFD_TIMBERDALE
 	select DMA_ENGINE
 	help
 	  Enable support for the Timberdale FPGA DMA engine.
@@ -234,7 +252,7 @@ config PL330_DMA
 
 config PCH_DMA
 	tristate "Intel EG20T PCH / LAPIS Semicon IOH(ML7213/ML7223/ML7831) DMA"
-	depends on PCI && X86
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	select DMA_ENGINE
 	help
 	  Enable support for Intel EG20T PCH DMA engine.
@@ -269,7 +287,7 @@ config MXS_DMA
 	select DMA_ENGINE
 	help
 	  Support the MXS DMA engine. This engine including APBH-DMA
-	  and APBX-DMA is integrated into Freescale i.MX23/28 chips.
+	  and APBX-DMA is integrated into Freescale i.MX23/28/MX6Q/MX6DL chips.
 
 config EP93XX_DMA
 	bool "Cirrus Logic EP93xx DMA support"
@@ -306,6 +324,12 @@ config DMA_OMAP
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
+config DMA_BCM2835
+	tristate "BCM2835 DMA engine support"
+	depends on ARCH_BCM2835
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+
 config TI_CPPI41
 	tristate "AM33xx CPPI41 DMA support"
 	depends on ARCH_OMAP
@@ -336,6 +360,55 @@ config K3_DMA
 	  Support the DMA engine for Hisilicon K3 platform
 	  devices.
 
+config MOXART_DMA
+	tristate "MOXART DMA support"
+	depends on ARCH_MOXART
+	select DMA_ENGINE
+	select DMA_OF
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the MOXA ART SoC DMA controller.
+ 
+config FSL_EDMA
+	tristate "Freescale eDMA engine support"
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the Freescale eDMA engine with programmable channel
+	  multiplexing capability for DMA request sources(slot).
+	  This module can be found on Freescale Vybrid and LS-1 SoCs.
+
+config XILINX_VDMA
+	tristate "Xilinx AXI VDMA Engine"
+	depends on (ARCH_ZYNQ || MICROBLAZE)
+	select DMA_ENGINE
+	help
+	  Enable support for Xilinx AXI VDMA Soft IP.
+
+	  This engine provides high-bandwidth direct memory access
+	  between memory and AXI4-Stream video type target
+	  peripherals including peripherals which support AXI4-
+	  Stream Video Protocol.  It has two stream interfaces/
+	  channels, Memory Mapped to Stream (MM2S) and Stream to
+	  Memory Mapped (S2MM) for the data transfers.
+
+config DMA_SUN6I
+	tristate "Allwinner A31 SoCs DMA support"
+	depends on MACH_SUN6I || COMPILE_TEST
+	depends on RESET_CONTROLLER
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support for the DMA engine for Allwinner A31 SoCs.
+
+config NBPFAXI_DMA
+	tristate "Renesas Type-AXI NBPF DMA support"
+	select DMA_ENGINE
+	depends on ARM || COMPILE_TEST
+	help
+	  Support for "Type-AXI" NBPF DMA IPs from Renesas
+
 config DMA_ENGINE
 	bool
 
@@ -349,6 +422,7 @@ config DMA_ACPI
 config DMA_OF
 	def_bool y
 	depends on OF
+	select DMA_ENGINE
 
 comment "DMA Clients"
 	depends on DMA_ENGINE
@@ -385,5 +459,14 @@ config DMATEST
 
 config DMA_ENGINE_RAID
 	bool
+
+config QCOM_BAM_DMA
+	tristate "QCOM BAM DMA support"
+	depends on ARCH_QCOM || (COMPILE_TEST && OF && ARM)
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	---help---
+	  Enable support for the QCOM BAM DMA controller.  This controller
+	  provides DMA capabilities for a variety of on-chip devices.
 
 endif

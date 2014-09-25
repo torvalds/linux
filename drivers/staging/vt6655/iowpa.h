@@ -29,18 +29,9 @@
 #ifndef __IOWPA_H__
 #define __IOWPA_H__
 
-/*---------------------  Export Definitions -------------------------*/
-
 #define WPA_IE_LEN 64
 
 //WPA related
-/*
-  typedef enum { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP } wpa_alg;
-  typedef enum { CIPHER_NONE, CIPHER_WEP40, CIPHER_TKIP, CIPHER_CCMP,
-  CIPHER_WEP104 } wpa_cipher;
-  typedef enum { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE,
-  KEY_MGMT_802_1X_NO_WPA, KEY_MGMT_WPA_NONE } wpa_key_mgmt;
-*/
 
 enum {
 	VIAWGET_SET_WPA = 1,
@@ -134,14 +125,6 @@ struct viawget_scan_result {
 	int maxrate;
 };
 
-//2006-1116-01,<Add> by NomadZhao
 #pragma pack()
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Types  ------------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 #endif //__IOWPA_H__

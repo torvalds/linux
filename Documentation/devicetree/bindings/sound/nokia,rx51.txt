@@ -1,0 +1,27 @@
+* Nokia N900 audio setup
+
+Required properties:
+- compatible: Should contain "nokia,n900-audio"
+- nokia,cpu-dai: phandle for the McBSP node
+- nokia,audio-codec: phandles for the main TLV320AIC3X node and the
+                     auxiliary TLV320AIC3X node (in this order)
+- nokia,headphone-amplifier: phandle for the TPA6130A2 node
+- tvout-selection-gpios: GPIO for tvout selection
+- jack-detection-gpios: GPIO for jack detection
+- eci-switch-gpios: GPIO for ECI (Enhancement Control Interface) switch
+- speaker-amplifier-gpios: GPIO for speaker amplifier
+
+Example:
+
+sound {
+	compatible = "nokia,n900-audio";
+
+	nokia,cpu-dai = <&mcbsp2>;
+	nokia,audio-codec = <&tlv320aic3x>, <&tlv320aic3x_aux>;
+	nokia,headphone-amplifier = <&tpa6130a2>;
+
+	tvout-selection-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>; /* 40 */
+	jack-detection-gpios = <&gpio6 17 GPIO_ACTIVE_HIGH>; /* 177 */
+	eci-switch-gpios = <&gpio6 22 GPIO_ACTIVE_HIGH>; /* 182 */
+	speaker-amplifier-gpios = <&twl_gpio 7 GPIO_ACTIVE_HIGH>;
+};

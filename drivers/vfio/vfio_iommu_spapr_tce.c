@@ -81,7 +81,7 @@ static int tce_iommu_enable(struct tce_container *container)
 	 * enforcing the limit based on the max that the guest can map.
 	 */
 	down_write(&current->mm->mmap_sem);
-	npages = (tbl->it_size << IOMMU_PAGE_SHIFT) >> PAGE_SHIFT;
+	npages = (tbl->it_size << IOMMU_PAGE_SHIFT_4K) >> PAGE_SHIFT;
 	locked = current->mm->locked_vm + npages;
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	if (locked > lock_limit && !capable(CAP_IPC_LOCK)) {
@@ -110,7 +110,7 @@ static void tce_iommu_disable(struct tce_container *container)
 
 	down_write(&current->mm->mmap_sem);
 	current->mm->locked_vm -= (container->tbl->it_size <<
-			IOMMU_PAGE_SHIFT) >> PAGE_SHIFT;
+			IOMMU_PAGE_SHIFT_4K) >> PAGE_SHIFT;
 	up_write(&current->mm->mmap_sem);
 }
 
@@ -156,7 +156,16 @@ static long tce_iommu_ioctl(void *iommu_data,
 
 	switch (cmd) {
 	case VFIO_CHECK_EXTENSION:
-		return (arg == VFIO_SPAPR_TCE_IOMMU) ? 1 : 0;
+		switch (arg) {
+		case VFIO_SPAPR_TCE_IOMMU:
+			ret = 1;
+			break;
+		default:
+			ret = vfio_spapr_iommu_eeh_ioctl(NULL, cmd, arg);
+			break;
+		}
+
+		return (ret < 0) ? 0 : ret;
 
 	case VFIO_IOMMU_SPAPR_TCE_GET_INFO: {
 		struct vfio_iommu_spapr_tce_info info;
@@ -174,8 +183,8 @@ static long tce_iommu_ioctl(void *iommu_data,
 		if (info.argsz < minsz)
 			return -EINVAL;
 
-		info.dma32_window_start = tbl->it_offset << IOMMU_PAGE_SHIFT;
-		info.dma32_window_size = tbl->it_size << IOMMU_PAGE_SHIFT;
+		info.dma32_window_start = tbl->it_offset << IOMMU_PAGE_SHIFT_4K;
+		info.dma32_window_size = tbl->it_size << IOMMU_PAGE_SHIFT_4K;
 		info.flags = 0;
 
 		if (copy_to_user((void __user *)arg, &info, minsz))
@@ -205,8 +214,8 @@ static long tce_iommu_ioctl(void *iommu_data,
 				VFIO_DMA_MAP_FLAG_WRITE))
 			return -EINVAL;
 
-		if ((param.size & ~IOMMU_PAGE_MASK) ||
-				(param.vaddr & ~IOMMU_PAGE_MASK))
+		if ((param.size & ~IOMMU_PAGE_MASK_4K) ||
+				(param.vaddr & ~IOMMU_PAGE_MASK_4K))
 			return -EINVAL;
 
 		/* iova is checked by the IOMMU API */
@@ -220,17 +229,17 @@ static long tce_iommu_ioctl(void *iommu_data,
 		if (ret)
 			return ret;
 
-		for (i = 0; i < (param.size >> IOMMU_PAGE_SHIFT); ++i) {
+		for (i = 0; i < (param.size >> IOMMU_PAGE_SHIFT_4K); ++i) {
 			ret = iommu_put_tce_user_mode(tbl,
-					(param.iova >> IOMMU_PAGE_SHIFT) + i,
+					(param.iova >> IOMMU_PAGE_SHIFT_4K) + i,
 					tce);
 			if (ret)
 				break;
-			tce += IOMMU_PAGE_SIZE;
+			tce += IOMMU_PAGE_SIZE_4K;
 		}
 		if (ret)
 			iommu_clear_tces_and_put_pages(tbl,
-					param.iova >> IOMMU_PAGE_SHIFT,	i);
+					param.iova >> IOMMU_PAGE_SHIFT_4K, i);
 
 		iommu_flush_tce(tbl);
 
@@ -256,17 +265,17 @@ static long tce_iommu_ioctl(void *iommu_data,
 		if (param.flags)
 			return -EINVAL;
 
-		if (param.size & ~IOMMU_PAGE_MASK)
+		if (param.size & ~IOMMU_PAGE_MASK_4K)
 			return -EINVAL;
 
 		ret = iommu_tce_clear_param_check(tbl, param.iova, 0,
-				param.size >> IOMMU_PAGE_SHIFT);
+				param.size >> IOMMU_PAGE_SHIFT_4K);
 		if (ret)
 			return ret;
 
 		ret = iommu_clear_tces_and_put_pages(tbl,
-				param.iova >> IOMMU_PAGE_SHIFT,
-				param.size >> IOMMU_PAGE_SHIFT);
+				param.iova >> IOMMU_PAGE_SHIFT_4K,
+				param.size >> IOMMU_PAGE_SHIFT_4K);
 		iommu_flush_tce(tbl);
 
 		return ret;
@@ -283,6 +292,12 @@ static long tce_iommu_ioctl(void *iommu_data,
 		tce_iommu_disable(container);
 		mutex_unlock(&container->lock);
 		return 0;
+	case VFIO_EEH_PE_OP:
+		if (!container->tbl || !container->tbl->it_group)
+			return -ENODEV;
+
+		return vfio_spapr_iommu_eeh_ioctl(container->tbl->it_group,
+						  cmd, arg);
 	}
 
 	return -ENOTTY;

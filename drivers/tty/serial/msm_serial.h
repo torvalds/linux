@@ -59,6 +59,7 @@
 #define UART_CR_CMD_RESET_RFR		(14 << 4)
 #define UART_CR_CMD_PROTECTION_EN	(16 << 4)
 #define UART_CR_CMD_STALE_EVENT_ENABLE	(80 << 4)
+#define UART_CR_CMD_FORCE_STALE		(4 << 8)
 #define UART_CR_CMD_RESET_TX_READY	(3 << 8)
 #define UART_CR_TX_DISABLE		(1 << 3)
 #define UART_CR_TX_ENABLE		(1 << 2)
@@ -108,10 +109,13 @@
 #define UART_ISR		0x0014
 #define UART_ISR_TX_READY	(1 << 7)
 
-#define GSBI_CONTROL		0x0
-#define GSBI_PROTOCOL_CODE	0x30
-#define GSBI_PROTOCOL_UART	0x40
-#define GSBI_PROTOCOL_IDLE	0x0
+#define UARTDM_RXFS		0x50
+#define UARTDM_RXFS_BUF_SHIFT	0x7
+#define UARTDM_RXFS_BUF_MASK	0x7
+
+#define UARTDM_DMEN		0x3C
+#define UARTDM_DMEN_RX_SC_ENABLE BIT(5)
+#define UARTDM_DMEN_TX_SC_ENABLE BIT(4)
 
 #define UARTDM_DMRX		0x34
 #define UARTDM_NCF_TX		0x40
@@ -122,13 +126,13 @@
 static inline
 void msm_write(struct uart_port *port, unsigned int val, unsigned int off)
 {
-	__raw_writel(val, port->membase + off);
+	writel_relaxed(val, port->membase + off);
 }
 
 static inline
 unsigned int msm_read(struct uart_port *port, unsigned int off)
 {
-	return __raw_readl(port->membase + off);
+	return readl_relaxed(port->membase + off);
 }
 
 /*

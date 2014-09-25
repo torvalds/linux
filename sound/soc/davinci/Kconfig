@@ -1,12 +1,29 @@
 config SND_DAVINCI_SOC
-	tristate "SoC Audio for TI DAVINCI or AM33XX/AM43XX chips"
-	depends on ARCH_DAVINCI || SOC_AM33XX || SOC_AM43XX
+	tristate "SoC Audio for TI DAVINCI"
+	depends on ARCH_DAVINCI
+
+config SND_EDMA_SOC
+	tristate "SoC Audio for Texas Instruments chips using eDMA (AM33XX/43XX)"
+	depends on SOC_AM33XX || SOC_AM43XX
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M here if you want audio support for TI SoC which uses eDMA.
+	  The following line of SoCs are supported by this platform driver:
+	  - AM335x
+	  - AM437x/AM438x
 
 config SND_DAVINCI_SOC_I2S
 	tristate
 
 config SND_DAVINCI_SOC_MCASP
-	tristate
+	tristate "Multichannel Audio Serial Port (McASP) support"
+	depends on SND_DAVINCI_SOC || SND_OMAP_SOC || SND_EDMA_SOC
+	help
+	  Say Y or M here if you want to have support for McASP IP found in
+	  various Texas Instruments SoCs like:
+	  - daVinci devices
+	  - Sitara line of SoCs (AM335x, AM438x, etc)
+	  - DRA7x devices
 
 config SND_DAVINCI_SOC_VCIF
 	tristate
@@ -18,7 +35,7 @@ config SND_DAVINCI_SOC_GENERIC_EVM
 
 config SND_AM33XX_SOC_EVM
 	tristate "SoC Audio for the AM33XX chip based boards"
-	depends on SND_DAVINCI_SOC && SOC_AM33XX
+	depends on SND_EDMA_SOC && SOC_AM33XX && I2C
 	select SND_DAVINCI_SOC_GENERIC_EVM
 	help
 	  Say Y or M if you want to add support for SoC audio on AM33XX
@@ -28,7 +45,7 @@ config SND_AM33XX_SOC_EVM
 
 config SND_DAVINCI_SOC_EVM
 	tristate "SoC Audio support for DaVinci DM6446, DM355 or DM365 EVM"
-	depends on SND_DAVINCI_SOC
+	depends on SND_DAVINCI_SOC && I2C
 	depends on MACH_DAVINCI_EVM || MACH_DAVINCI_DM355_EVM || MACH_DAVINCI_DM365_EVM
 	select SND_DAVINCI_SOC_GENERIC_EVM
 	help
@@ -56,7 +73,7 @@ endchoice
 
 config  SND_DM6467_SOC_EVM
 	tristate "SoC Audio support for DaVinci DM6467 EVM"
-	depends on SND_DAVINCI_SOC && MACH_DAVINCI_DM6467_EVM
+	depends on SND_DAVINCI_SOC && MACH_DAVINCI_DM6467_EVM && I2C
 	select SND_DAVINCI_SOC_GENERIC_EVM
 	select SND_SOC_SPDIF
 
@@ -65,7 +82,7 @@ config  SND_DM6467_SOC_EVM
 
 config  SND_DA830_SOC_EVM
 	tristate "SoC Audio support for DA830/OMAP-L137 EVM"
-	depends on SND_DAVINCI_SOC && MACH_DAVINCI_DA830_EVM
+	depends on SND_DAVINCI_SOC && MACH_DAVINCI_DA830_EVM && I2C
 	select SND_DAVINCI_SOC_GENERIC_EVM
 
 	help
@@ -74,7 +91,7 @@ config  SND_DA830_SOC_EVM
 
 config  SND_DA850_SOC_EVM
 	tristate "SoC Audio support for DA850/OMAP-L138 EVM"
-	depends on SND_DAVINCI_SOC && MACH_DAVINCI_DA850_EVM
+	depends on SND_DAVINCI_SOC && MACH_DAVINCI_DA850_EVM && I2C
 	select SND_DAVINCI_SOC_GENERIC_EVM
 	help
 	  Say Y if you want to add support for SoC audio on TI

@@ -20,15 +20,6 @@
 /* SYS_IRQS and NR_IRQS are defined in <mach-bf5xx/irq.h> */
 #include <mach/irq.h>
 
-/*
- * pm save bfin pint registers
- */
-struct adi_pm_pint_save {
-	u32 assign;
-	u32 edge_set;
-	u32 invert_set;
-};
-
 #if ANOMALY_05000244 && defined(CONFIG_BFIN_ICACHE)
 # define NOP_PAD_ANOMALY_05000244 "nop; nop;"
 #else

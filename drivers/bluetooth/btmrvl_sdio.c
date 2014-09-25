@@ -18,6 +18,7 @@
  * this warranty disclaimer.
  **/
 
+#include <linux/firmware.h>
 #include <linux/slab.h>
 
 #include <linux/mmc/sdio_ids.h>
@@ -63,6 +64,7 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_8688 = {
 	.io_port_0 = 0x00,
 	.io_port_1 = 0x01,
 	.io_port_2 = 0x02,
+	.int_read_to_clear = false,
 };
 static const struct btmrvl_sdio_card_reg btmrvl_reg_87xx = {
 	.cfg = 0x00,
@@ -79,6 +81,7 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_87xx = {
 	.io_port_0 = 0x78,
 	.io_port_1 = 0x79,
 	.io_port_2 = 0x7a,
+	.int_read_to_clear = false,
 };
 
 static const struct btmrvl_sdio_card_reg btmrvl_reg_88xx = {
@@ -96,37 +99,40 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_88xx = {
 	.io_port_0 = 0xd8,
 	.io_port_1 = 0xd9,
 	.io_port_2 = 0xda,
+	.int_read_to_clear = true,
+	.host_int_rsr = 0x01,
+	.card_misc_cfg = 0xcc,
 };
 
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8688 = {
 	.helper		= "mrvl/sd8688_helper.bin",
 	.firmware	= "mrvl/sd8688.bin",
-	.cal_data	= NULL,
 	.reg		= &btmrvl_reg_8688,
+	.support_pscan_win_report = false,
 	.sd_blksz_fw_dl	= 64,
 };
 
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8787 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8787_uapsta.bin",
-	.cal_data	= NULL,
 	.reg		= &btmrvl_reg_87xx,
+	.support_pscan_win_report = false,
 	.sd_blksz_fw_dl	= 256,
 };
 
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8797 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8797_uapsta.bin",
-	.cal_data	= "mrvl/sd8797_caldata.conf",
 	.reg		= &btmrvl_reg_87xx,
+	.support_pscan_win_report = false,
 	.sd_blksz_fw_dl	= 256,
 };
 
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8897 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8897_uapsta.bin",
-	.cal_data	= NULL,
 	.reg		= &btmrvl_reg_88xx,
+	.support_pscan_win_report = true,
 	.sd_blksz_fw_dl	= 256,
 };
 
@@ -670,6 +676,53 @@ static int btmrvl_sdio_process_int_status(struct btmrvl_private *priv)
 	return 0;
 }
 
+static int btmrvl_sdio_read_to_clear(struct btmrvl_sdio_card *card, u8 *ireg)
+{
+	struct btmrvl_adapter *adapter = card->priv->adapter;
+	int ret;
+
+	ret = sdio_readsb(card->func, adapter->hw_regs, 0, SDIO_BLOCK_SIZE);
+	if (ret) {
+		BT_ERR("sdio_readsb: read int hw_regs failed: %d", ret);
+		return ret;
+	}
+
+	*ireg = adapter->hw_regs[card->reg->host_intstatus];
+	BT_DBG("hw_regs[%#x]=%#x", card->reg->host_intstatus, *ireg);
+
+	return 0;
+}
+
+static int btmrvl_sdio_write_to_clear(struct btmrvl_sdio_card *card, u8 *ireg)
+{
+	int ret;
+
+	*ireg = sdio_readb(card->func, card->reg->host_intstatus, &ret);
+	if (ret) {
+		BT_ERR("sdio_readb: read int status failed: %d", ret);
+		return ret;
+	}
+
+	if (*ireg) {
+		/*
+		 * DN_LD_HOST_INT_STATUS and/or UP_LD_HOST_INT_STATUS
+		 * Clear the interrupt status register and re-enable the
+		 * interrupt.
+		 */
+		BT_DBG("int_status = 0x%x", *ireg);
+
+		sdio_writeb(card->func, ~(*ireg) & (DN_LD_HOST_INT_STATUS |
+						    UP_LD_HOST_INT_STATUS),
+			    card->reg->host_intstatus, &ret);
+		if (ret) {
+			BT_ERR("sdio_writeb: clear int status failed: %d", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void btmrvl_sdio_interrupt(struct sdio_func *func)
 {
 	struct btmrvl_private *priv;
@@ -687,28 +740,13 @@ static void btmrvl_sdio_interrupt(struct sdio_func *func)
 
 	priv = card->priv;
 
-	ireg = sdio_readb(card->func, card->reg->host_intstatus, &ret);
-	if (ret) {
-		BT_ERR("sdio_readb: read int status register failed");
+	if (card->reg->int_read_to_clear)
+		ret = btmrvl_sdio_read_to_clear(card, &ireg);
+	else
+		ret = btmrvl_sdio_write_to_clear(card, &ireg);
+
+	if (ret)
 		return;
-	}
-
-	if (ireg != 0) {
-		/*
-		 * DN_LD_HOST_INT_STATUS and/or UP_LD_HOST_INT_STATUS
-		 * Clear the interrupt status register and re-enable the
-		 * interrupt.
-		 */
-		BT_DBG("ireg = 0x%x", ireg);
-
-		sdio_writeb(card->func, ~(ireg) & (DN_LD_HOST_INT_STATUS |
-					UP_LD_HOST_INT_STATUS),
-				card->reg->host_intstatus, &ret);
-		if (ret) {
-			BT_ERR("sdio_writeb: clear int status register failed");
-			return;
-		}
-	}
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	sdio_ireg |= ireg;
@@ -779,6 +817,30 @@ static int btmrvl_sdio_register_dev(struct btmrvl_sdio_card *card)
 	card->ioport |= (reg << 16);
 
 	BT_DBG("SDIO FUNC%d IO port: 0x%x", func->num, card->ioport);
+
+	if (card->reg->int_read_to_clear) {
+		reg = sdio_readb(func, card->reg->host_int_rsr, &ret);
+		if (ret < 0) {
+			ret = -EIO;
+			goto release_irq;
+		}
+		sdio_writeb(func, reg | 0x3f, card->reg->host_int_rsr, &ret);
+		if (ret < 0) {
+			ret = -EIO;
+			goto release_irq;
+		}
+
+		reg = sdio_readb(func, card->reg->card_misc_cfg, &ret);
+		if (ret < 0) {
+			ret = -EIO;
+			goto release_irq;
+		}
+		sdio_writeb(func, reg | 0x10, card->reg->card_misc_cfg, &ret);
+		if (ret < 0) {
+			ret = -EIO;
+			goto release_irq;
+		}
+	}
 
 	sdio_set_drvdata(func, card);
 
@@ -1007,9 +1069,9 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 		struct btmrvl_sdio_device *data = (void *) id->driver_data;
 		card->helper = data->helper;
 		card->firmware = data->firmware;
-		card->cal_data = data->cal_data;
 		card->reg = data->reg;
 		card->sd_blksz_fw_dl = data->sd_blksz_fw_dl;
+		card->support_pscan_win_report = data->support_pscan_win_report;
 	}
 
 	if (btmrvl_sdio_register_dev(card) < 0) {
@@ -1036,8 +1098,6 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 	}
 
 	card->priv = priv;
-	priv->btmrvl_dev.dev = &card->func->dev;
-	priv->btmrvl_dev.cal_data = card->cal_data;
 
 	/* Initialize the interface specific function pointers */
 	priv->hw_host_to_card = btmrvl_sdio_host_to_card;
@@ -1109,6 +1169,10 @@ static int btmrvl_sdio_suspend(struct device *dev)
 	}
 
 	priv = card->priv;
+	hcidev = priv->btmrvl_dev.hcidev;
+	BT_DBG("%s: SDIO suspend", hcidev->name);
+	hci_suspend_dev(hcidev);
+	skb_queue_purge(&priv->adapter->tx_queue);
 
 	if (priv->adapter->hs_state != HS_ACTIVATED) {
 		if (btmrvl_enable_hs(priv)) {
@@ -1116,10 +1180,6 @@ static int btmrvl_sdio_suspend(struct device *dev)
 			return -EBUSY;
 		}
 	}
-	hcidev = priv->btmrvl_dev.hcidev;
-	BT_DBG("%s: SDIO suspend", hcidev->name);
-	hci_suspend_dev(hcidev);
-	skb_queue_purge(&priv->adapter->tx_queue);
 
 	priv->adapter->is_suspended = true;
 
@@ -1161,13 +1221,13 @@ static int btmrvl_sdio_resume(struct device *dev)
 		return 0;
 	}
 
-	priv->adapter->is_suspended = false;
-	hcidev = priv->btmrvl_dev.hcidev;
-	BT_DBG("%s: SDIO resume", hcidev->name);
-	hci_resume_dev(hcidev);
 	priv->hw_wakeup_firmware(priv);
 	priv->adapter->hs_state = HS_DEACTIVATED;
+	hcidev = priv->btmrvl_dev.hcidev;
 	BT_DBG("%s: HS DEACTIVATED in resume!", hcidev->name);
+	priv->adapter->is_suspended = false;
+	BT_DBG("%s: SDIO resume", hcidev->name);
+	hci_resume_dev(hcidev);
 
 	return 0;
 }
@@ -1220,5 +1280,4 @@ MODULE_FIRMWARE("mrvl/sd8688_helper.bin");
 MODULE_FIRMWARE("mrvl/sd8688.bin");
 MODULE_FIRMWARE("mrvl/sd8787_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8797_uapsta.bin");
-MODULE_FIRMWARE("mrvl/sd8797_caldata.conf");
 MODULE_FIRMWARE("mrvl/sd8897_uapsta.bin");

@@ -16,6 +16,8 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/module.h>
+#include <linux/miscdevice.h>
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -573,3 +575,5 @@ static void __exit kvmppc_e500_exit(void)
 
 module_init(kvmppc_e500_init);
 module_exit(kvmppc_e500_exit);
+MODULE_ALIAS_MISCDEV(KVM_MINOR);
+MODULE_ALIAS("devname:kvm");

@@ -80,7 +80,7 @@ enum smic_states {
 #define SMIC_MAX_ERROR_RETRIES 3
 
 /* Timeouts in microseconds. */
-#define SMIC_RETRY_TIMEOUT 2000000
+#define SMIC_RETRY_TIMEOUT (2*USEC_PER_SEC)
 
 /* SMIC Flags Register Bits */
 #define SMIC_RX_DATA_READY	0x80

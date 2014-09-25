@@ -169,7 +169,7 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 	mask <<= shift;
 	val <<= shift;
 
-	change = snd_soc_test_bits(codec, val, mask, reg);
+	change = snd_soc_test_bits(codec, reg, mask, val);
 	if (change) {
 		update.kcontrol = kcontrol;
 		update.reg = reg;
@@ -873,16 +873,16 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 
 	/* select data word length */
 	data = snd_soc_read(codec, AIC3X_ASD_INTF_CTRLB) & (~(0x3 << 4));
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		data |= (0x01 << 4);
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		data |= (0x02 << 4);
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		data |= (0x03 << 4);
 		break;
 	}
@@ -1194,7 +1194,8 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 
 #define AIC3X_RATES	SNDRV_PCM_RATE_8000_96000
 #define AIC3X_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
-			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
+			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_LE | \
+			 SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops aic3x_dai_ops = {
 	.hw_params	= aic3x_hw_params,
@@ -1344,12 +1345,6 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 	INIT_LIST_HEAD(&aic3x->list);
 	aic3x->codec = codec;
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++) {
 		aic3x->disable_nb[i].nb.notifier_call = aic3x_regulator_event;
 		aic3x->disable_nb[i].aic3x = aic3x;
@@ -1405,7 +1400,6 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 	}
 
 	aic3x_add_widgets(codec);
-	list_add(&aic3x->list, &reset_list);
 
 	return 0;
 
@@ -1484,10 +1478,8 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	u32 value;
 
 	aic3x = devm_kzalloc(&i2c->dev, sizeof(struct aic3x_priv), GFP_KERNEL);
-	if (aic3x == NULL) {
-		dev_err(&i2c->dev, "failed to create private data\n");
+	if (!aic3x)
 		return -ENOMEM;
-	}
 
 	aic3x->regmap = devm_regmap_init_i2c(i2c, &aic3x_regmap);
 	if (IS_ERR(aic3x->regmap)) {
@@ -1505,10 +1497,8 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	} else if (np) {
 		ai3x_setup = devm_kzalloc(&i2c->dev, sizeof(*ai3x_setup),
 								GFP_KERNEL);
-		if (ai3x_setup == NULL) {
-			dev_err(&i2c->dev, "failed to create private data\n");
+		if (!ai3x_setup)
 			return -ENOMEM;
-		}
 
 		ret = of_get_named_gpio(np, "gpio-reset", 0);
 		if (ret >= 0)
@@ -1575,7 +1565,13 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_aic3x, &aic3x_dai, 1);
-	return ret;
+
+	if (ret != 0)
+		goto err_gpio;
+
+	list_add(&aic3x->list, &reset_list);
+
+	return 0;
 
 err_gpio:
 	if (gpio_is_valid(aic3x->gpio_reset) &&

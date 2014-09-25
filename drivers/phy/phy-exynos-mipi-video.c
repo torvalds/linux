@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -101,7 +102,7 @@ static struct phy *exynos_mipi_video_phy_xlate(struct device *dev,
 {
 	struct exynos_mipi_video_phy *state = dev_get_drvdata(dev);
 
-	if (WARN_ON(args->args[0] > EXYNOS_MIPI_PHYS_NUM))
+	if (WARN_ON(args->args[0] >= EXYNOS_MIPI_PHYS_NUM))
 		return ERR_PTR(-ENODEV);
 
 	return state->phys[args->args[0]].phy;
@@ -134,13 +135,8 @@ static int exynos_mipi_video_phy_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, state);
 	spin_lock_init(&state->slock);
 
-	phy_provider = devm_of_phy_provider_register(dev,
-					exynos_mipi_video_phy_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
-
 	for (i = 0; i < EXYNOS_MIPI_PHYS_NUM; i++) {
-		struct phy *phy = devm_phy_create(dev,
+		struct phy *phy = devm_phy_create(dev, NULL,
 					&exynos_mipi_video_phy_ops, NULL);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create PHY %d\n", i);
@@ -152,7 +148,10 @@ static int exynos_mipi_video_phy_probe(struct platform_device *pdev)
 		phy_set_drvdata(phy, &state->phys[i]);
 	}
 
-	return 0;
+	phy_provider = devm_of_phy_provider_register(dev,
+					exynos_mipi_video_phy_xlate);
+
+	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
 static const struct of_device_id exynos_mipi_video_phy_of_match[] = {

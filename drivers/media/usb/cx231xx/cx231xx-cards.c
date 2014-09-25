@@ -704,11 +704,91 @@ struct cx231xx_board cx231xx_boards[] = {
 			}
 		},
 	},
+	[CX231XX_BOARD_HAUPPAUGE_930C_HD_1113xx] = {
+		.name = "Hauppauge WinTV 930C-HD (1113xx) / PCTV QuatroStick 521e",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 1,
+		.demod_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x0e,
+		.norm = V4L2_STD_PAL,
+
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
+	[CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx] = {
+		.name = "Hauppauge WinTV 930C-HD (1114xx) / PCTV QuatroStick 522e",
+		.tuner_type = TUNER_ABSENT,
+		.tuner_addr = 0x60,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 1,
+		.demod_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x0e,
+		.norm = V4L2_STD_PAL,
+
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
 /* table of devices that work with this driver */
 struct usb_device_id cx231xx_id_table[] = {
+	{USB_DEVICE(0x1D19, 0x6109),
+	.driver_info = CX231XX_BOARD_PV_XCAPTURE_USB},
 	{USB_DEVICE(0x0572, 0x5A3C),
 	 .driver_info = CX231XX_BOARD_UNKNOWN},
 	{USB_DEVICE(0x0572, 0x58A2),
@@ -731,10 +811,20 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC},
 	{USB_DEVICE(0x2040, 0xb120),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
+	{USB_DEVICE(0x2040, 0xb130),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_930C_HD_1113xx},
+	{USB_DEVICE(0x2040, 0xb131),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx},
 	{USB_DEVICE(0x2040, 0xb140),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
 	{USB_DEVICE(0x2040, 0xc200),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_USBLIVE2},
+	/* PCTV QuatroStick 521e */
+	{USB_DEVICE(0x2013, 0x0259),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_930C_HD_1113xx},
+	/* PCTV QuatroStick 522e */
+	{USB_DEVICE(0x2013, 0x025e),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx},
 	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000, 0x4001),
 	 .driver_info = CX231XX_BOARD_PV_PLAYTV_USB_HYBRID},
 	{USB_DEVICE(USB_VID_PIXELVIEW, 0x5014),
@@ -884,6 +974,50 @@ static void cx231xx_config_tuner(struct cx231xx *dev)
 
 }
 
+static int read_eeprom(struct cx231xx *dev, u8 *eedata, int len)
+{
+	int ret = 0;
+	u8 addr = 0xa0 >> 1;
+	u8 start_offset = 0;
+	int len_todo = len;
+	u8 *eedata_cur = eedata;
+	int i;
+	struct i2c_msg msg_write = { .addr = addr, .flags = 0,
+		.buf = &start_offset, .len = 1 };
+	struct i2c_msg msg_read = { .addr = addr, .flags = I2C_M_RD };
+
+	/* mutex_lock(&dev->i2c_lock); */
+	cx231xx_enable_i2c_port_3(dev, false);
+
+	/* start reading at offset 0 */
+	ret = i2c_transfer(&dev->i2c_bus[1].i2c_adap, &msg_write, 1);
+	if (ret < 0) {
+		cx231xx_err("Can't read eeprom\n");
+		return ret;
+	}
+
+	while (len_todo > 0) {
+		msg_read.len = (len_todo > 64) ? 64 : len_todo;
+		msg_read.buf = eedata_cur;
+
+		ret = i2c_transfer(&dev->i2c_bus[1].i2c_adap, &msg_read, 1);
+		if (ret < 0) {
+			cx231xx_err("Can't read eeprom\n");
+			return ret;
+		}
+		eedata_cur += msg_read.len;
+		len_todo -= msg_read.len;
+	}
+
+	cx231xx_enable_i2c_port_3(dev, true);
+	/* mutex_unlock(&dev->i2c_lock); */
+
+	for (i = 0; i + 15 < len; i += 16)
+		cx231xx_info("i2c eeprom %02x: %*ph\n", i, 16, &eedata[i]);
+
+	return 0;
+}
+
 void cx231xx_card_setup(struct cx231xx *dev)
 {
 
@@ -915,6 +1049,21 @@ void cx231xx_card_setup(struct cx231xx *dev)
 		else
 			cx231xx_config_tuner(dev);
 	}
+
+	switch (dev->model) {
+	case CX231XX_BOARD_HAUPPAUGE_930C_HD_1113xx:
+	case CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx:
+		{
+			struct tveeprom tvee;
+			static u8 eeprom[256];
+
+			read_eeprom(dev, eeprom, sizeof(eeprom));
+			tveeprom_hauppauge_analog(&dev->i2c_bus[1].i2c_client,
+						&tvee, eeprom + 0xc0);
+			break;
+		}
+	}
+
 }
 
 /*
@@ -962,12 +1111,6 @@ void cx231xx_release_resources(struct cx231xx *dev)
 
 	/* Mark device as unused */
 	clear_bit(dev->devno, &cx231xx_devused);
-
-	kfree(dev->video_mode.alt_max_pkt_size);
-	kfree(dev->vbi_mode.alt_max_pkt_size);
-	kfree(dev->sliced_cc_mode.alt_max_pkt_size);
-	kfree(dev->ts1_mode.alt_max_pkt_size);
-	kfree(dev);
 }
 
 /*
@@ -1001,7 +1144,11 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	dev->cx231xx_gpio_i2c_write = cx231xx_gpio_i2c_write;
 
 	/* Query cx231xx to find what pcb config it is related to */
-	initialize_cx231xx(dev);
+	retval = initialize_cx231xx(dev);
+	if (retval < 0) {
+		cx231xx_errdev("Failed to read PCB config\n");
+		return retval;
+	}
 
 	/*To workaround error number=-71 on EP0 for VideoGrabber,
 		 need set alt here.*/
@@ -1119,6 +1266,117 @@ static void flush_request_modules(struct cx231xx *dev)
 #define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
+static int cx231xx_init_v4l2(struct cx231xx *dev,
+			     struct usb_device *udev,
+			     struct usb_interface *interface,
+			     int isoc_pipe)
+{
+	struct usb_interface *uif;
+	int i, idx;
+
+	/* Video Init */
+
+	/* compute alternate max packet sizes for video */
+	idx = dev->current_pcb_config.hs_config_info[0].interface_info.video_index + 1;
+	if (idx >= dev->max_iad_interface_count) {
+		cx231xx_errdev("Video PCB interface #%d doesn't exist\n", idx);
+		return -ENODEV;
+	}
+
+	uif = udev->actconfig->interface[idx];
+
+	dev->video_mode.end_point_addr = uif->altsetting[0].endpoint[isoc_pipe].desc.bEndpointAddress;
+	dev->video_mode.num_alt = uif->num_altsetting;
+
+	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
+		     dev->video_mode.end_point_addr,
+		     dev->video_mode.num_alt);
+
+	dev->video_mode.alt_max_pkt_size = devm_kmalloc_array(&udev->dev, 32, dev->video_mode.num_alt, GFP_KERNEL);
+	if (dev->video_mode.alt_max_pkt_size == NULL) {
+		cx231xx_errdev("out of memory!\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < dev->video_mode.num_alt; i++) {
+		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.wMaxPacketSize);
+		dev->video_mode.alt_max_pkt_size[i] = (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+		cx231xx_info("Alternate setting %i, max size= %i\n", i,
+			     dev->video_mode.alt_max_pkt_size[i]);
+	}
+
+	/* VBI Init */
+
+	idx = dev->current_pcb_config.hs_config_info[0].interface_info.vanc_index + 1;
+	if (idx >= dev->max_iad_interface_count) {
+		cx231xx_errdev("VBI PCB interface #%d doesn't exist\n", idx);
+		return -ENODEV;
+	}
+	uif = udev->actconfig->interface[idx];
+
+	dev->vbi_mode.end_point_addr =
+	    uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress;
+
+	dev->vbi_mode.num_alt = uif->num_altsetting;
+	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
+		     dev->vbi_mode.end_point_addr,
+		     dev->vbi_mode.num_alt);
+
+	/* compute alternate max packet sizes for vbi */
+	dev->vbi_mode.alt_max_pkt_size = devm_kmalloc_array(&udev->dev, 32, dev->vbi_mode.num_alt, GFP_KERNEL);
+	if (dev->vbi_mode.alt_max_pkt_size == NULL) {
+		cx231xx_errdev("out of memory!\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < dev->vbi_mode.num_alt; i++) {
+		u16 tmp =
+		    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
+				desc.wMaxPacketSize);
+		dev->vbi_mode.alt_max_pkt_size[i] =
+		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+		cx231xx_info("Alternate setting %i, max size= %i\n", i,
+			     dev->vbi_mode.alt_max_pkt_size[i]);
+	}
+
+	/* Sliced CC VBI init */
+
+	/* compute alternate max packet sizes for sliced CC */
+	idx = dev->current_pcb_config.hs_config_info[0].interface_info.hanc_index + 1;
+	if (idx >= dev->max_iad_interface_count) {
+		cx231xx_errdev("Sliced CC PCB interface #%d doesn't exist\n", idx);
+		return -ENODEV;
+	}
+	uif = udev->actconfig->interface[idx];
+
+	dev->sliced_cc_mode.end_point_addr =
+	    uif->altsetting[0].endpoint[isoc_pipe].desc.
+			bEndpointAddress;
+
+	dev->sliced_cc_mode.num_alt = uif->num_altsetting;
+	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
+		     dev->sliced_cc_mode.end_point_addr,
+		     dev->sliced_cc_mode.num_alt);
+	dev->sliced_cc_mode.alt_max_pkt_size = devm_kmalloc_array(&udev->dev, 32, dev->sliced_cc_mode.num_alt, GFP_KERNEL);
+
+	if (dev->sliced_cc_mode.alt_max_pkt_size == NULL) {
+		cx231xx_errdev("out of memory!\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < dev->sliced_cc_mode.num_alt; i++) {
+		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
+				desc.wMaxPacketSize);
+		dev->sliced_cc_mode.alt_max_pkt_size[i] =
+		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+		cx231xx_info("Alternate setting %i, max size= %i\n", i,
+			     dev->sliced_cc_mode.alt_max_pkt_size[i]);
+	}
+
+	return 0;
+}
+
 /*
  * cx231xx_usb_probe()
  * checks for supported devices
@@ -1133,6 +1391,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	int nr = 0, ifnum;
 	int i, isoc_pipe = 0;
 	char *speed;
+	u8 idx;
 	struct usb_interface_assoc_descriptor *assoc_desc;
 
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
@@ -1155,15 +1414,15 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		}
 	} while (test_and_set_bit(nr, &cx231xx_devused));
 
+	udev = usb_get_dev(interface_to_usbdev(interface));
+
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&udev->dev, sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		cx231xx_err(DRIVER_NAME ": out of memory!\n");
 		clear_bit(nr, &cx231xx_devused);
 		return -ENOMEM;
 	}
-
-	udev = usb_get_dev(interface_to_usbdev(interface));
 
 	snprintf(dev->name, 29, "cx231xx #%d", nr);
 	dev->devno = nr;
@@ -1183,8 +1442,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	dev->vbi_or_sliced_cc_mode = 0;
 
 	/* get maximum no.of IAD interfaces */
-	assoc_desc = udev->actconfig->intf_assoc[0];
-	dev->max_iad_interface_count = assoc_desc->bInterfaceCount;
+	dev->max_iad_interface_count = udev->config->desc.bNumInterfaces;
 
 	/* init CIR module TBD */
 
@@ -1236,120 +1494,31 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
 
-	/*
-	 * AV device initialization - only done at the last interface
-	 */
-
 	/* Create v4l2 device */
 	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval) {
 		cx231xx_errdev("v4l2_device_register failed\n");
-		retval = -EIO;
 		goto err_v4l2;
 	}
+
 	/* allocate device struct */
 	retval = cx231xx_init_dev(dev, udev, nr);
 	if (retval)
 		goto err_init;
 
-	/* compute alternate max packet sizes for video */
-	uif = udev->actconfig->interface[dev->current_pcb_config.
-		       hs_config_info[0].interface_info.video_index + 1];
-
-	dev->video_mode.end_point_addr = uif->altsetting[0].
-			endpoint[isoc_pipe].desc.bEndpointAddress;
-
-	dev->video_mode.num_alt = uif->num_altsetting;
-	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
-		     dev->video_mode.end_point_addr,
-		     dev->video_mode.num_alt);
-	dev->video_mode.alt_max_pkt_size =
-		kmalloc(32 * dev->video_mode.num_alt, GFP_KERNEL);
-
-	if (dev->video_mode.alt_max_pkt_size == NULL) {
-		cx231xx_errdev("out of memory!\n");
-		retval = -ENOMEM;
-		goto err_video_alt;
-	}
-
-	for (i = 0; i < dev->video_mode.num_alt; i++) {
-		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
-				desc.wMaxPacketSize);
-		dev->video_mode.alt_max_pkt_size[i] =
-		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-		cx231xx_info("Alternate setting %i, max size= %i\n", i,
-			     dev->video_mode.alt_max_pkt_size[i]);
-	}
-
-	/* compute alternate max packet sizes for vbi */
-	uif = udev->actconfig->interface[dev->current_pcb_config.
-				       hs_config_info[0].interface_info.
-				       vanc_index + 1];
-
-	dev->vbi_mode.end_point_addr =
-	    uif->altsetting[0].endpoint[isoc_pipe].desc.
-			bEndpointAddress;
-
-	dev->vbi_mode.num_alt = uif->num_altsetting;
-	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
-		     dev->vbi_mode.end_point_addr,
-		     dev->vbi_mode.num_alt);
-	dev->vbi_mode.alt_max_pkt_size =
-	    kmalloc(32 * dev->vbi_mode.num_alt, GFP_KERNEL);
-
-	if (dev->vbi_mode.alt_max_pkt_size == NULL) {
-		cx231xx_errdev("out of memory!\n");
-		retval = -ENOMEM;
-		goto err_vbi_alt;
-	}
-
-	for (i = 0; i < dev->vbi_mode.num_alt; i++) {
-		u16 tmp =
-		    le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
-				desc.wMaxPacketSize);
-		dev->vbi_mode.alt_max_pkt_size[i] =
-		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-		cx231xx_info("Alternate setting %i, max size= %i\n", i,
-			     dev->vbi_mode.alt_max_pkt_size[i]);
-	}
-
-	/* compute alternate max packet sizes for sliced CC */
-	uif = udev->actconfig->interface[dev->current_pcb_config.
-				       hs_config_info[0].interface_info.
-				       hanc_index + 1];
-
-	dev->sliced_cc_mode.end_point_addr =
-	    uif->altsetting[0].endpoint[isoc_pipe].desc.
-			bEndpointAddress;
-
-	dev->sliced_cc_mode.num_alt = uif->num_altsetting;
-	cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
-		     dev->sliced_cc_mode.end_point_addr,
-		     dev->sliced_cc_mode.num_alt);
-	dev->sliced_cc_mode.alt_max_pkt_size =
-		kmalloc(32 * dev->sliced_cc_mode.num_alt, GFP_KERNEL);
-
-	if (dev->sliced_cc_mode.alt_max_pkt_size == NULL) {
-		cx231xx_errdev("out of memory!\n");
-		retval = -ENOMEM;
-		goto err_sliced_cc_alt;
-	}
-
-	for (i = 0; i < dev->sliced_cc_mode.num_alt; i++) {
-		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].
-				desc.wMaxPacketSize);
-		dev->sliced_cc_mode.alt_max_pkt_size[i] =
-		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-		cx231xx_info("Alternate setting %i, max size= %i\n", i,
-			     dev->sliced_cc_mode.alt_max_pkt_size[i]);
-	}
+	retval = cx231xx_init_v4l2(dev, udev, interface, isoc_pipe);
+	if (retval)
+		goto err_init;
 
 	if (dev->current_pcb_config.ts1_source != 0xff) {
 		/* compute alternate max packet sizes for TS1 */
-		uif = udev->actconfig->interface[dev->current_pcb_config.
-					       hs_config_info[0].
-					       interface_info.
-					       ts1_index + 1];
+		idx = dev->current_pcb_config.hs_config_info[0].interface_info.ts1_index + 1;
+		if (idx >= dev->max_iad_interface_count) {
+			cx231xx_errdev("TS1 PCB interface #%d doesn't exist\n", idx);
+			retval = -ENODEV;
+			goto err_video_alt;
+		}
+		uif = udev->actconfig->interface[idx];
 
 		dev->ts1_mode.end_point_addr =
 		    uif->altsetting[0].endpoint[isoc_pipe].
@@ -1359,13 +1528,12 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		cx231xx_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
 			     dev->ts1_mode.end_point_addr,
 			     dev->ts1_mode.num_alt);
-		dev->ts1_mode.alt_max_pkt_size =
-			kmalloc(32 * dev->ts1_mode.num_alt, GFP_KERNEL);
 
+		dev->ts1_mode.alt_max_pkt_size = devm_kmalloc_array(&udev->dev, 32, dev->ts1_mode.num_alt, GFP_KERNEL);
 		if (dev->ts1_mode.alt_max_pkt_size == NULL) {
 			cx231xx_errdev("out of memory!\n");
 			retval = -ENOMEM;
-			goto err_ts1_alt;
+			goto err_video_alt;
 		}
 
 		for (i = 0; i < dev->ts1_mode.num_alt; i++) {
@@ -1392,12 +1560,6 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	request_modules(dev);
 
 	return 0;
-err_ts1_alt:
-	kfree(dev->sliced_cc_mode.alt_max_pkt_size);
-err_sliced_cc_alt:
-	kfree(dev->vbi_mode.alt_max_pkt_size);
-err_vbi_alt:
-	kfree(dev->video_mode.alt_max_pkt_size);
 err_video_alt:
 	/* cx231xx_uninit_dev: */
 	cx231xx_close_extension(dev);
@@ -1413,7 +1575,6 @@ err_v4l2:
 err_if:
 	usb_put_dev(udev);
 	clear_bit(dev->devno, &cx231xx_devused);
-	kfree(dev);
 	return retval;
 }
 

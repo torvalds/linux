@@ -274,10 +274,16 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 {
 	return (irq < NR_IRQS) ? irq_desc + irq : NULL;
 }
+EXPORT_SYMBOL(irq_to_desc);
 
 static void free_desc(unsigned int irq)
 {
-	dynamic_irq_cleanup(irq);
+	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&desc->lock, flags);
+	desc_set_defaults(irq, desc, desc_node(desc), NULL);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 static inline int alloc_descs(unsigned int start, unsigned int cnt, int node,
@@ -297,6 +303,20 @@ static int irq_expand_nr_irqs(unsigned int nr)
 {
 	return -ENOMEM;
 }
+
+void irq_mark_irq(unsigned int irq)
+{
+	mutex_lock(&sparse_irq_lock);
+	bitmap_set(allocated_irqs, irq, 1);
+	mutex_unlock(&sparse_irq_lock);
+}
+
+#ifdef CONFIG_GENERIC_IRQ_LEGACY
+void irq_init_desc(unsigned int irq)
+{
+	free_desc(irq);
+}
+#endif
 
 #endif /* !CONFIG_SPARSE_IRQ */
 
@@ -362,6 +382,13 @@ __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 		if (from > irq)
 			return -EINVAL;
 		from = irq;
+	} else {
+		/*
+		 * For interrupts which are freely allocated the
+		 * architecture can force a lower bound to the @from
+		 * argument. x86 uses this to exclude the GSI space.
+		 */
+		from = arch_dynirq_lower_bound(from);
 	}
 
 	mutex_lock(&sparse_irq_lock);
@@ -388,30 +415,56 @@ err:
 }
 EXPORT_SYMBOL_GPL(__irq_alloc_descs);
 
+#ifdef CONFIG_GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 /**
- * irq_reserve_irqs - mark irqs allocated
- * @from:	mark from irq number
- * @cnt:	number of irqs to mark
+ * irq_alloc_hwirqs - Allocate an irq descriptor and initialize the hardware
+ * @cnt:	number of interrupts to allocate
+ * @node:	node on which to allocate
  *
- * Returns 0 on success or an appropriate error code
+ * Returns an interrupt number > 0 or 0, if the allocation fails.
  */
-int irq_reserve_irqs(unsigned int from, unsigned int cnt)
+unsigned int irq_alloc_hwirqs(int cnt, int node)
 {
-	unsigned int start;
-	int ret = 0;
+	int i, irq = __irq_alloc_descs(-1, 0, cnt, node, NULL);
 
-	if (!cnt || (from + cnt) > nr_irqs)
-		return -EINVAL;
+	if (irq < 0)
+		return 0;
 
-	mutex_lock(&sparse_irq_lock);
-	start = bitmap_find_next_zero_area(allocated_irqs, nr_irqs, from, cnt, 0);
-	if (start == from)
-		bitmap_set(allocated_irqs, start, cnt);
-	else
-		ret = -EEXIST;
-	mutex_unlock(&sparse_irq_lock);
-	return ret;
+	for (i = irq; cnt > 0; i++, cnt--) {
+		if (arch_setup_hwirq(i, node))
+			goto err;
+		irq_clear_status_flags(i, _IRQ_NOREQUEST);
+	}
+	return irq;
+
+err:
+	for (i--; i >= irq; i--) {
+		irq_set_status_flags(i, _IRQ_NOREQUEST | _IRQ_NOPROBE);
+		arch_teardown_hwirq(i);
+	}
+	irq_free_descs(irq, cnt);
+	return 0;
 }
+EXPORT_SYMBOL_GPL(irq_alloc_hwirqs);
+
+/**
+ * irq_free_hwirqs - Free irq descriptor and cleanup the hardware
+ * @from:	Free from irq number
+ * @cnt:	number of interrupts to free
+ *
+ */
+void irq_free_hwirqs(unsigned int from, int cnt)
+{
+	int i, j;
+
+	for (i = from, j = cnt; j > 0; i++, j--) {
+		irq_set_status_flags(i, _IRQ_NOREQUEST | _IRQ_NOPROBE);
+		arch_teardown_hwirq(i);
+	}
+	irq_free_descs(from, cnt);
+}
+EXPORT_SYMBOL_GPL(irq_free_hwirqs);
+#endif
 
 /**
  * irq_get_next_irq - get next allocated irq number
@@ -474,18 +527,9 @@ int irq_set_percpu_devid(unsigned int irq)
 	return 0;
 }
 
-/**
- * dynamic_irq_cleanup - cleanup a dynamically allocated irq
- * @irq:	irq number to initialize
- */
-void dynamic_irq_cleanup(unsigned int irq)
+void kstat_incr_irq_this_cpu(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc_set_defaults(irq, desc, desc_node(desc), NULL);
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
 }
 
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)

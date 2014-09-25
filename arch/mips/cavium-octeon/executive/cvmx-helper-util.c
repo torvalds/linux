@@ -251,6 +251,7 @@ int cvmx_helper_setup_red(int pass_thresh, int drop_thresh)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_setup_red);
 
 /**
  * Setup the common GMX settings that determine the number of
@@ -384,6 +385,7 @@ int cvmx_helper_get_ipd_port(int interface, int port)
 	}
 	return -1;
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_get_ipd_port);
 
 /**
  * Returns the interface number for an IPD/PKO port number.
@@ -408,6 +410,7 @@ int cvmx_helper_get_interface_num(int ipd_port)
 
 	return -1;
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_get_interface_num);
 
 /**
  * Returns the interface index number for an IPD/PKO port
@@ -431,3 +434,4 @@ int cvmx_helper_get_interface_index_num(int ipd_port)
 
 	return -1;
 }
+EXPORT_SYMBOL_GPL(cvmx_helper_get_interface_index_num);

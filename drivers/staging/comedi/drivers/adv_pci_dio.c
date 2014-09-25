@@ -592,7 +592,7 @@ static int pci1760_unchecked_mbxrequest(struct comedi_device *dev,
 			return 0;
 	}
 
-	comedi_error(dev, "PCI-1760 mailbox request timeout!");
+	dev_err(dev->class_dev, "PCI-1760 mailbox request timeout!\n");
 	return -ETIME;
 }
 
@@ -610,12 +610,13 @@ static int pci1760_mbxrequest(struct comedi_device *dev,
 			      unsigned char *omb, unsigned char *imb)
 {
 	if (omb[2] == CMD_ClearIMB2) {
-		comedi_error(dev,
-			     "bug! this function should not be used for CMD_ClearIMB2 command");
+		dev_err(dev->class_dev,
+			"bug! this function should not be used for CMD_ClearIMB2 command\n");
 		return -EINVAL;
 	}
 	if (inb(dev->iobase + IMB2) == omb[2]) {
 		int retval;
+
 		retval = pci1760_clear_imb2(dev);
 		if (retval < 0)
 			return retval;
@@ -826,7 +827,7 @@ static int pci_dio_reset(struct comedi_device *dev)
 		outb(0, dev->iobase + PCI1730_DO + 1);
 		outb(0, dev->iobase + PCI1730_IDO);
 		outb(0, dev->iobase + PCI1730_IDO + 1);
-		/* NO break there! */
+		/* fallthrough */
 	case TYPE_PCI1733:
 		/* disable interrupts */
 		outb(0, dev->iobase + PCI1730_3_INT_EN);
@@ -886,7 +887,7 @@ static int pci_dio_reset(struct comedi_device *dev)
 		outb(0x80, dev->iobase + PCI1753E_ICR1);
 		outb(0x80, dev->iobase + PCI1753E_ICR2);
 		outb(0x80, dev->iobase + PCI1753E_ICR3);
-		/* NO break there! */
+		/* fallthrough */
 	case TYPE_PCI1753:
 		outb(0x88, dev->iobase + PCI1753_ICR0); /* disable & clear
 							 * interrupts */
@@ -1130,10 +1131,12 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < MAX_DIO_SUBDEVG; i++)
 		for (j = 0; j < this_board->sdio[i].regs; j++) {
 			s = &dev->subdevices[subdev];
-			subdev_8255_init(dev, s, NULL,
-					 dev->iobase +
-					 this_board->sdio[i].addr +
-					 SIZE_8255 * j);
+			ret = subdev_8255_init(dev, s, NULL,
+					       dev->iobase +
+					       this_board->sdio[i].addr +
+					       SIZE_8255 * j);
+			if (ret)
+				return ret;
 			subdev++;
 		}
 

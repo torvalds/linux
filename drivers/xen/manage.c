@@ -41,32 +41,23 @@ static enum shutdown_state shutting_down = SHUTDOWN_INVALID;
 
 struct suspend_info {
 	int cancelled;
-	unsigned long arg; /* extra hypercall argument */
-	void (*pre)(void);
-	void (*post)(int cancelled);
 };
 
+static RAW_NOTIFIER_HEAD(xen_resume_notifier);
+
+void xen_resume_notifier_register(struct notifier_block *nb)
+{
+	raw_notifier_chain_register(&xen_resume_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(xen_resume_notifier_register);
+
+void xen_resume_notifier_unregister(struct notifier_block *nb)
+{
+	raw_notifier_chain_unregister(&xen_resume_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(xen_resume_notifier_unregister);
+
 #ifdef CONFIG_HIBERNATE_CALLBACKS
-static void xen_hvm_post_suspend(int cancelled)
-{
-	xen_arch_hvm_post_suspend(cancelled);
-	gnttab_resume();
-}
-
-static void xen_pre_suspend(void)
-{
-	xen_mm_pin_all();
-	gnttab_suspend();
-	xen_arch_pre_suspend();
-}
-
-static void xen_post_suspend(int cancelled)
-{
-	xen_arch_post_suspend(cancelled);
-	gnttab_resume();
-	xen_mm_unpin_all();
-}
-
 static int xen_suspend(void *data)
 {
 	struct suspend_info *si = data;
@@ -80,22 +71,23 @@ static int xen_suspend(void *data)
 		return err;
 	}
 
-	if (si->pre)
-		si->pre();
+	gnttab_suspend();
+	xen_arch_pre_suspend();
 
 	/*
 	 * This hypercall returns 1 if suspend was cancelled
 	 * or the domain was merely checkpointed, and 0 if it
 	 * is resuming in a new domain.
 	 */
-	si->cancelled = HYPERVISOR_suspend(si->arg);
+	si->cancelled = HYPERVISOR_suspend(xen_pv_domain()
+                                           ? virt_to_mfn(xen_start_info)
+                                           : 0);
 
-	if (si->post)
-		si->post(si->cancelled);
+	xen_arch_post_suspend(si->cancelled);
+	gnttab_resume();
 
 	if (!si->cancelled) {
 		xen_irq_resume();
-		xen_console_resume();
 		xen_timer_resume();
 	}
 
@@ -111,16 +103,11 @@ static void do_suspend(void)
 
 	shutting_down = SHUTDOWN_SUSPEND;
 
-#ifdef CONFIG_PREEMPT
-	/* If the kernel is preemptible, we need to freeze all the processes
-	   to prevent them from being in the middle of a pagetable update
-	   during suspend. */
 	err = freeze_processes();
 	if (err) {
 		pr_err("%s: freeze failed %d\n", __func__, err);
 		goto out;
 	}
-#endif
 
 	err = dpm_suspend_start(PMSG_FREEZE);
 	if (err) {
@@ -140,17 +127,13 @@ static void do_suspend(void)
 
 	si.cancelled = 1;
 
-	if (xen_hvm_domain()) {
-		si.arg = 0UL;
-		si.pre = NULL;
-		si.post = &xen_hvm_post_suspend;
-	} else {
-		si.arg = virt_to_mfn(xen_start_info);
-		si.pre = &xen_pre_suspend;
-		si.post = &xen_post_suspend;
-	}
-
 	err = stop_machine(xen_suspend, &si, cpumask_of(0));
+
+	/* Resume console as early as possible. */
+	if (!si.cancelled)
+		xen_console_resume();
+
+	raw_notifier_call_chain(&xen_resume_notifier, 0, NULL);
 
 	dpm_resume_start(si.cancelled ? PMSG_THAW : PMSG_RESTORE);
 
@@ -169,10 +152,8 @@ out_resume:
 	dpm_resume_end(si.cancelled ? PMSG_THAW : PMSG_RESTORE);
 
 out_thaw:
-#ifdef CONFIG_PREEMPT
 	thaw_processes();
 out:
-#endif
 	shutting_down = SHUTDOWN_INVALID;
 }
 #endif	/* CONFIG_HIBERNATE_CALLBACKS */
@@ -182,10 +163,32 @@ struct shutdown_handler {
 	void (*cb)(void);
 };
 
+static int poweroff_nb(struct notifier_block *cb, unsigned long code, void *unused)
+{
+	switch (code) {
+	case SYS_DOWN:
+	case SYS_HALT:
+	case SYS_POWER_OFF:
+		shutting_down = SHUTDOWN_POWEROFF;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
 static void do_poweroff(void)
 {
-	shutting_down = SHUTDOWN_POWEROFF;
-	orderly_poweroff(false);
+	switch (system_state) {
+	case SYSTEM_BOOTING:
+		orderly_poweroff(true);
+		break;
+	case SYSTEM_RUNNING:
+		orderly_poweroff(false);
+		break;
+	default:
+		/* Don't do it when we are halting/rebooting. */
+		pr_info("Ignoring Xen toolstack shutdown.\n");
+		break;
+	}
 }
 
 static void do_reboot(void)
@@ -291,6 +294,10 @@ static struct xenbus_watch shutdown_watch = {
 	.callback = shutdown_handler
 };
 
+static struct notifier_block xen_reboot_nb = {
+	.notifier_call = poweroff_nb,
+};
+
 static int setup_shutdown_watcher(void)
 {
 	int err;
@@ -300,6 +307,7 @@ static int setup_shutdown_watcher(void)
 		pr_err("Failed to set shutdown watcher\n");
 		return err;
 	}
+
 
 #ifdef CONFIG_MAGIC_SYSRQ
 	err = register_xenbus_watch(&sysrq_watch);
@@ -329,6 +337,7 @@ int xen_setup_shutdown_event(void)
 	if (!xen_domain())
 		return -ENODEV;
 	register_xenstore_notifier(&xenstore_notifier);
+	register_reboot_notifier(&xen_reboot_nb);
 
 	return 0;
 }

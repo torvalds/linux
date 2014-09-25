@@ -253,10 +253,8 @@ static int tle62x0_probe(struct spi_device *spi)
 	}
 
 	st = kzalloc(sizeof(struct tle62x0_state), GFP_KERNEL);
-	if (st == NULL) {
-		dev_err(&spi->dev, "no memory for device state\n");
+	if (st == NULL)
 		return -ENOMEM;
-	}
 
 	st->us = spi;
 	st->nr_gpio = pdata->gpio_count;

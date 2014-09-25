@@ -468,8 +468,6 @@
                   return err;
           }
 
-          snd_card_set_dev(card, &pci->dev);
-
           *rchip = chip;
           return 0;
   }
@@ -492,7 +490,8 @@
           }
 
           /* (2) */
-          err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+          err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                             0, &card);
           if (err < 0)
                   return err;
 
@@ -591,7 +590,8 @@
   struct snd_card *card;
   int err;
   ....
-  err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+  err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                     0, &card);
 ]]>
             </programlisting>
           </informalexample>
@@ -809,28 +809,34 @@
 
       <para>
         As mentioned above, to create a card instance, call
-      <function>snd_card_create()</function>.
+      <function>snd_card_new()</function>.
 
         <informalexample>
           <programlisting>
 <![CDATA[
   struct snd_card *card;
   int err;
-  err = snd_card_create(index, id, module, extra_size, &card);
+  err = snd_card_new(&pci->dev, index, id, module, extra_size, &card);
 ]]>
           </programlisting>
         </informalexample>
       </para>
 
       <para>
-        The function takes five arguments, the card-index number, the
-        id string, the module pointer (usually
+        The function takes six arguments: the parent device pointer,
+        the card-index number, the id string, the module pointer (usually
         <constant>THIS_MODULE</constant>),
         the size of extra-data space, and the pointer to return the
         card instance.  The extra_size argument is used to
         allocate card-&gt;private_data for the
         chip-specific data.  Note that these data
-        are allocated by <function>snd_card_create()</function>.
+        are allocated by <function>snd_card_new()</function>.
+      </para>
+
+      <para>
+	The first argument, the pointer of struct
+	<structname>device</structname>, specifies the parent device.
+	For PCI devices, typically &amp;pci-&gt; is passed there.
       </para>
     </section>
 
@@ -916,16 +922,16 @@
       </para>
 
       <section id="card-management-chip-specific-snd-card-new">
-        <title>1. Allocating via <function>snd_card_create()</function>.</title>
+        <title>1. Allocating via <function>snd_card_new()</function>.</title>
         <para>
           As mentioned above, you can pass the extra-data-length
-	  to the 4th argument of <function>snd_card_create()</function>, i.e.
+	  to the 5th argument of <function>snd_card_new()</function>, i.e.
 
           <informalexample>
             <programlisting>
 <![CDATA[
-  err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-                        sizeof(struct mychip), &card);
+  err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                     sizeof(struct mychip), &card);
 ]]>
             </programlisting>
           </informalexample>
@@ -954,7 +960,7 @@
 
         <para>
           After allocating a card instance via
-          <function>snd_card_create()</function> (with
+          <function>snd_card_new()</function> (with
           <constant>0</constant> on the 4th arg), call
           <function>kzalloc()</function>. 
 
@@ -963,7 +969,8 @@
 <![CDATA[
   struct snd_card *card;
   struct mychip *chip;
-  err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+  err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                     0, &card);
   .....
   chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 ]]>
@@ -1169,8 +1176,6 @@
                   snd_mychip_free(chip);
                   return err;
           }
-
-          snd_card_set_dev(card, &pci->dev);
 
           *rchip = chip;
           return 0;
@@ -1524,30 +1529,6 @@
         </informalexample>
       </para>
 
-    </section>
-
-    <section id="pci-resource-device-struct">
-      <title>Registration of Device Struct</title>
-      <para>
-	At some point, typically after calling <function>snd_device_new()</function>,
-	you need to register the struct <structname>device</structname> of the chip
-	you're handling for udev and co.  ALSA provides a macro for compatibility with
-	older kernels.  Simply call like the following:
-        <informalexample>
-          <programlisting>
-<![CDATA[
-  snd_card_set_dev(card, &pci->dev);
-]]>
-          </programlisting>
-        </informalexample>
-	so that it stores the PCI's device pointer to the card.  This will be
-	referred by ALSA core functions later when the devices are registered.
-      </para>
-      <para>
-	In the case of non-PCI, pass the proper device struct pointer of the BUS
-	instead.  (In the case of legacy ISA without PnP, you don't have to do
-	anything.)
-      </para>
     </section>
 
     <section id="pci-resource-entries">
@@ -5715,7 +5696,7 @@ struct _snd_pcm_runtime {
 	suspending the PCM operations via
 	<function>snd_pcm_suspend_all()</function> or
 	<function>snd_pcm_suspend()</function>.  It means that the PCM
-	streams are already stoppped when the register snapshot is
+	streams are already stopped when the register snapshot is
 	taken.  But, remember that you don't have to restart the PCM
 	stream in the resume callback. It'll be restarted via 
 	trigger call with <constant>SNDRV_PCM_TRIGGER_RESUME</constant>
@@ -5740,7 +5721,8 @@ struct _snd_pcm_runtime {
           struct mychip *chip;
           int err;
           ....
-          err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+          err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                             0, &card);
           ....
           chip = kzalloc(sizeof(*chip), GFP_KERNEL);
           ....
@@ -5752,7 +5734,7 @@ struct _snd_pcm_runtime {
       </informalexample>
 
 	When you created the chip data with
-	<function>snd_card_create()</function>, it's anyway accessible
+	<function>snd_card_new()</function>, it's anyway accessible
 	via <structfield>private_data</structfield> field.
 
       <informalexample>
@@ -5766,8 +5748,8 @@ struct _snd_pcm_runtime {
           struct mychip *chip;
           int err;
           ....
-          err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-                                sizeof(struct mychip), &card);
+          err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+                             sizeof(struct mychip), &card);
           ....
           chip = card->private_data;
           ....

@@ -96,7 +96,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 {
 	struct ci_hdrc_imx_data *data;
 	struct ci_hdrc_platform_data pdata = {
-		.name		= "ci_hdrc_imx",
+		.name		= dev_name(&pdev->dev),
 		.capoffset	= DEF_CAPOFFSET,
 		.flags		= CI_HDRC_REQUIRE_TRANSCEIVER |
 				  CI_HDRC_DISABLE_STREAMING,
@@ -133,6 +133,9 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	data->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "fsl,usbphy", 0);
 	if (IS_ERR(data->phy)) {
 		ret = PTR_ERR(data->phy);
+		/* Return -EINVAL if no usbphy is available */
+		if (ret == -ENODEV)
+			ret = -EINVAL;
 		goto err_clk;
 	}
 

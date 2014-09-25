@@ -10,11 +10,11 @@
  */
 
 #include "omap3-igep.dtsi"
-#include "omap-gpmc-smsc911x.dtsi"
+#include "omap-gpmc-smsc9221.dtsi"
 
 / {
 	model = "IGEPv2 (TI OMAP AM/DM37x)";
-	compatible = "isee,omap3-igep0020", "ti,omap3";
+	compatible = "isee,omap3-igep0020", "ti,omap36xx", "ti,omap3";
 
 	leds {
 		pinctrl-names = "default";
@@ -61,22 +61,63 @@
 		reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>; /* gpio_24 */
 		vcc-supply = <&hsusb1_power>;
 	};
+
+	tfp410: encoder@0 {
+		compatible = "ti,tfp410";
+		powerdown-gpios = <&gpio6 10 GPIO_ACTIVE_LOW>; /* gpio_170 */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tfp410_in: endpoint@0 {
+					remote-endpoint = <&dpi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tfp410_out: endpoint@0 {
+					remote-endpoint = <&dvi_connector_in>;
+				};
+			};
+		};
+	};
+
+	dvi0: connector@0 {
+		compatible = "dvi-connector";
+		label = "dvi";
+
+		digital;
+
+		ddc-i2c-bus = <&i2c3>;
+
+		port {
+			dvi_connector_in: endpoint {
+				remote-endpoint = <&tfp410_out>;
+			};
+		};
+	};
 };
 
 &omap3_pmx_core {
 	pinctrl-names = "default";
 	pinctrl-0 = <
 		&tfp410_pins
-		&dss_pins
+		&dss_dpi_pins
 	>;
 
-	tfp410_pins: tfp410_dvi_pins {
+	tfp410_pins: pinmux_tfp410_pins {
 		pinctrl-single,pins = <
 			0x196 (PIN_OUTPUT | MUX_MODE4)   /* hdq_sio.gpio_170 */
 		>;
 	};
 
-	dss_pins: pinmux_dss_dvi_pins {
+	dss_dpi_pins: pinmux_dss_dpi_pins {
 		pinctrl-single,pins = <
 			0x0a4 (PIN_OUTPUT | MUX_MODE0)   /* dss_pclk.dss_pclk */
 			0x0a6 (PIN_OUTPUT | MUX_MODE0)   /* dss_hsync.dss_hsync */
@@ -207,7 +248,7 @@
 
 	ethernet@gpmc {
 		pinctrl-names = "default";
-		pinctrl-0 = <&smsc911x_pins>;
+		pinctrl-0 = <&smsc9221_pins>;
 		reg = <5 0 0xff>;
 		interrupt-parent = <&gpio6>;
 		interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
@@ -225,4 +266,15 @@
 &vpll2 {
         /* Needed for DSS */
         regulator-name = "vdds_dsi";
+};
+
+&dss {
+	status = "ok";
+
+	port {
+		dpi_out: endpoint {
+			remote-endpoint = <&tfp410_in>;
+			data-lines = <24>;
+		};
+	};
 };

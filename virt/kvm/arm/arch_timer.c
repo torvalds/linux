@@ -277,7 +277,7 @@ int kvm_timer_hyp_init(void)
 
 	host_vtimer_irq = ppi;
 
-	err = register_cpu_notifier(&kvm_timer_cpu_nb);
+	err = __register_cpu_notifier(&kvm_timer_cpu_nb);
 	if (err) {
 		kvm_err("Cannot register timer CPU notifier\n");
 		goto out_free;

@@ -53,21 +53,21 @@
 #include <linux/module.h>
 
 /* LUSTRE_VERSION_CODE */
-#include <lustre_ver.h>
+#include "../include/lustre_ver.h"
 
-#include <obd_support.h>
+#include "../include/obd_support.h"
 /* lustre_swab_mdt_body */
-#include <lustre/lustre_idl.h>
+#include "../include/lustre/lustre_idl.h"
 /* obd2cli_tgt() (required by DEBUG_REQ()) */
-#include <obd.h>
+#include "../include/obd.h"
 
 /* __REQ_LAYOUT_USER__ */
 #endif
 /* struct ptlrpc_request, lustre_msg* */
-#include <lustre_req_layout.h>
-#include <lustre_update.h>
-#include <lustre_acl.h>
-#include <lustre_debug.h>
+#include "../include/lustre_req_layout.h"
+#include "../include/lustre_update.h"
+#include "../include/lustre_acl.h"
+#include "../include/lustre_debug.h"
 
 /*
  * RQFs (see below) refer to two struct req_msg_field arrays describing the
@@ -295,7 +295,8 @@ static const struct req_msg_field *mds_reint_setxattr_client[] = {
 	&RMF_REC_REINT,
 	&RMF_CAPA1,
 	&RMF_NAME,
-	&RMF_EADATA
+	&RMF_EADATA,
+	&RMF_DLM_REQ
 };
 
 static const struct req_msg_field *mdt_swap_layouts[] = {
@@ -2154,7 +2155,7 @@ EXPORT_SYMBOL(req_capsule_server_sized_swab_get);
  * request (if the caller is executing on the server-side) or reply (if the
  * caller is executing on the client-side).
  *
- * This function convienient for use is code that could be executed on the
+ * This function convenient for use is code that could be executed on the
  * client and server alike.
  */
 const void *req_capsule_other_get(struct req_capsule *pill,

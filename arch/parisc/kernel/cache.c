@@ -323,7 +323,8 @@ void flush_dcache_page(struct page *page)
 		 * specifically accesses it, of course) */
 
 		flush_tlb_page(mpnt, addr);
-		if (old_addr == 0 || (old_addr & (SHMLBA - 1)) != (addr & (SHMLBA - 1))) {
+		if (old_addr == 0 || (old_addr & (SHM_COLOUR - 1))
+				      != (addr & (SHM_COLOUR - 1))) {
 			__flush_cache_page(mpnt, addr, page_to_phys(page));
 			if (old_addr)
 				printk(KERN_ERR "INEQUIVALENT ALIASES 0x%lx and 0x%lx in file %s\n", old_addr, addr, mpnt->vm_file ? (char *)mpnt->vm_file->f_path.dentry->d_name.name : "(null)");
@@ -387,6 +388,20 @@ void flush_kernel_dcache_page_addr(void *addr)
 	purge_tlb_end(flags);
 }
 EXPORT_SYMBOL(flush_kernel_dcache_page_addr);
+
+void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
+	struct page *pg)
+{
+       /* Copy using kernel mapping.  No coherency is needed (all in
+	  kunmap) for the `to' page.  However, the `from' page needs to
+	  be flushed through a mapping equivalent to the user mapping
+	  before it can be accessed through the kernel mapping. */
+	preempt_disable();
+	flush_dcache_page_asm(__pa(vfrom), vaddr);
+	preempt_enable();
+	copy_page_asm(vto, vfrom);
+}
+EXPORT_SYMBOL(copy_user_page);
 
 void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 {
@@ -567,67 +582,3 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 		__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
 	}
 }
-
-#ifdef CONFIG_PARISC_TMPALIAS
-
-void clear_user_highpage(struct page *page, unsigned long vaddr)
-{
-	void *vto;
-	unsigned long flags;
-
-	/* Clear using TMPALIAS region.  The page doesn't need to
-	   be flushed but the kernel mapping needs to be purged.  */
-
-	vto = kmap_atomic(page);
-
-	/* The PA-RISC 2.0 Architecture book states on page F-6:
-	   "Before a write-capable translation is enabled, *all*
-	   non-equivalently-aliased translations must be removed
-	   from the page table and purged from the TLB.  (Note
-	   that the caches are not required to be flushed at this
-	   time.)  Before any non-equivalent aliased translation
-	   is re-enabled, the virtual address range for the writeable
-	   page (the entire page) must be flushed from the cache,
-	   and the write-capable translation removed from the page
-	   table and purged from the TLB."  */
-
-	purge_kernel_dcache_page_asm((unsigned long)vto);
-	purge_tlb_start(flags);
-	pdtlb_kernel(vto);
-	purge_tlb_end(flags);
-	preempt_disable();
-	clear_user_page_asm(vto, vaddr);
-	preempt_enable();
-
-	pagefault_enable();		/* kunmap_atomic(addr, KM_USER0); */
-}
-
-void copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr, struct vm_area_struct *vma)
-{
-	void *vfrom, *vto;
-	unsigned long flags;
-
-	/* Copy using TMPALIAS region.  This has the advantage
-	   that the `from' page doesn't need to be flushed.  However,
-	   the `to' page must be flushed in copy_user_page_asm since
-	   it can be used to bring in executable code.  */
-
-	vfrom = kmap_atomic(from);
-	vto = kmap_atomic(to);
-
-	purge_kernel_dcache_page_asm((unsigned long)vto);
-	purge_tlb_start(flags);
-	pdtlb_kernel(vto);
-	pdtlb_kernel(vfrom);
-	purge_tlb_end(flags);
-	preempt_disable();
-	copy_user_page_asm(vto, vfrom, vaddr);
-	flush_dcache_page_asm(__pa(vto), vaddr);
-	preempt_enable();
-
-	pagefault_enable();		/* kunmap_atomic(addr, KM_USER1); */
-	pagefault_enable();		/* kunmap_atomic(addr, KM_USER0); */
-}
-
-#endif /* CONFIG_PARISC_TMPALIAS */

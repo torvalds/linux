@@ -24,7 +24,6 @@
 
 #include <core/os.h>
 #include <core/enum.h>
-#include <core/class.h>
 #include <core/engctx.h>
 
 #include <engine/copy.h>
@@ -88,9 +87,6 @@ nve0_copy0_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nve0_copy_priv *priv;
 	int ret;
 
-	if (nv_rd32(parent, 0x022500) & 0x00000100)
-		return -ENODEV;
-
 	ret = nouveau_engine_create(parent, engine, oclass, true,
 				    "PCE0", "copy0", &priv);
 	*pobject = nv_object(priv);
@@ -111,9 +107,6 @@ nve0_copy1_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 {
 	struct nve0_copy_priv *priv;
 	int ret;
-
-	if (nv_rd32(parent, 0x022500) & 0x00000200)
-		return -ENODEV;
 
 	ret = nouveau_engine_create(parent, engine, oclass, true,
 				    "PCE1", "copy1", &priv);

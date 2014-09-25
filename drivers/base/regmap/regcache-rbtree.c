@@ -23,16 +23,16 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 static int regcache_rbtree_exit(struct regmap *map);
 
 struct regcache_rbtree_node {
-	/* the actual rbtree node holding this block */
-	struct rb_node node;
-	/* base register handled by this block */
-	unsigned int base_reg;
 	/* block of adjacent registers */
 	void *block;
 	/* Which registers are present */
 	long *cache_present;
+	/* base register handled by this block */
+	unsigned int base_reg;
 	/* number of registers available in the block */
 	unsigned int blklen;
+	/* the actual rbtree node holding this block */
+	struct rb_node node;
 } __attribute__ ((packed));
 
 struct regcache_rbtree_ctx {
@@ -194,10 +194,6 @@ static void rbtree_debugfs_init(struct regmap *map)
 {
 	debugfs_create_file("rbtree", 0400, map->debugfs, map, &rbtree_fops);
 }
-#else
-static void rbtree_debugfs_init(struct regmap *map)
-{
-}
 #endif
 
 static int regcache_rbtree_init(struct regmap *map)
@@ -221,8 +217,6 @@ static int regcache_rbtree_init(struct regmap *map)
 		if (ret)
 			goto err;
 	}
-
-	rbtree_debugfs_init(map);
 
 	return 0;
 
@@ -532,6 +526,9 @@ struct regcache_ops regcache_rbtree_ops = {
 	.name = "rbtree",
 	.init = regcache_rbtree_init,
 	.exit = regcache_rbtree_exit,
+#ifdef CONFIG_DEBUG_FS
+	.debugfs_init = rbtree_debugfs_init,
+#endif
 	.read = regcache_rbtree_read,
 	.write = regcache_rbtree_write,
 	.sync = regcache_rbtree_sync,

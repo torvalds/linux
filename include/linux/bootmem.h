@@ -58,9 +58,9 @@ extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
  * Flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
  * the architecture-specific code should honor this).
  *
- * If flags is 0, then the return value is always 0 (success). If
- * flags contains BOOTMEM_EXCLUSIVE, then -EBUSY is returned if the
- * memory already was reserved.
+ * If flags is BOOTMEM_DEFAULT, then the return value is always 0 (success).
+ * If flags contains BOOTMEM_EXCLUSIVE, then -EBUSY is returned if the memory
+ * already was reserved.
  */
 #define BOOTMEM_DEFAULT		0
 #define BOOTMEM_EXCLUSIVE	(1<<0)
@@ -175,6 +175,27 @@ static inline void * __init memblock_virt_alloc_nopanic(
 						    NUMA_NO_NODE);
 }
 
+#ifndef ARCH_LOW_ADDRESS_LIMIT
+#define ARCH_LOW_ADDRESS_LIMIT  0xffffffffUL
+#endif
+
+static inline void * __init memblock_virt_alloc_low(
+					phys_addr_t size, phys_addr_t align)
+{
+	return memblock_virt_alloc_try_nid(size, align,
+						   BOOTMEM_LOW_LIMIT,
+						   ARCH_LOW_ADDRESS_LIMIT,
+						   NUMA_NO_NODE);
+}
+static inline void * __init memblock_virt_alloc_low_nopanic(
+					phys_addr_t size, phys_addr_t align)
+{
+	return memblock_virt_alloc_try_nid_nopanic(size, align,
+						   BOOTMEM_LOW_LIMIT,
+						   ARCH_LOW_ADDRESS_LIMIT,
+						   NUMA_NO_NODE);
+}
+
 static inline void * __init memblock_virt_alloc_from_nopanic(
 		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
 {
@@ -236,6 +257,22 @@ static inline void * __init memblock_virt_alloc_nopanic(
 	if (!align)
 		align = SMP_CACHE_BYTES;
 	return __alloc_bootmem_nopanic(size, align, BOOTMEM_LOW_LIMIT);
+}
+
+static inline void * __init memblock_virt_alloc_low(
+					phys_addr_t size, phys_addr_t align)
+{
+	if (!align)
+		align = SMP_CACHE_BYTES;
+	return __alloc_bootmem_low(size, align, 0);
+}
+
+static inline void * __init memblock_virt_alloc_low_nopanic(
+					phys_addr_t size, phys_addr_t align)
+{
+	if (!align)
+		align = SMP_CACHE_BYTES;
+	return __alloc_bootmem_low_nopanic(size, align, 0);
 }
 
 static inline void * __init memblock_virt_alloc_from_nopanic(

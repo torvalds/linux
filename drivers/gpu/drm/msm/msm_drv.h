@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/module.h>
+#include <linux/component.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -30,6 +31,15 @@
 #include <linux/iommu.h>
 #include <linux/types.h>
 #include <asm/sizes.h>
+
+
+#if defined(CONFIG_COMPILE_TEST) && !defined(CONFIG_ARCH_QCOM)
+/* stubs we need for compile-test: */
+static inline struct device *msm_iommu_get_ctx(const char *ctx_name)
+{
+	return NULL;
+}
+#endif
 
 #ifndef CONFIG_OF
 #include <mach/board.h>
@@ -44,6 +54,10 @@
 
 struct msm_kms;
 struct msm_gpu;
+struct msm_mmu;
+struct msm_rd_state;
+struct msm_perf_state;
+struct msm_gem_submit;
 
 #define NUM_DOMAINS 2    /* one for KMS, then one per gpu core (?) */
 
@@ -59,6 +73,9 @@ struct msm_drm_private {
 
 	struct msm_kms *kms;
 
+	/* subordinate devices, if present: */
+	struct platform_device *hdmi_pdev, *gpu_pdev;
+
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;
 	struct msm_file_private *lastctx;
@@ -68,6 +85,9 @@ struct msm_drm_private {
 	uint32_t next_fence, completed_fence;
 	wait_queue_head_t fence_event;
 
+	struct msm_rd_state *rd;
+	struct msm_perf_state *perf;
+
 	/* list of GEM objects: */
 	struct list_head inactive_list;
 
@@ -76,9 +96,9 @@ struct msm_drm_private {
 	/* callbacks deferred until bo is inactive: */
 	struct list_head fence_cbs;
 
-	/* registered IOMMU domains: */
-	unsigned int num_iommus;
-	struct iommu_domain *iommus[NUM_DOMAINS];
+	/* registered MMUs: */
+	unsigned int num_mmus;
+	struct msm_mmu *mmus[NUM_DOMAINS];
 
 	unsigned int num_planes;
 	struct drm_plane *planes[8];
@@ -94,6 +114,16 @@ struct msm_drm_private {
 
 	unsigned int num_connectors;
 	struct drm_connector *connectors[8];
+
+	/* VRAM carveout, used when no IOMMU: */
+	struct {
+		unsigned long size;
+		dma_addr_t paddr;
+		/* NOTE: mm managed at the page level, size is in # of pages
+		 * and position mm_node->start is in # of pages:
+		 */
+		struct drm_mm mm;
+	} vram;
 };
 
 struct msm_format {
@@ -114,39 +144,7 @@ void __msm_fence_worker(struct work_struct *work);
 		(_cb)->func = _func;                         \
 	} while (0)
 
-/* As there are different display controller blocks depending on the
- * snapdragon version, the kms support is split out and the appropriate
- * implementation is loaded at runtime.  The kms module is responsible
- * for constructing the appropriate planes/crtcs/encoders/connectors.
- */
-struct msm_kms_funcs {
-	/* hw initialization: */
-	int (*hw_init)(struct msm_kms *kms);
-	/* irq handling: */
-	void (*irq_preinstall)(struct msm_kms *kms);
-	int (*irq_postinstall)(struct msm_kms *kms);
-	void (*irq_uninstall)(struct msm_kms *kms);
-	irqreturn_t (*irq)(struct msm_kms *kms);
-	int (*enable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
-	void (*disable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
-	/* misc: */
-	const struct msm_format *(*get_format)(struct msm_kms *kms, uint32_t format);
-	long (*round_pixclk)(struct msm_kms *kms, unsigned long rate,
-			struct drm_encoder *encoder);
-	/* cleanup: */
-	void (*preclose)(struct msm_kms *kms, struct drm_file *file);
-	void (*destroy)(struct msm_kms *kms);
-};
-
-struct msm_kms {
-	const struct msm_kms_funcs *funcs;
-};
-
-struct msm_kms *mdp4_kms_init(struct drm_device *dev);
-
-int msm_register_iommu(struct drm_device *dev, struct iommu_domain *iommu);
-int msm_iommu_attach(struct drm_device *dev, struct iommu_domain *iommu,
-		const char **names, int cnt);
+int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 
 int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 		struct timespec *timeout);
@@ -202,7 +200,9 @@ struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
 
-int hdmi_init(struct drm_device *dev, struct drm_encoder *encoder);
+struct hdmi;
+struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder);
+irqreturn_t hdmi_irq(int irq, void *dev_id);
 void __init hdmi_register(void);
 void __exit hdmi_unregister(void);
 
@@ -210,6 +210,15 @@ void __exit hdmi_unregister(void);
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void msm_gem_describe_objects(struct list_head *list, struct seq_file *m);
 void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
+int msm_debugfs_late_init(struct drm_device *dev);
+int msm_rd_debugfs_init(struct drm_minor *minor);
+void msm_rd_debugfs_cleanup(struct drm_minor *minor);
+void msm_rd_dump_submit(struct msm_gem_submit *submit);
+int msm_perf_debugfs_init(struct drm_minor *minor);
+void msm_perf_debugfs_cleanup(struct drm_minor *minor);
+#else
+static inline int msm_debugfs_late_init(struct drm_device *dev) { return 0; }
+static inline void msm_rd_dump_submit(struct msm_gem_submit *submit) {}
 #endif
 
 void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,

@@ -86,9 +86,8 @@ extern void vfio_unregister_iommu_driver(
  * from user space.  This allows us to easily determine if the provided
  * structure is sized to include various fields.
  */
-#define offsetofend(TYPE, MEMBER) ({				\
-	TYPE tmp;						\
-	offsetof(TYPE, MEMBER) + sizeof(tmp.MEMBER); })		\
+#define offsetofend(TYPE, MEMBER) \
+	(offsetof(TYPE, MEMBER)	+ sizeof(((TYPE *)0)->MEMBER))
 
 /*
  * External user API
@@ -96,5 +95,30 @@ extern void vfio_unregister_iommu_driver(
 extern struct vfio_group *vfio_group_get_external_user(struct file *filep);
 extern void vfio_group_put_external_user(struct vfio_group *group);
 extern int vfio_external_user_iommu_id(struct vfio_group *group);
+extern long vfio_external_check_extension(struct vfio_group *group,
+					  unsigned long arg);
 
+struct pci_dev;
+#ifdef CONFIG_EEH
+extern void vfio_spapr_pci_eeh_open(struct pci_dev *pdev);
+extern void vfio_spapr_pci_eeh_release(struct pci_dev *pdev);
+extern long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
+				       unsigned int cmd,
+				       unsigned long arg);
+#else
+static inline void vfio_spapr_pci_eeh_open(struct pci_dev *pdev)
+{
+}
+
+static inline void vfio_spapr_pci_eeh_release(struct pci_dev *pdev)
+{
+}
+
+static inline long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
+					      unsigned int cmd,
+					      unsigned long arg)
+{
+	return -ENOTTY;
+}
+#endif /* CONFIG_EEH */
 #endif /* VFIO_H */

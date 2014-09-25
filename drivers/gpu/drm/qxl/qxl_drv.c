@@ -38,7 +38,7 @@
 #include "qxl_object.h"
 
 extern int qxl_max_ioctls;
-static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
+static const struct pci_device_id pciidlist[] = {
 	{ 0x1b36, 0x100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8,
 	  0xffff00, 0 },
 	{ 0x1b36, 0x100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_OTHER << 8,
@@ -214,7 +214,6 @@ static struct pci_driver qxl_pci_driver = {
 static struct drm_driver qxl_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET |
 			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
-	.dev_priv_size = 0,
 	.load = qxl_driver_load,
 	.unload = qxl_driver_unload,
 

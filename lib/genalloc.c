@@ -316,7 +316,7 @@ EXPORT_SYMBOL(gen_pool_alloc);
  * gen_pool_dma_alloc - allocate special memory from the pool for DMA usage
  * @pool: pool to allocate from
  * @size: number of bytes to allocate from the pool
- * @dma: dma-view physical address
+ * @dma: dma-view physical address return value.  Use NULL if unneeded.
  *
  * Allocate the requested number of bytes from the specified pool.
  * Uses the pool allocation function (with first-fit algorithm by default).
@@ -334,7 +334,8 @@ void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma)
 	if (!vaddr)
 		return NULL;
 
-	*dma = gen_pool_virt_to_phys(pool, vaddr);
+	if (dma)
+		*dma = gen_pool_virt_to_phys(pool, vaddr);
 
 	return (void *)vaddr;
 }

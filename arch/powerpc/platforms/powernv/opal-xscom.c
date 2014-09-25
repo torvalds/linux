@@ -71,11 +71,11 @@ static int opal_xscom_err_xlate(int64_t rc)
 	}
 }
 
-static u64 opal_scom_unmangle(u64 reg)
+static u64 opal_scom_unmangle(u64 addr)
 {
 	/*
 	 * XSCOM indirect addresses have the top bit set. Additionally
-	 * the reset of the top 3 nibbles is always 0.
+	 * the rest of the top 3 nibbles is always 0.
 	 *
 	 * Because the debugfs interface uses signed offsets and shifts
 	 * the address left by 3, we basically cannot use the top 4 bits
@@ -86,10 +86,13 @@ static u64 opal_scom_unmangle(u64 reg)
 	 * conversion here. To leave room for further xscom address
 	 * expansion, we only clear out the top byte
 	 *
+	 * For in-kernel use, we also support the real indirect bit, so
+	 * we test for any of the top 5 bits
+	 *
 	 */
-	if (reg & (1ull << 59))
-		reg = (reg & ~(0xffull << 56)) | (1ull << 63);
-	return reg;
+	if (addr & (0x1full << 59))
+		addr = (addr & ~(0xffull << 56)) | (1ull << 63);
+	return addr;
 }
 
 static int opal_scom_read(scom_map_t map, u64 reg, u64 *value)
@@ -98,8 +101,8 @@ static int opal_scom_read(scom_map_t map, u64 reg, u64 *value)
 	int64_t rc;
 	__be64 v;
 
-	reg = opal_scom_unmangle(reg);
-	rc = opal_xscom_read(m->chip, m->addr + reg, (__be64 *)__pa(&v));
+	reg = opal_scom_unmangle(m->addr + reg);
+	rc = opal_xscom_read(m->chip, reg, (__be64 *)__pa(&v));
 	*value = be64_to_cpu(v);
 	return opal_xscom_err_xlate(rc);
 }
@@ -109,8 +112,8 @@ static int opal_scom_write(scom_map_t map, u64 reg, u64 value)
 	struct opal_scom_map *m = map;
 	int64_t rc;
 
-	reg = opal_scom_unmangle(reg);
-	rc = opal_xscom_write(m->chip, m->addr + reg, value);
+	reg = opal_scom_unmangle(m->addr + reg);
+	rc = opal_xscom_write(m->chip, reg, value);
 	return opal_xscom_err_xlate(rc);
 }
 
@@ -127,4 +130,4 @@ static int opal_xscom_init(void)
 		scom_init(&opal_scom_controller);
 	return 0;
 }
-arch_initcall(opal_xscom_init);
+machine_arch_initcall(powernv, opal_xscom_init);

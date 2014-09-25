@@ -47,6 +47,7 @@
 #include <linux/rbtree.h>
 #include <linux/hash.h>
 #include <linux/prefetch.h>
+#include <linux/vmalloc.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/sock.h>
@@ -225,7 +226,7 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 		/* By forcing low order bit to 1, we make sure to not
 		 * collide with a local flow (socket pointers are word aligned)
 		 */
-		sk = (struct sock *)(skb_get_rxhash(skb) | 1L);
+		sk = (struct sock *)(skb_get_hash(skb) | 1L);
 	}
 
 	root = &q->fq_root[hash_32((u32)(long)sk, q->fq_trees_log)];
@@ -578,27 +579,52 @@ static void fq_rehash(struct fq_sched_data *q,
 	q->stat_gc_flows += fcnt;
 }
 
-static int fq_resize(struct fq_sched_data *q, u32 log)
+static void *fq_alloc_node(size_t sz, int node)
 {
+	void *ptr;
+
+	ptr = kmalloc_node(sz, GFP_KERNEL | __GFP_REPEAT | __GFP_NOWARN, node);
+	if (!ptr)
+		ptr = vmalloc_node(sz, node);
+	return ptr;
+}
+
+static void fq_free(void *addr)
+{
+	kvfree(addr);
+}
+
+static int fq_resize(struct Qdisc *sch, u32 log)
+{
+	struct fq_sched_data *q = qdisc_priv(sch);
 	struct rb_root *array;
+	void *old_fq_root;
 	u32 idx;
 
 	if (q->fq_root && log == q->fq_trees_log)
 		return 0;
 
-	array = kmalloc(sizeof(struct rb_root) << log, GFP_KERNEL);
+	/* If XPS was setup, we can allocate memory on right NUMA node */
+	array = fq_alloc_node(sizeof(struct rb_root) << log,
+			      netdev_queue_numa_node_read(sch->dev_queue));
 	if (!array)
 		return -ENOMEM;
 
 	for (idx = 0; idx < (1U << log); idx++)
 		array[idx] = RB_ROOT;
 
-	if (q->fq_root) {
-		fq_rehash(q, q->fq_root, q->fq_trees_log, array, log);
-		kfree(q->fq_root);
-	}
+	sch_tree_lock(sch);
+
+	old_fq_root = q->fq_root;
+	if (old_fq_root)
+		fq_rehash(q, old_fq_root, q->fq_trees_log, array, log);
+
 	q->fq_root = array;
 	q->fq_trees_log = log;
+
+	sch_tree_unlock(sch);
+
+	fq_free(old_fq_root);
 
 	return 0;
 }
@@ -675,9 +701,11 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 		q->flow_refill_delay = usecs_to_jiffies(usecs_delay);
 	}
 
-	if (!err)
-		err = fq_resize(q, fq_log);
-
+	if (!err) {
+		sch_tree_unlock(sch);
+		err = fq_resize(sch, fq_log);
+		sch_tree_lock(sch);
+	}
 	while (sch->q.qlen > sch->limit) {
 		struct sk_buff *skb = fq_dequeue(sch);
 
@@ -697,7 +725,7 @@ static void fq_destroy(struct Qdisc *sch)
 	struct fq_sched_data *q = qdisc_priv(sch);
 
 	fq_reset(sch);
-	kfree(q->fq_root);
+	fq_free(q->fq_root);
 	qdisc_watchdog_cancel(&q->watchdog);
 }
 
@@ -723,7 +751,7 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt)
 	if (opt)
 		err = fq_change(sch, opt);
 	else
-		err = fq_resize(q, q->fq_trees_log);
+		err = fq_resize(sch, q->fq_trees_log);
 
 	return err;
 }
@@ -750,8 +778,7 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_FQ_BUCKETS_LOG, q->fq_trees_log))
 		goto nla_put_failure;
 
-	nla_nest_end(skb, opts);
-	return skb->len;
+	return nla_nest_end(skb, opts);
 
 nla_put_failure:
 	return -1;

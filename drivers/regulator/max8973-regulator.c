@@ -93,7 +93,6 @@
 struct max8973_chip {
 	struct device *dev;
 	struct regulator_desc desc;
-	struct regulator_dev *rdev;
 	struct regmap *regmap;
 	bool enable_external_control;
 	int dvs_gpio;
@@ -379,10 +378,8 @@ static int max8973_probe(struct i2c_client *client,
 	}
 
 	max = devm_kzalloc(&client->dev, sizeof(*max), GFP_KERNEL);
-	if (!max) {
-		dev_err(&client->dev, "Memory allocation for max failed\n");
+	if (!max)
 		return -ENOMEM;
-	}
 
 	max->regmap = devm_regmap_init_i2c(client, &max8973_regmap_config);
 	if (IS_ERR(max->regmap)) {
@@ -474,7 +471,6 @@ static int max8973_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	max->rdev = rdev;
 	return 0;
 }
 

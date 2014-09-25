@@ -12,6 +12,7 @@ SoC and board used. Currently known SoC compatibles are:
     "marvell,berlin2"      for Marvell Armada 1500 (BG2, 88DE3100),
     "marvell,berlin2cd"    for Marvell Armada 1500-mini (BG2CD, 88DE3005)
     "marvell,berlin2ct"    for Marvell Armada ? (BG2CT, 88DE????)
+    "marvell,berlin2q"     for Marvell Armada 1500-pro (BG2Q, 88DE3114)
     "marvell,berlin3"      for Marvell Armada ? (BG3, 88DE????)
 
 * Example:
@@ -22,3 +23,120 @@ SoC and board used. Currently known SoC compatibles are:
 
 	...
 }
+
+* Marvell Berlin CPU control bindings
+
+CPU control register allows various operations on CPUs, like resetting them
+independently.
+
+Required properties:
+- compatible: should be "marvell,berlin-cpu-ctrl"
+- reg: address and length of the register set
+
+Example:
+
+cpu-ctrl@f7dd0000 {
+	compatible = "marvell,berlin-cpu-ctrl";
+	reg = <0xf7dd0000 0x10000>;
+};
+
+* Marvell Berlin2 chip control binding
+
+Marvell Berlin SoCs have a chip control register set providing several
+individual registers dealing with pinmux, padmux, clock, reset, and secondary
+CPU boot address. Unfortunately, the individual registers are spread among the
+chip control registers, so there should be a single DT node only providing the
+different functions which are described below.
+
+Required properties:
+- compatible: shall be one of
+	"marvell,berlin2-chip-ctrl" for BG2
+	"marvell,berlin2cd-chip-ctrl" for BG2CD
+	"marvell,berlin2q-chip-ctrl" for BG2Q
+- reg: address and length of following register sets for
+  BG2/BG2CD: chip control register set
+  BG2Q: chip control register set and cpu pll registers
+
+* Marvell Berlin2 system control binding
+
+Marvell Berlin SoCs have a system control register set providing several
+individual registers dealing with pinmux, padmux, and reset.
+
+Required properties:
+- compatible: should be one of
+	"marvell,berlin2-system-ctrl" for BG2
+	"marvell,berlin2cd-system-ctrl" for BG2CD
+	"marvell,berlin2q-system-ctrl" for BG2Q
+- reg: address and length of the system control register set
+
+* Clock provider binding
+
+As clock related registers are spread among the chip control registers, the
+chip control node also provides the clocks. Marvell Berlin2 (BG2, BG2CD, BG2Q)
+SoCs share the same IP for PLLs and clocks, with some minor differences in
+features and register layout.
+
+Required properties:
+- #clock-cells: shall be set to 1
+- clocks: clock specifiers referencing the core clock input clocks
+- clock-names: array of strings describing the input clock specifiers above.
+    Allowed clock-names for the reference clocks are
+      "refclk" for the SoCs osciallator input on all SoCs,
+    and SoC-specific input clocks for
+      BG2/BG2CD: "video_ext0" for the external video clock input
+
+Clocks provided by core clocks shall be referenced by a clock specifier
+indexing one of the provided clocks. Refer to dt-bindings/clock/berlin<soc>.h
+for the corresponding index mapping.
+
+* Pin controller binding
+
+Pin control registers are part of both register sets, chip control and system
+control. The pins controlled are organized in groups, so no actual pin
+information is needed.
+
+A pin-controller node should contain subnodes representing the pin group
+configurations, one per function. Each subnode has the group name and the muxing
+function used.
+
+Be aware the Marvell Berlin datasheets use the keyword 'mode' for what is called
+a 'function' in the pin-controller subsystem.
+
+Required subnode-properties:
+- groups: a list of strings describing the group names.
+- function: a string describing the function used to mux the groups.
+
+Example:
+
+chip: chip-control@ea0000 {
+	compatible = "marvell,berlin2-chip-ctrl";
+	#clock-cells = <1>;
+	reg = <0xea0000 0x400>;
+	clocks = <&refclk>, <&externaldev 0>;
+	clock-names = "refclk", "video_ext0";
+
+	spi1_pmux: spi1-pmux {
+		groups = "G0";
+		function = "spi1";
+	};
+};
+
+sysctrl: system-controller@d000 {
+	compatible = "marvell,berlin2-system-ctrl";
+	reg = <0xd000 0x100>;
+
+	uart0_pmux: uart0-pmux {
+		groups = "GSM4";
+		function = "uart0";
+	};
+
+	uart1_pmux: uart1-pmux {
+		groups = "GSM5";
+		function = "uart1";
+	};
+
+	uart2_pmux: uart2-pmux {
+		groups = "GSM3";
+		function = "uart2";
+	};
+};

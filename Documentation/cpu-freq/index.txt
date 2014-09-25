@@ -35,8 +35,8 @@ Mailing List
 ------------
 There is a CPU frequency changing CVS commit and general list where
 you can report bugs, problems or submit patches. To post a message,
-send an email to cpufreq@vger.kernel.org, to subscribe go to
-http://vger.kernel.org/vger-lists.html#cpufreq and follow the
+send an email to linux-pm@vger.kernel.org, to subscribe go to
+http://vger.kernel.org/vger-lists.html#linux-pm and follow the
 instructions there.
 
 Links

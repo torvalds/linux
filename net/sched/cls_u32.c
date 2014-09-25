@@ -38,6 +38,7 @@
 #include <linux/errno.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
+#include <linux/bitmap.h>
 #include <net/netlink.h>
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
@@ -48,7 +49,7 @@ struct tc_u_knode {
 	struct tc_u_hnode	*ht_up;
 	struct tcf_exts		exts;
 #ifdef CONFIG_NET_CLS_IND
-	char                     indev[IFNAMSIZ];
+	int			ifindex;
 #endif
 	u8			fshift;
 	struct tcf_result	res;
@@ -79,11 +80,6 @@ struct tc_u_common {
 	u32			hgenerator;
 };
 
-static const struct tcf_ext_map u32_ext_map = {
-	.action = TCA_U32_ACT,
-	.police = TCA_U32_POLICE
-};
-
 static inline unsigned int u32_hash_fold(__be32 key,
 					 const struct tc_u32_sel *sel,
 					 u8 fshift)
@@ -100,7 +96,7 @@ static int u32_classify(struct sk_buff *skb, const struct tcf_proto *tp, struct 
 		unsigned int	  off;
 	} stack[TC_U32_MAXDEPTH];
 
-	struct tc_u_hnode *ht = (struct tc_u_hnode *)tp->root;
+	struct tc_u_hnode *ht = tp->root;
 	unsigned int off = skb_network_offset(skb);
 	struct tc_u_knode *n;
 	int sdepth = 0;
@@ -157,7 +153,7 @@ check_terminal:
 
 				*res = n->res;
 #ifdef CONFIG_NET_CLS_IND
-				if (!tcf_match_indev(skb, n->indev)) {
+				if (!tcf_match_indev(skb, n->ifindex)) {
 					n = n->next;
 					goto next_knode;
 				}
@@ -352,7 +348,7 @@ static int u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n)
 	return 0;
 }
 
-static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode* key)
+static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)
 {
 	struct tc_u_knode **kp;
 	struct tc_u_hnode *ht = key->ht_up;
@@ -465,17 +461,25 @@ static int u32_delete(struct tcf_proto *tp, unsigned long arg)
 	return 0;
 }
 
+#define NR_U32_NODE (1<<12)
 static u32 gen_new_kid(struct tc_u_hnode *ht, u32 handle)
 {
 	struct tc_u_knode *n;
-	unsigned int i = 0x7FF;
+	unsigned long i;
+	unsigned long *bitmap = kzalloc(BITS_TO_LONGS(NR_U32_NODE) * sizeof(unsigned long),
+					GFP_KERNEL);
+	if (!bitmap)
+		return handle | 0xFFF;
 
 	for (n = ht->ht[TC_U32_HASH(handle)]; n; n = n->next)
-		if (i < TC_U32_NODE(n->handle))
-			i = TC_U32_NODE(n->handle);
-	i++;
+		set_bit(TC_U32_NODE(n->handle), bitmap);
 
-	return handle | (i > 0xFFF ? 0xFFF : i);
+	i = find_next_zero_bit(bitmap, NR_U32_NODE, 0x800);
+	if (i >= NR_U32_NODE)
+		i = find_next_zero_bit(bitmap, NR_U32_NODE, 1);
+
+	kfree(bitmap);
+	return handle | (i >= NR_U32_NODE ? 0xFFF : i);
 }
 
 static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
@@ -491,12 +495,13 @@ static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
 static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 			 unsigned long base, struct tc_u_hnode *ht,
 			 struct tc_u_knode *n, struct nlattr **tb,
-			 struct nlattr *est)
+			 struct nlattr *est, bool ovr)
 {
 	int err;
 	struct tcf_exts e;
 
-	err = tcf_exts_validate(net, tp, tb, est, &e, &u32_ext_map);
+	tcf_exts_init(&e, TCA_U32_ACT, TCA_U32_POLICE);
+	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
 	if (err < 0)
 		return err;
 
@@ -531,9 +536,11 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 
 #ifdef CONFIG_NET_CLS_IND
 	if (tb[TCA_U32_INDEV]) {
-		err = tcf_change_indev(tp, n->indev, tb[TCA_U32_INDEV]);
-		if (err < 0)
+		int ret;
+		ret = tcf_change_indev(net, tb[TCA_U32_INDEV]);
+		if (ret < 0)
 			goto errout;
+		n->ifindex = ret;
 	}
 #endif
 	tcf_exts_change(tp, &n->exts, &e);
@@ -547,7 +554,7 @@ errout:
 static int u32_change(struct net *net, struct sk_buff *in_skb,
 		      struct tcf_proto *tp, unsigned long base, u32 handle,
 		      struct nlattr **tca,
-		      unsigned long *arg)
+		      unsigned long *arg, bool ovr)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *ht;
@@ -571,7 +578,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			return -EINVAL;
 
 		return u32_set_parms(net, tp, base, n->ht_up, n, tb,
-				     tca[TCA_RATE]);
+				     tca[TCA_RATE], ovr);
 	}
 
 	if (tb[TCA_U32_DIVISOR]) {
@@ -646,6 +653,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	n->ht_up = ht;
 	n->handle = handle;
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
+	tcf_exts_init(&n->exts, TCA_U32_ACT, TCA_U32_POLICE);
 
 #ifdef CONFIG_CLS_U32_MARK
 	if (tb[TCA_U32_MARK]) {
@@ -657,7 +665,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	}
 #endif
 
-	err = u32_set_parms(net, tp, base, ht, n, tb, tca[TCA_RATE]);
+	err = u32_set_parms(net, tp, base, ht, n, tb, tca[TCA_RATE], ovr);
 	if (err == 0) {
 		struct tc_u_knode **ins;
 		for (ins = &ht->ht[TC_U32_HASH(handle)]; *ins; ins = &(*ins)->next)
@@ -715,7 +723,7 @@ static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	}
 }
 
-static int u32_dump(struct tcf_proto *tp, unsigned long fh,
+static int u32_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		     struct sk_buff *skb, struct tcmsg *t)
 {
 	struct tc_u_knode *n = (struct tc_u_knode *)fh;
@@ -759,13 +767,16 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 			goto nla_put_failure;
 #endif
 
-		if (tcf_exts_dump(skb, &n->exts, &u32_ext_map) < 0)
+		if (tcf_exts_dump(skb, &n->exts) < 0)
 			goto nla_put_failure;
 
 #ifdef CONFIG_NET_CLS_IND
-		if (strlen(n->indev) &&
-		    nla_put_string(skb, TCA_U32_INDEV, n->indev))
-			goto nla_put_failure;
+		if (n->ifindex) {
+			struct net_device *dev;
+			dev = __dev_get_by_index(net, n->ifindex);
+			if (dev && nla_put_string(skb, TCA_U32_INDEV, dev->name))
+				goto nla_put_failure;
+		}
 #endif
 #ifdef CONFIG_CLS_U32_PERF
 		if (nla_put(skb, TCA_U32_PCNT,
@@ -778,7 +789,7 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 	nla_nest_end(skb, nest);
 
 	if (TC_U32_KEY(n->handle))
-		if (tcf_exts_dump_stats(skb, &n->exts, &u32_ext_map) < 0)
+		if (tcf_exts_dump_stats(skb, &n->exts) < 0)
 			goto nla_put_failure;
 	return skb->len;
 

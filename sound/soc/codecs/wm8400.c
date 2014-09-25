@@ -93,7 +93,7 @@ static const DECLARE_TLV_DB_SCALE(out_sidetone_tlv, -3600, 0, 0);
 static int wm8400_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
         struct snd_ctl_elem_value *ucontrol)
 {
-        struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	int reg = mc->reg;
@@ -117,19 +117,23 @@ static int wm8400_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
 static const char *wm8400_digital_sidetone[] =
 	{"None", "Left ADC", "Right ADC", "Reserved"};
 
-static const struct soc_enum wm8400_left_digital_sidetone_enum =
-SOC_ENUM_SINGLE(WM8400_DIGITAL_SIDE_TONE,
-		WM8400_ADC_TO_DACL_SHIFT, 2, wm8400_digital_sidetone);
+static SOC_ENUM_SINGLE_DECL(wm8400_left_digital_sidetone_enum,
+			    WM8400_DIGITAL_SIDE_TONE,
+			    WM8400_ADC_TO_DACL_SHIFT,
+			    wm8400_digital_sidetone);
 
-static const struct soc_enum wm8400_right_digital_sidetone_enum =
-SOC_ENUM_SINGLE(WM8400_DIGITAL_SIDE_TONE,
-		WM8400_ADC_TO_DACR_SHIFT, 2, wm8400_digital_sidetone);
+static SOC_ENUM_SINGLE_DECL(wm8400_right_digital_sidetone_enum,
+			    WM8400_DIGITAL_SIDE_TONE,
+			    WM8400_ADC_TO_DACR_SHIFT,
+			    wm8400_digital_sidetone);
 
 static const char *wm8400_adcmode[] =
 	{"Hi-fi mode", "Voice mode 1", "Voice mode 2", "Voice mode 3"};
 
-static const struct soc_enum wm8400_right_adcmode_enum =
-SOC_ENUM_SINGLE(WM8400_ADC_CTRL, WM8400_ADC_HPF_CUT_SHIFT, 3, wm8400_adcmode);
+static SOC_ENUM_SINGLE_DECL(wm8400_right_adcmode_enum,
+			    WM8400_ADC_CTRL,
+			    WM8400_ADC_HPF_CUT_SHIFT,
+			    wm8400_adcmode);
 
 static const struct snd_kcontrol_new wm8400_snd_controls[] = {
 /* INMIXL */
@@ -422,9 +426,10 @@ SOC_DAPM_SINGLE("RINPGA34 Switch", WM8400_INPUT_MIXER3, WM8400_L34MNB_SHIFT,
 static const char *wm8400_ainlmux[] =
 	{"INMIXL Mix", "RXVOICE Mix", "DIFFINL Mix"};
 
-static const struct soc_enum wm8400_ainlmux_enum =
-SOC_ENUM_SINGLE( WM8400_INPUT_MIXER1, WM8400_AINLMODE_SHIFT,
-	ARRAY_SIZE(wm8400_ainlmux), wm8400_ainlmux);
+static SOC_ENUM_SINGLE_DECL(wm8400_ainlmux_enum,
+			    WM8400_INPUT_MIXER1,
+			    WM8400_AINLMODE_SHIFT,
+			    wm8400_ainlmux);
 
 static const struct snd_kcontrol_new wm8400_dapm_ainlmux_controls =
 SOC_DAPM_ENUM("Route", wm8400_ainlmux_enum);
@@ -435,9 +440,10 @@ SOC_DAPM_ENUM("Route", wm8400_ainlmux_enum);
 static const char *wm8400_ainrmux[] =
 	{"INMIXR Mix", "RXVOICE Mix", "DIFFINR Mix"};
 
-static const struct soc_enum wm8400_ainrmux_enum =
-SOC_ENUM_SINGLE( WM8400_INPUT_MIXER1, WM8400_AINRMODE_SHIFT,
-	ARRAY_SIZE(wm8400_ainrmux), wm8400_ainrmux);
+static SOC_ENUM_SINGLE_DECL(wm8400_ainrmux_enum,
+			    WM8400_INPUT_MIXER1,
+			    WM8400_AINRMODE_SHIFT,
+			    wm8400_ainrmux);
 
 static const struct snd_kcontrol_new wm8400_dapm_ainrmux_controls =
 SOC_DAPM_ENUM("Route", wm8400_ainrmux_enum);
@@ -1089,16 +1095,16 @@ static int wm8400_hw_params(struct snd_pcm_substream *substream,
 
 	audio1 &= ~WM8400_AIF_WL_MASK;
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		audio1 |= WM8400_AIF_WL_20BITS;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		audio1 |= WM8400_AIF_WL_24BITS;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		audio1 |= WM8400_AIF_WL_32BITS;
 		break;
 	}
@@ -1310,10 +1316,7 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 
 	snd_soc_codec_set_drvdata(codec, priv);
 	priv->wm8400 = wm8400;
-	codec->control_data = wm8400->regmap;
 	priv->codec = codec;
-
-	snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
 
 	ret = devm_regulator_bulk_get(wm8400->dev,
 				 ARRAY_SIZE(power), &power[0]);
@@ -1356,11 +1359,19 @@ static int  wm8400_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static struct regmap *wm8400_get_regmap(struct device *dev)
+{
+	struct wm8400 *wm8400 = dev_get_platdata(dev);
+
+	return wm8400->regmap;
+}
+
 static struct snd_soc_codec_driver soc_codec_dev_wm8400 = {
 	.probe =	wm8400_codec_probe,
 	.remove =	wm8400_codec_remove,
 	.suspend =	wm8400_suspend,
 	.resume =	wm8400_resume,
+	.get_regmap =	wm8400_get_regmap,
 	.set_bias_level = wm8400_set_bias_level,
 
 	.controls = wm8400_snd_controls,

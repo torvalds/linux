@@ -9,5 +9,4 @@
 * Other minor misc cleanups...
 
 Please send any patches to Greg Kroah-Hartman <greg@kroah.com>, Andreas Dilger
-<andreas.dilger@intel.com> and Peng Tao <tao.peng@emc.com>. CCing
-hpdd-discuss <hpdd-discuss@lists.01.org> would be great too.
+<andreas.dilger@intel.com>, and Oleg Drokin <oleg.drokin@intel.com>.

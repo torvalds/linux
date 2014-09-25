@@ -1,5 +1,5 @@
-ccflags-$(CONFIG_DMADEVICES_DEBUG)  := -DDEBUG
-ccflags-$(CONFIG_DMADEVICES_VDEBUG) += -DVERBOSE_DEBUG
+subdir-ccflags-$(CONFIG_DMADEVICES_DEBUG)  := -DDEBUG
+subdir-ccflags-$(CONFIG_DMADEVICES_VDEBUG) += -DVERBOSE_DEBUG
 
 obj-$(CONFIG_DMA_ENGINE) += dmaengine.o
 obj-$(CONFIG_DMA_VIRTUAL_CHANNELS) += virt-dma.o
@@ -38,7 +38,15 @@ obj-$(CONFIG_EP93XX_DMA) += ep93xx_dma.o
 obj-$(CONFIG_DMA_SA11X0) += sa11x0-dma.o
 obj-$(CONFIG_MMP_TDMA) += mmp_tdma.o
 obj-$(CONFIG_DMA_OMAP) += omap-dma.o
+obj-$(CONFIG_DMA_BCM2835) += bcm2835-dma.o
 obj-$(CONFIG_MMP_PDMA) += mmp_pdma.o
 obj-$(CONFIG_DMA_JZ4740) += dma-jz4740.o
 obj-$(CONFIG_TI_CPPI41) += cppi41.o
 obj-$(CONFIG_K3_DMA) += k3dma.o
+obj-$(CONFIG_MOXART_DMA) += moxart-dma.o
+obj-$(CONFIG_FSL_EDMA) += fsl-edma.o
+obj-$(CONFIG_QCOM_BAM_DMA) += qcom_bam_dma.o
+obj-y += xilinx/
+obj-$(CONFIG_INTEL_MIC_X100_DMA) += mic_x100_dma.o
+obj-$(CONFIG_NBPFAXI_DMA) += nbpfaxi.o
+obj-$(CONFIG_DMA_SUN6I) += sun6i-dma.o

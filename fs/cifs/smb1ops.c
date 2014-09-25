@@ -372,6 +372,16 @@ coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 	return 0;
 }
 
+static void
+cifs_downgrade_oplock(struct TCP_Server_Info *server,
+			struct cifsInodeInfo *cinode, bool set_level2)
+{
+	if (set_level2)
+		cifs_set_oplock_level(cinode, OPLOCK_READ);
+	else
+		cifs_set_oplock_level(cinode, 0);
+}
+
 static bool
 cifs_check_trans2(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		  char *buf, int malformed)
@@ -560,17 +570,24 @@ cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (!rc && (le32_to_cpu(data->Attributes) & ATTR_REPARSE)) {
 		int tmprc;
 		int oplock = 0;
-		__u16 netfid;
+		struct cifs_fid fid;
+		struct cifs_open_parms oparms;
+
+		oparms.tcon = tcon;
+		oparms.cifs_sb = cifs_sb;
+		oparms.desired_access = FILE_READ_ATTRIBUTES;
+		oparms.create_options = 0;
+		oparms.disposition = FILE_OPEN;
+		oparms.path = full_path;
+		oparms.fid = &fid;
+		oparms.reconnect = false;
 
 		/* Need to check if this is a symbolic link or not */
-		tmprc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
-				    FILE_READ_ATTRIBUTES, 0, &netfid, &oplock,
-				    NULL, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		tmprc = CIFS_open(xid, &oparms, &oplock, NULL);
 		if (tmprc == -EOPNOTSUPP)
 			*symlink = true;
 		else
-			CIFSSMBClose(xid, tcon, netfid);
+			CIFSSMBClose(xid, tcon, fid.netfid);
 	}
 
 	return rc;
@@ -705,12 +722,7 @@ cifs_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 				     oparms->cifs_sb->local_nls,
 				     oparms->cifs_sb->mnt_cifs_flags
 						& CIFS_MOUNT_MAP_SPECIAL_CHR);
-	return CIFSSMBOpen(xid, oparms->tcon, oparms->path,
-			   oparms->disposition, oparms->desired_access,
-			   oparms->create_options, &oparms->fid->netfid, oplock,
-			   buf, oparms->cifs_sb->local_nls,
-			   oparms->cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+	return CIFS_open(xid, oparms, oplock, buf);
 }
 
 static void
@@ -761,8 +773,9 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 {
 	int oplock = 0;
 	int rc;
-	__u16 netfid;
 	__u32 netpid;
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 	struct cifsFileInfo *open_file;
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
@@ -772,7 +785,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	/* if the file is already open for write, just use that fileid */
 	open_file = find_writable_file(cinode, true);
 	if (open_file) {
-		netfid = open_file->fid.netfid;
+		fid.netfid = open_file->fid.netfid;
 		netpid = open_file->pid;
 		tcon = tlink_tcon(open_file->tlink);
 		goto set_via_filehandle;
@@ -796,12 +809,17 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 		goto out;
 	}
 
-	cifs_dbg(FYI, "calling SetFileInfo since SetPathInfo for times not supported by this server\n");
-	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
-			 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES, CREATE_NOT_DIR,
-			 &netfid, &oplock, NULL, cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = SYNCHRONIZE | FILE_WRITE_ATTRIBUTES;
+	oparms.create_options = CREATE_NOT_DIR;
+	oparms.disposition = FILE_OPEN;
+	oparms.path = full_path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
 
+	cifs_dbg(FYI, "calling SetFileInfo since SetPathInfo for times not supported by this server\n");
+	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (rc != 0) {
 		if (rc == -EIO)
 			rc = -EINVAL;
@@ -811,12 +829,12 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	netpid = current->tgid;
 
 set_via_filehandle:
-	rc = CIFSSMBSetFileInfo(xid, tcon, buf, netfid, netpid);
+	rc = CIFSSMBSetFileInfo(xid, tcon, buf, fid.netfid, netpid);
 	if (!rc)
 		cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
 
 	if (open_file == NULL)
-		CIFSSMBClose(xid, tcon, netfid);
+		CIFSSMBClose(xid, tcon, fid.netfid);
 	else
 		cifsFileInfo_put(open_file);
 out:
@@ -908,33 +926,80 @@ cifs_mand_lock(const unsigned int xid, struct cifsFileInfo *cfile, __u64 offset,
 }
 
 static int
+cifs_unix_dfs_readlink(const unsigned int xid, struct cifs_tcon *tcon,
+		       const unsigned char *searchName, char **symlinkinfo,
+		       const struct nls_table *nls_codepage)
+{
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	int rc;
+	unsigned int num_referrals = 0;
+	struct dfs_info3_param *referrals = NULL;
+
+	rc = get_dfs_path(xid, tcon->ses, searchName, nls_codepage,
+			  &num_referrals, &referrals, 0);
+
+	if (!rc && num_referrals > 0) {
+		*symlinkinfo = kstrndup(referrals->node_name,
+					strlen(referrals->node_name),
+					GFP_KERNEL);
+		if (!*symlinkinfo)
+			rc = -ENOMEM;
+		free_dfs_info_array(referrals, num_referrals);
+	}
+	return rc;
+#else /* No DFS support */
+	return -EREMOTE;
+#endif
+}
+
+static int
 cifs_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 		   const char *full_path, char **target_path,
 		   struct cifs_sb_info *cifs_sb)
 {
 	int rc;
 	int oplock = 0;
-	__u16 netfid;
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
 
 	cifs_dbg(FYI, "%s: path: %s\n", __func__, full_path);
 
-	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
-			 FILE_READ_ATTRIBUTES, OPEN_REPARSE_POINT, &netfid,
-			 &oplock, NULL, cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if (rc)
-		return rc;
+	/* Check for unix extensions */
+	if (cap_unix(tcon->ses)) {
+		rc = CIFSSMBUnixQuerySymLink(xid, tcon, full_path, target_path,
+					     cifs_sb->local_nls);
+		if (rc == -EREMOTE)
+			rc = cifs_unix_dfs_readlink(xid, tcon, full_path,
+						    target_path,
+						    cifs_sb->local_nls);
 
-	rc = CIFSSMBQuerySymLink(xid, tcon, netfid, target_path,
-				 cifs_sb->local_nls);
-	if (rc) {
-		CIFSSMBClose(xid, tcon, netfid);
-		return rc;
+		goto out;
 	}
 
+	oparms.tcon = tcon;
+	oparms.cifs_sb = cifs_sb;
+	oparms.desired_access = FILE_READ_ATTRIBUTES;
+	oparms.create_options = OPEN_REPARSE_POINT;
+	oparms.disposition = FILE_OPEN;
+	oparms.path = full_path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = CIFS_open(xid, &oparms, &oplock, NULL);
+	if (rc)
+		goto out;
+
+	rc = CIFSSMBQuerySymLink(xid, tcon, fid.netfid, target_path,
+				 cifs_sb->local_nls);
+	if (rc)
+		goto out_close;
+
 	convert_delimiter(*target_path, '/');
-	CIFSSMBClose(xid, tcon, netfid);
-	cifs_dbg(FYI, "%s: target path: %s\n", __func__, *target_path);
+out_close:
+	CIFSSMBClose(xid, tcon, fid.netfid);
+out:
+	if (!rc)
+		cifs_dbg(FYI, "%s: target path: %s\n", __func__, *target_path);
 	return rc;
 }
 
@@ -942,6 +1007,18 @@ static bool
 cifs_is_read_op(__u32 oplock)
 {
 	return oplock == OPLOCK_READ;
+}
+
+static unsigned int
+cifs_wp_retry_size(struct inode *inode)
+{
+	return CIFS_SB(inode->i_sb)->wsize;
+}
+
+static bool
+cifs_dir_needs_close(struct cifsFileInfo *cfile)
+{
+	return !cfile->srch_inf.endOfSearch && !cfile->invalidHandle;
 }
 
 struct smb_version_operations smb1_operations = {
@@ -954,6 +1031,7 @@ struct smb_version_operations smb1_operations = {
 	.set_credits = cifs_set_credits,
 	.get_credits_field = cifs_get_credits_field,
 	.get_credits = cifs_get_credits,
+	.wait_mtu_credits = cifs_wait_mtu_credits,
 	.get_next_mid = cifs_get_next_mid,
 	.read_data_offset = cifs_read_data_offset,
 	.read_data_length = cifs_read_data_length,
@@ -964,6 +1042,7 @@ struct smb_version_operations smb1_operations = {
 	.clear_stats = cifs_clear_stats,
 	.print_stats = cifs_print_stats,
 	.is_oplock_break = is_valid_oplock_break,
+	.downgrade_oplock = cifs_downgrade_oplock,
 	.check_trans2 = cifs_check_trans2,
 	.need_neg = cifs_need_neg,
 	.negotiate = cifs_negotiate,
@@ -1009,8 +1088,20 @@ struct smb_version_operations smb1_operations = {
 	.mand_lock = cifs_mand_lock,
 	.mand_unlock_range = cifs_unlock_range,
 	.push_mand_locks = cifs_push_mandatory_locks,
-	.query_mf_symlink = open_query_close_cifs_symlink,
+	.query_mf_symlink = cifs_query_mf_symlink,
+	.create_mf_symlink = cifs_create_mf_symlink,
 	.is_read_op = cifs_is_read_op,
+	.wp_retry_size = cifs_wp_retry_size,
+	.dir_needs_close = cifs_dir_needs_close,
+#ifdef CONFIG_CIFS_XATTR
+	.query_all_EAs = CIFSSMBQAllEAs,
+	.set_EA = CIFSSMBSetEA,
+#endif /* CIFS_XATTR */
+#ifdef CONFIG_CIFS_ACL
+	.get_acl = get_cifs_acl,
+	.get_acl_by_fid = get_cifs_acl_by_fid,
+	.set_acl = set_cifs_acl,
+#endif /* CIFS_ACL */
 };
 
 struct smb_version_values smb1_values = {

@@ -68,7 +68,7 @@ static int print_format1_lock(struct seq_file *s, struct dlm_lkb *lkb,
 	if (lkb->lkb_wait_type)
 		seq_printf(s, " wait_type: %d", lkb->lkb_wait_type);
 
-	return seq_printf(s, "\n");
+	return seq_puts(s, "\n");
 }
 
 static int print_format1(struct dlm_rsb *res, struct seq_file *s)
@@ -92,31 +92,31 @@ static int print_format1(struct dlm_rsb *res, struct seq_file *s)
 	}
 
 	if (res->res_nodeid > 0)
-		rv = seq_printf(s, "\"  \nLocal Copy, Master is node %d\n",
+		rv = seq_printf(s, "\"\nLocal Copy, Master is node %d\n",
 				res->res_nodeid);
 	else if (res->res_nodeid == 0)
-		rv = seq_printf(s, "\"  \nMaster Copy\n");
+		rv = seq_puts(s, "\"\nMaster Copy\n");
 	else if (res->res_nodeid == -1)
-		rv = seq_printf(s, "\"  \nLooking up master (lkid %x)\n",
+		rv = seq_printf(s, "\"\nLooking up master (lkid %x)\n",
 			   	res->res_first_lkid);
 	else
-		rv = seq_printf(s, "\"  \nInvalid master %d\n",
+		rv = seq_printf(s, "\"\nInvalid master %d\n",
 				res->res_nodeid);
 	if (rv)
 		goto out;
 
 	/* Print the LVB: */
 	if (res->res_lvbptr) {
-		seq_printf(s, "LVB: ");
+		seq_puts(s, "LVB: ");
 		for (i = 0; i < lvblen; i++) {
 			if (i == lvblen / 2)
-				seq_printf(s, "\n     ");
+				seq_puts(s, "\n     ");
 			seq_printf(s, "%02x ",
 				   (unsigned char) res->res_lvbptr[i]);
 		}
 		if (rsb_flag(res, RSB_VALNOTVALID))
-			seq_printf(s, " (INVALID)");
-		rv = seq_printf(s, "\n");
+			seq_puts(s, " (INVALID)");
+		rv = seq_puts(s, "\n");
 		if (rv)
 			goto out;
 	}
@@ -133,21 +133,21 @@ static int print_format1(struct dlm_rsb *res, struct seq_file *s)
 	}
 
 	/* Print the locks attached to this resource */
-	seq_printf(s, "Granted Queue\n");
+	seq_puts(s, "Granted Queue\n");
 	list_for_each_entry(lkb, &res->res_grantqueue, lkb_statequeue) {
 		rv = print_format1_lock(s, lkb, res);
 		if (rv)
 			goto out;
 	}
 
-	seq_printf(s, "Conversion Queue\n");
+	seq_puts(s, "Conversion Queue\n");
 	list_for_each_entry(lkb, &res->res_convertqueue, lkb_statequeue) {
 		rv = print_format1_lock(s, lkb, res);
 		if (rv)
 			goto out;
 	}
 
-	seq_printf(s, "Waiting Queue\n");
+	seq_puts(s, "Waiting Queue\n");
 	list_for_each_entry(lkb, &res->res_waitqueue, lkb_statequeue) {
 		rv = print_format1_lock(s, lkb, res);
 		if (rv)
@@ -157,13 +157,13 @@ static int print_format1(struct dlm_rsb *res, struct seq_file *s)
 	if (list_empty(&res->res_lookup))
 		goto out;
 
-	seq_printf(s, "Lookup Queue\n");
+	seq_puts(s, "Lookup Queue\n");
 	list_for_each_entry(lkb, &res->res_lookup, lkb_rsb_lookup) {
 		rv = seq_printf(s, "%08x %s", lkb->lkb_id,
 				print_lockmode(lkb->lkb_rqmode));
 		if (lkb->lkb_wait_type)
 			seq_printf(s, " wait_type: %d", lkb->lkb_wait_type);
-		rv = seq_printf(s, "\n");
+		rv = seq_puts(s, "\n");
 	}
  out:
 	unlock_rsb(res);
@@ -300,7 +300,7 @@ static int print_format3(struct dlm_rsb *r, struct seq_file *s)
 		else
 			seq_printf(s, " %02x", (unsigned char)r->res_name[i]);
 	}
-	rv = seq_printf(s, "\n");
+	rv = seq_puts(s, "\n");
 	if (rv)
 		goto out;
 
@@ -311,7 +311,7 @@ static int print_format3(struct dlm_rsb *r, struct seq_file *s)
 
 	for (i = 0; i < lvblen; i++)
 		seq_printf(s, " %02x", (unsigned char)r->res_lvbptr[i]);
-	rv = seq_printf(s, "\n");
+	rv = seq_puts(s, "\n");
 	if (rv)
 		goto out;
 
@@ -377,7 +377,7 @@ static int print_format4(struct dlm_rsb *r, struct seq_file *s)
 		else
 			seq_printf(s, " %02x", (unsigned char)r->res_name[i]);
 	}
-	rv = seq_printf(s, "\n");
+	rv = seq_puts(s, "\n");
  out:
 	unlock_rsb(r);
 	return rv;
@@ -718,16 +718,11 @@ static const struct file_operations waiters_fops = {
 
 void dlm_delete_debug_file(struct dlm_ls *ls)
 {
-	if (ls->ls_debug_rsb_dentry)
-		debugfs_remove(ls->ls_debug_rsb_dentry);
-	if (ls->ls_debug_waiters_dentry)
-		debugfs_remove(ls->ls_debug_waiters_dentry);
-	if (ls->ls_debug_locks_dentry)
-		debugfs_remove(ls->ls_debug_locks_dentry);
-	if (ls->ls_debug_all_dentry)
-		debugfs_remove(ls->ls_debug_all_dentry);
-	if (ls->ls_debug_toss_dentry)
-		debugfs_remove(ls->ls_debug_toss_dentry);
+	debugfs_remove(ls->ls_debug_rsb_dentry);
+	debugfs_remove(ls->ls_debug_waiters_dentry);
+	debugfs_remove(ls->ls_debug_locks_dentry);
+	debugfs_remove(ls->ls_debug_all_dentry);
+	debugfs_remove(ls->ls_debug_toss_dentry);
 }
 
 int dlm_create_debug_file(struct dlm_ls *ls)

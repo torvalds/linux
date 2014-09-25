@@ -47,7 +47,7 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 		     * In active scans, we only scan channels not
 		     * marked as passive.
 		     */
-		    (passive || !(flags & IEEE80211_CHAN_PASSIVE_SCAN))) {
+		    (passive || !(flags & IEEE80211_CHAN_NO_IR))) {
 			wl1271_debug(DEBUG_SCAN, "band %d, center_freq %d ",
 				     req->channels[i]->band,
 				     req->channels[i]->center_freq);
@@ -156,7 +156,7 @@ static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 					 cmd->params.role_id, band,
 					 wl->scan.ssid, wl->scan.ssid_len,
 					 wl->scan.req->ie,
-					 wl->scan.req->ie_len, false);
+					 wl->scan.req->ie_len, NULL, 0, false);
 	if (ret < 0) {
 		wl1271_error("PROBE request template failed");
 		goto out;
@@ -317,7 +317,7 @@ static void wl12xx_adjust_channels(struct wl1271_cmd_sched_scan_config *cmd,
 int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 				  struct wl12xx_vif *wlvif,
 				  struct cfg80211_sched_scan_request *req,
-				  struct ieee80211_sched_scan_ies *ies)
+				  struct ieee80211_scan_ies *ies)
 {
 	struct wl1271_cmd_sched_scan_config *cfg = NULL;
 	struct wlcore_scan_channels *cfg_channels = NULL;
@@ -378,8 +378,11 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 						 wlvif->role_id, band,
 						 req->ssids[0].ssid,
 						 req->ssids[0].ssid_len,
-						 ies->ie[band],
-						 ies->len[band], true);
+						 ies->ies[band],
+						 ies->len[band],
+						 ies->common_ies,
+						 ies->common_ie_len,
+						 true);
 		if (ret < 0) {
 			wl1271_error("2.4GHz PROBE request template failed");
 			goto out;
@@ -392,8 +395,11 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 						 wlvif->role_id, band,
 						 req->ssids[0].ssid,
 						 req->ssids[0].ssid_len,
-						 ies->ie[band],
-						 ies->len[band], true);
+						 ies->ies[band],
+						 ies->len[band],
+						 ies->common_ies,
+						 ies->common_ie_len,
+						 true);
 		if (ret < 0) {
 			wl1271_error("5GHz PROBE request template failed");
 			goto out;
@@ -449,7 +455,7 @@ out_free:
 
 int wl12xx_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif  *wlvif,
 			    struct cfg80211_sched_scan_request *req,
-			    struct ieee80211_sched_scan_ies *ies)
+			    struct ieee80211_scan_ies *ies)
 {
 	int ret;
 

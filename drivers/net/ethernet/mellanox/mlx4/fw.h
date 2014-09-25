@@ -134,12 +134,15 @@ struct mlx4_func_cap {
 	int	max_eq;
 	int	reserved_eq;
 	int	mcg_quota;
+	u32	qp0_qkey;
 	u32	qp0_tunnel_qpn;
 	u32	qp0_proxy_qpn;
 	u32	qp1_tunnel_qpn;
 	u32	qp1_proxy_qpn;
 	u8	physical_port;
 	u8	port_flags;
+	u8	flags1;
+	u64	phys_port_id;
 };
 
 struct mlx4_adapter {

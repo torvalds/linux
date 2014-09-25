@@ -34,10 +34,11 @@ static inline void arch_kgdb_breakpoint(void)
  * 32 gpr + sa0/1 + lc0/1 + m0/1 + gp + ugp + pred + pc = 42 total.
  * vm regs = psp+elr+est+badva = 4
  * syscall+restart = 2 more
- * so 48 = 42 +4 + 2
+ * also add cs0/1 = 2
+ * so 48 = 42 + 4 + 2 + 2
  */
 #define DBG_USER_REGS 42
-#define DBG_MAX_REG_NUM (DBG_USER_REGS + 6)
+#define DBG_MAX_REG_NUM (DBG_USER_REGS + 8)
 #define NUMREGBYTES  (DBG_MAX_REG_NUM*4)
 
 #endif /* __HEXAGON_KGDB_H__ */

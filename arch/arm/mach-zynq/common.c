@@ -19,14 +19,18 @@
 #include <linux/cpumask.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/clk/zynq.h>
 #include <linux/clocksource.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of.h>
+#include <linux/memblock.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -35,15 +39,64 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/smp_scu.h>
+#include <asm/system_info.h>
 #include <asm/hardware/cache-l2x0.h>
 
 #include "common.h"
 
+#define ZYNQ_DEVCFG_MCTRL		0x80
+#define ZYNQ_DEVCFG_PS_VERSION_SHIFT	28
+#define ZYNQ_DEVCFG_PS_VERSION_MASK	0xF
+
 void __iomem *zynq_scu_base;
+
+/**
+ * zynq_memory_init - Initialize special memory
+ *
+ * We need to stop things allocating the low memory as DMA can't work in
+ * the 1st 512K of memory.
+ */
+static void __init zynq_memory_init(void)
+{
+	if (!__pa(PAGE_OFFSET))
+		memblock_reserve(__pa(PAGE_OFFSET), __pa(swapper_pg_dir));
+}
 
 static struct platform_device zynq_cpuidle_device = {
 	.name = "cpuidle-zynq",
 };
+
+/**
+ * zynq_get_revision - Get Zynq silicon revision
+ *
+ * Return: Silicon version or -1 otherwise
+ */
+static int __init zynq_get_revision(void)
+{
+	struct device_node *np;
+	void __iomem *zynq_devcfg_base;
+	u32 revision;
+
+	np = of_find_compatible_node(NULL, NULL, "xlnx,zynq-devcfg-1.0");
+	if (!np) {
+		pr_err("%s: no devcfg node found\n", __func__);
+		return -1;
+	}
+
+	zynq_devcfg_base = of_iomap(np, 0);
+	if (!zynq_devcfg_base) {
+		pr_err("%s: Unable to map I/O memory\n", __func__);
+		return -1;
+	}
+
+	revision = readl(zynq_devcfg_base + ZYNQ_DEVCFG_MCTRL);
+	revision >>= ZYNQ_DEVCFG_PS_VERSION_SHIFT;
+	revision &= ZYNQ_DEVCFG_PS_VERSION_MASK;
+
+	iounmap(zynq_devcfg_base);
+
+	return revision;
+}
 
 /**
  * zynq_init_machine - System specific initialization, intended to be
@@ -51,19 +104,52 @@ static struct platform_device zynq_cpuidle_device = {
  */
 static void __init zynq_init_machine(void)
 {
-	/*
-	 * 64KB way size, 8-way associativity, parity disabled
-	 */
-	l2x0_of_init(0x02060000, 0xF0F0FFFF);
+	struct platform_device_info devinfo = { .name = "cpufreq-cpu0", };
+	struct soc_device_attribute *soc_dev_attr;
+	struct soc_device *soc_dev;
+	struct device *parent = NULL;
 
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		goto out;
+
+	system_rev = zynq_get_revision();
+
+	soc_dev_attr->family = kasprintf(GFP_KERNEL, "Xilinx Zynq");
+	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "0x%x", system_rev);
+	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "0x%x",
+					 zynq_slcr_get_device_id());
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev)) {
+		kfree(soc_dev_attr->family);
+		kfree(soc_dev_attr->revision);
+		kfree(soc_dev_attr->soc_id);
+		kfree(soc_dev_attr);
+		goto out;
+	}
+
+	parent = soc_device_to_device(soc_dev);
+
+out:
+	/*
+	 * Finished with the static registrations now; fill in the missing
+	 * devices
+	 */
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, parent);
 
 	platform_device_register(&zynq_cpuidle_device);
+	platform_device_register_full(&devinfo);
+
+	zynq_slcr_init();
 }
 
 static void __init zynq_timer_init(void)
 {
-	zynq_slcr_init();
+	zynq_early_slcr_init();
+
+	zynq_clock_init();
+	of_clk_init(NULL);
 	clocksource_of_init();
 }
 
@@ -111,11 +197,15 @@ static const char * const zynq_dt_match[] = {
 };
 
 DT_MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
+	/* 64KB way size, 8-way associativity, parity disabled */
+	.l2c_aux_val	= 0x02000000,
+	.l2c_aux_mask	= 0xf0ffffff,
 	.smp		= smp_ops(zynq_smp_ops),
 	.map_io		= zynq_map_io,
 	.init_irq	= zynq_irq_init,
 	.init_machine	= zynq_init_machine,
 	.init_time	= zynq_timer_init,
 	.dt_compat	= zynq_dt_match,
+	.reserve	= zynq_memory_init,
 	.restart	= zynq_system_reset,
 MACHINE_END

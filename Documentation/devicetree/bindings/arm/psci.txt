@@ -21,7 +21,15 @@ to #0.
 
 Main node required properties:
 
- - compatible    : Must be "arm,psci"
+ - compatible    : should contain at least one of:
+
+				 * "arm,psci" : for implementations complying to PSCI versions prior to
+					0.2. For these cases function IDs must be provided.
+
+				 * "arm,psci-0.2" : for implementations complying to PSCI 0.2. Function
+					IDs are not required and should be ignored by an OS with PSCI 0.2
+					support, but are permitted to be present for compatibility with
+					existing software when "arm,psci" is later in the compatible list.
 
  - method        : The method of calling the PSCI firmware. Permitted
                    values are:
@@ -45,6 +53,8 @@ Main node optional properties:
 
 Example:
 
+Case 1: PSCI v0.1 only.
+
 	psci {
 		compatible	= "arm,psci";
 		method		= "smc";
@@ -52,4 +62,29 @@ Example:
 		cpu_off		= <0x95c10001>;
 		cpu_on		= <0x95c10002>;
 		migrate		= <0x95c10003>;
+	};
+
+
+Case 2: PSCI v0.2 only
+
+	psci {
+		compatible	= "arm,psci-0.2";
+		method		= "smc";
+	};
+
+Case 3: PSCI v0.2 and PSCI v0.1.
+
+	A DTB may provide IDs for use by kernels without PSCI 0.2 support,
+	enabling firmware and hypervisors to support existing and new kernels.
+	These IDs will be ignored by kernels with PSCI 0.2 support, which will
+	use the standard PSCI 0.2 IDs exclusively.
+
+	psci {
+		compatible = "arm,psci-0.2", "arm,psci";
+		method = "hvc";
+
+		cpu_on = < arbitrary value >;
+		cpu_off = < arbitrary value >;
+
+		...
 	};

@@ -352,7 +352,6 @@ static const struct uart_ops uart_clps711x_ops = {
 	.stop_tx	= uart_clps711x_stop_tx,
 	.start_tx	= uart_clps711x_start_tx,
 	.stop_rx	= uart_clps711x_nop_void,
-	.enable_ms	= uart_clps711x_nop_void,
 	.break_ctl	= uart_clps711x_break_ctl,
 	.set_ldisc	= uart_clps711x_set_ldisc,
 	.startup	= uart_clps711x_startup,
@@ -370,6 +369,7 @@ static void uart_clps711x_console_putchar(struct uart_port *port, int ch)
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
 	u32 sysflg = 0;
 
+	/* Wait for FIFO is not full */
 	do {
 		regmap_read(s->syscon, SYSFLG_OFFSET, &sysflg);
 	} while (sysflg & SYSFLG_UTXFF);

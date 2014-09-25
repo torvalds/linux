@@ -120,6 +120,7 @@ EXPORT_SYMBOL(giveup_spe);
 EXPORT_SYMBOL(flush_instruction_cache);
 #endif
 EXPORT_SYMBOL(flush_dcache_range);
+EXPORT_SYMBOL(flush_icache_range);
 
 #ifdef CONFIG_SMP
 #ifdef CONFIG_PPC32
@@ -154,9 +155,7 @@ EXPORT_SYMBOL(__cmpdi2);
 #endif
 long long __bswapdi2(long long);
 EXPORT_SYMBOL(__bswapdi2);
-#ifdef __BIG_ENDIAN__
 EXPORT_SYMBOL(memcpy);
-#endif
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memcmp);

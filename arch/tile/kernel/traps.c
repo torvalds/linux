@@ -42,10 +42,9 @@ static int __init setup_unaligned_fixup(char *str)
 	 * will still parse the instruction, then fire a SIGBUS with
 	 * the correct address from inside the single_step code.
 	 */
-	long val;
-	if (strict_strtol(str, 0, &val) != 0)
+	if (kstrtoint(str, 0, &unaligned_fixup) != 0)
 		return 0;
-	unaligned_fixup = val;
+
 	pr_info("Fixups for unaligned data accesses are %s\n",
 	       unaligned_fixup >= 0 ?
 	       (unaligned_fixup ? "enabled" : "disabled") :

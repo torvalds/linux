@@ -54,6 +54,15 @@ how the mechanism works without getting lost in other details.  (Those
 wanting to see the full source for this module can find it at
 http://lwn.net/Articles/22359/).
 
+Deprecated create_proc_entry
+
+Note that the above article uses create_proc_entry which was removed in
+kernel 3.10. Current versions require the following update
+
+-	entry = create_proc_entry("sequence", 0, NULL);
+-	if (entry)
+-		entry->proc_fops = &ct_file_ops;
++	entry = proc_create("sequence", 0, NULL, &ct_file_ops);
 
 The iterator interface
 
@@ -225,6 +234,39 @@ file->private_data. If you have an application where the same iterator can
 be used for more than one file, you can store an arbitrary pointer in the
 private field of the seq_file structure; that value can then be retrieved
 by the iterator functions.
+
+There is also a wrapper function to seq_open() called seq_open_private(). It
+kmallocs a zero filled block of memory and stores a pointer to it in the
+private field of the seq_file structure, returning 0 on success. The
+block size is specified in a third parameter to the function, e.g.:
+
+	static int ct_open(struct inode *inode, struct file *file)
+	{
+		return seq_open_private(file, &ct_seq_ops,
+					sizeof(struct mystruct));
+	}
+
+There is also a variant function, __seq_open_private(), which is functionally
+identical except that, if successful, it returns the pointer to the allocated
+memory block, allowing further initialisation e.g.:
+
+	static int ct_open(struct inode *inode, struct file *file)
+	{
+		struct mystruct *p =
+			__seq_open_private(file, &ct_seq_ops, sizeof(*p));
+
+		if (!p)
+			return -ENOMEM;
+
+		p->foo = bar; /* initialize my stuff */
+			...
+		p->baz = true;
+
+		return 0;
+	}
+
+A corresponding close function, seq_release_private() is available which
+frees the memory allocated in the corresponding open.
 
 The other operations of interest - read(), llseek(), and release() - are
 all implemented by the seq_file code itself. So a virtual file's

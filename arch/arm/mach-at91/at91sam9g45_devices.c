@@ -25,19 +25,20 @@
 #include <linux/fb.h>
 #include <video/atmel_lcdc.h>
 
-#include <mach/at91_adc.h>
 #include <mach/at91sam9g45.h>
 #include <mach/at91sam9g45_matrix.h>
 #include <mach/at91_matrix.h>
 #include <mach/at91sam9_smc.h>
 #include <linux/platform_data/dma-atmel.h>
 #include <mach/atmel-mci.h>
+#include <mach/hardware.h>
 
 #include <media/atmel-isi.h>
 
 #include "board.h"
 #include "generic.h"
 #include "clock.h"
+#include "gpio.h"
 
 
 /* --------------------------------------------------------------------
@@ -1132,58 +1133,7 @@ static void __init at91_add_device_rtc(void) {}
 
 
 /* --------------------------------------------------------------------
- *  Touchscreen
- * -------------------------------------------------------------------- */
-
-#if defined(CONFIG_TOUCHSCREEN_ATMEL_TSADCC) || defined(CONFIG_TOUCHSCREEN_ATMEL_TSADCC_MODULE)
-static u64 tsadcc_dmamask = DMA_BIT_MASK(32);
-static struct at91_tsadcc_data tsadcc_data;
-
-static struct resource tsadcc_resources[] = {
-	[0] = {
-		.start	= AT91SAM9G45_BASE_TSC,
-		.end	= AT91SAM9G45_BASE_TSC + SZ_16K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= NR_IRQS_LEGACY + AT91SAM9G45_ID_TSC,
-		.end	= NR_IRQS_LEGACY + AT91SAM9G45_ID_TSC,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device at91sam9g45_tsadcc_device = {
-	.name		= "atmel_tsadcc",
-	.id		= -1,
-	.dev		= {
-				.dma_mask		= &tsadcc_dmamask,
-				.coherent_dma_mask	= DMA_BIT_MASK(32),
-				.platform_data		= &tsadcc_data,
-	},
-	.resource	= tsadcc_resources,
-	.num_resources	= ARRAY_SIZE(tsadcc_resources),
-};
-
-void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data)
-{
-	if (!data)
-		return;
-
-	at91_set_gpio_input(AT91_PIN_PD20, 0);	/* AD0_XR */
-	at91_set_gpio_input(AT91_PIN_PD21, 0);	/* AD1_XL */
-	at91_set_gpio_input(AT91_PIN_PD22, 0);	/* AD2_YT */
-	at91_set_gpio_input(AT91_PIN_PD23, 0);	/* AD3_TB */
-
-	tsadcc_data = *data;
-	platform_device_register(&at91sam9g45_tsadcc_device);
-}
-#else
-void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data) {}
-#endif
-
-
-/* --------------------------------------------------------------------
- *  ADC
+ *  ADC and touchscreen
  * -------------------------------------------------------------------- */
 
 #if IS_ENABLED(CONFIG_AT91_ADC)
@@ -1203,7 +1153,7 @@ static struct resource adc_resources[] = {
 };
 
 static struct platform_device at91_adc_device = {
-	.name		= "at91_adc",
+	.name		= "at91sam9g45-adc",
 	.id		= -1,
 	.dev		= {
 				.platform_data	= &adc_data,
@@ -1235,13 +1185,6 @@ static struct at91_adc_trigger at91_adc_triggers[] = {
 	},
 };
 
-static struct at91_adc_reg_desc at91_adc_register_g45 = {
-	.channel_base = AT91_ADC_CHR(0),
-	.drdy_mask = AT91_ADC_DRDY,
-	.status_register = AT91_ADC_SR,
-	.trigger_register = 0x08,
-};
-
 void __init at91_add_device_adc(struct at91_adc_data *data)
 {
 	if (!data)
@@ -1267,9 +1210,7 @@ void __init at91_add_device_adc(struct at91_adc_data *data)
 	if (data->use_external_triggers)
 		at91_set_A_periph(AT91_PIN_PD28, 0);
 
-	data->num_channels = 8;
 	data->startup_time = 40;
-	data->registers = &at91_adc_register_g45;
 	data->trigger_number = 4;
 	data->trigger_list = at91_adc_triggers;
 
@@ -1393,9 +1334,7 @@ static void __init at91_add_device_watchdog(void) {}
  *  PWM
  * --------------------------------------------------------------------*/
 
-#if defined(CONFIG_ATMEL_PWM) || defined(CONFIG_ATMEL_PWM_MODULE)
-static u32 pwm_mask;
-
+#if IS_ENABLED(CONFIG_PWM_ATMEL)
 static struct resource pwm_resources[] = {
 	[0] = {
 		.start	= AT91SAM9G45_BASE_PWMC,
@@ -1410,11 +1349,8 @@ static struct resource pwm_resources[] = {
 };
 
 static struct platform_device at91sam9g45_pwm0_device = {
-	.name	= "atmel_pwm",
+	.name	= "at91sam9rl-pwm",
 	.id	= -1,
-	.dev	= {
-		.platform_data		= &pwm_mask,
-	},
 	.resource	= pwm_resources,
 	.num_resources	= ARRAY_SIZE(pwm_resources),
 };
@@ -1432,8 +1368,6 @@ void __init at91_add_device_pwm(u32 mask)
 
 	if (mask & (1 << AT91_PWM3))
 		at91_set_B_periph(AT91_PIN_PD0, 1);	/* enable PWM3 */
-
-	pwm_mask = mask;
 
 	platform_device_register(&at91sam9g45_pwm0_device);
 }

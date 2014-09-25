@@ -16,9 +16,10 @@ static inline struct nlmsghdr *nlmsg_hdr(const struct sk_buff *skb)
 }
 
 enum netlink_skb_flags {
-	NETLINK_SKB_MMAPED	= 0x1,		/* Packet data is mmaped */
-	NETLINK_SKB_TX		= 0x2,		/* Packet was sent by userspace */
-	NETLINK_SKB_DELIVERED	= 0x4,		/* Packet was delivered */
+	NETLINK_SKB_MMAPED	= 0x1,	/* Packet data is mmaped */
+	NETLINK_SKB_TX		= 0x2,	/* Packet was sent by userspace */
+	NETLINK_SKB_DELIVERED	= 0x4,	/* Packet was delivered */
+	NETLINK_SKB_DST		= 0x8,	/* Dst set in sendto or sendmsg */
 };
 
 struct netlink_skb_parms {
@@ -45,7 +46,8 @@ struct netlink_kernel_cfg {
 	unsigned int	flags;
 	void		(*input)(struct sk_buff *skb);
 	struct mutex	*cb_mutex;
-	void		(*bind)(int group);
+	int		(*bind)(int group);
+	void		(*unbind)(int group);
 	bool		(*compare)(struct net *net, struct sock *sk);
 };
 
@@ -62,7 +64,6 @@ extern void netlink_kernel_release(struct sock *sk);
 extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern void __netlink_clear_multicast_users(struct sock *sk, unsigned int group);
-extern void netlink_clear_multicast_users(struct sock *sk, unsigned int group);
 extern void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err);
 extern int netlink_has_listeners(struct sock *sk, unsigned int group);
 extern struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
@@ -168,7 +169,13 @@ struct netlink_tap {
 };
 
 extern int netlink_add_tap(struct netlink_tap *nt);
-extern int __netlink_remove_tap(struct netlink_tap *nt);
 extern int netlink_remove_tap(struct netlink_tap *nt);
+
+bool __netlink_ns_capable(const struct netlink_skb_parms *nsp,
+			  struct user_namespace *ns, int cap);
+bool netlink_ns_capable(const struct sk_buff *skb,
+			struct user_namespace *ns, int cap);
+bool netlink_capable(const struct sk_buff *skb, int cap);
+bool netlink_net_capable(const struct sk_buff *skb, int cap);
 
 #endif	/* __LINUX_NETLINK_H */

@@ -132,7 +132,6 @@ void mark_rodata_ro(void);
 static inline void *kmap(struct page *page)
 {
 	might_sleep();
-	flush_dcache_page(page);
 	return page_address(page);
 }
 
@@ -144,7 +143,6 @@ static inline void kunmap(struct page *page)
 static inline void *kmap_atomic(struct page *page)
 {
 	pagefault_disable();
-	flush_dcache_page(page);
 	return page_address(page);
 }
 

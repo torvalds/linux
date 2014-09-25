@@ -220,9 +220,9 @@ ex_saved_reg1:
 
 .macro CONV_PTE_TO_TLB
 	and    r3, r0, PTE_BITS_RWX	;       r w x
-	lsl    r2, r3, 3		; r w x 0 0 0
+	lsl    r2, r3, 3		; r w x 0 0 0 (GLOBAL, kernel only)
 	and.f  0,  r0, _PAGE_GLOBAL
-	or.z   r2, r2, r3		; r w x r w x
+	or.z   r2, r2, r3		; r w x r w x (!GLOBAL, user page)
 
 	and r3, r0, PTE_BITS_NON_RWX_IN_PD1 ; Extract PFN+cache bits from PTE
 	or  r3, r3, r2
@@ -260,7 +260,7 @@ ARCFP_CODE	;Fast Path Code, candidate for ICCM
 ; I-TLB Miss Exception Handler
 ;-----------------------------------------------------------------------------
 
-ARC_ENTRY EV_TLBMissI
+ENTRY(EV_TLBMissI)
 
 	TLBMISS_FREEUP_REGS
 
@@ -293,13 +293,13 @@ ARC_ENTRY EV_TLBMissI
 	TLBMISS_RESTORE_REGS
 	rtie
 
-ARC_EXIT EV_TLBMissI
+END(EV_TLBMissI)
 
 ;-----------------------------------------------------------------------------
 ; D-TLB Miss Exception Handler
 ;-----------------------------------------------------------------------------
 
-ARC_ENTRY EV_TLBMissD
+ENTRY(EV_TLBMissD)
 
 	TLBMISS_FREEUP_REGS
 
@@ -381,6 +381,4 @@ do_slow_path_pf:
 	bl  do_page_fault
 	b   ret_from_exception
 
-ARC_EXIT EV_TLBMissD
-
-ARC_ENTRY EV_TLBMissB   ; Bogus entry to measure sz of DTLBMiss hdlr
+END(EV_TLBMissD)

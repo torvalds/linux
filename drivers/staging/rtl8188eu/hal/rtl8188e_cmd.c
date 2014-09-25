@@ -22,7 +22,6 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <recv_osdep.h>
-#include <cmd_osdep.h>
 #include <mlme_osdep.h>
 #include <rtw_ioctl_set.h>
 
@@ -41,7 +40,7 @@ static u8 _is_fw_read_cmd_down(struct adapter *adapt, u8 msgbox_num)
 	u8 valid;
 
 	do {
-		valid = rtw_read8(adapt, REG_HMETFR) & BIT(msgbox_num);
+		valid = usb_read8(adapt, REG_HMETFR) & BIT(msgbox_num);
 		if (0 == valid)
 			read_down = true;
 	} while ((!read_down) && (retry_cnts--));
@@ -72,7 +71,6 @@ static s32 FillH2CCmd_88E(struct adapter *adapt, u8 ElementID, u32 CmdLen, u8 *p
 	u32 h2c_cmd_ex = 0;
 	s32 ret = _FAIL;
 
-_func_enter_;
 
 	if (!adapt->bFWReady) {
 		DBG_88E("FillH2CCmd_88E(): return H2C cmd because fw is not ready\n");
@@ -107,13 +105,13 @@ _func_enter_;
 			/* Write Ext command */
 			msgbox_ex_addr = REG_HMEBOX_EXT_0 + (h2c_box_num * RTL88E_EX_MESSAGE_BOX_SIZE);
 			for (cmd_idx = 0; cmd_idx < ext_cmd_len; cmd_idx++) {
-				rtw_write8(adapt, msgbox_ex_addr+cmd_idx, *((u8 *)(&h2c_cmd_ex)+cmd_idx));
+				usb_write8(adapt, msgbox_ex_addr+cmd_idx, *((u8 *)(&h2c_cmd_ex)+cmd_idx));
 			}
 		}
 		/*  Write command */
 		msgbox_addr = REG_HMEBOX_0 + (h2c_box_num * RTL88E_MESSAGE_BOX_SIZE);
 		for (cmd_idx = 0; cmd_idx < RTL88E_MESSAGE_BOX_SIZE; cmd_idx++) {
-			rtw_write8(adapt, msgbox_addr+cmd_idx, *((u8 *)(&h2c_cmd)+cmd_idx));
+			usb_write8(adapt, msgbox_addr+cmd_idx, *((u8 *)(&h2c_cmd)+cmd_idx));
 		}
 		bcmd_down = true;
 
@@ -125,7 +123,6 @@ _func_enter_;
 
 exit:
 
-_func_exit_;
 
 	return ret;
 }
@@ -134,7 +131,6 @@ u8 rtl8188e_set_rssi_cmd(struct adapter *adapt, u8 *param)
 {
 	u8 res = _SUCCESS;
 	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
-_func_enter_;
 
 	if (haldata->fw_ractrl) {
 		;
@@ -143,7 +139,6 @@ _func_enter_;
 		res = _FAIL;
 	}
 
-_func_exit_;
 
 	return res;
 }
@@ -154,11 +149,10 @@ u8 rtl8188e_set_raid_cmd(struct adapter *adapt, u32 mask)
 	u8 res = _SUCCESS;
 	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
 
-_func_enter_;
 	if (haldata->fw_ractrl) {
 		__le32 lmask;
 
-		_rtw_memset(buf, 0, 3);
+		memset(buf, 0, 3);
 		lmask = cpu_to_le32(mask);
 		memcpy(buf, &lmask, 3);
 
@@ -168,7 +162,6 @@ _func_enter_;
 		res = _FAIL;
 	}
 
-_func_exit_;
 
 	return res;
 }
@@ -215,7 +208,6 @@ void rtl8188e_set_FwPwrMode_cmd(struct adapter *adapt, u8 Mode)
 	struct setpwrmode_parm H2CSetPwrMode;
 	struct pwrctrl_priv *pwrpriv = &adapt->pwrctrlpriv;
 	u8 RLBM = 0; /*  0:Min, 1:Max, 2:User define */
-_func_enter_;
 
 	DBG_88E("%s: Mode=%d SmartPS=%d UAPSD=%d\n", __func__,
 		Mode, pwrpriv->smart_ps, adapt->registrypriv.uapsd_enable);
@@ -256,7 +248,6 @@ _func_enter_;
 
 	FillH2CCmd_88E(adapt, H2C_PS_PWR_MODE, sizeof(H2CSetPwrMode), (u8 *)&H2CSetPwrMode);
 
-_func_exit_;
 }
 
 void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt)
@@ -484,12 +475,6 @@ static void ConstructProbeRsp(struct adapter *adapt, u8 *pframe, u32 *pLength, u
 	*pLength = pktlen;
 }
 
-/*  To check if reserved page content is destroyed by beacon because beacon is too large. */
-/*  2010.06.23. Added by tynli. */
-void CheckFwRsvdPageContent(struct adapter *Adapter)
-{
-}
-
 /*  */
 /*  Description: Fill the reserved packets that FW will use to RSVD page. */
 /*			Now we just send 4 types packet to rsvd page. */
@@ -517,7 +502,7 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 	struct rsvdpage_loc RsvdPageLoc;
 
 	DBG_88E("%s\n", __func__);
-	ReservedPagePacket = (u8 *)rtw_zmalloc(1000);
+	ReservedPagePacket = kzalloc(1000, GFP_KERNEL);
 	if (ReservedPagePacket == NULL) {
 		DBG_88E("%s: alloc ReservedPagePacket fail!\n", __func__);
 		return;
@@ -617,25 +602,24 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 	u8 DLBcnCount = 0;
 	u32 poll = 0;
 
-_func_enter_;
 
 	DBG_88E("%s mstatus(%x)\n", __func__, mstatus);
 
 	if (mstatus == 1) {
 		/*  We should set AID, correct TSF, HW seq enable before set JoinBssReport to Fw in 88/92C. */
 		/*  Suggested by filen. Added by tynli. */
-		rtw_write16(adapt, REG_BCN_PSR_RPT, (0xC000|pmlmeinfo->aid));
+		usb_write16(adapt, REG_BCN_PSR_RPT, (0xC000|pmlmeinfo->aid));
 		/*  Do not set TSF again here or vWiFi beacon DMA INT will not work. */
 
 		/* Set REG_CR bit 8. DMA beacon by SW. */
 		haldata->RegCR_1 |= BIT0;
-		rtw_write8(adapt,  REG_CR+1, haldata->RegCR_1);
+		usb_write8(adapt,  REG_CR+1, haldata->RegCR_1);
 
 		/*  Disable Hw protection for a time which revserd for Hw sending beacon. */
 		/*  Fix download reserved page packet fail that access collision with the protection time. */
 		/*  2010.05.11. Added by tynli. */
-		rtw_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)&(~BIT(3)));
-		rtw_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)|BIT(4));
+		usb_write8(adapt, REG_BCN_CTRL, usb_read8(adapt, REG_BCN_CTRL)&(~BIT(3)));
+		usb_write8(adapt, REG_BCN_CTRL, usb_read8(adapt, REG_BCN_CTRL)|BIT(4));
 
 		if (haldata->RegFwHwTxQCtrl&BIT6) {
 			DBG_88E("HalDownloadRSVDPage(): There is an Adapter is sending beacon.\n");
@@ -643,7 +627,7 @@ _func_enter_;
 		}
 
 		/*  Set FWHW_TXQ_CTRL 0x422[6]=0 to tell Hw the packet is not a real beacon frame. */
-		rtw_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl&(~BIT6)));
+		usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl&(~BIT6)));
 		haldata->RegFwHwTxQCtrl &= (~BIT6);
 
 		/*  Clear beacon valid check bit. */
@@ -677,8 +661,8 @@ _func_enter_;
 		/*  */
 
 		/*  Enable Bcn */
-		rtw_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)|BIT(3));
-		rtw_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)&(~BIT(4)));
+		usb_write8(adapt, REG_BCN_CTRL, usb_read8(adapt, REG_BCN_CTRL)|BIT(3));
+		usb_write8(adapt, REG_BCN_CTRL, usb_read8(adapt, REG_BCN_CTRL)&(~BIT(4)));
 
 		/*  To make sure that if there exists an adapter which would like to send beacon. */
 		/*  If exists, the origianl value of 0x422[6] will be 1, we should check this to */
@@ -686,7 +670,7 @@ _func_enter_;
 		/*  the beacon cannot be sent by HW. */
 		/*  2010.06.23. Added by tynli. */
 		if (bSendBeacon) {
-			rtw_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl|BIT6));
+			usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl|BIT6));
 			haldata->RegFwHwTxQCtrl |= BIT6;
 		}
 
@@ -699,81 +683,6 @@ _func_enter_;
 		/*  Do not enable HW DMA BCN or it will cause Pcie interface hang by timing issue. 2011.11.24. by tynli. */
 		/*  Clear CR[8] or beacon packet will not be send to TxBuf anymore. */
 		haldata->RegCR_1 &= (~BIT0);
-		rtw_write8(adapt,  REG_CR+1, haldata->RegCR_1);
+		usb_write8(adapt,  REG_CR+1, haldata->RegCR_1);
 	}
-_func_exit_;
-}
-
-void rtl8188e_set_p2p_ps_offload_cmd(struct adapter *adapt, u8 p2p_ps_state)
-{
-#ifdef CONFIG_88EU_P2P
-	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
-	struct wifidirect_info	*pwdinfo = &(adapt->wdinfo);
-	struct P2P_PS_Offload_t	*p2p_ps_offload = &haldata->p2p_ps_offload;
-	u8 i;
-
-_func_enter_;
-
-	switch (p2p_ps_state) {
-	case P2P_PS_DISABLE:
-		DBG_88E("P2P_PS_DISABLE\n");
-		_rtw_memset(p2p_ps_offload, 0, 1);
-		break;
-	case P2P_PS_ENABLE:
-		DBG_88E("P2P_PS_ENABLE\n");
-		/*  update CTWindow value. */
-		if (pwdinfo->ctwindow > 0) {
-			p2p_ps_offload->CTWindow_En = 1;
-			rtw_write8(adapt, REG_P2P_CTWIN, pwdinfo->ctwindow);
-		}
-
-		/*  hw only support 2 set of NoA */
-		for (i = 0; i < pwdinfo->noa_num; i++) {
-			/*  To control the register setting for which NOA */
-			rtw_write8(adapt, REG_NOA_DESC_SEL, (i << 4));
-			if (i == 0)
-				p2p_ps_offload->NoA0_En = 1;
-			else
-				p2p_ps_offload->NoA1_En = 1;
-
-			/*  config P2P NoA Descriptor Register */
-			rtw_write32(adapt, REG_NOA_DESC_DURATION, pwdinfo->noa_duration[i]);
-			rtw_write32(adapt, REG_NOA_DESC_INTERVAL, pwdinfo->noa_interval[i]);
-			rtw_write32(adapt, REG_NOA_DESC_START, pwdinfo->noa_start_time[i]);
-			rtw_write8(adapt, REG_NOA_DESC_COUNT, pwdinfo->noa_count[i]);
-		}
-
-		if ((pwdinfo->opp_ps == 1) || (pwdinfo->noa_num > 0)) {
-			/*  rst p2p circuit */
-			rtw_write8(adapt, REG_DUAL_TSF_RST, BIT(4));
-
-			p2p_ps_offload->Offload_En = 1;
-
-			if (pwdinfo->role == P2P_ROLE_GO) {
-				p2p_ps_offload->role = 1;
-				p2p_ps_offload->AllStaSleep = 0;
-			} else {
-				p2p_ps_offload->role = 0;
-			}
-
-			p2p_ps_offload->discovery = 0;
-		}
-		break;
-	case P2P_PS_SCAN:
-		DBG_88E("P2P_PS_SCAN\n");
-		p2p_ps_offload->discovery = 1;
-		break;
-	case P2P_PS_SCAN_DONE:
-		DBG_88E("P2P_PS_SCAN_DONE\n");
-		p2p_ps_offload->discovery = 0;
-		pwdinfo->p2p_ps_state = P2P_PS_ENABLE;
-		break;
-	default:
-		break;
-	}
-
-	FillH2CCmd_88E(adapt, H2C_PS_P2P_OFFLOAD, 1, (u8 *)p2p_ps_offload);
-#endif
-
-_func_exit_;
 }

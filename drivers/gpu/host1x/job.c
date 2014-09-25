@@ -75,12 +75,14 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 
 	return job;
 }
+EXPORT_SYMBOL(host1x_job_alloc);
 
 struct host1x_job *host1x_job_get(struct host1x_job *job)
 {
 	kref_get(&job->ref);
 	return job;
 }
+EXPORT_SYMBOL(host1x_job_get);
 
 static void job_free(struct kref *ref)
 {
@@ -93,6 +95,7 @@ void host1x_job_put(struct host1x_job *job)
 {
 	kref_put(&job->ref, job_free);
 }
+EXPORT_SYMBOL(host1x_job_put);
 
 void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
 			   u32 words, u32 offset)
@@ -104,6 +107,7 @@ void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
 	cur_gather->offset = offset;
 	job->num_gathers++;
 }
+EXPORT_SYMBOL(host1x_job_add_gather);
 
 /*
  * NULL an already satisfied WAIT_SYNCPT host method, by patching its
@@ -181,16 +185,16 @@ static unsigned int pin_job(struct host1x_job *job)
 		struct sg_table *sgt;
 		dma_addr_t phys_addr;
 
-		reloc->target = host1x_bo_get(reloc->target);
-		if (!reloc->target)
+		reloc->target.bo = host1x_bo_get(reloc->target.bo);
+		if (!reloc->target.bo)
 			goto unpin;
 
-		phys_addr = host1x_bo_pin(reloc->target, &sgt);
+		phys_addr = host1x_bo_pin(reloc->target.bo, &sgt);
 		if (!phys_addr)
 			goto unpin;
 
 		job->addr_phys[job->num_unpins] = phys_addr;
-		job->unpins[job->num_unpins].bo = reloc->target;
+		job->unpins[job->num_unpins].bo = reloc->target.bo;
 		job->unpins[job->num_unpins].sgt = sgt;
 		job->num_unpins++;
 	}
@@ -231,21 +235,21 @@ static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 	for (i = 0; i < job->num_relocs; i++) {
 		struct host1x_reloc *reloc = &job->relocarray[i];
 		u32 reloc_addr = (job->reloc_addr_phys[i] +
-			reloc->target_offset) >> reloc->shift;
+				  reloc->target.offset) >> reloc->shift;
 		u32 *target;
 
 		/* skip all other gathers */
-		if (cmdbuf != reloc->cmdbuf)
+		if (cmdbuf != reloc->cmdbuf.bo)
 			continue;
 
-		if (last_page != reloc->cmdbuf_offset >> PAGE_SHIFT) {
+		if (last_page != reloc->cmdbuf.offset >> PAGE_SHIFT) {
 			if (cmdbuf_page_addr)
 				host1x_bo_kunmap(cmdbuf, last_page,
 						 cmdbuf_page_addr);
 
 			cmdbuf_page_addr = host1x_bo_kmap(cmdbuf,
-					reloc->cmdbuf_offset >> PAGE_SHIFT);
-			last_page = reloc->cmdbuf_offset >> PAGE_SHIFT;
+					reloc->cmdbuf.offset >> PAGE_SHIFT);
+			last_page = reloc->cmdbuf.offset >> PAGE_SHIFT;
 
 			if (unlikely(!cmdbuf_page_addr)) {
 				pr_err("Could not map cmdbuf for relocation\n");
@@ -253,7 +257,7 @@ static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 			}
 		}
 
-		target = cmdbuf_page_addr + (reloc->cmdbuf_offset & ~PAGE_MASK);
+		target = cmdbuf_page_addr + (reloc->cmdbuf.offset & ~PAGE_MASK);
 		*target = reloc_addr;
 	}
 
@@ -268,7 +272,7 @@ static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 {
 	offset *= sizeof(u32);
 
-	if (reloc->cmdbuf != cmdbuf || reloc->cmdbuf_offset != offset)
+	if (reloc->cmdbuf.bo != cmdbuf || reloc->cmdbuf.offset != offset)
 		return false;
 
 	return true;
@@ -534,7 +538,7 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 
 		g->base = job->gather_addr_phys[i];
 
-		for (j = 0; j < job->num_gathers; j++)
+		for (j = i + 1; j < job->num_gathers; j++)
 			if (job->gathers[j].bo == g->bo)
 				job->gathers[j].handled = true;
 
@@ -560,6 +564,7 @@ out:
 
 	return err;
 }
+EXPORT_SYMBOL(host1x_job_pin);
 
 void host1x_job_unpin(struct host1x_job *job)
 {
@@ -577,6 +582,7 @@ void host1x_job_unpin(struct host1x_job *job)
 				      job->gather_copy_mapped,
 				      job->gather_copy);
 }
+EXPORT_SYMBOL(host1x_job_unpin);
 
 /*
  * Debug routine used to dump job entries

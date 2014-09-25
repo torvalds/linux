@@ -32,13 +32,13 @@ static int tegra_ion_probe(struct platform_device *pdev)
 
 	num_heaps = pdata->nr;
 
-	heaps = kzalloc(sizeof(struct ion_heap *) * pdata->nr, GFP_KERNEL);
+	heaps = devm_kzalloc(&pdev->dev,
+			     sizeof(struct ion_heap *) * pdata->nr,
+			     GFP_KERNEL);
 
 	idev = ion_device_create(NULL);
-	if (IS_ERR_OR_NULL(idev)) {
-		kfree(heaps);
+	if (IS_ERR_OR_NULL(idev))
 		return PTR_ERR(idev);
-	}
 
 	/* create the heaps as specified in the board file */
 	for (i = 0; i < num_heaps; i++) {
@@ -58,7 +58,6 @@ err:
 		if (heaps[i])
 			ion_heap_destroy(heaps[i]);
 	}
-	kfree(heaps);
 	return err;
 }
 
@@ -70,7 +69,6 @@ static int tegra_ion_remove(struct platform_device *pdev)
 	ion_device_destroy(idev);
 	for (i = 0; i < num_heaps; i++)
 		ion_heap_destroy(heaps[i]);
-	kfree(heaps);
 	return 0;
 }
 

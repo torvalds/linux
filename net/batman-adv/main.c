@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/crc32c.h>
@@ -36,6 +34,7 @@
 #include "gateway_client.h"
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
+#include "multicast.h"
 #include "gateway_common.h"
 #include "hash.h"
 #include "bat_algo.h"
@@ -112,6 +111,9 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	spin_lock_init(&bat_priv->tt.last_changeset_lock);
 	spin_lock_init(&bat_priv->tt.commit_lock);
 	spin_lock_init(&bat_priv->gw.list_lock);
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	spin_lock_init(&bat_priv->mcast.want_lists_lock);
+#endif
 	spin_lock_init(&bat_priv->tvlv.container_list_lock);
 	spin_lock_init(&bat_priv->tvlv.handler_list_lock);
 	spin_lock_init(&bat_priv->softif_vlan_list_lock);
@@ -119,9 +121,17 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	INIT_HLIST_HEAD(&bat_priv->forw_bat_list);
 	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
 	INIT_HLIST_HEAD(&bat_priv->gw.list);
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_unsnoopables_list);
+	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_ipv4_list);
+	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_ipv6_list);
+#endif
 	INIT_LIST_HEAD(&bat_priv->tt.changes_list);
 	INIT_LIST_HEAD(&bat_priv->tt.req_list);
 	INIT_LIST_HEAD(&bat_priv->tt.roam_list);
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	INIT_HLIST_HEAD(&bat_priv->mcast.mla_list);
+#endif
 	INIT_HLIST_HEAD(&bat_priv->tvlv.container_list);
 	INIT_HLIST_HEAD(&bat_priv->tvlv.handler_list);
 	INIT_HLIST_HEAD(&bat_priv->softif_vlan_list);
@@ -147,6 +157,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 		goto err;
 
 	batadv_gw_init(bat_priv);
+	batadv_mcast_init(bat_priv);
 
 	atomic_set(&bat_priv->gw.reselect, 0);
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_ACTIVE);
@@ -170,6 +181,8 @@ void batadv_mesh_free(struct net_device *soft_iface)
 	batadv_nc_mesh_free(bat_priv);
 	batadv_dat_free(bat_priv);
 	batadv_bla_free(bat_priv);
+
+	batadv_mcast_free(bat_priv);
 
 	/* Free the TT and the originator tables only after having terminated
 	 * all the other depending components which may use these structures for
@@ -421,13 +434,23 @@ static void batadv_recv_handler_init(void)
 	for (i = BATADV_UNICAST_MIN; i <= BATADV_UNICAST_MAX; i++)
 		batadv_rx_handler[i] = batadv_recv_unhandled_unicast_packet;
 
-	/* compile time checks for struct member offsets */
-	BUILD_BUG_ON(offsetof(struct batadv_unicast_4addr_packet, src) != 10);
-	BUILD_BUG_ON(offsetof(struct batadv_unicast_packet, dest) != 4);
-	BUILD_BUG_ON(offsetof(struct batadv_unicast_tvlv_packet, dst) != 4);
-	BUILD_BUG_ON(offsetof(struct batadv_frag_packet, dest) != 4);
-	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet, dst) != 4);
-	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet_rr, dst) != 4);
+	/* compile time checks for sizes */
+	BUILD_BUG_ON(sizeof(struct batadv_bla_claim_dst) != 6);
+	BUILD_BUG_ON(sizeof(struct batadv_ogm_packet) != 24);
+	BUILD_BUG_ON(sizeof(struct batadv_icmp_header) != 20);
+	BUILD_BUG_ON(sizeof(struct batadv_icmp_packet) != 20);
+	BUILD_BUG_ON(sizeof(struct batadv_icmp_packet_rr) != 116);
+	BUILD_BUG_ON(sizeof(struct batadv_unicast_packet) != 10);
+	BUILD_BUG_ON(sizeof(struct batadv_unicast_4addr_packet) != 18);
+	BUILD_BUG_ON(sizeof(struct batadv_frag_packet) != 20);
+	BUILD_BUG_ON(sizeof(struct batadv_bcast_packet) != 14);
+	BUILD_BUG_ON(sizeof(struct batadv_coded_packet) != 46);
+	BUILD_BUG_ON(sizeof(struct batadv_unicast_tvlv_packet) != 20);
+	BUILD_BUG_ON(sizeof(struct batadv_tvlv_hdr) != 4);
+	BUILD_BUG_ON(sizeof(struct batadv_tvlv_gateway_data) != 8);
+	BUILD_BUG_ON(sizeof(struct batadv_tvlv_tt_vlan_data) != 8);
+	BUILD_BUG_ON(sizeof(struct batadv_tvlv_tt_change) != 12);
+	BUILD_BUG_ON(sizeof(struct batadv_tvlv_roam_adv) != 8);
 
 	/* broadcast packet */
 	batadv_rx_handler[BATADV_BCAST] = batadv_recv_bcast_packet;
@@ -1125,8 +1148,8 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, uint8_t *src,
 	unicast_tvlv_packet->reserved = 0;
 	unicast_tvlv_packet->tvlv_len = htons(tvlv_len);
 	unicast_tvlv_packet->align = 0;
-	memcpy(unicast_tvlv_packet->src, src, ETH_ALEN);
-	memcpy(unicast_tvlv_packet->dst, dst, ETH_ALEN);
+	ether_addr_copy(unicast_tvlv_packet->src, src);
+	ether_addr_copy(unicast_tvlv_packet->dst, dst);
 
 	tvlv_buff = (unsigned char *)(unicast_tvlv_packet + 1);
 	tvlv_hdr = (struct batadv_tvlv_hdr *)tvlv_buff;
@@ -1171,6 +1194,32 @@ unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len)
 	vid |= BATADV_VLAN_HAS_TAG;
 
 	return vid;
+}
+
+/**
+ * batadv_vlan_ap_isola_get - return the AP isolation status for the given vlan
+ * @bat_priv: the bat priv with all the soft interface information
+ * @vid: the VLAN identifier for which the AP isolation attributed as to be
+ *  looked up
+ *
+ * Returns true if AP isolation is on for the VLAN idenfied by vid, false
+ * otherwise
+ */
+bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid)
+{
+	bool ap_isolation_enabled = false;
+	struct batadv_softif_vlan *vlan;
+
+	/* if the AP isolation is requested on a VLAN, then check for its
+	 * setting in the proper VLAN private data structure
+	 */
+	vlan = batadv_softif_vlan_get(bat_priv, vid);
+	if (vlan) {
+		ap_isolation_enabled = atomic_read(&vlan->ap_isolation);
+		batadv_softif_vlan_free_ref(vlan);
+	}
+
+	return ap_isolation_enabled;
 }
 
 static int batadv_param_set_ra(const char *val, const struct kernel_param *kp)

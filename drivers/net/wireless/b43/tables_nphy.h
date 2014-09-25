@@ -143,8 +143,7 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 #define B43_NTAB_TMAP_R3		B43_NTAB32(12,   0) /* TM AP  */
 #define B43_NTAB_INTLEVEL_R3		B43_NTAB32(13,   0) /* INT LV  */
 #define B43_NTAB_TDTRN_R3		B43_NTAB32(14,   0) /* TD TRN  */
-#define B43_NTAB_NOISEVAR0_R3		B43_NTAB32(16,   0) /* noise variance 0  */
-#define B43_NTAB_NOISEVAR1_R3		B43_NTAB32(16, 128) /* noise variance 1  */
+#define B43_NTAB_NOISEVAR_R3		B43_NTAB32(16,   0) /* noise variance */
 #define B43_NTAB_MCS_R3			B43_NTAB16(18,   0) /* MCS  */
 #define B43_NTAB_TDI20A0_R3		B43_NTAB32(19, 128) /* TDI 20/0  */
 #define B43_NTAB_TDI20A1_R3		B43_NTAB32(19, 256) /* TDI 20/1  */
@@ -165,6 +164,10 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 #define B43_NTAB_C1_IQLT_R3		B43_NTAB32(27, 320) /* I/Q lookup 1  */
 #define B43_NTAB_C1_LOFEEDTH_R3		B43_NTAB16(27, 448) /* Local Oscillator Feed Through lookup 1 */
 #define B43_NTAB_C1_PAPD_COMP_R3	B43_NTAB16(27, 576)
+
+/* Static N-PHY tables, PHY revision >= 7 */
+#define B43_NTAB_TMAP_R7		B43_NTAB32(12,   0) /* TM AP */
+#define B43_NTAB_NOISEVAR_R7		B43_NTAB32(16,   0) /* noise variance */
 
 #define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_40_SIZE	18
 #define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_20_SIZE	18

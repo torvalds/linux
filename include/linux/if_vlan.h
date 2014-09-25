@@ -73,7 +73,7 @@ static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 /* found in socket.c */
 extern void vlan_ioctl_set(int (*hook)(struct net *, void __user *));
 
-static inline int is_vlan_dev(struct net_device *dev)
+static inline bool is_vlan_dev(struct net_device *dev)
 {
         return dev->priv_flags & IFF_802_1Q_VLAN;
 }
@@ -81,25 +81,6 @@ static inline int is_vlan_dev(struct net_device *dev)
 #define vlan_tx_tag_present(__skb)	((__skb)->vlan_tci & VLAN_TAG_PRESENT)
 #define vlan_tx_tag_get(__skb)		((__skb)->vlan_tci & ~VLAN_TAG_PRESENT)
 #define vlan_tx_tag_get_id(__skb)	((__skb)->vlan_tci & VLAN_VID_MASK)
-
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-
-extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
-					       __be16 vlan_proto, u16 vlan_id);
-extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
-extern u16 vlan_dev_vlan_id(const struct net_device *dev);
-
-/**
- *	struct vlan_priority_tci_mapping - vlan egress priority mappings
- *	@priority: skb priority
- *	@vlan_qos: vlan priority: (skb->priority << 13) & 0xE000
- *	@next: pointer to next struct
- */
-struct vlan_priority_tci_mapping {
-	u32					priority;
-	u16					vlan_qos;
-	struct vlan_priority_tci_mapping	*next;
-};
 
 /**
  *	struct vlan_pcpu_stats - VLAN percpu rx/tx stats
@@ -121,6 +102,26 @@ struct vlan_pcpu_stats {
 	struct u64_stats_sync	syncp;
 	u32			rx_errors;
 	u32			tx_dropped;
+};
+
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+
+extern struct net_device *__vlan_find_dev_deep_rcu(struct net_device *real_dev,
+					       __be16 vlan_proto, u16 vlan_id);
+extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
+extern u16 vlan_dev_vlan_id(const struct net_device *dev);
+extern __be16 vlan_dev_vlan_proto(const struct net_device *dev);
+
+/**
+ *	struct vlan_priority_tci_mapping - vlan egress priority mappings
+ *	@priority: skb priority
+ *	@vlan_qos: vlan priority: (skb->priority << 13) & 0xE000
+ *	@next: pointer to next struct
+ */
+struct vlan_priority_tci_mapping {
+	u32					priority;
+	u16					vlan_qos;
+	struct vlan_priority_tci_mapping	*next;
 };
 
 struct proc_dir_entry;
@@ -158,6 +159,7 @@ struct vlan_dev_priv {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll				*netpoll;
 #endif
+	unsigned int				nest_level;
 };
 
 static inline struct vlan_dev_priv *vlan_dev_priv(const struct net_device *dev)
@@ -185,7 +187,6 @@ vlan_dev_get_egress_qos_mask(struct net_device *dev, u32 skprio)
 }
 
 extern bool vlan_do_receive(struct sk_buff **skb);
-extern struct sk_buff *vlan_untag(struct sk_buff *skb);
 
 extern int vlan_vid_add(struct net_device *dev, __be16 proto, u16 vid);
 extern void vlan_vid_del(struct net_device *dev, __be16 proto, u16 vid);
@@ -196,9 +197,15 @@ extern void vlan_vids_del_by_dev(struct net_device *dev,
 				 const struct net_device *by_dev);
 
 extern bool vlan_uses_dev(const struct net_device *dev);
+
+static inline int vlan_get_encap_level(struct net_device *dev)
+{
+	BUG_ON(!is_vlan_dev(dev));
+	return vlan_dev_priv(dev)->nest_level;
+}
 #else
 static inline struct net_device *
-__vlan_find_dev_deep(struct net_device *real_dev,
+__vlan_find_dev_deep_rcu(struct net_device *real_dev,
 		     __be16 vlan_proto, u16 vlan_id)
 {
 	return NULL;
@@ -216,6 +223,12 @@ static inline u16 vlan_dev_vlan_id(const struct net_device *dev)
 	return 0;
 }
 
+static inline __be16 vlan_dev_vlan_proto(const struct net_device *dev)
+{
+	BUG();
+	return 0;
+}
+
 static inline u16 vlan_dev_get_egress_qos_mask(struct net_device *dev,
 					       u32 skprio)
 {
@@ -225,11 +238,6 @@ static inline u16 vlan_dev_get_egress_qos_mask(struct net_device *dev,
 static inline bool vlan_do_receive(struct sk_buff **skb)
 {
 	return false;
-}
-
-static inline struct sk_buff *vlan_untag(struct sk_buff *skb)
-{
-	return skb;
 }
 
 static inline int vlan_vid_add(struct net_device *dev, __be16 proto, u16 vid)
@@ -255,6 +263,11 @@ static inline void vlan_vids_del_by_dev(struct net_device *dev,
 static inline bool vlan_uses_dev(const struct net_device *dev)
 {
 	return false;
+}
+static inline int vlan_get_encap_level(struct net_device *dev)
+{
+	BUG();
+	return 0;
 }
 #endif
 
@@ -288,7 +301,7 @@ static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb,
 	struct vlan_ethhdr *veth;
 
 	if (skb_cow_head(skb, VLAN_HLEN) < 0) {
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NULL;
 	}
 	veth = (struct vlan_ethhdr *)skb_push(skb, VLAN_HLEN);
@@ -476,4 +489,5 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
 		 */
 		skb->protocol = htons(ETH_P_802_2);
 }
+
 #endif /* !(_LINUX_IF_VLAN_H_) */

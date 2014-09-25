@@ -166,7 +166,7 @@ static int sn_set_msi_irq_affinity(struct irq_data *data,
 	struct sn_pcibus_provider *provider;
 	unsigned int cpu, irq = data->irq;
 
-	cpu = cpumask_first(cpu_mask);
+	cpu = cpumask_first_and(cpu_mask, cpu_online_mask);
 	sn_irq_info = sn_msi_info[irq].sn_irq_info;
 	if (sn_irq_info == NULL || sn_irq_info->irq_int_bit >= 0)
 		return -1;

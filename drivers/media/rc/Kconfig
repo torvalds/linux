@@ -84,18 +84,6 @@ config IR_SONY_DECODER
 	   Enable this option if you have an infrared remote control which
 	   uses the Sony protocol, and you need software decoding support.
 
-config IR_RC5_SZ_DECODER
-	tristate "Enable IR raw decoder for the RC-5 (streamzap) protocol"
-	depends on RC_CORE
-	select BITREVERSE
-	default y
-
-	---help---
-	   Enable this option if you have IR with RC-5 (streamzap) protocol,
-	   and if the IR is decoded in software. (The Streamzap PC Remote
-	   uses an IR protocol that is almost standard RC-5, but not quite,
-	   as it uses an additional bit).
-
 config IR_SANYO_DECODER
 	tristate "Enable IR raw decoder for the Sanyo protocol"
 	depends on RC_CORE
@@ -105,6 +93,15 @@ config IR_SANYO_DECODER
 	   Enable this option if you have an infrared remote control which
 	   uses the Sanyo protocol (Sanyo, Aiwa, Chinon remotes),
 	   and you need software decoding support.
+
+config IR_SHARP_DECODER
+	tristate "Enable IR raw decoder for the Sharp protocol"
+	depends on RC_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the Sharp protocol, and you need software decoding support.
 
 config IR_MCE_KBD_DECODER
 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"
@@ -116,6 +113,16 @@ config IR_MCE_KBD_DECODER
 	   Enable this option if you have a Microsoft Remote Keyboard for
 	   Windows Media Center Edition, which you would like to use with
 	   a raw IR receiver in your system.
+
+config IR_XMP_DECODER
+	tristate "Enable IR raw decoder for the XMP protocol"
+	depends on RC_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have IR with XMP protocol, and
+	   if the IR is decoded in software
 endif #RC_DECODERS
 
 menuconfig RC_DEVICES
@@ -300,6 +307,8 @@ config IR_RX51
 	   The driver uses omap DM timers for generating the carrier
 	   wave and pulses.
 
+source "drivers/media/rc/img-ir/Kconfig"
+
 config RC_LOOPBACK
 	tristate "Remote Control Loopback Driver"
 	depends on RC_CORE
@@ -331,5 +340,15 @@ config RC_ST
 	 The driver passes raw pulse and space information to the LIRC decoder.
 
 	 If you're not sure, select N here.
+
+config IR_SUNXI
+    tristate "SUNXI IR remote control"
+    depends on RC_CORE
+    depends on ARCH_SUNXI
+    ---help---
+      Say Y if you want to use sunXi internal IR Controller
+
+      To compile this driver as a module, choose M here: the module will
+      be called sunxi-ir.
 
 endif #RC_DEVICES

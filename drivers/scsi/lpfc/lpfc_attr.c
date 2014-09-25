@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -529,6 +529,27 @@ lpfc_sli4_protocol_show(struct device *dev, struct device_attribute *attr,
 }
 
 /**
+ * lpfc_oas_supported_show - Return whether or not Optimized Access Storage
+ *			    (OAS) is supported.
+ * @dev: class unused variable.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the module description text.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_oas_supported_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			phba->sli4_hba.pc_sli4_params.oas_supported);
+}
+
+/**
  * lpfc_link_state_store - Transition the link_state on an HBA port
  * @dev: class device that is converted into a Scsi_host.
  * @attr: device attribute, not used.
@@ -898,10 +919,15 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 		phba->cfg_sriov_nr_virtfn = 0;
 	}
 
+	if (opcode == LPFC_FW_DUMP)
+		phba->hba_flag |= HBA_FW_DUMP_OP;
+
 	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
-	if (status != 0)
+	if (status != 0) {
+		phba->hba_flag &= ~HBA_FW_DUMP_OP;
 		return status;
+	}
 
 	/* wait for the device to be quiesced before firmware reset */
 	msleep(100);
@@ -1972,6 +1998,14 @@ lpfc_vport_param_show(name)\
 lpfc_vport_param_init(name, defval, minval, maxval)\
 static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
 
+#define LPFC_VPORT_ULL_ATTR_R(name, defval, minval, maxval, desc) \
+static uint64_t lpfc_##name = defval;\
+module_param(lpfc_##name, ullong, S_IRUGO);\
+MODULE_PARM_DESC(lpfc_##name, desc);\
+lpfc_vport_param_show(name)\
+lpfc_vport_param_init(name, defval, minval, maxval)\
+static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
+
 #define LPFC_VPORT_ATTR_RW(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
 module_param(lpfc_##name, uint, S_IRUGO);\
@@ -2041,9 +2075,53 @@ static DEVICE_ATTR(lpfc_dss, S_IRUGO, lpfc_dss_show, NULL);
 static DEVICE_ATTR(lpfc_sriov_hw_max_virtfn, S_IRUGO,
 		   lpfc_sriov_hw_max_virtfn_show, NULL);
 static DEVICE_ATTR(protocol, S_IRUGO, lpfc_sli4_protocol_show, NULL);
+static DEVICE_ATTR(lpfc_xlane_supported, S_IRUGO, lpfc_oas_supported_show,
+		   NULL);
 
 static char *lpfc_soft_wwn_key = "C99G71SL8032A";
+#define WWN_SZ 8
+/**
+ * lpfc_wwn_set - Convert string to the 8 byte WWN value.
+ * @buf: WWN string.
+ * @cnt: Length of string.
+ * @wwn: Array to receive converted wwn value.
+ *
+ * Returns:
+ * -EINVAL if the buffer does not contain a valid wwn
+ * 0 success
+ **/
+static size_t
+lpfc_wwn_set(const char *buf, size_t cnt, char wwn[])
+{
+	unsigned int i, j;
 
+	/* Count may include a LF at end of string */
+	if (buf[cnt-1] == '\n')
+		cnt--;
+
+	if ((cnt < 16) || (cnt > 18) || ((cnt == 17) && (*buf++ != 'x')) ||
+	    ((cnt == 18) && ((*buf++ != '0') || (*buf++ != 'x'))))
+		return -EINVAL;
+
+	memset(wwn, 0, WWN_SZ);
+
+	/* Validate and store the new name */
+	for (i = 0, j = 0; i < 16; i++) {
+		if ((*buf >= 'a') && (*buf <= 'f'))
+			j = ((j << 4) | ((*buf++ - 'a') + 10));
+		else if ((*buf >= 'A') && (*buf <= 'F'))
+			j = ((j << 4) | ((*buf++ - 'A') + 10));
+		else if ((*buf >= '0') && (*buf <= '9'))
+			j = ((j << 4) | (*buf++ - '0'));
+		else
+			return -EINVAL;
+		if (i % 2) {
+			wwn[i/2] = j & 0xff;
+			j = 0;
+		}
+	}
+	return 0;
+}
 /**
  * lpfc_soft_wwn_enable_store - Allows setting of the wwn if the key is valid
  * @dev: class device that is converted into a Scsi_host.
@@ -2132,9 +2210,9 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 	struct completion online_compl;
-	int stat1=0, stat2=0;
-	unsigned int i, j, cnt=count;
-	u8 wwpn[8];
+	int stat1 = 0, stat2 = 0;
+	unsigned int cnt = count;
+	u8 wwpn[WWN_SZ];
 	int rc;
 
 	if (!phba->cfg_enable_hba_reset)
@@ -2149,29 +2227,19 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 	if (buf[cnt-1] == '\n')
 		cnt--;
 
-	if (!phba->soft_wwn_enable || (cnt < 16) || (cnt > 18) ||
-	    ((cnt == 17) && (*buf++ != 'x')) ||
-	    ((cnt == 18) && ((*buf++ != '0') || (*buf++ != 'x'))))
+	if (!phba->soft_wwn_enable)
 		return -EINVAL;
 
+	/* lock setting wwpn, wwnn down */
 	phba->soft_wwn_enable = 0;
 
-	memset(wwpn, 0, sizeof(wwpn));
-
-	/* Validate and store the new name */
-	for (i=0, j=0; i < 16; i++) {
-		int value;
-
-		value = hex_to_bin(*buf++);
-		if (value >= 0)
-			j = (j << 4) | value;
-		else
-			return -EINVAL;
-		if (i % 2) {
-			wwpn[i/2] = j & 0xff;
-			j = 0;
-		}
+	rc = lpfc_wwn_set(buf, cnt, wwpn);
+	if (!rc) {
+		/* not able to set wwpn, unlock it */
+		phba->soft_wwn_enable = 1;
+		return rc;
 	}
+
 	phba->cfg_soft_wwpn = wwn_to_u64(wwpn);
 	fc_host_port_name(shost) = phba->cfg_soft_wwpn;
 	if (phba->cfg_soft_wwnn)
@@ -2198,7 +2266,7 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 				"reinit adapter - %d\n", stat2);
 	return (stat1 || stat2) ? -EIO : count;
 }
-static DEVICE_ATTR(lpfc_soft_wwpn, S_IRUGO | S_IWUSR,\
+static DEVICE_ATTR(lpfc_soft_wwpn, S_IRUGO | S_IWUSR,
 		   lpfc_soft_wwpn_show, lpfc_soft_wwpn_store);
 
 /**
@@ -2235,39 +2303,25 @@ lpfc_soft_wwnn_store(struct device *dev, struct device_attribute *attr,
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
-	unsigned int i, j, cnt=count;
-	u8 wwnn[8];
+	unsigned int cnt = count;
+	u8 wwnn[WWN_SZ];
+	int rc;
 
 	/* count may include a LF at end of string */
 	if (buf[cnt-1] == '\n')
 		cnt--;
 
-	if (!phba->soft_wwn_enable || (cnt < 16) || (cnt > 18) ||
-	    ((cnt == 17) && (*buf++ != 'x')) ||
-	    ((cnt == 18) && ((*buf++ != '0') || (*buf++ != 'x'))))
+	if (!phba->soft_wwn_enable)
 		return -EINVAL;
 
-	/*
-	 * Allow wwnn to be set many times, as long as the enable is set.
-	 * However, once the wwpn is set, everything locks.
-	 */
-
-	memset(wwnn, 0, sizeof(wwnn));
-
-	/* Validate and store the new name */
-	for (i=0, j=0; i < 16; i++) {
-		int value;
-
-		value = hex_to_bin(*buf++);
-		if (value >= 0)
-			j = (j << 4) | value;
-		else
-			return -EINVAL;
-		if (i % 2) {
-			wwnn[i/2] = j & 0xff;
-			j = 0;
-		}
+	rc = lpfc_wwn_set(buf, cnt, wwnn);
+	if (!rc) {
+		/* Allow wwnn to be set many times, as long as the enable
+		 * is set. However, once the wwpn is set, everything locks.
+		 */
+		return rc;
 	}
+
 	phba->cfg_soft_wwnn = wwn_to_u64(wwnn);
 
 	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
@@ -2276,9 +2330,438 @@ lpfc_soft_wwnn_store(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR(lpfc_soft_wwnn, S_IRUGO | S_IWUSR,\
+static DEVICE_ATTR(lpfc_soft_wwnn, S_IRUGO | S_IWUSR,
 		   lpfc_soft_wwnn_show, lpfc_soft_wwnn_store);
 
+/**
+ * lpfc_oas_tgt_show - Return wwpn of target whose luns maybe enabled for
+ *		      Optimized Access Storage (OAS) operations.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: buffer for passing information.
+ *
+ * Returns:
+ * value of count
+ **/
+static ssize_t
+lpfc_oas_tgt_show(struct device *dev, struct device_attribute *attr,
+		  char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+
+	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
+			wwn_to_u64(phba->cfg_oas_tgt_wwpn));
+}
+
+/**
+ * lpfc_oas_tgt_store - Store wwpn of target whose luns maybe enabled for
+ *		      Optimized Access Storage (OAS) operations.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: buffer for passing information.
+ * @count: Size of the data buffer.
+ *
+ * Returns:
+ * -EINVAL count is invalid, invalid wwpn byte invalid
+ * -EPERM oas is not supported by hba
+ * value of count on success
+ **/
+static ssize_t
+lpfc_oas_tgt_store(struct device *dev, struct device_attribute *attr,
+		   const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+	unsigned int cnt = count;
+	uint8_t wwpn[WWN_SZ];
+	int rc;
+
+	if (!phba->cfg_fof)
+		return -EPERM;
+
+	/* count may include a LF at end of string */
+	if (buf[cnt-1] == '\n')
+		cnt--;
+
+	rc = lpfc_wwn_set(buf, cnt, wwpn);
+	if (rc)
+		return rc;
+
+	memcpy(phba->cfg_oas_tgt_wwpn, wwpn, (8 * sizeof(uint8_t)));
+	memcpy(phba->sli4_hba.oas_next_tgt_wwpn, wwpn, (8 * sizeof(uint8_t)));
+	if (wwn_to_u64(wwpn) == 0)
+		phba->cfg_oas_flags |= OAS_FIND_ANY_TARGET;
+	else
+		phba->cfg_oas_flags &= ~OAS_FIND_ANY_TARGET;
+	phba->cfg_oas_flags &= ~OAS_LUN_VALID;
+	phba->sli4_hba.oas_next_lun = FIND_FIRST_OAS_LUN;
+	return count;
+}
+static DEVICE_ATTR(lpfc_xlane_tgt, S_IRUGO | S_IWUSR,
+		   lpfc_oas_tgt_show, lpfc_oas_tgt_store);
+
+/**
+ * lpfc_oas_vpt_show - Return wwpn of vport whose targets maybe enabled
+ *		      for Optimized Access Storage (OAS) operations.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: buffer for passing information.
+ *
+ * Returns:
+ * value of count on success
+ **/
+static ssize_t
+lpfc_oas_vpt_show(struct device *dev, struct device_attribute *attr,
+		  char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+
+	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
+			wwn_to_u64(phba->cfg_oas_vpt_wwpn));
+}
+
+/**
+ * lpfc_oas_vpt_store - Store wwpn of vport whose targets maybe enabled
+ *		      for Optimized Access Storage (OAS) operations.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: buffer for passing information.
+ * @count: Size of the data buffer.
+ *
+ * Returns:
+ * -EINVAL count is invalid, invalid wwpn byte invalid
+ * -EPERM oas is not supported by hba
+ * value of count on success
+ **/
+static ssize_t
+lpfc_oas_vpt_store(struct device *dev, struct device_attribute *attr,
+		   const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+	unsigned int cnt = count;
+	uint8_t wwpn[WWN_SZ];
+	int rc;
+
+	if (!phba->cfg_fof)
+		return -EPERM;
+
+	/* count may include a LF at end of string */
+	if (buf[cnt-1] == '\n')
+		cnt--;
+
+	rc = lpfc_wwn_set(buf, cnt, wwpn);
+	if (rc)
+		return rc;
+
+	memcpy(phba->cfg_oas_vpt_wwpn, wwpn, (8 * sizeof(uint8_t)));
+	memcpy(phba->sli4_hba.oas_next_vpt_wwpn, wwpn, (8 * sizeof(uint8_t)));
+	if (wwn_to_u64(wwpn) == 0)
+		phba->cfg_oas_flags |= OAS_FIND_ANY_VPORT;
+	else
+		phba->cfg_oas_flags &= ~OAS_FIND_ANY_VPORT;
+	phba->cfg_oas_flags &= ~OAS_LUN_VALID;
+	phba->sli4_hba.oas_next_lun = FIND_FIRST_OAS_LUN;
+	return count;
+}
+static DEVICE_ATTR(lpfc_xlane_vpt, S_IRUGO | S_IWUSR,
+		   lpfc_oas_vpt_show, lpfc_oas_vpt_store);
+
+/**
+ * lpfc_oas_lun_state_show - Return the current state (enabled or disabled)
+ *			    of whether luns will be enabled or disabled
+ *			    for Optimized Access Storage (OAS) operations.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: buffer for passing information.
+ *
+ * Returns:
+ * size of formatted string.
+ **/
+static ssize_t
+lpfc_oas_lun_state_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", phba->cfg_oas_lun_state);
+}
+
+/**
+ * lpfc_oas_lun_state_store - Store the state (enabled or disabled)
+ *			    of whether luns will be enabled or disabled
+ *			    for Optimized Access Storage (OAS) operations.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: buffer for passing information.
+ * @count: Size of the data buffer.
+ *
+ * Returns:
+ * -EINVAL count is invalid, invalid wwpn byte invalid
+ * -EPERM oas is not supported by hba
+ * value of count on success
+ **/
+static ssize_t
+lpfc_oas_lun_state_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+	int val = 0;
+
+	if (!phba->cfg_fof)
+		return -EPERM;
+
+	if (!isdigit(buf[0]))
+		return -EINVAL;
+
+	if (sscanf(buf, "%i", &val) != 1)
+		return -EINVAL;
+
+	if ((val != 0) && (val != 1))
+		return -EINVAL;
+
+	phba->cfg_oas_lun_state = val;
+
+	return strlen(buf);
+}
+static DEVICE_ATTR(lpfc_xlane_lun_state, S_IRUGO | S_IWUSR,
+		   lpfc_oas_lun_state_show, lpfc_oas_lun_state_store);
+
+/**
+ * lpfc_oas_lun_status_show - Return the status of the Optimized Access
+ *                          Storage (OAS) lun returned by the
+ *                          lpfc_oas_lun_show function.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: buffer for passing information.
+ *
+ * Returns:
+ * size of formatted string.
+ **/
+static ssize_t
+lpfc_oas_lun_status_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+
+	if (!(phba->cfg_oas_flags & OAS_LUN_VALID))
+		return -EFAULT;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", phba->cfg_oas_lun_status);
+}
+static DEVICE_ATTR(lpfc_xlane_lun_status, S_IRUGO,
+		   lpfc_oas_lun_status_show, NULL);
+
+
+/**
+ * lpfc_oas_lun_state_set - enable or disable a lun for Optimized Access Storage
+ *			   (OAS) operations.
+ * @phba: lpfc_hba pointer.
+ * @ndlp: pointer to fcp target node.
+ * @lun: the fc lun for setting oas state.
+ * @oas_state: the oas state to be set to the lun.
+ *
+ * Returns:
+ * SUCCESS : 0
+ * -EPERM OAS is not enabled or not supported by this port.
+ *
+ */
+static size_t
+lpfc_oas_lun_state_set(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
+		       uint8_t tgt_wwpn[], uint64_t lun, uint32_t oas_state)
+{
+
+	int rc = 0;
+
+	if (!phba->cfg_fof)
+		return -EPERM;
+
+	if (oas_state) {
+		if (!lpfc_enable_oas_lun(phba, (struct lpfc_name *)vpt_wwpn,
+					 (struct lpfc_name *)tgt_wwpn, lun))
+			rc = -ENOMEM;
+	} else {
+		lpfc_disable_oas_lun(phba, (struct lpfc_name *)vpt_wwpn,
+				     (struct lpfc_name *)tgt_wwpn, lun);
+	}
+	return rc;
+
+}
+
+/**
+ * lpfc_oas_lun_get_next - get the next lun that has been enabled for Optimized
+ *			  Access Storage (OAS) operations.
+ * @phba: lpfc_hba pointer.
+ * @vpt_wwpn: wwpn of the vport associated with the returned lun
+ * @tgt_wwpn: wwpn of the target associated with the returned lun
+ * @lun_status: status of the lun returned lun
+ *
+ * Returns the first or next lun enabled for OAS operations for the vport/target
+ * specified.  If a lun is found, its vport wwpn, target wwpn and status is
+ * returned.  If the lun is not found, NOT_OAS_ENABLED_LUN is returned.
+ *
+ * Return:
+ * lun that is OAS enabled for the vport/target
+ * NOT_OAS_ENABLED_LUN when no oas enabled lun found.
+ */
+static uint64_t
+lpfc_oas_lun_get_next(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
+		      uint8_t tgt_wwpn[], uint32_t *lun_status)
+{
+	uint64_t found_lun;
+
+	if (unlikely(!phba) || !vpt_wwpn || !tgt_wwpn)
+		return NOT_OAS_ENABLED_LUN;
+	if (lpfc_find_next_oas_lun(phba, (struct lpfc_name *)
+				   phba->sli4_hba.oas_next_vpt_wwpn,
+				   (struct lpfc_name *)
+				   phba->sli4_hba.oas_next_tgt_wwpn,
+				   &phba->sli4_hba.oas_next_lun,
+				   (struct lpfc_name *)vpt_wwpn,
+				   (struct lpfc_name *)tgt_wwpn,
+				   &found_lun, lun_status))
+		return found_lun;
+	else
+		return NOT_OAS_ENABLED_LUN;
+}
+
+/**
+ * lpfc_oas_lun_state_change - enable/disable a lun for OAS operations
+ * @phba: lpfc_hba pointer.
+ * @vpt_wwpn: vport wwpn by reference.
+ * @tgt_wwpn: target wwpn by reference.
+ * @lun: the fc lun for setting oas state.
+ * @oas_state: the oas state to be set to the oas_lun.
+ *
+ * This routine enables (OAS_LUN_ENABLE) or disables (OAS_LUN_DISABLE)
+ * a lun for OAS operations.
+ *
+ * Return:
+ * SUCCESS: 0
+ * -ENOMEM: failed to enable an lun for OAS operations
+ * -EPERM: OAS is not enabled
+ */
+static ssize_t
+lpfc_oas_lun_state_change(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
+			  uint8_t tgt_wwpn[], uint64_t lun,
+			  uint32_t oas_state)
+{
+
+	int rc;
+
+	rc = lpfc_oas_lun_state_set(phba, vpt_wwpn, tgt_wwpn, lun,
+					oas_state);
+	return rc;
+}
+
+/**
+ * lpfc_oas_lun_show - Return oas enabled luns from a chosen target
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: buffer for passing information.
+ *
+ * This routine returns a lun enabled for OAS each time the function
+ * is called.
+ *
+ * Returns:
+ * SUCCESS: size of formatted string.
+ * -EFAULT: target or vport wwpn was not set properly.
+ * -EPERM: oas is not enabled.
+ **/
+static ssize_t
+lpfc_oas_lun_show(struct device *dev, struct device_attribute *attr,
+		  char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+
+	uint64_t oas_lun;
+	int len = 0;
+
+	if (!phba->cfg_fof)
+		return -EPERM;
+
+	if (wwn_to_u64(phba->cfg_oas_vpt_wwpn) == 0)
+		if (!(phba->cfg_oas_flags & OAS_FIND_ANY_VPORT))
+			return -EFAULT;
+
+	if (wwn_to_u64(phba->cfg_oas_tgt_wwpn) == 0)
+		if (!(phba->cfg_oas_flags & OAS_FIND_ANY_TARGET))
+			return -EFAULT;
+
+	oas_lun = lpfc_oas_lun_get_next(phba, phba->cfg_oas_vpt_wwpn,
+					phba->cfg_oas_tgt_wwpn,
+					&phba->cfg_oas_lun_status);
+	if (oas_lun != NOT_OAS_ENABLED_LUN)
+		phba->cfg_oas_flags |= OAS_LUN_VALID;
+
+	len += snprintf(buf + len, PAGE_SIZE-len, "0x%llx", oas_lun);
+
+	return len;
+}
+
+/**
+ * lpfc_oas_lun_store - Sets the OAS state for lun
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: buffer for passing information.
+ *
+ * This function sets the OAS state for lun.  Before this function is called,
+ * the vport wwpn, target wwpn, and oas state need to be set.
+ *
+ * Returns:
+ * SUCCESS: size of formatted string.
+ * -EFAULT: target or vport wwpn was not set properly.
+ * -EPERM: oas is not enabled.
+ * size of formatted string.
+ **/
+static ssize_t
+lpfc_oas_lun_store(struct device *dev, struct device_attribute *attr,
+		   const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+	uint64_t scsi_lun;
+	ssize_t rc;
+
+	if (!phba->cfg_fof)
+		return -EPERM;
+
+	if (wwn_to_u64(phba->cfg_oas_vpt_wwpn) == 0)
+		return -EFAULT;
+
+	if (wwn_to_u64(phba->cfg_oas_tgt_wwpn) == 0)
+		return -EFAULT;
+
+	if (!isdigit(buf[0]))
+		return -EINVAL;
+
+	if (sscanf(buf, "0x%llx", &scsi_lun) != 1)
+		return -EINVAL;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"3372 Try to set vport 0x%llx target 0x%llx lun:%lld "
+			"with oas set to %d\n",
+			wwn_to_u64(phba->cfg_oas_vpt_wwpn),
+			wwn_to_u64(phba->cfg_oas_tgt_wwpn), scsi_lun,
+			phba->cfg_oas_lun_state);
+
+	rc = lpfc_oas_lun_state_change(phba, phba->cfg_oas_vpt_wwpn,
+					   phba->cfg_oas_tgt_wwpn, scsi_lun,
+					   phba->cfg_oas_lun_state);
+
+	if (rc)
+		return rc;
+
+	return count;
+}
+static DEVICE_ATTR(lpfc_xlane_lun, S_IRUGO | S_IWUSR,
+		   lpfc_oas_lun_show, lpfc_oas_lun_store);
 
 static int lpfc_poll = 0;
 module_param(lpfc_poll, int, S_IRUGO);
@@ -3818,7 +4301,7 @@ lpfc_fcp_cpu_map_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_vector_map_info *cpup;
-	int  idx, len = 0;
+	int  len = 0;
 
 	if ((phba->sli_rev != LPFC_SLI_REV4) ||
 	    (phba->intr_type != MSIX))
@@ -3846,23 +4329,39 @@ lpfc_fcp_cpu_map_show(struct device *dev, struct device_attribute *attr,
 		break;
 	}
 
-	cpup = phba->sli4_hba.cpu_map;
-	for (idx = 0; idx < phba->sli4_hba.num_present_cpu; idx++) {
+	while (phba->sli4_hba.curr_disp_cpu < phba->sli4_hba.num_present_cpu) {
+		cpup = &phba->sli4_hba.cpu_map[phba->sli4_hba.curr_disp_cpu];
+
+		/* margin should fit in this and the truncated message */
 		if (cpup->irq == LPFC_VECTOR_MAP_EMPTY)
 			len += snprintf(buf + len, PAGE_SIZE-len,
 					"CPU %02d io_chan %02d "
 					"physid %d coreid %d\n",
-					idx, cpup->channel_id, cpup->phys_id,
+					phba->sli4_hba.curr_disp_cpu,
+					cpup->channel_id, cpup->phys_id,
 					cpup->core_id);
 		else
 			len += snprintf(buf + len, PAGE_SIZE-len,
 					"CPU %02d io_chan %02d "
 					"physid %d coreid %d IRQ %d\n",
-					idx, cpup->channel_id, cpup->phys_id,
+					phba->sli4_hba.curr_disp_cpu,
+					cpup->channel_id, cpup->phys_id,
 					cpup->core_id, cpup->irq);
 
-		cpup++;
+		phba->sli4_hba.curr_disp_cpu++;
+
+		/* display max number of CPUs keeping some margin */
+		if (phba->sli4_hba.curr_disp_cpu <
+				phba->sli4_hba.num_present_cpu &&
+				(len >= (PAGE_SIZE - 64))) {
+			len += snprintf(buf + len, PAGE_SIZE-len, "more...\n");
+			break;
+		}
 	}
+
+	if (phba->sli4_hba.curr_disp_cpu == phba->sli4_hba.num_present_cpu)
+		phba->sli4_hba.curr_disp_cpu = 0;
+
 	return len;
 }
 
@@ -4105,7 +4604,7 @@ LPFC_VPORT_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands "
 # Value range is [0,65535]. Default value is 255.
 # NOTE: The SCSI layer might probe all allowed LUN on some old targets.
 */
-LPFC_VPORT_ATTR_R(max_luns, 255, 0, 65535, "Maximum allowed LUN ID");
+LPFC_VPORT_ULL_ATTR_R(max_luns, 255, 0, 65535, "Maximum allowed LUN ID");
 
 /*
 # lpfc_poll_tmo: .Milliseconds driver will wait between polling FCP ring.
@@ -4155,6 +4654,21 @@ LPFC_ATTR_R(enable_hba_reset, 1, 0, 1, "Enable HBA resets from the driver.");
 # Value range is [0,1]. Default value is 1.
 */
 LPFC_ATTR_R(enable_hba_heartbeat, 0, 0, 1, "Enable HBA Heartbeat.");
+
+/*
+# lpfc_EnableXLane: Enable Express Lane Feature
+#      0x0   Express Lane Feature disabled
+#      0x1   Express Lane Feature enabled
+# Value range is [0,1]. Default value is 0.
+*/
+LPFC_ATTR_R(EnableXLane, 0, 0, 1, "Enable Express Lane Feature.");
+
+/*
+# lpfc_XLanePriority:  Define CS_CTL priority for Express Lane Feature
+#       0x0 - 0x7f  = CS_CTL field in FC header (high 7 bits)
+# Value range is [0x0,0x7f]. Default value is 0
+*/
+LPFC_ATTR_RW(XLanePriority, 0, 0x0, 0x7f, "CS_CTL for Express Lane Feature.");
 
 /*
 # lpfc_enable_bg: Enable BlockGuard (Emulex's Implementation of T10-DIF)
@@ -4317,6 +4831,13 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_soft_wwn_enable,
 	&dev_attr_lpfc_enable_hba_reset,
 	&dev_attr_lpfc_enable_hba_heartbeat,
+	&dev_attr_lpfc_EnableXLane,
+	&dev_attr_lpfc_XLanePriority,
+	&dev_attr_lpfc_xlane_lun,
+	&dev_attr_lpfc_xlane_tgt,
+	&dev_attr_lpfc_xlane_vpt,
+	&dev_attr_lpfc_xlane_lun_state,
+	&dev_attr_lpfc_xlane_lun_status,
 	&dev_attr_lpfc_sg_seg_cnt,
 	&dev_attr_lpfc_max_scsicmpl_time,
 	&dev_attr_lpfc_stat_data_ctrl,
@@ -4335,6 +4856,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_dss,
 	&dev_attr_lpfc_sriov_hw_max_virtfn,
 	&dev_attr_protocol,
+	&dev_attr_lpfc_xlane_supported,
 	NULL,
 };
 
@@ -5296,11 +5818,20 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_fcp_io_channel_init(phba, lpfc_fcp_io_channel);
 	lpfc_enable_hba_reset_init(phba, lpfc_enable_hba_reset);
 	lpfc_enable_hba_heartbeat_init(phba, lpfc_enable_hba_heartbeat);
+	lpfc_EnableXLane_init(phba, lpfc_EnableXLane);
+	if (phba->sli_rev != LPFC_SLI_REV4)
+		phba->cfg_EnableXLane = 0;
+	lpfc_XLanePriority_init(phba, lpfc_XLanePriority);
+	memset(phba->cfg_oas_tgt_wwpn, 0, (8 * sizeof(uint8_t)));
+	memset(phba->cfg_oas_vpt_wwpn, 0, (8 * sizeof(uint8_t)));
+	phba->cfg_oas_lun_state = 0;
+	phba->cfg_oas_lun_status = 0;
+	phba->cfg_oas_flags = 0;
 	lpfc_enable_bg_init(phba, lpfc_enable_bg);
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		phba->cfg_poll = 0;
 	else
-	phba->cfg_poll = lpfc_poll;
+		phba->cfg_poll = lpfc_poll;
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
 	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);

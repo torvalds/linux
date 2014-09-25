@@ -13,7 +13,7 @@
 #include <linux/minix_fs.h>
 #include <linux/ext2_fs.h>
 #include <linux/romfs_fs.h>
-#include <linux/cramfs_fs.h>
+#include <uapi/linux/cramfs_fs.h>
 #include <linux/initrd.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -311,9 +311,9 @@ static int exit_code;
 static int decompress_error;
 static int crd_infd, crd_outfd;
 
-static int __init compr_fill(void *buf, unsigned int len)
+static long __init compr_fill(void *buf, unsigned long len)
 {
-	int r = sys_read(crd_infd, buf, len);
+	long r = sys_read(crd_infd, buf, len);
 	if (r < 0)
 		printk(KERN_ERR "RAMDISK: error while reading compressed data");
 	else if (r == 0)
@@ -321,13 +321,13 @@ static int __init compr_fill(void *buf, unsigned int len)
 	return r;
 }
 
-static int __init compr_flush(void *window, unsigned int outcnt)
+static long __init compr_flush(void *window, unsigned long outcnt)
 {
-	int written = sys_write(crd_outfd, window, outcnt);
+	long written = sys_write(crd_outfd, window, outcnt);
 	if (written != outcnt) {
 		if (decompress_error == 0)
 			printk(KERN_ERR
-			       "RAMDISK: incomplete write (%d != %d)\n",
+			       "RAMDISK: incomplete write (%ld != %ld)\n",
 			       written, outcnt);
 		decompress_error = 1;
 		return -1;

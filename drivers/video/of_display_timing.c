@@ -115,10 +115,8 @@ int of_get_display_timing(struct device_node *np, const char *name,
 {
 	struct device_node *timing_np;
 
-	if (!np) {
-		pr_err("%s: no devicenode given\n", of_node_full_name(np));
+	if (!np)
 		return -EINVAL;
-	}
 
 	timing_np = of_get_child_by_name(np, name);
 	if (!timing_np) {
@@ -142,10 +140,8 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 	struct device_node *native_mode;
 	struct display_timings *disp;
 
-	if (!np) {
-		pr_err("%s: no device node given\n", of_node_full_name(np));
+	if (!np)
 		return NULL;
-	}
 
 	timings_np = of_get_child_by_name(np, "display-timings");
 	if (!timings_np) {
@@ -164,7 +160,7 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 	entry = of_parse_phandle(timings_np, "native-mode", 0);
 	/* assume first child as native mode if none provided */
 	if (!entry)
-		entry = of_get_next_child(np, NULL);
+		entry = of_get_next_child(timings_np, NULL);
 	/* if there is no child, it is useless to go on */
 	if (!entry) {
 		pr_err("%s: no timing specifications given\n",
@@ -240,6 +236,7 @@ timingfail:
 	if (native_mode)
 		of_node_put(native_mode);
 	display_timings_release(disp);
+	disp = NULL;
 entryfail:
 	kfree(disp);
 dispfail:

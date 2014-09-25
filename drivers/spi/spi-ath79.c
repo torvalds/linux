@@ -14,10 +14,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/spi/spi.h>
@@ -132,9 +130,9 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 
 		flags = GPIOF_DIR_OUT;
 		if (spi->mode & SPI_CS_HIGH)
-			flags |= GPIOF_INIT_HIGH;
-		else
 			flags |= GPIOF_INIT_LOW;
+		else
+			flags |= GPIOF_INIT_HIGH;
 
 		status = gpio_request_one(cdata->gpio, flags,
 					  dev_name(&spi->dev));
@@ -243,21 +241,21 @@ static int ath79_spi_probe(struct platform_device *pdev)
 		goto err_put_master;
 	}
 
-	sp->base = ioremap(r->start, resource_size(r));
+	sp->base = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!sp->base) {
 		ret = -ENXIO;
 		goto err_put_master;
 	}
 
-	sp->clk = clk_get(&pdev->dev, "ahb");
+	sp->clk = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(sp->clk)) {
 		ret = PTR_ERR(sp->clk);
-		goto err_unmap;
+		goto err_put_master;
 	}
 
 	ret = clk_enable(sp->clk);
 	if (ret)
-		goto err_clk_put;
+		goto err_put_master;
 
 	rate = DIV_ROUND_UP(clk_get_rate(sp->clk), MHZ);
 	if (!rate) {
@@ -280,10 +278,6 @@ err_disable:
 	ath79_spi_disable(sp);
 err_clk_disable:
 	clk_disable(sp->clk);
-err_clk_put:
-	clk_put(sp->clk);
-err_unmap:
-	iounmap(sp->base);
 err_put_master:
 	spi_master_put(sp->bitbang.master);
 
@@ -297,8 +291,6 @@ static int ath79_spi_remove(struct platform_device *pdev)
 	spi_bitbang_stop(&sp->bitbang);
 	ath79_spi_disable(sp);
 	clk_disable(sp->clk);
-	clk_put(sp->clk);
-	iounmap(sp->base);
 	spi_master_put(sp->bitbang.master);
 
 	return 0;

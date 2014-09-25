@@ -200,6 +200,7 @@ struct fw_device {
 	unsigned irmc:1;
 	unsigned bc_implemented:2;
 
+	work_func_t workfn;
 	struct delayed_work work;
 	struct fw_attribute_group attribute_group;
 };
@@ -365,6 +366,9 @@ static inline int fw_stream_packet_destination_id(int tag, int channel, int sy)
 {
 	return tag << 14 | channel << 8 | sy;
 }
+
+void fw_schedule_bus_reset(struct fw_card *card, bool delayed,
+			   bool short_reset);
 
 struct fw_descriptor {
 	struct list_head link;

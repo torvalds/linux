@@ -61,7 +61,7 @@ choice
 	help
 	  There are two families of 64 bit PowerPC chips supported.
 	  The most common ones are the desktop and server CPUs
-	  (POWER3, RS64, POWER4, POWER5, POWER5+, POWER6, ...)
+	  (POWER4, POWER5, 970, POWER5+, POWER6, POWER7, POWER8 ...)
 
 	  The other are the "embedded" processors compliant with the
 	  "Book 3E" variant of the architecture
@@ -72,6 +72,8 @@ config PPC_BOOK3S_64
 	select PPC_HAVE_PMU_SUPPORT
 	select SYS_SUPPORTS_HUGETLBFS
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if PPC_64K_PAGES
+	select ARCH_SUPPORTS_NUMA_BALANCING
+	select IRQ_WORK
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
@@ -137,18 +139,6 @@ config 6xx
 	def_bool y
 	depends on PPC32 && PPC_BOOK3S
 	select PPC_HAVE_PMU_SUPPORT
-
-config POWER3
-	depends on PPC64 && PPC_BOOK3S
-	def_bool y
-
-config POWER4
-	depends on PPC64 && PPC_BOOK3S
-	def_bool y
-
-config PPC_A2
-	bool
-	depends on PPC_BOOK3E_64
 
 config TUNE_CELL
 	bool "Optimize for Cell Broadband Engine"
@@ -246,7 +236,7 @@ config PHYS_64BIT
 
 config ALTIVEC
 	bool "AltiVec Support"
-	depends on 6xx || POWER4 || (PPC_E500MC && PPC64)
+	depends on 6xx || PPC_BOOK3S_64 || (PPC_E500MC && PPC64)
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring
@@ -262,7 +252,7 @@ config ALTIVEC
 
 config VSX
 	bool "VSX Support"
-	depends on POWER4 && ALTIVEC && PPC_FPU
+	depends on PPC_BOOK3S_64 && ALTIVEC && PPC_FPU
 	---help---
 
 	  This option enables kernel support for the Vector Scaler extensions
@@ -278,7 +268,7 @@ config VSX
 
 config PPC_ICSWX
 	bool "Support for PowerPC icswx coprocessor instruction"
-	depends on POWER4 || PPC_A2
+	depends on PPC_BOOK3S_64
 	default n
 	---help---
 
@@ -296,7 +286,7 @@ config PPC_ICSWX
 
 config PPC_ICSWX_PID
 	bool "icswx requires direct PID management"
-	depends on PPC_ICSWX && POWER4
+	depends on PPC_ICSWX
 	default y
 	---help---
 	  The PID register in server is used explicitly for ICSWX.  In
@@ -420,6 +410,7 @@ config CPU_BIG_ENDIAN
 
 config CPU_LITTLE_ENDIAN
 	bool "Build little endian kernel"
+	select PPC64_BOOT_WRAPPER
 	help
 	  Build a little endian kernel.
 
@@ -428,3 +419,7 @@ config CPU_LITTLE_ENDIAN
 	  little endian powerpc.
 
 endchoice
+
+config PPC64_BOOT_WRAPPER
+	def_bool n
+	depends on CPU_LITTLE_ENDIAN

@@ -20,8 +20,6 @@
  *   Micky Ching (micky_ching@realsil.com.cn)
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
@@ -465,20 +463,20 @@ static int rtsx_control_thread(void *__dev)
 		else if (chip->srb->device->id) {
 			dev_err(&dev->pci->dev, "Bad target number (%d:%d)\n",
 				chip->srb->device->id,
-				chip->srb->device->lun);
+				(u8)chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
 		}
 
 		else if (chip->srb->device->lun > chip->max_lun) {
 			dev_err(&dev->pci->dev, "Bad LUN (%d:%d)\n",
 				chip->srb->device->id,
-				chip->srb->device->lun);
+				(u8)chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
 		}
 
 		/* we've got a command, let's do it! */
 		else {
-			RTSX_DEBUG(scsi_show_command(chip->srb));
+			scsi_show_command(chip);
 			rtsx_invoke_transport(chip->srb, chip);
 		}
 
@@ -864,7 +862,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	int err = 0;
 	struct task_struct *th;
 
-	RTSX_DEBUGP("Realtek PCI-E card reader detected\n");
+	dev_dbg(&pci->dev, "Realtek PCI-E card reader detected\n");
 
 	err = pci_enable_device(pci);
 	if (err < 0) {
@@ -1030,9 +1028,11 @@ static void rtsx_remove(struct pci_dev *pci)
 }
 
 /* PCI IDs */
-static DEFINE_PCI_DEVICE_TABLE(rtsx_ids) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x5208), PCI_CLASS_OTHERS << 16, 0xFF0000 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x5288), PCI_CLASS_OTHERS << 16, 0xFF0000 },
+static const struct pci_device_id rtsx_ids[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x5208),
+		PCI_CLASS_OTHERS << 16, 0xFF0000 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x5288),
+		PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ 0, },
 };
 

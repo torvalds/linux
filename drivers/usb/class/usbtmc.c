@@ -383,9 +383,12 @@ exit:
 static int send_request_dev_dep_msg_in(struct usbtmc_device_data *data, size_t transfer_size)
 {
 	int retval;
-	u8 buffer[USBTMC_HEADER_SIZE];
+	u8 *buffer;
 	int actual;
 
+	buffer = kmalloc(USBTMC_HEADER_SIZE, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
 	/* Setup IO buffer for REQUEST_DEV_DEP_MSG_IN message
 	 * Refer to class specs for details
 	 */
@@ -417,6 +420,7 @@ static int send_request_dev_dep_msg_in(struct usbtmc_device_data *data, size_t t
 	if (!data->bTag)
 		data->bTag++;
 
+	kfree(buffer);
 	if (retval < 0) {
 		dev_err(&data->intf->dev, "usb_bulk_msg in send_request_dev_dep_msg_in() returned %d\n", retval);
 		return retval;
@@ -711,7 +715,7 @@ static int usbtmc_ioctl_clear(struct usbtmc_device_data *data)
 	u8 *buffer;
 	int rv;
 	int n;
-	int actual;
+	int actual = 0;
 	int max_size;
 
 	dev = &data->intf->dev;

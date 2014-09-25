@@ -7,16 +7,20 @@
  */
 
 #include "hfsplus_fs.h"
+#include <linux/posix_acl_xattr.h>
+#include <linux/nls.h>
 #include "xattr.h"
 #include "acl.h"
+
+static int hfsplus_removexattr(struct inode *inode, const char *name);
 
 const struct xattr_handler *hfsplus_xattr_handlers[] = {
 	&hfsplus_xattr_osx_handler,
 	&hfsplus_xattr_user_handler,
 	&hfsplus_xattr_trusted_handler,
 #ifdef CONFIG_HFSPLUS_FS_POSIX_ACL
-	&hfsplus_xattr_acl_access_handler,
-	&hfsplus_xattr_acl_default_handler,
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
 #endif
 	&hfsplus_xattr_security_handler,
 	NULL
@@ -51,82 +55,6 @@ static inline int is_known_namespace(const char *name)
 	return true;
 }
 
-static int can_set_system_xattr(struct inode *inode, const char *name,
-				const void *value, size_t size)
-{
-#ifdef CONFIG_HFSPLUS_FS_POSIX_ACL
-	struct posix_acl *acl;
-	int err;
-
-	if (!inode_owner_or_capable(inode))
-		return -EPERM;
-
-	/*
-	 * POSIX_ACL_XATTR_ACCESS is tied to i_mode
-	 */
-	if (strcmp(name, POSIX_ACL_XATTR_ACCESS) == 0) {
-		acl = posix_acl_from_xattr(&init_user_ns, value, size);
-		if (IS_ERR(acl))
-			return PTR_ERR(acl);
-		if (acl) {
-			err = posix_acl_equiv_mode(acl, &inode->i_mode);
-			posix_acl_release(acl);
-			if (err < 0)
-				return err;
-			mark_inode_dirty(inode);
-		}
-		/*
-		 * We're changing the ACL.  Get rid of the cached one
-		 */
-		forget_cached_acl(inode, ACL_TYPE_ACCESS);
-
-		return 0;
-	} else if (strcmp(name, POSIX_ACL_XATTR_DEFAULT) == 0) {
-		acl = posix_acl_from_xattr(&init_user_ns, value, size);
-		if (IS_ERR(acl))
-			return PTR_ERR(acl);
-		posix_acl_release(acl);
-
-		/*
-		 * We're changing the default ACL.  Get rid of the cached one
-		 */
-		forget_cached_acl(inode, ACL_TYPE_DEFAULT);
-
-		return 0;
-	}
-#endif /* CONFIG_HFSPLUS_FS_POSIX_ACL */
-	return -EOPNOTSUPP;
-}
-
-static int can_set_xattr(struct inode *inode, const char *name,
-				const void *value, size_t value_len)
-{
-	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
-		return can_set_system_xattr(inode, name, value, value_len);
-
-	if (!strncmp(name, XATTR_MAC_OSX_PREFIX, XATTR_MAC_OSX_PREFIX_LEN)) {
-		/*
-		 * This makes sure that we aren't trying to set an
-		 * attribute in a different namespace by prefixing it
-		 * with "osx."
-		 */
-		if (is_known_namespace(name + XATTR_MAC_OSX_PREFIX_LEN))
-			return -EOPNOTSUPP;
-
-		return 0;
-	}
-
-	/*
-	 * Don't allow setting an attribute in an unknown namespace.
-	 */
-	if (strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) &&
-	    strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) &&
-	    strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN))
-		return -EOPNOTSUPP;
-
-	return 0;
-}
-
 static void hfsplus_init_header_node(struct inode *attr_file,
 					u32 clump_size,
 					char *buf, u16 node_size)
@@ -139,10 +67,10 @@ static void hfsplus_init_header_node(struct inode *attr_file,
 	char *bmp;
 	u32 used_nodes;
 	u32 used_bmp_bytes;
-	loff_t tmp;
+	u64 tmp;
 
 	hfs_dbg(ATTR_MOD, "init_hdr_attr_file: clump %u, node_size %u\n",
-				clump_size, node_size);
+		clump_size, node_size);
 
 	/* The end of the node contains list of record offsets */
 	rec_offsets = (__be16 *)(buf + node_size);
@@ -268,7 +196,7 @@ check_attr_tree_state_again:
 	}
 
 	while (hip->alloc_blocks < hip->clump_blocks) {
-		err = hfsplus_file_extend(attr_file);
+		err = hfsplus_file_extend(attr_file, false);
 		if (unlikely(err)) {
 			pr_err("failed to extend attributes file\n");
 			goto end_attr_file_creation;
@@ -349,18 +277,8 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 				HFSPLUS_IS_RSRC(inode))
 		return -EOPNOTSUPP;
 
-	err = can_set_xattr(inode, name, value, size);
-	if (err)
-		return err;
-
-	if (strncmp(name, XATTR_MAC_OSX_PREFIX,
-				XATTR_MAC_OSX_PREFIX_LEN) == 0)
-		name += XATTR_MAC_OSX_PREFIX_LEN;
-
-	if (value == NULL) {
-		value = "";
-		size = 0;
-	}
+	if (value == NULL)
+		return hfsplus_removexattr(inode, name);
 
 	err = hfs_find_init(HFSPLUS_SB(inode->i_sb)->cat_tree, &cat_fd);
 	if (err) {
@@ -478,16 +396,11 @@ end_setxattr:
 	return err;
 }
 
-static inline int is_osx_xattr(const char *xattr_name)
-{
-	return !is_known_namespace(xattr_name);
-}
-
 static int name_len(const char *xattr_name, int xattr_name_len)
 {
 	int len = xattr_name_len + 1;
 
-	if (is_osx_xattr(xattr_name))
+	if (!is_known_namespace(xattr_name))
 		len += XATTR_MAC_OSX_PREFIX_LEN;
 
 	return len;
@@ -498,7 +411,7 @@ static int copy_name(char *buffer, const char *xattr_name, int name_len)
 	int len = name_len;
 	int offset = 0;
 
-	if (is_osx_xattr(xattr_name)) {
+	if (!is_known_namespace(xattr_name)) {
 		strncpy(buffer, XATTR_MAC_OSX_PREFIX, XATTR_MAC_OSX_PREFIX_LEN);
 		offset += XATTR_MAC_OSX_PREFIX_LEN;
 		len += XATTR_MAC_OSX_PREFIX_LEN;
@@ -575,18 +488,6 @@ ssize_t __hfsplus_getxattr(struct inode *inode, const char *name,
 			!S_ISDIR(inode->i_mode)) ||
 				HFSPLUS_IS_RSRC(inode))
 		return -EOPNOTSUPP;
-
-	if (strncmp(name, XATTR_MAC_OSX_PREFIX,
-				XATTR_MAC_OSX_PREFIX_LEN) == 0) {
-		/* skip "osx." prefix */
-		name += XATTR_MAC_OSX_PREFIX_LEN;
-		/*
-		 * Don't allow retrieving properly prefixed attributes
-		 * by prepending them with "osx."
-		 */
-		if (is_known_namespace(name))
-			return -EOPNOTSUPP;
-	}
 
 	if (!strcmp_xattr_finder_info(name))
 		return hfsplus_getxattr_finder_info(inode, value, size);
@@ -745,8 +646,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct hfs_find_data fd;
 	u16 key_len = 0;
 	struct hfsplus_attr_key attr_key;
-	char strbuf[HFSPLUS_ATTR_MAX_STRLEN +
-			XATTR_MAC_OSX_PREFIX_LEN + 1] = {0};
+	char *strbuf;
 	int xattr_name_len;
 
 	if ((!S_ISREG(inode->i_mode) &&
@@ -764,6 +664,13 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	if (err) {
 		pr_err("can't init xattr find struct\n");
 		return err;
+	}
+
+	strbuf = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN +
+			XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
+	if (!strbuf) {
+		res = -ENOMEM;
+		goto out;
 	}
 
 	err = hfsplus_find_attr(inode->i_sb, inode->i_ino, NULL, &fd);
@@ -792,7 +699,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		if (be32_to_cpu(attr_key.cnid) != inode->i_ino)
 			goto end_listxattr;
 
-		xattr_name_len = HFSPLUS_ATTR_MAX_STRLEN;
+		xattr_name_len = NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN;
 		if (hfsplus_uni2asc(inode->i_sb,
 			(const struct hfsplus_unistr *)&fd.key->attr.key_name,
 					strbuf, &xattr_name_len)) {
@@ -818,35 +725,23 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	}
 
 end_listxattr:
+	kfree(strbuf);
+out:
 	hfs_find_exit(&fd);
 	return res;
 }
 
-int hfsplus_removexattr(struct dentry *dentry, const char *name)
+static int hfsplus_removexattr(struct inode *inode, const char *name)
 {
 	int err = 0;
-	struct inode *inode = dentry->d_inode;
 	struct hfs_find_data cat_fd;
 	u16 flags;
 	u16 cat_entry_type;
 	int is_xattr_acl_deleted = 0;
 	int is_all_xattrs_deleted = 0;
 
-	if ((!S_ISREG(inode->i_mode) &&
-			!S_ISDIR(inode->i_mode)) ||
-				HFSPLUS_IS_RSRC(inode))
-		return -EOPNOTSUPP;
-
 	if (!HFSPLUS_SB(inode->i_sb)->attr_tree)
 		return -EOPNOTSUPP;
-
-	err = can_set_xattr(inode, name, NULL, 0);
-	if (err)
-		return err;
-
-	if (strncmp(name, XATTR_MAC_OSX_PREFIX,
-				XATTR_MAC_OSX_PREFIX_LEN) == 0)
-		name += XATTR_MAC_OSX_PREFIX_LEN;
 
 	if (!strcmp_xattr_finder_info(name))
 		return -EOPNOTSUPP;
@@ -911,39 +806,55 @@ end_removexattr:
 static int hfsplus_osx_getxattr(struct dentry *dentry, const char *name,
 					void *buffer, size_t size, int type)
 {
-	char xattr_name[HFSPLUS_ATTR_MAX_STRLEN +
-				XATTR_MAC_OSX_PREFIX_LEN + 1] = {0};
-	size_t len = strlen(name);
+	char *xattr_name;
+	int res;
 
 	if (!strcmp(name, ""))
 		return -EINVAL;
 
-	if (len > HFSPLUS_ATTR_MAX_STRLEN)
+	/*
+	 * Don't allow retrieving properly prefixed attributes
+	 * by prepending them with "osx."
+	 */
+	if (is_known_namespace(name))
 		return -EOPNOTSUPP;
-
+	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN
+		+ XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
+	if (!xattr_name)
+		return -ENOMEM;
 	strcpy(xattr_name, XATTR_MAC_OSX_PREFIX);
 	strcpy(xattr_name + XATTR_MAC_OSX_PREFIX_LEN, name);
 
-	return hfsplus_getxattr(dentry, xattr_name, buffer, size);
+	res = hfsplus_getxattr(dentry, xattr_name, buffer, size);
+	kfree(xattr_name);
+	return res;
 }
 
 static int hfsplus_osx_setxattr(struct dentry *dentry, const char *name,
 		const void *buffer, size_t size, int flags, int type)
 {
-	char xattr_name[HFSPLUS_ATTR_MAX_STRLEN +
-				XATTR_MAC_OSX_PREFIX_LEN + 1] = {0};
-	size_t len = strlen(name);
+	char *xattr_name;
+	int res;
 
 	if (!strcmp(name, ""))
 		return -EINVAL;
 
-	if (len > HFSPLUS_ATTR_MAX_STRLEN)
+	/*
+	 * Don't allow setting properly prefixed attributes
+	 * by prepending them with "osx."
+	 */
+	if (is_known_namespace(name))
 		return -EOPNOTSUPP;
-
+	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN
+		+ XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
+	if (!xattr_name)
+		return -ENOMEM;
 	strcpy(xattr_name, XATTR_MAC_OSX_PREFIX);
 	strcpy(xattr_name + XATTR_MAC_OSX_PREFIX_LEN, name);
 
-	return hfsplus_setxattr(dentry, xattr_name, buffer, size, flags);
+	res = hfsplus_setxattr(dentry, xattr_name, buffer, size, flags);
+	kfree(xattr_name);
+	return res;
 }
 
 static size_t hfsplus_osx_listxattr(struct dentry *dentry, char *list,

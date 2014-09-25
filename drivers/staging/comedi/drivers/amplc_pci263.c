@@ -37,11 +37,6 @@ The state of the outputs can be read.
 
 #include "../comedidev.h"
 
-#define PCI263_DRIVER_NAME	"amplc_pci263"
-
-/* PCI263 PCI configuration register information */
-#define PCI_DEVICE_ID_AMPLICON_PCI263 0x000c
-
 static int pci263_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
@@ -84,20 +79,18 @@ static int pci263_auto_attach(struct comedi_device *dev,
 	/* read initial relay state */
 	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
 
-	dev_info(dev->class_dev, "%s (pci %s) attached\n", dev->board_name,
-		 pci_name(pci_dev));
 	return 0;
 }
 
 static struct comedi_driver amplc_pci263_driver = {
-	.driver_name	= PCI263_DRIVER_NAME,
+	.driver_name	= "amplc_pci263",
 	.module		= THIS_MODULE,
 	.auto_attach	= pci263_auto_attach,
 	.detach		= comedi_pci_disable,
 };
 
 static const struct pci_device_id pci263_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, 0x000c) },
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, pci263_pci_table);
@@ -110,7 +103,7 @@ static int amplc_pci263_pci_probe(struct pci_dev *dev,
 }
 
 static struct pci_driver amplc_pci263_pci_driver = {
-	.name		= PCI263_DRIVER_NAME,
+	.name		= "amplc_pci263",
 	.id_table	= pci263_pci_table,
 	.probe		= &amplc_pci263_pci_probe,
 	.remove		= comedi_pci_auto_unconfig,

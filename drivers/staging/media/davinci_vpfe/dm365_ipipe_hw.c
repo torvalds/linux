@@ -267,7 +267,7 @@ int config_ipipe_hw(struct vpfe_ipipe_device *ipipe)
 	}
 
 	ipipe_mode = get_ipipe_mode(ipipe);
-	if (ipipe < 0) {
+	if (ipipe_mode < 0) {
 		pr_err("Failed to get ipipe mode");
 		return -EINVAL;
 	}

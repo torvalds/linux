@@ -35,19 +35,18 @@
  */
 
 #define DEBUG_SUBSYSTEM S_ECHO
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd.h>
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_debug.h>
-#include <lprocfs_status.h>
-#include <cl_object.h>
-#include <md_object.h>
-#include <lustre_fid.h>
-#include <lustre_acl.h>
-#include <lustre_net.h>
-#include <obd_lov.h>
+#include "../include/obd.h"
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_debug.h"
+#include "../include/lprocfs_status.h"
+#include "../include/cl_object.h"
+#include "../include/md_object.h"
+#include "../include/lustre_fid.h"
+#include "../include/lustre_acl.h"
+#include "../include/lustre_net.h"
 
 #include "echo_internal.h"
 
@@ -428,7 +427,7 @@ static int echo_lock_init(const struct lu_env *env,
 {
 	struct echo_lock *el;
 
-	OBD_SLAB_ALLOC_PTR_GFP(el, echo_lock_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(el, echo_lock_kmem, GFP_NOFS);
 	if (el != NULL) {
 		cl_lock_slice_add(lock, &el->el_cl, obj, &echo_lock_ops);
 		el->el_object = cl2echo_obj(obj);
@@ -599,7 +598,7 @@ static struct lu_object *echo_object_alloc(const struct lu_env *env,
 
 	/* we're the top dev. */
 	LASSERT(hdr == NULL);
-	OBD_SLAB_ALLOC_PTR_GFP(eco, echo_object_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(eco, echo_object_kmem, GFP_NOFS);
 	if (eco != NULL) {
 		struct cl_object_header *hdr = &eco->eo_hdr;
 
@@ -663,7 +662,7 @@ static void *echo_thread_key_init(const struct lu_context *ctx,
 {
 	struct echo_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, echo_thread_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, echo_thread_kmem, GFP_NOFS);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -693,7 +692,7 @@ static void *echo_session_key_init(const struct lu_context *ctx,
 {
 	struct echo_session_info *session;
 
-	OBD_SLAB_ALLOC_PTR_GFP(session, echo_session_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(session, echo_session_kmem, GFP_NOFS);
 	if (session == NULL)
 		session = ERR_PTR(-ENOMEM);
 	return session;
@@ -997,8 +996,8 @@ static struct lu_device *echo_device_free(const struct lu_env *env,
 		spin_unlock(&ec->ec_lock);
 		CERROR("echo_client still has objects at cleanup time, "
 		       "wait for 1 second\n");
-		schedule_timeout_and_set_state(TASK_UNINTERRUPTIBLE,
-						   cfs_time_seconds(1));
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1));
 		lu_site_purge(env, &ed->ed_site->cs_lu, -1);
 		spin_lock(&ec->ec_lock);
 	}
@@ -1229,7 +1228,7 @@ static int cl_echo_cancel0(struct lu_env *env, struct echo_device *ed,
 	spin_lock(&ec->ec_lock);
 	list_for_each (el, &ec->ec_locks) {
 		ecl = list_entry (el, struct echo_lock, el_chain);
-		CDEBUG(D_INFO, "ecl: %p, cookie: "LPX64"\n", ecl, ecl->el_cookie);
+		CDEBUG(D_INFO, "ecl: %p, cookie: %#llx\n", ecl, ecl->el_cookie);
 		found = (ecl->el_cookie == cookie);
 		if (found) {
 			if (atomic_dec_and_test(&ecl->el_refcount))
@@ -1431,7 +1430,7 @@ echo_copyin_lsm (struct echo_device *ed, struct lov_stripe_md *lsm,
 static inline void echo_md_build_name(struct lu_name *lname, char *name,
 				      __u64 id)
 {
-	sprintf(name, LPU64, id);
+	sprintf(name, "%llu", id);
 	lname->ln_name = name;
 	lname->ln_namelen = strlen(name);
 }
@@ -1541,7 +1540,7 @@ int echo_attr_get_complex(const struct lu_env *env, struct md_object *next,
 #endif
 out:
 	ma->ma_need = need;
-	CDEBUG(D_INODE, "after getattr rc = %d, ma_valid = "LPX64" ma_lmm=%p\n",
+	CDEBUG(D_INODE, "after getattr rc = %d, ma_valid = %#llx ma_lmm=%p\n",
 	       rc, ma->ma_valid, ma->ma_lmm);
 	return rc;
 }
@@ -2409,7 +2408,7 @@ static int echo_client_page_debug_check(struct lov_stripe_md *lsm,
 					addr + delta, OBD_ECHO_BLOCK_SIZE,
 					stripe_off, stripe_id);
 		if (rc2 != 0) {
-			CERROR ("Error in echo object "LPX64"\n", id);
+			CERROR ("Error in echo object %#llx\n", id);
 			rc = rc2;
 		}
 	}
@@ -2432,7 +2431,7 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 	int		     i;
 	int		     rc;
 	int		     verify;
-	int		     gfp_mask;
+	gfp_t		     gfp_mask;
 	int		     brw_flags = 0;
 
 	verify = (ostid_id(&oa->o_oi) != ECHO_PERSISTENT_OBJID &&
@@ -2704,7 +2703,7 @@ echo_client_enqueue(struct obd_export *exp, struct obdo *oa,
 	rc = cl_echo_enqueue(eco, offset, end, mode, &ulh->cookie);
 	if (rc == 0) {
 		oa->o_valid |= OBD_MD_FLHANDLE;
-		CDEBUG(D_INFO, "Cookie is "LPX64"\n", ulh->cookie);
+		CDEBUG(D_INFO, "Cookie is %#llx\n", ulh->cookie);
 	}
 	echo_put_object(eco);
 	return rc;
@@ -2719,7 +2718,7 @@ echo_client_cancel(struct obd_export *exp, struct obdo *oa)
 	if ((oa->o_valid & OBD_MD_FLHANDLE) == 0)
 		return -EINVAL;
 
-	CDEBUG(D_INFO, "Cookie is "LPX64"\n", cookie);
+	CDEBUG(D_INFO, "Cookie is %#llx\n", cookie);
 	return cl_echo_cancel(ed, cookie);
 }
 
@@ -2764,7 +2763,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 	switch (cmd) {
 	case OBD_IOC_CREATE:		    /* may create echo object */
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN))
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			GOTO (out, rc = -EPERM);
 
 		rc = echo_create_object(env, ed, 1, oa, data->ioc_pbuf1,
@@ -2778,7 +2777,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		int dirlen;
 		__u64 id;
 
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN))
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			GOTO(out, rc = -EPERM);
 
 		count = data->ioc_count;
@@ -2806,7 +2805,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		__u64	    seq;
 		int	      max_count;
 
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN))
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			GOTO(out, rc = -EPERM);
 
 		cl_env = cl_env_get(&refcheck);
@@ -2838,7 +2837,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		GOTO(out, rc);
 	}
 	case OBD_IOC_DESTROY:
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN))
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			GOTO (out, rc = -EPERM);
 
 		rc = echo_get_object(&eco, ed, oa);
@@ -2863,7 +2862,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		GOTO(out, rc);
 
 	case OBD_IOC_SETATTR:
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN))
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			GOTO (out, rc = -EPERM);
 
 		rc = echo_get_object(&eco, ed, oa);
@@ -2878,7 +2877,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		GOTO(out, rc);
 
 	case OBD_IOC_BRW_WRITE:
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN))
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			GOTO (out, rc = -EPERM);
 
 		rw = OBD_BRW_WRITE;
@@ -2897,7 +2896,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		GOTO(out, rc);
 
 	case ECHO_IOC_SET_STRIPE:
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN))
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			GOTO (out, rc = -EPERM);
 
 		if (data->ioc_pbuf1 == NULL) {  /* unset */
@@ -2914,7 +2913,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		GOTO (out, rc);
 
 	case ECHO_IOC_ENQUEUE:
-		if (!cfs_capable(CFS_CAP_SYS_ADMIN))
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			GOTO (out, rc = -EPERM);
 
 		rc = echo_client_enqueue(exp, oa,
@@ -3085,7 +3084,7 @@ static int echo_client_disconnect(struct obd_export *exp)
 		rc = obd_cancel(ec->ec_exp, ecl->ecl_object->eco_lsm,
 				 ecl->ecl_mode, &ecl->ecl_lock_handle);
 
-		CDEBUG (D_INFO, "Cancel lock on object "LPX64" on disconnect "
+		CDEBUG (D_INFO, "Cancel lock on object %#llx on disconnect "
 			"(%d)\n", ecl->ecl_object->eco_id, rc);
 
 		echo_put_object (ecl->ecl_object);
@@ -3114,7 +3113,7 @@ static struct obd_ops echo_client_obd_ops = {
 
 int echo_client_init(void)
 {
-	struct lprocfs_static_vars lvars = { 0 };
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
 	lprocfs_echo_init_vars(&lvars);

@@ -50,11 +50,14 @@ struct xt_led_info_internal {
 	struct timer_list timer;
 };
 
+#define XT_LED_BLINK_DELAY 50 /* ms */
+
 static unsigned int
 led_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_led_info *ledinfo = par->targinfo;
 	struct xt_led_info_internal *ledinternal = ledinfo->internal_data;
+	unsigned long led_delay = XT_LED_BLINK_DELAY;
 
 	/*
 	 * If "always blink" is enabled, and there's still some time until the
@@ -62,9 +65,10 @@ led_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	 */
 	if ((ledinfo->delay > 0) && ledinfo->always_blink &&
 	    timer_pending(&ledinternal->timer))
-		led_trigger_event(&ledinternal->netfilter_led_trigger, LED_OFF);
-
-	led_trigger_event(&ledinternal->netfilter_led_trigger, LED_FULL);
+		led_trigger_blink_oneshot(&ledinternal->netfilter_led_trigger,
+					  &led_delay, &led_delay, 1);
+	else
+		led_trigger_event(&ledinternal->netfilter_led_trigger, LED_FULL);
 
 	/* If there's a positive delay, start/update the timer */
 	if (ledinfo->delay > 0) {
@@ -133,9 +137,7 @@ static int led_tg_check(const struct xt_tgchk_param *par)
 
 	err = led_trigger_register(&ledinternal->netfilter_led_trigger);
 	if (err) {
-		pr_warning("led_trigger_register() failed\n");
-		if (err == -EEXIST)
-			pr_warning("Trigger name is already in use.\n");
+		pr_err("Trigger name is already in use.\n");
 		goto exit_alloc;
 	}
 

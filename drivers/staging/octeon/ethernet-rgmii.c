@@ -36,6 +36,7 @@
 #include "ethernet-defines.h"
 #include "octeon-ethernet.h"
 #include "ethernet-util.h"
+#include "ethernet-mdio.h"
 
 #include <asm/octeon/cvmx-helper.h>
 
@@ -43,7 +44,7 @@
 #include <asm/octeon/cvmx-npi-defs.h>
 #include <asm/octeon/cvmx-gmxx-defs.h>
 
-DEFINE_SPINLOCK(global_register_lock);
+static DEFINE_SPINLOCK(global_register_lock);
 
 static int number_rgmii_ports;
 
@@ -72,7 +73,8 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 		 * If the 10Mbps preamble workaround is supported and we're
 		 * at 10Mbps we may need to do some special checking.
 		 */
-		if (USE_10MBPS_PREAMBLE_WORKAROUND && (link_info.s.speed == 10)) {
+		if (USE_10MBPS_PREAMBLE_WORKAROUND &&
+				(link_info.s.speed == 10)) {
 
 			/*
 			 * Read the GMXX_RXX_INT_REG[PCTERR] bit and
@@ -166,9 +168,8 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 
 	if (use_global_register_lock)
 		spin_unlock_irqrestore(&global_register_lock, flags);
-	else {
+	else
 		mutex_unlock(&priv->phydev->bus->mdio_lock);
-	}
 
 	if (priv->phydev == NULL) {
 		/* Tell core. */
@@ -232,8 +233,10 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 						   (interface, index)];
 				struct octeon_ethernet *priv = netdev_priv(dev);
 
-				if (dev && !atomic_read(&cvm_oct_poll_queue_stopping))
-					queue_work(cvm_oct_poll_queue, &priv->port_work);
+				if (dev &&
+				!atomic_read(&cvm_oct_poll_queue_stopping))
+					queue_work(cvm_oct_poll_queue,
+						&priv->port_work);
 
 				gmx_rx_int_reg.u64 = 0;
 				gmx_rx_int_reg.s.phy_dupx = 1;
@@ -274,8 +277,10 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 						   (interface, index)];
 				struct octeon_ethernet *priv = netdev_priv(dev);
 
-				if (dev && !atomic_read(&cvm_oct_poll_queue_stopping))
-					queue_work(cvm_oct_poll_queue, &priv->port_work);
+				if (dev &&
+				!atomic_read(&cvm_oct_poll_queue_stopping))
+					queue_work(cvm_oct_poll_queue,
+						&priv->port_work);
 
 				gmx_rx_int_reg.u64 = 0;
 				gmx_rx_int_reg.s.phy_dupx = 1;
@@ -298,15 +303,28 @@ int cvm_oct_rgmii_open(struct net_device *dev)
 	int interface = INTERFACE(priv->port);
 	int index = INDEX(priv->port);
 	cvmx_helper_link_info_t link_info;
+	int rv;
+
+	rv = cvm_oct_phy_setup_device(dev);
+	if (rv)
+		return rv;
 
 	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
 	gmx_cfg.s.en = 1;
 	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
 
 	if (!octeon_is_simulation()) {
-		link_info = cvmx_helper_link_get(priv->port);
-		if (!link_info.s.link_up)
-			netif_carrier_off(dev);
+		if (priv->phydev) {
+			int r = phy_read_status(priv->phydev);
+			if (r == 0 && priv->phydev->link == 0)
+				netif_carrier_off(dev);
+			cvm_oct_adjust_link(dev);
+		} else {
+			link_info = cvmx_helper_link_get(priv->port);
+			if (!link_info.s.link_up)
+				netif_carrier_off(dev);
+			priv->poll = cvm_oct_rgmii_poll;
+		}
 	}
 
 	return 0;
@@ -322,12 +340,13 @@ int cvm_oct_rgmii_stop(struct net_device *dev)
 	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
 	gmx_cfg.s.en = 0;
 	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-	return 0;
+	return cvm_oct_common_stop(dev);
 }
 
 static void cvm_oct_rgmii_immediate_poll(struct work_struct *work)
 {
-	struct octeon_ethernet *priv = container_of(work, struct octeon_ethernet, port_work);
+	struct octeon_ethernet *priv =
+		container_of(work, struct octeon_ethernet, port_work);
 	cvm_oct_rgmii_poll(cvm_oct_device[priv->port]);
 }
 
@@ -379,7 +398,6 @@ int cvm_oct_rgmii_init(struct net_device *dev)
 			gmx_rx_int_en.s.phy_spd = 1;
 			cvmx_write_csr(CVMX_GMXX_RXX_INT_EN(index, interface),
 				       gmx_rx_int_en.u64);
-			priv->poll = cvm_oct_rgmii_poll;
 		}
 	}
 

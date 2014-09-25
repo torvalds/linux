@@ -656,7 +656,7 @@ static int core_tpg_setup_virtual_lun0(struct se_portal_group *se_tpg)
 	spin_lock_init(&lun->lun_sep_lock);
 	init_completion(&lun->lun_ref_comp);
 
-	ret = core_tpg_post_addlun(se_tpg, lun, lun_access, dev);
+	ret = core_tpg_add_lun(se_tpg, lun, lun_access, dev);
 	if (ret < 0)
 		return ret;
 
@@ -781,7 +781,7 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 }
 EXPORT_SYMBOL(core_tpg_deregister);
 
-struct se_lun *core_tpg_pre_addlun(
+struct se_lun *core_tpg_alloc_lun(
 	struct se_portal_group *tpg,
 	u32 unpacked_lun)
 {
@@ -811,11 +811,11 @@ struct se_lun *core_tpg_pre_addlun(
 	return lun;
 }
 
-int core_tpg_post_addlun(
+int core_tpg_add_lun(
 	struct se_portal_group *tpg,
 	struct se_lun *lun,
 	u32 lun_access,
-	void *lun_ptr)
+	struct se_device *dev)
 {
 	int ret;
 
@@ -823,9 +823,9 @@ int core_tpg_post_addlun(
 	if (ret < 0)
 		return ret;
 
-	ret = core_dev_export(lun_ptr, tpg, lun);
+	ret = core_dev_export(dev, tpg, lun);
 	if (ret < 0) {
-		percpu_ref_cancel_init(&lun->lun_ref);
+		percpu_ref_exit(&lun->lun_ref);
 		return ret;
 	}
 
@@ -879,6 +879,8 @@ int core_tpg_post_dellun(
 	spin_lock(&tpg->tpg_lun_lock);
 	lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
 	spin_unlock(&tpg->tpg_lun_lock);
+
+	percpu_ref_exit(&lun->lun_ref);
 
 	return 0;
 }

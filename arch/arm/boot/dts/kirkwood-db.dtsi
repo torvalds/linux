@@ -22,10 +22,11 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
 	};
 
 	ocp@f1000000 {
-		pinctrl@10000 {
+		pin-controller@10000 {
 			pmx_sdio_gpios: pmx-sdio-gpios {
 				marvell,pins = "mpp37", "mpp38";
 				marvell,function = "gpio";
@@ -33,10 +34,7 @@
 		};
 
 		serial@12000 {
-			pinctrl-0 = <&pmx_uart0>;
-			pinctrl-names = "default";
-			clock-frequency = <200000000>;
-			status = "ok";
+			status = "okay";
 		};
 
 		sata@80000 {
@@ -59,8 +57,6 @@
 };
 
 &nand {
-	pinctrl-0 = <&pmx_nand>;
-	pinctrl-names = "default";
 	chip-delay = <25>;
 	status = "okay";
 
@@ -84,7 +80,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@8 {
-		device_type = "ethernet-phy";
 		reg = <8>;
 	};
 };

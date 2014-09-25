@@ -59,13 +59,11 @@
 /*
  * Ideally we would use HAVE_HASH_LONG for this, but on linux we configure
  * the linux kernel and user space at the same time, so we need to differentiate
- * between them explicitely. If this is not needed on other architectures, then
- * we'll need to move the functions to archi specific headers.
+ * between them explicitly. If this is not needed on other architectures, then
+ * we'll need to move the functions to architecture specific headers.
  */
 
 #include <linux/hash.h>
-
-#define cfs_hash_long(val, bits)    hash_long(val, bits)
 
 /** disable debug */
 #define CFS_HASH_DEBUG_NONE	 0
@@ -88,7 +86,7 @@ union cfs_hash_lock {
 
 /**
  * cfs_hash_bucket is a container of:
- * - lock, couter ...
+ * - lock, counter ...
  * - array of hash-head starting from hsb_head[0], hash-head can be one of
  *   . cfs_hash_head_t
  *   . cfs_hash_head_dep_t
@@ -138,7 +136,7 @@ enum cfs_hash_tag {
 	CFS_HASH_NO_BKTLOCK     = 1 << 1,
 	/** rwlock to protect bucket */
 	CFS_HASH_RW_BKTLOCK     = 1 << 2,
-	/** spinlcok to protect bucket */
+	/** spinlock to protect bucket */
 	CFS_HASH_SPIN_BKTLOCK   = 1 << 3,
 	/** always add new item to tail */
 	CFS_HASH_ADD_TAIL       = 1 << 4,
@@ -630,21 +628,21 @@ static inline int cfs_hash_bd_dec_and_lock(struct cfs_hash *hs, struct cfs_hash_
 }
 
 static inline struct hlist_head *cfs_hash_bd_hhead(struct cfs_hash *hs,
-						  struct cfs_hash_bd *bd)
+						   struct cfs_hash_bd *bd)
 {
 	return hs->hs_hops->hop_hhead(hs, bd);
 }
 
 struct hlist_node *cfs_hash_bd_lookup_locked(struct cfs_hash *hs,
-					    struct cfs_hash_bd *bd, const void *key);
+					     struct cfs_hash_bd *bd, const void *key);
 struct hlist_node *cfs_hash_bd_peek_locked(struct cfs_hash *hs,
-					  struct cfs_hash_bd *bd, const void *key);
+					   struct cfs_hash_bd *bd, const void *key);
 struct hlist_node *cfs_hash_bd_findadd_locked(struct cfs_hash *hs,
-					     struct cfs_hash_bd *bd, const void *key,
+					      struct cfs_hash_bd *bd, const void *key,
 					     struct hlist_node *hnode,
 					     int insist_add);
 struct hlist_node *cfs_hash_bd_finddel_locked(struct cfs_hash *hs,
-					     struct cfs_hash_bd *bd, const void *key,
+					      struct cfs_hash_bd *bd, const void *key,
 					     struct hlist_node *hnode);
 
 /**
@@ -663,21 +661,21 @@ static inline void cfs_hash_dual_bd_get_and_lock(struct cfs_hash *hs, const void
 }
 
 struct hlist_node *cfs_hash_dual_bd_lookup_locked(struct cfs_hash *hs,
-						 struct cfs_hash_bd *bds,
+						  struct cfs_hash_bd *bds,
 						 const void *key);
 struct hlist_node *cfs_hash_dual_bd_findadd_locked(struct cfs_hash *hs,
-						  struct cfs_hash_bd *bds,
+						   struct cfs_hash_bd *bds,
 						  const void *key,
 						  struct hlist_node *hnode,
 						  int insist_add);
 struct hlist_node *cfs_hash_dual_bd_finddel_locked(struct cfs_hash *hs,
-						  struct cfs_hash_bd *bds,
+						   struct cfs_hash_bd *bds,
 						  const void *key,
 						  struct hlist_node *hnode);
 
 /* Hash init/cleanup functions */
 struct cfs_hash *cfs_hash_create(char *name, unsigned cur_bits, unsigned max_bits,
-			    unsigned bkt_bits, unsigned extra_bytes,
+				 unsigned bkt_bits, unsigned extra_bytes,
 			    unsigned min_theta, unsigned max_theta,
 			    cfs_hash_ops_t *ops, unsigned flags);
 

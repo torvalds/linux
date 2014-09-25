@@ -192,7 +192,6 @@ struct pcmmio_private {
 	unsigned int enabled_mask;
 	unsigned int stop_count;
 	unsigned int active:1;
-	unsigned int continuous:1;
 
 	unsigned int ao_readback[8];
 };
@@ -339,8 +338,8 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 				   unsigned int triggered)
 {
 	struct pcmmio_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int oldevents = s->async->events;
-	unsigned int len = s->async->cmd.chanlist_len;
 	unsigned int val = 0;
 	unsigned long flags;
 	int i;
@@ -353,16 +352,16 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 	if (!(triggered & devpriv->enabled_mask))
 		goto done;
 
-	for (i = 0; i < len; i++) {
-		unsigned int chan = CR_CHAN(s->async->cmd.chanlist[i]);
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 
 		if (triggered & (1 << chan))
 			val |= (1 << i);
 	}
 
 	/* Write the scan to the buffer. */
-	if (comedi_buf_put(s->async, val) &&
-	    comedi_buf_put(s->async, val >> 16)) {
+	if (comedi_buf_put(s, val) &&
+	    comedi_buf_put(s, val >> 16)) {
 		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 	} else {
 		/* Overflow! Stop acquisition!! */
@@ -371,15 +370,12 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 	}
 
 	/* Check for end of acquisition. */
-	if (!devpriv->continuous) {
-		/* stop_src == TRIG_COUNT */
-		if (devpriv->stop_count > 0) {
-			devpriv->stop_count--;
-			if (devpriv->stop_count == 0) {
-				s->async->events |= COMEDI_CB_EOA;
-				/* TODO: STOP_ACQUISITION_CALL_HERE!! */
-				pcmmio_stop_intr(dev, s);
-			}
+	if (cmd->stop_src == TRIG_COUNT && devpriv->stop_count > 0) {
+		devpriv->stop_count--;
+		if (devpriv->stop_count == 0) {
+			s->async->events |= COMEDI_CB_EOA;
+			/* TODO: STOP_ACQUISITION_CALL_HERE!! */
+			pcmmio_stop_intr(dev, s);
 		}
 	}
 
@@ -421,7 +417,7 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 	unsigned int pol_bits = 0;
 	int i;
 
-	if (!devpriv->continuous && devpriv->stop_count == 0) {
+	if (cmd->stop_src == TRIG_COUNT && devpriv->stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
 		devpriv->active = 0;
@@ -464,18 +460,16 @@ static int pcmmio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-/*
- * Internal trigger function to start acquisition for an 'INTERRUPT' subdevice.
- */
-static int
-pcmmio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
-			  unsigned int trignum)
+static int pcmmio_inttrig_start_intr(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     unsigned int trig_num)
 {
 	struct pcmmio_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 	int event = 0;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	spin_lock_irqsave(&devpriv->spinlock, flags);
@@ -504,28 +498,17 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->active = 1;
 
 	/* Set up end of acquisition. */
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		devpriv->continuous = 0;
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->stop_count = cmd->stop_arg;
-		break;
-	default:
-		/* TRIG_NONE */
-		devpriv->continuous = 1;
+	else	/* TRIG_NONE */
 		devpriv->stop_count = 0;
-		break;
-	}
 
 	/* Set up start of acquisition. */
-	switch (cmd->start_src) {
-	case TRIG_INT:
+	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = pcmmio_inttrig_start_intr;
-		break;
-	default:
-		/* TRIG_NOW */
+	else	/* TRIG_NOW */
 		event = pcmmio_start_intr(dev, s);
-		break;
-	}
+
 	spin_unlock_irqrestore(&devpriv->spinlock, flags);
 
 	if (event)
@@ -589,16 +572,17 @@ static int pcmmio_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static int pcmmio_ai_wait_for_eoc(unsigned long iobase, unsigned int timeout)
+static int pcmmio_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
 {
 	unsigned char status;
 
-	while (timeout--) {
-		status = inb(iobase + PCMMIO_AI_STATUS_REG);
-		if (status & PCMMIO_AI_STATUS_DATA_READY)
-			return 0;
-	}
-	return -ETIME;
+	status = inb(dev->iobase + PCMMIO_AI_STATUS_REG);
+	if (status & PCMMIO_AI_STATUS_DATA_READY)
+		return 0;
+	return -EBUSY;
 }
 
 static int pcmmio_ai_insn_read(struct comedi_device *dev,
@@ -643,7 +627,8 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 	cmd |= PCMMIO_AI_CMD_RANGE(range);
 
 	outb(cmd, iobase + PCMMIO_AI_CMD_REG);
-	ret = pcmmio_ai_wait_for_eoc(iobase, 100000);
+
+	ret = comedi_timeout(dev, s, insn, pcmmio_ai_eoc, 0);
 	if (ret)
 		return ret;
 
@@ -652,7 +637,8 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		outb(cmd, iobase + PCMMIO_AI_CMD_REG);
-		ret = pcmmio_ai_wait_for_eoc(iobase, 100000);
+
+		ret = comedi_timeout(dev, s, insn, pcmmio_ai_eoc, 0);
 		if (ret)
 			return ret;
 
@@ -684,16 +670,17 @@ static int pcmmio_ao_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pcmmio_ao_wait_for_eoc(unsigned long iobase, unsigned int timeout)
+static int pcmmio_ao_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
 {
 	unsigned char status;
 
-	while (timeout--) {
-		status = inb(iobase + PCMMIO_AO_STATUS_REG);
-		if (status & PCMMIO_AO_STATUS_DATA_READY)
-			return 0;
-	}
-	return -ETIME;
+	status = inb(dev->iobase + PCMMIO_AO_STATUS_REG);
+	if (status & PCMMIO_AO_STATUS_DATA_READY)
+		return 0;
+	return -EBUSY;
 }
 
 static int pcmmio_ao_insn_write(struct comedi_device *dev,
@@ -726,7 +713,8 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 	outb(PCMMIO_AO_LSB_SPAN(range), iobase + PCMMIO_AO_LSB_REG);
 	outb(0, iobase + PCMMIO_AO_MSB_REG);
 	outb(cmd | PCMMIO_AO_CMD_WR_SPAN_UPDATE, iobase + PCMMIO_AO_CMD_REG);
-	ret = pcmmio_ao_wait_for_eoc(iobase, 100000);
+
+	ret = comedi_timeout(dev, s, insn, pcmmio_ao_eoc, 0);
 	if (ret)
 		return ret;
 
@@ -738,7 +726,8 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 		outb((val >> 8) & 0xff, iobase + PCMMIO_AO_MSB_REG);
 		outb(cmd | PCMMIO_AO_CMD_WR_CODE_UPDATE,
 		     iobase + PCMMIO_AO_CMD_REG);
-		ret = pcmmio_ao_wait_for_eoc(iobase, 100000);
+
+		ret = comedi_timeout(dev, s, insn, pcmmio_ao_eoc, 0);
 		if (ret)
 			return ret;
 

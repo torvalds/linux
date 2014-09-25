@@ -7,6 +7,7 @@
  *
  */
 
+#include <linux/clk.h>
 #include <linux/cpu_cooling.h>
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
@@ -61,18 +62,23 @@ enum imx_thermal_trip {
 #define IMX_POLLING_DELAY		2000 /* millisecond */
 #define IMX_PASSIVE_DELAY		1000
 
+#define FACTOR0				10000000
+#define FACTOR1				15976
+#define FACTOR2				4297157
+
 struct imx_thermal_data {
 	struct thermal_zone_device *tz;
 	struct thermal_cooling_device *cdev;
 	enum thermal_device_mode mode;
 	struct regmap *tempmon;
-	int c1, c2; /* See formula in imx_get_sensor_data() */
+	u32 c1, c2; /* See formula in imx_get_sensor_data() */
 	unsigned long temp_passive;
 	unsigned long temp_critical;
 	unsigned long alarm_temp;
 	unsigned long last_temp;
 	bool irq_enabled;
 	int irq;
+	struct clk *thermal_clk;
 };
 
 static void imx_set_alarm_temp(struct imx_thermal_data *data,
@@ -82,7 +88,7 @@ static void imx_set_alarm_temp(struct imx_thermal_data *data,
 	int alarm_value;
 
 	data->alarm_temp = alarm_temp;
-	alarm_value = (alarm_temp - data->c2) / data->c1;
+	alarm_value = (data->c2 - alarm_temp) / data->c1;
 	regmap_write(map, TEMPSENSE0 + REG_CLR, TEMPSENSE0_ALARM_VALUE_MASK);
 	regmap_write(map, TEMPSENSE0 + REG_SET, alarm_value <<
 			TEMPSENSE0_ALARM_VALUE_SHIFT);
@@ -134,7 +140,7 @@ static int imx_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
 	n_meas = (val & TEMPSENSE0_TEMP_CNT_MASK) >> TEMPSENSE0_TEMP_CNT_SHIFT;
 
 	/* See imx_get_sensor_data() for formula derivation */
-	*temp = data->c2 + data->c1 * n_meas;
+	*temp = data->c2 - n_meas * data->c1;
 
 	/* Update alarm value to next higher trip point */
 	if (data->alarm_temp == data->temp_passive && *temp >= data->temp_passive)
@@ -284,7 +290,7 @@ static int imx_unbind(struct thermal_zone_device *tz,
 	return 0;
 }
 
-static const struct thermal_zone_device_ops imx_tz_ops = {
+static struct thermal_zone_device_ops imx_tz_ops = {
 	.bind = imx_bind,
 	.unbind = imx_unbind,
 	.get_temp = imx_get_temp,
@@ -300,9 +306,10 @@ static int imx_get_sensor_data(struct platform_device *pdev)
 {
 	struct imx_thermal_data *data = platform_get_drvdata(pdev);
 	struct regmap *map;
-	int t1, t2, n1, n2;
+	int t1, n1;
 	int ret;
 	u32 val;
+	u64 temp64;
 
 	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 					      "fsl,tempmon-data");
@@ -326,41 +333,45 @@ static int imx_get_sensor_data(struct platform_device *pdev)
 	/*
 	 * Sensor data layout:
 	 *   [31:20] - sensor value @ 25C
-	 *    [19:8] - sensor value of hot
-	 *     [7:0] - hot temperature value
+	 * Use universal formula now and only need sensor value @ 25C
+	 * slope = 0.4297157 - (0.0015976 * 25C fuse)
 	 */
 	n1 = val >> 20;
-	n2 = (val & 0xfff00) >> 8;
-	t2 = val & 0xff;
 	t1 = 25; /* t1 always 25C */
 
 	/*
-	 * Derived from linear interpolation,
-	 * Tmeas = T2 + (Nmeas - N2) * (T1 - T2) / (N1 - N2)
+	 * Derived from linear interpolation:
+	 * slope = 0.4297157 - (0.0015976 * 25C fuse)
+	 * slope = (FACTOR2 - FACTOR1 * n1) / FACTOR0
+	 * (Nmeas - n1) / (Tmeas - t1) = slope
 	 * We want to reduce this down to the minimum computation necessary
 	 * for each temperature read.  Also, we want Tmeas in millicelsius
 	 * and we don't want to lose precision from integer division. So...
-	 * milli_Tmeas = 1000 * T2 + 1000 * (Nmeas - N2) * (T1 - T2) / (N1 - N2)
-	 * Let constant c1 = 1000 * (T1 - T2) / (N1 - N2)
-	 * milli_Tmeas = (1000 * T2) + c1 * (Nmeas - N2)
-	 * milli_Tmeas = (1000 * T2) + (c1 * Nmeas) - (c1 * N2)
-	 * Let constant c2 = (1000 * T2) - (c1 * N2)
-	 * milli_Tmeas = c2 + (c1 * Nmeas)
+	 * Tmeas = (Nmeas - n1) / slope + t1
+	 * milli_Tmeas = 1000 * (Nmeas - n1) / slope + 1000 * t1
+	 * milli_Tmeas = -1000 * (n1 - Nmeas) / slope + 1000 * t1
+	 * Let constant c1 = (-1000 / slope)
+	 * milli_Tmeas = (n1 - Nmeas) * c1 + 1000 * t1
+	 * Let constant c2 = n1 *c1 + 1000 * t1
+	 * milli_Tmeas = c2 - Nmeas * c1
 	 */
-	data->c1 = 1000 * (t1 - t2) / (n1 - n2);
-	data->c2 = 1000 * t2 - data->c1 * n2;
+	temp64 = FACTOR0;
+	temp64 *= 1000;
+	do_div(temp64, FACTOR1 * n1 - FACTOR2);
+	data->c1 = temp64;
+	data->c2 = n1 * data->c1 + 1000 * t1;
 
 	/*
-	 * Set the default passive cooling trip point to 20 °C below the
-	 * maximum die temperature. Can be changed from userspace.
+	 * Set the default passive cooling trip point,
+	 * can be changed from userspace.
 	 */
-	data->temp_passive = 1000 * (t2 - 20);
+	data->temp_passive = IMX_TEMP_PASSIVE;
 
 	/*
-	 * The maximum die temperature is t2, let's give 5 °C cushion
-	 * for noise and possible temperature rise between measurements.
+	 * The maximum die temperature set to 20 C higher than
+	 * IMX_TEMP_PASSIVE.
 	 */
-	data->temp_critical = 1000 * (t2 - 5);
+	data->temp_critical = 1000 * 20 + data->temp_passive;
 
 	return 0;
 }
@@ -457,6 +468,22 @@ static int imx_thermal_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	data->thermal_clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(data->thermal_clk)) {
+		dev_warn(&pdev->dev, "failed to get thermal clk!\n");
+	} else {
+		/*
+		 * Thermal sensor needs clk on to get correct value, normally
+		 * we should enable its clk before taking measurement and disable
+		 * clk after measurement is done, but if alarm function is enabled,
+		 * hardware will auto measure the temperature periodically, so we
+		 * need to keep the clk always on for alarm function.
+		 */
+		ret = clk_prepare_enable(data->thermal_clk);
+		if (ret)
+			dev_warn(&pdev->dev, "failed to enable thermal clk: %d\n", ret);
+	}
+
 	/* Enable measurements at ~ 10 Hz */
 	regmap_write(map, TEMPSENSE1 + REG_CLR, TEMPSENSE1_MEASURE_FREQ);
 	measure_freq = DIV_ROUND_UP(32768, 10); /* 10 Hz */
@@ -478,6 +505,8 @@ static int imx_thermal_remove(struct platform_device *pdev)
 
 	/* Disable measurements */
 	regmap_write(map, TEMPSENSE0 + REG_SET, TEMPSENSE0_POWER_DOWN);
+	if (!IS_ERR(data->thermal_clk))
+		clk_disable_unprepare(data->thermal_clk);
 
 	thermal_zone_device_unregister(data->tz);
 	cpufreq_cooling_unregister(data->cdev);
@@ -490,27 +519,30 @@ static int imx_thermal_suspend(struct device *dev)
 {
 	struct imx_thermal_data *data = dev_get_drvdata(dev);
 	struct regmap *map = data->tempmon;
-	u32 val;
 
-	regmap_read(map, TEMPSENSE0, &val);
-	if ((val & TEMPSENSE0_POWER_DOWN) == 0) {
-		/*
-		 * If a measurement is taking place, wait for a long enough
-		 * time for it to finish, and then check again.  If it still
-		 * does not finish, something must go wrong.
-		 */
-		udelay(50);
-		regmap_read(map, TEMPSENSE0, &val);
-		if ((val & TEMPSENSE0_POWER_DOWN) == 0)
-			return -ETIMEDOUT;
-	}
+	/*
+	 * Need to disable thermal sensor, otherwise, when thermal core
+	 * try to get temperature before thermal sensor resume, a wrong
+	 * temperature will be read as the thermal sensor is powered
+	 * down.
+	 */
+	regmap_write(map, TEMPSENSE0 + REG_CLR, TEMPSENSE0_MEASURE_TEMP);
+	regmap_write(map, TEMPSENSE0 + REG_SET, TEMPSENSE0_POWER_DOWN);
+	data->mode = THERMAL_DEVICE_DISABLED;
 
 	return 0;
 }
 
 static int imx_thermal_resume(struct device *dev)
 {
-	/* Nothing to do for now */
+	struct imx_thermal_data *data = dev_get_drvdata(dev);
+	struct regmap *map = data->tempmon;
+
+	/* Enabled thermal sensor after resume */
+	regmap_write(map, TEMPSENSE0 + REG_CLR, TEMPSENSE0_POWER_DOWN);
+	regmap_write(map, TEMPSENSE0 + REG_SET, TEMPSENSE0_MEASURE_TEMP);
+	data->mode = THERMAL_DEVICE_ENABLED;
+
 	return 0;
 }
 #endif
@@ -522,6 +554,7 @@ static const struct of_device_id of_imx_thermal_match[] = {
 	{ .compatible = "fsl,imx6q-tempmon", },
 	{ /* end */ }
 };
+MODULE_DEVICE_TABLE(of, of_imx_thermal_match);
 
 static struct platform_driver imx_thermal = {
 	.driver = {

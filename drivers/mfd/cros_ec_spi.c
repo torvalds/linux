@@ -39,14 +39,22 @@
 #define EC_MSG_PREAMBLE_COUNT		32
 
 /*
-  * We must get a response from the EC in 5ms. This is a very long
-  * time, but the flash write command can take 2-3ms. The EC command
-  * processing is currently not very fast (about 500us). We could
-  * look at speeding this up and making the flash write command a
-  * 'slow' command, requiring a GET_STATUS wait loop, like flash
-  * erase.
-  */
-#define EC_MSG_DEADLINE_MS		5
+ * Allow for a long time for the EC to respond.  We support i2c
+ * tunneling and support fairly long messages for the tunnel (249
+ * bytes long at the moment).  If we're talking to a 100 kHz device
+ * on the other end and need to transfer ~256 bytes, then we need:
+ *  10 us/bit * ~10 bits/byte * ~256 bytes = ~25ms
+ *
+ * We'll wait 4 times that to handle clock stretching and other
+ * paranoia.
+ *
+ * It's pretty unlikely that we'll really see a 249 byte tunnel in
+ * anything other than testing.  If this was more common we might
+ * consider having slow commands like this require a GET_STATUS
+ * wait loop.  The 'flash write' command would be another candidate
+ * for this, clocking in at 2-3ms.
+ */
+#define EC_MSG_DEADLINE_MS		100
 
 /*
   * Time between raising the SPI chip select (for the end of a
@@ -65,11 +73,13 @@
  *	if no record
  * @end_of_msg_delay: used to set the delay_usecs on the spi_transfer that
  *      is sent when we want to turn off CS at the end of a transaction.
+ * @lock: mutex to ensure only one user of cros_ec_cmd_xfer_spi at a time
  */
 struct cros_ec_spi {
 	struct spi_device *spi;
 	s64 last_transfer_ns;
 	unsigned int end_of_msg_delay;
+	struct mutex lock;
 };
 
 static void debug_packet(struct device *dev, const char *name, u8 *ptr,
@@ -111,7 +121,9 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 
 	/* Receive data until we see the header byte */
 	deadline = jiffies + msecs_to_jiffies(EC_MSG_DEADLINE_MS);
-	do {
+	while (true) {
+		unsigned long start_jiffies = jiffies;
+
 		memset(&trans, 0, sizeof(trans));
 		trans.cs_change = 1;
 		trans.rx_buf = ptr = ec_dev->din;
@@ -132,12 +144,19 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 				break;
 			}
 		}
+		if (ptr != end)
+			break;
 
-		if (time_after(jiffies, deadline)) {
+		/*
+		 * Use the time at the start of the loop as a timeout.  This
+		 * gives us one last shot at getting the transfer and is useful
+		 * in case we got context switched out for a while.
+		 */
+		if (time_after(start_jiffies, deadline)) {
 			dev_warn(ec_dev->dev, "EC failed to respond in time\n");
 			return -ETIMEDOUT;
 		}
-	} while (ptr == end);
+	}
 
 	/*
 	 * ptr now points to the header byte. Copy any valid data to the
@@ -191,13 +210,13 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 }
 
 /**
- * cros_ec_command_spi_xfer - Transfer a message over SPI and receive the reply
+ * cros_ec_cmd_xfer_spi - Transfer a message over SPI and receive the reply
  *
  * @ec_dev: ChromeOS EC device
  * @ec_msg: Message to transfer
  */
-static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
-				    struct cros_ec_msg *ec_msg)
+static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
+				struct cros_ec_command *ec_msg)
 {
 	struct cros_ec_spi *ec_spi = ec_dev->priv;
 	struct spi_transfer trans;
@@ -206,20 +225,24 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 	u8 *ptr;
 	int sum;
 	int ret = 0, final_ret;
-	struct timespec ts;
+
+	/*
+	 * We have the shared ec_dev buffer plus we do lots of separate spi_sync
+	 * calls, so we need to make sure only one person is using this at a
+	 * time.
+	 */
+	mutex_lock(&ec_spi->lock);
 
 	len = cros_ec_prepare_tx(ec_dev, ec_msg);
 	dev_dbg(ec_dev->dev, "prepared, len=%d\n", len);
 
 	/* If it's too soon to do another transaction, wait */
 	if (ec_spi->last_transfer_ns) {
-		struct timespec ts;
 		unsigned long delay;	/* The delay completed so far */
 
-		ktime_get_ts(&ts);
-		delay = timespec_to_ns(&ts) - ec_spi->last_transfer_ns;
+		delay = ktime_get_ns() - ec_spi->last_transfer_ns;
 		if (delay < EC_SPI_RECOVERY_TIME_NS)
-			ndelay(delay);
+			ndelay(EC_SPI_RECOVERY_TIME_NS - delay);
 	}
 
 	/* Transmit phase - send our message */
@@ -235,55 +258,51 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 	/* Get the response */
 	if (!ret) {
 		ret = cros_ec_spi_receive_response(ec_dev,
-				ec_msg->in_len + EC_MSG_TX_PROTO_BYTES);
+				ec_msg->insize + EC_MSG_TX_PROTO_BYTES);
 	} else {
 		dev_err(ec_dev->dev, "spi transfer failed: %d\n", ret);
 	}
 
-	/* turn off CS */
+	/*
+	 * Turn off CS, possibly adding a delay to ensure the rising edge
+	 * doesn't come too soon after the end of the data.
+	 */
 	spi_message_init(&msg);
-
-	if (ec_spi->end_of_msg_delay) {
-		/*
-		 * Add delay for last transaction, to ensure the rising edge
-		 * doesn't come too soon after the end of the data.
-		 */
-		memset(&trans, 0, sizeof(trans));
-		trans.delay_usecs = ec_spi->end_of_msg_delay;
-		spi_message_add_tail(&trans, &msg);
-	}
+	memset(&trans, 0, sizeof(trans));
+	trans.delay_usecs = ec_spi->end_of_msg_delay;
+	spi_message_add_tail(&trans, &msg);
 
 	final_ret = spi_sync(ec_spi->spi, &msg);
-	ktime_get_ts(&ts);
-	ec_spi->last_transfer_ns = timespec_to_ns(&ts);
+	ec_spi->last_transfer_ns = ktime_get_ns();
 	if (!ret)
 		ret = final_ret;
 	if (ret < 0) {
 		dev_err(ec_dev->dev, "spi transfer failed: %d\n", ret);
-		return ret;
+		goto exit;
 	}
 
-	/* check response error code */
 	ptr = ec_dev->din;
-	if (ptr[0]) {
-		dev_warn(ec_dev->dev, "command 0x%02x returned an error %d\n",
-			 ec_msg->cmd, ptr[0]);
-		debug_packet(ec_dev->dev, "in_err", ptr, len);
-		return -EINVAL;
-	}
+
+	/* check response error code */
+	ec_msg->result = ptr[0];
+	ret = cros_ec_check_result(ec_dev, ec_msg);
+	if (ret)
+		goto exit;
+
 	len = ptr[1];
 	sum = ptr[0] + ptr[1];
-	if (len > ec_msg->in_len) {
+	if (len > ec_msg->insize) {
 		dev_err(ec_dev->dev, "packet too long (%d bytes, expected %d)",
-			len, ec_msg->in_len);
-		return -ENOSPC;
+			len, ec_msg->insize);
+		ret = -ENOSPC;
+		goto exit;
 	}
 
 	/* copy response packet payload and compute checksum */
 	for (i = 0; i < len; i++) {
 		sum += ptr[i + 2];
-		if (ec_msg->in_len)
-			ec_msg->in_buf[i] = ptr[i + 2];
+		if (ec_msg->insize)
+			ec_msg->indata[i] = ptr[i + 2];
 	}
 	sum &= 0xff;
 
@@ -293,10 +312,14 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 		dev_err(ec_dev->dev,
 			"bad packet checksum, expected %02x, got %02x\n",
 			sum, ptr[len + 2]);
-		return -EBADMSG;
+		ret = -EBADMSG;
+		goto exit;
 	}
 
-	return 0;
+	ret = len;
+exit:
+	mutex_unlock(&ec_spi->lock);
+	return ret;
 }
 
 static void cros_ec_spi_dt_probe(struct cros_ec_spi *ec_spi, struct device *dev)
@@ -327,6 +350,7 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 	if (ec_spi == NULL)
 		return -ENOMEM;
 	ec_spi->spi = spi;
+	mutex_init(&ec_spi->lock);
 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
 	if (!ec_dev)
 		return -ENOMEM;
@@ -335,11 +359,10 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 	cros_ec_spi_dt_probe(ec_spi, dev);
 
 	spi_set_drvdata(spi, ec_dev);
-	ec_dev->name = "SPI";
 	ec_dev->dev = dev;
 	ec_dev->priv = ec_spi;
 	ec_dev->irq = spi->irq;
-	ec_dev->command_xfer = cros_ec_command_spi_xfer;
+	ec_dev->cmd_xfer = cros_ec_cmd_xfer_spi;
 	ec_dev->ec_name = ec_spi->spi->modalias;
 	ec_dev->phys_name = dev_name(&ec_spi->spi->dev);
 	ec_dev->parent = &ec_spi->spi->dev;
@@ -351,6 +374,8 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 		dev_err(dev, "cannot register EC\n");
 		return err;
 	}
+
+	device_init_wakeup(&spi->dev, true);
 
 	return 0;
 }

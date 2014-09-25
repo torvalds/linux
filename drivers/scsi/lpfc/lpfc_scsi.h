@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -39,6 +39,20 @@ struct lpfc_hba;
 /* per-port data that is allocated in the FC transport for us */
 struct lpfc_rport_data {
 	struct lpfc_nodelist *pnode;	/* Pointer to the node structure. */
+};
+
+struct lpfc_device_id {
+	struct lpfc_name vport_wwpn;
+	struct lpfc_name target_wwpn;
+	uint64_t lun;
+};
+
+struct lpfc_device_data {
+	struct list_head listentry;
+	struct lpfc_rport_data *rport_data;
+	struct lpfc_device_id device_id;
+	bool oas_enabled;
+	bool available;
 };
 
 struct fcp_rsp {
@@ -166,3 +180,7 @@ struct lpfc_scsi_buf {
 #define LPFC_SCSI_DMA_EXT_SIZE 264
 #define LPFC_BPL_SIZE          1024
 #define MDAC_DIRECT_CMD                  0x22
+
+#define FIND_FIRST_OAS_LUN		 0
+#define NO_MORE_OAS_LUN			-1
+#define NOT_OAS_ENABLED_LUN		NO_MORE_OAS_LUN

@@ -156,7 +156,9 @@ EXPORT_SYMBOL(eth_rebuild_header);
  */
 __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
-	struct ethhdr *eth;
+	unsigned short _service_access_point;
+	const unsigned short *sap;
+	const struct ethhdr *eth;
 
 	skb->dev = dev;
 	skb_reset_mac_header(skb);
@@ -194,7 +196,8 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 *      layer. We look for FFFF which isn't a used 802.2 SSAP/DSAP. This
 	 *      won't work for fault tolerant netware but does for the rest.
 	 */
-	if (unlikely(skb->len >= 2 && *(unsigned short *)(skb->data) == 0xFFFF))
+	sap = skb_header_pointer(skb, 0, sizeof(*sap), &_service_access_point);
+	if (sap && *sap == 0xFFFF)
 		return htons(ETH_P_802_3);
 
 	/*
@@ -387,7 +390,8 @@ EXPORT_SYMBOL(ether_setup);
 struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
 				      unsigned int rxqs)
 {
-	return alloc_netdev_mqs(sizeof_priv, "eth%d", ether_setup, txqs, rxqs);
+	return alloc_netdev_mqs(sizeof_priv, "eth%d", NET_NAME_UNKNOWN,
+				ether_setup, txqs, rxqs);
 }
 EXPORT_SYMBOL(alloc_etherdev_mqs);
 

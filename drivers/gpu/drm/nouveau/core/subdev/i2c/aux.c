@@ -22,15 +22,19 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/i2c.h>
+#include "priv.h"
 
 int
 nv_rdaux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
 {
+	struct nouveau_i2c *i2c = nouveau_i2c(port);
 	if (port->func->aux) {
-		if (port->func->acquire)
-			port->func->acquire(port);
-		return port->func->aux(port, 9, addr, data, size);
+		int ret = i2c->acquire(port, 0);
+		if (ret == 0) {
+			ret = port->func->aux(port, true, 9, addr, data, size);
+			i2c->release(port);
+		}
+		return ret;
 	}
 	return -ENODEV;
 }
@@ -38,10 +42,14 @@ nv_rdaux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
 int
 nv_wraux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
 {
+	struct nouveau_i2c *i2c = nouveau_i2c(port);
 	if (port->func->aux) {
-		if (port->func->acquire)
-			port->func->acquire(port);
-		return port->func->aux(port, 8, addr, data, size);
+		int ret = i2c->acquire(port, 0);
+		if (ret == 0) {
+			ret = port->func->aux(port, true, 8, addr, data, size);
+			i2c->release(port);
+		}
+		return ret;
 	}
 	return -ENODEV;
 }
@@ -50,13 +58,16 @@ static int
 aux_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	struct nouveau_i2c_port *port = adap->algo_data;
+	struct nouveau_i2c *i2c = nouveau_i2c(port);
 	struct i2c_msg *msg = msgs;
 	int ret, mcnt = num;
 
 	if (!port->func->aux)
 		return -ENODEV;
-	if ( port->func->acquire)
-		port->func->acquire(port);
+
+	ret = i2c->acquire(port, 0);
+	if (ret)
+		return ret;
 
 	while (mcnt--) {
 		u8 remaining = msg->len;
@@ -74,9 +85,11 @@ aux_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			if (mcnt || remaining > 16)
 				cmd |= 4; /* MOT */
 
-			ret = port->func->aux(port, cmd, msg->addr, ptr, cnt);
-			if (ret < 0)
+			ret = port->func->aux(port, true, cmd, msg->addr, ptr, cnt);
+			if (ret < 0) {
+				i2c->release(port);
 				return ret;
+			}
 
 			ptr += cnt;
 			remaining -= cnt;
@@ -85,6 +98,7 @@ aux_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		msg++;
 	}
 
+	i2c->release(port);
 	return num;
 }
 

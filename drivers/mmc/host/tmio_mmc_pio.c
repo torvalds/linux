@@ -161,10 +161,8 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host, int new_clock)
 
 static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 {
-	struct resource *res = platform_get_resource(host->pdev, IORESOURCE_MEM, 0);
-
 	/* implicit BUG_ON(!res) */
-	if (resource_size(res) > 0x100) {
+	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG) {
 		sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0000);
 		msleep(10);
 	}
@@ -176,14 +174,12 @@ static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 
 static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
 {
-	struct resource *res = platform_get_resource(host->pdev, IORESOURCE_MEM, 0);
-
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, 0x0100 |
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 	msleep(10);
 
 	/* implicit BUG_ON(!res) */
-	if (resource_size(res) > 0x100) {
+	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG) {
 		sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0100);
 		msleep(10);
 	}
@@ -191,16 +187,14 @@ static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
 
 static void tmio_mmc_reset(struct tmio_mmc_host *host)
 {
-	struct resource *res = platform_get_resource(host->pdev, IORESOURCE_MEM, 0);
-
 	/* FIXME - should we set stop clock reg here */
 	sd_ctrl_write16(host, CTL_RESET_SD, 0x0000);
 	/* implicit BUG_ON(!res) */
-	if (resource_size(res) > 0x100)
+	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG)
 		sd_ctrl_write16(host, CTL_RESET_SDIO, 0x0000);
 	msleep(10);
 	sd_ctrl_write16(host, CTL_RESET_SD, 0x0001);
-	if (resource_size(res) > 0x100)
+	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG)
 		sd_ctrl_write16(host, CTL_RESET_SDIO, 0x0001);
 	msleep(10);
 }
@@ -944,17 +938,25 @@ static const struct mmc_host_ops tmio_mmc_ops = {
 	.enable_sdio_irq = tmio_mmc_enable_sdio_irq,
 };
 
-static void tmio_mmc_init_ocr(struct tmio_mmc_host *host)
+static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
 {
 	struct tmio_mmc_data *pdata = host->pdata;
 	struct mmc_host *mmc = host->mmc;
 
 	mmc_regulator_get_supply(mmc);
 
+	/* use ocr_mask if no regulator */
 	if (!mmc->ocr_avail)
-		mmc->ocr_avail = pdata->ocr_mask ? : MMC_VDD_32_33 | MMC_VDD_33_34;
-	else if (pdata->ocr_mask)
-		dev_warn(mmc_dev(mmc), "Platform OCR mask is ignored\n");
+		mmc->ocr_avail =  pdata->ocr_mask;
+
+	/*
+	 * try again.
+	 * There is possibility that regulator has not been probed
+	 */
+	if (!mmc->ocr_avail)
+		return -EPROBE_DEFER;
+
+	return 0;
 }
 
 static void tmio_mmc_of_parse(struct platform_device *pdev,
@@ -1005,8 +1007,9 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	_host->set_pwr = pdata->set_pwr;
 	_host->set_clk_div = pdata->set_clk_div;
 
-	/* SD control register space size is 0x200, 0x400 for bus_shift=1 */
-	_host->bus_shift = resource_size(res_ctl) >> 10;
+	ret = tmio_mmc_init_ocr(_host);
+	if (ret < 0)
+		goto host_free;
 
 	_host->ctl = ioremap(res_ctl->start, resource_size(res_ctl));
 	if (!_host->ctl) {
@@ -1016,14 +1019,13 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 
 	mmc->ops = &tmio_mmc_ops;
 	mmc->caps |= MMC_CAP_4_BIT_DATA | pdata->capabilities;
-	mmc->caps2 = pdata->capabilities2;
+	mmc->caps2 |= pdata->capabilities2;
 	mmc->max_segs = 32;
 	mmc->max_blk_size = 512;
 	mmc->max_blk_count = (PAGE_CACHE_SIZE / mmc->max_blk_size) *
 		mmc->max_segs;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
-	tmio_mmc_init_ocr(_host);
 
 	_host->native_hotplug = !(pdata->flags & TMIO_MMC_USE_GPIO_CD ||
 				  mmc->caps & MMC_CAP_NEEDS_POLL ||
@@ -1140,7 +1142,7 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 }
 EXPORT_SYMBOL(tmio_mmc_host_remove);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 int tmio_mmc_host_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
@@ -1163,9 +1165,9 @@ int tmio_mmc_host_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(tmio_mmc_host_resume);
+#endif
 
-#endif	/* CONFIG_PM */
-
+#ifdef CONFIG_PM_RUNTIME
 int tmio_mmc_host_runtime_suspend(struct device *dev)
 {
 	return 0;
@@ -1182,5 +1184,6 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(tmio_mmc_host_runtime_resume);
+#endif
 
 MODULE_LICENSE("GPL v2");

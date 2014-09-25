@@ -25,6 +25,7 @@
 #include <dt-bindings/clock/qcom,mmcc-msm8974.h>
 #include <dt-bindings/reset/qcom,mmcc-msm8974.h>
 
+#include "common.h"
 #include "clk-regmap.h"
 #include "clk-pll.h"
 #include "clk-rcg.h"
@@ -40,9 +41,11 @@
 #define P_EDPVCO	3
 #define P_GPLL1		4
 #define P_DSI0PLL	4
+#define P_DSI0PLL_BYTE	4
 #define P_MMPLL2	4
 #define P_MMPLL3	4
 #define P_DSI1PLL	5
+#define P_DSI1PLL_BYTE	5
 
 static const u8 mmcc_xo_mmpll0_mmpll1_gpll0_map[] = {
 	[P_XO]		= 0,
@@ -160,6 +163,24 @@ static const char *mmcc_xo_dsi_hdmi_edp_gpll0[] = {
 	"dsi1pll",
 };
 
+static const u8 mmcc_xo_dsibyte_hdmi_edp_gpll0_map[] = {
+	[P_XO]			= 0,
+	[P_EDPLINK]		= 4,
+	[P_HDMIPLL]		= 3,
+	[P_GPLL0]		= 5,
+	[P_DSI0PLL_BYTE]	= 1,
+	[P_DSI1PLL_BYTE]	= 2,
+};
+
+static const char *mmcc_xo_dsibyte_hdmi_edp_gpll0[] = {
+	"xo",
+	"edp_link_clk",
+	"hdmipll",
+	"gpll0_vote",
+	"dsi0pllbyte",
+	"dsi1pllbyte",
+};
+
 #define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
 
 static struct clk_pll mmpll0 = {
@@ -169,6 +190,7 @@ static struct clk_pll mmpll0 = {
 	.config_reg = 0x0014,
 	.mode_reg = 0x0000,
 	.status_reg = 0x001c,
+	.status_bit = 17,
         .clkr.hw.init = &(struct clk_init_data){
                 .name = "mmpll0",
                 .parent_names = (const char *[]){ "xo" },
@@ -192,9 +214,10 @@ static struct clk_pll mmpll1 = {
 	.l_reg = 0x0044,
 	.m_reg = 0x0048,
 	.n_reg = 0x004c,
-	.config_reg = 0x0054,
+	.config_reg = 0x0050,
 	.mode_reg = 0x0040,
 	.status_reg = 0x005c,
+	.status_bit = 17,
         .clkr.hw.init = &(struct clk_init_data){
                 .name = "mmpll1",
                 .parent_names = (const char *[]){ "xo" },
@@ -218,7 +241,7 @@ static struct clk_pll mmpll2 = {
 	.l_reg = 0x4104,
 	.m_reg = 0x4108,
 	.n_reg = 0x410c,
-	.config_reg = 0x4114,
+	.config_reg = 0x4110,
 	.mode_reg = 0x4100,
 	.status_reg = 0x411c,
         .clkr.hw.init = &(struct clk_init_data){
@@ -233,9 +256,10 @@ static struct clk_pll mmpll3 = {
 	.l_reg = 0x0084,
 	.m_reg = 0x0088,
 	.n_reg = 0x008c,
-	.config_reg = 0x0094,
+	.config_reg = 0x0090,
 	.mode_reg = 0x0080,
 	.status_reg = 0x009c,
+	.status_bit = 17,
         .clkr.hw.init = &(struct clk_init_data){
                 .name = "mmpll3",
                 .parent_names = (const char *[]){ "xo" },
@@ -496,15 +520,8 @@ static struct clk_rcg2 jpeg2_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_mdss_pclk0_clk[] = {
-	F(125000000, P_DSI0PLL, 2, 0, 0),
-	F(250000000, P_DSI0PLL, 1, 0, 0),
-	{ }
-};
-
-static struct freq_tbl ftbl_mdss_pclk1_clk[] = {
-	F(125000000, P_DSI1PLL, 2, 0, 0),
-	F(250000000, P_DSI1PLL, 1, 0, 0),
+static struct freq_tbl pixel_freq_tbl[] = {
+	{ .src = P_DSI0PLL },
 	{ }
 };
 
@@ -513,12 +530,13 @@ static struct clk_rcg2 pclk0_clk_src = {
 	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = ftbl_mdss_pclk0_clk,
+	.freq_tbl = pixel_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pclk0_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_pixel_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -527,12 +545,13 @@ static struct clk_rcg2 pclk1_clk_src = {
 	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = ftbl_mdss_pclk1_clk,
+	.freq_tbl = pixel_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pclk1_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_pixel_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -750,41 +769,36 @@ static struct clk_rcg2 cpp_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_mdss_byte0_clk[] = {
-	F(93750000, P_DSI0PLL, 8, 0, 0),
-	F(187500000, P_DSI0PLL, 4, 0, 0),
-	{ }
-};
-
-static struct freq_tbl ftbl_mdss_byte1_clk[] = {
-	F(93750000, P_DSI1PLL, 8, 0, 0),
-	F(187500000, P_DSI1PLL, 4, 0, 0),
+static struct freq_tbl byte_freq_tbl[] = {
+	{ .src = P_DSI0PLL_BYTE },
 	{ }
 };
 
 static struct clk_rcg2 byte0_clk_src = {
 	.cmd_rcgr = 0x2120,
 	.hid_width = 5,
-	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = ftbl_mdss_byte0_clk,
+	.parent_map = mmcc_xo_dsibyte_hdmi_edp_gpll0_map,
+	.freq_tbl = byte_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "byte0_clk_src",
-		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
+		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_byte_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
 static struct clk_rcg2 byte1_clk_src = {
 	.cmd_rcgr = 0x2140,
 	.hid_width = 5,
-	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = ftbl_mdss_byte1_clk,
+	.parent_map = mmcc_xo_dsibyte_hdmi_edp_gpll0_map,
+	.freq_tbl = byte_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "byte1_clk_src",
-		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
+		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_byte_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -822,12 +836,12 @@ static struct clk_rcg2 edplink_clk_src = {
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
 		.num_parents = 6,
 		.ops = &clk_rcg2_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct freq_tbl ftbl_mdss_edppixel_clk[] = {
-	F(175000000, P_EDPVCO, 2, 0, 0),
-	F(350000000, P_EDPVCO, 11, 0, 0),
+static struct freq_tbl edp_pixel_freq_tbl[] = {
+	{ .src = P_EDPVCO },
 	{ }
 };
 
@@ -836,12 +850,12 @@ static struct clk_rcg2 edppixel_clk_src = {
 	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_map,
-	.freq_tbl = ftbl_mdss_edppixel_clk,
+	.freq_tbl = edp_pixel_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "edppixel_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_edp_pixel_ops,
 	},
 };
 
@@ -853,11 +867,11 @@ static struct freq_tbl ftbl_mdss_esc0_1_clk[] = {
 static struct clk_rcg2 esc0_clk_src = {
 	.cmd_rcgr = 0x2160,
 	.hid_width = 5,
-	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
+	.parent_map = mmcc_xo_dsibyte_hdmi_edp_gpll0_map,
 	.freq_tbl = ftbl_mdss_esc0_1_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "esc0_clk_src",
-		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
+		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
 		.ops = &clk_rcg2_ops,
 	},
@@ -866,26 +880,18 @@ static struct clk_rcg2 esc0_clk_src = {
 static struct clk_rcg2 esc1_clk_src = {
 	.cmd_rcgr = 0x2180,
 	.hid_width = 5,
-	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
+	.parent_map = mmcc_xo_dsibyte_hdmi_edp_gpll0_map,
 	.freq_tbl = ftbl_mdss_esc0_1_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "esc1_clk_src",
-		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
+		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
 		.ops = &clk_rcg2_ops,
 	},
 };
 
-static struct freq_tbl ftbl_mdss_extpclk_clk[] = {
-	F(25200000, P_HDMIPLL, 1, 0, 0),
-	F(27000000, P_HDMIPLL, 1, 0, 0),
-	F(27030000, P_HDMIPLL, 1, 0, 0),
-	F(65000000, P_HDMIPLL, 1, 0, 0),
-	F(74250000, P_HDMIPLL, 1, 0, 0),
-	F(108000000, P_HDMIPLL, 1, 0, 0),
-	F(148500000, P_HDMIPLL, 1, 0, 0),
-	F(268500000, P_HDMIPLL, 1, 0, 0),
-	F(297000000, P_HDMIPLL, 1, 0, 0),
+static struct freq_tbl extpclk_freq_tbl[] = {
+	{ .src = P_HDMIPLL },
 	{ }
 };
 
@@ -893,12 +899,13 @@ static struct clk_rcg2 extpclk_clk_src = {
 	.cmd_rcgr = 0x2060,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = ftbl_mdss_extpclk_clk,
+	.freq_tbl = extpclk_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "extpclk_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_byte_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2318,7 +2325,7 @@ static const struct pll_config mmpll1_config = {
 	.vco_val = 0x0,
 	.vco_mask = 0x3 << 20,
 	.pre_div_val = 0x0,
-	.pre_div_mask = 0x3 << 12,
+	.pre_div_mask = 0x7 << 12,
 	.post_div_val = 0x0,
 	.post_div_mask = 0x3 << 8,
 	.mn_ena_mask = BIT(24),
@@ -2332,7 +2339,7 @@ static struct pll_config mmpll3_config = {
 	.vco_val = 0x0,
 	.vco_mask = 0x3 << 20,
 	.pre_div_val = 0x0,
-	.pre_div_mask = 0x3 << 12,
+	.pre_div_mask = 0x7 << 12,
 	.post_div_val = 0x0,
 	.post_div_mask = 0x3 << 8,
 	.mn_ena_mask = BIT(24),
@@ -2524,88 +2531,37 @@ static const struct regmap_config mmcc_msm8974_regmap_config = {
 	.fast_io	= true,
 };
 
+static const struct qcom_cc_desc mmcc_msm8974_desc = {
+	.config = &mmcc_msm8974_regmap_config,
+	.clks = mmcc_msm8974_clocks,
+	.num_clks = ARRAY_SIZE(mmcc_msm8974_clocks),
+	.resets = mmcc_msm8974_resets,
+	.num_resets = ARRAY_SIZE(mmcc_msm8974_resets),
+};
+
 static const struct of_device_id mmcc_msm8974_match_table[] = {
 	{ .compatible = "qcom,mmcc-msm8974" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mmcc_msm8974_match_table);
 
-struct qcom_cc {
-	struct qcom_reset_controller reset;
-	struct clk_onecell_data data;
-	struct clk *clks[];
-};
-
 static int mmcc_msm8974_probe(struct platform_device *pdev)
 {
-	void __iomem *base;
-	struct resource *res;
-	int i, ret;
-	struct device *dev = &pdev->dev;
-	struct clk *clk;
-	struct clk_onecell_data *data;
-	struct clk **clks;
 	struct regmap *regmap;
-	size_t num_clks;
-	struct qcom_reset_controller *reset;
-	struct qcom_cc *cc;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
-	regmap = devm_regmap_init_mmio(dev, base, &mmcc_msm8974_regmap_config);
+	regmap = qcom_cc_map(pdev, &mmcc_msm8974_desc);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-
-	num_clks = ARRAY_SIZE(mmcc_msm8974_clocks);
-	cc = devm_kzalloc(dev, sizeof(*cc) + sizeof(*clks) * num_clks,
-			  GFP_KERNEL);
-	if (!cc)
-		return -ENOMEM;
-
-	clks = cc->clks;
-	data = &cc->data;
-	data->clks = clks;
-	data->clk_num = num_clks;
 
 	clk_pll_configure_sr_hpm_lp(&mmpll1, regmap, &mmpll1_config, true);
 	clk_pll_configure_sr_hpm_lp(&mmpll3, regmap, &mmpll3_config, false);
 
-	for (i = 0; i < num_clks; i++) {
-		if (!mmcc_msm8974_clocks[i])
-			continue;
-		clk = devm_clk_register_regmap(dev, mmcc_msm8974_clocks[i]);
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
-		clks[i] = clk;
-	}
-
-	ret = of_clk_add_provider(dev->of_node, of_clk_src_onecell_get, data);
-	if (ret)
-		return ret;
-
-	reset = &cc->reset;
-	reset->rcdev.of_node = dev->of_node;
-	reset->rcdev.ops = &qcom_reset_ops,
-	reset->rcdev.owner = THIS_MODULE,
-	reset->rcdev.nr_resets = ARRAY_SIZE(mmcc_msm8974_resets),
-	reset->regmap = regmap;
-	reset->reset_map = mmcc_msm8974_resets,
-	platform_set_drvdata(pdev, &reset->rcdev);
-
-	ret = reset_controller_register(&reset->rcdev);
-	if (ret)
-		of_clk_del_provider(dev->of_node);
-
-	return ret;
+	return qcom_cc_really_probe(pdev, &mmcc_msm8974_desc, regmap);
 }
 
 static int mmcc_msm8974_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
-	reset_controller_unregister(platform_get_drvdata(pdev));
+	qcom_cc_remove(pdev);
 	return 0;
 }
 

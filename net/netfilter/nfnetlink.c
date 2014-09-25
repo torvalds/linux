@@ -61,6 +61,14 @@ void nfnl_unlock(__u8 subsys_id)
 }
 EXPORT_SYMBOL_GPL(nfnl_unlock);
 
+#ifdef CONFIG_PROVE_LOCKING
+int lockdep_nfnl_is_held(u8 subsys_id)
+{
+	return lockdep_is_held(&table[subsys_id].mutex);
+}
+EXPORT_SYMBOL_GPL(lockdep_nfnl_is_held);
+#endif
+
 int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n)
 {
 	nfnl_lock(n->subsys_id);
@@ -248,15 +256,15 @@ replay:
 #endif
 		{
 			nfnl_unlock(subsys_id);
-			kfree_skb(nskb);
-			return netlink_ack(skb, nlh, -EOPNOTSUPP);
+			netlink_ack(skb, nlh, -EOPNOTSUPP);
+			return kfree_skb(nskb);
 		}
 	}
 
 	if (!ss->commit || !ss->abort) {
 		nfnl_unlock(subsys_id);
-		kfree_skb(nskb);
-		return netlink_ack(skb, nlh, -EOPNOTSUPP);
+		netlink_ack(skb, nlh, -EOPNOTSUPP);
+		return kfree_skb(skb);
 	}
 
 	while (skb->len >= nlmsg_total_size(0)) {
@@ -360,14 +368,13 @@ done:
 static void nfnetlink_rcv(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
-	struct net *net = sock_net(skb->sk);
 	int msglen;
 
 	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
 	    skb->len < nlh->nlmsg_len)
 		return;
 
-	if (!ns_capable(net->user_ns, CAP_NET_ADMIN)) {
+	if (!netlink_net_capable(skb, CAP_NET_ADMIN)) {
 		netlink_ack(skb, nlh, -EPERM);
 		return;
 	}
@@ -392,19 +399,17 @@ static void nfnetlink_rcv(struct sk_buff *skb)
 }
 
 #ifdef CONFIG_MODULES
-static void nfnetlink_bind(int group)
+static int nfnetlink_bind(int group)
 {
 	const struct nfnetlink_subsystem *ss;
 	int type = nfnl_group2type[group];
 
 	rcu_read_lock();
 	ss = nfnetlink_get_subsys(type);
-	if (!ss) {
-		rcu_read_unlock();
-		request_module("nfnetlink-subsys-%d", type);
-		return;
-	}
 	rcu_read_unlock();
+	if (!ss)
+		request_module("nfnetlink-subsys-%d", type);
+	return 0;
 }
 #endif
 

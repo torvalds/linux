@@ -130,7 +130,7 @@ xfs_buf_get_maps(
 	bp->b_maps = kmem_zalloc(map_count * sizeof(struct xfs_buf_map),
 				KM_NOFS);
 	if (!bp->b_maps)
-		return ENOMEM;
+		return -ENOMEM;
 	return 0;
 }
 
@@ -216,8 +216,7 @@ _xfs_buf_alloc(
 STATIC int
 _xfs_buf_get_pages(
 	xfs_buf_t		*bp,
-	int			page_count,
-	xfs_buf_flags_t		flags)
+	int			page_count)
 {
 	/* Make sure that we have a page list */
 	if (bp->b_pages == NULL) {
@@ -330,7 +329,7 @@ use_alloc_page:
 	end = (BBTOB(bp->b_maps[0].bm_bn + bp->b_length) + PAGE_SIZE - 1)
 								>> PAGE_SHIFT;
 	page_count = end - start;
-	error = _xfs_buf_get_pages(bp, page_count, flags);
+	error = _xfs_buf_get_pages(bp, page_count);
 	if (unlikely(error))
 		return error;
 
@@ -345,7 +344,7 @@ retry:
 		if (unlikely(page == NULL)) {
 			if (flags & XBF_READ_AHEAD) {
 				bp->b_page_count = i;
-				error = ENOMEM;
+				error = -ENOMEM;
 				goto out_free_pages;
 			}
 
@@ -396,7 +395,17 @@ _xfs_buf_map_pages(
 		bp->b_addr = NULL;
 	} else {
 		int retried = 0;
+		unsigned noio_flag;
 
+		/*
+		 * vm_map_ram() will allocate auxillary structures (e.g.
+		 * pagetables) with GFP_KERNEL, yet we are likely to be under
+		 * GFP_NOFS context here. Hence we need to tell memory reclaim
+		 * that we are in such a context via PF_MEMALLOC_NOIO to prevent
+		 * memory reclaim re-entering the filesystem here and
+		 * potentially deadlocking.
+		 */
+		noio_flag = memalloc_noio_save();
 		do {
 			bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
 						-1, PAGE_KERNEL);
@@ -404,6 +413,7 @@ _xfs_buf_map_pages(
 				break;
 			vm_unmap_aliases();
 		} while (retried++ <= 1);
+		memalloc_noio_restore(noio_flag);
 
 		if (!bp->b_addr)
 			return -ENOMEM;
@@ -445,8 +455,8 @@ _xfs_buf_find(
 	numbytes = BBTOB(numblks);
 
 	/* Check for IOs smaller than the sector size / not sector aligned */
-	ASSERT(!(numbytes < (1 << btp->bt_sshift)));
-	ASSERT(!(BBTOB(blkno) & (xfs_off_t)btp->bt_smask));
+	ASSERT(!(numbytes < btp->bt_meta_sectorsize));
+	ASSERT(!(BBTOB(blkno) & (xfs_off_t)btp->bt_meta_sectormask));
 
 	/*
 	 * Corrupted block numbers can get through to here, unfortunately, so we
@@ -455,7 +465,7 @@ _xfs_buf_find(
 	eofs = XFS_FSB_TO_BB(btp->bt_mount, btp->bt_mount->m_sb.sb_dblocks);
 	if (blkno >= eofs) {
 		/*
-		 * XXX (dgc): we should really be returning EFSCORRUPTED here,
+		 * XXX (dgc): we should really be returning -EFSCORRUPTED here,
 		 * but none of the higher level infrastructure supports
 		 * returning a specific error on buffer lookup failures.
 		 */
@@ -767,7 +777,7 @@ xfs_buf_associate_memory(
 	bp->b_pages = NULL;
 	bp->b_addr = mem;
 
-	rval = _xfs_buf_get_pages(bp, page_count, 0);
+	rval = _xfs_buf_get_pages(bp, page_count);
 	if (rval)
 		return rval;
 
@@ -800,7 +810,7 @@ xfs_buf_get_uncached(
 		goto fail;
 
 	page_count = PAGE_ALIGN(numblks << BBSHIFT) >> PAGE_SHIFT;
-	error = _xfs_buf_get_pages(bp, page_count, 0);
+	error = _xfs_buf_get_pages(bp, page_count);
 	if (error)
 		goto fail_free_buf;
 
@@ -1042,8 +1052,8 @@ xfs_buf_ioerror(
 	xfs_buf_t		*bp,
 	int			error)
 {
-	ASSERT(error >= 0 && error <= 0xffff);
-	bp->b_error = (unsigned short)error;
+	ASSERT(error <= 0 && error >= -1000);
+	bp->b_error = error;
 	trace_xfs_buf_ioerror(bp, error, _RET_IP_);
 }
 
@@ -1054,7 +1064,7 @@ xfs_buf_ioerror_alert(
 {
 	xfs_alert(bp->b_target->bt_mount,
 "metadata I/O error: block 0x%llx (\"%s\") error %d numblks %d",
-		(__uint64_t)XFS_BUF_ADDR(bp), func, bp->b_error, bp->b_length);
+		(__uint64_t)XFS_BUF_ADDR(bp), func, -bp->b_error, bp->b_length);
 }
 
 /*
@@ -1073,7 +1083,7 @@ xfs_bioerror(
 	/*
 	 * No need to wait until the buffer is unpinned, we aren't flushing it.
 	 */
-	xfs_buf_ioerror(bp, EIO);
+	xfs_buf_ioerror(bp, -EIO);
 
 	/*
 	 * We're calling xfs_buf_ioend, so delete XBF_DONE flag.
@@ -1084,7 +1094,7 @@ xfs_bioerror(
 
 	xfs_buf_ioend(bp, 0);
 
-	return EIO;
+	return -EIO;
 }
 
 /*
@@ -1117,13 +1127,13 @@ xfs_bioerror_relse(
 		 * There's no reason to mark error for
 		 * ASYNC buffers.
 		 */
-		xfs_buf_ioerror(bp, EIO);
+		xfs_buf_ioerror(bp, -EIO);
 		complete(&bp->b_iowait);
 	} else {
 		xfs_buf_relse(bp);
 	}
 
-	return EIO;
+	return -EIO;
 }
 
 STATIC int
@@ -1189,7 +1199,7 @@ xfs_buf_bio_end_io(
 	 * buffers that require multiple bios to complete.
 	 */
 	if (!bp->b_error)
-		xfs_buf_ioerror(bp, -error);
+		xfs_buf_ioerror(bp, error);
 
 	if (!bp->b_error && xfs_buf_is_vmapped(bp) && (bp->b_flags & XBF_READ))
 		invalidate_kernel_vmap_range(bp->b_addr, xfs_buf_vmap_len(bp));
@@ -1240,7 +1250,7 @@ next_chunk:
 
 	bio = bio_alloc(GFP_NOIO, nr_pages);
 	bio->bi_bdev = bp->b_target->bt_bdev;
-	bio->bi_sector = sector;
+	bio->bi_iter.bi_sector = sector;
 	bio->bi_end_io = xfs_buf_bio_end_io;
 	bio->bi_private = bp;
 
@@ -1262,7 +1272,7 @@ next_chunk:
 		total_nr_pages--;
 	}
 
-	if (likely(bio->bi_size)) {
+	if (likely(bio->bi_iter.bi_size)) {
 		if (xfs_buf_is_vmapped(bp)) {
 			flush_kernel_vmap_range(bp->b_addr,
 						xfs_buf_vmap_len(bp));
@@ -1276,7 +1286,7 @@ next_chunk:
 		 * because the caller (xfs_buf_iorequest) holds a count itself.
 		 */
 		atomic_dec(&bp->b_io_remaining);
-		xfs_buf_ioerror(bp, EIO);
+		xfs_buf_ioerror(bp, -EIO);
 		bio_put(bio);
 	}
 
@@ -1320,6 +1330,20 @@ _xfs_buf_ioapply(
 						   SHUTDOWN_CORRUPT_INCORE);
 				return;
 			}
+		} else if (bp->b_bn != XFS_BUF_DADDR_NULL) {
+			struct xfs_mount *mp = bp->b_target->bt_mount;
+
+			/*
+			 * non-crc filesystems don't attach verifiers during
+			 * log recovery, so don't warn for such filesystems.
+			 */
+			if (xfs_sb_version_hascrc(&mp->m_sb)) {
+				xfs_warn(mp,
+					"%s: no ops on block 0x%llx/0x%x",
+					__func__, bp->b_bn, bp->b_length);
+				xfs_hex_dump(bp->b_addr, 64);
+				dump_stack();
+			}
 		}
 	} else if (bp->b_flags & XBF_READ_AHEAD) {
 		rw = READA;
@@ -1361,21 +1385,29 @@ xfs_buf_iorequest(
 		xfs_buf_wait_unpin(bp);
 	xfs_buf_hold(bp);
 
-	/* Set the count to 1 initially, this will stop an I/O
+	/*
+	 * Set the count to 1 initially, this will stop an I/O
 	 * completion callout which happens before we have started
 	 * all the I/O from calling xfs_buf_ioend too early.
 	 */
 	atomic_set(&bp->b_io_remaining, 1);
 	_xfs_buf_ioapply(bp);
-	_xfs_buf_ioend(bp, 1);
+	/*
+	 * If _xfs_buf_ioapply failed, we'll get back here with
+	 * only the reference we took above.  _xfs_buf_ioend will
+	 * drop it to zero, so we'd better not queue it for later,
+	 * or we'll free it before it's done.
+	 */
+	_xfs_buf_ioend(bp, bp->b_error ? 0 : 1);
 
 	xfs_buf_rele(bp);
 }
 
 /*
  * Waits for I/O to complete on the buffer supplied.  It returns immediately if
- * no I/O is pending or there is already a pending error on the buffer.  It
- * returns the I/O error code, if any, or 0 if there was no error.
+ * no I/O is pending or there is already a pending error on the buffer, in which
+ * case nothing will ever complete.  It returns the I/O error code, if any, or
+ * 0 if there was no error.
  */
 int
 xfs_buf_iowait(
@@ -1596,12 +1628,11 @@ xfs_free_buftarg(
 int
 xfs_setsize_buftarg(
 	xfs_buftarg_t		*btp,
-	unsigned int		blocksize,
 	unsigned int		sectorsize)
 {
-	btp->bt_bsize = blocksize;
-	btp->bt_sshift = ffs(sectorsize) - 1;
-	btp->bt_smask = sectorsize - 1;
+	/* Set up metadata sector size info */
+	btp->bt_meta_sectorsize = sectorsize;
+	btp->bt_meta_sectormask = sectorsize - 1;
 
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {
 		char name[BDEVNAME_SIZE];
@@ -1611,8 +1642,12 @@ xfs_setsize_buftarg(
 		xfs_warn(btp->bt_mount,
 			"Cannot set_blocksize to %u on device %s",
 			sectorsize, name);
-		return EINVAL;
+		return -EINVAL;
 	}
+
+	/* Set up device logical sector size mask */
+	btp->bt_logical_sectorsize = bdev_logical_block_size(btp->bt_bdev);
+	btp->bt_logical_sectormask = bdev_logical_block_size(btp->bt_bdev) - 1;
 
 	return 0;
 }
@@ -1627,16 +1662,13 @@ xfs_setsize_buftarg_early(
 	xfs_buftarg_t		*btp,
 	struct block_device	*bdev)
 {
-	return xfs_setsize_buftarg(btp, PAGE_SIZE,
-				   bdev_logical_block_size(bdev));
+	return xfs_setsize_buftarg(btp, bdev_logical_block_size(bdev));
 }
 
 xfs_buftarg_t *
 xfs_alloc_buftarg(
 	struct xfs_mount	*mp,
-	struct block_device	*bdev,
-	int			external,
-	const char		*fsname)
+	struct block_device	*bdev)
 {
 	xfs_buftarg_t		*btp;
 

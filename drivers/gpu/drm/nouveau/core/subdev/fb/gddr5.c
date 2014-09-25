@@ -25,35 +25,44 @@
 #include <subdev/bios.h>
 #include "priv.h"
 
+/* binary driver only executes this path if the condition (a) is true
+ * for any configuration (combination of rammap+ramcfg+timing) that
+ * can be reached on a given card.  for now, we will execute the branch
+ * unconditionally in the hope that a "false everywhere" in the bios
+ * tables doesn't actually mean "don't touch this".
+ */
+#define NOTE00(a) 1
+
 int
-nouveau_gddr5_calc(struct nouveau_ram *ram)
+nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
 {
-	struct nouveau_bios *bios = nouveau_bios(ram);
-	int pd, lf, xd, vh, vr, vo;
-	int WL, CL, WR, at, dt, ds;
+	int pd, lf, xd, vh, vr, vo, l3;
+	int WL, CL, WR, at[2], dt, ds;
 	int rq = ram->freq < 1000000; /* XXX */
 
-	switch (!!ram->ramcfg.data * ram->ramcfg.version) {
+	switch (ram->ramcfg.version) {
 	case 0x11:
-		pd =  (nv_ro08(bios, ram->ramcfg.data + 0x01) & 0x80) >> 7;
-		lf =  (nv_ro08(bios, ram->ramcfg.data + 0x01) & 0x40) >> 6;
-		xd = !(nv_ro08(bios, ram->ramcfg.data + 0x01) & 0x20);
-		vh =  (nv_ro08(bios, ram->ramcfg.data + 0x02) & 0x10) >> 4;
-		vr =  (nv_ro08(bios, ram->ramcfg.data + 0x02) & 0x04) >> 2;
-		vo =   nv_ro08(bios, ram->ramcfg.data + 0x06) & 0xff;
+		pd =  ram->next->bios.ramcfg_11_01_80;
+		lf =  ram->next->bios.ramcfg_11_01_40;
+		xd = !ram->next->bios.ramcfg_11_01_20;
+		vh =  ram->next->bios.ramcfg_11_02_10;
+		vr =  ram->next->bios.ramcfg_11_02_04;
+		vo =  ram->next->bios.ramcfg_11_06;
+		l3 = !ram->next->bios.ramcfg_11_07_02;
 		break;
 	default:
 		return -ENOSYS;
 	}
 
-	switch (!!ram->timing.data * ram->timing.version) {
+	switch (ram->timing.version) {
 	case 0x20:
-		WL = (nv_ro16(bios, ram->timing.data + 0x04) & 0x0f80) >> 7;
-		CL =  nv_ro08(bios, ram->timing.data + 0x04) & 0x1f;
-		WR =  nv_ro08(bios, ram->timing.data + 0x0a) & 0x7f;
-		at = (nv_ro08(bios, ram->timing.data + 0x2e) & 0xc0) >> 6;
-		dt =  nv_ro08(bios, ram->timing.data + 0x2e) & 0x03;
-		ds =  nv_ro08(bios, ram->timing.data + 0x2f) & 0x03;
+		WL = (ram->next->bios.timing[1] & 0x00000f80) >> 7;
+		CL = (ram->next->bios.timing[1] & 0x0000001f);
+		WR = (ram->next->bios.timing[2] & 0x007f0000) >> 16;
+		at[0] = ram->next->bios.timing_20_2e_c0;
+		at[1] = ram->next->bios.timing_20_2e_30;
+		dt =  ram->next->bios.timing_20_2e_03;
+		ds =  ram->next->bios.timing_20_2f_03;
 		break;
 	default:
 		return -ENOSYS;
@@ -71,12 +80,24 @@ nouveau_gddr5_calc(struct nouveau_ram *ram)
 
 	ram->mr[1] &= ~0x0bf;
 	ram->mr[1] |= (xd & 0x01) << 7;
-	ram->mr[1] |= (at & 0x03) << 4;
+	ram->mr[1] |= (at[0] & 0x03) << 4;
 	ram->mr[1] |= (dt & 0x03) << 2;
 	ram->mr[1] |= (ds & 0x03) << 0;
 
+	/* this seems wrong, alternate field used for the broadcast
+	 * on nuts vs non-nuts configs..  meh, it matches for now.
+	 */
+	ram->mr1_nuts = ram->mr[1];
+	if (nuts) {
+		ram->mr[1] &= ~0x030;
+		ram->mr[1] |= (at[1] & 0x03) << 4;
+	}
+
 	ram->mr[3] &= ~0x020;
 	ram->mr[3] |= (rq & 0x01) << 5;
+
+	ram->mr[5] &= ~0x004;
+	ram->mr[5] |= (l3 << 2);
 
 	if (!vo)
 		vo = (ram->mr[6] & 0xff0) >> 4;
@@ -86,11 +107,16 @@ nouveau_gddr5_calc(struct nouveau_ram *ram)
 	ram->mr[6] |= (vo & 0xff) << 4;
 	ram->mr[6] |= (pd & 0x01) << 0;
 
-	if (!(ram->mr[7] & 0x100))
-		vr = 0; /* binary driver does this.. bug? */
-	ram->mr[7] &= ~0x188;
-	ram->mr[7] |= (vr & 0x01) << 8;
+	if (NOTE00(vr)) {
+		ram->mr[7] &= ~0x300;
+		ram->mr[7] |= (vr & 0x03) << 8;
+	}
+	ram->mr[7] &= ~0x088;
 	ram->mr[7] |= (vh & 0x01) << 7;
 	ram->mr[7] |= (lf & 0x01) << 3;
+
+	ram->mr[8] &= ~0x003;
+	ram->mr[8] |= (WR & 0x10) >> 3;
+	ram->mr[8] |= (CL & 0x10) >> 4;
 	return 0;
 }

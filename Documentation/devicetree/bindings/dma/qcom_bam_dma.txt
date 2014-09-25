@@ -1,0 +1,41 @@
+QCOM BAM DMA controller
+
+Required properties:
+- compatible: must contain "qcom,bam-v1.4.0" for MSM8974
+- reg: Address range for DMA registers
+- interrupts: Should contain the one interrupt shared by all channels
+- #dma-cells: must be <1>, the cell in the dmas property of the client device
+  represents the channel number
+- clocks: required clock
+- clock-names: must contain "bam_clk" entry
+- qcom,ee : indicates the active Execution Environment identifier (0-7) used in
+  the secure world.
+
+Example:
+
+	uart-bam: dma@f9984000 = {
+		compatible = "qcom,bam-v1.4.0";
+		reg = <0xf9984000 0x15000>;
+		interrupts = <0 94 0>;
+		clocks = <&gcc GCC_BAM_DMA_AHB_CLK>;
+		clock-names = "bam_clk";
+		#dma-cells = <1>;
+		qcom,ee = <0>;
+	};
+
+DMA clients must use the format described in the dma.txt file, using a two cell
+specifier for each channel.
+
+Example:
+	serial@f991e000 {
+		compatible = "qcom,msm-uart";
+		reg = <0xf991e000 0x1000>
+			<0xf9944000 0x19000>;
+		interrupts = <0 108 0>;
+		clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>,
+			<&gcc GCC_BLSP1_AHB_CLK>;
+		clock-names = "core", "iface";
+
+		dmas = <&uart-bam 0>, <&uart-bam 1>;
+		dma-names = "rx", "tx";
+	};

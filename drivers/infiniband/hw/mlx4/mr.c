@@ -90,11 +90,11 @@ int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,
 			   struct ib_umem *umem)
 {
 	u64 *pages;
-	struct ib_umem_chunk *chunk;
-	int i, j, k;
+	int i, k, entry;
 	int n;
 	int len;
 	int err = 0;
+	struct scatterlist *sg;
 
 	pages = (u64 *) __get_free_page(GFP_KERNEL);
 	if (!pages)
@@ -102,26 +102,25 @@ int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,
 
 	i = n = 0;
 
-	list_for_each_entry(chunk, &umem->chunk_list, list)
-		for (j = 0; j < chunk->nmap; ++j) {
-			len = sg_dma_len(&chunk->page_list[j]) >> mtt->page_shift;
-			for (k = 0; k < len; ++k) {
-				pages[i++] = sg_dma_address(&chunk->page_list[j]) +
-					umem->page_size * k;
-				/*
-				 * Be friendly to mlx4_write_mtt() and
-				 * pass it chunks of appropriate size.
-				 */
-				if (i == PAGE_SIZE / sizeof (u64)) {
-					err = mlx4_write_mtt(dev->dev, mtt, n,
-							     i, pages);
-					if (err)
-						goto out;
-					n += i;
-					i = 0;
-				}
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
+		len = sg_dma_len(sg) >> mtt->page_shift;
+		for (k = 0; k < len; ++k) {
+			pages[i++] = sg_dma_address(sg) +
+				umem->page_size * k;
+			/*
+			 * Be friendly to mlx4_write_mtt() and
+			 * pass it chunks of appropriate size.
+			 */
+			if (i == PAGE_SIZE / sizeof (u64)) {
+				err = mlx4_write_mtt(dev->dev, mtt, n,
+						     i, pages);
+				if (err)
+					goto out;
+				n += i;
+				i = 0;
 			}
 		}
+	}
 
 	if (i)
 		err = mlx4_write_mtt(dev->dev, mtt, n, i, pages);
@@ -145,8 +144,10 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
+	/* Force registering the memory as writable. */
+	/* Used for memory re-registeration. HCA protects the access */
 	mr->umem = ib_umem_get(pd->uobject->context, start, length,
-			       access_flags, 0);
+			       access_flags | IB_ACCESS_LOCAL_WRITE, 0);
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
 		goto err_free;
@@ -182,6 +183,93 @@ err_free:
 	kfree(mr);
 
 	return ERR_PTR(err);
+}
+
+int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
+			  u64 start, u64 length, u64 virt_addr,
+			  int mr_access_flags, struct ib_pd *pd,
+			  struct ib_udata *udata)
+{
+	struct mlx4_ib_dev *dev = to_mdev(mr->device);
+	struct mlx4_ib_mr *mmr = to_mmr(mr);
+	struct mlx4_mpt_entry *mpt_entry;
+	struct mlx4_mpt_entry **pmpt_entry = &mpt_entry;
+	int err;
+
+	/* Since we synchronize this call and mlx4_ib_dereg_mr via uverbs,
+	 * we assume that the calls can't run concurrently. Otherwise, a
+	 * race exists.
+	 */
+	err =  mlx4_mr_hw_get_mpt(dev->dev, &mmr->mmr, &pmpt_entry);
+
+	if (err)
+		return err;
+
+	if (flags & IB_MR_REREG_PD) {
+		err = mlx4_mr_hw_change_pd(dev->dev, *pmpt_entry,
+					   to_mpd(pd)->pdn);
+
+		if (err)
+			goto release_mpt_entry;
+	}
+
+	if (flags & IB_MR_REREG_ACCESS) {
+		err = mlx4_mr_hw_change_access(dev->dev, *pmpt_entry,
+					       convert_access(mr_access_flags));
+
+		if (err)
+			goto release_mpt_entry;
+	}
+
+	if (flags & IB_MR_REREG_TRANS) {
+		int shift;
+		int err;
+		int n;
+
+		mlx4_mr_rereg_mem_cleanup(dev->dev, &mmr->mmr);
+		ib_umem_release(mmr->umem);
+		mmr->umem = ib_umem_get(mr->uobject->context, start, length,
+					mr_access_flags |
+					IB_ACCESS_LOCAL_WRITE,
+					0);
+		if (IS_ERR(mmr->umem)) {
+			err = PTR_ERR(mmr->umem);
+			/* Prevent mlx4_ib_dereg_mr from free'ing invalid pointer */
+			mmr->umem = NULL;
+			goto release_mpt_entry;
+		}
+		n = ib_umem_page_count(mmr->umem);
+		shift = ilog2(mmr->umem->page_size);
+
+		err = mlx4_mr_rereg_mem_write(dev->dev, &mmr->mmr,
+					      virt_addr, length, n, shift,
+					      *pmpt_entry);
+		if (err) {
+			ib_umem_release(mmr->umem);
+			goto release_mpt_entry;
+		}
+		mmr->mmr.iova       = virt_addr;
+		mmr->mmr.size       = length;
+
+		err = mlx4_ib_umem_write_mtt(dev, &mmr->mmr.mtt, mmr->umem);
+		if (err) {
+			mlx4_mr_rereg_mem_cleanup(dev->dev, &mmr->mmr);
+			ib_umem_release(mmr->umem);
+			goto release_mpt_entry;
+		}
+	}
+
+	/* If we couldn't transfer the MR to the HCA, just remember to
+	 * return a failure. But dereg_mr will free the resources.
+	 */
+	err = mlx4_mr_hw_write_mpt(dev->dev, &mmr->mmr, pmpt_entry);
+	if (!err && flags & IB_MR_REREG_ACCESS)
+		mmr->mmr.access = mr_access_flags;
+
+release_mpt_entry:
+	mlx4_mr_hw_put_mpt(dev->dev, pmpt_entry);
+
+	return err;
 }
 
 int mlx4_ib_dereg_mr(struct ib_mr *ibmr)

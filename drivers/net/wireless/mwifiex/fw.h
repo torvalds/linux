@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: Firmware specific macros & structures
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -30,7 +30,7 @@ struct rfc_1042_hdr {
 	u8 llc_ssap;
 	u8 llc_ctrl;
 	u8 snap_oui[3];
-	u16 snap_type;
+	__be16 snap_type;
 };
 
 struct rx_packet_hdr {
@@ -50,21 +50,23 @@ struct tx_packet_hdr {
 #define HOSTCMD_SUPPORTED_RATES         14
 #define N_SUPPORTED_RATES               3
 #define ALL_802_11_BANDS           (BAND_A | BAND_B | BAND_G | BAND_GN | \
-				    BAND_AN | BAND_GAC | BAND_AAC)
+				    BAND_AN | BAND_AAC)
 
 #define FW_MULTI_BANDS_SUPPORT  (BIT(8) | BIT(9) | BIT(10) | BIT(11) | \
-				 BIT(12) | BIT(13))
+				 BIT(13))
 #define IS_SUPPORT_MULTI_BANDS(adapter)        \
 	(adapter->fw_cap_info & FW_MULTI_BANDS_SUPPORT)
 
-/* shift bit 12 and bit 13 in fw_cap_info from the firmware to bit 13 and 14
- * for 11ac so that bit 11 is for GN, bit 12 for AN, bit 13 for GAC, and bit
- * bit 14 for AAC, in order to be compatible with the band capability
- * defined in the driver after right shift of 8 bits.
+/* bit 13: 11ac BAND_AAC
+ * bit 12: reserved for lab testing, will be reused for BAND_AN
+ * bit 11: 11n  BAND_GN
+ * bit 10: 11a  BAND_A
+ * bit 9: 11g   BAND_G
+ * bit 8: 11b   BAND_B
+ * Map these bits to band capability by right shifting 8 bits.
  */
 #define GET_FW_DEFAULT_BANDS(adapter)  \
-	    (((((adapter->fw_cap_info & 0x3000) << 1) | \
-	       (adapter->fw_cap_info & ~0xF000)) >> 8) & \
+	    (((adapter->fw_cap_info & 0x2f00) >> 8) & \
 	     ALL_802_11_BANDS)
 
 #define HostCmd_WEP_KEY_INDEX_MASK              0x3fff
@@ -77,12 +79,21 @@ enum KEY_TYPE_ID {
 	KEY_TYPE_ID_WAPI,
 	KEY_TYPE_ID_AES_CMAC,
 };
+
+#define WPA_PN_SIZE		8
+#define KEY_PARAMS_FIXED_LEN	10
+#define KEY_INDEX_MASK		0xf
+#define FW_KEY_API_VER_MAJOR_V2	2
+
 #define KEY_MCAST	BIT(0)
 #define KEY_UNICAST	BIT(1)
 #define KEY_ENABLED	BIT(2)
+#define KEY_DEFAULT	BIT(3)
+#define KEY_TX_KEY	BIT(4)
+#define KEY_RX_KEY	BIT(5)
 #define KEY_IGTK	BIT(10)
 
-#define WAPI_KEY_LEN			50
+#define WAPI_KEY_LEN			(WLAN_KEY_LEN_SMS4 + PN_LEN + 2)
 
 #define MAX_POLL_TRIES			100
 #define MAX_FIRMWARE_POLL_TRIES			100
@@ -130,6 +141,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_RSSI_HIGH          (PROPRIETARY_TLV_BASE_ID + 22)
 #define TLV_TYPE_AUTH_TYPE          (PROPRIETARY_TLV_BASE_ID + 31)
 #define TLV_TYPE_STA_MAC_ADDR       (PROPRIETARY_TLV_BASE_ID + 32)
+#define TLV_TYPE_BSSID              (PROPRIETARY_TLV_BASE_ID + 35)
 #define TLV_TYPE_CHANNELBANDLIST    (PROPRIETARY_TLV_BASE_ID + 42)
 #define TLV_TYPE_UAP_BEACON_PERIOD  (PROPRIETARY_TLV_BASE_ID + 44)
 #define TLV_TYPE_UAP_DTIM_PERIOD    (PROPRIETARY_TLV_BASE_ID + 45)
@@ -144,6 +156,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_RATE_DROP_CONTROL  (PROPRIETARY_TLV_BASE_ID + 82)
 #define TLV_TYPE_RATE_SCOPE         (PROPRIETARY_TLV_BASE_ID + 83)
 #define TLV_TYPE_POWER_GROUP        (PROPRIETARY_TLV_BASE_ID + 84)
+#define TLV_TYPE_BSS_SCAN_RSP       (PROPRIETARY_TLV_BASE_ID + 86)
+#define TLV_TYPE_BSS_SCAN_INFO      (PROPRIETARY_TLV_BASE_ID + 87)
 #define TLV_TYPE_UAP_RETRY_LIMIT    (PROPRIETARY_TLV_BASE_ID + 93)
 #define TLV_TYPE_WAPI_IE            (PROPRIETARY_TLV_BASE_ID + 94)
 #define TLV_TYPE_UAP_MGMT_FRAME     (PROPRIETARY_TLV_BASE_ID + 104)
@@ -154,6 +168,9 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_PWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 145)
 #define TLV_TYPE_GWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 146)
 #define TLV_TYPE_COALESCE_RULE      (PROPRIETARY_TLV_BASE_ID + 154)
+#define TLV_TYPE_KEY_PARAM_V2       (PROPRIETARY_TLV_BASE_ID + 156)
+#define TLV_TYPE_TDLS_IDLE_TIMEOUT  (PROPRIETARY_TLV_BASE_ID + 194)
+#define TLV_TYPE_FW_API_REV         (PROPRIETARY_TLV_BASE_ID + 199)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -176,12 +193,20 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define MWIFIEX_TX_DATA_BUF_SIZE_8K        8192
 
 #define ISSUPP_11NENABLED(FwCapInfo) (FwCapInfo & BIT(11))
+#define ISSUPP_TDLS_ENABLED(FwCapInfo) (FwCapInfo & BIT(14))
 
 #define MWIFIEX_DEF_HT_CAP	(IEEE80211_HT_CAP_DSSSCCK40 | \
 				 (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT) | \
 				 IEEE80211_HT_CAP_SM_PS)
 
+#define MWIFIEX_DEF_11N_TX_BF_CAP	0x09E1E008
+
 #define MWIFIEX_DEF_AMPDU	IEEE80211_HT_AMPDU_PARM_FACTOR
+
+#define GET_RXSTBC(x) (x & IEEE80211_HT_CAP_RX_STBC)
+#define MWIFIEX_RX_STBC1	0x0100
+#define MWIFIEX_RX_STBC12	0x0200
+#define MWIFIEX_RX_STBC123	0x0300
 
 /* dev_cap bitmap
  * BIT
@@ -204,6 +229,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define ISSUPP_GREENFIELD(Dot11nDevCap) (Dot11nDevCap & BIT(29))
 #define ISENABLED_40MHZ_INTOLERANT(Dot11nDevCap) (Dot11nDevCap & BIT(8))
 #define ISSUPP_RXLDPC(Dot11nDevCap) (Dot11nDevCap & BIT(22))
+#define ISSUPP_BEAMFORMING(Dot11nDevCap) (Dot11nDevCap & BIT(30))
+#define ISALLOWED_CHANWIDTH40(ht_param) (ht_param & BIT(2))
 
 /* httxcfg bitmap
  * 0		reserved
@@ -216,8 +243,21 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
  */
 #define MWIFIEX_FW_DEF_HTTXCFG (BIT(1) | BIT(4) | BIT(5) | BIT(6))
 
+/* 11AC Tx and Rx MCS map for 1x1 mode:
+ * IEEE80211_VHT_MCS_SUPPORT_0_9 for stream 1
+ * IEEE80211_VHT_MCS_NOT_SUPPORTED for remaining 7 streams
+ */
+#define MWIFIEX_11AC_MCS_MAP_1X1	0xfffefffe
+
+/* 11AC Tx and Rx MCS map for 2x2 mode:
+ * IEEE80211_VHT_MCS_SUPPORT_0_9 for stream 1 and 2
+ * IEEE80211_VHT_MCS_NOT_SUPPORTED for remaining 6 streams
+ */
+#define MWIFIEX_11AC_MCS_MAP_2X2	0xfffafffa
+
 #define GET_RXMCSSUPP(DevMCSSupported) (DevMCSSupported & 0x0f)
 #define SETHT_MCS32(x) (x[4] |= 1)
+#define HT_STREAM_1X1	0x11
 #define HT_STREAM_2X2	0x22
 
 #define SET_SECONDARYCHAN(RadioType, SECCHAN) (RadioType |= (SECCHAN << 4))
@@ -226,16 +266,23 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 /* HW_SPEC fw_cap_info */
 
-#define ISSUPP_11ACENABLED(fw_cap_info) (fw_cap_info & (BIT(13)|BIT(14)))
+#define ISSUPP_11ACENABLED(fw_cap_info) (fw_cap_info & BIT(13))
 
 #define GET_VHTCAP_CHWDSET(vht_cap_info)    ((vht_cap_info >> 2) & 0x3)
 #define GET_VHTNSSMCS(mcs_mapset, nss) ((mcs_mapset >> (2 * (nss - 1))) & 0x3)
 #define SET_VHTNSSMCS(mcs_mapset, nss, value) (mcs_mapset |= (value & 0x3) << \
 					      (2 * (nss - 1)))
-#define NO_NSS_SUPPORT		0x3
-
 #define GET_DEVTXMCSMAP(dev_mcs_map)      (dev_mcs_map >> 16)
 #define GET_DEVRXMCSMAP(dev_mcs_map)      (dev_mcs_map & 0xFFFF)
+
+/* Clear SU Beanformer, MU beanformer, MU beanformee and
+ * sounding dimensions bits
+ */
+#define MWIFIEX_DEF_11AC_CAP_BF_RESET_MASK \
+			(IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE | \
+			 IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE | \
+			 IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE | \
+			 IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK)
 
 #define MOD_CLASS_HR_DSSS       0x03
 #define MOD_CLASS_OFDM          0x07
@@ -295,10 +342,12 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_CAU_REG_ACCESS                    0x00ed
 #define HostCmd_CMD_SET_BSS_MODE                      0x00f7
 #define HostCmd_CMD_PCIE_DESC_DETAILS                 0x00fa
+#define HostCmd_CMD_802_11_SCAN_EXT                   0x0107
 #define HostCmd_CMD_COALESCE_CFG                      0x010a
 #define HostCmd_CMD_MGMT_FRAME_REG                    0x010c
 #define HostCmd_CMD_REMAIN_ON_CHAN                    0x010d
 #define HostCmd_CMD_11AC_CFG			      0x0112
+#define HostCmd_CMD_TDLS_OPER                         0x0122
 
 #define PROTOCOL_NO_SECURITY        0x01
 #define PROTOCOL_STATIC_WEP         0x02
@@ -356,7 +405,7 @@ enum P2P_MODES {
 #define HS_CFG_CANCEL			0xffffffff
 #define HS_CFG_COND_DEF			0x00000000
 #define HS_CFG_GPIO_DEF			0xff
-#define HS_CFG_GAP_DEF			0
+#define HS_CFG_GAP_DEF			0xff
 #define HS_CFG_COND_BROADCAST_DATA	0x00000001
 #define HS_CFG_COND_UNICAST_DATA	0x00000002
 #define HS_CFG_COND_MAC_EVENT		0x00000004
@@ -440,6 +489,8 @@ enum P2P_MODES {
 #define EVENT_UAP_MIC_COUNTERMEASURES   0x0000004c
 #define EVENT_HOSTWAKE_STAIE		0x0000004d
 #define EVENT_CHANNEL_SWITCH_ANN        0x00000050
+#define EVENT_TDLS_GENERIC_EVENT        0x00000052
+#define EVENT_EXT_SCAN_REPORT           0x00000058
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 
 #define EVENT_ID_MASK                   0xffff
@@ -468,7 +519,12 @@ enum P2P_MODES {
 #define MWIFIEX_CRITERIA_UNICAST	BIT(1)
 #define MWIFIEX_CRITERIA_MULTICAST	BIT(3)
 
-#define CFG_DATA_TYPE_CAL		2
+#define ACT_TDLS_DELETE            0x00
+#define ACT_TDLS_CREATE            0x01
+#define ACT_TDLS_CONFIG            0x02
+#define TDLS_EVENT_LINK_TEAR_DOWN  3
+
+#define MWIFIEX_FW_V15		   15
 
 struct mwifiex_ie_types_header {
 	__le16 type;
@@ -482,6 +538,8 @@ struct mwifiex_ie_types_data {
 
 #define MWIFIEX_TxPD_POWER_MGMT_NULL_PACKET 0x01
 #define MWIFIEX_TxPD_POWER_MGMT_LAST_PACKET 0x08
+#define MWIFIEX_TXPD_FLAGS_TDLS_PACKET      0x10
+#define MWIFIEX_RXPD_FLAGS_TDLS_PACKET      0x01
 
 struct txpd {
 	u8 bss_type;
@@ -524,7 +582,7 @@ struct rxpd {
 	 * [Bit 7] Reserved
 	 */
 	u8 ht_info;
-	u8 reserved;
+	u8 flags;
 } __packed;
 
 struct uap_txpd {
@@ -610,12 +668,12 @@ struct mwifiex_ie_types_tsf_timestamp {
 struct mwifiex_cf_param_set {
 	u8 cfp_cnt;
 	u8 cfp_period;
-	u16 cfp_max_duration;
-	u16 cfp_duration_remaining;
+	__le16 cfp_max_duration;
+	__le16 cfp_duration_remaining;
 } __packed;
 
 struct mwifiex_ibss_param_set {
-	u16 atim_window;
+	__le16 atim_window;
 } __packed;
 
 struct mwifiex_ie_types_ss_param_set {
@@ -627,7 +685,7 @@ struct mwifiex_ie_types_ss_param_set {
 } __packed;
 
 struct mwifiex_fh_param_set {
-	u16 dwell_time;
+	__le16 dwell_time;
 	u8 hop_set;
 	u8 hop_pattern;
 	u8 hop_index;
@@ -655,6 +713,13 @@ struct mwifiex_ie_types_vendor_param_set {
 	u8 ie[MWIFIEX_MAX_VSIE_LEN];
 };
 
+#define MWIFIEX_TDLS_IDLE_TIMEOUT_IN_SEC	60
+
+struct mwifiex_ie_types_tdls_idle_timeout {
+	struct mwifiex_ie_types_header header;
+	__le16 value;
+} __packed;
+
 struct mwifiex_ie_types_rsn_param_set {
 	struct mwifiex_ie_types_header header;
 	u8 rsn_ie[1];
@@ -678,16 +743,66 @@ struct mwifiex_cmac_param {
 	u8 key[WLAN_KEY_LEN_AES_CMAC];
 } __packed;
 
+struct mwifiex_wep_param {
+	__le16 key_len;
+	u8 key[WLAN_KEY_LEN_WEP104];
+} __packed;
+
+struct mwifiex_tkip_param {
+	u8 pn[WPA_PN_SIZE];
+	__le16 key_len;
+	u8 key[WLAN_KEY_LEN_TKIP];
+} __packed;
+
+struct mwifiex_aes_param {
+	u8 pn[WPA_PN_SIZE];
+	__le16 key_len;
+	u8 key[WLAN_KEY_LEN_CCMP];
+} __packed;
+
+struct mwifiex_wapi_param {
+	u8 pn[PN_LEN];
+	__le16 key_len;
+	u8 key[WLAN_KEY_LEN_SMS4];
+} __packed;
+
+struct mwifiex_cmac_aes_param {
+	u8 ipn[IGTK_PN_LEN];
+	__le16 key_len;
+	u8 key[WLAN_KEY_LEN_AES_CMAC];
+} __packed;
+
+struct mwifiex_ie_type_key_param_set_v2 {
+	__le16 type;
+	__le16 len;
+	u8 mac_addr[ETH_ALEN];
+	u8 key_idx;
+	u8 key_type;
+	__le16 key_info;
+	union {
+		struct mwifiex_wep_param wep;
+		struct mwifiex_tkip_param tkip;
+		struct mwifiex_aes_param aes;
+		struct mwifiex_wapi_param wapi;
+		struct mwifiex_cmac_aes_param cmac_aes;
+	} key_params;
+} __packed;
+
+struct host_cmd_ds_802_11_key_material_v2 {
+	__le16 action;
+	struct mwifiex_ie_type_key_param_set_v2 key_param_set;
+} __packed;
+
 struct host_cmd_ds_802_11_key_material {
 	__le16 action;
 	struct mwifiex_ie_type_key_param_set key_param_set;
 } __packed;
 
 struct host_cmd_ds_gen {
-	u16 command;
-	u16 size;
-	u16 seq_num;
-	u16 result;
+	__le16 command;
+	__le16 size;
+	__le16 seq_num;
+	__le16 result;
 };
 
 #define S_DS_GEN        sizeof(struct host_cmd_ds_gen)
@@ -729,6 +844,17 @@ struct host_cmd_ds_802_11_ps_mode_enh {
 	} params;
 } __packed;
 
+enum FW_API_VER_ID {
+	KEY_API_VER_ID = 1,
+};
+
+struct hw_spec_fw_api_rev {
+	struct mwifiex_ie_types_header header;
+	__le16 api_id;
+	u8 major_ver;
+	u8 minor_ver;
+} __packed;
+
 struct host_cmd_ds_get_hw_spec {
 	__le16 hw_if_version;
 	__le16 version;
@@ -750,6 +876,7 @@ struct host_cmd_ds_get_hw_spec {
 	__le32 reserved_6;
 	__le32 dot_11ac_dev_cap;
 	__le32 dot_11ac_mcs_support;
+	u8 tlvs[0];
 } __packed;
 
 struct host_cmd_ds_802_11_rssi_info {
@@ -820,8 +947,8 @@ struct ieee_types_cf_param_set {
 	u8 len;
 	u8 cfp_cnt;
 	u8 cfp_period;
-	u16 cfp_max_duration;
-	u16 cfp_duration_remaining;
+	__le16 cfp_max_duration;
+	__le16 cfp_duration_remaining;
 } __packed;
 
 struct ieee_types_ibss_param_set {
@@ -957,7 +1084,7 @@ struct mwifiex_hs_config_param {
 } __packed;
 
 struct hs_activate_param {
-	u16 resp_ctrl;
+	__le16 resp_ctrl;
 } __packed;
 
 struct host_cmd_ds_802_11_hs_cfg_enh {
@@ -995,6 +1122,7 @@ struct mwifiex_rate_scope {
 	__le16 hr_dsss_rate_bitmap;
 	__le16 ofdm_rate_bitmap;
 	__le16 ht_mcs_rate_bitmap[8];
+	__le16 vht_mcs_rate_bitmap[8];
 } __packed;
 
 struct mwifiex_rate_drop_pattern {
@@ -1049,12 +1177,26 @@ struct host_cmd_ds_rf_ant_siso {
 	__le16 ant_mode;
 };
 
-struct mwifiex_bcn_param {
-	u8 bssid[ETH_ALEN];
-	u8 rssi;
+struct host_cmd_ds_tdls_oper {
+	__le16 tdls_action;
+	__le16 reason;
+	u8 peer_mac[ETH_ALEN];
+} __packed;
+
+struct mwifiex_fixed_bcn_param {
 	__le64 timestamp;
 	__le16 beacon_period;
 	__le16 cap_info_bitmap;
+} __packed;
+
+struct mwifiex_event_scan_result {
+	__le16 event_id;
+	u8 bss_index;
+	u8 bss_type;
+	u8 more_event;
+	u8 reserved[3];
+	__le16 buf_size;
+	u8 num_of_set;
 } __packed;
 
 #define MWIFIEX_USER_SCAN_CHAN_MAX             50
@@ -1126,12 +1268,34 @@ struct host_cmd_ds_802_11_scan_rsp {
 	u8 bss_desc_and_tlv_buffer[1];
 } __packed;
 
+struct host_cmd_ds_802_11_scan_ext {
+	u32   reserved;
+	u8    tlv_buffer[1];
+} __packed;
+
+struct mwifiex_ie_types_bss_scan_rsp {
+	struct mwifiex_ie_types_header header;
+	u8 bssid[ETH_ALEN];
+	u8 frame_body[1];
+} __packed;
+
+struct mwifiex_ie_types_bss_scan_info {
+	struct mwifiex_ie_types_header header;
+	__le16 rssi;
+	__le16 anpi;
+	u8 cca_busy_fraction;
+	u8 radio_type;
+	u8 channel;
+	u8 reserved;
+	__le64 tsf;
+} __packed;
+
 struct host_cmd_ds_802_11_bg_scan_query {
 	u8 flush;
 } __packed;
 
 struct host_cmd_ds_802_11_bg_scan_query_rsp {
-	u32 report_condition;
+	__le32 report_condition;
 	struct host_cmd_ds_802_11_scan_rsp scan_resp;
 } __packed;
 
@@ -1230,7 +1394,7 @@ struct mwifiex_ie_types_wmm_queue_status {
 	struct mwifiex_ie_types_header header;
 	u8 queue_index;
 	u8 disabled;
-	u16 medium_time;
+	__le16 medium_time;
 	u8 flow_required;
 	u8 flow_created;
 	u32 reserved;
@@ -1298,6 +1462,11 @@ struct mwifiex_ie_types_vhtcap {
 	struct ieee80211_vht_cap vht_cap;
 } __packed;
 
+struct mwifiex_ie_types_aid {
+	struct mwifiex_ie_types_header header;
+	__le16 aid;
+} __packed;
+
 struct mwifiex_ie_types_oper_mode_ntf {
 	struct mwifiex_ie_types_header header;
 	u8 oper_mode;
@@ -1310,7 +1479,7 @@ struct mwifiex_ie_types_vht_oper {
 	u8 chan_center_freq_1;
 	u8 chan_center_freq_2;
 	/* Basic MCS set map, each 2 bits stands for a NSS */
-	u16 basic_mcs_map;
+	__le16 basic_mcs_map;
 } __packed;
 
 struct mwifiex_ie_types_wmmcap {
@@ -1331,6 +1500,11 @@ struct mwifiex_ie_types_2040bssco {
 struct mwifiex_ie_types_extcap {
 	struct mwifiex_ie_types_header header;
 	u8 ext_capab[0];
+} __packed;
+
+struct mwifiex_ie_types_qos_info {
+	struct mwifiex_ie_types_header header;
+	u8 qos_info;
 } __packed;
 
 struct host_cmd_ds_mac_reg_access {
@@ -1441,6 +1615,11 @@ struct host_cmd_tlv_ssid {
 struct host_cmd_tlv_rates {
 	struct mwifiex_ie_types_header header;
 	u8 rates[0];
+} __packed;
+
+struct mwifiex_ie_types_bssid_list {
+	struct mwifiex_ie_types_header header;
+	u8 bssid[ETH_ALEN];
 } __packed;
 
 struct host_cmd_tlv_bcast_ssid {
@@ -1578,6 +1757,15 @@ struct host_cmd_ds_802_11_subsc_evt {
 	__le16 events;
 } __packed;
 
+struct mwifiex_tdls_generic_event {
+	__le16 type;
+	u8 peer_mac[ETH_ALEN];
+	union {
+		__le16 reason_code;
+		__le16 reserved;
+	} u;
+} __packed;
+
 struct mwifiex_ie {
 	__le16 ie_index;
 	__le16 mgmt_subtype_mask;
@@ -1590,12 +1778,6 @@ struct mwifiex_ie_list {
 	__le16 type;
 	__le16 len;
 	struct mwifiex_ie ie_list[MAX_MGMT_IE_INDEX];
-} __packed;
-
-struct host_cmd_ds_802_11_cfg_data {
-	__le16 action;
-	__le16 type;
-	__le16 data_len;
 } __packed;
 
 struct coalesce_filt_field_param {
@@ -1642,6 +1824,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_802_11_ps_mode_enh psmode_enh;
 		struct host_cmd_ds_802_11_hs_cfg_enh opt_hs_cfg;
 		struct host_cmd_ds_802_11_scan scan;
+		struct host_cmd_ds_802_11_scan_ext ext_scan;
 		struct host_cmd_ds_802_11_scan_rsp scan_resp;
 		struct host_cmd_ds_802_11_bg_scan_query bg_scan_query;
 		struct host_cmd_ds_802_11_bg_scan_query_rsp bg_scan_query_resp;
@@ -1661,6 +1844,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_11n_cfg htcfg;
 		struct host_cmd_ds_wmm_get_status get_wmm_status;
 		struct host_cmd_ds_802_11_key_material key_material;
+		struct host_cmd_ds_802_11_key_material_v2 key_material_v2;
 		struct host_cmd_ds_version_ext verext;
 		struct host_cmd_ds_mgmt_frame_reg reg_mask;
 		struct host_cmd_ds_remain_on_chan roc_cfg;
@@ -1678,8 +1862,8 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_sys_config uap_sys_config;
 		struct host_cmd_ds_sta_deauth sta_deauth;
 		struct host_cmd_11ac_vht_cfg vht_cfg;
-		struct host_cmd_ds_802_11_cfg_data cfg_data;
 		struct host_cmd_ds_coalesce_cfg coalesce_cfg;
+		struct host_cmd_ds_tdls_oper tdls_oper;
 	} params;
 } __packed;
 

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,9 +79,12 @@ enum iwl_power_level {
 	IWL_POWER_NUM
 };
 
-#define IWL_DISABLE_HT_ALL	BIT(0)
-#define IWL_DISABLE_HT_TXAGG	BIT(1)
-#define IWL_DISABLE_HT_RXAGG	BIT(2)
+enum iwl_disable_11n {
+	IWL_DISABLE_HT_ALL	 = BIT(0),
+	IWL_DISABLE_HT_TXAGG	 = BIT(1),
+	IWL_DISABLE_HT_RXAGG	 = BIT(2),
+	IWL_ENABLE_HT_TXAGG	 = BIT(3),
+};
 
 /**
  * struct iwl_mod_params
@@ -90,16 +93,17 @@ enum iwl_power_level {
  *
  * @sw_crypto: using hardware encryption, default = 0
  * @disable_11n: disable 11n capabilities, default = 0,
- *	use IWL_DISABLE_HT_* constants
+ *	use IWL_[DIS,EN]ABLE_HT_* constants
  * @amsdu_size_8K: enable 8K amsdu size, default = 0
  * @restart_fw: restart firmware, default = 1
- * @wd_disable: enable stuck queue check, default = 0
+ * @wd_disable: disable stuck queue check, default = 1
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
- * @power_save: disable power save, default = false
+ * @power_save: enable power save, default = false
  * @power_level: power level, default = 1
  * @debug_level: levels are IWL_DL_*
  * @ant_coupling: antenna coupling in dB, default = 0
+ * @fw_monitor: allow to use firmware monitor
  */
 struct iwl_mod_params {
 	int sw_crypto;
@@ -116,6 +120,8 @@ struct iwl_mod_params {
 #endif
 	int ant_coupling;
 	char *nvm_file;
+	bool uapsd_disable;
+	bool fw_monitor;
 };
 
 #endif /* #__iwl_modparams_h__ */

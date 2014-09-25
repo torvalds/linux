@@ -1,13 +1,20 @@
 * Freescale MXS USB Phy Device
 
 Required properties:
-- compatible: Should be "fsl,imx23-usbphy"
+- compatible: should contain:
+	* "fsl,imx23-usbphy" for imx23 and imx28
+	* "fsl,imx6q-usbphy" for imx6dq and imx6dl
+	* "fsl,imx6sl-usbphy" for imx6sl
+	* "fsl,imx6sx-usbphy" for imx6sx
+  "fsl,imx23-usbphy" is still a fallback for other strings
 - reg: Should contain registers location and length
 - interrupts: Should contain phy interrupt
+- fsl,anatop: phandle for anatop register, it is only for imx6 SoC series
 
 Example:
 usbphy1: usbphy@020c9000 {
 	compatible = "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
 	reg = <0x020c9000 0x1000>;
 	interrupts = <0 44 0x04>;
+	fsl,anatop = <&anatop>;
 };

@@ -24,9 +24,10 @@
 #include <linux/types.h>
 #include <trace/events/iommu.h>
 
-#define IOMMU_READ	(1)
-#define IOMMU_WRITE	(2)
-#define IOMMU_CACHE	(4) /* DMA cache coherency */
+#define IOMMU_READ	(1 << 0)
+#define IOMMU_WRITE	(1 << 1)
+#define IOMMU_CACHE	(1 << 2) /* DMA cache coherency */
+#define IOMMU_EXEC	(1 << 3)
 
 struct iommu_ops;
 struct iommu_group;
@@ -49,7 +50,7 @@ struct iommu_domain_geometry {
 };
 
 struct iommu_domain {
-	struct iommu_ops *ops;
+	const struct iommu_ops *ops;
 	void *priv;
 	iommu_fault_handler_t handler;
 	void *handler_token;
@@ -139,7 +140,7 @@ struct iommu_ops {
 #define IOMMU_GROUP_NOTIFY_UNBIND_DRIVER	5 /* Pre Driver unbind */
 #define IOMMU_GROUP_NOTIFY_UNBOUND_DRIVER	6 /* Post Driver unbind */
 
-extern int bus_set_iommu(struct bus_type *bus, struct iommu_ops *ops);
+extern int bus_set_iommu(struct bus_type *bus, const struct iommu_ops *ops);
 extern bool iommu_present(struct bus_type *bus);
 extern struct iommu_domain *iommu_domain_alloc(struct bus_type *bus);
 extern struct iommu_group *iommu_group_get_by_id(int id);
@@ -180,11 +181,18 @@ extern int iommu_group_register_notifier(struct iommu_group *group,
 extern int iommu_group_unregister_notifier(struct iommu_group *group,
 					   struct notifier_block *nb);
 extern int iommu_group_id(struct iommu_group *group);
+extern struct iommu_group *iommu_group_get_for_dev(struct device *dev);
 
 extern int iommu_domain_get_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
 extern int iommu_domain_set_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
+struct device *iommu_device_create(struct device *parent, void *drvdata,
+				   const struct attribute_group **groups,
+				   const char *fmt, ...);
+void iommu_device_destroy(struct device *dev);
+int iommu_device_link(struct device *dev, struct device *link);
+void iommu_device_unlink(struct device *dev, struct device *link);
 
 /* Window handling function prototypes */
 extern int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
@@ -247,6 +255,11 @@ static inline struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
 	return NULL;
 }
 
+static inline struct iommu_group *iommu_group_get_by_id(int id)
+{
+	return NULL;
+}
+
 static inline void iommu_domain_free(struct iommu_domain *domain)
 {
 }
@@ -291,8 +304,8 @@ static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_ad
 	return 0;
 }
 
-static inline int domain_has_cap(struct iommu_domain *domain,
-				 unsigned long cap)
+static inline int iommu_domain_has_cap(struct iommu_domain *domain,
+				       unsigned long cap)
 {
 	return 0;
 }
@@ -388,6 +401,27 @@ static inline int iommu_domain_set_attr(struct iommu_domain *domain,
 					enum iommu_attr attr, void *data)
 {
 	return -EINVAL;
+}
+
+static inline struct device *iommu_device_create(struct device *parent,
+					void *drvdata,
+					const struct attribute_group **groups,
+					const char *fmt, ...)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline void iommu_device_destroy(struct device *dev)
+{
+}
+
+static inline int iommu_device_link(struct device *dev, struct device *link)
+{
+	return -EINVAL;
+}
+
+static inline void iommu_device_unlink(struct device *dev, struct device *link)
+{
 }
 
 #endif /* CONFIG_IOMMU_API */

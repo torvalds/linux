@@ -899,8 +899,8 @@ static struct aaci *aaci_init_card(struct amba_device *dev)
 	struct snd_card *card;
 	int err;
 
-	err = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			      THIS_MODULE, sizeof(struct aaci), &card);
+	err = snd_card_new(&dev->dev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+			   THIS_MODULE, sizeof(struct aaci), &card);
 	if (err < 0)
 		return NULL;
 
@@ -1054,8 +1054,6 @@ static int aaci_probe(struct amba_device *dev,
 	ret = aaci_init_pcm(aaci);
 	if (ret)
 		goto out;
-
-	snd_card_set_dev(aaci->card, &dev->dev);
 
 	ret = snd_card_register(aaci->card);
 	if (ret == 0) {

@@ -58,9 +58,12 @@ int ore_verify_layout(unsigned total_comps, struct ore_layout *layout)
 		layout->parity = 1;
 		break;
 	case PNFS_OSD_RAID_PQ:
+		layout->parity = 2;
+		break;
 	case PNFS_OSD_RAID_4:
 	default:
-		ORE_ERR("Only RAID_0/5 for now\n");
+		ORE_ERR("Only RAID_0/5/6 for now received-enum=%d\n",
+			layout->raid_algorithm);
 		return -EINVAL;
 	}
 	if (0 != (layout->stripe_unit & ~PAGE_MASK)) {
@@ -103,7 +106,7 @@ int ore_verify_layout(unsigned total_comps, struct ore_layout *layout)
 
 	layout->max_io_length =
 		(BIO_MAX_PAGES_KMALLOC * PAGE_SIZE - layout->stripe_unit) *
-							layout->group_width;
+					(layout->group_width - layout->parity);
 	if (layout->parity) {
 		unsigned stripe_length =
 				(layout->group_width - layout->parity) *
@@ -112,6 +115,8 @@ int ore_verify_layout(unsigned total_comps, struct ore_layout *layout)
 		layout->max_io_length /= stripe_length;
 		layout->max_io_length *= stripe_length;
 	}
+	ORE_DBGMSG("max_io_length=0x%lx\n", layout->max_io_length);
+
 	return 0;
 }
 EXPORT_SYMBOL(ore_verify_layout);
@@ -286,7 +291,8 @@ int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *oc,
 	if (length) {
 		ore_calc_stripe_info(layout, offset, length, &ios->si);
 		ios->length = ios->si.length;
-		ios->nr_pages = (ios->length + PAGE_SIZE - 1) / PAGE_SIZE;
+		ios->nr_pages = ((ios->offset & (PAGE_SIZE - 1)) +
+				 ios->length + PAGE_SIZE - 1) / PAGE_SIZE;
 		if (layout->parity)
 			_ore_post_alloc_raid_stuff(ios);
 	}
@@ -430,8 +436,12 @@ int ore_check_io(struct ore_io_state *ios, ore_on_dev_error on_dev_error)
 		if (likely(!ret))
 			continue;
 
-		if (OSD_ERR_PRI_CLEAR_PAGES == osi.osd_err_pri) {
-			/* start read offset passed endof file */
+		if ((OSD_ERR_PRI_CLEAR_PAGES == osi.osd_err_pri) &&
+		    per_dev->bio) {
+			/* start read offset passed endof file.
+			 * Note: if we do not have bio it means read-attributes
+			 * In this case we should return error to caller.
+			 */
 			_clear_bio(per_dev->bio);
 			ORE_DBGMSG("start read offset passed end of file "
 				"offset=0x%llx, length=0x%llx\n",
@@ -536,24 +546,28 @@ void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
 	u64	H = LmodS - G * T;
 
 	u32	N = div_u64(H, U);
+	u32	Nlast;
 
 	/* "H - (N * U)" is just "H % U" so it's bound to u32 */
 	u32	C = (u32)(H - (N * U)) / stripe_unit + G * group_width;
+	u32 first_dev = C - C % group_width;
 
 	div_u64_rem(file_offset, stripe_unit, &si->unit_off);
 
 	si->obj_offset = si->unit_off + (N * stripe_unit) +
 				  (M * group_depth * stripe_unit);
+	si->cur_comp = C - first_dev;
+	si->cur_pg = si->unit_off / PAGE_SIZE;
 
 	if (parity) {
 		u32 LCMdP = lcm(group_width, parity) / parity;
 		/* R     = N % LCMdP; */
 		u32 RxP   = (N % LCMdP) * parity;
-		u32 first_dev = C - C % group_width;
 
 		si->par_dev = (group_width + group_width - parity - RxP) %
 			      group_width + first_dev;
-		si->dev = (group_width + C - RxP) % group_width + first_dev;
+		si->dev = (group_width + group_width + C - RxP) %
+			  group_width + first_dev;
 		si->bytes_in_stripe = U;
 		si->first_stripe_start = M * S + G * T + N * U;
 	} else {
@@ -568,6 +582,10 @@ void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
 	si->length = T - H;
 	if (si->length > length)
 		si->length = length;
+
+	Nlast = div_u64(H + si->length + U - 1, U);
+	si->maxdevUnits = Nlast - N;
+
 	si->M = M;
 }
 EXPORT_SYMBOL(ore_calc_stripe_info);
@@ -583,13 +601,16 @@ int _ore_add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 	int ret;
 
 	if (per_dev->bio == NULL) {
-		unsigned pages_in_stripe = ios->layout->group_width *
-					(ios->layout->stripe_unit / PAGE_SIZE);
-		unsigned nr_pages = ios->nr_pages * ios->layout->group_width /
-					(ios->layout->group_width -
-					 ios->layout->parity);
-		unsigned bio_size = (nr_pages + pages_in_stripe) /
-					ios->layout->group_width;
+		unsigned bio_size;
+
+		if (!ios->reading) {
+			bio_size = ios->si.maxdevUnits;
+		} else {
+			bio_size = (ios->si.maxdevUnits + 1) *
+			     (ios->layout->group_width - ios->layout->parity) /
+			     ios->layout->group_width;
+		}
+		bio_size *= (ios->layout->stripe_unit / PAGE_SIZE);
 
 		per_dev->bio = bio_kmalloc(GFP_KERNEL, bio_size);
 		if (unlikely(!per_dev->bio)) {
@@ -609,8 +630,12 @@ int _ore_add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 		added_len = bio_add_pc_page(q, per_dev->bio, pages[pg],
 					    pglen, pgbase);
 		if (unlikely(pglen != added_len)) {
-			ORE_DBGMSG("Failed bio_add_pc_page bi_vcnt=%u\n",
-				   per_dev->bio->bi_vcnt);
+			/* If bi_vcnt == bi_max then this is a SW BUG */
+			ORE_DBGMSG("Failed bio_add_pc_page bi_vcnt=0x%x "
+				   "bi_max=0x%x BIO_MAX=0x%x cur_len=0x%x\n",
+				   per_dev->bio->bi_vcnt,
+				   per_dev->bio->bi_max_vecs,
+				   BIO_MAX_PAGES_KMALLOC, cur_len);
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -632,6 +657,43 @@ out:	/* we fail the complete unit on an error eg don't advance
 	return ret;
 }
 
+static int _add_parity_units(struct ore_io_state *ios,
+			     struct ore_striping_info *si,
+			     unsigned dev, unsigned first_dev,
+			     unsigned mirrors_p1, unsigned devs_in_group,
+			     unsigned cur_len)
+{
+	unsigned do_parity;
+	int ret = 0;
+
+	for (do_parity = ios->layout->parity; do_parity; --do_parity) {
+		struct ore_per_dev_state *per_dev;
+
+		per_dev = &ios->per_dev[dev - first_dev];
+		if (!per_dev->length && !per_dev->offset) {
+			/* Only/always the parity unit of the first
+			 * stripe will be empty. So this is a chance to
+			 * initialize the per_dev info.
+			 */
+			per_dev->dev = dev;
+			per_dev->offset = si->obj_offset - si->unit_off;
+		}
+
+		ret = _ore_add_parity_unit(ios, si, per_dev, cur_len,
+					   do_parity == 1);
+		if (unlikely(ret))
+				break;
+
+		if (do_parity != 1) {
+			dev = ((dev + mirrors_p1) % devs_in_group) + first_dev;
+			si->cur_comp = (si->cur_comp + 1) %
+						       ios->layout->group_width;
+		}
+	}
+
+	return ret;
+}
+
 static int _prepare_for_striping(struct ore_io_state *ios)
 {
 	struct ore_striping_info *si = &ios->si;
@@ -641,7 +703,6 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 	unsigned devs_in_group = group_width * mirrors_p1;
 	unsigned dev = si->dev;
 	unsigned first_dev = dev - (dev % devs_in_group);
-	unsigned dev_order;
 	unsigned cur_pg = ios->pages_consumed;
 	u64 length = ios->length;
 	int ret = 0;
@@ -653,16 +714,13 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 
 	BUG_ON(length > si->length);
 
-	dev_order = _dev_order(devs_in_group, mirrors_p1, si->par_dev, dev);
-	si->cur_comp = dev_order;
-	si->cur_pg = si->unit_off / PAGE_SIZE;
-
 	while (length) {
-		unsigned comp = dev - first_dev;
-		struct ore_per_dev_state *per_dev = &ios->per_dev[comp];
+		struct ore_per_dev_state *per_dev =
+						&ios->per_dev[dev - first_dev];
 		unsigned cur_len, page_off = 0;
 
-		if (!per_dev->length) {
+		if (!per_dev->length && !per_dev->offset) {
+			/* First time initialize the per_dev info. */
 			per_dev->dev = dev;
 			if (dev == si->dev) {
 				WARN_ON(dev == si->par_dev);
@@ -671,13 +729,7 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 				page_off = si->unit_off & ~PAGE_MASK;
 				BUG_ON(page_off && (page_off != ios->pgbase));
 			} else {
-				if (si->cur_comp > dev_order)
-					per_dev->offset =
-						si->obj_offset - si->unit_off;
-				else /* si->cur_comp < dev_order */
-					per_dev->offset =
-						si->obj_offset + stripe_unit -
-								   si->unit_off;
+				per_dev->offset = si->obj_offset - si->unit_off;
 				cur_len = stripe_unit;
 			}
 		} else {
@@ -691,11 +743,9 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 		if (unlikely(ret))
 			goto out;
 
-		dev += mirrors_p1;
-		dev = (dev % devs_in_group) + first_dev;
-
 		length -= cur_len;
 
+		dev = ((dev + mirrors_p1) % devs_in_group) + first_dev;
 		si->cur_comp = (si->cur_comp + 1) % group_width;
 		if (unlikely((dev == si->par_dev) || (!length && ios->sp2d))) {
 			if (!length && ios->sp2d) {
@@ -703,23 +753,16 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 				 * stripe. then operate on parity dev.
 				 */
 				dev = si->par_dev;
-			}
-			if (ios->sp2d)
-				/* In writes cur_len just means if it's the
-				 * last one. See _ore_add_parity_unit.
-				 */
-				cur_len = length;
-			per_dev = &ios->per_dev[dev - first_dev];
-			if (!per_dev->length) {
-				/* Only/always the parity unit of the first
-				 * stripe will be empty. So this is a chance to
-				 * initialize the per_dev info.
-				 */
-				per_dev->dev = dev;
-				per_dev->offset = si->obj_offset - si->unit_off;
+				/* If last stripe operate on parity comp */
+				si->cur_comp = group_width - ios->layout->parity;
 			}
 
-			ret = _ore_add_parity_unit(ios, si, per_dev, cur_len);
+			/* In writes cur_len just means if it's the
+			 * last one. See _ore_add_parity_unit.
+			 */
+			ret = _add_parity_units(ios, si, dev, first_dev,
+						mirrors_p1, devs_in_group,
+						ios->sp2d ? length : cur_len);
 			if (unlikely(ret))
 					goto out;
 
@@ -730,6 +773,8 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 			/* Next stripe, start fresh */
 			si->cur_comp = 0;
 			si->cur_pg = 0;
+			si->obj_offset += cur_len;
+			si->unit_off = 0;
 		}
 	}
 out:
@@ -1098,7 +1143,7 @@ int ore_truncate(struct ore_layout *layout, struct ore_components *oc,
 		size_attr->attr = g_attr_logical_length;
 		size_attr->attr.val_ptr = &size_attr->newsize;
 
-		ORE_DBGMSG("trunc(0x%llx) obj_offset=0x%llx dev=%d\n",
+		ORE_DBGMSG2("trunc(0x%llx) obj_offset=0x%llx dev=%d\n",
 			     _LLU(oc->comps->obj.id), _LLU(obj_size), i);
 		ret = _truncate_mirrors(ios, i * ios->layout->mirrors_p1,
 					&size_attr->attr);

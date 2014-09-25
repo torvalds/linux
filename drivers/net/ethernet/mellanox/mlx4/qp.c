@@ -35,7 +35,6 @@
 
 #include <linux/gfp.h>
 #include <linux/export.h>
-#include <linux/init.h>
 
 #include <linux/mlx4/cmd.h>
 #include <linux/mlx4/qp.h>
@@ -250,7 +249,7 @@ void __mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
 
 	if (mlx4_is_qp_reserved(dev, (u32) base_qpn))
 		return;
-	mlx4_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt);
+	mlx4_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt, MLX4_USE_RR);
 }
 
 void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
@@ -265,37 +264,37 @@ void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
 			       MLX4_CMD_FREE_RES,
 			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 		if (err) {
-			mlx4_warn(dev, "Failed to release qp range"
-				  " base:%d cnt:%d\n", base_qpn, cnt);
+			mlx4_warn(dev, "Failed to release qp range base:%d cnt:%d\n",
+				  base_qpn, cnt);
 		}
 	} else
 		 __mlx4_qp_release_range(dev, base_qpn, cnt);
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_release_range);
 
-int __mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn)
+int __mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn, gfp_t gfp)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
 	int err;
 
-	err = mlx4_table_get(dev, &qp_table->qp_table, qpn);
+	err = mlx4_table_get(dev, &qp_table->qp_table, qpn, gfp);
 	if (err)
 		goto err_out;
 
-	err = mlx4_table_get(dev, &qp_table->auxc_table, qpn);
+	err = mlx4_table_get(dev, &qp_table->auxc_table, qpn, gfp);
 	if (err)
 		goto err_put_qp;
 
-	err = mlx4_table_get(dev, &qp_table->altc_table, qpn);
+	err = mlx4_table_get(dev, &qp_table->altc_table, qpn, gfp);
 	if (err)
 		goto err_put_auxc;
 
-	err = mlx4_table_get(dev, &qp_table->rdmarc_table, qpn);
+	err = mlx4_table_get(dev, &qp_table->rdmarc_table, qpn, gfp);
 	if (err)
 		goto err_put_altc;
 
-	err = mlx4_table_get(dev, &qp_table->cmpt_table, qpn);
+	err = mlx4_table_get(dev, &qp_table->cmpt_table, qpn, gfp);
 	if (err)
 		goto err_put_rdmarc;
 
@@ -317,7 +316,7 @@ err_out:
 	return err;
 }
 
-static int mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn)
+static int mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn, gfp_t gfp)
 {
 	u64 param = 0;
 
@@ -327,7 +326,7 @@ static int mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn)
 				    MLX4_CMD_ALLOC_RES, MLX4_CMD_TIME_CLASS_A,
 				    MLX4_CMD_WRAPPED);
 	}
-	return __mlx4_qp_alloc_icm(dev, qpn);
+	return __mlx4_qp_alloc_icm(dev, qpn, gfp);
 }
 
 void __mlx4_qp_free_icm(struct mlx4_dev *dev, int qpn)
@@ -356,7 +355,7 @@ static void mlx4_qp_free_icm(struct mlx4_dev *dev, int qpn)
 		__mlx4_qp_free_icm(dev, qpn);
 }
 
-int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp)
+int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp, gfp_t gfp)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
@@ -367,7 +366,7 @@ int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp)
 
 	qp->qpn = qpn;
 
-	err = mlx4_qp_alloc_icm(dev, qpn);
+	err = mlx4_qp_alloc_icm(dev, qpn, gfp);
 	if (err)
 		return err;
 
@@ -389,6 +388,49 @@ err_icm:
 }
 
 EXPORT_SYMBOL_GPL(mlx4_qp_alloc);
+
+#define MLX4_UPDATE_QP_SUPPORTED_ATTRS MLX4_UPDATE_QP_SMAC
+int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
+		   enum mlx4_update_qp_attr attr,
+		   struct mlx4_update_qp_params *params)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_update_qp_context *cmd;
+	u64 pri_addr_path_mask = 0;
+	u64 qp_mask = 0;
+	int err = 0;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	cmd = (struct mlx4_update_qp_context *)mailbox->buf;
+
+	if (!attr || (attr & ~MLX4_UPDATE_QP_SUPPORTED_ATTRS))
+		return -EINVAL;
+
+	if (attr & MLX4_UPDATE_QP_SMAC) {
+		pri_addr_path_mask |= 1ULL << MLX4_UPD_QP_PATH_MASK_MAC_INDEX;
+		cmd->qp_context.pri_path.grh_mylmc = params->smac_index;
+	}
+
+	if (attr & MLX4_UPDATE_QP_VSD) {
+		qp_mask |= 1ULL << MLX4_UPD_QP_MASK_VSD;
+		if (params->flags & MLX4_UPDATE_QP_PARAMS_FLAGS_VSD_ENABLE)
+			cmd->qp_context.param3 |= cpu_to_be32(MLX4_STRIP_VLAN);
+	}
+
+	cmd->primary_addr_path_mask = cpu_to_be64(pri_addr_path_mask);
+	cmd->qp_mask = cpu_to_be64(qp_mask);
+
+	err = mlx4_cmd(dev, mailbox->dma, qpn & 0xffffff, 0,
+		       MLX4_CMD_UPDATE_QP, MLX4_CMD_TIME_CLASS_A,
+		       MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_update_qp);
 
 void mlx4_qp_remove(struct mlx4_dev *dev, struct mlx4_qp *qp)
 {
@@ -578,8 +620,7 @@ int mlx4_qp_to_ready(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		err = mlx4_qp_modify(dev, mtt, states[i], states[i + 1],
 				     context, 0, 0, qp);
 		if (err) {
-			mlx4_err(dev, "Failed to bring QP to state: "
-				 "%d with error: %d\n",
+			mlx4_err(dev, "Failed to bring QP to state: %d with error: %d\n",
 				 states[i + 1], err);
 			return err;
 		}

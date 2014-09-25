@@ -42,7 +42,6 @@
 #define DEBUG_SUBSYSTEM S_LOV
 
 #include "lov_cl_internal.h"
-#include <lustre_debug.h>
 
 /** \addtogroup lov
  *  @{
@@ -122,8 +121,8 @@ static struct cl_object *lov_sub_find(const struct lu_env *env,
 }
 
 static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
-			struct cl_object *stripe,
-			struct lov_layout_raid0 *r0, int idx)
+			struct cl_object *stripe, struct lov_layout_raid0 *r0,
+			int idx)
 {
 	struct cl_object_header *hdr;
 	struct cl_object_header *subhdr;
@@ -144,7 +143,6 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 
 	hdr    = cl_object_header(lov2cl(lov));
 	subhdr = cl_object_header(stripe);
-	parent = subhdr->coh_parent;
 
 	oinfo = lov->lo_lsm->lsm_oinfo[idx];
 	CDEBUG(D_INODE, DFID"@%p[%d] -> "DFID"@%p: ostid: "DOSTID
@@ -153,8 +151,12 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 	       PFID(&hdr->coh_lu.loh_fid), hdr, POSTID(&oinfo->loi_oi),
 	       oinfo->loi_ost_idx, oinfo->loi_ost_gen);
 
+	/* reuse ->coh_attr_guard to protect coh_parent change */
+	spin_lock(&subhdr->coh_attr_guard);
+	parent = subhdr->coh_parent;
 	if (parent == NULL) {
 		subhdr->coh_parent = hdr;
+		spin_unlock(&subhdr->coh_attr_guard);
 		subhdr->coh_nesting = hdr->coh_nesting + 1;
 		lu_object_ref_add(&stripe->co_lu, "lov-parent", lov);
 		r0->lo_sub[idx] = cl2lovsub(stripe);
@@ -166,6 +168,7 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 		struct lov_object *old_lov;
 		unsigned int mask = D_INODE;
 
+		spin_unlock(&subhdr->coh_attr_guard);
 		old_obj = lu_object_locate(&parent->coh_lu, &lov_device_type);
 		LASSERT(old_obj != NULL);
 		old_lov = cl2lov(lu2cl(old_obj));
@@ -306,7 +309,7 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 	 * ->lo_sub[] slot in lovsub_object_fini() */
 	if (r0->lo_sub[idx] == los) {
 		waiter = &lov_env_info(env)->lti_waiter;
-		init_waitqueue_entry_current(waiter);
+		init_waitqueue_entry(waiter, current);
 		add_wait_queue(&bkt->lsb_marche_funebre, waiter);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		while (1) {
@@ -316,7 +319,7 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 			spin_lock(&r0->lo_sub_lock);
 			if (r0->lo_sub[idx] == los) {
 				spin_unlock(&r0->lo_sub_lock);
-				waitq_wait(waiter, TASK_UNINTERRUPTIBLE);
+				schedule();
 			} else {
 				spin_unlock(&r0->lo_sub_lock);
 				set_current_state(TASK_RUNNING);
@@ -508,7 +511,7 @@ static int lov_attr_get_raid0(const struct lu_env *env, struct cl_object *obj,
 	return result;
 }
 
-const static struct lov_layout_operations lov_dispatch[] = {
+static const struct lov_layout_operations lov_dispatch[] = {
 	[LLT_EMPTY] = {
 		.llo_init      = lov_init_empty,
 		.llo_delete    = lov_delete_empty,
@@ -881,7 +884,7 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 	struct lov_object *lov;
 	struct lu_object  *obj;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lov, lov_object_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(lov, lov_object_kmem, GFP_NOFS);
 	if (lov != NULL) {
 		obj = lov2lu(lov);
 		lu_object_init(obj, NULL, dev);

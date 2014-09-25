@@ -123,10 +123,6 @@ static ssize_t hidraw_send_report(struct file *file, const char __user *buffer, 
 
 	dev = hidraw_table[minor]->hid;
 
-	if (!dev->hid_output_raw_report) {
-		ret = -ENODEV;
-		goto out;
-	}
 
 	if (count > HID_MAX_BUFFER_SIZE) {
 		hid_warn(dev, "pid %d passed too large report\n",
@@ -153,7 +149,21 @@ static ssize_t hidraw_send_report(struct file *file, const char __user *buffer, 
 		goto out_free;
 	}
 
-	ret = dev->hid_output_raw_report(dev, buf, count, report_type);
+	if ((report_type == HID_OUTPUT_REPORT) &&
+	    !(dev->quirks & HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP)) {
+		ret = hid_hw_output_report(dev, buf, count);
+		/*
+		 * compatibility with old implementation of USB-HID and I2C-HID:
+		 * if the device does not support receiving output reports,
+		 * on an interrupt endpoint, fallback to SET_REPORT HID command.
+		 */
+		if (ret != -ENOSYS)
+			goto out_free;
+	}
+
+	ret = hid_hw_raw_request(dev, buf[0], buf, count, report_type,
+				HID_REQ_SET_REPORT);
+
 out_free:
 	kfree(buf);
 out:
@@ -189,7 +199,7 @@ static ssize_t hidraw_get_report(struct file *file, char __user *buffer, size_t 
 
 	dev = hidraw_table[minor]->hid;
 
-	if (!dev->hid_get_raw_report) {
+	if (!dev->ll_driver->raw_request) {
 		ret = -ENODEV;
 		goto out;
 	}
@@ -216,14 +226,15 @@ static ssize_t hidraw_get_report(struct file *file, char __user *buffer, size_t 
 
 	/*
 	 * Read the first byte from the user. This is the report number,
-	 * which is passed to dev->hid_get_raw_report().
+	 * which is passed to hid_hw_raw_request().
 	 */
 	if (copy_from_user(&report_number, buffer, 1)) {
 		ret = -EFAULT;
 		goto out_free;
 	}
 
-	ret = dev->hid_get_raw_report(dev, report_number, buf, count, report_type);
+	ret = hid_hw_raw_request(dev, report_number, buf, count, report_type,
+				 HID_REQ_GET_REPORT);
 
 	if (ret < 0)
 		goto out_free;
@@ -320,13 +331,13 @@ static void drop_ref(struct hidraw *hidraw, int exists_bit)
 			hid_hw_close(hidraw->hid);
 			wake_up_interruptible(&hidraw->wait);
 		}
+		device_destroy(hidraw_class,
+			       MKDEV(hidraw_major, hidraw->minor));
 	} else {
 		--hidraw->open;
 	}
 	if (!hidraw->open) {
 		if (!hidraw->exist) {
-			device_destroy(hidraw_class,
-					MKDEV(hidraw_major, hidraw->minor));
 			hidraw_table[hidraw->minor] = NULL;
 			kfree(hidraw);
 		} else {

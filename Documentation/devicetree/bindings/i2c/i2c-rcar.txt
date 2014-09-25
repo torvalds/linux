@@ -6,6 +6,10 @@ Required properties:
 	"renesas,i2c-r8a7778"
 	"renesas,i2c-r8a7779"
 	"renesas,i2c-r8a7790"
+	"renesas,i2c-r8a7791"
+	"renesas,i2c-r8a7792"
+	"renesas,i2c-r8a7793"
+	"renesas,i2c-r8a7794"
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: interrupt specifier.
@@ -13,11 +17,16 @@ Required properties:
 Optional properties:
 - clock-frequency: desired I2C bus clock frequency in Hz. The absence of this
   propoerty indicates the default frequency 100 kHz.
+- clocks: clock specifier.
 
 Examples :
 
-i2c0: i2c@e6500000 {
-	compatible = "renesas,i2c-rcar-h2";
-	reg = <0 0xe6500000 0 0x428>;
-	interrupts = <0 174 0x4>;
+i2c0: i2c@e6508000 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "renesas,i2c-r8a7791";
+	reg = <0 0xe6508000 0 0x40>;
+	interrupts = <0 287 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&mstp9_clks R8A7791_CLK_I2C0>;
+	clock-frequency = <400000>;
 };

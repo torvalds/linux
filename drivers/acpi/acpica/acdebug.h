@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,8 +113,9 @@ void acpi_db_display_handlers(void);
 ACPI_HW_DEPENDENT_RETURN_VOID(void
 			      acpi_db_generate_gpe(char *gpe_arg,
 						   char *block_arg))
-
 ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_db_generate_sci(void))
+
+void acpi_db_execute_test(char *type_arg);
 
 /*
  * dbconvert - miscellaneous conversion routines
@@ -231,9 +232,6 @@ acpi_status acpi_db_load_acpi_table(char *filename);
 
 acpi_status
 acpi_db_get_table_from_file(char *filename, struct acpi_table_header **table);
-
-acpi_status
-acpi_db_read_table_from_file(char *filename, struct acpi_table_header **table);
 
 /*
  * dbhistry - debugger HISTORY command

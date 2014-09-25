@@ -12,6 +12,6 @@ config IEEE802154
 
 config IEEE802154_6LOWPAN
 	tristate "6lowpan support over IEEE 802.15.4"
-	depends on IEEE802154 && IPV6
+	depends on IEEE802154 && 6LOWPAN
 	---help---
-	IPv6 compression over IEEE 802.15.4.
+	  IPv6 compression over IEEE 802.15.4.

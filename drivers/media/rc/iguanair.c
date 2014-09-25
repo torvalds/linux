@@ -286,10 +286,10 @@ static int iguanair_receiver(struct iguanair *ir, bool enable)
 }
 
 /*
- * The iguana ir creates the carrier by busy spinning after each pulse or
- * space. This is counted in CPU cycles, with the CPU running at 24MHz. It is
+ * The iguanair creates the carrier by busy spinning after each half period.
+ * This is counted in CPU cycles, with the CPU running at 24MHz. It is
  * broken down into 7-cycles and 4-cyles delays, with a preference for
- * 4-cycle delays.
+ * 4-cycle delays, minus the overhead of the loop itself (cycle_overhead).
  */
 static int iguanair_set_tx_carrier(struct rc_dev *dev, uint32_t carrier)
 {
@@ -316,7 +316,14 @@ static int iguanair_set_tx_carrier(struct rc_dev *dev, uint32_t carrier)
 		sevens = (4 - cycles) & 3;
 		fours = (cycles - sevens * 7) / 4;
 
-		/* magic happens here */
+		/*
+		 * The firmware interprets these values as a relative offset
+		 * for a branch. Immediately following the branches, there
+		 * 4 instructions of 7 cycles (2 bytes each) and 110
+		 * instructions of 4 cycles (1 byte each). A relative branch
+		 * of 0 will execute all of them, branch further for less
+		 * cycle burning.
+		 */
 		ir->packet->busy7 = (4 - sevens) * 2;
 		ir->packet->busy4 = 110 - fours;
 	}
@@ -357,18 +364,12 @@ static int iguanair_tx(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 			rc = -EINVAL;
 			goto out;
 		}
-		while (periods > 127) {
-			ir->packet->payload[size++] = 127 | space;
-			periods -= 127;
+		while (periods) {
+			unsigned p = min(periods, 127u);
+			ir->packet->payload[size++] = p | space;
+			periods -= p;
 		}
-
-		ir->packet->payload[size++] = periods | space;
 		space ^= 0x80;
-	}
-
-	if (count == 0) {
-		rc = -EINVAL;
-		goto out;
 	}
 
 	ir->packet->header.start = 0;
@@ -494,7 +495,7 @@ static int iguanair_probe(struct usb_interface *intf,
 	usb_to_input_id(ir->udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
 	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc->allowed_protos = RC_BIT_ALL;
+	rc->allowed_protocols = RC_BIT_ALL;
 	rc->priv = ir;
 	rc->open = iguanair_open;
 	rc->close = iguanair_close;

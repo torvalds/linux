@@ -39,6 +39,10 @@ static const struct platform_device_id ath9k_platform_id_table[] = {
 		.name = "qca955x_wmac",
 		.driver_data = AR9300_DEVID_QCA955X,
 	},
+	{
+		.name = "qca953x_wmac",
+		.driver_data = AR9300_DEVID_AR953X,
+	},
 	{},
 };
 
@@ -109,6 +113,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 	irq = res->start;
 
+	ath9k_fill_chanctx_ops();
 	hw = ieee80211_alloc_hw(sizeof(struct ath_softc), &ath9k_ops);
 	if (hw == NULL) {
 		dev_err(&pdev->dev, "no memory for ieee80211_hw\n");
@@ -123,9 +128,6 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
 	sc->irq = irq;
-
-	/* Will be cleared in ath9k_start() */
-	set_bit(SC_OP_INVALID, &sc->sc_flags);
 
 	ret = request_irq(irq, ath_isr, IRQF_SHARED, "ath9k", sc);
 	if (ret) {

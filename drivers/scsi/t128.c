@@ -102,10 +102,6 @@
  * 15 9-11
  */
  
-/*
- * $Log: t128.c,v $
- */
-
 #include <linux/signal.h>
 #include <linux/io.h>
 #include <linux/blkdev.h>
@@ -259,7 +255,7 @@ found:
 	    instance->irq = NCR5380_probe_irq(instance, T128_IRQS);
 
 	if (instance->irq != SCSI_IRQ_NONE) 
-	    if (request_irq(instance->irq, t128_intr, IRQF_DISABLED, "t128",
+	    if (request_irq(instance->irq, t128_intr, 0, "t128",
 			    instance)) {
 		printk("scsi%d : IRQ%d not free, interrupts disabled\n", 
 		    instance->host_no, instance->irq);

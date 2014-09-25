@@ -123,11 +123,15 @@ static int omap_framebuffer_dirty(struct drm_framebuffer *fb,
 {
 	int i;
 
+	drm_modeset_lock_all(fb->dev);
+
 	for (i = 0; i < num_clips; i++) {
 		omap_framebuffer_flush(fb, clips[i].x1, clips[i].y1,
 					clips[i].x2 - clips[i].x1,
 					clips[i].y2 - clips[i].y1);
 	}
+
+	drm_modeset_unlock_all(fb->dev);
 
 	return 0;
 }
@@ -214,6 +218,20 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		info->rotation_type = OMAP_DSS_ROT_TILER;
 		info->screen_width  = omap_gem_tiled_stride(plane->bo, orient);
 	} else {
+		switch (win->rotation & 0xf) {
+		case 0:
+		case BIT(DRM_ROTATE_0):
+			/* OK */
+			break;
+
+		default:
+			dev_warn(fb->dev->dev,
+				"rotation '%d' ignored for non-tiled fb\n",
+				win->rotation);
+			win->rotation = 0;
+			break;
+		}
+
 		info->paddr         = get_linear_addr(plane, format, 0, x, y);
 		info->rotation_type = OMAP_DSS_ROT_DMA;
 		info->screen_width  = plane->pitch;
@@ -302,13 +320,14 @@ struct drm_connector *omap_framebuffer_get_next_connector(
 	struct drm_connector *connector = from;
 
 	if (!from)
-		return list_first_entry(connector_list, typeof(*from), head);
+		return list_first_entry_or_null(connector_list, typeof(*from),
+						head);
 
 	list_for_each_entry_from(connector, connector_list, head) {
 		if (connector != from) {
 			struct drm_encoder *encoder = connector->encoder;
 			struct drm_crtc *crtc = encoder ? encoder->crtc : NULL;
-			if (crtc && crtc->fb == fb)
+			if (crtc && crtc->primary->fb == fb)
 				return connector;
 
 		}
@@ -327,6 +346,7 @@ void omap_framebuffer_flush(struct drm_framebuffer *fb,
 
 	VERB("flush: %d,%d %dx%d, fb=%p", x, y, w, h, fb);
 
+	/* FIXME: This is racy - no protection against modeset config changes. */
 	while ((connector = omap_framebuffer_get_next_connector(fb, connector))) {
 		/* only consider connectors that are part of a chain */
 		if (connector->encoder && connector->encoder->crtc) {

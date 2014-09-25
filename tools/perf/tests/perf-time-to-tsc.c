@@ -1,7 +1,6 @@
 #include <stdio.h>
-#include <sys/types.h>
 #include <unistd.h>
-#include <inttypes.h>
+#include <linux/types.h>
 #include <sys/prctl.h>
 
 #include "parse-events.h"
@@ -9,9 +8,8 @@
 #include "evsel.h"
 #include "thread_map.h"
 #include "cpumap.h"
+#include "tsc.h"
 #include "tests.h"
-
-#include "../arch/x86/util/tsc.h"
 
 #define CHECK__(x) {				\
 	while ((x) < 0) {			\
@@ -25,15 +23,6 @@
 		pr_debug(#x " failed!\n");	\
 		goto out_err;			\
 	}					\
-}
-
-static u64 rdtsc(void)
-{
-	unsigned int low, high;
-
-	asm volatile("rdtsc" : "=a" (low), "=d" (high));
-
-	return low | ((u64)high) << 32;
 }
 
 /**

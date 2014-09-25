@@ -3,8 +3,8 @@
     Driver for National Instruments PCMCIA DAQ-Card DIO-24
     Copyright (C) 2002 Daniel Vecino Castel <dvecino@able.es>
 
-    PCMCIA crap at end of file is adapted from dummy_cs.c 1.31 2001/08/24 12:13:13
-    from the pcmcia package.
+    PCMCIA crap at end of file is adapted from dummy_cs.c 1.31
+    2001/08/24 12:13:13 from the pcmcia package.
     The initial developer of the pcmcia dummy_cs.c code is David A. Hinds
     <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.

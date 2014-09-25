@@ -78,7 +78,7 @@ struct smp_cmd_encrypt_info {
 #define SMP_CMD_MASTER_IDENT	0x07
 struct smp_cmd_master_ident {
 	__le16	ediv;
-	__u8	rand[8];
+	__le64	rand;
 } __packed;
 
 #define SMP_CMD_IDENT_INFO	0x08
@@ -111,36 +111,29 @@ struct smp_cmd_security_req {
 #define SMP_CMD_NOTSUPP			0x07
 #define SMP_UNSPECIFIED			0x08
 #define SMP_REPEATED_ATTEMPTS		0x09
+#define SMP_INVALID_PARAMS		0x0a
 
 #define SMP_MIN_ENC_KEY_SIZE		7
 #define SMP_MAX_ENC_KEY_SIZE		16
 
-#define SMP_FLAG_TK_VALID	1
-#define SMP_FLAG_CFM_PENDING	2
-#define SMP_FLAG_MITM_AUTH	3
-
-struct smp_chan {
-	struct l2cap_conn *conn;
-	u8		preq[7]; /* SMP Pairing Request */
-	u8		prsp[7]; /* SMP Pairing Response */
-	u8		prnd[16]; /* SMP Pairing Random (local) */
-	u8		rrnd[16]; /* SMP Pairing Random (remote) */
-	u8		pcnf[16]; /* SMP Pairing Confirm */
-	u8		tk[16]; /* SMP Temporary Key */
-	u8		enc_key_size;
-	unsigned long	smp_flags;
-	struct crypto_blkcipher	*tfm;
-	struct work_struct confirm;
-	struct work_struct random;
-
+/* LTK types used in internal storage (struct smp_ltk) */
+enum {
+	SMP_STK,
+	SMP_LTK,
+	SMP_LTK_SLAVE,
 };
 
 /* SMP Commands */
+bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level);
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level);
 int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb);
-int smp_distribute_keys(struct l2cap_conn *conn, __u8 force);
+int smp_distribute_keys(struct l2cap_conn *conn);
 int smp_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, __le32 passkey);
 
 void smp_chan_destroy(struct l2cap_conn *conn);
+
+bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
+		     bdaddr_t *bdaddr);
+int smp_generate_rpa(struct crypto_blkcipher *tfm, u8 irk[16], bdaddr_t *rpa);
 
 #endif /* __SMP_H */

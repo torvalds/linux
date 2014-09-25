@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: 802.11n Aggregation
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -69,9 +69,9 @@ mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 	memcpy(&tx_header->eth803_hdr, skb_src->data, dt_offset);
 
 	/* Copy SNAP header */
-	snap.snap_type =
-		le16_to_cpu(*(__le16 *) ((u8 *)skb_src->data + dt_offset));
-	dt_offset += sizeof(u16);
+	snap.snap_type = ((struct ethhdr *)skb_src->data)->h_proto;
+
+	dt_offset += sizeof(__be16);
 
 	memcpy(&tx_header->rfc1042_hdr, &snap, sizeof(struct rfc_1042_hdr));
 
@@ -100,6 +100,7 @@ mwifiex_11n_form_amsdu_txpd(struct mwifiex_private *priv,
 			    struct sk_buff *skb)
 {
 	struct txpd *local_tx_pd;
+	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
 
 	skb_push(skb, sizeof(*local_tx_pd));
 
@@ -117,6 +118,9 @@ mwifiex_11n_form_amsdu_txpd(struct mwifiex_private *priv,
 	local_tx_pd->tx_pkt_type = cpu_to_le16(PKT_TYPE_AMSDU);
 	local_tx_pd->tx_pkt_length = cpu_to_le16(skb->len -
 						 sizeof(*local_tx_pd));
+
+	if (tx_info->flags & MWIFIEX_BUF_FLAG_TDLS_PKT)
+		local_tx_pd->flags |= MWIFIEX_TXPD_FLAGS_TDLS_PACKET;
 
 	if (local_tx_pd->tx_control == 0)
 		/* TxCtrl set by user or default */
@@ -160,6 +164,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	int pad = 0, ret;
 	struct mwifiex_tx_param tx_param;
 	struct txpd *ptx_pd = NULL;
+	struct timeval tv;
 	int headroom = adapter->iface_type == MWIFIEX_USB ? 0 : INTF_HEADER_LEN;
 
 	skb_src = skb_peek(&pra_list->skb_head);
@@ -180,9 +185,16 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	skb_reserve(skb_aggr, headroom + sizeof(struct txpd));
 	tx_info_aggr =  MWIFIEX_SKB_TXCB(skb_aggr);
 
+	memset(tx_info_aggr, 0, sizeof(*tx_info_aggr));
 	tx_info_aggr->bss_type = tx_info_src->bss_type;
 	tx_info_aggr->bss_num = tx_info_src->bss_num;
+
+	if (tx_info_src->flags & MWIFIEX_BUF_FLAG_TDLS_PKT)
+		tx_info_aggr->flags |= MWIFIEX_BUF_FLAG_TDLS_PKT;
 	skb_aggr->priority = skb_src->priority;
+
+	do_gettimeofday(&tv);
+	skb_aggr->tstamp = timeval_to_ktime(tv);
 
 	do {
 		/* Check if AMSDU can accommodate this MSDU */
@@ -236,18 +248,11 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_USB_EP_DATA,
 						   skb_aggr, NULL);
 	} else {
-		/*
-		 * Padding per MSDU will affect the length of next
-		 * packet and hence the exact length of next packet
-		 * is uncertain here.
-		 *
-		 * Also, aggregation of transmission buffer, while
-		 * downloading the data to the card, wont gain much
-		 * on the AMSDU packets as the AMSDU packets utilizes
-		 * the transmission buffer space to the maximum
-		 * (adapter->tx_buf_size).
-		 */
-		tx_param.next_pkt_len = 0;
+		if (skb_src)
+			tx_param.next_pkt_len =
+					skb_src->len + sizeof(struct txpd);
+		else
+			tx_param.next_pkt_len = 0;
 
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
 						   skb_aggr, &tx_param);

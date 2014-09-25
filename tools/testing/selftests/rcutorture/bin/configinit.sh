@@ -62,7 +62,7 @@ grep '^grep' < $T/u.sh > $T/upd.sh
 echo "cat - $c" >> $T/upd.sh
 make mrproper
 make $buildloc distclean > $builddir/Make.distclean 2>&1
-make $buildloc defconfig > $builddir/Make.defconfig.out 2>&1
+make $buildloc $TORTURE_DEFCONFIG > $builddir/Make.defconfig.out 2>&1
 mv $builddir/.config $builddir/.config.sav
 sh $T/upd.sh < $builddir/.config.sav > $builddir/.config
 cp $builddir/.config $builddir/.config.new

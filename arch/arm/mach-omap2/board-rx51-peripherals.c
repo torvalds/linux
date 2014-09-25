@@ -84,7 +84,7 @@ enum {
 	RX51_SPI_MIPID,		/* LCD panel */
 };
 
-static struct wl12xx_platform_data wl1251_pdata;
+static struct wl1251_platform_data wl1251_pdata;
 static struct tsc2005_platform_data tsc2005_pdata;
 
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
@@ -760,7 +760,14 @@ static struct regulator_init_data rx51_vintdig = {
 	},
 };
 
+static const char * const si4713_supply_names[] = {
+	"vio",
+	"vdd",
+};
+
 static struct si4713_platform_data rx51_si4713_i2c_data __initdata_or_module = {
+	.supplies	= ARRAY_SIZE(si4713_supply_names),
+	.supply_names	= si4713_supply_names,
 	.gpio_reset	= RX51_FMTX_RESET_GPIO,
 };
 
@@ -1166,13 +1173,7 @@ static inline void board_smc91x_init(void)
 
 #endif
 
-static void rx51_wl1251_set_power(bool enable)
-{
-	gpio_set_value(RX51_WL1251_POWER_GPIO, enable);
-}
-
 static struct gpio rx51_wl1251_gpios[] __initdata = {
-	{ RX51_WL1251_POWER_GPIO, GPIOF_OUT_INIT_LOW,	"wl1251 power"	},
 	{ RX51_WL1251_IRQ_GPIO,	  GPIOF_IN,		"wl1251 irq"	},
 };
 
@@ -1189,17 +1190,16 @@ static void __init rx51_init_wl1251(void)
 	if (irq < 0)
 		goto err_irq;
 
-	wl1251_pdata.set_power = rx51_wl1251_set_power;
+	wl1251_pdata.power_gpio = RX51_WL1251_POWER_GPIO;
 	rx51_peripherals_spi_board_info[RX51_SPI_WL1251].irq = irq;
 
 	return;
 
 err_irq:
 	gpio_free(RX51_WL1251_IRQ_GPIO);
-	gpio_free(RX51_WL1251_POWER_GPIO);
 error:
 	printk(KERN_ERR "wl1251 board initialisation failed\n");
-	wl1251_pdata.set_power = NULL;
+	wl1251_pdata.power_gpio = -1;
 
 	/*
 	 * Now rx51_peripherals_spi_board_info[1].irq is zero and

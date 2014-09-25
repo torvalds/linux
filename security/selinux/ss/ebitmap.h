@@ -132,17 +132,17 @@ int ebitmap_write(struct ebitmap *e, void *fp);
 
 #ifdef CONFIG_NETLABEL
 int ebitmap_netlbl_export(struct ebitmap *ebmap,
-			  struct netlbl_lsm_secattr_catmap **catmap);
+			  struct netlbl_lsm_catmap **catmap);
 int ebitmap_netlbl_import(struct ebitmap *ebmap,
-			  struct netlbl_lsm_secattr_catmap *catmap);
+			  struct netlbl_lsm_catmap *catmap);
 #else
 static inline int ebitmap_netlbl_export(struct ebitmap *ebmap,
-				struct netlbl_lsm_secattr_catmap **catmap)
+					struct netlbl_lsm_catmap **catmap)
 {
 	return -ENOMEM;
 }
 static inline int ebitmap_netlbl_import(struct ebitmap *ebmap,
-				struct netlbl_lsm_secattr_catmap *catmap)
+					struct netlbl_lsm_catmap *catmap)
 {
 	return -ENOMEM;
 }

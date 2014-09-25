@@ -8,8 +8,6 @@ Required properties:
 - compatible: value should be one of the following
 		"samsung,s3c2443-fimd"; /* for S3C24XX SoCs */
 		"samsung,s3c6400-fimd"; /* for S3C64XX SoCs */
-		"samsung,s5p6440-fimd"; /* for S5P64X0 SoCs */
-		"samsung,s5pc100-fimd"; /* for S5PC100 SoC  */
 		"samsung,s5pv210-fimd"; /* for S5PV210 SoC */
 		"samsung,exynos4210-fimd"; /* for Exynos4 SoCs */
 		"samsung,exynos5250-fimd"; /* for Exynos5 SoCs */
@@ -39,6 +37,51 @@ Required properties:
 
 Optional Properties:
 - samsung,power-domain: a phandle to FIMD power domain node.
+- samsung,invert-vden: video enable signal is inverted
+- samsung,invert-vclk: video clock signal is inverted
+- display-timings: timing settings for FIMD, as described in document [1].
+		Can be used in case timings cannot be provided otherwise
+		or to override timings provided by the panel.
+- samsung,sysreg: handle to syscon used to control the system registers
+- i80-if-timings: timing configuration for lcd i80 interface support.
+  - cs-setup: clock cycles for the active period of address signal is enabled
+              until chip select is enabled.
+              If not specified, the default value(0) will be used.
+  - wr-setup: clock cycles for the active period of CS signal is enabled until
+              write signal is enabled.
+              If not specified, the default value(0) will be used.
+  - wr-active: clock cycles for the active period of CS is enabled.
+               If not specified, the default value(1) will be used.
+  - wr-hold: clock cycles for the active period of CS is disabled until write
+             signal is disabled.
+             If not specified, the default value(0) will be used.
+
+  The parameters are defined as:
+
+    VCLK(internal)  __|??????|_____|??????|_____|??????|_____|??????|_____|??
+                      :            :            :            :            :
+    Address Output  --:<XXXXXXXXXXX:XXXXXXXXXXXX:XXXXXXXXXXXX:XXXXXXXXXXXX:XX
+                      | cs-setup+1 |            :            :            :
+                      |<---------->|            :            :            :
+    Chip Select     ???????????????|____________:____________:____________|??
+                                   | wr-setup+1 |            | wr-hold+1  |
+                                   |<---------->|            |<---------->|
+    Write Enable    ????????????????????????????|____________|???????????????
+                                                | wr-active+1|
+                                                |<---------->|
+    Video Data      ----------------------------<XXXXXXXXXXXXXXXXXXXXXXXXX>--
+
+The device node can contain 'port' child nodes according to the bindings defined
+in [2]. The following are properties specific to those nodes:
+- reg: (required) port index, can be:
+		0 - for CAMIF0 input,
+		1 - for CAMIF1 input,
+		2 - for CAMIF2 input,
+		3 - for parallel output,
+		4 - for write-back interface
+
+[1]: Documentation/devicetree/bindings/video/display-timing.txt
+[2]: Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Example:
 

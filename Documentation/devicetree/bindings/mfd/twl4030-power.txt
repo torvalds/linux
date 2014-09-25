@@ -5,7 +5,22 @@ to control the power resources, including power scripts. For now, the
 binding only supports the complete shutdown of the system after poweroff.
 
 Required properties:
-- compatible : must be "ti,twl4030-power"
+- compatible : must be one of the following
+	"ti,twl4030-power"
+	"ti,twl4030-power-reset"
+	"ti,twl4030-power-idle"
+	"ti,twl4030-power-idle-osc-off"
+
+The use of ti,twl4030-power-reset is recommended at least on
+3530 that needs a special configuration for warm reset to work.
+
+When using ti,twl4030-power-idle, the TI recommended configuration
+for idle modes is loaded to the tlw4030 PMIC.
+
+When using ti,twl4030-power-idle-osc-off, the TI recommended
+configuration is used with the external oscillator being shut
+down during off-idle. Note that this does not work on all boards
+depending on how the external oscillator is wired.
 
 Optional properties:
 - ti,use_poweroff: With this flag, the chip will initiates an ACTIVE-to-OFF or

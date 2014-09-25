@@ -41,11 +41,11 @@
 
 #define DEBUG_SUBSYSTEM S_ECHO
 
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_debug.h>
-#include <lustre_dlm.h>
-#include <lprocfs_status.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_debug.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lprocfs_status.h"
 
 #include "echo_internal.h"
 
@@ -120,18 +120,18 @@ static int echo_create(const struct lu_env *env, struct obd_export *exp,
 	struct obd_device *obd = class_exp2obd(exp);
 
 	if (!obd) {
-		CERROR("invalid client cookie "LPX64"\n",
+		CERROR("invalid client cookie %#llx\n",
 		       exp->exp_handle.h_cookie);
 		return -EINVAL;
 	}
 
-	if (!(oa->o_mode && S_IFMT)) {
+	if (!(oa->o_mode & S_IFMT)) {
 		CERROR("echo obd: no type!\n");
 		return -ENOENT;
 	}
 
 	if (!(oa->o_valid & OBD_MD_FLTYPE)) {
-		CERROR("invalid o_valid "LPX64"\n", oa->o_valid);
+		CERROR("invalid o_valid %#llx\n", oa->o_valid);
 		return -EINVAL;
 	}
 
@@ -150,13 +150,13 @@ static int echo_destroy(const struct lu_env *env, struct obd_export *exp,
 	struct obd_device *obd = class_exp2obd(exp);
 
 	if (!obd) {
-		CERROR("invalid client cookie "LPX64"\n",
+		CERROR("invalid client cookie %#llx\n",
 		       exp->exp_handle.h_cookie);
 		return -EINVAL;
 	}
 
 	if (!(oa->o_valid & OBD_MD_FLID)) {
-		CERROR("obdo missing FLID valid flag: "LPX64"\n", oa->o_valid);
+		CERROR("obdo missing FLID valid flag: %#llx\n", oa->o_valid);
 		return -EINVAL;
 	}
 
@@ -176,13 +176,13 @@ static int echo_getattr(const struct lu_env *env, struct obd_export *exp,
 	obd_id id = ostid_id(&oinfo->oi_oa->o_oi);
 
 	if (!obd) {
-		CERROR("invalid client cookie "LPX64"\n",
+		CERROR("invalid client cookie %#llx\n",
 		       exp->exp_handle.h_cookie);
 		return -EINVAL;
 	}
 
 	if (!(oinfo->oi_oa->o_valid & OBD_MD_FLID)) {
-		CERROR("obdo missing FLID valid flag: "LPX64"\n",
+		CERROR("obdo missing FLID valid flag: %#llx\n",
 		       oinfo->oi_oa->o_valid);
 		return -EINVAL;
 	}
@@ -200,13 +200,13 @@ static int echo_setattr(const struct lu_env *env, struct obd_export *exp,
 	struct obd_device *obd = class_exp2obd(exp);
 
 	if (!obd) {
-		CERROR("invalid client cookie "LPX64"\n",
+		CERROR("invalid client cookie %#llx\n",
 		       exp->exp_handle.h_cookie);
 		return -EINVAL;
 	}
 
 	if (!(oinfo->oi_oa->o_valid & OBD_MD_FLID)) {
-		CERROR("obdo missing FLID valid flag: "LPX64"\n",
+		CERROR("obdo missing FLID valid flag: %#llx\n",
 		       oinfo->oi_oa->o_valid);
 		return -EINVAL;
 	}
@@ -327,7 +327,7 @@ static int echo_map_nb_to_lb(struct obdo *oa, struct obd_ioobj *obj,
 			}
 		}
 
-		CDEBUG(D_PAGE, "$$$$ get page %p @ "LPU64" for %d\n",
+		CDEBUG(D_PAGE, "$$$$ get page %p @ %llu for %d\n",
 		       res->page, res->lnb_file_offset, res->len);
 
 		if (cmd & OBD_BRW_READ)
@@ -365,7 +365,7 @@ static int echo_finalize_lb(struct obdo *oa, struct obd_ioobj *obj,
 		void       *addr;
 
 		if (page == NULL) {
-			CERROR("null page objid "LPU64":%p, buf %d/%d\n",
+			CERROR("null page objid %llu:%p, buf %d/%d\n",
 			       ostid_id(&obj->ioo_oid), page, i,
 			       obj->ioo_bufcnt);
 			return -EFAULT;
@@ -373,7 +373,7 @@ static int echo_finalize_lb(struct obdo *oa, struct obd_ioobj *obj,
 
 		addr = kmap(page);
 
-		CDEBUG(D_PAGE, "$$$$ use page %p, addr %p@"LPU64"\n",
+		CDEBUG(D_PAGE, "$$$$ use page %p, addr %p@%llu\n",
 		       res->page, addr, res->lnb_file_offset);
 
 		if (verify) {
@@ -606,7 +606,8 @@ static int echo_cleanup(struct obd_device *obd)
 
 	/* XXX Bug 3413; wait for a bit to ensure the BL callback has
 	 * happened before calling ldlm_namespace_free() */
-	schedule_timeout_and_set_state(TASK_UNINTERRUPTIBLE, cfs_time_seconds(1));
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(cfs_time_seconds(1));
 
 	ldlm_namespace_free(obd->obd_namespace, NULL, obd->obd_force);
 	obd->obd_namespace = NULL;

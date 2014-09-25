@@ -101,28 +101,20 @@ static int bt878_mem_alloc(struct bt878 *bt)
 	if (!bt->buf_cpu) {
 		bt->buf_size = 128 * 1024;
 
-		bt->buf_cpu =
-		    pci_alloc_consistent(bt->dev, bt->buf_size,
-					 &bt->buf_dma);
-
+		bt->buf_cpu = pci_zalloc_consistent(bt->dev, bt->buf_size,
+						    &bt->buf_dma);
 		if (!bt->buf_cpu)
 			return -ENOMEM;
-
-		memset(bt->buf_cpu, 0, bt->buf_size);
 	}
 
 	if (!bt->risc_cpu) {
 		bt->risc_size = PAGE_SIZE;
-		bt->risc_cpu =
-		    pci_alloc_consistent(bt->dev, bt->risc_size,
-					 &bt->risc_dma);
-
+		bt->risc_cpu = pci_zalloc_consistent(bt->dev, bt->risc_size,
+						     &bt->risc_dma);
 		if (!bt->risc_cpu) {
 			bt878_mem_free(bt);
 			return -ENOMEM;
 		}
-
-		memset(bt->risc_cpu, 0, bt->risc_size);
 	}
 
 	return 0;

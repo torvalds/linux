@@ -10,6 +10,7 @@
  */
 
 #include "ste-dbx5x0.dtsi"
+#include "ste-href-ab8500.dtsi"
 #include "ste-href.dtsi"
 
 / {
@@ -34,8 +35,6 @@
 			 */
 			pinctrl-names = "default";
 			pinctrl-0 = <&ipgpio_hrefv60_mode>,
-				  <&accel_hrefv60_mode>,
-				  <&magneto_hrefv60_mode>,
 				  <&etm_hrefv60_mode>,
 				  <&nahj_hrefv60_mode>,
 				  <&nfc_hrefv60_mode>,
@@ -79,28 +78,6 @@
 					hrefv60_cfg3 {
 						ste,pins = "GPIO64_F3";
 						ste,config = <&out_lo>;
-					};
-				};
-			};
-			accelerometer {
-				accel_hrefv60_mode: accel_hrefv60 {
-					/* Accelerometer interrupt lines 1 & 2 */
-					hrefv60_cfg1 {
-						ste,pins = "GPIO82_C1", "GPIO83_D3";
-						ste,config = <&gpio_in_pu>;
-					};
-				};
-			};
-			magnetometer {
-				magneto_hrefv60_mode: magneto_hrefv60 {
-					/* Magnetometer uses GPIO 31 and 32, pull these up/down respectively */
-					hrefv60_cfg1 {
-						ste,pins = "GPIO31_V3";
-						ste,config = <&gpio_in_pu>;
-					};
-					hrefv60_cfg2 {
-						ste,pins = "GPIO32_V2";
-						ste,config = <&gpio_in_pd>;
 					};
 				};
 			};

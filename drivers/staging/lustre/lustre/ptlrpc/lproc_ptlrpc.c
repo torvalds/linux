@@ -36,12 +36,12 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 
-#include <obd_support.h>
-#include <obd.h>
-#include <lprocfs_status.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_net.h>
-#include <obd_class.h>
+#include "../include/obd_support.h"
+#include "../include/obd.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_net.h"
+#include "../include/obd_class.h"
 #include "ptlrpc_internal.h"
 
 
@@ -180,7 +180,7 @@ const char* ll_eopcode2str(__u32 opcode)
 	LASSERT(ll_eopcode_table[opcode].opcode == opcode);
 	return ll_eopcode_table[opcode].opname;
 }
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
 			     char *name, struct proc_dir_entry **procroot_ret,
 			     struct lprocfs_stats **stats_ret)
@@ -449,7 +449,7 @@ void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
 {
 	LASSERT(policy != NULL);
 	LASSERT(info != NULL);
-	LASSERT(spin_is_locked(&policy->pol_nrs->nrs_lock));
+	assert_spin_locked(&policy->pol_nrs->nrs_lock);
 
 	memcpy(info->pi_name, policy->pol_desc->pd_name, NRS_POL_NAME_MAX);
 
@@ -616,7 +616,7 @@ out:
 }
 
 /**
- * The longest valid command string is the maxium policy name size, plus the
+ * The longest valid command string is the maximum policy name size, plus the
  * length of the " reg" substring
  */
 #define LPROCFS_NRS_WR_MAX_CMD	(NRS_POL_NAME_MAX + sizeof(" reg") - 1)
@@ -628,7 +628,8 @@ out:
  * if the optional token is omitted, the operation is performed on both the
  * regular and high-priority (if the service has one) NRS head.
  */
-static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file, const char *buffer,
+static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
+					const char __user *buffer,
 					size_t count, loff_t *off)
 {
 	struct ptlrpc_service *svc = ((struct seq_file *)file->private_data)->private;
@@ -726,12 +727,12 @@ ptlrpc_lprocfs_svc_req_history_seek(struct ptlrpc_service_part *svcpt,
 		 * be near the head), we shouldn't have to do long
 		 * re-scans */
 		LASSERTF(srhi->srhi_seq == srhi->srhi_req->rq_history_seq,
-			 "%s:%d: seek seq "LPU64", request seq "LPU64"\n",
+			 "%s:%d: seek seq %llu, request seq %llu\n",
 			 svcpt->scp_service->srv_name, svcpt->scp_cpt,
 			 srhi->srhi_seq, srhi->srhi_req->rq_history_seq);
 		LASSERTF(!list_empty(&svcpt->scp_hist_reqs),
-			 "%s:%d: seek offset "LPU64", request seq "LPU64", "
-			 "last culled "LPU64"\n",
+			 "%s:%d: seek offset %llu, request seq %llu, "
+			 "last culled %llu\n",
 			 svcpt->scp_service->srv_name, svcpt->scp_cpt,
 			 seq, srhi->srhi_seq, svcpt->scp_hist_seq_culled);
 		e = &srhi->srhi_req->rq_history_list;
@@ -932,7 +933,7 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 		 * must be just as careful as the service's request
 		 * parser. Currently I only print stuff here I know is OK
 		 * to look at coz it was set up in request_in_callback()!!! */
-		seq_printf(s, LPD64":%s:%s:x"LPU64":%d:%s:%ld:%lds(%+lds) ",
+		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%ld:%lds(%+lds) ",
 			   req->rq_history_seq, libcfs_nid2str(req->rq_self),
 			   libcfs_id2str(req->rq_peer), req->rq_xid,
 			   req->rq_reqlen, ptlrpc_rqphase2str(req),
@@ -991,7 +992,7 @@ static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 		cur	= at_get(&svcpt->scp_at_estimate);
 		worst	= svcpt->scp_at_estimate.at_worst_ever;
 		worstt	= svcpt->scp_at_estimate.at_worst_time;
-		s2dhms(&ts, cfs_time_current_sec() - worstt);
+		s2dhms(&ts, get_seconds() - worstt);
 
 		seq_printf(m, "%10s : cur %3u  worst %3u (at %ld, "
 			      DHMS_FMT" ago) ", "service",
@@ -1184,13 +1185,13 @@ int lprocfs_wr_evict_client(struct file *file, const char *buffer,
 	}
 	tmpbuf = cfs_firststr(kbuf, min_t(unsigned long, BUFLEN - 1, count));
 	/* Kludge code(deadlock situation): the lprocfs lock has been held
-	 * since the client is evicted by writting client's
+	 * since the client is evicted by writing client's
 	 * uuid/nid to procfs "evict_client" entry. However,
 	 * obd_export_evict_by_uuid() will call lprocfs_remove() to destroy
 	 * the proc entries under the being destroyed export{}, so I have
 	 * to drop the lock at first here.
 	 * - jay, jxiong@clusterfs.com */
-	class_incref(obd, __FUNCTION__, current);
+	class_incref(obd, __func__, current);
 
 	if (strncmp(tmpbuf, "nid:", 4) == 0)
 		obd_export_evict_by_nid(obd, tmpbuf + 4);
@@ -1199,7 +1200,7 @@ int lprocfs_wr_evict_client(struct file *file, const char *buffer,
 	else
 		obd_export_evict_by_uuid(obd, tmpbuf);
 
-	class_decref(obd, __FUNCTION__, current);
+	class_decref(obd, __func__, current);
 
 out:
 	OBD_FREE(kbuf, BUFLEN);
@@ -1339,4 +1340,4 @@ int lprocfs_wr_pinger_recov(struct file *file, const char *buffer,
 }
 EXPORT_SYMBOL(lprocfs_wr_pinger_recov);
 
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */

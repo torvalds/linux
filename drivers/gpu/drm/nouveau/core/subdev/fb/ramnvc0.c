@@ -23,11 +23,10 @@
  */
 
 #include <subdev/bios.h>
-#include <subdev/bios/bit.h>
 #include <subdev/bios/pll.h>
 #include <subdev/bios/rammap.h>
 #include <subdev/bios/timing.h>
-#include <subdev/ltcg.h>
+#include <subdev/ltc.h>
 
 #include <subdev/clock.h>
 #include <subdev/clock/pll.h>
@@ -134,9 +133,7 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	struct nouveau_bios *bios = nouveau_bios(pfb);
 	struct nvc0_ram *ram = (void *)pfb->ram;
 	struct nvc0_ramfuc *fuc = &ram->fuc;
-	struct bit_entry M;
-	u8  ver, cnt, strap;
-	u32 data;
+	u8  ver, cnt, len, strap;
 	struct {
 		u32 data;
 		u8  size;
@@ -147,24 +144,15 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	int ret;
 
 	/* lookup memory config data relevant to the target frequency */
-	rammap.data = nvbios_rammap_match(bios, freq / 1000, &ver, &rammap.size,
-					 &cnt, &ramcfg.size);
+	rammap.data = nvbios_rammapEm(bios, freq / 1000, &ver, &rammap.size,
+				     &cnt, &ramcfg.size);
 	if (!rammap.data || ver != 0x10 || rammap.size < 0x0e) {
 		nv_error(pfb, "invalid/missing rammap entry\n");
 		return -EINVAL;
 	}
 
 	/* locate specific data set for the attached memory */
-	if (bit_entry(bios, 'M', &M) || M.version != 2 || M.length < 3) {
-		nv_error(pfb, "invalid/missing memory table\n");
-		return -EINVAL;
-	}
-
-	strap = (nv_rd32(pfb, 0x101000) & 0x0000003c) >> 2;
-	data = nv_ro16(bios, M.offset + 1);
-	if (data)
-		strap = nv_ro08(bios, data + strap);
-
+	strap = nvbios_ramcfg_index(nv_subdev(pfb));
 	if (strap >= cnt) {
 		nv_error(pfb, "invalid ramcfg strap\n");
 		return -EINVAL;
@@ -179,8 +167,8 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	/* lookup memory timings, if bios says they're present */
 	strap = nv_ro08(bios, ramcfg.data + 0x01);
 	if (strap != 0xff) {
-		timing.data = nvbios_timing_entry(bios, strap, &ver,
-						 &timing.size);
+		timing.data = nvbios_timingEe(bios, strap, &ver, &timing.size,
+					     &cnt, &len);
 		if (!timing.data || ver != 0x10 || timing.size < 0x19) {
 			nv_error(pfb, "invalid/missing timing entry\n");
 			return -EINVAL;
@@ -420,7 +408,7 @@ nvc0_ram_prog(struct nouveau_fb *pfb)
 	struct nouveau_device *device = nv_device(pfb);
 	struct nvc0_ram *ram = (void *)pfb->ram;
 	struct nvc0_ramfuc *fuc = &ram->fuc;
-	ram_exec(fuc, nouveau_boolopt(device->cfgopt, "NvMemExec", false));
+	ram_exec(fuc, nouveau_boolopt(device->cfgopt, "NvMemExec", true));
 	return 0;
 }
 
@@ -437,7 +425,7 @@ extern const u8 nvc0_pte_storage_type_map[256];
 void
 nvc0_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 {
-	struct nouveau_ltcg *ltcg = nouveau_ltcg(pfb);
+	struct nouveau_ltc *ltc = nouveau_ltc(pfb);
 	struct nouveau_mem *mem = *pmem;
 
 	*pmem = NULL;
@@ -446,7 +434,7 @@ nvc0_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 
 	mutex_lock(&pfb->base.mutex);
 	if (mem->tag)
-		ltcg->tags_free(ltcg, &mem->tag);
+		ltc->tags_free(ltc, &mem->tag);
 	__nv50_ram_put(pfb, mem);
 	mutex_unlock(&pfb->base.mutex);
 
@@ -480,12 +468,12 @@ nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 
 	mutex_lock(&pfb->base.mutex);
 	if (comp) {
-		struct nouveau_ltcg *ltcg = nouveau_ltcg(pfb);
+		struct nouveau_ltc *ltc = nouveau_ltc(pfb);
 
 		/* compression only works with lpages */
 		if (align == (1 << (17 - 12))) {
 			int n = size >> 5;
-			ltcg->tags_alloc(ltcg, n, &mem->tag);
+			ltc->tags_alloc(ltc, n, &mem->tag);
 		}
 
 		if (unlikely(!mem->tag))
@@ -517,7 +505,8 @@ nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 
 int
 nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, int size, void **pobject)
+		 struct nouveau_oclass *oclass, u32 maskaddr, int size,
+		 void **pobject)
 {
 	struct nouveau_fb *pfb = nouveau_fb(parent);
 	struct nouveau_bios *bios = nouveau_bios(pfb);
@@ -525,7 +514,7 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
 	u32 parts = nv_rd32(pfb, 0x022438);
-	u32 pmask = nv_rd32(pfb, 0x022554);
+	u32 pmask = nv_rd32(pfb, maskaddr);
 	u32 bsize = nv_rd32(pfb, 0x10f20c);
 	u32 offset, length;
 	bool uniform = true;
@@ -565,13 +554,13 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	} else {
 		/* otherwise, address lowest common amount from 0GiB */
 		ret = nouveau_mm_init(&pfb->vram, rsvd_head,
-				      (bsize << 8) * parts, 1);
+				      (bsize << 8) * parts - rsvd_head, 1);
 		if (ret)
 			return ret;
 
 		/* and the rest starting from (8GiB + common_size) */
 		offset = (0x0200000000ULL >> 12) + (bsize << 8);
-		length = (ram->size >> 12) - (bsize << 8) - rsvd_tail;
+		length = (ram->size >> 12) - ((bsize * parts) << 8) - rsvd_tail;
 
 		ret = nouveau_mm_init(&pfb->vram, offset, length, 0);
 		if (ret)
@@ -642,7 +631,7 @@ nvc0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvc0_ram *ram;
 	int ret;
 
-	ret = nvc0_ram_create(parent, engine, oclass, &ram);
+	ret = nvc0_ram_create(parent, engine, oclass, 0x022554, &ram);
 	*pobject = nv_object(ram);
 	if (ret)
 		return ret;

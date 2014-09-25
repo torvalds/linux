@@ -35,6 +35,20 @@
 #define PFUZE100_VGEN6		14
 #define PFUZE100_MAX_REGULATOR	15
 
+#define PFUZE200_SW1AB		0
+#define PFUZE200_SW2		1
+#define PFUZE200_SW3A		2
+#define PFUZE200_SW3B		3
+#define PFUZE200_SWBST		4
+#define PFUZE200_VSNVS		5
+#define PFUZE200_VREFDDR	6
+#define PFUZE200_VGEN1		7
+#define PFUZE200_VGEN2		8
+#define PFUZE200_VGEN3		9
+#define PFUZE200_VGEN4		10
+#define PFUZE200_VGEN5		11
+#define PFUZE200_VGEN6		12
+
 struct regulator_init_data;
 
 struct pfuze_regulator_platform_data {

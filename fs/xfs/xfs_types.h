@@ -38,43 +38,18 @@ typedef	__int32_t	xfs_tid_t;	/* transaction identifier */
 typedef	__uint32_t	xfs_dablk_t;	/* dir/attr block number (in file) */
 typedef	__uint32_t	xfs_dahash_t;	/* dir/attr hash value */
 
-/*
- * These types are 64 bits on disk but are either 32 or 64 bits in memory.
- * Disk based types:
- */
-typedef __uint64_t	xfs_dfsbno_t;	/* blockno in filesystem (agno|agbno) */
-typedef __uint64_t	xfs_drfsbno_t;	/* blockno in filesystem (raw) */
-typedef	__uint64_t	xfs_drtbno_t;	/* extent (block) in realtime area */
-typedef	__uint64_t	xfs_dfiloff_t;	/* block number in a file */
-typedef	__uint64_t	xfs_dfilblks_t;	/* number of blocks in a file */
-
-/*
- * Memory based types are conditional.
- */
-#if XFS_BIG_BLKNOS
 typedef	__uint64_t	xfs_fsblock_t;	/* blockno in filesystem (agno|agbno) */
 typedef __uint64_t	xfs_rfsblock_t;	/* blockno in filesystem (raw) */
 typedef __uint64_t	xfs_rtblock_t;	/* extent (block) in realtime area */
-typedef	__int64_t	xfs_srtblock_t;	/* signed version of xfs_rtblock_t */
-#else
-typedef	__uint32_t	xfs_fsblock_t;	/* blockno in filesystem (agno|agbno) */
-typedef __uint32_t	xfs_rfsblock_t;	/* blockno in filesystem (raw) */
-typedef __uint32_t	xfs_rtblock_t;	/* extent (block) in realtime area */
-typedef	__int32_t	xfs_srtblock_t;	/* signed version of xfs_rtblock_t */
-#endif
 typedef __uint64_t	xfs_fileoff_t;	/* block number in a file */
-typedef __int64_t	xfs_sfiloff_t;	/* signed block number in a file */
 typedef __uint64_t	xfs_filblks_t;	/* number of blocks in a file */
 
+typedef	__int64_t	xfs_srtblock_t;	/* signed version of xfs_rtblock_t */
+typedef __int64_t	xfs_sfiloff_t;	/* signed block number in a file */
 
 /*
  * Null values for the types.
  */
-#define	NULLDFSBNO	((xfs_dfsbno_t)-1)
-#define	NULLDRFSBNO	((xfs_drfsbno_t)-1)
-#define	NULLDRTBNO	((xfs_drtbno_t)-1)
-#define	NULLDFILOFF	((xfs_dfiloff_t)-1)
-
 #define	NULLFSBLOCK	((xfs_fsblock_t)-1)
 #define	NULLRFSBLOCK	((xfs_rfsblock_t)-1)
 #define	NULLRTBLOCK	((xfs_rtblock_t)-1)
@@ -134,7 +109,7 @@ typedef enum {
 
 typedef enum {
 	XFS_BTNUM_BNOi, XFS_BTNUM_CNTi, XFS_BTNUM_BMAPi, XFS_BTNUM_INOi,
-	XFS_BTNUM_MAX
+	XFS_BTNUM_FINOi, XFS_BTNUM_MAX
 } xfs_btnum_t;
 
 struct xfs_name {

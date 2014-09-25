@@ -14,6 +14,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
 		linux,initrd-start = <0x4500040>;
 		linux,initrd-end   = <0x4800000>;
 	};
@@ -29,7 +30,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pmx_button_reset: pmx-button-reset {
 				marvell,pins = "mpp12";
 				marvell,function = "gpio";
@@ -183,7 +184,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@11 {
-		device_type = "ethernet-phy";
 		reg = <11>;
 	};
 };

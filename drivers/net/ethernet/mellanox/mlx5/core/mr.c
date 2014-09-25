@@ -36,11 +36,24 @@
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 
+void mlx5_init_mr_table(struct mlx5_core_dev *dev)
+{
+	struct mlx5_mr_table *table = &dev->priv.mr_table;
+
+	rwlock_init(&table->lock);
+	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
+}
+
+void mlx5_cleanup_mr_table(struct mlx5_core_dev *dev)
+{
+}
+
 int mlx5_core_create_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 			  struct mlx5_create_mkey_mbox_in *in, int inlen,
 			  mlx5_cmd_cbk_t callback, void *context,
 			  struct mlx5_create_mkey_mbox_out *out)
 {
+	struct mlx5_mr_table *table = &dev->priv.mr_table;
 	struct mlx5_create_mkey_mbox_out lout;
 	int err;
 	u8 key;
@@ -60,7 +73,7 @@ int mlx5_core_create_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 	}
 
 	if (err) {
-		mlx5_core_dbg(dev, "cmd exec faile %d\n", err);
+		mlx5_core_dbg(dev, "cmd exec failed %d\n", err);
 		return err;
 	}
 
@@ -69,9 +82,23 @@ int mlx5_core_create_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 		return mlx5_cmd_status_to_err(&lout.hdr);
 	}
 
+	mr->iova = be64_to_cpu(in->seg.start_addr);
+	mr->size = be64_to_cpu(in->seg.len);
 	mr->key = mlx5_idx_to_mkey(be32_to_cpu(lout.mkey) & 0xffffff) | key;
+	mr->pd = be32_to_cpu(in->seg.flags_pd) & 0xffffff;
+
 	mlx5_core_dbg(dev, "out 0x%x, key 0x%x, mkey 0x%x\n",
 		      be32_to_cpu(lout.mkey), key, mr->key);
+
+	/* connect to MR tree */
+	write_lock_irq(&table->lock);
+	err = radix_tree_insert(&table->tree, mlx5_base_mkey(mr->key), mr);
+	write_unlock_irq(&table->lock);
+	if (err) {
+		mlx5_core_warn(dev, "failed radix tree insert of mr 0x%x, %d\n",
+			       mlx5_base_mkey(mr->key), err);
+		mlx5_core_destroy_mkey(dev, mr);
+	}
 
 	return err;
 }
@@ -79,12 +106,24 @@ EXPORT_SYMBOL(mlx5_core_create_mkey);
 
 int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr)
 {
+	struct mlx5_mr_table *table = &dev->priv.mr_table;
 	struct mlx5_destroy_mkey_mbox_in in;
 	struct mlx5_destroy_mkey_mbox_out out;
+	struct mlx5_core_mr *deleted_mr;
+	unsigned long flags;
 	int err;
 
 	memset(&in, 0, sizeof(in));
 	memset(&out, 0, sizeof(out));
+
+	write_lock_irqsave(&table->lock, flags);
+	deleted_mr = radix_tree_delete(&table->tree, mlx5_base_mkey(mr->key));
+	write_unlock_irqrestore(&table->lock, flags);
+	if (!deleted_mr) {
+		mlx5_core_warn(dev, "failed radix tree delete of mr 0x%x\n",
+			       mlx5_base_mkey(mr->key));
+		return -ENOENT;
+	}
 
 	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_DESTROY_MKEY);
 	in.mkey = cpu_to_be32(mlx5_mkey_to_idx(mr->key));
@@ -144,3 +183,66 @@ int mlx5_core_dump_fill_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 	return err;
 }
 EXPORT_SYMBOL(mlx5_core_dump_fill_mkey);
+
+int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
+			 int npsvs, u32 *sig_index)
+{
+	struct mlx5_allocate_psv_in in;
+	struct mlx5_allocate_psv_out out;
+	int i, err;
+
+	if (npsvs > MLX5_MAX_PSVS)
+		return -EINVAL;
+
+	memset(&in, 0, sizeof(in));
+	memset(&out, 0, sizeof(out));
+
+	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_CREATE_PSV);
+	in.npsv_pd = cpu_to_be32((npsvs << 28) | pdn);
+	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
+	if (err) {
+		mlx5_core_err(dev, "cmd exec failed %d\n", err);
+		return err;
+	}
+
+	if (out.hdr.status) {
+		mlx5_core_err(dev, "create_psv bad status %d\n",
+			      out.hdr.status);
+		return mlx5_cmd_status_to_err(&out.hdr);
+	}
+
+	for (i = 0; i < npsvs; i++)
+		sig_index[i] = be32_to_cpu(out.psv_idx[i]) & 0xffffff;
+
+	return err;
+}
+EXPORT_SYMBOL(mlx5_core_create_psv);
+
+int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num)
+{
+	struct mlx5_destroy_psv_in in;
+	struct mlx5_destroy_psv_out out;
+	int err;
+
+	memset(&in, 0, sizeof(in));
+	memset(&out, 0, sizeof(out));
+
+	in.psv_number = cpu_to_be32(psv_num);
+	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_DESTROY_PSV);
+	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
+	if (err) {
+		mlx5_core_err(dev, "destroy_psv cmd exec failed %d\n", err);
+		goto out;
+	}
+
+	if (out.hdr.status) {
+		mlx5_core_err(dev, "destroy_psv bad status %d\n",
+			      out.hdr.status);
+		err = mlx5_cmd_status_to_err(&out.hdr);
+		goto out;
+	}
+
+out:
+	return err;
+}
+EXPORT_SYMBOL(mlx5_core_destroy_psv);

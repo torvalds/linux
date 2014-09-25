@@ -70,7 +70,7 @@ static struct quirk_entry quirk_dell_vostro_v130 = {
 	.touchpad_led = 1,
 };
 
-static int dmi_matched(const struct dmi_system_id *dmi)
+static int __init dmi_matched(const struct dmi_system_id *dmi)
 {
 	quirks = dmi->driver_data;
 	return 1;
@@ -123,7 +123,7 @@ static const struct dmi_system_id dell_device_table[] __initconst = {
 };
 MODULE_DEVICE_TABLE(dmi, dell_device_table);
 
-static struct dmi_system_id dell_quirks[] = {
+static const struct dmi_system_id dell_quirks[] __initconst = {
 	{
 		.callback = dmi_matched,
 		.ident = "Dell Vostro V130",
@@ -559,19 +559,45 @@ static void dell_update_rfkill(struct work_struct *ignored)
 }
 static DECLARE_DELAYED_WORK(dell_rfkill_work, dell_update_rfkill);
 
+static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
+			      struct serio *port)
+{
+	static bool extended;
+
+	if (str & 0x20)
+		return false;
+
+	if (unlikely(data == 0xe0)) {
+		extended = true;
+		return false;
+	} else if (unlikely(extended)) {
+		switch (data) {
+		case 0x8:
+			schedule_delayed_work(&dell_rfkill_work,
+					      round_jiffies_relative(HZ / 4));
+			break;
+		}
+		extended = false;
+	}
+
+	return false;
+}
 
 static int __init dell_setup_rfkill(void)
 {
-	int status;
-	int ret;
+	int status, ret, whitelisted;
 	const char *product;
 
 	/*
-	 * rfkill causes trouble on various non Latitudes, according to Dell
-	 * actually testing the rfkill functionality is only done on Latitudes.
+	 * rfkill support causes trouble on various models, mostly Inspirons.
+	 * So we whitelist certain series, and don't support rfkill on others.
 	 */
+	whitelisted = 0;
 	product = dmi_get_system_info(DMI_PRODUCT_NAME);
-	if (!force_rfkill && (!product || strncmp(product, "Latitude", 8)))
+	if (product &&  (strncmp(product, "Latitude", 8) == 0 ||
+			 strncmp(product, "Precision", 9) == 0))
+		whitelisted = 1;
+	if (!force_rfkill && !whitelisted)
 		return 0;
 
 	get_buffer();
@@ -633,7 +659,16 @@ static int __init dell_setup_rfkill(void)
 			goto err_wwan;
 	}
 
+	ret = i8042_install_filter(dell_laptop_i8042_filter);
+	if (ret) {
+		pr_warn("Unable to install key filter\n");
+		goto err_filter;
+	}
+
 	return 0;
+err_filter:
+	if (wwan_rfkill)
+		rfkill_unregister(wwan_rfkill);
 err_wwan:
 	rfkill_destroy(wwan_rfkill);
 	if (bluetooth_rfkill)
@@ -684,7 +719,7 @@ static int dell_send_intensity(struct backlight_device *bd)
 
 out:
 	release_buffer();
-	return 0;
+	return ret;
 }
 
 static int dell_get_intensity(struct backlight_device *bd)
@@ -745,7 +780,7 @@ static struct led_classdev touchpad_led = {
 	.flags = LED_CORE_SUSPENDRESUME,
 };
 
-static int touchpad_led_init(struct device *dev)
+static int __init touchpad_led_init(struct device *dev)
 {
 	return led_classdev_register(dev, &touchpad_led);
 }
@@ -753,30 +788,6 @@ static int touchpad_led_init(struct device *dev)
 static void touchpad_led_exit(void)
 {
 	led_classdev_unregister(&touchpad_led);
-}
-
-static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
-			      struct serio *port)
-{
-	static bool extended;
-
-	if (str & 0x20)
-		return false;
-
-	if (unlikely(data == 0xe0)) {
-		extended = true;
-		return false;
-	} else if (unlikely(extended)) {
-		switch (data) {
-		case 0x8:
-			schedule_delayed_work(&dell_rfkill_work,
-					      round_jiffies_relative(HZ / 4));
-			break;
-		}
-		extended = false;
-	}
-
-	return false;
 }
 
 static int __init dell_init(void)
@@ -826,12 +837,6 @@ static int __init dell_init(void)
 	if (ret) {
 		pr_warn("Unable to setup rfkill\n");
 		goto fail_rfkill;
-	}
-
-	ret = i8042_install_filter(dell_laptop_i8042_filter);
-	if (ret) {
-		pr_warn("Unable to install key filter\n");
-		goto fail_filter;
 	}
 
 	if (quirks && quirks->touchpad_led)
@@ -885,7 +890,6 @@ static int __init dell_init(void)
 fail_backlight:
 	i8042_remove_filter(dell_laptop_i8042_filter);
 	cancel_delayed_work_sync(&dell_rfkill_work);
-fail_filter:
 	dell_cleanup_rfkill();
 fail_rfkill:
 	free_page((unsigned long)bufferpage);

@@ -39,6 +39,7 @@
 
 #include "common.h"
 #include "devices-imx25.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx25.h"
 #include "mx25.h"
@@ -263,7 +264,6 @@ MACHINE_START(MX25_3DS, "Freescale MX25PDK (3DS)")
 	.map_io = mx25_map_io,
 	.init_early = imx25_init_early,
 	.init_irq = mx25_init_irq,
-	.handle_irq = imx25_handle_irq,
 	.init_time	= mx25pdk_timer_init,
 	.init_machine = mx25pdk_init,
 	.restart	= mxc_restart,

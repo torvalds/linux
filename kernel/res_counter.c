@@ -22,8 +22,18 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
 	counter->parent = parent;
 }
 
-int res_counter_charge_locked(struct res_counter *counter, unsigned long val,
-			      bool force)
+static u64 res_counter_uncharge_locked(struct res_counter *counter,
+				       unsigned long val)
+{
+	if (WARN_ON(counter->usage < val))
+		val = counter->usage;
+
+	counter->usage -= val;
+	return counter->usage;
+}
+
+static int res_counter_charge_locked(struct res_counter *counter,
+				     unsigned long val, bool force)
 {
 	int ret = 0;
 
@@ -84,15 +94,6 @@ int res_counter_charge_nofail(struct res_counter *counter, unsigned long val,
 			      struct res_counter **limit_fail_at)
 {
 	return __res_counter_charge(counter, val, limit_fail_at, true);
-}
-
-u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
-{
-	if (WARN_ON(counter->usage < val))
-		val = counter->usage;
-
-	counter->usage -= val;
-	return counter->usage;
 }
 
 u64 res_counter_uncharge_until(struct res_counter *counter,
@@ -185,8 +186,11 @@ int res_counter_memparse_write_strategy(const char *buf,
 
 	/* return RES_COUNTER_MAX(unlimited) if "-1" is specified */
 	if (*buf == '-') {
-		res = simple_strtoull(buf + 1, &end, 10);
-		if (res != 1 || *end != '\0')
+		int rc = kstrtoull(buf + 1, 10, &res);
+
+		if (rc)
+			return rc;
+		if (res != 1)
 			return -EINVAL;
 		*resp = RES_COUNTER_MAX;
 		return 0;

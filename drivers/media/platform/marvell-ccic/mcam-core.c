@@ -1156,7 +1156,7 @@ static int mcam_vb_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return mcam_read_setup(cam);
 }
 
-static int mcam_vb_stop_streaming(struct vb2_queue *vq)
+static void mcam_vb_stop_streaming(struct vb2_queue *vq)
 {
 	struct mcam_camera *cam = vb2_get_drv_priv(vq);
 	unsigned long flags;
@@ -1164,10 +1164,10 @@ static int mcam_vb_stop_streaming(struct vb2_queue *vq)
 	if (cam->state == S_BUFWAIT) {
 		/* They never gave us buffers */
 		cam->state = S_IDLE;
-		return 0;
+		return;
 	}
 	if (cam->state != S_STREAMING)
-		return -EINVAL;
+		return;
 	mcam_ctlr_stop_dma(cam);
 	/*
 	 * Reset the CCIC PHY after stopping streaming,
@@ -1182,7 +1182,6 @@ static int mcam_vb_stop_streaming(struct vb2_queue *vq)
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	INIT_LIST_HEAD(&cam->buffers);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
-	return 0;
 }
 
 
@@ -1238,7 +1237,7 @@ static int mcam_vb_sg_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int mcam_vb_sg_buf_finish(struct vb2_buffer *vb)
+static void mcam_vb_sg_buf_finish(struct vb2_buffer *vb)
 {
 	struct mcam_camera *cam = vb2_get_drv_priv(vb->vb2_queue);
 	struct sg_table *sg_table = vb2_dma_sg_plane_desc(vb, 0);
@@ -1246,7 +1245,6 @@ static int mcam_vb_sg_buf_finish(struct vb2_buffer *vb)
 	if (sg_table)
 		dma_unmap_sg(cam->dev, sg_table->sgl,
 				sg_table->nents, DMA_FROM_DEVICE);
-	return 0;
 }
 
 static void mcam_vb_sg_buf_cleanup(struct vb2_buffer *vb)

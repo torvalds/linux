@@ -22,12 +22,14 @@ Optional properties:
 				width of 8 is assumed.
 
  - ti,nand-ecc-opt:		A string setting the ECC layout to use. One of:
-		"sw"		<deprecated> use "ham1" instead
+		"sw"		1-bit Hamming ecc code via software
 		"hw"		<deprecated> use "ham1" instead
 		"hw-romcode"	<deprecated> use "ham1" instead
 		"ham1"		1-bit Hamming ecc code
 		"bch4"		4-bit BCH ecc code
 		"bch8"		8-bit BCH ecc code
+		"bch16"		16-bit BCH ECC code
+		Refer below "How to select correct ECC scheme for your device ?"
 
  - ti,nand-xfer-type:		A string setting the data transfer type. One of:
 
@@ -43,7 +45,7 @@ Optional properties:
 		ELM hardware engines should specify this device node in .dtsi
 		Using ELM for ECC error correction frees some CPU cycles.
 
-For inline partiton table parsing (optional):
+For inline partition table parsing (optional):
 
  - #address-cells: should be set to 1
  - #size-cells: should be set to 1
@@ -90,3 +92,46 @@ Example for an AM33xx board:
 		};
 	};
 
+How to select correct ECC scheme for your device ?
+--------------------------------------------------
+Higher ECC scheme usually means better protection against bit-flips and
+increased system lifetime. However, selection of ECC scheme is dependent
+on various other factors also like;
+
+(1) support of built in hardware engines.
+	Some legacy OMAP SoC do not have ELM harware engine, so those SoC cannot
+	support ecc-schemes with hardware error-correction (BCHx_HW). However
+	such SoC can use ecc-schemes with software library for error-correction
+	(BCHx_HW_DETECTION_SW). The error correction capability with software
+	library remains equivalent to their hardware counter-part, but there is
+	slight CPU penalty when too many bit-flips are detected during reads.
+
+(2) Device parameters like OOBSIZE.
+	Other factor which governs the selection of ecc-scheme is oob-size.
+	Higher ECC schemes require more OOB/Spare area to store ECC syndrome,
+	so the device should have enough free bytes available its OOB/Spare
+	area to accomodate ECC for entire page. In general following expression
+	helps in determining if given device can accomodate ECC syndrome:
+	"2 + (PAGESIZE / 512) * ECC_BYTES" >= OOBSIZE"
+	where
+		OOBSIZE		number of bytes in OOB/spare area
+		PAGESIZE	number of bytes in main-area of device page
+		ECC_BYTES	number of ECC bytes generated to protect
+		                512 bytes of data, which is:
+				'3' for HAM1_xx ecc schemes
+				'7' for BCH4_xx ecc schemes
+				'14' for BCH8_xx ecc schemes
+				'26' for BCH16_xx ecc schemes
+
+	Example(a): For a device with PAGESIZE = 2048 and OOBSIZE = 64 and
+		trying to use BCH16 (ECC_BYTES=26) ecc-scheme.
+		Number of ECC bytes per page = (2 + (2048 / 512) * 26) = 106 B
+		which is greater than capacity of NAND device (OOBSIZE=64)
+		Hence, BCH16 cannot be supported on given device. But it can
+		probably use lower ecc-schemes like BCH8.
+
+	Example(b): For a device with PAGESIZE = 2048 and OOBSIZE = 128 and
+		trying to use BCH16 (ECC_BYTES=26) ecc-scheme.
+		Number of ECC bytes per page = (2 + (2048 / 512) * 26) = 106 B
+		which can be accomodate in the OOB/Spare area of this device
+		(OOBSIZE=128). So this device can use BCH16 ecc-scheme.

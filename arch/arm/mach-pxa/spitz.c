@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
+#include <linux/memblock.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -971,13 +972,10 @@ static void __init spitz_init(void)
 	spitz_i2c_init();
 }
 
-static void __init spitz_fixup(struct tag *tags, char **cmdline,
-			       struct meminfo *mi)
+static void __init spitz_fixup(struct tag *tags, char **cmdline)
 {
 	sharpsl_save_param();
-	mi->nr_banks = 1;
-	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].size = (64*1024*1024);
+	memblock_add(0xa0000000, SZ_64M);
 }
 
 #ifdef CONFIG_MACH_SPITZ

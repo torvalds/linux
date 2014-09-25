@@ -44,7 +44,7 @@
 #define LUSTRE_TRACEFILE_PRIVATE
 #include "tracefile.h"
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 /* XXX move things up to the top, comment */
 union cfs_trace_data_union (*cfs_trace_data[TCD_MAX_TYPES])[NR_CPUS] __cacheline_aligned;
@@ -66,7 +66,7 @@ cfs_tage_from_list(struct list_head *list)
 	return list_entry(list, struct cfs_trace_page, linkage);
 }
 
-static struct cfs_trace_page *cfs_tage_alloc(int gfp)
+static struct cfs_trace_page *cfs_tage_alloc(gfp_t gfp)
 {
 	struct page	    *page;
 	struct cfs_trace_page *tage;
@@ -114,7 +114,7 @@ static void cfs_tage_to_tail(struct cfs_trace_page *tage,
 	list_move_tail(&tage->linkage, queue);
 }
 
-int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, int gfp,
+int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, gfp_t gfp,
 			   struct list_head *stock)
 {
 	int i;
@@ -416,12 +416,12 @@ console:
 			cdls->cdls_delay /= libcfs_console_backoff * 4;
 		} else {
 			cdls->cdls_delay *= libcfs_console_backoff;
-
-			if (cdls->cdls_delay < libcfs_console_min_delay)
-				cdls->cdls_delay = libcfs_console_min_delay;
-			else if (cdls->cdls_delay > libcfs_console_max_delay)
-				cdls->cdls_delay = libcfs_console_max_delay;
 		}
+
+		if (cdls->cdls_delay < libcfs_console_min_delay)
+			cdls->cdls_delay = libcfs_console_min_delay;
+		else if (cdls->cdls_delay > libcfs_console_max_delay)
+			cdls->cdls_delay = libcfs_console_max_delay;
 
 		/* ensure cdls_next is never zero after it's been seen */
 		cdls->cdls_next = (cfs_time_current() + cdls->cdls_delay) | 1;
@@ -1076,11 +1076,10 @@ end_loop:
 				break;
 			}
 		}
-		init_waitqueue_entry_current(&__wait);
+		init_waitqueue_entry(&__wait, current);
 		add_wait_queue(&tctl->tctl_waitq, &__wait);
 		set_current_state(TASK_INTERRUPTIBLE);
-		waitq_timedwait(&__wait, TASK_INTERRUPTIBLE,
-				    cfs_time_seconds(1));
+		schedule_timeout(cfs_time_seconds(1));
 		remove_wait_queue(&tctl->tctl_waitq, &__wait);
 	}
 	complete(&tctl->tctl_stop);

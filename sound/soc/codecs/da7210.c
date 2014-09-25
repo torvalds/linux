@@ -307,35 +307,35 @@ static const char * const da7210_hpf_cutoff_txt[] = {
 	"Fs/8192*pi", "Fs/4096*pi", "Fs/2048*pi", "Fs/1024*pi"
 };
 
-static const struct soc_enum da7210_dac_hpf_cutoff =
-	SOC_ENUM_SINGLE(DA7210_DAC_HPF, 0, 4, da7210_hpf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da7210_dac_hpf_cutoff,
+			    DA7210_DAC_HPF, 0, da7210_hpf_cutoff_txt);
 
-static const struct soc_enum da7210_adc_hpf_cutoff =
-	SOC_ENUM_SINGLE(DA7210_ADC_HPF, 0, 4, da7210_hpf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da7210_adc_hpf_cutoff,
+			    DA7210_ADC_HPF, 0, da7210_hpf_cutoff_txt);
 
 /* ADC and DAC voice (8kHz) high pass cutoff value */
 static const char * const da7210_vf_cutoff_txt[] = {
 	"2.5Hz", "25Hz", "50Hz", "100Hz", "150Hz", "200Hz", "300Hz", "400Hz"
 };
 
-static const struct soc_enum da7210_dac_vf_cutoff =
-	SOC_ENUM_SINGLE(DA7210_DAC_HPF, 4, 8, da7210_vf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da7210_dac_vf_cutoff,
+			    DA7210_DAC_HPF, 4, da7210_vf_cutoff_txt);
 
-static const struct soc_enum da7210_adc_vf_cutoff =
-	SOC_ENUM_SINGLE(DA7210_ADC_HPF, 4, 8, da7210_vf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da7210_adc_vf_cutoff,
+			    DA7210_ADC_HPF, 4, da7210_vf_cutoff_txt);
 
 static const char *da7210_hp_mode_txt[] = {
 	"Class H", "Class G"
 };
 
-static const struct soc_enum da7210_hp_mode_sel =
-	SOC_ENUM_SINGLE(DA7210_HP_CFG, 0, 2, da7210_hp_mode_txt);
+static SOC_ENUM_SINGLE_DECL(da7210_hp_mode_sel,
+			    DA7210_HP_CFG, 0, da7210_hp_mode_txt);
 
 /* ALC can be enabled only if noise suppression is disabled */
 static int da7210_put_alc_sw(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 
 	if (ucontrol->value.integer.value[0]) {
 		/* Check if noise suppression is enabled */
@@ -358,7 +358,7 @@ static int da7210_put_alc_sw(struct snd_kcontrol *kcontrol,
 static int da7210_put_noise_sup_sw(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	u8 val;
 
 	if (ucontrol->value.integer.value[0]) {
@@ -1071,16 +1071,8 @@ static struct snd_soc_dai_driver da7210_dai = {
 static int da7210_probe(struct snd_soc_codec *codec)
 {
 	struct da7210_priv *da7210 = snd_soc_codec_get_drvdata(codec);
-	int ret;
 
 	dev_info(codec->dev, "DA7210 Audio Codec %s\n", DA7210_VERSION);
-
-	codec->control_data = da7210->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	da7210->mclk_rate       = 0;    /* This will be set from set_sysclk() */
 	da7210->master          = 0;    /* This will be set from set_fmt() */

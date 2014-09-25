@@ -22,8 +22,16 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/mc.h>
+#include "priv.h"
 #include <core/option.h>
+
+static inline void
+nouveau_mc_unk260(struct nouveau_mc *pmc, u32 data)
+{
+	const struct nouveau_mc_oclass *impl = (void *)nv_oclass(pmc);
+	if (impl->unk260)
+		impl->unk260(pmc, data);
+}
 
 static inline u32
 nouveau_mc_intr_mask(struct nouveau_mc *pmc)
@@ -93,7 +101,7 @@ _nouveau_mc_dtor(struct nouveau_object *object)
 {
 	struct nouveau_device *device = nv_device(object);
 	struct nouveau_mc *pmc = (void *)object;
-	free_irq(device->pdev->irq, pmc);
+	free_irq(pmc->irq, pmc);
 	if (pmc->use_msi)
 		pci_disable_msi(device->pdev);
 	nouveau_subdev_destroy(&pmc->base);
@@ -114,33 +122,46 @@ nouveau_mc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	switch (device->pdev->device & 0x0ff0) {
-	case 0x00f0:
-	case 0x02e0:
-		/* BR02? NFI how these would be handled yet exactly */
-		break;
-	default:
-		switch (device->chipset) {
-		case 0xaa: break; /* reported broken, nv also disable it */
-		default:
-			pmc->use_msi = true;
+	pmc->unk260 = nouveau_mc_unk260;
+
+	if (nv_device_is_pci(device))
+		switch (device->pdev->device & 0x0ff0) {
+		case 0x00f0:
+		case 0x02e0:
+			/* BR02? NFI how these would be handled yet exactly */
 			break;
+		default:
+			switch (device->chipset) {
+			case 0xaa:
+				/* reported broken, nv also disable it */
+				break;
+			default:
+				pmc->use_msi = true;
+				break;
+		}
+
+		pmc->use_msi = nouveau_boolopt(device->cfgopt, "NvMSI",
+					       pmc->use_msi);
+
+		if (pmc->use_msi && oclass->msi_rearm) {
+			pmc->use_msi = pci_enable_msi(device->pdev) == 0;
+			if (pmc->use_msi) {
+				nv_info(pmc, "MSI interrupts enabled\n");
+				oclass->msi_rearm(pmc);
+			}
+		} else {
+			pmc->use_msi = false;
 		}
 	}
 
-	pmc->use_msi = nouveau_boolopt(device->cfgopt, "NvMSI", pmc->use_msi);
-	if (pmc->use_msi && oclass->msi_rearm) {
-		pmc->use_msi = pci_enable_msi(device->pdev) == 0;
-		if (pmc->use_msi) {
-			nv_info(pmc, "MSI interrupts enabled\n");
-			oclass->msi_rearm(pmc);
-		}
-	} else {
-		pmc->use_msi = false;
-	}
+	ret = nv_device_get_irq(device, true);
+	if (ret < 0)
+		return ret;
+	pmc->irq = ret;
 
-	ret = request_irq(device->pdev->irq, nouveau_mc_intr,
-			  IRQF_SHARED, "nouveau", pmc);
+	ret = request_irq(pmc->irq, nouveau_mc_intr, IRQF_SHARED, "nouveau",
+			  pmc);
+
 	if (ret < 0)
 		return ret;
 

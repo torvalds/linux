@@ -24,13 +24,15 @@
 
 #include "dhd.h"
 #include "dhd_bus.h"
-#include "dhd_proto.h"
 #include "dhd_dbg.h"
 #include "fwil_types.h"
 #include "p2p.h"
 #include "wl_cfg80211.h"
 #include "fwil.h"
 #include "fwsignal.h"
+#include "feature.h"
+#include "proto.h"
+#include "pcie.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
@@ -190,7 +192,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	int ret;
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
-	struct ethhdr *eh;
+	struct ethhdr *eh = (struct ethhdr *)(skb->data);
 
 	brcmf_dbg(DATA, "Enter, idx=%d\n", ifp->bssidx);
 
@@ -235,6 +237,9 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		dev_kfree_skb(skb);
 		goto done;
 	}
+
+	if (eh->h_proto == htons(ETH_P_PAE))
+		atomic_inc(&ifp->pend_8021x_cnt);
 
 	ret = brcmf_fws_process_skb(ifp, skb);
 
@@ -284,7 +289,7 @@ void brcmf_txflowblock(struct device *dev, bool state)
 	brcmf_fws_bus_blocked(drvr, state);
 }
 
-static void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
+void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 {
 	skb->dev = ifp->ndev;
 	skb->protocol = eth_type_trans(skb, skb->dev);
@@ -538,31 +543,26 @@ void brcmf_rx_frame(struct device *dev, struct sk_buff *skb)
 		brcmf_netif_rx(ifp, skb);
 }
 
-void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
+void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp, u8 ifidx,
 		      bool success)
 {
 	struct brcmf_if *ifp;
 	struct ethhdr *eh;
-	u8 ifidx;
 	u16 type;
-	int res;
-
-	res = brcmf_proto_hdrpull(drvr, false, &ifidx, txp);
 
 	ifp = drvr->iflist[ifidx];
 	if (!ifp)
 		goto done;
 
-	if (res == 0) {
-		eh = (struct ethhdr *)(txp->data);
-		type = ntohs(eh->h_proto);
+	eh = (struct ethhdr *)(txp->data);
+	type = ntohs(eh->h_proto);
 
-		if (type == ETH_P_PAE) {
-			atomic_dec(&ifp->pend_8021x_cnt);
-			if (waitqueue_active(&ifp->pend_8021x_wait))
-				wake_up(&ifp->pend_8021x_wait);
-		}
+	if (type == ETH_P_PAE) {
+		atomic_dec(&ifp->pend_8021x_cnt);
+		if (waitqueue_active(&ifp->pend_8021x_wait))
+			wake_up(&ifp->pend_8021x_wait);
 	}
+
 	if (!success)
 		ifp->stats.tx_errors++;
 done:
@@ -573,13 +573,17 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
+	u8 ifidx;
 
 	/* await txstatus signal for firmware if active */
 	if (brcmf_fws_fc_active(drvr->fws)) {
 		if (!success)
 			brcmf_fws_bustxfail(drvr->fws, txp);
 	} else {
-		brcmf_txfinalize(drvr, txp, success);
+		if (brcmf_proto_hdrpull(drvr, false, &ifidx, txp))
+			brcmu_pkt_buf_free_skb(txp);
+		else
+			brcmf_txfinalize(drvr, txp, ifidx, success);
 	}
 }
 
@@ -592,28 +596,6 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
 	return &ifp->stats;
 }
 
-/*
- * Set current toe component enables in toe_ol iovar,
- * and set toe global enable iovar
- */
-static int brcmf_toe_set(struct brcmf_if *ifp, u32 toe_ol)
-{
-	s32 err;
-
-	err = brcmf_fil_iovar_int_set(ifp, "toe_ol", toe_ol);
-	if (err < 0) {
-		brcmf_err("Setting toe_ol failed, %d\n", err);
-		return err;
-	}
-
-	err = brcmf_fil_iovar_int_set(ifp, "toe", (toe_ol != 0));
-	if (err < 0)
-		brcmf_err("Setting toe failed, %d\n", err);
-
-	return err;
-
-}
-
 static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 				    struct ethtool_drvinfo *info)
 {
@@ -621,8 +603,8 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 	struct brcmf_pub *drvr = ifp->drvr;
 
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	snprintf(info->version, sizeof(info->version), "%lu",
-		 drvr->drv_version);
+	snprintf(info->version, sizeof(info->version), "n/a");
+	strlcpy(info->fw_version, drvr->fwver, sizeof(info->fw_version));
 	strlcpy(info->bus_info, dev_name(drvr->bus_if->dev),
 		sizeof(info->bus_info));
 }
@@ -630,124 +612,6 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 static const struct ethtool_ops brcmf_ethtool_ops = {
 	.get_drvinfo = brcmf_ethtool_get_drvinfo,
 };
-
-static int brcmf_ethtool(struct brcmf_if *ifp, void __user *uaddr)
-{
-	struct brcmf_pub *drvr = ifp->drvr;
-	struct ethtool_drvinfo info;
-	char drvname[sizeof(info.driver)];
-	u32 cmd;
-	struct ethtool_value edata;
-	u32 toe_cmpnt, csum_dir;
-	int ret;
-
-	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
-
-	/* all ethtool calls start with a cmd word */
-	if (copy_from_user(&cmd, uaddr, sizeof(u32)))
-		return -EFAULT;
-
-	switch (cmd) {
-	case ETHTOOL_GDRVINFO:
-		/* Copy out any request driver name */
-		if (copy_from_user(&info, uaddr, sizeof(info)))
-			return -EFAULT;
-		strncpy(drvname, info.driver, sizeof(info.driver));
-		drvname[sizeof(info.driver) - 1] = '\0';
-
-		/* clear struct for return */
-		memset(&info, 0, sizeof(info));
-		info.cmd = cmd;
-
-		/* if requested, identify ourselves */
-		if (strcmp(drvname, "?dhd") == 0) {
-			sprintf(info.driver, "dhd");
-			strcpy(info.version, BRCMF_VERSION_STR);
-		}
-		/* report dongle driver type */
-		else
-			sprintf(info.driver, "wl");
-
-		sprintf(info.version, "%lu", drvr->drv_version);
-		if (copy_to_user(uaddr, &info, sizeof(info)))
-			return -EFAULT;
-		brcmf_dbg(TRACE, "given %*s, returning %s\n",
-			  (int)sizeof(drvname), drvname, info.driver);
-		break;
-
-		/* Get toe offload components from dongle */
-	case ETHTOOL_GRXCSUM:
-	case ETHTOOL_GTXCSUM:
-		ret = brcmf_fil_iovar_int_get(ifp, "toe_ol", &toe_cmpnt);
-		if (ret < 0)
-			return ret;
-
-		csum_dir =
-		    (cmd == ETHTOOL_GTXCSUM) ? TOE_TX_CSUM_OL : TOE_RX_CSUM_OL;
-
-		edata.cmd = cmd;
-		edata.data = (toe_cmpnt & csum_dir) ? 1 : 0;
-
-		if (copy_to_user(uaddr, &edata, sizeof(edata)))
-			return -EFAULT;
-		break;
-
-		/* Set toe offload components in dongle */
-	case ETHTOOL_SRXCSUM:
-	case ETHTOOL_STXCSUM:
-		if (copy_from_user(&edata, uaddr, sizeof(edata)))
-			return -EFAULT;
-
-		/* Read the current settings, update and write back */
-		ret = brcmf_fil_iovar_int_get(ifp, "toe_ol", &toe_cmpnt);
-		if (ret < 0)
-			return ret;
-
-		csum_dir =
-		    (cmd == ETHTOOL_STXCSUM) ? TOE_TX_CSUM_OL : TOE_RX_CSUM_OL;
-
-		if (edata.data != 0)
-			toe_cmpnt |= csum_dir;
-		else
-			toe_cmpnt &= ~csum_dir;
-
-		ret = brcmf_toe_set(ifp, toe_cmpnt);
-		if (ret < 0)
-			return ret;
-
-		/* If setting TX checksum mode, tell Linux the new mode */
-		if (cmd == ETHTOOL_STXCSUM) {
-			if (edata.data)
-				ifp->ndev->features |= NETIF_F_IP_CSUM;
-			else
-				ifp->ndev->features &= ~NETIF_F_IP_CSUM;
-		}
-
-		break;
-
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
-}
-
-static int brcmf_netdev_ioctl_entry(struct net_device *ndev, struct ifreq *ifr,
-				    int cmd)
-{
-	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct brcmf_pub *drvr = ifp->drvr;
-
-	brcmf_dbg(TRACE, "Enter, idx=%d, cmd=0x%04x\n", ifp->bssidx, cmd);
-
-	if (!drvr->iflist[ifp->bssidx])
-		return -1;
-
-	if (cmd == SIOCETHTOOL)
-		return brcmf_ethtool(ifp, ifr->ifr_data);
-
-	return -EOPNOTSUPP;
-}
 
 static int brcmf_netdev_stop(struct net_device *ndev)
 {
@@ -769,7 +633,6 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	struct brcmf_pub *drvr = ifp->drvr;
 	struct brcmf_bus *bus_if = drvr->bus_if;
 	u32 toe_ol;
-	s32 ret = 0;
 
 	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
 
@@ -788,21 +651,20 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	else
 		ndev->features &= ~NETIF_F_IP_CSUM;
 
-	/* Allow transmit calls */
-	netif_start_queue(ndev);
 	if (brcmf_cfg80211_up(ndev)) {
 		brcmf_err("failed to bring up cfg80211\n");
-		return -1;
+		return -EIO;
 	}
 
-	return ret;
+	/* Allow transmit calls */
+	netif_start_queue(ndev);
+	return 0;
 }
 
 static const struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_open = brcmf_netdev_open,
 	.ndo_stop = brcmf_netdev_stop,
 	.ndo_get_stats = brcmf_netdev_get_stats,
-	.ndo_do_ioctl = brcmf_netdev_ioctl_entry,
 	.ndo_start_xmit = brcmf_netdev_start_xmit,
 	.ndo_set_mac_address = brcmf_netdev_set_mac_address,
 	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list
@@ -844,7 +706,7 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 
 	brcmf_dbg(INFO, "%s: Broadcom Dongle Host Driver\n", ndev->name);
 
-	ndev->destructor = free_netdev;
+	ndev->destructor = brcmf_cfg80211_free_netdev;
 	return 0;
 
 fail:
@@ -868,13 +730,6 @@ static int brcmf_net_p2p_stop(struct net_device *ndev)
 	return brcmf_cfg80211_down(ndev);
 }
 
-static int brcmf_net_p2p_do_ioctl(struct net_device *ndev,
-				  struct ifreq *ifr, int cmd)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-	return 0;
-}
-
 static netdev_tx_t brcmf_net_p2p_start_xmit(struct sk_buff *skb,
 					    struct net_device *ndev)
 {
@@ -887,7 +742,6 @@ static netdev_tx_t brcmf_net_p2p_start_xmit(struct sk_buff *skb,
 static const struct net_device_ops brcmf_netdev_ops_p2p = {
 	.ndo_open = brcmf_net_p2p_open,
 	.ndo_stop = brcmf_net_p2p_stop,
-	.ndo_do_ioctl = brcmf_net_p2p_do_ioctl,
 	.ndo_start_xmit = brcmf_net_p2p_start_xmit
 };
 
@@ -956,7 +810,8 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 	} else {
 		brcmf_dbg(INFO, "allocate netdev interface\n");
 		/* Allocate netdev, including space for private structure */
-		ndev = alloc_netdev(sizeof(*ifp), name, ether_setup);
+		ndev = alloc_netdev(sizeof(*ifp), name, NET_NAME_UNKNOWN,
+				    ether_setup);
 		if (!ndev)
 			return ERR_PTR(-ENOMEM);
 
@@ -1009,14 +864,12 @@ void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 		}
 		/* unregister will take care of freeing it */
 		unregister_netdev(ifp->ndev);
-		if (bssidx == 0)
-			brcmf_cfg80211_detach(drvr->config);
 	} else {
 		kfree(ifp);
 	}
 }
 
-int brcmf_attach(uint bus_hdrlen, struct device *dev)
+int brcmf_attach(struct device *dev)
 {
 	struct brcmf_pub *drvr = NULL;
 	int ret = 0;
@@ -1031,7 +884,7 @@ int brcmf_attach(uint bus_hdrlen, struct device *dev)
 	mutex_init(&drvr->proto_block);
 
 	/* Link to bus module */
-	drvr->hdrlen = bus_hdrlen;
+	drvr->hdrlen = 0;
 	drvr->bus_if = dev_get_drvdata(dev);
 	drvr->bus_if->drvr = drvr;
 
@@ -1047,8 +900,6 @@ int brcmf_attach(uint bus_hdrlen, struct device *dev)
 
 	/* attach firmware event handler */
 	brcmf_fweh_attach(drvr);
-
-	INIT_LIST_HEAD(&drvr->bus_if->dcmd_list);
 
 	return ret;
 
@@ -1068,13 +919,6 @@ int brcmf_bus_start(struct device *dev)
 
 	brcmf_dbg(TRACE, "\n");
 
-	/* Bring up the bus */
-	ret = brcmf_bus_init(bus_if);
-	if (ret != 0) {
-		brcmf_err("brcmf_sdbrcm_bus_init failed %d\n", ret);
-		return ret;
-	}
-
 	/* add primary networking interface */
 	ifp = brcmf_add_if(drvr, 0, 0, "wlan%d", NULL);
 	if (IS_ERR(ifp))
@@ -1088,12 +932,14 @@ int brcmf_bus_start(struct device *dev)
 		p2p_ifp = NULL;
 
 	/* signal bus ready */
-	bus_if->state = BRCMF_BUS_DATA;
+	brcmf_bus_change_state(bus_if, BRCMF_BUS_DATA);
 
 	/* Bus is ready, do any initialization */
 	ret = brcmf_c_preinit_dcmds(ifp);
 	if (ret < 0)
 		goto fail;
+
+	brcmf_feat_attach(drvr);
 
 	ret = brcmf_fws_init(drvr);
 	if (ret < 0)
@@ -1115,8 +961,7 @@ int brcmf_bus_start(struct device *dev)
 fail:
 	if (ret < 0) {
 		brcmf_err("failed: %d\n", ret);
-		if (drvr->config)
-			brcmf_cfg80211_detach(drvr->config);
+		brcmf_cfg80211_detach(drvr->config);
 		if (drvr->fws) {
 			brcmf_fws_del_interface(ifp);
 			brcmf_fws_deinit(drvr);
@@ -1138,14 +983,21 @@ fail:
 	return 0;
 }
 
+void brcmf_bus_add_txhdrlen(struct device *dev, uint len)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+
+	if (drvr) {
+		drvr->hdrlen += len;
+	}
+}
+
 static void brcmf_bus_detach(struct brcmf_pub *drvr)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (drvr) {
-		/* Stop the protocol module */
-		brcmf_proto_stop(drvr);
-
 		/* Stop the bus module */
 		brcmf_bus_stop(drvr->bus_if);
 	}
@@ -1177,6 +1029,8 @@ void brcmf_detach(struct device *dev)
 	/* stop firmware event handling */
 	brcmf_fweh_detach(drvr);
 
+	brcmf_bus_change_state(bus_if, BRCMF_BUS_DOWN);
+
 	/* make sure primary interface removed last */
 	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
 		if (drvr->iflist[i]) {
@@ -1184,16 +1038,25 @@ void brcmf_detach(struct device *dev)
 			brcmf_del_if(drvr, i);
 		}
 
-	brcmf_bus_detach(drvr);
-
-	if (drvr->prot)
-		brcmf_proto_detach(drvr);
+	brcmf_cfg80211_detach(drvr->config);
 
 	brcmf_fws_deinit(drvr);
+
+	brcmf_bus_detach(drvr);
+
+	brcmf_proto_detach(drvr);
 
 	brcmf_debugfs_detach(drvr);
 	bus_if->drvr = NULL;
 	kfree(drvr);
+}
+
+s32 brcmf_iovar_data_set(struct device *dev, char *name, void *data, u32 len)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_if *ifp = bus_if->drvr->iflist[0];
+
+	return brcmf_fil_iovar_data_set(ifp, name, data, len);
 }
 
 static int brcmf_get_pend_8021x_cnt(struct brcmf_if *ifp)
@@ -1215,16 +1078,6 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
 	return !err;
 }
 
-/*
- * return chip id and rev of the device encoded in u32.
- */
-u32 brcmf_get_chip_info(struct brcmf_if *ifp)
-{
-	struct brcmf_bus *bus = ifp->drvr->bus_if;
-
-	return bus->chip << 4 | bus->chiprev;
-}
-
 static void brcmf_driver_register(struct work_struct *work)
 {
 #ifdef CONFIG_BRCMFMAC_SDIO
@@ -1232,6 +1085,9 @@ static void brcmf_driver_register(struct work_struct *work)
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
 	brcmf_usb_register();
+#endif
+#ifdef CONFIG_BRCMFMAC_PCIE
+	brcmf_pcie_register();
 #endif
 }
 static DECLARE_WORK(brcmf_driver_work, brcmf_driver_register);
@@ -1257,6 +1113,9 @@ static void __exit brcmfmac_module_exit(void)
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
 	brcmf_usb_exit();
+#endif
+#ifdef CONFIG_BRCMFMAC_PCIE
+	brcmf_pcie_exit();
 #endif
 	brcmf_debugfs_exit();
 }

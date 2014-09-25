@@ -42,12 +42,9 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <linux/sysfs.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include "sleep.h"
 #include "internal.h"
-
-#define PREFIX "ACPI: "
 
 #define _COMPONENT			ACPI_POWER_COMPONENT
 ACPI_MODULE_NAME("power");

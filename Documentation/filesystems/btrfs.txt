@@ -38,7 +38,7 @@ Mount Options
 =============
 
 When mounting a btrfs filesystem, the following option are accepted.
-Unless otherwise specified, all options default to off.
+Options with (*) are default options and will not show in the mount options.
 
   alloc_start=<bytes>
 	Debugging option to force all block allocations above a certain
@@ -46,10 +46,12 @@ Unless otherwise specified, all options default to off.
 	bytes, optionally with a K, M, or G suffix, case insensitive.
 	Default is 1MB.
 
+  noautodefrag(*)
   autodefrag
-	Detect small random writes into files and queue them up for the
-	defrag process.  Works best for small files; Not well suited for
-	large database workloads.
+	Disable/enable auto defragmentation.
+	Auto defragmentation detects small random writes into files and queue
+	them up for the defrag process.  Works best for small files;
+	Not well suited for large database workloads.
 
   check_int
   check_int_data
@@ -96,21 +98,26 @@ Unless otherwise specified, all options default to off.
 	can be avoided.  Especially useful when trying to mount a multi-device
 	setup as root.  May be specified multiple times for multiple devices.
 
+  nodiscard(*)
   discard
-	Issue frequent commands to let the block device reclaim space freed by
-	the filesystem.  This is useful for SSD devices, thinly provisioned
+	Disable/enable discard mount option.
+	Discard issues frequent commands to let the block device reclaim space
+	freed by the filesystem.
+	This is useful for SSD devices, thinly provisioned
 	LUNs and virtual machine images, but may have a significant
 	performance impact.  (The fstrim command is also available to
 	initiate batch trims from userspace).
 
+  noenospc_debug(*)
   enospc_debug
-	Debugging option to be more verbose in some ENOSPC conditions.
+	Disable/enable debugging option to be more verbose in some ENOSPC conditions.
 
   fatal_errors=<action>
 	Action to take when encountering a fatal error: 
 	  "bug" - BUG() on a fatal error.  This is the default.
 	  "panic" - panic() on a fatal error.
 
+  noflushoncommit(*)
   flushoncommit
 	The 'flushoncommit' mount option forces any data dirtied by a write in a
 	prior transaction to commit as part of the current commit.  This makes
@@ -134,26 +141,32 @@ Unless otherwise specified, all options default to off.
 	Specify that 1 metadata chunk should be allocated after every <value>
 	data chunks.  Off by default.
 
+  acl(*)
   noacl
-	Disable support for Posix Access Control Lists (ACLs).  See the
+	Enable/disable support for Posix Access Control Lists (ACLs).  See the
 	acl(5) manual page for more information about ACLs.
 
+  barrier(*)
   nobarrier
-        Disables the use of block layer write barriers.  Write barriers ensure
-	that certain IOs make it through the device cache and are on persistent
-	storage.  If used on a device with a volatile (non-battery-backed)
-	write-back cache, this option will lead to filesystem corruption on a
-	system crash or power loss.
+        Enable/disable the use of block layer write barriers.  Write barriers
+	ensure that certain IOs make it through the device cache and are on
+	persistent storage. If disabled on a device with a volatile
+	(non-battery-backed) write-back cache, nobarrier option will lead to
+	filesystem corruption on a system crash or power loss.
 
+  datacow(*)
   nodatacow
-	Disable data copy-on-write for newly created files.  Implies nodatasum,
-	and disables all compression.
+	Enable/disable data copy-on-write for newly created files.
+	Nodatacow implies nodatasum, and disables all compression.
 
+  datasum(*)
   nodatasum
-	Disable data checksumming for newly created files.
+	Enable/disable data checksumming for newly created files.
+	Datasum implies datacow.
 
+  treelog(*)
   notreelog
-	Disable the tree logging used for fsync and O_SYNC writes.
+	Enable/disable the tree logging used for fsync and O_SYNC writes.
 
   recovery
 	Enable autorecovery attempts if a bad tree root is found at mount time.

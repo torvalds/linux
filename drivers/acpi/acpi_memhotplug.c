@@ -44,6 +44,13 @@
 
 ACPI_MODULE_NAME("acpi_memhotplug");
 
+static const struct acpi_device_id memory_device_ids[] = {
+	{ACPI_MEMORY_DEVICE_HID, 0},
+	{"", 0},
+};
+
+#ifdef CONFIG_ACPI_HOTPLUG_MEMORY
+
 /* Memory Device States */
 #define MEMORY_INVALID_STATE	0
 #define MEMORY_POWER_ON_STATE	1
@@ -52,11 +59,6 @@ ACPI_MODULE_NAME("acpi_memhotplug");
 static int acpi_memory_device_add(struct acpi_device *device,
 				  const struct acpi_device_id *not_used);
 static void acpi_memory_device_remove(struct acpi_device *device);
-
-static const struct acpi_device_id memory_device_ids[] = {
-	{ACPI_MEMORY_DEVICE_HID, 0},
-	{"", 0},
-};
 
 static struct acpi_scan_handler memory_device_handler = {
 	.ids = memory_device_ids,
@@ -180,14 +182,14 @@ static unsigned long acpi_meminfo_end_pfn(struct acpi_memory_info *info)
 
 static int acpi_bind_memblk(struct memory_block *mem, void *arg)
 {
-	return acpi_bind_one(&mem->dev, (acpi_handle)arg);
+	return acpi_bind_one(&mem->dev, arg);
 }
 
 static int acpi_bind_memory_blocks(struct acpi_memory_info *info,
-				   acpi_handle handle)
+				   struct acpi_device *adev)
 {
 	return walk_memory_range(acpi_meminfo_start_pfn(info),
-				 acpi_meminfo_end_pfn(info), (void *)handle,
+				 acpi_meminfo_end_pfn(info), adev,
 				 acpi_bind_memblk);
 }
 
@@ -197,8 +199,7 @@ static int acpi_unbind_memblk(struct memory_block *mem, void *arg)
 	return 0;
 }
 
-static void acpi_unbind_memory_blocks(struct acpi_memory_info *info,
-				      acpi_handle handle)
+static void acpi_unbind_memory_blocks(struct acpi_memory_info *info)
 {
 	walk_memory_range(acpi_meminfo_start_pfn(info),
 			  acpi_meminfo_end_pfn(info), NULL, acpi_unbind_memblk);
@@ -242,9 +243,9 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 		if (result && result != -EEXIST)
 			continue;
 
-		result = acpi_bind_memory_blocks(info, handle);
+		result = acpi_bind_memory_blocks(info, mem_device->device);
 		if (result) {
-			acpi_unbind_memory_blocks(info, handle);
+			acpi_unbind_memory_blocks(info);
 			return -ENODEV;
 		}
 
@@ -285,7 +286,7 @@ static void acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
 		if (nid == NUMA_NO_NODE)
 			nid = memory_add_physaddr_to_nid(info->start_addr);
 
-		acpi_unbind_memory_blocks(info, handle);
+		acpi_unbind_memory_blocks(info);
 		remove_memory(nid, info->start_addr, info->length);
 		list_del(&info->list);
 		kfree(info);
@@ -361,7 +362,34 @@ static void acpi_memory_device_remove(struct acpi_device *device)
 	acpi_memory_device_free(mem_device);
 }
 
+static bool __initdata acpi_no_memhotplug;
+
 void __init acpi_memory_hotplug_init(void)
 {
+	if (acpi_no_memhotplug) {
+		memory_device_handler.attach = NULL;
+		acpi_scan_add_handler(&memory_device_handler);
+		return;
+	}
 	acpi_scan_add_handler_with_hotplug(&memory_device_handler, "memory");
 }
+
+static int __init disable_acpi_memory_hotplug(char *str)
+{
+	acpi_no_memhotplug = true;
+	return 1;
+}
+__setup("acpi_no_memhotplug", disable_acpi_memory_hotplug);
+
+#else
+
+static struct acpi_scan_handler memory_device_handler = {
+	.ids = memory_device_ids,
+};
+
+void __init acpi_memory_hotplug_init(void)
+{
+	acpi_scan_add_handler(&memory_device_handler);
+}
+
+#endif /* CONFIG_ACPI_HOTPLUG_MEMORY */

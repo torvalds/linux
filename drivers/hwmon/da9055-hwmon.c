@@ -204,7 +204,7 @@ static ssize_t da9055_hwmon_show_name(struct device *dev,
 				      struct device_attribute *devattr,
 				      char *buf)
 {
-	return sprintf(buf, "da9055-hwmon\n");
+	return sprintf(buf, "da9055\n");
 }
 
 static ssize_t show_label(struct device *dev,
@@ -275,10 +275,6 @@ static int da9055_hwmon_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hwmon);
 
 	hwmon_irq = platform_get_irq_byname(pdev, "HWMON");
-	if (hwmon_irq < 0)
-		return hwmon_irq;
-
-	hwmon_irq = regmap_irq_get_virq(hwmon->da9055->irq_data, hwmon_irq);
 	if (hwmon_irq < 0)
 		return hwmon_irq;
 

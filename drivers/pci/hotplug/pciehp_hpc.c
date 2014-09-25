@@ -104,11 +104,10 @@ static inline void pciehp_free_irq(struct controller *ctrl)
 		free_irq(ctrl->pcie->irq, ctrl);
 }
 
-static int pcie_poll_cmd(struct controller *ctrl)
+static int pcie_poll_cmd(struct controller *ctrl, int timeout)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_status;
-	int timeout = 1000;
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
 	if (slot_status & PCI_EXP_SLTSTA_CC) {
@@ -129,18 +128,52 @@ static int pcie_poll_cmd(struct controller *ctrl)
 	return 0;	/* timeout */
 }
 
-static void pcie_wait_cmd(struct controller *ctrl, int poll)
+static void pcie_wait_cmd(struct controller *ctrl)
 {
 	unsigned int msecs = pciehp_poll_mode ? 2500 : 1000;
-	unsigned long timeout = msecs_to_jiffies(msecs);
+	unsigned long duration = msecs_to_jiffies(msecs);
+	unsigned long cmd_timeout = ctrl->cmd_started + duration;
+	unsigned long now, timeout;
 	int rc;
 
-	if (poll)
-		rc = pcie_poll_cmd(ctrl);
+	/*
+	 * If the controller does not generate notifications for command
+	 * completions, we never need to wait between writes.
+	 */
+	if (NO_CMD_CMPL(ctrl))
+		return;
+
+	if (!ctrl->cmd_busy)
+		return;
+
+	/*
+	 * Even if the command has already timed out, we want to call
+	 * pcie_poll_cmd() so it can clear PCI_EXP_SLTSTA_CC.
+	 */
+	now = jiffies;
+	if (time_before_eq(cmd_timeout, now))
+		timeout = 1;
 	else
+		timeout = cmd_timeout - now;
+
+	if (ctrl->slot_ctrl & PCI_EXP_SLTCTL_HPIE &&
+	    ctrl->slot_ctrl & PCI_EXP_SLTCTL_CCIE)
 		rc = wait_event_timeout(ctrl->queue, !ctrl->cmd_busy, timeout);
+	else
+		rc = pcie_poll_cmd(ctrl, jiffies_to_msecs(timeout));
+
+	/*
+	 * Controllers with errata like Intel CF118 don't generate
+	 * completion notifications unless the power/indicator/interlock
+	 * control bits are changed.  On such controllers, we'll emit this
+	 * timeout message when we wait for completion of commands that
+	 * don't change those bits, e.g., commands that merely enable
+	 * interrupts.
+	 */
 	if (!rc)
-		ctrl_dbg(ctrl, "Command not completed in 1000 msec\n");
+		ctrl_info(ctrl, "Timeout on hotplug command %#010x (issued %u msec ago)\n",
+			  ctrl->slot_ctrl,
+			  jiffies_to_msecs(now - ctrl->cmd_started));
 }
 
 /**
@@ -152,34 +185,12 @@ static void pcie_wait_cmd(struct controller *ctrl, int poll)
 static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
-	u16 slot_status;
 	u16 slot_ctrl;
 
 	mutex_lock(&ctrl->ctrl_lock);
 
-	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
-	if (slot_status & PCI_EXP_SLTSTA_CC) {
-		if (!ctrl->no_cmd_complete) {
-			/*
-			 * After 1 sec and CMD_COMPLETED still not set, just
-			 * proceed forward to issue the next command according
-			 * to spec. Just print out the error message.
-			 */
-			ctrl_dbg(ctrl, "CMD_COMPLETED not clear after 1 sec\n");
-		} else if (!NO_CMD_CMPL(ctrl)) {
-			/*
-			 * This controller seems to notify of command completed
-			 * event even though it supports none of power
-			 * controller, attention led, power led and EMI.
-			 */
-			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Need to "
-				 "wait for command completed event.\n");
-			ctrl->no_cmd_complete = 0;
-		} else {
-			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Maybe "
-				 "the controller is broken.\n");
-		}
-	}
+	/* Wait for any previous command that might still be in progress */
+	pcie_wait_cmd(ctrl);
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
 	slot_ctrl &= ~mask;
@@ -187,26 +198,13 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	ctrl->cmd_busy = 1;
 	smp_mb();
 	pcie_capability_write_word(pdev, PCI_EXP_SLTCTL, slot_ctrl);
+	ctrl->cmd_started = jiffies;
+	ctrl->slot_ctrl = slot_ctrl;
 
-	/*
-	 * Wait for command completion.
-	 */
-	if (!ctrl->no_cmd_complete) {
-		int poll = 0;
-		/*
-		 * if hotplug interrupt is not enabled or command
-		 * completed interrupt is not enabled, we need to poll
-		 * command completed event.
-		 */
-		if (!(slot_ctrl & PCI_EXP_SLTCTL_HPIE) ||
-		    !(slot_ctrl & PCI_EXP_SLTCTL_CCIE))
-			poll = 1;
-                pcie_wait_cmd(ctrl, poll);
-	}
 	mutex_unlock(&ctrl->ctrl_lock);
 }
 
-static bool check_link_active(struct controller *ctrl)
+bool pciehp_check_link_active(struct controller *ctrl)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 lnk_status;
@@ -225,12 +223,12 @@ static void __pcie_wait_link_active(struct controller *ctrl, bool active)
 {
 	int timeout = 1000;
 
-	if (check_link_active(ctrl) == active)
+	if (pciehp_check_link_active(ctrl) == active)
 		return;
 	while (timeout > 0) {
 		msleep(10);
 		timeout -= 10;
-		if (check_link_active(ctrl) == active)
+		if (pciehp_check_link_active(ctrl) == active)
 			return;
 	}
 	ctrl_dbg(ctrl, "Data Link Layer Link Active not %s in 1000 msec\n",
@@ -240,11 +238,6 @@ static void __pcie_wait_link_active(struct controller *ctrl, bool active)
 static void pcie_wait_link_active(struct controller *ctrl)
 {
 	__pcie_wait_link_active(ctrl, true);
-}
-
-static void pcie_wait_link_not_active(struct controller *ctrl)
-{
-	__pcie_wait_link_active(ctrl, false);
 }
 
 static bool pci_bus_check_dev(struct pci_bus *bus, int devfn)
@@ -279,15 +272,15 @@ int pciehp_check_link_status(struct controller *ctrl)
 	bool found;
 	u16 lnk_status;
 
-        /*
-         * Data Link Layer Link Active Reporting must be capable for
-         * hot-plug capable downstream port. But old controller might
-         * not implement it. In this case, we wait for 1000 ms.
-         */
-        if (ctrl->link_active_reporting)
-                pcie_wait_link_active(ctrl);
-        else
-                msleep(1000);
+	/*
+	 * Data Link Layer Link Active Reporting must be capable for
+	 * hot-plug capable downstream port. But old controller might
+	 * not implement it. In this case, we wait for 1000 ms.
+	*/
+	if (ctrl->link_active_reporting)
+		pcie_wait_link_active(ctrl);
+	else
+		msleep(1000);
 
 	/* wait 100ms before read pci conf, and try in 1s */
 	msleep(100);
@@ -298,7 +291,7 @@ int pciehp_check_link_status(struct controller *ctrl)
 	ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
 	if ((lnk_status & PCI_EXP_LNKSTA_LT) ||
 	    !(lnk_status & PCI_EXP_LNKSTA_NLW)) {
-		ctrl_err(ctrl, "Link Training Error occurs \n");
+		ctrl_err(ctrl, "Link Training Error occurs\n");
 		return -1;
 	}
 
@@ -330,11 +323,6 @@ static int __pciehp_link_set(struct controller *ctrl, bool enable)
 static int pciehp_link_enable(struct controller *ctrl)
 {
 	return __pciehp_link_set(ctrl, true);
-}
-
-static int pciehp_link_disable(struct controller *ctrl)
-{
-	return __pciehp_link_set(ctrl, false);
 }
 
 void pciehp_get_attention_status(struct slot *slot, u8 *status)
@@ -422,7 +410,7 @@ void pciehp_set_attention_status(struct slot *slot, u8 value)
 		return;
 
 	switch (value) {
-	case 0 :	/* turn off */
+	case 0:		/* turn off */
 		slot_cmd = PCI_EXP_SLTCTL_ATTN_IND_OFF;
 		break;
 	case 1:		/* turn on */
@@ -478,7 +466,7 @@ void pciehp_green_led_blink(struct slot *slot)
 		 PCI_EXP_SLTCTL_PWR_IND_BLINK);
 }
 
-int pciehp_power_on_slot(struct slot * slot)
+int pciehp_power_on_slot(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	struct pci_dev *pdev = ctrl_dev(ctrl);
@@ -504,17 +492,9 @@ int pciehp_power_on_slot(struct slot * slot)
 	return retval;
 }
 
-void pciehp_power_off_slot(struct slot * slot)
+void pciehp_power_off_slot(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
-
-	/* Disable the link at first */
-	pciehp_link_disable(ctrl);
-	/* wait the link is down */
-	if (ctrl->link_active_reporting)
-		pcie_wait_link_not_active(ctrl);
-	else
-		msleep(1000);
 
 	pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PWR_OFF, PCI_EXP_SLTCTL_PCC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
@@ -526,6 +506,8 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 {
 	struct controller *ctrl = (struct controller *)dev_id;
 	struct pci_dev *pdev = ctrl_dev(ctrl);
+	struct pci_bus *subordinate = pdev->subordinate;
+	struct pci_dev *dev;
 	struct slot *slot = ctrl->slot;
 	u16 detected, intr_loc;
 
@@ -540,7 +522,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 
 		detected &= (PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 			     PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_PDC |
-			     PCI_EXP_SLTSTA_CC);
+			     PCI_EXP_SLTSTA_CC | PCI_EXP_SLTSTA_DLLSC);
 		detected &= ~intr_loc;
 		intr_loc |= detected;
 		if (!intr_loc)
@@ -557,6 +539,16 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		ctrl->cmd_busy = 0;
 		smp_mb();
 		wake_up(&ctrl->queue);
+	}
+
+	if (subordinate) {
+		list_for_each_entry(dev, &subordinate->devices, bus_list) {
+			if (dev->ignore_hotplug) {
+				ctrl_dbg(ctrl, "ignoring hotplug event %#06x (%s requested no hotplug)\n",
+					 intr_loc, pci_name(dev));
+				return IRQ_HANDLED;
+			}
+		}
 	}
 
 	if (!(intr_loc & ~PCI_EXP_SLTSTA_CC))
@@ -579,6 +571,10 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		ctrl->power_fault_detected = 1;
 		pciehp_handle_power_fault(slot);
 	}
+
+	if (intr_loc & PCI_EXP_SLTSTA_DLLSC)
+		pciehp_handle_linkstate_change(slot);
+
 	return IRQ_HANDLED;
 }
 
@@ -596,9 +592,17 @@ void pcie_enable_notification(struct controller *ctrl)
 	 * when it is cleared in the interrupt service routine, and
 	 * next power fault detected interrupt was notified again.
 	 */
-	cmd = PCI_EXP_SLTCTL_PDCE;
+
+	/*
+	 * Always enable link events: thus link-up and link-down shall
+	 * always be treated as hotplug and unplug respectively. Enable
+	 * presence detect only if Attention Button is not present.
+	 */
+	cmd = PCI_EXP_SLTCTL_DLLSCE;
 	if (ATTN_BUTTN(ctrl))
 		cmd |= PCI_EXP_SLTCTL_ABPE;
+	else
+		cmd |= PCI_EXP_SLTCTL_PDCE;
 	if (MRL_SENS(ctrl))
 		cmd |= PCI_EXP_SLTCTL_MRLSCE;
 	if (!pciehp_poll_mode)
@@ -606,7 +610,8 @@ void pcie_enable_notification(struct controller *ctrl)
 
 	mask = (PCI_EXP_SLTCTL_PDCE | PCI_EXP_SLTCTL_ABPE |
 		PCI_EXP_SLTCTL_MRLSCE | PCI_EXP_SLTCTL_PFDE |
-		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE);
+		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE |
+		PCI_EXP_SLTCTL_DLLSCE);
 
 	pcie_write_cmd(ctrl, cmd, mask);
 }
@@ -624,33 +629,38 @@ static void pcie_disable_notification(struct controller *ctrl)
 
 /*
  * pciehp has a 1:1 bus:slot relationship so we ultimately want a secondary
- * bus reset of the bridge, but if the slot supports surprise removal we need
- * to disable presence detection around the bus reset and clear any spurious
+ * bus reset of the bridge, but at the same time we want to ensure that it is
+ * not seen as a hot-unplug, followed by the hot-plug of the device. Thus,
+ * disable link state notification and presence detection change notification
+ * momentarily, if we see that they could interfere. Also, clear any spurious
  * events after.
  */
 int pciehp_reset_slot(struct slot *slot, int probe)
 {
 	struct controller *ctrl = slot->ctrl;
 	struct pci_dev *pdev = ctrl_dev(ctrl);
+	u16 stat_mask = 0, ctrl_mask = 0;
 
 	if (probe)
 		return 0;
 
-	if (HP_SUPR_RM(ctrl)) {
-		pcie_write_cmd(ctrl, 0, PCI_EXP_SLTCTL_PDCE);
-		if (pciehp_poll_mode)
-			del_timer_sync(&ctrl->poll_timer);
+	if (!ATTN_BUTTN(ctrl)) {
+		ctrl_mask |= PCI_EXP_SLTCTL_PDCE;
+		stat_mask |= PCI_EXP_SLTSTA_PDC;
 	}
+	ctrl_mask |= PCI_EXP_SLTCTL_DLLSCE;
+	stat_mask |= PCI_EXP_SLTSTA_DLLSC;
+
+	pcie_write_cmd(ctrl, 0, ctrl_mask);
+	if (pciehp_poll_mode)
+		del_timer_sync(&ctrl->poll_timer);
 
 	pci_reset_bridge_secondary_bus(ctrl->pcie->port);
 
-	if (HP_SUPR_RM(ctrl)) {
-		pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
-					   PCI_EXP_SLTSTA_PDC);
-		pcie_write_cmd(ctrl, PCI_EXP_SLTCTL_PDCE, PCI_EXP_SLTCTL_PDCE);
-		if (pciehp_poll_mode)
-			int_poll_timeout(ctrl->poll_timer.data);
-	}
+	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, stat_mask);
+	pcie_write_cmd(ctrl, ctrl_mask, ctrl_mask);
+	if (pciehp_poll_mode)
+		int_poll_timeout(ctrl->poll_timer.data);
 
 	return 0;
 }
@@ -687,6 +697,7 @@ static int pcie_init_slot(struct controller *ctrl)
 
 	slot->ctrl = ctrl;
 	mutex_init(&slot->lock);
+	mutex_init(&slot->hotplug_lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
 	ctrl->slot = slot;
 	return 0;
@@ -753,7 +764,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	ctrl_info(ctrl, "Slot Control           : 0x%04x\n", reg16);
 }
 
-#define FLAG(x,y)	(((x) & (y)) ? '+' : '-')
+#define FLAG(x, y)	(((x) & (y)) ? '+' : '-')
 
 struct controller *pcie_init(struct pcie_device *dev)
 {
@@ -772,28 +783,19 @@ struct controller *pcie_init(struct pcie_device *dev)
 	mutex_init(&ctrl->ctrl_lock);
 	init_waitqueue_head(&ctrl->queue);
 	dbg_ctrl(ctrl);
-	/*
-	 * Controller doesn't notify of command completion if the "No
-	 * Command Completed Support" bit is set in Slot Capability
-	 * register or the controller supports none of power
-	 * controller, attention led, power led and EMI.
-	 */
-	if (NO_CMD_CMPL(ctrl) ||
-	    !(POWER_CTRL(ctrl) | ATTN_LED(ctrl) | PWR_LED(ctrl) | EMI(ctrl)))
-	    ctrl->no_cmd_complete = 1;
 
-        /* Check if Data Link Layer Link Active Reporting is implemented */
-        pcie_capability_read_dword(pdev, PCI_EXP_LNKCAP, &link_cap);
-        if (link_cap & PCI_EXP_LNKCAP_DLLLARC) {
-                ctrl_dbg(ctrl, "Link Active Reporting supported\n");
-                ctrl->link_active_reporting = 1;
-        }
+	/* Check if Data Link Layer Link Active Reporting is implemented */
+	pcie_capability_read_dword(pdev, PCI_EXP_LNKCAP, &link_cap);
+	if (link_cap & PCI_EXP_LNKCAP_DLLLARC) {
+		ctrl_dbg(ctrl, "Link Active Reporting supported\n");
+		ctrl->link_active_reporting = 1;
+	}
 
 	/* Clear all remaining event bits in Slot Status register */
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
 		PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 		PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_PDC |
-		PCI_EXP_SLTSTA_CC);
+		PCI_EXP_SLTSTA_CC | PCI_EXP_SLTSTA_DLLSC);
 
 	/* Disable software notification */
 	pcie_disable_notification(ctrl);

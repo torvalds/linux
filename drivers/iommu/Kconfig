@@ -76,7 +76,7 @@ config AMD_IOMMU_STATS
 
 config AMD_IOMMU_V2
 	tristate "AMD IOMMU Version 2 driver"
-	depends on AMD_IOMMU && PROFILING
+	depends on AMD_IOMMU
 	select MMU_NOTIFIER
 	---help---
 	  This option enables support for the AMD IOMMUv2 features of the IOMMU
@@ -143,16 +143,12 @@ config OMAP_IOMMU
 	depends on ARCH_OMAP2PLUS
 	select IOMMU_API
 
-config OMAP_IOVMM
-	tristate "OMAP IO Virtual Memory Manager Support"
-	depends on OMAP_IOMMU
-
 config OMAP_IOMMU_DEBUG
-       tristate "Export OMAP IOMMU/IOVMM internals in DebugFS"
-       depends on OMAP_IOVMM && DEBUG_FS
+       tristate "Export OMAP IOMMU internals in DebugFS"
+       depends on OMAP_IOMMU && DEBUG_FS
        help
          Select this to see extensive information about
-         the internal state of OMAP IOMMU/IOVMM in debugfs.
+         the internal state of OMAP IOMMU in debugfs.
 
          Say N unless you know you need this.
 
@@ -178,13 +174,14 @@ config TEGRA_IOMMU_SMMU
 
 config EXYNOS_IOMMU
 	bool "Exynos IOMMU Support"
-	depends on ARCH_EXYNOS && EXYNOS_DEV_SYSMMU
+	depends on ARCH_EXYNOS
 	select IOMMU_API
+	select ARM_DMA_USE_IOMMU
 	help
-	  Support for the IOMMU(System MMU) of Samsung Exynos application
-	  processor family. This enables H/W multimedia accellerators to see
-	  non-linear physical memory chunks as a linear memory in their
-	  address spaces
+	  Support for the IOMMU (System MMU) of Samsung Exynos application
+	  processor family. This enables H/W multimedia accelerators to see
+	  non-linear physical memory chunks as linear memory in their
+	  address space.
 
 	  If unsure, say N here.
 
@@ -193,9 +190,9 @@ config EXYNOS_IOMMU_DEBUG
 	depends on EXYNOS_IOMMU
 	help
 	  Select this to see the detailed log message that shows what
-	  happens in the IOMMU driver
+	  happens in the IOMMU driver.
 
-	  Say N unless you need kernel log message for IOMMU debugging
+	  Say N unless you need kernel log message for IOMMU debugging.
 
 config SHMOBILE_IPMMU
 	bool
@@ -207,6 +204,7 @@ config SHMOBILE_IOMMU
 	bool "IOMMU for Renesas IPMMU/IPMMUI"
 	default n
 	depends on ARM
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
 	select SHMOBILE_IPMMU
@@ -270,6 +268,18 @@ config SHMOBILE_IOMMU_L1SIZE
 	default 512 if SHMOBILE_IOMMU_ADDRSIZE_128MB
 	default 256 if SHMOBILE_IOMMU_ADDRSIZE_64MB
 	default 128 if SHMOBILE_IOMMU_ADDRSIZE_32MB
+
+config IPMMU_VMSA
+	bool "Renesas VMSA-compatible IPMMU"
+	depends on ARM_LPAE
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	select IOMMU_API
+	select ARM_DMA_USE_IOMMU
+	help
+	  Support for the Renesas VMSA-compatible IPMMU Renesas found in the
+	  R-Mobile APE6 and R-Car H2/M2 SoCs.
+
+	  If unsure, say N.
 
 config SPAPR_TCE_IOMMU
 	bool "sPAPR TCE IOMMU Support"

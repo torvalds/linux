@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: generic TX/RX data handling
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -40,6 +40,7 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 		mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	struct rxpd *local_rx_pd;
 	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
+	int ret;
 
 	local_rx_pd = (struct rxpd *) (skb->data);
 	/* Get the BSS number from rxpd, get corresponding priv */
@@ -54,13 +55,20 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 		return -1;
 	}
 
+	memset(rx_info, 0, sizeof(*rx_info));
 	rx_info->bss_num = priv->bss_num;
 	rx_info->bss_type = priv->bss_type;
 
 	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
-		return mwifiex_process_uap_rx_packet(priv, skb);
+		ret = mwifiex_process_uap_rx_packet(priv, skb);
+	else
+		ret = mwifiex_process_sta_rx_packet(priv, skb);
 
-	return mwifiex_process_sta_rx_packet(priv, skb);
+	/* Decrement RX pending counter for each packet */
+	if (adapter->if_ops.data_complete)
+		adapter->if_ops.data_complete(adapter);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mwifiex_handle_rx_packet);
 
@@ -105,7 +113,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 
 	switch (ret) {
 	case -ENOSR:
-		dev_err(adapter->dev, "data: -ENOSR is returned\n");
+		dev_dbg(adapter->dev, "data: -ENOSR is returned\n");
 		break;
 	case -EBUSY:
 		if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
@@ -168,7 +176,7 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 	mwifiex_set_trans_start(priv->netdev);
 	if (!status) {
 		priv->stats.tx_packets++;
-		priv->stats.tx_bytes += skb->len;
+		priv->stats.tx_bytes += tx_info->pkt_len;
 		if (priv->tx_timeout_cnt)
 			priv->tx_timeout_cnt = 0;
 	} else {

@@ -42,252 +42,9 @@
 #include "core.h"
 #include "bearer.h"
 
-#define MAX_IB_MEDIA		MAX_BEARERS
-
-/**
- * struct ib_media - Infiniband media data structure
- * @bearer: ptr to associated "generic" bearer structure
- * @dev: ptr to associated Infiniband network device
- * @tipc_packet_type: used in binding TIPC to Infiniband driver
- * @cleanup: work item used when disabling bearer
- */
-
-struct ib_media {
-	struct tipc_bearer *bearer;
-	struct net_device *dev;
-	struct packet_type tipc_packet_type;
-	struct work_struct setup;
-	struct work_struct cleanup;
-};
-
-static struct tipc_media ib_media_info;
-static struct ib_media ib_media_array[MAX_IB_MEDIA];
-static int ib_started;
-
-/**
- * ib_media_addr_set - initialize Infiniband media address structure
- *
- * Media-dependent "value" field stores MAC address in first 6 bytes
- * and zeroes out the remaining bytes.
- */
-static void ib_media_addr_set(const struct tipc_bearer *tb_ptr,
-			      struct tipc_media_addr *a, char *mac)
-{
-	BUILD_BUG_ON(sizeof(a->value) < INFINIBAND_ALEN);
-	memcpy(a->value, mac, INFINIBAND_ALEN);
-	a->media_id = TIPC_MEDIA_TYPE_IB;
-	a->broadcast = !memcmp(mac, tb_ptr->bcast_addr.value, INFINIBAND_ALEN);
-}
-
-/**
- * send_msg - send a TIPC message out over an InfiniBand interface
- */
-static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
-		    struct tipc_media_addr *dest)
-{
-	struct sk_buff *clone;
-	struct net_device *dev;
-	int delta;
-
-	clone = skb_clone(buf, GFP_ATOMIC);
-	if (!clone)
-		return 0;
-
-	dev = ((struct ib_media *)(tb_ptr->usr_handle))->dev;
-	delta = dev->hard_header_len - skb_headroom(buf);
-
-	if ((delta > 0) &&
-	    pskb_expand_head(clone, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC)) {
-		kfree_skb(clone);
-		return 0;
-	}
-
-	skb_reset_network_header(clone);
-	clone->dev = dev;
-	clone->protocol = htons(ETH_P_TIPC);
-	dev_hard_header(clone, dev, ETH_P_TIPC, dest->value,
-			dev->dev_addr, clone->len);
-	dev_queue_xmit(clone);
-	return 0;
-}
-
-/**
- * recv_msg - handle incoming TIPC message from an InfiniBand interface
- *
- * Accept only packets explicitly sent to this node, or broadcast packets;
- * ignores packets sent using InfiniBand multicast, and traffic sent to other
- * nodes (which can happen if interface is running in promiscuous mode).
- */
-static int recv_msg(struct sk_buff *buf, struct net_device *dev,
-		    struct packet_type *pt, struct net_device *orig_dev)
-{
-	struct ib_media *ib_ptr = (struct ib_media *)pt->af_packet_priv;
-
-	if (!net_eq(dev_net(dev), &init_net)) {
-		kfree_skb(buf);
-		return NET_RX_DROP;
-	}
-
-	if (likely(ib_ptr->bearer)) {
-		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
-			buf->next = NULL;
-			tipc_recv_msg(buf, ib_ptr->bearer);
-			return NET_RX_SUCCESS;
-		}
-	}
-	kfree_skb(buf);
-	return NET_RX_DROP;
-}
-
-/**
- * setup_bearer - setup association between InfiniBand bearer and interface
- */
-static void setup_media(struct work_struct *work)
-{
-	struct ib_media *ib_ptr =
-		container_of(work, struct ib_media, setup);
-
-	dev_add_pack(&ib_ptr->tipc_packet_type);
-}
-
-/**
- * enable_media - attach TIPC bearer to an InfiniBand interface
- */
-static int enable_media(struct tipc_bearer *tb_ptr)
-{
-	struct net_device *dev;
-	struct ib_media *ib_ptr = &ib_media_array[0];
-	struct ib_media *stop = &ib_media_array[MAX_IB_MEDIA];
-	char *driver_name = strchr((const char *)tb_ptr->name, ':') + 1;
-	int pending_dev = 0;
-
-	/* Find unused InfiniBand bearer structure */
-	while (ib_ptr->dev) {
-		if (!ib_ptr->bearer)
-			pending_dev++;
-		if (++ib_ptr == stop)
-			return pending_dev ? -EAGAIN : -EDQUOT;
-	}
-
-	/* Find device with specified name */
-	dev = dev_get_by_name(&init_net, driver_name);
-	if (!dev)
-		return -ENODEV;
-
-	/* Create InfiniBand bearer for device */
-	ib_ptr->dev = dev;
-	ib_ptr->tipc_packet_type.type = htons(ETH_P_TIPC);
-	ib_ptr->tipc_packet_type.dev = dev;
-	ib_ptr->tipc_packet_type.func = recv_msg;
-	ib_ptr->tipc_packet_type.af_packet_priv = ib_ptr;
-	INIT_LIST_HEAD(&(ib_ptr->tipc_packet_type.list));
-	INIT_WORK(&ib_ptr->setup, setup_media);
-	schedule_work(&ib_ptr->setup);
-
-	/* Associate TIPC bearer with InfiniBand bearer */
-	ib_ptr->bearer = tb_ptr;
-	tb_ptr->usr_handle = (void *)ib_ptr;
-	memset(tb_ptr->bcast_addr.value, 0, sizeof(tb_ptr->bcast_addr.value));
-	memcpy(tb_ptr->bcast_addr.value, dev->broadcast, INFINIBAND_ALEN);
-	tb_ptr->bcast_addr.media_id = TIPC_MEDIA_TYPE_IB;
-	tb_ptr->bcast_addr.broadcast = 1;
-	tb_ptr->mtu = dev->mtu;
-	tb_ptr->blocked = 0;
-	ib_media_addr_set(tb_ptr, &tb_ptr->addr, (char *)dev->dev_addr);
-	return 0;
-}
-
-/**
- * cleanup_bearer - break association between InfiniBand bearer and interface
- *
- * This routine must be invoked from a work queue because it can sleep.
- */
-static void cleanup_bearer(struct work_struct *work)
-{
-	struct ib_media *ib_ptr =
-		container_of(work, struct ib_media, cleanup);
-
-	dev_remove_pack(&ib_ptr->tipc_packet_type);
-	dev_put(ib_ptr->dev);
-	ib_ptr->dev = NULL;
-}
-
-/**
- * disable_media - detach TIPC bearer from an InfiniBand interface
- *
- * Mark InfiniBand bearer as inactive so that incoming buffers are thrown away,
- * then get worker thread to complete bearer cleanup.  (Can't do cleanup
- * here because cleanup code needs to sleep and caller holds spinlocks.)
- */
-static void disable_media(struct tipc_bearer *tb_ptr)
-{
-	struct ib_media *ib_ptr = (struct ib_media *)tb_ptr->usr_handle;
-
-	ib_ptr->bearer = NULL;
-	INIT_WORK(&ib_ptr->cleanup, cleanup_bearer);
-	schedule_work(&ib_ptr->cleanup);
-}
-
-/**
- * recv_notification - handle device updates from OS
- *
- * Change the state of the InfiniBand bearer (if any) associated with the
- * specified device.
- */
-static int recv_notification(struct notifier_block *nb, unsigned long evt,
-			     void *ptr)
-{
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct ib_media *ib_ptr = &ib_media_array[0];
-	struct ib_media *stop = &ib_media_array[MAX_IB_MEDIA];
-
-	if (!net_eq(dev_net(dev), &init_net))
-		return NOTIFY_DONE;
-
-	while ((ib_ptr->dev != dev)) {
-		if (++ib_ptr == stop)
-			return NOTIFY_DONE;	/* couldn't find device */
-	}
-	if (!ib_ptr->bearer)
-		return NOTIFY_DONE;		/* bearer had been disabled */
-
-	ib_ptr->bearer->mtu = dev->mtu;
-
-	switch (evt) {
-	case NETDEV_CHANGE:
-		if (netif_carrier_ok(dev))
-			tipc_continue(ib_ptr->bearer);
-		else
-			tipc_block_bearer(ib_ptr->bearer);
-		break;
-	case NETDEV_UP:
-		tipc_continue(ib_ptr->bearer);
-		break;
-	case NETDEV_DOWN:
-		tipc_block_bearer(ib_ptr->bearer);
-		break;
-	case NETDEV_CHANGEMTU:
-	case NETDEV_CHANGEADDR:
-		tipc_block_bearer(ib_ptr->bearer);
-		tipc_continue(ib_ptr->bearer);
-		break;
-	case NETDEV_UNREGISTER:
-	case NETDEV_CHANGENAME:
-		tipc_disable_bearer(ib_ptr->bearer->name);
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block notifier = {
-	.notifier_call	= recv_notification,
-	.priority	= 0,
-};
-
-/**
- * ib_addr2str - convert InfiniBand address to string
- */
-static int ib_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
+/* convert InfiniBand address (media address format) media address to string */
+static int tipc_ib_addr2str(struct tipc_media_addr *a, char *str_buf,
+			    int str_size)
 {
 	if (str_size < 60)	/* 60 = 19 * strlen("xx:") + strlen("xx\0") */
 		return 1;
@@ -297,76 +54,48 @@ static int ib_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
 	return 0;
 }
 
-/**
- * ib_addr2msg - convert InfiniBand address format to message header format
- */
-static int ib_addr2msg(struct tipc_media_addr *a, char *msg_area)
+/* Convert from media address format to discovery message addr format */
+static int tipc_ib_addr2msg(char *msg, struct tipc_media_addr *addr)
 {
-	memset(msg_area, 0, TIPC_MEDIA_ADDR_SIZE);
-	msg_area[TIPC_MEDIA_TYPE_OFFSET] = TIPC_MEDIA_TYPE_IB;
-	memcpy(msg_area, a->value, INFINIBAND_ALEN);
+	memset(msg, 0, TIPC_MEDIA_ADDR_SIZE);
+	memcpy(msg, addr->value, INFINIBAND_ALEN);
 	return 0;
 }
 
-/**
- * ib_msg2addr - convert message header address format to InfiniBand format
- */
-static int ib_msg2addr(const struct tipc_bearer *tb_ptr,
-		       struct tipc_media_addr *a, char *msg_area)
+/* Convert raw InfiniBand address format to media addr format */
+static int tipc_ib_raw2addr(struct tipc_bearer *b,
+			    struct tipc_media_addr *addr,
+			    char *msg)
 {
-	ib_media_addr_set(tb_ptr, a, msg_area);
+	memset(addr, 0, sizeof(*addr));
+	memcpy(addr->value, msg, INFINIBAND_ALEN);
+	addr->media_id = TIPC_MEDIA_TYPE_IB;
+	addr->broadcast = !memcmp(msg, b->bcast_addr.value,
+				  INFINIBAND_ALEN);
 	return 0;
 }
 
-/*
- * InfiniBand media registration info
- */
-static struct tipc_media ib_media_info = {
-	.send_msg	= send_msg,
-	.enable_media	= enable_media,
-	.disable_media	= disable_media,
-	.addr2str	= ib_addr2str,
-	.addr2msg	= ib_addr2msg,
-	.msg2addr	= ib_msg2addr,
+/* Convert discovery msg addr format to InfiniBand media addr format */
+static int tipc_ib_msg2addr(struct tipc_bearer *b,
+			    struct tipc_media_addr *addr,
+			    char *msg)
+{
+	return tipc_ib_raw2addr(b, addr, msg);
+}
+
+/* InfiniBand media registration info */
+struct tipc_media ib_media_info = {
+	.send_msg	= tipc_l2_send_msg,
+	.enable_media	= tipc_enable_l2_media,
+	.disable_media	= tipc_disable_l2_media,
+	.addr2str	= tipc_ib_addr2str,
+	.addr2msg	= tipc_ib_addr2msg,
+	.msg2addr	= tipc_ib_msg2addr,
+	.raw2addr	= tipc_ib_raw2addr,
 	.priority	= TIPC_DEF_LINK_PRI,
 	.tolerance	= TIPC_DEF_LINK_TOL,
 	.window		= TIPC_DEF_LINK_WIN,
 	.type_id	= TIPC_MEDIA_TYPE_IB,
+	.hwaddr_len	= INFINIBAND_ALEN,
 	.name		= "ib"
 };
-
-/**
- * tipc_ib_media_start - activate InfiniBand bearer support
- *
- * Register InfiniBand media type with TIPC bearer code.  Also register
- * with OS for notifications about device state changes.
- */
-int tipc_ib_media_start(void)
-{
-	int res;
-
-	if (ib_started)
-		return -EINVAL;
-
-	res = tipc_register_media(&ib_media_info);
-	if (res)
-		return res;
-
-	res = register_netdevice_notifier(&notifier);
-	if (!res)
-		ib_started = 1;
-	return res;
-}
-
-/**
- * tipc_ib_media_stop - deactivate InfiniBand bearer support
- */
-void tipc_ib_media_stop(void)
-{
-	if (!ib_started)
-		return;
-
-	flush_scheduled_work();
-	unregister_netdevice_notifier(&notifier);
-	ib_started = 0;
-}

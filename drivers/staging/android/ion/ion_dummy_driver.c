@@ -17,19 +17,21 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/sizes.h>
+#include <linux/io.h>
 #include "ion.h"
 #include "ion_priv.h"
 
-struct ion_device *idev;
-struct ion_heap **heaps;
+static struct ion_device *idev;
+static struct ion_heap **heaps;
 
-void *carveout_ptr;
-void *chunk_ptr;
+static void *carveout_ptr;
+static void *chunk_ptr;
 
-struct ion_platform_heap dummy_heaps[] = {
+static struct ion_platform_heap dummy_heaps[] = {
 		{
 			.id	= ION_HEAP_TYPE_SYSTEM,
 			.type	= ION_HEAP_TYPE_SYSTEM,
@@ -56,8 +58,8 @@ struct ion_platform_heap dummy_heaps[] = {
 		},
 };
 
-struct ion_platform_data dummy_ion_pdata = {
-	.nr = 4,
+static struct ion_platform_data dummy_ion_pdata = {
+	.nr = ARRAY_SIZE(dummy_heaps),
 	.heaps = dummy_heaps,
 };
 
@@ -69,7 +71,7 @@ static int __init ion_dummy_init(void)
 	heaps = kzalloc(sizeof(struct ion_heap *) * dummy_ion_pdata.nr,
 			GFP_KERNEL);
 	if (!heaps)
-		return PTR_ERR(heaps);
+		return -ENOMEM;
 
 
 	/* Allocate a dummy carveout heap */
@@ -128,6 +130,7 @@ err:
 	}
 	return err;
 }
+device_initcall(ion_dummy_init);
 
 static void __exit ion_dummy_exit(void)
 {
@@ -152,7 +155,4 @@ static void __exit ion_dummy_exit(void)
 
 	return;
 }
-
-module_init(ion_dummy_init);
-module_exit(ion_dummy_exit);
-
+__exitcall(ion_dummy_exit);

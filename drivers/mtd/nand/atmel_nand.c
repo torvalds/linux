@@ -97,7 +97,9 @@ struct atmel_nfc {
 	bool			write_by_sram;
 
 	bool			is_initialized;
-	struct completion	comp_nfc;
+	struct completion	comp_ready;
+	struct completion	comp_cmd_done;
+	struct completion	comp_xfer_done;
 
 	/* Point to the sram bank which include readed data via NFC */
 	void __iomem		*data_in_sram;
@@ -430,7 +432,7 @@ err_dma:
 	dma_unmap_single(dma_dev->dev, phys_addr, len, dir);
 err_buf:
 	if (err != 0)
-		dev_warn(host->dev, "Fall back to CPU I/O\n");
+		dev_dbg(host->dev, "Fall back to CPU I/O\n");
 	return err;
 }
 
@@ -861,12 +863,11 @@ static int pmecc_correction(struct mtd_info *mtd, u32 pmecc_stat, uint8_t *buf,
 {
 	struct nand_chip *nand_chip = mtd->priv;
 	struct atmel_nand_host *host = nand_chip->priv;
-	int i, err_nbr, eccbytes;
+	int i, err_nbr;
 	uint8_t *buf_pos;
 	int total_err = 0;
 
-	eccbytes = nand_chip->ecc.bytes;
-	for (i = 0; i < eccbytes; i++)
+	for (i = 0; i < nand_chip->ecc.total; i++)
 		if (ecc[i] != 0xff)
 			goto normal_check;
 	/* Erased page, return OK */
@@ -928,7 +929,7 @@ static int atmel_nand_pmecc_read_page(struct mtd_info *mtd,
 	struct nand_chip *chip, uint8_t *buf, int oob_required, int page)
 {
 	struct atmel_nand_host *host = chip->priv;
-	int eccsize = chip->ecc.size;
+	int eccsize = chip->ecc.size * chip->ecc.steps;
 	uint8_t *oob = chip->oob_poi;
 	uint32_t *eccpos = chip->ecc.layout->eccpos;
 	uint32_t stat;
@@ -1169,8 +1170,7 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		goto err;
 	}
 
-	/* ECC is calculated for the whole page (1 step) */
-	nand_chip->ecc.size = mtd->writesize;
+	nand_chip->ecc.size = sector_size;
 
 	/* set ECC page size and oob layout */
 	switch (mtd->writesize) {
@@ -1185,18 +1185,20 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		host->pmecc_index_of = host->pmecc_rom_base +
 			host->pmecc_lookup_table_offset;
 
-		nand_chip->ecc.steps = 1;
+		nand_chip->ecc.steps = host->pmecc_sector_number;
 		nand_chip->ecc.strength = cap;
-		nand_chip->ecc.bytes = host->pmecc_bytes_per_sector *
+		nand_chip->ecc.bytes = host->pmecc_bytes_per_sector;
+		nand_chip->ecc.total = host->pmecc_bytes_per_sector *
 				       host->pmecc_sector_number;
-		if (nand_chip->ecc.bytes > mtd->oobsize - 2) {
+		if (nand_chip->ecc.total > mtd->oobsize - 2) {
 			dev_err(host->dev, "No room for ECC bytes\n");
 			err_no = -EINVAL;
 			goto err;
 		}
 		pmecc_config_ecc_layout(&atmel_pmecc_oobinfo,
 					mtd->oobsize,
-					nand_chip->ecc.bytes);
+					nand_chip->ecc.total);
+
 		nand_chip->ecc.layout = &atmel_pmecc_oobinfo;
 		break;
 	case 512:
@@ -1220,6 +1222,7 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		goto err;
 	}
 
+	nand_chip->options |= NAND_NO_SUBPAGE_WRITE;
 	nand_chip->ecc.read_page = atmel_nand_pmecc_read_page;
 	nand_chip->ecc.write_page = atmel_nand_pmecc_write_page;
 
@@ -1571,49 +1574,104 @@ static int atmel_hw_nand_init_params(struct platform_device *pdev,
 	return 0;
 }
 
+static inline u32 nfc_read_status(struct atmel_nand_host *host)
+{
+	u32 err_flags = NFC_SR_DTOE | NFC_SR_UNDEF | NFC_SR_AWB | NFC_SR_ASE;
+	u32 nfc_status = nfc_readl(host->nfc->hsmc_regs, SR);
+
+	if (unlikely(nfc_status & err_flags)) {
+		if (nfc_status & NFC_SR_DTOE)
+			dev_err(host->dev, "NFC: Waiting Nand R/B Timeout Error\n");
+		else if (nfc_status & NFC_SR_UNDEF)
+			dev_err(host->dev, "NFC: Access Undefined Area Error\n");
+		else if (nfc_status & NFC_SR_AWB)
+			dev_err(host->dev, "NFC: Access memory While NFC is busy\n");
+		else if (nfc_status & NFC_SR_ASE)
+			dev_err(host->dev, "NFC: Access memory Size Error\n");
+	}
+
+	return nfc_status;
+}
+
 /* SMC interrupt service routine */
 static irqreturn_t hsmc_interrupt(int irq, void *dev_id)
 {
 	struct atmel_nand_host *host = dev_id;
 	u32 status, mask, pending;
-	irqreturn_t ret = IRQ_HANDLED;
+	irqreturn_t ret = IRQ_NONE;
 
-	status = nfc_readl(host->nfc->hsmc_regs, SR);
+	status = nfc_read_status(host);
 	mask = nfc_readl(host->nfc->hsmc_regs, IMR);
 	pending = status & mask;
 
 	if (pending & NFC_SR_XFR_DONE) {
-		complete(&host->nfc->comp_nfc);
+		complete(&host->nfc->comp_xfer_done);
 		nfc_writel(host->nfc->hsmc_regs, IDR, NFC_SR_XFR_DONE);
-	} else if (pending & NFC_SR_RB_EDGE) {
-		complete(&host->nfc->comp_nfc);
+		ret = IRQ_HANDLED;
+	}
+	if (pending & NFC_SR_RB_EDGE) {
+		complete(&host->nfc->comp_ready);
 		nfc_writel(host->nfc->hsmc_regs, IDR, NFC_SR_RB_EDGE);
-	} else if (pending & NFC_SR_CMD_DONE) {
-		complete(&host->nfc->comp_nfc);
+		ret = IRQ_HANDLED;
+	}
+	if (pending & NFC_SR_CMD_DONE) {
+		complete(&host->nfc->comp_cmd_done);
 		nfc_writel(host->nfc->hsmc_regs, IDR, NFC_SR_CMD_DONE);
-	} else {
-		ret = IRQ_NONE;
+		ret = IRQ_HANDLED;
 	}
 
 	return ret;
 }
 
 /* NFC(Nand Flash Controller) related functions */
-static int nfc_wait_interrupt(struct atmel_nand_host *host, u32 flag)
+static void nfc_prepare_interrupt(struct atmel_nand_host *host, u32 flag)
 {
-	unsigned long timeout;
-	init_completion(&host->nfc->comp_nfc);
+	if (flag & NFC_SR_XFR_DONE)
+		init_completion(&host->nfc->comp_xfer_done);
+
+	if (flag & NFC_SR_RB_EDGE)
+		init_completion(&host->nfc->comp_ready);
+
+	if (flag & NFC_SR_CMD_DONE)
+		init_completion(&host->nfc->comp_cmd_done);
 
 	/* Enable interrupt that need to wait for */
 	nfc_writel(host->nfc->hsmc_regs, IER, flag);
+}
 
-	timeout = wait_for_completion_timeout(&host->nfc->comp_nfc,
-			msecs_to_jiffies(NFC_TIME_OUT_MS));
-	if (timeout)
-		return 0;
+static int nfc_wait_interrupt(struct atmel_nand_host *host, u32 flag)
+{
+	int i, index = 0;
+	struct completion *comp[3];	/* Support 3 interrupt completion */
 
-	/* Time out to wait for the interrupt */
+	if (flag & NFC_SR_XFR_DONE)
+		comp[index++] = &host->nfc->comp_xfer_done;
+
+	if (flag & NFC_SR_RB_EDGE)
+		comp[index++] = &host->nfc->comp_ready;
+
+	if (flag & NFC_SR_CMD_DONE)
+		comp[index++] = &host->nfc->comp_cmd_done;
+
+	if (index == 0) {
+		dev_err(host->dev, "Unkown interrupt flag: 0x%08x\n", flag);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < index; i++) {
+		if (wait_for_completion_timeout(comp[i],
+				msecs_to_jiffies(NFC_TIME_OUT_MS)))
+			continue;	/* wait for next completion */
+		else
+			goto err_timeout;
+	}
+
+	return 0;
+
+err_timeout:
 	dev_err(host->dev, "Time out to wait for interrupt: 0x%08x\n", flag);
+	/* Disable the interrupt as it is not handled by interrupt handler */
+	nfc_writel(host->nfc->hsmc_regs, IDR, flag);
 	return -ETIMEDOUT;
 }
 
@@ -1621,6 +1679,9 @@ static int nfc_send_command(struct atmel_nand_host *host,
 	unsigned int cmd, unsigned int addr, unsigned char cycle0)
 {
 	unsigned long timeout;
+	u32 flag = NFC_SR_CMD_DONE;
+	flag |= cmd & NFCADDR_CMD_DATAEN ? NFC_SR_XFR_DONE : 0;
+
 	dev_dbg(host->dev,
 		"nfc_cmd: 0x%08x, addr1234: 0x%08x, cycle0: 0x%02x\n",
 		cmd, addr, cycle0);
@@ -1634,18 +1695,28 @@ static int nfc_send_command(struct atmel_nand_host *host,
 			return -ETIMEDOUT;
 		}
 	}
+
+	nfc_prepare_interrupt(host, flag);
 	nfc_writel(host->nfc->hsmc_regs, CYCLE0, cycle0);
 	nfc_cmd_addr1234_writel(cmd, addr, host->nfc->base_cmd_regs);
-	return nfc_wait_interrupt(host, NFC_SR_CMD_DONE);
+	return nfc_wait_interrupt(host, flag);
 }
 
 static int nfc_device_ready(struct mtd_info *mtd)
 {
+	u32 status, mask;
 	struct nand_chip *nand_chip = mtd->priv;
 	struct atmel_nand_host *host = nand_chip->priv;
-	if (!nfc_wait_interrupt(host, NFC_SR_RB_EDGE))
-		return 1;
-	return 0;
+
+	status = nfc_read_status(host);
+	mask = nfc_readl(host->nfc->hsmc_regs, IMR);
+
+	/* The mask should be 0. If not we may lost interrupts */
+	if (unlikely(mask & status))
+		dev_err(host->dev, "Lost the interrupt flags: 0x%08x\n",
+				mask & status);
+
+	return status & NFC_SR_RB_EDGE;
 }
 
 static void nfc_select_chip(struct mtd_info *mtd, int chip)
@@ -1659,8 +1730,8 @@ static void nfc_select_chip(struct mtd_info *mtd, int chip)
 		nfc_writel(host->nfc->hsmc_regs, CTRL, NFC_CTRL_ENABLE);
 }
 
-static int nfc_make_addr(struct mtd_info *mtd, int column, int page_addr,
-		unsigned int *addr1234, unsigned int *cycle0)
+static int nfc_make_addr(struct mtd_info *mtd, int command, int column,
+		int page_addr, unsigned int *addr1234, unsigned int *cycle0)
 {
 	struct nand_chip *chip = mtd->priv;
 
@@ -1674,7 +1745,8 @@ static int nfc_make_addr(struct mtd_info *mtd, int column, int page_addr,
 	*addr1234 = 0;
 
 	if (column != -1) {
-		if (chip->options & NAND_BUSWIDTH_16)
+		if (chip->options & NAND_BUSWIDTH_16 &&
+				!nand_opcode_8bits(command))
 			column >>= 1;
 		addr_bytes[acycle++] = column & 0xff;
 		if (mtd->writesize > 512)
@@ -1787,15 +1859,11 @@ static void nfc_nand_command(struct mtd_info *mtd, unsigned int command,
 	}
 
 	if (do_addr)
-		acycle = nfc_make_addr(mtd, column, page_addr, &addr1234,
-				&cycle0);
+		acycle = nfc_make_addr(mtd, command, column, page_addr,
+				&addr1234, &cycle0);
 
 	nfc_addr_cmd = cmd1 | cmd2 | vcmd2 | acycle | csid | dataen | nfcwr;
 	nfc_send_command(host, nfc_addr_cmd, addr1234, cycle0);
-
-	if (dataen == NFCADDR_CMD_DATAEN)
-		if (nfc_wait_interrupt(host, NFC_SR_XFR_DONE))
-			dev_err(host->dev, "something wrong, No XFR_DONE interrupt comes.\n");
 
 	/*
 	 * Program and erase have their own busy handlers status, sequential
@@ -1821,6 +1889,7 @@ static void nfc_nand_command(struct mtd_info *mtd, unsigned int command,
 		}
 		/* fall through */
 	default:
+		nfc_prepare_interrupt(host, NFC_SR_RB_EDGE);
 		nfc_wait_interrupt(host, NFC_SR_RB_EDGE);
 	}
 }
@@ -1961,10 +2030,8 @@ static int atmel_nand_probe(struct platform_device *pdev)
 
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
-	if (!host) {
-		printk(KERN_ERR "atmel_nand: failed to allocate device structure.\n");
+	if (!host)
 		return -ENOMEM;
-	}
 
 	res = platform_driver_register(&atmel_nand_nfc_driver);
 	if (res)
@@ -2062,14 +2129,14 @@ static int atmel_nand_probe(struct platform_device *pdev)
 		}
 
 		if (gpio_get_value(host->board.det_pin)) {
-			printk(KERN_INFO "No SmartMedia card inserted.\n");
+			dev_info(&pdev->dev, "No SmartMedia card inserted.\n");
 			res = -ENXIO;
 			goto err_no_card;
 		}
 	}
 
 	if (host->board.on_flash_bbt || on_flash_bbt) {
-		printk(KERN_INFO "atmel_nand: Use On Flash BBT\n");
+		dev_info(&pdev->dev, "Use On Flash BBT\n");
 		nand_chip->bbt_options |= NAND_BBT_USE_FLASH;
 	}
 
@@ -2208,6 +2275,9 @@ static int atmel_nand_nfc_probe(struct platform_device *pdev)
 						"atmel,write-by-sram");
 		}
 	}
+
+	nfc_writel(nfc->hsmc_regs, IDR, 0xffffffff);
+	nfc_readl(nfc->hsmc_regs, SR);	/* clear the NFC_SR */
 
 	nfc->is_initialized = true;
 	dev_info(&pdev->dev, "NFC is probed.\n");

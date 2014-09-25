@@ -282,9 +282,10 @@ struct fib6_node *fib6_locate(struct fib6_node *root,
 			      const struct in6_addr *saddr, int src_len);
 
 void fib6_clean_all(struct net *net, int (*func)(struct rt6_info *, void *arg),
-		    int prune, void *arg);
+		    void *arg);
 
-int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info);
+int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info,
+	     struct nlattr *mx, int mx_len);
 
 int fib6_del(struct rt6_info *rt, struct nl_info *info);
 

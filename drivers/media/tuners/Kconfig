@@ -1,7 +1,7 @@
 # Analog TV tuners, auto-loaded via tuner.ko
 config MEDIA_TUNER
 	tristate
-	depends on (MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT) && I2C
+	depends on (MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT) && I2C
 	default y
 	select MEDIA_TUNER_XC2028 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_XC5000 if MEDIA_SUBDRV_AUTOSELECT
@@ -16,7 +16,7 @@ config MEDIA_TUNER
 
 menu "Customize TV tuners"
 	visible if !MEDIA_SUBDRV_AUTOSELECT
-	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_RADIO_SUPPORT
+	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT
 
 config MEDIA_TUNER_SIMPLE
 	tristate "Simple tuner support"
@@ -70,6 +70,13 @@ config MEDIA_TUNER_TEA5767
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to include support for the Philips TEA5767 radio tuner.
+
+config MEDIA_TUNER_MSI001
+	tristate "Mirics MSi001"
+	depends on MEDIA_SUPPORT && SPI && VIDEO_V4L2
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Mirics MSi001 silicon tuner driver.
 
 config MEDIA_TUNER_MT20XX
 	tristate "Microtune 2032 / 2050 tuners"
@@ -204,6 +211,7 @@ config MEDIA_TUNER_TDA18212
 config MEDIA_TUNER_E4000
 	tristate "Elonics E4000 silicon tuner"
 	depends on MEDIA_SUPPORT && I2C
+	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Elonics E4000 silicon tuner driver.
@@ -215,12 +223,26 @@ config MEDIA_TUNER_FC2580
 	help
 	  FCI FC2580 silicon tuner driver.
 
+config MEDIA_TUNER_M88TS2022
+	tristate "Montage M88TS2022 silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Montage M88TS2022 silicon tuner driver.
+
 config MEDIA_TUNER_TUA9001
 	tristate "Infineon TUA 9001 silicon tuner"
 	depends on MEDIA_SUPPORT && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Infineon TUA 9001 silicon tuner driver.
+
+config MEDIA_TUNER_SI2157
+	tristate "Silicon Labs Si2157 silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Silicon Labs Si2157 silicon tuner driver.
 
 config MEDIA_TUNER_IT913X
 	tristate "ITE Tech IT913x silicon tuner"

@@ -477,7 +477,7 @@ static struct dma_async_tx_descriptor *k3_dma_prep_slave_sg(
 	dma_addr_t addr, src = 0, dst = 0;
 	int num = sglen, i;
 
-	if (sgl == 0)
+	if (sgl == NULL)
 		return NULL;
 
 	for_each_sg(sgl, sg, sglen, i) {
@@ -817,7 +817,7 @@ static int k3_dma_resume(struct device *dev)
 	return 0;
 }
 
-SIMPLE_DEV_PM_OPS(k3_dma_pmops, k3_dma_suspend, k3_dma_resume);
+static SIMPLE_DEV_PM_OPS(k3_dma_pmops, k3_dma_suspend, k3_dma_resume);
 
 static struct platform_driver k3_pdma_driver = {
 	.driver		= {

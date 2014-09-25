@@ -18,6 +18,8 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -321,22 +323,22 @@ static const char * const da9055_hpf_cutoff_txt[] = {
 	"Fs/24000", "Fs/12000", "Fs/6000", "Fs/3000"
 };
 
-static const struct soc_enum da9055_dac_hpf_cutoff =
-	SOC_ENUM_SINGLE(DA9055_DAC_FILTERS1, 4, 4, da9055_hpf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_dac_hpf_cutoff,
+			    DA9055_DAC_FILTERS1, 4, da9055_hpf_cutoff_txt);
 
-static const struct soc_enum da9055_adc_hpf_cutoff =
-	SOC_ENUM_SINGLE(DA9055_ADC_FILTERS1, 4, 4, da9055_hpf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_adc_hpf_cutoff,
+			    DA9055_ADC_FILTERS1, 4, da9055_hpf_cutoff_txt);
 
 /* ADC and DAC voice mode (8kHz) high pass cutoff value */
 static const char * const da9055_vf_cutoff_txt[] = {
 	"2.5Hz", "25Hz", "50Hz", "100Hz", "150Hz", "200Hz", "300Hz", "400Hz"
 };
 
-static const struct soc_enum da9055_dac_vf_cutoff =
-	SOC_ENUM_SINGLE(DA9055_DAC_FILTERS1, 0, 8, da9055_vf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_dac_vf_cutoff,
+			    DA9055_DAC_FILTERS1, 0, da9055_vf_cutoff_txt);
 
-static const struct soc_enum da9055_adc_vf_cutoff =
-	SOC_ENUM_SINGLE(DA9055_ADC_FILTERS1, 0, 8, da9055_vf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_adc_vf_cutoff,
+			    DA9055_ADC_FILTERS1, 0, da9055_vf_cutoff_txt);
 
 /* Gain ramping rate value */
 static const char * const da9055_gain_ramping_txt[] = {
@@ -344,44 +346,44 @@ static const char * const da9055_gain_ramping_txt[] = {
 	"nominal rate / 8"
 };
 
-static const struct soc_enum da9055_gain_ramping_rate =
-	SOC_ENUM_SINGLE(DA9055_GAIN_RAMP_CTRL, 0, 4, da9055_gain_ramping_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_gain_ramping_rate,
+			    DA9055_GAIN_RAMP_CTRL, 0, da9055_gain_ramping_txt);
 
 /* DAC noise gate setup time value */
 static const char * const da9055_dac_ng_setup_time_txt[] = {
 	"256 samples", "512 samples", "1024 samples", "2048 samples"
 };
 
-static const struct soc_enum da9055_dac_ng_setup_time =
-	SOC_ENUM_SINGLE(DA9055_DAC_NG_SETUP_TIME, 0, 4,
-			da9055_dac_ng_setup_time_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_dac_ng_setup_time,
+			    DA9055_DAC_NG_SETUP_TIME, 0,
+			    da9055_dac_ng_setup_time_txt);
 
 /* DAC noise gate rampup rate value */
 static const char * const da9055_dac_ng_rampup_txt[] = {
 	"0.02 ms/dB", "0.16 ms/dB"
 };
 
-static const struct soc_enum da9055_dac_ng_rampup_rate =
-	SOC_ENUM_SINGLE(DA9055_DAC_NG_SETUP_TIME, 2, 2,
-			da9055_dac_ng_rampup_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_dac_ng_rampup_rate,
+			    DA9055_DAC_NG_SETUP_TIME, 2,
+			    da9055_dac_ng_rampup_txt);
 
 /* DAC noise gate rampdown rate value */
 static const char * const da9055_dac_ng_rampdown_txt[] = {
 	"0.64 ms/dB", "20.48 ms/dB"
 };
 
-static const struct soc_enum da9055_dac_ng_rampdown_rate =
-	SOC_ENUM_SINGLE(DA9055_DAC_NG_SETUP_TIME, 3, 2,
-			da9055_dac_ng_rampdown_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_dac_ng_rampdown_rate,
+			    DA9055_DAC_NG_SETUP_TIME, 3,
+			    da9055_dac_ng_rampdown_txt);
 
 /* DAC soft mute rate value */
 static const char * const da9055_dac_soft_mute_rate_txt[] = {
 	"1", "2", "4", "8", "16", "32", "64"
 };
 
-static const struct soc_enum da9055_dac_soft_mute_rate =
-	SOC_ENUM_SINGLE(DA9055_DAC_FILTERS5, 4, 7,
-			da9055_dac_soft_mute_rate_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_dac_soft_mute_rate,
+			    DA9055_DAC_FILTERS5, 4,
+			    da9055_dac_soft_mute_rate_txt);
 
 /* DAC routing select */
 static const char * const da9055_dac_src_txt[] = {
@@ -389,40 +391,40 @@ static const char * const da9055_dac_src_txt[] = {
 	"AIF input right"
 };
 
-static const struct soc_enum da9055_dac_l_src =
-	SOC_ENUM_SINGLE(DA9055_DIG_ROUTING_DAC, 0, 4, da9055_dac_src_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_dac_l_src,
+			    DA9055_DIG_ROUTING_DAC, 0, da9055_dac_src_txt);
 
-static const struct soc_enum da9055_dac_r_src =
-	SOC_ENUM_SINGLE(DA9055_DIG_ROUTING_DAC, 4, 4, da9055_dac_src_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_dac_r_src,
+			    DA9055_DIG_ROUTING_DAC, 4, da9055_dac_src_txt);
 
 /* MIC PGA Left source select */
 static const char * const da9055_mic_l_src_txt[] = {
 	"MIC1_P_N", "MIC1_P", "MIC1_N", "MIC2_L"
 };
 
-static const struct soc_enum da9055_mic_l_src =
-	SOC_ENUM_SINGLE(DA9055_MIXIN_L_SELECT, 4, 4, da9055_mic_l_src_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_mic_l_src,
+			    DA9055_MIXIN_L_SELECT, 4, da9055_mic_l_src_txt);
 
 /* MIC PGA Right source select */
 static const char * const da9055_mic_r_src_txt[] = {
 	"MIC2_R_L", "MIC2_R", "MIC2_L"
 };
 
-static const struct soc_enum da9055_mic_r_src =
-	SOC_ENUM_SINGLE(DA9055_MIXIN_R_SELECT, 4, 3, da9055_mic_r_src_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_mic_r_src,
+			    DA9055_MIXIN_R_SELECT, 4, da9055_mic_r_src_txt);
 
 /* ALC Input Signal Tracking rate select */
 static const char * const da9055_signal_tracking_rate_txt[] = {
 	"1/4", "1/16", "1/256", "1/65536"
 };
 
-static const struct soc_enum da9055_integ_attack_rate =
-	SOC_ENUM_SINGLE(DA9055_ALC_CTRL3, 4, 4,
-			da9055_signal_tracking_rate_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_integ_attack_rate,
+			    DA9055_ALC_CTRL3, 4,
+			    da9055_signal_tracking_rate_txt);
 
-static const struct soc_enum da9055_integ_release_rate =
-	SOC_ENUM_SINGLE(DA9055_ALC_CTRL3, 6, 4,
-			da9055_signal_tracking_rate_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_integ_release_rate,
+			    DA9055_ALC_CTRL3, 6,
+			    da9055_signal_tracking_rate_txt);
 
 /* ALC Attack Rate select */
 static const char * const da9055_attack_rate_txt[] = {
@@ -430,8 +432,8 @@ static const char * const da9055_attack_rate_txt[] = {
 	"5632/fs", "11264/fs", "22528/fs", "45056/fs", "90112/fs", "180224/fs"
 };
 
-static const struct soc_enum da9055_attack_rate =
-	SOC_ENUM_SINGLE(DA9055_ALC_CTRL2, 0, 13, da9055_attack_rate_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_attack_rate,
+			    DA9055_ALC_CTRL2, 0, da9055_attack_rate_txt);
 
 /* ALC Release Rate select */
 static const char * const da9055_release_rate_txt[] = {
@@ -439,8 +441,8 @@ static const char * const da9055_release_rate_txt[] = {
 	"11264/fs", "22528/fs", "45056/fs", "90112/fs", "180224/fs"
 };
 
-static const struct soc_enum da9055_release_rate =
-	SOC_ENUM_SINGLE(DA9055_ALC_CTRL2, 4, 11, da9055_release_rate_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_release_rate,
+			    DA9055_ALC_CTRL2, 4, da9055_release_rate_txt);
 
 /* ALC Hold Time select */
 static const char * const da9055_hold_time_txt[] = {
@@ -449,8 +451,8 @@ static const char * const da9055_hold_time_txt[] = {
 	"253952/fs", "507904/fs", "1015808/fs", "2031616/fs"
 };
 
-static const struct soc_enum da9055_hold_time =
-	SOC_ENUM_SINGLE(DA9055_ALC_CTRL3, 0, 16, da9055_hold_time_txt);
+static SOC_ENUM_SINGLE_DECL(da9055_hold_time,
+			    DA9055_ALC_CTRL3, 0, da9055_hold_time_txt);
 
 static int da9055_get_alc_data(struct snd_soc_codec *codec, u8 reg_val)
 {
@@ -482,7 +484,7 @@ static int da9055_get_alc_data(struct snd_soc_codec *codec, u8 reg_val)
 static int da9055_put_alc_sw(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	u8 reg_val, adc_left, adc_right, mic_left, mic_right;
 	int avg_left_data, avg_right_data, offset_l, offset_r;
 
@@ -1381,15 +1383,7 @@ static int da9055_set_bias_level(struct snd_soc_codec *codec,
 
 static int da9055_probe(struct snd_soc_codec *codec)
 {
-	int ret;
 	struct da9055_priv *da9055 = snd_soc_codec_get_drvdata(codec);
-
-	codec->control_data = da9055->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	/* Enable all Gain Ramps */
 	snd_soc_update_bits(codec, DA9055_AUX_L_CTRL,
@@ -1523,17 +1517,30 @@ static int da9055_remove(struct i2c_client *client)
 	return 0;
 }
 
+/*
+ * DO NOT change the device Ids. The naming is intentionally specific as both
+ * the CODEC and PMIC parts of this chip are instantiated separately as I2C
+ * devices (both have configurable I2C addresses, and are to all intents and
+ * purposes separate). As a result there are specific DA9055 Ids for CODEC
+ * and PMIC, which must be different to operate together.
+ */
 static const struct i2c_device_id da9055_i2c_id[] = {
-	{ "da9055", 0 },
+	{ "da9055-codec", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, da9055_i2c_id);
 
+static const struct of_device_id da9055_of_match[] = {
+	{ .compatible = "dlg,da9055-codec", },
+	{ }
+};
+
 /* I2C codec control layer */
 static struct i2c_driver da9055_i2c_driver = {
 	.driver = {
-		.name = "da9055",
+		.name = "da9055-codec",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(da9055_of_match),
 	},
 	.probe		= da9055_i2c_probe,
 	.remove		= da9055_remove,

@@ -30,6 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/wait.h>
 #include <asm/io.h>
 #include <asm/dbdma.h>
 #include <asm/prom.h>
@@ -341,7 +342,7 @@ static void start_request(struct floppy_state *fs)
 		swim3_dbg("do_fd_req: dev=%s cmd=%d sec=%ld nr_sec=%u buf=%p\n",
 			  req->rq_disk->disk_name, req->cmd,
 			  (long)blk_rq_pos(req), blk_rq_sectors(req),
-			  req->buffer);
+			  bio_data(req->bio));
 		swim3_dbg("           errors=%d current_nr_sectors=%u\n",
 			  req->errors, blk_rq_cur_sectors(req));
 #endif
@@ -478,11 +479,11 @@ static inline void setup_transfer(struct floppy_state *fs)
 		/* Set up 3 dma commands: write preamble, data, postamble */
 		init_dma(cp, OUTPUT_MORE, write_preamble, sizeof(write_preamble));
 		++cp;
-		init_dma(cp, OUTPUT_MORE, req->buffer, 512);
+		init_dma(cp, OUTPUT_MORE, bio_data(req->bio), 512);
 		++cp;
 		init_dma(cp, OUTPUT_LAST, write_postamble, sizeof(write_postamble));
 	} else {
-		init_dma(cp, INPUT_LAST, req->buffer, n * 512);
+		init_dma(cp, INPUT_LAST, bio_data(req->bio), n * 512);
 	}
 	++cp;
 	out_le16(&cp->command, DBDMA_STOP);
@@ -840,14 +841,17 @@ static int grab_drive(struct floppy_state *fs, enum swim_state state,
 	spin_lock_irqsave(&swim3_lock, flags);
 	if (fs->state != idle && fs->state != available) {
 		++fs->wanted;
-		while (fs->state != available) {
+		/* this will enable irqs in order to sleep */
+		if (!interruptible)
+			wait_event_lock_irq(fs->wait,
+                                        fs->state == available,
+                                        swim3_lock);
+		else if (wait_event_interruptible_lock_irq(fs->wait,
+					fs->state == available,
+					swim3_lock)) {
+			--fs->wanted;
 			spin_unlock_irqrestore(&swim3_lock, flags);
-			if (interruptible && signal_pending(current)) {
-				--fs->wanted;
-				return -EINTR;
-			}
-			interruptible_sleep_on(&fs->wait);
-			spin_lock_irqsave(&swim3_lock, flags);
+			return -EINTR;
 		}
 		--fs->wanted;
 	}

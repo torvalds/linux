@@ -3,6 +3,18 @@
 #include <linux/pci-aspm.h>
 #include "pci.h"
 
+static void pci_free_resources(struct pci_dev *dev)
+{
+	int i;
+
+	pci_cleanup_rom(dev);
+	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
+		struct resource *res = dev->resource + i;
+		if (res->parent)
+			release_resource(res);
+	}
+}
+
 static void pci_stop_dev(struct pci_dev *dev)
 {
 	pci_pme_active(dev, false);
@@ -25,6 +37,11 @@ static void pci_destroy_dev(struct pci_dev *dev)
 
 	device_del(&dev->dev);
 
+	down_write(&pci_bus_sem);
+	list_del(&dev->bus_list);
+	up_write(&pci_bus_sem);
+
+	pci_free_resources(dev);
 	put_device(&dev->dev);
 }
 

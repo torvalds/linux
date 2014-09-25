@@ -71,8 +71,8 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 
 	dev_dbg(&aic26->spi->dev, "aic26_hw_params(substream=%p, params=%p)\n",
 		substream, params);
-	dev_dbg(&aic26->spi->dev, "rate=%i format=%i\n", params_rate(params),
-		params_format(params));
+	dev_dbg(&aic26->spi->dev, "rate=%i width=%d\n", params_rate(params),
+		params_width(params));
 
 	switch (params_rate(params)) {
 	case 8000:  fsref = 48000; divisor = AIC26_DIV_6; break;
@@ -89,11 +89,11 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* select data word length */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S8:     wlen = AIC26_WLEN_16; break;
-	case SNDRV_PCM_FORMAT_S16_BE: wlen = AIC26_WLEN_16; break;
-	case SNDRV_PCM_FORMAT_S24_BE: wlen = AIC26_WLEN_24; break;
-	case SNDRV_PCM_FORMAT_S32_BE: wlen = AIC26_WLEN_32; break;
+	switch (params_width(params)) {
+	case 8:  wlen = AIC26_WLEN_16; break;
+	case 16: wlen = AIC26_WLEN_16; break;
+	case 24: wlen = AIC26_WLEN_24; break;
+	case 32: wlen = AIC26_WLEN_32; break;
 	default:
 		dev_dbg(&aic26->spi->dev, "bad format\n"); return -EINVAL;
 	}
@@ -238,8 +238,9 @@ static struct snd_soc_dai_driver aic26_dai = {
  * ALSA controls
  */
 static const char *aic26_capture_src_text[] = {"Mic", "Aux"};
-static const struct soc_enum aic26_capture_src_enum =
-	SOC_ENUM_SINGLE(AIC26_REG_AUDIO_CTRL1, 12, 2, aic26_capture_src_text);
+static SOC_ENUM_SINGLE_DECL(aic26_capture_src_enum,
+			    AIC26_REG_AUDIO_CTRL1, 12,
+			    aic26_capture_src_text);
 
 static const struct snd_kcontrol_new aic26_snd_controls[] = {
 	/* Output */
@@ -294,8 +295,6 @@ static int aic26_probe(struct snd_soc_codec *codec)
 {
 	struct aic26 *aic26 = dev_get_drvdata(codec->dev);
 	int ret, reg;
-
-	snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
 
 	aic26->codec = codec;
 

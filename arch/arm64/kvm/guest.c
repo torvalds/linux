@@ -136,13 +136,67 @@ static unsigned long num_core_regs(void)
 }
 
 /**
+ * ARM64 versions of the TIMER registers, always available on arm64
+ */
+
+#define NUM_TIMER_REGS 3
+
+static bool is_timer_reg(u64 index)
+{
+	switch (index) {
+	case KVM_REG_ARM_TIMER_CTL:
+	case KVM_REG_ARM_TIMER_CNT:
+	case KVM_REG_ARM_TIMER_CVAL:
+		return true;
+	}
+	return false;
+}
+
+static int copy_timer_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
+{
+	if (put_user(KVM_REG_ARM_TIMER_CTL, uindices))
+		return -EFAULT;
+	uindices++;
+	if (put_user(KVM_REG_ARM_TIMER_CNT, uindices))
+		return -EFAULT;
+	uindices++;
+	if (put_user(KVM_REG_ARM_TIMER_CVAL, uindices))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int set_timer_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
+{
+	void __user *uaddr = (void __user *)(long)reg->addr;
+	u64 val;
+	int ret;
+
+	ret = copy_from_user(&val, uaddr, KVM_REG_SIZE(reg->id));
+	if (ret != 0)
+		return ret;
+
+	return kvm_arm_timer_set_reg(vcpu, reg->id, val);
+}
+
+static int get_timer_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
+{
+	void __user *uaddr = (void __user *)(long)reg->addr;
+	u64 val;
+
+	val = kvm_arm_timer_get_reg(vcpu, reg->id);
+	return copy_to_user(uaddr, &val, KVM_REG_SIZE(reg->id));
+}
+
+/**
  * kvm_arm_num_regs - how many registers do we present via KVM_GET_ONE_REG
  *
  * This is for all registers.
  */
 unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu)
 {
-	return num_core_regs() + kvm_arm_num_sys_reg_descs(vcpu);
+	return num_core_regs() + kvm_arm_num_sys_reg_descs(vcpu)
+                + NUM_TIMER_REGS;
 }
 
 /**
@@ -154,12 +208,18 @@ int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 {
 	unsigned int i;
 	const u64 core_reg = KVM_REG_ARM64 | KVM_REG_SIZE_U64 | KVM_REG_ARM_CORE;
+	int ret;
 
 	for (i = 0; i < sizeof(struct kvm_regs) / sizeof(__u32); i++) {
 		if (put_user(core_reg | i, uindices))
 			return -EFAULT;
 		uindices++;
 	}
+
+	ret = copy_timer_indices(vcpu, uindices);
+	if (ret)
+		return ret;
+	uindices += NUM_TIMER_REGS;
 
 	return kvm_arm_copy_sys_reg_indices(vcpu, uindices);
 }
@@ -174,6 +234,9 @@ int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_CORE)
 		return get_core_reg(vcpu, reg);
 
+	if (is_timer_reg(reg->id))
+		return get_timer_reg(vcpu, reg);
+
 	return kvm_arm_sys_reg_get_reg(vcpu, reg);
 }
 
@@ -186,6 +249,9 @@ int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	/* Register group 16 means we set a core register. */
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_CORE)
 		return set_core_reg(vcpu, reg);
+
+	if (is_timer_reg(reg->id))
+		return set_timer_reg(vcpu, reg);
 
 	return kvm_arm_sys_reg_set_reg(vcpu, reg);
 }
@@ -214,6 +280,8 @@ int __attribute_const__ kvm_target_cpu(void)
 			return KVM_ARM_TARGET_AEM_V8;
 		case ARM_CPU_PART_FOUNDATION:
 			return KVM_ARM_TARGET_FOUNDATION_V8;
+		case ARM_CPU_PART_CORTEX_A53:
+			return KVM_ARM_TARGET_CORTEX_A53;
 		case ARM_CPU_PART_CORTEX_A57:
 			return KVM_ARM_TARGET_CORTEX_A57;
 		};

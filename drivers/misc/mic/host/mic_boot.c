@@ -23,10 +23,69 @@
 #include <linux/pci.h>
 
 #include <linux/mic_common.h>
+#include <linux/mic_bus.h>
 #include "../common/mic_dev.h"
 #include "mic_device.h"
 #include "mic_smpt.h"
 #include "mic_virtio.h"
+
+static inline struct mic_device *mbdev_to_mdev(struct mbus_device *mbdev)
+{
+	return dev_get_drvdata(mbdev->dev.parent);
+}
+
+static dma_addr_t
+mic_dma_map_page(struct device *dev, struct page *page,
+		 unsigned long offset, size_t size, enum dma_data_direction dir,
+		 struct dma_attrs *attrs)
+{
+	void *va = phys_to_virt(page_to_phys(page)) + offset;
+	struct mic_device *mdev = dev_get_drvdata(dev->parent);
+
+	return mic_map_single(mdev, va, size);
+}
+
+static void
+mic_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
+		   size_t size, enum dma_data_direction dir,
+		   struct dma_attrs *attrs)
+{
+	struct mic_device *mdev = dev_get_drvdata(dev->parent);
+	mic_unmap_single(mdev, dma_addr, size);
+}
+
+static struct dma_map_ops mic_dma_ops = {
+	.map_page = mic_dma_map_page,
+	.unmap_page = mic_dma_unmap_page,
+};
+
+static struct mic_irq *
+_mic_request_threaded_irq(struct mbus_device *mbdev,
+			  irq_handler_t handler, irq_handler_t thread_fn,
+			  const char *name, void *data, int intr_src)
+{
+	return mic_request_threaded_irq(mbdev_to_mdev(mbdev), handler,
+					thread_fn, name, data,
+					intr_src, MIC_INTR_DMA);
+}
+
+static void _mic_free_irq(struct mbus_device *mbdev,
+			  struct mic_irq *cookie, void *data)
+{
+	return mic_free_irq(mbdev_to_mdev(mbdev), cookie, data);
+}
+
+static void _mic_ack_interrupt(struct mbus_device *mbdev, int num)
+{
+	struct mic_device *mdev = mbdev_to_mdev(mbdev);
+	mdev->ops->intr_workarounds(mdev);
+}
+
+static struct mbus_hw_ops mbus_hw_ops = {
+	.request_threaded_irq = _mic_request_threaded_irq,
+	.free_irq = _mic_free_irq,
+	.ack_interrupt = _mic_ack_interrupt,
+};
 
 /**
  * mic_reset - Reset the MIC device.
@@ -95,9 +154,21 @@ retry:
 		 */
 		goto retry;
 	}
+	mdev->dma_mbdev = mbus_register_device(mdev->sdev->parent,
+					       MBUS_DEV_DMA_HOST, &mic_dma_ops,
+					       &mbus_hw_ops, mdev->mmio.va);
+	if (IS_ERR(mdev->dma_mbdev)) {
+		rc = PTR_ERR(mdev->dma_mbdev);
+		goto unlock_ret;
+	}
+	mdev->dma_ch = mic_request_dma_chan(mdev);
+	if (!mdev->dma_ch) {
+		rc = -ENXIO;
+		goto dma_remove;
+	}
 	rc = mdev->ops->load_mic_fw(mdev, buf);
 	if (rc)
-		goto unlock_ret;
+		goto dma_release;
 	mic_smpt_restore(mdev);
 	mic_intr_restore(mdev);
 	mdev->intr_ops->enable_interrupts(mdev);
@@ -105,6 +176,11 @@ retry:
 	mdev->ops->write_spad(mdev, MIC_DPHI_SPAD, mdev->dp_dma_addr >> 32);
 	mdev->ops->send_firmware_intr(mdev);
 	mic_set_state(mdev, MIC_ONLINE);
+	goto unlock_ret;
+dma_release:
+	dma_release_channel(mdev->dma_ch);
+dma_remove:
+	mbus_unregister_device(mdev->dma_mbdev);
 unlock_ret:
 	mutex_unlock(&mdev->mic_mutex);
 	return rc;
@@ -122,6 +198,11 @@ void mic_stop(struct mic_device *mdev, bool force)
 	mutex_lock(&mdev->mic_mutex);
 	if (MIC_OFFLINE != mdev->state || force) {
 		mic_virtio_reset_devices(mdev);
+		if (mdev->dma_ch) {
+			dma_release_channel(mdev->dma_ch);
+			mdev->dma_ch = NULL;
+		}
+		mbus_unregister_device(mdev->dma_mbdev);
 		mic_bootparam_init(mdev);
 		mic_reset(mdev);
 		if (MIC_RESET_FAILED == mdev->state)

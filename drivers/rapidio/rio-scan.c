@@ -461,6 +461,7 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 			     rdev->comp_tag & RIO_CTAG_UDEVID);
 	}
 
+	rdev->dev.parent = &port->dev;
 	rio_attach_device(rdev);
 
 	device_initialize(&rdev->dev);

@@ -22,9 +22,6 @@
  * Author: Ben Skeggs
  */
 
-#include <core/object.h>
-#include <core/class.h>
-
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -33,8 +30,6 @@
 #include "hw.h"
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
-
-#include <subdev/i2c.h>
 
 int
 nv04_display_early_init(struct drm_device *dev)
@@ -58,7 +53,7 @@ int
 nv04_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *ct;
 	struct drm_encoder *encoder;
@@ -70,17 +65,14 @@ nv04_display_create(struct drm_device *dev)
 	if (!disp)
 		return -ENOMEM;
 
+	nvif_object_map(nvif_object(&drm->device));
+
 	nouveau_display(dev)->priv = disp;
 	nouveau_display(dev)->dtor = nv04_display_destroy;
 	nouveau_display(dev)->init = nv04_display_init;
 	nouveau_display(dev)->fini = nv04_display_fini;
 
 	nouveau_hw_save_vga_fonts(dev, 1);
-
-	ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE, 0xd1500000,
-				 NV04_DISP_CLASS, NULL, 0, &disp->core);
-	if (ret)
-		return ret;
 
 	nv04_crtc_create(dev, 0);
 	if (nv_two_heads(dev))
@@ -120,7 +112,7 @@ nv04_display_create(struct drm_device *dev)
 				 &dev->mode_config.connector_list, head) {
 		if (!connector->encoder_ids[0]) {
 			NV_WARN(drm, "%s has no encoders, removing\n",
-				drm_get_connector_name(connector));
+				connector->name);
 			connector->funcs->destroy(connector);
 		}
 	}
@@ -149,6 +141,7 @@ void
 nv04_display_destroy(struct drm_device *dev)
 {
 	struct nv04_display *disp = nv04_display(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 
@@ -175,6 +168,8 @@ nv04_display_destroy(struct drm_device *dev)
 
 	nouveau_display(dev)->priv = NULL;
 	kfree(disp);
+
+	nvif_object_unmap(nvif_object(&drm->device));
 }
 
 int

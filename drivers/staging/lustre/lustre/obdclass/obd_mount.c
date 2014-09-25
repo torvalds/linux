@@ -45,13 +45,13 @@
 #define D_MOUNT (D_SUPER|D_CONFIG/*|D_WARNING */)
 #define PRINT_CMD CDEBUG
 
-#include <obd.h>
-#include <lvfs.h>
-#include <obd_class.h>
-#include <lustre/lustre_user.h>
-#include <lustre_log.h>
-#include <lustre_disk.h>
-#include <lustre_param.h>
+#include "../include/obd.h"
+#include "../include/lvfs.h"
+#include "../include/obd_class.h"
+#include "../include/lustre/lustre_user.h"
+#include "../include/lustre_log.h"
+#include "../include/lustre_disk.h"
+#include "../include/lustre_param.h"
 
 static int (*client_fill_super)(struct super_block *sb,
 				struct vfsmount *mnt);
@@ -187,7 +187,7 @@ int lustre_start_simple(char *obdname, char *type, char *uuid,
 	int rc;
 	CDEBUG(D_MOUNT, "Starting obd %s (typ=%s)\n", obdname, type);
 
-	rc = do_lcfg(obdname, 0, LCFG_ATTACH, type, uuid, 0, 0);
+	rc = do_lcfg(obdname, 0, LCFG_ATTACH, type, uuid, NULL, NULL);
 	if (rc) {
 		CERROR("%s attach error %d\n", obdname, rc);
 		return rc;
@@ -195,7 +195,7 @@ int lustre_start_simple(char *obdname, char *type, char *uuid,
 	rc = do_lcfg(obdname, 0, LCFG_SETUP, s1, s2, s3, s4);
 	if (rc) {
 		CERROR("%s setup error %d\n", obdname, rc);
-		do_lcfg(obdname, 0, LCFG_DETACH, 0, 0, 0, 0);
+		do_lcfg(obdname, 0, LCFG_DETACH, NULL, NULL, NULL, NULL);
 	}
 	return rc;
 }
@@ -219,7 +219,6 @@ int lustre_start_mgc(struct super_block *sb)
 	lnet_nid_t nid;
 	char *mgcname = NULL, *niduuid = NULL, *mgssec = NULL;
 	char *ptr;
-	int recov_bk;
 	int rc = 0, i = 0, j, len;
 
 	LASSERT(lsi->lsi_lmd);
@@ -269,6 +268,8 @@ int lustre_start_mgc(struct super_block *sb)
 
 	obd = class_name2obd(mgcname);
 	if (obd && !obd->obd_stopping) {
+		int recov_bk;
+
 		rc = obd_set_info_async(NULL, obd->obd_self_export,
 					strlen(KEY_MGSSEC), KEY_MGSSEC,
 					strlen(mgssec), mgssec, NULL);
@@ -337,7 +338,8 @@ int lustre_start_mgc(struct super_block *sb)
 			lnet_process_id_t id;
 			while ((rc = LNetGetId(i++, &id)) != -ENOENT) {
 				rc = do_lcfg(mgcname, id.nid,
-					     LCFG_ADD_UUID, niduuid, 0,0,0);
+					     LCFG_ADD_UUID, niduuid,
+					     NULL, NULL, NULL);
 			}
 		} else {
 			/* Use mgsnode= nids */
@@ -351,7 +353,8 @@ int lustre_start_mgc(struct super_block *sb)
 			}
 			while (class_parse_nid(ptr, &nid, &ptr) == 0) {
 				rc = do_lcfg(mgcname, nid,
-					     LCFG_ADD_UUID, niduuid, 0,0,0);
+					     LCFG_ADD_UUID, niduuid,
+					     NULL, NULL, NULL);
 				i++;
 			}
 		}
@@ -360,7 +363,7 @@ int lustre_start_mgc(struct super_block *sb)
 		ptr = lsi->lsi_lmd->lmd_dev;
 		while (class_parse_nid(ptr, &nid, &ptr) == 0) {
 			rc = do_lcfg(mgcname, nid,
-				     LCFG_ADD_UUID, niduuid, 0,0,0);
+				     LCFG_ADD_UUID, niduuid, NULL, NULL, NULL);
 			i++;
 			/* Stop at the first failover nid */
 			if (*ptr == ':')
@@ -381,7 +384,7 @@ int lustre_start_mgc(struct super_block *sb)
 	/* Start the MGC */
 	rc = lustre_start_simple(mgcname, LUSTRE_MGC_NAME,
 				 (char *)uuid->uuid, LUSTRE_MGS_OBDNAME,
-				 niduuid, 0, 0);
+				 niduuid, NULL, NULL);
 	OBD_FREE_PTR(uuid);
 	if (rc)
 		GOTO(out_free, rc);
@@ -396,13 +399,13 @@ int lustre_start_mgc(struct super_block *sb)
 		while (class_parse_nid_quiet(ptr, &nid, &ptr) == 0) {
 			j++;
 			rc = do_lcfg(mgcname, nid,
-				     LCFG_ADD_UUID, niduuid, 0,0,0);
+				     LCFG_ADD_UUID, niduuid, NULL, NULL, NULL);
 			if (*ptr == ':')
 				break;
 		}
 		if (j > 0) {
 			rc = do_lcfg(mgcname, 0, LCFG_ADD_CONN,
-				     niduuid, 0, 0, 0);
+				     niduuid, NULL, NULL, NULL);
 			i++;
 		} else {
 			/* at ":/fsname" */
@@ -426,16 +429,6 @@ int lustre_start_mgc(struct super_block *sb)
 	/* Keep a refcount of servers/clients who started with "mount",
 	   so we know when we can get rid of the mgc. */
 	atomic_set(&obd->u.cli.cl_mgc_refcount, 1);
-
-	/* Try all connections, but only once. */
-	recov_bk = 1;
-	rc = obd_set_info_async(NULL, obd->obd_self_export,
-				sizeof(KEY_INIT_RECOV_BACKUP),
-				KEY_INIT_RECOV_BACKUP,
-				sizeof(recov_bk), &recov_bk, NULL);
-	if (rc)
-		/* nonfatal */
-		CWARN("can't set %s %d\n", KEY_INIT_RECOV_BACKUP, rc);
 
 	/* We connect to the MGS at setup, and don't disconnect until cleanup */
 	data->ocd_connect_flags = OBD_CONNECT_VERSION | OBD_CONNECT_AT |
@@ -480,7 +473,7 @@ static int lustre_stop_mgc(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct obd_device *obd;
-	char *niduuid = 0, *ptr = 0;
+	char *niduuid = NULL, *ptr = NULL;
 	int i, rc = 0, len = 0;
 
 	if (!lsi)
@@ -501,7 +494,7 @@ static int lustre_stop_mgc(struct super_block *sb)
 	}
 
 	/* The MGC has no recoverable data in any case.
-	 * force shotdown set in umount_begin */
+	 * force shutdown set in umount_begin */
 	obd->obd_no_recov = 1;
 
 	if (obd->u.cli.cl_mgc_mgsexp) {
@@ -532,7 +525,7 @@ static int lustre_stop_mgc(struct super_block *sb)
 	for (i = 0; i < lsi->lsi_lmd->lmd_mgs_failnodes; i++) {
 		sprintf(ptr, "_%x", i);
 		rc = do_lcfg(LUSTRE_MGC_OBDNAME, 0, LCFG_DEL_UUID,
-			     niduuid, 0, 0, 0);
+			     niduuid, NULL, NULL, NULL);
 		if (rc)
 			CERROR("del MDC UUID %s failed: rc = %d\n",
 			       niduuid, rc);
@@ -754,7 +747,7 @@ int server_name2index(const char *svname, __u32 *idx, const char **endptr)
 }
 EXPORT_SYMBOL(server_name2index);
 
-/*************** mount common betweeen server and client ***************/
+/*************** mount common between server and client ***************/
 
 /* Common umount */
 int lustre_common_put_super(struct super_block *sb)
@@ -1223,7 +1216,9 @@ int lustre_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (lmd_is_client(lmd)) {
 		CDEBUG(D_MOUNT, "Mounting client %s\n", lmd->lmd_profile);
-		if (!client_fill_super) {
+		if (client_fill_super == NULL)
+			request_module("lustre");
+		if (client_fill_super == NULL) {
 			LCONSOLE_ERROR_MSG(0x165, "Nothing registered for "
 					   "client mount! Is the 'lustre' "
 					   "module loaded?\n");
@@ -1306,6 +1301,7 @@ struct file_system_type lustre_fs_type = {
 	.fs_flags     = FS_BINARY_MOUNTDATA | FS_REQUIRES_DEV |
 			FS_HAS_FIEMAP | FS_RENAME_DOES_D_MOVE,
 };
+MODULE_ALIAS_FS("lustre");
 
 int lustre_register_fs(void)
 {

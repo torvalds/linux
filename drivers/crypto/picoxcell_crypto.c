@@ -1720,20 +1720,14 @@ static int spacc_probe(struct platform_device *pdev)
 	engine->name = dev_name(&pdev->dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	engine->regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(engine->regs))
+		return PTR_ERR(engine->regs);
+
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!mem || !irq) {
+	if (!irq) {
 		dev_err(&pdev->dev, "no memory/irq resource for engine\n");
 		return -ENXIO;
-	}
-
-	if (!devm_request_mem_region(&pdev->dev, mem->start, resource_size(mem),
-				     engine->name))
-		return -ENOMEM;
-
-	engine->regs = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
-	if (!engine->regs) {
-		dev_err(&pdev->dev, "memory map failed\n");
-		return -ENOMEM;
 	}
 
 	if (devm_request_irq(&pdev->dev, irq->start, spacc_spacc_irq, 0,

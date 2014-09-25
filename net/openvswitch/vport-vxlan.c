@@ -122,7 +122,7 @@ static struct vport *vxlan_tnl_create(const struct vport_parms *parms)
 	vxlan_port = vxlan_vport(vport);
 	strncpy(vxlan_port->name, parms->name, IFNAMSIZ);
 
-	vs = vxlan_sock_add(net, htons(dst_port), vxlan_rcv, vport, true, false);
+	vs = vxlan_sock_add(net, htons(dst_port), vxlan_rcv, vport, true, 0);
 	if (IS_ERR(vs)) {
 		ovs_vport_free(vport);
 		return (void *)vs;
@@ -143,8 +143,6 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 	struct rtable *rt;
 	struct flowi4 fl;
 	__be16 src_port;
-	int port_min;
-	int port_max;
 	__be16 df;
 	int err;
 
@@ -170,17 +168,17 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 	df = OVS_CB(skb)->tun_key->tun_flags & TUNNEL_DONT_FRAGMENT ?
 		htons(IP_DF) : 0;
 
-	skb->local_df = 1;
+	skb->ignore_df = 1;
 
-	inet_get_local_port_range(net, &port_min, &port_max);
-	src_port = vxlan_src_port(port_min, port_max, skb);
+	src_port = udp_flow_src_port(net, skb, 0, 0, true);
 
 	err = vxlan_xmit_skb(vxlan_port->vs, rt, skb,
 			     fl.saddr, OVS_CB(skb)->tun_key->ipv4_dst,
 			     OVS_CB(skb)->tun_key->ipv4_tos,
 			     OVS_CB(skb)->tun_key->ipv4_ttl, df,
 			     src_port, dst_port,
-			     htonl(be64_to_cpu(OVS_CB(skb)->tun_key->tun_id) << 8));
+			     htonl(be64_to_cpu(OVS_CB(skb)->tun_key->tun_id) << 8),
+			     false);
 	if (err < 0)
 		ip_rt_put(rt);
 error:

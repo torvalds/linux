@@ -16,17 +16,16 @@
 #include <linux/cgroup.h>
 #include <linux/hardirq.h>
 #include <linux/rcupdate.h>
+#include <net/sock.h>
 
-#if IS_ENABLED(CONFIG_NET_CLS_CGROUP)
-struct cgroup_cls_state
-{
+#ifdef CONFIG_CGROUP_NET_CLASSID
+struct cgroup_cls_state {
 	struct cgroup_subsys_state css;
 	u32 classid;
 };
 
-void sock_update_classid(struct sock *sk);
+struct cgroup_cls_state *task_cls_state(struct task_struct *p);
 
-#if IS_BUILTIN(CONFIG_NET_CLS_CGROUP)
 static inline u32 task_cls_classid(struct task_struct *p)
 {
 	u32 classid;
@@ -35,39 +34,24 @@ static inline u32 task_cls_classid(struct task_struct *p)
 		return 0;
 
 	rcu_read_lock();
-	classid = container_of(task_css(p, net_cls_subsys_id),
+	classid = container_of(task_css(p, net_cls_cgrp_id),
 			       struct cgroup_cls_state, css)->classid;
 	rcu_read_unlock();
 
 	return classid;
 }
-#elif IS_MODULE(CONFIG_NET_CLS_CGROUP)
-static inline u32 task_cls_classid(struct task_struct *p)
+
+static inline void sock_update_classid(struct sock *sk)
 {
-	struct cgroup_subsys_state *css;
-	u32 classid = 0;
+	u32 classid;
 
-	if (in_interrupt())
-		return 0;
-
-	rcu_read_lock();
-	css = task_css(p, net_cls_subsys_id);
-	if (css)
-		classid = container_of(css,
-				       struct cgroup_cls_state, css)->classid;
-	rcu_read_unlock();
-
-	return classid;
+	classid = task_cls_classid(current);
+	if (classid != sk->sk_classid)
+		sk->sk_classid = classid;
 }
-#endif
-#else /* !CGROUP_NET_CLS_CGROUP */
+#else /* !CONFIG_CGROUP_NET_CLASSID */
 static inline void sock_update_classid(struct sock *sk)
 {
 }
-
-static inline u32 task_cls_classid(struct task_struct *p)
-{
-	return 0;
-}
-#endif /* CGROUP_NET_CLS_CGROUP */
+#endif /* CONFIG_CGROUP_NET_CLASSID */
 #endif  /* _NET_CLS_CGROUP_H */

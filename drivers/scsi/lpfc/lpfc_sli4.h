@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009-2013 Emulex.  All rights reserved.           *
+ * Copyright (C) 2009-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -38,6 +38,10 @@
 #define LPFC_FCP_IO_CHAN_DEF       4
 #define LPFC_FCP_IO_CHAN_MIN       1
 #define LPFC_FCP_IO_CHAN_MAX       16
+
+/* Number of channels used for Flash Optimized Fabric (FOF) operations */
+
+#define LPFC_FOF_IO_CHAN_NUM       1
 
 /*
  * Provide the default FCF Record attributes used by the driver
@@ -399,6 +403,7 @@ struct lpfc_pc_sli4_params {
 	uint32_t if_page_sz;
 	uint32_t rq_db_window;
 	uint32_t loopbk_scope;
+	uint32_t oas_supported;
 	uint32_t eq_pages_max;
 	uint32_t eqe_size;
 	uint32_t cq_pages_max;
@@ -439,6 +444,8 @@ struct lpfc_sli4_lnk_info {
 	uint8_t lnk_no;
 };
 
+#define LPFC_SLI4_HANDLER_CNT		(LPFC_FCP_IO_CHAN_MAX+ \
+					 LPFC_FOF_IO_CHAN_NUM)
 #define LPFC_SLI4_HANDLER_NAME_SZ	16
 
 /* Used for IRQ vector to CPU mapping */
@@ -507,7 +514,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_register sli_intf;
 	struct lpfc_pc_sli4_params pc_sli4_params;
 	struct msix_entry *msix_entries;
-	uint8_t handler_name[LPFC_FCP_IO_CHAN_MAX][LPFC_SLI4_HANDLER_NAME_SZ];
+	uint8_t handler_name[LPFC_SLI4_HANDLER_CNT][LPFC_SLI4_HANDLER_NAME_SZ];
 	struct lpfc_fcp_eq_hdl *fcp_eq_hdl; /* FCP per-WQ handle */
 
 	/* Pointers to the constructed SLI4 queues */
@@ -526,6 +533,17 @@ struct lpfc_sli4_hba {
 	uint32_t fw_func_mode;	/* FW function protocol mode */
 	uint32_t ulp0_mode;	/* ULP0 protocol mode */
 	uint32_t ulp1_mode;	/* ULP1 protocol mode */
+
+	struct lpfc_queue *fof_eq; /* Flash Optimized Fabric Event queue */
+
+	/* Optimized Access Storage specific queues/structures */
+
+	struct lpfc_queue *oas_cq; /* OAS completion queue */
+	struct lpfc_queue *oas_wq; /* OAS Work queue */
+	struct lpfc_sli_ring *oas_ring;
+	uint64_t oas_next_lun;
+	uint8_t oas_next_tgt_wwpn[8];
+	uint8_t oas_next_vpt_wwpn[8];
 
 	/* Setup information for various queue parameters */
 	int eq_esize;
@@ -589,6 +607,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_vector_map_info *cpu_map;
 	uint16_t num_online_cpu;
 	uint16_t num_present_cpu;
+	uint16_t curr_disp_cpu;
 };
 
 enum lpfc_sge_type {

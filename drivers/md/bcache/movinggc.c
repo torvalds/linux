@@ -24,12 +24,10 @@ static bool moving_pred(struct keybuf *buf, struct bkey *k)
 					   moving_gc_keys);
 	unsigned i;
 
-	for (i = 0; i < KEY_PTRS(k); i++) {
-		struct bucket *g = PTR_BUCKET(c, k, i);
-
-		if (GC_MOVE(g))
+	for (i = 0; i < KEY_PTRS(k); i++)
+		if (ptr_available(c, k, i) &&
+		    GC_MOVE(PTR_BUCKET(c, k, i)))
 			return true;
-	}
 
 	return false;
 }
@@ -86,7 +84,7 @@ static void moving_init(struct moving_io *io)
 	bio_get(bio);
 	bio_set_prio(bio, IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0));
 
-	bio->bi_size		= KEY_SIZE(&io->w->key) << 9;
+	bio->bi_iter.bi_size	= KEY_SIZE(&io->w->key) << 9;
 	bio->bi_max_vecs	= DIV_ROUND_UP(KEY_SIZE(&io->w->key),
 					       PAGE_SECTORS);
 	bio->bi_private		= &io->cl;
@@ -102,7 +100,7 @@ static void write_moving(struct closure *cl)
 	if (!op->error) {
 		moving_init(io);
 
-		io->bio.bio.bi_sector = KEY_START(&io->w->key);
+		io->bio.bio.bi_iter.bi_sector = KEY_START(&io->w->key);
 		op->write_prio		= 1;
 		op->bio			= &io->bio.bio;
 
@@ -115,7 +113,7 @@ static void write_moving(struct closure *cl)
 		closure_call(&op->cl, bch_data_insert, NULL, cl);
 	}
 
-	continue_at(cl, write_moving_finish, system_wq);
+	continue_at(cl, write_moving_finish, op->wq);
 }
 
 static void read_moving_submit(struct closure *cl)
@@ -125,7 +123,7 @@ static void read_moving_submit(struct closure *cl)
 
 	bch_submit_bbio(bio, io->op.c, &io->w->key, 0);
 
-	continue_at(cl, write_moving, system_wq);
+	continue_at(cl, write_moving, io->op.wq);
 }
 
 static void read_moving(struct cache_set *c)
@@ -160,6 +158,7 @@ static void read_moving(struct cache_set *c)
 		io->w		= w;
 		io->op.inode	= KEY_INODE(&w->key);
 		io->op.c	= c;
+		io->op.wq	= c->moving_gc_wq;
 
 		moving_init(io);
 		bio = &io->bio.bio;
@@ -211,12 +210,15 @@ void bch_moving_gc(struct cache_set *c)
 	for_each_cache(ca, c, i) {
 		unsigned sectors_to_move = 0;
 		unsigned reserve_sectors = ca->sb.bucket_size *
-			min(fifo_used(&ca->free), ca->free.size / 2);
+			fifo_used(&ca->free[RESERVE_MOVINGGC]);
 
 		ca->heap.used = 0;
 
 		for_each_bucket(b, ca) {
-			if (!GC_SECTORS_USED(b))
+			if (GC_MARK(b) == GC_MARK_METADATA ||
+			    !GC_SECTORS_USED(b) ||
+			    GC_SECTORS_USED(b) == ca->sb.bucket_size ||
+			    atomic_read(&b->pin))
 				continue;
 
 			if (!heap_full(&ca->heap)) {

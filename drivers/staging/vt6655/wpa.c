@@ -73,6 +73,7 @@ WPA_ClearRSN(
 )
 {
 	int ii;
+
 	pBSSList->byGKType = WPA_TKIP;
 	for (ii = 0; ii < 4; ii++)
 		pBSSList->abyPKType[ii] = WPA_TKIP;
@@ -122,8 +123,8 @@ WPA_ParseRSN(
 	    && (pRSN->wVersion == 1)) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Legal RSN\n");
 		// update each variable if pRSN is long enough to contain the variable
-		if (pRSN->len >= 10) //oui1(4)+ver(2)+GKSuite(4)
-		{
+		if (pRSN->len >= 10) {
+			//OUI1(4)+ver(2)+GKSuite(4)
 			if (!memcmp(pRSN->abyMulticast, abyOUI01, 4))
 				pBSSList->byGKType = WPA_WEP40;
 			else if (!memcmp(pRSN->abyMulticast, abyOUI02, 4))
@@ -141,8 +142,8 @@ WPA_ParseRSN(
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "byGKType: %x\n", pBSSList->byGKType);
 		}
 
-		if (pRSN->len >= 12) //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)
-		{
+		if (pRSN->len >= 12) {
+			//oui1(4)+ver(2)+GKS(4)+PKSCnt(2)
 			j = 0;
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wPKCount: %d, sizeof(pBSSList->abyPKType): %zu\n", pRSN->wPKCount, sizeof(pBSSList->abyPKType));
 			for (i = 0; (i < pRSN->wPKCount) && (j < ARRAY_SIZE(pBSSList->abyPKType)); i++) {
@@ -160,8 +161,7 @@ WPA_ParseRSN(
 						;
 				} else
 					break;
-				//DBG_PRN_GRP14(("abyPKType[%d]: %X\n", j-1, pBSSList->abyPKType[j-1]));
-			} //for
+			}
 			pBSSList->wPKCount = (unsigned short)j;
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wPKCount: %d\n", pBSSList->wPKCount);
 		}
@@ -187,7 +187,7 @@ WPA_ParseRSN(
 						;
 				} else
 					break;
-				//DBG_PRN_GRP14(("abyAuthType[%d]: %X\n", j-1, pBSSList->abyAuthType[j-1]));
+
 			}
 			if (j > 0)
 				pBSSList->wAuthCount = (unsigned short)j;
@@ -206,9 +206,6 @@ WPA_ParseRSN(
 				pBSSList->byReplayIdx = 2 << ((*pbyCaps >> WPA_REPLAYBITSSHIFT) & WPA_REPLAYBITS);
 				pBSSList->sRSNCapObj.bRSNCapExist = true;
 				pBSSList->sRSNCapObj.wRSNCap = *(unsigned short *)pbyCaps;
-				//DBG_PRN_GRP14(("pbyCaps: %X\n", *pbyCaps));
-				//DBG_PRN_GRP14(("byDefaultK_as_PK: %X\n", pBSSList->byDefaultK_as_PK));
-				//DBG_PRN_GRP14(("byReplayIdx: %X\n", pBSSList->byReplayIdx));
 			}
 		}
 		pBSSList->bWPAValid = true;
@@ -265,7 +262,6 @@ WPA_SearchRSN(
 				return false;
 		}
 		return true;
-		break;
 
 	default:
 		break;

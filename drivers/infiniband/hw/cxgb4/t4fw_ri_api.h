@@ -836,4 +836,18 @@ struct ulptx_idata {
 #define V_RX_DACK_CHANGE(x) ((x) << S_RX_DACK_CHANGE)
 #define F_RX_DACK_CHANGE    V_RX_DACK_CHANGE(1U)
 
+enum {                     /* TCP congestion control algorithms */
+	CONG_ALG_RENO,
+	CONG_ALG_TAHOE,
+	CONG_ALG_NEWRENO,
+	CONG_ALG_HIGHSPEED
+};
+
+#define S_CONG_CNTRL    14
+#define M_CONG_CNTRL    0x3
+#define V_CONG_CNTRL(x) ((x) << S_CONG_CNTRL)
+#define G_CONG_CNTRL(x) (((x) >> S_CONG_CNTRL) & M_CONG_CNTRL)
+
+#define CONG_CNTRL_VALID   (1 << 18)
+
 #endif /* _T4FW_RI_API_H_ */

@@ -37,8 +37,8 @@
 #define DEBUG_SUBSYSTEM S_LOG
 
 
-#include <obd_class.h>
-#include <lustre_log.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_log.h"
 #include "llog_internal.h"
 
 /* helper functions for calling the llog obd methods */
@@ -226,34 +226,7 @@ int llog_sync(struct llog_ctxt *ctxt, struct obd_export *exp, int flags)
 }
 EXPORT_SYMBOL(llog_sync);
 
-int llog_obd_add(const struct lu_env *env, struct llog_ctxt *ctxt,
-		 struct llog_rec_hdr *rec, struct lov_stripe_md *lsm,
-		 struct llog_cookie *logcookies, int numcookies)
-{
-	int raised, rc;
-
-	if (!ctxt) {
-		CERROR("No ctxt\n");
-		return -ENODEV;
-	}
-
-	if (ctxt->loc_flags & LLOG_CTXT_FLAG_UNINITIALIZED)
-		return -ENXIO;
-
-	CTXT_CHECK_OP(ctxt, obd_add, -EOPNOTSUPP);
-	raised = cfs_cap_raised(CFS_CAP_SYS_RESOURCE);
-	if (!raised)
-		cfs_cap_raise(CFS_CAP_SYS_RESOURCE);
-	rc = CTXTP(ctxt, obd_add)(env, ctxt, rec, lsm, logcookies,
-				  numcookies);
-	if (!raised)
-		cfs_cap_lower(CFS_CAP_SYS_RESOURCE);
-	return rc;
-}
-EXPORT_SYMBOL(llog_obd_add);
-
 int llog_cancel(const struct lu_env *env, struct llog_ctxt *ctxt,
-		struct lov_stripe_md *lsm, int count,
 		struct llog_cookie *cookies, int flags)
 {
 	int rc;
@@ -264,7 +237,7 @@ int llog_cancel(const struct lu_env *env, struct llog_ctxt *ctxt,
 	}
 
 	CTXT_CHECK_OP(ctxt, cancel, -EOPNOTSUPP);
-	rc = CTXTP(ctxt, cancel)(env, ctxt, lsm, count, cookies, flags);
+	rc = CTXTP(ctxt, cancel)(env, ctxt, cookies, flags);
 	return rc;
 }
 EXPORT_SYMBOL(llog_cancel);
