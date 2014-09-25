@@ -113,7 +113,8 @@ static const struct iio_chan_spec ad5933_channels[] = {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE),
 		.address = AD5933_REG_TEMP_DATA,
 		.scan_index = -1,
 		.scan_type = {
@@ -520,12 +521,11 @@ static int ad5933_read_raw(struct iio_dev *indio_dev,
 {
 	struct ad5933_state *st = iio_priv(indio_dev);
 	__be16 dat;
-	int ret = -EINVAL;
+	int ret;
 
-	mutex_lock(&indio_dev->mlock);
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-	case IIO_CHAN_INFO_PROCESSED:
+		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev)) {
 			ret = -EBUSY;
 			goto out;
@@ -543,16 +543,16 @@ static int ad5933_read_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			goto out;
 		mutex_unlock(&indio_dev->mlock);
-		ret = be16_to_cpu(dat);
-		/* Temp in Milli degrees Celsius */
-		if (ret < 8192)
-			*val = ret * 1000 / 32;
-		else
-			*val = (ret - 16384) * 1000 / 32;
+		*val = sign_extend32(be16_to_cpu(dat), 13);
 
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SCALE:
+		*val = 1000;
+		*val2 = 5;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 
+	return -EINVAL;
 out:
 	mutex_unlock(&indio_dev->mlock);
 	return ret;
