@@ -89,7 +89,6 @@
 struct ad5933_state {
 	struct i2c_client		*client;
 	struct regulator		*reg;
-	struct ad5933_platform_data	*pdata;
 	struct delayed_work		work;
 	unsigned long			mclk_hz;
 	unsigned char			ctrl_hb;
@@ -712,9 +711,7 @@ static int ad5933_probe(struct i2c_client *client,
 	st->client = client;
 
 	if (!pdata)
-		st->pdata = &ad5933_default_pdata;
-	else
-		st->pdata = pdata;
+		pdata = &ad5933_default_pdata;
 
 	st->reg = devm_regulator_get(&client->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
@@ -727,10 +724,10 @@ static int ad5933_probe(struct i2c_client *client,
 	if (voltage_uv)
 		st->vref_mv = voltage_uv / 1000;
 	else
-		st->vref_mv = st->pdata->vref_mv;
+		st->vref_mv = pdata->vref_mv;
 
-	if (st->pdata->ext_clk_Hz) {
-		st->mclk_hz = st->pdata->ext_clk_Hz;
+	if (pdata->ext_clk_Hz) {
+		st->mclk_hz = pdata->ext_clk_Hz;
 		st->ctrl_lb = AD5933_CTRL_EXT_SYSCLK;
 	} else {
 		st->mclk_hz = AD5933_INT_OSC_FREQ_Hz;
