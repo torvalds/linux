@@ -52,7 +52,7 @@ static const struct sco_param sco_param_cvsd[] = {
 	{ EDR_ESCO_MASK | ESCO_HV1,   0xffff,	0xff }, /* D0 */
 };
 
-static const struct sco_param sco_param_wideband[] = {
+static const struct sco_param esco_param_msbc[] = {
 	{ EDR_ESCO_MASK & ~ESCO_2EV3, 0x000d,	0x02 }, /* T2 */
 	{ EDR_ESCO_MASK | ESCO_EV3,   0x0008,	0x02 }, /* T1 */
 };
@@ -207,9 +207,9 @@ bool hci_setup_sync(struct hci_conn *conn, __u16 handle)
 
 	switch (conn->setting & SCO_AIRMODE_MASK) {
 	case SCO_AIRMODE_TRANSP:
-		if (conn->attempt > ARRAY_SIZE(sco_param_wideband))
+		if (conn->attempt > ARRAY_SIZE(esco_param_msbc))
 			return false;
-		param = &sco_param_wideband[conn->attempt - 1];
+		param = &esco_param_msbc[conn->attempt - 1];
 		break;
 	case SCO_AIRMODE_CVSD:
 		if (lmp_esco_capable(conn->link)) {
