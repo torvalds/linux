@@ -5522,18 +5522,18 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 					goto out;
 				advance_right = ADVANCE;
 			} else {
-				enum btrfs_compare_tree_result cmp;
+				enum btrfs_compare_tree_result result;
 
 				WARN_ON(!extent_buffer_uptodate(left_path->nodes[0]));
 				ret = tree_compare_item(left_root, left_path,
 						right_path, tmp_buf);
 				if (ret)
-					cmp = BTRFS_COMPARE_TREE_CHANGED;
+					result = BTRFS_COMPARE_TREE_CHANGED;
 				else
-					cmp = BTRFS_COMPARE_TREE_SAME;
+					result = BTRFS_COMPARE_TREE_SAME;
 				ret = changed_cb(left_root, right_root,
 						 left_path, right_path,
-						 &left_key, cmp, ctx);
+						 &left_key, result, ctx);
 				if (ret < 0)
 					goto out;
 				advance_left = ADVANCE;
