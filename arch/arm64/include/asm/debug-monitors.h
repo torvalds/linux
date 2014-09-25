@@ -53,8 +53,8 @@
  * 0x401: for compile time BRK instruction
  */
 #define FAULT_BRK_IMM			0x100
-#define KGDB_DYN_DGB_BRK_IMM		0x400
-#define KDBG_COMPILED_DBG_BRK_IMM	0x401
+#define KGDB_DYN_DBG_BRK_IMM		0x400
+#define KGDB_COMPILED_DBG_BRK_IMM	0x401
 
 /*
  * BRK instruction encoding
@@ -71,22 +71,22 @@
 /*
  * Extract byte from BRK instruction
  */
-#define KGDB_DYN_DGB_BRK_INS_BYTE(x) \
+#define KGDB_DYN_DBG_BRK_INS_BYTE(x) \
 	((((AARCH64_BREAK_MON) & 0xffe0001f) >> (x * 8)) & 0xff)
 
 /*
  * Extract byte from BRK #imm16
  */
-#define KGBD_DYN_DGB_BRK_IMM_BYTE(x) \
-	(((((KGDB_DYN_DGB_BRK_IMM) & 0xffff) << 5) >> (x * 8)) & 0xff)
+#define KGBD_DYN_DBG_BRK_IMM_BYTE(x) \
+	(((((KGDB_DYN_DBG_BRK_IMM) & 0xffff) << 5) >> (x * 8)) & 0xff)
 
-#define KGDB_DYN_DGB_BRK_BYTE(x) \
-	(KGDB_DYN_DGB_BRK_INS_BYTE(x) | KGBD_DYN_DGB_BRK_IMM_BYTE(x))
+#define KGDB_DYN_DBG_BRK_BYTE(x) \
+	(KGDB_DYN_DBG_BRK_INS_BYTE(x) | KGBD_DYN_DBG_BRK_IMM_BYTE(x))
 
-#define  KGDB_DYN_BRK_INS_BYTE0  KGDB_DYN_DGB_BRK_BYTE(0)
-#define  KGDB_DYN_BRK_INS_BYTE1  KGDB_DYN_DGB_BRK_BYTE(1)
-#define  KGDB_DYN_BRK_INS_BYTE2  KGDB_DYN_DGB_BRK_BYTE(2)
-#define  KGDB_DYN_BRK_INS_BYTE3  KGDB_DYN_DGB_BRK_BYTE(3)
+#define  KGDB_DYN_BRK_INS_BYTE0  KGDB_DYN_DBG_BRK_BYTE(0)
+#define  KGDB_DYN_BRK_INS_BYTE1  KGDB_DYN_DBG_BRK_BYTE(1)
+#define  KGDB_DYN_BRK_INS_BYTE2  KGDB_DYN_DBG_BRK_BYTE(2)
+#define  KGDB_DYN_BRK_INS_BYTE3  KGDB_DYN_DBG_BRK_BYTE(3)
 
 #define CACHE_FLUSH_IS_SAFE		1
 
