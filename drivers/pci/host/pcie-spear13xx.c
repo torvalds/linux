@@ -340,7 +340,7 @@ static int __init spear13xx_pcie_probe(struct platform_device *pdev)
 
 	pp->dev = dev;
 
-	dbi_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
 	pp->dbi_base = devm_ioremap_resource(dev, dbi_base);
 	if (IS_ERR(pp->dbi_base)) {
 		dev_err(dev, "couldn't remap dbi base %p\n", dbi_base);
