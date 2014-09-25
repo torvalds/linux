@@ -53,11 +53,11 @@ Boards:
     compatible = "renesas,henninger", "renesas,r8a7791"
   - Koelsch (RTP0RC7791SEB00010S)
     compatible = "renesas,koelsch", "renesas,r8a7791"
-  - KZM9D
+  - Kyoto Microcomputer Co. KZM-A9-Dual
     compatible = "renesas,kzm9d", "renesas,emev2"
-  - KZM-A9-GT
+  - Kyoto Microcomputer Co. KZM-A9-GT
     compatible = "renesas,kzm9g", "renesas,sh73a0"
-  - KZM-A9-GT - Reference Device Tree Implementation
+  - Kyoto Microcomputer Co. KZM-A9-GT - Reference Device Tree Implementation
     compatible = "renesas,kzm9g-reference", "renesas,sh73a0"
   - Lager (RTP0RC7790SEB00010S)
     compatible = "renesas,lager", "renesas,r8a7790"
