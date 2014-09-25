@@ -277,5 +277,13 @@
 			clock-names = "fck";
 			bus_freq	= <2500000>;
 		};
+
+		kirq0: keystone_irq@26202a0 {
+			compatible = "ti,keystone-irq";
+			interrupts = <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			ti,syscon-dev = <&devctrl 0x2a0>;
+		};
 	};
 };
