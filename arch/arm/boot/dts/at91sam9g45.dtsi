@@ -165,7 +165,7 @@
 					compatible = "atmel,at91rm9200-clk-master";
 					#clock-cells = <0>;
 					interrupts-extended = <&pmc AT91_PMC_MCKRDY>;
-					clocks = <&slow_xtal>, <&main>, <&plladiv>, <&utmi>;
+					clocks = <&clk32k>, <&main>, <&plladiv>, <&utmi>;
 					atmel,clk-output-range = <0 133333333>;
 					atmel,clk-divisors = <1 2 4 3>;
 				};
@@ -181,7 +181,7 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					interrupt-parent = <&pmc>;
-					clocks = <&slow_xtal>, <&main>, <&plladiv>, <&utmi>, <&mck>;
+					clocks = <&clk32k>, <&main>, <&plladiv>, <&utmi>, <&mck>;
 
 					prog0: prog0 {
 						#clock-cells = <0>;
@@ -1164,6 +1164,39 @@
 					atmel,can-dma;
 					atmel,can-isoc;
 				};
+			};
+
+			sckc@fffffd50 {
+				compatible = "atmel,at91sam9x5-sckc";
+				reg = <0xfffffd50 0x4>;
+
+				slow_osc: slow_osc {
+					compatible = "atmel,at91sam9x5-clk-slow-osc";
+					#clock-cells = <0>;
+					atmel,startup-time-usec = <1200000>;
+					clocks = <&slow_xtal>;
+				};
+
+				slow_rc_osc: slow_rc_osc {
+					compatible = "atmel,at91sam9x5-clk-slow-rc-osc";
+					#clock-cells = <0>;
+					atmel,startup-time-usec = <75>;
+					clock-frequency = <32768>;
+					clock-accuracy = <50000000>;
+				};
+
+				clk32k: slck {
+					compatible = "atmel,at91sam9x5-clk-slow";
+					#clock-cells = <0>;
+					clocks = <&slow_rc_osc &slow_osc>;
+				};
+			};
+
+			rtc@fffffdb0 {
+				compatible = "atmel,at91rm9200-rtc";
+				reg = <0xfffffdb0 0x30>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
+				status = "disabled";
 			};
 		};
 
