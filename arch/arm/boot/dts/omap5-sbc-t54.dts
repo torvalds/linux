@@ -19,8 +19,8 @@
 
 	mmc1_aux_pins: pinmux_mmc1_aux_pins {
 		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x0174, PIN_INPUT_PULLUP | MUX_MODE6) /* gpio8_228 */
-			OMAP5_IOPAD(0x0176, PIN_INPUT_PULLUP | MUX_MODE6) /* gpio8_229 */
+			OMAP5_IOPAD(0x0174, PIN_INPUT_PULLUP | MUX_MODE6) /* timer5_pwm_evt.gpio8_228 */
+			OMAP5_IOPAD(0x0176, PIN_INPUT_PULLUP | MUX_MODE6) /* timer6_pwm_evt.gpio8_229 */
 		>;
 	};
 };

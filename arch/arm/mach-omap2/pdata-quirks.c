@@ -252,6 +252,9 @@ static void __init nokia_n900_legacy_init(void)
 		platform_device_register(&omap3_rom_rng_device);
 
 	}
+
+	/* Only on some development boards */
+	gpio_request_one(164, GPIOF_OUT_INIT_LOW, "smc91x reset");
 }
 
 static void __init omap3_tao3530_legacy_init(void)
