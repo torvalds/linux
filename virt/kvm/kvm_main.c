@@ -1146,7 +1146,7 @@ int kvm_get_user_page_io(struct task_struct *tsk, struct mm_struct *mm,
 	npages = __get_user_pages(tsk, mm, addr, 1, flags, pagep, NULL,
 				  &locked);
 	if (!locked) {
-		VM_BUG_ON(npages != -EBUSY);
+		VM_BUG_ON(npages);
 
 		if (!pagep)
 			return 0;
