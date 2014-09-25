@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2011 Xilinx
+ *  Copyright (C) 2011 - 2014 Xilinx
  *  Copyright (C) 2012 National Instruments Corp.
  *
  * This software is licensed under the terms of the GNU General Public
@@ -27,6 +27,15 @@
 		bootargs = "console=ttyPS0,115200 earlyprintk";
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		ds23 {
+			label = "ds23";
+			gpios = <&gpio0 10 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
 };
 
 &can0 {
@@ -35,7 +44,12 @@
 
 &gem0 {
 	status = "okay";
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
+	phy-handle = <&ethernet_phy>;
+
+	ethernet_phy: ethernet-phy@7 {
+		reg = <7>;
+	};
 };
 
 &i2c0 {
