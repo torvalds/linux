@@ -138,12 +138,6 @@ config MACH_ECO920
 	bool "eco920"
 	help
 	  Select this if you are using the eco920 board
-
-config MACH_RSI_EWS
-	bool "RSI Embedded Webserver"
-	depends on ARCH_AT91RM9200
-	help
-	  Select this if you are using RSIs EWS board.
 endif
 
 # ----------------------------------------------------------
@@ -217,12 +211,6 @@ config MACH_CPU9G20
 	help
 	  Select this if you are using a Eukrea Electromatique's
 	  CPU9G20 Board <http://www.eukrea.com/>
-
-config MACH_ACMENETUSFOXG20
-	bool "Acme Systems srl FOX Board G20"
-	help
-	  Select this if you are using Acme Systems
-	  FOX Board G20 <http://www.acmesystems.it>
 
 config MACH_PORTUXG20
 	bool "taskit PortuxG20"
