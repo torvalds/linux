@@ -766,4 +766,5 @@ extern void qla82xx_mbx_completion(scsi_qla_host_t *, uint16_t);
 extern int qla8044_abort_isp(scsi_qla_host_t *);
 extern int qla8044_check_fw_alive(struct scsi_qla_host *);
 
+extern void qlt_host_reset_handler(struct qla_hw_data *ha);
 #endif /* _QLA_GBL_H */

@@ -1363,6 +1363,8 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req;
 
+	qlt_host_reset_handler(ha);
+
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (que = 0; que < ha->max_req_queues; que++) {
 		req = ha->req_q_map[que];

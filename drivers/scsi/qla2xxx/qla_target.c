@@ -2843,6 +2843,80 @@ static struct qla_tgt_cmd *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 	return cmd;
 }
 
+/* hardware_lock should be held by caller. */
+static void
+qlt_abort_cmd_on_host_reset(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t handle;
+
+	if (cmd->sg_mapped)
+		qlt_unmap_sg(vha, cmd);
+
+	handle = qlt_make_handle(vha);
+
+	/* TODO: fix debug message type and ids. */
+	if (cmd->state == QLA_TGT_STATE_PROCESSED) {
+		ql_dbg(ql_dbg_io, vha, 0xff00,
+		    "HOST-ABORT: handle=%d, state=PROCESSED.\n", handle);
+	} else if (cmd->state == QLA_TGT_STATE_NEED_DATA) {
+		cmd->write_data_transferred = 0;
+		cmd->state = QLA_TGT_STATE_DATA_IN;
+
+		ql_dbg(ql_dbg_io, vha, 0xff01,
+		    "HOST-ABORT: handle=%d, state=DATA_IN.\n", handle);
+
+		ha->tgt.tgt_ops->handle_data(cmd);
+		return;
+	} else if (cmd->state == QLA_TGT_STATE_ABORTED) {
+		ql_dbg(ql_dbg_io, vha, 0xff02,
+		    "HOST-ABORT: handle=%d, state=ABORTED.\n", handle);
+	} else {
+		ql_dbg(ql_dbg_io, vha, 0xff03,
+		    "HOST-ABORT: handle=%d, state=BAD(%d).\n", handle,
+		    cmd->state);
+		dump_stack();
+	}
+
+	ha->tgt.tgt_ops->free_cmd(cmd);
+}
+
+void
+qlt_host_reset_handler(struct qla_hw_data *ha)
+{
+	struct qla_tgt_cmd *cmd;
+	unsigned long flags;
+	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+	scsi_qla_host_t *vha = NULL;
+	struct qla_tgt *tgt = base_vha->vha_tgt.qla_tgt;
+	uint32_t i;
+
+	if (!base_vha->hw->tgt.tgt_ops)
+		return;
+
+	if (!tgt || qla_ini_mode_enabled(base_vha)) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf003,
+			"Target mode disabled\n");
+		return;
+	}
+
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0xff10,
+	    "HOST-ABORT-HNDLR: base_vha->dpc_flags=%lx.\n",
+	    base_vha->dpc_flags);
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	for (i = 1; i < DEFAULT_OUTSTANDING_COMMANDS + 1; i++) {
+		cmd = qlt_get_cmd(base_vha, i);
+		if (!cmd)
+			continue;
+		/* ha->tgt.cmds entry is cleared by qlt_get_cmd. */
+		vha = cmd->vha;
+		qlt_abort_cmd_on_host_reset(vha, cmd);
+	}
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+
 /*
  * ha->hardware_lock supposed to be held on entry. Might drop it, then reaquire
  */
