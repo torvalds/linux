@@ -133,9 +133,24 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	sub	TSB, 0x8, TSB;   \
 	TSB_STORE(TSB, TAG);
 
-	/* Do a kernel page table walk.  Leaves physical PTE pointer in
-	 * REG1.  Jumps to FAIL_LABEL on early page table walk termination.
-	 * VADDR will not be clobbered, but REG2 will.
+	/* Do a kernel page table walk.  Leaves valid PTE value in
+	 * REG1.  Jumps to FAIL_LABEL on early page table walk
+	 * termination.  VADDR will not be clobbered, but REG2 will.
+	 *
+	 * There are two masks we must apply to propagate bits from
+	 * the virtual address into the PTE physical address field
+	 * when dealing with huge pages.  This is because the page
+	 * table boundaries do not match the huge page size(s) the
+	 * hardware supports.
+	 *
+	 * In these cases we propagate the bits that are below the
+	 * page table level where we saw the huge page mapping, but
+	 * are still within the relevant physical bits for the huge
+	 * page size in question.  So for PMD mappings (which fall on
+	 * bit 23, for 8MB per PMD) we must propagate bit 22 for a
+	 * 4MB huge page.  For huge PUDs (which fall on bit 33, for
+	 * 8GB per PUD), we have to accomodate 256MB and 2GB huge
+	 * pages.  So for those we propagate bits 32 to 28.
 	 */
 #define KERN_PGTABLE_WALK(VADDR, REG1, REG2, FAIL_LABEL)	\
 	sethi		%hi(swapper_pg_dir), REG1; \
@@ -150,15 +165,35 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	andn		REG2, 0x7, REG2; \
 	ldxa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
 	brz,pn		REG1, FAIL_LABEL; \
-	 sllx		VADDR, 64 - (PMD_SHIFT + PMD_BITS), REG2; \
+	sethi		%uhi(_PAGE_PUD_HUGE), REG2; \
+	brz,pn		REG1, FAIL_LABEL; \
+	 sllx		REG2, 32, REG2; \
+	andcc		REG1, REG2, %g0; \
+	sethi		%hi(0xf8000000), REG2; \
+	bne,pt		%xcc, 697f; \
+	 sllx		REG2, 1, REG2; \
+	sllx		VADDR, 64 - (PMD_SHIFT + PMD_BITS), REG2; \
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
 	andn		REG2, 0x7, REG2; \
 	ldxa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
+	sethi		%uhi(_PAGE_PMD_HUGE), REG2; \
 	brz,pn		REG1, FAIL_LABEL; \
-	 sllx		VADDR, 64 - PMD_SHIFT, REG2; \
+	 sllx		REG2, 32, REG2; \
+	andcc		REG1, REG2, %g0; \
+	be,pn		%xcc, 698f; \
+	 sethi		%hi(0x400000), REG2; \
+697:	brgez,pn	REG1, FAIL_LABEL; \
+	 andn		REG1, REG2, REG1; \
+	and		VADDR, REG2, REG2; \
+	ba,pt		%xcc, 699f; \
+	 or		REG1, REG2, REG1; \
+698:	sllx		VADDR, 64 - PMD_SHIFT, REG2; \
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
 	andn		REG2, 0x7, REG2; \
-	add		REG1, REG2, REG1;
+	ldxa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
+	brgez,pn	REG1, FAIL_LABEL; \
+	 nop; \
+699:
 
 	/* PMD has been loaded into REG1, interpret the value, seeing
 	 * if it is a HUGE PMD or a normal one.  If it is not valid

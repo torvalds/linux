@@ -128,9 +128,6 @@ extern unsigned long PAGE_OFFSET;
  */
 #define MAX_PHYS_ADDRESS_BITS	47
 
-/* These two shift counts are used when indexing sparc64_valid_addr_bitmap
- * and kpte_linear_bitmap.
- */
 #define ILOG2_4MB		22
 #define ILOG2_256MB		28
 

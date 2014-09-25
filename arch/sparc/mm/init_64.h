@@ -8,15 +8,8 @@
  */
 
 #define MAX_PHYS_ADDRESS	(1UL << MAX_PHYS_ADDRESS_BITS)
-#define KPTE_BITMAP_CHUNK_SZ		(256UL * 1024UL * 1024UL)
-#define KPTE_BITMAP_BYTES	\
-	((MAX_PHYS_ADDRESS / KPTE_BITMAP_CHUNK_SZ) / 4)
-#define VALID_ADDR_BITMAP_CHUNK_SZ	(4UL * 1024UL * 1024UL)
-#define VALID_ADDR_BITMAP_BYTES	\
-	((MAX_PHYS_ADDRESS / VALID_ADDR_BITMAP_CHUNK_SZ) / 8)
 
 extern unsigned long kern_linear_pte_xor[4];
-extern unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
 extern unsigned int sparc64_highest_unlocked_tlb_ent;
 extern unsigned long sparc64_kern_pri_context;
 extern unsigned long sparc64_kern_pri_nuc_bits;

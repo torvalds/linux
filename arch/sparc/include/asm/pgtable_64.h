@@ -79,22 +79,7 @@
 
 #include <linux/sched.h>
 
-extern unsigned long sparc64_valid_addr_bitmap[];
-
-/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
-static inline bool __kern_addr_valid(unsigned long paddr)
-{
-	if ((paddr >> MAX_PHYS_ADDRESS_BITS) != 0UL)
-		return false;
-	return test_bit(paddr >> ILOG2_4MB, sparc64_valid_addr_bitmap);
-}
-
-static inline bool kern_addr_valid(unsigned long addr)
-{
-	unsigned long paddr = __pa(addr);
-
-	return __kern_addr_valid(paddr);
-}
+bool kern_addr_valid(unsigned long addr);
 
 /* Entries per page directory level. */
 #define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-3))
@@ -122,6 +107,7 @@ static inline bool kern_addr_valid(unsigned long addr)
 #define _PAGE_R	  	  _AC(0x8000000000000000,UL) /* Keep ref bit uptodate*/
 #define _PAGE_SPECIAL     _AC(0x0200000000000000,UL) /* Special page         */
 #define _PAGE_PMD_HUGE    _AC(0x0100000000000000,UL) /* Huge page            */
+#define _PAGE_PUD_HUGE    _PAGE_PMD_HUGE
 
 /* Advertise support for _PAGE_SPECIAL */
 #define __HAVE_ARCH_PTE_SPECIAL
@@ -668,6 +654,13 @@ static inline unsigned long pmd_large(pmd_t pmd)
 	return pte_val(pte) & _PAGE_PMD_HUGE;
 }
 
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	pte_t pte = __pte(pmd_val(pmd));
+
+	return pte_pfn(pte);
+}
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline unsigned long pmd_young(pmd_t pmd)
 {
@@ -681,13 +674,6 @@ static inline unsigned long pmd_write(pmd_t pmd)
 	pte_t pte = __pte(pmd_val(pmd));
 
 	return pte_write(pte);
-}
-
-static inline unsigned long pmd_pfn(pmd_t pmd)
-{
-	pte_t pte = __pte(pmd_val(pmd));
-
-	return pte_pfn(pte);
 }
 
 static inline unsigned long pmd_trans_huge(pmd_t pmd)
@@ -781,18 +767,15 @@ static inline int pmd_present(pmd_t pmd)
  * the top bits outside of the range of any physical address size we
  * support are clear as well.  We also validate the physical itself.
  */
-#define pmd_bad(pmd)			((pmd_val(pmd) & ~PAGE_MASK) || \
-					 !__kern_addr_valid(pmd_val(pmd)))
+#define pmd_bad(pmd)			(pmd_val(pmd) & ~PAGE_MASK)
 
 #define pud_none(pud)			(!pud_val(pud))
 
-#define pud_bad(pud)			((pud_val(pud) & ~PAGE_MASK) || \
-					 !__kern_addr_valid(pud_val(pud)))
+#define pud_bad(pud)			(pud_val(pud) & ~PAGE_MASK)
 
 #define pgd_none(pgd)			(!pgd_val(pgd))
 
-#define pgd_bad(pgd)			((pgd_val(pgd) & ~PAGE_MASK) || \
-					 !__kern_addr_valid(pgd_val(pgd)))
+#define pgd_bad(pgd)			(pgd_val(pgd) & ~PAGE_MASK)
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 void set_pmd_at(struct mm_struct *mm, unsigned long addr,
@@ -834,6 +817,20 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 	((unsigned long) __va(pgd_val(pgd)))
 #define pgd_present(pgd)		(pgd_val(pgd) != 0U)
 #define pgd_clear(pgdp)			(pgd_val(*(pgd)) = 0UL)
+
+static inline unsigned long pud_large(pud_t pud)
+{
+	pte_t pte = __pte(pud_val(pud));
+
+	return pte_val(pte) & _PAGE_PMD_HUGE;
+}
+
+static inline unsigned long pud_pfn(pud_t pud)
+{
+	pte_t pte = __pte(pud_val(pud));
+
+	return pte_pfn(pte);
+}
 
 /* Same in both SUN4V and SUN4U.  */
 #define pte_none(pte) 			(!pte_val(pte))

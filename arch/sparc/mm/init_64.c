@@ -75,7 +75,6 @@ unsigned long kern_linear_pte_xor[4] __read_mostly;
  * 'cpu' properties, but we need to have this table setup before the
  * MDESC is initialized.
  */
-unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
 
 #ifndef CONFIG_DEBUG_PAGEALLOC
 /* A special kernel TSB for 4MB, 256MB, 2GB and 16GB linear mappings.
@@ -84,6 +83,7 @@ unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
  */
 extern struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
 #endif
+extern struct tsb swapper_tsb[KERNEL_TSB_NENTRIES];
 
 static unsigned long cpu_pgsz_mask;
 
@@ -164,10 +164,6 @@ static void __init read_obp_memory(const char *property,
 	sort(regs, ents, sizeof(struct linux_prom64_registers),
 	     cmp_p64, NULL);
 }
-
-unsigned long sparc64_valid_addr_bitmap[VALID_ADDR_BITMAP_BYTES /
-					sizeof(unsigned long)];
-EXPORT_SYMBOL(sparc64_valid_addr_bitmap);
 
 /* Kernel physical address base and size in bytes.  */
 unsigned long kern_base __read_mostly;
@@ -1369,9 +1365,145 @@ static unsigned long __init bootmem_init(unsigned long phys_base)
 static struct linux_prom64_registers pall[MAX_BANKS] __initdata;
 static int pall_ents __initdata;
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+static unsigned long max_phys_bits = 40;
+
+bool kern_addr_valid(unsigned long addr)
+{
+	unsigned long above = ((long)addr) >> max_phys_bits;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+
+	if (above != 0 && above != -1UL)
+		return false;
+
+	if (addr >= (unsigned long) KERNBASE &&
+	    addr < (unsigned long)&_end)
+		return true;
+
+	if (addr >= PAGE_OFFSET) {
+		unsigned long pa = __pa(addr);
+
+		return pfn_valid(pa >> PAGE_SHIFT);
+	}
+
+	pgd = pgd_offset_k(addr);
+	if (pgd_none(*pgd))
+		return 0;
+
+	pud = pud_offset(pgd, addr);
+	if (pud_none(*pud))
+		return 0;
+
+	if (pud_large(*pud))
+		return pfn_valid(pud_pfn(*pud));
+
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none(*pmd))
+		return 0;
+
+	if (pmd_large(*pmd))
+		return pfn_valid(pmd_pfn(*pmd));
+
+	pte = pte_offset_kernel(pmd, addr);
+	if (pte_none(*pte))
+		return 0;
+
+	return pfn_valid(pte_pfn(*pte));
+}
+EXPORT_SYMBOL(kern_addr_valid);
+
+static unsigned long __ref kernel_map_hugepud(unsigned long vstart,
+					      unsigned long vend,
+					      pud_t *pud)
+{
+	const unsigned long mask16gb = (1UL << 34) - 1UL;
+	u64 pte_val = vstart;
+
+	/* Each PUD is 8GB */
+	if ((vstart & mask16gb) ||
+	    (vend - vstart <= mask16gb)) {
+		pte_val ^= kern_linear_pte_xor[2];
+		pud_val(*pud) = pte_val | _PAGE_PUD_HUGE;
+
+		return vstart + PUD_SIZE;
+	}
+
+	pte_val ^= kern_linear_pte_xor[3];
+	pte_val |= _PAGE_PUD_HUGE;
+
+	vend = vstart + mask16gb + 1UL;
+	while (vstart < vend) {
+		pud_val(*pud) = pte_val;
+
+		pte_val += PUD_SIZE;
+		vstart += PUD_SIZE;
+		pud++;
+	}
+	return vstart;
+}
+
+static bool kernel_can_map_hugepud(unsigned long vstart, unsigned long vend,
+				   bool guard)
+{
+	if (guard && !(vstart & ~PUD_MASK) && (vend - vstart) >= PUD_SIZE)
+		return true;
+
+	return false;
+}
+
+static unsigned long __ref kernel_map_hugepmd(unsigned long vstart,
+					      unsigned long vend,
+					      pmd_t *pmd)
+{
+	const unsigned long mask256mb = (1UL << 28) - 1UL;
+	const unsigned long mask2gb = (1UL << 31) - 1UL;
+	u64 pte_val = vstart;
+
+	/* Each PMD is 8MB */
+	if ((vstart & mask256mb) ||
+	    (vend - vstart <= mask256mb)) {
+		pte_val ^= kern_linear_pte_xor[0];
+		pmd_val(*pmd) = pte_val | _PAGE_PMD_HUGE;
+
+		return vstart + PMD_SIZE;
+	}
+
+	if ((vstart & mask2gb) ||
+	    (vend - vstart <= mask2gb)) {
+		pte_val ^= kern_linear_pte_xor[1];
+		pte_val |= _PAGE_PMD_HUGE;
+		vend = vstart + mask256mb + 1UL;
+	} else {
+		pte_val ^= kern_linear_pte_xor[2];
+		pte_val |= _PAGE_PMD_HUGE;
+		vend = vstart + mask2gb + 1UL;
+	}
+
+	while (vstart < vend) {
+		pmd_val(*pmd) = pte_val;
+
+		pte_val += PMD_SIZE;
+		vstart += PMD_SIZE;
+		pmd++;
+	}
+
+	return vstart;
+}
+
+static bool kernel_can_map_hugepmd(unsigned long vstart, unsigned long vend,
+				   bool guard)
+{
+	if (guard && !(vstart & ~PMD_MASK) && (vend - vstart) >= PMD_SIZE)
+		return true;
+
+	return false;
+}
+
 static unsigned long __ref kernel_map_range(unsigned long pstart,
-					    unsigned long pend, pgprot_t prot)
+					    unsigned long pend, pgprot_t prot,
+					    bool use_huge)
 {
 	unsigned long vstart = PAGE_OFFSET + pstart;
 	unsigned long vend = PAGE_OFFSET + pend;
@@ -1401,15 +1533,23 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 		if (pud_none(*pud)) {
 			pmd_t *new;
 
+			if (kernel_can_map_hugepud(vstart, vend, use_huge)) {
+				vstart = kernel_map_hugepud(vstart, vend, pud);
+				continue;
+			}
 			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
 			alloc_bytes += PAGE_SIZE;
 			pud_populate(&init_mm, pud, new);
 		}
 
 		pmd = pmd_offset(pud, vstart);
-		if (!pmd_present(*pmd)) {
+		if (pmd_none(*pmd)) {
 			pte_t *new;
 
+			if (kernel_can_map_hugepmd(vstart, vend, use_huge)) {
+				vstart = kernel_map_hugepmd(vstart, vend, pmd);
+				continue;
+			}
 			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
 			alloc_bytes += PAGE_SIZE;
 			pmd_populate_kernel(&init_mm, pmd, new);
@@ -1432,100 +1572,34 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 	return alloc_bytes;
 }
 
+static void __init flush_all_kernel_tsbs(void)
+{
+	int i;
+
+	for (i = 0; i < KERNEL_TSB_NENTRIES; i++) {
+		struct tsb *ent = &swapper_tsb[i];
+
+		ent->tag = (1UL << TSB_TAG_INVALID_BIT);
+	}
+#ifndef CONFIG_DEBUG_PAGEALLOC
+	for (i = 0; i < KERNEL_TSB4M_NENTRIES; i++) {
+		struct tsb *ent = &swapper_4m_tsb[i];
+
+		ent->tag = (1UL << TSB_TAG_INVALID_BIT);
+	}
+#endif
+}
+
 extern unsigned int kvmap_linear_patch[1];
-#endif /* CONFIG_DEBUG_PAGEALLOC */
-
-static void __init kpte_set_val(unsigned long index, unsigned long val)
-{
-	unsigned long *ptr = kpte_linear_bitmap;
-
-	val <<= ((index % (BITS_PER_LONG / 2)) * 2);
-	ptr += (index / (BITS_PER_LONG / 2));
-
-	*ptr |= val;
-}
-
-static const unsigned long kpte_shift_min = 28; /* 256MB */
-static const unsigned long kpte_shift_max = 34; /* 16GB */
-static const unsigned long kpte_shift_incr = 3;
-
-static unsigned long kpte_mark_using_shift(unsigned long start, unsigned long end,
-					   unsigned long shift)
-{
-	unsigned long size = (1UL << shift);
-	unsigned long mask = (size - 1UL);
-	unsigned long remains = end - start;
-	unsigned long val;
-
-	if (remains < size || (start & mask))
-		return start;
-
-	/* VAL maps:
-	 *
-	 *	shift 28 --> kern_linear_pte_xor index 1
-	 *	shift 31 --> kern_linear_pte_xor index 2
-	 *	shift 34 --> kern_linear_pte_xor index 3
-	 */
-	val = ((shift - kpte_shift_min) / kpte_shift_incr) + 1;
-
-	remains &= ~mask;
-	if (shift != kpte_shift_max)
-		remains = size;
-
-	while (remains) {
-		unsigned long index = start >> kpte_shift_min;
-
-		kpte_set_val(index, val);
-
-		start += 1UL << kpte_shift_min;
-		remains -= 1UL << kpte_shift_min;
-	}
-
-	return start;
-}
-
-static void __init mark_kpte_bitmap(unsigned long start, unsigned long end)
-{
-	unsigned long smallest_size, smallest_mask;
-	unsigned long s;
-
-	smallest_size = (1UL << kpte_shift_min);
-	smallest_mask = (smallest_size - 1UL);
-
-	while (start < end) {
-		unsigned long orig_start = start;
-
-		for (s = kpte_shift_max; s >= kpte_shift_min; s -= kpte_shift_incr) {
-			start = kpte_mark_using_shift(start, end, s);
-
-			if (start != orig_start)
-				break;
-		}
-
-		if (start == orig_start)
-			start = (start + smallest_size) & ~smallest_mask;
-	}
-}
-
-static void __init init_kpte_bitmap(void)
-{
-	unsigned long i;
-
-	for (i = 0; i < pall_ents; i++) {
-		unsigned long phys_start, phys_end;
-
-		phys_start = pall[i].phys_addr;
-		phys_end = phys_start + pall[i].reg_size;
-
-		mark_kpte_bitmap(phys_start, phys_end);
-	}
-}
 
 static void __init kernel_physical_mapping_init(void)
 {
-#ifdef CONFIG_DEBUG_PAGEALLOC
 	unsigned long i, mem_alloced = 0UL;
+	bool use_huge = true;
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	use_huge = false;
+#endif
 	for (i = 0; i < pall_ents; i++) {
 		unsigned long phys_start, phys_end;
 
@@ -1533,7 +1607,7 @@ static void __init kernel_physical_mapping_init(void)
 		phys_end = phys_start + pall[i].reg_size;
 
 		mem_alloced += kernel_map_range(phys_start, phys_end,
-						PAGE_KERNEL);
+						PAGE_KERNEL, use_huge);
 	}
 
 	printk("Allocated %ld bytes for kernel page tables.\n",
@@ -1542,8 +1616,9 @@ static void __init kernel_physical_mapping_init(void)
 	kvmap_linear_patch[0] = 0x01000000; /* nop */
 	flushi(&kvmap_linear_patch[0]);
 
+	flush_all_kernel_tsbs();
+
 	__flush_tlb_all();
-#endif
 }
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
@@ -1553,7 +1628,7 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 	unsigned long phys_end = phys_start + (numpages * PAGE_SIZE);
 
 	kernel_map_range(phys_start, phys_end,
-			 (enable ? PAGE_KERNEL : __pgprot(0)));
+			 (enable ? PAGE_KERNEL : __pgprot(0)), false);
 
 	flush_tsb_kernel_range(PAGE_OFFSET + phys_start,
 			       PAGE_OFFSET + phys_end);
@@ -1581,62 +1656,11 @@ unsigned long __init find_ecache_flush_span(unsigned long size)
 unsigned long PAGE_OFFSET;
 EXPORT_SYMBOL(PAGE_OFFSET);
 
-static void __init page_offset_shift_patch_one(unsigned int *insn, unsigned long phys_bits)
-{
-	unsigned long final_shift;
-	unsigned int val = *insn;
-	unsigned int cnt;
-
-	/* We are patching in ilog2(max_supported_phys_address), and
-	 * we are doing so in a manner similar to a relocation addend.
-	 * That is, we are adding the shift value to whatever value
-	 * is in the shift instruction count field already.
-	 */
-	cnt = (val & 0x3f);
-	val &= ~0x3f;
-
-	/* If we are trying to shift >= 64 bits, clear the destination
-	 * register.  This can happen when phys_bits ends up being equal
-	 * to MAX_PHYS_ADDRESS_BITS.
-	 */
-	final_shift = (cnt + (64 - phys_bits));
-	if (final_shift >= 64) {
-		unsigned int rd = (val >> 25) & 0x1f;
-
-		val = 0x80100000 | (rd << 25);
-	} else {
-		val |= final_shift;
-	}
-	*insn = val;
-
-	__asm__ __volatile__("flush	%0"
-			     : /* no outputs */
-			     : "r" (insn));
-}
-
-static void __init page_offset_shift_patch(unsigned long phys_bits)
-{
-	extern unsigned int __page_offset_shift_patch;
-	extern unsigned int __page_offset_shift_patch_end;
-	unsigned int *p;
-
-	p = &__page_offset_shift_patch;
-	while (p < &__page_offset_shift_patch_end) {
-		unsigned int *insn = (unsigned int *)(unsigned long)*p;
-
-		page_offset_shift_patch_one(insn, phys_bits);
-
-		p++;
-	}
-}
-
 unsigned long sparc64_va_hole_top =    0xfffff80000000000UL;
 unsigned long sparc64_va_hole_bottom = 0x0000080000000000UL;
 
 static void __init setup_page_offset(void)
 {
-	unsigned long max_phys_bits = 40;
-
 	if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 		/* Cheetah/Panther support a full 64-bit virtual
 		 * address, so we can use all that our page tables
@@ -1685,8 +1709,6 @@ static void __init setup_page_offset(void)
 
 	pr_info("PAGE_OFFSET is 0x%016lx (max_phys_bits == %lu)\n",
 		PAGE_OFFSET, max_phys_bits);
-
-	page_offset_shift_patch(max_phys_bits);
 }
 
 static void __init tsb_phys_patch(void)
@@ -1731,7 +1753,6 @@ static void __init tsb_phys_patch(void)
 #define NUM_KTSB_DESCR	1
 #endif
 static struct hv_tsb_descr ktsb_descr[NUM_KTSB_DESCR];
-extern struct tsb swapper_tsb[KERNEL_TSB_NENTRIES];
 
 /* The swapper TSBs are loaded with a base sequence of:
  *
@@ -2077,11 +2098,9 @@ void __init paging_init(void)
 
 	pmd = swapper_low_pmd_dir + (shift / sizeof(pmd_t));
 	pud_set(&swapper_pud_dir[0], pmd);
-	
+
 	inherit_prom_mappings();
 	
-	init_kpte_bitmap();
-
 	/* Ok, we can use our TLB miss and window trap handlers safely.  */
 	setup_tba();
 
@@ -2188,70 +2207,6 @@ int page_in_phys_avail(unsigned long paddr)
 	return 0;
 }
 
-static struct linux_prom64_registers pavail_rescan[MAX_BANKS] __initdata;
-static int pavail_rescan_ents __initdata;
-
-/* Certain OBP calls, such as fetching "available" properties, can
- * claim physical memory.  So, along with initializing the valid
- * address bitmap, what we do here is refetch the physical available
- * memory list again, and make sure it provides at least as much
- * memory as 'pavail' does.
- */
-static void __init setup_valid_addr_bitmap_from_pavail(unsigned long *bitmap)
-{
-	int i;
-
-	read_obp_memory("available", &pavail_rescan[0], &pavail_rescan_ents);
-
-	for (i = 0; i < pavail_ents; i++) {
-		unsigned long old_start, old_end;
-
-		old_start = pavail[i].phys_addr;
-		old_end = old_start + pavail[i].reg_size;
-		while (old_start < old_end) {
-			int n;
-
-			for (n = 0; n < pavail_rescan_ents; n++) {
-				unsigned long new_start, new_end;
-
-				new_start = pavail_rescan[n].phys_addr;
-				new_end = new_start +
-					pavail_rescan[n].reg_size;
-
-				if (new_start <= old_start &&
-				    new_end >= (old_start + PAGE_SIZE)) {
-					set_bit(old_start >> ILOG2_4MB, bitmap);
-					goto do_next_page;
-				}
-			}
-
-			prom_printf("mem_init: Lost memory in pavail\n");
-			prom_printf("mem_init: OLD start[%lx] size[%lx]\n",
-				    pavail[i].phys_addr,
-				    pavail[i].reg_size);
-			prom_printf("mem_init: NEW start[%lx] size[%lx]\n",
-				    pavail_rescan[i].phys_addr,
-				    pavail_rescan[i].reg_size);
-			prom_printf("mem_init: Cannot continue, aborting.\n");
-			prom_halt();
-
-		do_next_page:
-			old_start += PAGE_SIZE;
-		}
-	}
-}
-
-static void __init patch_tlb_miss_handler_bitmap(void)
-{
-	extern unsigned int valid_addr_bitmap_insn[];
-	extern unsigned int valid_addr_bitmap_patch[];
-
-	valid_addr_bitmap_insn[1] = valid_addr_bitmap_patch[1];
-	mb();
-	valid_addr_bitmap_insn[0] = valid_addr_bitmap_patch[0];
-	flushi(&valid_addr_bitmap_insn[0]);
-}
-
 static void __init register_page_bootmem_info(void)
 {
 #ifdef CONFIG_NEED_MULTIPLE_NODES
@@ -2264,18 +2219,6 @@ static void __init register_page_bootmem_info(void)
 }
 void __init mem_init(void)
 {
-	unsigned long addr, last;
-
-	addr = PAGE_OFFSET + kern_base;
-	last = PAGE_ALIGN(kern_size) + addr;
-	while (addr < last) {
-		set_bit(__pa(addr) >> ILOG2_4MB, sparc64_valid_addr_bitmap);
-		addr += PAGE_SIZE;
-	}
-
-	setup_valid_addr_bitmap_from_pavail(sparc64_valid_addr_bitmap);
-	patch_tlb_miss_handler_bitmap();
-
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
 
 	register_page_bootmem_info();
