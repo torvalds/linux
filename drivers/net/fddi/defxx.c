@@ -748,9 +748,9 @@ static void dfx_bus_init(struct net_device *dev)
 		 */
 		val = inb(base_addr + PI_DEFEA_K_BURST_HOLDOFF);
 		if (dfx_use_mmio)
-			val |= PI_BURST_HOLDOFF_V_MEM_MAP;
+			val |= PI_BURST_HOLDOFF_M_MEM_MAP;
 		else
-			val &= ~PI_BURST_HOLDOFF_V_MEM_MAP;
+			val &= ~PI_BURST_HOLDOFF_M_MEM_MAP;
 		outb(val, base_addr + PI_DEFEA_K_BURST_HOLDOFF);
 
 		/* Enable interrupts at EISA bus interface chip (ESIC) */
