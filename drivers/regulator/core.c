@@ -102,7 +102,7 @@ static int _regulator_disable(struct regulator_dev *rdev);
 static int _regulator_get_voltage(struct regulator_dev *rdev);
 static int _regulator_get_current_limit(struct regulator_dev *rdev);
 static unsigned int _regulator_get_mode(struct regulator_dev *rdev);
-static void _notifier_call_chain(struct regulator_dev *rdev,
+static int _notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data);
 static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				     int min_uV, int max_uV);
@@ -2369,6 +2369,55 @@ int regulator_is_supported_voltage(struct regulator *regulator,
 }
 EXPORT_SYMBOL_GPL(regulator_is_supported_voltage);
 
+static int _regulator_call_set_voltage(struct regulator_dev *rdev,
+				       int min_uV, int max_uV,
+				       unsigned *selector)
+{
+	struct pre_voltage_change_data data;
+	int ret;
+
+	data.old_uV = _regulator_get_voltage(rdev);
+	data.min_uV = min_uV;
+	data.max_uV = max_uV;
+	ret = _notifier_call_chain(rdev, REGULATOR_EVENT_PRE_VOLTAGE_CHANGE,
+				   &data);
+	if (ret & NOTIFY_STOP_MASK)
+		return -EINVAL;
+
+	ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV, selector);
+	if (ret >= 0)
+		return ret;
+
+	_notifier_call_chain(rdev, REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE,
+			     (void *)data.old_uV);
+
+	return ret;
+}
+
+static int _regulator_call_set_voltage_sel(struct regulator_dev *rdev,
+					   int uV, unsigned selector)
+{
+	struct pre_voltage_change_data data;
+	int ret;
+
+	data.old_uV = _regulator_get_voltage(rdev);
+	data.min_uV = uV;
+	data.max_uV = uV;
+	ret = _notifier_call_chain(rdev, REGULATOR_EVENT_PRE_VOLTAGE_CHANGE,
+				   &data);
+	if (ret & NOTIFY_STOP_MASK)
+		return -EINVAL;
+
+	ret = rdev->desc->ops->set_voltage_sel(rdev, selector);
+	if (ret >= 0)
+		return ret;
+
+	_notifier_call_chain(rdev, REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE,
+			     (void *)data.old_uV);
+
+	return ret;
+}
+
 static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				     int min_uV, int max_uV)
 {
@@ -2396,8 +2445,8 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	}
 
 	if (rdev->desc->ops->set_voltage) {
-		ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV,
-						   &selector);
+		ret = _regulator_call_set_voltage(rdev, min_uV, max_uV,
+						  &selector);
 
 		if (ret >= 0) {
 			if (rdev->desc->ops->list_voltage)
@@ -2432,8 +2481,8 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				if (old_selector == selector)
 					ret = 0;
 				else
-					ret = rdev->desc->ops->set_voltage_sel(
-								rdev, ret);
+					ret = _regulator_call_set_voltage_sel(
+						rdev, best_val, selector);
 			} else {
 				ret = -EINVAL;
 			}
@@ -3079,11 +3128,11 @@ EXPORT_SYMBOL_GPL(regulator_unregister_notifier);
 /* notify regulator consumers and downstream regulator consumers.
  * Note mutex must be held by caller.
  */
-static void _notifier_call_chain(struct regulator_dev *rdev,
+static int _notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data)
 {
 	/* call rdev chain first */
-	blocking_notifier_call_chain(&rdev->notifier, event, data);
+	return blocking_notifier_call_chain(&rdev->notifier, event, data);
 }
 
 /**
