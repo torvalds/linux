@@ -63,6 +63,8 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 	char *name;
 	u32 *clkfreq = NULL;
 	struct ufs_clk_info *clki;
+	int len = 0;
+	size_t sz = 0;
 
 	if (!np)
 		goto out;
@@ -82,39 +84,59 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 	if (cnt <= 0)
 		goto out;
 
-	clkfreq = kzalloc(cnt * sizeof(*clkfreq), GFP_KERNEL);
+	if (!of_get_property(np, "freq-table-hz", &len)) {
+		dev_info(dev, "freq-table-hz property not specified\n");
+		goto out;
+	}
+
+	if (len <= 0)
+		goto out;
+
+	sz = len / sizeof(*clkfreq);
+	if (sz != 2 * cnt) {
+		dev_err(dev, "%s len mismatch\n", "freq-table-hz");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	clkfreq = devm_kzalloc(dev, sz * sizeof(*clkfreq),
+			GFP_KERNEL);
 	if (!clkfreq) {
+		dev_err(dev, "%s: no memory\n", "freq-table-hz");
 		ret = -ENOMEM;
-		dev_err(dev, "%s: memory alloc failed\n", __func__);
 		goto out;
 	}
 
-	ret = of_property_read_u32_array(np,
-			"max-clock-frequency-hz", clkfreq, cnt);
+	ret = of_property_read_u32_array(np, "freq-table-hz",
+			clkfreq, sz);
 	if (ret && (ret != -EINVAL)) {
-		dev_err(dev, "%s: invalid max-clock-frequency-hz property, %d\n",
-				__func__, ret);
-		goto out;
+		dev_err(dev, "%s: error reading array %d\n",
+				"freq-table-hz", ret);
+		goto free_clkfreq;
 	}
 
-	for (i = 0; i < cnt; i++) {
+	for (i = 0; i < sz; i += 2) {
 		ret = of_property_read_string_index(np,
-				"clock-names", i, (const char **)&name);
+				"clock-names", i/2, (const char **)&name);
 		if (ret)
-			goto out;
+			goto free_clkfreq;
 
 		clki = devm_kzalloc(dev, sizeof(*clki), GFP_KERNEL);
 		if (!clki) {
 			ret = -ENOMEM;
-			goto out;
+			goto free_clkfreq;
 		}
 
-		clki->max_freq = clkfreq[i];
+		clki->min_freq = clkfreq[i];
+		clki->max_freq = clkfreq[i+1];
 		clki->name = kstrdup(name, GFP_KERNEL);
+		dev_dbg(dev, "%s: min %u max %u name %s\n", "freq-table-hz",
+				clki->min_freq, clki->max_freq, clki->name);
 		list_add_tail(&clki->list, &hba->clk_list_head);
 	}
-out:
+free_clkfreq:
 	kfree(clkfreq);
+out:
 	return ret;
 }
 
