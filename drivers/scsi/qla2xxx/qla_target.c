@@ -1434,10 +1434,11 @@ static inline void qlt_unmap_sg(struct scsi_qla_host *vha,
 static int qlt_check_reserve_free_req(struct scsi_qla_host *vha,
 	uint32_t req_cnt)
 {
-	uint32_t cnt;
+	uint32_t cnt, cnt_in;
 
 	if (vha->req->cnt < (req_cnt + 2)) {
 		cnt = (uint16_t)RD_REG_DWORD(vha->req->req_q_out);
+		cnt_in = (uint16_t)RD_REG_DWORD(vha->req->req_q_in);
 
 		if  (vha->req->ring_index < cnt)
 			vha->req->cnt = cnt - vha->req->ring_index;
@@ -1448,10 +1449,9 @@ static int qlt_check_reserve_free_req(struct scsi_qla_host *vha,
 
 	if (unlikely(vha->req->cnt < (req_cnt + 2))) {
 		ql_dbg(ql_dbg_io, vha, 0x305a,
-		    "qla_target(%d): There is no room in the "
-		    "request ring: vha->req->ring_index=%d, vha->req->cnt=%d, "
-		    "req_cnt=%d\n", vha->vp_idx, vha->req->ring_index,
-		    vha->req->cnt, req_cnt);
+		    "qla_target(%d): There is no room in the request ring: vha->req->ring_index=%d, vha->req->cnt=%d, req_cnt=%d Req-out=%d Req-in=%d Req-Length=%d\n",
+		    vha->vp_idx, vha->req->ring_index,
+		    vha->req->cnt, req_cnt, cnt, cnt_in, vha->req->length);
 		return -EAGAIN;
 	}
 	vha->req->cnt -= req_cnt;
