@@ -50,7 +50,7 @@ struct rpm_reg_parts {
 };
 
 #define FORCE_MODE_IS_2_BITS(reg) \
-	((vreg->parts->fm.mask >> vreg->parts->fm.shift) == 3)
+	(((reg)->parts->fm.mask >> (reg)->parts->fm.shift) == 3)
 
 struct qcom_rpm_reg {
 	struct qcom_rpm *rpm;
