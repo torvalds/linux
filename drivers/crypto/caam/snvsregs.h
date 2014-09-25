@@ -1,7 +1,7 @@
 /*
  * SNVS hardware register-level view
  *
- * Copyright (C) 2015 Freescale Semiconductor, Inc., All Rights Reserved
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc., All Rights Reserved
  */
 
 #ifndef SNVSREGS_H
@@ -15,13 +15,13 @@
  * Includes security violations, HA counter, RTC, alarm
  */
 struct snvs_hp {
-	u32 lock;
-	u32 cmd;
-	u32 ctl;
-	u32 secvio_int_en;	/* Security Violation Interrupt Enable */
-	u32 secvio_int_ctl;	/* Security Violation Interrupt Control */
-	u32 status;
-	u32 secvio_status;	/* Security Violation Status */
+	u32 lock;		/* HPLR - HP Lock */
+	u32 cmd;		/* HPCOMR - HP Command */
+	u32 ctl;		/* HPCR - HP Control */
+	u32 secvio_intcfg;	/* HPSICR - Security Violation Int Config */
+	u32 secvio_ctl;		/* HPSVCR - Security Violation Control */
+	u32 status;		/* HPSR - HP Status */
+	u32 secvio_status;	/* HPSVSR - Security Violation Status */
 	u32 ha_counteriv;	/* High Assurance Counter IV */
 	u32 ha_counter;		/* High Assurance Counter */
 	u32 rtc_msb;		/* Real Time Clock/Counter MSB */

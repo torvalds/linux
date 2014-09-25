@@ -1,7 +1,7 @@
 
 /*
  * CAAM Security Violation Handler
- * Copyright (C) 2015 Freescale Semiconductor, Inc., All Rights Reserved
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc., All Rights Reserved
  */
 
 #ifndef SECVIO_H
@@ -28,17 +28,17 @@ enum secvio_cause {
 };
 
 /* These are common "recommended" cause definitions for most devices */
-#define SECVIO_CAUSE_CAAM_VIOLATION SECVIO_CAUSE_SOURCE_0
-#define SECVIO_CAUSE JTAG_ALARM SECVIO_CAUSE_SOURCE_1
-#define SECVIO_CAUSE_WATCHDOG SECVIO_CAUSE_SOURCE_2
-#define SECVIO_CAUSE_EXTERNAL_BOOT SECVIO_CAUSE_SOURCE_4
-#define SECVIO_CAUSE_TAMPER_DETECT SECVIO_CAUSE_SOURCE_5
+#define SECVIO_CAUSE_CAAM_VIOLATION	SECVIO_CAUSE_SOURCE_0
+#define SECVIO_CAUSE_JTAG_ALARM		SECVIO_CAUSE_SOURCE_1
+#define SECVIO_CAUSE_WATCHDOG		SECVIO_CAUSE_SOURCE_2
+#define SECVIO_CAUSE_EXTERNAL_BOOT	SECVIO_CAUSE_SOURCE_4
+#define SECVIO_CAUSE_TAMPER_DETECT	SECVIO_CAUSE_SOURCE_5
 
-int caam_secvio_install_handler(struct device *dev, enum secvio_cause cause,
+int snvs_secvio_install_handler(struct device *dev, enum secvio_cause cause,
 				void (*handler)(struct device *dev, u32 cause,
 						void *ext),
 				u8 *cause_description, void *ext);
-int caam_secvio_remove_handler(struct device *dev, enum  secvio_cause cause);
+int snvs_secvio_remove_handler(struct device *dev, enum  secvio_cause cause);
 
 /*
  * Private data definitions for the secvio "driver"
@@ -50,11 +50,13 @@ struct secvio_int_src {
 	void (*handler)(struct device *dev, u32 cause, void *ext);
 };
 
-struct caam_drv_private_secvio {
-	struct device *parentdev;	/* points back to the controller */
+struct snvs_secvio_drv_private {
+	struct platform_device *pdev;
 	spinlock_t svlock ____cacheline_aligned;
 	struct tasklet_struct irqtask[NR_CPUS];
 	struct snvs_full __iomem *svregs;	/* both HP and LP domains */
+	int irq;
+	u32 irqcause; /* stashed cause of violation interrupt */
 
 	/* Registered handlers for each violation */
 	struct secvio_int_src intsrc[MAX_SECVIO_SOURCES];
