@@ -3265,6 +3265,125 @@ static int ufshcd_eh_host_reset_handler(struct scsi_cmnd *cmd)
 }
 
 /**
+ * ufshcd_get_max_icc_level - calculate the ICC level
+ * @sup_curr_uA: max. current supported by the regulator
+ * @start_scan: row at the desc table to start scan from
+ * @buff: power descriptor buffer
+ *
+ * Returns calculated max ICC level for specific regulator
+ */
+static u32 ufshcd_get_max_icc_level(int sup_curr_uA, u32 start_scan, char *buff)
+{
+	int i;
+	int curr_uA;
+	u16 data;
+	u16 unit;
+
+	for (i = start_scan; i >= 0; i--) {
+		data = be16_to_cpu(*((u16 *)(buff + 2*i)));
+		unit = (data & ATTR_ICC_LVL_UNIT_MASK) >>
+						ATTR_ICC_LVL_UNIT_OFFSET;
+		curr_uA = data & ATTR_ICC_LVL_VALUE_MASK;
+		switch (unit) {
+		case UFSHCD_NANO_AMP:
+			curr_uA = curr_uA / 1000;
+			break;
+		case UFSHCD_MILI_AMP:
+			curr_uA = curr_uA * 1000;
+			break;
+		case UFSHCD_AMP:
+			curr_uA = curr_uA * 1000 * 1000;
+			break;
+		case UFSHCD_MICRO_AMP:
+		default:
+			break;
+		}
+		if (sup_curr_uA >= curr_uA)
+			break;
+	}
+	if (i < 0) {
+		i = 0;
+		pr_err("%s: Couldn't find valid icc_level = %d", __func__, i);
+	}
+
+	return (u32)i;
+}
+
+/**
+ * ufshcd_calc_icc_level - calculate the max ICC level
+ * In case regulators are not initialized we'll return 0
+ * @hba: per-adapter instance
+ * @desc_buf: power descriptor buffer to extract ICC levels from.
+ * @len: length of desc_buff
+ *
+ * Returns calculated ICC level
+ */
+static u32 ufshcd_find_max_sup_active_icc_level(struct ufs_hba *hba,
+							u8 *desc_buf, int len)
+{
+	u32 icc_level = 0;
+
+	if (!hba->vreg_info.vcc || !hba->vreg_info.vccq ||
+						!hba->vreg_info.vccq2) {
+		dev_err(hba->dev,
+			"%s: Regulator capability was not set, actvIccLevel=%d",
+							__func__, icc_level);
+		goto out;
+	}
+
+	if (hba->vreg_info.vcc)
+		icc_level = ufshcd_get_max_icc_level(
+				hba->vreg_info.vcc->max_uA,
+				POWER_DESC_MAX_ACTV_ICC_LVLS - 1,
+				&desc_buf[PWR_DESC_ACTIVE_LVLS_VCC_0]);
+
+	if (hba->vreg_info.vccq)
+		icc_level = ufshcd_get_max_icc_level(
+				hba->vreg_info.vccq->max_uA,
+				icc_level,
+				&desc_buf[PWR_DESC_ACTIVE_LVLS_VCCQ_0]);
+
+	if (hba->vreg_info.vccq2)
+		icc_level = ufshcd_get_max_icc_level(
+				hba->vreg_info.vccq2->max_uA,
+				icc_level,
+				&desc_buf[PWR_DESC_ACTIVE_LVLS_VCCQ2_0]);
+out:
+	return icc_level;
+}
+
+static void ufshcd_init_icc_levels(struct ufs_hba *hba)
+{
+	int ret;
+	int buff_len = QUERY_DESC_POWER_MAX_SIZE;
+	u8 desc_buf[QUERY_DESC_POWER_MAX_SIZE];
+
+	ret = ufshcd_read_power_desc(hba, desc_buf, buff_len);
+	if (ret) {
+		dev_err(hba->dev,
+			"%s: Failed reading power descriptor.len = %d ret = %d",
+			__func__, buff_len, ret);
+		return;
+	}
+
+	hba->init_prefetch_data.icc_level =
+			ufshcd_find_max_sup_active_icc_level(hba,
+			desc_buf, buff_len);
+	dev_dbg(hba->dev, "%s: setting icc_level 0x%x",
+			__func__, hba->init_prefetch_data.icc_level);
+
+	ret = ufshcd_query_attr(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
+			QUERY_ATTR_IDN_ACTIVE_ICC_LVL, 0, 0,
+			&hba->init_prefetch_data.icc_level);
+
+	if (ret)
+		dev_err(hba->dev,
+			"%s: Failed configuring bActiveICCLevel = %d ret = %d",
+			__func__, hba->init_prefetch_data.icc_level , ret);
+
+}
+
+/**
  * ufshcd_probe_hba - probe hba to detect device and initialize
  * @hba: per-adapter instance
  *
@@ -3293,9 +3412,16 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 
 	/* If we are in error handling context no need to scan the host */
 	if (!ufshcd_eh_in_progress(hba)) {
+		if (!hba->is_init_prefetch)
+			ufshcd_init_icc_levels(hba);
+
 		scsi_scan_host(hba->host);
 		pm_runtime_put_sync(hba->dev);
 	}
+
+	if (!hba->is_init_prefetch)
+		hba->is_init_prefetch = true;
+
 out:
 	/*
 	 * If we failed to initialize the device or the device is not

@@ -115,6 +115,7 @@ enum flag_idn {
 
 /* Attribute idn for Query requests */
 enum attr_idn {
+	QUERY_ATTR_IDN_ACTIVE_ICC_LVL	= 0x03,
 	QUERY_ATTR_IDN_BKOPS_STATUS	= 0x05,
 	QUERY_ATTR_IDN_EE_CONTROL	= 0x0D,
 	QUERY_ATTR_IDN_EE_STATUS	= 0x0E,
@@ -172,6 +173,31 @@ enum unit_desc_param {
 	UNIT_DESC_PARAM_PHY_MEM_RSRC_CNT	= 0x18,
 	UNIT_DESC_PARAM_CTX_CAPABILITIES	= 0x20,
 	UNIT_DESC_PARAM_LARGE_UNIT_SIZE_M1	= 0x22,
+};
+
+/* bActiveICCLevel parameter current units */
+enum {
+	UFSHCD_NANO_AMP		= 0,
+	UFSHCD_MICRO_AMP	= 1,
+	UFSHCD_MILI_AMP		= 2,
+	UFSHCD_AMP		= 3,
+};
+
+#define POWER_DESC_MAX_SIZE			0x62
+#define POWER_DESC_MAX_ACTV_ICC_LVLS		16
+
+/* Attribute  bActiveICCLevel parameter bit masks definitions */
+#define ATTR_ICC_LVL_UNIT_OFFSET	14
+#define ATTR_ICC_LVL_UNIT_MASK		(0x3 << ATTR_ICC_LVL_UNIT_OFFSET)
+#define ATTR_ICC_LVL_VALUE_MASK		0x3FF
+
+/* Power descriptor parameters offsets in bytes */
+enum power_desc_param_offset {
+	PWR_DESC_LEN			= 0x0,
+	PWR_DESC_TYPE			= 0x1,
+	PWR_DESC_ACTIVE_LVLS_VCC_0	= 0x2,
+	PWR_DESC_ACTIVE_LVLS_VCCQ_0	= 0x22,
+	PWR_DESC_ACTIVE_LVLS_VCCQ2_0	= 0x42,
 };
 
 /* Exception event mask values */
