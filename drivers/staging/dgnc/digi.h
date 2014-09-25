@@ -86,11 +86,11 @@
 						/* Adapter Memory	*/
 
 #define	DIGI_GETFLOW	('e'<<8) | 99		/* Get startc/stopc flow */
-						/* control characters 	 */
+						/* control characters	 */
 #define	DIGI_SETFLOW	('e'<<8) | 100		/* Set startc/stopc flow */
 						/* control characters	 */
 #define	DIGI_GETAFLOW	('e'<<8) | 101		/* Get Aux. startc/stopc */
-						/* flow control chars 	 */
+						/* flow control chars	 */
 #define	DIGI_SETAFLOW	('e'<<8) | 102		/* Set Aux. startc/stopc */
 						/* flow control chars	 */
 
@@ -222,7 +222,7 @@ struct shrink_buf_struct {
 						   xxinit call. */
 
 	unsigned char	shrink_buf_anports;	/* Number of async ports  */
-	unsigned char	shrink_buf_snports; 	/* Number of sync  ports */
+	unsigned char	shrink_buf_snports;	/* Number of sync  ports */
 	unsigned char	shrink_buf_type;	/* Board type 1 = PC/Xi,
 							      2 = PC/Xm,
 							      3 = PC/Xe
@@ -285,9 +285,9 @@ struct digi_stat {
 struct digi_ch {
 	unsigned int	info_bdnum;		/* Board number (0 based)  */
 	unsigned int	info_channel;		/* Channel index number    */
-	unsigned int	info_ch_cflag;		/* Channel cflag   	   */
-	unsigned int	info_ch_iflag;		/* Channel iflag   	   */
-	unsigned int	info_ch_oflag;		/* Channel oflag   	   */
+	unsigned int	info_ch_cflag;		/* Channel cflag	   */
+	unsigned int	info_ch_iflag;		/* Channel iflag	   */
+	unsigned int	info_ch_oflag;		/* Channel oflag	   */
 	unsigned int	info_chsize;		/* Channel structure size  */
 	unsigned int	info_sleep_stat;	/* sleep status		   */
 	dev_t		info_dev;		/* device number	   */
