@@ -915,6 +915,8 @@ struct qla_tgt_cmd {
 	unsigned int aborted:1; /* Needed in case of SRR */
 	unsigned int write_data_transferred:1;
 	unsigned int ctx_dsd_alloced:1;
+	unsigned int q_full:1;
+	unsigned int term_exchg:1;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */
@@ -928,6 +930,7 @@ struct qla_tgt_cmd {
 	uint16_t loop_id;	/* to save extra sess dereferences */
 	struct qla_tgt *tgt;	/* to save extra sess dereferences */
 	struct scsi_qla_host *vha;
+	struct list_head cmd_list;
 
 	struct atio_from_isp atio;
 	/* t10dif */
@@ -1091,5 +1094,6 @@ extern int qlt_stop_phase1(struct qla_tgt *);
 extern void qlt_stop_phase2(struct qla_tgt *);
 extern irqreturn_t qla83xx_msix_atio_q(int, void *);
 extern void qlt_83xx_iospace_config(struct qla_hw_data *);
+extern int qlt_free_qfull_cmds(struct scsi_qla_host *);
 
 #endif /* __QLA_TARGET_H */

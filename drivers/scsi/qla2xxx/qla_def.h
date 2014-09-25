@@ -2776,6 +2776,9 @@ struct qla_statistics {
 	uint32_t control_requests;
 
 	uint64_t jiffies_at_last_reset;
+	uint32_t stat_max_pend_cmds;
+	uint32_t stat_max_qfull_cmds_alloc;
+	uint32_t stat_max_qfull_cmds_dropped;
 };
 
 struct bidi_statistics {
@@ -2898,7 +2901,21 @@ struct qlt_hw_data {
 	uint8_t saved_add_firmware_options[2];
 
 	uint8_t tgt_node_name[WWN_SIZE];
+
+	struct list_head q_full_list;
+	uint32_t num_pend_cmds;
+	uint32_t num_qfull_cmds_alloc;
+	uint32_t num_qfull_cmds_dropped;
+	spinlock_t q_full_lock;
+	uint32_t leak_exchg_thresh_hold;
 };
+
+#define MAX_QFULL_CMDS_ALLOC	8192
+#define Q_FULL_THRESH_HOLD_PERCENT 90
+#define Q_FULL_THRESH_HOLD(ha) \
+	((ha->fw_xcb_count/100) * Q_FULL_THRESH_HOLD_PERCENT)
+
+#define LEAK_EXCHG_THRESH_HOLD_PERCENT 75	/* 75 percent */
 
 /*
  * Qlogic host adapter specific data structure.
