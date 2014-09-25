@@ -29,7 +29,7 @@ extern struct kobj_type blk_queue_ktype;
 extern struct ida blk_queue_ida;
 
 static inline struct blk_flush_queue *blk_get_flush_queue(
-		struct request_queue *q)
+		struct request_queue *q, struct blk_mq_ctx *ctx)
 {
 	return q->fq;
 }
@@ -106,7 +106,7 @@ void blk_insert_flush(struct request *rq);
 static inline struct request *__elv_next_request(struct request_queue *q)
 {
 	struct request *rq;
-	struct blk_flush_queue *fq = blk_get_flush_queue(q);
+	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
 
 	while (1) {
 		if (!list_empty(&q->queue_head)) {
