@@ -99,6 +99,13 @@ static void container_device_detach(struct acpi_device *adev)
 		device_unregister(dev);
 }
 
+static void container_device_online(struct acpi_device *adev)
+{
+	struct device *dev = acpi_driver_data(adev);
+
+	kobject_uevent(&dev->kobj, KOBJ_ONLINE);
+}
+
 static struct acpi_scan_handler container_handler = {
 	.ids = container_device_ids,
 	.attach = container_device_attach,
@@ -106,6 +113,7 @@ static struct acpi_scan_handler container_handler = {
 	.hotplug = {
 		.enabled = true,
 		.demand_offline = true,
+		.notify_online = container_device_online,
 	},
 };
 

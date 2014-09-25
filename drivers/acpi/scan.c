@@ -130,7 +130,7 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 	list_for_each_entry(id, &acpi_dev->pnp.ids, list) {
 		count = snprintf(&modalias[len], size, "%s:", id->id);
 		if (count < 0)
-			return EINVAL;
+			return -EINVAL;
 		if (count >= size)
 			return -ENOMEM;
 		len += count;
@@ -2189,6 +2189,9 @@ static void acpi_bus_attach(struct acpi_device *device)
  ok:
 	list_for_each_entry(child, &device->children, node)
 		acpi_bus_attach(child);
+
+	if (device->handler && device->handler->hotplug.notify_online)
+		device->handler->hotplug.notify_online(device);
 }
 
 /**
