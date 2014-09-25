@@ -42,6 +42,11 @@
 #include "qla_def.h"
 #include "qla_target.h"
 
+static int ql2xtgt_tape_enable;
+module_param(ql2xtgt_tape_enable, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xtgt_tape_enable,
+		"Enables Sequence level error recovery (aka FC Tape). Default is 0 - no SLER. 1 - Enable SLER.");
+
 static char *qlini_mode = QLA2XXX_INI_MODE_STR_ENABLED;
 module_param(qlini_mode, charp, S_IRUGO);
 MODULE_PARM_DESC(qlini_mode,
@@ -5172,8 +5177,13 @@ qlt_24xx_config_nvram_stage1(struct scsi_qla_host *vha, struct nvram_24xx *nv)
 		nv->firmware_options_1 &= __constant_cpu_to_le32(~BIT_13);
 		/* Enable initial LIP */
 		nv->firmware_options_1 &= __constant_cpu_to_le32(~BIT_9);
-		/* Enable FC tapes support */
-		nv->firmware_options_2 |= __constant_cpu_to_le32(BIT_12);
+		if (ql2xtgt_tape_enable)
+			/* Enable FC Tape support */
+			nv->firmware_options_2 |= cpu_to_le32(BIT_12);
+		else
+			/* Disable FC Tape support */
+			nv->firmware_options_2 &= cpu_to_le32(~BIT_12);
+
 		/* Disable Full Login after LIP */
 		nv->host_p &= __constant_cpu_to_le32(~BIT_10);
 		/* Enable target PRLI control */
@@ -5255,8 +5265,13 @@ qlt_81xx_config_nvram_stage1(struct scsi_qla_host *vha, struct nvram_81xx *nv)
 		nv->firmware_options_1 &= __constant_cpu_to_le32(~BIT_13);
 		/* Enable initial LIP */
 		nv->firmware_options_1 &= __constant_cpu_to_le32(~BIT_9);
-		/* Enable FC tapes support */
-		nv->firmware_options_2 |= __constant_cpu_to_le32(BIT_12);
+		if (ql2xtgt_tape_enable)
+			/* Enable FC tape support */
+			nv->firmware_options_2 |= cpu_to_le32(BIT_12);
+		else
+			/* Disable FC tape support */
+			nv->firmware_options_2 &= cpu_to_le32(~BIT_12);
+
 		/* Disable Full Login after LIP */
 		nv->host_p &= __constant_cpu_to_le32(~BIT_10);
 		/* Enable target PRLI control */
