@@ -1436,6 +1436,9 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 
 	spin_unlock_irq(&dev->power.lock);
 
+	if (genpd->attach_dev)
+		genpd->attach_dev(dev);
+
 	mutex_lock(&gpd_data->lock);
 	gpd_data->base.dev = dev;
 	list_add_tail(&gpd_data->base.list_node, &genpd->dev_list);
@@ -1527,6 +1530,9 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 
 	genpd->device_count--;
 	genpd->max_off_time_changed = true;
+
+	if (genpd->detach_dev)
+		genpd->detach_dev(dev);
 
 	spin_lock_irq(&dev->power.lock);
 
