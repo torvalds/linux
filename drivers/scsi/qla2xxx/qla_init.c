@@ -2196,6 +2196,10 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		mid_init_cb->options = __constant_cpu_to_le16(BIT_1);
 		mid_init_cb->init_cb.execution_throttle =
 		    cpu_to_le16(ha->fw_xcb_count);
+		/* D-Port Status */
+		if (IS_DPORT_CAPABLE(ha))
+			mid_init_cb->init_cb.firmware_options_1 |=
+			    cpu_to_le16(BIT_7);
 	}
 
 	rval = qla2x00_init_firmware(vha, ha->init_cb_size);
