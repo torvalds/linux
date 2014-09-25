@@ -472,7 +472,7 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 }
 EXPORT_SYMBOL(blkdev_issue_flush);
 
-int blk_mq_init_flush(struct request_queue *q)
+static int blk_mq_init_flush(struct request_queue *q)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
 
@@ -484,4 +484,21 @@ int blk_mq_init_flush(struct request_queue *q)
 	if (!q->flush_rq)
 		return -ENOMEM;
 	return 0;
+}
+
+int blk_init_flush(struct request_queue *q)
+{
+	if (q->mq_ops)
+		return blk_mq_init_flush(q);
+
+	q->flush_rq = kzalloc(sizeof(struct request), GFP_KERNEL);
+	if (!q->flush_rq)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void blk_exit_flush(struct request_queue *q)
+{
+	kfree(q->flush_rq);
 }

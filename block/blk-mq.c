@@ -1859,7 +1859,7 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 
 	blk_mq_add_queue_tag_set(set, q);
 
-	if (blk_mq_init_flush(q))
+	if (blk_init_flush(q))
 		goto err_hw_queues;
 
 	blk_mq_map_swqueue(q);
