@@ -237,15 +237,14 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	if (err < 0)
 		return err;
 
+	err = -ENOMEM;
 	/* tcindex_data attributes must look atomic to classifier/lookup so
 	 * allocate new tcindex data and RCU assign it onto root. Keeping
 	 * perfect hash and hash pointers from old data.
 	 */
 	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
-	if (!cp) {
-		err = -ENOMEM;
+	if (!cp)
 		goto errout;
-	}
 
 	cp->mask = p->mask;
 	cp->shift = p->shift;
