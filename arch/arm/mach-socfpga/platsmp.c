@@ -41,7 +41,7 @@ static int __cpuinit socfpga_boot_secondary(unsigned int cpu, struct task_struct
 		memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
 
 		__raw_writel(virt_to_phys(socfpga_secondary_startup),
-			(sys_manager_base_addr + (cpu1start_addr & 0x000000ff)));
+			(sys_manager_base_addr + (cpu1start_addr & 0x00000fff)));
 
 		flush_cache_all();
 		smp_wmb();
