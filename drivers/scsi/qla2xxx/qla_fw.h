@@ -567,7 +567,7 @@ struct sts_entry_24xx {
 #define SF_TRANSFERRED_DATA	BIT_11
 #define SF_FCP_RSP_DMA		BIT_0
 
-	uint16_t reserved_2;
+	uint16_t retry_delay;
 	uint16_t scsi_status;		/* SCSI status. */
 #define SS_CONFIRMATION_REQ		BIT_12
 

@@ -2023,6 +2023,8 @@ typedef struct fc_port {
 	unsigned long last_ramp_up;
 
 	uint16_t port_id;
+
+	unsigned long retry_delay_timestamp;
 } fc_port_t;
 
 #include "qla_mr.h"
