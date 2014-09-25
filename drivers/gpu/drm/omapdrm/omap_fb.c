@@ -423,6 +423,14 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 			goto fail;
 		}
 
+		if (pitch % format->planes[i].stride_bpp != 0) {
+			dev_err(dev->dev,
+				"buffer pitch (%d bytes) is not a multiple of pixel size (%d bytes)\n",
+				pitch, format->planes[i].stride_bpp);
+			ret = -EINVAL;
+			goto fail;
+		}
+
 		size = pitch * mode_cmd->height / format->planes[i].sub_y;
 
 		if (size > (omap_gem_mmap_size(bos[i]) - mode_cmd->offsets[i])) {
