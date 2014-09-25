@@ -48,7 +48,10 @@ static int __cpuinit socfpga_boot_secondary(unsigned int cpu, struct task_struct
 		outer_clean_range(0, trampoline_size);
 
 		/* This will release CPU #1 out of reset.*/
-		__raw_writel(0, rst_manager_base_addr + 0x10);
+		if (of_machine_is_compatible("altr,socfpga-arria10"))
+			__raw_writel(0, rst_manager_base_addr + 0x20);
+		else
+			__raw_writel(0, rst_manager_base_addr + 0x10);
 	}
 
 	return 0;
