@@ -116,6 +116,15 @@ static inline unsigned long prep_zero_mask(unsigned long a, unsigned long bits, 
 
 #endif
 
+/*
+ * We use load_unaligned_zero() in a selftest, which builds a userspace
+ * program. Some linker scripts seem to discard the .fixup section, so allow
+ * the test code to use a different section name.
+ */
+#ifndef FIXUP_SECTION
+#define FIXUP_SECTION ".fixup"
+#endif
+
 static inline unsigned long load_unaligned_zeropad(const void *addr)
 {
 	unsigned long ret, offset, tmp;
@@ -123,7 +132,7 @@ static inline unsigned long load_unaligned_zeropad(const void *addr)
 	asm(
 	"1:	" PPC_LL "%[ret], 0(%[addr])\n"
 	"2:\n"
-	".section .fixup,\"ax\"\n"
+	".section " FIXUP_SECTION ",\"ax\"\n"
 	"3:	"
 #ifdef __powerpc64__
 	"clrrdi		%[tmp], %[addr], 3\n\t"
@@ -155,5 +164,7 @@ static inline unsigned long load_unaligned_zeropad(const void *addr)
 
 	return ret;
 }
+
+#undef FIXUP_SECTION
 
 #endif /* _ASM_WORD_AT_A_TIME_H */
