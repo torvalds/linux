@@ -15,6 +15,18 @@
 #define htole64(x) (x)
 #endif
 
+#ifndef le16toh
+#define le16toh(x) (x)
+#endif
+
+#ifndef le32toh
+#define le32toh(x) (x)
+#endif
+
+#ifndef le64toh
+#define le64toh(x) (x)
+#endif
+
 #else /* __BYTE_ORDER */
 
 #ifndef htole16
@@ -25,6 +37,18 @@
 #endif
 #ifndef htole64
 #define htole64(x) __bswap_64(x)
+#endif
+
+#ifndef le16toh
+#define le16toh(x) __bswap_16(x)
+#endif
+
+#ifndef le32toh
+#define le32toh(x) __bswap_32(x)
+#endif
+
+#ifndef le64toh
+#define le64toh(x) __bswap_64(x)
 #endif
 
 #endif
