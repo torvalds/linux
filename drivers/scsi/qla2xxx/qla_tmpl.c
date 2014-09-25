@@ -726,7 +726,7 @@ qla27xx_fwdt_entry_other(struct scsi_qla_host *vha,
 }
 
 struct qla27xx_fwdt_entry_call {
-	int type;
+	uint type;
 	int (*call)(
 	    struct scsi_qla_host *,
 	    struct qla27xx_fwdt_entry *,
@@ -759,15 +759,17 @@ static struct qla27xx_fwdt_entry_call ql27xx_fwdt_entry_call_list[] = {
 	{ -1				, qla27xx_fwdt_entry_other }
 };
 
-static inline int (*qla27xx_find_entry(int type))
+static inline int (*qla27xx_find_entry(uint type))
 	(struct scsi_qla_host *, struct qla27xx_fwdt_entry *, void *, ulong *)
 {
 	struct qla27xx_fwdt_entry_call *list = ql27xx_fwdt_entry_call_list;
 
-	while (list->type != -1 && list->type != type)
+	while (list->type < type)
 		list++;
 
-	return list->call;
+	if (list->type == type)
+		return list->call;
+	return qla27xx_fwdt_entry_other;
 }
 
 static inline void *
