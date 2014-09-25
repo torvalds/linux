@@ -122,11 +122,11 @@ extern unsigned long PAGE_OFFSET;
 
 #endif /* !(__ASSEMBLY__) */
 
-/* The maximum number of physical memory address bits we support, this
- * is used to size various tables used to manage kernel TLB misses and
- * also the sparsemem code.
+/* The maximum number of physical memory address bits we support.  The
+ * largest value we can support is whatever "KPGD_SHIFT + KPTE_BITS"
+ * evaluates to.
  */
-#define MAX_PHYS_ADDRESS_BITS	47
+#define MAX_PHYS_ADDRESS_BITS	53
 
 #define ILOG2_4MB		22
 #define ILOG2_256MB		28
