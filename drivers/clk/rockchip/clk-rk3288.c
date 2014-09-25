@@ -296,6 +296,20 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	COMPOSITE(0, "aclk_vdpu", mux_pll_src_cpll_gpll_usb480m_p, 0,
 			RK3288_CLKSEL_CON(32), 14, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3288_CLKGATE_CON(3), 11, GFLAGS),
+	/*
+	 * We use aclk_vdpu by default GRF_SOC_CON0[7] setting in system,
+	 * so we ignore the mux and make clocks nodes as following,
+	 */
+	GATE(ACLK_VCODEC, "aclk_vcodec", "aclk_vdpu", 0,
+		RK3288_CLKGATE_CON(9), 0, GFLAGS),
+	/*
+	 * We introduce a virtul node of hclk_vodec_pre_v to split one clock
+	 * struct with a gate and a fix divider into two node in software.
+	 */
+	GATE(0, "hclk_vcodec_pre_v", "aclk_vdpu", 0,
+		RK3288_CLKGATE_CON(3), 10, GFLAGS),
+	GATE(HCLK_VCODEC, "hclk_vcodec", "hclk_vcodec_pre", 0,
+		RK3288_CLKGATE_CON(9), 1, GFLAGS),
 
 	COMPOSITE(0, "aclk_vio0", mux_pll_src_cpll_gpll_usb480m_p, 0,
 			RK3288_CLKSEL_CON(31), 6, 2, MFLAGS, 0, 5, DFLAGS,
@@ -703,6 +717,12 @@ static void __init rk3288_clk_init(struct device_node *np)
 	clk = clk_register_fixed_factor(NULL, "usb480m", "xin24m", 0, 20, 1);
 	if (IS_ERR(clk))
 		pr_warn("%s: could not register clock usb480m: %ld\n",
+			__func__, PTR_ERR(clk));
+
+	clk = clk_register_fixed_factor(NULL, "hclk_vcodec_pre",
+					"hclk_vcodec_pre_v", 0, 1, 4);
+	if (IS_ERR(clk))
+		pr_warn("%s: could not register clock hclk_vcodec_pre: %ld\n",
 			__func__, PTR_ERR(clk));
 
 	rockchip_clk_register_plls(rk3288_pll_clks,
