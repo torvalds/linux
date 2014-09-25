@@ -520,7 +520,6 @@
 
 	mmc@12550000 {
 		num-slots = <1>;
-		supports-highspeed;
 		broken-cd;
 		non-removable;
 		card-detect-delay = <200>;
@@ -532,11 +531,8 @@
 		pinctrl-0 = <&sd4_clk &sd4_cmd &sd4_bus4 &sd4_bus8>;
 		pinctrl-names = "default";
 		status = "okay";
-
-		slot@0 {
-			reg = <0>;
-			bus-width = <8>;
-		};
+		bus-width = <8>;
+		cap-mmc-highspeed;
 	};
 
 	serial@13800000 {
