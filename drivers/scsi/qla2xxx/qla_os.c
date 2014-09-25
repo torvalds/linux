@@ -3032,6 +3032,9 @@ qla2x00_shutdown(struct pci_dev *pdev)
 	qla2x00_free_irqs(vha);
 
 	qla2x00_free_fw_dump(ha);
+
+	pci_disable_pcie_error_reporting(pdev);
+	pci_disable_device(pdev);
 }
 
 /* Deletes all the virtual ports for a given ha */
