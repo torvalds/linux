@@ -3092,7 +3092,7 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 		ha->fw_revision[2] = dcode[2];
 		ha->fw_revision[3] = dcode[3];
 		ql_dbg(ql_dbg_init, vha, 0x0060,
-		    "Firmware revision %d.%d.%d.%d.\n",
+		    "Firmware revision %d.%d.%d (%x).\n",
 		    ha->fw_revision[0], ha->fw_revision[1],
 		    ha->fw_revision[2], ha->fw_revision[3]);
 	}
