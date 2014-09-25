@@ -592,6 +592,9 @@ static int tilcdc_pm_suspend(struct device *dev)
 		return 0;
 	}
 
+	/* Disable the LCDC controller, to avoid locking up the PRCM */
+	tilcdc_crtc_dpms(priv->crtc, DRM_MODE_DPMS_OFF);
+
 	/* Save register state: */
 	for (i = 0; i < ARRAY_SIZE(registers); i++)
 		if (registers[i].save && (priv->rev >= registers[i].rev))

@@ -171,5 +171,6 @@ void tilcdc_crtc_set_simulate_vesa_sync(struct drm_crtc *crtc,
 					bool simulate_vesa_sync);
 int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode);
 int tilcdc_crtc_max_width(struct drm_crtc *crtc);
+void tilcdc_crtc_dpms(struct drm_crtc *crtc, int mode);
 
 #endif /* __TILCDC_DRV_H__ */
