@@ -747,5 +747,4 @@ MACHINE_START(H1940, "IPAQ-H1940")
 	.init_irq	= s3c2410_init_irq,
 	.init_machine	= h1940_init,
 	.init_time	= h1940_init_time,
-	.restart	= s3c2410_restart,
 MACHINE_END
