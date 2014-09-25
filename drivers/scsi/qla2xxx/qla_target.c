@@ -1723,6 +1723,7 @@ static int qlt_pre_xmit_response(struct qla_tgt_cmd *cmd,
 		    se_cmd, cmd->tag);
 
 		cmd->state = QLA_TGT_STATE_ABORTED;
+		cmd->cmd_flags |= BIT_6;
 
 		qlt_send_term_exchange(vha, cmd, &cmd->atio, 0);
 
@@ -2789,10 +2790,13 @@ void qlt_free_cmd(struct qla_tgt_cmd *cmd)
 	    __func__, &cmd->se_cmd,
 	    be16_to_cpu(cmd->atio.u.isp24.fcp_hdr.ox_id));
 
+	BUG_ON(cmd->cmd_in_wq);
+
 	if (!cmd->q_full)
 		qlt_decr_num_pend_cmds(cmd->vha);
 
 	BUG_ON(cmd->sg_mapped);
+	cmd->jiffies_at_free = get_jiffies_64();
 	if (unlikely(cmd->free_sg))
 		kfree(cmd->sg);
 
@@ -2800,6 +2804,7 @@ void qlt_free_cmd(struct qla_tgt_cmd *cmd)
 		WARN_ON(1);
 		return;
 	}
+	cmd->jiffies_at_free = get_jiffies_64();
 	percpu_ida_free(&sess->se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
 }
 EXPORT_SYMBOL(qlt_free_cmd);
@@ -2813,6 +2818,7 @@ static int qlt_prepare_srr_ctio(struct scsi_qla_host *vha,
 	struct qla_tgt_srr_imm *imm;
 
 	tgt->ctio_srr_id++;
+	cmd->cmd_flags |= BIT_15;
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf019,
 	    "qla_target(%d): CTIO with SRR status received\n", vha->vp_idx);
@@ -2998,6 +3004,7 @@ qlt_abort_cmd_on_host_reset(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
 		dump_stack();
 	}
 
+	cmd->cmd_flags |= BIT_12;
 	ha->tgt.tgt_ops->free_cmd(cmd);
 }
 
@@ -3152,6 +3159,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 		 */
 		if ((cmd->state != QLA_TGT_STATE_NEED_DATA) &&
 		    (cmd->state != QLA_TGT_STATE_ABORTED)) {
+			cmd->cmd_flags |= BIT_13;
 			if (qlt_term_ctio_exchange(vha, ctio, cmd, status))
 				return;
 		}
@@ -3240,6 +3248,8 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 	uint32_t data_length;
 	int ret, fcp_task_attr, data_dir, bidi = 0;
 
+	cmd->cmd_in_wq = 0;
+	cmd->cmd_flags |= BIT_1;
 	if (tgt->tgt_stop)
 		goto out_term;
 
@@ -3283,6 +3293,7 @@ out_term:
 	 * cmd has not sent to target yet, so pass NULL as the second
 	 * argument to qlt_send_term_exchange() and free the memory here.
 	 */
+	cmd->cmd_flags |= BIT_2;
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qlt_send_term_exchange(vha, NULL, &cmd->atio, 1);
 
@@ -3430,8 +3441,13 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 		return -ENOMEM;
 	}
 
+	cmd->cmd_flags = 0;
+	cmd->jiffies_at_alloc = get_jiffies_64();
+
 	cmd->reset_count = vha->hw->chip_reset;
 
+	cmd->cmd_in_wq = 1;
+	cmd->cmd_flags |= BIT_0;
 	INIT_WORK(&cmd->work, qlt_do_work);
 	queue_work(qla_tgt_wq, &cmd->work);
 	return 0;
@@ -3893,8 +3909,10 @@ static void qlt_handle_srr(struct scsi_qla_host *vha,
 			qlt_send_notify_ack(vha, ntfy,
 			    0, 0, 0, NOTIFY_ACK_SRR_FLAGS_ACCEPT, 0, 0);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
-			if (xmit_type & QLA_TGT_XMIT_DATA)
+			if (xmit_type & QLA_TGT_XMIT_DATA) {
+				cmd->cmd_flags |= BIT_8;
 				qlt_rdy_to_xfer(cmd);
+			}
 		} else {
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf066,
 			    "qla_target(%d): SRR for out data for cmd "
@@ -3912,8 +3930,10 @@ static void qlt_handle_srr(struct scsi_qla_host *vha,
 	}
 
 	/* Transmit response in case of status and data-in cases */
-	if (resp)
+	if (resp) {
+		cmd->cmd_flags |= BIT_7;
 		qlt_xmit_response(cmd, xmit_type, se_cmd->scsi_status);
+	}
 
 	return;
 
@@ -3926,8 +3946,10 @@ out_reject:
 	if (cmd->state == QLA_TGT_STATE_NEED_DATA) {
 		cmd->state = QLA_TGT_STATE_DATA_IN;
 		dump_stack();
-	} else
+	} else {
+		cmd->cmd_flags |= BIT_9;
 		qlt_send_term_exchange(vha, cmd, &cmd->atio, 1);
+	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
@@ -4041,7 +4063,7 @@ static void qlt_prepare_srr_imm(struct scsi_qla_host *vha,
 
 	tgt->imm_srr_id++;
 
-	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf02d, "qla_target(%d): SRR received\n",
+	ql_log(ql_log_warn, vha, 0xf02d, "qla_target(%d): SRR received\n",
 	    vha->vp_idx);
 
 	imm = kzalloc(sizeof(*imm), GFP_ATOMIC);
