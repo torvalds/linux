@@ -151,8 +151,6 @@ qla27xx_read8(void *window, void *buf, ulong *len)
 
 	if (buf) {
 		value = RD_REG_BYTE((__iomem void *)window);
-		ql_dbg(ql_dbg_misc, NULL, 0xd011,
-		    "%s: -> %x\n", __func__, value);
 	}
 	qla27xx_insert32(value, buf, len);
 }
@@ -164,8 +162,6 @@ qla27xx_read16(void *window, void *buf, ulong *len)
 
 	if (buf) {
 		value = RD_REG_WORD((__iomem void *)window);
-		ql_dbg(ql_dbg_misc, NULL, 0xd012,
-		    "%s: -> %x\n", __func__, value);
 	}
 	qla27xx_insert32(value, buf, len);
 }
@@ -177,8 +173,6 @@ qla27xx_read32(void *window, void *buf, ulong *len)
 
 	if (buf) {
 		value = RD_REG_DWORD((__iomem void *)window);
-		ql_dbg(ql_dbg_misc, NULL, 0xd013,
-		    "%s: -> %x\n", __func__, value);
 	}
 	qla27xx_insert32(value, buf, len);
 }
@@ -197,10 +191,6 @@ qla27xx_read_reg(__iomem struct device_reg_24xx *reg,
 {
 	void *window = (void *)reg + offset;
 
-	if (buf) {
-		ql_dbg(ql_dbg_misc, NULL, 0xd014,
-		    "%s: @%x\n", __func__, offset);
-	}
 	qla27xx_read32(window, buf, len);
 }
 
@@ -211,8 +201,6 @@ qla27xx_write_reg(__iomem struct device_reg_24xx *reg,
 	__iomem void *window = reg + offset;
 
 	if (buf) {
-		ql_dbg(ql_dbg_misc, NULL, 0xd015,
-		    "%s: @%x <- %x\n", __func__, offset, data);
 		WRT_REG_DWORD(window, data);
 	}
 }
@@ -225,11 +213,6 @@ qla27xx_read_window(__iomem struct device_reg_24xx *reg,
 	void *window = (void *)reg + offset;
 	void (*readn)(void *, void *, ulong *) = qla27xx_read_vector(width);
 
-	if (buf) {
-		ql_dbg(ql_dbg_misc, NULL, 0xd016,
-		    "%s: base=%x offset=%x count=%x width=%x\n",
-		    __func__, addr, offset, count, width);
-	}
 	qla27xx_write_reg(reg, IOBASE_ADDR, addr, buf);
 	while (count--) {
 		qla27xx_insert32(addr, buf, len);
