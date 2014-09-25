@@ -556,73 +556,6 @@ DWC_OTG_DEVICE_ATTR_REG32_RO(hptxfsiz,
 DWC_OTG_DEVICE_ATTR_REG32_RW(hprt0, otg_dev->core_if->host_if->hprt0, "HPRT0");
 
 /**
- * @todo Add code to initiate the HNP.
- */
-/**
- * Show the HNP status bit
- */
-static ssize_t hnp_show(struct device *_dev,
-			struct device_attribute *attr, char *buf)
-{
-
-	dwc_otg_device_t *otg_dev = _dev->platform_data;
-	return sprintf(buf, "HstNegScs = 0x%x\n",
-		       dwc_otg_get_hnpstatus(otg_dev->core_if));
-}
-
-/**
- * Set the HNP Request bit
- */
-static ssize_t hnp_store(struct device *_dev,
-			 struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-
-	dwc_otg_device_t *otg_dev = _dev->platform_data;
-	uint32_t in = simple_strtoul(buf, NULL, 16);
-	dwc_otg_set_hnpreq(otg_dev->core_if, in);
-	return count;
-}
-
-DEVICE_ATTR(hnp, 0644, hnp_show, hnp_store);
-
-/**
- * @todo Add code to initiate the SRP.
- */
-/**
- * Show the SRP status bit
- */
-static ssize_t srp_show(struct device *_dev,
-			struct device_attribute *attr, char *buf)
-{
-#ifndef DWC_HOST_ONLY
-
-	dwc_otg_device_t *otg_dev = _dev->platform_data;
-	return sprintf(buf, "SesReqScs = 0x%x\n",
-		       dwc_otg_get_srpstatus(otg_dev->core_if));
-#else
-	return sprintf(buf, "Host Only Mode!\n");
-#endif
-}
-
-/**
- * Set the SRP Request bit
- */
-static ssize_t srp_store(struct device *_dev,
-			 struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-#ifndef DWC_HOST_ONLY
-
-	dwc_otg_device_t *otg_dev = _dev->platform_data;
-	dwc_otg_pcd_initiate_srp(otg_dev->pcd);
-#endif
-	return count;
-}
-
-DEVICE_ATTR(srp, 0644, srp_show, srp_store);
-
-/**
  * @todo Need to do more for power on/off?
  */
 /**
@@ -750,10 +683,8 @@ static ssize_t remote_wakeup_show(struct device *_dev,
 
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	return sprintf(buf,
-		       "Remote Wakeup Sig = %d Enabled = %d LPM Remote Wakeup = %d\n",
-		       dwc_otg_get_remotewakesig(otg_dev->core_if),
-		       dwc_otg_pcd_get_rmwkup_enable(otg_dev->pcd),
-		       dwc_otg_get_lpm_remotewakeenabled(otg_dev->core_if));
+		       "Remote Wakeup Sig = %d\n",
+		       dwc_otg_get_remotewakesig(otg_dev->core_if));
 #else
 	return sprintf(buf, "Host Only Mode!\n");
 #endif /* DWC_HOST_ONLY */
@@ -1156,12 +1087,6 @@ void dwc_otg_attr_create(struct platform_device *dev)
 	error = device_create_file(&dev->dev, &dev_attr_regoffset);
 	error = device_create_file(&dev->dev, &dev_attr_regvalue);
 	error = device_create_file(&dev->dev, &dev_attr_mode);
-	error = device_create_file(&dev->dev, &dev_attr_hnpcapable);
-	error = device_create_file(&dev->dev, &dev_attr_srpcapable);
-	error = device_create_file(&dev->dev, &dev_attr_hsic_connect);
-	error = device_create_file(&dev->dev, &dev_attr_inv_sel_hsic);
-	error = device_create_file(&dev->dev, &dev_attr_hnp);
-	error = device_create_file(&dev->dev, &dev_attr_srp);
 	error = device_create_file(&dev->dev, &dev_attr_buspower);
 	error = device_create_file(&dev->dev, &dev_attr_bussuspend);
 	error = device_create_file(&dev->dev, &dev_attr_mode_ch_tim_en);
@@ -1180,7 +1105,6 @@ void dwc_otg_attr_create(struct platform_device *dev)
 	error = device_create_file(&dev->dev, &dev_attr_hptxfsiz);
 	error = device_create_file(&dev->dev, &dev_attr_hprt0);
 	error = device_create_file(&dev->dev, &dev_attr_remote_wakeup);
-	error = device_create_file(&dev->dev, &dev_attr_rem_wakeup_pwrdn);
 	error = device_create_file(&dev->dev, &dev_attr_disconnect_us);
 	error = device_create_file(&dev->dev, &dev_attr_regdump);
 	error = device_create_file(&dev->dev, &dev_attr_spramdump);
@@ -1204,12 +1128,6 @@ void dwc_otg_attr_remove(struct platform_device *dev)
 	device_remove_file(&dev->dev, &dev_attr_regoffset);
 	device_remove_file(&dev->dev, &dev_attr_regvalue);
 	device_remove_file(&dev->dev, &dev_attr_mode);
-	device_remove_file(&dev->dev, &dev_attr_hnpcapable);
-	device_remove_file(&dev->dev, &dev_attr_srpcapable);
-	device_remove_file(&dev->dev, &dev_attr_hsic_connect);
-	device_remove_file(&dev->dev, &dev_attr_inv_sel_hsic);
-	device_remove_file(&dev->dev, &dev_attr_hnp);
-	device_remove_file(&dev->dev, &dev_attr_srp);
 	device_remove_file(&dev->dev, &dev_attr_buspower);
 	device_remove_file(&dev->dev, &dev_attr_bussuspend);
 	device_remove_file(&dev->dev, &dev_attr_mode_ch_tim_en);
@@ -1228,7 +1146,6 @@ void dwc_otg_attr_remove(struct platform_device *dev)
 	device_remove_file(&dev->dev, &dev_attr_hptxfsiz);
 	device_remove_file(&dev->dev, &dev_attr_hprt0);
 	device_remove_file(&dev->dev, &dev_attr_remote_wakeup);
-	device_remove_file(&dev->dev, &dev_attr_rem_wakeup_pwrdn);
 	device_remove_file(&dev->dev, &dev_attr_disconnect_us);
 	device_remove_file(&dev->dev, &dev_attr_regdump);
 	device_remove_file(&dev->dev, &dev_attr_spramdump);

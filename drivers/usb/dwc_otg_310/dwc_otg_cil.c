@@ -5436,9 +5436,6 @@ void dwc_otg_dump_global_registers(dwc_otg_core_if_t *core_if)
 	addr = &core_if->core_global_regs->gdfifocfg;
 	DWC_PRINTF("GDFIFOCFG	 @0x%08lX : 0x%08X\n", (unsigned long)addr,
 		   DWC_READ_REG32(addr));
-	addr = &core_if->core_global_regs->adpctl;
-	DWC_PRINTF("ADPCTL	 @0x%08lX : 0x%08X\n", (unsigned long)addr,
-		   dwc_otg_adp_read_reg(core_if));
 	addr = &core_if->core_global_regs->hptxfsiz;
 	DWC_PRINTF("HPTXFSIZ	 @0x%08lX : 0x%08X\n", (unsigned long)addr,
 		   DWC_READ_REG32(addr));
