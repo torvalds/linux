@@ -35,8 +35,23 @@
 
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
 
 #include "ufshcd.h"
+
+static const struct of_device_id ufs_of_match[];
+static struct ufs_hba_variant_ops *get_variant_ops(struct device *dev)
+{
+	if (dev->of_node) {
+		const struct of_device_id *match;
+
+		match = of_match_node(ufs_of_match, dev->of_node);
+		if (match)
+			return (struct ufs_hba_variant_ops *)match->data;
+	}
+
+	return NULL;
+}
 
 #ifdef CONFIG_PM
 /**
@@ -138,8 +153,8 @@ static int ufshcd_pltfrm_probe(struct platform_device *pdev)
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mmio_base = devm_ioremap_resource(dev, mem_res);
-	if (IS_ERR(mmio_base)) {
-		err = PTR_ERR(mmio_base);
+	if (IS_ERR(*(void **)&mmio_base)) {
+		err = PTR_ERR(*(void **)&mmio_base);
 		goto out;
 	}
 
@@ -150,10 +165,18 @@ static int ufshcd_pltfrm_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	err = ufshcd_alloc_host(dev, &hba);
+	if (err) {
+		dev_err(&pdev->dev, "Allocation failed\n");
+		goto out;
+	}
+
+	hba->vops = get_variant_ops(&pdev->dev);
+
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	err = ufshcd_init(dev, &hba, mmio_base, irq);
+	err = ufshcd_init(hba, mmio_base, irq);
 	if (err) {
 		dev_err(dev, "Intialization failed\n");
 		goto out_disable_rpm;

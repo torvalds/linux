@@ -3,6 +3,7 @@
  *
  * This code is based on drivers/scsi/ufs/ufshcd.c
  * Copyright (C) 2011-2013 Samsung India Software Operations
+ * Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
  *
  * Authors:
  *	Santosh Yaraganavi <santosh.sy@samsung.com>
@@ -31,6 +32,9 @@
  * circumstances will the contributor of this Program be liable for
  * any damages of any kind arising from your use or distribution of
  * this program.
+ *
+ * The Linux Foundation chooses to take subject only to the GPLv2
+ * license terms, and distributes only under these terms.
  */
 
 #include <linux/async.h>
@@ -175,13 +179,14 @@ static inline u32 ufshcd_get_ufs_version(struct ufs_hba *hba)
 /**
  * ufshcd_is_device_present - Check if any device connected to
  *			      the host controller
- * @reg_hcs - host controller status register value
+ * @hba: pointer to adapter instance
  *
  * Returns 1 if device present, 0 if no device detected
  */
-static inline int ufshcd_is_device_present(u32 reg_hcs)
+static inline int ufshcd_is_device_present(struct ufs_hba *hba)
 {
-	return (DEVICE_PRESENT & reg_hcs) ? 1 : 0;
+	return (ufshcd_readl(hba, REG_CONTROLLER_STATUS) &
+						DEVICE_PRESENT) ? 1 : 0;
 }
 
 /**
@@ -1798,11 +1803,10 @@ out:
  * @hba: per adapter instance
  *
  * To bring UFS host controller to operational state,
- * 1. Check if device is present
- * 2. Enable required interrupts
- * 3. Configure interrupt aggregation
- * 4. Program UTRL and UTMRL base addres
- * 5. Configure run-stop-registers
+ * 1. Enable required interrupts
+ * 2. Configure interrupt aggregation
+ * 3. Program UTRL and UTMRL base addres
+ * 4. Configure run-stop-registers
  *
  * Returns 0 on success, non-zero value on failure
  */
@@ -1810,14 +1814,6 @@ static int ufshcd_make_hba_operational(struct ufs_hba *hba)
 {
 	int err = 0;
 	u32 reg;
-
-	/* check if device present */
-	reg = ufshcd_readl(hba, REG_CONTROLLER_STATUS);
-	if (!ufshcd_is_device_present(reg)) {
-		dev_err(hba->dev, "cc: Device not present\n");
-		err = -ENXIO;
-		goto out;
-	}
 
 	/* Enable required interrupts */
 	ufshcd_enable_intr(hba, UFSHCD_ENABLE_INTRS);
@@ -1839,6 +1835,7 @@ static int ufshcd_make_hba_operational(struct ufs_hba *hba)
 	 * UCRDY, UTMRLDY and UTRLRDY bits must be 1
 	 * DEI, HEI bits must be 0
 	 */
+	reg = ufshcd_readl(hba, REG_CONTROLLER_STATUS);
 	if (!(ufshcd_get_lists_status(reg))) {
 		ufshcd_enable_run_stop_reg(hba);
 	} else {
@@ -1885,6 +1882,9 @@ static int ufshcd_hba_enable(struct ufs_hba *hba)
 		msleep(5);
 	}
 
+	if (hba->vops && hba->vops->hce_enable_notify)
+		hba->vops->hce_enable_notify(hba, PRE_CHANGE);
+
 	/* start controller initialization sequence */
 	ufshcd_hba_start(hba);
 
@@ -1912,6 +1912,10 @@ static int ufshcd_hba_enable(struct ufs_hba *hba)
 		}
 		msleep(5);
 	}
+
+	if (hba->vops && hba->vops->hce_enable_notify)
+		hba->vops->hce_enable_notify(hba, POST_CHANGE);
+
 	return 0;
 }
 
@@ -1928,12 +1932,28 @@ static int ufshcd_link_startup(struct ufs_hba *hba)
 	/* enable UIC related interrupts */
 	ufshcd_enable_intr(hba, UIC_COMMAND_COMPL);
 
+	if (hba->vops && hba->vops->link_startup_notify)
+		hba->vops->link_startup_notify(hba, PRE_CHANGE);
+
 	ret = ufshcd_dme_link_startup(hba);
 	if (ret)
 		goto out;
 
-	ret = ufshcd_make_hba_operational(hba);
+	/* check if device is detected by inter-connect layer */
+	if (!ufshcd_is_device_present(hba)) {
+		dev_err(hba->dev, "%s: Device not present\n", __func__);
+		ret = -ENXIO;
+		goto out;
+	}
 
+	/* Include any host controller configuration via UIC commands */
+	if (hba->vops && hba->vops->link_startup_notify) {
+		ret = hba->vops->link_startup_notify(hba, POST_CHANGE);
+		if (ret)
+			goto out;
+	}
+
+	ret = ufshcd_make_hba_operational(hba);
 out:
 	if (ret)
 		dev_err(hba->dev, "link startup failed %d\n", ret);
@@ -3173,6 +3193,61 @@ static struct scsi_host_template ufshcd_driver_template = {
 	.can_queue		= UFSHCD_CAN_QUEUE,
 };
 
+static int ufshcd_variant_hba_init(struct ufs_hba *hba)
+{
+	int err = 0;
+
+	if (!hba->vops)
+		goto out;
+
+	if (hba->vops->init) {
+		err = hba->vops->init(hba);
+		if (err)
+			goto out;
+	}
+
+	if (hba->vops->setup_clocks) {
+		err = hba->vops->setup_clocks(hba, true);
+		if (err)
+			goto out_exit;
+	}
+
+	if (hba->vops->setup_regulators) {
+		err = hba->vops->setup_regulators(hba, true);
+		if (err)
+			goto out_clks;
+	}
+
+	goto out;
+
+out_clks:
+	if (hba->vops->setup_clocks)
+		hba->vops->setup_clocks(hba, false);
+out_exit:
+	if (hba->vops->exit)
+		hba->vops->exit(hba);
+out:
+	if (err)
+		dev_err(hba->dev, "%s: variant %s init failed err %d\n",
+			__func__, hba->vops ? hba->vops->name : "", err);
+	return err;
+}
+
+static void ufshcd_variant_hba_exit(struct ufs_hba *hba)
+{
+	if (!hba->vops)
+		return;
+
+	if (hba->vops->setup_clocks)
+		hba->vops->setup_clocks(hba, false);
+
+	if (hba->vops->setup_regulators)
+		hba->vops->setup_regulators(hba, false);
+
+	if (hba->vops->exit)
+		hba->vops->exit(hba);
+}
+
 /**
  * ufshcd_suspend - suspend power management function
  * @hba: per adapter instance
@@ -3257,6 +3332,8 @@ void ufshcd_remove(struct ufs_hba *hba)
 	ufshcd_hba_stop(hba);
 
 	scsi_host_put(hba->host);
+
+	ufshcd_variant_hba_exit(hba);
 }
 EXPORT_SYMBOL_GPL(ufshcd_remove);
 
@@ -3277,30 +3354,20 @@ static int ufshcd_set_dma_mask(struct ufs_hba *hba)
 }
 
 /**
- * ufshcd_init - Driver initialization routine
+ * ufshcd_alloc_host - allocate Host Bus Adapter (HBA)
  * @dev: pointer to device handle
  * @hba_handle: driver private handle
- * @mmio_base: base register address
- * @irq: Interrupt line of device
  * Returns 0 on success, non-zero value on failure
  */
-int ufshcd_init(struct device *dev, struct ufs_hba **hba_handle,
-		 void __iomem *mmio_base, unsigned int irq)
+int ufshcd_alloc_host(struct device *dev, struct ufs_hba **hba_handle)
 {
 	struct Scsi_Host *host;
 	struct ufs_hba *hba;
-	int err;
+	int err = 0;
 
 	if (!dev) {
 		dev_err(dev,
 		"Invalid memory reference for dev is NULL\n");
-		err = -ENODEV;
-		goto out_error;
-	}
-
-	if (!mmio_base) {
-		dev_err(dev,
-		"Invalid memory reference for mmio_base is NULL\n");
 		err = -ENODEV;
 		goto out_error;
 	}
@@ -3315,8 +3382,39 @@ int ufshcd_init(struct device *dev, struct ufs_hba **hba_handle,
 	hba = shost_priv(host);
 	hba->host = host;
 	hba->dev = dev;
+	*hba_handle = hba;
+
+out_error:
+	return err;
+}
+EXPORT_SYMBOL(ufshcd_alloc_host);
+
+/**
+ * ufshcd_init - Driver initialization routine
+ * @hba: per-adapter instance
+ * @mmio_base: base register address
+ * @irq: Interrupt line of device
+ * Returns 0 on success, non-zero value on failure
+ */
+int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
+{
+	int err;
+	struct Scsi_Host *host = hba->host;
+	struct device *dev = hba->dev;
+
+	if (!mmio_base) {
+		dev_err(hba->dev,
+		"Invalid memory reference for mmio_base is NULL\n");
+		err = -ENODEV;
+		goto out_error;
+	}
+
 	hba->mmio_base = mmio_base;
 	hba->irq = irq;
+
+	err = ufshcd_variant_hba_init(hba);
+	if (err)
+		goto out_error;
 
 	/* Read capabilities registers */
 	ufshcd_hba_capabilities(hba);
@@ -3395,8 +3493,6 @@ int ufshcd_init(struct device *dev, struct ufs_hba **hba_handle,
 		goto out_remove_scsi_host;
 	}
 
-	*hba_handle = hba;
-
 	/* Hold auto suspend until async scan completes */
 	pm_runtime_get_sync(dev);
 
@@ -3408,6 +3504,7 @@ out_remove_scsi_host:
 	scsi_remove_host(hba->host);
 out_disable:
 	scsi_host_put(host);
+	ufshcd_variant_hba_exit(hba);
 out_error:
 	return err;
 }

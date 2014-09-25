@@ -68,6 +68,8 @@
 #define UFSHCD "ufshcd"
 #define UFSHCD_DRIVER_VERSION "0.2"
 
+struct ufs_hba;
+
 enum dev_cmd_type {
 	DEV_CMD_TYPE_NOP		= 0x0,
 	DEV_CMD_TYPE_QUERY		= 0x1,
@@ -152,6 +154,30 @@ struct ufs_dev_cmd {
 	struct ufs_query query;
 };
 
+#define PRE_CHANGE      0
+#define POST_CHANGE     1
+/**
+ * struct ufs_hba_variant_ops - variant specific callbacks
+ * @name: variant name
+ * @init: called when the driver is initialized
+ * @exit: called to cleanup everything done in init
+ * @setup_clocks: called before touching any of the controller registers
+ * @setup_regulators: called before accessing the host controller
+ * @hce_enable_notify: called before and after HCE enable bit is set to allow
+ *                     variant specific Uni-Pro initialization.
+ * @link_startup_notify: called before and after Link startup is carried out
+ *                       to allow variant specific Uni-Pro initialization.
+ */
+struct ufs_hba_variant_ops {
+	const char *name;
+	int	(*init)(struct ufs_hba *);
+	void    (*exit)(struct ufs_hba *);
+	int     (*setup_clocks)(struct ufs_hba *, bool);
+	int     (*setup_regulators)(struct ufs_hba *, bool);
+	int     (*hce_enable_notify)(struct ufs_hba *, bool);
+	int     (*link_startup_notify)(struct ufs_hba *, bool);
+};
+
 /**
  * struct ufs_hba - per adapter private structure
  * @mmio_base: UFSHCI base register address
@@ -171,6 +197,8 @@ struct ufs_dev_cmd {
  * @nutrs: Transfer Request Queue depth supported by controller
  * @nutmrs: Task Management Queue depth supported by controller
  * @ufs_version: UFS Version to which controller complies
+ * @vops: pointer to variant specific operations
+ * @priv: pointer to variant specific private data
  * @irq: Irq number of the controller
  * @active_uic_cmd: handle of active UIC command
  * @uic_cmd_mutex: mutex for uic command
@@ -218,6 +246,8 @@ struct ufs_hba {
 	int nutrs;
 	int nutmrs;
 	u32 ufs_version;
+	struct ufs_hba_variant_ops *vops;
+	void *priv;
 	unsigned int irq;
 
 	struct uic_command *active_uic_cmd;
@@ -256,8 +286,8 @@ struct ufs_hba {
 #define ufshcd_readl(hba, reg)	\
 	readl((hba)->mmio_base + (reg))
 
-int ufshcd_init(struct device *, struct ufs_hba ** , void __iomem * ,
-			unsigned int);
+int ufshcd_alloc_host(struct device *, struct ufs_hba **);
+int ufshcd_init(struct ufs_hba * , void __iomem * , unsigned int);
 void ufshcd_remove(struct ufs_hba *);
 
 /**
