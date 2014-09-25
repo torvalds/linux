@@ -240,6 +240,7 @@ static int qla2x00_change_queue_depth(struct scsi_device *, int, int);
 static int qla2x00_change_queue_type(struct scsi_device *, int);
 static void qla2x00_clear_drv_active(struct qla_hw_data *);
 static void qla2x00_free_device(scsi_qla_host_t *);
+static void qla83xx_disable_laser(scsi_qla_host_t *vha);
 
 struct scsi_host_template qla2xxx_driver_template = {
 	.module			= THIS_MODULE,
@@ -3177,6 +3178,10 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	qla84xx_put_chip(base_vha);
 
+	/* Laser should be disabled only for ISP2031 */
+	if (IS_QLA2031(ha))
+		qla83xx_disable_laser(base_vha);
+
 	/* Disable timer */
 	if (base_vha->timer_active)
 		qla2x00_stop_timer(base_vha);
@@ -5699,6 +5704,32 @@ qla2xxx_pci_resume(struct pci_dev *pdev)
 	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	ha->flags.eeh_busy = 0;
+}
+
+static void
+qla83xx_disable_laser(scsi_qla_host_t *vha)
+{
+	uint32_t reg, data, fn;
+	struct qla_hw_data *ha = vha->hw;
+	struct device_reg_24xx __iomem *isp_reg = &ha->iobase->isp24;
+
+	/* pci func #/port # */
+	ql_dbg(ql_dbg_init, vha, 0x004b,
+	    "Disabling Laser for hba: %p\n", vha);
+
+	fn = (RD_REG_DWORD(&isp_reg->ctrl_status) &
+		(BIT_15|BIT_14|BIT_13|BIT_12));
+
+	fn = (fn >> 12);
+
+	if (fn & 1)
+		reg = PORT_1_2031;
+	else
+		reg = PORT_0_2031;
+
+	data = LASER_OFF_2031;
+
+	qla83xx_wr_reg(vha, reg, data);
 }
 
 static const struct pci_error_handlers qla2xxx_err_handler = {

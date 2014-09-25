@@ -191,6 +191,11 @@
 					     * reset-recovery completion is
 					     * second
 					     */
+/* ISP2031: Values for laser on/off */
+#define PORT_0_2031	0x00201340
+#define PORT_1_2031	0x00201350
+#define LASER_ON_2031	0x01800100
+#define LASER_OFF_2031	0x01800180
 
 /*
  * The ISP2312 v2 chip cannot access the FLASH/GPIO registers via MMIO in an
