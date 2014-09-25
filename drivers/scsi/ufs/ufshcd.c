@@ -3311,6 +3311,16 @@ out:
 	return ret;
 }
 
+static int ufshcd_setup_hba_vreg(struct ufs_hba *hba, bool on)
+{
+	struct ufs_vreg_info *info = &hba->vreg_info;
+
+	if (info)
+		return ufshcd_toggle_vreg(hba->dev, info->vdd_hba, on);
+
+	return 0;
+}
+
 static int ufshcd_get_vreg(struct device *dev, struct ufs_vreg *vreg)
 {
 	int ret = 0;
@@ -3348,6 +3358,16 @@ static int ufshcd_init_vreg(struct ufs_hba *hba)
 	ret = ufshcd_get_vreg(dev, info->vccq2);
 out:
 	return ret;
+}
+
+static int ufshcd_init_hba_vreg(struct ufs_hba *hba)
+{
+	struct ufs_vreg_info *info = &hba->vreg_info;
+
+	if (info)
+		return ufshcd_get_vreg(hba->dev, info->vdd_hba);
+
+	return 0;
 }
 
 static int ufshcd_setup_clocks(struct ufs_hba *hba, bool on)
@@ -3483,13 +3503,28 @@ static int ufshcd_hba_init(struct ufs_hba *hba)
 {
 	int err;
 
-	err = ufshcd_init_clocks(hba);
+	/*
+	 * Handle host controller power separately from the UFS device power
+	 * rails as it will help controlling the UFS host controller power
+	 * collapse easily which is different than UFS device power collapse.
+	 * Also, enable the host controller power before we go ahead with rest
+	 * of the initialization here.
+	 */
+	err = ufshcd_init_hba_vreg(hba);
 	if (err)
 		goto out;
 
-	err = ufshcd_setup_clocks(hba, true);
+	err = ufshcd_setup_hba_vreg(hba, true);
 	if (err)
 		goto out;
+
+	err = ufshcd_init_clocks(hba);
+	if (err)
+		goto out_disable_hba_vreg;
+
+	err = ufshcd_setup_clocks(hba, true);
+	if (err)
+		goto out_disable_hba_vreg;
 
 	err = ufshcd_init_vreg(hba);
 	if (err)
@@ -3509,6 +3544,8 @@ out_disable_vreg:
 	ufshcd_setup_vreg(hba, false);
 out_disable_clks:
 	ufshcd_setup_clocks(hba, false);
+out_disable_hba_vreg:
+	ufshcd_setup_hba_vreg(hba, false);
 out:
 	return err;
 }
@@ -3518,6 +3555,7 @@ static void ufshcd_hba_exit(struct ufs_hba *hba)
 	ufshcd_variant_hba_exit(hba);
 	ufshcd_setup_vreg(hba, false);
 	ufshcd_setup_clocks(hba, false);
+	ufshcd_setup_hba_vreg(hba, false);
 }
 
 /**

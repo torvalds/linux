@@ -147,6 +147,11 @@ static int ufshcd_populate_vreg(struct device *dev, const char *name,
 
 	vreg->name = kstrdup(name, GFP_KERNEL);
 
+	/* if fixed regulator no need further initialization */
+	snprintf(prop_name, MAX_PROP_SIZE, "%s-fixed-regulator", name);
+	if (of_property_read_bool(np, prop_name))
+		goto out;
+
 	snprintf(prop_name, MAX_PROP_SIZE, "%s-max-microamp", name);
 	ret = of_property_read_u32(np, prop_name, &vreg->max_uA);
 	if (ret) {
@@ -197,6 +202,10 @@ static int ufshcd_parse_regulator_info(struct ufs_hba *hba)
 	int err;
 	struct device *dev = hba->dev;
 	struct ufs_vreg_info *info = &hba->vreg_info;
+
+	err = ufshcd_populate_vreg(dev, "vdd-hba", &info->vdd_hba);
+	if (err)
+		goto out;
 
 	err = ufshcd_populate_vreg(dev, "vcc", &info->vcc);
 	if (err)
