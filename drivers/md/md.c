@@ -2187,17 +2187,13 @@ static void kick_rdev_from_array(struct md_rdev * rdev)
 
 static void export_array(struct mddev *mddev)
 {
-	struct md_rdev *rdev, *tmp;
+	struct md_rdev *rdev;
 
-	rdev_for_each_safe(rdev, tmp, mddev) {
-		if (!rdev->mddev) {
-			MD_BUG();
-			continue;
-		}
+	while (!list_empty(&mddev->disks)) {
+		rdev = list_first_entry(&mddev->disks, struct md_rdev,
+					same_set);
 		kick_rdev_from_array(rdev);
 	}
-	if (!list_empty(&mddev->disks))
-		MD_BUG();
 	mddev->raid_disks = 0;
 	mddev->major_version = 0;
 }
