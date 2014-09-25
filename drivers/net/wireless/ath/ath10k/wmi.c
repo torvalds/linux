@@ -1330,7 +1330,7 @@ static int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
 }
 
 static void ath10k_wmi_pull_pdev_stats(const struct wmi_pdev_stats *src,
-				       struct ath10k_fw_stats *dst)
+				       struct ath10k_fw_stats_pdev *dst)
 {
 	const struct wal_dbg_tx_stats *tx = &src->wal.tx;
 	const struct wal_dbg_rx_stats *rx = &src->wal.rx;
@@ -1405,26 +1405,38 @@ static int ath10k_wmi_main_pull_fw_stats(struct ath10k *ar,
 	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats);
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats);
 
-	if (num_pdev_stats) {
+	for (i = 0; i < num_pdev_stats; i++) {
 		const struct wmi_pdev_stats *src;
+		struct ath10k_fw_stats_pdev *dst;
 
 		src = (void *)skb->data;
 		if (!skb_pull(skb, sizeof(*src)))
 			return -EPROTO;
 
-		ath10k_wmi_pull_pdev_stats(src, stats);
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+
+		ath10k_wmi_pull_pdev_stats(src, dst);
+		list_add_tail(&dst->list, &stats->pdevs);
 	}
 
 	/* fw doesn't implement vdev stats */
 
 	for (i = 0; i < num_peer_stats; i++) {
 		const struct wmi_peer_stats *src;
+		struct ath10k_fw_stats_peer *dst;
 
 		src = (void *)skb->data;
 		if (!skb_pull(skb, sizeof(*src)))
 			return -EPROTO;
 
-		ath10k_wmi_pull_peer_stats(src, &stats->peer_stat[i]);
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+
+		ath10k_wmi_pull_peer_stats(src, dst);
+		list_add_tail(&dst->list, &stats->peers);
 	}
 
 	return 0;
@@ -1445,36 +1457,49 @@ static int ath10k_wmi_10x_pull_fw_stats(struct ath10k *ar,
 	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats);
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats);
 
-	if (num_pdev_stats) {
+	for (i = 0; i < num_pdev_stats; i++) {
 		const struct wmi_10x_pdev_stats *src;
+		struct ath10k_fw_stats_pdev *dst;
 
 		src = (void *)skb->data;
 		if (!skb_pull(skb, sizeof(*src)))
 			return -EPROTO;
 
-		ath10k_wmi_pull_pdev_stats(&src->old, stats);
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
 
-		stats->ack_rx_bad = __le32_to_cpu(src->ack_rx_bad);
-		stats->rts_bad = __le32_to_cpu(src->rts_bad);
-		stats->rts_good = __le32_to_cpu(src->rts_good);
-		stats->fcs_bad = __le32_to_cpu(src->fcs_bad);
-		stats->no_beacons = __le32_to_cpu(src->no_beacons);
-		stats->mib_int_count = __le32_to_cpu(src->mib_int_count);
+		ath10k_wmi_pull_pdev_stats(&src->old, dst);
+
+		dst->ack_rx_bad = __le32_to_cpu(src->ack_rx_bad);
+		dst->rts_bad = __le32_to_cpu(src->rts_bad);
+		dst->rts_good = __le32_to_cpu(src->rts_good);
+		dst->fcs_bad = __le32_to_cpu(src->fcs_bad);
+		dst->no_beacons = __le32_to_cpu(src->no_beacons);
+		dst->mib_int_count = __le32_to_cpu(src->mib_int_count);
+
+		list_add_tail(&dst->list, &stats->pdevs);
 	}
 
 	/* fw doesn't implement vdev stats */
 
 	for (i = 0; i < num_peer_stats; i++) {
 		const struct wmi_10x_peer_stats *src;
+		struct ath10k_fw_stats_peer *dst;
 
 		src = (void *)skb->data;
 		if (!skb_pull(skb, sizeof(*src)))
 			return -EPROTO;
 
-		ath10k_wmi_pull_peer_stats(&src->old, &stats->peer_stat[i]);
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
 
-		stats->peer_stat[i].peer_rx_rate =
-				__le32_to_cpu(src->peer_rx_rate);
+		ath10k_wmi_pull_peer_stats(&src->old, dst);
+
+		dst->peer_rx_rate = __le32_to_cpu(src->peer_rx_rate);
+
+		list_add_tail(&dst->list, &stats->peers);
 	}
 
 	return 0;
