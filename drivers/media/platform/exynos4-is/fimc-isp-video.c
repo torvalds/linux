@@ -219,9 +219,9 @@ static void isp_video_capture_buffer_queue(struct vb2_buffer *vb)
 							ivb->dma_addr[i];
 
 			isp_dbg(2, &video->ve.vdev,
-				"dma_buf %d (%d/%d/%d) addr: %#x\n",
-				buf_index, ivb->index, i, vb->v4l2_buf.index,
-				ivb->dma_addr[i]);
+				"dma_buf %pad (%d/%d/%d) addr: %pad\n",
+				&buf_index, ivb->index, i, vb->v4l2_buf.index,
+				&ivb->dma_addr[i]);
 		}
 
 		if (++video->buf_count < video->reqbufs_count)
