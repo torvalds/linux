@@ -1848,7 +1848,9 @@ enable_82xx_npiv:
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	}
 
-	if (rval == QLA_SUCCESS && IS_FAC_REQUIRED(ha)) {
+	if (IS_QLA27XX(ha))
+		ha->flags.fac_supported = 1;
+	else if (rval == QLA_SUCCESS && IS_FAC_REQUIRED(ha)) {
 		uint32_t size;
 
 		rval = qla81xx_fac_get_sector_size(vha, &size);
