@@ -53,6 +53,7 @@ struct __packed qla27xx_fwdt_template {
 #define ENTRY_TYPE_RDREMRAM		272
 #define ENTRY_TYPE_PCICFG		273
 #define ENTRY_TYPE_GET_SHADOW		274
+#define ENTRY_TYPE_WRITE_BUF		275
 
 #define CAPTURE_FLAG_PHYS_ONLY		BIT_0
 #define CAPTURE_FLAG_PHYS_VIRT		BIT_1
@@ -193,6 +194,11 @@ struct __packed qla27xx_fwdt_entry {
 			uint8_t  queue_type;
 			uint8_t  reserved[3];
 		} t274;
+
+		struct __packed {
+			uint32_t length;
+			uint8_t  buffer[];
+		} t275;
 	};
 };
 

@@ -690,6 +690,32 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 }
 
 static int
+qla27xx_fwdt_entry_t275(struct scsi_qla_host *vha,
+	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
+{
+	ulong offset = offsetof(typeof(*ent), t275.buffer);
+
+	ql_dbg(ql_dbg_misc, vha, 0xd213,
+	    "%s: buffer(%x) [%lx]\n", __func__, ent->t275.length, *len);
+	if (!ent->t275.length) {
+		ql_dbg(ql_dbg_misc, vha, 0xd020,
+		    "%s: buffer zero length\n", __func__);
+		qla27xx_skip_entry(ent, buf);
+		goto done;
+	}
+	if (offset + ent->t275.length > ent->hdr.entry_size) {
+		ql_dbg(ql_dbg_misc, vha, 0xd030,
+		    "%s: buffer overflow\n", __func__);
+		qla27xx_skip_entry(ent, buf);
+		goto done;
+	}
+
+	qla27xx_insertbuf(ent->t275.buffer, ent->t275.length, buf, len);
+done:
+	return false;
+}
+
+static int
 qla27xx_fwdt_entry_other(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -731,6 +757,7 @@ static struct qla27xx_fwdt_entry_call ql27xx_fwdt_entry_call_list[] = {
 	{ ENTRY_TYPE_RDREMRAM		, qla27xx_fwdt_entry_t272  } ,
 	{ ENTRY_TYPE_PCICFG		, qla27xx_fwdt_entry_t273  } ,
 	{ ENTRY_TYPE_GET_SHADOW		, qla27xx_fwdt_entry_t274  } ,
+	{ ENTRY_TYPE_WRITE_BUF		, qla27xx_fwdt_entry_t275  } ,
 	{ -1				, qla27xx_fwdt_entry_other }
 };
 
