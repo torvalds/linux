@@ -857,7 +857,7 @@ qla82xx_rom_lock(struct qla_hw_data *ha)
 			break;
 		if (timeout >= qla82xx_rom_lock_timeout) {
 			lock_owner = qla82xx_rd_32(ha, QLA82XX_ROM_LOCK_ID);
-			ql_log(ql_log_warn, vha, 0xb157,
+			ql_dbg(ql_dbg_p3p, vha, 0xb157,
 			    "%s: Simultaneous flash access by following ports, active port = %d: accessing port = %d",
 			    __func__, ha->portnum, lock_owner);
 			return -1;
