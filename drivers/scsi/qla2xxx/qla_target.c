@@ -1185,6 +1185,7 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 
 	mcmd->sess = sess;
 	memcpy(&mcmd->orig_iocb.abts, abts, sizeof(mcmd->orig_iocb.abts));
+	mcmd->reset_count = vha->hw->chip_reset;
 
 	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, lun, TMR_ABORT_TASK,
 	    abts->exchange_addr_to_abort);
@@ -3523,6 +3524,7 @@ static int __qlt_abort_task(struct scsi_qla_host *vha,
 
 	lun = a->u.isp24.fcp_cmnd.lun;
 	unpacked_lun = scsilun_to_int((struct scsi_lun *)&lun);
+	mcmd->reset_count = vha->hw->chip_reset;
 
 	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, unpacked_lun, TMR_ABORT_TASK,
 	    le16_to_cpu(iocb->u.isp2x.seq_id));
