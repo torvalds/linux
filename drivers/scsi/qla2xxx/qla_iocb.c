@@ -1901,7 +1901,7 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 
 skip_cmd_array:
 	/* Check for room on request queue. */
-	if (req->cnt < req_cnt) {
+	if (req->cnt < req_cnt + 2) {
 		if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha))
 			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
 		else if (IS_P3P_TYPE(ha))
@@ -1920,7 +1920,7 @@ skip_cmd_array:
 			req->cnt = req->length -
 			    (req->ring_index - cnt);
 	}
-	if (req->cnt < req_cnt)
+	if (req->cnt < req_cnt + 2)
 		goto queuing_error;
 
 	/* Prep packet */
