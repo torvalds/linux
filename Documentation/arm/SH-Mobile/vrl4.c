@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <errno.h>
+#include <tools/endian.h>
 
 struct hdr {
 	uint32_t magic1;

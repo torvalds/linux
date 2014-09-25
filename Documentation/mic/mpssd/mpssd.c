@@ -41,6 +41,7 @@
 #include "mpssd.h"
 #include <linux/mic_ioctl.h>
 #include <linux/mic_common.h>
+#include <tools/endian.h>
 
 static void init_mic(struct mic_info *mic);
 
