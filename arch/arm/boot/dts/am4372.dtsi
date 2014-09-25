@@ -885,6 +885,11 @@
 				clock-names = "fck";
 			};
 		};
+
+		ocmcram: ocmcram@40300000 {
+			compatible = "mmio-sram";
+			reg = <0x40300000 0x40000>; /* 256k */
+		};
 	};
 };
 
