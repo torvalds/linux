@@ -472,7 +472,16 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 }
 EXPORT_SYMBOL(blkdev_issue_flush);
 
-void blk_mq_init_flush(struct request_queue *q)
+int blk_mq_init_flush(struct request_queue *q)
 {
+	struct blk_mq_tag_set *set = q->tag_set;
+
 	spin_lock_init(&q->mq_flush_lock);
+
+	q->flush_rq = kzalloc(round_up(sizeof(struct request) +
+				set->cmd_size, cache_line_size()),
+				GFP_KERNEL);
+	if (!q->flush_rq)
+		return -ENOMEM;
+	return 0;
 }
