@@ -4,6 +4,7 @@
 #include <linux/blkdev.h>
 
 struct blk_mq_tags;
+struct blk_flush_queue;
 
 struct blk_mq_cpu_notifier {
 	struct list_head list;
@@ -34,6 +35,7 @@ struct blk_mq_hw_ctx {
 
 	struct request_queue	*queue;
 	unsigned int		queue_num;
+	struct blk_flush_queue	*fq;
 
 	void			*driver_data;
 
@@ -119,6 +121,10 @@ struct blk_mq_ops {
 	/*
 	 * Called for every command allocated by the block layer to allow
 	 * the driver to set up driver specific data.
+	 *
+	 * Tag greater than or equal to queue_depth is for setting up
+	 * flush request.
+	 *
 	 * Ditto for exit/teardown.
 	 */
 	init_request_fn		*init_request;

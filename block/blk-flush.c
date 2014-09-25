@@ -305,8 +305,15 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	fq->flush_pending_idx ^= 1;
 
 	blk_rq_init(q, flush_rq);
-	if (q->mq_ops)
-		blk_mq_clone_flush_request(flush_rq, first_rq);
+
+	/*
+	 * Borrow tag from the first request since they can't
+	 * be in flight at the same time.
+	 */
+	if (q->mq_ops) {
+		flush_rq->mq_ctx = first_rq->mq_ctx;
+		flush_rq->tag = first_rq->tag;
+	}
 
 	flush_rq->cmd_type = REQ_TYPE_FS;
 	flush_rq->cmd_flags = WRITE_FLUSH | REQ_FLUSH_SEQ;
@@ -480,22 +487,22 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 }
 EXPORT_SYMBOL(blkdev_issue_flush);
 
-struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q)
+struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
+		int node, int cmd_size)
 {
 	struct blk_flush_queue *fq;
 	int rq_sz = sizeof(struct request);
 
-	fq = kzalloc(sizeof(*fq), GFP_KERNEL);
+	fq = kzalloc_node(sizeof(*fq), GFP_KERNEL, node);
 	if (!fq)
 		goto fail;
 
 	if (q->mq_ops) {
 		spin_lock_init(&fq->mq_flush_lock);
-		rq_sz = round_up(rq_sz + q->tag_set->cmd_size,
-				cache_line_size());
+		rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
 	}
 
-	fq->flush_rq = kzalloc(rq_sz, GFP_KERNEL);
+	fq->flush_rq = kzalloc_node(rq_sz, GFP_KERNEL, node);
 	if (!fq->flush_rq)
 		goto fail_rq;
 
