@@ -506,6 +506,15 @@ static void bcm_sf2_sw_adjust_link(struct dsa_switch *ds, int port,
 		port_mode = EXT_REVMII;
 		break;
 	default:
+		/* All other PHYs: internal and MoCA */
+		goto force_link;
+	}
+
+	/* If the link is down, just disable the interface to conserve power */
+	if (!phydev->link) {
+		reg = reg_readl(priv, REG_RGMII_CNTRL_P(port));
+		reg &= ~RGMII_MODE_EN;
+		reg_writel(priv, reg, REG_RGMII_CNTRL_P(port));
 		goto force_link;
 	}
 
