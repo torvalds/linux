@@ -3277,6 +3277,7 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 			return -ENOMEM;
 
 		memcpy(&op->atio, atio, sizeof(*atio));
+		op->vha = vha;
 		INIT_WORK(&op->work, qlt_create_sess_from_atio);
 		queue_work(qla_tgt_wq, &op->work);
 		return 0;
