@@ -203,6 +203,9 @@ enum {
 	RX_LARGE_MTU_BUF = 0x3,   /* large MTU buffer */
 };
 
+static int timer_pkt_quota[] = {1, 1, 2, 3, 4, 5};
+#define MIN_NAPI_WORK  1
+
 static inline dma_addr_t get_buf_addr(const struct rx_sw_desc *d)
 {
 	return d->dma_addr & ~(dma_addr_t)RX_BUF_FLAGS;
@@ -1969,9 +1972,26 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	u32 val;
 
 	if (likely(work_done < budget)) {
+		int timer_index;
+
 		napi_complete(napi);
-		params = q->next_intr_params;
-		q->next_intr_params = q->intr_params;
+		timer_index = QINTR_TIMER_IDX_GET(q->next_intr_params);
+
+		if (q->adaptive_rx) {
+			if (work_done > max(timer_pkt_quota[timer_index],
+					    MIN_NAPI_WORK))
+				timer_index = (timer_index + 1);
+			else
+				timer_index = timer_index - 1;
+
+			timer_index = clamp(timer_index, 0, SGE_TIMERREGS - 1);
+			q->next_intr_params = QINTR_TIMER_IDX(timer_index) |
+							      V_QINTR_CNT_EN;
+			params = q->next_intr_params;
+		} else {
+			params = q->next_intr_params;
+			q->next_intr_params = q->intr_params;
+		}
 	} else
 		params = QINTR_TIMER_IDX(7);
 

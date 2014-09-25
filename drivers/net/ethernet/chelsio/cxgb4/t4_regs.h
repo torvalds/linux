@@ -77,6 +77,7 @@
 #define  PIDX_T5(x)  (((x) >> S_PIDX_T5) & M_PIDX_T5)
 
 
+#define SGE_TIMERREGS	6
 #define SGE_PF_GTS 0x4
 #define  INGRESSQID_MASK   0xffff0000U
 #define  INGRESSQID_SHIFT  16

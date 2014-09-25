@@ -452,6 +452,7 @@ struct sge_rspq {                   /* state for an SGE response queue */
 	u8 gen;                     /* current generation bit */
 	u8 intr_params;             /* interrupt holdoff parameters */
 	u8 next_intr_params;        /* holdoff params for next interrupt */
+	u8 adaptive_rx;
 	u8 pktcnt_idx;              /* interrupt packet threshold */
 	u8 uld;                     /* ULD handling this queue */
 	u8 idx;                     /* queue index within its group */
