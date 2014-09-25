@@ -436,7 +436,7 @@ struct mac80211_hwsim_data {
 	/*
 	 * Only radios in the same group can communicate together (the
 	 * channel has to match too). Each bit represents a group. A
-	 * radio can be in more then one group.
+	 * radio can be in more than one group.
 	 */
 	u64 group;
 
@@ -2392,7 +2392,6 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 	return 0;
 err:
 	printk(KERN_DEBUG "mac80211_hwsim: error occurred in %s\n", __func__);
-	goto out;
 out:
 	dev_kfree_skb(skb);
 	return -EINVAL;
