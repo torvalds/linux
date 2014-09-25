@@ -816,7 +816,7 @@ static bool read_set_clear_sgi_pend_reg(struct kvm_vcpu *vcpu,
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	int sgi;
-	int min_sgi = (offset & ~0x3) * 4;
+	int min_sgi = (offset & ~0x3);
 	int max_sgi = min_sgi + 3;
 	int vcpu_id = vcpu->vcpu_id;
 	u32 reg = 0;
@@ -837,7 +837,7 @@ static bool write_set_clear_sgi_pend_reg(struct kvm_vcpu *vcpu,
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	int sgi;
-	int min_sgi = (offset & ~0x3) * 4;
+	int min_sgi = (offset & ~0x3);
 	int max_sgi = min_sgi + 3;
 	int vcpu_id = vcpu->vcpu_id;
 	u32 reg;
