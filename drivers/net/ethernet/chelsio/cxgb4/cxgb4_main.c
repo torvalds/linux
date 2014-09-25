@@ -284,6 +284,8 @@ static const struct pci_device_id cxgb4_pci_tbl[] = {
 	CH_DEVICE(0x5084, 4),
 	CH_DEVICE(0x5085, 4),
 	CH_DEVICE(0x5086, 4),
+	CH_DEVICE(0x5087, 4),
+	CH_DEVICE(0x5088, 4),
 	CH_DEVICE(0x5401, 4),
 	CH_DEVICE(0x5402, 4),
 	CH_DEVICE(0x5403, 4),
@@ -312,6 +314,8 @@ static const struct pci_device_id cxgb4_pci_tbl[] = {
 	CH_DEVICE(0x5484, 4),
 	CH_DEVICE(0x5485, 4),
 	CH_DEVICE(0x5486, 4),
+	CH_DEVICE(0x5487, 4),
+	CH_DEVICE(0x5488, 4),
 	{ 0, }
 };
 
