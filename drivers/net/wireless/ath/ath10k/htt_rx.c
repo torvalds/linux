@@ -42,7 +42,6 @@
 /* when under memory pressure rx ring refill may fail and needs a retry */
 #define HTT_RX_RING_REFILL_RETRY_MS 50
 
-
 static int ath10k_htt_rx_get_csum_state(struct sk_buff *skb);
 static void ath10k_htt_txrx_compl_task(unsigned long ptr);
 
@@ -133,7 +132,7 @@ static int __ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 	dma_addr_t paddr;
 	int ret = 0, idx;
 
-	idx = __le32_to_cpu(*(htt->rx_ring.alloc_idx.vaddr));
+	idx = __le32_to_cpu(*htt->rx_ring.alloc_idx.vaddr);
 	while (num > 0) {
 		skb = dev_alloc_skb(HTT_RX_BUF_SIZE + HTT_RX_DESC_ALIGN);
 		if (!skb) {
@@ -171,7 +170,7 @@ static int __ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 	}
 
 fail:
-	*(htt->rx_ring.alloc_idx.vaddr) = __cpu_to_le32(idx);
+	*htt->rx_ring.alloc_idx.vaddr = __cpu_to_le32(idx);
 	return ret;
 }
 
@@ -223,6 +222,7 @@ static void ath10k_htt_rx_msdu_buff_replenish(struct ath10k_htt *htt)
 static void ath10k_htt_rx_ring_refill_retry(unsigned long arg)
 {
 	struct ath10k_htt *htt = (struct ath10k_htt *)arg;
+
 	ath10k_htt_rx_msdu_buff_replenish(htt);
 }
 
@@ -314,7 +314,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 {
 	struct ath10k *ar = htt->ar;
 	int msdu_len, msdu_chaining = 0;
-	struct sk_buff *msdu;
+	struct sk_buff *msdu, *next;
 	struct htt_rx_desc *rx_desc;
 
 	lockdep_assert_held(&htt->rx_ring.lock);
@@ -450,11 +450,11 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		if (last_msdu) {
 			msdu->next = NULL;
 			break;
-		} else {
-			struct sk_buff *next = ath10k_htt_rx_netbuf_pop(htt);
-			msdu->next = next;
-			msdu = next;
 		}
+
+		next = ath10k_htt_rx_netbuf_pop(htt);
+		msdu->next = next;
+		msdu = next;
 	}
 	*tail_msdu = msdu;
 
@@ -480,6 +480,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 static void ath10k_htt_rx_replenish_task(unsigned long ptr)
 {
 	struct ath10k_htt *htt = (struct ath10k_htt *)ptr;
+
 	ath10k_htt_rx_msdu_buff_replenish(htt);
 }
 
@@ -488,6 +489,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	struct ath10k *ar = htt->ar;
 	dma_addr_t paddr;
 	void *vaddr;
+	size_t size;
 	struct timer_list *timer = &htt->rx_ring.refill_retry_timer;
 
 	htt->rx_ring.size = ath10k_htt_rx_ring_size(htt);
@@ -515,9 +517,9 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	if (!htt->rx_ring.netbufs_ring)
 		goto err_netbuf;
 
-	vaddr = dma_alloc_coherent(htt->ar->dev,
-		   (htt->rx_ring.size * sizeof(htt->rx_ring.paddrs_ring)),
-		   &paddr, GFP_DMA);
+	size = htt->rx_ring.size * sizeof(htt->rx_ring.paddrs_ring);
+
+	vaddr = dma_alloc_coherent(htt->ar->dev, size, &paddr, GFP_DMA);
 	if (!vaddr)
 		goto err_dma_ring;
 
@@ -625,19 +627,21 @@ static struct ieee80211_hdr *ath10k_htt_rx_skb_get_hdr(struct sk_buff *skb)
 
 	rxd = (void *)skb->data - sizeof(*rxd);
 	fmt = MS(__le32_to_cpu(rxd->msdu_start.info1),
-			RX_MSDU_START_INFO1_DECAP_FORMAT);
+		 RX_MSDU_START_INFO1_DECAP_FORMAT);
 
 	if (fmt == RX_MSDU_DECAP_RAW)
 		return (void *)skb->data;
-	else
-		return (void *)skb->data - RX_HTT_HDR_STATUS_LEN;
+
+	return (void *)skb->data - RX_HTT_HDR_STATUS_LEN;
 }
 
 /* This function only applies for first msdu in an msdu chain */
 static bool ath10k_htt_rx_hdr_is_amsdu(struct ieee80211_hdr *hdr)
 {
+	u8 *qc;
+
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
-		u8 *qc = ieee80211_get_qos_ctl(hdr);
+		qc = ieee80211_get_qos_ctl(hdr);
 		if (qc[0] & 0x80)
 			return true;
 	}
@@ -914,7 +918,7 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 
 	rxd = (void *)skb->data - sizeof(*rxd);
 	enctype = MS(__le32_to_cpu(rxd->mpdu_start.info0),
-			RX_MPDU_START_INFO0_ENCRYPT_TYPE);
+		     RX_MPDU_START_INFO0_ENCRYPT_TYPE);
 
 	hdr = (struct ieee80211_hdr *)rxd->rx_hdr_status;
 	hdr_len = ieee80211_hdrlen(hdr->frame_control);
@@ -950,8 +954,8 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 			/* pull decapped header and copy SA & DA */
 			hdr = (struct ieee80211_hdr *)skb->data;
 			hdr_len = ath10k_htt_rx_nwifi_hdrlen(hdr);
-			memcpy(da, ieee80211_get_DA(hdr), ETH_ALEN);
-			memcpy(sa, ieee80211_get_SA(hdr), ETH_ALEN);
+			ether_addr_copy(da, ieee80211_get_DA(hdr));
+			ether_addr_copy(sa, ieee80211_get_SA(hdr));
 			skb_pull(skb, hdr_len);
 
 			/* push original 802.11 header */
@@ -968,8 +972,8 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 			/* original 802.11 header has a different DA and in
 			 * case of 4addr it may also have different SA
 			 */
-			memcpy(ieee80211_get_DA(hdr), da, ETH_ALEN);
-			memcpy(ieee80211_get_SA(hdr), sa, ETH_ALEN);
+			ether_addr_copy(ieee80211_get_DA(hdr), da);
+			ether_addr_copy(ieee80211_get_SA(hdr), sa);
 			break;
 		case RX_MSDU_DECAP_ETHERNET2_DIX:
 			/* strip ethernet header and insert decapped 802.11
@@ -1029,9 +1033,9 @@ static void ath10k_htt_rx_msdu(struct ath10k_htt *htt,
 
 	rxd = (void *)skb->data - sizeof(*rxd);
 	fmt = MS(__le32_to_cpu(rxd->msdu_start.info1),
-			RX_MSDU_START_INFO1_DECAP_FORMAT);
+		 RX_MSDU_START_INFO1_DECAP_FORMAT);
 	enctype = MS(__le32_to_cpu(rxd->mpdu_start.info0),
-			RX_MPDU_START_INFO0_ENCRYPT_TYPE);
+		     RX_MPDU_START_INFO0_ENCRYPT_TYPE);
 	hdr = (struct ieee80211_hdr *)rxd->rx_hdr_status;
 	hdr_len = ieee80211_hdrlen(hdr->frame_control);
 
@@ -1332,7 +1336,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 }
 
 static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
-				struct htt_rx_fragment_indication *frag)
+				       struct htt_rx_fragment_indication *frag)
 {
 	struct ath10k *ar = htt->ar;
 	struct sk_buff *msdu_head, *msdu_tail;
@@ -1378,7 +1382,7 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 	tkip_mic_err = !!(attention & RX_ATTENTION_FLAGS_TKIP_MIC_ERR);
 	decrypt_err = !!(attention & RX_ATTENTION_FLAGS_DECRYPT_ERR);
 	fmt = MS(__le32_to_cpu(rxd->msdu_start.info1),
-			RX_MSDU_START_INFO1_DECAP_FORMAT);
+		 RX_MSDU_START_INFO1_DECAP_FORMAT);
 
 	if (fmt != RX_MSDU_DECAP_RAW) {
 		ath10k_warn(ar, "we dont support non-raw fragmented rx yet\n");
@@ -1654,7 +1658,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		/* FIX THIS */
 		break;
 	case HTT_T2H_MSG_TYPE_STATS_CONF:
-		trace_ath10k_htt_stats(skb->data, skb->len);
+		trace_ath10k_htt_stats(ar, skb->data, skb->len);
 		break;
 	case HTT_T2H_MSG_TYPE_TX_INSPECT_IND:
 		/* Firmware can return tx frames if it's unable to fully

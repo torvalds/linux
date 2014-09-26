@@ -109,6 +109,9 @@ enum wmi_service {
 	WMI_SERVICE_BURST,
 	WMI_SERVICE_SMART_ANTENNA_SW_SUPPORT,
 	WMI_SERVICE_SMART_ANTENNA_HW_SUPPORT,
+
+	/* keep last */
+	WMI_SERVICE_MAX,
 };
 
 enum wmi_10x_service {
@@ -218,8 +221,6 @@ static inline char *wmi_service_name(int service_id)
 
 #undef SVCSTR
 }
-
-#define WMI_MAX_SERVICE 64
 
 #define WMI_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id) \
 	(__le32_to_cpu((wmi_svc_bmap)[(svc_id)/(sizeof(u32))]) & \
@@ -346,9 +347,6 @@ static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out)
 }
 
 #undef SVCMAP
-
-#define WMI_SERVICE_BM_SIZE \
-	((WMI_MAX_SERVICE + sizeof(u32) - 1)/sizeof(u32))
 
 /* 2 word representation of MAC addr */
 struct wmi_mac_addr {
@@ -1271,7 +1269,6 @@ enum wmi_channel_change_cause {
 				WMI_HT_CAP_RX_STBC       | \
 				WMI_HT_CAP_LDPC)
 
-
 /*
  * WMI_VHT_CAP_* these maps to ieee 802.11ac vht capability information
  * field. The fields not defined here are not supported, or reserved.
@@ -1405,7 +1402,7 @@ struct wmi_service_ready_event {
 	__le32 phy_capability;
 	/* Maximum number of frag table entries that SW will populate less 1 */
 	__le32 max_frag_entry;
-	__le32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
+	__le32 wmi_service_bitmap[16];
 	__le32 num_rf_chains;
 	/*
 	 * The following field is only valid for service type
@@ -1444,7 +1441,7 @@ struct wmi_service_ready_event_10x {
 
 	/* Maximum number of frag table entries that SW will populate less 1 */
 	__le32 max_frag_entry;
-	__le32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
+	__le32 wmi_service_bitmap[16];
 	__le32 num_rf_chains;
 
 	/*
@@ -1472,7 +1469,6 @@ struct wmi_service_ready_event_10x {
 
 	struct wlan_host_mem_req mem_reqs[1];
 } __packed;
-
 
 #define WMI_SERVICE_READY_TIMEOUT_HZ (5*HZ)
 #define WMI_UNIFIED_READY_TIMEOUT_HZ (5*HZ)
@@ -2127,7 +2123,6 @@ struct wmi_start_scan_cmd_10x {
 	 */
 } __packed;
 
-
 struct wmi_ssid_arg {
 	int len;
 	const u8 *ssid;
@@ -2187,7 +2182,6 @@ struct wmi_start_scan_arg {
 
 /* WMI_SCAN_CLASS_MASK must be the same value as IEEE80211_SCAN_CLASS_MASK */
 #define WMI_SCAN_CLASS_MASK 0xFF000000
-
 
 enum wmi_stop_scan_type {
 	WMI_SCAN_STOP_ONE	= 0x00000000, /* stop by scan_id */
@@ -2373,7 +2367,6 @@ struct wmi_single_phyerr_rx_hdr {
 	__le32 nf_list_1;
 	__le32 nf_list_2;
 
-
 	/* Length of the frame */
 	__le32 buf_len;
 } __packed;
@@ -2475,7 +2468,6 @@ struct phyerr_fft_report {
 #define SEARCH_FFT_REPORT_REG1_NUM_STR_BINS_IB_MASK	0x000000FF
 #define SEARCH_FFT_REPORT_REG1_NUM_STR_BINS_IB_LSB	0
 
-
 struct phyerr_tlv {
 	__le16 len;
 	u8 tag;
@@ -2505,7 +2497,6 @@ struct wmi_echo_event {
 struct wmi_echo_cmd {
 	__le32 value;
 } __packed;
-
 
 struct wmi_pdev_set_regdomain_cmd {
 	__le32 reg_domain;
@@ -2554,7 +2545,6 @@ struct wmi_pdev_set_quiet_cmd {
 	/* enable/disable */
 	__le32 enabled;
 } __packed;
-
 
 /*
  * 802.11g protection mode.
@@ -4293,7 +4283,6 @@ struct wmi_tbtt_offset_event {
 	__le32 tbttoffset_list[WMI_MAX_AP_VDEV];
 } __packed;
 
-
 struct wmi_peer_create_cmd {
 	__le32 vdev_id;
 	struct wmi_mac_addr peer_macaddr;
@@ -4739,6 +4728,10 @@ int ath10k_wmi_wait_for_service_ready(struct ath10k *ar);
 int ath10k_wmi_wait_for_unified_ready(struct ath10k *ar);
 
 int ath10k_wmi_connect(struct ath10k *ar);
+
+struct sk_buff *ath10k_wmi_alloc_skb(struct ath10k *ar, u32 len);
+int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
+
 int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
 				const struct wmi_channel_arg *);
 int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt);
@@ -4774,11 +4767,11 @@ int ath10k_wmi_vdev_spectral_conf(struct ath10k *ar,
 int ath10k_wmi_vdev_spectral_enable(struct ath10k *ar, u32 vdev_id, u32 trigger,
 				    u32 enable);
 int ath10k_wmi_peer_create(struct ath10k *ar, u32 vdev_id,
-		    const u8 peer_addr[ETH_ALEN]);
+			   const u8 peer_addr[ETH_ALEN]);
 int ath10k_wmi_peer_delete(struct ath10k *ar, u32 vdev_id,
-		    const u8 peer_addr[ETH_ALEN]);
+			   const u8 peer_addr[ETH_ALEN]);
 int ath10k_wmi_peer_flush(struct ath10k *ar, u32 vdev_id,
-		   const u8 peer_addr[ETH_ALEN], u32 tid_bitmap);
+			  const u8 peer_addr[ETH_ALEN], u32 tid_bitmap);
 int ath10k_wmi_peer_set_param(struct ath10k *ar, u32 vdev_id,
 			      const u8 *peer_addr,
 			      enum wmi_peer_param param_id, u32 param_value);
@@ -4795,7 +4788,7 @@ int ath10k_wmi_scan_chan_list(struct ath10k *ar,
 			      const struct wmi_scan_chan_list_arg *arg);
 int ath10k_wmi_beacon_send_ref_nowait(struct ath10k_vif *arvif);
 int ath10k_wmi_pdev_set_wmm_params(struct ath10k *ar,
-			const struct wmi_pdev_set_wmm_params_arg *arg);
+				   const struct wmi_pdev_set_wmm_params_arg *arg);
 int ath10k_wmi_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id);
 int ath10k_wmi_force_fw_hang(struct ath10k *ar,
 			     enum wmi_force_fw_hang_type type, u32 delay_ms);

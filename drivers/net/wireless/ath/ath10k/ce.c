@@ -260,7 +260,6 @@ static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
 	ath10k_pci_write32(ar, ce_ctrl_addr + HOST_IS_ADDRESS, mask);
 }
 
-
 /*
  * Guts of ath10k_ce_send, used by both ath10k_ce_send and
  * ath10k_ce_sendlist_send.
@@ -384,7 +383,6 @@ int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe)
 
 	return delta;
 }
-
 
 int __ath10k_ce_rx_num_free_bufs(struct ath10k_ce_pipe *pipe)
 {

@@ -26,6 +26,7 @@
 #include "bmi.h"
 #include "debug.h"
 #include "htt.h"
+#include "testmode.h"
 
 unsigned int ath10k_debug_mask;
 static bool uart_print;
@@ -257,21 +258,42 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_download_fw(struct ath10k *ar)
+static int ath10k_download_fw(struct ath10k *ar, enum ath10k_firmware_mode mode)
 {
-	u32 address;
+	u32 address, data_len;
+	const char *mode_name;
+	const void *data;
 	int ret;
 
 	address = ar->hw_params.patch_load_addr;
 
-	ret = ath10k_bmi_fast_download(ar, address, ar->firmware_data,
-				       ar->firmware_len);
-	if (ret) {
-		ath10k_err(ar, "could not write fw (%d)\n", ret);
-		goto exit;
+	switch (mode) {
+	case ATH10K_FIRMWARE_MODE_NORMAL:
+		data = ar->firmware_data;
+		data_len = ar->firmware_len;
+		mode_name = "normal";
+		break;
+	case ATH10K_FIRMWARE_MODE_UTF:
+		data = ar->testmode.utf->data;
+		data_len = ar->testmode.utf->size;
+		mode_name = "utf";
+		break;
+	default:
+		ath10k_err(ar, "unknown firmware mode: %d\n", mode);
+		return -EINVAL;
 	}
 
-exit:
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "boot uploading firmware image %p len %d mode %s\n",
+		   data, data_len, mode_name);
+
+	ret = ath10k_bmi_fast_download(ar, address, data, data_len);
+	if (ret) {
+		ath10k_err(ar, "failed to download %s firmware: %d\n",
+			   mode_name, ret);
+		return ret;
+	}
+
 	return ret;
 }
 
@@ -567,7 +589,8 @@ success:
 	return 0;
 }
 
-static int ath10k_init_download_firmware(struct ath10k *ar)
+static int ath10k_init_download_firmware(struct ath10k *ar,
+					 enum ath10k_firmware_mode mode)
 {
 	int ret;
 
@@ -583,7 +606,7 @@ static int ath10k_init_download_firmware(struct ath10k *ar)
 		return ret;
 	}
 
-	ret = ath10k_download_fw(ar);
+	ret = ath10k_download_fw(ar, mode);
 	if (ret) {
 		ath10k_err(ar, "failed to download firmware: %d\n", ret);
 		return ret;
@@ -685,12 +708,15 @@ static void ath10k_core_restart(struct work_struct *work)
 	case ATH10K_STATE_WEDGED:
 		ath10k_warn(ar, "device is wedged, will not restart\n");
 		break;
+	case ATH10K_STATE_UTF:
+		ath10k_warn(ar, "firmware restart in UTF mode not supported\n");
+		break;
 	}
 
 	mutex_unlock(&ar->conf_mutex);
 }
 
-int ath10k_core_start(struct ath10k *ar)
+int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 {
 	int status;
 
@@ -703,7 +729,7 @@ int ath10k_core_start(struct ath10k *ar)
 		goto err;
 	}
 
-	status = ath10k_init_download_firmware(ar);
+	status = ath10k_init_download_firmware(ar, mode);
 	if (status)
 		goto err;
 
@@ -760,10 +786,12 @@ int ath10k_core_start(struct ath10k *ar)
 		goto err_hif_stop;
 	}
 
-	status = ath10k_htt_connect(&ar->htt);
-	if (status) {
-		ath10k_err(ar, "failed to connect htt (%d)\n", status);
-		goto err_hif_stop;
+	if (mode == ATH10K_FIRMWARE_MODE_NORMAL) {
+		status = ath10k_htt_connect(&ar->htt);
+		if (status) {
+			ath10k_err(ar, "failed to connect htt (%d)\n", status);
+			goto err_hif_stop;
+		}
 	}
 
 	status = ath10k_wmi_connect(ar);
@@ -778,11 +806,13 @@ int ath10k_core_start(struct ath10k *ar)
 		goto err_hif_stop;
 	}
 
-	status = ath10k_wmi_wait_for_service_ready(ar);
-	if (status <= 0) {
-		ath10k_warn(ar, "wmi service ready event not received");
-		status = -ETIMEDOUT;
-		goto err_hif_stop;
+	if (mode == ATH10K_FIRMWARE_MODE_NORMAL) {
+		status = ath10k_wmi_wait_for_service_ready(ar);
+		if (status <= 0) {
+			ath10k_warn(ar, "wmi service ready event not received");
+			status = -ETIMEDOUT;
+			goto err_hif_stop;
+		}
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "firmware %s booted\n",
@@ -802,10 +832,13 @@ int ath10k_core_start(struct ath10k *ar)
 		goto err_hif_stop;
 	}
 
-	status = ath10k_htt_setup(&ar->htt);
-	if (status) {
-		ath10k_err(ar, "failed to setup htt: %d\n", status);
-		goto err_hif_stop;
+	/* we don't care about HTT in UTF mode */
+	if (mode == ATH10K_FIRMWARE_MODE_NORMAL) {
+		status = ath10k_htt_setup(&ar->htt);
+		if (status) {
+			ath10k_err(ar, "failed to setup htt: %d\n", status);
+			goto err_hif_stop;
+		}
 	}
 
 	status = ath10k_debug_start(ar);
@@ -861,7 +894,8 @@ void ath10k_core_stop(struct ath10k *ar)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	/* try to suspend target */
-	if (ar->state != ATH10K_STATE_RESTARTING)
+	if (ar->state != ATH10K_STATE_RESTARTING &&
+	    ar->state != ATH10K_STATE_UTF)
 		ath10k_wait_for_suspend(ar, WMI_PDEV_SUSPEND_AND_DISABLE_INTR);
 
 	ath10k_debug_stop(ar);
@@ -914,7 +948,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 
 	mutex_lock(&ar->conf_mutex);
 
-	ret = ath10k_core_start(ar);
+	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL);
 	if (ret) {
 		ath10k_err(ar, "could not init core (%d)\n", ret);
 		ath10k_core_free_firmware_files(ar);
@@ -977,7 +1011,7 @@ static void ath10k_core_register_work(struct work_struct *work)
 		goto err_release_fw;
 	}
 
-	status = ath10k_debug_create(ar);
+	status = ath10k_debug_register(ar);
 	if (status) {
 		ath10k_err(ar, "unable to initialize debugfs\n");
 		goto err_unregister_mac;
@@ -1041,9 +1075,11 @@ void ath10k_core_unregister(struct ath10k *ar)
 	 * unhappy about callback failures. */
 	ath10k_mac_unregister(ar);
 
+	ath10k_testmode_destroy(ar);
+
 	ath10k_core_free_firmware_files(ar);
 
-	ath10k_debug_destroy(ar);
+	ath10k_debug_unregister(ar);
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
 
@@ -1051,6 +1087,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  const struct ath10k_hif_ops *hif_ops)
 {
 	struct ath10k *ar;
+	int ret;
 
 	ar = ath10k_mac_create(priv_size);
 	if (!ar)
@@ -1076,7 +1113,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 
 	ar->workqueue = create_singlethread_workqueue("ath10k_wq");
 	if (!ar->workqueue)
-		goto err_wq;
+		goto err_free_mac;
 
 	mutex_init(&ar->conf_mutex);
 	spin_lock_init(&ar->data_lock);
@@ -1094,10 +1131,18 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	INIT_WORK(&ar->register_work, ath10k_core_register_work);
 	INIT_WORK(&ar->restart_work, ath10k_core_restart);
 
+	ret = ath10k_debug_create(ar);
+	if (ret)
+		goto err_free_wq;
+
 	return ar;
 
-err_wq:
+err_free_wq:
+	destroy_workqueue(ar->workqueue);
+
+err_free_mac:
 	ath10k_mac_destroy(ar);
+
 	return NULL;
 }
 EXPORT_SYMBOL(ath10k_core_create);
@@ -1107,6 +1152,7 @@ void ath10k_core_destroy(struct ath10k *ar)
 	flush_workqueue(ar->workqueue);
 	destroy_workqueue(ar->workqueue);
 
+	ath10k_debug_destroy(ar);
 	ath10k_mac_destroy(ar);
 }
 EXPORT_SYMBOL(ath10k_core_destroy);
