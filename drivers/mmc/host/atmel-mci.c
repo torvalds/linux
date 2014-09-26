@@ -2244,7 +2244,7 @@ static int __init atmci_init_slot(struct atmel_mci *host,
 	return 0;
 }
 
-static void __exit atmci_cleanup_slot(struct atmel_mci_slot *slot,
+static void atmci_cleanup_slot(struct atmel_mci_slot *slot,
 		unsigned int id)
 {
 	/* Debugfs stuff is cleaned up by mmc core */
