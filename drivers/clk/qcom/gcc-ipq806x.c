@@ -32,6 +32,33 @@
 #include "clk-branch.h"
 #include "reset.h"
 
+static struct clk_pll pll0 = {
+	.l_reg = 0x30c4,
+	.m_reg = 0x30c8,
+	.n_reg = 0x30cc,
+	.config_reg = 0x30d4,
+	.mode_reg = 0x30c0,
+	.status_reg = 0x30d8,
+	.status_bit = 16,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "pll0",
+		.parent_names = (const char *[]){ "pxo" },
+		.num_parents = 1,
+		.ops = &clk_pll_ops,
+	},
+};
+
+static struct clk_regmap pll0_vote = {
+	.enable_reg = 0x34c0,
+	.enable_mask = BIT(0),
+	.hw.init = &(struct clk_init_data){
+		.name = "pll0_vote",
+		.parent_names = (const char *[]){ "pll0" },
+		.num_parents = 1,
+		.ops = &clk_pll_vote_ops,
+	},
+};
+
 static struct clk_pll pll3 = {
 	.l_reg = 0x3164,
 	.m_reg = 0x3168,
@@ -154,7 +181,7 @@ static const u8 gcc_pxo_pll8_pll0[] = {
 static const char *gcc_pxo_pll8_pll0_map[] = {
 	"pxo",
 	"pll8_vote",
-	"pll0",
+	"pll0_vote",
 };
 
 static struct freq_tbl clk_tbl_gsbi_uart[] = {
@@ -2133,6 +2160,8 @@ static struct clk_branch usb_fs1_h_clk = {
 };
 
 static struct clk_regmap *gcc_ipq806x_clks[] = {
+	[PLL0] = &pll0.clkr,
+	[PLL0_VOTE] = &pll0_vote,
 	[PLL3] = &pll3.clkr,
 	[PLL8] = &pll8.clkr,
 	[PLL8_VOTE] = &pll8_vote,
