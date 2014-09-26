@@ -1462,6 +1462,7 @@ enum blk_integrity_flags {
 	BLK_INTEGRITY_VERIFY		= 1 << 0,
 	BLK_INTEGRITY_GENERATE		= 1 << 1,
 	BLK_INTEGRITY_DEVICE_CAPABLE	= 1 << 2,
+	BLK_INTEGRITY_IP_CHECKSUM	= 1 << 3,
 };
 
 struct blk_integrity_iter {

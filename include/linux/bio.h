@@ -328,6 +328,7 @@ enum bip_flags {
 	BIP_MAPPED_INTEGRITY	= 1 << 1, /* ref tag has been remapped */
 	BIP_CTRL_NOCHECK	= 1 << 2, /* disable HBA integrity checking */
 	BIP_DISK_NOCHECK	= 1 << 3, /* disable disk integrity checking */
+	BIP_IP_CHECKSUM		= 1 << 4, /* IP checksum */
 };
 
 static inline sector_t bip_get_seed(struct bio_integrity_payload *bip)

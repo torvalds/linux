@@ -255,12 +255,14 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		return;
 
 	/* Enable DMA of protection information */
-	if (scsi_host_get_guard(sdkp->device->host) & SHOST_DIX_GUARD_IP)
+	if (scsi_host_get_guard(sdkp->device->host) & SHOST_DIX_GUARD_IP) {
 		if (type == SD_DIF_TYPE3_PROTECTION)
 			blk_integrity_register(disk, &dif_type3_integrity_ip);
 		else
 			blk_integrity_register(disk, &dif_type1_integrity_ip);
-	else
+
+		disk->integrity->flags |= BLK_INTEGRITY_IP_CHECKSUM;
+	} else
 		if (type == SD_DIF_TYPE3_PROTECTION)
 			blk_integrity_register(disk, &dif_type3_integrity_crc);
 		else
