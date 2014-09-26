@@ -698,7 +698,7 @@
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates1 5>, <&clk_gates5 13>;
 		clock-names = "clk_usbphy0", "hclk_usb0";
-		resets = <&reset RK3128_RST_USBOTG0>, <&reset RK3128_RST_USBOTG0>,
+		resets = <&reset RK3128_RST_USBOTG0>, <&reset RK3128_RST_UTMI0>,
 				<&reset RK3128_RST_OTGC0>;
 		reset-names = "otg_ahb", "otg_phy", "otg_controller";
 		/*0 - Normal, 1 - Force Host, 2 - Force Device*/
