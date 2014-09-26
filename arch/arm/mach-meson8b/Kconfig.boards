@@ -4,3 +4,10 @@ config MACH_MESON8B_COMMON_BOARD
 	default y 
 	help
       Support for Amlogic Meson8 baby common development platform.
+
+config MACH_MESON8B_ODROIDC
+        depends on ARCH_MESON8B
+        bool "Hardkernel's ODROID-C board"
+        default y
+        help
+        Support for Hardkernel's ODROID-C development platform.
