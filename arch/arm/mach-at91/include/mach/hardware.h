@@ -51,11 +51,12 @@
  */
 #define AT91_BASE_SYS	0xffffc000
 
+#endif
+
 /*
  * On sama5d4 there is no system controller, we map some needed peripherals
  */
 #define AT91_ALT_BASE_SYS	0xfc069000
-#endif
 
 /*
  * On all at91 have the Advanced Interrupt Controller starts at address
@@ -90,6 +91,9 @@
  */
 #define AT91_IO_PHYS_BASE	AT91_BASE_SYS
 #define AT91_IO_VIRT_BASE	IOMEM(AT91_IO_PHYS_BASE)
+
+#define AT91_ALT_IO_PHYS_BASE	AT91_ALT_BASE_SYS
+#define AT91_ALT_IO_VIRT_BASE	IOMEM(AT91_ALT_BASE_SYS)
 #endif
 
 #define AT91_IO_SIZE		(0xFFFFFFFF - AT91_IO_PHYS_BASE + 1)
