@@ -1461,6 +1461,7 @@ static inline uint64_t rq_io_start_time_ns(struct request *req)
 enum blk_integrity_flags {
 	BLK_INTEGRITY_VERIFY		= 1 << 0,
 	BLK_INTEGRITY_GENERATE		= 1 << 1,
+	BLK_INTEGRITY_DEVICE_CAPABLE	= 1 << 2,
 };
 
 struct blk_integrity_iter {

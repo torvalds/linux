@@ -307,6 +307,12 @@ static ssize_t integrity_generate_show(struct blk_integrity *bi, char *page)
 	return sprintf(page, "%d\n", (bi->flags & BLK_INTEGRITY_GENERATE) != 0);
 }
 
+static ssize_t integrity_device_show(struct blk_integrity *bi, char *page)
+{
+	return sprintf(page, "%u\n",
+		       (bi->flags & BLK_INTEGRITY_DEVICE_CAPABLE) != 0);
+}
+
 static struct integrity_sysfs_entry integrity_format_entry = {
 	.attr = { .name = "format", .mode = S_IRUGO },
 	.show = integrity_format_show,
@@ -329,11 +335,17 @@ static struct integrity_sysfs_entry integrity_generate_entry = {
 	.store = integrity_generate_store,
 };
 
+static struct integrity_sysfs_entry integrity_device_entry = {
+	.attr = { .name = "device_is_integrity_capable", .mode = S_IRUGO },
+	.show = integrity_device_show,
+};
+
 static struct attribute *integrity_attrs[] = {
 	&integrity_format_entry.attr,
 	&integrity_tag_size_entry.attr,
 	&integrity_verify_entry.attr,
 	&integrity_generate_entry.attr,
+	&integrity_device_entry.attr,
 	NULL,
 };
 

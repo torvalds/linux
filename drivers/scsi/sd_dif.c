@@ -270,7 +270,13 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		  "Enabling DIX %s protection\n", disk->integrity->name);
 
 	/* Signal to block layer that we support sector tagging */
-	if (dif && type && sdkp->ATO) {
+	if (dif && type) {
+
+		disk->integrity->flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
+
+		if (!sdkp)
+			return;
+
 		if (type == SD_DIF_TYPE3_PROTECTION)
 			disk->integrity->tag_size = sizeof(u16) + sizeof(u32);
 		else
