@@ -454,6 +454,21 @@ config MFD_MAX8998
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_MENF21BMC
+	tristate "MEN 14F021P00 Board Management Controller Support"
+	depends on I2C
+	select MFD_CORE
+	help
+	  Say yes here to add support for the MEN 14F021P00 BMC
+	  which is a Board Management Controller connected to the I2C bus.
+	  The device supports multiple sub-devices like LED, HWMON and WDT.
+	  This driver provides common support for accessing the devices;
+	  additional drivers must be enabled in order to use the
+	  functionality of the BMC device.
+
+	  This driver can also be built as a module. If so the module
+	  will be called menf21bmc.
+
 config EZX_PCAP
 	bool "Motorola EZXPCAP Support"
 	depends on SPI_MASTER
