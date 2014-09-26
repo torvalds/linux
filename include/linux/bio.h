@@ -292,6 +292,14 @@ static inline unsigned bio_segments(struct bio *bio)
  */
 #define bio_get(bio)	atomic_inc(&(bio)->bi_cnt)
 
+enum bip_flags {
+	BIP_BLOCK_INTEGRITY	= 1 << 0, /* block layer owns integrity data */
+	BIP_MAPPED_INTEGRITY	= 1 << 1, /* ref tag has been remapped */
+	BIP_CTRL_NOCHECK	= 1 << 2, /* disable HBA integrity checking */
+	BIP_DISK_NOCHECK	= 1 << 3, /* disable disk integrity checking */
+	BIP_IP_CHECKSUM		= 1 << 4, /* IP checksum */
+};
+
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 
 static inline struct bio_integrity_payload *bio_integrity(struct bio *bio)
@@ -323,13 +331,15 @@ struct bio_integrity_payload {
 	struct bio_vec		bip_inline_vecs[0];/* embedded bvec array */
 };
 
-enum bip_flags {
-	BIP_BLOCK_INTEGRITY	= 1 << 0, /* block layer owns integrity data */
-	BIP_MAPPED_INTEGRITY	= 1 << 1, /* ref tag has been remapped */
-	BIP_CTRL_NOCHECK	= 1 << 2, /* disable HBA integrity checking */
-	BIP_DISK_NOCHECK	= 1 << 3, /* disable disk integrity checking */
-	BIP_IP_CHECKSUM		= 1 << 4, /* IP checksum */
-};
+static inline bool bio_integrity_flagged(struct bio *bio, enum bip_flags flag)
+{
+	struct bio_integrity_payload *bip = bio_integrity(bio);
+
+	if (bip)
+		return bip->bip_flags & flag;
+
+	return false;
+}
 
 static inline sector_t bip_get_seed(struct bio_integrity_payload *bip)
 {
@@ -701,9 +711,9 @@ extern void bio_integrity_init(void);
 
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
-static inline int bio_integrity(struct bio *bio)
+static inline void *bio_integrity(struct bio *bio)
 {
-	return 0;
+	return NULL;
 }
 
 static inline bool bio_integrity_enabled(struct bio *bio)
@@ -752,6 +762,11 @@ static inline void bio_integrity_trim(struct bio *bio, unsigned int offset,
 static inline void bio_integrity_init(void)
 {
 	return;
+}
+
+static inline bool bio_integrity_flagged(struct bio *bio, enum bip_flags flag)
+{
+	return false;
 }
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
