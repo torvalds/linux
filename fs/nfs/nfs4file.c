@@ -8,6 +8,10 @@
 #include "fscache.h"
 #include "pnfs.h"
 
+#ifdef CONFIG_NFS_V4_2
+#include "nfs42.h"
+#endif
+
 #define NFSDBG_FACILITY		NFSDBG_FILE
 
 static int
@@ -115,8 +119,29 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	return ret;
 }
 
+#ifdef CONFIG_NFS_V4_2
+static loff_t nfs4_file_llseek(struct file *filep, loff_t offset, int whence)
+{
+	loff_t ret;
+
+	switch (whence) {
+	case SEEK_HOLE:
+	case SEEK_DATA:
+		ret = nfs42_proc_llseek(filep, offset, whence);
+		if (ret != -ENOTSUPP)
+			return ret;
+	default:
+		return nfs_file_llseek(filep, offset, whence);
+	}
+}
+#endif /* CONFIG_NFS_V4_2 */
+
 const struct file_operations nfs4_file_operations = {
+#ifdef CONFIG_NFS_V4_2
+	.llseek		= nfs4_file_llseek,
+#else
 	.llseek		= nfs_file_llseek,
+#endif
 	.read		= new_sync_read,
 	.write		= new_sync_write,
 	.read_iter	= nfs_file_read,

@@ -7427,6 +7427,10 @@ nfs4_stat_to_errno(int stat)
 	return -stat;
 }
 
+#ifdef CONFIG_NFS_V4_2
+#include "nfs42xdr.c"
+#endif /* CONFIG_NFS_V4_2 */
+
 #define PROC(proc, argtype, restype)				\
 [NFSPROC4_CLNT_##proc] = {					\
 	.p_proc   = NFSPROC4_COMPOUND,				\
@@ -7495,6 +7499,9 @@ struct rpc_procinfo	nfs4_procedures[] = {
 			enc_bind_conn_to_session, dec_bind_conn_to_session),
 	PROC(DESTROY_CLIENTID,	enc_destroy_clientid,	dec_destroy_clientid),
 #endif /* CONFIG_NFS_V4_1 */
+#ifdef CONFIG_NFS_V4_2
+	PROC(SEEK,		enc_seek,		dec_seek),
+#endif /* CONFIG_NFS_V4_2 */
 };
 
 const struct rpc_version nfs_version4 = {
