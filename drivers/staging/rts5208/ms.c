@@ -2713,6 +2713,7 @@ static int mspro_read_format_progress(struct rtsx_chip *chip,
 		ms_card->progress = 0;
 	} else {
 		u64 ulltmp = (u64)cur_progress * (u64)65535;
+
 		do_div(ulltmp, total_progress);
 		ms_card->progress = (u16)ulltmp;
 	}
