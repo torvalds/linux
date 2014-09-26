@@ -36,10 +36,37 @@
 #define FW_8192C_PAGE_SIZE			4096
 #define FW_8192C_POLLING_DELAY			5
 #define FW_8192C_POLLING_TIMEOUT_COUNT		100
+#define NORMAL_CHIP				BIT(4)
 
 #define IS_FW_HEADER_EXIST(_pfwhdr)	\
 	((le16_to_cpu(_pfwhdr->signature)&0xFFF0) == 0x92C0 ||\
 	(le16_to_cpu(_pfwhdr->signature)&0xFFF0) == 0x88C0)
+
+#define CUT_VERSION_MASK		(BIT(6)|BIT(7))
+#define CHIP_VENDOR_UMC			BIT(5)
+#define CHIP_VENDOR_UMC_B_CUT		BIT(6) /* Chip version for ECO */
+#define IS_CHIP_VER_B(version)  ((version & CHIP_VER_B) ? true : false)
+#define RF_TYPE_MASK			(BIT(0)|BIT(1))
+#define GET_CVID_RF_TYPE(version)	\
+	((version) & RF_TYPE_MASK)
+#define GET_CVID_CUT_VERSION(version) \
+	((version) & CUT_VERSION_MASK)
+#define IS_NORMAL_CHIP(version)	\
+	((version & NORMAL_CHIP) ? true : false)
+#define IS_2T2R(version) \
+	(((GET_CVID_RF_TYPE(version)) == \
+	CHIP_92C_BITMASK) ? true : false)
+#define IS_92C_SERIAL(version) \
+	((IS_2T2R(version)) ? true : false)
+#define IS_CHIP_VENDOR_UMC(version)	\
+	((version & CHIP_VENDOR_UMC) ? true : false)
+#define IS_VENDOR_UMC_A_CUT(version) \
+	((IS_CHIP_VENDOR_UMC(version)) ? \
+	((GET_CVID_CUT_VERSION(version)) ? false : true) : false)
+#define IS_81XXC_VENDOR_UMC_B_CUT(version)	\
+	((IS_CHIP_VENDOR_UMC(version)) ? \
+	((GET_CVID_CUT_VERSION(version) == \
+		CHIP_VENDOR_UMC_B_CUT) ? true : false) : false)
 
 struct rtl92c_firmware_header {
 	__le16 signature;
