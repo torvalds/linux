@@ -210,90 +210,6 @@ static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
 }
 
 /**
- * bio_integrity_tag_size - Retrieve integrity tag space
- * @bio:	bio to inspect
- *
- * Description: Returns the maximum number of tag bytes that can be
- * attached to this bio. Filesystems can use this to determine how
- * much metadata to attach to an I/O.
- */
-unsigned int bio_integrity_tag_size(struct bio *bio)
-{
-	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-
-	BUG_ON(bio->bi_iter.bi_size == 0);
-
-	return bi->tag_size * (bio->bi_iter.bi_size / bi->sector_size);
-}
-EXPORT_SYMBOL(bio_integrity_tag_size);
-
-static int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len,
-			     int set)
-{
-	struct bio_integrity_payload *bip = bio_integrity(bio);
-	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-	unsigned int nr_sectors;
-
-	BUG_ON(bip->bip_buf == NULL);
-
-	if (bi->tag_size == 0)
-		return -1;
-
-	nr_sectors = bio_integrity_hw_sectors(bi,
-					DIV_ROUND_UP(len, bi->tag_size));
-
-	if (nr_sectors * bi->tuple_size > bip->bip_iter.bi_size) {
-		printk(KERN_ERR "%s: tag too big for bio: %u > %u\n", __func__,
-		       nr_sectors * bi->tuple_size, bip->bip_iter.bi_size);
-		return -1;
-	}
-
-	if (set)
-		bi->set_tag_fn(bip->bip_buf, tag_buf, nr_sectors);
-	else
-		bi->get_tag_fn(bip->bip_buf, tag_buf, nr_sectors);
-
-	return 0;
-}
-
-/**
- * bio_integrity_set_tag - Attach a tag buffer to a bio
- * @bio:	bio to attach buffer to
- * @tag_buf:	Pointer to a buffer containing tag data
- * @len:	Length of the included buffer
- *
- * Description: Use this function to tag a bio by leveraging the extra
- * space provided by devices formatted with integrity protection.  The
- * size of the integrity buffer must be <= to the size reported by
- * bio_integrity_tag_size().
- */
-int bio_integrity_set_tag(struct bio *bio, void *tag_buf, unsigned int len)
-{
-	BUG_ON(bio_data_dir(bio) != WRITE);
-
-	return bio_integrity_tag(bio, tag_buf, len, 1);
-}
-EXPORT_SYMBOL(bio_integrity_set_tag);
-
-/**
- * bio_integrity_get_tag - Retrieve a tag buffer from a bio
- * @bio:	bio to retrieve buffer from
- * @tag_buf:	Pointer to a buffer for the tag data
- * @len:	Length of the target buffer
- *
- * Description: Use this function to retrieve the tag buffer from a
- * completed I/O. The size of the integrity buffer must be <= to the
- * size reported by bio_integrity_tag_size().
- */
-int bio_integrity_get_tag(struct bio *bio, void *tag_buf, unsigned int len)
-{
-	BUG_ON(bio_data_dir(bio) != READ);
-
-	return bio_integrity_tag(bio, tag_buf, len, 0);
-}
-EXPORT_SYMBOL(bio_integrity_get_tag);
-
-/**
  * bio_integrity_generate_verify - Generate/verify integrity metadata for a bio
  * @bio:	bio to generate/verify integrity metadata for
  * @operate:	operate number, 1 for generate, 0 for verify
@@ -355,14 +271,6 @@ static void bio_integrity_generate(struct bio *bio)
 	bio_integrity_generate_verify(bio, 1);
 }
 
-static inline unsigned short blk_integrity_tuple_size(struct blk_integrity *bi)
-{
-	if (bi)
-		return bi->tuple_size;
-
-	return 0;
-}
-
 /**
  * bio_integrity_prep - Prepare bio for integrity I/O
  * @bio:	bio to prepare
@@ -393,7 +301,7 @@ int bio_integrity_prep(struct bio *bio)
 	sectors = bio_integrity_hw_sectors(bi, bio_sectors(bio));
 
 	/* Allocate kernel buffer for protection data */
-	len = sectors * blk_integrity_tuple_size(bi);
+	len = sectors * bi->tuple_size;
 	buf = kmalloc(len, GFP_NOIO | q->bounce_gfp);
 	if (unlikely(buf == NULL)) {
 		printk(KERN_ERR "could not allocate integrity buffer\n");

@@ -418,8 +418,6 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 		bi->generate_fn = template->generate_fn;
 		bi->verify_fn = template->verify_fn;
 		bi->tuple_size = template->tuple_size;
-		bi->set_tag_fn = template->set_tag_fn;
-		bi->get_tag_fn = template->get_tag_fn;
 		bi->tag_size = template->tag_size;
 	} else
 		bi->name = bi_unsupported_name;

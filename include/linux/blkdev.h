@@ -1472,14 +1472,10 @@ struct blk_integrity_exchg {
 
 typedef void (integrity_gen_fn) (struct blk_integrity_exchg *);
 typedef int (integrity_vrfy_fn) (struct blk_integrity_exchg *);
-typedef void (integrity_set_tag_fn) (void *, void *, unsigned int);
-typedef void (integrity_get_tag_fn) (void *, void *, unsigned int);
 
 struct blk_integrity {
 	integrity_gen_fn	*generate_fn;
 	integrity_vrfy_fn	*verify_fn;
-	integrity_set_tag_fn	*set_tag_fn;
-	integrity_get_tag_fn	*get_tag_fn;
 
 	unsigned short		flags;
 	unsigned short		tuple_size;

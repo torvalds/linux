@@ -128,39 +128,10 @@ static int sd_dif_type1_verify_ip(struct blk_integrity_exchg *bix)
 	return sd_dif_type1_verify(bix, sd_dif_ip_fn);
 }
 
-/*
- * Functions for interleaving and deinterleaving application tags
- */
-static void sd_dif_type1_set_tag(void *prot, void *tag_buf, unsigned int sectors)
-{
-	struct sd_dif_tuple *sdt = prot;
-	u8 *tag = tag_buf;
-	unsigned int i, j;
-
-	for (i = 0, j = 0 ; i < sectors ; i++, j += 2, sdt++) {
-		sdt->app_tag = tag[j] << 8 | tag[j+1];
-		BUG_ON(sdt->app_tag == 0xffff);
-	}
-}
-
-static void sd_dif_type1_get_tag(void *prot, void *tag_buf, unsigned int sectors)
-{
-	struct sd_dif_tuple *sdt = prot;
-	u8 *tag = tag_buf;
-	unsigned int i, j;
-
-	for (i = 0, j = 0 ; i < sectors ; i++, j += 2, sdt++) {
-		tag[j] = (sdt->app_tag & 0xff00) >> 8;
-		tag[j+1] = sdt->app_tag & 0xff;
-	}
-}
-
 static struct blk_integrity dif_type1_integrity_crc = {
 	.name			= "T10-DIF-TYPE1-CRC",
 	.generate_fn		= sd_dif_type1_generate_crc,
 	.verify_fn		= sd_dif_type1_verify_crc,
-	.get_tag_fn		= sd_dif_type1_get_tag,
-	.set_tag_fn		= sd_dif_type1_set_tag,
 	.tuple_size		= sizeof(struct sd_dif_tuple),
 	.tag_size		= 0,
 };
@@ -169,8 +140,6 @@ static struct blk_integrity dif_type1_integrity_ip = {
 	.name			= "T10-DIF-TYPE1-IP",
 	.generate_fn		= sd_dif_type1_generate_ip,
 	.verify_fn		= sd_dif_type1_verify_ip,
-	.get_tag_fn		= sd_dif_type1_get_tag,
-	.set_tag_fn		= sd_dif_type1_set_tag,
 	.tuple_size		= sizeof(struct sd_dif_tuple),
 	.tag_size		= 0,
 };
@@ -245,42 +214,10 @@ static int sd_dif_type3_verify_ip(struct blk_integrity_exchg *bix)
 	return sd_dif_type3_verify(bix, sd_dif_ip_fn);
 }
 
-static void sd_dif_type3_set_tag(void *prot, void *tag_buf, unsigned int sectors)
-{
-	struct sd_dif_tuple *sdt = prot;
-	u8 *tag = tag_buf;
-	unsigned int i, j;
-
-	for (i = 0, j = 0 ; i < sectors ; i++, j += 6, sdt++) {
-		sdt->app_tag = tag[j] << 8 | tag[j+1];
-		sdt->ref_tag = tag[j+2] << 24 | tag[j+3] << 16 |
-			tag[j+4] << 8 | tag[j+5];
-	}
-}
-
-static void sd_dif_type3_get_tag(void *prot, void *tag_buf, unsigned int sectors)
-{
-	struct sd_dif_tuple *sdt = prot;
-	u8 *tag = tag_buf;
-	unsigned int i, j;
-
-	for (i = 0, j = 0 ; i < sectors ; i++, j += 2, sdt++) {
-		tag[j] = (sdt->app_tag & 0xff00) >> 8;
-		tag[j+1] = sdt->app_tag & 0xff;
-		tag[j+2] = (sdt->ref_tag & 0xff000000) >> 24;
-		tag[j+3] = (sdt->ref_tag & 0xff0000) >> 16;
-		tag[j+4] = (sdt->ref_tag & 0xff00) >> 8;
-		tag[j+5] = sdt->ref_tag & 0xff;
-		BUG_ON(sdt->app_tag == 0xffff || sdt->ref_tag == 0xffffffff);
-	}
-}
-
 static struct blk_integrity dif_type3_integrity_crc = {
 	.name			= "T10-DIF-TYPE3-CRC",
 	.generate_fn		= sd_dif_type3_generate_crc,
 	.verify_fn		= sd_dif_type3_verify_crc,
-	.get_tag_fn		= sd_dif_type3_get_tag,
-	.set_tag_fn		= sd_dif_type3_set_tag,
 	.tuple_size		= sizeof(struct sd_dif_tuple),
 	.tag_size		= 0,
 };
@@ -289,8 +226,6 @@ static struct blk_integrity dif_type3_integrity_ip = {
 	.name			= "T10-DIF-TYPE3-IP",
 	.generate_fn		= sd_dif_type3_generate_ip,
 	.verify_fn		= sd_dif_type3_verify_ip,
-	.get_tag_fn		= sd_dif_type3_get_tag,
-	.set_tag_fn		= sd_dif_type3_set_tag,
 	.tuple_size		= sizeof(struct sd_dif_tuple),
 	.tag_size		= 0,
 };
