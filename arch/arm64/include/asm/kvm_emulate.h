@@ -174,6 +174,11 @@ static inline bool kvm_vcpu_trap_is_iabt(const struct kvm_vcpu *vcpu)
 
 static inline u8 kvm_vcpu_trap_get_fault(const struct kvm_vcpu *vcpu)
 {
+	return kvm_vcpu_get_hsr(vcpu) & ESR_EL2_FSC;
+}
+
+static inline u8 kvm_vcpu_trap_get_fault_type(const struct kvm_vcpu *vcpu)
+{
 	return kvm_vcpu_get_hsr(vcpu) & ESR_EL2_FSC_TYPE;
 }
 
