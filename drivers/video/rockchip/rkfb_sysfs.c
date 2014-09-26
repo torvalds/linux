@@ -39,14 +39,15 @@ static ssize_t show_screen_info(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
 	struct rk_screen *screen = dev_drv->cur_screen;
-	int fps;
+	int fps = 0;
 	u32 x = screen->mode.left_margin + screen->mode.right_margin +
 		screen->mode.xres + screen->mode.hsync_len;
 	u32 y = screen->mode.upper_margin + screen->mode.lower_margin +
 		screen->mode.yres + screen->mode.vsync_len;
 	u64 ft = (u64)x * y * (dev_drv->pixclock);
 
-	fps = div64_u64(1000000000000llu, ft);
+	if (ft > 0)
+		fps = div64_u64(1000000000000llu, ft);
 	return snprintf(buf, PAGE_SIZE, "xres:%d\nyres:%d\nfps:%d\n",
 			screen->mode.xres, screen->mode.yres, fps);
 }
@@ -133,7 +134,9 @@ static ssize_t show_overlay(struct device *dev,
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
 	int ovl;
-	ovl = dev_drv->ops->ovl_mgr(dev_drv, 0, 0);
+
+	if (dev_drv->ops->ovl_mgr)
+		ovl = dev_drv->ops->ovl_mgr(dev_drv, 0, 0);
 
 	if (ovl < 0)
 		return ovl;
@@ -155,8 +158,8 @@ static ssize_t set_overlay(struct device *dev, struct device_attribute *attr,
 	ret = kstrtoint(buf, 0, &ovl);
 	if (ret)
 		return ret;
-
-	ret = dev_drv->ops->ovl_mgr(dev_drv, ovl, 1);
+	if (dev_drv->ops->ovl_mgr)
+		ret = dev_drv->ops->ovl_mgr(dev_drv, ovl, 1);
 	if (ret < 0)
 		return ret;
 
@@ -171,7 +174,8 @@ static ssize_t show_fps(struct device *dev,
 	    (struct rk_lcdc_driver *)fbi->par;
 	int fps;
 
-	fps = dev_drv->ops->fps_mgr(dev_drv, 0, 0);
+	if (dev_drv->ops->fps_mgr)
+		fps = dev_drv->ops->fps_mgr(dev_drv, 0, 0);
 	if (fps < 0)
 		return fps;
 
@@ -190,7 +194,14 @@ static ssize_t set_fps(struct device *dev, struct device_attribute *attr,
 	ret = kstrtoint(buf, 0, &fps);
 	if (ret)
 		return ret;
-	ret = dev_drv->ops->fps_mgr(dev_drv, fps, 1);
+
+	if (fps == 0) {
+		dev_info(dev, "unsupport set fps=0\n");
+		return count;
+	}
+
+	if (dev_drv->ops->fps_mgr)
+		ret = dev_drv->ops->fps_mgr(dev_drv, fps, 1);
 	if (ret < 0)
 		return ret;
 
@@ -241,7 +252,8 @@ static ssize_t set_fb_win_map(struct device *dev, struct device_attribute *attr,
 		       "fb0-win2\n" "fb1-win1\n" "fb2-win0\n");
 		return count;
 	} else {
-		dev_drv->ops->fb_win_remap(dev_drv, order);
+		if (dev_drv->ops->fb_win_remap)
+			dev_drv->ops->fb_win_remap(dev_drv, order);
 	}
 
 	return count;
@@ -338,7 +350,8 @@ static ssize_t set_dsp_lut(struct device *dev, struct device_attribute *attr,
 		printk("\n");
 	}
 #endif
-	dev_drv->ops->set_dsp_lut(dev_drv, dsp_lut);
+	if (dev_drv->ops->set_dsp_lut)
+		dev_drv->ops->set_dsp_lut(dev_drv, dsp_lut);
 
 	return count;
 }
@@ -367,7 +380,8 @@ static ssize_t set_dsp_cabc(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	ret = dev_drv->ops->set_dsp_cabc(dev_drv, mode);
+	if (dev_drv->ops->set_dsp_cabc)
+		ret = dev_drv->ops->set_dsp_cabc(dev_drv, mode);
 	if (ret < 0)
 		return ret;
 
