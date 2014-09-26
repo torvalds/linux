@@ -44,7 +44,6 @@ EXPORT_SYMBOL_GPL(rtl8723_dm_init_dynamic_txpower);
 void rtl8723_dm_init_edca_turbo(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
 	rtlpriv->dm.current_turbo_edca = false;
 	rtlpriv->dm.is_any_nonbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
@@ -54,12 +53,13 @@ EXPORT_SYMBOL_GPL(rtl8723_dm_init_edca_turbo);
 void rtl8723_dm_init_dynamic_bb_powersaving(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct ps_t *dm_pstable = &rtlpriv->dm_pstable;
 
-	rtlpriv->dm_pstable.pre_ccastate = CCA_MAX;
-	rtlpriv->dm_pstable.cur_ccasate = CCA_MAX;
-	rtlpriv->dm_pstable.pre_rfstate = RF_MAX;
-	rtlpriv->dm_pstable.cur_rfstate = RF_MAX;
-	rtlpriv->dm_pstable.rssi_val_min = 0;
-	rtlpriv->dm_pstable.initialize = 0;
+	dm_pstable->pre_ccastate = CCA_MAX;
+	dm_pstable->cur_ccasate = CCA_MAX;
+	dm_pstable->pre_rfstate = RF_MAX;
+	dm_pstable->cur_rfstate = RF_MAX;
+	dm_pstable->rssi_val_min = 0;
+	dm_pstable->initialize = 0;
 }
 EXPORT_SYMBOL_GPL(rtl8723_dm_init_dynamic_bb_powersaving);

@@ -36,7 +36,8 @@ void rtl8723_enable_fw_download(struct ieee80211_hw *hw, bool enable)
 
 	if (enable) {
 		tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
-		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN + 1, tmp | 0x04);
+		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN + 1,
+			       tmp | 0x04);
 
 		tmp = rtl_read_byte(rtlpriv, REG_MCUFWDL);
 		rtl_write_byte(rtlpriv, REG_MCUFWDL, tmp | 0x01);
@@ -95,7 +96,7 @@ void rtl8723_fw_page_write(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(rtl8723_fw_page_write);
 
-static void rtl8723_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
+void rtl8723_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
 {
 	u32 fwlen = *pfwlen;
 	u8 remain = (u8) (fwlen % 4);
@@ -109,60 +110,64 @@ static void rtl8723_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
 	}
 	*pfwlen = fwlen;
 }
+EXPORT_SYMBOL(rtl8723_fill_dummy);
 
 void rtl8723_write_fw(struct ieee80211_hw *hw,
 		      enum version_8723e version,
-		      u8 *buffer, u32 size)
+		      u8 *buffer, u32 size, u8 max_page)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 *bufferptr = buffer;
-	u32 pagenums, remainsize;
+	u32 page_nums, remain_size;
 	u32 page, offset;
 
-	RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD, "FW size is %d bytes,\n", size);
+	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE, "FW size is %d bytes,\n", size);
 
 	rtl8723_fill_dummy(bufferptr, &size);
 
-	pagenums = size / FW_8192C_PAGE_SIZE;
-	remainsize = size % FW_8192C_PAGE_SIZE;
+	page_nums = size / FW_8192C_PAGE_SIZE;
+	remain_size = size % FW_8192C_PAGE_SIZE;
 
-	if (pagenums > 8) {
+	if (page_nums > max_page) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Page numbers should not greater then 8\n");
+			 "Page numbers should not greater than %d\n", max_page);
 	}
-	for (page = 0; page < pagenums; page++) {
+	for (page = 0; page < page_nums; page++) {
 		offset = page * FW_8192C_PAGE_SIZE;
 		rtl8723_fw_page_write(hw, page, (bufferptr + offset),
 				      FW_8192C_PAGE_SIZE);
 	}
-	if (remainsize) {
-		offset = pagenums * FW_8192C_PAGE_SIZE;
-		page = pagenums;
+
+	if (remain_size) {
+		offset = page_nums * FW_8192C_PAGE_SIZE;
+		page = page_nums;
 		rtl8723_fw_page_write(hw, page, (bufferptr + offset),
-				      remainsize);
+				      remain_size);
 	}
+	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE, "FW write done.\n");
 }
 EXPORT_SYMBOL_GPL(rtl8723_write_fw);
 
 void rtl8723ae_firmware_selfreset(struct ieee80211_hw *hw)
 {
-	u8 u1tmp;
+	u8 u1b_tmp;
 	u8 delay = 100;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtl_write_byte(rtlpriv, REG_HMETFR + 3, 0x20);
-	u1tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
+	u1b_tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
 
-	while (u1tmp & BIT(2)) {
+	while (u1b_tmp & BIT(2)) {
 		delay--;
 		if (delay == 0)
 			break;
 		udelay(50);
-		u1tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
+		u1b_tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
 	}
 	if (delay == 0) {
-		u1tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
-		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN + 1, u1tmp&(~BIT(2)));
+		u1b_tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
+		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN + 1,
+			       u1b_tmp&(~BIT(2)));
 	}
 }
 EXPORT_SYMBOL_GPL(rtl8723ae_firmware_selfreset);
@@ -190,7 +195,8 @@ void rtl8723be_firmware_selfreset(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(rtl8723be_firmware_selfreset);
 
-int rtl8723_fw_free_to_go(struct ieee80211_hw *hw, bool is_8723be)
+int rtl8723_fw_free_to_go(struct ieee80211_hw *hw, bool is_8723be,
+			  int max_count)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	int err = -EIO;
@@ -199,10 +205,10 @@ int rtl8723_fw_free_to_go(struct ieee80211_hw *hw, bool is_8723be)
 
 	do {
 		value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
-	} while ((counter++ < FW_8192C_POLLING_TIMEOUT_COUNT) &&
+	} while ((counter++ < max_count) &&
 		 (!(value32 & FWDL_CHKSUM_RPT)));
 
-	if (counter >= FW_8192C_POLLING_TIMEOUT_COUNT) {
+	if (counter >= max_count) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "chksum report fail ! REG_MCUFWDL:0x%08x .\n",
 			 value32);
@@ -223,15 +229,15 @@ int rtl8723_fw_free_to_go(struct ieee80211_hw *hw, bool is_8723be)
 		value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
 		if (value32 & WINTINI_RDY) {
 			RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-				 "Polling FW ready success!! "
-				 "REG_MCUFWDL:0x%08x .\n",
+				 "Polling FW ready success!! REG_MCUFWDL:0x%08x .\n",
 				 value32);
 			err = 0;
 			goto exit;
 		}
-		udelay(FW_8192C_POLLING_DELAY);
 
-	} while (counter++ < FW_8192C_POLLING_TIMEOUT_COUNT);
+		mdelay(FW_8192C_POLLING_DELAY);
+
+	} while (counter++ < max_count);
 
 	RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 		 "Polling FW ready fail!! REG_MCUFWDL:0x%08x .\n",
@@ -243,25 +249,28 @@ exit:
 EXPORT_SYMBOL_GPL(rtl8723_fw_free_to_go);
 
 int rtl8723_download_fw(struct ieee80211_hw *hw,
-			bool is_8723be)
+			bool is_8723be, int max_count)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	struct rtl92c_firmware_header *pfwheader;
+	struct rtl8723e_firmware_header *pfwheader;
 	u8 *pfwdata;
 	u32 fwsize;
 	int err;
 	enum version_8723e version = rtlhal->version;
+	int max_page;
 
 	if (!rtlhal->pfirmware)
 		return 1;
 
-	pfwheader = (struct rtl92c_firmware_header *)rtlhal->pfirmware;
+	pfwheader = (struct rtl8723e_firmware_header *)rtlhal->pfirmware;
 	pfwdata = rtlhal->pfirmware;
 	fwsize = rtlhal->fwsize;
-	RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG,
-		 "normal Firmware SIZE %d\n", fwsize);
 
+	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8723AE)
+		max_page = 6;
+	else
+		max_page = 8;
 	if (rtlpriv->cfg->ops->is_fw_header(pfwheader)) {
 		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD,
 			 "Firmware Version(%d), Signature(%#x), Size(%d)\n",
@@ -271,23 +280,24 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 		pfwdata = pfwdata + sizeof(struct rtl92c_firmware_header);
 		fwsize = fwsize - sizeof(struct rtl92c_firmware_header);
 	}
-	if (rtl_read_byte(rtlpriv, REG_MCUFWDL) & BIT(7)) {
-		rtl_write_byte(rtlpriv, REG_MCUFWDL, 0);
+
+	if (rtl_read_byte(rtlpriv, REG_MCUFWDL)&BIT(7)) {
 		if (is_8723be)
 			rtl8723be_firmware_selfreset(hw);
 		else
 			rtl8723ae_firmware_selfreset(hw);
+		rtl_write_byte(rtlpriv, REG_MCUFWDL, 0x00);
 	}
 	rtl8723_enable_fw_download(hw, true);
-	rtl8723_write_fw(hw, version, pfwdata, fwsize);
+	rtl8723_write_fw(hw, version, pfwdata, fwsize, max_page);
 	rtl8723_enable_fw_download(hw, false);
 
-	err = rtl8723_fw_free_to_go(hw, is_8723be);
+	err = rtl8723_fw_free_to_go(hw, is_8723be, max_count);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "Firmware is not ready to run!\n");
 	} else {
-		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD,
+		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
 			 "Firmware is ready to run!\n");
 	}
 	return 0;

@@ -143,6 +143,21 @@
 #define FCS_LEN				4
 #define EM_HDR_LEN			8
 
+enum rtl8192c_h2c_cmd {
+	H2C_AP_OFFLOAD = 0,
+	H2C_SETPWRMODE = 1,
+	H2C_JOINBSSRPT = 2,
+	H2C_RSVDPAGE = 3,
+	H2C_RSSI_REPORT = 5,
+	H2C_RA_MASK = 6,
+	H2C_MACID_PS_MODE = 7,
+	H2C_P2P_PS_OFFLOAD = 8,
+	H2C_MAC_MODE_SEL = 9,
+	H2C_PWRM = 15,
+	H2C_P2P_PS_CTW_CMD = 24,
+	MAX_H2CCMD
+};
+
 #define MAX_TX_COUNT			4
 #define MAX_REGULATION_NUM		4
 #define MAX_RF_PATH_NUM			4
@@ -2041,6 +2056,8 @@ struct rtl_wow_pattern {
 	u32 mask[4];
 };
 
+struct rtl8723e_firmware_header;
+
 struct rtl_hal_ops {
 	int (*init_sw_vars) (struct ieee80211_hw *hw);
 	void (*deinit_sw_vars) (struct ieee80211_hw *hw);
@@ -2145,7 +2162,7 @@ struct rtl_hal_ops {
 	void (*fill_h2c_cmd) (struct ieee80211_hw *hw, u8 element_id,
 			      u32 cmd_len, u8 *p_cmdbuffer);
 	bool (*get_btc_status) (void);
-	bool (*is_fw_header) (struct rtl92c_firmware_header *hdr);
+	bool (*is_fw_header)(struct rtl8723e_firmware_header *hdr);
 	u32 (*rx_command_packet)(struct ieee80211_hw *hw,
 				 struct rtl_stats status, struct sk_buff *skb);
 	void (*add_wowlan_pattern)(struct ieee80211_hw *hw,

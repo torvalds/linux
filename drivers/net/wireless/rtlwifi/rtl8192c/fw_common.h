@@ -60,19 +60,6 @@ struct rtl92c_firmware_header {
 	__le32 rsvd5;
 };
 
-enum rtl8192c_h2c_cmd {
-	H2C_AP_OFFLOAD = 0,
-	H2C_SETPWRMODE = 1,
-	H2C_JOINBSSRPT = 2,
-	H2C_RSVDPAGE = 3,
-	H2C_RSSI_REPORT = 5,
-	H2C_RA_MASK = 6,
-	H2C_MACID_PS_MODE = 7,
-	H2C_P2P_PS_OFFLOAD = 8,
-	H2C_P2P_PS_CTW_CMD = 32,
-	MAX_H2CCMD
-};
-
 #define pagenum_128(_len)	(u32)(((_len)>>7) + ((_len)&0x7F ? 1 : 0))
 
 #define SET_H2CCMD_PWRMODE_PARM_MODE(__ph2ccmd, __val)			\

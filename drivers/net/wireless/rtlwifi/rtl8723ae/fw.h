@@ -24,50 +24,28 @@
  * Hsinchu 300, Taiwan.
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
- ****************************************************************************
- */
+ *****************************************************************************/
 
 #ifndef __RTL92C__FW__H__
 #define __RTL92C__FW__H__
 
+#define FW_8192C_SIZE					0x3000
 #define FW_8192C_START_ADDRESS			0x1000
 #define FW_8192C_END_ADDRESS			0x3FFF
-#define FW_8192C_PAGE_SIZE			4096
+#define FW_8192C_PAGE_SIZE				4096
 #define FW_8192C_POLLING_DELAY			5
-#define FW_8192C_POLLING_TIMEOUT_COUNT		6000
+#define FW_8192C_POLLING_TIMEOUT_COUNT	1000
 
-#define BEACON_PG				0
-#define PSPOLL_PG				2
-#define NULL_PG					3
-#define PROBERSP_PG				4 /* ->5 */
+#define IS_FW_HEADER_EXIST(_pfwhdr)	\
+	((_pfwhdr->signature&0xFFFF) == 0x2300 ||\
+	(_pfwhdr->signature&0xFFFF) == 0x2301 ||\
+	(_pfwhdr->signature&0xFFFF) == 0x2302)
 
-#define TOTAL_RESERVED_PKT_LEN			768
-
-#define IS_FW_HEADER_EXIST(_pfwhdr)		\
-	((_pfwhdr->signature&0xFF00) == 0x2300)
-
-struct rtl8723ae_firmware_header {
-	u16 signature;
-	u8 category;
-	u8 function;
-	u16 version;
-	u8 subversion;
-	u8 rsvd1;
-	u8 month;
-	u8 date;
-	u8 hour;
-	u8 minute;
-	u16 ramcodeSize;
-	u16 rsvd2;
-	u32 svnindex;
-	u32 rsvd3;
-	u32 rsvd4;
-	u32 rsvd5;
-};
+#define pagenum_128(_len)	(u32)(((_len)>>7) + ((_len)&0x7F ? 1 : 0))
 
 #define SET_H2CCMD_PWRMODE_PARM_MODE(__ph2ccmd, __val)			\
 	SET_BITS_TO_LE_1BYTE(__ph2ccmd, 0, 8, __val)
-#define SET_H2CCMD_PWRMODE_PARM_SMART_PS_23A(__ph2ccmd, __val)		\
+#define SET_H2CCMD_PWRMODE_PARM_SMART_PS(__ph2ccmd, __val)		\
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+1, 0, 8, __val)
 #define SET_H2CCMD_PWRMODE_PARM_BCN_PASS_TIME(__ph2ccmd, __val)	\
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
@@ -80,11 +58,10 @@ struct rtl8723ae_firmware_header {
 #define SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(__ph2ccmd, __val)		\
 	SET_BITS_TO_LE_1BYTE((__ph2ccmd)+2, 0, 8, __val)
 
-void rtl8723ae_fill_h2c_cmd(struct ieee80211_hw *hw, u8 element_id,
-			    u32 cmd_len, u8 *p_cmdbuffer);
-void rtl8723ae_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
-void rtl8723ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished);
-void rtl8723ae_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw, u8 mstatus);
-void rtl8723ae_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state);
-
+void rtl8723e_fill_h2c_cmd(struct ieee80211_hw *hw, u8 element_id,
+			   u32 cmd_len, u8 *p_cmdbuffer);
+void rtl8723e_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
+void rtl8723e_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished);
+void rtl8723e_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw, u8 mstatus);
+void rtl8723e_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state);
 #endif

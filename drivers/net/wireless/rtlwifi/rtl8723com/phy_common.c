@@ -43,9 +43,8 @@ u32 rtl8723_phy_query_bb_reg(struct ieee80211_hw *hw,
 	returnvalue = (originalvalue & bitmask) >> bitshift;
 
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE,
-		 "BBR MASK = 0x%x Addr[0x%x]= 0x%x\n",
-		  bitmask, regaddr, originalvalue);
-
+		 "BBR MASK=0x%x Addr[0x%x]=0x%x\n", bitmask,
+		 regaddr, originalvalue);
 	return returnvalue;
 }
 EXPORT_SYMBOL_GPL(rtl8723_phy_query_bb_reg);
@@ -57,8 +56,8 @@ void rtl8723_phy_set_bb_reg(struct ieee80211_hw *hw, u32 regaddr,
 	u32 originalvalue, bitshift;
 
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE,
-		 "regaddr(%#x), bitmask(%#x), data(%#x)\n",
-		  regaddr, bitmask, data);
+		 "regaddr(%#x), bitmask(%#x), data(%#x)\n", regaddr, bitmask,
+		 data);
 
 	if (bitmask != MASKDWORD) {
 		originalvalue = rtl_read_dword(rtlpriv, regaddr);
@@ -70,7 +69,7 @@ void rtl8723_phy_set_bb_reg(struct ieee80211_hw *hw, u32 regaddr,
 
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE,
 		 "regaddr(%#x), bitmask(%#x), data(%#x)\n",
-		  regaddr, bitmask, data);
+		 regaddr, bitmask, data);
 }
 EXPORT_SYMBOL_GPL(rtl8723_phy_set_bb_reg);
 
@@ -97,7 +96,7 @@ u32 rtl8723_phy_rf_serial_read(struct ieee80211_hw *hw,
 	u8 rfpi_enable = 0;
 	u32 retvalue;
 
-	offset &= 0xff;
+	offset &= 0x3f;
 	newoffset = offset;
 	if (RT_CANNOT_IO(hw)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "return all one\n");
@@ -109,12 +108,15 @@ u32 rtl8723_phy_rf_serial_read(struct ieee80211_hw *hw,
 	else
 		tmplong2 = rtl_get_bbreg(hw, pphyreg->rfhssi_para2, MASKDWORD);
 	tmplong2 = (tmplong2 & (~BLSSIREADADDRESS)) |
-		   (newoffset << 23) | BLSSIREADEDGE;
+	    (newoffset << 23) | BLSSIREADEDGE;
 	rtl_set_bbreg(hw, RFPGA0_XA_HSSIPARAMETER2, MASKDWORD,
 		      tmplong & (~BLSSIREADEDGE));
 	mdelay(1);
 	rtl_set_bbreg(hw, pphyreg->rfhssi_para2, MASKDWORD, tmplong2);
-	mdelay(2);
+	mdelay(1);
+	rtl_set_bbreg(hw, RFPGA0_XA_HSSIPARAMETER2, MASKDWORD,
+		      tmplong | BLSSIREADEDGE);
+	mdelay(1);
 	if (rfpath == RF90_PATH_A)
 		rfpi_enable = (u8) rtl_get_bbreg(hw, RFPGA0_XA_HSSIPARAMETER1,
 						 BIT(8));
@@ -128,8 +130,8 @@ u32 rtl8723_phy_rf_serial_read(struct ieee80211_hw *hw,
 		retvalue = rtl_get_bbreg(hw, pphyreg->rf_rb,
 					 BLSSIREADBACKDATA);
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE,
-		 "RFR-%d Addr[0x%x]= 0x%x\n",
-		  rfpath, pphyreg->rf_rb, retvalue);
+		 "RFR-%d Addr[0x%x]=0x%x\n",
+		 rfpath, pphyreg->rf_rb, retvalue);
 	return retvalue;
 }
 EXPORT_SYMBOL_GPL(rtl8723_phy_rf_serial_read);
@@ -148,13 +150,14 @@ void rtl8723_phy_rf_serial_write(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "stop\n");
 		return;
 	}
-	offset &= 0xff;
+	offset &= 0x3f;
 	newoffset = offset;
 	data_and_addr = ((newoffset << 20) | (data & 0x000fffff)) & 0x0fffffff;
 	rtl_set_bbreg(hw, pphyreg->rf3wire_offset, MASKDWORD, data_and_addr);
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE,
-		 "RFW-%d Addr[0x%x]= 0x%x\n", rfpath,
-		   pphyreg->rf3wire_offset, data_and_addr);
+		 "RFW-%d Addr[0x%x]=0x%x\n",
+		 rfpath, pphyreg->rf3wire_offset,
+		 data_and_addr);
 }
 EXPORT_SYMBOL_GPL(rtl8723_phy_rf_serial_write);
 
@@ -171,6 +174,8 @@ long rtl8723_phy_txpwr_idx_to_dbm(struct ieee80211_hw *hw,
 		break;
 	case WIRELESS_MODE_G:
 	case WIRELESS_MODE_N_24G:
+		offset = -8;
+		break;
 	default:
 		offset = -8;
 		break;
@@ -202,14 +207,14 @@ void rtl8723_phy_init_bb_rf_reg_def(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_B].rfintfe = RFPGA0_XB_RFINTERFACEOE;
 
 	rtlphy->phyreg_def[RF90_PATH_A].rf3wire_offset =
-			    RFPGA0_XA_LSSIPARAMETER;
+	    RFPGA0_XA_LSSIPARAMETER;
 	rtlphy->phyreg_def[RF90_PATH_B].rf3wire_offset =
-			    RFPGA0_XB_LSSIPARAMETER;
+	    RFPGA0_XB_LSSIPARAMETER;
 
-	rtlphy->phyreg_def[RF90_PATH_A].rflssi_select = rFPGA0_XAB_RFPARAMETER;
-	rtlphy->phyreg_def[RF90_PATH_B].rflssi_select = rFPGA0_XAB_RFPARAMETER;
-	rtlphy->phyreg_def[RF90_PATH_C].rflssi_select = rFPGA0_XCD_RFPARAMETER;
-	rtlphy->phyreg_def[RF90_PATH_D].rflssi_select = rFPGA0_XCD_RFPARAMETER;
+	rtlphy->phyreg_def[RF90_PATH_A].rflssi_select = RFPGA0_XAB_RFPARAMETER;
+	rtlphy->phyreg_def[RF90_PATH_B].rflssi_select = RFPGA0_XAB_RFPARAMETER;
+	rtlphy->phyreg_def[RF90_PATH_C].rflssi_select = RFPGA0_XCD_RFPARAMETER;
+	rtlphy->phyreg_def[RF90_PATH_D].rflssi_select = RFPGA0_XCD_RFPARAMETER;
 
 	rtlphy->phyreg_def[RF90_PATH_A].rftxgain_stage = RFPGA0_TXGAINSTAGE;
 	rtlphy->phyreg_def[RF90_PATH_B].rftxgain_stage = RFPGA0_TXGAINSTAGE;
@@ -264,6 +269,7 @@ void rtl8723_phy_init_bb_rf_reg_def(struct ieee80211_hw *hw)
 
 	rtlphy->phyreg_def[RF90_PATH_A].rf_rbpi = TRANSCEIVEA_HSPI_READBACK;
 	rtlphy->phyreg_def[RF90_PATH_B].rf_rbpi = TRANSCEIVEB_HSPI_READBACK;
+
 }
 EXPORT_SYMBOL_GPL(rtl8723_phy_init_bb_rf_reg_def);
 

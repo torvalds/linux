@@ -952,10 +952,8 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	rtlpriv->cfg->ops->interrupt_recognized(hw, &inta, &intb);
 
 	/*Shared IRQ or HW disappared */
-	if (!inta || inta == 0xffff) {
-		ret = IRQ_NONE;
+	if (!inta || inta == 0xffff)
 		goto done;
-	}
 
 	/*<1> beacon related */
 	if (inta & rtlpriv->cfg->maps[RTL_IMR_TBDOK]) {
