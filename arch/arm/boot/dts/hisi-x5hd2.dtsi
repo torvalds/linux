@@ -365,15 +365,6 @@
 				#interrupt-cells = <2>;
 				status = "disabled";
 			};
-
-			wdt0: watchdog@a2c000 {
-				compatible = "arm,sp805", "arm,primecell";
-				arm,primecell-periphid = <0x00141805>;
-				reg = <0xa2c000 0x1000>;
-				interrupts = <0 29 4>;
-				clocks = <&clock HIX5HD2_WDG0_RST>;
-				clock-names = "apb_pclk";
-                       };
 		};
 
 		local_timer@00a00600 {
