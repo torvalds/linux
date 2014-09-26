@@ -13,6 +13,7 @@
 #include <linux/syscalls.h>
 #include <linux/slab.h>
 #include <linux/anon_inodes.h>
+#include <linux/file.h>
 
 static LIST_HEAD(bpf_map_types);
 
@@ -111,6 +112,228 @@ free_map:
 	return err;
 }
 
+/* if error is returned, fd is released.
+ * On success caller should complete fd access with matching fdput()
+ */
+struct bpf_map *bpf_map_get(struct fd f)
+{
+	struct bpf_map *map;
+
+	if (!f.file)
+		return ERR_PTR(-EBADF);
+
+	if (f.file->f_op != &bpf_map_fops) {
+		fdput(f);
+		return ERR_PTR(-EINVAL);
+	}
+
+	map = f.file->private_data;
+
+	return map;
+}
+
+/* helper to convert user pointers passed inside __aligned_u64 fields */
+static void __user *u64_to_ptr(__u64 val)
+{
+	return (void __user *) (unsigned long) val;
+}
+
+/* last field in 'union bpf_attr' used by this command */
+#define BPF_MAP_LOOKUP_ELEM_LAST_FIELD value
+
+static int map_lookup_elem(union bpf_attr *attr)
+{
+	void __user *ukey = u64_to_ptr(attr->key);
+	void __user *uvalue = u64_to_ptr(attr->value);
+	int ufd = attr->map_fd;
+	struct fd f = fdget(ufd);
+	struct bpf_map *map;
+	void *key, *value;
+	int err;
+
+	if (CHECK_ATTR(BPF_MAP_LOOKUP_ELEM))
+		return -EINVAL;
+
+	map = bpf_map_get(f);
+	if (IS_ERR(map))
+		return PTR_ERR(map);
+
+	err = -ENOMEM;
+	key = kmalloc(map->key_size, GFP_USER);
+	if (!key)
+		goto err_put;
+
+	err = -EFAULT;
+	if (copy_from_user(key, ukey, map->key_size) != 0)
+		goto free_key;
+
+	err = -ESRCH;
+	rcu_read_lock();
+	value = map->ops->map_lookup_elem(map, key);
+	if (!value)
+		goto err_unlock;
+
+	err = -EFAULT;
+	if (copy_to_user(uvalue, value, map->value_size) != 0)
+		goto err_unlock;
+
+	err = 0;
+
+err_unlock:
+	rcu_read_unlock();
+free_key:
+	kfree(key);
+err_put:
+	fdput(f);
+	return err;
+}
+
+#define BPF_MAP_UPDATE_ELEM_LAST_FIELD value
+
+static int map_update_elem(union bpf_attr *attr)
+{
+	void __user *ukey = u64_to_ptr(attr->key);
+	void __user *uvalue = u64_to_ptr(attr->value);
+	int ufd = attr->map_fd;
+	struct fd f = fdget(ufd);
+	struct bpf_map *map;
+	void *key, *value;
+	int err;
+
+	if (CHECK_ATTR(BPF_MAP_UPDATE_ELEM))
+		return -EINVAL;
+
+	map = bpf_map_get(f);
+	if (IS_ERR(map))
+		return PTR_ERR(map);
+
+	err = -ENOMEM;
+	key = kmalloc(map->key_size, GFP_USER);
+	if (!key)
+		goto err_put;
+
+	err = -EFAULT;
+	if (copy_from_user(key, ukey, map->key_size) != 0)
+		goto free_key;
+
+	err = -ENOMEM;
+	value = kmalloc(map->value_size, GFP_USER);
+	if (!value)
+		goto free_key;
+
+	err = -EFAULT;
+	if (copy_from_user(value, uvalue, map->value_size) != 0)
+		goto free_value;
+
+	/* eBPF program that use maps are running under rcu_read_lock(),
+	 * therefore all map accessors rely on this fact, so do the same here
+	 */
+	rcu_read_lock();
+	err = map->ops->map_update_elem(map, key, value);
+	rcu_read_unlock();
+
+free_value:
+	kfree(value);
+free_key:
+	kfree(key);
+err_put:
+	fdput(f);
+	return err;
+}
+
+#define BPF_MAP_DELETE_ELEM_LAST_FIELD key
+
+static int map_delete_elem(union bpf_attr *attr)
+{
+	void __user *ukey = u64_to_ptr(attr->key);
+	int ufd = attr->map_fd;
+	struct fd f = fdget(ufd);
+	struct bpf_map *map;
+	void *key;
+	int err;
+
+	if (CHECK_ATTR(BPF_MAP_DELETE_ELEM))
+		return -EINVAL;
+
+	map = bpf_map_get(f);
+	if (IS_ERR(map))
+		return PTR_ERR(map);
+
+	err = -ENOMEM;
+	key = kmalloc(map->key_size, GFP_USER);
+	if (!key)
+		goto err_put;
+
+	err = -EFAULT;
+	if (copy_from_user(key, ukey, map->key_size) != 0)
+		goto free_key;
+
+	rcu_read_lock();
+	err = map->ops->map_delete_elem(map, key);
+	rcu_read_unlock();
+
+free_key:
+	kfree(key);
+err_put:
+	fdput(f);
+	return err;
+}
+
+/* last field in 'union bpf_attr' used by this command */
+#define BPF_MAP_GET_NEXT_KEY_LAST_FIELD next_key
+
+static int map_get_next_key(union bpf_attr *attr)
+{
+	void __user *ukey = u64_to_ptr(attr->key);
+	void __user *unext_key = u64_to_ptr(attr->next_key);
+	int ufd = attr->map_fd;
+	struct fd f = fdget(ufd);
+	struct bpf_map *map;
+	void *key, *next_key;
+	int err;
+
+	if (CHECK_ATTR(BPF_MAP_GET_NEXT_KEY))
+		return -EINVAL;
+
+	map = bpf_map_get(f);
+	if (IS_ERR(map))
+		return PTR_ERR(map);
+
+	err = -ENOMEM;
+	key = kmalloc(map->key_size, GFP_USER);
+	if (!key)
+		goto err_put;
+
+	err = -EFAULT;
+	if (copy_from_user(key, ukey, map->key_size) != 0)
+		goto free_key;
+
+	err = -ENOMEM;
+	next_key = kmalloc(map->key_size, GFP_USER);
+	if (!next_key)
+		goto free_key;
+
+	rcu_read_lock();
+	err = map->ops->map_get_next_key(map, key, next_key);
+	rcu_read_unlock();
+	if (err)
+		goto free_next_key;
+
+	err = -EFAULT;
+	if (copy_to_user(unext_key, next_key, map->key_size) != 0)
+		goto free_next_key;
+
+	err = 0;
+
+free_next_key:
+	kfree(next_key);
+free_key:
+	kfree(key);
+err_put:
+	fdput(f);
+	return err;
+}
+
 SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, size)
 {
 	union bpf_attr attr = {};
@@ -159,6 +382,18 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 	switch (cmd) {
 	case BPF_MAP_CREATE:
 		err = map_create(&attr);
+		break;
+	case BPF_MAP_LOOKUP_ELEM:
+		err = map_lookup_elem(&attr);
+		break;
+	case BPF_MAP_UPDATE_ELEM:
+		err = map_update_elem(&attr);
+		break;
+	case BPF_MAP_DELETE_ELEM:
+		err = map_delete_elem(&attr);
+		break;
+	case BPF_MAP_GET_NEXT_KEY:
+		err = map_get_next_key(&attr);
 		break;
 	default:
 		err = -EINVAL;
