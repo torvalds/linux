@@ -200,6 +200,7 @@
 #define IMX5_CLK_SATA_REF		188
 #define IMX5_CLK_STEP_SEL		189
 #define IMX5_CLK_CPU_PODF_SEL		190
-#define IMX5_CLK_END			191
+#define IMX5_CLK_ARM			191
+#define IMX5_CLK_END			192
 
 #endif /* __DT_BINDINGS_CLOCK_IMX5_H */

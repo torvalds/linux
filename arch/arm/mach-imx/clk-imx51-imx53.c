@@ -541,6 +541,11 @@ static void __init mx53_clocks_init(struct device_node *np)
 	clk[IMX5_CLK_CKO2]		= imx_clk_gate2("cko2", "cko2_podf", MXC_CCM_CCOSR, 24);
 	clk[IMX5_CLK_SPDIF_XTAL_SEL]	= imx_clk_mux("spdif_xtal_sel", MXC_CCM_CSCMR1, 2, 2,
 						mx53_spdif_xtal_sel, ARRAY_SIZE(mx53_spdif_xtal_sel));
+	clk[IMX5_CLK_ARM]		= imx_clk_cpu("arm", "cpu_podf",
+						clk[IMX5_CLK_CPU_PODF],
+						clk[IMX5_CLK_CPU_PODF_SEL],
+						clk[IMX5_CLK_PLL1_SW],
+						clk[IMX5_CLK_STEP_SEL]);
 
 	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
