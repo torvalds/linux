@@ -138,14 +138,6 @@
 #define SNIFF_MASK	(SNIFF_MAX - 1)	/* Sniff wrap mask */
 
 /*
- * Lock function/defines.
- * Makes spotting lock/unlock locations easier.
- */
-# define DGNC_SPINLOCK_INIT(x)		spin_lock_init(&(x))
-# define DGNC_LOCK(x, y)		spin_lock_irqsave(&(x), y)
-# define DGNC_UNLOCK(x, y)		spin_unlock_irqrestore(&(x), y)
-
-/*
  * All the possible states the driver can be while being loaded.
  */
 enum {
