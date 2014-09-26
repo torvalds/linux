@@ -197,11 +197,7 @@ EXPORT_SYMBOL(bio_integrity_enabled);
 static inline unsigned int bio_integrity_intervals(struct blk_integrity *bi,
 						   unsigned int sectors)
 {
-	/* At this point there are only 512b or 4096b DIF/EPP devices */
-	if (bi->interval == 4096)
-		return sectors >>= 3;
-
-	return sectors;
+	return sectors >> (ilog2(bi->interval) - 9);
 }
 
 static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
