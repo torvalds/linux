@@ -1720,6 +1720,11 @@ static int charger_manager_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	if (!desc->psy_fuel_gauge) {
+		dev_err(&pdev->dev, "No fuel gauge power supply defined\n");
+		return -EINVAL;
+	}
+
 	/* Counting index only */
 	while (desc->psy_charger_stat[i])
 		i++;
