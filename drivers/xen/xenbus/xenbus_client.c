@@ -361,8 +361,8 @@ static void xenbus_switch_fatal(struct xenbus_device *dev, int depth, int err,
  * @ring_mfn: mfn of ring to grant
 
  * Grant access to the given @ring_mfn to the peer of the given device.  Return
- * 0 on success, or -errno on error.  On error, the device will switch to
- * XenbusStateClosing, and the error will be saved in the store.
+ * a grant reference on success, or -errno on error. On error, the device will
+ * switch to XenbusStateClosing, and the error will be saved in the store.
  */
 int xenbus_grant_ring(struct xenbus_device *dev, unsigned long ring_mfn)
 {
