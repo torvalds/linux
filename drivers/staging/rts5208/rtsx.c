@@ -414,8 +414,6 @@ static void rtsx_shutdown(struct pci_dev *pci)
 		pci_disable_msi(pci);
 
 	pci_disable_device(pci);
-
-	return;
 }
 
 static int rtsx_control_thread(void *__dev)
