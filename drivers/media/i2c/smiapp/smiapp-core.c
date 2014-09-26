@@ -1728,6 +1728,46 @@ static const struct smiapp_csi_data_format
 	return csi_format;
 }
 
+static int smiapp_set_format_source(struct v4l2_subdev *subdev,
+				    struct v4l2_subdev_fh *fh,
+				    struct v4l2_subdev_format *fmt)
+{
+	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
+	const struct smiapp_csi_data_format *csi_format,
+		*old_csi_format = sensor->csi_format;
+	u32 code = fmt->format.code;
+	unsigned int i;
+	int rval;
+
+	rval = __smiapp_get_format(subdev, fh, fmt);
+	if (rval)
+		return rval;
+
+	/*
+	 * Media bus code is changeable on src subdev's source pad. On
+	 * other source pads we just get format here.
+	 */
+	if (subdev != &sensor->src->sd)
+		return 0;
+
+	csi_format = smiapp_validate_csi_data_format(sensor, code);
+
+	fmt->format.code = csi_format->code;
+
+	if (fmt->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return 0;
+
+	sensor->csi_format = csi_format;
+
+	if (csi_format->width != old_csi_format->width)
+		for (i = 0; i < ARRAY_SIZE(sensor->test_data); i++)
+			__v4l2_ctrl_modify_range(
+				sensor->test_data[i], 0,
+				(1 << csi_format->width) - 1, 1, 0);
+
+	return 0;
+}
+
 static int smiapp_set_format(struct v4l2_subdev *subdev,
 			     struct v4l2_subdev_fh *fh,
 			     struct v4l2_subdev_format *fmt)
@@ -1738,41 +1778,14 @@ static int smiapp_set_format(struct v4l2_subdev *subdev,
 
 	mutex_lock(&sensor->mutex);
 
-	/*
-	 * Media bus code is changeable on src subdev's source pad. On
-	 * other source pads we just get format here.
-	 */
 	if (fmt->pad == ssd->source_pad) {
-		u32 code = fmt->format.code;
-		int rval = __smiapp_get_format(subdev, fh, fmt);
-		bool range_changed = false;
-		unsigned int i;
+		int rval;
 
-		if (!rval && subdev == &sensor->src->sd) {
-			const struct smiapp_csi_data_format *csi_format =
-				smiapp_validate_csi_data_format(sensor, code);
-
-			if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-				if (csi_format->width !=
-				    sensor->csi_format->width)
-					range_changed = true;
-
-				sensor->csi_format = csi_format;
-			}
-
-			fmt->format.code = csi_format->code;
-		}
+		rval = smiapp_set_format_source(subdev, fh, fmt);
 
 		mutex_unlock(&sensor->mutex);
-		if (rval || !range_changed)
-			return rval;
 
-		for (i = 0; i < ARRAY_SIZE(sensor->test_data); i++)
-			v4l2_ctrl_modify_range(
-				sensor->test_data[i],
-				0, (1 << sensor->csi_format->width) - 1, 1, 0);
-
-		return 0;
+		return rval;
 	}
 
 	/* Sink pad. Width and height are changeable here. */
