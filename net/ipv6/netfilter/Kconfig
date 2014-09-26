@@ -40,8 +40,13 @@ config NFT_CHAIN_ROUTE_IPV6
 	  fields such as the source, destination, flowlabel, hop-limit and
 	  the packet mark.
 
+config NF_REJECT_IPV6
+	tristate "IPv6 packet rejection"
+	default m if NETFILTER_ADVANCED=n
+
 config NFT_REJECT_IPV6
 	depends on NF_TABLES_IPV6
+	select NF_REJECT_IPV6
 	default NFT_REJECT
 	tristate
 
@@ -208,6 +213,7 @@ config IP6_NF_FILTER
 config IP6_NF_TARGET_REJECT
 	tristate "REJECT target support"
 	depends on IP6_NF_FILTER
+	select NF_REJECT_IPV6
 	default m if NETFILTER_ADVANCED=n
 	help
 	  The REJECT target allows a filtering rule to specify that an ICMPv6

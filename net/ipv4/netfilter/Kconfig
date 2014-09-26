@@ -61,8 +61,13 @@ config NFT_CHAIN_ROUTE_IPV4
 	  fields such as the source, destination, type of service and
 	  the packet mark.
 
+config NF_REJECT_IPV4
+	tristate "IPv4 packet rejection"
+	default m if NETFILTER_ADVANCED=n
+
 config NFT_REJECT_IPV4
 	depends on NF_TABLES_IPV4
+	select NF_REJECT_IPV4
 	default NFT_REJECT
 	tristate
 
@@ -208,6 +213,7 @@ config IP_NF_FILTER
 config IP_NF_TARGET_REJECT
 	tristate "REJECT target support"
 	depends on IP_NF_FILTER
+	select NF_REJECT_IPV4
 	default m if NETFILTER_ADVANCED=n
 	help
 	  The REJECT target allows a filtering rule to specify that an ICMP
