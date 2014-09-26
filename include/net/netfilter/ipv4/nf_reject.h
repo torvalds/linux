@@ -5,6 +5,7 @@
 #include <net/tcp.h>
 #include <net/route.h>
 #include <net/dst.h>
+#include <net/icmp.h>
 
 static inline void nf_send_unreach(struct sk_buff *skb_in, int code)
 {

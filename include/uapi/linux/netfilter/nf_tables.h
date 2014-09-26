@@ -749,11 +749,32 @@ enum nft_queue_attributes {
  *
  * @NFT_REJECT_ICMP_UNREACH: reject using ICMP unreachable
  * @NFT_REJECT_TCP_RST: reject using TCP RST
+ * @NFT_REJECT_ICMPX_UNREACH: abstracted ICMP unreachable for bridge and inet
  */
 enum nft_reject_types {
 	NFT_REJECT_ICMP_UNREACH,
 	NFT_REJECT_TCP_RST,
+	NFT_REJECT_ICMPX_UNREACH,
 };
+
+/**
+ * enum nft_reject_code - Generic reject codes for IPv4/IPv6
+ *
+ * @NFT_REJECT_ICMPX_NO_ROUTE: no route to host / network unreachable
+ * @NFT_REJECT_ICMPX_PORT_UNREACH: port unreachable
+ * @NFT_REJECT_ICMPX_HOST_UNREACH: host unreachable
+ * @NFT_REJECT_ICMPX_ADMIN_PROHIBITED: administratively prohibited
+ *
+ * These codes are mapped to real ICMP and ICMPv6 codes.
+ */
+enum nft_reject_inet_code {
+	NFT_REJECT_ICMPX_NO_ROUTE	= 0,
+	NFT_REJECT_ICMPX_PORT_UNREACH,
+	NFT_REJECT_ICMPX_HOST_UNREACH,
+	NFT_REJECT_ICMPX_ADMIN_PROHIBITED,
+	__NFT_REJECT_ICMPX_MAX
+};
+#define NFT_REJECT_ICMPX_MAX	(__NFT_REJECT_ICMPX_MAX + 1)
 
 /**
  * enum nft_reject_attributes - nf_tables reject expression netlink attributes
