@@ -259,7 +259,6 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		else
 			priv->cdev = cdev;
 	}
-	of_node_put(np);
 
 	priv->cpu_dev = cpu_dev;
 	priv->cpu_reg = cpu_reg;
@@ -269,6 +268,8 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	ret = cpufreq_generic_init(policy, freq_table, transition_latency);
 	if (ret)
 		goto out_cooling_unregister;
+
+	of_node_put(np);
 
 	return 0;
 
