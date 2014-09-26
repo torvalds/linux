@@ -173,17 +173,28 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 #define lane_en_2 					DSI_DPHY_BITS(0x00, 1, 4)
 #define lane_en_1 					DSI_DPHY_BITS(0x00, 1, 3)
 #define lane_en_0 					DSI_DPHY_BITS(0x00, 1, 2)
+#define reg0_phy 					DSI_DPHY_BITS(0x00, 8, 0)
 
 #define reg_da_ppfc 				DSI_DPHY_BITS(0x04, 1, 4)
 #define reg_da_syncrst 				DSI_DPHY_BITS(0x04, 1, 2)
 #define reg_da_ldopd 				DSI_DPHY_BITS(0x04, 1, 1)
 #define reg_da_pllpd 				DSI_DPHY_BITS(0x04, 1, 0)
+#define reg1_phy 				DSI_DPHY_BITS(0x04, 8, 0)
+#define reg5_phy 				DSI_DPHY_BITS(0x14, 3, 0)
+#define reg5_3_phy 				DSI_DPHY_BITS(0x14, 1, 3)
+#define reg5_7_phy 				DSI_DPHY_BITS(0x14, 1, 7)
+#define reg8_phy 				DSI_DPHY_BITS(0x20, 4, 0)
 
 #define reg_fbdiv_8 				DSI_DPHY_BITS(0x0c, 1, 5)
 #define reg_prediv 					DSI_DPHY_BITS(0x0c, 5, 0)
 #define reg_fbdiv 					DSI_DPHY_BITS(0x10, 8, 0)
+#define reg9_phy 				DSI_DPHY_BITS(0x24, 8, 0)
+#define reg10_phy 				DSI_DPHY_BITS(0X40, 8, 0)
+#define reg10_4_6_phy			DSI_DPHY_BITS(0X40, 3, 4)
+#define regb_phy 				DSI_DPHY_BITS(0X2c, 4, 0)
 
 #define reg_dig_rstn 				DSI_DPHY_BITS(0X80, 1, 0)
+#define reg20_phy 				DSI_DPHY_BITS(0X80, 8, 0)
 
 #define DPHY_CLOCK_OFFSET			REG_ADDR(0X0100)
 #define DPHY_LANE0_OFFSET			REG_ADDR(0X0180)
@@ -287,7 +298,9 @@ struct dsi {
 	struct mipi_dsi_ops ops;
 	struct mipi_dsi_screen screen;
 #ifdef CONFIG_MIPI_DSI_LINUX
-	struct clk	*dsi_pclk;
+	struct clk	*dsi_pclk;		// for mipi phy
+	struct clk	*dsi_host_pclk;	// for mipi host
+	struct clk	*h2p_hclk;
 	struct clk	*dsi_pd;
 #endif
     struct dentry *debugfs_dir;

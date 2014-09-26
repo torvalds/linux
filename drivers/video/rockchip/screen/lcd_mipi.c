@@ -182,7 +182,8 @@ int rk_mipi_screen(void)
 	u8 dcs[16] = {0}, rk_dsi_num;
 	rk_dsi_num = gmipi_screen->mipi_dsi_num;
 	if(gmipi_screen->screen_init == 0){
-	
+		rk_mipi_screen_pwr_enable(gmipi_screen);
+		
 		dsi_enable_hs_clk(0,1);
 		if(rk_dsi_num == 2){
 			dsi_enable_hs_clk(1, 1);
