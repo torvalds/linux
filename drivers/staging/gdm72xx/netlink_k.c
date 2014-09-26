@@ -145,9 +145,8 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 
 	ret = netlink_broadcast(sock, skb, 0, group+1, GFP_ATOMIC);
 
-	if (!ret) {
+	if (!ret)
 		return len;
-	}
 	if (ret != -ESRCH) {
 		pr_err("netlink_broadcast g=%d, t=%d, l=%d, r=%d\n",
 		       group, type, len, ret);
