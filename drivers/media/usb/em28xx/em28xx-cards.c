@@ -3515,6 +3515,7 @@ static struct usb_driver em28xx_usb_driver = {
 	.disconnect = em28xx_usb_disconnect,
 	.suspend = em28xx_usb_suspend,
 	.resume = em28xx_usb_resume,
+	.reset_resume = em28xx_usb_resume,
 	.id_table = em28xx_id_table,
 };
 
