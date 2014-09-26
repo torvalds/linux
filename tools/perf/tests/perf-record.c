@@ -268,7 +268,7 @@ int test__PERF_RECORD(void)
 		 * perf_event_attr.wakeup_events, just PERF_EVENT_SAMPLE does.
 		 */
 		if (total_events == before && false)
-			poll(evlist->pollfd, evlist->nr_fds, -1);
+			perf_evlist__poll(evlist, -1);
 
 		sleep(1);
 		if (++wakeups > 5) {

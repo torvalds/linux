@@ -2,6 +2,7 @@
 #define __PERF_EVLIST_H 1
 
 #include <linux/list.h>
+#include <api/fd/array.h>
 #include <stdio.h>
 #include "../perf.h"
 #include "event.h"
@@ -17,9 +18,15 @@ struct record_opts;
 #define PERF_EVLIST__HLIST_BITS 8
 #define PERF_EVLIST__HLIST_SIZE (1 << PERF_EVLIST__HLIST_BITS)
 
+/**
+ * struct perf_mmap - perf's ring buffer mmap details
+ *
+ * @refcnt - e.g. code using PERF_EVENT_IOC_SET_OUTPUT to share this
+ */
 struct perf_mmap {
 	void		 *base;
 	int		 mask;
+	int		 refcnt;
 	unsigned int	 prev;
 	char		 event_copy[PERF_SAMPLE_MAX_SIZE];
 };
@@ -29,7 +36,6 @@ struct perf_evlist {
 	struct hlist_head heads[PERF_EVLIST__HLIST_SIZE];
 	int		 nr_entries;
 	int		 nr_groups;
-	int		 nr_fds;
 	int		 nr_mmaps;
 	size_t		 mmap_len;
 	int		 id_pos;
@@ -40,8 +46,8 @@ struct perf_evlist {
 		pid_t	pid;
 	} workload;
 	bool		 overwrite;
+	struct fdarray	 pollfd;
 	struct perf_mmap *mmap;
-	struct pollfd	 *pollfd;
 	struct thread_map *threads;
 	struct cpu_map	  *cpus;
 	struct perf_evsel *selected;
@@ -82,7 +88,11 @@ perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
 void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
 			 int cpu, int thread, u64 id);
 
-void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
+int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
+int perf_evlist__alloc_pollfd(struct perf_evlist *evlist);
+int perf_evlist__filter_pollfd(struct perf_evlist *evlist, short revents_and_mask);
+
+int perf_evlist__poll(struct perf_evlist *evlist, int timeout);
 
 struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
 

@@ -105,7 +105,7 @@ int test__syscall_open_tp_fields(void)
 		}
 
 		if (nr_events == before)
-			poll(evlist->pollfd, evlist->nr_fds, 10);
+			perf_evlist__poll(evlist, 10);
 
 		if (++nr_polls > 5) {
 			pr_debug("%s: no events!\n", __func__);

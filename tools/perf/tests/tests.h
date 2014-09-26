@@ -49,6 +49,8 @@ int test__thread_mg_share(void);
 int test__hists_output(void);
 int test__hists_cumulate(void);
 int test__switch_tracking(void);
+int test__fdarray__filter(void);
+int test__fdarray__add(void);
 
 #if defined(__x86_64__) || defined(__i386__) || defined(__arm__)
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
