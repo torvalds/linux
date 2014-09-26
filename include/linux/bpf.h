@@ -83,5 +83,7 @@ struct bpf_prog_aux {
 
 void bpf_prog_put(struct bpf_prog *prog);
 struct bpf_prog *bpf_prog_get(u32 ufd);
+/* verify correctness of eBPF program */
+int bpf_check(struct bpf_prog *fp, union bpf_attr *attr);
 
 #endif /* _LINUX_BPF_H */

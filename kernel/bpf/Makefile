@@ -1,1 +1,1 @@
-obj-y := core.o syscall.o
+obj-y := core.o syscall.o verifier.o
