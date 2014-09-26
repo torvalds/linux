@@ -293,15 +293,23 @@ i915_gem_userptr_release__mmu_notifier(struct drm_i915_gem_object *obj)
 static struct i915_mmu_notifier *
 i915_mmu_notifier_find(struct i915_mm_struct *mm)
 {
-	if (mm->mn == NULL) {
-		down_write(&mm->mm->mmap_sem);
-		mutex_lock(&to_i915(mm->dev)->mm_lock);
-		if (mm->mn == NULL)
-			mm->mn = i915_mmu_notifier_create(mm->mm);
-		mutex_unlock(&to_i915(mm->dev)->mm_lock);
-		up_write(&mm->mm->mmap_sem);
+	struct i915_mmu_notifier *mn = mm->mn;
+
+	mn = mm->mn;
+	if (mn)
+		return mn;
+
+	down_write(&mm->mm->mmap_sem);
+	mutex_lock(&to_i915(mm->dev)->mm_lock);
+	if ((mn = mm->mn) == NULL) {
+		mn = i915_mmu_notifier_create(mm->mm);
+		if (!IS_ERR(mn))
+			mm->mn = mn;
 	}
-	return mm->mn;
+	mutex_unlock(&to_i915(mm->dev)->mm_lock);
+	up_write(&mm->mm->mmap_sem);
+
+	return mn;
 }
 
 static int
