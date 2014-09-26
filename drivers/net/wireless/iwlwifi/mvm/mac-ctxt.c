@@ -427,17 +427,17 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		iwl_trans_ac_txq_enable(mvm->trans, IWL_MVM_OFFCHANNEL_QUEUE,
-					IWL_MVM_TX_FIFO_VO);
+		iwl_mvm_enable_ac_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
+				      IWL_MVM_TX_FIFO_VO);
 		break;
 	case NL80211_IFTYPE_AP:
-		iwl_trans_ac_txq_enable(mvm->trans, vif->cab_queue,
-					IWL_MVM_TX_FIFO_MCAST);
+		iwl_mvm_enable_ac_txq(mvm, vif->cab_queue,
+				      IWL_MVM_TX_FIFO_MCAST);
 		/* fall through */
 	default:
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			iwl_trans_ac_txq_enable(mvm->trans, vif->hw_queue[ac],
-						iwl_mvm_ac_to_tx_fifo[ac]);
+			iwl_mvm_enable_ac_txq(mvm, vif->hw_queue[ac],
+					      iwl_mvm_ac_to_tx_fifo[ac]);
 		break;
 	}
 
@@ -452,16 +452,14 @@ void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		iwl_trans_txq_disable(mvm->trans, IWL_MVM_OFFCHANNEL_QUEUE,
-				      true);
+		iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE);
 		break;
 	case NL80211_IFTYPE_AP:
-		iwl_trans_txq_disable(mvm->trans, vif->cab_queue, true);
+		iwl_mvm_disable_txq(mvm, vif->cab_queue);
 		/* fall through */
 	default:
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			iwl_trans_txq_disable(mvm->trans, vif->hw_queue[ac],
-					      true);
+			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac]);
 	}
 }
 

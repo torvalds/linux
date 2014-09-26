@@ -145,9 +145,24 @@ enum iwl_ucode_tlv_api {
 /**
  * enum iwl_ucode_tlv_capa - ucode capabilities
  * @IWL_UCODE_TLV_CAPA_D0I3_SUPPORT: supports D0i3
+ * @IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT: supports insertion of current
+ *	tx power value into TPC Report action frame and Link Measurement Report
+ *	action frame
+ * @IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT: supports adding DS params
+ *	element in probe requests.
+ * @IWL_UCODE_TLV_CAPA_WFA_TPC_REP_IE_SUPPORT: supports adding TPC Report IE in
+ *	probe requests.
+ * @IWL_UCODE_TLV_CAPA_QUIET_PERIOD_SUPPORT: supports Quiet Period requests
+ * @IWL_UCODE_TLV_CAPA_DQA_SUPPORT: supports dynamic queue allocation (DQA),
+ *	which also implies support for the scheduler configuration command
  */
 enum iwl_ucode_tlv_capa {
-	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT		= BIT(0),
+	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= BIT(0),
+	IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT	= BIT(8),
+	IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT	= BIT(9),
+	IWL_UCODE_TLV_CAPA_WFA_TPC_REP_IE_SUPPORT	= BIT(10),
+	IWL_UCODE_TLV_CAPA_QUIET_PERIOD_SUPPORT		= BIT(11),
+	IWL_UCODE_TLV_CAPA_DQA_SUPPORT			= BIT(12),
 };
 
 /* The default calibrate table size if not specified by firmware file */

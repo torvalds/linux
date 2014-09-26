@@ -339,6 +339,55 @@ not_bound:
 	}
 }
 
+static inline bool iwl_mvm_rrm_scan_needed(struct iwl_mvm *mvm)
+{
+	/* require rrm scan whenever the fw supports it */
+	return mvm->fw->ucode_capa.capa[0] &
+	       IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT;
+}
+
+static int iwl_mvm_max_scan_ie_fw_cmd_room(struct iwl_mvm *mvm,
+					   bool is_sched_scan)
+{
+	int max_probe_len;
+
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
+		max_probe_len = SCAN_OFFLOAD_PROBE_REQ_SIZE;
+	else
+		max_probe_len = mvm->fw->ucode_capa.max_probe_length;
+
+	/* we create the 802.11 header and SSID element */
+	max_probe_len -= 24 + 2;
+
+	/* basic ssid is added only for hw_scan with and old api */
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID) &&
+	    !(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN) &&
+	    !is_sched_scan)
+		max_probe_len -= 32;
+
+	return max_probe_len;
+}
+
+int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm, bool is_sched_scan)
+{
+	int max_ie_len = iwl_mvm_max_scan_ie_fw_cmd_room(mvm, is_sched_scan);
+
+	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN))
+		return max_ie_len;
+
+	/* TODO: [BUG] This function should return the maximum allowed size of
+	 * scan IEs, however the LMAC scan api contains both 2GHZ and 5GHZ IEs
+	 * in the same command. So the correct implementation of this function
+	 * is just iwl_mvm_max_scan_ie_fw_cmd_room() / 2. Currently the scan
+	 * command has only 512 bytes and it would leave us with about 240
+	 * bytes for scan IEs, which is clearly not enough. So meanwhile
+	 * we will report an incorrect value. This may result in a failure to
+	 * issue a scan in unified_scan_lmac and unified_sched_scan_lmac
+	 * functions with -ENOBUFS, if a large enough probe will be provided.
+	 */
+	return max_ie_len;
+}
+
 int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 			 struct ieee80211_vif *vif,
 			 struct cfg80211_scan_request *req)
@@ -1153,6 +1202,10 @@ iwl_mvm_build_generic_unified_scan_cmd(struct iwl_mvm *mvm,
 				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
 	}
+
+	if (iwl_mvm_rrm_scan_needed(mvm))
+		cmd->scan_flags |=
+			cpu_to_le32(IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED);
 }
 
 int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
@@ -1180,13 +1233,12 @@ int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
 	if (WARN_ON(mvm->scan_cmd == NULL))
 		return -ENOMEM;
 
-	if (WARN_ON_ONCE(req->req.n_ssids > PROBE_OPTION_MAX ||
-			 req->ies.common_ie_len + req->ies.len[0] +
-				req->ies.len[1] + 24 + 2 >
-					SCAN_OFFLOAD_PROBE_REQ_SIZE ||
-			 req->req.n_channels >
-				mvm->fw->ucode_capa.n_scan_channels))
-		return -1;
+	if (req->req.n_ssids > PROBE_OPTION_MAX ||
+	    req->ies.common_ie_len + req->ies.len[NL80211_BAND_2GHZ] +
+	    req->ies.len[NL80211_BAND_5GHZ] >
+		iwl_mvm_max_scan_ie_fw_cmd_room(mvm, false) ||
+	    req->req.n_channels > mvm->fw->ucode_capa.n_scan_channels)
+		return -ENOBUFS;
 
 	mvm->scan_status = IWL_MVM_SCAN_OS;
 
@@ -1208,7 +1260,7 @@ int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
 	if (req->req.n_ssids == 0)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASSIVE;
 
-	cmd->scan_flags = cpu_to_le32(flags);
+	cmd->scan_flags |= cpu_to_le32(flags);
 
 	cmd->flags = iwl_mvm_scan_rxon_flags(req->req.channels[0]->band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
@@ -1274,10 +1326,11 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 	if (WARN_ON(mvm->scan_cmd == NULL))
 		return -ENOMEM;
 
-	if (WARN_ON_ONCE(req->n_ssids > PROBE_OPTION_MAX ||
-			 ies->common_ie_len + ies->len[0] + ies->len[1] + 24 + 2
-				> SCAN_OFFLOAD_PROBE_REQ_SIZE ||
-			 req->n_channels > mvm->fw->ucode_capa.n_scan_channels))
+	if (req->n_ssids > PROBE_OPTION_MAX ||
+	    ies->common_ie_len + ies->len[NL80211_BAND_2GHZ] +
+	    ies->len[NL80211_BAND_5GHZ] >
+		iwl_mvm_max_scan_ie_fw_cmd_room(mvm, true) ||
+	    req->n_channels > mvm->fw->ucode_capa.n_scan_channels)
 		return -ENOBUFS;
 
 	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, 0, &params);
@@ -1305,7 +1358,7 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 	if (req->n_ssids == 0)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASSIVE;
 
-	cmd->scan_flags = cpu_to_le32(flags);
+	cmd->scan_flags |= cpu_to_le32(flags);
 
 	cmd->flags = iwl_mvm_scan_rxon_flags(req->channels[0]->band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |

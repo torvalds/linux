@@ -779,6 +779,11 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 	       (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
 }
 
+static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
+{
+	return mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_DQA_SUPPORT;
+}
+
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
 
 struct iwl_rate_info {
@@ -930,6 +935,7 @@ int iwl_mvm_rx_scan_response(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 int iwl_mvm_rx_scan_complete(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			     struct iwl_device_cmd *cmd);
 int iwl_mvm_cancel_scan(struct iwl_mvm *mvm);
+int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm, bool is_sched_scan);
 
 /* Scheduled scan */
 int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
@@ -984,6 +990,9 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm,
 				struct iwl_mvm_frame_stats *stats,
 				u32 rate, bool agg);
 int rs_pretty_print_rate(char *buf, const u32 rate);
+void rs_update_last_rssi(struct iwl_mvm *mvm,
+			 struct iwl_lq_sta *lq_sta,
+			 struct ieee80211_rx_status *rx_status);
 
 /* power management */
 int iwl_mvm_power_update_device(struct iwl_mvm *mvm);
@@ -1141,6 +1150,39 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 	return mvmvif->low_latency;
 }
 
+/* hw scheduler queue config */
+void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
+			const struct iwl_trans_txq_scd_cfg *cfg);
+void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue);
+
+static inline void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue,
+					 u8 fifo)
+{
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.fifo = fifo,
+		.tid = IWL_MAX_TID_COUNT,
+		.aggregate = false,
+		.frame_limit = IWL_FRAME_LIMIT,
+	};
+
+	iwl_mvm_enable_txq(mvm, queue, 0, &cfg);
+}
+
+static inline void iwl_mvm_enable_agg_txq(struct iwl_mvm *mvm, int queue,
+					  int fifo, int sta_id, int tid,
+					  int frame_limit, u16 ssn)
+{
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.fifo = fifo,
+		.sta_id = sta_id,
+		.tid = tid,
+		.frame_limit = frame_limit,
+		.aggregate = true,
+	};
+
+	iwl_mvm_enable_txq(mvm, queue, ssn, &cfg);
+}
+
 /* Assoc status */
 bool iwl_mvm_is_idle(struct iwl_mvm *mvm);
 
@@ -1150,6 +1192,7 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm);
 void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff);
 void iwl_mvm_tt_exit(struct iwl_mvm *mvm);
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state);
+int iwl_mvm_get_temp(struct iwl_mvm *mvm);
 
 /* smart fifo */
 int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
