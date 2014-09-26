@@ -95,7 +95,7 @@ static void load_wowlan_fw(struct rtl_priv *rtlpriv)
 	int err;
 
 	/* for wowlan firmware buf */
-	rtlpriv->rtlhal.wowlan_firmware = vmalloc(0x8000);
+	rtlpriv->rtlhal.wowlan_firmware = vzalloc(0x8000);
 	if (!rtlpriv->rtlhal.wowlan_firmware) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "Can't alloc buffer for wowlan fw.\n");
