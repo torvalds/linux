@@ -154,10 +154,10 @@ int blk_integrity_compare(struct gendisk *gd1, struct gendisk *gd2)
 	if (!b1 || !b2)
 		return -1;
 
-	if (b1->sector_size != b2->sector_size) {
-		printk(KERN_ERR "%s: %s/%s sector sz %u != %u\n", __func__,
-		       gd1->disk_name, gd2->disk_name,
-		       b1->sector_size, b2->sector_size);
+	if (b1->interval != b2->interval) {
+		pr_err("%s: %s/%s protection interval %u != %u\n",
+		       __func__, gd1->disk_name, gd2->disk_name,
+		       b1->interval, b2->interval);
 		return -1;
 	}
 
@@ -407,7 +407,7 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 		kobject_uevent(&bi->kobj, KOBJ_ADD);
 
 		bi->flags |= INTEGRITY_FLAG_READ | INTEGRITY_FLAG_WRITE;
-		bi->sector_size = queue_logical_block_size(disk->queue);
+		bi->interval = queue_logical_block_size(disk->queue);
 		disk->integrity = bi;
 	} else
 		bi = disk->integrity;

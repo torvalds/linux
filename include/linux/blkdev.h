@@ -1464,9 +1464,9 @@ static inline uint64_t rq_io_start_time_ns(struct request *req)
 struct blk_integrity_exchg {
 	void			*prot_buf;
 	void			*data_buf;
-	sector_t		sector;
+	sector_t		seed;
 	unsigned int		data_size;
-	unsigned short		sector_size;
+	unsigned short		interval;
 	const char		*disk_name;
 };
 
@@ -1479,7 +1479,7 @@ struct blk_integrity {
 
 	unsigned short		flags;
 	unsigned short		tuple_size;
-	unsigned short		sector_size;
+	unsigned short		interval;
 	unsigned short		tag_size;
 
 	const char		*name;

@@ -57,16 +57,16 @@ static void sd_dif_type1_generate(struct blk_integrity_exchg *bix, csum_fn *fn)
 {
 	void *buf = bix->data_buf;
 	struct sd_dif_tuple *sdt = bix->prot_buf;
-	sector_t sector = bix->sector;
+	sector_t seed = bix->seed;
 	unsigned int i;
 
-	for (i = 0 ; i < bix->data_size ; i += bix->sector_size, sdt++) {
-		sdt->guard_tag = fn(buf, bix->sector_size);
-		sdt->ref_tag = cpu_to_be32(sector & 0xffffffff);
+	for (i = 0 ; i < bix->data_size ; i += bix->interval, sdt++) {
+		sdt->guard_tag = fn(buf, bix->interval);
+		sdt->ref_tag = cpu_to_be32(seed & 0xffffffff);
 		sdt->app_tag = 0;
 
-		buf += bix->sector_size;
-		sector++;
+		buf += bix->interval;
+		seed++;
 	}
 }
 
@@ -84,35 +84,35 @@ static int sd_dif_type1_verify(struct blk_integrity_exchg *bix, csum_fn *fn)
 {
 	void *buf = bix->data_buf;
 	struct sd_dif_tuple *sdt = bix->prot_buf;
-	sector_t sector = bix->sector;
+	sector_t seed = bix->seed;
 	unsigned int i;
 	__u16 csum;
 
-	for (i = 0 ; i < bix->data_size ; i += bix->sector_size, sdt++) {
+	for (i = 0 ; i < bix->data_size ; i += bix->interval, sdt++) {
 		/* Unwritten sectors */
 		if (sdt->app_tag == 0xffff)
 			return 0;
 
-		if (be32_to_cpu(sdt->ref_tag) != (sector & 0xffffffff)) {
+		if (be32_to_cpu(sdt->ref_tag) != (seed & 0xffffffff)) {
 			printk(KERN_ERR
 			       "%s: ref tag error on sector %lu (rcvd %u)\n",
-			       bix->disk_name, (unsigned long)sector,
+			       bix->disk_name, (unsigned long)seed,
 			       be32_to_cpu(sdt->ref_tag));
 			return -EIO;
 		}
 
-		csum = fn(buf, bix->sector_size);
+		csum = fn(buf, bix->interval);
 
 		if (sdt->guard_tag != csum) {
 			printk(KERN_ERR "%s: guard tag error on sector %lu " \
 			       "(rcvd %04x, data %04x)\n", bix->disk_name,
-			       (unsigned long)sector,
+			       (unsigned long)seed,
 			       be16_to_cpu(sdt->guard_tag), be16_to_cpu(csum));
 			return -EIO;
 		}
 
-		buf += bix->sector_size;
-		sector++;
+		buf += bix->interval;
+		seed++;
 	}
 
 	return 0;
@@ -155,12 +155,12 @@ static void sd_dif_type3_generate(struct blk_integrity_exchg *bix, csum_fn *fn)
 	struct sd_dif_tuple *sdt = bix->prot_buf;
 	unsigned int i;
 
-	for (i = 0 ; i < bix->data_size ; i += bix->sector_size, sdt++) {
-		sdt->guard_tag = fn(buf, bix->sector_size);
+	for (i = 0 ; i < bix->data_size ; i += bix->interval, sdt++) {
+		sdt->guard_tag = fn(buf, bix->interval);
 		sdt->ref_tag = 0;
 		sdt->app_tag = 0;
 
-		buf += bix->sector_size;
+		buf += bix->interval;
 	}
 }
 
@@ -178,27 +178,27 @@ static int sd_dif_type3_verify(struct blk_integrity_exchg *bix, csum_fn *fn)
 {
 	void *buf = bix->data_buf;
 	struct sd_dif_tuple *sdt = bix->prot_buf;
-	sector_t sector = bix->sector;
+	sector_t seed = bix->seed;
 	unsigned int i;
 	__u16 csum;
 
-	for (i = 0 ; i < bix->data_size ; i += bix->sector_size, sdt++) {
+	for (i = 0 ; i < bix->data_size ; i += bix->interval, sdt++) {
 		/* Unwritten sectors */
 		if (sdt->app_tag == 0xffff && sdt->ref_tag == 0xffffffff)
 			return 0;
 
-		csum = fn(buf, bix->sector_size);
+		csum = fn(buf, bix->interval);
 
 		if (sdt->guard_tag != csum) {
 			printk(KERN_ERR "%s: guard tag error on sector %lu " \
 			       "(rcvd %04x, data %04x)\n", bix->disk_name,
-			       (unsigned long)sector,
+			       (unsigned long)seed,
 			       be16_to_cpu(sdt->guard_tag), be16_to_cpu(csum));
 			return -EIO;
 		}
 
-		buf += bix->sector_size;
-		sector++;
+		buf += bix->interval;
+		seed++;
 	}
 
 	return 0;
