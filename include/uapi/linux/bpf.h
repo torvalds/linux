@@ -62,4 +62,27 @@ struct bpf_insn {
 	__s32	imm;		/* signed immediate constant */
 };
 
+/* BPF syscall commands */
+enum bpf_cmd {
+	/* create a map with given type and attributes
+	 * fd = bpf(BPF_MAP_CREATE, union bpf_attr *, u32 size)
+	 * returns fd or negative error
+	 * map is deleted when fd is closed
+	 */
+	BPF_MAP_CREATE,
+};
+
+enum bpf_map_type {
+	BPF_MAP_TYPE_UNSPEC,
+};
+
+union bpf_attr {
+	struct { /* anonymous struct used by BPF_MAP_CREATE command */
+		__u32	map_type;	/* one of enum bpf_map_type */
+		__u32	key_size;	/* size of key in bytes */
+		__u32	value_size;	/* size of value in bytes */
+		__u32	max_entries;	/* max number of entries in a map */
+	};
+} __attribute__((aligned(8)));
+
 #endif /* _UAPI__LINUX_BPF_H__ */

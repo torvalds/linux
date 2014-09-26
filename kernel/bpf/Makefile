@@ -1,1 +1,1 @@
-obj-y := core.o
+obj-y := core.o syscall.o
