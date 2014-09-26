@@ -308,6 +308,12 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_free;
 
+	ret = gpiochip_add(&stmpe_gpio->chip);
+	if (ret) {
+		dev_err(&pdev->dev, "unable to add gpiochip: %d\n", ret);
+		goto out_disable;
+	}
+
 	if (irq > 0) {
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 				stmpe_gpio_irq, IRQF_ONESHOT,
@@ -324,14 +330,13 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev,
 				"could not connect irqchip to gpiochip\n");
-			return ret;
+			goto out_disable;
 		}
-	}
 
-	ret = gpiochip_add(&stmpe_gpio->chip);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to add gpiochip: %d\n", ret);
-		goto out_disable;
+		gpiochip_set_chained_irqchip(&stmpe_gpio->chip,
+					     &stmpe_gpio_irq_chip,
+					     irq,
+					     NULL);
 	}
 
 	if (pdata && pdata->setup)
@@ -343,6 +348,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 
 out_disable:
 	stmpe_disable(stmpe, STMPE_BLOCK_GPIO);
+	gpiochip_remove(&stmpe_gpio->chip);
 out_free:
 	kfree(stmpe_gpio);
 	return ret;

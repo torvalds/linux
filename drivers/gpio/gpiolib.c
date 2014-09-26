@@ -385,13 +385,14 @@ static struct gpio_chip *find_chip_by_name(const char *name)
  */
 
 /**
- * gpiochip_add_chained_irqchip() - adds a chained irqchip to a gpiochip
- * @gpiochip: the gpiochip to add the irqchip to
- * @irqchip: the irqchip to add to the gpiochip
+ * gpiochip_set_chained_irqchip() - sets a chained irqchip to a gpiochip
+ * @gpiochip: the gpiochip to set the irqchip chain to
+ * @irqchip: the irqchip to chain to the gpiochip
  * @parent_irq: the irq number corresponding to the parent IRQ for this
  * chained irqchip
  * @parent_handler: the parent interrupt handler for the accumulated IRQ
- * coming out of the gpiochip
+ * coming out of the gpiochip. If the interrupt is nested rather than
+ * cascaded, pass NULL in this handler argument
  */
 void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 				  struct irq_chip *irqchip,
@@ -400,23 +401,26 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 {
 	unsigned int offset;
 
-	if (gpiochip->can_sleep) {
-		chip_err(gpiochip, "you cannot have chained interrupts on a chip that may sleep\n");
-		return;
-	}
 	if (!gpiochip->irqdomain) {
 		chip_err(gpiochip, "called %s before setting up irqchip\n",
 			 __func__);
 		return;
 	}
 
-	irq_set_chained_handler(parent_irq, parent_handler);
-
-	/*
-	 * The parent irqchip is already using the chip_data for this
-	 * irqchip, so our callbacks simply use the handler_data.
-	 */
-	irq_set_handler_data(parent_irq, gpiochip);
+	if (parent_handler) {
+		if (gpiochip->can_sleep) {
+			chip_err(gpiochip,
+				 "you cannot have chained interrupts on a "
+				 "chip that may sleep\n");
+			return;
+		}
+		irq_set_chained_handler(parent_irq, parent_handler);
+		/*
+		 * The parent irqchip is already using the chip_data for this
+		 * irqchip, so our callbacks simply use the handler_data.
+		 */
+		irq_set_handler_data(parent_irq, gpiochip);
+	}
 
 	/* Set the parent IRQ for all affected IRQs */
 	for (offset = 0; offset < gpiochip->ngpio; offset++)
