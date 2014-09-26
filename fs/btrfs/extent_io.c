@@ -3601,6 +3601,68 @@ static void end_extent_buffer_writeback(struct extent_buffer *eb)
 	wake_up_bit(&eb->bflags, EXTENT_BUFFER_WRITEBACK);
 }
 
+static void set_btree_ioerr(struct page *page)
+{
+	struct extent_buffer *eb = (struct extent_buffer *)page->private;
+	struct btrfs_inode *btree_ino = BTRFS_I(eb->fs_info->btree_inode);
+
+	SetPageError(page);
+	if (test_and_set_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags))
+		return;
+
+	/*
+	 * If writeback for a btree extent that doesn't belong to a log tree
+	 * failed, increment the counter transaction->eb_write_errors.
+	 * We do this because while the transaction is running and before it's
+	 * committing (when we call filemap_fdata[write|wait]_range against
+	 * the btree inode), we might have
+	 * btree_inode->i_mapping->a_ops->writepages() called by the VM - if it
+	 * returns an error or an error happens during writeback, when we're
+	 * committing the transaction we wouldn't know about it, since the pages
+	 * can be no longer dirty nor marked anymore for writeback (if a
+	 * subsequent modification to the extent buffer didn't happen before the
+	 * transaction commit), which makes filemap_fdata[write|wait]_range not
+	 * able to find the pages tagged with SetPageError at transaction
+	 * commit time. So if this happens we must abort the transaction,
+	 * otherwise we commit a super block with btree roots that point to
+	 * btree nodes/leafs whose content on disk is invalid - either garbage
+	 * or the content of some node/leaf from a past generation that got
+	 * cowed or deleted and is no longer valid.
+	 *
+	 * Note: setting AS_EIO/AS_ENOSPC in the btree inode's i_mapping would
+	 * not be enough - we need to distinguish between log tree extents vs
+	 * non-log tree extents, and the next filemap_fdatawait_range() call
+	 * will catch and clear such errors in the mapping - and that call might
+	 * be from a log sync and not from a transaction commit. Also, checking
+	 * for the eb flag EXTENT_BUFFER_WRITE_ERR at transaction commit time is
+	 * not done and would not be reliable - the eb might have been released
+	 * from memory and reading it back again means that flag would not be
+	 * set (since it's a runtime flag, not persisted on disk).
+	 *
+	 * Using the flags below in the btree inode also makes us achieve the
+	 * goal of AS_EIO/AS_ENOSPC when writepages() returns success, started
+	 * writeback for all dirty pages and before filemap_fdatawait_range()
+	 * is called, the writeback for all dirty pages had already finished
+	 * with errors - because we were not using AS_EIO/AS_ENOSPC,
+	 * filemap_fdatawait_range() would return success, as it could not know
+	 * that writeback errors happened (the pages were no longer tagged for
+	 * writeback).
+	 */
+	switch (eb->log_index) {
+	case -1:
+		set_bit(BTRFS_INODE_BTREE_ERR, &btree_ino->runtime_flags);
+		break;
+	case 0:
+		set_bit(BTRFS_INODE_BTREE_LOG1_ERR, &btree_ino->runtime_flags);
+		break;
+	case 1:
+		set_bit(BTRFS_INODE_BTREE_LOG2_ERR, &btree_ino->runtime_flags);
+		break;
+	default:
+		BUG(); /* unexpected, logic error */
+	}
+}
+
 static void end_bio_extent_buffer_writepage(struct bio *bio, int err)
 {
 	struct bio_vec *bvec;
@@ -3614,10 +3676,9 @@ static void end_bio_extent_buffer_writepage(struct bio *bio, int err)
 		BUG_ON(!eb);
 		done = atomic_dec_and_test(&eb->io_pages);
 
-		if (err || test_bit(EXTENT_BUFFER_IOERR, &eb->bflags)) {
-			set_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
+		if (err || test_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags)) {
 			ClearPageUptodate(page);
-			SetPageError(page);
+			set_btree_ioerr(page);
 		}
 
 		end_page_writeback(page);
@@ -3644,7 +3705,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 	int rw = (epd->sync_io ? WRITE_SYNC : WRITE) | REQ_META;
 	int ret = 0;
 
-	clear_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
+	clear_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags);
 	num_pages = num_extent_pages(eb->start, eb->len);
 	atomic_set(&eb->io_pages, num_pages);
 	if (btrfs_header_owner(eb) == BTRFS_TREE_LOG_OBJECTID)
@@ -3661,8 +3722,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 					 0, epd->bio_flags, bio_flags);
 		epd->bio_flags = bio_flags;
 		if (ret) {
-			set_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
-			SetPageError(p);
+			set_btree_ioerr(p);
 			end_page_writeback(p);
 			if (atomic_sub_and_test(num_pages - i, &eb->io_pages))
 				end_extent_buffer_writeback(eb);
@@ -5055,7 +5115,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 		goto unlock_exit;
 	}
 
-	clear_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
+	clear_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
 	eb->read_mirror = 0;
 	atomic_set(&eb->io_pages, num_reads);
 	for (i = start_i; i < num_pages; i++) {
