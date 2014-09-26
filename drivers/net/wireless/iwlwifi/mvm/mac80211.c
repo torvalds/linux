@@ -303,9 +303,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_TIMING_BEACON_ONLY |
 		    IEEE80211_HW_CONNECTION_MONITOR |
-		    IEEE80211_HW_CHANCTX_STA_CSA |
-		    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
-		    IEEE80211_HW_SUPPORTS_STATIC_SMPS;
+		    IEEE80211_HW_CHANCTX_STA_CSA;
 
 	hw->queues = mvm->first_agg_queue;
 	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
@@ -327,7 +325,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	    IWL_UCODE_API(mvm->fw->ucode_ver) >= 9 &&
 	    !iwlwifi_mod_params.uapsd_disable) {
 		hw->flags |= IEEE80211_HW_SUPPORTS_UAPSD;
-		hw->uapsd_queues = IWL_UAPSD_AC_INFO;
+		hw->uapsd_queues = IWL_MVM_UAPSD_QUEUES;
 		hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
 	}
 
@@ -409,7 +407,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->wiphy->features |= NL80211_FEATURE_P2P_GO_CTWIN |
 			       NL80211_FEATURE_LOW_PRIORITY_SCAN |
-			       NL80211_FEATURE_P2P_GO_OPPPS;
+			       NL80211_FEATURE_P2P_GO_OPPPS |
+			       NL80211_FEATURE_DYNAMIC_SMPS |
+			       NL80211_FEATURE_STATIC_SMPS;
 
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
@@ -670,8 +670,9 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-static void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
+void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 {
+	static char *env[] = { "DRIVER=iwlwifi", "EVENT=error_dump", NULL };
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_info *dump_info;
@@ -763,19 +764,15 @@ static void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		file_len += fw_error_dump->trans_ptr->len;
 	dump_file->file_len = cpu_to_le32(file_len);
 	mvm->fw_error_dump = fw_error_dump;
+
+	/* notify the userspace about the error we had */
+	kobject_uevent_env(&mvm->hw->wiphy->dev.kobj, KOBJ_CHANGE, env);
 }
 #endif
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 {
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	static char *env[] = { "DRIVER=iwlwifi", "EVENT=error_dump", NULL };
-
 	iwl_mvm_fw_error_dump(mvm);
-
-	/* notify the userspace about the error we had */
-	kobject_uevent_env(&mvm->hw->wiphy->dev.kobj, KOBJ_CHANGE, env);
-#endif
 
 	iwl_trans_stop_device(mvm->trans);
 
@@ -815,12 +812,11 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	mvm->rx_ba_sessions = 0;
 }
 
-static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
+int __iwl_mvm_mac_start(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
-	mutex_lock(&mvm->mutex);
+	lockdep_assert_held(&mvm->mutex);
 
 	/* Clean up some internal and mac80211 state on restart */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
@@ -837,6 +833,16 @@ static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 		iwl_mvm_d0i3_enable_tx(mvm, NULL);
 	}
 
+	return ret;
+}
+
+static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	ret = __iwl_mvm_mac_start(mvm);
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
@@ -862,14 +868,9 @@ static void iwl_mvm_mac_restart_complete(struct ieee80211_hw *hw)
 	mutex_unlock(&mvm->mutex);
 }
 
-static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
+void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-
-	flush_work(&mvm->d0i3_exit_work);
-	flush_work(&mvm->async_handlers_wk);
-
-	mutex_lock(&mvm->mutex);
+	lockdep_assert_held(&mvm->mutex);
 
 	/* disallow low power states when the FW is down */
 	iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
@@ -890,6 +891,19 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	/* the fw is stopped, the aux sta is dead: clean up driver state */
 	iwl_mvm_del_aux_sta(mvm);
 
+	mvm->ucode_loaded = false;
+}
+
+static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	flush_work(&mvm->d0i3_exit_work);
+	flush_work(&mvm->async_handlers_wk);
+	flush_work(&mvm->fw_error_dump_wk);
+
+	mutex_lock(&mvm->mutex);
+	__iwl_mvm_mac_stop(mvm);
 	mutex_unlock(&mvm->mutex);
 
 	/*
@@ -1198,14 +1212,15 @@ static u64 iwl_mvm_prepare_multicast(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mcast_filter_cmd *cmd;
 	struct netdev_hw_addr *addr;
-	int addr_count = netdev_hw_addr_list_count(mc_list);
-	bool pass_all = false;
+	int addr_count;
+	bool pass_all;
 	int len;
 
-	if (addr_count > MAX_MCAST_FILTERING_ADDRESSES) {
-		pass_all = true;
+	addr_count = netdev_hw_addr_list_count(mc_list);
+	pass_all = addr_count > MAX_MCAST_FILTERING_ADDRESSES ||
+		   IWL_MVM_FW_MCAST_FILTER_PASS_ALL;
+	if (pass_all)
 		addr_count = 0;
-	}
 
 	len = roundup(sizeof(*cmd) + addr_count * ETH_ALEN, 4);
 	cmd = kzalloc(len, GFP_ATOMIC);
@@ -1404,28 +1419,6 @@ static inline int iwl_mvm_configure_bcast_filter(struct iwl_mvm *mvm,
 	return 0;
 }
 #endif
-
-static void iwl_mvm_teardown_tdls_peers(struct iwl_mvm *mvm)
-{
-	struct ieee80211_sta *sta;
-	struct iwl_mvm_sta *mvmsta;
-	int i;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
-		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
-						lockdep_is_held(&mvm->mutex));
-		if (!sta || IS_ERR(sta) || !sta->tdls)
-			continue;
-
-		mvmsta = iwl_mvm_sta_from_mac80211(sta);
-		ieee80211_tdls_oper_request(mvmsta->vif, sta->addr,
-				NL80211_TDLS_TEARDOWN,
-				WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED,
-				GFP_KERNEL);
-	}
-}
 
 static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 					     struct ieee80211_vif *vif,
@@ -1724,7 +1717,7 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 		return;
 
 	if (changes & (BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_HT |
-		       BSS_CHANGED_BANDWIDTH) &&
+		       BSS_CHANGED_BANDWIDTH | BSS_CHANGED_QOS) &&
 	    iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL))
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
 
@@ -1955,48 +1948,6 @@ static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
-int iwl_mvm_tdls_sta_count(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
-{
-	struct ieee80211_sta *sta;
-	struct iwl_mvm_sta *mvmsta;
-	int count = 0;
-	int i;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
-		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
-						lockdep_is_held(&mvm->mutex));
-		if (!sta || IS_ERR(sta) || !sta->tdls)
-			continue;
-
-		if (vif) {
-			mvmsta = iwl_mvm_sta_from_mac80211(sta);
-			if (mvmsta->vif != vif)
-				continue;
-		}
-
-		count++;
-	}
-
-	return count;
-}
-
-static void iwl_mvm_recalc_tdls_state(struct iwl_mvm *mvm,
-				      struct ieee80211_vif *vif,
-				      bool sta_added)
-{
-	int tdls_sta_cnt = iwl_mvm_tdls_sta_count(mvm, vif);
-
-	/*
-	 * Disable ps when the first TDLS sta is added and re-enable it
-	 * when the last TDLS sta is removed
-	 */
-	if ((tdls_sta_cnt == 1 && sta_added) ||
-	    (tdls_sta_cnt == 0 && !sta_added))
-		iwl_mvm_power_update_mac(mvm);
-}
-
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -2168,27 +2119,6 @@ static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 
 	iwl_mvm_unref(mvm, IWL_MVM_REF_PREPARE_TX);
-}
-
-static void iwl_mvm_mac_mgd_protect_tdls_discover(struct ieee80211_hw *hw,
-						  struct ieee80211_vif *vif)
-{
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	u32 duration = 2 * vif->bss_conf.dtim_period * vif->bss_conf.beacon_int;
-
-	/*
-	 * iwl_mvm_protect_session() reads directly from the device
-	 * (the system time), so make sure it is available.
-	 */
-	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PROTECT_TDLS))
-		return;
-
-	mutex_lock(&mvm->mutex);
-	/* Protect the session to hear the TDLS setup response on the channel */
-	iwl_mvm_protect_session(mvm, vif, duration, duration, 100, true);
-	mutex_unlock(&mvm->mutex);
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_PROTECT_TDLS);
 }
 
 static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,

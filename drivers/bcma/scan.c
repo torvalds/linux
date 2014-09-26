@@ -276,7 +276,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			      struct bcma_device *core)
 {
 	u32 tmp;
-	u8 i, j;
+	u8 i, j, k;
 	s32 cia, cib;
 	u8 ports[2], wrappers[2];
 
@@ -314,6 +314,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 		/* Some specific cores don't need wrappers */
 		switch (core->id.id) {
 		case BCMA_CORE_4706_MAC_GBIT_COMMON:
+		case BCMA_CORE_NS_CHIPCOMMON_B:
 		/* Not used yet: case BCMA_CORE_OOB_ROUTER: */
 			break;
 		default:
@@ -367,6 +368,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 	core->addr = tmp;
 
 	/* get & parse slave ports */
+	k = 0;
 	for (i = 0; i < ports[1]; i++) {
 		for (j = 0; ; j++) {
 			tmp = bcma_erom_get_addr_desc(bus, eromptr,
@@ -376,9 +378,9 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 				/* pr_debug("erom: slave port %d "
 				 * "has %d descriptors\n", i, j); */
 				break;
-			} else {
-				if (i == 0 && j == 0)
-					core->addr1 = tmp;
+			} else if (k < ARRAY_SIZE(core->addr_s)) {
+				core->addr_s[k] = tmp;
+				k++;
 			}
 		}
 	}
@@ -438,9 +440,6 @@ void bcma_init_bus(struct bcma_bus *bus)
 	s32 tmp;
 	struct bcma_chipinfo *chipinfo = &(bus->chipinfo);
 
-	if (bus->init_done)
-		return;
-
 	INIT_LIST_HEAD(&bus->cores);
 	bus->nr_cores = 0;
 
@@ -452,8 +451,6 @@ void bcma_init_bus(struct bcma_bus *bus)
 	chipinfo->pkg = (tmp & BCMA_CC_ID_PKG) >> BCMA_CC_ID_PKG_SHIFT;
 	bcma_info(bus, "Found chip with id 0x%04X, rev 0x%02X and package 0x%02X\n",
 		  chipinfo->id, chipinfo->rev, chipinfo->pkg);
-
-	bus->init_done = true;
 }
 
 int bcma_bus_scan(struct bcma_bus *bus)
@@ -462,8 +459,6 @@ int bcma_bus_scan(struct bcma_bus *bus)
 	u32 __iomem *eromptr, *eromend;
 
 	int err, core_num = 0;
-
-	bcma_init_bus(bus);
 
 	erombase = bcma_scan_read32(bus, 0, BCMA_CC_EROM);
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {

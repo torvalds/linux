@@ -1234,13 +1234,13 @@ static void iwl_mvm_csa_count_down(struct iwl_mvm *mvm,
 		    !iwl_mvm_te_scheduled(&mvmvif->time_event_data) && gp2) {
 			u32 rel_time = (c + 1) *
 				       csa_vif->bss_conf.beacon_int -
-				       IWL_MVM_CHANNEL_SWITCH_TIME;
+				       IWL_MVM_CHANNEL_SWITCH_TIME_GO;
 			u32 apply_time = gp2 + rel_time * 1024;
 
-			iwl_mvm_schedule_csa_noa(mvm, csa_vif,
-						 IWL_MVM_CHANNEL_SWITCH_TIME -
-						 IWL_MVM_CHANNEL_SWITCH_MARGIN,
-						 apply_time);
+			iwl_mvm_schedule_csa_period(mvm, csa_vif,
+					 IWL_MVM_CHANNEL_SWITCH_TIME_GO -
+					 IWL_MVM_CHANNEL_SWITCH_MARGIN,
+					 apply_time);
 		}
 	} else if (!iwl_mvm_te_scheduled(&mvmvif->time_event_data)) {
 		/* we don't have CSA NoA scheduled yet, switch now */

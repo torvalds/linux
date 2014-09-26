@@ -6369,7 +6369,7 @@ static void b43_nphy_channel_setup(struct b43_wldev *dev,
 		b43_mac_switch_freq(dev, spuravoid);
 
 		if (dev->phy.rev == 3 || dev->phy.rev == 4)
-			; /* TODO: reset PLL */
+			b43_wireless_core_phy_pll_reset(dev);
 
 		if (spuravoid)
 			b43_phy_set(dev, B43_NPHY_BBCFG, B43_NPHY_BBCFG_RSTRX);

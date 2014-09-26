@@ -355,9 +355,11 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 				 struct ath_tx_status *ts)
 {
 	struct ar9003_txs *ads;
+	struct ar9003_txc *adc;
 	u32 status;
 
 	ads = &ah->ts_ring[ah->ts_tail];
+	adc = (struct ar9003_txc *)ads;
 
 	status = ACCESS_ONCE(ads->status8);
 	if ((status & AR_TxDone) == 0)
@@ -425,6 +427,13 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	ts->ts_rssi_ext0 = MS(status, AR_TxRSSIAnt10);
 	ts->ts_rssi_ext1 = MS(status, AR_TxRSSIAnt11);
 	ts->ts_rssi_ext2 = MS(status, AR_TxRSSIAnt12);
+
+	status = ACCESS_ONCE(adc->ctl15);
+	ts->duration[0] = MS(status, AR_PacketDur0);
+	ts->duration[1] = MS(status, AR_PacketDur1);
+	status = ACCESS_ONCE(adc->ctl16);
+	ts->duration[2] = MS(status, AR_PacketDur2);
+	ts->duration[3] = MS(status, AR_PacketDur3);
 
 	memset(ads, 0, sizeof(*ads));
 

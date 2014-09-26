@@ -622,22 +622,15 @@ static int mwifiex_get_wr_port_data(struct mwifiex_adapter *adapter, u32 *port)
 
 	dev_dbg(adapter->dev, "data: mp_wr_bitmap=0x%08x\n", wr_bitmap);
 
-	if (card->supports_sdio_new_mode &&
-	    !(wr_bitmap & reg->data_port_mask)) {
+	if (!(wr_bitmap & card->mp_data_port_mask)) {
 		adapter->data_sent = true;
 		return -EBUSY;
-	} else if (!card->supports_sdio_new_mode &&
-		   !(wr_bitmap & card->mp_data_port_mask)) {
-		return -1;
 	}
 
 	if (card->mp_wr_bitmap & (1 << card->curr_wr_port)) {
 		card->mp_wr_bitmap &= (u32) (~(1 << card->curr_wr_port));
 		*port = card->curr_wr_port;
-		if (((card->supports_sdio_new_mode) &&
-		     (++card->curr_wr_port == card->max_ports)) ||
-		    ((!card->supports_sdio_new_mode) &&
-		     (++card->curr_wr_port == card->mp_end_port)))
+		if (++card->curr_wr_port == card->mp_end_port)
 			card->curr_wr_port = reg->start_wr_port;
 	} else {
 		adapter->data_sent = true;
@@ -1046,6 +1039,7 @@ static int mwifiex_decode_rx_packet(struct mwifiex_adapter *adapter,
 				    struct sk_buff *skb, u32 upld_typ)
 {
 	u8 *cmd_buf;
+	unsigned long flags;
 	__le16 *curr_ptr = (__le16 *)skb->data;
 	u16 pkt_len = le16_to_cpu(*curr_ptr);
 
@@ -1055,7 +1049,15 @@ static int mwifiex_decode_rx_packet(struct mwifiex_adapter *adapter,
 	switch (upld_typ) {
 	case MWIFIEX_TYPE_DATA:
 		dev_dbg(adapter->dev, "info: --- Rx: Data packet ---\n");
-		mwifiex_handle_rx_packet(adapter, skb);
+		if (adapter->rx_work_enabled) {
+			spin_lock_irqsave(&adapter->rx_q_lock, flags);
+			skb_queue_tail(&adapter->rx_data_q, skb);
+			spin_unlock_irqrestore(&adapter->rx_q_lock, flags);
+			adapter->data_received = true;
+			atomic_inc(&adapter->rx_pending);
+		} else {
+			mwifiex_handle_rx_packet(adapter, skb);
+		}
 		break;
 
 	case MWIFIEX_TYPE_CMD:
@@ -1527,8 +1529,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 			__func__);
 
 		if (MP_TX_AGGR_IN_PROGRESS(card)) {
-			if (!mp_tx_aggr_port_limit_reached(card) &&
-			    MP_TX_AGGR_BUF_HAS_ROOM(card, pkt_len)) {
+			if (MP_TX_AGGR_BUF_HAS_ROOM(card, pkt_len)) {
 				f_precopy_cur_buf = 1;
 
 				if (!(card->mp_wr_bitmap &
@@ -1540,8 +1541,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 				/* No room in Aggr buf, send it */
 				f_send_aggr_buf = 1;
 
-				if (mp_tx_aggr_port_limit_reached(card) ||
-				    !(card->mp_wr_bitmap &
+				if (!(card->mp_wr_bitmap &
 				      (1 << card->curr_wr_port)))
 					f_send_cur_buf = 1;
 				else

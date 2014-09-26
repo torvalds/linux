@@ -2045,8 +2045,6 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 
 	hw->flags = IEEE80211_HW_MFP_CAPABLE |
 		    IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_SUPPORTS_STATIC_SMPS |
-		    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_WANT_MONITOR_VIF |
 		    IEEE80211_HW_QUEUE_CONTROL |
@@ -2059,8 +2057,10 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
 			    WIPHY_FLAG_AP_UAPSD |
 			    WIPHY_FLAG_HAS_CHANNEL_SWITCH;
-	hw->wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
-	hw->wiphy->features |= NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE;
+	hw->wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR |
+			       NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE |
+			       NL80211_FEATURE_STATIC_SMPS |
+			       NL80211_FEATURE_DYNAMIC_SMPS;
 
 	/* ask mac80211 to reserve space for magic */
 	hw->vif_data_size = sizeof(struct hwsim_vif_priv);

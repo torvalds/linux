@@ -122,17 +122,30 @@ static void hci_reject_sco(struct hci_conn *conn)
 	hci_send_cmd(conn->hdev, HCI_OP_REJECT_SYNC_CONN_REQ, sizeof(cp), &cp);
 }
 
-void hci_disconnect(struct hci_conn *conn, __u8 reason)
+int hci_disconnect(struct hci_conn *conn, __u8 reason)
 {
 	struct hci_cp_disconnect cp;
 
 	BT_DBG("hcon %p", conn);
 
+	/* When we are master of an established connection and it enters
+	 * the disconnect timeout, then go ahead and try to read the
+	 * current clock offset.  Processing of the result is done
+	 * within the event handling and hci_clock_offset_evt function.
+	 */
+	if (conn->type == ACL_LINK && conn->role == HCI_ROLE_MASTER) {
+		struct hci_dev *hdev = conn->hdev;
+		struct hci_cp_read_clock_offset cp;
+
+		cp.handle = cpu_to_le16(conn->handle);
+		hci_send_cmd(hdev, HCI_OP_READ_CLOCK_OFFSET, sizeof(cp), &cp);
+	}
+
 	conn->state = BT_DISCONN;
 
 	cp.handle = cpu_to_le16(conn->handle);
 	cp.reason = reason;
-	hci_send_cmd(conn->hdev, HCI_OP_DISCONNECT, sizeof(cp), &cp);
+	return hci_send_cmd(conn->hdev, HCI_OP_DISCONNECT, sizeof(cp), &cp);
 }
 
 static void hci_amp_disconn(struct hci_conn *conn)
@@ -325,25 +338,6 @@ static void hci_conn_timeout(struct work_struct *work)
 			hci_amp_disconn(conn);
 		} else {
 			__u8 reason = hci_proto_disconn_ind(conn);
-
-			/* When we are master of an established connection
-			 * and it enters the disconnect timeout, then go
-			 * ahead and try to read the current clock offset.
-			 *
-			 * Processing of the result is done within the
-			 * event handling and hci_clock_offset_evt function.
-			 */
-			if (conn->type == ACL_LINK &&
-			    conn->role == HCI_ROLE_MASTER) {
-				struct hci_dev *hdev = conn->hdev;
-				struct hci_cp_read_clock_offset cp;
-
-				cp.handle = cpu_to_le16(conn->handle);
-
-				hci_send_cmd(hdev, HCI_OP_READ_CLOCK_OFFSET,
-					     sizeof(cp), &cp);
-			}
-
 			hci_disconnect(conn, reason);
 		}
 		break;
@@ -595,6 +589,7 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 					   conn->dst_type);
 	if (params && params->conn) {
 		hci_conn_drop(params->conn);
+		hci_conn_put(params->conn);
 		params->conn = NULL;
 	}
 
@@ -1290,11 +1285,16 @@ struct hci_chan *hci_chan_create(struct hci_conn *conn)
 
 	BT_DBG("%s hcon %p", hdev->name, conn);
 
+	if (test_bit(HCI_CONN_DROP, &conn->flags)) {
+		BT_DBG("Refusing to create new hci_chan");
+		return NULL;
+	}
+
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
 		return NULL;
 
-	chan->conn = conn;
+	chan->conn = hci_conn_get(conn);
 	skb_queue_head_init(&chan->data_q);
 	chan->state = BT_CONNECTED;
 
@@ -1314,7 +1314,10 @@ void hci_chan_del(struct hci_chan *chan)
 
 	synchronize_rcu();
 
-	hci_conn_drop(conn);
+	/* Prevent new hci_chan's to be created for this hci_conn */
+	set_bit(HCI_CONN_DROP, &conn->flags);
+
+	hci_conn_put(conn);
 
 	skb_queue_purge(&chan->data_q);
 	kfree(chan);

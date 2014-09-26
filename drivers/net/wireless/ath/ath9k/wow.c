@@ -232,7 +232,7 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 		goto fail_wow;
 	}
 
-	if (sc->nvifs > 1) {
+	if (sc->cur_chan->nvifs > 1) {
 		ath_dbg(common, WOW, "WoW for multivif is not yet supported\n");
 		ret = 1;
 		goto fail_wow;

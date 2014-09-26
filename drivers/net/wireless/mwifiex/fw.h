@@ -170,7 +170,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_COALESCE_RULE      (PROPRIETARY_TLV_BASE_ID + 154)
 #define TLV_TYPE_KEY_PARAM_V2       (PROPRIETARY_TLV_BASE_ID + 156)
 #define TLV_TYPE_TDLS_IDLE_TIMEOUT  (PROPRIETARY_TLV_BASE_ID + 194)
-#define TLV_TYPE_API_REV	    (PROPRIETARY_TLV_BASE_ID + 199)
+#define TLV_TYPE_SCAN_CHANNEL_GAP   (PROPRIETARY_TLV_BASE_ID + 197)
+#define TLV_TYPE_API_REV            (PROPRIETARY_TLV_BASE_ID + 199)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -651,6 +652,12 @@ struct mwifiex_ie_types_ssid_param_set {
 struct mwifiex_ie_types_num_probes {
 	struct mwifiex_ie_types_header header;
 	__le16 num_probes;
+} __packed;
+
+struct mwifiex_ie_types_scan_chan_gap {
+	struct mwifiex_ie_types_header header;
+	/* time gap in TUs to be used between two consecutive channels scan */
+	__le16 chan_gap;
 } __packed;
 
 struct mwifiex_ie_types_wildcard_ssid_params {
@@ -1249,6 +1256,7 @@ struct mwifiex_user_scan_cfg {
 	u8 num_ssids;
 	/* Variable number (fixed maximum) of channels to scan up */
 	struct mwifiex_user_scan_chan chan_list[MWIFIEX_USER_SCAN_CHAN_MAX];
+	u16 scan_chan_gap;
 } __packed;
 
 struct ie_body {

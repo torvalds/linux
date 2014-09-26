@@ -170,6 +170,11 @@ enum rf_tx_num {
 	RF_TX_NUM_NONIMPLEMENT,
 };
 
+#define PACKET_NORMAL			0
+#define PACKET_DHCP			1
+#define PACKET_ARP			2
+#define PACKET_EAPOL			3
+
 struct txpower_info_2g {
 	u8 index_cck_base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
 	u8 index_bw40_base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
@@ -234,8 +239,9 @@ enum hardware_type {
 	HARDWARE_TYPE_RTL8192DU,
 	HARDWARE_TYPE_RTL8723AE,
 	HARDWARE_TYPE_RTL8723U,
-	HARDWARE_TYPE_RTL8723BE,
 	HARDWARE_TYPE_RTL8188EE,
+	HARDWARE_TYPE_RTL8723BE,
+	HARDWARE_TYPE_RTL8192EE,
 	HARDWARE_TYPE_RTL8821AE,
 	HARDWARE_TYPE_RTL8812AE,
 
@@ -428,7 +434,7 @@ enum hw_variables {
 	HW_VAR_DATA_FILTER,
 };
 
-enum _RT_MEDIA_STATUS {
+enum rt_media_status {
 	RT_MEDIA_DISCONNECT = 0,
 	RT_MEDIA_CONNECT = 1
 };
@@ -2312,10 +2318,11 @@ struct rtl_btc_ops {
 	void (*btc_init_hal_vars) (struct rtl_priv *rtlpriv);
 	void (*btc_init_hw_config) (struct rtl_priv *rtlpriv);
 	void (*btc_ips_notify) (struct rtl_priv *rtlpriv, u8 type);
+	void (*btc_lps_notify)(struct rtl_priv *rtlpriv, u8 type);
 	void (*btc_scan_notify) (struct rtl_priv *rtlpriv, u8 scantype);
 	void (*btc_connect_notify) (struct rtl_priv *rtlpriv, u8 action);
 	void (*btc_mediastatus_notify) (struct rtl_priv *rtlpriv,
-					enum _RT_MEDIA_STATUS mstatus);
+					enum rt_media_status mstatus);
 	void (*btc_periodical) (struct rtl_priv *rtlpriv);
 	void (*btc_halt_notify) (void);
 	void (*btc_btinfo_notify) (struct rtl_priv *rtlpriv,
@@ -2323,6 +2330,8 @@ struct rtl_btc_ops {
 	bool (*btc_is_limited_dig) (struct rtl_priv *rtlpriv);
 	bool (*btc_is_disable_edca_turbo) (struct rtl_priv *rtlpriv);
 	bool (*btc_is_bt_disabled) (struct rtl_priv *rtlpriv);
+	void (*btc_special_packet_notify)(struct rtl_priv *rtlpriv,
+					  u8 pkt_type);
 };
 
 struct proxim {

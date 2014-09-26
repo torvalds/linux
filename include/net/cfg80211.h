@@ -4,6 +4,7 @@
  * 802.11 device and configuration interface
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2013-2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -663,6 +664,7 @@ struct cfg80211_acl_data {
  * @crypto: crypto settings
  * @privacy: the BSS uses privacy
  * @auth_type: Authentication type (algorithm)
+ * @smps_mode: SMPS mode
  * @inactivity_timeout: time in seconds to determine station's inactivity.
  * @p2p_ctwindow: P2P CT Window
  * @p2p_opp_ps: P2P opportunistic PS
@@ -681,6 +683,7 @@ struct cfg80211_ap_settings {
 	struct cfg80211_crypto_settings crypto;
 	bool privacy;
 	enum nl80211_auth_type auth_type;
+	enum nl80211_smps_mode smps_mode;
 	int inactivity_timeout;
 	u8 p2p_ctwindow;
 	bool p2p_opp_ps;
@@ -1607,10 +1610,12 @@ struct cfg80211_auth_request {
  *
  * @ASSOC_REQ_DISABLE_HT:  Disable HT (802.11n)
  * @ASSOC_REQ_DISABLE_VHT:  Disable VHT
+ * @ASSOC_REQ_USE_RRM: Declare RRM capability in this association
  */
 enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_DISABLE_HT		= BIT(0),
 	ASSOC_REQ_DISABLE_VHT		= BIT(1),
+	ASSOC_REQ_USE_RRM		= BIT(2),
 };
 
 /**
@@ -1802,6 +1807,7 @@ struct cfg80211_connect_params {
  * @WIPHY_PARAM_FRAG_THRESHOLD: wiphy->frag_threshold has changed
  * @WIPHY_PARAM_RTS_THRESHOLD: wiphy->rts_threshold has changed
  * @WIPHY_PARAM_COVERAGE_CLASS: coverage class changed
+ * @WIPHY_PARAM_DYN_ACK: dynack has been enabled
  */
 enum wiphy_params_flags {
 	WIPHY_PARAM_RETRY_SHORT		= 1 << 0,
@@ -1809,6 +1815,7 @@ enum wiphy_params_flags {
 	WIPHY_PARAM_FRAG_THRESHOLD	= 1 << 2,
 	WIPHY_PARAM_RTS_THRESHOLD	= 1 << 3,
 	WIPHY_PARAM_COVERAGE_CLASS	= 1 << 4,
+	WIPHY_PARAM_DYN_ACK		= 1 << 5,
 };
 
 /*
@@ -1975,14 +1982,12 @@ struct cfg80211_wowlan_wakeup {
 
 /**
  * struct cfg80211_gtk_rekey_data - rekey data
- * @kek: key encryption key
- * @kck: key confirmation key
- * @replay_ctr: replay counter
+ * @kek: key encryption key (NL80211_KEK_LEN bytes)
+ * @kck: key confirmation key (NL80211_KCK_LEN bytes)
+ * @replay_ctr: replay counter (NL80211_REPLAY_CTR_LEN bytes)
  */
 struct cfg80211_gtk_rekey_data {
-	u8 kek[NL80211_KEK_LEN];
-	u8 kck[NL80211_KCK_LEN];
-	u8 replay_ctr[NL80211_REPLAY_CTR_LEN];
+	const u8 *kek, *kck, *replay_ctr;
 };
 
 /**
@@ -2315,6 +2320,17 @@ struct cfg80211_qos_map {
  * @set_ap_chanwidth: Set the AP (including P2P GO) mode channel width for the
  *	given interface This is used e.g. for dynamic HT 20/40 MHz channel width
  *	changes during the lifetime of the BSS.
+ *
+ * @add_tx_ts: validate (if admitted_time is 0) or add a TX TS to the device
+ *	with the given parameters; action frame exchange has been handled by
+ *	userspace so this just has to modify the TX path to take the TS into
+ *	account.
+ *	If the admitted time is 0 just validate the parameters to make sure
+ *	the session can be created at all; it is valid to just always return
+ *	success for that but that may result in inefficient behaviour (handshake
+ *	with the peer followed by immediate teardown when the addition is later
+ *	rejected)
+ * @del_tx_ts: remove an existing TX TS
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -2555,6 +2571,12 @@ struct cfg80211_ops {
 
 	int	(*set_ap_chanwidth)(struct wiphy *wiphy, struct net_device *dev,
 				    struct cfg80211_chan_def *chandef);
+
+	int	(*add_tx_ts)(struct wiphy *wiphy, struct net_device *dev,
+			     u8 tsid, const u8 *peer, u8 user_prio,
+			     u16 admitted_time);
+	int	(*del_tx_ts)(struct wiphy *wiphy, struct net_device *dev,
+			     u8 tsid, const u8 *peer);
 };
 
 /*
@@ -2601,9 +2623,13 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_SUPPORTS_5_10_MHZ: Device supports 5 MHz and 10 MHz channels.
  * @WIPHY_FLAG_HAS_CHANNEL_SWITCH: Device supports channel switch in
  *	beaconing mode (AP, IBSS, Mesh, ...).
+ * @WIPHY_FLAG_SUPPORTS_WMM_ADMISSION: the device supports setting up WMM
+ *	TSPEC sessions (TID aka TSID 0-7) with the NL80211_CMD_ADD_TX_TS
+ *	command. Standard IEEE 802.11 TSPEC setup is not yet supported, it
+ *	needs to be able to handle Block-Ack agreements and other things.
  */
 enum wiphy_flags {
-	/* use hole at 0 */
+	WIPHY_FLAG_SUPPORTS_WMM_ADMISSION	= BIT(0),
 	/* use hole at 1 */
 	/* use hole at 2 */
 	WIPHY_FLAG_NETNS_OK			= BIT(3),
@@ -3920,6 +3946,7 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
  *	moves to cfg80211 in this call
  * @buf: authentication frame (header + body)
  * @len: length of the frame data
+ * @uapsd_queues: bitmap of ACs configured to uapsd. -1 if n/a.
  *
  * After being asked to associate via cfg80211_ops::assoc() the driver must
  * call either this function or cfg80211_auth_timeout().
@@ -3928,7 +3955,8 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
  */
 void cfg80211_rx_assoc_resp(struct net_device *dev,
 			    struct cfg80211_bss *bss,
-			    const u8 *buf, size_t len);
+			    const u8 *buf, size_t len,
+			    int uapsd_queues);
 
 /**
  * cfg80211_assoc_timeout - notification of timed out association

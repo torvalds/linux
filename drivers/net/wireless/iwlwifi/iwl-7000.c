@@ -131,7 +131,8 @@ static const struct iwl_ht_params iwl7000_ht_params = {
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.base_params = &iwl7000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_7000
+	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_7000,	\
+	.non_shared_ant = ANT_A
 
 
 const struct iwl_cfg iwl7260_2ac_cfg = {
@@ -220,6 +221,12 @@ static const struct iwl_pwr_tx_backoff iwl7265_pwr_tx_backoffs[] = {
 	{0},
 };
 
+static const struct iwl_ht_params iwl7265_ht_params = {
+	.stbc = true,
+	.ldpc = true,
+	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
+};
+
 const struct iwl_cfg iwl3165_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 3165",
 	.fw_name_pre = IWL3165_FW_PRE,
@@ -234,7 +241,7 @@ const struct iwl_cfg iwl7265_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 7265",
 	.fw_name_pre = IWL7265_FW_PRE,
 	IWL_DEVICE_7000,
-	.ht_params = &iwl7000_ht_params,
+	.ht_params = &iwl7265_ht_params,
 	.nvm_ver = IWL7265_NVM_VERSION,
 	.nvm_calib_ver = IWL7265_TX_POWER_VERSION,
 	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
@@ -244,7 +251,7 @@ const struct iwl_cfg iwl7265_2n_cfg = {
 	.name = "Intel(R) Dual Band Wireless N 7265",
 	.fw_name_pre = IWL7265_FW_PRE,
 	IWL_DEVICE_7000,
-	.ht_params = &iwl7000_ht_params,
+	.ht_params = &iwl7265_ht_params,
 	.nvm_ver = IWL7265_NVM_VERSION,
 	.nvm_calib_ver = IWL7265_TX_POWER_VERSION,
 	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
@@ -254,7 +261,7 @@ const struct iwl_cfg iwl7265_n_cfg = {
 	.name = "Intel(R) Wireless N 7265",
 	.fw_name_pre = IWL7265_FW_PRE,
 	IWL_DEVICE_7000,
-	.ht_params = &iwl7000_ht_params,
+	.ht_params = &iwl7265_ht_params,
 	.nvm_ver = IWL7265_NVM_VERSION,
 	.nvm_calib_ver = IWL7265_TX_POWER_VERSION,
 	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,

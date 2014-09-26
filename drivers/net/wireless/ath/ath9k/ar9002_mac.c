@@ -381,6 +381,13 @@ static int ar9002_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	ts->evm1 = ads->AR_TxEVM1;
 	ts->evm2 = ads->AR_TxEVM2;
 
+	status = ACCESS_ONCE(ads->ds_ctl4);
+	ts->duration[0] = MS(status, AR_PacketDur0);
+	ts->duration[1] = MS(status, AR_PacketDur1);
+	status = ACCESS_ONCE(ads->ds_ctl5);
+	ts->duration[2] = MS(status, AR_PacketDur2);
+	ts->duration[3] = MS(status, AR_PacketDur3);
+
 	return 0;
 }
 

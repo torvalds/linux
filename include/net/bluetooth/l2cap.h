@@ -625,9 +625,6 @@ struct l2cap_conn {
 
 	struct delayed_work	info_timer;
 
-	int			disconn_err;
-	struct work_struct	disconn_work;
-
 	struct sk_buff		*rx_skb;
 	__u32			rx_len;
 	__u8			tx_ident;
@@ -635,6 +632,8 @@ struct l2cap_conn {
 
 	struct sk_buff_head	pending_rx;
 	struct work_struct	pending_rx_work;
+
+	struct work_struct	id_addr_update_work;
 
 	__u8			disc_reason;
 
@@ -711,6 +710,7 @@ enum {
 	FLAG_DEFER_SETUP,
 	FLAG_LE_CONN_REQ_SENT,
 	FLAG_PENDING_SECURITY,
+	FLAG_HOLD_HCI_CONN,
 };
 
 enum {
@@ -939,15 +939,13 @@ int l2cap_ertm_init(struct l2cap_chan *chan);
 void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
 void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
 void l2cap_chan_del(struct l2cap_chan *chan, int err);
-void l2cap_conn_update_id_addr(struct hci_conn *hcon);
 void l2cap_send_conn_req(struct l2cap_chan *chan);
 void l2cap_move_start(struct l2cap_chan *chan);
 void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
 		       u8 status);
 void __l2cap_physical_cfm(struct l2cap_chan *chan, int result);
 
-void l2cap_conn_shutdown(struct l2cap_conn *conn, int err);
-void l2cap_conn_get(struct l2cap_conn *conn);
+struct l2cap_conn *l2cap_conn_get(struct l2cap_conn *conn);
 void l2cap_conn_put(struct l2cap_conn *conn);
 
 int l2cap_register_user(struct l2cap_conn *conn, struct l2cap_user *user);

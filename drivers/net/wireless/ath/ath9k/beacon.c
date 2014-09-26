@@ -183,7 +183,7 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 	spin_unlock_bh(&cabq->axq_lock);
 
 	if (skb && cabq_depth) {
-		if (sc->nvifs > 1) {
+		if (sc->cur_chan->nvifs > 1) {
 			ath_dbg(common, BEACON,
 				"Flushing previous cabq traffic\n");
 			ath_draintxq(sc, cabq);
@@ -514,6 +514,18 @@ static bool ath9k_allow_beacon_config(struct ath_softc *sc,
 				      struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_vif *avp = (void *)vif->drv_priv;
+
+	if (ath9k_is_chanctx_enabled()) {
+		/*
+		 * If the VIF is not present in the current channel context,
+		 * then we can't do the usual opmode checks. Allow the
+		 * beacon config for the VIF to be updated in this case and
+		 * return immediately.
+		 */
+		if (sc->cur_chan != avp->chanctx)
+			return true;
+	}
 
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP) {
 		if ((vif->type != NL80211_IFTYPE_AP) ||

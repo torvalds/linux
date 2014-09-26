@@ -454,6 +454,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	for (i = 0; i < IWL_MVM_STATION_COUNT; i++)
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
 
+	/* reset quota debouncing buffer - 0xff will yield invalid data */
+	memset(&mvm->last_quota_cmd, 0xff, sizeof(mvm->last_quota_cmd));
+
 	/* Add auxiliary station for scanning */
 	ret = iwl_mvm_add_aux_sta(mvm);
 	if (ret)

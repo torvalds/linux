@@ -85,8 +85,6 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 		adapter->scan_processing = false;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
-		if (priv->report_scan_result)
-			priv->report_scan_result = false;
 		break;
 
 	case HostCmd_CMD_MAC_CONTROL:

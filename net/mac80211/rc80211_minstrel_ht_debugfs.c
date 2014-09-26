@@ -46,8 +46,10 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		else
 			p += sprintf(p, "HT%c0/%cGI ", htmode, gimode);
 
-		*(p++) = (idx == mi->max_tp_rate) ? 'T' : ' ';
-		*(p++) = (idx == mi->max_tp_rate2) ? 't' : ' ';
+		*(p++) = (idx == mi->max_tp_rate[0]) ? 'A' : ' ';
+		*(p++) = (idx == mi->max_tp_rate[1]) ? 'B' : ' ';
+		*(p++) = (idx == mi->max_tp_rate[2]) ? 'C' : ' ';
+		*(p++) = (idx == mi->max_tp_rate[3]) ? 'D' : ' ';
 		*(p++) = (idx == mi->max_prob_rate) ? 'P' : ' ';
 
 		if (i == max_mcs) {
@@ -100,8 +102,8 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 
 	file->private_data = ms;
 	p = ms->buf;
-	p += sprintf(p, "type         rate     throughput  ewma prob   this prob  "
-			"retry   this succ/attempt   success    attempts\n");
+	p += sprintf(p, "type           rate     throughput  ewma prob   "
+		     "this prob  retry   this succ/attempt   success    attempts\n");
 
 	p = minstrel_ht_stats_dump(mi, max_mcs, p);
 	for (i = 0; i < max_mcs; i++)

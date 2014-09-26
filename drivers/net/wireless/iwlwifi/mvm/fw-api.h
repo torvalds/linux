@@ -205,6 +205,10 @@ enum {
 	REPLY_SF_CFG_CMD = 0xd1,
 	REPLY_BEACON_FILTERING_CMD = 0xd2,
 
+	/* DTS measurements */
+	CMD_DTS_MEASUREMENT_TRIGGER = 0xdc,
+	DTS_MEASUREMENT_NOTIFICATION = 0xdd,
+
 	REPLY_DEBUG_CMD = 0xf0,
 	DEBUG_LOG_MSG = 0xf7,
 
@@ -550,7 +554,7 @@ enum iwl_time_event_type {
 	TE_WIDI_TX_SYNC,
 
 	/* Channel Switch NoA */
-	TE_P2P_GO_CSA_NOA,
+	TE_CHANNEL_SWITCH_PERIOD,
 
 	TE_MAX
 }; /* MAC_EVENT_TYPE_API_E_VER_1 */
@@ -1601,6 +1605,8 @@ enum iwl_sf_scenario {
 
 #define SF_LONG_DELAY_AGING_TIMER 1000000	/* 1 Sec */
 
+#define SF_CFG_DUMMY_NOTIF_OFF	BIT(16)
+
 /**
  * Smart Fifo configuration command.
  * @state: smart fifo state, types listed in enum %iwl_sf_sate.
@@ -1615,5 +1621,33 @@ struct iwl_sf_cfg_cmd {
 	__le32 long_delay_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
 	__le32 full_on_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
 } __packed; /* SF_CFG_API_S_VER_2 */
+
+/* DTS measurements */
+
+enum iwl_dts_measurement_flags {
+	DTS_TRIGGER_CMD_FLAGS_TEMP	= BIT(0),
+	DTS_TRIGGER_CMD_FLAGS_VOLT	= BIT(1),
+};
+
+/**
+ * iwl_dts_measurement_cmd - request DTS temperature and/or voltage measurements
+ *
+ * @flags: indicates which measurements we want as specified in &enum
+ *	   iwl_dts_measurement_flags
+ */
+struct iwl_dts_measurement_cmd {
+	__le32 flags;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_CMD_S */
+
+/**
+ * iwl_dts_measurement_notif - notification received with the measurements
+ *
+ * @temp: the measured temperature
+ * @voltage: the measured voltage
+ */
+struct iwl_dts_measurement_notif {
+	__le32 temp;
+	__le32 voltage;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S */
 
 #endif /* __fw_api_h__ */

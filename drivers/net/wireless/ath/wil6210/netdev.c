@@ -17,10 +17,13 @@
 #include <linux/etherdevice.h>
 
 #include "wil6210.h"
+#include "txrx.h"
 
 static int wil_open(struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	return wil_up(wil);
 }
@@ -29,6 +32,8 @@ static int wil_stop(struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	return wil_down(wil);
 }
 
@@ -36,8 +41,10 @@ static int wil_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
-	if (new_mtu < 68 || new_mtu > IEEE80211_MAX_DATA_LEN_DMG)
+	if (new_mtu < 68 || new_mtu > (TX_BUF_LEN - ETH_HLEN)) {
+		wil_err(wil, "invalid MTU %d\n", new_mtu);
 		return -EINVAL;
+	}
 
 	wil_dbg_misc(wil, "change MTU %d -> %d\n", ndev->mtu, new_mtu);
 	ndev->mtu = new_mtu;
@@ -121,6 +128,8 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	wil->csr = csr;
 	wil->wdev = wdev;
 
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	rc = wil_priv_init(wil);
 	if (rc) {
 		dev_err(dev, "wil_priv_init failed\n");
@@ -169,6 +178,8 @@ void wil_if_free(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	if (!ndev)
 		return;
 
@@ -185,6 +196,8 @@ int wil_if_add(struct wil6210_priv *wil)
 	struct net_device *ndev = wil_to_ndev(wil);
 	int rc;
 
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	rc = register_netdev(ndev);
 	if (rc < 0) {
 		dev_err(&ndev->dev, "Failed to register netdev: %d\n", rc);
@@ -199,6 +212,8 @@ int wil_if_add(struct wil6210_priv *wil)
 void wil_if_remove(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	unregister_netdev(ndev);
 }

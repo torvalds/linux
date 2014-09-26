@@ -102,6 +102,8 @@ struct smp_cmd_security_req {
 	__u8	auth_req;
 } __packed;
 
+#define SMP_CMD_MAX		0x0b
+
 #define SMP_PASSKEY_ENTRY_FAILED	0x01
 #define SMP_OOB_NOT_AVAIL		0x02
 #define SMP_AUTH_REQUIREMENTS		0x03
@@ -122,6 +124,14 @@ enum {
 	SMP_LTK,
 	SMP_LTK_SLAVE,
 };
+
+static inline u8 smp_ltk_sec_level(struct smp_ltk *key)
+{
+	if (key->authenticated)
+		return BT_SECURITY_HIGH;
+
+	return BT_SECURITY_MEDIUM;
+}
 
 /* SMP Commands */
 bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level);

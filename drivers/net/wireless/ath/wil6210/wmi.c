@@ -157,6 +157,7 @@ int wmi_read_hdr(struct wil6210_priv *wil, __le32 ptr,
 		 struct wil6210_mbox_hdr *hdr)
 {
 	void __iomem *src = wmi_buffer(wil, ptr);
+
 	if (!src)
 		return -EINVAL;
 
@@ -278,6 +279,7 @@ static void wmi_evt_ready(struct wil6210_priv *wil, int id, void *d, int len)
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
 	struct wmi_ready_event *evt = d;
+
 	wil->fw_version = le32_to_cpu(evt->sw_version);
 	wil->n_mids = evt->numof_additional_mids;
 
@@ -298,7 +300,7 @@ static void wmi_evt_fw_ready(struct wil6210_priv *wil, int id, void *d,
 	wil_dbg_wmi(wil, "WMI: got FW ready event\n");
 
 	set_bit(wil_status_fwready, &wil->status);
-	/* reuse wmi_ready for the firmware ready indication */
+	/* let the reset sequence continue */
 	complete(&wil->wmi_ready);
 }
 
@@ -595,27 +597,40 @@ static void wmi_evt_ba_status(struct wil6210_priv *wil, int id, void *d,
 		return;
 	}
 
+	mutex_lock(&wil->mutex);
+
 	cid = wil->vring2cid_tid[evt->ringid][0];
 	if (cid >= WIL6210_MAX_CID) {
 		wil_err(wil, "invalid CID %d for vring %d\n", cid, evt->ringid);
-		return;
+		goto out;
 	}
 
 	sta = &wil->sta[cid];
 	if (sta->status == wil_sta_unused) {
 		wil_err(wil, "CID %d unused\n", cid);
-		return;
+		goto out;
 	}
 
 	wil_dbg_wmi(wil, "BACK for CID %d %pM\n", cid, sta->addr);
 	for (i = 0; i < WIL_STA_TID_NUM; i++) {
-		struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
+		struct wil_tid_ampdu_rx *r;
+		unsigned long flags;
+
+		spin_lock_irqsave(&sta->tid_rx_lock, flags);
+
+		r = sta->tid_rx[i];
 		sta->tid_rx[i] = NULL;
 		wil_tid_ampdu_rx_free(wil, r);
+
+		spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
+
 		if ((evt->status == WMI_BA_AGREED) && evt->agg_wsize)
 			sta->tid_rx[i] = wil_tid_ampdu_rx_alloc(wil,
 						evt->agg_wsize, 0);
 	}
+
+out:
+	mutex_unlock(&wil->mutex);
 }
 
 static const struct {
@@ -653,7 +668,7 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 	unsigned n;
 
 	if (!test_bit(wil_status_reset_done, &wil->status)) {
-		wil_err(wil, "Reset not completed\n");
+		wil_err(wil, "Reset in progress. Cannot handle WMI event\n");
 		return;
 	}
 
@@ -708,6 +723,7 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 			struct wil6210_mbox_hdr_wmi *wmi = &evt->event.wmi;
 			u16 id = le16_to_cpu(wmi->id);
 			u32 tstamp = le32_to_cpu(wmi->timestamp);
+
 			wil_dbg_wmi(wil, "WMI event 0x%04x MID %d @%d msec\n",
 				    id, wmi->mid, tstamp);
 			trace_wil6210_wmi_event(wmi, &wmi[1],
@@ -748,8 +764,8 @@ int wmi_call(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len,
 	wil->reply_id = reply_id;
 	wil->reply_buf = reply;
 	wil->reply_size = reply_size;
-	remain = wait_for_completion_timeout(&wil->wmi_ready,
-			msecs_to_jiffies(to_msec));
+	remain = wait_for_completion_timeout(&wil->wmi_call,
+					     msecs_to_jiffies(to_msec));
 	if (0 == remain) {
 		wil_err(wil, "wmi_call(0x%04x->0x%04x) timeout %d msec\n",
 			cmdid, reply_id, to_msec);
@@ -953,8 +969,11 @@ int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie)
 	int rc;
 	u16 len = sizeof(struct wmi_set_appie_cmd) + ie_len;
 	struct wmi_set_appie_cmd *cmd = kzalloc(len, GFP_KERNEL);
+
 	if (!cmd)
 		return -ENOMEM;
+	if (!ie)
+		ie_len = 0;
 
 	cmd->mgmt_frm_type = type;
 	/* BUG: FW API define ieLen as u8. Will fix FW */
@@ -1128,6 +1147,9 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 		struct wil6210_mbox_hdr_wmi *wmi = (void *)(&hdr[1]);
 		void *evt_data = (void *)(&wmi[1]);
 		u16 id = le16_to_cpu(wmi->id);
+
+		wil_dbg_wmi(wil, "Handle WMI 0x%04x (reply_id 0x%04x)\n",
+			    id, wil->reply_id);
 		/* check if someone waits for this event */
 		if (wil->reply_id && wil->reply_id == id) {
 			if (wil->reply_buf) {
@@ -1138,7 +1160,7 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 						     len - sizeof(*wmi));
 			}
 			wil_dbg_wmi(wil, "Complete WMI 0x%04x\n", id);
-			complete(&wil->wmi_ready);
+			complete(&wil->wmi_call);
 			return;
 		}
 		/* unsolicited event */
@@ -1184,9 +1206,11 @@ void wmi_event_worker(struct work_struct *work)
 	struct pending_wmi_event *evt;
 	struct list_head *lh;
 
+	wil_dbg_wmi(wil, "Start %s\n", __func__);
 	while ((lh = next_wmi_ev(wil)) != NULL) {
 		evt = list_entry(lh, struct pending_wmi_event, list);
 		wmi_event_handle(wil, &evt->event.hdr);
 		kfree(evt);
 	}
+	wil_dbg_wmi(wil, "Finished %s\n", __func__);
 }

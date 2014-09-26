@@ -620,8 +620,8 @@ static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 	/* De-alloc array of command/tx buffers */
 	if (txq_id == trans_pcie->cmd_queue)
 		for (i = 0; i < txq->q.n_window; i++) {
-			kfree(txq->entries[i].cmd);
-			kfree(txq->entries[i].free_buf);
+			kzfree(txq->entries[i].cmd);
+			kzfree(txq->entries[i].free_buf);
 		}
 
 	/* De-alloc circular buffer of TFDs */
@@ -1080,7 +1080,8 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 		fifo = cfg->fifo;
 
 		/* Disable the scheduler prior configuring the cmd queue */
-		if (txq_id == trans_pcie->cmd_queue)
+		if (txq_id == trans_pcie->cmd_queue &&
+		    trans_pcie->scd_set_active)
 			iwl_scd_enable_set_active(trans, 0);
 
 		/* Stop this Tx queue before configuring it */
@@ -1142,7 +1143,8 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 			       SCD_QUEUE_STTS_REG_MSK);
 
 		/* enable the scheduler for this queue (only) */
-		if (txq_id == trans_pcie->cmd_queue)
+		if (txq_id == trans_pcie->cmd_queue &&
+		    trans_pcie->scd_set_active)
 			iwl_scd_enable_set_active(trans, BIT(txq_id));
 	}
 
@@ -1407,7 +1409,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 
 	out_meta->flags = cmd->flags;
 	if (WARN_ON_ONCE(txq->entries[idx].free_buf))
-		kfree(txq->entries[idx].free_buf);
+		kzfree(txq->entries[idx].free_buf);
 	txq->entries[idx].free_buf = dup_buf;
 
 	trace_iwlwifi_dev_hcmd(trans->dev, cmd, cmd_size, &out_cmd->hdr);

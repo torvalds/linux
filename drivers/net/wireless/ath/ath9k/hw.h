@@ -29,6 +29,7 @@
 #include "reg.h"
 #include "phy.h"
 #include "btcoex.h"
+#include "dynack.h"
 
 #include "../regd.h"
 
@@ -924,6 +925,8 @@ struct ath_hw {
 	int (*external_reset)(void);
 
 	const struct firmware *eeprom_blob;
+
+	struct ath_dynack dynack;
 };
 
 struct ath_bus_ops {
@@ -1079,6 +1082,10 @@ void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
 
 void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning);
 void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan);
+
+void ath9k_hw_set_ack_timeout(struct ath_hw *ah, u32 us);
+void ath9k_hw_set_cts_timeout(struct ath_hw *ah, u32 us);
+void ath9k_hw_setslottime(struct ath_hw *ah, u32 us);
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)

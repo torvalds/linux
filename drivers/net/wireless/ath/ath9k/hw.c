@@ -647,6 +647,8 @@ int ath9k_hw_init(struct ath_hw *ah)
 		return ret;
 	}
 
+	ath_dynack_init(ah);
+
 	return 0;
 }
 EXPORT_SYMBOL(ath9k_hw_init);
@@ -935,21 +937,21 @@ static void ath9k_hw_set_sifs_time(struct ath_hw *ah, u32 us)
 	REG_WRITE(ah, AR_D_GBL_IFS_SIFS, val);
 }
 
-static void ath9k_hw_setslottime(struct ath_hw *ah, u32 us)
+void ath9k_hw_setslottime(struct ath_hw *ah, u32 us)
 {
 	u32 val = ath9k_hw_mac_to_clks(ah, us);
 	val = min(val, (u32) 0xFFFF);
 	REG_WRITE(ah, AR_D_GBL_IFS_SLOT, val);
 }
 
-static void ath9k_hw_set_ack_timeout(struct ath_hw *ah, u32 us)
+void ath9k_hw_set_ack_timeout(struct ath_hw *ah, u32 us)
 {
 	u32 val = ath9k_hw_mac_to_clks(ah, us);
 	val = min(val, (u32) MS(0xFFFFFFFF, AR_TIME_OUT_ACK));
 	REG_RMW_FIELD(ah, AR_TIME_OUT, AR_TIME_OUT_ACK, val);
 }
 
-static void ath9k_hw_set_cts_timeout(struct ath_hw *ah, u32 us)
+void ath9k_hw_set_cts_timeout(struct ath_hw *ah, u32 us)
 {
 	u32 val = ath9k_hw_mac_to_clks(ah, us);
 	val = min(val, (u32) MS(0xFFFFFFFF, AR_TIME_OUT_CTS));
@@ -1051,6 +1053,14 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	    !IS_CHAN_HALF_RATE(chan) && !IS_CHAN_QUARTER_RATE(chan)) {
 		acktimeout += 64 - sifstime - ah->slottime;
 		ctstimeout += 48 - sifstime - ah->slottime;
+	}
+
+	if (ah->dynack.enabled) {
+		acktimeout = ah->dynack.ackto;
+		ctstimeout = acktimeout;
+		slottime = (acktimeout - 3) / 2;
+	} else {
+		ah->dynack.ackto = acktimeout;
 	}
 
 	ath9k_hw_set_sifs_time(ah, sifstime);
@@ -1953,6 +1963,12 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	if (AR_SREV_9565(ah) && common->bt_ant_diversity)
 		REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV, AR_BTCOEX_WL_LNADIV_FORCE_ON);
+
+	if (ah->hw->conf.radar_enabled) {
+		/* set HW specific DFS configuration */
+		ah->radar_conf.ext_channel = IS_CHAN_HT40(chan);
+		ath9k_hw_set_radar_params(ah);
+	}
 
 	return 0;
 }

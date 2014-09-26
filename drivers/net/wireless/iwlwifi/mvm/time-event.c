@@ -700,9 +700,9 @@ void iwl_mvm_stop_p2p_roc(struct iwl_mvm *mvm)
 	iwl_mvm_roc_finished(mvm);
 }
 
-int iwl_mvm_schedule_csa_noa(struct iwl_mvm *mvm,
-			      struct ieee80211_vif *vif,
-			      u32 duration, u32 apply_time)
+int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
+				struct ieee80211_vif *vif,
+				u32 duration, u32 apply_time)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
@@ -711,14 +711,14 @@ int iwl_mvm_schedule_csa_noa(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	if (te_data->running) {
-		IWL_DEBUG_TE(mvm, "CS NOA is already scheduled\n");
+		IWL_DEBUG_TE(mvm, "CS period is already scheduled\n");
 		return -EBUSY;
 	}
 
 	time_cmd.action = cpu_to_le32(FW_CTXT_ACTION_ADD);
 	time_cmd.id_and_color =
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
-	time_cmd.id = cpu_to_le32(TE_P2P_GO_CSA_NOA);
+	time_cmd.id = cpu_to_le32(TE_CHANNEL_SWITCH_PERIOD);
 	time_cmd.apply_time = cpu_to_le32(apply_time);
 	time_cmd.max_frags = TE_V2_FRAG_NONE;
 	time_cmd.duration = cpu_to_le32(duration);

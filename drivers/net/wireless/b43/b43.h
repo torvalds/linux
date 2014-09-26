@@ -45,6 +45,7 @@
 #define B43_MMIO_RAM_DATA		0x134
 #define B43_MMIO_PS_STATUS		0x140
 #define B43_MMIO_RADIO_HWENABLED_HI	0x158
+#define B43_MMIO_MAC_HW_CAP		0x15C	/* MAC capabilities (corerev >= 13) */
 #define B43_MMIO_SHM_CONTROL		0x160
 #define B43_MMIO_SHM_DATA		0x164
 #define B43_MMIO_SHM_DATA_UNALIGNED	0x166
@@ -253,6 +254,8 @@ enum {
 #define B43_SHM_SH_CHAN			0x00A0	/* Current channel (low 8bit only) */
 #define  B43_SHM_SH_CHAN_5GHZ		0x0100	/* Bit set, if 5 Ghz channel */
 #define  B43_SHM_SH_CHAN_40MHZ		0x0200	/* Bit set, if 40 Mhz channel width */
+#define B43_SHM_SH_MACHW_L		0x00C0	/* Location where the ucode expects the MAC capabilities */
+#define B43_SHM_SH_MACHW_H		0x00C2	/* Location where the ucode expects the MAC capabilities */
 #define B43_SHM_SH_HOSTF5		0x00D4	/* Hostflags 5 for ucode options */
 #define B43_SHM_SH_BCMCFIFOID		0x0108	/* Last posted cookie to the bcast/mcast FIFO */
 /* TSSI information */
@@ -297,6 +300,7 @@ enum {
 #define B43_SHM_SH_LFFBLIM		0x0046	/* Long frame fallback retry limit */
 #define B43_SHM_SH_BEACPHYCTL		0x0054	/* Beacon PHY TX control word (see PHY TX control) */
 #define B43_SHM_SH_EXTNPHYCTL		0x00B0	/* Extended bytes for beacon PHY control (N) */
+#define B43_SHM_SH_BCN_LI		0x00B6	/* beacon listen interval */
 /* SHM_SHARED ACK/CTS control */
 #define B43_SHM_SH_ACKCTSPHYCTL		0x0022	/* ACK/CTS PHY control word (see PHY TX control) */
 /* SHM_SHARED probe response variables */
@@ -475,6 +479,11 @@ enum {
 #define B43_MACCMD_DFQ_VALID		0x00000004	/* Directed frame queue valid (IBSS PS mode, ATIM) */
 #define B43_MACCMD_CCA			0x00000008	/* Clear channel assessment */
 #define B43_MACCMD_BGNOISE		0x00000010	/* Background noise */
+
+/* B43_MMIO_PSM_PHY_HDR bits */
+#define B43_PSM_HDR_MAC_PHY_RESET	0x00000001
+#define B43_PSM_HDR_MAC_PHY_CLOCK_EN	0x00000002
+#define B43_PSM_HDR_MAC_PHY_FORCE_CLK	0x00000004
 
 /* See BCMA_CLKCTLST_EXTRESREQ and BCMA_CLKCTLST_EXTRESST */
 #define B43_BCMA_CLKCTLST_80211_PLL_REQ	0x00000100

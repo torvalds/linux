@@ -587,6 +587,10 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				memcpy(tx_info->control.rates, rates, sizeof(rates));
 				ath_tx_rc_status(sc, bf, ts, nframes, nbad, txok);
 				rc_update = false;
+				if (bf == bf->bf_lastbf)
+					ath_dynack_sample_tx_ts(sc->sc_ah,
+								bf->bf_mpdu,
+								ts);
 			}
 
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, ts,
@@ -687,6 +691,7 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 			memcpy(info->control.rates, bf->rates,
 			       sizeof(info->control.rates));
 			ath_tx_rc_status(sc, bf, ts, 1, txok ? 0 : 1, txok);
+			ath_dynack_sample_tx_ts(sc->sc_ah, bf->bf_mpdu, ts);
 		}
 		ath_tx_complete_buf(sc, bf, txq, bf_head, ts, txok);
 	} else

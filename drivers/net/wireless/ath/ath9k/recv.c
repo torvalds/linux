@@ -387,7 +387,9 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->hw->conf.radar_enabled)
 		rfilt |= ATH9K_RX_FILTER_PHYRADAR | ATH9K_RX_FILTER_PHYERR;
 
-	if (sc->rx.rxfilter & FIF_PROBE_REQ)
+	spin_lock_bh(&sc->chan_lock);
+
+	if (sc->cur_chan->rxfilter & FIF_PROBE_REQ)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
 	/*
@@ -398,24 +400,25 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->sc_ah->is_monitoring)
 		rfilt |= ATH9K_RX_FILTER_PROM;
 
-	if (sc->rx.rxfilter & FIF_CONTROL)
+	if ((sc->cur_chan->rxfilter & FIF_CONTROL) ||
+	    sc->sc_ah->dynack.enabled)
 		rfilt |= ATH9K_RX_FILTER_CONTROL;
 
 	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) &&
-	    (sc->nvifs <= 1) &&
-	    !(sc->rx.rxfilter & FIF_BCN_PRBRESP_PROMISC))
+	    (sc->cur_chan->nvifs <= 1) &&
+	    !(sc->cur_chan->rxfilter & FIF_BCN_PRBRESP_PROMISC))
 		rfilt |= ATH9K_RX_FILTER_MYBEACON;
 	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
 	if ((sc->sc_ah->opmode == NL80211_IFTYPE_AP) ||
-	    (sc->rx.rxfilter & FIF_PSPOLL))
+	    (sc->cur_chan->rxfilter & FIF_PSPOLL))
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
-	if (conf_is_ht(&sc->hw->conf))
+	if (sc->cur_chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
 		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
 
-	if (sc->nvifs > 1 || (sc->rx.rxfilter & FIF_OTHER_BSS)) {
+	if (sc->cur_chan->nvifs > 1 || (sc->cur_chan->rxfilter & FIF_OTHER_BSS)) {
 		/* This is needed for older chips */
 		if (sc->sc_ah->hw_version.macVersion <= AR_SREV_VERSION_9160)
 			rfilt |= ATH9K_RX_FILTER_PROM;
@@ -429,18 +432,20 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	    test_bit(ATH_OP_SCANNING, &common->op_flags))
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
+	spin_unlock_bh(&sc->chan_lock);
+
 	return rfilt;
 
 }
 
-int ath_startrecv(struct ath_softc *sc)
+void ath_startrecv(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_rxbuf *bf, *tbf;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		ath_edma_start_recv(sc);
-		return 0;
+		return;
 	}
 
 	if (list_empty(&sc->rx.rxbuf))
@@ -463,8 +468,6 @@ int ath_startrecv(struct ath_softc *sc)
 start_recv:
 	ath_opmode_init(sc);
 	ath9k_hw_startpcureceive(ah, sc->cur_chan->offchannel);
-
-	return 0;
 }
 
 static void ath_flushrecv(struct ath_softc *sc)
@@ -535,6 +538,7 @@ static bool ath_beacon_dtim_pending_cab(struct sk_buff *skb)
 static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	bool skip_beacon = false;
 
 	if (skb->len < 24 + 8 + 2 + 2)
 		return;
@@ -545,7 +549,16 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		sc->ps_flags &= ~PS_BEACON_SYNC;
 		ath_dbg(common, PS,
 			"Reconfigure beacon timers based on synchronized timestamp\n");
-		if (!(WARN_ON_ONCE(sc->cur_chan->beacon.beacon_interval == 0)))
+
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+		if (ath9k_is_chanctx_enabled()) {
+			if (sc->cur_chan == &sc->offchannel.chan)
+				skip_beacon = true;
+		}
+#endif
+
+		if (!skip_beacon &&
+		    !(WARN_ON_ONCE(sc->cur_chan->beacon.beacon_interval == 0)))
 			ath9k_set_beacon(sc);
 
 		ath9k_p2p_beacon_sync(sc);
@@ -867,8 +880,13 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	 * everything but the rate is checked here, the rate check is done
 	 * separately to avoid doing two lookups for a rate for each frame.
 	 */
-	if (!ath9k_cmn_rx_accept(common, hdr, rx_status, rx_stats, decrypt_error, sc->rx.rxfilter))
+	spin_lock_bh(&sc->chan_lock);
+	if (!ath9k_cmn_rx_accept(common, hdr, rx_status, rx_stats, decrypt_error,
+				 sc->cur_chan->rxfilter)) {
+		spin_unlock_bh(&sc->chan_lock);
 		return -EINVAL;
+	}
+	spin_unlock_bh(&sc->chan_lock);
 
 	if (ath_is_mybeacon(common, hdr)) {
 		RX_STAT_INC(rx_beacons);
@@ -894,7 +912,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 
 	if (ath9k_is_chanctx_enabled()) {
 		if (rx_stats->is_mybeacon)
-			ath_chanctx_beacon_recv_ev(sc, rx_stats->rs_tstamp,
+			ath_chanctx_beacon_recv_ev(sc,
 					   ATH_CHANCTX_EVENT_BEACON_RECEIVED);
 	}
 
@@ -992,6 +1010,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	unsigned long flags;
 	dma_addr_t new_buf_addr;
 	unsigned int budget = 512;
+	struct ieee80211_hdr *hdr;
 
 	if (edma)
 		dma_type = DMA_BIDIRECTIONAL;
@@ -1120,6 +1139,10 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		ath9k_antenna_check(sc, &rs);
 		ath9k_apply_ampdu_details(sc, &rs, rxs);
 		ath_debug_rate_stats(sc, &rs, skb);
+
+		hdr = (struct ieee80211_hdr *)skb->data;
+		if (ieee80211_is_ack(hdr->frame_control))
+			ath_dynack_sample_ack_ts(sc->sc_ah, skb, rs.rs_tstamp);
 
 		ieee80211_rx(hw, skb);
 

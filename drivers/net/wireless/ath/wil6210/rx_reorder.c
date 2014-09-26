@@ -98,21 +98,24 @@ void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
 	int mid = wil_rxdesc_mid(d);
 	u16 seq = wil_rxdesc_seq(d);
 	struct wil_sta_info *sta = &wil->sta[cid];
-	struct wil_tid_ampdu_rx *r = sta->tid_rx[tid];
+	struct wil_tid_ampdu_rx *r;
 	u16 hseq;
 	int index;
+	unsigned long flags;
 
 	wil_dbg_txrx(wil, "MID %d CID %d TID %d Seq 0x%03x\n",
 		     mid, cid, tid, seq);
 
+	spin_lock_irqsave(&sta->tid_rx_lock, flags);
+
+	r = sta->tid_rx[tid];
 	if (!r) {
+		spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
 		wil_netif_rx_any(skb, ndev);
 		return;
 	}
 
 	hseq = r->head_seq_num;
-
-	spin_lock(&r->reorder_lock);
 
 	/** Due to the race between WMI events, where BACK establishment
 	 * reported, and data Rx, few packets may be pass up before reorder
@@ -176,13 +179,14 @@ void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
 	wil_reorder_release(wil, r);
 
 out:
-	spin_unlock(&r->reorder_lock);
+	spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
 }
 
 struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 						int size, u16 ssn)
 {
 	struct wil_tid_ampdu_rx *r = kzalloc(sizeof(*r), GFP_KERNEL);
+
 	if (!r)
 		return NULL;
 
@@ -197,7 +201,6 @@ struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 		return NULL;
 	}
 
-	spin_lock_init(&r->reorder_lock);
 	r->ssn = ssn;
 	r->head_seq_num = ssn;
 	r->buf_size = size;

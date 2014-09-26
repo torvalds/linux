@@ -1233,6 +1233,7 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 	struct sk_buff *skb_tmp = NULL;
 	struct mwifiex_pcie_buf_desc *desc;
 	struct mwifiex_pfu_buf_desc *desc2;
+	unsigned long flags;
 
 	if (!mwifiex_pcie_ok_to_access_hw(adapter))
 		mwifiex_pm_wakeup_card(adapter);
@@ -1271,12 +1272,29 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 		 */
 		pkt_len = *((__le16 *)skb_data->data);
 		rx_len = le16_to_cpu(pkt_len);
-		skb_put(skb_data, rx_len);
-		dev_dbg(adapter->dev,
-			"info: RECV DATA: Rd=%#x, Wr=%#x, Len=%d\n",
-			card->rxbd_rdptr, wrptr, rx_len);
-		skb_pull(skb_data, INTF_HEADER_LEN);
-		mwifiex_handle_rx_packet(adapter, skb_data);
+		if (WARN_ON(rx_len <= INTF_HEADER_LEN ||
+			    rx_len > MWIFIEX_RX_DATA_BUF_SIZE)) {
+			dev_err(adapter->dev,
+				"Invalid RX len %d, Rd=%#x, Wr=%#x\n",
+				rx_len, card->rxbd_rdptr, wrptr);
+			dev_kfree_skb_any(skb_data);
+		} else {
+			skb_put(skb_data, rx_len);
+			dev_dbg(adapter->dev,
+				"info: RECV DATA: Rd=%#x, Wr=%#x, Len=%d\n",
+				card->rxbd_rdptr, wrptr, rx_len);
+			skb_pull(skb_data, INTF_HEADER_LEN);
+			if (adapter->rx_work_enabled) {
+				spin_lock_irqsave(&adapter->rx_q_lock, flags);
+				skb_queue_tail(&adapter->rx_data_q, skb_data);
+				spin_unlock_irqrestore(&adapter->rx_q_lock,
+						       flags);
+				adapter->data_received = true;
+				atomic_inc(&adapter->rx_pending);
+			} else {
+				mwifiex_handle_rx_packet(adapter, skb_data);
+			}
+		}
 
 		skb_tmp = dev_alloc_skb(MWIFIEX_RX_DATA_BUF_SIZE);
 		if (!skb_tmp) {
@@ -1718,6 +1736,13 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 		   buffer is released. This is just to make things simpler,
 		   we need to find a better method of managing these buffers.
 		*/
+	} else {
+		if (mwifiex_write_reg(adapter, PCIE_CPU_INT_EVENT,
+				      CPU_INTR_EVENT_DONE)) {
+			dev_warn(adapter->dev,
+				 "Write register failed\n");
+			return -1;
+		}
 	}
 
 	return 0;

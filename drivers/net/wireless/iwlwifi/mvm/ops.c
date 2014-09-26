@@ -332,6 +332,8 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(BCAST_FILTER_CMD),
 	CMD(REPLY_SF_CFG_CMD),
 	CMD(REPLY_BEACON_FILTERING_CMD),
+	CMD(CMD_DTS_MEASUREMENT_TRIGGER),
+	CMD(DTS_MEASUREMENT_NOTIFICATION),
 	CMD(REPLY_THERMAL_MNG_BACKOFF),
 	CMD(MAC_PM_POWER_TABLE),
 	CMD(BT_COEX_CI),
@@ -363,6 +365,8 @@ static u32 calc_min_backoff(struct iwl_trans *trans, const struct iwl_cfg *cfg)
 
 	return 0;
 }
+
+static void iwl_mvm_fw_error_dump_wk(struct work_struct *work);
 
 static struct iwl_op_mode *
 iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
@@ -431,6 +435,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_WORK(&mvm->roc_done_wk, iwl_mvm_roc_done_wk);
 	INIT_WORK(&mvm->sta_drained_wk, iwl_mvm_sta_drained_wk);
 	INIT_WORK(&mvm->d0i3_exit_work, iwl_mvm_d0i3_exit_work);
+	INIT_WORK(&mvm->fw_error_dump_wk, iwl_mvm_fw_error_dump_wk);
 
 	spin_lock_init(&mvm->d0i3_tx_lock);
 	spin_lock_init(&mvm->refs_lock);
@@ -460,6 +465,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	trans_cfg.cmd_queue = IWL_MVM_CMD_QUEUE;
 	trans_cfg.cmd_fifo = IWL_MVM_TX_FIFO_CMD;
+	trans_cfg.scd_set_active = true;
 
 	snprintf(mvm->hw->wiphy->fw_version,
 		 sizeof(mvm->hw->wiphy->fw_version),
@@ -781,6 +787,16 @@ static void iwl_mvm_reprobe_wk(struct work_struct *wk)
 	module_put(THIS_MODULE);
 }
 
+static void iwl_mvm_fw_error_dump_wk(struct work_struct *work)
+{
+	struct iwl_mvm *mvm =
+		container_of(work, struct iwl_mvm, fw_error_dump_wk);
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_fw_error_dump(mvm);
+	mutex_unlock(&mvm->mutex);
+}
+
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 {
 	iwl_abort_notification_waits(&mvm->notif_wait);
@@ -846,6 +862,8 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 		if (fw_error && mvm->restart_fw > 0)
 			mvm->restart_fw--;
 		ieee80211_restart_hw(mvm->hw);
+	} else if (fw_error) {
+		schedule_work(&mvm->fw_error_dump_wk);
 	}
 }
 
