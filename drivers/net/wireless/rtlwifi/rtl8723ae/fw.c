@@ -26,6 +26,7 @@
 #include "../wifi.h"
 #include "../pci.h"
 #include "../base.h"
+#include "../core.h"
 #include "reg.h"
 #include "def.h"
 #include "fw.h"
@@ -473,7 +474,7 @@ void rtl8723e_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 	memcpy((u8 *)skb_put(skb, totalpacketlen),
 	       &reserved_page_packet, totalpacketlen);
 
-	rtstatus = rtl8723_cmd_send_packet(hw, skb);
+	rtstatus = rtl_cmd_send_packet(hw, skb);
 
 	if (rtstatus)
 		b_dlok = true;

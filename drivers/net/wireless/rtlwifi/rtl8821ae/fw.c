@@ -26,6 +26,7 @@
 #include "../wifi.h"
 #include "../pci.h"
 #include "../base.h"
+#include "../core.h"
 #include "reg.h"
 #include "def.h"
 #include "fw.h"
@@ -740,39 +741,6 @@ void rtl8821ae_set_fw_global_info_cmd(struct ieee80211_hw *hw)
 	RT_PRINT_DATA(rtlpriv, COMP_CMD, DBG_TRACE,
 		      "rtl8821ae_set_global_info: cmd 0x82:\n",
 		      remote_wakeup_sec_info, H2C_8821AE_AOAC_GLOBAL_INFO_LEN);
-}
-
-static bool _rtl8821ae_cmd_send_packet(struct ieee80211_hw *hw,
-				struct sk_buff *skb)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	struct rtl8192_tx_ring *ring;
-	struct rtl_tx_desc *pdesc;
-	struct sk_buff *pskb = NULL;
-	u8 own;
-	unsigned long flags;
-
-	ring = &rtlpci->tx_ring[BEACON_QUEUE];
-
-	pskb = __skb_dequeue(&ring->queue);
-	if (pskb)
-		kfree_skb(pskb);
-
-	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
-
-	pdesc = &ring->desc[0];
-	own = (u8)rtlpriv->cfg->ops->get_desc((u8 *)pdesc, true, HW_DESC_OWN);
-
-	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *)pdesc, 1, 1, skb);
-
-	__skb_queue_tail(&ring->queue, skb);
-
-	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
-
-	rtlpriv->cfg->ops->tx_polling(hw, BEACON_QUEUE);
-
-	return true;
 }
 
 #define BEACON_PG		0
@@ -1581,7 +1549,7 @@ out:
 	memcpy((u8 *)skb_put(skb, totalpacketlen),
 	       &reserved_page_packet_8812, totalpacketlen);
 
-	rtstatus = _rtl8821ae_cmd_send_packet(hw, skb);
+	rtstatus = rtl_cmd_send_packet(hw, skb);
 
 	if (rtstatus)
 		b_dlok = true;
@@ -1706,7 +1674,7 @@ out:
 	memcpy((u8 *)skb_put(skb, totalpacketlen),
 	       &reserved_page_packet_8821, totalpacketlen);
 
-	rtstatus = _rtl8821ae_cmd_send_packet(hw, skb);
+	rtstatus = rtl_cmd_send_packet(hw, skb);
 
 	if (rtstatus)
 		b_dlok = true;

@@ -122,7 +122,6 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 	.fill_tx_desc = rtl92cu_tx_fill_desc,
 	.fill_fake_txdesc = rtl92cu_fill_fake_txdesc,
 	.fill_tx_cmddesc = rtl92cu_tx_fill_cmddesc,
-	.cmd_send_packet = rtl92cu_cmd_send_packet,
 	.query_rx_desc = rtl92cu_rx_query_desc,
 	.set_channel_access = rtl92cu_update_channel_access_setting,
 	.radio_onoff_checking = rtl92cu_gpio_radio_on_off_checking,
