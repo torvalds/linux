@@ -721,6 +721,10 @@ void rk3036_hdmi_control_output(struct hdmi *hdmi_drv, int enable)
 	struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv,
 						       struct rk_hdmi_device,
 						       driver);
+	if (hdmi_drv->uboot_logo) {
+		hdmi_drv->uboot_logo = 0;
+		return;
+	}
 
 	if (enable) {
 		if (hdmi_drv->pwr_mode == LOWER_PWR)
@@ -801,6 +805,7 @@ static int rk3036_hdmi_debug(struct hdmi *hdmi_drv,int cmd)
 	switch(cmd) {
 	case 0:
 		printk("%s[%d]:cmd=%d\n",__func__,__LINE__,cmd);
+		rk3036_hdmi_irq(hdmi_drv);
 		break;
 	case 1:
 		printk("%s[%d]:cmd=%d\n",__func__,__LINE__,cmd);
@@ -830,9 +835,10 @@ int rk3036_hdmi_initial(struct hdmi *hdmi_drv)
 	hdmi_drv->insert    = rk3036_hdmi_insert;
 	hdmi_drv->ops = &hdmi_drv_ops;
 
-	rk3036_hdmi_reset_pclk();
-	rk3036_hdmi_reset(hdmi_drv);
-
+	if (!hdmi_drv->uboot_logo) {
+		rk3036_hdmi_reset_pclk();
+		rk3036_hdmi_reset(hdmi_drv);
+	}
 	if (hdmi_drv->hdcp_power_on_cb)
 		rc = hdmi_drv->hdcp_power_on_cb();
 
