@@ -191,7 +191,6 @@ static int rt286_hw_write(void *context, unsigned int reg, unsigned int value)
 	/*handle index registers*/
 	if (reg <= 0xff) {
 		rt286_hw_write(client, RT286_COEF_INDEX, reg);
-		reg = RT286_PROC_COEF;
 		for (i = 0; i < INDEX_CACHE_SIZE; i++) {
 			if (reg == rt286->index_cache[i].reg) {
 				rt286->index_cache[i].def = value;
@@ -199,6 +198,7 @@ static int rt286_hw_write(void *context, unsigned int reg, unsigned int value)
 			}
 
 		}
+		reg = RT286_PROC_COEF;
 	}
 
 	data[0] = (reg >> 24) & 0xff;
