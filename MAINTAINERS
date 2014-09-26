@@ -1156,6 +1156,16 @@ W:	http://www.digriz.org.uk/ts78xx/kernel
 S:	Maintained
 F:	arch/arm/mach-orion5x/ts78xx-*
 
+ARM/Mediatek SoC support
+M:	Matthias Brugger <matthias.bgg@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/boot/dts/mt6*
+F:	arch/arm/boot/dts/mt8*
+F:	arch/arm/mach-mediatek/
+N:	mtk
+K:	mediatek
+
 ARM/MICREL KS8695 ARCHITECTURE
 M:	Greg Ungerer <gerg@uclinux.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
