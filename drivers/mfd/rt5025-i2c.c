@@ -63,28 +63,22 @@ EXPORT_SYMBOL(rt5025_reg_block_write);
 
 int rt5025_reg_read(struct i2c_client *i2c, int reg)
 {
-	struct rt5025_chip *chip = i2c_get_clientdata(i2c);
 	int ret;
 
 	RTINFO("I2C Read (client : 0x%x) reg = 0x%x\n",
 		(unsigned int) i2c, (unsigned int) reg);
-	mutex_lock(&chip->io_lock);
 	ret = i2c_smbus_read_byte_data(i2c, reg);
-	mutex_unlock(&chip->io_lock);
 	return ret;
 }
 EXPORT_SYMBOL(rt5025_reg_read);
 
 int rt5025_reg_write(struct i2c_client *i2c, int reg, unsigned char data)
 {
-	struct rt5025_chip *chip = i2c_get_clientdata(i2c);
 	int ret;
 
 	RTINFO("I2C Write (client : 0x%x) reg = 0x%x, data = 0x%x\n",
 		(unsigned int) i2c, (unsigned int) reg, (unsigned int) data);
-	mutex_lock(&chip->io_lock);
 	ret = i2c_smbus_write_byte_data(i2c, reg, data);
-	mutex_unlock(&chip->io_lock);
 	return ret;
 }
 EXPORT_SYMBOL(rt5025_reg_write);
@@ -92,11 +86,8 @@ EXPORT_SYMBOL(rt5025_reg_write);
 int rt5025_assign_bits(struct i2c_client *i2c, int reg,
 		unsigned char mask, unsigned char data)
 {
-	struct rt5025_chip *chip = i2c_get_clientdata(i2c);
 	unsigned char value;
 	int ret;
-
-	mutex_lock(&chip->io_lock);
 
 	ret = rt5025_read_device(i2c, reg, 1, &value);
 
@@ -106,7 +97,6 @@ int rt5025_assign_bits(struct i2c_client *i2c, int reg,
 	value |= (data&mask);
 	ret = i2c_smbus_write_byte_data(i2c, reg, value);
 out:
-	mutex_unlock(&chip->io_lock);
 	return ret;
 }
 EXPORT_SYMBOL(rt5025_assign_bits);

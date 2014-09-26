@@ -678,6 +678,17 @@
 		usb_bc{
 			compatible = "inno,phy";
 			regbase = &dwc_control_usb;
+			rk_usb,bvalid     = <0x14c  5 1>;
+			rk_usb,iddig      = <0x14c  8 1>;
+			rk_usb,vdmsrcen   = <0x184 12 1>;
+			rk_usb,vdpsrcen   = <0x184 11 1>;
+			rk_usb,rdmpden    = <0x184 10 1>;
+			rk_usb,idpsrcen   = <0x184  9 1>;
+			rk_usb,idmsinken  = <0x184  8 1>;
+			rk_usb,idpsinken  = <0x184  7 1>;
+			rk_usb,dpattach   = <0x2c0  7 1>;
+			rk_usb,cpdet      = <0x2c0  6 1>;
+			rk_usb,dcpattach  = <0x2c0  5 1>;
 		};
 	};
 
@@ -687,7 +698,7 @@
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates1 5>, <&clk_gates5 13>;
 		clock-names = "clk_usbphy0", "hclk_usb0";
-		resets = <&reset RK3128_RST_USBOTG0>, <&reset RK3128_RST_USBOTG0>,
+		resets = <&reset RK3128_RST_USBOTG0>, <&reset RK3128_RST_UTMI0>,
 				<&reset RK3128_RST_OTGC0>;
 		reset-names = "otg_ahb", "otg_phy", "otg_controller";
 		/*0 - Normal, 1 - Force Host, 2 - Force Device*/

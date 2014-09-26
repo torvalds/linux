@@ -86,7 +86,7 @@
         hp_volume = <25>;
         capture_volume = <26>;
         gpio_debug = <1>;
-        codec_hp_det = <0>;
+        codec_hp_det = <1>;
 };
 
 &rk3128_cif_sensor{

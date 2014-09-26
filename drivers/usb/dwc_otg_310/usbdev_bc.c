@@ -16,8 +16,13 @@
 
 #include "usbdev_rk.h"
 
-/****** GET and SET REGISTER FIELDS IN GRF UOC ******/
+char *bc_string[USB_BC_TYPE_MAX] = {"DISCONNECT",
+				    "Stander Downstream Port",
+				    "Dedicated Charging Port",
+				    "Charging Downstream Port",
+				    "UNKNOW"};
 
+/****** GET and SET REGISTER FIELDS IN GRF UOC ******/
 #define BC_GET(x) grf_uoc_get_field(&pBC_UOC_FIELDS[x])
 #define BC_SET(x, v) grf_uoc_set_field(&pBC_UOC_FIELDS[x], v)
 
@@ -99,7 +104,31 @@ static inline void uoc_init_rk(struct device_node *np)
 
 static inline void uoc_init_inno(struct device_node *np)
 {
-	;
+	pBC_UOC_FIELDS = (uoc_field_t *)
+			 kzalloc(INNO_BC_MAX * sizeof(uoc_field_t), GFP_ATOMIC);
+
+	uoc_init_field(np, "rk_usb,bvalid",
+			   &pBC_UOC_FIELDS[INNO_BC_BVALID]);
+	uoc_init_field(np, "rk_usb,iddig",
+			   &pBC_UOC_FIELDS[INNO_BC_IDDIG]);
+	uoc_init_field(np, "rk_usb,vdmsrcen",
+			   &pBC_UOC_FIELDS[INNO_BC_VDMSRCEN]);
+	uoc_init_field(np, "rk_usb,vdpsrcen",
+			   &pBC_UOC_FIELDS[INNO_BC_VDPSRCEN]);
+	uoc_init_field(np, "rk_usb,rdmpden",
+			   &pBC_UOC_FIELDS[INNO_BC_RDMPDEN]);
+	uoc_init_field(np, "rk_usb,idpsrcen",
+			   &pBC_UOC_FIELDS[INNO_BC_IDPSRCEN]);
+	uoc_init_field(np, "rk_usb,idmsinken",
+			   &pBC_UOC_FIELDS[INNO_BC_IDMSINKEN]);
+	uoc_init_field(np, "rk_usb,idpsinken",
+			   &pBC_UOC_FIELDS[INNO_BC_IDPSINKEN]);
+	uoc_init_field(np, "rk_usb,dpattach",
+			   &pBC_UOC_FIELDS[INNO_BC_DPATTACH]);
+	uoc_init_field(np, "rk_usb,cpdet",
+			   &pBC_UOC_FIELDS[INNO_BC_CPDET]);
+	uoc_init_field(np, "rk_usb,dcpattach",
+			   &pBC_UOC_FIELDS[INNO_BC_DCPATTACH]);
 }
 
 /****** BATTERY CHARGER DETECT FUNCTIONS ******/
@@ -107,7 +136,7 @@ static inline void uoc_init_inno(struct device_node *np)
 int usb_battery_charger_detect_rk(bool wait)
 {
 
-	int port_type = USB_BC_TYPE_DISCNT;
+	enum bc_port_type port_type = USB_BC_TYPE_DISCNT;
 
 	if (BC_GET(RK_BC_BVALID) &&
 	    BC_GET(RK_BC_IDDIG)) {
@@ -143,14 +172,84 @@ int usb_battery_charger_detect_rk(bool wait)
 
 int usb_battery_charger_detect_inno(bool wait)
 {
-	return readl(RK_GRF_VIRT + RK312X_GRF_SOC_STATUS0) & (1 << 8);
+	enum bc_port_type port_type = USB_BC_TYPE_DISCNT;
+	int dcd_state = DCD_POSITIVE;
+	int timeout = 0, i = 0;
+
+	/* VBUS Valid detect */
+	if (BC_GET(SYNOP_BC_BVALID) &&
+		BC_GET(SYNOP_BC_IDDIG)) {
+		if (wait) {
+			/* Do DCD */
+			dcd_state = DCD_TIMEOUT;
+			BC_SET(INNO_BC_RDMPDEN, 1);
+			BC_SET(INNO_BC_IDPSRCEN, 1);
+			timeout = T_DCD_TIMEOUT;
+			while (timeout--) {
+				if (BC_GET(INNO_BC_DPATTACH))
+					i++;
+				if (i >= 3) {
+					/* It is a filter here to assure data
+					 * lines contacted for at least 3ms */
+					dcd_state = DCD_POSITIVE;
+					break;
+				}
+				mdelay(1);
+			}
+			BC_SET(INNO_BC_RDMPDEN, 0);
+			BC_SET(INNO_BC_IDPSRCEN, 0);
+		} else {
+			dcd_state = DCD_PASSED;
+		}
+		if (dcd_state == DCD_TIMEOUT) {
+			port_type = USB_BC_TYPE_UNKNOW;
+			goto out;
+		}
+
+		/* Turn on VDPSRC */
+		/* Primary Detection */
+		BC_SET(INNO_BC_VDPSRCEN, 1);
+		BC_SET(INNO_BC_IDMSINKEN, 1);
+		udelay(T_BC_CHGDET_VALID);
+
+		/* SDP and CDP/DCP distinguish */
+		if (BC_GET(INNO_BC_CPDET)) {
+			/* Turn off VDPSRC */
+			BC_SET(INNO_BC_VDPSRCEN, 0);
+			BC_SET(INNO_BC_IDMSINKEN, 0);
+
+			udelay(T_BC_CHGDET_VALID);
+
+			/* Turn on VDMSRC */
+			BC_SET(INNO_BC_VDMSRCEN, 1);
+			BC_SET(INNO_BC_IDPSINKEN, 1);
+			udelay(T_BC_CHGDET_VALID);
+			if (BC_GET(INNO_BC_DCPATTACH))
+				port_type = USB_BC_TYPE_DCP;
+			else
+				port_type = USB_BC_TYPE_CDP;
+		} else {
+			port_type = USB_BC_TYPE_SDP;
+		}
+
+		BC_SET(INNO_BC_VDPSRCEN, 0);
+		BC_SET(INNO_BC_IDMSINKEN, 0);
+		BC_SET(INNO_BC_VDMSRCEN, 0);
+		BC_SET(INNO_BC_IDPSINKEN, 0);
+
+	}
+out:
+	printk("%s, Charger type %s, %s DCD, dcd_state = %d\n", __func__,
+	       bc_string[port_type], wait ? "wait" : "pass", dcd_state);
+	return port_type;
+
 }
 
 /* When do BC detect PCD pull-up register should be disabled  */
 /* wait wait for dcd timeout 900ms */
 int usb_battery_charger_detect_synop(bool wait)
 {
-	int port_type = USB_BC_TYPE_DISCNT;
+	enum bc_port_type port_type = USB_BC_TYPE_DISCNT;
 	int dcd_state = DCD_POSITIVE;
 	int timeout = 0, i = 0;
 
@@ -217,8 +316,8 @@ int usb_battery_charger_detect_synop(bool wait)
 
 	}
 out:
-	printk("%s , battery_charger_detect %d, %s DCD, dcd_state = %d\n",
-	       __func__, port_type, wait ? "wait" : "pass", dcd_state);
+	printk("%s, Charger type %s, %s DCD, dcd_state = %d\n", __func__,
+	       bc_string[port_type], wait ? "wait" : "pass", dcd_state);
 	return port_type;
 }
 

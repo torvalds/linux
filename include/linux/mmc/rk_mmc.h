@@ -128,6 +128,7 @@ struct mmc_data;
  */
 struct dw_mci {
 	spinlock_t		lock;
+	spinlock_t		slock;
 	void __iomem		*regs;
 
 	struct scatterlist	*sg;
@@ -141,6 +142,7 @@ struct dw_mci {
 	unsigned int		prev_blksz;
 	unsigned char		timing;
 	struct workqueue_struct	*card_workqueue;
+	struct delayed_work	resume_rescan;
 
 	/* DMA interface members*/
 	int			use_dma;

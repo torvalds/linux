@@ -45,6 +45,7 @@ source "drivers/net/wireless/rockchip_wlan/rtl8192du/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723au/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723bu/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723bs/Kconfig"
+source "drivers/net/wireless/rockchip_wlan/rtl8812au/Kconfig"
 endchoice
 endif
 

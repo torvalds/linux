@@ -602,7 +602,7 @@
 
 	lcdc: lcdc@10118000 {
 		compatible = "rockchip,rk3036-lcdc";
-		reg = <0x10118000 0x200>;
+		reg = <0x10118000 0x1000>;
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 		clocks = <&clk_gates9 6>, <&dclk_lcdc1>, <&clk_gates9 5>;
@@ -700,7 +700,10 @@
 			|RKPM_CTR_GTCLKS
 			|RKPM_CTR_PLLS
 			|RKPM_CTR_IDLESRAM_MD
-                        |RKPM_CTR_DDR
+			|RKPM_CTR_DDR
+			|RKPM_CTR_VOLTS
+			|RKPM_CTR_VOL_PWM2
+
 			//|RKPM_CTR_GPIOS
 			//|RKPM_CTR_SYSCLK_DIV
 			//|RKPM_CTR_IDLEAUTO_MD

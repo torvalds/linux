@@ -39,6 +39,7 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <sound/tlv.h>
+#include <linux/switch.h>
 #include "rk312x_codec.h"
 
 static int debug = -1;
@@ -56,7 +57,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CODEC_SET_SPK 1
 #define CODEC_SET_HP 2
 #define SWITCH_SPK 1
-
+#define BIT_HEADSET             (1 << 0)
+#define BIT_HEADSET_NO_MIC      (1 << 1)
+#define GRF_ACODEC_CON  0x013c
+#define GRF_SOC_STATUS0 0x014c
 /* volume setting
  *  0: -39dB
  *  26: 0dB
@@ -111,6 +115,9 @@ struct rk312x_codec_priv {
 	long int capture_path;
 	long int voice_call_path;
 	struct clk	*pclk;
+    struct switch_dev sdev;
+    struct timer_list timer;
+    struct work_struct work;
 };
 static struct rk312x_codec_priv *rk312x_priv;
 
@@ -1703,8 +1710,8 @@ static int rk312x_digital_mute(struct snd_soc_dai *dai, int mute)
 
 static struct rk312x_reg_val_typ playback_power_up_list[] = {
 	{0x18, 0x32},
-	{0xa0, 0x40},
-	{0xa0, 0x62},
+	{0xa0, 0x40|0x08},
+	{0xa0, 0x62|0x08},
 	{0xa4, 0x88},
 	{0xa4, 0xcc},
 	{0xa4, 0xee},
@@ -1716,7 +1723,7 @@ static struct rk312x_reg_val_typ playback_power_up_list[] = {
 	{0xa8, 0x77},
 	{0xa4, 0xff},
 	{0xb0, 0xff},
-	{0xa0, 0x73},
+	{0xa0, 0x73|0x08},
 	{0xb4, OUT_VOLUME},
 	{0xb8, OUT_VOLUME},
 };
@@ -1728,11 +1735,11 @@ static struct rk312x_reg_val_typ playback_power_down_list[] = {
 	{0xa8, 0x44},
 	{0xac, 0x00},
 	{0xb0, 0x92},
-	{0xa0, 0x22},
+	{0xa0, 0x22|0x08},
 	{0xb0, 0x00},
 	{0xa8, 0x00},
 	{0xa4, 0x00},
-	{0xa0, 0x00},
+	{0xa0, 0x00|0x08},
 	{0x18, 0x22},
 #ifdef WITH_CAP
 	/* {0xbc, 0x08},*/
@@ -1809,6 +1816,7 @@ static int rk312x_codec_power_up(int type)
 				    RK312x_MUXINL_F_MSK | RK312x_MUXINR_F_MSK,
 				    RK312x_MUXINR_F_INR | RK312x_MUXINL_F_INL);
 	}
+
 	return 0;
 }
 
@@ -2058,6 +2066,17 @@ static struct snd_soc_dai_driver rk312x_dai[] = {
 
 static int rk312x_suspend(struct snd_soc_codec *codec)
 {
+    unsigned int val=0;
+    DBG("%s\n", __func__);
+    if(rk312x_priv->codec_hp_det)
+    {
+        /* disable hp det interrupt */
+        val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+        writel_relaxed(0x1f0013, RK_GRF_VIRT + GRF_ACODEC_CON);
+        val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+        printk("GRF_ACODEC_CON is 0x%x\n", val);
+        del_timer(&rk312x_priv->timer);
+    }
 	if (rk312x_priv->rk312x_for_mid) {
 		cancel_delayed_work_sync(&capture_delayed_work);
 
@@ -2140,11 +2159,67 @@ static struct gpio_attribute gpio_attrs[] = {
 
 static int rk312x_resume(struct snd_soc_codec *codec)
 {
+    unsigned int val=0;
+    DBG("%s\n", __func__);
+    if(rk312x_priv->codec_hp_det)
+    {
+        /* enable hp det interrupt */
+        snd_soc_write(codec, RK312x_DAC_CTL, 0x08);
+        printk("0xa0 -- 0x%x\n",snd_soc_read(codec, RK312x_DAC_CTL));
+        val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+        writel_relaxed(0x1f001f, RK_GRF_VIRT + GRF_ACODEC_CON);
+        val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+        printk("GRF_ACODEC_CON is 0x%x\n", val);
+        add_timer(&rk312x_priv->timer);
+    }
 	if (!rk312x_priv->rk312x_for_mid)
 		rk312x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 }
 
+static irqreturn_t codec_hp_det_isr(int irq, void *data)
+{
+    unsigned int val = 0;
+    val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+    DBG("%s GRF_ACODEC_CON -- 0x%x\n", __func__, val);
+    if(val&0x1)
+    {
+        DBG("%s hp det rising\n", __func__);
+        writel_relaxed(val|0x10001, RK_GRF_VIRT + GRF_ACODEC_CON);
+    }
+    else if(val&0x2)
+    {
+        DBG("%s hp det falling\n", __func__);
+        writel_relaxed(val|0x20002, RK_GRF_VIRT + GRF_ACODEC_CON);
+    }
+    del_timer(&rk312x_priv->timer);
+    add_timer(&rk312x_priv->timer);
+    return IRQ_HANDLED;
+}
+static void hp_det_timer_func(unsigned long data)
+{
+    unsigned int val = 0;
+
+    val = readl_relaxed(RK_GRF_VIRT + GRF_SOC_STATUS0);
+    DBG("%s GRF_SOC_STATUS0 -- 0x%x\n", __func__, val);
+    if(val & 0x80000000)
+    {
+        DBG("%s hp det high\n", __func__);
+        DBG("%s no headset\n", __func__);
+        switch_set_state(&rk312x_priv->sdev, 0);
+    }
+    else
+    {
+        DBG("%s hp det low\n", __func__);
+        DBG("%s headset inserted\n", __func__);
+        switch_set_state(&rk312x_priv->sdev, BIT_HEADSET_NO_MIC);
+    }
+    return;
+}
+static ssize_t h2w_print_name(struct switch_dev *sdev, char *buf)
+{
+    return sprintf(buf, "Headset\n");
+}
 static int rk312x_probe(struct snd_soc_codec *codec)
 {
 	struct rk312x_codec_priv *rk312x_codec =
@@ -2196,6 +2271,7 @@ static int rk312x_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, RK312x_SELECT_CURRENT, 0x1e);
 	snd_soc_write(codec, RK312x_SELECT_CURRENT, 0x3e);
 #endif
+
 	snd_soc_add_codec_controls(codec, rk312x_snd_path_controls,
 				   ARRAY_SIZE(rk312x_snd_path_controls));
 	if (rk312x_codec->gpio_debug) {
@@ -2211,6 +2287,31 @@ static int rk312x_probe(struct snd_soc_codec *codec)
 			}
 		}
 	}
+    if(rk312x_codec->codec_hp_det)
+    {
+        /*init codec_hp_det interrupt */
+        ret =request_irq(96, codec_hp_det_isr, IRQF_TRIGGER_RISING, "codec_hp_det", NULL);
+        if(ret < 0)
+        {
+            printk(" codec_hp_det request_irq failed %d\n", ret);
+        }
+        init_timer(&rk312x_codec->timer);
+        rk312x_codec->timer.function = hp_det_timer_func;
+        rk312x_codec->timer.expires = jiffies + HZ/100;
+        rk312x_codec->sdev.name = "h2w";
+        rk312x_codec->sdev.print_name = h2w_print_name;
+        ret = switch_dev_register(&rk312x_codec->sdev);
+        if(ret)
+            printk(KERN_ERR"register switch dev failed\n");
+        val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+        writel_relaxed(0x1f001f, RK_GRF_VIRT + GRF_ACODEC_CON);
+        val = readl_relaxed(RK_GRF_VIRT + GRF_ACODEC_CON);
+        printk("GRF_ACODEC_CON 3334is 0x%x\n", val);
+        snd_soc_write(codec, RK312x_DAC_CTL, 0x08);
+        printk("0xa0 -- 0x%x\n",snd_soc_read(codec, RK312x_DAC_CTL));
+        /* codec hp det once */
+        add_timer(&rk312x_priv->timer);
+    }
 	return 0;
 
 err__:
@@ -2441,6 +2542,7 @@ err__:
 static int rk312x_platform_remove(struct platform_device *pdev)
 {
 	rk312x_priv = NULL;
+    DBG("%s\n", __func__);
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }

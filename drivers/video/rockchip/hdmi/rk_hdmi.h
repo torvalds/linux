@@ -331,6 +331,7 @@ struct hdmi {
 	struct switch_dev switch_hdmi;
 #endif
 
+	struct mutex lock;
 	struct workqueue_struct *workqueue;
 	struct delayed_work delay_work;
 

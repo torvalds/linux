@@ -83,6 +83,37 @@
 			1008000 1200000
 			1200000 1325000
 			>;
+
+			virt-temp-limit-1-cpu-busy = <
+			/* target-temp	limit-freq */
+				75	1008000
+				85	1200000
+				95	1200000
+				100	1200000
+				>;
+			virt-temp-limit-2-cpu-busy = <
+			/* target-temp	limit-freq */
+				75	912000
+				85	1008000
+				95	1104000
+				100	1200000
+				>;
+			virt-temp-limit-3-cpu-busy = <
+			/* target-temp	limit-freq */
+				75	816000
+				85	912000
+				95	100800
+				100	110400
+				>;
+			virt-temp-limit-4-cpu-busy = <
+			/* target-temp	limit-freq */
+				75	696000
+				85	816000
+				95	912000
+				100	100800
+				>;
+			temp-limit-enable = <1>;
+			target-temp = <85>;
 		status="okay";
 	};
 
@@ -206,6 +237,10 @@
 		enable_dma = <0>;	        
 	};
 	*/
+};
+
+&gmac_clkin {
+	clock-frequency = <125000000>;
 };
 
 &gmac {
