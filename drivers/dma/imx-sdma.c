@@ -1334,7 +1334,7 @@ err_firmware:
 	release_firmware(fw);
 }
 
-static int __init sdma_get_firmware(struct sdma_engine *sdma,
+static int sdma_get_firmware(struct sdma_engine *sdma,
 		const char *fw_name)
 {
 	int ret;
