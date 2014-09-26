@@ -1001,6 +1001,269 @@ instruction that loads 64-bit immediate value into a dst_reg.
 Classic BPF has similar instruction: BPF_LD | BPF_W | BPF_IMM which loads
 32-bit immediate value into a register.
 
+eBPF verifier
+-------------
+The safety of the eBPF program is determined in two steps.
+
+First step does DAG check to disallow loops and other CFG validation.
+In particular it will detect programs that have unreachable instructions.
+(though classic BPF checker allows them)
+
+Second step starts from the first insn and descends all possible paths.
+It simulates execution of every insn and observes the state change of
+registers and stack.
+
+At the start of the program the register R1 contains a pointer to context
+and has type PTR_TO_CTX.
+If verifier sees an insn that does R2=R1, then R2 has now type
+PTR_TO_CTX as well and can be used on the right hand side of expression.
+If R1=PTR_TO_CTX and insn is R2=R1+R1, then R2=UNKNOWN_VALUE,
+since addition of two valid pointers makes invalid pointer.
+(In 'secure' mode verifier will reject any type of pointer arithmetic to make
+sure that kernel addresses don't leak to unprivileged users)
+
+If register was never written to, it's not readable:
+  bpf_mov R0 = R2
+  bpf_exit
+will be rejected, since R2 is unreadable at the start of the program.
+
+After kernel function call, R1-R5 are reset to unreadable and
+R0 has a return type of the function.
+
+Since R6-R9 are callee saved, their state is preserved across the call.
+  bpf_mov R6 = 1
+  bpf_call foo
+  bpf_mov R0 = R6
+  bpf_exit
+is a correct program. If there was R1 instead of R6, it would have
+been rejected.
+
+load/store instructions are allowed only with registers of valid types, which
+are PTR_TO_CTX, PTR_TO_MAP, FRAME_PTR. They are bounds and alignment checked.
+For example:
+ bpf_mov R1 = 1
+ bpf_mov R2 = 2
+ bpf_xadd *(u32 *)(R1 + 3) += R2
+ bpf_exit
+will be rejected, since R1 doesn't have a valid pointer type at the time of
+execution of instruction bpf_xadd.
+
+At the start R1 type is PTR_TO_CTX (a pointer to generic 'struct bpf_context')
+A callback is used to customize verifier to restrict eBPF program access to only
+certain fields within ctx structure with specified size and alignment.
+
+For example, the following insn:
+  bpf_ld R0 = *(u32 *)(R6 + 8)
+intends to load a word from address R6 + 8 and store it into R0
+If R6=PTR_TO_CTX, via is_valid_access() callback the verifier will know
+that offset 8 of size 4 bytes can be accessed for reading, otherwise
+the verifier will reject the program.
+If R6=FRAME_PTR, then access should be aligned and be within
+stack bounds, which are [-MAX_BPF_STACK, 0). In this example offset is 8,
+so it will fail verification, since it's out of bounds.
+
+The verifier will allow eBPF program to read data from stack only after
+it wrote into it.
+Classic BPF verifier does similar check with M[0-15] memory slots.
+For example:
+  bpf_ld R0 = *(u32 *)(R10 - 4)
+  bpf_exit
+is invalid program.
+Though R10 is correct read-only register and has type FRAME_PTR
+and R10 - 4 is within stack bounds, there were no stores into that location.
+
+Pointer register spill/fill is tracked as well, since four (R6-R9)
+callee saved registers may not be enough for some programs.
+
+Allowed function calls are customized with bpf_verifier_ops->get_func_proto()
+The eBPF verifier will check that registers match argument constraints.
+After the call register R0 will be set to return type of the function.
+
+Function calls is a main mechanism to extend functionality of eBPF programs.
+Socket filters may let programs to call one set of functions, whereas tracing
+filters may allow completely different set.
+
+If a function made accessible to eBPF program, it needs to be thought through
+from safety point of view. The verifier will guarantee that the function is
+called with valid arguments.
+
+seccomp vs socket filters have different security restrictions for classic BPF.
+Seccomp solves this by two stage verifier: classic BPF verifier is followed
+by seccomp verifier. In case of eBPF one configurable verifier is shared for
+all use cases.
+
+See details of eBPF verifier in kernel/bpf/verifier.c
+
+eBPF maps
+---------
+'maps' is a generic storage of different types for sharing data between kernel
+and userspace.
+
+The maps are accessed from user space via BPF syscall, which has commands:
+- create a map with given type and attributes
+  map_fd = bpf(BPF_MAP_CREATE, union bpf_attr *attr, u32 size)
+  using attr->map_type, attr->key_size, attr->value_size, attr->max_entries
+  returns process-local file descriptor or negative error
+
+- lookup key in a given map
+  err = bpf(BPF_MAP_LOOKUP_ELEM, union bpf_attr *attr, u32 size)
+  using attr->map_fd, attr->key, attr->value
+  returns zero and stores found elem into value or negative error
+
+- create or update key/value pair in a given map
+  err = bpf(BPF_MAP_UPDATE_ELEM, union bpf_attr *attr, u32 size)
+  using attr->map_fd, attr->key, attr->value
+  returns zero or negative error
+
+- find and delete element by key in a given map
+  err = bpf(BPF_MAP_DELETE_ELEM, union bpf_attr *attr, u32 size)
+  using attr->map_fd, attr->key
+
+- to delete map: close(fd)
+  Exiting process will delete maps automatically
+
+userspace programs use this syscall to create/access maps that eBPF programs
+are concurrently updating.
+
+maps can have different types: hash, array, bloom filter, radix-tree, etc.
+
+The map is defined by:
+  . type
+  . max number of elements
+  . key size in bytes
+  . value size in bytes
+
+Understanding eBPF verifier messages
+------------------------------------
+
+The following are few examples of invalid eBPF programs and verifier error
+messages as seen in the log:
+
+Program with unreachable instructions:
+static struct bpf_insn prog[] = {
+  BPF_EXIT_INSN(),
+  BPF_EXIT_INSN(),
+};
+Error:
+  unreachable insn 1
+
+Program that reads uninitialized register:
+  BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+  BPF_EXIT_INSN(),
+Error:
+  0: (bf) r0 = r2
+  R2 !read_ok
+
+Program that doesn't initialize R0 before exiting:
+  BPF_MOV64_REG(BPF_REG_2, BPF_REG_1),
+  BPF_EXIT_INSN(),
+Error:
+  0: (bf) r2 = r1
+  1: (95) exit
+  R0 !read_ok
+
+Program that accesses stack out of bounds:
+  BPF_ST_MEM(BPF_DW, BPF_REG_10, 8, 0),
+  BPF_EXIT_INSN(),
+Error:
+  0: (7a) *(u64 *)(r10 +8) = 0
+  invalid stack off=8 size=8
+
+Program that doesn't initialize stack before passing its address into function:
+  BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+  BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+  BPF_LD_MAP_FD(BPF_REG_1, 0),
+  BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
+  BPF_EXIT_INSN(),
+Error:
+  0: (bf) r2 = r10
+  1: (07) r2 += -8
+  2: (b7) r1 = 0x0
+  3: (85) call 1
+  invalid indirect read from stack off -8+0 size 8
+
+Program that uses invalid map_fd=0 while calling to map_lookup_elem() function:
+  BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+  BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+  BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+  BPF_LD_MAP_FD(BPF_REG_1, 0),
+  BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
+  BPF_EXIT_INSN(),
+Error:
+  0: (7a) *(u64 *)(r10 -8) = 0
+  1: (bf) r2 = r10
+  2: (07) r2 += -8
+  3: (b7) r1 = 0x0
+  4: (85) call 1
+  fd 0 is not pointing to valid bpf_map
+
+Program that doesn't check return value of map_lookup_elem() before accessing
+map element:
+  BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+  BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+  BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+  BPF_LD_MAP_FD(BPF_REG_1, 0),
+  BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
+  BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 0),
+  BPF_EXIT_INSN(),
+Error:
+  0: (7a) *(u64 *)(r10 -8) = 0
+  1: (bf) r2 = r10
+  2: (07) r2 += -8
+  3: (b7) r1 = 0x0
+  4: (85) call 1
+  5: (7a) *(u64 *)(r0 +0) = 0
+  R0 invalid mem access 'map_value_or_null'
+
+Program that correctly checks map_lookup_elem() returned value for NULL, but
+accesses the memory with incorrect alignment:
+  BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+  BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+  BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+  BPF_LD_MAP_FD(BPF_REG_1, 0),
+  BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
+  BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
+  BPF_ST_MEM(BPF_DW, BPF_REG_0, 4, 0),
+  BPF_EXIT_INSN(),
+Error:
+  0: (7a) *(u64 *)(r10 -8) = 0
+  1: (bf) r2 = r10
+  2: (07) r2 += -8
+  3: (b7) r1 = 1
+  4: (85) call 1
+  5: (15) if r0 == 0x0 goto pc+1
+   R0=map_ptr R10=fp
+  6: (7a) *(u64 *)(r0 +4) = 0
+  misaligned access off 4 size 8
+
+Program that correctly checks map_lookup_elem() returned value for NULL and
+accesses memory with correct alignment in one side of 'if' branch, but fails
+to do so in the other side of 'if' branch:
+  BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+  BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+  BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+  BPF_LD_MAP_FD(BPF_REG_1, 0),
+  BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
+  BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
+  BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 0),
+  BPF_EXIT_INSN(),
+  BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 1),
+  BPF_EXIT_INSN(),
+Error:
+  0: (7a) *(u64 *)(r10 -8) = 0
+  1: (bf) r2 = r10
+  2: (07) r2 += -8
+  3: (b7) r1 = 1
+  4: (85) call 1
+  5: (15) if r0 == 0x0 goto pc+2
+   R0=map_ptr R10=fp
+  6: (7a) *(u64 *)(r0 +0) = 0
+  7: (95) exit
+
+  from 5 to 8: R0=imm0 R10=fp
+  8: (7a) *(u64 *)(r0 +0) = 1
+  R0 invalid mem access 'imm'
+
 Testing
 -------
 

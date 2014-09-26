@@ -21,6 +21,7 @@
 struct sk_buff;
 struct sock;
 struct seccomp_data;
+struct bpf_prog_aux;
 
 /* ArgX, context and stack frame pointer register positions. Note,
  * Arg1, Arg2, Arg3, etc are used as argument mappings of function
@@ -143,6 +144,12 @@ struct seccomp_data;
 		.src_reg = 0,					\
 		.off   = 0,					\
 		.imm   = ((__u64) (IMM)) >> 32 })
+
+#define BPF_PSEUDO_MAP_FD	1
+
+/* pseudo BPF_LD_IMM64 insn used to refer to process-local map_fd */
+#define BPF_LD_MAP_FD(DST, MAP_FD)				\
+	BPF_LD_IMM64_RAW(DST, BPF_PSEUDO_MAP_FD, MAP_FD)
 
 /* Short form of mov based on type, BPF_X: dst_reg = src_reg, BPF_K: dst_reg = imm32 */
 
@@ -300,17 +307,12 @@ struct bpf_binary_header {
 	u8 image[];
 };
 
-struct bpf_work_struct {
-	struct bpf_prog *prog;
-	struct work_struct work;
-};
-
 struct bpf_prog {
 	u16			pages;		/* Number of allocated pages */
 	bool			jited;		/* Is our filter JIT'ed? */
 	u32			len;		/* Number of filter blocks */
 	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
-	struct bpf_work_struct	*work;		/* Deferred free work struct */
+	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
 	unsigned int		(*bpf_func)(const struct sk_buff *skb,
 					    const struct bpf_insn *filter);
 	/* Instructions for interpreter */

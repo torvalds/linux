@@ -27,6 +27,7 @@
 #include <linux/random.h>
 #include <linux/moduleloader.h>
 #include <asm/unaligned.h>
+#include <linux/bpf.h>
 
 /* Registers */
 #define BPF_R0	regs[BPF_REG_0]
@@ -71,7 +72,7 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 {
 	gfp_t gfp_flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO |
 			  gfp_extra_flags;
-	struct bpf_work_struct *ws;
+	struct bpf_prog_aux *aux;
 	struct bpf_prog *fp;
 
 	size = round_up(size, PAGE_SIZE);
@@ -79,14 +80,14 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 	if (fp == NULL)
 		return NULL;
 
-	ws = kmalloc(sizeof(*ws), GFP_KERNEL | gfp_extra_flags);
-	if (ws == NULL) {
+	aux = kzalloc(sizeof(*aux), GFP_KERNEL | gfp_extra_flags);
+	if (aux == NULL) {
 		vfree(fp);
 		return NULL;
 	}
 
 	fp->pages = size / PAGE_SIZE;
-	fp->work = ws;
+	fp->aux = aux;
 
 	return fp;
 }
@@ -110,10 +111,10 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 		memcpy(fp, fp_old, fp_old->pages * PAGE_SIZE);
 		fp->pages = size / PAGE_SIZE;
 
-		/* We keep fp->work from fp_old around in the new
+		/* We keep fp->aux from fp_old around in the new
 		 * reallocated structure.
 		 */
-		fp_old->work = NULL;
+		fp_old->aux = NULL;
 		__bpf_prog_free(fp_old);
 	}
 
@@ -123,7 +124,7 @@ EXPORT_SYMBOL_GPL(bpf_prog_realloc);
 
 void __bpf_prog_free(struct bpf_prog *fp)
 {
-	kfree(fp->work);
+	kfree(fp->aux);
 	vfree(fp);
 }
 EXPORT_SYMBOL_GPL(__bpf_prog_free);
@@ -638,19 +639,19 @@ EXPORT_SYMBOL_GPL(bpf_prog_select_runtime);
 
 static void bpf_prog_free_deferred(struct work_struct *work)
 {
-	struct bpf_work_struct *ws;
+	struct bpf_prog_aux *aux;
 
-	ws = container_of(work, struct bpf_work_struct, work);
-	bpf_jit_free(ws->prog);
+	aux = container_of(work, struct bpf_prog_aux, work);
+	bpf_jit_free(aux->prog);
 }
 
 /* Free internal BPF program */
 void bpf_prog_free(struct bpf_prog *fp)
 {
-	struct bpf_work_struct *ws = fp->work;
+	struct bpf_prog_aux *aux = fp->aux;
 
-	INIT_WORK(&ws->work, bpf_prog_free_deferred);
-	ws->prog = fp;
-	schedule_work(&ws->work);
+	INIT_WORK(&aux->work, bpf_prog_free_deferred);
+	aux->prog = fp;
+	schedule_work(&aux->work);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_free);
