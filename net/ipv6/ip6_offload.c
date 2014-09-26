@@ -53,31 +53,6 @@ static int ipv6_gso_pull_exthdrs(struct sk_buff *skb, int proto)
 	return proto;
 }
 
-static int ipv6_gso_send_check(struct sk_buff *skb)
-{
-	const struct ipv6hdr *ipv6h;
-	const struct net_offload *ops;
-	int err = -EINVAL;
-
-	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
-		goto out;
-
-	ipv6h = ipv6_hdr(skb);
-	__skb_pull(skb, sizeof(*ipv6h));
-	err = -EPROTONOSUPPORT;
-
-	ops = rcu_dereference(inet6_offloads[
-		ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr)]);
-
-	if (likely(ops && ops->callbacks.gso_send_check)) {
-		skb_reset_transport_header(skb);
-		err = ops->callbacks.gso_send_check(skb);
-	}
-
-out:
-	return err;
-}
-
 static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	netdev_features_t features)
 {
@@ -306,7 +281,6 @@ out_unlock:
 static struct packet_offload ipv6_packet_offload __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IPV6),
 	.callbacks = {
-		.gso_send_check = ipv6_gso_send_check,
 		.gso_segment = ipv6_gso_segment,
 		.gro_receive = ipv6_gro_receive,
 		.gro_complete = ipv6_gro_complete,
@@ -315,7 +289,6 @@ static struct packet_offload ipv6_packet_offload __read_mostly = {
 
 static const struct net_offload sit_offload = {
 	.callbacks = {
-		.gso_send_check = ipv6_gso_send_check,
 		.gso_segment	= ipv6_gso_segment,
 		.gro_receive	= ipv6_gro_receive,
 		.gro_complete	= ipv6_gro_complete,

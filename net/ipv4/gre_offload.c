@@ -15,13 +15,6 @@
 #include <net/protocol.h>
 #include <net/gre.h>
 
-static int gre_gso_send_check(struct sk_buff *skb)
-{
-	if (!skb->encapsulation)
-		return -EINVAL;
-	return 0;
-}
-
 static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 				       netdev_features_t features)
 {
@@ -44,6 +37,9 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 				  SKB_GSO_GRE |
 				  SKB_GSO_GRE_CSUM |
 				  SKB_GSO_IPIP)))
+		goto out;
+
+	if (!skb->encapsulation)
 		goto out;
 
 	if (unlikely(!pskb_may_pull(skb, sizeof(*greh))))
@@ -256,7 +252,6 @@ static int gre_gro_complete(struct sk_buff *skb, int nhoff)
 
 static const struct net_offload gre_offload = {
 	.callbacks = {
-		.gso_send_check = gre_gso_send_check,
 		.gso_segment = gre_gso_segment,
 		.gro_receive = gre_gro_receive,
 		.gro_complete = gre_gro_complete,
