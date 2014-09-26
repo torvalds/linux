@@ -53,42 +53,44 @@ static __u16 sd_dif_ip_fn(void *data, unsigned int len)
  * Type 1 and Type 2 protection use the same format: 16 bit guard tag,
  * 16 bit app tag, 32 bit reference tag.
  */
-static void sd_dif_type1_generate(struct blk_integrity_exchg *bix, csum_fn *fn)
+static void sd_dif_type1_generate(struct blk_integrity_iter *iter, csum_fn *fn)
 {
-	void *buf = bix->data_buf;
-	struct sd_dif_tuple *sdt = bix->prot_buf;
-	sector_t seed = bix->seed;
+	void *buf = iter->data_buf;
+	struct sd_dif_tuple *sdt = iter->prot_buf;
+	sector_t seed = iter->seed;
 	unsigned int i;
 
-	for (i = 0 ; i < bix->data_size ; i += bix->interval, sdt++) {
-		sdt->guard_tag = fn(buf, bix->interval);
+	for (i = 0 ; i < iter->data_size ; i += iter->interval, sdt++) {
+		sdt->guard_tag = fn(buf, iter->interval);
 		sdt->ref_tag = cpu_to_be32(seed & 0xffffffff);
 		sdt->app_tag = 0;
 
-		buf += bix->interval;
+		buf += iter->interval;
 		seed++;
 	}
 }
 
-static void sd_dif_type1_generate_crc(struct blk_integrity_exchg *bix)
+static int sd_dif_type1_generate_crc(struct blk_integrity_iter *iter)
 {
-	sd_dif_type1_generate(bix, sd_dif_crc_fn);
+	sd_dif_type1_generate(iter, sd_dif_crc_fn);
+	return 0;
 }
 
-static void sd_dif_type1_generate_ip(struct blk_integrity_exchg *bix)
+static int sd_dif_type1_generate_ip(struct blk_integrity_iter *iter)
 {
-	sd_dif_type1_generate(bix, sd_dif_ip_fn);
+	sd_dif_type1_generate(iter, sd_dif_ip_fn);
+	return 0;
 }
 
-static int sd_dif_type1_verify(struct blk_integrity_exchg *bix, csum_fn *fn)
+static int sd_dif_type1_verify(struct blk_integrity_iter *iter, csum_fn *fn)
 {
-	void *buf = bix->data_buf;
-	struct sd_dif_tuple *sdt = bix->prot_buf;
-	sector_t seed = bix->seed;
+	void *buf = iter->data_buf;
+	struct sd_dif_tuple *sdt = iter->prot_buf;
+	sector_t seed = iter->seed;
 	unsigned int i;
 	__u16 csum;
 
-	for (i = 0 ; i < bix->data_size ; i += bix->interval, sdt++) {
+	for (i = 0 ; i < iter->data_size ; i += iter->interval, sdt++) {
 		/* Unwritten sectors */
 		if (sdt->app_tag == 0xffff)
 			return 0;
@@ -96,36 +98,36 @@ static int sd_dif_type1_verify(struct blk_integrity_exchg *bix, csum_fn *fn)
 		if (be32_to_cpu(sdt->ref_tag) != (seed & 0xffffffff)) {
 			printk(KERN_ERR
 			       "%s: ref tag error on sector %lu (rcvd %u)\n",
-			       bix->disk_name, (unsigned long)seed,
+			       iter->disk_name, (unsigned long)seed,
 			       be32_to_cpu(sdt->ref_tag));
 			return -EIO;
 		}
 
-		csum = fn(buf, bix->interval);
+		csum = fn(buf, iter->interval);
 
 		if (sdt->guard_tag != csum) {
 			printk(KERN_ERR "%s: guard tag error on sector %lu " \
-			       "(rcvd %04x, data %04x)\n", bix->disk_name,
+			       "(rcvd %04x, data %04x)\n", iter->disk_name,
 			       (unsigned long)seed,
 			       be16_to_cpu(sdt->guard_tag), be16_to_cpu(csum));
 			return -EIO;
 		}
 
-		buf += bix->interval;
+		buf += iter->interval;
 		seed++;
 	}
 
 	return 0;
 }
 
-static int sd_dif_type1_verify_crc(struct blk_integrity_exchg *bix)
+static int sd_dif_type1_verify_crc(struct blk_integrity_iter *iter)
 {
-	return sd_dif_type1_verify(bix, sd_dif_crc_fn);
+	return sd_dif_type1_verify(iter, sd_dif_crc_fn);
 }
 
-static int sd_dif_type1_verify_ip(struct blk_integrity_exchg *bix)
+static int sd_dif_type1_verify_ip(struct blk_integrity_iter *iter)
 {
-	return sd_dif_type1_verify(bix, sd_dif_ip_fn);
+	return sd_dif_type1_verify(iter, sd_dif_ip_fn);
 }
 
 static struct blk_integrity dif_type1_integrity_crc = {
@@ -149,69 +151,71 @@ static struct blk_integrity dif_type1_integrity_ip = {
  * Type 3 protection has a 16-bit guard tag and 16 + 32 bits of opaque
  * tag space.
  */
-static void sd_dif_type3_generate(struct blk_integrity_exchg *bix, csum_fn *fn)
+static void sd_dif_type3_generate(struct blk_integrity_iter *iter, csum_fn *fn)
 {
-	void *buf = bix->data_buf;
-	struct sd_dif_tuple *sdt = bix->prot_buf;
+	void *buf = iter->data_buf;
+	struct sd_dif_tuple *sdt = iter->prot_buf;
 	unsigned int i;
 
-	for (i = 0 ; i < bix->data_size ; i += bix->interval, sdt++) {
-		sdt->guard_tag = fn(buf, bix->interval);
+	for (i = 0 ; i < iter->data_size ; i += iter->interval, sdt++) {
+		sdt->guard_tag = fn(buf, iter->interval);
 		sdt->ref_tag = 0;
 		sdt->app_tag = 0;
 
-		buf += bix->interval;
+		buf += iter->interval;
 	}
 }
 
-static void sd_dif_type3_generate_crc(struct blk_integrity_exchg *bix)
+static int sd_dif_type3_generate_crc(struct blk_integrity_iter *iter)
 {
-	sd_dif_type3_generate(bix, sd_dif_crc_fn);
+	sd_dif_type3_generate(iter, sd_dif_crc_fn);
+	return 0;
 }
 
-static void sd_dif_type3_generate_ip(struct blk_integrity_exchg *bix)
+static int sd_dif_type3_generate_ip(struct blk_integrity_iter *iter)
 {
-	sd_dif_type3_generate(bix, sd_dif_ip_fn);
+	sd_dif_type3_generate(iter, sd_dif_ip_fn);
+	return 0;
 }
 
-static int sd_dif_type3_verify(struct blk_integrity_exchg *bix, csum_fn *fn)
+static int sd_dif_type3_verify(struct blk_integrity_iter *iter, csum_fn *fn)
 {
-	void *buf = bix->data_buf;
-	struct sd_dif_tuple *sdt = bix->prot_buf;
-	sector_t seed = bix->seed;
+	void *buf = iter->data_buf;
+	struct sd_dif_tuple *sdt = iter->prot_buf;
+	sector_t seed = iter->seed;
 	unsigned int i;
 	__u16 csum;
 
-	for (i = 0 ; i < bix->data_size ; i += bix->interval, sdt++) {
+	for (i = 0 ; i < iter->data_size ; i += iter->interval, sdt++) {
 		/* Unwritten sectors */
 		if (sdt->app_tag == 0xffff && sdt->ref_tag == 0xffffffff)
 			return 0;
 
-		csum = fn(buf, bix->interval);
+		csum = fn(buf, iter->interval);
 
 		if (sdt->guard_tag != csum) {
 			printk(KERN_ERR "%s: guard tag error on sector %lu " \
-			       "(rcvd %04x, data %04x)\n", bix->disk_name,
+			       "(rcvd %04x, data %04x)\n", iter->disk_name,
 			       (unsigned long)seed,
 			       be16_to_cpu(sdt->guard_tag), be16_to_cpu(csum));
 			return -EIO;
 		}
 
-		buf += bix->interval;
+		buf += iter->interval;
 		seed++;
 	}
 
 	return 0;
 }
 
-static int sd_dif_type3_verify_crc(struct blk_integrity_exchg *bix)
+static int sd_dif_type3_verify_crc(struct blk_integrity_iter *iter)
 {
-	return sd_dif_type3_verify(bix, sd_dif_crc_fn);
+	return sd_dif_type3_verify(iter, sd_dif_crc_fn);
 }
 
-static int sd_dif_type3_verify_ip(struct blk_integrity_exchg *bix)
+static int sd_dif_type3_verify_ip(struct blk_integrity_iter *iter)
 {
-	return sd_dif_type3_verify(bix, sd_dif_ip_fn);
+	return sd_dif_type3_verify(iter, sd_dif_ip_fn);
 }
 
 static struct blk_integrity dif_type3_integrity_crc = {
@@ -310,6 +314,7 @@ void sd_dif_prepare(struct request *rq, sector_t hw_sector,
 	phys = hw_sector & 0xffffffff;
 
 	__rq_for_each_bio(bio, rq) {
+		struct bio_integrity_payload *bip = bio_integrity(bio);
 		struct bio_vec iv;
 		struct bvec_iter iter;
 		unsigned int j;
@@ -318,9 +323,9 @@ void sd_dif_prepare(struct request *rq, sector_t hw_sector,
 		if (bio_flagged(bio, BIO_MAPPED_INTEGRITY))
 			break;
 
-		virt = bio_integrity(bio)->bip_iter.bi_sector & 0xffffffff;
+		virt = bip_get_seed(bip) & 0xffffffff;
 
-		bip_for_each_vec(iv, bio_integrity(bio), iter) {
+		bip_for_each_vec(iv, bip, iter) {
 			sdt = kmap_atomic(iv.bv_page)
 				+ iv.bv_offset;
 
@@ -366,12 +371,13 @@ void sd_dif_complete(struct scsi_cmnd *scmd, unsigned int good_bytes)
 		phys >>= 3;
 
 	__rq_for_each_bio(bio, scmd->request) {
+		struct bio_integrity_payload *bip = bio_integrity(bio);
 		struct bio_vec iv;
 		struct bvec_iter iter;
 
-		virt = bio_integrity(bio)->bip_iter.bi_sector & 0xffffffff;
+		virt = bip_get_seed(bip) & 0xffffffff;
 
-		bip_for_each_vec(iv, bio_integrity(bio), iter) {
+		bip_for_each_vec(iv, bip, iter) {
 			sdt = kmap_atomic(iv.bv_page)
 				+ iv.bv_offset;
 

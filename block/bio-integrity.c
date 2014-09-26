@@ -207,67 +207,41 @@ static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
 }
 
 /**
- * bio_integrity_generate_verify - Generate/verify integrity metadata for a bio
+ * bio_integrity_process - Process integrity metadata for a bio
  * @bio:	bio to generate/verify integrity metadata for
- * @operate:	operate number, 1 for generate, 0 for verify
+ * @proc_fn:	Pointer to the relevant processing function
  */
-static int bio_integrity_generate_verify(struct bio *bio, int operate)
+static int bio_integrity_process(struct bio *bio,
+				 integrity_processing_fn *proc_fn)
 {
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-	struct blk_integrity_exchg bix;
+	struct blk_integrity_iter iter;
 	struct bio_vec *bv;
 	struct bio_integrity_payload *bip = bio_integrity(bio);
-	sector_t seed;
-	unsigned int intervals, ret = 0, i;
+	unsigned int i, ret = 0;
 	void *prot_buf = page_address(bip->bip_vec->bv_page) +
 		bip->bip_vec->bv_offset;
 
-	if (operate)
-		seed = bio->bi_iter.bi_sector;
-	else
-		seed = bip->bip_iter.bi_sector;
-
-	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
-	bix.interval = bi->interval;
+	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
+	iter.interval = bi->interval;
+	iter.seed = bip_get_seed(bip);
+	iter.prot_buf = prot_buf;
 
 	bio_for_each_segment_all(bv, bio, i) {
 		void *kaddr = kmap_atomic(bv->bv_page);
-		bix.data_buf = kaddr + bv->bv_offset;
-		bix.data_size = bv->bv_len;
-		bix.prot_buf = prot_buf;
-		bix.seed = seed;
 
-		if (operate)
-			bi->generate_fn(&bix);
-		else {
-			ret = bi->verify_fn(&bix);
-			if (ret) {
-				kunmap_atomic(kaddr);
-				return ret;
-			}
+		iter.data_buf = kaddr + bv->bv_offset;
+		iter.data_size = bv->bv_len;
+
+		ret = proc_fn(&iter);
+		if (ret) {
+			kunmap_atomic(kaddr);
+			return ret;
 		}
-
-		intervals = bv->bv_len / bi->interval;
-		seed += intervals;
-		prot_buf += intervals * bi->tuple_size;
 
 		kunmap_atomic(kaddr);
 	}
 	return ret;
-}
-
-/**
- * bio_integrity_generate - Generate integrity metadata for a bio
- * @bio:	bio to generate integrity metadata for
- *
- * Description: Generates integrity metadata for a bio by calling the
- * block device's generation callback function.  The bio must have a
- * bip attached with enough room to accommodate the generated
- * integrity metadata.
- */
-static void bio_integrity_generate(struct bio *bio)
-{
-	bio_integrity_generate_verify(bio, 1);
 }
 
 /**
@@ -321,7 +295,7 @@ int bio_integrity_prep(struct bio *bio)
 
 	bip->bip_owns_buf = 1;
 	bip->bip_iter.bi_size = len;
-	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
+	bip_set_seed(bip, bio->bi_iter.bi_sector);
 
 	/* Map it */
 	offset = offset_in_page(buf);
@@ -357,24 +331,11 @@ int bio_integrity_prep(struct bio *bio)
 
 	/* Auto-generate integrity metadata if this is a write */
 	if (bio_data_dir(bio) == WRITE)
-		bio_integrity_generate(bio);
+		bio_integrity_process(bio, bi->generate_fn);
 
 	return 0;
 }
 EXPORT_SYMBOL(bio_integrity_prep);
-
-/**
- * bio_integrity_verify - Verify integrity metadata for a bio
- * @bio:	bio to verify
- *
- * Description: This function is called to verify the integrity of a
- * bio.	 The data in the bio io_vec is compared to the integrity
- * metadata returned by the HBA.
- */
-static int bio_integrity_verify(struct bio *bio)
-{
-	return bio_integrity_generate_verify(bio, 0);
-}
 
 /**
  * bio_integrity_verify_fn - Integrity I/O completion worker
@@ -389,9 +350,10 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 	struct bio_integrity_payload *bip =
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
+	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
 	int error;
 
-	error = bio_integrity_verify(bio);
+	error = bio_integrity_process(bio, bi->verify_fn);
 
 	/* Restore original bio completion handler */
 	bio->bi_end_io = bip->bip_end_io;

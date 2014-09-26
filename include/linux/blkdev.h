@@ -1461,7 +1461,7 @@ static inline uint64_t rq_io_start_time_ns(struct request *req)
 #define INTEGRITY_FLAG_READ	2	/* verify data integrity on read */
 #define INTEGRITY_FLAG_WRITE	4	/* generate data integrity on write */
 
-struct blk_integrity_exchg {
+struct blk_integrity_iter {
 	void			*prot_buf;
 	void			*data_buf;
 	sector_t		seed;
@@ -1470,12 +1470,11 @@ struct blk_integrity_exchg {
 	const char		*disk_name;
 };
 
-typedef void (integrity_gen_fn) (struct blk_integrity_exchg *);
-typedef int (integrity_vrfy_fn) (struct blk_integrity_exchg *);
+typedef int (integrity_processing_fn) (struct blk_integrity_iter *);
 
 struct blk_integrity {
-	integrity_gen_fn	*generate_fn;
-	integrity_vrfy_fn	*verify_fn;
+	integrity_processing_fn	*generate_fn;
+	integrity_processing_fn	*verify_fn;
 
 	unsigned short		flags;
 	unsigned short		tuple_size;
