@@ -222,6 +222,33 @@ matched:
 	return -1;
 }
 
+static void rsvp_replace(struct tcf_proto *tp, struct rsvp_filter *n, u32 h)
+{
+	struct rsvp_head *head = rtnl_dereference(tp->root);
+	struct rsvp_session *s;
+	struct rsvp_filter __rcu **ins;
+	struct rsvp_filter *pins;
+	unsigned int h1 = h & 0xFF;
+	unsigned int h2 = (h >> 8) & 0xFF;
+
+	for (s = rtnl_dereference(head->ht[h1]); s;
+	     s = rtnl_dereference(s->next)) {
+		for (ins = &s->ht[h2], pins = rtnl_dereference(*ins); ;
+		     ins = &pins->next, pins = rtnl_dereference(*ins)) {
+			if (pins->handle == h) {
+				RCU_INIT_POINTER(n->next, pins->next);
+				rcu_assign_pointer(*ins, n);
+				return;
+			}
+		}
+	}
+
+	/* Something went wrong if we are trying to replace a non-existant
+	 * node. Mind as well halt instead of silently failing.
+	 */
+	BUG_ON(1);
+}
+
 static unsigned long rsvp_get(struct tcf_proto *tp, u32 handle)
 {
 	struct rsvp_head *head = rtnl_dereference(tp->root);
@@ -454,15 +481,26 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 	f = (struct rsvp_filter *)*arg;
 	if (f) {
 		/* Node exists: adjust only classid */
+		struct rsvp_filter *n;
 
 		if (f->handle != handle && handle)
 			goto errout2;
-		if (tb[TCA_RSVP_CLASSID]) {
-			f->res.classid = nla_get_u32(tb[TCA_RSVP_CLASSID]);
-			tcf_bind_filter(tp, &f->res, base);
+
+		n = kmemdup(f, sizeof(*f), GFP_KERNEL);
+		if (!n) {
+			err = -ENOMEM;
+			goto errout2;
 		}
 
-		tcf_exts_change(tp, &f->exts, &e);
+		tcf_exts_init(&n->exts, TCA_RSVP_ACT, TCA_RSVP_POLICE);
+
+		if (tb[TCA_RSVP_CLASSID]) {
+			n->res.classid = nla_get_u32(tb[TCA_RSVP_CLASSID]);
+			tcf_bind_filter(tp, &n->res, base);
+		}
+
+		tcf_exts_change(tp, &n->exts, &e);
+		rsvp_replace(tp, n, handle);
 		return 0;
 	}
 
