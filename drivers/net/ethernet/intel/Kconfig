@@ -300,4 +300,23 @@ config I40EVF
 	  will be called i40evf.  MSI-X interrupt support is required
 	  for this driver to work correctly.
 
+config FM10K
+	tristate "Intel(R) FM10000 Ethernet Switch Host Interface Support"
+	default n
+	depends on PCI_MSI
+	---help---
+	  This driver supports Intel(R) FM10000 Ethernet Switch Host
+	  Interface.  For more information on how to identify your adapter,
+	  go to the Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/sb/CS-008441.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called fm10k.  MSI-X interrupt support is required
+
 endif # NET_VENDOR_INTEL
