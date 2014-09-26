@@ -96,7 +96,7 @@ u32 rtl8723_phy_rf_serial_read(struct ieee80211_hw *hw,
 	u8 rfpi_enable = 0;
 	u32 retvalue;
 
-	offset &= 0x3f;
+	offset &= 0xff;
 	newoffset = offset;
 	if (RT_CANNOT_IO(hw)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "return all one\n");
@@ -150,7 +150,7 @@ void rtl8723_phy_rf_serial_write(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "stop\n");
 		return;
 	}
-	offset &= 0x3f;
+	offset &= 0xff;
 	newoffset = offset;
 	data_and_addr = ((newoffset << 20) | (data & 0x000fffff)) & 0x0fffffff;
 	rtl_set_bbreg(hw, pphyreg->rf3wire_offset, MASKDWORD, data_and_addr);
@@ -390,14 +390,21 @@ EXPORT_SYMBOL_GPL(rtl8723_phy_reload_mac_registers);
 void rtl8723_phy_path_adda_on(struct ieee80211_hw *hw, u32 *addareg,
 			      bool is_patha_on, bool is2t)
 {
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	u32 pathon;
 	u32 i;
 
-	pathon = is_patha_on ? 0x04db25a4 : 0x0b1b25a4;
-	if (!is2t) {
-		pathon = 0x0bdb25a0;
-		rtl_set_bbreg(hw, addareg[0], MASKDWORD, 0x0b1b25a0);
+	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8723AE) {
+		pathon = is_patha_on ? 0x04db25a4 : 0x0b1b25a4;
+		if (!is2t) {
+			pathon = 0x0bdb25a0;
+			rtl_set_bbreg(hw, addareg[0], MASKDWORD, 0x0b1b25a0);
+		} else {
+			rtl_set_bbreg(hw, addareg[0], MASKDWORD, pathon);
+		}
 	} else {
+		/* rtl8723be */
+		pathon = 0x01c00014;
 		rtl_set_bbreg(hw, addareg[0], MASKDWORD, pathon);
 	}
 

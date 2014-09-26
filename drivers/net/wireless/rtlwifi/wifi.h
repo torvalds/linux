@@ -330,13 +330,7 @@ enum hardware_type {
 #define	IS_HARDWARE_TYPE_8723(rtlhal)			\
 (IS_HARDWARE_TYPE_8723E(rtlhal) || IS_HARDWARE_TYPE_8723U(rtlhal))
 
-#define RX_HAL_IS_CCK_RATE(_pdesc)\
-	(_pdesc->rxmcs == DESC92_RATE1M ||		\
-	 _pdesc->rxmcs == DESC92_RATE2M ||		\
-	 _pdesc->rxmcs == DESC92_RATE5_5M ||		\
-	 _pdesc->rxmcs == DESC92_RATE11M)
-
-#define RTL8723E_RX_HAL_IS_CCK_RATE(rxmcs)		\
+#define RX_HAL_IS_CCK_RATE(rxmcs)			\
 	((rxmcs) == DESC92_RATE1M ||			\
 	 (rxmcs) == DESC92_RATE2M ||			\
 	 (rxmcs) == DESC92_RATE5_5M ||			\

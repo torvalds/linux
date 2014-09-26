@@ -786,7 +786,7 @@ static void _rtl92c_query_rxphystatus(struct ieee80211_hw *hw,
 	bool is_cck_rate;
 	u8 *pdesc = (u8 *)p_desc;
 
-	is_cck_rate = RX_HAL_IS_CCK_RATE(p_desc);
+	is_cck_rate = RX_HAL_IS_CCK_RATE(p_desc->rxmcs);
 	pstats->packet_matchbssid = packet_match_bssid;
 	pstats->packet_toself = packet_toself;
 	pstats->packet_beacon = packet_beacon;

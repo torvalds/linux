@@ -125,7 +125,7 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 	u32 rssi, total_rssi = 0;
 	bool is_cck_rate;
 
-	is_cck_rate = RX_HAL_IS_CCK_RATE(pdesc);
+	is_cck_rate = RX_HAL_IS_CCK_RATE(pdesc->rxmcs);
 	pstats->packet_matchbssid = packet_match_bssid;
 	pstats->packet_toself = packet_toself;
 	pstats->is_cck = is_cck_rate;
@@ -361,7 +361,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 	stats->rx_is40Mhzpacket = (bool) GET_RX_DESC_BW(pdesc);
 	stats->is_ht = (bool)GET_RX_DESC_RXHT(pdesc);
 
-	stats->is_cck = RX_HAL_IS_CCK_RATE(pdesc);
+	stats->is_cck = RX_HAL_IS_CCK_RATE(pdesc->rxmcs);
 
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;

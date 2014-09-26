@@ -963,7 +963,7 @@ int rtl8723e_hw_init(struct ieee80211_hw *hw)
 		goto exit;
 	}
 
-	err = rtl8723_download_fw(hw, false, FW_8192C_POLLING_TIMEOUT_COUNT);
+	err = rtl8723_download_fw(hw, false, FW_8723A_POLLING_TIMEOUT_COUNT);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Failed to download FW. Init HW without FW now..\n");

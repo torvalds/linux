@@ -30,7 +30,8 @@
 #define REG_MCUFWDL				0x0080
 #define FW_8192C_START_ADDRESS			0x1000
 #define FW_8192C_PAGE_SIZE			4096
-#define FW_8723A_POLLING_TIMEOUT_COUNT		6000
+#define FW_8723A_POLLING_TIMEOUT_COUNT		1000
+#define FW_8723B_POLLING_TIMEOUT_COUNT		6000
 #define FW_8192C_POLLING_DELAY			5
 
 #define MCUFWDL_RDY				BIT(1)
@@ -97,25 +98,6 @@ enum rtl8723be_cmd {
 	/*Not defined CTW CMD for P2P yet*/
 	H2C_8723BE_P2P_PS_CTW_CMD,
 	MAX_8723BE_H2CCMD
-};
-
-struct rtl92c_firmware_header {
-	u16 signature;
-	u8 category;
-	u8 function;
-	u16 version;
-	u8 subversion;
-	u8 rsvd1;
-	u8 month;
-	u8 date;
-	u8 hour;
-	u8 minute;
-	u16 ramcodesize;
-	u16 rsvd2;
-	u32 svnindex;
-	u32 rsvd3;
-	u32 rsvd4;
-	u32 rsvd5;
 };
 
 void rtl8723ae_firmware_selfreset(struct ieee80211_hw *hw);

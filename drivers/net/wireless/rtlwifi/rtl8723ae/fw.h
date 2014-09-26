@@ -34,7 +34,6 @@
 #define FW_8192C_END_ADDRESS			0x3FFF
 #define FW_8192C_PAGE_SIZE				4096
 #define FW_8192C_POLLING_DELAY			5
-#define FW_8192C_POLLING_TIMEOUT_COUNT	1000
 
 #define IS_FW_HEADER_EXIST(_pfwhdr)	\
 	((_pfwhdr->signature&0xFFFF) == 0x2300 ||\

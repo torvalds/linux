@@ -1157,16 +1157,6 @@ static bool _rtl8723e_phy_simularity_compare(struct ieee80211_hw *hw,
 
 }
 
-static void rtl8723_phy_save_adda_registers(struct ieee80211_hw *hw,
-					    u32 *addareg, u32 *addabackup,
-					    u32 registernum)
-{
-	u32 i;
-
-	for (i = 0; i < registernum; i++)
-		addabackup[i] = rtl_get_bbreg(hw, addareg[i], MASKDWORD);
-}
-
 static void _rtl8723e_phy_iq_calibrate(struct ieee80211_hw *hw,
 				       long result[][8], u8 t, bool is2t)
 {
@@ -1192,8 +1182,8 @@ static void _rtl8723e_phy_iq_calibrate(struct ieee80211_hw *hw,
 	if (t == 0) {
 		bbvalue = rtl_get_bbreg(hw, 0x800, MASKDWORD);
 
-		rtl8723_phy_save_adda_registers(hw, adda_reg,
-						rtlphy->adda_backup, 16);
+		rtl8723_save_adda_registers(hw, adda_reg,
+					    rtlphy->adda_backup, 16);
 		rtl8723_phy_save_mac_registers(hw, iqk_mac_reg,
 					       rtlphy->iqk_mac_backup);
 	}
@@ -1472,8 +1462,8 @@ void rtl8723e_phy_iq_calibrate(struct ieee80211_hw *hw, bool b_recovery)
 		rtl8723_phy_path_a_fill_iqk_matrix(hw, b_patha_ok, result,
 						   final_candidate,
 						   (reg_ea4 == 0));
-	rtl8723_phy_save_adda_registers(hw, iqk_bb_reg,
-					rtlphy->iqk_bb_backup, 10);
+	rtl8723_save_adda_registers(hw, iqk_bb_reg,
+				    rtlphy->iqk_bb_backup, 10);
 }
 
 void rtl8723e_phy_lc_calibrate(struct ieee80211_hw *hw)

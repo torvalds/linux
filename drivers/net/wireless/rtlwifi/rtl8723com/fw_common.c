@@ -267,7 +267,7 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 	pfwdata = rtlhal->pfirmware;
 	fwsize = rtlhal->fwsize;
 
-	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8723AE)
+	if (!is_8723be)
 		max_page = 6;
 	else
 		max_page = 8;
@@ -275,10 +275,10 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD,
 			 "Firmware Version(%d), Signature(%#x), Size(%d)\n",
 			 pfwheader->version, pfwheader->signature,
-			 (int)sizeof(struct rtl92c_firmware_header));
+			 (int)sizeof(struct rtl8723e_firmware_header));
 
-		pfwdata = pfwdata + sizeof(struct rtl92c_firmware_header);
-		fwsize = fwsize - sizeof(struct rtl92c_firmware_header);
+		pfwdata = pfwdata + sizeof(struct rtl8723e_firmware_header);
+		fwsize = fwsize - sizeof(struct rtl8723e_firmware_header);
 	}
 
 	if (rtl_read_byte(rtlpriv, REG_MCUFWDL)&BIT(7)) {
