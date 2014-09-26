@@ -186,25 +186,41 @@ int blk_integrity_compare(struct gendisk *gd1, struct gendisk *gd2)
 }
 EXPORT_SYMBOL(blk_integrity_compare);
 
-int blk_integrity_merge_rq(struct request_queue *q, struct request *req,
-			   struct request *next)
+bool blk_integrity_merge_rq(struct request_queue *q, struct request *req,
+			    struct request *next)
 {
-	if (blk_integrity_rq(req) != blk_integrity_rq(next))
-		return -1;
+	if (blk_integrity_rq(req) == 0 && blk_integrity_rq(next) == 0)
+		return true;
+
+	if (blk_integrity_rq(req) == 0 || blk_integrity_rq(next) == 0)
+		return false;
+
+	if (bio_integrity(req->bio)->bip_flags !=
+	    bio_integrity(next->bio)->bip_flags)
+		return false;
 
 	if (req->nr_integrity_segments + next->nr_integrity_segments >
 	    q->limits.max_integrity_segments)
-		return -1;
+		return false;
 
-	return 0;
+	return true;
 }
 EXPORT_SYMBOL(blk_integrity_merge_rq);
 
-int blk_integrity_merge_bio(struct request_queue *q, struct request *req,
-			    struct bio *bio)
+bool blk_integrity_merge_bio(struct request_queue *q, struct request *req,
+			     struct bio *bio)
 {
 	int nr_integrity_segs;
 	struct bio *next = bio->bi_next;
+
+	if (blk_integrity_rq(req) == 0 && bio_integrity(bio) == NULL)
+		return true;
+
+	if (blk_integrity_rq(req) == 0 || bio_integrity(bio) == NULL)
+		return false;
+
+	if (bio_integrity(req->bio)->bip_flags != bio_integrity(bio)->bip_flags)
+		return false;
 
 	bio->bi_next = NULL;
 	nr_integrity_segs = blk_rq_count_integrity_sg(q, bio);
@@ -212,11 +228,11 @@ int blk_integrity_merge_bio(struct request_queue *q, struct request *req,
 
 	if (req->nr_integrity_segments + nr_integrity_segs >
 	    q->limits.max_integrity_segments)
-		return -1;
+		return false;
 
 	req->nr_integrity_segments += nr_integrity_segs;
 
-	return 0;
+	return true;
 }
 EXPORT_SYMBOL(blk_integrity_merge_bio);
 
