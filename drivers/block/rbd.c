@@ -5087,9 +5087,11 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
 	set_disk_ro(rbd_dev->disk, rbd_dev->mapping.read_only);
 
-	rbd_dev->rq_wq = alloc_workqueue(rbd_dev->disk->disk_name, 0, 0);
-	if (!rbd_dev->rq_wq)
+	rbd_dev->rq_wq = alloc_workqueue("%s", 0, 0, rbd_dev->disk->disk_name);
+	if (!rbd_dev->rq_wq) {
+		ret = -ENOMEM;
 		goto err_out_mapping;
+	}
 
 	ret = rbd_bus_add_dev(rbd_dev);
 	if (ret)

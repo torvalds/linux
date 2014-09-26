@@ -16,9 +16,9 @@ Example:
 * DMA client
 
 Required properties:
-- dmas:		a list of <[DMA multiplexer phandle] [SRS/DRS value]> pairs,
-		where SRS/DRS values are fixed handles, specified in the SoC
-		manual as the value that would be written into the PDMACHCR.
+- dmas:		a list of <[DMA multiplexer phandle] [SRS << 8 | DRS]> pairs.
+		where SRS/DRS are specified in the SoC manual.
+		It will be written into PDMACHCR as high 16-bit parts.
 - dma-names:	a list of DMA channel names, one per "dmas" entry
 
 Example:

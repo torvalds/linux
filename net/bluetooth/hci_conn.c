@@ -589,6 +589,14 @@ EXPORT_SYMBOL(hci_get_route);
 void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 {
 	struct hci_dev *hdev = conn->hdev;
+	struct hci_conn_params *params;
+
+	params = hci_pend_le_action_lookup(&hdev->pend_le_conns, &conn->dst,
+					   conn->dst_type);
+	if (params && params->conn) {
+		hci_conn_drop(params->conn);
+		params->conn = NULL;
+	}
 
 	conn->state = BT_CLOSED;
 

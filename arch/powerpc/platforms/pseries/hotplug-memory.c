@@ -113,7 +113,7 @@ out:
 static int pseries_remove_mem_node(struct device_node *np)
 {
 	const char *type;
-	const unsigned int *regs;
+	const __be32 *regs;
 	unsigned long base;
 	unsigned int lmb_size;
 	int ret = -EINVAL;
@@ -132,8 +132,8 @@ static int pseries_remove_mem_node(struct device_node *np)
 	if (!regs)
 		return ret;
 
-	base = *(unsigned long *)regs;
-	lmb_size = regs[3];
+	base = be64_to_cpu(*(unsigned long *)regs);
+	lmb_size = be32_to_cpu(regs[3]);
 
 	pseries_remove_memblock(base, lmb_size);
 	return 0;
@@ -153,7 +153,7 @@ static inline int pseries_remove_mem_node(struct device_node *np)
 static int pseries_add_mem_node(struct device_node *np)
 {
 	const char *type;
-	const unsigned int *regs;
+	const __be32 *regs;
 	unsigned long base;
 	unsigned int lmb_size;
 	int ret = -EINVAL;
@@ -172,8 +172,8 @@ static int pseries_add_mem_node(struct device_node *np)
 	if (!regs)
 		return ret;
 
-	base = *(unsigned long *)regs;
-	lmb_size = regs[3];
+	base = be64_to_cpu(*(unsigned long *)regs);
+	lmb_size = be32_to_cpu(regs[3]);
 
 	/*
 	 * Update memory region to represent the memory add
@@ -187,14 +187,14 @@ static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
 	struct of_drconf_cell *new_drmem, *old_drmem;
 	unsigned long memblock_size;
 	u32 entries;
-	u32 *p;
+	__be32 *p;
 	int i, rc = -EINVAL;
 
 	memblock_size = pseries_memory_block_size();
 	if (!memblock_size)
 		return -EINVAL;
 
-	p = (u32 *) pr->old_prop->value;
+	p = (__be32 *) pr->old_prop->value;
 	if (!p)
 		return -EINVAL;
 
@@ -203,28 +203,30 @@ static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
 	 * entries. Get the niumber of entries and skip to the array of
 	 * of_drconf_cell's.
 	 */
-	entries = *p++;
+	entries = be32_to_cpu(*p++);
 	old_drmem = (struct of_drconf_cell *)p;
 
-	p = (u32 *)pr->prop->value;
+	p = (__be32 *)pr->prop->value;
 	p++;
 	new_drmem = (struct of_drconf_cell *)p;
 
 	for (i = 0; i < entries; i++) {
-		if ((old_drmem[i].flags & DRCONF_MEM_ASSIGNED) &&
-		    (!(new_drmem[i].flags & DRCONF_MEM_ASSIGNED))) {
-			rc = pseries_remove_memblock(old_drmem[i].base_addr,
+		if ((be32_to_cpu(old_drmem[i].flags) & DRCONF_MEM_ASSIGNED) &&
+		    (!(be32_to_cpu(new_drmem[i].flags) & DRCONF_MEM_ASSIGNED))) {
+			rc = pseries_remove_memblock(
+				be64_to_cpu(old_drmem[i].base_addr),
 						     memblock_size);
 			break;
-		} else if ((!(old_drmem[i].flags & DRCONF_MEM_ASSIGNED)) &&
-			   (new_drmem[i].flags & DRCONF_MEM_ASSIGNED)) {
-			rc = memblock_add(old_drmem[i].base_addr,
+		} else if ((!(be32_to_cpu(old_drmem[i].flags) &
+			    DRCONF_MEM_ASSIGNED)) &&
+			    (be32_to_cpu(new_drmem[i].flags) &
+			    DRCONF_MEM_ASSIGNED)) {
+			rc = memblock_add(be64_to_cpu(old_drmem[i].base_addr),
 					  memblock_size);
 			rc = (rc < 0) ? -EINVAL : 0;
 			break;
 		}
 	}
-
 	return rc;
 }
 

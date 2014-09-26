@@ -1094,8 +1094,11 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	unsigned long flags;
 	struct ps_data *ps;
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP ||
-	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		sdata = container_of(sdata->bss, struct ieee80211_sub_if_data,
+				     u.ap);
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
 		ps = &sdata->bss->ps;
 	else if (ieee80211_vif_is_mesh(&sdata->vif))
 		ps = &sdata->u.mesh.ps;

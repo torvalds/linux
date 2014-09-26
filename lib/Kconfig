@@ -51,6 +51,9 @@ config PERCPU_RWSEM
 config ARCH_USE_CMPXCHG_LOCKREF
 	bool
 
+config ARCH_HAS_FAST_MULTIPLIER
+	bool
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help

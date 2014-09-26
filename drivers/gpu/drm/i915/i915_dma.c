@@ -1336,11 +1336,16 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_power_domains_init_hw(dev_priv);
 
+	/*
+	 * We enable some interrupt sources in our postinstall hooks, so mark
+	 * interrupts as enabled _before_ actually enabling them to avoid
+	 * special cases in our ordering checks.
+	 */
+	dev_priv->pm._irqs_disabled = false;
+
 	ret = drm_irq_install(dev, dev->pdev->irq);
 	if (ret)
 		goto cleanup_gem_stolen;
-
-	dev_priv->pm._irqs_disabled = false;
 
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */

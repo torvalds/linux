@@ -358,7 +358,7 @@ struct rcu_data {
 	struct rcu_head **nocb_gp_tail;
 	long nocb_gp_count;
 	long nocb_gp_count_lazy;
-	bool nocb_leader_wake;		/* Is the nocb leader thread awake? */
+	bool nocb_leader_sleep;		/* Is the nocb leader thread asleep? */
 	struct rcu_data *nocb_next_follower;
 					/* Next follower in wakeup chain. */
 
