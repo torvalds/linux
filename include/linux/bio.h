@@ -310,9 +310,6 @@ struct bio_integrity_payload {
 
 	struct bvec_iter	bip_iter;
 
-	/* kill - should just use bip_vec */
-	void			*bip_buf;	/* generated integrity data */
-
 	bio_end_io_t		*bip_end_io;	/* saved I/O completion fn */
 
 	unsigned short		bip_slab;	/* slab the bip came from */

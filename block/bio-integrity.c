@@ -101,7 +101,8 @@ void bio_integrity_free(struct bio *bio)
 	struct bio_set *bs = bio->bi_pool;
 
 	if (bip->bip_owns_buf)
-		kfree(bip->bip_buf);
+		kfree(page_address(bip->bip_vec->bv_page) +
+		      bip->bip_vec->bv_offset);
 
 	if (bs) {
 		if (bip->bip_slab != BIO_POOL_NONE)
@@ -219,14 +220,16 @@ static int bio_integrity_generate_verify(struct bio *bio, int operate)
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
 	struct blk_integrity_exchg bix;
 	struct bio_vec *bv;
+	struct bio_integrity_payload *bip = bio_integrity(bio);
 	sector_t sector;
 	unsigned int sectors, ret = 0, i;
-	void *prot_buf = bio_integrity(bio)->bip_buf;
+	void *prot_buf = page_address(bip->bip_vec->bv_page) +
+		bip->bip_vec->bv_offset;
 
 	if (operate)
 		sector = bio->bi_iter.bi_sector;
 	else
-		sector = bio_integrity(bio)->bip_iter.bi_sector;
+		sector = bip->bip_iter.bi_sector;
 
 	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
 	bix.sector_size = bi->sector_size;
@@ -321,7 +324,6 @@ int bio_integrity_prep(struct bio *bio)
 	}
 
 	bip->bip_owns_buf = 1;
-	bip->bip_buf = buf;
 	bip->bip_iter.bi_size = len;
 	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
 
