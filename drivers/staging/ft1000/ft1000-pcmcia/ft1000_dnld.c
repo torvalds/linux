@@ -168,10 +168,9 @@ u16 get_handshake(struct net_device *dev, u16 expected_value)
 		if ((handshake == expected_value)
 			|| (handshake == HANDSHAKE_RESET_VALUE)) {
 			return handshake;
-		} else {
-			loopcnt++;
-			mdelay(DSP_WAIT_SLEEP_TIME);
 		}
+		loopcnt++;
+		mdelay(DSP_WAIT_SLEEP_TIME);
 
 	}
 
