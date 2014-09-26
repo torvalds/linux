@@ -204,6 +204,7 @@
 
 &tve {
 	status = "okay";
+	test_mode = <0>;
 };
 
 &i2c2 {

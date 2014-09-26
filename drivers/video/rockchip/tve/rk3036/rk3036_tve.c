@@ -53,8 +53,7 @@ static void dac_enable(bool enable)
 		if (rk3036_tve->soctype == SOC_RK312X) {
 			val = m_VBG_EN | m_DAC_EN | v_DAC_GAIN(0x3a);
 			grfreg = RK312X_GRF_TVE_CON;
-		}
-		else if (rk3036_tve->soctype == SOC_RK3036) {
+		} else if (rk3036_tve->soctype == SOC_RK3036) {
 			val = m_VBG_EN | m_DAC_EN | v_DAC_GAIN(0x3e);
 			grfreg = RK3036_GRF_SOC_CON3;
 		}
@@ -124,14 +123,14 @@ static void tve_set_mode(int mode)
 		tve_writel(TV_ADJ_TIMING, (0xc << 28) | 0x06c00800 | 0x80);
 		tve_writel(TV_ACT_ST,	0x001500F6);
 		tve_writel(TV_ACT_TIMING, 0x0694011D | (1 << 12) | (2 << 28));
-		if (rk3036_tve->soctype == SOC_RK312X){
-			tve_writel(TV_ADJ_TIMING, (0xa<< 28) | 0x06c00800 | 0x80);
+		if (rk3036_tve->soctype == SOC_RK312X) {
+			tve_writel(TV_ADJ_TIMING, (0xa << 28) | 0x06c00800 | 0x80);
 			udelay(100);
-			tve_writel(TV_ADJ_TIMING, (0xa<< 28) | 0x06c00800 | 0x80);
+			tve_writel(TV_ADJ_TIMING, (0xa << 28) | 0x06c00800 | 0x80);
 			tve_writel(TV_ACT_TIMING, 0x0694011D | (1 << 12) | (2 << 28));
+		} else {
+			tve_writel(TV_ADJ_TIMING, (0xa << 28) | 0x06c00800 | 0x80);
 		}
-		else
-			tve_writel(TV_ADJ_TIMING, (0xa<< 28) | 0x06c00800 | 0x80);
 	}
 }
 
@@ -144,7 +143,10 @@ static int tve_switch_fb(const struct fb_videomode *modedb, int enable)
 
 	memset(screen, 0, sizeof(struct rk_screen));
 	/* screen type & face */
-	screen->type = SCREEN_TVOUT;
+	if (rk3036_tve->test_mode)
+		screen->type = SCREEN_TVOUT_TEST;
+	else
+		screen->type = SCREEN_TVOUT;
 	screen->face = OUT_P888;
 	screen->color_mode = COLOR_YCBCR;
 	screen->mode = *modedb;
@@ -335,6 +337,7 @@ static int rk3036_tve_probe(struct platform_device *pdev)
 	struct resource *res;
 	const struct of_device_id *match;
 	int i;
+	int val = 0 ;
 
 	match = of_match_node(rk3036_tve_dt_ids, np);
 	if (!match)
@@ -346,6 +349,11 @@ static int rk3036_tve_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "rk3036 tv encoder device kmalloc fail!");
 		return -ENOMEM;
 	}
+
+	if (of_property_read_u32(np, "test_mode", &val))
+		rk3036_tve->test_mode = 0;
+	else
+		rk3036_tve->test_mode = val;
 
 	if (!strcmp(match->compatible, "rockchip,rk3036-tve")) {
 		rk3036_tve->soctype = SOC_RK3036;
