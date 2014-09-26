@@ -184,11 +184,11 @@ char *dgnc_state_text[] = {
 static void dgnc_cleanup_module(void)
 {
 	int i;
-	ulong lock_flags;
+	unsigned long flags;
 
-	DGNC_LOCK(dgnc_poll_lock, lock_flags);
+	spin_lock_irqsave(&dgnc_poll_lock, flags);
 	dgnc_poll_stop = 1;
-	DGNC_UNLOCK(dgnc_poll_lock, lock_flags);
+	spin_unlock_irqrestore(&dgnc_poll_lock, flags);
 
 	/* Turn off poller right away. */
 	del_timer_sync(&dgnc_poll_timer);
@@ -299,13 +299,13 @@ static int dgnc_start(void)
 	}
 
 	/* Start the poller */
-	DGNC_LOCK(dgnc_poll_lock, flags);
+	spin_lock_irqsave(&dgnc_poll_lock, flags);
 	init_timer(&dgnc_poll_timer);
 	dgnc_poll_timer.function = dgnc_poll_handler;
 	dgnc_poll_timer.data = 0;
 	dgnc_poll_time = jiffies + dgnc_jiffies_from_ms(dgnc_poll_tick);
 	dgnc_poll_timer.expires = dgnc_poll_time;
-	DGNC_UNLOCK(dgnc_poll_lock, flags);
+	spin_unlock_irqrestore(&dgnc_poll_lock, flags);
 
 	add_timer(&dgnc_poll_timer);
 
@@ -369,12 +369,12 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 	if (brd->msgbuf_head) {
 		unsigned long flags;
 
-		DGNC_LOCK(dgnc_global_lock, flags);
+		spin_lock_irqsave(&dgnc_global_lock, flags);
 		brd->msgbuf = NULL;
 		printk("%s", brd->msgbuf_head);
 		kfree(brd->msgbuf_head);
 		brd->msgbuf_head = NULL;
-		DGNC_UNLOCK(dgnc_global_lock, flags);
+		spin_unlock_irqrestore(&dgnc_global_lock, flags);
 	}
 
 	/* Free all allocated channels structs */
@@ -440,8 +440,8 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	brd->dpastatus = BD_NOFEP;
 	init_waitqueue_head(&brd->state_wait);
 
-	DGNC_SPINLOCK_INIT(brd->bd_lock);
-	DGNC_SPINLOCK_INIT(brd->bd_intr_lock);
+	spin_lock_init(&brd->bd_lock);
+	spin_lock_init(&brd->bd_intr_lock);
 
 	brd->state		= BOARD_FOUND;
 
@@ -613,12 +613,12 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	/* init our poll helper tasklet */
 	tasklet_init(&brd->helper_tasklet, brd->bd_ops->tasklet, (unsigned long) brd);
 
-	DGNC_LOCK(dgnc_global_lock, flags);
+	spin_lock_irqsave(&dgnc_global_lock, flags);
 	brd->msgbuf = NULL;
 	printk("%s", brd->msgbuf_head);
 	kfree(brd->msgbuf_head);
 	brd->msgbuf_head = NULL;
-	DGNC_UNLOCK(dgnc_global_lock, flags);
+	spin_unlock_irqrestore(&dgnc_global_lock, flags);
 
 	/*
 	 * allocate flip buffer for board.
@@ -703,7 +703,7 @@ static void dgnc_do_remap(struct dgnc_board *brd)
 static void dgnc_poll_handler(ulong dummy)
 {
 	struct dgnc_board *brd;
-	unsigned long lock_flags;
+	unsigned long flags;
 	int i;
 	unsigned long new_time;
 
@@ -711,24 +711,24 @@ static void dgnc_poll_handler(ulong dummy)
 	for (i = 0; i < dgnc_NumBoards; i++) {
 		brd = dgnc_Board[i];
 
-		DGNC_LOCK(brd->bd_lock, lock_flags);
+		spin_lock_irqsave(&brd->bd_lock, flags);
 
 		/* If board is in a failed state, don't bother scheduling a tasklet */
 		if (brd->state == BOARD_FAILED) {
-			DGNC_UNLOCK(brd->bd_lock, lock_flags);
+			spin_unlock_irqrestore(&brd->bd_lock, flags);
 			continue;
 		}
 
 		/* Schedule a poll helper task */
 		tasklet_schedule(&brd->helper_tasklet);
 
-		DGNC_UNLOCK(brd->bd_lock, lock_flags);
+		spin_unlock_irqrestore(&brd->bd_lock, flags);
 	}
 
 	/*
 	 * Schedule ourself back at the nominal wakeup interval.
 	 */
-	DGNC_LOCK(dgnc_poll_lock, lock_flags);
+	spin_lock_irqsave(&dgnc_poll_lock, flags);
 	dgnc_poll_time += dgnc_jiffies_from_ms(dgnc_poll_tick);
 
 	new_time = dgnc_poll_time - jiffies;
@@ -740,7 +740,7 @@ static void dgnc_poll_handler(ulong dummy)
 	dgnc_poll_timer.function = dgnc_poll_handler;
 	dgnc_poll_timer.data = 0;
 	dgnc_poll_timer.expires = dgnc_poll_time;
-	DGNC_UNLOCK(dgnc_poll_lock, lock_flags);
+	spin_unlock_irqrestore(&dgnc_poll_lock, flags);
 
 	if (!dgnc_poll_stop)
 		add_timer(&dgnc_poll_timer);
