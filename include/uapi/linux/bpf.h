@@ -99,10 +99,21 @@ enum bpf_cmd {
 	 * returns zero and stores next key or negative error
 	 */
 	BPF_MAP_GET_NEXT_KEY,
+
+	/* verify and load eBPF program
+	 * prog_fd = bpf(BPF_PROG_LOAD, union bpf_attr *attr, u32 size)
+	 * Using attr->prog_type, attr->insns, attr->license
+	 * returns fd or negative error
+	 */
+	BPF_PROG_LOAD,
 };
 
 enum bpf_map_type {
 	BPF_MAP_TYPE_UNSPEC,
+};
+
+enum bpf_prog_type {
+	BPF_PROG_TYPE_UNSPEC,
 };
 
 union bpf_attr {
@@ -121,6 +132,21 @@ union bpf_attr {
 			__aligned_u64 next_key;
 		};
 	};
+
+	struct { /* anonymous struct used by BPF_PROG_LOAD command */
+		__u32		prog_type;	/* one of enum bpf_prog_type */
+		__u32		insn_cnt;
+		__aligned_u64	insns;
+		__aligned_u64	license;
+	};
 } __attribute__((aligned(8)));
+
+/* integer value in 'imm' field of BPF_CALL instruction selects which helper
+ * function eBPF program intends to call
+ */
+enum bpf_func_id {
+	BPF_FUNC_unspec,
+	__BPF_FUNC_MAX_ID,
+};
 
 #endif /* _UAPI__LINUX_BPF_H__ */

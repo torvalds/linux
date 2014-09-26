@@ -14,6 +14,8 @@
 #include <linux/slab.h>
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
+#include <linux/license.h>
+#include <linux/filter.h>
 
 static LIST_HEAD(bpf_map_types);
 
@@ -334,6 +336,166 @@ err_put:
 	return err;
 }
 
+static LIST_HEAD(bpf_prog_types);
+
+static int find_prog_type(enum bpf_prog_type type, struct bpf_prog *prog)
+{
+	struct bpf_prog_type_list *tl;
+
+	list_for_each_entry(tl, &bpf_prog_types, list_node) {
+		if (tl->type == type) {
+			prog->aux->ops = tl->ops;
+			prog->aux->prog_type = type;
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+void bpf_register_prog_type(struct bpf_prog_type_list *tl)
+{
+	list_add(&tl->list_node, &bpf_prog_types);
+}
+
+/* drop refcnt on maps used by eBPF program and free auxilary data */
+static void free_used_maps(struct bpf_prog_aux *aux)
+{
+	int i;
+
+	for (i = 0; i < aux->used_map_cnt; i++)
+		bpf_map_put(aux->used_maps[i]);
+
+	kfree(aux->used_maps);
+}
+
+void bpf_prog_put(struct bpf_prog *prog)
+{
+	if (atomic_dec_and_test(&prog->aux->refcnt)) {
+		free_used_maps(prog->aux);
+		bpf_prog_free(prog);
+	}
+}
+
+static int bpf_prog_release(struct inode *inode, struct file *filp)
+{
+	struct bpf_prog *prog = filp->private_data;
+
+	bpf_prog_put(prog);
+	return 0;
+}
+
+static const struct file_operations bpf_prog_fops = {
+        .release = bpf_prog_release,
+};
+
+static struct bpf_prog *get_prog(struct fd f)
+{
+	struct bpf_prog *prog;
+
+	if (!f.file)
+		return ERR_PTR(-EBADF);
+
+	if (f.file->f_op != &bpf_prog_fops) {
+		fdput(f);
+		return ERR_PTR(-EINVAL);
+	}
+
+	prog = f.file->private_data;
+
+	return prog;
+}
+
+/* called by sockets/tracing/seccomp before attaching program to an event
+ * pairs with bpf_prog_put()
+ */
+struct bpf_prog *bpf_prog_get(u32 ufd)
+{
+	struct fd f = fdget(ufd);
+	struct bpf_prog *prog;
+
+	prog = get_prog(f);
+
+	if (IS_ERR(prog))
+		return prog;
+
+	atomic_inc(&prog->aux->refcnt);
+	fdput(f);
+	return prog;
+}
+
+/* last field in 'union bpf_attr' used by this command */
+#define	BPF_PROG_LOAD_LAST_FIELD license
+
+static int bpf_prog_load(union bpf_attr *attr)
+{
+	enum bpf_prog_type type = attr->prog_type;
+	struct bpf_prog *prog;
+	int err;
+	char license[128];
+	bool is_gpl;
+
+	if (CHECK_ATTR(BPF_PROG_LOAD))
+		return -EINVAL;
+
+	/* copy eBPF program license from user space */
+	if (strncpy_from_user(license, u64_to_ptr(attr->license),
+			      sizeof(license) - 1) < 0)
+		return -EFAULT;
+	license[sizeof(license) - 1] = 0;
+
+	/* eBPF programs must be GPL compatible to use GPL-ed functions */
+	is_gpl = license_is_gpl_compatible(license);
+
+	if (attr->insn_cnt >= BPF_MAXINSNS)
+		return -EINVAL;
+
+	/* plain bpf_prog allocation */
+	prog = bpf_prog_alloc(bpf_prog_size(attr->insn_cnt), GFP_USER);
+	if (!prog)
+		return -ENOMEM;
+
+	prog->len = attr->insn_cnt;
+
+	err = -EFAULT;
+	if (copy_from_user(prog->insns, u64_to_ptr(attr->insns),
+			   prog->len * sizeof(struct bpf_insn)) != 0)
+		goto free_prog;
+
+	prog->orig_prog = NULL;
+	prog->jited = false;
+
+	atomic_set(&prog->aux->refcnt, 1);
+	prog->aux->is_gpl_compatible = is_gpl;
+
+	/* find program type: socket_filter vs tracing_filter */
+	err = find_prog_type(type, prog);
+	if (err < 0)
+		goto free_prog;
+
+	/* run eBPF verifier */
+	/* err = bpf_check(prog, tb); */
+
+	if (err < 0)
+		goto free_used_maps;
+
+	/* eBPF program is ready to be JITed */
+	bpf_prog_select_runtime(prog);
+
+	err = anon_inode_getfd("bpf-prog", &bpf_prog_fops, prog, O_RDWR | O_CLOEXEC);
+
+	if (err < 0)
+		/* failed to allocate fd */
+		goto free_used_maps;
+
+	return err;
+
+free_used_maps:
+	free_used_maps(prog->aux);
+free_prog:
+	bpf_prog_free(prog);
+	return err;
+}
+
 SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, size)
 {
 	union bpf_attr attr = {};
@@ -394,6 +556,9 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 		break;
 	case BPF_MAP_GET_NEXT_KEY:
 		err = map_get_next_key(&attr);
+		break;
+	case BPF_PROG_LOAD:
+		err = bpf_prog_load(&attr);
 		break;
 	default:
 		err = -EINVAL;
