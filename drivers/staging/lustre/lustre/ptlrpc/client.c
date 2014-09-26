@@ -394,7 +394,7 @@ void ptlrpc_request_cache_fini(void)
 	kmem_cache_destroy(request_cache);
 }
 
-struct ptlrpc_request *ptlrpc_request_cache_alloc(int flags)
+struct ptlrpc_request *ptlrpc_request_cache_alloc(gfp_t flags)
 {
 	struct ptlrpc_request *req;
 
