@@ -115,6 +115,8 @@ config SPI_AU1550
 config SPI_BCM53XX
 	tristate "Broadcom BCM53xx SPI controller"
 	depends on ARCH_BCM_5301X
+	depends on BCMA_POSSIBLE
+	select BCMA
 	help
           Enable support for the SPI controller on Broadcom BCM53xx ARM SoCs.
 
