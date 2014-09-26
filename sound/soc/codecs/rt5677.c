@@ -3569,6 +3569,17 @@ MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
 
 static int rt5677_parse_dt(struct rt5677_priv *rt5677, struct device_node *np)
 {
+	rt5677->pdata.in1_diff = of_property_read_bool(np,
+					"realtek,in1-differential");
+	rt5677->pdata.in2_diff = of_property_read_bool(np,
+					"realtek,in2-differential");
+	rt5677->pdata.lout1_diff = of_property_read_bool(np,
+					"realtek,lout1-differential");
+	rt5677->pdata.lout2_diff = of_property_read_bool(np,
+					"realtek,lout2-differential");
+	rt5677->pdata.lout3_diff = of_property_read_bool(np,
+					"realtek,lout3-differential");
+
 	rt5677->pow_ldo2 = of_get_named_gpio(np,
 					"realtek,pow-ldo2-gpio", 0);
 
@@ -3659,6 +3670,18 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 	if (rt5677->pdata.in2_diff)
 		regmap_update_bits(rt5677->regmap, RT5677_IN1,
 					RT5677_IN_DF2, RT5677_IN_DF2);
+
+	if (rt5677->pdata.lout1_diff)
+		regmap_update_bits(rt5677->regmap, RT5677_LOUT1,
+					RT5677_LOUT1_L_DF, RT5677_LOUT1_L_DF);
+
+	if (rt5677->pdata.lout2_diff)
+		regmap_update_bits(rt5677->regmap, RT5677_LOUT1,
+					RT5677_LOUT2_L_DF, RT5677_LOUT2_L_DF);
+
+	if (rt5677->pdata.lout3_diff)
+		regmap_update_bits(rt5677->regmap, RT5677_LOUT1,
+					RT5677_LOUT3_L_DF, RT5677_LOUT3_L_DF);
 
 	if (rt5677->pdata.dmic2_clk_pin == RT5677_DMIC_CLK2) {
 		regmap_update_bits(rt5677->regmap, RT5677_GEN_CTRL2,

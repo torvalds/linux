@@ -19,6 +19,14 @@ Optional properties:
 
 - realtek,pow-ldo2-gpio : The GPIO that controls the CODEC's POW_LDO2 pin.
 
+- realtek,in1-differential
+- realtek,in2-differential
+- realtek,lout1-differential
+- realtek,lout2-differential
+- realtek,lout3-differential
+  Boolean. Indicate MIC1/2 input and LOUT1/2/3 outputs are differential,
+  rather than single-ended.
+
 Pins on the device (for linking into audio routes):
 
   * IN1P
@@ -47,4 +55,5 @@ rt5677 {
 
 	realtek,pow-ldo2-gpio =
 		<&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
+	realtek,in1-differential = "true";
 };

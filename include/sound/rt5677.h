@@ -19,9 +19,12 @@ enum rt5677_dmic2_clk {
 
 
 struct rt5677_platform_data {
-	/* IN1 IN2 can optionally be differential */
+	/* IN1/IN2/LOUT1/LOUT2/LOUT3 can optionally be differential */
 	bool in1_diff;
 	bool in2_diff;
+	bool lout1_diff;
+	bool lout2_diff;
+	bool lout3_diff;
 	/* DMIC2 clock source selection */
 	enum rt5677_dmic2_clk dmic2_clk_pin;
 };
