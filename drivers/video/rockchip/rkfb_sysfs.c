@@ -152,10 +152,10 @@ static ssize_t set_overlay(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int ovl;
+	u32 ovl;
 	int ret;
 
-	ret = kstrtoint(buf, 0, &ovl);
+	ret = kstrtou32(buf, 0, &ovl);
 	if (ret)
 		return ret;
 	if (dev_drv->ops->ovl_mgr)
@@ -188,15 +188,15 @@ static ssize_t set_fps(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int fps;
+	u32 fps;
 	int ret;
 
-	ret = kstrtoint(buf, 0, &fps);
+	ret = kstrtou32(buf, 0, &fps);
 	if (ret)
 		return ret;
 
-	if (fps == 0) {
-		dev_info(dev, "unsupport set fps=0\n");
+	if (fps == 0 || fps > 60) {
+		dev_info(dev, "unsupport fps value,pelase set 1~60\n");
 		return count;
 	}
 
@@ -232,17 +232,17 @@ static ssize_t set_fb_win_map(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int order;
+	u32 order;
 	int ret;
 
-	ret = kstrtoint(buf, 0, &order);
+	ret = kstrtou32(buf, 0, &order);
 	if ((order != FB0_WIN2_FB1_WIN1_FB2_WIN0) &&
 	    (order != FB0_WIN1_FB1_WIN2_FB2_WIN0) &&
 	    (order != FB0_WIN2_FB1_WIN0_FB2_WIN1) &&
 	    (order != FB0_WIN0_FB1_WIN2_FB2_WIN1) &&
 	    (order != FB0_WIN0_FB1_WIN1_FB2_WIN2) &&
 	    (order != FB0_WIN1_FB1_WIN0_FB2_WIN2)) {
-		printk(KERN_ERR "un supported map\n"
+		dev_info(dev, "un supported map\n"
 		       "you can use the following order:\n" "201:\n"
 		       "fb0-win1\n" "fb1-win0\n" "fb2-win2\n" "210:\n"
 		       "fb0-win0\n" "fb1-win1\n" "fb2-win2\n" "120:\n"
@@ -299,7 +299,7 @@ static ssize_t set_hwc_lut(struct device *dev, struct device_attribute *attr,
 		printk("\n");
 	}
 #endif
-	if(dev_drv->ops->set_hwc_lut)
+	if (dev_drv->ops->set_hwc_lut)
 		dev_drv->ops->set_hwc_lut(dev_drv, hwc_lut, 1);
 
 	return count;
@@ -418,7 +418,7 @@ static ssize_t set_dsp_bcsh(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int brightness, contrast, sat_con, ret, sin_hue, cos_hue;
+	int brightness, contrast, sat_con, ret = 0, sin_hue, cos_hue;
 
 	if (!strncmp(buf, "open", 4)) {
 		if (dev_drv->ops->open_bcsh)
@@ -485,7 +485,7 @@ static ssize_t set_dsp_bcsh(struct device *dev, struct device_attribute *attr,
 		else
 			ret = -1;
 	} else {
-		printk("format error\n");
+		dev_info(dev, "format error\n");
 	}
 
 	if (ret < 0)
