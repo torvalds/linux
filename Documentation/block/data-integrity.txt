@@ -129,11 +129,11 @@ interface for this is being worked on.
 4.1 BIO
 
 The data integrity patches add a new field to struct bio when
-CONFIG_BLK_DEV_INTEGRITY is enabled.  bio->bi_integrity is a pointer
-to a struct bip which contains the bio integrity payload.  Essentially
-a bip is a trimmed down struct bio which holds a bio_vec containing
-the integrity metadata and the required housekeeping information (bvec
-pool, vector count, etc.)
+CONFIG_BLK_DEV_INTEGRITY is enabled.  bio_integrity(bio) returns a
+pointer to a struct bip which contains the bio integrity payload.
+Essentially a bip is a trimmed down struct bio which holds a bio_vec
+containing the integrity metadata and the required housekeeping
+information (bvec pool, vector count, etc.)
 
 A kernel subsystem can enable data integrity protection on a bio by
 calling bio_integrity_alloc(bio).  This will allocate and attach the

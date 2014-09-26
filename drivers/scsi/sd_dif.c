@@ -383,9 +383,9 @@ void sd_dif_prepare(struct request *rq, sector_t hw_sector,
 		if (bio_flagged(bio, BIO_MAPPED_INTEGRITY))
 			break;
 
-		virt = bio->bi_integrity->bip_iter.bi_sector & 0xffffffff;
+		virt = bio_integrity(bio)->bip_iter.bi_sector & 0xffffffff;
 
-		bip_for_each_vec(iv, bio->bi_integrity, iter) {
+		bip_for_each_vec(iv, bio_integrity(bio), iter) {
 			sdt = kmap_atomic(iv.bv_page)
 				+ iv.bv_offset;
 
@@ -434,9 +434,9 @@ void sd_dif_complete(struct scsi_cmnd *scmd, unsigned int good_bytes)
 		struct bio_vec iv;
 		struct bvec_iter iter;
 
-		virt = bio->bi_integrity->bip_iter.bi_sector & 0xffffffff;
+		virt = bio_integrity(bio)->bip_iter.bi_sector & 0xffffffff;
 
-		bip_for_each_vec(iv, bio->bi_integrity, iter) {
+		bip_for_each_vec(iv, bio_integrity(bio), iter) {
 			sdt = kmap_atomic(iv.bv_page)
 				+ iv.bv_offset;
 
