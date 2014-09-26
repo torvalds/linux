@@ -666,7 +666,7 @@ struct biovec_slab {
 extern struct bio_integrity_payload *bio_integrity_alloc(struct bio *, gfp_t, unsigned int);
 extern void bio_integrity_free(struct bio *);
 extern int bio_integrity_add_page(struct bio *, struct page *, unsigned int, unsigned int);
-extern int bio_integrity_enabled(struct bio *bio);
+extern bool bio_integrity_enabled(struct bio *bio);
 extern int bio_integrity_set_tag(struct bio *, void *, unsigned int);
 extern int bio_integrity_get_tag(struct bio *, void *, unsigned int);
 extern int bio_integrity_prep(struct bio *);
@@ -685,9 +685,9 @@ static inline int bio_integrity(struct bio *bio)
 	return 0;
 }
 
-static inline int bio_integrity_enabled(struct bio *bio)
+static inline bool bio_integrity_enabled(struct bio *bio)
 {
-	return 0;
+	return false;
 }
 
 static inline int bioset_integrity_create(struct bio_set *bs, int pool_size)

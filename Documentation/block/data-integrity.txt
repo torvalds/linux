@@ -192,16 +192,6 @@ will require extra work due to the application tag.
     supported by the block device.
 
 
-    int bdev_integrity_enabled(block_device, int rw);
-
-      bdev_integrity_enabled() will return 1 if the block device
-      supports integrity metadata transfer for the data direction
-      specified in 'rw'.
-
-      bdev_integrity_enabled() honors the write_generate and
-      read_verify flags in sysfs and will respond accordingly.
-
-
     int bio_integrity_prep(bio);
 
       To generate IMD for WRITE and to set up buffers for READ, the

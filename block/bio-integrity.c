@@ -147,24 +147,6 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 }
 EXPORT_SYMBOL(bio_integrity_add_page);
 
-static int bdev_integrity_enabled(struct block_device *bdev, int rw)
-{
-	struct blk_integrity *bi = bdev_get_integrity(bdev);
-
-	if (bi == NULL)
-		return 0;
-
-	if (rw == READ && bi->verify_fn != NULL &&
-	    (bi->flags & INTEGRITY_FLAG_READ))
-		return 1;
-
-	if (rw == WRITE && bi->generate_fn != NULL &&
-	    (bi->flags & INTEGRITY_FLAG_WRITE))
-		return 1;
-
-	return 0;
-}
-
 /**
  * bio_integrity_enabled - Check whether integrity can be passed
  * @bio:	bio to check
@@ -174,16 +156,29 @@ static int bdev_integrity_enabled(struct block_device *bdev, int rw)
  * set prior to calling.  The functions honors the write_generate and
  * read_verify flags in sysfs.
  */
-int bio_integrity_enabled(struct bio *bio)
+bool bio_integrity_enabled(struct bio *bio)
 {
+	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
+
 	if (!bio_is_rw(bio))
-		return 0;
+		return false;
 
 	/* Already protected? */
 	if (bio_integrity(bio))
-		return 0;
+		return false;
 
-	return bdev_integrity_enabled(bio->bi_bdev, bio_data_dir(bio));
+	if (bi == NULL)
+		return false;
+
+	if (bio_data_dir(bio) == READ && bi->verify_fn != NULL &&
+	    (bi->flags & INTEGRITY_FLAG_READ))
+		return true;
+
+	if (bio_data_dir(bio) == WRITE && bi->generate_fn != NULL &&
+	    (bi->flags & INTEGRITY_FLAG_WRITE))
+		return true;
+
+	return false;
 }
 EXPORT_SYMBOL(bio_integrity_enabled);
 
