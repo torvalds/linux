@@ -138,6 +138,9 @@ union bpf_attr {
 		__u32		insn_cnt;
 		__aligned_u64	insns;
 		__aligned_u64	license;
+		__u32		log_level;	/* verbosity level of verifier */
+		__u32		log_size;	/* size of user buffer */
+		__aligned_u64	log_buf;	/* user supplied buffer */
 	};
 } __attribute__((aligned(8)));
 

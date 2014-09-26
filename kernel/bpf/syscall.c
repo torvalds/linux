@@ -458,7 +458,7 @@ struct bpf_prog *bpf_prog_get(u32 ufd)
 }
 
 /* last field in 'union bpf_attr' used by this command */
-#define	BPF_PROG_LOAD_LAST_FIELD license
+#define	BPF_PROG_LOAD_LAST_FIELD log_buf
 
 static int bpf_prog_load(union bpf_attr *attr)
 {
