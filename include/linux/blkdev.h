@@ -1458,8 +1458,10 @@ static inline uint64_t rq_io_start_time_ns(struct request *req)
 
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 
-#define INTEGRITY_FLAG_READ	2	/* verify data integrity on read */
-#define INTEGRITY_FLAG_WRITE	4	/* generate data integrity on write */
+enum blk_integrity_flags {
+	BLK_INTEGRITY_VERIFY		= 1 << 0,
+	BLK_INTEGRITY_GENERATE		= 1 << 1,
+};
 
 struct blk_integrity_iter {
 	void			*prot_buf;

@@ -173,11 +173,11 @@ bool bio_integrity_enabled(struct bio *bio)
 		return false;
 
 	if (bio_data_dir(bio) == READ && bi->verify_fn != NULL &&
-	    (bi->flags & INTEGRITY_FLAG_READ))
+	    (bi->flags & BLK_INTEGRITY_VERIFY))
 		return true;
 
 	if (bio_data_dir(bio) == WRITE && bi->generate_fn != NULL &&
-	    (bi->flags & INTEGRITY_FLAG_WRITE))
+	    (bi->flags & BLK_INTEGRITY_GENERATE))
 		return true;
 
 	return false;

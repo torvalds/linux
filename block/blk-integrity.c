@@ -269,42 +269,42 @@ static ssize_t integrity_tag_size_show(struct blk_integrity *bi, char *page)
 		return sprintf(page, "0\n");
 }
 
-static ssize_t integrity_read_store(struct blk_integrity *bi,
-				    const char *page, size_t count)
+static ssize_t integrity_verify_store(struct blk_integrity *bi,
+				      const char *page, size_t count)
 {
 	char *p = (char *) page;
 	unsigned long val = simple_strtoul(p, &p, 10);
 
 	if (val)
-		bi->flags |= INTEGRITY_FLAG_READ;
+		bi->flags |= BLK_INTEGRITY_VERIFY;
 	else
-		bi->flags &= ~INTEGRITY_FLAG_READ;
+		bi->flags &= ~BLK_INTEGRITY_VERIFY;
 
 	return count;
 }
 
-static ssize_t integrity_read_show(struct blk_integrity *bi, char *page)
+static ssize_t integrity_verify_show(struct blk_integrity *bi, char *page)
 {
-	return sprintf(page, "%d\n", (bi->flags & INTEGRITY_FLAG_READ) != 0);
+	return sprintf(page, "%d\n", (bi->flags & BLK_INTEGRITY_VERIFY) != 0);
 }
 
-static ssize_t integrity_write_store(struct blk_integrity *bi,
-				     const char *page, size_t count)
+static ssize_t integrity_generate_store(struct blk_integrity *bi,
+					const char *page, size_t count)
 {
 	char *p = (char *) page;
 	unsigned long val = simple_strtoul(p, &p, 10);
 
 	if (val)
-		bi->flags |= INTEGRITY_FLAG_WRITE;
+		bi->flags |= BLK_INTEGRITY_GENERATE;
 	else
-		bi->flags &= ~INTEGRITY_FLAG_WRITE;
+		bi->flags &= ~BLK_INTEGRITY_GENERATE;
 
 	return count;
 }
 
-static ssize_t integrity_write_show(struct blk_integrity *bi, char *page)
+static ssize_t integrity_generate_show(struct blk_integrity *bi, char *page)
 {
-	return sprintf(page, "%d\n", (bi->flags & INTEGRITY_FLAG_WRITE) != 0);
+	return sprintf(page, "%d\n", (bi->flags & BLK_INTEGRITY_GENERATE) != 0);
 }
 
 static struct integrity_sysfs_entry integrity_format_entry = {
@@ -317,23 +317,23 @@ static struct integrity_sysfs_entry integrity_tag_size_entry = {
 	.show = integrity_tag_size_show,
 };
 
-static struct integrity_sysfs_entry integrity_read_entry = {
+static struct integrity_sysfs_entry integrity_verify_entry = {
 	.attr = { .name = "read_verify", .mode = S_IRUGO | S_IWUSR },
-	.show = integrity_read_show,
-	.store = integrity_read_store,
+	.show = integrity_verify_show,
+	.store = integrity_verify_store,
 };
 
-static struct integrity_sysfs_entry integrity_write_entry = {
+static struct integrity_sysfs_entry integrity_generate_entry = {
 	.attr = { .name = "write_generate", .mode = S_IRUGO | S_IWUSR },
-	.show = integrity_write_show,
-	.store = integrity_write_store,
+	.show = integrity_generate_show,
+	.store = integrity_generate_store,
 };
 
 static struct attribute *integrity_attrs[] = {
 	&integrity_format_entry.attr,
 	&integrity_tag_size_entry.attr,
-	&integrity_read_entry.attr,
-	&integrity_write_entry.attr,
+	&integrity_verify_entry.attr,
+	&integrity_generate_entry.attr,
 	NULL,
 };
 
@@ -406,7 +406,7 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 
 		kobject_uevent(&bi->kobj, KOBJ_ADD);
 
-		bi->flags |= INTEGRITY_FLAG_READ | INTEGRITY_FLAG_WRITE;
+		bi->flags |= BLK_INTEGRITY_VERIFY | BLK_INTEGRITY_GENERATE;
 		bi->interval = queue_logical_block_size(disk->queue);
 		disk->integrity = bi;
 	} else
@@ -419,6 +419,7 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 		bi->verify_fn = template->verify_fn;
 		bi->tuple_size = template->tuple_size;
 		bi->tag_size = template->tag_size;
+		bi->flags |= template->flags;
 	} else
 		bi->name = bi_unsupported_name;
 
