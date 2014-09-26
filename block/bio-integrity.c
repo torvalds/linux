@@ -100,7 +100,7 @@ void bio_integrity_free(struct bio *bio)
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 	struct bio_set *bs = bio->bi_pool;
 
-	if (bip->bip_owns_buf)
+	if (bip->bip_flags & BIP_BLOCK_INTEGRITY)
 		kfree(page_address(bip->bip_vec->bv_page) +
 		      bip->bip_vec->bv_offset);
 
@@ -293,7 +293,7 @@ int bio_integrity_prep(struct bio *bio)
 		return -EIO;
 	}
 
-	bip->bip_owns_buf = 1;
+	bip->bip_flags |= BIP_BLOCK_INTEGRITY;
 	bip->bip_iter.bi_size = len;
 	bip_set_seed(bip, bio->bi_iter.bi_sector);
 
