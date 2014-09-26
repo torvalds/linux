@@ -523,6 +523,8 @@ static const struct v4l2_ctrl_ops smiapp_ctrl_ops = {
 static int smiapp_init_controls(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	unsigned long *valid_link_freqs = &sensor->valid_link_freqs[
+		sensor->csi_format->compressed - SMIAPP_COMPRESSED_BASE];
 	unsigned int max, i;
 	int rval;
 
@@ -605,8 +607,8 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 
 	sensor->link_freq = v4l2_ctrl_new_int_menu(
 		&sensor->src->ctrl_handler, &smiapp_ctrl_ops,
-		V4L2_CID_LINK_FREQ, max, 0,
-		sensor->platform_data->op_sys_clock);
+		V4L2_CID_LINK_FREQ, __fls(*valid_link_freqs),
+		__ffs(*valid_link_freqs), sensor->platform_data->op_sys_clock);
 
 	sensor->pixel_rate_csi = v4l2_ctrl_new_std(
 		&sensor->src->ctrl_handler, &smiapp_ctrl_ops,
@@ -1735,6 +1737,7 @@ static int smiapp_set_format_source(struct v4l2_subdev *subdev,
 	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
 	const struct smiapp_csi_data_format *csi_format,
 		*old_csi_format = sensor->csi_format;
+	unsigned long *valid_link_freqs;
 	u32 code = fmt->format.code;
 	unsigned int i;
 	int rval;
@@ -1764,6 +1767,18 @@ static int smiapp_set_format_source(struct v4l2_subdev *subdev,
 			__v4l2_ctrl_modify_range(
 				sensor->test_data[i], 0,
 				(1 << csi_format->width) - 1, 1, 0);
+
+	if (csi_format->compressed == old_csi_format->compressed)
+		return 0;
+
+	valid_link_freqs = 
+		&sensor->valid_link_freqs[sensor->csi_format->compressed
+					  - SMIAPP_COMPRESSED_BASE];
+
+	__v4l2_ctrl_modify_range(
+		sensor->link_freq, 0,
+		__fls(*valid_link_freqs), ~*valid_link_freqs,
+		__ffs(*valid_link_freqs));
 
 	return 0;
 }
