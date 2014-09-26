@@ -664,9 +664,8 @@ static void do_tx(struct work_struct *work)
 	if (!udev->send_complete) {
 		spin_unlock_irqrestore(&tx->lock, flags);
 		return;
-	} else {
-		udev->send_complete = 0;
 	}
+	udev->send_complete = 0;
 
 	if (!list_empty(&tx->hci_list)) {
 		t = list_entry(tx->hci_list.next, struct usb_tx, list);
