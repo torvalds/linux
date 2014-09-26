@@ -3145,14 +3145,24 @@ static int fb_setcolreg(unsigned regno,
 
 static int rk_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
-	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
-	struct rk_lcdc_win *win;
-	win = dev_drv->win[win_id];
+	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
+	struct ion_handle *handle = (struct ion_handle *)info->var.reserved[0];
+	struct dma_buf *dma_buf = NULL;
+
+	if (IS_ERR(handle)) {
+		dev_err(info->device, "failed to get ion handle:%ld\n",
+			PTR_ERR(handle));
+		return -ENOMEM;
+	}
+	dma_buf = ion_share_dma_buf(rk_fb->ion_client, handle);
+	if (IS_ERR_OR_NULL(dma_buf)) {
+		printk("get ion share dma buf failed\n");
+		return -ENOMEM;
+	}
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	return dma_buf_mmap(win->area[0].dma_buf, vma, 0);
+	return dma_buf_mmap(dma_buf, vma, 0);
 }
 
 static struct fb_ops fb_ops = {
@@ -3501,6 +3511,7 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 			PTR_ERR(handle));
 		return -ENOMEM;
 	}
+	fbi->var.reserved[0] = (__u32)handle;
 	win->area[0].dma_buf = ion_share_dma_buf(rk_fb->ion_client, handle);
 	if (IS_ERR_OR_NULL(win->area[0].dma_buf)) {
 		printk("ion_share_dma_buf() failed\n");
