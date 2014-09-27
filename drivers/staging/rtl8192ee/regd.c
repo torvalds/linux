@@ -291,7 +291,6 @@ static void _rtl_reg_apply_world_flags(struct wiphy *wiphy,
 {
 	_rtl_reg_apply_beaconing_flags(wiphy, initiator);
 	_rtl_reg_apply_active_scan_flags(wiphy, initiator);
-	return;
 }
 
 static void _rtl_dump_channel_map(struct wiphy *wiphy)
