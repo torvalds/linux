@@ -886,18 +886,16 @@ EXPORT_SYMBOL(tcp_syn_flood_action);
  */
 static struct ip_options_rcu *tcp_v4_save_options(struct sk_buff *skb)
 {
-	const struct ip_options *opt = &(IPCB(skb)->opt);
+	const struct ip_options *opt = &TCP_SKB_CB(skb)->header.h4.opt;
 	struct ip_options_rcu *dopt = NULL;
 
 	if (opt && opt->optlen) {
 		int opt_size = sizeof(*dopt) + opt->optlen;
 
 		dopt = kmalloc(opt_size, GFP_ATOMIC);
-		if (dopt) {
-			if (ip_options_echo(&dopt->opt, skb)) {
-				kfree(dopt);
-				dopt = NULL;
-			}
+		if (dopt && __ip_options_echo(&dopt->opt, skb, opt)) {
+			kfree(dopt);
+			dopt = NULL;
 		}
 	}
 	return dopt;
@@ -1431,7 +1429,7 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 
 #ifdef CONFIG_SYN_COOKIES
 	if (!th->syn)
-		sk = cookie_v4_check(sk, skb, &(IPCB(skb)->opt));
+		sk = cookie_v4_check(sk, skb, &TCP_SKB_CB(skb)->header.h4.opt);
 #endif
 	return sk;
 }
@@ -1636,6 +1634,13 @@ int tcp_v4_rcv(struct sk_buff *skb)
 
 	th = tcp_hdr(skb);
 	iph = ip_hdr(skb);
+	/* This is tricky : We move IPCB at its correct location into TCP_SKB_CB()
+	 * barrier() makes sure compiler wont play fool^Waliasing games.
+	 */
+	memmove(&TCP_SKB_CB(skb)->header.h4, IPCB(skb),
+		sizeof(struct inet_skb_parm));
+	barrier();
+
 	TCP_SKB_CB(skb)->seq = ntohl(th->seq);
 	TCP_SKB_CB(skb)->end_seq = (TCP_SKB_CB(skb)->seq + th->syn + th->fin +
 				    skb->len - th->doff * 4);
