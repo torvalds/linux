@@ -338,8 +338,6 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	struct greybus_manifest *manifest;
 	int retval;
 	int overall_size;
-	u8 version_major;
-	u8 version_minor;
 
 	/* we have to have at _least_ the manifest header */
 	if (size <= sizeof(manifest->header))
@@ -367,16 +365,13 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		goto error;
 	}
 
-	version_major = manifest->header.version_major;
-	version_minor = manifest->header.version_minor;
-
 	/* Validate major/minor number */
-	if ((version_major != GREYBUS_VERSION_MAJOR) ||
-	    (version_minor != GREYBUS_VERSION_MINOR)) {
+	if (manifest->header.version_major > GREYBUS_VERSION_MAJOR) {
 		dev_err(hd->parent,
-			"Invalid greybus versions, expected %d.%d, got %d.%d\n",
-			GREYBUS_VERSION_MAJOR, GREYBUS_VERSION_MINOR,
-			version_major, version_minor);
+			"Manifest version too new (%hhu.%hhu > %hhu.%hhu)\n",
+			manifest->header.version_major,
+			manifest->header.version_minor,
+			GREYBUS_VERSION_MAJOR, GREYBUS_VERSION_MINOR);
 		goto error;
 	}
 
