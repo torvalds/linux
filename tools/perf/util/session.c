@@ -119,7 +119,7 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 		 * kernel MMAP event, in perf_event__process_mmap().
 		 */
 		if (perf_session__create_kernel_maps(session) < 0)
-			goto out_delete;
+			pr_warning("Cannot read kernel map\n");
 	}
 
 	if (tool && tool->ordering_requires_timestamps &&

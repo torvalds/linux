@@ -126,5 +126,5 @@ int __perf_session__set_tracepoints_handlers(struct perf_session *session,
 
 extern volatile int session_done;
 
-#define session_done()	(*(volatile int *)(&session_done))
+#define session_done()	ACCESS_ONCE(session_done)
 #endif /* __PERF_SESSION_H */

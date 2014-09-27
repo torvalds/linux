@@ -460,7 +460,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 	file.path = inject.input_name;
 	inject.session = perf_session__new(&file, true, &inject.tool);
 	if (inject.session == NULL)
-		return -ENOMEM;
+		return -1;
 
 	if (symbol__init(&inject.session->header.env) < 0)
 		return -1;
