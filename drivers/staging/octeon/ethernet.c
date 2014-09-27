@@ -720,7 +720,8 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			struct net_device *dev =
 			    alloc_etherdev(sizeof(struct octeon_ethernet));
 			if (!dev) {
-				pr_err("Failed to allocate ethernet device for port %d\n", port);
+				pr_err("Failed to allocate ethernet device for port %d\n",
+				       port);
 				continue;
 			}
 
