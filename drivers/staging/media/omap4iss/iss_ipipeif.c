@@ -382,8 +382,7 @@ __ipipeif_get_format(struct iss_ipipeif_device *ipipeif,
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(fh, pad);
-	else
-		return &ipipeif->formats[pad];
+	return &ipipeif->formats[pad];
 }
 
 /*
