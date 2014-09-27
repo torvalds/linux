@@ -334,8 +334,7 @@ int otg_statemachine(struct otg_fsm *fsm)
 	case OTG_STATE_A_HOST:
 		if (fsm->id || fsm->a_bus_drop)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_VFALL);
-		else if ((!fsm->a_bus_req || fsm->a_suspend_req_inf) &&
-				fsm->otg->host->b_hnp_enable)
+		else if (!fsm->a_bus_req || fsm->a_suspend_req_inf)
 			otg_set_state(fsm, OTG_STATE_A_SUSPEND);
 		else if (!fsm->b_conn)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_BCON);
