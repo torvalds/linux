@@ -276,18 +276,16 @@ static int ks8695_gpio_show(struct seq_file *s, void *unused)
 				case IOPC_TM_EDGE:
 					seq_printf(s, "(Edges)");	break;
 				}
-			}
-			else
+			} else
 				seq_printf(s, "GPIO\t");
-		}
-		else if (i <= KS8695_GPIO_5) {
+		} else if (i <= KS8695_GPIO_5) {
 			if (ctrl & enable[i])
 				seq_printf(s, "TOUT%i\t", i - KS8695_GPIO_4);
 			else
 				seq_printf(s, "GPIO\t");
-		}
-		else
+		} else {
 			seq_printf(s, "GPIO\t");
+		}
 
 		seq_printf(s, "\t");
 
