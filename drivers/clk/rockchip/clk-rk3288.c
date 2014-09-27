@@ -20,7 +20,7 @@
 #include "clk.h"
 
 #define RK3288_GRF_SOC_CON(x)	(0x244 + x * 4)
-#define RK3288_GRF_SOC_STATUS	0x280
+#define RK3288_GRF_SOC_STATUS1	0x284
 
 enum rk3288_plls {
 	apll, dpll, cpll, gpll, npll,
@@ -101,6 +101,70 @@ struct rockchip_pll_rate_table rk3288_pll_rates[] = {
 	{ /* sentinel */ },
 };
 
+#define RK3288_DIV_ACLK_CORE_M0_MASK	0xf
+#define RK3288_DIV_ACLK_CORE_M0_SHIFT	0
+#define RK3288_DIV_ACLK_CORE_MP_MASK	0xf
+#define RK3288_DIV_ACLK_CORE_MP_SHIFT	4
+#define RK3288_DIV_L2RAM_MASK		0x7
+#define RK3288_DIV_L2RAM_SHIFT		0
+#define RK3288_DIV_ATCLK_MASK		0x1f
+#define RK3288_DIV_ATCLK_SHIFT		4
+#define RK3288_DIV_PCLK_DBGPRE_MASK	0x1f
+#define RK3288_DIV_PCLK_DBGPRE_SHIFT	9
+
+#define RK3288_CLKSEL0(_core_m0, _core_mp)				\
+	{								\
+		.reg = RK3288_CLKSEL_CON(0),				\
+		.val = HIWORD_UPDATE(_core_m0, RK3288_DIV_ACLK_CORE_M0_MASK, \
+				RK3288_DIV_ACLK_CORE_M0_SHIFT) |	\
+		       HIWORD_UPDATE(_core_mp, RK3288_DIV_ACLK_CORE_MP_MASK, \
+				RK3288_DIV_ACLK_CORE_MP_SHIFT),		\
+	}
+#define RK3288_CLKSEL37(_l2ram, _atclk, _pclk_dbg_pre)			\
+	{								\
+		.reg = RK3288_CLKSEL_CON(37),				\
+		.val = HIWORD_UPDATE(_l2ram, RK3288_DIV_L2RAM_MASK,	\
+				RK3288_DIV_L2RAM_SHIFT) |		\
+		       HIWORD_UPDATE(_atclk, RK3288_DIV_ATCLK_MASK,	\
+				RK3288_DIV_ATCLK_SHIFT) |		\
+		       HIWORD_UPDATE(_pclk_dbg_pre,			\
+				RK3288_DIV_PCLK_DBGPRE_MASK,		\
+				RK3288_DIV_PCLK_DBGPRE_SHIFT),		\
+	}
+
+#define RK3288_CPUCLK_RATE(_prate, _core_m0, _core_mp, _l2ram, _atclk, _pdbg) \
+	{								\
+		.prate = _prate,					\
+		.divs = {						\
+			RK3288_CLKSEL0(_core_m0, _core_mp),		\
+			RK3288_CLKSEL37(_l2ram, _atclk, _pdbg),		\
+		},							\
+	}
+
+static struct rockchip_cpuclk_rate_table rk3288_cpuclk_rates[] __initdata = {
+	RK3288_CPUCLK_RATE(1800000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE(1704000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE(1608000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE(1512000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE(1416000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE(1200000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE(1008000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE( 816000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE( 696000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE( 600000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE( 408000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE( 312000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE( 216000000, 2, 4, 2, 4, 4),
+	RK3288_CPUCLK_RATE( 126000000, 2, 4, 2, 4, 4),
+};
+
+static const struct rockchip_cpuclk_reg_data rk3288_cpuclk_data = {
+	.core_reg = RK3288_CLKSEL_CON(0),
+	.div_core_shift = 8,
+	.div_core_mask = 0x1f,
+	.mux_core_shift = 15,
+};
+
 PNAME(mux_pll_p)		= { "xin24m", "xin32k" };
 PNAME(mux_armclk_p)		= { "apll_core", "gpll_core" };
 PNAME(mux_ddrphy_p)		= { "dpll_ddr", "gpll_ddr" };
@@ -166,35 +230,33 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 			RK3288_CLKGATE_CON(0), 1, GFLAGS),
 	GATE(0, "gpll_core", "gpll", 0,
 			RK3288_CLKGATE_CON(0), 2, GFLAGS),
-	COMPOSITE_NOGATE(0, "armclk", mux_armclk_p, 0,
-			RK3288_CLKSEL_CON(0), 15, 1, MFLAGS, 8, 5, DFLAGS),
 
 	COMPOSITE_NOMUX(0, "armcore0", "armclk", 0,
-			RK3288_CLKSEL_CON(36), 0, 3, DFLAGS,
+			RK3288_CLKSEL_CON(36), 0, 3, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3288_CLKGATE_CON(12), 0, GFLAGS),
 	COMPOSITE_NOMUX(0, "armcore1", "armclk", 0,
-			RK3288_CLKSEL_CON(36), 4, 3, DFLAGS,
+			RK3288_CLKSEL_CON(36), 4, 3, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3288_CLKGATE_CON(12), 1, GFLAGS),
 	COMPOSITE_NOMUX(0, "armcore2", "armclk", 0,
-			RK3288_CLKSEL_CON(36), 8, 3, DFLAGS,
+			RK3288_CLKSEL_CON(36), 8, 3, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3288_CLKGATE_CON(12), 2, GFLAGS),
 	COMPOSITE_NOMUX(0, "armcore3", "armclk", 0,
-			RK3288_CLKSEL_CON(36), 12, 3, DFLAGS,
+			RK3288_CLKSEL_CON(36), 12, 3, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3288_CLKGATE_CON(12), 3, GFLAGS),
 	COMPOSITE_NOMUX(0, "l2ram", "armclk", 0,
-			RK3288_CLKSEL_CON(37), 0, 3, DFLAGS,
+			RK3288_CLKSEL_CON(37), 0, 3, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3288_CLKGATE_CON(12), 4, GFLAGS),
 	COMPOSITE_NOMUX(0, "aclk_core_m0", "armclk", 0,
-			RK3288_CLKSEL_CON(0), 0, 4, DFLAGS,
+			RK3288_CLKSEL_CON(0), 0, 4, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3288_CLKGATE_CON(12), 5, GFLAGS),
 	COMPOSITE_NOMUX(0, "aclk_core_mp", "armclk", 0,
-			RK3288_CLKSEL_CON(0), 4, 4, DFLAGS,
+			RK3288_CLKSEL_CON(0), 4, 4, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3288_CLKGATE_CON(12), 6, GFLAGS),
 	COMPOSITE_NOMUX(0, "atclk", "armclk", 0,
-			RK3288_CLKSEL_CON(37), 4, 5, DFLAGS,
+			RK3288_CLKSEL_CON(37), 4, 5, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3288_CLKGATE_CON(12), 7, GFLAGS),
 	COMPOSITE_NOMUX(0, "pclk_dbg_pre", "armclk", 0,
-			RK3288_CLKSEL_CON(37), 9, 5, DFLAGS,
+			RK3288_CLKSEL_CON(37), 9, 5, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3288_CLKGATE_CON(12), 8, GFLAGS),
 	GATE(0, "pclk_dbg", "pclk_dbg_pre", 0,
 			RK3288_CLKGATE_CON(12), 9, GFLAGS),
@@ -733,11 +795,16 @@ static void __init rk3288_clk_init(struct device_node *np)
 
 	rockchip_clk_register_plls(rk3288_pll_clks,
 				   ARRAY_SIZE(rk3288_pll_clks),
-				   RK3288_GRF_SOC_STATUS);
+				   RK3288_GRF_SOC_STATUS1);
 	rockchip_clk_register_branches(rk3288_clk_branches,
 				  ARRAY_SIZE(rk3288_clk_branches));
 	rockchip_clk_protect_critical(rk3288_critical_clocks,
 				      ARRAY_SIZE(rk3288_critical_clocks));
+
+	rockchip_clk_register_armclk(ARMCLK, "armclk",
+			mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
+			&rk3288_cpuclk_data, rk3288_cpuclk_rates,
+			ARRAY_SIZE(rk3288_cpuclk_rates));
 
 	rockchip_register_softrst(np, 12, reg_base + RK3288_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
