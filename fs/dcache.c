@@ -2636,7 +2636,6 @@ out_err:
 /*
  * Prepare an anonymous dentry for life in the superblock's dentry tree as a
  * named dentry in place of the dentry to be replaced.
- * returns with anon->d_lock held!
  */
 static void __d_materialise_dentry(struct dentry *dentry, struct dentry *anon)
 {
@@ -2655,21 +2654,21 @@ static void __d_materialise_dentry(struct dentry *dentry, struct dentry *anon)
 	dentry->d_parent = dentry;
 	list_del_init(&dentry->d_u.d_child);
 	anon->d_parent = dparent;
+	list_move(&anon->d_u.d_child, &dparent->d_subdirs);
 	if (likely(!d_unhashed(anon))) {
 		hlist_bl_lock(&anon->d_sb->s_anon);
 		__hlist_bl_del(&anon->d_hash);
 		anon->d_hash.pprev = NULL;
 		hlist_bl_unlock(&anon->d_sb->s_anon);
 	}
-	list_move(&anon->d_u.d_child, &dparent->d_subdirs);
+	__d_rehash(anon, d_hash(anon->d_parent, anon->d_name.hash));
 
 	write_seqcount_end(&dentry->d_seq);
 	write_seqcount_end(&anon->d_seq);
 
 	dentry_unlock_parents_for_move(anon, dentry);
 	spin_unlock(&dentry->d_lock);
-
-	/* anon->d_lock still locked, returns locked */
+	spin_unlock(&anon->d_lock);
 }
 
 /**
@@ -2719,8 +2718,6 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 			write_seqlock(&rename_lock);
 			__d_materialise_dentry(dentry, new);
 			write_sequnlock(&rename_lock);
-			_d_rehash(new);
-			spin_unlock(&new->d_lock);
 			spin_unlock(&inode->i_lock);
 			security_d_instantiate(new, inode);
 			iput(inode);
@@ -2811,9 +2808,9 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 		BUG_ON(!d_unhashed(actual));
 
 	spin_lock(&actual->d_lock);
-found:
 	_d_rehash(actual);
 	spin_unlock(&actual->d_lock);
+found:
 	spin_unlock(&inode->i_lock);
 out_nolock:
 	if (actual == dentry) {
