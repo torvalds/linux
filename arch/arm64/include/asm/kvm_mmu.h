@@ -59,10 +59,9 @@
 #define KERN_TO_HYP(kva)	((unsigned long)kva - PAGE_OFFSET + HYP_PAGE_OFFSET)
 
 /*
- * Align KVM with the kernel's view of physical memory. Should be
- * 40bit IPA, with PGD being 8kB aligned in the 4KB page configuration.
+ * We currently only support a 40bit IPA.
  */
-#define KVM_PHYS_SHIFT	PHYS_MASK_SHIFT
+#define KVM_PHYS_SHIFT	(40)
 #define KVM_PHYS_SIZE	(1UL << KVM_PHYS_SHIFT)
 #define KVM_PHYS_MASK	(KVM_PHYS_SIZE - 1UL)
 
@@ -92,19 +91,6 @@ void kvm_clear_hyp_idmap(void);
 
 #define	kvm_set_pte(ptep, pte)		set_pte(ptep, pte)
 #define	kvm_set_pmd(pmdp, pmd)		set_pmd(pmdp, pmd)
-
-static inline bool kvm_is_write_fault(unsigned long esr)
-{
-	unsigned long esr_ec = esr >> ESR_EL2_EC_SHIFT;
-
-	if (esr_ec == ESR_EL2_EC_IABT)
-		return false;
-
-	if ((esr & ESR_EL2_ISV) && !(esr & ESR_EL2_WNR))
-		return false;
-
-	return true;
-}
 
 static inline void kvm_clean_pgd(pgd_t *pgd) {}
 static inline void kvm_clean_pmd_entry(pmd_t *pmd) {}

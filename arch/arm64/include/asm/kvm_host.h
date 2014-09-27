@@ -43,7 +43,7 @@
 
 #define KVM_VCPU_MAX_FEATURES 3
 
-int kvm_target_cpu(void);
+int __attribute_const__ kvm_target_cpu(void);
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
 int kvm_arch_dev_ioctl_check_extension(long ext);
 
@@ -197,7 +197,7 @@ static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 }
 
 struct kvm_vcpu *kvm_arm_get_running_vcpu(void);
-struct kvm_vcpu __percpu **kvm_get_running_vcpus(void);
+struct kvm_vcpu * __percpu *kvm_get_running_vcpus(void);
 
 u64 kvm_call_hyp(void *hypfn, ...);
 

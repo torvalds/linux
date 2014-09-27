@@ -791,7 +791,7 @@ static bool is_valid_cache(u32 val)
 	u32 level, ctype;
 
 	if (val >= CSSELR_MAX)
-		return -ENOENT;
+		return false;
 
 	/* Bottom bit is Instruction or Data bit.  Next 3 bits are level. */
         level = (val >> 1);

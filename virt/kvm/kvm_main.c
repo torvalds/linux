@@ -1095,15 +1095,22 @@ EXPORT_SYMBOL_GPL(gfn_to_hva);
  * If writable is set to false, the hva returned by this function is only
  * allowed to be read.
  */
-unsigned long gfn_to_hva_prot(struct kvm *kvm, gfn_t gfn, bool *writable)
+unsigned long gfn_to_hva_memslot_prot(struct kvm_memory_slot *slot,
+				      gfn_t gfn, bool *writable)
 {
-	struct kvm_memory_slot *slot = gfn_to_memslot(kvm, gfn);
 	unsigned long hva = __gfn_to_hva_many(slot, gfn, NULL, false);
 
 	if (!kvm_is_error_hva(hva) && writable)
 		*writable = !memslot_is_readonly(slot);
 
 	return hva;
+}
+
+unsigned long gfn_to_hva_prot(struct kvm *kvm, gfn_t gfn, bool *writable)
+{
+	struct kvm_memory_slot *slot = gfn_to_memslot(kvm, gfn);
+
+	return gfn_to_hva_memslot_prot(slot, gfn, writable);
 }
 
 static int kvm_read_hva(void *data, void __user *hva, int len)
