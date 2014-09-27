@@ -742,9 +742,8 @@ void rtl8723a_fifo_cleanup(struct rtw_adapter *padapter)
 			if (!v32)
 				break;
 		} while (trycnt--);
-		if (trycnt == 0) {
+		if (trycnt == 0)
 			DBG_8723A("Stop RX DMA failed......\n");
-		}
 
 		/*  RQPN Load 0 */
 		rtl8723au_write16(padapter, REG_RQPN_NPQ, 0);
