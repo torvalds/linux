@@ -9,8 +9,8 @@
  * Released under the GPLv2 only.
  */
 
-#ifndef __GREYBUS_DESC_H
-#define __GREYBUS_DESC_H
+#ifndef __GREYBUS_MANIFEST_H
+#define __GREYBUS_MANIFEST_H
 
 #pragma pack(push, 1)
 
@@ -95,4 +95,4 @@ struct greybus_manifest {
 
 #pragma pack(pop)
 
-#endif /* __GREYBUS_DESC_H */
+#endif /* __GREYBUS_MANIFEST_H */
