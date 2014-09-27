@@ -596,8 +596,7 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 		spin_unlock(&dev->reg_lock);
 		if (chip->int_reg == 0xFFFFFFFF)
 			return IRQ_HANDLED;
-		else
-			return IRQ_NONE;
+		return IRQ_NONE;
 	}
 
 	status = chip->int_reg;
