@@ -239,7 +239,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 	rc = CIFSSMBOpen(xid, ptcon, full_path, FILE_OPEN, GENERIC_READ,
 			OPEN_REPARSE_POINT, &fid, &oplock, NULL,
 			cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+			cifs_remap(cifs_sb);
 	if (!rc) {
 		tmpbuffer = kmalloc(maxpath);
 		rc = CIFSSMBQueryReparseLinkInfo(xid, ptcon, full_path,
@@ -706,13 +706,7 @@ static int cifs_filldir(char *find_entry, struct file *file,
 		struct nls_table *nlt = cifs_sb->local_nls;
 		int map_type;
 
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SFM_CHR)
-			map_type = SFM_MAP_UNI_RSVD;
-		else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
-			map_type = SFU_MAP_UNI_RSVD;
-		else
-			map_type = NO_MAP_UNI_RSVD;
-
+		map_type = cifs_remap(cifs_sb);
 		name.name = scratch_buf;
 		name.len =
 			cifs_from_utf16((char *)name.name, (__le16 *)de.name,

@@ -28,6 +28,7 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
+#include "cifs_unicode.h"
 #ifdef CONFIG_CIFS_SMB2
 #include "smb2proto.h"
 #endif
@@ -566,8 +567,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	if (tcon->unix_ext)
 		rc = CIFSUnixCreateHardLink(xid, tcon, from_name, to_name,
 					    cifs_sb->local_nls,
-					    cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+					    cifs_remap(cifs_sb));
 	else {
 		server = tcon->ses->server;
 		if (!server->ops->create_hardlink) {
