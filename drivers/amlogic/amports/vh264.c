@@ -1046,8 +1046,11 @@ static void vh264_isr(void)
 							duration_on_correcting=1;
 						}
 					} else {
-						frame_dur = pts_duration;
-						printk("used calculate frame rate,on duration =%d\n",frame_dur);
+						if(close_to(pts_duration, frame_dur, 2000)){
+							frame_dur = pts_duration;
+							printk("used calculate frame rate,on duration =%d\n",frame_dur);
+						}else
+							printk("dont use calculate frame rate pts_duration =%d\n",pts_duration);
 					}
                             }
 
