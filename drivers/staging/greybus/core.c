@@ -279,7 +279,7 @@ static int create_string(struct greybus_module *gmod,
 		return -EINVAL;
 	}
 
-	string_size = le16_to_cpu(string->length);
+	string_size = string->length;
 	gmod_string = kzalloc(sizeof(*gmod_string) + string_size + 1, GFP_KERNEL);
 	if (!gmod_string)
 		return -ENOMEM;

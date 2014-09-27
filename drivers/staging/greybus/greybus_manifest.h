@@ -63,7 +63,7 @@ struct greybus_descriptor_module {
 };
 
 struct greybus_descriptor_string {
-	__le16	length;
+	__u8	length;
 	__u8	id;
 	__u8	string[0];
 };
