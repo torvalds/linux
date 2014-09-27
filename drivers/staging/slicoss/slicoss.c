@@ -1982,7 +1982,6 @@ static void slic_rcv_handle_error(struct adapter *adapter,
 				adapter->if_events.uflow802++;
 		}
 	}
-	return;
 }
 
 #define TCP_OFFLOAD_FRAME_PUSHFLAG  0x10000000
