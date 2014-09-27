@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -2118,10 +2119,17 @@ static int __exit docg3_release(struct platform_device *pdev)
 	return 0;
 }
 
+static struct of_device_id docg3_dt_ids[] = {
+	{ .compatible = "m-systems,diskonchip-g3" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, docg3_dt_ids);
+
 static struct platform_driver g3_driver = {
 	.driver		= {
 		.name	= "docg3",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(docg3_dt_ids),
 	},
 	.suspend	= docg3_suspend,
 	.resume		= docg3_resume,
