@@ -1369,24 +1369,23 @@ static unsigned long max_phys_bits = 40;
 
 bool kern_addr_valid(unsigned long addr)
 {
-	unsigned long above = ((long)addr) >> max_phys_bits;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
-	if (above != 0 && above != -1UL)
-		return false;
+	if ((long)addr < 0L) {
+		unsigned long pa = __pa(addr);
+
+		if ((addr >> max_phys_bits) != 0UL)
+			return false;
+
+		return pfn_valid(pa >> PAGE_SHIFT);
+	}
 
 	if (addr >= (unsigned long) KERNBASE &&
 	    addr < (unsigned long)&_end)
 		return true;
-
-	if (addr >= PAGE_OFFSET) {
-		unsigned long pa = __pa(addr);
-
-		return pfn_valid(pa >> PAGE_SHIFT);
-	}
 
 	pgd = pgd_offset_k(addr);
 	if (pgd_none(*pgd))
@@ -1656,6 +1655,9 @@ unsigned long __init find_ecache_flush_span(unsigned long size)
 unsigned long PAGE_OFFSET;
 EXPORT_SYMBOL(PAGE_OFFSET);
 
+unsigned long VMALLOC_END   = 0x0000010000000000UL;
+EXPORT_SYMBOL(VMALLOC_END);
+
 unsigned long sparc64_va_hole_top =    0xfffff80000000000UL;
 unsigned long sparc64_va_hole_bottom = 0x0000080000000000UL;
 
@@ -1712,10 +1714,16 @@ static void __init setup_page_offset(void)
 		prom_halt();
 	}
 
-	PAGE_OFFSET = PAGE_OFFSET_BY_BITS(max_phys_bits);
+	PAGE_OFFSET = sparc64_va_hole_top;
+	VMALLOC_END = ((sparc64_va_hole_bottom >> 1) +
+		       (sparc64_va_hole_bottom >> 2));
 
-	pr_info("PAGE_OFFSET is 0x%016lx (max_phys_bits == %lu)\n",
+	pr_info("MM: PAGE_OFFSET is 0x%016lx (max_phys_bits == %lu)\n",
 		PAGE_OFFSET, max_phys_bits);
+	pr_info("MM: VMALLOC [0x%016lx --> 0x%016lx]\n",
+		VMALLOC_START, VMALLOC_END);
+	pr_info("MM: VMEMMAP [0x%016lx --> 0x%016lx]\n",
+		VMEMMAP_BASE, VMEMMAP_BASE << 1);
 }
 
 static void __init tsb_phys_patch(void)

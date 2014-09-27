@@ -40,10 +40,7 @@
 #define LOW_OBP_ADDRESS		_AC(0x00000000f0000000,UL)
 #define HI_OBP_ADDRESS		_AC(0x0000000100000000,UL)
 #define VMALLOC_START		_AC(0x0000000100000000,UL)
-#define VMALLOC_END		_AC(0x0000010000000000,UL)
-#define VMEMMAP_BASE		_AC(0x0000010000000000,UL)
-
-#define vmemmap			((struct page *)VMEMMAP_BASE)
+#define VMEMMAP_BASE		VMALLOC_END
 
 /* PMD_SHIFT determines the size of the area a second-level page
  * table can map
@@ -80,6 +77,10 @@
 #endif
 
 #ifndef __ASSEMBLY__
+
+extern unsigned long VMALLOC_END;
+
+#define vmemmap			((struct page *)VMEMMAP_BASE)
 
 #include <linux/sched.h>
 

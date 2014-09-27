@@ -117,7 +117,6 @@ extern unsigned long sparc64_va_hole_bottom;
 
 #include <asm-generic/memory_model.h>
 
-#define PAGE_OFFSET_BY_BITS(X)	(-(_AC(1,UL) << (X)))
 extern unsigned long PAGE_OFFSET;
 
 #endif /* !(__ASSEMBLY__) */
