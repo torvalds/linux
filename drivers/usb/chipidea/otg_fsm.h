@@ -67,6 +67,10 @@
 /* SSEND time before SRP */
 #define TB_SSEND_SRP         (1500)	/* minimum 1.5 sec, section:5.1.2 */
 
+#define TB_SRP_REQD          (2000)	/* For otg_srp_reqd to start data
+					 * pulse after A(PET) turn off v-bus
+					 */
+
 #define T_HOST_REQ_POLL      (1500)	/* HNP polling interval 1s~2s */
 
 #ifdef CONFIG_USB_OTG_FSM
