@@ -111,6 +111,7 @@ struct otg_fsm {
 	/* OTG test device */
 	int tst_maint;
 	int otg_vbus_off;
+	int otg_srp_reqd;
 
 	/* Informative variables */
 	int a_bus_drop_inf;
