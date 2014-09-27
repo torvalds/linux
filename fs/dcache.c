@@ -2804,12 +2804,8 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 	actual = __d_instantiate_unique(dentry, inode);
 	if (!actual)
 		actual = dentry;
-	else
-		BUG_ON(!d_unhashed(actual));
 
-	spin_lock(&actual->d_lock);
-	_d_rehash(actual);
-	spin_unlock(&actual->d_lock);
+	d_rehash(actual);
 found:
 	spin_unlock(&inode->i_lock);
 out_nolock:
