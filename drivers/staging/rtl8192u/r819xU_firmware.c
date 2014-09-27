@@ -78,7 +78,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		 * Transform from little endian to big endian
 		 * and pending  zero
 		 */
-		for(i=0 ; i < frag_length; i+=4) {
+		for (i=0 ; i < frag_length; i+=4) {
 			*seg_ptr++ = ((i+0)<frag_length)?code_virtual_address[i+3]:0;
 			*seg_ptr++ = ((i+1)<frag_length)?code_virtual_address[i+2]:0;
 			*seg_ptr++ = ((i+2)<frag_length)?code_virtual_address[i+1]:0;
@@ -99,7 +99,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		code_virtual_address += frag_length;
 		frag_offset += frag_length;
 
-	}while(frag_offset < buffer_len);
+	}while (frag_offset < buffer_len);
 
 	return rt_status;
 
@@ -131,7 +131,7 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 		if (CPU_status&CPU_GEN_PUT_CODE_OK)
 			break;
 
-	}while(check_putcodeOK_time--);
+	}while (check_putcodeOK_time--);
 
 	if (!(CPU_status&CPU_GEN_PUT_CODE_OK)) {
 		RT_TRACE(COMP_ERR, "Download Firmware: Put code fail!\n");
@@ -151,7 +151,7 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 
 		if (CPU_status&CPU_GEN_BOOT_RDY)
 			break;
-	}while(check_bootOk_time--);
+	}while (check_bootOk_time--);
 
 	if (!(CPU_status&CPU_GEN_BOOT_RDY))
 		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
@@ -180,7 +180,7 @@ static bool CPUcheck_firmware_ready(struct net_device *dev)
 		if (CPU_status&CPU_GEN_FIRM_RDY)
 			break;
 
-	}while(check_time--);
+	}while (check_time--);
 
 	if (!(CPU_status&CPU_GEN_FIRM_RDY))
 		goto CPUCheckFirmwareReady_Fail;
@@ -234,7 +234,7 @@ bool init_firmware(struct net_device *dev)
 	 * Download boot, main, and data image for System reset.
 	 * Download data image for firmware reset
 	 */
-	for(init_step = starting_state; init_step <= FW_INIT_STEP2_DATA; init_step++) {
+	for (init_step = starting_state; init_step <= FW_INIT_STEP2_DATA; init_step++) {
 		/*
 		 * Open image file, and map file to continuous memory if open file success.
 		 * or read image file from array. Default load from IMG file
