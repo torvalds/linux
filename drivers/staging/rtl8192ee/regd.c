@@ -359,11 +359,11 @@ static const struct ieee80211_regdomain *_rtl_regdomain_select(
 	}
 }
 
-static int _rtl92e_regd_init_wiphy(struct rtl_regulatory *reg,
-				   struct wiphy *wiphy,
-				   void (*reg_notifier)(struct wiphy *wiphy,
-						        struct regulatory_request *
-						        request))
+static int
+_rtl92e_regd_init_wiphy(struct rtl_regulatory *reg,
+			struct wiphy *wiphy,
+			void (*reg_notifier)(struct wiphy *wiphy,
+					     struct regulatory_request *req))
 {
 	const struct ieee80211_regdomain *regd;
 
