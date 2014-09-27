@@ -51,7 +51,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	frag_threshold = pfirmware->cmdpacket_frag_thresold;
 	do {
 		if ((buffer_len - frag_offset) > frag_threshold) {
-			frag_length = frag_threshold ;
+			frag_length = frag_threshold;
 			bLastIniPkt = 0;
 
 		} else {
@@ -78,7 +78,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		 * Transform from little endian to big endian
 		 * and pending  zero
 		 */
-		for (i=0 ; i < frag_length; i+=4) {
+		for (i=0; i < frag_length; i+=4) {
 			*seg_ptr++ = ((i+0)<frag_length)?code_virtual_address[i+3]:0;
 			*seg_ptr++ = ((i+1)<frag_length)?code_virtual_address[i+2]:0;
 			*seg_ptr++ = ((i+2)<frag_length)?code_virtual_address[i+1]:0;
