@@ -588,7 +588,7 @@ void rtl8723a_on_rcr_am(struct rtw_adapter *padapter)
 {
 	rtl8723au_write32(padapter, REG_RCR,
 		    rtl8723au_read32(padapter, REG_RCR) | RCR_AM);
-	DBG_8723A("%s, %d, RCR = %x \n", __func__, __LINE__,
+	DBG_8723A("%s, %d, RCR = %x\n", __func__, __LINE__,
 		  rtl8723au_read32(padapter, REG_RCR));
 }
 
@@ -596,7 +596,7 @@ void rtl8723a_off_rcr_am(struct rtw_adapter *padapter)
 {
 	rtl8723au_write32(padapter, REG_RCR,
 		    rtl8723au_read32(padapter, REG_RCR) & (~RCR_AM));
-	DBG_8723A("%s, %d, RCR = %x \n", __func__, __LINE__,
+	DBG_8723A("%s, %d, RCR = %x\n", __func__, __LINE__,
 		  rtl8723au_read32(padapter, REG_RCR));
 }
 
@@ -666,12 +666,12 @@ void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex)
 		/* delay_ms(40); */
 		rtl8723au_write32(padapter, WCAMI, ulContent);
 		/* RT_TRACE(COMP_SEC, DBG_LOUD,
-		   ("rtl8723a_cam_empty_entry(): WRITE A4: %lx \n",
+		   ("rtl8723a_cam_empty_entry(): WRITE A4: %lx\n",
 		   ulContent));*/
 		/* delay_ms(40); */
 		rtl8723au_write32(padapter, REG_CAMCMD, ulCommand);
 		/* RT_TRACE(COMP_SEC, DBG_LOUD,
-		   ("rtl8723a_cam_empty_entry(): WRITE A0: %lx \n",
+		   ("rtl8723a_cam_empty_entry(): WRITE A0: %lx\n",
 		   ulCommand));*/
 	}
 }
