@@ -201,7 +201,6 @@ struct greybus_module {
 	u16 module_number;
 	struct greybus_descriptor_function function;
 	struct greybus_descriptor_module module;
-	struct greybus_descriptor_serial_number serial_number;
 	int num_cports;
 	int num_strings;
 	struct gmod_cport *cport[MAX_CPORTS_PER_MODULE];

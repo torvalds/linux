@@ -34,10 +34,8 @@ static int greybus_match_one_id(struct greybus_module *gmod,
 				const struct greybus_module_id *id)
 {
 	struct greybus_descriptor_module *module;
-	struct greybus_descriptor_serial_number *serial_num;
 
 	module = &gmod->module;
-	serial_num = &gmod->serial_number;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_VENDOR) &&
 	    (id->vendor != le16_to_cpu(module->vendor)))
@@ -48,7 +46,7 @@ static int greybus_match_one_id(struct greybus_module *gmod,
 		return 0;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_SERIAL) &&
-	    (id->serial_number != le64_to_cpu(serial_num->serial_number)))
+	    (id->serial_number != le64_to_cpu(module->serial_number)))
 		return 0;
 
 	return 1;
@@ -262,19 +260,6 @@ static int create_module(struct greybus_module *gmod,
 	return 0;
 }
 
-static int create_serial_number(struct greybus_module *gmod,
-			        struct greybus_descriptor_serial_number *serial_num,
-			        size_t desc_size)
-{
-	if (desc_size != sizeof(*serial_num)) {
-		dev_err(gmod->dev.parent, "invalid serial number header size %zu\n",
-			desc_size);
-		return -EINVAL;
-	}
-	memcpy(&gmod->serial_number, serial_num, desc_size);
-	return 0;
-}
-
 static int create_string(struct greybus_module *gmod,
 			 struct greybus_descriptor_string *string,
 			 size_t desc_size)
@@ -425,12 +410,6 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		case GREYBUS_TYPE_MODULE:
 			retval = create_module(gmod, &desc->module,
 						  data_size);
-			break;
-
-		case GREYBUS_TYPE_SERIAL_NUMBER:
-			retval = create_serial_number(gmod,
-						      &desc->serial_number,
-						      data_size);
 			break;
 
 		case GREYBUS_TYPE_STRING:

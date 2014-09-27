@@ -82,6 +82,17 @@ greybus_module_attr(vendor);
 greybus_module_attr(product);
 greybus_module_attr(version);
 
+static ssize_t module_serial_number_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct greybus_module *gmod = to_greybus_module(dev);
+
+	return sprintf(buf, "%llX\n",
+		      (unsigned long long)le64_to_cpu(gmod->module.serial_number));
+}
+static DEVICE_ATTR_RO(module_serial_number);
+
 static ssize_t module_vendor_string_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
@@ -108,6 +119,7 @@ static struct attribute *module_attrs[] = {
 	&dev_attr_module_vendor.attr,
 	&dev_attr_module_product.attr,
 	&dev_attr_module_version.attr,
+	&dev_attr_module_serial_number.attr,
 	&dev_attr_module_vendor_string.attr,
 	&dev_attr_module_product_string.attr,
 	NULL,
@@ -129,7 +141,8 @@ static umode_t module_attrs_are_visible(struct kobject *kobj,
 	// or not easier?
 	if (gmod->module.vendor ||
 	    gmod->module.product ||
-	    gmod->module.version)
+	    gmod->module.version ||
+	    gmod->module.serial_number)
 		return a->mode;
 	return 0;
 }
@@ -140,38 +153,11 @@ static struct attribute_group module_attr_grp = {
 };
 
 
-/* Serial Number */
-static ssize_t serial_number_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	struct greybus_module *gmod = to_greybus_module(dev);
-
-	return sprintf(buf, "%llX\n",
-		      (unsigned long long)le64_to_cpu(gmod->serial_number.serial_number));
-}
-static DEVICE_ATTR_RO(serial_number);
-
-static struct attribute *serial_number_attrs[] = {
-	&dev_attr_serial_number.attr,
-	NULL,
-};
-
-static umode_t serial_number_is_visible(struct kobject *kobj,
-					struct attribute *a, int n)
-{
-	return a->mode;
-}
-
-static struct attribute_group serial_number_attr_grp = {
-	.attrs =	serial_number_attrs,
-	.is_visible =	serial_number_is_visible,
-};
 
 
 const struct attribute_group *greybus_module_groups[] = {
 	&function_attr_grp,
 	&module_attr_grp,
-	&serial_number_attr_grp,
 	NULL,
 };
 

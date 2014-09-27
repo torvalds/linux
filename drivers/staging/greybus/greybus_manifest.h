@@ -22,7 +22,6 @@ enum greybus_descriptor_type {
 	GREYBUS_TYPE_INVALID		= 0x0000,
 	GREYBUS_TYPE_FUNCTION		= 0x0001,
 	GREYBUS_TYPE_MODULE		= 0x0002,
-	GREYBUS_TYPE_SERIAL_NUMBER	= 0x0003,
 	GREYBUS_TYPE_STRING		= 0x0004,
 	GREYBUS_TYPE_CPORT		= 0x0005,
 };
@@ -62,12 +61,9 @@ struct greybus_descriptor_module {
 	__le16	vendor;
 	__le16	product;
 	__le16	version;
+	__le64	serial_number;
 	__u8	vendor_stringid;
 	__u8	product_stringid;
-};
-
-struct greybus_descriptor_serial_number {
-	__le64	serial_number;
 };
 
 struct greybus_descriptor_string {
@@ -88,7 +84,6 @@ struct greybus_descriptor {
 	union {
 		struct greybus_descriptor_function	function;
 		struct greybus_descriptor_module	module;
-		struct greybus_descriptor_serial_number	serial_number;
 		struct greybus_descriptor_string	string;
 		struct greybus_descriptor_cport		cport;
 	};
