@@ -441,7 +441,7 @@ static int acpi_ac_get_present(struct acpi_sbs *sbs)
 	 * The spec requires that bit 4 always be 1. If it's not set, assume
 	 * that the implementation doesn't support an SBS charger
 	 */
-	if (!(status >> 4) & 0x1)
+	if (!((status >> 4) & 0x1))
 		return -ENODEV;
 
 	sbs->charger_present = (status >> 15) & 0x1;
