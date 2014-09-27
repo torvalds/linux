@@ -21,17 +21,17 @@ struct greybus_manifest_header {
 };
 
 enum greybus_descriptor_type {
-	GREYBUS_TYPE_INVALID		= 0x0000,
-	GREYBUS_TYPE_MODULE		= 0x0001,
-	GREYBUS_TYPE_FUNCTION		= 0x0002,
-	GREYBUS_TYPE_CLASS		= 0x0003,
-	GREYBUS_TYPE_STRING		= 0x0004,
-	GREYBUS_TYPE_CPORT		= 0x0005,
+	GREYBUS_TYPE_INVALID		= 0x00,
+	GREYBUS_TYPE_MODULE		= 0x01,
+	GREYBUS_TYPE_FUNCTION		= 0x02,
+	GREYBUS_TYPE_CLASS		= 0x03,
+	GREYBUS_TYPE_STRING		= 0x04,
+	GREYBUS_TYPE_CPORT		= 0x05,
 };
 
 struct greybus_descriptor_header {
 	__le16	size;
-	__le16	type;	/* enum greybus_descriptor_type */
+	__u8	type;	/* enum greybus_descriptor_type */
 };
 
 enum greybus_function_type {
