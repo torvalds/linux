@@ -31,18 +31,12 @@ static ssize_t function_##field##_show(struct device *dev,		\
 }									\
 static DEVICE_ATTR_RO(function_##field)
 
-greybus_function_attr(number);
 greybus_function_attr(cport);
-greybus_function_attr(class);
-greybus_function_attr(subclass);
-greybus_function_attr(protocol);
+greybus_function_attr(function_type);
 
 static struct attribute *function_attrs[] = {
-	&dev_attr_function_number.attr,
 	&dev_attr_function_cport.attr,
-	&dev_attr_function_class.attr,
-	&dev_attr_function_subclass.attr,
-	&dev_attr_function_protocol.attr,
+	&dev_attr_function_function_type.attr,
 	NULL,
 };
 
@@ -53,11 +47,8 @@ static umode_t function_attrs_are_visible(struct kobject *kobj,
 
 	// FIXME - make this a dynamic structure to "know" if it really is here
 	// or not easier?
-	if (gmod->function.number ||
-	    gmod->function.cport ||
-	    gmod->function.class ||
-	    gmod->function.subclass ||
-	    gmod->function.protocol)
+	if (gmod->function.cport ||
+	    gmod->function.function_type)
 		return a->mode;
 	return 0;
 }

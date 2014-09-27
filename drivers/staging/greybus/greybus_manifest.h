@@ -31,7 +31,7 @@ struct greybus_descriptor_header {
 	__le16	type;	/* enum greybus_descriptor_type */
 };
 
-enum greybus_function_class {
+enum greybus_function_type {
 	GREYBUS_FUNCTION_CONTROL	= 0x00,
 	GREYBUS_FUNCTION_USB		= 0x01,
 	GREYBUS_FUNCTION_GPIO		= 0x02,
@@ -49,12 +49,8 @@ enum greybus_function_class {
 };
 
 struct greybus_descriptor_function {
-	__le16	number;
 	__le16	cport;
-	__u8	class;		/* enum greybus_function_class */
-	__u8	subclass;
-	__u8	protocol;
-	__u8	reserved;
+	__u8	function_type;	/* enum greybus_function_type */
 };
 
 struct greybus_descriptor_module {
