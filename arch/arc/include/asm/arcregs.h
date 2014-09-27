@@ -9,8 +9,6 @@
 #ifndef _ASM_ARC_ARCREGS_H
 #define _ASM_ARC_ARCREGS_H
 
-#ifdef __KERNEL__
-
 /* Build Configuration Registers */
 #define ARC_REG_DCCMBASE_BCR	0x61	/* DCCM Base Addr */
 #define ARC_REG_CRC_BCR		0x62
@@ -320,7 +318,5 @@ struct cpuinfo_arc {
 extern struct cpuinfo_arc cpuinfo_arc700[];
 
 #endif /* __ASEMBLY__ */
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_ARC_ARCREGS_H */

@@ -9,8 +9,6 @@
 #ifndef _ASM_ARC_ATOMIC_H
 #define _ASM_ARC_ATOMIC_H
 
-#ifdef __KERNEL__
-
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
@@ -224,8 +222,6 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 #define ATOMIC_INIT(i)			{ (i) }
 
 #include <asm-generic/atomic64.h>
-
-#endif
 
 #endif
 

@@ -14,8 +14,6 @@
 #ifndef __ASM_ARC_PROCESSOR_H
 #define __ASM_ARC_PROCESSOR_H
 
-#ifdef __KERNEL__
-
 #ifndef __ASSEMBLY__
 
 #include <asm/ptrace.h>
@@ -127,7 +125,5 @@ extern unsigned int get_wchan(struct task_struct *p);
  * space during mmap's.
  */
 #define TASK_UNMAPPED_BASE      (TASK_SIZE / 3)
-
-#endif /* __KERNEL__ */
 
 #endif /* __ASM_ARC_PROCESSOR_H */
