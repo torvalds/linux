@@ -1630,25 +1630,46 @@ static void __init page_offset_shift_patch(unsigned long phys_bits)
 	}
 }
 
+unsigned long sparc64_va_hole_top =    0xfffff80000000000UL;
+unsigned long sparc64_va_hole_bottom = 0x0000080000000000UL;
+
 static void __init setup_page_offset(void)
 {
 	unsigned long max_phys_bits = 40;
 
 	if (tlb_type == cheetah || tlb_type == cheetah_plus) {
+		/* Cheetah/Panther support a full 64-bit virtual
+		 * address, so we can use all that our page tables
+		 * support.
+		 */
+		sparc64_va_hole_top =    0xfff0000000000000UL;
+		sparc64_va_hole_bottom = 0x0010000000000000UL;
+
 		max_phys_bits = 42;
 	} else if (tlb_type == hypervisor) {
 		switch (sun4v_chip_type) {
 		case SUN4V_CHIP_NIAGARA1:
 		case SUN4V_CHIP_NIAGARA2:
+			/* T1 and T2 support 48-bit virtual addresses.  */
+			sparc64_va_hole_top =    0xffff800000000000UL;
+			sparc64_va_hole_bottom = 0x0000800000000000UL;
+
 			max_phys_bits = 39;
 			break;
 		case SUN4V_CHIP_NIAGARA3:
+			/* T3 supports 48-bit virtual addresses.  */
+			sparc64_va_hole_top =    0xffff800000000000UL;
+			sparc64_va_hole_bottom = 0x0000800000000000UL;
+
 			max_phys_bits = 43;
 			break;
 		case SUN4V_CHIP_NIAGARA4:
 		case SUN4V_CHIP_NIAGARA5:
 		case SUN4V_CHIP_SPARC64X:
 		default:
+			/* T4 and later support 52-bit virtual addresses.  */
+			sparc64_va_hole_top =    0xfff8000000000000UL;
+			sparc64_va_hole_bottom = 0x0008000000000000UL;
 			max_phys_bits = 47;
 			break;
 		}

@@ -102,21 +102,14 @@ typedef unsigned long pgprot_t;
 
 typedef pte_t *pgtable_t;
 
-/* These two values define the virtual address space range in which we
- * must forbid 64-bit user processes from making mappings.  It used to
- * represent precisely the virtual address space hole present in most
- * early sparc64 chips including UltraSPARC-I.  But now it also is
- * further constrained by the limits of our page tables, which is
- * 43-bits of virtual address.
- */
-#define SPARC64_VA_HOLE_TOP	_AC(0xfffffc0000000000,UL)
-#define SPARC64_VA_HOLE_BOTTOM	_AC(0x0000040000000000,UL)
+extern unsigned long sparc64_va_hole_top;
+extern unsigned long sparc64_va_hole_bottom;
 
 /* The next two defines specify the actual exclusion region we
  * enforce, wherein we use a 4GB red zone on each side of the VA hole.
  */
-#define VA_EXCLUDE_START (SPARC64_VA_HOLE_BOTTOM - (1UL << 32UL))
-#define VA_EXCLUDE_END   (SPARC64_VA_HOLE_TOP + (1UL << 32UL))
+#define VA_EXCLUDE_START (sparc64_va_hole_bottom - (1UL << 32UL))
+#define VA_EXCLUDE_END   (sparc64_va_hole_top + (1UL << 32UL))
 
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_32BIT) ? \
 				 _AC(0x0000000070000000,UL) : \
