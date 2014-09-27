@@ -93,12 +93,8 @@ void csc_dump_regs(struct csc_data *csc)
 {
 	struct device *dev = &csc->pdev->dev;
 
-	u32 read_reg(struct csc_data *csc, int offset)
-	{
-		return ioread32(csc->base + offset);
-	}
-
-#define DUMPREG(r) dev_dbg(dev, "%-35s %08x\n", #r, read_reg(csc, CSC_##r))
+#define DUMPREG(r) dev_dbg(dev, "%-35s %08x\n", #r, \
+	ioread32(csc->base + CSC_##r))
 
 	DUMPREG(CSC00);
 	DUMPREG(CSC01);
