@@ -20,6 +20,7 @@
 #include <linux/module.h>
 
 #include "ath.h"
+#include "trace.h"
 
 MODULE_AUTHOR("Atheros Communications");
 MODULE_DESCRIPTION("Shared library for Atheros wireless LAN cards.");
@@ -83,6 +84,8 @@ void ath_printk(const char *level, const struct ath_common* common,
 		       level, wiphy_name(common->hw->wiphy), &vaf);
 	else
 		printk("%sath: %pV", level, &vaf);
+
+	trace_ath_log(common->hw->wiphy, &vaf);
 
 	va_end(args);
 }
