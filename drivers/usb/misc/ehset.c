@@ -119,8 +119,15 @@ static int ehset_probe(struct usb_interface *intf,
 
 		break;
 	case TEST_OTG_TEST_DEVICE_SUPPORT:
-		if (!fsm || dev->bus->is_b_host)
+		if (!fsm)
 			return ret;
+
+		/* B host enumerate test device */
+		if (dev->bus->is_b_host) {
+			otg_add_timer(fsm, B_TST_SUSP);
+			ret = 0;
+			break;
+		}
 
 		mutex_lock(&fsm->lock);
 		fsm->tst_maint = 1;
