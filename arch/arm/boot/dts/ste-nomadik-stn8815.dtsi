@@ -169,14 +169,6 @@
 				};
 			};
 		};
-		i2c2 {
-			i2c2_default_mode: i2c2_default {
-				i2c2_default_cfg {
-					ste,pins = "GPIO73_C21", "GPIO74_C20";
-					ste,input = <0>;
-				};
-			};
-		};
 	};
 
 	src: src@101e0000 {
@@ -744,22 +736,6 @@
 		lis3lv02dl@1d {
 			   compatible = "st,lis3lv02dl";
 			   reg = <0x1d>;
-		};
-	};
-
-	/* I2C2 connected to the USB portions of the STw4811 only */
-	i2c2 {
-		compatible = "i2c-gpio";
-		gpios = <&gpio2 10 0>, /* sda */
-			<&gpio2 9 0>; /* scl */
-		#address-cells = <1>;
-		#size-cells = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c2_default_mode>;
-
-		stw4811@2d {
-			   compatible = "st,stw4811-usb";
-			   reg = <0x2d>;
 		};
 	};
 
