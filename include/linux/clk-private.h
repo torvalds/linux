@@ -46,6 +46,7 @@ struct clk {
 	unsigned int		enable_count;
 	unsigned int		prepare_count;
 	unsigned long		accuracy;
+	int			phase;
 	struct hlist_head	children;
 	struct hlist_node	child_node;
 	struct hlist_node	debug_node;
