@@ -335,7 +335,6 @@ void rtllib_wx_sync_scan_wq(void *data)
 	enum ht_extchnl_offset chan_offset = 0;
 	enum ht_channel_width bandwidth = 0;
 	int b40M = 0;
-	static int count;
 
 	if (!(ieee->softmac_features & IEEE_SOFTMAC_SCAN)) {
 		rtllib_start_scan_syncro(ieee, 0);
@@ -412,7 +411,6 @@ void rtllib_wx_sync_scan_wq(void *data)
 
 	rtllib_wake_all_queues(ieee);
 
-	count = 0;
 out:
 	up(&ieee->wx_sem);
 
