@@ -136,6 +136,7 @@
 #define	TEST_PACKET	4
 #define	TEST_FORCE_EN	5
 #define	TEST_OTG_SRP_REQD	6
+#define	TEST_OTG_HNP_REQD	7
 
 /*
  * New Feature Selectors as added by USB 3.0
