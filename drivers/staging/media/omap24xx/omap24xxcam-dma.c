@@ -561,6 +561,7 @@ void omap24xxcam_sgdma_sync(struct omap24xxcam_sgdma *sgdma)
 			/* This DMA transfer was in progress, so abort it. */
 			sgdma_callback_t callback = sg_state->callback;
 			void *arg = sg_state->arg;
+
 			sgdma->free_sgdma++;
 			if (callback) {
 				/* leave interrupts masked */
