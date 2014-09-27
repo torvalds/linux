@@ -1201,13 +1201,6 @@ static int rtl2832u_power_ctrl(struct dvb_usb_device *d, int onoff)
 		if (ret)
 			goto err;
 
-		mdelay(5);
-
-		/* enable ADC */
-		ret = rtl28xx_wr_reg_mask(d, SYS_DEMOD_CTL, 0x48, 0x48);
-		if (ret)
-			goto err;
-
 		/* streaming EP: clear stall & reset */
 		ret = rtl28xx_wr_regs(d, USB_EPA_CTL, "\x00\x00", 2);
 		if (ret)
@@ -1219,11 +1212,6 @@ static int rtl2832u_power_ctrl(struct dvb_usb_device *d, int onoff)
 	} else {
 		/* GPIO4=1 */
 		ret = rtl28xx_wr_reg_mask(d, SYS_GPIO_OUT_VAL, 0x10, 0x10);
-		if (ret)
-			goto err;
-
-		/* disable ADC */
-		ret = rtl28xx_wr_reg_mask(d, SYS_DEMOD_CTL, 0x00, 0x48);
 		if (ret)
 			goto err;
 
@@ -1239,6 +1227,30 @@ static int rtl2832u_power_ctrl(struct dvb_usb_device *d, int onoff)
 	}
 
 	return ret;
+err:
+	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
+	return ret;
+}
+
+static int rtl2832u_frontend_ctrl(struct dvb_frontend *fe, int onoff)
+{
+	struct dvb_usb_device *d = fe_to_d(fe);
+	int ret;
+	u8 val;
+
+	dev_dbg(&d->udev->dev, "%s: fe=%d onoff=%d\n", __func__, fe->id, onoff);
+
+	/* control internal demod ADC */
+	if (fe->id == 0 && onoff)
+		val = 0x48; /* enable ADC */
+	else
+		val = 0x00; /* disable ADC */
+
+	ret = rtl28xx_wr_reg_mask(d, SYS_DEMOD_CTL, val, 0x48);
+	if (ret)
+		goto err;
+
+	return 0;
 err:
 	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
@@ -1467,6 +1479,7 @@ static const struct dvb_usb_device_properties rtl2832u_props = {
 	.size_of_priv = sizeof(struct rtl28xxu_priv),
 
 	.power_ctrl = rtl2832u_power_ctrl,
+	.frontend_ctrl = rtl2832u_frontend_ctrl,
 	.i2c_algo = &rtl28xxu_i2c_algo,
 	.read_config = rtl2832u_read_config,
 	.frontend_attach = rtl2832u_frontend_attach,
