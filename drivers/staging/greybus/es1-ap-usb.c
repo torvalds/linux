@@ -268,7 +268,7 @@ static void svc_in_callback(struct urb *urb)
 	/* We have a message, create a new message structure, add it to the
 	 * list, and wake up our thread that will process the messages.
 	 */
-	greybus_svc_in(urb->transfer_buffer, urb->actual_length, es1->hd);
+	greybus_svc_in(es1->hd, urb->transfer_buffer, urb->actual_length);
 
 exit:
 	/* resubmit the urb to get more messages */

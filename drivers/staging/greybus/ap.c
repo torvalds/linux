@@ -294,7 +294,7 @@ static void ap_process_event(struct work_struct *work)
 	kfree(ap_msg);
 }
 
-int greybus_svc_in(u8 *data, int size, struct greybus_host_device *hd)
+int greybus_svc_in(struct greybus_host_device *hd, u8 *data, int size)
 {
 	struct ap_msg *ap_msg;
 
