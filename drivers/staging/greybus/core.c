@@ -33,18 +33,18 @@ EXPORT_SYMBOL_GPL(greybus_disabled);
 static int greybus_match_one_id(struct greybus_module *gmod,
 				const struct greybus_module_id *id)
 {
-	struct greybus_descriptor_module_id *module_id;
+	struct greybus_descriptor_module *module;
 	struct greybus_descriptor_serial_number *serial_num;
 
-	module_id = &gmod->module_id;
+	module = &gmod->module;
 	serial_num = &gmod->serial_number;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_VENDOR) &&
-	    (id->vendor != le16_to_cpu(module_id->vendor)))
+	    (id->vendor != le16_to_cpu(module->vendor)))
 		return 0;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_PRODUCT) &&
-	    (id->product != le16_to_cpu(module_id->product)))
+	    (id->product != le16_to_cpu(module->product)))
 		return 0;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_SERIAL) &&
@@ -249,16 +249,16 @@ static int create_function(struct greybus_module *gmod,
 	return 0;
 }
 
-static int create_module_id(struct greybus_module *gmod,
-			    struct greybus_descriptor_module_id *module_id,
+static int create_module(struct greybus_module *gmod,
+			    struct greybus_descriptor_module *module,
 			    size_t desc_size)
 {
-	if (desc_size != sizeof(*module_id)) {
+	if (desc_size != sizeof(*module)) {
 		dev_err(gmod->dev.parent, "invalid module header size %zu\n",
 			desc_size);
 		return -EINVAL;
 	}
-	memcpy(&gmod->module_id, module_id, desc_size);
+	memcpy(&gmod->module, module, desc_size);
 	return 0;
 }
 
@@ -422,8 +422,8 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 						 data_size);
 			break;
 
-		case GREYBUS_TYPE_MODULE_ID:
-			retval = create_module_id(gmod, &desc->module_id,
+		case GREYBUS_TYPE_MODULE:
+			retval = create_module(gmod, &desc->module,
 						  data_size);
 			break;
 

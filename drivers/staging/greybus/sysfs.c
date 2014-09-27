@@ -74,7 +74,7 @@ static ssize_t module_##field##_show(struct device *dev,		\
 				     char *buf)				\
 {									\
 	struct greybus_module *gmod = to_greybus_module(dev);		\
-	return sprintf(buf, "%x\n", gmod->module_id.field);		\
+	return sprintf(buf, "%x\n", gmod->module.field);		\
 }									\
 static DEVICE_ATTR_RO(module_##field)
 
@@ -89,7 +89,7 @@ static ssize_t module_vendor_string_show(struct device *dev,
 	struct greybus_module *gmod = to_greybus_module(dev);
 
 	return sprintf(buf, "%s",
-		       greybus_string(gmod, gmod->module_id.vendor_stringid));
+		       greybus_string(gmod, gmod->module.vendor_stringid));
 }
 static DEVICE_ATTR_RO(module_vendor_string);
 
@@ -100,7 +100,7 @@ static ssize_t module_product_string_show(struct device *dev,
 	struct greybus_module *gmod = to_greybus_module(dev);
 
 	return sprintf(buf, "%s",
-		       greybus_string(gmod, gmod->module_id.product_stringid));
+		       greybus_string(gmod, gmod->module.product_stringid));
 }
 static DEVICE_ATTR_RO(module_product_string);
 
@@ -119,17 +119,17 @@ static umode_t module_attrs_are_visible(struct kobject *kobj,
 	struct greybus_module *gmod = to_greybus_module(kobj_to_dev(kobj));
 
 	if ((a == &dev_attr_module_vendor_string.attr) &&
-	    (gmod->module_id.vendor_stringid))
+	    (gmod->module.vendor_stringid))
 		return a->mode;
 	if ((a == &dev_attr_module_product_string.attr) &&
-	    (gmod->module_id.product_stringid))
+	    (gmod->module.product_stringid))
 		return a->mode;
 
 	// FIXME - make this a dynamic structure to "know" if it really is here
 	// or not easier?
-	if (gmod->module_id.vendor ||
-	    gmod->module_id.product ||
-	    gmod->module_id.version)
+	if (gmod->module.vendor ||
+	    gmod->module.product ||
+	    gmod->module.version)
 		return a->mode;
 	return 0;
 }

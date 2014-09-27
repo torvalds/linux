@@ -200,7 +200,7 @@ struct greybus_module {
 	struct device dev;
 	u16 module_number;
 	struct greybus_descriptor_function function;
-	struct greybus_descriptor_module_id module_id;
+	struct greybus_descriptor_module module;
 	struct greybus_descriptor_serial_number serial_number;
 	int num_cports;
 	int num_strings;
