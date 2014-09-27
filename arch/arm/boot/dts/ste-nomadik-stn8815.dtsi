@@ -182,8 +182,6 @@
 	src: src@101e0000 {
 		compatible = "stericsson,nomadik-src";
 		reg = <0x101e0000 0x1000>;
-		disable-sxtalo;
-		disable-mxtalo;
 
 		/*
 		 * MXTAL "Main Chrystal" is a chrystal oscillator @19.2 MHz
