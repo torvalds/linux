@@ -535,6 +535,7 @@ void rtl8723a_set_bcn_func(struct rtw_adapter *padapter, u8 val)
 void rtl8723a_check_bssid(struct rtw_adapter *padapter, u8 val)
 {
 	u32 val32;
+
 	val32 = rtl8723au_read32(padapter, REG_RCR);
 	if (val)
 		val32 |= RCR_CBSSID_DATA | RCR_CBSSID_BCN;
