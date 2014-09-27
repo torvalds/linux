@@ -89,7 +89,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 
 		if (!priv->ieee80211->check_nic_enough_desc(dev,tcb_desc->queue_index)||
 			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index]))||\
-			(priv->ieee80211->queue_stop) ) {
+			(priv->ieee80211->queue_stop)) {
 			RT_TRACE(COMP_FIRMWARE,"=====================================================> tx full!\n");
 			skb_queue_tail(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index], skb);
 		} else {
@@ -216,7 +216,7 @@ bool init_firmware(struct net_device *dev)
 
 	RT_TRACE(COMP_FIRMWARE, " PlatformInitFirmware()==>\n");
 
-	if (pfirmware->firmware_status == FW_STATUS_0_INIT ) {
+	if (pfirmware->firmware_status == FW_STATUS_0_INIT) {
 		/* it is called by reset */
 		rst_opt = OPT_SYSTEM_RESET;
 		starting_state = FW_INIT_STEP0_BOOT;
@@ -241,7 +241,7 @@ bool init_firmware(struct net_device *dev)
 		 */
 		if (rst_opt == OPT_SYSTEM_RESET) {
 			rc = request_firmware(&fw_entry, fw_name[init_step],&priv->udev->dev);
-			if (rc < 0 ) {
+			if (rc < 0) {
 				RT_TRACE(COMP_ERR, "request firmware fail!\n");
 				goto download_firmware_fail;
 			}
@@ -262,7 +262,7 @@ bool init_firmware(struct net_device *dev)
 				file_length = fw_entry->size + 128;
 			}
 			pfirmware->firmware_buf_size = file_length;
-		} else if (rst_opt == OPT_FIRMWARE_RESET ) {
+		} else if (rst_opt == OPT_FIRMWARE_RESET) {
 			/* we only need to download data.img here */
 			mapped_file = pfirmware->firmware_buf;
 			file_length = pfirmware->firmware_buf_size;
