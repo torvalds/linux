@@ -2511,28 +2511,28 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	switch_names(dentry, target);
 	swap(dentry->d_name.hash, target->d_name.hash);
 
-	/* ... and switch the parents */
+	/* ... and switch them in the tree */
 	if (IS_ROOT(dentry)) {
+		/* splicing a tree */
 		dentry->d_parent = target->d_parent;
 		target->d_parent = target;
 		list_del_init(&target->d_u.d_child);
+		list_move(&dentry->d_u.d_child, &dentry->d_parent->d_subdirs);
 	} else {
+		/* swapping two dentries */
 		swap(dentry->d_parent, target->d_parent);
-
-		/* And add them back to the (new) parent lists */
 		list_move(&target->d_u.d_child, &target->d_parent->d_subdirs);
+		list_move(&dentry->d_u.d_child, &dentry->d_parent->d_subdirs);
+		if (exchange)
+			fsnotify_d_move(target);
+		fsnotify_d_move(dentry);
 	}
-
-	list_move(&dentry->d_u.d_child, &dentry->d_parent->d_subdirs);
 
 	write_seqcount_end(&target->d_seq);
 	write_seqcount_end(&dentry->d_seq);
 
 	dentry_unlock_parents_for_move(dentry, target);
-	if (exchange)
-		fsnotify_d_move(target);
 	spin_unlock(&target->d_lock);
-	fsnotify_d_move(dentry);
 	spin_unlock(&dentry->d_lock);
 }
 
@@ -2631,40 +2631,6 @@ out_err:
 	return ret;
 }
 
-/*
- * Prepare an anonymous dentry for life in the superblock's dentry tree as a
- * named dentry in place of the dentry to be replaced.
- */
-static void __d_materialise_dentry(struct dentry *dentry, struct dentry *target)
-{
-	dentry_lock_for_move(dentry, target);
-
-	write_seqcount_begin(&dentry->d_seq);
-	write_seqcount_begin_nested(&target->d_seq, DENTRY_D_LOCK_NESTED);
-
-	switch_names(dentry, target);
-	swap(dentry->d_name.hash, target->d_name.hash);
-
-	dentry->d_parent = target->d_parent;
-	target->d_parent = target;
-	list_del_init(&target->d_u.d_child);
-	list_move(&dentry->d_u.d_child, &dentry->d_parent->d_subdirs);
-	if (likely(!d_unhashed(dentry))) {
-		hlist_bl_lock(&dentry->d_sb->s_anon);
-		__hlist_bl_del(&dentry->d_hash);
-		dentry->d_hash.pprev = NULL;
-		hlist_bl_unlock(&dentry->d_sb->s_anon);
-	}
-	__d_rehash(dentry, d_hash(dentry->d_parent, dentry->d_name.hash));
-
-	write_seqcount_end(&target->d_seq);
-	write_seqcount_end(&dentry->d_seq);
-
-	dentry_unlock_parents_for_move(dentry, target);
-	spin_unlock(&target->d_lock);
-	spin_unlock(&dentry->d_lock);
-}
-
 /**
  * d_splice_alias - splice a disconnected dentry into the tree if one exists
  * @inode:  the inode which may have a disconnected dentry
@@ -2710,7 +2676,7 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 				return ERR_PTR(-EIO);
 			}
 			write_seqlock(&rename_lock);
-			__d_materialise_dentry(new, dentry);
+			__d_move(new, dentry, false);
 			write_sequnlock(&rename_lock);
 			spin_unlock(&inode->i_lock);
 			security_d_instantiate(new, inode);
@@ -2771,7 +2737,7 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 			} else if (IS_ROOT(alias)) {
 				/* Is this an anonymous mountpoint that we
 				 * could splice into our tree? */
-				__d_materialise_dentry(alias, dentry);
+				__d_move(alias, dentry, false);
 				write_sequnlock(&rename_lock);
 				goto found;
 			} else {
