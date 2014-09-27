@@ -1390,6 +1390,13 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 		pmd_t *pmd;
 		pte_t *pte;
 
+		if (pgd_none(*pgd)) {
+			pud_t *new;
+
+			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+			alloc_bytes += PAGE_SIZE;
+			pgd_populate(&init_mm, pgd, new);
+		}
 		pud = pud_offset(pgd, vstart);
 		if (pud_none(*pud)) {
 			pmd_t *new;
@@ -1856,7 +1863,12 @@ static void __init sun4v_linear_pte_xor_finalize(void)
 /* paging_init() sets up the page tables */
 
 static unsigned long last_valid_pfn;
-pgd_t swapper_pg_dir[PTRS_PER_PGD];
+
+/* These must be page aligned in order to not trigger the
+ * alignment tests of pgd_bad() and pud_bad().
+ */
+pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__ ((aligned (PAGE_SIZE)));
+static pud_t swapper_pud_dir[PTRS_PER_PUD] __attribute__ ((aligned (PAGE_SIZE)));
 
 static void sun4u_pgprot_init(void);
 static void sun4v_pgprot_init(void);
@@ -1911,6 +1923,8 @@ void __init paging_init(void)
 {
 	unsigned long end_pfn, shift, phys_base;
 	unsigned long real_end, i;
+	pud_t *pud;
+	pmd_t *pmd;
 	int node;
 
 	setup_page_offset();
@@ -2008,9 +2022,18 @@ void __init paging_init(void)
 	
 	memset(swapper_low_pmd_dir, 0, sizeof(swapper_low_pmd_dir));
 
-	/* Now can init the kernel/bad page tables. */
-	pud_set(pud_offset(&swapper_pg_dir[0], 0),
-		swapper_low_pmd_dir + (shift / sizeof(pgd_t)));
+	/* The kernel page tables we publish into what the rest of the
+	 * world sees must be adjusted so that they see the PAGE_OFFSET
+	 * address of these in-kerenel data structures.  However right
+	 * here we must access them from the kernel image side, because
+	 * the trap tables haven't been taken over and therefore we cannot
+	 * take TLB misses in the PAGE_OFFSET linear mappings yet.
+	 */
+	pud = swapper_pud_dir + (shift / sizeof(pud_t));
+	pgd_set(&swapper_pg_dir[0], pud);
+
+	pmd = swapper_low_pmd_dir + (shift / sizeof(pmd_t));
+	pud_set(&swapper_pud_dir[0], pmd);
 	
 	inherit_prom_mappings();
 	

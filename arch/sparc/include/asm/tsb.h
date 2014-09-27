@@ -145,6 +145,11 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	andn		REG2, 0x7, REG2; \
 	ldx		[REG1 + REG2], REG1; \
 	brz,pn		REG1, FAIL_LABEL; \
+	 sllx		VADDR, 64 - (PUD_SHIFT + PUD_BITS), REG2; \
+	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
+	andn		REG2, 0x7, REG2; \
+	ldxa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
+	brz,pn		REG1, FAIL_LABEL; \
 	 sllx		VADDR, 64 - (PMD_SHIFT + PMD_BITS), REG2; \
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
 	andn		REG2, 0x7, REG2; \
@@ -197,6 +202,11 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
 	andn		REG2, 0x7, REG2; \
 	ldxa		[PHYS_PGD + REG2] ASI_PHYS_USE_EC, REG1; \
+	brz,pn		REG1, FAIL_LABEL; \
+	 sllx		VADDR, 64 - (PUD_SHIFT + PUD_BITS), REG2; \
+	srlx		REG2, 64 - PAGE_SHIFT, REG2; \
+	andn		REG2, 0x7, REG2; \
+	ldxa		[REG1 + REG2] ASI_PHYS_USE_EC, REG1; \
 	brz,pn		REG1, FAIL_LABEL; \
 	 sllx		VADDR, 64 - (PMD_SHIFT + PMD_BITS), REG2; \
 	srlx		REG2, 64 - PAGE_SHIFT, REG2; \

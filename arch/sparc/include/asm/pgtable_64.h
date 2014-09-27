@@ -20,8 +20,6 @@
 #include <asm/page.h>
 #include <asm/processor.h>
 
-#include <asm-generic/pgtable-nopud.h>
-
 /* The kernel image occupies 0x4000000 to 0x6000000 (4MB --> 96MB).
  * The page copy blockops can use 0x6000000 to 0x8000000.
  * The 8K TSB is mapped in the 0x8000000 to 0x8400000 range.
@@ -55,13 +53,21 @@
 #define PMD_MASK	(~(PMD_SIZE-1))
 #define PMD_BITS	(PAGE_SHIFT - 3)
 
-/* PGDIR_SHIFT determines what a third-level page table entry can map */
-#define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3) + PMD_BITS)
+/* PUD_SHIFT determines the size of the area a third-level page
+ * table can map
+ */
+#define PUD_SHIFT	(PMD_SHIFT + PMD_BITS)
+#define PUD_SIZE	(_AC(1,UL) << PUD_SHIFT)
+#define PUD_MASK	(~(PUD_SIZE-1))
+#define PUD_BITS	(PAGE_SHIFT - 3)
+
+/* PGDIR_SHIFT determines what a fourth-level page table entry can map */
+#define PGDIR_SHIFT	(PUD_SHIFT + PUD_BITS)
 #define PGDIR_SIZE	(_AC(1,UL) << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 #define PGDIR_BITS	(PAGE_SHIFT - 3)
 
-#if (PGDIR_SHIFT + PGDIR_BITS) != 43
+#if (PGDIR_SHIFT + PGDIR_BITS) != 53
 #error Page table parameters do not cover virtual address space properly.
 #endif
 
@@ -93,6 +99,7 @@ static inline bool kern_addr_valid(unsigned long addr)
 /* Entries per page directory level. */
 #define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-3))
 #define PTRS_PER_PMD	(1UL << PMD_BITS)
+#define PTRS_PER_PUD	(1UL << PUD_BITS)
 #define PTRS_PER_PGD	(1UL << PGDIR_BITS)
 
 /* Kernel has a separate 44bit address space. */
@@ -101,6 +108,9 @@ static inline bool kern_addr_valid(unsigned long addr)
 #define pmd_ERROR(e)							\
 	pr_err("%s:%d: bad pmd %p(%016lx) seen at (%pS)\n",		\
 	       __FILE__, __LINE__, &(e), pmd_val(e), __builtin_return_address(0))
+#define pud_ERROR(e)							\
+	pr_err("%s:%d: bad pud %p(%016lx) seen at (%pS)\n",		\
+	       __FILE__, __LINE__, &(e), pud_val(e), __builtin_return_address(0))
 #define pgd_ERROR(e)							\
 	pr_err("%s:%d: bad pgd %p(%016lx) seen at (%pS)\n",		\
 	       __FILE__, __LINE__, &(e), pgd_val(e), __builtin_return_address(0))
@@ -779,6 +789,11 @@ static inline int pmd_present(pmd_t pmd)
 #define pud_bad(pud)			((pud_val(pud) & ~PAGE_MASK) || \
 					 !__kern_addr_valid(pud_val(pud)))
 
+#define pgd_none(pgd)			(!pgd_val(pgd))
+
+#define pgd_bad(pgd)			((pgd_val(pgd) & ~PAGE_MASK) || \
+					 !__kern_addr_valid(pgd_val(pgd)))
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 		pmd_t *pmdp, pmd_t pmd);
@@ -815,9 +830,16 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0UL)
 #define pud_present(pud)		(pud_val(pud) != 0U)
 #define pud_clear(pudp)			(pud_val(*(pudp)) = 0UL)
+#define pgd_page_vaddr(pgd)		\
+	((unsigned long) __va(pgd_val(pgd)))
+#define pgd_present(pgd)		(pgd_val(pgd) != 0U)
+#define pgd_clear(pgdp)			(pgd_val(*(pgd)) = 0UL)
 
 /* Same in both SUN4V and SUN4U.  */
 #define pte_none(pte) 			(!pte_val(pte))
+
+#define pgd_set(pgdp, pudp)	\
+	(pgd_val(*(pgdp)) = (__pa((unsigned long) (pudp))))
 
 /* to find an entry in a page-table-directory. */
 #define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
@@ -825,6 +847,11 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
+
+/* Find an entry in the third-level page table.. */
+#define pud_index(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
+#define pud_offset(pgdp, address)	\
+	((pud_t *) pgd_page_vaddr(*(pgdp)) + pud_index(address))
 
 /* Find an entry in the second-level page table.. */
 #define pmd_offset(pudp, address)	\
