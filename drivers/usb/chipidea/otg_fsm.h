@@ -71,6 +71,11 @@
 					 * pulse after A(PET) turn off v-bus
 					 */
 
+#define TB_TST_SUSP          (20)	/* B-dev hand host role back to A-dev
+					 * via suspend bus after set config.
+					 * max: 100ms
+					 */
+
 #define T_HOST_REQ_POLL      (1500)	/* HNP polling interval 1s~2s */
 
 #ifdef CONFIG_USB_OTG_FSM

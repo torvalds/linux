@@ -220,6 +220,7 @@ static unsigned otg_timer_ms[] = {
 	TA_DP_END,
 	TA_TST_MAINT,
 	TB_SRP_REQD,
+	TB_TST_SUSP,
 	0,
 };
 
@@ -398,6 +399,20 @@ static int b_srp_reqd_tmout(struct ci_hdrc *ci)
 }
 
 /*
+ * otg_hnp_reqd feature
+ * After B(UUT) switch to host, B should hand host role back
+ * to A(PET) within TB_TST_SUSP after setting configuration.
+ */
+static int b_tst_susp_tmout(struct ci_hdrc *ci)
+{
+	if (ci->fsm.otg->state == OTG_STATE_B_HOST) {
+		ci->fsm.b_bus_req = 0;
+		return 0;
+	}
+	return 1;
+}
+
+/*
  * Keep this list in the same order as timers indexed
  * by enum otg_fsm_timer in include/linux/usb/otg-fsm.h
  */
@@ -416,6 +431,7 @@ static int (*otg_timer_handlers[])(struct ci_hdrc *) = {
 	a_dp_end_tmout,		/* A_DP_END */
 	a_tst_maint_tmout,	/* A_TST_MAINT */
 	b_srp_reqd_tmout,	/* B_SRP_REQD */
+	b_tst_susp_tmout,	/* B_TST_SUSP */
 	NULL,			/* HNP_POLLING */
 };
 
