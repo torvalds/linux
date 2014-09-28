@@ -3353,38 +3353,6 @@ out:
 	return error ? error : error2;
 }
 
-
-STATIC xlog_recover_t *
-xlog_recover_find_tid(
-	struct hlist_head	*head,
-	xlog_tid_t		tid)
-{
-	xlog_recover_t		*trans;
-
-	hlist_for_each_entry(trans, head, r_list) {
-		if (trans->r_log_tid == tid)
-			return trans;
-	}
-	return NULL;
-}
-
-STATIC void
-xlog_recover_new_tid(
-	struct hlist_head	*head,
-	xlog_tid_t		tid,
-	xfs_lsn_t		lsn)
-{
-	xlog_recover_t		*trans;
-
-	trans = kmem_zalloc(sizeof(xlog_recover_t), KM_SLEEP);
-	trans->r_log_tid   = tid;
-	trans->r_lsn	   = lsn;
-	INIT_LIST_HEAD(&trans->r_itemq);
-
-	INIT_HLIST_NODE(&trans->r_list);
-	hlist_add_head(&trans->r_list, head);
-}
-
 STATIC void
 xlog_recover_add_item(
 	struct list_head	*head)
@@ -3507,6 +3475,7 @@ xlog_recover_add_to_trans(
 	trace_xfs_log_recover_item_add(log, trans, item, 0);
 	return 0;
 }
+
 /*
  * Free up any resources allocated by the transaction
  *
@@ -3589,6 +3558,13 @@ xlog_recovery_process_trans(
 	return error;
 }
 
+/*
+ * Lookup the transaction recovery structure associated with the ID in the
+ * current ophdr. If the transaction doesn't exist and the start flag is set in
+ * the ophdr, then allocate a new transaction for future ID matches to find.
+ * Either way, return what we found during the lookup - an existing transaction
+ * or nothing.
+ */
 STATIC struct xlog_recover *
 xlog_recover_ophdr_to_trans(
 	struct hlist_head	rhash[],
@@ -3601,20 +3577,35 @@ xlog_recover_ophdr_to_trans(
 
 	tid = be32_to_cpu(ohead->oh_tid);
 	rhp = &rhash[XLOG_RHASH(tid)];
-	trans = xlog_recover_find_tid(rhp, tid);
-	if (trans)
-		return trans;
+	hlist_for_each_entry(trans, rhp, r_list) {
+		if (trans->r_log_tid == tid)
+			return trans;
+	}
 
 	/*
-	 * If this is a new transaction, the ophdr only contains the
-	 * start record. In that case, the only processing we need to do
-	 * on this opheader is allocate a new recovery container to hold
-	 * the recovery ops that will follow.
+	 * skip over non-start transaction headers - we could be
+	 * processing slack space before the next transaction starts
 	 */
-	if (ohead->oh_flags & XLOG_START_TRANS) {
-		ASSERT(be32_to_cpu(ohead->oh_len) == 0);
-		xlog_recover_new_tid(rhp, tid, be64_to_cpu(rhead->h_lsn));
-	}
+	if (!(ohead->oh_flags & XLOG_START_TRANS))
+		return NULL;
+
+	ASSERT(be32_to_cpu(ohead->oh_len) == 0);
+
+	/*
+	 * This is a new transaction so allocate a new recovery container to
+	 * hold the recovery ops that will follow.
+	 */
+	trans = kmem_zalloc(sizeof(struct xlog_recover), KM_SLEEP);
+	trans->r_log_tid = tid;
+	trans->r_lsn = be64_to_cpu(rhead->h_lsn);
+	INIT_LIST_HEAD(&trans->r_itemq);
+	INIT_HLIST_NODE(&trans->r_list);
+	hlist_add_head(&trans->r_list, rhp);
+
+	/*
+	 * Nothing more to do for this ophdr. Items to be added to this new
+	 * transaction will be in subsequent ophdr containers.
+	 */
 	return NULL;
 }
 
