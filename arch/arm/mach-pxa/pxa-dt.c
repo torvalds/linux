@@ -58,3 +58,18 @@ DT_MACHINE_START(PXA_DT, "Marvell PXA3xx (Device Tree Support)")
 	.dt_compat	= pxa3xx_dt_board_compat,
 MACHINE_END
 #endif
+
+#ifdef CONFIG_PXA27x
+static const char * const pxa27x_dt_board_compat[] __initconst = {
+	"marvell,pxa270",
+	NULL,
+};
+
+DT_MACHINE_START(PXA27X_DT, "Marvell PXA2xx (Device Tree Support)")
+	.map_io		= pxa27x_map_io,
+	.init_irq	= pxa27x_dt_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
+	.restart	= pxa_restart,
+	.dt_compat	= pxa27x_dt_board_compat,
+MACHINE_END
+#endif
