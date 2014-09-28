@@ -1479,8 +1479,10 @@ typedef union
 
 /* Define EISA controller register offsets */
 
-#define PI_ESIC_K_CSR_IO_LEN		0x80		/* 128 bytes */
+#define PI_ESIC_K_CSR_IO_LEN		0x40		/* 64 bytes */
+#define PI_ESIC_K_BURST_HOLDOFF_LEN	0x04		/* 4 bytes */
 
+#define PI_DEFEA_K_CSR_IO		0x000
 #define PI_DEFEA_K_BURST_HOLDOFF	0x040
 
 #define PI_ESIC_K_SLOT_ID            	0xC80
@@ -1558,11 +1560,9 @@ typedef union
 
 #define PI_MEM_ADD_MASK_M		0x3ff
 
-/*
- * Define the fields in the IO Compare registers.
- * The driver must initialize the slot field with the slot ID shifted by the
- * amount shown below.
- */
+/* Define the fields in the I/O Address Compare and Mask registers.  */
+
+#define PI_IO_CMP_M_SLOT		0xf0
 
 #define PI_IO_CMP_V_SLOT		4
 
