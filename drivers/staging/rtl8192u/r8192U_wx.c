@@ -345,6 +345,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		return -EAGAIN;
 	if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 		struct iw_scan_req *req = (struct iw_scan_req *)b;
+
 		if (req->essid_len) {
 			ieee->current_network.ssid_len = req->essid_len;
 			memcpy(ieee->current_network.ssid, req->essid, req->essid_len);
@@ -759,6 +760,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 		struct iw_point *encoding = &wrqu->encoding;
 		u8 idx = 0, alg = 0, group = 0;
+
 		if ((encoding->flags & IW_ENCODE_DISABLED) || ext->alg == IW_ENCODE_ALG_NONE)
 			/* none is not allowed to use hwsec WB 2008.07.01 */
 			goto end_hw_sec;
