@@ -396,7 +396,7 @@ void add_RATid23a(struct rtw_adapter *padapter, struct sta_info *psta, u8 rssi_l
 		if (tx_ra_bitmap & 0xffff000)
 			sta_band |= WIRELESS_11_24N | WIRELESS_11G | WIRELESS_11B;
 		else if (tx_ra_bitmap & 0xff0)
-			sta_band |= WIRELESS_11G |WIRELESS_11B;
+			sta_band |= WIRELESS_11G | WIRELESS_11B;
 		else
 			sta_band |= WIRELESS_11B;
 	}
