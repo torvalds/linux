@@ -288,7 +288,8 @@ struct ipv6_txoptions *ipv6_renew_options(struct sock *sk,
 struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 					  struct ipv6_txoptions *opt);
 
-bool ipv6_opt_accepted(const struct sock *sk, const struct sk_buff *skb);
+bool ipv6_opt_accepted(const struct sock *sk, const struct sk_buff *skb,
+		       const struct inet6_skb_parm *opt);
 
 static inline bool ipv6_accept_ra(struct inet6_dev *idev)
 {
