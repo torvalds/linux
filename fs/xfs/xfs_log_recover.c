@@ -3528,8 +3528,6 @@ out:
 	if (!list_empty(&done_list))
 		list_splice_init(&done_list, &trans->r_itemq);
 
-	xlog_recover_free_trans(trans);
-
 	error2 = xfs_buf_delwri_submit(&buffer_list);
 	return error ? error : error2;
 }
@@ -3554,6 +3552,10 @@ xlog_recovery_process_trans(
 	if (flags & XLOG_WAS_CONT_TRANS)
 		flags &= ~XLOG_CONTINUE_TRANS;
 
+	/*
+	 * Callees must not free the trans structure. We'll decide if we need to
+	 * free it or not based on the operation being done and it's result.
+	 */
 	switch (flags) {
 	/* expected flag values */
 	case 0:
@@ -3565,6 +3567,8 @@ xlog_recovery_process_trans(
 		break;
 	case XLOG_COMMIT_TRANS:
 		error = xlog_recover_commit_trans(log, trans, pass);
+		/* success or fail, we are now done with this transaction. */
+		freeit = true;
 		break;
 
 	/* unexpected flag values */
