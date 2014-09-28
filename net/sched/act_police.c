@@ -178,7 +178,7 @@ override:
 
 	spin_lock_bh(&police->tcf_lock);
 	if (est) {
-		err = gen_replace_estimator(&police->tcf_bstats,
+		err = gen_replace_estimator(&police->tcf_bstats, NULL,
 					    &police->tcf_rate_est,
 					    &police->tcf_lock, est);
 		if (err)

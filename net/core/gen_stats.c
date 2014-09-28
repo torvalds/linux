@@ -97,6 +97,43 @@ gnet_stats_start_copy(struct sk_buff *skb, int type, spinlock_t *lock,
 }
 EXPORT_SYMBOL(gnet_stats_start_copy);
 
+static void
+__gnet_stats_copy_basic_cpu(struct gnet_stats_basic_packed *bstats,
+			    struct gnet_stats_basic_cpu __percpu *cpu)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct gnet_stats_basic_cpu *bcpu = per_cpu_ptr(cpu, i);
+		unsigned int start;
+		__u64 bytes;
+		__u32 packets;
+
+		do {
+			start = u64_stats_fetch_begin_irq(&bcpu->syncp);
+			bytes = bcpu->bstats.bytes;
+			packets = bcpu->bstats.packets;
+		} while (u64_stats_fetch_retry_irq(&bcpu->syncp, start));
+
+		bstats->bytes += bcpu->bstats.bytes;
+		bstats->packets += bcpu->bstats.packets;
+	}
+}
+
+void
+__gnet_stats_copy_basic(struct gnet_stats_basic_packed *bstats,
+			struct gnet_stats_basic_cpu __percpu *cpu,
+			struct gnet_stats_basic_packed *b)
+{
+	if (cpu) {
+		__gnet_stats_copy_basic_cpu(bstats, cpu);
+	} else {
+		bstats->bytes = b->bytes;
+		bstats->packets = b->packets;
+	}
+}
+EXPORT_SYMBOL(__gnet_stats_copy_basic);
+
 /**
  * gnet_stats_copy_basic - copy basic statistics into statistic TLV
  * @d: dumping handle
@@ -109,19 +146,25 @@ EXPORT_SYMBOL(gnet_stats_start_copy);
  * if the room in the socket buffer was not sufficient.
  */
 int
-gnet_stats_copy_basic(struct gnet_dump *d, struct gnet_stats_basic_packed *b)
+gnet_stats_copy_basic(struct gnet_dump *d,
+		      struct gnet_stats_basic_cpu __percpu *cpu,
+		      struct gnet_stats_basic_packed *b)
 {
+	struct gnet_stats_basic_packed bstats = {0};
+
+	__gnet_stats_copy_basic(&bstats, cpu, b);
+
 	if (d->compat_tc_stats) {
-		d->tc_stats.bytes = b->bytes;
-		d->tc_stats.packets = b->packets;
+		d->tc_stats.bytes = bstats.bytes;
+		d->tc_stats.packets = bstats.packets;
 	}
 
 	if (d->tail) {
 		struct gnet_stats_basic sb;
 
 		memset(&sb, 0, sizeof(sb));
-		sb.bytes = b->bytes;
-		sb.packets = b->packets;
+		sb.bytes = bstats.bytes;
+		sb.packets = bstats.packets;
 		return gnet_stats_copy(d, TCA_STATS_BASIC, &sb, sizeof(sb));
 	}
 	return 0;

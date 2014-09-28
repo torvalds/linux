@@ -1144,7 +1144,7 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 	cl->xstats.tokens = PSCHED_NS2TICKS(cl->tokens);
 	cl->xstats.ctokens = PSCHED_NS2TICKS(cl->ctokens);
 
-	if (gnet_stats_copy_basic(d, &cl->bstats) < 0 ||
+	if (gnet_stats_copy_basic(d, NULL, &cl->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(d, NULL, &cl->rate_est) < 0 ||
 	    gnet_stats_copy_queue(d, &cl->qstats) < 0)
 		return -1;
@@ -1402,7 +1402,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			goto failure;
 
 		if (htb_rate_est || tca[TCA_RATE]) {
-			err = gen_new_estimator(&cl->bstats, &cl->rate_est,
+			err = gen_new_estimator(&cl->bstats, NULL,
+						&cl->rate_est,
 						qdisc_root_sleeping_lock(sch),
 						tca[TCA_RATE] ? : &est.nla);
 			if (err) {
@@ -1464,8 +1465,11 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			parent->children++;
 	} else {
 		if (tca[TCA_RATE]) {
-			err = gen_replace_estimator(&cl->bstats, &cl->rate_est,
-						    qdisc_root_sleeping_lock(sch),
+			spinlock_t *lock = qdisc_root_sleeping_lock(sch);
+
+			err = gen_replace_estimator(&cl->bstats, NULL,
+						    &cl->rate_est,
+						    lock,
 						    tca[TCA_RATE]);
 			if (err)
 				return err;

@@ -632,6 +632,9 @@ static void qdisc_rcu_free(struct rcu_head *head)
 {
 	struct Qdisc *qdisc = container_of(head, struct Qdisc, rcu_head);
 
+	if (qdisc_is_percpu_stats(qdisc))
+		free_percpu(qdisc->cpu_bstats);
+
 	kfree((char *) qdisc - qdisc->padded);
 }
 

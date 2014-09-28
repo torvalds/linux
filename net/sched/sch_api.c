@@ -942,6 +942,13 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 	sch->handle = handle;
 
 	if (!ops->init || (err = ops->init(sch, tca[TCA_OPTIONS])) == 0) {
+		if (qdisc_is_percpu_stats(sch)) {
+			sch->cpu_bstats =
+				alloc_percpu(struct gnet_stats_basic_cpu);
+			if (!sch->cpu_bstats)
+				goto err_out4;
+		}
+
 		if (tca[TCA_STAB]) {
 			stab = qdisc_get_stab(tca[TCA_STAB]);
 			if (IS_ERR(stab)) {
@@ -964,8 +971,11 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 			else
 				root_lock = qdisc_lock(sch);
 
-			err = gen_new_estimator(&sch->bstats, &sch->rate_est,
-						root_lock, tca[TCA_RATE]);
+			err = gen_new_estimator(&sch->bstats,
+						sch->cpu_bstats,
+						&sch->rate_est,
+						root_lock,
+						tca[TCA_RATE]);
 			if (err)
 				goto err_out4;
 		}
@@ -984,6 +994,7 @@ err_out:
 	return NULL;
 
 err_out4:
+	free_percpu(sch->cpu_bstats);
 	/*
 	 * Any broken qdiscs that would require a ops->reset() here?
 	 * The qdisc was never in action so it shouldn't be necessary.
@@ -1022,9 +1033,11 @@ static int qdisc_change(struct Qdisc *sch, struct nlattr **tca)
 		   because change can't be undone. */
 		if (sch->flags & TCQ_F_MQROOT)
 			goto out;
-		gen_replace_estimator(&sch->bstats, &sch->rate_est,
-					    qdisc_root_sleeping_lock(sch),
-					    tca[TCA_RATE]);
+		gen_replace_estimator(&sch->bstats,
+				      sch->cpu_bstats,
+				      &sch->rate_est,
+				      qdisc_root_sleeping_lock(sch),
+				      tca[TCA_RATE]);
 	}
 out:
 	return 0;
@@ -1299,6 +1312,7 @@ graft:
 static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 			 u32 portid, u32 seq, u16 flags, int event)
 {
+	struct gnet_stats_basic_cpu __percpu *cpu_bstats = NULL;
 	struct tcmsg *tcm;
 	struct nlmsghdr  *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
@@ -1334,7 +1348,10 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	if (q->ops->dump_stats && q->ops->dump_stats(q, &d) < 0)
 		goto nla_put_failure;
 
-	if (gnet_stats_copy_basic(&d, &q->bstats) < 0 ||
+	if (qdisc_is_percpu_stats(q))
+		cpu_bstats = q->cpu_bstats;
+
+	if (gnet_stats_copy_basic(&d, cpu_bstats, &q->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(&d, &q->bstats, &q->rate_est) < 0 ||
 	    gnet_stats_copy_queue(&d, &q->qstats) < 0)
 		goto nla_put_failure;

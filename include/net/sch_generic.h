@@ -6,6 +6,7 @@
 #include <linux/rcupdate.h>
 #include <linux/pkt_sched.h>
 #include <linux/pkt_cls.h>
+#include <linux/percpu.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
 
@@ -58,6 +59,7 @@ struct Qdisc {
 				      * multiqueue device.
 				      */
 #define TCQ_F_WARN_NONWC	(1 << 16)
+#define TCQ_F_CPUSTATS		0x20 /* run using percpu statistics */
 	u32			limit;
 	const struct Qdisc_ops	*ops;
 	struct qdisc_size_table	__rcu *stab;
@@ -83,7 +85,10 @@ struct Qdisc {
 	 */
 	unsigned long		state;
 	struct sk_buff_head	q;
-	struct gnet_stats_basic_packed bstats;
+	union {
+		struct gnet_stats_basic_packed bstats;
+		struct gnet_stats_basic_cpu __percpu *cpu_bstats;
+	} __packed;
 	unsigned int		__state;
 	struct gnet_stats_queue	qstats;
 	struct rcu_head		rcu_head;
@@ -487,12 +492,27 @@ static inline int qdisc_enqueue_root(struct sk_buff *skb, struct Qdisc *sch)
 	return qdisc_enqueue(skb, sch) & NET_XMIT_MASK;
 }
 
+static inline bool qdisc_is_percpu_stats(const struct Qdisc *q)
+{
+	return q->flags & TCQ_F_CPUSTATS;
+}
 
 static inline void bstats_update(struct gnet_stats_basic_packed *bstats,
 				 const struct sk_buff *skb)
 {
 	bstats->bytes += qdisc_pkt_len(skb);
 	bstats->packets += skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1;
+}
+
+static inline void qdisc_bstats_update_cpu(struct Qdisc *sch,
+					   const struct sk_buff *skb)
+{
+	struct gnet_stats_basic_cpu *bstats =
+				this_cpu_ptr(sch->cpu_bstats);
+
+	u64_stats_update_begin(&bstats->syncp);
+	bstats_update(&bstats->bstats, skb);
+	u64_stats_update_end(&bstats->syncp);
 }
 
 static inline void qdisc_bstats_update(struct Qdisc *sch,
