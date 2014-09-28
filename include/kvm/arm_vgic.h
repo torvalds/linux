@@ -219,8 +219,8 @@ struct vgic_v2_cpu_if {
 	u32		vgic_hcr;
 	u32		vgic_vmcr;
 	u32		vgic_misr;	/* Saved only */
-	u32		vgic_eisr[2];	/* Saved only */
-	u32		vgic_elrsr[2];	/* Saved only */
+	u64		vgic_eisr;	/* Saved only */
+	u64		vgic_elrsr;	/* Saved only */
 	u32		vgic_apr;
 	u32		vgic_lr[VGIC_V2_MAX_LRS];
 };
