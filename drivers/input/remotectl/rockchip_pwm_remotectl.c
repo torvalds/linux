@@ -136,6 +136,38 @@ static struct rkxx_remote_key_table remote_key_table_sunchip_ff00[] = {
 };
 
 
+
+static struct rkxx_remote_key_table remote_key_table_0x1dcc[] = {
+	{0xee, KEY_REPLY},
+	{0xf0, KEY_BACK},
+	{0xf8, KEY_UP},
+	{0xbb, KEY_DOWN},
+	{0xef, KEY_LEFT},
+	{0xed, KEY_RIGHT},
+	{0xfc, KEY_HOME},
+	{0xf1, KEY_VOLUMEUP},
+	{0xfd, KEY_VOLUMEDOWN},
+	{0xb7, KEY_SEARCH},
+	{0xff, KEY_POWER},
+	{0xf3, KEY_MUTE},
+	{0xbf, KEY_MENU},
+	{0xf9, 0x191},
+	{0xf5, 0x192},
+	{0xb3, 388},
+	{0xbe, KEY_1},
+	{0xba, KEY_2},
+	{0xb2, KEY_3},
+	{0xbd, KEY_4},
+	{0xf9, KEY_5},
+	{0xb1, KEY_6},
+	{0xfc, KEY_7},
+	{0xf8, KEY_8},
+	{0xb0, KEY_9},
+	{0xb6, KEY_0},
+	{0xb5, KEY_BACKSPACE},
+};
+
+
 static struct rkxx_remotectl_button remotectl_button[] = {
 	{
 		.usercode = 0xff00,
@@ -146,6 +178,11 @@ static struct rkxx_remotectl_button remotectl_button[] = {
 		.usercode = 0x4040,
 		.nbuttons =  22,
 		.key_table = &remote_key_table_meiyu_4040[0],
+	},
+	{
+		.usercode = 0x1dcc,
+		.nbuttons =  27,
+		.key_table = &remote_key_table_0x1dcc[0],
 	},
 };
 
@@ -252,17 +289,17 @@ static void rk_pwm_remotectl_do_something(unsigned long  data)
 		    (ddata->period < RK_PWM_TIME_RPT_MAX)) {
 			DBG("S1\n");
 			mod_timer(&ddata->timer, jiffies
-				  + msecs_to_jiffies(110));
+				  + msecs_to_jiffies(130));
 		} else if ((RK_PWM_TIME_SEQ1_MIN < ddata->period) &&
 			   (ddata->period < RK_PWM_TIME_SEQ1_MAX)) {
 			DBG("S2\n");
 			mod_timer(&ddata->timer, jiffies
-				  + msecs_to_jiffies(110));
+				  + msecs_to_jiffies(130));
 		} else if ((RK_PWM_TIME_SEQ2_MIN < ddata->period) &&
 			  (ddata->period < RK_PWM_TIME_SEQ2_MAX)) {
 			DBG("S3\n");
 			mod_timer(&ddata->timer, jiffies
-				  + msecs_to_jiffies(110));
+				  + msecs_to_jiffies(130));
 		} else {
 			DBG("S4\n");
 			input_event(ddata->input, EV_KEY,
@@ -301,7 +338,7 @@ static irqreturn_t rockchip_pwm_irq(int irq, void *dev_id)
 	ddata = (struct rkxx_remotectl_drvdata *)dev_id;
 	val = readl_relaxed(ddata->base + PWM_REG_INTSTS);
 	if (val&PWM_CH3_INT) {
-		if (val & PWM_CH3_POL) {
+		if ((val & PWM_CH3_POL) == 0) {
 			val = readl_relaxed(ddata->base + PWM_REG_HPR);
 			ddata->period = val;
 			tasklet_hi_schedule(&ddata->remote_tasklet);

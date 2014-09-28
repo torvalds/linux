@@ -9,7 +9,7 @@
 #define HDMI_MAX_ID 1
 
 static char *envp[] = { "INTERFACE=HDMI", NULL };
-
+static int uboot_vic;
 static void hdmi_sys_show_state(struct hdmi *hdmi)
 {
 	switch (hdmi->state) {
@@ -48,13 +48,22 @@ static void hdmi_sys_show_state(struct hdmi *hdmi)
 
 int hdmi_sys_init(struct hdmi *hdmi)
 {
-	hdmi->hotplug = HDMI_HPD_REMOVED;
-	hdmi->state = HDMI_SLEEP;
-	hdmi->enable = HDMI_ENABLE;
+	hdmi->uboot_logo = support_uboot_display();
+	printk("%s,uboot-logo=%d,uboot_vic=%d\n",__func__,hdmi->uboot_logo,uboot_vic);
+	if (hdmi->uboot_logo) {
+		hdmi->hotplug = HDMI_HPD_ACTIVED;
+		hdmi->state = PLAY_BACK;
+		hdmi->enable = HDMI_ENABLE;
+		hdmi->display = HDMI_DISABLE;
+		hdmi->vic = uboot_vic;
+	} else {
+		hdmi->hotplug = HDMI_HPD_REMOVED;
+		hdmi->state = HDMI_SLEEP;
+		hdmi->enable = HDMI_ENABLE;
+		hdmi->display = HDMI_DISABLE;
+		hdmi->vic = HDMI_VIDEO_DEFAULT_MODE;
+	}
 	hdmi->autoconfig = HDMI_AUTO_CONFIGURE;
-	hdmi->display = HDMI_DISABLE;
-
-	hdmi->vic = HDMI_VIDEO_DEFAULT_MODE;
 	hdmi->audio.channel = HDMI_AUDIO_DEFAULT_CHANNEL;
 	hdmi->audio.rate = HDMI_AUDIO_DEFAULT_RATE;
 	hdmi->audio.word_length = HDMI_AUDIO_DEFAULT_WORD_LENGTH;
@@ -211,6 +220,10 @@ void hdmi_work(struct work_struct *work)
 		hdmi->hotplug = hotplug;
 	} else if (hotplug == HDMI_HPD_REMOVED) {
 		hdmi_sys_sleep(hdmi);
+	} else if (hotplug == HDMI_HPD_ACTIVED) {
+		if (hdmi->insert)
+			hdmi->insert(hdmi);
+		hdmi->state = READ_PARSE_EDID;
 	}
 	do {
 		hdmi_sys_show_state(hdmi);
@@ -238,6 +251,9 @@ void hdmi_work(struct work_struct *work)
 							 1);
 #endif
 				rockchip_set_system_status(SYS_STATUS_HDMI);
+			}
+			if (hdmi->uboot_logo) {
+				hdmi->state = CONFIG_AUDIO;
 			}
 			break;
 		case SYSTEM_CONFIG:
@@ -296,7 +312,17 @@ void hdmi_work(struct work_struct *work)
 	} while ((hdmi->state != state_last ||
 		 (rc != HDMI_ERROR_SUCESS)) &&
 		 trytimes < HDMI_MAX_TRY_TIMES);
-
 	hdmi_dbg(hdmi->dev, "[%s] done\n", __func__);
 	mutex_unlock(&work_mutex);
 }
+
+static int __init bootloader_setup(char *str)
+{
+       if(str) {
+               printk("hdmi init vic is %s\n", str);
+               sscanf(str, "%d", &uboot_vic);
+       }
+       /*uboot_vic = 16;*/
+       return 0;
+}
+early_param("hdmi.vic", bootloader_setup);

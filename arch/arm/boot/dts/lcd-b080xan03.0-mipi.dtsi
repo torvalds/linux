@@ -1,0 +1,84 @@
+/*
+ * Copyright (C) 2014 ROCKCHIP, Inc.
+ * Licensed under GPLv2 or later.
+ * arch/arm/boot/dts/lcd-b080xan03.0-mipi.dtsi
+ * author: chenyf@rock-chips.com
+ * create date: 2014-09-11
+ * lcd model: b080xan03.0
+ * resolution: 768 X 1024
+ * mipi channel: single
+ */
+
+/ {
+		/* about mipi */
+		disp_mipi_init: mipi_dsi_init{
+					compatible = "rockchip,mipi_dsi_init";
+					rockchip,screen_init	= <0>;
+					rockchip,dsi_lane		= <4>;
+					rockchip,dsi_hs_clk		= <528>;
+					rockchip,mipi_dsi_num	= <1>;
+		};
+		disp_mipi_power_ctr: mipi_power_ctr {
+					compatible = "rockchip,mipi_power_ctr";
+					mipi_lcd_rst:mipi_lcd_rst{
+							compatible = "rockchip,lcd_rst";
+							rockchip,gpios = <&gpio2 GPIO_C2 GPIO_ACTIVE_HIGH>;
+							rockchip,delay = <20>;
+					};
+				/*	mipi_lcd_en:mipi_lcd_en {
+							compatible = "rockchip,lcd_en";
+							rockchip,gpios = <&gpio0 GPIO_C1 GPIO_ACTIVE_HIGH>;
+							rockchip,delay = <100>;
+					};*/
+		};
+		disp_mipi_init_cmds: screen-on-cmds {
+					compatible = "rockchip,screen-on-cmds";
+					/*rockchip,cmd_debug = <1>;
+					rockchip,on-cmds1 {
+							compatible = "rockchip,on-cmds";
+							rockchip,cmd_type = <HSDT>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0xb0 0x02>;
+							rockchip,cmd_delay = <0>;
+					};
+					*/
+		};
+
+
+		disp_timings: display-timings {
+                        native-mode = <&timing0>;
+                        compatible = "rockchip,display-timings";
+                        timing0: timing0 {
+				screen-type = <SCREEN_MIPI>;
+				lvds-format = <LVDS_8BIT_2>;
+				out-face    = <OUT_P666>;
+				clock-frequency = <67000000>;
+				hactive = <768>;
+				vactive = <1024>;
+				hback-porch = <56>;
+				hfront-porch = <60>;
+				vback-porch = <30>;
+				vfront-porch = <36>;
+				hsync-len = <64>;
+				vsync-len = <14>;
+
+				/*
+				hactive = <1024>;
+				vactive = <768>;
+				hback-porch = <56>;
+				hfront-porch = <60>;
+				vback-porch = <30>;
+				vfront-porch = <36>;
+				hsync-len = <64>;
+				vsync-len = <14>;
+				*/
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+				swap-rb = <0>;
+				swap-rg = <0>;
+				swap-gb = <0>;
+                     	};
+               };
+};

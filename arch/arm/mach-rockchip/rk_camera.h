@@ -600,6 +600,12 @@ struct rkcamera_platform_data {
     int mclk_rate;       /* MHz : 24/48 */ 
     int fov_h;           /* fied of view horizontal */
     int fov_v;           /* fied of view vertical */
+	const char *power_pmu_name1;
+	const char *power_pmu_name2;
+	const char *powerdown_pmu_name;
+	int power_pmu_voltage1;
+	int power_pmu_voltage2;
+	int powerdown_pmu_voltage;
 	struct device_node *of_node;
 	struct rkcamera_platform_data *next_camera;/*yzm*/
                       

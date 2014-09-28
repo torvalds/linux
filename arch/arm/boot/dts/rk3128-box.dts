@@ -191,6 +191,7 @@
 
 &fb {
 	rockchip,disp-mode = <NO_DUAL>;
+	rockchip,uboot-logo-on = <0>;
 };
 
 &lcdc {
@@ -204,6 +205,7 @@
 
 &tve {
 	status = "okay";
+	test_mode = <0>;
 };
 
 &i2c2 {
@@ -237,6 +239,10 @@
 		enable_dma = <0>;	        
 	};
 	*/
+};
+
+&gmac_clkin {
+	clock-frequency = <125000000>;
 };
 
 &gmac {

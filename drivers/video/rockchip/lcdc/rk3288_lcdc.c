@@ -2998,6 +2998,10 @@ static int rk3288_lcdc_fps_mgr(struct rk_lcdc_driver *dev_drv, int fps,
 	u32 pixclock;
 	u32 x_total, y_total;
 	if (set) {
+		if (fps == 0) {
+			dev_info(dev_drv->dev, "unsupport set fps=0\n");
+			return 0;
+		}
 		ft = div_u64(1000000000000llu, fps);
 		x_total =
 		    screen->mode.upper_margin + screen->mode.lower_margin +

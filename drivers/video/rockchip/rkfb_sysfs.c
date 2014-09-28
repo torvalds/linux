@@ -39,14 +39,15 @@ static ssize_t show_screen_info(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
 	struct rk_screen *screen = dev_drv->cur_screen;
-	int fps;
+	int fps = 0;
 	u32 x = screen->mode.left_margin + screen->mode.right_margin +
 		screen->mode.xres + screen->mode.hsync_len;
 	u32 y = screen->mode.upper_margin + screen->mode.lower_margin +
 		screen->mode.yres + screen->mode.vsync_len;
 	u64 ft = (u64)x * y * (dev_drv->pixclock);
 
-	fps = div64_u64(1000000000000llu, ft);
+	if (ft > 0)
+		fps = div64_u64(1000000000000llu, ft);
 	return snprintf(buf, PAGE_SIZE, "xres:%d\nyres:%d\nfps:%d\n",
 			screen->mode.xres, screen->mode.yres, fps);
 }
@@ -133,7 +134,9 @@ static ssize_t show_overlay(struct device *dev,
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
 	int ovl;
-	ovl = dev_drv->ops->ovl_mgr(dev_drv, 0, 0);
+
+	if (dev_drv->ops->ovl_mgr)
+		ovl = dev_drv->ops->ovl_mgr(dev_drv, 0, 0);
 
 	if (ovl < 0)
 		return ovl;
@@ -149,14 +152,14 @@ static ssize_t set_overlay(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int ovl;
+	u32 ovl;
 	int ret;
 
-	ret = kstrtoint(buf, 0, &ovl);
+	ret = kstrtou32(buf, 0, &ovl);
 	if (ret)
 		return ret;
-
-	ret = dev_drv->ops->ovl_mgr(dev_drv, ovl, 1);
+	if (dev_drv->ops->ovl_mgr)
+		ret = dev_drv->ops->ovl_mgr(dev_drv, ovl, 1);
 	if (ret < 0)
 		return ret;
 
@@ -171,7 +174,8 @@ static ssize_t show_fps(struct device *dev,
 	    (struct rk_lcdc_driver *)fbi->par;
 	int fps;
 
-	fps = dev_drv->ops->fps_mgr(dev_drv, 0, 0);
+	if (dev_drv->ops->fps_mgr)
+		fps = dev_drv->ops->fps_mgr(dev_drv, 0, 0);
 	if (fps < 0)
 		return fps;
 
@@ -184,13 +188,20 @@ static ssize_t set_fps(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int fps;
+	u32 fps;
 	int ret;
 
-	ret = kstrtoint(buf, 0, &fps);
+	ret = kstrtou32(buf, 0, &fps);
 	if (ret)
 		return ret;
-	ret = dev_drv->ops->fps_mgr(dev_drv, fps, 1);
+
+	if (fps == 0 || fps > 60) {
+		dev_info(dev, "unsupport fps value,pelase set 1~60\n");
+		return count;
+	}
+
+	if (dev_drv->ops->fps_mgr)
+		ret = dev_drv->ops->fps_mgr(dev_drv, fps, 1);
 	if (ret < 0)
 		return ret;
 
@@ -221,17 +232,17 @@ static ssize_t set_fb_win_map(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int order;
+	u32 order;
 	int ret;
 
-	ret = kstrtoint(buf, 0, &order);
+	ret = kstrtou32(buf, 0, &order);
 	if ((order != FB0_WIN2_FB1_WIN1_FB2_WIN0) &&
 	    (order != FB0_WIN1_FB1_WIN2_FB2_WIN0) &&
 	    (order != FB0_WIN2_FB1_WIN0_FB2_WIN1) &&
 	    (order != FB0_WIN0_FB1_WIN2_FB2_WIN1) &&
 	    (order != FB0_WIN0_FB1_WIN1_FB2_WIN2) &&
 	    (order != FB0_WIN1_FB1_WIN0_FB2_WIN2)) {
-		printk(KERN_ERR "un supported map\n"
+		dev_info(dev, "un supported map\n"
 		       "you can use the following order:\n" "201:\n"
 		       "fb0-win1\n" "fb1-win0\n" "fb2-win2\n" "210:\n"
 		       "fb0-win0\n" "fb1-win1\n" "fb2-win2\n" "120:\n"
@@ -241,7 +252,8 @@ static ssize_t set_fb_win_map(struct device *dev, struct device_attribute *attr,
 		       "fb0-win2\n" "fb1-win1\n" "fb2-win0\n");
 		return count;
 	} else {
-		dev_drv->ops->fb_win_remap(dev_drv, order);
+		if (dev_drv->ops->fb_win_remap)
+			dev_drv->ops->fb_win_remap(dev_drv, order);
 	}
 
 	return count;
@@ -287,7 +299,7 @@ static ssize_t set_hwc_lut(struct device *dev, struct device_attribute *attr,
 		printk("\n");
 	}
 #endif
-	if(dev_drv->ops->set_hwc_lut)
+	if (dev_drv->ops->set_hwc_lut)
 		dev_drv->ops->set_hwc_lut(dev_drv, hwc_lut, 1);
 
 	return count;
@@ -338,7 +350,8 @@ static ssize_t set_dsp_lut(struct device *dev, struct device_attribute *attr,
 		printk("\n");
 	}
 #endif
-	dev_drv->ops->set_dsp_lut(dev_drv, dsp_lut);
+	if (dev_drv->ops->set_dsp_lut)
+		dev_drv->ops->set_dsp_lut(dev_drv, dsp_lut);
 
 	return count;
 }
@@ -367,7 +380,8 @@ static ssize_t set_dsp_cabc(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	ret = dev_drv->ops->set_dsp_cabc(dev_drv, mode);
+	if (dev_drv->ops->set_dsp_cabc)
+		ret = dev_drv->ops->set_dsp_cabc(dev_drv, mode);
 	if (ret < 0)
 		return ret;
 
@@ -404,7 +418,7 @@ static ssize_t set_dsp_bcsh(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int brightness, contrast, sat_con, ret, sin_hue, cos_hue;
+	int brightness, contrast, sat_con, ret = 0, sin_hue, cos_hue;
 
 	if (!strncmp(buf, "open", 4)) {
 		if (dev_drv->ops->open_bcsh)
@@ -471,7 +485,7 @@ static ssize_t set_dsp_bcsh(struct device *dev, struct device_attribute *attr,
 		else
 			ret = -1;
 	} else {
-		printk("format error\n");
+		dev_info(dev, "format error\n");
 	}
 
 	if (ret < 0)

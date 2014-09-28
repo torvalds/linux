@@ -512,13 +512,13 @@
 	};	
 
 	dsihost0: mipi@10110000{
-		compatible = "rockchip,rk32-dsi";
+		compatible = "rockchip,rk312x-dsi";
 		rockchip,prop = <0>;
 		reg = <0x10110000 0x4000>, <0x20038000 0x4000>;
 		reg-names = "mipi_dsi_host" ,"mipi_dsi_phy";
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clk_gates2 15>, <&clk_gates5 0> ;//, <&pd_mipidsi>;
-		clock-names = "clk_mipi_24m", "pclk_mipi_dsi";//, "pd_mipi_dsi";
+		clocks = <&clk_gates2 15>, <&clk_gates5 0>, <&clk_gates9 6>, <&clk_gates9 5>, <&pd_mipidsi>;
+		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pclk_mipi_dsi_host", "hclk_vio_h2p", "pd_mipi_dsi";
 		status = "okay";
 	};
 
@@ -698,7 +698,7 @@
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates1 5>, <&clk_gates5 13>;
 		clock-names = "clk_usbphy0", "hclk_usb0";
-		resets = <&reset RK3128_RST_USBOTG0>, <&reset RK3128_RST_USBOTG0>,
+		resets = <&reset RK3128_RST_USBOTG0>, <&reset RK3128_RST_UTMI0>,
 				<&reset RK3128_RST_OTGC0>;
 		reset-names = "otg_ahb", "otg_phy", "otg_controller";
 		/*0 - Normal, 1 - Force Host, 2 - Force Device*/

@@ -211,6 +211,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 			 */
 			if (priv->plat->phy_addr == -1)
 				priv->plat->phy_addr = addr;
+			else if (priv->plat->phy_addr == 0)
+				priv->plat->phy_addr = addr;
 
 			act = (priv->plat->phy_addr == addr);
 			switch (phydev->irq) {
@@ -229,6 +231,10 @@ int stmmac_mdio_register(struct net_device *ndev)
 				ndev->name, phydev->phy_id, addr,
 				irq_str, dev_name(&phydev->dev),
 				act ? " active" : "");
+			if ((phydev->drv) && phydev->drv->name) {
+				pr_info("PHY driver name: %s", phydev->drv->name);
+			}
+
 			found = 1;
 		}
 	}

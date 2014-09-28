@@ -70,6 +70,7 @@ static struct map_desc rk3036_io_desc[] __initdata = {
 		  RK3036_GIC_CPU_SIZE),
 	RK_DEVICE(RK3036_IMEM_VIRT, RK3036_IMEM_PHYS, SZ_4K),
 	RK_DEVICE(RK_TIMER_VIRT, RK3036_TIMER_PHYS, RK3036_TIMER_SIZE),
+	RK_DEVICE(RK_PWM_VIRT, RK3036_PWM_PHYS, RK3036_PWM_SIZE),
 };
 
 static void __init rk3036_boot_mode_init(void)
@@ -252,6 +253,15 @@ static void rk3036_pm_dump_inten(void)
 	DUMP_GPIO_INTEN(2);
 }
 
+static void rkpm_prepare(void)
+{
+	rk3036_pm_dump_inten();
+}
+static void rkpm_finish(void)
+{
+	rk3036_pm_dump_irq();
+}
+
 static u32 clk_ungt_msk[RK3036_CRU_CLKGATES_CON_CNT];
 /*first clk gating setting*/
 
@@ -324,8 +334,6 @@ static u32 plls_con2_save[RK3036_END_PLL_ID];
 
 static u32 cru_mode_con;
 static u32 clk_sel0, clk_sel1, clk_sel10;
-static int goio0_pin_iomux, gpio0_pin_data, gpio0_pin_dir;
-
 static void pm_pll_wait_lock(u32 pll_idx)
 {
 	u32 delay = 600000U;
@@ -420,23 +428,10 @@ static void pm_plls_suspend(void)
 					 , RK3036_CRU_CLKSELS_CON(1));
 
 	plls_suspend(APLL_ID);
-
-	goio0_pin_iomux = grf_readl(0xa8);
-	grf_writel(0x000c0000, 0xa8);
-
-	gpio0_pin_data = gpio0_readl(0x0);
-	gpio0_pin_dir = gpio0_readl(0x04);
-
-	gpio0_writel(gpio0_pin_dir | 0x2, 0x04);
-	gpio0_writel(gpio0_pin_data | 0x2, 0x00);
 }
 
 static void pm_plls_resume(void)
 {
-	gpio0_writel(gpio0_pin_dir, 0x04);
-	gpio0_writel(gpio0_pin_data, 0x00);
-	grf_writel(0x000c0008, 0xa8);
-
 	plls_resume(APLL_ID);
 	cru_writel(clk_sel0 | (CRU_W_MSK(0, 0x1f) | CRU_W_MSK(8, 0x1f))
 		, RK3036_CRU_CLKSELS_CON(0));
@@ -512,6 +507,7 @@ static void reg_pread(void)
 	n = readl_relaxed(RK_DDR_VIRT);
 	n = readl_relaxed(RK_GRF_VIRT);
 	n = readl_relaxed(RK_CRU_VIRT);
+	n = readl_relaxed(RK_PWM_VIRT);
 }
 
 #define RK3036_CRU_UNGATING_OPS(id) cru_writel(\
@@ -569,6 +565,49 @@ void PIE_FUNC(sram_printch)(char byte)
 	uart_printch(byte);
 }
 
+static __sramdata u32 rkpm_pwm_duty0;
+static __sramdata u32 rkpm_pwm_duty1;
+static __sramdata u32 rkpm_pwm_duty2;
+#define PWM_VOLTAGE 0x600
+
+void PIE_FUNC(pwm_regulator_suspend)(void)
+{
+	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM0)) {
+		rkpm_pwm_duty0 = readl_relaxed(RK_PWM_VIRT + 0x08);
+		writel_relaxed(PWM_VOLTAGE, RK_PWM_VIRT + 0x08);
+	}
+
+	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM1)) {
+		rkpm_pwm_duty1 = readl_relaxed(RK_PWM_VIRT + 0x18);
+		writel_relaxed(PWM_VOLTAGE, RK_PWM_VIRT + 0x18);
+	}
+
+	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM2)) {
+		FUNC(sram_printch)('p');
+		FUNC(sram_printch)('o');
+		FUNC(sram_printch)('l');
+	rkpm_pwm_duty2 = readl_relaxed(RK_PWM_VIRT + 0x28);
+	writel_relaxed(PWM_VOLTAGE, RK_PWM_VIRT + 0x28);
+	}
+	rkpm_udelay(30);
+}
+
+void PIE_FUNC(pwm_regulator_resume)(void)
+{
+	rkpm_udelay(30);
+
+
+	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM0))
+		writel_relaxed(rkpm_pwm_duty0, RK_PWM_VIRT + 0x08);
+
+	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM1))
+		writel_relaxed(rkpm_pwm_duty1, RK_PWM_VIRT + 0x18);
+
+	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM2))
+		writel_relaxed(rkpm_pwm_duty2, RK_PWM_VIRT + 0x28);
+	rkpm_udelay(30);
+}
+
 static void __init rk3036_suspend_init(void)
 {
 	struct device_node *parent;
@@ -592,6 +631,7 @@ static void __init rk3036_suspend_init(void)
 	rkpm_set_ctrbits(pm_ctrbits);
 
 	clks_gating_suspend_init();
+	rkpm_set_ops_prepare_finish(rkpm_prepare, rkpm_finish);
 	rkpm_set_ops_plls(pm_plls_suspend, pm_plls_resume);
 
 	rkpm_set_ops_regs_pread(reg_pread);
@@ -599,8 +639,10 @@ static void __init rk3036_suspend_init(void)
 		, &FUNC(ddr_suspend))
 		, fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_resume)));
 
-	rkpm_set_ops_prepare_finish(rk3036_pm_dump_inten
-		, rk3036_pm_dump_irq);
+	rkpm_set_sram_ops_volt(fn_to_pie(rockchip_pie_chunk
+		, &FUNC(pwm_regulator_suspend))
+		, fn_to_pie(rockchip_pie_chunk, &FUNC(pwm_regulator_resume)));
+
 
 	rkpm_set_sram_ops_printch(fn_to_pie(rockchip_pie_chunk
 		, &FUNC(sram_printch)));

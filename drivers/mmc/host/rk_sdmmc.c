@@ -4202,7 +4202,10 @@ int dw_mci_resume(struct dw_mci *host)
 			dw_mci_setup_bus(slot, true);
 		}
 	}
-	schedule_delayed_work(&host->resume_rescan, msecs_to_jiffies(2000));
+
+	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD))
+		schedule_delayed_work(&host->resume_rescan, msecs_to_jiffies(2000));
+
 	return 0;
 }
 EXPORT_SYMBOL(dw_mci_resume);

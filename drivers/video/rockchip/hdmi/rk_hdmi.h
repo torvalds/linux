@@ -363,6 +363,8 @@ struct hdmi {
 	int yscale;		/* y directoon scale value */
 	int tmdsclk;		/* TDMS Clock frequency */
 	int pixclock;		/* Pixel Clcok frequency */
+	int uboot_logo;
+	int uboot_vic;
 
 	struct list_head pwrlist_head;
 

@@ -252,13 +252,13 @@ static const char coeff_csc[][24] = {
 	    Y   = 0.504G   + 0.257R + 0.098B + 16
 	    Cr  = -0.368G + 0.439R - 0.071B + 128*/
 	{
-	//0x11, 0x78, 0x01, 0xc1, 0x10, 0x48, 0x00, 0x80,
-	//0x02, 0x04, 0x01, 0x07, 0x00, 0x64, 0x00, 0x10,
-	//0x11, 0x29, 0x10, 0x97, 0x01, 0xc1, 0x00, 0x80
+	/*0x11, 0x78, 0x01, 0xc1, 0x10, 0x48, 0x00, 0x80,
+	0x02, 0x04, 0x01, 0x07, 0x00, 0x64, 0x00, 0x10,
+	0x11, 0x29, 0x10, 0x97, 0x01, 0xc1, 0x00, 0x80*/
 
-	//0x11,0x4b,0x01,0x8a,0x10,0x3f,0x00,0x80,
-	//0x01,0xbb,0x00,0xe2,0x00,0x56,0x00,0x1d,
-	//0x11,0x05,0x10,0x85,0x01,0x8a,0x00,0x80
+	/*0x11,0x4b,0x01,0x8a,0x10,0x3f,0x00,0x80,
+	0x01,0xbb,0x00,0xe2,0x00,0x56,0x00,0x1d,
+	0x11,0x05,0x10,0x85,0x01,0x8a,0x00,0x80*/
 
 	0x11,0x5f,0x01,0x82,0x10,0x23,0x00,0x80,
 	0x02,0x1c,0x00,0xa1,0x00,0x36,0x00,0x1e,
@@ -286,7 +286,7 @@ static const char coeff_csc[][24] = {
 static int rk3036_hdmi_video_csc(struct hdmi *hdmi_drv,
 				        struct hdmi_video_para *vpara)
 {
-	int value,i;
+	int value,i,csc_mode,c0_c2_change,auto_csc,csc_enable;
 	const char *coeff = NULL;
 	struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv,
 							struct rk_hdmi_device,
@@ -294,6 +294,92 @@ static int rk3036_hdmi_video_csc(struct hdmi *hdmi_drv,
 	/* Enable or disalbe color space convert */
 	hdmi_dbg(hdmi_drv->dev, "[%s] input_color=%d,output_color=%d\n",
 		 __func__, vpara->input_color, vpara->output_color);
+	if (vpara->input_color == vpara->output_color) {
+		if ((vpara->input_color >= VIDEO_INPUT_COLOR_YCBCR444) ||
+		  ((vpara->input_color == VIDEO_INPUT_COLOR_RGB) &&
+		  (vpara->color_limit_range == COLOR_LIMIT_RANGE_0_255))) {
+			value = v_SOF_DISABLE;
+			hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
+			hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
+				     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
+				     v_VIDEO_AUTO_CSC(AUTO_CSC_DISABLE) |
+				     v_VIDEO_C0_C2_EXCHANGE(C0_C2_CHANGE_DISABLE));
+			return 0;
+		} else if ((vpara->input_color == VIDEO_INPUT_COLOR_RGB) &&
+			   (vpara->color_limit_range == COLOR_LIMIT_RANGE_16_235)) {
+			csc_mode = CSC_RGB_0_255_TO_RGB_16_235_8BIT;
+			auto_csc = AUTO_CSC_DISABLE;
+			c0_c2_change = C0_C2_CHANGE_DISABLE;
+			csc_enable = v_CSC_ENABLE;
+		}
+	}
+
+	switch (vpara->vic) {
+	case HDMI_720x480i_60Hz_4_3:
+	case HDMI_720x576i_50Hz_4_3:
+	case HDMI_720x480p_60Hz_4_3:
+	case HDMI_720x576p_50Hz_4_3:
+	case HDMI_720x480i_60Hz_16_9:
+	case HDMI_720x576i_50Hz_16_9:
+	case HDMI_720x480p_60Hz_16_9:
+	case HDMI_720x576p_50Hz_16_9:
+		if (vpara->input_color == VIDEO_INPUT_COLOR_RGB
+		    && vpara->output_color >= VIDEO_OUTPUT_YCBCR444) {
+			csc_mode = CSC_RGB_0_255_TO_ITU601_16_235_8BIT;
+			auto_csc = AUTO_CSC_DISABLE;
+			c0_c2_change = C0_C2_CHANGE_DISABLE;
+			csc_enable = v_CSC_ENABLE;
+		} else if (vpara->input_color >= VIDEO_OUTPUT_YCBCR444
+			   && vpara->output_color == VIDEO_OUTPUT_RGB444) {
+#ifdef AUTO_DEFINE_CSC
+			csc_mode = CSC_ITU601_16_235_TO_RGB_0_255_8BIT;
+			auto_csc = AUTO_CSC_ENABLE;
+			c0_c2_change = C0_C2_CHANGE_DISABLE;
+			csc_enable = v_CSC_DISABLE;
+#else
+			csc_mode = CSC_ITU601_16_235_TO_RGB_0_255_8BIT;
+			auto_csc = AUTO_CSC_DISABLE;
+			c0_c2_change = C0_C2_CHANGE_ENABLE;
+			csc_enable = v_CSC_ENABLE;
+#endif
+		}
+		break;
+	default:
+		if (vpara->input_color == VIDEO_INPUT_COLOR_RGB
+		    && vpara->output_color >= VIDEO_OUTPUT_YCBCR444) {
+			csc_mode = CSC_RGB_0_255_TO_ITU709_16_235_8BIT;
+			auto_csc = AUTO_CSC_DISABLE;
+			c0_c2_change = C0_C2_CHANGE_DISABLE;
+			csc_enable = v_CSC_ENABLE;
+		} else if (vpara->input_color >= VIDEO_OUTPUT_YCBCR444
+			   && vpara->output_color == VIDEO_OUTPUT_RGB444) {
+#ifdef AUTO_DEFINE_CSC
+			csc_mode = CSC_ITU709_16_235_TO_RGB_0_255_8BIT;
+			auto_csc = AUTO_CSC_ENABLE;
+			c0_c2_change = C0_C2_CHANGE_DISABLE;
+			csc_enable = v_CSC_DISABLE;
+#else
+			csc_mode = CSC_ITU601_16_235_TO_RGB_0_255_8BIT;//CSC_ITU709_16_235_TO_RGB_0_255_8BIT;
+			auto_csc = AUTO_CSC_DISABLE;
+			c0_c2_change = C0_C2_CHANGE_ENABLE;
+			csc_enable = v_CSC_ENABLE;
+#endif
+		}
+		break;
+	}
+
+	coeff = coeff_csc[csc_mode];
+	for (i = 0; i < 24; i++) {
+		hdmi_writel(hdmi_dev, VIDEO_CSC_COEF+i, coeff[i]);
+	}
+
+	value = v_SOF_DISABLE | csc_enable;
+	hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
+	hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
+		     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
+		     v_VIDEO_AUTO_CSC(auto_csc) | v_VIDEO_C0_C2_EXCHANGE(c0_c2_change));
+
+#if 0
 	if (vpara->input_color != vpara->output_color) {
 		if(vpara->input_color == VIDEO_INPUT_COLOR_RGB) {/*rgb2yuv*/
 			coeff = coeff_csc[3];
@@ -352,7 +438,7 @@ static int rk3036_hdmi_video_csc(struct hdmi *hdmi_drv,
 				     v_VIDEO_AUTO_CSC(0) | v_VIDEO_C0_C2_EXCHANGE(1));
 		}
 	}
-
+#endif
 	return 0;
 }
 
@@ -635,6 +721,10 @@ void rk3036_hdmi_control_output(struct hdmi *hdmi_drv, int enable)
 	struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv,
 						       struct rk_hdmi_device,
 						       driver);
+	if (hdmi_drv->uboot_logo) {
+		hdmi_drv->uboot_logo = 0;
+		return;
+	}
 
 	if (enable) {
 		if (hdmi_drv->pwr_mode == LOWER_PWR)
@@ -715,6 +805,7 @@ static int rk3036_hdmi_debug(struct hdmi *hdmi_drv,int cmd)
 	switch(cmd) {
 	case 0:
 		printk("%s[%d]:cmd=%d\n",__func__,__LINE__,cmd);
+		rk3036_hdmi_irq(hdmi_drv);
 		break;
 	case 1:
 		printk("%s[%d]:cmd=%d\n",__func__,__LINE__,cmd);
@@ -744,9 +835,10 @@ int rk3036_hdmi_initial(struct hdmi *hdmi_drv)
 	hdmi_drv->insert    = rk3036_hdmi_insert;
 	hdmi_drv->ops = &hdmi_drv_ops;
 
-	rk3036_hdmi_reset_pclk();
-	rk3036_hdmi_reset(hdmi_drv);
-
+	if (!hdmi_drv->uboot_logo) {
+		rk3036_hdmi_reset_pclk();
+		rk3036_hdmi_reset(hdmi_drv);
+	}
 	if (hdmi_drv->hdcp_power_on_cb)
 		rc = hdmi_drv->hdcp_power_on_cb();
 

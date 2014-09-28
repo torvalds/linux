@@ -1003,7 +1003,7 @@
 
 	vpu: vpu_service@ff9a0000 {
 		compatible = "vpu_service";
-		iommu_enabled = <1>;
+		iommu_enabled = <0>;
 		reg = <0xff9a0000 0x800>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_enc", "irq_dec";
@@ -1015,7 +1015,7 @@
 
 	hevc: hevc_service@ff9c0000 {
 		compatible = "rockchip,hevc_service";
-		iommu_enabled = <1>;
+		iommu_enabled = <0>;
 		reg = <0xff9c0000 0x800>;
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
@@ -1027,7 +1027,7 @@
 
 	iep: iep@ff900000 {
 		compatible = "rockchip,iep";
-		iommu_enabled = <1>;
+		iommu_enabled = <0>;
 		reg = <0xff900000 0x800>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates15 2>, <&clk_gates15 3>;

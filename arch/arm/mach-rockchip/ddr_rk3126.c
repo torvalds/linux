@@ -2704,7 +2704,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32 freq)
 	else
 		value = clk_set_rate(clk, clk_get_rate(clk));
 	ddr_print("init success!!! freq=%luMHz\n",
-		  clk ? clk_get_rate(clk) / 2000000 : freq);
+		  clk ? clk_get_rate(clk) / 1000000 : freq);
 
 	return 0;
 }

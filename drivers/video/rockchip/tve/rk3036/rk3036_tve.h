@@ -113,6 +113,7 @@ struct rk3036_tve {
 	struct fb_videomode		*mode;
 	struct list_head		modelist;
 	struct rk_screen		screen;
+	int test_mode;
 };
 
 #endif
