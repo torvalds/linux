@@ -915,7 +915,6 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 			enum read_mode mode)
 {
 	struct flash_info		*info;
-	struct flash_platform_data	*data;
 	struct device *dev = nor->dev;
 	struct mtd_info *mtd = nor->mtd;
 	struct device_node *np = dev->of_node;
@@ -925,28 +924,6 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 	ret = spi_nor_check(nor);
 	if (ret)
 		return ret;
-
-	/* Platform data helps sort out which chip type we have, as
-	 * well as how this board partitions it.  If we don't have
-	 * a chip ID, try the JEDEC id commands; they'll work for most
-	 * newer chips, even if we don't recognize the particular chip.
-	 */
-	data = dev_get_platdata(dev);
-	if (data && data->type) {
-		const struct spi_device_id *plat_id;
-
-		for (i = 0; i < ARRAY_SIZE(spi_nor_ids) - 1; i++) {
-			plat_id = &spi_nor_ids[i];
-			if (strcmp(data->type, plat_id->name))
-				continue;
-			break;
-		}
-
-		if (i < ARRAY_SIZE(spi_nor_ids) - 1)
-			id = plat_id;
-		else
-			dev_warn(dev, "unrecognized id %s\n", data->type);
-	}
 
 	info = (void *)id->driver_data;
 
@@ -985,11 +962,8 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 		write_sr(nor, 0);
 	}
 
-	if (data && data->name)
-		mtd->name = data->name;
-	else
+	if (!mtd->name)
 		mtd->name = dev_name(dev);
-
 	mtd->type = MTD_NORFLASH;
 	mtd->writesize = 1;
 	mtd->flags = MTD_CAP_NORFLASH;
