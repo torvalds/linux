@@ -69,6 +69,14 @@ cat /sys/kernel/debug/ci_hdrc.0/registers
 "On-The-Go and Embedded Host Supplement to the USB Revision 2.0 Specification
 July 27, 2012 Revision 2.0 version 1.1a"
 
+1.4 OTG compliance test
+----------------------
+Only below 3 popular gadget drivers are declared to be USB OTG and EH 2.0
+compliant(with otg descriptor comply with USB OTG and EH 2.0 as a peripheral):
+- mass storage
+- ether
+- serial
+
 2. How to enable USB as system wakeup source
 -----------------------------------
 Below is the example for how to enable USB as system wakeup source
