@@ -270,7 +270,7 @@
 	spk_ctl_io = <&gpio1 GPIO_A3 GPIO_ACTIVE_HIGH>;
 	spk-mute-delay = <200>;
 	hp-mute-delay = <100>;
-	rk312x_for_mid = <1>;
+	rk312x_for_mid = <0>;
 	is_rk3128 = <0>;
 	spk_volume = <25>;
 	hp_volume = <25>;
