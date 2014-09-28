@@ -28,6 +28,9 @@ struct platform_device *__init gpio_led_register_device(
 	struct platform_device *ret;
 	struct gpio_led_platform_data _pdata = *pdata;
 
+	if (!pdata->num_leds)
+		return ERR_PTR(-EINVAL);
+
 	_pdata.leds = kmemdup(pdata->leds,
 			pdata->num_leds * sizeof(*pdata->leds), GFP_KERNEL);
 	if (!_pdata.leds)
