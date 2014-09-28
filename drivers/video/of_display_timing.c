@@ -236,6 +236,7 @@ timingfail:
 	if (native_mode)
 		of_node_put(native_mode);
 	display_timings_release(disp);
+	disp = NULL;
 entryfail:
 	kfree(disp);
 dispfail:

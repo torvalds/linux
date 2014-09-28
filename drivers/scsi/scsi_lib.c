@@ -733,12 +733,13 @@ static bool scsi_end_request(struct request *req, int error,
 	} else {
 		unsigned long flags;
 
+		if (bidi_bytes)
+			scsi_release_bidi_buffers(cmd);
+
 		spin_lock_irqsave(q->queue_lock, flags);
 		blk_finish_request(req, error);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 
-		if (bidi_bytes)
-			scsi_release_bidi_buffers(cmd);
 		scsi_release_buffers(cmd);
 		scsi_next_command(cmd);
 	}
@@ -1774,7 +1775,7 @@ static void scsi_request_fn(struct request_queue *q)
 	blk_requeue_request(q, req);
 	atomic_dec(&sdev->device_busy);
 out_delay:
-	if (atomic_read(&sdev->device_busy) && !scsi_device_blocked(sdev))
+	if (!atomic_read(&sdev->device_busy) && !scsi_device_blocked(sdev))
 		blk_delay_queue(q, SCSI_QUEUE_DELAY);
 }
 
@@ -1808,7 +1809,6 @@ static int scsi_mq_prep_fn(struct request *req)
 
 	cmd->tag = req->tag;
 
-	req->cmd = req->__cmd;
 	cmd->cmnd = req->cmd;
 	cmd->prot_op = SCSI_PROT_NORMAL;
 

@@ -2136,7 +2136,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 						cs_gpio);
 				else if (gpio_direction_output(cs_gpio, 1))
 					dev_err(&adev->dev,
-						"could set gpio %d as output\n",
+						"could not set gpio %d as output\n",
 						cs_gpio);
 			}
 		}

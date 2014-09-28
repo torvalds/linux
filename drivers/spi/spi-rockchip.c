@@ -220,7 +220,7 @@ static inline void wait_for_idle(struct rockchip_spi *rs)
 	do {
 		if (!(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY))
 			return;
-	} while (time_before(jiffies, timeout));
+	} while (!time_after(jiffies, timeout));
 
 	dev_warn(rs->dev, "spi controller is in busy state!\n");
 }
@@ -499,7 +499,7 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 	}
 
 	/* div doesn't support odd number */
-	div = rs->max_freq / rs->speed;
+	div = max_t(u32, rs->max_freq / rs->speed, 1);
 	div = (div + 1) & 0xfffe;
 
 	spi_enable_chip(rs, 0);
@@ -529,7 +529,8 @@ static int rockchip_spi_transfer_one(
 	int ret = 0;
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
 
-	WARN_ON((readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY));
+	WARN_ON(readl_relaxed(rs->regs + ROCKCHIP_SPI_SSIENR) &&
+		(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY));
 
 	if (!xfer->tx_buf && !xfer->rx_buf) {
 		dev_err(rs->dev, "No buffer for transfer\n");
@@ -678,7 +679,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		rs->dma_tx.addr = (dma_addr_t)(mem->start + ROCKCHIP_SPI_TXDR);
 		rs->dma_rx.addr = (dma_addr_t)(mem->start + ROCKCHIP_SPI_RXDR);
 		rs->dma_tx.direction = DMA_MEM_TO_DEV;
-		rs->dma_tx.direction = DMA_DEV_TO_MEM;
+		rs->dma_rx.direction = DMA_DEV_TO_MEM;
 
 		master->can_dma = rockchip_spi_can_dma;
 		master->dma_tx = rs->dma_tx.ch;

@@ -15,19 +15,25 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef CONFIG_COMMON_CLK
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#endif
 
 #include "hdmi.h"
 
 struct hdmi_phy_8960 {
 	struct hdmi_phy base;
 	struct hdmi *hdmi;
+#ifdef CONFIG_COMMON_CLK
 	struct clk_hw pll_hw;
 	struct clk *pll;
 	unsigned long pixclk;
+#endif
 };
 #define to_hdmi_phy_8960(x) container_of(x, struct hdmi_phy_8960, base)
+
+#ifdef CONFIG_COMMON_CLK
 #define clk_to_phy(x) container_of(x, struct hdmi_phy_8960, pll_hw)
 
 /*
@@ -374,7 +380,7 @@ static struct clk_init_data pll_init = {
 	.parent_names = hdmi_pll_parents,
 	.num_parents = ARRAY_SIZE(hdmi_pll_parents),
 };
-
+#endif
 
 /*
  * HDMI Phy:
@@ -480,12 +486,15 @@ struct hdmi_phy *hdmi_phy_8960_init(struct hdmi *hdmi)
 {
 	struct hdmi_phy_8960 *phy_8960;
 	struct hdmi_phy *phy = NULL;
-	int ret, i;
+	int ret;
+#ifdef CONFIG_COMMON_CLK
+	int i;
 
 	/* sanity check: */
 	for (i = 0; i < (ARRAY_SIZE(freqtbl) - 1); i++)
 		if (WARN_ON(freqtbl[i].rate < freqtbl[i+1].rate))
 			return ERR_PTR(-EINVAL);
+#endif
 
 	phy_8960 = kzalloc(sizeof(*phy_8960), GFP_KERNEL);
 	if (!phy_8960) {
@@ -499,6 +508,7 @@ struct hdmi_phy *hdmi_phy_8960_init(struct hdmi *hdmi)
 
 	phy_8960->hdmi = hdmi;
 
+#ifdef CONFIG_COMMON_CLK
 	phy_8960->pll_hw.init = &pll_init;
 	phy_8960->pll = devm_clk_register(hdmi->dev->dev, &phy_8960->pll_hw);
 	if (IS_ERR(phy_8960->pll)) {
@@ -506,6 +516,7 @@ struct hdmi_phy *hdmi_phy_8960_init(struct hdmi *hdmi)
 		phy_8960->pll = NULL;
 		goto fail;
 	}
+#endif
 
 	return phy;
 

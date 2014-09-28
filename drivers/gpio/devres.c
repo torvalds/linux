@@ -90,7 +90,7 @@ struct gpio_desc *__must_check __devm_gpiod_get_index(struct device *dev,
 	struct gpio_desc **dr;
 	struct gpio_desc *desc;
 
-	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpiod_desc *),
+	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpio_desc *),
 			  GFP_KERNEL);
 	if (!dr)
 		return ERR_PTR(-ENOMEM);

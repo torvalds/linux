@@ -1611,17 +1611,27 @@ static int fec_enet_clk_enable(struct net_device *ndev, bool enable)
 				goto failed_clk_enet_out;
 		}
 		if (fep->clk_ptp) {
+			mutex_lock(&fep->ptp_clk_mutex);
 			ret = clk_prepare_enable(fep->clk_ptp);
-			if (ret)
+			if (ret) {
+				mutex_unlock(&fep->ptp_clk_mutex);
 				goto failed_clk_ptp;
+			} else {
+				fep->ptp_clk_on = true;
+			}
+			mutex_unlock(&fep->ptp_clk_mutex);
 		}
 	} else {
 		clk_disable_unprepare(fep->clk_ahb);
 		clk_disable_unprepare(fep->clk_ipg);
 		if (fep->clk_enet_out)
 			clk_disable_unprepare(fep->clk_enet_out);
-		if (fep->clk_ptp)
+		if (fep->clk_ptp) {
+			mutex_lock(&fep->ptp_clk_mutex);
 			clk_disable_unprepare(fep->clk_ptp);
+			fep->ptp_clk_on = false;
+			mutex_unlock(&fep->ptp_clk_mutex);
+		}
 	}
 
 	return 0;
@@ -2625,6 +2635,8 @@ fec_probe(struct platform_device *pdev)
 	if (IS_ERR(fep->clk_enet_out))
 		fep->clk_enet_out = NULL;
 
+	fep->ptp_clk_on = false;
+	mutex_init(&fep->ptp_clk_mutex);
 	fep->clk_ptp = devm_clk_get(&pdev->dev, "ptp");
 	fep->bufdesc_ex =
 		pdev->id_entry->driver_data & FEC_QUIRK_HAS_BUFDESC_EX;
@@ -2715,10 +2727,10 @@ fec_drv_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
+	cancel_delayed_work_sync(&fep->time_keep);
 	cancel_work_sync(&fep->tx_timeout_work);
 	unregister_netdev(ndev);
 	fec_enet_mii_remove(fep);
-	del_timer_sync(&fep->time_keep);
 	if (fep->reg_phy)
 		regulator_disable(fep->reg_phy);
 	if (fep->ptp_clock)

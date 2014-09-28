@@ -6849,6 +6849,37 @@ static void bnx2x__common_init_phy(struct bnx2x *bp)
 	bnx2x_release_phy_lock(bp);
 }
 
+static void bnx2x_config_endianity(struct bnx2x *bp, u32 val)
+{
+	REG_WR(bp, PXP2_REG_RQ_QM_ENDIAN_M, val);
+	REG_WR(bp, PXP2_REG_RQ_TM_ENDIAN_M, val);
+	REG_WR(bp, PXP2_REG_RQ_SRC_ENDIAN_M, val);
+	REG_WR(bp, PXP2_REG_RQ_CDU_ENDIAN_M, val);
+	REG_WR(bp, PXP2_REG_RQ_DBG_ENDIAN_M, val);
+
+	/* make sure this value is 0 */
+	REG_WR(bp, PXP2_REG_RQ_HC_ENDIAN_M, 0);
+
+	REG_WR(bp, PXP2_REG_RD_QM_SWAP_MODE, val);
+	REG_WR(bp, PXP2_REG_RD_TM_SWAP_MODE, val);
+	REG_WR(bp, PXP2_REG_RD_SRC_SWAP_MODE, val);
+	REG_WR(bp, PXP2_REG_RD_CDURD_SWAP_MODE, val);
+}
+
+static void bnx2x_set_endianity(struct bnx2x *bp)
+{
+#ifdef __BIG_ENDIAN
+	bnx2x_config_endianity(bp, 1);
+#else
+	bnx2x_config_endianity(bp, 0);
+#endif
+}
+
+static void bnx2x_reset_endianity(struct bnx2x *bp)
+{
+	bnx2x_config_endianity(bp, 0);
+}
+
 /**
  * bnx2x_init_hw_common - initialize the HW at the COMMON phase.
  *
@@ -6915,23 +6946,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_PXP2, PHASE_COMMON);
 	bnx2x_init_pxp(bp);
-
-#ifdef __BIG_ENDIAN
-	REG_WR(bp, PXP2_REG_RQ_QM_ENDIAN_M, 1);
-	REG_WR(bp, PXP2_REG_RQ_TM_ENDIAN_M, 1);
-	REG_WR(bp, PXP2_REG_RQ_SRC_ENDIAN_M, 1);
-	REG_WR(bp, PXP2_REG_RQ_CDU_ENDIAN_M, 1);
-	REG_WR(bp, PXP2_REG_RQ_DBG_ENDIAN_M, 1);
-	/* make sure this value is 0 */
-	REG_WR(bp, PXP2_REG_RQ_HC_ENDIAN_M, 0);
-
-/*	REG_WR(bp, PXP2_REG_RD_PBF_SWAP_MODE, 1); */
-	REG_WR(bp, PXP2_REG_RD_QM_SWAP_MODE, 1);
-	REG_WR(bp, PXP2_REG_RD_TM_SWAP_MODE, 1);
-	REG_WR(bp, PXP2_REG_RD_SRC_SWAP_MODE, 1);
-	REG_WR(bp, PXP2_REG_RD_CDURD_SWAP_MODE, 1);
-#endif
-
+	bnx2x_set_endianity(bp);
 	bnx2x_ilt_init_page_size(bp, INITOP_SET);
 
 	if (CHIP_REV_IS_FPGA(bp) && CHIP_IS_E1H(bp))
@@ -10052,6 +10067,8 @@ static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 }
 
 #define BNX2X_PREV_UNDI_PROD_ADDR(p) (BAR_TSTRORM_INTMEM + 0x1508 + ((p) << 4))
+#define BNX2X_PREV_UNDI_PROD_ADDR_H(f) (BAR_TSTRORM_INTMEM + \
+					0x1848 + ((f) << 4))
 #define BNX2X_PREV_UNDI_RCQ(val)	((val) & 0xffff)
 #define BNX2X_PREV_UNDI_BD(val)		((val) >> 16 & 0xffff)
 #define BNX2X_PREV_UNDI_PROD(rcq, bd)	((bd) << 16 | (rcq))
@@ -10059,8 +10076,6 @@ static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 #define BCM_5710_UNDI_FW_MF_MAJOR	(0x07)
 #define BCM_5710_UNDI_FW_MF_MINOR	(0x08)
 #define BCM_5710_UNDI_FW_MF_VERS	(0x05)
-#define BNX2X_PREV_UNDI_MF_PORT(p) (BAR_TSTRORM_INTMEM + 0x150c + ((p) << 4))
-#define BNX2X_PREV_UNDI_MF_FUNC(f) (BAR_TSTRORM_INTMEM + 0x184c + ((f) << 4))
 
 static bool bnx2x_prev_is_after_undi(struct bnx2x *bp)
 {
@@ -10079,72 +10094,25 @@ static bool bnx2x_prev_is_after_undi(struct bnx2x *bp)
 	return false;
 }
 
-static bool bnx2x_prev_unload_undi_fw_supports_mf(struct bnx2x *bp)
-{
-	u8 major, minor, version;
-	u32 fw;
-
-	/* Must check that FW is loaded */
-	if (!(REG_RD(bp, MISC_REG_RESET_REG_1) &
-	     MISC_REGISTERS_RESET_REG_1_RST_XSEM)) {
-		BNX2X_DEV_INFO("XSEM is reset - UNDI MF FW is not loaded\n");
-		return false;
-	}
-
-	/* Read Currently loaded FW version */
-	fw = REG_RD(bp, XSEM_REG_PRAM);
-	major = fw & 0xff;
-	minor = (fw >> 0x8) & 0xff;
-	version = (fw >> 0x10) & 0xff;
-	BNX2X_DEV_INFO("Loaded FW: 0x%08x: Major 0x%02x Minor 0x%02x Version 0x%02x\n",
-		       fw, major, minor, version);
-
-	if (major > BCM_5710_UNDI_FW_MF_MAJOR)
-		return true;
-
-	if ((major == BCM_5710_UNDI_FW_MF_MAJOR) &&
-	    (minor > BCM_5710_UNDI_FW_MF_MINOR))
-		return true;
-
-	if ((major == BCM_5710_UNDI_FW_MF_MAJOR) &&
-	    (minor == BCM_5710_UNDI_FW_MF_MINOR) &&
-	    (version >= BCM_5710_UNDI_FW_MF_VERS))
-		return true;
-
-	return false;
-}
-
-static void bnx2x_prev_unload_undi_mf(struct bnx2x *bp)
-{
-	int i;
-
-	/* Due to legacy (FW) code, the first function on each engine has a
-	 * different offset macro from the rest of the functions.
-	 * Setting this for all 8 functions is harmless regardless of whether
-	 * this is actually a multi-function device.
-	 */
-	for (i = 0; i < 2; i++)
-		REG_WR(bp, BNX2X_PREV_UNDI_MF_PORT(i), 1);
-
-	for (i = 2; i < 8; i++)
-		REG_WR(bp, BNX2X_PREV_UNDI_MF_FUNC(i - 2), 1);
-
-	BNX2X_DEV_INFO("UNDI FW (MF) set to discard\n");
-}
-
-static void bnx2x_prev_unload_undi_inc(struct bnx2x *bp, u8 port, u8 inc)
+static void bnx2x_prev_unload_undi_inc(struct bnx2x *bp, u8 inc)
 {
 	u16 rcq, bd;
-	u32 tmp_reg = REG_RD(bp, BNX2X_PREV_UNDI_PROD_ADDR(port));
+	u32 addr, tmp_reg;
 
+	if (BP_FUNC(bp) < 2)
+		addr = BNX2X_PREV_UNDI_PROD_ADDR(BP_PORT(bp));
+	else
+		addr = BNX2X_PREV_UNDI_PROD_ADDR_H(BP_FUNC(bp) - 2);
+
+	tmp_reg = REG_RD(bp, addr);
 	rcq = BNX2X_PREV_UNDI_RCQ(tmp_reg) + inc;
 	bd = BNX2X_PREV_UNDI_BD(tmp_reg) + inc;
 
 	tmp_reg = BNX2X_PREV_UNDI_PROD(rcq, bd);
-	REG_WR(bp, BNX2X_PREV_UNDI_PROD_ADDR(port), tmp_reg);
+	REG_WR(bp, addr, tmp_reg);
 
-	BNX2X_DEV_INFO("UNDI producer [%d] rings bd -> 0x%04x, rcq -> 0x%04x\n",
-		       port, bd, rcq);
+	BNX2X_DEV_INFO("UNDI producer [%d/%d][%08x] rings bd -> 0x%04x, rcq -> 0x%04x\n",
+		       BP_PORT(bp), BP_FUNC(bp), addr, bd, rcq);
 }
 
 static int bnx2x_prev_mcp_done(struct bnx2x *bp)
@@ -10383,7 +10351,6 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 	/* Reset should be performed after BRB is emptied */
 	if (reset_reg & MISC_REGISTERS_RESET_REG_1_RST_BRB1) {
 		u32 timer_count = 1000;
-		bool need_write = true;
 
 		/* Close the MAC Rx to prevent BRB from filling up */
 		bnx2x_prev_unload_close_mac(bp, &mac_vals);
@@ -10420,20 +10387,10 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 			else
 				timer_count--;
 
-			/* New UNDI FW supports MF and contains better
-			 * cleaning methods - might be redundant but harmless.
-			 */
-			if (bnx2x_prev_unload_undi_fw_supports_mf(bp)) {
-				if (need_write) {
-					bnx2x_prev_unload_undi_mf(bp);
-					need_write = false;
-				}
-			} else if (prev_undi) {
-				/* If UNDI resides in memory,
-				 * manually increment it
-				 */
-				bnx2x_prev_unload_undi_inc(bp, BP_PORT(bp), 1);
-			}
+			/* If UNDI resides in memory, manually increment it */
+			if (prev_undi)
+				bnx2x_prev_unload_undi_inc(bp, 1);
+
 			udelay(10);
 		}
 
@@ -13227,8 +13184,14 @@ static void __bnx2x_remove(struct pci_dev *pdev,
 	bnx2x_iov_remove_one(bp);
 
 	/* Power on: we can't let PCI layer write to us while we are in D3 */
-	if (IS_PF(bp))
+	if (IS_PF(bp)) {
 		bnx2x_set_power_state(bp, PCI_D0);
+
+		/* Set endianity registers to reset values in case next driver
+		 * boots in different endianty environment.
+		 */
+		bnx2x_reset_endianity(bp);
+	}
 
 	/* Disable MSI/MSI-X */
 	bnx2x_disable_msi(bp);

@@ -3181,9 +3181,9 @@ static int set_journal_csum_feature_set(struct super_block *sb)
 
 	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
 				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM)) {
-		/* journal checksum v2 */
+		/* journal checksum v3 */
 		compat = 0;
-		incompat = JBD2_FEATURE_INCOMPAT_CSUM_V2;
+		incompat = JBD2_FEATURE_INCOMPAT_CSUM_V3;
 	} else {
 		/* journal checksum v1 */
 		compat = JBD2_FEATURE_COMPAT_CHECKSUM;
@@ -3205,6 +3205,7 @@ static int set_journal_csum_feature_set(struct super_block *sb)
 		jbd2_journal_clear_features(sbi->s_journal,
 				JBD2_FEATURE_COMPAT_CHECKSUM, 0,
 				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT |
+				JBD2_FEATURE_INCOMPAT_CSUM_V3 |
 				JBD2_FEATURE_INCOMPAT_CSUM_V2);
 	}
 

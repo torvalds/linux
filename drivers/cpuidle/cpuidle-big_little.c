@@ -138,25 +138,18 @@ static int bl_enter_powerdown(struct cpuidle_device *dev,
 	return idx;
 }
 
-static int __init bl_idle_driver_init(struct cpuidle_driver *drv, int cpu_id)
+static int __init bl_idle_driver_init(struct cpuidle_driver *drv, int part_id)
 {
-	struct cpuinfo_arm *cpu_info;
 	struct cpumask *cpumask;
-	unsigned long cpuid;
 	int cpu;
 
 	cpumask = kzalloc(cpumask_size(), GFP_KERNEL);
 	if (!cpumask)
 		return -ENOMEM;
 
-	for_each_possible_cpu(cpu) {
-		cpu_info = &per_cpu(cpu_data, cpu);
-		cpuid = is_smp() ? cpu_info->cpuid : read_cpuid_id();
-
-		/* read cpu id part number */
-		if ((cpuid & 0xFFF0) == cpu_id)
+	for_each_possible_cpu(cpu)
+		if (smp_cpuid_part(cpu) == part_id)
 			cpumask_set_cpu(cpu, cpumask);
-	}
 
 	drv->cpumask = cpumask;
 

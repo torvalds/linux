@@ -699,15 +699,20 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		goto out;
 	}
 
+	drm_modeset_acquire_init(&ctx, 0);
+
 	/* for pre-945g platforms use load detect */
 	if (intel_get_load_detect_pipe(connector, NULL, &tmp, &ctx)) {
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
 		else
 			status = intel_crt_load_detect(crt);
-		intel_release_load_detect_pipe(connector, &tmp, &ctx);
+		intel_release_load_detect_pipe(connector, &tmp);
 	} else
 		status = connector_status_unknown;
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
 out:
 	intel_display_power_put(dev_priv, power_domain);
@@ -799,7 +804,7 @@ static const struct drm_encoder_funcs intel_crt_enc_funcs = {
 	.destroy = intel_encoder_destroy,
 };
 
-static int __init intel_no_crt_dmi_callback(const struct dmi_system_id *id)
+static int intel_no_crt_dmi_callback(const struct dmi_system_id *id)
 {
 	DRM_INFO("Skipping CRT initialization for %s\n", id->ident);
 	return 1;
