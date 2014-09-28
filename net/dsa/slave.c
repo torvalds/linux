@@ -62,6 +62,7 @@ static int dsa_slave_open(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct net_device *master = p->parent->dst->master_netdev;
+	struct dsa_switch *ds = p->parent;
 	int err;
 
 	if (!(master->flags & IFF_UP))
@@ -84,8 +85,20 @@ static int dsa_slave_open(struct net_device *dev)
 			goto clear_allmulti;
 	}
 
+	if (ds->drv->port_enable) {
+		err = ds->drv->port_enable(ds, p->port, p->phy);
+		if (err)
+			goto clear_promisc;
+	}
+
+	if (p->phy)
+		phy_start(p->phy);
+
 	return 0;
 
+clear_promisc:
+	if (dev->flags & IFF_PROMISC)
+		dev_set_promiscuity(master, 0);
 clear_allmulti:
 	if (dev->flags & IFF_ALLMULTI)
 		dev_set_allmulti(master, -1);
@@ -100,6 +113,10 @@ static int dsa_slave_close(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct net_device *master = p->parent->dst->master_netdev;
+	struct dsa_switch *ds = p->parent;
+
+	if (p->phy)
+		phy_stop(p->phy);
 
 	dev_mc_unsync(master, dev);
 	dev_uc_unsync(master, dev);
@@ -110,6 +127,9 @@ static int dsa_slave_close(struct net_device *dev)
 
 	if (!ether_addr_equal(dev->dev_addr, master->dev_addr))
 		dev_uc_del(master, dev->dev_addr);
+
+	if (ds->drv->port_disable)
+		ds->drv->port_disable(ds, p->port, p->phy);
 
 	return 0;
 }
@@ -322,6 +342,44 @@ static int dsa_slave_set_wol(struct net_device *dev, struct ethtool_wolinfo *w)
 	return ret;
 }
 
+static int dsa_slave_set_eee(struct net_device *dev, struct ethtool_eee *e)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+	int ret;
+
+	if (!ds->drv->set_eee)
+		return -EOPNOTSUPP;
+
+	ret = ds->drv->set_eee(ds, p->port, p->phy, e);
+	if (ret)
+		return ret;
+
+	if (p->phy)
+		ret = phy_ethtool_set_eee(p->phy, e);
+
+	return ret;
+}
+
+static int dsa_slave_get_eee(struct net_device *dev, struct ethtool_eee *e)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+	int ret;
+
+	if (!ds->drv->get_eee)
+		return -EOPNOTSUPP;
+
+	ret = ds->drv->get_eee(ds, p->port, e);
+	if (ret)
+		return ret;
+
+	if (p->phy)
+		ret = phy_ethtool_get_eee(p->phy, e);
+
+	return ret;
+}
+
 static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_settings		= dsa_slave_get_settings,
 	.set_settings		= dsa_slave_set_settings,
@@ -333,6 +391,8 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_sset_count		= dsa_slave_get_sset_count,
 	.set_wol		= dsa_slave_set_wol,
 	.get_wol		= dsa_slave_get_wol,
+	.set_eee		= dsa_slave_set_eee,
+	.get_eee		= dsa_slave_get_eee,
 };
 
 static const struct net_device_ops dsa_slave_netdev_ops = {
