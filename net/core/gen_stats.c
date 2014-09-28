@@ -215,33 +215,74 @@ gnet_stats_copy_rate_est(struct gnet_dump *d,
 }
 EXPORT_SYMBOL(gnet_stats_copy_rate_est);
 
+static void
+__gnet_stats_copy_queue_cpu(struct gnet_stats_queue *qstats,
+			    const struct gnet_stats_queue __percpu *q)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		const struct gnet_stats_queue *qcpu = per_cpu_ptr(q, i);
+
+		qstats->qlen = 0;
+		qstats->backlog += qcpu->backlog;
+		qstats->drops += qcpu->drops;
+		qstats->requeues += qcpu->requeues;
+		qstats->overlimits += qcpu->overlimits;
+	}
+}
+
+static void __gnet_stats_copy_queue(struct gnet_stats_queue *qstats,
+				    const struct gnet_stats_queue __percpu *cpu,
+				    const struct gnet_stats_queue *q,
+				    __u32 qlen)
+{
+	if (cpu) {
+		__gnet_stats_copy_queue_cpu(qstats, cpu);
+	} else {
+		qstats->qlen = q->qlen;
+		qstats->backlog = q->backlog;
+		qstats->drops = q->drops;
+		qstats->requeues = q->requeues;
+		qstats->overlimits = q->overlimits;
+	}
+
+	qstats->qlen = qlen;
+}
+
 /**
  * gnet_stats_copy_queue - copy queue statistics into statistics TLV
  * @d: dumping handle
+ * @cpu_q: per cpu queue statistics
  * @q: queue statistics
  * @qlen: queue length statistics
  *
  * Appends the queue statistics to the top level TLV created by
- * gnet_stats_start_copy().
+ * gnet_stats_start_copy(). Using per cpu queue statistics if
+ * they are available.
  *
  * Returns 0 on success or -1 with the statistic lock released
  * if the room in the socket buffer was not sufficient.
  */
 int
 gnet_stats_copy_queue(struct gnet_dump *d,
+		      struct gnet_stats_queue __percpu *cpu_q,
 		      struct gnet_stats_queue *q, __u32 qlen)
 {
-	q->qlen = qlen;
+	struct gnet_stats_queue qstats = {0};
+
+	__gnet_stats_copy_queue(&qstats, cpu_q, q, qlen);
 
 	if (d->compat_tc_stats) {
-		d->tc_stats.drops = q->drops;
-		d->tc_stats.qlen = q->qlen;
-		d->tc_stats.backlog = q->backlog;
-		d->tc_stats.overlimits = q->overlimits;
+		d->tc_stats.drops = qstats.drops;
+		d->tc_stats.qlen = qstats.qlen;
+		d->tc_stats.backlog = qstats.backlog;
+		d->tc_stats.overlimits = qstats.overlimits;
 	}
 
 	if (d->tail)
-		return gnet_stats_copy(d, TCA_STATS_QUEUE, q, sizeof(*q));
+		return gnet_stats_copy(d, TCA_STATS_QUEUE,
+				       &qstats, sizeof(qstats));
 
 	return 0;
 }

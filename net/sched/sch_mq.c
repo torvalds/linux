@@ -200,7 +200,7 @@ static int mq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 
 	sch = dev_queue->qdisc_sleeping;
 	if (gnet_stats_copy_basic(d, NULL, &sch->bstats) < 0 ||
-	    gnet_stats_copy_queue(d, &sch->qstats, sch->q.qlen) < 0)
+	    gnet_stats_copy_queue(d, NULL, &sch->qstats, sch->q.qlen) < 0)
 		return -1;
 	return 0;
 }

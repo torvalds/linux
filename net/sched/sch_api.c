@@ -947,6 +947,10 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 				alloc_percpu(struct gnet_stats_basic_cpu);
 			if (!sch->cpu_bstats)
 				goto err_out4;
+
+			sch->cpu_qstats = alloc_percpu(struct gnet_stats_queue);
+			if (!sch->cpu_qstats)
+				goto err_out4;
 		}
 
 		if (tca[TCA_STAB]) {
@@ -995,6 +999,7 @@ err_out:
 
 err_out4:
 	free_percpu(sch->cpu_bstats);
+	free_percpu(sch->cpu_qstats);
 	/*
 	 * Any broken qdiscs that would require a ops->reset() here?
 	 * The qdisc was never in action so it shouldn't be necessary.
@@ -1313,6 +1318,7 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 			 u32 portid, u32 seq, u16 flags, int event)
 {
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats = NULL;
+	struct gnet_stats_queue __percpu *cpu_qstats = NULL;
 	struct tcmsg *tcm;
 	struct nlmsghdr  *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
@@ -1349,12 +1355,14 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	if (q->ops->dump_stats && q->ops->dump_stats(q, &d) < 0)
 		goto nla_put_failure;
 
-	if (qdisc_is_percpu_stats(q))
+	if (qdisc_is_percpu_stats(q)) {
 		cpu_bstats = q->cpu_bstats;
+		cpu_qstats = q->cpu_qstats;
+	}
 
 	if (gnet_stats_copy_basic(&d, cpu_bstats, &q->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(&d, &q->bstats, &q->rate_est) < 0 ||
-	    gnet_stats_copy_queue(&d, &q->qstats, qlen) < 0)
+	    gnet_stats_copy_queue(&d, cpu_qstats, &q->qstats, qlen) < 0)
 		goto nla_put_failure;
 
 	if (gnet_stats_finish_copy(&d) < 0)

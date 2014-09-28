@@ -41,7 +41,8 @@ int gnet_stats_copy_rate_est(struct gnet_dump *d,
 			     const struct gnet_stats_basic_packed *b,
 			     struct gnet_stats_rate_est64 *r);
 int gnet_stats_copy_queue(struct gnet_dump *d,
-			  struct gnet_stats_queue *q, __u32 len);
+			  struct gnet_stats_queue __percpu *cpu_q,
+			  struct gnet_stats_queue *q, __u32 qlen);
 int gnet_stats_copy_app(struct gnet_dump *d, void *st, int len);
 
 int gnet_stats_finish_copy(struct gnet_dump *d);

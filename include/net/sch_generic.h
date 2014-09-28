@@ -90,7 +90,10 @@ struct Qdisc {
 		struct gnet_stats_basic_cpu __percpu *cpu_bstats;
 	} __packed;
 	unsigned int		__state;
-	struct gnet_stats_queue	qstats;
+	union {
+		struct gnet_stats_queue	qstats;
+		struct gnet_stats_queue	__percpu *cpu_qstats;
+	} __packed;
 	struct rcu_head		rcu_head;
 	int			padded;
 	atomic_t		refcnt;
@@ -541,6 +544,13 @@ static inline void __qdisc_qstats_drop(struct Qdisc *sch, int count)
 static inline void qdisc_qstats_drop(struct Qdisc *sch)
 {
 	sch->qstats.drops++;
+}
+
+static inline void qdisc_qstats_drop_cpu(struct Qdisc *sch)
+{
+	struct gnet_stats_queue *qstats = this_cpu_ptr(sch->cpu_qstats);
+
+	qstats->drops++;
 }
 
 static inline void qdisc_qstats_overlimit(struct Qdisc *sch)

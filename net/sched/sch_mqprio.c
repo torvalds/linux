@@ -356,14 +356,15 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 		/* Reclaim root sleeping lock before completing stats */
 		spin_lock_bh(d->lock);
 		if (gnet_stats_copy_basic(d, NULL, &bstats) < 0 ||
-		    gnet_stats_copy_queue(d, &qstats, qlen) < 0)
+		    gnet_stats_copy_queue(d, NULL, &qstats, qlen) < 0)
 			return -1;
 	} else {
 		struct netdev_queue *dev_queue = mqprio_queue_get(sch, cl);
 
 		sch = dev_queue->qdisc_sleeping;
 		if (gnet_stats_copy_basic(d, NULL, &sch->bstats) < 0 ||
-		    gnet_stats_copy_queue(d, &sch->qstats, sch->q.qlen) < 0)
+		    gnet_stats_copy_queue(d, NULL,
+					  &sch->qstats, sch->q.qlen) < 0)
 			return -1;
 	}
 	return 0;
