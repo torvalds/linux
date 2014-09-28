@@ -33,7 +33,7 @@ choice
 endchoice
 endif #SND_RK_SOC && RK_HDMI
 
-config SND_RK_SOC_CARD_SPDIF
+config SND_RK_SOC_SPDIF_CARD
 	tristate "SoC spdif card support for rockchip"
 	depends on !SND_RK_SOC_HDMI_SPDIF
 		select SND_RK_SOC_SPDIF

@@ -42,6 +42,17 @@
 
         status = "okay";
     };
+
+	rockchip-spdif-card {
+		compatible = "rockchip-spdif-card";
+		dais {
+			dai0 {
+				audio-codec = <&codec_hdmi_spdif>;
+				i2s-controller = <&spdif>;
+			};
+		};
+	};
+
 	usb_control {
 		compatible = "rockchip,rk3126-usb-control";
 		host_drv_gpio = <&gpio3 GPIO_C4 GPIO_ACTIVE_LOW>;
@@ -68,7 +79,6 @@
                         )
                 >;
         };
-
 };
 
 
