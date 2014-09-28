@@ -53,17 +53,17 @@
 #endif
 
 
-	#define RTL8188E_FW_IMG					"rtl8188E/FW_NIC.bin"
-	#define RTL8188E_FW_WW_IMG				"rtl8188E/FW_WoWLAN.bin"
-	#define RTL8188E_PHY_REG					"rtl8188E/PHY_REG.txt" 
-	#define RTL8188E_PHY_RADIO_A				"rtl8188E/RadioA.txt"
-	#define RTL8188E_PHY_RADIO_B				"rtl8188E/RadioB.txt"
-	#define RTL8188E_TXPWR_TRACK				"rtl8188E/TxPowerTrack.txt"			
-	#define RTL8188E_AGC_TAB					"rtl8188E/AGC_TAB.txt"
-	#define RTL8188E_PHY_MACREG 				"rtl8188E/MAC_REG.txt"
-	#define RTL8188E_PHY_REG_PG				"rtl8188E/PHY_REG_PG.txt"
-	#define RTL8188E_PHY_REG_MP 				"rtl8188E/PHY_REG_MP.txt" 
-	#define RTL8188E_TXPWR_LMT				"rtl8188E/TXPWR_LMT.txt" 
+	#define RTL8188E_FW_IMG					"rtl8188e/FW_NIC.bin"
+	#define RTL8188E_FW_WW_IMG				"rtl8188e/FW_WoWLAN.bin"
+	#define RTL8188E_PHY_REG					"rtl8188e/PHY_REG.txt" 
+	#define RTL8188E_PHY_RADIO_A				"rtl8188e/RadioA.txt"
+	#define RTL8188E_PHY_RADIO_B				"rtl8188e/RadioB.txt"
+	#define RTL8188E_TXPWR_TRACK				"rtl8188e/TxPowerTrack.txt"			
+	#define RTL8188E_AGC_TAB					"rtl8188e/AGC_TAB.txt"
+	#define RTL8188E_PHY_MACREG 				"rtl8188e/MAC_REG.txt"
+	#define RTL8188E_PHY_REG_PG				"rtl8188e/PHY_REG_PG.txt"
+	#define RTL8188E_PHY_REG_MP 				"rtl8188e/PHY_REG_MP.txt" 
+	#define RTL8188E_TXPWR_LMT				"rtl8188e/TXPWR_LMT.txt" 
 
 	//---------------------------------------------------------------------
 	//		RTL8188E Power Configuration CMDs for USB/SDIO/PCIE interfaces
@@ -152,19 +152,31 @@ typedef struct _RT_8188E_FIRMWARE_HDR
 // must reserved about 7 pages for LPS =>  176-7 = 169 (0xA9)
 // 2*BCN / 1*ps-poll / 1*null-data /1*prob_rsp /1*QOS null-data /1*BT QOS null-data 
 
-#define TX_TOTAL_PAGE_NUMBER_88E		0xA9//  169 (21632=> 21k)
+#define BCNQ_PAGE_NUM_88E		0x08
 
-#ifdef RTL8188ES_MAC_LOOPBACK
-#define TX_PAGE_BOUNDARY_88E 0x48 //72
-#else //TX_PAGE_BOUNDARY_LOOPBACK_MODE
-#define TX_PAGE_BOUNDARY_88E (TX_TOTAL_PAGE_NUMBER_88E + 1)
+//For WoWLan , more reserved page
+#ifdef CONFIG_WOWLAN
+#define WOWLAN_PAGE_NUM_88E	0x00
+#else
+#define WOWLAN_PAGE_NUM_88E	0x00
 #endif
 
+#define TX_TOTAL_PAGE_NUMBER_88E	(0xB0 - BCNQ_PAGE_NUM_88E - WOWLAN_PAGE_NUM_88E)
+#define TX_PAGE_BOUNDARY_88E		(TX_TOTAL_PAGE_NUMBER_88E + 1)
 
-//Note: For Normal Chip Setting ,modify later
-#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER	TX_TOTAL_PAGE_NUMBER_88E  //0xA9 , 0xb0=>176=>22k
-#define WMM_NORMAL_TX_PAGE_BOUNDARY_88E	(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER + 1) //0xA9
+#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_88E	TX_TOTAL_PAGE_NUMBER_88E
+#define WMM_NORMAL_TX_PAGE_BOUNDARY_88E		(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_88E + 1)
 
+// For Normal Chip Setting
+// (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_8723B
+#define NORMAL_PAGE_NUM_HPQ_88E		0x00
+#define NORMAL_PAGE_NUM_LPQ_88E		0x09
+#define NORMAL_PAGE_NUM_NPQ_88E		0x00
+
+// Note: For Normal Chip Setting, modify later
+#define WMM_NORMAL_PAGE_NUM_HPQ_88E		0x29
+#define WMM_NORMAL_PAGE_NUM_LPQ_88E		0x1C
+#define WMM_NORMAL_PAGE_NUM_NPQ_88E		0x1C
 
 
 //-------------------------------------------------------------------------
@@ -195,8 +207,6 @@ typedef struct _RT_8188E_FIRMWARE_HDR
 // |         |            Reserved(14bytes)	      |
 //
 #define EFUSE_OOB_PROTECT_BYTES 		15	// PG data exclude header, dummy 6 bytes frome CP test and reserved 1byte.
-
-#define		HWSET_MAX_SIZE_88E		512
 
 #define		EFUSE_REAL_CONTENT_LEN_88E	256
 #define		EFUSE_MAP_LEN_88E		512
@@ -267,6 +277,10 @@ void Hal_DetectWoWMode(PADAPTER pAdapter);
 //void rtl8723a_ReadBluetoothCoexistInfo(PADAPTER padapter, u8 *PROMContent, BOOLEAN AutoloadFail);
 void Hal_InitChannelPlan(PADAPTER padapter);
 
+#ifdef CONFIG_RF_GAIN_OFFSET
+void Hal_ReadRFGainOffset(PADAPTER pAdapter,u8* hwinfo,BOOLEAN AutoLoadFail);
+#endif //CONFIG_RF_GAIN_OFFSET
+
 void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc);
 
 // register
@@ -283,6 +297,13 @@ void _InitTransferPageSize(PADAPTER padapter);
 
 void SetHwReg8188E(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg8188E(PADAPTER padapter, u8 variable, u8 *val);
-
+void ResumeTxBeacon(PADAPTER padapter);
+void StopTxBeacon(PADAPTER padapter);
+u8
+GetHalDefVar8188E(
+	IN	PADAPTER				Adapter,
+	IN	HAL_DEF_VARIABLE		eVariable,
+	IN	PVOID					pValue
+	);
 #endif //__RTL8188E_HAL_H__
 

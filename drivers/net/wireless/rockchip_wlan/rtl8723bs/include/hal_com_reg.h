@@ -104,6 +104,11 @@
 #define REG_GPIO_OUTSTS				0x00F4	// For RTL8723 only.
 #define REG_TYPE_ID						0x00FC
 
+//
+// 2010/12/29 MH Add for 92D
+//
+#define REG_MAC_PHY_CTRL_NORMAL		0x00f8
+
 
 //-----------------------------------------------------
 //
@@ -262,6 +267,7 @@
 #define REG_PKT_BE_BK_LIFE_TIME		0x04C2
 #define REG_STBC_SETTING				0x04C4
 #define REG_QUEUE_CTRL					0x04C6
+#define REG_SINGLE_AMPDU_CTRL			0x04c7
 #define REG_PROT_MODE_CTRL			0x04C8
 #define REG_MAX_AGGR_NUM				0x04CA
 #define REG_RTS_MAX_AGGR_NUM			0x04CB
@@ -633,6 +639,9 @@ Default: 00b.
 #define RRSR_MCS6				BIT18
 #define RRSR_MCS7				BIT19
 
+#define RRSR_CCK_RATES (RRSR_11M|RRSR_5_5M|RRSR_2M|RRSR_1M)
+#define RRSR_OFDM_RATES (RRSR_54M|RRSR_48M|RRSR_36M|RRSR_24M|RRSR_18M|RRSR_12M|RRSR_9M|RRSR_6M)
+
 // WOL bit information
 #define HAL92C_WOL_PTK_UPDATE_EVENT		BIT0
 #define HAL92C_WOL_GTK_UPDATE_EVENT		BIT1
@@ -756,10 +765,6 @@ Default: 00b.
 #define CAM_WRITE				BIT16
 #define CAM_READ				0x00000000
 #define CAM_POLLINIG			BIT31
-
-#define SCR_UseDK				0x01
-#define SCR_TxSecEnable			0x02
-#define SCR_RxSecEnable			0x04
 
 //
 // 10. Power Save Control Registers	 
@@ -1094,7 +1099,7 @@ Current IOREG MAP
 #define FEN_CPUEN				BIT(10)
 #define FEN_DCORE				BIT(11)
 #define FEN_ELDR				BIT(12)
-//#define FEN_DIO_RF				BIT(13)
+#define FEN_EN_25_1				BIT(13)
 #define FEN_HWPDN				BIT(14)
 #define FEN_MREGEN				BIT(15)
 
@@ -1509,6 +1514,7 @@ Current IOREG MAP
 #define SCR_NoSKMC				BIT(5)			//No Key Search Multicast
 #define SCR_TXBCUSEDK			BIT(6)			// Force Tx Broadcast packets Use Default Key
 #define SCR_RXBCUSEDK			BIT(7)			// Force Rx Broadcast packets Use Default Key
+#define SCR_CHK_KEYID			BIT(8)
 
 //-----------------------------------------------------
 //
@@ -1718,10 +1724,17 @@ Current IOREG MAP
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_DUAL_MAC	127
 
 #define POLLING_LLT_THRESHOLD				20
+#if defined(CONFIG_RTL8723B) && defined(CONFIG_PCI_HCI)
+#define POLLING_READY_TIMEOUT_COUNT		6000
+#else
 #define POLLING_READY_TIMEOUT_COUNT		1000
+#endif
+
 
 // GPIO BIT
-#define HAL_8192C_HW_GPIO_WPS_BIT	BIT2
+#define	HAL_8192C_HW_GPIO_WPS_BIT	BIT2
+#define	HAL_8192EU_HW_GPIO_WPS_BIT	BIT7
+#define	HAL_8188E_HW_GPIO_WPS_BIT	BIT7
 
 #endif //__HAL_COMMON_H__
 

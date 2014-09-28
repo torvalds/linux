@@ -347,6 +347,9 @@ enum {
 	CTA_TEST,
 	MP_DISABLE_BT_COEXIST,
 	MP_PwrCtlDM,
+#ifdef CONFIG_WOWLAN
+	MP_WOW_ENABLE,
+#endif
 #ifdef CONFIG_AP_WOWLAN
 	MP_AP_WOW_ENABLE,
 #endif
@@ -370,6 +373,7 @@ struct mp_priv
 	//Tx Section
 	u8 TID;
 	u32 tx_pktcount;
+	u32 pktInterval;
 	struct mp_tx tx;
 
 	//Rx Section
@@ -378,7 +382,7 @@ struct mp_priv
 	u32 rx_pktcount_filter_out;
 	u32 rx_crcerrpktcount;
 	u32 rx_pktloss;
-
+	BOOLEAN  rx_bindicatePkt;
 	struct recv_stat rxstat;
 
 	//RF/BB relative
@@ -680,6 +684,9 @@ typedef enum	_MPT_TXPWR_DEF{
 #elif defined(CONFIG_RTL8723B)
 	#define 	REG_RF_BB_GAIN_OFFSET	0x7f
 	#define 	RF_GAIN_OFFSET_MASK 	0xfffff
+#elif defined(CONFIG_RTL8188E)
+	#define 	REG_RF_BB_GAIN_OFFSET	0x55
+	#define 	RF_GAIN_OFFSET_MASK 	0xfffff
 #else
 	#define 	REG_RF_BB_GAIN_OFFSET	0x55
 	#define 	RF_GAIN_OFFSET_MASK 	0xfffff
@@ -782,7 +789,7 @@ extern u8 Hal_ReadRFThermalMeter(PADAPTER pAdapter);
 extern void Hal_SetCCKContinuousTx(PADAPTER pAdapter, u8 bStart);
 extern void Hal_SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart);
 extern void Hal_ProSetCrystalCap (PADAPTER pAdapter , u32 CrystalCapVal);
-extern void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv);
+//extern void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv);
 extern void MP_PHY_SetRFPathSwitch(PADAPTER pAdapter ,BOOLEAN bMain);
 extern ULONG mpt_ProQueryCalTxPower(PADAPTER	pAdapter,u8 RfPath);
 extern void MPT_PwrCtlDM(PADAPTER padapter, u32 bstart);

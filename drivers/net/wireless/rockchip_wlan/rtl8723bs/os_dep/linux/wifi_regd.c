@@ -474,17 +474,15 @@ static const struct ieee80211_regdomain *_rtw_regdomain_select(struct
 #endif
 }
 
-typedef void (*reg_notifier_func) (struct wiphy *, struct regulatory_request *);
-
-static int _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
+static void _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 				struct wiphy *wiphy,
-				int (*reg_notifier) (struct wiphy * wiphy,
+				void (*reg_notifier) (struct wiphy * wiphy,
 						     struct regulatory_request *
 						     request))
 {
 	const struct ieee80211_regdomain *regd;
 
-	wiphy->reg_notifier = (reg_notifier_func) reg_notifier;
+	wiphy->reg_notifier = reg_notifier;
 
 	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 	wiphy->flags &= ~WIPHY_FLAG_STRICT_REGULATORY;
@@ -497,7 +495,6 @@ static int _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 	_rtw_reg_apply_flags(wiphy);
 	_rtw_reg_apply_radar_flags(wiphy);
 	_rtw_reg_apply_world_flags(wiphy, NL80211_REGDOM_SET_BY_DRIVER, reg);
-	return 0;
 }
 
 static struct country_code_to_enum_rd *_rtw_regd_find_country(u16 countrycode)
@@ -512,7 +509,7 @@ static struct country_code_to_enum_rd *_rtw_regd_find_country(u16 countrycode)
 }
 
 int rtw_regd_init(_adapter * padapter,
-		  int (*reg_notifier) (struct wiphy * wiphy,
+		  void (*reg_notifier) (struct wiphy * wiphy,
 				       struct regulatory_request * request))
 {
 	//struct registry_priv  *registrypriv = &padapter->registrypriv;
@@ -538,12 +535,12 @@ int rtw_regd_init(_adapter * padapter,
 	return 0;
 }
 
-int rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct rtw_regulatory *reg = NULL;
 
 	DBG_8192C("%s\n", __func__);
 
-	return _rtw_reg_notifier_apply(wiphy, request, reg);
+	_rtw_reg_notifier_apply(wiphy, request, reg);
 }
 #endif //CONFIG_IOCTL_CFG80211

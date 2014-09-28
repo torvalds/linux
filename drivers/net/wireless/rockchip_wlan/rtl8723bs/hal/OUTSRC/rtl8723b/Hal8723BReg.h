@@ -135,11 +135,11 @@
 //-----------------------------------------------------
 #define REG_RQPN_8723B					0x0200
 #define REG_FIFOPAGE_8723B				0x0204
-#define REG_TDECTRL_8723B				0x0208
+#define REG_DWBCN0_CTRL_8723B			REG_TDECTRL
 #define REG_TXDMA_OFFSET_CHK_8723B	0x020C
-#define REG_TXDMA_STATUS_8723B			0x0210
-#define REG_RQPN_NPQ_8723B				0x0214
-#define REG_TDECTRL1_8723B				0x0228
+#define REG_TXDMA_STATUS_8723B		0x0210
+#define REG_RQPN_NPQ_8723B			0x0214
+#define REG_DWBCN1_CTRL_8723B			0x0228
 
 
 //-----------------------------------------------------

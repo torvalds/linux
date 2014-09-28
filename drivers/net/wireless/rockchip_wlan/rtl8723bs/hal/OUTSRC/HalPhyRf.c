@@ -450,11 +450,13 @@ ODM_TXPowerTrackingCallback_ThermalMeter(
 
 	}
 #if !(DM_ODM_SUPPORT_TYPE & ODM_AP)
+#if (RTL8723B_SUPPORT == 0)
 	// Delta temperature is equal to or larger than 20 centigrade (When threshold is 8).
 	if ((delta_IQK >= c.Threshold_IQK)) {		
 		if ( ! pDM_Odm->RFCalibrateInfo.bIQKInProgress) 
 			(*c.DoIQK)(pDM_Odm, delta_IQK, ThermalValue, 8);
 	}
+#endif		
 #endif		
 			
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_TX_PWR_TRACK, ODM_DBG_LOUD,("<===ODM_TXPowerTrackingCallback_ThermalMeter\n"));

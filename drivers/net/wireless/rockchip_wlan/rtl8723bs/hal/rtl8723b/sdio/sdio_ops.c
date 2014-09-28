@@ -1110,7 +1110,9 @@ void InitInterrupt8723BSdio(PADAPTER padapter)
 	pHalData = GET_HAL_DATA(padapter);
 	pHalData->sdio_himr = (u32)(			\
 								SDIO_HIMR_RX_REQUEST_MSK			|
-//								SDIO_HIMR_AVAL_MSK					|
+#ifdef CONFIG_SDIO_TX_ENABLE_AVAL_INT
+								SDIO_HIMR_AVAL_MSK					|
+#endif
 //								SDIO_HIMR_TXERR_MSK				|
 //								SDIO_HIMR_RXERR_MSK				|
 //								SDIO_HIMR_TXFOVW_MSK				|
@@ -1541,18 +1543,13 @@ static void sd_rxhandler(PADAPTER padapter, struct recv_buf *precvbuf)
 	precvpriv = &padapter->recvpriv;
 	ppending_queue = &precvpriv->recv_buf_pending_queue;
 
-	if (_rtw_queue_empty(ppending_queue) == _TRUE)
-	{
-		//3 1. enqueue recvbuf
-		rtw_enqueue_recvbuf(precvbuf, ppending_queue);
+	//3 1. enqueue recvbuf
+	rtw_enqueue_recvbuf(precvbuf, ppending_queue);
 
-		//3 2. schedule tasklet
+	//3 2. schedule tasklet
 #ifdef PLATFORM_LINUX
-		tasklet_schedule(&precvpriv->recv_tasklet);
+	tasklet_schedule(&precvpriv->recv_tasklet);
 #endif
-	} else
-		rtw_enqueue_recvbuf(precvbuf, ppending_queue);
-
 }
 
 void sd_int_dpc(PADAPTER padapter)
@@ -1567,6 +1564,24 @@ void sd_int_dpc(PADAPTER padapter)
 	dvobj = adapter_to_dvobj(padapter);
 	pwrctl = dvobj_to_pwrctl(dvobj);
 
+#ifdef CONFIG_SDIO_TX_ENABLE_AVAL_INT
+	if (phal->sdio_hisr & SDIO_HISR_AVAL)
+	{
+		//_irqL irql;
+		u8	freepage[4];
+
+		_sdio_local_read(padapter, SDIO_REG_FREE_TXPG, 4, freepage);
+		//_enter_critical_bh(&phal->SdioTxFIFOFreePageLock, &irql);
+		//_rtw_memcpy(phal->SdioTxFIFOFreePage, freepage, 4);
+		//_exit_critical_bh(&phal->SdioTxFIFOFreePageLock, &irql);
+		//DBG_871X("SDIO_HISR_AVAL, Tx Free Page = 0x%x%x%x%x\n",
+		//	freepage[0],
+		//	freepage[1],
+		//	freepage[2],
+		//	freepage[3]);
+		_rtw_up_sema(&(padapter->xmitpriv.xmit_sema));
+	}
+#endif
 	if (phal->sdio_hisr & SDIO_HISR_CPWM1)
 	{
 		struct reportpwrstate_parm report;
@@ -1738,14 +1753,14 @@ u8 HalQueryTxBufferStatus8723BSdio(PADAPTER padapter)
 {
 	PHAL_DATA_TYPE phal;
 	u32 NumOfFreePage;
-//	_irqL irql;
+	//_irqL irql;
 
 
 	phal = GET_HAL_DATA(padapter);
 
 	NumOfFreePage = SdioLocalCmd53Read4Byte(padapter, SDIO_REG_FREE_TXPG);
 
-//	_enter_critical_bh(&phal->SdioTxFIFOFreePageLock, &irql);
+	//_enter_critical_bh(&phal->SdioTxFIFOFreePageLock, &irql);
 	_rtw_memcpy(phal->SdioTxFIFOFreePage, &NumOfFreePage, 4);
 	RT_TRACE(_module_hci_ops_c_, _drv_notice_,
 			("%s: Free page for HIQ(%#x),MIDQ(%#x),LOWQ(%#x),PUBQ(%#x)\n",
@@ -1754,8 +1769,19 @@ u8 HalQueryTxBufferStatus8723BSdio(PADAPTER padapter)
 			phal->SdioTxFIFOFreePage[MID_QUEUE_IDX],
 			phal->SdioTxFIFOFreePage[LOW_QUEUE_IDX],
 			phal->SdioTxFIFOFreePage[PUBLIC_QUEUE_IDX]));
-//	_exit_critical_bh(&phal->SdioTxFIFOFreePageLock, &irql);
+	//_exit_critical_bh(&phal->SdioTxFIFOFreePageLock, &irql);
 
+	return _TRUE;
+}
+
+//
+//	Description:
+//		Query SDIO Local register to get the current number of TX OQT Free Space.
+//
+u8 HalQueryTxOQTBufferStatus8723BSdio(PADAPTER padapter)
+{
+	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(padapter);
+	pHalData->SdioTxOQTFreeSpace = SdioLocalCmd52Read1Byte(padapter, SDIO_REG_OQT_FREE_PG);
 	return _TRUE;
 }
 

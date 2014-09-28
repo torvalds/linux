@@ -328,10 +328,13 @@ void Hal_MPT_CCKTxPowerAdjustbyIndex(PADAPTER pAdapter, BOOLEAN beven)
 			}
 		}
 
-		if (Action == 1)
+		if (Action == 1) {
+			if (CCK_index_old == 0)
+				CCK_index_old = 1;
 			CCK_index = CCK_index_old - 1;
-		else
+		} else {
 			CCK_index = CCK_index_old + 1;
+		}
 
 		if (CCK_index == CCK_TABLE_SIZE) {
 			CCK_index = CCK_TABLE_SIZE -1;
@@ -439,12 +442,12 @@ void Hal_SetCCKTxPower(PADAPTER pAdapter, u8 *TxPower)
 	// rf-A cck tx power
 	write_bbreg(pAdapter, rTxAGC_A_CCK1_Mcs32, bMaskByte1, TxPower[RF_PATH_A]);
 	tmpval = (TxPower[RF_PATH_A]<<16) | (TxPower[RF_PATH_A]<<8) | TxPower[RF_PATH_A];
-	write_bbreg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
+	write_bbreg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskH3Bytes, tmpval);
 
 	// rf-B cck tx power
 	write_bbreg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, TxPower[RF_PATH_B]);
 	tmpval = (TxPower[RF_PATH_B]<<16) | (TxPower[RF_PATH_B]<<8) | TxPower[RF_PATH_B];
-	write_bbreg(pAdapter, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
+	write_bbreg(pAdapter, rTxAGC_B_CCK1_55_Mcs32, bMaskH3Bytes, tmpval);
 
 	RT_TRACE(_module_mp_, _drv_notice_,
 		 ("-SetCCKTxPower: A[0x%02x] B[0x%02x]\n",
@@ -551,12 +554,12 @@ mpt_SetTxPower(
 			pwr = pTxPower[ODM_RF_PATH_A];
 			TxAGC = (pwr<<16)|(pwr<<8)|(pwr);
 			PHY_SetBBReg(pAdapter, rTxAGC_A_CCK1_Mcs32, bMaskByte1, pTxPower[ODM_RF_PATH_A]);
-			PHY_SetBBReg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, TxAGC);
+			PHY_SetBBReg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskH3Bytes, TxAGC);
 
 			pwr = pTxPower[ODM_RF_PATH_B];
 			TxAGC = (pwr<<16)|(pwr<<8)|(pwr);
 			PHY_SetBBReg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, pTxPower[ODM_RF_PATH_B]);
-			PHY_SetBBReg(pAdapter, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, TxAGC);
+			PHY_SetBBReg(pAdapter, rTxAGC_B_CCK1_55_Mcs32, bMaskH3Bytes, TxAGC);
 			
 		} break;
 		
@@ -644,9 +647,9 @@ void Hal_SetTxPower(PADAPTER pAdapter)
 
 void Hal_SetTxAGCOffset(PADAPTER pAdapter, u32 ulTxAGCOffset)
 {
+#if 0
 	u32 TxAGCOffset_B, TxAGCOffset_C, TxAGCOffset_D,tmpAGC;
 
-	return ;
 
 	TxAGCOffset_B = (ulTxAGCOffset&0x000000ff);
 	TxAGCOffset_C = ((ulTxAGCOffset&0x0000ff00)>>8);
@@ -655,6 +658,7 @@ void Hal_SetTxAGCOffset(PADAPTER pAdapter, u32 ulTxAGCOffset)
 	tmpAGC = (TxAGCOffset_D<<8 | TxAGCOffset_C<<4 | TxAGCOffset_B);
 	write_bbreg(pAdapter, rFPGA0_TxGainStage,
 			(bXBTxAGC|bXCTxAGC|bXDTxAGC), tmpAGC);
+#endif
 }
 
 void Hal_SetDataRate(PADAPTER pAdapter)
@@ -823,7 +827,7 @@ s32 Hal_SetThermalMeter(PADAPTER pAdapter, u8 target_ther)
 
 void Hal_TriggerRFThermalMeter(PADAPTER pAdapter)
 {
-	PHY_SetRFReg(pAdapter, ODM_RF_PATH_A, 0x42, BIT17 | BIT16, 0x03);
+	PHY_SetRFReg(pAdapter, ODM_RF_PATH_A, RF_T_METER_8723B, BIT17 | BIT16, 0x03);
 //	RT_TRACE(_module_mp_,_drv_alert_, ("TriggerRFThermalMeter() finished.\n" ));
 }
 
@@ -831,7 +835,7 @@ u8 Hal_ReadRFThermalMeter(PADAPTER pAdapter)
 {
 	u32 ThermalValue = 0;
 
-	ThermalValue = (u1Byte)PHY_QueryRFReg(pAdapter, ODM_RF_PATH_A, 0x42, 0xfc00);	// 0x42: RF Reg[15:10]					
+	ThermalValue = (u1Byte)PHY_QueryRFReg(pAdapter, ODM_RF_PATH_A, RF_T_METER_8723B, 0xfc00);	// 0x42: RF Reg[15:10]					
 
 	return (u8)ThermalValue;
 }
@@ -909,13 +913,13 @@ void Hal_SetSingleToneTx(PADAPTER pAdapter, u8 bStart)
 	{
 		case ANTENNA_A:
 		default:
-			rfPath = RF_PATH_A;
+			pMptCtx->MptRfPath = rfPath = RF_PATH_A;
 			break;
 		case ANTENNA_B:
-			rfPath = RF_PATH_B;
+			pMptCtx->MptRfPath = rfPath = RF_PATH_B;
 			break;
 		case ANTENNA_C:
-			rfPath = RF_PATH_C;
+			pMptCtx->MptRfPath = rfPath = RF_PATH_C;
 			break;
 	}
 

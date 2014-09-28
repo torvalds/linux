@@ -233,12 +233,13 @@ void SetFwRelatedForWoWLAN8188ES(_adapter* padapter, u8 bHostIsGoingtoSleep);
 //---------------------------------------------------------------------------------------------------------//
 //----------------------------------    H2C CMD CONTENT    --------------------------------------------------//
 //---------------------------------------------------------------------------------------------------------//
+//
+/* move to hal_com_h2c.h
 //_RSVDPAGE_LOC_CMD_0x00
 #define SET_8188E_H2CCMD_RSVDPAGE_LOC_PROBE_RSP(__pH2CCmd, __Value)     SET_BITS_TO_LE_1BYTE(__pH2CCmd, 0, 8, __Value)
 #define SET_8188E_H2CCMD_RSVDPAGE_LOC_PSPOLL(__pH2CCmd, __Value)            SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 0, 8, __Value)
 #define SET_8188E_H2CCMD_RSVDPAGE_LOC_NULL_DATA(__pH2CCmd, __Value)     SET_BITS_TO_LE_1BYTE((__pH2CCmd)+2, 0, 8, __Value)
 #define SET_8188E_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(__pH2CCmd, __Value)     SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 0, 8, __Value)
-/* move to hal_com_h2c.h
 // AOAC_RSVDPAGE_LOC_0x83
 #define SET_8188E_H2CCMD_AOAC_RSVDPAGE_LOC_REMOTE_WAKE_CTRL_INFO(__pH2CCmd, __Value)        SET_BITS_TO_LE_1BYTE((__pH2CCmd), 0, 8, __Value)
 #define SET_8188E_H2CCMD_AOAC_RSVDPAGE_LOC_ARP_RSP(__pH2CCmd, __Value)                  SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 0, 8, __Value)

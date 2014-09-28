@@ -209,7 +209,7 @@ typedef struct pno_nlo_info
 	u32	slow_scan_period;			//slow scan period
 	u32	fast_scan_iterations;			//Fast scan iterations
 	u8	ssid_length[MAX_PNO_LIST_COUNT];	//SSID Length Array
-	u8	ssid_chiper_info[MAX_PNO_LIST_COUNT];	//Chiper information for security
+	u8	ssid_cipher_info[MAX_PNO_LIST_COUNT];	//Cipher information for security
 	u8	ssid_channel_info[MAX_PNO_LIST_COUNT];	//channel information
 }pno_nlo_info_t;	
 
@@ -281,9 +281,11 @@ struct pwrctrl_priv
 	uint 	ips_leave_cnts;
 
 	u8	ips_mode; 
+	u8	ips_org_mode; 
 	u8	ips_mode_req; // used to accept the mode setting request, will update to ipsmode later
 	uint bips_processing;
 	u32 ips_deny_time; /* will deny IPS when system time is smaller than this */
+	u8 pre_ips_type;// 0: default flow, 1: carddisbale flow
 
 	// ps_deny: if 0, power save is free to go; otherwise deny all kinds of power save.
 	// Use PS_DENY_REASON to decide reason.
@@ -297,6 +299,7 @@ struct pwrctrl_priv
 	u8	bLeisurePs;
 	u8	LpsIdleCount;
 	u8	power_mgnt;
+	u8	org_power_mgnt;
 	u8	bFwCurrentInPSMode;
 	u32	DelayLPSLastTimeStamp;
 	s32		pnp_current_pwr_state;
@@ -312,14 +315,16 @@ struct pwrctrl_priv
 	u8		bSupportRemoteWakeup;	
 	u8		wowlan_wake_reason;
 	u8		wowlan_ap_mode;
+	u8		wowlan_mode;
 #ifdef CONFIG_WOWLAN
-	u8		wowlan_mode;	u8		wowlan_pattern;
+	u8		wowlan_pattern;
 	u8		wowlan_magic;
 	u8		wowlan_unicast;
 	u8		wowlan_pattern_idx;
 	u8		wowlan_pno_enable;
 #ifdef CONFIG_PNO_SUPPORT
 	u8		pno_in_resume;
+	u8		pno_inited;
 	pno_nlo_info_t	*pnlo_info;
 	pno_scan_info_t	*pscan_info;
 	pno_ssid_list_t	*pno_ssid_list;
@@ -398,8 +403,6 @@ extern void cpwm_int_hdl(PADAPTER padapter, struct reportpwrstate_parm *preportp
 extern void LPS_Leave_check(PADAPTER padapter);
 #endif
 
-extern void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode, const char *msg);
-extern void rtw_set_rpwm(_adapter * padapter, u8 val8);
 extern void LeaveAllPowerSaveMode(PADAPTER Adapter);
 extern void LeaveAllPowerSaveModeDirect(PADAPTER Adapter);
 #ifdef CONFIG_IPS
@@ -425,7 +428,9 @@ int rtw_fw_ps_state(PADAPTER padapter);
 s32 LPS_RF_ON_check(PADAPTER padapter, u32 delay_ms);
 void LPS_Enter(PADAPTER padapter, const char *msg);
 void LPS_Leave(PADAPTER padapter, const char *msg);
-void	traffic_check_for_leave_lps(PADAPTER padapter, u8 tx, u32 tx_packets);
+void traffic_check_for_leave_lps(PADAPTER padapter, u8 tx, u32 tx_packets);
+void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode, const char *msg);
+void rtw_set_rpwm(_adapter * padapter, u8 val8);
 #endif
 
 #ifdef CONFIG_RESUME_IN_WORKQUEUE

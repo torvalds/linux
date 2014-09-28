@@ -567,30 +567,6 @@ odm_CCKRSSI_8723B(
 	return	rx_pwr_all;
 }
 
-s1Byte
-odm_RSSIOFDM_8723B(
-	IN	s1Byte	rx_pwr_new)
-{
-	s1Byte	rx_pwr_all=0;
-	
-	if(rx_pwr_new >=63)
-		rx_pwr_all	=rx_pwr_new -120+10;
-	else if(rx_pwr_all >=54)
-		rx_pwr_all=rx_pwr_new-120+6;
-	else if(rx_pwr_all >=43)
-		rx_pwr_all=rx_pwr_new-120+8;
-	else if(rx_pwr_all >=33)
-		rx_pwr_all=rx_pwr_new-120+8;
-	else if(rx_pwr_all >=23)
-		rx_pwr_all=rx_pwr_new-120+10;
-	else 
-		rx_pwr_all=rx_pwr_new-120+7;
-
-
-	return rx_pwr_all;
-
-}
-
 #endif		// end if RTL8723B 
 
 

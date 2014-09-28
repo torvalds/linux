@@ -62,7 +62,7 @@ u32 GlobalDebugLevel = _drv_err_;
 
 void dump_drv_version(void *sel)
 {
-	DBG_871X_SEL_NL(sel, "%s\n", DRIVERVERSION);
+	DBG_871X_SEL_NL(sel, "%s %s\n", DRV_NAME, DRIVERVERSION);
 	DBG_871X_SEL_NL(sel, "build time: %s %s\n", __DATE__, __TIME__);
 }
 
@@ -273,11 +273,30 @@ int proc_get_sec_info(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);	
-	struct security_priv *psecuritypriv = &padapter->securitypriv;
+	struct security_priv *sec = &padapter->securitypriv;
 
 	DBG_871X_SEL_NL(m, "auth_alg=0x%x, enc_alg=0x%x, auth_type=0x%x, enc_type=0x%x\n", 
-						psecuritypriv->dot11AuthAlgrthm, psecuritypriv->dot11PrivacyAlgrthm,
-						psecuritypriv->ndisauthtype, psecuritypriv->ndisencryptstatus);
+						sec->dot11AuthAlgrthm, sec->dot11PrivacyAlgrthm,
+						sec->ndisauthtype, sec->ndisencryptstatus);
+
+	DBG_871X_SEL_NL(m, "hw_decrypted=%d\n", sec->hw_decrypted);
+
+#ifdef DBG_SW_SEC_CNT
+	DBG_871X_SEL_NL(m, "wep_sw_enc_cnt=%llu, %llu, %llu\n"
+		, sec->wep_sw_enc_cnt_bc , sec->wep_sw_enc_cnt_mc, sec->wep_sw_enc_cnt_uc);
+	DBG_871X_SEL_NL(m, "wep_sw_dec_cnt=%llu, %llu, %llu\n"
+		, sec->wep_sw_dec_cnt_bc , sec->wep_sw_dec_cnt_mc, sec->wep_sw_dec_cnt_uc);
+
+	DBG_871X_SEL_NL(m, "tkip_sw_enc_cnt=%llu, %llu, %llu\n"
+		, sec->tkip_sw_enc_cnt_bc , sec->tkip_sw_enc_cnt_mc, sec->tkip_sw_enc_cnt_uc);	
+	DBG_871X_SEL_NL(m, "tkip_sw_dec_cnt=%llu, %llu, %llu\n"
+		, sec->tkip_sw_dec_cnt_bc , sec->tkip_sw_dec_cnt_mc, sec->tkip_sw_dec_cnt_uc);
+
+	DBG_871X_SEL_NL(m, "aes_sw_enc_cnt=%llu, %llu, %llu\n"
+		, sec->aes_sw_enc_cnt_bc , sec->aes_sw_enc_cnt_mc, sec->aes_sw_enc_cnt_uc);
+	DBG_871X_SEL_NL(m, "aes_sw_dec_cnt=%llu, %llu, %llu\n"
+		, sec->aes_sw_dec_cnt_bc , sec->aes_sw_dec_cnt_mc, sec->aes_sw_dec_cnt_uc);
+#endif /* DBG_SW_SEC_CNT */
 
 	return 0;
 }
@@ -437,6 +456,63 @@ int proc_get_rf_info(struct seq_file *m, void *v)
 	return 0;
 }
 
+int proc_get_survey_info(struct seq_file *m, void *v)
+{
+	_irqL irqL;
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	_queue	*queue	= &(pmlmepriv->scanned_queue);
+	struct wlan_network	*pnetwork = NULL;
+	_list	*plist, *phead;
+	s32 notify_signal;
+	s16 notify_noise = 0;
+	u16  index = 0;
+
+	_enter_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);	
+	phead = get_list_head(queue);
+	plist = get_next(phead);
+	if ((!phead) || (!plist))
+		return 0;
+
+	DBG_871X_SEL_NL(m, "%5s  %-17s  %3s  %-3s  %-4s  %-4s  %5s  %s\n","index", "bssid", "ch", "RSSI", "SdBm", "Noise", "age", "ssid");
+	while(1)
+	{
+		if (rtw_end_of_queue_search(phead,plist)== _TRUE)
+			break;
+
+		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
+                if (!pnetwork)
+			break;
+	
+		if ( check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE &&
+			is_same_network(&pmlmepriv->cur_network.network, &pnetwork->network, 0)) {
+			notify_signal = translate_percentage_to_dbm(padapter->recvpriv.signal_strength);//dbm
+		} else {
+			notify_signal = translate_percentage_to_dbm(pnetwork->network.PhyInfo.SignalStrength);//dbm
+		}
+
+		#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
+		rtw_hal_get_odm_var(padapter, HAL_ODM_NOISE_MONITOR,&(pnetwork->network.Configuration.DSConfig), &(notify_noise));
+		#endif
+	
+		DBG_871X_SEL_NL(m, "%5d  "MAC_FMT"  %3d  %3d  %4d  %4d  %5d  %s\n", 
+			++index,
+			MAC_ARG(pnetwork->network.MacAddress), 
+			pnetwork->network.Configuration.DSConfig,
+			(int)pnetwork->network.Rssi,
+			notify_signal,
+			notify_noise,
+			rtw_get_passing_time_ms((u32)pnetwork->last_scanned),
+			//translate_percentage_to_dbm(pnetwork->network.PhyInfo.SignalStrength),
+			pnetwork->network.Ssid.Ssid);
+		plist = get_next(plist);
+	}
+	_exit_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
+
+	return 0;
+}
+
 int proc_get_ap_info(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
@@ -494,8 +570,14 @@ int proc_get_adapter_state(struct seq_file *m, void *v)
 	struct net_device *dev = m->private;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 
-	DBG_871X_SEL_NL(m, "bSurpriseRemoved=%d, bDriverStopped=%d\n", 
-						padapter->bSurpriseRemoved, padapter->bDriverStopped);
+#ifdef CONFIG_CONCURRENT_MODE
+	DBG_871X_SEL_NL(m, "name=%s, iface_type=%d, bSurpriseRemoved=%d, bDriverStopped=%d\n",
+					dev->name, padapter->iface_type,
+					padapter->bSurpriseRemoved, padapter->bDriverStopped);
+#else
+	DBG_871X_SEL_NL(m, "name=%s, bSurpriseRemoved=%d, bDriverStopped=%d\n",
+					dev->name, padapter->bSurpriseRemoved, padapter->bDriverStopped);
+#endif
 
 	return 0;
 }
@@ -585,6 +667,24 @@ ssize_t proc_set_fwdl_test_case(struct file *file, const char __user *buffer, si
 	return count;
 }
 
+u32 g_wait_hiq_empty = 0;
+
+ssize_t proc_set_wait_hiq_empty(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	char tmp[32];
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
+		int num = sscanf(tmp, "%u", &g_wait_hiq_empty);
+	}
+
+	return count;
+}
+
 int proc_get_suspend_resume_info(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
@@ -624,6 +724,269 @@ int proc_get_suspend_resume_info(struct seq_file *m, void *v)
 	return 0;
 }
 
+#ifdef CONFIG_DBG_COUNTER
+
+int proc_get_rx_logs(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct rx_logs *rx_logs = &padapter->rx_logs;
+
+	DBG_871X_SEL_NL(m, 
+		"intf_rx=%d\n"
+		"intf_rx_err_recvframe=%d\n"
+		"intf_rx_err_skb=%d\n"
+		"intf_rx_report=%d\n"
+		"core_rx=%d\n"
+		"core_rx_pre=%d\n"
+		"core_rx_pre_ver_err=%d\n"
+		"core_rx_pre_mgmt=%d\n"
+		"core_rx_pre_mgmt_err_80211w=%d\n"
+		"core_rx_pre_mgmt_err=%d\n"
+		"core_rx_pre_ctrl=%d\n"
+		"core_rx_pre_ctrl_err=%d\n"
+		"core_rx_pre_data=%d\n"
+		"core_rx_pre_data_wapi_seq_err=%d\n"
+		"core_rx_pre_data_wapi_key_err=%d\n"
+		"core_rx_pre_data_handled=%d\n"
+		"core_rx_pre_data_err=%d\n"
+		"core_rx_pre_data_unknown=%d\n"
+		"core_rx_pre_unknown=%d\n"
+		"core_rx_enqueue=%d\n"
+		"core_rx_dequeue=%d\n"
+		"core_rx_post=%d\n"
+		"core_rx_post_decrypt=%d\n"
+		"core_rx_post_decrypt_wep=%d\n"
+		"core_rx_post_decrypt_tkip=%d\n"
+		"core_rx_post_decrypt_aes=%d\n"
+		"core_rx_post_decrypt_wapi=%d\n"
+		"core_rx_post_decrypt_hw=%d\n"
+		"core_rx_post_decrypt_unknown=%d\n"
+		"core_rx_post_decrypt_err=%d\n"
+		"core_rx_post_defrag_err=%d\n"
+		"core_rx_post_portctrl_err=%d\n"
+		"core_rx_post_indicate=%d\n"
+		"core_rx_post_indicate_in_oder=%d\n"
+		"core_rx_post_indicate_reoder=%d\n"
+		"core_rx_post_indicate_err=%d\n"
+		"os_indicate=%d\n"
+		"os_indicate_ap_mcast=%d\n"
+		"os_indicate_ap_forward=%d\n"
+		"os_indicate_ap_self=%d\n"
+		"os_indicate_err=%d\n"
+		"os_netif_ok=%d\n"
+		"os_netif_err=%d\n",
+		rx_logs->intf_rx,
+		rx_logs->intf_rx_err_recvframe,
+		rx_logs->intf_rx_err_skb,
+		rx_logs->intf_rx_report,
+		rx_logs->core_rx,
+		rx_logs->core_rx_pre,
+		rx_logs->core_rx_pre_ver_err,
+		rx_logs->core_rx_pre_mgmt,
+		rx_logs->core_rx_pre_mgmt_err_80211w,
+		rx_logs->core_rx_pre_mgmt_err,
+		rx_logs->core_rx_pre_ctrl,
+		rx_logs->core_rx_pre_ctrl_err,
+		rx_logs->core_rx_pre_data,
+		rx_logs->core_rx_pre_data_wapi_seq_err,
+		rx_logs->core_rx_pre_data_wapi_key_err,
+		rx_logs->core_rx_pre_data_handled,
+		rx_logs->core_rx_pre_data_err,
+		rx_logs->core_rx_pre_data_unknown,
+		rx_logs->core_rx_pre_unknown,
+		rx_logs->core_rx_enqueue,
+		rx_logs->core_rx_dequeue,
+		rx_logs->core_rx_post,
+		rx_logs->core_rx_post_decrypt,
+		rx_logs->core_rx_post_decrypt_wep,
+		rx_logs->core_rx_post_decrypt_tkip,
+		rx_logs->core_rx_post_decrypt_aes,
+		rx_logs->core_rx_post_decrypt_wapi,
+		rx_logs->core_rx_post_decrypt_hw,
+		rx_logs->core_rx_post_decrypt_unknown,
+		rx_logs->core_rx_post_decrypt_err,
+		rx_logs->core_rx_post_defrag_err,
+		rx_logs->core_rx_post_portctrl_err,
+		rx_logs->core_rx_post_indicate,
+		rx_logs->core_rx_post_indicate_in_oder,
+		rx_logs->core_rx_post_indicate_reoder,
+		rx_logs->core_rx_post_indicate_err,
+		rx_logs->os_indicate,
+		rx_logs->os_indicate_ap_mcast,
+		rx_logs->os_indicate_ap_forward,
+		rx_logs->os_indicate_ap_self,
+		rx_logs->os_indicate_err,
+		rx_logs->os_netif_ok,
+		rx_logs->os_netif_err
+	);
+
+	return 0;
+}
+
+int proc_get_tx_logs(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct tx_logs *tx_logs = &padapter->tx_logs;
+	
+	DBG_871X_SEL_NL(m,
+		"os_tx=%d\n"
+		"os_tx_err_up=%d\n"
+		"os_tx_err_xmit=%d\n"
+		"os_tx_m2u=%d\n"
+		"os_tx_m2u_ignore_fw_linked=%d\n"
+		"os_tx_m2u_ignore_self=%d\n"
+		"os_tx_m2u_entry=%d\n"
+		"os_tx_m2u_entry_err_xmit=%d\n"
+		"os_tx_m2u_entry_err_skb=%d\n"
+		"os_tx_m2u_stop=%d\n"
+		"core_tx=%d\n"
+		"core_tx_err_pxmitframe=%d\n"
+		"core_tx_err_brtx=%d\n"
+		"core_tx_upd_attrib=%d\n"
+		"core_tx_upd_attrib_adhoc=%d\n"
+		"core_tx_upd_attrib_sta=%d\n"
+		"core_tx_upd_attrib_ap=%d\n"
+		"core_tx_upd_attrib_unknown=%d\n"
+		"core_tx_upd_attrib_dhcp=%d\n"
+		"core_tx_upd_attrib_icmp=%d\n"
+		"core_tx_upd_attrib_active=%d\n"
+		"core_tx_upd_attrib_err_ucast_sta=%d\n"
+		"core_tx_upd_attrib_err_ucast_ap_link=%d\n"
+		"core_tx_upd_attrib_err_sta=%d\n"
+		"core_tx_upd_attrib_err_link=%d\n"
+		"core_tx_upd_attrib_err_sec=%d\n"
+		"core_tx_ap_enqueue_warn_fwstate=%d\n"
+		"core_tx_ap_enqueue_warn_sta=%d\n"
+		"core_tx_ap_enqueue_warn_nosta=%d\n"
+		"core_tx_ap_enqueue_warn_link=%d\n"
+		"core_tx_ap_enqueue_warn_trigger=%d\n"
+		"core_tx_ap_enqueue_mcast=%d\n"
+		"core_tx_ap_enqueue_ucast=%d\n"
+		"core_tx_ap_enqueue=%d\n"
+		"intf_tx=%d\n"
+		"intf_tx_pending_ac=%d\n"
+		"intf_tx_pending_fw_under_survey=%d\n"
+		"intf_tx_pending_fw_under_linking=%d\n"
+		"intf_tx_pending_xmitbuf=%d\n"
+		"intf_tx_enqueue=%d\n"
+		"core_tx_enqueue=%d\n"
+		"core_tx_enqueue_class=%d\n"
+		"core_tx_enqueue_class_err_sta=%d\n"
+		"core_tx_enqueue_class_err_nosta=%d\n"
+		"core_tx_enqueue_class_err_fwlink=%d\n"
+		"intf_tx_direct=%d\n"
+		"intf_tx_direct_err_coalesce=%d\n"
+		"intf_tx_dequeue=%d\n"
+		"intf_tx_dequeue_err_coalesce=%d\n"
+		"intf_tx_dump_xframe=%d\n"
+		"intf_tx_dump_xframe_err_txdesc=%d\n"
+		"intf_tx_dump_xframe_err_port=%d\n",
+		tx_logs->os_tx,
+		tx_logs->os_tx_err_up,
+		tx_logs->os_tx_err_xmit,
+		tx_logs->os_tx_m2u,
+		tx_logs->os_tx_m2u_ignore_fw_linked,
+		tx_logs->os_tx_m2u_ignore_self,
+		tx_logs->os_tx_m2u_entry,
+		tx_logs->os_tx_m2u_entry_err_xmit,
+		tx_logs->os_tx_m2u_entry_err_skb,
+		tx_logs->os_tx_m2u_stop,
+		tx_logs->core_tx,
+		tx_logs->core_tx_err_pxmitframe,
+		tx_logs->core_tx_err_brtx,
+		tx_logs->core_tx_upd_attrib,
+		tx_logs->core_tx_upd_attrib_adhoc,
+		tx_logs->core_tx_upd_attrib_sta,
+		tx_logs->core_tx_upd_attrib_ap,
+		tx_logs->core_tx_upd_attrib_unknown,
+		tx_logs->core_tx_upd_attrib_dhcp,
+		tx_logs->core_tx_upd_attrib_icmp,
+		tx_logs->core_tx_upd_attrib_active,
+		tx_logs->core_tx_upd_attrib_err_ucast_sta,
+		tx_logs->core_tx_upd_attrib_err_ucast_ap_link,
+		tx_logs->core_tx_upd_attrib_err_sta,
+		tx_logs->core_tx_upd_attrib_err_link,
+		tx_logs->core_tx_upd_attrib_err_sec,
+		tx_logs->core_tx_ap_enqueue_warn_fwstate,
+		tx_logs->core_tx_ap_enqueue_warn_sta,
+		tx_logs->core_tx_ap_enqueue_warn_nosta,
+		tx_logs->core_tx_ap_enqueue_warn_link,
+		tx_logs->core_tx_ap_enqueue_warn_trigger,
+		tx_logs->core_tx_ap_enqueue_mcast,
+		tx_logs->core_tx_ap_enqueue_ucast,
+		tx_logs->core_tx_ap_enqueue,
+		tx_logs->intf_tx,
+		tx_logs->intf_tx_pending_ac,
+		tx_logs->intf_tx_pending_fw_under_survey,
+		tx_logs->intf_tx_pending_fw_under_linking,
+		tx_logs->intf_tx_pending_xmitbuf,
+		tx_logs->intf_tx_enqueue,
+		tx_logs->core_tx_enqueue,
+		tx_logs->core_tx_enqueue_class,
+		tx_logs->core_tx_enqueue_class_err_sta,
+		tx_logs->core_tx_enqueue_class_err_nosta,
+		tx_logs->core_tx_enqueue_class_err_fwlink,
+		tx_logs->intf_tx_direct,
+		tx_logs->intf_tx_direct_err_coalesce,
+		tx_logs->intf_tx_dequeue,
+		tx_logs->intf_tx_dequeue_err_coalesce,
+		tx_logs->intf_tx_dump_xframe,
+		tx_logs->intf_tx_dump_xframe_err_txdesc,
+		tx_logs->intf_tx_dump_xframe_err_port
+	);
+
+	return 0;
+}
+
+int proc_get_int_logs(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+
+	DBG_871X_SEL_NL(m,
+		"all=%d\n"
+		"err=%d\n"
+		"tbdok=%d\n"
+		"tbder=%d\n"
+		"bcnderr=%d\n"
+		"bcndma=%d\n"
+		"bcndma_e=%d\n"
+		"rx=%d\n"
+		"rx_rdu=%d\n"
+		"rx_fovw=%d\n"
+		"txfovw=%d\n"
+		"mgntok=%d\n"
+		"highdok=%d\n"
+		"bkdok=%d\n"
+		"bedok=%d\n"
+		"vidok=%d\n"
+		"vodok=%d\n",
+		padapter->int_logs.all,
+		padapter->int_logs.err,
+		padapter->int_logs.tbdok,
+		padapter->int_logs.tbder,
+		padapter->int_logs.bcnderr,
+		padapter->int_logs.bcndma,
+		padapter->int_logs.bcndma_e,
+		padapter->int_logs.rx,
+		padapter->int_logs.rx_rdu,
+		padapter->int_logs.rx_fovw,
+		padapter->int_logs.txfovw,
+		padapter->int_logs.mgntok,
+		padapter->int_logs.highdok,
+		padapter->int_logs.bkdok,
+		padapter->int_logs.bedok,
+		padapter->int_logs.vidok,
+		padapter->int_logs.vodok
+	);
+
+	return 0;
+}
+
+#endif // CONFIG_DBG_COUNTER
+
 int proc_get_rx_signal(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
@@ -631,10 +994,27 @@ int proc_get_rx_signal(struct seq_file *m, void *v)
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
 	DBG_871X_SEL_NL(m, "rssi:%d\n", padapter->recvpriv.rssi);
-	DBG_871X_SEL_NL(m, "rxpwdb:%d\n", padapter->recvpriv.rxpwdb);
+	//DBG_871X_SEL_NL(m, "rxpwdb:%d\n", padapter->recvpriv.rxpwdb);
 	DBG_871X_SEL_NL(m, "signal_strength:%u\n", padapter->recvpriv.signal_strength);
 	DBG_871X_SEL_NL(m, "signal_qual:%u\n", padapter->recvpriv.signal_qual);
-	DBG_871X_SEL_NL(m, "noise:%u\n", padapter->recvpriv.noise);
+	DBG_871X_SEL_NL(m, "noise:%d\n", padapter->recvpriv.noise);
+	rtw_odm_get_perpkt_rssi(m,padapter);
+	#ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
+	rtw_get_raw_rssi_info(m,padapter);
+	#endif
+	return 0;
+}
+
+
+int proc_get_hw_status(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct dvobj_priv *dvobj = padapter->dvobj;
+	struct debug_priv *pdbgpriv = &dvobj->drv_dbg;
+
+	DBG_871X_SEL_NL(m, "RX FIFO full count: last_time=%lld, current_time=%lld, differential=%lld\n"
+	, pdbgpriv->dbg_rx_fifo_last_overflow, pdbgpriv->dbg_rx_fifo_curr_overflow, pdbgpriv->dbg_rx_fifo_diff_overflow);
 
 	return 0;
 }
@@ -659,7 +1039,6 @@ ssize_t proc_set_rx_signal(struct file *file, const char __user *buffer, size_t 
 			return count;
 			
 		signal_strength = signal_strength>100?100:signal_strength;
-		signal_strength = signal_strength<0?0:signal_strength;
 
 		padapter->recvpriv.is_signal_dbg = is_signal_dbg;
 		padapter->recvpriv.signal_strength_dbg=signal_strength;
@@ -741,7 +1120,7 @@ ssize_t proc_set_bw_mode(struct file *file, const char __user *buffer, size_t co
 
 		int num = sscanf(tmp, "%d ", &mode);
 
-		if( pregpriv && mode >= 0 && mode < 2 )
+		if( pregpriv &&  mode < 2 )
 		{
 
 			pregpriv->bw_mode = mode;
@@ -781,7 +1160,7 @@ ssize_t proc_set_ampdu_enable(struct file *file, const char __user *buffer, size
 
 		int num = sscanf(tmp, "%d ", &mode);
 
-		if( pregpriv && mode >= 0 && mode < 3 )
+		if( pregpriv && mode < 3 )
 		{
 			pregpriv->ampdu_enable= mode;
 			printk("ampdu_enable=%d\n", mode);
@@ -887,6 +1266,7 @@ ssize_t proc_set_en_fwps(struct file *file, const char __user *buffer, size_t co
 	return count;
 }
 
+/*
 int proc_get_two_path_rssi(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
@@ -898,6 +1278,7 @@ int proc_get_two_path_rssi(struct seq_file *m, void *v)
 
 	return 0;
 }
+*/
 #ifdef CONFIG_80211N_HT
 int proc_get_rx_stbc(struct seq_file *m, void *v)
 {
@@ -1014,6 +1395,7 @@ int proc_get_all_sta_info(struct seq_file *m, void *v)
 
 			//if(extra_arg == psta->aid)
 			{
+				DBG_871X_SEL_NL(m, "==============================\n");
 				DBG_871X_SEL_NL(m, "sta's macaddr:" MAC_FMT "\n", MAC_ARG(psta->hwaddr));
 				DBG_871X_SEL_NL(m, "rtsen=%d, cts2slef=%d\n", psta->rtsen, psta->cts2self);
 				DBG_871X_SEL_NL(m, "state=0x%x, aid=%d, macid=%d, raid=%d\n", psta->state, psta->aid, psta->mac_id, psta->raid);
@@ -1024,6 +1406,11 @@ int proc_get_all_sta_info(struct seq_file *m, void *v)
 				DBG_871X_SEL_NL(m, "agg_enable_bitmap=%x, candidate_tid_bitmap=%x\n", psta->htpriv.agg_enable_bitmap, psta->htpriv.candidate_tid_bitmap);
 #endif //CONFIG_80211N_HT
 				DBG_871X_SEL_NL(m, "sleepq_len=%d\n", psta->sleepq_len);
+				DBG_871X_SEL_NL(m, "sta_xmitpriv.vo_q_qcnt=%d\n", psta->sta_xmitpriv.vo_q.qcnt);
+				DBG_871X_SEL_NL(m, "sta_xmitpriv.vi_q_qcnt=%d\n", psta->sta_xmitpriv.vi_q.qcnt);
+				DBG_871X_SEL_NL(m, "sta_xmitpriv.be_q_qcnt=%d\n", psta->sta_xmitpriv.be_q.qcnt);
+				DBG_871X_SEL_NL(m, "sta_xmitpriv.bk_q_qcnt=%d\n", psta->sta_xmitpriv.bk_q.qcnt);
+
 				DBG_871X_SEL_NL(m, "capability=0x%x\n", psta->capability);
 				DBG_871X_SEL_NL(m, "flags=0x%x\n", psta->flags);
 				DBG_871X_SEL_NL(m, "wpa_psk=0x%x\n", psta->wpa_psk);
@@ -1039,14 +1426,23 @@ int proc_get_all_sta_info(struct seq_file *m, void *v)
 					{
 						DBG_871X_SEL_NL(m, "tid=%d, indicate_seq=%d\n", j, preorder_ctrl->indicate_seq);
 					}
-				}		
-									
-			}							
-			
+				}
+
+#ifdef CONFIG_TDLS
+				DBG_871X_SEL_NL(m, "tdls_sta_state=0x%08x\n", psta->tdls_sta_state);
+				DBG_871X_SEL_NL(m, "PeerKey_Lifetime=%d\n", psta->TDLS_PeerKey_Lifetime);
+				DBG_871X_SEL_NL(m, "rx_data_pkts=%llu\n", psta->sta_stats.rx_data_pkts);
+				DBG_871X_SEL_NL(m, "rx_bytes=%llu\n", psta->sta_stats.rx_bytes);
+				DBG_871X_SEL_NL(m, "tx_data_pkts=%llu\n", psta->sta_stats.tx_pkts);
+				DBG_871X_SEL_NL(m, "tx_bytes=%llu\n", psta->sta_stats.tx_bytes);
+#endif //CONFIG_TDLS
+				DBG_871X_SEL_NL(m, "==============================\n");
+			}
+
 		}
-		
+
 	}
-	
+
 	_exit_critical_bh(&pstapriv->sta_hash_lock, &irqL);
 
 	return 0;
@@ -1286,6 +1682,92 @@ ssize_t proc_set_sreset(struct file *file, const char __user *buffer, size_t cou
 	
 }
 #endif /* DBG_CONFIG_ERROR_DETECT */
+
+#ifdef CONFIG_PCI_HCI
+
+int proc_get_rx_ring(struct seq_file *m, void *v)
+{
+	_irqL irqL;
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *) rtw_netdev_priv(dev);
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	struct recv_priv *precvpriv = &padapter->recvpriv;
+	struct rtw_rx_ring *rx_ring = &precvpriv->rx_ring[RX_MPDU_QUEUE];
+	int i, j;
+
+	DBG_871X_SEL_NL(m, "rx ring (%p)\n", rx_ring);
+	DBG_871X_SEL_NL(m, "  dma: 0x%08x\n", (int) rx_ring->dma);
+	DBG_871X_SEL_NL(m, "  idx: %d\n", rx_ring->idx);
+
+	_enter_critical(&pdvobjpriv->irq_th_lock, &irqL);
+	for (i=0; i<precvpriv->rxringcount; i++)
+	{
+		struct recv_stat *entry = &rx_ring->desc[i];
+		struct sk_buff *skb = rx_ring->rx_buf[i];
+
+		DBG_871X_SEL_NL(m, "  desc[%03d]: %p, rx_buf[%03d]: 0x%08x\n",
+			i, entry, i, cpu_to_le32(*((dma_addr_t *)skb->cb)));
+
+		for (j=0; j<sizeof(*entry)/4; j++)
+		{
+			if ((j % 4) == 0)
+				DBG_871X_SEL_NL(m, "  0x%03x", j);
+
+			DBG_871X_SEL_NL(m, " 0x%08x ", ((int *) entry)[j]);
+
+			if ((j % 4) == 3)
+				DBG_871X_SEL_NL(m, "\n");
+		}
+	}
+	_exit_critical(&pdvobjpriv->irq_th_lock, &irqL);
+
+	return 0;
+}
+
+int proc_get_tx_ring(struct seq_file *m, void *v)
+{
+	_irqL irqL;
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *) rtw_netdev_priv(dev);
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+	int i, j, k;
+
+	_enter_critical(&pdvobjpriv->irq_th_lock, &irqL);
+	for (i = 0; i < PCI_MAX_TX_QUEUE_COUNT; i++)
+	{
+		struct rtw_tx_ring *tx_ring = &pxmitpriv->tx_ring[i];
+
+		DBG_871X_SEL_NL(m, "tx ring[%d] (%p)\n", i, tx_ring);
+		DBG_871X_SEL_NL(m, "  dma: 0x%08x\n", (int) tx_ring->dma);
+		DBG_871X_SEL_NL(m, "  idx: %d\n", tx_ring->idx);
+		DBG_871X_SEL_NL(m, "  entries: %d\n", tx_ring->entries);
+//		DBG_871X_SEL_NL(m, "  queue: %d\n", tx_ring->queue);
+		DBG_871X_SEL_NL(m, "  qlen: %d\n", tx_ring->qlen);
+
+		for (j=0; j < pxmitpriv->txringcount[i]; j++)
+		{
+			struct tx_desc *entry = &tx_ring->desc[j];
+
+			DBG_871X_SEL_NL(m, "  desc[%03d]: %p\n", j, entry);
+			for (k=0; k < sizeof(*entry)/4; k++)
+			{
+				if ((k % 4) == 0)
+					DBG_871X_SEL_NL(m, "  0x%03x", k);
+
+				DBG_871X_SEL_NL(m, " 0x%08x ", ((int *) entry)[k]);
+
+				if ((k % 4) == 3)
+					DBG_871X_SEL_NL(m, "\n");
+			}
+		}
+	}
+	_exit_critical(&pdvobjpriv->irq_th_lock, &irqL);
+
+	return 0;
+}
+
+#endif
 
 #endif
 

@@ -237,6 +237,7 @@
 #define EEPROM_VID_88EU						0xD0
 #define EEPROM_PID_88EU						0xD2
 #define EEPROM_USB_OPTIONAL_FUNCTION0		0xD4 //92EU is the same
+#define EEPROM_USB_OPTIONAL_FUNCTION0_8811AU 0x104
 
 // RTL88ES
 #define EEPROM_MAC_ADDR_88ES					0x11A
@@ -423,6 +424,7 @@
 
 //RTL8723BS
 #define	EEPROM_MAC_ADDR_8723BS				0x11A
+#define EEPROM_Voltage_ADDR_8723B			0x8
 
 
 //====================================================

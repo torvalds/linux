@@ -57,7 +57,10 @@ PHY_IQCalibrate_8723B(
 #else
 	IN PADAPTER	Adapter,
 #endif
-	IN	BOOLEAN 	bReCovery);
+	IN BOOLEAN	bReCovery,
+	IN BOOLEAN	bRestore,
+	IN BOOLEAN	Is2ant,
+	IN u1Byte	RF_Path);
 
 VOID
 ODM_SetIQCbyRFpath(

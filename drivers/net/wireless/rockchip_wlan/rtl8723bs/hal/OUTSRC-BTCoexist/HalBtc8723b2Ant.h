@@ -49,8 +49,8 @@ typedef enum _BT_8723B_2ANT_COEX_ALGO{
 
 typedef struct _COEX_DM_8723B_2ANT{
 	// fw mechanism
-	BOOLEAN		bPreDecBtPwr;
-	BOOLEAN		bCurDecBtPwr;
+	u1Byte		preBtDecPwrLvl;
+	u1Byte		curBtDecPwrLvl;
 	u1Byte		preFwDacSwingLvl;
 	u1Byte		curFwDacSwingLvl;
 	BOOLEAN		bCurIgnoreWlanAct;
@@ -97,7 +97,7 @@ typedef struct _COEX_DM_8723B_2ANT{
 	u1Byte		wifiChnlInfo[3];
 
 	BOOLEAN		bNeedRecover0x948;
-	u2Byte		backup0x948;
+	u4Byte		backup0x948;
 } COEX_DM_8723B_2ANT, *PCOEX_DM_8723B_2ANT;
 
 typedef struct _COEX_STA_8723B_2ANT{	
@@ -114,6 +114,7 @@ typedef struct _COEX_STA_8723B_2ANT{
 	u4Byte					lowPriorityTx;
 	u4Byte					lowPriorityRx;
 	u1Byte					btRssi;
+	BOOLEAN				bBtTxRxMask;
 	u1Byte					preBtRssiState;
 	u1Byte					preWifiRssiState[4];
 	BOOLEAN					bC2hBtInfoReqSent;
@@ -128,8 +129,13 @@ typedef struct _COEX_STA_8723B_2ANT{
 // The following is interface which will notify coex module.
 //===========================================
 VOID
-EXhalbtc8723b2ant_InitHwConfig(
+EXhalbtc8723b2ant_PowerOnSetting(
 	IN	PBTC_COEXIST		pBtCoexist
+	);
+VOID
+EXhalbtc8723b2ant_InitHwConfig(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bWifiOnly
 	);
 VOID
 EXhalbtc8723b2ant_InitCoexDm(
@@ -174,6 +180,11 @@ EXhalbtc8723b2ant_BtInfoNotify(
 VOID
 EXhalbtc8723b2ant_HaltNotify(
 	IN	PBTC_COEXIST			pBtCoexist
+	);
+VOID
+EXhalbtc8723b2ant_PnpNotify(
+	IN	PBTC_COEXIST			pBtCoexist,
+	IN	u1Byte				pnpState
 	);
 VOID
 EXhalbtc8723b2ant_Periodical(

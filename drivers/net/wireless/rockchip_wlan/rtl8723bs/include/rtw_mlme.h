@@ -256,7 +256,6 @@ struct cfg80211_wifidirect_info{
 	u64						remain_on_ch_cookie;
 	bool is_ro_ch;
 	u32 last_ro_ch_time; /* this will be updated at the beginning and end of ro_ch */
-	u8						chk_invite_ch_list;
 };
 #endif //CONFIG_IOCTL_CFG80211
 
@@ -366,12 +365,10 @@ struct tdls_ss_record{	//signal strength record
 
 struct tdls_info{
 	u8					ap_prohibited;
-	uint					setup_state;
+	u8					link_established;
 	u8					sta_cnt;
 	u8					sta_maximum;	// 1:tdls sta is equal (NUM_STA-1), reach max direct link number; 0: else;
 	struct tdls_ss_record	ss_record;
-	u8					macid_index;	//macid entry that is ready to write
-	u8					clear_cam;	//cam entry that is trying to clear, using it in direct link teardown
 	u8					ch_sensing;
 	u8					cur_channel;
 	u8					candidate_ch;
@@ -380,10 +377,21 @@ struct tdls_info{
 	_lock				hdl_lock;
 	u8					watchdog_count;
 	u8					dev_discovered;		//WFD_TDLS: for sigma test
-	u8					enable;
+	u8					tdls_enable;
+	u8					external_setup;	// _TRUE: setup is handled by wpa_supplicant
 #ifdef CONFIG_WFD
 	struct wifi_display_info		*wfd_info;
 #endif		
+};
+
+struct tdls_txmgmt {
+	u8 peer[ETH_ALEN];
+	u8 action_code;
+	u8 dialog_token;
+	u16 status_code;
+	u8 *buf;
+	size_t len;
+	u8 external_support;
 };
 
 /* used for mlme_priv.roam_flags */
@@ -481,8 +489,6 @@ struct mlme_priv {
 	u8	ChannelPlan;
 	RT_SCAN_TYPE 	scan_mode; // active: 1, passive: 0
 
-	//u8 probereq_wpsie[MAX_WPS_IE_LEN];//added in probe req	
-	//int probereq_wpsie_len;
 	u8 *wps_probe_req_ie;
 	u32 wps_probe_req_ie_len;
 
@@ -613,6 +619,8 @@ struct mlme_priv {
 	u8	scanning_via_buddy_intf;
 #endif
 
+	u8 	NumOfBcnInfoChkFail;
+	u32	timeBcnInfoChkStart;
 };
 
 #define rtw_mlme_set_auto_scan_int(adapter, ms) \
@@ -648,6 +656,7 @@ extern void rtw_stassoc_event_callback(_adapter *adapter, u8 *pbuf);
 extern void rtw_stadel_event_callback(_adapter *adapter, u8 *pbuf);
 extern void rtw_atimdone_event_callback(_adapter *adapter, u8 *pbuf);
 extern void rtw_cpwm_event_callback(_adapter *adapter, u8 *pbuf);
+extern void rtw_wmm_event_callback(PADAPTER padapter, u8 *pbuf);
 
 extern void rtw_join_timeout_handler(RTW_TIMER_HDL_ARGS);
 extern void _rtw_scan_timeout_handler(RTW_TIMER_HDL_ARGS);
@@ -770,6 +779,8 @@ extern void rtw_disconnect_hdl_under_linked(_adapter* adapter, struct sta_info *
 extern void rtw_generate_random_ibss(u8 *pibss);
 extern struct wlan_network* rtw_find_network(_queue *scanned_queue, u8 *addr);
 extern struct wlan_network* rtw_get_oldest_wlan_network(_queue *scanned_queue);
+struct wlan_network *_rtw_find_same_network(_queue *scanned_queue, struct wlan_network *network);
+struct wlan_network *rtw_find_same_network(_queue *scanned_queue, struct wlan_network *network);
 
 extern void rtw_free_assoc_resources(_adapter* adapter, int lock_scanned_queue);
 extern void rtw_indicate_disconnect(_adapter* adapter);
@@ -836,6 +847,7 @@ void rtw_joinbss_reset(_adapter *padapter);
 
 #ifdef CONFIG_80211N_HT
 void	rtw_ht_use_default_setting(_adapter *padapter);
+void rtw_build_wmm_ie_ht(_adapter *padapter, u8 *out_ie, uint *pout_len);
 unsigned int rtw_restructure_ht_ie(_adapter *padapter, u8 *in_ie, u8 *out_ie, uint in_len, uint *pout_len, u8 channel);
 void rtw_update_ht_cap(_adapter *padapter, u8 *pie, uint ie_len, u8 channel);
 void rtw_issue_addbareq_cmd(_adapter *padapter, struct xmit_frame *pxmitframe);
@@ -843,7 +855,7 @@ void rtw_append_exented_cap(_adapter *padapter, u8 *out_ie, uint *pout_len);
 #endif
 
 int rtw_is_same_ibss(_adapter *adapter, struct wlan_network *pnetwork);
-int is_same_network(WLAN_BSSID_EX *src, WLAN_BSSID_EX *dst);
+int is_same_network(WLAN_BSSID_EX *src, WLAN_BSSID_EX *dst, u8 feature);
 
 #ifdef CONFIG_LAYER2_ROAMING
 #define rtw_roam_flags(adapter) ((adapter)->mlmepriv.roam_flags)

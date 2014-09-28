@@ -20,9 +20,9 @@ enum country_code_type_t {
 }; 
 
 int rtw_regd_init(_adapter *padapter,
-	int (*reg_notifier)(struct wiphy *wiphy,
+	void (*reg_notifier)(struct wiphy *wiphy,
 		struct regulatory_request *request));
-int rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
+void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
 
 
 #endif

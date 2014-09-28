@@ -49,6 +49,9 @@ void rtw_hal_def_value_init(_adapter *padapter)
 }
 void	rtw_hal_free_data(_adapter *padapter)
 {
+	//free HAL Data 	
+	rtw_hal_data_deinit(padapter);
+	
 	if (is_primary_adapter(padapter))
 		if(padapter->HalFunc.free_hal_data)
 			padapter->HalFunc.free_hal_data(padapter);
@@ -98,11 +101,11 @@ void rtw_hal_init_opmode(_adapter *padapter)
 
 	fw_state = get_fwstate(pmlmepriv);
 
-	if (fw_state | WIFI_ADHOC_STATE) 
+	if (fw_state & WIFI_ADHOC_STATE) 
 		networkType = Ndis802_11IBSS;
-	else if (fw_state | WIFI_STATION_STATE)
+	else if (fw_state & WIFI_STATION_STATE)
 		networkType = Ndis802_11Infrastructure;
-	else if (fw_state | WIFI_AP_STATE)
+	else if (fw_state & WIFI_AP_STATE)
 		networkType = Ndis802_11APMode;
 	else
 		return;
@@ -153,26 +156,29 @@ uint	 rtw_hal_init(_adapter *padapter)
 
 		rtw_hal_init_opmode(padapter);
 
-		for (i = 0; i<dvobj->iface_nums; i++) {
-			padapter = dvobj->padapters[i];
-			padapter->hw_init_completed = _TRUE;
-		}
+		for (i = 0; i<dvobj->iface_nums; i++)
+			dvobj->padapters[i]->hw_init_completed = _TRUE;
 			
 		if (padapter->registrypriv.notch_filter == 1)
 			rtw_hal_notch_filter(padapter, 1);
 
 		rtw_hal_reset_security_engine(padapter);
-		rtw_sec_restore_wep_key(padapter);
+
+		for (i = 0; i<dvobj->iface_nums; i++)
+			rtw_sec_restore_wep_key(dvobj->padapters[i]);
 
 		rtw_led_control(padapter, LED_CTL_POWER_ON);
 
 		init_hw_mlme_ext(padapter);
+		
+#ifdef CONFIG_RF_GAIN_OFFSET
+		rtw_bb_rf_gain_offset(padapter);
+#endif //CONFIG_RF_GAIN_OFFSET
+
 	}
 	else{
-		for (i = 0; i<dvobj->iface_nums; i++) {
-			padapter = dvobj->padapters[i];
-			padapter->hw_init_completed = _FALSE;
-		}
+		for (i = 0; i<dvobj->iface_nums; i++)
+			dvobj->padapters[i]->hw_init_completed = _FALSE;
 		DBG_871X("rtw_hal_init: hal__init fail\n");
 	}
 
@@ -246,10 +252,10 @@ void rtw_hal_set_odm_var(_adapter *padapter, HAL_ODM_VARIABLE eVariable, PVOID p
 	if(padapter->HalFunc.SetHalODMVarHandler)
 		padapter->HalFunc.SetHalODMVarHandler(padapter,eVariable,pValue1,bSet);
 }
-void	rtw_hal_get_odm_var(_adapter *padapter, HAL_ODM_VARIABLE eVariable, PVOID pValue1,BOOLEAN bSet)
+void	rtw_hal_get_odm_var(_adapter *padapter, HAL_ODM_VARIABLE eVariable, PVOID pValue1,PVOID pValue2)
 {
 	if(padapter->HalFunc.GetHalODMVarHandler)
-		padapter->HalFunc.GetHalODMVarHandler(padapter,eVariable,pValue1,bSet);
+		padapter->HalFunc.GetHalODMVarHandler(padapter,eVariable,pValue1,pValue2);
 }
 
 void rtw_hal_enable_interrupt(_adapter *padapter)

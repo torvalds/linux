@@ -794,13 +794,23 @@ PHY_BBConfig8723B(
 	RegVal = rtw_read16(Adapter, REG_SYS_FUNC_EN);
 	rtw_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal|BIT13|BIT0|BIT1));
 
+#ifdef CONFIG_USB_HCI
+	rtw_write32(Adapter, 0x948, 0x0);	// USB use Antenna S0
+#else
+	rtw_write32(Adapter, 0x948, 0x280);	// Others use Antenna S1
+#endif
+
+	rtw_write8(Adapter, REG_RF_CTRL, RF_EN|RF_RSTB|RF_SDMRSTB);
+
+	rtw_usleep_os(10);
+
+	PHY_SetRFReg(Adapter, ODM_RF_PATH_A, 0x1, 0xfffff,0x780); 
+
 #if 0
 	// 20090923 Joseph: Advised by Steven and Jenyu. Power sequence before init RF.
 	rtw_write8(Adapter, REG_AFE_PLL_CTRL, 0x83);
 	rtw_write8(Adapter, REG_AFE_PLL_CTRL+1, 0xdb);
 #endif
-
-	rtw_write8(Adapter, REG_RF_CTRL, RF_EN|RF_RSTB|RF_SDMRSTB);
 
 	rtw_write8(Adapter, REG_SYS_FUNC_EN, FEN_PPLL|FEN_PCIEA|FEN_DIO_PCIE|FEN_BB_GLB_RSTn|FEN_BBRSTB);
 
@@ -1049,7 +1059,14 @@ PHY_SetTxPowerLevel8723B(
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	PDM_ODM_T		pDM_Odm = &pHalData->odmpriv;
 	pFAT_T			pDM_FatTable = &pDM_Odm->DM_FatTable;
-	u8				RFPath = ( (pDM_FatTable->RxIdleAnt == MAIN_ANT) ? ODM_RF_PATH_A : ODM_RF_PATH_B);
+	u8				RFPath = ODM_RF_PATH_A; 
+
+	if(pHalData->AntDivCfg){// antenna diversity Enable
+		RFPath = ( (pDM_FatTable->RxIdleAnt == MAIN_ANT) ? ODM_RF_PATH_A : ODM_RF_PATH_B);
+	}
+	else{ // antenna diversity disable
+		RFPath = pHalData->ant_path;
+	}
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_,("==>PHY_SetTxPowerLevel8723B()\n"));
 

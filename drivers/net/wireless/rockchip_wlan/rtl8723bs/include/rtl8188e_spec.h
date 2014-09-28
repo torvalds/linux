@@ -84,8 +84,8 @@
 //
 //-----------------------------------------------------
 #ifdef CONFIG_WOWLAN
-#define REG_TXPKTBUF_IV_LOW             0x0484
-#define REG_TXPKTBUF_IV_HIGH            0x0488
+#define REG_TXPKTBUF_IV_LOW             0x01a4
+#define REG_TXPKTBUF_IV_HIGH            0x01a8
 #endif
 
 //-----------------------------------------------------
@@ -99,6 +99,11 @@
 //	0x0600h ~ 0x07FFh	WMAC Configuration
 //
 //-----------------------------------------------------
+#ifdef CONFIG_RF_GAIN_OFFSET
+#define EEPROM_RF_GAIN_OFFSET			0xC1
+#define EEPROM_RF_GAIN_VAL				0xF6
+#define EEPROM_THERMAL_OFFSET			0xF5
+#endif //CONFIG_RF_GAIN_OFFSET
 //----------------------------------------------------------------------------
 //       88E Driver Initialization Offload REG_FDHM0(Offset 0x88, 8 bits)  
 //----------------------------------------------------------------------------

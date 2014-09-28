@@ -18,40 +18,94 @@
 * 
 ******************************************************************************/
 
-//#include "Mp_Precomp.h"
+
 #include "../odm_precomp.h"
 
 #if (RTL8723B_SUPPORT == 1)
 static BOOLEAN
-CheckCondition(
-    const u4Byte  Condition,
-    const u4Byte  Hex
+CheckPositive(
+    IN  PDM_ODM_T     pDM_Odm,
+    IN  const u4Byte  Condition1,
+    IN  const u4Byte  Condition2
     )
 {
-    u4Byte _board     = (Hex & 0x000000FF);
-    u4Byte _interface = (Hex & 0x0000FF00) >> 8;
-    u4Byte _platform  = (Hex & 0x00FF0000) >> 16;
-    u4Byte cond = Condition;
+    u1Byte    _BoardType = ((pDM_Odm->BoardType & BIT4) >> 4) << 0 | // _GLNA
+                           ((pDM_Odm->BoardType & BIT3) >> 3) << 1 | // _GPA 
+                           ((pDM_Odm->BoardType & BIT7) >> 7) << 2 | // _ALNA
+                           ((pDM_Odm->BoardType & BIT6) >> 6) << 3 | // _APA 
+                           ((pDM_Odm->BoardType & BIT2) >> 2) << 4;  // _BT  
 
-    if ( Condition == 0xCDCDCDCD )
-        return TRUE;
+	u4Byte 	  cond1   = Condition1, cond2 = Condition2;
+	u4Byte    driver1 = pDM_Odm->CutVersion       << 24 |  
+		                pDM_Odm->SupportPlatform  << 16 | 
+		                pDM_Odm->PackageType      << 12 | 
+		                pDM_Odm->SupportInterface << 8  |
+		                _BoardType;
 
-    cond = Condition & 0x000000FF;
-    if ( (_board != cond) && (cond != 0xFF) )
+	u4Byte    driver2 = pDM_Odm->TypeGLNA <<  0 |  
+		                pDM_Odm->TypeGPA  <<  8 | 
+		                pDM_Odm->TypeALNA << 16 | 
+		                pDM_Odm->TypeAPA  << 24; 
+
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+                ("===> [8812A] CheckPositive (cond1, cond2) = (0x%X 0x%X)\n", cond1, cond2));
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+                ("===> [8812A] CheckPositive (driver1, driver2) = (0x%X 0x%X)\n", driver1, driver2));
+
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+                ("	(Platform, Interface) = (0x%X, 0x%X)\n", pDM_Odm->SupportPlatform, pDM_Odm->SupportInterface));
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+                ("	(Board, Package) = (0x%X, 0x%X)\n", pDM_Odm->BoardType, pDM_Odm->PackageType));
+
+
+	//============== Value Defined Check ===============//
+	//QFN Type [15:12] and Cut Version [27:24] need to do value check
+	
+	if(((cond1 & 0x0000F000) != 0) &&((cond1 & 0x0000F000) != (driver1 & 0x0000F000)))
+		return FALSE;
+	if(((cond1 & 0x0F000000) != 0) &&((cond1 & 0x0F000000) != (driver1 & 0x0F000000)))
+		return FALSE;		
+
+	//=============== Bit Defined Check ================//
+    // We don't care [31:28] and [23:20]
+    //
+	cond1   &= 0x000F0FFF; 
+	driver1 &= 0x000F0FFF; 
+
+    if ((cond1 & driver1) == cond1) 
+    {
+        u4Byte bitMask = 0;
+        if ((cond1 & 0x0F) == 0) // BoardType is DONTCARE
+            return TRUE;
+
+        if ((cond1 & BIT0) != 0) //GLNA
+            bitMask |= 0x000000FF;
+        if ((cond1 & BIT1) != 0) //GPA
+            bitMask |= 0x0000FF00;
+        if ((cond1 & BIT2) != 0) //ALNA
+            bitMask |= 0x00FF0000;
+        if ((cond1 & BIT3) != 0) //APA
+            bitMask |= 0xFF000000;
+
+        if ((cond2 & bitMask) == (driver2 & bitMask)) // BoardType of each RF path is matched
+            return TRUE;
+        else
+            return FALSE;
+    }
+    else 
+    {
         return FALSE;
-
-    cond = Condition & 0x0000FF00;
-    cond = cond >> 8;
-    if ( ((_interface & cond) == 0) && (cond != 0x07) )
-        return FALSE;
-
-    cond = Condition & 0x00FF0000;
-    cond = cond >> 16;
-    if ( ((_platform & cond) == 0) && (cond != 0x0F) )
-        return FALSE;
+    }
+}
+static BOOLEAN
+CheckNegative(
+    IN  PDM_ODM_T     pDM_Odm,
+    IN  const u4Byte  Condition1,
+    IN  const u4Byte  Condition2
+    )
+{
     return TRUE;
 }
-
 
 /******************************************************************************
 *                           AGC_TAB.TXT
@@ -188,6 +242,7 @@ u4Byte Array_MP_8723B_AGC_TAB[] = {
 		0xC78, 0x017F0001,
 		0xC50, 0x69553422,
 		0xC50, 0x69553420,
+		0x824, 0x00390204,
 
 };
 
@@ -196,69 +251,73 @@ ODM_ReadAndConfig_MP_8723B_AGC_TAB(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
-	#define READ_NEXT_PAIR(v1, v2, i) do { i += 2; v1 = Array[i]; v2 = Array[i+1]; } while(0)
-
-	u4Byte     hex         = 0;
-	u4Byte     i           = 0;
-	u2Byte     count       = 0;
-	pu4Byte    ptr_array   = NULL;
-	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     _interface   = pDM_Odm->SupportInterface;
-	u1Byte     board       = pDM_Odm->BoardType;  
-	u4Byte     ArrayLen    = sizeof(Array_MP_8723B_AGC_TAB)/sizeof(u4Byte);
-	pu4Byte    Array       = Array_MP_8723B_AGC_TAB;
-
-
-	hex += board;
-	hex += _interface << 8;
-	hex += platform << 16;
-	hex += 0xFF000000;
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("===> ODM_ReadAndConfig_MP_8723B_AGC_TAB, hex = 0x%X\n", hex));
-
-	for (i = 0; i < ArrayLen; i += 2 )
-	{
-	    u4Byte v1 = Array[i];
-	    u4Byte v2 = Array[i+1];
+    u4Byte     i         = 0;
+    u4Byte     ArrayLen    = sizeof(Array_MP_8723B_AGC_TAB)/sizeof(u4Byte);
+    pu4Byte    Array       = Array_MP_8723B_AGC_TAB;
 	
-	    // This (offset, data) pair meets the condition.
-	    if ( v1 < 0xCDCDCDCD )
-	    {
-		    odm_ConfigBB_AGC_8723B(pDM_Odm, v1, bMaskDWord, v2);
-		    continue;
-	 	}
-		else
-		{ // This line is the start line of branch.
-		    if ( !CheckCondition(Array[i], hex) )
-		    { // Discard the following (offset, data) pairs.
-		        READ_NEXT_PAIR(v1, v2, i);
-		        while (v2 != 0xDEAD && 
-		               v2 != 0xCDEF && 
-		               v2 != 0xCDCD && i < ArrayLen -2)
-		        {
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
-		        i -= 2; // prevent from for-loop += 2
-		    }
-		    else // Configure matched pairs and skip to end of if-else.
-		    {
-		        READ_NEXT_PAIR(v1, v2, i);
-		        while (v2 != 0xDEAD && 
-		               v2 != 0xCDEF && 
-		               v2 != 0xCDCD && i < ArrayLen -2)
-		        {
-		     		odm_ConfigBB_AGC_8723B(pDM_Odm, v1, bMaskDWord, v2);
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_8723B_AGC_TAB\n"));
 
-		        while (v2 != 0xDEAD && i < ArrayLen -2)
-		        {
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
-		        
-		    }
-		}	
-	}
+    for (i = 0; i < ArrayLen; i += 2 )
+    {
+        u4Byte v1 = Array[i];
+        u4Byte v2 = Array[i+1];
+    
+        // This (offset, data) pair doesn't care the condition.
+        if ( v1 < 0x40000000 )
+        {
+           odm_ConfigBB_AGC_8723B(pDM_Odm, v1, bMaskDWord, v2);
+           continue;
+        }
+        else
+        {   // This line is the beginning of branch.
+            BOOLEAN bMatched = TRUE;
+            u1Byte  cCond  = (u1Byte)((v1 & (BIT29|BIT28)) >> 28);
 
+            if (cCond == COND_ELSE) { // ELSE, ENDIF
+                bMatched = TRUE;
+                READ_NEXT_PAIR(v1, v2, i);
+            } else if ( ! CheckPositive(pDM_Odm, v1, v2) ) { 
+                bMatched = FALSE;
+                READ_NEXT_PAIR(v1, v2, i);
+                READ_NEXT_PAIR(v1, v2, i);
+            } else {
+                READ_NEXT_PAIR(v1, v2, i);
+                if ( ! CheckNegative(pDM_Odm, v1, v2) )
+                    bMatched = FALSE;
+                else
+                    bMatched = TRUE;
+                READ_NEXT_PAIR(v1, v2, i);
+            }
+
+            if ( bMatched == FALSE )
+            {   // Condition isn't matched. Discard the following (offset, data) pairs.
+                while (v1 < 0x40000000 && i < ArrayLen -2)
+                    READ_NEXT_PAIR(v1, v2, i);
+
+                i -= 2; // prevent from for-loop += 2
+            }
+            else // Configure matched pairs and skip to end of if-else.
+            {
+                while (v1 < 0x40000000 && i < ArrayLen-2) {
+                    odm_ConfigBB_AGC_8723B(pDM_Odm, v1, bMaskDWord, v2);
+                    READ_NEXT_PAIR(v1, v2, i);
+                }
+
+                // Keeps reading until ENDIF.
+                cCond = (u1Byte)((v1 & (BIT29|BIT28)) >> 28);
+                while (cCond != COND_ENDIF && i < ArrayLen-2) {
+                    READ_NEXT_PAIR(v1, v2, i);
+                    cCond = (u1Byte)((v1 & (BIT29|BIT28)) >> 28);
+                }
+            }
+        } 
+    }
+}
+
+u4Byte
+ODM_GetVersion_MP_8723B_AGC_TAB(void)
+{
+	   return 11;
 }
 
 /******************************************************************************
@@ -275,7 +334,7 @@ u4Byte Array_MP_8723B_PHY_REG[] = {
 		0x818, 0x02200385,
 		0x81C, 0x00000000,
 		0x820, 0x01000100,
-		0x824, 0x00390204,
+		0x824, 0x00190204,
 		0x828, 0x00000000,
 		0x82C, 0x00000000,
 		0x830, 0x00000000,
@@ -312,9 +371,8 @@ u4Byte Array_MP_8723B_PHY_REG[] = {
 		0x90C, 0x81121111,
 		0x910, 0x00000002,
 		0x914, 0x00000201,
-		0x948, 0x00000280,
 		0xA00, 0x00D047C8,
-		0xA04, 0x80FF000C,
+		0xA04, 0x80FF800C,
 		0xA08, 0x8C838300,
 		0xA0C, 0x2E7F120F,
 		0xA10, 0x9500BB78,
@@ -468,69 +526,73 @@ ODM_ReadAndConfig_MP_8723B_PHY_REG(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
-	#define READ_NEXT_PAIR(v1, v2, i) do { i += 2; v1 = Array[i]; v2 = Array[i+1]; } while(0)
-
-	u4Byte     hex         = 0;
-	u4Byte     i           = 0;
-	u2Byte     count       = 0;
-	pu4Byte    ptr_array   = NULL;
-	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     _interface   = pDM_Odm->SupportInterface;
-	u1Byte     board       = pDM_Odm->BoardType;  
-	u4Byte     ArrayLen    = sizeof(Array_MP_8723B_PHY_REG)/sizeof(u4Byte);
-	pu4Byte    Array       = Array_MP_8723B_PHY_REG;
-
-
-	hex += board;
-	hex += _interface << 8;
-	hex += platform << 16;
-	hex += 0xFF000000;
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("===> ODM_ReadAndConfig_MP_8723B_PHY_REG, hex = 0x%X\n", hex));
-
-	for (i = 0; i < ArrayLen; i += 2 )
-	{
-	    u4Byte v1 = Array[i];
-	    u4Byte v2 = Array[i+1];
+    u4Byte     i         = 0;
+    u4Byte     ArrayLen    = sizeof(Array_MP_8723B_PHY_REG)/sizeof(u4Byte);
+    pu4Byte    Array       = Array_MP_8723B_PHY_REG;
 	
-	    // This (offset, data) pair meets the condition.
-	    if ( v1 < 0xCDCDCDCD )
-	    {
-		   	odm_ConfigBB_PHY_8723B(pDM_Odm, v1, bMaskDWord, v2);
-		    continue;
-	 	}
-		else
-		{ // This line is the start line of branch.
-		    if ( !CheckCondition(Array[i], hex) )
-		    { // Discard the following (offset, data) pairs.
-		        READ_NEXT_PAIR(v1, v2, i);
-		        while (v2 != 0xDEAD && 
-		               v2 != 0xCDEF && 
-		               v2 != 0xCDCD && i < ArrayLen -2)
-		        {
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
-		        i -= 2; // prevent from for-loop += 2
-		    }
-		    else // Configure matched pairs and skip to end of if-else.
-		    {
-		        READ_NEXT_PAIR(v1, v2, i);
-		        while (v2 != 0xDEAD && 
-		               v2 != 0xCDEF && 
-		               v2 != 0xCDCD && i < ArrayLen -2)
-		        {
-		   			odm_ConfigBB_PHY_8723B(pDM_Odm, v1, bMaskDWord, v2);
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_8723B_PHY_REG\n"));
 
-		        while (v2 != 0xDEAD && i < ArrayLen -2)
-		        {
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
-		        
-		    }
-		}	
-	}
+    for (i = 0; i < ArrayLen; i += 2 )
+    {
+        u4Byte v1 = Array[i];
+        u4Byte v2 = Array[i+1];
+    
+        // This (offset, data) pair doesn't care the condition.
+        if ( v1 < 0x40000000 )
+        {
+           odm_ConfigBB_PHY_8723B(pDM_Odm, v1, bMaskDWord, v2);
+           continue;
+        }
+        else
+        {   // This line is the beginning of branch.
+            BOOLEAN bMatched = TRUE;
+            u1Byte  cCond  = (u1Byte)((v1 & (BIT29|BIT28)) >> 28);
 
+            if (cCond == COND_ELSE) { // ELSE, ENDIF
+                bMatched = TRUE;
+                READ_NEXT_PAIR(v1, v2, i);
+            } else if ( ! CheckPositive(pDM_Odm, v1, v2) ) { 
+                bMatched = FALSE;
+                READ_NEXT_PAIR(v1, v2, i);
+                READ_NEXT_PAIR(v1, v2, i);
+            } else {
+                READ_NEXT_PAIR(v1, v2, i);
+                if ( ! CheckNegative(pDM_Odm, v1, v2) )
+                    bMatched = FALSE;
+                else
+                    bMatched = TRUE;
+                READ_NEXT_PAIR(v1, v2, i);
+            }
+
+            if ( bMatched == FALSE )
+            {   // Condition isn't matched. Discard the following (offset, data) pairs.
+                while (v1 < 0x40000000 && i < ArrayLen -2)
+                    READ_NEXT_PAIR(v1, v2, i);
+
+                i -= 2; // prevent from for-loop += 2
+            }
+            else // Configure matched pairs and skip to end of if-else.
+            {
+                while (v1 < 0x40000000 && i < ArrayLen-2) {
+                    odm_ConfigBB_PHY_8723B(pDM_Odm, v1, bMaskDWord, v2);
+                    READ_NEXT_PAIR(v1, v2, i);
+                }
+
+                // Keeps reading until ENDIF.
+                cCond = (u1Byte)((v1 & (BIT29|BIT28)) >> 28);
+                while (cCond != COND_ENDIF && i < ArrayLen-2) {
+                    READ_NEXT_PAIR(v1, v2, i);
+                    cCond = (u1Byte)((v1 & (BIT29|BIT28)) >> 28);
+                }
+            }
+        } 
+    }
+}
+
+u4Byte
+ODM_GetVersion_MP_8723B_PHY_REG(void)
+{
+	   return 11;
 }
 
 /******************************************************************************
@@ -551,22 +613,15 @@ ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
-	u4Byte     hex = 0;
-	u4Byte     i           = 0;
-	u2Byte     count       = 0;
-	pu4Byte    ptr_array   = NULL;
-	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     _interface   = pDM_Odm->SupportInterface;
-	u1Byte     board       = pDM_Odm->BoardType;  
-	u4Byte     ArrayLen    = sizeof(Array_MP_8723B_PHY_REG_PG)/sizeof(u4Byte);
-	pu4Byte    Array       = Array_MP_8723B_PHY_REG_PG;
+    u4Byte     i         = 0;
+    u4Byte     ArrayLen    = sizeof(Array_MP_8723B_PHY_REG_PG)/sizeof(u4Byte);
+    pu4Byte    Array       = Array_MP_8723B_PHY_REG_PG;
+
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_8723B_PHY_REG_PG\n"));
 
 	pDM_Odm->PhyRegPgVersion = 1;
 	pDM_Odm->PhyRegPgValueType = PHY_REG_PG_EXACT_VALUE;
-	hex += board;
-	hex += _interface << 8;
-	hex += platform << 16;
-	hex += 0xFF000000;
+
 	for (i = 0; i < ArrayLen; i += 6 )
 	{
 	    u4Byte v1 = Array[i];
@@ -576,29 +631,7 @@ ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(
 	    u4Byte v5 = Array[i+4];
 	    u4Byte v6 = Array[i+5];
 
-	    // this line is a line of pure_body
-	    if ( v1 < 0xCDCDCDCD )
-	    {
-		 	 odm_ConfigBB_PHY_REG_PG_8723B(pDM_Odm, v1, v2, v3, v4, v5, v6);
-		 	 continue;
-	    }
-	    else
-	    { // this line is the start of branch
-	        if ( !CheckCondition(Array[i], hex) )
-	        { // don't need the hw_body
-	            i += 2; // skip the pair of expression
-	            v1 = Array[i];
-	            v2 = Array[i+1];
-	            v3 = Array[i+2];
-	            while (v2 != 0xDEAD)
-	            {
-	                i += 3;
-	                v1 = Array[i];
-	                v2 = Array[i+1];
-	                v3 = Array[i+1];
-	            }
-	        }
-	    }
+	    odm_ConfigBB_PHY_REG_PG_8723B(pDM_Odm, v1, v2, v3, v4, v5, v6);
 	}
 }
 

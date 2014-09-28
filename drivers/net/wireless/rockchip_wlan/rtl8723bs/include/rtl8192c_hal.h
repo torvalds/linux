@@ -402,7 +402,7 @@ void rtl8192c_EfuseParseChnlPlan(PADAPTER padapter, u8 *hwinfo, BOOLEAN AutoLoad
 
 HAL_VERSION rtl8192c_ReadChipVersion(IN PADAPTER Adapter);
 void rtl8192c_ReadBluetoothCoexistInfo(PADAPTER Adapter, u8 *PROMContent, BOOLEAN AutoloadFail);
-//void rtl8192c_free_hal_data(_adapter * padapter);
+
 VOID rtl8192c_EfuseParseIDCode(PADAPTER pAdapter, u8 *hwinfo);
 void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc);
 

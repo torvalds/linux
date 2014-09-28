@@ -50,7 +50,7 @@ pDM_Odm->DebugComponents			=
 //									ODM_COMP_DYNAMIC_PRICCA		|
 //									ODM_COMP_RXHP					|
 //									ODM_COMP_MP 					|
-//									ODM_COMP_DYNAMIC_ATC		|
+//									ODM_COMP_CFO_TRACKING		|
 
 //MAC Functions
 //									ODM_COMP_EDCA_TURBO			|

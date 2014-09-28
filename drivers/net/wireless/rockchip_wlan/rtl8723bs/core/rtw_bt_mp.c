@@ -529,7 +529,7 @@ MPTBT_FwC2hBtMpCtrl(
 	
 	if(Adapter->bBTFWReady == _FALSE || Adapter->registrypriv.mp_mode == 0 )
 	{	
-		DBG_8192C("Ignore C2H BT MP Info since not in MP mode \n");
+		//DBG_8192C("Ignore C2H BT MP Info since not in MP mode \n");
 		return;
 	}
 	if( length > 32 || length < 3 )

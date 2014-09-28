@@ -74,19 +74,28 @@ enum BEAMFORMING_CTRL_TYPE
 	BEAMFORMING_CTRL_LEAVE = 1,
 	BEAMFORMING_CTRL_START_PERIOD = 2,
 	BEAMFORMING_CTRL_END_PERIOD = 3,
+	BEAMFORMING_CTRL_SOUNDING_FAIL=4,
+	BEAMFORMING_CTRL_SOUNDING_CLK=5,
 };
 
 struct beamforming_entry {
-	u8							used;
-	u8							tx_bf;
-	u16							aid;			// Used to construct AID field of NDPA packet.
-	u16							mac_id;		// Used to Set Reg42C in IBSS mode. 
-	u16							p_aid;		// Used to fill Reg42C & Reg714 to compare with P_AID of Tx DESC. 
-	u8							mac_addr[6];// Used to fill Reg6E4 to fill Mac address of CSI report frame.
-	CHANNEL_WIDTH				sound_bw;	// Sounding BandWidth
-	u16							sound_period;
-	BEAMFORMING_CAP			beamforming_entry_cap;
+	BOOLEAN	bUsed;
+	BOOLEAN	bSound;
+	u16	aid;			// Used to construct AID field of NDPA packet.
+	u16	mac_id;		// Used to Set Reg42C in IBSS mode. 
+	u16	p_aid;		// Used to fill Reg42C & Reg714 to compare with P_AID of Tx DESC. 
+	u8	mac_addr[6];// Used to fill Reg6E4 to fill Mac address of CSI report frame.
+	CHANNEL_WIDTH	sound_bw;	// Sounding BandWidth
+	u16	sound_period;
+	BEAMFORMING_CAP	beamforming_entry_cap;
 	BEAMFORMING_ENTRY_STATE	beamforming_entry_state;
+	u8	LogSeq;
+	u8	LogRetryCnt;
+	u8	LogSuccessCnt;
+	u8	LogStatusFailCnt;
+	u8	PreCsiReport[327];
+	u8	DefaultCsiCnt;
+	BOOLEAN	bDefaultCSI;
 };
 
 struct sounding_info {
@@ -102,11 +111,29 @@ struct beamforming_info {
 	struct beamforming_entry	beamforming_entry[BEAMFORMING_ENTRY_NUM];
 	u8						beamforming_cur_idx;
 	u8						beamforming_in_progress;
+	u8						sounding_sequence;
 	struct sounding_info		sounding_info;
 };
 
+struct rtw_ndpa_sta_info {
+	u16	aid:12;	
+	u16	feedback_type:1;
+	u16	nc_index:3;	
+};
+
+BEAMFORMING_CAP beamforming_get_entry_beam_cap_by_mac_id(PVOID pmlmepriv ,u8 mac_id);
 void	beamforming_notify(PADAPTER adapter);
 BEAMFORMING_CAP beamforming_get_beamform_cap(struct beamforming_info	*pBeamInfo);
+
+u32	beamforming_get_report_frame(PADAPTER	 Adapter, union recv_frame *precv_frame);
+void	beamforming_get_ndpa_frame(PADAPTER	 Adapter, union recv_frame *precv_frame);
+
+BOOLEAN	beamforming_send_ht_ndpa_packet(PADAPTER Adapter, u8 *ra, CHANNEL_WIDTH bw, u8 qidx);
+BOOLEAN	beamforming_send_vht_ndpa_packet(PADAPTER Adapter, u8 *ra, u16 aid, CHANNEL_WIDTH bw, u8 qidx);
+
+void	beamforming_check_sounding_success(PADAPTER Adapter,BOOLEAN status);
+
+void	beamforming_watchdog(PADAPTER Adapter);
 
 void	beamforming_wk_hdl(_adapter *padapter, u8 type, u8 *pbuf);
 u8	beamforming_wk_cmd(_adapter*padapter, s32 type, u8 *pbuf, s32 size, u8 enqueue);

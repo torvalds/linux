@@ -162,7 +162,7 @@ void sreset_restore_security_station(_adapter *padapter)
 		else
 		{
 			//pairwise key
-			rtw_setstakey_cmd(padapter, (unsigned char *)psta, _TRUE,_FALSE);
+			rtw_setstakey_cmd(padapter, psta, _TRUE,_FALSE);
 			//group key
 			rtw_set_key(padapter,&padapter->securitypriv,padapter->securitypriv.dot118021XGrpKeyid, 0,_FALSE);
 		}
@@ -331,10 +331,10 @@ void sreset_reset(_adapter *padapter)
 
 	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
 
-	
-#ifdef CONFIG_POWER_SAVING
+
+#ifdef CONFIG_LPS
 	rtw_set_ps_mode(padapter, PS_MODE_ACTIVE, 0, 0, "SRESET");
-#endif
+#endif//#ifdef CONFIG_LPS
 	
 	_enter_pwrlock(&pwrpriv->lock);
 

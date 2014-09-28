@@ -17,6 +17,8 @@
 
 #define	BTC_RSSI_COEX_THRESH_TOL_8723B_1ANT		2
 
+#define  BT_8723B_1ANT_WIFI_NOISY_THRESH								30   //max: 255
+
 typedef enum _BT_INFO_SRC_8723B_1ANT{
 	BT_INFO_SRC_8723B_1ANT_WIFI_FW			= 0x0,
 	BT_INFO_SRC_8723B_1ANT_BT_RSP				= 0x1,
@@ -109,6 +111,7 @@ typedef struct _COEX_DM_8723B_1ANT{
 	u1Byte		curRetryLimitType;
 	u1Byte		preAmpduTimeType;
 	u1Byte		curAmpduTimeType;
+	u4Byte		nArpCnt;
 
 	u1Byte		errorCondition;
 } COEX_DM_8723B_1ANT, *PCOEX_DM_8723B_1ANT;
@@ -127,23 +130,49 @@ typedef struct _COEX_STA_8723B_1ANT{
 	u4Byte					highPriorityRx;
 	u4Byte					lowPriorityTx;
 	u4Byte					lowPriorityRx;
-	u1Byte					btRssi;
+	s1Byte					btRssi;
+	BOOLEAN					bBtTxRxMask;
 	u1Byte					preBtRssiState;
 	u1Byte					preWifiRssiState[4];
 	BOOLEAN					bC2hBtInfoReqSent;
 	u1Byte					btInfoC2h[BT_INFO_SRC_8723B_1ANT_MAX][10];
 	u4Byte					btInfoC2hCnt[BT_INFO_SRC_8723B_1ANT_MAX];
 	BOOLEAN					bC2hBtInquiryPage;
+	BOOLEAN					bC2hBtPage;				//Add for win8.1 page out issue
+	BOOLEAN					bWiFiIsHighPriTask;		//Add for win8.1 page out issue
 	u1Byte					btRetryCnt;
 	u1Byte					btInfoExt;
+	u4Byte					popEventCnt;
+	u1Byte					nScanAPNum;
+
+	u4Byte					nCRCOK_CCK;
+	u4Byte					nCRCOK_11g;
+	u4Byte					nCRCOK_11n;
+	u4Byte					nCRCOK_11nAgg;
+	
+	u4Byte					nCRCErr_CCK;
+	u4Byte					nCRCErr_11g;
+	u4Byte					nCRCErr_11n;
+	u4Byte					nCRCErr_11nAgg;	
+
+	BOOLEAN					bCCKLock;
+	BOOLEAN					bPreCCKLock;
+	u1Byte					nCoexTableType;
+
+	BOOLEAN					bForceLpsOn;
 }COEX_STA_8723B_1ANT, *PCOEX_STA_8723B_1ANT;
 
 //===========================================
 // The following is interface which will notify coex module.
 //===========================================
 VOID
-EXhalbtc8723b1ant_InitHwConfig(
+EXhalbtc8723b1ant_PowerOnSetting(
 	IN	PBTC_COEXIST		pBtCoexist
+	);
+VOID
+EXhalbtc8723b1ant_InitHwConfig(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bWifiOnly
 	);
 VOID
 EXhalbtc8723b1ant_InitCoexDm(
@@ -184,6 +213,11 @@ EXhalbtc8723b1ant_BtInfoNotify(
 	IN	PBTC_COEXIST		pBtCoexist,
 	IN	pu1Byte			tmpBuf,
 	IN	u1Byte			length
+	);
+VOID
+EXhalbtc8723b1ant_RfStatusNotify(
+	IN	PBTC_COEXIST			pBtCoexist,
+	IN	u1Byte					type
 	);
 VOID
 EXhalbtc8723b1ant_HaltNotify(

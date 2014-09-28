@@ -392,13 +392,7 @@ _func_enter_;
 		init_addba_retry_timer(pstapriv->padapter, psta);
 
 #ifdef CONFIG_TDLS
-		psta->padapter = pstapriv->padapter;
-		init_TPK_timer(pstapriv->padapter, psta);
-		init_ch_switch_timer(pstapriv->padapter, psta);
-		init_base_ch_timer(pstapriv->padapter, psta);
-		init_off_ch_timer(pstapriv->padapter, psta);
-		init_handshake_timer(pstapriv->padapter, psta);
-		init_tdls_alive_timer(pstapriv->padapter, psta);
+		rtw_init_tdls_timer(pstapriv->padapter, psta);
 #endif //CONFIG_TDLS
 
 		//for A-MPDU Rx reordering buffer control
@@ -538,12 +532,7 @@ _func_enter_;
 	_cancel_timer_ex(&psta->addba_retry_timer);
 
 #ifdef CONFIG_TDLS
-	_cancel_timer_ex(&psta->TPK_timer);
-	_cancel_timer_ex(&psta->option_timer);
-	_cancel_timer_ex(&psta->base_ch_timer);
-	_cancel_timer_ex(&psta->off_ch_timer);
-	_cancel_timer_ex(&psta->alive_timer1);
-	_cancel_timer_ex(&psta->alive_timer2);
+	rtw_free_tdls_timer(psta);
 #endif //CONFIG_TDLS
 
 	//for A-MPDU Rx reordering buffer control, cancel reordering_ctrl_timer

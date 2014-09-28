@@ -373,7 +373,7 @@ typedef struct txdesc_8723b
 
 // Dword 10
 #define SET_TX_DESC_TX_BUFFER_ADDRESS_8723B(__pTxDesc, __Value) 	SET_BITS_TO_LE_4BYTE(__pTxDesc+40, 0, 32, __Value)
-
+#define GET_TX_DESC_TX_BUFFER_ADDRESS_8723B(__pTxDesc) 	LE_BITS_TO_4BYTE(__pTxDesc+40, 0, 32)
 
 // Dword 11
 #define SET_TX_DESC_NEXT_DESC_ADDRESS_8723B(__pTxDesc, __Value) 	SET_BITS_TO_LE_4BYTE(__pTxDesc+48, 0, 32, __Value)
@@ -483,5 +483,20 @@ void rtl8723bu_xmit_tasklet(void *priv);
 s32 rtl8723bu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 void _dbg_dump_tx_info(_adapter	*padapter,int frame_tag,struct tx_desc *ptxdesc);
 #endif
+
+#ifdef CONFIG_PCI_HCI
+s32 rtl8723be_init_xmit_priv(PADAPTER padapter);
+void rtl8723be_free_xmit_priv(PADAPTER padapter);
+struct xmit_buf *rtl8723be_dequeue_xmitbuf(struct rtw_tx_ring *ring);
+void	rtl8723be_xmitframe_resume(_adapter *padapter);
+s32 rtl8723be_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
+s32 rtl8723be_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+s32	rtl8723be_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+void rtl8723be_xmit_tasklet(void *priv);
+#endif
+
+u8	BWMapping_8723B(PADAPTER Adapter, struct pkt_attrib *pattrib);
+u8	SCMapping_8723B(PADAPTER Adapter, struct pkt_attrib	*pattrib);
+
 #endif
 

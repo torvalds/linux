@@ -316,9 +316,10 @@ void _rtw_read_port_cancel(_adapter *adapter)
 
 	_read_port_cancel = pintfhdl->io_ops._read_port_cancel;
 
+	RTW_DISABLE_FUNC(adapter, DF_RX_BIT);
+
 	if(_read_port_cancel)
 		_read_port_cancel(pintfhdl);
-
 }
 
 u32 _rtw_write_port(_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
@@ -365,9 +366,10 @@ void _rtw_write_port_cancel(_adapter *adapter)
 
 	_write_port_cancel = pintfhdl->io_ops._write_port_cancel;
 
+	RTW_DISABLE_FUNC(adapter, DF_TX_BIT);
+
 	if(_write_port_cancel)
 		_write_port_cancel(pintfhdl);
-
 }
 int rtw_init_io_priv(_adapter *padapter, void (*set_intf_ops)(_adapter *padapter,struct _io_ops *pops))
 {

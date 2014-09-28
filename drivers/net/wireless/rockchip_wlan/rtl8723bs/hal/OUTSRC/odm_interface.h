@@ -251,6 +251,12 @@ s4Byte ODM_CompareMemory(
       IN	PVOID           pBuf2,
       IN	u4Byte          length
        );
+
+void ODM_Memory_Set
+	(IN 	PDM_ODM_T	pDM_Odm,
+		IN  PVOID	pbuf,
+		IN  s1Byte	value,
+		IN  u4Byte	length);
 	
 //
 // ODM MISC-spin lock relative API.
@@ -379,5 +385,16 @@ ODM_FillH2CCmd(
 	IN	pu1Byte		CmdStartSeq
 	);
 #endif
+
+u4Byte
+ODM_GetCurrentTime(	
+	IN 	PDM_ODM_T		pDM_Odm
+	);
+s4Byte
+ODM_GetProgressingTime(	
+	IN 	PDM_ODM_T		pDM_Odm,
+	IN	u4Byte			Start_Time
+	);
+
 #endif	// __ODM_INTERFACE_H__
 

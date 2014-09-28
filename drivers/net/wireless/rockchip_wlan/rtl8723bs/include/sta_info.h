@@ -140,6 +140,9 @@ struct sta_info {
 	u8	wireless_mode;	// NETWORK_TYPE
 	u8	bw_mode;
 
+	u8	ldpc;
+	u8	stbc;
+
 	struct stainfo_stats sta_stats;
 
 #ifdef CONFIG_TDLS
@@ -159,12 +162,11 @@ struct sta_info {
 	_timer	option_timer;
 	_timer	base_ch_timer;
 	_timer	off_ch_timer;
-
 	_timer handshake_timer;
-	_timer alive_timer1;
-	_timer alive_timer2;
 	u8 timer_flag;
 	u8 alive_count;
+	_timer	pti_timer;
+	u8	TDLS_RSNIE[20];	//Save peer's RSNIE, use for sending TDLS_SETUP_RSP
 #endif //CONFIG_TDLS
 
 	//for A-MPDU TX, ADDBA timeout check	

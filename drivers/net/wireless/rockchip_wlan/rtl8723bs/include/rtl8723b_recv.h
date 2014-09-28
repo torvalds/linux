@@ -161,5 +161,13 @@ int	rtl8723bu_init_recv_priv(_adapter *padapter);
 void rtl8723bu_free_recv_priv (_adapter *padapter);
 void rtl8723bu_init_recvbuf(_adapter *padapter, struct recv_buf *precvbuf);
 #endif
+
+#ifdef CONFIG_PCI_HCI
+s32 rtl8723be_init_recv_priv(PADAPTER padapter);
+void rtl8723be_free_recv_priv(PADAPTER padapter);
+#endif
+
+void	rtl8723b_query_rx_desc_status(union recv_frame *precvframe, u8 *pdesc);
+
 #endif
 

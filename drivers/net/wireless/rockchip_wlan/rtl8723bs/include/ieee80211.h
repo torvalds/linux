@@ -1444,15 +1444,14 @@ enum rtw_ieee80211_back_actioncode {
 
 /* HT features action code */
 enum rtw_ieee80211_ht_actioncode {
-	RTW_WLAN_ACTION_NOTIFY_CH_WIDTH = 0,
-       RTW_WLAN_ACTION_SM_PS = 1,
-       RTW_WLAN_ACTION_PSPM = 2,
-       RTW_WLAN_ACTION_PCO_PHASE = 3,
-       RTW_WLAN_ACTION_MIMO_CSI_MX = 4,
-       RTW_WLAN_ACTION_MIMO_NONCP_BF = 5,
-       RTW_WLAN_ACTION_MIMP_CP_BF = 6,
-       RTW_WLAN_ACTION_ASEL_INDICATES_FB = 7,
-       RTW_WLAN_ACTION_HI_INFO_EXCHG = 8,
+	RTW_WLAN_ACTION_HT_NOTI_CHNL_WIDTH = 0,
+       RTW_WLAN_ACTION_HT_SM_PS = 1,
+       RTW_WLAN_ACTION_HT_PSMP = 2,
+       RTW_WLAN_ACTION_HT_SET_PCO_PHASE = 3,
+       RTW_WLAN_ACTION_HT_CSI = 4,
+       RTW_WLAN_ACTION_HT_NON_COMPRESS_BEAMFORMING = 5,
+       RTW_WLAN_ACTION_HT_COMPRESS_BEAMFORMING = 6,
+       RTW_WLAN_ACTION_HT_ASEL_FEEDBACK = 7,
 };
 
 /* BACK (block-ack) parties */
@@ -1460,6 +1459,13 @@ enum rtw_ieee80211_back_parties {
 	RTW_WLAN_BACK_RECIPIENT = 0,
 	RTW_WLAN_BACK_INITIATOR = 1,
 	RTW_WLAN_BACK_TIMER = 2,
+};
+
+/* VHT features action code */
+enum rtw_ieee80211_vht_actioncode{
+	RTW_WLAN_ACTION_VHT_COMPRESSED_BEAMFORMING = 0,
+       RTW_WLAN_ACTION_VHT_GROUPID_MANAGEMENT = 1,
+       RTW_WLAN_ACTION_VHT_OPMODE_NOTIFICATION = 2,
 };
 
 
@@ -1651,6 +1657,7 @@ int rtw_parse_wpa2_ie(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwi
 int rtw_get_sec_ie(u8 *in_ie,uint in_len,u8 *rsn_ie,u16 *rsn_len,u8 *wpa_ie,u16 *wpa_len);
 
 u8 rtw_is_wps_ie(u8 *ie_ptr, uint *wps_ielen);
+u8 *rtw_get_wps_ie_from_scan_queue(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen, u8 frame_type);
 u8 *rtw_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen);
 u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 *buf_attr, u32 *len_attr);
 u8 *rtw_get_wps_attr_content(u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 *buf_content, uint *len_content);
@@ -1672,6 +1679,7 @@ u32 rtw_get_p2p_merged_ies_len(u8 *in_ie, u32 in_len);
 int rtw_p2p_merge_ies(u8 *in_ie, u32 in_len, u8 *merge_ie);
 void dump_p2p_ie(u8 *ie, u32 ie_len);
 u8 *rtw_get_p2p_ie(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen);
+u8 *rtw_get_p2p_ie_from_scan_queue(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen, u8 frame_type);
 u8 *rtw_get_p2p_attr(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *buf_attr, u32 *len_attr);
 u8 *rtw_get_p2p_attr_content(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *buf_content, uint *len_content);
 u32 rtw_set_p2p_attr_content(u8 *pbuf, u8 attr_id, u16 attr_len, u8 *pdata_attr);
@@ -1681,6 +1689,7 @@ void rtw_WLAN_BSSID_EX_remove_p2p_attr(WLAN_BSSID_EX *bss_ex, u8 attr_id);
 #ifdef CONFIG_WFD
 void dump_wfd_ie(u8 *ie, u32 ie_len);
 int rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen);
+int rtw_get_wfd_ie_from_scan_queue(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen, u8 frame_type);
 int rtw_get_wfd_attr_content(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id ,u8 *attr_content, uint *attr_contentlen);
 #endif // CONFIG_WFD
 
@@ -1702,7 +1711,7 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork);
 
 void rtw_macaddr_cfg(u8 *mac_addr);
 
-u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI_20, u8 short_GI_40, unsigned char * MCS_rate);
+u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI, unsigned char * MCS_rate);
 
 int rtw_action_frame_parse(const u8 *frame, u32 frame_len, u8* category, u8 *action);
 const char *action_public_str(u8 action);

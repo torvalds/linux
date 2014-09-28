@@ -132,7 +132,7 @@ void rtw_odm_dbg_level_msg(void *sel, _adapter *adapter)
 	int i;
 
 	rtw_hal_get_def_var(adapter, HW_DEF_ODM_DBG_LEVEL, &dbg_level);
-	DBG_871X_SEL_NL(sel, "odm.DebugDebugLevel = %u\n", dbg_level);
+	DBG_871X_SEL_NL(sel, "odm.DebugLevel = %u\n", dbg_level);
 	for (i=0;i<RTW_ODM_DBG_LEVEL_NUM;i++) {
 		if (odm_dbg_level_str[i])
 			DBG_871X_SEL_NL(sel, "%u %s\n", i, odm_dbg_level_str[i]);
@@ -197,3 +197,11 @@ void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 TH_L2H_ini, s8 TH_EDCCA_H
 	odm->IGI_LowerBound = IGI_LowerBound;
 }
 
+void rtw_odm_get_perpkt_rssi(void *sel, _adapter *adapter)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	DM_ODM_T *odm = &(hal_data->odmpriv);	
+	
+	DBG_871X_SEL_NL(sel,"RxRate = %s, RSSI_A = %d(%%), RSSI_B = %d(%%)\n", 
+	HDATA_RATE(odm->RxRate), odm->RSSI_A, odm->RSSI_B);	
+}

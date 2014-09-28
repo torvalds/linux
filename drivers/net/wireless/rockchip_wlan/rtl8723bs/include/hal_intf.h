@@ -65,6 +65,7 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_RESP_SIFS,
 	HW_VAR_ACK_PREAMBLE,
 	HW_VAR_SEC_CFG,
+	HW_VAR_SEC_DK_CFG,
 	HW_VAR_BCN_VALID,
 	HW_VAR_RF_TYPE,
 	HW_VAR_DM_FLAG,
@@ -171,6 +172,7 @@ typedef enum _HAL_DEF_VARIABLE{
 	HW_DEF_FA_CNT_DUMP,
 	HW_DEF_ODM_DBG_FLAG,
 	HW_DEF_ODM_DBG_LEVEL,
+	HAL_DEF_TX_PAGE_SIZE,
 	HAL_DEF_TX_PAGE_BOUNDARY,
 	HAL_DEF_TX_PAGE_BOUNDARY_WOWLAN,
 	HAL_DEF_ANT_DETECT,//to do for 8723a
@@ -178,12 +180,14 @@ typedef enum _HAL_DEF_VARIABLE{
 	HAL_DEF_PCI_AMD_L1_SUPPORT,
 	HAL_DEF_PCI_ASPM_OSC, // Support for ASPM OSC, added by Roger, 2013.03.27.
 	HAL_DEF_MACID_SLEEP, // Support for MACID sleep
+	HAL_DEF_DBG_RX_INFO_DUMP,
 }HAL_DEF_VARIABLE;
 
 typedef enum _HAL_ODM_VARIABLE{
 	HAL_ODM_STA_INFO,	
 	HAL_ODM_P2P_STATE,
 	HAL_ODM_WIFI_DISPLAY_STATE,
+	HAL_ODM_NOISE_MONITOR,
 }HAL_ODM_VARIABLE;
 
 typedef enum _HAL_INTF_PS_FUNC{
@@ -250,7 +254,7 @@ struct hal_ops {
 	u8	(*GetHalDefVarHandler)(_adapter *padapter, HAL_DEF_VARIABLE eVariable, PVOID pValue);
 	u8	(*SetHalDefVarHandler)(_adapter *padapter, HAL_DEF_VARIABLE eVariable, PVOID pValue);
 
-	void	(*GetHalODMVarHandler)(_adapter *padapter, HAL_ODM_VARIABLE eVariable, PVOID pValue1,BOOLEAN bSet);
+	void	(*GetHalODMVarHandler)(_adapter *padapter, HAL_ODM_VARIABLE eVariable, PVOID pValue1,PVOID pValue2);
 	void	(*SetHalODMVarHandler)(_adapter *padapter, HAL_ODM_VARIABLE eVariable, PVOID pValue1,BOOLEAN bSet);
 
 	void	(*UpdateRAMaskHandler)(_adapter *padapter, u32 mac_id, u8 rssi_level);
@@ -409,6 +413,11 @@ typedef enum _HARDWARE_TYPE{
 #define	IS_HARDWARE_TYPE_8188E(_Adapter)	\
 (IS_HARDWARE_TYPE_8188EE(_Adapter) || IS_HARDWARE_TYPE_8188EU(_Adapter) || IS_HARDWARE_TYPE_8188ES(_Adapter))
 
+
+#define	IS_HARDWARE_TYPE_8188E_before(_Adapter)			\
+(IS_HARDWARE_TYPE_8192C(_Adapter) ||IS_HARDWARE_TYPE_8192D(_Adapter) ||IS_HARDWARE_TYPE_8723A(_Adapter))
+
+
 #define IS_HARDWARE_TYPE_OLDER_THAN_8812A(_Adapter)	\
 (IS_HARDWARE_TYPE_8192D(_Adapter) || IS_HARDWARE_TYPE_8192C(_Adapter) ||\
  IS_HARDWARE_TYPE_8723AE(_Adapter) || IS_HARDWARE_TYPE_8723AU(_Adapter) || IS_HARDWARE_TYPE_8723AS(_Adapter) ||\
@@ -527,7 +536,7 @@ u8 rtw_hal_set_def_var(_adapter *padapter, HAL_DEF_VARIABLE eVariable, PVOID pVa
 u8 rtw_hal_get_def_var(_adapter *padapter, HAL_DEF_VARIABLE eVariable, PVOID pValue);
 
 void rtw_hal_set_odm_var(_adapter *padapter, HAL_ODM_VARIABLE eVariable, PVOID pValue1,BOOLEAN bSet);
-void	rtw_hal_get_odm_var(_adapter *padapter, HAL_ODM_VARIABLE eVariable, PVOID pValue1,BOOLEAN bSet);
+void	rtw_hal_get_odm_var(_adapter *padapter, HAL_ODM_VARIABLE eVariable, PVOID pValue1,PVOID pValue2);
 	
 void rtw_hal_enable_interrupt(_adapter *padapter);
 void rtw_hal_disable_interrupt(_adapter *padapter);

@@ -83,7 +83,7 @@ dm_CheckStatistics(
 	rtw_hal_get_hwreg( Adapter, HW_VAR_RETRY_COUNT, (pu1Byte)(&Adapter->TxStats.NumTxRetryCount) );
 #endif
 }
-
+#ifdef CONFIG_SUPPORT_HW_WPS_PBC
 static void dm_CheckPbcGPIO(_adapter *padapter)
 {
 	u8	tmp1byte;
@@ -131,26 +131,11 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 		// Here we only set bPbcPressed to true
 		// After trigger PBC, the variable will be set to false
 		DBG_8192C("CheckPbcGPIO - PBC is pressed\n");
-
-#ifdef RTK_DMP_PLATFORM
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,12))
-		kobject_uevent(&padapter->pnetdev->dev.kobj, KOBJ_NET_PBC);
-#else
-		kobject_hotplug(&padapter->pnetdev->class_dev.kobj, KOBJ_NET_PBC);
-#endif
-#else
-
-		if ( padapter->pid[0] == 0 )
-		{	//	0 is the default value and it means the application monitors the HW PBC doesn't privde its pid to driver.
-			return;
-		}
-
-#ifdef PLATFORM_LINUX
-		rtw_signal_process(padapter->pid[0], SIGUSR1);
-#endif
-#endif
+		rtw_request_wps_pbc_event(padapter);
 	}
 }
+#endif //#ifdef CONFIG_SUPPORT_HW_WPS_PBC
+
 
 #ifdef CONFIG_PCI_HCI
 //
@@ -268,12 +253,12 @@ static void Init_ODM_ComInfo_8723b(PADAPTER	Adapter)
 	//
 	// Init Value
 	//
-	_rtw_memset(pDM_Odm,0,sizeof(pDM_Odm));
+	_rtw_memset(pDM_Odm,0,sizeof(*pDM_Odm));
 
 	pDM_Odm->Adapter = Adapter;
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_PLATFORM,ODM_CE);
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_INTERFACE,Adapter->interface_type);//RTL871X_HCI_TYPE
-
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_PACKAGE_TYPE, pHalData->PackageType);
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_IC_TYPE, ODM_RTL8723B);
 
 	fab_ver = ODM_TSMC;
@@ -338,6 +323,7 @@ static void Update_ODM_ComInfo_8723b(PADAPTER	Adapter)
 		| ODM_BB_RSSI_MONITOR
 		| ODM_BB_CCK_PD
 		| ODM_BB_PWR_SAVE
+		| ODM_BB_CFO_TRACKING
 		| ODM_MAC_EDCA_TURBO
 		| ODM_RF_TX_PWR_TRACK
 		| ODM_RF_CALIBRATION
@@ -432,7 +418,9 @@ rtl8723b_InitHalDm(
 	pdmpriv->InitDMFlag = pdmpriv->DMFlag;
 
 	Update_ODM_ComInfo_8723b(Adapter);
-	ODM_DMInit(pDM_Odm);
+	
+	if (Adapter->registrypriv.mp_mode == 0)
+		ODM_DMInit(pDM_Odm);
 
 }
 
@@ -566,7 +554,7 @@ if (Adapter->registrypriv.mp_mode == 1 && Adapter->mppriv.mp_dm ==0) // for MP p
 		// Calculate Tx/Rx statistics.
 		//
 		dm_CheckStatistics(Adapter);
-
+		rtw_hal_check_rxfifo_full(Adapter);
 		//
 		// Dynamically switch RTS/CTS protection.
 		//
@@ -587,26 +575,32 @@ if (Adapter->registrypriv.mp_mode == 1 && Adapter->mppriv.mp_dm ==0) // for MP p
 	{
 		u8	bLinked=_FALSE;
 		u8	bsta_state=_FALSE;
-		if(rtw_linked_check(Adapter))
-			bLinked = _TRUE;
+		u8	bBtDisabled = _TRUE;
 
-#ifdef CONFIG_CONCURRENT_MODE
-		if (pbuddy_adapter && rtw_linked_check(pbuddy_adapter))
+		if(rtw_linked_check(Adapter)){			
 			bLinked = _TRUE;
+			if (check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE))
+				bsta_state = _TRUE;
+		}
+			
+#ifdef CONFIG_CONCURRENT_MODE
+		if(pbuddy_adapter && rtw_linked_check(pbuddy_adapter)){
+			bLinked = _TRUE;
+			if(pbuddy_adapter && check_fwstate(&pbuddy_adapter->mlmepriv, WIFI_STATION_STATE))
+				bsta_state = _TRUE;
+		}
 #endif //CONFIG_CONCURRENT_MODE
-		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_LINK, bLinked);
 
-		if (check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE))
-			bsta_state = _TRUE;
-#ifdef CONFIG_CONCURRENT_MODE
-		if(pbuddy_adapter && check_fwstate(&pbuddy_adapter->mlmepriv, WIFI_STATION_STATE))
-			bsta_state = _TRUE;
-#endif //CONFIG_CONCURRENT_MODE	
+		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_LINK, bLinked);
 		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_STATION_STATE, bsta_state);
 
+		//FindMinimumRSSI_8723b(Adapter);
+		//ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
 
-		FindMinimumRSSI_8723b(Adapter);
-		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
+#ifdef CONFIG_BT_COEXIST
+		bBtDisabled = rtw_btcoex_IsBtDisabled(Adapter);
+#endif // CONFIG_BT_COEXIST
+		ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_BT_ENABLED, ((bBtDisabled == _TRUE)?_FALSE:_TRUE));
 
 		ODM_DMWatchdog(&pHalData->odmpriv);
 	}
@@ -620,14 +614,10 @@ skip_dm:
 		//RTPRINT(FPWR, PWRHW, ("dm_CheckRfCtrlGPIO \n"));
 	//	dm_CheckRfCtrlGPIO(Adapter);
 	//}
-
-#ifdef CONFIG_PCI_HCI
-	if(pHalData->bGpioHwWpsPbc)
+#ifdef CONFIG_SUPPORT_HW_WPS_PBC
+	dm_CheckPbcGPIO(Adapter);
 #endif
-	{
-		dm_CheckPbcGPIO(Adapter);				// Add by hpfan 2008-03-11
-	}
-
+	return;
 }
 
 void rtl8723b_hal_dm_in_lps(PADAPTER padapter)

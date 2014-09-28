@@ -24,7 +24,7 @@
 
 #ifdef CONFIG_MP_INCLUDED
 #define Rtl8723BMPImgArrayLength 18396
-#define Rtl8723BFwBTImgArrayLength 19752
+#define Rtl8723BFwBTImgArrayLength 20564
 
 #define Rtl8723B_PHYREG_Array_MPLength 4
 

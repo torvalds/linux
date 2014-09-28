@@ -49,7 +49,7 @@ struct rtw_wdev_invit_info {
 	} while (0)
 
 struct rtw_wdev_nego_info {
-	u8 state; /* 0: req, 1:rep, 3:conf */
+	u8 state; /* 0: req, 1:rep, 2:conf */
 	u8 peer_mac[ETH_ALEN];
 	u8 active;
 	u8 token;
@@ -117,6 +117,7 @@ void rtw_wdev_unregister(struct wireless_dev *wdev);
 
 void rtw_cfg80211_init_wiphy(_adapter *padapter);
 
+void rtw_cfg80211_unlink_bss(_adapter *padapter, struct wlan_network *pnetwork);
 void rtw_cfg80211_surveydone_event_callback(_adapter *padapter);
 struct cfg80211_bss *rtw_cfg80211_inform_bss(_adapter *padapter, struct wlan_network *pnetwork);
 int rtw_cfg80211_check_bss(_adapter *padapter);

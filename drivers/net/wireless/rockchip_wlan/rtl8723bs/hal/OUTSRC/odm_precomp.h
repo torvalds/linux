@@ -145,6 +145,13 @@
 #include "odm_RegDefine11AC.h"
 #include "odm_RegDefine11N.h"
 #include "odm_AntDiv.h"
+#include "odm_EdcaTurboCheck.h"
+#include "odm_DIG.h"
+#include "odm_PathDiv.h"
+#include "odm_DynamicBBPowerSaving.h"
+#include "odm_DynamicTxPower.h"
+#include "odm_CfoTracking.h"
+#include "odm_NoiseMonitor.h"
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
 #if (RTL8192C_SUPPORT==1)

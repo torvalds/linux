@@ -201,37 +201,26 @@ typedef struct _RT_8723A_FIRMWARE_HDR
 #define DRIVER_EARLY_INT_TIME_8723A		0x05
 #define BCN_DMA_ATIME_INT_TIME_8723A		0x02
 
-// Note: We will divide number of page equally for each queue other than public queue!
-#define TX_TOTAL_PAGE_NUMBER_8723A	0xF8
-#define TX_PAGE_BOUNDARY		(TX_TOTAL_PAGE_NUMBER_8723A + 1)
+//For General Reserved Page Number(Beacon Queue is reserved page)
+//Beacon:2, PS-Poll:1, Null Data:1,Qos Null Data:1,BT Qos Null Data:1
+#define BCNQ_PAGE_NUM_8723A		0x08
+
+#define TX_TOTAL_PAGE_NUMBER_8723A	(0xFF - BCNQ_PAGE_NUM_8723A)
+#define TX_PAGE_BOUNDARY_8723A		(TX_TOTAL_PAGE_NUMBER_8723A + 1)
+
+#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8723A	TX_TOTAL_PAGE_NUMBER_8723A
+#define WMM_NORMAL_TX_PAGE_BOUNDARY_8723A		(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8723A + 1)
 
 // For Normal Chip Setting
 // (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_8723A
-#define NORMAL_PAGE_NUM_PUBQ	0xE7
-#define NORMAL_PAGE_NUM_HPQ		0x0C
-#define NORMAL_PAGE_NUM_LPQ		0x02
-#define NORMAL_PAGE_NUM_NPQ		0x02
-
-// For Test Chip Setting
-// (HPQ + LPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_8723A
-#define TEST_PAGE_NUM_PUBQ		0x7E
-
-// For Test Chip Setting
-#define WMM_TEST_TX_TOTAL_PAGE_NUMBER	0xF5
-#define WMM_TEST_TX_PAGE_BOUNDARY		(WMM_TEST_TX_TOTAL_PAGE_NUMBER + 1) //F6
-
-#define WMM_TEST_PAGE_NUM_PUBQ		0xA3
-#define WMM_TEST_PAGE_NUM_HPQ		0x29
-#define WMM_TEST_PAGE_NUM_LPQ		0x29
+#define NORMAL_PAGE_NUM_HPQ_8723A		0x0C
+#define NORMAL_PAGE_NUM_LPQ_8723A		0x02
+#define NORMAL_PAGE_NUM_NPQ_8723A		0x02
 
 // Note: For Normal Chip Setting, modify later
-#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER	0xF5
-#define WMM_NORMAL_TX_PAGE_BOUNDARY		(WMM_TEST_TX_TOTAL_PAGE_NUMBER + 1) //F6
-
-#define WMM_NORMAL_PAGE_NUM_PUBQ	0xB0
-#define WMM_NORMAL_PAGE_NUM_HPQ		0x29
-#define WMM_NORMAL_PAGE_NUM_LPQ		0x1C
-#define WMM_NORMAL_PAGE_NUM_NPQ		0x1C
+#define WMM_NORMAL_PAGE_NUM_HPQ_8723A		0x29
+#define WMM_NORMAL_PAGE_NUM_LPQ_8723A		0x1C
+#define WMM_NORMAL_PAGE_NUM_NPQ_8723A		0x1C
 
 
 //-------------------------------------------------------------------------

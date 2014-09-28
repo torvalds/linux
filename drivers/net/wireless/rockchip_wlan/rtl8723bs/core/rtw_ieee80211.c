@@ -898,6 +898,28 @@ u8 rtw_is_wps_ie(u8 *ie_ptr, uint *wps_ielen)
 	return match;
 }
 
+u8 *rtw_get_wps_ie_from_scan_queue(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen, u8 frame_type)
+{
+	u8*	wps = NULL;
+
+	DBG_871X( "[%s] frame_type = %d\n", __FUNCTION__, frame_type );
+	switch( frame_type )
+	{
+		case 1:
+		case 3:
+		{	//	Beacon or Probe Response
+			wps = rtw_get_wps_ie(in_ie + _PROBERSP_IE_OFFSET_, in_len - _PROBERSP_IE_OFFSET_, wps_ie, wps_ielen);
+			break;
+		}
+		case 2:
+		{	//	Probe Request
+			wps = rtw_get_wps_ie(in_ie + _PROBEREQ_IE_OFFSET_ , in_len - _PROBEREQ_IE_OFFSET_ , wps_ie, wps_ielen);
+			break;
+		}
+	}
+	return wps;
+}
+
 /**
  * rtw_get_wps_ie - Search WPS IE from a series of IEs
  * @in_ie: Address of IEs to search
@@ -1326,54 +1348,58 @@ u8 convert_ip_addr(u8 hch, u8 mch, u8 lch)
 }
 
 extern char* rtw_initmac;
-#include <linux/rfkill-wlan.h>
+extern int rockchip_wifi_mac_addr(unsigned char *buf);
 void rtw_macaddr_cfg(u8 *mac_addr)
 {
-    u8 mac[ETH_ALEN];
+	u8 mac[ETH_ALEN];
+    u8 macbuf[30] = {0};
+	if(mac_addr == NULL)	return;
+	
+	if ( rtw_initmac )
+	{	//	Users specify the mac address
+		int jj,kk;
 
-    if(mac_addr == NULL)    return;
-
-    if ( rtw_initmac )
-    {   //  Users specify the mac address
-        int jj,kk;
-
-        for( jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3 )
-        {
-            mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk+ 1]);
-        }
-        _rtw_memcpy(mac_addr, mac, ETH_ALEN);
-    }
-    else
+		for( jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3 )
+		{
+			mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk+ 1]);
+		}
+		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
+	}
+	else
     {
         printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", mac_addr[0], mac_addr[1],
             mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-        if (!rockchip_wifi_mac_addr(mac)) {
-            printk("=========> get mac address from flash=[%02x:%02x:%02x:%02x:%02x:%02x]\n", mac[0], mac[1],
-                mac[2], mac[3], mac[4], mac[5]);
+        if (!rockchip_wifi_mac_addr(macbuf)) {
+            int jj,kk;
+            printk("=========> get mac address from flash %s\n", macbuf);
+            for( jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3 )
+            {
+                mac[jj] = key_2char2num(macbuf[kk], macbuf[kk+ 1]);
+            }
             _rtw_memcpy(mac_addr, mac, ETH_ALEN);
         } else {
             //  Use the mac address stored in the Efuse
             _rtw_memcpy(mac, mac_addr, ETH_ALEN);
         }
     }
+	
+	if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
+	     (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
+	    ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
+	     (mac[3]==0x0) && (mac[4]==0x0) &&(mac[5]==0x0)))
+	{
+		mac[0] = 0x00;
+		mac[1] = 0xe0;
+		mac[2] = 0x4c;
+		mac[3] = 0x87;
+		mac[4] = 0x00;
+		mac[5] = 0x00;
+		// use default mac addresss
+		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
+		DBG_871X("MAC Address from efuse error, assign default one !!!\n");
+	}	
 
-    if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
-         (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
-        ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
-         (mac[3]==0x0) && (mac[4]==0x0) &&(mac[5]==0x0)))
-    {
-        mac[0] = 0x00;
-        mac[1] = 0xe0;
-        mac[2] = 0x4c;
-        mac[3] = 0x87;
-        mac[4] = 0x00;
-        mac[5] = 0x00;
-        // use default mac addresss
-        _rtw_memcpy(mac_addr, mac, ETH_ALEN);
-        DBG_871X("MAC Address from efuse error, assign default one !!!\n");
-    }
-
-    DBG_871X("rtw_macaddr_cfg MAC Address  = "MAC_FMT"\n", MAC_ARG(mac_addr));
+	DBG_871X("rtw_macaddr_cfg MAC Address  = "MAC_FMT"\n", MAC_ARG(mac_addr));
 }
 
 void dump_ies(u8 *buf, u32 buf_len)
@@ -1515,6 +1541,28 @@ void dump_p2p_ie(u8 *ie, u32 ie_len) {
 
 		pos+=(3+len);
 	}	
+}
+
+u8 *rtw_get_p2p_ie_from_scan_queue(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen, u8 frame_type)
+{
+	u8*	p2p = NULL;
+
+	DBG_871X( "[%s] frame_type = %d\n", __FUNCTION__, frame_type );
+	switch( frame_type )
+	{
+		case 1:
+		case 3:
+		{	//	Beacon or Probe Response
+			p2p = rtw_get_p2p_ie(in_ie + _PROBERSP_IE_OFFSET_, in_len - _PROBERSP_IE_OFFSET_, p2p_ie, p2p_ielen);
+			break;
+		}
+		case 2:
+		{	//	Probe Request
+			p2p = rtw_get_p2p_ie(in_ie + _PROBEREQ_IE_OFFSET_ , in_len - _PROBEREQ_IE_OFFSET_ , p2p_ie, p2p_ielen);
+			break;
+		}
+	}
+	return p2p;
 }
 
 /**
@@ -1841,6 +1889,30 @@ int rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen)
 
 }
 
+int rtw_get_wfd_ie_from_scan_queue(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen, u8 frame_type)
+{
+	int match;
+
+	match=_FALSE;
+
+	DBG_871X( "[%s] frame_type = %d\n", __FUNCTION__, frame_type );
+	switch( frame_type )
+	{
+		case 1:
+		case 3:
+		{	//	Beacon or Probe Response
+			match = rtw_get_wfd_ie(in_ie + _PROBERSP_IE_OFFSET_, in_len - _PROBERSP_IE_OFFSET_, wfd_ie, wfd_ielen);
+			break;
+		}
+		case 2:
+		{	//	Probe Request
+			match = rtw_get_wfd_ie(in_ie + _PROBEREQ_IE_OFFSET_ , in_len - _PROBEREQ_IE_OFFSET_ , wfd_ie, wfd_ielen);
+			break;
+		}
+	}
+	return match;
+}
+
 //	attr_content: The output buffer, contains the "body field" of WFD attribute.
 //	attr_contentlen: The data length of the "body field" of WFD attribute.
 int rtw_get_wfd_attr_content(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id ,u8 *attr_content, uint *attr_contentlen)
@@ -2035,68 +2107,68 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 }
 
 //show MCS rate, unit: 100Kbps
-u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI_20, u8 short_GI_40, unsigned char * MCS_rate)
+u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI, unsigned char * MCS_rate)
 {
 	u16 max_rate = 0;
 	
 	if(rf_type == RF_1T1R)
 	{
 		if(MCS_rate[0] & BIT(7))
-			max_rate = (bw_40MHz) ? ((short_GI_40)?1500:1350):((short_GI_20)?722:650);
+			max_rate = (bw_40MHz) ? ((short_GI)?1500:1350):((short_GI)?722:650);
 		else if(MCS_rate[0] & BIT(6))
-			max_rate = (bw_40MHz) ? ((short_GI_40)?1350:1215):((short_GI_20)?650:585);
+			max_rate = (bw_40MHz) ? ((short_GI)?1350:1215):((short_GI)?650:585);
 		else if(MCS_rate[0] & BIT(5))
-			max_rate = (bw_40MHz) ? ((short_GI_40)?1200:1080):((short_GI_20)?578:520);
+			max_rate = (bw_40MHz) ? ((short_GI)?1200:1080):((short_GI)?578:520);
 		else if(MCS_rate[0] & BIT(4))
-			max_rate = (bw_40MHz) ? ((short_GI_40)?900:810):((short_GI_20)?433:390);
+			max_rate = (bw_40MHz) ? ((short_GI)?900:810):((short_GI)?433:390);
 		else if(MCS_rate[0] & BIT(3))
-			max_rate = (bw_40MHz) ? ((short_GI_40)?600:540):((short_GI_20)?289:260);
+			max_rate = (bw_40MHz) ? ((short_GI)?600:540):((short_GI)?289:260);
 		else if(MCS_rate[0] & BIT(2))
-			max_rate = (bw_40MHz) ? ((short_GI_40)?450:405):((short_GI_20)?217:195);
+			max_rate = (bw_40MHz) ? ((short_GI)?450:405):((short_GI)?217:195);
 		else if(MCS_rate[0] & BIT(1))
-			max_rate = (bw_40MHz) ? ((short_GI_40)?300:270):((short_GI_20)?144:130);
+			max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
 		else if(MCS_rate[0] & BIT(0))
-			max_rate = (bw_40MHz) ? ((short_GI_40)?150:135):((short_GI_20)?72:65);
+			max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);
 	}
 	else
 	{
 		if(MCS_rate[1])
 		{
 			if(MCS_rate[1] & BIT(7))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?3000:2700):((short_GI_20)?1444:1300);
+				max_rate = (bw_40MHz) ? ((short_GI)?3000:2700):((short_GI)?1444:1300);
 			else if(MCS_rate[1] & BIT(6))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?2700:2430):((short_GI_20)?1300:1170);
+				max_rate = (bw_40MHz) ? ((short_GI)?2700:2430):((short_GI)?1300:1170);
 			else if(MCS_rate[1] & BIT(5))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?2400:2160):((short_GI_20)?1156:1040);
+				max_rate = (bw_40MHz) ? ((short_GI)?2400:2160):((short_GI)?1156:1040);
 			else if(MCS_rate[1] & BIT(4))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?1800:1620):((short_GI_20)?867:780);
+				max_rate = (bw_40MHz) ? ((short_GI)?1800:1620):((short_GI)?867:780);
 			else if(MCS_rate[1] & BIT(3))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?1200:1080):((short_GI_20)?578:520);
+				max_rate = (bw_40MHz) ? ((short_GI)?1200:1080):((short_GI)?578:520);
 			else if(MCS_rate[1] & BIT(2))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?900:810):((short_GI_20)?433:390);
+				max_rate = (bw_40MHz) ? ((short_GI)?900:810):((short_GI)?433:390);
 			else if(MCS_rate[1] & BIT(1))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?600:540):((short_GI_20)?289:260);
+				max_rate = (bw_40MHz) ? ((short_GI)?600:540):((short_GI)?289:260);
 			else if(MCS_rate[1] & BIT(0))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?300:270):((short_GI_20)?144:130);
+				max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
 		}
 		else
 		{
 			if(MCS_rate[0] & BIT(7))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?1500:1350):((short_GI_20)?722:650);
+				max_rate = (bw_40MHz) ? ((short_GI)?1500:1350):((short_GI)?722:650);
 			else if(MCS_rate[0] & BIT(6))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?1350:1215):((short_GI_20)?650:585);
+				max_rate = (bw_40MHz) ? ((short_GI)?1350:1215):((short_GI)?650:585);
 			else if(MCS_rate[0] & BIT(5))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?1200:1080):((short_GI_20)?578:520);
+				max_rate = (bw_40MHz) ? ((short_GI)?1200:1080):((short_GI)?578:520);
 			else if(MCS_rate[0] & BIT(4))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?900:810):((short_GI_20)?433:390);
+				max_rate = (bw_40MHz) ? ((short_GI)?900:810):((short_GI)?433:390);
 			else if(MCS_rate[0] & BIT(3))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?600:540):((short_GI_20)?289:260);
+				max_rate = (bw_40MHz) ? ((short_GI)?600:540):((short_GI)?289:260);
 			else if(MCS_rate[0] & BIT(2))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?450:405):((short_GI_20)?217:195);
+				max_rate = (bw_40MHz) ? ((short_GI)?450:405):((short_GI)?217:195);
 			else if(MCS_rate[0] & BIT(1))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?300:270):((short_GI_20)?144:130);
+				max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
 			else if(MCS_rate[0] & BIT(0))
-				max_rate = (bw_40MHz) ? ((short_GI_40)?150:135):((short_GI_20)?72:65);
+				max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);
 		}
 	}
 	return max_rate;

@@ -249,6 +249,8 @@
 #define		rOFDM1_CFOTracking			0xd2c
 #define		rOFDM1_TRxMesaure1			0xd34
 #define		rOFDM1_IntfDet				0xd3c
+#define		rOFDM1_csi_fix_mask1				0xd40
+#define		rOFDM1_csi_fix_mask2				0xd44
 #define		rOFDM1_PseudoNoiseStateAB	0xd50
 #define		rOFDM1_PseudoNoiseStateCD	0xd54
 #define		rOFDM1_RxPseudoNoiseWgt		0xd58
@@ -1057,6 +1059,7 @@
 #define		bMaskHWord                		0xffff0000
 #define		bMaskLWord                		0x0000ffff
 #define		bMaskDWord                		0xffffffff
+#define		bMaskH3Bytes				0xffffff00
 #define		bMask12Bits				0xfff	
 #define		bMaskH4Bits				0xf0000000	
 #define 		bMaskOFDM_D			0xffc00000

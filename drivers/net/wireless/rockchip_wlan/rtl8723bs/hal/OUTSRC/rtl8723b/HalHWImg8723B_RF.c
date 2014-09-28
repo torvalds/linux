@@ -18,40 +18,94 @@
 * 
 ******************************************************************************/
 
-//#include "Mp_Precomp.h"
+
 #include "../odm_precomp.h"
 
 #if (RTL8723B_SUPPORT == 1)
 static BOOLEAN
-CheckCondition(
-    const u4Byte  Condition,
-    const u4Byte  Hex
+CheckPositive(
+    IN  PDM_ODM_T     pDM_Odm,
+    IN  const u4Byte  Condition1,
+    IN  const u4Byte  Condition2
     )
 {
-    u4Byte _board     = (Hex & 0x000000FF);
-    u4Byte _interface = (Hex & 0x0000FF00) >> 8;
-    u4Byte _platform  = (Hex & 0x00FF0000) >> 16;
-    u4Byte cond = Condition;
+    u1Byte    _BoardType = ((pDM_Odm->BoardType & BIT4) >> 4) << 0 | // _GLNA
+                           ((pDM_Odm->BoardType & BIT3) >> 3) << 1 | // _GPA 
+                           ((pDM_Odm->BoardType & BIT7) >> 7) << 2 | // _ALNA
+                           ((pDM_Odm->BoardType & BIT6) >> 6) << 3 | // _APA 
+                           ((pDM_Odm->BoardType & BIT2) >> 2) << 4;  // _BT  
 
-    if ( Condition == 0xCDCDCDCD )
-        return TRUE;
+	u4Byte 	  cond1   = Condition1, cond2 = Condition2;
+	u4Byte    driver1 = pDM_Odm->CutVersion       << 24 |  
+		                pDM_Odm->SupportPlatform  << 16 | 
+		                pDM_Odm->PackageType      << 12 | 
+		                pDM_Odm->SupportInterface << 8  |
+		                _BoardType;
 
-    cond = Condition & 0x000000FF;
-    if ( (_board != cond) && (cond != 0xFF) )
+	u4Byte    driver2 = pDM_Odm->TypeGLNA <<  0 |  
+		                pDM_Odm->TypeGPA  <<  8 | 
+		                pDM_Odm->TypeALNA << 16 | 
+		                pDM_Odm->TypeAPA  << 24; 
+
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+                ("===> [8812A] CheckPositive (cond1, cond2) = (0x%X 0x%X)\n", cond1, cond2));
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+                ("===> [8812A] CheckPositive (driver1, driver2) = (0x%X 0x%X)\n", driver1, driver2));
+
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+                ("	(Platform, Interface) = (0x%X, 0x%X)\n", pDM_Odm->SupportPlatform, pDM_Odm->SupportInterface));
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, 
+                ("	(Board, Package) = (0x%X, 0x%X)\n", pDM_Odm->BoardType, pDM_Odm->PackageType));
+
+
+	//============== Value Defined Check ===============//
+	//QFN Type [15:12] and Cut Version [27:24] need to do value check
+	
+	if(((cond1 & 0x0000F000) != 0) &&((cond1 & 0x0000F000) != (driver1 & 0x0000F000)))
+		return FALSE;
+	if(((cond1 & 0x0F000000) != 0) &&((cond1 & 0x0F000000) != (driver1 & 0x0F000000)))
+		return FALSE;		
+
+	//=============== Bit Defined Check ================//
+    // We don't care [31:28] and [23:20]
+    //
+	cond1   &= 0x000F0FFF; 
+	driver1 &= 0x000F0FFF; 
+
+    if ((cond1 & driver1) == cond1) 
+    {
+        u4Byte bitMask = 0;
+        if ((cond1 & 0x0F) == 0) // BoardType is DONTCARE
+            return TRUE;
+
+        if ((cond1 & BIT0) != 0) //GLNA
+            bitMask |= 0x000000FF;
+        if ((cond1 & BIT1) != 0) //GPA
+            bitMask |= 0x0000FF00;
+        if ((cond1 & BIT2) != 0) //ALNA
+            bitMask |= 0x00FF0000;
+        if ((cond1 & BIT3) != 0) //APA
+            bitMask |= 0xFF000000;
+
+        if ((cond2 & bitMask) == (driver2 & bitMask)) // BoardType of each RF path is matched
+            return TRUE;
+        else
+            return FALSE;
+    }
+    else 
+    {
         return FALSE;
-
-    cond = Condition & 0x0000FF00;
-    cond = cond >> 8;
-    if ( ((_interface & cond) == 0) && (cond != 0x07) )
-        return FALSE;
-
-    cond = Condition & 0x00FF0000;
-    cond = cond >> 16;
-    if ( ((_platform & cond) == 0) && (cond != 0x0F) )
-        return FALSE;
+    }
+}
+static BOOLEAN
+CheckNegative(
+    IN  PDM_ODM_T     pDM_Odm,
+    IN  const u4Byte  Condition1,
+    IN  const u4Byte  Condition2
+    )
+{
     return TRUE;
 }
-
 
 /******************************************************************************
 *                           RadioA.TXT
@@ -81,14 +135,30 @@ u4Byte Array_MP_8723B_RadioA[] = {
 		0x01E, 0x00000000,
 		0x0DF, 0x00000780,
 		0x050, 0x00067435,
+	0x80002000,0x00000000,0x40000000,0x00000000,
+		0x051, 0x0006B10E,
+	0x90003000,0x00000000,0x40000000,0x00000000,
+		0x051, 0x0006B10E,
+	0x90004000,0x00000000,0x40000000,0x00000000,
+		0x051, 0x0006B10E,
+	0xA0000000,0x00000000,
 		0x051, 0x0006B04E,
+	0xB0000000,0x00000000,
 		0x052, 0x000007D2,
 		0x053, 0x00000000,
 		0x054, 0x00050400,
 		0x055, 0x0004026E,
 		0x0DD, 0x0000004C,
 		0x070, 0x00067435,
+	0x80002000,0x00000000,0x40000000,0x00000000,
+		0x071, 0x0006B10E,
+	0x90003000,0x00000000,0x40000000,0x00000000,
+		0x071, 0x0006B10E,
+	0x90004000,0x00000000,0x40000000,0x00000000,
+		0x071, 0x0006B10E,
+	0xA0000000,0x00000000,
 		0x071, 0x0006B04E,
+	0xB0000000,0x00000000,
 		0x072, 0x000007D2,
 		0x073, 0x00000000,
 		0x074, 0x00050400,
@@ -161,7 +231,6 @@ u4Byte Array_MP_8723B_RadioA[] = {
 		0x0A3, 0x00008000,
 		0x0A4, 0x00048D80,
 		0x0A5, 0x00068000,
-		0x000, 0x00033D80,
 		0x0ED, 0x00000002,
 		0x0EF, 0x00000002,
 		0x056, 0x00000032,
@@ -175,75 +244,80 @@ ODM_ReadAndConfig_MP_8723B_RadioA(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
-	#define READ_NEXT_PAIR(v1, v2, i) do { i += 2; v1 = Array[i]; v2 = Array[i+1]; } while(0)
-
-	u4Byte     hex         = 0;
-	u4Byte     i           = 0;
-	u2Byte     count       = 0;
-	pu4Byte    ptr_array   = NULL;
-	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     _interface   = pDM_Odm->SupportInterface;
-	u1Byte     board       = pDM_Odm->BoardType;  
-	u4Byte     ArrayLen    = sizeof(Array_MP_8723B_RadioA)/sizeof(u4Byte);
-	pu4Byte    Array       = Array_MP_8723B_RadioA;
-
-
-	hex += board;
-	hex += _interface << 8;
-	hex += platform << 16;
-	hex += 0xFF000000;
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("===> ODM_ReadAndConfig_MP_8723B_RadioA, hex = 0x%X\n", hex));
-
-	for (i = 0; i < ArrayLen; i += 2 )
-	{
-	    u4Byte v1 = Array[i];
-	    u4Byte v2 = Array[i+1];
+    u4Byte     i         = 0;
+    u4Byte     ArrayLen    = sizeof(Array_MP_8723B_RadioA)/sizeof(u4Byte);
+    pu4Byte    Array       = Array_MP_8723B_RadioA;
 	
-	    // This (offset, data) pair meets the condition.
-	    if ( v1 < 0xCDCDCDCD )
-	    {
-		    odm_ConfigRF_RadioA_8723B(pDM_Odm, v1, v2);
-		    continue;
-	 	}
-		else
-		{ // This line is the start line of branch.
-		    if ( !CheckCondition(Array[i], hex) )
-		    { // Discard the following (offset, data) pairs.
-		        READ_NEXT_PAIR(v1, v2, i);
-		        while (v2 != 0xDEAD && 
-		               v2 != 0xCDEF && 
-		               v2 != 0xCDCD && i < ArrayLen -2)
-		        {
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
-		        i -= 2; // prevent from for-loop += 2
-		    }
-		    else // Configure matched pairs and skip to end of if-else.
-		    {
-		        READ_NEXT_PAIR(v1, v2, i);
-		        while (v2 != 0xDEAD && 
-		               v2 != 0xCDEF && 
-		               v2 != 0xCDCD && i < ArrayLen -2)
-		        {
-		    		odm_ConfigRF_RadioA_8723B(pDM_Odm, v1, v2);
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
+    ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_8723B_RadioA\n"));
 
-		        while (v2 != 0xDEAD && i < ArrayLen -2)
-		        {
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
-		        
-		    }
-		}	
-	}
+    for (i = 0; i < ArrayLen; i += 2 )
+    {
+        u4Byte v1 = Array[i];
+        u4Byte v2 = Array[i+1];
+    
+        // This (offset, data) pair doesn't care the condition.
+        if ( v1 < 0x40000000 )
+        {
+           odm_ConfigRF_RadioA_8723B(pDM_Odm, v1, v2);
+           continue;
+        }
+        else
+        {   // This line is the beginning of branch.
+            BOOLEAN bMatched = TRUE;
+            u1Byte  cCond  = (u1Byte)((v1 & (BIT29|BIT28)) >> 28);
 
+            if (cCond == COND_ELSE) { // ELSE, ENDIF
+                bMatched = TRUE;
+                READ_NEXT_PAIR(v1, v2, i);
+            } else if ( ! CheckPositive(pDM_Odm, v1, v2) ) { 
+                bMatched = FALSE;
+                READ_NEXT_PAIR(v1, v2, i);
+                READ_NEXT_PAIR(v1, v2, i);
+            } else {
+                READ_NEXT_PAIR(v1, v2, i);
+                if ( ! CheckNegative(pDM_Odm, v1, v2) )
+                    bMatched = FALSE;
+                else
+                    bMatched = TRUE;
+                READ_NEXT_PAIR(v1, v2, i);
+            }
+
+            if ( bMatched == FALSE )
+            {   // Condition isn't matched. Discard the following (offset, data) pairs.
+                while (v1 < 0x40000000 && i < ArrayLen -2)
+                    READ_NEXT_PAIR(v1, v2, i);
+
+                i -= 2; // prevent from for-loop += 2
+            }
+            else // Configure matched pairs and skip to end of if-else.
+            {
+                while (v1 < 0x40000000 && i < ArrayLen-2) {
+                    odm_ConfigRF_RadioA_8723B(pDM_Odm, v1, v2);
+                    READ_NEXT_PAIR(v1, v2, i);
+                }
+
+                // Keeps reading until ENDIF.
+                cCond = (u1Byte)((v1 & (BIT29|BIT28)) >> 28);
+                while (cCond != COND_ENDIF && i < ArrayLen-2) {
+                    READ_NEXT_PAIR(v1, v2, i);
+                    cCond = (u1Byte)((v1 & (BIT29|BIT28)) >> 28);
+                }
+            }
+        } 
+    }
+}
+
+u4Byte
+ODM_GetVersion_MP_8723B_RadioA(void)
+{
+	   return 11;
 }
 
 /******************************************************************************
 *                           TxPowerTrack_AP.TXT
 ******************************************************************************/
 
+#if (DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
 u1Byte gDeltaSwingTableIdx_MP_5GB_N_TxPowerTrack_AP_8723B[][DELTA_SWINGIDX_SIZE] = {
 	{0, 1, 1, 2, 2, 3, 4, 5, 5, 6,  6,  7,  7,  8,  8,  9,  9, 10, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14},
 	{0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14},
@@ -272,15 +346,17 @@ u1Byte gDeltaSwingTableIdx_MP_2GCCKB_N_TxPowerTrack_AP_8723B[] = {0, 0, 1, 2, 2,
 u1Byte gDeltaSwingTableIdx_MP_2GCCKB_P_TxPowerTrack_AP_8723B[] = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
 u1Byte gDeltaSwingTableIdx_MP_2GCCKA_N_TxPowerTrack_AP_8723B[] = {0, 0, 1, 2, 2, 3, 3, 4, 4, 5,  6,  6,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
 u1Byte gDeltaSwingTableIdx_MP_2GCCKA_P_TxPowerTrack_AP_8723B[] = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
+#endif
 
 void
 ODM_ReadAndConfig_MP_8723B_TxPowerTrack_AP(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
+#if (DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
 	PODM_RF_CAL_T  pRFCalibrateInfo = &(pDM_Odm->RFCalibrateInfo);
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("===> ODM_ReadAndConfig_MP_MP_8723B\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_MP_8723B\n"));
 
 
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_2GA_P, gDeltaSwingTableIdx_MP_2GA_P_TxPowerTrack_AP_8723B, DELTA_SWINGIDX_SIZE);
@@ -297,12 +373,14 @@ ODM_ReadAndConfig_MP_8723B_TxPowerTrack_AP(
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GA_N, gDeltaSwingTableIdx_MP_5GA_N_TxPowerTrack_AP_8723B, DELTA_SWINGIDX_SIZE*3);
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GB_P, gDeltaSwingTableIdx_MP_5GB_P_TxPowerTrack_AP_8723B, DELTA_SWINGIDX_SIZE*3);
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GB_N, gDeltaSwingTableIdx_MP_5GB_N_TxPowerTrack_AP_8723B, DELTA_SWINGIDX_SIZE*3);
+#endif
 }
 
 /******************************************************************************
 *                           TxPowerTrack_PCIE.TXT
 ******************************************************************************/
 
+#if DEV_BUS_TYPE == RT_PCI_INTERFACE
 u1Byte gDeltaSwingTableIdx_MP_5GB_N_TxPowerTrack_PCIE_8723B[][DELTA_SWINGIDX_SIZE] = {
 	{0, 1, 1, 2, 2, 3, 4, 5, 5, 6,  6,  7,  7,  8,  8,  9,  9, 10, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14},
 	{0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14},
@@ -331,15 +409,17 @@ u1Byte gDeltaSwingTableIdx_MP_2GCCKB_N_TxPowerTrack_PCIE_8723B[] = {0, 0, 1, 2, 
 u1Byte gDeltaSwingTableIdx_MP_2GCCKB_P_TxPowerTrack_PCIE_8723B[] = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
 u1Byte gDeltaSwingTableIdx_MP_2GCCKA_N_TxPowerTrack_PCIE_8723B[] = {0, 0, 1, 2, 2, 3, 3, 4, 4, 5,  6,  6,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
 u1Byte gDeltaSwingTableIdx_MP_2GCCKA_P_TxPowerTrack_PCIE_8723B[] = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
+#endif
 
 void
 ODM_ReadAndConfig_MP_8723B_TxPowerTrack_PCIE(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
+#if DEV_BUS_TYPE == RT_PCI_INTERFACE
 	PODM_RF_CAL_T  pRFCalibrateInfo = &(pDM_Odm->RFCalibrateInfo);
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("===> ODM_ReadAndConfig_MP_MP_8723B\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_MP_8723B\n"));
 
 
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_2GA_P, gDeltaSwingTableIdx_MP_2GA_P_TxPowerTrack_PCIE_8723B, DELTA_SWINGIDX_SIZE);
@@ -356,12 +436,14 @@ ODM_ReadAndConfig_MP_8723B_TxPowerTrack_PCIE(
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GA_N, gDeltaSwingTableIdx_MP_5GA_N_TxPowerTrack_PCIE_8723B, DELTA_SWINGIDX_SIZE*3);
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GB_P, gDeltaSwingTableIdx_MP_5GB_P_TxPowerTrack_PCIE_8723B, DELTA_SWINGIDX_SIZE*3);
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GB_N, gDeltaSwingTableIdx_MP_5GB_N_TxPowerTrack_PCIE_8723B, DELTA_SWINGIDX_SIZE*3);
+#endif
 }
 
 /******************************************************************************
 *                           TxPowerTrack_SDIO.TXT
 ******************************************************************************/
 
+#if DEV_BUS_TYPE == RT_SDIO_INTERFACE
 u1Byte gDeltaSwingTableIdx_MP_5GB_N_TxPowerTrack_SDIO_8723B[][DELTA_SWINGIDX_SIZE] = {
 	{0, 1, 1, 2, 2, 3, 4, 5, 5, 6,  6,  7,  7,  8,  8,  9,  9, 10, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14},
 	{0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14},
@@ -383,22 +465,24 @@ u1Byte gDeltaSwingTableIdx_MP_5GA_P_TxPowerTrack_SDIO_8723B[][DELTA_SWINGIDX_SIZ
 	{0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  8,  9,  9, 10, 11, 12, 12, 13, 14, 15, 15, 16, 17, 18, 18, 19, 20, 21, 21, 21},
 };
 u1Byte gDeltaSwingTableIdx_MP_2GB_N_TxPowerTrack_SDIO_8723B[]    = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  6,  6,  7,  7,  7,  8,  8,  9,  9, 10, 10, 11, 12, 13, 14, 15};
-u1Byte gDeltaSwingTableIdx_MP_2GB_P_TxPowerTrack_SDIO_8723B[]    = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
+u1Byte gDeltaSwingTableIdx_MP_2GB_P_TxPowerTrack_SDIO_8723B[]    = {0, 0, 1, 2, 2, 3, 3, 4, 5, 5,  6,  6,  7,  7,  8,  8,  9,  9, 10, 10, 10, 11, 11, 12, 12, 13, 13, 14, 15, 15};
 u1Byte gDeltaSwingTableIdx_MP_2GA_N_TxPowerTrack_SDIO_8723B[]    = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  6,  6,  7,  7,  7,  8,  8,  9,  9, 10, 10, 11, 12, 13, 14, 15};
-u1Byte gDeltaSwingTableIdx_MP_2GA_P_TxPowerTrack_SDIO_8723B[]    = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
+u1Byte gDeltaSwingTableIdx_MP_2GA_P_TxPowerTrack_SDIO_8723B[]    = {0, 0, 1, 2, 2, 3, 3, 4, 5, 5,  6,  6,  7,  7,  8,  8,  9,  9, 10, 10, 10, 11, 11, 12, 12, 13, 13, 14, 15, 15};
 u1Byte gDeltaSwingTableIdx_MP_2GCCKB_N_TxPowerTrack_SDIO_8723B[] = {0, 0, 1, 2, 2, 3, 3, 4, 4, 5,  6,  6,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
 u1Byte gDeltaSwingTableIdx_MP_2GCCKB_P_TxPowerTrack_SDIO_8723B[] = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
 u1Byte gDeltaSwingTableIdx_MP_2GCCKA_N_TxPowerTrack_SDIO_8723B[] = {0, 0, 1, 2, 2, 3, 3, 4, 4, 5,  6,  6,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
 u1Byte gDeltaSwingTableIdx_MP_2GCCKA_P_TxPowerTrack_SDIO_8723B[] = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
+#endif
 
 void
 ODM_ReadAndConfig_MP_8723B_TxPowerTrack_SDIO(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
+#if DEV_BUS_TYPE == RT_SDIO_INTERFACE
 	PODM_RF_CAL_T  pRFCalibrateInfo = &(pDM_Odm->RFCalibrateInfo);
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("===> ODM_ReadAndConfig_MP_MP_8723B\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_MP_8723B\n"));
 
 
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_2GA_P, gDeltaSwingTableIdx_MP_2GA_P_TxPowerTrack_SDIO_8723B, DELTA_SWINGIDX_SIZE);
@@ -415,12 +499,14 @@ ODM_ReadAndConfig_MP_8723B_TxPowerTrack_SDIO(
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GA_N, gDeltaSwingTableIdx_MP_5GA_N_TxPowerTrack_SDIO_8723B, DELTA_SWINGIDX_SIZE*3);
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GB_P, gDeltaSwingTableIdx_MP_5GB_P_TxPowerTrack_SDIO_8723B, DELTA_SWINGIDX_SIZE*3);
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GB_N, gDeltaSwingTableIdx_MP_5GB_N_TxPowerTrack_SDIO_8723B, DELTA_SWINGIDX_SIZE*3);
+#endif
 }
 
 /******************************************************************************
 *                           TxPowerTrack_USB.TXT
 ******************************************************************************/
 
+#if DEV_BUS_TYPE == RT_USB_INTERFACE
 u1Byte gDeltaSwingTableIdx_MP_5GB_N_TxPowerTrack_USB_8723B[][DELTA_SWINGIDX_SIZE] = {
 	{0, 1, 1, 2, 2, 3, 4, 5, 5, 6,  6,  7,  7,  8,  8,  9,  9, 10, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14},
 	{0, 1, 2, 3, 3, 4, 5, 6, 6, 7,  7,  8,  8,  9,  9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 14, 14, 14, 14, 14},
@@ -449,15 +535,17 @@ u1Byte gDeltaSwingTableIdx_MP_2GCCKB_N_TxPowerTrack_USB_8723B[] = {0, 0, 1, 2, 2
 u1Byte gDeltaSwingTableIdx_MP_2GCCKB_P_TxPowerTrack_USB_8723B[] = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
 u1Byte gDeltaSwingTableIdx_MP_2GCCKA_N_TxPowerTrack_USB_8723B[] = {0, 0, 1, 2, 2, 3, 3, 4, 4, 5,  6,  6,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
 u1Byte gDeltaSwingTableIdx_MP_2GCCKA_P_TxPowerTrack_USB_8723B[] = {0, 0, 1, 2, 2, 2, 3, 3, 3, 4,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9,  9, 10, 10, 11, 11, 12, 12, 13, 14, 15};
+#endif
 
 void
 ODM_ReadAndConfig_MP_8723B_TxPowerTrack_USB(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
+#if DEV_BUS_TYPE == RT_USB_INTERFACE
 	PODM_RF_CAL_T  pRFCalibrateInfo = &(pDM_Odm->RFCalibrateInfo);
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("===> ODM_ReadAndConfig_MP_MP_8723B\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_MP_8723B\n"));
 
 
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_2GA_P, gDeltaSwingTableIdx_MP_2GA_P_TxPowerTrack_USB_8723B, DELTA_SWINGIDX_SIZE);
@@ -474,6 +562,7 @@ ODM_ReadAndConfig_MP_8723B_TxPowerTrack_USB(
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GA_N, gDeltaSwingTableIdx_MP_5GA_N_TxPowerTrack_USB_8723B, DELTA_SWINGIDX_SIZE*3);
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GB_P, gDeltaSwingTableIdx_MP_5GB_P_TxPowerTrack_USB_8723B, DELTA_SWINGIDX_SIZE*3);
 	ODM_MoveMemory(pDM_Odm, pRFCalibrateInfo->DeltaSwingTableIdx_5GB_N, gDeltaSwingTableIdx_MP_5GB_N_TxPowerTrack_USB_8723B, DELTA_SWINGIDX_SIZE*3);
+#endif
 }
 
 /******************************************************************************
@@ -487,25 +576,25 @@ pu1Byte Array_MP_8723B_TXPWR_LMT[] = {
 	"FCC", "2.4G", "20M", "CCK", "1T", "02", "32", 
 	"ETSI", "2.4G", "20M", "CCK", "1T", "02", "32", 
 	"MKK", "2.4G", "20M", "CCK", "1T", "02", "32",
-	"FCC", "2.4G", "20M", "CCK", "1T", "03", "34", 
+	"FCC", "2.4G", "20M", "CCK", "1T", "03", "32", 
 	"ETSI", "2.4G", "20M", "CCK", "1T", "03", "32", 
 	"MKK", "2.4G", "20M", "CCK", "1T", "03", "32",
-	"FCC", "2.4G", "20M", "CCK", "1T", "04", "34", 
+	"FCC", "2.4G", "20M", "CCK", "1T", "04", "32", 
 	"ETSI", "2.4G", "20M", "CCK", "1T", "04", "32", 
 	"MKK", "2.4G", "20M", "CCK", "1T", "04", "32",
-	"FCC", "2.4G", "20M", "CCK", "1T", "05", "34", 
+	"FCC", "2.4G", "20M", "CCK", "1T", "05", "32", 
 	"ETSI", "2.4G", "20M", "CCK", "1T", "05", "32", 
 	"MKK", "2.4G", "20M", "CCK", "1T", "05", "32",
-	"FCC", "2.4G", "20M", "CCK", "1T", "06", "34", 
+	"FCC", "2.4G", "20M", "CCK", "1T", "06", "32", 
 	"ETSI", "2.4G", "20M", "CCK", "1T", "06", "32", 
 	"MKK", "2.4G", "20M", "CCK", "1T", "06", "32",
-	"FCC", "2.4G", "20M", "CCK", "1T", "07", "34", 
+	"FCC", "2.4G", "20M", "CCK", "1T", "07", "32", 
 	"ETSI", "2.4G", "20M", "CCK", "1T", "07", "32", 
 	"MKK", "2.4G", "20M", "CCK", "1T", "07", "32",
-	"FCC", "2.4G", "20M", "CCK", "1T", "08", "34", 
+	"FCC", "2.4G", "20M", "CCK", "1T", "08", "32", 
 	"ETSI", "2.4G", "20M", "CCK", "1T", "08", "32", 
 	"MKK", "2.4G", "20M", "CCK", "1T", "08", "32",
-	"FCC", "2.4G", "20M", "CCK", "1T", "09", "34", 
+	"FCC", "2.4G", "20M", "CCK", "1T", "09", "32", 
 	"ETSI", "2.4G", "20M", "CCK", "1T", "09", "32", 
 	"MKK", "2.4G", "20M", "CCK", "1T", "09", "32",
 	"FCC", "2.4G", "20M", "CCK", "1T", "10", "32", 
@@ -529,25 +618,25 @@ pu1Byte Array_MP_8723B_TXPWR_LMT[] = {
 	"FCC", "2.4G", "20M", "OFDM", "1T", "02", "28", 
 	"ETSI", "2.4G", "20M", "OFDM", "1T", "02", "32", 
 	"MKK", "2.4G", "20M", "OFDM", "1T", "02", "32",
-	"FCC", "2.4G", "20M", "OFDM", "1T", "03", "34", 
+	"FCC", "2.4G", "20M", "OFDM", "1T", "03", "32", 
 	"ETSI", "2.4G", "20M", "OFDM", "1T", "03", "32", 
 	"MKK", "2.4G", "20M", "OFDM", "1T", "03", "32",
-	"FCC", "2.4G", "20M", "OFDM", "1T", "04", "34", 
+	"FCC", "2.4G", "20M", "OFDM", "1T", "04", "32", 
 	"ETSI", "2.4G", "20M", "OFDM", "1T", "04", "32", 
 	"MKK", "2.4G", "20M", "OFDM", "1T", "04", "32",
-	"FCC", "2.4G", "20M", "OFDM", "1T", "05", "34", 
+	"FCC", "2.4G", "20M", "OFDM", "1T", "05", "32", 
 	"ETSI", "2.4G", "20M", "OFDM", "1T", "05", "32", 
 	"MKK", "2.4G", "20M", "OFDM", "1T", "05", "32",
-	"FCC", "2.4G", "20M", "OFDM", "1T", "06", "34", 
+	"FCC", "2.4G", "20M", "OFDM", "1T", "06", "32", 
 	"ETSI", "2.4G", "20M", "OFDM", "1T", "06", "32", 
 	"MKK", "2.4G", "20M", "OFDM", "1T", "06", "32",
-	"FCC", "2.4G", "20M", "OFDM", "1T", "07", "34", 
+	"FCC", "2.4G", "20M", "OFDM", "1T", "07", "32", 
 	"ETSI", "2.4G", "20M", "OFDM", "1T", "07", "32", 
 	"MKK", "2.4G", "20M", "OFDM", "1T", "07", "32",
-	"FCC", "2.4G", "20M", "OFDM", "1T", "08", "34", 
+	"FCC", "2.4G", "20M", "OFDM", "1T", "08", "32", 
 	"ETSI", "2.4G", "20M", "OFDM", "1T", "08", "32", 
 	"MKK", "2.4G", "20M", "OFDM", "1T", "08", "32",
-	"FCC", "2.4G", "20M", "OFDM", "1T", "09", "34", 
+	"FCC", "2.4G", "20M", "OFDM", "1T", "09", "32", 
 	"ETSI", "2.4G", "20M", "OFDM", "1T", "09", "32", 
 	"MKK", "2.4G", "20M", "OFDM", "1T", "09", "32",
 	"FCC", "2.4G", "20M", "OFDM", "1T", "10", "28", 
@@ -571,25 +660,25 @@ pu1Byte Array_MP_8723B_TXPWR_LMT[] = {
 	"FCC", "2.4G", "20M", "HT", "1T", "02", "26", 
 	"ETSI", "2.4G", "20M", "HT", "1T", "02", "32", 
 	"MKK", "2.4G", "20M", "HT", "1T", "02", "32",
-	"FCC", "2.4G", "20M", "HT", "1T", "03", "34", 
+	"FCC", "2.4G", "20M", "HT", "1T", "03", "32", 
 	"ETSI", "2.4G", "20M", "HT", "1T", "03", "32", 
 	"MKK", "2.4G", "20M", "HT", "1T", "03", "32",
-	"FCC", "2.4G", "20M", "HT", "1T", "04", "34", 
+	"FCC", "2.4G", "20M", "HT", "1T", "04", "32", 
 	"ETSI", "2.4G", "20M", "HT", "1T", "04", "32", 
 	"MKK", "2.4G", "20M", "HT", "1T", "04", "32",
-	"FCC", "2.4G", "20M", "HT", "1T", "05", "34", 
+	"FCC", "2.4G", "20M", "HT", "1T", "05", "32", 
 	"ETSI", "2.4G", "20M", "HT", "1T", "05", "32", 
 	"MKK", "2.4G", "20M", "HT", "1T", "05", "32",
-	"FCC", "2.4G", "20M", "HT", "1T", "06", "34", 
+	"FCC", "2.4G", "20M", "HT", "1T", "06", "32", 
 	"ETSI", "2.4G", "20M", "HT", "1T", "06", "32", 
 	"MKK", "2.4G", "20M", "HT", "1T", "06", "32",
-	"FCC", "2.4G", "20M", "HT", "1T", "07", "34", 
+	"FCC", "2.4G", "20M", "HT", "1T", "07", "32", 
 	"ETSI", "2.4G", "20M", "HT", "1T", "07", "32", 
 	"MKK", "2.4G", "20M", "HT", "1T", "07", "32",
-	"FCC", "2.4G", "20M", "HT", "1T", "08", "34", 
+	"FCC", "2.4G", "20M", "HT", "1T", "08", "32", 
 	"ETSI", "2.4G", "20M", "HT", "1T", "08", "32", 
 	"MKK", "2.4G", "20M", "HT", "1T", "08", "32",
-	"FCC", "2.4G", "20M", "HT", "1T", "09", "34", 
+	"FCC", "2.4G", "20M", "HT", "1T", "09", "32", 
 	"ETSI", "2.4G", "20M", "HT", "1T", "09", "32", 
 	"MKK", "2.4G", "20M", "HT", "1T", "09", "32",
 	"FCC", "2.4G", "20M", "HT", "1T", "10", "26", 
@@ -670,10 +759,10 @@ pu1Byte Array_MP_8723B_TXPWR_LMT[] = {
 	"FCC", "2.4G", "40M", "HT", "1T", "07", "32", 
 	"ETSI", "2.4G", "40M", "HT", "1T", "07", "32", 
 	"MKK", "2.4G", "40M", "HT", "1T", "07", "32",
-	"FCC", "2.4G", "40M", "HT", "1T", "08", "32", 
+	"FCC", "2.4G", "40M", "HT", "1T", "08", "26", 
 	"ETSI", "2.4G", "40M", "HT", "1T", "08", "32", 
 	"MKK", "2.4G", "40M", "HT", "1T", "08", "32",
-	"FCC", "2.4G", "40M", "HT", "1T", "09", "32", 
+	"FCC", "2.4G", "40M", "HT", "1T", "09", "26", 
 	"ETSI", "2.4G", "40M", "HT", "1T", "09", "32", 
 	"MKK", "2.4G", "40M", "HT", "1T", "09", "32",
 	"FCC", "2.4G", "40M", "HT", "1T", "10", "26", 
@@ -744,8 +833,7 @@ ODM_ReadAndConfig_MP_8723B_TXPWR_LMT(
 	u4Byte     ArrayLen    = sizeof(Array_MP_8723B_TXPWR_LMT)/sizeof(pu1Byte);
 	pu1Byte    *Array      = Array_MP_8723B_TXPWR_LMT;
 
-
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_TRACE, ("===> ODM_ReadAndConfig_MP_8723B_TXPWR_LMT\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_8723B_TXPWR_LMT\n"));
 
 	for (i = 0; i < ArrayLen; i += 7 )
 	{

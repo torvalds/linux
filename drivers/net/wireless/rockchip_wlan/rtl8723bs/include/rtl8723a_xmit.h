@@ -48,7 +48,7 @@
 
 //OFFSET 8
 #define AGG_EN		BIT(29)
-
+#define AMPDU_DENSITY_SHT 20
 //OFFSET 12
 #define SEQ_SHT		16
 

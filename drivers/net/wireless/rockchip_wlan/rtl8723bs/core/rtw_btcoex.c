@@ -28,9 +28,14 @@ void rtw_btcoex_Initialize(PADAPTER padapter)
 	hal_btcoex_Initialize(padapter);
 }
 
-void rtw_btcoex_HAL_Initialize(PADAPTER padapter)
+void rtw_btcoex_PowerOnSetting(PADAPTER padapter)
 {
-	hal_btcoex_InitHwConfig(padapter);
+	hal_btcoex_PowerOnSetting(padapter);
+}
+
+void rtw_btcoex_HAL_Initialize(PADAPTER padapter, u8 bWifiOnly)
+{
+	hal_btcoex_InitHwConfig(padapter, bWifiOnly);
 }
 
 void rtw_btcoex_IpsNotify(PADAPTER padapter, u8 type)
@@ -114,6 +119,11 @@ void rtw_btcoex_SpecialPacketNotify(PADAPTER padapter, u8 pktType)
 	hal_btcoex_SpecialPacketNotify(padapter, pktType);
 }
 
+void rtw_btcoex_IQKNotify(PADAPTER padapter, u8 state)
+{
+	hal_btcoex_IQKNotify(padapter, state);
+}
+
 void rtw_btcoex_BtInfoNotify(PADAPTER padapter, u8 length, u8 *tmpBuf)
 {
 	hal_btcoex_BtInfoNotify(padapter, length, tmpBuf);
@@ -145,9 +155,9 @@ void rtw_btcoex_HaltNotify(PADAPTER padapter)
 	hal_btcoex_HaltNotify(padapter);
 }
 
-void rtw_btcoex_SwitchGntBt(PADAPTER padapter)
+void rtw_btcoex_SwitchBtTRxMask(PADAPTER padapter)
 {
-	hal_btcoex_SwitchGntBt(padapter);	
+	hal_btcoex_SwitchBtTRxMask(padapter);	
 }
 
 void rtw_btcoex_Switch(PADAPTER padapter, u8 enable)
@@ -245,6 +255,11 @@ u8 rtw_btcoex_GetPGAntNum(PADAPTER padapter)
 	return hal_btcoex_GetPgAntNum(padapter);
 }
 
+void rtw_btcoex_SetSingleAntPath(PADAPTER padapter, u8 singleAntPath)
+{
+	hal_btcoex_SetSingleAntPath(padapter, singleAntPath);
+}
+
 u32 rtw_btcoex_GetRaMask(PADAPTER padapter)
 {
 	return hal_btcoex_GetRaMask(padapter);
@@ -294,7 +309,8 @@ void rtw_btcoex_RejectApAggregatedPacket(PADAPTER padapter, u8 enable)
 	if (_TRUE == enable)
 	{
 		pmlmeinfo->bAcceptAddbaReq = _FALSE;
-		send_delba(padapter, 0, psta->hwaddr);
+		if (psta)
+			send_delba(padapter, 0, psta->hwaddr);
 	}
 	else
 	{

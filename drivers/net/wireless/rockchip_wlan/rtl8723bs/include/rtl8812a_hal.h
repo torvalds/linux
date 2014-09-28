@@ -47,32 +47,32 @@
 //---------------------------------------------------------------------
 //		RTL8812AU From header
 //---------------------------------------------------------------------
-		#define RTL8812_FW_IMG						"rtl8812A/FW_NIC.bin"
-		#define RTL8812_FW_WW_IMG				"rtl8812A/FW_WoWLAN.bin"
-		#define RTL8812_PHY_REG					"rtl8812A/PHY_REG.txt" 
-		#define RTL8812_PHY_RADIO_A				"rtl8812A/RadioA.txt"
-		#define RTL8812_PHY_RADIO_B				"rtl8812A/RadioB.txt"
-		#define RTL8812_TXPWR_TRACK				"rtl8812A/TxPowerTrack.txt"			
-		#define RTL8812_AGC_TAB					"rtl8812A/AGC_TAB.txt"
-		#define RTL8812_PHY_MACREG 				"rtl8812A/MAC_REG.txt"
-		#define RTL8812_PHY_REG_PG					"rtl8812A/PHY_REG_PG.txt"
-		#define RTL8812_PHY_REG_MP 				"rtl8812A/PHY_REG_MP.txt" 
-		#define RTL8812_TXPWR_LMT					"rtl8812A/TXPWR_LMT.txt" 
+		#define RTL8812_FW_IMG						"rtl8812a/FW_NIC.bin"
+		#define RTL8812_FW_WW_IMG				"rtl8812a/FW_WoWLAN.bin"
+		#define RTL8812_PHY_REG					"rtl8812a/PHY_REG.txt" 
+		#define RTL8812_PHY_RADIO_A				"rtl8812a/RadioA.txt"
+		#define RTL8812_PHY_RADIO_B				"rtl8812a/RadioB.txt"
+		#define RTL8812_TXPWR_TRACK				"rtl8812a/TxPowerTrack.txt"			
+		#define RTL8812_AGC_TAB					"rtl8812a/AGC_TAB.txt"
+		#define RTL8812_PHY_MACREG 				"rtl8812a/MAC_REG.txt"
+		#define RTL8812_PHY_REG_PG					"rtl8812a/PHY_REG_PG.txt"
+		#define RTL8812_PHY_REG_MP 				"rtl8812a/PHY_REG_MP.txt" 
+		#define RTL8812_TXPWR_LMT					"rtl8812a/TXPWR_LMT.txt" 
 
 //---------------------------------------------------------------------
 //		RTL8821U From file
 //---------------------------------------------------------------------
-		#define RTL8821_FW_IMG						"rtl8821A/FW_NIC.bin"
-		#define RTL8821_FW_WW_IMG				"rtl8821A/FW_WoWLAN.bin"
-		#define RTL8821_PHY_REG					"rtl8821A/PHY_REG.txt" 
-		#define RTL8821_PHY_RADIO_A				"rtl8821A/RadioA.txt"
-		#define RTL8821_PHY_RADIO_B				"rtl8821A/RadioB.txt" 
-		#define RTL8821_TXPWR_TRACK				"rtl8821A/TxPowerTrack.txt"		
-		#define RTL8821_AGC_TAB					"rtl8821A/AGC_TAB.txt"
-		#define RTL8821_PHY_MACREG 				"rtl8821A/MAC_REG.txt"
-		#define RTL8821_PHY_REG_PG					"rtl8821A/PHY_REG_PG.txt"
-		#define RTL8821_PHY_REG_MP 				"rtl8821A/PHY_REG_MP.txt"
-		#define RTL8821_TXPWR_LMT					"rtl8821A/TXPWR_LMT.txt" 
+		#define RTL8821_FW_IMG						"rtl8821a/FW_NIC.bin"
+		#define RTL8821_FW_WW_IMG				"rtl8821a/FW_WoWLAN.bin"
+		#define RTL8821_PHY_REG					"rtl8821a/PHY_REG.txt" 
+		#define RTL8821_PHY_RADIO_A				"rtl8821a/RadioA.txt"
+		#define RTL8821_PHY_RADIO_B				"rtl8821a/RadioB.txt" 
+		#define RTL8821_TXPWR_TRACK				"rtl8821a/TxPowerTrack.txt"		
+		#define RTL8821_AGC_TAB					"rtl8821a/AGC_TAB.txt"
+		#define RTL8821_PHY_MACREG 				"rtl8821a/MAC_REG.txt"
+		#define RTL8821_PHY_REG_PG					"rtl8821a/PHY_REG_PG.txt"
+		#define RTL8821_PHY_REG_MP 				"rtl8821a/PHY_REG_MP.txt"
+		#define RTL8821_TXPWR_LMT					"rtl8821a/TXPWR_LMT.txt" 
 
 //---------------------------------------------------------------------
 //		RTL8812 Power Configuration CMDs for PCIe interface
@@ -159,26 +159,33 @@ typedef struct _RT_FIRMWARE_8812 {
 #define BCN_DMA_ATIME_INT_TIME_8812		0x02
 
 //for 8812
+// TX 128K, RX 16K, Page size 512B for TX, 128B for RX
 #define MAX_RX_DMA_BUFFER_SIZE_8812	0x3E80   //0x3FFF	// RX 16K
 
-#define TX_TOTAL_PAGE_NUMBER_8812		0xF8
+#define BCNQ_PAGE_NUM_8812		0x07
 
+//For WoWLan , more reserved page
+//ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:1,GTK EXT MEM:1, PNO: 6
+#ifdef CONFIG_WOWLAN
+#define WOWLAN_PAGE_NUM_8812	0x05
+#else
+#define WOWLAN_PAGE_NUM_8812	0x00
+#endif
+
+#define TX_TOTAL_PAGE_NUMBER_8812	(0xFF - BCNQ_PAGE_NUM_8812 - WOWLAN_PAGE_NUM_8812)
 #define TX_PAGE_BOUNDARY_8812			(TX_TOTAL_PAGE_NUMBER_8812 + 1)
-#define TX_PAGE_LOAD_FW_BOUNDARY_8812		0x47 //0xA5
+
 #define TX_PAGE_BOUNDARY_WOWLAN_8812		0xE0
 
-// For Normal Chip Setting
-// (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_92C
-#define NORMAL_PAGE_NUM_PUBQ_8812			0xD8
-#define NORMAL_PAGE_NUM_LPQ_8812				0x10
-#define NORMAL_PAGE_NUM_HPQ_8812			0x10
-#define NORMAL_PAGE_NUM_NPQ_8812				0x00
-
-//Note: For WMM Normal Chip Setting ,modify later
-#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8812	0xFB
+#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8812	TX_PAGE_BOUNDARY_8812
 #define WMM_NORMAL_TX_PAGE_BOUNDARY_8812		(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8812 + 1)
 
-#define WMM_NORMAL_PAGE_NUM_PUBQ_8812		0x8B
+// For Normal Chip Setting
+// (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_8812
+#define NORMAL_PAGE_NUM_LPQ_8812				0x10
+#define NORMAL_PAGE_NUM_HPQ_8812			0x10
+#define NORMAL_PAGE_NUM_NPQ_8812			0x00
+
 #define WMM_NORMAL_PAGE_NUM_HPQ_8812		0x30
 #define WMM_NORMAL_PAGE_NUM_LPQ_8812		0x20
 #define WMM_NORMAL_PAGE_NUM_NPQ_8812		0x20
@@ -198,24 +205,27 @@ typedef struct _RT_FIRMWARE_8812 {
 #define BCNQ1_PAGE_NUM_8821		0x00
 #endif
 
-// For Normal Chip Setting
-#define TX_TOTAL_PAGE_NUMBER_8821		(0xF7 - BCNQ1_PAGE_NUM_8821)
+//For WoWLan , more reserved page
+//ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:1,GTK EXT MEM:1, PNO: 6
+#ifdef CONFIG_WOWLAN
+#define WOWLAN_PAGE_NUM_8821	0x06
+#else
+#define WOWLAN_PAGE_NUM_8821	0x00
+#endif
 
+#define TX_TOTAL_PAGE_NUMBER_8821	(0xFF - BCNQ_PAGE_NUM_8821 - BCNQ1_PAGE_NUM_8821 - WOWLAN_PAGE_NUM_8821)
 #define TX_PAGE_BOUNDARY_8821				(TX_TOTAL_PAGE_NUMBER_8821 + 1)
 //#define TX_PAGE_BOUNDARY_WOWLAN_8821		0xE0
 
+#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8821	TX_TOTAL_PAGE_NUMBER_8821
+#define WMM_NORMAL_TX_PAGE_BOUNDARY_8821		(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8821 + 1)
+
+
 // (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER
-#define NORMAL_PAGE_NUM_PUBQ_8821		(0xE7 - BCNQ1_PAGE_NUM_8821)
 #define NORMAL_PAGE_NUM_LPQ_8821			0x08//0x10
 #define NORMAL_PAGE_NUM_HPQ_8821		0x08//0x10
 #define NORMAL_PAGE_NUM_NPQ_8821		0x00
 
-
-// For WMM Normal Chip Setting
-#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8821	(0xF7 -BCNQ1_PAGE_NUM_8821)
-#define WMM_NORMAL_TX_PAGE_BOUNDARY_8821		(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8821 + 1)
-
-#define WMM_NORMAL_PAGE_NUM_PUBQ_8821		(0x87 - BCNQ1_PAGE_NUM_8821)
 #define WMM_NORMAL_PAGE_NUM_HPQ_8821		0x30
 #define WMM_NORMAL_PAGE_NUM_LPQ_8821		0x20
 #define WMM_NORMAL_PAGE_NUM_NPQ_8821		0x20
@@ -301,6 +311,7 @@ void	Hal_ReadRFEType_8812A(PADAPTER Adapter,u8* PROMContent, BOOLEAN AutoloadFai
 void	Hal_EfuseParseBTCoexistInfo8812A(PADAPTER Adapter, u8* hwinfo, BOOLEAN AutoLoadFail);
 void	hal_ReadUsbType_8812AU(PADAPTER Adapter, u8 *PROMContent, BOOLEAN AutoloadFail);
 int 	FirmwareDownloadBT(PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
+void	Hal_ReadRemoteWakeup_8812A(PADAPTER padapter, u8* hwinfo, BOOLEAN AutoLoadFail);
 
 BOOLEAN HalDetectPwrDownMode8812(PADAPTER Adapter);
 	

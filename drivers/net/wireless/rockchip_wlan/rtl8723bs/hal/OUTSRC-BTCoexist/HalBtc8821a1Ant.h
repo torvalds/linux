@@ -1,7 +1,7 @@
 //===========================================
 // The following is for 8821A 1ANT BT Co-exist definition
 //===========================================
-#define	BT_AUTO_REPORT_ONLY_8821A_1ANT				0
+#define	BT_AUTO_REPORT_ONLY_8821A_1ANT				1
 
 #define	BT_INFO_8821A_1ANT_B_FTP						BIT7
 #define	BT_INFO_8821A_1ANT_B_A2DP					BIT6
@@ -108,6 +108,7 @@ typedef struct _COEX_DM_8821A_1ANT{
 	u1Byte		curRetryLimitType;
 	u1Byte		preAmpduTimeType;
 	u1Byte		curAmpduTimeType;
+	u4Byte		nArpCnt;
 
 	u1Byte		errorCondition;
 } COEX_DM_8821A_1ANT, *PCOEX_DM_8821A_1ANT;
@@ -127,12 +128,15 @@ typedef struct _COEX_STA_8821A_1ANT{
 	u4Byte					lowPriorityTx;
 	u4Byte					lowPriorityRx;
 	u1Byte					btRssi;
+	BOOLEAN					bBtTxRxMask;
 	u1Byte					preBtRssiState;
 	u1Byte					preWifiRssiState[4];
 	BOOLEAN					bC2hBtInfoReqSent;
 	u1Byte					btInfoC2h[BT_INFO_SRC_8821A_1ANT_MAX][10];
 	u4Byte					btInfoC2hCnt[BT_INFO_SRC_8821A_1ANT_MAX];
 	BOOLEAN					bC2hBtInquiryPage;
+	BOOLEAN					bC2hBtPage;				//Add for win8.1 page out issue
+	BOOLEAN					bWiFiIsHighPriTask;		//Add for win8.1 page out issue
 	u1Byte					btRetryCnt;
 	u1Byte					btInfoExt;
 }COEX_STA_8821A_1ANT, *PCOEX_STA_8821A_1ANT;
@@ -141,8 +145,13 @@ typedef struct _COEX_STA_8821A_1ANT{
 // The following is interface which will notify coex module.
 //===========================================
 VOID
-EXhalbtc8821a1ant_InitHwConfig(
+EXhalbtc8821a1ant_PowerOnSetting(
 	IN	PBTC_COEXIST		pBtCoexist
+	);
+VOID
+EXhalbtc8821a1ant_InitHwConfig(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bWifiOnly
 	);
 VOID
 EXhalbtc8821a1ant_InitCoexDm(
@@ -201,10 +210,4 @@ VOID
 EXhalbtc8821a1ant_DisplayCoexInfo(
 	IN	PBTC_COEXIST		pBtCoexist
 	);
-VOID
-EXhalbtc8821a1ant_DbgControl(
-	IN	PBTC_COEXIST			pBtCoexist,
-	IN	u1Byte				opCode,
-	IN	u1Byte				opLen,
-	IN	pu1Byte 			pData
-	);
+

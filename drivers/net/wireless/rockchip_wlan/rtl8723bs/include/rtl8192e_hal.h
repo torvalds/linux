@@ -49,17 +49,17 @@
 //---------------------------------------------------------------------
 //		RTL8192E From header
 //---------------------------------------------------------------------
-	#define RTL8192E_FW_IMG					"rtl8192E/FW_NIC.bin"
-	#define RTL8192E_FW_WW_IMG				"rtl8192E/FW_WoWLAN.bin"
-	#define RTL8192E_PHY_REG					"rtl8192E/PHY_REG.txt" 
-	#define RTL8192E_PHY_RADIO_A				"rtl8192E/RadioA.txt"
-	#define RTL8192E_PHY_RADIO_B				"rtl8192E/RadioB.txt"
-	#define RTL8192E_TXPWR_TRACK				"rtl8192E/TxPowerTrack.txt"
-	#define RTL8192E_AGC_TAB					"rtl8192E/AGC_TAB.txt"
-	#define RTL8192E_PHY_MACREG 				"rtl8192E/MAC_REG.txt"
-	#define RTL8192E_PHY_REG_PG				"rtl8192E/PHY_REG_PG.txt"
-	#define RTL8192E_PHY_REG_MP 				"rtl8192E/PHY_REG_MP.txt" 
-	#define RTL8192E_TXPWR_LMT					"rtl8192E/TXPWR_LMT.txt" 
+	#define RTL8192E_FW_IMG					"rtl8192e/FW_NIC.bin"
+	#define RTL8192E_FW_WW_IMG				"rtl8192e/FW_WoWLAN.bin"
+	#define RTL8192E_PHY_REG					"rtl8192e/PHY_REG.txt" 
+	#define RTL8192E_PHY_RADIO_A				"rtl8192e/RadioA.txt"
+	#define RTL8192E_PHY_RADIO_B				"rtl8192e/RadioB.txt"
+	#define RTL8192E_TXPWR_TRACK				"rtl8192e/TxPowerTrack.txt"
+	#define RTL8192E_AGC_TAB					"rtl8192e/AGC_TAB.txt"
+	#define RTL8192E_PHY_MACREG 				"rtl8192e/MAC_REG.txt"
+	#define RTL8192E_PHY_REG_PG				"rtl8192e/PHY_REG_PG.txt"
+	#define RTL8192E_PHY_REG_MP 				"rtl8192e/PHY_REG_MP.txt" 
+	#define RTL8192E_TXPWR_LMT				"rtl8192e/TXPWR_LMT.txt" 
 
 //---------------------------------------------------------------------
 //		RTL8192E Power Configuration CMDs for PCIe interface
@@ -137,38 +137,33 @@ typedef struct _RT_FIRMWARE_8192E {
 
 #define TX_TOTAL_PAGE_NUMBER_8192E		243 //0x00~0xF3 totoal pages: F4
 
-#define TX_PAGE_BOUNDARY_8192E			(TX_TOTAL_PAGE_NUMBER_8192E + 1)//0xF4,Rserved 12 pages for BCN/PS-POLL..
+#define TX_PAGE_BOUNDARY_8192E			(TX_TOTAL_PAGE_NUMBER_8192E + 1)//0xF4 ~0xFF ,Rserved 12 pages for BCN/PS-POLL..
 #define TX_PAGE_LOAD_FW_BOUNDARY_8192E		0x47 //0xA5
 #define TX_PAGE_BOUNDARY_WOWLAN_8192E		0xE0
 
 // For Normal Chip Setting
 // (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_92C
-#define NORMAL_PAGE_NUM_PUBQ_8192E			0xE0
-#define NORMAL_PAGE_NUM_LPQ_8192E			0x00
-#define NORMAL_PAGE_NUM_HPQ_8192E			0x08
-#define NORMAL_PAGE_NUM_NPQ_8192E			0x0C
+
+#define NORMAL_PAGE_NUM_HPQ_8192E			0x10
+#define NORMAL_PAGE_NUM_LPQ_8192E			0x10
+#define NORMAL_PAGE_NUM_NPQ_8192E			0x10
 #define NORMAL_PAGE_NUM_EPQ_8192E			0x00
 
 
-
 //Note: For WMM Normal Chip Setting ,modify later
-#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8192E	TX_PAGE_BOUNDARY_8192E
-#define WMM_NORMAL_TX_PAGE_BOUNDARY_8192E		(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8192E + 1)
-
-#define WMM_NORMAL_PAGE_NUM_PUBQ_8192E	NORMAL_PAGE_NUM_PUBQ_8192E
 #define WMM_NORMAL_PAGE_NUM_HPQ_8192E		NORMAL_PAGE_NUM_HPQ_8192E
 #define WMM_NORMAL_PAGE_NUM_LPQ_8192E		NORMAL_PAGE_NUM_LPQ_8192E
 #define WMM_NORMAL_PAGE_NUM_NPQ_8192E		NORMAL_PAGE_NUM_NPQ_8192E
-
-#define USB_JAGUAR_DUMMY_OFFSET_8192EU		2
-#define USB_JAGUAR_DUMMY_UNIT_8192EU			8
-#define USB_JAGUAR_ALL_DUMMY_LENGTH_8192EU			(USB_JAGUAR_DUMMY_OFFSET_8192EU * USB_JAGUAR_DUMMY_UNIT_8192EU)
-#define USB_HWDESC_HEADER_LEN_8192EU		(TX_DESC_SIZE_8192E + USB_JAGUAR_ALL_DUMMY_LENGTH_8192EU)
 
 
 //-------------------------------------------------------------------------
 //	Chip specific
 //-------------------------------------------------------------------------
+
+// pic buffer descriptor
+#define RTL8192EE_SEG_NUM			TX_BUFFER_SEG_NUM
+#define TX_DESC_NUM_92E			128
+#define RX_DESC_NUM_92E			128
 
 //-------------------------------------------------------------------------
 //	Channel Plan
@@ -291,5 +286,11 @@ void SetBcnCtrlReg(PADAPTER padapter, u8 SetBits, u8 ClearBits);
 
 void rtl8192e_start_thread(_adapter *padapter);
 void rtl8192e_stop_thread(_adapter *padapter);
+
+#ifdef CONFIG_PCI_HCI
+BOOLEAN	InterruptRecognized8192EE(PADAPTER Adapter);
+u16	get_txdesc_buf_addr(u16 ff_hwaddr);
+#endif
+
 #endif //__RTL8192E_HAL_H__
 

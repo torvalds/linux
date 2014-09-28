@@ -75,7 +75,8 @@
 //	0x0200h ~ 0x027Fh	TXDMA Configuration
 //
 //-----------------------------------------------------
-#define REG_TDECTRL1_8812				0x0228
+#define REG_DWBCN0_CTRL_8812				REG_TDECTRL
+#define REG_DWBCN1_CTRL_8812				0x0228
 
 //-----------------------------------------------------
 //

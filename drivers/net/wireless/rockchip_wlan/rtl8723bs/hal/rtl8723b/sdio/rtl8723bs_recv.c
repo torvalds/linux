@@ -124,10 +124,10 @@ void update_recvframe_phyinfo(
 		!pattrib->icv_err && !pattrib->crc_err &&
 		_rtw_memcmp(get_hdr_bssid(wlanhdr), get_bssid(&padapter->mlmepriv), ETH_ALEN));
 
-	pkt_info.bPacketToSelf = pkt_info.bPacketMatchBSSID && (_rtw_memcmp(get_da(wlanhdr), myid(&padapter->eeprompriv), ETH_ALEN));
+	pkt_info.bPacketToSelf = pkt_info.bPacketMatchBSSID && (_rtw_memcmp(get_ra(wlanhdr), myid(&padapter->eeprompriv), ETH_ALEN));
 
 	pkt_info.bPacketBeacon = pkt_info.bPacketMatchBSSID && (GetFrameSubType(wlanhdr) == WIFI_BEACON);
-
+/*
 	if(pkt_info.bPacketBeacon){
 		if(check_fwstate(&padapter->mlmepriv, WIFI_STATION_STATE) == _TRUE){
 			sa = padapter->mlmepriv.cur_network.network.MacAddress;
@@ -143,6 +143,8 @@ void update_recvframe_phyinfo(
 	else{
 		sa = get_sa(wlanhdr);
 	}
+*/
+	sa = get_ta(wlanhdr);
 
 	pkt_info.StationID = 0xFF;
 
@@ -158,6 +160,7 @@ void update_recvframe_phyinfo(
 	//rtl8723b_query_rx_phy_status(precvframe, pphy_status);
 	//_enter_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
 	ODM_PhyStatusQuery(&pHalData->odmpriv,pPHYInfo,(u8 *)pphy_status,&(pkt_info));
+	if(psta) psta->rssi = pattrib->phy_info.RecvSignalPower;
 	//_exit_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
 	precvframe->u.hdr.psta = NULL;
 	if (pkt_info.bPacketMatchBSSID &&
@@ -294,7 +297,7 @@ static void rtl8723bs_c2h_packet_handler(PADAPTER padapter, u8 *pbuf, u16 length
 	if(length == 0)
 		return;
 	
-	DBG_871X("+%s() length=%d\n", __func__, length);
+	//DBG_871X("+%s() length=%d\n", __func__, length);
 
 	tmpBuf = rtw_zmalloc(length);
 	if (tmpBuf == NULL)
@@ -307,7 +310,7 @@ static void rtl8723bs_c2h_packet_handler(PADAPTER padapter, u8 *pbuf, u16 length
 	if (res == _FALSE && tmpBuf != NULL)
 			rtw_mfree(tmpBuf, length);
 
-	DBG_871X("-%s res(%d)\n", __func__, res);
+	//DBG_871X("-%s res(%d)\n", __func__, res);
 
 	return;
 }
@@ -392,8 +395,11 @@ static void rtl8723bs_recv_tasklet(void *priv)
 							padapter->mppriv.rx_crcerrpktcount++;
 					}
 				}
+				else
 #endif
-				DBG_8192C("%s: crc_err=%d icv_err=%d, skip!\n", __FUNCTION__, pattrib->crc_err, pattrib->icv_err);
+				{
+					DBG_8192C("%s: crc_err=%d icv_err=%d, skip!\n", __FUNCTION__, pattrib->crc_err, pattrib->icv_err);
+				}
 				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 			}
 			else
@@ -650,8 +656,11 @@ static void rtl8723bs_recv_tasklet(void *priv)
 							padapter->mppriv.rx_crcerrpktcount++;
 					}
 				}
+				else
 #endif
-				DBG_8192C("%s: crc_err=%d icv_err=%d, skip!\n", __FUNCTION__, pattrib->crc_err, pattrib->icv_err);
+				{
+					DBG_8192C("%s: crc_err=%d icv_err=%d, skip!\n", __FUNCTION__, pattrib->crc_err, pattrib->icv_err);
+				}
 				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 			}
 			else
