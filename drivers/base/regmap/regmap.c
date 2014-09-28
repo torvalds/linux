@@ -1659,6 +1659,9 @@ out:
 	} else {
 		void *wval;
 
+		if (!val_count)
+			return -EINVAL;
+
 		wval = kmemdup(val, val_count * val_bytes, GFP_KERNEL);
 		if (!wval) {
 			dev_err(map->dev, "Error in memory allocation\n");
