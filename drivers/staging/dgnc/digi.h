@@ -389,10 +389,10 @@ struct digi_getcounter {
 #define DIGI_SETCUSTOMBAUD	_IOW('e', 106, int)	/* Set integer baud rate */
 #define DIGI_GETCUSTOMBAUD	_IOR('e', 107, int)	/* Get integer baud rate */
 
-#define DIGI_REALPORT_GETBUFFERS ('e'<<8 ) | 108
-#define DIGI_REALPORT_SENDIMMEDIATE ('e'<<8 ) | 109
-#define DIGI_REALPORT_GETCOUNTERS ('e'<<8 ) | 110
-#define DIGI_REALPORT_GETEVENTS ('e'<<8 ) | 111
+#define DIGI_REALPORT_GETBUFFERS ('e'<<8) | 108
+#define DIGI_REALPORT_SENDIMMEDIATE ('e'<<8) | 109
+#define DIGI_REALPORT_GETCOUNTERS ('e'<<8) | 110
+#define DIGI_REALPORT_GETEVENTS ('e'<<8) | 111
 
 #define EV_OPU		0x0001		/* !<Output paused by client */
 #define EV_OPS		0x0002		/* !<Output paused by reqular sw flowctrl */
