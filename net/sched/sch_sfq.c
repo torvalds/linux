@@ -331,8 +331,8 @@ drop:
 		sfq_dec(q, x);
 		kfree_skb(skb);
 		sch->q.qlen--;
-		sch->qstats.drops++;
-		sch->qstats.backlog -= len;
+		qdisc_qstats_drop(sch);
+		qdisc_qstats_backlog_dec(sch, skb);
 		return len;
 	}
 
@@ -379,7 +379,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	hash = sfq_classify(skb, sch, &ret);
 	if (hash == 0) {
 		if (ret & __NET_XMIT_BYPASS)
-			sch->qstats.drops++;
+			qdisc_qstats_drop(sch);
 		kfree_skb(skb);
 		return ret;
 	}
@@ -409,7 +409,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 			break;
 
 		case RED_PROB_MARK:
-			sch->qstats.overlimits++;
+			qdisc_qstats_overlimit(sch);
 			if (sfq_prob_mark(q)) {
 				/* We know we have at least one packet in queue */
 				if (sfq_headdrop(q) &&
@@ -426,7 +426,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 			goto congestion_drop;
 
 		case RED_HARD_MARK:
-			sch->qstats.overlimits++;
+			qdisc_qstats_overlimit(sch);
 			if (sfq_hard_mark(q)) {
 				/* We know we have at least one packet in queue */
 				if (sfq_headdrop(q) &&
@@ -461,7 +461,7 @@ congestion_drop:
 	}
 
 enqueue:
-	sch->qstats.backlog += qdisc_pkt_len(skb);
+	qdisc_qstats_backlog_inc(sch, skb);
 	slot->backlog += qdisc_pkt_len(skb);
 	slot_queue_add(slot, skb);
 	sfq_inc(q, x);
@@ -520,7 +520,7 @@ next_slot:
 	sfq_dec(q, a);
 	qdisc_bstats_update(sch, skb);
 	sch->q.qlen--;
-	sch->qstats.backlog -= qdisc_pkt_len(skb);
+	qdisc_qstats_backlog_dec(sch, skb);
 	slot->backlog -= qdisc_pkt_len(skb);
 	/* Is the slot empty? */
 	if (slot->qlen == 0) {
@@ -586,7 +586,8 @@ static void sfq_rehash(struct Qdisc *sch)
 		if (x == SFQ_EMPTY_SLOT) {
 			x = q->dep[0].next; /* get a free slot */
 			if (x >= SFQ_MAX_FLOWS) {
-drop:				sch->qstats.backlog -= qdisc_pkt_len(skb);
+drop:
+				qdisc_qstats_backlog_dec(sch, skb);
 				kfree_skb(skb);
 				dropped++;
 				continue;

@@ -127,7 +127,7 @@ static void choke_drop_by_idx(struct Qdisc *sch, unsigned int idx)
 	if (idx == q->tail)
 		choke_zap_tail_holes(q);
 
-	sch->qstats.backlog -= qdisc_pkt_len(skb);
+	qdisc_qstats_backlog_dec(sch, skb);
 	qdisc_drop(skb, sch);
 	qdisc_tree_decrease_qlen(sch, 1);
 	--sch->q.qlen;
@@ -302,7 +302,7 @@ static int choke_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		if (q->vars.qavg > p->qth_max) {
 			q->vars.qcount = -1;
 
-			sch->qstats.overlimits++;
+			qdisc_qstats_overlimit(sch);
 			if (use_harddrop(q) || !use_ecn(q) ||
 			    !INET_ECN_set_ce(skb)) {
 				q->stats.forced_drop++;
@@ -315,7 +315,7 @@ static int choke_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 				q->vars.qcount = 0;
 				q->vars.qR = red_random(p);
 
-				sch->qstats.overlimits++;
+				qdisc_qstats_overlimit(sch);
 				if (!use_ecn(q) || !INET_ECN_set_ce(skb)) {
 					q->stats.prob_drop++;
 					goto congestion_drop;
@@ -332,7 +332,7 @@ static int choke_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		q->tab[q->tail] = skb;
 		q->tail = (q->tail + 1) & q->tab_mask;
 		++sch->q.qlen;
-		sch->qstats.backlog += qdisc_pkt_len(skb);
+		qdisc_qstats_backlog_inc(sch, skb);
 		return NET_XMIT_SUCCESS;
 	}
 
@@ -345,7 +345,7 @@ congestion_drop:
 
 other_drop:
 	if (ret & __NET_XMIT_BYPASS)
-		sch->qstats.drops++;
+		qdisc_qstats_drop(sch);
 	kfree_skb(skb);
 	return ret;
 }
@@ -365,7 +365,7 @@ static struct sk_buff *choke_dequeue(struct Qdisc *sch)
 	q->tab[q->head] = NULL;
 	choke_zap_head_holes(q);
 	--sch->q.qlen;
-	sch->qstats.backlog -= qdisc_pkt_len(skb);
+	qdisc_qstats_backlog_dec(sch, skb);
 	qdisc_bstats_update(sch, skb);
 
 	return skb;
@@ -460,7 +460,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
 					ntab[tail++] = skb;
 					continue;
 				}
-				sch->qstats.backlog -= qdisc_pkt_len(skb);
+				qdisc_qstats_backlog_dec(sch, skb);
 				--sch->q.qlen;
 				qdisc_drop(skb, sch);
 			}

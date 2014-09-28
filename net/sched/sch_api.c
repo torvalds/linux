@@ -763,7 +763,7 @@ void qdisc_tree_decrease_qlen(struct Qdisc *sch, unsigned int n)
 			cops->put(sch, cl);
 		}
 		sch->q.qlen -= n;
-		sch->qstats.drops += drops;
+		__qdisc_qstats_drop(sch, drops);
 	}
 }
 EXPORT_SYMBOL(qdisc_tree_decrease_qlen);

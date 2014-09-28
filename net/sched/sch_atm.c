@@ -417,7 +417,7 @@ done:
 	if (ret != NET_XMIT_SUCCESS) {
 drop: __maybe_unused
 		if (net_xmit_drop_count(ret)) {
-			sch->qstats.drops++;
+			qdisc_qstats_drop(sch);
 			if (flow)
 				flow->qstats.drops++;
 		}

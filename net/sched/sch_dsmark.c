@@ -258,7 +258,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	err = qdisc_enqueue(skb, p->q);
 	if (err != NET_XMIT_SUCCESS) {
 		if (net_xmit_drop_count(err))
-			sch->qstats.drops++;
+			qdisc_qstats_drop(sch);
 		return err;
 	}
 

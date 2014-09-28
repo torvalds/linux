@@ -69,7 +69,7 @@ static int ingress_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	switch (result) {
 	case TC_ACT_SHOT:
 		result = TC_ACT_SHOT;
-		sch->qstats.drops++;
+		qdisc_qstats_drop(sch);
 		break;
 	case TC_ACT_STOLEN:
 	case TC_ACT_QUEUED:

@@ -360,7 +360,7 @@ static int drr_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	cl = drr_classify(skb, sch, &err);
 	if (cl == NULL) {
 		if (err & __NET_XMIT_BYPASS)
-			sch->qstats.drops++;
+			qdisc_qstats_drop(sch);
 		kfree_skb(skb);
 		return err;
 	}
@@ -369,7 +369,7 @@ static int drr_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
 		if (net_xmit_drop_count(err)) {
 			cl->qstats.drops++;
-			sch->qstats.drops++;
+			qdisc_qstats_drop(sch);
 		}
 		return err;
 	}

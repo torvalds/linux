@@ -75,7 +75,7 @@ multiq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (qdisc == NULL) {
 
 		if (ret & __NET_XMIT_BYPASS)
-			sch->qstats.drops++;
+			qdisc_qstats_drop(sch);
 		kfree_skb(skb);
 		return ret;
 	}
@@ -87,7 +87,7 @@ multiq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return NET_XMIT_SUCCESS;
 	}
 	if (net_xmit_drop_count(ret))
-		sch->qstats.drops++;
+		qdisc_qstats_drop(sch);
 	return ret;
 }
 

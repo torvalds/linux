@@ -586,13 +586,13 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 #ifdef CONFIG_NET_CLS_ACT
 	} else if (!cl) {
 		if (ret & __NET_XMIT_BYPASS)
-			sch->qstats.drops++;
+			qdisc_qstats_drop(sch);
 		kfree_skb(skb);
 		return ret;
 #endif
 	} else if ((ret = qdisc_enqueue(skb, cl->un.leaf.q)) != NET_XMIT_SUCCESS) {
 		if (net_xmit_drop_count(ret)) {
-			sch->qstats.drops++;
+			qdisc_qstats_drop(sch);
 			cl->qstats.drops++;
 		}
 		return ret;
@@ -925,7 +925,7 @@ ok:
 				goto ok;
 		}
 	}
-	sch->qstats.overlimits++;
+	qdisc_qstats_overlimit(sch);
 	if (likely(next_event > q->now)) {
 		if (!test_bit(__QDISC_STATE_DEACTIVATED,
 			      &qdisc_root_sleeping(q->watchdog.qdisc)->state)) {
