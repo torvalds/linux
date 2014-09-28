@@ -927,7 +927,6 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 #endif
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
-extern pmd_t swapper_low_pmd_dir[PTRS_PER_PMD];
 
 void paging_init(void);
 unsigned long find_ecache_flush_span(unsigned long size);
