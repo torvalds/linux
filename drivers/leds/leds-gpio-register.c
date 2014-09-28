@@ -7,9 +7,9 @@
  * Free Software Foundation.
  */
 #include <linux/err.h>
+#include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/leds.h>
 
 /**
  * gpio_led_register_device - register a gpio-led device

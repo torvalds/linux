@@ -10,17 +10,17 @@
  * published by the Free Software Foundation.
  *
  */
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
+#include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/kernel.h>
 #include <linux/leds.h>
+#include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/of_gpio.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <linux/module.h>
-#include <linux/err.h>
 
 struct gpio_led_data {
 	struct led_classdev cdev;
