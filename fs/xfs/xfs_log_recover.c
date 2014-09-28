@@ -3534,6 +3534,9 @@ out:
 	return error ? error : error2;
 }
 
+/*
+ * On error or completion, trans is freed.
+ */
 STATIC int
 xlog_recovery_process_trans(
 	struct xlog		*log,
@@ -3543,7 +3546,8 @@ xlog_recovery_process_trans(
 	unsigned int		flags,
 	int			pass)
 {
-	int			error = -EIO;
+	int			error = 0;
+	bool			freeit = false;
 
 	/* mask off ophdr transaction container flags */
 	flags &= ~XLOG_END_TRANS;
@@ -3565,18 +3569,19 @@ xlog_recovery_process_trans(
 
 	/* unexpected flag values */
 	case XLOG_UNMOUNT_TRANS:
+		/* just skip trans */
 		xfs_warn(log->l_mp, "%s: Unmount LR", __func__);
-		error = 0; /* just skip trans */
+		freeit = true;
 		break;
 	case XLOG_START_TRANS:
-		xfs_warn(log->l_mp, "%s: bad transaction", __func__);
-		ASSERT(0);
-		break;
 	default:
 		xfs_warn(log->l_mp, "%s: bad flag 0x%x", __func__, flags);
 		ASSERT(0);
+		error = -EIO;
 		break;
 	}
+	if (error || freeit)
+		xlog_recover_free_trans(trans);
 	return error;
 }
 
@@ -3620,7 +3625,6 @@ xlog_recover_process_ophdr(
 	int			pass)
 {
 	struct xlog_recover	*trans;
-	int			error;
 	unsigned int		len;
 
 	/* Do we understand who wrote this op? */
@@ -3648,11 +3652,8 @@ xlog_recover_process_ophdr(
 		return 0;
 	}
 
-	error = xlog_recovery_process_trans(log, trans, dp, len,
-					    ohead->oh_flags, pass);
-	if (error)
-		xlog_recover_free_trans(trans);
-	return error;
+	return xlog_recovery_process_trans(log, trans, dp, len,
+					   ohead->oh_flags, pass);
 }
 
 /*
