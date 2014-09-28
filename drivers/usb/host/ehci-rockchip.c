@@ -415,7 +415,7 @@ static int ehci_rk_probe(struct platform_device *pdev)
 	rk_ehci->connect_detect_timer.function = rk_ehci_hcd_connect_detect;
 	rk_ehci->connect_detect_timer.data = (unsigned long)(rk_ehci);
 	init_timer(&rk_ehci->connect_detect_timer);
-	mod_timer(&rk_ehci->connect_detect_timer, jiffies + (HZ << 3));
+	mod_timer(&rk_ehci->connect_detect_timer, jiffies + (HZ << 1));
 	INIT_DELAYED_WORK(&rk_ehci->host_enable_work, rk_ehci_hcd_enable);
 
 	ehci_port_power(ehci, 0);

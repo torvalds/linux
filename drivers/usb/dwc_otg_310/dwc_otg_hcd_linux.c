@@ -637,7 +637,7 @@ int host20_hcd_init(struct platform_device *_dev)
 	dwc_otg_hcd->connect_detect_timer.function = dwc_otg_hcd_connect_detect;
 	dwc_otg_hcd->connect_detect_timer.data = (unsigned long)(dwc_otg_hcd);
 	init_timer(&dwc_otg_hcd->connect_detect_timer);
-	mod_timer(&dwc_otg_hcd->connect_detect_timer, jiffies + (HZ << 3));
+	mod_timer(&dwc_otg_hcd->connect_detect_timer, jiffies + (HZ << 1));
 
 	INIT_DELAYED_WORK(&dwc_otg_hcd->host_enable_work, dwc_otg_hcd_enable);
 	return 0;
