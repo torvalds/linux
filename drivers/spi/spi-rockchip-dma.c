@@ -150,10 +150,10 @@ static void dw_spi_dma_rxcb(void *arg)
 	/* If the other done */
 	if (!(dws->state & TXBUSY))
 	{
-		complete(&dws->xfer_completion);	
-		DBG_SPI("%s:complete\n", __FUNCTION__);		
 		//DMA could not lose intterupt
 		dw_spi_xfer_done(dws);
+		complete(&dws->xfer_completion);
+		DBG_SPI("%s:complete\n", __FUNCTION__);
 	}
 
 }
@@ -184,13 +184,12 @@ static void dw_spi_dma_txcb(void *arg)
 	spin_unlock_irqrestore(&dws->lock, flags);
 	
 	/* If the other done */
-	if (!(dws->state & RXBUSY)) 
+	if (!(dws->state & RXBUSY))
 	{
-		complete(&dws->xfer_completion);		
-		DBG_SPI("%s:complete\n", __FUNCTION__);
-
 		//DMA could not lose intterupt
 		dw_spi_xfer_done(dws);
+		complete(&dws->xfer_completion);
+		DBG_SPI("%s:complete\n", __FUNCTION__);
 	}
 
 }

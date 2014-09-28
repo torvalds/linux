@@ -7,7 +7,7 @@
 
 
 #if 1
-#define DBG_SPI(x...)  if(atomic_read(&dws->debug_flag) == 1) printk(x)
+#define DBG_SPI(x...)  if(atomic_read(&dws->debug_flag) == 1) printk(KERN_DEBUG x)
 #else
 #define DBG_SPI(x...)
 #endif
