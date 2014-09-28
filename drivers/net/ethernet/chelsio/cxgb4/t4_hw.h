@@ -135,6 +135,7 @@ struct rsp_ctrl {
 #define RSPD_GEN(x)  ((x) >> 7)
 #define RSPD_TYPE(x) (((x) >> 4) & 3)
 
+#define V_QINTR_CNT_EN	   0x0
 #define QINTR_CNT_EN       0x1
 #define QINTR_TIMER_IDX(x) ((x) << 1)
 #define QINTR_TIMER_IDX_GET(x) (((x) >> 1) & 0x7)

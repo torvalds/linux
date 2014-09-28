@@ -2907,60 +2907,62 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 /*
  * PCI Device registration data structures.
  */
-#define CH_DEVICE(devid, idx) \
-	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, PCI_ANY_ID, 0, 0, idx }
+#define CH_DEVICE(devid) \
+	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }
 
 static const struct pci_device_id cxgb4vf_pci_tbl[] = {
-	CH_DEVICE(0xb000, 0),	/* PE10K FPGA */
-	CH_DEVICE(0x4801, 0),	/* T420-cr */
-	CH_DEVICE(0x4802, 0),	/* T422-cr */
-	CH_DEVICE(0x4803, 0),	/* T440-cr */
-	CH_DEVICE(0x4804, 0),	/* T420-bch */
-	CH_DEVICE(0x4805, 0),   /* T440-bch */
-	CH_DEVICE(0x4806, 0),	/* T460-ch */
-	CH_DEVICE(0x4807, 0),	/* T420-so */
-	CH_DEVICE(0x4808, 0),	/* T420-cx */
-	CH_DEVICE(0x4809, 0),	/* T420-bt */
-	CH_DEVICE(0x480a, 0),   /* T404-bt */
-	CH_DEVICE(0x480d, 0),   /* T480-cr */
-	CH_DEVICE(0x480e, 0),   /* T440-lp-cr */
-	CH_DEVICE(0x4880, 0),
-	CH_DEVICE(0x4880, 1),
-	CH_DEVICE(0x4880, 2),
-	CH_DEVICE(0x4880, 3),
-	CH_DEVICE(0x4880, 4),
-	CH_DEVICE(0x4880, 5),
-	CH_DEVICE(0x4880, 6),
-	CH_DEVICE(0x4880, 7),
-	CH_DEVICE(0x4880, 8),
-	CH_DEVICE(0x5801, 0),	/* T520-cr */
-	CH_DEVICE(0x5802, 0),	/* T522-cr */
-	CH_DEVICE(0x5803, 0),	/* T540-cr */
-	CH_DEVICE(0x5804, 0),	/* T520-bch */
-	CH_DEVICE(0x5805, 0),   /* T540-bch */
-	CH_DEVICE(0x5806, 0),	/* T540-ch */
-	CH_DEVICE(0x5807, 0),	/* T520-so */
-	CH_DEVICE(0x5808, 0),	/* T520-cx */
-	CH_DEVICE(0x5809, 0),	/* T520-bt */
-	CH_DEVICE(0x580a, 0),   /* T504-bt */
-	CH_DEVICE(0x580b, 0),   /* T520-sr */
-	CH_DEVICE(0x580c, 0),   /* T504-bt */
-	CH_DEVICE(0x580d, 0),   /* T580-cr */
-	CH_DEVICE(0x580e, 0),   /* T540-lp-cr */
-	CH_DEVICE(0x580f, 0),   /* Amsterdam */
-	CH_DEVICE(0x5810, 0),   /* T580-lp-cr */
-	CH_DEVICE(0x5811, 0),   /* T520-lp-cr */
-	CH_DEVICE(0x5812, 0),   /* T560-cr */
-	CH_DEVICE(0x5813, 0),   /* T580-cr */
-	CH_DEVICE(0x5814, 0),   /* T580-so-cr */
-	CH_DEVICE(0x5815, 0),   /* T502-bt */
-	CH_DEVICE(0x5880, 0),
-	CH_DEVICE(0x5881, 0),
-	CH_DEVICE(0x5882, 0),
-	CH_DEVICE(0x5883, 0),
-	CH_DEVICE(0x5884, 0),
-	CH_DEVICE(0x5885, 0),
-	CH_DEVICE(0x5886, 0),
+	CH_DEVICE(0xb000),	/* PE10K FPGA */
+	CH_DEVICE(0x4801),	/* T420-cr */
+	CH_DEVICE(0x4802),	/* T422-cr */
+	CH_DEVICE(0x4803),	/* T440-cr */
+	CH_DEVICE(0x4804),	/* T420-bch */
+	CH_DEVICE(0x4805),	/* T440-bch */
+	CH_DEVICE(0x4806),	/* T460-ch */
+	CH_DEVICE(0x4807),	/* T420-so */
+	CH_DEVICE(0x4808),	/* T420-cx */
+	CH_DEVICE(0x4809),	/* T420-bt */
+	CH_DEVICE(0x480a),	/* T404-bt */
+	CH_DEVICE(0x480d),	/* T480-cr */
+	CH_DEVICE(0x480e),	/* T440-lp-cr */
+	CH_DEVICE(0x4880),
+	CH_DEVICE(0x4880),
+	CH_DEVICE(0x4880),
+	CH_DEVICE(0x4880),
+	CH_DEVICE(0x4880),
+	CH_DEVICE(0x4880),
+	CH_DEVICE(0x4880),
+	CH_DEVICE(0x4880),
+	CH_DEVICE(0x4880),
+	CH_DEVICE(0x5801),	/* T520-cr */
+	CH_DEVICE(0x5802),	/* T522-cr */
+	CH_DEVICE(0x5803),	/* T540-cr */
+	CH_DEVICE(0x5804),	/* T520-bch */
+	CH_DEVICE(0x5805),	/* T540-bch */
+	CH_DEVICE(0x5806),	/* T540-ch */
+	CH_DEVICE(0x5807),	/* T520-so */
+	CH_DEVICE(0x5808),	/* T520-cx */
+	CH_DEVICE(0x5809),	/* T520-bt */
+	CH_DEVICE(0x580a),	/* T504-bt */
+	CH_DEVICE(0x580b),	/* T520-sr */
+	CH_DEVICE(0x580c),	/* T504-bt */
+	CH_DEVICE(0x580d),	/* T580-cr */
+	CH_DEVICE(0x580e),	/* T540-lp-cr */
+	CH_DEVICE(0x580f),	/* Amsterdam */
+	CH_DEVICE(0x5810),	/* T580-lp-cr */
+	CH_DEVICE(0x5811),	/* T520-lp-cr */
+	CH_DEVICE(0x5812),	/* T560-cr */
+	CH_DEVICE(0x5813),	/* T580-cr */
+	CH_DEVICE(0x5814),	/* T580-so-cr */
+	CH_DEVICE(0x5815),	/* T502-bt */
+	CH_DEVICE(0x5880),
+	CH_DEVICE(0x5881),
+	CH_DEVICE(0x5882),
+	CH_DEVICE(0x5883),
+	CH_DEVICE(0x5884),
+	CH_DEVICE(0x5885),
+	CH_DEVICE(0x5886),
+	CH_DEVICE(0x5887),
+	CH_DEVICE(0x5888),
 	{ 0, }
 };
 
