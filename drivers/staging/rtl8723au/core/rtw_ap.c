@@ -299,7 +299,7 @@ void	expire_timeout_chk23a(struct rtw_adapter *padapter)
 		int ret = _FAIL;
 
 		psta = chk_alive_list[i];
-		if (!(psta->state &_FW_LINKED))
+		if (!(psta->state & _FW_LINKED))
 			continue;
 
 		if (psta->state & WIFI_SLEEP_STATE)
