@@ -772,53 +772,60 @@ static u32 calc_sclk_pll_freq(u32 sclk_freq)
 	return pll_freq;
 }
 
-static int calc_dsp_frm_vst_hst(struct rk_screen *src, struct rk_screen *dst)
+static int calc_dsp_frm_vst_hst(struct rk_screen *src,
+				     struct rk_screen *dst, u32 sclk_freq)
 {
-        u32 BP_in, BP_out;
-        u32 v_scale_ratio;
-        long long  T_frm_st;
-        u64 T_BP_in, T_BP_out, T_Delta, Tin;
-        u64 rate = (1 << 16);
-        u64 temp;
-        u32 dsp_htotal, src_htotal, src_vtotal;
+	u32 BP_in, BP_out;
+	u32 v_scale_ratio;
+        long long T_frm_st;
+	u64 T_BP_in, T_BP_out, T_Delta, Tin;
+	u32 src_pixclock, dst_pixclock;
+	u64 temp;
+	u32 dsp_htotal, dsp_vtotal, src_htotal, src_vtotal;
 
-        if (unlikely(!src) || unlikely(!dst))
-                return -1;
+	if (unlikely(!src) || unlikely(!dst))
+		return -1;
 
-        dsp_htotal = dst->mode.left_margin + dst->mode.hsync_len +
-                     dst->mode.xres + dst->mode.right_margin;
-        src_htotal = src->mode.left_margin + src->mode.hsync_len +
-                     src->mode.xres + src->mode.right_margin;
-        src_vtotal = src->mode.upper_margin + src->mode.vsync_len +
-                     src->mode.yres + src->mode.lower_margin;
-        BP_in  = (src->mode.upper_margin + src->mode.vsync_len) * src_htotal;
-        BP_out = (dst->mode.upper_margin + dst->mode.vsync_len) * dsp_htotal;
+	src_pixclock = div_u64(1000000000000llu, src->mode.pixclock);
+	dst_pixclock = div_u64(1000000000000llu, sclk_freq);
+	dsp_htotal = dst->mode.left_margin + dst->mode.hsync_len +
+		     dst->mode.xres + dst->mode.right_margin;
+	dsp_vtotal = dst->mode.upper_margin + dst->mode.vsync_len +
+		     dst->mode.yres + dst->mode.lower_margin;
+	src_htotal = src->mode.left_margin + src->mode.hsync_len +
+		     src->mode.xres + src->mode.right_margin;
+	src_vtotal = src->mode.upper_margin + src->mode.vsync_len +
+		     src->mode.yres + src->mode.lower_margin;
+	BP_in  = (src->mode.upper_margin + src->mode.vsync_len) * src_htotal +
+		 src->mode.hsync_len + src->mode.left_margin;
+	BP_out = (dst->mode.upper_margin + dst->mode.vsync_len) * dsp_htotal +
+		 dst->mode.hsync_len + dst->mode.left_margin;
 
-        v_scale_ratio = dst->mode.yres / src->mode.yres;
+	T_BP_in = BP_in * src_pixclock;
+	T_BP_out = BP_out * dst_pixclock;
+	Tin = src_vtotal * src_htotal * src_pixclock;
 
-        T_BP_in = rate * BP_in;
-        do_div(T_BP_in, src->mode.pixclock);
-        T_BP_out = rate * BP_out;
-        do_div(T_BP_out, dst->mode.pixclock);
-        if (v_scale_ratio < 2)
-                T_Delta = rate * 4 * src_htotal;
-        else
-                T_Delta = rate * 12 * src_htotal;
+	v_scale_ratio = src->mode.yres / dst->mode.yres;
+	if (v_scale_ratio <= 2)
+		T_Delta = 5 * src_htotal * src_pixclock;
+	else
+		T_Delta = 12 * src_htotal * src_pixclock;
 
-        do_div(T_Delta, src->mode.pixclock);
-        Tin = rate * src_vtotal * src_htotal;
-        do_div(Tin, src->mode.pixclock);
+	if (T_BP_in + T_Delta > T_BP_out)
+		T_frm_st = (T_BP_in + T_Delta - T_BP_out);
+	else
+		T_frm_st = Tin - (T_BP_out - (T_BP_in + T_Delta));
+	printk("T_in=%lld,T_BP_in=%lld,T_Delta=%lld,T_BP_out=%lld\n",Tin,T_BP_in,T_Delta,T_BP_out);
+	printk("T_frm_st=%lld\n",T_frm_st);
+	printk("src_pixclock=%d\n,dst_pixclock=%d\n",src_pixclock,dst_pixclock);
 
-        T_frm_st = (T_BP_in + T_Delta - T_BP_out);
-        if (T_frm_st < 0)
-                T_frm_st  += Tin;
-
-	temp = T_frm_st * src->mode.pixclock;
-        dst->scl_hst = do_div(temp, src_htotal * rate);
-        dst->scl_vst = temp;
-	dst->scl_hst = (T_frm_st * src->mode.pixclock / rate - dst->scl_vst * src_htotal);
-
-        return 0;
+	/* (T_frm_st = scl_vst * src_htotal * src_pixclock + scl_hst * src_pixclock) */
+	temp = do_div(T_frm_st, src_htotal * src_pixclock);
+	dst->scl_vst = T_frm_st;
+	do_div(temp, src_pixclock);
+	dst->scl_hst = temp;
+	printk("dst_frame_hst=%d,dst_frame_vst=%d\n",dst->scl_hst,dst->scl_vst);
+	return 0;
 }
 
 static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
@@ -857,10 +864,11 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 		return 0;
 	}
 
-        /* rk312x used one lcdc to apply dual disp
-         * hdmi screen is used for scaler src
-         * prmry screen is used for scaler dst
-         */
+	/*
+	 * rk312x used one lcdc to apply dual disp
+	 * hdmi screen is used for scaler src
+	 * prmry screen is used for scaler dst
+	 */
 	dst = dst_screen;
 	src = dev_drv->cur_screen;
 	if (!dst || !src) {
@@ -880,7 +888,7 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 	}
 
         /* config scale timing */
-        calc_dsp_frm_vst_hst(src, dst);
+        calc_dsp_frm_vst_hst(src, dst, lcdc_dev->s_pixclock);
 	dst_frame_vst = dst->scl_vst;
 	dst_frame_hst = dst->scl_hst;
 
@@ -949,6 +957,9 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 	lcdc_writel(lcdc_dev, SCALER_DSP_VBOR_TIMING,
                     v_SCALER_VBOR_END(dsp_vbor_end) |
                     v_SCALER_VBOR_ST(dsp_vbor_st));
+	lcdc_msk_reg(lcdc_dev, SCALER_CTRL,
+		     m_SCALER_VSYNC_VST | m_SCALER_VSYNC_MODE,
+		     v_SCALER_VSYNC_VST(4) | v_SCALER_VSYNC_MODE(2));
 	lcdc_msk_reg(lcdc_dev, SCALER_CTRL,
                     m_SCALER_EN | m_SCALER_OUT_ZERO | m_SCALER_OUT_EN,
                     v_SCALER_EN(1) | v_SCALER_OUT_ZERO(0) | v_SCALER_OUT_EN(1));
