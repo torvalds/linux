@@ -313,6 +313,7 @@ static int rk312x_codec_register(struct snd_soc_codec *codec, unsigned int reg)
 	case RK312x_PGAR_AGC_MIN_H:
 	case RK312x_PGAR_AGC_MIN_L:
 	case RK312x_PGAR_AGC_CTL5:
+    case RK312x_ALC_CTL:
 		return 1;
 	default:
 		return 0;
@@ -1765,6 +1766,9 @@ static struct rk312x_reg_val_typ capture_power_up_list[] = {
 	{0x94, 0x20 | CAP_VOL},
 	{0x98, CAP_VOL},
 	{0x88, 0xf7},
+    {0x28, 0x3c},
+    {0x124, 0x78},
+    {0x164, 0x78},
 
 };
 #define RK312x_CODEC_CAPTURE_POWER_UP_LIST_LEN ARRAY_SIZE(capture_power_up_list)
@@ -1783,6 +1787,9 @@ static struct rk312x_reg_val_typ capture_power_down_list[] = {
 	{0x9c, 0x00},
 	{0x88, 0x00},
 	{0x90, 0x44},
+    {0x28, 0x0c},
+    {0x124, 0x38},
+    {0x164, 0x38},
 };
 #define RK312x_CODEC_CAPTURE_POWER_DOWN_LIST_LEN ARRAY_SIZE(\
 				capture_power_down_list)
