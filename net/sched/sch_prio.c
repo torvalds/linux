@@ -324,9 +324,8 @@ static int prio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	struct Qdisc *cl_q;
 
 	cl_q = q->queues[cl - 1];
-	cl_q->qstats.qlen = cl_q->q.qlen;
 	if (gnet_stats_copy_basic(d, NULL, &cl_q->bstats) < 0 ||
-	    gnet_stats_copy_queue(d, &cl_q->qstats) < 0)
+	    gnet_stats_copy_queue(d, &cl_q->qstats, cl_q->q.qlen) < 0)
 		return -1;
 
 	return 0;

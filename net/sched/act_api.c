@@ -623,7 +623,9 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *a,
 	if (gnet_stats_copy_basic(&d, NULL, &p->tcfc_bstats) < 0 ||
 	    gnet_stats_copy_rate_est(&d, &p->tcfc_bstats,
 				     &p->tcfc_rate_est) < 0 ||
-	    gnet_stats_copy_queue(&d, &p->tcfc_qstats) < 0)
+	    gnet_stats_copy_queue(&d,
+				  &p->tcfc_qstats,
+				  p->tcfc_qstats.qlen) < 0)
 		goto errout;
 
 	if (gnet_stats_finish_copy(&d) < 0)

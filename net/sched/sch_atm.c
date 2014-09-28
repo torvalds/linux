@@ -637,10 +637,8 @@ atm_tc_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 {
 	struct atm_flow_data *flow = (struct atm_flow_data *)arg;
 
-	flow->qstats.qlen = flow->q->q.qlen;
-
 	if (gnet_stats_copy_basic(d, NULL, &flow->bstats) < 0 ||
-	    gnet_stats_copy_queue(d, &flow->qstats) < 0)
+	    gnet_stats_copy_queue(d, &flow->qstats, flow->q->q.qlen) < 0)
 		return -1;
 
 	return 0;

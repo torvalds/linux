@@ -236,7 +236,6 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 		sch->q.qlen		+= qdisc->q.qlen;
 		sch->bstats.bytes	+= qdisc->bstats.bytes;
 		sch->bstats.packets	+= qdisc->bstats.packets;
-		sch->qstats.qlen	+= qdisc->qstats.qlen;
 		sch->qstats.backlog	+= qdisc->qstats.backlog;
 		sch->qstats.drops	+= qdisc->qstats.drops;
 		sch->qstats.requeues	+= qdisc->qstats.requeues;
@@ -327,6 +326,7 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 
 	if (cl <= netdev_get_num_tc(dev)) {
 		int i;
+		__u32 qlen = 0;
 		struct Qdisc *qdisc;
 		struct gnet_stats_queue qstats = {0};
 		struct gnet_stats_basic_packed bstats = {0};
@@ -344,9 +344,9 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 
 			qdisc = rtnl_dereference(q->qdisc);
 			spin_lock_bh(qdisc_lock(qdisc));
+			qlen		  += qdisc->q.qlen;
 			bstats.bytes      += qdisc->bstats.bytes;
 			bstats.packets    += qdisc->bstats.packets;
-			qstats.qlen       += qdisc->qstats.qlen;
 			qstats.backlog    += qdisc->qstats.backlog;
 			qstats.drops      += qdisc->qstats.drops;
 			qstats.requeues   += qdisc->qstats.requeues;
@@ -356,15 +356,14 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 		/* Reclaim root sleeping lock before completing stats */
 		spin_lock_bh(d->lock);
 		if (gnet_stats_copy_basic(d, NULL, &bstats) < 0 ||
-		    gnet_stats_copy_queue(d, &qstats) < 0)
+		    gnet_stats_copy_queue(d, &qstats, qlen) < 0)
 			return -1;
 	} else {
 		struct netdev_queue *dev_queue = mqprio_queue_get(sch, cl);
 
 		sch = dev_queue->qdisc_sleeping;
-		sch->qstats.qlen = sch->q.qlen;
 		if (gnet_stats_copy_basic(d, NULL, &sch->bstats) < 0 ||
-		    gnet_stats_copy_queue(d, &sch->qstats) < 0)
+		    gnet_stats_copy_queue(d, &sch->qstats, sch->q.qlen) < 0)
 			return -1;
 	}
 	return 0;
