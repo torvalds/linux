@@ -502,6 +502,17 @@ config REGULATOR_S5M8767
 	 via I2C bus. S5M8767A have 9 Bucks and 28 LDOs output and
 	 supports DVS mode with 8bits of output voltage control.
 
+config REGULATOR_SKY81452
+	tristate "Skyworks Solutions SKY81452 voltage regulator"
+	depends on SKY81452
+	help
+	  This driver supports Skyworks SKY81452 voltage output regulator
+	  via I2C bus. SKY81452 has one voltage linear regulator can be
+	  programmed from 4.5V to 20V.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sky81452-regulator.
+
 config REGULATOR_TI_ABB
 	tristate "TI Adaptive Body Bias on-chip LDO"
 	depends on ARCH_OMAP
