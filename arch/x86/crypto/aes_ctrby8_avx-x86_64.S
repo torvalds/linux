@@ -79,9 +79,6 @@
 #define xcounter	%xmm8
 #define xbyteswap	%xmm9
 #define xkey0		%xmm10
-#define xkey3		%xmm11
-#define xkey6		%xmm12
-#define xkey9		%xmm13
 #define xkey4		%xmm11
 #define xkey8		%xmm12
 #define xkey12		%xmm13
