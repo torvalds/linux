@@ -713,8 +713,6 @@ static int ah6_init_state(struct xfrm_state *x)
 	ahp->icv_full_len = aalg_desc->uinfo.auth.icv_fullbits/8;
 	ahp->icv_trunc_len = x->aalg->alg_trunc_len/8;
 
-	BUG_ON(ahp->icv_trunc_len > MAX_AH_AUTH_LEN);
-
 	x->props.header_len = XFRM_ALIGN8(sizeof(struct ip_auth_hdr) +
 					  ahp->icv_trunc_len);
 	switch (x->props.mode) {
