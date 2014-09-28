@@ -381,7 +381,7 @@ device_set_options(struct vnt_private *pDevice)
 	if (pDevice->uConnectionRate < RATE_AUTO)
 		pDevice->bFixRate = true;
 	pDevice->byBBType = pDevice->sOpts.bbp_type;
-	pDevice->byPacketType = pDevice->byBBType;
+	pDevice->byPacketType = (VIA_PKT_TYPE)pDevice->byBBType;
 	pDevice->byAutoFBCtrl = AUTO_FB_0;
 	pDevice->bUpdateBBVGA = true;
 	pDevice->byFOETuning = 0;
