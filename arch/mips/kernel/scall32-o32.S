@@ -593,12 +593,6 @@ einval: li	v0, -ENOSYS
 	sys	sys_process_vm_writev	6
 	sys	sys_kcmp		5
 	sys	sys_finit_module	3
-	/* Backporting seccomp, skip a few ... */
-	sys sys_ni_syscall		0	/* sys_sched_setattr */
-	sys sys_ni_syscall		0	/* sys_sched_getattr */		/* 4350 */
-	sys sys_ni_syscall		0	/* sys_renameat2 */
-	sys	sys_seccomp 3
-
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

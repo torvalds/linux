@@ -27,6 +27,9 @@
  *
  * See Documentation/arm/kernel_user_helpers.txt for formal definitions.
  */
+
+#include <asm/unistd.h>
+
 	.align	5
 	.globl	__kuser_helper_start
 __kuser_helper_start:
