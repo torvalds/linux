@@ -287,7 +287,7 @@ static struct pcie_host_ops keystone_pcie_host_ops = {
 	.host_init = ks_pcie_host_init,
 	.msi_set_irq = ks_dw_pcie_msi_set_irq,
 	.msi_clear_irq = ks_dw_pcie_msi_clear_irq,
-	.get_msi_data = ks_dw_pcie_get_msi_data,
+	.get_msi_addr = ks_dw_pcie_get_msi_addr,
 	.msi_host_init = ks_dw_pcie_msi_host_init,
 	.scan_bus = ks_dw_pcie_v3_65_scan_bus,
 };
