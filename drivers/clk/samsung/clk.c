@@ -11,7 +11,9 @@
  * clock framework for Samsung platforms.
 */
 
+#include <linux/of_address.h>
 #include <linux/syscore_ops.h>
+
 #include "clk.h"
 
 static LIST_HEAD(clock_reg_cache_list);
