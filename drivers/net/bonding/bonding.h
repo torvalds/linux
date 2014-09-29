@@ -24,6 +24,7 @@
 #include <linux/inetdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/reciprocal_div.h>
+#include <linux/if_link.h>
 
 #include "bond_3ad.h"
 #include "bond_alb.h"
@@ -175,6 +176,7 @@ struct slave {
 	struct netpoll *np;
 #endif
 	struct kobject kobj;
+	struct rtnl_link_stats64 slave_stats;
 };
 
 /*
@@ -224,6 +226,7 @@ struct bonding {
 	/* debugging support via debugfs */
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
+	struct rtnl_link_stats64 bond_stats;
 };
 
 #define bond_slave_get_rcu(dev) \

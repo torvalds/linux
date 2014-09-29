@@ -208,6 +208,8 @@ static int lacp_fast;
 
 static int bond_init(struct net_device *bond_dev);
 static void bond_uninit(struct net_device *bond_dev);
+static struct rtnl_link_stats64 *bond_get_stats(struct net_device *bond_dev,
+						struct rtnl_link_stats64 *stats);
 
 /*---------------------------- General routines -----------------------------*/
 
@@ -1344,6 +1346,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	slave_dev->priv_flags |= IFF_BONDING;
+	/* initialize slave stats */
+	dev_get_stats(new_slave->dev, &new_slave->slave_stats);
 
 	if (bond_is_lb(bond)) {
 		/* bond_alb_init_slave() must be called before all other stages since
@@ -1651,6 +1655,9 @@ static int __bond_release_one(struct net_device *bond_dev,
 	}
 
 	bond_sysfs_slave_del(slave);
+
+	/* recompute stats just before removing the slave */
+	bond_get_stats(bond->dev, &bond->bond_stats);
 
 	bond_upper_dev_unlink(bond_dev, slave_dev);
 	/* unregister rx_handler early so bond_handle_frame wouldn't be called
@@ -3085,38 +3092,43 @@ static struct rtnl_link_stats64 *bond_get_stats(struct net_device *bond_dev,
 	struct list_head *iter;
 	struct slave *slave;
 
-	memset(stats, 0, sizeof(*stats));
+	memcpy(stats, &bond->bond_stats, sizeof(*stats));
 
 	bond_for_each_slave(bond, slave, iter) {
 		const struct rtnl_link_stats64 *sstats =
 			dev_get_stats(slave->dev, &temp);
+		struct rtnl_link_stats64 *pstats = &slave->slave_stats;
 
-		stats->rx_packets += sstats->rx_packets;
-		stats->rx_bytes += sstats->rx_bytes;
-		stats->rx_errors += sstats->rx_errors;
-		stats->rx_dropped += sstats->rx_dropped;
+		stats->rx_packets +=  sstats->rx_packets - pstats->rx_packets;
+		stats->rx_bytes += sstats->rx_bytes - pstats->rx_bytes;
+		stats->rx_errors += sstats->rx_errors - pstats->rx_errors;
+		stats->rx_dropped += sstats->rx_dropped - pstats->rx_dropped;
 
-		stats->tx_packets += sstats->tx_packets;
-		stats->tx_bytes += sstats->tx_bytes;
-		stats->tx_errors += sstats->tx_errors;
-		stats->tx_dropped += sstats->tx_dropped;
+		stats->tx_packets += sstats->tx_packets - pstats->tx_packets;;
+		stats->tx_bytes += sstats->tx_bytes - pstats->tx_bytes;
+		stats->tx_errors += sstats->tx_errors - pstats->tx_errors;
+		stats->tx_dropped += sstats->tx_dropped - pstats->tx_dropped;
 
-		stats->multicast += sstats->multicast;
-		stats->collisions += sstats->collisions;
+		stats->multicast += sstats->multicast - pstats->multicast;
+		stats->collisions += sstats->collisions - pstats->collisions;
 
-		stats->rx_length_errors += sstats->rx_length_errors;
-		stats->rx_over_errors += sstats->rx_over_errors;
-		stats->rx_crc_errors += sstats->rx_crc_errors;
-		stats->rx_frame_errors += sstats->rx_frame_errors;
-		stats->rx_fifo_errors += sstats->rx_fifo_errors;
-		stats->rx_missed_errors += sstats->rx_missed_errors;
+		stats->rx_length_errors += sstats->rx_length_errors - pstats->rx_length_errors;
+		stats->rx_over_errors += sstats->rx_over_errors - pstats->rx_over_errors;
+		stats->rx_crc_errors += sstats->rx_crc_errors - pstats->rx_crc_errors;
+		stats->rx_frame_errors += sstats->rx_frame_errors - pstats->rx_frame_errors;
+		stats->rx_fifo_errors += sstats->rx_fifo_errors - pstats->rx_fifo_errors;
+		stats->rx_missed_errors += sstats->rx_missed_errors - pstats->rx_missed_errors;
 
-		stats->tx_aborted_errors += sstats->tx_aborted_errors;
-		stats->tx_carrier_errors += sstats->tx_carrier_errors;
-		stats->tx_fifo_errors += sstats->tx_fifo_errors;
-		stats->tx_heartbeat_errors += sstats->tx_heartbeat_errors;
-		stats->tx_window_errors += sstats->tx_window_errors;
+		stats->tx_aborted_errors += sstats->tx_aborted_errors - pstats->tx_aborted_errors;
+		stats->tx_carrier_errors += sstats->tx_carrier_errors - pstats->tx_carrier_errors;
+		stats->tx_fifo_errors += sstats->tx_fifo_errors - pstats->tx_fifo_errors;
+		stats->tx_heartbeat_errors += sstats->tx_heartbeat_errors - pstats->tx_heartbeat_errors;
+		stats->tx_window_errors += sstats->tx_window_errors - pstats->tx_window_errors;
+
+		/* save off the slave stats for the next run */
+		memcpy(pstats, sstats, sizeof(*sstats));
 	}
+	memcpy(&bond->bond_stats, stats, sizeof(*stats));
 
 	return stats;
 }
