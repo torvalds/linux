@@ -807,19 +807,16 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
 					    tlv_len);
 			drv->fw.mvm_fw = true;
-			drv->fw.img[IWL_UCODE_REGULAR].is_secure = true;
 			break;
 		case IWL_UCODE_TLV_SECURE_SEC_INIT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_INIT,
 					    tlv_len);
 			drv->fw.mvm_fw = true;
-			drv->fw.img[IWL_UCODE_INIT].is_secure = true;
 			break;
 		case IWL_UCODE_TLV_SECURE_SEC_WOWLAN:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_WOWLAN,
 					    tlv_len);
 			drv->fw.mvm_fw = true;
-			drv->fw.img[IWL_UCODE_WOWLAN].is_secure = true;
 			break;
 		case IWL_UCODE_TLV_NUM_OF_CPU:
 			if (tlv_len != sizeof(u32))
