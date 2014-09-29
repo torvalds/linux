@@ -1,6 +1,7 @@
 #!/bin/sh
 # description: Basic test for tracers
+test -f available_tracers
 for t in `cat available_tracers`; do
-  echo $t > current_tracer || exit 1
+  echo $t > current_tracer
 done
 echo nop > current_tracer

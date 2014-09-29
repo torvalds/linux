@@ -1,14 +1,13 @@
 #!/bin/sh
 # description: Kprobe dynamic event - busy event check
 
-[ -f kprobe_events ] || exit 1
+[ -f kprobe_events ] || exit_unsupported
 
-echo 0 > events/enable || exit 1
-echo > kprobe_events || exit 1
-echo p:myevent do_fork > kprobe_events || exit 1
-[ -d events/kprobes/myevent ] || exit 1
-echo 1 > events/kprobes/myevent/enable || exit 1
+echo 0 > events/enable
+echo > kprobe_events
+echo p:myevent do_fork > kprobe_events
+test -d events/kprobes/myevent
+echo 1 > events/kprobes/myevent/enable
 echo > kprobe_events && exit 1 # this must fail
-echo 0 > events/kprobes/myevent/enable || exit 1
+echo 0 > events/kprobes/myevent/enable
 echo > kprobe_events # this must succeed
-

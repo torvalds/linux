@@ -1,11 +1,11 @@
 #!/bin/sh
 # description: Kprobe dynamic event - adding and removing
 
-[ -f kprobe_events ] || exit 1
+[ -f kprobe_events ] || exit_unsupported # this is configurable
 
-echo 0 > events/enable || exit 1
-echo > kprobe_events || exit 1
-echo p:myevent do_fork > kprobe_events || exit 1
-grep myevent kprobe_events || exit 1
-[ -d events/kprobes/myevent ] || exit 1
+echo 0 > events/enable
+echo > kprobe_events
+echo p:myevent do_fork > kprobe_events
+grep myevent kprobe_events
+test -d events/kprobes/myevent
 echo > kprobe_events
