@@ -407,7 +407,7 @@ err:
 
 static int sp2_remove(struct i2c_client *client)
 {
-	struct si2157 *s = i2c_get_clientdata(client);
+	struct sp2 *s = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev, "\n");
 
