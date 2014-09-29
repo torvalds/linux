@@ -13,6 +13,7 @@
 #include <linux/serial_8250.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
+#include <linux/tty_flip.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -854,6 +855,60 @@ err:
 	return ret;
 }
 
+/*
+ * This is mostly serial8250_handle_irq(). We have a slightly different DMA
+ * hoook for RX/TX and need different logic for them in the ISR. Therefore we
+ * use the default routine in the non-DMA case and this one for with DMA.
+ */
+static int omap_8250_dma_handle_irq(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	unsigned char status;
+	unsigned long flags;
+	u8 iir;
+	int dma_err = 0;
+
+	serial8250_rpm_get(up);
+
+	iir = serial_port_in(port, UART_IIR);
+	if (iir & UART_IIR_NO_INT) {
+		serial8250_rpm_put(up);
+		return 0;
+	}
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	status = serial_port_in(port, UART_LSR);
+
+	if (status & (UART_LSR_DR | UART_LSR_BI)) {
+
+		dma_err = omap_8250_rx_dma(up, iir);
+		if (dma_err) {
+			status = serial8250_rx_chars(up, status);
+			omap_8250_rx_dma(up, 0);
+		}
+	}
+	serial8250_modem_status(up);
+	if (status & UART_LSR_THRE && up->dma->tx_err) {
+		if (uart_tx_stopped(&up->port) ||
+		    uart_circ_empty(&up->port.state->xmit)) {
+			up->dma->tx_err = 0;
+			serial8250_tx_chars(up);
+		} else  {
+			/*
+			 * try again due to an earlier failer which
+			 * might have been resolved by now.
+			 */
+			dma_err = omap_8250_tx_dma(up);
+			if (dma_err)
+				serial8250_tx_chars(up);
+		}
+	}
+
+	spin_unlock_irqrestore(&port->lock, flags);
+	serial8250_rpm_put(up);
+	return 1;
+}
 #endif
 
 static int omap8250_probe(struct platform_device *pdev)
