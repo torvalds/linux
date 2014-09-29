@@ -36,7 +36,8 @@
 #include "hw-txe.h"
 
 static const struct pci_device_id mei_txe_pci_tbl[] = {
-	{MEI_PCI_DEVICE(0x0F18, mei_txe_cfg)}, /* Baytrail */
+	{PCI_VDEVICE(INTEL, 0x0F18)}, /* Baytrail */
+
 	{0, }
 };
 MODULE_DEVICE_TABLE(pci, mei_txe_pci_tbl);
@@ -70,7 +71,6 @@ static void mei_txe_pci_iounmap(struct pci_dev *pdev, struct mei_txe_hw *hw)
  */
 static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	const struct mei_cfg *cfg = (struct mei_cfg *)(ent->driver_data);
 	struct mei_device *dev;
 	struct mei_txe_hw *hw;
 	int err;
@@ -101,7 +101,7 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* allocates and initializes the mei dev structure */
-	dev = mei_txe_dev_init(pdev, cfg);
+	dev = mei_txe_dev_init(pdev);
 	if (!dev) {
 		err = -ENOMEM;
 		goto release_regions;

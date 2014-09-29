@@ -61,10 +61,7 @@ static inline struct mei_device *hw_txe_to_mei(struct mei_txe_hw *hw)
 	return container_of((void *)hw, struct mei_device, hw);
 }
 
-extern const struct mei_cfg mei_txe_cfg;
-
-struct mei_device *mei_txe_dev_init(struct pci_dev *pdev,
-	const struct mei_cfg *cfg);
+struct mei_device *mei_txe_dev_init(struct pci_dev *pdev);
 
 irqreturn_t mei_txe_irq_quick_handler(int irq, void *dev_id);
 irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id);

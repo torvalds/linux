@@ -110,8 +110,9 @@ static inline void mei_hcsr_set(struct mei_me_hw *hw, u32 hcsr)
 static int mei_me_fw_status(struct mei_device *dev,
 			    struct mei_fw_status *fw_status)
 {
-	const struct mei_fw_status *fw_src = &dev->cfg->fw_status;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct mei_me_hw *hw = to_me_hw(dev);
+	const struct mei_fw_status *fw_src = &hw->cfg->fw_status;
 	int ret;
 	int i;
 
@@ -846,14 +847,16 @@ struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
 				   const struct mei_cfg *cfg)
 {
 	struct mei_device *dev;
+	struct mei_me_hw *hw;
 
 	dev = kzalloc(sizeof(struct mei_device) +
 			 sizeof(struct mei_me_hw), GFP_KERNEL);
 	if (!dev)
 		return NULL;
+	hw = to_me_hw(dev);
 
 	mei_device_init(dev, &pdev->dev, &mei_me_hw_ops);
-	dev->cfg  = cfg;
+	hw->cfg = cfg;
 	return dev;
 }
 

@@ -380,24 +380,6 @@ enum mei_pg_state {
 
 const char *mei_pg_state_str(enum mei_pg_state state);
 
-/*
- * mei_cfg
- *
- * @fw_status - FW status
- * @quirk_probe - device exclusion quirk
- */
-struct mei_cfg {
-	const struct mei_fw_status fw_status;
-	bool (*quirk_probe)(struct pci_dev *pdev);
-};
-
-
-#define MEI_PCI_DEVICE(dev, cfg) \
-	.vendor = PCI_VENDOR_ID_INTEL, .device = (dev), \
-	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
-	.driver_data = (kernel_ulong_t)&(cfg)
-
-
 /**
  * struct mei_device -  MEI private device struct
 
@@ -416,7 +398,6 @@ struct mei_cfg {
  * @hbuf_depth - depth of hardware host/write buffer is slots
  * @hbuf_is_ready - query if the host host/write buffer is ready
  * @wr_msg - the buffer for hbm control messages
- * @cfg - per device generation config and ops
  */
 struct mei_device {
 	struct device *dev;
@@ -530,7 +511,6 @@ struct mei_device {
 
 
 	const struct mei_hw_ops *ops;
-	const struct mei_cfg *cfg;
 	char hw[0] __aligned(sizeof(void *));
 };
 
