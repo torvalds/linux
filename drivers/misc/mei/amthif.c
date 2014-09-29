@@ -130,6 +130,7 @@ struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 						struct file *file)
 {
 	struct mei_cl_cb *cb;
+
 	list_for_each_entry(cb, &dev->amthif_rd_complete_list.list, list)
 		if (cb->file_object == file)
 			return cb;

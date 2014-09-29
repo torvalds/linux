@@ -550,6 +550,7 @@ err:
 void mei_nfc_host_exit(struct mei_device *dev)
 {
 	struct mei_nfc_dev *ndev = &nfc_dev;
+
 	cancel_work_sync(&ndev->init_work);
 }
 

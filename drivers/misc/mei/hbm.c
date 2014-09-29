@@ -111,6 +111,7 @@ void mei_hbm_idle(struct mei_device *dev)
 static void mei_me_cl_remove_all(struct mei_device *dev)
 {
 	struct mei_me_client *me_cl, *next;
+
 	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list) {
 			list_del(&me_cl->list);
 			kfree(me_cl);
@@ -449,6 +450,7 @@ static int mei_hbm_stop_req(struct mei_device *dev)
 int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl)
 {
 	const size_t len = sizeof(struct hbm_flow_control);
+
 	cl_dbg(dev, cl, "sending flow control\n");
 	return mei_hbm_cl_write(dev, cl, MEI_FLOW_CONTROL_CMD, len);
 }
@@ -520,6 +522,7 @@ static void mei_hbm_cl_flow_control_res(struct mei_device *dev,
 int mei_hbm_cl_disconnect_req(struct mei_device *dev, struct mei_cl *cl)
 {
 	const size_t len = sizeof(struct hbm_client_connect_request);
+
 	return mei_hbm_cl_write(dev, cl, CLIENT_DISCONNECT_REQ_CMD, len);
 }
 
@@ -534,6 +537,7 @@ int mei_hbm_cl_disconnect_req(struct mei_device *dev, struct mei_cl *cl)
 int mei_hbm_cl_disconnect_rsp(struct mei_device *dev, struct mei_cl *cl)
 {
 	const size_t len = sizeof(struct hbm_client_connect_response);
+
 	return mei_hbm_cl_write(dev, cl, CLIENT_DISCONNECT_RES_CMD, len);
 }
 
@@ -569,6 +573,7 @@ static void mei_hbm_cl_disconnect_res(struct mei_cl *cl,
 int mei_hbm_cl_connect_req(struct mei_device *dev, struct mei_cl *cl)
 {
 	const size_t len = sizeof(struct hbm_client_connect_request);
+
 	return mei_hbm_cl_write(dev, cl, CLIENT_CONNECT_REQ_CMD, len);
 }
 

@@ -88,6 +88,7 @@ int mei_reset(struct mei_device *dev)
 	    state != MEI_DEV_POWER_DOWN &&
 	    state != MEI_DEV_POWER_UP) {
 		struct mei_fw_status fw_status;
+
 		mei_fw_status(dev, &fw_status);
 		dev_warn(&dev->pdev->dev,
 			"unexpected reset: dev_state = %s " FW_STS_FMT "\n",
@@ -180,6 +181,7 @@ EXPORT_SYMBOL_GPL(mei_reset);
 int mei_start(struct mei_device *dev)
 {
 	int ret;
+
 	mutex_lock(&dev->device_lock);
 
 	/* acknowledge interrupt and stop interrupts */
@@ -344,15 +346,15 @@ EXPORT_SYMBOL_GPL(mei_write_is_idle);
 
 int mei_fw_status(struct mei_device *dev, struct mei_fw_status *fw_status)
 {
-	int i;
 	const struct mei_fw_status *fw_src = &dev->cfg->fw_status;
+	int ret;
+	int i;
 
 	if (!fw_status)
 		return -EINVAL;
 
 	fw_status->count = fw_src->count;
 	for (i = 0; i < fw_src->count && i < MEI_FW_STATUS_MAX; i++) {
-		int ret;
 		ret = pci_read_config_dword(dev->pdev,
 			fw_src->status[i], &fw_status->status[i]);
 		if (ret)

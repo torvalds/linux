@@ -52,6 +52,7 @@ static inline void mei_txe_unset_pm_domain(struct mei_device *dev) {}
 static void mei_txe_pci_iounmap(struct pci_dev *pdev, struct mei_txe_hw *hw)
 {
 	int i;
+
 	for (i = SEC_BAR; i < NUM_OF_MEM_BARS; i++) {
 		if (hw->mem_addr[i]) {
 			pci_iounmap(pdev, hw->mem_addr[i]);

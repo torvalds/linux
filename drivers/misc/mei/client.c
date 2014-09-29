@@ -1065,6 +1065,7 @@ void mei_cl_all_disconnect(struct mei_device *dev)
 void mei_cl_all_wakeup(struct mei_device *dev)
 {
 	struct mei_cl *cl;
+
 	list_for_each_entry(cl, &dev->file_list, link) {
 		if (waitqueue_active(&cl->rx_wait)) {
 			cl_dbg(dev, cl, "Waking up reading client!\n");

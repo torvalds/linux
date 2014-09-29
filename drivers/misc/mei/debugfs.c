@@ -179,6 +179,7 @@ void mei_dbgfs_deregister(struct mei_device *dev)
 int mei_dbgfs_register(struct mei_device *dev, const char *name)
 {
 	struct dentry *dir, *f;
+
 	dir = debugfs_create_dir(name, NULL);
 	if (!dir)
 		return -ENOMEM;

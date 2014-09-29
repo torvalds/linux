@@ -127,6 +127,7 @@ static void mei_me_hw_config(struct mei_device *dev)
 static inline enum mei_pg_state mei_me_pg_state(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
+
 	return hw->pg_state;
 }
 
@@ -139,6 +140,7 @@ static void mei_me_intr_clear(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr = mei_hcsr_read(hw);
+
 	if ((hcsr & H_IS) == H_IS)
 		mei_me_reg_write(hw, H_CSR, hcsr);
 }
@@ -151,6 +153,7 @@ static void mei_me_intr_enable(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr = mei_hcsr_read(hw);
+
 	hcsr |= H_IE;
 	mei_hcsr_set(hw, hcsr);
 }
@@ -164,6 +167,7 @@ static void mei_me_intr_disable(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr = mei_hcsr_read(hw);
+
 	hcsr  &= ~H_IE;
 	mei_hcsr_set(hw, hcsr);
 }
@@ -234,6 +238,7 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 static void mei_me_host_set_ready(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
+
 	hw->host_hw_state = mei_hcsr_read(hw);
 	hw->host_hw_state |= H_IE | H_IG | H_RDY;
 	mei_hcsr_set(hw, hw->host_hw_state);
@@ -247,6 +252,7 @@ static void mei_me_host_set_ready(struct mei_device *dev)
 static bool mei_me_host_is_ready(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
+
 	hw->host_hw_state = mei_hcsr_read(hw);
 	return (hw->host_hw_state & H_RDY) == H_RDY;
 }
@@ -260,6 +266,7 @@ static bool mei_me_host_is_ready(struct mei_device *dev)
 static bool mei_me_hw_is_ready(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
+
 	hw->me_hw_state = mei_me_mecsr_read(hw);
 	return (hw->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA;
 }
@@ -283,6 +290,7 @@ static int mei_me_hw_ready_wait(struct mei_device *dev)
 static int mei_me_hw_start(struct mei_device *dev)
 {
 	int ret = mei_me_hw_ready_wait(dev);
+
 	if (ret)
 		return ret;
 	dev_dbg(&dev->pdev->dev, "hw is ready\n");
@@ -390,6 +398,7 @@ static int mei_me_write_message(struct mei_device *dev,
 	rem = length & 0x3;
 	if (rem > 0) {
 		u32 reg = 0;
+
 		memcpy(&reg, &buf[length - rem], rem);
 		mei_me_reg_write(hw, H_CB_WW, reg);
 	}
@@ -448,6 +457,7 @@ static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
 
 	if (buffer_length > 0) {
 		u32 reg = mei_me_mecbrw_read(dev);
+
 		memcpy(reg_buf, &reg, buffer_length);
 	}
 
@@ -465,6 +475,7 @@ static void mei_me_pg_enter(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 reg = mei_me_reg_read(hw, H_HPG_CSR);
+
 	reg |= H_HPG_CSR_PGI;
 	mei_me_reg_write(hw, H_HPG_CSR, reg);
 }
@@ -732,6 +743,7 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 static bool mei_me_fw_type_nm(struct pci_dev *pdev)
 {
 	u32 reg;
+
 	pci_read_config_dword(pdev, PCI_CFG_HFS_2, &reg);
 	/* make sure that bit 9 (NM) is up and bit 10 (DM) is down */
 	return (reg & 0x600) == 0x200;

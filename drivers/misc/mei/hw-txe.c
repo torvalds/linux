@@ -177,6 +177,7 @@ static u32 mei_txe_aliveness_req_get(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
 	u32 reg;
+
 	reg = mei_txe_br_reg_read(hw, SICR_HOST_ALIVENESS_REQ_REG);
 	return reg & SICR_HOST_ALIVENESS_REQ_REQUESTED;
 }
@@ -192,6 +193,7 @@ static u32 mei_txe_aliveness_get(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
 	u32 reg;
+
 	reg = mei_txe_br_reg_read(hw, HICR_HOST_ALIVENESS_RESP_REG);
 	return reg & HICR_HOST_ALIVENESS_RESP_ACK;
 }
@@ -307,6 +309,7 @@ static bool mei_txe_pg_is_enabled(struct mei_device *dev)
 static inline enum mei_pg_state mei_txe_pg_state(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+
 	return hw->aliveness ? MEI_PG_OFF : MEI_PG_ON;
 }
 
@@ -358,6 +361,7 @@ static bool mei_txe_is_input_ready(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
 	u32 status;
+
 	status = mei_txe_sec_reg_read(hw, SEC_IPC_INPUT_STATUS_REG);
 	return !!(SEC_IPC_INPUT_STATUS_RDY & status);
 }
@@ -370,6 +374,7 @@ static bool mei_txe_is_input_ready(struct mei_device *dev)
 static inline void mei_txe_intr_clear(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+
 	mei_txe_sec_reg_write_silent(hw, SEC_IPC_HOST_INT_STATUS_REG,
 		SEC_IPC_HOST_INT_STATUS_PENDING);
 	mei_txe_br_reg_write(hw, HISR_REG, HISR_INT_STS_MSK);
@@ -384,6 +389,7 @@ static inline void mei_txe_intr_clear(struct mei_device *dev)
 static void mei_txe_intr_disable(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+
 	mei_txe_br_reg_write(hw, HHIER_REG, 0);
 	mei_txe_br_reg_write(hw, HIER_REG, 0);
 }
@@ -395,6 +401,7 @@ static void mei_txe_intr_disable(struct mei_device *dev)
 static void mei_txe_intr_enable(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+
 	mei_txe_br_reg_write(hw, HHIER_REG, IPC_HHIER_MSK);
 	mei_txe_br_reg_write(hw, HIER_REG, HIER_INT_EN_MSK);
 }
@@ -440,6 +447,7 @@ static void mei_txe_input_payload_write(struct mei_device *dev,
 			unsigned long idx, u32 value)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+
 	mei_txe_sec_reg_write(hw, SEC_IPC_INPUT_PAYLOAD_REG +
 			(idx * sizeof(u32)), value);
 }
@@ -457,6 +465,7 @@ static u32 mei_txe_out_data_read(const struct mei_device *dev,
 					unsigned long idx)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+
 	return mei_txe_br_reg_read(hw,
 		BRIDGE_IPC_OUTPUT_PAYLOAD_REG + (idx * sizeof(u32)));
 }
@@ -471,6 +480,7 @@ static u32 mei_txe_out_data_read(const struct mei_device *dev,
 static void mei_txe_readiness_set_host_rdy(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+
 	mei_txe_br_reg_write(hw,
 		SICR_HOST_IPC_READINESS_REQ_REG,
 		SICR_HOST_IPC_READINESS_HOST_RDY);
@@ -484,6 +494,7 @@ static void mei_txe_readiness_set_host_rdy(struct mei_device *dev)
 static void mei_txe_readiness_clear(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+
 	mei_txe_br_reg_write(hw, SICR_HOST_IPC_READINESS_REQ_REG,
 				SICR_HOST_IPC_READINESS_RDY_CLR);
 }
@@ -496,6 +507,7 @@ static void mei_txe_readiness_clear(struct mei_device *dev)
 static u32 mei_txe_readiness_get(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+
 	return mei_txe_br_reg_read(hw, HICR_SEC_IPC_READINESS_REG);
 }
 
@@ -519,6 +531,7 @@ static inline bool mei_txe_readiness_is_sec_rdy(u32 readiness)
 static bool mei_txe_hw_is_ready(struct mei_device *dev)
 {
 	u32 readiness =  mei_txe_readiness_get(dev);
+
 	return mei_txe_readiness_is_sec_rdy(readiness);
 }
 
@@ -531,6 +544,7 @@ static inline bool mei_txe_host_is_ready(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
 	u32 reg = mei_txe_br_reg_read(hw, HICR_SEC_IPC_READINESS_REG);
+
 	return !!(reg & HICR_SEC_IPC_READINESS_HOST_RDY);
 }
 
@@ -571,6 +585,7 @@ static void mei_txe_hw_config(struct mei_device *dev)
 {
 
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+
 	/* Doesn't change in runtime */
 	dev->hbuf_depth = PAYLOAD_SIZE / 4;
 
@@ -621,6 +636,7 @@ static int mei_txe_write(struct mei_device *dev,
 
 	if (!mei_txe_is_input_ready(dev)) {
 		struct mei_fw_status fw_status;
+
 		mei_fw_status(dev, &fw_status);
 		dev_err(&dev->pdev->dev, "Input is not ready " FW_STS_FMT "\n",
 			FW_STS_PRM(fw_status));
@@ -635,6 +651,7 @@ static int mei_txe_write(struct mei_device *dev,
 	rem = length & 0x3;
 	if (rem > 0) {
 		u32 reg = 0;
+
 		memcpy(&reg, &buf[length - rem], rem);
 		mei_txe_input_payload_write(dev, i + 1, reg);
 	}
@@ -670,6 +687,7 @@ static size_t mei_txe_hbuf_max_len(const struct mei_device *dev)
 static int mei_txe_hbuf_empty_slots(struct mei_device *dev)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+
 	return hw->slots;
 }
 
@@ -712,12 +730,15 @@ static int mei_txe_read(struct mei_device *dev,
 {
 
 	struct mei_txe_hw *hw = to_txe_hw(dev);
+	u32 *reg_buf, reg;
+	u32 rem;
 	u32 i;
-	u32 *reg_buf = (u32 *)buf;
-	u32 rem = len & 0x3;
 
 	if (WARN_ON(!buf || !len))
 		return -EINVAL;
+
+	reg_buf = (u32 *)buf;
+	rem = len & 0x3;
 
 	dev_dbg(&dev->pdev->dev,
 		"buffer-length = %lu buf[0]0x%08X\n",
@@ -725,13 +746,13 @@ static int mei_txe_read(struct mei_device *dev,
 
 	for (i = 0; i < len / 4; i++) {
 		/* skip header: index starts from 1 */
-		u32 reg = mei_txe_out_data_read(dev, i + 1);
+		reg = mei_txe_out_data_read(dev, i + 1);
 		dev_dbg(&dev->pdev->dev, "buf[%d] = 0x%08X\n", i, reg);
 		*reg_buf++ = reg;
 	}
 
 	if (rem) {
-		u32 reg = mei_txe_out_data_read(dev, i + 1);
+		reg = mei_txe_out_data_read(dev, i + 1);
 		memcpy(reg_buf, &reg, rem);
 	}
 
