@@ -134,9 +134,9 @@ extern const __be32 *of_get_pci_address(struct device_node *dev, int bar_no,
 			       u64 *size, unsigned int *flags);
 extern int of_pci_address_to_resource(struct device_node *dev, int bar,
 				      struct resource *r);
-extern void of_pci_range_to_resource(struct of_pci_range *range,
-				     struct device_node *np,
-				     struct resource *res);
+extern int of_pci_range_to_resource(struct of_pci_range *range,
+				    struct device_node *np,
+				    struct resource *res);
 #else /* CONFIG_OF_ADDRESS && CONFIG_PCI */
 static inline int of_pci_address_to_resource(struct device_node *dev, int bar,
 				             struct resource *r)
@@ -149,9 +149,9 @@ static inline const __be32 *of_get_pci_address(struct device_node *dev,
 {
 	return NULL;
 }
-static inline void of_pci_range_to_resource(struct of_pci_range *range,
-					    struct device_node *np,
-					    struct resource *res)
+static inline int of_pci_range_to_resource(struct of_pci_range *range,
+					   struct device_node *np,
+					   struct resource *res)
 {
 	return -ENOSYS;
 }
