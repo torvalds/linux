@@ -1004,9 +1004,11 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 	case ATH9K_ANI_FIRSTEP_LEVEL:{
 		u32 level = param;
 
-		value = level;
+		value = level * 2;
 		REG_RMW_FIELD(ah, AR_PHY_FIND_SIG,
 			      AR_PHY_FIND_SIG_FIRSTEP, value);
+		REG_RMW_FIELD(ah, AR_PHY_FIND_SIG_LOW,
+			      AR_PHY_FIND_SIG_FIRSTEP_LOW, value);
 
 		if (level != aniState->firstepLevel) {
 			ath_dbg(common, ANI,
