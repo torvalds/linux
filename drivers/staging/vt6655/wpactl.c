@@ -300,7 +300,7 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx,
 	else
 		byKeyDecMode = KEY_CTL_WEP;
 
-	// Fix HCT test that set 256 bits KEY and Ndis802_11Encryption3Enabled
+	/* Fix HCT test that set 256 bits KEY and Ndis802_11Encryption3Enabled */
 	if (pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled) {
 		if (param->u.wpa_key.key_len == MAX_KEY_LEN)
 			byKeyDecMode = KEY_CTL_TKIP;
@@ -315,23 +315,23 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx,
 			byKeyDecMode = KEY_CTL_WEP;
 	}
 
-	// Check TKIP key length
+	/* Check TKIP key length */
 	if ((byKeyDecMode == KEY_CTL_TKIP) &&
 	    (param->u.wpa_key.key_len != MAX_KEY_LEN)) {
-		// TKIP Key must be 256 bits
+		/* TKIP Key must be 256 bits */
 		pr_debug("return- TKIP Key must be 256 bits!\n");
 		return -EINVAL;
 	}
-	// Check AES key length
+	/* Check AES key length */
 	if ((byKeyDecMode == KEY_CTL_CCMP) &&
 	    (param->u.wpa_key.key_len != AES_KEY_LEN)) {
-		// AES Key must be 128 bits
+		/* AES Key must be 128 bits */
 		return -EINVAL;
 	}
 
-	// spin_lock_irq(&pDevice->lock);
+	/* spin_lock_irq(&pDevice->lock); */
 	if (is_broadcast_ether_addr(&param->addr[0]) || (param->addr == NULL)) {
-		// If is_broadcast_ether_addr, set the key as every key entry's group key.
+		/* If is_broadcast_ether_addr, set the key as every key entry's group key. */
 		pr_debug("Groupe Key Assign\n");
 
 		if (KeybSetAllGroupKey(&(pDevice->sKey),
@@ -358,14 +358,14 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx,
 
 	} else {
 		pr_debug("Pairwise Key Assign\n");
-		// BSSID not 0xffffffffffff
-		// Pairwise Key can't be WEP
+		/* BSSID not 0xffffffffffff */
+		/* Pairwise Key can't be WEP */
 		if (byKeyDecMode == KEY_CTL_WEP) {
 			pr_debug("Pairwise Key can't be WEP\n");
 			return -EINVAL;
 		}
 
-		dwKeyIndex |= (1 << 30); // set pairwise key
+		dwKeyIndex |= (1 << 30); /* set pairwise key */
 		if (pMgmt->eConfigMode == WMAC_CONFIG_IBSS_STA)
 			return -EINVAL;
 
@@ -381,10 +381,10 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx,
 			pr_debug("Pairwise Key Set\n");
 
 		} else {
-			// Key Table Full
+			/* Key Table Full */
 			return -EINVAL;
 		}
-	} // BSSID not 0xffffffffffff
+	} /* BSSID not 0xffffffffffff */
 	if ((ret == 0) && ((param->u.wpa_key.set_tx) != 0)) {
 		pDevice->byKeyIndex = (unsigned char)param->u.wpa_key.key_index;
 		pDevice->bTransmitKey = true;
@@ -665,7 +665,7 @@ static int wpa_set_associate(struct vnt_private *pDevice,
 	unsigned char abyWPAIE[64];
 	bool bWepEnabled = false;
 
-	// set key type & algorithm
+	/* set key type & algorithm */
 	pr_debug("pairwise_suite = %d\n",
 		 param->u.wpa_associate.pairwise_suite);
 	pr_debug("group_suite = %d\n", param->u.wpa_associate.group_suite);
@@ -688,13 +688,13 @@ static int wpa_set_associate(struct vnt_private *pDevice,
 		pMgmt->eConfigMode = WMAC_CONFIG_IBSS_STA;
 	else
 		pMgmt->eConfigMode = WMAC_CONFIG_ESS_STA;
-	// set ssid
+	/* set ssid */
 	memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
 	pItemSSID = (PWLAN_IE_SSID)pMgmt->abyDesireSSID;
 	pItemSSID->byElementID = WLAN_EID_SSID;
 	pItemSSID->len = param->u.wpa_associate.ssid_len;
 	memcpy(pItemSSID->abySSID, param->u.wpa_associate.ssid, pItemSSID->len);
-	// set bssid
+	/* set bssid */
 	if (memcmp(param->u.wpa_associate.bssid, &abyNullAddr[0], 6) != 0)
 		memcpy(pMgmt->abyDesireBSSID, param->u.wpa_associate.bssid, 6);
 	else
