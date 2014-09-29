@@ -1076,8 +1076,8 @@ xfs_dialloc_ag_finobt_newino(
 	int i;
 
 	if (agi->agi_newino != cpu_to_be32(NULLAGINO)) {
-		error = xfs_inobt_lookup(cur, agi->agi_newino, XFS_LOOKUP_EQ,
-					 &i);
+		error = xfs_inobt_lookup(cur, be32_to_cpu(agi->agi_newino),
+					 XFS_LOOKUP_EQ, &i);
 		if (error)
 			return error;
 		if (i == 1) {
@@ -1085,7 +1085,6 @@ xfs_dialloc_ag_finobt_newino(
 			if (error)
 				return error;
 			XFS_WANT_CORRUPTED_RETURN(i == 1);
-
 			return 0;
 		}
 	}
