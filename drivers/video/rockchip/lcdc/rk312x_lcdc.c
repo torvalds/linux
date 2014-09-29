@@ -1877,7 +1877,6 @@ static int rk312x_fb_win_remap(struct rk_lcdc_driver *dev_drv, u16 order)
 			dev_drv->win[fb0_win_id]->area[0];
 		dev_drv->win[fb0_win_id]->area[0] = area;
 		dev_drv->fb0_win_id = fb0_win_id;
-		dev_drv->win[(int)dev_drv->fb0_win_id]->state;
 	}
 	dev_drv->fb1_win_id = fb1_win_id;
 	dev_drv->fb2_win_id = fb2_win_id;
