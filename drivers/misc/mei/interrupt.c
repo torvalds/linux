@@ -126,7 +126,6 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 					  GFP_KERNEL);
 
 			if (!buffer) {
-				cl_err(dev, cl, "allocation failed.\n");
 				list_del(&cb->list);
 				return -ENOMEM;
 			}

@@ -377,7 +377,6 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 	write_cb = mei_io_cb_init(cl, file);
 	if (!write_cb) {
-		dev_err(&dev->pdev->dev, "write cb allocation failed\n");
 		rets = -ENOMEM;
 		goto out;
 	}

@@ -96,10 +96,8 @@ int mei_amthif_host_init(struct mei_device *dev)
 	/* allocate storage for ME message buffer */
 	msg_buf = kcalloc(dev->iamthif_mtu,
 			sizeof(unsigned char), GFP_KERNEL);
-	if (!msg_buf) {
-		dev_err(&dev->pdev->dev, "amthif: memory allocation for ME message buffer failed.\n");
+	if (!msg_buf)
 		return -ENOMEM;
-	}
 
 	dev->iamthif_msg_buf = msg_buf;
 
