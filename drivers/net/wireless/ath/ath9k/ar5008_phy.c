@@ -1042,9 +1042,8 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 		REG_RMW_FIELD(ah, AR_PHY_TIMING5,
 			      AR_PHY_TIMING5_CYCPWR_THR1, value);
 
-		if (IS_CHAN_HT40(ah->curchan))
-			REG_RMW_FIELD(ah, AR_PHY_EXT_CCA,
-				      AR_PHY_EXT_TIMING5_CYCPWR_THR1, value);
+		REG_RMW_FIELD(ah, AR_PHY_EXT_CCA,
+				  AR_PHY_EXT_TIMING5_CYCPWR_THR1, value - 1);
 
 		if (level != aniState->spurImmunityLevel) {
 			ath_dbg(common, ANI,
