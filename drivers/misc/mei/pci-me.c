@@ -98,7 +98,7 @@ static inline void mei_me_unset_pm_domain(struct mei_device *dev) {}
 #endif /* CONFIG_PM_RUNTIME */
 
 /**
- * mei_quirk_probe - probe for devices that doesn't valid ME interface
+ * mei_me_quirk_probe - probe for devices that doesn't valid ME interface
  *
  * @pdev: PCI device structure
  * @cfg: per generation config
@@ -117,7 +117,7 @@ static bool mei_me_quirk_probe(struct pci_dev *pdev,
 }
 
 /**
- * mei_probe - Device Initialization Routine
+ * mei_me_probe - Device Initialization Routine
  *
  * @pdev: PCI device structure
  * @ent: entry in kcs_pci_tbl
@@ -249,7 +249,7 @@ end:
 }
 
 /**
- * mei_remove - Device Removal Routine
+ * mei_me_remove - Device Removal Routine
  *
  * @pdev: PCI device structure
  *

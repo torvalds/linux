@@ -40,6 +40,7 @@
  * @mem_addr:            SeC and BRIDGE bars
  * @aliveness:           aliveness (power gating) state of the hardware
  * @readiness:           readiness state of the hardware
+ * @slots:               number of empty slots
  * @wait_aliveness_resp: aliveness wait queue
  * @intr_cause:          translated interrupt cause
  */

@@ -271,6 +271,8 @@ int mei_io_cb_alloc_resp_buf(struct mei_cl_cb *cb, size_t length)
  * mei_cl_flush_queues - flushes queue lists belonging to cl.
  *
  * @cl: host client
+ *
+ * Return: 0 on success, -EINVAL if cl or cl->dev is NULL.
  */
 int mei_cl_flush_queues(struct mei_cl *cl)
 {
@@ -402,6 +404,8 @@ int mei_cl_link(struct mei_cl *cl, int id)
  * mei_cl_unlink - remove me_cl from the list
  *
  * @cl: host client
+ *
+ * Return: always 0
  */
 int mei_cl_unlink(struct mei_cl *cl)
 {
@@ -756,6 +760,7 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
  * mei_cl_read_start - the start read client message function.
  *
  * @cl: host client
+ * @length: number of bytes to read
  *
  * Return: 0 on success, <0 on failure.
  */
@@ -916,6 +921,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
  *
  * @cl: host client
  * @cb: write callback with filled data
+ * @blocking: block until completed
  *
  * Return: number of bytes sent on success, <0 on failure.
  */

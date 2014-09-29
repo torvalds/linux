@@ -64,6 +64,7 @@ void mei_amthif_reset_params(struct mei_device *dev)
  *
  * @dev: the device structure
  *
+ * Return: 0 on success, <0 on failure.
  */
 int mei_amthif_host_init(struct mei_device *dev)
 {
@@ -352,7 +353,7 @@ int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
 	return mei_amthif_send_cmd(dev, cb);
 }
 /**
- * mei_amthif_run_next_cmd
+ * mei_amthif_run_next_cmd - send next amt command from queue
  *
  * @dev: the device structure
  */
@@ -496,7 +497,7 @@ int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 }
 
 /**
- * mei_amthif_irq_read_message - read routine after ISR to
+ * mei_amthif_irq_read_msg - read routine after ISR to
  *			handle the read amthif message
  *
  * @dev: the device structure

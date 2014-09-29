@@ -176,6 +176,8 @@ void mei_hbm_cl_hdr(struct mei_cl *cl, u8 hbm_cmd, void *buf, size_t len)
  * @cl: client
  * @hbm_cmd: host bus message command
  * @len: buffer length
+ *
+ * Return: 0 on success, <0 on failure.
  */
 static inline
 int mei_hbm_cl_write(struct mei_device *dev,

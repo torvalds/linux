@@ -47,7 +47,13 @@ struct mei_cfg {
 #define MEI_ME_RPM_TIMEOUT    500 /* ms */
 
 /**
+ * struct mei_me_hw - me hw specific data
+ *
  * @cfg: per device generation config and ops
+ * @mem_addr:  io memory address
+ * @host_hw_state: cached host state
+ * @me_hw_state:   cached me (fw) state
+ * @pg_state:      power gating state
  */
 struct mei_me_hw {
 	const struct mei_cfg *cfg;

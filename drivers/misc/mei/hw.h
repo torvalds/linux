@@ -109,6 +109,8 @@ enum mei_stop_reason_types {
  * @MEI_HBMS_NOT_ALLOWED       : operation not allowed
  * @MEI_HBMS_ALREADY_STARTED   : system is already started
  * @MEI_HBMS_NOT_STARTED       : system not started
+ *
+ * @MEI_HBMS_MAX               : sentinel
  */
 enum mei_hbm_status {
 	MEI_HBMS_SUCCESS           = 0,

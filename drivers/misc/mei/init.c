@@ -59,8 +59,6 @@ const char *mei_pg_state_str(enum mei_pg_state state)
  * mei_cancel_work - Cancel mei background jobs
  *
  * @dev: the device structure
- *
- * Return: 0 on success or < 0 if the reset hasn't succeeded
  */
 void mei_cancel_work(struct mei_device *dev)
 {
@@ -75,6 +73,8 @@ EXPORT_SYMBOL_GPL(mei_cancel_work);
  * mei_reset - resets host and fw.
  *
  * @dev: the device structure
+ *
+ * Return: 0 on success or < 0 if the reset hasn't succeeded
  */
 int mei_reset(struct mei_device *dev)
 {

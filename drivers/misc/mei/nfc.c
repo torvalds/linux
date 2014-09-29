@@ -94,9 +94,14 @@ struct mei_nfc_hci_hdr {
  * @cl: NFC host client
  * @cl_info: NFC info host client
  * @init_work: perform connection to the info client
+ * @send_wq: send completion wait queue
  * @fw_ivn: NFC Interface Version Number
  * @vendor_id: NFC manufacturer ID
  * @radio_type: NFC radio type
+ * @bus_name: bus name
+ *
+ * @req_id:  message counter
+ * @recv_req_id: reception message counter
  */
 struct mei_nfc_dev {
 	struct mei_cl *cl;

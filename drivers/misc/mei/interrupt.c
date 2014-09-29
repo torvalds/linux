@@ -87,7 +87,7 @@ static bool mei_cl_is_reading(struct mei_cl *cl, struct mei_msg_hdr *mei_hdr)
 }
 
 /**
- * mei_irq_read_client_message - process client message
+ * mei_cl_irq_read_msg - process client message
  *
  * @dev: the device structure
  * @mei_hdr: header of mei client message
@@ -234,7 +234,7 @@ static int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 
 /**
- * mei_cl_irq_close - processes client read related operation from the
+ * mei_cl_irq_read - processes client read related operation from the
  *	interrupt thread context - request for flow control credits
  *
  * @cl: client

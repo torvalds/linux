@@ -177,6 +177,8 @@ void mei_dbgfs_deregister(struct mei_device *dev)
  *
  * @dev: the mei device structure
  * @name: the mei device name
+ *
+ * Return: 0 on success, <0 on failure.
  */
 int mei_dbgfs_register(struct mei_device *dev, const char *name)
 {
