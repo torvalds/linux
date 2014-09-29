@@ -729,10 +729,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		break;
 	}
 
-	value = coda_read(dev, CODA_REG_BIT_FRAME_MEM_CTRL);
-	value &= ~(1 << 2 | 0x7 << 9);
-	ctx->frame_mem_ctrl = value;
-	coda_write(dev, value, CODA_REG_BIT_FRAME_MEM_CTRL);
+	coda_write(dev, ctx->frame_mem_ctrl, CODA_REG_BIT_FRAME_MEM_CTRL);
 
 	if (dev->devtype->product == CODA_DX6) {
 		/* Configure the coda */
@@ -741,6 +738,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	}
 
 	/* Could set rotation here if needed */
+	value = 0;
 	switch (dev->devtype->product) {
 	case CODA_DX6:
 		value = (q_data_src->width & CODADX6_PICWIDTH_MASK)
@@ -1295,6 +1293,8 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 
 	/* Update coda bitstream read and write pointers from kfifo */
 	coda_kfifo_sync_to_device_full(ctx);
+
+	coda_write(dev, ctx->frame_mem_ctrl, CODA_REG_BIT_FRAME_MEM_CTRL);
 
 	ctx->display_idx = -1;
 	ctx->frm_dis_flg = 0;

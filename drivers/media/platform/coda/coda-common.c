@@ -1423,8 +1423,10 @@ static int coda_open(struct file *file, enum coda_inst_type inst_type,
 	ctx->dev = dev;
 	ctx->idx = idx;
 	switch (dev->devtype->product) {
-	case CODA_7541:
 	case CODA_960:
+		ctx->frame_mem_ctrl = 1 << 12;
+		/* fallthrough */
+	case CODA_7541:
 		ctx->reg_idx = 0;
 		break;
 	default:
