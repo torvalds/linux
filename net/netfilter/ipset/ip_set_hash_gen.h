@@ -720,6 +720,8 @@ reuse_slot:
 		ip_set_init_counter(ext_counter(data, set), ext);
 	if (SET_WITH_COMMENT(set))
 		ip_set_init_comment(ext_comment(data, set), ext);
+	if (SET_WITH_SKBINFO(set))
+		ip_set_init_skbinfo(ext_skbinfo(data, set), ext);
 
 out:
 	rcu_read_unlock_bh();
@@ -797,6 +799,9 @@ mtype_data_match(struct mtype_elem *data, const struct ip_set_ext *ext,
 	if (SET_WITH_COUNTER(set))
 		ip_set_update_counter(ext_counter(data, set),
 				      ext, mext, flags);
+	if (SET_WITH_SKBINFO(set))
+		ip_set_get_skbinfo(ext_skbinfo(data, set),
+				   ext, mext, flags);
 	return mtype_do_data_match(data);
 }
 
@@ -1049,8 +1054,10 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	struct HTYPE *h;
 	struct htable *t;
 
+#ifndef IP_SET_PROTO_UNDEF
 	if (!(set->family == NFPROTO_IPV4 || set->family == NFPROTO_IPV6))
 		return -IPSET_ERR_INVALID_FAMILY;
+#endif
 
 #ifdef IP_SET_HASH_WITH_MARKMASK
 	markmask = 0xffffffff;
@@ -1132,25 +1139,32 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	rcu_assign_pointer(h->table, t);
 
 	set->data = h;
+#ifndef IP_SET_PROTO_UNDEF
 	if (set->family == NFPROTO_IPV4) {
+#endif
 		set->variant = &IPSET_TOKEN(HTYPE, 4_variant);
 		set->dsize = ip_set_elem_len(set, tb,
 				sizeof(struct IPSET_TOKEN(HTYPE, 4_elem)));
+#ifndef IP_SET_PROTO_UNDEF
 	} else {
 		set->variant = &IPSET_TOKEN(HTYPE, 6_variant);
 		set->dsize = ip_set_elem_len(set, tb,
 				sizeof(struct IPSET_TOKEN(HTYPE, 6_elem)));
 	}
+#endif
 	if (tb[IPSET_ATTR_TIMEOUT]) {
 		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
+#ifndef IP_SET_PROTO_UNDEF
 		if (set->family == NFPROTO_IPV4)
+#endif
 			IPSET_TOKEN(HTYPE, 4_gc_init)(set,
 				IPSET_TOKEN(HTYPE, 4_gc));
+#ifndef IP_SET_PROTO_UNDEF
 		else
 			IPSET_TOKEN(HTYPE, 6_gc_init)(set,
 				IPSET_TOKEN(HTYPE, 6_gc));
+#endif
 	}
-
 	pr_debug("create %s hashsize %u (%u) maxelem %u: %p(%p)\n",
 		 set->name, jhash_size(t->htable_bits),
 		 t->htable_bits, h->maxelem, set->data, t);

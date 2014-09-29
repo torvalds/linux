@@ -40,16 +40,6 @@ config NFT_CHAIN_ROUTE_IPV6
 	  fields such as the source, destination, flowlabel, hop-limit and
 	  the packet mark.
 
-config NFT_CHAIN_NAT_IPV6
-	depends on NF_TABLES_IPV6
-	depends on NF_NAT_IPV6 && NFT_NAT
-	tristate "IPv6 nf_tables nat chain support"
-	help
-	  This option enables the "nat" chain for IPv6 in nf_tables. This
-	  chain type is used to perform Network Address Translation (NAT)
-	  packet transformations such as the source, destination address and
-	  source and destination ports.
-
 config NFT_REJECT_IPV6
 	depends on NF_TABLES_IPV6
 	default NFT_REJECT
@@ -69,6 +59,34 @@ config NF_NAT_IPV6
 	  The IPv6 NAT option allows masquerading, port forwarding and other
 	  forms of full Network Address Port Translation. This can be
 	  controlled by iptables or nft.
+
+if NF_NAT_IPV6
+
+config NFT_CHAIN_NAT_IPV6
+	depends on NF_TABLES_IPV6
+	tristate "IPv6 nf_tables nat chain support"
+	help
+	  This option enables the "nat" chain for IPv6 in nf_tables. This
+	  chain type is used to perform Network Address Translation (NAT)
+	  packet transformations such as the source, destination address and
+	  source and destination ports.
+
+config NF_NAT_MASQUERADE_IPV6
+	tristate "IPv6 masquerade support"
+	help
+	  This is the kernel functionality to provide NAT in the masquerade
+	  flavour (automatic source address selection) for IPv6.
+
+config NFT_MASQ_IPV6
+	tristate "IPv6 masquerade support for nf_tables"
+	depends on NF_TABLES_IPV6
+	depends on NFT_MASQ
+	select NF_NAT_MASQUERADE_IPV6
+	help
+	  This is the expression that provides IPv4 masquerading support for
+	  nf_tables.
+
+endif # NF_NAT_IPV6
 
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"
@@ -257,18 +275,6 @@ config IP6_NF_NAT
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 if IP6_NF_NAT
-
-config NF_NAT_MASQUERADE_IPV6
-	tristate "IPv6 masquerade support"
-	help
-	 This is the kernel functionality to provide NAT in the masquerade
-	 flavour (automatic source address selection) for IPv6.
-
-config NFT_MASQ_IPV6
-	tristate "IPv6 masquerade support for nf_tables"
-	depends on NF_TABLES_IPV6
-	depends on NFT_MASQ
-	select NF_NAT_MASQUERADE_IPV6
 
 config IP6_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
