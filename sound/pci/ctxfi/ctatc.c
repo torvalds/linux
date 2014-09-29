@@ -1333,6 +1333,7 @@ static int atc_create_hw_devs(struct ct_atc *atc)
 		pr_err("Failed to create hw obj!!!\n");
 		return err;
 	}
+	hw->card = atc->card;
 	atc->hw = hw;
 
 	/* Initialize card hardware. */

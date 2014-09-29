@@ -725,6 +725,7 @@ int daio_mgr_create(struct hw *hw, struct daio_mgr **rdaio_mgr)
 	daio_mgr->imap_add = daio_imap_add;
 	daio_mgr->imap_delete = daio_imap_delete;
 	daio_mgr->commit_write = daio_mgr_commit_write;
+	daio_mgr->card = hw->card;
 
 	for (i = 0; i < 8; i++) {
 		hw->daio_mgr_dsb_dao(daio_mgr->mgr.ctrl_blk, i);

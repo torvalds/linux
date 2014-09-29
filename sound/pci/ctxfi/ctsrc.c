@@ -566,6 +566,7 @@ int src_mgr_create(struct hw *hw, struct src_mgr **rsrc_mgr)
 	src_mgr->src_enable = src_enable;
 	src_mgr->src_disable = src_disable;
 	src_mgr->commit_write = src_mgr_commit_write;
+	src_mgr->card = hw->card;
 
 	/* Disable all SRC resources. */
 	for (i = 0; i < 256; i++)
@@ -857,6 +858,7 @@ int srcimp_mgr_create(struct hw *hw, struct srcimp_mgr **rsrcimp_mgr)
 	srcimp_mgr->put_srcimp = put_srcimp_rsc;
 	srcimp_mgr->imap_add = srcimp_imap_add;
 	srcimp_mgr->imap_delete = srcimp_imap_delete;
+	srcimp_mgr->card = hw->card;
 
 	*rsrcimp_mgr = srcimp_mgr;
 

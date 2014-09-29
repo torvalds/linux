@@ -314,6 +314,7 @@ int amixer_mgr_create(struct hw *hw, struct amixer_mgr **ramixer_mgr)
 
 	amixer_mgr->get_amixer = get_amixer_rsc;
 	amixer_mgr->put_amixer = put_amixer_rsc;
+	amixer_mgr->card = hw->card;
 
 	*ramixer_mgr = amixer_mgr;
 
@@ -467,6 +468,7 @@ int sum_mgr_create(struct hw *hw, struct sum_mgr **rsum_mgr)
 
 	sum_mgr->get_sum = get_sum_rsc;
 	sum_mgr->put_sum = put_sum_rsc;
+	sum_mgr->card = hw->card;
 
 	*rsum_mgr = sum_mgr;
 
