@@ -447,7 +447,6 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	spin_lock_init(&adapter->cmd_free_q_lock);
 	spin_lock_init(&adapter->cmd_pending_q_lock);
 	spin_lock_init(&adapter->scan_pending_q_lock);
-	spin_lock_init(&adapter->rx_q_lock);
 	spin_lock_init(&adapter->rx_proc_lock);
 
 	skb_queue_head_init(&adapter->usb_rx_data_q);

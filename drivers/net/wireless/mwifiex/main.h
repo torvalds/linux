@@ -764,8 +764,6 @@ struct mwifiex_adapter {
 	struct list_head scan_pending_q;
 	/* spin lock for scan_pending_q */
 	spinlock_t scan_pending_q_lock;
-	/* spin lock for RX queue */
-	spinlock_t rx_q_lock;
 	/* spin lock for RX processing routine */
 	spinlock_t rx_proc_lock;
 	struct sk_buff_head usb_rx_data_q;
