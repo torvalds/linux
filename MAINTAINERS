@@ -7596,6 +7596,7 @@ F:	fs/reiserfs/
 
 REGISTER MAP ABSTRACTION
 M:	Mark Brown <broonie@kernel.org>
+L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/regmap.git
 S:	Supported
 F:	drivers/base/regmap/
