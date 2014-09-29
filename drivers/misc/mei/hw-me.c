@@ -457,7 +457,7 @@ static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
 }
 
 /**
- * mei_me_pg_enter - write pg enter register to mei device.
+ * mei_me_pg_enter - write pg enter register
  *
  * @dev: the device structure
  */
@@ -470,7 +470,7 @@ static void mei_me_pg_enter(struct mei_device *dev)
 }
 
 /**
- * mei_me_pg_enter - write pg enter register to mei device.
+ * mei_me_pg_exit - write pg exit register
  *
  * @dev: the device structure
  */
