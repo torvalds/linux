@@ -418,7 +418,7 @@ start_transaction(struct btrfs_root *root, u64 num_items, unsigned int type,
 		/*
 		 * Do the reservation for the relocation root creation
 		 */
-		if (unlikely(need_reserve_reloc_root(root))) {
+		if (need_reserve_reloc_root(root)) {
 			num_bytes += root->nodesize;
 			reloc_reserved = true;
 		}
