@@ -656,8 +656,10 @@ static int __init ocrdma_init_module(void)
 	return 0;
 
 err_be_reg:
+#if IS_ENABLED(CONFIG_IPV6)
 	ocrdma_unregister_inet6addr_notifier();
 err_notifier6:
+#endif
 	ocrdma_unregister_inetaddr_notifier();
 	return status;
 }
