@@ -527,27 +527,41 @@ struct sk_buff {
 	char			cb[48] __aligned(8);
 
 	unsigned long		_skb_refdst;
+	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_XFRM
 	struct	sec_path	*sp;
+#endif
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	struct nf_conntrack	*nfct;
+#endif
+#ifdef CONFIG_BRIDGE_NETFILTER
+	struct nf_bridge_info	*nf_bridge;
 #endif
 	unsigned int		len,
 				data_len;
 	__u16			mac_len,
 				hdr_len;
-	union {
-		__wsum		csum;
-		struct {
-			__u16	csum_start;
-			__u16	csum_offset;
-		};
-	};
-	__u32			priority;
+
+	/* Following fields are _not_ copied in __copy_skb_header()
+	 * Note that queue_mapping is here mostly to fill a hole.
+	 */
 	kmemcheck_bitfield_begin(flags1);
-	__u8			ignore_df:1,
-				cloned:1,
-				ip_summed:2,
+	__u16			queue_mapping;
+	__u8			cloned:1,
 				nohdr:1,
-				nfctinfo:3;
+				fclone:2,
+				peeked:1,
+				head_frag:1,
+				xmit_more:1;
+	/* one bit hole */
+	kmemcheck_bitfield_end(flags1);
+
+
+
+	/* fields enclosed in headers_start/headers_end are copied
+	 * using a single memcpy() in __copy_skb_header()
+	 */
+	__u32			headers_start[0];
 
 /* if you move pkt_type around you also must adapt those constants */
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -558,28 +572,33 @@ struct sk_buff {
 #define PKT_TYPE_OFFSET()	offsetof(struct sk_buff, __pkt_type_offset)
 
 	__u8			__pkt_type_offset[0];
-	__u8			pkt_type:3,
-				fclone:2,
-				ipvs_property:1,
-				peeked:1,
-				nf_trace:1;
-	kmemcheck_bitfield_end(flags1);
-	__be16			protocol;
+	__u8			pkt_type:3;
+	__u8			pfmemalloc:1;
+	__u8			ignore_df:1;
+	__u8			nfctinfo:3;
 
-	void			(*destructor)(struct sk_buff *skb);
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
-	struct nf_conntrack	*nfct;
+	__u8			nf_trace:1;
+	__u8			ip_summed:2;
+	__u8			ooo_okay:1;
+	__u8			l4_hash:1;
+	__u8			sw_hash:1;
+	__u8			wifi_acked_valid:1;
+	__u8			wifi_acked:1;
+
+	__u8			no_fcs:1;
+	/* Indicates the inner headers are valid in the skbuff. */
+	__u8			encapsulation:1;
+	__u8			encap_hdr_csum:1;
+	__u8			csum_valid:1;
+	__u8			csum_complete_sw:1;
+	__u8			csum_level:2;
+	__u8			csum_bad:1;
+
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
+	__u8			ndisc_nodetype:2;
 #endif
-#ifdef CONFIG_BRIDGE_NETFILTER
-	struct nf_bridge_info	*nf_bridge;
-#endif
-
-	int			skb_iif;
-
-	__u32			hash;
-
-	__be16			vlan_proto;
-	__u16			vlan_tci;
+	__u8			ipvs_property:1;
+	/* 5 or 7 bit hole */
 
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
@@ -588,28 +607,18 @@ struct sk_buff {
 #endif
 #endif
 
-	__u16			queue_mapping;
-	kmemcheck_bitfield_begin(flags2);
-	__u8			xmit_more:1;
-#ifdef CONFIG_IPV6_NDISC_NODETYPE
-	__u8			ndisc_nodetype:2;
-#endif
-	__u8			pfmemalloc:1;
-	__u8			ooo_okay:1;
-	__u8			l4_hash:1;
-	__u8			sw_hash:1;
-	__u8			wifi_acked_valid:1;
-	__u8			wifi_acked:1;
-	__u8			no_fcs:1;
-	__u8			head_frag:1;
-	/* Indicates the inner headers are valid in the skbuff. */
-	__u8			encapsulation:1;
-	__u8			encap_hdr_csum:1;
-	__u8			csum_valid:1;
-	__u8			csum_complete_sw:1;
-	/* 1/3 bit hole (depending on ndisc_nodetype presence) */
-	kmemcheck_bitfield_end(flags2);
-
+	union {
+		__wsum		csum;
+		struct {
+			__u16	csum_start;
+			__u16	csum_offset;
+		};
+	};
+	__u32			priority;
+	int			skb_iif;
+	__u32			hash;
+	__be16			vlan_proto;
+	__u16			vlan_tci;
 #if defined CONFIG_NET_DMA || defined CONFIG_NET_RX_BUSY_POLL
 	union {
 		unsigned int	napi_id;
@@ -625,19 +634,18 @@ struct sk_buff {
 		__u32		reserved_tailroom;
 	};
 
-	kmemcheck_bitfield_begin(flags3);
-	__u8			csum_level:2;
-	__u8			csum_bad:1;
-	/* 13 bit hole */
-	kmemcheck_bitfield_end(flags3);
-
 	__be16			inner_protocol;
 	__u16			inner_transport_header;
 	__u16			inner_network_header;
 	__u16			inner_mac_header;
+
+	__be16			protocol;
 	__u16			transport_header;
 	__u16			network_header;
 	__u16			mac_header;
+
+	__u32			headers_end[0];
+
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	sk_buff_data_t		tail;
 	sk_buff_data_t		end;
@@ -3040,19 +3048,22 @@ static inline void nf_reset_trace(struct sk_buff *skb)
 }
 
 /* Note: This doesn't put any conntrack and bridge info in dst. */
-static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src)
+static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src,
+			     bool copy)
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	dst->nfct = src->nfct;
 	nf_conntrack_get(src->nfct);
-	dst->nfctinfo = src->nfctinfo;
+	if (copy)
+		dst->nfctinfo = src->nfctinfo;
 #endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	dst->nf_bridge  = src->nf_bridge;
 	nf_bridge_get(src->nf_bridge);
 #endif
 #if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE) || defined(CONFIG_NF_TABLES)
-	dst->nf_trace = src->nf_trace;
+	if (copy)
+		dst->nf_trace = src->nf_trace;
 #endif
 }
 
@@ -3064,7 +3075,7 @@ static inline void nf_copy(struct sk_buff *dst, const struct sk_buff *src)
 #ifdef CONFIG_BRIDGE_NETFILTER
 	nf_bridge_put(dst->nf_bridge);
 #endif
-	__nf_copy(dst, src);
+	__nf_copy(dst, src, true);
 }
 
 #ifdef CONFIG_NETWORK_SECMARK

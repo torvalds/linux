@@ -261,7 +261,6 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 		atomic_t *fclone_ref = (atomic_t *) (child + 1);
 
 		kmemcheck_annotate_bitfield(child, flags1);
-		kmemcheck_annotate_bitfield(child, flags2);
 		skb->fclone = SKB_FCLONE_ORIG;
 		atomic_set(fclone_ref, 1);
 
@@ -675,57 +674,61 @@ void consume_skb(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(consume_skb);
 
+/* Make sure a field is enclosed inside headers_start/headers_end section */
+#define CHECK_SKB_FIELD(field) \
+	BUILD_BUG_ON(offsetof(struct sk_buff, field) <		\
+		     offsetof(struct sk_buff, headers_start));	\
+	BUILD_BUG_ON(offsetof(struct sk_buff, field) >		\
+		     offsetof(struct sk_buff, headers_end));	\
+
 static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 {
 	new->tstamp		= old->tstamp;
+	/* We do not copy old->sk */
 	new->dev		= old->dev;
-	new->transport_header	= old->transport_header;
-	new->network_header	= old->network_header;
-	new->mac_header		= old->mac_header;
-	new->inner_protocol	= old->inner_protocol;
-	new->inner_transport_header = old->inner_transport_header;
-	new->inner_network_header = old->inner_network_header;
-	new->inner_mac_header = old->inner_mac_header;
+	memcpy(new->cb, old->cb, sizeof(old->cb));
 	skb_dst_copy(new, old);
-	skb_copy_hash(new, old);
-	new->ooo_okay		= old->ooo_okay;
-	new->no_fcs		= old->no_fcs;
-	new->encapsulation	= old->encapsulation;
-	new->encap_hdr_csum	= old->encap_hdr_csum;
-	new->csum_valid		= old->csum_valid;
-	new->csum_complete_sw	= old->csum_complete_sw;
 #ifdef CONFIG_XFRM
 	new->sp			= secpath_get(old->sp);
 #endif
-	memcpy(new->cb, old->cb, sizeof(old->cb));
-	new->csum		= old->csum;
-	new->ignore_df		= old->ignore_df;
-	new->pkt_type		= old->pkt_type;
-	new->ip_summed		= old->ip_summed;
-	skb_copy_queue_mapping(new, old);
-	new->priority		= old->priority;
-#if IS_ENABLED(CONFIG_IP_VS)
-	new->ipvs_property	= old->ipvs_property;
-#endif
-	new->pfmemalloc		= old->pfmemalloc;
-	new->protocol		= old->protocol;
-	new->mark		= old->mark;
-	new->skb_iif		= old->skb_iif;
-	__nf_copy(new, old);
-#ifdef CONFIG_NET_SCHED
-	new->tc_index		= old->tc_index;
-#ifdef CONFIG_NET_CLS_ACT
-	new->tc_verd		= old->tc_verd;
-#endif
-#endif
-	new->vlan_proto		= old->vlan_proto;
-	new->vlan_tci		= old->vlan_tci;
+	__nf_copy(new, old, false);
 
-	skb_copy_secmark(new, old);
+	/* Note : this field could be in headers_start/headers_end section
+	 * It is not yet because we do not want to have a 16 bit hole
+	 */
+	new->queue_mapping = old->queue_mapping;
 
+	memcpy(&new->headers_start, &old->headers_start,
+	       offsetof(struct sk_buff, headers_end) -
+	       offsetof(struct sk_buff, headers_start));
+	CHECK_SKB_FIELD(protocol);
+	CHECK_SKB_FIELD(csum);
+	CHECK_SKB_FIELD(hash);
+	CHECK_SKB_FIELD(priority);
+	CHECK_SKB_FIELD(skb_iif);
+	CHECK_SKB_FIELD(vlan_proto);
+	CHECK_SKB_FIELD(vlan_tci);
+	CHECK_SKB_FIELD(transport_header);
+	CHECK_SKB_FIELD(network_header);
+	CHECK_SKB_FIELD(mac_header);
+	CHECK_SKB_FIELD(inner_protocol);
+	CHECK_SKB_FIELD(inner_transport_header);
+	CHECK_SKB_FIELD(inner_network_header);
+	CHECK_SKB_FIELD(inner_mac_header);
+	CHECK_SKB_FIELD(mark);
+#ifdef CONFIG_NETWORK_SECMARK
+	CHECK_SKB_FIELD(secmark);
+#endif
 #ifdef CONFIG_NET_RX_BUSY_POLL
-	new->napi_id	= old->napi_id;
+	CHECK_SKB_FIELD(napi_id);
 #endif
+#ifdef CONFIG_NET_SCHED
+	CHECK_SKB_FIELD(tc_index);
+#ifdef CONFIG_NET_CLS_ACT
+	CHECK_SKB_FIELD(tc_verd);
+#endif
+#endif
+
 }
 
 /*
@@ -876,7 +879,6 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 			return NULL;
 
 		kmemcheck_annotate_bitfield(n, flags1);
-		kmemcheck_annotate_bitfield(n, flags2);
 		n->fclone = SKB_FCLONE_UNAVAILABLE;
 	}
 
