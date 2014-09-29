@@ -950,6 +950,9 @@ static void chan_suspend_cb(struct l2cap_chan *chan)
 
 	BT_DBG("chan %p conn %p skb %p", chan, chan->conn, skb);
 
+	if (!skb)
+		return;
+
 	lowpan_cb(skb)->status = -EAGAIN;
 }
 
@@ -958,6 +961,9 @@ static void chan_resume_cb(struct l2cap_chan *chan)
 	struct sk_buff *skb = chan->data;
 
 	BT_DBG("chan %p conn %p skb %p", chan, chan->conn, skb);
+
+	if (!skb)
+		return;
 
 	lowpan_cb(skb)->status = 0;
 }
