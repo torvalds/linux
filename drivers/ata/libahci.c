@@ -1789,7 +1789,7 @@ static void ahci_port_intr(struct ata_port *ap)
 	ahci_handle_port_interrupt(ap, port_mmio, status);
 }
 
-static irqreturn_t ahci_thread_fn(int irq, void *dev_instance)
+static irqreturn_t ahci_port_thread_fn(int irq, void *dev_instance)
 {
 	struct ata_port *ap = dev_instance;
 	struct ahci_port_priv *pp = ap->private_data;
@@ -1810,7 +1810,7 @@ static irqreturn_t ahci_thread_fn(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-static void ahci_hw_port_interrupt(struct ata_port *ap)
+static void ahci_update_intr_status(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
 	struct ahci_port_priv *pp = ap->private_data;
@@ -1822,7 +1822,7 @@ static void ahci_hw_port_interrupt(struct ata_port *ap)
 	pp->intr_status |= status;
 }
 
-static irqreturn_t ahci_hw_interrupt(int irq, void *dev_instance)
+static irqreturn_t ahci_multi_irqs_intr(int irq, void *dev_instance)
 {
 	struct ata_port *ap_this = dev_instance;
 	struct ahci_port_priv *pp = ap_this->private_data;
@@ -1858,7 +1858,7 @@ static irqreturn_t ahci_hw_interrupt(int irq, void *dev_instance)
 
 		ap = host->ports[i];
 		if (ap) {
-			ahci_hw_port_interrupt(ap);
+			ahci_update_intr_status(ap);
 			VPRINTK("port %u\n", i);
 		} else {
 			VPRINTK("port %u (no irq)\n", i);
@@ -1877,7 +1877,7 @@ static irqreturn_t ahci_hw_interrupt(int irq, void *dev_instance)
 	return IRQ_WAKE_THREAD;
 }
 
-static irqreturn_t ahci_interrupt(int irq, void *dev_instance)
+static irqreturn_t ahci_single_irq_intr(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct ahci_host_priv *hpriv;
@@ -2488,8 +2488,8 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host, int irq,
 		}
 
 		rc = devm_request_threaded_irq(host->dev, irq + i,
-					       ahci_hw_interrupt,
-					       ahci_thread_fn, IRQF_SHARED,
+					       ahci_multi_irqs_intr,
+					       ahci_port_thread_fn, IRQF_SHARED,
 					       pp->irq_desc, host->ports[i]);
 		if (rc)
 			goto out_free_irqs;
@@ -2538,7 +2538,7 @@ int ahci_host_activate(struct ata_host *host, int irq,
 	if (hpriv->flags & AHCI_HFLAG_MULTI_MSI)
 		rc = ahci_host_activate_multi_irqs(host, irq, sht);
 	else
-		rc = ata_host_activate(host, irq, ahci_interrupt,
+		rc = ata_host_activate(host, irq, ahci_single_irq_intr,
 				       IRQF_SHARED, sht);
 	return rc;
 }
