@@ -45,6 +45,11 @@ torture_type	  Type of lock to torture. By default, only spinlocks will
 		     o "spin_lock_irq": spin_lock_irq() and spin_unlock_irq()
 					pairs.
 
+		     o "rw_lock": read/write lock() and unlock() rwlock pairs.
+
+		     o "rw_lock_irq": read/write lock_irq() and unlock_irq()
+				      rwlock pairs.
+
 		     o "mutex_lock": mutex_lock() and mutex_unlock() pairs.
 
 		     o "rwsem_lock": read/write down() and up() semaphore pairs.
