@@ -74,24 +74,34 @@ void tcp_unregister_congestion_control(struct tcp_congestion_ops *ca)
 EXPORT_SYMBOL_GPL(tcp_unregister_congestion_control);
 
 /* Assign choice of congestion control. */
-void tcp_init_congestion_control(struct sock *sk)
+void tcp_assign_congestion_control(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_congestion_ops *ca;
 
-	/* if no choice made yet assign the current value set as default */
-	if (icsk->icsk_ca_ops == &tcp_init_congestion_ops) {
-		rcu_read_lock();
-		list_for_each_entry_rcu(ca, &tcp_cong_list, list) {
-			if (try_module_get(ca->owner)) {
-				icsk->icsk_ca_ops = ca;
-				break;
-			}
-
-			/* fallback to next available */
+	rcu_read_lock();
+	list_for_each_entry_rcu(ca, &tcp_cong_list, list) {
+		if (likely(try_module_get(ca->owner))) {
+			icsk->icsk_ca_ops = ca;
+			goto out;
 		}
-		rcu_read_unlock();
+		/* Fallback to next available. The last really
+		 * guaranteed fallback is Reno from this list.
+		 */
 	}
+out:
+	rcu_read_unlock();
+
+	/* Clear out private data before diag gets it and
+	 * the ca has not been initialized.
+	 */
+	if (ca->get_info)
+		memset(icsk->icsk_ca_priv, 0, sizeof(icsk->icsk_ca_priv));
+}
+
+void tcp_init_congestion_control(struct sock *sk)
+{
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 
 	if (icsk->icsk_ca_ops->init)
 		icsk->icsk_ca_ops->init(sk);
@@ -345,15 +355,3 @@ struct tcp_congestion_ops tcp_reno = {
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
 };
-
-/* Initial congestion control used (until SYN)
- * really reno under another name so we can tell difference
- * during tcp_set_default_congestion_control
- */
-struct tcp_congestion_ops tcp_init_congestion_ops  = {
-	.name		= "",
-	.owner		= THIS_MODULE,
-	.ssthresh	= tcp_reno_ssthresh,
-	.cong_avoid	= tcp_reno_cong_avoid,
-};
-EXPORT_SYMBOL_GPL(tcp_init_congestion_ops);
