@@ -1860,12 +1860,28 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 
 static int rk312x_fb_win_remap(struct rk_lcdc_driver *dev_drv, u16 order)
 {
+	struct rk_lcdc_win_area area;
+	int fb2_win_id, fb1_win_id, fb0_win_id;
+
 	mutex_lock(&dev_drv->fb_win_id_mutex);
 	if (order == FB_DEFAULT_ORDER)
-		order = FB0_WIN0_FB1_WIN1_FB2_WIN2;    /*  FB0_WIN1_FB1_WIN0_FB2_WIN2; for box */
-	dev_drv->fb2_win_id = order / 100;
-	dev_drv->fb1_win_id = (order / 10) % 10;
-	dev_drv->fb0_win_id = order % 10;
+		order = FB0_WIN0_FB1_WIN1_FB2_WIN2;
+
+	fb2_win_id = order / 100;
+	fb1_win_id = (order / 10) % 10;
+	fb0_win_id = order % 10;
+
+	if (fb0_win_id != dev_drv->fb0_win_id) {
+		area = dev_drv->win[(int)dev_drv->fb0_win_id]->area[0];
+		dev_drv->win[(int)dev_drv->fb0_win_id]->area[0] =
+			dev_drv->win[fb0_win_id]->area[0];
+		dev_drv->win[fb0_win_id]->area[0] = area;
+		dev_drv->fb0_win_id = fb0_win_id;
+		dev_drv->win[(int)dev_drv->fb0_win_id]->state;
+	}
+	dev_drv->fb1_win_id = fb1_win_id;
+	dev_drv->fb2_win_id = fb2_win_id;
+
 	mutex_unlock(&dev_drv->fb_win_id_mutex);
 
 	return 0;
