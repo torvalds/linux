@@ -1349,7 +1349,7 @@ xfs_ioc_setxflags(
 STATIC int
 xfs_getbmap_format(void **ap, struct getbmapx *bmv, int *full)
 {
-	struct getbmap __user	*base = *ap;
+	struct getbmap __user	*base = (struct getbmap __user *)*ap;
 
 	/* copy only getbmap portion (not getbmapx) */
 	if (copy_to_user(base, bmv, sizeof(struct getbmap)))
@@ -1380,7 +1380,7 @@ xfs_ioc_getbmap(
 		bmx.bmv_iflags |= BMV_IF_NO_DMAPI_READ;
 
 	error = xfs_getbmap(ip, &bmx, xfs_getbmap_format,
-			    (struct getbmap *)arg+1);
+			    (__force struct getbmap *)arg+1);
 	if (error)
 		return error;
 
@@ -1393,7 +1393,7 @@ xfs_ioc_getbmap(
 STATIC int
 xfs_getbmapx_format(void **ap, struct getbmapx *bmv, int *full)
 {
-	struct getbmapx __user	*base = *ap;
+	struct getbmapx __user	*base = (struct getbmapx __user *)*ap;
 
 	if (copy_to_user(base, bmv, sizeof(struct getbmapx)))
 		return -EFAULT;
@@ -1420,7 +1420,7 @@ xfs_ioc_getbmapx(
 		return -EINVAL;
 
 	error = xfs_getbmap(ip, &bmx, xfs_getbmapx_format,
-			    (struct getbmapx *)arg+1);
+			    (__force struct getbmapx *)arg+1);
 	if (error)
 		return error;
 
