@@ -36,6 +36,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <linux/skbuff.h>
 #include <linux/rockchip/cpu.h>
+#include <linux/fb.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -517,8 +518,8 @@ int rockchip_wifi_mac_addr(unsigned char *buf)
         char *tempBuf = kmalloc(512, GFP_KERNEL);
         if(tempBuf) {
             GetSNSectorInfo(tempBuf);
-            for (i = 506; i <= 511; i++)
-                wifi_custom_mac_addr[i-506] = tempBuf[i];
+            for (i = 445; i <= 450; i++)
+                wifi_custom_mac_addr[i-445] = tempBuf[i];
             kfree(tempBuf);
         } else {
             return -1;
@@ -768,6 +769,47 @@ struct early_suspend wlan_early_suspend {
 }
 #endif
 
+static void rfkill_wlan_early_suspend(void)
+{
+    //LOG("%s :enter\n", __func__);
+
+    return;
+}
+
+static void rfkill_wlan_later_resume(void)
+{
+    //LOG("%s :enter\n", __func__);
+
+    return;
+}
+
+static int rfkill_wlan_fb_event_notify(struct notifier_block *self,
+                       unsigned long action, void *data)
+{
+
+    struct fb_event *event = data;
+    int blank_mode = *((int *)event->data);
+
+    switch (blank_mode) {
+    case FB_BLANK_UNBLANK:
+        rfkill_wlan_later_resume();
+        break;
+    case FB_BLANK_NORMAL:
+        rfkill_wlan_early_suspend();
+        break;
+    default:
+        rfkill_wlan_early_suspend();
+        break;
+    }
+
+    return 0;
+}
+
+static struct notifier_block rfkill_wlan_fb_notifier = {
+    .notifier_call = rfkill_wlan_fb_event_notify,
+};
+
+
 static int rfkill_wlan_probe(struct platform_device *pdev)
 {
 	struct rfkill_wlan_data *rfkill;
@@ -831,6 +873,8 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 #if defined(CONFIG_HAS_EARLYSUSPEND)
     register_early_suspend(wlan_early_suspend);
 #endif
+    
+    fb_register_client(&rfkill_wlan_fb_notifier);
 
     LOG("Exit %s\n", __func__);
 
@@ -853,6 +897,8 @@ static int rfkill_wlan_remove(struct platform_device *pdev)
     LOG("Enter %s\n", __func__);
 
     wake_lock_destroy(&rfkill->wlan_irq_wl);
+
+    fb_unregister_client(&rfkill_wlan_fb_notifier);
     
     if (gpio_is_valid(rfkill->pdata->power_n.io))
         gpio_free(rfkill->pdata->power_n.io);
