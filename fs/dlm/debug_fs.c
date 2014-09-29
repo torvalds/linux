@@ -279,7 +279,7 @@ static void print_format3(struct dlm_rsb *r, struct seq_file *s)
 			print_name = 0;
 	}
 
-	seq_printf(s, "%s", print_name ? "str " : "hex");
+	seq_puts(s, print_name ? "str " : "hex");
 
 	for (i = 0; i < r->res_length; i++) {
 		if (print_name)
@@ -353,7 +353,7 @@ static void print_format4(struct dlm_rsb *r, struct seq_file *s)
 			print_name = 0;
 	}
 
-	seq_printf(s, "%s", print_name ? "str " : "hex");
+	seq_puts(s, print_name ? "str " : "hex");
 
 	for (i = 0; i < r->res_length; i++) {
 		if (print_name)
@@ -390,23 +390,21 @@ static int table_seq_show(struct seq_file *seq, void *iter_ptr)
 		break;
 	case 2:
 		if (ri->header) {
-			seq_printf(seq, "id nodeid remid pid xid exflags "
-					"flags sts grmode rqmode time_ms "
-					"r_nodeid r_len r_name\n");
+			seq_puts(seq, "id nodeid remid pid xid exflags flags sts grmode rqmode time_ms r_nodeid r_len r_name\n");
 			ri->header = 0;
 		}
 		print_format2(ri->rsb, seq);
 		break;
 	case 3:
 		if (ri->header) {
-			seq_printf(seq, "version rsb 1.1 lvb 1.1 lkb 1.1\n");
+			seq_puts(seq, "version rsb 1.1 lvb 1.1 lkb 1.1\n");
 			ri->header = 0;
 		}
 		print_format3(ri->rsb, seq);
 		break;
 	case 4:
 		if (ri->header) {
-			seq_printf(seq, "version 4 rsb 2\n");
+			seq_puts(seq, "version 4 rsb 2\n");
 			ri->header = 0;
 		}
 		print_format4(ri->rsb, seq);
