@@ -1127,9 +1127,8 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 		 * the queue AND FIFO are both empty.
 		 */
 		if (ch->ch_pun.un_flags & UN_EMPTY) {
-			if ((qlen == 0) && (ch->ch_bd->bd_ops->get_uart_bytes_left(ch) == 0)) {
+			if ((qlen == 0) && (ch->ch_bd->bd_ops->get_uart_bytes_left(ch) == 0))
 				ch->ch_pun.un_flags &= ~(UN_EMPTY);
-			}
 		}
 
 		wake_up_interruptible(&ch->ch_pun.un_flags_wait);
@@ -1363,9 +1362,8 @@ static int dgnc_block_til_ready(struct tty_struct *tty, struct file *file, struc
 	uint	old_flags = 0;
 	int	sleep_on_un_flags = 0;
 
-	if (!tty || tty->magic != TTY_MAGIC || !file || !ch || ch->magic != DGNC_CHANNEL_MAGIC) {
+	if (!tty || tty->magic != TTY_MAGIC || !file || !ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return -ENXIO;
-	}
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
@@ -2813,9 +2811,8 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		spin_lock_irqsave(&ch->ch_lock, flags);
 
-		if (((cmd == TCSBRK) && (!arg)) || (cmd == TCSBRKP)) {
+		if (((cmd == TCSBRK) && (!arg)) || (cmd == TCSBRKP))
 			ch->ch_bd->bd_ops->send_break(ch, 250);
-		}
 
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 
@@ -3121,9 +3118,8 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		if ((ch->ch_flags & CH_STOP) || (ch->ch_flags & CH_FORCED_STOP))
 			events |= (EV_OPU | EV_OPS);
 
-		if ((ch->ch_flags & CH_STOPI) || (ch->ch_flags & CH_FORCED_STOPI)) {
+		if ((ch->ch_flags & CH_STOPI) || (ch->ch_flags & CH_FORCED_STOPI))
 			events |= (EV_IPU | EV_IPS);
-		}
 
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		rc = put_user(events, (unsigned int __user *) arg);
