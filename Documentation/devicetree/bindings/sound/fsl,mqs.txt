@@ -1,0 +1,22 @@
+fsl,mqs audio CODEC
+
+Required properties:
+
+  - compatible : must contain one of "fsl,imx6sx-mqs" and "fsl,codec-mqs"
+
+  - clocks : a list of phandles + clock-specifiers, one for each entry in
+    clock-names
+
+  - clock-names : must contain "mclk"
+
+  - gpr : the gpr node.
+
+Example:
+
+mqs: mqs {
+	compatible = "fsl,imx6sx-mqs";
+	gpr = <&gpr>;
+	clocks = <&clks IMX6SX_CLK_SAI1>;
+	clock-names = "mclk";
+	status = "disabled";
+};

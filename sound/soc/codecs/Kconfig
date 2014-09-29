@@ -444,6 +444,9 @@ config SND_SOC_ES8328_SPI
 	tristate
 	select SND_SOC_ES8328
 
+config SND_SOC_FSL_MQS
+	tristate
+
 config SND_SOC_ISABELLE
         tristate
 
