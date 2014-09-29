@@ -557,7 +557,7 @@ static void serial8250_rpm_put(struct uart_8250_port *p)
 }
 
 /*
- * This two wrapper ensure, that enable_runtime_pm_tx() can be called more than
+ * These two wrappers ensure that enable_runtime_pm_tx() can be called more than
  * once and disable_runtime_pm_tx() will still disable RPM because the fifo is
  * empty and the HW can idle again.
  */
@@ -1535,7 +1535,7 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 	DEBUG_INTR("THRE...");
 
 	/*
-	 * With RPM enabled, we have to wait once the FIFO is empty before the
+	 * With RPM enabled, we have to wait until the FIFO is empty before the
 	 * HW can go idle. So we get here once again with empty FIFO and disable
 	 * the interrupt and RPM in __stop_tx()
 	 */
