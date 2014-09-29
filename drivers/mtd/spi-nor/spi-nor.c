@@ -28,6 +28,8 @@
 
 #define JEDEC_MFR(_jedec_id)	((_jedec_id) >> 16)
 
+static const struct spi_device_id *spi_nor_match_id(const char *name);
+
 /*
  * Read the status register, returning its value in the location
  * Return the status register value.
@@ -911,9 +913,9 @@ static int spi_nor_check(struct spi_nor *nor)
 	return 0;
 }
 
-int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
-			enum read_mode mode)
+int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 {
+	const struct spi_device_id	*id = NULL;
 	struct flash_info		*info;
 	struct device *dev = nor->dev;
 	struct mtd_info *mtd = nor->mtd;
@@ -924,6 +926,10 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 	ret = spi_nor_check(nor);
 	if (ret)
 		return ret;
+
+	id = spi_nor_match_id(name);
+	if (!id)
+		return -ENOENT;
 
 	info = (void *)id->driver_data;
 
@@ -1113,7 +1119,7 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 }
 EXPORT_SYMBOL_GPL(spi_nor_scan);
 
-const struct spi_device_id *spi_nor_match_id(char *name)
+static const struct spi_device_id *spi_nor_match_id(const char *name)
 {
 	const struct spi_device_id *id = spi_nor_ids;
 
@@ -1124,7 +1130,6 @@ const struct spi_device_id *spi_nor_match_id(char *name)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(spi_nor_match_id);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Huang Shijie <shijie8@gmail.com>");
