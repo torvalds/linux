@@ -205,7 +205,7 @@ static struct lock_torture_ops spin_lock_ops = {
 };
 
 static int torture_spin_lock_write_lock_irq(void)
-__acquires(torture_spinlock_irq)
+__acquires(torture_spinlock)
 {
 	unsigned long flags;
 
