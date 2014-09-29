@@ -48,8 +48,6 @@ source "drivers/staging/rtl8192ee/Kconfig"
 
 source "drivers/staging/rtl8723au/Kconfig"
 
-source "drivers/staging/rtl8821ae/Kconfig"
-
 source "drivers/staging/rts5208/Kconfig"
 
 source "drivers/staging/line6/Kconfig"
