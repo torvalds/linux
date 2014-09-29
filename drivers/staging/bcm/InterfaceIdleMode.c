@@ -188,8 +188,8 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter,
 			5000);
 		if (status)
 			return status;
-		else
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS,
 				IDLE_MODE, DBG_LVL_ALL,
 				"NOB Sent down :%d", lenwritten);
 
