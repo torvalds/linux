@@ -18,8 +18,8 @@
 			uart0 {
 				uart0_default_mode: uart0_default {
 					default_mux {
-						ste,function = "u0";
-						ste,pins = "u0_a_1";
+						function = "u0";
+						groups = "u0_a_1";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO0_AJ5", "GPIO2_AH4"; /* CTS+RXD */
@@ -53,8 +53,8 @@
 			uart1 {
 				uart1_default_mode: uart1_default {
 					default_mux {
-						ste,function = "u1";
-						ste,pins = "u1rxtx_a_1";
+						function = "u1";
+						groups = "u1rxtx_a_1";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO4_AH6"; /* RXD */
@@ -83,8 +83,8 @@
 			uart2 {
 				uart2_default_mode: uart2_default {
 					default_mux {
-						ste,function = "u2";
-						ste,pins = "u2rxtx_c_1";
+						function = "u2";
+						groups = "u2rxtx_c_1";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO29_W2"; /* RXD */
@@ -114,8 +114,8 @@
 			i2c0 {
 				i2c0_default_mode: i2c_default {
 					default_mux {
-						ste,function = "i2c0";
-						ste,pins = "i2c0_a_1";
+						function = "i2c0";
+						groups = "i2c0_a_1";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO147_C15", "GPIO148_B16"; /* SDA/SCL */
@@ -134,8 +134,8 @@
 			i2c1 {
 				i2c1_default_mode: i2c_default {
 					default_mux {
-						ste,function = "i2c1";
-						ste,pins = "i2c1_b_2";
+						function = "i2c1";
+						groups = "i2c1_b_2";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO16_AD3", "GPIO17_AD4"; /* SDA/SCL */
@@ -154,8 +154,8 @@
 			i2c2 {
 				i2c2_default_mode: i2c_default {
 					default_mux {
-						ste,function = "i2c2";
-						ste,pins = "i2c2_b_2";
+						function = "i2c2";
+						groups = "i2c2_b_2";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO10_AF5", "GPIO11_AG4"; /* SDA/SCL */
@@ -174,8 +174,8 @@
 			i2c3 {
 				i2c3_default_mode: i2c_default {
 					default_mux {
-						ste,function = "i2c3";
-						ste,pins = "i2c3_c_2";
+						function = "i2c3";
+						groups = "i2c3_c_2";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO229_AG7", "GPIO230_AF7"; /* SDA/SCL */
@@ -198,8 +198,8 @@
 			i2c4 {
 				i2c4_default_mode: i2c_default {
 					default_mux {
-						ste,function = "i2c4";
-						ste,pins = "i2c4_b_1";
+						function = "i2c4";
+						groups = "i2c4_b_1";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO4_AH6", "GPIO5_AG6"; /* SDA/SCL */
@@ -219,8 +219,8 @@
 			spi2 {
 				spi2_default_mode: spi_default {
 					default_mux {
-						ste,function = "spi2";
-						ste,pins = "spi2_oc1_2";
+						function = "spi2";
+						groups = "spi2_oc1_2";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO216_AG12"; /* FRM */
@@ -281,8 +281,8 @@
 				/* This is the external SD card slot, 4 bits wide */
 				sdi0_default_mode: sdi0_default {
 					default_mux {
-						ste,function = "mc0";
-						ste,pins = "mc0_a_1";
+						function = "mc0";
+						groups = "mc0_a_1";
 					};
 					default_cfg1 {
 						ste,pins =
@@ -339,8 +339,8 @@
 				/* This is the WLAN SDIO 4 bits wide */
 				sdi1_default_mode: sdi1_default {
 					default_mux {
-						ste,function = "mc1";
-						ste,pins = "mc1_a_1";
+						function = "mc1";
+						groups = "mc1_a_1";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO208_AH16"; /* CLK */
@@ -383,8 +383,8 @@
 				/* This is the eMMC 8 bits wide, usually PoP eMMC */
 				sdi2_default_mode: sdi2_default {
 					default_mux {
-						ste,function = "mc2";
-						ste,pins = "mc2_a_1";
+						function = "mc2";
+						groups = "mc2_a_1";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO128_A5"; /* CLK */
@@ -439,8 +439,8 @@
 				/* This is the eMMC 8 bits wide, usually PCB-mounted eMMC */
 				sdi4_default_mode: sdi4_default {
 					default_mux {
-						ste,function = "mc4";
-						ste,pins = "mc4_a_1";
+						function = "mc4";
+						groups = "mc4_a_1";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO203_AE23"; /* CLK */
@@ -494,8 +494,8 @@
 			msp0 {
 				msp0_default_mode: msp0_default {
 					default_msp0_mux {
-						ste,function = "msp0";
-						ste,pins = "msp0txrx_a_1", "msp0tfstck_a_1";
+						function = "msp0";
+						groups = "msp0txrx_a_1", "msp0tfstck_a_1";
 					};
 					default_msp0_cfg {
 						ste,pins =
@@ -511,8 +511,8 @@
 			msp1 {
 				msp1_default_mode: msp1_default {
 					default_mux {
-						ste,function = "msp1";
-						ste,pins = "msp1txrx_a_1", "msp1_a_1";
+						function = "msp1";
+						groups = "msp1txrx_a_1", "msp1_a_1";
 					};
 					default_cfg1 {
 						ste,pins = "GPIO33_AF2";
@@ -533,8 +533,8 @@
 				msp2_default_mode: msp2_default {
 					/* MSP2 usually used for HDMI audio */
 					default_mux {
-						ste,function = "msp2";
-						ste,pins = "msp2_a_1";
+						function = "msp2";
+						groups = "msp2_a_1";
 					};
 					default_cfg1 {
 						ste,pins =
@@ -554,8 +554,8 @@
 			musb {
 				musb_default_mode: musb_default {
 					default_mux {
-						ste,function = "usb";
-						ste,pins = "usb_a_1";
+						function = "usb";
+						groups = "usb_a_1";
 					};
 					default_cfg1 {
 						ste,pins =
@@ -609,8 +609,8 @@
 				lcd_default_mode: lcd_default {
 					default_mux {
 						/* Mux in VSI0 and all the data lines */
-						ste,function = "lcd";
-						ste,pins =
+						function = "lcd";
+						groups =
 						"lcdvsi0_a_1", /* VSI0 for LCD */
 						"lcd_d0_d7_a_1", /* Data lines */
 						"lcd_d8_d11_a_1", /* TV-out */
@@ -636,8 +636,8 @@
 				/* SKE keys on position 2 in an 8x8 matrix */
 				ske_kpa2_default_mode: ske_kpa2_default {
 					default_mux {
-						ste,function = "kp";
-						ste,pins = "kp_a_2";
+						function = "kp";
+						groups = "kp_a_2";
 					};
 					default_cfg1 {
 						ste,pins =
@@ -696,8 +696,8 @@
 				 */
 				ske_kpaoc1_default_mode: ske_kpaoc1_default {
 					default_mux {
-						ste,function = "kp";
-						ste,pins = "kp_a_1", "kp_oc1_1";
+						function = "kp";
+						groups = "kp_a_1", "kp_oc1_1";
 					};
 					default_cfg1 {
 						ste,pins =

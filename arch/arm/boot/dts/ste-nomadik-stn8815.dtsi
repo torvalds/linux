@@ -100,24 +100,24 @@
 		uart0 {
 			uart0_default_mux: uart0_mux {
 				u0_default_mux {
-					ste,function = "u0";
-					ste,pins = "u0_a_1";
+					function = "u0";
+					groups = "u0_a_1";
 				};
 			};
 		};
 		uart1 {
 			uart1_default_mux: uart1_mux {
 				u1_default_mux {
-					ste,function = "u1";
-					ste,pins = "u1_a_1";
+					function = "u1";
+					groups = "u1_a_1";
 				};
 			};
 		};
 		mmcsd {
 			mmcsd_default_mux: mmcsd_mux {
 				mmcsd_default_mux {
-					ste,function = "mmcsd";
-					ste,pins = "mmcsd_a_1";
+					function = "mmcsd";
+					groups = "mmcsd_a_1";
 				};
 			};
 			mmcsd_default_mode: mmcsd_default {
@@ -144,8 +144,8 @@
 		i2c0 {
 			i2c0_default_mux: i2c0_mux {
 				i2c0_default_mux {
-					ste,function = "i2c0";
-					ste,pins = "i2c0_a_1";
+					function = "i2c0";
+					groups = "i2c0_a_1";
 				};
 			};
 			i2c0_default_mode: i2c0_default {
@@ -158,8 +158,8 @@
 		i2c1 {
 			i2c1_default_mux: i2c1_mux {
 				i2c1_default_mux {
-					ste,function = "i2c1";
-					ste,pins = "i2c1_a_1";
+					function = "i2c1";
+					groups = "i2c1_a_1";
 				};
 			};
 			i2c1_default_mode: i2c1_default {

@@ -64,8 +64,8 @@
 				 */
 				ipgpio_hrefv60_mode: ipgpio_hrefv60 {
 					hrefv60_mux {
-						ste,function = "ipgpio";
-						ste,pins = "ipgpio0_c_1", "ipgpio1_c_1", "ipgpio4_c_1";
+						function = "ipgpio";
+						groups = "ipgpio0_c_1", "ipgpio1_c_1", "ipgpio4_c_1";
 					};
 					hrefv60_cfg1 {
 						ste,pins = "GPIO6_AF6", "GPIO7_AG5";

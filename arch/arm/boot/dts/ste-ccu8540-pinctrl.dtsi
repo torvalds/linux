@@ -16,8 +16,8 @@
 			uart0 {
 				uart0_default_mux: uart0_mux {
 					default_mux {
-						ste,function = "u0";
-						ste,pins = "u0_a_1";
+						function = "u0";
+						groups = "u0_a_1";
 					};
 				};
 
@@ -49,8 +49,8 @@
 			uart2 {
 				uart2_default_mode: uart2_default {
 					default_mux {
-						ste,function = "u2";
-						ste,pins = "u2txrx_a_1";
+						function = "u2";
+						groups = "u2txrx_a_1";
 					};
 
 					default_cfg1 {
@@ -80,8 +80,8 @@
 			i2c0 {
 				i2c0_default_mux: i2c_mux {
 					default_mux {
-						ste,function = "i2c0";
-						ste,pins = "i2c0_a_1";
+						function = "i2c0";
+						groups = "i2c0_a_1";
 					};
 				};
 
@@ -103,8 +103,8 @@
 			i2c1 {
 				i2c1_default_mux: i2c_mux {
 					default_mux {
-						ste,function = "i2c1";
-						ste,pins = "i2c1_b_2";
+						function = "i2c1";
+						groups = "i2c1_b_2";
 					};
 				};
 
@@ -126,8 +126,8 @@
 			i2c2 {
 				i2c2_default_mux: i2c_mux {
 					default_mux {
-						ste,function = "i2c2";
-						ste,pins = "i2c2_b_2";
+						function = "i2c2";
+						groups = "i2c2_b_2";
 					};
 				};
 
@@ -149,8 +149,8 @@
 			i2c4 {
 				i2c4_default_mux: i2c_mux {
 					default_mux {
-						ste,function = "i2c4";
-						ste,pins = "i2c4_b_2";
+						function = "i2c4";
+						groups = "i2c4_b_2";
 					};
 				};
 
@@ -172,8 +172,8 @@
 			i2c5 {
 				i2c5_default_mux: i2c_mux {
 					default_mux {
-						ste,function = "i2c5";
-						ste,pins = "i2c5_c_2";
+						function = "i2c5";
+						groups = "i2c5_c_2";
 					};
 				};
 

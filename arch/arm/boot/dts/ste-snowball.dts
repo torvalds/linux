@@ -404,8 +404,8 @@
 				 */
 				eth_snowball_mode: eth_snowball {
 					snowball_mux {
-						ste,function = "sm";
-						ste,pins = "sm_b_1";
+						function = "sm";
+						groups = "sm_b_1";
 					};
 					/* LAN IRQ pin */
 					snowball_cfg1 {
@@ -423,8 +423,8 @@
 			sdi0 {
 				sdi0_default_mode: sdi0_default {
 					snowball_mux {
-						ste,function = "mc0";
-						ste,pins = "mc0dat31dir_a_1";
+						function = "mc0";
+						groups = "mc0dat31dir_a_1";
 					};
 					snowball_cfg1 {
 						ste,pins = "GPIO21_AB3"; /* DAT31DIR */
@@ -436,8 +436,8 @@
 			ssp0 {
 				ssp0_snowball_mode: ssp0_snowball_default {
 					snowball_mux {
-						ste,function = "ssp0";
-						ste,pins = "ssp0_a_1";
+						function = "ssp0";
+						groups = "ssp0_a_1";
 					};
 					snowball_cfg1 {
 						ste,pins = "GPIO144_B13"; /* FRM */
