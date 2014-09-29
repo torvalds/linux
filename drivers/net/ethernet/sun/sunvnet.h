@@ -16,7 +16,7 @@
  */
 #define	VNET_CLEAN_TIMEOUT		((HZ/100)+1)
 
-#define VNET_MAXPACKET			1518ULL /* ETH_FRAMELEN + VLAN_HDR */
+#define VNET_MAXPACKET			(65535ULL + ETH_HLEN + VLAN_HLEN)
 #define VNET_TX_RING_SIZE		512
 #define VNET_TX_WAKEUP_THRESH(dr)	((dr)->pending / 4)
 
@@ -26,10 +26,12 @@
  */
 #define VNET_PACKET_SKIP		6
 
+#define VNET_MAXCOOKIES			(VNET_MAXPACKET/PAGE_SIZE + 1)
+
 struct vnet_tx_entry {
 	struct sk_buff		*skb;
 	unsigned int		ncookies;
-	struct ldc_trans_cookie	cookies[2];
+	struct ldc_trans_cookie	cookies[VNET_MAXCOOKIES];
 };
 
 struct vnet;

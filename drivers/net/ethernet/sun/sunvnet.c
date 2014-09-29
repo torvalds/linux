@@ -913,6 +913,9 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!skb))
 		goto out_dropped;
 
+	if (skb->len > port->rmtu)
+		goto out_dropped;
+
 	spin_lock_irqsave(&port->vio.lock, flags);
 
 	dr = &port->vio.drings[VIO_DRIVER_TX_RING];
@@ -944,7 +947,7 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb = NULL;
 
 	err = ldc_map_single(port->vio.lp, start, nlen,
-			     port->tx_bufs[txi].cookies, 2,
+			     port->tx_bufs[txi].cookies, VNET_MAXCOOKIES,
 			     (LDC_MAP_SHADOW | LDC_MAP_DIRECT | LDC_MAP_RW));
 	if (err < 0) {
 		netdev_info(dev, "tx buffer map error %d\n", err);
@@ -1182,7 +1185,7 @@ static void vnet_set_rx_mode(struct net_device *dev)
 
 static int vnet_change_mtu(struct net_device *dev, int new_mtu)
 {
-	if (new_mtu != ETH_DATA_LEN)
+	if (new_mtu < 68 || new_mtu > 65535)
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
