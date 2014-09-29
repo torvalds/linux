@@ -35,7 +35,7 @@ int get_api_version_wrapper(struct mali_session_data *session_data, _mali_uk_get
 
 	return 0;
 }
-#define mali400_in_rk30_version 0x02
+#define mali400_in_rk30_version 0x03
 int get_mali_version_in_rk30_wrapper(struct mali_session_data *session_data, _mali_uk_get_mali_version_in_rk30_s __user *uargs)
 {
 	_mali_uk_get_mali_version_in_rk30_s kargs;

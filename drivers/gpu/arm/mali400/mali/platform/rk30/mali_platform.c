@@ -351,7 +351,7 @@ static mali_bool init_mali_clock(void)
 	}
 	mali_init_clock = mali_dvfs[0];
 	num_clock = i;
-	minuend = 1;
+	minuend = 2;
 	MALI_PRINT(("Mali400 inside of rk3126\r\n"));
 
 	mali_clk_set_rate(mali_clock, mali_init_clock);
