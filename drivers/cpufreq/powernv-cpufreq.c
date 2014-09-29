@@ -317,6 +317,14 @@ static int powernv_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	return cpufreq_table_validate_and_show(policy, powernv_freqs);
 }
 
+static void powernv_cpufreq_stop_cpu(struct cpufreq_policy *policy)
+{
+	struct powernv_smp_call_data freq_data;
+
+	freq_data.pstate_id = powernv_pstate_info.min;
+	smp_call_function_single(policy->cpu, set_pstate, &freq_data, 1);
+}
+
 static struct cpufreq_driver powernv_cpufreq_driver = {
 	.name		= "powernv-cpufreq",
 	.flags		= CPUFREQ_CONST_LOOPS,
@@ -324,6 +332,7 @@ static struct cpufreq_driver powernv_cpufreq_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= powernv_cpufreq_target_index,
 	.get		= powernv_cpufreq_get,
+	.stop_cpu	= powernv_cpufreq_stop_cpu,
 	.attr		= powernv_cpu_freq_attr,
 };
 
