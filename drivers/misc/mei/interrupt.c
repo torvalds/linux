@@ -33,8 +33,8 @@
  * mei_irq_compl_handler - dispatch complete handlers
  *	for the completed callbacks
  *
- * @dev - mei device
- * @compl_list - list of completed cbs
+ * @dev: mei device
+ * @compl_list: list of completed cbs
  */
 void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *compl_list)
 {
@@ -62,7 +62,7 @@ EXPORT_SYMBOL_GPL(mei_irq_compl_handler);
  * @cl: host client
  * @mei_hdr: header of mei client message
  *
- * returns true if matches, false otherwise
+ * Return: true if matches, false otherwise
  */
 static inline int mei_cl_hbm_equal(struct mei_cl *cl,
 			struct mei_msg_hdr *mei_hdr)
@@ -72,12 +72,12 @@ static inline int mei_cl_hbm_equal(struct mei_cl *cl,
 }
 /**
  * mei_cl_is_reading - checks if the client
-		is the one to read this message
+ *		is the one to read this message
  *
  * @cl: mei client
  * @mei_hdr: header of mei message
  *
- * returns true on match and false otherwise
+ * Return: true on match and false otherwise
  */
 static bool mei_cl_is_reading(struct mei_cl *cl, struct mei_msg_hdr *mei_hdr)
 {
@@ -93,7 +93,7 @@ static bool mei_cl_is_reading(struct mei_cl *cl, struct mei_msg_hdr *mei_hdr)
  * @mei_hdr: header of mei client message
  * @complete_list: An instance of our list structure
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 static int mei_cl_irq_read_msg(struct mei_device *dev,
 			       struct mei_msg_hdr *mei_hdr,
@@ -165,7 +165,7 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
  * @cb: callback block.
  * @cmpl_list: complete list.
  *
- * returns 0, OK; otherwise, error.
+ * Return: 0, OK; otherwise, error.
  */
 static int mei_cl_irq_disconnect_rsp(struct mei_cl *cl, struct mei_cl_cb *cb,
 				     struct mei_cl_cb *cmpl_list)
@@ -201,7 +201,7 @@ static int mei_cl_irq_disconnect_rsp(struct mei_cl *cl, struct mei_cl_cb *cb,
  * @cb: callback block.
  * @cmpl_list: complete list.
  *
- * returns 0, OK; otherwise, error.
+ * Return: 0, OK; otherwise, error.
  */
 static int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 			    struct mei_cl_cb *cmpl_list)
@@ -241,7 +241,7 @@ static int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
  * @cb: callback block.
  * @cmpl_list: complete list.
  *
- * returns 0, OK; otherwise, error.
+ * Return: 0, OK; otherwise, error.
  */
 static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 			   struct mei_cl_cb *cmpl_list)
@@ -278,7 +278,7 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
  * @cb: callback block.
  * @cmpl_list: complete list.
  *
- * returns 0, OK; otherwise, error.
+ * Return: 0, OK; otherwise, error.
  */
 static int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 			      struct mei_cl_cb *cmpl_list)
@@ -321,7 +321,7 @@ static int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
  * @cmpl_list: An instance of our list structure
  * @slots: slots to read.
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 int mei_irq_read_handler(struct mei_device *dev,
 		struct mei_cl_cb *cmpl_list, s32 *slots)
@@ -424,7 +424,7 @@ EXPORT_SYMBOL_GPL(mei_irq_read_handler);
  * @dev: the device structure
  * @cmpl_list: An instance of our list structure
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 {

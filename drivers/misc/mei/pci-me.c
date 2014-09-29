@@ -103,7 +103,7 @@ static inline void mei_me_unset_pm_domain(struct mei_device *dev) {}
  * @pdev: PCI device structure
  * @cfg: per generation config
  *
- * returns true if ME Interface is valid, false otherwise
+ * Return: true if ME Interface is valid, false otherwise
  */
 static bool mei_me_quirk_probe(struct pci_dev *pdev,
 				const struct mei_cfg *cfg)
@@ -122,7 +122,7 @@ static bool mei_me_quirk_probe(struct pci_dev *pdev,
  * @pdev: PCI device structure
  * @ent: entry in kcs_pci_tbl
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {

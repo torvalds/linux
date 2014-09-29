@@ -157,8 +157,8 @@ struct mei_msg_data {
 /*
  * struct mei_fw_status - storage of FW status data
  *
- * @count - number of actually available elements in array
- * @status - FW status registers
+ * @count: number of actually available elements in array
+ * @status: FW status registers
  */
 struct mei_fw_status {
 	int count;
@@ -168,9 +168,10 @@ struct mei_fw_status {
 /**
  * struct mei_me_client - representation of me (fw) client
  *
- * @props  - client properties
- * @client_id - me client id
- * @mei_flow_ctrl_creds - flow control credits
+ * @list: link in me client list
+ * @props: client properties
+ * @client_id: me client id
+ * @mei_flow_ctrl_creds: flow control credits
  */
 struct mei_me_client {
 	struct list_head list;
@@ -185,8 +186,9 @@ struct mei_cl;
 /**
  * struct mei_cl_cb - file operation callback structure
  *
- * @cl - file client who is running this operation
- * @fop_type - file operation type
+ * @list: link in callback queue
+ * @cl: file client who is running this operation
+ * @fop_type: file operation type
  */
 struct mei_cl_cb {
 	struct list_head list;
@@ -226,31 +228,31 @@ struct mei_cl {
 
 /** struct mei_hw_ops
  *
- * @host_is_ready    - query for host readiness
+ * @host_is_ready    : query for host readiness
 
- * @hw_is_ready      - query if hw is ready
- * @hw_reset         - reset hw
- * @hw_start         - start hw after reset
- * @hw_config        - configure hw
+ * @hw_is_ready      : query if hw is ready
+ * @hw_reset         : reset hw
+ * @hw_start         : start hw after reset
+ * @hw_config        : configure hw
 
- * @fw_status        - get fw status registers
- * @pg_state         - power gating state of the device
- * @pg_is_enabled    - is power gating enabled
+ * @fw_status        : get fw status registers
+ * @pg_state         : power gating state of the device
+ * @pg_is_enabled    : is power gating enabled
 
- * @intr_clear       - clear pending interrupts
- * @intr_enable      - enable interrupts
- * @intr_disable     - disable interrupts
+ * @intr_clear       : clear pending interrupts
+ * @intr_enable      : enable interrupts
+ * @intr_disable     : disable interrupts
 
- * @hbuf_free_slots  - query for write buffer empty slots
- * @hbuf_is_ready    - query if write buffer is empty
- * @hbuf_max_len     - query for write buffer max len
+ * @hbuf_free_slots  : query for write buffer empty slots
+ * @hbuf_is_ready    : query if write buffer is empty
+ * @hbuf_max_len     : query for write buffer max len
 
- * @write            - write a message to FW
+ * @write            : write a message to FW
 
- * @rdbuf_full_slots - query how many slots are filled
+ * @rdbuf_full_slots : query how many slots are filled
 
- * @read_hdr         - get first 4 bytes (header)
- * @read             - read a buffer from the FW
+ * @read_hdr         : get first 4 bytes (header)
+ * @read             : read a buffer from the FW
  */
 struct mei_hw_ops {
 
@@ -330,7 +332,6 @@ void mei_cl_bus_exit(void);
  * when being probed and shall use it for doing ME bus I/O.
  *
  * @dev: linux driver model device pointer
- * @uuid: me client uuid
  * @cl: mei client
  * @ops: ME transport ops
  * @event_cb: Drivers register this callback to get asynchronous ME
@@ -383,21 +384,21 @@ const char *mei_pg_state_str(enum mei_pg_state state);
 /**
  * struct mei_device -  MEI private device struct
 
- * @dev  - device on a bus
- * @cdev - character device
- * @minor - minor number allocated for device
+ * @dev         : device on a bus
+ * @cdev        : character device
+ * @minor       : minor number allocated for device
  *
- * @reset_count - limits the number of consecutive resets
- * @hbm_state - state of host bus message protocol
+ * @reset_count : limits the number of consecutive resets
+ * @hbm_state   : state of host bus message protocol
  *
- * @hbm_f_pg_supported - hbm feature pgi protocol
+ * @hbm_f_pg_supported : hbm feature pgi protocol
  *
- * @pg_event - power gating event
- * @mem_addr - mem mapped base register address
+ * @pg_event    : power gating event
+ * @mem_addr    : mem mapped base register address
 
- * @hbuf_depth - depth of hardware host/write buffer is slots
- * @hbuf_is_ready - query if the host host/write buffer is ready
- * @wr_msg - the buffer for hbm control messages
+ * @hbuf_depth  : depth of hardware host/write buffer is slots
+ * @hbuf_is_ready : query if the host host/write buffer is ready
+ * @wr_msg      : the buffer for hbm control messages
  */
 struct mei_device {
 	struct device *dev;
@@ -521,8 +522,9 @@ static inline unsigned long mei_secs_to_jiffies(unsigned long sec)
 /**
  * mei_data2slots - get slots - number of (dwords) from a message length
  *	+ size of the mei header
- * @length - size of the messages in bytes
- * returns  - number of slots
+ * @length: size of the messages in bytes
+ *
+ * Return: number of slots
  */
 static inline u32 mei_data2slots(size_t length)
 {
@@ -531,8 +533,8 @@ static inline u32 mei_data2slots(size_t length)
 
 /**
  * mei_slots2data- get data in slots - bytes from slots
- * @slots -  number of available slots
- * returns  - number of bytes in slots
+ * @slots: number of available slots
+ * Return: number of bytes in slots
  */
 static inline u32 mei_slots2data(int slots)
 {
@@ -610,12 +612,12 @@ int mei_wd_host_init(struct mei_device *dev);
 /*
  * mei_watchdog_register  - Registering watchdog interface
  *   once we got connection to the WD Client
- * @dev - mei device
+ * @dev: mei device
  */
 int mei_watchdog_register(struct mei_device *dev);
 /*
  * mei_watchdog_unregister  - Unregistering watchdog interface
- * @dev - mei device
+ * @dev: mei device
  */
 void mei_watchdog_unregister(struct mei_device *dev);
 

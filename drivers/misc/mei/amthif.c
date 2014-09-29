@@ -122,7 +122,7 @@ int mei_amthif_host_init(struct mei_device *dev)
  * @dev: the device structure
  * @file: pointer to file object
  *
- * returns   returned a list entry on success, NULL on failure.
+ * Return:   returned a list entry on success, NULL on failure.
  */
 struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 						struct file *file)
@@ -140,15 +140,14 @@ struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
  * mei_amthif_read - read data from AMTHIF client
  *
  * @dev: the device structure
- * @if_num:  minor number
  * @file: pointer to file object
- * @*ubuf: pointer to user data in user space
+ * @ubuf: pointer to user data in user space
  * @length: data length to read
  * @offset: data read offset
  *
  * Locking: called under "dev->device_lock" lock
  *
- * returns
+ * Return:
  *  returned data length on success,
  *  zero if no data to read,
  *  negative on failure.
@@ -256,7 +255,7 @@ out:
  * @dev: the device structure
  * @cb: mei call back struct
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  *
  */
 static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
@@ -326,7 +325,7 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
  * @dev: the device structure
  * @cb: mei call back struct
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  *
  */
 int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
@@ -356,8 +355,6 @@ int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
  * mei_amthif_run_next_cmd
  *
  * @dev: the device structure
- *
- * returns 0 on success, <0 on failure.
  */
 void mei_amthif_run_next_cmd(struct mei_device *dev)
 {
@@ -420,12 +417,11 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 /**
  * mei_amthif_irq_write - write iamthif command in irq thread context.
  *
- * @dev: the device structure.
- * @cb_pos: callback block.
  * @cl: private data of the file object.
+ * @cb: callback block.
  * @cmpl_list: complete list.
  *
- * returns 0, OK; otherwise, error.
+ * Return: 0, OK; otherwise, error.
  */
 int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 			 struct mei_cl_cb *cmpl_list)
@@ -507,7 +503,7 @@ int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
  * @mei_hdr: header of amthif message
  * @complete_list: An instance of our list structure
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 int mei_amthif_irq_read_msg(struct mei_device *dev,
 			    struct mei_msg_hdr *mei_hdr,
@@ -560,7 +556,7 @@ int mei_amthif_irq_read_msg(struct mei_device *dev,
  * @dev: the device structure.
  * @slots: free slots.
  *
- * returns 0, OK; otherwise, error.
+ * Return: 0, OK; otherwise, error.
  */
 int mei_amthif_irq_read(struct mei_device *dev, s32 *slots)
 {
@@ -590,7 +586,7 @@ int mei_amthif_irq_read(struct mei_device *dev, s32 *slots)
  * mei_amthif_complete - complete amthif callback.
  *
  * @dev: the device structure.
- * @cb_pos: callback block.
+ * @cb: callback block.
  */
 void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb)
 {
@@ -624,7 +620,7 @@ void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb)
  * mei_clear_list is called to clear resources associated with file
  * when application calls close function or Ctrl-C was pressed
  *
- * returns true if callback removed from the list, false otherwise
+ * Return: true if callback removed from the list, false otherwise
  */
 static bool mei_clear_list(struct mei_device *dev,
 		const struct file *file, struct list_head *mei_cb_list)
@@ -664,7 +660,7 @@ static bool mei_clear_list(struct mei_device *dev,
  * mei_clear_lists is called to clear resources associated with file
  * when application calls close function or Ctrl-C was pressed
  *
- * returns true if callback removed from the list, false otherwise
+ * Return: true if callback removed from the list, false otherwise
  */
 static bool mei_clear_lists(struct mei_device *dev, struct file *file)
 {
@@ -705,7 +701,7 @@ static bool mei_clear_lists(struct mei_device *dev, struct file *file)
 *  @dev: device structure
 *  @file: pointer to file structure
 *
-*  returns 0 on success, <0 on error
+*  Return: 0 on success, <0 on error
 */
 int mei_amthif_release(struct mei_device *dev, struct file *file)
 {

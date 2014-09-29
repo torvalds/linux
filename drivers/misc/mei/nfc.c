@@ -88,7 +88,8 @@ struct mei_nfc_hci_hdr {
 
 #define MEI_NFC_HEADER_SIZE 10
 
-/** mei_nfc_dev - NFC mei device
+/**
+ * struct mei_nfc_dev - NFC mei device
  *
  * @cl: NFC host client
  * @cl_info: NFC info host client

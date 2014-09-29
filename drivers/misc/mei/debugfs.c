@@ -161,7 +161,8 @@ static const struct file_operations mei_dbgfs_fops_devstate = {
 
 /**
  * mei_dbgfs_deregister - Remove the debugfs files and directories
- * @mei - pointer to mei device private data
+ *
+ * @dev: the mei device structure
  */
 void mei_dbgfs_deregister(struct mei_device *dev)
 {
@@ -172,8 +173,10 @@ void mei_dbgfs_deregister(struct mei_device *dev)
 }
 
 /**
- * Add the debugfs files
+ * mei_dbgfs_register - Add the debugfs files
  *
+ * @dev: the mei device structure
+ * @name: the mei device name
  */
 int mei_dbgfs_register(struct mei_device *dev, const char *name)
 {

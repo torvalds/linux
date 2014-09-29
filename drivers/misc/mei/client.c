@@ -27,13 +27,14 @@
 #include "client.h"
 
 /**
- * mei_me_cl_by_uuid - locate index of me client
+ * mei_me_cl_by_uuid - locate me client by uuid
  *
  * @dev: mei device
+ * @uuid: me client uuid
  *
  * Locking: called under "dev->device_lock" lock
  *
- * returns me client or NULL if not found
+ * Return: me client or NULL if not found
  */
 struct mei_me_client *mei_me_cl_by_uuid(const struct mei_device *dev,
 					const uuid_le *uuid)
@@ -48,16 +49,15 @@ struct mei_me_client *mei_me_cl_by_uuid(const struct mei_device *dev,
 }
 
 /**
- * mei_me_cl_by_id return index to me_clients for client_id
+ * mei_me_cl_by_id - locate me client by client id
  *
  * @dev: the device structure
  * @client_id: me client id
  *
  * Locking: called under "dev->device_lock" lock
  *
- * returns me client or NULL if not found
+ * Return: me client or NULL if not found
  */
-
 struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
 {
 
@@ -69,6 +69,17 @@ struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
 	return NULL;
 }
 
+/**
+ * mei_me_cl_by_uuid_id - locate me client by client id and uuid
+ *
+ * @dev: the device structure
+ * @uuid: me client uuid
+ * @client_id: me client id
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * Return: me client or NULL if not found
+ */
 struct mei_me_client *mei_me_cl_by_uuid_id(struct mei_device *dev,
 					   const uuid_le *uuid, u8 client_id)
 {
@@ -109,7 +120,7 @@ void mei_me_cl_remove(struct mei_device *dev, const uuid_le *uuid, u8 client_id)
  * @cl1: host client 1
  * @cl2: host client 2
  *
- * returns true  - if the clients has same host and me ids
+ * Return: true  - if the clients has same host and me ids
  *         false - otherwise
  */
 static inline bool mei_cl_cmp_id(const struct mei_cl *cl1,
@@ -184,10 +195,10 @@ void mei_io_cb_free(struct mei_cl_cb *cb)
 /**
  * mei_io_cb_init - allocate and initialize io callback
  *
- * @cl - mei client
+ * @cl: mei client
  * @fp: pointer to file structure
  *
- * returns mei_cl_cb pointer or NULL;
+ * Return: mei_cl_cb pointer or NULL;
  */
 struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp)
 {
@@ -211,7 +222,7 @@ struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp)
  * @cb: io callback structure
  * @length: size of the buffer
  *
- * returns 0 on success
+ * Return: 0 on success
  *         -EINVAL if cb is NULL
  *         -ENOMEM if allocation failed
  */
@@ -235,7 +246,7 @@ int mei_io_cb_alloc_req_buf(struct mei_cl_cb *cb, size_t length)
  * @cb: io callback structure
  * @length: size of the buffer
  *
- * returns 0 on success
+ * Return: 0 on success
  *         -EINVAL if cb is NULL
  *         -ENOMEM if allocation failed
  */
@@ -305,7 +316,7 @@ void mei_cl_init(struct mei_cl *cl, struct mei_device *dev)
  * mei_cl_allocate - allocates cl  structure and sets it up.
  *
  * @dev: mei device
- * returns  The allocated file or NULL on failure
+ * Return:  The allocated file or NULL on failure
  */
 struct mei_cl *mei_cl_allocate(struct mei_device *dev)
 {
@@ -325,7 +336,7 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev)
  *
  * @cl: host client
  *
- * returns cb on success, NULL on error
+ * Return: cb on success, NULL on error
  */
 struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
 {
@@ -343,7 +354,7 @@ struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
  * @cl - host client
  * @id - fixed host id or -1 for generic one
  *
- * returns 0 on success
+ * Return: 0 on success
  *	-EINVAL on incorrect values
  *	-ENONET if client not found
  */
@@ -455,10 +466,10 @@ void mei_host_client_init(struct work_struct *work)
 }
 
 /**
- * mei_hbuf_acquire: try to acquire host buffer
+ * mei_hbuf_acquire - try to acquire host buffer
  *
  * @dev: the device structure
- * returns true if host buffer was acquired
+ * Return: true if host buffer was acquired
  */
 bool mei_hbuf_acquire(struct mei_device *dev)
 {
@@ -485,7 +496,7 @@ bool mei_hbuf_acquire(struct mei_device *dev)
  *
  * Locking: called under "dev->device_lock" lock
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 int mei_cl_disconnect(struct mei_cl *cl)
 {
@@ -566,7 +577,7 @@ free:
  *
  * @cl: private data of the file object
  *
- * returns true if other client is connected, false - otherwise.
+ * Return: true if other client is connected, false - otherwise.
  */
 bool mei_cl_is_other_connecting(struct mei_cl *cl)
 {
@@ -593,10 +604,11 @@ bool mei_cl_is_other_connecting(struct mei_cl *cl)
  * mei_cl_connect - connect host client to the me one
  *
  * @cl: host client
+ * @file: pointer to file structure
  *
  * Locking: called under "dev->device_lock" lock
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 int mei_cl_connect(struct mei_cl *cl, struct file *file)
 {
@@ -671,7 +683,7 @@ out:
  *
  * @cl: private data of the file object
  *
- * returns 1 if mei_flow_ctrl_creds >0, 0 - otherwise.
+ * Return: 1 if mei_flow_ctrl_creds >0, 0 - otherwise.
  *	-ENOENT if mei_cl is not present
  *	-EINVAL if single_recv_buf == 0
  */
@@ -707,7 +719,7 @@ int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
  *
  * @cl: private data of the file object
  *
- * @returns
+ * Return:
  *	0 on success
  *	-ENOENT when me client is not found
  *	-EINVAL when ctrl credits are <= 0
@@ -745,7 +757,7 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
  *
  * @cl: host client
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 int mei_cl_read_start(struct mei_cl *cl, size_t length)
 {
@@ -823,7 +835,7 @@ out:
  * @cb: callback block.
  * @cmpl_list: complete list.
  *
- * returns 0, OK; otherwise error.
+ * Return: 0, OK; otherwise error.
  */
 int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		     struct mei_cl_cb *cmpl_list)
@@ -900,12 +912,12 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 /**
  * mei_cl_write - submit a write cb to mei device
-	assumes device_lock is locked
+ *	assumes device_lock is locked
  *
  * @cl: host client
- * @cl: write callback with filled data
+ * @cb: write callback with filled data
  *
- * returns number of bytes sent on success, <0 on failure.
+ * Return: number of bytes sent on success, <0 on failure.
  */
 int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 {
@@ -1042,7 +1054,7 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 /**
  * mei_cl_all_disconnect - disconnect forcefully all connected clients
  *
- * @dev - mei device
+ * @dev: mei device
  */
 
 void mei_cl_all_disconnect(struct mei_device *dev)
@@ -1060,7 +1072,7 @@ void mei_cl_all_disconnect(struct mei_device *dev)
 /**
  * mei_cl_all_wakeup  - wake up all readers and writers they can be interrupted
  *
- * @dev  - mei device
+ * @dev: mei device
  */
 void mei_cl_all_wakeup(struct mei_device *dev)
 {
@@ -1080,8 +1092,8 @@ void mei_cl_all_wakeup(struct mei_device *dev)
 
 /**
  * mei_cl_all_write_clear - clear all pending writes
-
- * @dev - mei device
+ *
+ * @dev: mei device
  */
 void mei_cl_all_write_clear(struct mei_device *dev)
 {

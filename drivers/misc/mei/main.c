@@ -44,7 +44,7 @@
  * @inode: pointer to inode structure
  * @file: pointer to file structure
  *
- * returns 0 on success, <0 on error
+ * Return: 0 on success, <0 on error
  */
 static int mei_open(struct inode *inode, struct file *file)
 {
@@ -96,7 +96,7 @@ err_unlock:
  * @inode: pointer to inode structure
  * @file: pointer to file structure
  *
- * returns 0 on success, <0 on error
+ * Return: 0 on success, <0 on error
  */
 static int mei_release(struct inode *inode, struct file *file)
 {
@@ -157,7 +157,7 @@ out:
  * @length: buffer length
  * @offset: data offset in buffer
  *
- * returns >=0 data length on success , <0 on error
+ * Return: >=0 data length on success , <0 on error
  */
 static ssize_t mei_read(struct file *file, char __user *ubuf,
 			size_t length, loff_t *offset)
@@ -297,7 +297,7 @@ out:
  * @length: buffer length
  * @offset: data offset in buffer
  *
- * returns >=0 data length on success , <0 on error
+ * Return: >=0 data length on success , <0 on error
  */
 static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			 size_t length, loff_t *offset)
@@ -414,13 +414,12 @@ out:
 /**
  * mei_ioctl_connect_client - the connect to fw client IOCTL function
  *
- * @dev: the device structure
- * @data: IOCTL connect data, input and output parameters
  * @file: private data of the file object
+ * @data: IOCTL connect data, input and output parameters
  *
  * Locking: called under "dev->device_lock" lock
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 static int mei_ioctl_connect_client(struct file *file,
 			struct mei_connect_client_data *data)
@@ -509,7 +508,7 @@ end:
  * @cmd: ioctl command
  * @data: pointer to mei message structure
  *
- * returns 0 on success , <0 on error
+ * Return: 0 on success , <0 on error
  */
 static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 {
@@ -573,7 +572,7 @@ out:
  * @cmd: ioctl command
  * @data: pointer to mei message structure
  *
- * returns 0 on success , <0 on error
+ * Return: 0 on success , <0 on error
  */
 #ifdef CONFIG_COMPAT
 static long mei_compat_ioctl(struct file *file,
@@ -590,7 +589,7 @@ static long mei_compat_ioctl(struct file *file,
  * @file: pointer to file structure
  * @wait: pointer to poll_table structure
  *
- * returns poll mask
+ * Return: poll mask
  */
 static unsigned int mei_poll(struct file *file, poll_table *wait)
 {
@@ -660,7 +659,7 @@ static DEFINE_IDR(mei_idr);
  *
  * @dev:  device pointer
  *
- * returns allocated minor, or -ENOSPC if no free minor left
+ * Return: allocated minor, or -ENOSPC if no free minor left
  */
 static int mei_minor_get(struct mei_device *dev)
 {

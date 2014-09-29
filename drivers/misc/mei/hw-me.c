@@ -28,10 +28,10 @@
 /**
  * mei_me_reg_read - Reads 32bit data from the mei device
  *
- * @dev: the device structure
+ * @hw: the me hardware structure
  * @offset: offset from which to read the data
  *
- * returns register value (u32)
+ * Return: register value (u32)
  */
 static inline u32 mei_me_reg_read(const struct mei_me_hw *hw,
 			       unsigned long offset)
@@ -43,7 +43,7 @@ static inline u32 mei_me_reg_read(const struct mei_me_hw *hw,
 /**
  * mei_me_reg_write - Writes 32bit data to the mei device
  *
- * @dev: the device structure
+ * @hw: the me hardware structure
  * @offset: offset from which to write the data
  * @value: register value to write (u32)
  */
@@ -59,7 +59,7 @@ static inline void mei_me_reg_write(const struct mei_me_hw *hw,
  *
  * @dev: the device structure
  *
- * returns ME_CB_RW register value (u32)
+ * Return: ME_CB_RW register value (u32)
  */
 static u32 mei_me_mecbrw_read(const struct mei_device *dev)
 {
@@ -68,9 +68,9 @@ static u32 mei_me_mecbrw_read(const struct mei_device *dev)
 /**
  * mei_me_mecsr_read - Reads 32bit data from the ME CSR
  *
- * @dev: the device structure
+ * @hw: the me hardware structure
  *
- * returns ME_CSR_HA register value (u32)
+ * Return: ME_CSR_HA register value (u32)
  */
 static inline u32 mei_me_mecsr_read(const struct mei_me_hw *hw)
 {
@@ -80,9 +80,9 @@ static inline u32 mei_me_mecsr_read(const struct mei_me_hw *hw)
 /**
  * mei_hcsr_read - Reads 32bit data from the host CSR
  *
- * @dev: the device structure
+ * @hw: the me hardware structure
  *
- * returns H_CSR register value (u32)
+ * Return: H_CSR register value (u32)
  */
 static inline u32 mei_hcsr_read(const struct mei_me_hw *hw)
 {
@@ -93,7 +93,7 @@ static inline u32 mei_hcsr_read(const struct mei_me_hw *hw)
  * mei_hcsr_set - writes H_CSR register to the mei device,
  * and ignores the H_IS bit for it is write-one-to-zero.
  *
- * @dev: the device structure
+ * @hw: the me hardware structure
  */
 static inline void mei_hcsr_set(struct mei_me_hw *hw, u32 hcsr)
 {
@@ -274,8 +274,8 @@ static void mei_me_host_set_ready(struct mei_device *dev)
 /**
  * mei_me_host_is_ready - check whether the host has turned ready
  *
- * @dev - mei device
- * returns bool
+ * @dev: mei device
+ * Return: bool
  */
 static bool mei_me_host_is_ready(struct mei_device *dev)
 {
@@ -288,8 +288,8 @@ static bool mei_me_host_is_ready(struct mei_device *dev)
 /**
  * mei_me_hw_is_ready - check whether the me(hw) has turned ready
  *
- * @dev - mei device
- * returns bool
+ * @dev: mei device
+ * Return: bool
  */
 static bool mei_me_hw_is_ready(struct mei_device *dev)
 {
@@ -333,7 +333,7 @@ static int mei_me_hw_start(struct mei_device *dev)
  *
  * @dev: the device structure
  *
- * returns number of filled slots
+ * Return: number of filled slots
  */
 static unsigned char mei_hbuf_filled_slots(struct mei_device *dev)
 {
@@ -353,7 +353,7 @@ static unsigned char mei_hbuf_filled_slots(struct mei_device *dev)
  *
  * @dev: the device structure
  *
- * returns true if empty, false - otherwise.
+ * Return: true if empty, false - otherwise.
  */
 static bool mei_me_hbuf_is_empty(struct mei_device *dev)
 {
@@ -365,7 +365,7 @@ static bool mei_me_hbuf_is_empty(struct mei_device *dev)
  *
  * @dev: the device structure
  *
- * returns -EOVERFLOW if overflow, otherwise empty slots count
+ * Return: -EOVERFLOW if overflow, otherwise empty slots count
  */
 static int mei_me_hbuf_empty_slots(struct mei_device *dev)
 {
@@ -394,7 +394,7 @@ static size_t mei_me_hbuf_max_len(const struct mei_device *dev)
  * @header: mei HECI header of message
  * @buf: message payload will be written
  *
- * This function returns -EIO if write has failed
+ * Return: -EIO if write has failed
  */
 static int mei_me_write_message(struct mei_device *dev,
 			struct mei_msg_hdr *header,
@@ -444,7 +444,7 @@ static int mei_me_write_message(struct mei_device *dev,
  *
  * @dev: the device structure
  *
- * returns -EOVERFLOW if overflow, otherwise filled slots count
+ * Return: -EOVERFLOW if overflow, otherwise filled slots count
  */
 static int mei_me_count_full_read_slots(struct mei_device *dev)
 {
@@ -529,7 +529,7 @@ static void mei_me_pg_exit(struct mei_device *dev)
  *
  * @dev: the device structure
  *
- * returns 0 on success an error code otherwise
+ * Return: 0 on success an error code otherwise
  */
 int mei_me_pg_set_sync(struct mei_device *dev)
 {
@@ -566,7 +566,7 @@ int mei_me_pg_set_sync(struct mei_device *dev)
  *
  * @dev: the device structure
  *
- * returns 0 on success an error code otherwise
+ * Return: 0 on success an error code otherwise
  */
 int mei_me_pg_unset_sync(struct mei_device *dev)
 {
@@ -603,7 +603,7 @@ reply:
  *
  * @dev: the device structure
  *
- * returns: true is pg supported, false otherwise
+ * Return: true is pg supported, false otherwise
  */
 static bool mei_me_pg_is_enabled(struct mei_device *dev)
 {
@@ -635,7 +635,7 @@ notsupported:
  * @irq: The irq number
  * @dev_id: pointer to the device structure
  *
- * returns irqreturn_t
+ * Return: irqreturn_t
  */
 
 irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id)
@@ -660,7 +660,7 @@ irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id)
  * @irq: The irq number
  * @dev_id: pointer to the device structure
  *
- * returns irqreturn_t
+ * Return: irqreturn_t
  *
  */
 irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
@@ -841,7 +841,7 @@ const struct mei_cfg mei_me_lpt_cfg = {
  * @pdev: The pci device structure
  * @cfg: per device generation config
  *
- * returns The mei_device_device pointer on success, NULL on failure.
+ * Return: The mei_device_device pointer on success, NULL on failure.
  */
 struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
 				   const struct mei_cfg *cfg)

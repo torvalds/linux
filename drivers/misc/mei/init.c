@@ -56,11 +56,11 @@ const char *mei_pg_state_str(enum mei_pg_state state)
 
 
 /**
- * mei_cancel_work. Cancel mei background jobs
+ * mei_cancel_work - Cancel mei background jobs
  *
  * @dev: the device structure
  *
- * returns 0 on success or < 0 if the reset hasn't succeeded
+ * Return: 0 on success or < 0 if the reset hasn't succeeded
  */
 void mei_cancel_work(struct mei_device *dev)
 {
@@ -175,7 +175,7 @@ EXPORT_SYMBOL_GPL(mei_reset);
  *
  * @dev: the device structure
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 int mei_start(struct mei_device *dev)
 {
@@ -244,7 +244,7 @@ EXPORT_SYMBOL_GPL(mei_start);
  *
  * @dev: the device structure
  *
- * returns 0 on success or -ENODEV if the restart hasn't succeeded
+ * Return: 0 on success or -ENODEV if the restart hasn't succeeded
  */
 int mei_restart(struct mei_device *dev)
 {
@@ -325,7 +325,7 @@ EXPORT_SYMBOL_GPL(mei_stop);
  *
  * @dev: the device structure
  *
- * returns true of there is no pending write
+ * Return: true of there is no pending write
  */
 bool mei_write_is_idle(struct mei_device *dev)
 {

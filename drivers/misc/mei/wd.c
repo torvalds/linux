@@ -51,7 +51,7 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
  *
  * @dev: the device structure
  *
- * returns -ENOTTY if wd client cannot be found
+ * Return: -ENOTTY if wd client cannot be found
  *         -EIO if write has failed
  *         0 on success
  */
@@ -105,7 +105,7 @@ int mei_wd_host_init(struct mei_device *dev)
  *
  * @dev: the device structure
  *
- * returns 0 if success,
+ * Return: 0 if success,
  *	-EIO when message send fails
  *	-EINVAL when invalid message is to be sent
  *	-ENODEV on flow control failure
@@ -150,9 +150,8 @@ int mei_wd_send(struct mei_device *dev)
  * mei_wd_stop - sends watchdog stop message to fw.
  *
  * @dev: the device structure
- * @preserve: indicate if to keep the timeout value
  *
- * returns 0 if success
+ * Return: 0 if success
  * on error:
  *	-EIO    when message send fails
  *	-EINVAL when invalid message is to be sent
@@ -207,7 +206,7 @@ err:
  *
  * @wd_dev - watchdog device struct
  *
- * returns 0 if success, negative errno code for failure
+ * Return: 0 if success, negative errno code for failure
  */
 static int mei_wd_ops_start(struct watchdog_device *wd_dev)
 {
@@ -244,7 +243,7 @@ end_unlock:
  *
  * @wd_dev - watchdog device struct
  *
- * returns 0 if success, negative errno code for failure
+ * Return: 0 if success, negative errno code for failure
  */
 static int mei_wd_ops_stop(struct watchdog_device *wd_dev)
 {
@@ -266,7 +265,7 @@ static int mei_wd_ops_stop(struct watchdog_device *wd_dev)
  *
  * @wd_dev - watchdog device struct
  *
- * returns 0 if success, negative errno code for failure
+ * Return: 0 if success, negative errno code for failure
  */
 static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 {
@@ -314,7 +313,7 @@ end:
  * @wd_dev - watchdog device struct
  * @timeout - timeout value to set
  *
- * returns 0 if success, negative errno code for failure
+ * Return: 0 if success, negative errno code for failure
  */
 static int mei_wd_ops_set_timeout(struct watchdog_device *wd_dev,
 		unsigned int timeout)
