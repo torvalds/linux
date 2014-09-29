@@ -55,7 +55,9 @@ extern void __iomem *of_iomap(struct device_node *device, int index);
 extern const __be32 *of_get_address(struct device_node *dev, int index,
 			   u64 *size, unsigned int *flags);
 
+extern int pci_register_io_range(phys_addr_t addr, resource_size_t size);
 extern unsigned long pci_address_to_pio(phys_addr_t addr);
+extern phys_addr_t pci_pio_to_address(unsigned long pio);
 
 extern int of_pci_range_parser_init(struct of_pci_range_parser *parser,
 			struct device_node *node);
@@ -78,6 +80,11 @@ static inline const __be32 *of_get_address(struct device_node *dev, int index,
 					u64 *size, unsigned int *flags)
 {
 	return NULL;
+}
+
+static inline phys_addr_t pci_pio_to_address(unsigned long pio)
+{
+	return 0;
 }
 
 static inline int of_pci_range_parser_init(struct of_pci_range_parser *parser,
