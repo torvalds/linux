@@ -534,20 +534,23 @@ static int __init init_obdclass(void)
 	spin_lock_init(&obd_types_lock);
 	obd_zombie_impexp_init();
 
-	obd_memory = lprocfs_alloc_stats(OBD_STATS_NUM,
-					 LPROCFS_STATS_FLAG_NONE |
-					 LPROCFS_STATS_FLAG_IRQ_SAFE);
-	if (obd_memory == NULL) {
-		CERROR("kmalloc of 'obd_memory' failed\n");
-		return -ENOMEM;
-	}
+	if (IS_ENABLED(CONFIG_PROC_FS)) {
+		obd_memory = lprocfs_alloc_stats(OBD_STATS_NUM,
+						 LPROCFS_STATS_FLAG_NONE |
+						 LPROCFS_STATS_FLAG_IRQ_SAFE);
 
-	lprocfs_counter_init(obd_memory, OBD_MEMORY_STAT,
-			     LPROCFS_CNTR_AVGMINMAX,
-			     "memused", "bytes");
-	lprocfs_counter_init(obd_memory, OBD_MEMORY_PAGES_STAT,
-			     LPROCFS_CNTR_AVGMINMAX,
-			     "pagesused", "pages");
+		if (obd_memory == NULL) {
+			CERROR("kmalloc of 'obd_memory' failed\n");
+			return -ENOMEM;
+		}
+
+		lprocfs_counter_init(obd_memory, OBD_MEMORY_STAT,
+				     LPROCFS_CNTR_AVGMINMAX,
+				     "memused", "bytes");
+		lprocfs_counter_init(obd_memory, OBD_MEMORY_PAGES_STAT,
+				     LPROCFS_CNTR_AVGMINMAX,
+				     "pagesused", "pages");
+	}
 
 	err = obd_init_checks();
 	if (err == -EOVERFLOW)
