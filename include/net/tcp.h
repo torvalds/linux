@@ -861,40 +861,6 @@ static inline void tcp_ca_event(struct sock *sk, const enum tcp_ca_event event)
 		icsk->icsk_ca_ops->cwnd_event(sk, event);
 }
 
-/* RFC3168 : 6.1.1 SYN packets must not have ECT/ECN bits set
- *
- * If we receive a SYN packet with these bits set, it means a
- * network is playing bad games with TOS bits. In order to
- * avoid possible false congestion notifications, we disable
- * TCP ECN negociation.
- *
- * Exception: tcp_ca wants ECN. This is required for DCTCP
- * congestion control; it requires setting ECT on all packets,
- * including SYN. We inverse the test in this case: If our
- * local socket wants ECN, but peer only set ece/cwr (but not
- * ECT in IP header) its probably a non-DCTCP aware sender.
- */
-static inline void
-TCP_ECN_create_request(struct request_sock *req, const struct sk_buff *skb,
-		       const struct sock *listen_sk)
-{
-	const struct tcphdr *th = tcp_hdr(skb);
-	const struct net *net = sock_net(listen_sk);
-	bool th_ecn = th->ece && th->cwr;
-	bool ect, need_ecn;
-
-	if (!th_ecn)
-		return;
-
-	ect = !INET_ECN_is_not_ect(TCP_SKB_CB(skb)->ip_dsfield);
-	need_ecn = tcp_ca_needs_ecn(listen_sk);
-
-	if (!ect && !need_ecn && net->ipv4.sysctl_tcp_ecn)
-		inet_rsk(req)->ecn_ok = 1;
-	else if (ect && need_ecn)
-		inet_rsk(req)->ecn_ok = 1;
-}
-
 /* These functions determine how the current flow behaves in respect of SACK
  * handling. SACK is negotiated with the peer, and therefore it can vary
  * between different flows.
