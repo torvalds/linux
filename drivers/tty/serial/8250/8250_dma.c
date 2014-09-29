@@ -61,6 +61,7 @@ static void __dma_rx_complete(void *param)
 	dma_sync_single_for_cpu(dma->rxchan->device->dev, dma->rx_addr,
 				dma->rx_size, DMA_FROM_DEVICE);
 
+	dma->rx_running = 0;
 	dmaengine_tx_status(dma->rxchan, dma->rx_cookie, &state);
 	dmaengine_terminate_all(dma->rxchan);
 
@@ -123,10 +124,6 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 {
 	struct uart_8250_dma		*dma = p->dma;
 	struct dma_async_tx_descriptor	*desc;
-	struct dma_tx_state		state;
-	int				dma_status;
-
-	dma_status = dmaengine_tx_status(dma->rxchan, dma->rx_cookie, &state);
 
 	switch (iir & 0x3f) {
 	case UART_IIR_RLSI:
@@ -137,7 +134,7 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 		 * If RCVR FIFO trigger level was not reached, complete the
 		 * transfer and let 8250_core copy the remaining data.
 		 */
-		if (dma_status == DMA_IN_PROGRESS) {
+		if (dma->rx_running) {
 			dmaengine_pause(dma->rxchan);
 			__dma_rx_complete(p);
 		}
@@ -146,7 +143,7 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 		break;
 	}
 
-	if (dma_status)
+	if (dma->rx_running)
 		return 0;
 
 	desc = dmaengine_prep_slave_single(dma->rxchan, dma->rx_addr,
@@ -155,6 +152,7 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 	if (!desc)
 		return -EBUSY;
 
+	dma->rx_running = 1;
 	desc->callback = __dma_rx_complete;
 	desc->callback_param = p;
 
