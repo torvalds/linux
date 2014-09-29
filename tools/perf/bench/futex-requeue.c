@@ -172,6 +172,9 @@ int bench_futex_requeue(int argc, const char **argv,
 		gettimeofday(&end, NULL);
 		timersub(&end, &start, &runtime);
 
+		if (nrequeued > nthreads)
+			nrequeued = nthreads;
+
 		update_stats(&requeued_stats, nrequeued);
 		update_stats(&requeuetime_stats, runtime.tv_usec);
 
@@ -190,7 +193,6 @@ int bench_futex_requeue(int argc, const char **argv,
 			if (ret)
 				err(EXIT_FAILURE, "pthread_join");
 		}
-
 	}
 
 	/* cleanup & report results */
