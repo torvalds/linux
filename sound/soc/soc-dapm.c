@@ -3107,7 +3107,7 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	}
 
 	w->dapm = dapm;
-	w->codec = dapm->codec;
+	w->codec = dapm->component->codec;
 	INIT_LIST_HEAD(&w->sources);
 	INIT_LIST_HEAD(&w->sinks);
 	INIT_LIST_HEAD(&w->list);

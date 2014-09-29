@@ -4351,7 +4351,6 @@ int snd_soc_register_codec(struct device *dev,
 	if (codec_drv->read)
 		codec->component.read = snd_soc_codec_drv_read;
 	codec->component.ignore_pmdown_time = codec_drv->ignore_pmdown_time;
-	codec->dapm.codec = codec;
 	codec->dapm.idle_bias_off = codec_drv->idle_bias_off;
 	if (codec_drv->seq_notifier)
 		codec->dapm.seq_notifier = codec_drv->seq_notifier;
