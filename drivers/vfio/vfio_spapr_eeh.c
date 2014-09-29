@@ -92,7 +92,7 @@ long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
 
 	return ret;
 }
-EXPORT_SYMBOL(vfio_spapr_iommu_eeh_ioctl);
+EXPORT_SYMBOL_GPL(vfio_spapr_iommu_eeh_ioctl);
 
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL v2");
