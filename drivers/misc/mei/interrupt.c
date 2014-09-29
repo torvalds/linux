@@ -47,7 +47,7 @@ void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *compl_list)
 		if (!cl)
 			continue;
 
-		dev_dbg(&dev->pdev->dev, "completing call back.\n");
+		dev_dbg(dev->dev, "completing call back.\n");
 		if (cl == &dev->iamthif_cl)
 			mei_amthif_complete(dev, cb);
 		else
@@ -148,10 +148,10 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 		break;
 	}
 
-	dev_dbg(&dev->pdev->dev, "message read\n");
+	dev_dbg(dev->dev, "message read\n");
 	if (!buffer) {
 		mei_read_slots(dev, dev->rd_msg_buf, mei_hdr->length);
-		dev_dbg(&dev->pdev->dev, "discarding message " MEI_HDR_FMT "\n",
+		dev_dbg(dev->dev, "discarding message " MEI_HDR_FMT "\n",
 				MEI_HDR_PRM(mei_hdr));
 	}
 
@@ -333,20 +333,20 @@ int mei_irq_read_handler(struct mei_device *dev,
 	if (!dev->rd_msg_hdr) {
 		dev->rd_msg_hdr = mei_read_hdr(dev);
 		(*slots)--;
-		dev_dbg(&dev->pdev->dev, "slots =%08x.\n", *slots);
+		dev_dbg(dev->dev, "slots =%08x.\n", *slots);
 	}
 	mei_hdr = (struct mei_msg_hdr *) &dev->rd_msg_hdr;
-	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
+	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
 
 	if (mei_hdr->reserved || !dev->rd_msg_hdr) {
-		dev_err(&dev->pdev->dev, "corrupted message header 0x%08X\n",
+		dev_err(dev->dev, "corrupted message header 0x%08X\n",
 				dev->rd_msg_hdr);
 		ret = -EBADMSG;
 		goto end;
 	}
 
 	if (mei_slots2data(*slots) < mei_hdr->length) {
-		dev_err(&dev->pdev->dev, "less data available than length=%08x.\n",
+		dev_err(dev->dev, "less data available than length=%08x.\n",
 				*slots);
 		/* we can't read the message */
 		ret = -ENODATA;
@@ -357,7 +357,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 	if (mei_hdr->host_addr == 0 && mei_hdr->me_addr == 0) {
 		ret = mei_hbm_dispatch(dev, mei_hdr);
 		if (ret) {
-			dev_dbg(&dev->pdev->dev, "mei_hbm_dispatch failed ret = %d\n",
+			dev_dbg(dev->dev, "mei_hbm_dispatch failed ret = %d\n",
 					ret);
 			goto end;
 		}
@@ -374,7 +374,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 
 	/* if no recipient cl was found we assume corrupted header */
 	if (&cl->link == &dev->file_list) {
-		dev_err(&dev->pdev->dev, "no destination client found 0x%08X\n",
+		dev_err(dev->dev, "no destination client found 0x%08X\n",
 				dev->rd_msg_hdr);
 		ret = -EBADMSG;
 		goto end;
@@ -386,14 +386,14 @@ int mei_irq_read_handler(struct mei_device *dev,
 
 		ret = mei_amthif_irq_read_msg(dev, mei_hdr, cmpl_list);
 		if (ret) {
-			dev_err(&dev->pdev->dev, "mei_amthif_irq_read_msg failed = %d\n",
+			dev_err(dev->dev, "mei_amthif_irq_read_msg failed = %d\n",
 					ret);
 			goto end;
 		}
 	} else {
 		ret = mei_cl_irq_read_msg(dev, mei_hdr, cmpl_list);
 		if (ret) {
-			dev_err(&dev->pdev->dev, "mei_cl_irq_read_msg failed = %d\n",
+			dev_err(dev->dev, "mei_cl_irq_read_msg failed = %d\n",
 					ret);
 			goto end;
 		}
@@ -406,7 +406,7 @@ reset_slots:
 
 	if (*slots == -EOVERFLOW) {
 		/* overflow - reset */
-		dev_err(&dev->pdev->dev, "resetting due to slots overflow.\n");
+		dev_err(dev->dev, "resetting due to slots overflow.\n");
 		/* set the event since message has been read */
 		ret = -ERANGE;
 		goto end;
@@ -444,7 +444,7 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 		return -EMSGSIZE;
 
 	/* complete all waiting for write CB */
-	dev_dbg(&dev->pdev->dev, "complete all waiting for write cb.\n");
+	dev_dbg(dev->dev, "complete all waiting for write cb.\n");
 
 	list = &dev->write_waiting_list;
 	list_for_each_entry_safe(cb, next, &list->list, list) {
@@ -486,7 +486,7 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 	}
 
 	/* complete control write list CB */
-	dev_dbg(&dev->pdev->dev, "complete control write list cb.\n");
+	dev_dbg(dev->dev, "complete control write list cb.\n");
 	list_for_each_entry_safe(cb, next, &dev->ctrl_wr_list.list, list) {
 		cl = cb->cl;
 		if (!cl) {
@@ -527,7 +527,7 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 
 	}
 	/* complete  write list CB */
-	dev_dbg(&dev->pdev->dev, "complete write list cb.\n");
+	dev_dbg(dev->dev, "complete write list cb.\n");
 	list_for_each_entry_safe(cb, next, &dev->write_list.list, list) {
 		cl = cb->cl;
 		if (cl == NULL)
@@ -568,7 +568,7 @@ void mei_timer(struct work_struct *work)
 
 		if (dev->init_clients_timer) {
 			if (--dev->init_clients_timer == 0) {
-				dev_err(&dev->pdev->dev, "timer: init clients timeout hbm_state = %d.\n",
+				dev_err(dev->dev, "timer: init clients timeout hbm_state = %d.\n",
 					dev->hbm_state);
 				mei_reset(dev);
 				goto out;
@@ -583,7 +583,7 @@ void mei_timer(struct work_struct *work)
 	list_for_each_entry(cl, &dev->file_list, link) {
 		if (cl->timer_count) {
 			if (--cl->timer_count == 0) {
-				dev_err(&dev->pdev->dev, "timer: connect/disconnect timeout.\n");
+				dev_err(dev->dev, "timer: connect/disconnect timeout.\n");
 				mei_reset(dev);
 				goto out;
 			}
@@ -595,7 +595,7 @@ void mei_timer(struct work_struct *work)
 
 	if (dev->iamthif_stall_timer) {
 		if (--dev->iamthif_stall_timer == 0) {
-			dev_err(&dev->pdev->dev, "timer: amthif  hanged.\n");
+			dev_err(dev->dev, "timer: amthif  hanged.\n");
 			mei_reset(dev);
 			dev->iamthif_msg_buf_size = 0;
 			dev->iamthif_msg_buf_index = 0;
@@ -617,17 +617,17 @@ void mei_timer(struct work_struct *work)
 		timeout = dev->iamthif_timer +
 			mei_secs_to_jiffies(MEI_IAMTHIF_READ_TIMER);
 
-		dev_dbg(&dev->pdev->dev, "dev->iamthif_timer = %ld\n",
+		dev_dbg(dev->dev, "dev->iamthif_timer = %ld\n",
 				dev->iamthif_timer);
-		dev_dbg(&dev->pdev->dev, "timeout = %ld\n", timeout);
-		dev_dbg(&dev->pdev->dev, "jiffies = %ld\n", jiffies);
+		dev_dbg(dev->dev, "timeout = %ld\n", timeout);
+		dev_dbg(dev->dev, "jiffies = %ld\n", jiffies);
 		if (time_after(jiffies, timeout)) {
 			/*
 			 * User didn't read the AMTHI data on time (15sec)
 			 * freeing AMTHI for other requests
 			 */
 
-			dev_dbg(&dev->pdev->dev, "freeing AMTHI for other requests\n");
+			dev_dbg(dev->dev, "freeing AMTHI for other requests\n");
 
 			mei_io_list_flush(&dev->amthif_rd_complete_list,
 				&dev->iamthif_cl);

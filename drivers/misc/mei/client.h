@@ -110,9 +110,9 @@ void mei_cl_all_write_clear(struct mei_device *dev);
 #define MEI_CL_PRM(cl) (cl)->host_client_id, (cl)->me_client_id
 
 #define cl_dbg(dev, cl, format, arg...) \
-	dev_dbg(&(dev)->pdev->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
+	dev_dbg((dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
 
 #define cl_err(dev, cl, format, arg...) \
-	dev_err(&(dev)->pdev->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
+	dev_err((dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
 
 #endif /* _MEI_CLIENT_H_ */

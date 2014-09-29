@@ -90,7 +90,7 @@ int mei_reset(struct mei_device *dev)
 		struct mei_fw_status fw_status;
 
 		mei_fw_status(dev, &fw_status);
-		dev_warn(&dev->pdev->dev,
+		dev_warn(dev->dev,
 			"unexpected reset: dev_state = %s " FW_STS_FMT "\n",
 			mei_dev_state_str(state), FW_STS_PRM(fw_status));
 	}
@@ -108,7 +108,7 @@ int mei_reset(struct mei_device *dev)
 
 	dev->reset_count++;
 	if (dev->reset_count > MEI_MAX_CONSEC_RESET) {
-		dev_err(&dev->pdev->dev, "reset: reached maximal consecutive resets: disabling the device\n");
+		dev_err(dev->dev, "reset: reached maximal consecutive resets: disabling the device\n");
 		dev->dev_state = MEI_DEV_DISABLED;
 		return -ENODEV;
 	}
@@ -129,7 +129,7 @@ int mei_reset(struct mei_device *dev)
 		mei_cl_all_wakeup(dev);
 
 		/* remove entry if already in list */
-		dev_dbg(&dev->pdev->dev, "remove iamthif and wd from the file list.\n");
+		dev_dbg(dev->dev, "remove iamthif and wd from the file list.\n");
 		mei_cl_unlink(&dev->wd_cl);
 		mei_cl_unlink(&dev->iamthif_cl);
 		mei_amthif_reset_params(dev);
@@ -141,28 +141,28 @@ int mei_reset(struct mei_device *dev)
 	dev->wd_pending = false;
 
 	if (ret) {
-		dev_err(&dev->pdev->dev, "hw_reset failed ret = %d\n", ret);
+		dev_err(dev->dev, "hw_reset failed ret = %d\n", ret);
 		return ret;
 	}
 
 	if (state == MEI_DEV_POWER_DOWN) {
-		dev_dbg(&dev->pdev->dev, "powering down: end of reset\n");
+		dev_dbg(dev->dev, "powering down: end of reset\n");
 		dev->dev_state = MEI_DEV_DISABLED;
 		return 0;
 	}
 
 	ret = mei_hw_start(dev);
 	if (ret) {
-		dev_err(&dev->pdev->dev, "hw_start failed ret = %d\n", ret);
+		dev_err(dev->dev, "hw_start failed ret = %d\n", ret);
 		return ret;
 	}
 
-	dev_dbg(&dev->pdev->dev, "link is established start sending messages.\n");
+	dev_dbg(dev->dev, "link is established start sending messages.\n");
 
 	dev->dev_state = MEI_DEV_INIT_CLIENTS;
 	ret = mei_hbm_start_req(dev);
 	if (ret) {
-		dev_err(&dev->pdev->dev, "hbm_start failed ret = %d\n", ret);
+		dev_err(dev->dev, "hbm_start failed ret = %d\n", ret);
 		dev->dev_state = MEI_DEV_RESETTING;
 		return ret;
 	}
@@ -189,7 +189,7 @@ int mei_start(struct mei_device *dev)
 
 	mei_hw_config(dev);
 
-	dev_dbg(&dev->pdev->dev, "reset in start the mei device.\n");
+	dev_dbg(dev->dev, "reset in start the mei device.\n");
 
 	dev->reset_count = 0;
 	do {
@@ -197,43 +197,43 @@ int mei_start(struct mei_device *dev)
 		ret = mei_reset(dev);
 
 		if (ret == -ENODEV || dev->dev_state == MEI_DEV_DISABLED) {
-			dev_err(&dev->pdev->dev, "reset failed ret = %d", ret);
+			dev_err(dev->dev, "reset failed ret = %d", ret);
 			goto err;
 		}
 	} while (ret);
 
 	/* we cannot start the device w/o hbm start message completed */
 	if (dev->dev_state == MEI_DEV_DISABLED) {
-		dev_err(&dev->pdev->dev, "reset failed");
+		dev_err(dev->dev, "reset failed");
 		goto err;
 	}
 
 	if (mei_hbm_start_wait(dev)) {
-		dev_err(&dev->pdev->dev, "HBM haven't started");
+		dev_err(dev->dev, "HBM haven't started");
 		goto err;
 	}
 
 	if (!mei_host_is_ready(dev)) {
-		dev_err(&dev->pdev->dev, "host is not ready.\n");
+		dev_err(dev->dev, "host is not ready.\n");
 		goto err;
 	}
 
 	if (!mei_hw_is_ready(dev)) {
-		dev_err(&dev->pdev->dev, "ME is not ready.\n");
+		dev_err(dev->dev, "ME is not ready.\n");
 		goto err;
 	}
 
 	if (!mei_hbm_version_is_supported(dev)) {
-		dev_dbg(&dev->pdev->dev, "MEI start failed.\n");
+		dev_dbg(dev->dev, "MEI start failed.\n");
 		goto err;
 	}
 
-	dev_dbg(&dev->pdev->dev, "link layer has been established.\n");
+	dev_dbg(dev->dev, "link layer has been established.\n");
 
 	mutex_unlock(&dev->device_lock);
 	return 0;
 err:
-	dev_err(&dev->pdev->dev, "link layer initialization failed.\n");
+	dev_err(dev->dev, "link layer initialization failed.\n");
 	dev->dev_state = MEI_DEV_DISABLED;
 	mutex_unlock(&dev->device_lock);
 	return -ENODEV;
@@ -263,7 +263,7 @@ int mei_restart(struct mei_device *dev)
 	mutex_unlock(&dev->device_lock);
 
 	if (err == -ENODEV || dev->dev_state == MEI_DEV_DISABLED) {
-		dev_err(&dev->pdev->dev, "device disabled = %d\n", err);
+		dev_err(dev->dev, "device disabled = %d\n", err);
 		return -ENODEV;
 	}
 
@@ -289,7 +289,7 @@ static void mei_reset_work(struct work_struct *work)
 	mutex_unlock(&dev->device_lock);
 
 	if (dev->dev_state == MEI_DEV_DISABLED) {
-		dev_err(&dev->pdev->dev, "device disabled = %d\n", ret);
+		dev_err(dev->dev, "device disabled = %d\n", ret);
 		return;
 	}
 
@@ -300,7 +300,7 @@ static void mei_reset_work(struct work_struct *work)
 
 void mei_stop(struct mei_device *dev)
 {
-	dev_dbg(&dev->pdev->dev, "stopping the device.\n");
+	dev_dbg(dev->dev, "stopping the device.\n");
 
 	mei_cancel_work(dev);
 
@@ -334,7 +334,7 @@ bool mei_write_is_idle(struct mei_device *dev)
 		list_empty(&dev->ctrl_wr_list.list) &&
 		list_empty(&dev->write_list.list));
 
-	dev_dbg(&dev->pdev->dev, "write pg: is idle[%d] state=%s ctrl=%d write=%d\n",
+	dev_dbg(dev->dev, "write pg: is idle[%d] state=%s ctrl=%d write=%d\n",
 		idle,
 		mei_dev_state_str(dev->dev_state),
 		list_empty(&dev->ctrl_wr_list.list),

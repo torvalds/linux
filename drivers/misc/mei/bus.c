@@ -172,7 +172,7 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
 	device->cl = cl;
 	device->ops = ops;
 
-	device->dev.parent = &dev->pdev->dev;
+	device->dev.parent = dev->dev;
 	device->dev.bus = &mei_cl_bus_type;
 	device->dev.type = &mei_cl_device_type;
 
@@ -180,7 +180,7 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
 
 	status = device_register(&device->dev);
 	if (status) {
-		dev_err(&dev->pdev->dev, "Failed to register MEI device\n");
+		dev_err(dev->dev, "Failed to register MEI device\n");
 		kfree(device);
 		return NULL;
 	}
@@ -430,7 +430,7 @@ int mei_cl_enable_device(struct mei_cl_device *device)
 	err = mei_cl_connect(cl, NULL);
 	if (err < 0) {
 		mutex_unlock(&dev->device_lock);
-		dev_err(&dev->pdev->dev, "Could not connect to the ME client");
+		dev_err(dev->dev, "Could not connect to the ME client");
 
 		return err;
 	}
@@ -462,7 +462,7 @@ int mei_cl_disable_device(struct mei_cl_device *device)
 
 	if (cl->state != MEI_FILE_CONNECTED) {
 		mutex_unlock(&dev->device_lock);
-		dev_err(&dev->pdev->dev, "Already disconnected");
+		dev_err(dev->dev, "Already disconnected");
 
 		return 0;
 	}
@@ -472,7 +472,7 @@ int mei_cl_disable_device(struct mei_cl_device *device)
 	err = mei_cl_disconnect(cl);
 	if (err < 0) {
 		mutex_unlock(&dev->device_lock);
-		dev_err(&dev->pdev->dev,
+		dev_err(dev->dev,
 			"Could not disconnect from the ME client");
 
 		return err;

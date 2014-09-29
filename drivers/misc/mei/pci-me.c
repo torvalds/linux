@@ -451,7 +451,7 @@ static inline void mei_me_set_pm_domain(struct mei_device *dev)
 static inline void mei_me_unset_pm_domain(struct mei_device *dev)
 {
 	/* stop using pm callbacks if any */
-	dev->pdev->dev.pm_domain = NULL;
+	dev->dev->pm_domain = NULL;
 }
 #endif /* CONFIG_PM_RUNTIME */
 

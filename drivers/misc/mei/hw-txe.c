@@ -155,7 +155,7 @@ static bool mei_txe_aliveness_set(struct mei_device *dev, u32 req)
 	struct mei_txe_hw *hw = to_txe_hw(dev);
 	bool do_req = hw->aliveness != req;
 
-	dev_dbg(&dev->pdev->dev, "Aliveness current=%d request=%d\n",
+	dev_dbg(dev->dev, "Aliveness current=%d request=%d\n",
 				hw->aliveness, req);
 	if (do_req) {
 		dev->pg_event = MEI_PG_EVENT_WAIT;
@@ -216,7 +216,7 @@ static int mei_txe_aliveness_poll(struct mei_device *dev, u32 expected)
 		hw->aliveness = mei_txe_aliveness_get(dev);
 		if (hw->aliveness == expected) {
 			dev->pg_event = MEI_PG_EVENT_IDLE;
-			dev_dbg(&dev->pdev->dev,
+			dev_dbg(dev->dev,
 				"aliveness settled after %d msecs\n", t);
 			return t;
 		}
@@ -227,7 +227,7 @@ static int mei_txe_aliveness_poll(struct mei_device *dev, u32 expected)
 	} while (t < SEC_ALIVENESS_WAIT_TIMEOUT);
 
 	dev->pg_event = MEI_PG_EVENT_IDLE;
-	dev_err(&dev->pdev->dev, "aliveness timed out\n");
+	dev_err(dev->dev, "aliveness timed out\n");
 	return -ETIME;
 }
 
@@ -261,10 +261,10 @@ static int mei_txe_aliveness_wait(struct mei_device *dev, u32 expected)
 	ret = hw->aliveness == expected ? 0 : -ETIME;
 
 	if (ret)
-		dev_warn(&dev->pdev->dev, "aliveness timed out = %ld aliveness = %d event = %d\n",
+		dev_warn(dev->dev, "aliveness timed out = %ld aliveness = %d event = %d\n",
 			err, hw->aliveness, dev->pg_event);
 	else
-		dev_dbg(&dev->pdev->dev, "aliveness settled after = %d msec aliveness = %d event = %d\n",
+		dev_dbg(dev->dev, "aliveness settled after = %d msec aliveness = %d event = %d\n",
 			jiffies_to_msecs(timeout - err),
 			hw->aliveness, dev->pg_event);
 
@@ -425,7 +425,7 @@ static bool mei_txe_pending_interrupts(struct mei_device *dev)
 				      TXE_INTR_OUT_DB));
 
 	if (ret) {
-		dev_dbg(&dev->pdev->dev,
+		dev_dbg(dev->dev,
 			"Pending Interrupts InReady=%01d Readiness=%01d, Aliveness=%01d, OutDoor=%01d\n",
 			!!(hw->intr_cause & TXE_INTR_IN_READY),
 			!!(hw->intr_cause & TXE_INTR_READINESS),
@@ -565,7 +565,7 @@ static int mei_txe_readiness_wait(struct mei_device *dev)
 			msecs_to_jiffies(SEC_RESET_WAIT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 	if (!dev->recvd_hw_ready) {
-		dev_err(&dev->pdev->dev, "wait for readiness failed\n");
+		dev_err(dev->dev, "wait for readiness failed\n");
 		return -ETIME;
 	}
 
@@ -592,7 +592,7 @@ static void mei_txe_hw_config(struct mei_device *dev)
 	hw->aliveness = mei_txe_aliveness_get(dev);
 	hw->readiness = mei_txe_readiness_get(dev);
 
-	dev_dbg(&dev->pdev->dev, "aliveness_resp = 0x%08x, readiness = 0x%08x.\n",
+	dev_dbg(dev->dev, "aliveness_resp = 0x%08x, readiness = 0x%08x.\n",
 		hw->aliveness, hw->readiness);
 }
 
@@ -622,7 +622,7 @@ static int mei_txe_write(struct mei_device *dev,
 
 	length = header->length;
 
-	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
+	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
 
 	dw_cnt = mei_data2slots(length);
 	if (dw_cnt > slots)
@@ -638,7 +638,7 @@ static int mei_txe_write(struct mei_device *dev,
 		struct mei_fw_status fw_status;
 
 		mei_fw_status(dev, &fw_status);
-		dev_err(&dev->pdev->dev, "Input is not ready " FW_STS_FMT "\n",
+		dev_err(dev->dev, "Input is not ready " FW_STS_FMT "\n",
 			FW_STS_PRM(fw_status));
 		return -EAGAIN;
 	}
@@ -740,14 +740,13 @@ static int mei_txe_read(struct mei_device *dev,
 	reg_buf = (u32 *)buf;
 	rem = len & 0x3;
 
-	dev_dbg(&dev->pdev->dev,
-		"buffer-length = %lu buf[0]0x%08X\n",
+	dev_dbg(dev->dev, "buffer-length = %lu buf[0]0x%08X\n",
 		len, mei_txe_out_data_read(dev, 0));
 
 	for (i = 0; i < len / 4; i++) {
 		/* skip header: index starts from 1 */
 		reg = mei_txe_out_data_read(dev, i + 1);
-		dev_dbg(&dev->pdev->dev, "buf[%d] = 0x%08X\n", i, reg);
+		dev_dbg(dev->dev, "buf[%d] = 0x%08X\n", i, reg);
 		*reg_buf++ = reg;
 	}
 
@@ -792,8 +791,7 @@ static int mei_txe_hw_reset(struct mei_device *dev, bool intr_enable)
 	 */
 	if (aliveness_req != hw->aliveness)
 		if (mei_txe_aliveness_poll(dev, aliveness_req) < 0) {
-			dev_err(&dev->pdev->dev,
-				"wait for aliveness settle failed ... bailing out\n");
+			dev_err(dev->dev, "wait for aliveness settle failed ... bailing out\n");
 			return -EIO;
 		}
 
@@ -803,8 +801,7 @@ static int mei_txe_hw_reset(struct mei_device *dev, bool intr_enable)
 	if (aliveness_req) {
 		mei_txe_aliveness_set(dev, 0);
 		if (mei_txe_aliveness_poll(dev, 0) < 0) {
-			dev_err(&dev->pdev->dev,
-				"wait for aliveness failed ... bailing out\n");
+			dev_err(dev->dev, "wait for aliveness failed ... bailing out\n");
 			return -EIO;
 		}
 	}
@@ -836,7 +833,7 @@ static int mei_txe_hw_start(struct mei_device *dev)
 
 	ret = mei_txe_readiness_wait(dev);
 	if (ret < 0) {
-		dev_err(&dev->pdev->dev, "wating for readiness failed\n");
+		dev_err(dev->dev, "wating for readiness failed\n");
 		return ret;
 	}
 
@@ -852,7 +849,7 @@ static int mei_txe_hw_start(struct mei_device *dev)
 
 	ret = mei_txe_aliveness_set_sync(dev, 1);
 	if (ret < 0) {
-		dev_err(&dev->pdev->dev, "wait for aliveness failed ... bailing out\n");
+		dev_err(dev->dev, "wait for aliveness failed ... bailing out\n");
 		return ret;
 	}
 
@@ -962,7 +959,7 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 	s32 slots;
 	int rets = 0;
 
-	dev_dbg(&dev->pdev->dev, "irq thread: Interrupt Registers HHISR|HISR|SEC=%02X|%04X|%02X\n",
+	dev_dbg(dev->dev, "irq thread: Interrupt Registers HHISR|HISR|SEC=%02X|%04X|%02X\n",
 		mei_txe_br_reg_read(hw, HHISR_REG),
 		mei_txe_br_reg_read(hw, HISR_REG),
 		mei_txe_sec_reg_read_silent(hw, SEC_IPC_HOST_INT_STATUS_REG));
@@ -986,17 +983,17 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 	 * or TXE driver resetting the HECI interface.
 	 */
 	if (test_and_clear_bit(TXE_INTR_READINESS_BIT, &hw->intr_cause)) {
-		dev_dbg(&dev->pdev->dev, "Readiness Interrupt was received...\n");
+		dev_dbg(dev->dev, "Readiness Interrupt was received...\n");
 
 		/* Check if SeC is going through reset */
 		if (mei_txe_readiness_is_sec_rdy(hw->readiness)) {
-			dev_dbg(&dev->pdev->dev, "we need to start the dev.\n");
+			dev_dbg(dev->dev, "we need to start the dev.\n");
 			dev->recvd_hw_ready = true;
 		} else {
 			dev->recvd_hw_ready = false;
 			if (dev->dev_state != MEI_DEV_RESETTING) {
 
-				dev_warn(&dev->pdev->dev, "FW not ready: resetting.\n");
+				dev_warn(dev->dev, "FW not ready: resetting.\n");
 				schedule_work(&dev->reset_work);
 				goto end;
 
@@ -1013,7 +1010,7 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 
 	if (test_and_clear_bit(TXE_INTR_ALIVENESS_BIT, &hw->intr_cause)) {
 		/* Clear the interrupt cause */
-		dev_dbg(&dev->pdev->dev,
+		dev_dbg(dev->dev,
 			"Aliveness Interrupt: Status: %d\n", hw->aliveness);
 		dev->pg_event = MEI_PG_EVENT_RECEIVED;
 		if (waitqueue_active(&hw->wait_aliveness_resp))
@@ -1029,7 +1026,7 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 		/* Read from TXE */
 		rets = mei_irq_read_handler(dev, &complete_list, &slots);
 		if (rets && dev->dev_state != MEI_DEV_RESETTING) {
-			dev_err(&dev->pdev->dev,
+			dev_err(dev->dev,
 				"mei_irq_read_handler ret = %d.\n", rets);
 
 			schedule_work(&dev->reset_work);
@@ -1047,7 +1044,7 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 		dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
 		rets = mei_irq_write_handler(dev, &complete_list);
 		if (rets && rets != -EMSGSIZE)
-			dev_err(&dev->pdev->dev, "mei_irq_write_handler ret = %d.\n",
+			dev_err(dev->dev, "mei_irq_write_handler ret = %d.\n",
 				rets);
 		dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
 	}
@@ -1055,7 +1052,7 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 	mei_irq_compl_handler(dev, &complete_list);
 
 end:
-	dev_dbg(&dev->pdev->dev, "interrupt thread end ret = %d\n", rets);
+	dev_dbg(dev->dev, "interrupt thread end ret = %d\n", rets);
 
 	mutex_unlock(&dev->device_lock);
 
@@ -1171,7 +1168,7 @@ int mei_txe_setup_satt2(struct mei_device *dev, phys_addr_t addr, u32 range)
 	mei_txe_br_reg_write(hw, SATT2_SAP_SIZE_REG, range);
 	mei_txe_br_reg_write(hw, SATT2_BRG_BA_LSB_REG, lo32);
 	mei_txe_br_reg_write(hw, SATT2_CTRL_REG, ctrl);
-	dev_dbg(&dev->pdev->dev, "SATT2: SAP_SIZE_OFFSET=0x%08X, BRG_BA_LSB_OFFSET=0x%08X, CTRL_OFFSET=0x%08X\n",
+	dev_dbg(dev->dev, "SATT2: SAP_SIZE_OFFSET=0x%08X, BRG_BA_LSB_OFFSET=0x%08X, CTRL_OFFSET=0x%08X\n",
 		range, lo32, ctrl);
 
 	return 0;

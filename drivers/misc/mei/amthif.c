@@ -78,7 +78,7 @@ int mei_amthif_host_init(struct mei_device *dev)
 
 	me_cl = mei_me_cl_by_uuid(dev, &mei_amthif_guid);
 	if (!me_cl) {
-		dev_info(&dev->pdev->dev, "amthif: failed to find the client");
+		dev_info(dev->dev, "amthif: failed to find the client");
 		return -ENOTTY;
 	}
 
@@ -88,7 +88,7 @@ int mei_amthif_host_init(struct mei_device *dev)
 	/* Assign iamthif_mtu to the value received from ME  */
 
 	dev->iamthif_mtu = me_cl->props.max_msg_length;
-	dev_dbg(&dev->pdev->dev, "IAMTHIF_MTU = %d\n", dev->iamthif_mtu);
+	dev_dbg(dev->dev, "IAMTHIF_MTU = %d\n", dev->iamthif_mtu);
 
 	kfree(dev->iamthif_msg_buf);
 	dev->iamthif_msg_buf = NULL;
@@ -104,7 +104,7 @@ int mei_amthif_host_init(struct mei_device *dev)
 	ret = mei_cl_link(cl, MEI_IAMTHIF_HOST_CLIENT_ID);
 
 	if (ret < 0) {
-		dev_err(&dev->pdev->dev,
+		dev_err(dev->dev,
 			"amthif: failed link client %d\n", ret);
 		return ret;
 	}
@@ -164,11 +164,11 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 
 	/* Only possible if we are in timeout */
 	if (!cl) {
-		dev_err(&dev->pdev->dev, "bad file ext.\n");
+		dev_err(dev->dev, "bad file ext.\n");
 		return -ETIME;
 	}
 
-	dev_dbg(&dev->pdev->dev, "checking amthif data\n");
+	dev_dbg(dev->dev, "checking amthif data\n");
 	cb = mei_amthif_find_read_list_entry(dev, file);
 
 	/* Check for if we can block or not*/
@@ -176,7 +176,7 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 		return -EAGAIN;
 
 
-	dev_dbg(&dev->pdev->dev, "waiting for amthif data\n");
+	dev_dbg(dev->dev, "waiting for amthif data\n");
 	while (cb == NULL) {
 		/* unlock the Mutex */
 		mutex_unlock(&dev->device_lock);
@@ -190,21 +190,21 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 		if (wait_ret)
 			return -ERESTARTSYS;
 
-		dev_dbg(&dev->pdev->dev, "woke up from sleep\n");
+		dev_dbg(dev->dev, "woke up from sleep\n");
 	}
 
 
-	dev_dbg(&dev->pdev->dev, "Got amthif data\n");
+	dev_dbg(dev->dev, "Got amthif data\n");
 	dev->iamthif_timer = 0;
 
 	if (cb) {
 		timeout = cb->read_time +
 			mei_secs_to_jiffies(MEI_IAMTHIF_READ_TIMER);
-		dev_dbg(&dev->pdev->dev, "amthif timeout = %lud\n",
+		dev_dbg(dev->dev, "amthif timeout = %lud\n",
 				timeout);
 
 		if  (time_after(jiffies, timeout)) {
-			dev_dbg(&dev->pdev->dev, "amthif Time out\n");
+			dev_dbg(dev->dev, "amthif Time out\n");
 			/* 15 sec for the message has expired */
 			list_del(&cb->list);
 			rets = -ETIME;
@@ -224,16 +224,16 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 		 * remove message from deletion list
 		 */
 
-	dev_dbg(&dev->pdev->dev, "amthif cb->response_buffer size - %d\n",
+	dev_dbg(dev->dev, "amthif cb->response_buffer size - %d\n",
 	    cb->response_buffer.size);
-	dev_dbg(&dev->pdev->dev, "amthif cb->buf_idx - %lu\n", cb->buf_idx);
+	dev_dbg(dev->dev, "amthif cb->buf_idx - %lu\n", cb->buf_idx);
 
 	/* length is being truncated to PAGE_SIZE, however,
 	 * the buf_idx may point beyond */
 	length = min_t(size_t, length, (cb->buf_idx - *offset));
 
 	if (copy_to_user(ubuf, cb->response_buffer.data + *offset, length)) {
-		dev_dbg(&dev->pdev->dev, "failed to copy data to userland\n");
+		dev_dbg(dev->dev, "failed to copy data to userland\n");
 		rets = -EFAULT;
 	} else {
 		rets = length;
@@ -243,7 +243,7 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 		}
 	}
 free:
-	dev_dbg(&dev->pdev->dev, "free amthif cb memory.\n");
+	dev_dbg(dev->dev, "free amthif cb memory.\n");
 	*offset = 0;
 	mei_io_cb_free(cb);
 out:
@@ -267,7 +267,7 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 	if (!dev || !cb)
 		return -ENODEV;
 
-	dev_dbg(&dev->pdev->dev, "write data to amthif client.\n");
+	dev_dbg(dev->dev, "write data to amthif client.\n");
 
 	dev->iamthif_state = MEI_IAMTHIF_WRITING;
 	dev->iamthif_current_cb = cb;
@@ -306,12 +306,12 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 				return -EIO;
 			dev->iamthif_flow_control_pending = true;
 			dev->iamthif_state = MEI_IAMTHIF_FLOW_CONTROL;
-			dev_dbg(&dev->pdev->dev, "add amthif cb to write waiting list\n");
+			dev_dbg(dev->dev, "add amthif cb to write waiting list\n");
 			dev->iamthif_current_cb = cb;
 			dev->iamthif_file_object = cb->file_object;
 			list_add_tail(&cb->list, &dev->write_waiting_list.list);
 		} else {
-			dev_dbg(&dev->pdev->dev, "message does not complete, so add amthif cb to write list.\n");
+			dev_dbg(dev->dev, "message does not complete, so add amthif cb to write list.\n");
 			list_add_tail(&cb->list, &dev->write_list.list);
 		}
 	} else {
@@ -344,9 +344,9 @@ int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
 
 	if (!list_empty(&dev->amthif_cmd_list.list) ||
 	    dev->iamthif_state != MEI_IAMTHIF_IDLE) {
-		dev_dbg(&dev->pdev->dev,
+		dev_dbg(dev->dev,
 			"amthif state = %d\n", dev->iamthif_state);
-		dev_dbg(&dev->pdev->dev, "AMTHIF: add cb to the wait list\n");
+		dev_dbg(dev->dev, "AMTHIF: add cb to the wait list\n");
 		list_add_tail(&cb->list, &dev->amthif_cmd_list.list);
 		return 0;
 	}
@@ -376,7 +376,7 @@ void mei_amthif_run_next_cmd(struct mei_device *dev)
 	dev->iamthif_timer = 0;
 	dev->iamthif_file_object = NULL;
 
-	dev_dbg(&dev->pdev->dev, "complete amthif cmd_list cb.\n");
+	dev_dbg(dev->dev, "complete amthif cmd_list cb.\n");
 
 	list_for_each_entry_safe(cb, next, &dev->amthif_cmd_list.list, list) {
 		list_del(&cb->list);
@@ -384,7 +384,7 @@ void mei_amthif_run_next_cmd(struct mei_device *dev)
 			continue;
 		status = mei_amthif_send_cmd(dev, cb);
 		if (status)
-			dev_warn(&dev->pdev->dev, "amthif write failed status = %d\n",
+			dev_warn(dev->dev, "amthif write failed status = %d\n",
 						status);
 		break;
 	}
@@ -407,7 +407,7 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 		   dev->iamthif_file_object == file) {
 
 		mask |= (POLLIN | POLLRDNORM);
-		dev_dbg(&dev->pdev->dev, "run next amthif cb\n");
+		dev_dbg(dev->dev, "run next amthif cb\n");
 		mei_amthif_run_next_cmd(dev);
 	}
 	mutex_unlock(&dev->device_lock);
@@ -467,7 +467,7 @@ int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		return 0;
 	}
 
-	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT,  MEI_HDR_PRM(&mei_hdr));
+	dev_dbg(dev->dev, MEI_HDR_FMT,  MEI_HDR_PRM(&mei_hdr));
 
 	rets = mei_write_message(dev, &mei_hdr,
 			dev->iamthif_msg_buf + dev->iamthif_msg_buf_index);
@@ -529,10 +529,10 @@ int mei_amthif_irq_read_msg(struct mei_device *dev,
 	if (!mei_hdr->msg_complete)
 		return 0;
 
-	dev_dbg(&dev->pdev->dev, "amthif_message_buffer_index =%d\n",
+	dev_dbg(dev->dev, "amthif_message_buffer_index =%d\n",
 			mei_hdr->length);
 
-	dev_dbg(&dev->pdev->dev, "completed amthif read.\n ");
+	dev_dbg(dev->dev, "completed amthif read.\n ");
 	if (!dev->iamthif_current_cb)
 		return -ENODEV;
 
@@ -547,8 +547,8 @@ int mei_amthif_irq_read_msg(struct mei_device *dev,
 	cb->read_time = jiffies;
 	if (dev->iamthif_ioctl) {
 		/* found the iamthif cb */
-		dev_dbg(&dev->pdev->dev, "complete the amthif read cb.\n ");
-		dev_dbg(&dev->pdev->dev, "add the amthif read cb to complete.\n ");
+		dev_dbg(dev->dev, "complete the amthif read cb.\n ");
+		dev_dbg(dev->dev, "add the amthif read cb to complete.\n ");
 		list_add_tail(&cb->list, &complete_list->list);
 	}
 	return 0;
@@ -572,11 +572,11 @@ int mei_amthif_irq_read(struct mei_device *dev, s32 *slots)
 	*slots -= msg_slots;
 
 	if (mei_hbm_cl_flow_control_req(dev, &dev->iamthif_cl)) {
-		dev_dbg(&dev->pdev->dev, "iamthif flow control failed\n");
+		dev_dbg(dev->dev, "iamthif flow control failed\n");
 		return -EIO;
 	}
 
-	dev_dbg(&dev->pdev->dev, "iamthif flow control success\n");
+	dev_dbg(dev->dev, "iamthif flow control success\n");
 	dev->iamthif_state = MEI_IAMTHIF_READING;
 	dev->iamthif_flow_control_pending = false;
 	dev->iamthif_msg_buf_index = 0;
@@ -601,15 +601,15 @@ void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb)
 				dev->iamthif_msg_buf,
 				dev->iamthif_msg_buf_index);
 		list_add_tail(&cb->list, &dev->amthif_rd_complete_list.list);
-		dev_dbg(&dev->pdev->dev, "amthif read completed\n");
+		dev_dbg(dev->dev, "amthif read completed\n");
 		dev->iamthif_timer = jiffies;
-		dev_dbg(&dev->pdev->dev, "dev->iamthif_timer = %ld\n",
+		dev_dbg(dev->dev, "dev->iamthif_timer = %ld\n",
 				dev->iamthif_timer);
 	} else {
 		mei_amthif_run_next_cmd(dev);
 	}
 
-	dev_dbg(&dev->pdev->dev, "completing amthif call back.\n");
+	dev_dbg(dev->dev, "completing amthif call back.\n");
 	wake_up_interruptible(&dev->iamthif_cl.wait);
 }
 
@@ -715,11 +715,11 @@ int mei_amthif_release(struct mei_device *dev, struct file *file)
 	if (dev->iamthif_file_object == file &&
 	    dev->iamthif_state != MEI_IAMTHIF_IDLE) {
 
-		dev_dbg(&dev->pdev->dev, "amthif canceled iamthif state %d\n",
+		dev_dbg(dev->dev, "amthif canceled iamthif state %d\n",
 		    dev->iamthif_state);
 		dev->iamthif_canceled = true;
 		if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE) {
-			dev_dbg(&dev->pdev->dev, "run next amthif iamthif cb\n");
+			dev_dbg(dev->dev, "run next amthif iamthif cb\n");
 			mei_amthif_run_next_cmd(dev);
 		}
 	}

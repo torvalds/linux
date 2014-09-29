@@ -217,10 +217,10 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 	hcsr = mei_hcsr_read(hw);
 
 	if ((hcsr & H_RST) == 0)
-		dev_warn(&dev->pdev->dev, "H_RST is not set = 0x%08X", hcsr);
+		dev_warn(dev->dev, "H_RST is not set = 0x%08X", hcsr);
 
 	if ((hcsr & H_RDY) == H_RDY)
-		dev_warn(&dev->pdev->dev, "H_RDY is not cleared 0x%08X", hcsr);
+		dev_warn(dev->dev, "H_RDY is not cleared 0x%08X", hcsr);
 
 	if (intr_enable == false)
 		mei_me_hw_reset_release(dev);
@@ -279,7 +279,7 @@ static int mei_me_hw_ready_wait(struct mei_device *dev)
 			mei_secs_to_jiffies(MEI_HW_READY_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 	if (!dev->recvd_hw_ready) {
-		dev_err(&dev->pdev->dev, "wait hw ready failed\n");
+		dev_err(dev->dev, "wait hw ready failed\n");
 		return -ETIME;
 	}
 
@@ -293,7 +293,7 @@ static int mei_me_hw_start(struct mei_device *dev)
 
 	if (ret)
 		return ret;
-	dev_dbg(&dev->pdev->dev, "hw is ready\n");
+	dev_dbg(dev->dev, "hw is ready\n");
 
 	mei_me_host_set_ready(dev);
 	return ret;
@@ -381,10 +381,10 @@ static int mei_me_write_message(struct mei_device *dev,
 	int i;
 	int empty_slots;
 
-	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
+	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
 
 	empty_slots = mei_hbuf_empty_slots(dev);
-	dev_dbg(&dev->pdev->dev, "empty slots = %hu.\n", empty_slots);
+	dev_dbg(dev->dev, "empty slots = %hu.\n", empty_slots);
 
 	dw_cnt = mei_data2slots(length);
 	if (empty_slots < 0 || dw_cnt > empty_slots)
@@ -434,7 +434,7 @@ static int mei_me_count_full_read_slots(struct mei_device *dev)
 	if (filled_slots > buffer_depth)
 		return -EOVERFLOW;
 
-	dev_dbg(&dev->pdev->dev, "filled_slots =%08x\n", filled_slots);
+	dev_dbg(dev->dev, "filled_slots =%08x\n", filled_slots);
 	return (int)filled_slots;
 }
 
@@ -591,7 +591,7 @@ static bool mei_me_pg_is_enabled(struct mei_device *dev)
 	return true;
 
 notsupported:
-	dev_dbg(&dev->pdev->dev, "pg: not supported: HGP = %d hbm version %d.%d ?= %d.%d\n",
+	dev_dbg(dev->dev, "pg: not supported: HGP = %d hbm version %d.%d ?= %d.%d\n",
 		!!(reg & ME_PGIC_HRA),
 		dev->version.major_version,
 		dev->version.minor_version,
@@ -642,7 +642,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	s32 slots;
 	int rets = 0;
 
-	dev_dbg(&dev->pdev->dev, "function called after ISR to handle the interrupt processing.\n");
+	dev_dbg(dev->dev, "function called after ISR to handle the interrupt processing.\n");
 	/* initialize our complete list */
 	mutex_lock(&dev->device_lock);
 	mei_io_list_init(&complete_list);
@@ -654,7 +654,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 
 	/* check if ME wants a reset */
 	if (!mei_hw_is_ready(dev) && dev->dev_state != MEI_DEV_RESETTING) {
-		dev_warn(&dev->pdev->dev, "FW not ready: resetting.\n");
+		dev_warn(dev->dev, "FW not ready: resetting.\n");
 		schedule_work(&dev->reset_work);
 		goto end;
 	}
@@ -663,19 +663,19 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	if (!mei_host_is_ready(dev)) {
 		if (mei_hw_is_ready(dev)) {
 			mei_me_hw_reset_release(dev);
-			dev_dbg(&dev->pdev->dev, "we need to start the dev.\n");
+			dev_dbg(dev->dev, "we need to start the dev.\n");
 
 			dev->recvd_hw_ready = true;
 			wake_up(&dev->wait_hw_ready);
 		} else {
-			dev_dbg(&dev->pdev->dev, "Spurious Interrupt\n");
+			dev_dbg(dev->dev, "Spurious Interrupt\n");
 		}
 		goto end;
 	}
 	/* check slots available for reading */
 	slots = mei_count_full_read_slots(dev);
 	while (slots > 0) {
-		dev_dbg(&dev->pdev->dev, "slots to read = %08x\n", slots);
+		dev_dbg(dev->dev, "slots to read = %08x\n", slots);
 		rets = mei_irq_read_handler(dev, &complete_list, &slots);
 		/* There is a race between ME write and interrupt delivery:
 		 * Not all data is always available immediately after the
@@ -685,7 +685,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 			break;
 
 		if (rets && dev->dev_state != MEI_DEV_RESETTING) {
-			dev_err(&dev->pdev->dev, "mei_irq_read_handler ret = %d.\n",
+			dev_err(dev->dev, "mei_irq_read_handler ret = %d.\n",
 						rets);
 			schedule_work(&dev->reset_work);
 			goto end;
@@ -707,7 +707,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	mei_irq_compl_handler(dev, &complete_list);
 
 end:
-	dev_dbg(&dev->pdev->dev, "interrupt thread end ret = %d\n", rets);
+	dev_dbg(dev->dev, "interrupt thread end ret = %d\n", rets);
 	mutex_unlock(&dev->device_lock);
 	return IRQ_HANDLED;
 }

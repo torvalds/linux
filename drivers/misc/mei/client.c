@@ -363,13 +363,13 @@ int mei_cl_link(struct mei_cl *cl, int id)
 					MEI_CLIENTS_MAX);
 
 	if (id >= MEI_CLIENTS_MAX) {
-		dev_err(&dev->pdev->dev, "id exceeded %d", MEI_CLIENTS_MAX);
+		dev_err(dev->dev, "id exceeded %d", MEI_CLIENTS_MAX);
 		return -EMFILE;
 	}
 
 	open_handle_count = dev->open_handle_count + dev->iamthif_open_count;
 	if (open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT) {
-		dev_err(&dev->pdev->dev, "open_handle_count exceeded %d",
+		dev_err(dev->dev, "open_handle_count exceeded %d",
 			MEI_MAX_OPEN_HANDLE_COUNT);
 		return -EMFILE;
 	}
@@ -449,9 +449,9 @@ void mei_host_client_init(struct work_struct *work)
 
 	mutex_unlock(&dev->device_lock);
 
-	pm_runtime_mark_last_busy(&dev->pdev->dev);
-	dev_dbg(&dev->pdev->dev, "rpm: autosuspend\n");
-	pm_runtime_autosuspend(&dev->pdev->dev);
+	pm_runtime_mark_last_busy(dev->dev);
+	dev_dbg(dev->dev, "rpm: autosuspend\n");
+	pm_runtime_autosuspend(dev->dev);
 }
 
 /**
@@ -464,12 +464,12 @@ bool mei_hbuf_acquire(struct mei_device *dev)
 {
 	if (mei_pg_state(dev) == MEI_PG_ON ||
 	    dev->pg_event == MEI_PG_EVENT_WAIT) {
-		dev_dbg(&dev->pdev->dev, "device is in pg\n");
+		dev_dbg(dev->dev, "device is in pg\n");
 		return false;
 	}
 
 	if (!dev->hbuf_is_ready) {
-		dev_dbg(&dev->pdev->dev, "hbuf is not ready\n");
+		dev_dbg(dev->dev, "hbuf is not ready\n");
 		return false;
 	}
 
@@ -503,9 +503,9 @@ int mei_cl_disconnect(struct mei_cl *cl)
 	if (cl->state != MEI_FILE_DISCONNECTING)
 		return 0;
 
-	rets = pm_runtime_get(&dev->pdev->dev);
+	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
-		pm_runtime_put_noidle(&dev->pdev->dev);
+		pm_runtime_put_noidle(dev->dev);
 		cl_err(dev, cl, "rpm: get failed %d\n", rets);
 		return rets;
 	}
@@ -552,8 +552,8 @@ int mei_cl_disconnect(struct mei_cl *cl)
 	mei_io_list_flush(&dev->ctrl_wr_list, cl);
 free:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
-	pm_runtime_mark_last_busy(&dev->pdev->dev);
-	pm_runtime_put_autosuspend(&dev->pdev->dev);
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 
 	mei_io_cb_free(cb);
 	return rets;
@@ -609,9 +609,9 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 
 	dev = cl->dev;
 
-	rets = pm_runtime_get(&dev->pdev->dev);
+	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
-		pm_runtime_put_noidle(&dev->pdev->dev);
+		pm_runtime_put_noidle(dev->dev);
 		cl_err(dev, cl, "rpm: get failed %d\n", rets);
 		return rets;
 	}
@@ -659,8 +659,8 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 
 out:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
-	pm_runtime_mark_last_busy(&dev->pdev->dev);
-	pm_runtime_put_autosuspend(&dev->pdev->dev);
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 
 	mei_io_cb_free(cb);
 	return rets;
@@ -772,9 +772,9 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 		return  -ENOTTY;
 	}
 
-	rets = pm_runtime_get(&dev->pdev->dev);
+	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
-		pm_runtime_put_noidle(&dev->pdev->dev);
+		pm_runtime_put_noidle(dev->dev);
 		cl_err(dev, cl, "rpm: get failed %d\n", rets);
 		return rets;
 	}
@@ -806,8 +806,8 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 
 out:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
-	pm_runtime_mark_last_busy(&dev->pdev->dev);
-	pm_runtime_put_autosuspend(&dev->pdev->dev);
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 
 	if (rets)
 		mei_io_cb_free(cb);
@@ -928,9 +928,9 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 
 	cl_dbg(dev, cl, "mei_cl_write %d\n", buf->size);
 
-	rets = pm_runtime_get(&dev->pdev->dev);
+	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
-		pm_runtime_put_noidle(&dev->pdev->dev);
+		pm_runtime_put_noidle(dev->dev);
 		cl_err(dev, cl, "rpm: get failed %d\n", rets);
 		return rets;
 	}
@@ -1005,8 +1005,8 @@ out:
 	rets = buf->size;
 err:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
-	pm_runtime_mark_last_busy(&dev->pdev->dev);
-	pm_runtime_put_autosuspend(&dev->pdev->dev);
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 
 	return rets;
 }
