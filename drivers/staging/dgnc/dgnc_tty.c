@@ -375,6 +375,7 @@ int dgnc_tty_init(struct dgnc_board *brd)
 
 		{
 			struct device *classp;
+
 			classp = tty_register_device(&brd->SerialDriver, i,
 				&(ch->ch_bd->pdev->dev));
 			ch->ch_tun.un_sysfs = classp;
@@ -3066,6 +3067,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	case DIGI_REALPORT_SENDIMMEDIATE:
 	{
 		unsigned char c;
+
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 		rc = get_user(c, (unsigned char __user *) arg);
 		if (rc)
