@@ -365,7 +365,16 @@ int mei_fw_status(struct mei_device *dev, struct mei_fw_status *fw_status)
 }
 EXPORT_SYMBOL_GPL(mei_fw_status);
 
-void mei_device_init(struct mei_device *dev, const struct mei_cfg *cfg)
+/**
+ * mei_device_init  -- initialize mei_device structure
+ *
+ * @dev: the mei device
+ * @device: the device structure
+ * @hw_ops: hw operations
+ */
+void mei_device_init(struct mei_device *dev,
+		     struct device *device,
+		     const struct mei_hw_ops *hw_ops)
 {
 	/* setup our list array */
 	INIT_LIST_HEAD(&dev->file_list);
@@ -404,7 +413,8 @@ void mei_device_init(struct mei_device *dev, const struct mei_cfg *cfg)
 	bitmap_set(dev->host_clients_map, 0, 1);
 
 	dev->pg_event = MEI_PG_EVENT_IDLE;
-	dev->cfg      = cfg;
+	dev->ops      = hw_ops;
+	dev->dev      = device;
 }
 EXPORT_SYMBOL_GPL(mei_device_init);
 

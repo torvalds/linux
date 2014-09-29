@@ -1123,14 +1123,13 @@ struct mei_device *mei_txe_dev_init(struct pci_dev *pdev,
 	if (!dev)
 		return NULL;
 
-	mei_device_init(dev, cfg);
+	mei_device_init(dev, &pdev->dev, &mei_txe_hw_ops);
 
 	hw = to_txe_hw(dev);
 
 	init_waitqueue_head(&hw->wait_aliveness_resp);
 
-	dev->ops = &mei_txe_hw_ops;
-
+	dev->cfg  = cfg;
 	dev->pdev = pdev;
 	return dev;
 }

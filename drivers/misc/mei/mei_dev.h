@@ -399,6 +399,7 @@ struct mei_cfg {
  * struct mei_device -  MEI private device struct
 
  * @pdev - pointer to pci device struct
+ * @dev  - device on a bus
  * @cdev - character device
  * @minor - minor number allocated for device
  *
@@ -417,6 +418,7 @@ struct mei_cfg {
  */
 struct mei_device {
 	struct pci_dev *pdev;	/* pointer to pci device struct */
+	struct device *dev;
 	struct cdev cdev;
 	int minor;
 
@@ -560,7 +562,9 @@ static inline u32 mei_slots2data(int slots)
 /*
  * mei init function prototypes
  */
-void mei_device_init(struct mei_device *dev, const struct mei_cfg *cfg);
+void mei_device_init(struct mei_device *dev,
+		     struct device *device,
+		     const struct mei_hw_ops *hw_ops);
 int mei_reset(struct mei_device *dev);
 int mei_start(struct mei_device *dev);
 int mei_restart(struct mei_device *dev);
