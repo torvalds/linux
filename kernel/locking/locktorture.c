@@ -453,14 +453,19 @@ static int lock_torture_writer(void *arg)
 	do {
 		if ((torture_random(&rand) & 0xfffff) == 0)
 			schedule_timeout_uninterruptible(1);
+
 		cxt.cur_ops->writelock();
 		if (WARN_ON_ONCE(lock_is_write_held))
 			lwsp->n_lock_fail++;
 		lock_is_write_held = 1;
+		if (WARN_ON_ONCE(lock_is_read_held))
+			lwsp->n_lock_fail++; /* rare, but... */
+
 		lwsp->n_lock_acquired++;
 		cxt.cur_ops->write_delay(&rand);
 		lock_is_write_held = 0;
 		cxt.cur_ops->writeunlock();
+
 		stutter_wait("lock_torture_writer");
 	} while (!torture_must_stop());
 	torture_kthread_stopping("lock_torture_writer");
@@ -482,12 +487,17 @@ static int lock_torture_reader(void *arg)
 	do {
 		if ((torture_random(&rand) & 0xfffff) == 0)
 			schedule_timeout_uninterruptible(1);
+
 		cxt.cur_ops->readlock();
 		lock_is_read_held = 1;
+		if (WARN_ON_ONCE(lock_is_write_held))
+			lrsp->n_lock_fail++; /* rare, but... */
+
 		lrsp->n_lock_acquired++;
 		cxt.cur_ops->read_delay(&rand);
 		lock_is_read_held = 0;
 		cxt.cur_ops->readunlock();
+
 		stutter_wait("lock_torture_reader");
 	} while (!torture_must_stop());
 	torture_kthread_stopping("lock_torture_reader");
