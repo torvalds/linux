@@ -1305,6 +1305,53 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 }
 EXPORT_SYMBOL(dispc_ovl_compute_fifo_thresholds);
 
+static void dispc_ovl_set_mflag(enum omap_plane plane, bool enable)
+{
+	int bit;
+
+	if (plane == OMAP_DSS_GFX)
+		bit = 14;
+	else
+		bit = 23;
+
+	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable, bit, bit);
+}
+
+static void dispc_ovl_set_mflag_threshold(enum omap_plane plane,
+	int low, int high)
+{
+	dispc_write_reg(DISPC_OVL_MFLAG_THRESHOLD(plane),
+		FLD_VAL(high, 31, 16) |	FLD_VAL(low, 15, 0));
+}
+
+static void dispc_init_mflag(void)
+{
+	int i;
+
+	dispc_write_reg(DISPC_GLOBAL_MFLAG_ATTRIBUTE,
+		(2 << 0) |	/* MFLAG_CTRL = enable */
+		(0 << 2));	/* MFLAG_START = disable */
+
+	for (i = 0; i < dss_feat_get_num_ovls(); ++i) {
+		u32 size = dispc_ovl_get_fifo_size(i);
+		u32 unit = dss_feat_get_buffer_size_unit();
+		u32 low, high;
+
+		dispc_ovl_set_mflag(i, true);
+
+		/*
+		 * Simulation team suggests below thesholds:
+		 * HT = fifosize * 5 / 8;
+		 * LT = fifosize * 4 / 8;
+		 */
+
+		low = size * 4 / 8 / unit;
+		high = size * 5 / 8 / unit;
+
+		dispc_ovl_set_mflag_threshold(i, low, high);
+	}
+}
+
 static void dispc_ovl_set_fir(enum omap_plane plane,
 				int hinc, int vinc,
 				enum omap_color_component color_comp)
@@ -3630,6 +3677,9 @@ static void _omap_dispc_initial_config(void)
 
 	if (dispc.feat->mstandby_workaround)
 		REG_FLD_MOD(DISPC_MSTANDBY_CTRL, 1, 0, 0);
+
+	if (dss_has_feature(FEAT_MFLAG))
+		dispc_init_mflag();
 }
 
 static const struct dispc_features omap24xx_dispc_feats __initconst = {
