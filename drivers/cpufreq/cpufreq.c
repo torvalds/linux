@@ -1380,7 +1380,7 @@ static int __cpufreq_remove_dev_prepare(struct device *dev,
 		if (!cpufreq_suspended)
 			pr_debug("%s: policy Kobject moved to cpu: %d from: %d\n",
 				 __func__, new_cpu, cpu);
-	} else if (cpufreq_driver->stop_cpu && cpufreq_driver->setpolicy) {
+	} else if (cpufreq_driver->stop_cpu) {
 		cpufreq_driver->stop_cpu(policy);
 	}
 
