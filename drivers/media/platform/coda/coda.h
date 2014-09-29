@@ -232,6 +232,8 @@ extern int coda_debug;
 
 void coda_write(struct coda_dev *dev, u32 data, u32 reg);
 unsigned int coda_read(struct coda_dev *dev, u32 reg);
+void coda_write_base(struct coda_ctx *ctx, struct coda_q_data *q_data,
+		     struct vb2_buffer *buf, unsigned int reg_y);
 
 int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 		       size_t size, const char *name, struct dentry *parent);
