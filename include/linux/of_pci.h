@@ -52,6 +52,12 @@ of_get_pci_domain_nr(struct device_node *node)
 }
 #endif
 
+#if defined(CONFIG_OF_ADDRESS)
+int of_pci_get_host_bridge_resources(struct device_node *dev,
+			unsigned char busno, unsigned char bus_max,
+			struct list_head *resources, resource_size_t *io_base);
+#endif
+
 #if defined(CONFIG_OF) && defined(CONFIG_PCI_MSI)
 int of_pci_msi_chip_add(struct msi_chip *chip);
 void of_pci_msi_chip_remove(struct msi_chip *chip);
