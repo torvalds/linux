@@ -63,6 +63,8 @@ MODULE_LICENSE("GPL");
 
 static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct com20020_pci_channel_map *cm;
+	struct com20020_pci_card_info *ci;
 	struct net_device *dev;
 	struct arcnet_local *lp;
 	int ioaddr, err;
@@ -75,19 +77,15 @@ static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	dev->netdev_ops = &com20020_netdev_ops;
 
+	ci = (struct com20020_pci_card_info *)id->driver_data;
+
 	lp = netdev_priv(dev);
 
 	pci_set_drvdata(pdev, dev);
 
-	// SOHARD needs PCI base addr 4
-	if (pdev->vendor==0x10B5) {
-		BUGMSG(D_NORMAL, "SOHARD\n");
-		ioaddr = pci_resource_start(pdev, 4);
-	}
-	else {
-		BUGMSG(D_NORMAL, "Contemporary Controls\n");
-		ioaddr = pci_resource_start(pdev, 2);
-	}
+	cm = &ci->chan_map_tbl[0];
+	BUGMSG(D_NORMAL, "%s Controls\n", ci->name);
+	ioaddr = pci_resource_start(pdev, cm->bar);
 
 	if (!request_region(ioaddr, ARCNET_TOTAL_SIZE, "com20020-pci")) {
 		BUGMSG(D_INIT, "IO region %xh-%xh already allocated.\n",
@@ -105,7 +103,7 @@ static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	dev->irq = pdev->irq;
 	dev->dev_addr[0] = node;
 	lp->card_name = "PCI COM20020";
-	lp->card_flags = id->driver_data;
+	lp->card_flags = ci->flags;
 	lp->backplane = backplane;
 	lp->clockp = clockp & 7;
 	lp->clockm = clockm & 3;
@@ -144,32 +142,180 @@ static void com20020pci_remove(struct pci_dev *pdev)
 	free_netdev(dev);
 }
 
+static struct com20020_pci_card_info card_info_10mbit = {
+	.name = "ARC-PCI",
+	.devcount = 1,
+	.chan_map_tbl = {
+		{ 2, 0x00, 0x08 },
+	},
+	.flags = ARC_CAN_10MBIT,
+};
+
+static struct com20020_pci_card_info card_info_5mbit = {
+	.name = "ARC-PCI",
+	.devcount = 1,
+	.chan_map_tbl = {
+		{ 2, 0x00, 0x08 },
+	},
+	.flags = ARC_IS_5MBIT,
+};
+
+static struct com20020_pci_card_info card_info_sohard = {
+	.name = "PLX-PCI",
+	.devcount = 1,
+	/* SOHARD needs PCI base addr 4 */
+	.chan_map_tbl = {
+		{4, 0x00, 0x08},
+	},
+	.flags = ARC_CAN_10MBIT,
+};
+
 static const struct pci_device_id com20020pci_id_table[] = {
-	{ 0x1571, 0xa001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1571, 0xa002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1571, 0xa003, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1571, 0xa004, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1571, 0xa005, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1571, 0xa006, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1571, 0xa007, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1571, 0xa008, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1571, 0xa009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_IS_5MBIT },
-	{ 0x1571, 0xa00a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_IS_5MBIT },
-	{ 0x1571, 0xa00b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_IS_5MBIT },
-	{ 0x1571, 0xa00c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_IS_5MBIT },
-	{ 0x1571, 0xa00d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_IS_5MBIT },
-	{ 0x1571, 0xa00e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_IS_5MBIT },
-	{ 0x1571, 0xa201, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_CAN_10MBIT },
-	{ 0x1571, 0xa202, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_CAN_10MBIT },
-	{ 0x1571, 0xa203, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_CAN_10MBIT },
-	{ 0x1571, 0xa204, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_CAN_10MBIT },
-	{ 0x1571, 0xa205, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_CAN_10MBIT },
-	{ 0x1571, 0xa206, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_CAN_10MBIT },
-	{ 0x10B5, 0x9030, 0x10B5,     0x2978,     0, 0, ARC_CAN_10MBIT },
-	{ 0x10B5, 0x9050, 0x10B5,     0x2273,     0, 0, ARC_CAN_10MBIT },
-	{ 0x14BA, 0x6000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_CAN_10MBIT },
-	{ 0x10B5, 0x2200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ARC_CAN_10MBIT },
-	{0,}
+	{
+		0x1571, 0xa001,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		0,
+	},
+	{
+		0x1571, 0xa002,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		0,
+	},
+	{
+		0x1571, 0xa003,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		0
+	},
+	{
+		0x1571, 0xa004,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		0,
+	},
+	{
+		0x1571, 0xa005,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		0
+	},
+	{
+		0x1571, 0xa006,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		0
+	},
+	{
+		0x1571, 0xa007,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		0
+	},
+	{
+		0x1571, 0xa008,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		0
+	},
+	{
+		0x1571, 0xa009,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_5mbit
+	},
+	{
+		0x1571, 0xa00a,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_5mbit
+	},
+	{
+		0x1571, 0xa00b,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_5mbit
+	},
+	{
+		0x1571, 0xa00c,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_5mbit
+	},
+	{
+		0x1571, 0xa00d,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_5mbit
+	},
+	{
+		0x1571, 0xa00e,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_5mbit
+	},
+	{
+		0x1571, 0xa201,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_10mbit
+	},
+	{
+		0x1571, 0xa202,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_10mbit
+	},
+	{
+		0x1571, 0xa203,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_10mbit
+	},
+	{
+		0x1571, 0xa204,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_10mbit
+	},
+	{
+		0x1571, 0xa205,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_10mbit
+	},
+	{
+		0x1571, 0xa206,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_10mbit
+	},
+	{
+		0x10B5, 0x9030,
+		0x10B5, 0x2978,
+		0, 0,
+		(kernel_ulong_t)&card_info_sohard
+	},
+	{
+		0x10B5, 0x9050,
+		0x10B5, 0x2273,
+		0, 0,
+		(kernel_ulong_t)&card_info_sohard
+	},
+	{
+		0x14BA, 0x6000,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_10mbit
+	},
+	{
+		0x10B5, 0x2200,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0,
+		(kernel_ulong_t)&card_info_10mbit
+	},
+	{ 0, }
 };
 
 MODULE_DEVICE_TABLE(pci, com20020pci_id_table);

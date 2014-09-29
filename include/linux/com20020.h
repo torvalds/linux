@@ -41,6 +41,22 @@ extern const struct net_device_ops com20020_netdev_ops;
 #define BUS_ALIGN  1
 #endif
 
+#define PLX_PCI_MAX_CARDS 1
+
+struct com20020_pci_channel_map {
+	u32 bar;
+	u32 offset;
+	u32 size;               /* 0x00 - auto, e.g. length of entire bar */
+};
+
+struct com20020_pci_card_info {
+	const char *name;
+	int devcount;
+
+	struct com20020_pci_channel_map chan_map_tbl[PLX_PCI_MAX_CARDS];
+
+	unsigned int flags;
+};
 
 #define _INTMASK  (ioaddr+BUS_ALIGN*0)	/* writable */
 #define _STATUS   (ioaddr+BUS_ALIGN*0)	/* readable */
