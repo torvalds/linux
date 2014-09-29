@@ -512,6 +512,11 @@ static int snd_uac2_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void snd_uac2_release(struct device *dev)
+{
+	dev_dbg(dev, "releasing '%s'\n", dev_name(dev));
+}
+
 static int alsa_uac2_init(struct audio_dev *agdev)
 {
 	struct snd_uac2_chip *uac2 = &agdev->uac2;
@@ -523,6 +528,7 @@ static int alsa_uac2_init(struct audio_dev *agdev)
 
 	uac2->pdev.id = 0;
 	uac2->pdev.name = uac2_name;
+	uac2->pdev.dev.release = snd_uac2_release;
 
 	/* Register snd_uac2 driver */
 	err = platform_driver_register(&uac2->pdrv);
