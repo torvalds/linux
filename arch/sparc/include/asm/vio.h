@@ -65,6 +65,7 @@ struct vio_dring_register {
 	u16			options;
 #define VIO_TX_DRING		0x0001
 #define VIO_RX_DRING		0x0002
+#define VIO_RX_DRING_DATA	0x0004
 	u16			resv;
 	u32			num_cookies;
 	struct ldc_trans_cookie	cookies[0];
@@ -80,6 +81,8 @@ struct vio_dring_unregister {
 #define VIO_PKT_MODE		0x01 /* Packet based transfer	*/
 #define VIO_DESC_MODE		0x02 /* In-band descriptors	*/
 #define VIO_DRING_MODE		0x03 /* Descriptor rings	*/
+/* in vers >= 1.2, VIO_DRING_MODE is 0x04 and transfer mode is a bitmask */
+#define VIO_NEW_DRING_MODE	0x04
 
 struct vio_dring_data {
 	struct vio_msg_tag	tag;
@@ -205,10 +208,20 @@ struct vio_net_attr_info {
 	u8			addr_type;
 #define VNET_ADDR_ETHERMAC	0x01
 	u16			ack_freq;
-	u32			resv1;
+	u8			plnk_updt;
+#define PHYSLINK_UPDATE_NONE		0x00
+#define PHYSLINK_UPDATE_STATE		0x01
+#define PHYSLINK_UPDATE_STATE_ACK	0x02
+#define PHYSLINK_UPDATE_STATE_NACK	0x03
+	u8			options;
+	u16			resv1;
 	u64			addr;
 	u64			mtu;
-	u64			resv2[3];
+	u16			cflags;
+#define VNET_LSO_IPV4_CAPAB		0x0001
+	u16			ipv4_lso_maxlen;
+	u32			resv2;
+	u64			resv3[2];
 };
 
 #define VNET_NUM_MCAST		7
@@ -365,6 +378,33 @@ struct vio_driver_state {
 
 	struct vio_driver_ops	*ops;
 };
+
+static inline bool vio_version_before(struct vio_driver_state *vio,
+				      u16 major, u16 minor)
+{
+	u32 have = (u32)vio->ver.major << 16 | vio->ver.minor;
+	u32 want = (u32)major << 16 | minor;
+
+	return have < want;
+}
+
+static inline bool vio_version_after(struct vio_driver_state *vio,
+				      u16 major, u16 minor)
+{
+	u32 have = (u32)vio->ver.major << 16 | vio->ver.minor;
+	u32 want = (u32)major << 16 | minor;
+
+	return have > want;
+}
+
+static inline bool vio_version_after_eq(struct vio_driver_state *vio,
+					u16 major, u16 minor)
+{
+	u32 have = (u32)vio->ver.major << 16 | vio->ver.minor;
+	u32 want = (u32)major << 16 | minor;
+
+	return have >= want;
+}
 
 #define viodbg(TYPE, f, a...) \
 do {	if (vio->debug & VIO_DEBUG_##TYPE) \

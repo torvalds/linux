@@ -15,6 +15,7 @@
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 #include <linux/mutex.h>
+#include <linux/if_vlan.h>
 
 #include <asm/vio.h>
 #include <asm/ldc.h>
@@ -41,6 +42,7 @@ static int __vnet_tx_trigger(struct vnet_port *port, u32 start);
 
 /* Ordered from largest major to lowest */
 static struct vio_version vnet_versions[] = {
+	{ .major = 1, .minor = 6 },
 	{ .major = 1, .minor = 0 },
 };
 
@@ -67,6 +69,7 @@ static int vnet_send_attr(struct vio_driver_state *vio)
 	struct vnet_port *port = to_vnet_port(vio);
 	struct net_device *dev = port->vp->dev;
 	struct vio_net_attr_info pkt;
+	int framelen = ETH_FRAME_LEN;
 	int i;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -74,19 +77,41 @@ static int vnet_send_attr(struct vio_driver_state *vio)
 	pkt.tag.stype = VIO_SUBTYPE_INFO;
 	pkt.tag.stype_env = VIO_ATTR_INFO;
 	pkt.tag.sid = vio_send_sid(vio);
-	pkt.xfer_mode = VIO_DRING_MODE;
+	if (vio_version_before(vio, 1, 2))
+		pkt.xfer_mode = VIO_DRING_MODE;
+	else
+		pkt.xfer_mode = VIO_NEW_DRING_MODE;
 	pkt.addr_type = VNET_ADDR_ETHERMAC;
 	pkt.ack_freq = 0;
 	for (i = 0; i < 6; i++)
 		pkt.addr |= (u64)dev->dev_addr[i] << ((5 - i) * 8);
-	pkt.mtu = ETH_FRAME_LEN;
+	if (vio_version_after(vio, 1, 3)) {
+		if (port->rmtu) {
+			port->rmtu = min(VNET_MAXPACKET, port->rmtu);
+			pkt.mtu = port->rmtu;
+		} else {
+			port->rmtu = VNET_MAXPACKET;
+			pkt.mtu = port->rmtu;
+		}
+		if (vio_version_after_eq(vio, 1, 6))
+			pkt.options = VIO_TX_DRING;
+	} else if (vio_version_before(vio, 1, 3)) {
+		pkt.mtu = framelen;
+	} else { /* v1.3 */
+		pkt.mtu = framelen + VLAN_HLEN;
+	}
+
+	pkt.plnk_updt = PHYSLINK_UPDATE_NONE;
+	pkt.cflags = 0;
 
 	viodbg(HS, "SEND NET ATTR xmode[0x%x] atype[0x%x] addr[%llx] "
-	       "ackfreq[%u] mtu[%llu]\n",
+	       "ackfreq[%u] plnk_updt[0x%02x] opts[0x%02x] mtu[%llu] "
+	       "cflags[0x%04x] lso_max[%u]\n",
 	       pkt.xfer_mode, pkt.addr_type,
-	       (unsigned long long) pkt.addr,
-	       pkt.ack_freq,
-	       (unsigned long long) pkt.mtu);
+	       (unsigned long long)pkt.addr,
+	       pkt.ack_freq, pkt.plnk_updt, pkt.options,
+	       (unsigned long long)pkt.mtu, pkt.cflags, pkt.ipv4_lso_maxlen);
+
 
 	return vio_ldc_send(vio, &pkt, sizeof(pkt));
 }
@@ -94,18 +119,52 @@ static int vnet_send_attr(struct vio_driver_state *vio)
 static int handle_attr_info(struct vio_driver_state *vio,
 			    struct vio_net_attr_info *pkt)
 {
-	viodbg(HS, "GOT NET ATTR INFO xmode[0x%x] atype[0x%x] addr[%llx] "
-	       "ackfreq[%u] mtu[%llu]\n",
+	struct vnet_port *port = to_vnet_port(vio);
+	u64	localmtu;
+	u8	xfer_mode;
+
+	viodbg(HS, "GOT NET ATTR xmode[0x%x] atype[0x%x] addr[%llx] "
+	       "ackfreq[%u] plnk_updt[0x%02x] opts[0x%02x] mtu[%llu] "
+	       " (rmtu[%llu]) cflags[0x%04x] lso_max[%u]\n",
 	       pkt->xfer_mode, pkt->addr_type,
-	       (unsigned long long) pkt->addr,
-	       pkt->ack_freq,
-	       (unsigned long long) pkt->mtu);
+	       (unsigned long long)pkt->addr,
+	       pkt->ack_freq, pkt->plnk_updt, pkt->options,
+	       (unsigned long long)pkt->mtu, port->rmtu, pkt->cflags,
+	       pkt->ipv4_lso_maxlen);
 
 	pkt->tag.sid = vio_send_sid(vio);
 
-	if (pkt->xfer_mode != VIO_DRING_MODE ||
+	xfer_mode = pkt->xfer_mode;
+	/* for version < 1.2, VIO_DRING_MODE = 0x3 and no bitmask */
+	if (vio_version_before(vio, 1, 2) && xfer_mode == VIO_DRING_MODE)
+		xfer_mode = VIO_NEW_DRING_MODE;
+
+	/* MTU negotiation:
+	 *	< v1.3 - ETH_FRAME_LEN exactly
+	 *	> v1.3 - MIN(pkt.mtu, VNET_MAXPACKET, port->rmtu) and change
+	 *			pkt->mtu for ACK
+	 *	= v1.3 - ETH_FRAME_LEN + VLAN_HLEN exactly
+	 */
+	if (vio_version_before(vio, 1, 3)) {
+		localmtu = ETH_FRAME_LEN;
+	} else if (vio_version_after(vio, 1, 3)) {
+		localmtu = port->rmtu ? port->rmtu : VNET_MAXPACKET;
+		localmtu = min(pkt->mtu, localmtu);
+		pkt->mtu = localmtu;
+	} else { /* v1.3 */
+		localmtu = ETH_FRAME_LEN + VLAN_HLEN;
+	}
+	port->rmtu = localmtu;
+
+	/* for version >= 1.6, ACK packet mode we support */
+	if (vio_version_after_eq(vio, 1, 6)) {
+		pkt->xfer_mode = VIO_NEW_DRING_MODE;
+		pkt->options = VIO_TX_DRING;
+	}
+
+	if (!(xfer_mode | VIO_NEW_DRING_MODE) ||
 	    pkt->addr_type != VNET_ADDR_ETHERMAC ||
-	    pkt->mtu != ETH_FRAME_LEN) {
+	    pkt->mtu != localmtu) {
 		viodbg(HS, "SEND NET ATTR NACK\n");
 
 		pkt->tag.stype = VIO_SUBTYPE_NACK;
@@ -114,7 +173,14 @@ static int handle_attr_info(struct vio_driver_state *vio,
 
 		return -ECONNRESET;
 	} else {
-		viodbg(HS, "SEND NET ATTR ACK\n");
+		viodbg(HS, "SEND NET ATTR ACK xmode[0x%x] atype[0x%x] "
+		       "addr[%llx] ackfreq[%u] plnk_updt[0x%02x] opts[0x%02x] "
+		       "mtu[%llu] (rmtu[%llu]) cflags[0x%04x] lso_max[%u]\n",
+		       pkt->xfer_mode, pkt->addr_type,
+		       (unsigned long long)pkt->addr,
+		       pkt->ack_freq, pkt->plnk_updt, pkt->options,
+		       (unsigned long long)pkt->mtu, port->rmtu, pkt->cflags,
+		       pkt->ipv4_lso_maxlen);
 
 		pkt->tag.stype = VIO_SUBTYPE_ACK;
 
@@ -210,7 +276,7 @@ static int vnet_rx_one(struct vnet_port *port, unsigned int len,
 	int err;
 
 	err = -EMSGSIZE;
-	if (unlikely(len < ETH_ZLEN || len > ETH_FRAME_LEN)) {
+	if (unlikely(len < ETH_ZLEN || len > port->rmtu)) {
 		dev->stats.rx_length_errors++;
 		goto out_dropped;
 	}
@@ -558,8 +624,10 @@ static void vnet_event(void *arg, int event)
 		vio_link_state_change(vio, event);
 		spin_unlock_irqrestore(&vio->lock, flags);
 
-		if (event == LDC_EVENT_RESET)
+		if (event == LDC_EVENT_RESET) {
+			port->rmtu = 0;
 			vio_port_up(vio);
+		}
 		return;
 	}
 
@@ -1051,8 +1119,8 @@ static int vnet_port_alloc_tx_bufs(struct vnet_port *port)
 	void *dring;
 
 	for (i = 0; i < VNET_TX_RING_SIZE; i++) {
-		void *buf = kzalloc(ETH_FRAME_LEN + 8, GFP_KERNEL);
-		int map_len = (ETH_FRAME_LEN + 7) & ~7;
+		void *buf = kzalloc(VNET_MAXPACKET + 8, GFP_KERNEL);
+		int map_len = (VNET_MAXPACKET + 7) & ~7;
 
 		err = -ENOMEM;
 		if (!buf)

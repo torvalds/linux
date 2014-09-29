@@ -11,6 +11,7 @@
  */
 #define VNET_TX_TIMEOUT			(5 * HZ)
 
+#define VNET_MAXPACKET			1518ULL /* ETH_FRAMELEN + VLAN_HDR */
 #define VNET_TX_RING_SIZE		512
 #define VNET_TX_WAKEUP_THRESH(dr)	((dr)->pending / 4)
 
@@ -44,6 +45,8 @@ struct vnet_port {
 	u32			stop_rx_idx;
 	bool			stop_rx;
 	bool			start_cons;
+
+	u64			rmtu;
 };
 
 static inline struct vnet_port *to_vnet_port(struct vio_driver_state *vio)
