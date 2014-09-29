@@ -118,7 +118,6 @@ err:
 	dma->tx_err = 1;
 	return ret;
 }
-EXPORT_SYMBOL_GPL(serial8250_tx_dma);
 
 int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 {
@@ -165,7 +164,6 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(serial8250_rx_dma);
 
 int serial8250_request_dma(struct uart_8250_port *p)
 {
