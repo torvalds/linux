@@ -73,9 +73,6 @@ static const uint32_t intel_cursor_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
-#define DIV_ROUND_CLOSEST_ULL(ll, d)	\
-({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
-
 static void intel_increase_pllclock(struct drm_device *dev,
 				    enum pipe pipe);
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);

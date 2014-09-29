@@ -398,9 +398,6 @@ intel_panel_detect(struct drm_device *dev)
 	}
 }
 
-#define DIV_ROUND_CLOSEST_ULL(ll, d)	\
-({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
-
 /**
  * scale - scale values from one range to another
  *
