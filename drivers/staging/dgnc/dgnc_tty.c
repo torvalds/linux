@@ -2198,8 +2198,6 @@ static void dgnc_tty_wait_until_sent(struct tty_struct *tty, int timeout)
 		return;
 
 	rc = bd->bd_ops->drain(tty, 0);
-
-	return;
 }
 
 
@@ -2237,7 +2235,6 @@ static void dgnc_tty_send_xchar(struct tty_struct *tty, char c)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
 	dev_dbg(tty->dev, "dgnc_tty_send_xchar finish\n");
-	return;
 }
 
 
