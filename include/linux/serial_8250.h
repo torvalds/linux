@@ -84,7 +84,7 @@ struct uart_8250_port {
 	unsigned char		mcr_mask;	/* mask of user bits */
 	unsigned char		mcr_force;	/* mask of forced bits */
 	unsigned char		cur_iotype;	/* Running I/O type */
-	unsigned char		rpm_tx_active;
+	unsigned int		rpm_tx_active;
 
 	/*
 	 * Some bits in registers are cleared on a read, so they must
