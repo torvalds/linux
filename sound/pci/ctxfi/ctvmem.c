@@ -16,6 +16,7 @@
  */
 
 #include "ctvmem.h"
+#include "ctatc.h"
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/io.h>
@@ -29,14 +30,15 @@
  * @size must be page aligned.
  * */
 static struct ct_vm_block *
-get_vm_block(struct ct_vm *vm, unsigned int size)
+get_vm_block(struct ct_vm *vm, unsigned int size, struct ct_atc *atc)
 {
 	struct ct_vm_block *block = NULL, *entry;
 	struct list_head *pos;
 
 	size = CT_PAGE_ALIGN(size);
 	if (size > vm->size) {
-		pr_err("ctxfi: Fail! No sufficient device virtual memory space available!\n");
+		dev_err(atc->card->dev,
+			"Fail! No sufficient device virtual memory space available!\n");
 		return NULL;
 	}
 
@@ -128,10 +130,12 @@ ct_vm_map(struct ct_vm *vm, struct snd_pcm_substream *substream, int size)
 	unsigned int pte_start;
 	unsigned i, pages;
 	unsigned long *ptp;
+	struct ct_atc *atc = snd_pcm_substream_chip(substream);
 
-	block = get_vm_block(vm, size);
+	block = get_vm_block(vm, size, atc);
 	if (block == NULL) {
-		pr_err("ctxfi: No virtual memory block that is big enough to allocate!\n");
+		dev_err(atc->card->dev,
+			"No virtual memory block that is big enough to allocate!\n");
 		return NULL;
 	}
 

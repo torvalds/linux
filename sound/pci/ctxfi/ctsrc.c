@@ -431,7 +431,8 @@ get_src_rsc(struct src_mgr *mgr, const struct src_desc *desc, struct src **rsrc)
 
 	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
 	if (err) {
-		pr_err("ctxfi: Can't meet SRC resource request!\n");
+		dev_err(mgr->card->dev,
+			"Can't meet SRC resource request!\n");
 		return err;
 	}
 
@@ -740,7 +741,8 @@ static int get_srcimp_rsc(struct srcimp_mgr *mgr,
 	}
 	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
 	if (err) {
-		pr_err("ctxfi: Can't meet SRCIMP resource request!\n");
+		dev_err(mgr->card->dev,
+			"Can't meet SRCIMP resource request!\n");
 		goto error1;
 	}
 

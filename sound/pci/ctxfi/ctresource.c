@@ -162,12 +162,14 @@ rsc_init(struct rsc *rsc, u32 idx, enum RSCTYP type, u32 msr, struct hw *hw)
 	case DAIO:
 		break;
 	default:
-		pr_err("ctxfi: Invalid resource type value %d!\n", type);
+		dev_err(((struct hw *)hw)->card->dev,
+			"Invalid resource type value %d!\n", type);
 		return -EINVAL;
 	}
 
 	if (err) {
-		pr_err("ctxfi: Failed to get resource control block!\n");
+		dev_err(((struct hw *)hw)->card->dev,
+			"Failed to get resource control block!\n");
 		return err;
 	}
 
@@ -188,7 +190,8 @@ int rsc_uninit(struct rsc *rsc)
 		case DAIO:
 			break;
 		default:
-			pr_err("ctxfi: Invalid resource type value %d!\n",
+			dev_err(((struct hw *)rsc->hw)->card->dev,
+				"Invalid resource type value %d!\n",
 				rsc->type);
 			break;
 		}
@@ -230,13 +233,15 @@ int rsc_mgr_init(struct rsc_mgr *mgr, enum RSCTYP type,
 	case SUM:
 		break;
 	default:
-		pr_err("ctxfi: Invalid resource type value %d!\n", type);
+		dev_err(hw->card->dev,
+			"Invalid resource type value %d!\n", type);
 		err = -EINVAL;
 		goto error;
 	}
 
 	if (err) {
-		pr_err("ctxfi: Failed to get manager control block!\n");
+		dev_err(hw->card->dev,
+			"Failed to get manager control block!\n");
 		goto error;
 	}
 
@@ -275,7 +280,8 @@ int rsc_mgr_uninit(struct rsc_mgr *mgr)
 		case SUM:
 			break;
 		default:
-			pr_err("ctxfi: Invalid resource type value %d!\n",
+			dev_err(((struct hw *)mgr->hw)->card->dev,
+				"Invalid resource type value %d!\n",
 				mgr->type);
 			break;
 		}
