@@ -7767,6 +7767,33 @@ no_add:
 	return spares;
 }
 
+static void md_start_sync(struct work_struct *ws)
+{
+	struct mddev *mddev = container_of(ws, struct mddev, del_work);
+
+	mddev->sync_thread = md_register_thread(md_do_sync,
+						mddev,
+						"resync");
+	if (!mddev->sync_thread) {
+		printk(KERN_ERR "%s: could not start resync"
+		       " thread...\n",
+		       mdname(mddev));
+		/* leave the spares where they are, it shouldn't hurt */
+		clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+		clear_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
+		clear_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
+		clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
+		clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
+		if (test_and_clear_bit(MD_RECOVERY_RECOVER,
+				       &mddev->recovery))
+			if (mddev->sysfs_action)
+				sysfs_notify_dirent_safe(mddev->sysfs_action);
+	} else
+		md_wakeup_thread(mddev->sync_thread);
+	sysfs_notify_dirent_safe(mddev->sysfs_action);
+	md_new_event(mddev);
+}
+
 /*
  * This routine is regularly called by all per-raid-array threads to
  * deal with generic issues like resync and super-block update.
@@ -7883,7 +7910,7 @@ void md_check_recovery(struct mddev *mddev)
 
 		if (!test_and_clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery) ||
 		    test_bit(MD_RECOVERY_FROZEN, &mddev->recovery))
-			goto unlock;
+			goto not_running;
 		/* no recovery is running.
 		 * remove any failed drives, then
 		 * add spares if possible.
@@ -7895,7 +7922,7 @@ void md_check_recovery(struct mddev *mddev)
 			if (mddev->pers->check_reshape == NULL ||
 			    mddev->pers->check_reshape(mddev) != 0)
 				/* Cannot proceed */
-				goto unlock;
+				goto not_running;
 			set_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
 			clear_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 		} else if ((spares = remove_and_add_spares(mddev, NULL))) {
@@ -7908,7 +7935,7 @@ void md_check_recovery(struct mddev *mddev)
 			clear_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 		} else if (!test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
 			/* nothing to be done ... */
-			goto unlock;
+			goto not_running;
 
 		if (mddev->pers->sync_request) {
 			if (spares) {
@@ -7918,27 +7945,11 @@ void md_check_recovery(struct mddev *mddev)
 				 */
 				bitmap_write_all(mddev->bitmap);
 			}
-			mddev->sync_thread = md_register_thread(md_do_sync,
-								mddev,
-								"resync");
-			if (!mddev->sync_thread) {
-				printk(KERN_ERR "%s: could not start resync"
-					" thread...\n", 
-					mdname(mddev));
-				/* leave the spares where they are, it shouldn't hurt */
-				clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
-				clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
-				clear_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
-				clear_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
-				clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
-			} else
-				md_wakeup_thread(mddev->sync_thread);
-			sysfs_notify_dirent_safe(mddev->sysfs_action);
-			md_new_event(mddev);
+			INIT_WORK(&mddev->del_work, md_start_sync);
+			queue_work(md_misc_wq, &mddev->del_work);
+			goto unlock;
 		}
-	unlock:
-		wake_up(&mddev->sb_wait);
-
+	not_running:
 		if (!mddev->sync_thread) {
 			clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 			if (test_and_clear_bit(MD_RECOVERY_RECOVER,
@@ -7946,6 +7957,8 @@ void md_check_recovery(struct mddev *mddev)
 				if (mddev->sysfs_action)
 					sysfs_notify_dirent_safe(mddev->sysfs_action);
 		}
+	unlock:
+		wake_up(&mddev->sb_wait);
 		mddev_unlock(mddev);
 	}
 }
