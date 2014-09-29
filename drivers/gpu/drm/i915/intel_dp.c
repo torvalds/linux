@@ -3817,8 +3817,9 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 	if (!(buf & DP_TEST_CRC_SUPPORTED))
 		return -ENOTTY;
 
+	drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf);
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
-			       DP_TEST_SINK_START) < 0)
+				buf | DP_TEST_SINK_START) < 0)
 		return -EIO;
 
 	drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf);
@@ -3837,7 +3838,10 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0)
 		return -EIO;
 
-	drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK, 0);
+	drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf);
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
+			buf & ~DP_TEST_SINK_START);
+
 	return 0;
 }
 
