@@ -342,9 +342,9 @@ int otg_statemachine(struct otg_fsm *fsm)
 			otg_set_state(fsm, OTG_STATE_A_VBUS_ERR);
 		break;
 	case OTG_STATE_A_SUSPEND:
-		if (!fsm->b_conn && fsm->otg->host->b_hnp_enable)
+		if (!fsm->b_conn && fsm->a_set_b_hnp_en)
 			otg_set_state(fsm, OTG_STATE_A_PERIPHERAL);
-		else if (!fsm->b_conn && !fsm->otg->host->b_hnp_enable)
+		else if (!fsm->b_conn && !fsm->a_set_b_hnp_en)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_BCON);
 		else if (fsm->a_bus_req || fsm->b_bus_resume)
 			otg_set_state(fsm, OTG_STATE_A_HOST);
