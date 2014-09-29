@@ -772,6 +772,7 @@ struct usb_endpoint_descriptor fs_epout_desc = {
 
 	.bEndpointAddress = USB_DIR_OUT,
 	.bmAttributes = USB_ENDPOINT_XFER_ISOC | USB_ENDPOINT_SYNC_ASYNC,
+	.wMaxPacketSize = cpu_to_le16(1023),
 	.bInterval = 1,
 };
 
@@ -780,6 +781,7 @@ struct usb_endpoint_descriptor hs_epout_desc = {
 	.bDescriptorType = USB_DT_ENDPOINT,
 
 	.bmAttributes = USB_ENDPOINT_XFER_ISOC | USB_ENDPOINT_SYNC_ASYNC,
+	.wMaxPacketSize = cpu_to_le16(1024),
 	.bInterval = 4,
 };
 
@@ -847,6 +849,7 @@ struct usb_endpoint_descriptor fs_epin_desc = {
 
 	.bEndpointAddress = USB_DIR_IN,
 	.bmAttributes = USB_ENDPOINT_XFER_ISOC | USB_ENDPOINT_SYNC_ASYNC,
+	.wMaxPacketSize = cpu_to_le16(1023),
 	.bInterval = 1,
 };
 
@@ -855,6 +858,7 @@ struct usb_endpoint_descriptor hs_epin_desc = {
 	.bDescriptorType = USB_DT_ENDPOINT,
 
 	.bmAttributes = USB_ENDPOINT_XFER_ISOC | USB_ENDPOINT_SYNC_ASYNC,
+	.wMaxPacketSize = cpu_to_le16(1024),
 	.bInterval = 4,
 };
 
