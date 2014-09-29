@@ -1372,10 +1372,6 @@ static int pl330_submit_req(struct pl330_thread *thrd,
 	u32 ccr;
 	int ret = 0;
 
-	/* No Req or Unacquired Channel or DMAC */
-	if (!desc || !thrd || thrd->free)
-		return -EINVAL;
-
 	regs = thrd->dmac->base;
 
 	if (pl330->state == DYING
