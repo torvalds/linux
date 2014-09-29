@@ -573,6 +573,35 @@ static int mei_txe_readiness_wait(struct mei_device *dev)
 	return 0;
 }
 
+
+/**
+ * mei_txe_fw_status - read fw status register from pci config space
+ *
+ * @dev: mei device
+ * @fw_status: fw status register values
+ */
+static int mei_txe_fw_status(struct mei_device *dev,
+			     struct mei_fw_status *fw_status)
+{
+	const struct mei_fw_status *fw_src = &dev->cfg->fw_status;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	int ret;
+	int i;
+
+	if (!fw_status)
+		return -EINVAL;
+
+	fw_status->count = fw_src->count;
+	for (i = 0; i < fw_src->count && i < MEI_FW_STATUS_MAX; i++) {
+		ret = pci_read_config_dword(pdev,
+			fw_src->status[i], &fw_status->status[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 /**
  *  mei_txe_hw_config - configure hardware at the start of the devices
  *
@@ -1064,6 +1093,7 @@ static const struct mei_hw_ops mei_txe_hw_ops = {
 
 	.host_is_ready = mei_txe_host_is_ready,
 
+	.fw_status = mei_txe_fw_status,
 	.pg_state = mei_txe_pg_state,
 
 	.hw_is_ready = mei_txe_hw_is_ready,

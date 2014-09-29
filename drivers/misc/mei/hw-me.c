@@ -101,6 +101,33 @@ static inline void mei_hcsr_set(struct mei_me_hw *hw, u32 hcsr)
 	mei_me_reg_write(hw, H_CSR, hcsr);
 }
 
+/**
+ * mei_me_fw_status - read fw status register from pci config space
+ *
+ * @dev: mei device
+ * @fw_status: fw status register values
+ */
+static int mei_me_fw_status(struct mei_device *dev,
+			    struct mei_fw_status *fw_status)
+{
+	const struct mei_fw_status *fw_src = &dev->cfg->fw_status;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	int ret;
+	int i;
+
+	if (!fw_status)
+		return -EINVAL;
+
+	fw_status->count = fw_src->count;
+	for (i = 0; i < fw_src->count && i < MEI_FW_STATUS_MAX; i++) {
+		ret = pci_read_config_dword(pdev,
+			fw_src->status[i], &fw_status->status[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
 
 /**
  * mei_me_hw_config - configure hw dependent settings
@@ -714,6 +741,7 @@ end:
 
 static const struct mei_hw_ops mei_me_hw_ops = {
 
+	.fw_status = mei_me_fw_status,
 	.pg_state  = mei_me_pg_state,
 
 	.host_is_ready = mei_me_host_is_ready,

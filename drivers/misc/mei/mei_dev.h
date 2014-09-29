@@ -233,6 +233,7 @@ struct mei_cl {
  * @hw_start         - start hw after reset
  * @hw_config        - configure hw
 
+ * @fw_status        - get fw status registers
  * @pg_state         - power gating state of the device
  * @pg_is_enabled    - is power gating enabled
 
@@ -260,6 +261,8 @@ struct mei_hw_ops {
 	int (*hw_start)(struct mei_device *dev);
 	void (*hw_config)(struct mei_device *dev);
 
+
+	int (*fw_status)(struct mei_device *dev, struct mei_fw_status *fw_sts);
 	enum mei_pg_state (*pg_state)(struct mei_device *dev);
 	bool (*pg_is_enabled)(struct mei_device *dev);
 
@@ -731,7 +734,11 @@ static inline int mei_count_full_read_slots(struct mei_device *dev)
 	return dev->ops->rdbuf_full_slots(dev);
 }
 
-int mei_fw_status(struct mei_device *dev, struct mei_fw_status *fw_status);
+static inline int mei_fw_status(struct mei_device *dev,
+				struct mei_fw_status *fw_status)
+{
+	return dev->ops->fw_status(dev, fw_status);
+}
 
 #define FW_STS_FMT "%08X %08X"
 #define FW_STS_PRM(fw_status) \

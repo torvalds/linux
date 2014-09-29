@@ -344,27 +344,6 @@ bool mei_write_is_idle(struct mei_device *dev)
 }
 EXPORT_SYMBOL_GPL(mei_write_is_idle);
 
-int mei_fw_status(struct mei_device *dev, struct mei_fw_status *fw_status)
-{
-	const struct mei_fw_status *fw_src = &dev->cfg->fw_status;
-	int ret;
-	int i;
-
-	if (!fw_status)
-		return -EINVAL;
-
-	fw_status->count = fw_src->count;
-	for (i = 0; i < fw_src->count && i < MEI_FW_STATUS_MAX; i++) {
-		ret = pci_read_config_dword(dev->pdev,
-			fw_src->status[i], &fw_status->status[i]);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mei_fw_status);
-
 /**
  * mei_device_init  -- initialize mei_device structure
  *
