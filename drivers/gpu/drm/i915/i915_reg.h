@@ -5585,10 +5585,6 @@ enum punit_power_well {
 #define GEN8_UCGCTL6				0x9430
 #define   GEN8_SDEUNIT_CLOCK_GATE_DISABLE	(1<<14)
 
-#define TIMESTAMP_CTR		0x44070
-#define FREQ_1_28_US(us)	(((us) * 100) >> 7)
-#define MCHBAR_PCU_C0		(MCHBAR_MIRROR_BASE_SNB + 0x5960)
-
 #define GEN6_GFXPAUSE				0xA000
 #define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)

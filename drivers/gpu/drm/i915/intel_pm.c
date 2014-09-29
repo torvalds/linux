@@ -2285,6 +2285,7 @@ int ilk_wm_max_level(const struct drm_device *dev)
 	else
 		return 2;
 }
+
 static void intel_print_wm_latency(struct drm_device *dev,
 				   const char *name,
 				   const uint16_t wm[5])
@@ -3253,9 +3254,6 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 {
 	int new_power;
 
-	if (dev_priv->rps.is_bdw_sw_turbo)
-		return;
-
 	new_power = dev_priv->rps.power;
 	switch (dev_priv->rps.power) {
 	case LOW_POWER:
@@ -3463,11 +3461,8 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 			valleyview_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
 		else if (IS_VALLEYVIEW(dev))
 			vlv_set_rps_idle(dev_priv);
-		else if (!dev_priv->rps.is_bdw_sw_turbo
-					|| atomic_read(&dev_priv->rps.sw_turbo.flip_received)){
+		else
 			gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
-		}
-
 		dev_priv->rps.last_adj = 0;
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -3481,11 +3476,8 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv)
 	if (dev_priv->rps.enabled) {
 		if (IS_VALLEYVIEW(dev))
 			valleyview_set_rps(dev_priv->dev, dev_priv->rps.max_freq_softlimit);
-		else if (!dev_priv->rps.is_bdw_sw_turbo
-					|| atomic_read(&dev_priv->rps.sw_turbo.flip_received)){
+		else
 			gen6_set_rps(dev_priv->dev, dev_priv->rps.max_freq_softlimit);
-		}
-
 		dev_priv->rps.last_adj = 0;
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -3520,26 +3512,21 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 static void gen8_disable_rps_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	if (IS_BROADWELL(dev) && dev_priv->rps.is_bdw_sw_turbo){
-		if (atomic_read(&dev_priv->rps.sw_turbo.flip_received))
-			del_timer(&dev_priv->rps.sw_turbo.flip_timer);
-		dev_priv-> rps.is_bdw_sw_turbo = false;
-	} else {
-		I915_WRITE(GEN6_PMINTRMSK, ~GEN8_PMINTR_REDIRECT_TO_NON_DISP);
-		I915_WRITE(GEN8_GT_IER(2), I915_READ(GEN8_GT_IER(2)) &
-					   ~dev_priv->pm_rps_events);
-		/* Complete PM interrupt masking here doesn't race with the rps work
-		 * item again unmasking PM interrupts because that is using a different
-		 * register (GEN8_GT_IMR(2)) to mask PM interrupts. The only risk is in
-		 * leaving stale bits in GEN8_GT_IIR(2) and GEN8_GT_IMR(2) which
-		 * gen8_enable_rps will clean up. */
 
-		spin_lock_irq(&dev_priv->irq_lock);
-		dev_priv->rps.pm_iir = 0;
-		spin_unlock_irq(&dev_priv->irq_lock);
+	I915_WRITE(GEN6_PMINTRMSK, ~GEN8_PMINTR_REDIRECT_TO_NON_DISP);
+	I915_WRITE(GEN8_GT_IER(2), I915_READ(GEN8_GT_IER(2)) &
+				   ~dev_priv->pm_rps_events);
+	/* Complete PM interrupt masking here doesn't race with the rps work
+	 * item again unmasking PM interrupts because that is using a different
+	 * register (GEN8_GT_IMR(2)) to mask PM interrupts. The only risk is in
+	 * leaving stale bits in GEN8_GT_IIR(2) and GEN8_GT_IMR(2) which
+	 * gen8_enable_rps will clean up. */
 
-		I915_WRITE(GEN8_GT_IIR(2), dev_priv->pm_rps_events);
-	}
+	spin_lock_irq(&dev_priv->irq_lock);
+	dev_priv->rps.pm_iir = 0;
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	I915_WRITE(GEN8_GT_IIR(2), dev_priv->pm_rps_events);
 }
 
 static void gen6_disable_rps_interrupts(struct drm_device *dev)
@@ -3697,110 +3684,12 @@ static void parse_rp_state_cap(struct drm_i915_private *dev_priv, u32 rp_state_c
 		dev_priv->rps.min_freq_softlimit = dev_priv->rps.min_freq;
 }
 
-static void bdw_sw_calculate_freq(struct drm_device *dev,
-		struct intel_rps_bdw_cal *c, u32 *cur_time, u32 *c0)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u64 busy = 0;
-	u32 busyness_pct = 0;
-	u32 elapsed_time = 0;
-	u16 new_freq = 0;
-
-	if (!c || !cur_time || !c0)
-		return;
-
-	if (0 == c->last_c0)
-		goto out;
-
-	/* Check Evaluation interval */
-	elapsed_time = *cur_time - c->last_ts;
-	if (elapsed_time < c->eval_interval)
-		return;
-
-	mutex_lock(&dev_priv->rps.hw_lock);
-
-	/*
-	 * c0 unit in 32*1.28 usec, elapsed_time unit in 1 usec.
-	 * Whole busyness_pct calculation should be
-	 *     busy = ((u64)(*c0 - c->last_c0) << 5 << 7) / 100;
-	 *     busyness_pct = (u32)(busy * 100 / elapsed_time);
-	 * The final formula is to simplify CPU calculation
-	 */
-	busy = (u64)(*c0 - c->last_c0) << 12;
-	do_div(busy, elapsed_time);
-	busyness_pct = (u32)busy;
-
-	if (c->is_up && busyness_pct >= c->it_threshold_pct)
-		new_freq = (u16)dev_priv->rps.cur_freq + 3;
-	if (!c->is_up && busyness_pct <= c->it_threshold_pct)
-		new_freq = (u16)dev_priv->rps.cur_freq - 1;
-
-	/* Adjust to new frequency busyness and compare with threshold */
-	if (0 != new_freq) {
-		if (new_freq > dev_priv->rps.max_freq_softlimit)
-			new_freq = dev_priv->rps.max_freq_softlimit;
-		else if (new_freq < dev_priv->rps.min_freq_softlimit)
-			new_freq = dev_priv->rps.min_freq_softlimit;
-
-		gen6_set_rps(dev, new_freq);
-	}
-
-	mutex_unlock(&dev_priv->rps.hw_lock);
-
-out:
-	c->last_c0 = *c0;
-	c->last_ts = *cur_time;
-}
-
-static void gen8_set_frequency_RP0(struct work_struct *work)
-{
-	struct intel_rps_bdw_turbo *p_bdw_turbo =
-			container_of(work, struct intel_rps_bdw_turbo, work_max_freq);
-	struct intel_gen6_power_mgmt *p_power_mgmt =
-			container_of(p_bdw_turbo, struct intel_gen6_power_mgmt, sw_turbo);
-	struct drm_i915_private *dev_priv =
-			container_of(p_power_mgmt, struct drm_i915_private, rps);
-
-	mutex_lock(&dev_priv->rps.hw_lock);
-	gen6_set_rps(dev_priv->dev, dev_priv->rps.rp0_freq);
-	mutex_unlock(&dev_priv->rps.hw_lock);
-}
-
-static void flip_active_timeout_handler(unsigned long var)
-{
-	struct drm_i915_private *dev_priv = (struct drm_i915_private *) var;
-
-	del_timer(&dev_priv->rps.sw_turbo.flip_timer);
-	atomic_set(&dev_priv->rps.sw_turbo.flip_received, false);
-
-	queue_work(dev_priv->wq, &dev_priv->rps.sw_turbo.work_max_freq);
-}
-
-void bdw_software_turbo(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	u32 current_time = I915_READ(TIMESTAMP_CTR); /* unit in usec */
-	u32 current_c0 = I915_READ(MCHBAR_PCU_C0); /* unit in 32*1.28 usec */
-
-	bdw_sw_calculate_freq(dev, &dev_priv->rps.sw_turbo.up,
-			&current_time, &current_c0);
-	bdw_sw_calculate_freq(dev, &dev_priv->rps.sw_turbo.down,
-			&current_time, &current_c0);
-}
-
 static void gen8_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
 	uint32_t rc6_mask = 0, rp_state_cap;
-	uint32_t threshold_up_pct, threshold_down_pct;
-	uint32_t ei_up, ei_down; /* up and down evaluation interval */
-	u32 rp_ctl_flag;
 	int unused;
-
-	/* Use software Turbo for BDW */
-	dev_priv->rps.is_bdw_sw_turbo = IS_BROADWELL(dev);
 
 	/* 1a: Software RC state - RC0 */
 	I915_WRITE(GEN6_RC_STATE, 0);
@@ -3845,74 +3734,35 @@ static void gen8_enable_rps(struct drm_device *dev)
 		   HSW_FREQUENCY(dev_priv->rps.rp1_freq));
 	I915_WRITE(GEN6_RC_VIDEO_FREQ,
 		   HSW_FREQUENCY(dev_priv->rps.rp1_freq));
-	ei_up = 84480; /* 84.48ms */
-	ei_down = 448000;
-	threshold_up_pct = 90; /* x percent busy */
-	threshold_down_pct = 70;
+	/* NB: Docs say 1s, and 1000000 - which aren't equivalent */
+	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 100000000 / 128); /* 1 second timeout */
 
-	if (dev_priv->rps.is_bdw_sw_turbo) {
-		dev_priv->rps.sw_turbo.up.it_threshold_pct = threshold_up_pct;
-		dev_priv->rps.sw_turbo.up.eval_interval = ei_up;
-		dev_priv->rps.sw_turbo.up.is_up = true;
-		dev_priv->rps.sw_turbo.up.last_ts = 0;
-		dev_priv->rps.sw_turbo.up.last_c0 = 0;
+	/* Docs recommend 900MHz, and 300 MHz respectively */
+	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
+		   dev_priv->rps.max_freq_softlimit << 24 |
+		   dev_priv->rps.min_freq_softlimit << 16);
 
-		dev_priv->rps.sw_turbo.down.it_threshold_pct = threshold_down_pct;
-		dev_priv->rps.sw_turbo.down.eval_interval = ei_down;
-		dev_priv->rps.sw_turbo.down.is_up = false;
-		dev_priv->rps.sw_turbo.down.last_ts = 0;
-		dev_priv->rps.sw_turbo.down.last_c0 = 0;
+	I915_WRITE(GEN6_RP_UP_THRESHOLD, 7600000 / 128); /* 76ms busyness per EI, 90% */
+	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 31300000 / 128); /* 313ms busyness per EI, 70%*/
+	I915_WRITE(GEN6_RP_UP_EI, 66000); /* 84.48ms, XXX: random? */
+	I915_WRITE(GEN6_RP_DOWN_EI, 350000); /* 448ms, XXX: random? */
 
-		/* Start the timer to track if flip comes*/
-		dev_priv->rps.sw_turbo.timeout = 200*1000; /* in us */
-
-		init_timer(&dev_priv->rps.sw_turbo.flip_timer);
-		dev_priv->rps.sw_turbo.flip_timer.function = flip_active_timeout_handler;
-		dev_priv->rps.sw_turbo.flip_timer.data  = (unsigned long) dev_priv;
-		dev_priv->rps.sw_turbo.flip_timer.expires =
-			usecs_to_jiffies(dev_priv->rps.sw_turbo.timeout) + jiffies;
-		add_timer(&dev_priv->rps.sw_turbo.flip_timer);
-		INIT_WORK(&dev_priv->rps.sw_turbo.work_max_freq, gen8_set_frequency_RP0);
-
-		atomic_set(&dev_priv->rps.sw_turbo.flip_received, true);
-	} else {
-		/* NB: Docs say 1s, and 1000000 - which aren't equivalent
-		 * 1 second timeout*/
-		I915_WRITE(GEN6_RP_DOWN_TIMEOUT, FREQ_1_28_US(1000000));
-
-		/* Docs recommend 900MHz, and 300 MHz respectively */
-		I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
-			   dev_priv->rps.max_freq_softlimit << 24 |
-			   dev_priv->rps.min_freq_softlimit << 16);
-
-		I915_WRITE(GEN6_RP_UP_THRESHOLD,
-			FREQ_1_28_US(ei_up * threshold_up_pct / 100));
-		I915_WRITE(GEN6_RP_DOWN_THRESHOLD,
-			FREQ_1_28_US(ei_down * threshold_down_pct / 100));
-		I915_WRITE(GEN6_RP_UP_EI,
-			FREQ_1_28_US(ei_up));
-		I915_WRITE(GEN6_RP_DOWN_EI,
-			FREQ_1_28_US(ei_down));
-
-		I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
-	}
+	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
 
 	/* 5: Enable RPS */
-	rp_ctl_flag = GEN6_RP_MEDIA_TURBO |
-					GEN6_RP_MEDIA_HW_NORMAL_MODE |
-					GEN6_RP_MEDIA_IS_GFX |
-					GEN6_RP_UP_BUSY_AVG |
-					GEN6_RP_DOWN_IDLE_AVG;
-	if (!dev_priv->rps.is_bdw_sw_turbo)
-		rp_ctl_flag |= GEN6_RP_ENABLE;
+	I915_WRITE(GEN6_RP_CONTROL,
+		   GEN6_RP_MEDIA_TURBO |
+		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
+		   GEN6_RP_MEDIA_IS_GFX |
+		   GEN6_RP_ENABLE |
+		   GEN6_RP_UP_BUSY_AVG |
+		   GEN6_RP_DOWN_IDLE_AVG);
 
-	I915_WRITE(GEN6_RP_CONTROL, rp_ctl_flag);
+	/* 6: Ring frequency + overclocking (our driver does this later */
 
-	/* 6: Ring frequency + overclocking
-	 * (our driver does this later */
 	gen6_set_rps(dev, (I915_READ(GEN6_GT_PERF_STATUS) & 0xff00) >> 8);
-	if (!dev_priv->rps.is_bdw_sw_turbo)
-		gen8_enable_rps_interrupts(dev);
+
+	gen8_enable_rps_interrupts(dev);
 
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -5385,8 +5235,6 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 		container_of(work, struct drm_i915_private,
 			     rps.delayed_resume_work.work);
 	struct drm_device *dev = dev_priv->dev;
-
-	dev_priv->rps.is_bdw_sw_turbo = false;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 

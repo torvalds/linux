@@ -9926,9 +9926,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 	int ret;
 
-	//trigger software GT busyness calculation
-	gen8_flip_interrupt(dev);
-
 	/*
 	 * drm_mode_page_flip_ioctl() should already catch this, but double
 	 * check to be safe.  In the future we may enable pageflipping from
