@@ -109,6 +109,7 @@ struct otg_fsm {
 	int b_srp_done;
 	int b_hnp_enable;
 	int a_clr_err;
+	int hnp_polling;
 
 	/* OTG test device */
 	int tst_maint;
