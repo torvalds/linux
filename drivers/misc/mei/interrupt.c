@@ -16,11 +16,11 @@
 
 
 #include <linux/export.h>
-#include <linux/pci.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/jiffies.h>
+#include <linux/slab.h>
 
 #include <linux/mei.h>
 

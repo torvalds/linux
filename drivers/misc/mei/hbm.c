@@ -15,11 +15,12 @@
  */
 
 #include <linux/export.h>
-#include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
-#include <linux/mei.h>
 #include <linux/pm_runtime.h>
+#include <linux/slab.h>
+
+#include <linux/mei.h>
 
 #include "mei_dev.h"
 #include "hbm.h"

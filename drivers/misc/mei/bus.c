@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
 #include <linux/mei_cl_bus.h>
 
 #include "mei_dev.h"

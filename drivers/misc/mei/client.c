@@ -14,10 +14,10 @@
  *
  */
 
-#include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/pm_runtime.h>
 
 #include <linux/mei.h>

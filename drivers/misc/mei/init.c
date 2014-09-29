@@ -15,7 +15,6 @@
  */
 
 #include <linux/export.h>
-#include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
