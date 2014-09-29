@@ -211,6 +211,16 @@ static struct com20020_pci_card_info card_info_sohard = {
 	.flags = ARC_CAN_10MBIT,
 };
 
+static struct com20020_pci_card_info card_info_eae = {
+	.name = "EAE PLX-PCI",
+	.devcount = 2,
+	.chan_map_tbl = {
+		{ 2, 0x00, 0x08 },
+		{ 2, 0x08, 0x08 }
+	},
+	.flags = ARC_CAN_10MBIT,
+};
+
 static const struct pci_device_id com20020pci_id_table[] = {
 	{
 		0x1571, 0xa001,
@@ -343,6 +353,12 @@ static const struct pci_device_id com20020pci_id_table[] = {
 		0x10B5, 0x2273,
 		0, 0,
 		(kernel_ulong_t)&card_info_sohard
+	},
+	{
+		0x10B5, 0x9050,
+		0x10B5, 0x3292,
+		0, 0,
+		(kernel_ulong_t)&card_info_eae
 	},
 	{
 		0x14BA, 0x6000,
