@@ -89,6 +89,31 @@ int of_pci_parse_bus_range(struct device_node *node, struct resource *res)
 }
 EXPORT_SYMBOL_GPL(of_pci_parse_bus_range);
 
+/**
+ * This function will try to obtain the host bridge domain number by
+ * finding a property called "linux,pci-domain" of the given device node.
+ *
+ * @node: device tree node with the domain information
+ *
+ * Returns the associated domain number from DT in the range [0-0xffff], or
+ * a negative value if the required property is not found.
+ */
+int of_get_pci_domain_nr(struct device_node *node)
+{
+	const __be32 *value;
+	int len;
+	u16 domain;
+
+	value = of_get_property(node, "linux,pci-domain", &len);
+	if (!value || len < sizeof(*value))
+		return -EINVAL;
+
+	domain = (u16)be32_to_cpup(value);
+
+	return domain;
+}
+EXPORT_SYMBOL_GPL(of_get_pci_domain_nr);
+
 #ifdef CONFIG_PCI_MSI
 
 static LIST_HEAD(of_pci_msi_chip_list);
