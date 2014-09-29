@@ -56,11 +56,11 @@ static bool ipv4_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-static int ipv4_print_tuple(struct seq_file *s,
+static void ipv4_print_tuple(struct seq_file *s,
 			    const struct nf_conntrack_tuple *tuple)
 {
-	return seq_printf(s, "src=%pI4 dst=%pI4 ",
-			  &tuple->src.u3.ip, &tuple->dst.u3.ip);
+	seq_printf(s, "src=%pI4 dst=%pI4 ",
+		   &tuple->src.u3.ip, &tuple->dst.u3.ip);
 }
 
 static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,

@@ -56,8 +56,8 @@ struct nf_conntrack_l4proto {
 		     u_int8_t pf, unsigned int hooknum);
 
 	/* Print out the per-protocol part of the tuple. Return like seq_* */
-	int (*print_tuple)(struct seq_file *s,
-			   const struct nf_conntrack_tuple *);
+	void (*print_tuple)(struct seq_file *s,
+			    const struct nf_conntrack_tuple *);
 
 	/* Print out the private part of the conntrack. */
 	void (*print_conntrack)(struct seq_file *s, struct nf_conn *);
