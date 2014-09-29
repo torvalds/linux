@@ -235,18 +235,44 @@ static inline int dentry_cmp(const struct dentry *dentry, const unsigned char *c
 	return dentry_string_cmp(cs, ct, tcount);
 }
 
+struct external_name {
+	union {
+		atomic_t count;
+		struct rcu_head head;
+	} u;
+	unsigned char name[];
+};
+
+static inline struct external_name *external_name(struct dentry *dentry)
+{
+	return container_of(dentry->d_name.name, struct external_name, name[0]);
+}
+
 static void __d_free(struct rcu_head *head)
 {
 	struct dentry *dentry = container_of(head, struct dentry, d_u.d_rcu);
 
 	WARN_ON(!hlist_unhashed(&dentry->d_alias));
-	if (dname_external(dentry))
-		kfree(dentry->d_name.name);
+	kmem_cache_free(dentry_cache, dentry); 
+}
+
+static void __d_free_external(struct rcu_head *head)
+{
+	struct dentry *dentry = container_of(head, struct dentry, d_u.d_rcu);
+	WARN_ON(!hlist_unhashed(&dentry->d_alias));
+	kfree(external_name(dentry));
 	kmem_cache_free(dentry_cache, dentry); 
 }
 
 static void dentry_free(struct dentry *dentry)
 {
+	if (unlikely(dname_external(dentry))) {
+		struct external_name *p = external_name(dentry);
+		if (likely(atomic_dec_and_test(&p->u.count))) {
+			call_rcu(&dentry->d_u.d_rcu, __d_free_external);
+			return;
+		}
+	}
 	/* if dentry was never visible to RCU, immediate free is OK */
 	if (!(dentry->d_flags & DCACHE_RCUACCESS))
 		__d_free(&dentry->d_u.d_rcu);
@@ -1438,11 +1464,14 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	 */
 	dentry->d_iname[DNAME_INLINE_LEN-1] = 0;
 	if (name->len > DNAME_INLINE_LEN-1) {
-		dname = kmalloc(name->len + 1, GFP_KERNEL);
-		if (!dname) {
+		size_t size = offsetof(struct external_name, name[1]);
+		struct external_name *p = kmalloc(size + name->len, GFP_KERNEL);
+		if (!p) {
 			kmem_cache_free(dentry_cache, dentry); 
 			return NULL;
 		}
+		atomic_set(&p->u.count, 1);
+		dname = p->name;
 	} else  {
 		dname = dentry->d_iname;
 	}	
@@ -2372,11 +2401,10 @@ void dentry_update_name_case(struct dentry *dentry, struct qstr *name)
 }
 EXPORT_SYMBOL(dentry_update_name_case);
 
-static void switch_names(struct dentry *dentry, struct dentry *target,
-			 bool exchange)
+static void swap_names(struct dentry *dentry, struct dentry *target)
 {
-	if (dname_external(target)) {
-		if (dname_external(dentry)) {
+	if (unlikely(dname_external(target))) {
+		if (unlikely(dname_external(dentry))) {
 			/*
 			 * Both external: swap the pointers
 			 */
@@ -2392,7 +2420,7 @@ static void switch_names(struct dentry *dentry, struct dentry *target,
 			target->d_name.name = target->d_iname;
 		}
 	} else {
-		if (dname_external(dentry)) {
+		if (unlikely(dname_external(dentry))) {
 			/*
 			 * dentry:external, target:internal.  Give dentry's
 			 * storage to target and make dentry internal
@@ -2407,12 +2435,6 @@ static void switch_names(struct dentry *dentry, struct dentry *target,
 			 */
 			unsigned int i;
 			BUILD_BUG_ON(!IS_ALIGNED(DNAME_INLINE_LEN, sizeof(long)));
-			if (!exchange) {
-				memcpy(dentry->d_iname, target->d_name.name,
-						target->d_name.len + 1);
-				dentry->d_name.hash_len = target->d_name.hash_len;
-				return;
-			}
 			for (i = 0; i < DNAME_INLINE_LEN / sizeof(long); i++) {
 				swap(((long *) &dentry->d_iname)[i],
 				     ((long *) &target->d_iname)[i]);
@@ -2420,6 +2442,24 @@ static void switch_names(struct dentry *dentry, struct dentry *target,
 		}
 	}
 	swap(dentry->d_name.hash_len, target->d_name.hash_len);
+}
+
+static void copy_name(struct dentry *dentry, struct dentry *target)
+{
+	struct external_name *old_name = NULL;
+	if (unlikely(dname_external(dentry)))
+		old_name = external_name(dentry);
+	if (unlikely(dname_external(target))) {
+		atomic_inc(&external_name(target)->u.count);
+		dentry->d_name = target->d_name;
+	} else {
+		memcpy(dentry->d_iname, target->d_name.name,
+				target->d_name.len + 1);
+		dentry->d_name.name = dentry->d_iname;
+		dentry->d_name.hash_len = target->d_name.hash_len;
+	}
+	if (old_name && likely(atomic_dec_and_test(&old_name->u.count)))
+		kfree_rcu(old_name, u.head);
 }
 
 static void dentry_lock_for_move(struct dentry *dentry, struct dentry *target)
@@ -2518,7 +2558,10 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	}
 
 	/* Switch the names.. */
-	switch_names(dentry, target, exchange);
+	if (exchange)
+		swap_names(dentry, target);
+	else
+		copy_name(dentry, target);
 
 	/* ... and switch them in the tree */
 	if (IS_ROOT(dentry)) {
