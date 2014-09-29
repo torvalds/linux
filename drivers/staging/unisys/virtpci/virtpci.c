@@ -174,6 +174,7 @@ static inline
 int WAIT_FOR_IO_CHANNEL(ULTRA_IO_CHANNEL_PROTOCOL __iomem  *chanptr)
 {
 	int count = 120;
+
 	while (count > 0) {
 
 		if (ULTRA_CHANNEL_SERVER_READY(&chanptr->ChannelHeader))
@@ -189,6 +190,7 @@ static int write_vbus_chpInfo(ULTRA_VBUS_CHANNEL_PROTOCOL *chan,
 			      ULTRA_VBUS_DEVICEINFO *info)
 {
 	int off;
+
 	if (!chan) {
 		LOGERR("vbus channel not present");
 		return -1;
@@ -207,6 +209,7 @@ static int write_vbus_busInfo(ULTRA_VBUS_CHANNEL_PROTOCOL *chan,
 			      ULTRA_VBUS_DEVICEINFO *info)
 {
 	int off;
+
 	if (!chan) {
 		LOGERR("vbus channel not present");
 		return -1;
@@ -228,6 +231,7 @@ write_vbus_devInfo(ULTRA_VBUS_CHANNEL_PROTOCOL *chan,
 		   ULTRA_VBUS_DEVICEINFO *info, int devix)
 {
 	int off;
+
 	if (!chan) {
 		LOGERR("vbus channel not present");
 		return -1;
@@ -251,6 +255,7 @@ static int add_vbus(struct add_vbus_guestpart *addparams)
 {
 	int ret;
 	struct device *vbus;
+
 	vbus = kzalloc(sizeof(struct device), GFP_ATOMIC);
 
 	POSTCODE_LINUX_2(VPCI_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
@@ -856,6 +861,7 @@ static int virtpci_device_remove(struct device *dev_)
 	*/
 	struct virtpci_dev *virtpcidev = device_to_virtpci_dev(dev_);
 	struct virtpci_driver *virtpcidrv = virtpcidev->mydriver;
+
 	LOGINF("In virtpci_device_remove bus_id:%s dev_:%p virtpcidev:%p dev->driver:%p drivername:%s\n",
 	       BUS_ID(dev_), dev_, virtpcidev, dev_->driver,
 	       dev_->driver->name);	/* VERBOSE/DEBUG */
@@ -1308,6 +1314,7 @@ static ssize_t virtpci_driver_attr_show(struct kobject *kobj,
 
 	struct driver_private *dprivate = to_driver(kobj);
 	struct device_driver *driver;
+
 	if (dprivate != NULL)
 		driver = dprivate->driver;
 	else
@@ -1330,6 +1337,7 @@ static ssize_t virtpci_driver_attr_store(struct kobject *kobj,
 
 	struct driver_private *dprivate = to_driver(kobj);
 	struct device_driver *driver;
+
 	if (dprivate != NULL)
 		driver = dprivate->driver;
 	else

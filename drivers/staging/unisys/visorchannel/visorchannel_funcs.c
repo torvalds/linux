@@ -257,6 +257,7 @@ visorchannel_clear(VISORCHANNEL *channel, ulong offset, u8 ch, ulong nbytes)
 	while (nbytes > 0) {
 		ulong thisbytes = bufsize;
 		int x = -1;
+
 		if (nbytes < thisbytes)
 			thisbytes = nbytes;
 		x = visor_memregion_write(channel->memregion, offset + written,
@@ -520,6 +521,7 @@ int
 visorchannel_signalqueue_max_slots(VISORCHANNEL *channel, u32 queue)
 {
 	SIGNAL_QUEUE_HEADER sig_hdr;
+
 	if (!sig_read_header(channel, queue, &sig_hdr))
 		return 0;
 	return (int) sig_hdr.MaxSignals;
@@ -612,6 +614,7 @@ visorchannel_debug(VISORCHANNEL *channel, int nQueues,
 	else
 		for (i = 0; i < nQueues; i++) {
 			SIGNAL_QUEUE_HEADER q;
+
 			errcode = visorchannel_read(channel,
 						    off + phdr->oChannelSpace +
 						    (i * sizeof(q)),
