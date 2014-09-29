@@ -58,10 +58,10 @@
 #include <linux/poll.h>
 #include <linux/list.h>
 #include <linux/highmem.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/ioctls.h>
-#include <asm/poll.h>
-#include <asm/uaccess.h>
+#include <linux/poll.h>
+#include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/seq_file.h>
 
