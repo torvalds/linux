@@ -898,6 +898,7 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 	ci->otg.gadget = &ci->gadget;
 	ci->fsm.otg = &ci->otg;
 	ci->fsm.power_up = 1;
+	ci->fsm.hnp_polling = 1;
 	ci->fsm.id = hw_read_otgsc(ci, OTGSC_ID) ? 1 : 0;
 	ci->fsm.otg->state = OTG_STATE_UNDEFINED;
 	ci->fsm.ops = &ci_otg_ops;
