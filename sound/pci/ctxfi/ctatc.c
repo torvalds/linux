@@ -1235,7 +1235,7 @@ static int ct_atc_destroy(struct ct_atc *atc)
 	}
 
 	if (atc->hw)
-		destroy_hw_obj((struct hw *)atc->hw);
+		destroy_hw_obj(atc->hw);
 
 	/* Destroy device virtual memory manager object */
 	if (atc->vm) {

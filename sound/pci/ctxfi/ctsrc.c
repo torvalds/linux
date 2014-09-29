@@ -558,7 +558,7 @@ int src_mgr_create(struct hw *hw, struct src_mgr **rsrc_mgr)
 		goto error1;
 
 	spin_lock_init(&src_mgr->mgr_lock);
-	conj_mask = ((struct hw *)hw)->src_dirty_conj_mask();
+	conj_mask = hw->src_dirty_conj_mask();
 
 	src_mgr->get_src = get_src_rsc;
 	src_mgr->put_src = put_src_rsc;
@@ -569,9 +569,9 @@ int src_mgr_create(struct hw *hw, struct src_mgr **rsrc_mgr)
 
 	/* Disable all SRC resources. */
 	for (i = 0; i < 256; i++)
-		((struct hw *)hw)->src_mgr_dsb_src(src_mgr->mgr.ctrl_blk, i);
+		hw->src_mgr_dsb_src(src_mgr->mgr.ctrl_blk, i);
 
-	((struct hw *)hw)->src_mgr_commit_write(hw, src_mgr->mgr.ctrl_blk);
+	hw->src_mgr_commit_write(hw, src_mgr->mgr.ctrl_blk);
 
 	*rsrc_mgr = src_mgr;
 
