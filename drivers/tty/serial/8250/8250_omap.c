@@ -88,6 +88,7 @@ struct omap8250_priv {
 	u8 wer;
 	u8 xon;
 	u8 xoff;
+	u8 delayed_restore;
 	u16 quot;
 
 	bool is_suspending;
@@ -211,6 +212,18 @@ static void omap8250_update_scr(struct uart_8250_port *up,
 static void omap8250_restore_regs(struct uart_8250_port *up)
 {
 	struct omap8250_priv *priv = up->port.private_data;
+	struct uart_8250_dma	*dma = up->dma;
+
+	if (dma && dma->tx_running) {
+		/*
+		 * TCSANOW requests the change to occur immediately however if
+		 * we have a TX-DMA operation in progress then it has been
+		 * observed that it might stall and never complete. Therefore we
+		 * delay DMA completes to prevent this hang from happen.
+		 */
+		priv->delayed_restore = 1;
+		return;
+	}
 
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_out(up, UART_EFR, UART_EFR_ECB);
@@ -374,6 +387,10 @@ static void omap_8250_set_termios(struct uart_port *port,
 
 	priv->scr = OMAP_UART_SCR_RX_TRIG_GRANU1_MASK | OMAP_UART_SCR_TX_EMPTY |
 		OMAP_UART_SCR_TX_TRIG_GRANU1_MASK;
+
+	if (up->dma)
+		priv->scr |= OMAP_UART_SCR_DMAMODE_1 |
+			OMAP_UART_SCR_DMAMODE_CTL;
 
 	priv->xon = termios->c_cc[VSTART];
 	priv->xoff = termios->c_cc[VSTOP];
@@ -554,6 +571,9 @@ static int omap_8250_startup(struct uart_port *port)
 		priv->wer |= OMAP_UART_TX_WAKEUP_EN;
 	serial_out(up, UART_OMAP_WER, priv->wer);
 
+	if (up->dma)
+		up->dma->rx_dma(up, 0);
+
 	pm_runtime_mark_last_busy(port->dev);
 	pm_runtime_put_autosuspend(port->dev);
 	return 0;
@@ -572,6 +592,8 @@ static void omap_8250_shutdown(struct uart_port *port)
 	struct omap8250_priv *priv = port->private_data;
 
 	flush_work(&priv->qos_work);
+	if (up->dma)
+		up->dma->rx_dma(up, UART_IIR_RX_TIMEOUT);
 
 	pm_runtime_get_sync(port->dev);
 
@@ -725,6 +747,7 @@ static void omap_8250_dma_tx_complete(void *param)
 	struct circ_buf		*xmit = &p->port.state->xmit;
 	unsigned long		flags;
 	bool			en_thri = false;
+	struct omap8250_priv	*priv = p->port.private_data;
 
 	dma_sync_single_for_cpu(dma->txchan->device->dev, dma->tx_addr,
 				UART_XMIT_SIZE, DMA_TO_DEVICE);
@@ -736,6 +759,11 @@ static void omap_8250_dma_tx_complete(void *param)
 	xmit->tail += dma->tx_size;
 	xmit->tail &= UART_XMIT_SIZE - 1;
 	p->port.icount.tx += dma->tx_size;
+
+	if (priv->delayed_restore) {
+		priv->delayed_restore = 0;
+		omap8250_restore_regs(p);
+	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&p->port);
@@ -909,6 +937,18 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 	serial8250_rpm_put(up);
 	return 1;
 }
+
+static bool the_no_dma_filter_fn(struct dma_chan *chan, void *param)
+{
+	return false;
+}
+
+#else
+
+static inline int omap_8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
+{
+	return -EINVAL;
+}
 #endif
 
 static int omap8250_probe(struct platform_device *pdev)
@@ -1010,6 +1050,32 @@ static int omap8250_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	omap_serial_fill_features_erratas(&up, priv);
+#ifdef CONFIG_SERIAL_8250_DMA
+	if (pdev->dev.of_node) {
+		/*
+		 * Oh DMA support. If there are no DMA properties in the DT then
+		 * we will fall back to a generic DMA channel which does not
+		 * really work here. To ensure that we do not get a generic DMA
+		 * channel assigned, we have the the_no_dma_filter_fn() here.
+		 * To avoid "failed to request DMA" messages we check for DMA
+		 * properties in DT.
+		 */
+		ret = of_property_count_strings(pdev->dev.of_node, "dma-names");
+		if (ret == 2) {
+			up.dma = &priv->omap8250_dma;
+			up.port.handle_irq = omap_8250_dma_handle_irq;
+			priv->omap8250_dma.fn = the_no_dma_filter_fn;
+			priv->omap8250_dma.tx_dma = omap_8250_tx_dma;
+			priv->omap8250_dma.rx_dma = omap_8250_rx_dma;
+			priv->omap8250_dma.rx_size = RX_TRIGGER;
+			priv->omap8250_dma.rxconf.src_maxburst = RX_TRIGGER;
+			priv->omap8250_dma.txconf.dst_maxburst = TX_TRIGGER;
+
+			if (of_machine_is_compatible("ti,am33xx"))
+				priv->habit |= OMAP_DMA_TX_KICK;
+		}
+	}
+#endif
 	ret = serial8250_register_8250_port(&up);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "unable to register 8250 port\n");
@@ -1146,6 +1212,8 @@ static int omap8250_runtime_suspend(struct device *dev)
 	}
 
 	omap8250_enable_wakeup(priv, true);
+	if (up->dma)
+		omap_8250_rx_dma(up, UART_IIR_RX_TIMEOUT);
 
 	priv->latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
 	schedule_work(&priv->qos_work);
@@ -1169,6 +1237,9 @@ static int omap8250_runtime_resume(struct device *dev)
 
 	if (loss_cntx)
 		omap8250_restore_regs(up);
+
+	if (up->dma)
+		omap_8250_rx_dma(up, 0);
 
 	priv->latency = priv->calc_latency;
 	schedule_work(&priv->qos_work);
