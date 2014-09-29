@@ -279,7 +279,7 @@ uvc_function_get_alt(struct usb_function *f, unsigned interface)
 	else if (interface != uvc->streaming_intf)
 		return -EINVAL;
 	else
-		return uvc->state == UVC_STATE_STREAMING ? 1 : 0;
+		return uvc->video.ep->driver_data ? 1 : 0;
 }
 
 static int
