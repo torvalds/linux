@@ -1367,12 +1367,9 @@ static int pl330_submit_req(struct pl330_thread *thrd,
 	struct pl330_dmac *pl330 = thrd->dmac;
 	struct _xfer_spec xs;
 	unsigned long flags;
-	void __iomem *regs;
 	unsigned idx;
 	u32 ccr;
 	int ret = 0;
-
-	regs = thrd->dmac->base;
 
 	if (pl330->state == DYING
 		|| pl330->dmac_tbd.reset_chan & (1 << thrd->id)) {
