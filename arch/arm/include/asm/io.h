@@ -178,6 +178,7 @@ static inline void __iomem *__typesafe_io(unsigned long addr)
 
 /* PCI fixed i/o mapping */
 #define PCI_IO_VIRT_BASE	0xfee00000
+#define PCI_IOBASE		((void __iomem *)PCI_IO_VIRT_BASE)
 
 #if defined(CONFIG_PCI)
 void pci_ioremap_set_mem_type(int mem_type);
