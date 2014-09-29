@@ -21,6 +21,7 @@
 
 #include "ctresource.h"
 #include <linux/spinlock.h>
+#include <sound/core.h>
 
 /* Define the descriptor of a summation node resource */
 struct sum {
@@ -35,6 +36,7 @@ struct sum_desc {
 
 struct sum_mgr {
 	struct rsc_mgr mgr;	/* Basic resource manager info */
+	struct snd_card *card;	/* pointer to this card */
 	spinlock_t mgr_lock;
 
 	 /* request one sum resource */
@@ -79,6 +81,7 @@ struct amixer_desc {
 
 struct amixer_mgr {
 	struct rsc_mgr mgr;	/* Basic resource manager info */
+	struct snd_card *card;	/* pointer to this card */
 	spinlock_t mgr_lock;
 
 	 /* request one amixer resource */

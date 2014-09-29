@@ -23,6 +23,7 @@
 #include "ctimap.h"
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <sound/core.h>
 
 /* Define the descriptor of a daio resource */
 enum DAIOTYP {
@@ -98,6 +99,7 @@ struct daio_desc {
 
 struct daio_mgr {
 	struct rsc_mgr mgr;	/* Basic resource manager info */
+	struct snd_card *card;	/* pointer to this card */
 	spinlock_t mgr_lock;
 	spinlock_t imap_lock;
 	struct list_head imappers;
