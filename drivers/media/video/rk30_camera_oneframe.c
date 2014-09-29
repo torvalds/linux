@@ -270,8 +270,10 @@ static u32 DISABLE_INVERT_PCLK_CIF1;
 		 1. Delete SOCAM_DATAWIDTH_8 in SENSOR_BUS_PARAM parameters,it conflict with V4L2_MBUS_PCLK_SAMPLE_FALLING.
 *v0.1.7:
 		 1. Add  power and powerdown controled by PMU.
+*v0.1.8:
+		 1. Support front and rear camera support are the same.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x7)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x8)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 

@@ -149,7 +149,6 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 	int sensor_num = 0,err;
 	struct device *dev = &pdev->dev;
 	struct rkcamera_platform_data *new_camera_list;
-	
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
 	
@@ -167,6 +166,16 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		int pwr_active = 0, rst_active = 0, pwdn_active = 0;
 		int orientation = 0;
 		struct rkcamera_platform_data *new_camera; 
+		
+		char sensor_name[20] = {0};
+		char *name = NULL;
+		
+		strcpy(sensor_name,cp->name);
+		name = sensor_name;
+		if(strstr(sensor_name,"_") != NULL){			
+			name = strsep(&name,"_");
+		}
+
 		new_camera = kzalloc(sizeof(struct rkcamera_platform_data),GFP_KERNEL);
 		if(!sensor_num)
 		{			
@@ -177,7 +186,7 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		sensor_num ++;
 		new_camera_list->next_camera = new_camera;
 		new_camera_list = new_camera;
-	
+
 		if (of_property_read_u32(cp, "flash_attach", &flash_attach)) {
 			dprintk("%s:Get %s rockchip,flash_attach failed!\n",__func__, cp->name);				
 		}
@@ -236,16 +245,16 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 			printk("%s:Get %s rockchip,orientation failed!\n",__func__, cp->name);				
 		}
 		
-		strcpy(new_camera->dev.i2c_cam_info.type, cp->name);
+		strcpy(new_camera->dev.i2c_cam_info.type, name);
 		new_camera->dev.i2c_cam_info.addr = i2c_add>>1;
 		new_camera->dev.desc_info.host_desc.bus_id = RK29_CAM_PLATFORM_DEV_ID+cif_chl;/*yzm*/
 		new_camera->dev.desc_info.host_desc.i2c_adapter_id = i2c_chl;/*yzm*/
-		new_camera->dev.desc_info.host_desc.module_name = cp->name;/*const*/
+		new_camera->dev.desc_info.host_desc.module_name = name;/*const*/
 		new_camera->dev.device_info.name = "soc-camera-pdrv";
 		if(is_front)
-			sprintf(new_camera->dev_name,"%s_%s",cp->name,"front");
+			sprintf(new_camera->dev_name,"%s_%s",name,"front");
 		else
-			sprintf(new_camera->dev_name,"%s_%s",cp->name,"back");
+			sprintf(new_camera->dev_name,"%s_%s",name,"back");
 		new_camera->dev.device_info.dev.init_name =(const char*)&new_camera->dev_name[0];
 		new_camera->io.gpio_reset = reset;
 		new_camera->io.gpio_powerdown = powerdown;
