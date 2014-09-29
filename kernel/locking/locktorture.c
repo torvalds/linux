@@ -20,32 +20,20 @@
  * Author: Paul E. McKenney <paulmck@us.ibm.com>
  *	Based on kernel/rcu/torture.c.
  */
-#include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
-#include <linux/err.h>
 #include <linux/spinlock.h>
 #include <linux/rwlock.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/atomic.h>
-#include <linux/bitops.h>
-#include <linux/completion.h>
 #include <linux/moduleparam.h>
-#include <linux/percpu.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
-#include <linux/freezer.h>
-#include <linux/cpu.h>
 #include <linux/delay.h>
-#include <linux/stat.h>
 #include <linux/slab.h>
-#include <linux/trace_clock.h>
-#include <asm/byteorder.h>
 #include <linux/torture.h>
 
 MODULE_LICENSE("GPL");
