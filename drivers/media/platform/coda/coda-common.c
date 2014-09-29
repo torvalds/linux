@@ -880,7 +880,6 @@ static void set_default_params(struct coda_ctx *ctx)
 	ctx->params.codec_mode = ctx->codec->mode;
 	ctx->colorspace = V4L2_COLORSPACE_REC709;
 	ctx->params.framerate = 30;
-	ctx->aborting = 0;
 
 	/* Default formats for output and input queues */
 	ctx->q_data[V4L2_M2M_SRC].fourcc = ctx->codec->src_fourcc;
@@ -1144,6 +1143,7 @@ static void coda_stop_streaming(struct vb2_queue *q)
 		kfifo_init(&ctx->bitstream_fifo,
 			ctx->bitstream.vaddr, ctx->bitstream.size);
 		ctx->runcounter = 0;
+		ctx->aborting = 0;
 	}
 }
 
