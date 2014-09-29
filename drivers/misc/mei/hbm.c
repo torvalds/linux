@@ -126,7 +126,6 @@ static void mei_me_cl_remove_all(struct mei_device *dev)
  */
 void mei_hbm_reset(struct mei_device *dev)
 {
-	dev->me_client_presentation_num = 0;
 	dev->me_client_index = 0;
 
 	mei_me_cl_remove_all(dev);
@@ -883,7 +882,6 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		mei_hbm_me_cl_add(dev, props_res);
 
 		dev->me_client_index++;
-		dev->me_client_presentation_num++;
 
 		/* request property for the next client */
 		if (mei_hbm_prop_req(dev))

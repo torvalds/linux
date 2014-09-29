@@ -470,7 +470,6 @@ struct mei_device {
 	struct list_head me_clients;
 	DECLARE_BITMAP(me_clients_map, MEI_CLIENTS_MAX);
 	DECLARE_BITMAP(host_clients_map, MEI_CLIENTS_MAX);
-	unsigned long me_client_presentation_num;
 	unsigned long me_client_index;
 
 	struct mei_cl wd_cl;
