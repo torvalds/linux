@@ -648,7 +648,8 @@ static void netdev_setup(struct net_device *dev)
 	dev->needed_tailroom	= 0;
 	dev->mtu		= IPV6_MIN_MTU;
 	dev->tx_queue_len	= 0;
-	dev->flags		= IFF_RUNNING | IFF_POINTOPOINT;
+	dev->flags		= IFF_RUNNING | IFF_POINTOPOINT |
+				  IFF_MULTICAST;
 	dev->watchdog_timeo	= 0;
 
 	dev->netdev_ops		= &netdev_ops;
