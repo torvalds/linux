@@ -563,6 +563,13 @@ struct ath10k {
 		bool utf_monitor;
 	} testmode;
 
+	struct {
+		/* protected by data_lock */
+		u32 fw_crash_counter;
+		u32 fw_warm_reset_counter;
+		u32 fw_cold_reset_counter;
+	} stats;
+
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };

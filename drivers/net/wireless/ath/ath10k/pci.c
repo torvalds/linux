@@ -1006,6 +1006,8 @@ static void ath10k_pci_fw_crashed_dump(struct ath10k *ar)
 
 	spin_lock_bh(&ar->data_lock);
 
+	ar->stats.fw_crash_counter++;
+
 	crash_data = ath10k_debug_get_new_fw_crash_data(ar);
 
 	if (crash_data)
@@ -1692,6 +1694,12 @@ static int ath10k_pci_warm_reset(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot warm reset\n");
 
+	spin_lock_bh(&ar->data_lock);
+
+	ar->stats.fw_warm_reset_counter++;
+
+	spin_unlock_bh(&ar->data_lock);
+
 	/* debug */
 	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
 				PCIE_INTR_CAUSE_ADDRESS);
@@ -2307,6 +2315,12 @@ static int ath10k_pci_cold_reset(struct ath10k *ar)
 	u32 val;
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot cold reset\n");
+
+	spin_lock_bh(&ar->data_lock);
+
+	ar->stats.fw_cold_reset_counter++;
+
+	spin_unlock_bh(&ar->data_lock);
 
 	/* Put Target, including PCIe, into RESET. */
 	val = ath10k_pci_reg_read32(ar, SOC_GLOBAL_RESET_ADDRESS);
