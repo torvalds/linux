@@ -140,10 +140,10 @@ struct srcimp_mgr {
 };
 
 /* Constructor and destructor of SRC resource manager */
-int src_mgr_create(void *hw, struct src_mgr **rsrc_mgr);
+int src_mgr_create(struct hw *hw, struct src_mgr **rsrc_mgr);
 int src_mgr_destroy(struct src_mgr *src_mgr);
 /* Constructor and destructor of SRCIMP resource manager */
-int srcimp_mgr_create(void *hw, struct srcimp_mgr **rsrc_mgr);
+int srcimp_mgr_create(struct hw *hw, struct srcimp_mgr **rsrc_mgr);
 int srcimp_mgr_destroy(struct srcimp_mgr *srcimp_mgr);
 
 #endif /* CTSRC_H */

@@ -543,7 +543,7 @@ static int src_mgr_commit_write(struct src_mgr *mgr)
 	return 0;
 }
 
-int src_mgr_create(void *hw, struct src_mgr **rsrc_mgr)
+int src_mgr_create(struct hw *hw, struct src_mgr **rsrc_mgr)
 {
 	int err, i;
 	struct src_mgr *src_mgr;
@@ -825,7 +825,7 @@ static int srcimp_imap_delete(struct srcimp_mgr *mgr, struct imapper *entry)
 	return err;
 }
 
-int srcimp_mgr_create(void *hw, struct srcimp_mgr **rsrcimp_mgr)
+int srcimp_mgr_create(struct hw *hw, struct srcimp_mgr **rsrcimp_mgr)
 {
 	int err;
 	struct srcimp_mgr *srcimp_mgr;

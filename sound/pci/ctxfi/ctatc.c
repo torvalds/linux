@@ -106,11 +106,11 @@ static struct {
 			    .public_name = "Mixer"}
 };
 
-typedef int (*create_t)(void *, void **);
+typedef int (*create_t)(struct hw *, void **);
 typedef int (*destroy_t)(void *);
 
 static struct {
-	int (*create)(void *hw, void **rmgr);
+	int (*create)(struct hw *hw, void **rmgr);
 	int (*destroy)(void *mgr);
 } rsc_mgr_funcs[NUM_RSCTYP] = {
 	[SRC] 		= { .create 	= (create_t)src_mgr_create,

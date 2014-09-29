@@ -296,7 +296,7 @@ static int put_amixer_rsc(struct amixer_mgr *mgr, struct amixer *amixer)
 	return 0;
 }
 
-int amixer_mgr_create(void *hw, struct amixer_mgr **ramixer_mgr)
+int amixer_mgr_create(struct hw *hw, struct amixer_mgr **ramixer_mgr)
 {
 	int err;
 	struct amixer_mgr *amixer_mgr;
@@ -449,7 +449,7 @@ static int put_sum_rsc(struct sum_mgr *mgr, struct sum *sum)
 	return 0;
 }
 
-int sum_mgr_create(void *hw, struct sum_mgr **rsum_mgr)
+int sum_mgr_create(struct hw *hw, struct sum_mgr **rsum_mgr)
 {
 	int err;
 	struct sum_mgr *sum_mgr;

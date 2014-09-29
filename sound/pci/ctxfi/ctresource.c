@@ -134,7 +134,8 @@ static struct rsc_ops rsc_generic_ops = {
 	.next_conj	= rsc_next_conj,
 };
 
-int rsc_init(struct rsc *rsc, u32 idx, enum RSCTYP type, u32 msr, void *hw)
+int
+rsc_init(struct rsc *rsc, u32 idx, enum RSCTYP type, u32 msr, struct hw *hw)
 {
 	int err = 0;
 
@@ -206,7 +207,7 @@ int rsc_uninit(struct rsc *rsc)
 }
 
 int rsc_mgr_init(struct rsc_mgr *mgr, enum RSCTYP type,
-		 unsigned int amount, void *hw_obj)
+		 unsigned int amount, struct hw *hw_obj)
 {
 	int err = 0;
 	struct hw *hw = hw_obj;

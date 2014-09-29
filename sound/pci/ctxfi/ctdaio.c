@@ -331,7 +331,7 @@ static struct dai_rsc_ops dai_ops = {
 
 static int daio_rsc_init(struct daio *daio,
 			 const struct daio_desc *desc,
-			 void *hw)
+			 struct hw *hw)
 {
 	int err;
 	unsigned int idx_l, idx_r;
@@ -692,7 +692,7 @@ static int daio_mgr_commit_write(struct daio_mgr *mgr)
 	return 0;
 }
 
-int daio_mgr_create(void *hw, struct daio_mgr **rdaio_mgr)
+int daio_mgr_create(struct hw *hw, struct daio_mgr **rdaio_mgr)
 {
 	int err, i;
 	struct daio_mgr *daio_mgr;
