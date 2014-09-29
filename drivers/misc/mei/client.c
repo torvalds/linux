@@ -926,7 +926,7 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 
 	buf = &cb->request_buffer;
 
-	cl_dbg(dev, cl, "mei_cl_write %d\n", buf->size);
+	cl_dbg(dev, cl, "size=%d\n", buf->size);
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {

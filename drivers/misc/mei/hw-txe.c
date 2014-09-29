@@ -841,7 +841,7 @@ static int mei_txe_hw_reset(struct mei_device *dev, bool intr_enable)
 	}
 
 	/*
-	 * Set rediness RDY_CLR bit
+	 * Set readiness RDY_CLR bit
 	 */
 	mei_txe_readiness_clear(dev);
 
@@ -867,7 +867,7 @@ static int mei_txe_hw_start(struct mei_device *dev)
 
 	ret = mei_txe_readiness_wait(dev);
 	if (ret < 0) {
-		dev_err(dev->dev, "wating for readiness failed\n");
+		dev_err(dev->dev, "waiting for readiness failed\n");
 		return ret;
 	}
 
