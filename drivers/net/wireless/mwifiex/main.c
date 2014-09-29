@@ -330,7 +330,8 @@ process_start:
 	} while (true);
 
 	spin_lock_irqsave(&adapter->main_proc_lock, flags);
-	if ((adapter->int_status) || IS_CARD_RX_RCVD(adapter)) {
+	if (!adapter->delay_main_work &&
+	    (adapter->int_status || IS_CARD_RX_RCVD(adapter))) {
 		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
 		goto process_start;
 	}
