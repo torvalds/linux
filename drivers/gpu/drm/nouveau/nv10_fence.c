@@ -63,7 +63,7 @@ nv10_fence_context_del(struct nouveau_channel *chan)
 		nvif_object_fini(&fctx->head[i]);
 	nvif_object_fini(&fctx->sema);
 	chan->fence = NULL;
-	kfree(fctx);
+	nouveau_fence_context_free(&fctx->base);
 }
 
 int

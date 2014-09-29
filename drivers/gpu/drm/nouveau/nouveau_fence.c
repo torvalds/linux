@@ -101,6 +101,18 @@ nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
 }
 
 static void
+nouveau_fence_context_put(struct kref *fence_ref)
+{
+	kfree(container_of(fence_ref, struct nouveau_fence_chan, fence_ref));
+}
+
+void
+nouveau_fence_context_free(struct nouveau_fence_chan *fctx)
+{
+	kref_put(&fctx->fence_ref, nouveau_fence_context_put);
+}
+
+static void
 nouveau_fence_update(struct nouveau_channel *chan, struct nouveau_fence_chan *fctx)
 {
 	struct nouveau_fence *fence;
@@ -141,6 +153,7 @@ void
 nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_chan *fctx)
 {
 	struct nouveau_fence_priv *priv = (void*)chan->drm->fence;
+	struct nouveau_cli *cli = (void *)nvif_client(chan->object);
 	int ret;
 
 	INIT_LIST_HEAD(&fctx->flip);
@@ -148,6 +161,14 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	spin_lock_init(&fctx->lock);
 	fctx->context = priv->context_base + chan->chid;
 
+	if (chan == chan->drm->cechan)
+		strcpy(fctx->name, "copy engine channel");
+	else if (chan == chan->drm->channel)
+		strcpy(fctx->name, "generic kernel channel");
+	else
+		strcpy(fctx->name, nvkm_client(&cli->base)->name);
+
+	kref_init(&fctx->fence_ref);
 	if (!priv->uevent)
 		return;
 
@@ -230,6 +251,7 @@ nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 	else
 		fence_init(&fence->base, &nouveau_fence_ops_legacy,
 			   &fctx->lock, fctx->context, ++fctx->sequence);
+	kref_get(&fctx->fence_ref);
 
 	trace_fence_emit(&fence->base);
 	ret = fctx->emit(fence);
@@ -480,13 +502,22 @@ static bool nouveau_fence_no_signaling(struct fence *f)
 	return true;
 }
 
+static void nouveau_fence_release(struct fence *f)
+{
+	struct nouveau_fence *fence = from_fence(f);
+	struct nouveau_fence_chan *fctx = nouveau_fctx(fence);
+
+	kref_put(&fctx->fence_ref, nouveau_fence_context_put);
+	fence_free(&fence->base);
+}
+
 static const struct fence_ops nouveau_fence_ops_legacy = {
 	.get_driver_name = nouveau_fence_get_get_driver_name,
 	.get_timeline_name = nouveau_fence_get_timeline_name,
 	.enable_signaling = nouveau_fence_no_signaling,
 	.signaled = nouveau_fence_is_signaled,
 	.wait = nouveau_fence_wait_legacy,
-	.release = NULL
+	.release = nouveau_fence_release
 };
 
 static bool nouveau_fence_enable_signaling(struct fence *f)
