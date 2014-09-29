@@ -1751,7 +1751,7 @@ static void et131x_disable_txrx(struct net_device *netdev)
 
 static void et131x_init_send(struct et131x_adapter *adapter)
 {
-	u32 ct;
+	int i;
 	struct tx_ring *tx_ring = &adapter->tx_ring;
 	struct tcb *tcb = tx_ring->tcb_ring;
 
@@ -1759,8 +1759,10 @@ static void et131x_init_send(struct et131x_adapter *adapter)
 
 	memset(tcb, 0, sizeof(struct tcb) * NUM_TCB);
 
-	for (ct = 0; ct++ < NUM_TCB; tcb++)
+	for (i = 0; i < NUM_TCB; i++) {
 		tcb->next = tcb + 1;
+		tcb++;
+	}
 
 	tcb--;
 	tx_ring->tcb_qtail = tcb;
