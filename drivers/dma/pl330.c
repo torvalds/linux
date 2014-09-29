@@ -2777,8 +2777,10 @@ static int pl330_remove(struct amba_device *adev)
 		list_del(&pch->chan.device_node);
 
 		/* Flush the channel */
-		pl330_control(&pch->chan, DMA_TERMINATE_ALL, 0);
-		pl330_free_chan_resources(&pch->chan);
+		if (pch->thread) {
+			pl330_control(&pch->chan, DMA_TERMINATE_ALL, 0);
+			pl330_free_chan_resources(&pch->chan);
+		}
 	}
 
 	pl330_del(pl330);
