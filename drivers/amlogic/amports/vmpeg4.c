@@ -882,18 +882,21 @@ static s32 vmpeg4_init(void)
 
 static int amvdec_mpeg4_probe(struct platform_device *pdev)
 {
-    struct resource *mem;
+    struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
 
-    if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0))) {
+    if (pdata == NULL) {
         amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg4 memory resource undefined.\n");
         return -EFAULT;
     }
 
-    buf_start = mem->start;
-    buf_size = mem->end - mem->start + 1;
+    buf_start = pdata->mem_start;
+    buf_size = pdata->mem_end - pdata->mem_start + 1;
     buf_offset = buf_start - ORI_BUFFER_START_ADDR;
 
-    memcpy(&vmpeg4_amstream_dec_info, (void *)mem[1].start, sizeof(vmpeg4_amstream_dec_info));
+    if (pdata->sys_info) {
+        vmpeg4_amstream_dec_info = *pdata->sys_info;
+    }
+
     if (vmpeg4_init() < 0) {
         amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg4 init failed.\n");
 

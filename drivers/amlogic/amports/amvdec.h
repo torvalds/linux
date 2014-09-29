@@ -28,6 +28,13 @@
 #define UCODE_ALIGN         8
 #define UCODE_ALIGN_MASK    7UL
 
+typedef struct amvdec_dec_reg_s {
+    unsigned long mem_start;
+    unsigned long mem_end;
+    struct device *cma_dev;
+    struct dec_sysinfo *dec_sysinfo;
+} amvdec_dec_reg_t;
+
 extern  s32 amvdec_loadmc(const u32 *p);
 extern void amvdec_start(void);
 extern void amvdec_stop(void);

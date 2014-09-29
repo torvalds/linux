@@ -729,23 +729,25 @@ static s32 vmjpeg_init(void)
 
 static int amvdec_mjpeg_probe(struct platform_device *pdev)
 {
-    struct resource *mem;
+    struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
 	
     mutex_lock(&vmjpeg_mutex);
 	
     amlog_level(LOG_LEVEL_INFO, "amvdec_mjpeg probe start.\n");
 
-    if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0))) {
+    if (pdata == NULL) {
         amlog_level(LOG_LEVEL_ERROR, "amvdec_mjpeg memory resource undefined.\n");
         mutex_unlock(&vmjpeg_mutex);
 		
         return -EFAULT;
     }
 
-    buf_start = mem->start;
-    buf_size  = mem->end - mem->start + 1;
+    buf_start = pdata->mem_start;
+    buf_size  = pdata->mem_end - pdata->mem_start + 1;
 
-    memcpy(&vmjpeg_amstream_dec_info, (void *)mem[1].start, sizeof(vmjpeg_amstream_dec_info));
+    if (pdata->sys_info) {
+        vmjpeg_amstream_dec_info = *pdata->sys_info;
+    }
 
     if (vmjpeg_init() < 0) {
         amlog_level(LOG_LEVEL_ERROR, "amvdec_mjpeg init failed.\n");

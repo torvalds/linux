@@ -51,28 +51,13 @@ static DEFINE_SPINLOCK(lock);
 static int inited_vcodec_num = 0;
 static unsigned int debug_trace_num = 16*20;
 static struct platform_device *vdec_device = NULL;
+static struct platform_device *vdec_core_device = NULL;
 struct am_reg {
     char *name;
     int offset;
 };
 
-static struct resource amvdec_mem_resource[]  = {
-    [0] = {
-        .start = 0,
-        .end   = 0,
-        .flags = 0,
-    },
-    [1] = {
-        .start = 0,
-        .end   = 0,
-        .flags = 0,
-    },
-    [2] = {
-        .start = 0,
-        .end   = 0,
-        .flags = 0,
-    },
-};
+static struct vdec_dev_reg_s vdec_dev_reg;
 
 static const char *vdec_device_name[] = {
     "amvdec_mpeg12",
@@ -89,25 +74,21 @@ static const char *vdec_device_name[] = {
     "amvdec_h265"
 };
 
-void vdec_set_decinfo(void *p)
+void vdec_set_decinfo(struct dec_sysinfo *p)
 {
-    amvdec_mem_resource[1].start = (resource_size_t)p;
+    vdec_dev_reg.sys_info = p;
 }
 
-int vdec_set_resource(struct resource *s, struct device *p)
+int vdec_set_resource(unsigned long start, unsigned long end, struct device *p)
 {
     if (inited_vcodec_num != 0) {
         printk("ERROR:We can't support the change resource at code running\n");
         return -1;
     }
 
-    if(s){
-        amvdec_mem_resource[0].start = s->start;
-        amvdec_mem_resource[0].end = s->end;
-        amvdec_mem_resource[0].flags = s->flags;
-    }
-
-    amvdec_mem_resource[2].start = (resource_size_t)p;
+    vdec_dev_reg.mem_start = start;
+    vdec_dev_reg.mem_end   = end;
+    vdec_dev_reg.cma_dev   = p;
 
     return 0;
 }
@@ -123,14 +104,8 @@ s32 vdec_init(vformat_t vf)
 
     inited_vcodec_num++;
 
-    if (amvdec_mem_resource[0].flags != IORESOURCE_MEM) {
-        printk("no memory resouce for codec,Maybe have not set it\n");
-        inited_vcodec_num--;
-        return -ENOMEM;
-    }
-
-    vdec_device = platform_device_register_simple(vdec_device_name[vf], -1,
-                                              amvdec_mem_resource, ARRAY_SIZE(amvdec_mem_resource));
+    vdec_device = platform_device_register_data(&vdec_core_device->dev, vdec_device_name[vf], -1,
+                                            &vdec_dev_reg, sizeof(vdec_dev_reg));
 
     if (IS_ERR(vdec_device)) {
         r = PTR_ERR(vdec_device);
@@ -639,15 +614,18 @@ static struct class vdec_class = {
 static int vdec_probe(struct platform_device *pdev)
 {
     s32 r;
-    static struct resource res;
     const void * name;
     int offset, size;
+    unsigned long start, end;
 
     r = class_register(&vdec_class);
     if (r) {
         printk("vdec class create fail.\n");
         return r;
     }
+
+    vdec_core_device = pdev;
+
     r = find_reserve_block(pdev->dev.of_node->name,0);
 
     if(r < 0){
@@ -680,18 +658,17 @@ static int vdec_probe(struct platform_device *pdev)
                 r = -EFAULT;
                 goto error;
             }			
-            res.start = (phys_addr_t)get_reserve_block_addr(r)+ offset;
-            res.end = res.start+ size-1;		
-		}
+            start = (phys_addr_t)get_reserve_block_addr(r)+ offset;
+            end = start+ size-1;
+        }
     }else{
-        res.start = (phys_addr_t)get_reserve_block_addr(r);
-        res.end = res.start+ (phys_addr_t)get_reserve_block_size(r)-1;
+        start = (phys_addr_t)get_reserve_block_addr(r);
+        end = start+ (phys_addr_t)get_reserve_block_size(r)-1;
     }
 
-    printk("init vdec memsource %x->%x\n",res.start,res.end);
-    res.flags = IORESOURCE_MEM;
+    printk("init vdec memsource %lx->%lx\n", start, end);
 
-    vdec_set_resource(&res, &pdev->dev);
+    vdec_set_resource(start, end, &pdev->dev);
 
 #if MESON_CPU_TYPE < MESON_CPU_TYPE_MESON6TVD
     /* default to 250MHz */

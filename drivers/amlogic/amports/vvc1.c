@@ -893,18 +893,20 @@ static s32 vvc1_init(void)
 
 static int amvdec_vc1_probe(struct platform_device *pdev)
 {
-    struct resource *mem;
+    struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
 
-    if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0))) {
+    if (pdata == NULL) {
         printk("amvdec_vc1 memory resource undefined.\n");
         return -EFAULT;
     }
 
-    buf_start = mem->start;
-    buf_size = mem->end - mem->start + 1;
+    buf_start = pdata->mem_start;
+    buf_size = pdata->mem_end - pdata->mem_start + 1;
     buf_offset = buf_start - ORI_BUFFER_START_ADDR;
 
-    memcpy(&vvc1_amstream_dec_info, (void *)mem[1].start, sizeof(vvc1_amstream_dec_info));
+    if (pdata->sys_info) {
+        vvc1_amstream_dec_info = *pdata->sys_info;
+    }
 
     if (vvc1_init() < 0) {
         printk("amvdec_vc1 init failed.\n");

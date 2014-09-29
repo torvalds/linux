@@ -1991,26 +1991,31 @@ static void stream_switching_do(struct work_struct *work)
 
 static int amvdec_h264_probe(struct platform_device *pdev)
 {
-    struct resource *mem;
-    mutex_lock(&vh264_mutex);
-    //printk("amvdec_h264 probe start.\n");
+    struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
 
-    if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0))) {
+    mutex_lock(&vh264_mutex);
+
+    if (pdata == NULL) {
         printk("\namvdec_h264 memory resource undefined.\n");
         mutex_unlock(&vh264_mutex);
         return -EFAULT;
     }
-    ucode_map_start=mem->start;
-    buf_size = mem->end - mem->start + 1;
+
+    ucode_map_start = pdata->mem_start;
+    buf_size = pdata->mem_end - pdata->mem_start + 1;
     if (buf_size < DEFAULT_MEM_SIZE) {
         printk("\namvdec_h264 memory size not enough.\n");
         return -ENOMEM;
     }
 
-    buf_offset = mem->start - DEF_BUF_START_ADDR;
-    buf_start = V_BUF_ADDR_OFFSET + mem->start;
-    printk("mem-addr=%x,buff_offset=%x,buf_start=%x\n",mem->start,buf_offset,buf_start);
-    memcpy(&vh264_amstream_dec_info, (void *)mem[1].start, sizeof(vh264_amstream_dec_info));
+    buf_offset = pdata->mem_start - DEF_BUF_START_ADDR;
+    buf_start = V_BUF_ADDR_OFFSET + pdata->mem_start;
+
+    if (pdata->sys_info) {
+        vh264_amstream_dec_info = *pdata->sys_info;
+    }
+
+    printk("amvdec_h264 mem-addr=%lx,buff_offset=%x,buf_start=%x\n",pdata->mem_start,buf_offset,buf_start);
 
     if (vh264_init() < 0) {
         printk("\namvdec_h264 init failed.\n");
@@ -2023,8 +2028,8 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 
     atomic_set(&vh264_active, 1);
 
-    //printk("amvdec_h264 probe end.\n");
     mutex_unlock(&vh264_mutex);
+
     return 0;
 }
 

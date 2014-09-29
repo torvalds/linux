@@ -827,22 +827,24 @@ static s32 vavs_init(void)
 
 static int amvdec_avs_probe(struct platform_device *pdev)
 {
-        struct resource *mem;
+        struct vdec_dev_reg_s *pdata = (struct vdec_dev_reg_s *)pdev->dev.platform_data;
 
-        if (!(mem = platform_get_resource(pdev, IORESOURCE_MEM, 0)))
+        if (pdata == NULL)
         {
                 printk("amvdec_avs memory resource undefined.\n");
                 return -EFAULT;
         }
 
-        buf_start = mem->start;
-        buf_size = mem->end - mem->start + 1;
+        buf_start = pdata->mem_start;
+        buf_size = pdata->mem_end - pdata->mem_start + 1;
+
         if(buf_start>ORI_BUFFER_START_ADDR)
             buf_offset = buf_start - ORI_BUFFER_START_ADDR;
         else
             buf_offset = buf_start;
 
-        memcpy(&vavs_amstream_dec_info, (void *)mem[1].start, sizeof(vavs_amstream_dec_info));
+	if (pdata->sys_info)
+            vavs_amstream_dec_info = *pdata->sys_info;
 
         printk("%s (%d,%d) %d\n", __func__, vavs_amstream_dec_info.width, vavs_amstream_dec_info.height, vavs_amstream_dec_info.rate);
         if (vavs_init() < 0)
