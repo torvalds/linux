@@ -401,7 +401,6 @@ struct mei_cfg {
 /**
  * struct mei_device -  MEI private device struct
 
- * @pdev - pointer to pci device struct
  * @dev  - device on a bus
  * @cdev - character device
  * @minor - minor number allocated for device
@@ -420,7 +419,6 @@ struct mei_cfg {
  * @cfg - per device generation config and ops
  */
 struct mei_device {
-	struct pci_dev *pdev;	/* pointer to pci device struct */
 	struct device *dev;
 	struct cdev cdev;
 	int minor;

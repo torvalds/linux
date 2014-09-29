@@ -998,7 +998,7 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 	mutex_lock(&dev->device_lock);
 	mei_io_list_init(&complete_list);
 
-	if (pci_dev_msi_enabled(dev->pdev))
+	if (pci_dev_msi_enabled(to_pci_dev(dev->dev)))
 		mei_txe_check_and_ack_intrs(dev, true);
 
 	/* show irq events */
@@ -1157,7 +1157,6 @@ struct mei_device *mei_txe_dev_init(struct pci_dev *pdev,
 	init_waitqueue_head(&hw->wait_aliveness_resp);
 
 	dev->cfg  = cfg;
-	dev->pdev = pdev;
 	return dev;
 }
 

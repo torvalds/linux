@@ -378,7 +378,7 @@ static int mei_txe_pm_runtime_resume(struct device *device)
  */
 static inline void mei_txe_set_pm_domain(struct mei_device *dev)
 {
-	struct pci_dev *pdev  = dev->pdev;
+	struct pci_dev *pdev  = to_pci_dev(dev->dev);
 
 	if (pdev->dev.bus && pdev->dev.bus->pm) {
 		dev->pg_domain.ops = *pdev->dev.bus->pm;

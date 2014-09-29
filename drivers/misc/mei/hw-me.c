@@ -676,7 +676,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 
 	/* Ack the interrupt here
 	 * In case of MSI we don't go through the quick handler */
-	if (pci_dev_msi_enabled(dev->pdev))
+	if (pci_dev_msi_enabled(to_pci_dev(dev->dev)))
 		mei_clear_interrupts(dev);
 
 	/* check if ME wants a reset */
@@ -854,7 +854,6 @@ struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
 
 	mei_device_init(dev, &pdev->dev, &mei_me_hw_ops);
 	dev->cfg  = cfg;
-	dev->pdev = pdev;
 	return dev;
 }
 
