@@ -22,6 +22,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/console.h>
 #include <linux/pm_qos.h>
+#include <linux/dma-mapping.h>
 
 #include "8250.h"
 
@@ -29,6 +30,7 @@
 
 #define UART_ERRATA_i202_MDR1_ACCESS	(1 << 0)
 #define OMAP_UART_WER_HAS_TX_WAKEUP	(1 << 1)
+#define OMAP_DMA_TX_KICK		(1 << 2)
 
 #define OMAP_UART_FCR_RX_TRIG		6
 #define OMAP_UART_FCR_TX_TRIG		4
@@ -615,6 +617,148 @@ static void omap_8250_unthrottle(struct uart_port *port)
 	pm_runtime_mark_last_busy(port->dev);
 	pm_runtime_put_autosuspend(port->dev);
 }
+
+#ifdef CONFIG_SERIAL_8250_DMA
+static int omap_8250_tx_dma(struct uart_8250_port *p);
+
+static void omap_8250_dma_tx_complete(void *param)
+{
+	struct uart_8250_port	*p = param;
+	struct uart_8250_dma	*dma = p->dma;
+	struct circ_buf		*xmit = &p->port.state->xmit;
+	unsigned long		flags;
+	bool			en_thri = false;
+
+	dma_sync_single_for_cpu(dma->txchan->device->dev, dma->tx_addr,
+				UART_XMIT_SIZE, DMA_TO_DEVICE);
+
+	spin_lock_irqsave(&p->port.lock, flags);
+
+	dma->tx_running = 0;
+
+	xmit->tail += dma->tx_size;
+	xmit->tail &= UART_XMIT_SIZE - 1;
+	p->port.icount.tx += dma->tx_size;
+
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(&p->port);
+
+	if (!uart_circ_empty(xmit) && !uart_tx_stopped(&p->port)) {
+		int ret;
+
+		ret = omap_8250_tx_dma(p);
+		if (ret)
+			en_thri = true;
+
+	} else if (p->capabilities & UART_CAP_RPM) {
+		en_thri = true;
+	}
+
+	if (en_thri) {
+		dma->tx_err = 1;
+		p->ier |= UART_IER_THRI;
+		serial_port_out(&p->port, UART_IER, p->ier);
+	}
+
+	spin_unlock_irqrestore(&p->port.lock, flags);
+}
+
+static int omap_8250_tx_dma(struct uart_8250_port *p)
+{
+	struct uart_8250_dma		*dma = p->dma;
+	struct omap8250_priv		*priv = p->port.private_data;
+	struct circ_buf			*xmit = &p->port.state->xmit;
+	struct dma_async_tx_descriptor	*desc;
+	unsigned int	skip_byte = 0;
+	int ret;
+
+	if (dma->tx_running)
+		return 0;
+	if (uart_tx_stopped(&p->port) || uart_circ_empty(xmit)) {
+
+		/*
+		 * Even if no data, we need to return an error for the two cases
+		 * below so serial8250_tx_chars() is invoked and properly clears
+		 * THRI and/or runtime suspend.
+		 */
+		if (dma->tx_err || p->capabilities & UART_CAP_RPM) {
+			ret = -EBUSY;
+			goto err;
+		}
+		if (p->ier & UART_IER_THRI) {
+			p->ier &= ~UART_IER_THRI;
+			serial_out(p, UART_IER, p->ier);
+		}
+		return 0;
+	}
+
+	dma->tx_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
+	if (priv->habit & OMAP_DMA_TX_KICK) {
+		u8 tx_lvl;
+
+		/*
+		 * We need to put the first byte into the FIFO in order to start
+		 * the DMA transfer. For transfers smaller than four bytes we
+		 * don't bother doing DMA at all. It seem not matter if there
+		 * are still bytes in the FIFO from the last transfer (in case
+		 * we got here directly from omap_8250_dma_tx_complete()). Bytes
+		 * leaving the FIFO seem not to trigger the DMA transfer. It is
+		 * really the byte that we put into the FIFO.
+		 * If the FIFO is already full then we most likely got here from
+		 * omap_8250_dma_tx_complete(). And this means the DMA engine
+		 * just completed its work. We don't have to wait the complete
+		 * 86us at 115200,8n1 but around 60us (not to mention lower
+		 * baudrates). So in that case we take the interrupt and try
+		 * again with an empty FIFO.
+		 */
+		tx_lvl = serial_in(p, UART_OMAP_TX_LVL);
+		if (tx_lvl == p->tx_loadsz) {
+			ret = -EBUSY;
+			goto err;
+		}
+		if (dma->tx_size < 4) {
+			ret = -EINVAL;
+			goto err;
+		}
+		skip_byte = 1;
+	}
+
+	desc = dmaengine_prep_slave_single(dma->txchan,
+			dma->tx_addr + xmit->tail + skip_byte,
+			dma->tx_size - skip_byte, DMA_MEM_TO_DEV,
+			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc) {
+		ret = -EBUSY;
+		goto err;
+	}
+
+	dma->tx_running = 1;
+
+	desc->callback = omap_8250_dma_tx_complete;
+	desc->callback_param = p;
+
+	dma->tx_cookie = dmaengine_submit(desc);
+
+	dma_sync_single_for_device(dma->txchan->device->dev, dma->tx_addr,
+				   UART_XMIT_SIZE, DMA_TO_DEVICE);
+
+	dma_async_issue_pending(dma->txchan);
+	if (dma->tx_err)
+		dma->tx_err = 0;
+
+	if (p->ier & UART_IER_THRI) {
+		p->ier &= ~UART_IER_THRI;
+		serial_out(p, UART_IER, p->ier);
+	}
+	if (skip_byte)
+		serial_out(p, UART_TX, xmit->buf[xmit->tail]);
+	return 0;
+err:
+	dma->tx_err = 1;
+	return ret;
+}
+
+#endif
 
 static int omap8250_probe(struct platform_device *pdev)
 {
