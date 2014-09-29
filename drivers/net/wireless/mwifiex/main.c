@@ -130,7 +130,6 @@ static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 {
 	unsigned long flags;
 	struct sk_buff *skb;
-	bool delay_main_work = adapter->delay_main_work;
 
 	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
 	if (adapter->rx_processing || adapter->rx_locked) {
@@ -145,10 +144,9 @@ static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 	while ((skb = skb_dequeue(&adapter->rx_data_q))) {
 		atomic_dec(&adapter->rx_pending);
 		if (adapter->delay_main_work &&
-		    (atomic_dec_return(&adapter->rx_pending) <
-		     LOW_RX_PENDING)) {
+		    (atomic_read(&adapter->rx_pending) < LOW_RX_PENDING)) {
 			adapter->delay_main_work = false;
-			queue_work(adapter->rx_workqueue, &adapter->rx_work);
+			queue_work(adapter->workqueue, &adapter->main_work);
 		}
 		mwifiex_handle_rx_packet(adapter, skb);
 	}
@@ -156,8 +154,6 @@ static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 	adapter->rx_processing = false;
 	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
 
-	if (delay_main_work)
-		queue_work(adapter->workqueue, &adapter->main_work);
 exit_rx_proc:
 	return 0;
 }
