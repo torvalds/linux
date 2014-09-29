@@ -1,6 +1,6 @@
 config ARCH_HISI
 	bool "Hisilicon SoC Support"
-	depends on ARCH_MULTIPLATFORM
+	depends on ARCH_MULTI_V7
 	select ARM_AMBA
 	select ARM_GIC
 	select ARM_TIMER_SP804
