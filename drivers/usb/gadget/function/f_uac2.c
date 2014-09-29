@@ -951,6 +951,9 @@ free_ep(struct uac2_rtd_params *prm, struct usb_ep *ep)
 	struct snd_uac2_chip *uac2 = prm->uac2;
 	int i;
 
+	if (!prm->ep_enabled)
+		return;
+
 	prm->ep_enabled = false;
 
 	for (i = 0; i < USB_XFERS; i++) {
