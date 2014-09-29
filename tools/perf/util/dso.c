@@ -851,35 +851,36 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 	return have_build_id;
 }
 
-void dsos__add(struct list_head *head, struct dso *dso)
+void dsos__add(struct dsos *dsos, struct dso *dso)
 {
-	list_add_tail(&dso->node, head);
+	list_add_tail(&dso->node, &dsos->head);
 }
 
-struct dso *dsos__find(const struct list_head *head, const char *name, bool cmp_short)
+struct dso *dsos__find(const struct dsos *dsos, const char *name,
+		       bool cmp_short)
 {
 	struct dso *pos;
 
 	if (cmp_short) {
-		list_for_each_entry(pos, head, node)
+		list_for_each_entry(pos, &dsos->head, node)
 			if (strcmp(pos->short_name, name) == 0)
 				return pos;
 		return NULL;
 	}
-	list_for_each_entry(pos, head, node)
+	list_for_each_entry(pos, &dsos->head, node)
 		if (strcmp(pos->long_name, name) == 0)
 			return pos;
 	return NULL;
 }
 
-struct dso *__dsos__findnew(struct list_head *head, const char *name)
+struct dso *__dsos__findnew(struct dsos *dsos, const char *name)
 {
-	struct dso *dso = dsos__find(head, name, false);
+	struct dso *dso = dsos__find(dsos, name, false);
 
 	if (!dso) {
 		dso = dso__new(name);
 		if (dso != NULL) {
-			dsos__add(head, dso);
+			dsos__add(dsos, dso);
 			dso__set_basename(dso);
 		}
 	}

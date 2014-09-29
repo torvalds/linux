@@ -90,6 +90,13 @@ struct dso_cache {
 	char data[0];
 };
 
+/*
+ * DSOs are put into a list for fast iteration.
+ */
+struct dsos {
+	struct list_head head;
+};
+
 struct dso {
 	struct list_head node;
 	struct rb_root	 symbols[MAP__NR_TYPES];
@@ -224,10 +231,10 @@ struct map *dso__new_map(const char *name);
 struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
 				const char *short_name, int dso_type);
 
-void dsos__add(struct list_head *head, struct dso *dso);
-struct dso *dsos__find(const struct list_head *head, const char *name,
+void dsos__add(struct dsos *dsos, struct dso *dso);
+struct dso *dsos__find(const struct dsos *dsos, const char *name,
 		       bool cmp_short);
-struct dso *__dsos__findnew(struct list_head *head, const char *name);
+struct dso *__dsos__findnew(struct dsos *dsos, const char *name);
 bool __dsos__read_build_ids(struct list_head *head, bool with_hits);
 
 size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,

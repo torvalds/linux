@@ -184,7 +184,8 @@ static struct dso *kernel_get_module_dso(const char *module)
 	const char *vmlinux_name;
 
 	if (module) {
-		list_for_each_entry(dso, &host_machine->kernel_dsos, node) {
+		list_for_each_entry(dso, &host_machine->kernel_dsos.head,
+				    node) {
 			if (strncmp(dso->short_name + 1, module,
 				    dso->short_name_len - 2) == 0)
 				goto found;
