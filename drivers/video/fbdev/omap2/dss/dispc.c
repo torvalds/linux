@@ -1138,6 +1138,7 @@ static void dispc_init_fifos(void)
 	int fifo;
 	u8 start, end;
 	u32 unit;
+	int i;
 
 	unit = dss_feat_get_buffer_size_unit();
 
@@ -1176,6 +1177,20 @@ static void dispc_init_fifos(void)
 
 		dispc.fifo_assignment[OMAP_DSS_GFX] = OMAP_DSS_WB;
 		dispc.fifo_assignment[OMAP_DSS_WB] = OMAP_DSS_GFX;
+	}
+
+	/*
+	 * Setup default fifo thresholds.
+	 */
+	for (i = 0; i < dss_feat_get_num_ovls(); ++i) {
+		u32 low, high;
+		const bool use_fifomerge = false;
+		const bool manual_update = false;
+
+		dispc_ovl_compute_fifo_thresholds(i, &low, &high,
+			use_fifomerge, manual_update);
+
+		dispc_ovl_set_fifo_threshold(i, low, high);
 	}
 }
 
