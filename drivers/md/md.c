@@ -2963,20 +2963,20 @@ rdev_size_store(struct md_rdev *rdev, const char *buf, size_t len)
 
 	rdev->sectors = sectors;
 	if (sectors > oldsectors && my_mddev->external) {
-		/* need to check that all other rdevs with the same ->bdev
-		 * do not overlap.  We need to unlock the mddev to avoid
-		 * a deadlock.  We have already changed rdev->sectors, and if
-		 * we have to change it back, we will have the lock again.
+		/* Need to check that all other rdevs with the same
+		 * ->bdev do not overlap.  'rcu' is sufficient to walk
+		 * the rdev lists safely.
+		 * This check does not provide a hard guarantee, it
+		 * just helps avoid dangerous mistakes.
 		 */
 		struct mddev *mddev;
 		int overlap = 0;
 		struct list_head *tmp;
 
-		mddev_unlock(my_mddev);
+		rcu_read_lock();
 		for_each_mddev(mddev, tmp) {
 			struct md_rdev *rdev2;
 
-			mddev_lock_nointr(mddev);
 			rdev_for_each(rdev2, mddev)
 				if (rdev->bdev == rdev2->bdev &&
 				    rdev != rdev2 &&
@@ -2986,13 +2986,12 @@ rdev_size_store(struct md_rdev *rdev, const char *buf, size_t len)
 					overlap = 1;
 					break;
 				}
-			mddev_unlock(mddev);
 			if (overlap) {
 				mddev_put(mddev);
 				break;
 			}
 		}
-		mddev_lock_nointr(my_mddev);
+		rcu_read_unlock();
 		if (overlap) {
 			/* Someone else could have slipped in a size
 			 * change here, but doing so is just silly.
