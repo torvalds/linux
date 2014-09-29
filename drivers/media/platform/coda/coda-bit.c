@@ -729,6 +729,9 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		break;
 	}
 
+	ctx->frame_mem_ctrl &= ~CODA_FRAME_CHROMA_INTERLEAVE;
+	if (q_data_src->fourcc == V4L2_PIX_FMT_NV12)
+		ctx->frame_mem_ctrl |= CODA_FRAME_CHROMA_INTERLEAVE;
 	coda_write(dev, ctx->frame_mem_ctrl, CODA_REG_BIT_FRAME_MEM_CTRL);
 
 	if (dev->devtype->product == CODA_DX6) {
@@ -1128,7 +1131,6 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 	coda_write(dev, rot_mode, CODA_CMD_ENC_PIC_ROT_MODE);
 	coda_write(dev, quant_param, CODA_CMD_ENC_PIC_QS);
 
-
 	if (dev->devtype->product == CODA_960) {
 		coda_write(dev, 4/*FIXME: 0*/, CODA9_CMD_ENC_PIC_SRC_INDEX);
 		coda_write(dev, q_data_src->width, CODA9_CMD_ENC_PIC_SRC_STRIDE);
@@ -1273,7 +1275,7 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	u32 bitstream_buf, bitstream_size;
 	struct coda_dev *dev = ctx->dev;
 	int width, height;
-	u32 src_fourcc;
+	u32 src_fourcc, dst_fourcc;
 	u32 val;
 	int ret;
 
@@ -1283,6 +1285,7 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	bitstream_buf = ctx->bitstream.paddr;
 	bitstream_size = ctx->bitstream.size;
 	src_fourcc = q_data_src->fourcc;
+	dst_fourcc = q_data_dst->fourcc;
 
 	/* Allocate per-instance buffers */
 	ret = coda_alloc_context_buffers(ctx, q_data_src);
@@ -1294,6 +1297,9 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	/* Update coda bitstream read and write pointers from kfifo */
 	coda_kfifo_sync_to_device_full(ctx);
 
+	ctx->frame_mem_ctrl &= ~CODA_FRAME_CHROMA_INTERLEAVE;
+	if (dst_fourcc == V4L2_PIX_FMT_NV12)
+		ctx->frame_mem_ctrl |= CODA_FRAME_CHROMA_INTERLEAVE;
 	coda_write(dev, ctx->frame_mem_ctrl, CODA_REG_BIT_FRAME_MEM_CTRL);
 
 	ctx->display_idx = -1;
@@ -1424,13 +1430,23 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	}
 
 	if (dev->devtype->product == CODA_960) {
-		coda_write(dev, -1, CODA9_CMD_SET_FRAME_DELAY);
+		int cbb_size, crb_size;
 
+		coda_write(dev, -1, CODA9_CMD_SET_FRAME_DELAY);
+		/* Luma 2x0 page, 2x6 cache, chroma 2x0 page, 2x4 cache size */
 		coda_write(dev, 0x20262024, CODA9_CMD_SET_FRAME_CACHE_SIZE);
+
+		if (dst_fourcc == V4L2_PIX_FMT_NV12) {
+			cbb_size = 0;
+			crb_size = 16;
+		} else {
+			cbb_size = 8;
+			crb_size = 8;
+		}
 		coda_write(dev, 2 << CODA9_CACHE_PAGEMERGE_OFFSET |
 				32 << CODA9_CACHE_LUMA_BUFFER_SIZE_OFFSET |
-				8 << CODA9_CACHE_CB_BUFFER_SIZE_OFFSET |
-				8 << CODA9_CACHE_CR_BUFFER_SIZE_OFFSET,
+				cbb_size << CODA9_CACHE_CB_BUFFER_SIZE_OFFSET |
+				crb_size << CODA9_CACHE_CR_BUFFER_SIZE_OFFSET,
 				CODA9_CMD_SET_FRAME_CACHE_CONFIG);
 	}
 

@@ -95,6 +95,7 @@ void coda_write_base(struct coda_ctx *ctx, struct coda_q_data *q_data,
 		base_cb = base_cr + q_data->bytesperline * q_data->height / 4;
 		break;
 	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_NV12:
 	default:
 		base_cb = base_y + q_data->bytesperline * q_data->height;
 		base_cr = base_cb + q_data->bytesperline * q_data->height / 4;
@@ -117,6 +118,10 @@ static const struct coda_fmt coda_formats[] = {
 	{
 		.name = "YUV 4:2:0 Planar, YCrCb",
 		.fourcc = V4L2_PIX_FMT_YVU420,
+	},
+	{
+		.name = "YUV 4:2:0 Partial interleaved Y/CbCr",
+		.fourcc = V4L2_PIX_FMT_NV12,
 	},
 	{
 		.name = "H264 Encoded Stream",
@@ -162,6 +167,7 @@ static bool coda_format_is_yuv(u32 fourcc)
 	switch (fourcc) {
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
+	case V4L2_PIX_FMT_NV12:
 		return true;
 	default:
 		return false;
@@ -366,6 +372,7 @@ static int coda_try_fmt(struct coda_ctx *ctx, const struct coda_codec *codec,
 	switch (f->fmt.pix.pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
+	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_H264:
 	case V4L2_PIX_FMT_MPEG4:
 	case V4L2_PIX_FMT_JPEG:
@@ -380,6 +387,7 @@ static int coda_try_fmt(struct coda_ctx *ctx, const struct coda_codec *codec,
 	switch (f->fmt.pix.pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
+	case V4L2_PIX_FMT_NV12:
 		/* Frame stride must be multiple of 8, but 16 for h.264 */
 		f->fmt.pix.bytesperline = round_up(f->fmt.pix.width, 16);
 		f->fmt.pix.sizeimage = f->fmt.pix.bytesperline *
