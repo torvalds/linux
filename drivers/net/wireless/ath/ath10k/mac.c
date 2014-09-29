@@ -4505,6 +4505,9 @@ static const struct ieee80211_ops ath10k_ops = {
 	.sta_rc_update			= ath10k_sta_rc_update,
 	.get_tsf			= ath10k_get_tsf,
 	.ampdu_action			= ath10k_ampdu_action,
+	.get_et_sset_count		= ath10k_debug_get_et_sset_count,
+	.get_et_stats			= ath10k_debug_get_et_stats,
+	.get_et_strings			= ath10k_debug_get_et_strings,
 
 	CFG80211_TESTMODE_CMD(ath10k_tm_cmd)
 
