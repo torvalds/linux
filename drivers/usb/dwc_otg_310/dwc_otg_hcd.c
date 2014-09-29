@@ -1071,6 +1071,7 @@ static int assign_and_init_hc(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 	 * Set the split attributes
 	 */
 	hc->do_split = 0;
+	hc->csplit_nak = 0;
 	if (qh->do_split) {
 		uint32_t hub_addr, port_addr;
 		hc->do_split = 1;

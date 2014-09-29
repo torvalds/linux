@@ -377,6 +377,7 @@ typedef struct dwc_hc {
 	 */
 	uint8_t do_split;		   /**< Enable split for the channel */
 	uint8_t complete_split;	   /**< Enable complete split */
+	uint8_t csplit_nak;
 	uint8_t hub_addr;		   /**< Address of high speed hub */
 
 	uint8_t port_addr;		   /**< Port of the low/full speed device */
