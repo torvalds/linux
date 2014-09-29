@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 #include <linux/amba/bus.h>
 #include <linux/sizes.h>
 

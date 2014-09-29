@@ -301,4 +301,15 @@ static inline int of_genpd_add_provider_onecell(struct device_node *np,
 	return __of_genpd_add_provider(np, __of_genpd_xlate_onecell, data);
 }
 
+#ifdef CONFIG_PM
+extern int dev_pm_domain_attach(struct device *dev, bool power_on);
+extern void dev_pm_domain_detach(struct device *dev, bool power_off);
+#else
+static inline int dev_pm_domain_attach(struct device *dev, bool power_on)
+{
+	return -ENODEV;
+}
+static inline void dev_pm_domain_detach(struct device *dev, bool power_off) {}
+#endif
+
 #endif /* _LINUX_PM_DOMAIN_H */
