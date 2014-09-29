@@ -44,7 +44,7 @@
 #include <linux/mmc/slot-gpio.h>
 #include <linux/clk-private.h>
 #include <linux/rockchip/cpu.h>
-
+#include <linux/rfkill-wlan.h>
 #include "rk_sdmmc.h"
 #include "rk_sdmmc_dbg.h"
 #include <linux/regulator/rockchip_io_vol_domain.h>
@@ -4083,8 +4083,13 @@ EXPORT_SYMBOL(dw_mci_remove);
 /*
  * TODO: we should probably disable the clock to the card in the suspend path.
  */
+extern int get_wifi_chip_type(void);
 int dw_mci_suspend(struct dw_mci *host)
 {
+	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
+		(get_wifi_chip_type() == WIFI_ESP8089))
+		return 0;
+
         if(host->vmmc)
                 regulator_disable(host->vmmc);
 
@@ -4127,6 +4132,12 @@ int dw_mci_resume(struct dw_mci *host)
 	int i, ret, retry_cnt = 0;
 	u32 regs;
         struct dw_mci_slot *slot;
+
+	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
+		(get_wifi_chip_type() == WIFI_ESP8089))
+		return 0;
+
+
     
         if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) {
                 slot = mmc_priv(host->mmc);
