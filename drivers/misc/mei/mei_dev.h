@@ -375,6 +375,8 @@ enum mei_pg_state {
 	MEI_PG_ON =  1,
 };
 
+const char *mei_pg_state_str(enum mei_pg_state state);
+
 /*
  * mei_cfg
  *

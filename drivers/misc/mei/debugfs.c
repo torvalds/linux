@@ -134,8 +134,13 @@ static ssize_t mei_dbgfs_read_devstate(struct file *fp, char __user *ubuf,
 	if  (!buf)
 		return -ENOMEM;
 
-	pos += scnprintf(buf + pos, bufsz - pos, "%s\n",
+	pos += scnprintf(buf + pos, bufsz - pos, "dev: %s\n",
 			mei_dev_state_str(dev->dev_state));
+	pos += scnprintf(buf + pos, bufsz - pos, "hbm: %s\n",
+			mei_hbm_state_str(dev->hbm_state));
+	pos += scnprintf(buf + pos, bufsz - pos, "pg:  %s, %s\n",
+			mei_pg_is_enabled(dev) ? "ENABLED" : "DISABLED",
+			mei_pg_state_str(mei_pg_state(dev)));
 	ret = simple_read_from_buffer(ubuf, cnt, ppos, buf, pos);
 	kfree(buf);
 	return ret;

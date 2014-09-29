@@ -56,6 +56,22 @@ static const char *mei_cl_conn_status_str(enum mei_cl_connect_status status)
 #undef MEI_CL_CCS
 }
 
+const char *mei_hbm_state_str(enum mei_hbm_state state)
+{
+#define MEI_HBM_STATE(state) case MEI_HBM_##state: return #state
+	switch (state) {
+	MEI_HBM_STATE(IDLE);
+	MEI_HBM_STATE(STARTING);
+	MEI_HBM_STATE(STARTED);
+	MEI_HBM_STATE(ENUM_CLIENTS);
+	MEI_HBM_STATE(CLIENT_PROPERTIES);
+	MEI_HBM_STATE(STOPPED);
+	default:
+		return "unknown";
+	}
+#undef MEI_HBM_STATE
+}
+
 /**
  * mei_cl_conn_status_to_errno - convert client connect response
  * status to error code

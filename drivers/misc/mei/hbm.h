@@ -40,6 +40,8 @@ enum mei_hbm_state {
 	MEI_HBM_STOPPED,
 };
 
+const char *mei_hbm_state_str(enum mei_hbm_state state);
+
 int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr);
 
 static inline void mei_hbm_hdr(struct mei_msg_hdr *hdr, size_t length)

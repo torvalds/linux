@@ -43,6 +43,18 @@ const char *mei_dev_state_str(int state)
 #undef MEI_DEV_STATE
 }
 
+const char *mei_pg_state_str(enum mei_pg_state state)
+{
+#define MEI_PG_STATE(state) case MEI_PG_##state: return #state
+	switch (state) {
+	MEI_PG_STATE(OFF);
+	MEI_PG_STATE(ON);
+	default:
+		return "unknown";
+	}
+#undef MEI_PG_STATE
+}
+
 
 /**
  * mei_cancel_work. Cancel mei background jobs
