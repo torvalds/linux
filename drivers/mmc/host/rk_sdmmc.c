@@ -2953,6 +2953,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 		int present;
 
 		present = dw_mci_get_cd(mmc);
+		dw_mci_ctrl_all_reset(host);
 		while (present != slot->last_detect_state) {
 			dev_dbg(&slot->mmc->class_dev, "card %s\n",
 				present ? "inserted" : "removed");
@@ -3705,7 +3706,7 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 static void dw_mci_dealwith_timeout(struct dw_mci *host)
 {
-        u32 ret, i, regs;
+        u32 regs;
 	u32 sdio_int;
 
         switch(host->state){
@@ -3718,7 +3719,6 @@ static void dw_mci_dealwith_timeout(struct dw_mci *host)
                         set_bit(EVENT_DATA_COMPLETE, &host->pending_events);
                         host->state = STATE_DATA_BUSY;
 	                if (!dw_mci_ctrl_all_reset(host)) {
-                                ret = -ENODEV;
                                 return ;
                         }
 
@@ -3754,15 +3754,6 @@ static void dw_mci_dealwith_timeout(struct dw_mci *host)
 
 			mci_writel(host, INTMASK, regs);
                         mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
-                        for (i = 0; i < host->num_slots; i++) {
-                                struct dw_mci_slot *slot = host->slot[i];
-                                if (!slot)
-                                        continue;
-                                if (slot->mmc->pm_flags & MMC_PM_KEEP_POWER) {
-                                        dw_mci_set_ios(slot->mmc, &slot->mmc->ios);
-                                        dw_mci_setup_bus(slot, true);
-                                }
-                        }
                         mci_writel(host, RINTSTS, 0xFFFFFFFF);
                         tasklet_schedule(&host->tasklet);
                         break;
