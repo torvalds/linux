@@ -594,6 +594,10 @@ static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 		return NULL;
 	atomic_set(&ei->openers, 0);
 	mutex_init(&ei->tailpack);
+#ifdef CONFIG_QUOTA
+	memset(&ei->i_dquot, 0, sizeof(ei->i_dquot));
+#endif
+
 	return &ei->vfs_inode;
 }
 
@@ -750,6 +754,11 @@ static ssize_t reiserfs_quota_write(struct super_block *, int, const char *,
 				    size_t, loff_t);
 static ssize_t reiserfs_quota_read(struct super_block *, int, char *, size_t,
 				   loff_t);
+
+static struct dquot **reiserfs_get_dquots(struct inode *inode)
+{
+	return REISERFS_I(inode)->i_dquot;
+}
 #endif
 
 static const struct super_operations reiserfs_sops = {
@@ -768,6 +777,7 @@ static const struct super_operations reiserfs_sops = {
 #ifdef CONFIG_QUOTA
 	.quota_read = reiserfs_quota_read,
 	.quota_write = reiserfs_quota_write,
+	.get_dquots = reiserfs_get_dquots,
 #endif
 };
 
@@ -1633,6 +1643,7 @@ static int read_super_block(struct super_block *s, int offset)
 #ifdef CONFIG_QUOTA
 	s->s_qcop = &reiserfs_qctl_operations;
 	s->dq_op = &reiserfs_quota_operations;
+	s->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
 #endif
 
 	/*
