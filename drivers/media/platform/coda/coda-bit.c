@@ -1037,6 +1037,7 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 	int force_ipicture;
 	int quant_param = 0;
 	u32 pic_stream_buffer_addr, pic_stream_buffer_size;
+	u32 rot_mode = 0;
 	u32 dst_fourcc;
 	u32 reg;
 
@@ -1124,8 +1125,9 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 	}
 
 	/* submit */
-	coda_write(dev, CODA_ROT_MIR_ENABLE | ctx->params.rot_mode,
-		   CODA_CMD_ENC_PIC_ROT_MODE);
+	if (ctx->params.rot_mode)
+		rot_mode = CODA_ROT_MIR_ENABLE | ctx->params.rot_mode;
+	coda_write(dev, rot_mode, CODA_CMD_ENC_PIC_ROT_MODE);
 	coda_write(dev, quant_param, CODA_CMD_ENC_PIC_QS);
 
 
