@@ -171,7 +171,8 @@ static unsigned long atc_get_ptp_phys(struct ct_atc *atc, int index)
 	return atc->vm->get_ptp_phys(atc->vm, index);
 }
 
-static unsigned int convert_format(snd_pcm_format_t snd_format)
+static unsigned int convert_format(snd_pcm_format_t snd_format,
+				   struct snd_card *card)
 {
 	switch (snd_format) {
 	case SNDRV_PCM_FORMAT_U8:
@@ -268,7 +269,8 @@ static int atc_pcm_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	src = apcm->src;
 	src->ops->set_pitch(src, pitch);
 	src->ops->set_rom(src, select_rom(pitch));
-	src->ops->set_sf(src, convert_format(apcm->substream->runtime->format));
+	src->ops->set_sf(src, convert_format(apcm->substream->runtime->format,
+					     atc->card));
 	src->ops->set_pm(src, (src->ops->next_interleave(src) != NULL));
 
 	/* Get AMIXER resource */
@@ -738,7 +740,8 @@ static int atc_pcm_capture_start(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 	/*  Set up recording SRC */
 	src = apcm->src;
-	src->ops->set_sf(src, convert_format(apcm->substream->runtime->format));
+	src->ops->set_sf(src, convert_format(apcm->substream->runtime->format,
+					     atc->card));
 	src->ops->set_sa(src, apcm->vm_block->addr);
 	src->ops->set_la(src, apcm->vm_block->addr + apcm->vm_block->size);
 	src->ops->set_ca(src, apcm->vm_block->addr);
@@ -807,7 +810,8 @@ static int spdif_passthru_playback_get_resources(struct ct_atc *atc,
 	src = apcm->src;
 	src->ops->set_pitch(src, pitch);
 	src->ops->set_rom(src, select_rom(pitch));
-	src->ops->set_sf(src, convert_format(apcm->substream->runtime->format));
+	src->ops->set_sf(src, convert_format(apcm->substream->runtime->format,
+					     atc->card));
 	src->ops->set_pm(src, (src->ops->next_interleave(src) != NULL));
 	src->ops->set_bp(src, 1);
 
