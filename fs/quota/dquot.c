@@ -895,9 +895,6 @@ EXPORT_SYMBOL(dqget);
 
 static inline struct dquot **i_dquot(struct inode *inode)
 {
-	/* Temporary workaround until all filesystems are converted. */
-	if (!inode->i_sb->s_op->get_dquots)
-		return inode->i_dquot;
 	return inode->i_sb->s_op->get_dquots(inode);
 }
 
