@@ -297,6 +297,19 @@ uvc_function_set_alt(struct usb_function *f, unsigned interface, unsigned alt)
 		if (alt)
 			return -EINVAL;
 
+		if (uvc->control_ep->driver_data) {
+			INFO(cdev, "reset UVC Control\n");
+			usb_ep_disable(uvc->control_ep);
+			uvc->control_ep->driver_data = NULL;
+		}
+
+		if (!uvc->control_ep->desc)
+			if (config_ep_by_speed(cdev->gadget, f, uvc->control_ep))
+				return -EINVAL;
+
+		usb_ep_enable(uvc->control_ep);
+		uvc->control_ep->driver_data = uvc;
+
 		if (uvc->state == UVC_STATE_DISCONNECTED) {
 			memset(&v4l2_event, 0, sizeof(v4l2_event));
 			v4l2_event.type = UVC_EVENT_CONNECT;
