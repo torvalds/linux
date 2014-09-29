@@ -35,7 +35,7 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 	int pos = 0;
 	int ret;
 
-#define HDR "  |id|addr|         UUID                       |con|msg len|\n"
+#define HDR "  |id|addr|         UUID                       |con|msg len|sb|\n"
 
 	mutex_lock(&dev->device_lock);
 
@@ -62,12 +62,13 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 			continue;
 
 		pos += scnprintf(buf + pos, bufsz - pos,
-			"%2d|%2d|%4d|%pUl|%3d|%7d|\n",
+			"%2d|%2d|%4d|%pUl|%3d|%7d|%2d|\n",
 			i++, me_cl->client_id,
 			me_cl->props.fixed_address,
 			&me_cl->props.protocol_name,
 			me_cl->props.max_number_of_connections,
-			me_cl->props.max_msg_length);
+			me_cl->props.max_msg_length,
+			me_cl->props.single_recv_buf);
 	}
 out:
 	mutex_unlock(&dev->device_lock);
