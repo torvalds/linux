@@ -297,6 +297,7 @@ struct cx23885_tsport {
 
 	struct i2c_client *i2c_client_demod;
 	struct i2c_client *i2c_client_tuner;
+	struct i2c_client *i2c_client_ci;
 
 	int (*set_frontend)(struct dvb_frontend *fe);
 	int (*fe_set_voltage)(struct dvb_frontend *fe,
