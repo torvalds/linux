@@ -390,6 +390,16 @@ uvc_function_disable(struct usb_function *f)
 	v4l2_event_queue(uvc->vdev, &v4l2_event);
 
 	uvc->state = UVC_STATE_DISCONNECTED;
+
+	if (uvc->video.ep->driver_data) {
+		usb_ep_disable(uvc->video.ep);
+		uvc->video.ep->driver_data = NULL;
+	}
+
+	if (uvc->control_ep->driver_data) {
+		usb_ep_disable(uvc->control_ep);
+		uvc->control_ep->driver_data = NULL;
+	}
 }
 
 /* --------------------------------------------------------------------------
