@@ -398,6 +398,9 @@ intel_panel_detect(struct drm_device *dev)
 	}
 }
 
+#define DIV_ROUND_CLOSEST_ULL(ll, d)	\
+({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
+
 /**
  * scale - scale values from one range to another
  *
@@ -419,9 +422,8 @@ static uint32_t scale(uint32_t source_val,
 	source_val = clamp(source_val, source_min, source_max);
 
 	/* avoid overflows */
-	target_val = (uint64_t)(source_val - source_min) *
-		(target_max - target_min);
-	do_div(target_val, source_max - source_min);
+	target_val = DIV_ROUND_CLOSEST_ULL((uint64_t)(source_val - source_min) *
+			(target_max - target_min), source_max - source_min);
 	target_val += target_min;
 
 	return target_val;
