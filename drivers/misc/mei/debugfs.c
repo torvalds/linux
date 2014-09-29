@@ -29,19 +29,27 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 {
 	struct mei_device *dev = fp->private_data;
 	struct mei_me_client *me_cl;
-	const size_t bufsz = 1024;
-	char *buf = kzalloc(bufsz, GFP_KERNEL);
+	size_t bufsz = 1;
+	char *buf;
 	int i = 0;
 	int pos = 0;
 	int ret;
 
-	if  (!buf)
-		return -ENOMEM;
-
-	pos += scnprintf(buf + pos, bufsz - pos,
-			"  |id|addr|         UUID                       |con|msg len|\n");
+#define HDR "  |id|addr|         UUID                       |con|msg len|\n"
 
 	mutex_lock(&dev->device_lock);
+
+	list_for_each_entry(me_cl, &dev->me_clients, list)
+		bufsz++;
+
+	bufsz *= sizeof(HDR) + 1;
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf) {
+		mutex_unlock(&dev->device_lock);
+		return -ENOMEM;
+	}
+
+	pos += scnprintf(buf + pos, bufsz - pos, HDR);
 
 	/*  if the driver is not enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
