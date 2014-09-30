@@ -1342,6 +1342,53 @@ int eeh_pe_get_state(struct eeh_pe *pe)
 }
 EXPORT_SYMBOL_GPL(eeh_pe_get_state);
 
+static int eeh_pe_reenable_devices(struct eeh_pe *pe)
+{
+	struct eeh_dev *edev, *tmp;
+	struct pci_dev *pdev;
+	int ret = 0;
+
+	/* Restore config space */
+	eeh_pe_restore_bars(pe);
+
+	/*
+	 * Reenable PCI devices as the devices passed
+	 * through are always enabled before the reset.
+	 */
+	eeh_pe_for_each_dev(pe, edev, tmp) {
+		pdev = eeh_dev_to_pci_dev(edev);
+		if (!pdev)
+			continue;
+
+		ret = pci_reenable_device(pdev);
+		if (ret) {
+			pr_warn("%s: Failure %d reenabling %s\n",
+				__func__, ret, pci_name(pdev));
+			return ret;
+		}
+	}
+
+	/* The PE is still in frozen state */
+	ret = eeh_ops->set_option(pe, EEH_OPT_THAW_MMIO);
+	if (ret) {
+		pr_warn("%s: Failure %d enabling MMIO for PHB#%x-PE#%x\n",
+			__func__, ret, pe->phb->global_number, pe->addr);
+		return ret;
+	}
+
+	ret = eeh_ops->set_option(pe, EEH_OPT_THAW_DMA);
+	if (ret) {
+		pr_warn("%s: Failure %d enabling DMA for PHB#%x-PE#%x\n",
+			__func__, ret, pe->phb->global_number, pe->addr);
+		return ret;
+	}
+
+	/* Clear software isolated state */
+	eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+
+	return ret;
+}
+
 /**
  * eeh_pe_reset - Issue PE reset according to specified type
  * @pe: EEH PE
@@ -1368,17 +1415,7 @@ int eeh_pe_reset(struct eeh_pe *pe, int option)
 		if (ret)
 			break;
 
-		/*
-		 * The PE is still in frozen state and we need to clear
-		 * that. It's good to clear frozen state after deassert
-		 * to avoid messy IO access during reset, which might
-		 * cause recursive frozen PE.
-		 */
-		ret = eeh_ops->set_option(pe, EEH_OPT_THAW_MMIO);
-		if (!ret)
-			ret = eeh_ops->set_option(pe, EEH_OPT_THAW_DMA);
-		if (!ret)
-			eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+		ret = eeh_pe_reenable_devices(pe);
 		break;
 	case EEH_RESET_HOT:
 	case EEH_RESET_FUNDAMENTAL:
@@ -1416,9 +1453,6 @@ int eeh_pe_configure(struct eeh_pe *pe)
 	/* Invalid PE ? */
 	if (!pe)
 		return -ENODEV;
-
-	/* Restore config space for the affected devices */
-	eeh_pe_restore_bars(pe);
 
 	return ret;
 }
