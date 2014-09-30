@@ -1314,9 +1314,6 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	if (sprop) {
 		if (!strcmp(sprop, "ac97-slave"))
 			ssi_private->dai_fmt = SND_SOC_DAIFMT_AC97;
-		else if (!strcmp(sprop, "i2s-slave"))
-			ssi_private->dai_fmt = SND_SOC_DAIFMT_I2S |
-				SND_SOC_DAIFMT_CBM_CFM;
 	}
 
 	ssi_private->use_dma = !of_property_read_bool(np,
