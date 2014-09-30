@@ -1463,6 +1463,7 @@ int eeh_pe_reset(struct eeh_pe *pe, int option)
 	switch (option) {
 	case EEH_RESET_DEACTIVATE:
 		ret = eeh_ops->reset(pe, option);
+		eeh_pe_state_clear(pe, EEH_PE_RESET);
 		if (ret)
 			break;
 
@@ -1477,6 +1478,7 @@ int eeh_pe_reset(struct eeh_pe *pe, int option)
 		 */
 		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
 
+		eeh_pe_state_mark(pe, EEH_PE_RESET);
 		ret = eeh_ops->reset(pe, option);
 		break;
 	default:
