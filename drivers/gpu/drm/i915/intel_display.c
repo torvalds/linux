@@ -4222,6 +4222,11 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	intel_set_pipe_timings(intel_crtc);
 
+	if (intel_crtc->config.cpu_transcoder != TRANSCODER_EDP) {
+		I915_WRITE(PIPE_MULT(intel_crtc->config.cpu_transcoder),
+			   intel_crtc->config.pixel_multiplier - 1);
+	}
+
 	if (intel_crtc->config.has_pch_encoder) {
 		intel_cpu_transcoder_set_m_n(intel_crtc,
 				     &intel_crtc->config.fdi_m_n, NULL);
@@ -7890,7 +7895,12 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 		pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
 			(I915_READ(IPS_CTL) & IPS_ENABLE);
 
-	pipe_config->pixel_multiplier = 1;
+	if (pipe_config->cpu_transcoder != TRANSCODER_EDP) {
+		pipe_config->pixel_multiplier =
+			I915_READ(PIPE_MULT(pipe_config->cpu_transcoder)) + 1;
+	} else {
+		pipe_config->pixel_multiplier = 1;
+	}
 
 	return true;
 }
