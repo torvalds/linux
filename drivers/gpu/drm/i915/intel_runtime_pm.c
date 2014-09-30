@@ -103,6 +103,20 @@ bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
+void intel_display_set_init_power(struct drm_i915_private *dev_priv,
+				  bool enable)
+{
+	if (dev_priv->power_domains.init_power_on == enable)
+		return;
+
+	if (enable)
+		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+	else
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+
+	dev_priv->power_domains.init_power_on = enable;
+}
+
 /*
  * Starting with Haswell, we have a "Power Down Well" that can be turned off
  * when not needed anymore. We have 4 registers that can request the power well
