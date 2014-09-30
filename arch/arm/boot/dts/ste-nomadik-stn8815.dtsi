@@ -123,18 +123,18 @@
 			mmcsd_default_mode: mmcsd_default {
 				mmcsd_default_cfg1 {
 					/* MCCLK */
-					ste,pins = "GPIO8_B10";
+					pins = "GPIO8_B10";
 					ste,output = <0>;
 				};
 				mmcsd_default_cfg2 {
 					/* MCCMDDIR, MCDAT0DIR, MCDAT31DIR */
-					ste,pins = "GPIO10_C11", "GPIO15_A12",
+					pins = "GPIO10_C11", "GPIO15_A12",
 					"GPIO16_C13";
 					ste,output = <1>;
 				};
 				mmcsd_default_cfg3 {
 					/* MCCMD, MCDAT3-0, MCMSFBCLK */
-					ste,pins = "GPIO9_A10", "GPIO11_B11",
+					pins = "GPIO9_A10", "GPIO11_B11",
 					"GPIO12_A11", "GPIO13_C12",
 					"GPIO14_B12", "GPIO24_C15";
 					ste,input = <1>;
@@ -150,7 +150,7 @@
 			};
 			i2c0_default_mode: i2c0_default {
 				i2c0_default_cfg {
-					ste,pins = "GPIO62_D3", "GPIO63_D2";
+					pins = "GPIO62_D3", "GPIO63_D2";
 					ste,input = <0>;
 				};
 			};
@@ -164,7 +164,7 @@
 			};
 			i2c1_default_mode: i2c1_default {
 				i2c1_default_cfg {
-					ste,pins = "GPIO53_L4", "GPIO54_L3";
+					pins = "GPIO53_L4", "GPIO54_L3";
 					ste,input = <0>;
 				};
 			};
@@ -172,7 +172,7 @@
 		i2c2 {
 			i2c2_default_mode: i2c2_default {
 				i2c2_default_cfg {
-					ste,pins = "GPIO73_C21", "GPIO74_C20";
+					pins = "GPIO73_C21", "GPIO74_C20";
 					ste,input = <0>;
 				};
 			};

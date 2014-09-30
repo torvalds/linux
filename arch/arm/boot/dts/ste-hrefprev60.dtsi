@@ -83,7 +83,7 @@
 						groups = "ssp0_a_1";
 					};
 					hrefprev60_cfg1 {
-						ste,pins = "GPIO145_C13"; /* RXD */
+						pins = "GPIO145_C13"; /* RXD */
 						ste,config = <&in_pd>;
 					};
 
@@ -97,7 +97,7 @@
 						groups = "mc0dat31dir_a_1";
 					};
 					hrefprev60_cfg1 {
-						ste,pins = "GPIO21_AB3"; /* DAT31DIR */
+						pins = "GPIO21_AB3"; /* DAT31DIR */
 						ste,config = <&out_hi>;
 					};
 
@@ -106,7 +106,7 @@
 			tc35892 {
 				tc35892_hrefprev60_mode: tc35892_hrefprev60 {
 					hrefprev60_cfg {
-						ste,pins = "GPIO217_AH12";
+						pins = "GPIO217_AH12";
 						ste,config = <&gpio_in_pu>;
 					};
 				};
@@ -118,7 +118,7 @@
 						groups = "ipgpio0_c_1", "ipgpio1_c_1";
 					};
 					hrefprev60_cfg1 {
-						ste,pins = "GPIO6_AF6", "GPIO7_AG5";
+						pins = "GPIO6_AF6", "GPIO7_AG5";
 						ste,config = <&in_pu>;
 					};
 				 };
