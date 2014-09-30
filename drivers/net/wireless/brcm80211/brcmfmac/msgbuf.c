@@ -230,7 +230,7 @@ struct brcmf_msgbuf {
 	dma_addr_t ioctbuf_handle;
 	u32 ioctbuf_phys_hi;
 	u32 ioctbuf_phys_lo;
-	u32 ioctl_resp_status;
+	int ioctl_resp_status;
 	u32 ioctl_resp_ret_len;
 	u32 ioctl_resp_pktid;
 
@@ -767,7 +767,8 @@ brcmf_msgbuf_process_ioctl_complete(struct brcmf_msgbuf *msgbuf, void *buf)
 
 	ioctl_resp = (struct msgbuf_ioctl_resp_hdr *)buf;
 
-	msgbuf->ioctl_resp_status = le16_to_cpu(ioctl_resp->compl_hdr.status);
+	msgbuf->ioctl_resp_status =
+			(s16)le16_to_cpu(ioctl_resp->compl_hdr.status);
 	msgbuf->ioctl_resp_ret_len = le16_to_cpu(ioctl_resp->resp_len);
 	msgbuf->ioctl_resp_pktid = le32_to_cpu(ioctl_resp->msg.request_id);
 
