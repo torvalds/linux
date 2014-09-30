@@ -889,6 +889,28 @@ static int pnv_pci_ioda_dma_set_mask(struct pnv_phb *phb,
 	return 0;
 }
 
+static u64 pnv_pci_ioda_dma_get_required_mask(struct pnv_phb *phb,
+					      struct pci_dev *pdev)
+{
+	struct pci_dn *pdn = pci_get_pdn(pdev);
+	struct pnv_ioda_pe *pe;
+	u64 end, mask;
+
+	if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
+		return 0;
+
+	pe = &phb->ioda.pe_array[pdn->pe_number];
+	if (!pe->tce_bypass_enabled)
+		return __dma_get_required_mask(&pdev->dev);
+
+
+	end = pe->tce_bypass_base + memblock_end_of_DRAM();
+	mask = 1ULL << (fls64(end) - 1);
+	mask += mask - 1;
+
+	return mask;
+}
+
 static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
 				   struct pci_bus *bus,
 				   bool add_to_iommu_group)
@@ -1781,6 +1803,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	/* Setup TCEs */
 	phb->dma_dev_setup = pnv_pci_ioda_dma_dev_setup;
 	phb->dma_set_mask = pnv_pci_ioda_dma_set_mask;
+	phb->dma_get_required_mask = pnv_pci_ioda_dma_get_required_mask;
 
 	/* Setup shutdown function for kexec */
 	phb->shutdown = pnv_pci_ioda_shutdown;
