@@ -1338,14 +1338,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_power_domains_init_hw(dev_priv);
 
-	/*
-	 * We enable some interrupt sources in our postinstall hooks, so mark
-	 * interrupts as enabled _before_ actually enabling them to avoid
-	 * special cases in our ordering checks.
-	 */
-	dev_priv->pm._irqs_disabled = false;
-
-	ret = drm_irq_install(dev, dev->pdev->irq);
+	ret = intel_irq_install(dev_priv);
 	if (ret)
 		goto cleanup_gem_stolen;
 

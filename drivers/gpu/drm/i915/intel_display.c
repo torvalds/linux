@@ -13372,9 +13372,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	 * Too much stuff here (turning of rps, connectors, ...) would
 	 * experience fancy races otherwise.
 	 */
-	drm_irq_uninstall(dev);
-	intel_hpd_cancel_work(dev_priv);
-	dev_priv->pm._irqs_disabled = true;
+	intel_irq_uninstall(dev_priv);
 
 	/*
 	 * Due to the hpd irq storm handling the hotplug work can re-arm the

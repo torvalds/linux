@@ -1424,7 +1424,7 @@ struct ilk_wm_values {
  */
 struct i915_runtime_pm {
 	bool suspended;
-	bool _irqs_disabled;
+	bool irqs_enabled;
 };
 
 enum intel_pipe_crc_source {
@@ -2311,6 +2311,8 @@ void gen6_set_pm_mask(struct drm_i915_private *dev_priv, u32 pm_iir,
 							int new_delay);
 extern void intel_irq_init(struct drm_device *dev);
 extern void intel_hpd_init(struct drm_device *dev);
+int intel_irq_install(struct drm_i915_private *dev_priv);
+void intel_irq_uninstall(struct drm_i915_private *dev_priv);
 
 extern void intel_uncore_sanitize(struct drm_device *dev);
 extern void intel_uncore_early_sanitize(struct drm_device *dev,

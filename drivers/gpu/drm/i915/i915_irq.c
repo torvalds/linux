@@ -4675,9 +4675,6 @@ void intel_irq_init(struct drm_device *dev)
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 
-	/* Haven't installed the IRQ handler yet */
-	dev_priv->pm._irqs_disabled = true;
-
 	if (IS_GEN2(dev)) {
 		dev->max_vblank_count = 0;
 		dev->driver->get_vblank_counter = i8xx_get_vblank_counter;
@@ -4786,13 +4783,32 @@ void intel_hpd_init(struct drm_device *dev)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
+int intel_irq_install(struct drm_i915_private *dev_priv)
+{
+	/*
+	 * We enable some interrupt sources in our postinstall hooks, so mark
+	 * interrupts as enabled _before_ actually enabling them to avoid
+	 * special cases in our ordering checks.
+	 */
+	dev_priv->pm.irqs_enabled = true;
+
+	return drm_irq_install(dev_priv->dev, dev_priv->dev->pdev->irq);
+}
+
+void intel_irq_uninstall(struct drm_i915_private *dev_priv)
+{
+	drm_irq_uninstall(dev_priv->dev);
+	intel_hpd_cancel_work(dev_priv);
+	dev_priv->pm.irqs_enabled = false;
+}
+
 /* Disable interrupts so we can allow runtime PM. */
 void intel_runtime_pm_disable_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	dev->driver->irq_uninstall(dev);
-	dev_priv->pm._irqs_disabled = true;
+	dev_priv->pm.irqs_enabled = false;
 }
 
 /* Restore interrupts so we can recover from runtime PM. */
@@ -4800,7 +4816,7 @@ void intel_runtime_pm_restore_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	dev_priv->pm._irqs_disabled = false;
+	dev_priv->pm.irqs_enabled = true;
 	dev->driver->irq_preinstall(dev);
 	dev->driver->irq_postinstall(dev);
 }

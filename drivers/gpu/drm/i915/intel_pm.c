@@ -6531,5 +6531,4 @@ void intel_pm_setup(struct drm_device *dev)
 			  intel_gen6_powersave_work);
 
 	dev_priv->pm.suspended = false;
-	dev_priv->pm._irqs_disabled = false;
 }

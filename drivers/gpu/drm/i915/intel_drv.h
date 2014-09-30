@@ -772,7 +772,7 @@ static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 	 * We only use drm_irq_uninstall() at unload and VT switch, so
 	 * this is the only thing we need to check.
 	 */
-	return !dev_priv->pm._irqs_disabled;
+	return dev_priv->pm.irqs_enabled;
 }
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
