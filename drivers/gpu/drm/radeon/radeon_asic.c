@@ -1580,6 +1580,8 @@ static struct radeon_asic btc_asic = {
 		.debugfs_print_current_performance_level = &btc_dpm_debugfs_print_current_performance_level,
 		.force_performance_level = &rv770_dpm_force_performance_level,
 		.vblank_too_short = &btc_dpm_vblank_too_short,
+		.get_current_sclk = &btc_dpm_get_current_sclk,
+		.get_current_mclk = &btc_dpm_get_current_mclk,
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
