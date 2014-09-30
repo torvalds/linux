@@ -359,6 +359,31 @@ static int powernv_eeh_configure_bridge(struct eeh_pe *pe)
 }
 
 /**
+ * powernv_pe_err_inject - Inject specified error to the indicated PE
+ * @pe: the indicated PE
+ * @type: error type
+ * @func: specific error type
+ * @addr: address
+ * @mask: address mask
+ *
+ * The routine is called to inject specified error, which is
+ * determined by @type and @func, to the indicated PE for
+ * testing purpose.
+ */
+static int powernv_eeh_err_inject(struct eeh_pe *pe, int type, int func,
+				  unsigned long addr, unsigned long mask)
+{
+	struct pci_controller *hose = pe->phb;
+	struct pnv_phb *phb = hose->private_data;
+	int ret = -EEXIST;
+
+	if (phb->eeh_ops && phb->eeh_ops->err_inject)
+		ret = phb->eeh_ops->err_inject(pe, type, func, addr, mask);
+
+	return ret;
+}
+
+/**
  * powernv_eeh_next_error - Retrieve next EEH error to handle
  * @pe: Affected PE
  *
@@ -414,6 +439,7 @@ static struct eeh_ops powernv_eeh_ops = {
 	.wait_state             = powernv_eeh_wait_state,
 	.get_log                = powernv_eeh_get_log,
 	.configure_bridge       = powernv_eeh_configure_bridge,
+	.err_inject		= powernv_eeh_err_inject,
 	.read_config            = pnv_pci_cfg_read,
 	.write_config           = pnv_pci_cfg_write,
 	.next_error		= powernv_eeh_next_error,
