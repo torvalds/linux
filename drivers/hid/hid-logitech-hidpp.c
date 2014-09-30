@@ -205,6 +205,31 @@ static int hidpp_send_fap_command_sync(struct hidpp_device *hidpp,
 	return ret;
 }
 
+static int hidpp_send_rap_command_sync(struct hidpp_device *hidpp_dev,
+	u8 report_id, u8 sub_id, u8 reg_address, u8 *params, int param_count,
+	struct hidpp_report *response)
+{
+	struct hidpp_report *message = kzalloc(sizeof(struct hidpp_report),
+			GFP_KERNEL);
+	int ret;
+
+	if ((report_id != REPORT_ID_HIDPP_SHORT) &&
+	    (report_id != REPORT_ID_HIDPP_LONG))
+		return -EINVAL;
+
+	if (param_count > sizeof(message->rap.params))
+		return -EINVAL;
+
+	message->report_id = report_id;
+	message->rap.sub_id = sub_id;
+	message->rap.reg_address = reg_address;
+	memcpy(&message->rap.params, params, param_count);
+
+	ret = hidpp_send_message_sync(hidpp_dev, message, response);
+	kfree(message);
+	return ret;
+}
+
 static inline bool hidpp_match_answer(struct hidpp_report *question,
 		struct hidpp_report *answer)
 {
@@ -218,6 +243,45 @@ static inline bool hidpp_match_error(struct hidpp_report *question,
 	return (answer->fap.feature_index == HIDPP_ERROR) &&
 	    (answer->fap.funcindex_clientid == question->fap.feature_index) &&
 	    (answer->fap.params[0] == question->fap.funcindex_clientid);
+}
+
+/* -------------------------------------------------------------------------- */
+/* HIDP++ 1.0 commands                                                        */
+/* -------------------------------------------------------------------------- */
+
+#define HIDPP_SET_REGISTER				0x80
+#define HIDPP_GET_REGISTER				0x81
+#define HIDPP_SET_LONG_REGISTER				0x82
+#define HIDPP_GET_LONG_REGISTER				0x83
+
+#define HIDPP_REG_PAIRING_INFORMATION			0xB5
+#define DEVICE_NAME					0x40
+
+static char *hidpp_get_unifying_name(struct hidpp_device *hidpp_dev)
+{
+	struct hidpp_report response;
+	int ret;
+	/* hid-logitech-dj is in charge of setting the right device index */
+	u8 params[1] = { DEVICE_NAME };
+	char *name;
+	int len;
+
+	ret = hidpp_send_rap_command_sync(hidpp_dev,
+					REPORT_ID_HIDPP_SHORT,
+					HIDPP_GET_LONG_REGISTER,
+					HIDPP_REG_PAIRING_INFORMATION,
+					params, 1, &response);
+	if (ret)
+		return NULL;
+
+	len = response.rap.params[1];
+
+	name = kzalloc(len + 1, GFP_KERNEL);
+	if (!name)
+		return NULL;
+
+	memcpy(name, &response.rap.params[2], len);
+	return name;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -726,13 +790,21 @@ static int hidpp_raw_event(struct hid_device *hdev, struct hid_report *report,
 	return 0;
 }
 
-static void hidpp_overwrite_name(struct hid_device *hdev)
+static void hidpp_overwrite_name(struct hid_device *hdev, bool use_unifying)
 {
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
 	char *name;
 	u8 name_length;
 
-	name = hidpp_get_device_name(hidpp, &name_length);
+	if (use_unifying)
+		/*
+		 * the device is connected through an Unifying receiver, and
+		 * might not be already connected.
+		 * Ask the receiver for its name.
+		 */
+		name = hidpp_get_unifying_name(hidpp);
+	else
+		name = hidpp_get_device_name(hidpp, &name_length);
 
 	if (!name)
 		hid_err(hdev, "unable to retrieve the name of the device");
@@ -783,11 +855,11 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			goto hid_parse_fail;
 		}
 
-		/* the device is connected, we can ask for its name */
 		hid_info(hdev, "HID++ %u.%u device connected.\n",
 			 hidpp->protocol_major, hidpp->protocol_minor);
-		hidpp_overwrite_name(hdev);
 	}
+
+	hidpp_overwrite_name(hdev, id->group == HID_GROUP_LOGITECH_DJ_DEVICE);
 
 	if (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP) {
 		ret = wtp_get_config(hidpp);
