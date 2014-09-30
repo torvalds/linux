@@ -114,7 +114,7 @@ int uisutil_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
 			     char *format, ...);
 
 int uisctrl_register_req_handler(int type, void *fptr,
-				 ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo);
+				 ULTRA_VBUS_DEVICEINFO *chipset_driver_info);
 int uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 				    const char *switch_type_name,
 				    int (*fptr)(struct io_msgs *),
