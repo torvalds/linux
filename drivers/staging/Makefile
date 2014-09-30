@@ -14,7 +14,6 @@ obj-$(CONFIG_RTL8192U)		+= rtl8192u/
 obj-$(CONFIG_RTL8192E)		+= rtl8192e/
 obj-$(CONFIG_R8712U)		+= rtl8712/
 obj-$(CONFIG_R8188EU)		+= rtl8188eu/
-obj-$(CONFIG_R8192EE)		+= rtl8192ee/
 obj-$(CONFIG_R8723AU)		+= rtl8723au/
 obj-$(CONFIG_RTS5208)		+= rts5208/
 obj-$(CONFIG_LINE6_USB)		+= line6/
