@@ -5965,6 +5965,12 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
 			__kvm_set_rflags(vcpu, kvm_get_rflags(vcpu) |
 					     X86_EFLAGS_RF);
 
+		if (vcpu->arch.exception.nr == DB_VECTOR &&
+		    (vcpu->arch.dr7 & DR7_GD)) {
+			vcpu->arch.dr7 &= ~DR7_GD;
+			kvm_update_dr7(vcpu);
+		}
+
 		kvm_x86_ops->queue_exception(vcpu, vcpu->arch.exception.nr,
 					  vcpu->arch.exception.has_error_code,
 					  vcpu->arch.exception.error_code,
