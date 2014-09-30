@@ -982,8 +982,13 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	if (port < 0)
 		return -EINVAL;
 
-	vhcr->in_modifier = (vhcr->in_modifier & ~0xFF) |
-			    (port & 0xFF);
+	/* Protect against untrusted guests: enforce that this is the
+	 * QUERY_PORT general query.
+	 */
+	if (vhcr->op_modifier || vhcr->in_modifier & ~0xFF)
+		return -EINVAL;
+
+	vhcr->in_modifier = port;
 
 	err = mlx4_cmd_box(dev, 0, outbox->dma, vhcr->in_modifier, 0,
 			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
