@@ -23,7 +23,7 @@
 
 /******* INFO ON ISSUE_POSTCODE_LINUX() BELOW *******/
 #include "vmcallinterface.h"
-typedef enum {		/* POSTCODE driver identifier tuples */
+enum driver_pc {		/* POSTCODE driver identifier tuples */
 	/* visorchipset driver files */
 	VISOR_CHIPSET_PC = 0xA0,
 	VISOR_CHIPSET_PC_controlvm_c = 0xA1,
@@ -58,7 +58,7 @@ typedef enum {		/* POSTCODE driver identifier tuples */
 	UISLIB_PC_uisqueue_c = 0xD2,
 	UISLIB_PC_uisthread_c = 0xD3,
 	UISLIB_PC_uisutils_c = 0xD4,
-} DRIVER_PC;
+};
 
 typedef enum {			/* POSTCODE event identifier tuples */
 	ATTACH_PORT_ENTRY_PC = 0x001,
