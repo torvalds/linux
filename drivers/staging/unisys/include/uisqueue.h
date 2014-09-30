@@ -183,7 +183,7 @@ struct sn_list_entry {
 	struct sn_list_entry *next;
 };
 
-struct networkPolicy {
+struct network_policy {
 	u32 promiscuous:1;
 	u32 macassign:1;
 	u32 peerforwarding:1;
