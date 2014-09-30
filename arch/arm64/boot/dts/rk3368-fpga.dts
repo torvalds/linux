@@ -1,0 +1,71 @@
+/dts-v1/;
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	compatible = "rockchip,rk3368";
+
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	xin24m: xin24m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+		clock-output-names = "xin24m";
+	};
+
+	aliases {
+		serial2 = &uart_dbg;
+	};
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53","arm,armv8";
+			reg = <0x0 0x0>;
+		};
+	};
+
+	chosen {
+		bootargs = "console=ttyS2 earlyprintk=uart8250-32bit,0xff690000";
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
+		clock-frequency = <24000000>;
+	};
+
+	memory@00000000 {
+		device_type = "memory";
+		reg = <0x00000000 0x00000000 0x0 0x20000000>;
+	};
+
+	uart_dbg: serial@ff690000 {
+		compatible = "rockchip,serial";
+		reg = <0x0 0xff690000 0x0 0x100>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <24000000>;
+		clocks = <&xin24m>, <&xin24m>;
+		clock-names = "sclk_uart", "pclk_uart";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+	gic: interrupt-controller@ffb70000 {
+		compatible = "arm,cortex-a15-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		reg = <0x0 0xffb71000 0 0x1000>,
+		      <0x0 0xffb72000 0 0x1000>;
+	};
+};
