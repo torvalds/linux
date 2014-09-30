@@ -792,7 +792,7 @@ static void fix_vbus_devInfo(struct device *dev, int devNo, int devType,
 		stype = "unknown";
 		break;
 	}
-	BusDeviceInfo_Init(&devInfo, stype,
+	bus_device_info_init(&devInfo, stype,
 			   virtpcidrv->name,
 			   virtpcidrv->version,
 			   virtpcidrv->vertag);
@@ -1515,7 +1515,7 @@ static int __init virtpci_mod_init(void)
 		return ret;
 	}
 	DBGINF("bus_register successful\n");
-	BusDeviceInfo_Init(&Bus_DriverInfo, "clientbus", "virtpci",
+	bus_device_info_init(&Bus_DriverInfo, "clientbus", "virtpci",
 			   VERSION, NULL);
 
 	/* create a root bus used to parent all the virtpci buses. */

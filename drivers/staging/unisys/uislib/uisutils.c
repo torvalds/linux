@@ -97,7 +97,7 @@ uisctrl_register_req_handler(int type, void *fptr,
 		return 0;
 	}
 	if (chipset_DriverInfo)
-		BusDeviceInfo_Init(chipset_DriverInfo, "chipset", "uislib",
+		bus_device_info_init(chipset_DriverInfo, "chipset", "uislib",
 				   VERSION, NULL);
 
 	return 1;
@@ -150,7 +150,7 @@ uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 Away:
 	if (rc) {
 		if (chipset_DriverInfo)
-			BusDeviceInfo_Init(chipset_DriverInfo, "chipset",
+			bus_device_info_init(chipset_DriverInfo, "chipset",
 					   "uislib", VERSION, NULL);
 	} else
 		LOGERR("failed to register type %pUL.\n", &switchTypeGuid);

@@ -601,7 +601,7 @@ visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 	if (responders)
 		*responders = BusDev_Responders;
 	if (driverInfo)
-		BusDeviceInfo_Init(driverInfo, "chipset", "visorchipset",
+		bus_device_info_init(driverInfo, "chipset", "visorchipset",
 				   VERSION, NULL);
 
 	up(&NotifierLock);
@@ -625,7 +625,7 @@ visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 	if (responders)
 		*responders = BusDev_Responders;
 	if (driverInfo)
-		BusDeviceInfo_Init(driverInfo, "chipset(bolts)", "visorchipset",
+		bus_device_info_init(driverInfo, "chipset(bolts)", "visorchipset",
 				   VERSION, NULL);
 	up(&NotifierLock);
 }
