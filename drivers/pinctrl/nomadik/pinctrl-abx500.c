@@ -893,12 +893,13 @@ static int abx500_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	unsigned int nconfigs = 0;
 	bool has_config = 0;
 	struct property *prop;
-	const char *group, *gpio_name;
 	struct device_node *np_config;
 
-	ret = of_property_read_string(np, "ste,function", &function);
+	ret = of_property_read_string(np, "function", &function);
 	if (ret >= 0) {
-		ret = of_property_count_strings(np, "ste,pins");
+		const char *group;
+
+		ret = of_property_count_strings(np, "groups");
 		if (ret < 0)
 			goto exit;
 
@@ -907,7 +908,7 @@ static int abx500_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		if (ret < 0)
 			goto exit;
 
-		of_property_for_each_string(np, "ste,pins", prop, group) {
+		of_property_for_each_string(np, "groups", prop, group) {
 			ret = abx500_dt_add_map_mux(map, reserved_maps,
 					num_maps, group, function);
 			if (ret < 0)
@@ -927,6 +928,9 @@ static int abx500_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		has_config |= nconfigs;
 	}
 	if (has_config) {
+		const char *gpio_name;
+		const char *pin;
+
 		ret = of_property_count_strings(np, "ste,pins");
 		if (ret < 0)
 			goto exit;
@@ -937,8 +941,8 @@ static int abx500_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		if (ret < 0)
 			goto exit;
 
-		of_property_for_each_string(np, "ste,pins", prop, group) {
-			gpio_name = abx500_find_pin_name(pctldev, group);
+		of_property_for_each_string(np, "ste,pins", prop, pin) {
+			gpio_name = abx500_find_pin_name(pctldev, pin);
 
 			ret = abx500_dt_add_map_configs(map, reserved_maps,
 					num_maps, gpio_name, configs, 1);
