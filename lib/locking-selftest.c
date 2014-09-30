@@ -267,46 +267,19 @@ GENERATE_TESTCASE(AA_rsem)
 #undef E
 
 /*
- * Special-case for read-locking, they are not allowed to
- * recurse on the same lock class except under interrupt context:
+ * Special-case for read-locking, they are
+ * allowed to recurse on the same lock class:
  */
 static void rlock_AA1(void)
 {
 	RL(X1);
-	RL(X1); // this one should fail
+	RL(X1); // this one should NOT fail
 }
 
 static void rlock_AA1B(void)
 {
 	RL(X1);
-	RL(X2); // this one should fail
-}
-
-static void rlock_AHA1(void)
-{
-	RL(X1);
-	HARDIRQ_ENTER();
-	RL(X1);	// this one should NOT fail
-	HARDIRQ_EXIT();
-}
-
-static void rlock_AHA1B(void)
-{
-	RL(X1);
-	HARDIRQ_ENTER();
-	RL(X2);	// this one should NOT fail
-	HARDIRQ_EXIT();
-}
-
-static void rlock_ASAHA1(void)
-{
-	RL(X1);
-	SOFTIRQ_ENTER();
-	RL(X1);	// this one should NOT fail
-	HARDIRQ_ENTER();
-	RL(X1);	// this one should NOT fail
-	HARDIRQ_EXIT();
-	SOFTIRQ_EXIT();
+	RL(X2); // this one should NOT fail
 }
 
 static void rsem_AA1(void)
@@ -1096,7 +1069,7 @@ static inline void print_testname(const char *testname)
 	print_testname(desc);					\
 	dotest(name##_spin, FAILURE, LOCKTYPE_SPIN);		\
 	dotest(name##_wlock, FAILURE, LOCKTYPE_RWLOCK);		\
-	dotest(name##_rlock, FAILURE, LOCKTYPE_RWLOCK);		\
+	dotest(name##_rlock, SUCCESS, LOCKTYPE_RWLOCK);		\
 	dotest(name##_mutex, FAILURE, LOCKTYPE_MUTEX);		\
 	dotest(name##_wsem, FAILURE, LOCKTYPE_RWSEM);		\
 	dotest(name##_rsem, FAILURE, LOCKTYPE_RWSEM);		\
@@ -1857,14 +1830,14 @@ void locking_selftest(void)
 	printk("  --------------------------------------------------------------------------\n");
 	print_testname("recursive read-lock");
 	printk("             |");
-	dotest(rlock_AA1, FAILURE, LOCKTYPE_RWLOCK);
+	dotest(rlock_AA1, SUCCESS, LOCKTYPE_RWLOCK);
 	printk("             |");
 	dotest(rsem_AA1, FAILURE, LOCKTYPE_RWSEM);
 	printk("\n");
 
 	print_testname("recursive read-lock #2");
 	printk("             |");
-	dotest(rlock_AA1B, FAILURE, LOCKTYPE_RWLOCK);
+	dotest(rlock_AA1B, SUCCESS, LOCKTYPE_RWLOCK);
 	printk("             |");
 	dotest(rsem_AA1B, FAILURE, LOCKTYPE_RWSEM);
 	printk("\n");
@@ -1881,21 +1854,6 @@ void locking_selftest(void)
 	dotest(rlock_AA3, FAILURE, LOCKTYPE_RWLOCK);
 	printk("             |");
 	dotest(rsem_AA3, FAILURE, LOCKTYPE_RWSEM);
-	printk("\n");
-
-	print_testname("recursive rlock with interrupt");
-	printk("             |");
-	dotest(rlock_AHA1, SUCCESS, LOCKTYPE_RWLOCK);
-	printk("\n");
-
-	print_testname("recursive rlock with interrupt #2");
-	printk("             |");
-	dotest(rlock_AHA1B, SUCCESS, LOCKTYPE_RWLOCK);
-	printk("\n");
-
-	print_testname("recursive rlock with interrupt #3");
-	printk("             |");
-	dotest(rlock_ASAHA1, SUCCESS, LOCKTYPE_RWLOCK);
 	printk("\n");
 
 	printk("  --------------------------------------------------------------------------\n");

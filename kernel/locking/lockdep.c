@@ -3597,12 +3597,6 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	raw_local_irq_save(flags);
 	check_flags(flags);
 
-	/*
-	 * An interrupt recursive read in interrupt context can be considered
-	 * to be the same as a recursive read from checking perspective.
-	 */
-	if ((read == 3) && in_interrupt())
-		read = 2;
 	current->lockdep_recursion = 1;
 	trace_lock_acquire(lock, subclass, trylock, read, check, nest_lock, ip);
 	__lock_acquire(lock, subclass, trylock, read, check,
