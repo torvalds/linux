@@ -315,7 +315,7 @@ destroy_bus(CONTROLVM_MESSAGE *msg, char *buf)
 	/* client messages require us to call the virtpci callback associated
 	   with this bus. */
 	cmd.msgtype = GUEST_DEL_VBUS;
-	cmd.del_vbus.busNo = busNo;
+	cmd.del_vbus.bus_no = busNo;
 	if (!VirtControlChanFunc) {
 		LOGERR("CONTROLVM_BUS_DESTROY Failed: virtpci callback not registered.");
 		return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;

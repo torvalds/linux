@@ -417,12 +417,12 @@ delete_vbus(struct del_vbus_guestpart *delparams)
 	struct device *vbus;
 	unsigned char busid[BUS_ID_SIZE];
 
-	GET_BUS_DEV(delparams->busNo);
+	GET_BUS_DEV(delparams->bus_no);
 	/* ensure that bus has no devices? -- TBD */
 	LOGINF("Deleting %s\n", BUS_ID(vbus));
 	if (delete_vbus_device(vbus, NULL))
 		return 0;	/* failure */
-	LOGINF("Deleted vbus %d\n", delparams->busNo);
+	LOGINF("Deleted vbus %d\n", delparams->bus_no);
 	return 1;
 }
 
@@ -620,7 +620,7 @@ static int delete_all_virt(VIRTPCI_DEV_TYPE devtype, struct del_vbus_guestpart *
 	unsigned char busid[BUS_ID_SIZE];
 	struct device *vbus;
 
-	GET_BUS_DEV(delparams->busNo);
+	GET_BUS_DEV(delparams->bus_no);
 
 	if ((devtype != VIRTHBA_TYPE) && (devtype != VIRTNIC_TYPE)) {
 		LOGERR("**** FAILED to delete all devices; devtype:%d not vhba:%d or vnic:%d\n",
