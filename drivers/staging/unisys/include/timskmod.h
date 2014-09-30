@@ -114,7 +114,6 @@
 #define INFODEVX(devno, fmt, args...)     LOGINFDEVX(devno, fmt, ## args)
 #define DEBUGDEV(devname, fmt, args...)   DBGINFDEV(devname, fmt, ## args)
 
-
 /* @} */
 
 /** Verifies the consistency of your PRIVATEDEVICEDATA structure using
