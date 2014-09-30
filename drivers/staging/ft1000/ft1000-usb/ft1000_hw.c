@@ -1040,7 +1040,7 @@ static bool ft1000_receive_cmd(struct ft1000_usb *dev, u16 *pbuffer,
 		for (i = 1; i < 7; i++)
 			tempword ^= *ppseudohdr++;
 
-		if ((tempword != *ppseudohdr))
+		if (tempword != *ppseudohdr)
 			return FALSE;
 
 		return TRUE;
