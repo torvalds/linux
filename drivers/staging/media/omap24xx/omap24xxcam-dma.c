@@ -475,15 +475,13 @@ void omap24xxcam_sgdma_process(struct omap24xxcam_sgdma *sgdma)
 				spin_unlock_irqrestore(&sgdma->lock, flags);
 				return;
 			}
-			unsigned long expires;
 			/* DMA start was successful */
 			sg_state->next_sglist++;
 			sg_state->bytes_read += len;
 			sg_state->queued_sglist++;
 
 			/* We start the reset timer */
-			expires = jiffies + HZ;
-			mod_timer(&sgdma->reset_timer, expires);
+			mod_timer(&sgdma->reset_timer, jiffies + HZ);
 		}
 		queued_sgdma--;
 		sgslot = (sgslot + 1) % NUM_SG_DMA;
