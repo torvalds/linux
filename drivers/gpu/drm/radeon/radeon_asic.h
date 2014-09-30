@@ -433,6 +433,8 @@ void rv6xx_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 						       struct seq_file *m);
 int rv6xx_dpm_force_performance_level(struct radeon_device *rdev,
 				      enum radeon_dpm_forced_level level);
+u32 rv6xx_dpm_get_current_sclk(struct radeon_device *rdev);
+u32 rv6xx_dpm_get_current_mclk(struct radeon_device *rdev);
 /* rs780 dpm */
 int rs780_dpm_init(struct radeon_device *rdev);
 int rs780_dpm_enable(struct radeon_device *rdev);

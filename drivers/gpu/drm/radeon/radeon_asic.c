@@ -1080,6 +1080,8 @@ static struct radeon_asic rv6xx_asic = {
 		.print_power_state = &rv6xx_dpm_print_power_state,
 		.debugfs_print_current_performance_level = &rv6xx_dpm_debugfs_print_current_performance_level,
 		.force_performance_level = &rv6xx_dpm_force_performance_level,
+		.get_current_sclk = &rv6xx_dpm_get_current_sclk,
+		.get_current_mclk = &rv6xx_dpm_get_current_mclk,
 	},
 	.pflip = {
 		.page_flip = &rs600_page_flip,
