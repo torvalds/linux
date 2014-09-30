@@ -998,7 +998,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	uint32_t tmp;
 
 	power_domain = intel_display_port_power_domain(intel_encoder);
-	if (!intel_display_power_enabled(dev_priv, power_domain))
+	if (!intel_display_power_is_enabled(dev_priv, power_domain))
 		return false;
 
 	if (!intel_encoder->get_hw_state(intel_encoder, &pipe))
@@ -1044,7 +1044,7 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	int i;
 
 	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_enabled(dev_priv, power_domain))
+	if (!intel_display_power_is_enabled(dev_priv, power_domain))
 		return false;
 
 	tmp = I915_READ(DDI_BUF_CTL(port));
@@ -1332,7 +1332,7 @@ static bool hsw_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 {
 	uint32_t val;
 
-	if (!intel_display_power_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PLLS))
 		return false;
 
 	val = I915_READ(WRPLL_CTL(pll->id));
@@ -1522,7 +1522,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	}
 
-	if (intel_display_power_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
+	if (intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
 		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
 		if (temp & (AUDIO_OUTPUT_ENABLE_A << (intel_crtc->pipe * 4)))
 			pipe_config->has_audio = true;

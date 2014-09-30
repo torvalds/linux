@@ -716,7 +716,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		}
 
 		for_each_pipe(dev_priv, pipe) {
-			if (!intel_display_power_enabled(dev_priv,
+			if (!intel_display_power_is_enabled(dev_priv,
 						POWER_DOMAIN_PIPE(pipe))) {
 				seq_printf(m, "Pipe %c power disabled\n",
 					   pipe_name(pipe));

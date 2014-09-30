@@ -1083,15 +1083,15 @@ extern struct drm_display_mode *intel_find_panel_downclock(
 
 /* intel_runtime_pm.c */
 int intel_power_domains_init(struct drm_i915_private *);
-void intel_power_domains_remove(struct drm_i915_private *);
+void intel_power_domains_fini(struct drm_i915_private *);
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv);
-void intel_init_runtime_pm(struct drm_i915_private *dev_priv);
-void intel_fini_runtime_pm(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_enable(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_disable(struct drm_i915_private *dev_priv);
 
-bool intel_display_power_enabled(struct drm_i915_private *dev_priv,
-				 enum intel_display_power_domain domain);
-bool intel_display_power_enabled_unlocked(struct drm_i915_private *dev_priv,
-					  enum intel_display_power_domain domain);
+bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
+				    enum intel_display_power_domain domain);
+bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
+				      enum intel_display_power_domain domain);
 void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
 void intel_display_power_put(struct drm_i915_private *dev_priv,

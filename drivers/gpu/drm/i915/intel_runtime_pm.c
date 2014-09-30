@@ -60,8 +60,8 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 		     (HSW_PWR_WELL_ENABLE_REQUEST | HSW_PWR_WELL_STATE_ENABLED);
 }
 
-bool intel_display_power_enabled_unlocked(struct drm_i915_private *dev_priv,
-					  enum intel_display_power_domain domain)
+bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
+				      enum intel_display_power_domain domain)
 {
 	struct i915_power_domains *power_domains;
 	struct i915_power_well *power_well;
@@ -88,8 +88,8 @@ bool intel_display_power_enabled_unlocked(struct drm_i915_private *dev_priv,
 	return is_enabled;
 }
 
-bool intel_display_power_enabled(struct drm_i915_private *dev_priv,
-				 enum intel_display_power_domain domain)
+bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
+				    enum intel_display_power_domain domain)
 {
 	struct i915_power_domains *power_domains;
 	bool ret;
@@ -97,7 +97,7 @@ bool intel_display_power_enabled(struct drm_i915_private *dev_priv,
 	power_domains = &dev_priv->power_domains;
 
 	mutex_lock(&power_domains->lock);
-	ret = intel_display_power_enabled_unlocked(dev_priv, domain);
+	ret = __intel_display_power_is_enabled(dev_priv, domain);
 	mutex_unlock(&power_domains->lock);
 
 	return ret;
@@ -981,8 +981,13 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-void intel_power_domains_remove(struct drm_i915_private *dev_priv)
+void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 {
+	/* The i915.ko module is still not prepared to be loaded when
+	 * the power well is not enabled, so just enable it in case
+	 * we're going to unload/reload. */
+	intel_display_set_init_power(dev_priv, true);
+
 	hsw_pwr = NULL;
 }
 
@@ -1097,7 +1102,7 @@ void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
 	pm_runtime_put_autosuspend(device);
 }
 
-void intel_init_runtime_pm(struct drm_i915_private *dev_priv)
+void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct device *device = &dev->pdev->dev;
@@ -1123,7 +1128,7 @@ void intel_init_runtime_pm(struct drm_i915_private *dev_priv)
 	pm_runtime_put_autosuspend(device);
 }
 
-void intel_fini_runtime_pm(struct drm_i915_private *dev_priv)
+void intel_runtime_pm_disable(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct device *device = &dev->pdev->dev;

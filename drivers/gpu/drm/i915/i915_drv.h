@@ -1411,7 +1411,7 @@ struct ilk_wm_values {
  *
  * Our driver uses the autosuspend delay feature, which means we'll only really
  * suspend if we stay with zero refcount for a certain amount of time. The
- * default value is currently very conservative (see intel_init_runtime_pm), but
+ * default value is currently very conservative (see intel_runtime_pm_enable), but
  * it can be changed with the standard runtime PM files from sysfs.
  *
  * The irqs_disabled variable becomes true exactly after we disable the IRQs and

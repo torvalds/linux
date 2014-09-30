@@ -1798,12 +1798,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_GEN5(dev))
 		intel_gpu_ips_init(dev_priv);
 
-	intel_init_runtime_pm(dev_priv);
+	intel_runtime_pm_enable(dev_priv);
 
 	return 0;
 
 out_power_well:
-	intel_power_domains_remove(dev_priv);
+	intel_power_domains_fini(dev_priv);
 	drm_vblank_cleanup(dev);
 out_gem_unload:
 	WARN_ON(unregister_oom_notifier(&dev_priv->mm.oom_notifier));
@@ -1846,15 +1846,11 @@ int i915_driver_unload(struct drm_device *dev)
 		return ret;
 	}
 
-	intel_fini_runtime_pm(dev_priv);
+	intel_runtime_pm_disable(dev_priv);
 
 	intel_gpu_ips_teardown();
 
-	/* The i915.ko module is still not prepared to be loaded when
-	 * the power well is not enabled, so just enable it in case
-	 * we're going to unload/reload. */
-	intel_display_set_init_power(dev_priv, true);
-	intel_power_domains_remove(dev_priv);
+	intel_power_domains_fini(dev_priv);
 
 	i915_teardown_sysfs(dev);
 

@@ -1210,7 +1210,7 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	    (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
 		state = true;
 
-	if (!intel_display_power_enabled(dev_priv,
+	if (!intel_display_power_is_enabled(dev_priv,
 				POWER_DOMAIN_TRANSCODER(cpu_transcoder))) {
 		cur_state = false;
 	} else {
@@ -6493,8 +6493,8 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
-	if (!intel_display_power_enabled(dev_priv,
-					 POWER_DOMAIN_PIPE(crtc->pipe)))
+	if (!intel_display_power_is_enabled(dev_priv,
+					    POWER_DOMAIN_PIPE(crtc->pipe)))
 		return false;
 
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
@@ -7503,8 +7503,8 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
-	if (!intel_display_power_enabled(dev_priv,
-					 POWER_DOMAIN_PIPE(crtc->pipe)))
+	if (!intel_display_power_is_enabled(dev_priv,
+					    POWER_DOMAIN_PIPE(crtc->pipe)))
 		return false;
 
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
@@ -7902,7 +7902,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	enum intel_display_power_domain pfit_domain;
 	uint32_t tmp;
 
-	if (!intel_display_power_enabled(dev_priv,
+	if (!intel_display_power_is_enabled(dev_priv,
 					 POWER_DOMAIN_PIPE(crtc->pipe)))
 		return false;
 
@@ -7931,7 +7931,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 			pipe_config->cpu_transcoder = TRANSCODER_EDP;
 	}
 
-	if (!intel_display_power_enabled(dev_priv,
+	if (!intel_display_power_is_enabled(dev_priv,
 			POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder)))
 		return false;
 
@@ -7944,7 +7944,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	intel_get_pipe_timings(crtc, pipe_config);
 
 	pfit_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
-	if (intel_display_power_enabled(dev_priv, pfit_domain))
+	if (intel_display_power_is_enabled(dev_priv, pfit_domain))
 		ironlake_get_pfit_config(crtc, pipe_config);
 
 	if (IS_HASWELL(dev))
@@ -11534,7 +11534,7 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 {
 	uint32_t val;
 
-	if (!intel_display_power_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PLLS))
 		return false;
 
 	val = I915_READ(PCH_DPLL(pll->id));
@@ -13165,7 +13165,7 @@ void i915_redisable_vga(struct drm_device *dev)
 	 * level, just check if the power well is enabled instead of trying to
 	 * follow the "don't touch the power well if we don't need it" policy
 	 * the rest of the driver uses. */
-	if (!intel_display_power_enabled(dev_priv, POWER_DOMAIN_VGA))
+	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_VGA))
 		return;
 
 	i915_redisable_vga_power_on(dev);
@@ -13543,8 +13543,8 @@ intel_display_capture_error_state(struct drm_device *dev)
 
 	for_each_pipe(dev_priv, i) {
 		error->pipe[i].power_domain_on =
-			intel_display_power_enabled_unlocked(dev_priv,
-							   POWER_DOMAIN_PIPE(i));
+			__intel_display_power_is_enabled(dev_priv,
+							 POWER_DOMAIN_PIPE(i));
 		if (!error->pipe[i].power_domain_on)
 			continue;
 
@@ -13579,7 +13579,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 		enum transcoder cpu_transcoder = transcoders[i];
 
 		error->transcoder[i].power_domain_on =
-			intel_display_power_enabled_unlocked(dev_priv,
+			__intel_display_power_is_enabled(dev_priv,
 				POWER_DOMAIN_TRANSCODER(cpu_transcoder));
 		if (!error->transcoder[i].power_domain_on)
 			continue;
