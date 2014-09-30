@@ -554,6 +554,20 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		else
 			*value = 0;
 		break;
+	case RADEON_INFO_CURRENT_GPU_SCLK:
+		/* get sclk in Mhz */
+		if (rdev->pm.dpm_enabled)
+			*value = radeon_dpm_get_current_sclk(rdev) / 100;
+		else
+			*value = rdev->pm.current_sclk / 100;
+		break;
+	case RADEON_INFO_CURRENT_GPU_MCLK:
+		/* get mclk in Mhz */
+		if (rdev->pm.dpm_enabled)
+			*value = radeon_dpm_get_current_mclk(rdev) / 100;
+		else
+			*value = rdev->pm.current_mclk / 100;
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
