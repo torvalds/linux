@@ -601,7 +601,7 @@ static int mei_txe_readiness_wait(struct mei_device *dev)
 	return 0;
 }
 
-const struct mei_fw_status mei_txe_fw_sts = {
+static const struct mei_fw_status mei_txe_fw_sts = {
 	.count = 2,
 	.status[0] = PCI_CFG_TXE_FW_STS0,
 	.status[1] = PCI_CFG_TXE_FW_STS1
