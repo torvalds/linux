@@ -886,14 +886,12 @@ static int ioda_eeh_get_pe(struct pci_controller *hose,
 	 * the master PE because slave PE is invisible
 	 * to EEH core.
 	 */
-	if (phb->get_pe_state) {
-		pnv_pe = &phb->ioda.pe_array[pe_no];
-		if (pnv_pe->flags & PNV_IODA_PE_SLAVE) {
-			pnv_pe = pnv_pe->master;
-			WARN_ON(!pnv_pe ||
-				!(pnv_pe->flags & PNV_IODA_PE_MASTER));
-			pe_no = pnv_pe->pe_number;
-		}
+	pnv_pe = &phb->ioda.pe_array[pe_no];
+	if (pnv_pe->flags & PNV_IODA_PE_SLAVE) {
+		pnv_pe = pnv_pe->master;
+		WARN_ON(!pnv_pe ||
+			!(pnv_pe->flags & PNV_IODA_PE_MASTER));
+		pe_no = pnv_pe->pe_number;
 	}
 
 	/* Find the PE according to PE# */
@@ -904,14 +902,36 @@ static int ioda_eeh_get_pe(struct pci_controller *hose,
 	if (!dev_pe)
 		return -EEXIST;
 
-	/*
-	 * At this point, we're sure the compound PE should
-	 * be put into frozen state.
-	 */
+	/* Freeze the (compound) PE */
 	*pe = dev_pe;
-	if (phb->freeze_pe &&
-	    !(dev_pe->state & EEH_PE_ISOLATED))
+	if (!(dev_pe->state & EEH_PE_ISOLATED))
 		phb->freeze_pe(phb, pe_no);
+
+	/*
+	 * At this point, we're sure the (compound) PE should
+	 * have been frozen. However, we still need poke until
+	 * hitting the frozen PE on top level.
+	 */
+	dev_pe = dev_pe->parent;
+	while (dev_pe && !(dev_pe->type & EEH_PE_PHB)) {
+		int ret;
+		int active_flags = (EEH_STATE_MMIO_ACTIVE |
+				    EEH_STATE_DMA_ACTIVE);
+
+		ret = eeh_ops->get_state(dev_pe, NULL);
+		if (ret <= 0 || (ret & active_flags) == active_flags) {
+			dev_pe = dev_pe->parent;
+			continue;
+		}
+
+		/* Frozen parent PE */
+		*pe = dev_pe;
+		if (!(dev_pe->state & EEH_PE_ISOLATED))
+			phb->freeze_pe(phb, dev_pe->addr);
+
+		/* Next one */
+		dev_pe = dev_pe->parent;
+	}
 
 	return 0;
 }
