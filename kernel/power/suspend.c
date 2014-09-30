@@ -265,10 +265,15 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	if (error)
 		goto Platform_finish;
 
-	error = dpm_suspend_end(PMSG_SUSPEND);
+	error = dpm_suspend_late(PMSG_SUSPEND);
 	if (error) {
-		printk(KERN_ERR "PM: Some devices failed to power down\n");
+		printk(KERN_ERR "PM: late suspend of devices failed\n");
 		goto Platform_finish;
+	}
+	error = dpm_suspend_noirq(PMSG_SUSPEND);
+	if (error) {
+		printk(KERN_ERR "PM: noirq suspend of devices failed\n");
+		goto Devices_early_resume;
 	}
 	error = platform_suspend_prepare_late(state);
 	if (error)
@@ -319,7 +324,10 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 
  Platform_wake:
 	platform_suspend_wake(state);
-	dpm_resume_start(PMSG_RESUME);
+	dpm_resume_noirq(PMSG_RESUME);
+
+ Devices_early_resume:
+	dpm_resume_early(PMSG_RESUME);
 
  Platform_finish:
 	platform_suspend_finish(state);
