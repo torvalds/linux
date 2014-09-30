@@ -2642,10 +2642,12 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 		set_bit(In_sync, &rdev->flags);
 		err = 0;
 	} else if (cmd_match(buf, "-insync") && rdev->raid_disk >= 0) {
-		clear_bit(In_sync, &rdev->flags);
-		rdev->saved_raid_disk = rdev->raid_disk;
-		rdev->raid_disk = -1;
-		err = 0;
+		if (rdev->mddev->pers == NULL) {
+			clear_bit(In_sync, &rdev->flags);
+			rdev->saved_raid_disk = rdev->raid_disk;
+			rdev->raid_disk = -1;
+			err = 0;
+		}
 	} else if (cmd_match(buf, "write_error")) {
 		set_bit(WriteErrorSeen, &rdev->flags);
 		err = 0;
