@@ -366,7 +366,6 @@ static void raid10_end_read_request(struct bio *bio, int error)
 	struct md_rdev *rdev;
 	struct r10conf *conf = r10_bio->mddev->private;
 
-
 	slot = r10_bio->read_slot;
 	dev = r10_bio->devs[slot].devnum;
 	rdev = r10_bio->devs[slot].rdev;
@@ -1559,7 +1558,6 @@ static void make_request(struct mddev *mddev, struct bio *bio)
 
 	md_write_start(mddev, bio);
 
-
 	do {
 
 		/*
@@ -1782,7 +1780,6 @@ static int raid10_spare_active(struct mddev *mddev)
 	return count;
 }
 
-
 static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct r10conf *conf = mddev->private;
@@ -1928,7 +1925,6 @@ abort:
 	print_conf(conf);
 	return err;
 }
-
 
 static void end_sync_read(struct bio *bio, int error)
 {
@@ -2294,7 +2290,6 @@ static void recovery_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 		generic_make_request(wbio2);
 	}
 }
-
 
 /*
  * Used by fix_read_error() to decay the per rdev read_errors.
@@ -2851,7 +2846,6 @@ static void raid10d(struct md_thread *thread)
 	}
 	blk_finish_plug(&plug);
 }
-
 
 static int init_resync(struct r10conf *conf)
 {
@@ -3776,7 +3770,6 @@ static int run(struct mddev *mddev)
 		blk_queue_merge_bvec(mddev->queue, raid10_mergeable_bvec);
 	}
 
-
 	if (md_integrity_register(mddev))
 		goto out_free_conf;
 
@@ -4576,7 +4569,6 @@ static void end_reshape(struct r10conf *conf)
 	}
 	conf->fullsync = 0;
 }
-
 
 static int handle_reshape_read_error(struct mddev *mddev,
 				     struct r10bio *r10_bio)

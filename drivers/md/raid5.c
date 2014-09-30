@@ -463,7 +463,6 @@ static inline void insert_hash(struct r5conf *conf, struct stripe_head *sh)
 	hlist_add_head(&sh->hash, hp);
 }
 
-
 /* find an idle stripe, make sure it is unhashed, and return it. */
 static struct stripe_head *get_free_stripe(struct r5conf *conf, int hash)
 {
@@ -539,7 +538,6 @@ retry:
 	sh->sector = sector;
 	stripe_set_idx(sector, conf, previous, sh);
 	sh->state = 0;
-
 
 	for (i = sh->disks; i--; ) {
 		struct r5dev *dev = &sh->dev[i];
@@ -1347,7 +1345,6 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 		}
 	}
 }
-
 
 static void ops_complete_prexor(void *stripe_head_ref)
 {
@@ -2417,7 +2414,6 @@ static sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
 	return new_sector;
 }
 
-
 static sector_t compute_blocknr(struct stripe_head *sh, int i, int previous)
 {
 	struct r5conf *conf = sh->raid_conf;
@@ -2434,7 +2430,6 @@ static sector_t compute_blocknr(struct stripe_head *sh, int i, int previous)
 	int dummy1, dd_idx = i;
 	sector_t r_sector;
 	struct stripe_head sh2;
-
 
 	chunk_offset = sector_div(new_sector, sectors_per_chunk);
 	stripe = new_sector;
@@ -2538,7 +2533,6 @@ static sector_t compute_blocknr(struct stripe_head *sh, int i, int previous)
 	}
 	return r_sector;
 }
-
 
 static void
 schedule_reconstruction(struct stripe_head *sh, struct stripe_head_state *s,
@@ -3011,7 +3005,6 @@ static void handle_stripe_fill(struct stripe_head *sh,
 	set_bit(STRIPE_HANDLE, &sh->state);
 }
 
-
 /* handle_stripe_clean_event
  * any written block on an uptodate or failed drive can be returned.
  * Note that if we 'wrote' to a failed drive, it will be UPTODATE, but
@@ -3301,7 +3294,6 @@ static void handle_parity_checks5(struct r5conf *conf, struct stripe_head *sh,
 		BUG();
 	}
 }
-
 
 static void handle_parity_checks6(struct r5conf *conf, struct stripe_head *sh,
 				  struct stripe_head_state *s,
@@ -3937,7 +3929,6 @@ static void handle_stripe(struct stripe_head *sh)
 			}
 		}
 
-
 	/* Finish reconstruct operations initiated by the expansion process */
 	if (sh->reconstruct_state == reconstruct_state_result) {
 		struct stripe_head *sh_src
@@ -4135,7 +4126,6 @@ static int raid5_mergeable_bvec(struct request_queue *q,
 		return max;
 }
 
-
 static int in_chunk_boundary(struct mddev *mddev, struct bio *bio)
 {
 	sector_t sector = bio->bi_iter.bi_sector + get_start_sect(bio->bi_bdev);
@@ -4165,7 +4155,6 @@ static void add_bio_to_retry(struct bio *bi,struct r5conf *conf)
 	md_wakeup_thread(conf->mddev->thread);
 }
 
-
 static struct bio *remove_bio_from_retry(struct r5conf *conf)
 {
 	struct bio *bi;
@@ -4188,7 +4177,6 @@ static struct bio *remove_bio_from_retry(struct r5conf *conf)
 
 	return bi;
 }
-
 
 /*
  *  The "raid5_align_endio" should check if the read succeeded and if it
@@ -4222,7 +4210,6 @@ static void raid5_align_endio(struct bio *bi, int error)
 		return;
 	}
 
-
 	pr_debug("raid5_align_endio : io error...handing IO for a retry\n");
 
 	add_bio_to_retry(raid_bi, conf);
@@ -4246,7 +4233,6 @@ static int bio_fits_rdev(struct bio *bi)
 
 	return 1;
 }
-
 
 static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
 {
@@ -5444,7 +5430,6 @@ raid5_skip_copy = __ATTR(skip_copy, S_IRUGO | S_IWUSR,
 					raid5_show_skip_copy,
 					raid5_store_skip_copy);
 
-
 static ssize_t
 stripe_cache_active_show(struct mddev *mddev, char *page)
 {
@@ -5896,7 +5881,6 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 		return ERR_PTR(-ENOMEM);
 }
 
-
 static int only_parity(int raid_disk, int algo, int raid_disks, int max_degraded)
 {
 	switch (algo) {
@@ -5909,7 +5893,7 @@ static int only_parity(int raid_disk, int algo, int raid_disks, int max_degraded
 			return 1;
 		break;
 	case ALGORITHM_PARITY_0_6:
-		if (raid_disk == 0 || 
+		if (raid_disk == 0 ||
 		    raid_disk == raid_disks - 1)
 			return 1;
 		break;
@@ -6162,7 +6146,6 @@ static int run(struct mddev *mddev)
 		mddev->sync_thread = md_register_thread(md_do_sync, mddev,
 							"reshape");
 	}
-
 
 	/* Ok, everything is just fine now */
 	if (mddev->to_remove == &raid5_attrs_group)
@@ -6812,7 +6795,6 @@ static void raid5_quiesce(struct mddev *mddev, int state)
 	}
 }
 
-
 static void *raid45_takeover_raid0(struct mddev *mddev, int level)
 {
 	struct r0conf *raid0_conf = mddev->private;
@@ -6838,7 +6820,6 @@ static void *raid45_takeover_raid0(struct mddev *mddev, int level)
 
 	return setup_conf(mddev);
 }
-
 
 static void *raid5_takeover_raid1(struct mddev *mddev)
 {
@@ -6899,7 +6880,6 @@ static void *raid5_takeover_raid6(struct mddev *mddev)
 	mddev->raid_disks -= 1;
 	return setup_conf(mddev);
 }
-
 
 static int raid5_check_reshape(struct mddev *mddev)
 {
@@ -7048,7 +7028,6 @@ static void *raid6_takeover(struct mddev *mddev)
 	mddev->raid_disks += 1;
 	return setup_conf(mddev);
 }
-
 
 static struct md_personality raid6_personality =
 {
