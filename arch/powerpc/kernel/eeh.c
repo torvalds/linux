@@ -542,17 +542,16 @@ EXPORT_SYMBOL_GPL(eeh_dev_check_failure);
 
 /**
  * eeh_check_failure - Check if all 1's data is due to EEH slot freeze
- * @token: I/O token, should be address in the form 0xA....
- * @val: value, should be all 1's (XXX why do we need this arg??)
+ * @token: I/O address
  *
- * Check for an EEH failure at the given token address.  Call this
+ * Check for an EEH failure at the given I/O address. Call this
  * routine if the result of a read was all 0xff's and you want to
- * find out if this is due to an EEH slot freeze event.  This routine
+ * find out if this is due to an EEH slot freeze event. This routine
  * will query firmware for the EEH status.
  *
  * Note this routine is safe to call in an interrupt context.
  */
-unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned long val)
+int eeh_check_failure(const volatile void __iomem *token)
 {
 	unsigned long addr;
 	struct eeh_dev *edev;
@@ -562,13 +561,11 @@ unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned lon
 	edev = eeh_addr_cache_get_dev(addr);
 	if (!edev) {
 		eeh_stats.no_device++;
-		return val;
+		return 0;
 	}
 
-	eeh_dev_check_failure(edev);
-	return val;
+	return eeh_dev_check_failure(edev);
 }
-
 EXPORT_SYMBOL(eeh_check_failure);
 
 
