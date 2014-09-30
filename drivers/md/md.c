@@ -6559,11 +6559,8 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	/*
 	 * The remaining ioctls are changing the state of the
 	 * superblock, so we do not allow them on read-only arrays.
-	 * However non-MD ioctls (e.g. get-size) will still come through
-	 * here and hit the 'default' below, so only disallow
-	 * 'md' ioctls, and switch to rw mode if started auto-readonly.
 	 */
-	if (_IOC_TYPE(cmd) == MD_MAJOR && mddev->ro && mddev->pers) {
+	if (mddev->ro && mddev->pers) {
 		if (mddev->ro == 2) {
 			mddev->ro = 0;
 			sysfs_notify_dirent_safe(mddev->sysfs_state);
